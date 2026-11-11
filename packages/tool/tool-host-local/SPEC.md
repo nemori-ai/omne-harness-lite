@@ -122,10 +122,19 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - 来源核验经构造参数 `verifier` 注入，形状与 Cordis 服务 `toolContributionAuthority` 相同（`verify`、`admits`）。本包不提供核验实现，也不提供默认放行：未注入时 `register` 回复 `unavailable`。核验失败的回复（`denied`、`invalid`、`unavailable`）原样返回，不留部分登记。
 - `register` 在一个同步步骤里完成来源核验、登记资格核验、键与形状核对、同键判定与写入，所以这一步就是本地排序域。调用方 fiber 由构造参数 `fiber()` 给出；它返回 null 时回复 `unavailable`。`retire(fiber)` 撤除该 fiber 的全部贡献，之后该 fiber 的登记回复 `unavailable`。
 - 登记键冲突按 G7：同一 fiber、同一装载 digest（`loaded.executor.digest`）认回原贡献，其他情形回复 `conflict`。`release` 只按自己的 token 撤除。登记序号单调递增，token 不重复。
-- `snapshot` 与 Catalog 按来源层判定可见：`official` 对任何合法租户可见，`organization` 要同组织，`tenant` 要同租户，`workspace` 对任何租户范围都不可见（本包不读取工作区授权）。无法证明合法的租户得到 `unavailable`，不得到空列表。
+- registry 的 `snapshot` 与 Catalog 所读 live contribution 按来源层判定可见：`official` 对任何合法租户可见，`organization` 要同组织，`tenant` 要同租户，`workspace` 对任何租户范围都不可见（本包不读取工作区授权）。无法证明合法的租户得到 `unavailable`，不得到空列表。当前 view 所携带的已知定义是采用拥有者保管的普通数据，其披露资格由受信 scoped view 负责核验；不能从 key、定义内容或 registry 的来源层推导资格。
 - `pins` 与 `drain` 数尚未释放的持有。`createLocalToolBindings.resolve` 通过 `selectAndPin` 原子选择并持有装载句柄；作者结束且事实全部确认后释放。`recover` 只认回本进程保留的执行，见[作者装载与执行绑定](#作者装载与执行绑定)。
-- Catalog 只列出 `live` 的贡献。同名的多份贡献取登记序号最小的一份。`inspect` 对不存在的名字与只有他租户登记的名字给出同一个回复（`invalid`，`unknown-tool`），不泄露存在性。`search` 按名字排序、每个名字一项，游标是上一页最后一项的名字，所以翻页期间新登记的工具不会让已发出的游标重复或漏项。可用性由注入的 `availability` 端口给出已核验的事实（资格、依赖、输入输出与附件兼容），Catalog 不从调用方取事实；端口不可答时回复 `unavailable`，不当作可用。
+- Catalog 先读应用提供的 `view`，再将其精确的来源层和资产版本与当前租户可见的 `live` 贡献求交。同名取登记序号最小的一份。没有同名 live 贡献时，可使用 view 当前保管的 `knownDefinition`。未纳入、不可披露与没有合法定义的名字都回复 `invalid/unknown-tool`。`view` 为 null 或来源异常时回复 `unavailable`，来源失败原样保留，不用空列表代替。
+- view entry 的可选 `knownDefinition: ToolDefinition` 是当前受信采用拥有者依法保留的普通数据，不带 executor 或活体能力。Catalog 复用定义校验器读取冻结副本，核对 name 与 adoption 均匹配该 entry 的 key。定义不合法或不匹配时回复 `invalid`。省略此字段保持原行为。缺 live 的已知定义由 inspect 和 direct search 返回 `known-unavailable`，原因说明实现不在登记表中。它不会因 availability 允许而成为 available，programmatic 搜索也不返回它。usage 仍须取得当前 availability 的 qualification allowed，才能描述该定义。
+- `view.scope` 是应用核验的租户、主体及会话范围证据，`revision` 固定纳入和披露材料版本。Catalog 不导入 Session 或 Runtime Context。`availability` 只提供可用性事实，不产生披露资格。已被 view 精确纳入的非常驻 `known-unavailable` 可在 direct 搜索中返回。programmatic 只索引非常驻、available 且显式 programmable 的项。search 按本次 view 的 resident 事实排除常驻项，不按名称硬编码；inspect 与 usage 仍可查询合法常驻项。保留搜索结果的 resident 字段形状，返回项为 false。
+- 每次 inspect、usage 与 search 的异步判断结束后重读 view，比较 scope、revision 及 entries，包括已知定义的完整元数据。发生变化时首屏回复 `unavailable`，续页回复 `invalid-cursor`。重读后同步重取合法登记列表，比较 ordinal、state、定义、装载摘要和 executor 等元数据。登记换代也按首屏 unavailable、续页 invalid-cursor 拒绝，不能混合旧判断与新绑定。最后比较与构造结果之间没有异步步骤。这是两次观察的一致性检查，不承诺补齐 RC #677 的同步撤权边界。
+- search 在 BM25 语料统计、排序和分页之前排除常驻项，只对合法非常驻语料评分。每工具一篇文档，只索引名称、描述、命令名称及摘要。BM25 使用正 IDF `log(1+(N-df+0.5)/(df+0.5))`，没有字段或调用历史加权。得分相同按名称的 UTF-16 顺序排列。空白查询按名称列举，非空但没有 token 或没有命中时返回空页。全是常驻项时成功返回空页，来源缺失或失败仍返回失败。resident 事实改变会使旧游标失效，即使 view.revision 没变。
+- 分词采用 NFKC，拆分 camelCase 与下划线并保留完整标识。中文连续片段生成单字及相邻双字，其余字母数字连续分词。索引与查询共用版本 1 规则，查询 token 去重。
+- 构造者显式提供 search 的 k1、b 与 maxCachedCorpora。k1 必须有限且大于零，b 必须有限且在闭区间 [0,1]，容量必须为正安全整数。非法配置抛 TypeError。常用配置为 k1=1.2、b=0.75，应用拥有具体取值。
+- 每个目录实例持有有界 LRU，只缓存不可变分词、词频、文档频率和长度。缓存键包含完整合法非常驻排序材料与分词评分配置。文本或 resident 变化使参与语料改变时重建；仅定义或执行采用等元数据变更而排序材料不变时复用数学结构，结果始终关联本次条目。缓存不持有 principal、许可或执行对象，每次访问仍核 view 和 availability。
+- 版本 2 游标是最长 192 字符的规范 base64url JSON，绑定规范查询、view、完整合法元数据、排序材料、consumer、invocation 及位置。任何绑定变化、非法编码或越界位置都回复 invalid-cursor。游标不授予权限，不采用 HMAC，旧版本没有兼容承诺。合法语料外的登记不影响排名与分页。已知定义元数据变化或贡献退役也使旧游标失效，即使 view.revision 不变。
 - 执行者命令的用法文本与协议不在定义里，`usage` 对它回复 `unavailable`，不编造。
+- 已知定义只在本次 view 中有效。撤出 view 后不再披露，Catalog 不按 scope 保存历史或跨调用补回定义。采用拥有者负责定义的合法取得与保管。应用当前发行 generation 的保管和跨发行历史是不同保证，本读路径不提供耐久采用历史。
 
 已知限制：登记不耐久，只在单进程内成立；没有核验器的生产提供者（归应用装配）；工作区层不可见；`./cordis` 已提供运行时组合工厂，真实外域提供者由应用装配负责。
 
@@ -142,6 +151,22 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 `createAbsentToolPorts` 返回 `toolDecisions`、`toolResourceResponses`、`toolChildren`。每个方法回复 `unavailable`，`dependency` 是端口名，`diagnostic` 写明被问的操作（`<端口>.<方法>`）。不抛出，不回复空成功。这三个端口在 M2 之后由各自的提供者取代。`toolOutputCustody` 不属于缺席端口，本包也不提供它。
 
 ## 账本守卫（TL-11）
+
+### 原来源资格观察
+
+`createLocalInvocationQualifier` 与原签发器消费相同 store、authority、principalCodec 及 forwarding 装配，返回独立的 `qualify` 端口。它冻结请求数据，再执行原来源 guard；不能跳过同主体核验、原 admission、完整固定请求或转发父证明。原 principal 仍由 Identity 拥有，不克隆或序列化为活凭据。
+
+资格结果的 `origin` 保存获验原始调用的 call、admission 和完整固定请求。直接调用返回自身。转发返回原 guard 核验的父调用；应用不得从记录私有布局推断它。只有完整来源核验成功才发布 origin，且原记录集合仍须在消费事务中核回。origin 不证明 Agent 采用；该关联由 Agent 拥有者提供。
+
+租户标识是 legal-identity 签发的不可变值。资格读取保留该值用于原 guard 和返回观察，不用结构克隆替代它；深拷贝仅作用于普通请求数据。应用持久化观察时通过身份域公开 codec 生成租户文本。
+
+成功结果含 version、获验请求及原记录的地址和完整摘要，不授予执行许可。直接调用观察一条原 host binding，即使 call 尚未创建也成立；转发观察子 binding、原父 call、父 binding。观察只来自 guard 实际读取的记录。同一主键在一次核验中出现不同内容时答 unavailable，不混合不同快照。读取或解码失败不泄漏异常原文；伪造来源或错主体答 denied。
+
+转发核验调用原启动权威的 `inspect`，沿用它的未知与排除语义。本工厂不另行写启动状态；不能把包含该外部查询的整条链称为无副作用的纯函数。
+
+此结果供受信应用核对原调用的来源与归属。它不保证资格读取后记录不变，不自行提交权限，也不替代 Identity、启动资格等外部拥有者的 current 检查。原源码和精确类型归 [invocation-qualification.ts](src/invocation-qualification.ts)，行为守护归 [invocation-qualification.spec.ts](tests/invocation-qualification.spec.ts)。
+
+### 守卫装配
 
 账本在构造时固定一份守卫快照 `ToolLedgerGuards`。本包给出它的八项生产件和一个组装函数。全部是纯工厂：不建记录仓，不持有跨调用的状态，不导入 Cordis 与任何 `testing` 入口。资格裁定、主体比较与主体编码归其他拥有者，以函数参数进入；测试用替身，装配用真件。
 
@@ -245,3 +270,47 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 ## 具名偏离：热换代作者保留
 
 按 [R2-D63](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6591819035)，本批只保证首次装载，以及 Reader 仍在但读取失败时保留贡献。持有者存在时热撤 Reader、协调者换代不撤作者的完整配对留在波 3。当前服务撤除会由 Cordis 卸载作者，贡献随之丢失；不宣称冻结契约的热换代保留义务已经兑现。上游 tool-cordis-contract/docs/cordis.md 的完整目标保持不变，不能把本偏离当作对其改写。
+
+## 单目标转发来源与保管
+
+`createLocalInvocationSource` 可选的 forwarding 配置提供惰性 start authority 与精确发行采用判定 isParent。缺少配置只禁用转发，普通调用保持原行为。来源逐次核父 CallRecord、完整 request/start、原主体和当前 consumer 资格，并要求 authority.inspect 证实 consume.started。prepared start 本身不授予转发。父历史 settled 不阻止原槽恢复与结果接收。
+
+同一父调用只有 execute 槽。consumer owner 固定为 `@omne-harness/tool-host-local/tools-forwarding`，work 是父 call，position 为 execute，purpose 为 tools-target。普通 issuer 在读取关联前拒绝该 owner。来源自己生成 consumer；应用 prepareTarget 只提供业务目标。目标 scope、requesterScope、context、workspace、resources、limits 与 mode 继承父请求，batchDecision 为 null。目标 settings 和 environment 来自目标采用。
+
+原槽、父证明、完整固定目标与 principal 在既有 invocation-source host 域同一次 CAS 提交。已存槽优先认回，不以最新设置替换。received 更新保留全部原字段。recoverBinding 只读取与 tenant/call/admission/完整固定请求匹配的持久主体投影，核 direct 原 mint 或 forwarded 记录摘要；它不返回活凭据，不做当前资格授予。运行时据该投影向身份拥有者重新取得会话工作主体，再调用 guard 核原主体、direct 来源或 forwarded 父证明及当前资格。任何一步失败均不启动 driver；不把转发恢复成 direct。当前 programmatic 启动仍受 M2 拒绝限制。
+
+source.receiver 在同一关联内保存完整交付和 saved 证据。接收先核当前资格、原目标引用、完整 consumer 与交付关系。只有 durable store 确认提交后才 saved。提交未知回复 outcome-unknown，生产者保留 owed。读回比较实际 payload 摘要和原键，并核 receiver evidence，不能只相信 stored digest。result、late version 与 account 的键分开。
+
+`createLocalToolForwarding` 惰性取得 runtime、forwarding、catalog、consumer profile、目标 prepare 与 reader。source/admission 尝试受正安全整数 attemptMs 约束。目标观察预算为零，只查一次状态，未 settled 即 pending。预算或父 abort 只结束等待，provider 继续承担已经发起的 promise。scope.finish 关闭新调用和等待，不发送 stop。provider.close 禁新工作、关闭 attachment 的等待并等待在途操作收口，返回 pending 与仍未知的原父数量。close 不能证明未知准入已撤销。
+
+execute 在入口核 live 与原固定 intent 并启动 provider work 后，provider 就承担该次 prepare、来源关联和准入。父 finish、abort 或观察超时不取消这项工作。继续时使用父固定请求解出的原意图，不因调用方随后修改参数而改目标。close 先禁新方法并结束观察，再等待已接受 work 收口。
+
+如果已经向调用方回复 association-unknown，晚到的 prepare 明确失败而未写入来源槽，原父 forwarding 引用仍无持久终局可查。当前实现保留这项未知，不创建失败台账，也不自动建立新槽。close 可返回 pending 为 0、unknown 大于 0；进程内 work 已结束不表示外部引用已解决。unresolved 集合只记录本 provider 已发出的未知引用，后续原槽确认才清除，不是效果或失败权威，也不提供全局重启扫描。
+
+运行时 composition 对普通和 forwarded source 共用 known-call 预约，并在 provider facade 注册独立 receiver。host capacity 至少 2 才能同时拥有父与目标；capacity 为 1 明确 unavailable。资源并发为 1 时目标可排队，父返回 pending 后释放资源，目标继续推进。全局重启扫描仍未支持，恢复限于已知原引用。
+
+验证资源是 [来源反例](tests/forwarding.spec.ts)、[接收故障](tests/forwarding-receiver.spec.ts)、[能力收场](tests/forwarding-capability.spec.ts) 和 [组合验证](tests/runtime-composition/forwarding.spec.ts)。组合测试使用真实 Cordis、ledger、启动协调器和执行绑定，存储及外部环境是显式替身，不证明真实耐久或跨进程运行。
+
+## 目标请求当前资格
+
+host-only `ToolRequestAccess.qualify` 接收真实 CallAccess 与完整 FixedToolRequest，返回当前 `RequestAccessVerdict`。`allowed` 带 `condition`，值是一个启动条件或 `null`。应用拥有规则解释和当前代次。ToolHostAccess.request 可配置该端口，装配将同一端口传给 local start guard 与 coordinator 的 requestAccess。未配置时保留独立提供者的既有行为。配置后缺答复、坏答复、`allowed` 缺 `condition` 或抛错均为 unavailable，不获得启动资格。
+
+start guard 先保留 M2 programmatic 围栏，再核当前调用身份，最后核目标策略。策略 denied 为 refused。coordinator 在 prepare 和 consume 的每次 CAS 重试中，于当前调用身份核验后、permitRequirements 前重问目标策略。prepare 的 denied 直接拒绝；consume 的 denied 用既有 rejected 与 exclusion 保存未启动事实，unavailable 保留 unknown，不写 acceptance。
+
+启动条件（`StartCondition`）是策略随放行给出的一个值。宿主不读它的内容。consume 的放行带条件时，coordinator 把 acceptance 的账本写入与条件交给 `ConditionalLedgerCommit` 一次提交：两者在一个事务里一起成立，或都不成立。条件不成立时该端口答 `condition-failed`，没有任何写入；coordinator 按修订冲突的同一条路径重读账本、重问策略，再决定放行或拒绝。连续 `commitAttempts` 次不成立答 unavailable，不写 acceptance。放行不带条件（`null`）时沿用普通账本提交。prepare 与 start guard 只用放行与否，不提交条件。coordinator 的 `requestAccess` 把策略与这个提交端口成对接收，所以不存在有条件而没有提交端口的装配。runtime 装配的 `conditionalCommit` 是必填项。
+
+consume 与 inspect 先认回原 started 或 rejected 历史，不用新规则改写既成事实。新增策略不撤销已发生副作用。条件覆盖的范围由给出条件的策略决定；条件之外的外部撤权不与存储提交原子同步。验证见 [请求策略反例](tests/request-access.spec.ts) 和 [真实执行绑定组合](tests/runtime-composition/forwarding.spec.ts)。
+
+## Web 提供者（`./web` 子路径）
+
+`@omne-harness/tool-host-local/web` 导出 `createWebAccess({ search, fetch, exaKey })`，返回 `@omne-harness/tool-definitions` 拥有的 `WebAccess`。它是 Web 作者窄口的单机实现：本机 fetch 加 Exa `/search` 客户端。入口不导入 Cordis；应用在每次调用上附着返回值。
+
+- `exaKey` 返回本次调用对搜索 key 的受限能力（`ToolCredentialCapability<string>`）。提供者不读环境变量，不保存 key；key 只在 `use` 回调里交给一次 Exa 请求。凭据失败的映射：`missing` 为 `unconfigured`，`denied` 为 `denied`，`invalid` 与 `unavailable` 为 `unavailable`（诊断只含字段名或依赖名，不含秘密）。`missing` 时不发出任何请求。
+- Exa：POST `search.endpoint`，头 `x-api-key`，体 `{ query, type, numResults, contents.highlights.maxCharacters }`。200 的答复在边界用 zod 解析成条目：标题缺省为网址，摘录是高亮拼接后按 `highlightChars` 个字符截断，发布时间缺省不出现。零条是成功的空数组。HTTP 401 为 `denied`，402 为 `quota-exhausted`，429 为 `rate-limited`，其余非 2xx 为 `upstream`（带 status）。请求不跟随重定向：任何 3xx 同样答 `upstream`（带 status），不发第二次请求，key 不发往第二个地址。答复不是 JSON、形状不对或媒体类型不是 JSON 时为 `unavailable`（带诊断）；答复超过 4 MiB 无法截断，为 `too-large`。不自动重试。
+- fetch：只接受绝对 http 或 https 网址，带用户名或密码的网址和其他协议为 `invalid-url`，片段被去掉。只发 GET，带固定 `accept` 与 `user-agent`，不带 cookie 或凭据头，不执行脚本。自写跳转循环：3xx 带 `Location` 时跟随，最多 `maxRedirects` 跳，再多一跳为 `redirect-limit`；跳转目标同样要通过网址检查；3xx 不带 `Location` 与其他非 2xx 为 `upstream`。媒体类型为 `text/*`、HTML、JSON、XML 及 `+json`、`+xml` 时读取，其余（含缺少 `Content-Type`）为 `not-text`。
+- 字节与时间：响应体流式读取，按解压后的字节计数，到 `maxBodyBytes` 截断并标 `truncated: true`，不以失败结束；截断处的半个多字节字符被丢弃。字符集按 `Content-Type` 的 charset 解码，缺省 UTF-8，`TextDecoder` 不认识的标签为 `not-text`。每个 `not-text` 的 `mediaType` 都是解析后的媒体类型（小写、不带参数），不是原始 `Content-Type`。总时长用 `AbortSignal.any` 合并调用方信号与 `timeoutMs`，覆盖全部跳转与正文读取；超时为 `timeout`。undici 的头与体计时器不低于 1 秒。
+- HTML 用 turndown 7.2.5 转 Markdown：先删 `head`、`title`、`script`、`style`、`noscript`、`template`、`iframe`、`object`、`embed`、`svg`、`canvas`，`javascript:` 与 `data:` 链接只留文字，`data:` 图片只留 alt。转换抛出（极深嵌套的栈溢出）时回退为纯文本，不抛出。纯文本、Markdown、JSON、XML 原样返回。不做正文抽取、PDF 与浏览器渲染。
+- 取消：调用方信号中止后返回 `network`（诊断 `cancelled by the caller`），不重发。Exa 请求发出后被取消，额度不退还；fetch 只发 GET，但不能保证目标站点没有副作用。连接拒绝等网络错误为 `network`，诊断是错误码。
+- 资源：每次调用新建一个 undici `Agent`，调用结束销毁，不跨调用保留连接。
+
+已知限制：本机档直连宿主网络，不经执行环境的设施；没有私网拦截与出口政策，沙箱与多租户部署的出口控制不在本提供者内。未验证：GBK 等多字节页面的端到端解码、`fetch` 路径下的 br 解压、Exa 402 与 429 的真实响应体（替身按文档构造）。验证见 [fetch 用例](tests/web/fetch.spec.ts)与 [search 用例](tests/web/search.spec.ts)，都只对 127.0.0.1 的夹具运行。

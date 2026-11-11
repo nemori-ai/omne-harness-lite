@@ -26,7 +26,7 @@ erDiagram
 
 ### 当前实现的表
 
-head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义。前十张表的迁移是 `session/001-session-log`，执行索引 `sl_execution_idx` 的迁移是 `session/002-execution-index`，操作记录的访问证据表 `sl_operation_evidence` 的迁移是 `session/003-operation-evidence`，状态条目表 `sl_state_item` 的迁移是 `session/004-state-items`，attempt 的授予表 `sl_attempt_grant` 的迁移是 `session/005-attempt-grant`。十四张表都是 SQLite `STRICT` 表，位置、序号与提交序号是 `INTEGER`（以 `bigint` 读写），其余为 `TEXT`。每张表的第一列或主键都含 `tenant`，每条语句都按它过滤。下文「权威表」与「派生索引」是设计目标的表集，与本节不一致处以本节为准（[SPEC 实现现状](../SPEC.md#实现现状)）。
+head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义。前十张表的迁移是 `session/001-session-log`，执行索引 `sl_execution_idx` 的迁移是 `session/002-execution-index`，操作记录的访问证据表 `sl_operation_evidence` 的迁移是 `session/003-operation-evidence`，状态条目表 `sl_state_item` 的迁移是 `session/004-state-items`，attempt 的授予表 `sl_attempt_grant` 的迁移是 `session/005-attempt-grant`。上述十四张表都是 SQLite `STRICT` 表，位置、序号与提交序号是 `INTEGER`（以 `bigint` 读写），其余为 `TEXT`。每张表的第一列或主键都含 `tenant`，每条语句都按它过滤。下文「权威表」与「派生索引」是设计目标的表集，与本节不一致处以本节为准（[SPEC 实现现状](../SPEC.md#实现现状)）。
 
 | 表                      | 列                                                                                        | 主键                                          | 说明                                                                                                                                                                                                                                                                                                                |
 | ----------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -123,7 +123,7 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 | `commit_seq`                     | INTEGER | 该操作提交的批次                                                                                                                                        |
 | `receipt`                        | TEXT    | `CommitReceipt`，JSON：`operation`、`revision`、`first`、`last`、`source`                                                                               |
 
-一个批次恰对应一行。尝试代次不进本表：提供者的回执表按存储操作身份 `<operation>#<代次>` 保存每次尝试的回执与存储输入摘要，不在本包。
+一个批次恰对应一行。尝试代次不进本表：提供者的回执表按存储操作身份 `JSON.stringify([SessionId, SessionOperationId, attempt])` 保存每次尝试的回执与存储输入摘要，不在本包。
 
 **`sl_state`** 每会话一行。
 
@@ -218,3 +218,24 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 本包不分冷热存储层。「冷」只表示条目不在当前 epoch。压缩之后，旧 epoch 的 `sl_model_view` 行与它们对应的条目不再进入模型视图读取，但它们仍在同一组表里，按 [RT-01](../SPEC.md#rt-01) 保留。对人时间线的历史分页（[R2](../SPEC.md#r2)）照常按位置读到它们。
 
 归档会话在 `sl_pending_idx` 里与其他会话按同一规则维护：行只跟随 `sl_state` 的待办原因增删（[W3](../SPEC.md#w3)）。归档没有另外的增删规则。归档提交同批取消未终结 Run，`run` 原因随之离开快照，行随之删除。归档后快照仍有待办原因时，行保留，例如作用域释放任务尚未读回，或交付责任解除仍为 pending。原因全部离开快照后，行随之删除。没有未结工作的归档会话在该索引里没有行。
+
+
+### 当前权限的关系投影
+
+[permission-current-schema.ts](../src/worker/permission-current-schema.ts) 追加两张 `STRICT, WITHOUT ROWID` 表，迁移为 `session/006-permission-current`。两表均由原 Session 事件写者维护。完整复合主键覆盖逐键读取，不增加重复二级索引。
+
+| 表 | 主键 | 内容和生命周期 |
+| --- | --- | --- |
+| `sl_permission_head` | tenant, session | 权限 revision、原模式 adopted、可空 override 和最后权限依据 source。创建时插入，配值或模式变更时更新 |
+| `sl_permission_assignment` | tenant, session, capability, enforcement | 精确 definition、rule、source。设值 upsert，清除 delete；没有 nullable rule 行 |
+
+```mermaid
+erDiagram
+  SL_JOURNAL ||--|| SL_PERMISSION_HEAD : derives
+  SL_PERMISSION_HEAD ||--o{ SL_PERMISSION_ASSIGNMENT : scopes
+  SL_ENTRY ||--o{ SL_PERMISSION_ASSIGNMENT : records
+```
+
+这是当前实现的派生关系。它与事件及分块快照同事务更新，不是后台同步副本。卸载运行时不会删除已提交关系。上层对模式和权限的解释仍归原领域及其适配器。
+
+只读参加者 `session-permission-guard` 复用两张当前关系，没有自己的表或写权限。它核对预读修订后发布事务事实；查询和守卫共享同一个逐键读取实现。消费者在自己的事务参加者声明事实依赖，装配方负责组合及目标绑定。

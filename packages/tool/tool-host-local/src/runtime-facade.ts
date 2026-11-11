@@ -1,3 +1,4 @@
+import { TOOL_FORWARDING_OWNER } from './invocation-forwarding.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolRuntimeFacade, type ToolDependencies } from '@omne-harness/tool'
@@ -35,6 +36,7 @@ export function publishRuntimeFacade(
     }
   }
   const service = new Runtime(ctx)
+  service.registerResultReceiver(TOOL_FORWARDING_OWNER, input.sources.receiver)
   receivers.current = consumer => service.receiver(consumer)
   ctx.effect(() => () => {
     receivers.current = async () =>

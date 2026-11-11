@@ -6,8 +6,17 @@
 
 - [README.md](README.md)：测试分层、真实依赖与替身
 - [count.spec.ts](count.spec.ts)：两份词表的普通文本计数、文本中的特殊 token 字样、显式特殊 token 段、相邻文本段合并、未知特殊 token、空序列、非良构 Unicode、固定表的初始化快照（快层）
+- [differential.spec.ts](differential.spec.ts)：固定 oracle 的精确语义、合成词表穷举及o200k 资源差分（快层）
+- [engine-shape.spec.ts](engine-shape.spec.ts)：固定依赖运行时形状的拒绝（快层）
+- [performance.spec.ts](performance.spec.ts)：外部可杀死子进程内的 24 KiB 空白计数（慢层）
+- [support/differential.ts](support/differential.ts)：合成差分词表、资源构造、固定 seed 与有限输入枚举
 - [initialization.spec.ts](initialization.spec.ts)：三项采用核对各自不符时返回 `unavailable`，以及没有规范 JSON 形式的特殊 token id（快层）
-- [public-entry.spec.ts](public-entry.spec.ts)：根入口只有 `createTiktokenTokenizer` 一个运行时导出（快层）
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口只有 `createTiktokenExecutor` 一个运行时导出（快层）
 - [published.spec.ts](published.spec.ts)：构建产物在子进程与临时目录中初始化并计数，结果与源码一致，版本失配同样返回 `unavailable`（慢层）
 - [support/resources.ts](support/resources.ts)：两份词表、固定特殊 token 表、独立算出的摘要常量与资源构造
 - [fixtures/](fixtures/index.md)：测试固定输入
+
+- [executor.spec.ts](executor.spec.ts)：真实 worker 的准入、缓存、取消与关闭
+- [executor-lifecycle.spec.ts](executor-lifecycle.spec.ts)：受控故障下的物理结清、身份和公平调度
+- [support/executor.ts](support/executor.ts)：显式测试限额与 executor 清理
+- [support/controlled-worker.ts](support/controlled-worker.ts)：私有可控线程故障 seam

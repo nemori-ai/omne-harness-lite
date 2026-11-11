@@ -363,6 +363,15 @@ export interface AgentJournalReading<P> {
       }>,
   ): Reply<ReplyAdmissionPage>
   query(input: ExecutionMutation<P>): ReturnType<AgentExecutionRecovery<P>['query']>
+  /**
+   * Reads the FinishIntent projection of the execution under the existing Journal read
+   * qualification (SPEC "条件终结", the readFinish clause): the current candidate while settling,
+   * the final candidate after ended, null before any candidate. Optional: a provider written
+   * before it may leave it out, and a consumer treats the absence as unsupported.
+   */
+  readFinish?(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
+  ): Reply<FinishIntent | null>
   readonly output: Pick<AgentExecutionEvents<P>, 'read' | 'events'>
 }
 /**

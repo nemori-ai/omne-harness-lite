@@ -1,7 +1,10 @@
 // A run that stops on a node failure, in the `agent-host` plugin on real Cordis 4.0.4 with the
 // production factory `createAgentRuntime` (SPEC「运行失败」, R2-D282). The Journal double refuses
-// every commit of the I0 node with `unavailable`, as the session log Journal does when the storage
-// refuses a command over its size limit. Checked: the host writes exactly one warn record that names
+// for good every commit of the I0 node and every tryFinish with `invalid` on the field `storage`, as
+// the session log Journal does when the storage refuses a command over its size limit: I0's failure
+// goes to the settlement, and the refused terminal at F3 is a run that cannot go on. (An
+// `unavailable` commit is a wait and does not stop the drive; Agent SPEC 依赖不可用时的等待.)
+// Checked: the host writes exactly one warn record that names
 // tenant, instance, execution, node, failure kind and diagnostic. The ordered stop answers
 // `incomplete` for that instance (R2-D285): nothing handed the failed execution over, and its reason
 // names the execution, node and failure kind. The execution is not ended: ending the Run as
@@ -44,11 +47,7 @@ const adoption = (name: string) => ({
 })
 const EXECUTION: AgentExecutionId = ok(decodeAgentExecutionId('failing-execution'))
 
-const JOURNAL_DOWN: Failure = {
-  kind: 'unavailable',
-  owner: 'agentJournal',
-  diagnostic: 'storage rejected the commit: command_limit',
-}
+const JOURNAL_REFUSED: Failure = { kind: 'invalid', field: 'storage', reason: 'command_limit' }
 
 const conditions: RuntimeConditions = {
   source: evidence('conditions'),
@@ -96,7 +95,7 @@ async function until(probe: () => boolean, ms = 10_000): Promise<void> {
 const runFailed = (host: World) =>
   host.warnings.filter(text => text.startsWith('agent run stopped on a failure'))
 
-/** A host whose Journal refuses every I0 commit, with one invoked execution. */
+/** A host whose Journal refuses for good every I0 commit and every tryFinish, with one invoked execution. */
 async function failing() {
   const host = await openWorld({
     stages: true,
@@ -105,8 +104,9 @@ async function failing() {
       ...port,
       commit: request =>
         request.operation.startsWith('I0/')
-          ? Promise.resolve(fail(JOURNAL_DOWN))
+          ? Promise.resolve(fail(JOURNAL_REFUSED))
           : port.commit(request),
+      tryFinish: () => Promise.resolve(fail(JOURNAL_REFUSED)),
     }),
   })
   opened.push(host)
@@ -143,9 +143,9 @@ describe('a run that stops on a node failure', () => {
     expect(record).toContain(`tenant=${tenant.value} `)
     expect(record).toContain(`instance=${instance}`)
     expect(record).toContain(`execution=${EXECUTION}`)
-    expect(record).toContain('node=I0')
-    expect(record).toContain('failure=unavailable')
-    expect(record).toContain('diagnostic=agentJournal: storage rejected the commit: command_limit')
+    expect(record).toContain('node=F3')
+    expect(record).toContain('failure=invalid')
+    expect(record).toContain('diagnostic=field storage: command_limit')
     // The execution is not ended: no terminal state in the Journal. Ending the Run as failed when a
     // node fails is not implemented yet, planned for wave 3 (R2-D285).
     const loaded = ok(
@@ -160,7 +160,7 @@ describe('a run that stops on a node failure', () => {
     const answer = await host.plugin.quiesceAll({ signal: new AbortController().signal })
     const reason =
       `quiesce left 1 execution(s) unresolved: ${EXECUTION} ` +
-      '(run stopped: node=I0 failure=unavailable)'
+      '(run stopped: node=F3 failure=invalid)'
     expect(answer).toEqual({
       kind: 'incomplete',
       detail: `${instance}: ${reason}`,

@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import type { ManagedResource } from '@omne-harness/execution-environment-contract'
-import { stopWindowsResource } from '../../src/windows-execution/index.ts'
+import { stopWindowsResource } from '../../src/windows-execution/supervision.ts'
 
 it('opens the original Job after the controller exits and stops its descendant', async context => {
   if (process.platform !== 'win32') return context.skip()

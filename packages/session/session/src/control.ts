@@ -220,7 +220,11 @@ export function createControlPropagation<P>(
         while (!lifecycle.closed && state.attempts < policy.controlReplay.maxReplays) {
           const next = await step(ref, progress.operation, state)
           if (next === 'stop') return
-          if (next === 'wait' && !(await scheduling.wait(policy.controlReplay.intervalMs))) return
+          if (
+            next === 'wait' &&
+            (await scheduling.wait(policy.controlReplay.intervalMs)) !== 'elapsed'
+          )
+            return
         }
       } finally {
         state.running = false

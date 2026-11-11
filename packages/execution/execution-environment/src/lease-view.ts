@@ -1,5 +1,6 @@
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type {
+  CommandRetentionOperation,
   EnvironmentFacilities,
   EnvironmentLease,
   FacilityGuard,
@@ -28,7 +29,10 @@ export type LeaseViewHooks = Readonly<{
   placement: Placement
   /** The acquisition ledger's `closed` signal. The gate is the one entry of every facility operation. */
   ledgerClosed: AbortSignal
+  /** The acquisition carries a retention scope and its terminal ledger. */
   retentionEnabled: boolean
+  /** The retention also carries the retained-process ledger. */
+  processRetentionEnabled: boolean
   /** Read on every operation, so a removed declaration refuses operations on objects already handed out. */
   descriptor: (key: FacilityKey) => StoredDescriptor | undefined
   invalidated: (invalidation: LeaseInvalidation) => void
@@ -77,14 +81,60 @@ function requiresRetention(key: FacilityKey, operation: string, request: unknown
   return operation === 'create' && isRecord(request) && request['retain'] === 'session'
 }
 
-function supportsRetention(facility: object, enabled: boolean): boolean {
+type Presence = 'required' | 'optional'
+const byPresence = (operations: Readonly<Record<string, Presence>>, presence: Presence) =>
+  Object.keys(operations).filter(operation => operations[operation] === presence)
+
+/**
+ * The retention extensions the registry hands out. Each entry names every operation of its contract
+ * extension, so an operation added to the contract fails to compile here instead of going missing
+ * from the extension the registry hands out. The extension is handed out only when the provider has
+ * every required operation; an optional one is handed out when the provider has it.
+ */
+const retentionPresence = {
+  terminal: { attach: 'required', detach: 'required' } satisfies Record<
+    TerminalRetentionOperation,
+    Presence
+  >,
+  command: { list: 'required', stop: 'optional', output: 'optional' } satisfies Record<
+    CommandRetentionOperation,
+    Presence
+  >,
+} satisfies Partial<Record<FacilityKey, Readonly<Record<string, Presence>>>>
+type RetainingKey = keyof typeof retentionPresence
+const retentionOperations: Readonly<
+  Record<RetainingKey, Readonly<{ required: readonly string[]; optional: readonly string[] }>>
+> = {
+  terminal: {
+    required: byPresence(retentionPresence.terminal, 'required'),
+    optional: byPresence(retentionPresence.terminal, 'optional'),
+  },
+  command: {
+    required: byPresence(retentionPresence.command, 'required'),
+    optional: byPresence(retentionPresence.command, 'optional'),
+  },
+}
+
+function isRetainingKey(key: FacilityKey): key is RetainingKey {
+  return Object.hasOwn(retentionOperations, key)
+}
+
+function supportsRetention(key: RetainingKey, facility: object, enabled: boolean): boolean {
   const retention: unknown = Reflect.get(facility, 'retention')
   return (
     enabled &&
     isRecord(retention) &&
-    typeof retention['attach'] === 'function' &&
-    typeof retention['detach'] === 'function'
+    retentionOperations[key].required.every(operation => typeof retention[operation] === 'function')
   )
+}
+
+/** The operations of the provider's extension that the handed-out extension forwards. */
+function handedOperations(
+  key: RetainingKey,
+  extension: Readonly<Record<string, unknown>>,
+): readonly string[] {
+  const { required, optional } = retentionOperations[key]
+  return [...required, ...optional.filter(operation => typeof extension[operation] === 'function')]
 }
 
 /**
@@ -151,16 +201,23 @@ export function createLeaseView<P>(
     return 'pass'
   }
 
+  const retentionEnabledBy: Readonly<Record<RetainingKey, () => boolean>> = {
+    terminal: () => hooks.retentionEnabled,
+    command: () => hooks.processRetentionEnabled,
+  }
+  const retentionEnabled = (key: RetainingKey) => retentionEnabledBy[key]()
+
   function retentionMethod(
+    key: RetainingKey,
     target: object,
     extension: Readonly<Record<string, unknown>>,
-    operation: TerminalRetentionOperation,
+    operation: string,
   ) {
     return async (request: unknown): Promise<unknown> => {
-      const decision = await gate('terminal', operation, request, true)
+      const decision = await gate(key, operation, request, true)
       if (decision !== 'pass') return decision
       const method = extension[operation]
-      if (typeof method !== 'function' || !supportsRetention(target, hooks.retentionEnabled))
+      if (typeof method !== 'function' || !supportsRetention(key, target, retentionEnabled(key)))
         return refused(requestIdOf(request), 'unavailable')
       return Reflect.apply(method, extension, [request])
     }
@@ -174,13 +231,17 @@ export function createLeaseView<P>(
     return new Proxy(original, {
       get(target, property, receiver) {
         const value: unknown = Reflect.get(target, property, receiver)
-        if (key === 'terminal' && property === 'retention') {
-          if (!isRecord(value) || !supportsRetention(target, hooks.retentionEnabled))
+        if (isRetainingKey(key) && property === 'retention') {
+          if (!isRecord(value) || !supportsRetention(key, target, retentionEnabled(key)))
             return undefined
-          return Object.freeze({
-            attach: retentionMethod(target, value, 'attach'),
-            detach: retentionMethod(target, value, 'detach'),
-          })
+          return Object.freeze(
+            Object.fromEntries(
+              handedOperations(key, value).map(operation => [
+                operation,
+                retentionMethod(key, target, value, operation),
+              ]),
+            ),
+          )
         }
         if (typeof property !== 'string' || !operations.includes(property)) return value
         return async (request: unknown) => {
@@ -189,7 +250,7 @@ export function createLeaseView<P>(
           if (
             typeof value !== 'function' ||
             (requiresRetention(key, property, request) &&
-              !supportsRetention(target, hooks.retentionEnabled))
+              !supportsRetention('terminal', target, hooks.retentionEnabled))
           )
             return refused(requestIdOf(request), 'unsupported')
           const result: unknown = await Reflect.apply(value, target, [request])

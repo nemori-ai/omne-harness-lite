@@ -105,6 +105,7 @@ describe('materials (acceptance 4)', () => {
     expect(migrations).toEqual([
       ['001-identity', []],
       ['002-governance', ['001-identity']],
+      ['003-standing', ['002-governance']],
     ])
     const governance = catalog.readHandlers.find(item => item.handler === 'identity.governance')
     expect(governance?.maxOutputBytes).toBe(1048576)
@@ -116,18 +117,38 @@ describe('materials (acceptance 4)', () => {
       )
   })
 
+  test('the production host includes the governance and prepared Settings owners', async () => {
+    const root = new Context()
+    try {
+      await storageHost.install(root, {
+        stateRoot: '/unused',
+        readTrusted: () => root,
+        once: (_key, create) => create(),
+      })
+      const host = root.get('storageHost')
+      if (host === undefined) throw new Error('production storageHost not published')
+      const names = host.materials.participants.map(value => value.participant)
+      expect(names).toContain('governance.activation')
+      expect(names).toContain('assets.settings')
+      expect(names).toContain('settings.catalog-terminal')
+      expect(names).toContain('harness.session-permission-basis.mapped')
+    } finally {
+      await root.fiber.dispose()
+    }
+  })
+
   test('a tampered digest is listed by name and fails install', async () => {
     const problems = catalogProblems(tampered(storageCatalog()))
     expect(problems).toEqual(['material_digest_mismatch: participant session'])
     const module = storageHostModule({ catalog: () => tampered(storageCatalog()) })
     const root = new Context()
-    expect(() =>
+    await expect(
       module.install(root, {
         stateRoot: '/unused',
         readTrusted: () => root,
         once: (_key, create) => create(),
       }),
-    ).toThrow(/material_digest_mismatch: participant session/)
+    ).rejects.toThrow(/material_digest_mismatch: participant session/)
     expect(root.get('storageHost')).toBeUndefined()
   })
 

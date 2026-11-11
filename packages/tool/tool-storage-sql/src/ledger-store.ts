@@ -16,7 +16,7 @@ import {
 } from '@omne-harness/tool'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { NotJsonError } from './json.ts'
-import { addressOf, ledgerAnswer, unavailable, writesOf } from './ledger-wire.ts'
+import { addressOf, ledgerAnswer, notJson, unavailable, writesOf } from './ledger-wire.ts'
 import type { SqlToolStorageOptions } from './options.ts'
 import { requestOf, resolveTenant } from './tenant.ts'
 import type { LedgerFacts, LedgerWriteFact } from './worker/facts.ts'
@@ -77,7 +77,7 @@ export function createSqlToolLedgerStore<B extends ContentBlock = ContentBlock>(
     try {
       writes = writesOf(input)
     } catch (error) {
-      if (error instanceof NotJsonError) return unavailable(error.message)
+      if (error instanceof NotJsonError) return notJson(error)
       throw error
     }
     const facts: LedgerFacts = {

@@ -17,5 +17,13 @@ export type {
   SessionMeasureEvent,
   SessionRoundCompleteEvent,
   SessionSegmentEvent,
+  TenantId,
 } from './measure.ts'
 export type { SessionDiagnose, SessionDiagnostic } from './diagnostics.ts'
+export {
+  createSessionTelemetry,
+  sessionDiagnosticEvent,
+  sessionRoundCompleteEvent,
+  type SessionTelemetry,
+  type SessionTelemetryBase,
+} from './telemetry.ts'

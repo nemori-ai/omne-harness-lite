@@ -12,6 +12,7 @@ import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { judgeMessage, parseMessageId, type Message, type MessagePart } from '@omne-harness/message'
 import {
   decodeModelCallId,
+  decodeProviderName,
   decodeRevision,
   type Access,
   type Adoption,
@@ -82,7 +83,13 @@ export const profile: ModelProfile = {
   updatedAt: '2026-10-19T00:00:00Z',
   availability: 'active',
   definition: {
-    suppliers: [{ adoption: adoption('supplier'), recipient: 'recipient', model: 'model' }],
+    suppliers: [
+      {
+        adoption: adoption('supplier'),
+        provider: must(decodeProviderName('recipient')),
+        model: 'model',
+      },
+    ],
     fallback: false,
     input: ['text', 'image'],
     output: ['text'],

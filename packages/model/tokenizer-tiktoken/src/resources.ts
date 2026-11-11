@@ -10,7 +10,7 @@ export type TiktokenRanks = Readonly<{
   bpeRanks: string
 }>
 
-/** Everything that `createTiktokenTokenizer` checks once and then uses for every count. */
+/** Everything that `createTiktokenExecutor` checks once and then uses for every count. */
 export type TiktokenResources = Readonly<{
   definition: TokenizerDefinition
   ranks: TiktokenRanks

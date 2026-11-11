@@ -14,6 +14,8 @@ import type {
   ContextTransition,
   AssemblyOutcome,
   AssemblyCall,
+  CallIdentity,
+  PreparedInputKey,
   HistorySource,
   ConversionResultSource,
   WindowUsageValue,
@@ -34,6 +36,9 @@ test('RC-owned identities and revisions stay in their original types', () => {
     'candidate-before-extension' | 'candidate-fixable' | 'needs-compaction' | 'cannot-fit'
   >()
   expectTypeOf<AssemblyCall<string>['access']>().not.toBeNullable()
+  // SPEC "调用身份": one name for group one without access, and the preparation key uses it.
+  expectTypeOf<CallIdentity>().toEqualTypeOf<Omit<AssemblyCall<unknown>, 'access'>>()
+  expectTypeOf<PreparedInputKey['identity']>().toEqualTypeOf<CallIdentity>()
   // J41: ordinary ports take Access, never null; recovery has its own system access.
   expectTypeOf<Parameters<HistorySource<string>['read']>[0]['access']>().not.toBeNullable()
   expectTypeOf<Parameters<ConversionResultSource<string>['read']>[0]['access']>().not.toBeNullable()

@@ -432,9 +432,9 @@ export async function createWorld(options: WorldOptions = {}) {
     suppliers: [
       {
         adoption: supplier.adoption,
-        recipient: supplier.recipient,
+        provider: supplier.provider,
         model: supplier.model,
-        credential: { kind: 'factory' as const },
+        credential: { layer: 'official' as const },
       },
     ] as const,
     parameterAdoptions: [],

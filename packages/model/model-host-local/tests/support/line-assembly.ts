@@ -1,6 +1,6 @@
 // Test support of the line-through case: one process, one real Cordis 4.0.4 root Context, and the
-// five members of the line assembled on it. Real parts: the vault plugin (`LocalCredentialPlugin`
-// with a placeholder), the official profiles plugin, the request preparation plugin, the send stage
+// five members of the line assembled on it. Real parts: the credential service (a vault whose
+// official layer holds a placeholder, served with `serveModelCredential`), the official profiles plugin, the request preparation plugin, the send stage
 // plugin over the real pi transport and the OpenAI family, the runtime plugin with its result push,
 // and the durable ModelCommands of `@omne-harness/model-storage-sql` (`createSqlModelCommands` with
 // `send`, so the commands and the send coordinator share one core). Stand-ins, each named:
@@ -42,7 +42,6 @@ import {
   type ResultPart,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   type ModelCommands,
   type ModelDriveInput,
   type ModelRetryPolicy,
@@ -64,7 +63,6 @@ import {
 } from '@omne-harness/model-storage-sql'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import {
-  LocalCredentialPlugin,
   ModelProfilesLocalPlugin,
   createMemoryResultPushLedger,
   createModelRequestPreparationPlugin,
@@ -72,6 +70,7 @@ import {
   createModelSendStagePlugin,
   type ResultPushLimits,
 } from '../../src/cordis.ts'
+import { vaultCredentialPlugin } from './credentials.ts'
 import { FAMILIES, PLACEHOLDER, ROUTE_PATH, TRANSPORT_LIMITS, decoded } from './local-host.ts'
 import { factorySupplier } from './profiles.ts'
 
@@ -423,19 +422,15 @@ const domains: SqlModelCommandsOptions<Principal>['domains'] = {
     ),
 }
 
-/** The send sources of the profile: one factory credential per supplier, always authorized. */
+/** The send sources of the profile: one official source per supplier, always authorized. */
 function sourcesOf(profile: ModelProfile): readonly ModelSendSource<Principal>[] {
   return profile.definition.suppliers.map(supplier => ({
     profile: profile.adoption,
     supplier: supplier.adoption,
-    recipient: supplier.recipient,
+    provider: supplier.provider,
     model: supplier.model,
-    credential: {
-      kind: 'factory',
-      official: true,
-      queryId: decoded(decodeCredentialId('line-e2e-query')),
-    },
-    current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+    official: true,
+    current: () => ({ ok: { authorized: true } }),
   }))
 }
 
@@ -627,10 +622,8 @@ export async function assembleLine(input: LineInput) {
     await fiber
     return fiber
   }
-  await load(LocalCredentialPlugin, {
-    path: join(input.directory, 'line.vault.json'),
-    factorySecret: PLACEHOLDER,
-  })
+  // The credential service over a secret vault whose official layer holds the placeholder.
+  await load(vaultCredentialPlugin(join(input.directory, 'line.vault.json'), PLACEHOLDER))
   await load(ModelProfilesLocalPlugin, {
     retryPolicy: ADOPTION,
     compactionTriggerPercent: '80',
@@ -690,6 +683,8 @@ export async function assembleLine(input: LineInput) {
       openrouter: {
         url: new URL(ROUTE_PATH, input.gateway.url).href,
         endMarker: GATEWAY_END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
       },
     },
     transportLimits: TRANSPORT_LIMITS,

@@ -1,0 +1,15 @@
+# Cordis 集成
+
+## 集成入口
+
+./cordis的createGovernanceLocalPlugin创建提供者插件。受信来源、scope和SQL组合与普通工厂一致；storage、principalVerifier、tenantStanding、standingReservations使用Cordis inject。基础插件不要求Assets、Session、Agent、Tool或HITL存在。
+
+插件继承governance-contract中唯一的GovernanceContributionsService。先完成普通工厂的启动恢复，再构造服务。Cordis4.0.4只在所属fiber激活后向消费者暴露服务。启动期间显式卸载时，插件不发布晚到服务；依赖丢失时，内核完成旧启动后进入卸载，不激活旧服务。挂起的启动仍可能延迟fiber.dispose返回，不能将其描述为已取消。
+
+## 生命周期与清理
+
+contribute通过普通函数读取被Cordis追踪的this.ctx。在首次异步等待前，它把清理登记到调用方fiber。provider的ctx不代替caller的ctx。同一原操作的多个合格调用共享关闭责任，独立原操作保持独立租约。已卸载调用方的旧引用返回unavailable，不向业务消费者抛出已知的INACTIVE_EFFECT；其他异常不被这条映射吞掉。
+
+调用方退出先关闭自身入口，再完成精确撤除、原资格结算及调用排空。超时返回pending时，提供者继续保管和重试。提供者卸载同时关闭普通入口与所有贡献入口，并完成本代隔离和恢复。后台关闭最多一个在途任务；pending或异常后继续重试，不重复启动尚未返回的关闭。
+
+observeClose接收首次pending及最终closed。观察回调不参与清理的完成判定；回调失败写诊断，不改变已确认结果。fiber.dispose返回不能替代closed证明。正常关机应等到closed通知后再关闭共享SQL和Identity。依赖意外丢失时保留待决责任；进程重启由持久epoch隔离和历史恢复接续，不恢复JavaScript Promise。

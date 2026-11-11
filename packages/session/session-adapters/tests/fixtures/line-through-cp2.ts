@@ -56,7 +56,7 @@ import {
   EXECUTION_RECORD_PROTOCOL,
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_LOG_PARTICIPANTS,
-  SESSION_PROTOCOL,
+  SESSION_READ_PROTOCOL,
   decodeExecutionRecordOpen,
   decodeSessionHistoryRoot,
 } from '@omne-harness/session-storage-sql/participants'
@@ -233,7 +233,7 @@ export async function openCp2(root: string) {
       await read(EXECUTION_RECORD_HANDLERS.openExecutions, EXECUTION_RECORD_PROTOCOL),
     )
     const root = decodeSessionHistoryRoot(
-      await read(SESSION_HISTORY_ROOT_HANDLER, SESSION_PROTOCOL),
+      await read(SESSION_HISTORY_ROOT_HANDLER, SESSION_READ_PROTOCOL),
     )
     if (agent === null || agent.kind !== 'open' || root === null)
       throw new Error('the common root is not readable')

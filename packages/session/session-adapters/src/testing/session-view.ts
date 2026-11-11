@@ -75,6 +75,18 @@ export function sessionView<P>(
         invoke(input, 'journal.readReplyAdmissions', view =>
           view.journal.readReplyAdmissions(input),
         ),
+      readFinish: input =>
+        invoke(
+          input,
+          'journal.readFinish',
+          async view =>
+            (await view.journal.readFinish?.(input)) ??
+            fail({
+              kind: 'unavailable',
+              owner: 'session-log-journal',
+              diagnostic: 'the session Journal has no finish read',
+            }),
+        ),
       query: input => invoke(input, 'journal.query', view => view.journal.query(input)),
       output: {
         read: input =>

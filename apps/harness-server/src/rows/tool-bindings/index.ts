@@ -24,10 +24,53 @@ import {
   type LocalToolBindingsPluginInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { defineRow } from '../../row.ts'
+import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { createReleaseAvailability } from './availability.ts'
+import { releaseCatalogViewOf } from './catalog-view.ts'
+import { z } from 'zod'
+import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
+import { releaseOf } from '../../entry/tool-release.ts'
+import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
+import { bindReleaseTodoItems } from './todo-items.ts'
+import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
+
+export const toolBindingsConfig = z
+  .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
+  .default({})
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
+type Attachments = Readonly<{
+  tools: ReturnType<typeof createReleaseToolsCapability> | null
+  web: WebBindingConfig | null
+}>
+
+/**
+ * The per-call attachments of the release, in a fixed order: Tools first (it produces the context the
+ * others attach to), then TodoItems, then Web. Each attaches only to the call of its own release tool.
+ * The Web attachment reads the trusted `settingsSecretCustody` per call: the assembly page lists it
+ * as a name this row reads, not one it injects, so a tree without the custody row still binds and
+ * only search answers unavailable.
+ */
+export function releaseCapability(
+  ctx: Context,
+  attachments: Attachments,
+): NonNullable<Input['capability']> {
+  const custody = () => ctx.get(settingsSecretCustodyKey)
+  return (input, scope) => {
+    const release = releaseOf(ctx)
+    const withTools =
+      attachments.tools !== null && isReleaseToolsRequest(release, input.request)
+        ? attachments.tools.bind(input, scope)
+        : scope
+    const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
+      ? bindReleaseTodoItems(ctx, input, withTools)
+      : withTools
+    return attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
+      ? bindReleaseWeb(input, withTodos, attachments.web, custody)
+      : withTodos
+  }
+}
 
 const startUnavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: toolStartAuthorityKey, diagnostic })
@@ -89,12 +132,30 @@ export function bundleSettle(ctx: Context): Input['settle'] {
 const bindingsPlugin: Plugin.Object = {
   name: 'tool-bindings',
   inject: [toolContributionAuthorityKey],
-  apply(ctx: Context) {
+  Config: toolBindingsConfig,
+  apply(ctx: Context, raw: unknown) {
+    const config = toolBindingsConfig.parse(raw)
+    const tools =
+      config.tools === undefined ? null : createReleaseToolsCapability(ctx, config.tools)
+    const holder = toolRuntimeHolder(ctx)
+    if (tools !== null) {
+      if (holder.toolsForwarding !== null) throw new Error('Tools capability already installed')
+      holder.toolsForwarding = tools
+      ctx.effect(
+        () => () => {
+          void tools.close()
+        },
+        'tool-bindings.tools-capability',
+      )
+    }
     const Bindings = createLocalToolBindingsPlugin<unknown, unknown, ToolMessageContentBlock>({
       availability: createReleaseAvailability(ctx),
+      view: releaseCatalogViewOf(ctx),
+      search: { k1: 1.2, b: 0.75, maxCachedCorpora: 16 },
       authority: startAuthorityProxy(ctx),
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
+      capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
     })
     // Both services register in this row's fiber: `toolBindings` here, `toolCatalog` in its constructor.
     new Bindings(ctx)

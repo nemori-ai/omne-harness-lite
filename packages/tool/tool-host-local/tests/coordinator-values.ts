@@ -18,7 +18,12 @@ import {
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
 import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
-import type { AccessVerdict, LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
+import type {
+  AccessVerdict,
+  LedgerCommit,
+  LedgerCommitInput,
+  ToolLedgerStore,
+} from '@omne-harness/tool'
 import {
   createLocalStartCoordinator,
   type PrincipalCodec,
@@ -186,7 +191,7 @@ export function callAccess(call: string) {
 /** A store over `memory` whose next commit answers `answer` without writing, once. */
 export function failingNextCommit(
   memory: ToolLedgerStore<ContentBlock>,
-  answer: 'unknown' | 'unavailable',
+  answer: 'unknown' | 'unavailable' | 'rejected',
 ): ToolLedgerStore<ContentBlock> & Readonly<{ arm(): void }> {
   let armed = false
   return {
@@ -198,14 +203,16 @@ export function failingNextCommit(
     commit: (input: LedgerCommitInput<ContentBlock>) => {
       if (!armed) return memory.commit(input)
       armed = false
-      return Promise.resolve(
-        answer === 'unknown'
-          ? { kind: 'unknown', diagnostic: 'the answer was lost' }
-          : { kind: 'unavailable', diagnostic: 'the store is down' },
-      )
+      return Promise.resolve(failedCommits[answer])
     },
   }
 }
+
+const failedCommits = {
+  unknown: { kind: 'unknown', diagnostic: 'the answer was lost' },
+  unavailable: { kind: 'unavailable', diagnostic: 'the store is down' },
+  rejected: { kind: 'rejected', reason: 'command_limit' },
+} as const satisfies Record<string, LedgerCommit>
 
 function fixtureScope() {
   const scope = decodeScopeRef({ ref: 'test-requester-scope' })

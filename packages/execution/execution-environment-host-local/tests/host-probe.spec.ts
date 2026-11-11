@@ -3,12 +3,13 @@
 // process (PATH, the user manager variables) and reads what the provider reports. On a host that is
 // not Linux the start answers `unavailable` while `files` of the same acquisition keeps working.
 // The tests that need the user systemd manager run only on Linux with
-// `OMNE_HOST_COMMAND_LINUX=1`, and in the slow tier: they start real scope units.
+// `OMNE_HOST_COMMAND_LINUX=1`, and in the slow tier: they start real scope units. The last test
+// reads, as a pure function, which items the exit of the probe program and the stop leave unsatisfied.
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   acquisitionRef,
@@ -26,6 +27,8 @@ import {
   hostObjectToken,
   type HostFilesDiagnostic,
 } from '@omne-harness/execution-environment-host-local'
+import { scopeProbeMissing } from '../src/host-probe.ts'
+import { noUnifiedHierarchyExit } from '../src/scope-cgroup.ts'
 
 const linux = process.platform === 'linux'
 const withUserManager = linux && process.env['OMNE_HOST_COMMAND_LINUX'] === '1'
@@ -162,8 +165,14 @@ async function prerequisitesSettle(provider: ReturnType<typeof createHostFilesPr
 
 it(
   'answers unavailable on an unsupported execution platform, and files of the same acquisition still work',
-  { skip: linux || process.platform === 'win32' },
+  { skip: process.platform === 'win32' },
   async () => {
+    // macOS and Linux have backends; another POSIX platform falls to the Linux probe and misses it.
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+    Object.defineProperty(process, 'platform', { value: 'freebsd', configurable: true })
+    onTestFinished(() => {
+      if (platform) Object.defineProperty(process, 'platform', platform)
+    })
     const diagnostics: HostFilesDiagnostic[] = []
     const provider = hostProvider(diagnostics)
     const recorded = recordingLedger()
@@ -261,3 +270,15 @@ it(
     expect(await provider.describe()).toMatchObject({ prerequisites: 'satisfied' })
   },
 )
+
+it('reports P5 when the probe program sees no unified hierarchy, and P6 for any other failure or an unconfirmed stop', () => {
+  expect(scopeProbeMissing(0, 'confirmed')).toEqual([])
+  expect(scopeProbeMissing(noUnifiedHierarchyExit, 'confirmed')).toEqual(['cgroup-v2'])
+  expect(scopeProbeMissing(noUnifiedHierarchyExit, 'unconfirmed')).toEqual([
+    'cgroup-v2',
+    'scope-round-trip',
+  ])
+  for (const code of [1, null, 'late'] as const)
+    expect(scopeProbeMissing(code, 'confirmed')).toEqual(['scope-round-trip'])
+  expect(scopeProbeMissing(0, 'unconfirmed')).toEqual(['scope-round-trip'])
+})

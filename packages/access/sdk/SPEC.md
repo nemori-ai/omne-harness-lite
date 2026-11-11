@@ -14,7 +14,7 @@ SDK 对同一个 `outcome` 使用公开契约里的解释。它不另定拒绝�
 
 ## 会话客户端
 
-会话客户端使用公开契约的会话一组编解码函数。它发送 `session-public/1` 的消息，覆盖公开契约的七个会话操作。两个观察操作和观察客户端在后续波。公开契约的会话编解码函数不读写观察消息，所以公开契约提供观察消息的函数之前，SDK 不发观察操作。
+会话客户端使用公开契约的会话一组编解码函数。它发送 `session-public/1` 的消息，覆盖公开契约的八个会话操作，`read-session-diagnostics` 在内。两个观察操作和观察客户端在后续波。公开契约的会话编解码函数不读写观察消息，所以公开契约提供观察消息的函数之前，SDK 不发观察操作。
 
 - 会话客户端只把带有相同 `messageId` 的响应交给该次调用，规则同治理客户端。
 - 会话客户端把 `loginProof` 放进消息体。它不把登录证明写进 HTTP 头、日志或错误文本。
@@ -22,11 +22,12 @@ SDK 对同一个 `outcome` 使用公开契约里的解释。它不另定拒绝�
 - 调用者不填写 `SessionOperationId`、登录或操作身份。SDK 不提供这样的参数。
 - 会话操作得到 `unknown`，或没有收到可信答复时，SDK 把它交给调用者。再送和认回由调用者发起，规则见承载页的客户端规则。
 - SDK 重新导出调用者构造请求所需的公开契约类型与编码入口。CLI 因此只依赖 SDK，不直接导入公开契约。
+- `read-session-diagnostics` 没有专门的方法。调用者用 `submit` 发它，与其他会话操作一样。SDK 重新导出公开契约的[会话诊断页](../public-contract/SPEC.md#会话诊断页)类型（`SessionDiagnosticsPage`、`SessionRunDiagnostic`、`SessionDiagnosticGap` 等），调用者按这些类型读成功的 `body`。SDK 只在公开契约读过响应之后才交出 `body`，所以 `body` 已经有契约的形状。
 
 ```ts
 type SessionClient = {
-  submit(message: unknown): Promise<CallerResult>;
-};
+  submit(message: unknown): Promise<CallerResult>
+}
 ```
 
 `SessionClient` 与 `GovernanceClient` 对称，由同一个传输适配构造。上面是设计形状，本包现在不导出它。
@@ -45,11 +46,11 @@ SDK 提供一个基于 `fetch` 的 HTTP 传输适配，实现 `GovernanceTranspo
 
 ```ts
 type HttpTransportOptions = {
-  origin: string;
-  location: "governance" | "session";
-};
+  origin: string
+  location: 'governance' | 'session'
+}
 
-function createHttpTransport(options: HttpTransportOptions): GovernanceTransport;
+function createHttpTransport(options: HttpTransportOptions): GovernanceTransport
 ```
 
 上面是设计形状，本包现在不导出它。
@@ -76,36 +77,32 @@ SDK 依赖公开契约，以及调用者提供的传输适配接口。它不依�
 
 ```ts
 type TransportReport =
-  | { kind: "response"; bytes: Uint8Array }
-  | { kind: "not-sent" }
-  | { kind: "uncertain" };
+  | { kind: 'response'; bytes: Uint8Array }
+  | { kind: 'not-sent' }
+  | { kind: 'uncertain' }
 
 type GovernanceTransport = {
-  send(bytes: Uint8Array): Promise<TransportReport>;
-};
+  send(bytes: Uint8Array): Promise<TransportReport>
+}
 
 type PublicResponse = {
-  protocolVersion: string;
-  messageId: string;
-  outcome: string;
-  body: unknown;
-};
+  protocolVersion: string
+  messageId: string
+  outcome: string
+  body: unknown
+}
 
-type CallerResult =
-  | { kind: "response"; message: PublicResponse }
-  | { kind: "uncertain" };
+type CallerResult = { kind: 'response'; message: PublicResponse } | { kind: 'uncertain' }
 
 type GovernanceClient = {
-  submit(message: unknown): Promise<CallerResult>;
-};
+  submit(message: unknown): Promise<CallerResult>
+}
 ```
 
 `GovernanceTransport` 由调用者交入。`submit` 接收公开契约的共同消息，并带上这次发送的 `messageId`。传输字节先按公开契约读取，再核对这个 `messageId`。对上了才成为 `response`。读不出，或 `messageId` 不是这一次，结果是 `uncertain`，不再交成 `response`。
 
 ```ts
-type ReadReport =
-  | { kind: "message"; response: PublicResponse }
-  | { kind: "unreadable" };
+type ReadReport = { kind: 'message'; response: PublicResponse } | { kind: 'unreadable' }
 
 async function submitOnce(
   transport: GovernanceTransport,
@@ -114,21 +111,21 @@ async function submitOnce(
   readPublicContract: (input: Uint8Array) => ReadReport,
 ): Promise<CallerResult> {
   const matched = (report: TransportReport): CallerResult | undefined => {
-    if (report.kind !== "response") return undefined;
-    const read = readPublicContract(report.bytes);
-    if (read.kind !== "message" || read.response.messageId !== expectedMessageId) {
-      return { kind: "uncertain" };
+    if (report.kind !== 'response') return undefined
+    const read = readPublicContract(report.bytes)
+    if (read.kind !== 'message' || read.response.messageId !== expectedMessageId) {
+      return { kind: 'uncertain' }
     }
-    return { kind: "response", message: read.response };
-  };
-  const first = await transport.send(bytes);
-  if (first.kind === "uncertain") return { kind: "uncertain" };
-  const firstResult = matched(first);
-  if (firstResult) return firstResult;
-  const second = await transport.send(bytes);
-  const secondResult = matched(second);
-  if (secondResult) return secondResult;
-  return { kind: "uncertain" };
+    return { kind: 'response', message: read.response }
+  }
+  const first = await transport.send(bytes)
+  if (first.kind === 'uncertain') return { kind: 'uncertain' }
+  const firstResult = matched(first)
+  if (firstResult) return firstResult
+  const second = await transport.send(bytes)
+  const secondResult = matched(second)
+  if (secondResult) return secondResult
+  return { kind: 'uncertain' }
 }
 ```
 
@@ -141,12 +138,12 @@ function revokeOwnLogin(
   targetLoginId: string,
 ): Promise<CallerResult> {
   return client.submit({
-    protocolVersion: "governance-public/1",
-    messageId: "caller-generated",
-    operation: "revoke-login",
+    protocolVersion: 'governance-public/1',
+    messageId: 'caller-generated',
+    operation: 'revoke-login',
     loginProof: proof,
     body: { targetLoginId },
-  });
+  })
 }
 ```
 

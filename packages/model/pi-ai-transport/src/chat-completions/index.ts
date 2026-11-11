@@ -1,10 +1,11 @@
 // The subpath entry `./chat-completions`: the gateway engine for family packages. The runtime
-// values are `bindChatCompletions`, the calibrated arithmetic `calibratedAmount`, the meter that
+// values are `bindChatCompletions`, the official OpenRouter provider body and its accounting, the calibrated arithmetic `calibratedAmount`, the meter that
 // both families share (`createCalibratedMeter`) and the measurement rules it uses
 // (`ANCHORED_METHOD`, `NO_CALIBRATION`, `calibratedMethod`, `calibratedDigest`, `unitExtras`). The record vocabulary, the hooks and the
 // meter seam are types. Planning, projection, the body writer and the decoder stay inside the
 // package.
 export { bindChatCompletions, type ChatCompletionsBindingInput } from './bind.ts'
+export { OPENROUTER_ACCOUNTING, OPENROUTER_PROVIDER_BODY_TEXT } from './openrouter.ts'
 export {
   calibratedAmount,
   type CalibratedAmount,

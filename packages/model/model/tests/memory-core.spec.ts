@@ -229,14 +229,11 @@ it('derives one finite reservation total across tenants and does not reserve aft
   })
   const commands = callCommands(store)
   const input = { ...a.admit, capacity: { bytes: '90000', blocks: '40', attachmentBytes: '40' } }
+  const full = { failure: { kind: 'unavailable', dependency: 'model-capacity' } }
   unbox(await commands.admit(input))
-  expect(await commands.admit({ ...input, tenant: other })).toMatchObject({
-    failure: { kind: 'capacity' },
-  })
+  expect(await commands.admit({ ...input, tenant: other })).toMatchObject(full)
   expect(store.reserved('bytes')).toBe(90000n)
-  expect(await commands.admit({ ...input, tenant: other })).toMatchObject({
-    failure: { kind: 'capacity' },
-  })
+  expect(await commands.admit({ ...input, tenant: other })).toMatchObject(full)
 })
 it('rejects asynchronous authority and adapter reentry before any partial admission is visible', async () => {
   const f = fixture()

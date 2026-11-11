@@ -19,7 +19,7 @@ import type { SessionAdmittedInput, SessionCheck } from '../participants.ts'
 import { canonicalText, decodeValue, encodeValue, isCount, plainOf, sha256 } from '../codec.ts'
 import { readEntryText } from '../entry-codec.ts'
 import { readState } from './state-rows.ts'
-import { big, oneRow, rowsOf, text, type Row } from './support.ts'
+import { big, definite, oneRow, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_ROWS = 10_000
@@ -235,10 +235,8 @@ function terminalOrigin(
   return { revision, control: null }
 }
 
-const tooMany = (): ParticipantReply => ({
-  kind: 'failed',
-  diagnostic: 'the history of the session exceeds the read bound of a check',
-})
+const tooMany = (): ParticipantReply =>
+  definite('read-bound', 'the history of the session exceeds the read bound of a check')
 
 /** PA-01 item 1 (open) and item 3 (attach): the attempt the grant names may hold the execution. */
 function grantCheck(
@@ -270,7 +268,7 @@ function grantCheck(
   const origin = terminalOrigin(port, tenant, session, execution, snapshot, judged.terminal)
   if (origin === 'too-many') return tooMany()
   if (origin.revision === null)
-    return { kind: 'failed', diagnostic: 'a cancelled Run without its SE26 row' }
+    return definite('missing-row', 'a cancelled Run without its SE26 row')
   const at = big(origin.revision)
   const last = looked.attempts
     .filter(item => item.run === attempt.run && big(item.revision) <= at)

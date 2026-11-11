@@ -1,3 +1,11 @@
+import { decidePermissionAssignment } from './permission-state.ts'
+import {
+  DEFAULT_SESSION_INTAKE_LIMITS,
+  judgeSessionIntake,
+  pendingIntakeCount,
+  type SessionIntakeLimits,
+} from './intake.ts'
+import { decideTodos } from './decide-todos.ts'
 import { requiredWorkEntries } from './work-entry-state.ts'
 import { decodeEntries } from './entries.ts'
 import { validateFrontierBatch } from './frontier-state.ts'
@@ -13,7 +21,7 @@ import type {
 } from './identity.ts'
 import type { Adoption } from './identity.ts'
 import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
-import type { RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
+import type { BoundedClose, RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
 import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
@@ -150,6 +158,7 @@ function decideCreate(
   previous: WorkSnapshot | null,
   command: Extract<SessionCommand, { kind: 'create' }>,
   guards: readonly GuardCommand[],
+  limits: SessionIntakeLimits,
 ): Decision {
   if (previous !== null) return invalid('session', 'the session already exists')
   const { creation } = command.input
@@ -177,6 +186,8 @@ function decideCreate(
   if (creation.initial !== null) {
     if (creation.initial.input.length === 0 || creation.initial.message.blocks.length === 0)
       return invalid('creation.initial', 'the initial input has no identity or no content')
+    const limited = judgeSessionIntake(0, creation.initial, limits)
+    if (limited !== null) return rejected(limited)
     out.push(...acceptedOrdinary(creation.initial, 'next-run', null))
   }
   return entries(out)
@@ -209,6 +220,7 @@ function acceptedOrdinary(
 function decideAccept(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'accept' }>,
+  limits: SessionIntakeLimits,
 ): Decision {
   const { value } = command.input
   const route = routeInput(snapshot, value)
@@ -251,6 +263,8 @@ function decideAccept(
       if (value.kind !== 'ordinary') return invalid('value', 'not an ordinary input')
       if (snapshot.pending.includes(value.input))
         return invalid('value.input', 'an input of that identity was already accepted')
+      const limited = judgeSessionIntake(pendingIntakeCount(snapshot), value, limits)
+      if (limited !== null) return rejected(limited)
       const run = snapshot.run.kind === 'active' ? snapshot.run.run : null
       return entries(acceptedOrdinary(value, route.destination, run))
     }
@@ -400,27 +414,28 @@ function decideFinishRun(
     return invalid('run', 'not the unfinished Run of this session')
   const active = snapshot.run
   const source = commandEvidence(command.input.operation, 'bounded-close')
+  const basis = boundedBasis(command.input.operation, bounded)
+  const { rejects } = basis
   const out: EncodedEntry[] = []
-  if (bounded.kind === 'admission-rejected') {
-    if (bounded.input !== active.first)
+  if (rejects !== null) {
+    if (rejects.input !== active.first)
       return invalid('bounded.input', 'not the first input of the Run')
-    if (!snapshot.pending.includes(bounded.input))
+    if (!snapshot.pending.includes(rejects.input))
       return invalid('bounded.input', 'the first input is no longer pending')
-    if (emptyEvidence(bounded.rejection)) return invalid('bounded.rejection', 'incomplete evidence')
+  }
+  if (emptyEvidence(basis.evidence)) return invalid(basis.field, 'incomplete evidence')
+  if (rejects !== null)
     out.push(
       encodeEntry(
         {
           kind: 'intake.handed-over',
-          input: bounded.input,
+          input: rejects.input,
           execution: active.execution.execution,
-          result: { kind: 'rejected', reason: 'admission-rejected', rejection: bounded.rejection },
+          result: { kind: 'rejected', reason: rejects.reason, rejection: basis.evidence },
         },
-        { owner: 'agent', via: 'session-adapter', source: bounded.rejection },
+        rejects.origin,
       ),
     )
-  } else if (emptyEvidence(bounded.evidence)) {
-    return invalid('bounded.evidence', 'incomplete evidence')
-  }
   if (active.advance !== null)
     out.push(
       encodeEntry(
@@ -428,11 +443,17 @@ function decideFinishRun(
         sessionOrigin(source),
       ),
     )
-  const evidence = bounded.kind === 'admission-rejected' ? bounded.rejection : bounded.evidence
-  const terminal: RunTerminal = { run, outcome: 'failed', evidence }
+  const terminal: RunTerminal = { run, outcome: 'failed', evidence: basis.evidence }
   out.push(
     encodeEntry(
-      { kind: 'run.terminal', terminal, sequence: null, cause: null, disposition: null, bounded },
+      {
+        kind: 'run.terminal',
+        terminal,
+        sequence: null,
+        cause: bounded.kind === 'drive-refused' ? basis.evidence : null,
+        disposition: null,
+        bounded,
+      },
       sessionOrigin(source),
     ),
   )
@@ -441,14 +462,54 @@ function decideFinishRun(
       encodeEntry(
         {
           kind: 'intake.released',
-          inputs: snapshot.pending.filter(
-            input => bounded.kind !== 'admission-rejected' || input !== bounded.input,
-          ),
+          inputs: snapshot.pending.filter(input => input !== rejects?.input),
         },
         sessionOrigin(source),
       ),
     )
   return entries(out)
+}
+
+/**
+ * What a bounded close rests on (SPEC「Run 两层状态机与不变量」, three grounds): the evidence, the
+ * command field that carries it, and the first input the close rejects with its SE35 reason and
+ * origin, or null when it rejects none. A drive refusal has no outside record: the close records it
+ * itself, and the record names the failure kind, field and reason, so the history shows why the
+ * Run failed (PM-02, PM-05).
+ */
+type BoundedBasis = Readonly<{
+  evidence: DurableEvidence
+  field: string
+  rejects: Readonly<{ input: InputId; reason: BoundedClose['kind']; origin: Origin }> | null
+}>
+
+function boundedBasis(operation: SessionOperationId, bounded: BoundedClose): BoundedBasis {
+  switch (bounded.kind) {
+    case 'uninterpretable':
+      return { evidence: bounded.evidence, field: 'bounded.evidence', rejects: null }
+    case 'admission-rejected': {
+      const { input, rejection } = bounded
+      const origin: Origin = { owner: 'agent', via: 'session-adapter', source: rejection }
+      return {
+        evidence: rejection,
+        field: 'bounded.rejection',
+        rejects: { input, reason: bounded.kind, origin },
+      }
+    }
+    case 'drive-refused': {
+      const { failure, field, reason, input } = bounded
+      const named = [failure, field, reason].filter(part => part !== null).join(' ')
+      const evidence: DurableEvidence = {
+        owner: '@omne-harness/session-contract',
+        record: `drive refused: ${named}`,
+        revision: '1',
+        digest: `sha256:${digestOf({ operation, what: 'drive-refused', failure, field, reason })}`,
+      }
+      const rejects =
+        input === null ? null : { input, reason: bounded.kind, origin: sessionOrigin(evidence) }
+      return { evidence, field: 'bounded', rejects }
+    }
+  }
 }
 
 function decideReceive(
@@ -488,6 +549,24 @@ function decideHandover(
       { owner: 'agent', via: 'session-adapter', source: evidence },
     ),
   ])
+}
+
+function decideDeclarationChange(
+  snapshot: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'change' }>,
+  reads: DecideReads,
+): Decision {
+  const { declaration } = command.input
+  if (declaration.kind === 'permission-assignment')
+    return decidePermissionAssignment({
+      snapshot,
+      change: declaration,
+      operation: command.input.operation,
+      commandDigest: commandDigest(command),
+      basis: reads.permissionChange,
+      source: commandEvidence(command.input.operation, 'change'),
+    })
+  return decideChange(snapshot, command)
 }
 
 function decideChange(
@@ -804,7 +883,8 @@ function decideCommand(
     return { kind: 'recovered', receipt: recall.receipt }
   }
   if (recall.kind === 'conflict') return rejected({ kind: 'conflict', operation: recall.operation })
-  if (command.kind === 'create') return decideCreate(previous, command, guards)
+  const limits = reads.intakeLimits ?? DEFAULT_SESSION_INTAKE_LIMITS
+  if (command.kind === 'create') return decideCreate(previous, command, guards, limits)
   if (previous === null) return rejected({ kind: 'denied', action: command.kind })
   if (
     previous.session !== command.input.session ||
@@ -812,10 +892,14 @@ function decideCommand(
   )
     return rejected({ kind: 'denied', action: command.kind })
   switch (command.kind) {
+    case 'addTodo':
+    case 'removeTodo':
+    case 'markTodoComplete':
+      return decideTodos(previous, command, commandEvidence(command.input.operation, command.kind))
     case 'completeInitialization':
       return decideInitializationComplete(previous, command, guards, reads)
     case 'accept':
-      return decideAccept(previous, command)
+      return decideAccept(previous, command, limits)
     case 'startRun':
       return decideStartRun(previous, command, reads)
     case 'recordMessage':
@@ -825,7 +909,7 @@ function decideCommand(
     case 'finishRun':
       return decideFinishRun(previous, command)
     case 'change':
-      return decideChange(previous, command)
+      return decideDeclarationChange(previous, command, reads)
     case 'claim':
     case 'reload':
     case 'release':
@@ -843,6 +927,8 @@ function decideCommand(
         previous.pending.includes(command.input.urgent.input)
       )
         return invalid('urgent', 'empty or duplicate input')
+      const limited = judgeSessionIntake(pendingIntakeCount(previous), command.input.urgent, limits)
+      if (limited !== null) return rejected(limited)
       const control = decideControl(
         previous,
         {

@@ -24,4 +24,4 @@ relations:
 
 {{按product-design形成产品正文，核对统一语言与对象依据。需求、能力、状态证据和阶段版本相互定位，未决按产品、阶段、技术及来源分责维护；含义改变同步真实消费者。新topic从revision 1和draft起步，正式目录位置不授予接受。}}
 
-{{flows与acceptance仅在有独立阅读任务时增加；不复制stories、projection或活动卡清单。活动交付依据docs/engineering/agent-delivery.md及实际配置定位。}}
+{{flows与acceptance仅在有独立阅读任务时增加；不复制stories、projection或活动卡清单。活动交付依据docs/engineering/delivery.md定位。}}

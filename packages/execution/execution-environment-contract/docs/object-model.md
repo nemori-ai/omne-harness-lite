@@ -294,6 +294,25 @@ stateDiagram-v2
 
 许可之前没有外部效果；终局与许可写在集成方账本的同一耐久顺序里。文件批次的已提交与未知是终态，不进入「未停」集合。条款见 [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)。
 
+### 一次性命令的执行域
+
+```mermaid
+stateDiagram-v2
+  [*] --> running : 许可之后启动，归本次获取
+  running --> exited : 主进程退出，输出安静
+  running --> stopping : 取消、超时或获取释放
+  exited --> stopping : 处置答 none，或不能保留（stopping 带原因）
+  exited --> reserved : 处置可以保留：先在提供者索引里同步预留一个名额，再在保留进程账本 plan
+  reserved --> retained : adopt 确认，且范围未封闭、执行域仍待处置；归属改为保留范围
+  reserved --> stopping : 复核不成立，或 adopt 答 closed；预留作废
+  reserved --> reserved : adopt 结果未知，按原移交身份查询
+  retained --> stopping : 进程全部自行退出 / 显式停止 / 保留范围封闭
+  stopping --> stopped : 监督者确认
+  stopped --> [*]
+```
+
+`exited` 之前与 `reserved` 期间，执行域归本次获取；进入 `retained` 时归属改为保留范围，此后不再改回。本次获取的释放不停止 `retained` 的执行域。`stopping` 在监督者确认之前一直占着原归属方的责任。结局里的 `residue` 与这张图的对应是：`none` 与 `stopping` 走左边的停止，`retained` 走 `reserved` 到 `retained`，`unknown` 是处置没有结果或停在 `reserved` 待查询。条款见 [SPEC 一次性命令留下的进程](../SPEC.md#一次性命令留下的进程)，形式模型见 [ProcessCustody](../verification/models/README.md#processcustody)。
+
 ### 设施请求
 
 ```mermaid

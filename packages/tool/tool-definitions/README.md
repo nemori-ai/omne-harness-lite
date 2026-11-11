@@ -55,3 +55,21 @@ acceptance/               Independent acceptance; fixtures/ holds its inputs
 ```
 
 Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. A docs topic can grow into a directory of the same name with README.md and index.md. Keep this map current when a topic moves.
+
+## TodoItems
+
+`createTodoItemsAuthor` and `todoItemsToolModule` provide help, add, remove, mark_complete and list through one wrapped declaration. Construction accepts only a positive safe integer `resultMaxBytes`. The environment is null.
+
+The host calls `attachTodoItems` after `attachToolsCapability`. Both attachments use the final context. `finish` removes access before cleanup and returns the same Promise on repeated calls. [The port](src/todo-items-port.ts) accepts only bound business arguments.
+
+Results preserve complete Session receipts, pages, cursors and failures as JSON. Unknown commits retain the original operation. Output over budget returns unavailable and asks for a smaller list limit. A 1 MiB deployment budget does not cover every valid page because JSON escapes can expand control characters. Tiny budgets can fail output validation.
+
+[Author tests](tests/todo-items.spec.ts) cover real Tool decoding, execution and output with bound test providers. They do not prove SQL persistence, application delivery or automatic Context projection. See [SPEC](SPEC.md#todoitems-作者).
+
+## Web
+
+`createWebAuthor` and `webToolModule` provide help, search and fetch through one wrapped declaration. Construction accepts only the positive safe integers `resultMaxBytes` and `maxSearchResults`. The environment is null and the author declares no settings in this slice.
+
+The host calls `attachWebAccess` after `attachToolsCapability` with a `WebAccess` implementation ([the port](src/web-port.ts)); the author never sees a key, a supplier or a tenant. search writes titles, urls, dates and excerpts; fetch writes the final url, the media type and the Markdown body. Web content sits between external data marks. Every failure is one `<kind> reason=` line from the closed `WebFailure` set; `unconfigured` names the Web setting `exa.apiKey`.
+
+[Author tests](tests/web.spec.ts) use a scripted port; the network provider is `@omne-harness/tool-host-local/web`. See [SPEC](SPEC.md#web-作者).

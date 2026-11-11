@@ -39,6 +39,7 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
       'decodeModelInvocationRef',
       'decodeModelOperationId',
       'decodeModelOutputV1',
+      'decodeProviderName',
       'decodeOutputCursor',
       'decodeResultVersion',
       'decodeRevision',
@@ -63,7 +64,6 @@ it('the provider entry exports exactly the runtime values of the provider protoc
       'MODEL_SEND',
       'compareRevisions',
       'continuedMessages',
-      'decodeCredentialId',
       'decodeModelOperationRef',
       'decodeReadId',
       'encodeModelOperationRef',
@@ -71,8 +71,9 @@ it('the provider entry exports exactly the runtime values of the provider protoc
       'judgeFixedModelRequest',
       'judgeReplayDeclaration',
       'projectReplay',
+      'readCredentialLayer',
       'resolveModelOperationRef',
-      'sameCredentialHolder',
+      'selectCredentialLayer',
     ].sort(),
   )
   const root = (await import('@omne-harness/model-contract')) as Record<string, unknown>
@@ -112,6 +113,8 @@ it('publishes the new projection, credential and stream names only from their de
   }
   const expected = {
     root: [
+      'CredentialLayer',
+      'decodeProviderName',
       'encodeModelOutputV1',
       'decodeModelOutputV1',
       'ModelOutputV1',
@@ -119,11 +122,12 @@ it('publishes the new projection, credential and stream names only from their de
       'ModelOutputV1Delta',
       'ModelOutputV1Failure',
     ],
-    provider: ['QualifiedCredentialQuery'],
+    provider: ['CredentialLayerQuery', 'CredentialFailure', 'selectCredentialLayer'],
     testing: [
       'createScriptedCredentialPort',
       'ScriptedCredentialPort',
       'ScriptedCredentialPortOptions',
+      'ScriptedCredentialProvider',
     ],
     conformance: [
       'checkCredentialPortConformance',
@@ -134,6 +138,7 @@ it('publishes the new projection, credential and stream names only from their de
       'CredentialConformanceResult',
       'CredentialConformanceReport',
       'CredentialConformanceOptions',
+      'CredentialTarget',
       'checkModelStreamConformance',
       'ModelStreamConformanceInput',
       'ModelStreamConformanceSubject',

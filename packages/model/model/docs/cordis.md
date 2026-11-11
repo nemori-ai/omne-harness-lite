@@ -22,7 +22,7 @@ Model 门面以 commands 和稳定目录适配器维持受理/查询/控制/ACK�
 
 实现配置的边界归[本包 SPEC](../SPEC.md#工厂与配置)。
 
-凭据接缝沿 [#279](https://github.com/nemori-ai/omne-harness-lite/issues/279) 的独立采用及其服务定义，CredentialPort 及 modelCredential 服务的实际入口见[凭据服务](#凭据服务)。发送围栏在可信内部按当前资格调用凭据解析，factory/tenant选择不由ctx推断。
+凭据接缝沿 [#279](https://github.com/nemori-ai/omne-harness-lite/issues/279) 的独立采用及其服务定义，CredentialPort 及 modelCredential 服务的实际入口见[凭据服务](#凭据服务)。发送围栏在可信内部按当前资格读取请求固定的凭据层，层不由 ctx 推断。
 
 ## 档案、准备和转换的装配
 
@@ -94,4 +94,4 @@ runtime 工厂的 send/retry/instances 参数始终是完整对象。局部阶�
 
 ## 凭据服务
 
-凭据引用与解析规则已由 D-04 接受，并写入 [SPEC](../SPEC.md)。服务定义归 model-cordis-contract 的 `./cordis`，本地插件与注入发送归 [model-host-local](../../model-host-local/docs/cordis.md)。本包只拥有判定，不导入 Cordis，不提供服务。独立调用可以不启动 Cordis，直接使用判定函数；两种入口看到的五种结果相同。凭据服务不替代完整托管运行服务。
+服务定义归 model-cordis-contract 的 `./cordis`，读取设置域秘密的凭据端口与插件归 [model-host-local](../../model-host-local/docs/cordis.md)。本包不导入 Cordis，不提供服务；发送边界只消费注入的 `CredentialPort`。凭据服务不替代完整托管运行服务。

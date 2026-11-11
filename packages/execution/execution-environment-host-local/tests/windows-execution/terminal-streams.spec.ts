@@ -48,11 +48,13 @@ it('renders PowerShell output, error, host and diagnostic streams through actual
     await writeFile(release, '')
     expect(await running.value.result).toMatchObject({
       kind: 'completed',
-      exit: { kind: 'unknown' },
+      exit: { kind: 'code', code: 0 },
     })
     await reading
   } finally {
     await f.manager.stopAll()
-    await rm(directory, { recursive: true, force: true })
+    // The terminal host is outside the Job and exits on its own just after the Job stops; until
+    // then Windows keeps its working directory busy.
+    await rm(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
   }
 }, 60_000)

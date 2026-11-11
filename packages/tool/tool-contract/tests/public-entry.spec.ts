@@ -15,8 +15,9 @@ it('exports on the root only the names members outside the Tool group import, an
   // identity decoders and the RC block declaration/schema consumed outside the Tool group,
   // and by rule 3 the relation
   // check of a result push, which receivers outside the group call, and the resident key text and
-  // reference projection that the Session evidence writer and the application bridge call. The grouping table of the
-  // switch is in the PR (tmp/issue-626/provider-split.md).
+  // reference projection that the Session evidence writer and the application bridge call, and
+  // the settings projection that the application assembly registers with Settings. The grouping
+  // table of the switch is in the PR (tmp/issue-626/provider-split.md).
   expect(Object.keys(tool).sort()).toEqual([
     'backgroundCallsBlock',
     'backgroundCallsSchema',
@@ -36,6 +37,9 @@ it('exports on the root only the names members outside the Tool group import, an
     'resolveToolInvocationRef',
     'resolveToolOperationRef',
     'selectCommandText',
+    'toolAssetBody',
+    'toolBodyContract',
+    'toolsCapabilityOf',
   ])
 })
 
@@ -45,6 +49,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'COMMAND_CALL_ENCODINGS',
     'TOOL_IDENTITY_MAX_LENGTH',
     'TOOL_REFERENCE_MAX_LENGTH',
+    'attachToolsCapability',
     'commandArguments',
     'commandExample',
     'commandGuide',
@@ -92,7 +97,6 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'sameShape',
     'sameSourceLayer',
     'shapeOf',
-    'toolBodyContract',
     'toolStreamCallCodec',
   ])
   for (const name of Object.keys(provider)) expect(Object.keys(tool)).not.toContain(name)

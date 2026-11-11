@@ -1,19 +1,7 @@
 # 测试运行器验证
 
-变异测试的现行行为与限制归 [使用说明](../README_ZH.md#差分变异)。
-
 | 资源 | 层与范围 |
 | --- | --- |
-| `mutation-guard.spec.ts` | 快层。公开 TestRunner 的 this、参数、结果与生命周期透传；第一次拒绝直接报告 Error；全原始报告的 RuntimeError 使成员无效、不给分数；命中次数超限的原因前缀与 `@stryker-mutator/api` 10.0.0 一致；`RunReporter` 出错或写不出记录时不让运行失败；形状校验。 |
-| `mutation.spec.ts` | 快层。检查范围、配置与报告，含超时复核的分类、复核上限（嵌套变异体计入复跑数）、复核的 Stryker 配置、类型测试读数（测到、没测到、不适用）与没有变异体的改动段（列为未覆盖，不报光秃秃的分数）。 |
-| `mutation-cli.spec.ts` | 变异入口的参数。点名成员只列范围的一条在快层。参数互斥、缺省基线现算计划、读准入检查的计划与 `--since` 这四条起真实 CLI 子进程，在慢层。`--since` 一条核对：范围收窄到 `<ref>` 以来、范围说明写明 `<ref>`；早于合并点、没有这个提交、与 `--members` 同给时以 2 退出。 |
-| `mutation-since.spec.ts` | 快层。`--since` 模块在真实 git 夹具仓库上：取值核对（空、以 `-` 开头、没有这个提交、不是 HEAD 的祖先、早于合并点、在合并进来的旁支上、在 HEAD 第一父线上但早于同步合并进来的合并点，原因说第一父线，不说旁支），以及范围取 `<ref>` 与合并点两份改动行的交（改回基线原样的行不进范围；取合并点时与不给相同；取 HEAD 时只剩未提交的改动）。 |
-| `mutation-progress.spec.ts` | 快层。`spawnLogged` 的逐行回调：输出照样全进日志，每一行去掉行尾的回车符再交给回调；不给回调时子进程直接写日志；命令起不来时记为 -1。Stryker 进度行的筛选与成员路径前缀。进程数告警：何时告警、空闲比例或 `OMNE_WORKER_BUDGET` 的来历、受内存所限、重启命令。 |
-| `mutation-stryker-*.spec.ts` | 慢层。启动真实 CLI、Stryker 10.0.0 与 Vitest 4.1.11，按场景分成五个文件，让 vitest 按文件并行。增量与成员并行见下面 `mutation-stryker-incremental.spec.ts` 一行。`score` 覆盖 sandbox 里的类型检查、普通存活、Killed、多 worker、只由参数化用例守着的改动行，以及只改 `as const` 声明时 Stryker 不生成变异体、读数报未覆盖。`recheck` 覆盖 static 运行缺席类型测试的读数、可控耗时注入下的复核与复核上限为 0。`hang` 只有真的挂起的 static 变异体一条：复核时限另加 `mutation.testTimeoutSeconds`（60 秒），这一条要等满复核的时限（Stryker 的估算再加 `mutation.testTimeoutSeconds`），所以单独成一个文件。`preflight` 覆盖文件收集错误与深层 suite 自身错误、同 out 重跑、旧报告留存与预检。 |
-| `mutation-schedule.spec.ts` | 快层。成员并行：工作进程按工作量分、不超过预算与上限、每个至少一个；调度时同时在跑的进程不超过预算，结果按成员下标放回；一个成员抛错时排着的不再开始。 |
-| `mutation-incremental.spec.ts` | 快层。增量：快照的目录与开关、读不出、指纹对不上与变异体缺必需字段按没有快照处理、指纹的各类输入（成员配置、根分层配置、成员 `tests/` 下的非 spec 文件、测试经相对路径导入读到的成员外文件、上游成员 `dist/` 的产物，不含成员自己的 `dist/`，取不到时不复用）逐类失效并说明是哪一类、旧格式快照整份失效、读不出输入时不复用、写不进去不抛、交给 Stryker 的只有被杀的、范围按「整个包含」判、去掉带回的范围外变异体、补回复用的 static 变异体的运行记录、从带颜色码的日志里取复用数。 |
-| `mutation-stryker-incremental.spec.ts` | 慢层。夹具上真起 Stryker：第二次复用被杀的、读数不变；改一处被变异的行只重跑那里；范围缩小时读数与不复用时相同；关掉增量时不读不写快照、配置与以前相同；`--force` 不复用；两个成员并行与逐个跑读数相同。 |
-| `fixtures/mutation.ts` | 上面几份文件共用的夹具：临时目录、CLI 夹具仓库、手写计划、单成员的 Stryker 夹具项目与 `mutate`。 |
 | `pnpm-lockfile.spec.ts` | 快层。读 `pnpm-lock.yaml` 的最小 YAML 解析器：pnpm 9 实际写出的形状、带 peer 后缀的键、错行报行号、结构等价比较。 |
 | `lockfile-impact.spec.ts`、`fixtures/lockfiles.ts` | 快层。锁文件差异到成员的映射（[影响面怎么算](../README_ZH.md#测试运行)第 1 条的锁文件例外）：单成员依赖、被两个成员依赖的包升级、去掉的包按基线图、别名依赖；顶层设置、根依赖、解析失败、解释不了的引用判全量；等价无影响。另用本仓库真实锁文件核对解析器与成员清单对得上。 |
 | `admission-run.spec.ts` | 快层。准入运行记录（[准入](../README_ZH.md#准入运行记录接续与证据核对)）：原子写入、读回相同、坏文件按没有记录；由步骤图运行写成记录时跑完、被终止、没开始各记成什么；`fullRequested`、`worktree` 缺了或写错就不是记录，工作树根经软链也记成同一个真实路径；完整通过的全量准入的判法（只是计划判了全量、接续的 H1 没带 `FULL=1` 都不算）；两处收集、挑某个提交最近一次干净的全量。 |
@@ -28,10 +16,10 @@
 在仓库根运行，重验证须通过共享槽：
 
 ```sh
-scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest run --mode fast tests/mutation
-scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest run --mode slow --typecheck.enabled=false tests/mutation
+scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest run --mode fast
+scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest run --mode slow --typecheck.enabled=false
 ```
 
-运行前清除外部 `BASELINE`，并按[开发环境要求](../../../docs/development.md#准备可用的检出)准备 Git 等工具。慢层夹具需要可执行真实仓库操作的 Git。慢层夹具独立创建仓库，不操作产品数据。设置 `OMNE_MUTATION_FIXTURE_EVIDENCE` 可保存静态收集错误的原始报告与 CLI 输出。
+运行前清除外部 `BASELINE`，并按[开发环境要求](../../../docs/development.md#准备可用的检出)准备 Git 等工具。慢层夹具需要可执行真实仓库操作的 Git。慢层夹具独立创建仓库，不操作产品数据。
 
-这些资源验证本工具的测量边界，不证明产品成员的测试质量，也不重算旧读数。
+这些资源验证本工具的计划、缓存与准入判断，不证明产品成员的测试质量，也不重算旧读数。

@@ -1,29 +1,26 @@
 import { expectTypeOf, it } from 'vitest'
 import {
-  createTools,
-  type Tools,
+  createToolResultReader,
+  type ToolResultReader,
   type ToolsAccess,
   type ToolsOptions,
   type ToolsReadRuntime,
 } from '@omne-harness/tool'
 import type {
-  Access,
   InvocationAccess,
   Reply,
-  ToolDefinition,
   ToolResult,
   ToolResultVersion,
   ToolRuntime,
 } from '@omne-harness/tool-contract'
-import type {
-  ToolImplementation,
-  ToolMessageContentBlock,
-} from '@omne-harness/tool-contract/provider'
+import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 
-it('createTools consumes only the public result and content read ports', () => {
+it('createToolResultReader consumes only the public result and content read ports', () => {
   type P = { subject: string }
-  expectTypeOf(createTools<P>).parameters.toEqualTypeOf<[ToolsReadRuntime<P>, ToolsOptions]>()
-  expectTypeOf(createTools<P>).returns.toEqualTypeOf<Tools<P>>()
+  expectTypeOf(createToolResultReader<P>).parameters.toEqualTypeOf<
+    [ToolsReadRuntime<P>, ToolsOptions]
+  >()
+  expectTypeOf(createToolResultReader<P>).returns.toEqualTypeOf<ToolResultReader<P>>()
   expectTypeOf<ToolsAccess<P>>().toEqualTypeOf<
     InvocationAccess<P> & Readonly<{ result: ToolResultVersion }>
   >()
@@ -33,16 +30,12 @@ it('createTools consumes only the public result and content read ports', () => {
       content: Pick<ToolRuntime<P, ToolMessageContentBlock>['content'], 'read'>
     }>
   >()
-  expectTypeOf<Tools<P>['implementation']>().toEqualTypeOf<
-    ToolImplementation<Access<P>, ToolMessageContentBlock>
-  >()
-  expectTypeOf<Tools<P>['definition']>().toEqualTypeOf<ToolDefinition>()
-  // The implementation carries no definition: the asset side of the meta tool is derived once.
-  expectTypeOf<Tools<P>['implementation']>().not.toHaveProperty('definition')
-  expectTypeOf<Tools<P>['present']>().toEqualTypeOf<
+  expectTypeOf<ToolResultReader<P>>().not.toHaveProperty('implementation')
+  expectTypeOf<ToolResultReader<P>>().not.toHaveProperty('definition')
+  expectTypeOf<ToolResultReader<P>['present']>().toEqualTypeOf<
     (input: ToolsAccess<P>) => Promise<ToolResult<ToolMessageContentBlock>>
   >()
-  expectTypeOf<Tools<P>['readReply']>().toEqualTypeOf<
+  expectTypeOf<ToolResultReader<P>['readReply']>().toEqualTypeOf<
     (input: ToolsAccess<P>) => Reply<ToolResult<ToolMessageContentBlock>>
   >()
   expectTypeOf<Extract<'invoke', keyof ToolsReadRuntime<P>>>().toEqualTypeOf<never>()

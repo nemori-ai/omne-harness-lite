@@ -98,10 +98,12 @@ describe('acquire', () => {
     })
   })
 
-  it('resources that fail the tokenizer checks are unavailable, never another encoding', async () => {
+  it('an executor that cannot acquire the tokenizer reports unavailable, never another encoding', async () => {
     const family = createAnthropicFamily({
       ...CONFIG,
-      tokenizer: { ...anthropicTokenizerResources(), specialTokens: { '<EOT>': 0 } },
+      executor: {
+        acquire: () => ({ failure: { kind: 'unavailable', diagnostic: 'provider-down' } }),
+      },
     })
     expect(await composeFamilies([family]).acquire(supplierOf(SONNET), live())).toEqual({
       failure: {
@@ -130,4 +132,59 @@ describe('acquire', () => {
       failure: { kind: 'unavailable', dependency: ANTHROPIC_OWNER, diagnostic: 'cancelled' },
     })
   })
+})
+
+it('forwards the signal and propagates tokenizer cleanup failure from binding release', async () => {
+  const controller = new AbortController()
+  const entered: AbortSignal[] = []
+  const family = createAnthropicFamily({
+    ...CONFIG,
+    executor: {
+      acquire(definition, signal) {
+        entered.push(signal)
+        const acquired = CONFIG.executor.acquire(definition, signal)
+        if ('failure' in acquired) return acquired
+        return {
+          ok: {
+            tokenizer: acquired.ok.tokenizer,
+            async release() {
+              await acquired.ok.release()
+              return { failure: { kind: 'unavailable', diagnostic: 'cleanup-failed' } }
+            },
+          },
+        }
+      },
+    },
+  })
+  const acquired = await composeFamilies([family]).acquire(supplierOf(SONNET), controller.signal)
+  if ('failure' in acquired) throw new Error(JSON.stringify(acquired.failure))
+  expect(entered).toEqual([controller.signal])
+  await expect(acquired.ok.release()).rejects.toThrow('tokenizer-unavailable')
+})
+
+it('releases an acquired tokenizer when the binding constructor rejects its decoder limits', async () => {
+  let releases = 0
+  const family = createAnthropicFamily({
+    ...CONFIG,
+    limits: { ...CONFIG.limits, maxReasoningText: 0 },
+    executor: {
+      acquire(definition, signal) {
+        const acquired = CONFIG.executor.acquire(definition, signal)
+        if ('failure' in acquired) return acquired
+        return {
+          ok: {
+            tokenizer: acquired.ok.tokenizer,
+            async release() {
+              releases += 1
+              return acquired.ok.release()
+            },
+          },
+        }
+      },
+    },
+  })
+  await expect(
+    composeFamilies([family]).acquire(supplierOf(SONNET), new AbortController().signal),
+  ).rejects.toThrow(RangeError)
+  expect(releases).toBe(1)
 })

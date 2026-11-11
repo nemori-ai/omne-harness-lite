@@ -56,6 +56,10 @@ const SESSION_GOLDEN = {
   configureAutoArchive: [M, D, D],
   considerAutoArchive: WORK_ONLY,
   recordIdle: WORK_ONLY,
+  addTodo: WORK_ONLY,
+  markTodoComplete: WORK_ONLY,
+  removeTodo: WORK_ONLY,
+  listTodos: WORK_ONLY,
   interrupt: [M, D, D],
   cancelRun: BOTH,
   stopCall: BOTH,
@@ -148,8 +152,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 39 Session rows and 26 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(39)
+  it('has the 43 Session rows and 26 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(43)
     expect(Object.keys(AGENT_GOLDEN)).toHaveLength(26)
   })
 })

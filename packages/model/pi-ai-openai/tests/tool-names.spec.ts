@@ -7,6 +7,7 @@ import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import type { FixedModelRequest, ModelBlock } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
+import { OPENROUTER_ACCOUNTING } from '@omne-harness/pi-ai-transport/chat-completions'
 import {
   assembledOf,
   bindingOf,
@@ -107,7 +108,7 @@ async function decodedCalls(
 ): Promise<readonly ModelBlock[]> {
   const binding = await bindingOf(SOL)
   try {
-    const decoder = binding.createDecoder({ request })
+    const decoder = binding.createDecoder({ request, accounting: OPENROUTER_ACCOUNTING })
     const facts: TransportFact[] = []
     const take = (outcome: ReturnType<typeof decoder.accept>): void => {
       if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
@@ -244,7 +245,9 @@ describe('names that cannot go out', () => {
   it('a decoder is not made for a request whose names encode refuses', async () => {
     const binding = await bindingOf(SOL)
     const request = fixedRequest(SOL, { tools: [tool('a.b'), tool('a_b')] })
-    expect(() => binding.createDecoder({ request })).toThrow(RangeError)
+    expect(() => binding.createDecoder({ request, accounting: OPENROUTER_ACCOUNTING })).toThrow(
+      RangeError,
+    )
     await binding.release()
   })
 })

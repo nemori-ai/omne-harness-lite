@@ -41,7 +41,7 @@ await registry.close()
 
 - `src/` owns the public shapes. The [API page](docs/public-api.md) indexes the exports.
 - The [SPEC](SPEC.md) owns the local behavior: tables and views, placement, access checks, acquisition, queries, the operation gate, release, retirement, recovery, and close.
-- The [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) owns the inputs, results, and failures of the nine operations.
+- The [execution-environment-contract SPEC](../execution-environment-contract/SPEC.md) owns the inputs, results, and failures of the ten operations.
 - The [object model](docs/object-model.md) owns identity and life of the internal objects.
 
 The caller of the factory owns the registry instance and calls `close()`. Close first refuses new placements, acquisitions, and registrations. Then it invalidates all leases. Then it retires all providers. Close does not empty the tables and does not undo external effects. When a retirement stays pending, the removal function throws `RetirementPending`.

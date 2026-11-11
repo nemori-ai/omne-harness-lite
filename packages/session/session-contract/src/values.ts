@@ -1,3 +1,6 @@
+import type { SessionPermissions } from './permission-values.ts'
+import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions'
+import type { TodoItem } from './todos.ts'
 import type { SessionWorkEntryIndex } from './work-entry-values.ts'
 // The values of the work snapshot and the fixed inputs of the commands (SPEC「值与结果项的约束」).
 // Session keeps no continuation value: `ExecutionRef` points at the Agent's authoritative record.
@@ -214,10 +217,21 @@ export type RecoveryTask =
       state: 'pending' | 'unknown'
       last: readonly ScopeReleaseDisposition[]
     }>
-/** Bounded close by Session. Always ends as failed. "No record yet" and "execution ended" are not grounds. */
+/**
+ * Bounded close by Session. Always ends as failed. "No record yet" and "execution ended" are not grounds.
+ * `drive-refused` is the Agent's definite failure of `invoke` (`input` is the first input) or of
+ * `resume` (`input` is null); its basis is what this close records, not an outside record.
+ */
 export type BoundedClose =
   | Readonly<{ kind: 'uninterpretable'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'admission-rejected'; input: InputId; rejection: DurableEvidence }>
+  | Readonly<{
+      kind: 'drive-refused'
+      failure: 'invalid' | 'unsupported'
+      field: string | null
+      reason: string | null
+      input: InputId | null
+    }>
 export type DerivedMessage =
   | Readonly<{ kind: 'compaction'; message: CompactionMessage }>
   | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>
@@ -280,6 +294,15 @@ export type InitializationResult = Readonly<{
 }>
 export type ContextMaterial = Readonly<{ schema: Adoption; value: JsonValue }>
 export type DeclarationChange =
+  | Readonly<{
+      kind: 'permission-assignment'
+      capabilityId: string
+      enforcementKey: string
+      definition: PermissionDefinitionRef
+      rule: PermissionRule | null
+      expectedRevision: string
+      authorization: DurableEvidence
+    }>
   | Readonly<{
       kind: 'permission-mode'
       value: Modes['permission']
@@ -369,6 +392,7 @@ export type WorkSnapshot = Readonly<{
   definition: Readonly<{ name: string; adopted: Adoption }>
   execution: Adoption
   declarations: DurableEvidence
+  permissions: SessionPermissions
   revisions: Readonly<{ workspace: string; declarations: string }>
   run: RunState
   pending: readonly InputId[]
@@ -381,6 +405,7 @@ export type WorkSnapshot = Readonly<{
   tasks: readonly RecoveryTask[]
   idle: Readonly<{ observation: IdleObservation; commit: DurableEvidence }> | null
   /** Missing optional projections represent no previously committed facts of that kind. */
+  todos?: readonly TodoItem[]
   executions?: readonly RunExecution[]
   residentKeys?: ResidentAdoption['keys']
   relation?: Relation

@@ -311,6 +311,8 @@ export function createLocalToolControlSubjects<P, B extends ContentBlock = Conte
       }
       if (committed.kind === 'committed') return succeed(evidence)
       if (committed.kind === 'unknown') return recall(context, body)
+      if (committed.kind === 'rejected')
+        return fail({ kind: 'invalid', field: 'storage', reason: committed.reason })
       if (committed.kind !== 'conflict') return unavailable()
     }
     // The final losing commit can still have an identical winner to recall.

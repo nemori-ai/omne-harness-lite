@@ -165,9 +165,9 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
     suppliers: [
       {
         adoption: supplier.adoption,
-        recipient: supplier.recipient,
+        provider: supplier.provider,
         model: supplier.model,
-        credential: { kind: 'factory' as const },
+        credential: { layer: 'official' as const },
       },
     ] as const,
     parameterAdoptions: [],

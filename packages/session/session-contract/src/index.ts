@@ -20,6 +20,7 @@ export type {
   SessionIdentity,
   SessionOperationId,
   SessionRevision,
+  TodoItemId,
 } from './identity.ts'
 export type {
   AutoArchivePolicy,
@@ -258,3 +259,28 @@ export {
   type SessionDelegatedTransactions,
   type SessionReadAccessOperation,
 } from './access.ts'
+
+export {
+  DEFAULT_SESSION_INTAKE_LIMITS,
+  sessionIntakeLimits,
+  sessionInputBytes,
+  judgeSessionIntake,
+} from './intake.ts'
+export type { SessionIntakeLimits } from './intake.ts'
+export type {
+  TodoItem,
+  VisibleTodoItem,
+  TodoMutationReceipt,
+  TodoPageCursor,
+  TodoPage,
+  SessionTodos,
+} from './todos.ts'
+
+export type {
+  SessionPermissionAssignment,
+  SessionPermissions,
+  SessionPermissionChangeBasis,
+  SessionPermissionWriteQualification,
+} from './permission-values.ts'
+
+export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts'

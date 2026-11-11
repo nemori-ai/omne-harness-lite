@@ -3,7 +3,7 @@ import { agentEvaluator } from '@omne-harness/agent'
 import { succeed } from '@omne-harness/operation-result'
 import { createExecutionCoordinator, type CommitEvent } from '../src/loop/coordinator.ts'
 import { sampleStartFence } from '@omne-harness/agent-contract/testing'
-import { acceptedInput, evidence, execution, failure, ok, operation } from './journal-support.ts'
+import { acceptedInput, evidence, execution, ok, operation } from './journal-support.ts'
 import { options } from './factory-support.ts'
 import { alice, eventually, eventsOf, invoke, loopAssembly, shown } from './loop-support.ts'
 
@@ -61,7 +61,7 @@ describe('the coordinator result of an admission already advanced in the Journal
 })
 
 describe('the coordinator result when a node throws', () => {
-  it('a thrown evaluator value returns the stopped node and a defect failure', async () => {
+  it('a thrown evaluator value ends with a safe node-failed candidate', async () => {
     const assembly = await loopAssembly([execution()])
     const coordinator = createExecutionCoordinator({
       ports: assembly.dependencies,
@@ -80,14 +80,16 @@ describe('the coordinator result when a node throws', () => {
       idle: () => {},
     })
     ok(await coordinator.accept())
-    expect(failure(await coordinator.runExecution())).toMatchObject({
-      node: 'E4',
-      failure: { kind: 'unavailable', owner: '@omne-harness/agent#defect' },
-    })
+    ok(await coordinator.runExecution())
     const snapshot = ok(
       await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
     )
-    expect(snapshot.checkpoint.position).toBe('E4')
-    expect(snapshot.state.kind).not.toBe('ended')
+    expect(snapshot.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
+    expect(snapshot.settlement.candidate?.failure).toMatchObject({
+      kind: 'node-failed',
+      node: 'E4',
+      category: 'exception',
+      failureKind: 'unavailable',
+    })
   })
 })

@@ -1,12 +1,12 @@
 # tool/tool-contract 长期行为规格
 
-状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。[公开入口的分组](#公开入口的分组)（D-03）与[公共流协议上的观察](#公共流协议上的观察)（D-10）属 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，其接受在该卡交付时记录。[结果推送与保存](#结果推送与保存)、P04 的[外层调用方的启动围栏](#外层调用方的启动围栏)与[授权消费点与撤权再核](#授权消费点与撤权再核)属 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674#issuecomment-6395429174) 的写回，其接受在该卡交付时记录。当前源码实现资产正文端口和契约函数，按[公开入口的分组](#公开入口的分组)分在两个入口。根入口的运行时导出只有调用与操作引用的编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`）、结果交付的纯关系判定 `judgeToolDelivery` 和[常驻登记键与 shape 的文本编码](#常驻登记键与-shape-的文本编码)的三个纯函数，类型导出是组外成员实际导入的类型及其声明的传递闭包。其余契约函数（定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影）、其余身份解码函数、默认结果政策与 `toolBodyContract` 在 `./provider`。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`，单机宿主在 `@omne-harness/tool-host-local`，实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
+状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。[公开入口的分组](#公开入口的分组)（D-03）与[公共流协议上的观察](#公共流协议上的观察)（D-10）属 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，其接受在该卡交付时记录。[结果推送与保存](#结果推送与保存)、P04 的[外层调用方的启动围栏](#外层调用方的启动围栏)与[授权消费点与撤权再核](#授权消费点与撤权再核)属 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674#issuecomment-6395429174) 的写回，其接受在该卡交付时记录。当前源码实现资产正文端口和契约函数，按[公开入口的分组](#公开入口的分组)分在两个入口。根入口的运行时导出只有调用与操作引用的编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`）、结果交付的纯关系判定 `judgeToolDelivery` 和[常驻登记键与 shape 的文本编码](#常驻登记键与-shape-的文本编码)的三个纯函数，类型导出是组外成员实际导入的类型及其声明的传递闭包。其余契约函数（定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影）、其余身份解码函数与默认结果政策在 `./provider`；资产类别端口 `toolBodyContract` 与 `toolAssetBody` 有组外消费者（应用装配登记类别、写出发行工具的资产正文），在根入口。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`，单机宿主在 `@omne-harness/tool-host-local`，实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
 
 正文端口负责工具资产的读取与判定。执行、等待、结果保管和恢复由运行契约规定。
 
 ## 正文端口
 
-`toolBodyContract` 登记类别 `tool`。调用方先用 `@omne-harness/assets` 的 `readBodyText` 读取正文。`judge` 不接受对象字面量，也不接受伪造的读取结果，并且不调用传入的函数。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用，不成为必需依赖。判断失败时，声明和引用抛出，不返回结果。`pinBody` 保存当时的正文内容。验证命令是快层 `pnpm turbo run test:fast --filter=@omne-harness/tool-contract` 与慢层 `pnpm turbo run test:slow --filter=@omne-harness/tool-contract`。
+`toolBodyContract` 登记类别 `tool`。调用方先用 `@omne-harness/assets` 的 `readBodyText` 读取正文；`toolAssetBody(definition)` 把一个工具定义写成它的资产正文（名字、`requiredCapabilities`、`programmable` 与设置声明），并经同一读取函数读出。`judge` 不接受对象字面量，也不接受伪造的读取结果，并且不调用传入的函数。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用，不成为必需依赖。判断失败时，声明和引用抛出，不返回结果。`pinBody` 保存当时的正文内容。验证命令是快层 `pnpm turbo run test:fast --filter=@omne-harness/tool-contract` 与慢层 `pnpm turbo run test:slow --filter=@omne-harness/tool-contract`。
 
 `toolBodyContract` 已实现 `programmable` 的布尔校验与声明投影。只有布尔 `true` 产生声明项 `programmable`。省略或 `false` 不产生声明项。非布尔值以 `invalid-programmable` 拒绝，不按真值转换。运行时准入属于下文的[运行契约](#342-主干运行契约候选)：`programmable` 的准入检查已在 `tool` 的受理路径实现，证据范围与尚未覆盖的部分见[组的支持范围](../README.md#支持范围)；没有耐久或生产环境的证据。
 
@@ -33,7 +33,7 @@
 
 本节依据 [CP-15c 契约稳定审计 D-03](https://github.com/nemori-ai/omne-harness-lite/issues/732)（选项 A），由 [#626](https://github.com/nemori-ai/omne-harness-lite/issues/626) 写回。源码按本节规则分组：`./provider` 子入口导出提供者协议，Tool 组成员从它导入这些名字。导入扫描表列在交付 PR 的说明中，不进入本页。`tests/public-entry.spec.ts` 核对两个入口的运行时导出与「一名一入口」。
 
-本成员有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./binding` 是受信绑定读取器入口，`./testing` 是一致性套件入口。根入口的运行时导出只有组外成员实际导入的调用与操作引用编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`），按规则 3 进入根入口的 `judgeToolDelivery`，以及常驻登记键的三个纯函数（`encodeResidentKey`、`residentToolFacts`、`projectResidentReferences`），其余契约函数、默认结果政策与 `toolBodyContract` 在 `./provider`；规则 6 规定了日后有组外消费者时怎样移回。四个入口都不导入 Cordis 或其他 Tool 成员。分组只改导出位置与导入路径，不改任何类型或函数的形状。
+本成员有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./binding` 是受信绑定读取器入口，`./testing` 是一致性套件入口。根入口的运行时导出只有组外成员实际导入的调用与操作引用编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`），按规则 3 进入根入口的 `judgeToolDelivery`，以及常驻登记键的三个纯函数（`encodeResidentKey`、`residentToolFacts`、`projectResidentReferences`），资产类别端口 `toolBodyContract` 与资产正文写出函数 `toolAssetBody`，其余契约函数与默认结果政策在 `./provider`；规则 6 规定了日后有组外消费者时怎样移回。四个入口都不导入 Cordis 或其他 Tool 成员。分组只改导出位置与导入路径，不改任何类型或函数的形状。
 
 分组规则：
 
@@ -267,7 +267,7 @@ resolve 先核当前主体对合法 tenant/consumer 的资格，再访问关联�
 
 `accepted` 返回原调用引用、原受理状态回执与 recovered，后者为来源或 admission 认回的逻辑或。lookup 返回当前权威状态，不能覆盖原回执。`association-unknown` 无引用，表示关联可能落地但暂不能证明原身份；调用方保留原完整意图并重复 invoke。`commit-unknown` 带原引用，表示来源签发或 admission 尚未知；lookup 的 not-accepted 不足以证明原来源不再续做，仍沿原 invoke 接续。resolver 抛错或返回不合法身份时保留 association-unknown，后者是提供者违约。已证明原引用后 admission 抛错保留 commit-unknown。
 
-`rejected` 只描述当前尝试的确定失败，不证明历史上没有关联或受理。来源已建立后的准入拒绝不删除关联、不永久缓存拒绝；依赖恢复后重入沿原身份继续。原 scope 或其他固定输入不能更新，要新执行或修改意图须登记新 consumer。未知时不回收原键。不承诺外部效果 exactly-once。
+`rejected` 只描述当前尝试的确定失败，不证明历史上没有关联或受理。`rejected` 携带的 `ToolDefiniteFailure` 是除 `commit-unknown` 之外的任一失败，所以也可能是 `unavailable`：这表示依赖暂时不可用，这次尝试没有受理，不是对请求的拒绝。调用方按依赖等待，之后以原完整意图重入。其余种类是对这次尝试的确定拒绝。来源已建立后的准入拒绝不删除关联、不永久缓存拒绝；依赖恢复后重入沿原身份继续。原 scope 或其他固定输入不能更新，要新执行或修改意图须登记新 consumer。未知时不回收原键。不承诺外部效果 exactly-once。
 
 原受理回执为 accepted 时首次唤醒宿主。认回后只用当前 lookup 判断是否补 wake：仍待启动则补，已 running/settled 不补，查询未知允许保守补 wake。查询失败不撤销原 accepted。宿主按 tenant/call 归并待处理或并发 wake，driver 保持启动唯一。内部 admit 尝试次数可以多次，唯一受理事实、队列责任和真实启动分别观察。唤醒失败不回滚受理；当前 tool 实现依赖调用方重入，不承诺无人重入的自动扫描。共享内存来源只有非耐久单进程证据。
 
@@ -537,7 +537,9 @@ guide 是定义的投影，由 `commandGuide` 机械派生（D-104）。多命�
 
 提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，对不熟的命令，声明里的签名行就是动作前取得的用法；需要字段说明或完整 schema 时再问 help，不设「先 help 再调用」的门（R2-D399 确认的 P6）。
 
-呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是调用方不经 Tools 元工具发现即可调用的工具。常驻集合的规则见[常驻持有者规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
+呈现位置由装配决定，工具作者的定义不拥有这一预算选择。常驻工具进入模型直接 tool call 列表。非常驻工具通过 Tools 发现、读取用法和执行。search 在语料统计、排序与分页前排除实际常驻集合，inspect 和 usage 可查询两类工具。Tools.execute 只接受非常驻目标，准备与启动时分别核验；常驻工具必须直接调用。发现或执行不将非常驻目标加入模型工具列表。常驻集合的规则见[常驻持有者规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
+
+`ToolCatalog.search` 的每项是 `ToolCatalogSearchEntry`，在可用性结果上附本次合法纳入视图的 `resident` 标记。保留字段形状，返回项的 resident 为 false，该标记不是执行许可。inspect 和 usage 的形状不变。搜索只能披露当前受信视图精确纳入的资产版本；资格拒绝本身不构成披露定义的依据。
 
 ### 声明与设置
 
@@ -1328,7 +1330,7 @@ projectToolResult 是不读字节的纯投影，检查完整结果的块形状�
 
 ToolDefinition.declarations.settings 明确装载/装配时允许从配置赋值的项。items 是封闭路径清单，schema 是对应值约束，defaults 也必须满足同一规则。路径采用属性段数组，不接受任意表达式；空路径、重复、祖先与后代重叠、schema 外字段及未声明项拒绝。可选且无默认项可以缺省，缺必填项拒绝，不猜值。null 是普通值，不自动表示清除。
 
-items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。工具凭据按调用的租户绑定。第三方凭据的选择与实际绑定按下节执行。
+items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。每项带 `presentation`：标题、用途、修改后果、清除后果与采用时点，可带本地化键与单位；字段含义归 settings 的项呈现，枚举标签不在工具声明内，缺 `presentation` 的声明被 `judgeToolDefinition` 拒绝。资产正文以 `settings { schema, defaults, items }` 携带这份声明（`schema` 是 JSON Schema 本身）。`toolBodyContract` 的判定在 `settings` 不是这个形状时以 `invalid-settings` 拒绝：`schema` 不是对象、缺 `defaults`、`items` 不是列表，或某项的路径为空、含空段、分类不在四类之内、`sensitive` 不是布尔值、`presentation` 不是对象。类别钩子 `settings(body, context)` 把正文的声明投影为 settings 的 `SettingDefinitions`，正文没有声明时为 `null`：项 id 是路径以 `.` 连接，`valueSchema` 取声明 schema 在该路径的子模式（没有子模式是声明缺陷，钩子抛错，`projectAssetSettings` 记为拒绝），`sensitive: true` 对应 `sensitivity: 'secret'` 且默认为 `absent`，普通项取声明里的默认值，`merge` 为 `override`；`providerId` 是类别 `tool`，`definitionId` 是工具名，`version` 是固定正文的版本（`context.definition`），后两者中 settings 标识字母表外的字符写成 `_<十六进制>_`。持有这份资产的装配以具体资产引用作 `providerId` 登记，所以同名而不同的资产各有各的设置与秘密。投影是否合法仍由 `defineSettings` 判定，登记与秘密项入口的持有解析归装配。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。工具凭据按调用的租户绑定。第三方凭据的选择与实际绑定按下节执行。
 
 共享贡献的装载期设置只读取该贡献所在来源层的值：官方贡献取官方值，组织贡献取对应组织值。登记者的 Access 只核登记资格，不把该租户的设置带入共享作者闭包。租户相关设置在每次调用时求值并由 `FixedToolRequest.settings` 固定。作者构造参数 C 只含装载期合法值，不能捕获某次调用的租户设置。设置读取不可用时装载返回 unavailable，不发布部分配置。
 
@@ -1437,3 +1439,15 @@ ToolChildren 具体提供者与 ToolCommands 使用同一父调用事务边界�
 ToolTask 的 child 分支携完整 reservation、动作和真实 ProgramEnd，program-fence 携原父 guard。scanPending 包含有这些任务的父调用，即使其逻辑终局已经成立；loadRecovery 返回原任务及 program 关闭状态。独立 driver 通过 ToolDependencies.children 阶段适配器和正规子 ToolRuntime 恢复查询、控制和保管。程序执行方的具体执行域已销毁或提供者暂缺时，保留 blocked 及诊断，不能删除任务或重新运行程序。
 
 父关闭后迟到认回的已受理子项进入同一责任集合。若原子请求尚未consume且属于屏障scope，父屏障拒绝其新启动；若早已consume，记录原事实并按真实关闭原因补做控制。reach 为 foreground-and-unadmitted 的撤回以原cutoff核验前台范围及未受理项，已合法受理的后台子项继续其自身协议，不能被统一屏障误杀；受理/关系未知先查询。两种情况都不产生责任空档。普通完成的finish守卫还须确认没有未对账reservation及未承接子结果。
+
+## 可信单目标转发与执行能力
+
+provider 入口的 `ToolForwardSource` 和 `ToolForwardRuntime` 提供原父调用的单个 execute 槽。该入口保留父请求的完整 invocation，包括 programmatic 来源。它不调用普通 invoke 重签 direct，也不提供 ProgramTools 的依赖、join 或程序收场保证。普通 invoke 的参数不增加来源、调用身份或能力字段。
+
+作者只通过 `toolsCapabilityOf(context)` 取得当前执行的窄能力。模型参数只包含 search、inspect、execute 和 read_result 的业务字段。受信绑定在启动授权已 consume.started 后附加能力。每个 attachment 绑定新 context，finish 幂等，先关闭能力，再执行原 scope 的 finish。两段清理都失败时保留两个失败，原 scope 的失败不会因能力清理失败而丢失。
+
+execute 的目标 consumer 与原调用身份由来源提供者生成。父完成或取消只终止观察，不隐式停止已固定目标。来源关联未知保留原父引用，准入未知保留原目标与父引用。forwarding 恢复只继续原 execute 槽的固定请求，不选择最新版本，不新建目标。
+
+`ToolFixedReadArguments` 保留 result 与 attachment。`ToolsReadArguments` 另有 invocation 查询和 forwarding 原槽恢复。invocation 查询不提交准入。forwarding 可继续已固定的原目标准入。两者不分页，已固定结果页继续使用原 reader 引用。
+
+目标结果由派生 consumer 的独立 receiver 保管。只有完整 payload 与对应 saved 证据的耐久写入已确认，receiver 才返回 saved。提交未知保留 owed 责任。同 key 异 payload 冲突，晚到 result version 与 account revision 各自认回。该保管不把目标账目并入父调用账目，也不授权删除原结果和附件。

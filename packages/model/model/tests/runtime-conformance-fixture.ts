@@ -188,8 +188,8 @@ export function runtimeConformanceSubject(
       },
       revokeAccess: async input => {
         const actions: Record<ConformanceAction, MemoryAction> = {
-          inspect: 'facts',
-          dispatches: 'account',
+          inspect: 'inspect',
+          dispatches: 'read-account',
           cancel: 'control',
           connect: 'observe',
           observe: 'observe',

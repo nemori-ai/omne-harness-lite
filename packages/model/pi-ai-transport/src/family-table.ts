@@ -3,17 +3,34 @@
 // never parses a name, never matches a prefix, never takes the latest revision and never hands
 // a supplier to another family.
 import type { Outcome } from '@omne-harness/operation-result'
-import type { Adoption, Supplier, TransportFailure } from '@omne-harness/model-contract'
+import {
+  decodeProviderName,
+  type Adoption,
+  type ProviderName,
+  type Supplier,
+  type TransportFailure,
+} from '@omne-harness/model-contract'
 import { canonicalDigest, RecordPurityError } from './canonical-json.ts'
 import type { PiFamilyBinding, PiFamilyContributions } from './family.ts'
+
+/**
+ * The provider of a record's route as a provider name. A record is JSON data, so its route names
+ * the provider as text; the table refuses a record whose text is not a provider name. Throws for
+ * such a record.
+ */
+export function recordProvider(record: PiModelRecordHead): ProviderName {
+  const decoded = decodeProviderName(record.route.provider)
+  if (!('ok' in decoded)) throw new RangeError(`record ${record.name} has no provider name`)
+  return decoded.ok
+}
 
 /** What the table needs from any record. A family record type extends it. Pure JSON data. */
 export type PiModelRecordHead = Readonly<{
   /** Opaque; never parsed. Several revisions of one model are several records. */
   name: string
   revision: string
-  /** The supplier this record binds. The table refuses any other recipient or model. */
-  route: Readonly<{ recipient: string; model: string }>
+  /** The supplier this record binds. The table refuses any other provider or model. */
+  route: Readonly<{ provider: string; model: string }>
   /** `current`: published in official profiles. `frozen`: acquirable by exact adoption only. */
   status: 'current' | 'frozen'
 }>
@@ -109,7 +126,7 @@ export function defineFamily<R extends PiModelRecordHead>(spec: PiFamilySpec<R>)
       throw new RangeError(`records[${index}] repeats name and revision ${revision}`)
     revisions.add(revision)
     if (original.status === 'current') {
-      const route = keyOf([original.route.recipient, original.route.model])
+      const route = keyOf([original.route.provider, original.route.model])
       if (currentRoutes.has(route))
         throw new RangeError(`records[${index}] is a second current record of route ${route}`)
       currentRoutes.add(route)
@@ -132,8 +149,8 @@ function checkHead(record: PiModelRecordHead, index: number): void {
   if (!isText(record.revision)) throw new RangeError(`${at}.revision must be a non-empty string`)
   if (typeof record.route !== 'object' || record.route === null)
     throw new RangeError(`${at}.route must be an object`)
-  if (!isText(record.route.recipient) || !isText(record.route.model))
-    throw new RangeError(`${at}.route must have a non-empty recipient and model`)
+  if (!('ok' in decodeProviderName(record.route.provider)) || !isText(record.route.model))
+    throw new RangeError(`${at}.route must have a provider name and a non-empty model`)
   if (record.status !== 'current' && record.status !== 'frozen')
     throw new RangeError(`${at}.status must be current or frozen`)
 }
@@ -144,7 +161,7 @@ function checkHead(record: PiModelRecordHead, index: number): void {
  * adoption. `acquire` looks up all four fields of `supplier.adoption`:
  *
  * - miss: `unavailable`, `dependency` is the adoption owner, diagnostic `adoption-not-installed`;
- * - hit, other recipient or model: `invalid`, `field` `supplier.recipient` or `supplier.model`;
+ * - hit, other provider or model: `invalid`, `field` `supplier.provider` or `supplier.model`;
  * - hit, same route: the acquire of that family;
  * - the binding names another supplier or adoption: the binding is released, then `unavailable`
  *   with diagnostic `binding-mismatch`;
@@ -178,8 +195,8 @@ async function acquireFrom(
   const { owner } = supplier.adoption
   const entry = table.get(adoptionKey(supplier.adoption))
   if (entry === undefined) return { failure: unavailable(owner, 'adoption-not-installed') }
-  if (supplier.recipient !== entry.record.route.recipient)
-    return { failure: { kind: 'invalid', field: 'supplier.recipient', reason: 'route-mismatch' } }
+  if (supplier.provider !== entry.record.route.provider)
+    return { failure: { kind: 'invalid', field: 'supplier.provider', reason: 'route-mismatch' } }
   if (supplier.model !== entry.record.route.model)
     return { failure: { kind: 'invalid', field: 'supplier.model', reason: 'route-mismatch' } }
   if (signal.aborted) return { failure: unavailable(owner, 'cancelled') }
@@ -258,11 +275,9 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
 function sameSupplier(left: Supplier, right: Supplier): boolean {
   return (
     sameAdoption(left.adoption, right.adoption) &&
-    left.recipient === right.recipient &&
+    left.provider === right.provider &&
     left.model === right.model &&
-    left.credential.kind === right.credential.kind &&
-    (left.credential.kind === 'factory' ||
-      (right.credential.kind === 'tenant' && left.credential.id === right.credential.id))
+    left.credential.layer === right.credential.layer
   )
 }
 

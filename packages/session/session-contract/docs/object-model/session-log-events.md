@@ -285,3 +285,15 @@ Session 治理归约器支持其必需原生语义与已经准入的外域依据
 准确公开 Schema、迁移编码、插件解释注册机制、经过和消费位置的公开身份、跨能力发起/控制/级联/ACK 及连续空闲取证协议仍需实际成员设计。本文没有以源码当前的八种公共事实限制完整目标，也没有证明这些义务已实现。
 
 Loop 具体规则归 [Agent Loop 规格候选](../../../../agent/agent-contract/docs/flows/loop.md)。
+
+## Todo 原生事实
+
+本族沿 [Session Todo 契约](../../SPEC.md#session-todo-状态与操作)保存，不加入工作推进或恢复任务。
+
+| kind | 载荷 | 归约结果 |
+| --- | --- | --- |
+| session.todo-added | item、原文 text | 新 pending 项，createdAt/changedAt 为批次修订 |
+| session.todo-completed | item | pending 或 completed 变为 completed，更新 changedAt |
+| session.todo-removed | item | pending 或 completed 变为 removed，保留 tombstone |
+
+来源为原 Session commandEvidence，origin.owner=session、via=direct。日志、派生快照、原操作完整回执与访问证据同事务。重复 id、非法文本、未知目标及 removed 的后续转移使整批隔离。原操作认回不产生新事件。

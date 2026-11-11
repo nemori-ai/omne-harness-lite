@@ -335,7 +335,7 @@ flowchart LR
 - 缓冲限额来自绑定输入 `limits`，不在记录里：限额约束内存，不是线协议的差异，不应进入采用摘要。
 - 推理续接状态部件由家族的 `reasoning.seal` 在 finish 时一次给出，引擎只负责序号、可见性、配对与长度上限。部件长度上限照抄 message 成员的 `REASONING_STATE_PAYLOAD_MAX_LENGTH`，因为本包不依赖 message。
 - 解码器在 `finished` 阶段的 `end()` 给出账目报告：usage 在阶段中保留到结束，因为尾帧可能带来最后一份 usage。报告不含调用身份，保存方补上。`accept` 的失败只返回 fault，没有带事实的失败形状。所以收场之后被拒的帧把阶段留在 `faulted`，它保留 usage，之后的 `end()` 给出账目与该 fault。事实流在每种读取失败之后都调用一次 `end()`，取账目而不取它的 `ended`。这样契约“保留已经取得的用量”不需要改变已接受的 `PiResponseDecoder` 接口。
-- 网关的 `cost` 以额度计。call-account 的 `USD` 最多两位小数，网关的费用常有更多位，所以单位写成 `openrouter-credit`，保留精确的十进制值：普通词法照原样，指数形式只移动小数点，不经浮点数。
+- 网关的 `cost` 以额度计。call-account 的 `USD` 最多两位小数，网关的费用常有更多位，所以单位不写 `USD`，写成供应商正文给出的 `accounting.costUnit`（OpenRouter 为 `openrouter-credit`），保留精确的十进制值。落点与单位都取自路由，引擎不写死任何供应商，同协议的第二家网关只需一份自己的正文：普通词法照原样，指数形式只移动小数点，不经浮点数。
 - 网关的 `cost` 记为 `billable`。网关按这个值扣除额度，它就是本次调用的应付金额。call-account 的 `payableAmount` 只取 `ledger` 与 `billable`，记为 `supplier` 时每次调用的应付金额都是未知。
 
 投影、请求参数、chunk 循环与停止映射改编自 pi 1.0.0 的 chat completions 模块，只取纯计算。HTTP、SDK、重试、环境凭据与按 URL 猜兼容性都不取。改编内容见 [UPSTREAM.md](../UPSTREAM.md)。
@@ -366,7 +366,7 @@ prepared 的 close 在 `materializing` 相位开始时，materialize 得到的 m
 
 ### start 的同步围栏
 
-start 是同步函数。凭据槽在 start 的同步调用中读取一次：Model 的发送资源只在同步调用 start 期间把秘密放进私有槽，返回前清空。秘密只写入交给 `startExchange` 的请求头对象，不保存在传输的任何字段中。
+start 是同步函数。凭据槽在 start 的同步调用中读取一次：Model 的发送资源只在同步调用 start 期间把选定层的秘密按凭据项放进私有槽，返回前清空。本包只取路由 `auth` 指名的那一项。秘密只写入交给 `startExchange` 的请求头对象，不保存在传输的任何字段中。
 
 没有凭据时，start 不发送，返回一个以 `credential` 失败结束的流，不抛出。Model 的发送方把 start 抛出记为发送不确定，而这时没有请求发出。返回失败的流让这种情况与其他失败走同一路径。
 

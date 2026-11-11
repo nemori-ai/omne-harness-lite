@@ -49,7 +49,7 @@ it('exports only the plugin from ./cordis', () => {
   expect(cordis.IdentitySqlPlugin.name).toBe('identity-sql')
 })
 
-it('describes one participant, two migrations and four snapshot read handlers', () => {
+it('describes one participant, three migrations and five snapshot read handlers', () => {
   const materials = root.identitySqlMaterials()
   expect(materials.participants.map(item => item.participant)).toEqual(['identity'])
   expect(materials.participants[0]?.grouping).toBe('singleton')
@@ -64,6 +64,8 @@ it('describes one participant, two migrations and four snapshot read handlers', 
     'id_invitation',
     'id_create_receipt',
     'id_login_revocation',
+    'id_standing_reservation',
+    'id_membership_intent',
   ])
   expect(
     materials.migrations.map(item => ({
@@ -73,9 +75,11 @@ it('describes one participant, two migrations and four snapshot read handlers', 
   ).toEqual([
     { migration: 'identity/001-identity', requires: [] },
     { migration: 'identity/002-governance', requires: ['identity/001-identity'] },
+    { migration: 'identity/003-standing', requires: ['identity/002-governance'] },
   ])
   const handlers = Object.fromEntries(materials.readHandlers.map(item => [item.handler, item]))
   expect(Object.keys(handlers).sort()).toEqual([
+    'identity.coordination',
     'identity.governance',
     'identity.issue-basis',
     'identity.login-by-proof',

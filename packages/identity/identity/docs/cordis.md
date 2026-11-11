@@ -48,3 +48,7 @@ await fiber.dispose()
 - `tests/cordis-package.spec.ts` 打包并解包本成员，在独立目录消费 `dist` 与类型声明。依赖复用已锁定的本机产物，不安装新依赖。Node 加载钩子拒绝根入口的 Cordis 导入，独立消费者验证 `./cordis` 的加载、注册与撤除。
 
 Standing 用例只证明测试读口结果的委托，不证明真实成员资格存储。Operations 套件不覆盖两种主体或完整签发者持有边界。以上验证不覆盖生产数据库、跨进程来源、系统恢复或完整服务端组合。
+
+## 成员资格协调键
+
+`StandingReservationsService`、`StandingDestinationResolverService` 与 `IdentityGovernanceRecoveryService` 的定义见 [公开源码](../src/cordis.ts)。对应键是 `standingReservations`、`standingDestinationResolver` 与 `identityGovernanceRecovery`。提供者提供预留与恢复，受信装配提供目标 resolver。目标缺席不能释放预留；此协议不改变 principal 的登录政策。行为归 [ID-19](../SPEC.md#id-19-成员资格预留与治理恢复)。

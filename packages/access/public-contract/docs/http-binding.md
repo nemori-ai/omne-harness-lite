@@ -43,8 +43,8 @@
 | 治理 | `open-affiliation-request`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
 | 治理 | `judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
 | 治理 | `disable-subject`、`restore-subject`、`end-subject`、`reopen-after-media-loss` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
-| 治理 | `bind-model-credential`、`unbind-model-credential`、`describe-model-credential` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
-| 会话 | `create-session`、`query-create-session`、`send-input`、`query-send-input`、`read-history`、`cancel-run`、`stop-call`、`cancel-observation` | `/session-public/1` | POST | `application/json` | `application/json; charset=utf-8` | input |
+| 治理 | `list-settings`、`set-setting`、`describe-setting`、`clear-setting` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
+| 会话 | `create-session`、`query-create-session`、`send-input`、`query-send-input`、`read-history`、`cancel-run`、`stop-call`、`read-session-diagnostics`、`cancel-observation` | `/session-public/1` | POST | `application/json` | `application/json; charset=utf-8` | input |
 | 会话 | `observe-session` | `/session-public/1` | POST | `application/json` | `text/event-stream; charset=utf-8`，见[SSE 观察](#sse-观察) | input |
 
 本表给每个操作同样的承载，与部署是否提供该操作无关。
@@ -71,6 +71,8 @@
 - 服务端不按 `Accept` 头选择响应类型。
 - 服务端在第 6 步之前不知道消息是不是 `observe-session`。所以第 1 步到第 5 步的失败都不是 SSE 响应。
 - 状态 500 且响应体为空，表示服务端接入没有可信答复。何时给出它归[服务端接入规格](../../server-entry/SPEC.md#服务端的-http-层责任)。
+
+服务端可以在读取 body 前按在途请求预算拒绝新请求。此时返回空正文的 429、`x-omne-limit: in-flight-requests` 并关闭连接。这次请求未调用业务端口。它不同于带公开响应正文的 Session `limited`，具体预算归 [服务端 HTTP 责任](../../server-entry/SPEC.md#服务端的-http-层责任)。
 
 ### 头的比较
 
@@ -99,7 +101,9 @@
 | `conflict` | 409 |
 | `archived` | 409 |
 | `frozen` | 409 |
+| `limited` | 429 |
 | `unsupported` | 501 |
+| `not-writable` | 501 |
 | `stage-not-provided` | 501 |
 | `basis-unavailable` | 503 |
 | `unknown` | 500 |

@@ -1,11 +1,10 @@
+import { createReaderFixture, type ReaderFixture } from './reader-fixture.ts'
 import { createHash } from 'node:crypto'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
-  createTools,
   createToolLedger,
   createToolRuntime,
   executeTool,
-  type Tools,
   type ToolsOptions,
   type ToolLedgerAction,
 } from '@omne-harness/tool'
@@ -93,7 +92,7 @@ export function token(value: ToolResult<ToolMessageContentBlock>, field: string)
   return line.slice(line.indexOf(':') + 1).trim()
 }
 export async function authorRun(
-  tools: Tools<Principal>,
+  tools: ReaderFixture<Principal>,
   command: string,
   args: string | ToolArguments,
   access: Access<Principal> = { principal: principalA, tenant: tenantA },
@@ -161,6 +160,7 @@ export async function sourceFixture(
       reads: ledger.reads,
       admissions: ledger.admissions,
       queues: ledger.queues,
+      rejections: ledger.rejections,
       facts: ledger.facts,
     },
     config,
@@ -190,7 +190,7 @@ export async function sourceFixture(
     content,
     bytes,
     attachment,
-    tools: createTools(reads, { ...options, ...overrides }),
+    tools: createReaderFixture(reads, { ...options, ...overrides }),
   }
 }
 export function page(value: ToolResult<Block>, next: string | null = null): ResultPage<Block> {
@@ -216,7 +216,10 @@ export const access = {
   result: version(),
 }
 
-export function registeredFixture(tools: Tools<Principal>, replyOptions: ToolsOptions = options) {
+export function registeredFixture(
+  tools: ReaderFixture<Principal>,
+  replyOptions: ToolsOptions = options,
+) {
   let count = 0
   const h = startHarness({
     resultPageBytes: replyOptions.resultPageBytes,
@@ -256,7 +259,7 @@ export function registeredFixture(tools: Tools<Principal>, replyOptions: ToolsOp
       },
     }),
   })
-  const receiver = createTools(h.runtime, replyOptions)
+  const receiver = createReaderFixture(h.runtime, replyOptions)
   return {
     h,
     calls: () => count,

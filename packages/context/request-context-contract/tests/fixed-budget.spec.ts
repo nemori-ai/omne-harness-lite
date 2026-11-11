@@ -31,7 +31,7 @@ it.each([
   }
   const meter = {
     ...f.ports.meter,
-    measure(value: Parameters<typeof f.ports.meter.measure>[0]) {
+    async measure(value: Parameters<typeof f.ports.meter.measure>[0]) {
       calls.push([...value.assembled.messages])
       const amount = value.assembled.messages.reduce((sum, message) => sum + cost(message), 0)
       const report = f.budget(String(amount))

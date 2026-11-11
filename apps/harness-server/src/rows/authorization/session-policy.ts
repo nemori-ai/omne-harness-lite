@@ -19,6 +19,26 @@ const SYSTEM_ONLY = 'DA4 §4.7 第 1 步只接受系统主体'
 const NOT_IN_MATRIX_A2 = '矩阵没有这一行，见候选第 7 节 A-2'
 
 export const SESSION_POLICY = Object.freeze({
+  addTodo: row(
+    deny(NO_SOURCE),
+    member('Session Todo work access, session-contract SPEC'),
+    deny(OUTSIDE_MATRIX),
+  ),
+  removeTodo: row(
+    deny(NO_SOURCE),
+    member('Session Todo work access, session-contract SPEC'),
+    deny(OUTSIDE_MATRIX),
+  ),
+  markTodoComplete: row(
+    deny(NO_SOURCE),
+    member('Session Todo work access, session-contract SPEC'),
+    deny(OUTSIDE_MATRIX),
+  ),
+  listTodos: row(
+    deny(NO_SOURCE),
+    member('Session Todo work access, session-contract SPEC'),
+    deny(OUTSIDE_MATRIX),
+  ),
   accept: row(
     member(
       'SW:221、223 J-SW02，SW:241、243 J-SW04，PC:450 `send-input`，SS:551。`business` 分支拒绝：SW:223 把它写成系统业务输入，没有用户发起的出处',
@@ -87,7 +107,9 @@ export const SESSION_POLICY = Object.freeze({
     deny(OUTSIDE_MATRIX),
   ),
   change: row(
-    member('SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。覆盖全部声明种类'),
+    member(
+      'SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。逐权限配值还需具名登录写资格，见会话逐权限配值的直接登录政策',
+    ),
     deny(
       'SW:129：Agent 不能直接写模式。SS:609 只列 intake。Agent 经 HITL 改模式的证据没有解释形状（AU-11「首批不覆盖的部分」）',
     ),

@@ -16,6 +16,7 @@ export type InputId = SessionIdentity<'SessionInputId'>
 /** Encoded Agent input-batch identity. */
 export type BatchId = SessionIdentity<'SessionBatchId'>
 export type SessionOperationId = SessionIdentity<'SessionOperationId'>
+export type TodoItemId = SessionIdentity<'TodoItemId'>
 export type SessionRevision = SessionIdentity<'SessionRevision'>
 /** Encoded Agent consumption identity. */
 export type ConsumptionId = SessionIdentity<'SessionConsumptionId'>

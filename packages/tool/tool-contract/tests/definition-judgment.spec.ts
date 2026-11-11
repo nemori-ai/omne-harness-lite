@@ -212,7 +212,18 @@ describe('definition judgment', () => {
     const settings = (items: readonly (readonly string[])[], defaults: string) => ({
       schema: parameters([]),
       defaults: json(defaults),
-      items: items.map(path => ({ path, category: 'preference', sensitive: false })),
+      items: items.map(path => ({
+        path,
+        category: 'preference',
+        sensitive: false,
+        presentation: {
+          title: path.join('.'),
+          description: `The ${path.join('.')} value.`,
+          impact: 'Takes effect on the next read.',
+          clear: 'Returns to the default.',
+          adoption: 'next-read',
+        },
+      })),
     })
     const withSettings = (value: ReturnType<typeof settings>): ToolDefinition => {
       const definition = functionDefinition()

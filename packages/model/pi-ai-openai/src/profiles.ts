@@ -8,7 +8,7 @@ import type {
   TokenLimit,
   UpstreamLimit,
 } from '@omne-harness/model-contract'
-import { recordAdoption } from '@omne-harness/pi-ai-transport'
+import { recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import { componentAdoption } from './adoptions.ts'
 import { OPENAI_OWNER } from './owner.ts'
 import type { OpenAiRecord, TokenLimitData, UpstreamData } from './record.ts'
@@ -51,7 +51,7 @@ export function profileOf(
     suppliers: [
       {
         adoption: supplier,
-        recipient: record.route.recipient,
+        provider: recordProvider(record),
         model: record.route.model,
         replay: record.replay.declaration,
       },

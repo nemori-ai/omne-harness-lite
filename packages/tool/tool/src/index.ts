@@ -5,6 +5,7 @@ export type {
   ToolLedgerAdmissions,
   ToolLedgerConfiguration,
   ToolLedgerQueues,
+  ToolLedgerRejections,
   ToolLedgerFacts,
   ToolLedgerPorts,
   ToolControlSubjects,
@@ -67,9 +68,11 @@ export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from 
 export { createToolDriver, type ToolDriverHandle, type DriverPolicy } from './driver.ts'
 export { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
 export {
-  createTools,
-  type Tools,
+  createToolResultReader,
+  type ToolResultReader,
   type ToolsAccess,
   type ToolsOptions,
   type ToolsReadRuntime,
 } from './tools.ts'
+export { createToolForwardRuntime } from './runtime-forwarding.ts'
+export { outputCodec as createToolMessageResultCodec } from './tools-results.ts'

@@ -22,11 +22,15 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'createSessionLogJournal',
     'createSessionMessageHandoffPlugin',
     'createSessionModelLogConsumptionPlugin',
+    'createSessionModesPlugin',
     'createSessionToolLogConsumptionPlugin',
     'encodeContextRegistrationChange',
     'encodeContextStepCommit',
     'encodeInitialContextRegistration',
     'prepareContextRegistration',
+    'sessionInquiryBinding',
+    'sessionModesDescriptor',
+    'sessionModesProducer',
     'sessionScopeEvidence',
   ])
 })

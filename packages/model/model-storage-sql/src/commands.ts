@@ -37,7 +37,7 @@ export type SqlModelCommandsOptions<P> = ModelCommandsCoreOptions<P> &
     maxCallBytes: number
     /** The `maxCommandBytes` of the storage provider. */
     maxCommandBytes: number
-    /** Attempt generations of one operation. Default 8. */
+    /** Rounds of one run. Default 8. The attempt generations of an operation have no limit. */
     attemptLimit?: number
     /** Operations with an unknown commit outcome that the process keeps for one tenant. */
     unresolvedLimit?: number

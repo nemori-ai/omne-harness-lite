@@ -5,7 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import {
   createSessionInstance,
   type SessionDependencies,
-  type SessionMeasure,
+  type SessionInstanceOptions,
 } from '@omne-harness/session'
 import type {
   SessionCallerClass,
@@ -37,7 +37,7 @@ export type ProviderRuntime = Readonly<{
 export function startProvider(
   ctx: Context,
   config: ResolvedProviderConfig,
-  measure?: SessionMeasure,
+  observers: SessionInstanceOptions = {},
 ): ProviderRuntime {
   const diagnose = diagnoser(ctx)
   let removing = false
@@ -98,11 +98,7 @@ export function startProvider(
       current: () => (config.admission === 'none' ? [] : null),
     },
   }
-  const instance = createSessionInstance(
-    dependencies,
-    { policy: config.policy },
-    measure === undefined ? {} : { measure },
-  )
+  const instance = createSessionInstance(dependencies, { policy: config.policy }, observers)
   const scanners = createScanners({ instance, removing: () => removing, diagnose })
 
   const teardown = createTeardown({

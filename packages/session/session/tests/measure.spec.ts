@@ -1,7 +1,7 @@
 // SPEC「测量事件」: the Session segment of each face operation, the round-complete fact of a Run
 // terminal, and the absence of any change when no observer is given.
 import { afterEach, describe, expect, it } from 'vitest'
-import type { StartedRun } from '@omne-harness/session-contract'
+import type { ResidentKey, StartedRun } from '@omne-harness/session-contract'
 import { creation, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import type { SessionMeasure, SessionMeasureEvent } from '../src/index.ts'
 import { memoryBackend } from './fixtures/backends.ts'
@@ -68,6 +68,7 @@ describe('the Session segment', () => {
         span: expect.any(Number),
         operation: 'accept',
         session: h.access().session,
+        tenant: h.access().tenant,
       },
       {
         kind: 'segment',
@@ -76,6 +77,7 @@ describe('the Session segment', () => {
         span: expect.any(Number),
         operation: 'accept',
         session: h.access().session,
+        tenant: h.access().tenant,
         outcome: 'ok',
       },
     ])
@@ -152,6 +154,7 @@ describe('the round-complete event', () => {
     expect(events[1]).toEqual({
       kind: 'round-complete',
       session: h.access().session,
+      tenant: h.access().tenant,
       run: started.advance.run,
       outcome: 'failed',
       revision: receipt.revision,
@@ -227,5 +230,88 @@ describe('no observer, or an observer that fails', () => {
     expect(receipt.recovered).toBe(false)
     const started = await startRun(h)
     expect(await finishRun(h, started)).toHaveProperty('ok')
+  })
+})
+
+describe('the tenant of the events', () => {
+  it('a mutation segment carries the tenant of the access at start and at end', async () => {
+    const { h, events } = await service()
+    await h.create()
+    events.length = 0
+    await h.accept('input-1')
+    expect(events.map(event => (event.kind === 'segment' ? event.tenant : null))).toEqual([
+      h.access().tenant,
+      h.access().tenant,
+    ])
+  })
+
+  it('a single-session read carries the tenant of the access', async () => {
+    const { h, events } = await service()
+    await h.create()
+    events.length = 0
+    succeeded(await h.faces('coordinator').work.readWork(h.access()), 'readWork')
+    expect(events).toHaveLength(2)
+    for (const event of events) expect(event.tenant).toEqual(h.access().tenant)
+  })
+
+  it('a `pending` directory read carries the tenant of its input and no system scope', async () => {
+    const { h, events } = await service()
+    await h.create()
+    events.length = 0
+    succeeded(
+      await h.faces('maintainer').reconciliation.pending({
+        principal: 'a:tester',
+        tenant: h.access().tenant,
+        after: null,
+        limit: 10,
+      }),
+      'pending',
+    )
+    expect(events).toHaveLength(2)
+    for (const event of events) {
+      expect(event.tenant).toEqual(h.access().tenant)
+      expect(event).not.toHaveProperty('scope')
+    }
+  })
+
+  it('`references` and `releasedScopes` are system-scope reads: their segments carry `system` and no tenant', async () => {
+    const { h, events } = await service()
+    await h.create()
+    events.length = 0
+    const maintainer = h.faces('maintainer').reconciliation
+    await maintainer.references({
+      principal: 'a:tester',
+      scope: 'system',
+      key: 'resident-1' as ResidentKey,
+      after: null,
+      limit: 10,
+    })
+    await maintainer.releasedScopes({
+      principal: 'a:tester',
+      scope: 'system',
+      after: null,
+      limit: 10,
+    })
+    expect(
+      events.map(event => event.kind === 'segment' && [event.operation, event.phase, event.scope]),
+    ).toEqual([
+      ['references', 'start', 'system'],
+      ['references', 'end', 'system'],
+      ['releasedScopes', 'start', 'system'],
+      ['releasedScopes', 'end', 'system'],
+    ])
+    for (const event of events) expect(event).not.toHaveProperty('tenant')
+  })
+
+  it('the round-complete event carries the tenant of the finishing access', async () => {
+    const { h, events } = await service()
+    await h.create()
+    await h.accept('input-1')
+    const started = await startRun(h)
+    events.length = 0
+    succeeded(await finishRun(h, started), 'finishRun')
+    const rounds = events.filter(event => event.kind === 'round-complete')
+    expect(rounds).toHaveLength(1)
+    expect(rounds[0]?.tenant).toEqual(h.access().tenant)
   })
 })

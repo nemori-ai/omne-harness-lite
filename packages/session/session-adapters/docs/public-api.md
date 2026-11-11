@@ -2,7 +2,7 @@
 
 本页给出本成员的导出入口与定义索引。行为归 [SPEC.md](../SPEC.md)，端口接口归 [session-contract 的公开接口](../../session-contract/docs/public-api.md#出站端口与块声明)，服务键归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md#端口服务键)。
 
-现状：`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。下文是随实现进入的目标导出，名称随实现确定。
+当前导出以 `src/index.ts` 与 `src/cordis.ts` 为准。根入口已提供 Runtime Context 信任适配、历史会话定位、执行槽编码及权限模式投影。下表同时标明接口责任，不能据此推断完整装配已交付。
 
 ## 导出入口
 
@@ -17,7 +17,10 @@
 
 | 定义                              | 入口       | 用途                                                                                          | 行为                                |
 | --------------------------------- | ---------- | --------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 模式翻译函数                      | 根入口     | 把 `session.modes` 的值翻译为授权域与元能力宿主的需要                                         | [模式翻译表](../SPEC.md#模式翻译表) |
+| `projectSessionPermissionMode`、`SESSION_PERMISSION_MODE_TRANSLATION` | 根入口 | 把原采用或覆盖投影为 Authorization 的询问处理值，保留来源和翻译版本 | [模式翻译表](../SPEC.md#模式翻译表) |
+| `createSessionModesPublication`、`SESSION_MODES_PUBLICATION` | 根入口 | 核对工作快照和模式依据的范围/权限修订，生成三轴值、询问投影及同份依据的不可变载体 | [模式翻译表](../SPEC.md#模式翻译表) |
+| `sessionModesDescriptor`、`sessionModesProducer`、`sessionInquiryBinding` | `./cordis` | 声明实际载体与发布它的生产者身份；coordinator 只选择已计算投影和其依据，不重新解释模式 | [模式翻译表](../SPEC.md#模式翻译表) |
+| `createSessionModesPlugin` | `./cordis` | 每租户一生产者纤程，沿原来源发布/恢复模式；可信装配持有其 refresh 入口来补首次供值或漏通知 | [AD-03](../SPEC.md#ad-03) |
 | 身份编码函数                      | 根入口     | 把 Session 的操作身份确定地编码为邻域的操作身份                                               | [AD-00](../SPEC.md#ad-00)           |
 | 结果对应函数                      | 根入口     | 把邻域结果对应为 Session 结果或参加者响应                                                     | 各插件的对应表                      |
 | 入站插件 AD-01 至 AD-06、AD-08；J06 两提供者；显示观察 | `./cordis` | 同日志解释、历史来源、消息准入、当前条件与公共流观察 | [插件清单](../SPEC.md#插件清单) |
@@ -26,7 +29,7 @@
 | `ContextBlocks` 增补              | `./cordis` | 把 `session.modes` 加入 Runtime Context 的块目录                                              | [AD-03](../SPEC.md#ad-03)           |
 | AD-15 的构造入口                  | `./cordis` | 装配入口交入恢复授权                                                                          | [AD-15](../SPEC.md#ad-15)           |
 
-目标翻译纯函数拟由根入口导出，可以不装 Cordis 单独使用和测试。当前根入口仍无这些导出。
+权限模式投影可以不装 Cordis 单独使用和测试。完整输入、结果与默认观察类型由根入口再导出，定义归 [permission-mode.ts](../src/permission-mode.ts)。协作轴及发布装配的完成状态须读取各自验证证据。
 
 ## 初始化协议的形状边界
 
@@ -36,7 +39,7 @@
 
 [AD-02](../SPEC.md#ad-02)消费 Session 自有的根、历史目录、原批次、原 attempt 与归一调用登记候选值。该成员负责公开 Agent identity decoder、Model/Tool invocation resolver 与原 effect/pending/Authority 的校验；session-contract 负责其语言内的完整性与不变量。
 
-已有 AgentJournal、AgentJournalEntries、AgentReceivedCommits 与 AgentMaterials 形状保持，不新增 Agent 端口。已实现的 `./testing` 内存提供者直接用 Session 的 decide/projectSessionLog/reduce/commandDigest 组合同一个 per-session 根。它不包装第二个独立内存日志。已导出的 Session 值、第三个可选 reads 与 executionEvidence 的导航归 [Session 公开接口页](../../session-contract/docs/public-api.md#同日志历史材料的候选增加)。内存组合的支持与验证入口见下节。真实外部来源及耐久、跨进程保证不能由内存组合推得。AD-02 与 AD-05 的生产插件见 SPEC 的 [AD-02 生产插件](../SPEC.md#ad-02-生产插件)与 [AD-05 生产插件](../SPEC.md#ad-05-生产插件)。候选条款的技术接受状态仍归 SPEC。
+已有 AgentJournal、AgentJournalEntries、AgentReceivedCommits 与 AgentMaterials 形状保持，不新增 Agent 端口。AgentJournal 的可选读口 `readFinish`（agent-contract SPEC「条件终结」第 5 条）由会话日志 Journal、`agentJournal` 插件与 `./testing` 的内存 Journal 实现，规则见 [SPEC 的生产提供者实现现状](../SPEC.md#生产提供者的实现现状)。已实现的 `./testing` 内存提供者直接用 Session 的 decide/projectSessionLog/reduce/commandDigest 组合同一个 per-session 根。它不包装第二个独立内存日志。已导出的 Session 值、第三个可选 reads 与 executionEvidence 的导航归 [Session 公开接口页](../../session-contract/docs/public-api.md#同日志历史材料的候选增加)。内存组合的支持与验证入口见下节。真实外部来源及耐久、跨进程保证不能由内存组合推得。AD-02 与 AD-05 的生产插件见 SPEC 的 [AD-02 生产插件](../SPEC.md#ad-02-生产插件)与 [AD-05 生产插件](../SPEC.md#ad-05-生产插件)。候选条款的技术接受状态仍归 SPEC。
 
 ## 共同日志内存提供者
 

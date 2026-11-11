@@ -164,6 +164,10 @@ export function fdPath(directory: FileHandle, name: string): string {
 export async function probeHostFilesPrerequisite(
   directory: string = tmpdir(),
 ): Promise<ProviderFacts['prerequisites']> {
+  if (process.platform === 'darwin') {
+    const { probeMacosFilesPrerequisite } = await import('./macos-files/prerequisite.ts')
+    return probeMacosFilesPrerequisite(directory)
+  }
   if (process.platform !== 'linux') return 'unsatisfied'
   let made: string
   try {

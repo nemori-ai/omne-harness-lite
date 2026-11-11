@@ -1,7 +1,12 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileAt, git } from '../../core/git.ts'
-import { analyzeConformance, readConformance } from '../../arch/conformance.ts'
+import {
+  analyzeConformance,
+  observeBaseline,
+  readConformance,
+  type BaselineObservation,
+} from '../../arch/conformance.ts'
 import { readArchitectureSource } from '../../arch/source.ts'
 import { CONSTRAINT_PATH, CONSTRAINT_PATHS } from '../../arch/constraints.ts'
 import type { Conformance, ConstraintChange } from '../../arch/conformance-model.ts'
@@ -15,15 +20,36 @@ export interface ArchitectureReadings {
   readonly architectureChanges: Reading<readonly ConstraintChange[]>
   readonly conformance: Reading<Conformance>
 }
+
+/** BASE 一侧的观测；BASE 提交里没有 pnpm-workspace.yaml 时为 undefined。收工钩子换成按提交缓存的那一份。 */
+export type BaselineReader = (root: string, base: string) => BaselineObservation | undefined
+
+/** 每次都从 BASE 提交重算。 */
+export function observeBaselineAt(root: string, base: string): BaselineObservation | undefined {
+  const hasWorkspace = git(root, [
+    'ls-tree',
+    '--name-only',
+    '-z',
+    `${base}^{commit}`,
+    '--',
+    'pnpm-workspace.yaml',
+  ])
+    .split('\0')
+    .includes('pnpm-workspace.yaml')
+  return hasWorkspace ? observeBaseline(root, readArchitectureSource(root, base)) : undefined
+}
+
 /**
  * Read each complete source version once. No manual node declaration oracle remains.
  * `graph` 是调用方已经算过的工作树依赖图：符合性的方向行读它，不再跑一次 dependency-cruiser。
+ * `readBaseline` 给出 BASE 一侧；默认每次重算。
  */
 export function readArchitectureSensors(
   root: string,
   config: { readonly enabled: boolean },
   base?: string,
   graph?: DependencyGraph,
+  readBaseline: BaselineReader = observeBaselineAt,
 ): ArchitectureReadings {
   if (!config.enabled)
     return {
@@ -32,18 +58,12 @@ export function readArchitectureSensors(
       architectureChanges: noData('配置里关了'),
       conformance: noData('配置里关了'),
     }
-  const baselineHasWorkspace =
-    base === undefined ||
-    git(root, ['ls-tree', '--name-only', '-z', `${base}^{commit}`, '--', 'pnpm-workspace.yaml'])
-      .split('\0')
-      .includes('pnpm-workspace.yaml')
   const currentSource = existsSync(join(root, 'pnpm-workspace.yaml'))
     ? readArchitectureSource(root)
     : undefined
-  const baselineSource =
-    base !== undefined && baselineHasWorkspace ? readArchitectureSource(root, base) : undefined
+  const baseline = base === undefined ? undefined : readBaseline(root, base)
   // Validate each present version before reporting the other version's absence.
-  if (currentSource === undefined || (base !== undefined && baselineSource === undefined)) {
+  if (currentSource === undefined || (base !== undefined && baseline === undefined)) {
     const reason =
       currentSource === undefined
         ? '当前源码缺 pnpm-workspace.yaml，无法解析实际 workspace'
@@ -55,7 +75,7 @@ export function readArchitectureSensors(
       conformance: noData(reason),
     }
   }
-  const observed = analyzeConformance(root, currentSource, baselineSource, graph)
+  const observed = analyzeConformance(root, currentSource, baseline, graph)
   const assembly = observeAssembly(observed.headActual, observed.baseActual)
   return {
     architecture:

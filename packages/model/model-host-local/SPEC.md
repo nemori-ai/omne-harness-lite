@@ -4,166 +4,23 @@
 
 ## 范围与依据
 
-本包承载四项能力：本地凭据保管（文件保管库及装载它的 Cordis 插件）；本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`），装配同时接入 model 的计量准备资源；单机宿主插件（实例目录、转换目录、宿主驱动、运行门面 `modelRuntime` 与结果推送、请求准备及其计量租约，以及发送阶段）；以及官方档案读取（`ModelProfilesLocalPlugin`，来源构造 `createOfficialProfileSource` 不出本包公开入口）。恢复扫描、重试与目录阶段插件不在本包当前范围，没有实现也不由本文件承诺。
+本包承载四项能力：Model 凭据端口（读取设置域秘密保管的 `createSecretCredentialPort`，及以 `modelCredential` 提供端口的 `serveModelCredential`）；本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`），装配同时接入 model 的计量准备资源；单机宿主插件（实例目录、转换目录、宿主驱动、运行门面 `modelRuntime` 与结果推送、请求准备及其计量租约，以及发送阶段）；以及官方档案读取（`ModelProfilesLocalPlugin`，来源构造 `createOfficialProfileSource` 不出本包公开入口）。恢复扫描、重试与目录阶段插件不在本包当前范围，没有实现也不由本文件承诺。
 
 发送资源满足 model 的 `SendResources` 端口，端口形状与发送边界的行为归 [model 的 SPEC](../model/SPEC.md)。传输、家族贡献、网络资源与路由的形状和行为归 [pi-ai-transport](../pi-ai-transport/SPEC.md)。秘密不进入请求、发出记录、失败、扩展或遥测的要求归 [model-contract](../model-contract/SPEC.md)。
 
-凭据引用、查询、五种结果和 `CredentialPort` 的形状及持有者语义归 [model-contract](../model-contract/SPEC.md)。存在性与解析的判定归 [model 的 SPEC](../model/SPEC.md#凭据引用与解析)：本包把当前状态快照交给判定函数，不自己判定。`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/SPEC.md)，本包的插件继承它。目标归属见[组架构](../docs/architecture.md#凭据的现有装配边界)。
+凭据层、失败、`CredentialPort` 以及选层与判读两条规则归 [model-contract](../model-contract/SPEC.md#342-凭据引用与解析端口)。`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/SPEC.md)。秘密保管的两个端口归 settings，保管库文件、文件锁、原子发布与读分类归 [settings-local 的秘密保管](../../assets/settings-local/SPEC.md#secret-custody)。本包只读秘密：按供应商知道它声明的凭据项、发行是否持有它，以及装配给出的绑定键。目标归属见[组架构](../docs/architecture.md#凭据的现有装配边界)。
 
 ## 结果与不变量
 
-### 兼容期资格凭据路径
+### 凭据端口
 
-`LocalCustodian` 与 `LocalCredentialPlugin` 实现同步 `presentFor`、`resolveFor`。旧 `present`、`resolve` 保留原行为。新方法只从 `access.tenant` 取租户，复用合法租户、用途、绑定寿命与工厂选择的判定。同一凭据身份由其他租户持有且本租户没有对应绑定时，两个新方法都返回 `denied`；只有官方档案且该租户没有任何绑定时，解析才可返回工厂值。撤销或不可读的绑定不回退工厂。工厂秘密是空字符串时，部署没有提供默认凭据：解析在这个位置返回 `absent`，不返回空值。文件不可用返回 `unavailable`，句柄关闭后返回 `denied`。
+`createSecretCredentialPort({ custody, providers })` 返回 `CredentialPort`。`custody` 是设置域秘密保管的读面（`describe`）与使用面（`use`），端口不写。`providers` 按供应商名给出 `CredentialProviderSource`：供应商正文声明的凭据项、发行是否持有该供应商，以及一项在一个层的绑定键 `keyOf(scope, item)`。绑定键的形状由装配决定，本包不定义。
 
-只有受信发送边界注入凭据服务，`access` 已在受理点 C 核验。提供者不核主体铸造来源，也不核 `official` 的来源，不读取 `SendFace`。新方法不增加管理能力，保管库与诊断仍只在插件闭包中。
-
-发送阶段的私有端口转发服务已有的资格方法。服务缺少某个新方法时，端口保留该方法缺席，由发送边界报告 `qualified-path-missing`，不调用旧 `resolve`。撤除先切断凭据端口，再等待发送路径关闭；已捕获的新方法在关闭等待期间及之后返回 `unavailable`。这不撤回已发出的外部请求。
-
-### 保管库文件
-
-保管库文件包含工厂秘密和绑定列表。绑定寿命是 `active`、`revoked` 或 `unreadable`。绑定可以带 `configuredAt`，它是最近一次 `bind` 的时刻文本。没有这个键的旧快照照常读出。这个键存在但不是字符串时，快照按损坏处理。
-
-- `createLocalCustodian({ path, factorySecret, lock?, diagnosticsCapacity? })`：路径上没有文件时新建保管库；已有可读文件时在锁内直接采用它（不覆盖，不用本次的工厂秘密）；文件存在但不可读时抛出异常，异常的 `cause` 是读不出的原因（文件系统错误、解析错误或形状错误）。先检查再创建都在同一把锁内完成，两个进程同时在空路径上启动不会互相抹掉绑定。
-- `openLocalCustodian({ path, lock?, diagnosticsCapacity? })` 打开已有保管库，返回 `{ kind: 'open', custodian }`。文件缺失返回 `{ kind: 'unavailable', cause: 'missing' }`；损坏、形状不对或同一持有者多行冲突返回 `cause: 'corrupt'`；其他文件系统错误返回 `cause: 'io'`。不新建、不修改文件。
-- `lock.waitMs`（默认 30 000）与 `lock.backoffMs`（默认 50）是等待文件锁的上限与重试间隔；每次重试前的停顿不超过剩余的等待时间，所以 `backoffMs` 大于 `waitMs` 时总等待仍以 `waitMs` 为上限。`diagnosticsCapacity`（默认 256）是句柄保留的最近诊断条数。只有未给出（`undefined`）的值取默认值。`waitMs` 与 `backoffMs` 须是有限的非负整数，`diagnosticsCapacity` 须是有限的正整数，`lock` 给出时须是对象；其他值（含 `null`、`NaN`、`Infinity`、负数、小数与非数字，以及不是对象的 `lock`）让 `createLocalCustodian` 与 `openLocalCustodian` 抛出 `TypeError`，不取锁也不读盘。
-
-### 读取与刷新
-
-`present` 和 `resolve` 先按租户、用途和发送资格拒绝：租户未铸造、保管已关闭、用途不符，或 `resolve` 的发送未获准时返回 `denied`，此时不读磁盘。通过这道检查后，它们每次从磁盘刷新当前状态，再把快照交给判定。因此保留的句柄和 Cordis 服务都能观察到其他进程或句柄造成的轮换、撤销或文件损坏。刷新失败返回 `unavailable`，不改文件。
-
-诊断留在保管库句柄上，只记录结果种类与租户是否匹配，不含秘密；Cordis 服务不转发诊断。
-
-### 管理操作
-
-`put`、`rotate`、`revoke`、`markUnreadable` 写盘前先持文件锁并刷新，基于当前状态修改后发布。刷新失败时抛出异常，不改文件；异常信息带 `missing`、`corrupt` 或 `io`，`cause` 是读不出的原因。
-
-- 租户未经铸造（例如复制出的对象）时，`put`、`rotate`、`revoke`、`markUnreadable` 都先抛出异常，不取锁、不读盘也不写盘。`put` 若放行，磁盘记录读回时会按文本重新铸造，复制出的租户会变成真实租户的绑定；其余三个操作对这样的租户匹配不到任何行，放行只会空跑一次取锁与发布，并让调用者以为已经生效。
-- `put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。
-- `rotate` 只换秘密，不改寿命；已撤销的行轮换后 `resolve` 仍是 `denied`。
-- `replaceFactorySecret(secret)` 只换工厂秘密。绑定、它们的秘密与寿命都不变。它不带租户，所以没有铸造检查。运行中的句柄与插件在下一次解析时读到新值，因为每次解析都从磁盘刷新。
-- `revoke` 把该持有者标成 `revoked`。
-- `markUnreadable` 只把 `active` 改成 `unreadable`。
-- 其他租户持有同一身份时，对它的 `put`、`rotate` 不替换也不改动本租户的行。
-
-### 绑定管理
-
-`bind`、`unbind` 与 `describe` 是给装配的绑定管理。它们与上一节的操作不同：存储失败是结果，不是异常。结果不带秘密，也不带异常文本。
-
-- `bind({ reference, secret, configuredAt })` 把该持有者写成 `active`，秘密与时刻都换成本次的值。结果是 `written`、`not-written`（旧快照仍在盘上）、`unconfirmed`（新快照可能已发布，重试前先读回）或 `denied`。
-- `unbind({ reference })` 删除该持有者的行。之后这个租户按从未绑定处理：`presentFor` 答不存在，工厂选择照常适用。没有这一行时结果是 `absent`，不写盘。其余结果同 `bind`。
-- `describe({ reference })` 每次从磁盘读，结果是 `unbound`、`bound`（带寿命与可选的 `configuredAt`）、`denied` 或 `unavailable`。
-- 租户未经铸造、保管已关闭，或同一凭据身份由其他租户持有时，三个操作都答 `denied`，不改文件。
-- 写入沿用同一把文件锁、唯一临时文件与重命名。锁等待超时、读不出与发布前失败都是 `not-written`。重命名之后的确认失败是 `unconfirmed`。
-
-文件锁不按时间过期，因此持锁进程活着时其他写者只能等待，等满 `lock.waitMs` 仍未取得锁时抛出 `ELOCKED`；`waitMs` 为 0 时第一次取不到锁就抛出。持锁进程崩溃后残留的 `${path}.lock` 须在所有写者停止后手工删除。
-
-### 发布与确认未知
-
-写入采用唯一临时文件、`fsync` 和重命名，再同步父目录。
-
-- 发布前失败（锁等待超时、临时文件写入失败、`fsync` 失败或重命名失败）时抛出异常，异常的 `cause` 是原始错误，不发布新状态，已确认的旧快照保持不变。短写会重试到整份快照写完；写入没有进展时中止。
-- 重命名成功后确认失败（如父目录 `fsync`）时，新状态可能已发布，抛出 `confirmation incomplete; verify state before retry`。调用方必须核实当前文件状态后再决定重试。
-- 临时文件名是 `<保管库文件名>.<pid>.<毫秒>.<序号>.tmp`，与保管库在同一目录。进程在写完临时文件之后、重命名之前结束时，这个文件留在目录里，里面是整份快照。每次取得文件锁之后（`createLocalCustodian`、四个管理操作与 `replaceFactorySecret`、`inspectLocalCustodian`），先删除同目录下名字完全符合这个模式、且属于这份保管库的文件。持锁时没有别的写者正在写它自己的临时文件，所以删除是安全的。其他文件（别的保管库的临时文件、`.bak`、名字不完全符合模式的文件）不动。删除失败不报错，下一个持锁者再试。`openLocalCustodian` 与插件装载不取锁，所以不清理。
-
-### 保管库初始化命令
-
-`src/vault-init.ts` 的核心 `initVault(path, deps)` 与 `src/vault-init-cli.ts` 的命令行外壳，让人在宿主上从终端把一个密钥写成保管库的工厂秘密。命令不是插件，不属于 `LocalCredentialPlugin`，不从根入口导出。它只经 `createLocalCustodian` 建库，所以沿用文件锁与原子发布；只建工厂秘密，不写任何租户绑定，也不在别处另存密钥。保管库记录格式与 `store.ts` 的行为不变。
-
-主机配置命令（例如 harness-server 的 `setup`）经子路径 `@omne-harness/model-host-local/vault` 复用同一组操作。这个子路径不是插件，根入口不导出它。它导出：
-
-| 导出 | 作用 |
-| --- | --- |
-| `initVault` | 在空路径上新建保管库，见本节下文 |
-| `replaceVaultSecret` | 替换已有保管库的工厂秘密；可选重建读不出的保管库文件，见下文 |
-| `inspectLocalCustodian` | 持文件锁检查路径上的保管库能否读出，见下文 |
-| `readSecretFromTerminal` | 终端读取器，见[输入](#输入)。可选参数 `prompt` 换掉提示文字 |
-| `createPosixGuard`、`defaultGuard` | 权限护栏，见[权限](#权限) |
-| `SecretInputError` 与各结果、原因、依赖的类型 | 读取器放弃时抛出的错误与类型 |
-
-`inspectLocalCustodian({ path, lock?, diagnosticsCapacity? })` 只读不写保管库本身：路径上什么都没有时答 `{ kind: 'unavailable', cause: 'missing' }`，不取锁。否则取文件锁，清理残留临时文件（见[发布与确认未知](#发布与确认未知)），再读文件。可读时答 `{ kind: 'readable' }`。不可读时答 `unavailable`，原因是 `corrupt`（不是快照，例如不是 JSON）或 `io`（例如路径上是目录）。等满锁等待仍未取得锁时原因是 `locked`。
-
-
-`replaceVaultSecret(path, deps)` 替换已有保管库的工厂秘密，次序如下，任一步失败即停止：
-
-1. 路径为空或含 NUL 时返回 `path-invalid`。
-2. 路径上必须有可读的保管库，否则返回 `vault-unavailable`，不调用读密钥函数，也不建文件。例外是 `deps.rebuildUnreadable` 为真时的重建，见下文。
-3. 调用读密钥函数一次。输入规则与 `initVault` 第 4 步相同：`secret-empty`、`secret-malformed`、`input-not-terminal`、`input-cancelled`、`input-failed`。
-4. 在权限护栏内持文件锁写入（`replaceFactorySecret`）。锁等待超时返回 `lock-timeout`。写入抛出而读回不是新密钥时返回 `write-failed`，文件保持旧值。写入抛出而读回已是新密钥时（发布后确认失败），按成功继续。
-5. 读回文件，工厂秘密不是新密钥时返回 `write-unconfirmed`。
-6. 收窄并读回文件权限。失败时返回 `written-not-private`。这时文件已经是新密钥，旧密钥已不在，命令不回滚。调用方不能把这个结果报告成「没有存下」。
-
-成功时结果是 `{ ok: true, path, rebuilt }`。原因代码的集合是 `initVault` 的原因加上 `vault-unavailable` 与 `written-not-private`。结果只有原因代码、路径与 `rebuilt`，不含密钥。
-
-重建：`deps.rebuildUnreadable` 为真，而第 2 步打开失败的原因不是 `missing` 时，命令按下面的次序用新保管库替换读不出的文件。
-
-1. 路径上必须是普通文件。目录、链接（含悬空链接）返回 `vault-unavailable`，不读密钥，不删除任何东西。
-2. 调用读密钥函数一次，按 `initVault` 的输入规则校验。不合格时返回对应原因，旧文件留在原处。
-3. 删除这个文件。删除失败返回 `write-failed`。旧文件的内容不读。
-4. 按 `initVault` 的全部规则新建保管库（用户目录规则用 `deps.home`，默认 `os.homedir()`），密钥是第 2 步读到的那个。失败时返回 `initVault` 的原因，这时旧文件已经删除。
-5. 成功时 `rebuilt` 为真。重建后的保管库只有工厂秘密，旧文件里的租户绑定不再存在。
-
-运行责任在人：密钥由 PanQiWei 或该宿主的操作人在自己的终端输入，每台要发真实请求的宿主运行一次。Reduce、写者与其他 agent 不取密钥值，也不代为运行。
-
-`initVault` 按下面的顺序执行，任一步失败即停止并返回失败原因代码：
-
-1. 路径必须非空且不含 NUL（`path-invalid`）。
-2. 路径必须位于当前用户目录之下。命令取 `os.homedir()` 的真实路径，再取路径中最近一个已存在的父目录的真实路径，加上尚不存在的名字；结果不在用户目录之下时拒绝（`path-outside-home`）。因此目录外路径、`..` 越出、名字只以用户目录名开头的同级目录，以及经符号链接（含 Windows 目录联接）指向目录外的路径，都被拒绝。用户目录本身也被拒绝。父目录不可检查或不是目录时返回 `path-check-failed`。
-3. 路径上不能有任何对象：有效保管库、损坏文件、空文件、目录、符号链接（含悬空链接）一律拒绝（`path-occupied`），不读、不改其字节与权限，也不调用读密钥函数与 `createLocalCustodian`。`createLocalCustodian` 会采用路径上已有的可读文件，所以这个预检由命令自己做。
-4. 调用注入的读密钥函数一次。去首尾空白后为空时拒绝（`secret-empty`）；含控制字符时拒绝（`secret-malformed`）；读取器放弃时给出 `input-not-terminal`、`input-cancelled` 或 `input-failed`。
-5. 再检查一次路径上无对象，因为人输入密钥可能花很长时间。
-6. 在权限护栏内建库：先建缺失的父目录，再经 `createLocalCustodian` 新建文件，随后确认文件确实以这个密钥为工厂秘密（用 `openLocalCustodian` 读回并解析工厂凭据）。读回的工厂秘密不是这个密钥时返回 `write-unconfirmed`：这表示库函数采用了别人写的文件，命令不删除、不改动它。
-7. 收窄并读回权限（见下）。失败时删除刚建的文件（只删读回为本次密钥的文件）与本次新建的空目录，返回 `permission-failed`。
-
-文件锁等待沿用库函数默认值，超过时返回 `lock-timeout`；其他写入失败返回 `write-failed`，并删除本次新建的文件和空目录。命令不覆盖也不删除已有目录。
-
-#### 失败原因表
-
-| 原因代码                                                     | 含义                                                        | 文件系统结果                     |
-| ------------------------------------------------------------ | ----------------------------------------------------------- | -------------------------------- |
-| `path-invalid`                                               | 路径为空或含 NUL                                            | 不变                             |
-| `path-outside-home`                                          | 真实路径不在当前用户目录之下                                | 不变                             |
-| `path-check-failed`                                          | 父目录不可检查或不是目录                                    | 不变                             |
-| `path-occupied`                                              | 路径上已有对象（含输入密钥期间出现的对象）                  | 不变，对象字节与权限不动         |
-| `input-not-terminal`                                         | 标准输入不是终端                                            | 不变                             |
-| `input-cancelled`                                            | 人取消（Ctrl-C、空行上的 Ctrl-D）、流结束或进程收到中断信号 | 不变                             |
-| `input-failed`                                               | 读取失败                                                    | 不变                             |
-| `secret-empty`                                               | 去首尾空白后为空                                            | 不变                             |
-| `secret-malformed`                                           | 含控制字符                                                  | 不变                             |
-| `lock-timeout`                                               | 等满锁等待仍未取得文件锁                                    | 删除本次新建的空目录             |
-| `write-failed`                                               | 建库或建目录失败                                            | 删除本次新建的文件与空目录       |
-| `write-unconfirmed`                                          | 建库返回，但文件的工厂秘密不是本次密钥                      | 不动该文件；删除本次新建的空目录 |
-| `permission-failed`                                          | 权限收窄或读回失败                                          | 删除本次新建的文件与空目录       |
-| `argument-missing`、`argument-duplicate`、`argument-unknown` | 命令行参数不对（仅外壳，退出码 2）                          | 不变                             |
-| `secret-in-argv`                                             | 参数的名字像在携带密钥（仅外壳，退出码 2）                  | 不变                             |
-
-#### 输入
-
-外壳只在标准输入是终端时读密钥：先关闭回显（原始模式），读到回车、换行或放弃为止，再还原进入前的原始模式。终端在读完、取消、流结束或出错、收到中断信号、进程退出时都还原；非终端在设置原始模式、打印提示与挂监听之前就被拒绝。读取时忽略方向键等控制序列，退格删除前一个字符，输入不回显。还原发生在写盘之前。进程被 SIGKILL 结束、终端断开或断电时，还原代码不能执行，这不在承诺内。
-
-密钥不经命令行参数或环境变量传入。参数名含 `secret`、`key`、`token`、`passw` 或 `credential` 的参数以 `secret-in-argv` 拒绝，其他未知参数以 `argument-unknown` 拒绝，两者都不回显参数内容。
-
-#### 输出
-
-成功时标准输出一行 `已建立：<保管库路径>`，退出码 0。失败时标准错误一行 `失败：<原因代码>`，参数不对时退出码 2，其他失败退出码 1。标准错误在读密钥前还有一行提示。密钥、其哈希或前缀不出现在任何输出、错误信息、`cause` 链、命令行参数或命令设置的环境变量里：失败结果只有原因代码，读取器与库函数抛出的异常不转抄进结果。`--help` 打印用法，退出码 0。
-
-#### 权限
-
-- POSIX：命令在文件创建掩码 `077` 下建目录与文件，随后把新建目录设为 `0700`、文件设为 `0600`，并读回模式，不符即失败。已有的父目录不改模式。掩码在创建结束后还原，包括创建抛出异常时。
-- Windows：没有 POSIX 模式位，命令不改访问控制列表，也不调用 `icacls`。保护来自新建目录与文件从其父目录继承的访问控制，而用户目录默认只授予该用户、管理员与系统账户。这个保护的前提有三点：路径位于当前用户目录之下（命令强制）；该用户目录的访问控制没有被改成对其他账户开放；父目录在命令运行前已存在的部分，其访问控制由运行者负责。命令无法读回访问控制列表，所以 Windows 上的权限校验只是路径规则，不是读回断言。
-
-#### 已知限制
-
-- 第 5 步的预检与 `createLocalCustodian` 取得文件锁之间有一个竞态窗口：本机的另一个进程恰好在这时写入同一路径，库函数会采用它。命令用读回比对（第 6 步）发现采用，报告 `write-unconfirmed`，但不能阻止窗口的存在。本命令由本机单人运行，这个窗口被接受。
-- 第 2 步校验之后，路径上的目录若被换成指向目录外的符号链接，命令不再发现。同样是本机单人运行下接受的窗口。
-- Windows 的访问控制只靠继承（见上），不读回。
-- 命令自己刚建的文件在第 6 步读回时若碰上瞬时 I/O 故障（例如 Windows 上杀毒软件临时占用文件，读回抛 `EBUSY`），`openLocalCustodian` 返回读不出，命令报告 `write-unconfirmed` 并保留那份带密钥的文件。原因代码分不出「采用了别人的文件」与「自己的文件暂时读不了」，两者的处置都落在文件内容上：操作者先打开该文件检查它的工厂秘密是不是自己刚输入的密钥，再决定保留还是手工删除后重跑。命令自身此时不删文件，因为删掉可能是别人的库。
-- `initVault` 只建新库。换工厂秘密用 `replaceVaultSecret`。命令行外壳不提供轮换、撤销与租户绑定。
-- 重建删除旧文件之后、新库写成之前失败时，路径上什么都没有。调用方再运行一次新建即可，原因代码写明是哪一步。
-
-### 关闭
-
-`close()` 只把当前进程标成关闭，随后的 `present` 和 `resolve` 返回 `denied`。关闭不删除绑定，不把停止状态写入保管库文件，也不改写已经交给发送端的值。关闭之后的管理操作仍会持久化；下一个进程按文件里的绑定读取。
+- `layerOf` 按 model-contract 的 `selectCredentialLayer` 选层。它先读本租户层每一项的状态；只有本租户层一项都没有、档案是官方档案、且发行持有该供应商时，才读官方层。本租户层持有任一项时，官方层读不读得出都不影响结果。
+- `resolve` 只读请求固定的那一层。它按 `readCredentialLayer` 判读该层；全部项可用时，逐项经使用面取秘密，返回项到秘密的映射。层为 `none` 时，只有供应商没有凭据项才成功。层为 `official` 而发行不持有该供应商时，返回 `denied`。
+- 未知的供应商、用途不是 `model-send` 时，两个操作返回 `denied`。保管答 `denied` 或 `unavailable` 时原样返回。读面看到某项在、使用面却不再给出它时（两次读之间绑定变了），返回 `unavailable`。
+- 每次调用都重读保管，不缓存。轮换、撤销与清除在下一次调用时可见。
+- 租户只取 `access.tenant`。只有受信的准备与发送边界注入端口；端口不核主体来源，也不核 `official` 的来源。
 
 ### 发送资源
 
@@ -187,7 +44,7 @@ reader 只有 `prove`，没有任意 register 或 sign 操作。它每次先核�
 
 `assembleLocalModel(config)` 组合本地发送路径与计量准备资源，返回 `{ send, preparation, materialization, close }`。返回的 reader 就是所建发送资源的 reader。
 
-- 配置项是 `credentials`（`CredentialPort`，如本地保管库）、`commands`（`ModelCommands`）、`coordinator`（`SendCoordinator`）、`families`（组合后的 `PiFamilyContributions`）、`network`（`NetworkConfig`，含代理与 TLS）、`routes`、`transportLimits`、`maxRetainedAttempts`、`materialization` 与 `preparation`。`preparation` 有两项：`maxCitedCalls`（一个 lineage 最多引用的不同调用数）与 `supplierOf`（model 的 `SupplierPort`，为档案供应商补上凭据引用）。
+- 配置项是 `credentials`（`CredentialPort`，如 `createSecretCredentialPort` 的端口）、`commands`（`ModelCommands`）、`coordinator`（`SendCoordinator`）、`families`（组合后的 `PiFamilyContributions`）、`network`（`NetworkConfig`，含代理与 TLS）、`routes`、`transportLimits`、`maxRetainedAttempts`、`materialization` 与 `preparation`。`preparation` 有两项：`maxCitedCalls`（一个 lineage 最多引用的不同调用数）与 `supplierOf`（model 的 `SupplierPort`，为档案供应商补上凭据层）。
 - 本包不写任何路由地址、代理、限额或余量的默认值。OpenRouter 的地址必须由配置的 `routes` 给出。计量余量是家族配置的一部分，由调用方组合家族时给出。
 - `materialization` 必须显式提供当前 execution 核验函数与正安全整数 `maxRecords`，且 `maxRecords >= maxRetainedAttempts`。不满足时在创建网络前抛出 `RangeError`，不使用夹具数值作为生产默认值。
 - `transportLimits` 原样交给传输，含可选的 `connectRetry`（请求发出之前的连接失败的有界重试，见 [pi-ai-transport 的 SPEC](../pi-ai-transport/SPEC.md#请求发出之前的重试)）。本包不重试，也不加默认值：非法的 `connectRetry` 使装配抛出 `RangeError`；次数与退避由运维者层给出。
@@ -317,7 +174,7 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 
 - 构造时，插件用 `assembleLocalModel` 建发送路径。`credentials` 是插件自己的端口，`commands` 是注入的 `modelCommands`。装配拒绝配置时构造抛出 `RangeError`，什么都没有打开，服务不发布。
 - 服务面只有 `send`，委托给发送路径的发送边界。发送规则全归 model 与[发送资源](#发送资源)：围栏、尝试保留、凭据解析与凭据槽。本插件不另写发送规则。凭据槽仍只在 `start` 期间有值，经插件发送时也一样。
-- 凭据端口转发 `present`、`resolve` 及注入服务已有的可选 `presentFor`、`resolveFor`，不缓存任何值。新方法缺席时保持缺席，不回退旧方法。
+- 凭据端口转发注入服务的 `layerOf` 与 `resolve`，不缓存任何值。
 - 退出是一个流程：先撤回凭据端口，此后端口返回 `unavailable`，插件不再持有服务。再撤已安装的物化 reader，然后关闭发送路径：释放发送资源，关闭网络并等待在途交换停止。reader 撤除失败仍继续关闭。流程不抛出，失败只记不含原因的安全警告。卸载等它结束。
 - 退出时在两步之间的发送不启动传输，也不解析凭据：它以 `not-started` 收场，失败是 `unavailable`，`dependency` 为 `model-credential`，诊断为 `credential-unavailable`。
 - 退出后，仍持有旧服务引用的调用方继续得到原发送边界的答复。没有开始过的 dispatch 得到 `not-started`，`dependency` 为 `pi-send-resources`，诊断为 `send-resources-closed`，此时不取得资源，不解析凭据。
@@ -325,28 +182,11 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 
 ## 所有权、失败与生命周期
 
-### 插件
+### 凭据服务
 
-`LocalCredentialPlugin` 继承 model-cordis-contract 的 `ModelCredentialService`，不另写键。配置是 `path`（非空字符串）、可选的 `factorySecret`（给出时必须是字符串，空字符串合法），以及可选的 `lock`（`waitMs`、`backoffMs`）与 `diagnosticsCapacity`；三个数值的取值规则与保管库相同。配置不合格时插件加载失败：缺项、类型不对与取值不合格都是不合格，不会被静默丢弃后按默认值加载。回调和已打开的存储对象不进配置。
+`serveModelCredential(ctx, port)` 在 `ctx` 上以 `modelCredential` 提供 `port`，寿命随 `ctx` 的 fiber。服务继承 model-cordis-contract 的 `ModelCredentialService`，不另写键。端口只在两个方法的闭包里，不是实例属性，经 `ctx.modelCredential` 取不到端口背后的保管。
 
-- 路径上没有文件、配置给出 `factorySecret`：用它新建保管库。新建等待文件锁，超过 `lock.waitMs` 时插件加载失败。
-- 路径上没有文件、配置没有 `factorySecret`：不建文件。插件照常注册 `modelCredential`，四个方法都返回 `unavailable`，与文件读不出时相同。这让由配置命令建好保管库的宿主不在可序列化配置里放秘密（[可序列化配置与秘密材料分开](../../../docs/architecture/cross-cutting-concepts.md)）。
-- 路径上已有文件：打开并使用文件里的工厂秘密，不用本次配置里的值。
-- 文件损坏或读不出：插件仍然注册 `modelCredential`，`present` 和 `resolve` 返回 `unavailable`，不改文件；撤除时没有可关闭的保管库。打开失败的原因不经插件报告：服务面只有 `present` 与 `resolve`，诊断不转发（见[读取与刷新](#读取与刷新)），本包也没有采用别的观测通道；运维在同一路径上调用 `openLocalCustodian` 即得到 `missing`、`corrupt` 或 `io`。
-- 保管库只存在于构造时创建的闭包里，不是实例属性，经 `ctx.modelCredential` 取不到保管库及其管理操作。
-- `createLocalCredentialPlugin()` 返回 `{ plugin, custody }`。`plugin` 与 `LocalCredentialPlugin` 提供同样的 `modelCredential`。`custody` 是该插件当前存活的保管库的 `bind`、`unbind` 与 `describe`，留在建它的装配手里，不在服务上。插件未装载、已撤除或保管库打不开时，写操作答 `not-written`，`describe` 答 `unavailable`。`custody` 不核调用者资格，持有它的装配负责准入。
-- 插件撤除时关闭保管库。关闭挂在装载插件的 fiber 上，没有额外等待在途解析。
-
-插件不从 `ctx`、实例或谁装了它推断租户；租户、用途和发送资格是 `resolve` 的参数，由受信的发送边界提供。
-
-### 注入发送
-
-`deliverInjected` 经静态 `inject` 取得 `modelCredential` 并调用 model 的 `deliver`。它只经服务取得凭据，不打开保管库。
-
-- 没有提供者时不取得任何值，也不发送：`outcome()` 保持 `undefined`，注入的 fiber 继续等待。提供者出现后，这次注入完成一次并给出结果；结果一经产生不再改变。
-- 提供者撤除后重新装载，之后新发起的注入发送取得重装后的提供者。已经产生的结果不变。
-- 同一 isolate 只有一个 `modelCredential` 提供者：另一个提供者在旧提供者仍存活时注册会被 Cordis 拒绝，旧提供者继续服务。旧提供者撤除后，另一个 `ModelCredentialService` 子类可以接替，之后的发送使用它；对已撤除的旧 fiber 再次撤除不影响接替者。
-- 注入到的对象不是 `ModelCredentialService` 时，发送结果是 `{ sent: false }`。
+服务不核调用者资格，不从 `ctx`、实例或谁装了它推断租户。租户、用途与档案是否官方是两个操作的参数，由受信的准备与发送边界提供；装配只把服务交给它们。
 
 ### 发送路径的所有权
 
@@ -360,24 +200,18 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 
 ### 资源所有权
 
-保管库文件、临时文件与锁文件归调用者选定的 `path`。disposer 或关闭只改变本进程内的状态，已经写入磁盘的内容和已经交给发送端的值不可撤回。发布路径在成功、失败和异常时都关闭自己打开的临时文件与目录描述符。
+秘密保管的文件归设置域的保管提供者（settings-local），本包不打开文件。disposer 或关闭只改变本进程内的状态，已经交给发送端的值不可撤回。
 
 ## 组合与验证
 
-保管库状态的形状来自 model 的判定函数：本包构造 `CustodianState`，model 不依赖本包。判定对未铸造租户值的处理属于 model，本包不补。
+选层与判读规则来自 model-contract，本包不另写。端口用 model-contract 的凭据符合性套件在真实的 settings-local 保管库上核对。文件机制（锁、原子发布、读分类、故障注入）在 settings-local 的 `tests/secrets/` 验证，本包不重复。
 
 持续验证在 [tests](tests/index.md)。各测试覆盖的义务如下：
 
-- [credential.spec.ts](tests/credential.spec.ts)：五种结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新、文件锁、保存确认未知，以及发布路径关闭文件描述符。
-- [credential-management.spec.ts](tests/credential-management.spec.ts)：`bind` 后发送解析到租户秘密、再绑定替换秘密与时刻、绑定后不再给工厂值、他租户持有与未铸造租户得到 `denied`、读不出的文件不改字节、`unbind` 后按缺失处理、空工厂秘密答 `absent`、不可读绑定不回退工厂、旧快照与损坏的时刻，以及受管插件的 `custody` 只在插件存活时可写。每条都扫描可见结果里的秘密哨兵。
-- [custodian-options.spec.ts](tests/custodian-options.spec.ts)：建库采用已有文件、诊断容量、锁等待上限与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝。
-- [credential-service.spec.ts](tests/credential-service.spec.ts)：在真实 Cordis 4.0.4 下，服务实例只暴露 `present` 与 `resolve`。
-- [cordis-entry.spec.ts](tests/cordis-entry.spec.ts)：插件的发布、空路径建库并服务、撤除、损坏文件上撤除不报错、配置校验，以及损坏文件上的不可用服务。
+- [credential-service.spec.ts](tests/credential-service.spec.ts)：端口在真实的 settings-local 保管库上通过 model-contract 凭据符合性套件的全部义务；未知供应商与其他用途得到 `denied`；读面与使用面之间绑定变化时得到 `unavailable`；在真实 Cordis 4.0.4 下，`serveModelCredential` 的服务实例只暴露 `layerOf` 与 `resolve`，随 fiber 撤除。
+- [cordis-entry.spec.ts](tests/cordis-entry.spec.ts)：`./cordis` 入口的运行时导出清单。
 - [profile-source.spec.ts](tests/profile-source.spec.ts)：来源构造的身份、adoption、revision 与快照证据，摘要用独立算出的夹具核对，路由重复与非法修订在构造时拒绝。
 - [profiles-plugin.spec.ts](tests/profiles-plugin.spec.ts)：在真实 Cordis 4.0.4 下，`ModelProfilesLocalPlugin` 发布 `modelProfiles`，每条路由的档案定义与 `officialOpenAiProfiles` 逐字段相同，`list` 与 `resolve` 的答案，撤除后旧句柄返回 `unavailable`，非法配置使加载失败，并与档案替身对拍。
-- [deliver-injected.spec.ts](tests/deliver-injected.spec.ts)：在真实 Cordis 4.0.4 下，注入发送的模块边界、提供者缺席、恢复、重装后结果不变、更替与非服务对象。
-- [vault-init.spec.ts](tests/vault-init.spec.ts)：保管库初始化命令：新建与读回、五种已有对象的拒绝、密钥不外泄的各失败点、输入规则、用户目录规则、POSIX 权限与失败时清理、终端回显关闭与还原、命令行参数与退出码。
-- [vault-replace.spec.ts](tests/vault-replace.spec.ts)：替换工厂秘密：绑定不变、读回、没有保管库或保管库损坏时不读密钥、输入规则、权限护栏的次序、读回失败答 `written-not-private` 且文件已是新密钥；重建读不出的文件（目录不删、密钥不合格时旧文件保留）；`inspectLocalCustodian` 的四种答复；持锁时清理本保管库的残留临时文件而不动其他文件（不持锁的打开不清理）；以及插件配置不带工厂秘密时的两种情形（有保管库照常服务、没有保管库答 `unavailable` 且不建文件）。
 - [send-resources.spec.ts](tests/send-resources.spec.ts)：用观察凭据槽的传输工厂核对，槽只在 `start` 期间有值，正常返回与抛出后都为空，两个资源互不见对方的值，异物与释放后的物化传输被拒绝且不填槽，`release` 与 `close` 幂等。它还核对连接重试的报告带出每次发送各自的 `call` 与 `dispatch`、探针传输没有观察者；并用真实 pi 传输核对异物物化传输被拒绝，以及传输拒绝的配置在构造时抛出。
 - [assembly.spec.ts](tests/assembly.spec.ts)：装配对路由、网络、尝试容量与准备配置的拒绝。`preparation` 的租约经配置的家族取得绑定，并调用配置的 `supplierOf`。`close` 开始后的取得返回具名为 `model-host-local`、`assembly-closed` 的不可用，且不调用 `supplierOf`。关闭前取得的租约在关闭后计量结果不变并能释放。`close` 幂等。
 - [plugins-instances.spec.ts](tests/plugins-instances.spec.ts)：真实 Cordis 4.0.4 下两个目录插件的等待、发布、登记与释放、非解析器租户、授权方拒绝、后继目录、失去权威与转换目录的独立。
@@ -386,9 +220,9 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 - [runtime-push.spec.ts](tests/runtime-push.spec.ts)：真实 Cordis 4.0.4、真实 model 运行时与内存 `ModelCommands`、脚本传输与脚本接收方（代 agent-host-local 的接收方）。核对：冻结的结果交付与 retained ACK；saved 的四项事实各缺一项时不 ACK；键或证据 owner 不符的回执不算 saved；未知时用原键原载荷重投；ACK 未知时以原操作认回；清理失败保持确认、后继完成清理；没有接收方时等待、登记后推送；正文释放后每个晚到修订一个账目交付；账目在结果 saved 之后；晚到账目超界被拒并可观察、有名额后接受；未知后被拒的重投保持未知；晚到账目接受未知时不归还名额、同一操作重交不另占；卸载等正在接纳的晚到账目并交给后继、停后拒收；两个存活 fiber 争同一 owner；因别的依赖重跑后重新登记；撤除时未完成推送交给后继。启动扫描（模拟重启：新插件类与空账本，同一份内存 `ModelCommands`）：saved 未 ACK 的结果以原键原载荷再推、ACK 并归还份额；已提交而回包丢失的 ACK 只续做清理、不再推送；已结清的调用下次启动不唤醒；未收场的调用不唤醒；扫描被拒时报告警告、custody 不变。
 - [runtime-cancel.spec.ts](tests/runtime-cancel.spec.ts)（慢层）：本地 HTTPS 流进行中的 `calls.cancel`。核对：终止在传输报告物理停止之后，已交付内容保留，费用不写零；同租户另一调用照常完成；取消与自然完成同时到达时只有一个终止。
 - [runtime-host.spec.ts](tests/runtime-host.spec.ts)（慢层）：真实 Cordis 4.0.4 上的整装配（运行时插件、发送阶段插件、真实 model 运行时、model-storage-sql 的耐久 `ModelCommands` 与协调器）跑 model-contract 的 53 项提供者义务；每项出现一次，失败只允许显式的已知失败表，not-applicable 只允许显式允许表（两张表目前都为空）；`assembly.json` 的实现描述取自实际装出的后端。见[53 项提供者义务](#53-项提供者义务)。
-- [line-e2e.spec.ts](tests/line-e2e.spec.ts)（慢层）：线内贯通。一个进程、一个真实 Cordis 4.0.4 根 Context 装出保管库、官方档案、请求准备、发送阶段、运行门面与推送，耐久 `ModelCommands` 用 model-storage-sql 的 `createSqlModelCommands`（命令与发送协调器共核）；走完 准备 → 发送（回放 `openai-tool-call` 合成件，请求摘要等于旁注）→ 持久（关掉并重开 SQLite 文件后新命令读出终态与结果页）→ 推送（接收方替身先 saved，生产方才 ACK，之后清理 released）→ 取消（`exchange-stopped` 先于 settle，终止为该取消的 interrupted）。SQL 提供者是 node:sqlite 文件替身，不覆盖 sqlite-provider 的 Worker、队列与耐久；接收方是脚本替身。设 `OMNE_EVIDENCE_OUT` 时写脱敏 `line-e2e.json`。
+- [line-e2e.spec.ts](tests/line-e2e.spec.ts)（慢层）：线内贯通。一个进程、一个真实 Cordis 4.0.4 根 Context 装出凭据服务（真实保管库上的凭据端口）、官方档案、请求准备、发送阶段、运行门面与推送，耐久 `ModelCommands` 用 model-storage-sql 的 `createSqlModelCommands`（命令与发送协调器共核）；走完 准备 → 发送（回放 `openai-tool-call` 合成件，请求摘要等于旁注）→ 持久（关掉并重开 SQLite 文件后新命令读出终态与结果页）→ 推送（接收方替身先 saved，生产方才 ACK，之后清理 released）→ 取消（`exchange-stopped` 先于 settle，终止为该取消的 interrupted）。SQL 提供者是 node:sqlite 文件替身，不覆盖 sqlite-provider 的 Worker、队列与耐久；接收方是脚本替身。设 `OMNE_EVIDENCE_OUT` 时写脱敏 `line-e2e.json`。
 - [plugins-preparation.spec.ts](tests/plugins-preparation.spec.ts)：真实 Cordis 4.0.4 下无运行面与网络时的 `prepare`、档案拒绝、租约交还、卸载后查询仍可用、同一命令上的第 2 轮锚点与另一份命令的读不到、卸载后的租约、命令换代。`modelPreparationResources`：经键取得的租约读到注入命令里的调用，键随插件撤除，旧引用拒绝新租约，重装后键恢复；真实插件跑契约成员的两条符合性用例。
-- [local-model.spec.ts](tests/local-model.spec.ts)（慢层）：本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文，两家各有一条回复含推理续接状态部件。调用经本地保管库、装配的发送边界、真实 pi 传输、两个家族与 model 运行时。测试核对：请求带保管库解析出的 `Bearer` 占位值；事实以唯一的 `ended` 结束；调用收场，发出记录的终局与之相同；物化回执带该家族记录产出的 `replayFormat`；账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands`，并经 `dispatches` 读回；`payableAmount` 得到已知的 `openrouter-credit` 金额；占位值不出现在事实与发出记录中。
+- [local-model.spec.ts](tests/local-model.spec.ts)（慢层）：本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文，两家各有一条回复含推理续接状态部件。调用经保管库上的凭据端口、装配的发送边界、真实 pi 传输、两个家族与 model 运行时。测试核对：请求带凭据端口从官方层读出的 `Bearer` 占位值；事实以唯一的 `ended` 结束；调用收场，发出记录的终局与之相同；物化回执带该家族记录产出的 `replayFormat`；账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands`，并经 `dispatches` 读回；`payableAmount` 得到已知的 `openrouter-credit` 金额；占位值不出现在事实与发出记录中。
 - [continuation.spec.ts](tests/continuation.spec.ts)（慢层）：两家各让一次带推理状态的调用 X 经装配收场、读取、确认并释放请求材料，再用 `preparation` 的真实租约与真实家族计量器计量延续 X 的下一次请求。测试核对：锚点命中；金额等于 X 的 `input`、`cache-read` 与 `cache-write` 之和加新增部分的估算；余量只按估算部分计算；方法名以 `+continuation-anchored/1` 结尾；带 X 回复的请求比不带时恰好多 X 的输出 token 数。另一租户声明 X 时，计量结果与声明一个不存在的调用逐字节相同。
 - [send-stage.spec.ts](tests/send-stage.spec.ts)：真实 Cordis 4.0.4 下发送阶段插件的装载与卸载（服务发布与撤回，缺凭据服务时等待，随凭据服务卸载，配置与装配被拒时什么都不建）、凭据槽、退出后的发送、退出时在途的发送，以及卸载等发送路径关闭。慢层用例把四份真实回放件经插件的 `modelSendBoundary` 回放，并与装配路径在同一用例里对比事实、请求与发出记录。另有一条慢层用例：本地前置 TCP 端口丢弃第一条连接（请求字节未发出），经插件重试后调用 completed，Cordis logger 恰好收到一条含调用标识、重试序号、延迟与原因的 `warn`。
 - [recording-replay.spec.ts](tests/recording-replay.spec.ts)（慢层，门禁）：把 pi-ai-transport 的四份真实回放件逐一经装配路径回放，核对收场、唯一终止、推理状态与回放格式、请求摘要可复现、账目经真实路径到达，以及占位凭据只出现在 `Authorization` 头里。它还回放两个工具调用用例的合成回放件：请求带 function 形状的工具、`tool_choice` 为 `auto`、推理档位为 `medium`，首轮以工具建议收场；延续轮带首轮回复里的工具调用与推理状态，再带工具结果；录制器把合成流原样写出，旁注摘要等于发出请求体的摘要，密钥模式命中时不写文件，回复没有工具调用时不写文件。合成回放件是手写数据，不证明真实模型的输出。

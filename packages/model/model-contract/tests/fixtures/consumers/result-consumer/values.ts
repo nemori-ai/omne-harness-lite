@@ -1,4 +1,4 @@
-import { encodeModelInvocationRef } from '@omne-harness/model-contract'
+import { decodeProviderName, encodeModelInvocationRef } from '@omne-harness/model-contract'
 // The values that the paths of this fixture send and read. Every identity comes from a decoder of
 // a public package, and every block from the content-block judge, so no value is made by an assertion.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
@@ -70,9 +70,9 @@ const adoption = (name: string): Adoption => ({
 
 const supplier: Supplier = {
   adoption: adoption('supplier'),
-  recipient: 'recipient',
+  provider: must(decodeProviderName('recipient')),
   model: 'model',
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 }
 
 /** The request that the owner fixed before admitting; the fixture does not look inside it. */

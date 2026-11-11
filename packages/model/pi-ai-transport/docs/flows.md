@@ -14,7 +14,7 @@ sequenceDiagram
   participant Cap as 容量
   participant Ex as 交换
   Model->>T: prepare(request, supplier, dispatch)
-  alt 没有该接收方的路由
+  alt 没有该供应商的路由
     T-->>Model: unsupported
   else 请求不含该供应商
     T-->>Model: invalid

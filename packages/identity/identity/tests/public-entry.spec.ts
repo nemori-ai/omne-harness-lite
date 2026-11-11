@@ -13,6 +13,10 @@ it('publishes the first identity shapes: the principal authority, the qualificat
       'isQualification',
       'qualificationsOf',
       'scopeOf',
+      'standingPrincipalRef',
+      'standingReservationId',
+      'isStandingBinding',
+      'isStandingReservation',
     ].sort(),
   )
 })

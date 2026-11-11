@@ -67,6 +67,10 @@ export function createWindowsTerminalCapacity(
 
 export type WindowsTerminalCapacity = ReturnType<typeof createWindowsTerminalCapacity>
 
+/**
+ * The output buffer of one invocation. It reserves its maximum size when it is created; sealing it
+ * releases the reservation once its reader took the queued chunks or gave up, or at once when empty.
+ */
 export function reserveTerminalWindow(policy: OutputPolicy, capacity: WindowsTerminalCapacity) {
   const release = capacity.window(policy.maxBufferedBytes)
   if (release === undefined) return undefined
@@ -154,12 +158,6 @@ export function reserveTerminalWindow(policy: OutputPolicy, capacity: WindowsTer
         mode: 'terminal',
         terminal: Object.freeze({ observedBytes, discardedBytes }),
       })
-    },
-    disposeIdle() {
-      const releasedUndeliveredBytes = buffered
-      const output = this.seal()
-      abandon()
-      return Object.freeze({ ...output.terminal, releasedUndeliveredBytes })
     },
     output: {
       [Symbol.asyncIterator](): AsyncIterator<OutputChunk> {

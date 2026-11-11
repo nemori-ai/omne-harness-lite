@@ -353,6 +353,7 @@ export async function createToolReceiverFixture(): Promise<ToolReceiverFixture> 
   const target: ToolReceptionTarget = {
     execution: base.execution,
     instance: snapshot.executionAttachment.instance,
+    definition: structuredClone(snapshot.checkpoint.definition),
     pending,
   }
   const dependencies: ToolReceiverDependencies<string> = {

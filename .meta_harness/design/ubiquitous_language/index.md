@@ -117,7 +117,7 @@
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
 | [UL-asset](terms/capabilities-and-composition.md#ul-asset--资产--asset) | 资产 | Asset | 约束 agent 由什么组装而成、从哪被触达、在哪插手，**恰有八类** |
-| [UL-setting](terms/capabilities-and-composition.md#ul-setting--设置--setting) | 设置 | Setting | 资产的一种属性，管「怎么做」 |
+| [UL-setting](terms/capabilities-and-composition.md#ul-setting--设置--setting) | 设置 | Setting | 决定功能怎样工作的可配置事项；可独立使用，也可组合进资产定义 |
 | [UL-setting-category](terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category) | 设置项类别 | Setting Category | 每项设置必标的四类之一：偏好 / 绑定 / 落点与身份 / 治理（管别的设置与权限怎么起作用）；决定值能从哪些层来 |
 | [UL-permission](terms/capabilities-and-composition.md#ul-permission--权限--permission) | 权限 | Permission | 资产的一种属性，管「能做什么」 |
 | [UL-skill](terms/capabilities-and-composition.md#ul-skill--技能--skill) | 技能 | Skill | 一段可复用的工作方法 |
@@ -149,7 +149,8 @@
 | [UL-profile-listing-status](terms/capabilities-and-composition.md#ul-profile-listing-status--档案在册状态--profile-listing-status) | 档案在册状态 | Profile Listing Status | 在册 ⇄ 已撤回，**来回都走得通、没有终态、行还在**；「已下架」说的是一个名字（链上同名的都撤回了）；「范围不允许」不是它的取值 |
 | [UL-allowed-providers](terms/capabilities-and-composition.md#ul-allowed-providers--允许的供应商--allowed-providers) | 允许的供应商 | Allowed Providers | 档案上有序非空的一串供应商，**顺序即重试逐家去试的顺序** |
 | [UL-provider-fallback](terms/capabilities-and-composition.md#ul-provider-fallback--供应商回退--provider-fallback) | 供应商回退 | Provider Fallback | 档案上的是 / 否：允不允许换下一家；**不许的是换家，不是再试** |
-| [UL-model-credential](terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) | 模型凭据 | Model Credential | 租户身上的一项属性（组织层不持有，U-1），**一范围一把**；身份即范围、轮换是改值、用量归范围；**范围可以自带** |
+| [UL-model-provider](terms/capabilities-and-composition.md#ul-model-provider--模型供应商--model-provider) | 模型供应商 | Model Provider | 模型请求真实到达的那一家上游服务，资产类别 `model-provider` 的一份资产；正文声明协议、端点、计费与凭据项；**不是档案上「允许的供应商」那一项** |
+| [UL-model-credential](terms/capabilities-and-composition.md#ul-model-credential--模型凭据--model-credential) | 模型凭据 | Model Credential | 模型供应商声明的一项秘密设置（凭据项）在租户层或官方层的那一份值；**一次调用的每个供应商条目按整层选定**，不显示值 |
 | [UL-model-request-parameters](terms/capabilities-and-composition.md#ul-model-request-parameters--模型请求参数--model-request-parameters) | 模型请求参数 | Model Request Parameters | 档案身上随请求带上的一组常用参数，**系统统一命名、adapter 各自解析**，不认的项留痕不静默丢 |
 | [UL-mcp-credential](terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential) | MCP 凭据 | MCP Credential | MCP 接入点持有上的一项落点与身份类设置，**一份持有一份**；静态的或经 OAuth 取得的；**不是模型凭据** |
 | [UL-selected-model](terms/capabilities-and-composition.md#ul-selected-model--选中模型--selected-model) | 选中模型 | Selected Model | 会话当前指向的那个档案路由名，**只因切换而变的取值**，落到哪一行按层覆盖现算；没切换过时取「用哪个模型」沿层级求值的那个名字 |
@@ -343,6 +344,7 @@
 | [UL-schedule-catch-up-policy](terms/execution-and-outcome.md#ul-schedule-catch-up-policy--日程补跑策略--schedule-catch-up-policy) | 日程补跑策略 | Schedule Catch-up Policy | 日程声明是否补跑及当前时刻前最近最多补多少次；不重跑已有 Job。 |
 | [UL-schedule-overlap-policy](terms/execution-and-outcome.md#ul-schedule-overlap-policy--日程重叠策略--schedule-overlap-policy) | 日程重叠策略 | Schedule Overlap Policy | 同一日程的新工作遇到先前未结束动作时，选择跳过、停止先前后执行、独立并行或等待执行。 |
 | [UL-job-notification-policy](terms/execution-and-outcome.md#ul-job-notification-policy--作业通知策略--job-notification-policy) | 作业通知策略 | Job Notification Policy | Routine 内声明执行事件与通知内容要求，各 Job 持有自身采用的声明。 |
+| [UL-output-generation](terms/execution-and-outcome.md#ul-output-generation--输出代--output-generation) | 输出代 | Output Generation | 工程遥测提供者里整体准备、启用、排空、关闭的一组输出实现；**不是 Cordis 插件换代**；形态未定 |
 
 
 ## [交互与派发](terms/interaction-and-dispatch.md)
@@ -432,6 +434,10 @@
 | [UL-summary-step](terms/record-and-context.md#ul-summary-step--摘要步--summary-step) | 摘要步 | Summary Step | 一次内部模型调用生成覆盖范围的摘要，由协调者发起 |
 | [UL-business-calendar](terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 业务日历 | Business Calendar | 具有明确适用范围、可被指认与选用的一份日期分类知识，逐日回答工作日、假日等问题，由可追溯的业务日历版本承载。 |
 | [UL-business-calendar-version](terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 业务日历版本 | Business Calendar Version | 某份业务日历经过校验发布的一份不可变数据，带可区分的版本、覆盖范围、信息截至时点与权威出处；修订通过新版本表达。 |
+| [UL-engineering-telemetry](terms/record-and-context.md#ul-engineering-telemetry--工程遥测--engineering-telemetry) | 工程遥测 | Engineering Telemetry | 为工程诊断留下的工程日志、链路与指标的总称；**不是面向用户的观察**，不替代账目、授权依据或恢复事实 |
+| [UL-telemetry-record](terms/record-and-context.md#ul-telemetry-record--遥测记录--telemetry-record) | 遥测记录 | Telemetry Record | 交给工程遥测端口的一条事件、一个指标测量值或一个遥测段的开始或结束；**准入不是送达**，单条没有系统身份 |
+| [UL-telemetry-segment](terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment) | 遥测段 | Telemetry Segment | 工程遥测里一段有起止的工作记录，可被因果链接引用；**结局不是业务终态**；形态未定 |
+| [UL-session-diagnostics-projection](terms/record-and-context.md#ul-session-diagnostics-projection--会话诊断投影--session-diagnostics-projection) | 会话诊断投影 | Session Diagnostics Projection | 一个会话的只读组合视图：以会话日志为骨架，读各拥有者的只读记录，读不到写缺口；**不是会话日志投影**，不是工程遥测 |
 
 | [UL-model-adaptation-binding](terms/capabilities-and-composition.md#ul-model-adaptation-binding--模型适配绑定--model-adaptation-binding) | 模型适配绑定 | Model Adaptation Binding | 调用所持有的精确适配版本与配置属性，更新不改变旧绑定 |
 | [UL-model-prefix-cache-policy](terms/capabilities-and-composition.md#ul-model-prefix-cache-policy--模型前缀缓存策略--model-prefix-cache-policy) | 模型前缀缓存策略 | Model Prefix Cache Policy | 绑定内的缓存配置属性，不代表真实缓存命中 |

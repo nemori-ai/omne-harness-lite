@@ -1,6 +1,8 @@
 // Test support of the OpenAI family: the family configuration of the tests, the records by name,
 // and builders that make contract values through the contract judge, so branded identities are
 // real. Every value here is a test parameter, not a package default.
+import { afterAll } from 'vitest'
+import { testExecutor } from './executor.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   decodeRevision,
@@ -16,7 +18,7 @@ import {
   judgeReplayDeclaration,
   type TransportDispatch,
 } from '@omne-harness/model-contract/provider'
-import { composeFamilies, recordAdoption } from '@omne-harness/pi-ai-transport'
+import { composeFamilies, recordAdoption, recordProvider } from '@omne-harness/pi-ai-transport'
 import type { PiFamilyBinding } from '@omne-harness/pi-ai-transport'
 import {
   createOpenAiFamily,
@@ -38,9 +40,23 @@ export const PROFILE = adoption('profile')
 export const RETRY = adoption('retry')
 export const MARGIN_SOURCE = adoption('margin-policy')
 
+export const EXECUTOR = await testExecutor([openAiTokenizerResources()])
+const tokenLease = EXECUTOR.acquire(
+  openAiTokenizerResources().definition,
+  new AbortController().signal,
+)
+if ('failure' in tokenLease) throw new Error(JSON.stringify(tokenLease.failure))
+export const TOKENIZER = tokenLease.ok.tokenizer
+afterAll(async () => {
+  const released = await tokenLease.ok.release()
+  if ('failure' in released) throw new Error(JSON.stringify(released.failure))
+})
+
 /** The family configuration of the tests. */
 export const CONFIG: OpenAiFamilyConfig = {
   tokenizer: openAiTokenizerResources(),
+  executor: EXECUTOR,
+  maxSerializedBytes: 4 * 1024 * 1024,
   limits: {
     toolArguments: {
       maxBytes: 65_536,
@@ -55,7 +71,6 @@ export const CONFIG: OpenAiFamilyConfig = {
   margin: { percent: '10', source: MARGIN_SOURCE },
 }
 
-/** One family for the whole test run: the tokenizer initializes once per family. */
 export const FAMILY = createOpenAiFamily(CONFIG)
 
 export function recordNamed(name: string): OpenAiRecord {
@@ -68,9 +83,9 @@ export function recordNamed(name: string): OpenAiRecord {
 export function supplierOf(record: OpenAiRecord): Supplier {
   return {
     adoption: recordAdoption(OPENAI_OWNER, record),
-    recipient: record.route.recipient,
+    provider: recordProvider(record),
     model: record.route.model,
-    credential: { kind: 'factory' },
+    credential: { layer: 'official' },
   }
 }
 
@@ -159,7 +174,7 @@ export type RequestParts = Readonly<{
 export function declarationOf(record: OpenAiRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
-      recipient: record.route.recipient,
+      provider: recordProvider(record),
       model: record.route.model,
       replay: record.replay.declaration,
     },

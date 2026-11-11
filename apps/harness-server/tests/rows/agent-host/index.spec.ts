@@ -33,6 +33,7 @@ import {
 import { agentHostPlugin } from '@omne-harness/agent-host-local/cordis'
 import {
   decodeDispatchId,
+  decodeProviderName,
   decodeResultVersion,
   resolveModelInvocationRef,
 } from '@omne-harness/model-contract'
@@ -57,6 +58,7 @@ import {
 import { agentInstancesRow } from '../../../src/rows/agent-instances/index.ts'
 import type { RowId } from '../../../src/types.ts'
 import { declared, loadTree, makeBase, type LoadedTree } from '../session-fixtures/tree.ts'
+import { disabledTelemetryRow } from '../telemetry/support.ts'
 import {
   INJECTS,
   caller,
@@ -89,6 +91,7 @@ async function start(options: {
   const tree = await loadTree({
     base,
     rows: [
+      disabledTelemetryRow(),
       doubles.spec,
       declared(options.row ?? agentHostRow, options.config ?? hostConfig),
       ...(options.directory === true ? [declared(agentInstancesRow)] : []),
@@ -137,7 +140,7 @@ describe('the agent-host row: declaration and configuration', () => {
           'agentExecutionControl',
           'agentInstanceProvision',
         ],
-        injects: [...INJECTS],
+        injects: [...INJECTS, 'telemetry'],
         phase: 'business',
         sameProviderGroup: null,
       },
@@ -428,9 +431,9 @@ async function suggestTool(row: Plugin) {
       dispatch,
       supplier: {
         adoption: adoption('supplier'),
-        recipient: 'recipient',
+        provider: ok(decodeProviderName('recipient')),
         model: 'model',
-        credential: { kind: 'factory' },
+        credential: { layer: 'official' },
       },
       intent: admission,
       send: 'started',

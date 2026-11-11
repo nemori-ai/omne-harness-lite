@@ -6,6 +6,7 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { Failure, ModelSelection } from '@omne-harness/agent-contract'
 import {
+  decodeProviderName,
   decodeRevision,
   type Adoption,
   type DurableEvidence,
@@ -28,7 +29,7 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import {
   SESSION_EXECUTION_HANDLER,
-  SESSION_PROTOCOL,
+  SESSION_READ_PROTOCOL,
 } from '@omne-harness/session-storage-sql/participants'
 import type { JsonValue, ReadResult, TenantDomainLookupResult } from '@omne-harness/sql-contract'
 import {
@@ -228,7 +229,13 @@ export function profileOf(route: string): ModelProfile {
     updatedAt: '2026-11-01T00:00:00Z',
     availability: 'active',
     definition: {
-      suppliers: [{ adoption: adoption('supplier'), recipient: 'recipient', model: 'model' }],
+      suppliers: [
+        {
+          adoption: adoption('supplier'),
+          provider: must(decodeProviderName('recipient')),
+          model: 'model',
+        },
+      ],
       fallback: false,
       input: ['text', 'image'],
       output: ['text'],
@@ -366,7 +373,10 @@ function indexRows(script: IndexScript, trace: IndexTrace) {
     readonly read: StorageService['read'] = async request => {
       trace.reads.push({ domain: request.domain.transactionDomain, input: request.input })
       if (script.read !== undefined) return script.read()
-      if (request.handler !== SESSION_EXECUTION_HANDLER || request.protocol !== SESSION_PROTOCOL)
+      if (
+        request.handler !== SESSION_EXECUTION_HANDLER ||
+        request.protocol !== SESSION_READ_PROTOCOL
+      )
         return { kind: 'read', requestKey: request.requestKey, output: null }
       const input = request.input as Readonly<{ tenant: string; execution: string }>
       // A row is found only under its own tenant and in that tenant's domain.

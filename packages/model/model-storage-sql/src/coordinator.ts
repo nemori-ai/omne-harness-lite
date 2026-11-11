@@ -304,7 +304,6 @@ export function createSendMirror(
         ...source,
         profile: structuredClone(source.profile),
         supplier: structuredClone(source.supplier),
-        credential: structuredClone(source.credential),
       }))
       const refused = (failure: ModelFailure): SendStart => ({ kind: 'refused', failure })
 

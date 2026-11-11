@@ -1,0 +1,294 @@
+// Fast: the session reader's answers as the macOS backend reads them, with a stand-in reader
+// script. A reader that fails, times out or prints something else is never read as an empty
+// session or as a confirmed stop. The boot identity is read from a stand-in `sysctl`, swapped in
+// by path. Runs on every platform; the real reader is in primitives.spec.ts.
+import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import {
+  ownSessions,
+  parseIdentity,
+  parseMembers,
+  parseStop,
+  positive,
+  readBootId,
+  readBootIdNow,
+  readMembers,
+  stopRecordedDomain,
+  stopSessions,
+} from '../../src/macos-execution/session.ts'
+
+/** Host tools the module under test runs, swapped by path for the test's stand-ins. */
+const swap = vi.hoisted(() => new Map<string, string>())
+
+vi.mock('node:child_process', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  const { promisify } = await import('node:util')
+  const execFile = (file: string, ...rest: unknown[]) =>
+    Reflect.apply(actual.execFile, undefined, [swap.get(file) ?? file, ...rest])
+  // Keep the promisified form `{ stdout, stderr }` for any module that promisifies execFile.
+  Object.defineProperty(execFile, promisify.custom, {
+    value: (file: string, ...rest: unknown[]) =>
+      Reflect.apply(promisify(actual.execFile), undefined, [swap.get(file) ?? file, ...rest]),
+  })
+  return {
+    ...actual,
+    execFile,
+    execFileSync: (file: string, ...rest: unknown[]): unknown =>
+      Reflect.apply(actual.execFileSync, undefined, [swap.get(file) ?? file, ...rest]),
+  }
+})
+
+let directory = ''
+const reader = async (name: string, body: string) => {
+  const path = join(directory, name)
+  await writeFile(path, `#!/bin/sh\n${body}\n`)
+  await chmod(path, 0o755)
+  return path
+}
+
+beforeAll(async () => {
+  directory = await realpath(await mkdtemp(join(tmpdir(), 'omne-macos-session-')))
+})
+afterAll(async () => {
+  await rm(directory, { recursive: true, force: true })
+})
+afterEach(() => {
+  swap.clear()
+})
+
+describe('reader answers', () => {
+  it('reads a positive decimal and nothing that only converts to one', () => {
+    expect(positive('12')).toBe(12)
+    for (const text of [undefined, '', '0', '1e3', '+12', '12 ', ' 12', '0x10', '1.5'])
+      expect(positive(text), JSON.stringify(text)).toBeUndefined()
+    expect(positive('9007199254740993')).toBeUndefined()
+  })
+
+  it('reads members line by line and an empty answer as no member', () => {
+    expect(parseMembers('12 12 12\n13 12 12\n20 20 12\n')).toEqual([
+      { pid: 12, pgid: 12, sid: 12 },
+      { pid: 13, pgid: 12, sid: 12 },
+      { pid: 20, pgid: 20, sid: 12 },
+    ])
+    expect(parseMembers('')).toEqual([])
+  })
+
+  it.each(['12 12', '12 12 12 12', 'a 12 12', '12 -1 12', '12 0 12', '12 12 0', '12  12 12'])(
+    'refuses the members line %j',
+    line => {
+      expect(parseMembers(`${line}\n`)).toBeUndefined()
+    },
+  )
+
+  it('reads an identity, pads the microseconds, and reads gone', () => {
+    expect(parseIdentity('400 1793777328 75378\n')).toEqual({
+      kind: 'alive',
+      sid: 400,
+      start: '1793777328.075378',
+    })
+    expect(parseIdentity('gone\n')).toEqual({ kind: 'gone' })
+  })
+
+  it.each([
+    '',
+    '400 1',
+    '400 1 2 3',
+    'x 1 2',
+    '400 -1 2',
+    '400 1 x',
+    '400 1x 2',
+    '400 1 x2',
+    '400 1 2x',
+  ])('refuses the identity %j', text => {
+    expect(parseIdentity(text)).toBeUndefined()
+  })
+
+  it('reads a stop answer and nothing else', () => {
+    expect(parseStop('confirmed\n')).toBe('confirmed')
+    expect(parseStop('unconfirmed 3\n')).toBe('unconfirmed')
+    expect(parseStop('unconfirmed\n')).toBeUndefined()
+    expect(parseStop('confirmed 0\n')).toBeUndefined()
+    expect(parseStop('unconfirmed 12\n')).toBe('unconfirmed')
+    expect(parseStop('xunconfirmed 3\n')).toBeUndefined()
+    expect(parseStop('unconfirmed 3x\n')).toBeUndefined()
+    expect(parseStop('')).toBeUndefined()
+  })
+})
+
+describe('a reader that does not answer', () => {
+  it('passes the excepted pid and the sessions in order', async () => {
+    const echo = await reader('echo-args', 'echo "$@" >&2; [ "$*" = "members 7 40 41" ] || exit 1')
+    expect(
+      await readMembers({ reader: echo, sessions: [40, 41], except: 7, boundMs: 5_000 }),
+    ).toEqual([])
+    expect(await readMembers({ reader: echo, sessions: [40, 41], boundMs: 5_000 })).toBeUndefined()
+  })
+
+  it('reads no session as no member without asking', async () => {
+    const failing = await reader('never', 'exit 1')
+    expect(await readMembers({ reader: failing, sessions: [], boundMs: 5_000 })).toEqual([])
+    expect(await stopSessions({ reader: failing, sessions: [], boundMs: 5_000 })).toBe('confirmed')
+  })
+
+  it('reads a failed, late or garbled members answer as unknown, not as empty', async () => {
+    const failed = await reader('failed', 'exit 1')
+    const late = await reader('late', 'sleep 5; echo')
+    const garbled = await reader('garbled', 'echo "12 12"')
+    for (const path of [failed, late, garbled])
+      expect(await readMembers({ reader: path, sessions: [40], boundMs: 300 })).toBeUndefined()
+  })
+
+  it('answers unconfirmed for a failed, late, garbled or unconfirmed stop', async () => {
+    const failed = await reader('stop-failed', 'echo confirmed; exit 1')
+    const garbled = await reader('stop-garbled', 'echo confirm')
+    const unconfirmed = await reader('stop-unconfirmed', 'echo "unconfirmed 2"')
+    const late = await reader('stop-late', 'sleep 5; echo confirmed')
+    for (const path of [failed, garbled, unconfirmed])
+      expect(await stopSessions({ reader: path, sessions: [40], boundMs: 1_000 })).toBe(
+        'unconfirmed',
+      )
+    // The reader gets the bound and two more seconds; a reader past that is unconfirmed.
+    expect(await stopSessions({ reader: late, sessions: [40], boundMs: 1 })).toBe('unconfirmed')
+  })
+
+  it('passes the bound, the excepted pid and the sessions to the stop', async () => {
+    const strict = await reader(
+      'stop-strict',
+      '[ "$*" = "stop 250 9 40 41" ] && echo confirmed || exit 1',
+    )
+    expect(
+      await stopSessions({ reader: strict, sessions: [40, 41], except: 9, boundMs: 250.7 }),
+    ).toBe('confirmed')
+  })
+})
+
+describe('recorded domains', () => {
+  const coordinate = {
+    bootId: 'B6C8C544-54F8-4C43-967D-A47FD7BEBA7D',
+    sessions: [
+      { sid: 400, start: '1793777328.075378' },
+      { sid: 401, start: '1793777329.000001' },
+    ],
+  }
+
+  it('keeps a session whose leader is gone or the same, and drops a reused leader pid', async () => {
+    const identity = await reader(
+      'identity',
+      'case "$2" in 400) echo gone;; 401) echo "401 1793777329 1";; 402) echo "402 9 9";; esac',
+    )
+    expect(
+      await ownSessions({
+        reader: identity,
+        sessions: [...coordinate.sessions, { sid: 402, start: '1.000001' }],
+        boundMs: 5_000,
+      }),
+    ).toEqual([400, 401])
+  })
+
+  it('reads an unreadable identity as unknown', async () => {
+    const failing = await reader('identity-failed', 'exit 1')
+    expect(
+      await ownSessions({ reader: failing, sessions: coordinate.sessions, boundMs: 5_000 }),
+    ).toBeUndefined()
+    expect(
+      await stopRecordedDomain({
+        reader: failing,
+        coordinate,
+        bootId: coordinate.bootId,
+        boundMs: 5_000,
+      }),
+    ).toBe('unconfirmed')
+  })
+
+  it('stops a domain of another boot without asking, and an unknown boot is unconfirmed', async () => {
+    const failing = await reader('boot-never', 'exit 1')
+    expect(
+      await stopRecordedDomain({ reader: failing, coordinate, bootId: 'OTHER', boundMs: 5_000 }),
+    ).toBe('confirmed')
+    expect(
+      await stopRecordedDomain({ reader: failing, coordinate, bootId: undefined, boundMs: 5_000 }),
+    ).toBe('unconfirmed')
+  })
+
+  it('answers unconfirmed for an unknown boot even when the reader would confirm', async () => {
+    const confirming = await reader(
+      'boot-unknown',
+      'case "$1" in identity) echo gone;; stop) echo confirmed;; esac',
+    )
+    expect(
+      await stopRecordedDomain({
+        reader: confirming,
+        coordinate,
+        bootId: coordinate.bootId,
+        boundMs: 5_000,
+      }),
+    ).toBe('confirmed')
+    expect(
+      await stopRecordedDomain({
+        reader: confirming,
+        coordinate,
+        bootId: undefined,
+        boundMs: 5_000,
+      }),
+    ).toBe('unconfirmed')
+  })
+
+  it('stops only the sessions that are still the domain own', async () => {
+    const both = await reader(
+      'identity-and-stop',
+      'case "$1" in identity) [ "$2" = 400 ] && echo gone || echo "$2 9 9";; stop) [ "$*" = "stop 5000 0 400" ] && echo confirmed || exit 1;; esac',
+    )
+    expect(
+      await stopRecordedDomain({
+        reader: both,
+        coordinate,
+        bootId: coordinate.bootId,
+        boundMs: 5_000,
+      }),
+    ).toBe('confirmed')
+  })
+})
+
+describe('boot identity', () => {
+  const boot = 'B6C8C544-54F8-4C43-967D-A47FD7BEBA7D'
+
+  /** A stand-in `sysctl` that answers only `-n kern.bootsessionuuid`, and only in an empty environment. */
+  async function sysctl(answer: string, status = 0): Promise<void> {
+    const path = await reader(
+      'sysctl',
+      [
+        '[ "$*" = "-n kern.bootsessionuuid" ] || exit 3',
+        '[ -z "$HOME" ] || exit 4',
+        `printf '%s' '${answer}'`,
+        `exit ${status}`,
+      ].join('\n'),
+    )
+    swap.set('/usr/sbin/sysctl', path)
+  }
+
+  const both = async () => [await readBootId(), readBootIdNow()]
+
+  it('reads the boot session uuid', async () => {
+    await sysctl(`${boot}\n`)
+    expect(await both()).toEqual([boot, boot])
+    await sysctl(`${boot.toLowerCase()}\n`)
+    expect(await both()).toEqual([boot.toLowerCase(), boot.toLowerCase()])
+  })
+
+  it.each([`${boot}X\n`, `X${boot}\n`, `${boot.slice(1)}\n`, 'kern.bootsessionuuid: 1\n', '\n'])(
+    'refuses the answer %j',
+    async answer => {
+      await sysctl(answer)
+      expect(await both()).toEqual([undefined, undefined])
+    },
+  )
+
+  it('refuses an answer of a sysctl that failed or is missing', async () => {
+    await sysctl(`${boot}\n`, 1)
+    expect(await both()).toEqual([undefined, undefined])
+    swap.set('/usr/sbin/sysctl', join(directory, 'no-sysctl'))
+    expect(await both()).toEqual([undefined, undefined])
+  })
+})

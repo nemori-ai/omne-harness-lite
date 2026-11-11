@@ -124,6 +124,9 @@ it('registers a subclass under the key on the fiber that loads it and removes it
     protected async onDescribe() {
       return []
     }
+    protected async onObserveRetained() {
+      return []
+    }
     protected async onRecoverOwned() {
       return refused
     }
@@ -166,6 +169,10 @@ class FaceProbe extends ExecutionEnvironmentService<unknown> {
   }
   protected async onDescribe() {
     this.calls.push('describe')
+    return []
+  }
+  protected async onObserveRetained() {
+    this.calls.push('observeRetained')
     return []
   }
   protected async onRecoverOwned() {
@@ -287,6 +294,7 @@ for (const caller of ['integrator', 'maintainer', 'provider', 'admin', undefined
         await service.resolvePlacement(fixture.access, fixture.input),
         await service.acquire(fixture.access, fixture.acquire),
         await service.describe(fixture.access, fixture.input.scope),
+        await service.observeRetained(fixture.access, fixture.input.scope),
       ]
       const inspection = await service.inspectAcquisition(fixture.access, {
         kind: 'local',
@@ -315,9 +323,15 @@ for (const caller of ['integrator', 'maintainer', 'provider', 'admin', undefined
       }
       expect(
         root.calls.filter(name =>
-          ['resolvePlacement', 'acquire', 'inspectAcquisition', 'describe'].includes(name),
+          [
+            'resolvePlacement',
+            'acquire',
+            'inspectAcquisition',
+            'describe',
+            'observeRetained',
+          ].includes(name),
         ),
-      ).toHaveLength(environmentAllowed ? 4 : 0)
+      ).toHaveLength(environmentAllowed ? 5 : 0)
       expect(
         root.calls.filter(name =>
           ['recoverOwned', 'releaseScope', 'inspectRecoveryAcquisition'].includes(name),

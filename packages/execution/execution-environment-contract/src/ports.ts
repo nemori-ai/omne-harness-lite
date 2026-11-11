@@ -31,10 +31,27 @@ export interface ResourceLedger {
 /** A second lifetime: shell ownership remains with this scope after the creating acquisition ends. */
 export type RetainedTerminalLedger = Pick<ResourceLedger, 'closed' | 'plan' | 'permit' | 'stopped'>
 
-/** The integrator supplies a trusted live Session scope and its per-acquisition ledger view. */
+/**
+ * The retention scope's ledger for processes a one-shot command left. `plan` reserves a place,
+ * `adopt` commits the handover; the integrator ends the acquisition ledger's duty for the same key
+ * in that one durable commit. A repeated `adopt` of the same key answers the committed outcome.
+ * `ended` reads whether this scope's ledger holds a confirmed end fact for the key.
+ */
+export type RetainedProcessLedger = Pick<
+  ResourceLedger,
+  'closed' | 'plan' | 'adopt' | 'stopped'
+> & {
+  ended?(key: string): Promise<'confirmed' | 'none' | 'unavailable'>
+}
+
+/**
+ * The integrator supplies a trusted live retention scope and its per-acquisition ledger views.
+ * `processes` is optional: without it no one-shot command is retained.
+ */
 export type SessionTerminalRetention = Readonly<{
   scope: ScopeRef
   ledger: RetainedTerminalLedger
+  processes?: RetainedProcessLedger
 }>
 
 const recoveryAccessMark: unique symbol = Symbol('execution-environment.recovery-access')

@@ -51,4 +51,8 @@ export type {
 } from './preparation.ts'
 export type { ScriptedAccessDecision } from './access.ts'
 export { createScriptedCredentialPort } from './credential.ts'
-export type { ScriptedCredentialPort, ScriptedCredentialPortOptions } from './credential.ts'
+export type {
+  ScriptedCredentialPort,
+  ScriptedCredentialPortOptions,
+  ScriptedCredentialProvider,
+} from './credential.ts'

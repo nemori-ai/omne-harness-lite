@@ -6,6 +6,7 @@ import type { PrincipalKey } from './refs.js'
 import type { StableInputs } from './input-read.js'
 import { contentControlOf, sameContentControl, type CachedAssemblyMaterial } from './reuse.js'
 import type { AssemblyPolicies, HistoryRow } from './ports.js'
+import { callIdentity } from './values.js'
 import type {
   AssemblyInput,
   PreparedInputKey,
@@ -24,11 +25,7 @@ export function preparationKey<P>(
   return {
     generation,
     principal,
-    identity: {
-      purpose: input.identity.purpose,
-      position: input.identity.position,
-      candidate: input.identity.candidate,
-    },
+    identity: callIdentity(input.identity),
     tokens,
     rules: {
       compaction: policies.compaction.identity,

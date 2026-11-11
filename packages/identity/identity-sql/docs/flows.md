@@ -68,7 +68,9 @@ sequenceDiagram
 4. 没有行或 `state` 不是 `active` 答 `not-member`，证据修订号 `'0'`。
 5. 有行时按 `DEFAULT_TEAM_ROLE_MAPPING` 解析资格。映射失败答 `unavailable`。成功答 `member`，证据修订号取自行。
 
-### 治理写（SPEC IS-10）
+### 普通治理写（SPEC IS-10）
+
+下图仅适用于不改变成员资格的治理操作。接受邀请、退出、移除和角色变更按 IS-16 的持久意图、预留排空与重新授权流程执行，见本页“成员变更与预留”。
 
 ```mermaid
 sequenceDiagram
@@ -76,7 +78,7 @@ sequenceDiagram
   participant P as 治理端口
   participant R as 读 handler governance
   participant W as 参加者 identity
-  C->>P: 例如 removeMember({ login, actingTenant, organization, account, expectedRole })
+  C->>P: 例如 issueMemberInvitation({ login, actingTenant, invitedLoginIdentifier })
   P->>P: 停止标志、读时钟并采用、编码 login 与 actingTenant
   P->>P: 新标识、截止时刻、排序键，输入形状
   opt 发出邀请或空闲刷新
@@ -86,7 +88,7 @@ sequenceDiagram
   P->>W: commit(一条 identity 命令)
   W->>W: 1 发起登录有效（未撤销、读数不早于签发、未到期）、选择等于 actingTenant
   W->>W: 2 行动者角色
-  W->>W: 3 预期状态与最后管理员保护
+  W->>W: 3 本操作输入与当前业务条件
   W->>W: 写入，或什么都不写
   W-->>P: participated，响应带 outcome
   P->>P: unknown 时 query 认回，最多三次
@@ -102,23 +104,42 @@ sequenceDiagram
 
 ### 插件启动与撤除（docs/cordis.md）
 
-启动：校验配置 → 打开 scrypt → 派生假材料 → `registerCombination`（001 的域在这一步执行 002）→ 构造提供者 → 提供三个键 → 登记 effect。任一步失败时关闭已打开的 scrypt 并抛错。
+启动：校验配置 → 打开 scrypt → 派生假材料 → `registerCombination`（001 的域在这一步执行缺少的 002、003）→ 构造提供者 → 提供五个键 → 登记 effect。任一步失败时关闭已打开的 scrypt 并抛错。
 
 撤除：`stop()` → `await close()`。之后旧引用按 IS-07 作答。
 
 ## 失败与生命周期
 
-| 失败点                                     | 结果                                                 | 谁收场                                 |
-| ------------------------------------------ | ---------------------------------------------------- | -------------------------------------- |
-| scrypt 计算前拒绝、`done` 为 `unavailable` | 注册 `not-loginable`，签发 `basis-unavailable`       | 提供者，没有写入                       |
-| 读 handler `unavailable`、输出畸形         | 签发与识别 `basis-unavailable`，读口 `unavailable`   | 提供者，没有写入                       |
-| 参加者 `conflict`、SQL 约束错误            | 存储明确回滚，注册 `not-loginable`。签发拒绝 Promise。治理 `basis-unavailable` | 存储提供者回滚，提供者映射 |
-| 治理核对不成立                             | 参加者照常提交，响应带 `denied`、`not-visible`、`conflict` 或 `no-change`，不写入 | 参加者 |
-| 提交 `unknown`                             | 用同一身份 `query` 认回。认不回时拒绝 Promise        | 调用方按 ID-17 或 ID-18 认回           |
-| 时钟倒退、不可得                           | `basis-unavailable`                                  | 提供者，不采用读数                     |
-| 读数早于所判定登录的 `issued_at`（重启后时钟倒退） | 识别与治理都答 `basis-unavailable`，诊断 `clock-earlier-than-record` | 提供者与参加者，不写入 |
-| `stop()` 之后的新调用                      | IS-07 的答复                                         | 提供者                                 |
-| `stop()` 之前已受理的调用                  | 跑完，按以上映射作答                                 | 提供者与 scrypt `close` 等已开始的计算 |
-| 进程崩溃                                   | 已 `committed` 的事实保留。重启后 DO-1 恢复域        | 存储提供者                             |
+| 失败点                                             | 结果                                                                              | 谁收场                                 |
+| -------------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------- |
+| scrypt 计算前拒绝、`done` 为 `unavailable`         | 注册 `not-loginable`，签发 `basis-unavailable`                                    | 提供者，没有写入                       |
+| 读 handler `unavailable`、输出畸形                 | 签发与识别 `basis-unavailable`，读口 `unavailable`                                | 提供者，没有写入                       |
+| 参加者 `conflict`、SQL 约束错误                    | 存储明确回滚，注册 `not-loginable`。签发拒绝 Promise。治理 `basis-unavailable`    | 存储提供者回滚，提供者映射             |
+| 治理核对不成立                                     | 参加者照常提交，响应带 `denied`、`not-visible`、`conflict` 或 `no-change`，不写入 | 参加者                                 |
+| 提交 `unknown`                                     | 用同一身份 `query` 认回。认不回时拒绝 Promise                                     | 调用方按 ID-17 或 ID-18 认回           |
+| 时钟倒退、不可得                                   | `basis-unavailable`                                                               | 提供者，不采用读数                     |
+| 读数早于所判定登录的 `issued_at`（重启后时钟倒退） | 识别与治理都答 `basis-unavailable`，诊断 `clock-earlier-than-record`              | 提供者与参加者，不写入                 |
+| `stop()` 之后的新调用                              | IS-07 的答复                                                                      | 提供者                                 |
+| `stop()` 之前已受理的调用                          | 跑完，按以上映射作答                                                              | 提供者与 scrypt `close` 等已开始的计算 |
+| 进程崩溃                                           | 已 `committed` 的事实保留。重启后 DO-1 恢复域                                     | 存储提供者                             |
 
 提供者没有定时器、连接或 Worker。丢弃它不需要清理动作。scrypt 模块由插件体关闭，存储由装配关闭。
+
+## 成员变更与预留
+
+```mermaid
+sequenceDiagram
+  participant Caller as 受信调用方
+  participant Identity as Identity
+  participant Target as 固定目的地
+  Caller->>Identity: reserve(主体, 绑定, 资格)
+  Identity-->>Caller: held
+  Caller->>Identity: 成员变更
+  Identity->>Identity: 登记意图，阻止新预留
+  Identity->>Target: seal(预留)
+  Target-->>Identity: 匹配的不可逆终态
+  Identity->>Identity: 结束预留，重新核对原登录及治理规则
+  Identity-->>Caller: 最终成功或拒绝；未知时带原逻辑身份
+```
+
+目的地不可用时保留预留及意图，后续恢复继续。SQL 尝试退役和晚到提交的竞争规则见 [IS-16](../SPEC.md#is-16)。

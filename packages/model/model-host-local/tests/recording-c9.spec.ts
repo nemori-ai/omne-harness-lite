@@ -137,7 +137,7 @@ describe('C9: the estimate of the continued request against the real input of th
           }),
         )
         try {
-          const budget = decoded(measureOn(lease, profile, next))
+          const budget = decoded(await measureOn(lease, profile, next))
           const estimate = inputEstimate(budget)
           expect(budget.calibration).toEqual({ anchor: { kind: 'hit' } })
           expect(estimate.method.name).toContain(family.outputGroup)

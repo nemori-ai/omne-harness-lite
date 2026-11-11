@@ -42,7 +42,7 @@ await scrypt.module.close()
 
 工厂不读墙钟，不打开 scrypt，不登记组合，也不关闭任何东西。调用方先登记组合，用完后先 `stop()` 再关闭 scrypt 模块。
 
-Cordis 集成：`@omne-harness/identity-sql/cordis` 导出 `IdentitySqlPlugin`。它 `inject: ['storage', 'identityClock']`。配置是两个登录时长 `maxLifetime`、`idlePeriod` 与两个邀请时长 `invitationDefaultDuration`、`invitationMaxDuration`，都是 `PT<秒>S` 文本，四项必填，缺一项时 fiber 失败。`IDENTITY_SQL_DEFAULT_CONFIG` 列出初值，供部署显式取用：登录 30 天与空闲 7 天，邀请默认 7 天、最长 30 天。插件体打开 scrypt、派生假材料、登记组合、用注入的时钟构造提供者，并提供三个键。细节见 [docs/cordis.md](docs/cordis.md)。
+Cordis 集成：`@omne-harness/identity-sql/cordis` 导出 `IdentitySqlPlugin`。它 `inject: ['storage', 'identityClock']`。配置是两个登录时长 `maxLifetime`、`idlePeriod` 与两个邀请时长 `invitationDefaultDuration`、`invitationMaxDuration`，都是 `PT<秒>S` 文本，四项必填，缺一项时 fiber 失败。`IDENTITY_SQL_DEFAULT_CONFIG` 列出初值，供部署显式取用：登录 30 天与空闲 7 天，邀请默认 7 天、最长 30 天。插件体打开 scrypt、派生假材料、登记组合、用注入的时钟构造提供者，并提供五个键。细节见 [docs/cordis.md](docs/cordis.md)。
 
 应用把 `identitySqlMaterials()` 聚合进存储目录，否则参加者与读 handler 不可用。
 
@@ -87,7 +87,7 @@ docs/                     内部设计、公开使用与集成说明
 ├── public-api.md         公开边界与定义索引
 ├── context.md            消费侧使用与系统定位
 └── cordis.md             插件、IC 核对表与撤除
-src/                      工厂、治理端口、配置、材料、插件；worker/ 下是参加者、两个迁移与读 handler
+src/                      工厂、治理端口、配置、材料、插件；worker/ 下是参加者、三个迁移与读 handler
 tests/                    持续测试；fixtures/ 存放真实 sqlite-provider 夹具与子进程脚本
 schema/                   不适用：本成员没有对外 Schema
 verification/             不适用：没有形式模型或证明
@@ -98,3 +98,7 @@ acceptance/               留给独立验收者，当前没有场景
 ```
 
 每个目录的 README.md 说明职责，index.md 负责导航。阅读路径见 [index.md](index.md)。
+
+## 成员资格协调
+
+工厂注入 `principalVerifier` 与受信 `destinationResolver` 后可使用 `reservations`。成员写入结果未知时，错误携带原逻辑 `operation`，通过 `governanceRecovery` 恢复。目的地缺席时保留预留及变更意图。协议、恢复边界与部署前提见 [IS-16](SPEC.md#is-16)。Cordis 另提供 `standingReservations` 和 `identityGovernanceRecovery`，每次调用读取可选的 `principalVerifier` 与 `standingDestinationResolver` 服务。

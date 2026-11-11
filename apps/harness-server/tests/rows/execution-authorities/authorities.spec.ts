@@ -287,6 +287,19 @@ describe.each(['acquire', 'inspect-original'] as const)('%s original scope', kin
   })
 })
 
+it('refuses every observation of retained processes, even for a verified tenant on a bound scope', async () => {
+  const issued = identity()
+  const subject = new EntryExecutionEnvironmentAuthority(new Context(), {
+    readVerifier: () => issued.verifier,
+    readBindings: () => ({ lookup: async () => ({ kind: 'bound', tenant }) }),
+  })
+  const access = { principal: issued.principal, tenant }
+  expect((await subject.authorize(access, { kind: 'describe', scope })).kind).toBe('authorized')
+  expect(await subject.authorize(access, { kind: 'observe-retained', scope })).toEqual({
+    kind: 'refused',
+  })
+})
+
 it('retires only the reader generation, including an authorization awaiting its verifier', async () => {
   const issued = identity()
   const entered = Promise.withResolvers<void>()

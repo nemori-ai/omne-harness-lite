@@ -47,7 +47,7 @@ export function claudeRanksOf(bytes: Uint8Array): TiktokenRanks {
 }
 
 /**
- * The resources that `createAnthropicFamily` passes to `createTiktokenTokenizer`. Reads the
+ * The resources that `createAnthropicFamily` matches against its configured executor. Reads the
  * packaged `claude.json` and checks its SHA-256 on every call. The special-token table is empty:
  * the meter counts visible text only and names no control token, and the file's own special
  * tokens count as ordinary text. Throws `TokenizerResourceError` when the file is not the

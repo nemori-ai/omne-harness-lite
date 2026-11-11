@@ -1,17 +1,21 @@
+import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
+import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
 // `model-request-preparation` row: the model-host-local preparation plugin over the real OpenAI
 // family. The row injects `modelCommands`, and the real `model-records` row has no member yet, so the
 // tests load a named stand-in row of that name (support.ts). A lease without a lineage never reads
 // it. The profile comes from the real `model-profiles` row; the family, its tokenizer and its rules
-// are the real ones. No network is involved. The supplier completion reads the real
-// `model-credential` row over a vault file in a temporary directory.
+// are the real ones. No network is involved. The credential layer of each supplier comes from the
+// real `model-credential` row over the real `secret-custody` row and a vault file in a temporary
+// directory, seeded with the OpenRouter keys the release provider body declares.
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { createLocalCustodian } from '@omne-harness/model-host-local'
-import { MODEL_SEND } from '@omne-harness/model-contract/provider'
-import { tenantCredentialId } from '../../../src/model/tenant-credential.ts'
+import { parseSecretText, type SecretScope } from '@omne-harness/settings'
+import { createSecretVault } from '@omne-harness/settings-local/secrets'
+import { providerCredentialKey, releaseProvider } from '../../../src/assets/model-providers.ts'
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
+import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
 import type { AssembledModelInput, ModelProfile } from '@omne-harness/model-contract'
 import {
   ModelPreparationResourcesService,
@@ -33,6 +37,7 @@ const count = 65_536
 const config = {
   maxCitedCalls: 8,
   openai: {
+    maxSerializedBytes: 4 * 1024 * 1024,
     limits: {
       toolArguments: {
         maxBytes: count,
@@ -53,31 +58,74 @@ const profilesConfig = {
   updatedAt: '2026-11-02T00:00:00Z',
 }
 const plugins = {
+  modelTokenizersRow,
   modelProfilesRow,
   modelRequestPreparationRow,
   commandsStandIn,
   modelCredentialRow,
+  secretCustodyRow,
 }
 const directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-preparation-row-')))
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 let vaults = 0
-/** A fresh vault path; the row creates the file on load. */
-function vaultPath(): string {
+const OFFICIAL_SECRET = 'synth-official-secret'
+const TENANT_SECRET = 'synth-tenant-secret'
+
+function apiKey(scope: SecretScope) {
+  const provider = releaseProvider('openrouter')
+  if (provider === undefined) throw new Error('the release holds no openrouter provider')
+  return providerCredentialKey(provider, scope, 'apiKey')
+}
+function secret(raw: string) {
+  const parsed = parseSecretText(raw)
+  if (!parsed.ok) throw new Error('fixture secret')
+  return parsed.value
+}
+
+/**
+ * A fresh vault that holds the official key, and the tenant's own key in `tenant` life when given.
+ */
+function vaultPath(tenant?: 'active' | 'unreadable'): string {
   vaults += 1
-  return join(directory, `vault-${vaults}.json`)
+  const path = join(directory, `vault-${vaults}.json`)
+  const tenantKey = apiKey({ layer: 'tenant', tenant: TENANT })
+  const created = createSecretVault({
+    path,
+    seed: [
+      { key: apiKey({ layer: 'official' }), secret: secret(OFFICIAL_SECRET), configuredAt: null },
+      ...(tenant === undefined
+        ? []
+        : [{ key: tenantKey, secret: secret(TENANT_SECRET), configuredAt: null }]),
+    ],
+  })
+  if (created.kind !== 'open') throw new Error(`test vault: ${created.kind}`)
+  if (tenant === 'unreadable')
+    created.vault.revise(bindings =>
+      bindings.map(record =>
+        JSON.stringify(record.key.target) === JSON.stringify(tenantKey.target) &&
+        record.key.scope.layer === 'tenant'
+          ? { ...record, life: 'unreadable' as const }
+          : record,
+      ),
+    )
+  created.vault.close()
+  return path
 }
-function credentialRow(path: string) {
-  return {
-    id: 'model-credential',
-    plugin: 'modelCredentialRow',
-    config: { path, factorySecret: 'synth-factory-secret' },
-  }
+/** The model credential row and the custody row it reads, over the vault at `path`. */
+function credentialRows(path: string) {
+  return [
+    { id: 'model-credential', plugin: 'modelCredentialRow', config: {} },
+    { id: 'secret-custody', plugin: 'secretCustodyRow', config: { path } },
+  ]
 }
+const withoutCredentials = <R extends { id: string }>(over: readonly R[]): R[] =>
+  over.filter(row => row.id !== 'model-credential' && row.id !== 'secret-custody')
 const rows = [
-  { id: 'model-records', plugin: 'commandsStandIn' },
+  { id: 'model-tokenizers', plugin: 'modelTokenizersRow', config: LOCAL_TOKENIZERS },
+  { id: 'model-records', plugin: 'commandsStandIn', config: {} },
   { id: 'model-profiles', plugin: 'modelProfilesRow', config: profilesConfig },
   { id: 'model-request-preparation', plugin: 'modelRequestPreparationRow', config },
-  credentialRow(vaultPath()),
+  ...credentialRows(vaultPath()),
 ]
 const probe = ['modelProfiles', 'modelRequestPreparation', 'modelPreparationResources']
 const REQUIRED = {
@@ -112,7 +160,7 @@ describe('the model-request-preparation row', () => {
       implementation: 'real',
       manifest: {
         provides: ['modelRequestPreparation'],
-        injects: ['modelCommands'],
+        injects: ['modelCommands', 'modelTokenizers'],
         phase: null,
         sameProviderGroup: null,
       },
@@ -144,10 +192,10 @@ describe('the model-request-preparation row', () => {
     })
     if (value.suppliers === null) throw new Error(`lease refused: ${JSON.stringify(value.leased)}`)
     expect(value.suppliers.map(supplier => supplier.credential)).toEqual(
-      value.suppliers.map(() => ({ kind: 'factory' })),
+      value.suppliers.map(() => ({ layer: 'official' })),
     )
-    expect(value.suppliers.map(supplier => [supplier.recipient, supplier.model])).toEqual(
-      value.expected.map(supplier => [supplier.recipient, supplier.model]),
+    expect(value.suppliers.map(supplier => [supplier.provider, supplier.model])).toEqual(
+      value.expected.map(supplier => [supplier.provider, supplier.model]),
     )
     expect(value.released).toEqual({})
   })
@@ -191,7 +239,7 @@ describe('the model-request-preparation row', () => {
       throw new Error(`prepare refused: ${JSON.stringify(value.prepared)}`)
     expect(value.prepared.ok.profile).toEqual(value.profile.adoption)
     expect(value.prepared.ok.messages).toHaveLength(1)
-    expect(value.prepared.ok.suppliers[0]?.credential).toEqual({ kind: 'factory' })
+    expect(value.prepared.ok.suppliers[0]?.credential).toEqual({ layer: 'official' })
   })
 
   /** The credential completion of the suppliers of one lease, over the given rows. */
@@ -210,46 +258,45 @@ describe('the model-request-preparation row', () => {
     return value
   }
 
-  it('completes the supplier with the tenant reference when the tenant has its own binding', async () => {
-    const path = vaultPath()
-    const id = tenantCredentialId(TENANT)
-    if (id === undefined) throw new Error('tenant credential id')
-    const seeded = createLocalCustodian({ path, factorySecret: 'synth-factory-secret' })
-    seeded.bind({
-      reference: { id, tenant: TENANT, purpose: MODEL_SEND },
-      secret: 'synth-tenant-secret',
-      configuredAt: '2026-11-04T00:00:00Z',
+  it('fixes the tenant layer when the tenant set its own key', async () => {
+    const value = await leaseCredentials([
+      ...withoutCredentials(rows),
+      ...credentialRows(vaultPath('active')),
+    ])
+    expect(value).toMatchObject({ credentials: [{ layer: 'tenant' }] })
+    expect(JSON.stringify(value)).not.toContain(TENANT_SECRET)
+  })
+
+  it('an unreadable tenant key refuses the lease: nothing falls back to the official key', async () => {
+    const value = await leaseCredentials([
+      ...withoutCredentials(rows),
+      ...credentialRows(vaultPath('unreadable')),
+    ])
+    expect(value).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-credential',
+        diagnostic: 'credential-unreadable',
+      },
     })
-    seeded.close()
-    const value = await leaseCredentials([...rows.slice(0, 3), credentialRow(path)])
-    expect(value).toMatchObject({ credentials: [{ kind: 'tenant', id }] })
-    expect(JSON.stringify(value)).not.toContain('synth-tenant-secret')
   })
 
-  it('an unreadable binding keeps the tenant reference: the send refuses, nothing falls back', async () => {
-    const path = vaultPath()
-    const id = tenantCredentialId(TENANT)
-    if (id === undefined) throw new Error('tenant credential id')
-    const seeded = createLocalCustodian({ path, factorySecret: 'synth-factory-secret' })
-    const reference = { id, tenant: TENANT, purpose: MODEL_SEND } as const
-    seeded.bind({ reference, secret: 'synth-tenant-secret', configuredAt: '2026-11-04T00:00:00Z' })
-    seeded.markUnreadable(reference)
-    seeded.close()
-    const value = await leaseCredentials([...rows.slice(0, 3), credentialRow(path)])
-    expect(value).toMatchObject({ credentials: [{ kind: 'tenant', id }] })
-  })
-
-  it('a vault that cannot be read refuses the lease instead of the factory reference', async () => {
-    const path = vaultPath()
+  it('a vault that cannot be read refuses the lease instead of picking a layer', async () => {
+    vaults += 1
+    const path = join(directory, `vault-${vaults}.json`)
     writeFileSync(path, 'not-json')
-    const value = await leaseCredentials([...rows.slice(0, 3), credentialRow(path)])
-    expect(value).toMatchObject({
-      failure: { kind: 'unavailable', dependency: 'model-credential' },
+    const value = await leaseCredentials([...withoutCredentials(rows), ...credentialRows(path)])
+    expect(value).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-credential',
+        diagnostic: 'credential-custody-unavailable',
+      },
     })
   })
 
-  it('without the credential row the lease is refused, never completed with the factory', async () => {
-    const value = await leaseCredentials(rows.slice(0, 3))
+  it('without the credential row the lease is refused, never completed with a layer', async () => {
+    const value = await leaseCredentials(rows.filter(row => row.id !== 'model-credential'))
     expect(value).toEqual({
       failure: {
         kind: 'unavailable',
@@ -261,7 +308,7 @@ describe('the model-request-preparation row', () => {
 
   it('stays PENDING without modelCommands and names the missing key', async () => {
     const run = await serveOnce({
-      distribution: { rows: rows.slice(2) },
+      distribution: { rows: rows.filter(row => row.id !== 'model-records') },
       plugins,
     })
     expect(run.result.exitCode).toBe(4)
@@ -271,11 +318,25 @@ describe('the model-request-preparation row', () => {
     })
   })
 
+  it('stays PENDING without the shared tokenizer provider', async () => {
+    const run = await serveOnce({
+      distribution: { rows: rows.filter(row => row.id !== 'model-tokenizers') },
+      plugins,
+    })
+    expect(run.result.exitCode, JSON.stringify(run.stderr)).toBe(4)
+    expect(run.state('model-request-preparation')).toMatchObject({
+      state: 'PENDING',
+      missing: ['modelTokenizers'],
+    })
+  })
+
   it('does not start when a configured bound is missing', async () => {
     const { maxCitedCalls: _omitted, ...incomplete } = config
     const run = await serveOnce({
       distribution: {
-        rows: [rows[0]!, { ...rows[2]!, config: incomplete }].map(row => ({ config: {}, ...row })),
+        rows: rows.map(row =>
+          row.id === 'model-request-preparation' ? { ...row, config: incomplete } : row,
+        ),
       },
       plugins,
     })

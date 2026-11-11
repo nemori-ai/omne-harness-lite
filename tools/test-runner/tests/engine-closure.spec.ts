@@ -2,8 +2,8 @@
 // 不能拿它给自己划范围。手工维护的清单会漏，所以这里从入口出发，沿相对路径的静态 import 与 export … from 递归求导入闭包
 // （只算 tools/test-runner/src/ 下的 .ts），逐个核对它归不归全局。
 // 入口：src/testing/cli.ts（根 package.json 的 check:plan、test、test:affected 等脚本，以及 scripts/check.sh、metrics.sh、
-// test-tier.sh 调它）、src/testing/check.ts（check 的运行体，cli.ts 也经它导入）。变异工具 src/mutation/cli.ts 不参与 check 的计划，
-// 不算入口，见 NOT_PLAN_ENTRIES。tools/test-runner/package.json 没有 bin；「入口没有漏」用例核对根脚本与 scripts/*.sh 的调用。
+// test-tier.sh 调它）、src/testing/check.ts（check 的运行体，cli.ts 也经它导入）。
+// tools/test-runner/package.json 没有 bin；「入口没有漏」用例核对根脚本与 scripts/*.sh 的调用。
 // 按路径加载的引擎文件（`new URL('./x.ts', …)`、路径常量）静态导入看不到，手工列在 PATH_LOADED 里，每条写明加载方与理由；
 // 「防漏」用例扫描闭包内文件与根 vitest.tiers.mts 里的 .ts 路径记号，指到的文件必须在闭包里或在 PATH_LOADED 里。
 // 解析只用正则：只认行首的 import / export 语句，子句里不含引号与括号，所以字符串与 `//`、`*` 开头的注释里的 import 行不算；
@@ -30,12 +30,6 @@ const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const MEMBER = 'tools/test-runner'
 /** 算 check 计划的引擎入口。 */
 const ENTRIES = [`${MEMBER}/src/testing/cli.ts`, `${MEMBER}/src/testing/check.ts`]
-/**
- * 根脚本直接调用、但不算入口的引擎源码，每条写明理由。变异工具（src/mutation/）只由根 package.json 的 `mutation` 脚本调用：
- * 它不参与 check 的计划，不会用改过的文件给 check 划范围，所以不进 ENTRIES、不进闭包，也不要求进 globalPaths。
- * 它用到的计划函数 computePlan 在 steps.ts，那里的改动已经经 testing 闭包判全量。
- */
-const NOT_PLAN_ENTRIES = [`${MEMBER}/src/mutation/cli.ts`]
 const RULES = readTestRunsConfig().affected
 
 /** 按路径加载的引擎文件：静态导入闭包看不到它们。`loader` 写实际取路径的那一处，`why` 写它改了会影响什么。 */
@@ -192,10 +186,8 @@ describe('影响面引擎的导入闭包', () => {
     ).toEqual([])
   })
 
-  it('入口没有漏：根 package.json 与 scripts/*.sh 经 node 调用的引擎源码、以及 test-runner 的 bin，要么是入口，要么在 NOT_PLAN_ENTRIES 里写明过', () => {
-    const missing = invokedEngineFiles(ROOT).filter(
-      file => !ENTRIES.includes(file) && !NOT_PLAN_ENTRIES.includes(file),
-    )
+  it('入口没有漏：根 package.json 与 scripts/*.sh 经 node 调用的引擎源码、以及 test-runner 的 bin，都是入口', () => {
+    const missing = invokedEngineFiles(ROOT).filter(file => !ENTRIES.includes(file))
     expect(
       missing,
       [

@@ -4,10 +4,10 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-10-22
+- 生成时间：2026-11-10
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **66** 个，变体 **30** 个，形态未定的词条 **0** 个，待裁 **10** 项。
+对象 **66** 个，变体 **31** 个，形态未定的词条 **2** 个，待裁 **12** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -29,7 +29,7 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [资产](../domain_objects/objects.md#ul-asset--资产) | [UL-asset](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset--资产--asset) | — | 技能、工具、MCP、连接件、拓展件、模态转换件、斜杠命令、插件、Agent 定义、官方件、自定义件 | PF-002（sealed provenance） | 001（sealed provenance） |
+| [资产](../domain_objects/objects.md#ul-asset--资产) | [UL-asset](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset--资产--asset) | — | 技能、工具、MCP、连接件、拓展件、模态转换件、斜杠命令、插件、Agent 定义、模型供应商、官方件、自定义件 | PF-002（sealed provenance） | 001（sealed provenance） |
 | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) | [UL-asset-version](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | [资产](../domain_objects/objects.md#ul-asset--资产)——每一份资产有自己独立的一条版本线 | — | PF-002（sealed provenance） | 003（sealed provenance） |
 | [meta 能力](../domain_objects/objects.md#ul-meta-capability--meta-能力) | [UL-meta-capability](../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | 正文未述。已采用并提供的元入口在 Agent 装配后各占一个常驻槽位 | — | PD-meta-capabilities | — |
 | [模型档案](../domain_objects/objects.md#ul-model-profile--模型档案) | [UL-model-profile](../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | —。建在出厂默认、组织或租户自己那一层；它不是资产，「用哪个模型」那项设置记的是路由名，同名的几条在范围链上按层取最具体一格的那一条（租户 > 组织 > 官方） | 官方档案、自建档案 | PF-013（sealed provenance） | — |
@@ -154,7 +154,8 @@
 
 ### 形态未定的词条
 
-无。
+- [UL-output-generation](../ubiquitous_language/terms/execution-and-outcome.md#ul-output-generation--输出代--output-generation)「输出代」
+- [UL-telemetry-segment](../ubiquitous_language/terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment)「遥测段」
 
 ### 待裁
 
@@ -162,6 +163,8 @@
 
 | 待裁项 | 谁来裁 |
 |---|---|
+| [遥测段](../domain_objects/pending.md#遥测段) | 产品负责人。补一段产品正文定义它，或裁定它不是产品概念。工程遥测目前没有产品 topic |
+| [输出代](../domain_objects/pending.md#输出代) | 产品负责人。补一段产品正文定义它，或裁定它不是产品概念。工程遥测目前没有产品 topic |
 | [存储](../domain_objects/pending.md#存储) | PF-006 的 owner |
 | [跨会话的那个对象](../domain_objects/pending.md#跨会话的那个对象) | 产品负责人。它要不要做、归哪个 topic，都还没有人说过。元能力产品不保有这一缺项，把它交给原产品与领域对象拥有者 |
 | [一次派发](../domain_objects/pending.md#一次派发) | 系统架构设计；元能力产品提供派发工作、一次报告和显式撤回的产品语义 |

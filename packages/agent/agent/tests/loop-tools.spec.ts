@@ -8,6 +8,7 @@ import type {
   PendingCall,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
+import { fail } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -28,6 +29,7 @@ import {
   associatedTools,
   deliverModelReply,
   deliverToolSuggestion,
+  fixedToolRequest,
   pushToolResult,
   textBlock,
   toolAccount,
@@ -36,6 +38,7 @@ import {
   toolDelivery,
   toolReceiver,
 } from './fixtures/tool-call.ts'
+import { controlAssembly } from './fixtures/control-assembly.ts'
 
 type Assembly = Awaited<ReturnType<typeof toolAssembly>>
 
@@ -275,6 +278,254 @@ describe('tool result round', () => {
     if (pending === undefined) throw new Error('retried call not associated')
     ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'retried' })))
     await secondModelCall(assembly)
+  })
+
+  // Agent SPEC "依赖不可用时的等待": a rejected invoke whose failure is unavailable did not admit
+  // the call and does not refuse the action. A2 waits on the Tool runtime and sends the same
+  // request again at the check time; no denied slot is made.
+  it('waits on a rejected invoke whose failure is unavailable and sends the same request again', async () => {
+    const assembly = await toolAssembly()
+    let attempts = 0
+    assembly.controls.tools.invoke.always(async () => {
+      attempts += 1
+      return attempts === 1
+        ? {
+            kind: 'rejected',
+            failure: {
+              kind: 'unavailable',
+              dependency: 'ledger-store',
+              diagnostic: 'storage rejected the commit: queue_full',
+            },
+          }
+        : accepted('after-wait')
+    })
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await eventually(async () => {
+      const read = await snapshot(assembly)
+      return read.state.kind === 'waiting' && read.checkpoint.position === 'A2'
+    })
+    const waiting = await snapshot(assembly)
+    expect(waiting.state).toEqual({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', owner: 'toolRuntime', position: 'A2' }],
+    })
+    expect(waiting.checkpoint.batch?.slots).toEqual([])
+    const now = ok(await assembly.dependencies.clock.now())
+    ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
+    const [pending] = await associatedTools(assembly, 1)
+    const requests = assembly.controls.tools.invoke.calls.map(call => call.request)
+    expect(requests).toHaveLength(2)
+    expect(requests[1]).toEqual(requests[0])
+    if (pending === undefined) throw new Error('the call after the wait is not associated')
+    ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: 'after-wait' })))
+    await secondModelCall(assembly)
+  })
+
+  it('denies an action whose first invoke is rejected for good, and does not wait', async () => {
+    const assembly = await toolAssembly()
+    assembly.controls.tools.invoke.always(async () => ({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await eventually(async () =>
+      ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
+        slot => slot.kind === 'denied',
+      ),
+    )
+    expect((await snapshot(assembly)).state).not.toMatchObject({
+      waits: [{ kind: 'dependency', owner: 'toolRuntime' }],
+    })
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+  })
+
+  // An unavailable answer admitted nothing, so the action still has no accepted or unknown attempt:
+  // a definite rejection after the wait denies it like a first one (Agent SPEC "依赖不可用时的
+  // 等待", Tool 受理), and the run does not wait on a producer that never comes.
+  it('denies an action rejected for good after a wait on an unavailable invoke', async () => {
+    const assembly = await toolAssembly()
+    let attempts = 0
+    assembly.controls.tools.invoke.always(async () => {
+      attempts += 1
+      return attempts === 1
+        ? {
+            kind: 'rejected',
+            failure: { kind: 'unavailable', dependency: 'ledger-store', diagnostic: 'queue_full' },
+          }
+        : {
+            kind: 'rejected',
+            failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+          }
+    })
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await eventually(async () => {
+      const read = await snapshot(assembly)
+      return read.state.kind === 'waiting' && read.checkpoint.position === 'A2'
+    })
+    const now = ok(await assembly.dependencies.clock.now())
+    ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
+    await eventually(async () =>
+      ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
+        slot => slot.kind === 'denied',
+      ),
+    )
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
+  })
+
+  // The same holds when the attempt is not made at all: after the intent is saved, a dependency
+  // that A2 reads before invoke answers unavailable once (#1174 review round 2).
+  for (const port of ['materials', 'journal'] as const)
+    it(`denies an action rejected for good after ${port} was unavailable before its first invoke`, async () => {
+      let intentSaved = false
+      let refused = 0
+      const refuse = () => {
+        if (!intentSaved || refused > 0) return null
+        refused += 1
+        return fail({ kind: 'unavailable' as const, owner: port, diagnostic: 'queue_full' })
+      }
+      const assembly = await controlAssembly({}, d => ({
+        ...d,
+        toolRequests: {
+          async describe() {
+            return { ok: { kind: 'tool', definition: adoption('read_file') } }
+          },
+          async prepare(input) {
+            return { ok: fixedToolRequest(input.consumer) }
+          },
+        },
+        journal: {
+          ...d.journal,
+          async commit(input) {
+            const committed = await d.journal.commit(input)
+            if ('ok' in committed && input.effects.some(effect => effect.pending.kind === 'tool'))
+              intentSaved = true
+            return committed
+          },
+          async load(input) {
+            return (port === 'journal' ? refuse() : null) ?? d.journal.load(input)
+          },
+        },
+        materials: {
+          ...d.materials,
+          async read(input) {
+            return (port === 'materials' ? refuse() : null) ?? d.materials.read(input)
+          },
+        },
+      }))
+      assembly.controls.tools.invoke.always(async () => ({
+        kind: 'rejected',
+        failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+      }))
+      ok(await invoke(assembly))
+      await deliverToolSuggestion(assembly)
+      await eventually(async () => {
+        if (refused === 0) return false
+        const now = ok(await assembly.dependencies.clock.now())
+        ok(
+          assembly.controls.clock.advanceTo(
+            new Date(Date.parse(now) + 2000).toISOString() as never,
+          ),
+        )
+        return ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
+          slot => slot.kind === 'denied',
+        )
+      })
+      expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+    })
+
+  // A rejection is no evidence of acceptance: when the commit of the denied slot is unavailable,
+  // the wait comes back to the same denial, not to resuming a call that never existed (#1174
+  // review round 3).
+  it('denies an action whose denied slot could not be saved at first', async () => {
+    let refused = 0
+    const assembly = await controlAssembly({}, d => ({
+      ...d,
+      toolRequests: {
+        async describe() {
+          return { ok: { kind: 'tool', definition: adoption('read_file') } }
+        },
+        async prepare(input) {
+          return { ok: fixedToolRequest(input.consumer) }
+        },
+      },
+      journal: {
+        ...d.journal,
+        async commit(input) {
+          const denies = (input.checkpoint?.batch?.slots ?? []).some(slot => slot.kind === 'denied')
+          if (denies && refused === 0) {
+            refused += 1
+            return fail({
+              kind: 'unavailable' as const,
+              owner: 'journal',
+              diagnostic: 'queue_full',
+            })
+          }
+          return d.journal.commit(input)
+        },
+      },
+    }))
+    assembly.controls.tools.invoke.always(async () => ({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await eventually(async () => {
+      if (refused === 0) return false
+      const now = ok(await assembly.dependencies.clock.now())
+      ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
+      return ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
+        slot => slot.kind === 'denied',
+      )
+    })
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
+  })
+
+  // An intent commit whose outcome is unknown, found landed, is still an intent Tool never saw:
+  // its rejection is denied like a first one (#1174 review round 3, out of scope 1).
+  it('denies an action whose intent commit had an unknown outcome', async () => {
+    let unknown = 0
+    const assembly = await controlAssembly({}, d => ({
+      ...d,
+      toolRequests: {
+        async describe() {
+          return { ok: { kind: 'tool', definition: adoption('read_file') } }
+        },
+        async prepare(input) {
+          return { ok: fixedToolRequest(input.consumer) }
+        },
+      },
+      journal: {
+        ...d.journal,
+        async commit(input) {
+          const committed = await d.journal.commit(input)
+          const intent = input.effects.some(effect => effect.pending.kind === 'tool')
+          if ('ok' in committed && intent && unknown === 0) {
+            unknown += 1
+            return fail({ kind: 'commit-unknown' as const, operation: input.operation })
+          }
+          return committed
+        },
+      },
+    }))
+    assembly.controls.tools.invoke.always(async () => ({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    await eventually(async () => {
+      if (unknown === 0) return false
+      const now = ok(await assembly.dependencies.clock.now())
+      ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
+      return ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
+        slot => slot.kind === 'denied',
+      )
+    })
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
   })
 
   it('admits a denial message for each action when the whole batch is denied', async () => {

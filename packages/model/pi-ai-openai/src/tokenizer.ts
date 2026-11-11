@@ -6,7 +6,7 @@ import type { TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
 import { OPENAI_TOKENIZER } from './records.ts'
 
 /**
- * The resources that `createOpenAiFamily` passes to `createTiktokenTokenizer`. The special-token
+ * The resources that `createOpenAiFamily` matches against its configured executor. The special-token
  * table is empty: the meter counts visible text only and names no control token.
  */
 export function openAiTokenizerResources(): TiktokenResources {

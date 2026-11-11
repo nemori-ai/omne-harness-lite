@@ -15,6 +15,7 @@ import {
   type EnvironmentAuthority,
   type EnvironmentBinding,
   type EnvironmentDescription,
+  type RetainedProcessInformation,
   type EnvironmentLease,
   type EnvironmentProvider,
   type ExecutionEnvironment,
@@ -460,6 +461,7 @@ export function createEnvironmentRegistry<P>(
       placement: original.placement,
       ledgerClosed: record.ledger.closed,
       retentionEnabled: record.retention !== undefined,
+      processRetentionEnabled: record.retention?.processes !== undefined,
       descriptor: key => facilities.get(key),
       invalidated: invalidation => {
         if (record.state.kind === 'acquired')
@@ -850,6 +852,7 @@ export function createEnvironmentRegistry<P>(
       })
       const { ledger, guard } = input
       const retentionLedger = input.retention?.ledger
+      const processLedger = input.retention?.processes
       if (!fitsScope(original.placement.binding, original.scope)) return rejected('invalidInput')
       const checked = await checkAccess(
         ports,
@@ -869,7 +872,8 @@ export function createEnvironmentRegistry<P>(
           existing.fingerprint !== print ||
           existing.ledger !== ledger ||
           existing.guard !== guard ||
-          existing.retention?.ledger !== retentionLedger
+          existing.retention?.ledger !== retentionLedger ||
+          existing.retention?.processes !== processLedger
         )
           return rejected('acquisitionConflict')
         if (existing.state.kind === 'provisional' && existing.receipt !== null)
@@ -892,6 +896,7 @@ export function createEnvironmentRegistry<P>(
             : Object.freeze({
                 scope: original.retentionScope,
                 ledger: retentionLedger,
+                ...(processLedger === undefined ? {} : { processes: processLedger }),
                 released: retentionSignal(original.retentionScope),
               }),
         entry: entry ?? null,
@@ -998,6 +1003,33 @@ export function createEnvironmentRegistry<P>(
         )
       }
       return descriptions
+    },
+
+    async observeRetained(access, input) {
+      if (!mintedTenant(access.tenant)) return rejected('invalidInput')
+      if (closed) return rejected('ownerStopped')
+      const scope = copyScope(input)
+      const checked = await checkAccess(ports, access, { kind: 'observe-retained', scope }, scope)
+      if (checked.kind !== 'granted') return lookupAnswer(checked)
+      const answers = await Promise.all(
+        providers.map(async ({ provider }) => {
+          if (provider.retainedProcesses === undefined) return []
+          try {
+            return await provider.retainedProcesses(scope, access.tenant)
+          } catch {
+            return 'unavailable' as const
+          }
+        }),
+      )
+      // Two generations of one provider may hold the same retained process: it is listed once.
+      const items = new Map<string, RetainedProcessInformation>()
+      for (const answer of answers) {
+        // A provider that cannot answer makes the whole answer unknown, never a partial list.
+        if (answer === 'unavailable') return rejected('unavailable')
+        for (const item of answer)
+          items.set(JSON.stringify([item.process.id, item.process.generation]), item)
+      }
+      return Object.freeze([...items.values()])
     },
 
     recoverOwned(scope, access, known) {

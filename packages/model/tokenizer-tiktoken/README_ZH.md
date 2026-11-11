@@ -4,86 +4,74 @@
 
 ## 职责与状态
 
-本成员是 `ModelTextTokenizer` 的 tiktoken 引擎 adapter。家族成员的计量器把本家的词表与特殊 token 表交给它，得到一个 tokenizer。职责与建包条件见[组架构“成员与新增条件”](../docs/architecture.md#成员与新增条件)与[“Tokenizer 的资源与计量分工”](../docs/architecture.md#tokenizer-的资源与计量分工)。
+本包在有界 worker 池中执行精确 tiktoken 计数。宿主提供固定家族资源和明确的 limits，家族计量器取得私有租约。本包不收录厂商词表，不判断请求权限，也不拥有完整输入预算。
 
-本包只封装引擎：初始化时核对资源，`count` 只做纯计算。本包不收录任何厂商词表。`pi-ai-openai` 以 o200k 词表消费本包，`pi-ai-anthropic` 以它随包发布的 `claude.json` 消费本包。
+| 能力                                    | 验证                                 |
+| --------------------------------------- | ------------------------------------ |
+| 异步 executor、私有租约与物理关闭       | 真实 worker 与受控生命周期故障       |
+| 资源身份、Unicode、相邻文本与特殊 token | js-tiktoken 1.0.21、o200k 与合成词表 |
+| 有界租约缓存中的精确 regex 片段复用     | 缓存隔离、淘汰与固定 oracle 差分     |
+| 构建后的 worker 在外部进程与目录中运行  | 发布产物与有界回归测试               |
 
-### 支持范围
-
-支持范围分五档。每档只写已核对的事实。改变支持范围的提交同步本表、英文 README、[SPEC](SPEC.md) 与组页的状态。
-
-| 档 | 已交付的内容 | 入口 | 验证范围 |
-| --- | --- | --- | --- |
-| 公开入口已导出 | 运行时值 `createTiktokenTokenizer`；类型 `TiktokenRanks`、`TiktokenResources` | 根入口 | `public-entry.spec.ts` 核对根入口只有一个运行时导出 |
-| 初始化核对已实现 | 实现版本等于实际安装的 js-tiktoken；词表摘要与配置摘要等于规范 JSON 的 SHA-256；任一不符返回 `unavailable` | 根入口；包内 `src/tokenizer.ts`、`src/digest.ts`、`src/engine-version.ts` | 快层，真实 js-tiktoken 1.0.21，o200k 与合成词表。摘要常量在本包以外独立算出 |
-| 计数已实现 | 文本中的特殊 token 字样按普通文本计；相邻文本段合并后编码；显式特殊 token 段只查固定表，查不到返回 `unsupported-token`；空序列计 `"0"`；非良构 Unicode 返回 `invalid` | `ModelTextTokenizer.count` | 快层，o200k 的计数与完整 js-tiktoken 编码器比较；合成词表的计数按手算核对 |
-| 构建产物已验证 | 构建产物在另一进程与临时目录中初始化并计数，结果与源码相同；版本失配同样返回 `unavailable` | `dist/index.js` | 慢层，子进程。没有安装到包外的消费者 |
-| 家族消费已验证 | `pi-ai-openai` 传入 o200k 秩数据。`pi-ai-anthropic` 传入 `claude.json`：读取时核对文件的 SHA-256，经本包的计数与 @anthropic-ai/tokenizer 0.0.4 的参考值 150 相等 | 两个家族包的 tokenizer 资源函数 | 两个家族包的快层计量测试。这些检查在家族包中，不在本包。没有安装到包外的消费者 |
+应用负载、家族集成和本地预发送时延目标需要独立的组合验证。本包单测不授予这些结论。
 
 ## 使用
 
-家族成员从根入口导入工厂与类型，在发布计量能力之前初始化一次：
+宿主给出 `resources` 和全部 `limits` 字段。家族给出精确采用的 `definition`，controller 归租约拥有者：
 
 ```ts
-import o200k from 'js-tiktoken/ranks/o200k_base'
-import { createTiktokenTokenizer } from '@omne-harness/tokenizer-tiktoken'
+import { createTiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
 
-const created = createTiktokenTokenizer({
-  definition, // TokenizerDefinition：家族给出的四项采用值
-  ranks: { patStr: o200k.pat_str, specialTokens: o200k.special_tokens, bpeRanks: o200k.bpe_ranks },
-  specialTokens: { '<|endoftext|>': 199999 },
-})
+const created = await createTiktokenExecutor({ resources, limits })
 if ('failure' in created) throw new Error(created.failure.kind)
-created.ok.count([{ kind: 'text', text: 'hello world' }]) // { ok: { tokens: '2' } }
+const executor = created.ok
+try {
+  const acquired = executor.acquire(definition, controller.signal)
+  if ('failure' in acquired) throw new Error(acquired.failure.kind)
+  try {
+    const result = await acquired.ok.tokenizer.count([{ kind: 'text', text: 'hello world' }])
+    if ('failure' in result) throw new Error(result.failure.kind)
+    useCount(result.ok.tokens)
+  } finally {
+    await acquired.ok.release()
+  }
+} finally {
+  await executor.close()
+}
 ```
 
-`definition.implementation.revision` 写实际安装的 js-tiktoken 版本。`vocabulary.digest` 与 `configuration.digest` 按 [SPEC“规范 JSON”](SPEC.md#规范-json) 算出。依赖本包会安装 model-contract、operation-result 与 js-tiktoken，不安装 Cordis 或任何家族。本包没有 Cordis 入口，理由见 [Cordis 集成](docs/cordis.md)。更多说明见[使用与定位](docs/context.md)。
+长期宿主向多个消费者借出同一 executor，只在宿主关闭时执行 close。家族只释放自身租约。Cordis 入口只暴露借用方法，见 [Cordis 集成](docs/cordis.md)。
 
 ## 契约
 
-[行为规格](SPEC.md)拥有初始化核对、规范 JSON、计数规则、所有权与失败。tokenizer 的类型与共同计数规则归 [model-contract](../model-contract/SPEC.md#分词与完整请求计量)。公开入口的导航见[公开接口](docs/public-api.md)。
+[SPEC](SPEC.md) 拥有资源核对、精确计数、准入限制、缓存所有权和物理清理。tokenizer 类型和共同计数规则归 [model-contract](../model-contract/SPEC.md#分词与完整请求计量)。[公开接口](docs/public-api.md) 导航源码定义。
 
 ## 设计
 
-`tokenizer.ts` 拥有初始化与计数。`digest.ts` 写出规范 JSON 并算摘要。`engine-version.ts` 读取实际安装的 js-tiktoken 版本。模块、机制与理由见[内部架构](docs/architecture.md)，流程见[关键流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+主线程拥有准入、截止和线程代际。worker 拥有词表解析、BPE 和私有租约缓存。租约固定在一个槽，防止每 lease 缓存上限乘以线程数。实现说明见[内部架构](docs/architecture.md)、[关键流程](docs/flows.md)和[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
-本包没有配置项，也没有默认值。全部输入是 `createTiktokenTokenizer` 的参数：
+`createTiktokenExecutor` 接受固定资源数组与明确的 limits，本包不提供默认值。限制覆盖线程、活跃租约、排队任务与字节、输入大小、缓存、截止时间、worker heap 和替换速率。
 
-- `definition`：家族给出的四项采用值。
-- `ranks`：家族提供的词表。
-- `specialTokens`：允许经显式段使用的固定特殊 token 表。
-
-初始化读取一次 js-tiktoken 的 `package.json`，以取得实际版本。`count` 不读文件，不读当前工作目录，不访问网络。tokenizer 没有需要释放的资源。运行需要 Node.js 24 或更高版本。
+输入与缓存按保留的 UTF-16 和对象开销计费，不是 UTF-8 大小或 RSS。count 返回 Promise。取消可能先返回失败，release 仍须等待物理清理，close 须等待实际线程退出。运行需要 Node.js 24 或更高版本。
 
 ## 验证
 
-在仓库根运行以下命令。包的 engines 要求 Node.js >=24，pnpm 版本为 10.28.1。
+先准备 workspace 依赖，再在本成员目录运行：
 
 ```sh
-pnpm turbo run typecheck test:fast --filter=@omne-harness/tokenizer-tiktoken
-pnpm turbo run test --filter=@omne-harness/tokenizer-tiktoken
-pnpm turbo run test:slow --filter=@omne-harness/tokenizer-tiktoken
-pnpm run lint:deps
-pnpm run check:docs
+pnpm run build
+pnpm run typecheck
+pnpm exec vitest run --mode fast --maxWorkers=1
+pnpm exec vitest run --mode slow --maxWorkers=1
 ```
 
-Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。慢层需要构建产物。测试分层与固定输入见[测试说明](tests/README.md)，覆盖与未覆盖见 [SPEC“组合与验证”](SPEC.md#组合与验证)。
-
-`pnpm run package:template scan --member packages/model/tokenizer-tiktoken` 的读数：
-
-- `integration` 为 `unknown`。原因是 `docs/architecture/constraints.json` 中没有本成员的登记。这项登记归架构拥有者，结构检查不受影响。
-- `adoption` 为 `current`：`package.json` 带有 `typescript-package@3.0.0` 的采用标识，变体为 `module`。`structure` 为 `pass`。
-- 加 `--check` 时退出码为 0。这个结果不表示集成核对或业务验收已完成。
+[测试说明](tests/README.md) 列出真实依赖、故障 seam 与覆盖边界。每份 executor 测试至多创建两个 worker，不请求网络。
 
 ## 维护
 
-- 升级 js-tiktoken：先有依据，再改 `pnpm-workspace.yaml` 的 catalog。同时更新测试中的 `ENGINE_REVISION`，并通知家族成员更新 `implementation.revision`。
-- 改变规范 JSON 的写法：所有家族成员的摘要都会失效。须先修订 SPEC，并同步全部家族成员。
-- 改变计数规则：同步 SPEC、对应测试与[关键流程](docs/flows.md)。
-- 增加运行依赖：先核对组架构的依赖方向。
-- 改变支持范围：同步本表、英文 README、[组页](../README.md)与[包组织](../../../docs/package-organization.md)中的状态。
+升级引擎时同步资源摘要、固定版本采用、计数语义和真实家族消费者。改变限制或生命周期时同步 SPEC 与对应测试。根入口不导入 Cordis，独立 Cordis 入口拥有服务定义。Root 应用装配拥有线程关闭。
 
 ## 目录结构与文档职责
 

@@ -66,7 +66,7 @@ P4 对应 R2-D294 的第 3 条。那一条是传感器指标，不是不变式�
 | `Preserve` | 材料 `preserve`：核心的批，一条 `material.preserved` 事实（不在模型的三类事实集合里）加材料块，不动游标、不推进 revision | 一次存储事务 |
 | `RetrySame`、`RetryConflict` | Agent SPEC「判定次序与失败映射」第 2 条：同语义输入认回原结果，异语义输入 `conflict` | 无写入 |
 | `Crash`、`Recover` | 进程重启；继任者冷启动折叠，再 `attach`，追加 `exec.attached` | `attach` 一次存储事务 |
-| `Refuse` | 存储在受理前拒绝（例如单命令上限），没有写入；驱动重发或把槽位改为 `failed` | 无写入 |
+| `Refuse` | 存储在受理前拒绝，没有写入。暂时的原因：驱动等待后以同一操作重发。确定的原因（例如单命令上限）：驱动不重发，Run 以失败终结 | 无写入 |
 
 一个模型动作对应一次 Journal 命令。命令内部的判定、编码与写 Worker 往返抽象为这一个原子步。
 

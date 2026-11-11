@@ -227,7 +227,7 @@ This is the phase 1 reading of the node table's Q2 `commit-unknown` edge to R0, 
 
 Stops:
 
-- An outcome off the normal path stops the run at its node. No stop becomes a success.
+- An outcome that cannot continue stops the run at its node. No stop becomes a success. When a port answers `unavailable`, the dependency is temporarily unavailable: the run waits and does not stop. The rule is in the [SPEC](SPEC.md#依赖不可用时的等待).
 - After a stop the slot stays occupied, and `observe` shows occupied. The Journal keeps the `position` of the last commit. A new `invoke` gets `busy`.
 - The coordinator returns the failure and its `owner` internally (#558 S-14). A port failure keeps its owner. `@omne-harness/agent` marks an outcome outside current support. `@omne-harness/agent#defect` marks a coordinator defect. There is no public stop reason. Waits are not delivered.
 
@@ -332,3 +332,5 @@ Update actual consumers, the SPEC, and verification when a public contract chang
 ## Directory structure and documentation roles
 
 The package follows the source template skeleton. [docs](docs/README.md) lists six documentation topics. Source, tests, schemas, verification, ADRs, examples, resources, and acceptance each have an index. Draft resource slots do not establish template adoption or business acceptance.
+
+`createAgentToolQualification` 认回 Tool 请求对应的原 Agent 采用。依赖是 Journal 读取、材料读取和原 Tool 绑定查询；它不要求运行中的 Agent 实例。首次保存 intent 与已关联调用分别核验，消费方必须另核 Tool 原来源和观察的 Journal 修订。契约见 [Tool 原 Agent 关联观察](../agent-contract/SPEC.md#tool-原-agent-关联观察)。

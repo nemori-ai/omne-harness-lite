@@ -54,6 +54,7 @@ import {
   makeBase,
   type LoadedTree,
 } from '../session-fixtures/tree.ts'
+import { disabledTelemetryRow } from '../telemetry/support.ts'
 import { TENANT_A, accessPolicyRow, allowAll } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
@@ -142,6 +143,7 @@ async function start(options: { contextInput: 'real' | 'stub' }): Promise<Loaded
   const tree = await loadTree({
     base,
     rows: [
+      disabledTelemetryRow(),
       ...doubles(),
       runtimeContextDoubleRow(),
       options.contextInput === 'real' ? declared(sessionAd12Row) : stubAd12Row(),

@@ -9,6 +9,9 @@ import { z } from 'zod'
 import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
+  LOCAL_CONCURRENT_MODEL_CALLS,
+  LOCAL_DIAGNOSTICS_KINDS,
+  LOCAL_DIAGNOSTICS_LIMITS,
   LOCAL_HISTORY_KINDS,
   WINDOWS_POWERSHELL_PRELUDE,
   LocalProfileError,
@@ -35,7 +38,14 @@ function hostEnvironment(platform: NodeJS.Platform): Record<string, string> {
   }
   return platform === 'win32'
     ? { ...secrets, Path: 'C:\\Tools;C:\\Windows', SystemRoot: 'C:\\Windows', USERPROFILE: 'C:\\u' }
-    : { ...secrets, PATH: '/opt/tools/bin:/usr/bin:/bin', HOME: '/u', LANG: 'C.UTF-8' }
+    : {
+        ...secrets,
+        PATH: '/opt/tools/bin:/usr/bin:/bin',
+        HOME: '/u',
+        LANG: 'C.UTF-8',
+        XDG_RUNTIME_DIR: '/run/user/1000',
+        DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus',
+      }
 }
 
 function input(platform: NodeJS.Platform): LocalOperatorInput {
@@ -71,8 +81,12 @@ describe('localOperatorLayer over the bundled distribution', () => {
     }
   })
 
-  it('names only the vault path for the model credential, and no secret anywhere', () => {
-    expect(configOf(layer, 'model-credential')).toEqual({ path: '/h/state/model-vault.json' })
+  it('names only the vault path for the secret custody, and no secret anywhere', () => {
+    // The model credential row reads the vault through the custody row; it and the `settings` row
+    // take no operator value.
+    expect(configOf(layer, 'model-credential')).toBeUndefined()
+    expect(configOf(layer, 'secret-custody')).toEqual({ path: '/h/state/model-vault.json' })
+    expect(configOf(layer, 'settings')).toBeUndefined()
     expect(JSON.stringify(layer)).not.toMatch(/factorySecret|must-not-leak/)
   })
 
@@ -84,6 +98,40 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(configOf(layer, 'agent-host')).toMatchObject({
       jointCommits: releaseRow('agent-host')?.config?.['jointCommits'],
       coordination: releaseRow('agent-host')?.config?.['coordination'],
+    })
+  })
+
+  it('admits LOCAL_CONCURRENT_MODEL_CALLS model calls of one tenant at once on every bound', () => {
+    const calls = LOCAL_CONCURRENT_MODEL_CALLS
+    expect(calls).toBe(20)
+    const one = z
+      .object({ resultCapacity: z.record(z.string(), z.string()) })
+      .parse(configOf(layer, 'agent-context')).resultCapacity
+    const records = z
+      .object({
+        limits: z.object({ capacity: z.record(z.string(), z.string()) }),
+        maxCallBytes: z.number(),
+        send: z.object({ maxClaims: z.number() }),
+        sendStage: z.object({
+          materialization: z.object({ maxRecords: z.number() }),
+          network: z.object({ maxConnections: z.number() }),
+        }),
+      })
+      .parse(configOf(layer, 'model-records'))
+    // The tenant's share holds exactly `calls` result capacities of one call, and no more.
+    for (const [unit, value] of Object.entries(one))
+      expect(BigInt(records.limits.capacity[unit] ?? '0'), unit).toBe(BigInt(value) * BigInt(calls))
+    expect(String(records.maxCallBytes)).toBe(one['bytes'])
+    expect(records.send.maxClaims).toBe(calls)
+    expect(records.sendStage.materialization.maxRecords).toBe(calls)
+    expect(records.sendStage.network.maxConnections).toBe(calls)
+    expect(configOf(layer, 'model-host')).toMatchObject({
+      host: { concurrencyLimit: calls },
+      results: {
+        maxConcurrentCalls: calls,
+        maxPendingAccountsPerTenant: calls,
+        maxPendingAccounts: calls,
+      },
     })
   })
 
@@ -113,6 +161,8 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(configOf(layer, 'server-entry')).toEqual({
       listenPort: 8965,
       historyKinds: [...LOCAL_HISTORY_KINDS],
+      diagnosticsKinds: [...LOCAL_DIAGNOSTICS_KINDS],
+      ...LOCAL_DIAGNOSTICS_LIMITS,
     })
     expect(LOCAL_HISTORY_KINDS).toEqual(
       expect.arrayContaining([
@@ -138,6 +188,25 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
+  it('gives the telemetry row its seven budgets and leaves the implementation and the outlet to the release', () => {
+    const telemetry = configOf(layer, 'telemetry')
+    expect(telemetry).toMatchObject({ implementation: 'node', outlet: { kind: 'stdout' } })
+    const budgets = z
+      .object({
+        maxRecordBytes: z.number().int().positive(),
+        maxQueueItems: z.number().int().positive(),
+        maxQueueBytes: z.number().int().positive(),
+        maxOpenSegments: z.number().int().positive(),
+        maxLogTextLength: z.number().int().positive(),
+        summaryIntervalMs: z.number().int().positive(),
+        maxSegmentLifetimeMs: z.number().int().positive(),
+      })
+      .strict()
+      .safeParse(telemetry?.['budgets'])
+    expect(budgets.success, JSON.stringify(budgets)).toBe(true)
+    expect(Object.keys(telemetry ?? {}).sort()).toEqual(['budgets', 'implementation', 'outlet'])
+  })
+
   const toolHost = z.object({
     construction: z.object({ Shell: z.object({ env: z.record(z.string(), z.string()) }) }),
   })
@@ -149,6 +218,8 @@ describe('localOperatorLayer over the bundled distribution', () => {
       PATH: '/opt/tools/bin:/usr/bin:/bin',
       HOME: '/u',
       LANG: 'C.UTF-8',
+      XDG_RUNTIME_DIR: '/run/user/1000',
+      DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus',
       TMPDIR: '/h/state/host-files',
     })
     expect(shellEnv(localOperatorLayer(input('win32')))).toEqual({

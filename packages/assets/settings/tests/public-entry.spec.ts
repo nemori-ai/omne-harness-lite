@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/settings')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+it('exports the pure declaration and evaluation contract', async () => {
+  const root = await import('../src/index.ts')
+  expect(root.defineSettings).toBeTypeOf('function')
+  expect(root.evaluateSettings).toBeTypeOf('function')
+  expect(root.SettingDefinitionsSchema).toBeDefined()
 })

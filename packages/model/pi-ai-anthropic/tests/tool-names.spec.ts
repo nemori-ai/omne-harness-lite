@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
+import { OPENROUTER_ACCOUNTING } from '@omne-harness/pi-ai-transport/chat-completions'
 import {
   bindingOf,
   encodeInput,
@@ -49,7 +50,7 @@ describe('dotted tool names through the Anthropic binding', () => {
     }
     expect(body.tools.map(item => item.function.name)).toEqual(['Files_read', 'Shell_execute'])
 
-    const decoder = binding.createDecoder({ request })
+    const decoder = binding.createDecoder({ request, accounting: OPENROUTER_ACCOUNTING })
     const facts: TransportFact[] = []
     for (const outcome of [
       decoder.accept(

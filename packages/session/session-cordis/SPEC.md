@@ -80,10 +80,11 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 
 ### 测量事件
 
-<a id="测量事件"></a>依据 R2-D17（DP1 取 C）与 R2-D49：session 工厂的测量观察者经 `./cordis` 的 `createSessionProviderPlugin({ measure })` 交进来，仿 Session 日志 Journal 提供者的 `createSessionAgentJournalPlugin({ cancellation })`（R2-D35）。观察者是函数，不是配置成员，不是服务键。
+<a id="测量事件"></a>依据 R2-D17（DP1 取 C）与 R2-D49：session 工厂的两个观察者经 `./cordis` 的 `createSessionProviderPlugin({ measure, diagnose })` 交进来，仿 Session 日志 Journal 提供者的 `createSessionAgentJournalPlugin({ cancellation })`（R2-D35）。观察者是函数，不是配置成员，不是服务键。两个都可选。
 
-- 返回的类继承 `SessionProvider`，`inject`、静态 `Config`、提供的键 `session` 与撤除都不变。每次装载时它把 `measure` 作为 `createSessionInstance(依赖, 配置, { measure })` 的第三个参数交给本次建出的实例；事件的内容与时机归 [session SPEC](../session/SPEC.md#测量事件)，本成员不加、不改、不转写事件。
-- 不传 `measure` 时与 `SessionProvider` 一致，实例不建任何事件。`SessionProvider` 原样可用。
+- 返回的类继承 `SessionProvider`，`inject`、静态 `Config`、提供的键 `session` 与撤除都不变。每次装载时它把输入原样作为 `createSessionInstance(依赖, 配置, { measure, diagnose })` 的第三个参数交给本次建出的实例。测量事件的内容与时机归 [session SPEC 测量事件](../session/SPEC.md#测量事件)，具名诊断的内容与时机归 [session SPEC 诊断出口](../session/SPEC.md#诊断出口)；本成员不加、不改、不转写它们。
+- 不传 `measure` 时与 `SessionProvider` 一致，实例不建任何事件。不传 `diagnose` 时实例只把诊断留在内存。`SessionProvider` 原样可用。
+- `diagnose` 与本成员自己的诊断（`diagnostics.ts` 经 Cordis logger 写出的文本）是两条路：前者是 session 实例的具名诊断（`SessionDiagnostic`），后者是本插件端口与监听者的失败文本。
 - 同一个返回的类可以多次装载；它们共用同一个观察者，`span` 在进程内唯一，起止不会错配。观察者抛出不改变任何答复，这由 session 兑现。
 
 ## 明确缺项
@@ -129,7 +130,7 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 | 4 | [provider-callers.spec.ts](tests/provider-callers.spec.ts) |
 | 5、6 | [provider-notice.spec.ts](tests/provider-notice.spec.ts) |
 | 8 | [provider-teardown.spec.ts](tests/provider-teardown.spec.ts)、[checkpoint-cp1.spec.ts](tests/checkpoint-cp1.spec.ts)（真实存储上的有序关闭） |
-| 测量观察者经插件工厂交入（[测量事件](#测量事件)） | [measure-plugin.spec.ts](tests/measure-plugin.spec.ts)：真实 Cordis 上装 `createSessionProviderPlugin({ measure })`，一次 `create` 让观察者收到成对的段事件；`inject` 与 `Config` 同 `SessionProvider`；不传时服务照常 |
+| 观察者经插件工厂交入（[测量事件](#测量事件)） | [measure-plugin.spec.ts](tests/measure-plugin.spec.ts)：真实 Cordis 上装 `createSessionProviderPlugin({ measure })`，一次 `create` 让观察者收到成对的段事件；装 `createSessionProviderPlugin({ diagnose })` 并去掉 Agent 驱动端口，C2 的 `invoke` 以 `agent-absent` 停止时观察者收到具名诊断；`inject` 与 `Config` 同 `SessionProvider`；不传时服务照常 |
 | 线内贯通检查点 CP1 | [checkpoint-cp1.spec.ts](tests/checkpoint-cp1.spec.ts)：真实 Cordis 上装本插件与 session-storage-sql，对真实 sqlite-provider 创建会话、经 work 面追加一次命令、查询得 `committed`；另一租户的主体答 `denied` |
 
 ## 验证

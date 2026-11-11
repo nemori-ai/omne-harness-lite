@@ -822,3 +822,49 @@ it('seals a whole reasoning state part at an index that was never opened', async
   )
   expect(snapshot.blocks).toEqual([{ kind: 'sealed', index: '0', block }])
 })
+
+it('read-only actions cannot replay admission or write a valid late account fact', async () => {
+  const f = await running()
+  const late = {
+    ...f.admit,
+    operation: op('readonly-late'),
+    dispatch: f.dispatch,
+    source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
+    fact: {
+      kind: 'account' as const,
+      event: 'late-readonly',
+      value: {
+        usage: [{ name: 'output', state: 'known', lexeme: '1', unit: 'token' }],
+        cost: [],
+        trimmed: { state: 'known', lexeme: '0', unit: 'token' },
+        place: 'supplier',
+        duration: { state: 'unknown' },
+        revision: '1',
+      } satisfies CallAccountReport,
+    },
+  }
+  const before = unbox(await f.commands.loadRecovery(f.admit))
+  for (const action of [
+    'admit',
+    'facts',
+    'content',
+    'control',
+    'handoff',
+    'account',
+    'recovery',
+    'observe',
+    'send',
+  ])
+    f.denied.add(action)
+  expect(await f.commands.recall({ ...f.admit, admission: f.admit.operation })).toHaveProperty('ok')
+  expect(await f.commands.dispatches(f.admit)).toHaveProperty('ok')
+  expect(await f.commands.admit(f.admit)).toEqual({ failure: { kind: 'denied', action: 'facts' } })
+  expect(await f.commands.query(f.admit)).toEqual({ failure: { kind: 'denied', action: 'facts' } })
+  expect(await f.commands.recordLateFact(late)).toEqual({
+    failure: { kind: 'denied', action: 'account' },
+  })
+  f.denied.clear()
+  expect(unbox(await f.commands.loadRecovery(f.admit))).toEqual(before)
+  // The same input succeeds with write qualification, so invalid evidence cannot hide a leak.
+  expect(await f.commands.recordLateFact(late)).toHaveProperty('ok')
+})

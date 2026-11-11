@@ -10,3 +10,4 @@
 - [rq11.md](rq11.md)：RQ-11 行到用例表
 - [models/](models/index.md)：形式模型
 - [proofs/](proofs/index.md)：论证与证明
+- [measurement-session-mapping.md](measurement-session-mapping.md)：一次规划的快照、租约复用、容量与关闭模型。

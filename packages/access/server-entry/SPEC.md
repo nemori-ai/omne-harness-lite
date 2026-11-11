@@ -2,7 +2,7 @@
 
 本页拥有治理位置与会话位置的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、请求体上限和 SSE 格式只归[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)。各小节的采用依据见该节开头。
 
-下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话位置和承载页的引用、「[位置与操作范围](#位置与操作范围)」整节（含各小节）、「[验证](#验证)」一节中会话位置与 HTTP 层的验证义务。其余条款保持各自原有的采用状态。
+下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话位置和承载页的引用、「[位置与操作范围](#位置与操作范围)」整节（含各小节）、「[验证](#验证)」一节中会话位置与 HTTP 层的验证义务。其余条款保持各自原有的采用状态。「[会话诊断投影](#会话诊断投影)」小节，「会话位置」一节里写 `read-session-diagnostics` 的句子与表格内容，以及「[依赖](#依赖)」「[验证](#验证)」中会话诊断投影的条款，不在 DP-2 的采用范围内：它们由 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) revision 2 的本地范围另行采用。
 
 「[治理位置](#治理位置)」「[成功业务访问的报告](#成功业务访问的报告)」「[登录失效时结束观察](#登录失效时结束观察)」三个小节，以及「[服务端的 HTTP 层责任](#服务端的-http-层责任)」与「[验证](#验证)」中治理端口的条款，按 Reduce 的 R2-D203、R2-D204 与身份治理交付规格的 F2、F3、C4、C5 修订。
 
@@ -32,31 +32,32 @@
 
 - `register-and-activate` 和 `issue-login`：接入把消息交给 identity 的公开入口，不核验登录证明。`issue-login` 成功时，响应带新登录的 `loginId`。
 - 18 个治理操作：`create-organization`、`query-create-organization`、`issue-member-invitation`、`accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`query-received-invitations`、`query-issued-invitations`、`query-own-memberships`、`query-organization-members`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-current-tenant`、`revoke-login`、`query-own-valid-logins`。接入把它们交给 identity 的治理端口（identity ID-18）。
-- 3 个模型凭据操作：`bind-model-credential`、`unbind-model-credential`、`describe-model-credential`。接入把它们交给装配给的 `modelCredentials` 端口，规则见[模型凭据](#模型凭据)。
+- 4 个设置操作：`list-settings`、`set-setting`、`describe-setting`、`clear-setting`。接入把它们交给装配给的 `settings` 端口，规则见[设置项](#设置项)。
 - 部署声明不提供的 14 个操作：`public-health`、`replace-credential`、`query-organization`、隶属的 8 个操作、`judge-admission`、`submit-authorization-expression` 与 `withdraw-authorization-expression`。声明是成员常量 `NOT_PROVIDED_GOVERNANCE_OPERATIONS`（`src/governance.ts`）。规则见公开契约的[部署声明不提供的操作](../public-contract/SPEC.md#部署声明不提供的操作)：请求通过第 3 步的封闭字段检查之后，接入答 `stage-not-provided`，`body` 为空，不识别登录，也不读取账号库。
 
 识别登录不是公开操作。它是两个位置判断次序里的内部步骤。
 
-#### 模型凭据
+#### 设置项
 
-本节兑现公开契约的[模型凭据](../public-contract/SPEC.md#模型凭据)。接入只做登录与行事租户的步骤，资格与保管归端口。
+本节兑现公开契约的[设置项](../public-contract/SPEC.md#设置项)。接入只做登录与行事租户的步骤，资格、声明与保管归 `settings` 端口。端口类型 `SettingsGovernance` 由本成员声明（`src/settings.ts`），只有管理语义：列出、写入、查看与清除，不取用秘密。
 
-1. 装配没有给 `modelCredentials` 端口时，这 3 个操作按[部署声明不提供的操作](../public-contract/SPEC.md#部署声明不提供的操作)处理：通过第 3 步之后答 `stage-not-provided`，不识别登录。
+1. 装配没有给 `settings` 端口时，这 4 个操作按[部署声明不提供的操作](../public-contract/SPEC.md#部署声明不提供的操作)处理：通过第 3 步之后答 `stage-not-provided`，不识别登录，也不读取账号库。
 2. 第 4 步：把 `loginProof` 交给 identity 的登录识别，`denied` 与 `basis-unavailable` 原样对外。
-3. 第 6 步：`actingTenant` 不等于识别出的当前选择时答 `denied`，不调用端口。这一份 `denied` 与其他原因的 `denied` 除 `messageId` 外逐字节相同，不披露对方租户有没有凭据。
+3. 第 6 步：`actingTenant` 不等于识别出的当前选择时答 `denied`，不调用端口。这一份 `denied` 与其他原因的 `denied` 除 `messageId` 外逐字节相同，不披露对方租户有没有配置。`body` 没有目标租户字段，带上它是 `protocol-rejected`。
 4. 用签发者为行事租户签发代租户行事主体，`work.owner` 是 `identity-login`，规则同会话位置的第 4 步。账号不等答 `denied`，签发失败答 `basis-unavailable`。
-5. 把主体与行事租户交给端口。端口的结果按公开契约对外表示。端口拒绝（Promise 被拒绝）时，`bind-model-credential` 与 `unbind-model-credential` 答 `unknown`，因为写入可能已经发生。`describe-model-credential` 答 `basis-unavailable`。接入记诊断 `model-credential.fault`。
+5. 把主体与行事租户，以及请求里的 `asset`、`item` 和 `secret` 交给端口。`list-settings` 省略 `asset` 时，端口收到的输入也没有 `asset`。端口的结果按公开契约对外表示。接入只把成功体的字段写进响应：`set-setting` 只写 `configuredAt`，`describe-setting` 写端口给出的两层 `own` 与 `official`。端口给出的状态或条目不合公开契约时，编码失败，接入写出响应体为空的状态 500，记诊断 `encode.fault`。
+6. 端口拒绝（Promise 被拒绝）时，`set-setting` 与 `clear-setting` 答 `unknown`，因为写入可能已经发生。`list-settings` 与 `describe-setting` 答 `basis-unavailable`。接入记诊断 `settings.fault`，诊断只带操作名。
 
-秘密只在 `bind-model-credential` 的请求里。接入把它原样交给端口，不写进响应、诊断或错误文本。这 3 个操作不报告成功业务访问。
+秘密只在 `set-setting` 的请求里。接入把它原样交给端口，不写进响应、诊断或错误文本。这 4 个操作不报告成功业务访问。
 
 接入对 18 个治理操作的职责如下。
 
-| 步骤 | 接入的职责 |
-| --- | --- |
-| 1 至 3 协议读取 | 用 `readGovernanceRequest` 读取。不合规是 `protocol-rejected`。声明不提供的操作在这之后答 `stage-not-provided` |
-| 4 登录识别 | 把 `loginProof` 交给 identity 的登录识别。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表 |
-| 6 行事租户 | 要求行事租户的操作：核对 `actingTenant` 等于识别出的当前选择。不等是 `denied`，响应不含实际选择 |
-| 7、8 业务判断与提交 | 把识别出的登录原样交给治理端口。identity 在提交时再核对登录有效、选择未变，并判断资格。结果按公开契约对外表示 |
+| 步骤                | 接入的职责                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 1 至 3 协议读取     | 用 `readGovernanceRequest` 读取。不合规是 `protocol-rejected`。声明不提供的操作在这之后答 `stage-not-provided` |
+| 4 登录识别          | 把 `loginProof` 交给 identity 的登录识别。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表           |
+| 6 行事租户          | 要求行事租户的操作：核对 `actingTenant` 等于识别出的当前选择。不等是 `denied`，响应不含实际选择                |
+| 7、8 业务判断与提交 | 把识别出的登录原样交给治理端口。identity 在提交时再核对登录有效、选择未变，并判断资格。结果按公开契约对外表示  |
 
 补充规则如下。
 
@@ -91,16 +92,16 @@
 
 ### 会话位置
 
-会话位置提供公开契约的七个会话操作和两个观察操作。接入按公开契约的[会话判断次序](../public-contract/SPEC.md#会话判断次序)处理会话操作。下表写接入在每一步的职责。
+会话位置提供公开契约的八个会话操作和两个观察操作。接入按公开契约的[会话判断次序](../public-contract/SPEC.md#会话判断次序)处理会话操作。下表写接入在每一步的职责。操作 `read-session-diagnostics` 的组合规则另见[会话诊断投影](#会话诊断投影)。
 
-| 步骤 | 接入的职责 |
-| --- | --- |
-| 1 协议读取 | 按承载页的[会话路径的读取分派](../public-contract/docs/http-binding.md#会话路径的读取分派)读取。两个观察操作按承载页的手写读取规则，其他操作用 `readSessionRequest`。另按 message 包完整解码 `message`。任一不合规是 `protocol-rejected`，Session 不被调用 |
-| 2 登录识别 | 把 `loginProof` 交给 identity 的登录识别，得到账号、登录和当前租户。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表 |
-| 3 行事租户 | 只对 `create-session`：核对 `actingTenant` 等于该登录的当前选择，不等是 `denied`，响应不含实际选择 |
-| 4 目标租户与主体 | 目标租户的账号等于识别出的账号时，用签发者签发代租户行事主体，规则见[登录到 Access](../../../docs/architecture/runtime/runtime-contract-handoff.md#登录到-access)。账号不等是 `denied`。签发者未安装或签发失败是 `basis-unavailable` |
-| 5 部署范围 | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid`。`create-session` 的映射条目没有 `initialModelSelection` 时，是 `basis-unavailable`，不调用 Session，记诊断 `session.definition-incomplete` |
-| 6 Session 判断 | 按[操作到 Session 的映射](../../../docs/architecture/runtime/runtime-contract-handoff.md#操作到-session-的映射)调用 Session 的面。结果按公开契约的映射表对外表示 |
+| 步骤             | 接入的职责                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 协议读取       | 按承载页的[会话路径的读取分派](../public-contract/docs/http-binding.md#会话路径的读取分派)读取。两个观察操作按承载页的手写读取规则，其他操作用 `readSessionRequest`。另按 message 包完整解码 `message`。任一不合规是 `protocol-rejected`，Session 不被调用                                                                                                                                                                                            |
+| 2 登录识别       | 把 `loginProof` 交给 identity 的登录识别，得到账号、登录和当前租户。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表                                                                                                                                                                                                                                                                                                                        |
+| 3 行事租户       | 只对 `create-session`：核对 `actingTenant` 等于该登录的当前选择，不等是 `denied`，响应不含实际选择                                                                                                                                                                                                                                                                                                                                                    |
+| 4 目标租户与主体 | 目标租户的账号等于识别出的账号时，用签发者签发代租户行事主体，规则见[登录到 Access](../../../docs/architecture/runtime/runtime-contract-handoff.md#登录到-access)。账号不等是 `denied`。签发者未安装或签发失败是 `basis-unavailable`                                                                                                                                                                                                                  |
+| 5 部署范围       | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid`。`create-session` 的映射条目没有 `initialModelSelection` 时，是 `basis-unavailable`，不调用 Session，记诊断 `session.definition-incomplete`。`read-session-diagnostics`：部署没有配置投影（`diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`）时是 `basis-unavailable`，不调用 Session；游标不是本实例为该租户与会话签发的，是 `invalid` |
+| 6 Session 判断   | 按[操作到 Session 的映射](../../../docs/architecture/runtime/runtime-contract-handoff.md#操作到-session-的映射)调用 Session 的面。结果按公开契约的映射表对外表示。`read-session-diagnostics`先读 Session 历史，再读其他来源；其他来源的拒绝不改变 `outcome`                                                                                                                                                                                   |
 
 补充规则如下。
 
@@ -113,6 +114,76 @@
 - 会话位置的 `denied` 不披露会话是否存在。接入对所有 `denied` 原因给出逐字节相同的响应，见[denied 的一致性](../public-contract/docs/http-binding.md#denied-的一致性)。
 - 观察操作的建立点、帧与取消沿公开契约的[会话观察](../public-contract/SPEC.md#会话观察)。承载格式见[SSE 观察](../public-contract/docs/http-binding.md#sse-观察)。观察消息的读写见承载页的[观察消息的手写读写](../public-contract/docs/http-binding.md#观察消息的手写读写)。
 
+### 会话诊断投影
+
+本节按 RFC-0013 revision 2 的本地范围采用。设计依据是 [RFC-0013 的 A 线](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。它的裁定 DA1（组合承担者是本成员的 `session-view/` 模块）与 DA5（操作名 `read-session-diagnostics`）按 RFC revision 2 的接续采用记录执行。线上形状归公开契约的[会话诊断页](../public-contract/SPEC.md#会话诊断页)。
+
+接入是这个投影的组合承担者。投影只读：它不创建 Session、Run 或调用，不重新执行任何动作，不消耗派生额度，也不缓存跨请求的结果。它只经各拥有者的公开读口取数，不读存储内部。
+
+来源与读取路径：
+
+| 来源    | 读口                                                                                     | 端口                                   | 取什么                                               |
+| ------- | ---------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
+| Session | `history.begin`，`reader` 类，反向，种类取 `diagnosticsKinds`；页内续读用 `history.next` | `session.history`，必需                | Run 的骨架、调用登记、控制、终态与消息计数           |
+| Agent   | `readFinish`                                                                             | `agentJournal`，可选；读口本身也可选   | 以 `failed` 或 `cancelled` 终结的 Run 的结束候选     |
+| Model   | `inspect`，然后 `list`，再 `dispatches`                                                  | `modelCalls`、`modelDiagnostics`，可选 | `call.bound` 的 Model 引用解析到的调用、它的派发诊断与每次派发的账目 |
+| Tool    | `lookup`、`account` 与 `readDiagnostics`                                                 | `toolQueries`，可选                    | `call.bound` 的 Tool 引用的状态、账目与诊断页第一页  |
+
+组合规则：
+
+1. Run 的骨架只来自 Session。接入从最新一条反向读历史，按 `run.started` 划分 Run：两个 `run.started` 之间的条目属于较新的那个 Run。`run` 为 null 时每页至多 `maxRuns` 个 Run；给了 `run` 时只投影那个 Run，扫到它就停。
+2. 每个 Run 至多 `maxCallsPerRun` 次调用进入扇出，按日志顺序取前面的。超出的只计数，并记缺口 `truncated`，`subject` 是 Run。一次 Tool 调用可以有两条 `call.bound`：先是没有生产者的 `tool-intent` 登记，再是关联登记。投影把它们算作同一个调用，只计一次：以带生产者的那条为准，位置取首次登记的位置。所以这样的调用不会被多计，也不会提前触发 `truncated`。
+3. Model 分支先 `inspect`。解析到调用才 `list` 它的派发，一次最多 64 条；还有下一页时记缺口 `truncated`；`coverage` 为 `expired-prefix` 时记缺口 `retention-expired`。`not-accepted` 写成 `unknown`，原因 `not-accepted`。`list` 给出至少一条派发时，再读同一调用的 `dispatches`，按派发标识把记录对到诊断条目上，给每次派发写 `account`：记录的 `account` 为 null 时写 `unknown`，原因 `not-recorded`；诊断条目的派发在记录里找不到时写 `unknown`，原因 `not-found`；`dispatches` 读失败时每次派发都写 `unknown` 带该读的原因，并只记一条缺口，对象是该调用引用。没有派发条目时不读 `dispatches`。Tool 分支的 `lookup`、`account` 与 `readDiagnostics` 各自独立；一个的缺口不影响另一个。`readDiagnostics` 只读第一页（`after` 为 null）：条目只取 `operation`、`phase`、`code`，不带证据；`next` 不为 null 时不读下一页，记缺口 `truncated`；读失败时 `diagnostics` 写 `unknown` 带原因并记缺口。
+   Session 骨架另有两类计数：`run.attempt-started`、`run.attempt-released`（按载荷 `reason` 分计五种）与 `run.attempt-exited` 计入 `attempts`；`call.execution-fact` 按载荷 `fact.kind` 计数。`reason` 不在五种之内，或没有 `fact.kind` 的条目不计。
+
+   一条 `call.execution-fact` 的归属只用这条条目自身的字段，按下面的次序找它指向的调用：
+
+   - 先取载荷顶层的 `consumption`。观察路径这样写。
+   - 顶层没有时，取 `fact.consumption`。`release` 事实这样写。
+   - 两处都没有、且条目带 `fact.producer` 时，取生产者。接收路径的 `execution` 事实只带生产者。
+
+   条目有消费标识时，它等于某次进入扇出的调用的消费标识，事实就计入该调用的 `facts`。这时不再按生产者找。条目只有生产者时，某次进入扇出的调用在 `call.bound` 登记的生产者（`registration.binding.producer`，或旧形状的 `binding.producer`）的 `kind` 与 `call` 都与它相同，事实就计入该调用的 `facts`；有几次调用相同时取日志中最先登记的那次。其余事实计入 Run 的 `facts`。计数与条目在日志中的先后无关。
+4. 只对 `failed` 或 `cancelled` 的 Run 读 Agent 的 `readFinish`。`completed` 的 Run 的 `structured` 是 `none`。读到的结束候选只取闭合字段；`node-failed` 取原候选的 `node`、`category` 和 `failureKind`，不取异常原文；没有候选时是 `unknown`，原因 `not-recorded`。
+5. 每个来源的拒绝、不可用、不支持、找不到都成为缺口，带来源、对象与原因；对应的值写 `unknown` 并带同一原因。端口缺席或 `readFinish` 缺席是 `unsupported`。端口抛出异常是 `unavailable`，页照常返回。同一（来源、对象、原因）只记一条。 来源失败到缺口原因的映射：`denied`、`unavailable`、`unsupported` 照原名；`invalid` 出在引用字段上时是 `not-found`，出在其他字段（例如 limit、租户）上时是 `unavailable`；`not-settled` 是 `not-recorded`；其余失败种类（容量、冲突、提交未知、过期游标等）是 `unavailable`。只有 `modelCalls` 没有 `modelDiagnostics` 时，派发的缺口是 `unsupported`。
+6. 投影不跨来源推断：Session 没有登记的调用不出现；Model 或 Tool 的空答复不说明调用不存在。
+7. 部署不披露的种类（`PROJECTED_KINDS` 中不在 `diagnosticsKinds` 里的）记缺口 `not-disclosed`，`subject` 是种类名。接入只向 Session 请求披露的种类。
+8. `fault.diagnostic`、消息正文、工具参数、账目的 `place` 与任何供应商错误原文都不进视图。公开契约的编码把这些字段挡在页外。
+
+分页与游标：
+
+- 首页用 `begin`，`from` 为 null。续页用 `begin`，`from` 是上一页停下的那个 `run.started` 的条目标识，反向不含它自己。
+- 游标由本实例用随机密钥封印，绑定租户文本、会话、`run` 过滤、`pageBytes` 与本页的 `basis.upper`。被篡改、另一会话、另一实例签发或不是本实例形状的游标都是 `invalid`。接入不按猜测的位置继续。
+- 续页重新经 Session 核资格。撤权后续页是 `denied`，与首页一样逐字节相同。
+- `exhausted` 为真表示没有更多 Run 可读；给了 `run` 时扫到那个 Run 或读完历史都是真。`scannedThrough` 是停下的 `run.started` 条目标识，或 Session 最后一页的 `scannedThrough`。
+- 时刻只在载荷带发生时间时显示。Session 的历史载荷不带发生时间，所以在 RFC-0013 DA7 采用之前，`started.at` 恒为 `unknown`。`timing` 的三项按 Model 诊断原样给出。
+- 续页的 `basis.upper` 是游标里封存的首页上界，不是续页这次读到的当前上界。续页向更早的位置读，读不到首页上界之后追加的条目，所以整轮遍历的依据是首页的上界（Session 契约 SL10「固定读取上界」）。续页签发的下一个游标封存同一个上界。新的首页读当前上界。
+
+授权：取数按调用方的租户。Session 的资格判断先于一切，`denied` 不披露会话是否存在。Agent、Model 与 Tool 各自核资格，它们的 `denied` 只成为缺口。
+
+读取时点：各来源在不同的时刻读取。`basis.upper` 只说明 Session 历史部分依据的修订；Agent、Model 与 Tool 在读完 Session 历史之后各自读取，没有共同的读取边界。所以同一页里可以出现 Session 显示 Run 已终结、而 Model 派发仍是 `pending` 的组合。读者把每个来源的值当作该来源被读取时的状态，不当作同一时间点的快照。
+
+下图是一页的读取次序。每个读口的失败只在自己那一支成为缺口。
+
+```mermaid
+flowchart TD
+  H["Session 历史<br/>history.begin / next，reader 类"] --> R["按 run.started 划分 Run"]
+  R --> CB["每个 Run 的 call.bound<br/>同一调用合并，至多 maxCallsPerRun 次"]
+  CB -->|Model 引用| MI["Model inspect"]
+  MI -->|解析到调用| ML["Model list：派发诊断"]
+  CB -->|Tool 引用| TL["Tool lookup、account 与 readDiagnostics"]
+  R -->|failed 或 cancelled| AF["Agent readFinish"]
+  MI --> P["SessionDiagnosticsPage：视图值与缺口"]
+  ML --> P
+  TL --> P
+  AF --> P
+  R --> P
+```
+
+已知限制：
+
+- Model 读面按部署显式采用的租户只读资格返回；未授权、不支持或不可用仍形成缺口。应用的资格映射和登录返回检查归 [server-entry 行](../../../apps/harness-server/docs/rows/server-entry.md)。
+- Agent 已保存 `node-failed` 结束候选并完成原责任收尾时，投影读取其节点、分类与失败种类。原责任尚未得到可靠终态时，`terminal` 仍为 `null`；投影不据遥测日志推断业务结束。
+
 ### SessionOperationId 的派生规则
 
 本节是 `SessionOperationId` 派生规则的现行源。公开契约的[控制标识与重试](../public-contract/SPEC.md#控制标识与重试)把派生规则分给服务端接入，本节兑现它。摘要算法、族的文本和字段编码归 Session 的 [`deriveIngressOperation`](../../session/session-contract/docs/public-api.md)。接入调用它，不另写算法。
@@ -120,11 +191,11 @@
 1. 派生是确定性的。同一业务意图在崩溃前后得到同一个身份。
 2. 需要操作身份的操作各属于一个族，族与字段取法如下表。字段按表中的次序传入。
 
-| 族 | 适用操作 | 字段 |
-| --- | --- | --- |
-| create | `create-session`、`query-create-session` | 租户文本、`createCallId` |
-| accept | `send-input`、`query-send-input` | 租户文本、会话文本、`acceptId` |
-| control | `cancel-run`、`stop-call` | 登录文本、租户文本、会话文本、`controlId` |
+| 族      | 适用操作                                 | 字段                                      |
+| ------- | ---------------------------------------- | ----------------------------------------- |
+| create  | `create-session`、`query-create-session` | 租户文本、`createCallId`                  |
+| accept  | `send-input`、`query-send-input`         | 租户文本、会话文本、`acceptId`            |
+| control | `cancel-run`、`stop-call`                | 登录文本、租户文本、会话文本、`controlId` |
 
 3. create 与 accept 的字段取法同[派生身份](../../../docs/architecture/runtime/runtime-contract-handoff.md#派生身份)已有的两行。control 一行待 Reduce 并入那张表。并入后，本表删去这一行，只引用那张表。登录文本是识别出的登录的 loginStateCodec 文本。
 4. control 含登录文本，因为不同登录不共享中断回执。create 与 accept 不含登录文本，因为租户文本已经含账号。
@@ -140,6 +211,9 @@
 
 - 监听地址只能是 `127.0.0.1`，使用明文 HTTP/1.1。部署配置给出其他地址时，服务启动失败并报配置错误。`0.0.0.0`、`::`、主机名和其他网卡地址都属于其他地址。接入不静默改写地址。
 - 监听端口是部署配置，名字是 `listenPort`。初值归装配配置。
+- `maxInFlightRequests` 是必需的正安全整数配置，装配初值为 64。路径、方法、Host 与媒体类型通过后，接入在读 body 前预留槽位。用尽时返回空正文的 429，头 `x-omne-limit: in-flight-requests`，并关闭连接。不调用 Identity 或 Session。
+- 槽位覆盖 body 读取与该请求处理，成功、拒绝、断连与异常都释放，断连与处理完成竞争时只释放一次。断连不撤销已受理的业务调用；这些调用继续受既有关闭排空和原操作认回规则约束。SSE 建立后释放请求槽位，长期连接继续使用独立 observation 预算。普通输入队列满时，Session 的查询、控制与恢复仍可用。
+- Session 的 `limited` 保留 `resource` 与 `limit`，映射为带公开响应正文的 429。单体 body 超限仍为 413。
 - 接入不发 CORS 头。`OPTIONS` 请求按承载页[请求与响应规则](../public-contract/docs/http-binding.md#请求与响应规则)的第 2 步得到 405。
 - 接入的日志和诊断不记录请求体和响应体。登录证明、凭据和签发者不出现在任何输出里。
 - M2 不提供 TLS，见承载页的[已知限制](../public-contract/docs/http-binding.md#已知限制)。
@@ -159,24 +233,23 @@
 
 公开契约不依赖服务端接入。SDK 不依赖服务端接入。
 
+[会话诊断投影](#会话诊断投影)让本成员以只读方式消费 agent-contract、model-contract 与 tool-contract 的类型与读口。`DIR-ACCESS-MODEL` 与 `DIR-ACCESS-TOOL` 只约束公开契约、SDK 与 stream-arrival，不约束本成员。公开契约仍不依赖这三个成员：诊断页的形状在公开契约里以自己的词声明。
+
 ## 设计签名
 
 下面的类型和函数是设计形状。本包不导出它们。它们不是已经可安装的调用。共同消息和 `outcome` 只引用公开契约。
 
 ```ts
 type GovernanceEntry = {
-  receive(protectedBytes: Uint8Array): Promise<unknown>;
-};
+  receive(protectedBytes: Uint8Array): Promise<unknown>
+}
 ```
 
 `receive` 的输入是已经完成传输保护的字节。返回值是公开契约的响应。传输保护失败时，调用者没有这份响应，对外保持 `unknown`。
 
 ```ts
-function receiveRevoke(
-  entry: GovernanceEntry,
-  protectedBytes: Uint8Array,
-): Promise<unknown> {
-  return entry.receive(protectedBytes);
+function receiveRevoke(entry: GovernanceEntry, protectedBytes: Uint8Array): Promise<unknown> {
+  return entry.receive(protectedBytes)
 }
 ```
 
@@ -197,6 +270,7 @@ function receiveRevoke(
 
 - 18 个治理操作的每种端口结果映射到公开契约的 `outcome`、`body` 与状态码。
 - 声明不提供的 14 个操作答 `stage-not-provided`，登录识别没有被调用。负控：治理操作用同一份证明时，登录识别被调用。
+- 4 个设置操作把登录识别出的主体与行事租户交给端口。端口缺席时答 `stage-not-provided`，登录识别没有被调用。端口拒绝时，写入答 `unknown`，读取答 `basis-unavailable`。响应与诊断里没有 `set-setting` 的秘密。
 - 治理位置的 `denied` 在各个原因下，响应除 `messageId` 外逐字节相同。属于其他账号的目标与不存在的目标得到相同的 `not-visible`。
 - 登录识别抛出时是状态 503 和 `basis-unavailable`。`create-organization` 的端口被拒绝时是带响应体的 `unknown`，其余操作是空响应体的状态 500 并关闭连接。
 - 诊断里没有登录证明、凭据、登录标识与登录的 `loginId`。
@@ -217,6 +291,18 @@ function receiveRevoke(
 - 会话路径上一份大于治理路径上限、不大于会话路径上限的 `create-session` 进入公开契约的判断次序，不得到 413。
 - 两个观察操作的手写读取拒绝每一条封闭规则的违例，结果是 `protocol-rejected`，Session 不被调用。
 - 接入的碰撞测试：每个会话族只改一个字段，`SessionOperationId` 就变。只换 `messageId`，它不变。
+
+会话诊断投影另有下列验证义务。纯投影用各来源的替身验证；操作层用 HTTP 层替身验证。
+
+- Run 骨架只来自 Session；`call.bound` 的 Model 分支与 Tool 分支各自解析。
+- `model-refused` 的结构化原因是 `{ kind: 'model-refused', failure: 'capacity' }` 一类的闭合字段；`no-reply` 带 `cause` 与 `upstreamStatus`。Model 替身放行读取时，它与同一调用的派发结局一致。
+- 一次 Tool 调用的 `tool-intent` 登记与关联登记合成一个调用，只计一次，不触发 `truncated`。
+- 来源答 `unsupported`、`unavailable`、`denied` 或抛出异常时，生成对应缺口，其他来源的结果不受影响。
+- `readFinish` 缺席时结构化原因为 `unknown`，原因 `unsupported`。
+- 超过 `maxCallsPerRun` 的调用计数正确并记 `truncated`；不披露的种类记 `not-disclosed`。
+- `fault.diagnostic`、消息正文、工具参数不出现在视图里。
+- 判断次序与 `read-history` 一致；`denied` 与 `read-history` 的 `denied` 逐字节相同；`pageBytes` 越界是 `invalid`；篡改过的游标是 `invalid`；续页重新核 Session 资格。
+- 操作前后，Session、Model、Tool 替身的写计数不变。
 
 ## 观察脱离与重附着（#746）
 

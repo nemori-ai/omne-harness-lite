@@ -36,7 +36,7 @@ import {
   createEnvironmentSchemaProvider,
   ENVIRONMENT_DECLARATION_LIMITS,
 } from '../../entry/schema-domain.ts'
-import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
+import { registrantOf, releaseOf, rememberReleaseDefinition } from '../../entry/tool-release.ts'
 import {
   constructionTree,
   governanceOf,
@@ -251,7 +251,11 @@ export function releaseAuthorInput(
         if (fixed === undefined) return unavailable('release module is absent')
         if (!sameAdoption(input.module.executor, found.entry.module.executor))
           return invalid('module', 'module executor differs from the release module')
-        return loader.load({ ...input, module: fixed })
+        const loaded = await loader.load({ ...input, module: fixed })
+        if ('failure' in loaded) return loaded
+        return rememberReleaseDefinition(ctx, found.release.generation, loaded.ok.definition)
+          ? loaded
+          : unavailable('release definition changed during loading')
       },
     }
   }

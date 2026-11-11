@@ -1,7 +1,7 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, writes a vault
 // file, and drives one Model call of each pi family through the assembled send path.
 //
-// The real request path of the local host: the local custodian resolves the credential inside the
+// The real request path of the local host: the credential port reads the fixed layer inside the
 // send fence, the Model send boundary starts the pi transport, the composed families encode the
 // request and decode the recorded gateway stream, and the Model runtime preserves every fact in the
 // injected in-memory ModelCommands. The server stands in for the gateway only; it answers with the

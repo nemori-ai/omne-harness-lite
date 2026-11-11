@@ -6,6 +6,7 @@
 // (identity ID-18) goes through here too: its result never changes an answer.
 import {
   accountEquals,
+  tenantEquals,
   type AccountId,
   type LoginStateId,
   type TenantId,
@@ -46,6 +47,7 @@ export const LOGIN_WORK_OWNER = 'identity-login'
 
 export interface IdentitySteps {
   recognize(proof: ProofInput): Promise<Caller | StepRefusal>
+  recheck(proof: ProofInput, caller: Caller, target: TenantId): Promise<StepRefusal | undefined>
   actingFor(caller: Caller, target: TenantId): Promise<ActingForTenantPrincipal | StepRefusal>
   /**
    * Reports one successful business access of the caller's login. It settles after identity
@@ -92,6 +94,27 @@ export function createIdentitySteps(input: IdentityStepsInput): IdentitySteps {
         login: recognition.login,
         loginText: loginTextOf(recognition.login),
         tenant: recognition.tenant,
+      }
+    },
+
+    async recheck(proof, caller, target) {
+      const recognized = await this.recognize(proof)
+      if (isRefusal(recognized)) return recognized
+      if (
+        !accountEquals(recognized.account, caller.account) ||
+        recognized.loginText !== caller.loginText
+      )
+        return DENIED
+      try {
+        const memberships = await governance.queryOwnMemberships({ login: recognized.login })
+        if (memberships.kind === 'denied') return DENIED
+        if (memberships.kind === 'basis-unavailable') return UNAVAILABLE
+        return memberships.memberships.some(member => tenantEquals(member.tenant, target))
+          ? undefined
+          : DENIED
+      } catch {
+        emit(diagnostics, { code: 'identity.fault', operation: 'queryOwnMemberships' })
+        return UNAVAILABLE
       }
     },
 

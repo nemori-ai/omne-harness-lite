@@ -617,7 +617,8 @@
       "docs/**/*.md",
       "docs/**/*.svg",
       "docs/**/*.png",
-      "docs/**/*.webp"
+      "docs/**/*.webp",
+      "api/*.api.md"
     ],
     "requiredDirectories": [
       "src",

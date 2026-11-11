@@ -1,2 +1,73 @@
-// PACKAGE_TEMPLATE_DRAFT: Export the accepted public functions/types here.
-export {}
+export * from './schema.ts'
+export {
+  defineSettings,
+  type SettingsDefinitionResult,
+  type SettingsInputFailure,
+} from './definition.ts'
+export {
+  evaluateSettings,
+  type SettingsEvaluationResult,
+  type SettingResolution,
+} from './evaluation.ts'
+export {
+  SettingsTargetSchema,
+  SettingsDefinitionRefSchema,
+  SettingsActionSchema,
+  SettingsChangeSchema,
+  SettingsStateSchema,
+  decideSettingsChange,
+  type SettingsTarget,
+  type SettingsDefinitionRef,
+  type SettingsChange,
+  type SettingsState,
+  type SettingsChangeDecision,
+} from './commands.ts'
+export * from './ports.ts'
+export * from './preparation.ts'
+export * from './current-basis.ts'
+export * from './sources.ts'
+export {
+  createSettingsQueries,
+  type SettingsCatalogPage,
+  type SettingsCatalogEntry,
+  type SettingsCatalogRequest,
+} from './application.ts'
+export {
+  createSettingsRegistry,
+  type SettingsRegistration,
+  type SettingsRegistrationResult,
+  type SettingsRegistrySnapshot,
+} from './registry.ts'
+export { SettingsRebaseSchema, decideSettingsRebase, type SettingsRebase } from './rebase.ts'
+export {
+  SETTING_SECRET_PURPOSE,
+  createSettingsSecretItems,
+  secretItemTarget,
+  type SecretItemRef,
+  type SecretItemRefusal,
+  type SecretItemView,
+  type SettingsAssetQuery,
+  type SettingsHolding,
+  type SettingsHoldingRef,
+  type SettingsSecretItems,
+  type SettingsSecretItemsDeps,
+} from './secret-items.ts'
+export {
+  SECRET_TEXT_MAX_LENGTH,
+  parseSecretText,
+  type SecretBindingKey,
+  type SecretCustodyManagement,
+  type SecretCustodyUse,
+  type SecretLife,
+  type SecretListCursor,
+  type SecretListEntry,
+  type SecretListPage,
+  type SecretPresence,
+  type SecretRemoveResult,
+  type SecretScope,
+  type SecretTarget,
+  type SecretText,
+  type SecretTextParse,
+  type SecretTextRejection,
+  type SecretWriteResult,
+} from './secrets.ts'

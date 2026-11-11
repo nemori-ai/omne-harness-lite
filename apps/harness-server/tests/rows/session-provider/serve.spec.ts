@@ -13,13 +13,17 @@ import {
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import {
   SESSION_PATH,
+  TELEMETRY_ROW_CONFIG,
   connectable,
   createSessionBody,
+  diagnosticsDoubleRow,
   freePort,
   identityDoubleRow,
+  journalDoubleRow,
   login,
   mappingsDoubleRow,
   post,
+  runtimeDoubleRow,
   sessionMessage,
   until,
 } from '../server-entry/support.ts'
@@ -49,11 +53,15 @@ describe('session-provider row: serve tree', () => {
     const finished = serveOnce({
       distribution: {
         rows: [
+          { id: 'telemetry', plugin: 'telemetry', config: TELEMETRY_ROW_CONFIG },
           { id: 'identity', plugin: 'identityDouble', config: {} },
           { id: 'authorization', plugin: 'accessCheck', config: {} },
           { id: 'session-storage', plugin: 'delegated', config: {} },
           { id: 'session-provider', plugin: 'sessionProvider', config: {} },
           { id: 'agent-adoptions', plugin: 'mappingsDouble', config: {} },
+          { id: 'agent-journal', plugin: 'journalDouble', config: {} },
+          { id: 'model-records', plugin: 'diagnosticsDouble', config: {} },
+          { id: 'model-host', plugin: 'runtimeDouble', config: {} },
           { id: 'server-entry', plugin: 'serverEntryRow', config: { listenPort: port } },
         ],
       },
@@ -64,6 +72,9 @@ describe('session-provider row: serve tree', () => {
         delegated: delegatedTransactionsRow,
         sessionProvider: createSessionProviderRow({ observe: arrival => arrivals.push(arrival) }),
         mappingsDouble: mappingsDoubleRow,
+        journalDouble: journalDoubleRow,
+        diagnosticsDouble: diagnosticsDoubleRow,
+        runtimeDouble: runtimeDoubleRow,
         serverEntryRow,
       },
       entryObjects,

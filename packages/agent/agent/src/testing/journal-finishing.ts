@@ -192,7 +192,6 @@ export type ObligationSource = Pick<
   | 'revision'
   | 'checkpoint'
   | 'inputs'
-  | 'batches'
   | 'controls'
   | 'results'
   | 'effects'
@@ -266,13 +265,6 @@ function defect(what: string): never {
   throw new Error(`memory Journal defect: ${what}`)
 }
 
-function batchOf(source: ObligationSource, index: number): InputBatchId | null {
-  for (const [id, range] of source.batches) {
-    if (index >= range.from && index < range.to) return id
-  }
-  return null
-}
-
 /** The resolution of each pending write of the execution that the builder is told about. */
 export type PendingOperation = Readonly<{ operation: AgentOperationId; method: string }>
 
@@ -288,6 +280,8 @@ export function buildObligations(
   pendingOperations: readonly PendingOperation[],
 ): Readonly<{ items: readonly FinishObligation[]; coverage: ResponsibilityCoverage }> {
   const cancelled = candidate.conclusion.kind === 'cancelled'
+  const nodeFailed =
+    candidate.conclusion.kind === 'fail' && candidate.failure?.kind === 'node-failed'
   const complete = candidate.conclusion.kind === 'complete'
   // The fixed evidence of one fact of the closure names the fact, not the revision it was read at:
   // the same fact reads the same at every revision, so a judgment that read it still applies
@@ -295,10 +289,12 @@ export function buildObligations(
   const fixed = (what: string): DurableEvidence =>
     journalEvidence(`${source.id}/obligation/${what}`, 0)
   const items: FinishObligation[] = []
-  // inputs: an ordinary candidate does not pass an input no batch took; a cancelled candidate keeps
-  // every accepted input under its original owner (SPEC "条件终结" table, inputs).
-  source.inputs.forEach((input: AcceptedInput, index) => {
-    const taken = batchOf(source, index)
+  const takenInputs = new Map<AcceptedInput['id'], InputBatchId>()
+  for (const event of source.events)
+    if (event.body.kind === 'input-taken')
+      for (const input of event.body.batch.ordered) takenInputs.set(input, event.body.batch.id)
+  source.inputs.forEach((input: AcceptedInput) => {
+    const taken = takenInputs.get(input.id) ?? null
     const key = input.id
     const sourceEvidence = fixed(`input/${key}`)
     const accepted = acceptanceOf(source, input)
@@ -317,7 +313,7 @@ export function buildObligations(
       disposition:
         taken !== null
           ? settled(fixed(`input/${key}/taken/${taken}`))
-          : cancelled
+          : cancelled || nodeFailed
             ? held(sourceEvidence, read)
             : pending('input-disposition', read),
       input: input.id,

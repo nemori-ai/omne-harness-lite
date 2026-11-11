@@ -53,7 +53,9 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | `revoke-login`、`replace-credential`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-create-organization` | 必填 | 禁止 | 无 |
 | `issue-member-invitation`、`open-affiliation-request` | 必填 | 必填 | `duration` |
 | `query-organization-members` | 必填 | 必填 | `includeRemoved` |
-| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression`、`bind-model-credential`、`unbind-model-credential`、`describe-model-credential` | 必填 | 必填 | 无 |
+| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | 必填 | 必填 | 无 |
+| `list-settings` | 必填 | 必填 | `asset`，以及 `asset` 里的 `category` |
+| `set-setting`、`describe-setting`、`clear-setting` | 必填 | 必填 | `asset` 里的 `category` |
 
 `disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 不进入这张表。
 
@@ -88,6 +90,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | `need-decision` | 要等待原决定请求的一次答复 | 等待已经批准、拒绝，或将会超时批准 |
 | `unknown` | 提交结果尚未认回 | 效果没有发生，或可以安全地自动再做一次 |
 | `conflict` | 调用者有权看见的预期状态已经变了 | 调用者看不见的对象因此被确认存在 |
+| `not-writable` | 目标是本部署不提供写入的设置项 | 该项不存在，或别的部署也不能写入 |
 | `protocol-rejected` | 消息不被接受 | 任何业务事实 |
 | `stage-not-provided` | 本阶段，或本部署不提供该操作 | 主体是否存在，或删除、创建已经代替该操作，以及登录是否有效 |
 
@@ -114,6 +117,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | 组织成员 | `members` | `accountId`、`role`。`includeRemoved` 为 false 时只有当前有效成员。为 true 时只有已解除成员 |
 | 成员邀请 | `invitations` | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId` |
 | 隶属请求 | `affiliationRequests` | `requestId`、`state`、`expiresAt`、`superiorOrganizationId`、`subordinateOrganizationId` |
+| 设置项 | `items` | `asset`、`item`、`title`、`sensitivity`、`state`，见[设置项](#设置项) |
 
 治理操作的并发控制核对调用者有权看见的预期状态。本协议不另造整数版本号。预期状态在提交时核对。调用者无权看见目标时返回 `not-visible`，不返回 `conflict`。
 
@@ -126,7 +130,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 | 操作 | 必填 body 键 | 可省略 | 禁止 |
 | --- | --- | --- | --- |
-| `public-health`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-issued-invitations`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`leave-organization`、`unbind-model-credential`、`describe-model-credential` | 无。`body` 是空对象 | 无 | 任何键。`leave-organization` 还禁止 `accountId` |
+| `public-health`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-issued-invitations`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`leave-organization` | 无。`body` 是空对象 | 无 | 任何键。`leave-organization` 还禁止 `accountId` |
 | `register-and-activate`、`issue-login` | `loginIdentifier`、`credential` | 无 | 任何其他键 |
 | `revoke-login` | `targetLoginId` | 无 | 任何其他键 |
 | `replace-credential` | `currentCredential`、`newCredential` | 无 | 任何其他键 |
@@ -147,15 +151,19 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `judge-admission` | `resource`、`action`、`parameters`、`scopeId` | 无 | `subject`、`admitted` 及其他键 |
 | `submit-authorization-expression` | `expression`、`action`、`object`、`parameters` | 无 | 任何其他键 |
 | `withdraw-authorization-expression` | `expressionId` | 无 | 任何其他键 |
-| `bind-model-credential` | `secret` | 无 | 任何其他键 |
+| `list-settings` | 无 | `asset` | 任何其他键 |
+| `set-setting` | `asset`、`item`、`secret` | 无 | 任何其他键 |
+| `describe-setting`、`clear-setting` | `asset`、`item` | 无 | 任何其他键 |
+
+`asset` 是一个对象，必填 `name`，可省略 `category`，禁止其他键。两者都是非空字符串。
 
 `loginIdentifier` 是账号在注册时固定的登录标识。`loginId` 和 `targetLoginId` 是一份登录的标识。两者不是同一个键。
 
-`credential`、`currentCredential`、`newCredential` 和 `secret` 只出现在请求里。响应和诊断不包含它们。`secret` 是模型凭据的秘密值，不是账号凭据。
+`credential`、`currentCredential`、`newCredential` 和 `secret` 只出现在请求里。响应和诊断不包含它们。`secret` 是秘密设置项的秘密值，不是账号凭据。
 
 邀请的 `state` 只取 `open`、`accepted`、`rejected`、`withdrawn`、`expired` 之一。隶属请求的 `state` 只取 `pending`、`accepted`、`rejected`、`withdrawn`、`invalid`、`expired` 之一。已生效隶属的 `state` 只取 `effective` 或 `released`。
 
-没有另行列出的 `denied`、`not-visible`、`basis-unavailable`、`conflict`、`protocol-rejected` 和 `stage-not-provided`，`body` 都是空对象。
+没有另行列出的 `denied`、`not-visible`、`basis-unavailable`、`conflict`、`not-writable`、`protocol-rejected` 和 `stage-not-provided`，`body` 都是空对象。
 
 | 结果 | body |
 | --- | --- |
@@ -182,9 +190,10 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | 表达已记录、持久设置尚未发生且这次写入没有失败的 `succeeded` | `expressionId`，`persistentSettingsUpdated` 为 false |
 | 已有 `expressionId` 的同一决定再次提交的 `no-change` | `expressionId` |
 | `revoke-login`、`replace-credential`、`leave-organization`、`remove-member`、`change-member-role` 的 `succeeded` | 空对象 |
-| `bind-model-credential` 的 `succeeded` | `configuredAt`。不含秘密 |
-| `unbind-model-credential` 的 `succeeded` 与 `no-change` | 空对象 |
-| `describe-model-credential` 的 `succeeded` | `state`。`state` 为 `usable` 或 `unreadable` 时另含 `tenantId`，以及可选的 `configuredAt`。`state` 为 `unbound` 时没有别的键。不含秘密 |
+| `list-settings` 的 `succeeded` | `items`、`completeness` 为 `complete`。每一项见[设置项](#设置项) |
+| `set-setting` 的 `succeeded` | `configuredAt`。不含秘密 |
+| `describe-setting` 的 `succeeded` | `own` 与 `official`，见[设置项](#设置项)。不含秘密 |
+| `clear-setting` 的 `succeeded` 与 `no-change` | 空对象 |
 
 
 ## 操作
@@ -350,25 +359,30 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 表达记录已经提交、持久设置的更新尚未发生、这次写入也没有失败时，结果是 `succeeded`。服务端在这次成功里产生 `expressionId`，并放进响应 `body`。撤回使用这个 `expressionId`。请求里的 `expression` 是表达内容，不是该标识。`body` 还含 `persistentSettingsUpdated` 为 false。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`，不产生 `expressionId`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。已经产生 `expressionId` 的同一决定再次提交，不增加许可。有权调用者得到 `no-change`，`body` 含已有的 `expressionId`。第一次提交仍按上面的 `succeeded` 或 `basis-unavailable`。
 
-### 模型凭据
+### 设置项
 
-`bind-model-credential`、`unbind-model-credential` 和 `describe-model-credential` 管理行事租户自己的模型凭据。产品规则见模型调用产品设计的[凭据的范围](../../../.meta_harness/design/product/model-invocation/design.md#凭据的范围)与 [J-MD01](../../../.meta_harness/design/product/model-invocation/design.md#j-md01)。凭据的解析与发送归 [Model](../../model/model-contract/SPEC.md#342-凭据引用与解析端口)。
+`list-settings`、`set-setting`、`describe-setting`、`clear-setting` 管理行事租户自己的设置项。设置项的声明、秘密项的有无与写入结果归 [Settings 的秘密设置项](../../assets/settings/SPEC.md#secret-items)。本协议只给这些事实一个公开形状。
 
-三个操作都需要有效登录和行事租户。目标就是行事租户，`body` 不含目标租户。行事租户与当前选择不同时是 `denied`，不进入业务，响应不说明对方租户有没有凭据。行事租户必须是登录账号自己的租户。管理资格是代该租户行事的登录主体加该租户的当前成员资格。能发起模型调用不等于有这个资格。
+四个操作都需要有效登录和行事租户。目标范围就是行事租户，`body` 不含目标租户。行事租户与当前选择不同时是 `denied`，不进入业务。
 
-本协议按租户管理一份模型凭据。接收方、通道和每租户秘密的数量不在本协议里。一个部署需要更多通道时，另立契约，不改这三个操作的含义。
+`asset` 选出设置项所属的资产：`name` 是资产名，`category` 是资产类别。省略 `category` 时，行事租户看得见的同名资产必须恰好一个，多于一个时是 `conflict`。`item` 是该资产声明的项标识。行事租户看不见该资产或该项时是 `not-visible`。
 
-- `bind-model-credential` 的 `body` 只含 `secret`。成功时，该租户的绑定成立或被更换，`body` 含本次配置时刻 `configuredAt`。之后发起的调用用这份凭据。依据不可得或写入没有发生时是 `basis-unavailable`。写入结果未知时是 `unknown`。调用者用 `describe-model-credential` 认回，不能把 `unknown` 当成没有写入。
-- `unbind-model-credential` 的 `body` 为空。成功时绑定解除，之后的调用按缺凭据处理，与从未绑定相同。已经发出的调用和它们的事实不变。没有绑定时是 `no-change`。`basis-unavailable` 与 `unknown` 的含义同上。
-- `describe-model-credential` 的 `body` 为空。成功时 `state` 取下面三个值之一，不回显秘密：
+- `list-settings` 列出行事租户看得见的设置项。给了 `asset` 时只列该资产的项。成功时 `body` 含 `items` 与 `completeness`，遵守上面的名单完整性规则。普通设置项也列出，`state` 为 `not-writable`，因为本部署不提供普通设置的写入。
+- `set-setting` 写入行事租户这一层的一个秘密项。`secret` 是非空文本。成功时 `body` 只含本次配置时刻 `configuredAt`。目标是普通设置项时是 `not-writable`。依据不可得或写入没有发生时是 `basis-unavailable`。写入可能已经提交但没有认回时是 `unknown`，调用者先用 `describe-setting` 认回，再决定是否重试。
+- `describe-setting` 读一个秘密项在两层的有无。成功时 `body` 含 `own` 与 `official`，不回显秘密。`own` 是行事租户自己这一层，取下表之一。`official` 是部署层（官方层），每个合法租户都持有这一层，状态取同一张表，但没有 `tenantId`。任何一层读不出时是 `basis-unavailable`。目标是普通设置项时是 `not-writable`。
+- `clear-setting` 清除行事租户这一层的一个秘密项。成功时 `body` 为空。没有配置时是 `no-change`。`not-writable`、`basis-unavailable` 与 `unknown` 的含义同 `set-setting`。
+- 四个操作都不写部署层。部署层由运维者在本机写入，本协议不提供写它的路径。
 
 | `state` | 含义 | 其他键 |
 | --- | --- | --- |
-| `unbound` | 该租户没有绑定 | 无 |
-| `usable` | 绑定存在，秘密可以读出 | `tenantId`（归属）；`configuredAt`（保管没有记录时刻时缺席） |
-| `unreadable` | 绑定存在，秘密读不出。调用不会退回部署默认凭据或其他租户的凭据 | 同上 |
+| `unbound` | 该租户没有配置这个秘密 | 无 |
+| `usable` | 已配置，秘密可以读出 | `tenantId`（归属）；`configuredAt`（保管没有记录时刻时缺席） |
+| `revoked` | 已配置，绑定已撤销 | 同上 |
+| `unreadable` | 已配置，秘密读不出 | 同上 |
 
-秘密不进入任何响应、诊断、普通错误或遥测。部署可以不提供这三个操作，此时按[部署声明不提供的操作](#部署声明不提供的操作)答 `stage-not-provided`。
+`items` 的每一项含 `asset`（`category` 与 `name` 都在）、`item`、`title`（给人读的项名）、`sensitivity`（`secret` 或 `ordinary`）和 `state`。秘密项的 `state` 是行事租户这一层，同上表，另含 `official`，是部署层的状态，同 `describe-setting` 的 `official`；任何一层读不出时整次是 `basis-unavailable`。普通项的 `state` 是 `not-writable`，没有 `official`。
+
+秘密只在 `set-setting` 的请求里。它不进入任何响应、诊断、普通错误或遥测。部署可以不提供这四个操作，此时按[部署声明不提供的操作](#部署声明不提供的操作)答 `stage-not-provided`。
 
 ## 当前读面
 
@@ -485,6 +499,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `read-history` | 必填 | 禁止 | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `direction`、`pageBytes` |
 | `cancel-run` | 必填 | 禁止 | `tenant`、`session`、`controlId`、`run`、`urgency` |
 | `stop-call` | 必填 | 禁止 | `tenant`、`session`、`controlId`、`producer` |
+| `read-session-diagnostics` | 必填 | 禁止 | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `run`、`pageBytes` |
 
 [会话观察](#会话观察)另有 `observe-session` 与 `cancel-observation` 两个请求操作名。除本表与这两个操作外，任何其他操作名在会话位置都是 `protocol-rejected`，`observation-frame` 也是。
 
@@ -500,11 +515,11 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `acceptId` | 非空字符串，调用者在首次发送前生成的受理标识。唯一范围是同一会话。重试保持同值。 |
 | `inputId` | 非空字符串，调用者在首次发送前生成的输入标识。唯一范围是同一会话。重试保持同值。 |
 | `message` | 一条 `role` 为 `user` 的消息，形状归 [message 包](../../common/message/SPEC.md)。本成员的读取范围见[会话编解码函数](#会话编解码函数)。 |
-| `cursor` | 键必须出现。null 表示读首页；否则是非空字符串，即上一页回复里 `next` 的原文。 |
-| `direction` | `forward` 或 `backward`。只在 `cursor` 为 null 时出现。 |
+| `cursor` | 键必须出现。null 表示读首页；否则是非空字符串，即上一页回复里 `next` 的原文。`read-history` 与 `read-session-diagnostics` 的游标各自独立，不能互换。 |
+| `direction` | `forward` 或 `backward`。只在 `read-history` 的 `cursor` 为 null 时出现。 |
 | `pageBytes` | 匹配 `^[1-9][0-9]*$` 的文本，一页的字节上界。只在 `cursor` 为 null 时出现。 |
 | `controlId` | 非空字符串，调用者在首次发送前生成的控制标识。唯一范围见[会话中断操作](#会话中断操作)。 |
-| `run` | 非空字符串，要取消的 Run 的标识文本。 |
+| `run` | `cancel-run`：非空字符串，要取消的 Run 的标识文本。`read-session-diagnostics`：null 表示全部 Run，从最新开始；否则是一个 Run 的标识文本，非空字符串。只在 `cursor` 为 null 时出现。 |
 | `urgency` | `graceful` 或 `force`。 |
 | `producer` | 恰含 `kind` 与 `call` 两个字段的对象。`kind` 为 `model` 或 `tool`，`call` 为非空字符串，即要停止的那次调用。 |
 
@@ -512,12 +527,12 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 服务端接入按下面的次序处理一份已经完成传输保护的会话消息。前一步给出终端结果时，不做后面的步骤。
 
-1. 协议读取：严格 JSON、版本、操作名、信封与 body 的封闭字段和类型；`tenant` 的内层读取；`session` 的文本格式；`message` 按 message 包解码且 `role` 为 `user`；`pageBytes` 的文本格式；`cursor` 与 `direction`、`pageBytes` 的出现规则；`controlId`、`run`、`producer.call` 为非空文本，`urgency` 与 `producer.kind` 属于各自的封闭取值，`producer` 恰含 `kind` 与 `call`。任一不合规是 `protocol-rejected`，Session 不被调用。必填 `loginProof` 缺失或为空字符串不在这一步拒绝。
+1. 协议读取：严格 JSON、版本、操作名、信封与 body 的封闭字段和类型；`tenant` 的内层读取；`session` 的文本格式；`message` 按 message 包解码且 `role` 为 `user`；`pageBytes` 的文本格式；`cursor` 与 `direction`、`pageBytes` 的出现规则，以及 `read-session-diagnostics` 的 `cursor` 与 `run`、`pageBytes` 的出现规则；`controlId`、`run`、`producer.call` 为非空文本，`urgency` 与 `producer.kind` 属于各自的封闭取值，`producer` 恰含 `kind` 与 `call`。任一不合规是 `protocol-rejected`，Session 不被调用。必填 `loginProof` 缺失或为空字符串不在这一步拒绝。
 2. 登录识别：`loginProof` 交给 identity。缺失、空字符串、无效或不是本部署签发的证明，对外同一份 `denied`；依据不可得是 `basis-unavailable`。
 3. 行事租户：`create-session` 的 `actingTenant` 不等于该登录的当前选择时是 `denied`，响应不包含实际选择。
 4. 目标租户与主体：目标租户（`create-session` 为 `actingTenant`，其他操作为 body 的 `tenant`）的账号不等于识别出的账号时是 `denied`。签发主体不可用（签发者未安装或签发失败）时是 `basis-unavailable`。
-5. 部署范围：`create-session` 的定义名不在部署集合内，或 `read-history` 的 `pageBytes` 超出部署上界时，是 `invalid`。
-6. Session 判断：资格、会话存在与业务规则由 Session 判断，结果按下表映射。主体在该租户下没有当前资格与会话不存在对外都是 `denied`，不能区分。例外：`stop-call` 的目标是 Tool 调用时，在访问裁定之后、会话存在核对之前答 `unsupported`（见[会话中断操作](#会话中断操作)），所以这时不论会话是否存在都得 `unsupported`，不泄露存在性。
+5. 部署范围：`create-session` 的定义名不在部署集合内，或 `read-history`、`read-session-diagnostics` 的 `pageBytes` 超出部署上界时，是 `invalid`。`read-session-diagnostics` 的游标错域、失效或被篡改也在这一步是 `invalid`。
+6. Session 判断：资格、会话存在与业务规则由 Session 判断，结果按下表映射。主体在该租户下没有当前资格与会话不存在对外都是 `denied`，不能区分。例外：`stop-call` 的目标是 Tool 调用时，在访问裁定之后、会话存在核对之前答 `unsupported`（见[会话中断操作](#会话中断操作)），所以这时不论会话是否存在都得 `unsupported`，不泄露存在性。`read-session-diagnostics` 在 Session 判断之后再读 Agent、Model 与 Tool，这三个来源各自核资格；它们的拒绝不改变 `outcome`，只成为[会话诊断页](#会话诊断页)的缺口。
 
 `cancel-run` 与 `stop-call` 没有行事租户，第 3 步不适用。两者的第 6 步先做 Session 的访问裁定，`denied` 与不可用先于一切。仅 `stop-call`：`producer.kind` 为 `tool` 时返回 `unsupported`。这一判定在访问裁定之后，在会话存在核对、操作认回与目标查找之前，只看 `producer.kind`，与会话状态、目标是否存在、该控制标识是否已用无关，所以不披露这些事实，也不写任何记录。
 
@@ -529,6 +544,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | --- | --- | --- |
 | `invalid` | 消息合乎协议，但这份内容不被接受 | 会话或调用者的资格状态 |
 | `archived` | 会话已归档，不再受理输入 | 归档何时发生，或能否撤销归档 |
+| `limited` | 普通输入超过部署的字节或待交数量预算，尚未受理 | 释放容量的时间或未来请求会成功 |
 | `frozen` | 会话已冻结且没有进行中的工作，普通输入不受理 | 冻结的原因或何时解除 |
 | `not-committed` | 原操作已确定没有提交，调用者可以用原标识重新发起 | 重新发起一定成功 |
 | `not-found` | 在已授权的会话里，这个 Run 或这次调用不属于该会话 | 目标是否属于别的会话，或会话是否存在（会话不存在与跨租户是 `denied`） |
@@ -538,15 +554,16 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 | operation | 线上业务 outcome | Session 结果的映射 |
 | --- | --- | --- |
-| `create-session` | `succeeded`、`denied`、`invalid`、`conflict`、`basis-unavailable`、`unknown` | `create`：`conflict` 为同 `createCallId` 异创建输入 |
+| `create-session` | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`、`unknown` | `create`：`conflict` 为同 `createCallId` 异创建输入 |
 | `query-create-session` | `succeeded`、`denied`、`basis-unavailable`、`unknown` | `queryOperation`：`committed` 为 `succeeded`；`not-committed` 为 `denied`；`attempt-rejected` 与 `unknown` 为 `unknown`。创建从未提交时会话不存在，结果是 `denied` |
-| `send-input` | `succeeded`、`denied`、`invalid`、`archived`、`frozen`、`conflict`、`basis-unavailable`、`unknown` | `accept`：`conflict` 为同 `acceptId` 异内容 |
+| `send-input` | `succeeded`、`denied`、`invalid`、`limited`、`archived`、`frozen`、`conflict`、`basis-unavailable`、`unknown` | `accept`：`conflict` 为同 `acceptId` 异内容 |
 | `query-send-input` | `succeeded`、`not-committed`、`denied`、`basis-unavailable`、`unknown` | `queryOperation`：`committed` 为 `succeeded`；`not-committed` 为 `not-committed`；`attempt-rejected` 与 `unknown` 为 `unknown` |
 | `read-history` | `succeeded`、`denied`、`invalid`、`basis-unavailable` | `cursor` 为 null 时以 `from` 为 null 调 `begin`，否则调 `next`：`invalid` 含游标错域、失效或被篡改；不返回空页代替 `basis-unavailable` |
 | `cancel-run` | `succeeded`、`denied`、`invalid`、`conflict`、`not-found`、`basis-unavailable`、`unknown` | `cancelRun`，映射见[会话中断操作](#会话中断操作) |
 | `stop-call` | 同 `cancel-run`，另有 `unsupported` | `stopCall`，映射见[会话中断操作](#会话中断操作) |
+| `read-session-diagnostics` | `succeeded`、`denied`、`invalid`、`basis-unavailable` | `history.begin`，反向，种类取部署披露清单；`cursor` 非 null 时从游标固定的位置之前继续。`invalid` 含游标错域、失效或被篡改。Session 之后的来源读取不改变 `outcome`，见[会话诊断页](#会话诊断页) |
 
-表中没有另写的 Session 结果按同一规则映射：`denied` 为 `denied`，`invalid` 为 `invalid`，`archived` 为 `archived`，`frozen` 为 `frozen`，`unavailable` 为 `basis-unavailable`，`commit-unknown` 为 `unknown`。每个操作另有第 1 步的 `protocol-rejected`。
+表中没有另写的 Session 结果按同一规则映射：`denied` 为 `denied`，`invalid` 为 `invalid`，`archived` 为 `archived`，`frozen` 为 `frozen`，`limited` 为 `limited`，`unavailable` 为 `basis-unavailable`，`commit-unknown` 为 `unknown`。每个操作另有第 1 步的 `protocol-rejected`。
 
 两种情况下，调用者原样再送仍得到 `conflict`。同一 `createCallId` 的两次请求之间部署的定义映射变了，`create-session` 是 `conflict`。`send-input` 的内容含服务端写入的登录来源，换了登录之后原样再送是 `conflict`；原受理可能已提交，用 `query-send-input` 认回。
 
@@ -557,6 +574,9 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 | `query-send-input` 的 `succeeded` | 空对象。它表示原受理已提交；前提见[尚未提供](../../../docs/architecture/runtime/runtime-contract-handoff.md#尚未提供) |
 | `read-history` 的 `succeeded` | `entries`、`next`、`exhausted`、`scannedThrough`，见[历史页](#历史页) |
 | `cancel-run` 与 `stop-call` 的 `succeeded` | `kind` 为 `requested` 或 `ended` 的联合，见[会话中断操作](#会话中断操作) |
+| `create-session` 与 `send-input` 的 `limited` | `resource` 为 `pending-inputs` 或 `input-bytes`，`limit` 为正安全整数。没有其他字段 |
+
+| `read-session-diagnostics` 的 `succeeded` | `runs`、`next`、`exhausted`、`scannedThrough`、`basis`、`gaps`，见[会话诊断页](#会话诊断页) |
 | 其他结果 | 空对象 |
 
 ### 会话中断操作
@@ -618,11 +638,40 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 `next` 是字符串或 null，原样作为下一次的 `cursor`。`exhausted` 为真表示当前上界之内已读完。空页不表示读完；`scannedThrough` 是实际扫描到的位置文本。
 
+### 会话诊断页
+
+诊断终态的 `node-failed` 原因只包含节点 `node`、分类 `category`（`exception`、`invariant`、`unsupported-path`、`rejected`）与失败种类 `failureKind`。这些字段来自 Agent 的原结束候选，不含异常消息、堆栈或诊断原文。
+
+`read-session-diagnostics` 的 `succeeded` body 是一个会话的只读组合视图：Session 历史给出 Run 的骨架与调用登记，Agent 给出 Run 怎样结束，Model 与 Tool 给出每次调用实际发生了什么。本节采用范围见 RFC-0013 revision 2；设计依据是 [RFC-0013 的 A 线](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。本节只拥有线上形状与它的闭合规则；来源怎样组合、每个来源读什么归[服务端接入](../server-entry/SPEC.md#会话诊断投影)。精确类型在 [src/session-messages.ts](src/session-messages.ts) 的 `SessionDiagnosticsPage`。
+
+| 成员 | 内容 |
+| --- | --- |
+| `runs` | `SessionRunDiagnostic` 的数组，按日志位置从新到旧。 |
+| `next`、`exhausted`、`scannedThrough` | 规则同[历史页](#历史页)：`next` 原样作为下一次的 `cursor`；空页不表示读完。 |
+| `basis` | `upper`：本页依据的 Session 修订文本。 |
+| `gaps` | `SessionDiagnosticGap` 的数组：`source` 取 `session`、`agent`、`model`、`tool`；`subject` 是被问的对象（Run、调用引用、执行或条目种类）；`reason` 取 `unsupported`、`unavailable`、`denied`、`not-disclosed`、`not-accepted`、`not-found`、`not-recorded`、`retention-expired`、`truncated`。 |
+
+每个 Run 有：`run`、`entry`（`interactive` 或 `dispatch`）、`execution`、`started`（`position` 是 `run.started` 的条目标识；`at` 是 `known` 加时刻文本，或 `unknown`）、`attempts`、`controls`（`control.requested` 与 `control.progress` 的闭合字段：`position`、`kind`、`target`、`intent`、`state`，条目不带的字段为 null）、`terminal`、`calls`（`registered` 计全部 `call.bound`，`projected` 计进入扇出的那些）、`modelCalls`、`toolCalls`、`messages`（按种类计数）、`facts`。
+
+`attempts` 是 `SessionRunAttempts`：三组计数文本，投影从 Session 历史的 `run.attempt-*` 条目取得。`started` 计 `run.attempt-started`。`released` 按 `run.attempt-released` 的 `reason` 分计 `ended`、`bounded`、`cancelled`、`released`、`superseded`。`exited` 计 `run.attempt-exited`。计数是十进制文本。
+
+`facts` 是 `SessionFactCount` 的数组：Session 历史的 `call.execution-fact` 条目按 `fact.kind` 计数。归属只用条目自身的字段。条目的消费标识先取载荷顶层的 `consumption`，没有时取 `fact.consumption`。消费标识与一次进入扇出的调用相同时，事实归到该调用的 `facts`。条目两处都没有消费标识、而带 `fact.producer` 时，它与一次进入扇出的调用登记的生产者相同，事实就归到该调用的 `facts`。其余归到 Run 的 `facts`。次序与细节归[服务端接入](../server-entry/SPEC.md#会话诊断投影)的组合规则 3。`kind` 是非空文本，`count` 是十进制文本。
+
+`terminal` 为 null 表示 Run 未终结。否则它带 `outcome`（`completed`、`failed`、`cancelled`）与 `cause`：`record` 是 Session 记录的原因文本或 null；`structured` 是 Agent 结束候选的闭合字段。`structured` 的 `kind` 取：`unknown`（带 `reason`，取缺口原因中除 `not-disclosed`、`truncated` 之外的值）；`none`（`completed` 的 Run，接入不读它的结束候选）；`no-failure`（读到结束候选而没有失败，带 `conclusion`）；`model-refused`（带 `failure`：`denied`、`invalid`、`unsupported`、`capacity`，或 `unknown` 带 `reason`）；`node-failed`（带 `node`、`category` 与 `failureKind`）；`no-reply`（带 `cause` 与 `upstreamStatus`，各为文本或 null）；`cannot-fit`（带 `reason`：`fixed`、`after-compaction`，或 `unknown` 带 `reason`）；`request-rejected`、`compaction-invalid`、`message-rejected`、`extension-stop`、`guard`。来源给出闭合集合之外的 `failure` 或 `reason` 时，本页写 `unknown` 与原因，不写成集合里的某个值。它不带任何自由文本：供应商错误原文、诊断文本、消息正文与工具参数都不进本页。
+
+每次模型调用有：`reference`、`purpose`、`call`（`found` 带 `call` 与 `phase`，或 `unknown` 带 `reason`）、`dispatches`、`coverage`（`complete-through-snapshot`、`expired-prefix`、`unknown`）、`facts`（归到这次调用的执行事实，规则见上）。每次派发有 `dispatch`、`revision`、`adapter`、`send`、`firstContent`、`outcome`、`timing`、`account`。`outcome` 为 `failed` 时带 `cause` 与 `upstreamStatus`。`timing` 的三项各为 `known` 加毫秒文本或 `unknown`。`account` 是这次派发的 `CallAccount` 视图，投影从 Model 的账目读口取得；读不到时写 `unknown` 与原因。
+
+每次工具调用有：`reference`、`state`（`found` 带 `call`、`phase`、`relation`、`terminal`，或 `unknown`）、`account`（账目视图或 `unknown`）、`facts`（归到这次调用的执行事实，规则见上）、`diagnostics`。`diagnostics` 是 `SessionToolDiagnosticEntry` 的数组，或 `unknown` 带 `reason`。数组是 Tool 诊断页第一页的条目，投影从 Tool 的诊断读口取得；每条带 `operation`、`phase`、`code` 三个文本，不含证据。`operation` 是非空文本。`phase` 与 `code` 照 Tool 诊断页原样给出，可以是空字符串。诊断页有下一页时，本页不读它，另写缺口：`source` 为 `tool`，`subject` 为该调用引用，`reason` 为 `truncated`。来源答 `unsupported` 时写 `unknown` 并带 `unsupported`。投影怎样读这些来源归[服务端接入](../server-entry/SPEC.md#会话诊断投影)。
+
+账目视图的 `kind` 是 `account`，带 `usage` 与 `cost` 的各项（名字或来源、单位、数值状态与词素）、`duration` 与 `receipt`；它不折算金额。
+
+读者按这些规则理解本页：缺记录时值是 `unknown` 并带原因，不是「没有发生」；`exhausted` 为假的空页不表示没有 Run；一个来源的缺口不改变其他来源的结果；`gaps` 里的每一条都对应一次没有得到答案的读取或一处部署不披露的种类。
+
 ### 未知与再送
 
 连接断开、超时与响应丢失使调用者本地保持未知，不是未提交。调用者可以用同一组标识原样再送，同内容得到原回执，`recovered` 为真；也可以用 `query-create-session` 或 `query-send-input` 认回。`query-create-session` 得到 `denied` 时，创建可能从未提交，调用者用同一 `createCallId` 原样再送 `create-session`。存储不能产生排除证明时，`query-send-input` 得到 `unknown` 而不是 `not-committed`。确认 `not-committed` 之前，不换新标识重做同一意图。SDK 的零字节再送规则同[未知、重复、重试、缓存和列表](#未知重复重试缓存和列表)。
 
-`cancel-run` 与 `stop-call` 得到 `unknown` 或没有收到响应时，调用者以同一 `controlId` 原样再送，服务先查询原尝试。不存在第三个线上查询操作。
+`cancel-run` 与 `stop-call` 得到 `unknown` 或没有收到响应时，调用者以同一 `controlId` 原样再送，服务先查询原尝试。不存在第三个线上查询操作。`read-history` 与 `read-session-diagnostics` 只读，没有 `unknown`；调用者原样再送即可。
 
 会话操作不刷新登录的空闲计时，直到 identity 定义成功业务访问报告的形状。
 
@@ -869,7 +918,7 @@ const encoded = encodeGovernanceRequest({
 
 ### 操作集合与函数
 
-正常信封表包含37个不同操作。另有4个本阶段不提供的操作，总共41个。`GovernanceProvidedOperation` 仅包含正常37项。`GovernanceOperation` 包含全部41项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部41个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
+正常信封表包含38个不同操作。另有4个本阶段不提供的操作，总共42个。`GovernanceProvidedOperation` 仅包含正常38项。`GovernanceOperation` 包含全部42项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部42个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
 
 主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。另有[身份值的文本](#身份值的文本)的八个函数。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
 
@@ -1010,9 +1059,6 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 | judge-admission | succeeded, denied, not-visible, basis-unavailable, need-decision | 准入节四结果及隐藏对象优先 |
 | submit-authorization-expression | succeeded, no-change, denied, basis-unavailable, unknown | 表达节+共同登录步骤 |
 | withdraw-authorization-expression | succeeded, denied, basis-unavailable, unknown | 撤回节及协议细化；succeeded空body |
-| bind-model-credential | succeeded, denied, basis-unavailable, unknown | 模型凭据节；succeeded只含configuredAt |
-| unbind-model-credential | succeeded, no-change, denied, basis-unavailable, unknown | 模型凭据节；succeeded与no-change空body |
-| describe-model-credential | succeeded, denied, basis-unavailable | 模型凭据节；state三选一 |
 | disable-subject | stage-not-provided | 有效版本后跳过其余字段，非法版本为protocol-rejected |
 | restore-subject | stage-not-provided | 同上 |
 | end-subject | stage-not-provided | 同上 |

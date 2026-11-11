@@ -118,6 +118,7 @@ export declare abstract class AgentJournalService<P> extends Service implements 
     abstract readonly inputs: AgentJournal<P>['inputs'];
     abstract readonly readReplyAdmissions: AgentJournal<P>['readReplyAdmissions'];
     abstract readonly query: AgentJournal<P>['query'];
+    abstract readonly readFinish?: NonNullable<AgentJournal<P>['readFinish']>;
     abstract readonly output: AgentJournal<P>['output'];
     abstract readonly capabilities: AgentJournal<P>['capabilities'];
 }

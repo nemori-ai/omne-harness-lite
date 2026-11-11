@@ -1,9 +1,4 @@
-# verification/proofs 索引
+# proofs 索引
 
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
-
-## 内容
-
-- [README.md](README.md)：证明清单与假设
-
-本目录目前没有其他文件，原因见 [README.md](README.md)。
+- [README.md](README.md)：证明范围。
+- [measurement-snapshot.md](measurement-snapshot.md)：命题与推导。

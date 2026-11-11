@@ -283,24 +283,25 @@ pi-ai 专用适配保持候选。具体数值须以实际模型和传输证据�
 
 影响范围。尚不能声称已验证该故障范围无丢失；不重问整套流式设计。
 
-<a id="model-m04"></a>
-## MODEL-M04 新接入方式的凭据具体形状
+<a id="credential-items-and-layer"></a>
+## 凭据项与选层
 
-旧单通道一个秘密值的形状不能成为所有未来模型接入的数量与通道约束。
+凭据项由模型供应商的资产正文声明。一家供应商可以声明零项、一项或多项，Model 不固定凭据项的数量与名字。
 
-实际接入采用时由契约拥有者设计所需通道、键、数量与选择，当前不凭迁移补新政策。
+- 受理时，`selectCredentialLayer` 为每个供应商条目选定一层：租户层、官方层，或该供应商不声明凭据项时的「无」。选层按整层进行，不在两层之间逐项拼用。选定的层随固定请求保存。
+- 发送时，凭据解析按固定的层读该供应商全部凭据项的当前值。成功的结果是「项到秘密」的映射，传输按自己的协议决定用哪几项。没有只含部分秘密的成功结果：有项未配置时，结果是凭据不全并列出缺少的项。
+- 调用记录与诊断只记层与供应商，不记秘密。
+- 秘密绑定的键由应用装配从 Settings 的目标编码推出，Model 不认识这个编码。
 
 已定边界如下。
 
 - 档案不存秘密
-- 租户合法绑定及实际调用归属
+- 实际用量与费用归真实调用及其租户
 - 本阶段不提供组织共用凭据
-- 官方部署默认只在既有例外适用
-- 存在但不可读绑定不退默认
+- 官方层只在官方档案经官方供应商发出时可选
+- 租户层有配置但读不出或不全时，不退回官方层
 
-已接受的约束不固定全局通道数量，并保持现行租户秘密边界。新接入方式尚无精确字段可采用，由实际接入与凭据拥有者设计。
-
-影响范围。当前设计不定义新接入的通道字段和数量；独立提供者实施前仍须精确设计。
+角色分工与交接见[模型调用的凭据引用与保管](../../../../docs/domains/model-invocation/architecture.md#凭据引用与保管)。
 
 <a id="identity-neighbor-diagnostics"></a>
 ## 供应商尝试诊断的披露与保留
@@ -526,20 +527,20 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 
 ## 已实现的凭据模块
 
-凭据保管与调用执行是不同角色。调用记录只保存引用，秘密由保管角色持有。身份与授权提供当前租户和资格；档案与 Runtime Context 不保存秘密。结果保管继续负责原输出、ACK 与费用，不复用凭据存储。
+凭据保管与调用执行是不同角色。调用记录只保存层，秘密由设置域保管。身份与授权提供当前租户和资格；档案与 Runtime Context 不保存秘密。结果保管继续负责原输出、ACK 与费用，不复用凭据存储。
 
 | 模块 | 已有责任 |
 | --- | --- |
-| [credential.ts](../src/credential.ts) | 存在性与解析取舍的判定，以及判定读取的状态快照形状。判定只读快照，不读文件。引用、五种结果和端口的类型归 model-contract |
-| [deliver.ts](../src/deliver.ts) | 只依赖 CredentialPort，在发送前解析；不导入存储实现 |
+| [send/attempt.ts](../src/send/attempt.ts) | 在同步围栏内经注入的 `CredentialPort` 读取固定的层，把失败映射为发送拒绝；不导入存储实现 |
+| [commands/state.ts](../src/commands/state.ts) | 核对登记的发送来源，官方层只给官方档案的来源 |
 
 凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#凭据服务)。executeModel 已实现独立单次执行，createModelRuntime 已实现受理、查询、取消意图、原流保存、最小实例观察和[有限原终局收场](../SPEC.md#已实现的调用收场)。产品 sender 经内存同步适配实现发送围栏，driver 唯一消费原事实流并确认保存。生产宿主及外部授权共同事务尚未验证。
 
-凭据引用与解析分属四处：保管实现在 model-host-local，契约在 model-contract，判定在本包。createModelRuntime 支持受理、查询、取消意图、原流保存、最小实例观察和有限原终局收场，结果读取及 processed ACK 已实现，retained ACK、策略循环、生产宿主和跨进程恢复尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
+凭据分属三处：层、失败、端口与选层规则在 model-contract，读取设置域秘密的端口在 model-host-local，发送前读取在本包。createModelRuntime 支持受理、查询、取消意图、原流保存、最小实例观察和有限原终局收场，结果读取及 processed ACK 已实现，retained ACK、策略循环、生产宿主和跨进程恢复尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
 receiver 保留终止批次的原确认 Snapshot。观察回调失败时，内容确认屏障和投影待办继续保留；后续 drive 只重试投影，不重读原流或重复 preserve。投影成功后才交回终止证据供 driver 收场。已成功投影的快照不再次发布，后续状态刷新仍按 epoch 与 revision 护栏保持单调。
 
-发送适配器在可信内部构造 authorized 与 official，并核对固定的 tenant/factory 选择。普通调用者传入的布尔值不构成 ModelSendBoundary 的授权证据。凭据通用解析允许的官方默认回退不能覆盖托管协议对 tenant 引用失效时禁止转 factory 的要求。当前独立 sender 和内存协调适配兑现这些检查；其行为测试不证明生产装配已满足资格共同事务。
+发送适配器在可信内部构造 `access` 与档案是否官方，并核对请求固定的层。普通调用者传入的布尔值不构成 ModelSendBoundary 的授权证据。选定的层失败时不回退另一层。当前独立 sender 和内存协调适配兑现这些检查；其行为测试不证明生产装配已满足资格共同事务。
 
 
 ## 当前发送机制

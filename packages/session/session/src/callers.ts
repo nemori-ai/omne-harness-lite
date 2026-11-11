@@ -21,6 +21,10 @@ const M = 'maintainer'
 const R = 'reader'
 
 const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> = {
+  addTodo: [C],
+  removeTodo: [C],
+  markTodoComplete: [C],
+  listTodos: [C],
   accept: [I],
   readWork: [C, M],
   readInput: [C, M],

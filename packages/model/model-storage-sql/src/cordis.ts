@@ -7,10 +7,21 @@ import type {
   ModelObservationTiming,
   ModelSendSource,
 } from '@omne-harness/model/commands'
+import type { Adoption } from '@omne-harness/model-contract'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
-import { ModelCommandsService, modelCommandsKey } from '@omne-harness/model-cordis-contract/cordis'
+import {
+  ModelCommandsService,
+  ModelDiagnosticsService,
+  modelCommandsKey,
+  modelDiagnosticsKey,
+} from '@omne-harness/model-cordis-contract/cordis'
 import { createSqlModelCommands, type SqlModelCommandsOptions } from './commands.ts'
 import { sqlModelRecordsConfigSchema, type SqlModelRecordsConfig } from './cordis-config.ts'
+import {
+  createSqlModelDiagnostics,
+  type DiagnosticsReadMapping,
+  type SqlModelDiagnosticsOptions,
+} from './diagnostics.ts'
 
 export type { SqlModelRecordsConfig } from './cordis-config.ts'
 
@@ -129,6 +140,99 @@ export function createSqlModelRecordsPlugin<P, C>(
       if (observations !== null) ctx.effect(() => () => observations.close())
       const send = options.sendStage(coordinator, activation)
       ctx.plugin(send.plugin, send.config)
+    }
+  }
+}
+
+// --- The diagnostics plugin ---------------------------------------------------------------
+
+/** Data for one diagnostics plugin life: the adopted qualification mapping and the retention adoption. */
+export type SqlModelDiagnosticsConfig = Readonly<{
+  diagnosticsRead: DiagnosticsReadMapping
+  /** Absent: no retention adopted, the read face answers `unavailable` (model-contract SPEC). */
+  retention: Adoption | null
+}>
+
+/** Live dependencies resolved anew for each activation, outside the data config. */
+export type SqlModelDiagnosticsDependencies<P> = Pick<
+  SqlModelDiagnosticsOptions<P>,
+  'storage' | 'domains' | 'authority'
+>
+
+export type SqlModelDiagnosticsPluginOptions<P> = Readonly<{
+  /** Complete static dependency list of resolve; must exclude modelDiagnostics. */
+  inject: readonly string[]
+  resolve(ctx: Context, config: SqlModelDiagnosticsConfig): SqlModelDiagnosticsDependencies<P>
+}>
+
+export type SqlModelDiagnosticsPluginClass<P> = {
+  new (ctx: Context, config: SqlModelDiagnosticsConfig): ModelDiagnosticsService<P>
+  readonly inject: string[]
+  readonly Config: typeof sqlModelDiagnosticsConfigSchema
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function adoptionText(input: Readonly<Record<string, unknown>>, key: string): string {
+  const value = input[key]
+  if (typeof value !== 'string' || value.length === 0)
+    throw new TypeError(`retention.${key} must be a non-empty string`)
+  return value
+}
+
+function parseDiagnosticsConfig(value: unknown): SqlModelDiagnosticsConfig {
+  if (!isRecord(value)) throw new TypeError('diagnostics config must be an object')
+  const mapping = value['diagnosticsRead']
+  if (mapping !== 'tenant-self') throw new TypeError('diagnosticsRead must be tenant-self')
+  const retention = value['retention']
+  if (retention === undefined || retention === null)
+    return { diagnosticsRead: mapping, retention: null }
+  if (!isRecord(retention)) throw new TypeError('retention must be an adoption')
+  return {
+    diagnosticsRead: mapping,
+    retention: {
+      owner: adoptionText(retention, 'owner'),
+      name: adoptionText(retention, 'name'),
+      revision: adoptionText(retention, 'revision'),
+      digest: adoptionText(retention, 'digest'),
+    },
+  }
+}
+
+export const sqlModelDiagnosticsConfigSchema = {
+  '~standard': {
+    version: 1 as const,
+    vendor: 'model-storage-sql',
+    validate(value: unknown) {
+      try {
+        return { value: parseDiagnosticsConfig(value) }
+      } catch (error) {
+        if (!(error instanceof TypeError)) throw error
+        return { issues: [{ message: error.message }] }
+      }
+    },
+  },
+}
+
+/** Publishes `modelDiagnostics` over the SQL records: the read face of `createSqlModelDiagnostics`. */
+export function createSqlModelDiagnosticsPlugin<P>(
+  options: SqlModelDiagnosticsPluginOptions<P>,
+): SqlModelDiagnosticsPluginClass<P> {
+  if (options.inject.includes(modelDiagnosticsKey))
+    throw new TypeError('modelDiagnostics cannot be a dependency of its own diagnostics provider')
+
+  return class SqlModelDiagnosticsPlugin extends ModelDiagnosticsService<P> {
+    static readonly inject = [...options.inject]
+    static readonly Config = sqlModelDiagnosticsConfigSchema
+
+    readonly list
+
+    constructor(ctx: Context, config: SqlModelDiagnosticsConfig) {
+      super(ctx)
+      const dependencies = options.resolve(ctx, config)
+      this.list = createSqlModelDiagnostics<P>({ ...dependencies, ...config }).list
     }
   }
 }

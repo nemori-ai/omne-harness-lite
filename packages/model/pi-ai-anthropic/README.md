@@ -30,7 +30,7 @@ Each level states only checked facts. A commit that changes the support level up
 
 ## Usage
 
-The assembly reads the vocabulary resource once, creates the family once and gives it to the transport:
+The assembly reads the vocabulary once and creates one executor with explicit limits. It gives the executor to the family:
 
 ```ts
 import { composeFamilies, createPiTransport } from '@omne-harness/pi-ai-transport'
@@ -41,6 +41,8 @@ import {
 } from '@omne-harness/pi-ai-anthropic'
 
 const anthropic = createAnthropicFamily({
+  executor, // shared executor owned by the assembly
+  maxSerializedBytes: 4 * 1024 * 1024,
   tokenizer: anthropicTokenizerResources(), // reads and checks claude.json
   limits, // ChatCompletionsLimits: decoder buffer limits
   margin: { percent: '20', source: marginPolicy }, // the margin of every estimate
@@ -49,7 +51,7 @@ const families = composeFamilies([anthropic])
 const profiles = officialAnthropicProfiles({ retryPolicy, compactionTriggerPercent: '80' })
 ```
 
-`createAnthropicFamily` only computes. The first `acquire` initializes the tokenizer. The family shares the tokenizer between its bindings. The tokenizer holds nothing to release. This package has no Cordis entry. [Cordis integration](docs/cordis.md) gives the reason. [Use and context](docs/context.md) has more detail.
+`createAnthropicFamily` only computes. Each `acquire` borrows a private tokenizer lease from the configured executor. Binding release waits for that lease and rejects on cleanup failure. The assembly owns and closes the shared executor. This package has no Cordis entry. [Cordis integration](docs/cordis.md) gives the reason. [Use and context](docs/context.md) has more detail.
 
 ## Contracts
 

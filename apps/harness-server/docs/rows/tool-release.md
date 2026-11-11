@@ -1,6 +1,6 @@
 # 发行内置 Tool：清单、来源权威与两行
 
-本页说明发行自带的 `Shell` 与 `Files` 作者怎样进入登记表。它覆盖发行清单、两个入口对象
+本页说明发行自带的五个作者 `Shell`、`Files`、`Tools`、`TodoItems` 与 `Web` 怎样进入登记表。它覆盖发行清单、两个入口对象
 `toolContributionAuthority` 与 `toolReleaseRegistrant`，以及 `tool-host`、`tool-bindings` 两行。
 系统责任归[应用装配](../../../../docs/architecture/runtime/application-assembly.md#插件树)。
 接口事实归 L-TOOL 的契约成员：[Tool Cordis 契约](../../../../packages/tool/tool-cordis-contract/docs/cordis.md)
@@ -9,8 +9,8 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 
 ## 发行清单
 
-[`config/tool-release.json`](../../config/tool-release.json) 是不可变的发行清单。它只含 `Shell` 与 `Files`
-两条。[`scripts/tool-release.mjs`](../../scripts/tool-release.mjs) 生成和核对它。构成规则只在
+[`config/tool-release.json`](../../config/tool-release.json) 是不可变的发行清单。它含 `Shell`、`Files`、`Tools`、`TodoItems`
+与 `Web` 五条。[`scripts/tool-release.mjs`](../../scripts/tool-release.mjs) 生成和核对它。构成规则只在
 [清单模块](../../src/entry/tool-release-manifest.ts)里，脚本与启动快照都调用它。
 
 每条写清这些内容：
@@ -75,11 +75,13 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 
 `toolHostRow` 用 `createLocalToolHostPlugin` 提供 `toolGenerations`，与 `tool-residency` 成对装载。
 配置只有运维者层的 `construction`：`Shell` 需要 `resultMaxBytes`、`executable`、`argsPrefix`、`cwd`、`env`，
-`Files` 需要 `resultMaxBytes`，可选 `cwd`（工作区根，与 `Shell` 的 `cwd` 取同一个值；相对路径按它解析，R2-D290）。发行层的行配置是空对象。
+`Files` 需要 `resultMaxBytes`，可选 `cwd`（工作区根，与 `Shell` 的 `cwd` 取同一个值；相对路径按它解析，R2-D290）。
+`Tools` 需要 `resultMaxBytes`、`outputModalities`，`TodoItems` 需要 `resultMaxBytes`，`Web` 需要 `resultMaxBytes`、
+`maxSearchResults`。发行层的行配置是空对象。
 
 - `source.resolve` 只从受信快照取固定模块、配置与上下文。它不按调用参数 import。资产不在快照里答 `denied`。
   运维者层缺这个作者的值、登记者不在、快照不可用，都答 `unavailable`。`context.access` 是登记者，
-  `context.services` 是空对象，因为两个作者没有声明宿主服务。
+  `context.services` 是空对象，因为五个作者都没有声明宿主服务。它们要的端口由 `tool-bindings` 行在每次调用时附着。
 - `loaderFor` 把模块绑到清单的固定模块：交来的模块 executor 四项与清单不等时答 `invalid`；交给 loader 的始终是
   快照里的固定模块，调用方给的 `createAuthor` 不会运行。contributeTool 会把固定模块包一层再交来，所以这里按清单
   换回固定模块，不要求同一对象。`schemas` 另核 `loaded.executor` 与清单全等。
@@ -118,7 +120,7 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
   每次调用读本次运行的 bundle。bundle 还没建好时，`scope` 抛出 `unavailable`，作者不会运行；`settle` 答
   `unavailable`。bundle 与五行见 [Tool 运行时组](tool-runtime.md)。
 
-发行行 `toolHostRow` 装好后，按发行清单预装 Shell 与 Files：系统作用域调用 `ensureLoaded`，作者闭包的登记者是
+发行行 `toolHostRow` 装好后，按发行清单预装五个作者：系统作用域调用 `ensureLoaded`，作者闭包的登记者是
 `toolReleaseRegistrant`（R2-D79 第 4 条）。租户的采用点只读已装的作者。预装不成功只在 Cordis 记录器
 `tool-host` 上记一条 warn，写明作者名与失败种类。Catalog 里没有这个作者，调用答不可用，不放行。
 
@@ -127,7 +129,7 @@ R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 - **耐久拒绝记录，波 3**：本波没有拒绝记录仓。
 - **生产的消费者档案来源，波 3**：全仓没有生产的 `ToolConsumerProfile` 来源，「已确认的文本消费者」暂由发行
   清单声明。生产来源由 L-TOOL 在波 3 给出（R2-D79）。
-- **官方作者只能由登记者装载**：租户访问调 `ensureLoaded` 时 `admits` 答 `denied`。发行行在启动时预装两个作者，
+- **官方作者只能由登记者装载**：租户访问调 `ensureLoaded` 时 `admits` 答 `denied`。发行行在启动时预装五个作者，
   `adoption-sources` 只读已装的作者（R2-D79）。
 - **设施依赖只核装配在场**：`dependencies` 不核宿主提供者的前提（例如 Linux 用户管理器、Windows 的 shell）。
 - **产物核对不覆盖依赖包**：只核 tool-definitions 自己的 `package.json` 与 `dist`，不核它依赖的包。

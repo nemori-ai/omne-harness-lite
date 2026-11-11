@@ -30,7 +30,7 @@ classDiagram
   class VendorHooks
   OpenAiRecord --> RuleTables : 按名字指名
   PiFamily --> OpenAiRecord : 冻结副本
-  PiFamily --> ModelTextTokenizer : 闭包持有，初始化一次
+  PiFamily --> ModelTextTokenizer : 绑定持有私有租约
   FamilyMeter --> OpenAiRecord
   FamilyMeter --> ModelTextTokenizer
   VendorHooks --> RuleTables : hooksOf 选取
@@ -43,5 +43,5 @@ classDiagram
 ## 生命周期
 
 - 记录：模块常量，不变。家族表保存冻结副本。
-- tokenizer：家族第一次取得时创建，之后复用，没有需要释放的资源。
-- 绑定：每次取得新建。`release` 不释放任何东西，重复调用返回同一结果。
+- tokenizer：每个绑定从共享 executor 取得私有租约。
+- 绑定：每次取得新建。release 等待 tokenizer 租约清理，失败时拒绝，重复调用返回同一结果。

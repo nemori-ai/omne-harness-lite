@@ -6,7 +6,7 @@
 // shares one `legal-identity` with it (identities minted by one instance are foreign to another).
 // Its materials carry the digests of the changed Worker files, so the copy registers its own
 // combination. The copy holds the JavaScript only, without source maps. Each mutation names an exact
-// text that must occur once; when the product code changes, the mutant fails loudly here instead of
+// text or pattern that must match once; when the product code changes, the mutant fails loudly here instead of
 // passing silently. The product code knows nothing of this file.
 import {
   cpSync,
@@ -27,7 +27,7 @@ const DIST = join(PACKAGE_ROOT, 'dist')
 const CACHE = join(PACKAGE_ROOT, 'tmp', 'mutants')
 
 /** One textual change in one `dist` file. `from` must occur exactly once. */
-export type Mutation = Readonly<{ file: string; from: string; to: string }>
+export type Mutation = Readonly<{ file: string; from: string | RegExp; to: string }>
 
 export type MutantBuild = Readonly<{ build: IdentitySqlBuild; remove(): void }>
 
@@ -105,7 +105,10 @@ export async function mutantBuild(
   for (const mutation of mutations) {
     const path = join(root, mutation.file)
     const source = readFileSync(path, 'utf8')
-    const count = source.split(mutation.from).length - 1
+    const count =
+      typeof mutation.from === 'string'
+        ? source.split(mutation.from).length - 1
+        : [...source.matchAll(new RegExp(mutation.from.source, 'g'))].length
     if (count !== 1)
       throw new Error(`mutant ${name}: ${mutation.file} has ${String(count)} copies of the anchor`)
     writeFileSync(path, source.replace(mutation.from, mutation.to), 'utf8')

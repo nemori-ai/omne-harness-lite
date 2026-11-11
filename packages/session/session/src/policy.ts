@@ -3,7 +3,7 @@
 
 export type SchedulingPolicy = Readonly<{
   command: Readonly<{ retriesOnChanged: number }>
-  advance: Readonly<{ retryDelaysMs: readonly number[] }>
+  advance: Readonly<{ retryDelaysMs: readonly [number, ...number[]] }>
   idle: Readonly<{ checkIntervalMs: number; clockToleranceMs: number }>
   recoveryScan: Readonly<{
     periodMs: number
@@ -24,7 +24,7 @@ export type SessionConfiguration = Readonly<{ policy: SchedulingPolicy }>
 /** Initial values from SPEC SchedulingPolicy. They are configuration seeds, not contract promises. */
 export const defaultSchedulingPolicy: SchedulingPolicy = Object.freeze({
   command: Object.freeze({ retriesOnChanged: 3 }),
-  advance: Object.freeze({ retryDelaysMs: Object.freeze([1000, 5000, 30000]) }),
+  advance: Object.freeze({ retryDelaysMs: Object.freeze([1000, 5000, 30000] as const) }),
   idle: Object.freeze({ checkIntervalMs: 60000, clockToleranceMs: 5000 }),
   recoveryScan: Object.freeze({
     periodMs: 30000,

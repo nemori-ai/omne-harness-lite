@@ -102,7 +102,9 @@ packages/
 │   └── scrypt/                 有界 scrypt 派生与校验
 ├── assets/
 │   ├── assets/                 共同定义、版本、持有与来源
+│   ├── assets-local/           单机固定发布与持有
 │   ├── settings/               设置配值与求值
+│   ├── settings-local/         单机设置持久化与资格协调
 │   └── permissions/            权限配值与求值
 ├── workspace/workspace/        工作区身份与资源关联
 ├── session/
@@ -115,6 +117,9 @@ packages/
 ├── assembly/
 │   ├── assembly/               求值、采用和装配交接
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
+├── governance/
+│   ├── governance-contract/    动态治理贡献与当前采用协议
+│   └── governance-local/       本地治理关系与持久提供者
 ├── agent/
 │   ├── agent-contract/         Agent 声明校验与推进纯契约
 │   ├── agent-cordis-contract/  唯一 Cordis 定义及实例目录协议
@@ -147,7 +152,7 @@ packages/
 │   ├── execution-environment-contract/         Execution Environment 纯契约：已有身份、设施、八参数与六结果 schema、契约套件
 │   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义：已有模板方法、钩子与机制测试
 │   ├── execution-environment/                  不含 Cordis 的登记表机制：提供者与设施表、匹配、获取状态机、租约视图与逐操作门、恢复编排
-│   ├── execution-environment-host-local/       Service 实现与宿主提供者：已有 files 设施的读取、查看、写入与关闭；command 与 terminal 提供者未实现
+│   ├── execution-environment-host-local/       Service 实现与宿主提供者：已有 files 设施（十二项操作，Linux、macOS 与 Windows 都有真实后端），以及 Linux 与 Windows 的 command 后端和持久 terminal；一次性命令留下的进程在 Linux 与 Windows 兑现
 │   └── image/                  图像字节的预算、打开、编码与关闭。技术设计已接受，已是 workspace 成员
 ├── calendar/calendar/          日历版本依据与日期计算
 ├── schedule/schedule/          日程、Job与整体结果
@@ -159,7 +164,7 @@ packages/
 │   ├── sql-contract/           SQL 存储契约：身份、结果、材料与清单摘要、关闭控制口、Cordis 服务定义、内存替身与符合性套件；已是 workspace 成员，提供者未建立
 │   └── <其他成员>/             存储机制与提供者
 ├── time/<具名时间能力>/        有独立消费者的时间能力
-├── telemetry/<具名观测能力>/   有真实共同需要的观测能力
+├── telemetry/                 本地工程遥测，见组入口
 ├── common/
 │   ├── json-text/              严格 JSON 文本读取、值树判定与原样写出
 │   ├── legal-identity/         合法身份文本
@@ -181,11 +186,15 @@ tools/<开发工具>/              检查与开发工具
 scripts/                       仓库自动化
 ```
 
+telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，依据 [RFC-0013 revision 2](rfcs/RFC-0013-engineering-telemetry.md)，职责见[组入口](../packages/telemetry/README.md)。
+
 同一能力组内可以增加具名提供者或独立适配成员，前提是包边界有依据。单成员组仍提供稳定知识位置，不为目录对称增加转发层。time、telemetry和common须有实际共同语义及消费者，不能成为收纳未归属代码的目录。`util` 只放纯文本格式化。`unix-format` 和 `xml-format` 从封存的 [packages.0.0.1.legacy/util](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/util) 迁入，输出由迁来的测试锁定。它们不进入 `common`，因为还没有两个已确认的共同消费者。
 
 `schema` 只放 Schema 提供者。成员是 `packages/schema/schema-provider`。它做准入、首次编译、租约和槽位缓存。各业务形状仍由各自的拥有者持有。该组不是治理领域，也不是 `util` 或 `common`。提供者持有缓存和租约，不是纯表示。
 
-装配组有三个目标成员。`assembly` 维护求值、采用和交接。`kernel-basis` 维护 Cordis 插件辅助和测试装配。`adoption-contract`（`packages/assembly/adoption-contract`）是采用协调的契约成员，含纯类型、校验、摘要函数、Cordis 服务定义 `adoptionCoordinator`、内存替身与符合性套件；它不依赖 `assembly`、Session、Agent 与 Tool，只有应用成员与具名提供者导入它（[采用协调契约设计](domains/assembly-and-handoff/adoption-coordination.md) AC-18、AC-19）。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
+装配组的目标成员如下。`assembly` 维护求值、采用和交接。`kernel-basis` 维护 Cordis 插件辅助和测试装配。`adoption-contract`（`packages/assembly/adoption-contract`）是采用协调的契约成员，含纯类型、校验、摘要函数、Cordis 服务定义 `adoptionCoordinator`、内存替身与符合性套件；它不依赖 `assembly`、Session、Agent 与 Tool，只有应用成员与具名提供者导入它（[采用协调契约设计](domains/assembly-and-handoff/adoption-coordination.md) AC-18、AC-19）。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
+
+`governance-contract` 拥有动态贡献、当前治理采用及受保护目录的协议和 `governanceContributions` Service。`governance-local` 是其已采用的本地提供者位置，当前已建立关系迁移，业务服务与 Cordis 装配仍在实现。两者与执行内容采用 `adoption-contract` 分开。它们物理上独立于底层 Cordis 辅助所在的 assembly 组，语义仍归装配与交接责任；业务提供者依赖 kernel-basis 不形成治理组的回边。Settings 和 Authorization 通过本域来源端口消费，由应用桥接，不反向依赖装配组。行为归 [治理贡献契约](../packages/governance/governance-contract/SPEC.md)，跨领域职责归 [动态贡献](../packages/assets/docs/governance-contributions.md)。
 
 `kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口为空导出，并且不导入 `@deepseek-ai/cordis`。操作结果归 `packages/common/operation-result`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页登记成员位置 `packages/assembly/kernel-basis`，具体实现范围见下段。
 

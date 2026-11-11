@@ -44,13 +44,14 @@ describe('only the work cache reads the Session current state from the store', (
   })
 
   it('the handler constants are used only where they are declared', () => {
-    expect(filesNaming('\\b(SESSION_WORK_HANDLER|WORK_HANDLER|WORK_VERSION_HANDLER)\\b')).toEqual([
-      `${PACKAGE}/participants.ts`,
-      `${PACKAGE}/work-cache.ts`,
-    ])
+    expect(
+      filesNaming(
+        '(^|[^[:alnum:]_])(SESSION_WORK_HANDLER|WORK_HANDLER|WORK_VERSION_HANDLER)([^[:alnum:]_]|$)',
+      ),
+    ).toEqual([`${PACKAGE}/participants.ts`, `${PACKAGE}/work-cache.ts`])
   })
   it('the snapshot row is named only by its schema, the commit path and the listed readers', () => {
-    expect(filesNaming('\\bsl_state\\b')).toEqual([
+    expect(filesNaming('(^|[^[:alnum:]_])sl_state([^[:alnum:]_]|$)')).toEqual([
       // The table declarations of the materials and the migration.
       `${PACKAGE}/materials.ts`,
       // The commit path, inside the write transaction (RT-04, the fifth kind).

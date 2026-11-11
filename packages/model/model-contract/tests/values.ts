@@ -17,7 +17,6 @@ import type {
   Adoption,
   ConsumerRef,
   ContextLimits,
-  CredentialId,
   DispatchId,
   DurableEvidence,
   FixedModelRequest,
@@ -31,6 +30,7 @@ import type {
   OutputCursor,
   ParameterAdoption,
   ProfileSupplier,
+  ProviderName,
   ReadId,
   RequestBudget,
   ResultCapacity,
@@ -55,7 +55,7 @@ export declare const json: JsonValue
 export declare const account: CallAccount
 export declare const report: CallAccountReport
 
-export declare const credential: CredentialId
+export declare const provider: ProviderName
 export declare const call: ModelCallId
 export declare const dispatch: DispatchId
 export declare const instance: ModelInstanceId
@@ -77,13 +77,13 @@ export const evidence: DurableEvidence = {
 export const consumer: ConsumerRef = { owner: 'owner', work: 'w', position: 'p', purpose: 'u' }
 export const supplier: Supplier = {
   adoption,
-  recipient: 'recipient',
+  provider,
   model: 'model',
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 }
 export const profileSupplier: ProfileSupplier = {
   adoption,
-  recipient: 'recipient',
+  provider,
   model: 'model',
 }
 export const capacity: ResultCapacity = { bytes: '1', blocks: '1', attachmentBytes: '0' }
@@ -128,7 +128,7 @@ export const request: FixedModelRequest = {
   tools: [tool],
   toolChoice: 'auto',
   declarations: [
-    { produces: 'recipient/model', accepts: ['recipient/model'], foreignThinking: 'omit' },
+    { produces: 'provider/model', accepts: ['provider/model'], foreignThinking: 'omit' },
   ],
   representation: adoption,
   parameterAdoptions: [parameterAdoption],

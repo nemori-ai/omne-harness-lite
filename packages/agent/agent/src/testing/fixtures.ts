@@ -36,6 +36,7 @@ import type {
   RequestPreparation,
   RuntimeConditions,
 } from '@omne-harness/agent-contract'
+import { decodeProviderName, type ProviderName } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { scriptedMethod, type In, type Out, type ScriptOf } from './script.ts'
 
@@ -219,6 +220,13 @@ type ReadyPreparation = Extract<
  * the action, purpose, position, recipient and coverage of the input, so a test can tell which call
  * it answers. It is a well-formed value, not a request that a real model would accept.
  */
+/** The test supplier's provider: the route of the selected recipient, as a provider name. */
+function providerOf(route: string): ProviderName {
+  const decoded = decodeProviderName(route)
+  if ('failure' in decoded) throw new RangeError(`test route ${route} is not a provider name`)
+  return decoded.ok
+}
+
 export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
   const profile = input.selection.recipient.profile
   return {
@@ -234,9 +242,9 @@ export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
       suppliers: [
         {
           adoption: profile,
-          recipient: input.selection.recipient.route,
+          provider: providerOf(input.selection.recipient.route),
           model: 'test-model',
-          credential: { kind: 'factory' },
+          credential: { layer: 'official' },
         },
       ],
       fallback: false,

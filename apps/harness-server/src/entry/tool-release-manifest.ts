@@ -17,15 +17,16 @@ import {
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { z } from 'zod'
+import { toolPermissionRelease, toolPermissionReleaseSchema } from './tool-permission-release.ts'
 
-export const TOOL_RELEASE_FORMAT = 'omne-harness/tool-release/1'
+export const TOOL_RELEASE_FORMAT = 'omne-harness/tool-release/2'
 /** 清单文件名，也是 holding、publication 与消费者证据 `record` 的定位前缀。 */
 export const TOOL_RELEASE_FILE = 'tool-release.json'
 /** 发行资产、设置采用与清单证据的拥有者（简报第 1 项）。 */
 export const TOOL_RELEASE_OWNER = '@omne-harness/harness-server'
 export const TOOL_DEFINITIONS_PACKAGE = '@omne-harness/tool-definitions' as const
 
-/** 发行内置的两个作者与它们的固定导出、运维者层构造字段（L-TOOL 事实清单 §1）。表外的作者不进清单。 */
+/** 发行内置作者与它们的固定导出、运维者层构造字段（L-TOOL 事实清单 §1）。表外的作者不进清单。 */
 export const RELEASE_TOOLS = Object.freeze([
   Object.freeze({
     name: 'Shell',
@@ -36,6 +37,21 @@ export const RELEASE_TOOLS = Object.freeze([
     name: 'Files',
     export: 'filesToolModule',
     construction: Object.freeze(['resultMaxBytes', 'cwd']),
+  }),
+  Object.freeze({
+    name: 'Tools',
+    export: 'toolsToolModule',
+    construction: Object.freeze(['resultMaxBytes', 'outputModalities']),
+  }),
+  Object.freeze({
+    name: 'TodoItems',
+    export: 'todoItemsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Web',
+    export: 'webToolModule',
+    construction: Object.freeze(['resultMaxBytes', 'maxSearchResults']),
   }),
 ] as const)
 
@@ -87,6 +103,7 @@ const manifestSchema = z.strictObject({
         artifacts: digestText,
       }),
       construction: z.array(z.string().min(1)),
+      governance: toolPermissionReleaseSchema,
       settings: adoptionSchema,
       definition: digestText,
       holding: evidenceSchema,
@@ -165,6 +182,9 @@ export async function importReleaseModules(packageRoot: string): Promise<Release
   return Object.freeze({
     shellToolModule: releaseModuleOf(namespace, 'shellToolModule'),
     filesToolModule: releaseModuleOf(namespace, 'filesToolModule'),
+    toolsToolModule: releaseModuleOf(namespace, 'toolsToolModule'),
+    todoItemsToolModule: releaseModuleOf(namespace, 'todoItemsToolModule'),
+    webToolModule: releaseModuleOf(namespace, 'webToolModule'),
   })
 }
 
@@ -271,7 +291,7 @@ export function composeManifest(input: {
     const definition = definitions[tool.name]
     if (definition === undefined)
       throw new Error(`tool-release: no definition digest for ${tool.name}`)
-    return {
+    const core = {
       asset: {
         name: tool.name,
         adoption: {
@@ -291,6 +311,15 @@ export function composeManifest(input: {
         digest: canonicalDigest({ name: tool.name, construction }),
       },
       definition,
+    }
+    return {
+      ...core,
+      governance: toolPermissionRelease({
+        name: tool.name,
+        adoption: core.asset.adoption,
+        module,
+        definition,
+      }),
     }
   })
   const statement = {

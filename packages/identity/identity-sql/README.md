@@ -42,7 +42,7 @@ await scrypt.module.close()
 
 The factory reads no wall clock, opens no scrypt module, registers nothing and closes nothing. The caller registers the combination first, and at the end calls `stop()` before it closes the scrypt module.
 
-Cordis: `@omne-harness/identity-sql/cordis` exports `IdentitySqlPlugin`. It injects `storage` and `identityClock`. Its configuration is two login lifetimes, `maxLifetime` and `idlePeriod`, and two invitation durations, `invitationDefaultDuration` and `invitationMaxDuration`, all `PT<seconds>S` texts. All four are required: without one, the fiber fails. `IDENTITY_SQL_DEFAULT_CONFIG` lists the first values for a deployment that passes them: logins of 30 days and 7 days idle, invitations of 7 days by default and 30 days at most. The plugin body opens scrypt, derives the decoy, registers the combination, builds the provider over the injected clock and provides the three keys. See [docs/cordis.md](docs/cordis.md).
+Cordis: `@omne-harness/identity-sql/cordis` exports `IdentitySqlPlugin`. It injects `storage` and `identityClock`. Its configuration is two login lifetimes, `maxLifetime` and `idlePeriod`, and two invitation durations, `invitationDefaultDuration` and `invitationMaxDuration`, all `PT<seconds>S` texts. All four are required: without one, the fiber fails. `IDENTITY_SQL_DEFAULT_CONFIG` lists the first values for a deployment that passes them: logins of 30 days and 7 days idle, invitations of 7 days by default and 30 days at most. The plugin body opens scrypt, derives the decoy, registers the combination, builds the provider over the injected clock and provides five keys. See [docs/cordis.md](docs/cordis.md).
 
 The application aggregates `identitySqlMaterials()` into its storage catalog. Without that, the participant and the read handlers are not available.
 
@@ -98,3 +98,7 @@ acceptance/               Reserved for the independent acceptance owner, no scen
 ```
 
 Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths.
+
+## Standing coordination
+
+Pass `principalVerifier` and a trusted `destinationResolver` to use `reservations`. `governanceRecovery` resumes provider-owned membership operation identities exposed by unknown errors. Missing destination routes keep holds and mutation intents durable. See [IS-16](SPEC.md#is-16) for the protocol, recovery bounds and deployment requirements. The Cordis plugin provides `standingReservations` and `identityGovernanceRecovery`; it reads optional `principalVerifier` and `standingDestinationResolver` services on each use.

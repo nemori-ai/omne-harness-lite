@@ -1,3 +1,9 @@
+import readPermissionMode from '../../src/worker/read-permission-mode.ts'
+import permissionMigration from '../../src/worker/permission-current-migration.ts'
+import readPermissionCurrent from '../../src/worker/read-permission-current.ts'
+import ordinaryBasis from '../../src/worker/ordinary-basis.ts'
+import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
+import type { FactKey, JsonValue } from '@omne-harness/sql-contract'
 // A test provider of `SqlStorage` on node:sqlite. The memory double of sql-contract has no SQL, so
 // it cannot run the Session participant or the read handlers; this one runs the real modules of
 // this member against one in-memory database per transaction domain. It models receipts, rollback
@@ -10,6 +16,7 @@ import {
   type CommitRequestV2,
   type CommitResultV2,
   type DomainRef,
+  type FailureCategory,
   type ParticipatedEntry,
   type QueryResultV2,
   type ReadRequest,
@@ -63,6 +70,8 @@ import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
+  readPermissionMode,
+  readPermissionCurrent,
   readWork,
   readWorkVersion,
   readBinding,
@@ -87,6 +96,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
 
 /** The participant modules by name; the execution order is the order of the commands. */
 const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
+  [ordinaryBasis.participant, ordinaryBasis],
   [participant.participant, participant],
   [executionRecord.participant, executionRecord],
 ])
@@ -97,6 +107,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   evidenceMigration,
   stateItemMigration,
   attemptGrantMigration,
+  permissionMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,
@@ -133,10 +144,24 @@ export type SqliteStorage = Readonly<{
   loseNextReply(): void
   /**
    * Makes the participant port throw at the `nth` later statement that matches `pattern`, inside
-   * the write transaction; `null` ends it. The storage then rolls the transaction back.
+   * the write transaction; `null` ends it. Without `errcode` the failure is an environment error
+   * (an I/O error, say): as in the real provider, the commit answers `unknown` and keeps no
+   * rolled back receipt. With the result code of a data error (`SQLITE_CONSTRAINT` 19, say) the
+   * transaction rolls back with the failure `sql_error` (sql-contract §7.6).
    */
-  failWrite(pattern: RegExp | null, nth?: number): void
+  failWrite(pattern: RegExp | null, nth?: number, errcode?: number): void
 }>
+
+/**
+ * sql-contract §7.6: the SQLite result codes that only the statement and the data decide (TOOBIG,
+ * CONSTRAINT, MISMATCH, RANGE, and ERROR for syntax or schema), read from `errcode` as the real
+ * provider reads them. Every other statement error is an environment error.
+ */
+const DATA_CODES = new Set([1, 18, 19, 20, 25])
+const isDataError = (error: unknown): boolean => {
+  const code = (error as { errcode?: unknown } | null)?.errcode
+  return typeof code === 'number' && DATA_CODES.has(code & 0xff)
+}
 
 type Domain = {
   readonly scope: DomainRef['scope']
@@ -179,14 +204,15 @@ export function createSqliteStorage(): SqliteStorage {
   const participantWrites: { sql: string; text: number }[] = []
   let failing: string | null = null
   let lose = false
-  let writeFault: { pattern: RegExp; left: number } | null = null
+  let writeFault: { pattern: RegExp; left: number; errcode: number | undefined } | null = null
   /** Counts the statement against the armed write fault and throws at the chosen one. */
   const faultAt = (sql: string): void => {
     if (writeFault === null || !writeFault.pattern.test(sql)) return
     writeFault.left -= 1
     if (writeFault.left > 0) return
+    const { errcode } = writeFault
     writeFault = null
-    throw new Error(`injected write failure at: ${sql.slice(0, 60)}`)
+    throw Object.assign(new Error(`injected write failure at: ${sql.slice(0, 60)}`), { errcode })
   }
 
   const domainOf = (scope: DomainRef['scope'], name: string): Domain | null => {
@@ -204,7 +230,17 @@ export function createSqliteStorage(): SqliteStorage {
     return domain
   }
 
-  const execute = (domain: Domain, request: CommitRequestV2, identity: SqlIdentity): ReceiptV2 => {
+  /**
+   * Runs the commands in one transaction. A statement error is classified as the real provider
+   * does (sql-contract §7.6; sqlite-provider `worker/ports.ts`, `worker/execute.ts`): an error that
+   * only the statement and the data decide is `sql_error`; any other one is an environment error,
+   * for which the transaction is rolled back with no receipt and the commit is `unknown`.
+   */
+  const execute = (
+    domain: Domain,
+    request: CommitRequestV2,
+    identity: SqlIdentity,
+  ): ReceiptV2 | 'environment' => {
     const entries: (ParticipatedEntry | StoppingEntry)[] = []
     const inputDigest = inputDigestV2(request)
     const finish = (kind: 'committed' | 'rolled_back'): ReceiptV2 =>
@@ -217,17 +253,20 @@ export function createSqliteStorage(): SqliteStorage {
         responses: entries,
       }) as unknown as ReceiptV2
     domain.db.exec('BEGIN IMMEDIATE')
-    // The storage runs the commands in the fixed order of the combination: ascending names.
-    const ordered = [...request.commands].sort((a, b) =>
-      a.participant < b.participant ? -1 : a.participant > b.participant ? 1 : 0,
+    // This fixture models the three-member Session dependency order, not arbitrary SQL catalogs.
+    const facts = new Map<string, JsonValue>()
+    const order: readonly string[] = SESSION_LOG_PARTICIPANTS
+    const ordered = [...request.commands].sort(
+      (a, b) => order.indexOf(a.participant) - order.indexOf(b.participant),
     )
     for (const command of ordered) {
       const module = PARTICIPANTS.get(command.participant)
       if (module === undefined) throw new Error(`no participant ${command.participant}`)
-      let reply: RecordedReply
-      try {
-        const port = {
-          execute: (sql: string, params: readonly SqlValue[]) => {
+      let dataFailure = false
+      let environmentFailure: unknown = null
+      const port = {
+        execute: (sql: string, params: readonly SqlValue[]) => {
+          try {
             faultAt(sql)
             const result = rowsOf(domain.db, sql, params)
             if (/^\s*SELECT/i.test(sql)) participantReads.push({ sql, rows: result.rows.length })
@@ -240,22 +279,50 @@ export function createSqliteStorage(): SqliteStorage {
                 ),
               })
             return result
-          },
-          requireFact: () => null,
-          provideFact: () => undefined,
-        }
-        const raw = module.execute(structuredClone(command.facts), port)
-        reply =
-          raw.kind === 'failed'
-            ? { kind: 'failed', category: 'participant_reported', diagnostic: raw.diagnostic }
-            : raw
-      } catch (error) {
-        reply = {
-          kind: 'failed',
-          category: 'participant_threw',
-          diagnostic: error instanceof Error ? error.message : 'threw',
-        }
+          } catch (error) {
+            if (isDataError(error)) dataFailure = true
+            else environmentFailure ??= error
+            throw error
+          }
+        },
+        requireFact: (key: FactKey) => {
+          const value = facts.get(JSON.stringify(key))
+          if (value === undefined) throw new Error('missing fixture transaction fact')
+          return value
+        },
+        provideFact: (key: FactKey, value: JsonValue) => {
+          const identity = JSON.stringify(key)
+          if (facts.has(identity)) throw new Error('duplicate fixture transaction fact')
+          facts.set(identity, structuredClone(value))
+        },
       }
+      let raw: ReturnType<typeof module.execute> | undefined
+      let thrown: unknown = null
+      try {
+        raw = module.execute(structuredClone(command.facts), port)
+      } catch (error) {
+        thrown = error ?? 'threw'
+      }
+      if (environmentFailure !== null) {
+        domain.db.exec('ROLLBACK')
+        return 'environment'
+      }
+      const failed = (category: FailureCategory, diagnostic: string): RecordedReply => ({
+        kind: 'failed',
+        category,
+        diagnostic,
+      })
+      const reply: RecordedReply =
+        raw === undefined
+          ? failed(
+              dataFailure ? 'sql_error' : 'participant_threw',
+              thrown instanceof Error ? thrown.message : 'threw',
+            )
+          : raw.kind === 'failed'
+            ? failed('participant_reported', raw.diagnostic)
+            : raw.kind === 'participated' && dataFailure
+              ? failed('sql_error', 'a statement failed on its data')
+              : raw
       entries.push({ participant: command.participant, protocol: module.protocol, reply } as never)
       if (reply.kind !== 'participated') {
         domain.db.exec('ROLLBACK')
@@ -298,6 +365,8 @@ export function createSqliteStorage(): SqliteStorage {
             : { kind: 'identity_conflict', identity, existing },
         )
       const receipt = execute(domain, request, identity)
+      if (receipt === 'environment')
+        return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'environment error' })
       if (lose) {
         lose = false
         return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'reply lost' })
@@ -381,8 +450,8 @@ export function createSqliteStorage(): SqliteStorage {
     loseNextReply: () => {
       lose = true
     },
-    failWrite: (pattern, nth = 1) => {
-      writeFault = pattern === null ? null : { pattern, left: nth }
+    failWrite: (pattern, nth = 1, errcode) => {
+      writeFault = pattern === null ? null : { pattern, left: nth, errcode }
     },
   }
 }

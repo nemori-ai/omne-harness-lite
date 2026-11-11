@@ -48,7 +48,7 @@ const families = composeFamilies([openai])
 const profiles = officialOpenAiProfiles({ retryPolicy, compactionTriggerPercent: '80' })
 ```
 
-`createOpenAiFamily` 只做计算。第一次 `acquire` 初始化 tokenizer，家族的各个绑定共享它。tokenizer 没有需要释放的资源。本包没有 Cordis 入口，理由见 [Cordis 集成](docs/cordis.md)。更多说明见[使用与定位](docs/context.md)。
+`createOpenAiFamily` 只做计算。每次 acquire 从宿主 executor 取得私有 tokenizer 租约。绑定的 release 等待清理，失败时拒绝。共享池由宿主关闭。本包没有 Cordis 入口，理由见 [Cordis 集成](docs/cordis.md)。更多说明见[使用与定位](docs/context.md)。
 
 ## 契约
 

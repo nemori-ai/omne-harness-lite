@@ -24,7 +24,8 @@
 - [model-input.ts](model-input.ts)：从选择到 Model 输入的一次转换，来源调用与延续依据。
 - [input-validation.ts](input-validation.ts)：输入绑定与 Runtime Context 读取前提。
 - [history-read.ts](history-read.ts)：带 epoch 切换的十进制序号历史分页。
-- [measurement.ts](measurement.ts)：取得准备租约、按供应商计划与计量、在全部路径上归还租约。
+- [measurement.ts](measurement.ts)：取得准备租约、按供应商计划与异步计量、在全部路径上归还租约。
+- [measurement-session.ts](measurement-session.ts)：同次压缩规划内按完整档案与 lineage 复用租约，保护忙租约并等待全部清理。
 - [preparation.ts](preparation.ts)：`PreparedInputKey` 与稳定内容认回。
 - [assembly.ts](assembly.ts)：公开组装阶段编排。
 - [assembly-layers.ts](assembly-layers.ts)：动态放置与 Model 输入构造。

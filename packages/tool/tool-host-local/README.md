@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The single-machine Tool host. The root entry provides the start coordinator, clock, binding registry, Catalog, author loader, and executor binding factories. `./author` exports contribution and generation factories; `./cordis` exports author-host, binding, and runtime assembly factories. The application owns the complete runtime, storage, and execution-facility assembly. These entries do not establish that the complete assembly has been verified.
+The single-machine Tool host. The root entry provides the start coordinator, clock, binding registry, Catalog, author loader, and executor binding factories. `./author` exports contribution and generation factories; `./cordis` exports author-host, binding, and runtime assembly factories; `./web` exports `createWebAccess`, the single-machine provider of the Web author's `WebAccess` port (local fetch and Exa search). The application owns the complete runtime, storage, and execution-facility assembly. These entries do not establish that the complete assembly has been verified.
 
 ## Responsibility and status
 
@@ -23,6 +23,10 @@ The checkout scope and the cross-package table are in [the group support range](
 ## Environment scheduling and credentials
 
 The root entry also exports `createLocalScheduledEnvironment` and `createLocalToolCredentials`. The scheduler consumes explicit host policy through the environment verbs. Its slot accounting is local to one process. The credential adapter checks stored bindings again at protected use. See the [public API](docs/public-api.md) for provider responsibilities and current limits. The allocation-to-first-adoption mapping and the real vault are not delivered.
+
+## Web provider
+
+`@omne-harness/tool-host-local/web` exports `createWebAccess({ search, fetch, exaKey })`. fetch sends GET only, follows a bounded number of redirects, counts decompressed bytes and cuts at the cap, and converts HTML to Markdown with turndown. search posts to Exa with a key that arrives only as a restricted capability from `exaKey`; a missing key is `unconfigured` and sends nothing. The local profile reaches the host network directly; egress control for sandboxes and multi-tenant deployments is a known limitation. See [SPEC](SPEC.md#web-提供者web-子路径).
 
 ## Host clock, binding registry, Catalog and absent ports
 
@@ -122,3 +126,28 @@ tool-host-local/
 The public contract of this provider belongs to the contract package [`@omne-harness/tool-contract`](../tool-contract/README.md). The full file navigation is in [index](index.md). The topic responsibilities are in [docs/README](docs/README.md).
 
 The runtime composition test submits an ordinary payload through invoke with paired source issuance and verification. The test host passes its instance identity explicitly to driver.run. This package supplies no production instance host, source issuer, identity issuer, claim or takeover protocol. See [the host boundary](SPEC.md#实例宿主与普通调用的边界).
+
+### Constructing a catalog
+
+`createLocalToolCatalog` requires `registry`, `availability`, `view`, and `search`.
+The assembly supplies a `LocalToolCatalogViewSource` with trusted scope evidence,
+an inclusion revision, and exact binding keys with `resident` flags. A null view
+returns unavailable. Search configuration is explicit, for example
+`{ k1: 1.2, b: 0.75, maxCachedCorpora: 8 }`.
+
+The catalog ranks the legal corpus with BM25 and checks the view again after
+asynchronous judgments. Versioned cursors reject changed search or disclosure
+inputs. The bounded cache retains only text indexes. See the
+[behavior and limits](SPEC.md#登记表与-catalog-的实现范围).
+
+### Trusted single-target forwarding
+
+Configure `createLocalInvocationSource` with optional `forwarding: { authority, isParent }`. Both are trusted provider inputs. The source exposes `forwarding`, `recoverBinding`, and `receiver`; ordinary callers cannot claim the reserved forwarding consumer. The runtime plugin factory exposes a lazy `forwarding()` getter and registers the dedicated receiver inside its facade.
+
+Use `createLocalToolForwarding` with lazy runtime, catalog, consumer profile, target preparation and result reader functions. Pass its `bind` method as the execution bindings' optional `capability` hook. Call its `close` during provider shutdown and inspect the returned unknown count. A parent finishing does not cancel its fixed target. Set host known-call capacity to at least two; resource concurrency may remain one.
+
+The [member specification](SPEC.md#单目标转发来源与保管) defines the current guarantees and test scope. Programmatic start and global restart discovery retain their existing restrictions. Protocol tests over an in-memory store do not establish durability.
+
+`ToolHostAccess.request` accepts an optional `ToolRequestAccess` for current target policy. The assembly passes it to the start guard and coordinator as `requestAccess`. A configured policy must answer on every preparation and consume attempt. Unavailable or malformed answers cannot authorize a start. An allowed answer carries a start condition or `null`. The coordinator commits an acceptance and its condition in one transaction through `conditionalCommit`. See [request policy](SPEC.md#目标请求当前资格).
+
+Once execute accepts the fixed intent, the provider continues preparation after the author stops waiting. Shutdown drains that work. A late preparation failure can leave an issued parent reference unknown without a persistent slot. A zero pending count does not resolve that reference; inspect the unknown count separately.

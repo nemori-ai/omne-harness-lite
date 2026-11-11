@@ -8,13 +8,13 @@ service-contract 变体草稿。
 
 本包拥有 SQL 存储的公开形状：身份、提交与认回结果、登记、读取、静态材料、清单摘要、关闭控制口，以及三个 Cordis 服务定义。本包不实现提供者。SQLite 提供者是另一个成员（`packages/storage/sqlite-provider`），尚未建立。
 
-状态：设计已作为 #687 revision 2 的实施输入采用（评论 6554935672），不是 D-A01 交付接受。本包已实现：公开形状、`inputDigestV2`、`manifestDigest`、`combinationManifest`、三个服务定义，以及内存替身与符合性套件。本包没有实现：任何 SQLite、Worker 或文件行为（场景 C08 至 C11、C13、C15、C17 至 C23）。
+状态：设计已作为 #687 revision 2 的实施输入采用（评论 6554935672），不是 D-A01 交付接受。本包已实现：公开形状、`inputDigestV2`、`manifestDigest`、`combinationManifest`、`commitRejectionNature`、三个服务定义，以及内存替身与符合性套件。本包没有实现：任何 SQLite、Worker 或文件行为（场景 C08 至 C11、C13、C15、C17 至 C23）。
 
 ## 使用
 
 四个入口：
 
-- `@omne-harness/sql-contract`：公开形状与三个纯函数，不导入 Cordis。
+- `@omne-harness/sql-contract`：公开形状与四个纯函数，不导入 Cordis。
 - `@omne-harness/sql-contract/worker`：提供者 Worker 所载模块的接口，只有类型，不导入 Cordis。
 - `@omne-harness/sql-contract/cordis`：`StorageService`（键 `storage`）、`StorageHostService`（键 `storageHost`）、`TenantDomainsService`（键 `tenantDomains`）、`TenantDomainLookupService`（键 `tenantDomainLookup`）。消费者注入 `storageKey`，不导入提供者。
 - `@omne-harness/sql-contract/testing`：`createMemorySqlStorage` 与 `runSqlStorageConformance`，以及 `createMemoryTenantDomainLookup` 与 `runTenantDomainLookupConformance`。

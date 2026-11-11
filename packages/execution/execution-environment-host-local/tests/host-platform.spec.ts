@@ -3,6 +3,7 @@ import * as os from 'node:os'
 import * as fs from 'node:fs/promises'
 import * as probes from '../src/host-probe.ts'
 import * as native from '../src/windows-execution/compile.ts'
+import * as windowsProbes from '../src/windows-execution/prerequisites.ts'
 import { createHostPlatform, probeWindowsExecution } from '../src/host-platform.ts'
 import { createHostFilesDomain, domainInternals } from '../src/host-domain.ts'
 import { commandSettings } from '../src/host-command.ts'
@@ -16,12 +17,20 @@ vi.mock('node:fs/promises', async importOriginal => ({
 }))
 
 const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+const arch = Object.getOwnPropertyDescriptor(process, 'arch')
 afterEach(() => {
   vi.restoreAllMocks()
   if (platform) Object.defineProperty(process, 'platform', platform)
+  if (arch) Object.defineProperty(process, 'arch', arch)
 })
+/** The Windows backend supports x64 only; the architecture of the test host must not decide. */
+function onWindows() {
+  Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+  Object.defineProperty(process, 'arch', { value: 'x64', configurable: true })
+}
 function host(osName: string) {
-  Object.defineProperty(process, 'platform', { value: osName, configurable: true })
+  if (osName === 'win32') onWindows()
+  else Object.defineProperty(process, 'platform', { value: osName, configurable: true })
   const domain = domainInternals(createHostFilesDomain())
   if (!domain) throw new Error('missing domain')
   return {
@@ -39,16 +48,20 @@ it('keeps Windows installation facts separate from Linux probes', async () => {
   vi.spyOn(fs, 'access').mockResolvedValue(undefined)
   const bridge = vi.spyOn(native, 'windowsBridgeExecutable').mockResolvedValue('bridge.exe')
   vi.spyOn(native, 'windowsTerminalExecutable').mockResolvedValue('terminal.exe')
-  const linux = vi.spyOn(probes, 'createPrerequisiteProbe')
+  const windows = vi
+    .spyOn(windowsProbes, 'probeWindowsCommands')
+    .mockResolvedValue({ kind: 'unsatisfied', missing: ['job-round-trip'] })
+  const linux = vi.spyOn(probes, 'probeCommandPrerequisites')
   const pty = vi.spyOn(probes, 'probeTerminalPrerequisites')
-  expect(await host('win32').execution.prerequisites()).toEqual(['satisfied'])
+  expect(await host('win32').execution.prerequisites()).toEqual(['satisfied', 'unsatisfied'])
   expect(bridge).toHaveBeenCalledOnce()
+  expect(windows).toHaveBeenCalledOnce()
   expect(linux).not.toHaveBeenCalled()
   expect(pty).not.toHaveBeenCalled()
 })
 
 it('preserves missing and unknown Windows prerequisites', async () => {
-  Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+  onWindows()
   vi.spyOn(os, 'release').mockReturnValue('10.0.26100')
   const access = vi
     .spyOn(fs, 'access')

@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { type FixedModelRequest } from '@omne-harness/model-contract'
+import { decodeProviderName, type FixedModelRequest } from '@omne-harness/model-contract'
 import {
   judgeAdmit,
   judgeFixedModelRequest,
   MODEL_INPUT_LIMITS,
-  decodeCredentialId,
 } from '@omne-harness/model-contract/provider'
 import type { JsonValue } from '@omne-harness/json-text'
 import { admission, must, request, scriptedProvider } from './scripted-support.ts'
@@ -76,7 +75,6 @@ it('retains typed access, copies DAG occurrences and freezes only owned output',
 })
 
 it('accepts every Model union branch and delegates lossless domain values', () => {
-  const tenantCredential = { kind: 'tenant', id: must(decodeCredentialId('credential')) } as const
   const json: JsonValue = {
     kind: 'object',
     entries: [
@@ -100,7 +98,7 @@ it('accepts every Model union branch and delegates lossless domain values', () =
       value: json,
     },
   ]
-  for (const credential of [{ kind: 'factory' }, tenantCredential] as const)
+  for (const credential of [{ layer: 'official' }, { layer: 'tenant' }, { layer: 'none' }] as const)
     for (const toolChoice of ['none', 'auto', 'required', { name: 'lookup' }] as const) {
       const input = {
         ...request,
@@ -109,9 +107,10 @@ it('accepts every Model union branch and delegates lossless domain values', () =
           { ...request.suppliers[0], credential },
           {
             adoption: { ...adopted, name: 'backup', revision: '2', digest: 'f'.repeat(64) },
-            recipient: 'backup-recipient',
+            provider: must(decodeProviderName('backup-provider')),
             model: 'backup-model',
-            credential: credential.kind === 'factory' ? tenantCredential : { kind: 'factory' },
+            credential:
+              credential.layer === 'official' ? { layer: 'tenant' } : { layer: 'official' },
           },
         ],
         fallback: true,
@@ -296,7 +295,7 @@ it('closes every Model-owned record and each branch before projecting output', (
     { ...request, suppliers: [{ ...request.suppliers[0], extra: true }] },
     {
       ...request,
-      suppliers: [{ ...request.suppliers[0], credential: { kind: 'factory', id: 'ignored' } }],
+      suppliers: [{ ...request.suppliers[0], credential: { layer: 'official', id: 'ignored' } }],
     },
     { ...request, parameters: [{ kind: 'temperature', value: 1, definition: adopted }] },
     {
@@ -433,7 +432,8 @@ describe('complete records with one invalid leaf', () => {
   })
 
   it.each([
-    { path: '/suppliers/0/recipient', value: '', reason: 'value' },
+    { path: '/suppliers/0/provider', value: '', reason: 'identity' },
+    { path: '/suppliers/0/provider', value: 'Open Router', reason: 'identity' },
     { path: '/suppliers/0/model', value: '', reason: 'value' },
     { path: '/suppliers/0/credential', value: null, reason: 'type' },
     { path: '/tools/0/name', value: '', reason: 'value' },
@@ -457,21 +457,35 @@ describe('complete records with one invalid leaf', () => {
     rejectsLeaf(path, value, reason)
   })
 
-  it('rejects credential identity and unknown parameter or origin discriminants precisely', () => {
-    const slashCredential = replace('/suppliers/0/credential', { kind: 'tenant', id: 'bad/id' })
-    expect(judgeFixedModelRequest(slashCredential)).toEqual({ ok: slashCredential })
-    const slashAdmission = { ...admission('slash-credential'), request: slashCredential }
-    expect(judgeAdmit(slashAdmission)).toEqual({ ok: slashAdmission })
+  it('refuses a request of the shape before provider assets, and maps nothing', () => {
+    // A stored request names its supplier by `recipient` and holds a factory credential: it is not
+    // read as an OpenRouter supplier on the official layer, it is refused.
+    const old = replace('/suppliers/0', {
+      adoption: { ...adopted },
+      recipient: 'openrouter',
+      model: 'model',
+      credential: { kind: 'factory' },
+    })
+    const judged = judgeFixedModelRequest(old)
+    expect(judged).toHaveProperty('failure')
+    expect(JSON.stringify(judged)).not.toContain('"layer"')
+  })
+
+  it('rejects an unknown credential layer and unknown parameter or origin discriminants precisely', () => {
+    const tenantLayer = replace('/suppliers/0/credential', { layer: 'tenant' })
+    expect(judgeFixedModelRequest(tenantLayer)).toEqual({ ok: tenantLayer })
+    const tenantAdmission = { ...admission('tenant-layer'), request: tenantLayer }
+    expect(judgeAdmit(tenantAdmission)).toEqual({ ok: tenantAdmission })
     const invalids = [
       {
-        input: replace('/suppliers/0/credential', { kind: 'other', id: 'credential' }),
-        field: '/suppliers/0/credential/kind',
+        input: replace('/suppliers/0/credential', { layer: 'organization' }),
+        field: '/suppliers/0/credential/layer',
         reason: 'value',
       },
       {
-        input: replace('/suppliers/0/credential', { kind: 'tenant', id: 'bad id' }),
-        field: '/suppliers/0/credential/id',
-        reason: 'identity',
+        input: replace('/suppliers/0/credential', { kind: 'factory' }),
+        field: '/suppliers/0/credential',
+        reason: 'unknown-field',
       },
       {
         input: replace('/parameters/0', { kind: 'other', value: 1 }),
@@ -1077,7 +1091,11 @@ it('keeps first rejection across request groups and payload capture', () => {
 
 describe('the replay switch and the replay declarations of a fixed request', () => {
   const declared = request.declarations[0]
-  const backup = { ...request.suppliers[0], recipient: 'backup', model: 'm' }
+  const backup = {
+    ...request.suppliers[0],
+    provider: must(decodeProviderName('backup')),
+    model: 'm',
+  }
 
   it('keeps replay off when the request turns it off, and adds no switch when it does not', () => {
     expect(must(judgeFixedModelRequest({ ...request, replay: 'off' })).replay).toBe('off')

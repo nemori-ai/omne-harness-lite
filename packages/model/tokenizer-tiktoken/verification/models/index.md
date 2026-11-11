@@ -1,9 +1,5 @@
-# verification/models 索引
+# models 索引
 
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
-
-## 内容
-
-- [README.md](README.md)：模型清单与前提
-
-本目录没有其他文件，原因见 [README.md](README.md)。
+- [README.md](README.md)：范围与前提。
+- [executor](executor/README.md)：行为模型、配置与负控。
+- [cache](cache/README.md)：行为模型、配置与负控。

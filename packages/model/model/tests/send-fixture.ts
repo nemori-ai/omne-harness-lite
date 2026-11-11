@@ -2,8 +2,8 @@ import { expect } from 'vitest'
 import { createModelRuntime, type SendResources } from '@omne-harness/model'
 import { createTestModelDependencies, type MemorySendSource } from '@omne-harness/model/testing'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
+import { fail, succeed } from '@omne-harness/operation-result'
 import {
-  decodeCredentialId,
   type CredentialPort,
   type CredentialResolution,
   type ModelCommands,
@@ -13,9 +13,9 @@ import {
 } from '@omne-harness/model-contract/provider'
 import { fixture, identity, instance, op, proof, unbox } from './memory-fixture.ts'
 
-export const factoryId = unbox(decodeCredentialId('official-query'))
-export const tenantId = unbox(decodeCredentialId('tenant-key'))
 export const synthetic = 'synthetic-send-credential'
+/** The secrets of the fixed layer: one credential item. */
+export const secrets: ReadonlyMap<string, string> = new Map([['apiKey', synthetic]])
 export type Principal = ReturnType<typeof fixture>['principal']
 export const signal = () => new AbortController().signal
 export async function sendFixture(
@@ -36,36 +36,24 @@ export async function sendFixture(
         suppliers: [
           {
             ...originalRequest.suppliers[0],
-            credential: { kind: 'tenant' as const, id: tenantId },
+            credential: { layer: 'tenant' as const },
           },
         ] as const,
       }
     : originalRequest
-  let sourceAuthorized = true,
-    noTenantBinding = true
+  let sourceAuthorized = true
   const admit = { ...f.admit, request }
   const source: MemorySendSource<Principal> = {
     profile: structuredClone(request.profile),
     supplier: structuredClone(request.suppliers[0].adoption),
-    recipient: request.suppliers[0].recipient,
+    provider: request.suppliers[0].provider,
     model: request.suppliers[0].model,
-    credential: options.tenant
-      ? { kind: 'tenant' }
-      : { kind: 'factory', official: true, queryId: factoryId },
-    current: () => ({ ok: { authorized: sourceAuthorized, noTenantBinding } }),
+    official: true,
+    current: () => ({ ok: { authorized: sourceAuthorized } }),
   }
   options.configureSource?.(source)
-  const credentials: CredentialPort<Principal> = options.credentials ?? {
-    present: () => ({ kind: 'unavailable' }),
-    resolve: () => {
-      throw new Error('legacy-resolution-called')
-    },
-    resolveFor: () => ({
-      kind: 'value',
-      scope: options.tenant ? 'tenant' : 'factory',
-      value: synthetic,
-    }),
-  }
+  const credentials: CredentialPort<Principal> =
+    options.credentials ?? credentialPort(succeed(secrets))
   const assembly = createTestModelDependencies({
     ...f.options,
     start: '2026-10-19T00:00:00Z',
@@ -156,7 +144,7 @@ export async function sendFixture(
             },
           },
           startWithCredential(actual, value, abort) {
-            valueMatches = value === synthetic && actual === materialization
+            valueMatches = value.get('apiKey') === synthetic && actual === materialization
             starts += 1
             receivedSignal = abort
             if (startThrows) throw new Error(synthetic)
@@ -244,18 +232,13 @@ export async function sendFixture(
     setSourceAuthorized: (value: boolean) => {
       sourceAuthorized = value
     },
-    setNoTenantBinding: (value: boolean) => {
-      noTenantBinding = value
-    },
   }
 }
+/** A port whose send-time read answers `result`; choosing a layer belongs to preparation. */
 export function credentialPort(result: CredentialResolution): CredentialPort<Principal> {
   return {
-    present: () => ({ kind: 'unavailable' }),
-    resolve: () => {
-      throw new Error('legacy-resolution-called')
-    },
-    resolveFor: () => result,
+    layerOf: () => fail({ kind: 'unavailable' }),
+    resolve: () => result,
   }
 }
 export async function collect(facts: AsyncIterable<TransportFact>) {

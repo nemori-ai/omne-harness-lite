@@ -455,6 +455,74 @@ describe('step 6: the notice after a durable commit', () => {
     expect(last?.session).toBe(h.access().session)
   })
 
+  it('notifies the event of a one-entry commit, including the first entry', async () => {
+    const h = await service()
+    await h.create()
+    const changed = succeeded(
+      await h.faces('intake').management.change({
+        ...h.access(),
+        operation: operationId('single-declaration'),
+        declaration: { kind: 'declaration', item: 'test', value: null, basis: evidence('test') },
+      }),
+      'change',
+    )
+    expect(changed.first).toBe(changed.last)
+    await new Promise(resolve => setImmediate(resolve))
+    expect(
+      h.notifier.controls.notifications().find(notice => notice.revision === changed.revision)
+        ?.kinds,
+    ).toEqual(['session.declaration-adopted'])
+  })
+
+  it('keeps a commit notice complete across history pages and later commits', async () => {
+    const h = await service({
+      backend: {
+        name: 'memory with one-entry history pages',
+        async open(accessCheck) {
+          const backend = await memoryBackend.open(accessCheck)
+          return {
+            ...backend,
+            delegated: {
+              bind(checked) {
+                const view = backend.delegated.bind(checked)
+                return {
+                  ...view,
+                  history: {
+                    ...view.history,
+                    begin: input => view.history.begin({ ...input, pageBytes: 1 }),
+                  },
+                }
+              },
+            },
+          }
+        },
+      },
+    })
+    const created = await h.create()
+    h.view.onCommit(async (_input, next) => {
+      const result = await next()
+      h.view.onCommit(null)
+      await h.accept('later')
+      return result
+    })
+    const changed = succeeded(
+      await h.faces('intake').management.change({
+        ...h.access(),
+        operation: operationId('before-later-commit'),
+        declaration: { kind: 'declaration', item: 'test', value: null, basis: evidence('test') },
+      }),
+      'change',
+    )
+    await new Promise(resolve => setImmediate(resolve))
+    const notices = h.notifier.controls.notifications()
+    expect(notices.find(notice => notice.revision === created.revision)?.kinds).toContain(
+      'session.created',
+    )
+    expect(notices.find(notice => notice.revision === changed.revision)?.kinds).toEqual([
+      'session.declaration-adopted',
+    ])
+  })
+
   it('an absent notifier changes no answer', async () => {
     const h = await service({ notifier: false })
     await h.create()

@@ -1,4 +1,4 @@
-// The static materials (sql-contract §4): one participant `model`, its migration and the two read
+// The static materials (sql-contract §4): one participant `model`, its migration and the three read
 // handlers, each module named by its file URL and the SHA-256 of the file bytes. A provider loads
 // every module by the default export of that file, so each case here loads it the same way. The
 // fixture of the other suites also takes its participant, migration and handlers from these files,
@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   CALL_HANDLER,
+  DIAGNOSTICS_HANDLER,
   MIGRATION,
   MODEL_PARTICIPANT,
   MODEL_TABLES,
@@ -44,13 +45,13 @@ describe('the materials of the Model records', () => {
     ])
   })
 
-  it('describe the two read handlers, each in its own module file, reading only `md_` tables', () => {
+  it('describe the three read handlers, each in its own module file, reading only `md_` tables', () => {
     expect(materials.readHandlers.map(item => item.handler)).toEqual([
       CALL_HANDLER,
       PENDING_HANDLER,
+      DIAGNOSTICS_HANDLER,
     ])
-    const [call, pending] = materials.readHandlers
-    expect(call?.moduleUrl).not.toBe(pending?.moduleUrl)
+    expect(new Set(materials.readHandlers.map(item => item.moduleUrl)).size).toBe(3)
     for (const handler of materials.readHandlers) {
       expect(handler.protocol).toBe(PROTOCOL)
       expect(handler.requiresMigrations).toEqual([{ owner: MIGRATION.owner, id: MIGRATION.id }])
@@ -65,7 +66,7 @@ describe('the materials of the Model records', () => {
       ...materials.migrations.map(item => [item.moduleUrl, item.checksum] as const),
       ...materials.readHandlers.map(item => [item.moduleUrl, item.codeDigest] as const),
     ]
-    expect(new Set(modules.map(([url]) => url)).size).toBe(4)
+    expect(new Set(modules.map(([url]) => url)).size).toBe(5)
     for (const [url, digest] of modules) {
       expect(url.startsWith('file:')).toBe(true)
       expect(sha256(url)).toBe(digest)

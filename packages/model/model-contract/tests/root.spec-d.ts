@@ -37,11 +37,13 @@ import type {
   Mutation,
   OutputCursor,
   Parameter,
+  ProviderName,
   ReadId,
   ResultCapacity,
   ResultVersion,
   Revision,
   Supplier,
+  CredentialLayer,
   ToolDeclaration,
 } from '@omne-harness/model-contract'
 import type { ActorRef } from '@omne-harness/model-contract/provider'
@@ -49,7 +51,7 @@ import {
   call,
   capacity,
   consumer,
-  credential,
+  provider,
   cursor,
   instance,
   json,
@@ -70,6 +72,7 @@ it('every brand is the Identity of its own key and is also a string', () => {
   expectTypeOf<OutputCursor>().toEqualTypeOf<Identity<'ModelOutputCursor'>>()
   expectTypeOf<ReadId>().toEqualTypeOf<Identity<'ModelReadId'>>()
   expectTypeOf<Revision>().toEqualTypeOf<Identity<'ModelRevision'>>()
+  expectTypeOf<ProviderName>().toEqualTypeOf<Identity<'ModelProviderName'>>()
   expectTypeOf<ModelCallId>().toExtend<string>()
 })
 
@@ -100,7 +103,7 @@ it('ModelIdentityKey lists the eleven brand keys and no exported type name', () 
     | 'ModelRevision'
     | 'ModelResultVersion'
     | 'ModelOutputCursor'
-    | 'ModelCredentialId'
+    | 'ModelProviderName'
   >()
   expectTypeOf<'DispatchId'>().not.toExtend<ModelIdentityKey>()
 })
@@ -187,11 +190,18 @@ it('Parameter is a closed union of kinds', () => {
 it('a request value names its suppliers, tools and capacity', () => {
   const declaration: ToolDeclaration = { name: 'n', description: 'd', argumentsSchema: json }
   const capacities: ResultCapacity = capacity
-  const route: Supplier['credential'][] = [{ kind: 'tenant', id: credential }, { kind: 'factory' }]
-  // @ts-expect-error a credential kind outside tenant and factory
-  const secret: Supplier['credential'] = { kind: 'secret', id: credential }
-  // @ts-expect-error a plain string is not a credential id
-  const loose: Supplier['credential'] = { kind: 'tenant', id: 'c' }
+  const route: Supplier['credential'][] = [
+    { layer: 'tenant' },
+    { layer: 'official' },
+    { layer: 'none' },
+  ]
+  // @ts-expect-error a layer outside tenant, official and none
+  const secret: Supplier['credential'] = { layer: 'organization' }
+  // @ts-expect-error a plain string is not a provider name
+  const loose: Supplier['provider'] = 'openrouter'
+  expectTypeOf<Supplier['provider']>().toEqualTypeOf<ProviderName>()
+  expectTypeOf<Supplier['credential']>().toEqualTypeOf<CredentialLayer>()
+  expectTypeOf(provider).toEqualTypeOf<ProviderName>()
   // @ts-expect-error a request needs at least one supplier
   const noSupplier: FixedModelRequest = { ...request, suppliers: [] }
   // @ts-expect-error a request carries no budget: the send path measures nothing

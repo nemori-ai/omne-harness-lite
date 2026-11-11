@@ -1,3 +1,4 @@
+import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
 // The five model-side rows declare exactly the table row of `src/s0/stubs.ts` (names without the S0
 // prefix). `src/cordis.ts` does not export them yet (shared file), so `real-manifests-sync` does not
 // reach them; this check holds the same rule until the export is added.
@@ -11,6 +12,7 @@ import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
 import { modelRequestPreparationRow } from '../../../src/rows/model-request-preparation/index.ts'
 
 const rows = {
+  'model-tokenizers': modelTokenizersRow,
   'model-converters': modelConvertersRow,
   'model-credential': modelCredentialRow,
   'model-instances': modelInstancesRow,

@@ -62,13 +62,14 @@ describe('command catalog', () => {
     expect(renderHelp(empty)).toBe(expectedEmptyHelp)
   })
 
-  it('registers exactly the commands of the spec, the governance commands and then credential last', () => {
+  it('registers exactly the commands of the spec, the governance commands, then setting last', () => {
     expect(productionCatalog.commands.map(command => command.name)).toEqual([
       'register',
       'login',
       'create-session',
       'send-input',
       'read-history',
+      'read-session-diagnostics',
       'cancel-run',
       'stop-call',
       'create-organization',
@@ -89,7 +90,7 @@ describe('command catalog', () => {
       'query-current-tenant',
       'revoke-login',
       'query-own-valid-logins',
-      'credential',
+      'setting',
     ])
   })
 

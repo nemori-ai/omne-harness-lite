@@ -59,7 +59,8 @@ describe('a commit that fails half way', () => {
       revision: revision('1'),
       writes: puts('a', 'b', 'c'),
     })
-    expect(answer.kind).toBe('unavailable')
+    // A statement failure is decided by the input and the data, so the same commit fails again.
+    expect(answer.kind).toBe('rejected')
     expect(rows(a)).toEqual({ records: [], domains: [] })
     expect(await a.store.read(domain)).toEqual({ kind: 'complete', revision: '0', records: [] })
   })

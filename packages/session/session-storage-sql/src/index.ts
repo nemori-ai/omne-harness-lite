@@ -11,6 +11,11 @@ import { delegatedOf } from './delegated.ts'
 import { portOf } from './port.ts'
 
 export type { SessionStorageOptions } from './context.ts'
+export type {
+  SessionProtectedBasis,
+  SessionProtectedBasisSource,
+  SessionProtectedCommit,
+} from './protected-basis.ts'
 export {
   createSessionPrincipalBindings,
   type SessionPrincipalBindings,

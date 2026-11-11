@@ -68,12 +68,41 @@ describe('Admission guard P5: the share reserves what admits ask and nothing for
       operation: op(`admit-${call}`),
       capacity: { ...f.admit.capacity, bytes },
     })
+    const full = { failure: { kind: 'unavailable', dependency: 'model-capacity' } }
     unbox(await commands.admit(ask('a', '600000')))
-    expect(await commands.admit(ask('b', '600000'))).toMatchObject({
-      failure: { kind: 'capacity' },
-    })
+    expect(await commands.admit(ask('b', '600000'))).toMatchObject(full)
     unbox(await commands.admit(ask('c', '400000')))
-    expect(await commands.admit(ask('d', '1'))).toMatchObject({ failure: { kind: 'capacity' } })
+    expect(await commands.admit(ask('d', '1'))).toMatchObject(full)
+  })
+
+  it('answers a share that is full now as unavailable, and names the full item', async () => {
+    const f = fixture()
+    const { commands } = createMemoryModelCommands(f.options)
+    const held = { ...f.admit.capacity, blocks: '600' }
+    unbox(await commands.admit({ ...f.admit, capacity: held }))
+    const second = { ...f.admit, call: callId('second'), operation: op('admit-second') }
+    expect(await commands.admit({ ...second, capacity: held })).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-capacity',
+        diagnostic: 'the tenant share is full: blocks',
+      },
+    })
+    expect(unbox(await commands.query(second))).toEqual({ kind: 'not-committed' })
+  })
+
+  it('answers capacity for a call that no share can hold, held share or not', async () => {
+    const f = fixture()
+    const { commands } = createMemoryModelCommands(f.options)
+    const never = { ...f.admit.capacity, attachmentBytes: '1000001' }
+    expect(await commands.admit({ ...f.admit, capacity: never })).toEqual({
+      failure: { kind: 'capacity', required: never },
+    })
+    unbox(await commands.admit({ ...f.admit, capacity: f.options.limits.capacity }))
+    const second = { ...f.admit, call: callId('second'), operation: op('admit-second') }
+    expect(await commands.admit({ ...second, capacity: never })).toEqual({
+      failure: { kind: 'capacity', required: never },
+    })
   })
 })
 

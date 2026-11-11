@@ -18,12 +18,14 @@ Harness Server 的应用装配。它经 Cordis 装载插件树，检查各行装
 - 关闭协调器和进程入口 `dist/bin.js`。
 - `./cordis` 导出，含 S0 替身插件。各行闭包把真实导出加进去。
 - 真实模式的子命令 `serve`、行声明 `defineRow`、入口对象注册表与装载前检查。见 [docs/real-mode.md](docs/real-mode.md)。
+- `telemetry` 行（工程遥测的 Node 提供者，本地第一版）、三态 Cordis 日志桥、入口诊断事件 `omne.entry.diagnostic`，以及有序关闭里的遥测关闭步骤。见 [docs/rows/telemetry.md](docs/rows/telemetry.md)。
+- 应用里的会话诊断投影（RFC-0013 revision 2 A 线）：`model-records` 行提供 `modelDiagnostics`，`server-entry` 行注入 `agentJournal`、`modelDiagnostics`、`modelRuntime`，按调用现取 `toolRuntime`。本机单用户档披露投影的全部种类。见 [docs/rows/server-entry.md](docs/rows/server-entry.md) 与 [docs/rows/model-release.md](docs/rows/model-release.md#诊断读面-modeldiagnostics)。
 
 SPEC.md 里的有序关闭规则（启动次序、停止状态后不再调用 `start`、启动期 `start` 抛出的处置）已经实现。`tests/shutdown.spec.ts` 与 `tests/s0-process.spec.ts` 覆盖它们。
 
 S0 不接 HTTP，不创建租户，不打开业务状态根，不读真实秘密。S0 通过不表示租户可以创建或使用。
 
-`serve` 模式以正式服务键装载同一批行。示例配置里，存储、身份、授权、会话存储与提供者、Agent 采用、采用来源、Tool 绑定、Tool 宿主、常驻引用桥接与服务端接入这些行是真实实现，其余行仍是替身。所以 `serve` 通过只检查装配，不检查完整的租户路径。
+`serve` 模式以正式服务键装载同一批行。示例配置里，存储、身份、授权、会话存储与提供者、Agent 采用、采用来源、Tool 绑定、Tool 宿主、常驻引用桥接、服务端接入与遥测这些行是真实实现，其余行仍是替身。所以 `serve` 通过只检查装配，不检查完整的租户路径。
 
 ## 使用
 
@@ -60,6 +62,8 @@ node apps/harness-server/dist/bin.js serve [--distribution <绝对 JSON 路径>]
 `serve` 省略的参数取本机单用户档的值：发行文件用随应用的 `config/serve.distribution.json`，超时取 30000 与 10000 毫秒，运维者层与状态根来自 `setup` 的配置。
 
 `s0` 写出启动结果后自动停止。`serve` 等停止请求：带 `--stop-on-stdin-close` 时标准输入关闭、SIGINT 或 SIGTERM。Windows 上只有关闭标准输入能让别的进程停止它。
+
+`serve` 下，级别不高于 WARN 的 Cordis 日志与入口诊断都以 `telemetry` 记录写到 stdout（`kind: 'telemetry'`，每条一行 JSON）。原来的 `log` 记录（`{ kind: 'log', level, name, text }`）不再写出。这是本应用输出的破坏性变化，依据是 RFC-0013 的 B 线（候选）。stdout 只有一个写者，所以 `shutdown-result` 是最后一行。记录形状与关闭报告的 `telemetry` 字段见 [SPEC.md](SPEC.md#进程输出与退出码) 与 [docs/rows/telemetry.md](docs/rows/telemetry.md)。
 
 用法错误时，标准错误先写 `<子命令>: <原因>`，再写该子命令的用法行。退出码为 2：
 

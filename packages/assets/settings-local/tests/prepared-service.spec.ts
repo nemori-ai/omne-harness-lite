@@ -1,0 +1,720 @@
+import { readdirSync } from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
+import { afterEach, expect, it } from 'vitest'
+import { definition, definitionRef, secretDefinition, secretDefinitionRef } from './world.ts'
+import { intentAttemptIdentity } from '../src/intent-records.ts'
+import { digest, json } from '../src/encoding.ts'
+import { stored } from './business-world.ts'
+import { openPreparedServiceWorld } from './prepared-service-world.ts'
+const worlds: Awaited<ReturnType<typeof openPreparedServiceWorld>>[] = []
+async function open(
+  configure?: Parameters<typeof openPreparedServiceWorld>[0],
+  bound?: Parameters<typeof openPreparedServiceWorld>[1],
+) {
+  const world = await openPreparedServiceWorld(configure, bound)
+  worlds.push(world)
+  return world
+}
+afterEach(async () => {
+  for (const world of worlds.splice(0)) await world.close()
+})
+it('keeps the state, the original operation and value-free changes across reopening the SQL provider', async () => {
+  const first = await open()
+  const prepared = await first.service.prepareChange(first.context, first.command)
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  const committed = await first.service.commitChange(first.context, {
+    requestId: 'commit',
+    preparation: prepared.preparation,
+  })
+  expect(committed).toMatchObject({ kind: 'committed', revision: 1, changed: true })
+  worlds.splice(worlds.indexOf(first), 1)
+  await first.close()
+  const { target } = first.command
+  const reopened = await open(undefined, { root: first.root, scopeRef: target.scopeRef })
+  expect(stored(first.root)).toMatchObject({
+    state: {
+      state: {
+        revision: 1,
+        sources: [
+          { id: 'tenant', values: [{ itemId: 'enabled', value: { kind: 'value', value: true } }] },
+        ],
+      },
+    },
+    operations: 1,
+    changes: 1,
+    terminals: 1,
+  })
+  expect(
+    await reopened.service.getOperation(reopened.context, prepared.preparation.operation),
+  ).toEqual(committed)
+  // A change names the item and the source and carries no value.
+  expect(
+    await reopened.service.readChanges(reopened.context, { target, afterRevision: 0, limit: 10 }),
+  ).toEqual({
+    kind: 'changes',
+    changes: [
+      {
+        kind: 'value',
+        revision: 1,
+        operationId: first.command.operationId,
+        itemId: 'enabled',
+        sourceId: 'tenant',
+      },
+    ],
+    nextRevision: null,
+  })
+})
+
+/** The tables of every database under the root that hold the text in some row. */
+function tablesHolding(root: string, text: string): string[] {
+  const directory = `${root}/domains`
+  return readdirSync(directory)
+    .filter(name => name.endsWith('.sqlite'))
+    .flatMap(file => {
+      const sql = new DatabaseSync(`${directory}/${file}`, { readOnly: true })
+      try {
+        return sql
+          .prepare("SELECT name FROM sqlite_schema WHERE type = 'table'")
+          .all()
+          .map(row => String(row['name']))
+          .filter(name =>
+            sql
+              .prepare(`SELECT * FROM "${name}"`)
+              .all()
+              .some(row => JSON.stringify(row).includes(text)),
+          )
+      } finally {
+        sql.close()
+      }
+    })
+}
+
+it('refuses a secret write before it allocates anything, and keeps the plaintext nowhere', async () => {
+  const responses: unknown[] = []
+  const w = await open(options => ({
+    ...options,
+    storage: {
+      ...options.storage,
+      async commit(input) {
+        const result = await options.storage.commit(input)
+        responses.push(result)
+        return result
+      },
+    },
+  }))
+  w.updateDefinition(secretDefinition)
+  w.updateCurrent(current => ({
+    ...current,
+    basis: { ...current.basis, definitionRef: secretDefinitionRef },
+  }))
+  const secret = 'private-value-must-not-be-in-receipts'
+  const command = {
+    ...w.command,
+    definitionRef: secretDefinitionRef,
+    action: { kind: 'set' as const, value: secret },
+  }
+  expect(await w.service.prepareChange(w.context, command)).toEqual({
+    kind: 'rejected',
+    reason: 'unsupported',
+  })
+  // No Identity reservation, no transaction and no row: the value never left the caller.
+  expect(w.requests).toHaveLength(0)
+  expect(JSON.stringify(responses)).not.toContain(secret)
+  expect(tablesHolding(w.root, secret)).toEqual([])
+  expect(stored(w.root)).toMatchObject({ state: null, operations: 0, changes: 0, terminals: 0 })
+  // An ordinary item of the same world is prepared as before.
+  w.updateDefinition(definition)
+  w.updateCurrent(current => ({ ...current, basis: { ...current.basis, definitionRef } }))
+  expect(
+    await w.service.prepareChange(w.context, { ...w.command, operationId: 'ordinary' }),
+  ).toMatchObject({ kind: 'prepared' })
+})
+
+it.each(['scope', 'target'] as const)(
+  'refuses every call when the access grant binds another %s',
+  async mismatch => {
+    const w = await open(options => ({
+      ...options,
+      access: {
+        async authorize(caller, request) {
+          return {
+            kind: 'authorized',
+            principalRef: caller.principalRef,
+            scope:
+              mismatch === 'scope' ? { kind: 'tenant', tenant: 'another-tenant' } : request.scope,
+            target:
+              mismatch === 'target' ? { ...request.target, targetRef: 'other' } : request.target,
+          }
+        },
+      },
+    }))
+    const { target, operationId } = w.command
+    const forbidden = { kind: 'rejected', reason: 'forbidden' }
+    expect(await w.service.prepareChange(w.context, w.command)).toEqual(forbidden)
+    expect(await w.service.getOperation(w.context, { target, operationId })).toEqual(forbidden)
+    expect(await w.service.readChanges(w.context, { target, afterRevision: 0, limit: 10 })).toEqual(
+      forbidden,
+    )
+    expect(w.requests).toHaveLength(0)
+    expect(stored(w.root)).toMatchObject({ state: null, operations: 0 })
+  },
+)
+
+it('rechecks access for each read and shows no operation of another target or principal', async () => {
+  const w = await open()
+  const prepared = await w.service.prepareChange(w.context, w.command)
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  await w.service.commitChange(w.context, {
+    requestId: 'commit',
+    preparation: prepared.preparation,
+  })
+  const { target, operationId } = w.command
+  const denied = { ...w.context, allowed: false }
+  const forbidden = { kind: 'rejected', reason: 'forbidden' }
+  expect(await w.service.getOperation(denied, { target, operationId })).toEqual(forbidden)
+  expect(await w.service.readChanges(denied, { target, afterRevision: 0, limit: 10 })).toEqual(
+    forbidden,
+  )
+  expect(
+    await w.service.getOperation(w.context, {
+      target: { ...target, targetRef: 'other' },
+      operationId,
+    }),
+  ).toEqual({ kind: 'not_found' })
+  expect(
+    await w.service.getOperation({ ...w.context, principalRef: 'bob' }, { target, operationId }),
+  ).toEqual({ kind: 'not_found' })
+})
+
+it('pages the changes of a target by revision', async () => {
+  const w = await open()
+  const write = async (command: typeof w.command) => {
+    const prepared = await w.service.prepareChange(w.context, command)
+    if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+    return w.service.commitChange(w.context, {
+      requestId: `commit-${command.operationId}`,
+      preparation: prepared.preparation,
+    })
+  }
+  expect(await write(w.command)).toMatchObject({ kind: 'committed', revision: 1 })
+  w.updateCurrent(current => ({ ...current, basis: { ...current.basis, valueRevision: 1 } }))
+  const second = {
+    ...w.command,
+    requestId: 'request-2',
+    operationId: 'second',
+    expectedRevision: 1,
+    action: { kind: 'set' as const, value: false },
+  }
+  expect(await write(second)).toMatchObject({ kind: 'committed', revision: 2, changed: true })
+  const { target } = w.command
+  expect(
+    await w.service.readChanges(w.context, { target, afterRevision: 0, limit: 1 }),
+  ).toMatchObject({
+    nextRevision: 1,
+    changes: [{ revision: 1, operationId: w.command.operationId }],
+  })
+  expect(await w.service.readChanges(w.context, { target, afterRevision: 1, limit: 1 })).toEqual({
+    kind: 'changes',
+    changes: [
+      { kind: 'value', revision: 2, operationId: 'second', itemId: 'enabled', sourceId: 'tenant' },
+    ],
+    nextRevision: null,
+  })
+})
+
+it('refuses a malformed command and a malformed history read before authorization', async () => {
+  let authorized = 0
+  const w = await open(options => ({
+    ...options,
+    access: {
+      authorize(context, request) {
+        authorized++
+        return options.access.authorize(context, request)
+      },
+    },
+  }))
+  // A member that the contract does not have, such as a principal that the caller names.
+  const forged: typeof w.command = Object.assign({}, w.command, { principal: 'admin' })
+  expect(await w.service.prepareChange(w.context, forged)).toEqual({
+    kind: 'rejected',
+    reason: 'invalid_input',
+  })
+  const input = { target: w.command.target, afterRevision: 0, limit: 100 }
+  for (const invalid of [
+    { ...input, afterRevision: -1 },
+    { ...input, limit: 101 },
+    { ...input, principal: 'forged' },
+  ])
+    expect(await w.service.readChanges(w.context, invalid)).toEqual({
+      kind: 'rejected',
+      reason: 'invalid_input',
+    })
+  expect(authorized).toBe(0)
+  expect(await w.service.readChanges(w.context, input)).toMatchObject({ kind: 'changes' })
+  expect(authorized).toBe(1)
+})
+it('seals the attempt when the source layout of the plan is not the stored one', async () => {
+  const w = await open()
+  const first = await w.service.prepareChange(w.context, w.command)
+  if (first.kind !== 'prepared') throw new Error(JSON.stringify(first))
+  await w.service.commitChange(w.context, { requestId: 'commit', preparation: first.preparation })
+  // The owner now names an organization source before the tenant source.
+  w.updateCurrent(current => ({
+    ...current,
+    basis: {
+      ...current.basis,
+      valueRevision: 1,
+      sources: [
+        {
+          sourceId: 'organization',
+          ownerRef: 'owner',
+          scope: { kind: 'organization', subjectRef: 'organization-a' },
+          authorityRevision: '1',
+        },
+        ...current.basis.sources,
+      ],
+    },
+  }))
+  const command = {
+    ...w.command,
+    requestId: 'request-2',
+    operationId: 'new-layout',
+    expectedRevision: 1,
+    action: { kind: 'set' as const, value: false },
+  }
+  const prepared = await w.service.prepareChange(w.context, command)
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  expect(
+    await w.service.commitChange(w.context, {
+      requestId: 'commit-2',
+      preparation: prepared.preparation,
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'basis_changed' })
+  // The stored value and its revision are those of the first write.
+  expect(stored(w.root)).toMatchObject({
+    state: {
+      state: {
+        revision: 1,
+        sources: [
+          { id: 'tenant', values: [{ itemId: 'enabled', value: { kind: 'value', value: true } }] },
+        ],
+      },
+    },
+    changes: 1,
+  })
+})
+
+it('admits one of two operations that compete for the same expected revision', async () => {
+  const w = await open()
+  const competitor = {
+    ...w.command,
+    requestId: 'request-2',
+    operationId: 'competitor',
+    action: { kind: 'set' as const, value: false },
+  }
+  const first = await w.service.prepareChange(w.context, w.command)
+  const second = await w.service.prepareChange(w.context, competitor)
+  if (first.kind !== 'prepared' || second.kind !== 'prepared')
+    throw new Error(JSON.stringify([first, second]))
+  const results = await Promise.all([
+    w.service.commitChange(w.context, { requestId: 'commit-1', preparation: first.preparation }),
+    w.service.commitChange(w.context, { requestId: 'commit-2', preparation: second.preparation }),
+  ])
+  // The reason the loser gets comes from the current producer; the revision rule itself is
+  // pinned at the SQL combination (business-combination.spec.ts, revision_conflict).
+  expect(results.filter(result => result.kind === 'committed')).toHaveLength(1)
+  expect(stored(w.root)).toMatchObject({ state: { state: { revision: 1 } }, operations: 1 })
+})
+
+it('separates protected preparation from commit and recognizes the original result', async () => {
+  const w = await open()
+  const prepared = await w.service.prepareChange(w.context, w.command)
+  expect(prepared).toMatchObject({ kind: 'prepared' })
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  expect(w.requests).toHaveLength(1)
+  expect(await w.service.getOperation(w.context, prepared.preparation.operation)).toMatchObject({
+    kind: 'pending',
+    attempt: { state: 'prepared' },
+  })
+  expect(
+    await w.service.readChanges(w.context, {
+      target: w.command.target,
+      afterRevision: 0,
+      limit: 10,
+    }),
+  ).toMatchObject({ kind: 'changes', changes: [] })
+  const commit = { requestId: 'commit', preparation: prepared.preparation }
+  const result = await w.service.commitChange(w.context, commit)
+  expect(result).toMatchObject({ kind: 'committed', revision: 1, changed: true })
+  expect(await w.service.commitChange(w.context, commit)).toEqual(result)
+  expect(await w.service.prepareChange(w.context, { ...w.command, requestId: 'retry' })).toEqual(
+    result,
+  )
+  expect(
+    await w.service.cancelChange(w.context, {
+      requestId: 'cancel',
+      operation: prepared.preparation.operation,
+    }),
+  ).toEqual(result)
+  expect(
+    await w.service.readChanges(w.context, {
+      target: w.command.target,
+      afterRevision: 0,
+      limit: 10,
+    }),
+  ).toMatchObject({
+    kind: 'changes',
+    changes: [{ revision: 1, operationId: w.command.operationId }],
+  })
+})
+it('reauthorizes queries and rejects changed semantic commands or forged preparation bindings', async () => {
+  const w = await open()
+  const prepared = await w.service.prepareChange(w.context, w.command)
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  expect(
+    await w.service.getOperation({ ...w.context, allowed: false }, prepared.preparation.operation),
+  ).toEqual({ kind: 'rejected', reason: 'forbidden' })
+  expect(
+    await w.service.prepareChange(w.context, {
+      ...w.command,
+      action: { kind: 'set', value: false },
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'operation_conflict' })
+  expect(
+    await w.service.commitChange(w.context, {
+      requestId: 'forged',
+      preparation: { ...prepared.preparation, commandDigest: 'a'.repeat(64) },
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'operation_conflict' })
+  expect(
+    await w.service.commitChange(w.context, {
+      requestId: 'forged',
+      preparation: { ...prepared.preparation, attemptId: 'other' },
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'operation_conflict' })
+})
+it('cancels the exact preparation and cannot revive it', async () => {
+  const w = await open()
+  const prepared = await w.service.prepareChange(w.context, w.command)
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  expect(
+    await w.service.cancelChange(w.context, {
+      requestId: 'cancel',
+      operation: prepared.preparation.operation,
+    }),
+  ).toMatchObject({ kind: 'aborted', reason: 'cancelled' })
+  expect(
+    await w.service.commitChange(w.context, {
+      requestId: 'late',
+      preparation: prepared.preparation,
+    }),
+  ).toMatchObject({ kind: 'aborted', reason: 'cancelled' })
+  expect(await w.service.prepareChange(w.context, w.command)).toMatchObject({
+    kind: 'aborted',
+    reason: 'cancelled',
+  })
+  expect(w.requests).toHaveLength(1)
+})
+
+it('recovers a lost reservation reply with the same persisted request and attempt', async () => {
+  let lost = true
+  const w = await open(options => ({
+    ...options,
+    standing: {
+      ...options.standing,
+      async reserve(context, request) {
+        const result = await options.standing.reserve(context, request)
+        if (lost) {
+          lost = false
+          throw new Error('reply lost')
+        }
+        return result
+      },
+    },
+  }))
+  const operation = { target: w.command.target, operationId: w.command.operationId }
+  expect(await w.service.prepareChange(w.context, w.command)).toEqual({
+    kind: 'unknown',
+    operation,
+  })
+  const pending = await w.service.getOperation(w.context, operation)
+  if (pending.kind !== 'pending' || pending.attempt?.state !== 'preparing')
+    throw new Error(JSON.stringify(pending))
+  const prepared = await w.service.prepareChange(w.context, w.command)
+  expect(prepared).toMatchObject({
+    kind: 'prepared',
+    preparation: { attemptId: pending.attempt.attemptId },
+  })
+  expect(w.requests).toHaveLength(2)
+  expect(w.requests[0]).toEqual(w.requests[1])
+})
+
+it.each(['settings.ready', 'settings.attempt.commit'])(
+  'recognizes durable work after losing the %s response',
+  async operationName => {
+    let lost = true
+    const w = await open(options => ({
+      ...options,
+      storage: {
+        ...options.storage,
+        async commit(request) {
+          const result = await options.storage.commit(request)
+          if (request.identity.operation === operationName && result.kind === 'committed' && lost) {
+            lost = false
+            throw new Error('SQL reply lost')
+          }
+          return result
+        },
+      },
+    }))
+    let prepared = await w.service.prepareChange(w.context, w.command)
+    if (operationName === 'settings.ready') {
+      expect(prepared.kind).toBe('unknown')
+      prepared = await w.service.prepareChange(w.context, w.command)
+    }
+    if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+    const request = { requestId: 'commit', preparation: prepared.preparation }
+    const result = await w.service.commitChange(w.context, request)
+    expect(result.kind).toBe(operationName === 'settings.attempt.commit' ? 'unknown' : 'committed')
+    expect(await w.service.getOperation(w.context, prepared.preparation.operation)).toMatchObject({
+      kind: 'committed',
+      revision: 1,
+    })
+    expect(await w.service.commitChange(w.context, request)).toMatchObject({
+      kind: 'committed',
+      revision: 1,
+    })
+    expect(w.requests).toHaveLength(1)
+  },
+)
+
+it('seals stale basis without silently allocating another preparation', async () => {
+  const w = await open()
+  const prepared = await w.service.prepareChange(w.context, w.command)
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  w.updateCurrent(current => ({ ...current, basis: { ...current.basis, ownerRevision: 2 } }))
+  expect(
+    await w.service.commitChange(w.context, {
+      requestId: 'stale',
+      preparation: prepared.preparation,
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'basis_changed' })
+  expect(await w.service.getOperation(w.context, prepared.preparation.operation)).toMatchObject({
+    kind: 'pending',
+    attempt: null,
+  })
+  expect(w.requests).toHaveLength(1)
+  const next = await w.service.prepareChange(w.context, w.command)
+  if (next.kind !== 'prepared') throw new Error(JSON.stringify(next))
+  expect(next.preparation.attemptId).not.toBe(prepared.preparation.attemptId)
+  expect(w.requests).toHaveLength(2)
+})
+
+it('rejects new calls during close and drains an accepted preparation', async () => {
+  const entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>()
+  const w = await open(options => ({
+    ...options,
+    standing: {
+      ...options.standing,
+      async reserve(context, request) {
+        entered.resolve()
+        await release.promise
+        return options.standing.reserve(context, request)
+      },
+    },
+  }))
+  const accepted = w.service.prepareChange(w.context, w.command)
+  await entered.promise
+  const closing = w.control.close()
+  expect(await w.service.prepareChange(w.context, w.command)).toEqual({
+    kind: 'rejected',
+    reason: 'closing',
+  })
+  release.resolve()
+  expect((await accepted).kind).toBe('prepared')
+  await closing
+  expect(
+    await w.service.getOperation(w.context, {
+      target: w.command.target,
+      operationId: w.command.operationId,
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'closing' })
+})
+
+it('concurrent preparation calls share one persisted attempt', async () => {
+  const w = await open()
+  const results = await Promise.all([
+    w.service.prepareChange(w.context, w.command),
+    w.service.prepareChange(w.context, w.command),
+  ])
+  expect(results.some(result => result.kind === 'prepared')).toBe(true)
+  const recognized = await w.service.prepareChange(w.context, w.command)
+  if (recognized.kind !== 'prepared') throw new Error(JSON.stringify(recognized))
+  for (const result of results)
+    if (result.kind === 'prepared') expect(result.preparation).toEqual(recognized.preparation)
+  expect(new Set(w.requests.map(request => request.binding.operationId)).size).toBe(1)
+})
+
+it('keeps a no-change result and performs explicit rebase through the same public preparation path', async () => {
+  const w = await open()
+  const initial = await w.service.prepareChange(w.context, w.command)
+  if (initial.kind !== 'prepared') throw new Error(JSON.stringify(initial))
+  expect(
+    (
+      await w.service.commitChange(w.context, {
+        requestId: 'initial',
+        preparation: initial.preparation,
+      })
+    ).kind,
+  ).toBe('committed')
+  w.updateCurrent(current => ({ ...current, basis: { ...current.basis, valueRevision: 1 } }))
+  const repeated = await w.service.prepareChange(w.context, {
+    ...w.command,
+    operationId: 'same-value',
+    expectedRevision: 1,
+  })
+  if (repeated.kind !== 'prepared') throw new Error(JSON.stringify(repeated))
+  expect(
+    await w.service.commitChange(w.context, {
+      requestId: 'no-change',
+      preparation: repeated.preparation,
+    }),
+  ).toMatchObject({ kind: 'committed', revision: 1, changed: false })
+  const next = { ...definition, version: '2' }
+  const nextRef = { ...definitionRef, version: '2', digest: digest(next) }
+  w.updateDefinition(next)
+  w.updateCurrent(current => ({ ...current, basis: { ...current.basis, definitionRef: nextRef } }))
+  const prepared = await w.service.prepareRebase(w.context, {
+    protocol: 'settings-rebase/1',
+    operationId: 'rebase',
+    requestId: 'prepare-rebase',
+    target: w.command.target,
+    from: definitionRef,
+    to: nextRef,
+    expectedRevision: 1,
+    assignments: [{ sourceId: 'tenant', itemId: 'enabled', disposition: 'retain' }],
+  })
+  if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+  const result = await w.service.commitChange(w.context, {
+    requestId: 'rebase',
+    preparation: prepared.preparation,
+  })
+  const receipt = await w.world.storage.query(
+    intentAttemptIdentity(
+      {
+        domain: w.options.domain,
+        principalRef: w.context.principalRef,
+        operation: prepared.preparation.operation,
+      },
+      prepared.preparation.attemptId,
+    ),
+  )
+  expect(result, JSON.stringify(receipt)).toMatchObject({ kind: 'committed', revision: 2 })
+})
+
+it('fails closed before creating a root and does not invent work for a cancel query', async () => {
+  const w = await open()
+  const operation = { target: w.command.target, operationId: w.command.operationId }
+  expect(await w.service.prepareChange({ ...w.context, allowed: false }, w.command)).toEqual({
+    kind: 'rejected',
+    reason: 'forbidden',
+  })
+  expect(
+    await w.service.cancelChange(w.context, { requestId: 'cancel-missing', operation }),
+  ).toEqual({ kind: 'not_found' })
+  expect(await w.service.getOperation(w.context, operation)).toEqual({ kind: 'not_found' })
+  expect(w.requests).toHaveLength(0)
+})
+
+it('seals preparation when current basis changes during external reservation', async () => {
+  const entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>()
+  const w = await open(options => ({
+    ...options,
+    standing: {
+      ...options.standing,
+      async reserve(context, request) {
+        const held = await options.standing.reserve(context, request)
+        entered.resolve()
+        await release.promise
+        return held
+      },
+    },
+  }))
+  const pending = w.service.prepareChange(w.context, w.command)
+  await entered.promise
+  w.updateCurrent(current => ({ ...current, basis: { ...current.basis, ownerRevision: 9 } }))
+  release.resolve()
+  expect(await pending).toEqual({ kind: 'rejected', reason: 'basis_changed' })
+  expect(
+    await w.service.getOperation(w.context, {
+      target: w.command.target,
+      operationId: w.command.operationId,
+    }),
+  ).toMatchObject({ kind: 'pending', attempt: null })
+  expect(w.requests).toHaveLength(1)
+})
+
+it.each([false, true])(
+  'seals only a durably rolled-back SQL attempt before explicit reprepare, lost reply = %s',
+  async loseReply => {
+    let unavailable = true,
+      lose = loseReply
+    const w = await open(options => ({
+      ...options,
+      currentCommands(context, input) {
+        return input.phase === 'commit' && unavailable
+          ? [
+              {
+                participant: 'fixture.commit-current',
+                facts: {
+                  current: json({ binding: input.binding, observation: { kind: 'unavailable' } }),
+                },
+              },
+            ]
+          : options.currentCommands(context, input)
+      },
+      storage: {
+        ...options.storage,
+        async commit(request) {
+          const result = await options.storage.commit(request)
+          if (
+            lose &&
+            request.identity.operation === 'settings.attempt.commit' &&
+            result.kind === 'rolled_back'
+          ) {
+            lose = false
+            throw new Error('rollback reply lost')
+          }
+          return result
+        },
+      },
+    }))
+    const prepared = await w.service.prepareChange(w.context, w.command)
+    if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared))
+    const commit = { requestId: 'unavailable', preparation: prepared.preparation }
+    const first = await w.service.commitChange(w.context, commit)
+    expect(first.kind).toBe(loseReply ? 'unknown' : 'rejected')
+    unavailable = false
+    if (loseReply)
+      expect(await w.service.commitChange(w.context, commit)).toEqual({
+        kind: 'rejected',
+        reason: 'unavailable',
+      })
+    expect(await w.service.getOperation(w.context, prepared.preparation.operation)).toMatchObject({
+      kind: 'pending',
+      attempt: null,
+    })
+    expect(w.requests).toHaveLength(1)
+    const next = await w.service.prepareChange(w.context, w.command)
+    if (next.kind !== 'prepared') throw new Error(JSON.stringify(next))
+    expect(next.preparation.attemptId).not.toBe(prepared.preparation.attemptId)
+    expect(
+      await w.service.commitChange(w.context, {
+        requestId: 'retry',
+        preparation: next.preparation,
+      }),
+    ).toMatchObject({ kind: 'committed', revision: 1 })
+  },
+)

@@ -153,7 +153,7 @@ function build(s: Scenario) {
     }),
     meter: {
       ...f.ports.meter,
-      measure(measured) {
+      async measure(measured) {
         const tokens = (measured as { representation: { tokenInput: { value: string } } })
           .representation.tokenInput.value
         const report = budget(String(weightOf(JSON.parse(tokens))))

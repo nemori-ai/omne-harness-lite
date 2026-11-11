@@ -1,8 +1,10 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { lstat, readFile, rmdir, unlink } from 'node:fs/promises'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { ManagedResource, RecoveryListing } from '@omne-harness/execution-environment-contract'
+import { cgroupDirectory, scopeMembers } from './scope-cgroup.ts'
 
 /** The supervisor of the scopes: `systemctl` by absolute path, and the kill option it knows. */
 export type Supervisor = Readonly<{
@@ -61,7 +63,8 @@ export function scopeDescription(scope: ScopeRef, key: string): string {
   return `${descriptionPrefix} ${scopeDigest(scope)} ${key}`
 }
 
-function scopeDigest(scope: ScopeRef): string {
+/** The digest of a scope reference that unit descriptions and retained-process markers record. */
+export function scopeDigest(scope: ScopeRef): string {
   return createHash('sha256').update(scope.ref).digest('hex').slice(0, 32)
 }
 
@@ -193,6 +196,67 @@ async function readShow(tools: Supervisor, unit: string, timeoutMs: number) {
 
 const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
+/** The processes of one scope unit as the kernel lists them, or why they cannot be listed. */
+export type MembersReading =
+  | Readonly<{ kind: 'members'; pids: readonly number[]; directory: string }>
+  /** The supervisor reports the unit inactive or unknown: the domain is gone. */
+  | Readonly<{ kind: 'gone'; show: ScopeShow }>
+  /**
+   * No reading. With `show`, the supervisor answered but the unit's processes could not be listed
+   * (no control group, or an unreadable directory); without it the tool itself failed.
+   */
+  | Readonly<{ kind: 'unreadable'; show?: ScopeShow }>
+
+/** `systemctl show` of the unit with its control group path, read within `timeoutMs`. */
+async function readShowWithControlGroup(tools: Supervisor, unit: string, timeoutMs: number) {
+  const run = await runTool(
+    tools.systemctl,
+    ['--user', 'show', '-p', 'LoadState', '-p', 'ActiveState', '-p', 'ControlGroup', unit],
+    timeoutMs,
+  )
+  if (run.kind !== 'exited' || run.code !== 0) return undefined
+  const show = parseShow(run.stdout)
+  const controlGroup = run.stdout
+    .split('\n')
+    .find(line => line.startsWith('ControlGroup='))
+    ?.slice('ControlGroup='.length)
+    .trim()
+  return show === undefined ? undefined : { show, controlGroup: controlGroup ?? '' }
+}
+
+/**
+ * Reads the members of a scope unit. With a known `directory` it reads `cgroup.procs` there; an
+ * unreadable directory, or no directory, makes it ask the supervisor: a unit it reports inactive or
+ * unknown is gone, otherwise its `ControlGroup` path, placed under the unified mount of this process,
+ * names the directory. Nothing here turns a failed reading into an empty one.
+ */
+export async function readScopeMembers(input: {
+  tools: Supervisor
+  unit: string
+  boundMs: number
+  directory?: string | undefined
+}): Promise<MembersReading> {
+  if (input.directory !== undefined) {
+    const pids = scopeMembers(input.directory)
+    if (pids !== undefined) return { kind: 'members', pids, directory: input.directory }
+  }
+  const shown = await readShowWithControlGroup(input.tools, input.unit, input.boundMs)
+  if (shown === undefined) return { kind: 'unreadable' }
+  if (confirmationOf(shown.show) === 'confirmed') return { kind: 'gone', show: shown.show }
+  if (shown.controlGroup === '') return { kind: 'unreadable', show: shown.show }
+  let mountinfo: string
+  try {
+    mountinfo = readFileSync('/proc/self/mountinfo', 'utf8')
+  } catch {
+    return { kind: 'unreadable', show: shown.show }
+  }
+  const directory = cgroupDirectory(shown.controlGroup, mountinfo)
+  const pids = directory === undefined ? undefined : scopeMembers(directory)
+  return directory === undefined || pids === undefined
+    ? { kind: 'unreadable', show: shown.show }
+    : { kind: 'members', pids, directory }
+}
+
 /**
  * The forced stop of one execution domain: kill every process of the scope, stop the unit (exit
  * code 5, unit not loaded, counts as already gone), wait for the launcher when there is one, then
@@ -236,18 +300,39 @@ export async function forceStopScope(input: {
   return show === undefined ? { status: 'unconfirmed' } : { status: 'unconfirmed', show }
 }
 
-function isListedUnit(value: unknown): value is { unit: string; description: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof Reflect.get(value, 'unit') === 'string' &&
-    typeof Reflect.get(value, 'description') === 'string'
-  )
+/**
+ * The `Id` and `Description` of every unit in `systemctl show` output (key=value blocks separated
+ * by blank lines), or `undefined` when a block is not that shape (a line without a key, a repeated
+ * key, no `Id` or no `Description`) or names a unit outside `omne-host-*.scope`. The columns of `list-units` text change when a listed unit has a pending
+ * job, and systemd 245 ignores `--output=json` there, so the listing reads `show`.
+ */
+function shownUnits(text: string): { id: string; description: string }[] | undefined {
+  const units: { id: string; description: string }[] = []
+  for (const block of text.split(/\n{2,}/u)) {
+    if (block.trim() === '') continue
+    const values = new Map<string, string>()
+    for (const line of block.split('\n')) {
+      if (line === '') continue
+      const at = line.indexOf('=')
+      const key = line.slice(0, at)
+      // A repeated key means two units ran together without the blank line between them.
+      if (at <= 0 || values.has(key)) return undefined
+      values.set(key, line.slice(at + 1))
+    }
+    const id = values.get('Id')
+    const description = values.get('Description')
+    if (id === undefined || description === undefined) return undefined
+    if (!id.startsWith('omne-host-') || !id.endsWith('.scope')) return undefined
+    units.push({ id, description })
+  }
+  return units
 }
 
 /**
  * Lists the scopes of `scope` that this provider started and systemd still knows, from the unit
- * descriptions. A failed listing is `unavailable`, never an empty list. A unit of an earlier boot
+ * descriptions. A failed listing, or output it cannot read, is `unavailable`, never an empty list.
+ * Only a well-formed block that is not this scope's is left out: its description names another
+ * scope, or its unit name is not `omne-host-<uuid>.scope` (a probe unit, say). A unit of an earlier boot
  * is gone with that boot, so it is not listed.
  */
 export async function listScopes(input: {
@@ -260,37 +345,18 @@ export async function listScopes(input: {
   if (bootId === undefined) return { kind: 'unavailable' }
   const run = await runTool(
     input.systemctl,
-    [
-      '--user',
-      'list-units',
-      '--all',
-      '--type=scope',
-      '--plain',
-      '--no-legend',
-      '--output=json',
-      'omne-host-*.scope',
-    ],
+    ['--user', 'show', '-p', 'Id', '-p', 'Description', 'omne-host-*.scope'],
     input.boundMs,
   )
   if (run.kind !== 'exited' || run.code !== 0) return { kind: 'unavailable' }
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(run.stdout)
-  } catch {
-    return { kind: 'unavailable' }
-  }
-  if (!Array.isArray(parsed)) return { kind: 'unavailable' }
+  const units = shownUnits(run.stdout)
+  if (units === undefined) return { kind: 'unavailable' }
   const digest = scopeDigest(input.scope)
   const resources: ManagedResource[] = []
-  for (const entry of parsed) {
-    if (!isListedUnit(entry)) continue
-    const key = unitPattern.exec(entry.unit)?.[1]
-    if (key === undefined || entry.description !== `${descriptionPrefix} ${digest} ${key}`) continue
-    resources.push({
-      key,
-      provider: input.provider,
-      reference: scopeReference({ unit: entry.unit, bootId }),
-    })
+  for (const { id: unit, description } of units) {
+    const key = unitPattern.exec(unit)?.[1]
+    if (key === undefined || description !== `${descriptionPrefix} ${digest} ${key}`) continue
+    resources.push({ key, provider: input.provider, reference: scopeReference({ unit, bootId }) })
   }
   return { kind: 'listed', resources }
 }

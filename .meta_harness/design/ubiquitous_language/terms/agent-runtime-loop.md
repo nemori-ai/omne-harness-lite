@@ -255,7 +255,7 @@
 
 - **形态**：属性
 - **出处**：[PF-015 §4 会话运行模式](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
-  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 4）里是第 ④ 步
+  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 5）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。

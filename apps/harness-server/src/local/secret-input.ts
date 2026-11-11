@@ -1,8 +1,8 @@
-// How `setup` reads the model credential. A terminal gets a hidden prompt (the reader of the vault
-// initialization command of model-host-local). Any other standard input is read up to the first
+// How `setup` reads the model credential. A terminal gets a hidden prompt (the terminal reader of
+// settings-local's secret vault). Any other standard input is read up to the first
 // line break or its end, so a person can pipe the key in: `... | harness-server setup`.
 // The key never comes from an argument or the environment.
-import { SecretInputError, readSecretFromTerminal } from '@omne-harness/model-host-local/vault'
+import { SecretInputError, readSecretFromTerminal } from '@omne-harness/settings-local/secrets'
 
 export const CREDENTIAL_PROMPT = 'Model credential (OpenRouter API key, input is hidden): '
 

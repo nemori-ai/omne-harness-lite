@@ -149,7 +149,7 @@ function requestOf(
 export type ModelPreparationPluginOptions = Readonly<{
   /** Where leases take the family bindings (rules and meter) from. No network is involved. */
   bindings: PreparationBindingSource
-  /** Completes a profile supplier with its credential reference, as `prepare` does. */
+  /** Fixes the credential layer of a profile supplier, as `prepare` does. */
   supplierOf: SupplierPort<unknown>
 }>
 

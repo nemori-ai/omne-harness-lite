@@ -37,7 +37,7 @@ function openAiProfile(): ModelProfile {
 }
 
 /** Plans the recorded request of MODEL with the lease's rules and measures it with its meter. */
-function measureOn(lease: ModelPreparationLease, profile: ModelProfile) {
+async function measureOn(lease: ModelPreparationLease, profile: ModelProfile) {
   const record = OPENAI_RECORDS.find(item => item.name === MODEL)
   if (record === undefined) throw new Error(`no record ${MODEL}`)
   const { request } = readRecordFixture('pi-ai-openai', record)
@@ -52,7 +52,7 @@ function measureOn(lease: ModelPreparationLease, profile: ModelProfile) {
   }
   const [binding] = lease.bindings
   const planned = decoded(binding.rules.plan({ profile, supplier: binding.supplier, assembled }))
-  return binding.meter.measure({
+  return await binding.meter.measure({
     profile: profile.adoption,
     supplier: profile.definition.suppliers[0],
     context: profile.definition.context,
@@ -85,15 +85,20 @@ function config(overrides: Partial<LocalModelConfig<Principal>> = {}): LocalMode
   })
   return {
     credentials: {
-      present: () => ({ kind: 'unavailable' }),
-      resolve: () => ({ kind: 'unavailable' }),
+      layerOf: () => ({ failure: { kind: 'unavailable' } }),
+      resolve: () => ({ failure: { kind: 'unavailable' } }),
     },
     commands: memory.dependencies.commands,
     coordinator: memory.controls.send.coordinator,
     families: composeFamilies([]),
     network: { maxConnections: 1, idleConnectionTimeoutMs: 1_000 },
     routes: {
-      openrouter: { url: 'https://gateway.invalid/api/v1/chat/completions', endMarker: '[DONE]' },
+      openrouter: {
+        url: 'https://gateway.invalid/api/v1/chat/completions',
+        endMarker: '[DONE]',
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
+      },
     },
     transportLimits: {
       connectTimeoutMs: null,
@@ -122,7 +127,16 @@ describe('assembleLocalModel', () => {
   it('refuses a route that is not a plain https URL when it is built', () => {
     expect(() =>
       assembleLocalModel(
-        config({ routes: { openrouter: { url: 'http://gateway.invalid/', endMarker: null } } }),
+        config({
+          routes: {
+            openrouter: {
+              url: 'http://gateway.invalid/',
+              endMarker: null,
+              accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+              auth: { kind: 'bearer', item: 'apiKey' },
+            },
+          },
+        }),
       ),
     ).toThrow(RangeError)
   })
@@ -207,10 +221,10 @@ describe('assembleLocalModel', () => {
     const local = assembleLocalModel(config({ families: FAMILIES }))
     const profile = openAiProfile()
     const lease = decoded(await local.preparation.acquire({ ...ACCESS, profile }))
-    const before = measureOn(lease, profile)
+    const before = await measureOn(lease, profile)
     expect('ok' in before).toBe(true)
     await local.close()
-    expect(measureOn(lease, profile)).toEqual(before)
+    expect(await measureOn(lease, profile)).toEqual(before)
     expect(await lease.release()).toEqual({})
   })
 

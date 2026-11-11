@@ -76,17 +76,20 @@ export type {
 } from '../profile-source.ts'
 export type { ModelConsumerOwnerDeclaration } from '../consumer-owner.ts'
 export type {
+  CredentialFailure,
+  CredentialItemState,
+  CredentialLayerQuery,
   CredentialPort,
-  CredentialPresence,
   CredentialPurpose,
-  CredentialQuery,
   CredentialReference,
   CredentialResolution,
-  QualifiedCredentialQuery,
-  SendFace,
 } from '../credential.ts'
 export { MODEL_SEND } from '../credential.ts'
-export { decodeCredentialId, sameCredentialHolder } from '../credential-values.ts'
+export {
+  readCredentialLayer,
+  selectCredentialLayer,
+  type CredentialLayerReading,
+} from '../credential-values.ts'
 export { compareRevisions, decodeReadId } from '../identity-values.ts'
 export type { ModelOperationParts, ModelOperationRef } from '../reference.ts'
 export {

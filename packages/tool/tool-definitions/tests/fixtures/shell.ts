@@ -2,6 +2,7 @@ import type {
   CommandOutcome,
   FacilityResult,
   ProcessHandle,
+  RetainedProcessInformation,
 } from '@omne-harness/execution-environment-contract'
 import type { ShellAuthorEnvironment } from '@omne-harness/tool-definitions'
 import { tree } from '../../src/protocol.ts'
@@ -14,6 +15,8 @@ export function shellFixture(output = 'one-shot output') {
   const sessions = new Map<string, { cwd: string; closed: boolean }>()
   let drained = false
   const stops: string[] = []
+  /** What the optional command retention extension lists; tests add entries. */
+  const retained: RetainedProcessInformation[] = []
   const done = <T>(value: T): FacilityResult<T> => ({ kind: 'done', requestId: 'fixture', value })
   const rejected = (reason: 'notFound' | 'closed') =>
     ({ kind: 'rejected', requestId: 'fixture', reason }) as const
@@ -66,6 +69,7 @@ export function shellFixture(output = 'one-shot output') {
         starts.push(request)
         return done(process(output, 'separate'))
       },
+      retention: { list: async () => done([...retained]) },
     },
     terminal: {
       create: async request => {
@@ -127,6 +131,7 @@ export function shellFixture(output = 'one-shot output') {
     creates,
     attachments,
     stops,
+    retained,
     drained: () => drained,
     process,
   }

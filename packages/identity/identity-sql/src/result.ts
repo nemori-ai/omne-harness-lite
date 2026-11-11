@@ -1,12 +1,18 @@
 // Result helpers that the operations and the governance port share: the `basis-unavailable`
 // answer, the reason of a failed read, and the error that rejects a Promise whose outcome is not
 // known. No diagnostic here carries a credential, a proof, a login identifier or a login identity.
+import type { GovernanceOperationRef } from '@omne-harness/identity'
 import type { ReadResult } from '@omne-harness/sql-contract'
 import type { Instant } from '@omne-harness/utc-instant'
 
 /** The result of a commit or an issue is not known. The message names no secret. */
 export class IdentitySqlResultUnknown extends Error {
   override readonly name = 'IdentitySqlResultUnknown'
+  readonly operation: GovernanceOperationRef | undefined
+  constructor(message: string, operation?: GovernanceOperationRef) {
+    super(message)
+    this.operation = operation
+  }
 }
 
 export type Unavailable = Readonly<{ kind: 'basis-unavailable'; diagnostic: string }>

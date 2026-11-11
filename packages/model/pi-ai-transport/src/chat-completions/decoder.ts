@@ -16,6 +16,7 @@ import type {
   TransportTermination,
 } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
+import type { RouteAccounting } from '../config.ts'
 import type { PiProtocolFrame, PiResponseDecoder } from '../family.ts'
 import { causeOfStatus } from '../termination.ts'
 import {
@@ -44,6 +45,8 @@ import type {
 
 export type DecoderInput = Readonly<{
   record: ChatCompletionsRecord
+  /** The accounting of the route the response comes from: the place prefix and the cost unit. */
+  accounting: RouteAccounting
   hooks: VendorHooks
   limits: ChatCompletionsLimits
   /** The tool names of the request this decoder reads the response of. */
@@ -57,12 +60,8 @@ export type DecoderInput = Readonly<{
  */
 const REASONING_STATE_PAYLOAD_MAX_LENGTH = 1048576
 
-/** The gateway that every record of this engine is served through: the prefix of `place`. */
-const GATEWAY_PLACE = 'openrouter'
 /** The event of the one account of a dispatch. */
 const ACCOUNT_EVENT = 'usage'
-/** The unit of the gateway `usage.cost`: gateway credits, not a currency. */
-const COST_UNIT = 'openrouter-credit'
 /** The usage of a response that reported none: every count unknown. */
 const NO_USAGE: GatewayUsage = Object.freeze({
   promptTokens: null,
@@ -237,9 +236,9 @@ function accounted(
   if (!('ok' in usage)) return { fault: usage.failure }
   const report: CallAccountReport = {
     usage: usage.ok.items,
-    cost: costOf(finished.usage),
+    cost: costOf(finished.usage, input.accounting.costUnit),
     trimmed: { state: 'unknown', unit: 'token' },
-    place: `${GATEWAY_PLACE}/${finished.serving.provider}`,
+    place: `${input.accounting.place}/${finished.serving.provider}`,
     duration: { state: 'unknown' },
     revision: '1',
   }
@@ -648,12 +647,12 @@ function diagnosticFact(value: ProviderDiagnostic): TransportFact {
  * non-negative number gives its exact plain decimal lexeme (an exponent form is written out); another
  * form gives an unknown billable item; and a usage without a cost gives no item.
  */
-function costOf(usage: GatewayUsage | null): CallAccountReport['cost'] {
+function costOf(usage: GatewayUsage | null, costUnit: string): CallAccountReport['cost'] {
   const cost = usage?.raw['cost']
   if (cost === undefined || cost.kind === 'null') return []
   const lexeme = cost.kind === 'number' ? plainDecimal(cost.lexeme) : null
-  if (lexeme !== null) return [{ state: 'known', lexeme, unit: COST_UNIT, source: 'billable' }]
-  return [{ state: 'unknown', unit: COST_UNIT, source: 'billable' }]
+  if (lexeme !== null) return [{ state: 'known', lexeme, unit: costUnit, source: 'billable' }]
+  return [{ state: 'unknown', unit: costUnit, source: 'billable' }]
 }
 
 function protocol(diagnostic: string): Refusal {

@@ -14,12 +14,18 @@ def project(tmp_path):
     for name, children in linker.DIRECTORY_LINKS.items():
         for child in children:
             (root / ".meta_harness" / name / child).mkdir(parents=True, exist_ok=True)
-    cursor = root / ".meta_harness/.cursor"
-    cursor.mkdir(parents=True)
-    for name in linker.FILE_LINKS[".cursor"]:
-        (cursor / name).write_text("projected\n")
+    for name, files in linker.FILE_LINKS.items():
+        compiled = root / ".meta_harness" / name
+        compiled.mkdir(parents=True, exist_ok=True)
+        for file in files:
+            (compiled / file).write_text("projected\n")
     (root / ".meta_harness/.agents/skills/example.txt").write_text("source product")
     return root
+
+
+def test_no_host_root_needs_an_empty_agents_directory():
+    assert all("agents" not in children for children in linker.DIRECTORY_LINKS.values())
+    assert linker.FILE_LINKS[".codex"] == ("hooks.json",)
 
 
 def test_relative_links_idempotent_and_relocatable(project, tmp_path):
@@ -63,23 +69,25 @@ def test_check_does_not_create_missing_links(project):
 
 
 def test_missing_compiled_collection_fails_before_linking(project):
-    (project / ".meta_harness/.codex/agents").rmdir()
+    (project / ".meta_harness/.claude/skills").rmdir()
     assert linker.main(["--project-root", str(project)]) == 1
-    assert not (project / ".claude").exists()
+    assert not (project / ".agents").exists()
 
 
-def test_missing_cursor_projection_fails_before_linking(project):
-    (project / ".meta_harness/.cursor/install.sh").unlink()
+@pytest.mark.parametrize("root,file", [(".cursor", "install.sh"), (".codex", "hooks.json")])
+def test_missing_compiled_file_fails_before_linking(project, root, file):
+    (project / ".meta_harness" / root / file).unlink()
     assert linker.main(["--project-root", str(project)]) == 1
     assert not (project / ".claude").exists()
-    assert not (project / ".cursor").exists()
+    assert not (project / root).exists()
 
 
 def test_compiled_symlink_target_is_rejected(project, tmp_path):
-    (project / ".meta_harness/.codex/agents").rmdir()
+    (project / ".meta_harness/.codex/hooks.json").unlink()
     (project / ".meta_harness/.codex").rmdir()
     outside = tmp_path / "outside"
-    (outside / "agents").mkdir(parents=True)
+    outside.mkdir()
+    (outside / "hooks.json").write_text("projected\n")
     (project / ".meta_harness/.codex").symlink_to(outside, target_is_directory=True)
     assert linker.main(["--project-root", str(project)]) == 1
     assert not (project / ".claude").exists()

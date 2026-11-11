@@ -21,7 +21,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { decodeValue } from '../codec.ts'
 import { readCoveringSnapshot, type CoveringSnapshot } from './log.ts'
-import { assignPositions, big, oneRow, text } from './support.ts'
+import { assignPositions, big, oneRow, text, type DefiniteFailure } from './support.ts'
 
 /** The journal row of the session before the batch. */
 export type JournalRow = Readonly<{ tail: bigint; seq: bigint; epoch: string }>
@@ -42,6 +42,7 @@ export type EntriesBatch = Readonly<{
 export type EntriesJudgment =
   | Readonly<{ kind: 'unsupported'; reason: string }>
   | Readonly<{ kind: 'stopped'; failure: SessionFailure }>
+  | Readonly<{ kind: 'definite'; failure: DefiniteFailure; diagnostic: string }>
   | Readonly<{ kind: 'failed'; diagnostic: string }>
   | Readonly<{ kind: 'recovered'; result: unknown; digest: string }>
   | Readonly<{ kind: 'publish'; batch: EntriesBatch }>
@@ -119,7 +120,11 @@ export function judgeEntries(
   if (decision.kind === 'rejected') return { kind: 'stopped', failure: decision.failure }
   if (decision.kind === 'recovered') {
     if (held === undefined)
-      return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
+      return {
+        kind: 'definite',
+        failure: 'missing-row',
+        diagnostic: 'a recalled operation without a record',
+      }
     return {
       kind: 'recovered',
       result: decodeValue(JSON.parse(text(held['result'])) as JsonValue),
@@ -127,7 +132,11 @@ export function judgeEntries(
     }
   }
   if (decision.progress === undefined)
-    return { kind: 'failed', diagnostic: 'an entries decision without its progress' }
+    return {
+      kind: 'definite',
+      failure: 'missing-row',
+      diagnostic: 'an entries decision without its progress',
+    }
 
   const revision = String(journal.tail + 1n)
   const entries = assignPositions(port, { tenant, session }, revision, decision.entries)

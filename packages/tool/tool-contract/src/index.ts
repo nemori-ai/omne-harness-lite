@@ -100,12 +100,16 @@ export type { ToolExecutionRef } from './execution.ts'
 export type { DecisionValue, ToolStartRecord } from './ports.ts'
 export type {
   ToolCatalog,
+  ToolCatalogSearchEntry,
   ToolConsumerProfile,
   ToolDeclarations,
   ToolInspection,
+  ToolSettingPresentation,
   ToolSettingsDeclaration,
   ToolUsage,
 } from './authoring.ts'
+export { toolAssetBody } from './asset-body.ts'
+export { toolBodyContract } from './contract.ts'
 export type {
   ClockSegment,
   ControlProgress,
@@ -152,3 +156,14 @@ export type {
   CommandCallRejection,
   CommandTable,
 } from './command-call.ts'
+export { toolsCapabilityOf } from './tools-capability.ts'
+export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts'
+export type { ToolForwardIntent } from './forwarding.ts'
+export type {
+  SearchArguments,
+  SearchPage,
+  InspectArguments,
+  ToolUsageView,
+  ToolFixedReadArguments,
+  ToolsReadArguments,
+} from './tools-protocol.ts'

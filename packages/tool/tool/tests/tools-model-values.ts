@@ -1,10 +1,10 @@
+import { createReaderFixture } from './reader-fixture.ts'
 import { createHash } from 'node:crypto'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { succeed } from '@omne-harness/operation-result'
 import {
   createToolLedger,
   createToolRuntime,
-  createTools,
   executeTool,
   type ToolLedgerAction,
 } from '@omne-harness/tool'
@@ -306,6 +306,7 @@ export async function modelHost(
       reads: ledger.reads,
       admissions: ledger.admissions,
       queues: ledger.queues,
+      rejections: ledger.rejections,
       facts: ledger.facts,
       sourceIssuer: h.source.issuer,
       operationIdentities: h.identities.operationIdentities,
@@ -330,7 +331,7 @@ export async function modelHost(
     },
     content: { read: reader.content.read },
   }
-  let tools = createTools(reads, options)
+  let tools = createReaderFixture(reads, options)
   async function invoke(command: string | null, args: unknown, access: Access<Principal>) {
     const position = `model-message-${positions.length}`
     positions.push(position)
@@ -408,7 +409,7 @@ export async function modelHost(
     present: async (access: Access<Principal> = source) =>
       projectForModel(await tools.present({ ...source, ...access }), 'initial'),
     rebuild: () => {
-      tools = createTools(reads, options)
+      tools = createReaderFixture(reads, options)
     },
     async call(command: string, args: unknown, access: Access<Principal> = source) {
       const call = await invoke(command, args, access)

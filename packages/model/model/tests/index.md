@@ -2,9 +2,8 @@
 
 - [测试范围与运行入口](README.md)。
 - [根入口与源码边界测试](public-entry.spec.ts)。
-- [凭据判定测试](judgment.spec.ts)。
 - [独立执行组合](execute.spec.ts)、[准备结果读取](execute-outcome.spec.ts)、[取消与资源生命周期](execute-lifecycle.spec.ts)、[传输提供者符合性](execute-transport.spec.ts)、[公开类型消费](execute.spec-d.ts)。
-- [安装闭包场景](install/scenario.mjs)：经消费目录里安装的包调用 `executeModel`、`deliver`、判定及真实受理、首次分派与实例观察。
+- [安装闭包场景](install/scenario.mjs)：经消费目录里安装的包调用 `executeModel`，经注入的凭据端口发送，及真实受理、首次分派与实例观察。
 - [测试夹具](fixtures/index.md)。
 
 - [请求准入与参数](memory-admission.spec.ts)、[内存身份与恢复](memory-core.spec.ts)、[发出与流](memory-dispatch.spec.ts)、[发出边界的拒绝](memory-dispatch-refusals.spec.ts)、[收场的回放](memory-replay.spec.ts)、[读/ACK/清理](memory-consumption.spec.ts)、[受理的形式守卫](admission-guards.spec.ts)。
@@ -24,3 +23,6 @@
 - [公开结果读取](runtime-reading.spec.ts)、[processed ACK 与交错风险](runtime-acknowledgement.spec.ts)、[分页准备预算](memory-paging.spec.ts)。
 - [准备资源与校准租约](preparation.spec.ts)：真实内存 Commands 上的锚点命中、清理后仍命中、另一租户与不存在同结果、每种不命中与扣留原因、按访问依据读取、全有全无取得与幂等释放。
 - [符合性装配](runtime-conformance-fixture.ts)、[消费者完成记录](completion-records.ts)、[真实收场准备](runtime-consumption-fixture.ts)。
+
+- [not-sent-window.spec.ts](not-sent-window.spec.ts) 检查零内容推导、双向矛盾拒绝与重试守卫。
+- [send-transport-refusal.spec.ts](send-transport-refusal.spec.ts) 检查发送前明确拒绝的结算、原写认回、失权与释放失败。

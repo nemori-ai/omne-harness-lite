@@ -179,6 +179,38 @@ it('recovers the original initiator from the complete persisted source instead o
   }
 })
 
+it('reports current source policy denial during recovery without creating another call', async () => {
+  const world = await fixture()
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('policy-recovery')))
+    await world.settled(reference)
+    const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
+    let commits = 0
+    const resolve = createRuntimeSourceAccess({
+      store: {
+        ...world.store,
+        commit: async input => {
+          commits++
+          return world.store.commit(input)
+        },
+      },
+      sources: {
+        ...world.input.sources,
+        guard: { verify: async () => ({ kind: 'denied', reason: 'target-policy' }) },
+      },
+      access: world.input.access,
+      recovery: world.input.subjects,
+    })
+    expect(await resolve({ tenant: world.tenantA, call: parts.call })).toEqual({
+      failure: { kind: 'denied', action: 'recover' },
+    })
+    expect(commits).toBe(0)
+    expect(world.launches()).toBe(1)
+  } finally {
+    await world.close()
+  }
+})
+
 it('does not claim an old admitted call that never acquired an execution', async () => {
   const world = await fixture()
   let reopened: Awaited<ReturnType<typeof world.newExecutor>> | null = null

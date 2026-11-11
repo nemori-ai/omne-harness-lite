@@ -314,16 +314,26 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     access: SessionAccess<P>,
     receipt: CommitReceipt,
   ): Promise<readonly HistoryEntry[]> => {
-    const page = await guarded(OWNERS.delegated, 'history.begin', () =>
+    let page = await guarded(OWNERS.delegated, 'history.begin', () =>
       view.history.begin({
         ...access,
         kinds: [],
-        from: receipt.first,
-        direction: 'forward',
+        from: null,
+        direction: 'backward',
         pageBytes: NOTICE_PAGE_BYTES,
       }),
     )
-    return 'ok' in page ? page.ok.entries.filter(entry => entry.revision === receipt.revision) : []
+    const entries: HistoryEntry[] = []
+    while ('ok' in page) {
+      entries.push(...page.ok.entries.filter(entry => entry.revision === receipt.revision))
+      if (page.ok.entries.some(entry => entry.id === receipt.first)) return entries.reverse()
+      const cursor = page.ok.next
+      if (cursor === null) break
+      page = await guarded(OWNERS.delegated, 'history.next', () =>
+        view.history.next({ ...access, cursor }),
+      )
+    }
+    return []
   }
 
   /**
@@ -348,6 +358,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     for (const entry of entries.filter(candidate => candidate.kind === 'run.terminal'))
       measurer.roundComplete({
         session: access.session,
+        tenant: access.tenant,
         ...terminalOf(entry.payload),
         revision: receipt.revision,
         entry: entry.id,
@@ -449,6 +460,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
           return run(view.ok, access, command, 0)
         },
         answer => 'failure' in answer,
+        access.tenant,
       ),
     )
   }

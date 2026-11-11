@@ -71,15 +71,15 @@ flowchart LR
   Adapter[执行适配] -->|hostObjectToken| HL
 ```
 
-| 使用方 | 怎样使用 | 用什么 |
-| --- | --- | --- |
+| 使用方     | 怎样使用                                               | 用什么                                                                                                                                 |
+| ---------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | 应用装配者 | 创建并保管责任域，装载 `./cordis` 的插件与三个端口服务 | 根入口的 `createHostFilesDomain`；`ExecutionEnvironmentRegistry`、`filesFacilityPlugin`、`createHostFilesPlugin`；三个端口抽象类的子类 |
-| 执行适配 | 点名对象 | 根入口的 `hostObjectToken` |
-| 独立调用方 | 登记到不含 Cordis 的登记表 | 根入口的 `createHostFilesDomain` 与 `createHostFilesProvider` |
+| 执行适配   | 点名对象                                               | 根入口的 `hostObjectToken`                                                                                                             |
+| 独立调用方 | 登记到不含 Cordis 的登记表                             | 根入口的 `createHostFilesDomain` 与 `createHostFilesProvider`                                                                          |
 
 ### 现在的真实消费者
 
-现在没有应用装配本成员，也没有包在 `package.json` 里依赖本成员。本成员的测试是现在唯一的使用方。
+应用 `apps/harness-server` 装配本成员：入口创建并保管责任域，工厂行装载 `./cordis` 的插件（见[宿主文件工厂行](../../../../apps/harness-server/docs/rows/execution-host.md)）。包 `tool-storage-sql` 在 `package.json` 的 `devDependencies` 里依赖本成员（测试用）。
 
 ### 上层页面
 

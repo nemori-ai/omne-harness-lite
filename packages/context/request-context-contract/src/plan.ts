@@ -19,6 +19,7 @@ import { digest, messageId, textBlock } from './internal.js'
 import { projectWindow, retentionLimit, retentionMeasure } from './compaction-context.js'
 import { prepareStable } from './preparation.js'
 import { placeLayers } from './assembly-layers.js'
+import { withMeasurementSession } from './measurement-session.js'
 
 /** The window cut at the plan's end: covered to `coverTo`, the rest of covered joins `after`. */
 export function planWindow(window: CompactionContext, coverTo: RecordEntryRef): CompactionContext {
@@ -57,36 +58,41 @@ export async function planInputs<P>(
     selection: input.selection,
     source: policies.compaction.identity,
   }
-  const measure = retentionMeasure(context, candidate, projected)
-  const limit = retentionLimit(policies.compaction.config.retainBudget, input.selection)
-  const floor: RetentionMeasurement = window.open.length
-    ? await measure(window.open)
-    : { kind: 'measured', tokens: '0' }
-  if (floor.kind !== 'measured') return measuredFailure(floor)
-  if (BigInt(floor.tokens) > limit)
-    return {
-      kind: 'cannot-fit',
-      reason: 'floor-exceeds-budget',
-      floor: window.open,
-      budget: limit.toString(),
-      diagnostic: 'Open-work floor exceeds retention budget',
-    }
-  const draft = await policies.compaction.plan({
-    view,
-    context: window,
-    measure,
-    windowTokens: input.selection.profile.definition.context.window.provided,
-  })
-  if (draft.kind !== 'draft' && draft.kind !== 'floor-exceeds-budget') return draft
-  if (draft.kind === 'floor-exceeds-budget')
-    return {
-      kind: 'cannot-fit',
-      reason: 'floor-exceeds-budget',
-      floor: draft.floor,
-      budget: draft.budget,
-      diagnostic: 'Open-work floor exceeds retention budget',
-    }
-  return acceptDraft(input, window, projected, draft, measure, limit, frame, context)
+  return withMeasurementSession(
+    { access: context.access, preparation: context.sources.preparation },
+    async (measurement): Promise<PlanResult> => {
+      const measure = retentionMeasure(context, candidate, projected, measurement)
+      const limit = retentionLimit(policies.compaction.config.retainBudget, input.selection)
+      const floor: RetentionMeasurement = window.open.length
+        ? await measure(window.open)
+        : { kind: 'measured', tokens: '0' }
+      if (floor.kind !== 'measured') return measuredFailure(floor)
+      if (BigInt(floor.tokens) > limit)
+        return {
+          kind: 'cannot-fit',
+          reason: 'floor-exceeds-budget',
+          floor: window.open,
+          budget: limit.toString(),
+          diagnostic: 'Open-work floor exceeds retention budget',
+        }
+      const draft = await policies.compaction.plan({
+        view,
+        context: window,
+        measure,
+        windowTokens: input.selection.profile.definition.context.window.provided,
+      })
+      if (draft.kind !== 'draft' && draft.kind !== 'floor-exceeds-budget') return draft
+      if (draft.kind === 'floor-exceeds-budget')
+        return {
+          kind: 'cannot-fit',
+          reason: 'floor-exceeds-budget',
+          floor: draft.floor,
+          budget: draft.budget,
+          diagnostic: 'Open-work floor exceeds retention budget',
+        }
+      return acceptDraft(input, window, projected, draft, measure, limit, frame, context)
+    },
+  )
 }
 
 /** The layers outside the history, placed as `assemble` places them for this call (RQ-06). */

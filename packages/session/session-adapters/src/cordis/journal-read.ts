@@ -33,20 +33,28 @@ export const READ_ATTEMPTS = 3
 
 export type Scope = Readonly<{ tenant: string; session: string }>
 
-/** One storage read of a handler: its output, or null when the storage did not read it or threw. */
+/**
+ * One storage read of a handler: its output, or why the storage did not read it. The reason is
+ * the storage's own (for example `queue_full`), so a diagnostic built on it names it.
+ */
+export type ReadOutput =
+  | Readonly<{ kind: 'read'; output: JsonValue }>
+  | Readonly<{ kind: 'unread'; reason: string }>
+
 export async function readOutput(
   storage: SqlStorage,
   request: Omit<ReadRequest, 'requestKey'>,
-): Promise<JsonValue | null> {
+): Promise<ReadOutput> {
   try {
     const result = await storage.read({ ...request, requestKey: randomUUID() })
-    return result.kind === 'read' ? result.output : null
+    if (result.kind === 'read') return { kind: 'read', output: result.output }
+    return { kind: 'unread', reason: result.kind === 'cancelled' ? 'cancelled' : result.reason }
   } catch {
-    return null
+    return { kind: 'unread', reason: 'the storage read threw' }
   }
 }
 
-export type Reader = (handler: string, input: JsonValue) => Promise<JsonValue | null>
+export type Reader = (handler: string, input: JsonValue) => Promise<ReadOutput>
 
 /** The reader of one domain's execution records. */
 export const readerOf =
@@ -143,8 +151,9 @@ export async function readBatches(
         after: from,
         ...(execution === null ? {} : { execution }),
       })
-      if (output === null) return unread('the Agent records of the session are not readable')
-      const page = decodeExecutionRecordFacts(output)
+      if (output.kind === 'unread')
+        return unread(`the Agent records of the session are not readable: ${output.reason}`)
+      const page = decodeExecutionRecordFacts(output.output)
       if (page === null) return unread('the Agent records of the session do not decode')
       // A session that is not of this tenant reads as one without records: nothing is told of it.
       if (page.kind === 'denied') return { kind: 'read', published: 0, batches: [] }
@@ -186,8 +195,9 @@ export async function readOpenExecutions(read: Reader, scope: Scope): Promise<Op
         session: scope.session,
         after,
       })
-      if (output === null) return unread('the open executions of the session are not readable')
-      const page = decodeExecutionRecordOpen(output)
+      if (output.kind === 'unread')
+        return unread(`the open executions of the session are not readable: ${output.reason}`)
+      const page = decodeExecutionRecordOpen(output.output)
       if (page === null) return unread('the open executions of the session do not decode')
       // A session that is not of this tenant reads as one without records: nothing is told of it.
       if (page.kind === 'denied') return { kind: 'read', published: 0, executions: [] }
@@ -273,8 +283,9 @@ export async function readEvents(
         execution,
         after: from,
       })
-      if (output === null) return unread('the events of the execution are not readable')
-      const page = decodeExecutionRecordEvents(output)
+      if (output.kind === 'unread')
+        return unread(`the events of the execution are not readable: ${output.reason}`)
+      const page = decodeExecutionRecordEvents(output.output)
       if (page === null) return unread('the events of the execution do not decode')
       if (page.kind === 'denied')
         return head === null
@@ -329,7 +340,12 @@ export async function readOperation(
   operation: AgentOperationId,
 ): Promise<OperationRead> {
   const output = await read(EXECUTION_RECORD_HANDLERS.operation, { tenant, operation })
-  const decoded = decodeExecutionRecordOperation(output)
+  if (output.kind === 'unread')
+    return {
+      kind: 'unavailable',
+      diagnostic: `the batch of the operation is not readable: ${output.reason}`,
+    }
+  const decoded = decodeExecutionRecordOperation(output.output)
   if (decoded === null) return { kind: 'none' }
   if (decoded === 'malformed')
     return { kind: 'unavailable', diagnostic: 'the batch of the operation does not decode' }
@@ -354,8 +370,8 @@ export async function readBlob(
   digest: string,
 ): Promise<string | null | 'unavailable'> {
   const output = await read(EXECUTION_RECORD_HANDLERS.blob, { tenant, digest })
-  if (output === null) return 'unavailable'
-  const decoded = decodeExecutionRecordBlob(output)
+  if (output.kind === 'unread') return 'unavailable'
+  const decoded = decodeExecutionRecordBlob(output.output)
   if (decoded === null) return 'unavailable'
   return decoded.kind === 'blob' ? decoded.payload : null
 }

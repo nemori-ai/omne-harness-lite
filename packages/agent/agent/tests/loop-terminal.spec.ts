@@ -60,6 +60,58 @@ async function load(assembly: LoopAssembly) {
 }
 
 describe('#516 terminal exit', () => {
+  it.each(['changed', 'blocked'] as const)(
+    'waits without replacing a complete candidate after an unchanged %s refusal',
+    async refusal => {
+      let refused = true
+      const attempts: string[] = []
+      const assembly = await loopAssembly([execution()], d => ({
+        ...d,
+        journal: {
+          ...d.journal,
+          async tryFinish(input) {
+            attempts.push(input.intent.candidate)
+            if (!refused) return d.journal.tryFinish(input)
+            if (attempts.length > 2)
+              return fail({
+                kind: 'unavailable',
+                owner: 'test',
+                diagnostic: 'retry bound exceeded',
+              })
+            return refusal === 'changed'
+              ? succeed({ kind: 'changed', revision: input.expected })
+              : succeed({ kind: 'blocked', reason: 'inputs', source: evidence('unhanded-input') })
+          },
+        },
+      }))
+      const c = coordinator(assembly)
+      ok(await c.accept())
+      assembly.release.open()
+      ok(await c.runExecution())
+      const before = await load(assembly)
+      expect(attempts).toHaveLength(1)
+      expect(before.state.kind).toBe('settling')
+      expect(before.settlement.candidates).toHaveLength(1)
+      const controller = new AbortController()
+      const wake = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+      await eventually(async () => assembly.controls.clock.pending().length > 0)
+      expect((await load(assembly)).revision).toBe(before.revision)
+      refused = false
+      const due = assembly.controls.clock.pending()[0]
+      if (due === undefined) throw new Error('a reconciliation check must be scheduled')
+      ok(assembly.controls.clock.advanceTo(due))
+      expect(ok(await wake)).toBe('ready')
+      ok(await c.runExecution())
+      const after = await load(assembly)
+      expect(after.state.kind).toBe('ended')
+      expect(attempts).toEqual([
+        before.settlement.candidate?.candidate,
+        before.settlement.candidate?.candidate,
+      ])
+      expect(after.settlement.candidates).toHaveLength(1)
+    },
+  )
+
   it.each(['before-F1', 'before-F3'])(
     'C1: an input accepted %s invalidates the old completion',
     async cut => {

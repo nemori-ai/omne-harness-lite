@@ -291,7 +291,7 @@ export interface ModelInputMeter {
       parameters: readonly ParameterAdoption[]
       representation: MeterRepresentation
     }>,
-  ): Outcome<RequestBudget, TransportFailure>
+  ): Promise<Outcome<RequestBudget, TransportFailure>>
 }
 /**
  * A family meter that takes a calibration. Only a preparation lease calls `measureCalibrated`;
@@ -302,7 +302,7 @@ export interface CalibratedInputMeter extends ModelInputMeter {
   measureCalibrated(
     input: Parameters<ModelInputMeter['measure']>[0],
     calibration: MeterCalibration,
-  ): Outcome<RequestBudget, TransportFailure>
+  ): Promise<Outcome<RequestBudget, TransportFailure>>
 }
 /**
  * What a message of the role assistant does with its reasoning in one dispatch. A message that

@@ -159,6 +159,28 @@ async function pending(f: Awaited<ReturnType<typeof fixture>>) {
 }
 
 describe('trusted source fact acknowledgement', () => {
+  it('keeps the pending acknowledgement when its source policy truthfully denies the write', async () => {
+    const f = await fixture()
+    const ledger = createToolLedger(
+      f.harness.memory,
+      {
+        ...guards(),
+        factAcknowledgements: {
+          verify: async () => ({ kind: 'denied', reason: 'current-policy' }),
+        },
+      },
+      createMemoryToolClock(),
+      configurationOf({}),
+      testSettlementPorts(),
+    )
+    const commits = f.harness.memory.commits
+    expect(await ledger.commands.recordFactAcknowledgement(f.input)).toEqual({
+      failure: { kind: 'denied', action: 'write' },
+    })
+    expect(f.harness.memory.commits).toBe(commits)
+    expect((await pending(f)).tasks).toHaveLength(1)
+  })
+
   it('uses the original recovery route and atomically saves confirmation, operation and duty removal', async () => {
     const f = await fixture()
     const before = f.harness.memory.commits

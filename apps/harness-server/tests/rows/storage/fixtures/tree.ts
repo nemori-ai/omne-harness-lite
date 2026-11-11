@@ -1,6 +1,5 @@
-// 本闭包测试的装载夹具：以 `startTree` 装真实的 `storage` 行、`session-storage` 行、两个真实入口对象，以及
-// `sessionAccessCheck` 的契约替身行（包装 `session-contract/testing` 的政策替身）。能看到根、受信名下的服务与在册句柄。
-// 不导入 vitest：慢层的子进程脚本也用它。
+// Loads the real storage rows. The access policy is a named fixture unless authorizationRow selects the original row.
+// Also used by slow subprocess scenarios, so this fixture does not import Vitest.
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { existsSync } from 'node:fs'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
@@ -197,6 +196,8 @@ export type TreeOptions = Readonly<{
   storageRoot: string
   directoryFile: string
   policy?: AccessPolicy
+  /** Use the original authorization row instead of the default policy fixture. */
+  authorizationRow?: RowSpec
   combinationVersion?: string
   closeDeadlineMs?: number
   /** 替换预期登记阶段（用来触发 `phase-mismatch`）。 */
@@ -204,6 +205,8 @@ export type TreeOptions = Readonly<{
   entryObjects?: readonly EntryObjectModule[]
   /** 不装 `session-storage` 行。 */
   withoutSessionStorage?: boolean
+  extraRows?: readonly RowSpec[]
+  includePrincipalVerifier?: boolean
 }>
 
 export type LoadedTree = Readonly<{
@@ -225,7 +228,9 @@ export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree>
   if (!options.withoutSessionStorage && !existsSync(options.storageRoot))
     prepareTenantDirectory(options)
   const profile = serveProfile()
-  const policyRow = accessPolicyRow(options.policy ?? allowAll, { includePrincipalVerifier: true })
+  const policyRow = accessPolicyRow(options.policy ?? allowAll, {
+    includePrincipalVerifier: options.includePrincipalVerifier ?? true,
+  })
   const sessionStorageConfig: SessionStorageRowConfigInput = {
     combinationVersion: options.combinationVersion ?? 'session-composite/1',
     directoryFile: options.directoryFile,
@@ -238,8 +243,9 @@ export async function loadStorageTree(options: TreeOptions): Promise<LoadedTree>
         closeDeadlineMs: options.closeDeadlineMs ?? 3000,
       }),
     ),
-    declared(policyRow.plugin),
+    options.authorizationRow ?? declared(policyRow.plugin),
     ...(options.withoutSessionStorage ? [] : [declared(sessionStorageRow, sessionStorageConfig)]),
+    ...(options.extraRows ?? []),
   ]
   const root = new Context()
   const trust = createTrust(

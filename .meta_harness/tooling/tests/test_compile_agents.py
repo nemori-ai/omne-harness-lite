@@ -1,8 +1,7 @@
-"""Verify four-output composition and non-destructive staging against real role rendering."""
+"""Verify skill projection into every host and non-destructive staging."""
 import shutil
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 import pytest
@@ -11,7 +10,6 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 import compile_agents as compiler
 from executable_bits import staged_modes
-from qualification_test_support import qualify_roles
 
 
 @pytest.fixture
@@ -32,23 +30,10 @@ def source(tmp_path):
         (adapter / "strategy.yaml").write_text(yaml.safe_dump({
             "version": 1, "host": host, "skill": "evidence-reading", "mode": "copy"
         }), encoding="utf-8")
-    role = root / "roles/evidence-reader"
-    role.mkdir(parents=True)
-    (role / "role.md").write_text('只读证据。保留 "引号" 与 \\ 路径。\n', encoding="utf-8")
-    (role / "codex.toml").write_text(
-        'name = "evidence-reader"\ndescription = "Read evidence"\n'
-        'sandbox_mode = "read-only"\n', encoding="utf-8"
-    )
-    (role / "claude.yaml").write_text(
-        "name: evidence-reader\ndescription: Read evidence\ntools: Read, Glob\n",
-        encoding="utf-8"
-    )
-    (role / "cursor.yaml").write_text("name: evidence-reader\ndescription: Read evidence\nmodel: claude-sonnet-5-5-high\nreadonly: true\nis_background: false\n", encoding="utf-8")
-    qualify_roles(root)
     return root
 
 
-def test_four_outputs_preserve_resources_and_native_permissions(source, tmp_path):
+def test_skill_outputs_preserve_resources_and_native_permissions(source, tmp_path):
     output = tmp_path / "preview"
     arguments = ["--source", str(source), "--output", str(output)]
     assert compiler.main(arguments) == 0
@@ -59,20 +44,13 @@ def test_four_outputs_preserve_resources_and_native_permissions(source, tmp_path
             relative = Path("evidence-reading") / file.relative_to(source / "skills/evidence-reading/canonical")
             assert (output / ".agents/skills" / relative).read_bytes() == file.read_bytes()
             assert (output / ".claude/skills" / relative).read_bytes() == file.read_bytes()
-    codex = tomllib.loads((output / ".codex/agents/evidence-reader.toml").read_text(encoding="utf-8"))
-    front, body = (output / ".claude/agents/evidence-reader.md").read_text(encoding="utf-8").split("---\n", 2)[1:]
-    assert codex["developer_instructions"] == body.lstrip("\n")
-    assert codex["sandbox_mode"] == "read-only"
-    assert yaml.safe_load(front)["tools"] == "Read, Glob"
     assert (output / ".agents/skills/evidence-reading/references/input.md").is_file()
 
 
-def test_default_renderer_survives_workspace_relocation(source, tmp_path):
+def test_compiler_survives_workspace_relocation(source, tmp_path):
     original = Path(__file__).resolve().parents[2]
     relocated = tmp_path / "unrelated" / ".meta_harness"
     shutil.copytree(original / "tooling/src", relocated / "tooling/src")
-    renderer_package = Path("agents/skills/design-subagents/canonical")
-    shutil.copytree(original / renderer_package, relocated / renderer_package)
     shutil.copytree(source, relocated / "source")
     command = [
         sys.executable, str(relocated / "tooling/src/compile_agents.py"),
@@ -81,29 +59,75 @@ def test_default_renderer_survives_workspace_relocation(source, tmp_path):
     for extra in ([], ["--check"]):
         result = subprocess.run(command + extra, cwd=tmp_path, capture_output=True, text=True)
         assert result.returncode == 0, result.stdout + result.stderr
-    codex = tomllib.loads((relocated / ".codex/agents/evidence-reader.toml").read_text(encoding="utf-8"))
-    claude = (relocated / ".claude/agents/evidence-reader.md").read_text(encoding="utf-8")
-    assert codex["sandbox_mode"] == "read-only"
-    assert codex["developer_instructions"] in claude
+    assert (relocated / ".claude/skills/evidence-reading/SKILL.md").is_file()
     assert not (relocated.parent / ".agents").exists()
 
 
-def test_invalid_late_role_does_not_write_valid_skills(source, tmp_path):
-    (source / "roles/evidence-reader/claude.yaml").unlink()
+def test_generated_files_outside_skill_directories_converge_and_host_files_are_kept(source, tmp_path):
     output = tmp_path / "preview"
-    assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
-    assert not output.exists()
+    args = ["--source", str(source), "--output", str(output)]
+    assert compiler.main(args) == 0
+    manifest = output / ".cursor/.cursor-plugin/plugin.json"
+    expected = manifest.read_bytes()
+    manifest.write_text("old projection", encoding="utf-8")
+    host_file = output / ".claude/scheduled_tasks.lock"
+    host_file.write_text("host state", encoding="utf-8")
+    assert compiler.main(args) == 0
+    assert manifest.read_bytes() == expected
+    assert host_file.read_text(encoding="utf-8") == "host state"
+    assert compiler.main(args + ["--check"]) == 0
 
 
-def test_output_conflict_preflights_all_files_and_preserves_user_content(source, tmp_path):
+def test_generated_path_occupied_by_a_directory_fails_before_any_write(source, tmp_path):
     output = tmp_path / "preview"
-    conflict = output / ".claude/agents/evidence-reader.md"
-    conflict.parent.mkdir(parents=True)
-    conflict.write_text("user content", encoding="utf-8")
+    blocked = output / ".cursor/.cursor-plugin/plugin.json"
+    blocked.mkdir(parents=True)
     assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
-    assert conflict.read_text(encoding="utf-8") == "user content"
+    assert blocked.is_dir()
     assert not (output / ".agents").exists()
-    assert not (output / ".codex").exists()
+    assert not (output / ".claude").exists()
+
+
+def test_skill_directories_converge_to_the_sources(source, tmp_path, capsys):
+    """技能目录归生成工具：源删掉的技能、手改过的生成文件，检查报出来，生成时收敛。"""
+    output = tmp_path / "preview"
+    args = ["--source", str(source), "--output", str(output)]
+    assert compiler.main(args) == 0
+    stale = output / ".claude/skills/retired-skill/SKILL.md"
+    stale.parent.mkdir()
+    stale.write_text("old projection", encoding="utf-8")
+    stray = output / ".agents/skills/evidence-reading/references/removed.md"
+    stray.write_text("old reference", encoding="utf-8")
+    drifted = output / ".agents/skills/evidence-reading/SKILL.md"
+    expected = drifted.read_bytes()
+    drifted.write_text("local edit", encoding="utf-8")
+    local = output / ".claude/settings.local.json"
+    local.write_text("{}\n", encoding="utf-8")
+    capsys.readouterr()
+    assert compiler.main(args + ["--check"]) == 1
+    err = capsys.readouterr().err
+    assert f"stale generated path: {Path('.agents/skills/evidence-reading/references/removed.md')}" in err
+    assert stale.exists() and stray.exists()
+    assert compiler.main(args) == 0
+    assert not stale.parent.exists() and not stray.exists()
+    assert drifted.read_bytes() == expected
+    assert local.read_text(encoding="utf-8") == "{}\n"
+    assert compiler.main(args + ["--check"]) == 0
+
+
+def test_retired_role_directories_are_removed(source, tmp_path, capsys):
+    output = tmp_path / "preview"
+    args = ["--source", str(source), "--output", str(output)]
+    assert compiler.main(args) == 0
+    for root in (".claude", ".codex", ".cursor"):
+        (output / root / "agents").mkdir(parents=True, exist_ok=True)
+        (output / root / "agents/developer.md").write_text("old role", encoding="utf-8")
+    capsys.readouterr()
+    assert compiler.main(args + ["--check"]) == 1
+    assert f"stale generated path: {Path('.codex/agents')}" in capsys.readouterr().err
+    assert compiler.main(args) == 0
+    assert not any((output / root / "agents").exists() for root in (".claude", ".codex", ".cursor"))
+    assert compiler.main(args + ["--check"]) == 0
 
 
 def test_check_missing_and_drift_are_read_only(source, tmp_path):
@@ -138,13 +162,6 @@ def test_symlinks_rejected(source, tmp_path, kind):
     assert list(outside.iterdir()) == []
 
 
-def test_duplicate_roles_fail_instead_of_last_writer_wins(source):
-    import shutil
-    shutil.copytree(source / "roles/evidence-reader", source / "roles/another-reader")
-    with pytest.raises(ValueError, match="duplicate output"):
-        compiler.compile_sources(source)
-
-
 @pytest.mark.parametrize("change", ["name", "duplicate-key", "missing-entry"])
 def test_malformed_skill_fails(source, change):
     entry = source / "skills/evidence-reading/canonical/SKILL.md"
@@ -158,13 +175,6 @@ def test_malformed_skill_fails(source, change):
         compiler.compile_sources(source)
 
 
-def test_skills_only_do_not_require_role_renderer(source, tmp_path):
-    import shutil
-    shutil.rmtree(source / "roles/evidence-reader")
-    outputs = compiler.compile_sources(source, tmp_path / "missing-renderer.py")
-    assert len(outputs) == 6
-
-
 @pytest.mark.parametrize("destination", ["source", "child"])
 def test_overlapping_roots_rejected(source, destination):
     output = {"source": source, "child": source / "output", "parent": source.parent}[destination]
@@ -175,16 +185,16 @@ def test_meta_root_can_contain_source_and_generated_siblings(source):
     args = ["--source", str(source), "--output", str(source.parent)]
     assert compiler.main(args) == 0
     assert compiler.main(args + ["--check"]) == 0
-    assert (source.parent / ".codex/agents/evidence-reader.toml").is_file()
+    assert (source.parent / ".claude/skills/evidence-reading/SKILL.md").is_file()
 
 
 def test_blocked_output_parent_rejected_before_any_write(source, tmp_path):
     output = tmp_path / "preview"
     output.mkdir()
-    (output / ".codex").write_text("ordinary file", encoding="utf-8")
+    (output / ".claude").write_text("ordinary file", encoding="utf-8")
     assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
     assert not (output / ".agents").exists()
-    assert (output / ".codex").read_text(encoding="utf-8") == "ordinary file"
+    assert (output / ".claude").read_text(encoding="utf-8") == "ordinary file"
 
 
 def test_host_slots_keep_common_text_and_exclude_maintainer_material(source):
@@ -250,7 +260,7 @@ def test_single_host_does_not_require_other_skill_strategy(source, tmp_path):
     (source / "skills/evidence-reading/adapters/claude-code/strategy.yaml").unlink()
     output = tmp_path / "preview"
     assert compiler.main(["--source", str(source), "--output", str(output), "--host", "codex"]) == 0
-    assert (output / ".codex/agents/evidence-reader.toml").is_file()
+    assert (output / ".agents/skills/evidence-reading/SKILL.md").is_file()
     assert not (output / ".claude").exists()
 
 
@@ -273,7 +283,6 @@ def test_executable_resource_is_preserved_and_mode_drift_detected(source, tmp_pa
 def test_generated_collection_cannot_contain_source(tmp_path):
     source = tmp_path / ".agents/skills/source"
     (source / "skills").mkdir(parents=True)
-    (source / "roles").mkdir()
     assert compiler.main(["--source", str(source), "--output", str(tmp_path)]) == 1
 
 
@@ -298,3 +307,44 @@ def test_file_created_after_preflight_is_a_conflict_not_success(source, tmp_path
     captured = capsys.readouterr()
     assert "PASS" not in captured.out
     assert "File exists" in captured.err
+
+
+def _vendor_skill(root: Path, collection: str, name: str, body: str = "外部技能正文\n") -> Path:
+    skill = root / "vendor" / collection / "skills" / name
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text(f"---\nname: {name}\ndescription: External {name}\n---\n\n{body}", encoding="utf-8")
+    return skill
+
+
+def test_vendor_skills_are_copied_verbatim_to_every_host(source):
+    skill = _vendor_skill(source, "pqw-skills", "flow-entry")
+    (skill / "scripts").mkdir()
+    (skill / "scripts/tool.mjs").write_text("#!/usr/bin/env node\n", encoding="utf-8")
+    (skill / "scripts/tool.mjs").chmod(0o755)
+    (skill / "AGENTS.md").write_text("维护者说明\n", encoding="utf-8")
+    (source / "vendor/pqw-skills/README.md").write_text("仓库说明\n", encoding="utf-8")
+    outputs = compiler.compile_sources(source, hosts=("claude-code", "codex", "cursor"))
+    for root in (".claude/skills", ".agents/skills", ".cursor/skills"):
+        assert outputs[Path(root) / "flow-entry/SKILL.md"].content == (skill / "SKILL.md").read_bytes()
+        assert outputs[Path(root) / "flow-entry/scripts/tool.mjs"].mode == 0o755
+        assert Path(root) / "flow-entry/AGENTS.md" not in outputs, "maintainer material stays out"
+    assert not any("README.md" in str(path) and "flow-entry" not in str(path) and "vendor" in str(path) for path in outputs)
+
+
+def test_project_skill_wins_over_vendor_skill_with_the_same_name(source):
+    _vendor_skill(source, "pqw-skills", "evidence-reading", "外部的同名正文\n")
+    outputs = compiler.compile_sources(source, hosts=("claude-code",))
+    assert b"Read [reference]" in outputs[Path(".claude/skills/evidence-reading/SKILL.md")].content
+
+
+def test_invalid_vendor_skill_fails_before_writing(source, tmp_path):
+    skill = _vendor_skill(source, "pqw-skills", "flow-entry")
+    (skill / "SKILL.md").write_text("no frontmatter\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="missing skill frontmatter: flow-entry"):
+        compiler.compile_sources(source, hosts=("claude-code",))
+
+
+def test_uninitialised_vendor_submodule_fails_instead_of_projecting_nothing(source):
+    (source / "vendor/pqw-skills").mkdir(parents=True)
+    with pytest.raises(ValueError, match="run git submodule update --init"):
+        compiler.compile_sources(source, hosts=("claude-code",))

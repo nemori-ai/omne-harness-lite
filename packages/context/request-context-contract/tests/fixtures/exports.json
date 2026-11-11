@@ -679,6 +679,11 @@
               "pending": false
             },
             {
+              "name": "CallIdentity",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "InputGroups",
               "kind": "type",
               "pending": false
@@ -945,6 +950,11 @@
             },
             {
               "name": "PREFIX_BREAK_REASONS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "callIdentity",
               "kind": "value",
               "pending": false
             },

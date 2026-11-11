@@ -10,6 +10,7 @@ import { createMemoryRetryPolicy } from './retry.ts'
 import { scriptedSendResources, type TestSendPlan } from './send.ts'
 import { createModelSendBoundary, type ModelSendBoundaryOptions } from '../send.ts'
 import type { CredentialPort } from '@omne-harness/model-contract/provider'
+import { fail } from '@omne-harness/operation-result'
 import type { MemoryModelCommandsOptions, MemorySendSource } from './types.ts'
 
 export { createMemoryModelCommands } from './memory.ts'
@@ -57,8 +58,8 @@ export function createTestModelDependencies<P>(options: TestModelDependenciesOpt
       commands: memory.commands,
       coordinator,
       credentials: options.sending?.credentials ?? {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'unavailable' }),
+        layerOf: () => fail({ kind: 'unavailable' }),
+        resolve: () => fail({ kind: 'unavailable' }),
       },
       resources: scripted.resources,
       maxRetainedAttempts: options.sending?.maxRetainedAttempts ?? 1,

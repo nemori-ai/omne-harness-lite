@@ -1,9 +1,3 @@
-// The governance port of the SQL provider (identity SPEC ID-18; SPEC IS-10 to IS-15). The main
-// thread reads the clock and the invitation terms, judges the shape of the input, makes the new
-// identities, and maps the answer; the participant and the governance read handler check the
-// initiating login, the actor's role and the expected state against the records, in the commit or
-// the snapshot that also writes or reads. Every write is one commit with one `identity` command.
-// No diagnostic carries a credential, a proof, a login identifier or a login identity.
 import {
   DEFAULT_TEAM_MODEL,
   DEFAULT_TEAM_ROLE_MAPPING,
@@ -80,6 +74,7 @@ export type GovernanceCore = Readonly<{
   /** One clock reading, adopted by the instance: an earlier one than the latest is not adopted. */
   readTime(): Promise<TimeBasis>
   commit(operation: string, facts: GovernanceFacts): Promise<CommitResultV2>
+  writeMembership(facts: GovernanceFacts): Promise<GovernanceReply | Unavailable>
   query(identity: SqlIdentity): Promise<QueryResultV2>
   read(handler: string, input: JsonValue): Promise<ReadResult>
 }>
@@ -437,7 +432,18 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
     return Object.freeze({ kind: 'written', reply: response as GovernanceReply })
   }
 
-  const write = async (
+  const recallWrite = async (identity: SqlIdentity): Promise<Written | Unavailable> => {
+    // The same identity, at most three times. Only a committed receipt gives an outcome.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const recalled = await core.query(identity)
+      if (recalled.kind === 'committed') return replyOf(recalled)
+      if (recalled.kind === 'rolled_back' || recalled.kind === 'not_committed')
+        return unavailable('governance-not-committed')
+    }
+    throw new IdentitySqlResultUnknown('the governance commit result stays unknown')
+  }
+
+  const writeDirect = async (
     operation: string,
     facts: GovernanceFacts,
   ): Promise<Written | Unavailable> => {
@@ -452,16 +458,8 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
       }
       case 'rejected_before_accept':
         return unavailable(`governance-store-unavailable:${result.reason}`)
-      case 'unknown': {
-        // The same identity, at most three times. Only a committed receipt gives an outcome.
-        for (let attempt = 0; attempt < 3; attempt += 1) {
-          const recalled = await core.query(result.identity)
-          if (recalled.kind === 'committed') return replyOf(recalled)
-          if (recalled.kind === 'rolled_back' || recalled.kind === 'not_committed')
-            return unavailable('governance-not-committed')
-        }
-        throw new IdentitySqlResultUnknown('the governance commit result stays unknown')
-      }
+      case 'unknown':
+        return recallWrite(result.identity)
       case 'identity_conflict':
         throw new IdentitySqlResultUnknown('the governance operation key was already used')
       default: {
@@ -469,6 +467,23 @@ export function governanceOver(core: GovernanceCore, input: GovernanceInput): Id
         throw new IdentitySqlResultUnknown(`unexpected commit result ${String(_exhaustive)}`)
       }
     }
+  }
+
+  const write = async (
+    operation: string,
+    facts: GovernanceFacts,
+  ): Promise<Written | Unavailable> => {
+    if (
+      facts.kind === 'leave-organization' ||
+      facts.kind === 'change-member' ||
+      (facts.kind === 'dispose-invitation' && facts.action === 'accept')
+    ) {
+      const reply = await core.writeMembership(facts)
+      if (!('outcome' in reply)) return reply
+      if (reply.outcome === CLOCK_EARLIER_THAN_RECORD) return unavailable(CLOCK_EARLIER_THAN_RECORD)
+      return { kind: 'written', reply }
+    }
+    return writeDirect(operation, facts)
   }
 
   const query = async (request: GovernanceReadInput): Promise<Answered | Unavailable> => {

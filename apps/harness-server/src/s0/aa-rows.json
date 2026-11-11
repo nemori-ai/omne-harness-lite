@@ -1,10 +1,12 @@
 {
   "source": "docs/architecture/runtime/application-assembly.md",
   "rows": [
+    "telemetry",
     "storage",
     "identity",
     "authorization",
     "session-storage",
+    "governance",
     "session-provider",
     "session-ad02",
     "session-ad03",
@@ -28,9 +30,12 @@
     "model-host",
     "model-instances",
     "model-converters",
+    "model-tokenizers",
     "model-profiles",
     "model-request-preparation",
     "model-credential",
+    "secret-custody",
+    "settings",
     "model-records",
     "tool-records",
     "tool-bindings",
@@ -63,7 +68,27 @@
       "names": [
         "storage",
         "tenantStanding",
-        "identityGovernance"
+        "identityGovernance",
+        "standingReservations",
+        "standingDestinationResolver",
+        "principalVerifier"
+      ]
+    },
+    {
+      "row": "governance",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "principalVerifier",
+        "identityGovernance",
+        "tenantStanding",
+        "standingReservations",
+        "governanceDirectoryPrincipals",
+        "governanceInstallationPrincipals",
+        "sessionPermissionBackend",
+        "standingDestinationResolver",
+        "toolInvocationQualification",
+        "currentToolPermission"
       ]
     },
     {
@@ -71,7 +96,10 @@
       "names": [
         "principalVerifier",
         "tenantStanding",
-        "systemActionAuthorization"
+        "identityGovernance",
+        "systemActionAuthorization",
+        "currentToolPermission",
+        "sessionModesInstallation"
       ]
     },
     {
@@ -81,7 +109,8 @@
         "tenantDomainLookup",
         "sessionPrincipalBindings",
         "sessionDelegatedTransactions",
-        "systemActionAuthorization"
+        "systemActionAuthorization",
+        "sessionPermissionBackend"
       ]
     },
     {
@@ -103,8 +132,14 @@
       "row": "session-ad03",
       "names": [
         "sessionWorkPrincipals",
+        "sessionModesPrincipals",
+        "principalVerifier",
         "sessionReplayFacts",
-        "sessionScopeLookup"
+        "sessionScopeLookup",
+        "storage",
+        "tenantDomainLookup",
+        "sessionModesInstallation",
+        "definitionMappings"
       ]
     },
     {
@@ -164,9 +199,22 @@
     {
       "row": "model-credential",
       "names": [
+        "settingsSecretCustody"
+      ]
+    },
+    {
+      "row": "secret-custody",
+      "names": [
+        "settingsSecretCustody"
+      ]
+    },
+    {
+      "row": "settings",
+      "names": [
+        "settingsSecretCustody",
+        "settingsSecretItems",
         "principalVerifier",
-        "tenantStanding",
-        "modelCredentialCustody"
+        "tenantStanding"
       ]
     },
     {
@@ -183,13 +231,15 @@
       "row": "tool-records",
       "names": [
         "storage",
-        "tenantDomainLookup"
+        "tenantDomainLookup",
+        "toolInvocationQualification"
       ]
     },
     {
       "row": "tool-bindings",
       "names": [
-        "principalVerifier"
+        "principalVerifier",
+        "settingsSecretCustody"
       ]
     },
     {
@@ -201,7 +251,9 @@
     {
       "row": "adoption-sources",
       "names": [
-        "definitionMappings"
+        "definitionMappings",
+        "sessionModesInstallation",
+        "sessionWorkPrincipals"
       ]
     },
     {
@@ -230,7 +282,7 @@
         "principalIssuer",
         "definitionMappings",
         "identityGovernance",
-        "modelCredentialCustody"
+        "settingsSecretItems"
       ]
     }
   ]

@@ -109,7 +109,7 @@ describe('an Anthropic message in an OpenAI request', () => {
   it('the replay projection of the record names the foreign message in its diagnostics', () => {
     const request = fixedRequest(SOL, { messages: HISTORY })
     const declared = judgeReplayDeclaration(
-      { recipient: SOL.route.recipient, model: SOL.route.model, replay: SOL.replay.declaration },
+      { provider: SOL.route.provider, model: SOL.route.model, replay: SOL.replay.declaration },
       0,
     )
     if (!('ok' in declared)) throw new Error('declaration')

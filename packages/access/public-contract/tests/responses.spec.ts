@@ -99,9 +99,10 @@ const successes = {
   'judge-admission': { admitted: true },
   'submit-authorization-expression': { expressionId: 'e', persistentSettingsUpdated: false },
   'withdraw-authorization-expression': {},
-  'bind-model-credential': { configuredAt: at },
-  'unbind-model-credential': {},
-  'describe-model-credential': { state: 'unbound' },
+  'list-settings': { items: [], completeness: 'complete' },
+  'set-setting': { configuredAt: at },
+  'describe-setting': { own: { state: 'unbound' }, official: { state: 'unbound' } },
+  'clear-setting': {},
 } satisfies Record<GovernanceProvidedOperation, object>
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
 function response(operation: GovernanceProvidedOperation, outcome: string, body: unknown = {}) {
@@ -195,9 +196,24 @@ const allowed = {
   'judge-admission': ['denied', 'not-visible', 'basis-unavailable'],
   'submit-authorization-expression': ['denied', 'basis-unavailable', 'unknown'],
   'withdraw-authorization-expression': ['denied', 'basis-unavailable', 'unknown'],
-  'bind-model-credential': ['denied', 'basis-unavailable', 'unknown'],
-  'unbind-model-credential': ['denied', 'basis-unavailable', 'unknown'],
-  'describe-model-credential': ['denied', 'basis-unavailable'],
+  'list-settings': ['denied', 'basis-unavailable'],
+  'set-setting': [
+    'denied',
+    'not-visible',
+    'conflict',
+    'not-writable',
+    'basis-unavailable',
+    'unknown',
+  ],
+  'describe-setting': ['denied', 'not-visible', 'conflict', 'not-writable', 'basis-unavailable'],
+  'clear-setting': [
+    'denied',
+    'not-visible',
+    'conflict',
+    'not-writable',
+    'basis-unavailable',
+    'unknown',
+  ],
 } satisfies Record<GovernanceProvidedOperation, readonly string[]>
 it.each(Object.entries(allowed))(
   '%s permits exactly its empty-body refusal outcomes',
@@ -212,6 +228,7 @@ it.each(Object.entries(allowed))(
       'unknown',
       'not-loginable',
       'uniform-auth-failure',
+      'not-writable',
       'protocol-rejected',
       'stage-not-provided',
     ]) {

@@ -222,7 +222,7 @@ E0 `open` 未知时留下 R0 待查项，包含操作与 execution 身份。只�
 
 停止：
 
-- 正常路径之外的结果使运行停在该节点。停止不当作成功。
+- 确定不能继续的结果使运行停在该节点。停止不当作成功。依赖暂时不可用（端口答 `unavailable`）时运行等待，不停止，规则见 [SPEC](SPEC.md#依赖不可用时的等待)。
 - 停止之后执行槽保持占用，`observe` 显示 occupied。Journal 保留最后一次提交的 `position`。新的 `invoke` 返回 `busy`。
 - 协调者在内部返回停止及其失败，保留失败的 `owner`（#558 S-14）：端口失败保留端口的 `owner`，`@omne-harness/agent` 表示由后续卡处理的结果，`@omne-harness/agent#defect` 表示协调者自身的缺陷。停止后没有可读原因。本地等待与唤醒已实现，完整恢复尚未交付。
 

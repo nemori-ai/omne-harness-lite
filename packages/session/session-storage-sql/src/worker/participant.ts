@@ -1,9 +1,15 @@
+import { writePermissionCurrent } from './permission-current.ts'
+import { readSessionBasis } from './session-basis.ts'
+import { SESSION_COMMIT_PROTOCOL, type SessionCommitBasis } from '../commit-basis.ts'
+import type { SessionPermissionChangeBasis } from '@omne-harness/session-contract'
 // The `session` participant module (SPEC W1 steps 3 to 7, W2 for the shared commit). It runs inside
 // the provider's write transaction and uses the pure `decide` and `reduce` of session-contract:
 // this file reads their inputs, assigns positions, writes rows and maintains the derived rows. It
 // never begins, commits or rolls back, and it writes no rule of its own.
 import {
   commandDigest,
+  sessionIntakeLimits,
+  type SessionIntakeLimits,
   decide,
   judgeIdle,
   reduce,
@@ -33,14 +39,21 @@ import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../cod
 import { writeEntryText } from '../entry-codec.ts'
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
-import { NO_FOCUS, readHistory, type HistoryBasis, type SessionHistory } from './history-index.ts'
+import {
+  LogGap,
+  NO_FOCUS,
+  readHistory,
+  type HistoryBasis,
+  type SessionHistory,
+} from './history-index.ts'
 import { judgeLog, readCoveringHead, type CoveringSnapshot, type LogBatch } from './log.ts'
 import type { SessionWorkReply } from '../participants.ts'
-import { PROTOCOL } from './schema.ts'
 import { assemble, deepFreeze, writeState, type StoredState } from './state-rows.ts'
 import {
   assignPositions,
   big,
+  definite,
+  definiteBasis,
   oneRow,
   readVersion,
   refusingMalformedEntries,
@@ -287,6 +300,16 @@ export function resultOf(
   receipt: CommitReceipt,
 ): unknown {
   switch (command.kind) {
+    case 'addTodo':
+    case 'removeTodo':
+    case 'markTodoComplete': {
+      const item = snapshot.todos?.find(todo =>
+        command.kind === 'addTodo'
+          ? todo.createdAt === receipt.revision
+          : todo.id === command.input.item,
+      )
+      return item === undefined ? null : { receipt, item }
+    }
     case 'create':
       return { receipt, state: snapshot }
     case 'startRun': {
@@ -549,19 +572,19 @@ function indexExecutions(
     if (entry.kind !== 'run.started') continue
     const { run, execution } = (plainOf(entry.payload) ?? {}) as Record<string, unknown>
     if (typeof run !== 'string' || typeof execution !== 'string')
-      return { kind: 'failed', diagnostic: 'an SE13 entry without its Run and execution' }
+      return definite('missing-row', 'an SE13 entry without its Run and execution')
     const held = oneRow(
       port,
       'SELECT session FROM sl_execution_idx WHERE tenant = ? AND execution = ? LIMIT 1',
       [tenant, execution],
     )
     if (held !== undefined)
-      return {
-        kind: 'failed',
-        diagnostic: `the execution ${execution} is already indexed to ${
+      return definite(
+        'execution-indexed',
+        `the execution ${execution} is already indexed to ${
           text(held['session']) === session ? 'this session' : 'another session'
         }`,
-      }
+      )
     port.execute(
       'INSERT INTO sl_execution_idx (tenant, execution, session, run, position) VALUES (?, ?, ?, ?, ?)',
       [tenant, execution, session, run, BigInt(entry.id)],
@@ -700,13 +723,11 @@ function writeBatch(
   if (unindexed !== null) return unindexed
   const epoch = maintainModelView(port, tenant, session, batch.epoch, entries)
   if (epoch === null)
-    return {
-      kind: 'failed',
-      diagnostic: 'the model view epoch exceeds the read bound of a compaction',
-    }
+    return definite('read-bound', 'the model view epoch exceeds the read bound of a compaction')
   const covered = BigInt(revision)
   const stored = writeState(port, { tenant, session, covered }, previous, snapshot)
   parsedSnapshots.wrote(tenant, session, covered, stored)
+  writePermissionCurrent(port, { tenant, session }, previous, snapshot, entries)
   maintainDerived(port, tenant, session, previous, snapshot)
   return { kind: 'written', epoch, bytes: stored.layout.bytes }
 }
@@ -873,14 +894,11 @@ function commandReads(
            WHERE e.tenant = ? AND e.session = ? AND e.kind = 'session.frozen' LIMIT 1`,
           [tenant, session],
         )
-  // A bound reached by a read inside the commit is a failure (unavailable), never a shorter read.
+  // A bound reached by a read inside the commit is a definite failure, never a shorter read.
   const receipts =
     command.kind === 'completeInitialization' ? initializationReceipts(port, tenant, session) : []
   if (receipts === null)
-    return {
-      kind: 'failed',
-      diagnostic: 'the operation receipts of the session exceed the read bound',
-    }
+    return definite('read-bound', 'the operation receipts of the session exceed the read bound')
   return {
     compaction: null,
     ...(frozen === undefined
@@ -953,7 +971,7 @@ function recallOriginal(
     [tenant, session, decision.receipt.operation],
   )
   if (original === undefined)
-    return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
+    return definite('missing-row', 'a recalled operation without a record')
   if (held === undefined && command.kind === 'completeInitialization') {
     insertOperation(port, {
       tenant,
@@ -997,7 +1015,7 @@ function publishCommand(
     batch.history === null ? undefined : batch.history.reads,
   )
   if (reduced.kind === 'quarantined')
-    return { kind: 'failed', diagnostic: `reduce quarantined: ${reduced.diagnostic}` }
+    return definite('quarantined', `reduce quarantined: ${reduced.diagnostic}`)
   // The index is a read projection of this transaction, never stored in the snapshot row.
   const { historyIndex: _index, ...snapshot } = reduced.snapshot
   const receipt = batchReceipt({ tenant, session, operation, seq, revision, entries })
@@ -1128,6 +1146,8 @@ function runCommand(
   guards: readonly GuardCommand[],
   evidence: string | null,
   port: ParticipantPort,
+  intakeLimits: SessionIntakeLimits,
+  permissionChange: SessionPermissionChangeBasis | undefined,
 ): ParticipantReply {
   const start = commandStart(command, port)
   if (!isStart(start)) return start
@@ -1135,12 +1155,14 @@ function runCommand(
   if ('kind' in reads) return reads
   const history = commandHistory(port, command, start)
   if (history === 'too-many')
-    return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }
+    return definite('read-bound', 'the history index of the session exceeds the read bound')
   const { previous } = start
   const prepared =
     history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
   const decision: Decision = decide(prepared, command, guards, recordOf(command, start), {
     ...reads,
+    ...(permissionChange === undefined ? {} : { permissionChange }),
+    intakeLimits,
     ...(history === null ? {} : { history: history.reads }),
   })
   return settleDecision(port, { command, guards, evidence }, start, decision, { prepared, history })
@@ -1219,6 +1241,8 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
       return { kind: 'unsupported', basis: { reason: judged.reason } } as const
     case 'stopped':
       return stopped(judged.failure)
+    case 'definite':
+      return definite(judged.failure, judged.diagnostic)
     case 'failed':
       return { kind: 'failed', diagnostic: judged.diagnostic } as const
     case 'recovered':
@@ -1250,6 +1274,11 @@ function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPor
       return {
         kind: 'conflict',
         basis: { failure: encodeValue(judged.failure), recorded: false },
+      } as const
+    case 'definite':
+      return {
+        kind: 'conflict',
+        basis: { ...definiteBasis(judged.failure, judged.diagnostic), recorded: false },
       } as const
     case 'failed':
       return { kind: 'failed', diagnostic: judged.diagnostic } as const
@@ -1328,9 +1357,23 @@ function storeEvidence(
 }
 
 /** The command intent: the command with its guards and evidence, answered with its digest. */
+function intakeLimitsOf(value: JsonValue | undefined): SessionIntakeLimits | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  if (!('maxPendingInputs' in value) || !('maxInputBytes' in value)) return null
+  const { maxPendingInputs, maxInputBytes } = value
+  if (typeof maxPendingInputs !== 'number' || typeof maxInputBytes !== 'number') return null
+  try {
+    return sessionIntakeLimits({ maxPendingInputs, maxInputBytes })
+  } catch (error) {
+    if (error instanceof TypeError) return null
+    throw error
+  }
+}
+
 function runCommandFacts(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
+  basis: SessionCommitBasis,
 ): ParticipantReply {
   if (typeof facts['command'] !== 'object' || !Array.isArray(facts['guards']))
     return {
@@ -1356,7 +1399,15 @@ function runCommandFacts(
       kind: 'unsupported',
       basis: { reason: 'the access evidence of the command is not a durable evidence' },
     }
-  const reply = runCommand(command, guards, evidence, port)
+  const intakeLimits = intakeLimitsOf(facts['intakeLimits'])
+  if (intakeLimits === null)
+    return { kind: 'unsupported', basis: { reason: 'invalid intake limits' } }
+  const permissionChange =
+    basis.kind === 'permission-change' &&
+    basis.permissionChange.operation === command.input.operation
+      ? { ...basis.permissionChange, operation: command.input.operation }
+      : undefined
+  const reply = runCommand(command, guards, evidence, port, intakeLimits, permissionChange)
   // The digest of the command travels with the answer, so a later caller can tell a recall of the
   // same command from the same identity used for another command (SL07).
   return reply.kind === 'participated'
@@ -1378,29 +1429,50 @@ function runQueryFacts(
     : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
 }
 
+function executeSession(
+  facts: Readonly<Record<string, JsonValue>>,
+  port: ParticipantPort,
+  basis: SessionCommitBasis,
+): ParticipantReply {
+  switch (facts['intent']) {
+    case 'query':
+      return runQueryFacts(facts, port)
+    case 'entries':
+      return runEntries(facts, port)
+    case 'log':
+      return runLog(facts, port)
+    case 'check':
+      return runChecks(facts, port)
+    case 'command':
+      return runCommandFacts(facts, port, basis)
+    default:
+      return {
+        kind: 'unsupported',
+        basis: {
+          reason: 'the facts are neither a command, a check, a same-log commit nor a query',
+        },
+      }
+  }
+}
+
 const participant: ParticipantModule = {
   participant: 'session',
-  protocol: PROTOCOL,
+  protocol: SESSION_COMMIT_PROTOCOL,
   execute(facts, port) {
-    switch (facts['intent']) {
-      case 'query':
-        return runQueryFacts(facts, port)
-      case 'entries':
-        return runEntries(facts, port)
-      case 'log':
-        return runLog(facts, port)
-      case 'check':
-        return runChecks(facts, port)
-      case 'command':
-        return runCommandFacts(facts, port)
-      default:
-        return {
-          kind: 'unsupported',
-          basis: {
-            reason: 'the facts are neither a command, a check, a same-log commit nor a query',
-          },
-        }
+    const basis = readSessionBasis(facts, port)
+    if (basis === null)
+      return { kind: 'unsupported', basis: { reason: 'Session commit basis mismatch' } }
+    let reply: ParticipantReply
+    try {
+      reply = executeSession(facts, port, basis)
+    } catch (error) {
+      // A gap after the cursor of the kept history index heals itself: the index was dropped, and
+      // the next call builds it again from the log. A temporary failure (SPEC 参加者失败的定性).
+      if (error instanceof LogGap) return { kind: 'failed', diagnostic: error.message }
+      throw error
     }
+    return reply
   },
 }
+
 export default refusingMalformedEntries(participant)

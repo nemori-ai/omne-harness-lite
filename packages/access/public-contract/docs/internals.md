@@ -11,7 +11,7 @@
 | src/index.ts | 治理与会话两组共八个纯函数、身份文本八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
 | src/messages.ts | 治理的正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
 | src/session-messages.ts | 会话的7个操作、请求、按操作/结果关联响应、历史页、中断成功正文与codec结果类型 |
-| src/operation-rules.ts | 规则种类、协议族描述，以及完整37正常/4阶段封闭规则、信封/body字段和outcome映射 |
+| src/operation-rules.ts | 规则种类、协议族描述，以及完整38正常/4阶段封闭规则、信封/body字段和outcome映射 |
 | src/session-rules.ts | 会话协议族：7个操作的封闭规则、信封/body字段和outcome映射；中断成功正文用`kind`字面量区分互斥分支 |
 | src/identity-text.ts | 租户、组织、账号、登录状态的文本读写：直接委托legal-identity的铸造与输出函数，租户另加严格JSON与小预算门 |
 | src/codec.ts | 按协议族参数化的核心与治理四函数：公开参数防护、模型与wire转换、响应验证后匹配 |
@@ -30,7 +30,7 @@ flowchart LR
   C --> SF[会话四函数<br/>session-codec.ts]
 ```
 
-规则表的叶子种类各对应一个转换函数，转换器按表分派，其余四种规则（literal、object、array、one-of）走穷尽分支。`read-history` 的 `cursor` 出现规则用 one-of 规则表达：两种封闭对象形状，`cursor` 为 null 的形状必带 `direction` 与 `pageBytes`。one-of 的选项必须互斥，第一个转换成功的选项生效，本地值不记录命中的是哪一项。
+规则表的叶子种类各对应一个转换函数，转换器按表分派，其余四种规则（literal、object、array、one-of）走穷尽分支。`read-history` 的 `cursor` 出现规则用 one-of 规则表达：两种封闭对象形状，`cursor` 为 null 的形状必带 `direction` 与 `pageBytes`。`read-session-diagnostics` 同样：`cursor` 为 null 的形状必带 `run` 与 `pageBytes`。one-of 的选项必须互斥，第一个转换成功的选项生效，本地值不记录命中的是哪一项。会话诊断页的各个联合（结构化原因、调用解析、账目视图、派发结局）也用 one-of 表达，每个选项以字面量 `kind` 互斥。闭合枚举或 `unknown`（`model-refused` 的 `failure`、`cannot-fit` 的 `reason`）与 Tool 诊断条目数组或 `unknown`，选项以 JSON 类型互斥：字面量与对象，数组与对象。规则表在 `session-rules.ts` 里按页的层次组织，没有叶子种类之外的新转换器。
 
 ## 关联读取
 

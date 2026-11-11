@@ -358,7 +358,9 @@ it('releases the reservation after ACK and real resource completion without cons
     operation: op('other-admission'),
     capacity: { ...f.admit.capacity, bytes: '950000' },
   }
-  expect(await f.commands.admit(other)).toMatchObject({ failure: { kind: 'capacity' } })
+  expect(await f.commands.admit(other)).toMatchObject({
+    failure: { kind: 'unavailable', dependency: 'model-capacity' },
+  })
   expect(unbox(await f.commands.query(other))).toEqual({ kind: 'not-committed' })
   unbox(await f.commands.handoff(f.handoff()))
   expect(

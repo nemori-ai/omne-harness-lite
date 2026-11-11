@@ -260,6 +260,9 @@ describe('system principals against the ten-row matrix with the release grant ta
     })
     expect(principals.coordinator).not.toBe(principals.maintainer)
     expect(Object.values(ENTRY_COMPONENTS).sort()).toEqual([
+      'governanceDirectoryPrincipals',
+      'governanceInstallationPrincipals',
+      'sessionModesPrincipals',
       'sessionPrincipals.coordinator',
       'sessionPrincipals.maintainer',
       'sessionWorkPrincipals',

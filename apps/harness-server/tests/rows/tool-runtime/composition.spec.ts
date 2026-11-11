@@ -10,6 +10,7 @@
 // 请求由生产的 Tool 请求供给者构造（`createReleaseToolRequests`），会话快照读口给出那个作用域。
 // 用例：Shell.execute 一次、Files.write 加 Files.read 各一次，读回原结果；外租户的同一调用被拒。
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -22,6 +23,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
+import type { LocalInvocationQualifier } from '@omne-harness/tool-host-local'
 import { TenantStandingSourceService, tenantStandingKey } from '@omne-harness/identity/cordis'
 import type { TenantStandingReading } from '@omne-harness/identity'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -29,6 +31,7 @@ import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
 import { decodeScopeRef, type ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import type {
+  ResidentKey,
   SessionPrincipalBindingSource,
   SessionTransactionPort,
   WorkSnapshot,
@@ -55,6 +58,7 @@ import {
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
 import * as cordis from '../../../src/cordis.ts'
+import releaseDistribution from '../../../config/serve.distribution.json' with { type: 'json' }
 import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
 import { createExecutionAuthorityModules } from '../../../src/entry/execution-authorities.ts'
 import {
@@ -75,9 +79,13 @@ import { releaseOf } from '../../../src/entry/tool-release.ts'
 import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
+import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
+import { permissionOriginsOf } from '../../../src/rows/governance/permission-origins.ts'
+import { sessionWorkOf } from '../../../src/rows/tool-runtime/session-work.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
+import { compositionAuthority, compositionAuthorityWithPolicy } from './composition-authority.ts'
 import { withLiveRows } from '../model/support.ts'
 import {
   TENANT_A,
@@ -218,14 +226,23 @@ function rowsOf(storageRoot: string) {
   return {
     tools,
     rows: [
-      { id: 'storage', plugin: 'storageRow', config: providerConfig(storageRoot) },
+      {
+        id: 'storage',
+        plugin: 'storageRow',
+        config: providerConfig(
+          storageRoot,
+          releaseDistribution.rows.find(row => row.id === 'storage')?.config as {
+            maxJsonDepth: number
+          },
+        ),
+      },
       { id: 'identity', plugin: 'identityStandIn' },
       { id: 'authorization', plugin: 'policyAccess' },
       {
         id: 'session-storage',
         plugin: 'sessionStorageRow',
         config: {
-          combinationVersion: 'session-composite/4',
+          combinationVersion: COMBINATION_VERSION,
           directoryFile: join(storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
@@ -253,6 +270,7 @@ function rowsOf(storageRoot: string) {
 const entryObjects = (work: EntryObjectModule): readonly EntryObjectModule[] => [
   principalVerifier,
   principalIssuer,
+  compositionAuthority,
   toolReleaseRegistrant,
   toolContributionAuthority,
   toolClock,
@@ -385,9 +403,44 @@ async function call(runtime: Runtime, principal: unknown, request: ToolInvokeReq
 }
 
 /** Registers tenant A, installs the result receiver and waits until the catalog lists the authors. */
-async function ready(ctx: Context, saved: ToolDelivery<ToolMessageContentBlock>[]) {
+async function ready(
+  ctx: Context,
+  saved: ToolDelivery<ToolMessageContentBlock>[],
+  residents = true,
+) {
   // The session create registers tenant A's domain with the combination that holds `tool`.
-  const command = createCommand(TENANT_A, SESSION)
+  const base = createCommand(TENANT_A, SESSION)
+  // Named initialization fixture: these resident facts are committed through real Session SQL.
+  const command = {
+    ...base,
+    input: {
+      ...base.input,
+      creation: {
+        ...base.input.creation,
+        residentAdoption: {
+          residents: residents
+            ? ['Files', 'Shell'].map(capability => ({
+                capability,
+                version: 'fixture/1',
+                shape: json('{}'),
+                admitted: {
+                  owner: 'transport-fixture',
+                  record: capability,
+                  revision: '1',
+                  digest: capability,
+                },
+              }))
+            : [],
+          keys: residents
+            ? ['Files', 'Shell'].map(capability => ({
+                capability,
+                key: `transport:${capability}` as ResidentKey,
+              }))
+            : [],
+        },
+      },
+    },
+  }
   const created = await (ctx.get(sessionTransactionsKey) as SessionTransactionPort<string>).commit({
     access: access(TENANT_A, SESSION),
     command,
@@ -502,18 +555,120 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
 function expectRan(ran: Ran): void {
   const { value } = ran
   expect(value.shell.state.terminal).toMatchObject({ kind: 'completed' })
-  expect(value.shell.text).toContain('tool-b-shell')
-  expect(value.write.text).toMatch(/^done request=/u)
-  expect(value.read.text).toContain('tool-b-files')
-  expect(readFileSync(join(ran.filesRoot, 'tool-b.txt'), 'utf8')).toBe('tool-b-files')
+  if (
+    process.platform === 'linux' ||
+    process.platform === 'win32' ||
+    process.platform === 'darwin'
+  ) {
+    expect(value.shell.text).toContain('tool-b-shell')
+    expect(value.write.text).toMatch(/^done request=/u)
+    expect(value.read.text).toContain('tool-b-files')
+    expect(readFileSync(join(ran.filesRoot, 'tool-b.txt'), 'utf8')).toBe('tool-b-files')
+  } else {
+    for (const result of [value.shell, value.write, value.read]) {
+      expect(result.state.terminal).toMatchObject({ kind: 'completed' })
+      expect(result.text).toMatch(/^rejected request="[^"]+" reason=unavailable$/u)
+    }
+    expect(existsSync(join(ran.filesRoot, 'tool-b.txt'))).toBe(false)
+  }
   expect(value.foreign).toMatchObject({ kind: 'rejected', failure: { kind: 'denied' } })
   expect(ran.saved.length).toBeGreaterThanOrEqual(3)
   expect(ran.exitCode).toBe(0)
 }
 
 describe('Tool segment B: the release rows in one process composition', () => {
+  it('qualifies the original source inside target admission without recursion and retires its read port', async () => {
+    const { storageRoot } = workspace()
+    const { rows } = rowsOf(storageRoot)
+    const policy = accessPolicyRow(allowAll)
+    const readings: Awaited<ReturnType<LocalInvocationQualifier<unknown>['qualify']>>[] = []
+    let held: LocalInvocationQualifier<unknown> | undefined
+    let original: Parameters<LocalInvocationQualifier<unknown>['qualify']>[0] | undefined
+    let calls = 0
+    const authority = compositionAuthorityWithPolicy((_ctx, env) => ({
+      async qualify(input) {
+        calls++
+        if (calls > 8) return { kind: 'unavailable', diagnostic: 'recursive target admission' }
+        held = env.readTrusted('toolInvocationQualification').get('toolInvocationQualification') as
+          | LocalInvocationQualifier<unknown>
+          | undefined
+        if (held === undefined)
+          return { kind: 'unavailable', diagnostic: 'original source read absent' }
+        original = input
+        const who = sessionWorkOf(input.principal, input.tenant)
+        if (who === undefined) return { kind: 'denied', reason: 'not-session-work' }
+        const result = await permissionOriginsOf(
+          env.readTrusted('toolInvocationQualification'),
+        ).tool.qualify({ ...input, principal: who.principal })
+        readings.push(result)
+        return 'ok' in result
+          ? { kind: 'allowed', condition: null }
+          : { kind: 'unavailable', diagnostic: 'original source rejected' }
+      },
+    }))
+    const { run } = await withLiveRows(
+      {
+        rows,
+        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+        entryObjects: entryObjects(workPrincipalsOverStandIn).map(entry =>
+          entry.name === authority.name ? authority : entry,
+        ),
+        probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
+      },
+      async ctx => {
+        const { runtime, principal } = await ready(ctx, [])
+        const request = await requestFor(
+          ctx,
+          principal,
+          'Shell.execute',
+          '{"script":"echo source-qualified"}',
+        )
+        const result = await runtime.invoke({ principal, tenant: TENANT_A, request })
+        expect(result.kind).toBe('accepted')
+        expect(readings.length).toBeGreaterThan(0)
+        expect(readings.every(reading => 'ok' in reading)).toBe(true)
+        expect(calls).toBeLessThan(8)
+      },
+    )
+    expect(run.result.exitCode).toBe(0)
+    expect(held).toBeDefined()
+    expect(original).toBeDefined()
+    expect(await held!.qualify(original!)).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  it('rejects a direct Agent call to an adopted but nonresident tool before any file write', async () => {
+    const { storageRoot } = workspace()
+    const { rows, tools } = rowsOf(storageRoot)
+    const policy = accessPolicyRow(allowAll)
+    await withLiveRows(
+      {
+        rows,
+        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+        entryObjects: entryObjects(workPrincipalsOverStandIn),
+        probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
+      },
+      async ctx => {
+        const saved: ToolDelivery<ToolMessageContentBlock>[] = []
+        const { runtime, principal } = await ready(ctx, saved, false)
+        const target = join(tools.filesRoot, 'must-not-exist.txt')
+        const request = await requestFor(
+          ctx,
+          principal,
+          'Files.write',
+          JSON.stringify({ path: target, text: 'forbidden', mode: 'create' }),
+        )
+        expect(await runtime.invoke({ principal, tenant: TENANT_A, request })).toMatchObject({
+          kind: 'rejected',
+          failure: { kind: 'denied' },
+        })
+        expect(() => readFileSync(target)).toThrow(expect.objectContaining({ code: 'ENOENT' }))
+        expect(saved).toEqual([])
+      },
+    )
+  })
+
   it(
-    'runs Shell once and Files twice through the production request source; another tenant is refused',
+    'settles Shell and Files according to host support through the production request source; another tenant is refused',
     { timeout: 180_000 },
     async () => {
       expectRan(await shellAndFiles(workPrincipalsOverStandIn))
@@ -651,7 +806,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
   )
 
   it(
-    'with the release session ownership read and the release work principals, Shell and Files run; another tenant is refused',
+    'with release session ownership and work principals, Shell and Files respect host support; another tenant is refused',
     { timeout: 180_000 },
     async () => {
       expectRan(await shellAndFiles(sessionWorkPrincipals))

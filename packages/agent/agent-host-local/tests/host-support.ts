@@ -15,8 +15,8 @@
 // `withRuntimeDuties` wraps the Agent factory with the two runtime duties of XC-AGINST 3.5 as a
 // script: quiesce marks the runtime draining before its first `await` and withdraws through the
 // registration handle, and invoke reports `occupied` in the same step that takes the slot. Since
-// R2-D173 (R2-D185) `createAgentRuntime` keeps the first duty for an idle instance; it does not keep
-// the second (a reservation still shows idle), and an execution in its slot answers `unresolved`.
+// R2-D173 (R2-D185) `createAgentRuntime` keeps the first duty for an idle instance. Its pre-admission
+// slot now reports reserved; an execution in its slot still answers unresolved on quiesce.
 // The wrapper scripts the answers that the host must handle. Tests that use it prove the host side
 // only; tests that use the plain factory show what the real runtime answers.
 import { Context, type Fiber } from '@deepseek-ai/cordis'

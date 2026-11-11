@@ -107,7 +107,10 @@
 
 同 tenant、call、operation、同规范输入摘要的重送回复原回执。内部账本的 admit 同时说明它是否认回了已提交的受理。普通 runtime.invoke 通过来源 resolve 认回原身份，accepted.recovered 为来源或账本认回的逻辑或。内部 admission 不先读操作记录，所以受理只需要 `admit` 资格。两个首次受理同时竞争时，先提交的那次得到 `recovered: false`；后一次的提交因修订冲突失败，重读后认回原受理，得到原回执与 `recovered: true`。同操作异摘要回复 `conflict`。
 
-已受理的调用再以另一操作号 admit 回复 `stale-revision`，`current` 是当前状态的修订号。带 `WriteContext` 的命令先比对 `expected` 与当前状态的修订号，不匹配回复 `stale-revision`，再进入命令本身。提交结果未知回复 `commit-unknown`，Tool 不在内部重试该提交。调用者以 `queryOperation` 认回：已落盘则 `committed`，重送得到原回执且不再写第二次；否定答案见第 14 条。记录仓读取失败回复 `unavailable`（`dependency` 为 `ledger-store`），不冒充调用不存在。修订冲突时重读重判，次数上限是 `ledgerCommitAttempts`；用尽后回复 `unavailable`（`ledger-store`，`<次数> revision conflicts in a row`）。
+已受理的调用再以另一操作号 admit 回复 `stale-revision`，`current` 是当前状态的修订号。带 `WriteContext` 的命令先比对 `expected` 与当前状态的修订号，不匹配回复 `stale-revision`，再进入命令本身。提交结果未知回复 `commit-unknown`，Tool 不在内部重试该提交。调用者以 `queryOperation` 认回：已落盘则 `committed`，重送得到原回执且不再写第二次；否定答案见第 14 条。记录仓读取失败回复 `unavailable`（`dependency` 为 `ledger-store`），不冒充调用不存在。记录仓的提交答 `unavailable` 时同样回复 `unavailable`（`ledger-store`），这是暂时的，调用者以同一操作号重送。记录仓的提交答 `rejected` 时，这次提交永远不会成立，回复确定失败 `invalid`，`field` 为 `storage`，`reason` 为记录仓给的原因，不重读重判，也不计入 `ledgerCommitAttempts`。去向按提交所在的位置分两种：
+
+- 受理时的提交：`runtime.invoke` 返回 `rejected`，带这个 `invalid`。Agent 在 A2 按 Loop 页 A2 行的 rejected 一支处置：没有历史受理或未决尝试时建 denied 槽位，转 T2。这个动作被拒绝，Run 照常推进到终结。
+- 受理之后推进协程的提交：协程不重复那次写不进去的提交，改为给这次调用写一条最小的失败终局，规则见第 23 条「记录仓确定拒绝」。Agent 收到的是一次普通的工具失败结果，按 Loop 页 T0、T1 行接收并经 T2 进入后续位置，Run 不因此以失败终结。修订冲突时重读重判，次数上限是 `ledgerCommitAttempts`；用尽后回复 `unavailable`（`ledger-store`，`<次数> revision conflicts in a row`）。
 
 域修订号与状态修订号是两个值。域修订号是记录仓按域比对的并发令牌，每次提交加一，排除围栏（第 14 条）也加一。状态修订号是 `ToolState.revision`，等于写入该状态的那次提交的域修订号。围栏不改变状态，所以持有当前状态的写者不会因为别人的查询而失效。
 
@@ -158,13 +161,13 @@
 
 本包铸造的每种证据都定位租户与调用（P01 的身份是 `(tenant, call, operation)`）。`record` 是种类加定位值的规范 JSON，租户写成两段身份文本；`digest` 覆盖种类、定位值与内容。各种类的定位值如下：
 
-| 种类 | 定位值 |
-| --- | --- |
-| `state` | 租户、调用 |
-| `result` | 租户、调用、版本、交付号、产生该版本的操作（ResultPage.source 的"实际来源"） |
-| `delivery` | 租户、调用、版本、交付号 |
-| `operation` | 租户、调用、操作 |
-| `account` | 租户、调用、账目事件 |
+| 种类        | 定位值                                                                       |
+| ----------- | ---------------------------------------------------------------------------- |
+| `state`     | 租户、调用                                                                   |
+| `result`    | 租户、调用、版本、交付号、产生该版本的操作（ResultPage.source 的"实际来源"） |
+| `delivery`  | 租户、调用、版本、交付号                                                     |
+| `operation` | 租户、调用、操作                                                             |
+| `account`   | 租户、调用、账目事件                                                         |
 
 所以两个租户用同一调用号时，每种证据的 `record` 与 `digest` 都不同。
 
@@ -216,7 +219,7 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 
 `toolLedgerStoreConformance()` 提供记录仓判据，`toolLedgerStoreCompositionConformance()` 用真实 ledger 提供 P01 组合判据。两者只从 `./testing` 返回既有 ConformanceCase 数组，用 node:assert 判定。具体 fixture、控制与资源责任见 [public-api](docs/public-api.md#ledger-store-conformance-testing)，消费方式见 [README](README_ZH.md#记录仓一致性用例)。提供者只供应 store，不供应 ledger 或业务 oracle。
 
-每个 case 使用新 fixture。可选手柄分别缺失时，在首次装配、seed 和 IO 前用 tool-contract/testing 的既有 NotApplicable 报告，不能作为 passed。有手柄但未制造故障仍失败。编码拒绝 probe 使用提供者明确拒绝的值，接受异常、unknown 或 unavailable 后核完整快照与 revision 未变，并核同形全合法写集成功。该 probe 的 expected 匹配且没有竞争，任何 committed 或 conflict 都失败。它不定义统一编码拒绝协议。延迟控制的 land 完成前必须重核原 expected；成功否定围栏排除旧在途尝试，随后同身份新尝试仍可受理并删除旧 exclusion。
+每个 case 使用新 fixture。可选手柄分别缺失时，在首次装配、seed 和 IO 前用 tool-contract/testing 的既有 NotApplicable 报告，不能作为 passed。有手柄但未制造故障仍失败。编码拒绝 probe 使用提供者明确拒绝的值，接受异常、rejected、unknown 或 unavailable 后核完整快照与 revision 未变，并核同形全合法写集成功。该 probe 的 expected 匹配且没有竞争，任何 committed 或 conflict 都失败。它不定义统一编码拒绝协议。延迟控制的 land 完成前必须重核原 expected；成功否定围栏排除旧在途尝试，随后同身份新尝试仍可受理并删除旧 exclusion。
 
 Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/reads 上的拒绝与零 store IO，不覆盖引用 codec、runtime 适配或生产身份系统。内存两组全部 passed、零 not-applicable 仅支持本进程非耐久证据，不证明真实数据库、跨重启、多连接或断电保证。验证资源见[测试导航](tests/README.md#记录仓公共一致性用例)。
 
@@ -288,12 +291,13 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 
 ### 23 推进协程
 
-推进协程只经过账本命令写记录。它读 `loadRecovery`，按阶段与待办做一步，然后重读，直到调用等待、运行、收场或某个端口不能回答。每次最多 `ToolConfiguration.driverStepsPerRun` 步，缺省为 16。`commit-unknown`、`stale-revision` 与被否定答案排除的回复（第 14 条）都不停止推进：协程重读后重做同一步，同一身份。这三种回答都不算进展：只有提交了或认回了一次提交的步骤才算；原结果收场与 queue 修复还必须复核原 queue 待办已关闭（第 26 条），不能只凭历史主回执算作释放进展。它的操作号由受理操作号派生：`<受理>/plan`、`/prepared`、`/enqueue`、`/start`、`/started`、`/start-failed`、`/exclude`、`/reject`。所以崩溃后重做用的是同一身份，第 11 条的认回直接适用。同一进程内同一调用的运行串行，跨进程的唯一写者由修订号裁定。
+推进协程只经过账本命令写记录。它读 `loadRecovery`，按阶段与待办做一步，然后重读，直到调用等待、运行、收场或某个端口不能回答。每次最多 `ToolConfiguration.driverStepsPerRun` 步，缺省为 16。`commit-unknown`、`stale-revision` 与被否定答案排除的回复（第 14 条）都不停止推进：协程重读后重做同一步，同一身份。这三种回答都不算进展：只有提交了或认回了一次提交的步骤才算；原结果收场与 queue 修复还必须复核原 queue 待办已关闭（第 26 条），不能只凭历史主回执算作释放进展。它的操作号由受理操作号派生：`<受理>/plan`、`/prepared`、`/enqueue`、`/start`、`/started`、`/start-failed`、`/exclude`、`/reject`、`/ledger-rejected`。所以崩溃后重做用的是同一身份，第 11 条的认回直接适用。同一进程内同一调用的运行串行，跨进程的唯一写者由修订号裁定。
 
 一次运行结束后，协程自己决定要不要再运行这个调用，因为没有别的东西会运行它。重新推进的触发有三个，策略是配置，不是写死的值：
 
 - 步数用尽而仍有工作：这次运行里至少有一步提交了或认回了提交的话，协程立即经 `instances.schedule` 重调度自己。整轮没有这样的一步，即回答全是被否定答案排除、修订号陈旧或提交未知的话，就没有证据说明任何东西前进了，改按重试延迟重调度，免得对一个不回答的记录仓，或一个持续排除这一步的读取者空转。
 - 因记录仓或端口失败（`unavailable`）结束，或环境提供者对准备答 `pending`、`unknown`：协程在 `ToolConfiguration.driverRetryDelayMs`（缺省 1000 毫秒，1 到 2147483647 的整数，0 与超过定时器上限的值在构造时被拒绝）之后经 `instances.schedule` 重调度。上一条里没有进展的步数用尽也用这个延迟。每个调用同时只有一个等待中的重调度；`instances.schedule` 被拒绝或抛出时，再等一个延迟再试。其它失败（`invalid`、`denied`、`unsupported`、`conflict` 等）是判定，不重复。延迟是固定值；换成更复杂的退避（递增，或可替换的策略实现）由恢复扫描 `scanPending` 的调度一并评估。
+- 记录仓确定拒绝：一步的提交得到 `invalid`，`field` 为 `storage`（第 11 条），这次提交永远写不进去。协程不重复它，改为给这次调用写一条最小的失败终局：`failed`，`cause` 为 `runtime-lost`，`diagnostic` 为 `ledger-store rejected: <记录仓给的原因>`。这条终局只带终局与诊断，不带原件、结果页或其他待写的记录，按第 12 条逻辑终局的提交方式经账本写入，操作号由受理操作号派生为 `<受理>/ledger-rejected`，崩溃后重做用同一身份。终局成立后，调用与其他失败收场的调用一样交付与释放。已知限制：这条最小终局本身也被记录仓确定拒绝时，只可能是装配错误（例如记录仓的命令上限小于一条最小终局），不在「上限只影响完成的早晚」这一性质的前提内。此时协程停在这个调用上，调用不收场，Agent 在 T0 一直等待原结果，诊断写明两次拒绝的原因。已知限制：最小终局只写给没有启动记录的调用（阶段 `accepted`、`preparing` 或 `queued`），它的排队名额以这条终局的结果为释放依据（`ledger-rejected`）。调用已有启动记录、进程可能已在运行时，协程不写终局，停在被拒的这一步，调用不收场。这个情形由 W3 [#1168](https://github.com/nemori-ai/omne-harness-lite/issues/1168) 的装配检查消除。
 - 等待者对账：见下面的「排队」。
 
 被中止的运行不重调度：中止是宿主要它停下。重调度的定时器不占住进程（`unref`），它的释放同 `instances.install`，归排空协议（`quiesce` 与 `handover`）。除这三个触发和受理、同 key 释放、原事实 ready 及原 reader 重连的唤醒之外，没有别的东西运行一个调用；其余的缺口归恢复扫描 `scanPending`（第 22 条）。
@@ -451,9 +455,9 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 
 ## 28. Tools 固定结果适配器
 
-根入口的 `createTools` 消费普通 runtime 的 `queries.readResult` 和 `content.read`。它不取得 invoke、control、release 或 raw。工厂提供真实 `Tools` 作者、`present` 和受信消费侧的 `readReply`。作者只有 `help`、`read_result`，显式 `programmable:false`，两操作都是 structured、program:none。输入模态为 text。直接输出可能保留源 text、image、voice 或 video 内容，因此声明四种输出模态。file ref 依其媒体类型承载内容，普通 attachments 的地址仍是文本。
+根入口的 `createToolResultReader` 消费普通 runtime 的 `queries.readResult` 和 `content.read`。它不取得 invoke、control、release 或 raw。工厂提供 `present`、固定引用的 `read` 和受信消费侧的 `readReply`，不注册工具作者或生成工具定义。完整 Tools 作者由独立的 `tool-definitions` 成员拥有。reader 直接内容可保留源 text、image、voice 或 video 内容；作者和消费者须按实际输出能力作兼容裁定，不能仅凭使用 reader 宣称支持所有模态。
 
-`help` 的闭合对象只有可选 string command。因为有这个名为 `command` 的字段，Tools 以 `wrapped` 编码登记，调用形如 `{"command": "help", "params": {"command": "search"}}`；`flat` 会与调用层的 `command` 冲突。Tools 的 help 仍是本成员自写的文本，不来自 `commandGuide`，阅读规则也没有登记为定义的 `guide`，这是已知限制。未知名称形成具名错误。`read_result` 的闭合 oneOf 分支为 result 和 attachment，kind、非空 reference、null 或非空 after 都必填。参数、注册声明和帮助从同一命令描述生成。作者先使用 ParameterCodec 的完整 JSON、重复键及预算检查，再核字段。模型不能提供 tenant、principal、路径、maxBytes 或 raw selector。
+`read` 消费当前 Access 和固定读取参数：kind 为 result 或 attachment，非空 reference，after 为 null 或非空游标。调用者负责按已采用的工具参数契约完成 wire 解码，身份由受信宿主绑定。reader 不接收模型自报身份、文件路径、maxBytes 或 raw selector。工厂检查 JSON 参数预算和结果页预算。`createToolMessageResultCodec` 提供同一结构化结果的有界 codec；字节预算必须为正安全整数。
 
 ### 引用与调用
 
@@ -463,7 +467,7 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 - `ta1` 包含 `[1, tr1, selector]`。selector 为非负安全整数索引或字符串 original。索引对应该固定版本的 attachments，original 对应卸载原文。
 - `tc1` 包含 `[1, kind, completeReference, projection, internalAfter]`。result 的 projection 为 full，attachment 为 bytes。读取前逐项比较分支、完整引用及投影。
 
-解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示还使用真实参数 codec 检查整份调用 JSON，并用同一预算实际解码内部引用及 cursor。单个凭据、组合参数或内部 tuple 超限都不能发出可续读提示。引用不授予权限，没有 TTL，也不依赖适配器内存表。releaseDelivery 不使引用失效。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。
+解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示检查整份调用 JSON 的预算，并用同一预算实际解码内部引用及 cursor。单个凭据、组合参数或内部 tuple 超限都不能发出可续读提示。引用不授予权限，没有 TTL，也不依赖适配器内存表。releaseDelivery 不使引用失效。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。
 
 ### 模型内容与失败
 
@@ -500,3 +504,11 @@ accepted 不关闭 stop 待办。stopped、already-ended 或 rejected 关闭传�
 release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送同记录。unknown 只查询。ledger 继续核验实际 released 回执；pending、unknown、rejected 或不可用均保留任务。释放不删除尚未完成的 deliver 任务。
 
 `scanPending` 仍返回 unsupported。现有 `ToolLedgerStore.read/commit` 只处理具名域，无法枚举租户内有待办的调用。进程内调度与已知调用的 loadRecovery 不构成耐久扫描；完整恢复须由扫描端口及其提供者补齐。控制纵切使用真实 ledger/driver、可控 binding 和内存记录仓。[SQL reopen 用例](../tool-storage-sql/tests/control-subjects.spec.ts) 验证实际 ledger 提交的主体引用经过 SQLite 关闭与重开后仍可用于原主体核验；其身份目录与 SQL 宿主是测试提供者，不证明断电耐久或完整生产组合。
+
+## 单目标转发准入
+
+`createToolForwardRuntime(dependencies, source)` 是受信 provider 工厂。它与普通 invoke 共用来源解析之后的准入、未知映射、原调用查询和调度路径。forwarding 不调用普通 invoke，也不直接启动 executor。source 的完整固定请求原样进入 admissions，programmatic 许可及现有启动围栏继续生效。
+
+resume 只查询来源已有槽。槽未确认时回复 association-unknown，不推断历史准入未发生。目标 identities 已知而写入回执未知时回复 commit-unknown，引用保持不变。此工厂不扩大普通 ToolRuntime 接口；宿主还须提供相同的容量预约与独立结果接收者。
+
+SourceVerdict 的 denied 表示来源真实、当前请求资格被拒。ledger 将其映射为 denied admit，不写入新准入。forged 继续表示来源证明不匹配。共用此判定的 fact acknowledgement 对 denied 返回 denied write，保留原待确认责任，不把拒绝当作可信来源或暂时不可读。

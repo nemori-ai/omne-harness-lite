@@ -1,0 +1,10 @@
+# tests 索引
+
+本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
+
+## 内容
+
+- [README.md](README.md)：测试范围、真实依赖与替身
+- [public-entry.spec.ts](public-entry.spec.ts)：两个公开入口的导出与构建产物的依赖闭包
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：`TelemetryService` 在真实 Context 上的提供、注入与撤除
+- [fixtures/](fixtures/index.md)：测试固定输入

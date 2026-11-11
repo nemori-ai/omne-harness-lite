@@ -23,6 +23,7 @@ import {
   createConfiguredModelRuntimeLocalPlugin,
   createMemoryResultPushLedger,
 } from '../src/cordis.ts'
+import { providerName } from './support/credentials.ts'
 
 function unbox<T>(value: { ok: T } | { failure: unknown }): T {
   if ('ok' in value) return value.ok
@@ -61,9 +62,9 @@ const REQUEST: FixedModelRequest = {
   suppliers: [
     {
       adoption: ADOPTION,
-      recipient: 'test.invalid',
+      provider: providerName('test.invalid'),
       model: 'test',
-      credential: { kind: 'factory' },
+      credential: { layer: 'official' },
     },
   ],
   fallback: false,

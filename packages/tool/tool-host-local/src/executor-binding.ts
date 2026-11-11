@@ -36,6 +36,10 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
     input: CallAccess<P> &
       Readonly<{ start: Start; request: FixedToolRequest; execution: LocalAuthorExecution<B> }>,
   ): ToolExecutionScope
+  capability?(
+    input: CallAccess<P> & Readonly<{ start: Start; request: FixedToolRequest }>,
+    scope: ToolExecutionScope,
+  ): ToolExecutionScope
   settle(
     input: CallAccess<P> &
       Readonly<{
@@ -103,6 +107,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
         )
       parsed = argumentsValue.ok
       scope = dependencies.scope({ ...input, execution })
+      scope = dependencies.capability?.(input, scope) ?? scope
       const value = await operation.author.executor.execute(parsed, environment, scope.context)
       const closed = await scope.finish('returned')
       if ('failure' in closed) throw new Error(closed.failure.reason)

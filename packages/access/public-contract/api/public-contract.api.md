@@ -22,14 +22,25 @@
 - `GovernanceStageNotProvided` · `messages.d.ts`
 - `GovernanceStageOperation` · `messages.d.ts`
 - `LoginStateId` · 包 `@omne-harness/legal-identity`
-- `ModelCredentialState` · `messages.d.ts`
 - `OrganizationId` · 包 `@omne-harness/legal-identity`
 - `ProofInput` · `messages.d.ts`
+- `SessionAdoptionRef` · `session-messages.d.ts`
+- `SessionCallAccountView` · `session-messages.d.ts`
 - `SessionCodecLimits` · `session-messages.d.ts`
 - `SessionDiagnostic` · `session-messages.d.ts`
+- `SessionDiagnosticGap` · `session-messages.d.ts`
+- `SessionDiagnosticGapReason` · `session-messages.d.ts`
+- `SessionDiagnosticGapSource` · `session-messages.d.ts`
+- `SessionDiagnosticInstant` · `session-messages.d.ts`
+- `SessionDiagnosticMilliseconds` · `session-messages.d.ts`
+- `SessionDiagnosticUnknown` · `session-messages.d.ts`
+- `SessionDiagnosticsPage` · `session-messages.d.ts`
 - `SessionEncodeResult` · `session-messages.d.ts`
+- `SessionFactCount` · `session-messages.d.ts`
 - `SessionHistoryEntry` · `session-messages.d.ts`
 - `SessionHistoryPage` · `session-messages.d.ts`
+- `SessionModelAttemptDiagnostic` · `session-messages.d.ts`
+- `SessionModelCallDiagnostic` · `session-messages.d.ts`
 - `SessionOperation` · `session-messages.d.ts`
 - `SessionOutcomes` · `session-messages.d.ts`
 - `SessionProducerRef` · `session-messages.d.ts`
@@ -40,8 +51,20 @@
 - `SessionResponse` · `session-messages.d.ts`
 - `SessionResponseEncodeInput` · `session-messages.d.ts`
 - `SessionResponseRead` · `session-messages.d.ts`
+- `SessionRunAttempts` · `session-messages.d.ts`
+- `SessionRunCause` · `session-messages.d.ts`
+- `SessionRunControl` · `session-messages.d.ts`
+- `SessionRunDiagnostic` · `session-messages.d.ts`
+- `SessionRunTerminal` · `session-messages.d.ts`
 - `SessionSuccessBodies` · `session-messages.d.ts`
 - `SessionTerminalSource` · `session-messages.d.ts`
+- `SessionToolCallDiagnostic` · `session-messages.d.ts`
+- `SessionToolDiagnosticEntry` · `session-messages.d.ts`
+- `SettingAssetSelector` · `messages.d.ts`
+- `SettingItemView` · `messages.d.ts`
+- `SettingLayerState` · `messages.d.ts`
+- `SettingLayers` · `messages.d.ts`
+- `SettingState` · `messages.d.ts`
 - `TenantId` · 包 `@omne-harness/legal-identity`
 - `encodeAccountIdText` · `identity-text.d.ts`
 - `encodeGovernanceRequest` · `codec.d.ts`
@@ -153,8 +176,8 @@ export declare function encodeLoginStateIdText(value: LoginStateId): string;
 ```ts
 export { readGovernanceRequest, readGovernanceResponse, encodeGovernanceRequest, encodeGovernanceResponse, } from './codec.ts';
 export { readSessionRequest, readSessionResponse, encodeSessionRequest, encodeSessionResponse, } from './session-codec.ts';
-export type { GovernanceProvidedOperation, GovernanceStageOperation, GovernanceOperation, GovernanceRequest, GovernanceResponse, GovernanceCodecLimits, ProofInput, GovernanceProtocolRejected, GovernanceStageNotProvided, GovernanceProtocolResult, GovernanceDiagnostic, GovernanceRequestRead, GovernanceResponseRead, GovernanceEncodeResult, GovernanceResponseEncodeInput, ModelCredentialState, } from './messages.ts';
-export type { SessionOperation, SessionRequestBodies, SessionProducerRef, SessionTerminalSource, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
+export type { GovernanceProvidedOperation, GovernanceStageOperation, GovernanceOperation, GovernanceRequest, GovernanceResponse, GovernanceCodecLimits, ProofInput, GovernanceProtocolRejected, GovernanceStageNotProvided, GovernanceProtocolResult, GovernanceDiagnostic, GovernanceRequestRead, GovernanceResponseRead, GovernanceEncodeResult, GovernanceResponseEncodeInput, SettingAssetSelector, SettingItemView, SettingLayers, SettingLayerState, SettingState, } from './messages.ts';
+export type { SessionOperation, SessionRequestBodies, SessionProducerRef, SessionTerminalSource, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionDiagnosticsPage, SessionDiagnosticGap, SessionDiagnosticGapSource, SessionDiagnosticGapReason, SessionDiagnosticUnknown, SessionDiagnosticInstant, SessionDiagnosticMilliseconds, SessionAdoptionRef, SessionRunDiagnostic, SessionRunAttempts, SessionRunTerminal, SessionRunCause, SessionRunControl, SessionModelCallDiagnostic, SessionModelAttemptDiagnostic, SessionToolCallDiagnostic, SessionToolDiagnosticEntry, SessionFactCount, SessionCallAccountView, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
 export { readTenantText, encodeTenantText, readOrganizationIdText, encodeOrganizationIdText, readAccountIdText, encodeAccountIdText, readLoginStateIdText, encodeLoginStateIdText, } from './identity-text.ts';
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
 ```
@@ -292,17 +315,28 @@ export type RequestBodies = {
     'withdraw-authorization-expression': {
         readonly expressionId: string;
     };
-    'bind-model-credential': {
+    'list-settings': {
+        readonly asset?: SettingAssetSelector;
+    };
+    'set-setting': {
+        readonly asset: SettingAssetSelector;
+        readonly item: string;
         readonly secret: string;
     };
-    'unbind-model-credential': EmptyBody;
-    'describe-model-credential': EmptyBody;
+    'describe-setting': {
+        readonly asset: SettingAssetSelector;
+        readonly item: string;
+    };
+    'clear-setting': {
+        readonly asset: SettingAssetSelector;
+        readonly item: string;
+    };
 };
 export type GovernanceProvidedOperation = keyof RequestBodies;
 export type GovernanceStageOperation = 'disable-subject' | 'restore-subject' | 'end-subject' | 'reopen-after-media-loss';
 export type GovernanceOperation = GovernanceProvidedOperation | GovernanceStageOperation;
-export type ProofOperations = 'revoke-login' | 'replace-credential' | 'query-own-valid-logins' | 'query-current-tenant' | 'query-own-memberships' | 'query-received-invitations' | 'query-create-organization' | 'issue-member-invitation' | 'open-affiliation-request' | 'query-organization-members' | 'accept-member-invitation' | 'reject-member-invitation' | 'withdraw-member-invitation' | 'query-invitation' | 'create-organization' | 'leave-organization' | 'remove-member' | 'change-member-role' | 'switch-current-tenant' | 'query-organization' | 'query-issued-invitations' | 'accept-affiliation-request' | 'reject-affiliation-request' | 'withdraw-affiliation-request' | 'release-affiliation' | 'query-received-affiliation-requests' | 'query-issued-affiliation-requests' | 'query-affiliation-request' | 'judge-admission' | 'submit-authorization-expression' | 'withdraw-authorization-expression' | 'bind-model-credential' | 'unbind-model-credential' | 'describe-model-credential';
-export type TenantOperations = 'issue-member-invitation' | 'open-affiliation-request' | 'query-organization-members' | 'accept-member-invitation' | 'reject-member-invitation' | 'withdraw-member-invitation' | 'query-invitation' | 'create-organization' | 'leave-organization' | 'remove-member' | 'change-member-role' | 'switch-current-tenant' | 'query-organization' | 'query-issued-invitations' | 'accept-affiliation-request' | 'reject-affiliation-request' | 'withdraw-affiliation-request' | 'release-affiliation' | 'query-received-affiliation-requests' | 'query-issued-affiliation-requests' | 'query-affiliation-request' | 'judge-admission' | 'submit-authorization-expression' | 'withdraw-authorization-expression' | 'bind-model-credential' | 'unbind-model-credential' | 'describe-model-credential';
+export type ProofOperations = 'revoke-login' | 'replace-credential' | 'query-own-valid-logins' | 'query-current-tenant' | 'query-own-memberships' | 'query-received-invitations' | 'query-create-organization' | 'issue-member-invitation' | 'open-affiliation-request' | 'query-organization-members' | 'accept-member-invitation' | 'reject-member-invitation' | 'withdraw-member-invitation' | 'query-invitation' | 'create-organization' | 'leave-organization' | 'remove-member' | 'change-member-role' | 'switch-current-tenant' | 'query-organization' | 'query-issued-invitations' | 'accept-affiliation-request' | 'reject-affiliation-request' | 'withdraw-affiliation-request' | 'release-affiliation' | 'query-received-affiliation-requests' | 'query-issued-affiliation-requests' | 'query-affiliation-request' | 'judge-admission' | 'submit-authorization-expression' | 'withdraw-authorization-expression' | 'list-settings' | 'set-setting' | 'describe-setting' | 'clear-setting';
+export type TenantOperations = 'issue-member-invitation' | 'open-affiliation-request' | 'query-organization-members' | 'accept-member-invitation' | 'reject-member-invitation' | 'withdraw-member-invitation' | 'query-invitation' | 'create-organization' | 'leave-organization' | 'remove-member' | 'change-member-role' | 'switch-current-tenant' | 'query-organization' | 'query-issued-invitations' | 'accept-affiliation-request' | 'reject-affiliation-request' | 'withdraw-affiliation-request' | 'release-affiliation' | 'query-received-affiliation-requests' | 'query-issued-affiliation-requests' | 'query-affiliation-request' | 'judge-admission' | 'submit-authorization-expression' | 'withdraw-authorization-expression' | 'list-settings' | 'set-setting' | 'describe-setting' | 'clear-setting';
 export type RequestByOperation = {
     readonly [O in GovernanceProvidedOperation]: {
         readonly protocolVersion: 'governance-public/1';
@@ -354,13 +388,47 @@ export type Complete<K extends string, T> = {
 } & {
     readonly completeness: 'complete';
 };
-export type ModelCredentialState = {
+export type SettingAssetSelector = {
+    readonly category?: string;
+    readonly name: string;
+};
+export type SettingState = {
     readonly state: 'unbound';
 } | {
-    readonly state: 'usable' | 'unreadable';
+    readonly state: 'usable' | 'revoked' | 'unreadable';
     readonly tenantId: TenantId;
     readonly configuredAt?: Instant;
 };
+export type SettingLayerState = {
+    readonly state: 'unbound';
+} | {
+    readonly state: 'usable' | 'revoked' | 'unreadable';
+    readonly configuredAt?: Instant;
+};
+export type SettingLayers = {
+    readonly own: SettingState;
+    readonly official: SettingLayerState;
+};
+type SettingItemBase = {
+    readonly asset: {
+        readonly category: string;
+        readonly name: string;
+    };
+    readonly item: string;
+    readonly title: string;
+};
+export type SettingItemView = (SettingItemBase & {
+    readonly sensitivity: 'secret';
+    readonly state: SettingState | {
+        readonly state: 'not-writable';
+    };
+    readonly official: SettingLayerState;
+}) | (SettingItemBase & {
+    readonly sensitivity: 'ordinary';
+    readonly state: {
+        readonly state: 'not-writable';
+    };
+});
 export type LoginList = {
     readonly logins: readonly [
         LoginItem,
@@ -461,15 +529,19 @@ export type SuccessBodies = {
         readonly persistentSettingsUpdated: false;
     };
     'withdraw-authorization-expression': EmptyBody;
-    'bind-model-credential': {
+    'list-settings': {
+        readonly items: readonly SettingItemView[];
+        readonly completeness: 'complete';
+    };
+    'set-setting': {
         readonly configuredAt: Instant;
     };
-    'unbind-model-credential': EmptyBody;
-    'describe-model-credential': ModelCredentialState;
+    'describe-setting': SettingLayers;
+    'clear-setting': EmptyBody;
 };
 export type NoChangeBodies = {
     'revoke-login': EmptyBody;
-    'unbind-model-credential': EmptyBody;
+    'clear-setting': EmptyBody;
     'switch-current-tenant': EmptyBody;
     'release-affiliation': {
         readonly affiliationId: string;
@@ -538,9 +610,10 @@ export type BusinessOutcomes = {
     'judge-admission': 'succeeded' | 'denied' | 'not-visible' | 'basis-unavailable' | 'need-decision';
     'submit-authorization-expression': 'succeeded' | 'no-change' | 'denied' | 'basis-unavailable' | 'unknown';
     'withdraw-authorization-expression': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown';
-    'bind-model-credential': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown';
-    'unbind-model-credential': 'succeeded' | 'no-change' | 'denied' | 'basis-unavailable' | 'unknown';
-    'describe-model-credential': 'succeeded' | 'denied' | 'basis-unavailable';
+    'list-settings': 'succeeded' | 'denied' | 'basis-unavailable';
+    'set-setting': 'succeeded' | 'denied' | 'not-visible' | 'conflict' | 'not-writable' | 'basis-unavailable' | 'unknown';
+    'describe-setting': 'succeeded' | 'denied' | 'not-visible' | 'conflict' | 'not-writable' | 'basis-unavailable';
+    'clear-setting': 'succeeded' | 'no-change' | 'denied' | 'not-visible' | 'conflict' | 'not-writable' | 'basis-unavailable' | 'unknown';
 };
 export type Correlated<K extends string, B> = {
     readonly protocolVersion: 'governance-public/1';
@@ -608,13 +681,14 @@ export type GovernanceResponseEncodeInput<O extends GovernanceOperation = Govern
         readonly limits: GovernanceCodecLimits;
     };
 }[O];
+export {};
 ```
 
 ## 声明文件 `operation-rules.d.ts`
 
 ```ts
 import type { GovernanceProvidedOperation, GovernanceStageOperation } from './messages.ts';
-export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'parameters' | 'json' | 'user-message';
+export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'positive-integer' | 'parameters' | 'json' | 'user-message';
 export type Rule = {
     readonly kind: LeafKind;
 } | {
@@ -742,6 +816,13 @@ export type SessionRequestBodies = {
         readonly controlId: string;
         readonly producer: SessionProducerRef;
     };
+    'read-session-diagnostics': (SessionTarget & {
+        readonly cursor: null;
+        readonly run: string | null;
+        readonly pageBytes: string;
+    }) | (SessionTarget & {
+        readonly cursor: string;
+    });
 };
 export type SessionOperation = keyof SessionRequestBodies;
 export type SessionRequestByOperation = {
@@ -767,6 +848,208 @@ export type SessionHistoryPage = {
     readonly next: string | null;
     readonly exhausted: boolean;
     readonly scannedThrough: string;
+};
+export type SessionDiagnosticGapSource = 'session' | 'agent' | 'model' | 'tool';
+export type SessionDiagnosticGapReason = 'unsupported' | 'unavailable' | 'denied' | 'not-disclosed' | 'not-accepted' | 'not-found' | 'not-recorded' | 'retention-expired' | 'truncated';
+export type SessionDiagnosticGap = {
+    readonly source: SessionDiagnosticGapSource;
+    readonly subject: string;
+    readonly reason: SessionDiagnosticGapReason;
+};
+export type SessionDiagnosticUnknown = {
+    readonly kind: 'unknown';
+    readonly reason: Exclude<SessionDiagnosticGapReason, 'not-disclosed' | 'truncated'>;
+};
+export type SessionDiagnosticInstant = {
+    readonly kind: 'known';
+    readonly instant: string;
+} | {
+    readonly kind: 'unknown';
+};
+export type SessionDiagnosticMilliseconds = {
+    readonly kind: 'known';
+    readonly milliseconds: string;
+} | {
+    readonly kind: 'unknown';
+};
+export type SessionAdoptionRef = {
+    readonly owner: string;
+    readonly name: string;
+    readonly revision: string;
+    readonly digest: string;
+};
+export type SessionRunCause = {
+    readonly kind: 'node-failed';
+    readonly node: string;
+    readonly category: 'exception' | 'invariant' | 'unsupported-path' | 'rejected';
+    readonly failureKind: string;
+} | SessionDiagnosticUnknown | {
+    readonly kind: 'none';
+} | {
+    readonly kind: 'no-failure';
+    readonly conclusion: 'complete' | 'fail' | 'cancelled';
+} | {
+    readonly kind: 'model-refused';
+    readonly failure: 'denied' | 'invalid' | 'unsupported' | 'capacity' | SessionDiagnosticUnknown;
+} | {
+    readonly kind: 'no-reply';
+    readonly cause: string | null;
+    readonly upstreamStatus: string | null;
+} | {
+    readonly kind: 'request-rejected';
+} | {
+    readonly kind: 'cannot-fit';
+    readonly reason: 'fixed' | 'after-compaction' | SessionDiagnosticUnknown;
+} | {
+    readonly kind: 'compaction-invalid';
+} | {
+    readonly kind: 'message-rejected';
+} | {
+    readonly kind: 'extension-stop';
+} | {
+    readonly kind: 'guard';
+};
+export type SessionRunTerminal = {
+    readonly outcome: 'completed' | 'failed' | 'cancelled';
+    readonly cause: {
+        readonly record: string | null;
+        readonly structured: SessionRunCause;
+    };
+};
+export type SessionRunControl = {
+    readonly position: string;
+    readonly kind: 'requested' | 'progress';
+    readonly target: 'run' | 'producer' | 'session' | null;
+    readonly intent: 'control' | 'interrupt' | 'auto-archive' | null;
+    readonly state: 'committed' | 'propagating' | 'reconciled' | null;
+};
+export type SessionRunAttempts = {
+    readonly started: string;
+    readonly released: {
+        readonly ended: string;
+        readonly bounded: string;
+        readonly cancelled: string;
+        readonly released: string;
+        readonly superseded: string;
+    };
+    readonly exited: string;
+};
+export type SessionFactCount = {
+    readonly kind: string;
+    readonly count: string;
+};
+export type SessionToolDiagnosticEntry = {
+    readonly operation: string;
+    readonly phase: string;
+    readonly code: string;
+};
+export type SessionCallAccountView = {
+    readonly kind: 'account';
+    readonly usage: readonly {
+        readonly name: string;
+        readonly unit: string;
+        readonly state: 'unknown' | 'known' | 'provisional';
+        readonly lexeme: string | null;
+    }[];
+    readonly cost: readonly {
+        readonly source: string;
+        readonly unit: string;
+        readonly state: 'unknown' | 'known' | 'provisional';
+        readonly lexeme: string | null;
+    }[];
+    readonly duration: {
+        readonly kind: 'known';
+        readonly value: string;
+    } | {
+        readonly kind: 'unknown';
+    };
+    readonly receipt: 'received' | 'late';
+};
+export type SessionModelAttemptDiagnostic = {
+    readonly dispatch: string;
+    readonly revision: string;
+    readonly adapter: SessionAdoptionRef;
+    readonly send: 'not-sent' | 'sent' | 'unknown';
+    readonly firstContent: 'none-proven' | 'observed' | 'uncertain';
+    readonly outcome: {
+        readonly kind: 'pending';
+    } | {
+        readonly kind: 'completed';
+        readonly reason: 'stop' | 'limit' | 'tool-suggestions';
+    } | {
+        readonly kind: 'interrupted';
+    } | {
+        readonly kind: 'failed';
+        readonly cause: string;
+        readonly upstreamStatus: string | null;
+    };
+    readonly timing: {
+        readonly materialize: SessionDiagnosticMilliseconds;
+        readonly sendToFirstContent: SessionDiagnosticMilliseconds;
+        readonly execution: SessionDiagnosticMilliseconds;
+    };
+    readonly account: SessionCallAccountView | SessionDiagnosticUnknown;
+};
+export type SessionModelCallDiagnostic = {
+    readonly reference: string;
+    readonly purpose: string;
+    readonly call: {
+        readonly kind: 'found';
+        readonly call: string;
+        readonly phase: 'accepted' | 'running' | 'retry-decision' | 'settled';
+    } | SessionDiagnosticUnknown;
+    readonly dispatches: readonly SessionModelAttemptDiagnostic[];
+    readonly coverage: 'complete-through-snapshot' | 'expired-prefix' | 'unknown';
+    readonly facts: readonly SessionFactCount[];
+};
+export type SessionToolCallDiagnostic = {
+    readonly reference: string;
+    readonly state: {
+        readonly kind: 'found';
+        readonly call: string;
+        readonly phase: 'accepted' | 'preparing' | 'queued' | 'starting' | 'running' | 'suspended' | 'settled';
+        readonly relation: 'foreground' | 'background';
+        readonly terminal: {
+            readonly kind: 'completed' | 'failed' | 'unavailable' | 'interrupted' | 'no-response';
+            readonly cause: string | null;
+        } | null;
+    } | SessionDiagnosticUnknown;
+    readonly account: SessionCallAccountView | SessionDiagnosticUnknown;
+    readonly facts: readonly SessionFactCount[];
+    readonly diagnostics: readonly SessionToolDiagnosticEntry[] | SessionDiagnosticUnknown;
+};
+export type SessionRunDiagnostic = {
+    readonly run: string;
+    readonly entry: 'interactive' | 'dispatch';
+    readonly execution: string;
+    readonly started: {
+        readonly position: string;
+        readonly at: SessionDiagnosticInstant;
+    };
+    readonly attempts: SessionRunAttempts;
+    readonly controls: readonly SessionRunControl[];
+    readonly terminal: SessionRunTerminal | null;
+    readonly calls: {
+        readonly registered: string;
+        readonly projected: string;
+    };
+    readonly modelCalls: readonly SessionModelCallDiagnostic[];
+    readonly toolCalls: readonly SessionToolCallDiagnostic[];
+    readonly messages: readonly {
+        readonly kind: string;
+        readonly count: string;
+    }[];
+    readonly facts: readonly SessionFactCount[];
+};
+export type SessionDiagnosticsPage = {
+    readonly runs: readonly SessionRunDiagnostic[];
+    readonly next: string | null;
+    readonly exhausted: boolean;
+    readonly scannedThrough: string;
+    readonly basis: {
+        readonly upper: string;
+    };
+    readonly gaps: readonly SessionDiagnosticGap[];
 };
 export type SessionSuccessBodies = {
     'create-session': {
@@ -808,15 +1091,17 @@ export type SessionSuccessBodies = {
             readonly source: SessionTerminalSource;
         };
     };
+    'read-session-diagnostics': SessionDiagnosticsPage;
 };
 export type SessionOutcomes = {
-    'create-session': 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown';
+    'create-session': 'limited' | 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown';
     'query-create-session': 'succeeded' | 'denied' | 'basis-unavailable' | 'unknown';
-    'send-input': 'succeeded' | 'denied' | 'invalid' | 'archived' | 'frozen' | 'conflict' | 'basis-unavailable' | 'unknown';
+    'send-input': 'limited' | 'succeeded' | 'denied' | 'invalid' | 'archived' | 'frozen' | 'conflict' | 'basis-unavailable' | 'unknown';
     'query-send-input': 'succeeded' | 'not-committed' | 'denied' | 'basis-unavailable' | 'unknown';
     'read-history': 'succeeded' | 'denied' | 'invalid' | 'basis-unavailable';
     'cancel-run': 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'not-found' | 'basis-unavailable' | 'unknown';
     'stop-call': 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'not-found' | 'basis-unavailable' | 'unknown' | 'unsupported';
+    'read-session-diagnostics': 'succeeded' | 'denied' | 'invalid' | 'basis-unavailable';
 };
 export type SessionProtocolRejected = {
     readonly protocolVersion: 'session-public/1';
@@ -829,7 +1114,10 @@ export type SessionBusinessResponse<O extends SessionOperation> = {
         readonly protocolVersion: 'session-public/1';
         readonly messageId: string;
         readonly outcome: K;
-        readonly body: K extends 'succeeded' ? SessionSuccessBodies[O] : EmptyBody;
+        readonly body: K extends 'succeeded' ? SessionSuccessBodies[O] : K extends 'limited' ? {
+            readonly resource: 'pending-inputs' | 'input-bytes';
+            readonly limit: number;
+        } : EmptyBody;
     };
 }[SessionOutcomes[O]];
 export type SessionResponseByOperation = {
@@ -869,6 +1157,7 @@ import { type Family } from './operation-rules.ts';
 import type { SessionOperation, SessionOutcomes } from './session-messages.ts';
 declare const outcomes: {
     readonly 'create-session': readonly [
+        "limited",
         "succeeded",
         "denied",
         "invalid",
@@ -883,6 +1172,7 @@ declare const outcomes: {
         "unknown"
     ];
     readonly 'send-input': readonly [
+        "limited",
         "succeeded",
         "denied",
         "invalid",
@@ -923,6 +1213,12 @@ declare const outcomes: {
         "basis-unavailable",
         "unknown",
         "unsupported"
+    ];
+    readonly 'read-session-diagnostics': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "basis-unavailable"
     ];
 };
 type MissingOutcomes = {

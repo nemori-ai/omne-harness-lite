@@ -1,6 +1,11 @@
 {
   "rows": [
     {
+      "id": "telemetry",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "storage",
       "plugin": "stubPlugin",
       "config": {}
@@ -17,6 +22,11 @@
     },
     {
       "id": "session-storage",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "governance",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -136,6 +146,11 @@
       "config": {}
     },
     {
+      "id": "model-tokenizers",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "model-profiles",
       "plugin": "stubPlugin",
       "config": {}
@@ -147,6 +162,16 @@
     },
     {
       "id": "model-credential",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "secret-custody",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "settings",
       "plugin": "stubPlugin",
       "config": {}
     },

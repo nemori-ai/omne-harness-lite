@@ -4,7 +4,7 @@
 
 ## 允许的内容
 
-`models/` 下的形式模型，`proofs/` 下的论证或证明，以及说明文件。
+`models/` 下的形式模型，`proofs/` 下的论证或证明，`benchmarks/` 下的基准脚本（现有 [windows-files-latency.ts](benchmarks/windows-files-latency.ts)：Windows 单次文件操作的热态延迟），以及说明文件。
 
 ## 边界
 
@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-现在为空，`models/` 与 `proofs/` 都没有资源。宿主文件使用的行为由 [tests/](../tests/README.md) 在真实文件系统上覆盖。运行记录写在[架构的宿主文件使用](../docs/architecture.md#宿主文件使用)与 SPEC 的[组合与验证](../SPEC.md#组合与验证)。三条 Cordis 机制只有源码读数或缺少专门核验，清单见 [Cordis 说明](../docs/cordis.md#机制读数与假设)，它们由 basis probe 核验，不放在本目录。
+`models/` 有两个 TLA+ 模型：Windows 常驻文件辅助进程，以及 Windows Job 收纳对契约 ProcessCustody 的精化，见 [models/README.md](models/README.md)。`proofs/` 没有资源。宿主文件使用的行为由 [tests/](../tests/README.md) 在真实文件系统上覆盖。运行记录写在[架构的宿主文件使用](../docs/architecture.md#宿主文件使用)与 SPEC 的[组合与验证](../SPEC.md#组合与验证)。三条 Cordis 机制只有源码读数或缺少专门核验，清单见 [Cordis 说明](../docs/cordis.md#机制读数与假设)，它们由 basis probe 核验，不放在本目录。

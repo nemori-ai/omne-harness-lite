@@ -12,12 +12,12 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6.1-sol",
           "revision": "1",
-          "digest": "ce526c19144ef6556891c5cf21ffcf8552de88e38b5cb27d7f5072cb65420594"
+          "digest": "1453d18c751009acaf895e6ef429e63dceaf312f8df3e7bfcfadff23eb4663b0"
         },
-        "recipient": "openrouter",
+        "provider": "openrouter",
         "model": "openai/gpt-6.1-sol",
         "credential": {
-          "kind": "factory"
+          "layer": "official"
         }
       }
     ],
@@ -118,7 +118,7 @@
       "owner": "@omne-harness/pi-ai-openai",
       "name": "openai/gpt-6.1-sol#representation",
       "revision": "1",
-      "digest": "ce526c19144ef6556891c5cf21ffcf8552de88e38b5cb27d7f5072cb65420594"
+      "digest": "1453d18c751009acaf895e6ef429e63dceaf312f8df3e7bfcfadff23eb4663b0"
     },
     "parameterAdoptions": [
       {
@@ -126,7 +126,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6.1-sol",
           "revision": "1",
-          "digest": "ce526c19144ef6556891c5cf21ffcf8552de88e38b5cb27d7f5072cb65420594"
+          "digest": "1453d18c751009acaf895e6ef429e63dceaf312f8df3e7bfcfadff23eb4663b0"
         },
         "applied": {
           "kind": "max-output-tokens",
@@ -151,7 +151,7 @@
           "owner": "@omne-harness/pi-ai-openai",
           "name": "openai/gpt-6.1-sol",
           "revision": "1",
-          "digest": "ce526c19144ef6556891c5cf21ffcf8552de88e38b5cb27d7f5072cb65420594"
+          "digest": "1453d18c751009acaf895e6ef429e63dceaf312f8df3e7bfcfadff23eb4663b0"
         },
         "applied": {
           "kind": "reasoning-effort",

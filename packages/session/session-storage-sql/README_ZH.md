@@ -24,7 +24,7 @@ Session 的存储成员。它用 SQL 实现 `SessionTransactionPort`，只经 `@
 
 根入口是唯一入口：
 
-- `createSessionStorage(options)`：返回 `SessionTransactionPort<P>`。`options` 含 `storage`（`SqlStorage`）、`domains`（`TenantDomainAccess`）、`accessCheck`、`cursorSigning`、`combination`（`combinationVersion` 与 `manifestDigest`），以及可选的 `attemptLimit`（初值 8）、`cursorTtlMs`（初值 15 分钟）、`now`。
+- `createSessionStorage(options)`：返回 `SessionTransactionPort<P>`。`options` 含 `storage`（`SqlStorage`）、`domains`（`TenantDomainAccess`）、`accessCheck`、`cursorSigning`、`combination`（`combinationVersion` 与 `manifestDigest`），以及可选的 `cursorTtlMs`（初值 15 分钟）、`now`。
 - `sessionStorageMaterials({ readOutputLimitBytes })`：返回参加者、迁移与读 handler 三份静态描述，应用把它们并入自己的材料目录。`readOutputLimitBytes` 必填、没有默认值、必须是正安全整数，成为每个读 handler 的 `maxOutputBytes`；装配让提供者的 `maxReadResultBytes` 不小于它（SPEC K-1），推荐 20 MiB。
 - `SESSION_PARTICIPANT`：组合里列给 Session 日志的参加者名，值为 `session`。
 
@@ -56,7 +56,7 @@ Session 的存储成员。它用 SQL 实现 `SessionTransactionPort`，只经 `@
 
 ## 配置与运行
 
-配置只有 `SessionStorageOptions` 的字段，见上文[使用](#使用)。`attemptLimit` 与 `cursorTtlMs` 的初值只是配置初值，应用可以改。游标签名由应用注入（`sessionCursorSigning`），不是配置值。SPEC 设计的内联阈值、大对象去向、`pageBytes` 上限、`maxScanPerPage` 与重建方式现在不是配置项，见 [SPEC 的实现现状](SPEC.md#实现现状)。
+配置只有 `SessionStorageOptions` 的字段，见上文[使用](#使用)。`cursorTtlMs` 的初值只是配置初值，应用可以改。尝试代次不设上限，没有对应的配置。游标签名由应用注入（`sessionCursorSigning`），不是配置值。SPEC 设计的内联阈值、大对象去向、`pageBytes` 上限、`maxScanPerPage` 与重建方式现在不是配置项，见 [SPEC 的实现现状](SPEC.md#实现现状)。
 
 环境前提是 sql-contract 的存储提供者。连接、Worker、PRAGMA 与写者代际归提供者，本成员不打开连接。迁移随提供者的原子迁移执行，完成之前读与写都返回 `unavailable`。没有内存实现；测试夹具是 `node:sqlite` 上的测试用提供者，不属于发布产物。
 

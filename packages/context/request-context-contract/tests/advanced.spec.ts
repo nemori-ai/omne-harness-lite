@@ -379,7 +379,10 @@ it('summary is checked against actual full input budget before transition', asyn
   const f = fixture()
   const planned = await planCompaction(f.input, f.ports, f.policies)
   if (planned.kind !== 'planned') throw new Error(planned.kind)
-  const p = { ...f.ports, meter: { ...f.ports.meter, measure: () => ({ ok: f.budget('9999') }) } }
+  const p = {
+    ...f.ports,
+    meter: { ...f.ports.meter, measure: async () => ({ ok: f.budget('9999') }) },
+  }
   const result = await deriveStep(
     f.input,
     {
@@ -545,7 +548,7 @@ it('headroom and fractional token margins are conservative and exact', async () 
     ...f.ports,
     meter: {
       ...f.ports.meter,
-      measure: () => ({
+      measure: async () => ({
         ok: {
           ...b,
           checks: b.checks.map(c => ({

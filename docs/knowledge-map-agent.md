@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | 项目定位、阶段概览与开始路径 | [根README](../README.md) | 人类概览是投影，不另立产品承诺或进度源 |
 | 常驻项目心智、责任、关键边界和加载触发 | [根AGENTS](../AGENTS.md)及任务目录实际AGENTS | agent可承担多种角色；提示不复制技能流程或完整业务契约，局部提示不能反转全局要求 |
-| 角色路径、任务路由、维护步骤 | [docs/README](README.md)、[context-map](context-map.md)、[maintenance](maintenance.md) | 三者分别拥有起点、按任务展开和维护步骤；本说明拥有整体模型 |
+| 角色路径、任务路由、维护步骤 | [docs/README](README.md)、[context-map](context-map.md)、[maintenance](maintenance.md) | 三者分别拥有起点、产品架构领域的阅读路由和维护步骤；本说明拥有整体模型 |
 | 项目目标、阶段及全局要求 | [docs/requirements.md](requirements.md) | 旧要求不能补入新条款；有效未决验收条件保持缺项 |
 | 独立设计目标及本项目要求的meta导航 | [.meta_harness/design/foundation/](../.meta_harness/design/foundation/README.md) | 本项目现行要求仍只归docs/requirements.md，迁出工作区不能自动给其他项目授予本项目目标 |
 | 产品需求/旅程、能力及实现状态、版本承诺、未决 | [.meta_harness/design/product/](../.meta_harness/design/product/README.md) | 模块聚焦业务，框架允许配置与扩展；能力支持来自绑定版本及覆盖的证据，不能从目标目录推定 |
@@ -30,18 +30,18 @@
 | 目标能力组、包边界、SDK及新增扩展 | [docs/package-organization.md](package-organization.md)、[docs/workspace.md](workspace.md) | 前者维护目标组织，后者维护源码归属与实际工具边界；新目录不批准实施 |
 | 能力组内工程分解、成员依赖、关键流程及共同维护 | [packages/<domain>/](../packages/README.md)的README及按需工程专题 | 与docs领域关系分开；成员未具名时保留承接缺项，不创建组根统一SPEC代替成员 |
 | 公开形状、必要行为、内部机制、使用与持续资源 | 实际[packages](../packages/README.md)、[apps](../apps/README.md)、[tools](../tools/README.md)成员 | 类型/Schema拥有形状；SPEC拥有非类型行为；docs维护机制及使用；verification/tests/acceptance维护相称资源。完整必要行为不受“薄SPEC”篇幅限制 |
-| 工程规则、任务场景、技能采用与交付 | [docs/engineering/](engineering/README.md)、[CONTRIBUTING](../CONTRIBUTING.md)、[development](development.md) | 项目额外约束归工程拥有者，通用方法引用三层方法（poteto-mode、Matt、ub-mode）。精确来源、版本及宿主读取归skills页；技能名字不证明实际加载或遵循 |
+| 工程规则、任务场景、技能采用与交付 | [docs/engineering/](engineering/README.md)、[CONTRIBUTING](../CONTRIBUTING.md)、[development](development.md) | 项目额外约束归工程拥有者，研发流程归 pqw，方法分层见[三层分工](engineering/skills.md#三层分工)；每条流程事实的拥有者见[流程事实在哪](engineering/README.md#流程事实在哪)。技能名字不证明实际加载或遵循 |
 | 正式技术提案与最小决定、写回关系 | [docs/rfcs/](rfcs/README.md) | 正式条目按真实审议产生，初始空骨架不制造历史；提案不是当前完整规范，获准范围须写回实际拥有者 |
-| 一次交付范围、条件、具名接受及恢复定位 | 实际GitHub Issue，入口为[agent-delivery](engineering/agent-delivery.md) | feature/bug/refactor/performance/maintenance/investigation为普通任务类型；不维护专门产品卡。Project为派生调度视图，先读单一配置的启用范围，平台关闭不授予接受 |
+| 一次交付范围、条件、具名接受及恢复定位 | 实际GitHub Issue，规则归[卡与交接信息包](engineering/delivery.md#卡就是交接信息包)，命令归 `omne-card` | 卡就是交接信息包；Project为派生视图，平台关闭不授予接受 |
 | 统一概念、正式用语及英文名 | [.meta_harness/design/ubiquitous_language/](../.meta_harness/design/ubiquitous_language/README.md) | 用词读取词条，不另建同义词表；改概念加载ubiquitous-language，单纯消费词条不加载治理技能 |
 | 有身份对象的宿主、身份、生灭、依据与对象性未决 | [.meta_harness/design/domain_objects/](../.meta_harness/design/domain_objects/README.md) | 条目依统一语言与有效产品依据维护；不是完整领域架构或成员数据模型 |
 | 上游机制在固定版本下提供与不提供什么 | [.meta_harness/design/basis/](../.meta_harness/design/basis/README.md)及有效来源/probe | 读数受上游版本和实际验证范围约束，不能自动把上游保证授予本系统 |
 | 持续研究与条件性知识 | [.meta_harness/research/](../.meta_harness/research/README.md)及[agent研究入口](../.meta_harness/agents/research/README.md) | 根research职责/结构仍待负责人定义；读实际入口，不恢复旧模板或从目录推定结论采用 |
 | 怎样给 agent 布置与评审一类设计（写给人的学习材料） | [.meta_harness/human/](../.meta_harness/human/README.md) | 不是规则，规则以其引用的拥有者为准；agent 不以它为任务依据 |
-| 项目独有skills/roles、适配及持续评估资源 | [.meta_harness/agents/](../.meta_harness/agents/README.md)、[tooling](../.meta_harness/tooling/README.md) | canonical是源；.meta_harness下宿主目录是生成物，根.agents/.claude/.codex暴露入口，不手改产物 |
+| 项目独有skills、钩子与云端环境源 | [.meta_harness/agents/](../.meta_harness/agents/README.md)、[tooling](../.meta_harness/tooling/README.md) | canonical是源；.meta_harness下宿主目录是生成物，根.agents/.claude/.codex暴露入口，不手改产物 |
 | 派生视图、结构库存、来源/符合性观察 | [设计views](../.meta_harness/design/views/README.md)、[spec-tools](../tools/spec-tools/README.md)、[repo-toolchain](../tools/repo-toolchain/README_ZH.md)、[verification](verification.md) | 视图用于定位源，报告用于定位偏离/未知。由真实输入重新生成，不手填结果或把观察变成权威 |
 | 保留技术源、封存PF与旧实现 | [旧技术入口](../.meta_harness/design/architecture/README.md)、产品及包/应用入口中的legacy导航 | 只作核对出处或尚未承接的材料；旧接受、当前消费者或绿测不能批准冲突设计继续采用 |
-| 候选、单次调查、访谈、逐轮评审、原始输出及调度状态 | 工作树tmp/<task>/，规则归[终态与过程材料](development.md#终态与过程材料) | 不成为永久第二规范；cloud接续保存正式成果的要求不等于提交全部临时材料。运行时业务数据仍由对应领域/存储承担，不以tmp充当Session持久存储 |
+| 候选、单次调查、访谈、逐轮评审、原始输出及调度状态 | 工作树tmp/<task>/，规则归[位置与唯一源](engineering/documentation.md#位置与唯一源) | 不成为永久第二规范。运行时业务数据仍由对应领域/存储承担，不以tmp充当Session持久存储 |
 
 四类长期成果是产品设计、RFC、长期规格、技术设计。源码及验证资源分别说明实际兑现和覆盖，不成为第五种业务规范。一次交付规格只组织任务，不能取代长期规格；具体分类归[规格规则](engineering/documentation.md#单次交付规格与长期规格)。
 
@@ -71,10 +71,10 @@
 
 ## 加载与维护
 
-人和agent都可能承担终端使用、租户管理、部署运维、集成扩展、实现维护、验证评审、工具文档维护、系统架构、产品或项目交付角色。十类起点归[docs/README](README.md)，按任务展开归[context-map](context-map.md)，维护步骤归[maintenance](maintenance.md)。公开使用者只需有资格读取的操作和契约，不要求读取私有meta或安装维护插件。
+人和agent都可能承担终端使用、租户管理、部署运维、集成扩展、实现维护、验证评审、工具文档维护、系统架构、产品或项目交付角色。十类起点归[docs/README](README.md)，产品架构领域的阅读路由归[context-map](context-map.md)，维护步骤归[maintenance](maintenance.md)。公开使用者只需有资格读取的操作和契约，不要求读取私有meta或安装维护插件。
 
 - 起草产品加载product-design；改统一词条或对象分别加载对应治理技能；仅消费正文不改变工作视角。工程方法按[skills](engineering/skills.md)及实际场景选择。
-- 文档、AGENTS、skills和roles分别沿根提示的专用技能触发；常驻AGENTS保持心智与路由，本文件只有在上述整体判断任务时加载。
+- 文档、AGENTS与skills分别沿根提示的专用技能触发；常驻AGENTS保持心智与路由，本文件只有在上述整体判断任务时加载。
 - 局部修复可直接进入成员、局部AGENTS和受影响检查；新边界再展开架构/领域；正式方案审议才进入RFC；任务操作先核实际启用与授权。
 - 信息位置、文种、约束、状态语义或必要加载入口变化时，维护规范拥有者及两份体系说明；仅业务细节变化且不影响地图时不机械改地图。SVG是人类说明的表达附件，不是第三套规范。
 - 需要核某一具体保证时再打开相关源；仅了解完整体系时读本文件即可结束。不了解所需采用范围、缺权限或缺精确承诺时，在相应拥有者处停止行动，不补造规则。

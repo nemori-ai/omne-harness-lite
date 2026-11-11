@@ -3,7 +3,10 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
 /** The named qualifications, in publication order. The first one is "organization cost ledger read". */
-export const QUALIFICATIONS = Object.freeze(['organization-cost-ledger-read'] as const)
+export const QUALIFICATIONS = Object.freeze([
+  'organization-cost-ledger-read',
+  'organization-settings-manage',
+] as const)
 
 export type Qualification = (typeof QUALIFICATIONS)[number]
 
@@ -40,13 +43,16 @@ export const DEFAULT_TEAM_ROLES = Object.freeze({
   member: 'member',
 } as const)
 
-/** In the default team scheme, the super administrator reads the organization cost ledger; a member does not. */
+/** The default team's super administrator has both organization qualifications; a member has neither. */
 export const DEFAULT_TEAM_ROLE_MAPPING: RoleMapping = Object.freeze({
   model: DEFAULT_TEAM_MODEL,
   roles: Object.freeze([
     Object.freeze({
       role: DEFAULT_TEAM_ROLES.superAdmin,
-      qualifications: Object.freeze(['organization-cost-ledger-read'] as const),
+      qualifications: Object.freeze([
+        'organization-cost-ledger-read',
+        'organization-settings-manage',
+      ] as const),
     }),
     Object.freeze({ role: DEFAULT_TEAM_ROLES.member, qualifications: Object.freeze([]) }),
   ]),

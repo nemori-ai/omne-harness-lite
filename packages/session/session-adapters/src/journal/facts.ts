@@ -43,14 +43,15 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { EXECUTION_BATCH_MAX_FACTS } from '@omne-harness/session-storage-sql/participants'
 import { canonical } from '../testing/canonical.ts'
 
 /** The most bytes one encoded fact body may take: six times a `DurableEvidence` of about 650 B. */
 export const FACT_MAX_BYTES = 4096
 /** The constant part of one batch besides its facts: the envelope row. */
 export const BATCH_OVERHEAD_BYTES = 512
-/** The most facts one batch may carry (session-storage-sql `EXECUTION_BATCH_MAX_FACTS`). */
-export const BATCH_MAX_FACTS = 256
+/** Business facts share the storage budget with one envelope row. */
+export const BATCH_MAX_FACTS = EXECUTION_BATCH_MAX_FACTS - 1
 
 declare const refTag: unique symbol
 /**

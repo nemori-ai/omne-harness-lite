@@ -32,6 +32,12 @@ const UNAVAILABLE: ModelFailure = {
   diagnostic: 'storage is closed',
 }
 
+const SHARE_FULL: ModelFailure = {
+  kind: 'unavailable',
+  dependency: 'model-capacity',
+  diagnostic: 'the share of the tenant is full',
+}
+
 /**
  * The dependencies with `admit` answering `answer` for its first `times` calls, and the effect
  * intents and F1 candidates of the commits recorded. Later calls reach the scripted Model.
@@ -106,47 +112,52 @@ describe('M6 with an admission the Model does not accept (R2-D237)', () => {
     },
   )
 
-  it('waits at M6 on an unavailable Model, names its owner, and admits the same call again after the check time', async () => {
-    const finishes: FinishCandidateContent[] = []
-    const admits: string[] = []
-    const assembly = await loopAssembly([execution()], d => {
-      const wrapped = refusing(UNAVAILABLE, 1, finishes)(d)
-      return {
-        ...wrapped,
-        models: {
-          ...wrapped.models,
-          calls: {
-            ...wrapped.models.calls,
-            admit(input) {
-              admits.push(`${input.call}/${input.operation}`)
-              return wrapped.models.calls.admit(input)
+  // model-contract "按租户的串行区与公平": a tenant share that is full now answers unavailable
+  // with the dependency model-capacity; the run waits and completes like any other unavailable.
+  it.each([UNAVAILABLE, SHARE_FULL])(
+    'waits at M6 on an unavailable Model ($dependency), names its owner, and admits the same call again after the check time',
+    async answer => {
+      const finishes: FinishCandidateContent[] = []
+      const admits: string[] = []
+      const assembly = await loopAssembly([execution()], d => {
+        const wrapped = refusing(answer, 1, finishes)(d)
+        return {
+          ...wrapped,
+          models: {
+            ...wrapped.models,
+            calls: {
+              ...wrapped.models.calls,
+              admit(input) {
+                admits.push(`${input.call}/${input.operation}`)
+                return wrapped.models.calls.admit(input)
+              },
             },
           },
-        },
-      }
-    })
-    assembly.release.open()
-    ok(await invoke(assembly))
-    await eventually(async () => (await read(assembly)).state.kind === 'waiting')
-    const waiting = await read(assembly)
-    expect(waiting.checkpoint.position).toBe('M6')
-    expect(waiting.state).toEqual({
-      kind: 'waiting',
-      waits: [{ kind: 'dependency', owner: 'modelRuntime', position: 'M6' }],
-    })
-    expect(admits).toHaveLength(1)
-    // The dependency comes back; the check time wakes the run, which admits the same call.
-    await eventually(async () => assembly.controls.clock.pending().length > 0)
-    const due = assembly.controls.clock.pending()[0]
-    if (due === undefined) throw new Error('the check time is required')
-    ok(assembly.controls.clock.advanceTo(due))
-    await eventually(async () => (await read(assembly)).state.kind === 'ended')
-    expect((await read(assembly)).state).toMatchObject({
-      kind: 'ended',
-      conclusion: { kind: 'complete' },
-    })
-    expect(admits).toHaveLength(2)
-    expect(admits[1]).toBe(admits[0])
-    expect(finishes.map(finish => finish.failure)).toEqual([null])
-  })
+        }
+      })
+      assembly.release.open()
+      ok(await invoke(assembly))
+      await eventually(async () => (await read(assembly)).state.kind === 'waiting')
+      const waiting = await read(assembly)
+      expect(waiting.checkpoint.position).toBe('M6')
+      expect(waiting.state).toEqual({
+        kind: 'waiting',
+        waits: [{ kind: 'dependency', owner: 'modelRuntime', position: 'M6' }],
+      })
+      expect(admits).toHaveLength(1)
+      // The dependency comes back; the check time wakes the run, which admits the same call.
+      await eventually(async () => assembly.controls.clock.pending().length > 0)
+      const due = assembly.controls.clock.pending()[0]
+      if (due === undefined) throw new Error('the check time is required')
+      ok(assembly.controls.clock.advanceTo(due))
+      await eventually(async () => (await read(assembly)).state.kind === 'ended')
+      expect((await read(assembly)).state).toMatchObject({
+        kind: 'ended',
+        conclusion: { kind: 'complete' },
+      })
+      expect(admits).toHaveLength(2)
+      expect(admits[1]).toBe(admits[0])
+      expect(finishes.map(finish => finish.failure)).toEqual([null])
+    },
+  )
 })

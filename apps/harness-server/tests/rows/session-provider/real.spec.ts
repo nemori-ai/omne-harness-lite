@@ -14,6 +14,7 @@ import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
 import { storageRow } from '../../../src/rows/storage/index.ts'
 import type { RowId } from '../../../src/types.ts'
 import { accessPolicyRow, allowAll, providerConfig } from '../storage/fixtures/tree.ts'
+import { TELEMETRY_ROW_CONFIG } from '../server-entry/support.ts'
 import {
   BASE_ENTRY_OBJECTS,
   declared,
@@ -22,6 +23,7 @@ import {
   storageRows,
   type LoadedTree,
 } from '../session-fixtures/tree.ts'
+import { disabledTelemetryRow } from '../telemetry/support.ts'
 import { stubPlugin } from '../../../src/cordis.ts'
 
 const live: Array<() => Promise<void> | void> = []
@@ -35,7 +37,11 @@ async function start(): Promise<LoadedTree> {
   const storage = storageRows(base)
   const tree = await loadTree({
     base,
-    rows: [...storage.specs, declared(sessionProviderRealRow, { admission: 'none' })],
+    rows: [
+      disabledTelemetryRow(),
+      ...storage.specs,
+      declared(sessionProviderRealRow, { admission: 'none' }),
+    ],
   })
   live.push(() => tree.dispose())
   return tree
@@ -52,7 +58,7 @@ describe('the real session-provider row: declaration', () => {
     })
   })
 
-  it('provides what the table row provides, injects the same four keys and carries the table phase `business`', () => {
+  it('provides what the table row provides, injects the same five keys and carries the table phase `business`', () => {
     const table = serveProfile().stubManifests.get('session-provider' as RowId)
     if (declaration === undefined || table === undefined) throw new Error('unreachable')
     const sorted = (names: readonly string[]) => [...names].sort()
@@ -92,6 +98,7 @@ describe('the real session-provider row: on the real storage rows', () => {
     { timeout: 60_000 },
     async () => {
       const tree = await start()
+      // `telemetry` has no shutdown phase and registers no handle.
       expect(tree.registry.liveRows().sort()).toEqual([
         'session-provider',
         'session-storage',
@@ -116,7 +123,7 @@ describe('the real session-provider row: on the real storage rows', () => {
       const storage = storageRows(base)
       const tree = await loadTree({
         base,
-        rows: [...storage.specs, declared(sessionProviderRealRow, {})],
+        rows: [disabledTelemetryRow(), ...storage.specs, declared(sessionProviderRealRow, {})],
         entryObjects: (await import('../session-fixtures/tree.ts')).BASE_ENTRY_OBJECTS.filter(
           module => module.name !== 'sessionWorkPrincipals',
         ),
@@ -143,6 +150,11 @@ describe('the real session-provider row: through the serve tree', () => {
       const result = await runServe({
         distribution: {
           rows: [
+            {
+              id: 'telemetry',
+              plugin: 'telemetry',
+              config: { ...TELEMETRY_ROW_CONFIG, implementation: 'disabled' },
+            },
             { id: 'storage', plugin: 'storageRow', config: providerConfig(base.storageRoot) },
             { id: 'authorization', plugin: 'policyRow', config: {} },
             {
@@ -183,6 +195,7 @@ describe('the real session-provider row: through the serve tree', () => {
       expect(result.exitCode).toBe(0)
       expect(of('startup-result')[0]).toMatchObject({ accepting: true, outcome: 'ready' })
       expect(of('row-state').map(record => [record['id'], record['state']])).toEqual([
+        ['telemetry', 'ACTIVE'],
         ['storage', 'ACTIVE'],
         ['authorization', 'ACTIVE'],
         ['session-storage', 'ACTIVE'],

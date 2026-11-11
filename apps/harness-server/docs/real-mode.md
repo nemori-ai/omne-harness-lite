@@ -7,7 +7,7 @@
 | 项        | `s0`                            | `serve`                                                                                           |
 | --------- | ------------------------------- | ------------------------------------------------------------------------------------------------- |
 | 名字      | `s0.<键>`                       | 不带前缀。真实行用正式键，`s0-double` 行用装配页的名字。唯一带前缀的名字是 `s0.assemblyLifecycle` |
-| allowlist | 只含 `stubPlugin`               | `stubPlugin`、`./cordis` 的行声明导出，加入口闭包绑定的 `executionHost`                           |
+| allowlist | 只含 `stubPlugin`               | `stubPlugin`、`./cordis` 的行声明导出，加入口闭包绑定的 `executionHost` 与 `telemetry`            |
 | 清单      | `src/s0/stubs.ts` 的表          | `stubPlugin` 行用同一张表去掉前缀，真实导出用自带声明                                             |
 | 受信表    | `src/s0/aa-rows.json`，加前缀   | 同一份，不加前缀                                                                                  |
 | 入口对象  | 入口自己的替身                  | 注册表 `src/entry/index.ts`，加占位规则                                                           |
@@ -114,6 +114,7 @@ export const storageHost: EntryObjectModule = {
 | `tool-records`、`tool-runtime`、`tool-executor`、`tool-instances`、`tool-environments`、`execution-environment`、`execution-files`、`execution-command` | 一次 `createLocalToolRuntimePlugins` 的六个插件分装到五个 Tool 行；执行环境三行装 execution-environment-host-local 的注册表与设施声明。入口 `toolClock`、`toolPublicationAuthority` 是真件。可信 Tool 请求供给者 `releaseToolRequestsOf` 交给 `agent-host` 行的 `toolRequestsOf`。 | [Tool 运行时组](rows/tool-runtime.md) |
 | `model-records`、`model-host`、`model-request-preparation` | 三行真件。`modelRecordsRow` 用 model-storage-sql 的记录插件，行体以子 fiber 装 model-host-local 的发送阶段；`modelHostRow` 用 model-host-local 的宿主插件加真实 Model runtime，`business` 阶段行体承载。入口 `modelHostAuthority` 是真件：持有运行级 Model 组合（首次执行通道、资格登记表、释放次序），`resolve` 读原受理、签 M、核关系、prepare。四条跨行相等在配置边界核对。实时撤权、直接命令口的 W、四种证据来源仍缺。 | [Model 生产接线](rows/model-release.md) |
 | `execution-host`     | `runServe` 每次创建一份 `HostFilesDomain`，以 `createExecutionHostBinding` 绑定 `executionHost`。域保留在入口闭包，重载共享，不进配置、入口对象表或服务。                                                                                                                                | [宿主文件工厂](rows/execution-host.md)              |
+| `telemetry`          | `runServe` 每次以 `createTelemetryBinding` 绑定 `telemetry`，把记录写函数交给它；行 fiber 里创建 `telemetry-node` 的运行时，日志桥在装载前登记在根上，关闭是存储阶段之后的显式步骤。发行层只写实现与出口，预算归运维者层。RFC-0013 待接受。 | [telemetry 行](rows/telemetry.md)                   |
 | `session-storage`    | 持久目录只增不删；枚举先核 AU-12，允许后读一次完整快照。核验时现取 `principalVerifier`，使用共享维护授予表。                                                                                                                                                                             | [租户目录与枚举](rows/session-storage.md)           |
 | Runtime Context 信任 | `createSessionScopeSource` 组合 Scope 归属与 Session 绑定，交给 `createRuntimeContextTrustModule(scopes)`。R2-D29 的 reader 仅限所属 Session 工作主体，producer 拒绝，holder 动作表保持。入口清单里登记的是同一份共享来源的绑定版（[execution-wiring.ts](../src/entry/execution-wiring.ts)）。Scope 归属读 `session-ad03` 的 `sessionScopeLookup`（R2-D14），查找缺席时绑定为 `unavailable`。                                             | [Runtime 信任入口](rows/runtime-context-trust.md)   |
 | Execution 授权       | `createExecutionAuthorityModules({ readBindings, readRecovery })` 返回三个定义类子类的入口模块。`readBindings` 逐次读取同一份 `scopes.bindings`，`readRecovery` 逐次取得受信恢复来源，回调必须捕获入口受信来源。入口清单已登记这三个模块（[execution-wiring.ts](../src/entry/execution-wiring.ts)），`readBindings` 与 Runtime Context 信任共用同一份按运行懒建的来源。Scope 归属读 `session-ad03` 的 `sessionScopeLookup`。AD-15 的恢复授权来源仍缺，`readRecovery` 缺席，恢复授权默认 `unavailable`。 | [Execution 授权入口](rows/execution-authorities.md) |
@@ -125,7 +126,7 @@ Runtime 与 Execution 的 `current()` 按 R2-D25 只保护调用方 fiber 的进
 
 `executionHost` 是运行入口的固定工厂绑定，不在 `./cordis` 另建责任域。预检拒绝错行绑定和运维 `insert`，允许 `replace`。`filesRoot` 与 `stateDirectory` 必须显式给宿主绝对路径，`maintainIntervalMs` 默认 60000。维护串行执行，重载不新增周期。R2-D32 的显式卸载、报告附录与 D 的限制见 [SPEC 的有序关闭](../SPEC.md#有序关闭)。Windows 当前文件根读取返回 `unavailable`，Linux 限定文件测试未执行不能计为通过。
 
-动作规则按 R2-D34 配置在授权行的 `actionRules`，精确匹配、deny 优先和证据规则归 [授权政策](rows/authorization-policy.md#动作准入)。无规则、无匹配、来源故障、非空 permissions 或非 null decision 均为 `unavailable`。`createToolAccessGuard(readAdmission)` 每次读取当前准入服务，同一个 qualify 对象可交给 ToolAccessGuard 与 StartCoordinatorAccess；`invalidate`、`read-raw`、`read-raw-content` 缺资格来源，均答 `unavailable`。`issueTenantDomainScanner(env)` 只能在受信签发器安装后调用，交消费者的只有枚举主体。公共 Tool 消费者与扫描者仍需集成接线。
+动作规则按 R2-D34 配置在授权行的 `actionRules`，精确匹配、deny 优先和证据规则归 [授权政策](rows/authorization-policy.md#动作准入)。静态 allow 还须当前权限判断通过。生产行尚未安装当前权限来源，所以不能仅凭发行 allow 启动工具。无规则、无匹配、来源故障、非空 permissions 或非 null decision 均为 `unavailable`。`createToolAccessGuard(readAdmission)` 每次读取当前准入服务，同一个 qualify 对象可交给 ToolAccessGuard 与 StartCoordinatorAccess；`invalidate`、`read-raw`、`read-raw-content` 缺资格来源，均答 `unavailable`。`issueTenantDomainScanner(env)` 只能在受信签发器安装后调用，交消费者的只有枚举主体。公共 Tool 消费者与扫描者仍需集成接线。
 
 真实模式在最终配置与受信预检成功后、入口对象及任何业务行安装前，从最终 real storage/session-storage 行配置调用 `prepareTenantDirectory`。全新根自动初始化，已有根缺表或坏表失败；不得增加人工准备步骤。独立 `preparation-failed` 退出 3，固定诊断及其余输出规则见 [SPEC](../SPEC.md#装载与可见性)。目录的单写前提与 Windows 目录项耐久限制继续适用。
 

@@ -1,15 +1,27 @@
 // commitBatch and recoverBatch on the real file system. Each entry is published on its own, and a
 // manifest in the state directory records the batch so that a later recovery can say what happened.
-// Faults and pauses are injected under `node:fs/promises` to reach the half-way answers; the crash
-// case kills a real child process.
+// Faults and pauses reach Node calls on Linux and native calls on macOS. The crash case kills a
+// real child process.
 import { execFile } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { prepareNativeHooks, spawnWithNativeHooks } from './macos-files/native-hooks.ts'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   originRef,
@@ -32,39 +44,45 @@ type Rule = {
 }
 const rules = vi.hoisted(() => ({ list: [] as Rule[] }))
 
+async function beforeNative(fn: string, args: readonly unknown[]) {
+  const texts = args.filter((arg): arg is string => typeof arg === 'string')
+  const rule = rules.list.find(
+    candidate => candidate.fn === fn && texts.some(text => text.includes(candidate.match)),
+  )
+  if (rule === undefined) return
+  if (rule.skip > 0) {
+    rule.skip--
+    return
+  }
+  rules.list.splice(rules.list.indexOf(rule), 1)
+  if (rule.run !== undefined) await rule.run()
+  if (rule.code !== undefined)
+    throw Object.assign(new Error(`injected ${rule.code}`), { code: rule.code })
+}
+
+vi.mock('../src/macos-files/launcher.ts', () => ({
+  spawnFilesHelper: (executable: string) => spawnWithNativeHooks(executable, beforeNative),
+}))
+
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
-  const before = async (fn: string, args: readonly unknown[]) => {
-    const texts = args.filter((arg): arg is string => typeof arg === 'string')
-    const rule = rules.list.find(
-      candidate => candidate.fn === fn && texts.some(text => text.includes(candidate.match)),
-    )
-    if (rule === undefined) return
-    if (rule.skip > 0) {
-      rule.skip--
-      return
-    }
-    rules.list.splice(rules.list.indexOf(rule), 1)
-    if (rule.run !== undefined) await rule.run()
-    if (rule.code !== undefined)
-      throw Object.assign(new Error(`injected ${rule.code}`), { code: rule.code })
-  }
+
   return {
     ...actual,
     open: async (...args: Parameters<typeof actual.open>) => {
-      await before('open', args)
+      await beforeNative('open', args)
       return actual.open(...args)
     },
     rename: async (...args: Parameters<typeof actual.rename>) => {
-      await before('rename', args)
+      await beforeNative('rename', args)
       return actual.rename(...args)
     },
     link: async (...args: Parameters<typeof actual.link>) => {
-      await before('link', args)
+      await beforeNative('link', args)
       return actual.link(...args)
     },
     unlink: async (...args: Parameters<typeof actual.unlink>) => {
-      await before('unlink', args)
+      await beforeNative('unlink', args)
       return actual.unlink(...args)
     },
   }
@@ -72,9 +90,10 @@ vi.mock('node:fs/promises', async importOriginal => {
 
 const dirs: string[] = []
 
-// These tests need `/proc/self/fd` and a POSIX file system; elsewhere they are skipped, not passed.
-beforeEach(({ skip }) => {
-  skip(process.platform !== 'linux')
+// Linux uses descriptor paths; macOS uses the native helper with the same behavior assertions.
+beforeEach(async ({ skip }) => {
+  skip(process.platform !== 'linux' && process.platform !== 'darwin')
+  if (process.platform === 'darwin') await prepareNativeHooks()
 })
 
 afterEach(async () => {
@@ -325,6 +344,45 @@ it('stops at an entry whose target changed, removes the temporary files and name
   })
 })
 
+it('recognizes an unreceipted target replaced by a directory as conflicting', async () => {
+  const s = await setup()
+  const victim = await replacing(s, 'victim.txt', 'mine')
+  rules.list.push({ fn: 'rename', match: '/victim.txt', skip: 0, code: 'EIO' })
+  const result = done(await commit(s.facility, [created(s, 'one.txt', 'one'), victim]))
+  expect(result).toMatchObject({ kind: 'unknown', published: [join(s.files, 'one.txt')] })
+  await rm(victim.path)
+  await mkdir(victim.path)
+  const before = await readdir(s.files)
+  expect(done(await recover(s.facility, result.batch))).toMatchObject({
+    state: 'partial',
+    published: [join(s.files, 'one.txt')],
+    conflicting: [victim.path],
+  })
+  expect(await readdir(s.files)).toEqual(before)
+})
+
+it('keeps recovery observations inside the root when an ancestor becomes a link', async () => {
+  const s = await setup()
+  const inside = join(s.files, 'sub')
+  const outside = join(s.base, 'outside')
+  await mkdir(inside)
+  await mkdir(outside)
+  const victim = await replacing(s, 'sub/victim.txt', 'mine')
+  const files = createHostFilesEngine({ root: s.files, stateDirectory: s.state }).facilityFor(
+    'root-recovery',
+  )
+  rules.list.push({ fn: 'rename', match: '/victim.txt', skip: 0, code: 'EIO' })
+  const result = done(await commit(files, [created(s, 'one.txt', 'one'), victim]))
+  expect(result).toMatchObject({ kind: 'unknown', published: [join(s.files, 'one.txt')] })
+  await rename(inside, join(s.files, 'held'))
+  await writeFile(join(outside, 'victim.txt'), 'outside content of another size')
+  await symlink(outside, inside)
+  expect(await recover(files, result.batch)).toMatchObject({ kind: 'unknown' })
+  expect(await readFile(join(outside, 'victim.txt'), 'utf8')).toBe(
+    'outside content of another size',
+  )
+})
+
 it('answers effectUnknown when a publication fails, and recovery then says partial', async () => {
   const s = await setup()
   const victim = await replacing(s, 'victim.txt', 'mine')
@@ -483,9 +541,13 @@ import { originRef } from '@omne-harness/execution-environment-contract'
 const [, , sourceUrl, stateDirectory, tenantText, entriesJson] = process.argv
 const realRename = fsp.rename
 let publications = 0
+let manifests = 0
 fsp.rename = async (from, to) => {
   if (String(to).startsWith('/proc/self/fd/') && ++publications === 2) process.kill(process.pid, 'SIGKILL')
-  return realRename(from, to)
+  const result = await realRename(from, to)
+  // The native publisher waits for an ack after the first durable receipt.
+  if (process.platform === 'darwin' && String(to).endsWith('.json') && ++manifests === 3) process.kill(process.pid, 'SIGKILL')
+  return result
 }
 syncBuiltinESMExports()
 const { createHostFilesEngine } = await import(sourceUrl)

@@ -8,6 +8,7 @@
 // are skipped, and a skip is not a pass.
 import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { once } from 'node:events'
 import { access as reach, mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,6 +42,7 @@ import {
   createHostFilesPlugin,
   filesFacilityPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
+import { scopeDescription } from '../src/host-scope.ts'
 import { testPorts } from './ports.ts'
 
 const run = promisify(execFile)
@@ -277,9 +279,25 @@ function alive(pid: number): boolean {
 }
 
 type RunningGate = {
+  unit: string
   frames: Record<string, unknown>[]
   send(message: Readonly<Record<string, unknown>>): void
   closed: Promise<number | null>
+}
+
+/**
+ * Waits for the gate's exit frame, then stops its unit: after the exit frame the gate stays in the
+ * unit, draining the command's pipes, until the unit is stopped.
+ */
+async function exitFrameOf(gate: RunningGate): Promise<Record<string, unknown>> {
+  await vi.waitFor(() => expect(gate.frames.map(frame => frame['t'])).toContain('exit'), {
+    timeout: 15_000,
+  })
+  const frame = gate.frames.find(candidate => candidate['t'] === 'exit')
+  if (frame === undefined) throw new Error('expected an exit frame')
+  await run('systemctl', ['--user', 'stop', gate.unit]).catch(() => undefined)
+  await gate.closed
+  return frame
 }
 
 /** Starts the real gate in its own scope unit, as the provider does, and collects its frames. */
@@ -315,7 +333,7 @@ function gateInScope(): RunningGate {
     }
   })
   const closed = new Promise<number | null>(resolve => gate.on('close', resolve))
-  return { frames, send: message => control.write(`${JSON.stringify(message)}\n`), closed }
+  return { unit, frames, send: message => control.write(`${JSON.stringify(message)}\n`), closed }
 }
 
 /** The gate's request for `script`, run by `/bin/sh` in `cwd` with an empty environment. */
@@ -479,6 +497,7 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
       ],
       { stdio: ['ignore', 'pipe', 'inherit', 'pipe'] },
     )
+    const closed = new Promise(resolve => gate.on('close', resolve))
     const control = gate.stdio[3]
     if (control === null || control === undefined || !('write' in control))
       throw new Error('expected a control pipe')
@@ -523,10 +542,11 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
     expect(await exists(marker)).toBe(false)
     holding = false
     stdout.resume()
-    await new Promise(resolve => gate.on('close', resolve))
+    await vi.waitFor(() => expect(exit).toBe(0), { timeout: 15_000 })
     expect(bytes).toBe(total)
-    expect(exit).toBe(0)
     expect(await exists(marker)).toBe(true)
+    await run('systemctl', ['--user', 'stop', unit]).catch(() => undefined)
+    await closed
   })
 
   it('answers confirmed for a graceful stop when the command exits on SIGTERM', async () => {
@@ -583,6 +603,7 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
   })
 
   it('completes when the main process exits, then clears what it left running in the scope', async () => {
+    // No retention binding: what the command left behind is stopped, and the residue says why.
     const recorded = recordingLedger()
     const command = commandOf(await leaseOf(hostProvider(), recorded.ledger))
     const handle = await started(command, request(await workDirectory(), 'sleep 300 & echo $!'))
@@ -591,6 +612,7 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
     expect(await handle.result).toMatchObject({
       kind: 'completed',
       exit: { kind: 'code', code: 0 },
+      residue: { kind: 'stopping', reason: 'unbound' },
     })
     await vi.waitFor(
       () => expect(recorded.stopped).toEqual([[recorded.plans[0]?.key, 'confirmed']]),
@@ -630,7 +652,7 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
     })
     gate.send({ c: 'go' })
     gate.send({ c: 'go' })
-    expect(await gate.closed).toBe(0)
+    expect(await exitFrameOf(gate)).toMatchObject({ code: 0 })
     expect(gate.frames.filter(frame => frame['t'] === 'started')).toHaveLength(1)
     expect((await readFile(marker, 'utf8')).trim().split('\n')).toEqual(['run'])
   })
@@ -648,7 +670,7 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
       timeout: 15_000,
     })
     gate.send({ c: 'go' })
-    expect(await gate.closed).toBe(0)
+    expect(await exitFrameOf(gate)).toMatchObject({ code: 0 })
     const [controlPipe, commandPipe] = dataText(gate.frames).trim().split('\n')
     expect(controlPipe).toMatch(/^socket:\[\d+\]$/u)
     expect(commandPipe).not.toBe(controlPipe)
@@ -839,6 +861,54 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
       kind: 'listed',
       resources: [],
     })
+  })
+
+  it('still lists a scope that systemd is stopping, while its stop job is pending', async () => {
+    // A bare scope with the description a provider writes. Its only process ignores SIGTERM, so the
+    // stop job stays pending. A provider's scope would lose its gate to the same SIGTERM, and the
+    // provider would then stop the unit itself.
+    const key = randomUUID()
+    const unit = `omne-host-${key}.scope`
+    units.add(unit)
+    const launcher = spawn(
+      'systemd-run',
+      [
+        '--user',
+        '--scope',
+        '--quiet',
+        '--collect',
+        `--unit=${unit}`,
+        `--description=${scopeDescription(scopeOf(recoverScope), key)}`,
+        '--',
+        'sh',
+        '-c',
+        "trap '' TERM; sleep 300",
+      ],
+      { stdio: 'ignore' },
+    )
+    const launcherExited = once(launcher, 'exit')
+    try {
+      await vi.waitFor(async () => {
+        expect(await unitState(unit)).toMatchObject({ activeState: 'active' })
+      })
+      await run('systemctl', ['--user', 'stop', '--no-block', unit])
+      await vi.waitFor(async () => {
+        expect(await unitState(unit)).toMatchObject({ activeState: 'deactivating' })
+      })
+      const provider = hostProvider()
+      const listed = await provider.listRecoveryResources?.(scopeOf(recoverScope))
+      if (listed?.kind !== 'listed')
+        throw new Error(`expected a listing: ${JSON.stringify(listed)}`)
+      expect(listed.resources.map(resource => resource.key)).toEqual([key])
+      const resource = listed.resources[0]
+      if (resource === undefined) throw new Error('expected a listed resource')
+      expect(await provider.recover?.(resource)).toMatchObject({ status: 'confirmedStopped' })
+      expect(await unitState(unit)).toMatchObject({ loadState: 'not-found' })
+    } finally {
+      // The unit ignores SIGTERM: a failed assertion must not leave it waiting out its stop timeout.
+      await run('systemctl', ['--user', 'kill', '--signal=SIGKILL', unit]).catch(() => undefined)
+      await launcherExited
+    }
   })
 
   it('answers unavailable, not an empty list, when no systemctl can be found to list the scopes', async () => {

@@ -6,6 +6,7 @@ import { judgeMessage, parseMessageId, type Message } from '@omne-harness/messag
 import type { Modality } from '@omne-harness/modality'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  decodeProviderName,
   decodeRevision,
   type Adoption,
   type AssembledModelInput,
@@ -20,7 +21,6 @@ import {
   type TransportFailure,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   judgeReplayDeclaration,
   type ModelTransport,
   type PreparedTransport,
@@ -102,10 +102,15 @@ function message(name: string, text: string): Message {
   return judged.ok
 }
 
-const first: ProfileSupplier = { adoption: adoption('first'), recipient: 'east', model: 'm1' }
+const provider = (name: string) => must(decodeProviderName(name))
+const first: ProfileSupplier = {
+  adoption: adoption('first'),
+  provider: provider('east'),
+  model: 'm1',
+}
 const second: ProfileSupplier = {
   adoption: adoption('second'),
-  recipient: 'west',
+  provider: provider('west'),
   model: 'm2',
   replay: { produces: 'west/shared', accepts: ['west/shared', 'east/m1'], foreignThinking: 'text' },
 }
@@ -144,11 +149,9 @@ function profileOf(
   }
 }
 
-const tenantCredential = () =>
-  ({ kind: 'tenant', id: must(decodeCredentialId('cred-tenant')) }) as const
 const bound = (supplier: ProfileSupplier, credential: Supplier['credential']): Supplier => ({
   adoption: supplier.adoption,
-  recipient: supplier.recipient,
+  provider: supplier.provider,
   model: supplier.model,
   credential,
 })
@@ -168,7 +171,7 @@ const adoptions = (): ParameterAdoption[] => explicitFor(temperature)
 const misuseOf = (message: string) => ({ reason: 'invalid-script', message })
 
 const plan = (): ScriptedModelPreparationPlan => ({
-  suppliers: [bound(first, tenantCredential()), bound(second, { kind: 'factory' })],
+  suppliers: [bound(first, { layer: 'tenant' }), bound(second, { layer: 'official' })],
   parameterAdoptions: adoptions(),
 })
 
@@ -322,8 +325,8 @@ describe('suppliers and parameter adoptions (M11)', () => {
     const { prepare } = setup()
     const request = must(await prepare())
     expect(request.suppliers).toEqual(plan().suppliers)
-    expect(request.suppliers[0].credential).toEqual(tenantCredential())
-    expect(request.suppliers[1]?.credential).toEqual({ kind: 'factory' })
+    expect(request.suppliers[0].credential).toEqual({ layer: 'tenant' })
+    expect(request.suppliers[1]?.credential).toEqual({ layer: 'official' })
     expect(request.parameterAdoptions).toEqual(adoptions())
   })
 
@@ -450,7 +453,7 @@ describe('each plan check has a case that breaks only it (M11)', () => {
     const widened = { ...one, region: 'eu' } as Supplier
     expect(refuse({ ...plan(), suppliers: [widened, two] })).toMatchObject(
       misuseOf(
-        'a planned supplier has a field other than adoption, recipient, model and credential',
+        'a planned supplier has a field other than adoption, provider, model and credential',
       ),
     )
     await keptEarlier()
@@ -465,13 +468,11 @@ describe('each plan check has a case that breaks only it (M11)', () => {
     await keptEarlier()
   })
 
-  it('refuses a planned supplier with another recipient than the profile supplier at its position', async () => {
+  it('refuses a planned supplier with another provider than the profile supplier at its position', async () => {
     const { one, two, refuse, keptEarlier } = planned()
-    const replaced = { ...one, recipient: 'north' }
+    const replaced = { ...one, provider: provider('north') }
     expect(refuse({ ...plan(), suppliers: [replaced, two] })).toMatchObject(
-      misuseOf(
-        'a planned supplier has another recipient than the profile supplier at its position',
-      ),
+      misuseOf('a planned supplier has another provider than the profile supplier at its position'),
     )
     await keptEarlier()
   })
@@ -487,39 +488,27 @@ describe('each plan check has a case that breaks only it (M11)', () => {
 
   it('refuses a planned supplier without a credential', async () => {
     const { one, two, refuse, keptEarlier } = planned()
-    const bare = { adoption: one.adoption, recipient: one.recipient, model: one.model } as Supplier
+    const bare = { adoption: one.adoption, provider: one.provider, model: one.model } as Supplier
     expect(refuse({ ...plan(), suppliers: [bare, two] })).toMatchObject(
-      misuseOf('a planned supplier needs its credential'),
+      misuseOf('a planned supplier needs its credential layer'),
     )
     await keptEarlier()
   })
 
-  it('refuses a planned credential of a kind that is neither tenant nor factory', async () => {
+  it('refuses a planned credential layer that is neither tenant, official nor none', async () => {
     const { one, two, refuse, keptEarlier } = planned()
-    const credential = { kind: 'shared' } as unknown as Supplier['credential']
+    const credential = { layer: 'shared' } as unknown as Supplier['credential']
     expect(refuse({ ...plan(), suppliers: [{ ...one, credential }, two] })).toMatchObject(
-      misuseOf('a planned credential is neither a tenant nor a factory binding'),
+      misuseOf('a planned credential layer is neither tenant, official nor none'),
     )
     await keptEarlier()
   })
 
-  it('refuses a planned credential with a field that its kind does not have', async () => {
+  it('refuses a planned credential layer with a field other than layer', async () => {
     const { one, two, refuse, keptEarlier } = planned()
-    const credential = {
-      kind: 'factory',
-      id: must(decodeCredentialId('cred-tenant')),
-    } as unknown as Supplier['credential']
+    const credential = { layer: 'tenant', id: 'cred-tenant' } as unknown as Supplier['credential']
     expect(refuse({ ...plan(), suppliers: [one, { ...two, credential }] })).toMatchObject(
-      misuseOf('a planned credential does not have exactly the fields of its kind'),
-    )
-    await keptEarlier()
-  })
-
-  it('refuses a planned tenant credential whose id does not decode', async () => {
-    const { one, two, refuse, keptEarlier } = planned()
-    const credential = { kind: 'tenant', id: '' } as unknown as Supplier['credential']
-    expect(refuse({ ...plan(), suppliers: [{ ...one, credential }, two] })).toMatchObject(
-      misuseOf('a planned tenant credential id does not decode'),
+      misuseOf('a planned credential layer has a field other than layer'),
     )
     await keptEarlier()
   })
@@ -608,7 +597,7 @@ describe('replay declarations (M12)', () => {
       { ...access, profile, required, parameters: [temperature] },
       {
         ok: {
-          suppliers: [bound(first, { kind: 'factory' }), bound(broken, { kind: 'factory' })],
+          suppliers: [bound(first, { layer: 'official' }), bound(broken, { layer: 'official' })],
           parameterAdoptions: adoptions(),
         },
       },
@@ -639,7 +628,10 @@ describe('replay declarations (M12)', () => {
       { ...access, profile, required, parameters: [temperature] },
       {
         ok: {
-          suppliers: [bound(broken, { kind: 'factory' }), bound(alsoBroken, { kind: 'factory' })],
+          suppliers: [
+            bound(broken, { layer: 'official' }),
+            bound(alsoBroken, { layer: 'official' }),
+          ],
           parameterAdoptions: adoptions(),
         },
       },
@@ -848,28 +840,26 @@ describe('the read order and the record of attempts (M17)', () => {
     const recorded = recordingTransport()
     const scripted = createScriptedModelRequestPreparation<Agent>({ transport: recorded.transport })
     const alice = new Agent('alice')
-    const owners: [Access<Agent>, string][] = [
-      [{ tenant: mint('1', '1'), principal: alice }, 'cred-first-tenant'],
-      [{ tenant: mint('2', '3'), principal: alice }, 'cred-second-tenant'],
-      [{ tenant: mint('1', '1'), principal: new Agent('bob') }, 'cred-other-principal'],
+    const owners: [Access<Agent>, Supplier['credential']][] = [
+      [{ tenant: mint('1', '1'), principal: alice }, { layer: 'tenant' }],
+      [{ tenant: mint('2', '3'), principal: alice }, { layer: 'official' }],
+      [{ tenant: mint('1', '1'), principal: new Agent('bob') }, { layer: 'none' }],
     ]
     const profile = profileOf()
     const required = requirement()
-    const credentialOf = (id: string) =>
-      ({ kind: 'tenant', id: must(decodeCredentialId(id)) }) as const
-    for (const [access, id] of owners) {
+    for (const [access, layer] of owners) {
       scripted.setAccess(access, 'allow')
       scripted.setPlan(
         { ...access, profile, required, parameters: [temperature] },
         {
           ok: {
-            suppliers: [bound(first, credentialOf(id)), bound(second, { kind: 'factory' })],
+            suppliers: [bound(first, layer), bound(second, { layer: 'official' })],
             parameterAdoptions: adoptions(),
           },
         },
       )
     }
-    for (const [access, id] of owners) {
+    for (const [access, layer] of owners) {
       const request = must(
         await scripted.preparation.prepare({
           ...access,
@@ -878,7 +868,7 @@ describe('the read order and the record of attempts (M17)', () => {
           assembled: assembled(),
         }),
       )
-      expect(request.suppliers[0].credential).toEqual(credentialOf(id))
+      expect(request.suppliers[0].credential).toEqual(layer)
     }
   })
 })

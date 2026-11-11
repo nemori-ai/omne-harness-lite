@@ -1,0 +1,4 @@
+positive.cfg pass
+bad-stale-capture.cfg CapturedMatchesCommit
+bad-clear-revision.cfg CapturedMatchesCommit
+bad-restart.cfg DurableValue

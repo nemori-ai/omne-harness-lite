@@ -24,7 +24,13 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*",
+    "ajv": "catalog:",
+    "canonicalize": "5.1.0",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

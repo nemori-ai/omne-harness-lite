@@ -1,3 +1,4 @@
+import { createTiktokenExecutor, type TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
 // The steps of the OpenAI example. Each round of a request goes through them:
 //
 // 1. `proxyFromEnvironment` maps HTTPS_PROXY to the proxy of the network resources. The proxy adds
@@ -94,14 +95,14 @@ export function profileOf(
   }
 }
 
-/** The supplier of the profile, with the factory credential. */
+/** The supplier of the profile, on the official credential layer. */
 export function supplierOf(profile: ModelProfile): Supplier {
   const declared = profile.definition.suppliers[0]
   return {
     adoption: declared.adoption,
-    recipient: declared.recipient,
+    provider: declared.provider,
     model: declared.model,
-    credential: { kind: 'factory' },
+    credential: { layer: 'official' },
   }
 }
 
@@ -214,9 +215,16 @@ export function openTransport(families: readonly PiFamily[]): OpenTransport {
   const transport = createPiTransport({
     network,
     families: composeFamilies(families),
-    routes: { openrouter: { url: OPENROUTER, endMarker: END_MARKER } },
+    routes: {
+      openrouter: {
+        url: OPENROUTER,
+        endMarker: END_MARKER,
+        accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
+        auth: { kind: 'bearer', item: 'apiKey' },
+      },
+    },
     // A placeholder: the proxy replaces it with the real credential.
-    credential: { read: () => 'placeholder' },
+    credential: { read: () => new Map([['apiKey', 'placeholder']]) },
     limits: {
       connectTimeoutMs: 30_000,
       maxErrorBodyBytes: 4_096,
@@ -316,4 +324,29 @@ function sealedBlocks(facts: readonly TransportFact[]): readonly Sealed[] {
       fact.kind === 'block-seal' ? [{ index: BigInt(fact.index), block: fact.block }] : [],
     )
     .toSorted((left, right) => (left.index < right.index ? -1 : left.index > right.index ? 1 : 0))
+}
+
+export async function openTokenizerExecutor(resources: readonly TiktokenResources[]) {
+  const created = await createTiktokenExecutor({
+    resources,
+    limits: {
+      workers: 1,
+      maxLeases: 256,
+      maxQueuedJobs: 32,
+      maxQueuedBytes: 32 * 1024 * 1024,
+      maxInputBytes: 8 * 1024 * 1024,
+      maxLeaseQueuedJobs: 4,
+      maxCacheBytes: 2 * 1024 * 1024,
+      maxCacheEntries: 8192,
+      maxLeaseCacheBytes: 256 * 1024,
+      maxLeaseCacheEntries: 2048,
+      maxPieceBytes: 4096,
+      jobTimeoutMs: 10000,
+      maxWorkerOldSpaceMb: 128,
+      maxReplacementsPerMinute: 2,
+      cancellationGraceMs: 25,
+    },
+  })
+  if ('failure' in created) throw new Error(JSON.stringify(created.failure))
+  return created.ok
 }

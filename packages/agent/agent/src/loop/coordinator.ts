@@ -18,15 +18,9 @@
 //   M6, M1 settlement, M4 (without extensions) and M5 make no checkpoint commit. M3 carries producer.
 // - The input-taken event is written by the I0 commit; `open` writes no event (same-shape fact 7).
 //
-// E1/E2 dependency failures save a W0 wait. Unknown R0 operations keep their original revision. Other
-// Unsupported outcomes stop with a named failure. Its owner distinguishes a port failure,
-// an unimplemented stage and a coordinator defect:
-//
-// - a port's failure (Journal, Model, handoff, conditions, ...) is passed on as the port gave it;
-// - `AGENT_OWNER` (`unavailable`): an outcome the contract defines but a later #502 card handles;
-// - `DEFECT_OWNER` (`unavailable`): a defect of this coordinator: a thrown error, a value an earlier
-//   node should have set, a node without a handler or an outcome without a table row. A defect is
-//   never a dependency being unavailable and is never waited on.
+// Dependency waits and original writes retain their own continuations. Determinate node failures
+// keep the first fault and enter F1. Private provenance distinguishes local defects and unsupported
+// paths from an unavailable dependency. Only the Journal's ended result releases the execution.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   AcceptedInput,
@@ -43,6 +37,7 @@ import type {
   AgentOperationId,
   Authority,
   CallerCommit,
+  CommandReceipt,
   ControlRecord,
   ExecutionControl,
   ConsumerRef,
@@ -108,10 +103,14 @@ import {
   sentPosition,
 } from './admission-read.ts'
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
+import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
+import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
+import { readBatchToolCalls } from './action-source.ts'
+import { answeredByPort, notingPorts } from './port-answers.ts'
 import { consumeModelResult, noReplyReason, type ModelOutcome } from './model-result.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
-  advanceControl,
+  advanceAcceptedControl,
   cancellationOf,
   controlOperation,
   establishCancellation,
@@ -218,7 +217,7 @@ export type Halted = Readonly<{ node: LoopNode; failure: Failure }>
 
 export interface ExecutionCoordinator {
   /** U0 to E0: the input is admitted and `open` accepts the execution. Resolves at E1. */
-  accept(): Promise<Outcome<Authority, Halted>>
+  accept(confirmedOpen?: CommandReceipt): Promise<Outcome<Authority, Halted>>
   /**
    * After a legally accepted operation: run from E1 until idle, a saved wait or a failure.
    */
@@ -301,6 +300,7 @@ function historyCaller(
 /** The outcome of one node and the commit it writes; `commit: null` writes no commit. */
 type Step = Readonly<{ on: Label; commit: Write | null }>
 type Handler = () => Promise<Outcome<Step, Failure>>
+type Movement = Readonly<{ to: LoopNode | null; yielded: boolean }>
 
 /**
  * A candidate that Q1 to Q5 admit, and the fixed call position that Q4 returns to. The type ties
@@ -346,7 +346,7 @@ const step = (on: Label, commit: Write | null = {}): Outcome<Step, Failure> =>
 export const DEFECT_OWNER = `${AGENT_OWNER}#defect`
 
 function defect(diagnostic: string): Failure {
-  return { kind: 'unavailable', owner: DEFECT_OWNER, diagnostic }
+  return localFailure('invariant', { kind: 'unavailable', owner: DEFECT_OWNER, diagnostic })
 }
 
 /**
@@ -369,11 +369,11 @@ function heldAfter(
 
 /** The failure of an outcome that a later #502 card handles, named so that nobody reads it as done. */
 function notYet(node: LoopNode, what: string, card: string): Failure {
-  return {
+  return localFailure('unsupported-path', {
     kind: 'unavailable',
     owner: AGENT_OWNER,
     diagnostic: `${node}: ${what} is not handled until ${card}`,
-  }
+  })
 }
 
 /** The Model answer that the Loop waits on: the Model runtime did not give the step its answer yet. */
@@ -570,8 +570,37 @@ export function recoveryRoute(
   return recoveryTarget(at.position)
 }
 
+/** The ports whose answers are a dependency's (all of `LoopPorts` but `toolRequests`). */
+const DEPENDENCY_PORTS = [
+  'journal',
+  'entries',
+  'models',
+  'tools',
+  'conditions',
+  'requests',
+  'selection',
+  'modelContext',
+  'admission',
+  'handoff',
+  'materials',
+  'clock',
+] as const satisfies readonly Exclude<keyof LoopPorts<unknown>, 'toolRequests'>[]
+
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
-  const { ports, binding, evaluator, execution } = entry
+  const { binding, evaluator, execution } = entry
+  // The answers of the dependency ports are noted: an `unavailable` that a dependency answered
+  // is a wait (SPEC "依赖不可用时的等待"; agent-host-local SPEC 运行失败: a dependency that is
+  // unavailable now does not stop the drive). A failure that the coordinator or the evaluator made
+  // is not a port's. `toolRequests` is the trusted in-process request source, not a dependency.
+  // A port is wrapped when it is read, as the coordinator read the ports before: a caller may give
+  // only the ports its executions use.
+  const ports: LoopPorts<P> = { ...entry.ports }
+  for (const key of DEPENDENCY_PORTS)
+    if (key in ports)
+      Object.defineProperty(ports, key, {
+        enumerable: true,
+        get: () => notingPorts(entry.ports[key]),
+      })
   const access: Access<P> = { principal: entry.access.principal, tenant: entry.access.tenant }
 
   // The frame of this coordinator. The authority over it is the Journal: E1 reloads it, and every
@@ -583,17 +612,34 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let snapshot: ExecutionSnapshot | null = null
   let facts: LoopFacts | null = null
   let decided: Next | null = null
+  let fault: Readonly<{
+    node: string
+    category: NodeFailureCategory
+    failureKind: Failure['kind']
+    step: StepId | null
+    history: DurableEvidence | null
+  }> | null = null
+  let faultDecision: Extract<Next, { kind: 'try-finish' }> | null = null
+  let faultCandidate: FinishCandidateContent | null = null
   let candidate: Candidate | null = null
   // The admission in progress: the internal request P fixed and the outcome `prepare` returned.
   let pendingHandoff: PendingHandoff | null = null
   let outcome: HandoffOutcome | null = null
+  // The request whose last `prepare` in this process answered unavailable. That prepare took no
+  // effect, so the wait comes back to prepare the same request again (SPEC "依赖不可用时的等待":
+  // the same operation), not to the lookup of a receipt lost with a process.
+  let unpreparedHandoff: PendingHandoff | null = null
   // The acceptance of the external input that U0 admitted, which E0 hands to `open`.
   let acceptance: OriginalInputAcceptance | null = null
   let iteration: Iteration | null = null
-  // Only the identity and original node of this coordinator's uncertain conditional commit.
-  // Journal query remains the authority over whether that operation actually committed.
-  let pendingCommit: Readonly<{ operation: AgentOperationId; node: LoopNode }> | null = null
+  let pendingCommit: Readonly<{
+    operation: AgentOperationId
+    node: LoopNode
+    original: OriginalWrite<P>
+  }> | null = null
+  let originalOpen: Parameters<typeof ports.journal.open>[0] | null = null
   let excludedNode: LoopNode | null = null
+  let finishAttemptRevision: ExecutionRevision | null = null
   let finishRefused = false
   // The unavailable answer of the last tryFinish: R0 waits on it as a dependency (loop-algorithm
   // F3 row: unavailable goes to R0; R0 waits while the facts are undetermined).
@@ -620,7 +666,12 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // to this execution and this coordinator, is lost with the process and is saved only by the
   // ordinary commits that carry it.
   let readPrefix: ReplyAdmissionPrefix | null = null
-  const uncertainToolActions = new Set<ActionId>()
+  // The actions whose intent this process saved or tried to save and that have no accepted or
+  // unknown attempt: a fact that only evidence of acceptance (accepted, commit-unknown,
+  // association-unknown, a thrown invoke) ends. A rejection of such an action gets its denied slot (SPEC "依赖不可用时的等待",
+  // Tool 受理), and keeps it unaccepted until that slot is saved. In process only: after a restart
+  // the history of a saved intent is not known here, and the original call is resumed.
+  const unacceptedToolActions = new Set<ActionId>()
   // The tool message that T5 found rejected, for H0. In process only: a restart finds the
   // rejected Ja in the Journal again at T5.
   let rejectedMessage: Readonly<{ source: InternalSource; evidence: DurableEvidence }> | null = null
@@ -632,7 +683,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // and a commit appends exactly its own events, so the cursor after it needs no read. W0 hands it
   // to the wait as the start of the observation (perf baseline 2.3).
   let held: HeldPosition | null = null
-
   async function exclusive<T>(
     node: LoopNode,
     run: () => Promise<Outcome<T, Halted>>,
@@ -644,6 +694,17 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     } finally {
       activeDrive = false
     }
+  }
+
+  function journalAt(node: LoopNode) {
+    return originalJournal(ports.journal, async (original, invoke) => {
+      if (pendingCommit !== null)
+        return fail({ kind: 'commit-unknown', operation: pendingCommit.operation })
+      pendingCommit = { operation: original.input.operation, node, original }
+      const result = await attemptWrite(original, invoke)
+      if ('ok' in result || result.failure.kind !== 'commit-unknown') pendingCommit = null
+      return result
+    })
   }
 
   async function commit(node: LoopNode, to: string, write: Write): Promise<Outcome<void, Failure>> {
@@ -664,7 +725,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       position: to,
     }
     const nextState = write.state ?? state
-    const committed = await ports.journal.commit({
+    const committed = await journalAt(node).commit({
       ...access,
       execution,
       operation,
@@ -691,8 +752,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           return commit(node, to, write)
         }
       }
-      if (committed.failure.kind === 'commit-unknown')
-        pendingCommit = { operation: committed.failure.operation, node }
       return committed
     }
     held = heldAfter(held, after, committed.ok.revision, write.events?.length ?? 0)
@@ -725,15 +784,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     at: LoopNode,
     failure: Failure,
   ): Promise<Outcome<LoopNode, Failure>> {
-    // D5 5.1: the Journal lost the material of the prefix this commit carried. Drop the
-    // in-process prefix and wait in W0 with the saved one; the wake reads from it again.
-    if (failure.kind === 'unavailable' && failure.diagnostic.startsWith('missing-basis')) {
-      readPrefix = null
-      waitingAt = at
-      recheckDependency = null
-      waits = [{ kind: 'dependency', owner: failure.owner, position: at }]
-      return succeed('W0')
-    }
+    // An unavailable write goes on to failedNode, which waits on the Journal like any port.
     if (failure.kind === 'changed' && ['F1', 'F2'].includes(at)) {
       finishRefused = true
       return succeed('R0')
@@ -750,10 +801,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
    * The table row of one outcome and its commit: the next node, or the node a refused commit
    * goes to. `yielded` is the end of a drive segment at a saved W0 wait.
    */
-  async function move(
-    at: LoopNode,
-    ran: Step,
-  ): Promise<Outcome<Readonly<{ to: LoopNode | null; yielded: boolean }>, Failure>> {
+  async function move(at: LoopNode, ran: Step): Promise<Outcome<Movement, Failure>> {
     const to = successor(at, ran.on)
     if (to === undefined) return fail(defect(`${at} has no transition on ${ran.on}`))
     if (ran.commit !== null && to !== null) {
@@ -763,13 +811,113 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return 'failure' in next ? next : succeed({ to: next.ok, yielded: false })
       }
     }
-    return succeed({ to, yielded: at === 'W0' && ran.on === 'saved-wait' })
+    return succeed({
+      to,
+      yielded: at === 'W0' && (ran.on === 'saved-wait' || ran.on === 'unsaved-wait'),
+    })
+  }
+
+  const closingNodes: readonly LoopNode[] = ['F0', 'F1', 'F2', 'F3', 'F4', 'O0', 'E9', 'R0', 'W0']
+
+  /**
+   * The wait of a port that answered unavailable (SPEC "依赖不可用时的等待"): a dependency that is
+   * not available now, read or write alike. An unavailable write took no effect (agent-contract
+   * "提交参加者协议"), so the same step is written again. A non-closing node waits in W0 and comes
+   * back through E1. A closing node waits in the process, like the memory wait of F1 and F3: a
+   * waiting commit would change the state of a settling execution, and the storage is most likely
+   * still full.
+   */
+  function waitOnUnavailable(
+    at: LoopNode,
+    failure: Extract<Failure, { kind: 'unavailable' }>,
+  ): Outcome<LoopNode, Failure> {
+    // D5 5.1: the Journal lost the material of the prefix this commit carried. Drop the
+    // in-process prefix; the wake reads from the saved one again.
+    if (failure.diagnostic.startsWith('missing-basis')) readPrefix = null
+    // The wait wakes at the check time. The event cursor in hand may be behind a Journal that moved
+    // while it could not be read; observing from it would wake at once and spin. The next load
+    // takes a fresh cursor.
+    held = null
+    // W0 saves no wait over an unresolved original operation (it would invalidate it), so that
+    // wait, like the one of a closing node or of a fixed fault, stays in the process.
+    const unresolved =
+      pendingCommit !== null ||
+      reconciliationOperations.length > 0 ||
+      (snapshot?.unresolved.length ?? 0) > 0
+    if (fault !== null || unresolved || closingNodes.includes(at)) return waitForFault(at, failure)
+    waitFor(at, failure, null)
+    return succeed('W0')
+  }
+
+  function waitForFault(at: LoopNode, failure: Extract<Failure, { kind: 'unavailable' }>) {
+    finishWait = true
+    waitFor(at, failure, null)
+    return succeed<LoopNode>('W0')
+  }
+
+  async function failedNode(at: LoopNode, failure: Failure): Promise<Outcome<LoopNode, Failure>> {
+    if (pendingCommit !== null)
+      return nodeFailureCategory(failure) === null
+        ? fail(failure)
+        : fail({ kind: 'commit-unknown', operation: pendingCommit.operation })
+    // A port's unavailable is a dependency wait once the execution is open. An unavailable that
+    // the coordinator or the evaluator made is not a port's answer and keeps its meaning below.
+    // Before the open there is no execution to wait in: the caller of invoke gets the answer.
+    if (failure.kind === 'unavailable' && answeredByPort(failure) && authority !== null)
+      return waitOnUnavailable(at, failure)
+    if (failure.kind === 'stale-advance' || failure.kind === 'denied') {
+      const latest = await load()
+      if ('ok' in latest) {
+        takeLatestPosition(latest.ok)
+        if (latest.ok.state.kind === 'ended') return succeed('F4')
+        if (cancellationOf(latest.ok) !== undefined) return succeed('F0')
+      }
+    }
+    if (fault !== null) return fail(failure)
+    const category = nodeFailureCategory(failure)
+    if (authority === null || category === null || closingNodes.includes(at)) return fail(failure)
+    fault = {
+      node: at,
+      category,
+      failureKind: failure.kind,
+      step: checkpoint?.step ?? null,
+      history: snapshot?.history ?? null,
+    }
+    return succeed('F1')
+  }
+
+  async function faultRoute(): Promise<Outcome<LoopNode, Failure>> {
+    const read = await load()
+    if ('failure' in read) return read
+    takeLatestPosition(read.ok)
+    if (read.ok.state.kind === 'ended') return succeed('F4')
+    if (read.ok.unresolved.length > 0) return succeed('R0')
+    if (cancellationOf(read.ok) !== undefined) return succeed('F0')
+    if (advancementOf(read.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
+    if (read.ok.state.kind === 'settling')
+      return succeed(read.ok.checkpoint.position === 'F3' ? 'F3' : 'F2')
+    return succeed('F1')
+  }
+
+  async function advanceNode(at: LoopNode): Promise<Outcome<Movement, Failure>> {
+    try {
+      if (fault !== null && !closingNodes.includes(at)) {
+        const route = await faultRoute()
+        return 'failure' in route ? route : succeed({ to: route.ok, yielded: false })
+      }
+      const handler: Handler | undefined = handlers[at]
+      if (handler === undefined) return fail(defect(`${at} has no handler`))
+      const ran = await handler()
+      return 'failure' in ran ? ran : await move(at, ran.ok)
+    } catch (error) {
+      return fail(localFailure('exception', defect(diagnosticOf(error))))
+    }
   }
 
   /**
    * Runs nodes from `from` until `until` is the next node or the Loop ends. Each handler names its
-   * outcome; the table says where it goes; the commit moves `position` there. A handler that
-   * fails, an outcome without a row, a refused commit or a thrown defect stops the run where it is.
+   * outcome and the table supplies its successor. A fixed fault restricts all later passes to
+   * recognition, cancellation, settlement and waiting.
    */
   async function drive(
     from: LoopNode,
@@ -778,25 +926,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     let node: LoopNode | null = from
     while (node !== null && node !== until) {
       const at: LoopNode = node
-      const handler: Handler | undefined = handlers[at]
-      if (handler === undefined) return fail({ node: at, failure: defect(`${at} has no handler`) })
-      try {
-        const ran = await handler()
-        if ('failure' in ran) {
-          if (await cancelledAdvance(ran.failure)) {
-            node = 'F0'
-            continue
-          }
-          return fail({ node: at, failure: ran.failure })
-        }
-        const moved = await move(at, ran.ok)
-        if ('failure' in moved) return fail({ node: at, failure: moved.failure })
-        // W0 yields this segment. The sole driver waits before taking its E1 successor.
-        if (moved.ok.yielded) return succeed(moved.ok.to)
-        node = moved.ok.to
-      } catch (error) {
-        return fail({ node: at, failure: defect(diagnosticOf(error)) })
+      const moved = await advanceNode(at)
+      if ('failure' in moved) {
+        const next = await failedNode(at, moved.failure)
+        if ('failure' in next) return fail({ node: at, failure: next.failure })
+        node = next.ok
+        continue
       }
+      if (moved.ok.yielded) return succeed(moved.ok.to)
+      node = moved.ok.to
     }
     return succeed(node)
   }
@@ -808,6 +946,25 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     const loaded = await ports.journal.load({ ...access, execution })
     if ('failure' in loaded) return loaded
     snapshot = loaded.ok
+    const saved = loaded.ok.settlement.candidate
+    if (fault === null && saved?.failure?.kind === 'node-failed') {
+      const failure = saved.failure
+      fault = {
+        node: failure.node,
+        category: failure.category,
+        failureKind: failure.failureKind,
+        step: failure.step,
+        history: null,
+      }
+      faultDecision = { kind: 'try-finish', conclusion: saved.conclusion, failure }
+      faultCandidate = {
+        origin: saved.origin,
+        conclusion: saved.conclusion,
+        failure,
+        inputWatermark: saved.inputWatermark,
+        conditions: saved.conditions,
+      }
+    }
     held = { revision: loaded.ok.revision, emittedThrough: loaded.ok.output.emittedThrough }
     return loaded
   }
@@ -956,8 +1113,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   async function evaluate(node: 'E4' | 'I8', at: LoopFacts): Promise<Outcome<Step, Failure>> {
     const evaluated = evaluator.next(at)
     if ('failure' in evaluated) return evaluated
-    if (evaluated.ok.kind === 'stop')
-      return fail(notYet(node, `a stop (${evaluated.ok.reason})`, '#502 1.4 and stage 5'))
+    if (evaluated.ok.kind === 'stop') {
+      if (evaluated.ok.reason === 'suspended')
+        return waitFor(
+          node,
+          { kind: 'unavailable', owner: AGENT_OWNER, diagnostic: 'execution is suspended' },
+          null,
+        )
+      return fail({ kind: 'stale-advance' })
+    }
     let next = evaluated.ok
     if (next.kind === 'take-inputs') {
       const limited = await stepLimit(at.checkpoint.step)
@@ -1153,12 +1317,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if ('failure' in prepared) return prepared
       }
       pendingHandoff = request
-      const fixed = await ports.handoff.prepare({
-        ...access,
-        kind: 'execution',
-        request,
-        advance: required(authority, 'authority'),
-      })
+      const fixed = await prepareHandoff(request)
       if ('failure' in fixed) return fixed
       outcome = fixed.ok
       return step(fixed.ok.decision.kind, null)
@@ -1173,7 +1332,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const subject = required(candidate, 'candidate')
       if (subject.kind === 'external-input') return step('resolved', null)
       const request = required(pendingHandoff, 'pending handoff')
-      if (outcome === null) {
+      if (outcome === null && unpreparedHandoff !== request) {
         const found = await ports.handoff.lookup({
           ...access,
           kind: 'execution',
@@ -1184,16 +1343,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if (found.ok.kind === 'excluded')
           return fail(notYet('Q2', 'an excluded handoff (retire)', '#502 stage 5'))
         if (found.ok.kind === 'recorded') outcome = found.ok.outcome
-        else {
-          const fixed = await ports.handoff.prepare({
-            ...access,
-            kind: 'execution',
-            request,
-            advance: required(authority, 'authority'),
-          })
-          if ('failure' in fixed) return fixed
-          outcome = fixed.ok
-        }
+      }
+      if (outcome === null) {
+        const fixed = await prepareHandoff(request)
+        if ('failure' in fixed) return fixed
+        outcome = fixed.ok
       }
       return step('resolved', replyApplication(request, outcome, subject.source))
     },
@@ -1249,8 +1403,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       // A waiting commit must not change the expected revision of the original operation.
       if (queried.ok.kind === 'unknown') return fail({ kind: 'commit-unknown', operation })
       if (own === null) continue
-      // Settled for another writer's operation; only recordControl can be refused durably, so
-      // for this coordinator's own commit it is a violation by the Journal provider.
+      if (queried.ok.kind === 'rejected' && own.original.method === 'recordControl') {
+        pendingCommit = null
+        return fail(queried.ok.failure)
+      }
       if (queried.ok.kind === 'rejected')
         return fail({
           kind: 'unavailable',
@@ -1363,23 +1519,23 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   const runExecutionNodes = {
     /** E0: `open` saves the original acceptance with the runtime context and grants the attachment. */
     async E0() {
-      const original = required(acceptance, 'acceptance')
-      // R2-D292: the initial checkpoint is the pure evaluator's value for the bound definition and
-      // the first step; the entry holds no copy of it.
-      const initial = evaluator.initial({ definition: binding.definition, step: stepOf(0) })
-      if ('failure' in initial) return initial
-      const opened = await ports.journal.open({
-        ...access,
-        execution,
-        operation: entry.operation,
-        original,
-        runtime: runtimeContext,
-        checkpoint: initial.ok,
-      })
+      if (originalOpen === null) {
+        const initial = evaluator.initial({ definition: binding.definition, step: stepOf(0) })
+        if ('failure' in initial) return initial
+        originalOpen = {
+          ...access,
+          execution,
+          operation: entry.operation,
+          original: required(acceptance, 'acceptance'),
+          runtime: runtimeContext,
+          checkpoint: initial.ok,
+        }
+      }
+      const opened = await journalAt('E0').open(originalOpen)
       if ('failure' in opened) return opened
       authority = opened.ok.authority
       revision = opened.ok.receipt.revision
-      checkpoint = initial.ok
+      checkpoint = originalOpen.checkpoint
       return step('authority', null)
     },
     /**
@@ -1444,7 +1600,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           ? recoveryRoute({ ...latest, checkpoint: current })
           : succeed(excludedNode)
       excludedNode = null
-      if ('failure' in route) return route
+      if ('failure' in route) return fail(localFailure('unsupported-path', route.failure))
       const to = route.ok
       if (to === 'evaluate')
         return evaluate('E4', { ...required(facts, 'facts'), checkpoint: current })
@@ -1468,13 +1624,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     },
     /** J2: one atomic wait record, retaining the original continuation and the occupied slot. */
     async W0() {
-      // No alternate waiting write may invalidate an original conditional operation.
-      const original =
-        pendingCommit?.operation ?? reconciliationOperations[0] ?? snapshot?.unresolved[0]
-      if (original !== undefined) return fail({ kind: 'commit-unknown', operation: original })
       resumeState = state.kind === 'waiting' ? resumeState : state
-      // The wait of an unavailable F3 stays in memory: no waiting commit, no event, the execution
-      // stays settling, and the wake retries tryFinish at the check time.
+      // A wait in memory (an unavailable F3, a closing node, a wait over an unresolved original):
+      // no waiting commit, no event, the state stays, and the wake goes through E1 at the check
+      // time. It writes nothing, so it cannot invalidate an original conditional operation.
       if (finishWait) {
         finishWait = false
         finishRefused = false
@@ -1482,6 +1635,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         yieldedWait = true
         return step('saved-wait', null)
       }
+      // No alternate waiting write may invalidate an original conditional operation.
+      const original =
+        pendingCommit?.operation ?? reconciliationOperations[0] ?? snapshot?.unresolved[0]
+      if (original !== undefined) return fail({ kind: 'commit-unknown', operation: original })
       if (
         snapshot?.state.kind === 'waiting' &&
         canonical(snapshot.state.waits) === canonical(waits)
@@ -1494,6 +1651,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         events: [{ kind: 'waiting', waits }],
       })
       if ('failure' in saved) {
+        // The wait is not saved: it stays in the process, the execution keeps the state it had
+        // before W0, and the check time goes through E1, which comes back here if the Journal is
+        // still unavailable. It is not an unknown outcome, so it is not `pendingCommit`.
+        if (saved.failure.kind === 'unavailable') {
+          yieldedWait = true
+          return step('unsaved-wait', null)
+        }
         if (saved.failure.kind !== 'changed') return saved
         waking = true
         return step('reconciled', null)
@@ -1515,6 +1679,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       snapshot = adoptReconciled(loaded.ok, before.ok, terminalQuery, terminalExpected)
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
       if (cancellationOf(snapshot) !== undefined) return cancelledReconcile()
+      if (fault !== null) {
+        if (snapshot.checkpoint.passages.some(passage => passage.progress.kind !== 'applied'))
+          return fail(notYet('R0', 'a pending passage', '#502 stage 3'))
+        if (reissueObligations) {
+          finishRefused = false
+          return step('reconciled', null)
+        }
+        return finishRefused ? finishDependencyWait('F3') : step('reconciled', null)
+      }
       const read = await readFacts(snapshot)
       if ('failure' in read) {
         if (read.failure.kind !== 'unavailable') return read
@@ -1663,6 +1836,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       facts = current.ok
       const evaluated = await evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
+      if (
+        read.ok.state.kind === 'settling' &&
+        read.ok.revision === finishAttemptRevision &&
+        read.ok.settlement.candidate?.conclusion.kind === 'complete' &&
+        decided?.kind === 'try-finish' &&
+        decided.conclusion.kind === 'complete' &&
+        decided.failure === null
+      )
+        return finishDependencyWait('F3')
       // W0 saves the wait while retaining I8 as the continuation. It does not claim a wakeup.
       return evaluated.ok.on === 'wait'
         ? step('wait', null)
@@ -1702,48 +1884,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   async function batchToolCalls(
     batch: ActionBatch,
   ): Promise<Outcome<ReadonlyMap<string, ActionToolCall>, Failure>> {
-    const source = batch.source
-    if (source.producer.kind !== 'model')
+    if (batch.source.producer.kind !== 'model')
       return fail(defect('A0: a batch whose source is not a Model reply'))
-    const call = source.producer.call
-    const step = required(checkpoint, 'checkpoint').step
-    const received = await receivedOfConsumption(mainConsumption(execution, step))
-    if ('failure' in received) return received
-    const found = received.ok.find(
-      entry =>
-        entry.delivery.producer === 'model' &&
-        entry.delivery.key.kind === 'result' &&
-        entry.delivery.key.result === source.version &&
-        invocationParts(entry.delivery.key.reference, access.tenant).call === call,
+    return readBatchToolCalls(
+      ports,
+      access,
+      execution,
+      required(checkpoint, 'checkpoint').step,
+      batch,
     )
-    if (found === undefined)
-      return fail({
-        kind: 'unavailable',
-        owner: 'agentJournal',
-        diagnostic: 'the received reply of the batch is not available',
-      })
-    const { material: from, ...expected } = found
-    const material = await ports.materials.read({ ...access, source: from })
-    if ('failure' in material) return material
-    const delivery = readModelDeliveryMaterial(access, material.ok, expected)
-    if (!delivery || delivery.kind !== 'result')
-      return fail({
-        kind: 'invalid',
-        field: 'received.material',
-        reason: 'invalid schema or original binding',
-      })
-    const result = consumeModelResult([execution, step], {
-      produced: source,
-      settlement: delivery.settlement,
-      parts: delivery.parts,
-    })
-    if ('failure' in result) return result
-    if (result.ok.kind !== 'reply')
-      return fail({ kind: 'invalid', field: 'batch.source', reason: 'not a complete reply' })
-    const parts = new Map<string, ActionToolCall>()
-    for (const block of result.ok.reply.blocks)
-      if (block.kind === 'tool_call') parts.set(block.callId, block)
-    return succeed(parts)
   }
 
   function currentBatch(): ActionBatch {
@@ -1827,7 +1976,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return succeed({ entry: found, delivery, pending })
   }
 
-  type Sent = Readonly<{ batch: ActionBatch; progressed: boolean }>
+  /**
+   * `unavailable`: the Tool runtime rejected the invoke because a dependency of it is unavailable
+   * now; A2 waits on it and sends the same request again (SPEC "依赖不可用时的等待").
+   */
+  type Sent = Readonly<{
+    batch: ActionBatch
+    progressed: boolean
+    unavailable?: Extract<Failure, { kind: 'unavailable' }>
+  }>
 
   /** A2: every action denied at judgment gets its denied slot, saved before anything is sent. */
   async function slotDeniedAtJudgment(batch: ActionBatch): Promise<Outcome<Sent, Failure>> {
@@ -1857,17 +2014,32 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return 'failure' in saved ? saved : succeed({ batch: next, action: withIntent })
   }
 
+  /** Q1 and Q2: P prepares the internal request; an unavailable answer is remembered. */
+  async function prepareHandoff(request: PendingHandoff) {
+    const fixed = await ports.handoff.prepare({
+      ...access,
+      kind: 'execution',
+      request,
+      advance: required(authority, 'authority'),
+    })
+    unpreparedHandoff = 'failure' in fixed && fixed.failure.kind === 'unavailable' ? request : null
+    return fixed
+  }
+
   /**
    * A2 for one allowed action: the intent of a first attempt is saved, the current advance is
    * checked, and the complete original request is sent. Only an accepted or commit-unknown answer
-   * associates the call; a rejection denies only a first attempt with no earlier unknown.
+   * associates the call. A rejection denies the action only while it has no accepted or unknown
+   * attempt (`unacceptedToolActions`); otherwise the original call is resumed. A rejection is no
+   * evidence of acceptance, so the action stays unaccepted until its denied slot is saved.
    */
   async function sendAction(batch: ActionBatch, original: Action): Promise<Outcome<Sent, Failure>> {
     if (original.judgment.kind !== 'allowed') return succeed({ batch, progressed: false })
-    const fresh = original.call === null
     let next = batch
     let action = original
-    if (fresh) {
+    if (original.call === null) {
+      // Before the save: an intent commit with an unknown outcome is still an intent Tool never saw.
+      unacceptedToolActions.add(original.id)
       const saved = await saveToolIntent(batch, original)
       if ('failure' in saved) return saved
       ;({ batch: next, action } = saved.ok)
@@ -1879,20 +2051,33 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     // The last check before the Tool is asked: no invoke under a revoked advance.
     const eligible = await currentAttachment()
     if ('failure' in eligible) return eligible
-    const result = await ports.tools.invoke({ ...access, request: request.ok })
-    if (result.kind === 'association-unknown') {
-      uncertainToolActions.add(action.id)
-      return succeed({ batch: next, progressed: false })
+    let result: Awaited<ReturnType<typeof ports.tools.invoke>>
+    try {
+      result = await ports.tools.invoke({ ...access, request: request.ok })
+    } catch (error) {
+      unacceptedToolActions.delete(action.id)
+      return fail({ kind: 'unavailable', owner: 'toolRuntime', diagnostic: diagnosticOf(error) })
+    }
+    if (result.kind === 'rejected' && result.failure.kind === 'unavailable') {
+      const unavailable = {
+        kind: 'unavailable' as const,
+        owner: 'toolRuntime',
+        diagnostic: result.failure.diagnostic ?? result.failure.dependency,
+      }
+      return succeed({ batch: next, progressed: false, unavailable })
     }
     if (result.kind === 'rejected') {
-      if (!fresh || uncertainToolActions.has(action.id))
-        return succeed({ batch: next, progressed: false })
+      if (!unacceptedToolActions.has(action.id)) return succeed({ batch: next, progressed: false })
       const evidence = agentEvidence(`${execution}/${action.id}/rejected`, result.failure)
       next = replaceSlot(next, deniedSlot(action, evidence))
       const saved = await commit('A2', 'A2', { checkpoint: { batch: next } })
-      return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
+      if ('failure' in saved) return saved
+      unacceptedToolActions.delete(action.id)
+      return succeed({ batch: next, progressed: true })
     }
-    if (result.kind === 'commit-unknown') uncertainToolActions.add(action.id)
+    // Accepted, commit-unknown or association-unknown: the call may exist from here on.
+    unacceptedToolActions.delete(action.id)
+    if (result.kind === 'association-unknown') return succeed({ batch: next, progressed: false })
     return associate(next, action, pending, result.reference)
   }
 
@@ -2252,11 +2437,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async A2() {
       const limit = entry.toolConcurrency
       if (limit === undefined)
-        return fail({
-          kind: 'unavailable' as const,
-          owner: '@omne-harness/agent',
-          diagnostic: 'toolConcurrency is unavailable',
-        })
+        return fail(
+          localFailure('invariant', {
+            kind: 'unavailable' as const,
+            owner: '@omne-harness/agent',
+            diagnostic: 'toolConcurrency is unavailable',
+          }),
+        )
       const slotted = await slotDeniedAtJudgment(currentBatch())
       if ('failure' in slotted) return slotted
       let { batch, progressed } = slotted.ok
@@ -2264,6 +2451,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if (original.call === null && inFlight(batch).length >= limit) break
         const sent = await sendAction(batch, original)
         if ('failure' in sent) return sent
+        if (sent.ok.unavailable !== undefined) return waitFor('A2', sent.ok.unavailable, null)
         batch = sent.ok.batch
         progressed ||= sent.ok.progressed
       }
@@ -2418,6 +2606,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // ------------------------------------------------------------------------------------------
   // prepareRequest: I1, P0, P1 (C0 to C4 are #502 stage 4)
 
+  async function capabilityResult<T>(
+    result: Promise<Outcome<T, Failure>>,
+  ): Promise<Outcome<T, Failure>> {
+    const answer = await result
+    if ('failure' in answer && answer.failure.kind === 'denied')
+      return fail(localFailure('rejected', answer.failure))
+    return answer
+  }
+
   const prepareRequest = {
     /** I1: conditions, selection, context, then `prepare` without passages. */
     async I1() {
@@ -2441,15 +2638,17 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           ? waitFor('I1', selected.failure, () => select(conditions.ok))
           : selected
       const readContext = () =>
-        ports.modelContext.read({
-          ...access,
-          advance,
-          position: current.position,
-          recipient: selected.ok.recipient,
-          history,
-          adopted: required(checkpoint, 'checkpoint').adoptedContext,
-          transition: null,
-        })
+        capabilityResult(
+          ports.modelContext.read({
+            ...access,
+            advance,
+            position: current.position,
+            recipient: selected.ok.recipient,
+            history,
+            adopted: required(checkpoint, 'checkpoint').adoptedContext,
+            transition: null,
+          }),
+        )
       const context = await readContext()
       if ('failure' in context)
         return context.failure.kind === 'unavailable'
@@ -2468,11 +2667,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       current.preparation = prepared.ok
       // #558 S-11: only P1's review can yield ready on the phase 1 path.
       if (prepared.ok.kind === 'ready')
-        return fail({
-          kind: 'unavailable',
-          owner: 'requestPreparation',
-          diagnostic: 'I1: the first prepare returned ready before the before-model passage',
-        })
+        return fail(
+          localFailure('invariant', {
+            kind: 'unavailable',
+            owner: 'requestPreparation',
+            diagnostic: 'I1: the first prepare returned ready before the before-model passage',
+          }),
+        )
       // R2-D292: an assembled preparation stays in memory; only what cannot be computed again is
       // saved. A restart before M0 prepares again from the same input batch.
       const write = {
@@ -2485,7 +2686,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         // #513 revision 2: preserve Context's answer without inventing a cannot-fit cause.
         // Stage 4 owns the C subgraph. Keep I1 as the unsupported continuation in this phase.
         const saved = await commit('I1', 'I1', write)
-        return 'failure' in saved ? saved : fail({ kind: 'unsupported' as const })
+        return 'failure' in saved
+          ? saved
+          : fail(localFailure('unsupported-path', { kind: 'unsupported' as const }))
       }
       return step(prepared.ok.kind === 'cannot-fit' ? 'try-finish' : 'prepared', write)
     },
@@ -2493,22 +2696,27 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async P0() {
       return step('proceed')
     },
-    /** P1: select again and prepare with the previous preparation; the result must be ready. */
+    /**
+     * P1: select again and prepare with the previous preparation; the result must be ready. An
+     * unavailable dependency is a wait as at I1, and the wake prepares again from I1.
+     */
     async P1() {
       const current = required(iteration, 'iteration')
       const conditions = required(current.conditions, 'conditions')
       const selected = await select(conditions)
-      if ('failure' in selected) return selected
+      if ('failure' in selected)
+        return selected.failure.kind === 'unavailable'
+          ? waitFor('P1', selected.failure, () => select(conditions))
+          : selected
       if (!sameRecipient(selected.ok, required(current.selected, 'selection')))
         return fail(notYet('P1', 'a changed selection', '#502 1.5'))
-      const prepared = await prepare(
-        conditions,
-        selected.ok,
-        required(current.context, 'context'),
-        current.preparation,
-        [],
-      )
-      if ('failure' in prepared) return prepared
+      const context = required(current.context, 'context')
+      const prepareAgain = () => prepare(conditions, selected.ok, context, current.preparation, [])
+      const prepared = await prepareAgain()
+      if ('failure' in prepared)
+        return prepared.failure.kind === 'unavailable'
+          ? waitFor('P1', prepared.failure, prepareAgain)
+          : prepared
       if (prepared.ok.kind !== 'ready')
         return fail(notYet('P1', `a ${prepared.ok.kind} preparation`, '#502 1.5 and stage 4'))
       // R2-D292: the ready preparation is not saved; M0 records the final request it holds.
@@ -2519,16 +2727,18 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
 
   function select(conditions: RuntimeConditions) {
     const current = required(iteration, 'iteration')
-    return ports.selection.select({
-      ...access,
-      advance: required(authority, 'authority'),
-      scope: binding.scope,
-      purpose: 'main',
-      position: current.position,
-      history: required(snapshot, 'snapshot').history,
-      conditions,
-      alterations: [],
-    })
+    return capabilityResult(
+      ports.selection.select({
+        ...access,
+        advance: required(authority, 'authority'),
+        scope: binding.scope,
+        purpose: 'main',
+        position: current.position,
+        history: required(snapshot, 'snapshot').history,
+        conditions,
+        alterations: [],
+      }),
+    )
   }
 
   function prepare(
@@ -2539,24 +2749,26 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     beforeModelCall: readonly never[] | null,
   ) {
     const current = required(iteration, 'iteration')
-    return ports.requests.prepare({
-      ...access,
-      advance: required(authority, 'authority'),
-      action: current.action,
-      purpose: 'main',
-      position: current.position,
-      history: required(snapshot, 'snapshot').history,
-      inputs: required(current.batch, 'input batch'),
-      // The definition this execution runs under: the preparation reads its `instructions` as the
-      // first sections of the system prompt (agent-context SPEC「请求准备的取法」, 组四; R2-D124).
-      definition: binding.definition,
-      conditions,
-      selection,
-      context,
-      previous,
-      alterations: [],
-      beforeModelCall,
-    })
+    return capabilityResult(
+      ports.requests.prepare({
+        ...access,
+        advance: required(authority, 'authority'),
+        action: current.action,
+        purpose: 'main',
+        position: current.position,
+        history: required(snapshot, 'snapshot').history,
+        inputs: required(current.batch, 'input batch'),
+        // The definition this execution runs under: the preparation reads its `instructions` as the
+        // first sections of the system prompt (agent-context SPEC「请求准备的取法」, 组四; R2-D124).
+        definition: binding.definition,
+        conditions,
+        selection,
+        context,
+        previous,
+        alterations: [],
+        beforeModelCall,
+      }),
+    )
   }
 
   // ------------------------------------------------------------------------------------------
@@ -2692,14 +2904,20 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const eligible = await currentAttachment()
       if ('failure' in eligible) return eligible
       const ready = required(current.ready, 'ready preparation')
-      const admitted = await ports.models.calls.admit({
-        ...access,
-        call,
-        operation: admission,
-        request: ready.request,
-        consumer: pending.position,
-        capacity: ready.capacity,
-      })
+      let admitted: Awaited<ReturnType<typeof ports.models.calls.admit>>
+      try {
+        admitted = await ports.models.calls.admit({
+          ...access,
+          call,
+          operation: admission,
+          request: ready.request,
+          consumer: pending.position,
+          capacity: ready.capacity,
+        })
+      } catch (error) {
+        current.admission = 'unknown'
+        return fail({ kind: 'unavailable', owner: 'modelRuntime', diagnostic: diagnosticOf(error) })
+      }
       if ('failure' in admitted) {
         const answered = await notAdmitted(current, pending, admitted.failure)
         if (answered !== null) return answered
@@ -2998,20 +3216,24 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     const interrupt = cancelInterrupt(control, pending)
     if (interrupt === null) return succeed(undefined)
     const operation = controlOperation(execution, control.operation, interrupt.stage)
-    const accepted = await ports.journal.control({
+    const accepted = await journalAt('F0').control({
       ...access,
       execution,
       operation,
       command: interrupt.command,
     })
     if ('failure' in accepted) return accepted
-    return advanceControl(ports, access, execution, operation)
+    return advanceAcceptedControl(
+      { ...ports, journal: journalAt('F0') },
+      access,
+      execution,
+      operation,
+    )
   }
 
   /** A refused settlement commit: a changed or unknown answer is reconciled at R0. */
-  function refusedSettlement(node: 'F1' | 'F2', failure: Failure): Outcome<Step, Failure> {
+  function refusedSettlement(failure: Failure): Outcome<Step, Failure> {
     if (failure.kind === 'changed') cancellationChanged = true
-    if (failure.kind === 'commit-unknown') pendingCommit = { operation: failure.operation, node }
     return failure.kind === 'changed' || failure.kind === 'commit-unknown'
       ? step('reconcile', null)
       : fail(failure)
@@ -3032,7 +3254,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         owner: 'agentJournal',
         diagnostic: 'cancellation installation read is unavailable',
       })
-    const installation = await readInstallation({ ...access, execution })
+    const installation = await readInstallation.call(ports.journal, { ...access, execution })
     if ('failure' in installation) return installation
     const current = latest.settlement.candidate
     const route = latest.settlement.route
@@ -3050,7 +3272,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       expected: latest.revision,
       installation: installation.ok,
     }
-    const settled = await ports.journal.commitSettlement(
+    const settled = await journalAt('F1').commitSettlement(
       current?.conclusion.kind === 'cancelled' && route?.kind === 'author'
         ? {
             ...common,
@@ -3067,7 +3289,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
             predecessor: current?.candidate ?? null,
           },
     )
-    return 'failure' in settled ? refusedSettlement('F1', settled.failure) : step('fixed', null)
+    return 'failure' in settled ? refusedSettlement(settled.failure) : step('fixed', null)
   }
 
   /** The authorization of the terminal: the effective cancellation, or the current advance. */
@@ -3087,7 +3309,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     candidate: Parameters<typeof ports.journal.prepareFinish>[0]['candidate'],
     authorization: FinishAuthorization,
   ): Promise<Outcome<Outcome<Step, Failure> | null, Failure>> {
-    const prepared = await ports.journal.prepareFinish({
+    const prepared = await journalAt('F3').prepareFinish({
       ...access,
       execution,
       operation: journalOperation('F3', 'prepare', before.revision),
@@ -3104,7 +3326,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return succeed(step('reconcile', null))
     }
     if (prepared.failure.kind !== 'commit-unknown') return prepared
-    pendingCommit = { operation: prepared.failure.operation, node: 'F3' }
     return succeed(step('reconcile', null))
   }
 
@@ -3121,7 +3342,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return step('reconcile', null)
       }
       if (finished.failure.kind !== 'commit-unknown') return finished
-      pendingCommit = { operation: finished.failure.operation, node: 'F3' }
       return step('reconcile', null)
     }
     if (finished.ok.kind !== 'ended') {
@@ -3141,7 +3361,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if (read.ok.state.kind === 'ended') return step('terminal', null)
       const control = cancellationOf(read.ok)
       if (control === undefined) return fail(defect('F0 without effective cancellation'))
-      const revoked = await establishCancellation(ports.journal, access, execution, control)
+      const revoked = await establishCancellation(journalAt('F0'), access, execution, control)
       if ('failure' in revoked) return revoked
       for (const pending of read.ok.checkpoint.calls) {
         const interrupted = await interruptForCancel(control, pending)
@@ -3153,8 +3373,50 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async F1() {
       const latest = await load()
       if ('failure' in latest) return latest
+      if (latest.ok.unresolved.length > 0) return step('reconcile', null)
+      if (latest.ok.state.kind === 'ended') return step('reconcile', null)
       const cancel = cancellationOf(latest.ok)
       if (cancel !== undefined) return fixCancellation(latest.ok, cancel)
+      if (fault !== null && faultDecision === null) {
+        const instant = await ports.clock.now()
+        if ('failure' in instant) return instant
+        const source = agentEvidence(`${execution}/node-failed`, {
+          node: fault.node,
+          category: fault.category,
+          failureKind: fault.failureKind,
+          historyAtFailure: fault.history,
+        })
+        const failure: FailureCandidate = {
+          kind: 'node-failed',
+          node: fault.node,
+          category: fault.category,
+          failureKind: fault.failureKind,
+          step: fault.step,
+          at: instant.ok,
+          source,
+        }
+        faultDecision = { kind: 'try-finish', conclusion: { kind: 'fail', cause: source }, failure }
+      }
+      if (faultDecision !== null) {
+        if (advancementOf(latest.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
+        takeLatestPosition(latest.ok)
+        if (faultCandidate === null) {
+          const conditions = await ports.conditions.read({
+            ...access,
+            advance: required(authority, 'authority'),
+            previous: latest.ok.checkpoint.priorConditions,
+          })
+          if ('failure' in conditions) return conditions
+          faultCandidate = {
+            origin: latest.ok.history,
+            conclusion: faultDecision.conclusion,
+            failure: faultDecision.failure,
+            inputWatermark: latest.ok.inputWatermark,
+            conditions: conditions.ok.source,
+          }
+        }
+        return step('fixed', { state: { kind: 'settling' }, finish: faultCandidate })
+      }
       const at = required(checkpoint, 'checkpoint')
       const preparation = at.requestPreparation
       // Derive only from the committed preparation. An unknown I1 commit therefore follows the
@@ -3206,7 +3468,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const candidate = read.ok.settlement.candidate
       const route = read.ok.settlement.route
       if (control !== undefined && candidate !== null && route?.kind === 'cancellation') {
-        const judged = await ports.journal.commitSettlement({
+        const judged = await journalAt('F2').commitSettlement({
           ...access,
           execution,
           operation: journalOperation('F2', 'cancel-judge', read.ok.revision),
@@ -3221,7 +3483,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           candidate: candidate.candidate,
           route: route.record,
         })
-        return 'failure' in judged ? refusedSettlement('F2', judged.failure) : step('proceed', null)
+        return 'failure' in judged ? refusedSettlement(judged.failure) : step('proceed', null)
       }
       return step('proceed', { state: { kind: 'settling' } })
     },
@@ -3251,7 +3513,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return step('reconcile', null)
       }
       revision = read.ok.revision
-      const finished = await ports.journal.tryFinish({
+      finishAttemptRevision = revision
+      const finished = await journalAt('F3').tryFinish({
         ...access,
         execution,
         operation: journalOperation('F3', 'finish', revision),
@@ -3303,10 +3566,30 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   return {
-    async accept() {
-      const ran = await drive('U0', 'E1')
-      if ('failure' in ran) return ran
-      return succeed(required(authority, 'authority'))
+    async accept(confirmedOpen) {
+      return exclusive('E0', async () => {
+        const start = originalOpen === null ? 'U0' : 'E0'
+        if (originalOpen !== null) {
+          if (confirmedOpen === undefined)
+            return fail({
+              node: 'E0',
+              failure: { kind: 'commit-unknown', operation: originalOpen.operation },
+            })
+          if (
+            confirmedOpen.operation !== originalOpen.operation ||
+            confirmedOpen.execution !== originalOpen.execution ||
+            authority !== null
+          )
+            return fail({
+              node: 'E0',
+              failure: { kind: 'conflict', operation: originalOpen.operation },
+            })
+          pendingCommit = null
+        }
+        const ran = await drive(start, 'E1')
+        if ('failure' in ran) return ran
+        return succeed(required(authority, 'authority'))
+      })
     },
     async continueExecution(original) {
       return exclusive('E1', async () => {
@@ -3316,11 +3599,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if (!sameAuthority(read.ok.executionAttachment, original))
           return fail({ node: 'E1', failure: { kind: 'stale-advance' } })
         const at = read.ok.checkpoint
+        const finishingFault =
+          read.ok.state.kind === 'settling' &&
+          read.ok.settlement.candidate?.failure?.kind === 'node-failed'
         // R2-D292: before M0 saved an intent nothing of the request is saved. E4 routes these
         // positions to I1, which prepares again from the input batch of the step.
         const beforeIntent = BEFORE_RECORD.includes(at.position) && at.calls.length === 0
         const pending = at.calls[0]
         if (
+          !finishingFault &&
           !beforeIntent &&
           (!['M6', 'M3', 'M4', 'M5', 'I3'].includes(at.position) ||
             pending?.kind !== 'model' ||
@@ -3332,7 +3619,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         // The call path never prepares again from here: M6 recognizes the saved intent, and a
         // request is prepared again only after the Model's authoritative not-accepted voids it.
         iteration =
-          pending?.kind === 'model' && !beforeIntent
+          pending?.kind === 'model' && !beforeIntent && !finishingFault
             ? {
                 ...newIteration(at.step, null, attemptOf(at.step)),
                 action: pending.action,

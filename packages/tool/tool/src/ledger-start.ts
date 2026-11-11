@@ -241,12 +241,15 @@ export type Release = Readonly<{ call: ToolCallId; basis: ReleaseBasis }>
  * place that says what releases a place. A start rejection is one (the fence excluded the whole
  * invocation); a call that merely settled is not, because the logical end does not prove that the
  * place is free (P02). An ended execution also needs its exact original saved final and result.
+ * The minimal failure terminal of a call that never started is one too (SPEC 23).
  */
 export function releaseBasisOf<B extends ContentBlock>(snapshot: Snapshot<B>): ReleaseBasis | null {
   const record = snapshot.call
   if (record === null) return null
   if (record.startRejection !== null)
     return { kind: 'pre-start-rejection', exclusion: record.startRejection.exclusion }
+  const rejected = ledgerRejectedResult(snapshot)
+  if (rejected !== null) return { kind: 'ledger-rejected', result: rejected }
   if (
     record.state.phase !== 'settled' ||
     record.state.execution.kind !== 'ended' ||
@@ -272,6 +275,22 @@ export function releaseBasisOf<B extends ContentBlock>(snapshot: Snapshot<B>): R
   )
     return null
   return { kind: 'physical-end', proof }
+}
+
+/**
+ * The result evidence of the minimal failure terminal (SPEC 23), or null. The call holds no start
+ * record, so nothing ever ran, and its result was settled by a committed `ledger-rejected`
+ * operation of this call.
+ */
+function ledgerRejectedResult<B extends ContentBlock>(
+  snapshot: Snapshot<B>,
+): DurableEvidence | null {
+  const record = snapshot.call
+  if (record === null || record.start !== null || record.state.phase !== 'settled') return null
+  const result = snapshot.results.get(record.state.result)
+  if (result === undefined) return null
+  const settled = snapshot.operations.get(result.settledBy)
+  return settled?.receipt.kind === 'ledger-rejected' ? result.source : null
 }
 
 /**
@@ -676,13 +695,16 @@ export type TerminalText<B extends ContentBlock> = (
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
 ) => Outcome<ToolResult<B>, ToolFailure>
 
-/** The settled state of a first-start rejection: unavailable, nothing started, position released. */
+/**
+ * The settled state of a call that never started: the given logical terminal, nothing started,
+ * the position released on `release` (the start exclusion, or the minimal terminal's result).
+ */
 function rejectedState(
   record: CallRecord,
   version: Extract<ToolState, { phase: 'settled' }>['result'],
-  terminal: Extract<ToolTerminal, { kind: 'unavailable' }>,
+  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
   delivery: NonNullable<ToolState['delivery']>,
-  exclusion: DurableEvidence,
+  release: DurableEvidence,
   revision: ToolRevision,
 ): ToolState {
   const current = commonOf(record.state)
@@ -693,7 +715,7 @@ function rejectedState(
           kind: 'released',
           key: current.queue.key,
           ordinal: current.queue.ordinal,
-          evidence: exclusion,
+          evidence: release,
         }
   const shared = {
     ...current,
@@ -731,29 +753,43 @@ function rejectionWrites<B extends ContentBlock>(
   mint: Mint,
 ): Decision<ToolState, B> {
   const terminal = { kind: 'unavailable', reason: rejection.reason } as const
+  return unstartedWrites(snapshot, record, command, terminal, rejection, text, mint)
+}
+
+/**
+ * The writes that settle a call that never started on a logical terminal: the terminal with
+ * `effect: not-started`, its delivery, the replacement account, the release of the queue
+ * position and the `queue` task that drops the entry. A start rejection releases on its
+ * exclusion and is kept on the call; without one, the position is released on the terminal's
+ * own result (the minimal failure terminal, SPEC 23).
+ */
+function unstartedWrites<B extends ContentBlock>(
+  snapshot: Snapshot<B>,
+  record: CallRecord,
+  command: WriteCommand,
+  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
+  rejection: StartRejection | null,
+  text: TerminalText<B>,
+  mint: Mint,
+): Decision<ToolState, B> {
   const made = text(terminal)
   if ('failure' in made) return reply(made)
   const settled = settlementWrites(command, record.request.consumer, terminal, made.ok, mint)
-  const { version, delivery } = settled.version
-  const state = rejectedState(
-    record,
-    version,
-    terminal,
-    delivery,
-    rejection.exclusion,
-    mint.revision,
-  )
-  const release: LedgerWrite<B>[] =
+  const { version, delivery, record: result } = settled.version
+  const release = rejection?.exclusion ?? result.source
+  const state = rejectedState(record, version, terminal, delivery, release, mint.revision)
+  const queue: LedgerWrite<B>[] =
     record.request.availability.kind === 'available'
       ? [put({ kind: 'task', task: queueTask(command.operation, state.source) })]
       : []
+  const startRejection = rejection ?? record.startRejection
   return {
     kind: 'commit',
     writes: [
-      put({ kind: 'call', call: { ...record, state, startRejection: rejection } }),
+      put({ kind: 'call', call: { ...record, state, startRejection } }),
       ...settled.writes,
       ...deleteTasks(snapshot, ['queue', 'prepare', 'start']),
-      ...release,
+      ...queue,
     ],
     value: state,
   }
@@ -792,11 +828,49 @@ export function decideRejectPending<B extends ContentBlock>(
   )
 }
 
+/** The diagnostic of the minimal failure terminal names the store's reason after this text. */
+export const LEDGER_REJECTED_DIAGNOSTIC = 'ledger-store rejected: '
+
+export type LedgerRejectedCommand = WriteCommand & Readonly<{ reason: string }>
+
+/**
+ * The minimal failure terminal (SPEC 23): the store rejected a commit of a step for good, and the
+ * call never started (no start record, so nothing runs). The call settles `failed` with cause
+ * `runtime-lost` and the store's reason, without raw output or result pages, and its queue
+ * position is released on the terminal's result. A call with a start record is not settled here.
+ */
+export function decideLedgerRejected<B extends ContentBlock>(
+  snapshot: Snapshot<B>,
+  command: LedgerRejectedCommand,
+  text: TerminalText<B>,
+  mint: Mint,
+): Decision<ToolState, B> {
+  const known = recall(snapshot, command.operation, command.inputDigest, 'ledger-rejected')
+  if ('failure' in known) return reply(known)
+  if (known.ok !== undefined) return reply(succeed(stateOf(known.ok.receipt)))
+  const gated = gate(snapshot, command)
+  if ('failure' in gated) return reply(gated)
+  const record = gated.ok
+  if (record.start !== null) return reply(invalid('call', 'has-start-record'))
+  if (!PENDING_PHASES.includes(record.state.phase)) return reply(wrongPhase(record.state.phase))
+  const terminal = {
+    kind: 'failed',
+    cause: 'runtime-lost',
+    diagnostic: `${LEDGER_REJECTED_DIAGNOSTIC}${command.reason}`,
+  } as const
+  return withReceipt(
+    unstartedWrites(snapshot, record, command, terminal, null, text, mint),
+    command,
+    'ledger-rejected',
+    mint,
+  )
+}
+
 /** Adds the operation receipt of a settlement decision to its writes. */
 function withReceipt<B extends ContentBlock>(
   decided: Decision<ToolState, B>,
   command: WriteCommand,
-  kind: 'reject-pending' | 'record-start',
+  kind: 'reject-pending' | 'ledger-rejected' | 'record-start',
   mint: Mint,
 ): Decision<ToolState, B> {
   if (decided.kind === 'reply') return decided

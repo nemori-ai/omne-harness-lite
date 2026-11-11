@@ -97,6 +97,7 @@ export type OperationReceipt =
       start: Extract<ToolStartRecord, { kind: 'start' }>
     }>
   | Readonly<{ kind: 'reject-pending'; state: ToolState }>
+  | Readonly<{ kind: 'ledger-rejected'; state: ToolState }>
   | Readonly<{ kind: 'record-start'; state: ToolState }>
   | Readonly<{ kind: 'preserve-result'; state: ToolState }>
   | Readonly<{ kind: 'plan-release'; release: ReleaseRecord }>
@@ -251,6 +252,12 @@ export type ReleaseBasis =
    * holds the confirmed result custody before this basis reaches the queue.
    */
   | Readonly<{ kind: 'physical-end'; proof: DurableEvidence }>
+  /**
+   * The store rejected a step of a call that never started, and the call settled with the minimal
+   * failure terminal (SPEC 23). `result` is the evidence of that terminal's result: no start record
+   * exists, so no execution can take the place.
+   */
+  | Readonly<{ kind: 'ledger-rejected'; result: DurableEvidence }>
 
 /**
  * The tombstone of a released call (P02): the queue domain never gives this call an entry again.
@@ -390,13 +397,17 @@ export type LedgerCommitInput<B extends ContentBlock> = Readonly<{
 /**
  * The answer of a commit. `conflict` means the domain revision was not `expected` and nothing was
  * written. `unknown` means the store cannot tell whether the writes took effect; the caller
- * recognises the outcome by the operation it wrote. `unavailable` means nothing was attempted.
+ * recognises the outcome by the operation it wrote. `unavailable` means nothing was written and
+ * the store cannot take the commit at this moment; the same commit may be sent again later.
+ * `rejected` means nothing was written and the same commit is refused whenever it is sent (for
+ * example a write set over the store's command limit); `reason` is the store's reason.
  */
 export type LedgerCommit =
   | Readonly<{ kind: 'committed' }>
   | Readonly<{ kind: 'conflict'; current: ToolRevision }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  | Readonly<{ kind: 'rejected'; reason: string }>
 
 export interface ToolLedgerStore<B extends ContentBlock> {
   /** `none` is the store of `./testing`; a production assembly needs `durable`. */

@@ -68,7 +68,7 @@ describe('the first publication point on the real sqlite-provider', () => {
     const before = (await work(s)).revision
     s.commits.length = 0
     const receipt = ok(await s.view.journal.commit(await messageRequest(s, open.authority)))
-    expect(s.commits).toEqual([['execution-record', 'session']])
+    expect(s.commits).toEqual([['execution-record', 'session', 'session-ordinary-basis']])
     expect(Number((await work(s)).revision)).toBeGreaterThan(Number(before))
     const reloaded = ok(await s.fresh().journal.load({ ...s.access, execution: s.execution }))
     expect(reloaded.revision).toBe(receipt.revision)
@@ -103,11 +103,12 @@ describe('the first publication point on the real sqlite-provider', () => {
 })
 
 describe('the combination the Journal commits under', () => {
-  it('a manifest digest other than the registered one is unavailable, and nothing is written (fail closed)', async () => {
+  it('a manifest digest other than the registered one is a definite failure, and nothing is written (fail closed)', async () => {
     const s = await sqlScene('real-manifest', { storage: 'real', manifest: 'b'.repeat(64) })
     scenes.push(s)
+    // manifest_mismatch is definite (sql-contract commitRejectionNature): waiting would never help.
     expect(await s.view.journal.open(s.openInput)).toMatchObject({
-      failure: { kind: 'unavailable' },
+      failure: { kind: 'invalid', field: 'storage', reason: 'manifest_mismatch' },
     })
     const fresh = s.fresh().journal
     expect(await fresh.load({ ...s.access, execution: s.execution })).toMatchObject({
@@ -186,7 +187,11 @@ describe('the later interpretation commit on the real sqlite-provider', () => {
         start: { kind: 'initial' },
       }),
     ).toHaveProperty('failure')
-    expect(s.commits.every(item => item.length === 1 && item[0] === 'session')).toBe(true)
+    expect(
+      s.commits.every(
+        item => item.length === 2 && item[0] === 'session' && item[1] === 'session-ordinary-basis',
+      ),
+    ).toBe(true)
     expect(await load(s)).toEqual(agent)
     expect((await work(s)).entriesProgress).toEqual(progress)
     ok(

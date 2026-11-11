@@ -1,4 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { CloseReport } from '@omne-harness/telemetry-contract'
+import type { CordisLogBridgeCounts } from '@omne-harness/telemetry-node/cordis'
 
 export type RowId = string & { readonly __brand: 'RowId' }
 export type ServiceName = string // S0 模式是私有名，形如 `s0.storage`；serve 模式是正式键，形如 `storage`
@@ -78,10 +80,21 @@ export type HostFilesReport =
       diagnostic: 'maintenance-failed' | 'retirement-failed' | 'deadline'
     }>
 
+/**
+ * The telemetry step after the storage phase: the provider's close report plus the counts of the
+ * Cordis log bridge (taken when the step ends; messages after that go to stdout directly). Without a
+ * registered runtime (row failed or absent) only the bridge counts remain.
+ */
+export type TelemetryShutdownReport =
+  | Readonly<{ kind: 'closed' } & CloseReport & CordisLogBridgeCounts>
+  | Readonly<{ kind: 'not-registered' } & CordisLogBridgeCounts>
+  | Readonly<{ kind: 'unavailable'; diagnostic: 'close-failed' | 'deadline' }>
+
 export type ShutdownReport = Readonly<{
   overall: 'settled' | 'incomplete'
   outcomes: readonly HandleOutcome[]
   hostFiles?: HostFilesReport
+  telemetry?: TelemetryShutdownReport
 }>
 
 /** 装配入口交给每个入口对象 `install` 的环境（DP1-C11、DP1-C17）。它不进插件，也不交给任何行。 */

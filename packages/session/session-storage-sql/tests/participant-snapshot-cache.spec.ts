@@ -179,7 +179,8 @@ describe('T-A2-2: the snapshot of a commit that fails is kept, but the next comm
     if (a.port.commitLog === undefined) throw new Error('the SQL port offers no commitLog')
 
     a.provider.failWrite(/UPDATE sl_journal/u)
-    expect(failureOf(await a.port.commitLog({ observation })).kind).toBe('unavailable')
+    // An environment error inside the transaction is unknown (sql-contract §7.6).
+    expect(failureOf(await a.port.commitLog({ observation })).kind).toBe('commit-unknown')
     a.provider.failWrite(null)
     expect(stored(a)).toEqual(committed)
     expect(keptOf()?.text).not.toBe(committed.text)

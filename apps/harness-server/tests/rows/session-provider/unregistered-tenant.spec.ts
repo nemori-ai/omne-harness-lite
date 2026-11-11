@@ -43,6 +43,7 @@ import {
   type Base,
   type LoadedTree,
 } from '../session-fixtures/tree.ts'
+import { disabledTelemetryRow } from '../telemetry/support.ts'
 import { TENANT_A, TENANT_B, createGuards, textOf } from '../storage/fixtures/tree.ts'
 
 /** A contract-double row that provides one key from a `session-contract/testing` double. */
@@ -98,6 +99,7 @@ async function start(): Promise<{ tree: LoadedTree; base: Base }> {
   const tree = await loadTree({
     base,
     rows: [
+      disabledTelemetryRow(),
       ...storageRows(base).specs,
       ...bridges(),
       runtimeContextDoubleRow(),

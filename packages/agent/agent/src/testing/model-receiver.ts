@@ -15,6 +15,7 @@ import {
 } from '@omne-harness/agent-contract'
 import { judgeMessage } from '@omne-harness/message'
 import {
+  decodeProviderName,
   decodeRevision,
   resolveModelInvocationRef,
   type ModelDelivery,
@@ -28,6 +29,7 @@ function value<T>(result: Outcome<T, unknown>): T {
   if ('failure' in result) throw new Error('invalid receiver fixture value')
   return result.ok
 }
+const TEST_PROVIDER = value(decodeProviderName('test'))
 export type ModelReceiverFixture = Readonly<{
   durability: 'none'
   access: Access<string>
@@ -180,9 +182,9 @@ export async function assembleModelReceiverFixture(
               dispatch: delivery.key.dispatch,
               supplier: {
                 adoption: testAdoption('supplier'),
-                recipient: 'test',
+                provider: TEST_PROVIDER,
                 model: 'test',
-                credential: { kind: 'factory' },
+                credential: { layer: 'official' },
               },
               intent: reference.admission,
               send: 'started',

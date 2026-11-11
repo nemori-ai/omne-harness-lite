@@ -9,6 +9,7 @@ const count = z.number().int().positive()
 const adoption = z.strictObject({ owner: text, name: text, revision: text, digest: text })
 
 const family = z.strictObject({
+  maxSerializedBytes: count,
   /** The decoder buffer limits of every binding of the family. */
   limits: z.strictObject({
     toolArguments: z.strictObject({

@@ -72,6 +72,9 @@ export type ModelHostBinding = Readonly<{
   executionChannel(): Outcome<ModelInitialHostChannel<unknown>, ModelFailure>
   releaseExecution(): Promise<void>
   qualify(access: Parameters<ModelQualification['qualify']>[0]): Promise<() => void>
+  qualifyRead(
+    access: Parameters<ModelQualification['qualifyRead']>[0],
+  ): ReturnType<ModelQualification['qualifyRead']>
   qualifyObservation(
     access: Parameters<ModelQualification['qualifyObservation']>[0],
   ): ReturnType<ModelQualification['qualifyObservation']>
@@ -189,6 +192,15 @@ export function createModelRunComposition(): ModelRunComposition {
         return live === undefined
           ? Promise.resolve(() => {})
           : live.qualification.qualify(access, current)
+      },
+      qualifyRead: async access => {
+        const live = attached
+        if (live === undefined)
+          return {
+            check: async () => fail(unavailable('records-not-attached')),
+            release() {},
+          }
+        return live.qualification.qualifyRead(access, () => current() && attached === live)
       },
       qualifyObservation: access => {
         const live = attached

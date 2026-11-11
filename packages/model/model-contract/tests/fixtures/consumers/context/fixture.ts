@@ -62,8 +62,8 @@ function setup(
     ending: { kind: 'terminated', termination: { kind: 'completed', reason: 'stop' } },
     rejection: null,
   })
-  // The profile that the fixture offers is the one official profile of values.ts. Its factory
-  // credential is an explicit input of this fixture, not a default of the public double.
+  // The profile that the fixture offers is the one official profile of values.ts. Its credential
+  // state is an explicit input of this fixture, not a default of the public double.
   const profiles = createScriptedModelProfiles<Principal>()
   profiles.setAccess(access, 'allow')
   const resolved: ProfileResolution = {
@@ -98,9 +98,9 @@ function setup(
         suppliers: [
           {
             adoption: supplier.adoption,
-            recipient: supplier.recipient,
+            provider: supplier.provider,
             model: supplier.model,
-            credential: { kind: 'factory' },
+            credential: { layer: 'official' },
           },
         ],
         parameterAdoptions: [],
@@ -181,9 +181,9 @@ async function profileAndMeterFixTheRequest(): Promise<void> {
   const result = prepared(await run(services, short))
   const { request } = result
   expect(request.suppliers[0].model === 'model', 'the request names another model')
-  expect(request.suppliers[0].credential.kind === 'factory', 'the credential was invented')
+  expect(request.suppliers[0].credential.layer === 'official', 'the credential was invented')
   expect(Object.keys(request).sort().join() === SENT_FIELDS.join(), 'the request fields differ')
-  const identity = `${request.suppliers[0].recipient}/${request.suppliers[0].model}`
+  const identity = `${request.suppliers[0].provider}/${request.suppliers[0].model}`
   expect(
     JSON.stringify(request.declarations) ===
       JSON.stringify([{ produces: identity, accepts: [identity], foreignThinking: 'omit' }]),

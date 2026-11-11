@@ -2,12 +2,25 @@
 // `dist/bin.js serve` process, the `omne` CLI as a process, and the search for secrets in output.
 // No vitest import: `drive.ts` (the `run-r9.sh` driver) uses this file too.
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseSecretText } from '@omne-harness/settings'
+import { createSecretVault } from '@omne-harness/settings-local/secrets'
+import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
+import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
+import { LOCAL_TOKENIZERS } from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 
 export const memberDir = fileURLToPath(new URL('../..', import.meta.url))
@@ -84,6 +97,25 @@ const MODEL_TEST_ADOPTION = {
  */
 export const UNUSED_MODEL_ROUTE = 'https://127.0.0.1:9/api/v1/chat/completions'
 
+/** The entry kinds the session diagnostics projection reads (server-entry `PROJECTED_KINDS`). */
+export const DIAGNOSTICS_KINDS = [
+  'run.started',
+  'run.attempt-started',
+  'run.attempt-released',
+  'run.attempt-exited',
+  'control.requested',
+  'control.progress',
+  'run.terminal',
+  'call.bound',
+  'call.execution-fact',
+  'message.user',
+  'message.assistant',
+  'message.tool',
+  'message.tool_internal',
+  'message.system_reminder',
+  'message.compaction',
+] as const
+
 export function modelRowsOperatorConfig(options: { storageRoot: string; modelRoute?: string }) {
   const profiles = {
     retryPolicy: { owner: 'r9', name: 'retry', revision: '1', digest: '0'.repeat(64) },
@@ -93,6 +125,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
   const preparation = {
     maxCitedCalls: 8,
     openai: {
+      maxSerializedBytes: 4 * 1024 * 1024,
       limits: {
         toolArguments: {
           maxBytes: 65_536,
@@ -146,22 +179,25 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     // `maxCommandBytes` is the storage provider's (`providerConfig`); `maxCallBytes` leaves the reserve.
     maxCallBytes: 524_288,
     maxCommandBytes: 1_048_576,
-    combinationVersion: 'session-composite/4',
+    combinationVersion: COMBINATION_VERSION,
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
+    // The read face `modelDiagnostics` (A12: the operator layer gives what the release does not).
+    diagnostics: {
+      diagnosticsRead: 'tenant-self',
+      retention: { ...MODEL_TEST_ADOPTION, name: 'model-diagnostics-retention' },
+    },
     initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
     sendStage: {
       maxRetainedAttempts: 16,
       materialization: { maxRecords: 16 },
-      factoryQueryId: 'factory-openrouter',
       profiles: {
         retryPolicy: profiles.retryPolicy,
         compactionTriggerPercent: profiles.compactionTriggerPercent,
       },
       preparation,
       network: { maxConnections: 4, idleConnectionTimeoutMs: 60_000 },
-      routes: {
-        openrouter: { url: options.modelRoute ?? UNUSED_MODEL_ROUTE, endMarker: '[DONE]' },
-      },
+      // The release provider body gives the route; the test sends to its own gateway instead.
+      endpoints: { openrouter: options.modelRoute ?? UNUSED_MODEL_ROUTE },
       transportLimits: {
         connectTimeoutMs: 5000,
         connectRetry: { backoffMs: [500, 1000] },
@@ -179,15 +215,46 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     },
   }
   return {
+    tokenizers: LOCAL_TOKENIZERS,
     profiles,
     preparation,
     host,
     records,
-    credential: {
-      path: join(options.storageRoot, 'model-vault.json'),
-      factorySecret: 'r9-test-factory-secret',
-    },
+    vault: testVaultPath(options.storageRoot),
   }
+}
+
+/** The vault of a test tree: beside the storage root, which the entry creates, so it is there first. */
+export function testVaultPath(storageRoot: string): string {
+  return join(dirname(storageRoot), 'model-vault.json')
+}
+
+/** The deployment key the test trees hold in the official layer of the OpenRouter `apiKey`. */
+export const TEST_DEPLOYMENT_KEY = 'r9-test-factory-secret'
+
+/**
+ * Builds the vault of a test tree at `path` when it is not there, as `setup` would: the official
+ * layer of the OpenRouter `apiKey` holds `TEST_DEPLOYMENT_KEY`.
+ */
+export function seedTestVault(path: string): string {
+  if (existsSync(path)) return path
+  const provider = releaseProvider('openrouter')
+  const secret = parseSecretText(TEST_DEPLOYMENT_KEY)
+  if (provider === undefined || !secret.ok) throw new Error('the test vault cannot be seeded')
+  mkdirSync(dirname(path), { recursive: true })
+  const created = createSecretVault({
+    path,
+    seed: [
+      {
+        key: providerCredentialKey(provider, { layer: 'official' }, 'apiKey'),
+        secret: secret.value,
+        configuredAt: null,
+      },
+    ],
+  })
+  if (created.kind !== 'open') throw new Error(`the test vault: ${created.kind}`)
+  created.vault.close()
+  return path
 }
 
 /**
@@ -230,7 +297,7 @@ export function hostShell(): Readonly<{ executable: string; argsPrefix: string[]
  * `tool-records` 的 `maxCommandBytes` 与 `storage` 行相同（`providerConfig` 的 1048576），`combinationVersion`
  * 与 `session-storage` 行相同。
  */
-export function toolRowsOperatorConfig(options: { storageRoot: string }) {
+export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoint?: string }) {
   const base = dirname(options.storageRoot)
   const filesRoot = join(base, 'workspace')
   const stateDirectory = join(base, 'host-files-state')
@@ -247,10 +314,25 @@ export function toolRowsOperatorConfig(options: { storageRoot: string }) {
     construction: {
       Shell: { resultMaxBytes: 32768, ...shell, cwd: filesRoot, env },
       Files: { resultMaxBytes: 32768 },
+      Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
+      TodoItems: { resultMaxBytes: 1_048_576 },
+      Web: { resultMaxBytes: 32768, maxSearchResults: 10 },
+    },
+    // The Web provider values of the test operator layer: the local Exa stand-in when a test gives
+    // one (`tests/fixtures/exa-stub.ts`), else a loopback port that nothing listens on; short time
+    // limits, a small body cap. No test reaches the real Exa.
+    web: {
+      search: {
+        endpoint: options.exaEndpoint ?? 'https://127.0.0.1:9/search',
+        type: 'lite',
+        highlightChars: 200,
+        timeoutMs: 5000,
+      },
+      fetch: { maxRedirects: 5, timeoutMs: 10_000, maxBodyBytes: 1_048_576 },
     },
     records: {
       filesRoot,
-      combinationVersion: 'session-composite/4',
+      combinationVersion: COMBINATION_VERSION,
       maxCommandBytes: 1048576,
       maxChunkBytes: 16384,
       configuration: {
@@ -285,6 +367,8 @@ export function operatorLayer(options: {
   modelRoute?: string
   /** Replaces the release `maxJsonDepth` of the storage row (the negative control of R2-D270). */
   maxJsonDepth?: number
+  /** The `http:` URL of the local Exa stand-in; tests that run a Web search give it. */
+  exaEndpoint?: string
 }): unknown {
   const deadline = options.shutdownDeadlineMs ?? SHUTDOWN_DEADLINE_MS
   const model = modelRowsOperatorConfig(options)
@@ -297,6 +381,7 @@ export function operatorLayer(options: {
         // A `replace` swaps the whole row, so it copies the release `maxJsonDepth` (R2-D270).
         config: providerConfig(options.storageRoot, {
           closeDeadlineMs: deadline - 1000,
+          maxResponseBytes: 131_072,
           maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
         }),
       },
@@ -304,14 +389,16 @@ export function operatorLayer(options: {
         kind: 'replace',
         id: 'session-storage',
         config: {
-          combinationVersion: 'session-composite/4',
+          combinationVersion: COMBINATION_VERSION,
           directoryFile: join(options.storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },
       },
       // 模型侧五行的配置是机器级参数与运维者的数值：保管库路径、官方档案快照、宿主与记录仓的上限、准备行的家族配置。
       // 写进运维层，不写进发行配置（R2-D6：发行层不写数值默认值）。
-      { kind: 'replace', id: 'model-credential', config: model.credential },
+      // The secret custody row opens the test vault; the model credential row reads it through the row.
+      { kind: 'replace', id: 'secret-custody', config: { path: seedTestVault(model.vault) } },
+      { kind: 'replace', id: 'model-tokenizers', config: model.tokenizers },
       { kind: 'replace', id: 'model-profiles', config: model.profiles },
       { kind: 'replace', id: 'model-request-preparation', config: model.preparation },
       { kind: 'replace', id: 'model-host', config: model.host },
@@ -320,6 +407,8 @@ export function operatorLayer(options: {
       // 文件根与宿主状态目录在存储根旁边新建；Shell 用本机的 shell（Windows 是 powershell，其余是 /bin/sh）；
       // 运行时组的数值取 L-TOOL C06 组合用例的同一组值（tool-storage-sql windows-composition/assembly.ts）。
       { kind: 'replace', id: 'tool-host', config: { construction: tools.construction } },
+      // The release row has no Tools capability and no Web provider values; the test layer adds Web.
+      { kind: 'replace', id: 'tool-bindings', config: { web: tools.web } },
       { kind: 'replace', id: 'tool-records', config: tools.records },
       { kind: 'replace', id: 'execution-host', config: tools.host },
       // B1（R2-D136）：Context 侧与 Session 适配行的数值归运维者层，发行层不写。这里是测试值：
@@ -350,7 +439,34 @@ export function operatorLayer(options: {
       },
       // SC4（R2-D162）：agent-host 换真件后，工厂数值与实例空闲时长归运维者层；整行替换时重抄发行层的两项。
       { kind: 'replace', id: 'agent-host', config: agentHostOperatorConfig() },
-      { kind: 'replace', id: 'server-entry', config: { listenPort: options.port } },
+      // The session diagnostics projection: every kind it knows, and test bounds (A12).
+      {
+        kind: 'replace',
+        id: 'server-entry',
+        config: {
+          listenPort: options.port,
+          diagnosticsKinds: [...DIAGNOSTICS_KINDS],
+          maxRuns: 32,
+          maxCallsPerRun: 64,
+        },
+      },
+      // 遥测行的预算归运维者层（R2-D229）；`replace` 整行替换，重抄发行层的实现与出口。测试值，未测量。
+      {
+        kind: 'replace',
+        id: 'telemetry',
+        config: {
+          implementation: 'node',
+          outlet: { kind: 'stdout' },
+          budgets: {
+            maxRecordBytes: 65_536,
+            maxQueueItems: 1024,
+            maxQueueBytes: 1_048_576,
+            maxOpenSegments: 16,
+            maxLogTextLength: 4096,
+            summaryIntervalMs: 1000,
+          },
+        },
+      },
     ],
   }
 }

@@ -23,7 +23,7 @@
 | `session-handoff` | `createSessionMessageHandoffPlugin({ coordinator, principalIdentity, provider })` | 协调者主体来源；主体身份文本；提供者采用身份 | `combinationVersion`、`manifestDigest`（与 `agent-journal` 行相同） |
 | `session-conditions`（SC1，R2-D145） | `createSessionConditionsPlugin({ defaultModes })` | 租户默认模式解析器 `defaultModesOf(definitionMappings)`：映射条目的模式采用须与创建所记来源逐字相等 | 无 |
 | `session-ad14`（SC4，R2-D162） | `createSessionAgentDrivePlugin({ coordinator })` | 协调者主体来源：每次调用现取受信的 `sessionWorkPrincipals`，缺席时答 `unavailable`，不调用 Agent 入口 | 无 |
-| `agent-host`（SC4，R2-D162） | `createAgentHostRow({ toolRequestsOf?, measure? })` 内的 `createAgentHostLocalPlugin`；发行导出 `agentHostRow` 不带构造输入 | `toolRequestsOf` 的生产组合归 Tool B 段；`measure` 接 E9 归 C1 | `jointCommits`（必须含 `message`，行 schema 装载时核对，R2-D93）与 `coordination` 由发行层写出；工厂数值、`loopGuardPolicy` 与 `instanceIdleMs` 由运维者层给，运维者层整行替换时重抄发行层的两项 |
+| `agent-host`（SC4，R2-D162） | `createAgentHostRow({ toolRequestsOf?, measure? })` 内的 `createAgentHostLocalPlugin`；发行导出 `agentHostRow` 交入 `toolRequestsOf`，不交入 `measure` | `toolRequestsOf` 的生产组合归 Tool B 段；`measure` 缺省是行自己在注入的 `telemetry` 上构造的 Agent 遥测 facade（RFC-0013 revision 2 本地范围），构造输入 `measure` 是测试用的替代观察者 | `jointCommits`（必须含 `message`，行 schema 装载时核对，R2-D93）与 `coordination` 由发行层写出；工厂数值、`loopGuardPolicy` 与 `instanceIdleMs` 由运维者层给，运维者层整行替换时重抄发行层的两项 |
 | `agent-instances`（SC4，R2-D162） | agent-cordis-contract 的 `agentInstancesPlugin` | 无 | 无 |
 
 协调者主体来源是 `src/rows/session-adapters/coordinator.ts`：行 inject 受信的 `sessionWorkPrincipals`，以 `forSession({ actor: 'coordinator', tenant, session })` 作答。它是运行时对象，不进配置。
@@ -67,3 +67,26 @@
 [serve 用例](../../tests/serve.spec.ts)证明发行树 46 真件、2 替身全部 `ACTIVE`，启动就绪、按序停止后退出 0。[session-ad14 行用例](../../tests/rows/session-ad14/index.spec.ts)与 [agent-host 行用例](../../tests/rows/agent-host/index.spec.ts)证明三行在 `agentConditions` 缺席时停在 `PENDING`，以及 `jointCommits` 漏写 `message` 时装载失败。[session-conditions 行用例](../../tests/rows/session-conditions/default-modes.spec.ts)证明租户默认模式只在映射条目仍代表创建所记来源时交出。[coding-agent 用例](../../tests/assembly/coding-agent.spec.ts)证明定义段经真实采用面组装成系统提示词。端到端一轮（Files、Shell 各调用一次）由 qa 在发行树上验收。
 
 [账目端口用例](../../tests/rows/request-context/accounting.spec.ts)与[行用例](../../tests/rows/request-context/index.spec.ts)证明来源核验与读取资格的放行、拒绝与不可用；[持有者事实用例](../../tests/entry/runtime-context-replay-facts.spec.ts)证明入口按调用在受信作用域读取 `sessionReplayFacts`，缺席时答不可用，根上的同名提供者伪造不了 `known`。
+
+
+## 会话模式的装配与发布
+
+AD-03 行提供应用内部 `sessionModesInstallation`。首次准备或原注册恢复时，它按租户装配一个 `createSessionModesPlugin` fiber；并发请求共享该租户的装配结果，不创建多个生产者。租户主体由入口窄签发服务提供，模式原事实归 Session，默认采用解析复用 `defaultModesOf`。插件只保存可丢弃的发布状态。
+
+AD-03 在成功 finishReplay 或 applyCommit 后发布 `registrationApplied` 通知。应用只在开放注册含 `session.modes` 时刷新。普通 committed 通知只触发原来源重读，不能证明 Context 已应用。卸载后装配入口不可用，子生产者随父 fiber 撤除；重装配重新从原 Session 事实供值。
+
+```mermaid
+flowchart LR
+  Create[应用创建输入] --> Adopt[采用来源]
+  Adopt --> Prepare[隔离的原 Context prepare]
+  Prepare --> Batch[Session 原子提交 SE01 / SE07 / SE02]
+  Batch --> Replay[AD-03 应用与恢复]
+  Replay --> Confirm[注册成功确认]
+  Confirm --> Publish[租户模式生产者]
+  Session[Session 模式与修订] --> Publish
+  Publish --> Runtime[实时 Runtime Context]
+  Runtime --> Inquiry[预计算询问策略与原依据]
+  Inquiry -->|同依据捕获| Admission[Agent / Tool 动作准入]
+```
+
+初始准备视图不授予运行权限，实时 Context 的模式也不越过结构化权限。跨进程撤权以及原动作与同修订捕获继续由各自拥有者承担。

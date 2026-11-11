@@ -69,7 +69,7 @@ export function createScriptedModelPreparationResources<P = unknown>(
       const refused = script.acquire?.() ?? null
       if (refused !== null) return { failure: refused }
       const bindings = input.profile.definition.suppliers.map(supplier => ({
-        supplier: { ...supplier, credential: { kind: 'factory' as const } },
+        supplier: { ...supplier, credential: { layer: 'official' as const } },
         rules: { plan },
         meter: script.meter,
       }))

@@ -109,13 +109,24 @@
 | 名称                         | 种类 | 用途                                                                                                                                                           | 条款或对象模型                                                     |
 | ---------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `commandFacility`            | 值   | `command` 的设施声明，`start` 须授权                                                                                                                           | [设施协议](../SPEC.md#设施协议)                                    |
-| `CommandFacility`            | 接口 | 命令设施：`start` 启动一个进程                                                                                                                                 | 同上、[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供) |
+| `CommandFacility`            | 接口 | 命令设施：`start` 启动一个进程；可选的 `containment` 声明收纳强度                                                                                              | 同上、[INV-EE09](../SPEC.md#inv-ee09-资源和秘密以最小必要条件提供) |
 | `ProcessHandle`              | 接口 | 进程句柄：进程身份加代、输出模式、唯一的输出流、输出策略、终局与停止                                                                                           | [INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)     |
 | `OutputChunk`                | 类型 | 一块原始输出字节，带所属的一路与此前观察到的字节数                                                                                                             | [设施协议](../SPEC.md#设施协议)                                    |
 | `OutputPolicy`               | 类型 | 有界缓冲：缓冲上限、单块上限，溢出时丢弃                                                                                                                       | 同上                                                               |
 | `OutputCount`                | 类型 | 一路输出观察到与丢弃的字节数                                                                                                                                   | 同上                                                               |
 | `OutputSummary`              | 类型 | 按输出模式汇总各路的计数                                                                                                                                       | 同上                                                               |
+| `BetweenSegments`            | 类型 | 终端段结果里的段间字节：上一段结束之后、这一段开始之前终端收到的字节与计数                                                                                     | [终端段的完成与字节归属](../SPEC.md#终端段的完成与字节归属)        |
 | `CommandOutcome`             | 类型 | 进程终局：`completed` 的 `exit` 是带 `kind` 的联合，`code` 带退出码，`signal` 带信号，`unknown` 表示退出方式未知；`failed` 带 `unavailable` 或 `effectUnknown` | [INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认)     |
+| `CommandRetention`           | 接口 | 保留进程扩展：`list` 列出本次获取的保留范围里的全部保留进程；可选的 `stop` 停止一个保留进程，可选的 `output` 读它移交之后的输出尾部；调用时仍核对当前获取资格 | [保留进程扩展](../SPEC.md#保留进程扩展)、[停止](../SPEC.md#停止)、[输出](../SPEC.md#输出) |
+| `CommandRetentionOperation`  | 类型 | 保留进程扩展的操作名 `list`、`stop`、`output`，不进入命令设施的 `start`                                                                                        | 同上                                                               |
+| `Containment`                | 类型 | 命令设施的收纳强度：`sealed` 或 `none`                                                                                                                         | [收纳](../SPEC.md#收纳)                                            |
+| `RetainedOutput`             | 类型 | `output` 的结果：`tail`（版本号加每条流的尾部）、`none` 或 `unsupported`                                                                                       | [输出](../SPEC.md#输出)                                            |
+| `RetainedStreamTail`         | 类型 | 一条流的尾部：开始保存的偏移、起止偏移、丢弃字节数、原始字节与 UTF-8 文本                                                                                      | 同上                                                               |
+| `RetainedOutputFrom`         | 类型 | `output` 的起点：按输出流给出源字节偏移                                                                                                                        | 同上                                                               |
+| `RetainedProcessInformation` | 类型 | 保留进程列表的条目：引用、发起它的原调用、移交时间、运行中或停止中、进程数或未知                                                                               | 同上                                                               |
+| `RetainedProcessRef`         | 类型 | 保留进程的身份加代                                                                                                                                             | 同上                                                               |
+| `ResidueReport`              | 类型 | `completed` 结局的处置报告：`none`、`retained`、`stopping`（带原因）或 `unknown`                                                                               | [处置](../SPEC.md#处置)                                            |
+| `ResidueStopReason`          | 类型 | 留下的进程被停止而不保留的原因                                                                                                                                 | 同上                                                               |
 | `terminalFacility`           | 值   | `terminal` 的设施声明，创建、分段执行、关闭、列表四项操作全部须授权                                                                                            | [设施协议](../SPEC.md#设施协议)                                    |
 | `TerminalFacility`           | 接口 | 终端四项基础操作，以及可选的 `retention` 保留扩展                                                                                                              | 同上、[INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确)   |
 | `TerminalRetention`          | 接口 | 保留终端扩展：附着与脱离，调用时仍核对当前获取资格                                                                                                             | [保留终端](../SPEC.md#保留终端)                                    |
@@ -132,6 +143,7 @@
 | `ManagedResource`          | 类型 | 受管资源：键、所属提供者与 JSON 恢复引用。不是活句柄或裸进程号                | [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)、[对象模型 受管资源](object-model.md#受管资源) |
 | `ResourceLedger`           | 接口 | 需要端口，集成方实现：计划、许可、接续、停止记录与关闭信号                    | [INV-EE15](../SPEC.md#inv-ee15-准备持有回收与确认保持一致)                                                |
 | `RetainedTerminalLedger`   | 类型 | 保留 shell 的第二份账本视图                                                   | [保留终端](../SPEC.md#保留终端)                                                                           |
+| `RetainedProcessLedger`    | 类型 | 保留范围给一次性命令留下的进程的账本视图：预留、移交提交、停止记录与关闭信号；可选的 `ended` 读已确认的收场事实  | [移交](../SPEC.md#移交)                                                                                   |
 | `SessionTerminalRetention` | 类型 | 受信保留范围与按获取构造的账本视图                                            | 同上                                                                                                      |
 | `FacilityGuard`            | 接口 | 需要端口，集成方实现：这次操作现在还允许吗，答允许、不允许或不可用            | [获取与租约](../SPEC.md#获取与租约)、[设施协议](../SPEC.md#设施协议)                                      |
 | `RecoveryAuthority`        | 接口 | 需要端口，集成方实现：核对恢复授权能否停止与结算一个作用域的资源              | [恢复](../SPEC.md#恢复)                                                                                   |
@@ -173,7 +185,7 @@
 
 | 名称                        | 种类 | 用途                                                                                                                                                                                           | 条款或对象模型                                                                                                |
 | --------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `EnvironmentProvider`       | 接口 | 提供者：名称、代与版本、配额域、绑定层、连续性、设施键、隔离断言；描述、配额声明、获取、原获取查询、获取枚举、结清、退役，以及可选的资源恢复枚举与认回。获取与退役在提供者自己配置的上界内返回 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)、[对象模型 提供者](object-model.md#提供者) |
+| `EnvironmentProvider`       | 接口 | 提供者：名称、代与版本、配额域、绑定层、连续性、设施键、隔离断言；描述、配额声明、获取、原获取查询、获取枚举、结清、退役，以及可选的资源恢复枚举与认回、可选的保留进程观察。获取与退役在提供者自己配置的上界内返回 | [INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)、[对象模型 提供者](object-model.md#提供者) |
 | `ProviderFacts`             | 类型 | 提供者声明的事实：名称、代、版本、平台、设施键、隔离断言，以及运行前提（满足、不满足或未知）。它是观察，不是控制                                                                               | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)                                            |
 | `PlatformFacts`             | 类型 | 平台事实：操作系统类型与版本                                                                                                                                                                   | 同上                                                                                                          |
 | `ProviderAcquireInput`      | 类型 | 执行环境交给提供者的获取输入：获取键、原调用、请求方作用域、落点、租户与账本                                                                                                                   | [获取与租约](../SPEC.md#获取与租约)                                                                           |
@@ -191,9 +203,9 @@
 | `PlacementInput`            | 类型 | 集成方的落点解析输入：请求方作用域与环境要求                                                                                                                                                   | [获取与租约](../SPEC.md#获取与租约)                                                                           |
 | `AcquireInput`              | 类型 | 集成方的获取输入：获取键、原调用、请求方作用域、落点、账本与守卫                                                                                                                               | [获取与租约](../SPEC.md#获取与租约)                                                                           |
 | `EnvironmentDescription`    | 类型 | 一个作用域内一次获取的描述：获取键、原调用、绑定层、提供者、实例、连续性、设施键与状态                                                                                                         | [INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)                                            |
-| `EnvironmentAction`         | 类型 | 环境授权端口判定的动作：解析落点、获取、查询本地获取、查询原获取、列出作用域                                                                                                                   | [访问核验](../SPEC.md#访问核验)                                                                               |
+| `EnvironmentAction`         | 类型 | 环境授权端口判定的动作：解析落点、获取、查询本地获取、查询原获取、列出作用域、按保留范围观察                                                                                                   | [访问核验](../SPEC.md#访问核验)                                                                               |
 | `EnvironmentAuthority`      | 接口 | 需要端口，集成方实现：对访问身份与一个动作答复 Runtime Context 的 `AuthorityDecision`                                                                                                          | 同上                                                                                                          |
-| `ExecutionEnvironment`      | 接口 | 集成方、独立调用者与维护者的操作面：`resolvePlacement`、`acquire`、`inspectAcquisition`、`inspectRecoveryAcquisition`、`describe`、`recoverOwned`、`releaseScope`                              | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复)                                                  |
+| `ExecutionEnvironment`      | 接口 | 集成方、独立调用者与维护者的操作面：`resolvePlacement`、`acquire`、`inspectAcquisition`、`inspectRecoveryAcquisition`、`describe`、`observeRetained`、`recoverOwned`、`releaseScope`           | [获取与租约](../SPEC.md#获取与租约)、[恢复](../SPEC.md#恢复)、[按保留范围观察](../SPEC.md#按保留范围观察)     |
 | `ProviderRegistrations`     | 接口 | 提供者与设施拥有者的登记面：`registerFacility`、`registerProvider`。每次登记返回自己的撤除函数                                                                                                 | [设施协议](../SPEC.md#设施协议)、[INV-EE18](../SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)           |
 
 ### 工具环境声明
@@ -227,7 +239,7 @@ schema 的规则：
 3. 把 `environmentNeedAdoption` 与声明值一起存进工具定义。
 4. 在一个终端里执行一段脚本，读取流式输出与终局。
 
-落在宿主机时，`command` 与 `terminal` 由同一个宿主提供者提供，与 `files` 一样；这两项的宿主提供者现在只有设计，没有实现，见 [execution-environment-host-local 的宿主命令与终端机制](../../execution-environment-host-local/docs/architecture.md#宿主命令与终端机制设计未实现)。这个示例只在类型层面成立，没有提供者，不能单独运行。类型测试 [tests/facility-set.spec-d.ts](../tests/facility-set.spec-d.ts) 导入它，由 `pnpm --filter @omne-harness/execution-environment-contract typecheck`（`tsc -p tsconfig.test.json`）编译。示例与公开入口不一致时，这次编译失败。
+落在宿主机时，`command` 与 `terminal` 由同一个宿主提供者提供，与 `files` 一样；这两项的平台范围见 [execution-environment-host-local 的宿主命令与终端](../../execution-environment-host-local/SPEC.md#宿主命令与终端)。这个示例只在类型层面成立，没有提供者，不能单独运行。类型测试 [tests/facility-set.spec-d.ts](../tests/facility-set.spec-d.ts) 导入它，由 `pnpm --filter @omne-harness/execution-environment-contract typecheck`（`tsc -p tsconfig.test.json`）编译。示例与公开入口不一致时，这次编译失败。
 
 ### 两条块声明
 
@@ -259,7 +271,7 @@ schema 的规则：
 
 精确定义在 [operation-schemas.ts](../src/operation-schemas.ts)。参数是按位置解码的元组，逐项拒绝路径从参数下标开始。登记面的返回值是函数，没有结果 schema。设施自身逐操作 schema 留 Q-EE05。
 
-`operationSchemas` 按九个操作名索引。根入口同时导出 `OperationSchema`、`OperationName`、`providerFactsSchema`、`managedResourceSchema` 与 `originalAcquisitionSchema`。九个参数 schema 与七个结果 schema 见同一源码。`originalAcquisitionSchema` 解码集成方保存的原获取描述：租户按租户文本解码，作用域按完整父级链解码。
+`operationSchemas` 按十个操作名索引。根入口同时导出 `OperationSchema`、`OperationName`、`providerFactsSchema`、`managedResourceSchema` 与 `originalAcquisitionSchema`。十个参数 schema 与八个结果 schema 见同一源码。`originalAcquisitionSchema` 解码集成方保存的原获取描述：租户按租户文本解码，作用域按完整父级链解码。
 
 ### 日期类型
 
@@ -267,7 +279,7 @@ schema 的规则：
 
 ### 测试入口
 
-`@omne-harness/execution-environment-contract/testing` 的入口是 [testing/index.ts](../src/testing/index.ts)。公开定义分别在 [case.ts](../src/testing/case.ts)、[provider-conformance.ts](../src/testing/provider-conformance.ts)、[environment-conformance.ts](../src/testing/environment-conformance.ts)、[doubles.ts](../src/testing/doubles.ts)、[memory-files.ts](../src/testing/memory-files.ts)、[scripted-command.ts](../src/testing/scripted-command.ts)、[scripted-terminal.ts](../src/testing/scripted-terminal.ts) 与 [terminal-conformance.ts](../src/testing/terminal-conformance.ts)。
+`@omne-harness/execution-environment-contract/testing` 的入口是 [testing/index.ts](../src/testing/index.ts)。公开定义分别在 [case.ts](../src/testing/case.ts)、[provider-conformance.ts](../src/testing/provider-conformance.ts)、[environment-conformance.ts](../src/testing/environment-conformance.ts)、[doubles.ts](../src/testing/doubles.ts)、[memory-files.ts](../src/testing/memory-files.ts)、[scripted-command.ts](../src/testing/scripted-command.ts)、[scripted-terminal.ts](../src/testing/scripted-terminal.ts)、[terminal-conformance.ts](../src/testing/terminal-conformance.ts) 与 [command-retention-conformance.ts](../src/testing/command-retention-conformance.ts)。
 
 `environmentProviderConformance` 与 `executionEnvironmentConformance` 返回独立用例列表，每条用例新建主体并在结束时清理。`runConformanceCase` 只把 `NotApplicable` 转成不适用，其余断言和清理失败照常抛出。未提供在途操作控制钩子时，对应排空用例记为不适用，不能算通过。`executionEnvironmentConformance` 的 `subject` 收到套件给的环境授权端口与可信绑定来源，套件把主体的作用域绑定到 `access` 的租户，并保留脚本控制。恢复相关用例需要主体给出它的恢复授权接受的 `recoveryAccess`；缺少时记为不适用。替身 `createScriptedEnvironmentAuthority` 默认对每个动作答已授权，`revokeAll` 之后此前答复的 `current()` 都为假；`createScriptedScopeBindings` 只信任测试绑定的作用域。脚本提供者的原获取记录只在替身对象内，不代表真实提供者的保管。替身 `durability` 为 `none`，只用于进程内验证。套件不证明耐久账本、真实隔离或设施外部效果。
 
@@ -285,6 +297,6 @@ schema 的规则：
 两个替身的行为：
 
 - `createMemoryFileSystem` 给出内存文件设施 `facility`。替身建立时自己建立授予根，整棵内存树都在根内。文件请求与租约都不带根。路径只能是相对路径：绝对路径答 `rejected/invalidInput`，越过根的 `..` 答 `rejected/notAuthorized`。替身沿内存树逐段解析路径：`..` 之前的一段不存在或是文件时，路径未解析；文件路径带结尾的 `/` 时，路径也未解析。新建写入的父路径不是目录时答 `rejected/notFound`。它实现读取、查看、写入、关闭与列表。关闭时先核对路径：路径上没有对象，或对象不是 `named`，答 `rejected/conflict`。路径与 `named` 相符而句柄不是替身为该对象发出的，答 `rejected/invalidInput`。列表的 `limit` 须是正的安全整数，`0` 答 `rejected/invalidInput`。替换写入的 `expectedVersion` 不符时答 `rejected/conflict`，内容不变。其余七项操作答 `rejected/unsupported`。`objectToken` 给出路径现在所指对象的令牌，供调用方填 `named`；`''` 指授予根。`peek` 读出文件字节的副本，它不是设施调用。版本是 `v` 加每个对象的修订号，从 `v1` 起，每次写入加一。这比宿主文件的版本强，所以替身上的测试不证明真实提供者的版本粒度。
-- `createScriptedCommandFacility` 给出命令设施 `facility`。脚本对每次受理的 `start` 答复启动成功、`rejected` 或 `unknown`。启动成功时，替身按脚本交出输出块，`observedOffset` 按每一路累计，再给出终局。输出块的流或脚本终局的输出模式与请求的 `outputMode` 不符时，`start` 抛出 `TypeError`，这是脚本错误。`runs: 'untilStop'` 的进程在确认的停止之前不结束输出与终局。`stop` 按脚本答 `confirmed` 或 `unconfirmed`，记入 `stops`。替身不启动真实进程，也不读取宿主环境。
+- `createScriptedCommandFacility` 给出命令设施 `facility`。脚本对每次受理的 `start` 答复启动成功、`rejected` 或 `unknown`。启动成功时，替身按脚本交出输出块，`observedOffset` 按每一路累计，再给出终局。输出块的流或脚本终局的输出模式与请求的 `outputMode` 不符时，`start` 抛出 `TypeError`，这是脚本错误。`runs: 'untilStop'` 的进程在确认的停止之前不结束输出与终局。`stop` 按脚本答 `confirmed` 或 `unconfirmed`，记入 `stops`。给出 `retention` 选项时，替身像保留进程的提供者那样处置脚本里 `leaves` 的进程，并交出保留进程扩展：`retention.stop` 立即停止并确认，已停止的进程按收场事实答 `confirmed`，选项 `ended: false` 时答 `rejected/unavailable`；`retention.output` 把脚本的 `afterHandover` 块作为尾部交出，不丢弃字节；选项 `refuse` 列出的操作答 `rejected/notAuthorized`。`createScriptedRetentionStore` 的 `stopsIssued` 读出每个保留进程被发出停止的次数。替身不启动真实进程，也不读取宿主环境。
 
 两个替身的 `close()` 之后，新操作答 `rejected/closed` 且不改动任何内容。命令替身已交出的进程不受 `close()` 影响。调用方在脚本提供者的 `retire` 脚本里调用两个替身的 `close()`，提供者套件的退役用例因此可以检验已持设施。两个替身的 `durability` 为 `none`。它们只证明契约形状与判据，不证明真实进程、文件系统、授予根核对或隔离。

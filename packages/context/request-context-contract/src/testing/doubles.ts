@@ -13,7 +13,9 @@ import type { RecordEntryRef } from '@omne-harness/message'
 import { canonical, digest, textBlock } from '../internal.js'
 export type MeterScript = (
   input: Parameters<M.ModelInputMeter['measure']>[0],
-) => Outcome<M.RequestBudget, M.TransportFailure>
+) =>
+  | Outcome<M.RequestBudget, M.TransportFailure>
+  | Promise<Outcome<M.RequestBudget, M.TransportFailure>>
 export interface ScriptedInputMeter extends M.ModelInputMeter {
   readonly durability: 'none'
   calls(): number
@@ -27,7 +29,7 @@ export function createScriptedInputMeter(
     durability: 'none',
     basis,
     calls: () => count,
-    measure(input) {
+    async measure(input) {
       count++
       return script(input)
     },
@@ -84,7 +86,7 @@ export function createScriptedPreparationResources<P>(
           },
         }))
       const bindings = input.profile.definition.suppliers.map(supplier => ({
-        supplier: { ...supplier, credential: { kind: 'factory' as const } },
+        supplier: { ...supplier, credential: { layer: 'official' as const } },
         rules: {
           plan(value: Parameters<M.ModelRequestRules['plan']>[0]) {
             seen.push(value.assembled)

@@ -1,3 +1,5 @@
+import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
+import { LOCAL_TOKENIZERS } from '../../../src/local/operator-defaults.ts'
 // The `model-records` and `model-host` rows on the real storage rows (B3-M, `tmp/wire-model/design.md`):
 // real SQLite storage, the real `session-storage`, `authorization`, `model-profiles`,
 // `model-request-preparation` and `model-credential` rows, the release entry objects, and the
@@ -13,7 +15,11 @@ import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Principal, TenantStandingReading } from '@omne-harness/identity'
-import { TenantStandingSourceService, tenantStandingKey } from '@omne-harness/identity/cordis'
+import {
+  TenantStandingSourceService,
+  identityGovernanceKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { decodeModelCallId, decodeModelOperationId } from '@omne-harness/model-contract'
 import type { ModelRuntime } from '@omne-harness/model-contract'
@@ -23,6 +29,7 @@ import {
   ModelRuntimeService,
   ModelSendBoundaryService,
   modelCommandsKey,
+  modelDiagnosticsKey,
   modelHostAuthorityKey,
   modelRuntimeKey,
   modelSendBoundaryKey,
@@ -40,15 +47,17 @@ import {
 import { storageHost } from '../../../src/entry/storage-host.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { authorization } from '../../../src/rows/authorization/row.ts'
+import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { lateBoundSendBoundary, modelHostRow } from '../../../src/rows/model-host/index.ts'
 import { modelCredentialRow } from '../../../src/rows/model-credential/index.ts'
+import { secretCustodyRow } from '../../../src/rows/secret-custody/index.ts'
 import { modelProfilesRow } from '../../../src/rows/model-profiles/index.ts'
 import { modelRecordsRow } from '../../../src/rows/model-records/index.ts'
 import { modelRequestPreparationRow } from '../../../src/rows/model-request-preparation/index.ts'
 import { sessionStorageRow } from '../../../src/rows/session-storage/index.ts'
 import { storageRow } from '../../../src/rows/storage/index.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
-import { modelRowsOperatorConfig } from '../../r9/support.ts'
+import { modelRowsOperatorConfig, seedTestVault } from '../../r9/support.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 import { TENANT, withLiveRows } from './support.ts'
 
@@ -69,11 +78,19 @@ const MEMBER: TenantStandingReading = Object.freeze({
   evidence: { record: 'standing:fixture', revision: '1' },
 })
 
-/** Stands for the `identity` row: the standing of the fixture tenant is `member`, every other tenant is not. */
+/**
+ * Stands for the `identity` row: the standing of the fixture tenant is `member`, every other tenant is
+ * not. It also provides `identityGovernance`, which the `authorization` row injects for the login check
+ * of a user principal; no case here asks it, every caller is a system or work principal.
+ */
 const identityStandIn = defineRow({
   row: 'identity',
   implementation: 'contract-double',
-  manifest: { provides: [tenantStandingKey], injects: [], sameProviderGroup: null },
+  manifest: {
+    provides: [tenantStandingKey, identityGovernanceKey],
+    injects: [],
+    sameProviderGroup: null,
+  },
   lifecycle: { kind: 'none' },
   plugin: {
     name: 'identity-stand-in',
@@ -90,6 +107,9 @@ const identityStandIn = defineRow({
           )
       }
       new Standing(ctx)
+      ctx.provide(identityGovernanceKey, {
+        queryCurrentTenant: () => Promise.reject(new Error('identityGovernance is not asked')),
+      })
     },
   },
 })
@@ -129,11 +149,12 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
       id: 'session-storage',
       plugin: 'sessionStorageRow',
       config: {
-        combinationVersion: 'session-composite/4',
+        combinationVersion: COMBINATION_VERSION,
         directoryFile: join(storageRoot, 'tenant-domains.json'),
         domainRule: 'organization-account/1',
       },
     },
+    { id: 'model-tokenizers', plugin: 'modelTokenizersRow', config: LOCAL_TOKENIZERS },
     { id: 'model-profiles', plugin: 'modelProfilesRow', config: model.profiles },
     {
       id: 'model-request-preparation',
@@ -141,7 +162,14 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
       config: model.preparation,
     },
     ...(options.credential
-      ? [{ id: 'model-credential', plugin: 'modelCredentialRow', config: model.credential }]
+      ? [
+          { id: 'model-credential', plugin: 'modelCredentialRow', config: {} },
+          {
+            id: 'secret-custody',
+            plugin: 'secretCustodyRow',
+            config: { path: seedTestVault(model.vault) },
+          },
+        ]
       : []),
     { id: 'model-records', plugin: 'modelRecordsRow', config: model.records },
     { id: 'model-host', plugin: 'modelHostRow', config: model.host },
@@ -149,6 +177,7 @@ function rowsOf(storageRoot: string, options: { credential: boolean }) {
 }
 
 const plugins = {
+  modelTokenizersRow,
   stubPlugin,
   storageRow,
   identityStandIn,
@@ -157,6 +186,7 @@ const plugins = {
   modelProfilesRow,
   modelRequestPreparationRow,
   modelCredentialRow,
+  secretCustodyRow,
   modelRecordsRow,
   modelHostRow,
 }
@@ -178,7 +208,7 @@ describe('the model-records and model-host rows', () => {
       row: 'model-records',
       implementation: 'real',
       manifest: {
-        provides: [modelCommandsKey, modelSendBoundaryKey],
+        provides: [modelCommandsKey, modelSendBoundaryKey, modelDiagnosticsKey],
         injects: [
           'storage',
           'tenantDomainLookup',
@@ -187,6 +217,7 @@ describe('the model-records and model-host rows', () => {
           'tenantStanding',
         ],
         phase: null,
+        sameProviderGroup: 'model-records',
       },
     })
     expect(rowDeclarationOf(modelHostRow)).toMatchObject({
@@ -262,7 +293,7 @@ describe('the model-records and model-host rows', () => {
       expect(value.seen).toEqual({
         failure: { kind: 'invalid', field: 'call', reason: 'not-found' },
       })
-      expect(value.denied).toEqual({ failure: { kind: 'denied', action: 'account' } })
+      expect(value.denied).toEqual({ failure: { kind: 'denied', action: 'read-account' } })
       expect(value.direct).toMatchObject({
         failure: { kind: 'unavailable', dependency: 'model-access-qualification' },
       })
@@ -312,6 +343,29 @@ describe('the model-records and model-host rows', () => {
           diagnostic: 'send boundary is not provided',
         },
       })
+    },
+  )
+
+  it(
+    'keeps durable commands available when the shared tokenizer provider is absent',
+    { timeout: 60_000 },
+    async () => {
+      const { storageRoot } = workspace()
+      const { value, run } = await withLiveRows(
+        {
+          rows: rowsOf(storageRoot, { credential: true }).filter(
+            row => row.id !== 'model-tokenizers' && row.id !== 'model-request-preparation',
+          ),
+          plugins,
+          entryObjects,
+          probe: [modelCommandsKey, modelRuntimeKey],
+        },
+        ctx => ({ commands: ctx.get(modelCommandsKey), boundary: ctx.get(modelSendBoundaryKey) }),
+      )
+      expect(run.result.exitCode).toBe(0)
+      expect(run.state('model-records')).toMatchObject({ state: 'ACTIVE' })
+      expect(value.commands).toBeDefined()
+      expect(value.boundary).toBeUndefined()
     },
   )
 

@@ -29,6 +29,7 @@ export const operationFaces: Readonly<Record<ServiceOperation, ServiceFace>> = O
   acquire: 'environment',
   inspectAcquisition: 'environment',
   describe: 'environment',
+  observeRetained: 'environment',
   inspectRecoveryAcquisition: 'recovery',
   recoverOwned: 'recovery',
   releaseScope: 'recovery',
@@ -122,6 +123,16 @@ export abstract class ExecutionEnvironmentService<P>
   protected abstract onDescribe(
     ...args: Operation<P, 'describe'>['args']
   ): Operation<P, 'describe'>['result']
+  observeRetained(
+    ...args: Operation<P, 'observeRetained'>['args']
+  ): Operation<P, 'observeRetained'>['result'] {
+    if (this.callerRefusal('observeRetained'))
+      return Promise.resolve({ kind: 'rejected', reason: 'callerMismatch' })
+    return this.onObserveRetained(...args)
+  }
+  protected abstract onObserveRetained(
+    ...args: Operation<P, 'observeRetained'>['args']
+  ): Operation<P, 'observeRetained'>['result']
   recoverOwned(
     ...args: Operation<P, 'recoverOwned'>['args']
   ): Operation<P, 'recoverOwned'>['result'] {

@@ -3,6 +3,7 @@
 import { IncomingMessage, type ServerResponse } from 'node:http'
 import type { ProviderDiagnostic, TransportFact } from '@omne-harness/model-contract/provider'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import type { PiCredentialSlot, PiRouteAuth } from '../src/index.ts'
 import type { NetworkInternals } from '../src/network.ts'
 import { network, settle, watch } from './support/exchange.ts'
 import {
@@ -44,11 +45,19 @@ type Scene = Readonly<{
 async function withTransport(
   handler: RequestHandler,
   body: (scene: Scene) => Promise<void>,
-  options: Readonly<{ maxConnections?: number }> = {},
+  options: Readonly<{
+    maxConnections?: number
+    auth?: PiRouteAuth
+    credential?: PiCredentialSlot
+  }> = {},
 ): Promise<void> {
   const server = await startHttpsServer(certificate, handler)
   const resources = network(server.ca, { maxConnections: options.maxConnections ?? 1 })
-  const transport = transportOver(resources, { url: new URL(PATH, server.url).href })
+  const transport = transportOver(resources, {
+    url: new URL(PATH, server.url).href,
+    ...(options.auth !== undefined && { auth: options.auth }),
+    ...(options.credential !== undefined && { credential: options.credential }),
+  })
   try {
     await body({ server, resources, transport })
   } finally {
@@ -100,6 +109,42 @@ describe('a start that sends', () => {
     )
   })
 
+  it('sends the secret of the route item as the bearer, whatever other items the slot holds', async () => {
+    await withTransport(
+      res => answerSse(res, sseBody(STOP)),
+      async ({ server, transport }) => {
+        const arrival = server.nextRequest()
+        await collect((await transport.materialize()).start(new AbortController().signal))
+        expect((await arrival).headers.authorization).toBe('Bearer route-secret')
+      },
+      {
+        auth: { kind: 'bearer', item: 'token' },
+        credential: {
+          read: () =>
+            new Map([
+              ['apiKey', 'other-secret'],
+              ['token', 'route-secret'],
+            ]),
+        },
+      },
+    )
+  })
+
+  it('sends no authorization for a route without a credential item, with an empty slot', async () => {
+    await withTransport(
+      res => answerSse(res, sseBody(STOP)),
+      async ({ server, transport }) => {
+        const arrival = server.nextRequest()
+        const facts = await collect(
+          (await transport.materialize()).start(new AbortController().signal),
+        )
+        expect(facts.at(-1)).toEqual(COMPLETED)
+        expect((await arrival).headers.authorization).toBeUndefined()
+      },
+      { auth: null, credential: { read: () => new Map() } },
+    )
+  })
+
   it('gives the diagnostics of the encoding after the send, before the facts of the response', async () => {
     const [first] = fixedRequest(testRecord()).messages
     if (first === undefined) throw new Error('the test request has a message')
@@ -107,7 +152,7 @@ describe('a start that sends', () => {
       {
         kind: 'replay-omitted',
         message: first.id,
-        scope: 'test-recipient/other-model',
+        scope: 'test-provider/other-model',
         format: 'test-v1',
         omittedParts: 2,
       },

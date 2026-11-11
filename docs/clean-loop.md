@@ -36,11 +36,12 @@
 
 **四条硬线**（破了不许合并，其余一律只报告）：
 
-1. 依赖方向与环——`pnpm run lint:rules` 的方向规则，`pnpm run loop:status` 也会标出。
+1. 依赖方向与环——`pnpm run lint:rules` 的方向规则与 `pnpm run lint:deps`，`pnpm run loop:status` 也会标出。
 2. 验收没有被实施者改动——`pnpm run acceptance:lock`。
-3. 主线保持绿——合并前，在待合并的提交上计算好影响面，再运行受影响、因此需要执行的检查。检查范围包括所需的构建、类型检查、测试和可执行验收，以及共同硬线检查。交付说明记录基线、提交、范围、依据与结果。准入只有一步失败时按[增量准入](engineering/integration.md#增量准入)提供证据；波末收口的全量准入，在树与一个已通过全量准入的头相同时，按[树相同时复用准入](engineering/integration.md#树相同时复用准入)。`pnpm run check` 按影响面打印计划并执行这些检查；未选中的检查没有运行，交付说明应如实列出。
-4. 传感器有数据——一项指标量不出来不等于它是好的。严格模式（`pnpm run loop:status --strict --out …`）下，
-   配置里开着的传感器有哪个没数据就判失败并指名；传感器自己会不会悄悄失灵，由一份种了已知违规的小夹具每次跟着测试跑来守。
+3. 主线保持绿——合并前，在待合并的提交上计算好影响面，再运行受影响、因此需要执行的检查。检查范围包括所需的构建、类型检查、测试和可执行验收，以及共同硬线检查。交付说明记录基线、提交、范围、依据与结果。准入只有一步失败时的增量接续，以及树与已通过准入的头相同时的复用，机制见[准入的运行记录与接续](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。`pnpm run check` 按影响面打印计划并执行这些检查；未选中的检查没有运行，交付说明应如实列出。
+4. 传感器有数据——一项指标量不出来不等于它是好的。传感器自己会不会悄悄失灵，由一份种了已知违规的小夹具每次跟着
+   `tools/repo-toolchain` 的测试跑来守，测试失败就挡合并。严格模式（`pnpm run loop:status --strict --out …`）下，
+   配置里开着的传感器有哪个没数据就判失败并指名；它不在准入里，在 mainline 提升 main 时跑，结果贴在提升 PR 上，只报告不挡。
 
 **成员测试的结果缓存不属于硬线。**成员测试一步读写结果缓存。一个成员某一层的缓存命中，表示在同一台机器上、同样的输入下有过一次完整通过，这次没有再跑。
 
@@ -51,18 +52,18 @@
 - 依赖图也有缓存，它直接决定硬线 1 的方向与环、硬线 4 的读数。准入时它同样不读，所以合并前的硬线判断不含命中；本地非准入的 `pnpm run check` 会读它。
 - 细则见 [test-runner 的结果缓存](../tools/test-runner/README_ZH.md#测试运行)与 [repo-toolchain 的依赖图](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则)。
 
-`--strict --scope engineering` 是 `omne-loop-status` 的工程范围严格模式，需要时显式传入；`pnpm run check` 的严格一步不传 `--scope`。只有当前树、固定 targetBase、实际 merge-base 和每个 taskBase 均无受维护产品源码与测试时，duplication 与 assertions 的无数据读数才标为工程范围不适用。
+`--strict --scope engineering` 是 `omne-loop-status` 的工程范围严格模式，需要时显式传入；提升 main 时的严格一步不传 `--scope`。只有当前树、固定 targetBase、实际 merge-base 和每个 taskBase 均无受维护产品源码与测试时，duplication 与 assertions 的无数据读数才标为工程范围不适用。
 原始 no-data 保留，报告给出精确提交与计数。任何一处仍有输入、基线未知、读取失败或其他启用传感器无数据，均不能用此范围放行。
 关闭的传感器单列 off。普通本地检查与默认 strict 继续要求所有启用传感器有数据；方向、环与验收锁在两种范围中都生效。
 
-**第一、二、四条都接在严格模式的回路状态中**，`pnpm run check` 把它放在最后一步。手动执行受影响范围时，也要完成这三条共同硬线检查。
+**准入里各条硬线的位置**：第一条是 `pnpm run check` 的常驻步骤 `lint:rules` 与 `lint:deps`，第二条是常驻步骤 `acceptance:lock`（按准入的基线核），第三条由所需检查本身支撑；第四条的金丝雀随成员测试跑，严格模式的回路状态不在准入里。手动执行受影响范围时，也要完成第一、二条的检查。
 远程 CI 关着的时候，本地检查证据就是合并前的门。通过受影响范围的检查，不表示未执行的检查也通过。
 
 **要解释的不替历史交代**：「这次变更里要解释的红项」里的函数，只列碰过、超线、且比基线涨了或新出现的；
 原来就在线外、这次没有变差的只数个数。agent 改一行存量的大函数不必替它的历史交代，让它更糟才要。
 
 **收工时的反馈**：agent 收工的那一刻，若这次变更碰了产品源码或架构预期、且有要报告的读数，宿主的收工钩子会把那几条读数作为事实交还给它——
-只说位置与数值，不说该怎么改；同一分支上同一组读数只说一次，钩子自己出错从不拦人。它是提醒，不是门：
+只说位置与数值，不说该怎么改；只说比这棵工作树这条分支上一次量到的新出现或变差的，没有就不出声；钩子只量自己所在的工作树，退回到别的检出时只说「量不了」；钩子自己出错从不拦人。它是提醒，不是门：
 没被提醒不等于没有红项，交代了没有仍由交付说明与接受的人核对。没有 task context 时，钩子的基线是主线与活跃集成轨道里离 HEAD 最近的合并点，细则见[收工钩子](../tools/repo-toolchain/README_ZH.md#收工钩子)。怎么生效、怎么关，见[宿主钩子的源](../.meta_harness/agents/hooks/README.md)。
 
 **长期验证跟着场景走。**验收场景和声明覆盖它们的可执行验收随产品持续维护，不按任务数量复制。`pnpm run acceptance:scenarios`分别报告当前产品的覆盖声明、执行与接受；缺编号场景的topic单列未覆盖。覆盖声明不证明验收已执行、通过或交付已接受。实际运行和接受分别核对。合并前按影响面选择必要验收，验收耗时由传感器报告。放置和维护规则归[源码布局](workspace.md#目录与内容归属)。
@@ -76,17 +77,19 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 
 | 想知道 | 跑什么 |
 |---|---|
-| 这次改动的结构与度量 | `pnpm run metrics`，摘要原样贴进交付说明 |
-| 改动碰到的代码，测试守不守得住 | `pnpm run mutation`，**只报告、不画线**：改动行上存活与无覆盖的变异体原样贴进交付说明，读数攒在主检出的 `tmp/mutation-ledger/` |
+| 这次改动的结构与度量 | `pnpm run closeout:metrics -- --base <起点>`，摘要原样贴进交付说明 |
+| 改动碰到的代码，测试守不守得住 | `pnpm run closeout:mutation -- --base <起点>`，**只报告、不画线**：改动行上存活与无覆盖的变异体原样贴进交付说明，读数写在工作树外的 `omne-closeout/` 目录 |
 | 各项指标的带位、这次变更里要解释的红项、哪些成员超了预算 | `pnpm run loop:status` |
 | 验收有没有被动过 | `pnpm run acceptance:lock` |
 | 场景的验收覆盖声明及工具状态标签 | `pnpm run acceptance:scenarios` |
 | 只跑可执行验收 | `pnpm run acceptance`（缺省先构建；`pnpm run check` 里它排在构建之后） |
-| 合并前三条硬线（方向与环、验收锁、传感器有数据）破没破 | `pnpm run check` 的最后一步；单独跑是 `pnpm run loop:status --strict --out <目录>`，之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
+| 合并前第一、二条硬线（方向与环、验收锁）破没破 | `pnpm run check` 的常驻步骤 `lint:rules`、`lint:deps` 与 `acceptance:lock` |
+| 一程改动里的克隆、成员预算、传感器有没有数据 | 一程全量读数时（全部切片收口之后、交付声明之前）跑 `pnpm run loop:status --base <一程起点> --out <目录>`，红项与结构读数一样逐条交代；这几项收工钩子不报，准入也不跑 |
+| 整仓健康读数：开着的传感器都有数据、成员预算、重复代码、趋势 | mainline 提升 main 时跑 `pnpm run loop:status --strict --out <目录>`，摘要贴在提升 PR 上，只报告不挡；之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
 | 在主线上留一条趋势 | 干净的主线提交上跑 `pnpm run loop:status`，它自己追加一条快照；别的提交上要留就加 `--snapshot` |
 | 提交大小、测试耗时与结构指标的走向 | `pnpm run loop:health`，出一张离线可开的页面 |
 
-表中的命令按同一条规则取基线：绑定了任务的树不给 `--base`，取任务上下文的 `targetBase`，给了不相等的 `--base` 会被拒绝；没有绑定任务时给 `--base <任务基线>`。规则见 [tools/test-runner](../tools/test-runner/README_ZH.md#测试运行)。
+表中的命令按同一条规则取基线，见[迭代中的受影响测试](development.md#迭代中的受影响测试)。
 
 每个入口覆盖什么、**不能声称什么**，在[验证与证据](verification.md#检查入口)；传感器各自的算法、出处与查不出的东西，在
 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md)。这里不抄第二份。
@@ -96,7 +99,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 超预算的成员由 `pnpm run loop:status` 生成清理草稿，落在主检出的 `tmp/clean-loop/proposals/`。草稿只列事实与边界：
 要清理的条目（带位置）、行为锁（现有测试只读）、解除条件（回落到解除线及以下）、不许动的东西。
 
-**草稿不是派发。**主会话把草稿报给负责人，负责人批准之后才按[清理任务的派发模板](../.meta_harness/agents/roles/cleanup-task.md)派出去；
+**草稿不是派发。**主会话把草稿报给负责人，负责人批准之后才按[清理任务的派发模板](clean-loop-cleanup-task.md)派出去；
 实施的 agent 平时只在它正在改的文件里顺手清理，范围之外的列为清理候选，不自己动手。
 
 ## 条目对照表
@@ -116,7 +119,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 各类条数由 `pnpm run loop:status` 数出来，不在这里手写。
 
 评审问法指到的三份判据：设计评审的[「选择」判据](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/review/choice.md)
-（下面简称「选择」）、[实现评审检查表](../.meta_harness/agents/roles/implementation-review-checklist.md)（简称「检查表」，后面的数字是第几问）、
+（下面简称「选择」）、[实现评审检查表](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/.meta_harness/agents/roles/implementation-review-checklist.md)（已退役，链接指向固定提交；简称「检查表」，后面的数字是第几问）、
 手册的[判断](defensive-patterns.md#dp-10-规格实现与证据对齐)。
 「研发品味」指[这一份](../.meta_harness/agents/roles/engineering-taste.md)。
 
@@ -171,7 +174,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 | 誓言（十条） | 不适用 | 总目，逐条见本表别处 | 已有 |
 | 伦理论据 | 不适用 | 理由，不是做法 | 已有 |
 | 誓言第四条·小周期 | 传感器 | 提交的大小（`pnpm run metrics` 摘要里的每提交文件数）、并行工作树数；逐卡并入主线 | 已有 |
-| 誓言第五条·持续改进 | 传感器 | 覆盖率与 CRAP（`pnpm run metrics --coverage`）；改动行上的变异测试（`pnpm run mutation`，只报告） | 已有 |
+| 誓言第五条·持续改进 | 传感器 | 覆盖率与 CRAP（`pnpm run metrics --coverage`）；改动行上的变异测试（`pnpm run closeout:mutation`，只报告） | 已有 |
 | 权责在人（AI 场景） | 归人 | 同「承担责任」 | 已有 |
 | 用词 | 不适用 | 措辞偏好 | 已有 |
 
@@ -323,8 +326,8 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 | 测试设计 | 不适用 | 讲测试替身的写法；这里的约定是基础设施包不提供内存实现、测试用临时文件库 | 已有 |
 | 验收测试 | 传感器 | 验收在实施者够不着的地方：验收锁（硬线二） | 已有 |
 | 覆盖率 | 传感器 | `pnpm run metrics --coverage`。覆盖率高不等于行为对，见[验证与证据](verification.md#检查入口) | 已有 |
-| 变异测试与语义稳定性 | 传感器 | `pnpm run mutation`：改动行上的代码被改坏时有没有测试失败，只跑快层；**只报告、不画线**，判定会抖，存活的要复跑确认 | 已有 |
-| 测试比代码难改 | 传感器 | 验收锁：实施者改不了验收。测试锁没锁住代码，由 `pnpm run mutation` 在改动行上量（只报告） | 已有 |
+| 变异测试与语义稳定性 | 传感器 | `pnpm run closeout:mutation`：改动行上的代码被改坏时有没有测试失败，只跑快层；**只报告、不画线**，判定会抖，存活的要复跑确认 | 已有 |
+| 测试比代码难改 | 传感器 | 验收锁：实施者改不了验收。测试锁没锁住代码，由 `pnpm run closeout:mutation` 在改动行上量（只报告） | 已有 |
 | 属性测试、性能测试、抖动测试 | 归人 | 哪些成员值得上由负责人定；不变量一侧由形式任务承担 | 已有 |
 | 类型在测试时检查 | 不采 | 守严格类型检查；类型测试（`*.spec-d.ts`）是加在它上面的，不是替它 | 已有 |
 
@@ -358,4 +361,4 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 
 ## 集成上下文的读数
 
-[分支集成](engineering/integration.md)已采用时，回路检查读取实际 subject 的 targetBase 及各卡不可变审计范围。hook 与 worktree sensor 分别读取每棵树，不把调用者的基线套给其他树。缺采用输入会报告错误或 unknown；全局 main 趋势保持原含义。四条硬线及数值反馈政策不变。
+绑定了任务的工作树上，回路检查读取该树的 targetBase 及不可变审计范围，规则见[迭代中的受影响测试](development.md#迭代中的受影响测试)。hook 与 worktree sensor 分别读取每棵树，不把调用者的基线套给其他树。缺输入会报告错误或 unknown；全局 main 趋势保持原含义。

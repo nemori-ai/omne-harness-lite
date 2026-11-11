@@ -7,6 +7,7 @@ packages:
   - tools/test-runner
   - tools/artifact-builder
   - tools/repo-config
+  - tools/pqw-adapter
 
 # 普通版本号只从 registry 解析，不链接到同名的工作区成员；工作区成员之间要链接就写 workspace:。
 # 检查器的钉子依赖这一条：钉住的 repo-toolchain、repo-config 必须装 npm 上的包。
@@ -59,13 +60,17 @@ catalog:
   '@eslint-community/regexpp': 4.12.2
   '@jscpd/core': 4.0.1
   '@jscpd/tokenizer': 4.0.1
-  '@stryker-mutator/api': 10.0.0
-  '@stryker-mutator/core': 10.0.0
-  '@stryker-mutator/vitest-runner': 10.0.0
+  '@stryker-mutator/api': 10.1.1
+  '@stryker-mutator/core': 10.1.1
+  '@stryker-mutator/vitest-runner': 10.1.1
 
 # 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。
 onlyBuiltDependencies:
   - node-pty@1.1.0
+
+# node-pty 1.1.0 的 macOS 预编译包里 spawn-helper 没有可执行位，postinstall 也不补；补丁只把它改成 0755。
+patchedDependencies:
+  node-pty@1.1.0: patches/node-pty@1.1.0.patch
 
 # dependency-cruiser 18 只认 TypeScript 6 以下的编译器，没有它就不解析 .ts。只给它补一份 TypeScript 6，成员仍用 catalog 的 TypeScript 7。
 packageExtensions:

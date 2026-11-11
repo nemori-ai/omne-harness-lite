@@ -1,3 +1,13 @@
+import { readPublishedInquiry } from '../../../src/rows/authorization/published-inquiry.ts'
+import '../../../src/rows/session-ad03/modes.ts'
+import { modesInitialization } from '../../../src/assembly/session-modes-initialization.ts'
+import { sessionAd03Row } from '../../../src/rows/session-ad03/index.ts'
+import { sessionModesPrincipals } from '../../../src/entry/session-modes-principals.ts'
+import { sessionModesIssuerOf, sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
+import { scopedRuntimeContextTrust } from '../../../src/entry/execution-wiring.ts'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
+import { contextScopeOf } from '@omne-harness/session-contract'
+import { sessionInquiryBinding } from '@omne-harness/session-adapters/cordis'
 // @module-tag slow
 // R2-D7: the first `create` of a tenant over the release rows of the Session path. Real rows:
 // `storage`, `session-storage`, `agent-adoptions` (the mapping of `config/serve.distribution.json`),
@@ -9,14 +19,13 @@
 // is in SQLite: a tree started again over the same storage reads it back. A creation that the mapping
 // does not hold is `invalid` and creates nothing.
 //
-// The `coding` definition names Files and Shell as resident tools (G-RESIDENTS, R2-D159). Its cases
+// The `coding` definition names Files, Shell, Tools and TodoItems as resident tools. Its cases
 // add the real Tool rows `tool-bindings`, `tool-host` (with the operator construction of the tests)
-// and `tool-residency` on the release entry objects. The release registrant loads the two authors
-// before the creation, because nothing in the release tree loads them yet (row page of
-// `adoption-sources`). Without the Tool rows the creation fails closed and creates nothing.
+// and `tool-residency` on the release entry objects, with the local operator's storage configuration.
+// Without the Tool rows the creation fails closed and creates nothing.
 // Slow: a real SQLite tree per case.
 import { readFileSync } from 'node:fs'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { definitionResolverOf } from '@omne-harness/server-entry/cordis'
 import type {
@@ -44,6 +53,7 @@ import {
   type ToolReleaseRegistrant,
 } from '../../../src/entry/tool-release.ts'
 import { toolResidencyPrincipal } from '../../../src/entry/tool-residency-principal.ts'
+import { localOperatorLayer } from '../../../src/local/operator-defaults.ts'
 import { sessionClock } from '../../../src/entry/session-clock.ts'
 import {
   sessionCustodySource,
@@ -59,6 +69,7 @@ import { runtimeContextRow } from '../../../src/rows/runtime-context/index.ts'
 import { sessionAd10Row } from '../../../src/rows/session-ad10/index.ts'
 import { sessionAd12Row } from '../../../src/rows/session-ad12/index.ts'
 import { sessionProviderRealRow } from '../../../src/rows/session-provider/real.ts'
+import { storageRow } from '../../../src/rows/storage/index.ts'
 import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
 import { toolHostRow } from '../../../src/rows/tool-host/index.ts'
 import { toolResidencyRow } from '../../../src/rows/tool-residency/index.ts'
@@ -72,17 +83,19 @@ import {
   type Base,
   type LoadedTree,
 } from '../session-fixtures/tree.ts'
+import { disabledTelemetryRow } from '../telemetry/support.ts'
 import { TENANT_A } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
 type Distribution = Readonly<{ rows: readonly Readonly<{ id: string; config: unknown }>[] }>
+const residentNames = ['Files', 'Shell', 'Tools', 'TodoItems', 'Web']
+const releaseDistribution = JSON.parse(
+  readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
+) as Distribution
 
 /** The `agent-adoptions` configuration of the release distribution. */
 const releaseMapping = (() => {
-  const distribution = JSON.parse(
-    readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
-  ) as Distribution
-  const row = distribution.rows.find(item => item.id === 'agent-adoptions')
+  const row = releaseDistribution.rows.find(item => item.id === 'agent-adoptions')
   if (row === undefined) throw new Error('the release distribution has no agent-adoptions row')
   return row.config
 })()
@@ -116,18 +129,56 @@ afterEach(async () => {
 })
 
 /** `tools: 'release'` adds the real Tool rows and the release entry objects of the tool path. */
-async function start(base: Base, tools: 'none' | 'release' = 'none'): Promise<LoadedTree> {
+async function start(
+  base: Base,
+  tools: 'none' | 'release' = 'none',
+  modes = false,
+): Promise<
+  LoadedTree & {
+    modePrincipal: unknown
+    modeReader: unknown
+    storageProbe: () => Context['storage'] | undefined
+    modesProbe: () => Context['sessionModesInstallation'] | undefined
+  }
+> {
+  let modesProbe: () => Context['sessionModesInstallation'] | undefined = () => undefined
+  let modePrincipal: unknown
+  let modeReader: unknown
+  let storageProbe: () => Context['storage'] | undefined = () => undefined
   const release = tools === 'release'
+  const local = localOperatorLayer({
+    distribution: releaseDistribution,
+    locations: {
+      storageRoot: base.storageRoot,
+      vaultFile: `${base.stateRoot}/vault`,
+      hostFilesDir: base.stateRoot,
+    },
+    settings: {
+      version: 1,
+      port: 8965,
+      workspace: base.stateRoot,
+      shell: '/bin/bash',
+      shellEnvironment: {},
+    },
+    platform: 'linux',
+    shutdownDeadlineMs: 10_000,
+  })
+  const storage = local.ops.find(operation => operation.id === 'storage')
+  if (storage === undefined) throw new Error('the local operator has no storage configuration')
   const tree = await loadTree({
     base,
     rows: [
-      ...storageRows(base).specs,
+      disabledTelemetryRow(),
+      ...storageRows(base).specs.map(spec =>
+        spec.row.id === 'storage' ? declared(storageRow, storage.config) : spec,
+      ),
       identityDouble(),
       declared(agentAdoptionsRow, releaseMapping),
       declared(adoptionSourcesRow),
       declared(sessionAd10Row),
       declared(runtimeContextRow),
       declared(sessionAd12Row),
+      ...(modes ? [declared(sessionAd03Row, { scopeIndexEntries: 100, pageBytes: 1048576 })] : []),
       declared(sessionProviderRealRow, { admission: 'none' }),
       ...(release
         ? [
@@ -140,7 +191,28 @@ async function start(base: Base, tools: 'none' | 'release' = 'none'): Promise<Lo
     entryObjects: [
       ...BASE_ENTRY_OBJECTS,
       sessionClock,
-      runtimeContextTrust,
+      modes ? scopedRuntimeContextTrust : runtimeContextTrust,
+      ...(modes
+        ? [
+            sessionModesPrincipals,
+            {
+              name: 'mode-test-access',
+              implementation: 'contract-double' as const,
+              install(_scope: Context, env: import('../../../src/types.ts').EntryEnv) {
+                storageProbe = () => env.readTrusted('storage').get('storage')
+                modesProbe = () =>
+                  env.readTrusted('sessionModesInstallation').get('sessionModesInstallation')
+                modePrincipal = sessionModesIssuerOf(env)(TENANT_A)
+                const issued = sessionWorkIssuerOf(env)({
+                  tenant: TENANT_A,
+                  session: 'session-modes-live',
+                })
+                if ('failure' in issued) throw new Error('mode reader fixture failed')
+                modeReader = issued.ok
+              },
+            },
+          ]
+        : []),
       sessionProductionSource,
       sessionCustodySource,
       ...(release
@@ -149,7 +221,7 @@ async function start(base: Base, tools: 'none' | 'release' = 'none'): Promise<Lo
     ],
   })
   live.push(() => tree.dispose())
-  return tree
+  return { ...tree, modePrincipal, modeReader, storageProbe, modesProbe }
 }
 
 function faces(tree: LoadedTree, caller: 'intake' | 'coordinator'): SessionService<unknown> {
@@ -185,14 +257,13 @@ async function releaseCreation(
   }
 }
 
-/** What the release tree does not do yet: the registrant loads the two release authors. */
 async function loadReleaseAuthors(tree: LoadedTree): Promise<void> {
   const generations = tree.service<ToolGenerations<unknown, unknown, never>>(toolGenerationsKey)
   const registrant = tree.root.get(TOOL_RELEASE_REGISTRANT_KEY) as ToolReleaseRegistrant | undefined
   if (generations === undefined || registrant === undefined)
     throw new Error('the tree has no tool generations or no release registrant')
   const manifest = formalManifest()
-  for (const name of ['Files', 'Shell']) {
+  for (const name of residentNames) {
     const loaded = await generations.ensureLoaded({
       authority: authorityOf(manifest, name),
       access: registrant,
@@ -278,7 +349,7 @@ describe('the first create of a tenant over the release rows of the Session path
   )
 
   it(
-    '`create` of coding commits Files and Shell as residents; the bindings J06 projects from them are the release asset adoptions',
+    '`create` of coding commits all four residents; J06 projects their release asset adoptions',
     { timeout: 90_000 },
     async () => {
       const base = makeBase()
@@ -299,7 +370,7 @@ describe('the first create of a tenant over the release rows of the Session path
         if (entry === undefined) throw new Error(`no release entry ${name}`)
         return entry.asset.adoption
       }
-      expect(read.ok.residents.map(resident => resident.capability)).toEqual(['Files', 'Shell'])
+      expect(read.ok.residents.map(resident => resident.capability)).toEqual(residentNames)
       // J06's projection (session-adapters `conditions.ts`): owner and digest of `admitted`,
       // the capability as the name, the version as the revision.
       const bindings = read.ok.residents.map(resident => ({
@@ -308,7 +379,7 @@ describe('the first create of a tenant over the release rows of the Session path
         revision: resident.version,
         digest: resident.admitted.digest,
       }))
-      expect(bindings).toEqual([adoptionOf('Files'), adoptionOf('Shell')])
+      expect(bindings).toEqual(residentNames.map(adoptionOf))
     },
   )
 
@@ -372,3 +443,117 @@ describe('the first create of a tenant over the release rows of the Session path
     },
   )
 })
+
+it(
+  'persists initial modes, publishes through the real scope owner, and recalls after reopening SQLite',
+  { timeout: 90000 },
+  async () => {
+    const base = makeBase()
+    live.push(() => base.release())
+    const first = await start(base, 'none', true)
+    const makeInput = async (principal: unknown) => {
+      const input = {
+        principal,
+        tenant: TENANT_A,
+        session: sessionId('session-modes-live'),
+        operation: operationId('create-session-modes-live'),
+        creation: await releaseCreation('assistant'),
+      }
+      return {
+        ...input,
+        creation: { ...input.creation, initialization: modesInitialization(input).initialization },
+      }
+    }
+    const input = await makeInput(first.modePrincipal)
+    const storage = first.storageProbe()
+    if (storage === undefined) throw new Error('no storage')
+    const commits = vi.spyOn(storage, 'commit')
+    const created = await faces(first, 'intake').management.create(input)
+    // Measure the actual evidence-bridge composition, not only Session's inner command.
+    const depthOf = (value: unknown): number =>
+      value !== null && typeof value === 'object'
+        ? 1 + Math.max(0, ...Object.values(value).map(depthOf))
+        : 0
+    const storageRow = releaseDistribution.rows.find(row => row.id === 'storage')
+    if (storageRow === undefined) throw new Error('Release storage row absent')
+    const releaseLimit = (storageRow.config as { maxJsonDepth: number }).maxJsonDepth
+    for (const [request] of commits.mock.calls)
+      for (const command of request.commands)
+        expect(depthOf(command.facts)).toBeLessThan(releaseLimit)
+    if ('failure' in created) throw new Error(JSON.stringify(created.failure))
+    expect(created).toHaveProperty('ok')
+    const scope = decodeScopeRef({ ref: contextScopeOf({ ...input, generation: '1' }) })
+    if ('failure' in scope) throw new Error('bad scope')
+    const liveScope = scope.ok
+    async function read(tree: Awaited<ReturnType<typeof start>>) {
+      const modes = tree.modesProbe()
+      if (modes === undefined) throw new Error('mode installation unavailable')
+      expect(
+        await modes.recoverSession({
+          tenant: input.tenant,
+          session: input.session,
+          scope: liveScope,
+        }),
+      ).toEqual({ kind: 'ready' })
+      const issued = await tree.root.runtimeContextReaderEligibility.current({
+        tenant: TENANT_A,
+        scope: liveScope,
+        principal: tree.modeReader,
+        consumer: 'coordinator',
+      })
+      if (issued.kind !== 'current') throw new Error(JSON.stringify(issued))
+      expect(issued).toHaveProperty('kind', 'current')
+      const binding = await tree.root
+        .intercept('runtimeContext', { consumer: 'coordinator' })
+        .runtimeContext.bind(issued.eligibility)
+      if (binding.kind !== 'bound') throw new Error(JSON.stringify(binding))
+      expect(binding).toHaveProperty('kind', 'bound')
+      return binding.reader.read([
+        { need: sessionInquiryBinding.need.name, key: sessionInquiryBinding.key },
+      ])
+    }
+    // The coding entry of the release adopts `bypass-permissions`, which publishes `skip-ask`.
+    const published = {
+      kind: 'success',
+      value: [
+        {
+          value: {
+            inquiry: { policy: { onAsk: 'skip-ask' } },
+            basis: { session: input.session, permissionRevision: '0' },
+          },
+        },
+      ],
+    }
+    async function readForPermission(tree: Awaited<ReturnType<typeof start>>) {
+      const modes = tree.modesProbe()
+      if (modes === undefined) throw new Error('mode installation unavailable')
+      return readPublishedInquiry(
+        {
+          work: faces(tree, 'coordinator').work,
+          eligibility: tree.root.runtimeContextReaderEligibility,
+          runtime: tree.root.intercept('runtimeContext', { consumer: 'coordinator' })
+            .runtimeContext,
+          recoverSession: input => modes.recoverSession(input),
+        },
+        { principal: tree.modeReader, tenant: input.tenant, session: input.session },
+      )
+    }
+    const expectedInquiry = {
+      inquiry: { policy: { onAsk: 'skip-ask' } },
+      basis: { session: input.session, permissionRevision: '0' },
+    }
+    expect(await readForPermission(first)).toMatchObject(expectedInquiry)
+    expect(await read(first)).toMatchObject(published)
+    const repeated = await faces(first, 'intake').management.create(input)
+    const recovered = { ok: { ...created.ok, receipt: { ...created.ok.receipt, recovered: true } } }
+    expect(repeated).toEqual(recovered)
+    await first.dispose()
+    const second = await start(base, 'none', true)
+    const restored = await faces(second, 'intake').management.create(
+      await makeInput(second.modePrincipal),
+    )
+    expect(restored).toEqual(recovered)
+    expect(await readForPermission(second)).toMatchObject(expectedInquiry)
+    expect(await read(second)).toMatchObject(published)
+  },
+)

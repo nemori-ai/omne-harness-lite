@@ -1,10 +1,12 @@
 // Shared fixtures of the `server-entry` row tests: the contract-double rows that stand next to the
-// row in a `serve` tree (identity operations, the Session faces, the definition mapping), the
-// HTTP helpers, and a harness that keeps the tree open while a test talks to the loopback port.
+// row in a `serve` tree (identity operations, the Session faces, the definition mapping, the three
+// read ports of the session diagnostics projection), the HTTP helpers, and a harness that keeps the
+// tree open while a test talks to the loopback port.
 import { createHash } from 'node:crypto'
 import { request as httpRequest } from 'node:http'
 import { connect, createServer } from 'node:net'
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
+import { AgentJournalService, agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { IdentityOperationsService, principalVerifierKey } from '@omne-harness/identity/cordis'
 import {
@@ -12,6 +14,12 @@ import {
   inProcessIdentityOperations,
   manualIdentityClock,
 } from '@omne-harness/identity/testing'
+import {
+  ModelDiagnosticsService,
+  ModelRuntimeService,
+  modelDiagnosticsKey,
+  modelRuntimeKey,
+} from '@omne-harness/model-cordis-contract/cordis'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   DefinitionMappingsService,
@@ -31,6 +39,24 @@ import { serveOnce, type ServeRun } from '../../fixtures/serve/harness.ts'
 export const GOVERNANCE_PATH = '/governance-public/1'
 export const SESSION_PATH = '/session-public/1'
 export const DEFINITION = 'assistant'
+
+/**
+ * The `telemetry` row that `server-entry` injects: the node implementation on the run's record
+ * writer, with test budgets (no measurement backs them). The row's plugin is bound by `runServe`
+ * itself, so a tree only names it in its distribution.
+ */
+export const TELEMETRY_ROW_CONFIG = Object.freeze({
+  implementation: 'node',
+  outlet: { kind: 'stdout' },
+  budgets: {
+    maxRecordBytes: 65_536,
+    maxQueueItems: 1024,
+    maxQueueBytes: 1_048_576,
+    maxOpenSegments: 16,
+    maxLogTextLength: 4096,
+    summaryIntervalMs: 1000,
+  },
+})
 
 export function governance(operation: string, body: unknown, messageId = 'm-1'): string {
   return JSON.stringify({ protocolVersion: 'governance-public/1', messageId, operation, body })
@@ -164,6 +190,29 @@ export const identityDoubleRow = defineRow({
     name: 'identity-double',
     apply(ctx: Context) {
       new IdentityDouble(ctx)
+    },
+  },
+})
+
+/**
+ * The identity double whose `recognizeLogin` throws: registration and login issue still work, so a
+ * test can hold a real login proof and then watch the entry's `identity.fault` diagnostic. The error
+ * text is a marker a test asserts never reaches stdout.
+ */
+class FaultingIdentityDouble extends IdentityDouble {
+  override readonly recognizeLogin: IdentityOperationsService['recognizeLogin'] = () =>
+    Promise.reject(new Error('IDENTITY-FAULT-TEXT: store unreachable'))
+}
+
+export const identityFaultsRow = defineRow({
+  row: 'identity',
+  implementation: 'contract-double',
+  manifest: { provides: [IdentityOperationsService.provide], injects: [], sameProviderGroup: null },
+  lifecycle: { kind: 'none' },
+  plugin: {
+    name: 'identity-faults',
+    apply(ctx: Context) {
+      new FaultingIdentityDouble(ctx)
     },
   },
 })
@@ -367,6 +416,64 @@ export const mappingsDoubleRow = defineRow({
   },
 })
 
+// --- the diagnostics ports (rows `agent-journal`, `model-records`, `model-host`; contract doubles)
+
+type Constructor = new (ctx: Context) => object
+
+/** The definition classes are abstract only to TypeScript; the double gives each its members. */
+function provideDouble(ctx: Context, Definition: unknown, members: object): void {
+  Object.assign(new (Definition as Constructor)(ctx), members)
+}
+
+const portUnavailable = (dependency: string) =>
+  fail({ kind: 'unavailable' as const, dependency, diagnostic: 'contract double: no records' })
+
+/** The Agent Journal with the finish read: no execution has a finish candidate. */
+export const journalDoubleRow = defineRow({
+  row: 'agent-journal',
+  implementation: 'contract-double',
+  manifest: { provides: [agentJournalKey], injects: [], sameProviderGroup: null },
+  lifecycle: { kind: 'none' },
+  plugin: {
+    name: 'journal-double',
+    apply(ctx: Context) {
+      provideDouble(ctx, AgentJournalService, { readFinish: async () => succeed(null) })
+    },
+  },
+})
+
+/** The Model diagnostics read face: every list is `unavailable`. */
+export const diagnosticsDoubleRow = defineRow({
+  row: 'model-records',
+  implementation: 'contract-double',
+  manifest: { provides: [modelDiagnosticsKey], injects: [], sameProviderGroup: null },
+  lifecycle: { kind: 'none' },
+  plugin: {
+    name: 'diagnostics-double',
+    apply(ctx: Context) {
+      provideDouble(ctx, ModelDiagnosticsService, {
+        list: async () => portUnavailable(modelDiagnosticsKey),
+      })
+    },
+  },
+})
+
+/** The Model runtime: only `calls.inspect`, every lookup `unavailable`. */
+export const runtimeDoubleRow = defineRow({
+  row: 'model-host',
+  implementation: 'contract-double',
+  manifest: { provides: [modelRuntimeKey], injects: [], sameProviderGroup: null },
+  lifecycle: { kind: 'none' },
+  plugin: {
+    name: 'runtime-double',
+    apply(ctx: Context) {
+      provideDouble(ctx, ModelRuntimeService, {
+        calls: { inspect: async () => portUnavailable(modelRuntimeKey) },
+      })
+    },
+  },
+})
+
 // --- the tree ----------------------------------------------------------------------------------
 
 export type TreeOptions = Readonly<{
@@ -374,8 +481,12 @@ export type TreeOptions = Readonly<{
   config: unknown
   /** Leave the identity row out. */
   withoutIdentity?: boolean
+  /** Put in the identity double whose `recognizeLogin` throws. */
+  identityFaults?: boolean
   /** Leave the Session row out. */
   withoutSession?: boolean
+  /** Leave the telemetry row out: the entry injects it, so it stays PENDING. */
+  withoutTelemetry?: boolean
   /** Extra distribution rows and their plugins (for example a row that stays PENDING). */
   extraRows?: readonly { id: string; plugin: string; config?: unknown }[]
   extraPlugins?: Readonly<Record<string, Plugin>>
@@ -395,14 +506,20 @@ export type LiveTree = Readonly<{
 export function startTree(options: TreeOptions): LiveTree {
   const recorder = newRecorder()
   const controller = new AbortController()
+  const identity = options.identityFaults === true ? 'identityFaults' : 'identityDouble'
   const rows = [
-    ...(options.withoutIdentity === true
+    ...(options.withoutTelemetry === true
       ? []
-      : [{ id: 'identity', plugin: 'identityDouble', config: {} }]),
+      : [{ id: 'telemetry', plugin: 'telemetry', config: TELEMETRY_ROW_CONFIG }]),
+    ...(options.withoutIdentity === true ? [] : [{ id: 'identity', plugin: identity, config: {} }]),
     ...(options.withoutSession === true
       ? []
       : [{ id: 'session-provider', plugin: 'sessionDouble', config: {} }]),
     { id: 'agent-adoptions', plugin: 'mappingsDouble', config: {} },
+    // The three injected ports of the session diagnostics projection.
+    { id: 'agent-journal', plugin: 'journalDouble', config: {} },
+    { id: 'model-records', plugin: 'diagnosticsDouble', config: {} },
+    { id: 'model-host', plugin: 'runtimeDouble', config: {} },
     { id: 'server-entry', plugin: 'serverEntryRow', config: options.config },
     ...(options.extraRows ?? []).map(row => ({ config: {}, ...row })),
   ]
@@ -411,8 +528,12 @@ export function startTree(options: TreeOptions): LiveTree {
     plugins: {
       stubPlugin,
       identityDouble: identityDoubleRow,
+      identityFaults: identityFaultsRow,
       sessionDouble: sessionDoubleRow(recorder),
       mappingsDouble: mappingsDoubleRow,
+      journalDouble: journalDoubleRow,
+      diagnosticsDouble: diagnosticsDoubleRow,
+      runtimeDouble: runtimeDoubleRow,
       serverEntryRow,
       ...options.extraPlugins,
     },

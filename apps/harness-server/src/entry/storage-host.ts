@@ -17,7 +17,7 @@ import type {
 } from '@omne-harness/sql-contract'
 import { StorageHostService, storageHostKey } from '@omne-harness/sql-contract/cordis'
 import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../lifecycle.ts'
-import { storageCatalog } from '../rows/storage/catalog.ts'
+import { productionStorageCatalog } from '../rows/storage/production-catalog.ts'
 import { monotonicClock } from '../shutdown.ts'
 import type { AssemblyLifecycle, EntryObjectModule, RowId, StopResult } from '../types.ts'
 
@@ -169,17 +169,17 @@ export class StorageHostAdapter extends StorageHostService {
 
 export type StorageHostOptions = Readonly<{
   /** 测试输入：替换本构建的材料目录。 */
-  catalog?: () => SqlMaterialCatalog
+  catalog?: () => SqlMaterialCatalog | Promise<SqlMaterialCatalog>
 }>
 
 export function storageHostModule(options: StorageHostOptions = {}): EntryObjectModule {
-  const build = options.catalog ?? storageCatalog
+  const build = options.catalog ?? productionStorageCatalog
   return {
     name: storageHostKey,
     implementation: 'real',
     registersFor: [STORAGE_ROW],
-    install(scope) {
-      const catalog = build()
+    async install(scope) {
+      const catalog = await build()
       const problems = catalogProblems(catalog)
       if (problems.length > 0) throw new Error(`storage materials rejected: ${problems.join('; ')}`)
       new StorageHostAdapter(scope, catalog)

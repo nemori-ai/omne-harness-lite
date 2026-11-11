@@ -7,7 +7,11 @@ import {
   ordinaryInput,
   sessionId,
 } from '@omne-harness/session-contract/testing'
-import { executionRecordFacts, sessionCommandFacts } from '../../src/participants.ts'
+import {
+  executionRecordFacts,
+  sessionCommandFacts,
+  sessionCommitCommands,
+} from '../../src/participants.ts'
 import { jointWrite, openRealApp, TENANT_A, identityOf } from './real-provider.ts'
 
 const root = process.argv[2]
@@ -18,7 +22,7 @@ if (!('ok' in created)) throw new Error('create failed')
 const result = await app.storage.commit({
   identity: identityOf(TENANT_A, 'dom_0', 'aop_joint'),
   ...app.combination,
-  commands: [
+  commands: sessionCommitCommands([
     executionRecordFacts(jointWrite()),
     sessionCommandFacts(
       {
@@ -32,7 +36,7 @@ const result = await app.storage.commit({
       },
       [guard('login', 'login-entry', 'present')],
     ),
-  ],
+  ]),
 })
 process.stdout.write(`RECEIPT ${result.kind}\n`)
 setInterval(() => undefined, 1000)

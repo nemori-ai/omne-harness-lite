@@ -37,6 +37,7 @@
 - `ControlScope` · `judgments.d.ts`
 - `ControlTarget` · `values.d.ts`
 - `CustodyEvidenceCommand` · `ports.d.ts`
+- `DEFAULT_SESSION_INTAKE_LIMITS` · `intake.d.ts`
 - `DecideReads` · `judgments.d.ts`
 - `Decision` · `judgments.d.ts`
 - `DeclarationChange` · `values.d.ts`
@@ -180,6 +181,7 @@
 - `SessionIdleInput` · `ports.d.ts`
 - `SessionInputAdmission` · `history-values.d.ts`
 - `SessionInputScope` · `history-values.d.ts`
+- `SessionIntakeLimits` · `intake.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
 - `SessionLogCommitObservation` · `interpretation-values.d.ts`
 - `SessionLogConsequence` · `projection.d.ts`
@@ -191,6 +193,11 @@
 - `SessionNotifier` · `ports.d.ts`
 - `SessionOperationElements` · `operations.d.ts`
 - `SessionOperationId` · `identity.d.ts`
+- `SessionPermissionAssignment` · `permission-values.d.ts`
+- `SessionPermissionChangeBasis` · `permission-values.d.ts`
+- `SessionPermissionHistory` · `permission-history.d.ts`
+- `SessionPermissionWriteQualification` · `permission-values.d.ts`
+- `SessionPermissions` · `permission-values.d.ts`
 - `SessionPrefixFact` · `history-values.d.ts`
 - `SessionPrincipalBindingSource` · `ports.d.ts`
 - `SessionProductionSource` · `ports.d.ts`
@@ -199,12 +206,19 @@
 - `SessionRevision` · `identity.d.ts`
 - `SessionRunLookup` · `control-values.d.ts`
 - `SessionTakenRecord` · `history-values.d.ts`
+- `SessionTodos` · `todos.d.ts`
 - `SessionTransactionPort` · `ports.d.ts`
 - `SessionWork` · `faces.d.ts`
 - `SessionWorkEntryIndex` · `work-entry-values.d.ts`
 - `SessionWorkPrincipals` · `ports.d.ts`
 - `StartAdoption` · `faces.d.ts`
 - `StartedRun` · `faces.d.ts`
+- `TodoItem` · `todos.d.ts`
+- `TodoItemId` · `identity.d.ts`
+- `TodoMutationReceipt` · `todos.d.ts`
+- `TodoPage` · `todos.d.ts`
+- `TodoPageCursor` · `todos.d.ts`
+- `VisibleTodoItem` · `todos.d.ts`
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
@@ -229,16 +243,20 @@
 - `judgeCompletion` · `judgments.d.ts`
 - `judgeIdle` · `judgments.d.ts`
 - `judgeRunStart` · `judgments.d.ts`
+- `judgeSessionIntake` · `intake.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `openWork` · `judgments.d.ts`
 - `projectSessionEntries` · `entries-interpretation.d.ts`
 - `projectSessionLog` · `projection.d.ts`
 - `readAccessRequest` · `access.d.ts`
+- `rebuildSessionPermissions` · `permission-history.d.ts`
 - `reduce` · `reduce.d.ts`
 - `resolveCascade` · `judgments.d.ts`
 - `resolveControlScope` · `judgments.d.ts`
 - `resolveOperation` · `judgments.d.ts`
 - `routeInput` · `judgments.d.ts`
+- `sessionInputBytes` · `intake.d.ts`
+- `sessionIntakeLimits` · `intake.d.ts`
 - `sessionModesBlock` · `block.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
@@ -330,10 +348,11 @@
 ## 声明文件 `access.d.ts`
 
 ```ts
+import type { SessionPermissionWriteQualification } from './permission-values.ts';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts';
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts';
-export type SessionReadAccessOperation = 'readWork' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
+export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
 type SessionMutationAccess<P> = {
     readonly [K in MutationName]: Readonly<{
         access: Access<P>;
@@ -386,6 +405,7 @@ export type SessionAccessTarget = SessionAccessRequest<unknown>['target'];
 export type SessionAccessDecision = Readonly<{
     kind: 'allowed';
     evidence: DurableEvidence;
+    writeQualification?: SessionPermissionWriteQualification;
 }> | Readonly<{
     kind: 'denied';
 }> | Readonly<{
@@ -398,6 +418,7 @@ export interface SessionAccessCheck<P> {
 export type SessionCheckedAccess<P> = Readonly<{
     request: SessionAccessRequest<P>;
     evidence: DurableEvidence;
+    writeQualification?: SessionPermissionWriteQualification;
 }>;
 export interface SessionDelegatedTransactions<P> {
     bind(checked: SessionCheckedAccess<P>): SessionTransactionPort<P>;
@@ -708,6 +729,18 @@ export declare function resultRefusal(snapshot: WorkSnapshot, consumption: Consu
 export declare function decideResults(snapshot: WorkSnapshot, command: SessionCommand): Decision;
 ```
 
+## 声明文件 `decide-todos.d.ts`
+
+```ts
+import type { DurableEvidence } from './identity.ts';
+import type { WorkSnapshot } from './values.ts';
+import type { Decision } from './judgments.ts';
+import type { SessionCommand } from './ports.ts';
+export declare function decideTodos(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
+    kind: 'addTodo' | 'removeTodo' | 'markTodoComplete';
+}>, source: DurableEvidence): Decision;
+```
+
 ## 声明文件 `decide.d.ts`
 
 ```ts
@@ -779,7 +812,7 @@ export {};
 import type { JsonValue } from '@omne-harness/json-text';
 import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
-import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId } from './identity.ts';
+import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId, TodoItemId } from './identity.ts';
 import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunTerminal, SessionCreation, ResidentAdoption, ResidentTool, DeclarationChange, Relation, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, InputBatch, Waiting, ExecutionRef } from './values.ts';
 import type { EntryClass, HistoryEntry } from './faces.ts';
 import type { EncodedEntry } from './judgments.ts';
@@ -791,6 +824,21 @@ export type InitializationItem = Omit<Extract<RecoveryTask, {
     kind: 'initialization';
 }>, 'kind' | 'originalOperation' | 'state' | 'diagnostic'>;
 export type SessionEntry = Readonly<{
+    kind: 'session.permission-assigned';
+    declaration: Extract<DeclarationChange, {
+        kind: 'permission-assignment';
+    }>;
+    previousRevision: string;
+    revision: string;
+    authority: DurableEvidence;
+}> | Readonly<{
+    kind: 'session.todo-added';
+    item: TodoItemId;
+    text: string;
+}> | Readonly<{
+    kind: 'session.todo-completed' | 'session.todo-removed';
+    item: TodoItemId;
+}> | Readonly<{
     kind: 'session.created';
     tenant: TenantId;
     session: SessionId;
@@ -1038,20 +1086,28 @@ export declare function expandHistoryEntries(rows: readonly HistoryEntry[], crea
 ## 声明文件 `faces.d.ts`
 
 ```ts
+import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Outcome } from '@omne-harness/operation-result';
-import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
+import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision, TodoItemId } from './identity.ts';
 import type { ControlOperationResolution, SessionCallTerminal, SessionControlReceipt, SessionModelSelection } from './control-values.ts';
 import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, Relation, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, WorkSnapshot } from './values.ts';
 export type SessionFailure = Readonly<{
+    kind: 'limited';
+    resource: 'pending-inputs' | 'input-bytes';
+    limit: number;
+}> | Readonly<{
     kind: 'denied';
     action: string;
 }> | Readonly<{
     kind: 'invalid';
     field: string;
     reason: string;
+}> | Readonly<{
+    kind: 'todo-not-found';
+    item: TodoItemId;
 }> | Readonly<{
     kind: 'conflict';
     operation: SessionOperationId;
@@ -1134,6 +1190,19 @@ export type StartAdoption = ResidentAdoption & Readonly<{
     verdict?: FreezeVerdict;
 }>;
 export interface SessionWork<P> {
+    addTodo(input: Mutation<P> & Readonly<{
+        text: string;
+    }>): Reply<TodoMutationReceipt>;
+    removeTodo(input: Mutation<P> & Readonly<{
+        item: TodoItemId;
+    }>): Reply<TodoMutationReceipt>;
+    markTodoComplete(input: Mutation<P> & Readonly<{
+        item: TodoItemId;
+    }>): Reply<TodoMutationReceipt>;
+    listTodos(input: SessionAccess<P> & Readonly<{
+        after: TodoPageCursor | null;
+        limit: number;
+    }>): Reply<TodoPage>;
     accept(input: Mutation<P> & Readonly<{
         value: RoutedInput;
     }>): Reply<CommitReceipt>;
@@ -1619,6 +1688,7 @@ export type AttemptId = SessionIdentity<'AttemptId'>;
 export type InputId = SessionIdentity<'SessionInputId'>;
 export type BatchId = SessionIdentity<'SessionBatchId'>;
 export type SessionOperationId = SessionIdentity<'SessionOperationId'>;
+export type TodoItemId = SessionIdentity<'TodoItemId'>;
 export type SessionRevision = SessionIdentity<'SessionRevision'>;
 export type ConsumptionId = SessionIdentity<'SessionConsumptionId'>;
 export type EntryId = SessionIdentity<'SessionEntryId'>;
@@ -1644,7 +1714,7 @@ export type AdvanceRef = Readonly<{
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, } from './identity.ts';
+export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, TodoItemId, } from './identity.ts';
 export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionFrozen, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
 export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionFaces, SessionFailure, SessionHistory, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
@@ -1673,6 +1743,11 @@ export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, Input
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
+export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, } from './intake.ts';
+export type { SessionIntakeLimits } from './intake.ts';
+export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, TodoPage, SessionTodos, } from './todos.ts';
+export type { SessionPermissionAssignment, SessionPermissions, SessionPermissionChangeBasis, SessionPermissionWriteQualification, } from './permission-values.ts';
+export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -1783,6 +1858,28 @@ export declare function initializationGuard(previous: WorkSnapshot | null, comma
 export declare function validateResult(value: InitializationGuardResult, plan: InitializationPlanItem): void;
 ```
 
+## 声明文件 `intake.d.ts`
+
+```ts
+import type { SessionFailure } from './faces.ts';
+import type { RoutedInput, WorkSnapshot } from './values.ts';
+export type SessionIntakeLimits = Readonly<{
+    maxPendingInputs: number;
+    maxInputBytes: number;
+}>;
+export declare const DEFAULT_SESSION_INTAKE_LIMITS: SessionIntakeLimits;
+export declare function sessionIntakeLimits(value?: SessionIntakeLimits): SessionIntakeLimits;
+export declare function sessionInputBytes(value: Extract<RoutedInput, {
+    kind: 'ordinary';
+}>): number;
+export declare function judgeSessionIntake(pending: number, value: Extract<RoutedInput, {
+    kind: 'ordinary';
+}>, limits: SessionIntakeLimits): Extract<SessionFailure, {
+    kind: 'limited';
+}> | null;
+export declare function pendingIntakeCount(snapshot: Pick<WorkSnapshot, 'pending' | 'handed'>): number;
+```
+
 ## 声明文件 `interpretation-values.d.ts`
 
 ```ts
@@ -1852,6 +1949,8 @@ export type SessionLogReceipt = Readonly<{
 ## 声明文件 `judgments.d.ts`
 
 ```ts
+import type { SessionPermissionChangeBasis } from './permission-values.ts';
+import type { SessionIntakeLimits } from './intake.ts';
 import type { CompactionContext } from '@omne-harness/message';
 import type { AdvanceRef, InputId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { AutoArchivePolicy, BoundedClose, ControlIntent, IdleCoverage, IdleObservation, Participation, ProducerRef, RecoveryTask, RoutedInput, RunTerminal, Waiting, WorkSnapshot } from './values.ts';
@@ -2009,6 +2108,8 @@ export type Decision = Readonly<{
     failure: SessionFailure;
 }>;
 export type DecideReads = Readonly<{
+    permissionChange?: SessionPermissionChangeBasis;
+    intakeLimits?: SessionIntakeLimits;
     history?: SessionHistoryReads;
     compaction: CompactionContext | null;
     children?: readonly SessionId[];
@@ -2114,6 +2215,11 @@ import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvid
 import type { BoundedClose, CallBinding, Participation } from './values.ts';
 import type { ProducerFact } from './faces.ts';
 export type SessionOperationElements = Readonly<{
+    kind: 'todo-tool-call';
+    tenant: string;
+    session: SessionId;
+    call: string;
+}> | Readonly<{
     kind: 'startRun';
     session: SessionId;
     first: InputId;
@@ -2210,6 +2316,92 @@ export type IngressFamily = (typeof INGRESS_FAMILIES)[keyof typeof INGRESS_FAMIL
 export declare function deriveIngressOperation(family: IngressFamily, fields: readonly string[]): SessionOperationId;
 ```
 
+## 声明文件 `permission-history.d.ts`
+
+```ts
+import type { DurableEvidence } from './identity.ts';
+import type { CommittedBatch } from './judgments.ts';
+import type { Modes, WorkSnapshot, SessionCreation } from './values.ts';
+import type { SessionPermissions } from './permission-values.ts';
+export type SessionPermissionHistory = Readonly<{
+    permissions: SessionPermissions;
+    mode: Readonly<{
+        adopted: SessionCreation['modes'];
+        override: Readonly<{
+            value: Modes['permission'];
+            source: DurableEvidence;
+        }> | null;
+    }>;
+    source: DurableEvidence;
+}>;
+export declare function rebuildSessionPermissions(snapshot: WorkSnapshot, batches: Iterable<CommittedBatch>): Readonly<{
+    kind: 'rebuilt';
+    value: SessionPermissionHistory;
+    snapshot: WorkSnapshot;
+}> | Readonly<{
+    kind: 'invalid';
+    diagnostic: string;
+}>;
+```
+
+## 声明文件 `permission-state.d.ts`
+
+```ts
+import type { DeclarationChange, WorkSnapshot } from './values.ts';
+import type { SessionPermissionChangeBasis, SessionPermissions } from './permission-values.ts';
+import type { SessionOperationId, DurableEvidence } from './identity.ts';
+import type { Decision } from './judgments.ts';
+import type { SessionEntry } from './entries.ts';
+type AssignmentChange = Extract<DeclarationChange, {
+    kind: 'permission-assignment';
+}>;
+export declare function decidePermissionAssignment(input: Readonly<{
+    snapshot: WorkSnapshot;
+    change: AssignmentChange;
+    operation: SessionOperationId;
+    commandDigest: string;
+    basis: SessionPermissionChangeBasis | undefined;
+    source: DurableEvidence;
+}>): Decision;
+export declare function applyPermissionEvent(state: SessionPermissions, entry: SessionEntry, source: DurableEvidence): SessionPermissions;
+export {};
+```
+
+## 声明文件 `permission-values.d.ts`
+
+```ts
+import type { PermissionDefinition, PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions';
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { DurableEvidence, SessionId, SessionOperationId } from './identity.ts';
+export type SessionPermissionAssignment = Readonly<{
+    capabilityId: string;
+    enforcementKey: string;
+    definition: PermissionDefinitionRef;
+    rule: PermissionRule;
+    source: DurableEvidence;
+}>;
+export type SessionPermissions = Readonly<{
+    revision: string;
+    assignments: readonly SessionPermissionAssignment[];
+}>;
+export type SessionPermissionChangeBasis = Readonly<{
+    operation: SessionOperationId;
+    commandDigest: string;
+    revision: string;
+    definition: PermissionDefinition | null;
+    authority: DurableEvidence;
+}>;
+export type SessionPermissionWriteQualification = Readonly<{
+    tenant: TenantId;
+    session: SessionId;
+    operation: SessionOperationId;
+    commandDigest: string;
+    permissionRevision: string;
+    principalRef: string;
+    policy: DurableEvidence;
+}>;
+```
+
 ## 声明文件 `ports.d.ts`
 
 ```ts
@@ -2227,6 +2419,11 @@ export type DriveFailure = Readonly<{
     kind: 'invalid';
     reason: string;
     rejection: DurableEvidence;
+}> | Readonly<{
+    kind: 'refused';
+    failure: 'invalid' | 'unsupported';
+    field: string | null;
+    reason: string | null;
 }> | Readonly<{
     kind: 'unavailable';
     diagnostic: string;
@@ -2325,7 +2522,7 @@ export type SessionBlockDeclaration = Readonly<{
     consumers: readonly ('model' | 'coordinator')[];
     schema: Adoption;
 }>;
-export type MutationName = 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'freeze' | 'receive';
+export type MutationName = 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'accept' | 'startRun' | 'claim' | 'reload' | 'recordMessage' | 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' | 'bindExternalCall' | 'commitDerived' | 'release' | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change' | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'cancelRun' | 'stopCall' | 'freeze' | 'receive';
 export type Mutations = Pick<SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>, MutationName>;
 export type SessionCommand = {
     readonly [K in MutationName]: Readonly<{
@@ -2609,6 +2806,20 @@ export declare function applyProducerFact(draft: Draft, entry: Extract<SessionEn
 export {};
 ```
 
+## 声明文件 `reduce-todos.d.ts`
+
+```ts
+import type { SessionEntry } from './entries.ts';
+import type { WorkSnapshot } from './values.ts';
+type Draft = {
+    -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
+};
+export declare function applyTodo(draft: Draft, entry: Extract<SessionEntry, {
+    kind: 'session.todo-added' | 'session.todo-completed' | 'session.todo-removed';
+}>, revision: WorkSnapshot['revision']): string | null;
+export {};
+```
+
 ## 声明文件 `reduce.d.ts`
 
 ```ts
@@ -2623,8 +2834,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f62f8582c50e215cad383441b870afd4e153e2de57c1e1d0901da29cbefddf41";
-export declare const SESSION_RELEASE_DIGEST = "sha256:f62f8582c50e215cad383441b870afd4e153e2de57c1e1d0901da29cbefddf41";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:6f9fc2f8c4183e4ffa9cf1d8305d6384e6f0a3c832c6936d228c4dd3ece113c5";
+export declare const SESSION_RELEASE_DIGEST = "sha256:6f9fc2f8c4183e4ffa9cf1d8305d6384e6f0a3c832c6936d228c4dd3ece113c5";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2930,6 +3141,7 @@ export declare function createMemoryAgentDrive(): MemoryAgentDrive;
 ## 声明文件 `testing-transactions.d.ts`
 
 ```ts
+import { type SessionIntakeLimits } from './intake.ts';
 import { type MemorySessionHistorySource } from './testing-history-source.ts';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type TenantId } from '@omne-harness/legal-identity';
@@ -2965,6 +3177,7 @@ export interface MemoryInitializationTransactions<P> extends MemorySessionLogTra
 }
 export declare function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[];
 export type MemorySessionTransactionOptions<P> = Readonly<{
+    intakeLimits?: SessionIntakeLimits;
     initialization?: MemoryInitializationSource;
     history?: MemorySessionHistorySource;
     accessCheck: SessionAccessCheck<P>;
@@ -3093,6 +3306,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         }>;
         execution: import("@omne-harness/exchange-refs").Adoption;
         declarations: DurableEvidence;
+        permissions: import("./permission-values.ts").SessionPermissions;
         revisions: Readonly<{
             workspace: string;
             declarations: string;
@@ -3110,6 +3324,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
             observation: import("./values.ts").IdleObservation;
             commit: DurableEvidence;
         }> | null;
+        todos?: readonly import("./todos.ts").TodoItem[];
         executions?: readonly import("./values.ts").RunExecution[];
         residentKeys?: import("./values.ts").ResidentAdoption['keys'];
         relation?: import("./values.ts").Relation;
@@ -3200,9 +3415,46 @@ export { createMemorySessionHistorySource, type MemorySessionHistorySource, } fr
 export { createPolicySessionAccessCheck, createScriptedSessionAccessCheck, type ScriptedSessionAccessCheck, type SessionAccessScript, } from './testing-access.ts';
 ```
 
+## 声明文件 `todos.d.ts`
+
+```ts
+import type { CommitReceipt, SessionWork } from './faces.ts';
+import type { SessionId, SessionRevision, TodoItemId } from './identity.ts';
+export type TodoItem = Readonly<{
+    id: TodoItemId;
+    text: string;
+    status: 'pending' | 'completed' | 'removed';
+    createdAt: SessionRevision;
+    changedAt: SessionRevision;
+}>;
+export type VisibleTodoItem = TodoItem & Readonly<{
+    status: 'pending' | 'completed';
+}>;
+export type TodoMutationReceipt = Readonly<{
+    receipt: CommitReceipt;
+    item: TodoItem;
+}>;
+export type TodoPageCursor = Readonly<{
+    tenant: string;
+    session: SessionId;
+    revision: SessionRevision;
+    after: TodoItemId;
+}>;
+export type TodoPage = Readonly<{
+    revision: SessionRevision;
+    items: readonly VisibleTodoItem[];
+    next: TodoPageCursor | null;
+}>;
+export type SessionTodos<P> = Pick<SessionWork<P>, 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'listTodos'>;
+export declare function validTodoText(text: unknown): text is string;
+```
+
 ## 声明文件 `values.d.ts`
 
 ```ts
+import type { SessionPermissions } from './permission-values.ts';
+import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions';
+import type { TodoItem } from './todos.ts';
 import type { SessionWorkEntryIndex } from './work-entry-values.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { CompactionMessage, Message } from '@omne-harness/message';
@@ -3422,6 +3674,12 @@ export type BoundedClose = Readonly<{
     kind: 'admission-rejected';
     input: InputId;
     rejection: DurableEvidence;
+}> | Readonly<{
+    kind: 'drive-refused';
+    failure: 'invalid' | 'unsupported';
+    field: string | null;
+    reason: string | null;
+    input: InputId | null;
 }>;
 export type DerivedMessage = Readonly<{
     kind: 'compaction';
@@ -3503,6 +3761,14 @@ export type ContextMaterial = Readonly<{
     value: JsonValue;
 }>;
 export type DeclarationChange = Readonly<{
+    kind: 'permission-assignment';
+    capabilityId: string;
+    enforcementKey: string;
+    definition: PermissionDefinitionRef;
+    rule: PermissionRule | null;
+    expectedRevision: string;
+    authorization: DurableEvidence;
+}> | Readonly<{
     kind: 'permission-mode';
     value: Modes['permission'];
     authorization: DurableEvidence;
@@ -3622,6 +3888,7 @@ export type WorkSnapshot = Readonly<{
     }>;
     execution: Adoption;
     declarations: DurableEvidence;
+    permissions: SessionPermissions;
     revisions: Readonly<{
         workspace: string;
         declarations: string;
@@ -3639,6 +3906,7 @@ export type WorkSnapshot = Readonly<{
         observation: IdleObservation;
         commit: DurableEvidence;
     }> | null;
+    todos?: readonly TodoItem[];
     executions?: readonly RunExecution[];
     residentKeys?: ResidentAdoption['keys'];
     relation?: Relation;

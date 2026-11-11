@@ -4,7 +4,7 @@
 
 `compile_agents.py` 把这三个文件投影到输出根的 `.cursor/`。`link_agents.py` 在执行仓库根创建 `.cursor`，它是指向 `.meta_harness/.cursor` 的相对软链接。不要在仓库根另建实体 `.cursor` 目录，也不要手改投影。
 
-这份投影需要提交。Cursor 在执行安装脚本之前，从检出读取 `.cursor/environment.json`。skills 与 roles 的宿主投影可以在检出后重新生成，所以它们留在 `.meta_harness/.gitignore`。这份不能。
+这份投影需要提交。Cursor 在执行安装脚本之前，从检出读取 `.cursor/environment.json`。skills 的宿主投影可以在检出后重新生成，所以它们留在 `.meta_harness/.gitignore`。这份不能。
 
 改源之后删除旧的 `.meta_harness/.cursor`，再按 [tooling](../../../tooling/README.md#根软链接) 重新编译并链接。内容或权限与源不一致时，编译拒绝覆盖。`pnpm run check:agents` 核对投影与根链接。
 
@@ -13,6 +13,10 @@
 author 与 committer 是潘其威(William)，邮箱是 `46810637+PanQiWei@users.noreply.github.com`。这是 GitHub 账号 PanQiWei 的 noreply 身份。
 
 `/usr/local/bin/git` 在调用 `/usr/bin/git` 之前写回 `user.name` 和 `user.email`，并设置 `commit.gpgsign false`。`~/.gitconfig` 里的其他键保留。镜像环境变量 `GIT_AUTHOR_*` 与 `GIT_COMMITTER_*` 使用同一身份。因此宿主把 Cursor Agent 写入 `~/.gitconfig` 之后，下一次 git 调用仍以这个人作为作者。
+
+## pqw-skills
+
+pqw-skills 是钉了提交的子模块，不在镜像里安装。`install.sh` 先运行 `git submodule update --init`，再编译 agent 生成物，版本与[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用)一致。
 
 ## Matt skills
 

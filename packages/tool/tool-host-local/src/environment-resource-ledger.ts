@@ -12,6 +12,7 @@ import {
   type EnvironmentStateStore,
   type EnvironmentState,
   type ResourceFact,
+  type ResourceStop,
   type RetainedResourceFact,
 } from './environment-state.ts'
 
@@ -25,6 +26,11 @@ export type EnvironmentResourceLedger = ResourceLedger &
     close(): Promise<'confirmed' | 'unavailable'>
     inspect(): Promise<readonly ResourceFact[] | null>
   }>
+
+/** A confirmed stop and a handover are final for this acquisition; a later stop fact keeps them. */
+function settledStop(current: ResourceStop, status: 'confirmed' | 'unconfirmed'): ResourceStop {
+  return current === 'confirmed' || current === 'handedOver' ? current : status
+}
 
 export async function createEnvironmentResourceLedger(
   input: EnvironmentResourceLedgerInput,
@@ -52,7 +58,7 @@ export async function createEnvironmentResourceLedger(
         if (!state) return environmentFailure('original acquisition is missing')
         if (state.closed) return fail({ kind: 'not-settled' })
         const found = state.resources.find(item => item.resource.key === key)
-        if (!found || found.stop === 'confirmed')
+        if (!found || found.stop === 'confirmed' || found.stop === 'handedOver')
           return environmentFailure('resource has no active durable plan')
         return succeed({
           ...state,
@@ -115,9 +121,7 @@ export async function createEnvironmentResourceLedger(
         return succeed({
           ...state,
           resources: state.resources.map(item =>
-            item.resource.key === key
-              ? { ...item, stop: item.stop === 'confirmed' ? 'confirmed' : status }
-              : item,
+            item.resource.key === key ? { ...item, stop: settledStop(item.stop, status) } : item,
           ),
         })
       })
@@ -143,11 +147,18 @@ export async function createEnvironmentResourceLedger(
 
 export type RetainedTerminalLedgerInput = EnvironmentResourceLedgerInput &
   Readonly<{ scope: ScopeRef }>
+/**
+ * The retention scope's ledger view for one original call. The integrator hands the same object as
+ * the retained terminal ledger and as the retained process ledger: `permit` serves terminals, `adopt`
+ * commits the handover of a one-shot command's domain.
+ */
 export type RetainedTerminalLedgerView = Pick<
   ResourceLedger,
-  'closed' | 'plan' | 'permit' | 'stopped'
+  'closed' | 'plan' | 'permit' | 'adopt' | 'stopped'
 > &
   Readonly<{
+    /** Whether the scope holds a confirmed end fact for a handed-over key; any view reads it. */
+    ended(key: string): Promise<'confirmed' | 'none' | 'unavailable'>
     close(): Promise<'confirmed' | 'unavailable'>
     inspect(): Promise<readonly RetainedResourceFact[] | null>
   }>
@@ -248,22 +259,80 @@ export async function createRetainedTerminalLedger(
       if ('ok' in result) return 'confirmed'
       return result.failure.kind === 'not-settled' ? 'closed' : 'unavailable'
     },
+    /**
+     * The handover commit. A key this call already adopted answers `confirmed` without a write, so a
+     * repeated `adopt` is the query for a lost answer. Otherwise one guarded commit adopts the
+     * reservation and marks the acquisition's fact `handedOver`. A closed scope, a closed
+     * acquisition and a settled original call answer `closed`.
+     */
+    async adopt(key) {
+      const bound = await binding()
+      if (!bound) return 'unavailable'
+      const prior = await input.state.readRetention(input.address, input.scope)
+      if ('failure' in prior) return 'unavailable'
+      if (prior.ok?.resources.some(item => owns(item, key) && item.adopted)) return 'confirmed'
+      if (prior.ok?.closed) return 'closed'
+      const result = await input.state.handOver(
+        input.address,
+        input.scope,
+        (acquisition, retention) => {
+          if (!retention) return environmentFailure('retained process has no durable reservation')
+          if (retention.closed) return fail({ kind: 'not-settled' })
+          const reserved = retention.resources.find(item => owns(item, key))
+          if (!reserved || reserved.stop === 'confirmed')
+            return environmentFailure('retained process has no active reservation')
+          const handed = acquisition.resources.find(item => item.resource.key === key)
+          if (!handed || handed.stop === 'confirmed')
+            return environmentFailure('acquisition has no live fact for the handed-over resource')
+          return succeed({
+            retention: {
+              ...retention,
+              resources: retention.resources.map(item =>
+                owns(item, key) ? { ...item, permitted: true, adopted: true } : item,
+              ),
+            },
+            acquisition: {
+              ...acquisition,
+              resources: acquisition.resources.map(item =>
+                item.resource.key === key ? { ...item, stop: 'handedOver' as const } : item,
+              ),
+            },
+          })
+        },
+        input.authorize,
+      )
+      if ('ok' in result) return 'confirmed'
+      return result.failure.kind === 'not-settled' ? 'closed' : 'unavailable'
+    },
+    /**
+     * A handed-over key belongs to the retention scope, so any view of the scope records its stop:
+     * after a provider restart no view of the creating call exists. A reservation not handed over
+     * stays the creating call's.
+     */
     async stopped(key, status) {
       const bound = await binding()
       if (!bound) return 'unavailable'
+      const records = (item: RetainedResourceFact) =>
+        item.adopted ? item.resource.key === key : owns(item, key)
       const result = await input.state.updateRetention(input.address, input.scope, state => {
-        if (!state || !state.resources.some(item => owns(item, key)))
+        if (!state || !state.resources.some(records))
           return environmentFailure('retained resource plan is missing')
         return succeed({
           ...state,
           resources: state.resources.map(item =>
-            owns(item, key)
-              ? { ...item, stop: item.stop === 'confirmed' ? 'confirmed' : status }
-              : item,
+            records(item) ? { ...item, stop: settledStop(item.stop, status) } : item,
           ),
         })
       })
       return 'ok' in result ? 'recorded' : 'unavailable'
+    },
+    async ended(key) {
+      const result = await input.state.readRetention(input.address, input.scope)
+      if ('failure' in result) return 'unavailable'
+      const ended = result.ok?.resources.some(
+        item => item.adopted && item.resource.key === key && item.stop === 'confirmed',
+      )
+      return ended ? 'confirmed' : 'none'
     },
     async close() {
       if (!(await binding())) return 'unavailable'

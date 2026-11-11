@@ -21,10 +21,11 @@ import { emit, type DiagnosticSink } from './diagnostics.ts'
 import type { DefinitionResolver, SessionIngressFaces } from './faces.ts'
 import { governanceProtocolRejected, handleGovernance } from './governance.ts'
 import { createIdentitySteps } from './identity-steps.ts'
-import type { ModelCredentialCustody } from './model-credentials.ts'
+import type { SettingsGovernance } from './settings.ts'
 import { createObservationRegistry } from './observation.ts'
 import { handleSession } from './session.ts'
 import { sessionProtocolRejected } from './session-codec.ts'
+import { createDiagnosticsCursors, type DiagnosticPorts } from './session-view/index.ts'
 import { SseStream } from './sse.ts'
 
 export const GOVERNANCE_PATH = '/governance-public/1'
@@ -43,12 +44,18 @@ export type ServerEntryDependencies = Readonly<{
   session: SessionIngressFaces<ActingForTenantPrincipal>
   resolveDefinition: DefinitionResolver
   /**
-   * The model credential binding of the acting tenant (SPEC「模型凭据」). Absent: the three model
-   * credential operations answer `stage-not-provided`.
+   * The settings of the acting tenant (SPEC「设置项」). Absent: the four setting operations answer
+   * `stage-not-provided`.
    */
-  modelCredentials?: ModelCredentialCustody
+  settings?: SettingsGovernance
   diagnostics?: DiagnosticSink
-}>
+}> &
+  /**
+   * The read ports of the session diagnostics projection (SPEC「会话诊断投影」): Agent's finish
+   * read, Model's call lookup and attempt diagnostics, Tool's call lookup and account. Each may
+   * be absent; the projection then writes the corresponding gap with reason `unsupported`.
+   */
+  DiagnosticPorts<ActingForTenantPrincipal>
 
 export type Listening = Readonly<{ address: string; port: number }>
 
@@ -173,6 +180,9 @@ export function createServerEntry(input: {
     loginCheckIntervalMs: config.heartbeatIntervalMs,
     diagnostics,
   })
+  const ports: DiagnosticPorts<ActingForTenantPrincipal> = dependencies
+  // The cursor key lives as long as this entry: a cursor of another instance is `invalid`.
+  const cursors = createDiagnosticsCursors()
   const locations: readonly Location[] = [
     {
       path: GOVERNANCE_PATH,
@@ -190,6 +200,7 @@ export function createServerEntry(input: {
   let listening: Listening | undefined
   let stopping = false
   let inFlight = 0
+  let activeRequests = 0
   const drained: (() => void)[] = []
 
   const settle = (): void => {
@@ -204,7 +215,7 @@ export function createServerEntry(input: {
           governance: dependencies.governance,
           steps,
           endObservationsOf: loginText => registry.endLogin(loginText, 'denied'),
-          modelCredentials: dependencies.modelCredentials,
+          settings: dependencies.settings,
           readLimits: readLimits(config, location.maxBytes),
           diagnostics,
         })
@@ -216,6 +227,8 @@ export function createServerEntry(input: {
           registry,
           readLimits: readLimits(config, location.maxBytes),
           diagnostics,
+          ports,
+          cursors,
         })
 
   const write = (res: ServerResponse, answer: Answer): void => {
@@ -260,16 +273,33 @@ export function createServerEntry(input: {
       writeJson(res, { ...location.protocolRejected(), status: 415 }, false)
       return
     }
-    const body = await readBody(req, location.maxBytes)
-    if (body.kind === 'aborted') {
-      res.destroy()
+    if (activeRequests >= config.maxInFlightRequests) {
+      writeEmpty(res, 429, { connection: 'close', 'x-omne-limit': 'in-flight-requests' })
       return
     }
-    if (body.kind === 'over') {
-      writeJson(res, { ...location.protocolRejected(), status: 413 }, true)
-      return
+    activeRequests += 1
+    let slotHeld = true
+    const releaseSlot = (): void => {
+      if (!slotHeld) return
+      slotHeld = false
+      activeRequests -= 1
+      res.off('close', releaseSlot)
     }
-    write(res, await answerOf(location, body.bytes))
+    res.once('close', releaseSlot)
+    try {
+      const body = await readBody(req, location.maxBytes)
+      if (body.kind === 'aborted') {
+        res.destroy()
+        return
+      }
+      if (body.kind === 'over') {
+        writeJson(res, { ...location.protocolRejected(), status: 413 }, true)
+        return
+      }
+      write(res, await answerOf(location, body.bytes))
+    } finally {
+      releaseSlot()
+    }
   }
 
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {

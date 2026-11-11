@@ -521,7 +521,7 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation and does not delete the full tool result. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 3）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 6）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 4）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 6）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
@@ -541,7 +541,7 @@
 > attempt, a rebuilt instance or a recovery does not change it.
 
 - **形态**：属性
-- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 7）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 6）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 3）
+- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 7）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 6）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 4）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。拓展点是设计时穷举的固定位点；消费位置随每次调用产生，指那次调用的接收处
 - **注意**：[交付责任解除](#ul-delivery-release--交付责任解除--delivery-release)要求消费侧保存原身份与处理位置，那个处理位置就是消费位置
 
@@ -834,5 +834,29 @@
 - **形态**：属性
 - **出处**：[PF-021 §6.13 通知声明与完成](../../product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#613-通知声明与完成)（rev 8）
 - **别混**：纯通知在到期时发送已定义内容；通知事件、发送尝试、送达与已读是不同事实。此属性不另立可管理对象。
+
+## 工程遥测的输出怎么换
+
+### UL-output-generation · 输出代 · Output Generation
+
+> **中**：**工程遥测提供者里作为一个整体被准备、启用、排空和关闭的一组输出实现及其资源**，
+> 包括日志输出、链路与指标导出器、目的地、采样与预算配置。每一代有代号。
+> 状态是准备中 → 生效 → 排空 → 关闭；准备失败时为失败。
+> 任一时刻最多一代生效，另外最多一代在准备或排空。换输出就是换一代：领域代码不改，发出记录的插件也不重跑。
+>
+> **EN**: **One set of output implementations and their resources inside the engineering-telemetry
+> provider that is prepared, activated, drained and closed as one unit.** The set includes the log
+> output, the trace and metric exporters, the destinations, and the sampling and budget settings.
+> Each generation has a generation number. Its states are preparing, active, draining and closed. It
+> becomes failed when preparation fails. At any time at most one generation is active, and at most
+> one other generation is preparing or draining. To change the output, the provider replaces the
+> generation. Domain code does not change, and the plugins that emit records do not run again.
+
+- **形态**：未定
+- **出处**：[#1140 的决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/1140#issuecomment-6663579066)（chenyize 2026-11-05，D01 的配套词条）；状态与协议见审议中的 [RFC-0013 输出代与关闭](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#输出代与关闭)（status `review`，未采用）；换输出不中断业务的目标见[项目要求 SYS-DYNAMIC](../../../../docs/requirements.md#完全动态目标sys-dynamic)
+- **别混 ①**：**不是 Cordis 插件换代。**输出代在同一个遥测服务实例里切换，插件树不变，依赖遥测服务的插件不重跑；Cordis 换代会重跑消费者插件，见[依赖换代与就绪](../../../../docs/architecture/deployment/cordis-and-lifecycle.md#依赖换代与就绪)
+- **别混 ②**：**不是[环境提供者](grounding-and-isolation.md#ul-environment-provider--环境提供者--environment-provider)的「代」或[生产者句柄](scope-and-resolution.md#ul-producer-handle--生产者句柄--producer-handle)的代际。**那些代属于别的对象，与工程遥测的输出无关
+- **注意**：已经开始的[遥测段](record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment)留在原代，到结束或截止；新记录进入新代。旧代排空有期限，超期截断并计数
+- **待裁决**：它是不是领域对象还没有人裁过，见 [C-74](../conflicts.md#c-74输出代是不是对象) 与[领域对象的待裁](../../domain_objects/pending.md#输出代)
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

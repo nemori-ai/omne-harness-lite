@@ -70,6 +70,7 @@ type Fault =
   | 'read-unavailable'
   | 'read-throws'
   | 'commit-throws'
+  | 'rejected'
 
 /** A store over the memory store that counts reads and commits and fails the next one on demand. */
 function observed() {
@@ -94,7 +95,8 @@ function observed() {
     },
     commit: async (input: LedgerCommitInput<ContentBlock>): Promise<LedgerCommit> => {
       counts.commits += 1
-      const fault = take('lost-reply', 'unknown-unwritten', 'conflict', 'commit-throws')
+      const fault = take('lost-reply', 'unknown-unwritten', 'conflict', 'commit-throws', 'rejected')
+      if (fault === 'rejected') return { kind: 'rejected', reason: 'command_limit' }
       if (fault === 'lost-reply') {
         await memory.commit(input)
         return { kind: 'unknown', diagnostic: 'the answer was lost' }
@@ -310,6 +312,26 @@ describe('TL-11 invocation source: issuance and recall', () => {
 })
 
 describe('TL-11 invocation source: boundary and failure', () => {
+  it('rejects the reserved forwarding consumer before consulting authority or storage', async () => {
+    const { store, counts } = observed()
+    const policy = authority()
+    const request = invokeRequest()
+    const answer = await source(store, policy).issuer.resolve(
+      resolveInput({
+        request: {
+          ...request,
+          consumer: {
+            ...request.consumer,
+            owner: '@omne-harness/tool-host-local/tools-forwarding',
+          },
+        },
+      }),
+    )
+    expect(answer).toEqual({ kind: 'rejected', failure: { kind: 'denied', action: 'admit' } })
+    expect(counts).toEqual({ reads: 0, commits: 0 })
+    expect(policy.calls.qualify).toBe(0)
+  })
+
   it('TL-11 a denied qualification is rejected before any store access', async () => {
     const { store, counts } = observed()
     const { issuer } = source(store, authority({ qualify: { kind: 'denied', reason: 'no' } }))
@@ -408,6 +430,16 @@ describe('TL-11 invocation source: boundary and failure', () => {
       expect(retried).toMatchObject({ call: unknown.call, admission: unknown.admission })
       expect(retried.recovered).toBe(fault === 'lost-reply')
     }
+  })
+
+  it('TL-11 a commit the store rejects is a definite failure, not re-read and not unknown', async () => {
+    const { store, arm, counts } = observed()
+    arm('rejected', 4)
+    expect(await source(store).issuer.resolve(resolveInput())).toEqual({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+    })
+    expect(counts).toEqual({ reads: 1, commits: 1 })
   })
 
   it('TL-11 a commit that throws is issuance-unknown and reports no thrown text', async () => {
@@ -609,4 +641,36 @@ describe('TL-11 operation identities', () => {
     const [a, b] = [await one.newOperation(), await two.newOperation()]
     expect('ok' in a && 'ok' in b && a.ok !== b.ok).toBe(true)
   })
+})
+
+it('recovers a stored subject projection before reissuing live credentials, then still verifies current authority', async () => {
+  const memory = observed()
+  const live = new WeakSet<object>([alice])
+  const current: ToolInvokeAuthority<P> = {
+    qualify: async ({ principal }) =>
+      live.has(principal) ? { kind: 'allowed' } : { kind: 'denied', reason: 'not-live' },
+    samePrincipal: async ({ current, original }) =>
+      live.has(current) && current.subject === original.subject
+        ? { kind: 'allowed' }
+        : { kind: 'denied', reason: 'not-live-or-different' },
+  }
+  const s = source(memory.store, current)
+  const issued = await bound(s.issuer)
+  const access = verifyInput(issued)
+  const input = {
+    tenant: access.tenant,
+    call: access.call,
+    admission: access.operation,
+    request: access.request,
+  }
+  expect(await s.recoverBinding(input)).toEqual({ ok: { principal: codec.encode(alice) } })
+  expect(await s.guard.verify(access)).toEqual({ kind: 'trusted' })
+  const decoded = codec.decode(codec.encode(alice))
+  if ('failure' in decoded) throw new Error('fixture decode')
+  expect(await s.guard.verify({ ...access, principal: decoded.ok })).toMatchObject({
+    kind: 'forged',
+  })
+  expect(
+    await s.recoverBinding({ ...input, request: { ...input.request, command: 'substituted' } }),
+  ).toMatchObject({ failure: { kind: 'unavailable' } })
 })

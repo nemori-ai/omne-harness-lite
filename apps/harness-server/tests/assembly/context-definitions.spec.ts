@@ -1,3 +1,5 @@
+import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
+import { sessionInquiryBinding } from '@omne-harness/session-adapters/cordis'
 // The assembly's `SessionContextDefinitions`: what JSON cannot hold, given back from one exact
 // adopted definition. A table built once answers a reference with the very object it was built
 // from (AD-12 compares by identity, `context-input.ts` `!==`), and answers `undefined` for a
@@ -170,17 +172,36 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
       references: [
         { capability: { category: 'Tool', name: 'Files' }, resident: true },
         { capability: { category: 'Tool', name: 'Shell' }, resident: true },
+        { capability: { category: 'Tool', name: 'Tools' }, resident: true },
+        { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
+        { capability: { category: 'Tool', name: 'Web' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })
     expect((coding.definition as { instructions?: unknown[] }).instructions).toHaveLength(10)
   })
 
-  it('answers undefined for every adopted definition: there is no block to restore', () => {
+  it('does not mistake an Agent definition for the independently adopted modes carrier', () => {
     for (const entry of mappings) {
       const ref = { definition: entry.candidate, key: 'session.modes' as ContextBlockKey }
       expect(adoptedContextDefinitions.binding({ ...ref, need: 'modes' })).toBeUndefined()
       expect(adoptedContextDefinitions.declaration(ref)).toBeUndefined()
     }
   })
+})
+
+it('restores the exact adopted modes binding without declaring a stateful block', () => {
+  const ref = {
+    definition: SESSION_MODES_PUBLICATION,
+    key: sessionInquiryBinding.key,
+    need: sessionInquiryBinding.need.name,
+  }
+  expect(adoptedContextDefinitions.binding(ref)).toBe(sessionInquiryBinding)
+  expect(adoptedContextDefinitions.declaration(ref)).toBeUndefined()
+  expect(
+    adoptedContextDefinitions.binding({
+      ...ref,
+      definition: { ...ref.definition, digest: 'wrong' },
+    }),
+  ).toBeUndefined()
 })

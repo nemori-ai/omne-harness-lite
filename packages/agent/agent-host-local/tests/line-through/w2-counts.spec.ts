@@ -115,8 +115,10 @@ const TIMED_HANDLERS: readonly string[] = [
   'session.work',
   'session.work-index',
   'session.work-reads',
+  'session.work-version',
   'session.history',
   'session.history-root',
+  'execution-record.events',
 ]
 
 const untimed = (counts: Readonly<Record<string, number>>): Record<string, number> =>

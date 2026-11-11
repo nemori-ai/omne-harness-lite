@@ -24,7 +24,7 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
 }
 
 /** Plans the request with the lease's rules and measures it with the lease's meter. */
-export function measureOn(
+export async function measureOn(
   lease: ModelPreparationLease,
   profile: ModelProfile,
   request: FixedModelRequest,
@@ -32,7 +32,7 @@ export function measureOn(
   const [binding] = lease.bindings
   const assembled = assembledOf(request)
   const planned = decoded(binding.rules.plan({ profile, supplier: binding.supplier, assembled }))
-  return binding.meter.measure({
+  return await binding.meter.measure({
     profile: profile.adoption,
     supplier: profile.definition.suppliers[0],
     context: profile.definition.context,

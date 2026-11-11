@@ -6,13 +6,18 @@ import {
   type AdmissionCheck,
   type AdmissionInput,
 } from '@omne-harness/authorization'
-import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
-import { actionRulesSchema, type ActionRules } from './action-rules.ts'
-import { classify } from './principals.ts'
+import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
+import { sessionWorkOf } from '../tool-runtime/session-work.ts'
+import {
+  agentPermissionOperation,
+  type ToolPermissionAction,
+  type ToolPermissionCheck,
+} from './current-tool-permission.ts'
 
 type Request = Parameters<ActionAdmission<unknown>['admit']>[0]
 export type AdmissionReader = () => AdmissionCheck | undefined
+export type ToolPermissionReader = () => ToolPermissionCheck | undefined
 
 function unavailable(diagnostic: string): AdmissionDecision {
   return { kind: 'unavailable', diagnostic }
@@ -25,41 +30,27 @@ function unavailable(diagnostic: string): AdmissionDecision {
  * on a tool cannot be passed by naming one of its commands.
  */
 function ruleFor(rules: ActionRules, input: Request) {
-  const matches = rules.rules.filter(
-    rule =>
-      rule.tool === input.definition.name &&
-      (rule.definition == null ||
-        (rule.definition.owner === input.definition.owner &&
-          rule.definition.name === input.definition.name &&
-          rule.definition.revision === input.definition.revision &&
-          rule.definition.digest === input.definition.digest)),
-  )
-  return (
-    matches.find(rule => rule.effect === 'deny') ?? matches.find(rule => rule.effect === 'allow')
-  )
+  return toolActionRule(rules, input.definition)
 }
 
 async function decide(
   input: Request,
   rules: ActionRules | undefined,
   read: AdmissionReader,
+  readPermission: ToolPermissionReader,
 ): Promise<AdmissionDecision> {
   if (rules === undefined)
     return unavailable('no action rule source is installed in this deployment')
   if (input.permissions.length !== 0 || input.decision !== null)
     return unavailable('permission and decision interpreters are not installed')
-  const who = classify(input.principal)
+  const who = sessionWorkOf(input.principal, input.tenant)
   const target = {
     owner: 'agent',
     kind: 'action',
     key: canonicalText([input.execution, input.passage, input.action]),
   }
   const argumentsDigest = effectiveArgumentsOf(input.effectiveArguments)
-  if (
-    who?.column !== 'work' ||
-    !tenantCodec.encode(input.tenant).ok ||
-    !tenantEquals(who.principal.tenant, input.tenant)
-  ) {
+  if (who === undefined) {
     return {
       kind: 'deny',
       reason: 'session-work-required',
@@ -67,6 +58,21 @@ async function decide(
     }
   }
   const rule = ruleFor(rules, input)
+  const permissionAction: ToolPermissionAction = {
+    principal: who.principal,
+    tenant: input.tenant,
+    operation: agentPermissionOperation(input),
+    definition: { ...input.definition },
+    effectiveArguments: input.effectiveArguments,
+    origin: {
+      kind: 'agent-action',
+      execution: input.execution,
+      passage: input.passage,
+      action: input.action,
+      advance: structuredClone(input.advance),
+      original: structuredClone(input.original),
+    },
+  }
   const request: AdmissionInput = {
     access: { principal: who.principal, tenant: input.tenant },
     operation: { owner: 'agent', name: 'admit-action' },
@@ -78,7 +84,21 @@ async function decide(
   const admission = read()
   if (admission === undefined) return unavailable('the action admission dependency is unavailable')
   const identity = await admission.check(request)
-  return actionDecision(identity, rule, rules, target, argumentsDigest)
+  const decision = actionDecision(identity, rule, rules, target, argumentsDigest)
+  if (decision.kind !== 'allow') return decision
+  const permission = readPermission()
+  if (permission === undefined)
+    return unavailable('the current permission dependency is unavailable')
+  const current = await permission.check(permissionAction)
+  return current.kind === 'allow'
+    ? {
+        kind: 'allow',
+        evidence: decisionEvidence('action-current-permission', rules.revision, {
+          rule: decision.evidence,
+          permission: current.evidence,
+        }),
+      }
+    : current
 }
 
 function actionDecision(
@@ -108,15 +128,19 @@ function actionDecision(
 
 /** One immutable rule generation; dependencies are acquired anew for each action. */
 export function createActionAdmission(
-  options?: Readonly<{ actionRules?: unknown; readAdmission: AdmissionReader }>,
+  options: Readonly<{
+    actionRules?: unknown
+    readAdmission: AdmissionReader
+    readPermission: ToolPermissionReader
+  }>,
 ): ActionAdmission<unknown> {
   const rules =
-    options?.actionRules === undefined ? undefined : actionRulesSchema.parse(options.actionRules)
-  const read = options?.readAdmission ?? (() => undefined)
+    options.actionRules === undefined ? undefined : actionRulesSchema.parse(options.actionRules)
+  const { readAdmission: read, readPermission } = options
   return Object.freeze({
     admit: async (input: Request) => {
       try {
-        return succeed(await decide(input, rules, read))
+        return succeed(await decide(input, rules, read, readPermission))
       } catch {
         return succeed(
           unavailable(

@@ -1,4 +1,4 @@
-import { extractArchitecture } from './extract.ts'
+import { extractWithResolver } from './extract.ts'
 import { readArchitectureSource, type ArchitectureSource } from './source.ts'
 import {
   readBaselineConstraints,
@@ -9,7 +9,7 @@ import {
 import { activeRoles } from './conformance-model.ts'
 import type { ActualExtraction, PackageImport, Fact } from './actual-model.ts'
 import type { ActualArchitectureInput } from './actual.ts'
-import { publicEntries, StaticResolver, type PublicEntry } from './resolve.ts'
+import { publicEntries, type StaticResolver, type PublicEntry } from './resolve.ts'
 import type { Snapshot } from './actual-model.ts'
 import { directionConformance } from './directions.ts'
 import type { DependencyGraph } from '../deps/graph.ts'
@@ -92,10 +92,12 @@ function exceptionAt(edge: PackageImport, input: ConstraintInput, extraction: Ac
   return exception === undefined ? undefined : { ...exception, path: input.path }
 }
 
+/** `resolver` 是抽取 `extraction` 时用的那一个，建在同一份 `snapshot` 上。 */
 function rowsOf(
   extraction: ActualExtraction,
   input: ConstraintInput,
   snapshot: Snapshot,
+  resolver: StaticResolver,
 ): ConformanceRow[] {
   const rows: ConformanceRow[] = [],
     intent = input.value === null ? null : { ...input.value, roles: activeRoles(input) }
@@ -345,7 +347,6 @@ function rowsOf(
           )
         : undefined
     const declarations = definitions.filter(fact => serviceDefinition(fact) === undefined)
-    const resolver = new StaticResolver(snapshot)
     const publicDeclarations = entries.flatMap(entry =>
       entry.sourcePath === undefined
         ? []
@@ -514,24 +515,51 @@ export function conformanceOf(
   baseline?: ArchitectureSource,
   graph?: DependencyGraph,
 ): Conformance {
-  return analyzeConformance(root, current, baseline, graph).conformance
+  return analyzeConformance(
+    root,
+    current,
+    baseline === undefined ? undefined : observeBaseline(root, baseline),
+    graph,
+  ).conformance
+}
+/**
+ * BASE 一侧的全部观测：BASE 的架构预期、实际抽取，与按 BASE 预期判出的偏离行 id。
+ * 只取决于 BASE 提交与检查器代码，可以按提交算一次存下（收工钩子的缓存见 loop/baseline-cache.ts）。
+ * 方向行不在这里：它读运行检查器那棵树的预期，见 arch/directions.ts。
+ */
+export interface BaselineObservation {
+  readonly constraints: ConstraintInput
+  readonly actual: ActualExtraction
+  readonly stock: readonly string[]
+}
+export function observeBaseline(root: string, baseline: ArchitectureSource): BaselineObservation {
+  const constraints = readBaselineConstraints(root, baseline)
+  const { extraction, resolver } = extractWithResolver(baseline.snapshot)
+  return {
+    constraints,
+    actual: extraction,
+    stock: rowsOf(extraction, constraints, baseline.snapshot, resolver)
+      .filter(row => row.state === 'deviation')
+      .map(row => row.id),
+  }
 }
 /**
  * One extraction per source version for constraints and actual assembly observations.
+ * BASE 一侧由调用方观测好传进来（`observeBaseline`）；当前版本的抽取与偏离判定共用一个解析器。
  * 方向行一节另从可信 runner 读（arch/directions.ts）；调用方已经算过当前版本的依赖图时传进来，
  * 免得再跑一次 dependency-cruiser；没传就按版本自己取，而且只在 runner 有方向行时才取。
  */
 export function analyzeConformance(
   root: string,
   current: ArchitectureSource,
-  baseline?: ArchitectureSource,
+  baseline?: BaselineObservation,
   graph?: DependencyGraph,
 ) {
   const head = readConstraints(root, current.source),
-    base = baseline === undefined ? undefined : readBaselineConstraints(root, baseline)
-  const headActual = extractArchitecture(current.snapshot),
-    baseActual = baseline === undefined ? undefined : extractArchitecture(baseline.snapshot)
-  const rows = rowsOf(headActual, base ?? head, current.snapshot)
+    base = baseline?.constraints
+  const { extraction: headActual, resolver } = extractWithResolver(current.snapshot),
+    baseActual = baseline?.actual
+  const rows = rowsOf(headActual, base ?? head, current.snapshot, resolver)
   for (const [version, input] of [
     ['current', head],
     ['baseline', base],
@@ -549,13 +577,7 @@ export function analyzeConformance(
         sites: [{ path: input.path, line: 1 }],
       })
   }
-  const stock = new Set(
-    baseActual === undefined
-      ? []
-      : rowsOf(baseActual, base ?? head, baseline?.snapshot ?? current.snapshot)
-          .filter(row => row.state === 'deviation')
-          .map(row => row.id),
-  )
+  const stock = new Set(baseline?.stock ?? [])
   const changes: ConstraintChange[] = []
   const before = semanticConstraints(base?.value ?? null),
     after = semanticConstraints(head.value)
@@ -593,7 +615,7 @@ export function analyzeConformance(
               ? 'stock'
               : 'new',
       })),
-      ...directionConformance({ root, current: current.source, baseline: baseline?.source, graph }),
+      ...directionConformance({ root, current: current.source, baseline: base?.source, graph }),
     ],
     changes,
     sourceChanges,

@@ -2,7 +2,7 @@
 // 「测量事件的插件入口」): the observer given to the plugin factory reaches the session instance
 // that the plugin builds, so an operation through the real plugin emits the Session segments. The
 // session instance is the real factory over the in-memory transaction pair.
-import type { SessionMeasureEvent } from '@omne-harness/session'
+import type { SessionDiagnostic, SessionMeasureEvent } from '@omne-harness/session'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SessionProvider, createSessionProviderPlugin } from '../src/cordis.ts'
 import { assemble, FIBER_STATE, type Assembly } from './fixtures/assembly.ts'
@@ -12,8 +12,11 @@ afterEach(async () => {
   for (const assembly of open.splice(0)) await assembly.close()
 })
 
-async function build(plugin: typeof SessionProvider): Promise<Assembly> {
-  const assembly = await assemble({ plugin })
+async function build(
+  plugin: typeof SessionProvider,
+  options: Omit<Parameters<typeof assemble>[0] & object, 'plugin'> = {},
+): Promise<Assembly> {
+  const assembly = await assemble({ ...options, plugin })
   open.push(assembly)
   return assembly
 }
@@ -40,5 +43,28 @@ describe('createSessionProviderPlugin', () => {
     const a = await build(Plugin)
     expect(a.provider.state as number).toBe(FIBER_STATE.ACTIVE)
     expect((await a.create(await a.caller('intake'))).revision).toBeDefined()
+  })
+
+  it('hands the diagnose observer to the session instance, so a stopped coordinator step reaches it', async () => {
+    const diagnostics: SessionDiagnostic[] = []
+    // Without the Agent drive port, C2 stops its `invoke` step with `agent-absent` (session SPEC 诊断出口).
+    const a = await build(
+      createSessionProviderPlugin({ diagnose: diagnostic => diagnostics.push(diagnostic) }),
+      { omit: ['sessionAgentDrive'] },
+    )
+    expect(a.provider.state as number).toBe(FIBER_STATE.ACTIVE)
+    const intake = await a.caller('intake')
+    await a.create(intake)
+    // Bound before the accept, so the accept commit itself wakes S1 and it grants the Run.
+    a.bindings.controls.bind(a.tenant, a.sessionId('session-1'))
+    await a.accept(intake, 'input-1')
+    await expect.poll(() => diagnostics.length, { timeout: 5000 }).toBeGreaterThan(0)
+    expect(diagnostics[0]).toMatchObject({
+      owner: 'C2',
+      step: 'invoke',
+      reason: 'agent-absent',
+      session: a.sessionId('session-1'),
+      tenant: a.tenant,
+    })
   })
 })

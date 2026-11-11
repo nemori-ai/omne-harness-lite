@@ -24,9 +24,9 @@
 
 ## 阅读路径
 
-| 读者 | 起点 | 接着读 |
-| --- | --- | --- |
-| 应用装配者 | [docs/context.md](docs/context.md#装配) | [docs/cordis.md](docs/cordis.md)、[IC 约定](../../../docs/architecture/cordis-integration-conventions.md) |
-| 执行适配的实现者 | [SPEC 宿主文件使用](SPEC.md#宿主文件使用) | [docs/architecture.md](docs/architecture.md#宿主文件使用)、[docs/flows.md](docs/flows.md) |
-| 新宿主设施或沙箱提供者的作者 | [docs/cordis.md](docs/cordis.md#插件与配置) | [docs/architecture.md](docs/architecture.md)、契约的[对象模型](../execution-environment-contract/docs/object-model.md) |
-| 本成员的维护者 | [docs/architecture.md](docs/architecture.md) | [docs/object-model.md](docs/object-model.md)、[tests/](tests/README.md) |
+| 读者                         | 起点                                         | 接着读                                                                                                                 |
+| ---------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 应用装配者                   | [docs/context.md](docs/context.md#装配)      | [docs/cordis.md](docs/cordis.md)、[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)              |
+| 执行适配的实现者             | [SPEC 宿主文件使用](SPEC.md#宿主文件使用)    | [docs/architecture.md](docs/architecture.md#宿主文件使用)、[docs/flows.md](docs/flows.md)                              |
+| 新宿主设施或沙箱提供者的作者 | [docs/cordis.md](docs/cordis.md#插件与配置)  | [docs/architecture.md](docs/architecture.md)、契约的[对象模型](../execution-environment-contract/docs/object-model.md) |
+| 本成员的维护者               | [docs/architecture.md](docs/architecture.md) | [docs/object-model.md](docs/object-model.md)、[tests/](tests/README.md)                                                |

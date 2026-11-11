@@ -1,0 +1,8 @@
+positive-model.cfg pass
+positive-tool.cfg pass
+live-model.cfg pass
+live-tool.cfg pass
+bad-original.cfg UnknownOriginal
+bad-early.cfg NoPrematureEnd
+bad-reentry.cfg NoBusinessAfterFault
+bad-late.cfg OldExecutionIsolation

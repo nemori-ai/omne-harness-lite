@@ -33,6 +33,12 @@ it('exports six service definitions and their keys from ./cordis', () => {
   expect(Object.keys(entry).sort()).toEqual(
     [
       'IdentityClockService',
+      'IdentityGovernanceRecoveryService',
+      'StandingReservationsService',
+      'StandingDestinationResolverService',
+      'identityGovernanceRecoveryKey',
+      'standingReservationsKey',
+      'standingDestinationResolverKey',
       'IdentityGovernanceService',
       'IdentityOperationsService',
       'PrincipalIssuerService',

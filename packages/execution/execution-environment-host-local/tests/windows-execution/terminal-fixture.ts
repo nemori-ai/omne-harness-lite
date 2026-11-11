@@ -65,4 +65,13 @@ export async function outputOf(handle: ProcessHandle) {
   return { chunks, bytes: Buffer.concat(chunks.map(chunk => Buffer.from(chunk.data))) }
 }
 
+/** CSI, OSC ended by BEL or ST, and the other escape sequences ConPTY renders around the text. */
+const escapes =
+  // oxlint-disable-next-line no-control-regex -- ConPTY output is matched without its escapes.
+  /\u001b\[[0-?]*[ -/]*[@-~]|\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)|\u001b[ -/]*[0-~]/gu
+
+/** The text of terminal bytes, without the control sequences ConPTY renders around it. */
+export const visible = (bytes: Uint8Array) =>
+  Buffer.from(bytes).toString('utf8').replace(escapes, '')
+
 export const psString = (value: string) => `'${value.replaceAll("'", "''")}'`

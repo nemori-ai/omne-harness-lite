@@ -1,0 +1,54 @@
+{
+  "name": "@omne-harness/telemetry-node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Node provider of engineering telemetry, slice 1 log signal: bounded runtime, local outlets, disabled implementation, Cordis plugins and log bridge",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "omne-telemetry-summary": "./dist/summary-cli.js"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/telemetry-contract": "workspace:*",
+    "@omne-harness/telemetry-cordis-contract": "workspace:*",
+    "pino": "10.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "3.0.0",
+      "variant": "service-provider"
+    }
+  }
+}

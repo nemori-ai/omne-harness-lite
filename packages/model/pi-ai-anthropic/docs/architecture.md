@@ -49,7 +49,7 @@
 
 **词表由装配方读取，家族不读文件。** `claude.json` 随包发布。`anthropicTokenizerResources` 读文件并核对 SHA-256，这与封存件在载入时核对摘要相同。家族只接受资源值，所以规则、计量与 `acquire` 都不读文件。`tokenizer.ts` 用相对模块的 URL 定位文件，`src` 与 `dist` 都在包根下一级，所以源码与发布产物读到同一个文件。
 
-**tokenizer 每个家族初始化一次。** 初始化要算一次摘要并构造引擎。家族在第一次取得时初始化，结果（包括失败）复用。tokenizer 没有需要释放的资源，所以绑定的 `release` 为空操作。
+**共享 executor 与私有租约。** 宿主预先初始化固定词表与 worker。每个绑定取得独立租约，计数缓存不跨租约共享。绑定 release 等待清理，executor.close 只归宿主。
 
 ## 验证与维护
 

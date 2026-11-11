@@ -40,13 +40,13 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 
 `serve` 的参数都可以省略。省略的参数取下面的值：
 
-| 参数                     | 省略时                                                                     |
-| ------------------------ | -------------------------------------------------------------------------- |
-| `--distribution`         | 随应用发行的 `config/serve.distribution.json`                              |
+| 参数                     | 省略时                                                                                  |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| `--distribution`         | 随应用发行的 `config/serve.distribution.json`                                           |
 | `--operator`             | 本机单用户档的运维者层，由配置文件与发行层在启动时生成，见[本机单用户档](#本机单用户档) |
-| `--readiness-timeout-ms` | 30000                                                                      |
-| `--shutdown-deadline-ms` | 10000                                                                      |
-| `--state-root`           | 本机单用户档的状态目录                                                     |
+| `--readiness-timeout-ms` | 30000                                                                                   |
+| `--shutdown-deadline-ms` | 10000                                                                                   |
+| `--state-root`           | 本机单用户档的状态目录                                                                  |
 
 只有省略 `--operator` 或 `--state-root` 时，入口才读本机的配置与状态目录。两个都给出时，行为与加入默认值之前相同。
 
@@ -78,7 +78,7 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 
 | 路径               | 内容                                            | 谁创建                       |
 | ------------------ | ----------------------------------------------- | ---------------------------- |
-| `model-vault.json` | 模型凭据保管库。宿主上唯一含秘密的文件          | `setup`                      |
+| `model-vault.json` | 秘密保管库（settings-local `./secrets`）。宿主上唯一含秘密的文件；模型凭据是其中的 Model 绑定 | `setup`                      |
 | `workspace/`       | 默认工作区                                      | `setup`                      |
 | `host-files/`      | 执行宿主的状态目录，也是 Shell 的临时目录       | `setup`，缺失时 `serve` 重建 |
 | `storage/`         | `storage` 行的存储根                            | `serve`                      |
@@ -102,24 +102,24 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 6. Shell 不是已存在的文件时，退出 2。
 7. 建配置目录、状态目录、`host-files/`，以及不存在的工作区。
 8. 存模型凭据。保管库路径上的情形如下：
-   - 什么都没有：读凭据，经 model-host-local 的 `initVault` 新建保管库，凭据成为工厂秘密。
+   - 什么都没有：读凭据，经 settings-local 的 `initSecretVault` 新建保管库，凭据成为 OpenRouter 供应商凭据项 `apiKey` 的官方层，即全部官方档案使用的部署默认凭据。键由发行供应商推出（`src/assets/model-providers.ts`），与 `omne setting show openrouter apiKey` 显示的官方层是同一个。
    - 是目录或链接：退出 1，标准错误写明路径上不是保管库文件，要人先删除它。`setup` 从不删除目录或链接。
-   - 是文件：经 `inspectLocalCustodian` 在文件锁下打开它（顺带清理这份保管库的残留临时文件），不只看文件在不在。
+   - 是文件：经 `inspectSecretVault` 在文件锁下打开它（顺带清理这份保管库的残留临时文件），不只看文件在不在。
      - 没有 `--replace-credential`、文件可读：不读标准输入，保管库不变，总结标 `kept`。
      - 没有 `--replace-credential`、文件读不出：退出 1，标准错误写 `setup: the model credential vault <路径> cannot be read (<原因>)` 与修正办法（加 `--replace-credential` 重跑）。原因是 `corrupt` 或 `io`。保管库不变。
-     - 有 `--replace-credential`、文件可读：读凭据，经 `replaceVaultSecret` 替换工厂秘密，总结标 `replaced`。
-     - 有 `--replace-credential`、文件读不出：重建。先读凭据并校验，再删除这个文件，再按新建的规则建保管库，总结标 `rebuilt: the old vault could not be read`。旧文件的内容不读。凭据不合格时旧文件留在原处。重建后，旧保管库里各租户自己的模型凭据都不再存在，这些租户改用部署默认凭据，直到各自重新执行 `omne credential set`。总结里必须多写一行 `warning` 说明这一点（R2-D366）。这是运维者显式执行的例外；运行时遇到「绑定存在但读不出」时，调用仍以 credential 失败结束，不回落到默认。
+     - 有 `--replace-credential`、文件可读：读凭据，经管理面 `bind` 写同一个官方层，读回确认后收窄文件权限，总结标 `replaced`。
+     - 有 `--replace-credential`、文件读不出：重建。先读凭据并校验，再删除这个文件，再按新建的规则建保管库，总结标 `rebuilt: the old vault could not be read`。旧文件的内容不读。凭据不合格时旧文件留在原处。重建后，旧保管库里各租户自己的秘密设置项都不再存在，官方档案改用部署默认凭据，直到各租户重新执行 `omne setting set`。总结里必须多写一行 `warning` 说明这一点（R2-D366）。这是运维者显式执行的例外；运行时遇到「绑定存在但读不出」时，调用仍以 credential 失败结束，不回落到默认。
    - 文件锁等不到：退出 1。
 9. 设置是新的或变了时，写 `server.json`：先写临时文件，再改名。
 
 第 8 步在第 9 步之前，所以 `server.json` 存在表示写它时保管库已经存在。
 
-凭据只从标准输入读。标准输入是终端时，标准错误写提示，关闭回显读一行。不是终端时，读到第一个换行或输入结束，去掉行尾。凭据去首尾空白后为空、含控制字符或读取失败时，退出 1，不写 `server.json`。凭据不经命令行参数或环境变量传入。凭据、它的哈希或前缀不出现在任何输出、配置文件或错误文字里。
+凭据只从标准输入读。标准输入是终端时，标准错误写提示，关闭回显读一行。不是终端时，读到第一个换行或输入结束，去掉行尾。凭据去首尾空白后为空、含控制字符、超过 4096 个字符或读取失败时，退出 1，不写 `server.json`。凭据不经命令行参数或环境变量传入。凭据、它的哈希或前缀不出现在任何输出、配置文件或错误文字里。
 
 权限：
 
-- POSIX：配置目录、状态目录、`host-files/` 与新建的工作区设为 `0700`，`server.json` 设为 `0600`。已存在的工作区不改模式。保管库按 model-host-local 的权限护栏建立与替换：创建掩码 `077`，文件 `0600` 并读回。
-- Windows：不改访问控制列表。保护来自用户目录下继承的访问控制，前提与 model-host-local 的[保管库初始化命令](../../packages/model/model-host-local/SPEC.md#权限)相同。保管库必须位于用户目录之下。`OMNE_SERVER_HOME` 指向用户目录之外时，第 8 步失败，原因是 `path-outside-home`。
+- POSIX：配置目录、状态目录、`host-files/` 与新建的工作区设为 `0700`，`server.json` 设为 `0600`。已存在的工作区不改模式。保管库按 settings-local 的权限护栏建立与替换：创建掩码 `077`，文件 `0600` 并读回。
+- Windows：不改访问控制列表。保护来自用户目录下继承的访问控制，前提与 settings-local 的[秘密保管](../../packages/assets/settings-local/SPEC.md#secret-custody)相同。保管库必须位于用户目录之下。`OMNE_SERVER_HOME` 指向用户目录之外时，第 8 步失败，原因是 `path-outside-home`。
 
 成功时标准输出写一份给人看的总结，退出 0：
 
@@ -136,17 +136,17 @@ Next:
   then, in another terminal: omne register --login-identifier <name>
 ```
 
-| 退出码 | 含义                                                                                     |
-| ------ | ---------------------------------------------------------------------------------------- |
-| 0      | 完成，或 `--help`                                                                        |
-| 1      | 一步失败：凭据读不到或不合格、保管库读不出或写不成、保管库路径上是目录或链接、目录或配置文件写不成 |
+| 退出码 | 含义                                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------ |
+| 0      | 完成，或 `--help`                                                                                      |
+| 1      | 一步失败：凭据读不到或不合格、保管库读不出或写不成、保管库路径上是目录或链接、目录或配置文件写不成     |
 | 2      | 参数不对、位置变量不合格、已有设置不合格而没有 `--reset`、设置不同而没有 `--reconfigure`、Shell 不存在 |
 
 凭据步骤失败时，标准错误写 `setup: model credential not stored: <原因>`。原因来自保管库操作的原因代码，不含凭据。例外是替换后收窄权限失败（`written-not-private`）：这时新凭据已经写进文件，旧凭据已不在，所以标准错误写 `setup: the new model credential was written to <路径>, but the file could not be made private to this user (mode 0600)`，再写一行 `Set the mode yourself (chmod 600 <路径>), then run setup again to check it.`，退出 1。
 
 ### serve 怎样用这份配置
 
-省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openLocalCustodian` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。运维者层里的文件根与 Shell、Files 的 `cwd` 取工作区的真实路径（R2-D376）：工作区经链接或 8.3 短名给出时，用它指的那个目录。真实路径只在内存里用，`server.json` 不变。
+省略 `--state-root` 时，状态目录必须存在。省略 `--operator` 时，入口读 `server.json`，用 `openSecretVault` 实际打开保管库（不只看文件在不在），确认工作区是目录，必要时重建 `host-files/`，再生成运维者层。运维者层里的文件根与 Shell、Files 的 `cwd` 取工作区的真实路径（R2-D376）：工作区经链接或 8.3 短名给出时，用它指的那个目录。真实路径只在内存里用，`server.json` 不变。
 
 - 状态目录、`server.json` 或保管库缺失时，标准错误写 `serve: not set up: <缺什么>` 和一行 ``Run `harness-server setup` first.``，退出 2。stdout 没有记录，不装载任何行。
 - 保管库读不出（原因 `corrupt` 或 `io`）时，标准错误写 `serve: the model credential vault <路径> cannot be read (<原因>)` 与修正办法，退出 2，不装载任何行。路径上是文件时，办法是 `harness-server setup --replace-credential`；不是文件时，办法是删除它后运行 `harness-server setup`。
@@ -157,16 +157,16 @@ Next:
 
 `src/local/operator-defaults.ts` 的 `localOperatorLayer` 生成本档的运维者层。发行层不写数值默认值（R2-D6），所以本档的数值在这里。每一行都是 `replace`。配置从发行层该行的配置开始，再叠加本档的键。因此本档不重抄发行层拥有的值：`storage` 的 `maxJsonDepth`、`agent-host` 的 `jointCommits` 与 `coordination`。`session-storage`、`model-records`、`tool-records` 的 `combinationVersion` 取发行层 `session-handoff` 行的值。发行层没有这个值时，入口以退出码 2 拒绝。本档的键与发行层同一行的键不重叠。
 
-| 行                                                                              | 本档给出                                                                                                                                       |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`                                                                       | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                    |
-| `session-storage`                                                               | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                         |
-| `model-credential`                                                              | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密                                                                                         |
-| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由是 OpenRouter                                                                                              |
-| `tool-host`                                                                     | Shell：可执行文件取配置，参数见下，`cwd` 是工作区，结果上限 32768 字节。Files：`cwd` 是工作区，结果上限 32768 字节                             |
-| `tool-records`、`execution-host`                                                | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                  |
-| `request-context`、`agent-context`、`agent-host`、`session-ad03`、`session-ad04` | 各自的上限与工厂数值                                                                                                                           |
-| `server-entry`                                                                  | 端口取配置。`historyKinds` 是 `message.user`、`message.assistant`、`message.tool`、`message.system_reminder`、`run.started`、`run.terminal` |
+| 行                                                                               | 本档给出                                                                                                                                                                                                                                                                 |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `storage`                                                                        | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                                                                                                                                              |
+| `session-storage`                                                                | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                                                                                                                                                   |
+| `secret-custody`                                                                 | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。`model-credential` 行经本行读同一个文件，没有运维者值，见[秘密保管行](docs/rows/secret-custody.md)；`settings` 行没有运维者值，见[设置行](docs/rows/settings.md)                                                                                                                                                                              |
+| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由由发行供应商 OpenRouter 的正文推出，本档不改端点。`model-records.diagnostics` 是 `tenant-self` 读取与占位的保留采用                                                                                                                                                     |
+| `tool-host`                                                                      | Shell：可执行文件取配置，参数见下，`cwd` 是工作区，结果上限 32768 字节。Files：`cwd` 是工作区，结果上限 32768 字节                                                                                                                                                       |
+| `tool-records`、`execution-host`                                                 | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                                                                                                                                             |
+| `request-context`、`agent-context`、`agent-host`、`session-ad03`、`session-ad04` | 各自的上限与工厂数值                                                                                                                                                                                                                                                     |
+| `server-entry`                                                                   | 端口取配置。`historyKinds` 是 `message.user`、`message.assistant`、`message.tool`、`message.system_reminder`、`run.started`、`run.terminal`。`diagnosticsKinds` 是会话诊断投影读的全部种类（`LOCAL_DIAGNOSTICS_KINDS`，DA4 暂时采用），`maxRuns` 32，`maxCallsPerRun` 64 |
 
 Shell 的参数按可执行文件名定：`powershell` 或 `pwsh` 在 Windows 上取 `-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command` 再加一段 UTF-8 前导（见下），在其他平台取 `-NoLogo -NoProfile -NonInteractive -Command`。其他可执行文件取 `-c`。Windows PowerShell 的默认执行策略不让运行本地脚本。`-ExecutionPolicy Bypass` 只作用于这一个 Shell 进程，不改宿主的策略。
 
@@ -178,18 +178,47 @@ Shell 进程不继承服务进程的环境。它的环境是 `server.json` 的 `
 
 `setup` 按下面的白名单从自己的环境取 `shellEnvironment`。Windows 上按名字比较时不分大小写，例如 `Path` 记为 `PATH`。值为空的变量不取。
 
-| 平台     | 白名单                                                                                                                                       |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 平台     | 白名单                                                                                                                                                            |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows  | `PATH`、`PATHEXT`、`SystemRoot`、`SystemDrive`、`WINDIR`、`ComSpec`、`USERPROFILE`、`APPDATA`、`LOCALAPPDATA`、`ProgramData`、`ProgramFiles`、`ProgramFiles(x86)` |
-| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`                                                                                                     |
+| 其他平台 | `PATH`、`HOME`、`USER`、`LANG`、`LC_ALL`、`XDG_RUNTIME_DIR`、`DBUS_SESSION_BUS_ADDRESS`                                                                           |
 
 所以 Shell 里的 `PATH` 是运行 `setup` 时的 `PATH`，agent 能找到 `git`、`node`、`python` 这些工具。宿主上装了新工具、`PATH` 变了时，运行 `setup --reconfigure` 重新取。
+
+`XDG_RUNTIME_DIR` 与 `DBUS_SESSION_BUS_ADDRESS` 让命令找到当前用户的服务管理器，所以 agent 能像人一样用 `systemctl --user` 部署和查看本机服务。命令经服务管理器起的进程归宿主的服务管理器，不归执行环境，执行环境不负责它们的收尾；是否允许这样做由对命令的授权决定。这两个变量不是安全边界：命令可以按自己的用户号推出它们。`setup` 在没有用户会话的环境里运行时取不到它们，这时 Shell 里也没有。已有的 `server.json` 不含这两个变量，运行 `setup --reconfigure` 重新取。
 
 名字像秘密的变量不进 Shell 的环境：名字以 `TOKEN`、`KEY`、`SECRET`、`PASSWORD`、`PASSWD`、`CREDENTIAL`（可带复数 `S`）结尾，或以 `OPENROUTER_` 开头，不分大小写。白名单里没有这样的名字。有人手工把这样的名字写进 `shellEnvironment` 时，`serve` 认为配置不合格，以退出码 2 拒绝。生成运维者层时也再滤一次。
 
 用户可以改 `shellEnvironment` 来增减变量，也可以用 `--operator` 给出整份运维者层，在 `tool-host` 行写自己的 `construction.Shell.env`。经 `--operator` 配置的文件根必须是真实路径。Windows 上联接或符号链接作根不受支持：路径守卫放行时文件后端仍拒绝，以拒绝为准。
 
 数值来自联调 B 的运维者层与 coding agent 教程的运维者层。两者不同时取教程的值，因为教程在 WIRE 头 `1a34bcba6` 上用真实模型跑通了 15 次工具调用。`tools/joint-b/operator.mjs` 经构建产物消费同一份默认值，只换路径与测试工厂秘密。
+
+本地档的 SQL 单参加者响应上限为 256 KiB。四个驻留工具的 coding 定义创建 Session 时已超过原 64 KiB。Tools 读取约 50 KiB 结果时，消息准入回执同时保留原意图、结果请求与准入消息，超过中间的 128 KiB 配置并触发 `response_limit` 回滚。当前预算为既有 64 KiB 结果页及其回执封套留出空间；真实 SQLite 回归验证完整保存、原身份和同键认回。总操作响应仍为 1 MiB，全局及组预留不变。该预算服务当前发行档，不承诺任意大小的定义或消息均可接纳；超限仍明确失败并回滚，不扩大消息恢复权限。
+
+### Tools 与会话待办的发行采用
+
+当前正式发行采用 Shell、Files、Tools、TodoItems 和 Web，coding 定义将五项声明为常驻候选。实际常驻集合由 Session 的 WorkSnapshot.residents 提供。Tools 的当前目录由受信会话工作身份、活动 Session、其 adopted AgentDefinition 引用与正式发行资产求交，并保留已经实际持有的常驻项。references.resident 不替代实际持有事实。当前适配只支持官方发行，不声称组织、租户、工作区资产解析或自动继承已经实现。
+
+search 只返回合法非常驻，五项均已实际常驻时成功返回空页；inspect 可查看两类工具。Tools.execute 经原 Tool runtime 启动非常驻目标，准备与实际启动分别核当前纳入、常驻状态及目标授权规则。目标继承父调用的租户、主体和资源上限，不采用父 Tools 获准作为目标授权。已受理调用的结果保管与当前新启动资格分别处理。发现和执行不把目标加入模型直接 tool call 列表。Agent 的直接调用在运行时准入与首次启动处要求目标属于当前实际常驻集合，即使模型直接返回合法但非常驻的工具名也拒绝。该检查依据当前 Session 事实，不声称绑定原模型请求发送时的声明快照。
+
+发行提供者按当前 generation 保留成功校验的普通 ToolDefinition 副本，最多保留该清单的定义数量，不保留 executor、作者对象或运行句柄。live contribution 卸载不删除这份定义；当前会话合法 view 可据此返回 known-unavailable。当前资格仍逐次核验，元数据不是执行授权。提供者不保存跨旧发行的耐久历史。重新启动只重新取得当前发行可合法装载的定义，旧发行历史能力记忆须由采用拥有者另行承接。
+
+TodoItems 作者只得到本次执行绑定的清单能力。应用从可信 Session 工作主体和原 ToolCallId 取得 Session 范围及稳定操作身份，并固定命令与参数；模型不提供 Session、租户或主体标识。每次访问经 Session 当前授权，状态、原操作回执与访问证据同事务提交。add/remove/mark_complete 逐项生效，list 保留完成项并隐藏已移除项，跨 Run 沿同一 Session 延续。提交未知须认回原操作，不能用新模型调用代替。执行作用域关闭后撤销绑定能力。
+
+清单结果通过既有 Tool→Agent 结果链进入历史，同 Session 接续按使用指导主动 list。本次发行未采用自动 Runtime Context 待办投影，不承诺自动注入或每次模型请求必见最新待办；这些保证不能从逐项持久清单推导。
+
+Web 作者只得到本次执行附着的 `WebAccess`（`tool-bindings` 行按 `isReleaseToolRequest` 为 Web 的调用附着，顺序在 Tools 与 TodoItems 之后，执行作用域关闭后撤除）。提供者是 `@omne-harness/tool-host-local/web` 的 `createWebAccess`，提供者数值（Exa 端点、超时、跳数、字节上限）归运维者层 `tool-bindings.web`，作者构造值 `resultMaxBytes` 与 `maxSearchResults` 归 `tool-host.construction.Web`；缺 `tool-bindings.web` 时不附着，Web 的 search 与 fetch 答 unavailable。search 的 key 是行事租户的 Web 设置 `exa.apiKey`：附着（`src/rows/tool-bindings/web.ts` 的 `releaseExaKey`）按调用读受信 `settingsSecretCustody`，经 tool-host-local 的 `createLocalToolCredentials` 解析，选层顺序是租户、组织、官方，组织层恒未配置，官方层对每个合法租户已持有（assets-and-rules F7）；引用在调用开始时选定，使用时只读这个引用，中途被清除则这次调用失败，不改选别的层（I-4、I-8）。没有任何层配了 key 时 search 返回 `unconfigured`，fetch 照常取页。本机档的 Web 直连宿主网络，不经执行环境设施，沙箱与多租户部署的出口控制是已知限制。
+
+### 设置与 Web 凭据的组合保证
+
+「用户配了 key，Web 就能用；秘密不外泄；租户与用途互相取不到」由本应用承担，参与方是 `secret-custody` 行（保管）、`settings` 行（登记、秘密项入口与准入）、`server-entry` 行（`omne setting` 的四个治理操作，按调用读 `settingsSecretItems`）与 `tool-bindings` 行（Web 附着，按调用读 `settingsSecretCustody`）。成立条件：
+
+- 写入与读取是同一把键。`omne setting set Web exa.apiKey` 经秘密项入口写（租户范围，目标由发行 Web 条目的采用 owner 与工具名投影出的持有身份加项标识编码，用途 `setting`）；Web 附着用 `src/rows/settings/holding.ts` 的同一份编码读。本应用内只有这一份编码，Settings 自己的编码在它的 `secret-items.ts` 里，行测试以写后读证明两者相等。
+- 有无只由保管现读。`settings` 行与附着都不缓存：直接改保管文件，`show`、`list` 与下一次 search 立即看到。
+- 范围与用途隔离由键保证：公开操作只写行事租户的租户范围，不碰官方范围与使用面；Web 用途 `setting`，Model 用途 `model-send`，保管按键精确匹配，互相取不到。
+- 秘密不进持久记录：秘密只在 `set-setting` 请求里，成功体只有 `configuredAt`；`FixedToolRequest` 不变，工具结果只有 Exa 的应答。
+
+失败归属：保管读不出，`omne setting` 答 `basis-unavailable`、search 答 `unavailable`；准入不过答 `denied`；没有 key 时 search 答 `unconfigured` 并指出要配哪一项；Exa 答 401、402、429、5xx 时分别答 `denied`、`quota-exhausted`、`rate-limited`、`upstream`。核对：`tests/rows/settings/`、`tests/rows/tool-bindings/web.spec.ts` 与慢层 `tests/rows/tool-runtime/web-settings-e2e.spec.ts`（含哨兵扫描）。
 
 ## 插件树与运维层
 
@@ -295,24 +324,26 @@ stdout 每行一条 JSON 记录：
 
 S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前拒绝的诊断写 stderr，stdout 只有 `tree` 记录。
 
+**stdout 只有一个写者。**`bin.ts` 交给 `runS0` 与 `runServe` 的记录写函数是唯一向 stdout 写记录的函数。装配记录、日志桥与 `telemetry` 行的 `stdout` 出口都经它写出，每条记录一行完整 JSON，次序就是调用次序。遥测在 `storage` 阶段之后关闭，`shutdown-result` 在它之后写出。`serve` 写出 `shutdown-result` 之后 stdout 封口（S0 路径在这之后没有记录要写，不封口）：之后到达写函数的记录（例如期限之后才结束的句柄的 `late-result`）改写到 stderr，每条一行完整 JSON，不带前缀。所以 `shutdown-result` 一定是 stdout 的最后一行。
+
 `serve` 沿用这五种记录，差别如下（DP1-C3）：
 
-| 记录             | 与 S0 的差别                                                                                                                                                                                                                                                |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tree`           | `implementation` 按行取 `real`、`contract-double` 或 `s0-double`                                                                                                                                                                                            |
-| `entry-object`   | 新增，只在 `serve`。每个入口对象一条：`name`、`implementation`、`trusted`。不含对象的值。`s0.assemblyLifecycle` 记 `real`，占位对象记 `s0-double`。与 `tree` 一样在装载前完整输出                                                                           |
-| `log`            | 新增，只在 `serve`。`level`（`error`、`info` 或 `warn`）、`name`（记录器名）、`text`（格式化后的消息）。根上登记的导出器把级别不高于 WARN 的 Cordis 日志各写成一条，DEBUG 不输出（R2-D253）。消息带什么由各行负责，导出器不另裁剪。格式化失败时 `text` 是固定文字，写出失败时这条丢弃，都不抛给记日志的调用方 |
-| `startup-result` | `profile: 'real'`、`scope: 'serving'`。`accepting` 见「就绪与诊断」。新增 `implementations`：三种实现各自的行数                                                                                                                                             |
-| 之后             | `accepting` 为 true 时进程等停止请求：`--stop-on-stdin-close`、SIGINT、SIGTERM 或运行期换代。收到后 stderr 写 `serve: stop requested: <原因>`，再走有序关闭。启动码非零时与 S0 一样立即发起计划停止。装载前拒绝时 stdout 只有 `tree` 与 `entry-object` 记录 |
+| 记录             | 与 S0 的差别                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tree`           | `implementation` 按行取 `real`、`contract-double` 或 `s0-double`；`telemetry` 行另带 `telemetry: { implementation, outlet }`（实现名与出口种类；`disabled` 行没有配置出口时不带 `outlet`）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `entry-object`   | 新增，只在 `serve`。每个入口对象一条：`name`、`implementation`、`trusted`。不含对象的值。`s0.assemblyLifecycle` 记 `real`，占位对象记 `s0-double`。与 `tree` 一样在装载前完整输出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `telemetry`      | 新增，只在 `serve`，取代原 `log` 记录。工程遥测记录（`@omne-harness/telemetry-node` 的 `TelemetryRecord`）：`signal`、`time`、`owner`、`name`、`version`、`scope`、`component`，以及各信号自己的成员。级别不高于 WARN 的 Cordis 日志经日志桥各成为一条 `signal: 'log'` 的记录（`owner: 'cordis'`、`name: 'omne.cordis.log'`、`level`、`fields.text`），DEBUG 不输出（R2-D253）。`telemetry` 行以 `node` 实现就绪时经运行时写出；就绪之前、实现为 `disabled` 时与关闭之后由桥直接写出，不带 `generation` 与 `instance`。格式化失败时 `text` 是固定文字，写出失败时这条丢弃并计数，都不抛给记日志的调用方。`server-entry` 的诊断是 `signal: 'event'`、`name: 'omne.entry.diagnostic'` 的记录，`path` 只取请求 URL 的路径部分。`session-provider` 的每个面操作是一对 `segment-start`、`segment-end` 记录（`name: 'omne.session.<操作>'`，owner `session`），Session 实例自己的提交写下 `run.terminal` 时是事件 `omne.session.round-complete`（由 `session-ad02` 解读 Agent 事实写下的终态不发，见 Session SPEC「测量事件」），协调器步骤停在失败上是事件 `omne.session.diagnostic`；`agent-host` 的每个执行 pass 是一对段记录（`name: 'omne.agent.pass.<pass>'`，owner `agent`）。这些记录的 `scope` 是访问的租户。原 `log` 记录（`{ kind: 'log', level, name, text }`）不再写出：这是 apps 层的破坏性输出变化，依据是 RFC-0013 revision 2 B 线。规则见 [telemetry 行](docs/rows/telemetry.md) |
+| `startup-result` | `profile: 'real'`、`scope: 'serving'`。`accepting` 见「就绪与诊断」。新增 `implementations`：三种实现各自的行数                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 之后             | `accepting` 为 true 时进程等停止请求：`--stop-on-stdin-close`、SIGINT、SIGTERM 或运行期换代。收到后 stderr 写 `serve: stop requested: <原因>`，再走有序关闭。启动码非零时与 S0 一样立即发起计划停止。装载前拒绝时 stdout 只有 `tree` 与 `entry-object` 记录                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
-| 退出码 | 含义                                                                                                      |
-| ------ | --------------------------------------------------------------------------------------------------------- |
-| 0      | 启动全部 ACTIVE 且关闭 settled。`serve` 还要求停止来自请求                                                |
-| 1      | 未预期的内部错误，stderr 写 `<子命令>: internal error: ...`                                               |
+| 退出码 | 含义                                                                                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0      | 启动全部 ACTIVE 且关闭 settled。`serve` 还要求停止来自请求                                                                                             |
+| 1      | 未预期的内部错误，stderr 写 `<子命令>: internal error: ...`                                                                                            |
 | 2      | 配置、解析或装载前检查失败，也含用法错误：参数缺失、路径不是绝对路径、JSON 读不出、状态根不是已存在的目录。也含 `serve` 省略参数而本机没有完成 `setup` |
-| 3      | 至少一行 FAILED，或启动期 `start` 抛出，或（`serve`）目录准备失败、一个入口对象的 `install` 抛出           |
-| 4      | 仍有 PENDING 或未完成 LOADING                                                                             |
-| 5      | 启动码为 0 但关闭 incomplete                                                                              |
+| 3      | 至少一行 FAILED，或启动期 `start` 抛出，或（`serve`）目录准备失败、一个入口对象的 `install` 抛出                                                       |
+| 4      | 仍有 PENDING 或未完成 LOADING                                                                                                                          |
+| 5      | 启动码为 0 但关闭 incomplete                                                                                                                           |
 
 启动码非零时取启动码。启动期 `start` 抛出时，`outcome` 为 `start-failed`，退出码为 3，见「有序关闭」节「启动与停止状态」第 3 条。`serve` 里一个入口对象的 `install` 抛出时，入口不装载任何行，stderr 写 `serve: entry-object <名>: install failed`，错误消息不写进 stdout，然后发起计划停止，退出 3。这时没有行登记过句柄，关闭报告把预期登记者记为 `not-registered`。
 
@@ -340,6 +371,8 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 
 **阶段规则。**一个阶段的全部句柄结束或到达 D 之后，才开始下一阶段。到达 D 时未结束的句柄记为 `incomplete`，协调者继续下一阶段，不等它。句柄抛出时记为 `failed`，继续下一阶段。报告确定后才结束的句柄只写诊断，不改变报告。协调者不关闭任何业务连接，不回滚提交；SQL 连接与 Worker 只由 SQL 提供者在第 6 步关闭。
 
+**遥测关闭。**`storage` 阶段之后、第 7 步报告确定之前，协调者写一条动作为 `telemetry-close` 的 `shutdown-step`，调用入口交来的遥测关闭步骤：先把日志桥切到关闭后态，再以 `runtime.close(剩余期限)` 排空队列到本地出口。所以期限耗尽时，关闭期间与撤根期间的 Cordis 消息也走关闭后路径。步骤受同一个 D 约束，只为了报告：抛出记诊断并写 `unavailable` 与 `close-failed`，到达 D 写 `unavailable` 与 `deadline`，迟到的完成只写诊断。关闭报告附 `telemetry`：`closed` 带提供者的 `CloseReport` 与桥的四个计数；`telemetry` 行没有创建运行时时为 `not-registered`，只带桥的计数。附录不参与 `overall` 或退出码计算。撤根期间 disposer 写的 Cordis 消息经桥的关闭后态直接写出，在 `shutdown-result` 之前。报告确定后才结束的句柄的 `late-result` 若在 `shutdown-result` 之后到达，写到 stderr，见「进程输出与退出码」的 stdout 封口。规则归 [telemetry 行说明](docs/rows/telemetry.md#关闭步骤与报告)。
+
 **宿主文件结算。**启用 `executionHost` 时，入口在停止开始后取消周期。在 `business` 阶段之后、`composition` 阶段之前，入口等待已排队维护。随后经 loader 的 `disposeRow` 显式卸载宿主行，等待卸载完成后补维护，再做最终维护。关闭报告附 `hostFiles`：无残留为 `settled`，有残留为 `host-files-unsettled` 并附计数；维护或退役失败为 `unavailable`，不填未知计数。附录不参与原 `overall` 或退出码计算。超过 D 时附录固定为 `unavailable` 与 `deadline`，迟到结果只进诊断。storage 仍在报告确定后收到确认，根撤除继续等待同一个结算任务。R2-D32 只承诺显式 loader 卸载后的补维护，自动依赖卸载后的特定补维护留波 3。D 约束 stop 与报告窗口，不保证整个进程在 D 内退出。责任域和维护周期归 [execution-host 行说明](docs/rows/execution-host.md)。
 
 **启动与停止状态。**
@@ -364,6 +397,7 @@ sequenceDiagram
   participant B as business 句柄
   participant P as composition 句柄
   participant S as storage 句柄
+  participant T as 遥测运行时
   R->>C: 步骤 1 进入停止状态
   Note over C: 步骤 2 D = 单调时钟 + shutdownDeadlineMs，全部阶段共用
   C->>E: 步骤 3 并发 stop(D)
@@ -374,6 +408,8 @@ sequenceDiagram
   P-->>C: 会话存储组合关闭结果
   C->>S: 步骤 6 stop(D)，句柄对每个控制口 close({ initiator: 'assembly' })
   S-->>C: settled 或 incomplete
+  C->>T: 遥测关闭 close(剩余期限)，然后日志桥切到关闭后态
+  T-->>C: CloseReport
   Note over C: 步骤 7 报告确定，之后不再修改
   C->>S: 步骤 8 assemblyReportSettled()
   Note over C: 步骤 9 撤除 Cordis 根，结果只进诊断
@@ -396,13 +432,16 @@ sequenceDiagram
 - 本机单用户档的 Shell 环境是 `setup` 当时的白名单值。`PATH` 之后变了，要运行 `setup --reconfigure` 才跟上。白名单以外的变量（例如代理设置）不进 Shell，需要时手工写进 `shellEnvironment`。
 - Windows 上 Shell 的 UTF-8 前导只管输出和读文件。`Set-Content`、`Out-File` 与 `>` 仍按 PowerShell 的默认编码写（Windows PowerShell 5.1 是 ANSI 页），前导不强制 BOM，因为 BOM 会破坏 `package.json` 之类的文件；要写 UTF-8 文件，脚本自己用 `[IO.File]::WriteAllText` 或 `-Encoding utf8`（5.1 带 BOM）。工具的 `stdin` 经 `$input` 读取时仍按控制台页解码，前导够不到它；脚本用 `[Console]::In.ReadToEnd()` 读才是 UTF-8。参数里的中文文本不受影响（命令行是 UTF-16）。验证见 `tests/local/shell-encoding.spec.ts`，它在 Windows 上用真实 `powershell.exe`，其他平台跳过；经执行宿主的 Windows 命令桥做过一次手工核对，没有固化成用例。
 - Windows 上 `setup` 不改也不读回访问控制列表，保护只靠用户目录的继承，前提见[权限](#setup)。
+- <a id="releasescope-wiring"></a>工具执行环境的绑定给每次获取（含一次性执行）交出保留范围与保留账本视图，同一个视图对象同时作保留终端账本与保留进程账本（`processes`）。保留范围就是请求方范围。应用现在没有调用登记表的 `releaseScope`：会话归档或关闭不会封闭保留范围，所以保留终端与一次性执行留下的保留进程都不会因会话结束而停止，保留进程只在自己退出或被显式停止时结束。触发条件是会话归档产生作用域释放（上层候选设计见[作用域释放](../../docs/architecture/runtime/control-and-recovery.md#作用域释放)）：归档与作用域释放插件归 Session，应用里 Session 提供者的归档相关操作还没有实现，作用域释放插件 `session-ad15` 仍是 S0 替身。接线之后，归档提交产生作用域释放任务，作用域释放插件凭恢复授权调用登记表的 `releaseScope`。执行环境一侧的入口已经就绪，接线不需要改执行环境。
+- 应用的环境授权对动作 `observe-retained`（按保留范围观察保留进程）答拒绝，执行环境把它映射为 `notAuthorized`。授予哪个观察身份由接上观察适配器的装配决定，在那之前没有调用方能观察。工具设施守卫的规则不变：会话主体与原调用核对通过即放行，保留进程的 `stop` 与 `output` 同样适用。
 - `omne` CLI 为读默认地址重复了[位置](#位置)的规则，因为应用之间不互相导入。改位置规则时两处要同时改，CLI 的 `tests/local-server.spec.ts` 与本应用的 `tests/local/locations.spec.ts` 各自固定一份。
 - 成员插件在插件体内自登记的行要等正式 `assemblyLifecycle` 被接受后再定承载（N-r2-3）。现在带阶段的行只经 `defineRow` 的两种承载进入。
+- 遥测（RFC-0013 revision 2 本地范围）第一版只有一代输出，按 `telemetry` 行配置在启动时固定，改出口或预算要重启进程（D09）。进程实例引用在模块装入时生成一次，同一进程里多次 `runServe` 共用。报告里的 `afterClose` 不计撤根期间的消息。其余见 [telemetry 行](docs/rows/telemetry.md#已知限制)。
 - `storage` 句柄的结果受提供者自己的 `closeDeadlineMs` 约束。它大于 D 时，句柄在 D 答 `incomplete`，提供者仍在关闭。
 - 行清单的四跳同步靠人工：装配页到 `aa-rows.json` 由脚本再生，装配页到 `stubs.ts` 由线负责人手工同步，`stubs.ts` 到真实行声明由 `real-manifests-sync` 检查，等待装配页补丁的差额写在该测试的具名清单里。
 - `defineRow` 声明的清单与插件实际取用的服务可能不一致。装载器只核声明，真实行的成员测试负责核对。
 - R2-D25 的 Runtime/Execution `current()` 只桥接读取方 fiber 的进程代次。撤权、工作失效和 Request Context 换代尚未同步，不闭合 #677。R2-D29 的 reader 只接受 scope 所属 Session 的工作主体，producer 拒绝；缺 AD-03 归属或 AD-15 恢复授权生产来源时默认 `unavailable`。
-- Model 三行真件的已知限制（撤权只随宿主 fiber 退役、直接命令口的 W 没有受理点、工厂围栏永不拒绝而由保管库 `resolveFor` 防护、ActorRef 是租户级记录、四种证据恒 `unavailable`、数值无测量依据）归 [Model 生产接线](docs/rows/model-release.md#已知限制)。
+- Model 三行真件的已知限制（撤权只随宿主 fiber 退役、直接命令口的 W 没有受理点、ActorRef 是租户级记录、四种证据恒 `unavailable`、数值无测量依据）归 [Model 生产接线](docs/rows/model-release.md#已知限制)。
 - R2-D26 的采用规划器已有纯模块实现，但生产 `SessionAdoptionSource` 尚未接入 `plan`，真实 authority、首次 version 与 admitted 的定义投影仍缺。登记事实缺失时整份 `unavailable`，不能把局部规划测试写成 AS-06 完整生产就绪。
 
 ## 偏离登记

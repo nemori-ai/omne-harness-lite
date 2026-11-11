@@ -33,7 +33,7 @@ if [[ -z "${OMNE_TEST_SLOT_HELD:-}" && "$preflight" -eq 0 ]]; then
 fi
 
 # 正文在测试运行器的 check 命令里：取基线、算计划，再按步骤图跑全部检查（表在 tools/test-runner/src/testing/check-steps.ts：
-# 无依赖的步骤同时跑，构建之后才跑类型检查、成员测试、验收与读 dist 的检查，回路状态最后；一步失败其余终止）。
+# 无依赖的步骤同时跑，构建之后才跑类型检查、成员测试、验收与读 dist 的检查；一步失败其余终止）。
 # --admission 或 OMNE_ADMISSION=1 为准入模式：构建、类型检查与成员测试不读缓存，并写准入日志与运行记录。--keep-going 失败后继续跑其余步骤。
 # --resume-from <H1> 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下接受），规则见 docs/engineering/integration.md「增量准入」。
 # --preflight 预检（根脚本 pnpm run preflight）：只跑准入里不依赖构建与全量测试的步骤，失败不终止其余，最后列出全部发现与修法；不写准入日志与记录。

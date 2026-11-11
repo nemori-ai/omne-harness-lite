@@ -245,7 +245,8 @@ export const shellCommands: readonly Command[] = withHelp([
   },
   {
     name: 'info',
-    summary: 'Show the current execution environment and live terminal sessions.',
+    summary:
+      'Show the current execution environment, live terminal sessions and retained processes.',
     fields: [],
   },
 ])

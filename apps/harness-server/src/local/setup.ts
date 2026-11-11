@@ -1,22 +1,35 @@
 // `harness-server setup`: the one command that prepares a host for the local single-user server.
-// It picks the standard places (`locations.ts`), puts the model credential into the vault of the
-// state directory, and writes the settings file. A second run keeps what is there: the settings
+// It picks the standard places (`locations.ts`), puts the model credential into the secret vault of
+// the state directory (settings-local's file custody; the credential is the official layer of the
+// OpenRouter provider's credential item, the deployment default every official profile sends with),
+// and writes the settings file. A second run keeps what is there: the settings
 // change only with `--reconfigure` (or `--reset` for a file that is not valid), and the credential
 // only with `--replace-credential`. A vault that cannot be read is a failure, never "kept".
 //
 // Order: arguments, places, existing settings, wanted settings, directories, credential, settings
 // file. The credential step comes before the settings file, so a settings file means that the
 // vault was there when it was written. Nothing that this command prints holds the credential.
-import { lstatSync, mkdirSync, statSync } from 'node:fs'
+import { lstatSync, mkdirSync, statSync, unlinkSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import {
+  SECRET_TEXT_MAX_LENGTH,
+  type SecretBindingKey,
+  type SecretText,
+  type SecretWriteResult,
+} from '@omne-harness/settings'
+import {
   defaultGuard,
-  initVault,
-  inspectLocalCustodian,
-  replaceVaultSecret,
+  holdsSecret,
+  initSecretVault,
+  inspectSecretVault,
+  narrowAndVerify,
+  openSecretVault,
+  readTypedSecret,
   type PermissionGuard,
-  type VaultReplaceFailure,
-} from '@omne-harness/model-host-local/vault'
+  type SecretVault,
+  type SecretVaultInitFailure,
+} from '@omne-harness/settings-local/secrets'
+import { providerCredentialKey, releaseProvider } from '../assets/model-providers.ts'
 import { pathsOf, resolveLocations, type ServerLocations } from './locations.ts'
 import {
   DEFAULT_PORT,
@@ -26,6 +39,23 @@ import {
   writeSettings,
   type ServerSettings,
 } from './settings.ts'
+
+/** The provider whose credential `setup` stores: the one every official profile sends to. */
+const DEPLOYMENT_PROVIDER = 'openrouter'
+
+/**
+ * The binding key of the deployment default: the official layer of the provider's one credential
+ * item, the key `omne setting` shows as the official layer and the send reads.
+ */
+function deploymentKey(): SecretBindingKey {
+  const provider = releaseProvider(DEPLOYMENT_PROVIDER)
+  const [credential, ...more] = provider?.body.credentials ?? []
+  if (provider === undefined || credential === undefined || more.length > 0)
+    throw new Error(
+      `the release provider ${DEPLOYMENT_PROVIDER} does not declare one credential item`,
+    )
+  return providerCredentialKey(provider, { layer: 'official' }, credential.item)
+}
 
 export const SETUP_USAGE =
   'usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--reset] [--replace-credential]'
@@ -247,25 +277,29 @@ function codeSuffix(error: unknown): string {
   return typeof code === 'string' ? ` (${code})` : ''
 }
 
-const VAULT_REASONS: Readonly<Record<Exclude<VaultReplaceFailure, 'written-not-private'>, string>> =
-  {
-    'input-not-terminal': 'standard input is not a terminal',
-    'input-cancelled': 'the input was cancelled',
-    'input-failed': 'the credential could not be read from standard input',
-    'secret-empty': 'the credential is empty',
-    'secret-malformed': 'the credential holds a control character',
-    'path-invalid': 'the vault path is not valid',
-    'path-outside-home':
-      'the vault must lie below the user directory (move OMNE_SERVER_HOME below it)',
-    'path-check-failed': 'a parent of the vault path cannot be examined',
-    'path-occupied': 'something is already on the vault path',
-    'vault-unavailable': 'the vault cannot be read',
-    'lock-timeout': 'the vault is locked by another process',
-    'write-failed': 'the vault could not be written',
-    'write-unconfirmed':
-      'the vault does not hold the new credential after the write; check the file',
-    'permission-failed': 'the vault file could not be made private to this user',
-  }
+/** Why the credential step failed: the vault reasons, no readable vault, or a write that stays wide. */
+type CredentialStoreFailure = SecretVaultInitFailure | 'vault-unavailable' | 'written-not-private'
+
+const VAULT_REASONS: Readonly<
+  Record<Exclude<CredentialStoreFailure, 'written-not-private'>, string>
+> = {
+  'input-not-terminal': 'standard input is not a terminal',
+  'input-cancelled': 'the input was cancelled',
+  'input-failed': 'the credential could not be read from standard input',
+  'secret-empty': 'the credential is empty',
+  'secret-malformed': 'the credential holds a control character',
+  'secret-too-long': `the credential is longer than ${SECRET_TEXT_MAX_LENGTH} characters`,
+  'path-invalid': 'the vault path is not valid',
+  'path-outside-home':
+    'the vault must lie below the user directory (move OMNE_SERVER_HOME below it)',
+  'path-check-failed': 'a parent of the vault path cannot be examined',
+  'path-occupied': 'something is already on the vault path',
+  'vault-unavailable': 'the vault cannot be read',
+  'lock-timeout': 'the vault is locked by another process',
+  'write-failed': 'the vault could not be written',
+  'write-unconfirmed': 'the vault does not hold the new credential after the write; check the file',
+  'permission-failed': 'the vault file could not be made private to this user',
+}
 
 type CredentialStep = 'created' | 'replaced' | 'rebuilt' | 'kept'
 
@@ -290,7 +324,7 @@ function notAFile(path: string): SetupRefused {
   )
 }
 
-function storeFailure(path: string, reason: VaultReplaceFailure): SetupRefused {
+function storeFailure(path: string, reason: CredentialStoreFailure): SetupRefused {
   if (reason === 'written-not-private')
     return new SetupRefused(
       `the new model credential was written to ${path}, but the file could not be made private to this user (mode 0600)\n` +
@@ -298,6 +332,93 @@ function storeFailure(path: string, reason: VaultReplaceFailure): SetupRefused {
       1,
     )
   return new SetupRefused(`model credential not stored: ${VAULT_REASONS[reason]}`, 1)
+}
+
+type ReplaceDeps = Readonly<{
+  readSecret: () => Promise<string>
+  guard: PermissionGuard
+  home: () => string
+}>
+
+type ReplaceResult =
+  | Readonly<{ ok: true; rebuilt: boolean }>
+  | Readonly<{ ok: false; reason: CredentialStoreFailure }>
+
+function isRegularFile(path: string): boolean {
+  try {
+    return lstatSync(path).isFile()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Writes the new deployment key through the management face under the guard, then confirms it by
+ * reading it back and narrows the file mode. `written` and `unconfirmed` are both decided by the
+ * read-back: a publish whose confirmation failed may still have landed.
+ */
+function replaceTyped(
+  vault: SecretVault,
+  path: string,
+  secret: SecretText,
+  guard: PermissionGuard,
+): ReplaceResult {
+  let written: SecretWriteResult
+  try {
+    written = guard.confine(() => vault.bind(deploymentKey(), secret, null))
+  } catch {
+    written = 'unconfirmed'
+  }
+  if (written === 'not-written' || written === 'denied')
+    return { ok: false, reason: 'write-failed' }
+  if (!holdsSecret(path, deploymentKey(), secret)) return { ok: false, reason: 'write-unconfirmed' }
+  try {
+    narrowAndVerify(guard, path, 'file')
+  } catch {
+    return { ok: false, reason: 'written-not-private' }
+  }
+  return { ok: true, rebuilt: false }
+}
+
+/**
+ * Replaces an unreadable regular file by a new vault: the key is read and checked first, then the
+ * file is removed, then the vault is built by the rules of `initSecretVault`. A directory, a link
+ * or a missing path is never removed; the answer stays `vault-unavailable`. Its old content is not
+ * read, so the tenant secrets of the old vault are gone.
+ */
+async function rebuild(path: string, deps: ReplaceDeps): Promise<ReplaceResult> {
+  if (!isRegularFile(path)) return { ok: false, reason: 'vault-unavailable' }
+  const typed = await readTypedSecret(deps.readSecret)
+  if (!typed.ok) return { ok: false, reason: typed.reason }
+  try {
+    unlinkSync(path)
+  } catch {
+    return { ok: false, reason: 'write-failed' }
+  }
+  const built = await initSecretVault(path, {
+    readSecret: () => typed.secret,
+    key: deploymentKey(),
+    guard: deps.guard,
+    home: deps.home,
+  })
+  return built.ok ? { ok: true, rebuilt: true } : built
+}
+
+/**
+ * Replaces the deployment key of the vault at `path`: a readable vault on the path, read the key,
+ * bind it under the guard, confirm, narrow the mode. Bindings stay as they are. A running custody
+ * on the same file reads the new key on its next resolution. An unreadable regular file is rebuilt.
+ */
+async function replaceDeploymentKey(path: string, deps: ReplaceDeps): Promise<ReplaceResult> {
+  const opened = openSecretVault({ path })
+  if (opened.kind !== 'open') return rebuild(path, deps)
+  try {
+    const typed = await readTypedSecret(deps.readSecret)
+    if (!typed.ok) return { ok: false, reason: typed.reason }
+    return replaceTyped(opened.vault, path, typed.secret, deps.guard)
+  } finally {
+    opened.vault.close()
+  }
 }
 
 /**
@@ -315,12 +436,17 @@ async function storeCredential(
   const home = () => deps.home
   const kind = pathKind(path)
   if (kind === 'none') {
-    const built = await initVault(path, { readSecret: deps.readSecret, guard, home })
+    const built = await initSecretVault(path, {
+      readSecret: deps.readSecret,
+      key: deploymentKey(),
+      guard,
+      home,
+    })
     if (!built.ok) throw storeFailure(path, built.reason)
     return 'created'
   }
   if (kind !== 'file') throw notAFile(path)
-  const inspected = inspectLocalCustodian({ path })
+  const inspected = inspectSecretVault({ path })
   if (inspected.kind === 'unavailable' && inspected.cause === 'locked')
     throw new SetupRefused(`model credential not checked: ${VAULT_REASONS['lock-timeout']}`, 1)
   if (!flags.replaceCredential) {
@@ -331,12 +457,7 @@ async function storeCredential(
       1,
     )
   }
-  const result = await replaceVaultSecret(path, {
-    readSecret: deps.readSecret,
-    guard,
-    home,
-    rebuildUnreadable: true,
-  })
+  const result = await replaceDeploymentKey(path, { readSecret: deps.readSecret, guard, home })
   if (!result.ok) throw storeFailure(path, result.reason)
   return result.rebuilt ? 'rebuilt' : 'replaced'
 }
@@ -371,8 +492,8 @@ function summary(input: {
     `  credential   ${locations.vaultFile} (${credential})`,
     ...(input.credential === 'rebuilt'
       ? [
-          '  warning      the tenant model credentials of the old vault are gone. Each tenant uses the',
-          '               deployment default until it runs `omne credential set` again.',
+          '  warning      the tenant secret settings of the old vault are gone. Each tenant sets them',
+          '               again with `omne setting set`; until then official models use the default key.',
         ]
       : []),
     `  workspace    ${settings.workspace}`,

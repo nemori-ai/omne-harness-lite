@@ -1,5 +1,5 @@
 // 关闭协调器的各个步骤各自对外留下的事实：启动失败的报告详情、宿主文件维护的三种结局、
-// assemblyReportSettled 与撤除根的失败只进诊断、迟到结果的详情。时钟是注入的假时钟。
+// 存储阶段之后的遥测关闭步骤、assemblyReportSettled 与撤除根的失败只进诊断、迟到结果的详情。时钟是注入的假时钟。
 import { describe, expect, it } from 'vitest'
 import { LifecycleRegistry } from '../src/lifecycle.ts'
 import { runShutdown, type ShutdownClock, type ShutdownRecord } from '../src/shutdown.ts'
@@ -9,6 +9,7 @@ import type {
   LifecyclePhase,
   RowId,
   StopResult,
+  TelemetryShutdownReport,
 } from '../src/types.ts'
 
 const row = (id: string) => id as RowId
@@ -200,6 +201,104 @@ describe('host-files maintenance after the business phase', () => {
       phase: 'business',
       row: null,
       detail: 'host-files maintenance completed after deadline',
+    })
+  })
+})
+
+describe('the telemetry close after the storage phase', () => {
+  const closed: TelemetryShutdownReport = {
+    kind: 'closed',
+    generation: '1',
+    admission: 'closed',
+    admitted: 2,
+    dropped: 0,
+    droppedBy: {},
+    pending: 0,
+    flush: 'completed-to-boundary',
+    boundary: 'local-sink',
+    transport: 'closed',
+    bootstrapOverflow: 0,
+    afterClose: 0,
+    formatFailures: 0,
+    writeFailures: 0,
+  }
+
+  it('has no telemetry entry and no telemetry step when the entry gave no close', async () => {
+    const { run, records } = setup(allSettled())
+    const report = await run()
+    expect('telemetry' in report).toBe(false)
+    expect(records.map(r => r.action)).not.toContain('telemetry-close')
+  })
+
+  it('runs the close after the storage stop and before the report is fixed, with the one deadline D', async () => {
+    const order: string[] = []
+    const deadlines: number[] = []
+    const stops = allSettled().map(h => ({
+      ...h,
+      stop: async (): Promise<StopResult> => {
+        order.push(`stop:${h.row}`)
+        return { kind: 'settled' }
+      },
+    }))
+    const { run, records, clock } = setup(stops, {
+      afterStorage: async deadline => {
+        order.push('telemetry')
+        deadlines.push(deadline)
+        return closed
+      },
+    })
+    clock.advance(300)
+    const report = await run()
+    expect(report.telemetry).toEqual(closed)
+    expect(report.overall).toBe('settled')
+    expect(order).toEqual(['stop:server-entry', 'stop:agent-host', 'stop:storage', 'telemetry'])
+    expect(deadlines).toEqual([300 + DEADLINE_MS])
+    const actions = records.map(r => r.action)
+    const step = actions.indexOf('telemetry-close')
+    expect(step).toBeGreaterThan(actions.lastIndexOf('stop-call'))
+    expect(step).toBeLessThan(actions.indexOf('report-fixed'))
+    expect(records[step]).toMatchObject({ phase: null, row: null })
+  })
+
+  it('turns a throwing close into unavailable and a diagnostic, and still fixes the report', async () => {
+    const { run, records } = setup(allSettled(), {
+      afterStorage: async () => {
+        throw new Error('close broke')
+      },
+    })
+    const report = await run()
+    expect(report.telemetry).toEqual({ kind: 'unavailable', diagnostic: 'close-failed' })
+    expect(report.overall).toBe('settled')
+    expect(records).toContainEqual(
+      expect.objectContaining({
+        action: 'diagnostic',
+        phase: null,
+        row: null,
+        detail: 'telemetry close failed',
+      }),
+    )
+    expect(JSON.stringify(records)).not.toContain('close broke')
+  })
+
+  it('bounds the close by the one deadline D and notes a late completion', async () => {
+    let finish: (report: TelemetryShutdownReport) => void = () => {}
+    const { run, clock, records } = setup(allSettled(), {
+      afterStorage: () => new Promise<TelemetryShutdownReport>(resolve => (finish = resolve)),
+    })
+    const done = run()
+    await flush()
+    clock.advance(DEADLINE_MS)
+    const report = await done
+    expect(report.telemetry).toEqual({ kind: 'unavailable', diagnostic: 'deadline' })
+    const before = records.length
+    finish(closed)
+    await flush()
+    expect(records.length).toBe(before + 1)
+    expect(records.at(-1)).toMatchObject({
+      action: 'late-result',
+      phase: null,
+      row: null,
+      detail: 'telemetry close completed after deadline',
     })
   })
 })

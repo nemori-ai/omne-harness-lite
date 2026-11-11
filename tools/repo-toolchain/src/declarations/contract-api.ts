@@ -64,7 +64,7 @@ export function readContractApiConfig(path: string = toolchainConfigPath()): Con
   return parseContractApiConfig(readToolchainSection('contractApi', path))
 }
 
-/** 线归属表各线 `contracts` 的并集，按路径排序；表的完整校验归 dev-flow 的 `check:lines`。 */
+/** 线归属表各线 `contracts` 的并集，按路径排序；本工具只核对读取所需的形状，不校验表的其余部分。 */
 export function parseContractMembers(text: string): string[] {
   const parsed: unknown = JSON.parse(text)
   const lines =

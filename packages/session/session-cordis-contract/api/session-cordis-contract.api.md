@@ -37,6 +37,7 @@
 - `ControlScope` · 包 `@omne-harness/session-contract`
 - `ControlTarget` · 包 `@omne-harness/session-contract`
 - `CustodyEvidenceCommand` · 包 `@omne-harness/session-contract`
+- `DEFAULT_SESSION_INTAKE_LIMITS` · 包 `@omne-harness/session-contract`
 - `DecideReads` · 包 `@omne-harness/session-contract`
 - `Decision` · 包 `@omne-harness/session-contract`
 - `DeclarationChange` · 包 `@omne-harness/session-contract`
@@ -187,6 +188,7 @@
 - `SessionIdleInput` · 包 `@omne-harness/session-contract`
 - `SessionInputAdmission` · 包 `@omne-harness/session-contract`
 - `SessionInputScope` · 包 `@omne-harness/session-contract`
+- `SessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `SessionInternalPrincipals` · 包 `@omne-harness/session-contract`
 - `SessionLogCommitObservation` · 包 `@omne-harness/session-contract`
 - `SessionLogConsequence` · 包 `@omne-harness/session-contract`
@@ -198,6 +200,11 @@
 - `SessionNotifier` · 包 `@omne-harness/session-contract`
 - `SessionOperationElements` · 包 `@omne-harness/session-contract`
 - `SessionOperationId` · 包 `@omne-harness/session-contract`
+- `SessionPermissionAssignment` · 包 `@omne-harness/session-contract`
+- `SessionPermissionChangeBasis` · 包 `@omne-harness/session-contract`
+- `SessionPermissionHistory` · 包 `@omne-harness/session-contract`
+- `SessionPermissionWriteQualification` · 包 `@omne-harness/session-contract`
+- `SessionPermissions` · 包 `@omne-harness/session-contract`
 - `SessionPrefixFact` · 包 `@omne-harness/session-contract`
 - `SessionPrincipalBindingSource` · 包 `@omne-harness/session-contract`
 - `SessionProductionSource` · 包 `@omne-harness/session-contract`
@@ -209,6 +216,7 @@
 - `SessionScopeLookup` · `context-facts.d.ts`
 - `SessionScopeLookupAnswer` · `context-facts.d.ts`
 - `SessionTakenRecord` · 包 `@omne-harness/session-contract`
+- `SessionTodos` · 包 `@omne-harness/session-contract`
 - `SessionTransactionPort` · 包 `@omne-harness/session-contract`
 - `SessionWork` · 包 `@omne-harness/session-contract`
 - `SessionWorkEntryIndex` · 包 `@omne-harness/session-contract`
@@ -216,6 +224,12 @@
 - `StartAdoption` · 包 `@omne-harness/session-contract`
 - `StartedRun` · 包 `@omne-harness/session-contract`
 - `StepCommittedBlocks` · `context-facts.d.ts`
+- `TodoItem` · 包 `@omne-harness/session-contract`
+- `TodoItemId` · 包 `@omne-harness/session-contract`
+- `TodoMutationReceipt` · 包 `@omne-harness/session-contract`
+- `TodoPage` · 包 `@omne-harness/session-contract`
+- `TodoPageCursor` · 包 `@omne-harness/session-contract`
+- `VisibleTodoItem` · 包 `@omne-harness/session-contract`
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
@@ -240,16 +254,20 @@
 - `judgeCompletion` · 包 `@omne-harness/session-contract`
 - `judgeIdle` · 包 `@omne-harness/session-contract`
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
+- `judgeSessionIntake` · 包 `@omne-harness/session-contract`
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
 - `projectSessionEntries` · 包 `@omne-harness/session-contract`
 - `projectSessionLog` · 包 `@omne-harness/session-contract`
 - `readAccessRequest` · 包 `@omne-harness/session-contract`
+- `rebuildSessionPermissions` · 包 `@omne-harness/session-contract`
 - `reduce` · 包 `@omne-harness/session-contract`
 - `resolveCascade` · 包 `@omne-harness/session-contract`
 - `resolveControlScope` · 包 `@omne-harness/session-contract`
 - `resolveOperation` · 包 `@omne-harness/session-contract`
 - `routeInput` · 包 `@omne-harness/session-contract`
+- `sessionInputBytes` · 包 `@omne-harness/session-contract`
+- `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`

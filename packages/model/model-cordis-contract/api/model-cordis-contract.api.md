@@ -121,10 +121,8 @@ export type { ModelConverterAuthority, ModelConverterRegistration, ModelConverte
 export declare abstract class ModelCredentialService<P = unknown> extends Service implements CredentialPort<P> {
     static readonly provide = "modelCredential";
     constructor(ctx: CordisContext);
-    abstract readonly present: CredentialPort<P>['present'];
+    abstract readonly layerOf: CredentialPort<P>['layerOf'];
     abstract readonly resolve: CredentialPort<P>['resolve'];
-    readonly presentFor?: NonNullable<CredentialPort<P>['presentFor']>;
-    readonly resolveFor?: NonNullable<CredentialPort<P>['resolveFor']>;
 }
 export declare const modelCredentialKey = "modelCredential";
 export declare abstract class ModelStreamReferencesService<P> extends Service implements ModelStreamReferences<P> {

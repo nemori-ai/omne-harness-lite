@@ -1,6 +1,15 @@
 // The `session-provider` row as the real Session provider (`implementation: 'real'`): the plugin
-// `SessionProvider` of `@omne-harness/session-cordis/cordis`, which provides `session`, the four
+// of `SessionProvider` of `@omne-harness/session-cordis/cordis`, which provides `session`, the four
 // faces and the coordinator and scheduler behind them.
+//
+// Telemetry. The row injects `telemetry` (D04: required, so a tree without the row does not serve)
+// and builds the Session telemetry facade over it in the row body: `measure` turns each face
+// operation into a segment `omne.session.<operation>` and each `run.terminal` this Session instance
+// commits into the event `omne.session.round-complete` (a terminal that `session-ad02` commits from
+// Agent facts emits none, Session SPEC「测量事件」), `diagnose` turns a coordinator step that stopped on a failure into
+// the event `omne.session.diagnostic` (no detail text). Every record is scoped to the tenant of the
+// access and names the session as its work. The plugin factory hands the two observers to the
+// Session instance; the member does not know the telemetry key.
 //
 // Shutdown. The plugin registers its own handle (row `session-provider`, phase `business`) in the
 // plugin body, from the private service `s0.assemblyLifecycle`. `defineRow` gives a phased row only
@@ -15,11 +24,14 @@
 // follows the latest one, so a change of one of the plugin's providers re-runs the plugin without
 // the registry reading it as a second registration of the row.
 //
-// The manifest differs from the `session-provider` row of `src/s0/stubs.ts` in one field: the
-// phase is `business`, which the plugin's SPEC and the assembly page (`assemblyLifecycle` in its
-// required injects) give, and the table does not carry yet.
+// The manifest equals the `session-provider` row of `src/s0/stubs.ts`, phase `business` included.
 import { Service, type Context } from '@deepseek-ai/cordis'
-import { SessionProvider, type SessionProviderConfig } from '@omne-harness/session-cordis/cordis'
+import { createSessionTelemetry } from '@omne-harness/session'
+import {
+  SessionProvider,
+  createSessionProviderPlugin,
+  type SessionProviderConfig,
+} from '@omne-harness/session-cordis/cordis'
 import {
   sessionAccessCheckKey,
   sessionDelegatedTransactionsKey,
@@ -27,9 +39,11 @@ import {
   sessionPrincipalsKey,
   sessionWorkPrincipalsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
+import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../../lifecycle.ts'
 import { defineRow } from '../../row.ts'
 import type { LifecycleHandle } from '../../types.ts'
+import { processInstance } from '../telemetry/instance.ts'
 
 type Registered = Pick<LifecycleHandle, 'phase' | 'row' | 'stop'>
 
@@ -56,16 +70,22 @@ export const sessionProviderRealRow = defineRow({
       sessionDelegatedTransactionsKey,
       sessionPrincipalsKey,
       sessionWorkPrincipalsKey,
+      telemetryKey,
     ],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'business' },
   Config: SessionProvider.Config,
   async body(ctx, config) {
+    const telemetry = createSessionTelemetry(ctx.telemetry, { instance: processInstance })
+    const Plugin = createSessionProviderPlugin({
+      measure: telemetry.measure,
+      diagnose: telemetry.diagnose,
+    })
     const sink: { handle?: Registered } = {}
     const scope = ctx.isolate(S0_ASSEMBLY_LIFECYCLE_KEY)
     await scope.plugin(collector(sink))
-    await scope.plugin(SessionProvider, config as SessionProviderConfig | undefined)
+    await scope.plugin(Plugin, config as SessionProviderConfig | undefined)
     if (sink.handle === undefined)
       throw new Error('the session provider registered no shutdown handle')
     return {

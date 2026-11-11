@@ -46,6 +46,14 @@ const successes = {
     controlId: 'control-1',
     producer: { kind: 'tool', call: 'call-1' },
   },
+  'read-session-diagnostics': {
+    runs: [],
+    next: null,
+    exhausted: true,
+    scannedThrough: '8',
+    basis: { upper: '8' },
+    gaps: [],
+  },
 } satisfies Record<SessionOperation, object>
 const outcomes = {
   'create-session': ['succeeded', 'denied', 'invalid', 'conflict', 'basis-unavailable', 'unknown'],
@@ -81,6 +89,7 @@ const outcomes = {
     'unknown',
     'unsupported',
   ],
+  'read-session-diagnostics': ['succeeded', 'denied', 'invalid', 'basis-unavailable'],
 } satisfies Record<SessionOperation, readonly string[]>
 const allOutcomes = [
   'succeeded',
@@ -590,5 +599,49 @@ describe('response head', () => {
     ],
   ])('returns invalid when encoding %s', (_name, response) => {
     expect(refuse(response)).toEqual({ kind: 'invalid', diagnostic: { code: 'field' } })
+  })
+})
+
+it('round trips a bounded intake refusal with its resource and positive safe integer limit', () => {
+  for (const resource of ['pending-inputs', 'input-bytes'] as const) {
+    const response = {
+      protocolVersion: version,
+      messageId: 'limit',
+      outcome: 'limited',
+      body: { resource, limit: 2 },
+    } as const
+    const encoded = encodeSessionResponse({ operation: 'send-input', response, limits })
+    expect(encoded.kind).toBe('encoded')
+    if (encoded.kind !== 'encoded') throw new Error('limited response did not encode')
+    expect(
+      readSessionResponse({
+        bytes: encoded.bytes,
+        operation: 'send-input',
+        expectedMessageId: 'limit',
+        limits,
+      }),
+    ).toMatchObject({ kind: 'response', response })
+  }
+})
+
+it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, '2', null])(
+  'refuses a malformed intake limit %s',
+  limit => {
+    expect(
+      readWire('send-input', wireOf('limited', { resource: 'pending-inputs', limit })),
+    ).toMatchObject({ kind: 'unreadable' })
+  },
+)
+
+it('does not allow a capacity outcome on a control response', () => {
+  expect(
+    readWire('cancel-run', wireOf('limited', { resource: 'pending-inputs', limit: 2 })),
+  ).toMatchObject({ kind: 'unreadable' })
+})
+
+it('rejects a capacity response that omits its limit without throwing', () => {
+  expect(readWire('send-input', wireOf('limited', { resource: 'pending-inputs' }))).toEqual({
+    kind: 'unreadable',
+    diagnostic: { code: 'field' },
   })
 })

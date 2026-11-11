@@ -18,7 +18,7 @@ it('exports the host files facility, its object token reader, the root position 
   for (const name of Object.keys(root)) expect(typeof root[name]).toBe('function')
 })
 
-// Every module the root entry reaches, and the gate script the command facility starts.
+// Every module the root entry reaches, and the scripts the command facility and its probe start.
 const reachable = [
   'index',
   'host-files',
@@ -28,9 +28,14 @@ const reachable = [
   'host-domain',
   'host-provider',
   'host-command',
+  'retained-tail',
+  'host-retained-processes',
   'host-scope',
   'host-probe',
   'command-gate',
+  'command-gate-core',
+  'scope-probe',
+  'scope-cgroup',
   'root-segments',
 ]
 

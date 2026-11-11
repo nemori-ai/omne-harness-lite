@@ -5,9 +5,15 @@ import type {
   Adoption,
   ConsumerRef,
   FixedModelRequest,
+  ProviderName,
   ResultCapacity,
   Supplier,
 } from '../index.ts'
+import { decodeProviderName } from '../provider-name.ts'
+
+const decoded = decodeProviderName('provider')
+if (!('ok' in decoded)) throw new TypeError('the default provider name does not decode')
+const PROVIDER: ProviderName = decoded.ok
 
 function adoption(name: string): Adoption {
   return { owner: 'conformance', name, revision: '1', digest: '0'.repeat(64) }
@@ -15,9 +21,9 @@ function adoption(name: string): Adoption {
 
 export const DEFAULT_SUPPLIER: Supplier = {
   adoption: adoption('supplier'),
-  recipient: 'recipient',
+  provider: PROVIDER,
   model: 'model',
-  credential: { kind: 'factory' },
+  credential: { layer: 'official' },
 }
 
 export const DEFAULT_REQUEST: FixedModelRequest = {
@@ -31,7 +37,7 @@ export const DEFAULT_REQUEST: FixedModelRequest = {
   tools: [],
   toolChoice: 'none',
   declarations: [
-    { produces: 'recipient/model', accepts: ['recipient/model'], foreignThinking: 'omit' },
+    { produces: 'provider/model', accepts: ['provider/model'], foreignThinking: 'omit' },
   ],
   representation: adoption('representation'),
   parameterAdoptions: [],

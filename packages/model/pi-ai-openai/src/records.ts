@@ -158,7 +158,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-6-astra',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-6-astra' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-6-astra' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -168,7 +168,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-6-astra-pro',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-6-astra-pro' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-6-astra-pro' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -178,7 +178,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-6-sol',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-6-sol' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-6-sol' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -188,7 +188,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-6-sol-pro',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-6-sol-pro' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-6-sol-pro' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -198,7 +198,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-6-luna',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-6-luna' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-6-luna' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -208,7 +208,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-6-luna-pro',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-6-luna-pro' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-6-luna-pro' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -218,7 +218,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-6.1-sol',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-6.1-sol' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-6.1-sol' },
     status: 'current',
     ...COMMON,
     profile: GPT61_SOL_PROFILE,
@@ -229,7 +229,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-6.1-terra',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-6.1-terra' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-6.1-terra' },
     status: 'current',
     ...COMMON,
     profile: GPT61_TERRA_PROFILE,
@@ -240,7 +240,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-5.6-sol',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-sol' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-5.6-sol' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -250,7 +250,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-5.6-sol-pro',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-sol-pro' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-5.6-sol-pro' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -260,7 +260,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-5.6-terra',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-terra' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-5.6-terra' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -270,7 +270,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-5.6-terra-pro',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-terra-pro' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-5.6-terra-pro' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -280,7 +280,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-5.6-luna',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-luna' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-5.6-luna' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,
@@ -290,7 +290,7 @@ export const OPENAI_RECORDS = [
   {
     name: 'openai/gpt-5.6-luna-pro',
     revision: '1',
-    route: { recipient: OPENROUTER, model: 'openai/gpt-5.6-luna-pro' },
+    route: { provider: OPENROUTER, model: 'openai/gpt-5.6-luna-pro' },
     status: 'current',
     ...COMMON,
     parameters: PARAMETERS,

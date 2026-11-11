@@ -1,3 +1,4 @@
+import { fail, succeed } from '@omne-harness/operation-result'
 import { createHash } from 'node:crypto'
 import { accountCodec, organizationCodec, tenant, tenantEquals } from '@omne-harness/legal-identity'
 import {
@@ -9,9 +10,9 @@ import {
   type DurableEvidence,
   type ResultVersion,
   type FixedModelRequest,
+  decodeProviderName,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   type Publication,
   type TransportFact,
   type TransportTermination,
@@ -50,12 +51,11 @@ export function createExampleAssembly(script: {
     digest: '0'.repeat(64),
   }
   // The request fixes all adoptions. A production request comes from qualified preparation
-  // and conversion providers. Factory means a credential source, not permission to use it.
+  // and conversion providers. A layer names a credential source, not permission to use it.
+  const provider = decoded(decodeProviderName('example.invalid'))
   const request: FixedModelRequest = {
     profile: adoption,
-    suppliers: [
-      { adoption, recipient: 'example.invalid', model: 'script', credential: { kind: 'factory' } },
-    ],
+    suppliers: [{ adoption, provider, model: 'script', credential: { layer: 'official' } }],
     retryPolicy: adoption,
     representation: adoption,
     source: adoption,
@@ -172,22 +172,17 @@ export function createExampleAssembly(script: {
     sending: {
       maxRetainedAttempts: 8,
       credentials: {
-        present: () => ({ kind: 'unavailable' }),
-        resolve: () => ({ kind: 'unavailable' }),
-        resolveFor: () => ({ kind: 'value', scope: 'factory', value: 'synthetic-example-only' }),
+        layerOf: () => fail({ kind: 'unavailable' }),
+        resolve: () => succeed(new Map([['apiKey', 'synthetic-example-only']])),
       },
       sources: [
         {
           profile: adoption,
           supplier: adoption,
-          recipient: 'example.invalid',
+          provider,
           model: 'script',
-          credential: {
-            kind: 'factory',
-            official: true,
-            queryId: decoded(decodeCredentialId('example-query')),
-          },
-          current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+          official: true,
+          current: () => ({ ok: { authorized: true } }),
         },
       ],
     },

@@ -79,9 +79,18 @@ it('the factory takes the configuration and gives a model transport with its own
   >()
 })
 
-it('a route names its endpoint and end marker, and the credential slot reads a secret or nothing', () => {
-  expectTypeOf<PiRoute>().toEqualTypeOf<Readonly<{ url: string; endMarker: string | null }>>()
-  expectTypeOf<PiCredentialSlot['read']>().returns.toEqualTypeOf<string | undefined>()
+it('a route names its endpoint, end marker, accounting and auth, and the credential slot reads the secrets by item or nothing', () => {
+  expectTypeOf<PiRoute>().toEqualTypeOf<
+    Readonly<{
+      url: string
+      endMarker: string | null
+      accounting: Readonly<{ place: string; costUnit: string }>
+      auth: Readonly<{ kind: 'bearer'; item: string }> | null
+    }>
+  >()
+  expectTypeOf<PiCredentialSlot['read']>().returns.toEqualTypeOf<
+    ReadonlyMap<string, string> | undefined
+  >()
   expectTypeOf<PiTransportConfig['routes']>().toEqualTypeOf<Readonly<Record<string, PiRoute>>>()
 })
 

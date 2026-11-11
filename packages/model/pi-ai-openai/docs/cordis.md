@@ -8,6 +8,6 @@
 
 - 本包只提供普通工厂函数、档案函数与数据，没有 Service、插件、事件或需要 Cordis 管理的 fiber。
 - 家族经 `composeFamilies` 交给共享传输，由传输的装配方决定生命周期。
-- tokenizer 与绑定没有需要释放的资源，不挂在 Cordis 的生命周期上。
+- 绑定持有私有 tokenizer 租约。宿主负责共享 executor 的生命周期，绑定释放不关闭共享池。
 
 `documentation.json` 把本文件记为 `not-applicable`。以后本包需要 Cordis 绑定时，改用绑定变体的规则另行设计。

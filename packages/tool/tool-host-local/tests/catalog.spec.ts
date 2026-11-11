@@ -1,3 +1,4 @@
+import { catalogSearch, catalogView } from './catalog-view-fixture.ts'
 // The Catalog over the local binding registry. The contract has no Catalog suite, so each rule of
 // this table has its own case that breaks only that rule. The origin check and the availability
 // facts are scripted; the registry is the real one.
@@ -73,7 +74,15 @@ function world(
     )
     if (!('ok' in outcome)) throw new Error(`setup: ${tool.authority.asset.name}`)
   }
-  return { registry, catalog: createLocalToolCatalog({ registry, availability }) }
+  return {
+    registry,
+    catalog: createLocalToolCatalog({
+      registry,
+      availability,
+      view: catalogView(registry),
+      search: catalogSearch,
+    }),
+  }
 }
 
 const official = (name: string, revision = '1') =>
@@ -156,7 +165,12 @@ describe('Catalog: inspect and usage', () => {
       admits: () => succeed(undefined),
     })
     expect(register(registry, asA, workspace)).toHaveProperty('ok')
-    const catalog = createLocalToolCatalog({ registry, availability: allowing() })
+    const catalog = createLocalToolCatalog({
+      registry,
+      availability: allowing(),
+      view: catalogView(registry),
+      search: catalogSearch,
+    })
     expect(await names(catalog, asA)).toEqual([])
   })
 
@@ -254,7 +268,12 @@ describe('Catalog: inspect and usage', () => {
   })
 
   it('T-CAT an absent registry answers a named unavailable on all three calls', async () => {
-    const catalog = createLocalToolCatalog<string>({ registry: null, availability: allowing() })
+    const catalog = createLocalToolCatalog<string>({
+      registry: null,
+      availability: allowing(),
+      view: catalogView(null),
+      search: catalogSearch,
+    })
     const unavailable = { failure: { kind: 'unavailable', dependency: 'toolBindings' } }
     expect(await catalog.inspect(inspectOf('alpha', asA))).toMatchObject(unavailable)
     expect(
@@ -293,14 +312,15 @@ describe('Catalog: search', () => {
     expect(page).toMatchObject({ ok: { next: null } })
   })
 
-  it('T-CAT a cursor stays valid when tools are registered between pages', async () => {
+  it('T-CAT a cursor is invalid when a contribution is withdrawn between pages', async () => {
     const { registry, catalog } = world(tools)
     const first = await catalog.search(searchOf(asA, { limit: 2 }))
     if (!('ok' in first)) throw new Error('search failed')
-    for (const name of ['aardvark', 'zulu']) register(registry, asA, official(name))
+    const withdrawn = official('alpha')
+    expect(registry.close({ layer: withdrawn.layer, asset: withdrawn.asset })).toHaveProperty('ok')
     const second = await catalog.search(searchOf(asA, { limit: 2, after: first.ok.next }))
     expect(second).toMatchObject({
-      ok: { entries: [{ definition: { name: 'charlie' } }, { definition: { name: 'delta' } }] },
+      failure: { kind: 'invalid-cursor' },
     })
   })
 
@@ -322,7 +342,7 @@ describe('Catalog: search', () => {
   it('T-CAT the query matches name and description without regard to case', async () => {
     const { catalog } = world(tools)
     expect(await names(catalog, asA, { query: 'ALPHA' })).toEqual(['alpha'])
-    expect(await names(catalog, asA, { query: 'the delta tool' })).toEqual(['delta'])
+    expect((await names(catalog, asA, { query: 'the delta tool' }))[0]).toBe('delta')
     expect(await names(catalog, asA, { query: 'no such text' })).toEqual([])
   })
 

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Files and Shell command-tool authors over authorized execution facilities",
+  "description": "Files, Shell and Tools command authors over authorized execution facilities",
   "engines": {
     "node": ">=24"
   },
@@ -32,6 +32,8 @@
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/tool": "workspace:*",
+    "@omne-harness/modality": "workspace:*",
     "@omne-harness/execution-environment-contract": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
@@ -42,7 +44,6 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "@omne-harness/tool": "workspace:*"
+    "vitest": "catalog:"
   }
 }

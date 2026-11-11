@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包是 Tool 记录仓与原件保管的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore` 与 `ToolOutputCustody`，并导出静态材料 `toolStorageMaterials()`。`createSqlToolGuardedHostCommit` 另提供带原调用修订条件的 host 提交，供受信集成方写资源许可。
+本包是 Tool 记录仓与原件保管的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore` 与 `ToolOutputCustody`，并导出静态材料 `toolStorageMaterials()`。`createSqlToolGuardedHostCommit` 另提供带原调用修订条件的 host 提交，供受信集成方写资源许可。`createSqlToolConditionalCommit` 提供带启动条件的账本提交，供启动协调器写 acceptance。
 
 依据：
 
@@ -41,12 +41,13 @@
 | ----------------------------------------------- | ----------------------------------------------------------- |
 | `committed`                                     | `committed`                                                 |
 | `rolled_back`，参加者以修订号停止               | `conflict`，带当前修订号                                    |
-| `rolled_back`，其他原因（参加者抛错、语句失败） | `unavailable`。明确回滚已持久，提交没有任何效果             |
+| `rolled_back`，其他原因（参加者抛错、语句失败） | `rejected`，`reason` 为失败类别。明确回滚已持久，提交没有任何效果；失败由输入与已提交的数据决定（sql-contract §7.6），同一提交再试得到同一失败 |
 | `unknown`                                       | `unknown`。账本按它写入的操作认回结果                       |
-| `rejected_before_accept`                        | `unavailable`，诊断带拒绝原因                               |
+| `rejected_before_accept`，暂时的原因            | `unavailable`，诊断带拒绝原因                               |
+| `rejected_before_accept`，确定的原因            | `rejected`，`reason` 为拒绝原因。定性见 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性) |
 | `identity_conflict`                             | `unavailable`。每次提交用新的操作键，提供者没有执行本次提交 |
 
-写入的记录不是严格 JSON 时（函数、BigInt、非有限数、类型化数组、环），端口在发出提交之前答 `unavailable`。值为 `undefined` 的对象成员按 JSON 省略。
+写入的记录不是严格 JSON 时（函数、BigInt、非有限数、类型化数组、环），端口在发出提交之前答 `rejected`：同一写入集再试仍不是严格 JSON。值为 `undefined` 的对象成员按 JSON 省略。
 
 SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不捕获该异常，原样交给调用方（防御指导 DP-01）。账本把它当作结果不定。
 
@@ -70,6 +71,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 - 清单落盘之前，`inspect` 不答 `retained`。
 - 中断（进程在清单之前停止）留下的块不可见。同一操作重送时按键覆盖它们，多出的块在清单提交时删除。
 - 块或清单的提交答 `unknown` 时，`preserve` 答 `commit-unknown`。调用方以同一操作重送。
+- 块或清单的提交被存储受理前拒绝时，按 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)作答：暂时的原因答 `unavailable`，诊断带原因，调用方以同一操作重送；确定的原因答 `invalid`，`field` 为 `storage`，`reason` 为原因名。
 - 输入身份由 codec、字节数、SHA-256 与来源证据决定。同一操作、同一身份的重送认回原 `RawOutput`。
 
 `RawOutput` 的 `content.key` 是 JSON 文本 `[call, operation]`，`content.storage` 与 `custody.owner` 是 `@omne-harness/tool-storage-sql`，`custody.digest` 绑定租户、调用、操作与输入身份。
@@ -96,7 +98,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-10 材料
 
-`toolStorageMaterials()` 返回一个参加者 `tool`、一条迁移 `tool/001-tool-ledger-custody` 与三个读 handler。参加者拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
+`toolStorageMaterials()` 返回写参加者 `tool`、一条迁移 `tool/001-tool-ledger-custody` 与三个读 handler。`tool` 拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
 
 ### TS-11 带原调用条件的 host 提交
 
@@ -116,6 +118,22 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 本保证只覆盖原调用修订与 host 提交的排序，不承诺与 Session ended 的跨域原子性。保留范围资格、关闭状态与已发生效果的控制仍归各自权威。
 
+### TS-12 带启动条件的账本提交
+
+`createSqlToolConditionalCommit(options)` 返回独立的 `commit` 端口。调用方传入一个启动条件和一份 `LedgerCommitInput`。
+
+条件的 SQL 形状是 `SqlToolCondition`：组合版本、清单摘要和一组别的参加者的命令。这个组合必须已在同一事务域登记，并含 `tool` 参加者。本包不解释这些命令。
+
+适配器发出一个 SQL 操作：条件命令在前，`tool` 的账本写入在后，使用条件给出的组合。
+
+- 全部参加者参与并提交时答 `committed`。
+- 条件里的任一参加者停下操作时答 `condition-failed`。整个操作回滚，账本没有写入。
+- `tool` 参加者因修订不符停下时答 `conflict`，`current` 为当前修订。
+- 条件不是这个形状、没有命令或点名 `tool` 参加者时答 `rejected`，不发出操作。条件不能写账本。
+- `unknown` 与 `unavailable` 沿 TS-02 映射。
+
+工厂不自动重试，不新建表或迁移，`tool` 参加者的代码不变。
+
 ## 所有权、失败与生命周期
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
@@ -127,7 +145,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 1. 同域共用写队列（R1-D2）：Tool 的提交与会话日志的提交在同一租户事务域排队。ST-09 或 E9 测量超过阈值时重开。
 2. 两条不等式（评审 N1）。左侧上界归 `tool` 的 P08 拥有者，在它给出之前是已知限制：
-   - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `unavailable`。
+   - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `rejected`，`reason` 为 `command_limit`。
    - 一个账本域的全部记录，编码后不超过读 handler 的 `maxOutputBytes`（4194304）与提供者的 `maxReadResultBytes`，记录数不超过 100000。超过时读答 `unavailable`。
 3. 原件全文永久保留，与会话日志在同一个 SQLite 文件里增长，没有到期删除（评审 N7）。重开阈值的归属由 Reduce 在 RI 时定。
 4. `inspect` 对从未保管的操作答 `unknown`（U1），P05 拥有者另定时再改。
@@ -148,3 +166,4 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 | 启动围栏            | `tests/start-coordinator.spec.ts`：`tool-host-local` 的协调器在本仓上运行三组启动套件，并在重开后重建                                                                                        | 授权套件的用例全部不适用（协调器没有授权消费点）                                                 |
 | TS-10               | `tests/materials.spec.ts`、`tests/public-entry.spec.ts`                                                                                                                                      | 真实的三方材料合并由应用侧验证                                                                   |
 | TS-11               | `tests/guarded-host-commit.spec.ts`：真实 Tool 终局、两个 SQLite 连接竞争、租户隔离、丢答、操作中失败与重开                                                                                  | 使用 node:sqlite 测试提供者和真实参加者。未验证 sqlite-provider Worker、组提交、跨进程竞争或断电 |
+| TS-12 | `tests/conditional-commit.spec.ts`：发出的操作里命令的次序与组合、条件参加者停下、账本修订冲突、坏条件不发出、未登记租户 | 存储答复是脚本给的；真实条件参加者与真实提供者的同事务行为由应用侧验证 |

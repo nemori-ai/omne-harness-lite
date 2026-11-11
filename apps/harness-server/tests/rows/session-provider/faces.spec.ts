@@ -336,3 +336,50 @@ describe('session-provider faces: operations outside the double', () => {
     expect(failureOf(reconcile)).toMatchObject({ kind: 'unavailable', owner: 'session-provider' })
   })
 })
+
+describe('ordinary input budgets in the memory reference row', () => {
+  it('keeps the initial input, rejects excess, and recalls the original operation at capacity', async () => {
+    tree = await loadProviderTree({
+      row: { intakeLimits: { maxPendingInputs: 1, maxInputBytes: 4096 } },
+    })
+    const access = {
+      principal: tree.principalFor(TENANT_A),
+      tenant: TENANT_A,
+      session: sessionId('sess-1'),
+    }
+    const request = {
+      ...access,
+      operation: operationId('initial'),
+      creation: creation({ initial: ordinaryInput('first', 'initial text') }),
+    }
+    okOf(await tree.intake.management.create(request))
+    expect(await accept(tree, 'second', 'excess', 'accept-second')).toMatchObject({
+      failure: { kind: 'limited', resource: 'pending-inputs', limit: 1 },
+    })
+    expect(okOf(await tree.intake.management.create(request)).receipt.recovered).toBe(true)
+    expect(okOf(await readAll(tree)).entries).toHaveLength(1)
+  })
+
+  it('rejects oversized initial and later messages before they enter history', async () => {
+    tree = await loadProviderTree({
+      row: { intakeLimits: { maxPendingInputs: 1, maxInputBytes: 512 } },
+    })
+    const access = {
+      principal: tree.principalFor(TENANT_A),
+      tenant: TENANT_A,
+      session: sessionId('sess-1'),
+    }
+    expect(
+      await tree.intake.management.create({
+        ...access,
+        operation: operationId('oversized'),
+        creation: creation({ initial: ordinaryInput('big', '界'.repeat(200)) }),
+      }),
+    ).toMatchObject({ failure: { kind: 'limited', resource: 'input-bytes', limit: 512 } })
+    okOf(await createSession(tree))
+    expect(await accept(tree, 'big', '界'.repeat(200), 'accept-big')).toMatchObject({
+      failure: { kind: 'limited', resource: 'input-bytes', limit: 512 },
+    })
+    expect(okOf(await readAll(tree)).entries).toEqual([])
+  })
+})

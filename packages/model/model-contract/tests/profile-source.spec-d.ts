@@ -57,7 +57,9 @@ it('a profile snapshot carries the precedence, the candidates and the source', (
 it('adapters can implement the source, the rules and the resources from the contract alone', () => {
   const source: ModelProfileSource<string> = { read: async () => ({ ok: snapshot }) }
   const lease: ModelPreparationLease = {
-    bindings: [{ supplier, rules, meter: { basis: counting, measure: () => ({ ok: budget }) } }],
+    bindings: [
+      { supplier, rules, meter: { basis: counting, measure: async () => ({ ok: budget }) } },
+    ],
     release: async () => ({}),
   }
   const resources: ModelPreparationResources<string> = { acquire: async () => ({ ok: lease }) }
@@ -82,7 +84,9 @@ it('a lease release returns its result, and a failed release hook is a value', (
     },
   }
   const noValue: ModelPreparationLease = {
-    bindings: [{ supplier, rules, meter: { basis: counting, measure: () => ({ ok: budget }) } }],
+    bindings: [
+      { supplier, rules, meter: { basis: counting, measure: async () => ({ ok: budget }) } },
+    ],
     // @ts-expect-error a release that gives back nothing leaves a failure only a throw can report
     release: async () => {},
   }
@@ -117,7 +121,7 @@ it('a lineage is declared once at acquire, both parts optional, and the lease st
       return {
         ok: {
           bindings: [
-            { supplier, rules, meter: { basis: counting, measure: () => ({ ok: budget }) } },
+            { supplier, rules, meter: { basis: counting, measure: async () => ({ ok: budget }) } },
           ],
           release: async () => ({}),
         },

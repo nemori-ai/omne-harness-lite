@@ -29,6 +29,7 @@ import {
   toolStartFenceKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
+  createSqlToolConditionalCommit,
   createSqlToolGuardedHostCommit,
   createSqlToolLedgerStore,
   createSqlToolOutputCustody,
@@ -44,6 +45,10 @@ import { storageCatalog } from '../storage/catalog.ts'
 import { ensureToolRuntimeBundle } from './bundle.ts'
 import { toolRuntimeConfigSchema, type ToolRuntimeConfig } from './config.ts'
 import { awaitBundle, toolRuntimeHolder } from './holder.ts'
+import {
+  ToolInvocationQualificationService,
+  toolInvocationQualificationKey,
+} from './source-qualification.ts'
 
 const INTEGRATOR = { [executionEnvironmentKey]: { caller: 'integrator' as const } }
 
@@ -70,6 +75,7 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
       maxChunkBytes: config.maxChunkBytes,
     }),
     guarded: createSqlToolGuardedHostCommit(options),
+    conditional: createSqlToolConditionalCommit(options),
   })
   const holder = toolRuntimeHolder(ctx)
   holder.sql = sql
@@ -90,6 +96,7 @@ const recordsPlugin: Plugin.Object = {
     mountSql(ctx, config)
     const bundle = ensureToolRuntimeBundle(ctx, config)
     bundle.records.apply(ctx)
+    new ToolInvocationQualificationService(ctx, bundle.qualification)
   },
 }
 
@@ -97,7 +104,13 @@ export const toolRecordsRow = defineRow({
   row: 'tool-records',
   implementation: 'real',
   manifest: {
-    provides: [toolCommandsKey, toolReadsKey, toolStartAuthorityKey, toolStartFenceKey],
+    provides: [
+      toolCommandsKey,
+      toolReadsKey,
+      toolStartAuthorityKey,
+      toolStartFenceKey,
+      toolInvocationQualificationKey,
+    ],
     injects: [storageKey, tenantDomainLookupKey],
     sameProviderGroup: 'tool-start',
   },
@@ -134,9 +147,14 @@ async function executorBody(ctx: Context): Promise<RowHandle> {
   const child = ctx.plugin(bundle.executor)
   await child
   let closing: Promise<void> | undefined
+  let forwardingUnknown = 0
   return {
     stop: async deadline => {
-      closing ??= bundle.close()
+      closing ??= (async () => {
+        const forwarding = toolRuntimeHolder(ctx).toolsForwarding
+        if (forwarding !== null) forwardingUnknown = (await forwarding.close()).unknown
+        await bundle.close()
+      })()
       const timer = monotonicClock.after(deadline - monotonicClock.now())
       const settled = await Promise.race([
         closing.then(
@@ -148,7 +166,12 @@ async function executorBody(ctx: Context): Promise<RowHandle> {
       timer.cancel()
       switch (settled) {
         case 'settled':
-          return { kind: 'settled' }
+          return forwardingUnknown === 0
+            ? { kind: 'settled' }
+            : {
+                kind: 'incomplete',
+                detail: `${forwardingUnknown} Tools forwarding associations remain unknown`,
+              }
         case 'failed':
           return { kind: 'failed', detail: 'the tool runtime did not close cleanly' }
         case 'deadline':

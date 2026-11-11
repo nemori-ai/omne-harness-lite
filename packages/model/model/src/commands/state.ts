@@ -21,7 +21,6 @@ import type {
   VisibleBlock,
 } from '@omne-harness/model-contract'
 import {
-  decodeCredentialId,
   judgeFixedModelRequest,
   type ActorRef,
   type CallAccountReport,
@@ -278,11 +277,44 @@ export function reduceFacts(
   dispatch: DispatchDocument,
   facts: readonly TransportFact[],
 ): ModelFailure | null {
+  if (
+    dispatch.record.send === 'not-sent' &&
+    facts.some(
+      fact => fact.kind !== 'account' && fact.kind !== 'diagnostic' && fact.kind !== 'ended',
+    )
+  )
+    return invalid('facts', 'not-sent-content')
   for (const fact of facts) {
     const failure = reduceFact(call, dispatch, fact)
     if (failure) return failure
   }
   return null
+}
+export function hasDispatchContent(dispatch: DispatchDocument): boolean {
+  return (
+    dispatch.record.firstContent === 'observed' ||
+    dispatch.blocks.length > 0 ||
+    dispatch.hadContent.size > 0
+  )
+}
+export function completesNotSentWindow(
+  call: CallDocument,
+  dispatch: DispatchDocument,
+  window: string,
+  facts: readonly TransportFact[],
+): boolean {
+  return (
+    dispatch.record.send === 'not-sent' &&
+    !hasDispatchContent(dispatch) &&
+    facts.length === 1 &&
+    facts[0]?.kind === 'ended' &&
+    facts[0].termination.kind === 'failed' &&
+    call.dispatches.every(item =>
+      [...item.windows].every(
+        ([id, state]) => (item === dispatch && id === window) || state === 'closed',
+      ),
+    )
+  )
 }
 /**
  * Records an actual terminal that arrived late. Content that does not form a message leaves the
@@ -719,7 +751,7 @@ export class ModelCommandCore<P> {
       source =>
         digest(source.profile) === digest(input.request.profile) &&
         digest(source.supplier) === digest(input.supplier.adoption) &&
-        source.recipient === input.supplier.recipient &&
+        source.provider === input.supplier.provider &&
         source.model === input.supplier.model,
     )
     if (!source) return { failure: unavailable('model-send-source', 'source-not-registered') }
@@ -732,29 +764,10 @@ export class ModelCommandCore<P> {
     const current = source.current(input)
     if ('failure' in current) return current
     if (!current.ok.authorized) return { failure: { kind: 'denied', action: 'send-source' } }
-    const credential = input.supplier.credential
-    if (credential.kind === 'tenant')
-      return {
-        ok: {
-          id: credential.id,
-          scope: 'tenant' as const,
-          official: source.credential.kind === 'factory' ? source.credential.official : false,
-        },
-      }
-    if (
-      source.credential.kind !== 'factory' ||
-      source.credential.official !== true ||
-      !current.ok.noTenantBinding ||
-      'failure' in decodeCredentialId(source.credential.queryId)
-    )
-      return { failure: unavailable('model-send-source', 'factory-source-unavailable') }
-    return {
-      ok: {
-        id: source.credential.queryId,
-        scope: 'factory' as const,
-        official: source.credential.official,
-      },
-    }
+    const layer = input.supplier.credential
+    if (layer.layer === 'official' && !source.official)
+      return { failure: unavailable('model-send-source', 'official-layer-not-official') }
+    return { ok: { provider: input.supplier.provider, layer } }
   }
 
   // --- Read relations and result pages.

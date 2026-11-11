@@ -37,6 +37,7 @@
     "@omne-harness/pi-ai-transport": "workspace:*",
     "@omne-harness/request-context-cordis-contract": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
+    "@omne-harness/tokenizer-tiktoken": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

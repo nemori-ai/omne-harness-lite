@@ -6,4 +6,4 @@
 
 - [README.md](README.md)：证明清单与假设
 
-本目录目前没有其他文件，原因见 [README.md](README.md)。
+- [not-sent.md](not-sent.md)：零发送收尾的不变量、前提和实现映射。

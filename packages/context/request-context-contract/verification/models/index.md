@@ -10,3 +10,4 @@
 - [compaction/CompactionFit.tla](compaction/CompactionFit.tla)：压缩结局与视图有界
 - [compaction/expect.txt](compaction/expect.txt)：压缩模型各配置的预期
 - [run-tlc.sh](run-tlc.sh)：WSL 运行入口
+- [measurement-session](measurement-session/README.md)：probe快照、精确key、有限复用及关闭。

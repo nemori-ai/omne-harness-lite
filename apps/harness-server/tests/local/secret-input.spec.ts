@@ -1,7 +1,7 @@
 // The piped credential reader of `setup`: the first line, without its line break.
 import { PassThrough, Readable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { SecretInputError } from '@omne-harness/model-host-local/vault'
+import { SecretInputError } from '@omne-harness/settings-local/secrets'
 import { readFirstLine } from '../../src/local/secret-input.ts'
 
 describe('readFirstLine', () => {

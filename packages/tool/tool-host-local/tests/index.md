@@ -18,6 +18,7 @@
 - [部件对 createToolRuntime 的组合测试](runtime-composition.spec.ts)。
 - [账本守卫的组装与真账本下的租户隔离](ledger-guards.spec.ts)。
 - [来源签发、认回与伪造](invocation-source.spec.ts)。
+- [原来源资格观察与转发父链](invocation-qualification.spec.ts)。
 - [授予核验](grant-verifiers.spec.ts)。
 - [启动守卫](start-guard.spec.ts)。
 - [登记表与 Catalog 的测试构造器](binding-values.ts)。
@@ -32,3 +33,4 @@
 - [包索引](../index.md)。
 
 - [预占返还与诊断边界](environment-boundaries.spec.ts)及其[夹具](environment-boundary-fixture.ts)。
+- [保留进程的移交提交与计划透传](retained-process-ledger.spec.ts)。

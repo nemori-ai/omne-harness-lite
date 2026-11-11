@@ -12,6 +12,8 @@ export type ServerEntryConfig = Readonly<{
   listenAddress: string
   /** 0 asks the host for a free port. */
   listenPort: number
+  /** Requests reading a body or executing a command; established SSE streams have their own budget. */
+  maxInFlightRequests: number
   /** The request body limits of the two paths, in bytes. */
   maxBodyBytes: Readonly<{ small: number; input: number }>
   /** The SSE heartbeat interval. */
@@ -24,6 +26,14 @@ export type ServerEntryConfig = Readonly<{
   historyKinds: readonly string[]
   /** The observation resource bounds and the retention of an ended observation record. */
   observation: Readonly<{ perLogin: number; perInstance: number; cancelRetentionMs: number }>
+  /**
+   * The session diagnostics projection (SPEC「会话诊断投影」): the entry kinds it reads, the most
+   * Runs of one page, and the most calls of one Run that enter the fan-out. The three come
+   * together; a deployment without them answers `read-session-diagnostics` as `basis-unavailable`.
+   */
+  diagnosticsKinds?: readonly string[]
+  maxRuns?: number
+  maxCallsPerRun?: number
 }>
 
 export class ServerEntryConfigError extends Error {
@@ -47,6 +57,7 @@ export function checkConfig(config: ServerEntryConfig): ServerEntryConfig {
   if (typeof config.listenAddress !== 'string')
     throw new ServerEntryConfigError('server-entry: listenAddress must be a string')
   nonNegativeInteger(config.listenPort, 'listenPort')
+  positiveInteger(config.maxInFlightRequests, 'maxInFlightRequests')
   positiveInteger(config.maxBodyBytes.small, 'maxBodyBytes.small')
   positiveInteger(config.maxBodyBytes.input, 'maxBodyBytes.input')
   positiveInteger(config.heartbeatIntervalMs, 'heartbeatIntervalMs')
@@ -59,15 +70,27 @@ export function checkConfig(config: ServerEntryConfig): ServerEntryConfig {
   ] as const)
     positiveInteger(config.jsonBudgets[key], `jsonBudgets.${key}`)
   positiveInteger(config.maxPageBytes, 'maxPageBytes')
-  if (
-    !Array.isArray(config.historyKinds) ||
-    config.historyKinds.some(kind => typeof kind !== 'string')
-  )
-    throw new ServerEntryConfigError('server-entry: historyKinds must be a list of strings')
+  stringList(config.historyKinds, 'historyKinds')
   positiveInteger(config.observation.perLogin, 'observation.perLogin')
   positiveInteger(config.observation.perInstance, 'observation.perInstance')
   nonNegativeInteger(config.observation.cancelRetentionMs, 'observation.cancelRetentionMs')
+  checkDiagnostics(config)
   return config
+}
+
+function stringList(value: unknown, name: string): void {
+  if (!Array.isArray(value) || value.some(kind => typeof kind !== 'string'))
+    throw new ServerEntryConfigError(`server-entry: ${name} must be a list of strings`)
+}
+
+/** The three projection fields are all absent, or each is present and well formed. */
+function checkDiagnostics(config: ServerEntryConfig): void {
+  const { diagnosticsKinds, maxRuns, maxCallsPerRun } = config
+  if (diagnosticsKinds === undefined && maxRuns === undefined && maxCallsPerRun === undefined)
+    return
+  stringList(diagnosticsKinds, 'diagnosticsKinds')
+  positiveInteger(maxRuns, 'maxRuns')
+  positiveInteger(maxCallsPerRun, 'maxCallsPerRun')
 }
 
 /** The read budgets of one path: the five configured budgets plus that path's body limit. */

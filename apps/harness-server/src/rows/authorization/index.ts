@@ -33,6 +33,13 @@ export {
   type ReleaseGrant,
 } from './grants.ts'
 export { createToolAccessGuard } from './tool-access.ts'
+export {
+  createSettingsGuard,
+  settingsAdmission,
+  type SettingsAction,
+  type SettingsAdmissionInput,
+  type SettingsVerdict,
+} from './settings-access.ts'
 export { createActionAdmission, type AdmissionReader } from './action-admission.ts'
 export { authorizationConfig, type ActionRules } from './action-rules.ts'
 export {

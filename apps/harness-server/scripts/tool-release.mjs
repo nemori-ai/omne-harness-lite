@@ -19,6 +19,9 @@ const PROBES = [
   {
     Shell: { resultMaxBytes: 1, executable: 'probe', argsPrefix: [], cwd: 'probe', env: {} },
     Files: { resultMaxBytes: 1, cwd: '/probe' },
+    Tools: { resultMaxBytes: 4096, outputModalities: ['text'] },
+    TodoItems: { resultMaxBytes: 4096 },
+    Web: { resultMaxBytes: 1, maxSearchResults: 1 },
   },
   {
     Shell: {
@@ -29,6 +32,9 @@ const PROBES = [
       env: { A: 'b' },
     },
     Files: { resultMaxBytes: 65536, cwd: 'C:\\elsewhere' },
+    Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
+    TodoItems: { resultMaxBytes: 1048576 },
+    Web: { resultMaxBytes: 65536, maxSearchResults: 10 },
   },
 ]
 

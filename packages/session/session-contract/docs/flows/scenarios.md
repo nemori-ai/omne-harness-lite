@@ -71,6 +71,10 @@ sequenceDiagram
         J-->>S: invalid，带拒收原因
         S->>D: finishRun(admission-rejected) 写 SE26 failed、SE16，同批写首条输入的 SE35 rejected
         Note over S,D: 其余待处理输入保留资格，交给下一个 Run
+    else 驱动被拒（Agent 答确定失败）
+        J-->>S: refused，带失败种类、field 与 reason
+        S->>D: finishRun(drive-refused) 写 SE26 failed、SE16，同批写首条输入的 SE35 rejected（drive-refused）
+        Note over S,D: 首条输入不再待处理，其余待处理输入保留资格，交给下一个 Run
     else 后续输入被消息准入拒收
         J-->>S: invalid，带拒收原因
         S->>D: receive(input-handover rejected) 写 SE35，该输入失去资格

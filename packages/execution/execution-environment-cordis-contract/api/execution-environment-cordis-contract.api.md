@@ -64,6 +64,8 @@ export declare abstract class ExecutionEnvironmentService<P> extends Service<Exe
     protected abstract onInspectRecoveryAcquisition(...args: Operation<P, 'inspectRecoveryAcquisition'>['args']): Operation<P, 'inspectRecoveryAcquisition'>['result'];
     describe(...args: Operation<P, 'describe'>['args']): Operation<P, 'describe'>['result'];
     protected abstract onDescribe(...args: Operation<P, 'describe'>['args']): Operation<P, 'describe'>['result'];
+    observeRetained(...args: Operation<P, 'observeRetained'>['args']): Operation<P, 'observeRetained'>['result'];
+    protected abstract onObserveRetained(...args: Operation<P, 'observeRetained'>['args']): Operation<P, 'observeRetained'>['result'];
     recoverOwned(...args: Operation<P, 'recoverOwned'>['args']): Operation<P, 'recoverOwned'>['result'];
     protected abstract onRecoverOwned(...args: Operation<P, 'recoverOwned'>['args']): Operation<P, 'recoverOwned'>['result'];
     releaseScope(...args: Operation<P, 'releaseScope'>['args']): Operation<P, 'releaseScope'>['result'];

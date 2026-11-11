@@ -9,6 +9,7 @@ import {
   identityGovernanceKey,
   identityOperationsKey,
   tenantStandingKey,
+  standingReservationsKey,
 } from '@omne-harness/identity/cordis'
 import { IdentitySqlPlugin } from '@omne-harness/identity-sql/cordis'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
@@ -18,7 +19,12 @@ export const identityRow = defineRow({
   row: 'identity',
   implementation: 'real',
   manifest: {
-    provides: [identityOperationsKey, tenantStandingKey, identityGovernanceKey],
+    provides: [
+      identityOperationsKey,
+      tenantStandingKey,
+      identityGovernanceKey,
+      standingReservationsKey,
+    ],
     injects: [storageKey, identityClockKey],
     sameProviderGroup: null,
   },

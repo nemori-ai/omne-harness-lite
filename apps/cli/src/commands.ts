@@ -26,13 +26,14 @@ import {
   withoutProof,
   type Option,
 } from './command-support.ts'
-import { credentialCommand } from './credential-command.ts'
+import { runReadSessionDiagnostics } from './diagnostics-command.ts'
 import { governanceCommands } from './governance-commands.ts'
 import { runReadHistory } from './history-command.ts'
 import { writeLoginState, type LoginState } from './login-state.ts'
 import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
+import { settingCommand } from './setting-command.ts'
 
 async function runAccount(
   name: 'register' | 'login',
@@ -386,6 +387,12 @@ export const productionCommands: readonly CommandSpec[] = [
     run: runReadHistory,
   },
   {
+    name: 'read-session-diagnostics',
+    usage: '--session <id>',
+    summary: 'Read the diagnostics of the runs of a session.',
+    run: runReadSessionDiagnostics,
+  },
+  {
     name: 'cancel-run',
     usage: '--session <id> --run <id>',
     summary: 'Cancel a run.',
@@ -398,5 +405,5 @@ export const productionCommands: readonly CommandSpec[] = [
     run: (args, output, environment) => runSession(stopCall, args, output, environment),
   },
   ...governanceCommands,
-  credentialCommand,
+  settingCommand,
 ]

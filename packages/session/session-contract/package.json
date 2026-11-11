@@ -34,7 +34,8 @@
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/message": "workspace:*",
-    "@omne-harness/operation-result": "workspace:*"
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/permissions": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

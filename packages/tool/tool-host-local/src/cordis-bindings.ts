@@ -16,7 +16,7 @@ export type LocalToolBindingsPluginInput<P, E, B extends ContentBlock> = Omit<
   LocalToolBindingsInput<P, E, B>,
   'registry' | 'catalog'
 > &
-  Pick<LocalToolCatalogInput<P>, 'availability'>
+  Pick<LocalToolCatalogInput<P>, 'availability' | 'view' | 'search'>
 
 export type LocalToolBindingsPlugin<P, E, B extends ContentBlock> = {
   new (ctx: Context, config?: Readonly<Record<string, never>>): ToolBindingsService<P, B, E>
@@ -67,7 +67,12 @@ export function createLocalToolBindingsPlugin<P, E, B extends ContentBlock>(
       this.close = key => (this.live() ? registry.close(key) : unknownKey())
       this.reopen = key => (this.live() ? registry.reopen(key) : unknownKey())
       this.drain = key => (this.live() ? registry.drain(key) : unknownKey())
-      const catalog = createLocalToolCatalog({ registry, availability: input.availability })
+      const catalog = createLocalToolCatalog({
+        registry,
+        availability: input.availability,
+        view: input.view,
+        search: input.search,
+      })
       const live = this.live
       class Catalog extends ToolCatalogService<P> {
         readonly inspect: ToolCatalogService<P>['inspect'] = async request => {

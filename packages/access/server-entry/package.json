@@ -31,15 +31,18 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/agent-contract": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/message": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {

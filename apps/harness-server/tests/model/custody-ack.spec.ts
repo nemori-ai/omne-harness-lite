@@ -3,11 +3,16 @@
 // next call. The release share is 1000000 bytes and a call holds 524288 of it, so the second call
 // fits only after the first is acknowledged and cleaned. What is real and what stands in is named
 // in `custody-world.ts`.
-// Red when: the release `handoff` evidence answers `unavailable` again (the second call is refused
-// for capacity); the evidence adapter and the receiver disagree on the record; the Journal's
-// record is not found again after the tree is reloaded on the same storage.
+// While the first call holds the share, the second admission is answered as unavailable on
+// `model-capacity`: the share is full now, and the same call is admitted after the share comes back.
+// Red when: the release `handoff` evidence answers `unavailable` again (the share stays full for the
+// second call); the evidence adapter and the receiver disagree on the record; the Journal's record
+// is not found again after the tree is reloaded on the same storage.
 import { afterEach, expect, it } from 'vitest'
 import { custodyOf, custodyWorld, pushRecord, until } from './custody-world.ts'
+
+/** The second admission while the first call holds the share: the share is full now. */
+const SHARE_FULL = { failure: { kind: 'unavailable', dependency: 'model-capacity' } }
 
 const worlds: Awaited<ReturnType<typeof custodyWorld>>[] = []
 afterEach(async () => {
@@ -47,7 +52,7 @@ it('acknowledges after the tree is reloaded on the same storage, from the record
   )
   await until(() => w.records.handoffs.length > 0, 'the ACK attempt')
   expect(await custodyOf(w.records, w.access, 'first')).toEqual({ kind: 'producer' })
-  expect(await w.admit('second')).toMatchObject({ failure: { kind: 'capacity' } })
+  expect(await w.admit('second')).toMatchObject(SHARE_FULL)
 
   await w.reload(true)
   await until(
@@ -83,7 +88,7 @@ it('refuses a forged ACK as handoff-invalid and keeps the result and its share',
   })
   expect(await custodyOf(w.records, w.access, 'first')).toEqual({ kind: 'producer' })
   expect(pushRecord(w.records, w.access, 'first')?.result?.delivery.parts.length).toBeGreaterThan(0)
-  expect(await w.admit('second')).toMatchObject({ failure: { kind: 'capacity' } })
+  expect(await w.admit('second')).toMatchObject(SHARE_FULL)
 
   expect(await w.acknowledge('first', 'ack-genuine', saved)).toMatchObject({
     ok: { custody: { kind: 'acknowledged' } },
@@ -94,7 +99,7 @@ it('refuses a forged ACK as handoff-invalid and keeps the result and its share',
 // records is the fact of what is owed: the push scans it when it starts, pushes the saved result
 // again, the Agent receiver recognises the same key and content and answers with its first receipt,
 // and the Model acknowledges with it and gives the share back. Red when the push does not scan at
-// its start (the call stays with the producer and the second call is refused for capacity), or
+// its start (the call stays with the producer and the share stays full for the second call), or
 // when a pushed-again result is not recognised as the one already saved.
 it('pushes again after a restart that lost the push ledger, acknowledges, and gives the share back', async () => {
   const w = await custodyWorld(['first', 'second'], false)
@@ -107,7 +112,7 @@ it('pushes again after a restart that lost the push ledger, acknowledges, and gi
   await until(() => w.records.handoffs.length > 0, 'the ACK attempt')
   const before = pushRecord(w.records, w.access, 'first')?.result?.standing
   expect(await custodyOf(w.records, w.access, 'first')).toEqual({ kind: 'producer' })
-  expect(await w.admit('second')).toMatchObject({ failure: { kind: 'capacity' } })
+  expect(await w.admit('second')).toMatchObject(SHARE_FULL)
 
   await w.restart(true)
   await until(

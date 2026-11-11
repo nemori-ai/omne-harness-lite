@@ -7,6 +7,7 @@ import {
 } from '@omne-harness/agent'
 import {
   decodeDispatchId,
+  decodeProviderName,
   decodeResultVersion,
   resolveModelInvocationRef,
 } from '@omne-harness/model-contract'
@@ -162,9 +163,9 @@ export async function deliverModelReply(
         dispatch: ok(decodeDispatchId(`mdisp_${name}`)),
         supplier: {
           adoption: adoption('supplier'),
-          recipient: 'recipient',
+          provider: ok(decodeProviderName('recipient')),
           model: 'model',
-          credential: { kind: 'factory' },
+          credential: { layer: 'official' },
         },
         intent: admission,
         send: 'started',
@@ -242,7 +243,7 @@ export function toolReceiver(assembly: Assembly): AgentToolReceiver<string> {
     const instance = snapshot.executionAttachment?.instance
     return pending === undefined || instance === undefined
       ? null
-      : { execution: execution(), instance, pending }
+      : { execution: execution(), instance, definition: snapshot.checkpoint.definition, pending }
   }
   const made = createAgentToolReceiver<string>(
     {

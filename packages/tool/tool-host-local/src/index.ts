@@ -61,10 +61,15 @@ export {
   createLocalToolLedgerGuards,
   localArgumentLimits,
   type LocalToolLedgerGuardsInput,
+  type ConditionalLedgerCommit,
+  type RequestAccessVerdict,
+  type StartCondition,
   type ToolHostAccess,
+  type ToolRequestAccess,
 } from './ledger-guards.ts'
 export {
   createLocalInvocationSource,
+  createLocalInvocationQualifier,
   createLocalOperationIdentities,
   INVOCATION_SOURCE_DOMAIN_KEY,
   type LocalInvocationSource,
@@ -72,6 +77,13 @@ export {
   type PrincipalCodec,
   type PrincipalJson,
 } from './invocation-source.ts'
+export type {
+  LocalInvocationQualifier,
+  InvocationQualification,
+  InvocationOrigin,
+  InvocationQualificationRequest,
+  InvocationRecordObservation,
+} from './invocation-qualification.ts'
 export { createLocalGrantVerifiers, type LocalGrantScope } from './grant-verifiers.ts'
 export {
   createLocalStartGuard,
@@ -98,3 +110,11 @@ export {
   type LocalToolControlSubject,
   type LocalToolControlSubjectsInput,
 } from './control-subject-adapter.ts'
+
+export type { LocalToolCatalogView, LocalToolCatalogViewSource } from './catalog-view.ts'
+export type { LocalToolCatalogSearchConfiguration } from './catalog-ranking.ts'
+
+export { createLocalToolForwarding } from './tool-forwarding.ts'
+export type { LocalToolForwarding, LocalToolForwardingInput } from './tool-forwarding.ts'
+
+export { TOOL_FORWARDING_OWNER } from './invocation-forwarding.ts'

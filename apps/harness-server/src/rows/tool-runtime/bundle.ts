@@ -1,22 +1,38 @@
+import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 // 建 Tool 运行时组的唯一 bundle（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：`createLocalToolRuntimePlugins` 的
 // 每个输入只取已核来源，缺席时由各自的窄代理答 `unavailable`。`tool-records` 行按运维者配置调用一次；同一运行的
 // 后续调用配置必须相同，否则装载失败（不建第二份 bundle，也不悄悄沿用旧配置）。
 import type { Context } from '@deepseek-ai/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
-import { toolBindingsKey, toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import {
+  toolBindingsKey,
+  toolCatalogKey,
+  toolStartAuthorityKey,
+} from '@omne-harness/tool-cordis-contract/cordis'
 import {
   createLocalGrantVerifiers,
   createLocalInvocationSource,
+  createLocalInvocationQualifier,
+  type LocalInvocationSourceInput,
 } from '@omne-harness/tool-host-local'
+import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
   createLocalToolRuntimePlugins,
   type LocalToolRuntimeInput,
 } from '@omne-harness/tool-host-local/cordis'
 import { releaseOf } from '../../entry/tool-release.ts'
+import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
+import { toolTargetPolicyOf } from '../authorization/tool-target-policy.ts'
+import {
+  admittedTargetAccess,
+  currentTargetPolicy,
+  withTargetAdmissionPolicy,
+} from './target-policy.ts'
 import { createReleaseToolIdentity, releasePrincipalCodec } from './access.ts'
 import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
+  lateConditional,
   lateCustody,
   lateStore,
   toolRuntimeHolder,
@@ -66,6 +82,21 @@ function releasePermitRequirements(
 function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeConfig) {
   const identity = createReleaseToolIdentity(holder)
   const store = lateStore(holder)
+  const requestAccess = currentTargetPolicy({
+    authorization: () => toolTargetPolicyOf(root),
+    view: () => releaseCatalogViewOf(root),
+  })
+  const sourceInput: LocalInvocationSourceInput<unknown, ToolMessageContentBlock> = {
+    store,
+    authority: identity.sourceAuthority,
+    principalCodec: releasePrincipalCodec,
+    commitAttempts: config.configuration.ledgerCommitAttempts,
+    forwarding: {
+      authority: () => root.get(toolStartAuthorityKey, false),
+      isParent: request => isReleaseToolsRequest(releaseOf(root), request),
+    },
+  }
+  const sources = createLocalInvocationSource(sourceInput)
   const environment = createReleaseEnvironment(holder, identity, {
     filesRoot: config.filesRoot,
     commitAttempts: config.configuration.ledgerCommitAttempts,
@@ -73,15 +104,11 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
   })
   const input: LocalToolRuntimeInput = {
     store,
+    conditionalCommit: lateConditional(holder),
     custody: lateCustody(holder),
     content: null,
-    sources: createLocalInvocationSource({
-      store,
-      authority: identity.sourceAuthority,
-      principalCodec: releasePrincipalCodec,
-      commitAttempts: config.configuration.ledgerCommitAttempts,
-    }),
-    access: identity.access,
+    sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },
+    access: { ...identity.access, request: admittedTargetAccess(store, requestAccess) },
     subjects: identity.subjects,
     grants: createLocalGrantVerifiers(RELEASE_TOOL_SCOPE),
     guardsOf: () => [],
@@ -98,7 +125,7 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     observerQueueFrames: config.observerQueueFrames,
     observerResidenceMs: config.observerResidenceMs,
   }
-  return input
+  return { input, qualification: createLocalInvocationQualifier(sourceInput) }
 }
 
 /** 本运行的 bundle：第一次按 `config` 建；之后配置不同就抛出（行 FAILED）。 */
@@ -113,7 +140,8 @@ export function ensureToolRuntimeBundle(
       throw new Error('tool runtime: this run already built its bundle with another configuration')
     return holder.bundle.value
   }
-  const value = createLocalToolRuntimePlugins(inputFor(ctx.root, holder, config))
+  const { input, qualification } = inputFor(ctx.root, holder, config)
+  const value = Object.freeze({ ...createLocalToolRuntimePlugins(input), qualification })
   holder.bundle = Object.freeze({ value, configDigest: digest })
   holder.resolve(value)
   return value

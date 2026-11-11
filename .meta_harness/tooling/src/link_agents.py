@@ -26,7 +26,10 @@ def directory_links(hosts=tuple(HOSTS)) -> dict[str, tuple[str, ...]]:
 
 
 DIRECTORY_LINKS = directory_links()
-FILE_LINKS = {".cursor": CLOUD_RUNTIME}
+# Host roots that hold only compiled files: `.cursor` its Cloud Agent runtime,
+# `.codex` its hook file (Codex reads skills from `.agents`).
+FILE_LINK_HOSTS = {".cursor": "cursor", ".codex": "codex"}
+FILE_LINKS = {".cursor": CLOUD_RUNTIME, ".codex": (HOSTS["codex"].hooks.name,)}
 
 
 def _traversable(link: Path) -> bool:
@@ -72,19 +75,20 @@ def link(project: Path, check=False, hosts=tuple(HOSTS)):
             if not (target / child).is_dir():
                 raise ValueError(f"missing compiled directory: {relative / child}")
         _queue_link(project, name, relative, pending, check)
-    if "cursor" in hosts:
-        for name, files in FILE_LINKS.items():
-            relative = Path(".meta_harness") / name
-            target = project / relative
-            no_symlinks(target)
-            if not target.is_dir():
-                raise ValueError(f"missing compiled directory: {relative}")
-            for child in files:
-                file = target / child
-                no_symlinks(file)
-                if not file.is_file():
-                    raise ValueError(f"missing compiled file: {relative / child}")
-            _queue_link(project, name, relative, pending, check)
+    for name, files in FILE_LINKS.items():
+        if FILE_LINK_HOSTS[name] not in hosts:
+            continue
+        relative = Path(".meta_harness") / name
+        target = project / relative
+        no_symlinks(target)
+        if not target.is_dir():
+            raise ValueError(f"missing compiled directory: {relative}")
+        for child in files:
+            file = target / child
+            no_symlinks(file)
+            if not file.is_file():
+                raise ValueError(f"missing compiled file: {relative / child}")
+        _queue_link(project, name, relative, pending, check)
     if not check:
         # Preflight every link first. A concurrent creator still fails rather than being replaced.
         for destination, relative in pending:

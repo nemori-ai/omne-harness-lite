@@ -25,6 +25,7 @@ import {
   unbox,
   type Principal,
 } from './fixture.ts'
+import { providerName } from './provider-name.ts'
 
 const A = tenantOf('a')
 const B = tenantOf('b')
@@ -142,9 +143,9 @@ function dispatchOf(blocks: readonly VisibleBlock[]): DispatchDocument {
       dispatch: unbox(decodeDispatchId('mdisp_one')),
       supplier: {
         adoption: { owner: 'o', name: 'n', revision: '1', digest: '0'.repeat(64) },
-        recipient: 'r',
+        provider: providerName('r'),
         model: 'm',
-        credential: { kind: 'factory' },
+        credential: { layer: 'official' },
       },
       intent: opId('dispatch'),
       send: 'prepared',

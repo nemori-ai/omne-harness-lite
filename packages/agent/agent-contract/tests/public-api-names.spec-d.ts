@@ -584,6 +584,7 @@ describe('the discriminants of the evaluation chapter', () => {
       | 'message-rejected'
       | 'extension-stop'
       | 'guard'
+      | 'node-failed'
     >()
     expectTypeOf<KindOf<ProducerDecisionView>>().toEqualTypeOf<
       | 'unresolved'
@@ -1169,7 +1170,7 @@ describe('the discriminants of the coordination chapter', () => {
   it('the pages, observations and states keep their literals', () => {
     expectTypeOf<KindOf<EventPage>>().toEqualTypeOf<'page' | 'gap'>()
     expectTypeOf<KindOf<AgentState>>().toEqualTypeOf<
-      'idle' | 'occupied' | 'draining' | 'disposed'
+      'idle' | 'reserved' | 'occupied' | 'draining' | 'disposed'
     >()
     expectTypeOf<KindOf<AgentObservation>>().toEqualTypeOf<'state' | 'ended'>()
     expectTypeOf<Extract<AgentObservation, { kind: 'ended' }>['reason']>().toEqualTypeOf<
@@ -1285,6 +1286,7 @@ describe('the discriminants of the Journal chapter', () => {
       | 'inputs'
       | 'readReplyAdmissions'
       | 'readCancellationInstallation'
+      | 'readFinish'
       | 'query'
       | 'output'
     >()

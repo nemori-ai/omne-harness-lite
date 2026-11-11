@@ -170,15 +170,19 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     return result.failure
   }
 
-  /** Runs one Request Context call with the staged values of the call and removes them after. */
+  /**
+   * Runs one Request Context call with the staged values of the call and removes them after.
+   * `tenant` is the text of `access.tenant` that the operation has already checked.
+   */
   async function staged<T>(
+    tenant: string,
     access: Access<P>,
     target: ContextTarget,
     call: AssemblyCall<P>,
     groups: StagedGroups<P>,
     run: (operations: AssemblyOperations<P>) => Promise<Answer<T>>,
   ): Promise<Answer<T>> {
-    const release = staging.stage(access.tenant, call.candidate, groups)
+    const release = staging.stage(tenant, call, groups)
     if (release === null) return { failure: unavailable('call-input-busy') }
     try {
       const refused = await registered(access, target)
@@ -520,7 +524,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       alterations: input.alterations,
       beforeModelCall: input.beforeModelCall,
     }
-    const answer = await staged(access, target, call, groups.ok, async operations =>
+    const answer = await staged(tenant, access, target, call, groups.ok, async operations =>
       preparationOf(outcome, await operations.assemble(call), () =>
         enter(outcome, operations, call, target, groups.ok, original),
       ),
@@ -658,6 +662,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     const { call, target, step } = entry.ok
     const consumed = input.result.consumed
     const answer = await staged(
+      tenant,
       access,
       target,
       { ...call, access },
@@ -729,7 +734,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       target,
     }
     const resumed = { ...call, access }
-    const answer = await staged(access, target, resumed, groups, async operations =>
+    const answer = await staged(tenant, access, target, resumed, groups, async operations =>
       preparationOf(outcome, await operations.resume(resumed), async () => ({
         ok: {
           ...common(outcome.input, outcome.purpose, outcome.place, { resumed: 'needs-compaction' }),

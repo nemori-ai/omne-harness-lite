@@ -6,8 +6,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { TokenizationSegment } from '@omne-harness/model-contract/provider'
-import { createTiktokenTokenizer, type TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
+import type { TiktokenResources } from '@omne-harness/tokenizer-tiktoken'
 import { afterAll, expect, it } from 'vitest'
+import { executorOf, limits } from './support/executor.ts'
 import { o200kResources, syntheticResources } from './support/resources.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
@@ -37,8 +38,8 @@ const samples: readonly (readonly TokenizationSegment[])[] = [
 const childScript = `
 import { readFileSync } from 'node:fs'
 const [input] = process.argv.slice(1)
-const { entry, o200kModule, syntheticFixture, resources, samples } = JSON.parse(input)
-const { createTiktokenTokenizer } = await import(entry)
+const { entry, o200kModule, syntheticFixture, resources, samples, limits } = JSON.parse(input)
+const { createTiktokenExecutor } = await import(entry)
 const o200k = (await import(o200kModule)).default
 const ranks = {
   o200k: { patStr: o200k.pat_str, specialTokens: o200k.special_tokens, bpeRanks: o200k.bpe_ranks },
@@ -46,16 +47,19 @@ const ranks = {
 }
 const result = {}
 for (const [name, given] of Object.entries(resources)) {
-  const created = createTiktokenTokenizer({ ...given, ranks: ranks[name] })
-  const mismatch = createTiktokenTokenizer({
+  const created = await createTiktokenExecutor({ resources: [{ ...given, ranks: ranks[name] }], limits })
+  const mismatch = await createTiktokenExecutor({ resources: [{
     ...given,
     ranks: ranks[name],
     definition: { ...given.definition, implementation: { ...given.definition.implementation, revision: '0.0.0' } },
-  })
+  }], limits })
+  const acquired = 'ok' in created ? created.ok.acquire(given.definition, new AbortController().signal) : created
   result[name] = {
-    counts: 'ok' in created ? samples.map(sample => created.ok.count(sample)) : created,
+    counts: 'ok' in acquired ? await Promise.all(samples.map(sample => acquired.ok.tokenizer.count(sample))) : acquired,
     mismatch: 'failure' in mismatch ? mismatch.failure.kind : 'ok',
   }
+  if ('ok' in acquired) await acquired.ok.release()
+  if ('ok' in created) await created.ok.close()
 }
 process.stdout.write(JSON.stringify(result))
 `
@@ -70,13 +74,18 @@ function withoutRanks(resources: TiktokenResources): Omit<TiktokenResources, 'ra
   return { definition: resources.definition, specialTokens: resources.specialTokens }
 }
 
-function sourceCounts(resources: TiktokenResources): unknown {
-  const created = createTiktokenTokenizer(resources)
-  if ('failure' in created) return created
-  return samples.map(sample => created.ok.count(sample))
+async function sourceCounts(resources: TiktokenResources): Promise<unknown> {
+  const executor = await executorOf([resources])
+  try {
+    const acquired = executor.acquire(resources.definition, new AbortController().signal)
+    if ('failure' in acquired) return acquired
+    return await Promise.all(samples.map(sample => acquired.ok.tokenizer.count(sample)))
+  } finally {
+    await executor.close()
+  }
 }
 
-it('the built output, loaded in another process from another directory, counts like the source', () => {
+it('the built output, loaded in another process from another directory, counts like the source', async () => {
   expect(existsSync(builtEntry), 'build the package first: dist/index.js is missing').toBe(true)
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'tokenizer-tiktoken-published-')))
   temporaryDirectories.push(cwd)
@@ -89,6 +98,7 @@ it('the built output, loaded in another process from another directory, counts l
       synthetic: withoutRanks(syntheticResources()),
     },
     samples,
+    limits,
   })
   // The child gets the inherited environment without the repository's BASELINE override.
   const { BASELINE: _inherited, ...env } = process.env
@@ -99,7 +109,7 @@ it('the built output, loaded in another process from another directory, counts l
     timeout: 60_000,
   })
   expect(JSON.parse(output)).toEqual({
-    o200k: { counts: sourceCounts(o200kResources()), mismatch: 'unavailable' },
-    synthetic: { counts: sourceCounts(syntheticResources()), mismatch: 'unavailable' },
+    o200k: { counts: await sourceCounts(o200kResources()), mismatch: 'unavailable' },
+    synthetic: { counts: await sourceCounts(syntheticResources()), mismatch: 'unavailable' },
   })
 })

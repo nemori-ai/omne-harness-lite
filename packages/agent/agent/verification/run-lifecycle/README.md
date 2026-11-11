@@ -1,6 +1,6 @@
 # Run 驱动生命周期的有限模型
 
-[RunLifecycle.tla](RunLifecycle.tla) 检查一个 Run 的驱动在一步里怎样发起 Model 调用和 Tool 动作、怎样等待结果、怎样在上限处停下，以及节点提交被拒时怎样停下。它与崩溃、答复丢失、准入不可用和接收方缺席交错。
+[RunLifecycle.tla](RunLifecycle.tla) 检查一个 Run 的驱动在一步里怎样发起 Model 调用和 Tool 动作、怎样等待结果、怎样在上限处停下，以及节点提交被确定拒绝时怎样停下。它与崩溃、答复丢失、准入不可用和接收方缺席交错。
 
 模型检查只说明有限范围内的设计性质。它不证明产品实现符合模型。运行记录见 [formal-runs.md](formal-runs.md)，无界推广见 [proofs.md](proofs.md)，机读守卫在 [guards/](guards/run-lifecycle.spec.ts)。
 
@@ -50,6 +50,7 @@ wsl.exe -d Ubuntu-24.04 --exec bash -l <WSL 视角的本目录>/run-tlc.sh [配�
 
 ## 假设与遗漏
 
+- `Refuse` 只指存储的确定拒绝（例如 `command_limit`），Journal 答确定失败。提交答暂时不可用（`unavailable`）是依赖等待，不经 `Refuse`，驱动不停止。这一路径由[有上限资源下 Run 的活性](../capacity-liveness/README.md)检查。
 - 不建模：Journal 提交回执丢失（收尾模型与 Journal 车道覆盖）；W0 等待提交本身被拒；参加者协议；M6 的确定拒绝；压缩子图；扩展位置；卡片等待；多个 execution 与租户。
 - 假定 Model 与 Tool 侧按身份认回同一调用。
 - `bad-is-no-terminate-l3` 演示已知偏离：实然下节点失败不结束 Run。它不是缺陷记录，结束 Run 的实现归波 3。

@@ -95,8 +95,8 @@ function scene() {
     },
   })
   class TestCredential extends ModelCredentialService {
-    readonly present = () => ({ kind: 'unavailable' as const })
-    readonly resolve = () => ({ kind: 'unavailable' as const })
+    readonly layerOf = () => ({ failure: { kind: 'unavailable' } }) as const
+    readonly resolve = () => ({ failure: { kind: 'unavailable' } }) as const
   }
   return { ctx, tenant, core, sqlite, observed, config, dependencies, Plugin, TestCredential }
 }

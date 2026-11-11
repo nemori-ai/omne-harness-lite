@@ -19,6 +19,11 @@ import {
   closeEnvironmentSchemaProvider,
   createEnvironmentSchemaProvider,
 } from '../../../src/entry/schema-domain.ts'
+import {
+  releaseDefinitionOf,
+  rememberReleaseDefinition,
+  releaseOf,
+} from '../../../src/entry/tool-release.ts'
 import { governanceOf } from '../../../src/entry/tool-release-manifest.ts'
 import { toolBindingsRow } from '../../../src/rows/tool-bindings/index.ts'
 import { createToolHostPlugin } from '../../../src/rows/tool-host/index.ts'
@@ -93,6 +98,29 @@ describe('tool-host: ensureLoaded of the release authors', () => {
       expect(loaded).toMatchObject({ ok: { state: 'loaded' } })
     }
     expect(names(app).sort()).toEqual(['Files', 'Shell'])
+  })
+
+  it('retains only verified plain release definitions after the live contributor unloads', async () => {
+    const app = await host({ construction: TEST_CONSTRUCTION })
+    const authority = authorityOf(app.manifest, 'Files')
+    expect(releaseDefinitionOf(app.root, 'Files')).toBeUndefined()
+    expect(await app.generations.ensureLoaded({ authority, access: SYSTEM })).toHaveProperty('ok')
+    const known = releaseDefinitionOf(app.root, 'Files')
+    expect(known?.name).toBe('Files')
+    if (known === undefined) throw new Error('missing known definition')
+    expect(known).not.toHaveProperty('executor')
+    const current = releaseOf(app.root)
+    if (current.kind !== 'trusted') throw new Error('missing release')
+    expect(rememberReleaseDefinition(app.root, 'other-generation', known)).toBe(false)
+    expect(
+      rememberReleaseDefinition(app.root, current.generation, { ...known, description: 'forged' }),
+    ).toBe(false)
+    expect(
+      await app.generations.unload({ key: { layer: authority.layer, asset: authority.asset } }),
+    ).toHaveProperty('ok')
+    expect(names(app)).toEqual([])
+    expect(releaseDefinitionOf(app.root, 'Files')).toEqual(known)
+    expect(releaseDefinitionOf(app.root, 'Files')).not.toBe(known)
   })
 
   it('loads nothing from a tampered tool-definitions copy', async () => {

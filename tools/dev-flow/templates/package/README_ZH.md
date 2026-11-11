@@ -119,6 +119,8 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 fragments/docs 只保留骨架以外的可选专题（configuration、maintenance、guides），按实际阅读任务取用，默认不复制。原 internals、api、usage 片段已并入 architecture、public-api、context 专题。专题承担必要内容时登记其文件和章节。docs只允许Markdown、SVG、PNG和WebP，空目录与其他格式失败。所有模板登记只存.json.tpl，避免被默认inventory发现为实例。
 
+契约成员由 `contract:api --write` 生成的 `api/*.api.md` 属于允许的可选槽。模板不预建空 `api/` 目录，也不接受该目录下的普通说明或源码。生成快照不替代公开源码和行为规格。
+
 TS核对布局、登记存在和草稿sentinel。Python核对bindings v2、依据、章节、占位和适用未知。文件级占位使整个文件读作`placeholder-only`；章节占位报告missing-section，reason为`section body: placeholder-only`。二者都计为缺项，但不阻止采用标识。inventory退出0只表示报告完成，必须读取具体状态。
 
 无选择器扫描同时列组的当前模板读数，仍沿包的既有退出策略。显式--group配合--check才断言组结构，不能同时使用--member。组结果列template身份、节点、委派成员、缺项及current-template-only范围，不认证历史采用。未整改旧组和旧版成员须单独说明新要求的覆盖范围。

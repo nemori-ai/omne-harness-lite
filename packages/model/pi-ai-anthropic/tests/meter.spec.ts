@@ -3,11 +3,12 @@
 // projection with the configured margin, and the requests that have no estimate.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { sortedJsonText } from './support/sorted-json.ts'
 import { Tiktoken } from 'js-tiktoken/lite'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { MeterRepresentation, ModelInputMeter } from '@omne-harness/model-contract'
-import { anthropicTokenizerResources, type AnthropicRecord } from '@omne-harness/pi-ai-anthropic'
-import { createTiktokenTokenizer } from '@omne-harness/tokenizer-tiktoken'
+import type { AnthropicRecord } from '@omne-harness/pi-ai-anthropic'
+import { TOKENIZER } from './support/anthropic.ts'
 import { componentAdoption } from '../src/adoptions.ts'
 import { IMAGE_RULES } from '../src/images.ts'
 import { claudeRanksOf, TokenizerResourceError } from '../src/tokenizer.ts'
@@ -83,23 +84,21 @@ describe('the tokenizer resources', () => {
     return new Tiktoken({ pat_str: patStr, bpe_ranks: bpeRanks, special_tokens: {} })
   }
 
-  it('load through tokenizer-tiktoken and match the @anthropic-ai/tokenizer 0.0.4 reference', () => {
+  it('load through tokenizer-tiktoken and match the @anthropic-ai/tokenizer 0.0.4 reference', async () => {
     // Sealed tests/fixtures/anthropic/reference-input.json: the projected JSON of its body.
     const reference =
       '{"messages":[{"role":"system","content":[{"type":"text","text":"Read the weather."}]},{"role":"user","content":[{"type":"text","text":"What is it?"}]},{"role":"assistant","content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"weather","arguments":"{\\"city\\":\\"Paris\\"}"}}]},{"role":"tool","tool_call_id":"call_1","content":"Sunny, 22 C"},{"role":"user","content":[{"type":"text","text":"Tomorrow?"}]}],"tools":[{"type":"function","function":{"name":"weather","description":"Read forecasts","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}]}'
-    const created = createTiktokenTokenizer(anthropicTokenizerResources())
-    if (!('ok' in created)) throw new Error(JSON.stringify(created.failure))
-    expect(created.ok.count([{ kind: 'text', text: reference }])).toEqual({ ok: { tokens: '150' } })
+    expect(await TOKENIZER.count([{ kind: 'text', text: reference }])).toEqual({
+      ok: { tokens: '150' },
+    })
   })
 
-  it('count special-token text as ordinary text, as the independent engine does', () => {
-    const created = createTiktokenTokenizer(anthropicTokenizerResources())
-    if (!('ok' in created)) throw new Error(JSON.stringify(created.failure))
+  it('count special-token text as ordinary text, as the independent engine does', async () => {
     const text = 'before <EOT> after <META>'
-    expect(created.ok.count([{ kind: 'text', text }])).toEqual({
+    expect(await TOKENIZER.count([{ kind: 'text', text }])).toEqual({
       ok: { tokens: String(independent().encode(text, [], []).length) },
     })
-    expect(created.ok.count([{ kind: 'special-token', name: '<EOT>' }])).toEqual({
+    expect(await TOKENIZER.count([{ kind: 'special-token', name: '<EOT>' }])).toEqual({
       failure: { kind: 'unsupported-token', name: '<EOT>' },
     })
   })
@@ -113,7 +112,7 @@ describe('the tokenizer resources', () => {
   })
 })
 
-type Measured = ReturnType<ModelInputMeter['measure']>
+type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
 /** Plans the request on the record binding and measures the planned representation. */
 async function planAndMeasure(
@@ -131,7 +130,7 @@ async function planAndMeasure(
   })
   if (!('ok' in planned)) throw new Error(`plan: ${JSON.stringify(planned.failure)}`)
   const representation = change(planned.ok.representation)
-  const measured = binding.meter.measure({
+  const measured = await binding.meter.measure({
     profile: profile.adoption,
     supplier: profile.definition.suppliers[0],
     context: profile.definition.context,
@@ -145,15 +144,11 @@ async function planAndMeasure(
 }
 
 const SONNET = recordNamed('anthropic/claude-sonnet-5')
-const claude = (() => {
-  const created = createTiktokenTokenizer(anthropicTokenizerResources())
-  if (!('ok' in created)) throw new Error(JSON.stringify(created.failure))
-  return created.ok
-})()
+const claude = TOKENIZER
 
-function tokensOf(tokenInput: JsonValue): number {
-  const counted = claude.count([
-    { kind: 'text', text: writeJsonText(tokenInput).normalize('NFKC') },
+async function tokensOf(tokenInput: JsonValue): Promise<number> {
+  const counted = await claude.count([
+    { kind: 'text', text: sortedJsonText(tokenInput).normalize('NFKC') },
   ])
   if (!('ok' in counted)) throw new Error(JSON.stringify(counted.failure))
   return Number(counted.ok.tokens)
@@ -183,7 +178,7 @@ describe('measure', () => {
       parameters: [{ kind: 'max-output-tokens', value: '128' }],
     })
     if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
-    const amount = tokensOf(tokenInput)
+    const amount = await tokensOf(tokenInput)
     expect(writeJsonText(tokenInput)).toBe(
       '{"messages":[{"role":"system","content":[{"type":"text","text":"instruction"}]},{"role":"user","content":[{"type":"text","text":"ＡＢＣ hello <EOT> world"}]}],"tools":[]}',
     )
@@ -206,14 +201,9 @@ describe('measure', () => {
       },
     ])
     // NFKC: the full-width letters count as ASCII letters.
-    expect(amount).toBeLessThan(
-      Number(
-        (() => {
-          const raw = claude.count([{ kind: 'text', text: writeJsonText(tokenInput) }])
-          return 'ok' in raw ? raw.ok.tokens : '0'
-        })(),
-      ),
-    )
+    const raw = await claude.count([{ kind: 'text', text: sortedJsonText(tokenInput) }])
+    if ('failure' in raw) throw new Error(JSON.stringify(raw.failure))
+    expect(amount).toBeLessThan(Number(raw.ok.tokens))
   })
 
   // Sealed anthropic-input-meter.spec.ts:296-341: replayed reasoning is not visible BPE.
@@ -285,7 +275,7 @@ describe('measure', () => {
     const [input, image] = measured.ok.checks
     expect(input?.measurement).toMatchObject({
       kind: 'estimate',
-      amount: String(tokensOf(tokenInput) + 2691),
+      amount: String((await tokensOf(tokenInput)) + 2691),
     })
     expect(image).toMatchObject({
       metric: 'image-bytes',
@@ -310,7 +300,7 @@ describe('measure', () => {
     if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
     expect(measured.ok.checks[0]?.measurement).toMatchObject({
       kind: 'estimate',
-      amount: String(tokensOf(tokenInput) + 2 * 2691),
+      amount: String((await tokensOf(tokenInput)) + 2 * 2691),
     })
   })
 
@@ -323,7 +313,7 @@ describe('measure', () => {
     )
     if (!('ok' in measured)) throw new Error(JSON.stringify(measured.failure))
     expect(measured.ok.checks[0]?.measurement).toMatchObject({
-      amount: String(tokensOf(tokenInput)),
+      amount: String(await tokensOf(tokenInput)),
     })
   })
 

@@ -62,6 +62,12 @@ export type FailureCandidate = Readonly<{
 }> &
   (
     | Readonly<{
+        kind: 'node-failed'
+        node: string
+        category: 'exception' | 'invariant' | 'unsupported-path' | 'rejected'
+        failureKind: Failure['kind']
+      }>
+    | Readonly<{
         kind: 'cannot-fit'
         reason: 'fixed' | 'after-compaction'
         context: DurableEvidence

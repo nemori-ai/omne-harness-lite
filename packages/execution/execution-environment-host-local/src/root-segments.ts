@@ -7,28 +7,48 @@ import { win32 } from 'node:path'
  * about the position of a path (R2-D374, R2-D376).
  */
 
-const splitWindows = (value: string) => value.replaceAll('/', '\\').split('\\').filter(Boolean)
+/** The segments of a Windows path. Empty and `.` segments are left out, as on POSIX. */
+const splitWindows = (value: string) =>
+  value
+    .replaceAll('/', '\\')
+    .split('\\')
+    .filter(part => part !== '' && part !== '.')
 
 /**
- * The segments of a Windows path, or undefined for a form that is refused before IO: no drive
- * letter (UNC, `\\?\`, `\\.\`), a NUL, a `..`, an alternate stream, a name with a trailing dot or
- * space, or a device name.
+ * Why a Windows path is refused before IO: `form` for a spelling outside the supported range (no
+ * drive letter as in UNC, `\\?\` and `\\.\`, a NUL, an alternate stream, a name with a trailing dot
+ * or space, a device name), `parent` for a `..` segment.
  */
-function windowsParts(path: string): readonly string[] | undefined {
-  if (!/^[a-z]:[\\/]/iu.test(path) || path.includes('\0')) return undefined
-  const parts = splitWindows(path)
+export type WindowsPathRefusal = 'form' | 'parent'
+
+/**
+ * The drive and the segments below it of an absolute Windows path, or why the path is refused
+ * before IO. Empty and `.` segments are left out.
+ */
+export function windowsPathSegments(
+  path: string,
+):
+  | Readonly<{ ok: true; drive: string; segments: readonly string[] }>
+  | Readonly<{ ok: false; refusal: WindowsPathRefusal }> {
+  if (!/^[a-z]:[\\/]/iu.test(path) || path.includes('\0')) return { ok: false, refusal: 'form' }
+  const [drive = '', ...segments] = splitWindows(path)
+  if (segments.includes('..')) return { ok: false, refusal: 'parent' }
   if (
-    parts.some(
-      (part, index) =>
-        part === '..' ||
-        (index > 0 &&
-          (part.includes(':') ||
-            /[. ]$/u.test(part) ||
-            /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(part))),
+    segments.some(
+      part =>
+        part.includes(':') ||
+        /[. ]$/u.test(part) ||
+        /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(part),
     )
   )
-    return undefined
-  return parts
+    return { ok: false, refusal: 'form' }
+  return { ok: true, drive, segments }
+}
+
+/** The drive and the segments of a Windows path, or undefined for a form refused before IO. */
+function windowsParts(path: string): readonly string[] | undefined {
+  const parsed = windowsPathSegments(path)
+  return parsed.ok ? [parsed.drive, ...parsed.segments] : undefined
 }
 
 /** Two names in one directory name the same entry: same volume and file index, links not followed. */
@@ -46,13 +66,13 @@ async function sameEntry(left: string, right: string): Promise<boolean> {
 
 /**
  * Windows: the segments of `path` below `root`, or undefined when the path is not below the root
- * or has a form that `windowsParts` refuses. A segment of the root spelled the same up to case
+ * or has a form that `windowsPathSegments` refuses. A segment of the root spelled the same up to case
  * matches without IO. A segment spelled in another way matches only when it names the same
  * directory entry, for example the 8.3 short name of it. That segment is compared as an entry of
  * the parent that the root's own spelling reached, with links not followed, so a link of another
  * name never counts as a segment of the root. The drive is compared as text, so another drive
  * letter for the same volume (`subst`) is not below the root. The segments below the root are
- * returned as given.
+ * returned as given, without empty and `.` segments.
  */
 export async function windowsSegmentsBelow(
   root: string,

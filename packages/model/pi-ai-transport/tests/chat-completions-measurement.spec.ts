@@ -242,7 +242,7 @@ describe('createCalibratedMeter', () => {
       vocabulary: adoption('tokenizer-vocabulary'),
       configuration: adoption('tokenizer-configuration'),
     },
-    count: segments => ({
+    count: async segments => ({
       ok: {
         tokens: String(
           segments.reduce(
@@ -257,6 +257,7 @@ describe('createCalibratedMeter', () => {
     overrides: Partial<CalibratedMeterRules<MeteredUnit>> = {},
   ): CalibratedMeterRules<MeteredUnit> => ({
     owner: 'family',
+    maxSerializedBytes: 4 * 1024 * 1024,
     supplier: supplier.adoption,
     adoptions: { meter: METER, representation: REPRESENTATION, media: adoption('media') },
     basis,
@@ -268,18 +269,18 @@ describe('createCalibratedMeter', () => {
     imageTokens: ({ units: read }) => ({ ok: read.map(() => 0n) }),
     ...overrides,
   })
-  const inputAmount = (result: ReturnType<ModelInputMeter['measure']>) =>
+  const inputAmount = (result: Awaited<ReturnType<ModelInputMeter['measure']>>) =>
     'ok' in result ? result.ok.checks[0]?.measurement.amount : result.failure
 
-  it('refuses another supplier, another representation, pending media and another schema', () => {
+  it('refuses another supplier, another representation, pending media and another schema', async () => {
     const meter = createCalibratedMeter(rules())
     expect(
-      meter.measure({ ...metered, supplier: { ...supplier, adoption: adoption('other') } }),
+      await meter.measure({ ...metered, supplier: { ...supplier, adoption: adoption('other') } }),
     ).toEqual({
       failure: { kind: 'invalid', field: 'supplier', reason: 'not-this-meter' },
     })
     expect(
-      meter.measure({
+      await meter.measure({
         ...metered,
         representation: { ...metered.representation, adoption: adoption('other') },
       }),
@@ -292,7 +293,7 @@ describe('createCalibratedMeter', () => {
       digest: '0'.repeat(64),
     }
     expect(
-      meter.measure({
+      await meter.measure({
         ...metered,
         representation: {
           kind: 'pending-media',
@@ -303,30 +304,115 @@ describe('createCalibratedMeter', () => {
         },
       }),
     ).toEqual({ failure: { kind: 'unsupported', field: 'representation.kind', adapter: METER } })
-    expect(createCalibratedMeter(rules({ contentOf: () => null })).measure(metered)).toEqual({
+    expect(await createCalibratedMeter(rules({ contentOf: () => null })).measure(metered)).toEqual({
       failure: { kind: 'invalid', field: 'tokenInput', reason: 'schema' },
     })
   })
 
-  it('counts the text as written, or its NFKC form when the family asks for it', () => {
+  it('sorts every object key before counting the family token input', async () => {
+    const seen: string[] = []
+    const observed: ModelTextTokenizer = {
+      ...tokenizer,
+      count: async segments => {
+        for (const segment of segments) if (segment.kind === 'text') seen.push(segment.text)
+        return tokenizer.count(segments)
+      },
+    }
+    const value: JsonValue = {
+      kind: 'object',
+      entries: [
+        { key: 'z', value: { kind: 'string', value: 'last' } },
+        {
+          key: 'messages',
+          value: {
+            kind: 'array',
+            items: [
+              {
+                kind: 'object',
+                entries: [
+                  { key: 'z', value: { kind: 'string', value: 'tail' } },
+                  { key: 'a', value: { kind: 'string', value: 'first' } },
+                ],
+              },
+            ],
+          },
+        },
+        { key: 'a', value: { kind: 'string', value: 'head' } },
+      ],
+    }
+    const result = await createCalibratedMeter(
+      rules({ tokens: { tokenizer: observed, form: 'as-written' } }),
+    ).measure({ ...metered, representation: { ...metered.representation, tokenInput: value } })
+    expect(result).toHaveProperty('ok.kind', 'complete')
+    expect(seen).toEqual(['{"a":"head","messages":[{"a":"first","z":"tail"}],"z":"last"}'])
+  })
+
+  it.each([false, true])('owns the counted input across awaits (anchored=%s)', async anchored => {
+    const text = { kind: 'string' as const, value: 'small' }
+    const input = {
+      ...metered,
+      context: { ...metered.context, window: { ...metered.context.window } },
+      representation: {
+        kind: 'materialized' as const,
+        adoption: REPRESENTATION,
+        tokenInput: {
+          kind: 'object' as const,
+          entries: [{ key: 'messages', value: { kind: 'array' as const, items: [text] } }],
+        },
+        media: [],
+        units: [U1],
+        requestBytes: '22',
+      },
+    }
+    const anchor = { covered: [U1], inputTotal: '100' }
+    const calibration: MeterCalibration = { anchor: anchored ? anchor : null, outputs: [] }
+    const expected = await createCalibratedMeter(
+      rules({ maxSerializedBytes: 64 }),
+    ).measureCalibrated(input, calibration)
+    const gate = Promise.withResolvers<void>()
+    let calls = 0
+    const delayed: ModelTextTokenizer = {
+      ...tokenizer,
+      count: async segments => {
+        calls++
+        if (calls === 1) await gate.promise
+        return tokenizer.count(segments)
+      },
+    }
+    const pending = createCalibratedMeter(
+      rules({ maxSerializedBytes: 64, tokens: { tokenizer: delayed, form: 'as-written' } }),
+    ).measureCalibrated(input, calibration)
+    expect(calls).toBe(1)
+    text.value = 'L'.repeat(100_000)
+    input.context.window.provided = '999999'
+    input.representation.requestBytes = '100000'
+    anchor.inputTotal = '999999'
+    anchor.covered.length = 0
+    gate.resolve()
+    expect(await pending).toEqual(expected)
+  })
+
+  it('counts the text as written, or its NFKC form when the family asks for it', async () => {
     const written = writeJsonText(units)
     expect(written.normalize('NFKC').length).toBe(written.length + 1)
-    expect(inputAmount(createCalibratedMeter(rules()).measure(metered))).toBe(
+    expect(inputAmount(await createCalibratedMeter(rules()).measure(metered))).toBe(
       String(written.length),
     )
     expect(
       inputAmount(
-        createCalibratedMeter(rules({ tokens: { tokenizer, form: 'nfkc' } })).measure(metered),
+        await createCalibratedMeter(rules({ tokens: { tokenizer, form: 'nfkc' } })).measure(
+          metered,
+        ),
       ),
     ).toBe(String(written.length + 1))
   })
 
-  it('reports the anchor verdict only for a calibration with an anchor, and names the anchored method', () => {
+  it('reports the anchor verdict only for a calibration with an anchor, and names the anchored method', async () => {
     const meter = createCalibratedMeter(rules())
-    const plain = meter.measure(metered)
+    const plain = await meter.measure(metered)
     expect('ok' in plain && plain.ok.calibration).toBe(undefined)
     expect('ok' in plain && plain.ok.counting).toEqual([basis])
-    const hit = meter.measureCalibrated(metered, anchored('100'))
+    const hit = await meter.measureCalibrated(metered, anchored('100'))
     if (!('ok' in hit)) throw new Error('the anchored measurement failed')
     expect(hit.ok.calibration).toEqual({ anchor: { kind: 'hit' } })
     expect(hit.ok.checks[0]?.measurement).toEqual({
@@ -338,11 +424,11 @@ describe('createCalibratedMeter', () => {
     })
   })
 
-  it('refuses a supplier whose adoption differs from the record in any one field', () => {
+  it('refuses a supplier whose adoption differs from the record in any one field', async () => {
     const meter = createCalibratedMeter(rules())
     for (const field of ['owner', 'name', 'revision', 'digest'] as const)
       expect(
-        meter.measure({
+        await meter.measure({
           ...metered,
           supplier: {
             ...supplier,
@@ -356,8 +442,8 @@ describe('createCalibratedMeter', () => {
   const evidence = adoption('evidence')
   const withContext = (context: MeasureInput['context']): MeasureInput => ({ ...metered, context })
 
-  it('bounds the request input by the window less the output limit, with the upstream limit of this supplier', () => {
-    const measured = createCalibratedMeter(rules()).measure(
+  it('bounds the request input by the window less the output limit, with the upstream limit of this supplier', async () => {
+    const measured = await createCalibratedMeter(rules()).measure(
       withContext({
         window: {
           provided: '1000',
@@ -397,8 +483,8 @@ describe('createCalibratedMeter', () => {
     ])
   })
 
-  it('takes a separate input limit as the bound, and an unknown upstream when none names this supplier', () => {
-    const measured = createCalibratedMeter(rules()).measure(
+  it('takes a separate input limit as the bound, and an unknown upstream when none names this supplier', async () => {
+    const measured = await createCalibratedMeter(rules()).measure(
       withContext({
         window: { provided: '1000', upstream: [] },
         input: {
@@ -415,7 +501,7 @@ describe('createCalibratedMeter', () => {
     })
   })
 
-  it('adds one exact check per image for image-bytes, one for image-count and one for request-bytes, and none for voice', () => {
+  it('adds one exact check per image for image-bytes, one for image-count and one for request-bytes, and none for voice', async () => {
     const reference = (key: string) => ({
       storage: 'tests',
       key,
@@ -451,7 +537,7 @@ describe('createCalibratedMeter', () => {
         } as const,
       ],
     })
-    const measured = createCalibratedMeter(rules()).measure({
+    const measured = await createCalibratedMeter(rules()).measure({
       ...metered,
       limits: [
         limit('image-bytes', '100'),
@@ -484,24 +570,64 @@ describe('createCalibratedMeter', () => {
     ])
   })
 
-  it('reports a failed count as unavailable, with the tokenizer as the dependency', () => {
+  it('reports a failed count as unavailable, with the tokenizer as the dependency', async () => {
     const failing: ModelTextTokenizer = {
       ...tokenizer,
-      count: () => ({ failure: { kind: 'unsupported-token', name: '<|x|>' } }),
+      count: async () => ({ failure: { kind: 'unsupported-token', name: '<|x|>' } }),
     }
     expect(
-      createCalibratedMeter(rules({ tokens: { tokenizer: failing, form: 'as-written' } })).measure(
-        metered,
-      ),
+      await createCalibratedMeter(
+        rules({ tokens: { tokenizer: failing, form: 'as-written' } }),
+      ).measure(metered),
     ).toEqual({
       failure: { kind: 'unavailable', dependency: 'tokenizer', diagnostic: 'unsupported-token' },
     })
   })
 
-  it('hands the reasoning flags of the family units to the arithmetic: an uncounted reasoning unit is unavailable', () => {
+  it('hands the reasoning flags of the family units to the arithmetic: an uncounted reasoning unit is unavailable', async () => {
     const meter = createCalibratedMeter(rules({ contentOf: () => [{ reasoning: true }] }))
-    expect(meter.measure(metered)).toEqual({
+    expect(await meter.measure(metered)).toEqual({
       failure: { kind: 'unavailable', dependency: 'family', diagnostic: 'reasoning-not-countable' },
     })
+  })
+  it('waits for the complete asynchronous count before returning a complete budget', async () => {
+    const pending = Promise.withResolvers<Awaited<ReturnType<ModelTextTokenizer['count']>>>()
+    const delayed: ModelTextTokenizer = { ...tokenizer, count: () => pending.promise }
+    const meter = createCalibratedMeter(
+      rules({ tokens: { tokenizer: delayed, form: 'as-written' } }),
+    )
+    let settled = false
+    const result = meter.measure(metered).then(value => {
+      settled = true
+      return value
+    })
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    pending.resolve({ ok: { tokens: '123' } })
+    const measured = await result
+    expect(inputAmount(measured)).toBe('123')
+    expect('ok' in measured && measured.ok.kind).toBe('complete')
+  })
+
+  it('refuses oversized input before counting or digest serialization, even when calibration would remove it', async () => {
+    let counts = 0
+    const observed: ModelTextTokenizer = {
+      ...tokenizer,
+      count: async () => {
+        counts += 1
+        return { ok: { tokens: '0' } }
+      },
+    }
+    const meter = createCalibratedMeter(
+      rules({ maxSerializedBytes: 4, tokens: { tokenizer: observed, form: 'as-written' } }),
+    )
+    expect(await meter.measureCalibrated(metered, anchored('100'))).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'tokenizer',
+        diagnostic: 'serialized-input-too-large',
+      },
+    })
+    expect(counts).toBe(0)
   })
 })

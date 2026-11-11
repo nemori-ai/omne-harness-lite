@@ -7,6 +7,7 @@
 - [环境调度工厂](scheduled-environment.ts)与[调度策略](environment-policy.ts)。
 - [环境入口校验](environment-input.ts)。
 - [凭据适配工厂](credentials.ts)。
+- [Web 提供者入口](web.ts)：[组装](web/access.ts)、[本机 fetch](web/fetch.ts)、[Exa 客户端](web/exa.ts)、[响应体读取](web/body.ts)与 [HTML 转 Markdown](web/markdown.ts)。
 - [Cordis 宿主与绑定入口](cordis.ts)，见[集成说明](../docs/cordis.md)。
 - [公开接口](../docs/public-api.md)。
 - [包索引](../index.md)。

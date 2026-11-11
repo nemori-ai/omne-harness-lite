@@ -7,6 +7,7 @@
 - [environment-diagnostics.ts](environment-diagnostics.ts) 定义显式受信诊断依赖与固定安全标记。
 - [environment-input.ts](environment-input.ts) 核租户、调用、原操作与实时环境采用，并固定准备输入。
 - [credentials.ts](credentials.ts) 选择配置引用，并在使用前核实际秘密绑定。真实 vault 尚未交付。
+- [web.ts](web.ts) 是 `./web` 入口；[web/access.ts](web/access.ts) 组装 `createWebAccess`，[web/fetch.ts](web/fetch.ts) 是本机 fetch，[web/exa.ts](web/exa.ts) 是 Exa 客户端，[web/body.ts](web/body.ts) 读有上限的响应体并分类错误，[web/markdown.ts](web/markdown.ts) 把 HTML 转成 Markdown，见 [SPEC](../SPEC.md#web-提供者web-子路径)。
 - [start-coordinator.ts](start-coordinator.ts) 实现本地启动协调器，见 [SPEC](../SPEC.md#本地启动协调器g5)。
 - [start-permit-requirements.ts](start-permit-requirements.ts) 定义完整动作的可信许可需求来源，未知和缺席均失败关闭。
 - [ledger-guards.ts](ledger-guards.ts)、[invocation-source.ts](invocation-source.ts)、[grant-verifiers.ts](grant-verifiers.ts)、[start-guard.ts](start-guard.ts) 与 [text-results.ts](text-results.ts) 是账本守卫的生产件，见 [SPEC](../SPEC.md#账本守卫tl-11)。

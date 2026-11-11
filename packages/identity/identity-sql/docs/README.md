@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-六个专题都已写成正文。`architecture.md` 写模块与机制，`flows.md` 写四个流程、治理流程与插件生命周期，`object-model.md` 写十张表与主线程对象，`public-api.md` 索引两个入口的导出，`context.md` 写调用方的四件事与消费者，`cordis.md` 写插件与 IC 核对表。没有额外专题。负责人是本成员的写者，当前没有缺口。
+六个专题都已写成正文。`architecture.md` 写模块与机制，`flows.md` 写四个流程、治理流程与插件生命周期，`object-model.md` 写十二张表与主线程对象，`public-api.md` 索引两个入口的导出，`context.md` 写调用方的四件事与消费者，`cordis.md` 写插件与 IC 核对表。没有额外专题。负责人是本成员的写者，当前没有缺口。

@@ -46,6 +46,7 @@ import {
   storageRows,
   type LoadedTree,
 } from '../rows/session-fixtures/tree.ts'
+import { disabledTelemetryRow } from '../rows/telemetry/support.ts'
 import { TENANT_A, createGuards } from '../rows/storage/fixtures/tree.ts'
 
 function doubleRow(row: string, key: string, make: (ctx: Context) => object): RowSpec {
@@ -100,6 +101,7 @@ async function withSession(): Promise<LoadedTree> {
   const tree = await loadTree({
     base,
     rows: [
+      disabledTelemetryRow(),
       ...storageRows(base).specs,
       ...bridges(),
       runtimeContextDoubleRow(),

@@ -8,7 +8,7 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 边界
 
-源码只用可擦除的 TypeScript 语法。根入口不导入 `@deepseek-ai/cordis`，Cordis 绑定只从 `cordis.ts` 导出（仅绑定变体）。非类型行为写在包根 `SPEC.md`，不写在源码注释里代替规格。
+源码只用可擦除的 TypeScript 语法。根入口不导入 `@deepseek-ai/cordis`，Cordis 服务定义只从 `./cordis` 导出。非类型行为写在包根 `SPEC.md`，不写在源码注释里代替规格。
 
 ## 维护
 
@@ -16,12 +16,9 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-本目录有五个源码文件：
-
-- `index.ts`：根入口，导出 `createTiktokenTokenizer` 与两个资源类型。
-- `resources.ts`：资源类型 `TiktokenRanks` 与 `TiktokenResources`。
-- `tokenizer.ts`：初始化核对与 `count`。
-- `digest.ts`：资源的规范 JSON 与 SHA-256 摘要。
-- `engine-version.ts`：读取实际安装的 js-tiktoken 版本。
-
-本包没有 `cordis.ts`，理由见 [docs/cordis.md](../docs/cordis.md)。
+- `index.ts` 导出 `createTiktokenExecutor`、执行器类型和资源类型。
+- `executor.ts` 管理准入、租约、调度和物理线程生命周期。
+- `worker.ts`、`tokenizer.ts`、`ordinary-counter.ts` 与 `piece-cache.ts` 在 worker 中完成初始化、计数和隔离缓存。
+- `worker-port.ts` 与 `worker-protocol.ts` 拥有线程适配和内部消息校验。
+- `definition.ts`、`digest.ts` 与 `engine-version.ts` 拥有身份快照、资源摘要与实际引擎版本。
+- `cordis/` 拥有独立借用服务定义，关闭实现仍归宿主 owner。

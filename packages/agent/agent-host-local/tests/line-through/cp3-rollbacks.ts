@@ -7,6 +7,14 @@ import type { SeenCommit } from './world.ts'
 export const INPUT_NOT_PENDING = 'the input is not pending'
 
 /**
+ * The participant that publishes the ordinary commit basis of the Session command in the same
+ * transaction (session-storage-sql docs/commit-basis.md). It owns no table and does not judge the
+ * facts, so in a rollback it has answered `participated` and the Session reply carries the reason.
+ */
+export const SESSION_ORDINARY_BASIS = 'session-ordinary-basis'
+
+/**
+ * A Session-only commit has the Session participant and, at most, the ordinary basis beside it.
  * A rolled-back Session-only commit is explained in exactly two ways (R2-D152):
  *
  * - its reason is `the input is not pending`: it lost to the path that took the input;
@@ -30,10 +38,19 @@ export function sessionOnlyRollbackExplained(
 ): boolean {
   const seen = commits[position]
   if (seen === undefined || seen.result.kind !== 'rolled_back') return false
-  if (seen.participants.some(participant => participant !== 'session')) return false
+  if (
+    seen.participants.some(
+      participant => participant !== 'session' && participant !== SESSION_ORDINARY_BASIS,
+    )
+  )
+    return false
   const { responses } = seen.result
-  if (JSON.stringify(responses).includes(INPUT_NOT_PENDING)) return true
-  if (!responses.every(response => failureKindOf(response.reply) === 'changed')) return false
+  const basis = responses.filter(response => response.participant === SESSION_ORDINARY_BASIS)
+  if (!basis.every(response => response.reply.kind === 'participated')) return false
+  const session = responses.filter(response => response.participant !== SESSION_ORDINARY_BASIS)
+  if (session.length === 0) return false
+  if (JSON.stringify(session).includes(INPUT_NOT_PENDING)) return true
+  if (!session.every(response => failureKindOf(response.reply) === 'changed')) return false
   const log = seen.log
   if (log === null || log.sequence === null) return false
   const { execution, sequence } = log

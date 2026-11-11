@@ -13,6 +13,7 @@ import type {
   ResourceScope,
   ToolConsumerProfile,
   ToolControl,
+  ToolSettingsDeclaration,
   ToolTerminal,
   WaitState,
 } from '@omne-harness/tool-contract'
@@ -24,6 +25,7 @@ import {
   readToolOperationRef,
   resolveToolInvocationRef,
   resolveToolOperationRef,
+  toolAssetBody,
 } from '@omne-harness/tool-contract'
 import {
   defineCommandTool,
@@ -118,6 +120,7 @@ export type {
   DecisionValue,
   ToolStartRecord,
   ToolDeclarations,
+  ToolSettingPresentation,
   ToolSettingsDeclaration,
   ToolConsumerProfile,
   ToolInspection,
@@ -363,6 +366,13 @@ it('resolves every implemented contract function from the package root with its 
   >()
   expectTypeOf(resolveToolOperationRef).toEqualTypeOf<
     (reference: unknown, tenant: TenantId) => Outcome<ToolOperationParts, ToolReferenceFailure>
+  >()
+  expectTypeOf(toolAssetBody).returns.toEqualTypeOf<JsonValue>()
+  expectTypeOf(toolAssetBody).parameter(0).toExtend<
+    Readonly<{
+      name: string
+      declarations: Readonly<{ settings: ToolSettingsDeclaration | null }>
+    }>
   >()
   expectTypeOf(judgeToolArguments).returns.toEqualTypeOf<
     Outcome<ParsedToolArguments, ToolArgumentsRejection>

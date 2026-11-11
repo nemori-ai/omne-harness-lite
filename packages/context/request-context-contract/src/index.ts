@@ -138,6 +138,7 @@ export type {
 export type {
   RequestPurpose,
   AssemblyCall,
+  CallIdentity,
   InputGroups,
   GroupName,
   HistoryUpper,
@@ -191,7 +192,7 @@ export type {
   PlanResult,
   StepResult,
 } from './values.js'
-export { LAYER_ORDER, PREFIX_BREAK_REASONS } from './values.js'
+export { LAYER_ORDER, PREFIX_BREAK_REASONS, callIdentity } from './values.js'
 export type { DeriveInput } from './values.js'
 export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js'
 export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js'
