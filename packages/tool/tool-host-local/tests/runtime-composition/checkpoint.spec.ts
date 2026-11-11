@@ -413,6 +413,10 @@ it('stops the call suspended on its wait in the whole local host: it settles, th
       terminal: { kind: 'interrupted', cause: { kind: 'control', withdrawn: false } },
     })
     expect(after.waits).toMatchObject([{ phase: 'closed', cause: 'cancelled' }])
+    // What the caller reads: the text the author wrote for a closed wait, not an answer of a person.
+    const result = await world.settled(reference)
+    expect(result.terminal).toMatchObject({ kind: 'interrupted' })
+    expect(result.value.content).toMatchObject([{ kind: 'text', text: CLOSED }])
     const { scope } = request()
     const queue = await world.store.read({
       kind: 'queue',

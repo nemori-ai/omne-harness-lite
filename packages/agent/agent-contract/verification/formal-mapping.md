@@ -336,7 +336,7 @@ Reduce 已定读法乙（[#502 评论](https://github.com/nemori-ai/omne-harness
 | `StartHandBack`、`FinishHandBack` | “扩展、卡片与材料”的 replay 与多轮一段；第 2、5、6 条；作者协议“结构换代与未完成判断”第 3 行 | A0：`handBackOf` 取答齐一轮的答复，`withChosenRewrite` 处理卡片绑定的改写，再调 `admit`；再要一轮时 `openRound`，重复已答的卡时以拒绝结论 `resolve`（`admission-chain.ts`）。准入一侧对 `decision` 的解释在 `apps/harness-server/src/rows/authorization/action-admission.ts`，现在对 `decision !== null` 答 unavailable，不归 Agent |
 | `BarrierOpen` | 第 4 条 | A1（`coordinator.ts`）：先让需要判断的链回 A0，再呈现、读卡；每个动作都有最终判断后才写 open 或 all-denied，并把这批的链记为 applied。判别在 `passages.ts` 的 `needOf` 与 `mayPresent` |
 | `Cancel`、`End` | 第 10 条；“取消判断与路线”；系统页“循环守卫与终态扩展” | `End` 抽象 tryFinish，由 [Finishing.tla](models/Finishing.tla) 检查。终结责任 `card-round` 在 `src/finishing.ts` |
-| `InvalidateRound`、`CloseRound` | 第 2 条（全拒时作废已呈现、尚无答复的卡片）；终态后卡片规则第 3 至 5 条 | 未实现。全拒时还有已出未答的轮次、读到被作废的卡，A0 与 A1 答 unsupported-path。打断、叫停、归档共用的收场先建模再实现 |
+| `InvalidateRound`、`CloseRound` | 第 2 条（全拒时作废已呈现、尚无答复的卡片）；终态后卡片规则第 3 至 5 条 | 未实现。全拒时还有已出未答的轮次、读到被作废的卡，A0 与 A1 答 unsupported-path；终结时还有未关闭的轮次，R0 同样答 unsupported-path。关闭一轮要契约里有轮次的关闭状态，还要有终结后的对账，随扩展件阶段（#502 第 3 阶段）。本发行的官方准入不要人决定，生产上走不到。Tool 的 Ask 卡在打断时的收场是另一条路径，已实现，模型见 human-intervention 的 `InterruptCascade` |
 | `Crash`、`Recover` | “恢复与接管”；作者协议“结构换代与未完成判断” | `recoveryRoute`（`coordinator.ts`）：屏障为 closed 的批回 A1，由台账里已保存的进度决定下一步；准入链不走 X 节点。新协调器接手已存位置的公开入口尚未交付，整段重启没有端到端用例 |
 
 每个模型动作是一个原子步骤。实现中一个步骤内部的读取、核验与提交之间的交错没有被建模。

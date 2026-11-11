@@ -391,9 +391,13 @@ function heldAfter(
   return { revision, emittedThrough: emitted === 0n ? null : String(emitted) }
 }
 
-/** The failure of an outcome that a later #502 card handles, named so that nobody reads it as done. */
-/** The slice of the HITL delivery that closes card rounds: on an all-denied batch, a cancel or an end. */
-const SLICE_09 = 'HITL slice 09'
+/**
+ * The card rounds of an official admission are not closed here: on an all-denied batch, on a card
+ * that was invalidated, or at the end of the execution. Closing a round needs the closed state of a
+ * round in the contract and the reconcile after the end, which come with the extension stage. The
+ * official admission of this release never asks a person, so no execution reaches these branches.
+ */
+const CARD_ROUND_CLOSING = '#502 stage 3'
 /** The needs of a chain whose card round is saved or presented and not answered. */
 const OUT_ROUNDS: readonly PassageNeed[] = ['present', 'read', 'closed']
 
@@ -406,10 +410,11 @@ function pendingPassage(passages: readonly Passage[]): Failure | null {
   const pending = passages.find(passage => passage.progress.kind !== 'applied')
   if (pending === undefined) return null
   return extensionPassages([pending]).length === 0
-    ? notYet('R0', 'an admission passage with an open card round', SLICE_09)
+    ? notYet('R0', 'an admission passage with an open card round', CARD_ROUND_CLOSING)
     : notYet('R0', 'a pending passage', '#502 stage 3')
 }
 
+/** The failure of an outcome that a later #502 card handles, named so that nobody reads it as done. */
 function notYet(node: LoopNode, what: string, card: string): Failure {
   return localFailure('unsupported-path', {
     kind: 'unavailable',
@@ -2604,7 +2609,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
               notYet(
                 'A0',
                 'closing the card rounds of a batch that is denied as a whole',
-                SLICE_09,
+                CARD_ROUND_CLOSING,
               ),
             )
           // Nothing of this batch was preserved yet, so no request is left without a judgment.
@@ -2668,7 +2673,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const needs = batch.actions.map(action => needOfAction(passages, action))
       if (needs.includes('judge')) return step('judge', null)
       if (needs.includes('closed'))
-        return fail(notYet('A1', 'a card round that was closed without an answer', SLICE_09))
+        return fail(
+          notYet('A1', 'a card round that was closed without an answer', CARD_ROUND_CLOSING),
+        )
       if (needs.includes('present')) return presentRounds(batch, passages)
       if (needs.includes('read')) return readCards(batch, passages)
       const approved = batch.actions
