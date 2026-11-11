@@ -19,6 +19,7 @@ import { processSecretReader } from './local/secret-input.ts'
 import { localServeInputs } from './local/serve-local.ts'
 import { runSetup } from './local/setup.ts'
 import { lineWriter, recordLineWriter, runS0, runServe, type S0Record } from './run.ts'
+import { endProcess } from './process-end.ts'
 
 class UsageError extends Error {}
 
@@ -318,5 +319,5 @@ ${serve ? SERVE_USAGE : S0_USAGE}
   }
 }
 
-// Setting exitCode instead of calling process.exit() lets piped stdout drain first.
-process.exitCode = await main(process.argv.slice(2))
+// The command reported its result: the process ends now, after its output drained.
+await endProcess(await main(process.argv.slice(2)))

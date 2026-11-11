@@ -76,13 +76,13 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 
 配置目录里只有 `server.json`。状态目录里有下面这些：
 
-| 路径               | 内容                                            | 谁创建                       |
-| ------------------ | ----------------------------------------------- | ---------------------------- |
+| 路径               | 内容                                                                                          | 谁创建                       |
+| ------------------ | --------------------------------------------------------------------------------------------- | ---------------------------- |
 | `model-vault.json` | 秘密保管库（settings-local `./secrets`）。宿主上唯一含秘密的文件；模型凭据是其中的 Model 绑定 | `setup`                      |
-| `workspace/`       | 默认工作区                                      | `setup`                      |
-| `host-files/`      | 执行宿主的状态目录，也是 Shell 的临时目录       | `setup`，缺失时 `serve` 重建 |
-| `storage/`         | `storage` 行的存储根                            | `serve`                      |
-| 游标签名密钥       | 入口对象的状态文件（`--state-root` 即状态目录） | `serve`                      |
+| `workspace/`       | 默认工作区                                                                                    | `setup`                      |
+| `host-files/`      | 执行宿主的状态目录，也是 Shell 的临时目录                                                     | `setup`，缺失时 `serve` 重建 |
+| `storage/`         | `storage` 行的存储根                                                                          | `serve`                      |
+| 游标签名密钥       | 入口对象的状态文件（`--state-root` 即状态目录）                                               | `serve`                      |
 
 ### 配置文件
 
@@ -161,8 +161,8 @@ Next:
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `storage`                                                                        | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                                                                                                                                              |
 | `session-storage`                                                                | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                                                                                                                                                   |
-| `secret-custody`                                                                 | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。`model-credential` 行经本行读同一个文件，没有运维者值，见[秘密保管行](docs/rows/secret-custody.md)；`settings` 行没有运维者值，见[设置行](docs/rows/settings.md)                                                                                                                                                                              |
-| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由由发行供应商 OpenRouter 的正文推出，本档不改端点。`model-records.diagnostics` 是 `tenant-self` 读取与占位的保留采用                                                                                                                                                     |
+| `secret-custody`                                                                 | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。`model-credential` 行经本行读同一个文件，没有运维者值，见[秘密保管行](docs/rows/secret-custody.md)；`settings` 行没有运维者值，见[设置行](docs/rows/settings.md)                                                 |
+| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由由发行供应商 OpenRouter 的正文推出，本档不改端点。`model-records.diagnostics` 是 `tenant-self` 读取与占位的保留采用                                                                                                                  |
 | `tool-host`                                                                      | Shell：可执行文件取配置，参数见下，`cwd` 是工作区，结果上限 32768 字节。Files：`cwd` 是工作区，结果上限 32768 字节                                                                                                                                                       |
 | `tool-records`、`execution-host`                                                 | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                                                                                                                                             |
 | `request-context`、`agent-context`、`agent-host`、`session-ad03`、`session-ad04` | 各自的上限与工厂数值                                                                                                                                                                                                                                                     |
@@ -348,6 +348,8 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 | 3      | 至少一行 FAILED，或启动期 `start` 抛出，或（`serve`）目录准备失败、一个入口对象的 `install` 抛出                                                       |
 | 4      | 仍有 PENDING 或未完成 LOADING                                                                                                                          |
 | 5      | 启动码为 0 但关闭 incomplete                                                                                                                           |
+
+**进程的结束。**命令报出结果之后进程立即结束，不等任何句柄：入口先等 stdout 与 stderr 把已写的内容交给系统，再以结果的退出码退出（`src/process-end.ts` 的 `endProcess`）。已停止的服务留下的重试定时器或没关的端口不能让进程留着。只设置 `process.exitCode` 不够，它要等进程里每个句柄都结束。判据：`tests/process-end.spec.ts`。
 
 启动码非零时取启动码。启动期 `start` 抛出时，`outcome` 为 `start-failed`，退出码为 3，见「有序关闭」节「启动与停止状态」第 3 条。`serve` 里一个入口对象的 `install` 抛出时，入口不装载任何行，stderr 写 `serve: entry-object <名>: install failed`，错误消息不写进 stdout，然后发起计划停止，退出 3。这时没有行登记过句柄，关闭报告把预期登记者记为 `not-registered`。
 
