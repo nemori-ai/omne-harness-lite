@@ -1,6 +1,6 @@
 # notification/notification 长期行为候选
 
-本文件维护具名文档目标的完整必要行为。文档目录不成立真实 workspace 成员、公开形状、发布版本或运行能力。整体产品及技术采用尚未接受；阶段清单未选，实现与行为验证未核实。产品范围见[产品正文](../../../.meta_harness/design/product/notifications/design.md)，精确协作、机制与技术缺项见[内部设计](docs/internals.md)。本文件不重复未来公开类型，也不以机制未定取消已明确的行为。
+本文件维护具名文档目标的完整必要行为。文档目录不成立真实 workspace 成员、公开形状、发布版本或运行能力。整体产品及技术采用尚未接受；0.0.0 → 0.1.0 阶段纳入本域全部能力，实现与行为验证未核实。产品范围见[产品正文](../../../.meta_harness/design/product/notifications/design.md)，精确协作、机制与技术缺项见[内部设计](docs/internals.md)。本文件不重复未来公开类型，也不以机制未定取消已明确的行为。
 
 ## 责任、消费者与前提
 
