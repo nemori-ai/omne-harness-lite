@@ -115,7 +115,7 @@ Ask 是检查点作者，按 [Tool 契约](../tool-contract/SPEC.md)「恢复型
 
 ### 尚未完成
 
-- resume 段与 help 命令尚未实现。发行清单还没有 Ask。
+- help 命令尚未实现。
 
 [Ask 作者测试](tests/ask.spec.ts)经公开入口运行参数编解码器、initial 段与命令工具的登记。请求与答复的形状用真实的 schema-provider 按等待协议声明的 JSON Schema 核对。测试不经过 Tool 账本、宿主或 HITL。
 

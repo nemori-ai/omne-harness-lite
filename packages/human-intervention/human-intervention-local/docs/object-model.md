@@ -26,7 +26,7 @@ erDiagram
 
 关系键均包含租户。请求与 inbox 的顺序是 SQLite int64，边界以十进制字符串传递；revision、receiverGeneration 是任意长度规范非负十进制文本。请求内 cardId 与 ordinal 分别唯一，ordinal 连续且最多64项。每卡最多一个 Decision、inbox 项及 receipt。外键和联合 CHECK 约束非法状态组合；跨行精确集合由唯一写者维护，独立 SQL 守护反向计算。
 
-RequestRecord 是读回的一致快照形状，不是持久聚合 JSON。不可变请求头保管 origin、题序、displayContext 和 actionBasis。origin 的种类、sessionRef、runRef 与 toolCallRef 是请求头与准备记录的独立列，只接受 independent 与 tool 两种来源；单独状态行保管修订。题目 JSON 仅表示不可变题目值；Decision 的 Reply 联合拆为列，原文本逐字保留。自由文本与标识在各自单列内采用 JSON 字符串表示，外键及查询绑定使用相同表示。
+RequestRecord 是读回的一致快照形状，不是持久聚合 JSON。不可变请求头保管 origin、题序、displayContext 和 actionBasis。origin 的种类、sessionRef、runRef 与 toolCallRef 是请求头与准备记录的独立列，接受 independent、tool、admission 与 agent-extension 四种来源；单独状态行保管修订。题目 JSON 仅表示不可变题目值；Decision 的 Reply 联合拆为列，原文本逐字保留。自由文本与标识在各自单列内采用 JSON 字符串表示，外键及查询绑定使用相同表示。
 
 WaitControl 保管接收权和业务终局。receiverGeneration 决定谁可消费，卡片 revision 决定答复竞争，两者不能互换。准备摘要用于认回同一准备；登记摘要用于核验原登记。
 

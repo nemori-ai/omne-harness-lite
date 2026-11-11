@@ -50,6 +50,8 @@ node apps/harness-server/dist/bin.js serve            # Ctrl+C stops it
 
 The full rules are in [SPEC.md](SPEC.md#本机单用户档).
 
+To walk through human intervention by hand (the Agent asks, you reply, you cancel, you stop and restart the server), follow the steps in [docs/hitl-walkthrough.md](docs/hitl-walkthrough.md).
+
 ### Both modes and all arguments
 
 The `s0` and `serve` positionals select the mode:

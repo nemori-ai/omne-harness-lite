@@ -200,8 +200,6 @@ Tool 把暂停调用的三样东西各用一笔提交写进调用域：等待的
 - **冷获取的原清理不在本波**：答 `pending`，责任保留。
 - **决策方答 unavailable 后同一进程只查原操作**：Tool 驱动在本进程记下回包不明的登记，之后只调 inspectOperation。登记在写
   HITL 之前就答了 unavailable（例如还没有受众）时，HITL 查不到原操作，本进程一直答 unknown，直到重启后再 ensure。
-- **resume 段收到的答复值是 JsonValue 树**：Tool 把 resolve 给出的树原样交给检查点作者，Ask 的结果投影按普通 JSON 值读，
-  选项与原话的答复投影成 `ask-response-mismatch`。跳过与插队不带值，不受影响。修复归 Tool（切片 03 交回）。
 - **归档之后被取消的执行收不了尾**（切片 09 观察，交回 Session 与 Agent）：归档向 Agent 发取消，暂停中的 Ask 以
   `interrupted` 收场，卡片以 `cancelled` 关闭，名额释放。但会话已归档之后，Agent 的终结提交一直不被接受（F3 反复对账），
   执行不结束，Agent 宿主的执行槽不释放，这时停服的退出码为 5。归档在本发行里没有公开入口。叫停（`cancel-run`）不受影响：
@@ -220,6 +218,7 @@ Tool 把暂停调用的三样东西各用一笔提交写进调用域：等待的
 - [答复与恢复在发行树上](../../tests/rows/tool-hitl/release-reply.spec.ts)：从会话入口与待办池各答一次，三种答复在 question 与 approval 上的结果文字，两个入口并发只一方成立，CLI 的列卡、读卡与答复。
 - [Ask 在发行树上出卡](../../tests/rows/tool-hitl/release-ask.spec.ts)：ask 与 request_approval 各一次，调用暂停、条目停泊，按会话与按池列出同一组卡；Run 在登记前结束时 `session.run-live` 拒绝登记，不出卡。共用支架在 [release-tree.ts](../../tests/support/release-tree.ts)。
 - [等人时停服与重启后接续](../../tests/rows/tool-hitl/release-restart.spec.ts)：Ask 暂停、条目停泊时停服，Agent 把等待中的执行交接出去，停服退出码为 0。重启后 Session 的启动扫描按部署的租户枚举找回这个 Run，取得新的推进资格并请 Agent 恢复；人答复后调用恢复一次，Agent 在新挂接下收下结果，Run 结束，再次停服退出码为 0。进程被强杀、来不及交接时不在此列（接管未实现）。
+- [手测说明里的命令](../../tests/rows/tool-hitl/release-walkthrough.spec.ts)：照 [hitl-walkthrough.md](../hitl-walkthrough.md) 的次序用 `omne` 走一遍：两个入口列到同一张卡，读卡，选项与跳过两种答复，重复提交得到 `already-decided`，从诊断取 Run 的标识后 `cancel-run`，卡片进入失效列表，迟到的答复得到 `invalidated`。
 - [回包丢失在发行树上](../../tests/rows/tool-hitl/release-cancel.spec.ts)：真实登记之后回包换成未知，Tool 经 inspectOperation 按原登记认回，不再登记，只有一张卡；答复之后调用恢复一次并收场，条目删除，Run 结束，停服退出码为 0。叫停与归档的发行树场景见上一节的已知限制。
 
 - [请求供给者](../../tests/entry/tool-requests.spec.ts)：完整请求经 Tool 公开判定通过；核验器、目录、作用域绑定、

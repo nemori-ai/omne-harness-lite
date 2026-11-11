@@ -281,7 +281,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 接手的边界按当前段的归属判定。当前段由调用的当前启动记录（`ToolStartRecord.execution.instance`）定归属，没有启动记录时看调用的执行引用。当前段属于别的实例，且执行阶段是 `starting`、`live` 或 `unknown` 时，原执行可能仍在旧实例里运行：执行器不接上它，也不重新启动它，计一次 `foreignExecutionRuns`，从内存表放掉这个调用。暂停中、已结束、从没启动，或当前段由本实例准备的调用，由本实例接着推进。
 
-新执行器接手暂停中的调用后，恢复段在本进程按段准备自己的环境（Tool [SPEC](../tool/SPEC.md) 第 31 条），检查点字节从耐久保管读回（见[检查点作者的 resume 段](#检查点作者的-resume-段)），所以接手的调用能恢复并收场。
+新执行器接手暂停中的调用后，恢复段在本进程按段准备自己的环境（Tool [SPEC](../tool/SPEC.md) 第 31 条），检查点状态由驱动从账本的 `checkpoint-state` 记录读出并带给恢复段（见[检查点作者的 resume 段](#检查点作者的-resume-段)），所以接手的调用能恢复并收场。
 
 诊断 `recoveryScan` 是扫描的状态（`waiting`、`running`、`done`、`unsupported`），`recoveredCalls` 是扫描记入内存表的调用数。
 
@@ -289,7 +289,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 - 扫描读完之后每 60 拍才再开一次。唤醒提示丢失的调用，最长要等这么久才被找回。
 
-验证：[executor-retirement.spec.ts](tests/executor-retirement.spec.ts) 的扫描用例（分页、读不到后接着读、`unsupported` 停止、内存表满后接着读）；[lifecycle.spec.ts](tests/runtime-composition/lifecycle.spec.ts) 的两条新执行器用例（原执行可能仍在运行时不接上、不重启；从没启动的调用按原身份启动一次并收场）；[checkpoint.spec.ts](tests/runtime-composition/checkpoint.spec.ts) 的新执行器用例（扫描接手暂停中的调用，停掉之后才到的决定只被接受一次，恢复段从保管读回的检查点恢复一次并收场）。记录仓是声明为耐久的内存记录仓，第二个执行器在同一进程里，不证明真实进程重启或耐久。
+验证：[executor-retirement.spec.ts](tests/executor-retirement.spec.ts) 的扫描用例（分页、读不到后接着读、`unsupported` 停止、内存表满后接着读）；[lifecycle.spec.ts](tests/runtime-composition/lifecycle.spec.ts) 的两条新执行器用例（原执行可能仍在运行时不接上、不重启；从没启动的调用按原身份启动一次并收场）；[checkpoint.spec.ts](tests/runtime-composition/checkpoint.spec.ts) 的新执行器用例（扫描接手暂停中的调用，停掉之后才到的决定只被接受一次，恢复段用账本保存的检查点状态恢复一次并收场）。记录仓是声明为耐久的内存记录仓，第二个执行器在同一进程里，不证明真实进程重启或耐久。
 
 ## 冻结交付的持久表示
 

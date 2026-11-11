@@ -390,7 +390,7 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 
 1. admit 受理真实工具时同提交调用记录、受理回执与一条 `queue` 待办。状态是 `accepted`、`execution` 与 `effect` 为 `not-started`、`queue` 为 `none`、`delivery` 为 `null`。后台起步的调用同时固定后台占位。
 2. admit 回复前，账本在队列域给该调用分配序号，条目阶段是 `preparing`。所以一个在另一个 admit 回复之后受理的调用，序号更大。这一步只属于首次受理：认回的受理回复首次回执里的 `accepted` 状态，即使调用已经收场、条目已经释放，也不再分配。已释放的调用得不到条目：创建条目的提交断言它读到的调用域修订号，调用域里已有释放依据时不创建（第 22 条，队列域不为已释放的调用保存任何记录），创建条目的步骤回复 `released`，admit 的回复不变。这一步失败时受理仍然成立，序号改由 `planPreparation` 分配。
-3. `planPreparation` 保存 `PreparationRecord` 与 `prepare` 待办（准备记录不带请求，见下面的「固定请求只保存一份」），状态改为 `preparing`，`queue` 为 `waiting` 与序号。只接受 `initial` 用途与受理时固定的请求。`resume` 用途回复 `unsupported`。
+3. `planPreparation` 保存 `PreparationRecord` 与 `prepare` 待办（准备记录不带请求，见下面的「固定请求只保存一份」），状态改为 `preparing`，`queue` 为 `waiting` 与序号。请求必须是受理时固定的那一份。用途是 `initial` 时按本步保存并入队；用途是 `resume` 时不向队列域要位置，按第 31 条计划恢复段的准备。
 4. `prepared` 核对准备记录是本调用计划的那一条，记下环境证据，删除 `prepare` 待办，写 `queue` 待办。
 5. `enqueue` 先把队列条目改为 `ready`，再把状态改为 `queued`。
 6. `prepareStart` 在范围的一个队列域事务里裁定队首与名额。以下条件全部成立时，才把条目改为 `held`：
@@ -744,7 +744,7 @@ release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送
 本条的边界：
 
 - 恢复段的启动被拒绝或绑定失败时，沿用首次 start 的拒绝收场，结果记为未启动，等待仍为 `responding`。这条路径的语义属于取消与故障切片，尚未闭合。
-- 进程丢失后，恢复扫描（第 33 条）找回暂停中、等待处于 `opening`、`open` 或 `responding` 的调用，协程按当前阶段接着走第 2 至 7 步。恢复段的环境由第 3 步在运行它的进程里重新准备，不重连旧进程的环境；恢复段读回检查点字节由宿主兑现，本包不保证。Tool 在取值之后、调用域提交之前崩溃时，决策方可能已记下这次交出。下一次运行以同一操作重新取值，交出是否按原身份认回由决策方的实现保证。
+- 进程丢失后，恢复扫描（第 33 条）找回暂停中、等待处于 `opening`、`open` 或 `responding` 的调用，协程按当前阶段接着走第 2 至 7 步。恢复段的环境由第 3 步在运行它的进程里重新准备，不重连旧进程的环境；恢复段用的检查点状态由账本的 `checkpoint-state` 记录保存，`loadRecovery` 把它交给驱动，驱动带给恢复段。Tool 在取值之后、调用域提交之前崩溃时，决策方可能已记下这次交出。下一次运行以同一操作重新取值，交出是否按原身份认回由决策方的实现保证。
 
 验证见 [checkpoint-resumption.spec.ts](tests/checkpoint-resumption.spec.ts)：真实 runtime、账本与推进协程，非耐久记录仓，脚本化的决策方，以及按段执行的检查点绑定替身。它覆盖接受后恢复一次并收场、三种决定交到恢复段、取消先成立时决定不被接受（取消经真实的 `control` 提交）、停泊落在接受之后的条目被送回 `ready`、第二次等待用新身份，回包丢失后不重复恢复，以及第二个运行时经 `recover` 扫描接手：接受之后崩溃的调用只恢复一次，第一个运行时停掉之后才到的答复也只恢复一次。
 
