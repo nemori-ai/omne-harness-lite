@@ -201,8 +201,6 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
     }
     return { kind: 'complete', entries }
   }
-  const kept = keeping(keeperOf(options.storage), { read, readRecord, commit }, () =>
-    /* wall-clock: operation-timing -- The age of a snapshot is a monotonic duration since the storage confirmed it (SPEC TS-16). */ performance.now(),
-  )
+  const kept = keeping(keeperOf(options.storage), { read, readRecord, commit })
   return { durability: 'durable', ...kept, due }
 }

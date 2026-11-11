@@ -12,7 +12,7 @@ import {
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { createSqlToolLedgerStore } from '../src/index.ts'
-import { keeping, LedgerKeeper, SNAPSHOT_MAX_AGE_MS } from '../src/ledger-keeper.ts'
+import { keeping, LedgerKeeper } from '../src/ledger-keeper.ts'
 import { openApp, TENANT_A } from './fixtures/app.ts'
 
 function revision(text: string) {
@@ -28,7 +28,7 @@ const host = (key: string, value: unknown = key): LedgerRecord => ({
 })
 const keyOf = (name: string) => recordKey(host(name))
 
-/** The memory store with its round trips counted, a clock, and stores that share one keeper. */
+/** The memory store with its round trips counted, and stores that share one keeper. */
 function scene() {
   const memory = createMemoryToolLedgerStore()
   const trips = { read: 0, readRecord: 0, commit: 0 }
@@ -46,9 +46,8 @@ function scene() {
       return memory.commit(input)
     },
   }
-  let at = 0
   const keeper = new LedgerKeeper()
-  const store = keeping(keeper, raw, () => at)
+  const store = keeping(keeper, raw)
   let next = 0
   /** Commits `records` at the revision the store has, through `via`. */
   const put = async (via: typeof store, domain: LedgerDomain, ...records: LedgerRecord[]) => {
@@ -76,9 +75,6 @@ function scene() {
     store,
     put,
     names,
-    pass: (ms: number) => {
-      at += ms
-    },
   }
 }
 
@@ -122,7 +118,7 @@ describe('reads after a whole read or a commit', () => {
 
   it('are shared by every store over the same keeper', async () => {
     const s = scene()
-    const second = keeping(s.keeper, s.raw, () => 0)
+    const second = keeping(s.keeper, s.raw)
     await s.put(s.store, DOMAIN, host('a'))
     await s.names()
     await s.put(second, DOMAIN, host('b'))
@@ -206,25 +202,17 @@ describe('the answer "absent"', () => {
 })
 
 describe('a commit that did not go through the keeper', () => {
-  it('is seen after the age of the snapshot: one read of the revision, then the whole domain', async () => {
+  // The storage lets one process write a database, so this does not happen in an assembly. The
+  // cases show that a deed still waits for its commit: a read answers the snapshot, and the first
+  // commit on it is refused.
+  it('is not seen by a read of the snapshot', async () => {
     const s = scene()
     await s.put(s.store, DOMAIN, host('a'))
     await s.names()
     await s.put(s.raw, DOMAIN, host('b'))
-    expect(await s.names()).toEqual([keyOf('a')])
-    s.pass(SNAPSHOT_MAX_AGE_MS + 1)
-    expect(await s.names()).toEqual([keyOf('a'), keyOf('b')])
-  })
-
-  it('costs one read of the revision per age when nothing moved', async () => {
-    const s = scene()
-    await s.put(s.store, DOMAIN, host('a'))
-    await s.names()
     const before = { ...s.trips }
-    s.pass(SNAPSHOT_MAX_AGE_MS + 1)
-    await s.names()
-    await s.names()
-    expect(s.trips).toEqual({ ...before, readRecord: before.readRecord + 1 })
+    expect(await s.names()).toEqual([keyOf('a')])
+    expect(s.trips).toEqual(before)
   })
 
   it('refuses the next write on the snapshot once; the snapshot goes and the next read is whole', async () => {
@@ -321,8 +309,8 @@ describe('a whole read that a commit of the same domain crossed', () => {
       },
     }
     const cold = new LedgerKeeper()
-    const reader = keeping(cold, slow, () => 0)
-    const writer = keeping(cold, s.raw, () => 0)
+    const reader = keeping(cold, slow)
+    const writer = keeping(cold, s.raw)
     const early = reader.read(DOMAIN)
     await s.put(writer, DOMAIN, host('b'))
     release?.()
@@ -378,7 +366,7 @@ describe('ledger stores over one database', () => {
         writes: [{ kind: 'put', record: host('b') }],
       })
       expect(moved.kind).toBe('committed')
-      // Within the age of the snapshot of `first`: it answers the commit of `second` at once.
+      // `first` answers the commit of `second` at once: they share one keeper.
       const answer = await first.read(DOMAIN)
       if (answer.kind !== 'complete') throw new Error('read failed')
       expect(answer.records.map(record => recordKey(record))).toEqual([keyOf('a'), keyOf('b')])

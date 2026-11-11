@@ -9,7 +9,7 @@ import argparse, hashlib, json, os, pathlib, re, subprocess, time
 ROOT = pathlib.Path(__file__).resolve().parent
 MODULE = 'SnapshotCache'
 JAR_SHA256 = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'
-CASES = [('positive', None), ('assume-applied', 'SnapshotIsAPastContent'), ('never-check', 'ReadIsBoundedStale'), ('deed-on-read', 'DeedOnCurrentContent'),
+CASES = [('positive', None), ('assume-applied', 'SnapshotIsAPastContent'), ('deed-on-read', 'DeedOnCurrentContent'),
          ('absent-from-snapshot', 'AbsenceIsCurrent')]
 parser = argparse.ArgumentParser()
 parser.add_argument('--case')

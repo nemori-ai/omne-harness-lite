@@ -268,7 +268,7 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 
 ### 记录仓读取的新鲜度
 
-记录仓的读取对同一个提供者经手的提交是即时的：一次提交答 `committed` 之后开始的读取包含它。不经这个提供者写入同一份存储的提交（另一个进程），读取可以晚一个有界的时间才看到。上界由提供者声明，可以是零。有一种答复不受这条放宽：答“没有”。`readRecord` 答 `record: null`，或 `read` 答一个没有记录的域，总是存储当时的内容。
+记录仓的读取对同一个提供者经手的提交是即时的：一次提交答 `committed` 之后开始的读取包含它。一份存储只由一个提供者写。不经这个提供者写入同一份存储的提交（另一个进程）不在保证内，读取可以看不到它。有一种答复不受这条放宽：答“没有”。`readRecord` 答 `record: null`，或 `read` 答一个没有记录的域，总是存储当时的内容。
 
 本包不需要比这更强的读取，理由有三条，分别对应读取之后可能做的三类事。
 
@@ -316,7 +316,7 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
    1. 读调用域，核对调用已静止：已结算，每个交付版本都已释放，没有待办任务。已阻塞的 `clock` 任务不算待办，它只记录结束时刻没有时钟标记（[非正常输出与时钟责任](#非正常输出与时钟责任)），没有驱动步骤读它。其他任务都是责任，包括非正常终局留下的已阻塞清理任务。
    2. 经注入的端口 `CallRemoval.hostRecords` 请宿主放手它为该调用持有的记录。宿主答 `removed` 或 `held`。本包不认识宿主的域名。单机宿主的判定见 [tool-host-local](../tool-host-local/SPEC.md#1-排序域与放置)。
    3. 以第 1 步读到的修订号为条件，对调用域做[整域删除](#记录仓的整域删除)。修订号不符时不删除，到期项保留，下一轮再判。
-   第 1 步不成立或第 2 步答 `held` 时，清扫把到期项改排到 `now + G`，继续处理下一项。这不是失败。只有存储不可用才让清扫停在该项。
+      第 1 步不成立或第 2 步答 `held` 时，清扫把到期项改排到 `now + G`，继续处理下一项。这不是失败。只有存储不可用才让清扫停在该项。
 3. 空域的排除记录。`lookup` 或 `queryOperation` 在没有调用记录的域里写排除记录时（第 14 条），同一提交给该域排 `now + G` 的删除时刻。清扫遇到只有排除记录的域时，直接删除它。
 4. 已释放调用的迟到操作。调用域存在且已释放时，迟到的停止与查询照常答复，不改排期。
 5. 没有确认的调用不删除。消费者永不确认时，调用状态一直保留。
@@ -324,14 +324,14 @@ runtime 的 `instances` 与 `observation` 由 [src/stream-facade.ts](src/stream-
 
 删除之后的调用域读作修订号 `0`，没有记录。按第 11 条，`readResult`、`account` 与 `releaseDelivery` 回复 `invalid`（`call: unknown-call`），`lookup` 回复 `not-accepted`，`queryOperation` 回复 `not-committed`。同一调用标识的新 admit 形成一次新的受理。所以 L1 依赖契约对消费者的前提“先保存后确认”与“保存后不重发”。
 
-| # | 性质 | 谁守 | 模型性质 |
-| --- | --- | --- | --- |
-| L1 | 同一调用标识的函数至多执行一次 | 账本，依赖消费者的前提“先保存后确认”与“保存后不重发” | `AtMostOnce` |
-| L2 | 消费者落盘保存结果之前，调用域不被删除 | 账本 | `RemovedOnlyAfterSaved` |
-| L3 | 不再被写的调用域有删除时刻：确认时刻加 G 与正文期限中的较大者 | 账本与到期索引 | `IdleIsScheduled`、`EventuallyRemoved` |
-| L4 | 删除时，域的记录、到期项与修订号一起删除，不留墓碑 | 记录仓提供者 | `NoOrphanDue` |
-| L5 | 迟到操作在空域写下的排除记录有自己的删除时刻 | 账本 | `IdleIsScheduled` |
-| L6 | 卸载的正文在保存期限内一直可读 | 账本 | `BodyKept`、`RemovalNotEarly` |
+| #   | 性质                                                          | 谁守                                                 | 模型性质                               |
+| --- | ------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------- |
+| L1  | 同一调用标识的函数至多执行一次                                | 账本，依赖消费者的前提“先保存后确认”与“保存后不重发” | `AtMostOnce`                           |
+| L2  | 消费者落盘保存结果之前，调用域不被删除                        | 账本                                                 | `RemovedOnlyAfterSaved`                |
+| L3  | 不再被写的调用域有删除时刻：确认时刻加 G 与正文期限中的较大者 | 账本与到期索引                                       | `IdleIsScheduled`、`EventuallyRemoved` |
+| L4  | 删除时，域的记录、到期项与修订号一起删除，不留墓碑            | 记录仓提供者                                         | `NoOrphanDue`                          |
+| L5  | 迟到操作在空域写下的排除记录有自己的删除时刻                  | 账本                                                 | `IdleIsScheduled`                      |
+| L6  | 卸载的正文在保存期限内一直可读                                | 账本                                                 | `BodyKept`、`RemovalNotEarly`          |
 
 与正文清扫的关系：两者共用到期索引与同一个清扫入口（[清扫](#清扫)）。正文按自己的期限回收。调用域的删除时刻不早于各正文的期限，所以 L6 成立。正文的写入许可与封存仍由 [BodyLifecycle](../tool-contract/verification/models/body-lifecycle/README.md) 守护。
 
@@ -529,12 +529,12 @@ null 和 boolean 分别写 `null`、`true`、`false`。字符串及键采用 ECM
 
 以下文本是固定向量，不由待测编码器生成预期。实现须检查其文本、UTF-8 长度和摘要，并分别测试非法输入拒绝。验证见 [canonical-codec.spec.ts](tests/canonical-codec.spec.ts)。
 
-| 输入 | 规范文本 | UTF-8 字节数 |
-| --- | --- | --- |
-| 对象先插入键 `2`，再插入键 `10`，值分别为 `two`、`ten` | `{"10":"ten","2":"two"}` | 22 |
-| 对象含 a=负零，b=[true,null]，插入顺序相反 | `{"a":0,"b":[true,null]}` | 23 |
-| 字符串 `中🙂` | `"中🙂"` | 9 |
-| 带标签数值，lexeme 为 `1.0` | `{"kind":"number","lexeme":"1.0"}` | 32 |
+| 输入                                                   | 规范文本                           | UTF-8 字节数 |
+| ------------------------------------------------------ | ---------------------------------- | ------------ |
+| 对象先插入键 `2`，再插入键 `10`，值分别为 `two`、`ten` | `{"10":"ten","2":"two"}`           | 22           |
+| 对象含 a=负零，b=[true,null]，插入顺序相反             | `{"a":0,"b":[true,null]}`          | 23           |
+| 字符串 `中🙂`                                          | `"中🙂"`                           | 9            |
+| 带标签数值，lexeme 为 `1.0`                            | `{"kind":"number","lexeme":"1.0"}` | 32           |
 
 ## 25. 原事实受管推进
 
@@ -603,7 +603,6 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 配置的 content provider 必须证明完整源长度/摘要，并把 byte cursor 绑定 tenant/call/result/完整 Attachment/bytes 投影及位置。账本不解析其私有游标，因此自身范围核验不能代替这项证明。内存 provider 只支持 SHA-256，输入输出复制，首读空文件为 offset 0、空 bytes、next null。非首读指向或越过 EOF、负数、另一附件或结果及 block cursor 均拒绝为 `invalid-cursor`。
 
 没有原件读口，也没有原件权限：原始返回 R 不进入任何保管端口（见「最终事实的计划与结算」），`ToolLedgerAction` 不含 `read-raw`、`read-raw-content` 或 `maintain-materials`；每个动作就是一项权限，guard 不从别的动作拼出许可。最终允许后不再等待 store、provider 或另一 guard。判定点之后发生的撤权约束后续读取，不追溯撤回已允许候选。content provider 为 null 时有关联的字节读取明确 unsupported；原结果、交付解除、收场和调用幂等不受此配置改变。
-
 
 ## 28. Tools 固定结果适配器
 

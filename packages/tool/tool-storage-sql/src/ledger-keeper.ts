@@ -1,8 +1,8 @@
 // The snapshot keeper of the SQL ledger store (model `SnapshotCache`). One keeper serves every
 // ledger store over the same `SqlStorage`: every commit of this process goes through it, so the
 // snapshot it keeps of a domain is the content of the store, and a read answers from it without
-// a round trip. A commit of another process is seen at most `SNAPSHOT_MAX_AGE_MS` later, or at
-// the next refused commit. The answer "absent" is never given from a snapshot alone.
+// a round trip. One process writes a database (the storage's writer generation), so no commit
+// goes past the keeper. The answer "absent" is never given from a snapshot alone.
 //
 // Three parts, each with one reason to change:
 //   1. The decisions: total functions from a snapshot and a question to a plan. No I/O. Each
@@ -21,9 +21,6 @@ import {
   type ToolLedgerStore,
 } from '@omne-harness/tool'
 
-/** How long a snapshot answers reads before the store confirms its revision again. */
-export const SNAPSHOT_MAX_AGE_MS = 1_000
-
 /** The domains whose snapshot one keeper holds; the least recently used one leaves first. */
 const KEPT_DOMAINS = 512
 
@@ -31,7 +28,7 @@ type Complete = Extract<LedgerRead, { kind: 'complete' }>
 type Revision = Complete['revision']
 
 /**
- * Records of one domain at one revision, in key order, and when the store confirmed them. `whole`
+ * Records of one domain at one revision, in key order. `whole`
  * says that these are all the records of the domain: a whole read made the snapshot. Otherwise
  * they are the records that single reads and commits made known, and the domain may hold more.
  */
@@ -39,7 +36,6 @@ export type Snapshot = Readonly<{
   revision: Revision
   records: ReadonlyMap<string, LedgerRecord>
   whole: boolean
-  confirmedAt: number
 }>
 
 // ---- 1. Decisions -----------------------------------------------------------------------------
@@ -61,30 +57,23 @@ const handed = (record: LedgerRecord): LedgerRecord => structuredClone(record)
 const inKeyOrder = (records: Iterable<readonly [string, LedgerRecord]>) =>
   new Map([...records].sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)))
 
-export function snapshotOf(read: Complete, at: number): Snapshot {
+export function snapshotOf(read: Complete): Snapshot {
   return {
     revision: read.revision,
     records: inKeyOrder(read.records.map(record => [recordKey(record), stored(record)])),
     whole: true,
-    confirmedAt: at,
   }
 }
 
-const aged = (held: Snapshot, at: number): boolean => at - held.confirmedAt > SNAPSHOT_MAX_AGE_MS
-
 /** What a whole read of a domain does. */
 export type ReadPlan =
-  /** Model `PureRead` within the age: the snapshot is the answer. */
+  /** Model `PureRead`: the snapshot is the answer. */
   | Readonly<{ kind: 'answer'; read: Complete }>
-  /** Model `PureRead` past the age: the store confirms the revision by a read of `probe`. */
-  | Readonly<{ kind: 'confirm'; held: Snapshot; probe: string }>
   /** Model `FullRead`: no snapshot of the whole domain, or the snapshot says "no records". */
   | Readonly<{ kind: 'whole' }>
 
-export function planRead(held: Snapshot | undefined, at: number): ReadPlan {
-  const [probe] = held?.records.keys() ?? []
-  if (held === undefined || !held.whole || probe === undefined) return { kind: 'whole' }
-  if (aged(held, at)) return { kind: 'confirm', held, probe }
+export function planRead(held: Snapshot | undefined): ReadPlan {
+  if (held === undefined || !held.whole || held.records.size === 0) return { kind: 'whole' }
   return {
     kind: 'answer',
     read: {
@@ -100,13 +89,13 @@ export type RecordPlan =
   | Readonly<{ kind: 'answer'; read: Extract<LedgerRecordRead, { kind: 'complete' }> }>
   /**
    * The store answers this one record: the snapshot does not hold it (it is absent, or not known
-   * yet), or the snapshot is past its age. The answer judges the snapshot.
+   * yet). The answer judges the snapshot.
    */
   | Readonly<{ kind: 'ask' }>
 
-export function planRecord(held: Snapshot | undefined, key: string, at: number): RecordPlan {
+export function planRecord(held: Snapshot | undefined, key: string): RecordPlan {
   const record = held?.records.get(key)
-  if (held === undefined || record === undefined || aged(held, at)) return { kind: 'ask' }
+  if (held === undefined || record === undefined) return { kind: 'ask' }
   return {
     kind: 'answer',
     read: { kind: 'complete', revision: held.revision, record: handed(record) },
@@ -122,7 +111,6 @@ export function judged(
   held: Snapshot | undefined,
   answer: Extract<LedgerRecordRead, { kind: 'complete' }>,
   key: string,
-  at: number,
 ): Snapshot {
   const same = held?.revision === answer.revision
   const records = new Map(same ? held.records : [])
@@ -131,7 +119,6 @@ export function judged(
     revision: answer.revision,
     records: inKeyOrder(records),
     whole: same && held.whole,
-    confirmedAt: at,
   }
 }
 
@@ -164,15 +151,12 @@ export function afterCommit(
   held: Snapshot | undefined,
   input: LedgerCommitInput,
   answer: LedgerCommit,
-  at: number,
 ): Snapshot | null {
   switch (answer.kind) {
     case 'committed': {
       if (held?.revision !== input.expected) return null
       const records = applied(held.records, input.writes)
-      return records === null
-        ? null
-        : { revision: input.revision, records, whole: held.whole, confirmedAt: at }
+      return records === null ? null : { revision: input.revision, records, whole: held.whole }
     }
     case 'conflict':
       return held === undefined || held.revision === input.expected ? null : held
@@ -265,15 +249,15 @@ export class LedgerKeeper {
 
 type Raw = Pick<ToolLedgerStore, 'read' | 'readRecord' | 'commit'>
 
-/** `raw` with its reads answered by `keeper`. `now` is a monotonic clock in milliseconds. */
-export function keeping(keeper: LedgerKeeper, raw: Raw, now: () => number): Raw {
+/** `raw` with its reads answered by `keeper`. */
+export function keeping(keeper: LedgerKeeper, raw: Raw): Raw {
   const keyOf = (domain: LedgerDomain): string => JSON.stringify(domain)
 
   const whole = async (domain: LedgerDomain, key: string): Promise<LedgerRead> => {
     const mark = keeper.crossings.mark()
     const answer = await raw.read(domain)
     if (answer.kind === 'complete' && !keeper.crossings.crossed(key, mark))
-      keeper.set(key, snapshotOf(answer, now()))
+      keeper.set(key, snapshotOf(answer))
     return answer
   }
 
@@ -286,24 +270,19 @@ export function keeping(keeper: LedgerKeeper, raw: Raw, now: () => number): Raw 
     const mark = keeper.crossings.mark()
     const answer = await raw.readRecord(domain, record)
     if (answer.kind === 'complete' && !keeper.crossings.crossed(key, mark))
-      keeper.set(key, judged(keeper.get(key), answer, record, now()))
+      keeper.set(key, judged(keeper.get(key), answer, record))
     return answer
   }
 
   const read = async (domain: LedgerDomain): Promise<LedgerRead> => {
     const key = keyOf(domain)
-    const plan = planRead(keeper.get(key), now())
-    if (plan.kind === 'answer') return plan.read
-    if (plan.kind === 'whole') return whole(domain, key)
-    const probe = await ask(domain, key, plan.probe)
-    if (probe.kind !== 'complete') return probe
-    const next = planRead(keeper.get(key), now())
-    return next.kind === 'answer' ? next.read : whole(domain, key)
+    const plan = planRead(keeper.get(key))
+    return plan.kind === 'answer' ? plan.read : whole(domain, key)
   }
 
   const readRecord = async (domain: LedgerDomain, record: string): Promise<LedgerRecordRead> => {
     const key = keyOf(domain)
-    const plan = planRecord(keeper.get(key), record, now())
+    const plan = planRecord(keeper.get(key), record)
     return plan.kind === 'answer' ? plan.read : ask(domain, key, record)
   }
 
@@ -316,7 +295,7 @@ export function keeping(keeper: LedgerKeeper, raw: Raw, now: () => number): Raw 
       keeper.set(key, null)
       throw error
     }
-    keeper.set(key, afterCommit(keeper.get(key), input, answer, now()))
+    keeper.set(key, afterCommit(keeper.get(key), input, answer))
     if (answer.kind === 'conflict')
       for (const assertion of input.asserts ?? []) {
         const asserted = keyOf(assertion.domain)
