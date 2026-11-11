@@ -201,6 +201,48 @@ describe('an admission that asks a person', () => {
     expect((await snapshot(assembly)).checkpoint.passages).toEqual([])
   })
 
+  describe('a remark of the person that the admission denies (rule 11)', () => {
+    const WORDS = 'Use port 8081, not 8080.'
+    const remark: CardReply = { kind: 'remark', text: WORDS, evidence: evidence('remark') }
+
+    /** The texts of the denial message of `call-a` after the admission denied with `reason`. */
+    async function denialTexts(reason: string, reply: CardReply = remark) {
+      const assembly = await cardAssembly()
+      assembly.controls.admission.admit.always(async call =>
+        call.decision === null
+          ? ask()
+          : { ok: { kind: 'deny', reason, evidence: evidence('deny-after-remark') } },
+      )
+      assembly.controls.cards.read.always(async () => ({ ok: reply }))
+      ok(await invoke(assembly))
+      await deliverToolSuggestion(assembly, [toolCall('call-a')])
+      await secondModelCall(assembly)
+      expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+      expect(assembly.controls.admission.admit.calls[1]?.decision?.answer).toEqual(reply)
+      const [message, ...others] = await toolMessages(assembly)
+      expect(others).toEqual([])
+      return message?.blocks.flatMap(block => (block.kind === 'text' ? [block.text] : []))
+    }
+
+    it('carries the words in the denial message when the reason is human-guidance', async () => {
+      expect(await denialTexts('human-guidance')).toEqual([
+        'The tool call was denied and did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
+        WORDS,
+      ])
+    })
+
+    it('keeps the plain denial for another reason: the words are not guidance then', async () => {
+      expect(await denialTexts('policy')).toEqual(['The tool call was denied and did not run.'])
+    })
+
+    it('keeps the plain denial when the answer of the person was not a remark', async () => {
+      const declined: CardReply = { kind: 'declined', evidence: evidence('declined') }
+      expect(await denialTexts('human-guidance', declined)).toEqual([
+        'The tool call was denied and did not run.',
+      ])
+    })
+  })
+
   it('changes the effective arguments when the person chooses the option bound to the rewrite', async () => {
     const assembly = await cardAssembly()
     const rewrite = { option: 'once', effectiveArguments: '{"path":"notes.txt","safe":"true"}' }

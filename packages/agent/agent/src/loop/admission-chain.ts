@@ -10,6 +10,7 @@ import {
   cardDraftOf,
   cardRequestOf,
   type Action,
+  type ActionId,
   type AgentInstant,
   type CardReply,
   type CardRound,
@@ -180,10 +181,29 @@ export function afterAdmission(
       passages,
       resolve(before, concluded(action, before.id, at, { kind: 'observed' }), answer.evidence),
     )
-  // `judged`: a denial of the admission, or of the trusted request source that answered the call.
   if (action.judgment.kind !== 'denied') return succeed({ action, passages })
-  const denial = concluded(action, before.id, at, { kind: 'veto', reason: 'denied' })
+  // The admission denied with its own reason; `judged` is the trusted request source answering.
+  const reason = answer.kind === 'denied' ? answer.reason : 'denied'
+  const denial = concluded(action, before.id, at, { kind: 'veto', reason })
   return stepped(action, passages, resolve(before, denial, action.judgment.evidence))
+}
+
+/** The reason the admission denies with when the remark of a person gives no decision (rule 11). */
+const HUMAN_GUIDANCE = 'human-guidance'
+
+/**
+ * The words the denial message of an action carries: the remark that answered the last card of its
+ * admission, when the admission denied the action for that remark (rule 11). Null for every other
+ * denial.
+ */
+export function guidanceOf(passages: readonly Passage[], action: ActionId): string | null {
+  const progress = passages.find(passage => admissionActionOf(passage.id) === action)?.progress
+  if (progress?.kind !== 'resolved' && progress?.kind !== 'applied') return null
+  const { output } = progress.conclusion
+  if (output?.kind !== 'veto' || output.reason !== HUMAN_GUIDANCE) return null
+  const last = progress.rounds.at(-1)?.progress
+  const response = last?.kind === 'processed' ? last.cards[0]?.response : undefined
+  return response?.kind === 'remark' ? response.text : null
 }
 
 /** What `present` and `lookup` of the saved round of a passage take, apart from access and advance. */

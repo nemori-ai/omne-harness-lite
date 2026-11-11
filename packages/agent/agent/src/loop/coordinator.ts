@@ -103,12 +103,14 @@ import {
   afterReply,
   chainOf,
   extensionPassages,
+  guidanceOf,
   handBackOf,
   humanWaits,
   needOfAction,
   presentRequest,
   withChosenRewrite,
 } from './admission-chain.ts'
+import type { PassageNeed } from './passages.ts'
 import { canonical } from '../canonical.ts'
 import { waitForExecutionChange, type HeldPosition } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
@@ -137,6 +139,7 @@ import {
   candidateDigest,
   answeredCandidate,
   deniedCandidate,
+  guidedCandidate,
   deniedForUnavailableAdmission,
   deniedSlot,
   preserveAllowedRequest,
@@ -392,7 +395,7 @@ function heldAfter(
 /** The slice of the HITL delivery that closes card rounds: on an all-denied batch, a cancel or an end. */
 const SLICE_09 = 'HITL slice 09'
 /** The needs of a chain whose card round is saved or presented and not answered. */
-const OUT_ROUNDS: readonly string[] = ['present', 'read', 'closed']
+const OUT_ROUNDS: readonly PassageNeed[] = ['present', 'read', 'closed']
 
 /**
  * The refusal of R0 to end an execution over a passage whose conclusion was not adopted. The
@@ -2210,12 +2213,20 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   /**
-   * The candidate of a denied slot: the generic denial, or the answer the action was denied with,
-   * read back from its material. A material that is not an answer is `invalid` (D-104).
+   * The candidate of a denied slot: the generic denial, the denial with the remark of the person
+   * the admission denied it for, or the answer the action was denied with, read back from its
+   * material. A material that is not an answer is `invalid` (D-104).
    */
   async function deniedSlotCandidate(action: Action): Promise<Outcome<Message, Failure>> {
     const answer = action.judgment.kind === 'denied' ? action.judgment.answer : undefined
-    if (answer === undefined) return succeed(deniedCandidate(execution, action))
+    if (answer === undefined) {
+      const words = guidanceOf(required(checkpoint, 'checkpoint').passages, action.id)
+      return succeed(
+        words === null
+          ? deniedCandidate(execution, action)
+          : guidedCandidate(execution, action, words),
+      )
+    }
     const material = await ports.materials.read({ ...access, source: answer })
     if ('failure' in material) return material
     const text = toolCallAnswerOf(material.ok)
@@ -2537,7 +2548,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const parts = await batchToolCalls(batch)
       if ('failure' in parts) return parts
       let passages = required(checkpoint, 'checkpoint').passages
-      const answers: Exclude<ToolAdmission, { kind: 'unavailable' | 'asked' }>[] = []
+      const answers: Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>[] = []
       for (const action of batch.actions) {
         // An action that waits for its cards or its answers keeps its judgment; A1 continues it.
         if (needOfAction(passages, action) !== 'judge') {
@@ -2580,7 +2591,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           return step('judged', { checkpoint: { batch: { ...batch, actions: denied } } })
         }
         if (chain === null && admitted.ok.kind !== 'asked') {
-          answers.push(admitted.ok)
+          answers.push(
+            admitted.ok.kind === 'denied'
+              ? { kind: 'judged', action: admitted.ok.action }
+              : admitted.ok,
+          )
           continue
         }
         const instant = await ports.clock.now()

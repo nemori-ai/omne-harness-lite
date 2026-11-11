@@ -104,6 +104,7 @@ export function toolConsumer(execution: AgentExecutionId, action: Action): Consu
  */
 export type ToolAdmission =
   | Readonly<{ kind: 'judged'; action: Action }>
+  | Readonly<{ kind: 'denied'; action: Action; reason: string }>
   | Readonly<{
       kind: 'allowed'
       action: Action
@@ -140,7 +141,11 @@ function notAllowed(
   decision: Exclude<AdmissionDecision, { kind: 'allow' }>,
 ): Outcome<ToolAdmission, Failure> {
   if (decision.kind === 'deny')
-    return judged({ ...action, judgment: { kind: 'denied', evidence: decision.evidence } })
+    return succeed({
+      kind: 'denied',
+      action: { ...action, judgment: { kind: 'denied', evidence: decision.evidence } },
+      reason: decision.reason,
+    })
   if (decision.kind === 'unavailable')
     return unavailableAdmission('agentActionAdmission', decision.diagnostic)
   return succeed({ kind: 'asked', action, card: decision.card, evidence: decision.evidence })
@@ -469,6 +474,27 @@ export function deniedCandidate(execution: AgentExecutionId, action: Action): Me
       visibility: VISIBLE,
       text: 'The tool call was denied and did not run.',
     },
+  ])
+}
+
+/**
+ * T2: the candidate message of an action that the admission denied for the remark of a person. The
+ * message carries the words as the person wrote them, so the model takes them as guidance (SPEC
+ * "整批判断屏障与动作准入" 11).
+ */
+export function guidedCandidate(
+  execution: AgentExecutionId,
+  action: Action,
+  words: string,
+): Message {
+  return toolMessage(execution, action, [
+    {
+      kind: 'text',
+      id: `${action.id}/denied` as BlockId,
+      visibility: VISIBLE,
+      text: 'The tool call was denied and did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
+    },
+    { kind: 'text', id: `${action.id}/guidance` as BlockId, visibility: VISIBLE, text: words },
   ])
 }
 
