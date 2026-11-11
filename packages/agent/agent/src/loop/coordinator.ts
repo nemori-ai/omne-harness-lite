@@ -895,6 +895,27 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return succeed('W0')
   }
 
+  /**
+   * E2 was told that the advance of this attachment is gone, while the Journal still names the
+   * attachment current and holds no established cancellation: a cancel is on its way, or another
+   * attachment is being granted. The cause reaches this execution through its Journal, so the
+   * loop waits for the Journal to change. It is not a failure of the node. The wait stays in the
+   * process: a waiting commit under a revoked advance would be refused. The wake goes through
+   * E1, which routes an established cancellation to F0 and a superseded attachment to E9.
+   */
+  function waitForRevocationCause() {
+    finishWait = true
+    return waitFor(
+      'E2',
+      {
+        kind: 'unavailable',
+        owner: AGENT_OWNER,
+        diagnostic: 'the advance is revoked and its cause is not in the Journal yet',
+      },
+      null,
+    )
+  }
+
   function waitForFault(at: LoopNode, failure: Extract<Failure, { kind: 'unavailable' }>) {
     finishWait = true
     waitFor(at, failure, null)
@@ -1628,8 +1649,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if (snapshot.unresolved.length > 0 || cancellationOf(snapshot) !== undefined)
         return step('reconciled', null)
       const read = await readFacts(snapshot)
-      if ('failure' in read)
-        return read.failure.kind === 'unavailable' ? waitFor('E2', read.failure, readFacts) : read
+      if ('failure' in read) {
+        if (read.failure.kind === 'unavailable') return waitFor('E2', read.failure, readFacts)
+        if (read.failure.kind === 'stale-advance') return waitForRevocationCause()
+        return read
+      }
       facts = read.ok
       return step('reconciled', null)
     },

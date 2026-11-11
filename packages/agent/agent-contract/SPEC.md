@@ -2015,7 +2015,7 @@ Agent 提供两个不需推进资格的入口：control 与 detach。
 2. detach 的形状是 `AgentExecutionRecovery.detach`，经 `agentExecutionRecovery` 服务调用，行为见“[交接与停用](#交接与停用)”。detach 仍带目标挂接的 Authority，调用方经 load 取得它，自己不需要持有挂接。
 3. 两个入口都在实际执行处按“[主体资格核验](#主体资格核验)”核验主体。它们不要求调用方持有挂接，也不授予推进资格。
 4. 两个入口的形状以本节和公开接口页为准。实现归 #502。
-5. 未决项（#502）：经 `agentExecutionControl` 受理控制时 execution 仍有 active 挂接，该挂接的 runtime 怎样得知新的控制，本契约尚未规定。
+5. 经 `agentExecutionControl` 受理控制时 execution 仍有 active 挂接，该挂接的 runtime 从这个 execution 的 Journal 得知控制，不另设通知协议。控制的受理与每个阶段都产生 control 事件；等待中的 runtime 被事件唤醒，经 E1 重读，读到已成立的取消后转 F0。外部协调者可以先撤销推进资格、后送达控制：这时 runtime 在 E2 读当前条件得到 `stale-advance`，而 Journal 仍把这个挂接记为 active，也没有已成立的取消。这不是节点失败。runtime 停止推进，在进程内等待这个 execution 的 Journal 变化，不提交等待（撤销之后的等待提交会被拒绝），也不对任何调用发中断。取消成立后它经 E1 转 F0，在 F0 先记取消的阶段，再请求中断前台调用；挂接被取代后它经 E1 转 E9。
 6. 追加输入不需要活体 runtime：input.submit 沿原 execution 的耐久视图受理，不要求 advance、grant、槽、resume 或 attach，规则见“[输入内容与水位线](#输入内容与水位线)”。长期输入适配器从原 execution 的耐久绑定与原 provider 采用解析 coordination、scope、定义与历史组合，不从当前 runtime 内存取得这些事实；它在自身装配及每次所需操作处核相同的支持要求，不以创建一个 runtime 作为能力检查的前置。缺真实组合仍为 unsupported，原来源暂不可读仍为 unavailable，仅原实例已 disposed 不触发这两种错误。无活体时 submit 的公开入口与服务键尚未落地，登记在[开放问题](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。
 
 #### 作为 Model 调用方

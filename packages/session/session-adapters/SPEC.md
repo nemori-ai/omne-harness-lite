@@ -681,7 +681,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 Session 没有 suspend 意图，本插件不发 control(suspend)（#730 不被采用，见 [AD-02 控制归一](#状态与解释)）。交还挂接不是控制意图：它是端口操作 `detach`，见上表 `detach` 一行；针对仍存活的其他 runtime 另需 takeover。
 
-控制受理不证明六阶段全部完成，也不授予推进资格。active 挂接如何获知长期控制仍归 Agent #502，不由本插件补造通知协议。
+控制受理不证明六阶段全部完成，也不授予推进资格。active 挂接从 execution 的 Journal 事件获知长期控制，规则归 Agent 契约的[恢复入口](../../agent/agent-contract/SPEC.md)一节，本插件不补造通知协议。
 
 ##### 具名调用的解析
 
