@@ -1,5 +1,0 @@
-- 只改了 `packages/session/session-tenancy-table` 的 `src/reader.ts` 与 `tests/reader.spec.ts`。
-- 新增 `openSessionTenancyReader(file)`：调用方只有数据库文件时不必自己开存储。
-- 读不到存储时的收场做了一点整理，行为与契约一致。
-- 既有测试一条没动；`pnpm --filter @omne-harness-lite/session-tenancy-table run test` 全绿。
-- `pnpm run lint:rules` 通过。

@@ -12,6 +12,8 @@ owner: PanQiWei
 
 > **更正标注（2026-10-16）**：「验证与消费者切换」中的 `tools/ts-checks` 包模板说明，现位于 [`tools/dev-flow/templates/package`](../../tools/dev-flow/templates/package/README_ZH.md)（#332 拆分工具成员）。原文保留，本标注只更新位置，不改变本提案的决定。
 
+> **更正标注（2026-11-10）**：首段「RFC-0003 的 status 保持 accepted」与现状不符：RFC-0003 已被 [RFC-0007](RFC-0007-source-packages-and-templates.md) 取代，status 为 superseded。本标注不改变本提案的决定。
+
 ## 问题与有效输入
 
 RFC-0003 revision 1 要求成员测试在源码可直接执行时读源码，并且禁止用旧 `dist` 让缺少产物的测试通过。它没有规定单元、契约、集成和端到端分别由谁承担，也没有规定例外怎样写明。
@@ -97,7 +99,7 @@ C8 的证据是正式源、精确条款、文档检查，以及本提案与现�
 | 风险与独立接受页上的交叉引用 | [质量](../engineering/quality.md) | 已写回 | 同日。该页只保留引用 |
 | 成员怎样记录自己的测试责任 | [成员文档](../member-documentation.md) | 已写回 | 同日。不另造台账 |
 | 实施者怎样按职责生成和运行测试 | [开发指南](../development.md) 与包模板说明 | 已写回 | 同日。生成器仍不按职责写出测试目录 |
-| 交付卡里已经写过的测试分工 | [agent 交付操作](../engineering/agent-delivery.md) 与两种 Issue 模板 | 已写回 | 同日。只改了引用旧分工的句子 |
+| 交付卡里已经写过的测试分工 | [agent 交付操作](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/docs/engineering/agent-delivery.md) 与两种 Issue 模板 | 已写回 | 同日。只改了引用旧分工的句子 |
 
 ## 后继关系与维护
 

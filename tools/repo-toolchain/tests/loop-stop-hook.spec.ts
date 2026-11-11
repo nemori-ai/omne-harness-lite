@@ -1,14 +1,16 @@
 // @module-tag slow
 // 归慢层：在临时 git 仓库里起收工钩子脚本子进程、喂标准输入。全量准入快层账本里整份合计 14.2 秒，负载下 30.8 秒，快层 4 条里 2 条在全量准入超单条预算（2.5 秒），另 3 条本已逐条慢层（tools/test-runner/README_ZH.md「归层」）。
-// 收工钩子的入口与量读数的线程：临时 git 仓库，子进程跑脚本、喂标准输入。
+// 收工钩子的入口与量读数的子进程：临时 git 仓库，子进程跑脚本、喂标准输入。
 // 钉住的是宿主看得到的东西：退出码永远是 0，标准输出要么空、要么恰好一个 JSON 对象——
 // 反馈时只有 decision 与 reason，钩子自己出错时只有 systemMessage。
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, symlinkSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { measureInWorker } from '../src/loop/hook-thread.ts'
+import { BASELINE_DIRECTORY } from '../src/loop/baseline-cache.ts'
+import { resultOf } from '../src/loop/hook-job.ts'
+import { measureInChild, measureInProcess } from '../src/loop/hook-process.ts'
 import {
   commit,
   git,
@@ -88,8 +90,8 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
       expect(again.stdout).toBe('')
       const active = hook(root, home, input(root, true))
       expect(active.stdout).toBe('')
-      expect(JSON.parse(readFileSync(join(home, 'hook-state.json'), 'utf8'))).toMatchObject({
-        reported: [{ branch: 'someone/work' }],
+      expect(JSON.parse(readFileSync(join(home, 'hook-readings.json'), 'utf8'))).toMatchObject({
+        readings: [{ branch: 'someone/work', findings: [{ amount: 15 }] }],
       })
     },
   )
@@ -117,6 +119,25 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
       )
     },
   )
+
+  it('没给 OMNE_RUNNER_ROOT、跑的脚本又不在被量的仓库里：不量，退出 0，只给用户一句「量不了」', () => {
+    const { root, home } = work()
+    write(root, 'packages/core/a/src/tangled.ts', tangled)
+    const env: NodeJS.ProcessEnv = { ...process.env, OMNE_METRICS_HOME: home }
+    delete env['OMNE_RUNNER_ROOT']
+    const result = spawnSync(process.execPath, ['--experimental-strip-types', script], {
+      cwd: root,
+      input: input(root),
+      encoding: 'utf8',
+      env,
+    })
+    expect(result.status).toBe(0)
+    const parsed = JSON.parse(result.stdout) as Record<string, unknown>
+    expect(Object.keys(parsed)).toEqual(['systemMessage'])
+    expect(parsed['systemMessage']).toContain('量不了')
+    expect(parsed['systemMessage']).not.toContain('tangled')
+    expect(existsSync(join(home, 'hook-readings.json'))).toBe(false)
+  })
 
   it('改的不是产品源码（测试目录、examples、仓库根）：放行', () => {
     const { root, home } = work()
@@ -168,16 +189,108 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
   })
 })
 
-// 归慢层：子进程：工作线程在临时 git 仓库里连着量两次读数（另有 git 子进程）。
-describe('量读数的线程', { tags: ['slow'] }, () => {
+// 归慢层：子进程：量读数的子进程在临时 git 仓库里连着量两次读数（另有 git 子进程）。
+describe('量读数的子进程', { tags: ['slow'] }, () => {
   it('没碰产品源码给 undefined；碰了给读数；超过时限以超时拒绝', async () => {
-    const { root } = work()
-    expect(await measureInWorker(root, 'main', 30_000)).toBeUndefined()
+    const { root, home } = work()
+    expect(await measureInChild(root, 'main', 30_000, home)).toBeUndefined()
     write(root, 'packages/core/a/src/tangled.ts', tangled)
-    const readings = await measureInWorker(root, 'main', 30_000)
+    const readings = await measureInChild(root, 'main', 30_000, home)
     expect(readings?.explain.functions.map(row => [row.name, row.level])).toEqual([
       ['tangled', 'alert'],
     ])
-    await expect(measureInWorker(root, 'main', 1)).rejects.toThrow('量读数超过 0.001 秒，已放弃')
+    await expect(measureInChild(root, 'main', 1, home)).rejects.toThrow(
+      '量读数超过 0.001 秒，已放弃',
+    )
+  })
+
+  // 子进程里做的事本身在进程内跑一遍：没碰、碰了且基线读数这次现算、碰了且基线读数已缓存。
+  it('resultOf：没碰产品源码不报；碰了给读数，基线读数这次现算才报「已备好」，第二次读缓存不报', () => {
+    const { root, home } = work()
+    const job = { root, primaryBranch: 'main', home }
+    const prepared: string[] = []
+    expect(resultOf(job, commit => prepared.push(commit))).toEqual({
+      kind: 'result',
+      touched: false,
+    })
+    expect(prepared).toEqual([])
+    write(root, 'packages/core/a/src/tangled.ts', tangled)
+    const first = resultOf(job, commit => prepared.push(commit))
+    if (!first.touched) throw new Error('应当量了读数')
+    expect(first.readings.explain.functions.map(row => [row.name, row.level])).toEqual([
+      ['tangled', 'alert'],
+    ])
+    expect(prepared).toEqual([git(root, 'rev-parse', 'main')])
+    prepared.length = 0
+    const second = resultOf(job, commit => prepared.push(commit))
+    expect(second.touched).toBe(true)
+    expect(prepared).toEqual([])
+  })
+
+  it('resultOf：只有架构观测的基线这次现算（依赖图的基线仍在缓存里）也报「已备好」', () => {
+    // 基线里有 workspace 才有架构观测可存。
+    const root = repository()
+    write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n")
+    write(root, 'packages/core/a/src/index.ts', 'export const a = 1\n')
+    commit(root, 'member')
+    spawnSync('git', ['checkout', '-q', '-b', 'someone/work'], { cwd: root })
+    const home = temporaryDirectory('loop-hook-home-')
+    const job = { root, primaryBranch: 'main', home }
+    write(root, 'packages/core/a/src/tangled.ts', tangled)
+    const prepared: string[] = []
+    resultOf(job, commit => prepared.push(commit))
+    expect(prepared).toEqual([git(root, 'rev-parse', 'main')])
+    prepared.length = 0
+    resultOf(job, commit => prepared.push(commit))
+    expect(prepared).toEqual([])
+    rmSync(join(home, BASELINE_DIRECTORY), { recursive: true, force: true })
+    resultOf(job, commit => prepared.push(commit))
+    expect(prepared).toEqual([git(root, 'rev-parse', 'main')])
+  })
+
+  // 量读数时有一次同步的子进程调用（dependency-cruiser）卡着：到时限要连它一起杀掉，主进程才能按时退出。
+  it.skipIf(process.platform === 'win32')(
+    '卡在同步子进程里也按时限拒绝，它起的进程一起结束；先报过「已备好」的写进超时说明',
+    async () => {
+      const dir = temporaryDirectory('loop-hook-child-')
+      const pidFile = join(dir, 'pid')
+      const stand = join(dir, 'stand-in.mjs')
+      writeFileSync(
+        stand,
+        [
+          "import { spawn, spawnSync } from 'node:child_process'",
+          "import { writeFileSync } from 'node:fs'",
+          "process.send({ kind: 'prepared', commit: '0123456789abcdef' })",
+          "const sleeper = spawn('sleep', ['30'], { stdio: 'ignore' })",
+          `writeFileSync(${JSON.stringify(pidFile)}, String(sleeper.pid))`,
+          "spawnSync('sleep', ['30'])",
+        ].join('\n'),
+      )
+      const started = Date.now()
+      await expect(measureInProcess(stand, {}, 1500)).rejects.toThrow(
+        '量读数超过 1.5 秒，已放弃；基线 012345678 的读数这次已备好存下，下次收工不再重算',
+      )
+      expect(Date.now() - started).toBeLessThan(10_000)
+      const sleeper = Number(readFileSync(pidFile, 'utf8'))
+      await expect
+        .poll(() => {
+          try {
+            process.kill(sleeper, 0)
+            return 'alive'
+          } catch {
+            return 'gone'
+          }
+        })
+        .toBe('gone')
+    },
+  )
+
+  it('子进程没给结果就退出：拒绝，原因带它的错误输出', async () => {
+    const dir = temporaryDirectory('loop-hook-child-')
+    const stand = join(dir, 'crash.mjs')
+    writeFileSync(stand, "process.stderr.write('boom from child\\n'); process.exit(3)\n")
+    await expect(measureInProcess(stand, {}, 30_000)).rejects.toThrow(
+      '量读数的子进程没给结果就退出了（3）：boom from child',
+    )
   })
 })

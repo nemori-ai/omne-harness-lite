@@ -495,7 +495,7 @@ export function describeResume(verdict: ResumeVerdict, head: string): string[] {
     ...baseLine,
     '步骤：',
     ...groups,
-    `${from} 运行时的缓存：测试 ${verdict.caches.test}、依赖图 ${verdict.caches.depGraph}、变异 ${verdict.caches.mutation}`,
+    `${from} 运行时的缓存：测试 ${verdict.caches.test}、依赖图 ${verdict.caches.depGraph}`,
     ...changedLines(range, verdict.changedFiles),
     ...intermediateLines(verdict.intermediate),
   ]

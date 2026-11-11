@@ -23,7 +23,6 @@ import {
 } from '@omne-harness/repo-toolchain/core/workspace'
 import {
   effectiveParallelism,
-  effectiveRecheckMax,
   ledgerHome,
   parseTestRunsConfig,
   readTestRunsConfig,
@@ -193,7 +192,6 @@ describe('并行度', () => {
     affected: AFFECTED_EMPTY,
     ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
     triage: { repeats: 3 },
-    mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
     cache: CACHE_EMPTY,
   })
   const budget = {
@@ -225,6 +223,18 @@ describe('并行度', () => {
     )
   })
 
+  it('triage.repeats 原样进配置；缺 triage 段、缺这一项或不是正整数时按名字报错', () => {
+    expect(config.triage).toEqual({ repeats: 3 })
+    const rest = {
+      parallel: POLICY,
+      affected: AFFECTED_EMPTY,
+      ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+      cache: CACHE_EMPTY,
+    }
+    for (const triage of [undefined, {}, { repeats: 0 }, { repeats: 1.5 }])
+      expect(() => parseTestRunsConfig({ ...rest, triage })).toThrow('triage.repeats')
+  })
+
   it('配置缺项或类型不对就报错', () => {
     expect(() => parseTestRunsConfig({})).toThrow()
     expect(() =>
@@ -233,7 +243,6 @@ describe('并行度', () => {
         affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
-        mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
         cache: CACHE_EMPTY,
       }),
     ).toThrow('parallel.memberDivisor')
@@ -243,7 +252,6 @@ describe('并行度', () => {
         affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
-        mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
         cache: CACHE_EMPTY,
       }),
     ).toThrow('parallel.memberDivisor')
@@ -253,7 +261,6 @@ describe('并行度', () => {
         affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
-        mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
         cache: CACHE_EMPTY,
       }),
     ).toThrow('parallel.minimum 不能大于')
@@ -263,24 +270,6 @@ describe('并行度', () => {
     expect(workerCountOverride({}, 19)).toBe(19)
     expect(workerCountOverride({ VITEST_MAX_WORKERS: '1' }, 19)).toBe(1)
     expect(() => workerCountOverride({ VITEST_MAX_WORKERS: 'x' }, 19)).toThrow('VITEST_MAX_WORKERS')
-  })
-
-  it('复核上限（#649）：配置给初值，环境变量覆盖，0 表示不复核；不是非负整数就报错', () => {
-    expect(effectiveRecheckMax(config, {})).toBe(8)
-    expect(effectiveRecheckMax(config, { OMNE_MUTATION_RECHECK_MAX: '0' })).toBe(0)
-    expect(effectiveRecheckMax(config, { OMNE_MUTATION_RECHECK_MAX: '20' })).toBe(20)
-    expect(() => effectiveRecheckMax(config, { OMNE_MUTATION_RECHECK_MAX: '-1' })).toThrow(
-      'OMNE_MUTATION_RECHECK_MAX',
-    )
-    expect(() =>
-      parseTestRunsConfig({
-        parallel: POLICY,
-        affected: AFFECTED_EMPTY,
-        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
-        triage: { repeats: 3 },
-        mutation: { testTimeoutSeconds: 60 },
-      }),
-    ).toThrow('mutation.recheckMaxMutants')
   })
 
   it('仓库里的配置：策略不含任何一台机器的核数，上下限齐全', () => {

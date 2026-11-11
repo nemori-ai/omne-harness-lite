@@ -34,7 +34,7 @@ def test_discovery_does_not_fall_back_to_installed_package():
 
 def test_package_import_and_cli_help_work_outside_checkout():
     with TemporaryDirectory(prefix="omne-spec-cli-") as directory:
-        for module in ("check_docs", "evaluate_developer_model"):
+        for module in ["check_docs"]:
             result = subprocess.run(
                 [sys.executable, "-m", f"omne_harness_lite_spec_tools.{module}", "--help"],
                 cwd=directory, capture_output=True, text=True,

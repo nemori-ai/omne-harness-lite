@@ -35,11 +35,10 @@ export type AdmissionMode = 'full' | 'affected' | 'resume'
 export type CacheState = 'on' | 'off' | 'unknown'
 export const CACHE_STATES: readonly CacheState[] = ['on', 'off', 'unknown']
 
-/** 这次运行时各缓存的状态：测试结果缓存、依赖图缓存、变异增量。放行时拿它核对「没有用缓存给自己作证」。 */
+/** 这次运行时各缓存的状态：测试结果缓存、依赖图缓存。放行时拿它核对「没有用缓存给自己作证」。 */
 export interface CacheStates {
   readonly test: CacheState
   readonly depGraph: CacheState
-  readonly mutation: CacheState
 }
 
 /** 一步的结果：跑完了有退出码；没跑到（没开始或被终止）没有。 */
@@ -122,9 +121,9 @@ const isCacheState = (value: unknown): value is CacheState =>
 
 function parseCaches(value: unknown): CacheStates | undefined {
   if (!isRecord(value)) return undefined
-  const { test, depGraph, mutation } = value
-  if (!isCacheState(test) || !isCacheState(depGraph) || !isCacheState(mutation)) return undefined
-  return { test, depGraph, mutation }
+  const { test, depGraph } = value
+  if (!isCacheState(test) || !isCacheState(depGraph)) return undefined
+  return { test, depGraph }
 }
 
 function parseStep(value: unknown): AdmissionStep | undefined {

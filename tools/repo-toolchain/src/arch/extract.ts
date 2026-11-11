@@ -1093,5 +1093,14 @@ function memberEdgesOf(imports: readonly ImportFact[]): MemberEdge[] {
 }
 
 export function extractArchitecture(snapshot: Snapshot): ActualExtraction {
-  return new Extractor(snapshot).run()
+  return extractWithResolver(snapshot).extraction
+}
+
+/** 抽取，并交回抽取用的解析器：同一版本的符合性检查查公开导出时用它，不再为同一份快照另建一个 TypeScript 程序。 */
+export function extractWithResolver(snapshot: Snapshot): {
+  readonly extraction: ActualExtraction
+  readonly resolver: StaticResolver
+} {
+  const extractor = new Extractor(snapshot)
+  return { extraction: extractor.run(), resolver: extractor.resolver }
 }

@@ -36,20 +36,6 @@
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []
-    },
-    {
-      "id": "mutation-verification",
-      "path": "tools/test-runner/tests/README.md",
-      "kind": "verification",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/verification.md"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
     }
   ]
 }

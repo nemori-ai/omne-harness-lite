@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { GhCommand } from '../src/delivery/github-read.ts'
+import type { GhCommand } from '../src/shared/gh.ts'
 import { confirmationNote, NOTE_LIMIT, waitGate } from '../src/integration/gate.ts'
 
 type Poll = { status: string; conclusion?: string; pending?: unknown[] }

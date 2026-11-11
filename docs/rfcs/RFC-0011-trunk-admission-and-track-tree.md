@@ -10,6 +10,8 @@ owner: Brian Lee
 
 规则与维护责任见[RFC入口](README.md)。本提案是四条主干准入规则的完整正文，并增加多层轨道。
 
+> **后继标注（2026-11-10）**：本提案部分被 [RFC-0014](RFC-0014-single-card-session-and-gate-relief.md) 取代：「轨道树」，以及进轨道 PR 的「所含的卡」申报。精确范围与生效条件见 RFC-0014「后继关系与维护」；本提案的决定状态与其余范围不变。
+
 - **取代 RFC-0004。** 本提案整篇取代 [RFC-0004](RFC-0004-trunk-pr-admission.md) revision 1 中仍然有效的范围，即扣除 [RFC-0008](RFC-0008-repo-toolchain-trust.md)「决定范围」第 1 至 8 项与 [RFC-0009](RFC-0009-adoption-and-local-tool-retirement.md)「决定范围」第 1 至 12 项之后的全部条款。本提案接受后，RFC-0004 的状态改为 superseded。
 - **复述 RFC-0008 与 RFC-0009。** 这两篇提案取代 RFC-0004 的那部分内容，本提案在第 16 至 18 节复述原文，并在每节末尾注明出处。复述只为让读者不必拼读多篇提案。这些条款仍由 RFC-0008 与 RFC-0009 拥有，以原文为准。
 - **部分取代 RFC-0009。** 本提案修改 RFC-0009 的三处条款：policy registry 的轨道字段、轨道退役由 admin 操作 registry 与分支的规则，以及“`gate-track` 读取轨道登记”的陈述。精确范围见「决定范围」。
@@ -825,7 +827,7 @@ RFC-0004「流程失效时的恢复」中未被 RFC-0009 取代的部分，复�
 | `github-gate`：`gate-reconcile.yml` | 报告无记录的主干提交 | 增加上游链上有分支不存在的核对 | 只报告，不创建标签 |
 | `github-gate`：`gate/README.md` | 派发方式 | 新的 `gate-track` 参数与 PR 组合 | 无 |
 | policy registry 与集成工具（`policy.ts`、`sync.ts`、`engine.ts`、`binding.ts`、SPEC、README） | 轨道条目有 `initialMain`；`global` 与 `cross-track` 的目标是 main | `parent`、`initialBase`；`start` 对目标轨道与上游链的核对；两种 route 改为指向顶层轨道 | registry 改动经仓库工具链变更闸门 |
-| `branch-integration` 技能、[agent交付操作](../engineering/agent-delivery.md)、[开发指南](../development.md#多层分支操作) | FI 与 RI 按 main 描述 | 按上游描述；提升 PR 的说明 | 生成投影不手改 |
+| `branch-integration` 技能、[agent交付操作](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/docs/engineering/agent-delivery.md)、[开发指南](../development.md#多层分支操作) | FI 与 RI 按 main 描述 | 按上游描述；提升 PR 的说明 | 生成投影不手改 |
 | [对外交付边界](../engineering/publication.md) | 以 RFC-0004「决定范围」为 release 的依据 | 依据改为本提案第 15 节 | release 的位置与确认一档不变 |
 | integration.md「第二阶段目标」「检查责任」，开发指南「迭代中的受影响测试」「交付与合并前的检查」 | integration.md「第二阶段目标」与开发指南「迭代中的受影响测试」写“不读 PR 能写入的缓存”；「交付与合并前的检查」的命令不进入准入模式 | 进入任何一条主干之前的检查不读 turbo 任务缓存；合并前命令带 `OMNE_ADMISSION=1`，确认说明写明命令 | 本地缓存不进入 Git |
 | `.github/workflows/check.yml` | 只保留手动触发 | 远程检查恢复时更新文件说明（承接 RFC-0004 的待写回） | 第二阶段之前不改 |
@@ -1060,7 +1062,7 @@ RFC-0004 的 superseded 状态与更正标注，RFC-0002、RFC-0009 的后继关
 | 第二阶段设计（承接 RFC-0004 写回表“第二阶段”一行） | integration.md「第二阶段目标」 | 待写回 | 未切换 |
 | `gate-publish`、`gate-track`、`gate-reconcile` 与 `gate/README.md` | `github-gate` | 已写回，`github-gate` 提交 `9816de07` | 2026-10-20 切换（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | registry 字段、`start` 的核对、route | [policy registry](../engineering/integration-policy.json)、集成工具 [SPEC](../../tools/dev-flow/src/integration/SPEC.md) 与 [README](../../tools/dev-flow/src/integration/README.md) | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
-| 操作说明 | [开发指南](../development.md#多层分支操作)、[agent交付操作](../engineering/agent-delivery.md)、`branch-integration` 技能 | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
+| 操作说明 | [开发指南](../development.md#多层分支操作)、[agent交付操作](https://github.com/nemori-ai/omne-harness-lite/blob/454d1574ef9fe69bb99c95bc962c0dae4c21aaad/docs/engineering/agent-delivery.md)、`branch-integration` 技能 | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | release 的依据链接 | [对外交付边界](../engineering/publication.md) | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | 准入缓存策略（RFC-0002 留待一起决定的部分） | 规则写入 integration.md「检查责任」，并改 integration.md「第二阶段目标」的现行句；操作改[开发指南](../development.md)「迭代中的受影响测试」的现行句与「交付与合并前的检查」的命令 | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | 远程检查的工作流说明（承接 RFC-0004 写回表“`check.yml`”一行） | `.github/workflows/check.yml` | 待写回 | 未切换 |

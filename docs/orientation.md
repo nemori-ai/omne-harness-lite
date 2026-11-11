@@ -8,7 +8,7 @@
 
 做架构、领域建模、契约、装配、实现切片或设计评审的人和 agent，开工前读一次本页。局部修复、工具链、取证和验收不要求先读本页，按根 [AGENTS.md](../AGENTS.md)「按任务展开」表进入各自的入口。
 
-到达本页的入口有四个：根 AGENTS.md 的「按任务展开」表、[docs/README.md](README.md#顶层入口分工) 的入口分工表、专责角色的[项目框架](../.meta_harness/agents/roles/project-frame.md)，以及 `claim` 给出的开工地图第一项。读完本页后，按角色进入[读者入口](README.md#选择阅读路径)，或按任务进入[任务地图](context-map.md)。
+到达本页的入口有两个：根 AGENTS.md 的「按任务展开」表与 [docs/README.md](README.md#顶层入口分工) 的入口分工表。读完本页后，按角色进入[读者入口](README.md#选择阅读路径)，或按任务进入[任务地图](context-map.md)。
 
 ## 状态怎样读
 
@@ -96,7 +96,7 @@ flowchart TB
 - 共享成员：[产品包组织](package-organization.md#目标目录)「目标目录」中 `schema` 只放 Schema 提供者、不是 `util` 或 `common` 的一段，以及同段对 `common`、`util` 的说明。
 - Cordis 内核：[总体结构与责任](architecture/structure.md#cordis-集成与作用域)「Cordis 集成与作用域」。
 - 装载状态：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
-- 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 进入 integration/legacy-refactor）。
+- 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 合入）。
 
 ## 协作
 
@@ -167,7 +167,7 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结�
 - `ConsumerRef`：[Model 契约](../packages/model/model-contract/SPEC.md)中 `ConsumerRef` 是消费者拥有者登记的稳定引用的一段；[Tool 契约](../packages/tool/tool-contract/SPEC.md)。
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
-- 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 进入 integration/legacy-refactor）。
+- 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 合入）。
 
 ## 顶层架构
 
@@ -218,7 +218,7 @@ SDK 只依赖公开契约，不带服务端存储、runtime 实例或 Cordis 装
 - 分层与约束表：[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)「依赖关系与禁止方向」。
 - 成员标注与禁止边：[产品包组织](package-organization.md#sdk与系统接入)「SDK与系统接入」「[最小 CLI 的接入边界](package-organization.md#最小-cli-的接入边界)」。
 - 已装载的成员：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
-- 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 进入 integration/legacy-refactor）。
+- 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 合入）。
 
 ### 单机进程
 
@@ -287,10 +287,10 @@ flowchart TB
 - 部署范围与进程组织：[部署与运行拓扑](architecture/deployment/README.md#部署环境与进程组织)「部署环境与进程组织」。
 - HTTP JSON 与 fetch SSE：[系统技术基础](architecture/technical-foundations.md#共同技术选择)「共同技术选择」。
 - 装配入口、插件树行与供应商适配：[应用装配](architecture/runtime/application-assembly.md#进程与装配入口)「进程与装配入口」「[插件树](architecture/runtime/application-assembly.md#插件树)」。
-- 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 进入 integration/legacy-refactor）。
+- 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 合入）。
 
 ## 维护
 
-本页的拥有者是 docs 集成线。出处清单所列章节有改动时，改动所在的卡同步本页对应的图与状态表。来不及同步时，在对应状态表加一行「待核对」，写明哪一节变了。核对完成后，把该图出处清单末尾「核对于」的提交号改为核对时的提交号。
+本页的拥有者是 docs 维护者。出处清单所列章节有改动时，改动所在的卡同步本页对应的图与状态表。来不及同步时，在对应状态表加一行「待核对」，写明哪一节变了。核对完成后，把该图出处清单末尾「核对于」的提交号改为核对时的提交号。
 
 `pnpm run check:docs` 只检查链接与锚点，不检查图与出处的内容是否一致。内容漂移靠上面的规则发现，本页不承诺机器检查。

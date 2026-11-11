@@ -10,7 +10,7 @@ import {
   removeTemporaries,
   repository,
   write,
-} from '../../repo-toolchain/tests/fixtures/loop-canary/repository.ts'
+} from '../../../tools/repo-toolchain/tests/fixtures/loop-canary/repository.ts'
 
 afterEach(removeTemporaries)
 
@@ -22,7 +22,7 @@ function checkout(): string {
   write(root, 'package.json', JSON.stringify({ engines: { node: '>=24 <25' } }))
   cpSync(
     // 根 tsconfig.base.json 只是指向共享预设的 extends；快照里直接放预设本身。
-    fileURLToPath(new URL('../../repo-config/tsconfig.base.json', import.meta.url)),
+    fileURLToPath(new URL('../../../tools/repo-config/tsconfig.base.json', import.meta.url)),
     join(root, 'tsconfig.base.json'),
   )
   write(root, 'docs/architecture/accepted.md', '# Accepted\n')

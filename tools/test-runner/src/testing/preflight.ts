@@ -5,9 +5,9 @@
 import { availableParallelism } from 'node:os'
 import { join, relative } from 'node:path'
 import { mkdirSync, readFileSync, rmSync } from 'node:fs'
-import { lightConcurrency, STEP_INPUTS } from './check.ts'
+import { lightConcurrency } from './check.ts'
 import { runGraph, type CheckStep } from './check-graph.ts'
-import { PREFLIGHT_FIXES, preflightSteps, type StepInputs } from './check-steps.ts'
+import { PREFLIGHT_FIXES, preflightSteps } from './check-steps.ts'
 import { describeHealing, healEnvironment, type EnvironmentIo } from './environment.ts'
 
 export const PREFLIGHT_LOG_DIR = 'tmp/preflight'
@@ -27,7 +27,7 @@ const GIT_ENV = [
 
 /** 可替换的依赖：步骤表、修法表、环境自愈的外部动作与核数。测试换成假步骤。 */
 export interface PreflightDependencies {
-  readonly steps?: (inputs: StepInputs) => CheckStep[]
+  readonly steps?: () => CheckStep[]
   readonly fixes?: Readonly<Record<string, string>>
   readonly environment?: EnvironmentIo
   readonly cores?: number
@@ -59,7 +59,7 @@ export async function runPreflight(
   const env: NodeJS.ProcessEnv = { ...process.env }
   for (const name of GIT_ENV) delete env[name]
   const cores = dependencies.cores ?? availableParallelism()
-  const steps = (dependencies.steps ?? preflightSteps)({ ...STEP_INPUTS, baseline: 'HEAD' })
+  const steps = (dependencies.steps ?? preflightSteps)()
   const fixes = dependencies.fixes ?? PREFLIGHT_FIXES
   const logDir = join(root, PREFLIGHT_LOG_DIR)
   rmSync(logDir, { recursive: true, force: true })

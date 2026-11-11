@@ -4,7 +4,7 @@
 
 项目处于 `0.0.0 → 0.1.0` 研发阶段，尚未正式上线或提供生产服务。第一版完整交付为单机系统，同时为个人设备和云端集群的后续装配保留边界。具体阶段范围归[项目要求](docs/requirements.md#交付阶段与功能范围)和各产品的版本承诺。
 
-新 `packages/` 和 `apps/` 目前维护目标文档与骨架，尚未建立产品源码、成员 manifest 或可启动应用。0.0.1 的封存实现已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31)。设计接受、实现支持和运行验证分别记录，不能凭文档目录判断功能已可用。
+`apps/` 已有命令行客户端、Harness Server 装配与一个私有验证应用，见[应用入口](apps/README.md#现有成员)；`packages/` 各成员的实现状态见[包入口](packages/README.md)。0.0.1 的封存实现已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31)。设计接受、实现支持和运行验证分别记录，不能凭文档目录判断功能已可用。
 
 [项目要求](docs/requirements.md) ·
 [产品设计](.meta_harness/design/product/README.md) ·
@@ -54,18 +54,18 @@
 
 ## 仓库与开发
 
-仓库按 monorepo 组织，当前主要内容是设计正文与开发工具。
+仓库按 monorepo 组织，包含设计正文、产品包与应用、开发工具。
 
 | 位置 | 内容 |
 |---|---|
 | [.meta_harness/](.meta_harness/README.md) | 产品设计、统一语言、领域对象、持续研究及独有agent能力；保留源按其入口定位 |
 | [docs/](docs/README.md) | 项目要求、工程规范、系统架构、领域关系、读者与任务指引、维护指南及RFC入口 |
 | [packages/](packages/README.md) | 目标能力组与成员文档；具体包边界沿[产品包组织](docs/package-organization.md)维护 |
-| [apps/](apps/README.md) | 目标应用与装配责任；尚无可启动成员 |
+| [apps/](apps/README.md) | 产品应用与装配；现有成员见其入口 |
 | [packages.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)、[apps.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md) | 封存源码与公开说明，已从仓库删除，链接指向固定提交。只用于来源核对，不作为新树实现支持 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
 
-参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md)和[开发初始化](docs/development.md#准备可用的检出)开始。人或 agent 使用的 coding agent harness 须安装项目指定版本的 pstack 与 Matt 插件，版本及采用范围归[技能入口](docs/engineering/skills.md)。环境准备、命令与按任务选择验证的方法继续由开发指南维护。
+参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md)和[开发初始化](docs/development.md#准备可用的检出)开始。研发流程走 pqw-skills，它是 git 子模块，随检出初始化；人或 agent 使用的 coding agent harness 另须安装指定版本的 pstack、Matt 与 ub-mode。版本及采用范围归[技能入口](docs/engineering/skills.md#来源与项目采用)。环境准备、命令与按任务选择验证的方法继续由开发指南维护。
 
 日常文档维护可运行 `pnpm run check:docs`，结构缺项通过 `pnpm run docs:inventory` 查看。`pnpm run check` 按影响面选择必要检查，未选择的检查没有执行；结论边界归[验证说明](docs/verification.md)。这些检查不证明产品已支持、业务行为符合或已获负责人接受。
 
