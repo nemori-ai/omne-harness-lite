@@ -36,9 +36,9 @@
 
 ## 研发流程
 
-大改动（新增领域、跨领域纵线、子系统重构、较大改造）走 pqw `single-session-dev-flow`：定义期由人主导，过了交接点由代理自主交付；小修、原型、诊断按它的「不够格」一节转 Matt `tdd`、`prototype`、`diagnosing-bugs`。流程的环节与做法只归 pqw 各技能，本仓库只在下面的接入节给出 omne 的命令与位置。
+大改动（新增领域、跨领域纵线、子系统重构、较大改造）走 pqw `single-session-dev-flow`：定义期由人主导，交接期由设计会话与人定约、定程并交出一程，交付期由代理自主交付；小修、原型、诊断按它的「不够格」一节转 Matt `tdd`、`prototype`、`diagnosing-bugs`。流程的环节与做法只归 pqw 各技能，本仓库只在下面的接入节给出 omne 的命令与位置。
 
-卡就是交接信息包：设计段落盘进 `integration/mainline` 后发卡，交付会话只读卡与它链接的正式文档就开工。发卡、开工、开 PR、请求 gate 确认与接受的命令归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)。合入的门与准入的时机归[集成规则](docs/engineering/integration.md)。
+卡就是交接信息包：设计段落盘进 `integration/mainline` 后，设计会话一次发一程的卡，交付会话只读这张卡与它链接的 spec、正式文档就开工，做完在卡上交回，由设计会话与人收回。发卡、开工、开 PR、请求 gate 确认与接受的命令归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)。合入的门与准入的时机归[集成规则](docs/engineering/integration.md)。
 
 ## pqw-skills 接入
 
@@ -60,7 +60,8 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：先核 `git status` 干净、分支已合回，再删目录并 `git worktree prune` |
 | 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
 | 子代理的模型与档位政策 | [子代理的模型与档位](docs/engineering/skills.md#子代理的模型与档位) |
-| 交接信息包放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`） |
+| 交接信息包放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`）；分程时路线图放父卡 |
+| 跨会话协调用什么 | GitHub issue：卡正文放包，卡评论放交付声明与退包，关卡即接受 |
 | 不做与推迟的记录放哪 | 未提供 |
 | 常驻卡片 | 本文件「做事方式」一节：`initialize_agents.py` 从钉住的 `resident-card.md` 写入受管段落，`pnpm run check:agents` 核逐字相同；不手改 |
 

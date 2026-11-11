@@ -8,7 +8,7 @@
 
 | 层 | 来源 | 回答什么 | 落在哪里 |
 |---|---|---|---|
-| 工作流程 | pqw-skills `single-session-dev-flow` 与它的环节技能 | 大改动按什么阶段与顺序推进：定义期、交接点、交付期的切片循环、收口、回看与清理；不够格的小修、原型与诊断由它转给 Matt 与 pstack 的对应技能 | 任务的 spec、plan、收口记录与交付声明 |
+| 工作流程 | pqw-skills `single-session-dev-flow` 与它的环节技能 | 大改动按什么阶段与顺序推进：定义期、交接期（定约、定程、交出、收回）、交付期的切片循环、收口、回看与清理；不够格的小修、原型与诊断由它转给 Matt 与 pstack 的对应技能 | 任务的 spec、plan、收口记录与交付声明 |
 | 交付方案与实施规格的写法 | Matt `to-spec`、`to-tickets`、`writing-for-agents`，经 pqw `spec-and-plan` 加载 | 怎样把已讨论的内容写成实施输入、切成可验证的切片、写给子代理的简报 | pqw 的 spec 与 plan 模板，加本项目的[附加节](../../.meta_harness/agents/pqw/spec-addendum.md) |
 | 研发品味：研发哲学与第一性原理 | Uncle Bob `ub-mode` | 写或改代码时怎样判断：先做对，再做好，并遵循日常实践 | spec 模板的「原则与约束」一节；评审「设计与实践」一面的判据 |
 
