@@ -344,7 +344,7 @@ Blocking for H11. Two parts have no public entry on this track:
 - the public faces that withdraw an instance and continue an execution from the Journal under a new instance, and
 - the observation path of the server entry, through which the observation must stay continuous after the reassembly.
 
-Observed stop: `control.quiesce`, `recovery.detach` and `runtime.resume` answer `unavailable`. Each diagnostic says that the face is not implemented until #502 stage 5. The host receiver outside the instance keeps receiving. After the Model settles, the original driver continues from the received entry, with one Model admission. The probe has no observation path to check.
+Observed stop: `control.quiesce` answers `drained`. The driver hands the execution over at the wait for the Model result, and the Journal state becomes `suspended`. `recovery.detach` answers `unavailable`: its diagnostic says that the face is not implemented until #502 stage 5. `runtime.resume` answers `unavailable`: the runtime drains after `quiesce` and accepts no new resume. The Model call is not cancelled, and the host receiver outside the instance keeps receiving. No instance continues the execution on this path, so no reply comes after the Model settles, with one Model admission. The probe has no observation path to check.
 
 The gap closes when the H11 criteria above hold, including the observation continuity. Owners: [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) for the Agent faces, and [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784) for the observation continuity, which the access line of M2 takes over.
 

@@ -549,17 +549,20 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(environment.command.calls.map(call => call.executable)).toEqual(['cat'])
   })
 
-  // R2-D173, R2-D185: quiesce during the Model call answers `unresolved` (the execution in the slot
-  // is not handed over, #502 stage 5), and the draining runtime refuses the resume. H11 stays refused.
-  it('records quiesce as unresolved, detach and resume as unavailable and one Model admission after the Model settled', async () => {
+  // R2-D173, R2-D185: quiesce during the Model call hands the execution over. The driver detaches
+  // it at the wait for the Model result, and quiesce answers `drained`. `detach` is not implemented
+  // (#502 stage 5) and the draining runtime refuses the resume, so no instance continues the
+  // execution on this path: it stays suspended and no reply comes. H11 stays refused.
+  it('records quiesce as drained, detach and resume as unavailable and a suspended execution after the Model settled', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
     expect(kindAt(observed, 'H11')).toBe('refused')
     expect(evidenceAt(observed, 'H11')).toEqual([
       'caller-reported: Model admissions 1 after the Model settled',
-      'agent:control.quiesce unresolved',
+      'agent:control.quiesce drained',
       'agent:recovery.detach unavailable',
       'agent:runtime.resume unavailable',
-      'agent:the original driver continued from the received entry after the Model settled',
+      'agent:no reply within 2000 event-loop turns after the Model was released',
+      'agent:journal state suspended at M6 after the Model settled',
       'observation:no public entry supplies the server-entry observation path; frame continuity on the observation connection after reassembly is not observed (GAP-AGENT-REASSEMBLY)',
     ])
   })

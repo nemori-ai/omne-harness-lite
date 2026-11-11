@@ -51,7 +51,7 @@
 | GAP-RECEIVE-SURFACE     | 否   | H06           | H06 经 pusher 与宿主接收方连通。Model ACK 在 Session 一侧的记账仍是具名偏离 `MODEL-ACK-ARRIVAL`。                                                       |
 | GAP-SECOND-RUN          | 是   | H09           | Session 以 `run-active` 拒绝第二个 Run，Agent 对 `input.submit` 答 `unavailable`。                                                                      |
 | GAP-TOOL-LOOP           | 是   | H10           | 装配缺 `toolRequests`，Agent 拒绝整批工具调用动作。本应用的消息桥拒绝交接拒绝消息，loop 因此停在 T5，没有发起 Tool 调用。owner 是 Reduce B3（R2-D36）。 |
-| GAP-AGENT-REASSEMBLY    | 是   | H11           | `quiesce`、`detach` 与 `resume` 返回 `unavailable`。没有公开入口提供 server entry 的观察路径，重装配后观察是否连续无法观察。                            |
+| GAP-AGENT-REASSEMBLY    | 是   | H11           | `quiesce` 把执行交接出去并返回 `drained`。`detach` 与 `resume` 返回 `unavailable`，所以没有实例接着推进这次执行。没有公开入口提供 server entry 的观察路径，重装配后观察是否连续无法观察。                            |
 | GAP-REASONING-REPLAY    | 是   | H12           | Agent loop 交出的回复不含已封的推理部件（R2-D268），下一次请求无法回放它们。第 2 轮还会遇到 GAP-SECOND-RUN。                                            |
 | GAP-SESSION-LOG-TARGETS | 是   | H13           | 同日志提供者不暴露 Model 接收目标，无法在 Session 日志上建立接收方。                                                                                    |
 

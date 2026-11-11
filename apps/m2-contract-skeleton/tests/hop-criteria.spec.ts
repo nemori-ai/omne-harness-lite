@@ -329,7 +329,10 @@ describe('H11, the reassembly probe', () => {
   it('does not name a timeout of the admission wait when the Model admitted the call', async () => {
     const observed = await runFirstTenantPath(pathDependencies({ replyTurns: 50 }))
     expect(evidenceAt(observed, 'H11').join(' ')).not.toContain('admitted no call')
-    expect(evidenceAt(observed, 'H11').join(' ')).not.toContain('no reply within')
+    // Quiesce handed the execution over, so the wait that times out is the wait for the reply.
+    expect(evidenceAt(observed, 'H11')).toContain(
+      'agent:no reply within 50 event-loop turns after the Model was released',
+    )
   })
 
   it('names the journal state where the execution stopped when the reply never came', async () => {
@@ -340,7 +343,7 @@ describe('H11, the reassembly probe', () => {
       }),
     )
     expect(evidenceAt(observed, 'H11')).toContain(
-      'agent:journal state waiting at M6 after the Model settled',
+      'agent:journal state suspended at M6 after the Model settled',
     )
     expect(evidenceAt(observed, 'H11').join(' ')).not.toContain('execution ended')
     expect(evidenceAt(observed, 'H11').join(' ')).not.toContain('original driver')
