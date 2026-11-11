@@ -15,9 +15,14 @@ import { storageCatalog } from '../storage/catalog.ts'
  * `session-composite/4` (R2-D342): the session log gained the state-item and execution-fact
  * migrations, so the catalog and its manifest digest changed.
  * Session Todo commands change the participant material in wave W2, adopting combination /5.
- * W3 immutable Tool materials add a migration and adopt combination /6.
+ * The governance line adds the governance, permission and settings preparation participants and
+ * their migrations to the catalog, adopting combination /6.
+ * The Session writer no longer publishes `session.commit-result`, so its material and the manifest
+ * digest changed, adopting combination /7.
+ * W3 immutable Tool materials add a migration on top of the governance catalog, adopting
+ * combination /8.
  */
-export const COMBINATION_VERSION = 'session-composite/6'
+export const COMBINATION_VERSION = 'session-composite/8'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string

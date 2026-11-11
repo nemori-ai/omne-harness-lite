@@ -16,10 +16,16 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { canonicalDigest, type LedgerRecord, type ToolLedgerStore } from '@omne-harness/tool'
 import type { ToolClock } from '@omne-harness/tool-contract/provider'
-import { createLocalToolClock, type LocalToolForwarding } from '@omne-harness/tool-host-local'
+import {
+  createLocalToolClock,
+  type LocalToolForwarding,
+  type LocalInvocationQualifier,
+} from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 import { randomBytes } from 'node:crypto'
+
+type StartConditionalCommit = LocalToolRuntimeInput['conditionalCommit']
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import {
   decodeToolInstant,
@@ -31,12 +37,16 @@ import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
 
-export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
+export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins> &
+  Readonly<{
+    qualification: LocalInvocationQualifier<unknown>
+  }>
 
 /** `tool-records` 行在自己的受信上下文里建出的 SQL 端口。 */
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore
   bodies: NonNullable<LocalToolRuntimeInput['bodies']>
+  conditional: StartConditionalCommit
 }>
 
 type Witnessed = { execution: string; sources: Set<string> }
@@ -194,6 +204,16 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
       return answer
     },
   } satisfies ToolLedgerStore)
+}
+
+/** 交给 bundle 的带条件提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */
+export function lateConditional(holder: ToolRuntimeHolder): StartConditionalCommit {
+  const conditional: StartConditionalCommit = {
+    commit: input =>
+      holder.sql?.conditional.commit(input) ??
+      Promise.resolve(unavailableRead('tool-records: no SQL conditional commit is installed')),
+  }
+  return Object.freeze(conditional)
 }
 
 /** 见证核对：这个原调用在记录仓里有这个执行与这份来源证据。 */

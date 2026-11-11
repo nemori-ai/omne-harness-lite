@@ -193,6 +193,22 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ## 账本守卫（TL-11）
 
+### 原来源资格观察
+
+`createLocalInvocationQualifier` 与原签发器消费相同 store、authority、principalCodec 及 forwarding 装配，返回独立的 `qualify` 端口。它冻结请求数据，再执行原来源 guard；不能跳过同主体核验、原 admission、完整固定请求或转发父证明。原 principal 仍由 Identity 拥有，不克隆或序列化为活凭据。
+
+资格结果的 `origin` 保存获验原始调用的 call、admission 和完整固定请求。直接调用返回自身。转发返回原 guard 核验的父调用；应用不得从记录私有布局推断它。只有完整来源核验成功才发布 origin，且原记录集合仍须在消费事务中核回。origin 不证明 Agent 采用；该关联由 Agent 拥有者提供。
+
+租户标识是 legal-identity 签发的不可变值。资格读取保留该值用于原 guard 和返回观察，不用结构克隆替代它；深拷贝仅作用于普通请求数据。应用持久化观察时通过身份域公开 codec 生成租户文本。
+
+成功结果含 version、获验请求及原记录的地址和完整摘要，不授予执行许可。直接调用观察一条原 host binding，即使 call 尚未创建也成立；转发观察子 binding、原父 call、父 binding。观察只来自 guard 实际读取的记录。同一主键在一次核验中出现不同内容时答 unavailable，不混合不同快照。读取或解码失败不泄漏异常原文；伪造来源或错主体答 denied。
+
+转发核验调用原启动权威的 `inspect`，沿用它的未知与排除语义。本工厂不另行写启动状态；不能把包含该外部查询的整条链称为无副作用的纯函数。
+
+此结果供受信应用核对原调用的来源与归属。它不保证资格读取后记录不变，不自行提交权限，也不替代 Identity、启动资格等外部拥有者的 current 检查。原源码和精确类型归 [invocation-qualification.ts](src/invocation-qualification.ts)，行为守护归 [invocation-qualification.spec.ts](tests/invocation-qualification.spec.ts)。
+
+### 守卫装配
+
 账本在构造时固定一份守卫快照 `ToolLedgerGuards`。本包给出它的八项生产件和一个组装函数。全部是纯工厂：不建记录仓，不持有跨调用的状态，不导入 Cordis 与任何 `testing` 入口。资格裁定、主体比较与主体编码归其他拥有者，以函数参数进入；测试用替身，装配用真件。
 
 | 键                     | 工厂                                                | 行为                                                                                                                                                                      |
@@ -346,11 +362,13 @@ execute 在入口核 live 与原固定 intent 并启动 provider work 后，prov
 
 ## 目标请求当前资格
 
-host-only `ToolRequestAccess.qualify` 接收真实 CallAccess 与完整 FixedToolRequest，返回当前 AccessVerdict。应用拥有规则解释和当前代次。ToolHostAccess.request 可配置该端口，装配将同一端口传给 local start guard 与 coordinator 的 requestAccess。未配置时保留独立提供者的既有行为。配置后缺答复、坏答复或抛错均为 unavailable，不获得启动资格。
+host-only `ToolRequestAccess.qualify` 接收真实 CallAccess 与完整 FixedToolRequest，返回当前 `RequestAccessVerdict`。`allowed` 带 `condition`，值是一个启动条件或 `null`。应用拥有规则解释和当前代次。ToolHostAccess.request 可配置该端口，装配将同一端口传给 local start guard 与 coordinator 的 requestAccess。未配置时保留独立提供者的既有行为。配置后缺答复、坏答复、`allowed` 缺 `condition` 或抛错均为 unavailable，不获得启动资格。
 
 start guard 先保留 M2 programmatic 围栏，再核当前调用身份，最后核目标策略。策略 denied 为 refused。coordinator 在 prepare 和 consume 的每次 CAS 重试中，于当前调用身份核验后、permitRequirements 前重问目标策略。prepare 的 denied 直接拒绝；consume 的 denied 用既有 rejected 与 exclusion 保存未启动事实，unavailable 保留 unknown，不写 acceptance。
 
-consume 与 inspect 先认回原 started 或 rejected 历史，不用新规则改写既成事实。新增策略不撤销已发生副作用，也不提供外部撤权与存储提交原子同步的保证。验证见 [请求策略反例](tests/request-access.spec.ts) 和 [真实执行绑定组合](tests/runtime-composition/forwarding.spec.ts)。
+启动条件（`StartCondition`）是策略随放行给出的一个值。宿主不读它的内容。consume 的放行带条件时，coordinator 把 acceptance 的账本写入与条件交给 `ConditionalLedgerCommit` 一次提交：两者在一个事务里一起成立，或都不成立。条件不成立时该端口答 `condition-failed`，没有任何写入；coordinator 按修订冲突的同一条路径重读账本、重问策略，再决定放行或拒绝。连续 `commitAttempts` 次不成立答 unavailable，不写 acceptance。放行不带条件（`null`）时沿用普通账本提交。prepare 与 start guard 只用放行与否，不提交条件。coordinator 的 `requestAccess` 把策略与这个提交端口成对接收，所以不存在有条件而没有提交端口的装配。runtime 装配的 `conditionalCommit` 是必填项。
+
+consume 与 inspect 先认回原 started 或 rejected 历史，不用新规则改写既成事实。新增策略不撤销已发生副作用。条件覆盖的范围由给出条件的策略决定；条件之外的外部撤权不与存储提交原子同步。验证见 [请求策略反例](tests/request-access.spec.ts) 和 [真实执行绑定组合](tests/runtime-composition/forwarding.spec.ts)。
 
 ## 正文 schema 适配
 

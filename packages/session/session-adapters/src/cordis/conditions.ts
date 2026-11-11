@@ -43,7 +43,7 @@ import type {
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import {
   SESSION_EXECUTION_HANDLER,
-  SESSION_PROTOCOL,
+  SESSION_READ_PROTOCOL,
   decodeSessionExecution,
 } from '@omne-harness/session-storage-sql/participants'
 import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
@@ -179,7 +179,7 @@ function createConditions<P>(given: SessionConditionsInput, ports: Ports<P>): Cu
     const result = await ports.storage.read({
       domain,
       handler: SESSION_EXECUTION_HANDLER,
-      protocol: SESSION_PROTOCOL,
+      protocol: SESSION_READ_PROTOCOL,
       requestKey: randomUUID(),
       input: { tenant: tenantText, execution },
     })

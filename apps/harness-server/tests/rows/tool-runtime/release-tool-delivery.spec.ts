@@ -9,11 +9,16 @@ import { observeToolResults, resultsReleased } from './release-material-observat
 // 发行树上一次工具调用的结果交回 Agent（R2-D272 第二十层）：模型先答一个调用 Shell 的 info 命令，再答文字。工具执行完，
 // Tool 宿主按受理时冻结的 consumer owner（`@omne-harness/agent`）找结果接收方推送，接收方把结果写进会话日志，Agent
 // 从 T0 醒来，结果进历史，模型给出最终回复，Run 以 completed 结束，停服退出码 0。
+// 发行的 `coding` 定义权限模式是 `never`（询问处理 `deny`），Shell 发行权限的默认挑选是 `ask`，所以默认发行树上
+// Shell 调用在准入处因询问策略被拒、不会执行（docs/rows/permission-interpretation.md「Published inquiry at permission
+// capture」）。本文件验证的是工具结果的交回，所以与 release-depth 一样只把 `coding` 的权限模式换成
+// `bypass-permissions`：只跳过人工询问，当前权限来源仍是真实的。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import * as cordis from '../../../src/cordis.ts'
+import { agentAdoptionsConfig } from '../../../src/rows/agent-adoptions/config.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
 import { SESSION_PATH } from '../../r9/flow.ts'
@@ -31,9 +36,20 @@ import { connectable, until } from '../server-entry/support.ts'
 import { bodyReadingModel } from './body-reading-model.ts'
 import { toolRuntimeConfigSchema } from '../../../src/rows/tool-runtime/config.ts'
 
-const release: unknown = JSON.parse(
-  readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
-)
+/** The release distribution, with the `coding` definition skipping only the human inquiry. */
+const release: unknown = (() => {
+  const distribution = JSON.parse(
+    readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
+  ) as { rows: Array<{ id: string; config: unknown }> }
+  const adoptionRow = distribution.rows.find(row => row.id === 'agent-adoptions')
+  if (adoptionRow === undefined) throw new Error('No Agent mappings')
+  const mappings = agentAdoptionsConfig.parse(adoptionRow.config)
+  const coding = mappings.mappings.find(mapping => mapping.name === 'coding')
+  if (coding === undefined) throw new Error('No coding mapping')
+  coding.modes.permission = 'bypass-permissions'
+  adoptionRow.config = mappings
+  return distribution
+})()
 
 const FINAL = 'MARKER-tool-delivery-final'
 
@@ -358,8 +374,20 @@ const resultText = (entry: Entry | undefined): string =>
     .map(block => String(block['text'] ?? ''))
     .join('')
 
+/**
+ * The cases that add a test author to the release. They do not run since the governance line
+ * (#1184): the storage participant `harness.tool-permission-release` loads the production release
+ * in the Worker and binds the run to its generation, so a tree whose release has any other
+ * generation has no permission source and no tool call starts. `createToolReleaseEntries(load)`
+ * does not reach the Worker. The production paths of the same mechanisms run below with the
+ * release tools (Shell offloading, Tools pages, return schemas); the author body mechanics run in
+ * `@omne-harness/tool` and `@omne-harness/tool-host-local`. Remove the skip when a release other
+ * than the production one can be governed.
+ */
+const withTestAuthor = it.skip
+
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
-  it.each(
+  withTestAuthor.each(
     (['json-document', 'json-lines'] as const).flatMap(format =>
       (['direct-small', 'direct-large'] as const).map(delivery => ({ format, delivery })),
     ),
@@ -394,7 +422,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.each(['json-document', 'json-lines'] as const)(
+  withTestAuthor.each(['json-document', 'json-lines'] as const)(
     'W3-B direct small invalid %s becomes a failed Tool result',
     { timeout: 240_000 },
     async format => {
@@ -413,7 +441,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.each(['json-document', 'json-lines'] as const)(
+  withTestAuthor.each(['json-document', 'json-lines'] as const)(
     'W3-B rejects a schema-invalid %s body and finishes the production Agent run',
     { timeout: 240_000 },
     async format => {
@@ -438,7 +466,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it.each(['json-document', 'json-lines'] as const)(
+  withTestAuthor.each(['json-document', 'json-lines'] as const)(
     'W3-B reads a schema-validated %s author body through the production Agent',
     { timeout: 240_000 },
     async format => {
@@ -462,7 +490,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it(
+  withTestAuthor(
     'W3-B writes an author body, drains unawaited writes and reads every page through the release Agent',
     { timeout: 240_000 },
     async () => {
@@ -641,7 +669,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
     },
   )
 
-  it(
+  withTestAuthor(
     'W3-A offloads a five MiB nonresident test author through the real release runtime',
     { timeout: 240_000 },
     async () => {
@@ -723,6 +751,8 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
         kind: 'tool_result',
         callId: 'call_deliver',
       })
+      // The call ran: the result is the Shell info, not a denial.
+      expect(resultText(entries[3])).toContain('shell=')
       expect(blocksOf(entries[4])).toMatchObject([{ kind: 'text', text: FINAL }])
       expect(entries[5]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
     },

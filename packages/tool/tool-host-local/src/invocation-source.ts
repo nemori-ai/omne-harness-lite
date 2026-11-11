@@ -19,6 +19,12 @@ import {
   parseForward,
 } from './invocation-forwarding.ts'
 import { createForwardingReceiver } from './forwarding-receiver.ts'
+import {
+  invocationQualifier,
+  type LocalInvocationQualifier,
+  type ObserveInvocationRecord,
+  type ObserveInvocationOrigin,
+} from './invocation-qualification.ts'
 import { fail } from '@omne-harness/operation-result'
 import type { Reply, ToolResultReceiver } from '@omne-harness/tool-contract'
 import type {
@@ -259,6 +265,22 @@ function nextRevision(revision: string) {
 export function createLocalInvocationSource<P, B extends ContentBlock = ContentBlock>(
   input: LocalInvocationSourceInput<P>,
 ): LocalInvocationSource<P, B> {
+  return buildInvocationSource(input)
+}
+
+export function createLocalInvocationQualifier<P>(
+  input: LocalInvocationSourceInput<P>,
+): LocalInvocationQualifier<P> {
+  return invocationQualifier(
+    (observe, origin) => buildInvocationSource(input, observe, origin).guard,
+  )
+}
+
+function buildInvocationSource<P, B extends ContentBlock>(
+  input: LocalInvocationSourceInput<P>,
+  observe?: ObserveInvocationRecord,
+  observeOrigin?: ObserveInvocationOrigin,
+): LocalInvocationSource<P, B> {
   const { store, authority, principalCodec, commitAttempts } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
@@ -282,10 +304,13 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
 
   const bindingOf = (
     read: Extract<LedgerRecordRead, { kind: 'complete' }>,
+    observed?: LedgerDomain,
   ): Binding | null | 'unreadable' => {
     const record = read.record
     if (record === null) return null
-    return record.kind === 'host' ? (parseBinding(record.host.value) ?? 'unreadable') : 'unreadable'
+    if (record.kind !== 'host') return 'unreadable'
+    if (observed !== undefined) observe?.(observed, record)
+    return parseBinding(record.host.value) ?? 'unreadable'
   }
 
   const decodePrincipal = (value: PrincipalJson): P | null => {
@@ -443,18 +468,25 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       if (!isTenantShape(tenant)) return { kind: 'forged', reason: 'tenant-shape' }
       const read = await readBinding(tenant, request.consumer)
       if (typeof read === 'string') return { kind: 'unavailable', diagnostic: read }
-      const binding = bindingOf(read)
+      const binding = bindingOf(read, sourceDomain(tenant, request.consumer))
       if (binding === null) return { kind: 'forged', reason: 'unknown-source' }
       if (binding === 'unreadable')
         return { kind: 'unavailable', diagnostic: 'the stored binding cannot be read' }
       if (!bindsTo(binding, call, operation, fixed))
         return { kind: 'forged', reason: 'binding-mismatch' }
       const same = await sameSubject(principal, binding)
-      return subjectVerdict(same)
+      const verdict = subjectVerdict(same)
+      if (verdict.kind === 'trusted') observeOrigin?.({ call, admission: operation, request })
+      return verdict
     },
   }
 
-  const forwards = createInvocationForwarding(input, directGuard, invocationSourceIdentities)
+  const forwards = createInvocationForwarding(
+    input,
+    directGuard,
+    invocationSourceIdentities,
+    observe,
+  )
   const receiver = createForwardingReceiver(input, forwards)
   const guard: ToolSourceGuard<P> = {
     async verify(access) {

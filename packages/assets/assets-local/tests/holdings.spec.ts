@@ -1,3 +1,4 @@
+import { ownerSources } from './sources.ts'
 import { afterEach, expect, it } from 'vitest'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
 import { openWorld, pinned, grants, target, type World } from './world.ts'
@@ -99,11 +100,11 @@ it('updates source layout and grants only with the current holding revision', as
       operationId: 'sources',
       ...targetInput(),
       expectedRevision: 1,
-      change: { kind: 'updateSources', sourceIds: ['organization', 'tenant'], grants },
+      change: { kind: 'updateSources', sources: ownerSources('organization', 'tenant'), grants },
     }),
   ).toMatchObject({ kind: 'committed', revision: 2 })
   const changed = await view(world)
-  expect(changed?.sourceIds).toEqual(['organization', 'tenant'])
+  expect(changed?.sources).toMatchObject(ownerSources('organization', 'tenant'))
   expect(changed?.ownerRevision).toBeGreaterThan(first?.ownerRevision ?? 0)
   expect(
     await world.owner.changeHolding({
@@ -149,7 +150,7 @@ it('retains removed holding identities and allows a fresh holding without revivi
   const input = {
     assetRef: 'asset-a',
     selection: { kind: 'follow' as const },
-    sourceIds: ['tenant'],
+    sources: ownerSources('tenant'),
     grants,
     ...targetInput(),
   }
@@ -214,9 +215,26 @@ it('keeps same-name publications separate and refuses a second active holding', 
       scopeRef: 'tenant-a',
       assetRef: 'asset-b',
       selection: { kind: 'follow' },
-      sourceIds: ['tenant'],
+      sources: ownerSources('tenant'),
       grants,
     }),
   ).toEqual({ kind: 'rejected', reason: 'holding_exists' })
   expect((await view(world))?.definition.items[0]?.default).toEqual({ kind: 'value', value: false })
+})
+it('refuses a holding and a read of a holding in another scope', async () => {
+  const world = await open()
+  expect(
+    await world.owner.hold({
+      operationId: 'foreign',
+      holdingRef: 'foreign',
+      scopeRef: 'tenant-b',
+      assetRef: 'asset-a',
+      selection: { kind: 'follow' },
+      sources: ownerSources('tenant'),
+      grants,
+    }),
+  ).toEqual({ kind: 'rejected', reason: 'forbidden' })
+  expect(
+    await world.owner.readHolding({ holdingRef: target.targetRef, scopeRef: 'tenant-b' }),
+  ).toEqual({ kind: 'rejected', reason: 'forbidden' })
 })

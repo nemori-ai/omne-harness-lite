@@ -2,7 +2,8 @@
 // `authorization` row on every call (R2-D245), so the operator's tightening of the built-in grant
 // table reaches it. The cases load the real `storage`, `authorization` and `session-storage` rows
 // on the release trusted table, with the real entry principal authority and the release scanner
-// principal; `tenantStanding` is a contract double (the enumeration never reads it) and
+// principal; `tenantStanding` and `identityGovernance` are contract doubles (the enumeration never
+// reads them; the `authorization` row injects both) and
 // `identityClock` is a test clock that the case moves. Each case has a control in the same tree
 // shape that must answer otherwise.
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -14,6 +15,7 @@ import {
   IdentityClockService,
   TenantStandingSourceService,
   identityClockKey,
+  identityGovernanceKey,
   tenantStandingKey,
 } from '@omne-harness/identity/cordis'
 import type { TenantDomains } from '@omne-harness/sql-contract'
@@ -70,11 +72,18 @@ function testClock(initial: string) {
   }
 }
 
-/** The `identity` row as a contract double: only the trusted `tenantStanding`, which no case reads. */
+/**
+ * The `identity` row as a contract double: the trusted `tenantStanding` and `identityGovernance` that
+ * the `authorization` row injects. No case reads them: a system principal has no login to query.
+ */
 const standingRow = defineRow({
   row: 'identity',
   implementation: 'contract-double',
-  manifest: { provides: [tenantStandingKey], injects: [], sameProviderGroup: null },
+  manifest: {
+    provides: [tenantStandingKey, identityGovernanceKey],
+    injects: [],
+    sameProviderGroup: null,
+  },
   lifecycle: { kind: 'none' },
   plugin: {
     name: 'standing-double',
@@ -82,6 +91,9 @@ const standingRow = defineRow({
       new (class extends TenantStandingSourceService {
         readonly read = () => Promise.reject(new Error('tenantStanding is not asked'))
       })(ctx)
+      ctx.provide(identityGovernanceKey, {
+        queryCurrentTenant: () => Promise.reject(new Error('identityGovernance is not asked')),
+      })
     },
   },
 })

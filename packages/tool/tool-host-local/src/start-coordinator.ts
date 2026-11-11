@@ -15,6 +15,7 @@ import {
   isTenantShape,
   recordKey,
   type AccessVerdict,
+  type LedgerCommitInput,
   type LedgerDomain,
   type LedgerRead,
   type LedgerRecord,
@@ -52,7 +53,7 @@ import {
   REQUIREMENTS_UNAVAILABLE,
   type StartPermitRequirements,
 } from './start-permit-requirements.ts'
-import type { ToolRequestAccess } from './ledger-guards.ts'
+import type { ConditionalLedgerCommit, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
 import { qualifyRequestAccess } from './start-guard.ts'
 
 type TenantId = LedgerDomain['tenant']
@@ -94,7 +95,11 @@ export type LocalStartCoordinatorInput<P> = Readonly<{
   store: ToolLedgerStore
   /** Proves the principal, the tenant and the call; a forged tenant is denied. */
   access: StartCoordinatorAccess<P>
-  requestAccess?: ToolRequestAccess<P>
+  /**
+   * The request policy with the commit that honours its conditions. An acceptance whose verdict
+   * carries a condition is committed through `commit`, in one transaction with the condition.
+   */
+  requestAccess?: Readonly<{ access: ToolRequestAccess<P>; commit: ConditionalLedgerCommit }>
   /** Required for new starts. Omission fails closed while existing acceptances remain readable. */
   permitRequirements?: StartPermitRequirements<P>
   /** The guard resources that apply to a request; each becomes one guard of its permit. */
@@ -618,6 +623,8 @@ type Decision<T> =
       /** Commit only while the guard domain still has this revision, the one the decision read. */
       assertGuards?: ToolRevision
       value: T
+      /** The writes take effect only together with this condition. */
+      condition?: StartCondition
     }>
 
 function reply<T>(outcome: Outcome<T, ToolFailure>): Decision<T> {
@@ -668,7 +675,18 @@ function snapshotOf(
 export function createLocalStartCoordinator<P>(
   input: LocalStartCoordinatorInput<P>,
 ): ToolStartAuthority<P> {
-  const { store, access, guardsOf, commitAttempts, permitRequirements, requestAccess } = input
+  const { store, access, guardsOf, commitAttempts, permitRequirements } = input
+  const requestAccess = input.requestAccess?.access
+  // A condition comes only from the request policy, so this default is never reached. It keeps
+  // the state closed: a condition is never dropped.
+  const commitWith: ConditionalLedgerCommit['commit'] =
+    input.requestAccess === undefined
+      ? () =>
+          Promise.resolve({
+            kind: 'unavailable',
+            diagnostic: 'a start condition has no conditional commit',
+          })
+      : conditional => input.requestAccess!.commit.commit(conditional)
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
   const turnTimeoutMs = input.turnTimeoutMs ?? commitAttempts * TURN_MS_PER_ATTEMPT
@@ -780,18 +798,22 @@ export function createLocalStartCoordinator<P>(
           const revision = nextRevision(own.ok.revision)
           const decision = await decide(snapshot.ok, revision)
           if (decision.kind === 'reply') return decision.outcome
-          let committed: Awaited<ReturnType<typeof store.commit>>
+          const ledger: LedgerCommitInput = {
+            domain: target,
+            expected: own.ok.revision,
+            revision,
+            writes: writesOf(decision),
+            asserts:
+              decision.assertGuards === undefined
+                ? []
+                : [{ domain: guardsDomain(target.tenant), revision: decision.assertGuards }],
+          }
+          let committed: Awaited<ReturnType<typeof commitWith>>
           try {
-            committed = await store.commit({
-              domain: target,
-              expected: own.ok.revision,
-              revision,
-              writes: writesOf(decision),
-              asserts:
-                decision.assertGuards === undefined
-                  ? []
-                  : [{ domain: guardsDomain(target.tenant), revision: decision.assertGuards }],
-            })
+            committed =
+              decision.condition === undefined
+                ? await store.commit(ledger)
+                : await commitWith({ condition: decision.condition, ledger })
           } catch {
             return unknown('the start ledger threw on commit')
           }
@@ -800,7 +822,7 @@ export function createLocalStartCoordinator<P>(
           if (committed.kind === 'unavailable') return unavailable(committed.diagnostic)
           if (committed.kind === 'rejected') return invalid('storage', committed.reason)
         }
-        return unavailable(`${commitAttempts} revision conflicts in a row`)
+        return unavailable(`${commitAttempts} revision or condition conflicts in a row`)
       },
       () =>
         unavailable(
@@ -1022,6 +1044,7 @@ export function createLocalStartCoordinator<P>(
           deletes: [keyOf(stored)],
           assertGuards: snapshot.guards.revision,
           value: { kind: 'started', acceptance },
+          ...(policy.condition === null ? {} : { condition: policy.condition }),
         }
       },
       unknownProgress,

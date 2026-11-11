@@ -19,6 +19,7 @@ import { parseSecretText } from '@omne-harness/settings'
 import { createSecretVault } from '@omne-harness/settings-local/secrets'
 import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
+import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
 import { LOCAL_TOKENIZERS } from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 
@@ -176,7 +177,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       unacknowledgedResults: 1,
     },
     requestChunkBytes: 65536,
-    combinationVersion: 'session-composite/6',
+    combinationVersion: COMBINATION_VERSION,
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
     // The read face `modelDiagnostics` (A12: the operator layer gives what the release does not).
     diagnostics: {
@@ -328,7 +329,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
     },
     records: {
       filesRoot,
-      combinationVersion: 'session-composite/6',
+      combinationVersion: COMBINATION_VERSION,
       configuration: {
         authorBufferBytes: 65536,
         authorBufferItems: 256,
@@ -410,7 +411,7 @@ export function operatorLayer(options: {
         kind: 'replace',
         id: 'session-storage',
         config: {
-          combinationVersion: 'session-composite/6',
+          combinationVersion: COMBINATION_VERSION,
           directoryFile: join(options.storageRoot, 'tenant-domains.json'),
           domainRule: 'organization-account/1',
         },

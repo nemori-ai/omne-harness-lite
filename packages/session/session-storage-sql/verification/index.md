@@ -8,5 +8,6 @@
 - [obligations.md](../docs/verification-obligations.md)：验证义务，组 D、R、W、F
 - [log-commit/](log-commit/README.md)：同日志提交与未知结果认回的有限模型
 - [attempt-grant/](attempt-grant/README.md)：grant 到 attempt 的解析模型（R2-D349），正控与「只记 started」负控
+- [protected-basis/](protected-basis/README.md)：权限配值的受保护提交模型，一个正控与六个负控
 - [models/](models/index.md)：形式模型（目前为空）
 - [proofs/](proofs/index.md)：论证与证明（目前为空）

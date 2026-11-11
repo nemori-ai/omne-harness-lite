@@ -75,3 +75,25 @@ W3 只采用 Tool 已提交的归一化结果。消费方在 saved 前独立耐�
 `session-ad06` 注入 Agent 的 `decodeAgentToolDeliveryMaterial` 和受信 `sessionWorkPrincipals` 协调者来源。Agent 解码自有材料；Session 适配器继续核对原绑定、消费位置和提交条件。Tool 解除回执进入日志的 `JC-RELEASE-TOOL-PATH` 仍是另一项责任，补齐材料读取不自动关闭它。
 
 本行沿既有发布事件唤醒消费。显式补读使用 `consumeSessionToolLog(ctx, target)`，仅访问 ctx 所属根的当前行代次；行撤除后返回 unavailable，另一根不受影响。该订阅不提供耐久 outbox：最后一次事件丢失，或消费失败后没有新事件时，仍需下一事件或显式 consumeSessionToolLog 补读。验收须验证 Tool 已释放交付副本后，显式补读仍能从 Agent 独立材料认回原位置，不重复 Session 日志。这个已有进展限制不允许 Agent 在耐久承接前 ACK，也不延长正文 TTL。
+
+## 会话模式的装配与发布
+
+AD-03 行提供应用内部 `sessionModesInstallation`。首次准备或原注册恢复时，它按租户装配一个 `createSessionModesPlugin` fiber；并发请求共享该租户的装配结果，不创建多个生产者。租户主体由入口窄签发服务提供，模式原事实归 Session，默认采用解析复用 `defaultModesOf`。插件只保存可丢弃的发布状态。
+
+AD-03 在成功 finishReplay 或 applyCommit 后发布 `registrationApplied` 通知。应用只在开放注册含 `session.modes` 时刷新。普通 committed 通知只触发原来源重读，不能证明 Context 已应用。卸载后装配入口不可用，子生产者随父 fiber 撤除；重装配重新从原 Session 事实供值。
+
+```mermaid
+flowchart LR
+  Create[应用创建输入] --> Adopt[采用来源]
+  Adopt --> Prepare[隔离的原 Context prepare]
+  Prepare --> Batch[Session 原子提交 SE01 / SE07 / SE02]
+  Batch --> Replay[AD-03 应用与恢复]
+  Replay --> Confirm[注册成功确认]
+  Confirm --> Publish[租户模式生产者]
+  Session[Session 模式与修订] --> Publish
+  Publish --> Runtime[实时 Runtime Context]
+  Runtime --> Inquiry[预计算询问策略与原依据]
+  Inquiry -->|同依据捕获| Admission[Agent / Tool 动作准入]
+```
+
+初始准备视图不授予运行权限，实时 Context 的模式也不越过结构化权限。跨进程撤权以及原动作与同修订捕获继续由各自拥有者承担。

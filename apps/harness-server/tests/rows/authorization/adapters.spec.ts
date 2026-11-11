@@ -10,6 +10,7 @@ import { Service, Context } from '@deepseek-ai/cordis'
 import { toolAccessGuardConformance, type ToolAccessGuardFixture } from '@omne-harness/tool/testing'
 import { decodeToolCallId } from '@omne-harness/tool-contract'
 import {
+  decisionEvidence,
   effectiveArgumentsOf,
   noArguments,
   referenceAdmissionCheck,
@@ -32,6 +33,7 @@ import {
 } from '@omne-harness/identity'
 import {
   identityClockKey,
+  identityGovernanceKey,
   principalVerifierKey,
   tenantStandingKey,
 } from '@omne-harness/identity/cordis'
@@ -133,6 +135,8 @@ function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
         return systemActions.check(input)
       },
     },
+    // This world has no login source: a Session permission write reads it as unavailable.
+    login: { queryCurrentTenant: () => Promise.reject(new Error('no login source')) },
   }
 
   const system = (component: string): SystemPrincipal =>
@@ -779,10 +783,22 @@ describe('agentActionAdmission', () => {
       decision: null,
     }
   }
+  it('does not treat a static allow as current permission', async () => {
+    const w = world()
+    const admission = createActionAdmission({
+      readAdmission: () => w.ports.admission,
+      readPermission: () => undefined,
+      actionRules: rules,
+    })
+    expect(await admission.admit(action(w.work()) as never)).toMatchObject({
+      ok: { kind: 'unavailable' },
+    })
+  })
   it('requires the issued Session work principal, the correct tenant and current membership', async () => {
     const w = world()
     const admission = createActionAdmission({
       readAdmission: () => w.ports.admission,
+      readPermission: () => undefined,
       actionRules: rules,
     })
     for (const principal of [
@@ -806,6 +822,7 @@ describe('agentActionAdmission', () => {
     const input = action(w.work())
     const admission = createActionAdmission({
       readAdmission: () => w.ports.admission,
+      readPermission: () => undefined,
       actionRules: rules,
     })
     for (const change of [
@@ -819,6 +836,16 @@ describe('agentActionAdmission', () => {
     }
     const exact = createActionAdmission({
       readAdmission: () => w.ports.admission,
+      readPermission: () => ({
+        check: async request => {
+          expect(request.origin).toMatchObject({ original: input.original })
+          return {
+            kind: 'allow',
+            evidence: decisionEvidence('permission-fixture', '1', request.operation),
+            condition: null,
+          }
+        },
+      }),
       actionRules: { ...rules, rules: [{ ...rules.rules[0], definition: input.definition }] },
     })
     expect(await exact.admit(input as never)).toMatchObject({ ok: { kind: 'allow' } })
@@ -844,7 +871,11 @@ describe('agentActionAdmission', () => {
       },
       () => ({ check: async () => ({ kind: 'odd' }) as never }),
     ]) {
-      const failed = createActionAdmission({ readAdmission, actionRules: rules })
+      const failed = createActionAdmission({
+        readAdmission,
+        readPermission: () => undefined,
+        actionRules: rules,
+      })
       const result = await failed.admit(input as never)
       expect(result).toMatchObject({ ok: { kind: 'unavailable' } })
       expect(JSON.stringify(result)).not.toContain('SECRET')
@@ -887,6 +918,7 @@ describe('agentActionAdmission', () => {
     ]) {
       const admission = createActionAdmission({
         readAdmission: () => w.ports.admission,
+        readPermission: () => undefined,
         actionRules: { revision: 'ops-2', rules },
       })
       const result = await admission.admit(input as never)
@@ -902,6 +934,16 @@ describe('agentActionAdmission', () => {
     const admission = createActionAdmission({
       readAdmission: () => w.ports.admission,
       actionRules: { revision: 'ops-1', rules: [allow] },
+      readPermission: () => ({
+        check: async input => ({
+          kind: 'allow',
+          condition: null,
+          evidence: decisionEvidence('permission-fixture', '1', {
+            operation: input.operation,
+            arguments: input.effectiveArguments,
+          }),
+        }),
+      }),
     })
     const pending = admission.admit(input as never)
     Object.assign(input, { action: 'changed', effectiveArguments: 'changed' })
@@ -914,7 +956,10 @@ describe('agentActionAdmission', () => {
   })
 
   it('has no default allow: every action is unavailable, with or without permissions or a decision', async () => {
-    const admission = createActionAdmission()
+    const admission = createActionAdmission({
+      readAdmission: () => undefined,
+      readPermission: () => undefined,
+    })
     for (const input of [
       { permissions: [], decision: null },
       { permissions: [{ need: 'n' }], decision: null },
@@ -1051,6 +1096,9 @@ describe('the row', () => {
       apply(scope: Context) {
         scope.provide(principalVerifierKey, authority.verifier)
         scope.provide(tenantStandingKey, { read: async () => readingOf('member') })
+        scope.provide(identityGovernanceKey, {
+          queryCurrentTenant: async () => ({ kind: 'denied' }),
+        })
         scope.provide(identityClockKey, {
           now: () => Promise.reject(new Error('no grant of this case has an end time')),
         })
@@ -1073,7 +1121,7 @@ describe('the row', () => {
     }
     try {
       const admission = ctx.agentActionAdmission
-      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'allow' } })
+      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
       await row.dispose()
       expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
     } finally {
@@ -1143,9 +1191,21 @@ describe('the row', () => {
     const identityRow = defineRow({
       row: 'identity',
       implementation: 'real',
-      manifest: { provides: [tenantStandingKey], injects: [], sameProviderGroup: null },
+      manifest: {
+        provides: [tenantStandingKey, identityGovernanceKey],
+        injects: [],
+        sameProviderGroup: null,
+      },
       lifecycle: { kind: 'none' },
-      plugin: { name: 'standing', apply: (ctx: Context) => void new StandingImpl(ctx) },
+      plugin: {
+        name: 'standing',
+        apply: (ctx: Context) => {
+          new StandingImpl(ctx)
+          ctx.provide(identityGovernanceKey, {
+            queryCurrentTenant: async () => ({ kind: 'denied' }),
+          })
+        },
+      },
     })
     const probeRow = defineRow({
       row: 'probe',
@@ -1217,7 +1277,7 @@ describe('the row', () => {
     })
     await answers['run']
 
-    expect(run.result.exitCode).toBe(0)
+    expect(run.result.exitCode, run.stderr.join('\n')).toBe(0)
     expect(run.of('row-state').map(r => [r['id'], r['state']])).toEqual([
       ['identity', 'ACTIVE'],
       ['authorization', 'ACTIVE'],
@@ -1228,7 +1288,7 @@ describe('the row', () => {
     // Unlisted components have no maintenance purpose.
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
-    expect(answers['admission']).toMatchObject({ ok: { kind: 'allow' } })
+    expect(answers['admission']).toMatchObject({ ok: { kind: 'unavailable' } })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')
   })

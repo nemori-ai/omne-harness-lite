@@ -14,6 +14,8 @@ import {
 import {
   createLocalGrantVerifiers,
   createLocalInvocationSource,
+  createLocalInvocationQualifier,
+  type LocalInvocationSourceInput,
 } from '@omne-harness/tool-host-local'
 import {
   createLocalToolRuntimePlugins,
@@ -22,12 +24,17 @@ import {
 import { releaseOf } from '../../entry/tool-release.ts'
 import { isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import { toolTargetPolicyOf } from '../authorization/tool-target-policy.ts'
-import { currentTargetPolicy, withTargetAdmissionPolicy } from './target-policy.ts'
+import {
+  admittedTargetAccess,
+  currentTargetPolicy,
+  withTargetAdmissionPolicy,
+} from './target-policy.ts'
 import { createReleaseToolIdentity, releasePrincipalCodec } from './access.ts'
 import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
   lateBodyStore,
+  lateConditional,
   lateStore,
   toolRuntimeHolder,
   type ToolRuntimeBundle,
@@ -80,7 +87,7 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     authorization: () => toolTargetPolicyOf(root),
     view: () => releaseCatalogViewOf(root),
   })
-  const sources = createLocalInvocationSource({
+  const sourceInput: LocalInvocationSourceInput<unknown> = {
     store,
     authority: identity.sourceAuthority,
     principalCodec: releasePrincipalCodec,
@@ -94,7 +101,8 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
         pageBytes: config.configuration.resultPageBytes,
       },
     },
-  })
+  }
+  const sources = createLocalInvocationSource(sourceInput)
   const environment = createReleaseEnvironment(holder, identity, {
     filesRoot: config.filesRoot,
     commitAttempts: config.configuration.ledgerCommitAttempts,
@@ -118,9 +126,10 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
       permitKey: holder.bodyPermitKey,
       clock: holder.bodyClock,
     },
+    conditionalCommit: lateConditional(holder),
     content: null,
     sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },
-    access: { ...identity.access, request: requestAccess },
+    access: { ...identity.access, request: admittedTargetAccess(store, requestAccess) },
     subjects: identity.subjects,
     grants: createLocalGrantVerifiers(RELEASE_TOOL_SCOPE),
     guardsOf: () => [],
@@ -137,7 +146,7 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     observerQueueFrames: config.observerQueueFrames,
     observerResidenceMs: config.observerResidenceMs,
   }
-  return input
+  return { input, qualification: createLocalInvocationQualifier(sourceInput) }
 }
 
 /** 本运行的 bundle：第一次按 `config` 建；之后配置不同就抛出（行 FAILED）。 */
@@ -152,7 +161,8 @@ export function ensureToolRuntimeBundle(
       throw new Error('tool runtime: this run already built its bundle with another configuration')
     return holder.bundle.value
   }
-  const value = createLocalToolRuntimePlugins(inputFor(ctx.root, holder, config))
+  const { input, qualification } = inputFor(ctx.root, holder, config)
+  const value = Object.freeze({ ...createLocalToolRuntimePlugins(input), qualification })
   holder.bundle = Object.freeze({ value, configDigest: digest })
   holder.resolve(value)
   return value

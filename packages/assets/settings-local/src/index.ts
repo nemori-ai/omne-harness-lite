@@ -1,11 +1,7 @@
-export { createSettingsSqlBackend } from './provider.ts'
+export { readSettingsSource, type SettingsSourceReading } from './source-observation.ts'
+export { projectSettingsSources } from './source-layout.ts'
 export { settingsSqlMaterials } from './materials.ts'
-export { settingsSqlOperationBinding } from './encoding.ts'
 export {
-  bindingSchema as SettingsSqlGuardBindingSchema,
-  guardFactSchema as SettingsSqlGuardFactSchema,
-  rejectionSchema as SettingsSqlGuardRejectionSchema,
-  GUARD_FACT as settingsSqlGuardFact,
   RESULT_FACT as settingsSqlResultFact,
   PARTICIPANT as settingsSqlParticipant,
   PROTOCOL as settingsSqlProtocol,
@@ -13,9 +9,11 @@ export {
 } from './schema.ts'
 export type * from './types.ts'
 
-export { createSettingsSqlTerminals } from './terminals.ts'
-export type { SettingsSqlTerminalOptions, SettingsSqlTerminalResult } from './terminals.ts'
-export type { SettingsSqlTerminal } from './terminal-schema.ts'
+export type {
+  SettingsSqlTerminal,
+  SettingsSqlTerminalOptions,
+  SettingsSqlTerminalResult,
+} from './terminal-schema.ts'
 export {
   settingsStandaloneProjectionFact,
   settingsAssetsProjectionFact,
@@ -29,21 +27,38 @@ export {
 export { settingsStandaloneMaterials } from './standalone-materials.ts'
 export {
   createStandaloneSettingsOwner,
-  standaloneSettingsGuards,
   standaloneSettingsProjectionCommand,
+  standaloneSettingsPublicationCommand,
   type StandaloneMutation,
 } from './standalone.ts'
 export { settingsCatalogMaterials } from './catalog-materials.ts'
 export {
   createSettingsCatalog,
-  createSettingsTargetGuards,
   type SettingsProjectionCommands,
   type SettingsCatalogOptions,
   type SettingsSelectionSource,
 } from './catalog.ts'
-export { createSettingsMaintenance } from './maintenance.ts'
 export {
   settingsWithoutAssetsMaterials,
   settingsWithoutAssetsProjectionCommand,
 } from './without-assets.ts'
 export { createSettingsSelections } from './selections.ts'
+
+export {
+  settingsStandalonePublicationFact,
+  StandalonePublicationRefSchema,
+  StandalonePublicationProjectionSchema,
+  type StandalonePublicationRef,
+  type StandalonePublicationProjection,
+} from './standalone-publication.ts'
+export {
+  SettingsValueProjectionSchema,
+  settingsValueProjectionFact,
+  settingsValueProjectionCommand,
+  type SettingsValueProjection,
+} from './value-projection.ts'
+export { settingsValueProjectionMaterials } from './value-projection-materials.ts'
+export {
+  StandaloneTargetReadResultSchema,
+  type StandaloneTargetReadResult,
+} from './standalone-read-schema.ts'

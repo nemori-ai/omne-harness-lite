@@ -103,10 +103,12 @@ export {
 } from './reservations.ts'
 export type {
   StandingBinding,
+  StandingRequest,
   StandingReservation,
   StandingTerminal,
   StandingDestinationResolver,
   StandingReserveOutcome,
+  StandingObservation,
   StandingSettleOutcome,
   StandingRecoveryPage,
   StandingReservations,

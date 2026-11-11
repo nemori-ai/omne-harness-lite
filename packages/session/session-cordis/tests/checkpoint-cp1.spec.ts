@@ -109,6 +109,7 @@ describe('CP1: create, append through the work face, query; another tenant is de
     const intake = await a.caller('intake')
     await a.create(intake)
     await expect.poll(() => a.events.length).toBe(1)
-    expect(a.events[0]![4]).toEqual(['session.adoption'])
+    // Every entry of the batch, the first one of the receipt included (session SPEC「通知」).
+    expect(a.events[0]![4]).toEqual(['session.created', 'session.adoption'])
   })
 })

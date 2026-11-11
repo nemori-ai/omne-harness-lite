@@ -67,7 +67,10 @@ export function parentRequest(): ToolInvokeRequest {
   }
 }
 export async function forwardingFixture(
-  options: { durableDeclaration?: boolean; consumed?: boolean } = {},
+  options: {
+    durableDeclaration?: boolean
+    consumed?: boolean
+  } = {},
 ) {
   const memory = createMemoryToolLedgerStore()
   let nextCommit: 'lost' | 'unwritten' | 'unavailable' | 'rejected' | null = null

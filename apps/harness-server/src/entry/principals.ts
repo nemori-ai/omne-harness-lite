@@ -38,6 +38,9 @@ export const ENTRY_COMPONENTS = Object.freeze({
   sessionCoordinator: 'sessionPrincipals.coordinator',
   sessionMaintainer: SESSION_MAINTAINER_COMPONENT,
   sessionWork: SESSION_WORK_COMPONENT,
+  governanceDirectory: 'governanceDirectoryPrincipals',
+  governanceInstallation: 'governanceInstallationPrincipals',
+  sessionModes: 'sessionModesPrincipals',
 })
 
 type EntryPrincipals = Readonly<{
@@ -47,6 +50,9 @@ type EntryPrincipals = Readonly<{
   maintainer: SystemPrincipal
   /** 会话工作主体的 `actor`：一个系统主体，组件名 `sessionWorkPrincipals`。 */
   sessionWorkActor: SystemPrincipal
+  governanceDirectoryActor: SystemPrincipal
+  governanceInstallationActor: SystemPrincipal
+  sessionModesActor: SystemPrincipal
 }>
 
 function issueSystem(issuer: PrincipalIssuer, component: string): SystemPrincipal {
@@ -67,6 +73,9 @@ function createEntryPrincipals(): EntryPrincipals {
     coordinator: issueSystem(issuer, ENTRY_COMPONENTS.sessionCoordinator),
     maintainer: issueSystem(issuer, ENTRY_COMPONENTS.sessionMaintainer),
     sessionWorkActor: issueSystem(issuer, ENTRY_COMPONENTS.sessionWork),
+    governanceDirectoryActor: issueSystem(issuer, ENTRY_COMPONENTS.governanceDirectory),
+    governanceInstallationActor: issueSystem(issuer, ENTRY_COMPONENTS.governanceInstallation),
+    sessionModesActor: issueSystem(issuer, ENTRY_COMPONENTS.sessionModes),
   })
 }
 
@@ -80,6 +89,44 @@ function principalsOf(env: EntryEnv): EntryPrincipals {
 /** 核验器视图：别的入口模块取核验器的唯一入口，拿不到签发者。 */
 export function verifierOf(env: EntryEnv): PrincipalVerifier {
   return principalsOf(env).verifier
+}
+
+export function governanceDirectoryIssuerOf(env: EntryEnv) {
+  const { issuer, governanceDirectoryActor } = principalsOf(env)
+  return (tenant: TenantId): ActingForTenantPrincipal | undefined => {
+    const result = issuer.issueActingForTenant({
+      actor: governanceDirectoryActor,
+      tenant,
+      work: { owner: 'harness.governance', work: 'directory' },
+    })
+    return 'ok' in result ? result.ok : undefined
+  }
+}
+
+export function governanceInstallationIssuerOf(env: EntryEnv) {
+  const { issuer, governanceInstallationActor } = principalsOf(env)
+  return (tenant: TenantId): ActingForTenantPrincipal | undefined => {
+    const result = issuer.issueActingForTenant({
+      actor: governanceInstallationActor,
+      tenant,
+      work: { owner: 'harness.governance', work: 'installation' },
+    })
+    return 'ok' in result ? result.ok : undefined
+  }
+}
+
+export const SESSION_MODES_WORK = Object.freeze({ owner: 'harness.session-context', work: 'modes' })
+
+export function sessionModesIssuerOf(env: EntryEnv) {
+  const { issuer, sessionModesActor } = principalsOf(env)
+  return (tenant: TenantId): ActingForTenantPrincipal | undefined => {
+    const result = issuer.issueActingForTenant({
+      actor: sessionModesActor,
+      tenant,
+      work: SESSION_MODES_WORK,
+    })
+    return 'ok' in result ? result.ok : undefined
+  }
 }
 
 /** 只签会话工作主体的窄视图：`actor` 与 `work.owner` 固定，调用方只给租户与会话文本。 */

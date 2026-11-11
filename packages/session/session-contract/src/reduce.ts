@@ -216,6 +216,7 @@ function created(
     },
     execution: entry.creation.execution,
     declarations: origin,
+    permissions: { revision: '0', assignments: [] },
     revisions: { workspace: '0', declarations: '0' },
     run: { kind: 'none' },
     pending: [],

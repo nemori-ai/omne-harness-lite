@@ -1,0 +1,53 @@
+{
+  "name": "@omne-harness/governance-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local persistence for dynamic governance contributions and adoption",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/sql-contract": "workspace:*",
+    "@omne-harness/governance-contract": "workspace:*",
+    "@omne-harness/settings": "workspace:*",
+    "@omne-harness/settings-local": "workspace:*",
+    "@omne-harness/permissions": "workspace:*",
+    "canonicalize": "5.1.0",
+    "zod": "catalog:",
+    "@omne-harness/identity": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@omne-harness/sqlite-provider": "workspace:*",
+    "@omne-harness/identity-sql": "workspace:*",
+    "@omne-harness/scrypt": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
+  }
+}

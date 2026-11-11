@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   inProcessPrincipalAuthority,
   standingPrincipalRef,
@@ -16,27 +19,43 @@ import {
 } from '@omne-harness/identity-sql'
 import { tenant, tenantCodec } from '@omne-harness/legal-identity'
 import { openScrypt } from '@omne-harness/scrypt'
-import type { SqlStorage } from '@omne-harness/sql-contract'
+import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
-import {
-  createIdentityQualifiedSettings,
-  createSettingsStandingDestination,
-} from '../src/identity.ts'
-import { createSettingsSqlTerminals } from '../src/index.ts'
-import { canonical, commandDigest } from '../src/encoding.ts'
-import { command, GUARD, openWorld } from './world.ts'
+import { config } from './config.ts'
 
 function duration(text: string) {
   const d = parseDuration(text)
   if (!d.ok) throw new Error('fixture duration')
   return d.value
 }
-export async function openIdentityWorld(
-  options: {
-    wrapSettings?: (storage: SqlStorage) => SqlStorage
-    authority?: NonNullable<Parameters<typeof openWorld>[0]>['authority']
-  } = {},
-) {
+async function openStorage(root: string) {
+  const made = await createSqliteStorage({
+    config: config(root),
+    materials: {
+      catalogProtocol: 'sql-catalog/1',
+      ...identitySqlMaterials(),
+      declaredCombinations: { tenant: null, system: null },
+    },
+    closeLeases: { admit: () => ({}), release() {} },
+  })
+  if (made.kind !== 'created') throw new Error(JSON.stringify(made))
+  const registered = await made.storage.registerCombination(identitySqlRegistration())
+  if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
+  let closed: Promise<void> | undefined
+  return {
+    storage: made.storage,
+    close: () =>
+      (closed ??= made.control.close({ initiator: 'disposal' }).then(result => {
+        if (result.kind !== 'closed') throw new Error(JSON.stringify(result))
+      })),
+  }
+}
+/**
+ * A real Identity in its own storage: an organization with an administrator (ada) and a member
+ * (bob), and a principal that acts for the member tenant. It holds no Settings; a test connects
+ * its destination with `setResolver`.
+ */
+export async function openIdentityWorld() {
   const ids = randomIdentifiers(),
     ada = ids.account(),
     bob = ids.account()
@@ -56,18 +75,13 @@ export async function openIdentityWorld(
     work: { owner: 'settings', work: 'manual-config' },
   })
   if (!('ok' in issued)) throw new Error('fixture principal')
-  const principal = issued.ok,
-    principalRef = standingPrincipalRef(principal)
-  const target = { policyId: 'independent', targetRef: 'preferences', scopeRef }
-  const world = await openWorld({
-    ...(options.authority ? { authority: options.authority } : {}),
-    scopeRef,
-    target,
-    principalRef,
-    extraMaterials: identitySqlMaterials(),
-  })
-  const registration = await world.storage.registerCombination(identitySqlRegistration())
-  if (registration.kind !== 'registered') throw new Error(JSON.stringify(registration))
+  const principal = issued.ok
+  const parent = fileURLToPath(
+    new URL('../../../../tmp/closures/settings-identity/databases/', import.meta.url),
+  )
+  mkdirSync(parent, { recursive: true })
+  const root = realpathSync(mkdtempSync(join(parent, 'case-')))
+  const sql = await openStorage(root)
   const opened = openScrypt({
     N: 1024,
     r: 8,
@@ -93,25 +107,18 @@ export async function openIdentityWorld(
     defaultDuration: duration('PT3600S'),
     maxDuration: duration('PT86400S'),
   })
-  const destination = 'settings.preferences'
-  const terminalOptions = {
-    storage: world.storage,
-    domain: world.domain,
-    combinationVersion: world.combination.combinationVersion,
-    manifestDigest: world.combination.manifestDigest,
-  }
-  const actualResolver = createSettingsStandingDestination({ ...terminalOptions, destination })
+  let destination: StandingDestinationResolver | undefined
   let available = true
   const resolver: StandingDestinationResolver = {
     seal: r =>
-      available
-        ? actualResolver.seal(r)
+      available && destination
+        ? destination.seal(r)
         : Promise.resolve({ kind: 'unavailable', diagnostic: 'fixture-destination-offline' }),
   }
   const accounts = [ada, bob],
     organizations = [personalA, personalB, team]
-  const identity = createIdentitySql({
-    storage: world.storage,
+  const identityOptions: Parameters<typeof createIdentitySql>[0] = {
+    storage: sql.storage,
     clock: clock.clock,
     terms: terms.source,
     invitationTerms: invitations.source,
@@ -133,7 +140,8 @@ export async function openIdentityWorld(
       },
       login: ids.login,
     },
-  })
+  }
+  const identity = createIdentitySql(identityOptions)
   const regA = await identity.operations.registerAndActivate({
     loginIdentifier: 'ada',
     credential: 'ada-secret',
@@ -165,6 +173,12 @@ export async function openIdentityWorld(
     governanceModelId: 'default-team',
   })
   if (organization.kind !== 'succeeded') throw new Error('identity fixture team')
+  const admin = authority.issuer.issueActingForTenant({
+    actor: actor.ok,
+    tenant: organization.tenant,
+    work: { owner: 'settings', work: 'organization-config' },
+  })
+  if (!('ok' in admin)) throw new Error('fixture administrator')
   await identity.governance.switchCurrentTenant({
     login: loginA.login,
     actingTenant: regA.tenant,
@@ -188,58 +202,42 @@ export async function openIdentityWorld(
     actingTenant: regB.tenant,
     tenant: subject,
   })
-  const backend = createIdentityQualifiedSettings({
-    destination,
-    required: [],
-    identity: {
-      verifier: authority.verifier,
-      standing: identity.standing,
-      reservations: identity.reservations,
-    },
-    backend: {
-      ...terminalOptions,
-      storage: options.wrapSettings?.(world.storage) ?? world.storage,
-      access: {
-        async authorize(p, request) {
-          return canonical(request.target) === canonical(target)
-            ? {
-                kind: 'authorized',
-                scope: world.domain.scope,
-                target,
-                principalRef: standingPrincipalRef(p),
-              }
-            : { kind: 'rejected', reason: 'forbidden' }
-        },
-      },
-      guards: options.authority?.guards ?? {
-        participant: GUARD,
-        command: binding => ({ participant: GUARD, facts: { binding } }),
-      },
-    },
-  })
-  const change = command({ target })
-  const binding = {
-    domain: world.domain,
-    principalRef,
-    target,
-    operationId: change.operationId,
-    commandDigest: commandDigest(change),
-  }
   return {
-    world,
     authority,
-    terminalOptions,
-    destination,
     identity,
-    backend,
+    /** Acts for the member tenant. */
     principal,
-    change,
-    binding,
-    loginA,
-    clock,
-    terminal: createSettingsSqlTerminals(terminalOptions),
+    principalRef: standingPrincipalRef(principal),
+    /** The member tenant, as a Settings scope. */
+    scopeRef,
+    /** Acts for the tenant of the administrator in the same organization. */
+    administrator: admin.ok,
+    /** The login of the administrator, for the governance operations that the administrator runs. */
+    administratorLogin: loginA.login,
+    setResolver(value: StandingDestinationResolver) {
+      destination = value
+    },
     setAvailable(value: boolean) {
       available = value
+    },
+    async demoteAdministrator() {
+      const promoted = await identity.governance.changeMemberRole({
+        login: loginA.login,
+        actingTenant: organization.tenant,
+        organization: team,
+        account: bob,
+        expectedRole: 'member',
+        targetRole: 'super-admin',
+      })
+      if (promoted.kind !== 'succeeded') return promoted
+      return identity.governance.changeMemberRole({
+        login: loginA.login,
+        actingTenant: organization.tenant,
+        organization: team,
+        account: ada,
+        expectedRole: 'super-admin',
+        targetRole: 'member',
+      })
     },
     remove: () =>
       identity.governance.removeMember({
@@ -249,11 +247,28 @@ export async function openIdentityWorld(
         account: bob,
         expectedRole: 'member',
       }),
+    /** Stops this Identity and starts another one over the same stored facts. */
+    async remount() {
+      identity.stop()
+      await sql.close()
+      const reopened = await openStorage(root)
+      const mounted = createIdentitySql({
+        ...identityOptions,
+        storage: reopened.storage,
+        principalVerifier: inProcessPrincipalAuthority().verifier,
+      })
+      return {
+        identity: mounted,
+        async close() {
+          mounted.stop()
+          await reopened.close()
+        },
+      }
+    },
     async close() {
-      await backend.close()
       identity.stop()
       await opened.module.close()
-      await world.close()
+      await sql.close()
     },
   }
 }

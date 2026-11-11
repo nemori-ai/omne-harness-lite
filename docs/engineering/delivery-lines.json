@@ -146,6 +146,7 @@
         "apps",
         "packages/access",
         "packages/assembly/adoption-contract",
+        "packages/governance",
         "packages/identity",
         "packages/assets",
         "packages/workspace",
@@ -164,6 +165,7 @@
       "contracts": [
         "packages/access/public-contract",
         "packages/common/legal-identity",
+        "packages/governance/governance-contract",
         "packages/identity/identity",
         "packages/identity/authorization"
       ]

@@ -16,6 +16,10 @@ The Worker validates schemas, declaration semantics and the server digest before
 
 The owner capability and raw SQL storage are trusted deployment interfaces. The Worker does not establish an independent identity grant for a caller that already holds these interfaces. Tenant-facing composition must verify Identity qualification before supplying commands or consuming projections.
 
+## Current asset read
+
+The snapshot handler checks the configured domain row, then reads `al_assets` by its primary key. It returns the native publication revision and current version pointer. An initialized but empty domain can report absence. It does not scan holdings or infer publication revision from the domain owner sequence. The caller must still pass the observed revision to `publish`; the original mutation rejects a stale revision.
+
 ## Recovery and failure
 
 The SQL operation identity uses the domain and a digest of `operationId`. Mutation receipts contain the exact command binding and result. The result mapper verifies both before exposing success. Duplicate requests therefore return the original outcome even when the caller lost the first reply.
@@ -24,8 +28,8 @@ Conflict replies roll back owner changes and remain queryable through the SQL re
 
 The provider keeps a set of accepted calls. Closing stops admission and drains this set. It does not close the shared SQL provider.
 
-## Composition variants
+## Composition
 
-The default material descriptor declares both `settings.current` and `settings.assets-projection`. A single-owner Settings backend calls the guard command directly. A two-owner composition disables declaration of `settings.current` in this descriptor. A separate router then consumes asset projection facts and is the only producer of the Settings guard fact.
+The material descriptor declares `settings.assets-projection` and `assets.current-publication`. The package supplies no write guard. A consumer reads the asset projection fact in its own combination.
 
 The schema and fact keys come from the public `@omne-harness/settings-local` entry. The package imports no private Settings module. A capture command publishes only projection data and does not write settings or establish new rights.

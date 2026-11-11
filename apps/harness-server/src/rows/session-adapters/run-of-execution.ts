@@ -21,7 +21,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { RunId, SessionFailure, SessionId, WorkSnapshot } from '@omne-harness/session-contract'
 import {
   SESSION_EXECUTION_HANDLER,
-  SESSION_PROTOCOL,
+  SESSION_READ_PROTOCOL,
   decodeSessionExecution,
 } from '@omne-harness/session-storage-sql/participants'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
@@ -75,7 +75,7 @@ export async function runOfExecution(
   const read = await storage.read({
     domain: domain.domain,
     handler: SESSION_EXECUTION_HANDLER,
-    protocol: SESSION_PROTOCOL,
+    protocol: SESSION_READ_PROTOCOL,
     requestKey: randomUUID(),
     input: { tenant: tenantText.value, execution: input.execution },
   })

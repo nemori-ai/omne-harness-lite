@@ -33,9 +33,11 @@
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/permissions": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
-    "@omne-harness/sql-contract": "workspace:*"
+    "@omne-harness/sql-contract": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@omne-harness/sqlite-provider": "workspace:*",

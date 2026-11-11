@@ -262,6 +262,9 @@ describe('system principals against the release action matrix (验收 2)', () =>
     })
     expect(principals.coordinator).not.toBe(principals.maintainer)
     expect(Object.values(ENTRY_COMPONENTS).sort()).toEqual([
+      'governanceDirectoryPrincipals',
+      'governanceInstallationPrincipals',
+      'sessionModesPrincipals',
       'sessionPrincipals.coordinator',
       'sessionPrincipals.maintainer',
       'sessionWorkPrincipals',

@@ -71,6 +71,16 @@
       "config": {}
     },
     {
+      "id": "governance",
+      "plugin": "governanceRow",
+      "config": {
+        "deploymentId": "harness-local",
+        "logicalServiceId": "harness-governance",
+        "recoveryPagesPerPass": 4,
+        "closeTimeoutMs": 3000
+      }
+    },
+    {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
       "config": {
@@ -136,8 +146,8 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/6",
-        "manifestDigest": "84580c9290606c68b4650267d79b4880b8b97cb7edd8c0ce5cc226e1b8db19fe"
+        "combinationVersion": "session-composite/8",
+        "manifestDigest": "fb6dbef0db86e79fa0288b04b2e48365570d32defeef428a4bff12cd7663159e"
       }
     },
     {
@@ -149,8 +159,8 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/6",
-        "manifestDigest": "84580c9290606c68b4650267d79b4880b8b97cb7edd8c0ce5cc226e1b8db19fe"
+        "combinationVersion": "session-composite/8",
+        "manifestDigest": "fb6dbef0db86e79fa0288b04b2e48365570d32defeef428a4bff12cd7663159e"
       }
     },
     {
@@ -180,7 +190,7 @@
             },
             "requiredIdentities": [],
             "modes": {
-              "permission": "never",
+              "permission": "bypass-permissions",
               "environment": {
                 "owner": "harness-server-release",
                 "name": "local",
@@ -228,7 +238,7 @@
             },
             "requiredIdentities": [],
             "modes": {
-              "permission": "never",
+              "permission": "bypass-permissions",
               "environment": {
                 "owner": "harness-server-release",
                 "name": "local",

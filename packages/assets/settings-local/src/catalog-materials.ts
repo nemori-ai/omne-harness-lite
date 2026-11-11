@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
-import { GUARD_FACT } from './schema.ts'
 import { settingsStandaloneProjectionFact, settingsAssetsProjectionFact } from './projection.ts'
-import { TERMINAL_FACT } from './terminal-schema.ts'
-import { TARGET_GUARD, TARGET_GUARD_PROTOCOL } from './target-guard.ts'
+import {
+  CATALOG_TERMINAL,
+  CATALOG_TERMINAL_FACT,
+  CATALOG_TERMINAL_MIGRATION,
+} from './catalog-terminal-schema.ts'
 import { SNAPSHOT_PARTICIPANT, SNAPSHOT_PROTOCOL } from './snapshot-schema.ts'
 export function settingsCatalogMaterials(): Pick<
   SqlMaterialCatalog,
@@ -24,13 +26,13 @@ export function settingsCatalogMaterials(): Pick<
   return {
     participants: [
       {
-        participant: TARGET_GUARD,
-        protocol: TARGET_GUARD_PROTOCOL,
-        ...file('target-guard'),
-        ownedTables: [],
+        participant: CATALOG_TERMINAL.participant,
+        protocol: CATALOG_TERMINAL.protocol,
+        ...file('catalog-terminal-participant'),
+        ownedTables: [CATALOG_TERMINAL.table],
         readTables: [],
-        requiresFacts: sources,
-        providesFacts: [GUARD_FACT],
+        requiresFacts: [],
+        providesFacts: [CATALOG_TERMINAL_FACT],
         allowedFunctions: [],
         grouping: 'groupable',
       },
@@ -40,13 +42,20 @@ export function settingsCatalogMaterials(): Pick<
         ...file('snapshot-participant'),
         ownedTables: [],
         readTables: ['st_states'],
-        requiresFacts: [...sources, TERMINAL_FACT],
+        requiresFacts: [...sources, CATALOG_TERMINAL_FACT],
         providesFacts: [],
         allowedFunctions: [],
         grouping: 'groupable',
       },
     ],
-    migrations: [],
+    migrations: [
+      {
+        ...CATALOG_TERMINAL_MIGRATION,
+        moduleUrl: file('catalog-terminal-migration').moduleUrl,
+        checksum: file('catalog-terminal-migration').codeDigest,
+        requires: [],
+      },
+    ],
     readHandlers: [],
   }
 }

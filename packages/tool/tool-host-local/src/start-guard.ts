@@ -6,7 +6,7 @@
 // drained after the admission, is not asked here. The fence invalidation of its owner covers it.
 import type { AccessVerdict, StartVerdict, ToolStartGuard } from '@omne-harness/tool'
 import type { StartCoordinatorAccess } from './start-coordinator.ts'
-import type { ToolRequestAccess } from './ledger-guards.ts'
+import type { RequestAccessVerdict, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
 
 /** The refusal reason of a call that is not direct: M2 has no programmatic call. */
 export const PROGRAMMATIC_NOT_IN_M2 = 'programmatic-not-in-m2'
@@ -21,12 +21,17 @@ export type LocalStartGuardInput<P> = Readonly<{
 export async function qualifyRequestAccess<P>(
   provider: ToolRequestAccess<P> | undefined,
   input: Parameters<ToolRequestAccess<P>['qualify']>[0],
-): Promise<AccessVerdict> {
-  if (provider === undefined) return { kind: 'allowed' }
+): Promise<RequestAccessVerdict> {
+  if (provider === undefined) return { kind: 'allowed', condition: null }
   try {
     const result: unknown = await provider.qualify(input)
     if (typeof result === 'object' && result !== null && 'kind' in result) {
-      if (result.kind === 'allowed') return { kind: 'allowed' }
+      if (
+        result.kind === 'allowed' &&
+        'condition' in result &&
+        typeof result.condition === 'object'
+      )
+        return { kind: 'allowed', condition: result.condition as StartCondition | null }
       if (result.kind === 'denied' && 'reason' in result && typeof result.reason === 'string')
         return { kind: 'denied', reason: result.reason }
       if (
@@ -70,7 +75,8 @@ export function createLocalStartGuard<P>(input: LocalStartGuardInput<P>): ToolSt
           call,
           request,
         })
-        return policy.kind === 'denied' ? { kind: 'refused', reason: policy.reason } : policy
+        if (policy.kind === 'denied') return { kind: 'refused', reason: policy.reason }
+        return policy.kind === 'allowed' ? { kind: 'allowed' } : policy
       }
       if (verdict.kind === 'denied') return { kind: 'refused', reason: 'qualification-denied' }
       return { kind: 'unavailable', diagnostic: verdict.diagnostic }

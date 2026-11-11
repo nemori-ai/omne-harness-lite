@@ -24,7 +24,7 @@ const identityOf = (operation: string, attempt: number): SqlIdentity => ({
   transactionDomain: 'dom_0',
   operation: operationId(operation),
   protocolVersion: '2',
-  operationKey: `${operationId(operation)}#${attempt}`,
+  operationKey: JSON.stringify(['session-1', operationId(operation), attempt]),
 })
 
 async function started(): Promise<App> {

@@ -1,5 +1,7 @@
 # settings长期行为规格
 
+HJ0 的[动态治理贡献候选](../docs/governance-contributions.md)细化贡献租约、scope、持久配值归属与卸载/重装配。当前实现并未因此获得跨域采用围栏保证，C3/C6 须补真实提交与故障验证。
+
 本页维护共同设置行为及长期阶段义务。当前核心与本地组合的已实现范围见下文，不把完整阶段目标视作已交付。产品含义沿[设置规则](../../../.meta_harness/design/product/assets-and-rules/design.md#settings-and-permissions)，成员关系沿[领域架构](../docs/architecture.md)。
 
 ## 阶段与长期范围
@@ -150,7 +152,7 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 - `set`、`clear`、`describe` 以（范围、资产引用、项 id）定位项。持有解析不到或项未在登记定义里声明答 `undeclared`；项不是秘密答 `not-secret`；资产引用对应多个持有，或一个持有有多个在用版本，答 `conflict`。这三种答复都不调用保管。其余答复是保管对 `bind`、`unbind`、`describe` 的原答复。
 - 绑定键的目标是 `{ owner: 'setting', key }`，`key` 是（`providerId`、`definitionId`、项 id）三元组的 JSON 数组文本，单射；用途恒为 `setting`；范围原样交给保管。这个编码只有一处：公开函数 `secretItemTarget(holding, itemId)` 返回它，装配要从持有推出同一目标时调用它，不另存一份编码。
 - `items({ scope, asset? })` 列出已解析持有的登记定义里的全部项：秘密项带保管现读的有无，普通项不带有无；保管答 `denied` 或 `unavailable` 时整次列出答同样的值。列出的 `SecretItemView` 按 `sensitivity` 判别：`secret` 的项必带 `presence`，`ordinary` 的项没有 `presence` 成员。
-- 入口不经 `SettingsCommitPort`，不写配值与求值来源；任何答复不含秘密值。调用者对范围的配值依据由装配在调用入口前核对。
+- 入口不经配值写入协议 `SettingsPreparationPort`，不写配值与求值来源；任何答复不含秘密值。调用者对范围的配值依据由装配在调用入口前核对。
 
 ## 持续验证义务与表达缺项
 

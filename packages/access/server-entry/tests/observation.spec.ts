@@ -82,7 +82,7 @@ function assertHeartbeatsOutsideEvents(text: string): void {
 
 describe('establishing an observation', () => {
   it('answers an SSE whose first event is the four-key confirmation, then heartbeats, then the cancel frame', async () => {
-    fixture = await startFixture({ config: { heartbeatIntervalMs: 30 } })
+    fixture = await startFixture({ config: { heartbeatIntervalMs: 30, maxInFlightRequests: 1 } })
     const who = await login(fixture, 'alice')
     const session = await createSession(fixture, who)
     const stream = openSse(fixture.port, observe(who, session))

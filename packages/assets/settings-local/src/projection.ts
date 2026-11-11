@@ -5,6 +5,7 @@ import {
   SettingsIdSchema,
   SettingsReferenceSchema,
   SettingsTargetSchema,
+  SettingsSourceLayoutSchema,
 } from '@omne-harness/settings'
 import { domainSchema } from './schema.ts'
 
@@ -29,13 +30,10 @@ export const SettingsProjectionBindingSchema = z.strictObject({
 })
 export const SettingsTargetProjectionSchema = z.strictObject({
   target: SettingsTargetSchema,
+  enabled: z.boolean(),
   definitionRef: SettingsDefinitionRefSchema,
   definition: SettingDefinitionsSchema,
-  sourceIds: z
-    .array(SettingsIdSchema)
-    .min(1)
-    .max(32)
-    .refine(ids => new Set(ids).size === ids.length),
+  sources: SettingsSourceLayoutSchema,
   grants: z
     .array(
       z.strictObject({

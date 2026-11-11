@@ -82,6 +82,8 @@ async function probeCell(
       },
     },
     systemActions: { check: input => systemActions.check(input) },
+    // This world has no login source: a Session permission write reads it as unavailable.
+    login: { queryCurrentTenant: () => Promise.reject(new Error('no login source')) },
   }
   const actor = okOf(authority.issuer.issueSystem({ component: 'sessionWorkPrincipals' }), 'actor')
   const acting = (owner: string, work: string) =>
@@ -146,6 +148,8 @@ function extraFor(
 ): Record<string, unknown> {
   if (operation === 'accept') return cell.when?.kinds.includes('business') ? business : ordinary
   if (operation === 'receive') return scopeReleaseFact
+  if (operation === 'change')
+    return { declaration: { kind: 'permission-mode', value: 'never', authorization: evidence } }
   return {}
 }
 

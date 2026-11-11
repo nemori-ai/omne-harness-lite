@@ -30,6 +30,7 @@ import {
   type ToolForwardSource,
 } from '@omne-harness/tool-contract/provider'
 import type { LocalInvocationSourceInput, PrincipalJson } from './invocation-source.ts'
+import type { ObserveInvocationRecord } from './invocation-qualification.ts'
 import { localArgumentLimits } from './ledger-guards.ts'
 import { isReceivedCopyKey, receivedCopyKey, sourceDomain, sourceKey } from './source-identities.ts'
 
@@ -184,6 +185,7 @@ export function createInvocationForwarding<P>(
     tenant: LedgerDomain['tenant'],
     consumer: ConsumerRef,
   ) => Pick<ToolForwardBinding, 'call' | 'admission'>,
+  observe?: ObserveInvocationRecord,
 ) {
   const readParent = async (
     access: Access<P> & { call: ToolForwardBinding['call'] },
@@ -192,6 +194,8 @@ export function createInvocationForwarding<P>(
     const read = await input.store.read({ kind: 'call', tenant: access.tenant, call: access.call })
     if (read.kind !== 'complete') return unavailable()
     const row = read.records.find(row => row.kind === 'call')
+    if (row !== undefined)
+      observe?.({ kind: 'call', tenant: access.tenant, call: access.call }, row)
     return row?.kind === 'call' &&
       row.call.call === access.call &&
       same(row.call.tenant, access.tenant)
@@ -280,6 +284,7 @@ export function createInvocationForwarding<P>(
     if (read.kind !== 'complete') return unavailable()
     const row = read.record
     if (row === null) return succeed({ read, stored: null })
+    observe?.(sourceDomain(access.tenant, consumer), row)
     const stored = row.kind === 'host' ? parseForward(row.host.value) : null
     return stored === null ? unavailable() : succeed({ read, stored })
   }

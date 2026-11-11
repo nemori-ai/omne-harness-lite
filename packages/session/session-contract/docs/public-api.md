@@ -22,6 +22,10 @@
 
 初始化守卫中的 inputSnapshot/capabilities 复用 ContextMaterial，residentBindings/newResidents 复用 ResidentAdoption 的 keys/residents。decision.commit 为字符串，具体边界见 [初始化材料的嵌套字段](../SPEC.md#初始化材料的嵌套字段)。这些材料由 Session 的初始化守卫解析器校验，不新增外域 API。
 
+## 普通输入预算
+
+`SessionIntakeLimits`、`DEFAULT_SESSION_INTAKE_LIMITS`、`sessionIntakeLimits`、`sessionInputBytes` 与 `judgeSessionIntake` 定义于 [intake.ts](../src/intake.ts)。预算属于装配配置，行为与事务前提见 [普通输入准入预算](../SPEC.md#普通输入准入预算)。`judgeSessionIntake` 是纯判断，不替调用方建立原子提交边界。
+
 ## 操作身份的派生
 
 [OP-00](../SPEC.md#op-00)。
@@ -195,3 +199,7 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 ## Session Todo
 
 [Todo 行为](../SPEC.md#session-todo-状态与操作)归契约正文。根入口导出 TodoItemId，以及 [todos.ts](../src/todos.ts) 的 TodoItem、VisibleTodoItem、TodoMutationReceipt、TodoPageCursor、TodoPage 与 SessionTodos。四方法加入现有 SessionWork，命令和访问操作同步其名称。WorkSnapshot.todos 为可选归约集合，缺席表示此前没有 Todo 事实。失败只新增 todo-not-found，不放宽其他拒绝语义。
+
+### 权限历史重建
+
+[permission-history.ts](../src/permission-history.ts) 的 `rebuildSessionPermissions` 是迁移使用的纯函数。输入为原快照与完整相关批次，输出为重建值/快照或具名 invalid。它保存原配值与创建时模式采用，不处理 Identity、Settings 默认解析或新的授权。支持的发布及拒绝条件归 [SPEC](../SPEC.md#权限状态的具名升级)。

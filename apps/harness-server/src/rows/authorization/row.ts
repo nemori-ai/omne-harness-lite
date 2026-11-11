@@ -1,7 +1,7 @@
 // The `authorization` row (application assembly, DP-4): the application member's authorization
 // adapter plugin. It provides `sessionAccessCheck`, `agentAccessCheck` and `agentActionAdmission`
 // over the policy tables of this directory, and it injects the verifier (an entry object), the
-// tenant standing source (the `identity` row) and `identityClock` (an entry object on the root).
+// tenant standing source (the `identity` row) `identityGovernance` (the original login check) and `identityClock` (an entry object on the root).
 // The grant table is built into the release and the plugin hands it to the reference system action
 // authorization. The table is not an `inject` and not a service key. The row provides the decision
 // over it as the trusted key `systemActionAuthorization` (R2-D245): `session-storage` asks it before
@@ -25,6 +25,7 @@ import type { ActionAdmission, AgentAccessCheck } from '@omne-harness/agent-cont
 import type { IdentityClock, PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import {
   identityClockKey,
+  identityGovernanceKey,
   principalVerifierKey,
   tenantStandingKey,
 } from '@omne-harness/identity/cordis'
@@ -48,6 +49,7 @@ import {
 } from './system-action-service.ts'
 import { authorizationConfig } from './action-rules.ts'
 import { createToolTargetPolicy, installToolTargetPolicy } from './tool-target-policy.ts'
+import { currentPermissionOf } from './current-permission.ts'
 
 // The services keep closures only: no `#` private field, because a method reached through a caller
 // proxy has a `this` that is not the instance (docs/real-mode.md).
@@ -96,7 +98,7 @@ class SystemActionAuthorizationImpl extends SystemActionAuthorizationService {
 }
 
 /**
- * The three dependencies, read from the context again on every call. A reference that outlives a
+ * The identity dependencies, read from the context again on every call. A reference that outlives a
  * dependency fails inside the reference checks and gives `unavailable` there, never a stale answer.
  */
 function portsOf(ctx: Context, grants: ReturnType<typeof releaseMaintenanceGrants>): AccessPorts {
@@ -105,6 +107,7 @@ function portsOf(ctx: Context, grants: ReturnType<typeof releaseMaintenanceGrant
   const clock: IdentityClock = { now: () => ctx.identityClock.now() }
   return Object.freeze({
     admission: referenceAdmissionCheck({ verifier, standing, permits: null }),
+    login: { queryCurrentTenant: input => ctx.identityGovernance.queryCurrentTenant(input) },
     systemActions: referenceSystemActionAuthorization({
       verifier,
       grants,
@@ -115,7 +118,7 @@ function portsOf(ctx: Context, grants: ReturnType<typeof releaseMaintenanceGrant
 
 const plugin: Plugin.Object = {
   name: 'authorization',
-  inject: [principalVerifierKey, tenantStandingKey, identityClockKey],
+  inject: [principalVerifierKey, tenantStandingKey, identityClockKey, identityGovernanceKey],
   Config: authorizationConfig,
   apply(ctx: Context, config: unknown) {
     const { actionRules, maintenanceGrants } = authorizationConfig.parse(config)
@@ -128,9 +131,15 @@ const plugin: Plugin.Object = {
       'authorization.active',
     )
     const ports = portsOf(ctx, grants)
+    const permission = currentPermissionOf(ctx)
+    const readPermission = () => (active ? permission : undefined)
     installToolTargetPolicy(
       ctx,
-      createToolTargetPolicy(actionRules, () => (active ? ports.admission : undefined)),
+      createToolTargetPolicy(
+        actionRules,
+        () => (active ? ports.admission : undefined),
+        readPermission,
+      ),
     )
     new SystemActionAuthorizationImpl(ctx, ports.systemActions, () => active)
     new SessionAccessCheckImpl(ctx, createSessionAccessCheck(ports))
@@ -140,6 +149,7 @@ const plugin: Plugin.Object = {
       createActionAdmission({
         actionRules,
         readAdmission: () => (active ? ports.admission : undefined),
+        readPermission,
       }),
     )
   },
@@ -160,7 +170,7 @@ export const authorization = defineRow({
       agentActionAdmissionKey,
       systemActionAuthorizationKey,
     ],
-    injects: [tenantStandingKey, principalVerifierKey, identityClockKey],
+    injects: [tenantStandingKey, principalVerifierKey, identityClockKey, identityGovernanceKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },

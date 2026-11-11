@@ -30,7 +30,7 @@ import type {
 } from './execution-environment.ts'
 import type { LocalInstanceInput } from './instance-host.ts'
 import { createLocalOperationIdentities, type LocalInvocationSource } from './invocation-source.ts'
-import type { ToolHostAccess } from './ledger-guards.ts'
+import type { ConditionalLedgerCommit, ToolHostAccess } from './ledger-guards.ts'
 import type { LocalStartCoordinatorInput } from './start-coordinator.ts'
 import type { RuntimeRecords } from './runtime-records.ts'
 import { createAbsentToolPorts } from './absent-ports.ts'
@@ -40,6 +40,8 @@ type Bindings = ToolBindings<unknown, ToolEnvironmentValue>
 export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
   store: ToolLedgerStore
+  /** Commits an acceptance together with the condition of its request policy verdict. */
+  conditionalCommit: ConditionalLedgerCommit
   bodies: NonNullable<ToolLedgerPorts<unknown>['bodies']>
   content: ToolLedgerPorts<unknown>['content']
   bodySchemas?: ToolLedgerPorts<unknown>['bodySchemas']

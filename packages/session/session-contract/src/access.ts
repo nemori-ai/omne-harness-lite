@@ -1,5 +1,6 @@
 // Current-operation access requests. Qualification policy belongs to the authorization adapter;
 // the Session execution boundary binds each decision to this operation and its fixed input.
+import type { SessionPermissionWriteQualification } from './permission-values.ts'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts'
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts'
@@ -56,7 +57,11 @@ export type SessionAccessRequest<P> =
 export type SessionAccessOperation = SessionAccessRequest<unknown>['operation']
 export type SessionAccessTarget = SessionAccessRequest<unknown>['target']
 export type SessionAccessDecision =
-  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence }>
+  | Readonly<{
+      kind: 'allowed'
+      evidence: DurableEvidence
+      writeQualification?: SessionPermissionWriteQualification
+    }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
@@ -69,6 +74,7 @@ export interface SessionAccessCheck<P> {
 export type SessionCheckedAccess<P> = Readonly<{
   request: SessionAccessRequest<P>
   evidence: DurableEvidence
+  writeQualification?: SessionPermissionWriteQualification
 }>
 
 /**

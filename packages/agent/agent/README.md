@@ -332,3 +332,5 @@ Update actual consumers, the SPEC, and verification when a public contract chang
 ## Directory structure and documentation roles
 
 The package follows the source template skeleton. [docs](docs/README.md) lists six documentation topics. Source, tests, schemas, verification, ADRs, examples, resources, and acceptance each have an index. Draft resource slots do not establish template adoption or business acceptance.
+
+`createAgentToolQualification` 认回 Tool 请求对应的原 Agent 采用。依赖是 Journal 读取、材料读取和原 Tool 绑定查询；它不要求运行中的 Agent 实例。首次保存 intent 与已关联调用分别核验，消费方必须另核 Tool 原来源和观察的 Journal 修订。契约见 [Tool 原 Agent 关联观察](../agent-contract/SPEC.md#tool-原-agent-关联观察)。

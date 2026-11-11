@@ -25,16 +25,15 @@ import {
 } from '@omne-harness/settings'
 import { canonical, digest, equal, json, withinBudget } from './encoding.ts'
 import { failureSchema } from './schema.ts'
-import { TARGET_GUARD, projectionForChange } from './target-guard.ts'
 import {
   SnapshotInputSchema,
   snapshotOperation,
   SNAPSHOT_PARTICIPANT,
   type SnapshotInput,
 } from './snapshot-schema.ts'
-import { TERMINAL_PARTICIPANT } from './terminal-schema.ts'
-import type { SettingsSqlTerminalOptions } from './terminals.ts'
-import type { SettingsSqlGuards, SettingsSqlAccess } from './types.ts'
+import { CATALOG_TERMINAL } from './catalog-terminal-schema.ts'
+import type { SettingsSqlTerminalOptions } from './terminal-schema.ts'
+import type { SettingsSqlAccessGrant, SettingsSqlAccessRequest } from './types.ts'
 import {
   SettingsProjectionBindingSchema,
   SettingsTargetProjectionSchema,
@@ -43,15 +42,6 @@ import {
 export type SettingsProjectionCommands = (
   binding: SettingsProjectionBinding,
 ) => readonly FactCommandV2[]
-export function createSettingsTargetGuards(project: SettingsProjectionCommands): SettingsSqlGuards {
-  return {
-    participant: TARGET_GUARD,
-    command: binding => [
-      ...project(projectionForChange(binding)),
-      { participant: TARGET_GUARD, facts: { binding: json(binding) } },
-    ],
-  }
-}
 export interface SettingsSelectionSource {
   resolve(
     principal: ActingForTenantPrincipal,
@@ -81,9 +71,11 @@ const BasisSchema = z.strictObject({
     .array(
       z.strictObject({
         target: SettingsTargetSchema,
+        enabled: z.boolean(),
         definition: SettingDefinitionsSchema,
         definitionRef: SettingsDefinitionRefSchema,
         state: SettingsStateSchema,
+        sources: SettingsTargetProjectionSchema.shape.sources,
         grants: SettingsTargetProjectionSchema.shape.grants,
       }),
     )
@@ -94,7 +86,13 @@ const BasisSchema = z.strictObject({
 export function createSettingsCatalog(
   input: SettingsCatalogOptions,
 ): SettingsReadPort<ActingForTenantPrincipal> & {
-  access: SettingsSqlAccess<ActingForTenantPrincipal>
+  /** The authority of a principal over one target of this scope, captured now, for any action. */
+  access: {
+    authorize(
+      principal: ActingForTenantPrincipal,
+      request: Pick<SettingsSqlAccessRequest, 'scope' | 'target'>,
+    ): Promise<SettingsSqlAccessGrant | SettingsFailure>
+  }
   close(): Promise<void>
 } {
   if (!Number.isSafeInteger(input.cursorLifetimeMs) || input.cursorLifetimeMs < 1)
@@ -252,7 +250,7 @@ export function createSettingsCatalog(
         manifestDigest: options.manifestDigest,
         commands: [
           {
-            participant: TERMINAL_PARTICIPANT,
+            participant: CATALOG_TERMINAL.participant,
             facts: { kind: 'consume', binding: json(operation) },
           },
           ...options.project(capture.binding),
@@ -263,7 +261,7 @@ export function createSettingsCatalog(
     } catch {
       result = fail('unavailable')
     }
-    const settled = await options.reservations.settle(held.reservation.id)
+    const settled = await options.reservations.settle(held.reservation)
     if (settled.kind !== 'terminal' || settled.outcome !== 'committed')
       return result.kind === 'rejected' ? result : fail('basis_changed')
     if (before.revision !== options.registry.snapshot().revision) return fail('basis_changed')

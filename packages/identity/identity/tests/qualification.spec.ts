@@ -10,9 +10,13 @@ import {
 } from '@omne-harness/identity'
 
 describe('named qualifications', () => {
-  it('publishes organization cost ledger read as the first named qualification', () => {
-    expect([...QUALIFICATIONS]).toEqual(['organization-cost-ledger-read'])
+  it('publishes separate qualifications for organization costs and settings', () => {
+    expect([...QUALIFICATIONS]).toEqual([
+      'organization-cost-ledger-read',
+      'organization-settings-manage',
+    ])
     expect(isQualification('organization-cost-ledger-read')).toBe(true)
+    expect(isQualification('organization-settings-manage')).toBe(true)
     expect(isQualification('organization-admin')).toBe(false)
     expect(isQualification(7)).toBe(false)
   })
@@ -29,11 +33,11 @@ describe('the default team role mapping', () => {
     ])
   })
 
-  it('maps the super administrator to the cost ledger read and the member to nothing', () => {
+  it('maps organization costs and settings to the super administrator and neither to members', () => {
     const superAdmin = { model: DEFAULT_TEAM_MODEL, role: DEFAULT_TEAM_ROLES.superAdmin }
     const member = { model: DEFAULT_TEAM_MODEL, role: DEFAULT_TEAM_ROLES.member }
     expect(qualificationsOf(DEFAULT_TEAM_ROLE_MAPPING, superAdmin)).toEqual({
-      ok: ['organization-cost-ledger-read'],
+      ok: ['organization-cost-ledger-read', 'organization-settings-manage'],
     })
     expect(qualificationsOf(DEFAULT_TEAM_ROLE_MAPPING, member)).toEqual({ ok: [] })
   })

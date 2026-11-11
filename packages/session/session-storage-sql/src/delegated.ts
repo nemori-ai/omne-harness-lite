@@ -36,11 +36,12 @@ function viewOf<P>(port: SessionTransactionPort<P>): SessionTransactionPort<P> {
 
 /** The access step of a view: the bound evidence for a call inside the binding, else `denied`. */
 function boundStep<P>(checked: SessionCheckedAccess<P>): AccessStep<P> {
-  const { request: bound, evidence } = checked
+  const { request: bound, evidence, writeQualification } = checked
+  const allowed = writeQualification === undefined ? { evidence } : { evidence, writeQualification }
   return request =>
     Promise.resolve(
       withinBinding(bound, request)
-        ? succeed(evidence)
+        ? succeed(allowed)
         : failure({ kind: 'denied', action: request.operation }),
     )
 }

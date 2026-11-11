@@ -423,6 +423,8 @@ export async function fixture(
   const input: LocalToolRuntimeInput = {
     store,
     bodies: createMemoryToolBodies(),
+    // No verdict of this fixture carries a condition.
+    conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
     content: null,
     ...(body === undefined ? {} : { bodySchemas: body.schemas }),
     sources,

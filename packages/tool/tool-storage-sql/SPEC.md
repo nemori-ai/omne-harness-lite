@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包是 Tool 记录仓与正文存储的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore`（含同租户读集断言的条件提交 TS-11、到期索引 TS-14 与整域删除 TS-15）与 `ToolBodyStore`（TS-13），并导出静态材料 `toolStorageMaterials()`。
+本包是 Tool 记录仓与正文存储的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore`（含同租户读集断言的条件提交 TS-11、到期索引 TS-14 与整域删除 TS-15）与 `ToolBodyStore`（TS-13），并导出静态材料 `toolStorageMaterials()`。`createSqlToolConditionalCommit` 提供带启动条件的账本提交（TS-12），供启动协调器写 acceptance。
 
 依据：
 
@@ -122,6 +122,23 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 性质：受理之后重写调用记录的提交，命令大小与请求大小无关。判据：`tests/request-once.spec.ts`（两份参数合计接近命令上限的调用走到收场，收场后只有调用记录的 `fixed` 列带着请求；装不下的请求在受理时被拒且不留行；调用记录晚出现时补发）与 `tests/participant.spec.ts`（`given`、`kept` 与 `fixed-missing`）。
 
+### TS-12 带启动条件的账本提交
+
+`createSqlToolConditionalCommit(options)` 返回独立的 `commit` 端口。调用方传入一个启动条件和一份 `LedgerCommitInput`。
+
+条件的 SQL 形状是 `SqlToolCondition`：组合版本、清单摘要和一组别的参加者的命令。这个组合必须已在同一事务域登记，并含 `tool` 参加者。本包不解释这些命令。
+
+适配器发出一个 SQL 操作：条件命令在前，`tool` 的账本写入在后，使用条件给出的组合。
+
+- 全部参加者参与并提交时答 `committed`。
+- 条件里的任一参加者停下操作时答 `condition-failed`。整个操作回滚，账本没有写入。
+- `tool` 参加者因修订不符停下时答 `conflict`，`current` 为当前修订。
+- 条件不是这个形状、没有命令或点名 `tool` 参加者时答 `rejected`，不发出操作。条件不能写账本。
+- 这次提交与记录仓的其他提交走同一个保管者（TS-16），读集断言（TS-11）与调用记录的固定部分（TS-17）照常生效：提交成功后快照随它前进，条件不成立或被拒时快照保留。
+- `unknown` 与 `unavailable` 沿 TS-02 映射。
+
+工厂不自动重试，不新建表或迁移，`tool` 参加者的代码不变。
+
 ## 所有权、失败与生命周期
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
@@ -151,6 +168,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 | 重开                       | `tests/reopen.spec.ts`：关闭再打开同一组数据库文件                                                                                                                                                                                                                                                                                                                                                                                                                                                       | 进程内关闭与重开，不是进程终止或断电                                                                                                          |
 | 启动围栏                   | `tests/start-coordinator.spec.ts`：`tool-host-local` 的协调器在本仓上运行三组启动套件，并在重开后重建                                                                                                                                                                                                                                                                                                                                                                                                    | 授权套件的用例全部不适用（协调器没有授权消费点）                                                                                              |
 | 历史无关（C7 host）        | `tests/host-history-independence.spec.ts`：种入 200 次 Tools 调用（来源绑定、控制主体、父与目标两次受理、环境获取与长寿命保留作用域里的保留终端与移交后停止的保留进程、转发槽与一条收到的副本、父调用经真实账本驱动到 `done` 的结果交付）后新调用能启动；计数记录仓显示一次 Tools 调用在宿主路径上读到的记录数与字节数在 20 与 200 次历史下逐项相等，保留作用域记录的大小两次相等；作用域的收场记录随已停止的保留进程增长（等于停止数），只计数，读一条收场事实恰读一条记录；`start-guards` 大小单独报告 | 慢层；接收方、资格与材料是替身，账本与宿主工厂是真件                                                                                          |
+| TS-12                      | `tests/conditional-commit.spec.ts`：发出的操作里命令的次序与组合、条件参加者停下、账本修订冲突、坏条件不发出、未登记租户；存储答复是脚本给的，真实条件参加者与真实提供者的同事务行为由应用侧验证 |
 | TS-10                      | `tests/materials.spec.ts`、`tests/public-entry.spec.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 真实的三方材料合并由应用侧验证                                                                                                                |
 
 ## 正文存储与到期索引的实现映射

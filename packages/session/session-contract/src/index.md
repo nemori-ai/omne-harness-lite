@@ -9,6 +9,7 @@
 - [identity.ts](identity.ts)：品牌身份、`SessionAccess`、`Mutation`、交换值的重导出
 - [access.ts](access.ts)：`SessionAccessCheck`、关联的操作请求与裁定类型
 - [values.ts](values.ts)：快照与固定输入的值类型
+- [intake.ts](intake.ts)：普通输入的部署预算、编码计量与纯准入判断
 - [faces.ts](faces.ts)：失败、回执、四个面、历史页
 - [operations.ts](operations.ts)：操作身份的派生与规范文本摘要
 - [ports.ts](ports.ts)：构造依赖端口、出站端口、命令与守卫材料、块声明类型

@@ -60,6 +60,7 @@ import { defineRow, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { systemActionAuthorizationKey } from '../authorization/system-action-service.ts'
+import { sessionPermissionBackendKey } from '../governance/session-permission-backend-service.ts'
 import { boundAccessCheck } from './bound.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS, compositeManifestDigest } from './composite.ts'
 import { sessionStorageRowConfigSchema, type SessionStorageRowConfig } from './config.ts'
@@ -233,11 +234,11 @@ function unregisteredTenantIsAbsent<P>(
   }
 }
 
-function delegatedView<P>(
-  base: SessionStorageOptions<P>,
+function delegatedView(
+  base: SessionStorageOptions<unknown>,
   directory: TenantDirectory,
-  checked: SessionCheckedAccess<P>,
-): SessionTransactionPort<P> {
+  checked: SessionCheckedAccess<unknown>,
+): SessionTransactionPort<unknown> {
   const creating = boundCreateTenant(checked.request)
   const view = createSessionStorage({
     ...base,
@@ -246,7 +247,7 @@ function delegatedView<P>(
   })
   const denied = (action: (typeof DENIED_IN_VIEW)[number]) => () =>
     Promise.resolve(fail<SessionFailure>({ kind: 'denied', action }))
-  const bound: SessionTransactionPort<P> = {
+  const bound: SessionTransactionPort<unknown> = {
     ...view,
     commitEntries: denied('commitEntries'),
     commitLog: denied('commitLog'),
@@ -382,11 +383,22 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   }
   if (!isOpen()) throw new Error('session storage: stopped before publishing services')
   const base: SessionStorageOptions<unknown> = {
+    intakeLimits: config.intakeLimits,
     storage,
     domains: directory.access,
     accessCheck,
     cursorSigning: lateBoundCursorSigning(ctx),
     combination,
+    // The governance row forms the basis of a permission assignment; it may mount later.
+    protectedBasis: commit =>
+      ctx.get(sessionPermissionBackendKey)?.basis(commit) ??
+      Promise.resolve(
+        fail<SessionFailure>({
+          kind: 'unavailable',
+          owner: 'harness.session-permission-write',
+          diagnostic: 'no backend forms the basis of a Session permission write',
+        }),
+      ),
   }
   const port = registeringOnCreate(
     createSessionStorage(base),

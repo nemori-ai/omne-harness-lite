@@ -6,5 +6,5 @@
 
 - [README.md](README.md)：证明清单与假设
 - [batch-budget.md](batch-budget.md)：业务事实与封套共用物理记录预算的计数证明
-
+- [permission-mode.md](permission-mode.md)：精确模式采用、询问处理与结构化禁止优先的有限输入证明
 - [finished-copy.md](finished-copy.md)：终态副本丢弃、串行尾无正文保留及终态观察重建。

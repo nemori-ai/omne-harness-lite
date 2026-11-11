@@ -10,6 +10,9 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   commandDigest,
+  sessionIntakeLimits,
+  judgeSessionIntake,
+  type SessionIntakeLimits,
   mutationAccessRequest,
   readAccessRequest,
   type CommitReceipt,
@@ -45,6 +48,7 @@ import {
 } from './store.ts'
 
 export type SessionProviderFacesOptions = Readonly<{
+  intakeLimits?: SessionIntakeLimits
   accessCheck: SessionAccessCheck<unknown>
   observe?: ArrivalObserver | undefined
 }>
@@ -114,6 +118,7 @@ function snapshotOf(
     definition: { name: creation.definition.name, adopted: creation.definition.candidate },
     execution: creation.execution,
     declarations: evidenceOf('declarations', session),
+    permissions: { revision: '0', assignments: [] },
     revisions: { workspace: '0', declarations: record.revision },
     run: { kind: 'none' },
     pending: [...record.inputs],
@@ -169,6 +174,7 @@ function pageOf(store: SessionStore, record: SessionRecord, state: CursorState):
 export function createSessionProviderFaces(
   options: SessionProviderFacesOptions,
 ): SessionFaces<unknown> {
+  const intakeLimits = sessionIntakeLimits(options.intakeLimits)
   const store = new SessionStore()
   const { accessCheck, observe } = options
 
@@ -237,6 +243,10 @@ export function createSessionProviderFaces(
           return invalid('input', 'the input identity is empty')
         if (value.kind === 'ordinary' && record.inputs.has(value.input))
           return invalid('input', 'the input identity was accepted under another operation')
+        if (value.kind === 'ordinary') {
+          const limited = judgeSessionIntake(record.inputs.size, value, intakeLimits)
+          if (limited !== null) return fail(limited)
+        }
         let draft: EntryDraft
         try {
           draft =
@@ -398,6 +408,11 @@ export function createSessionProviderFaces(
             state: snapshotOf(input.tenant, input.session, existing),
           })
         }
+        const initial = input.creation.initial
+        if (initial !== null) {
+          const limited = judgeSessionIntake(0, initial, intakeLimits)
+          if (limited !== null) return fail(limited)
+        }
         const record = new SessionRecord(input.creation)
         const drafts: EntryDraft[] = [
           {
@@ -405,6 +420,10 @@ export function createSessionProviderFaces(
             payload: payloadOf({ definition: input.creation.definition.name }),
           },
         ]
+        if (initial !== null) {
+          drafts.push({ kind: 'message.user', payload: payloadOf({ message: initial.message }) })
+          record.inputs.add(initial.input)
+        }
         const receipt = record.commit(input.session, input.operation, drafts)
         record.operations.set(input.operation, {
           kind: 'create',

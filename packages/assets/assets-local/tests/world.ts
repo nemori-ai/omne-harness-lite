@@ -1,15 +1,13 @@
+import { ownerSources } from './sources.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import canonicalize from 'canonicalize'
 import { capabilityId, createCategoryRegistry, pinBody, readBodyText } from '@omne-harness/assets'
-import { SettingDefinitionsSchema, type SettingsChange } from '@omne-harness/settings'
-import {
-  createSettingsSqlBackend,
-  settingsSqlMaterials,
-  type SettingsProjectionBinding,
-} from '@omne-harness/settings-local'
+import { SettingDefinitionsSchema } from '@omne-harness/settings'
+import { settingsSqlMaterials, type SettingsProjectionBinding } from '@omne-harness/settings-local'
+import { SETTINGS_RECOVERY_PARTICIPANTS } from '@omne-harness/settings-local/preparation'
 import {
   combinationManifest,
   manifestDigest,
@@ -18,7 +16,6 @@ import {
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import {
-  assetsSettingsGuards,
   assetsSettingsProjectionCommand,
   assetsSqlMaterials,
   createAssetsLocal,
@@ -99,20 +96,6 @@ export function definitionRef(version = '1', enabled = false) {
   }
 }
 export const target = { policyId: 'asset', targetRef: 'holding-a', scopeRef: 'tenant-a' }
-export function command(overrides: Partial<SettingsChange> = {}): SettingsChange {
-  return {
-    protocol: 'settings/1',
-    requestId: randomUUID(),
-    operationId: randomUUID(),
-    target,
-    definitionRef: definitionRef(),
-    expectedRevision: 0,
-    sourceId: 'tenant',
-    itemId: 'enabled',
-    action: { kind: 'set', value: true },
-    ...overrides,
-  }
-}
 export const grants = [
   {
     sourceId: 'tenant',
@@ -121,9 +104,9 @@ export const grants = [
 ]
 export async function openWorld(
   options: {
+    categories?: typeof categories
     config?: Partial<import('@omne-harness/sqlite-provider').SqliteStorageConfig>
     root?: string
-    wrap?: (storage: SqlStorage) => SqlStorage
     ownerWrap?: (storage: SqlStorage) => SqlStorage
   } = {},
 ) {
@@ -145,7 +128,10 @@ export async function openWorld(
     scope: { kind: 'tenant', tenant: 'tenant-a' } as const,
     transactionDomain: 'assets.test',
   }
-  const participants = materials.participants.map(p => p.participant)
+  const participants = [
+    ...assets.participants.map(p => p.participant),
+    ...SETTINGS_RECOVERY_PARTICIPANTS,
+  ]
   const manifest = combinationManifest({ catalog: materials, participants })
   if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
   const combination = {
@@ -167,23 +153,7 @@ export async function openWorld(
     ...combination,
     domain,
     storage: options.ownerWrap?.(storage) ?? storage,
-    categories,
-  })
-  const backend = createSettingsSqlBackend({
-    storage: options.wrap?.(storage) ?? storage,
-    domain,
-    ...combination,
-    guards: assetsSettingsGuards,
-    access: {
-      async authorize(_context: null, request) {
-        return {
-          kind: 'authorized' as const,
-          scope: domain.scope,
-          target: request.target,
-          principalRef: 'alice',
-        }
-      },
-    },
+    categories: options.categories ?? categories,
   })
   async function setup() {
     const published = await owner.publish({
@@ -198,7 +168,7 @@ export async function openWorld(
       scopeRef: target.scopeRef,
       assetRef: 'asset-a',
       selection: { kind: 'follow' },
-      sourceIds: ['tenant'],
+      sources: ownerSources('tenant'),
       grants,
     })
     if (published.kind !== 'committed' || held.kind !== 'committed')
@@ -235,13 +205,12 @@ export async function openWorld(
     domain,
     storage,
     owner,
-    backend,
     combination,
     setup,
     capture,
     close() {
       return (closing ??= (async () => {
-        await Promise.all([owner.close(), backend.close()])
+        await owner.close()
         const closed = await result.control.close({ initiator: 'disposal' })
         if (closed.kind !== 'closed') throw new Error(JSON.stringify(closed))
       })())

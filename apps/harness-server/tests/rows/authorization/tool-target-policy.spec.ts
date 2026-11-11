@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { referenceAdmissionCheck } from '@omne-harness/authorization'
+import { decisionEvidence, referenceAdmissionCheck } from '@omne-harness/authorization'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
 import { describe, expect, it } from 'vitest'
 import { actionRulesSchema } from '../../../src/rows/authorization/action-rules.ts'
@@ -8,6 +8,8 @@ import {
   installToolTargetPolicy,
   toolTargetPolicyOf,
 } from '../../../src/rows/authorization/tool-target-policy.ts'
+import { decodeToolOperationId } from '@omne-harness/tool-contract'
+import { okOf } from '../../entry/support.ts'
 import { forwardWorld } from '../../entry/tool-forward-support.ts'
 
 describe('current target rules of the authorization row', () => {
@@ -37,10 +39,43 @@ describe('current target rules of the authorization row', () => {
         ],
       })
       let live = true
-      const policy = createToolTargetPolicy(rules, () => (live ? identity : undefined))
-      const access = { principal: world.principal, tenant: world.tenant, call: world.call }
+      const policy = createToolTargetPolicy(
+        rules,
+        () => (live ? identity : undefined),
+        () => ({
+          check: async input => {
+            expect(input.origin).toMatchObject({
+              kind: 'tool-call',
+              admission: access.admission,
+              call: access.call,
+            })
+            return {
+              kind: 'allow',
+              evidence: decisionEvidence('permission-fixture', '1', {}),
+              condition: { basis: 'fixture' },
+            }
+          },
+        }),
+      )
+      const access = {
+        principal: world.principal,
+        tenant: world.tenant,
+        call: world.call,
+        admission: okOf(decodeToolOperationId('original-admission'), 'operation'),
+      }
+      expect(
+        await createToolTargetPolicy(
+          rules,
+          () => identity,
+          () => undefined,
+        ).qualify({
+          ...access,
+          request: world.request('Tools'),
+        }),
+      ).toMatchObject({ kind: 'unavailable' })
       expect(await policy.qualify({ ...access, request: world.request('Tools') })).toEqual({
         kind: 'allowed',
+        condition: { basis: 'fixture' },
       })
       expect(await policy.qualify({ ...access, request: world.request('Shell') })).toEqual({
         kind: 'denied',
@@ -65,6 +100,7 @@ describe('current target rules of the authorization row', () => {
           ],
         }),
         () => identity,
+        () => undefined,
       )
       expect(await exact.qualify({ ...access, request: world.request('Tools') })).toMatchObject({
         kind: 'unavailable',
@@ -83,7 +119,11 @@ describe('current target rules of the authorization row', () => {
   it('isolates running roots and removes the current port on row retirement', async () => {
     const a = new Context(),
       b = new Context()
-    const policy = createToolTargetPolicy(undefined, () => undefined)
+    const policy = createToolTargetPolicy(
+      undefined,
+      () => undefined,
+      () => undefined,
+    )
     try {
       const row = a.plugin({
         name: 'target-policy-test',

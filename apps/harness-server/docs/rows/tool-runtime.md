@@ -6,22 +6,28 @@
 发行内置作者的来源与登记见[发行内置 Tool](tool-release.md)。本页依据 Reduce 裁定 R2-D14、R2-D36、R2-D66、
 R2-D79、R2-D84 与 Tool B 段简报。
 
+## 原调用资格查询
+
+`tool-records` 在自己的 fiber 发布 `toolInvocationQualification`。Governance 按调用读取它，核对调用的原来源。这个查询复用实际 bundle 的来源、身份、记录仓及转发输入，不调用目标准入，也不执行工具。
+
+目标准入可以调用此查询，不会再次进入目标准入。来源查询只返回原拥有者观察，不授予许可。行关闭后，保留的旧引用返回 unavailable；跨越关闭才完成的读取也不能交回成功。Tool 原来源的持久事实仍由 Tool 拥有，应用没有新增来源表。
+
 ## 一个 bundle，五行
 
 `createLocalToolRuntimePlugins` 每次运行只调用一次。它返回 records、instanceHost、instances、environments、
 executor、runtime 六个插件和 `authorExecution`。五行装同一个 bundle 的插件，各在自己的 fiber：
 
-| 行                  | 装什么                                                             | 提供                                                                                           | 静态 inject                                                          |
-| ------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `tool-records`      | records 插件；在受信存储子树内建 SQL 记录仓、输出保管与守护提交    | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者组 `tool-start`） | `storage`、`tenantDomainLookup`、`telemetry` |
-| `tool-runtime`      | 门面插件                                                           | `toolRuntime`                                                                                  | `toolCommands`、`toolReads`                                          |
-| `tool-executor`     | 实例宿主装在行 fiber，长期执行宿主装在子 fiber。行体承载，业务阶段 | `toolInstanceHost`                                                                             | `toolCommands`、`toolClock`（子 fiber 另 inject `toolInstanceHost`） |
-| `tool-instances`    | 实例目录                                                           | `toolInstances`                                                                                | `toolPublicationAuthority`                                           |
-| `tool-environments` | 环境适配；本行建执行域的 schema-provider，行撤除时关闭             | `toolEnvironments`                                                                             | `executionEnvironment`（`caller: 'integrator'`）                     |
+| 行 | 装什么 | 提供 | 静态 inject |
+| --- | --- | --- | --- |
+| `tool-records` | records 插件；在受信存储子树内建 SQL 记录仓、正文存储与带条件提交 | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者组 `tool-start`）；受信原来源查询 `toolInvocationQualification` | `storage`、`tenantDomainLookup`、`telemetry` |
+| `tool-runtime` | 门面插件 | `toolRuntime` | `toolCommands`、`toolReads` |
+| `tool-executor` | 实例宿主装在行 fiber，长期执行宿主装在子 fiber。行体承载，业务阶段 | `toolInstanceHost` | `toolCommands`、`toolClock`（子 fiber 另 inject `toolInstanceHost`） |
+| `tool-instances` | 实例目录 | `toolInstances` | `toolPublicationAuthority` |
+| `tool-environments` | 环境适配；本行建执行域的 schema-provider，行撤除时关闭 | `toolEnvironments` | `executionEnvironment`（`caller: 'integrator'`） |
 
 整组的运维者配置只在 `tool-records` 行，因为 bundle 建一次就要全部数值。字段见
 [配置模块](../../src/rows/tool-runtime/config.ts)：`filesRoot`（与 `execution-host` 行相同）、
-`combinationVersion`（与 `session-storage` 行相同）、`maxCommandBytes`（与 `storage` 行相同）、`maxChunkBytes`、
+`combinationVersion`（与 `session-storage` 行相同）、
 `configuration`（`ToolConfiguration` 的全部字段）、`capacity` 与观察者的三项上限。发行层的配置是空对象，缺任何一项
 本行装载失败。同一次运行里换配置再建 bundle 也失败，不悄悄沿用旧配置。
 
@@ -47,7 +53,7 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 每项输入只取已核来源，缺席时由窄代理答 `unavailable`：
 
-- 记录仓、输出保管、守护提交：逐次读 `tool-records` 行交来的 SQL 端口。
+- 记录仓、正文存储、带条件提交：逐次读 `tool-records` 行交来的 SQL 端口。
 - 正文 schema：`tool-records` 行按入口预算创建独立的正文校验域，撤除时清空窄端口并关闭提供者。bundle每次检查现取端口，缺席返回unavailable。它不借用`tool-environments`的环境声明校验实例，也不把schema-provider或Cordis对象交给Tool领域。
 - 资格：`authorization` 行已有的 `createToolAccessGuard`，底下是 identity 的参考准入核验。
 - 控制主体投影：主体经 `principalVerifier` 核验，是会话工作主体才投影。其余答 `denied`。会话工作主体的判定只有
@@ -87,11 +93,11 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 ## 执行环境三行
 
-| 行                      | 装什么                                                                                                          |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 行 | 装什么 |
+| --- | --- |
 | `execution-environment` | `ExecutionEnvironmentRegistry`，提供 `executionEnvironment`。授权、可信作用域绑定与恢复授权逐次从装载上下文现取 |
-| `execution-files`       | `files` 设施声明                                                                                                |
-| `execution-command`     | `command` 设施声明，加 Shell 要的持久终端（`terminal`）设施声明。插件树没有单独的终端行，两个声明同生同灭       |
+| `execution-files` | `files` 设施声明 |
+| `execution-command` | `command` 设施声明，加 Shell 要的持久终端（`terminal`）设施声明。插件树没有单独的终端行，两个声明同生同灭 |
 
 宿主提供者在 `execution-host` 工厂行，见[宿主文件工厂](execution-host.md)。
 
@@ -110,13 +116,13 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 `createAgentHostRow({ toolRequestsOf })` 要的形状：给一个上下文，返回 `describe` 与 `prepare` 两个面。它不是服务键，
 不进配置。每次调用经 `ctx` 现取五个来源：
 
-| 字段             | 来源                                                                                                                                                                                    | 缺席或不符                                                                                                       |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| 主体             | `principalVerifier` 核验，必须是这个租户的会话工作主体                                                                                                                                  | 核验器缺席答 `unavailable`；其余答 `denied`                                                                      |
-| 定义与可用性     | `toolCatalog.inspect`；声明名就是工具名，多命令工具的命令用 `selectCommandText` 从生效参数选出；没点名已知命令的调用由 `describe` 答 `answered`，正文是原因加工具的 guide（R2-D399），`prepare` 对它答 `unavailable`；消费者是发行清单确认的文本消费者                                                                    | 目录缺席、不在发行清单、不是官方层、不可用都答 `unavailable`；`prepare` 时定义与 `describe` 不同答 `unavailable` |
-| `requesterScope` | 会话快照 `contextScopes` 的最新一条，未结束；会话以 `coordinator` 调用方类读（Session 的 `readWork` 只接受 `coordinator` 与 `maintainer`；来源代 Agent 做 Tool 消费，属 `coordinator`） | 读不到、没有作用域、已结束都答 `unavailable`                                                                     |
-| 作用域归属       | 入口对象 `executionScopeBinding`                                                                                                                                                        | 缺席或不明答 `unavailable`；未绑定或绑到别的租户答 `denied`                                                      |
-| 设置采用         | 发行清单里这个作者的固定设置采用                                                                                                                                                        | 发行快照不可用答 `unavailable`                                                                                   |
+| 字段 | 来源 | 缺席或不符 |
+| --- | --- | --- |
+| 主体 | `principalVerifier` 核验，必须是这个租户的会话工作主体 | 核验器缺席答 `unavailable`；其余答 `denied` |
+| 定义与可用性 | `toolCatalog.inspect`；声明名就是工具名，多命令工具的命令用 `selectCommandText` 从生效参数选出；没点名已知命令的调用由 `describe` 答 `answered`，正文是原因加工具的 guide（R2-D399），`prepare` 对它答 `unavailable`；消费者是发行清单确认的文本消费者 | 目录缺席、不在发行清单、不是官方层、不可用都答 `unavailable`；`prepare` 时定义与 `describe` 不同答 `unavailable` |
+| `requesterScope` | 会话快照 `contextScopes` 的最新一条，未结束；会话以 `coordinator` 调用方类读（Session 的 `readWork` 只接受 `coordinator` 与 `maintainer`；来源代 Agent 做 Tool 消费，属 `coordinator`） | 读不到、没有作用域、已结束都答 `unavailable` |
+| 作用域归属 | 入口对象 `executionScopeBinding` | 缺席或不明答 `unavailable`；未绑定或绑到别的租户答 `denied` |
+| 设置采用 | 发行清单里这个作者的固定设置采用 | 发行快照不可用答 `unavailable` |
 
 其余字段固定：`workspace` 为 `null`，`resources` 为空，前台执行，不加请求级的并发与时限，`context` 是本供给者的采用。
 
@@ -169,6 +175,8 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 - [发行树](../../tests/serve.spec.ts)：发行树里这九行是真件，42 个真实行、6 个替身行。
 
 这些用例不证明 Agent 推进、模型调用或 Session 日志里的 Tool 结果，那些由 SC4 与联调 C1 验收。
+
+启动时的目标政策由 `admittedTargetAccess` 适配。它通过原 ToolLedgerStore 读取原 call，核对 tenant/call/request 后将原 admission 交给共享 target policy；首次来源准入则由 `withTargetAdmissionPolicy` 交入原 operation。两者共享政策，定位原 admission 的责任分开。没有原记录或来源不可用时，不拿启动操作补造准入。
 
 ## W3 正文保管的生产配置
 

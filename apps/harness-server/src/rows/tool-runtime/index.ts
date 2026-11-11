@@ -32,7 +32,11 @@ import {
   toolStartAuthorityKey,
   toolStartFenceKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
-import { createSqlToolBodyStore, createSqlToolLedgerStore } from '@omne-harness/tool-storage-sql'
+import {
+  createSqlToolBodyStore,
+  createSqlToolConditionalCommit,
+  createSqlToolLedgerStore,
+} from '@omne-harness/tool-storage-sql'
 import {
   closeEnvironmentSchemaProvider,
   createEnvironmentSchemaProvider,
@@ -45,6 +49,10 @@ import { storageCatalog } from '../storage/catalog.ts'
 import { ensureToolRuntimeBundle } from './bundle.ts'
 import { toolRuntimeConfigSchema, type ToolRuntimeConfig } from './config.ts'
 import { awaitBundle, toolRuntimeHolder } from './holder.ts'
+import {
+  ToolInvocationQualificationService,
+  toolInvocationQualificationKey,
+} from './source-qualification.ts'
 
 const INTEGRATOR = { [executionEnvironmentKey]: { caller: 'integrator' as const } }
 
@@ -75,6 +83,7 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
       ),
     },
     bodies: { store: createSqlToolBodyStore({ ...options, permitKey, clock }), permitKey, clock },
+    conditional: createSqlToolConditionalCommit(options),
   })
   holder.sql = sql
   ctx.effect(
@@ -104,6 +113,7 @@ const recordsPlugin: Plugin.Object = {
     )
     const bundle = ensureToolRuntimeBundle(ctx, config)
     bundle.records.apply(ctx)
+    new ToolInvocationQualificationService(ctx, bundle.qualification)
   },
 }
 
@@ -111,7 +121,13 @@ export const toolRecordsRow = defineRow({
   row: 'tool-records',
   implementation: 'real',
   manifest: {
-    provides: [toolCommandsKey, toolReadsKey, toolStartAuthorityKey, toolStartFenceKey],
+    provides: [
+      toolCommandsKey,
+      toolReadsKey,
+      toolStartAuthorityKey,
+      toolStartFenceKey,
+      toolInvocationQualificationKey,
+    ],
     injects: [storageKey, tenantDomainLookupKey, telemetryKey],
     sameProviderGroup: 'tool-start',
   },

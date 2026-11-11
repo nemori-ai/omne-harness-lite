@@ -5,7 +5,7 @@
 // revision, or writes nothing.
 import { randomUUID } from 'node:crypto'
 
-import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
+import type { FactCommandV2, JsonValue, SqlStorage } from '@omne-harness/sql-contract'
 import {
   recordKey,
   type DueEntry,
@@ -35,6 +35,7 @@ import {
   ledgerAnswer,
   notJson,
   sameTenant,
+  type CommitAnswer,
   type FixedMode,
   unavailable,
   writesOf,
@@ -136,8 +137,26 @@ function keeperOf(storage: SqlStorage): LedgerKeeper {
   return keeper
 }
 
-export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
-  const commit = async (input: LedgerCommitInput): Promise<LedgerCommit> => {
+/**
+ * Commands of other participants that run before the ledger write in the same SQL transaction,
+ * and the registered combination that holds those participants together with the Tool participant.
+ */
+export type LedgerCommitCondition = Readonly<{
+  combinationVersion: string
+  manifestDigest: string
+  commands: readonly FactCommandV2[]
+}>
+
+/**
+ * The commit of the ledger store over the SQL storage. With `condition`, its commands run first in
+ * the same transaction; `answerOf` reads the answer of the storage.
+ */
+function ledgerCommitOver(
+  options: SqlToolStorageOptions,
+  condition?: LedgerCommitCondition,
+  answerOf: (answer: CommitAnswer) => LedgerCommit = ledgerAnswer,
+) {
+  return async (input: LedgerCommitInput): Promise<LedgerCommit> => {
     // The assertion is part of the commit, so the same commit is refused whenever it is sent.
     if (!(input.asserts ?? []).every(assertion => sameTenant(input.domain, assertion.domain)))
       return { kind: 'rejected', reason: 'an assertion names a domain of another tenant' }
@@ -157,19 +176,50 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
         writes: writesOf(input, fixed),
         asserts: assertsOf(input),
       }
-      return options.storage.commit(requestOf(options, resolved.at, facts))
+      const request = requestOf(options, resolved.at, facts)
+      return options.storage.commit(
+        condition === undefined
+          ? request
+          : {
+              ...request,
+              combinationVersion: condition.combinationVersion,
+              manifestDigest: condition.manifestDigest,
+              commands: [...condition.commands, ...request.commands],
+            },
+      )
     }
     try {
       // A domain that was never committed holds no record, so its first commit gives the fixed
       // part. Every later commit leaves it out; the participant says so when it holds none.
       const answer = await sent(input.expected === INITIAL_REVISION ? 'given' : 'kept')
-      return ledgerAnswer(lacksFixed(answer) ? await sent('given') : answer)
+      return answerOf(lacksFixed(answer) ? await sent('given') : answer)
     } catch (error) {
       if (error instanceof NotJsonError) return notJson(error)
       throw error
     }
   }
+}
 
+/**
+ * The ledger commit with a condition, through the keeper of the database: the snapshot a read
+ * answers from follows this commit as it follows every other commit of the process.
+ */
+export function conditionalLedgerCommit(
+  options: SqlToolStorageOptions,
+  condition: LedgerCommitCondition,
+  answerOf: (answer: CommitAnswer) => LedgerCommit,
+): (input: LedgerCommitInput) => Promise<LedgerCommit> {
+  return storeOver(options, ledgerCommitOver(options, condition, answerOf)).commit
+}
+
+export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToolLedgerStore {
+  return storeOver(options, ledgerCommitOver(options))
+}
+
+function storeOver(
+  options: SqlToolStorageOptions,
+  commit: (input: LedgerCommitInput) => Promise<LedgerCommit>,
+): SqlToolLedgerStore {
   const read = async (domain: LedgerDomain): Promise<LedgerRead> => {
     const answer = await readStored(options, domain, null)
     if (answer.kind !== 'read') return answer

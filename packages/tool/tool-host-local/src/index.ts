@@ -68,17 +68,28 @@ export {
   createLocalToolLedgerGuards,
   localArgumentLimits,
   type LocalToolLedgerGuardsInput,
+  type ConditionalLedgerCommit,
+  type RequestAccessVerdict,
+  type StartCondition,
   type ToolHostAccess,
   type ToolRequestAccess,
 } from './ledger-guards.ts'
 export {
   createLocalInvocationSource,
+  createLocalInvocationQualifier,
   createLocalOperationIdentities,
   type LocalInvocationSource,
   type LocalInvocationSourceInput,
   type PrincipalCodec,
   type PrincipalJson,
 } from './invocation-source.ts'
+export type {
+  LocalInvocationQualifier,
+  InvocationQualification,
+  InvocationOrigin,
+  InvocationQualificationRequest,
+  InvocationRecordObservation,
+} from './invocation-qualification.ts'
 export { createLocalGrantVerifiers, type LocalGrantScope } from './grant-verifiers.ts'
 export {
   createLocalStartGuard,

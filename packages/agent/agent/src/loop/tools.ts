@@ -330,7 +330,7 @@ export function toolIntentOf(
  * request of this action is `invalid`; nothing else stands in for it.
  */
 export async function sentToolRequest<P>(
-  ports: Ports<P>,
+  ports: Readonly<{ materials: Pick<Ports<P>['materials'], 'read'> }>,
   access: Access<P>,
   execution: AgentExecutionId,
   action: Action,
@@ -355,7 +355,7 @@ export async function sentToolRequest<P>(
 }
 
 /** The Tool request a fixed-request material holds, or null when it is not one. */
-function fixedRequestOf(material: Material<ContentBlock>): ToolInvokeRequest | null {
+export function fixedRequestOf(material: Material<ContentBlock>): ToolInvokeRequest | null {
   if (material.kind !== 'facts' || canonical(material.schema) !== canonical(fixedToolRequestSchema))
     return null
   let value: unknown

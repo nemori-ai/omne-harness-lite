@@ -2,6 +2,7 @@
 // 只含数据（IC-16）。规则本身在 `directory.ts`；这里只命名它，发行层写出采用的规则。
 import { isAbsolute } from 'node:path'
 import { z } from 'zod'
+import { DEFAULT_SESSION_INTAKE_LIMITS } from '@omne-harness/session-contract'
 
 /** 事务域推导规则：`tenant/<organization>/<account>`，用 legal-identity 的公开 codec，可逆。 */
 export const DOMAIN_RULE = 'organization-account/1'
@@ -12,6 +13,22 @@ export const sessionStorageRowConfigSchema = z.strictObject({
   /** 登记表文件的绝对路径，放在存储根目录下。 */
   directoryFile: z.string().refine(isAbsolute, 'directoryFile must be an absolute path'),
   domainRule: z.literal(DOMAIN_RULE),
+  intakeLimits: z
+    .strictObject({
+      maxPendingInputs: z
+        .number()
+        .int()
+        .min(1)
+        .max(Number.MAX_SAFE_INTEGER)
+        .default(DEFAULT_SESSION_INTAKE_LIMITS.maxPendingInputs),
+      maxInputBytes: z
+        .number()
+        .int()
+        .min(1)
+        .max(Number.MAX_SAFE_INTEGER)
+        .default(DEFAULT_SESSION_INTAKE_LIMITS.maxInputBytes),
+    })
+    .prefault({}),
 })
 
 export type SessionStorageRowConfig = z.infer<typeof sessionStorageRowConfigSchema>
