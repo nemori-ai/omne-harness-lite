@@ -3,6 +3,7 @@
 // record before any digest. Each malformed field is refused with the field that carries the
 // fault, so a caller learns which part of its answer was wrong and nothing is committed on it.
 import { describe, expect, it } from 'vitest'
+import { CHECKPOINT_STATE_MAX_BYTES } from '@omne-harness/tool-contract/provider'
 import { askingAuthor, checkpointBinding, scriptedBridge } from './checkpoint-values.ts'
 import { admitCall, startHarness, testAuthority } from './start-values.ts'
 
@@ -231,6 +232,37 @@ describe('suspension: the checkpoint a binding proved', () => {
     async (_name: string, input: Json, name: string, reason?: string) => {
       const result = await fresh.harness.commands.suspend(input as unknown as Suspend)
       expect(result).toMatchObject(invalid(name, reason))
+    },
+  )
+})
+
+describe('suspension: the state a binding stored', () => {
+  /** Base64 text of the largest state: four characters for each three bytes, rounded up. */
+  const longest = Math.ceil(CHECKPOINT_STATE_MAX_BYTES / 3) * 4
+  const stored = (state: unknown) =>
+    fresh.harness.commands.suspend(replaced(fresh.suspend, ['state'], state) as unknown as Suspend)
+
+  it.each([
+    ['a state that is not text', 7, 'type'],
+    ['a null state', null, 'type'],
+    ['a list as the state', ['AAAA'], 'type'],
+    ['a state above its bound', 'A'.repeat(longest + 4), 'too-large'],
+    ['a state above its bound that is not base64 either', '!'.repeat(longest + 1), 'too-large'],
+    ['a length that is not a multiple of four', 'AAA', 'not-base64'],
+    ['a character outside the alphabet', '!!!!', 'not-base64'],
+    ['a character outside the alphabet at the start', '!AAA', 'not-base64'],
+    ['a character outside the alphabet at the end', 'AAA!', 'not-base64'],
+    ['three padding characters', 'A===', 'not-base64'],
+    ['padding in the middle', 'A=AA', 'not-base64'],
+  ])('refuses %s', async (_name: string, state: unknown, reason: string) => {
+    expect(await stored(state)).toMatchObject(invalid('state', reason))
+  })
+
+  // The call is suspended already, so the answer is the judgment of the ledger on a later command.
+  it.each([['AAAA'], ['AAA='], ['AA=='], ['ab+/'], ['A'.repeat(longest)]])(
+    'does not refuse base64 text up to the bound as a state: %#',
+    async (state: string) => {
+      expect(await stored(state)).not.toMatchObject({ failure: { kind: 'invalid' } })
     },
   )
 })
