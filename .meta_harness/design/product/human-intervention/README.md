@@ -2,7 +2,7 @@
 id: PD-human-intervention
 title: 人在回路
 status: draft
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on: []
