@@ -44,6 +44,9 @@ def test_clean_clone_initialization_has_no_personal_or_session_start_dependency(
     shutil.copytree(SOURCE, project / ".meta_harness/agents")
     shutil.copytree(Path(__file__).parents[1] / "src", project / ".meta_harness/tooling/src")
     shutil.copy(Path(__file__).parents[3] / "AGENTS.md", project / "AGENTS.md")
+    # The pqw-skills consumer contract check reads the card template beside the entry file.
+    (project / ".github/ISSUE_TEMPLATE").mkdir(parents=True)
+    shutil.copy(Path(__file__).parents[3] / ".github/ISSUE_TEMPLATE/card.md", project / ".github/ISSUE_TEMPLATE/card.md")
     assert not (project / ".cursor").exists()
     command = [sys.executable, str(project / ".meta_harness/tooling/src/initialize_agents.py"),
                "--project-root", str(project), "--host", "cursor"]

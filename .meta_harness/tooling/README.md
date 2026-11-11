@@ -140,7 +140,22 @@ slots:
 保留可执行位，`SKILL.md` 照样核 frontmatter。与 `agents/skills/` 里的项目技能同名时项目技能优先，
 外部的那份不生成；项目删掉自己的那份后，外部的接手。两个技能集有同名技能时整体预检失败。
 新检出先 `git submodule update --init`；没有初始化的子模块是空目录，生成器预检失败并提示这条命令，不会悄悄少生成一整套技能。
-钉的版本与采用范围归[技能入口](../../docs/engineering/skills.md#来源与项目采用)。
+采用范围归[技能入口](../../docs/engineering/skills.md#来源与项目采用)。
+
+### pqw-skills 只钉接入约定的版本
+
+pqw-skills 把项目要跟着改的三样（接入节的槽位名、交接信息包的节名、常驻卡片）列在它的 `design/consumer-contract.json`，带一个整数 `version`。本项目在 `agents/pqw/contract-version` 记下自己满足的那个版本。子模块提交是下限；技能正文与脚本读「约定版本相同的最新发行版」，所以 pqw-skills 发一版正文，本仓库不用提交。
+
+```sh
+uv run --locked python .meta_harness/tooling/src/pqw_contract.py --project-root .
+uv run --locked python .meta_harness/tooling/src/pqw_contract.py --project-root . --check
+```
+
+- 不带 `--check`：拉 pqw-skills 的 tag，找约定版本等于所钉版本、并且在子模块提交之后的最新 tag，把它解到 `.meta_harness/.vendor-float/pqw-skills/`（不进 Git）。没有更新的就删掉这个目录，读子模块。拉不到 tag 时用本机已有的。`--offline` 不拉。`initialize_agents.py` 第一步就跑它。
+- 读哪一份只有一条规则：浮动目录的约定版本等于所钉版本就读它，否则读子模块。生成器、常驻卡片与 [pqw-adapter](../../tools/pqw-adapter/README_ZH.md) 都按这条规则读，技能正文与脚本不会各读一版。
+- `--check` 只读：子模块的约定版本等于所钉版本；根 `AGENTS.md`「pqw-skills 接入」有约定列出的每个槽位；卡模板的二级标题等于约定的节名。`pnpm run check:agents` 的第一步就是它。
+- pqw-skills 的约定版本涨了：浮动停在旧约定的最后一版。要用新版时，在一个 PR 里把子模块指到新版、改 `contract-version`，再按 `--check` 报的逐条改接入节与卡模板。
+- 没有网络的环境（gate、CI）读子模块。约定版本相同，接入节与卡模板对两份都成立。
 
 ## 宿主钩子
 

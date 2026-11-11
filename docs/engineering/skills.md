@@ -20,7 +20,7 @@
 
 | 体系 | 固定来源 | 采用范围 |
 |---|---|---|
-| pqw-skills | 0.21.0，[PanQiWei/pqw-skills@0be11770cdc699a844a67a280d8bf8416b71f110](https://github.com/PanQiWei/pqw-skills/tree/0be11770cdc699a844a67a280d8bf8416b71f110)，git 子模块 `.meta_harness/agents/vendor/pqw-skills` | 工作流程层；由[生成工具](../../.meta_harness/tooling/README.md)原样投影进三个宿主的技能目录，与项目技能同名时项目技能优先 |
+| pqw-skills | [PanQiWei/pqw-skills](https://github.com/PanQiWei/pqw-skills)，只钉接入约定的版本：子模块 `.meta_harness/agents/vendor/pqw-skills` 的提交是下限，实际读约定版本相同的最新发行版，见[生成工具](../../.meta_harness/tooling/README.md#pqw-skills-只钉接入约定的版本) | 工作流程层；由[生成工具](../../.meta_harness/tooling/README.md)原样投影进三个宿主的技能目录，与项目技能同名时项目技能优先 |
 | pstack port | 0.9.79，[michael-denyer/pstack-claude@60ae9e25610744bccd45bd405c211413a471aaf8](https://github.com/michael-denyer/pstack-claude/tree/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack) | Codex 与 Claude Code 上 pqw 引用的环节方法，以及不够格走 pqw 流程的小改动 |
 | Cursor 官方 pstack | 0.15.20，[cursor/plugins@1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def](https://github.com/cursor/plugins/tree/1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def) | Cursor 上同一范围，不覆盖 port 0.9.79 |
 | Matt skills | 1.3.1，[mattpocock/skills@b0618bc436ad893b3c5e84e55fba86586d34a404](https://github.com/mattpocock/skills/tree/b0618bc436ad893b3c5e84e55fba86586d34a404/skills) | 交付方案与实施规格的写法层；其余入口按需 |
