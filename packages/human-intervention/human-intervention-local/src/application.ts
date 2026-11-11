@@ -93,6 +93,30 @@ export function createIndependentHitlApplication(
     const parsed = schema.safeParse('operationRef' in result ? result : { ...result, operationRef })
     return parsed.success ? parsed.data : schema.parse({ kind: 'unknown', operationRef })
   }
+  const guardRejected = (answer: { kind: string; reason?: unknown }): boolean =>
+    answer.kind === 'conflict' && answer.reason === 'guard-rejected'
+  /**
+   * 原来源守卫拒绝了一次答复：原工作已经不在进行。卡片若已有终态，答复的人得到的是卡片的终态
+   * （已失效，或已有的决定），不是守卫的拒绝：卡片的终态不再变化，所以这次读取就是定论。卡片仍
+   * 待答时返回 undefined，守卫的拒绝照旧。
+   */
+  async function closedCardAnswer<M extends HitlMethod>(
+    access: Access,
+    reply: HitlCommands['submitReply'],
+    operationRef: OperationRef,
+  ): Promise<CommandResult<M> | undefined> {
+    const read = await queries.getCard(access, { protocol: reply.protocol, cardRef: reply.cardRef })
+    if (read.kind !== 'found') return undefined
+    const { card } = read.item
+    const closed =
+      card.kind === 'invalidated'
+        ? { kind: 'invalidated', reason: card.reason, operationRef }
+        : card.kind === 'decided'
+          ? { kind: 'already-decided', decision: card.decision, operationRef }
+          : undefined
+    const parsed = CommandResultSchemas.submitReply.safeParse(closed)
+    return parsed.success ? (parsed.data as CommandResult<M>) : undefined
+  }
   function write<M extends HitlMethod>(
     access: Access,
     method: M,
@@ -115,13 +139,16 @@ export function createIndependentHitlApplication(
         if (routed.kind !== 'routed') return { ...routed, operationRef }
         const guards = guardsOf('origin' in routed ? routed.origin : undefined)
         if (!guards) return { kind: 'unavailable', reason: 'session-guard-missing', operationRef }
-        return execute(
+        const answer = await execute(
           access,
           { kind: 'request', input: command, waitRef: routed.wait },
           CommandResultSchemas[method],
           operationRef,
           guards,
         )
+        return command.method === 'submitReply' && guardRejected(answer)
+          ? ((await closedCardAnswer(access, command.command, operationRef)) ?? answer)
+          : answer
       },
       { ...unavailable, operationRef },
     )

@@ -94,7 +94,7 @@ listDeliveries 只读取固定 destination 下当前消费者尚未接手的决�
 
 WaitOwner 保管协议的四种来源。independent 来源不带 sessionRef 与 runRef，准备材料拒绝带会话的 independent 来源。tool 来源必须带 toolCallRef；admission 来源可以带 toolCallRef；agent-extension 来源不带。这三种来源可以带 sessionRef 与 runRef。runRef 必须配 sessionRef。请求头与准备记录逐列保存来源种类和这些引用，读回的来源与登记时的来源逐字段相等。DDL CHECK 约束同样的组合。
 
-createIndependentHitlApplication 的构造参数 guards 是装配提供的函数。它的输入是原来源，输出是原工作拥有者的守卫命令。registerRequest 用命令里的来源调用它。submitReply 用持久请求的来源调用它。返回的命令与本次 HITL 命令放进同一笔 SQL 提交。invalidateWait 与 acknowledgeDelivery 不调用它：失效正是会话结束后要做的事，不能被会话守卫阻止。
+createIndependentHitlApplication 的构造参数 guards 是装配提供的函数。它的输入是原来源，输出是原工作拥有者的守卫命令。registerRequest 用命令里的来源调用它。submitReply 用持久请求的来源调用它。返回的命令与本次 HITL 命令放进同一笔 SQL 提交。invalidateWait 与 acknowledgeDelivery 不调用它：失效正是会话结束后要做的事，不能被会话守卫阻止。守卫拒绝一次 submitReply 时，原工作已经不在进行。这时卡片若已有终态，答复的人得到卡片的终态：已失效的卡答 `invalidated` 与原因，已答的卡答 `already-decided` 与已有的决定。卡片的终态不再变化，所以这次读取就是定论。卡片仍待答时答 `conflict`，原因是 `guard-rejected`。
 
 来源带 sessionRef 时，Session 守卫是必需的。guards 为这种来源返回空清单时，registerRequest 与 submitReply 返回 unavailable/session-guard-missing，不提交任何内容。空清单不表示不适用。来源没有 sessionRef 时，空清单是合法的。
 

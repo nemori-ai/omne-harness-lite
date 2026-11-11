@@ -257,6 +257,42 @@ it('rolls back the whole reply when the original work guard rejects, but never g
   expect((await pool(w, { states: ['invalidated'] })).map(item => item.card.ref)).toEqual(
     registered.cards,
   )
+
+  // A late reply to a card that is closed already is told so. The original work is over, so its
+  // guard still rejects the commit; the state of the card answers, not the guard.
+  const late = SubmitReplySchema.parse({ ...reply, operation: w.operation('late-reply') })
+  expect(await w.app.submitReply(w.principal, late)).toEqual({
+    kind: 'invalidated',
+    reason: 'archived',
+    operationRef: late.operation,
+  })
+}, 30000)
+
+it('tells a late reply the decision of a card that was answered before the original work ended', async () => {
+  const { state, guards } = switchableGuards()
+  const w = await open(guards)
+  const registered = await w.app.registerRequest(w.principal, w.request)
+  if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
+  const reply = SubmitReplySchema.parse({
+    protocol: 'hitl/1',
+    operation: w.operation('reply'),
+    cardRef: registered.cards[0],
+    expectedRevision: registered.revision,
+    reply: { kind: 'text', text: 'go ahead' },
+  })
+  const decided = await w.app.submitReply(w.principal, reply)
+  if (decided.kind !== 'decided') throw new Error(JSON.stringify(decided))
+  state.verdict = 'ended'
+  const late = SubmitReplySchema.parse({
+    ...reply,
+    operation: w.operation('late-reply'),
+    reply: { kind: 'text', text: 'something else' },
+  })
+  expect(await w.app.submitReply(w.principal, late)).toMatchObject({
+    kind: 'already-decided',
+    decision: { reply: { kind: 'text', text: 'go ahead' } },
+    operationRef: late.operation,
+  })
 }, 30000)
 
 it('passes the independent origin to the assembly and registers it without a guard', async () => {
