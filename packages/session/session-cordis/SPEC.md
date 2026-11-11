@@ -43,7 +43,7 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 
 5. 提交通知：本成员交给工厂的 `notifier` 是一个组合通知者。每次提交确认耐久后，它先派发事件 `session-cordis-contract/committed`，再现取 `sessionNotifier`，存在时把同一载荷转发给它。派发用本插件 Context 的 `parallel`，不在提交路径上等待监听者完成。派发在 `await` 外捕获失败，包括 `AggregateError` 里的监听者失败，只记录诊断（[IC-12](../../../docs/architecture/cordis-integration-conventions.md#ic-12)、[事件与作用域](../../../docs/architecture/runtime/runtime-contract-integration.md#事件与作用域)）。通知缺席或失败不回滚提交，不改回执（[EC-11](../session-contract/SPEC.md#ec-11)）。插件同时用 `ctx.on` 监听同一事件，把载荷交给实例的 `committed`。本插件自己派发的通知可以跳过这一步，因为实例已在本地唤醒；跳过只是优化，重复交入也无害。监听者同步执行，不返回 Promise，失败只记录诊断。
 6. 调用方类核对：四个面属性 `work`、`management`、`reconciliation`、`history` 每次被读取时，用 `this[Service.resolveConfig]()` 取调用方 fiber 的 intercept 配置（定义性质 4）。取不到配置，或其中的调用方类不在四类之中时，该面的每个操作返回 `denied`，`action` 为操作名，不默认为任何一类。取到时返回 `facesFor(caller)` 给出的面，该面在每个操作上再核对调用方类是否在该操作允许的范围内（[VC-O05](../session-contract/SPEC.md#候选的持续验证义务)）。两层核对都是一致性检查，不计为访问控制。访问边界是每个操作的调用资格（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。属性读取经调用方的服务代理到达这里，所以 `this.ctx` 是调用方的 Context。这一点与定义性质 4 一样由测试核验：两个声明不同类的调用方各取到自己的配置（[provider-callers.spec.ts](tests/provider-callers.spec.ts)）。
-7. 每租户一个扫描者：第一版靠装配单实例兑现（[IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)、[靠装配兑现的保证](../session-cordis-contract/docs/cordis.md#靠装配兑现的保证)）。应用装配在全部进程里只装一份本插件。启动扫描与周期扫描的租户集合来自应用装配的部署枚举 `tenantDomains.enumerate`，以部署扫描主体调用（[租户到事务域的目录](../../../docs/architecture/runtime/application-assembly.md#租户到事务域的目录)、[session S3](../session/SPEC.md#s3)）；本插件对枚举出的每个租户调用 `maintain(tenant)`。本插件怎样取得这个枚举还是[明确缺项](#明确缺项)。本插件第一次在某个租户的提交通知里见到该租户时，也调用 `maintain(tenant)`，持有返回的句柄。通知可以来自本实例的提交，也可以来自监听到的事件。同一实例对同一租户再次调用 `maintain` 得到已有句柄。`maintain` 返回失败时，本插件记录诊断，等该租户的下一条通知再试，不在失败后立即重试。在两个 isolate 标签下各装一份本插件，会使一个租户有两个扫描者。这违反本条，装配拥有者不得这样装，除非租约协议已经定义。这时第二道保护仍是操作幂等、`expected` 核对与执行记录提供者的条件提交围栏（[SR-2](../session/SPEC.md#sr-2)）。插件配置不列租户。
+7. 每租户一个扫描者：第一版靠装配单实例兑现（[IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)、[靠装配兑现的保证](../session-cordis-contract/docs/cordis.md#靠装配兑现的保证)）。应用装配在全部进程里只装一份本插件。启动扫描与周期扫描的租户集合来自应用装配的部署枚举 `tenantDomains.enumerate`，以部署扫描主体调用（[租户到事务域的目录](../../../docs/architecture/runtime/application-assembly.md#租户到事务域的目录)、[session S3](../session/SPEC.md#s3)）；本插件对枚举出的每个租户调用 `maintain(tenant)`。本插件在装配生命周期的开始句柄里取得这个枚举：读可缺席的端口 `sessionTenants`（键与类型在 session-cordis-contract，由应用装配提供，主体由应用装配持有），对列出的每个租户绑定扫描者。端口缺席、答失败或抛出时，本插件记一条诊断，这次启动只按通知绑定。启动之后才登记的租户在它的第一次提交产生通知时绑定。本插件第一次在某个租户的提交通知里见到该租户时，也调用 `maintain(tenant)`，持有返回的句柄。通知可以来自本实例的提交，也可以来自监听到的事件。同一实例对同一租户再次调用 `maintain` 得到已有句柄。`maintain` 返回失败时，本插件记录诊断，等该租户的下一条通知再试，不在失败后立即重试。在两个 isolate 标签下各装一份本插件，会使一个租户有两个扫描者。这违反本条，装配拥有者不得这样装，除非租约协议已经定义。这时第二道保护仍是操作幂等、`expected` 核对与执行记录提供者的条件提交围栏（[SR-2](../session/SPEC.md#sr-2)）。插件配置不列租户。
 8. 内部主体与受理槽：工厂要求 `principals`（系统维护用的主体）、`workPrincipals`（按会话签发协调器与维护者主体）与 `admission`（受理前的槽列表）。主体是运行时对象，由应用装配的维护拥有者签发，按 [IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16) 由装配入口经服务键 `sessionPrincipals` 与受信键 `sessionWorkPrincipals` 提供（[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)、[受信服务键](../session-cordis-contract/docs/cordis.md#受信服务键)），本插件 `inject` 取得。对已成立会话的协调与恢复，按会话经 `sessionWorkPrincipals.forSession` 取主体；`sessionPrincipals` 只用于系统维护。槽由命令域与 hooks 的拥有者经 session-adapters 接入（[AD-08](../session-adapters/SPEC.md#ad-08)），它的服务键尚未定义，见[明确缺项](#明确缺项)。槽的键定义之前，受理准入按不可用处理（[准入服务不可用走全拒承接](../../../docs/architecture/runtime/control-and-recovery.md#存储与关键服务降级)）：`admission.current()` 返回不可用，`accept` 返回 `unavailable`，`owner` 为受理槽，不经槽受理。只有装配在插件配置里以 `admission: 'none'` 声明本部署没有命令域与 hooks 时，`admission.current()` 才返回空列表，`accept` 不经槽。这项声明由装配者负责，本成员不推断。
 
 ### 撤除与换代
@@ -76,7 +76,7 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 | 调用方类声明 | 调用方插件的 intercept 配置 | 随调用方 fiber |
 | 会话事实、修订、操作回执 | 不在本成员。归事务端口的提供者 | 不随本成员结束 |
 
-进程失败：本成员没有可恢复的东西。重启后插件重新装载，扫描者在各租户的下一条通知到达时重新绑定。会话事实与待办在存储里，由 S3 的启动扫描找回（[S3](../session/SPEC.md#s3)）。
+进程失败：本成员没有可恢复的东西。重启后插件重新装载，开始句柄按部署枚举给每个租户绑定扫描者；`sessionTenants` 缺席或不答时，扫描者在各租户的下一条通知到达时绑定。会话事实与待办在存储里，由 S3 的启动扫描找回（[S3](../session/SPEC.md#s3)）。
 
 ### 测量事件
 
@@ -95,7 +95,6 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 | --- | --- | --- |
 | 受理槽列表的服务键或登记入口 | session-cordis-contract，随命令域与 hooks 的公开入口一起定义（[NP-07](../session-adapters/SPEC.md#np-07)）。缺项期间是否允许限定降级由命令域与 hooks 的拥有者裁定 | `accept` 返回 `unavailable`；装配声明 `admission: 'none'` 时不经槽 |
 | 来源拥有者变化通知到达本成员的通道。本成员不导入资产、工作区或设置的契约，session-adapters 与本成员没有编译期依赖 | session-cordis-contract | 本插件不调用实例的 `changed`，S7 在 Cordis 装配下不被唤醒。`startRun` 与 `reload` 照常在入口求值，只失去提前求值带来的时延收益（[S7](../session/SPEC.md#s7)） |
-| 部署枚举 `tenantDomains.enumerate` 交到本插件的通道。键归 sql-contract，本成员不导入存储契约；装配页 `session-provider` 行没有列出它 | 应用装配（[租户到事务域的目录](../../../docs/architecture/runtime/application-assembly.md#租户到事务域的目录)） | 扫描者按性质 7 在见到租户的第一条通知时绑定。进程重启后，有待办却没有新提交的租户，在下一条通知之前不被启动扫描覆盖 |
 | `SessionClock.waitUntil` 在时钟缺席时的结果类型 | [session-contract](../session-contract/SPEC.md) | 代理拒绝这个 Promise。session 的调度器按它的[时钟被拒](../session/SPEC.md#调度器)规则处置 |
 
 ## 实现现状
@@ -104,11 +103,11 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 
 | 事项 | 现状 |
 | --- | --- |
-| 装配生命周期的键与形状 | 正式定义归 kernel-basis，现在没有。实现沿用装配入口的私有键 `s0.assemblyLifecycle`（[assembly-lifecycle.ts](src/assembly-lifecycle.ts)），这是对 IC-8 的偏离，随正式定义被接受而删除。登记的是一个同时带开始与停止的句柄：行 `session-provider`，阶段 `business`。开始句柄不做任何事。退登记由生命周期服务随本插件的 fiber 完成，插件不调用退登记 |
+| 装配生命周期的键与形状 | 正式定义归 kernel-basis，现在没有。实现沿用装配入口的私有键 `s0.assemblyLifecycle`（[assembly-lifecycle.ts](src/assembly-lifecycle.ts)），这是对 IC-8 的偏离，随正式定义被接受而删除。登记的是一个同时带开始与停止的句柄：行 `session-provider`，阶段 `business`。开始句柄按部署枚举绑定扫描者（性质 7）。退登记由生命周期服务随本插件的 fiber 完成，插件不调用退登记 |
 | 配置校验 | 静态 `Config` 先合并并拒绝未知键和类型错误，再借工厂检查数值规则：session 的根入口没有导出它的检查函数，所以用一个不服务任何操作的探针实例让工厂自己报告第一个出错的字段。session 导出检查函数后，可去掉探针 |
 | 受理槽 | 配置 `admission: 'none'` 时 `admission.current()` 返回空列表，否则返回不可用。槽的服务键仍未定义 |
 | 来源变化通知 | 没有通道，实例的 `changed` 没有调用方 |
-| 租户枚举 | 没有通道。扫描者只在第一条通知里见到某个租户时绑定 |
+| 租户枚举 | 开始句柄经 `sessionTenants` 取一次。端口缺席或不答时，扫描者只在第一条通知里见到某个租户时绑定 |
 | 撤除第 1 步到 `close` 之间 | 实例的本地推进触发在 `close()` 被调用后才停止。第 1 步与第 3 步之间只隔着扫描者的释放，它不等待任何东西，所以这个窗口里完成的本地命令仍可能启动自己的推进。本插件自己的动作（通知、绑定扫描者）在第 1 步之后都停止 |
 | 自己派发的通知 | 监听者按 `kinds` 数组的对象身份跳过自己派发的通知。这只是优化，没有测试单独覆盖它 |
 | 限时等待 | 默认 `disposeWaitMs` 为 10 000 毫秒。超时时停止句柄答复 `incomplete`，不答复 `settled` |

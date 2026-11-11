@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   answerCard,
+  historyOf,
   onReleaseTreeRuns,
   pollUntil,
   toolCalls,
@@ -116,6 +117,33 @@ describe('a waiting Ask goes on after the service restarts on the same state (C7
         },
       ])
       expect(exits.at(-1)).toBe(0)
+    },
+  )
+
+  it(
+    'the stop while the Ask waits hands the execution over (exit 0), and after the restart the Run goes on to its end',
+    { timeout: 300_000 },
+    async () => {
+      let session = ''
+      const exits = await onReleaseTreeRuns(options, [
+        async world => {
+          session = await parkedAsk(world)
+        },
+        async world => {
+          expect(await world.cards({ sessionRef: session })).toHaveLength(1)
+          await answerCard(world, session, 'Use 8081')
+          await resumedOnce(world, session)
+          // The Agent took the result under its new attachment, asked the model again and ended.
+          const entries = await pollUntil(
+            'the end of the Run of the session',
+            () => historyOf(world, session),
+            seen => seen.some(entry => entry.kind === 'run.terminal'),
+          )
+          expect(entries.filter(entry => entry.kind === 'run.terminal')).toHaveLength(1)
+        },
+      ])
+      // Both stops leave nothing unresolved: the first one handed the waiting execution over.
+      expect(exits).toEqual([0, 0])
     },
   )
 })

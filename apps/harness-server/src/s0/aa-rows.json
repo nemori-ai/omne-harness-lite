@@ -121,7 +121,8 @@
       "row": "session-provider",
       "names": [
         "sessionWorkPrincipals",
-        "sessionDelegatedTransactions"
+        "sessionDelegatedTransactions",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {

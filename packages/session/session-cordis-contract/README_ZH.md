@@ -17,7 +17,7 @@ Session 的 Cordis 定义成员，`service-contract` 变体。
 | 导出 | 支持 | 位置 |
 | --- | --- | --- |
 | 带四个面的 `SessionService` 与 `sessionKey` | 已导出 | `src/cordis.ts` |
-| 十一个依赖 Service 与键：`sessionAccessCheck`、`sessionTransactions`、`sessionPrincipals`、`sessionIdentity`、`sessionEvidence`、`sessionClock`、`sessionIdleInput`、`sessionContextInput`、`sessionNotifier`、`sessionAgentDrive`、`sessionScopeRelease` | 已导出 | `src/cordis.ts` |
+| 十二个依赖 Service 与键：`sessionAccessCheck`、`sessionTransactions`、`sessionPrincipals`、`sessionIdentity`、`sessionEvidence`、`sessionClock`、`sessionIdleInput`、`sessionContextInput`、`sessionNotifier`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionTenants` | 已导出 | `src/cordis.ts` |
 | 三个受信 Service 与键：`sessionDelegatedTransactions`、`sessionWorkPrincipals`、`sessionPrincipalBindings` | 已导出 | `src/cordis.ts` |
 | `SessionIntercept`、`Context` 与 `Events` 增补、事件 `session-cordis-contract/committed` | 已导出 | `src/cordis.ts` |
 | 根入口的类型重导出 | 已导出，没有运行值 | `src/index.ts` |

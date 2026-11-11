@@ -4,7 +4,11 @@
 // and binds one recovery scanner for each tenant it sees. The scanner is observed through the
 // `pending` reads of its startup scan on the public transaction port.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SessionNotifierService } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  SessionNotifierService,
+  SessionTenantSourceService,
+  type SessionTenantSource,
+} from '@omne-harness/session-cordis-contract/cordis'
 import { evidence } from '@omne-harness/session-contract/testing'
 import { assemble, serviceOf, type Assembly } from './fixtures/assembly.ts'
 import { resetSpies, spies } from './fixtures/session-spy.ts'
@@ -200,5 +204,57 @@ describe('one scanner for each tenant', () => {
     await new Promise(resolve => setTimeout(resolve, 150))
     expect(a.hooks.pendingTenants).toHaveLength(2)
     expect(spies.maintainCalls).toBe(2)
+  })
+})
+
+describe('the start scans the tenants of the deployment', () => {
+  /** Mounts the tenant source of the application assembly with this answer. */
+  const source = (a: Assembly, enumerate: SessionTenantSource['enumerate']) =>
+    a.mount(serviceOf(SessionTenantSourceService, { enumerate }, 'Tenants'))
+  const start = (a: Assembly) => {
+    const entry = a.handles.get('session-provider')
+    if (entry === undefined) throw new Error('the provider registered no handle')
+    return entry.handle.start()
+  }
+
+  it('binds a scanner for each tenant the source names, before any notice', async () => {
+    const a = await build()
+    await source(a, () => Promise.resolve({ ok: [a.tenant, a.other().tenant] }))
+    await start(a)
+    await expect.poll(() => a.hooks.pendingTenants.length).toBe(2)
+    expect(a.hooks.pendingTenants.map(tenant => JSON.stringify(tenant)).sort()).toEqual(
+      [JSON.stringify(a.tenant), JSON.stringify(a.other().tenant)].sort(),
+    )
+    // A later notice of a tenant that the start bound starts no second scanner.
+    const intake = await a.caller('intake')
+    await a.create(intake)
+    await new Promise(resolve => setTimeout(resolve, 150))
+    expect(spies.maintainCalls).toBe(2)
+  })
+
+  it('without the source the start binds nothing and says so; notices still bind', async () => {
+    const a = await build()
+    await start(a)
+    expect(diagnostics(a).some(text => text.includes('sessionTenants is absent'))).toBe(true)
+    expect(a.hooks.pendingTenants).toHaveLength(0)
+    const intake = await a.caller('intake')
+    await a.create(intake)
+    await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
+  })
+
+  it('a source that fails or throws binds nothing and is recorded', async () => {
+    const a = await build()
+    const fiber = await source(a, () =>
+      Promise.resolve({ failure: { kind: 'unavailable', diagnostic: 'the directory is closed' } }),
+    )
+    await start(a)
+    expect(
+      diagnostics(a).some(text => text.includes('answered unavailable: the directory is closed')),
+    ).toBe(true)
+    await fiber.dispose()
+    await source(a, () => Promise.reject(new Error('boom')))
+    await start(a)
+    expect(diagnostics(a).some(text => text.includes('sessionTenants threw'))).toBe(true)
+    expect(a.hooks.pendingTenants).toHaveLength(0)
   })
 })

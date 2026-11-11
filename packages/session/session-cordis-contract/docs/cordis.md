@@ -54,6 +54,7 @@ export const inject = {
 | `sessionNotifier` | `SessionNotifier` | 应用装配或 session-cordis | 每次提交后现取。缺席或失败不回滚提交 |
 | `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 按调用现取。缺席时推进、续入、恢复、控制传播与迟到结果记录的出站调用不发出，任务保留，由调度器重放；预热在 Agent 入口定义前不调用 |
 | `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 按调用现取。缺席时释放任务保留，按策略重试 |
+| `sessionTenants` | `SessionTenantSource`：部署里的租户列表 | 应用装配 | 提供者启动时取一次，给每个租户绑定扫描者。缺席或不答时只按提交通知绑定 |
 
 访问检查、内部主体与两个受信键 `sessionDelegatedTransactions`、`sessionWorkPrincipals` 进 Session 服务提供者的 `inject`。访问检查按每次实际操作核当前主体、操作与目标，不缓存 allowed，unavailable 不放行。访问检查类型与 Service 定义已交付，实际执行处检查和系统授权生产提供者尚未交付。内部主体由装配维护者签发，经 `sessionPrincipals` 交入，不放配置。其他端口按调用现取，缺席表现以[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)为准。
 

@@ -24,8 +24,15 @@
 // follows the latest one, so a change of one of the plugin's providers re-runs the plugin without
 // the registry reading it as a second registration of the row.
 //
+// Startup scan. The plugin binds a recovery scanner for each tenant of the deployment when the
+// ordered start reaches the row (session-cordis SPEC property 7). The row gives it the tenants:
+// it injects `tenantDomains` and the entry object `tenantDomainScannerPrincipal`, and provides
+// `sessionTenants` in the child scope only, so the plugin holds no principal and no storage type,
+// and no other row sees the key.
+//
 // The manifest equals the `session-provider` row of `src/s0/stubs.ts`, phase `business` included.
 import { Service, type Context } from '@deepseek-ai/cordis'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { createSessionTelemetry } from '@omne-harness/session'
 import {
   SessionProvider,
@@ -33,19 +40,25 @@ import {
   type SessionProviderConfig,
 } from '@omne-harness/session-cordis/cordis'
 import {
+  SessionTenantSourceService,
   sessionAccessCheckKey,
   sessionDelegatedTransactionsKey,
   sessionKey,
   sessionPrincipalsKey,
+  sessionTenantsKey,
   sessionWorkPrincipalsKey,
+  type SessionTenantSource,
 } from '@omne-harness/session-cordis-contract/cordis'
+import type { TenantDomains } from '@omne-harness/sql-contract'
+import { tenantDomainsKey } from '@omne-harness/sql-contract/cordis'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
+import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { S0_ASSEMBLY_LIFECYCLE_KEY } from '../../lifecycle.ts'
 import { defineRow } from '../../row.ts'
 import type { LifecycleHandle } from '../../types.ts'
 import { processInstance } from '../telemetry/instance.ts'
 
-type Registered = Pick<LifecycleHandle, 'phase' | 'row' | 'stop'>
+type Registered = Pick<LifecycleHandle, 'phase' | 'row' | 'start' | 'stop'>
 
 /** The one-handle collector that stands in for `s0.assemblyLifecycle` inside the plugin's scope. */
 function collector(sink: { handle?: Registered }) {
@@ -60,6 +73,40 @@ function collector(sink: { handle?: Registered }) {
   }
 }
 
+/**
+ * The tenants of the deployment, from the tenant directory asked as the scanner of the deployment.
+ * A directory that does not answer, or an entry whose text names no tenant, is a failure: the
+ * startup scan then covers no tenant from here, and the plugin says so.
+ */
+export function deployedTenants(
+  directory: TenantDomains<unknown>,
+  scanner: unknown,
+): SessionTenantSource['enumerate'] {
+  return async () => {
+    const listing = await directory.enumerate({ principal: scanner })
+    if (listing.kind === 'denied')
+      return { failure: { kind: 'denied', diagnostic: 'the scanner may not enumerate tenants' } }
+    if (listing.kind === 'unavailable')
+      return { failure: { kind: 'unavailable', diagnostic: listing.diagnostic } }
+    const tenants: TenantId[] = []
+    for (const entry of listing.entries) {
+      const parsed = tenantCodec.parse(entry.tenant)
+      if (!parsed.ok)
+        return {
+          failure: { kind: 'unavailable', diagnostic: 'a directory entry names no tenant' },
+        }
+      tenants.push(parsed.value)
+    }
+    return { ok: tenants }
+  }
+}
+
+function tenantSource(enumerate: SessionTenantSource['enumerate']) {
+  return class DeployedTenants extends SessionTenantSourceService {
+    readonly enumerate = enumerate
+  }
+}
+
 export const sessionProviderRealRow = defineRow({
   row: 'session-provider',
   implementation: 'real',
@@ -71,6 +118,8 @@ export const sessionProviderRealRow = defineRow({
       sessionPrincipalsKey,
       sessionWorkPrincipalsKey,
       telemetryKey,
+      tenantDomainsKey,
+      TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
     ],
     sameProviderGroup: null,
   },
@@ -83,12 +132,20 @@ export const sessionProviderRealRow = defineRow({
       diagnose: telemetry.diagnose,
     })
     const sink: { handle?: Registered } = {}
-    const scope = ctx.isolate(S0_ASSEMBLY_LIFECYCLE_KEY)
+    const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
+    const scanner: unknown = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY)
+    const scope = ctx.isolate(S0_ASSEMBLY_LIFECYCLE_KEY).isolate(sessionTenantsKey)
     await scope.plugin(collector(sink))
+    await scope.plugin(tenantSource(deployedTenants(directory, scanner)))
     await scope.plugin(Plugin, config as SessionProviderConfig | undefined)
     if (sink.handle === undefined)
       throw new Error('the session provider registered no shutdown handle')
     return {
+      // The ordered start reaches the plugin through the row's handle: the plugin scans the
+      // tenants of the deployment there.
+      start: async () => {
+        await sink.handle?.start?.()
+      },
       stop: deadline => {
         const live = sink.handle
         return live === undefined

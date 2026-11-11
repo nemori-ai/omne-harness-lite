@@ -296,6 +296,8 @@
 - `SessionScopeLookupService` · `cordis.d.ts`
 - `SessionScopeOwnersService` · `cordis.d.ts`
 - `SessionService` · `cordis.d.ts`
+- `SessionTenantSource` · `cordis.d.ts`
+- `SessionTenantSourceService` · `cordis.d.ts`
 - `SessionTransactionPortService` · `cordis.d.ts`
 - `SessionWorkPrincipalsService` · `cordis.d.ts`
 - `sessionAccessCheckKey` · `cordis.d.ts`
@@ -319,6 +321,7 @@
 - `sessionScopeLookupKey` · `cordis.d.ts`
 - `sessionScopeOwnersKey` · `cordis.d.ts`
 - `sessionScopeReleaseKey` · `cordis.d.ts`
+- `sessionTenantsKey` · `cordis.d.ts`
 - `sessionTransactionsKey` · `cordis.d.ts`
 - `sessionWorkPrincipalsKey` · `cordis.d.ts`
 
@@ -535,6 +538,22 @@ export declare abstract class ScopeReleasePortService extends Service implements
     abstract readonly release: ScopeReleasePort['release'];
 }
 export declare const sessionScopeReleaseKey = "sessionScopeRelease";
+export type SessionTenantSource = Readonly<{
+    enumerate(): Promise<Readonly<{
+        ok: readonly TenantId[];
+    }> | Readonly<{
+        failure: Readonly<{
+            kind: 'unavailable' | 'denied';
+            diagnostic: string;
+        }>;
+    }>>;
+}>;
+export declare abstract class SessionTenantSourceService extends Service implements SessionTenantSource {
+    static readonly provide = "sessionTenants";
+    constructor(ctx: Context);
+    abstract readonly enumerate: SessionTenantSource['enumerate'];
+}
+export declare const sessionTenantsKey = "sessionTenants";
 export declare abstract class SessionAdoptionSourceService<P = unknown> extends Service implements SessionAdoptionSource<P> {
     static readonly provide = "sessionAdoptionSource";
     constructor(ctx: Context);
@@ -597,6 +616,7 @@ declare module '@deepseek-ai/cordis' {
         sessionNotifier: SessionNotifierService;
         sessionAgentDrive: AgentDrivePortService;
         sessionScopeRelease: ScopeReleasePortService;
+        sessionTenants: SessionTenantSourceService;
         sessionAdoptionSource: SessionAdoptionSourceService<unknown>;
         sessionProductionSource: SessionProductionSourceService;
         sessionCustodySource: SessionCustodySourceService;

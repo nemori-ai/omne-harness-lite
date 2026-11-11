@@ -17,7 +17,7 @@ Status: Cordis definition member, `draft`. The [SPEC](SPEC.md) states the proper
 | Export | Support | Where |
 | --- | --- | --- |
 | `SessionService` with the four faces, `sessionKey` | Exported | `src/cordis.ts` |
-| Eleven dependency Services and keys: `sessionAccessCheck`, `sessionTransactions`, `sessionPrincipals`, `sessionIdentity`, `sessionEvidence`, `sessionClock`, `sessionIdleInput`, `sessionContextInput`, `sessionNotifier`, `sessionAgentDrive`, `sessionScopeRelease` | Exported | `src/cordis.ts` |
+| Twelve dependency Services and keys: `sessionAccessCheck`, `sessionTransactions`, `sessionPrincipals`, `sessionIdentity`, `sessionEvidence`, `sessionClock`, `sessionIdleInput`, `sessionContextInput`, `sessionNotifier`, `sessionAgentDrive`, `sessionScopeRelease`, `sessionTenants` | Exported | `src/cordis.ts` |
 | Three trusted Services and keys: `sessionDelegatedTransactions`, `sessionWorkPrincipals`, `sessionPrincipalBindings` | Exported | `src/cordis.ts` |
 | `SessionIntercept`, the `Context` and `Events` augmentations, the event `session-cordis-contract/committed` | Exported | `src/cordis.ts` |
 | Type re-exports of the root entry | Exported, no runtime value | `src/index.ts` |

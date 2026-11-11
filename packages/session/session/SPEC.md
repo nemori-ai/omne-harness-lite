@@ -390,7 +390,7 @@ C2 在退避前登记本会话的等待句柄，再读取原 attempt。控制或
 - C2 与 S1 的失败分支都记具名诊断（R2-D327）：`invoke` 的不可重试失败、重试序列用尽（`retries-exhausted`）、Agent 端口缺席（`agent-absent`）、时钟拒绝退避（`clock-refused`）、本地等待被控制或终态通知打断（`wait-cancelled`）、原 attempt 已失效（`advance-withdrawn`）、读快照失败，`receive`、`finishRun`、`freeze`、`startRun` 的失败（`commit-unknown` 交 S4，不算停止），以及 S1 读快照失败。`invoke` 答 `denied` 时按 C2 行重读快照：本 attempt 已被取代则记 `advance-withdrawn` 后停止；仍持有推进资格则记 `denied`。`startRun` 答 `run-active`、`frozen` 时按 C2 行无害结束，不记诊断。诊断带会话、租户、Run、步骤、原因与失败原文，不带正文，见[诊断出口](#诊断出口)。
 - [S4](#s4)：按同一操作身份查询，结局已知后交回原发起者，以同一身份重做。
 - [S3](#s3)：启动扫描读原因的并集，周期扫描读 `inputs`、`unresolved`、`controls` 与 `run`。有待处理输入的会话交 S1，每个未知操作交 S4，有 `propagating` 控制的会话交 C3，Run 为 active 的会话交 C2 的恢复。
-- [C2](#c2) 的恢复顺序里的恢复路径（契约 [PM-14](../session-contract/SPEC.md#pm-14)、[PM-05](../session-contract/SPEC.md#pm-05)，`recover.ts`）：Run 为 active、首条输入已有 SE35 时，C2 以 `inspect` 读执行记录。
+- [C2](#c2) 的恢复顺序里的恢复路径（契约 [PM-14](../session-contract/SPEC.md#pm-14)、[PM-05](../session-contract/SPEC.md#pm-05)，`recover.ts`）：Run 为 active、Agent 已受理时，C2 以 `inspect` 读执行记录。「已受理」指首条输入已有 SE35，或首条输入已被 Agent 取走而不再待处理（`run.batch-taken`）；后一种在记不上 SE35 的部署里单独成立（没有生产证据来源时 `receive(input-handover)` 答 `unavailable`）。首条输入仍待处理而没有 SE35 的 Run 是上一条的「已授予而未受理」。
   - 挂接 active：不动，等 Agent 推进。
   - 执行为 `suspended`：挂接已交还。C2 以 `detach` 取交接依据。已交还的挂接只认回，不再交还一次。C2 以交接依据作 `continuity` 提交 `claim`，再以新 attempt 的回执证据作推进资格依据调用 `resume`。
   - `claim` 在同一批里把原 attempt 记为被取代（PM-05 第 1 条的同批 SE16）。本成员不先单独提交 `release`。

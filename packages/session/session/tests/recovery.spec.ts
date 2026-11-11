@@ -12,6 +12,7 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { evidence, succeeded } from '@omne-harness/session-contract/testing'
+import { acceptedRun as acceptedRunOf } from '../src/recover.ts'
 import { sessionSlotReference } from '../src/slot-reference.ts'
 import { memoryBackend } from './fixtures/backends.ts'
 import { harness, TENANT_A, type Harness } from './fixtures/harness.ts'
@@ -159,5 +160,33 @@ describe('the recovery of an active Run (PM-14)', () => {
 
     expect(agent.resume).not.toHaveBeenCalled()
     expect((await activeRun(h)).advance).toEqual(run.advance)
+  })
+})
+
+describe('the Run that the Agent accepted (PM-14, PA-06 item 2)', () => {
+  /** The snapshot of the harness with these inputs pending and handed over. */
+  const shaped = async (pending: readonly string[], handed: readonly string[]) => {
+    const { h } = await acceptedRun()
+    return { ...(await read(h)), pending, handed } as unknown as WorkSnapshot
+  }
+
+  it('a first input that is still pending without a hand-over is not accepted: C2 replays the invoke', async () => {
+    expect(acceptedRunOf(await shaped(['input-1'], []))).toBe(null)
+  })
+
+  it('a first input with a hand-over is accepted', async () => {
+    expect(acceptedRunOf(await shaped(['input-1'], ['input-1']))?.first).toBe('input-1')
+    expect(acceptedRunOf(await shaped([], ['input-1']))?.first).toBe('input-1')
+  })
+
+  it('a first input that the Agent took in a batch is accepted, also when no hand-over was recorded', async () => {
+    // The hand-over needs the production evidence source; a deployment without it records none,
+    // and the batch the Agent took is then the only fact that says the Run was accepted.
+    expect(acceptedRunOf(await shaped([], []))?.first).toBe('input-1')
+  })
+
+  it('a Run that is not active is not one', async () => {
+    const terminal = { ...(await shaped([], [])), run: { kind: 'none' } } as unknown as WorkSnapshot
+    expect(acceptedRunOf(terminal)).toBe(null)
   })
 })

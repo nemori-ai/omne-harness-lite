@@ -276,6 +276,28 @@ export abstract class ScopeReleasePortService extends Service implements ScopeRe
 }
 export const sessionScopeReleaseKey = ScopeReleasePortService.provide
 
+/**
+ * The tenants of the deployment, for the startup scan of the Session provider. The application
+ * assembly provides it over its tenant directory and asks the directory as the scanner of the
+ * deployment; the Session provider holds no principal for it.
+ */
+export type SessionTenantSource = Readonly<{
+  enumerate(): Promise<
+    | Readonly<{ ok: readonly TenantId[] }>
+    | Readonly<{ failure: Readonly<{ kind: 'unavailable' | 'denied'; diagnostic: string }> }>
+  >
+}>
+
+/** @owner packages/session/session-cordis-contract */
+export abstract class SessionTenantSourceService extends Service implements SessionTenantSource {
+  static readonly provide = 'sessionTenants'
+  constructor(ctx: Context) {
+    super(ctx, SessionTenantSourceService.provide)
+  }
+  abstract readonly enumerate: SessionTenantSource['enumerate']
+}
+export const sessionTenantsKey = SessionTenantSourceService.provide
+
 /** @owner packages/session/session-contract */
 export abstract class SessionAdoptionSourceService<P = unknown>
   extends Service
@@ -402,6 +424,7 @@ declare module '@deepseek-ai/cordis' {
     sessionNotifier: SessionNotifierService
     sessionAgentDrive: AgentDrivePortService
     sessionScopeRelease: ScopeReleasePortService
+    sessionTenants: SessionTenantSourceService
     sessionAdoptionSource: SessionAdoptionSourceService<unknown>
     sessionProductionSource: SessionProductionSourceService
     sessionCustodySource: SessionCustodySourceService

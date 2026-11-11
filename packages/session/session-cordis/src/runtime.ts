@@ -25,6 +25,8 @@ import { createScanners } from './scanners.ts'
 import { createTeardown, type Teardown } from './teardown.ts'
 
 const COMMITTED = 'session-cordis-contract/committed'
+/** The key of the deployment's tenant source (session-cordis-contract `sessionTenantsKey`). */
+const TENANTS = 'sessionTenants'
 
 export type ProviderRuntime = Readonly<{
   /** The faces a caller of that class sees; null is a caller whose class is unknown. */
@@ -130,14 +132,39 @@ export function startProvider(
     }
   })
 
+  /**
+   * The startup scan over the deployment's tenants (SPEC property 7). Without the source, or when
+   * it does not answer, this start binds scanners from the notices only, and says so.
+   */
+  const bindDeployedTenants = async (): Promise<void> => {
+    const source = ctx.get(TENANTS)
+    if (source === undefined) {
+      diagnose(`${TENANTS} is absent; scanners are bound from notices only`)
+      return
+    }
+    try {
+      const listed = await source.enumerate()
+      if ('failure' in listed) {
+        diagnose(
+          `${TENANTS} answered ${listed.failure.kind}: ${listed.failure.diagnostic}; scanners are bound from notices only`,
+        )
+        return
+      }
+      for (const tenant of listed.ok) if (!removing) scanners.bind(tenant)
+    } catch (error) {
+      diagnose(`${TENANTS} threw: ${describe(error)}; scanners are bound from notices only`)
+    }
+  }
+
   // Trigger 2: the ordered shutdown stops this row before it stops the storage rows.
   const lifecycle = ctx.get(assemblyLifecycleKey) as AssemblyLifecycle | undefined
   if (lifecycle === undefined) throw new Error(`${assemblyLifecycleKey} is not available`)
   lifecycle.register({
     phase: 'business',
     row: sessionProviderRow,
-    // The instance is built and serving when the plugin body ran, so starting has nothing to do.
-    start: () => Promise.resolve(),
+    // The instance is built and serving when the plugin body ran. Starting binds a scanner for
+    // each tenant of the deployment, so a tenant with work and no new commit is scanned too.
+    start: () => bindDeployedTenants(),
     stop: () => teardown(),
   })
 

@@ -40,10 +40,16 @@ export type Recovery = Readonly<{
 
 type ActiveRun = Extract<WorkSnapshot['run'], { kind: 'active' }>
 
-/** The active Run that the Agent accepted: its first input was handed over (SE35). */
-function acceptedRun(snapshot: WorkSnapshot): ActiveRun | null {
+/**
+ * The active Run that the Agent accepted: its first input was handed over (SE35), or the Agent
+ * took it in a batch, so it is no longer pending. The second fact stands alone where the
+ * hand-over cannot be recorded (no production evidence source). The other case, a first input that
+ * is pending without a hand-over, is the granted Run that C2 invokes again (PA-06 item 2).
+ */
+export function acceptedRun(snapshot: WorkSnapshot): ActiveRun | null {
   const { run } = snapshot
-  return run.kind === 'active' && snapshot.handed.includes(run.first) ? run : null
+  if (run.kind !== 'active') return null
+  return snapshot.handed.includes(run.first) || !snapshot.pending.includes(run.first) ? run : null
 }
 
 /** A drive failure that the next scan may meet differently: nothing is reported for it. */
