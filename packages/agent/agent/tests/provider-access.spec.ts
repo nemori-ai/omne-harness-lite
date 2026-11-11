@@ -223,9 +223,10 @@ describe.each(operations)('C2 $name', ({ name, target, call }) => {
 })
 
 // invoke has its body since #510; its allowed path is in loop-invoke.spec.ts and just below.
-// quiesce has its body for an idle runtime (R2-D173); its allowed path is in provider-quiesce.spec.ts
-// and just below.
-const bodiless = operations.filter(entry => entry.name !== 'invoke' && entry.name !== 'quiesce')
+// quiesce has its body (R2-D173); its allowed path is in provider-quiesce.spec.ts and just below.
+// resume has its body for an execution that was handed over; its allowed path is in
+// provider-handover.spec.ts and just below.
+const bodiless = operations.filter(entry => !['invoke', 'quiesce', 'resume'].includes(entry.name))
 
 describe.each(bodiless)('C2 $name', ({ name, call }) => {
   it('stage-temporary (#502): allowed reaches a body that answers a named unavailable and writes nothing', async () => {
@@ -249,6 +250,20 @@ describe('C2 invoke after allowed', () => {
       grant: null,
     })
     expect(failure(invoked)).toMatchObject({ kind: 'unavailable', owner: 'agentAdoptions' })
+    expect(calls).toEqual(['access.check', 'adoptions.resolve'])
+  })
+})
+
+describe('C2 resume after allowed', () => {
+  it('resolves the bound definition first; without an adoption it answers that unavailable and attaches nothing', async () => {
+    const { provider, calls } = await setup()
+    const resumed = await provider.runtime.resume({
+      ...alice,
+      ...mutation,
+      recovery: evidence('recovery'),
+      grant: null,
+    })
+    expect(failure(resumed)).toMatchObject({ kind: 'unavailable', owner: 'agentAdoptions' })
     expect(calls).toEqual(['access.check', 'adoptions.resolve'])
   })
 })

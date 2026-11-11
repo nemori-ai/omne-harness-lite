@@ -1,8 +1,9 @@
 // AgentRuntimeControl.quiesce of the factory runtime (SPEC "四种控制" 停用, "交接与停用" and the
 // failure table row of quiesce; public API "quiesce 与执行槽的同步义务"). What is delivered: the runtime
 // drains before the first await, a new invoke and resume answer unavailable, a free slot withdraws
-// the registration through the handle and answers drained, and an execution in the slot is reported
-// as remaining (`unresolved`), never drained. Its detach and handover are #502 stage 5 and not here.
+// the registration through the handle and answers drained, and an execution whose drive runs a node
+// is reported as remaining (`unresolved`), never drained. The handover of an execution that waits is
+// in provider-handover.spec.ts.
 import { describe, expect, it } from 'vitest'
 import type {
   AgentAccessDecision,
@@ -176,12 +177,11 @@ describe('a draining runtime refuses new invoke and resume', () => {
     ).not.toMatchObject({ ok: { kind: 'committed' } })
   })
 
-  it('before quiesce, resume still answers the stage-temporary unavailable, not draining', async () => {
+  it('before quiesce, resume reaches the Journal, which answers for the execution; it is not the draining refusal', async () => {
     const { assembly } = await assembled()
-    const answer = failure(await resumeOf(assembly))
-    expect(answer.kind === 'unavailable' && answer.diagnostic).toBe(
-      'resume is not implemented until #502 stage 5',
-    )
+    // No record of `exec-2` exists, and the memory Journal hides absence as denied.
+    expect(failure(await resumeOf(assembly))).toMatchObject({ kind: 'denied' })
+    expect(await shown(assembly)).toMatchObject({ kind: 'idle' })
   })
 
   it('drains before its first await: an invoke that arrives while the quiesce check runs is refused', async () => {

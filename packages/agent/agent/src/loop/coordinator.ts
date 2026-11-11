@@ -239,9 +239,8 @@ export type ReplyAdmissionReadReport = Readonly<{
 /** Where and why the coordinator stopped. The execution stays where its last commit put it. */
 export type Halted = Readonly<{ node: LoopNode; failure: Failure }>
 
-export interface ExecutionCoordinator {
-  /** U0 to E0: the input is admitted and `open` accepts the execution. Resolves at E1. */
-  accept(confirmedOpen?: CommandReceipt): Promise<Outcome<Authority, Halted>>
+/** What a coordinator does for the drive of its runtime once it holds the attachment. */
+export interface ExecutionDrive {
   /**
    * After a legally accepted operation: run from E1 until idle, a saved wait or a failure.
    */
@@ -250,9 +249,45 @@ export interface ExecutionCoordinator {
   waitForWake(
     input: Readonly<{ reconciliationDelayMs: number; signal: AbortSignal }>,
   ): Promise<Outcome<'ready' | 'stopped' | 'cancelled', Halted>>
+  /**
+   * The handover of quiesce (SPEC "交接与停用"): `Journal.detach` revokes the attachment of an
+   * execution whose wait is saved in the Journal, and answers the handover evidence. The position,
+   * the wait and the calls stay as saved. Null: the coordinator is not on a saved wait, or it holds
+   * an operation whose outcome is unknown, so nothing is handed over and nothing is written. Only
+   * the drive calls it, between two awaited windows.
+   */
+  handOver(
+    input: Readonly<{ operation: AgentOperationId; reason: DurableEvidence }>,
+  ): Promise<Outcome<DurableEvidence | null, Halted>>
+}
+
+export interface ExecutionCoordinator extends ExecutionDrive {
+  /** U0 to E0: the input is admitted and `open` accepts the execution. Resolves at E1. */
+  accept(confirmedOpen?: CommandReceipt): Promise<Outcome<Authority, Halted>>
   /** Original runtime only, after its old driver stopped. No attach, takeover or public resume. */
   continueExecution(authority: Authority): Promise<Outcome<void, Halted>>
 }
+
+/** The coordinator of an execution that another attachment drove before (SPEC "恢复与接管"). */
+export interface ResumedCoordinator extends ExecutionDrive {
+  /**
+   * `Journal.attach` grants a new attachment to the execution that was handed over, and the frame
+   * takes the saved position. Resolves before E1; the drive reconciles and goes on from there.
+   */
+  resume(
+    input: Readonly<{
+      operation: AgentOperationId
+      recovery: DurableEvidence
+      grant: DurableEvidence | null
+    }>,
+  ): Promise<Outcome<Authority, Halted>>
+}
+
+/** The entry of a coordinator that resumes: it has no invoke, so no operation, input or grant. */
+export type ResumeEntry<P> = Omit<ExecutionEntry<P>, 'operation' | 'initial' | 'grant'>
+
+/** The invoke that a coordinator opens its execution with. */
+type Invoked = Pick<ExecutionEntry<unknown>, 'operation' | 'initial' | 'grant'>
 
 type ReadyPreparation = Extract<Preparation, { kind: 'ready' }>
 type InternalSource = Exclude<MessageSource, { kind: 'external-input' }>
@@ -635,6 +670,17 @@ const DEPENDENCY_PORTS = [
 ] as const satisfies readonly Exclude<keyof LoopPorts<unknown>, 'toolRequests'>[]
 
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
+  return coordinate(entry, entry)
+}
+
+export function createResumedCoordinator<P>(entry: ResumeEntry<P>): ResumedCoordinator {
+  return coordinate(entry, null)
+}
+
+function coordinate<P>(
+  entry: ResumeEntry<P>,
+  invoked: Invoked | null,
+): ExecutionCoordinator & ResumedCoordinator {
   const { binding, evaluator, execution } = entry
   // The answers of the dependency ports are noted: an `unavailable` that a dependency answered
   // is a wait (SPEC "依赖不可用时的等待"; agent-host-local SPEC 运行失败: a dependency that is
@@ -706,6 +752,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   const unsentRounds = new Set<CardRoundId>()
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
+  // Whether the wait the coordinator yielded on is the `waiting` state in the Journal, not a wait
+  // in memory. Only such a wait is handed over: its position and its waits are what a resume reads.
+  let savedWait = false
   let waking = false
   let resumeState: OpenState = state
   let reconciliationOperations: readonly AgentOperationId[] = []
@@ -1041,13 +1090,22 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return loaded
   }
 
+  /**
+   * The state the next commit writes when the Journal holds `read`. `reconciling` is what an attach
+   * leaves (SPEC "恢复与接管"): the reconciliation is the reading of E1 and E2 and the queries of R0,
+   * and the first commit after them writes `advancing`.
+   */
+  function goingOn<S extends Exclude<ExecutionState, { kind: 'ended' }>>(read: S) {
+    return read.kind === 'reconciling' ? ({ kind: 'advancing' } as const) : read
+  }
+
   /** The state a commit may write back: a settling snapshot carries the Journal's projection, which no commit writes. */
   function committedState(read: ExecutionState): OpenState {
     if (read.kind === 'ended')
       throw new Error('coordinator defect: an ended state is not committed')
     if (read.kind === 'waiting') return resumeState
     if (read.kind === 'settling') return { kind: 'settling' }
-    return read
+    return goingOn(read)
   }
 
   /** E1's reading of the snapshot: the advancement of this attachment. */
@@ -1240,12 +1298,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // ------------------------------------------------------------------------------------------
   // admitMessage: U0, Q1, Q2, Q4, Q5 (SPEC "消息准入"; the Q5 of H0, T5, C3 and X5 comes with them)
 
-  /** The runtime context of this invoke: the real instance, scope, definition and grant. */
-  const runtimeContext: InvokeRuntimeContext = {
-    instance: binding.instance,
-    scope: binding.scope,
-    definition: binding.definition,
-    grant: entry.grant,
+  /** The runtime context of the invoke: the real instance, scope, definition and grant. */
+  function runtimeContext(): InvokeRuntimeContext {
+    return {
+      instance: binding.instance,
+      scope: binding.scope,
+      definition: binding.definition,
+      grant: required(invoked, 'invoke').grant,
+    }
   }
 
   /** The stable source position of the main reply of one step: the return position I3. */
@@ -1306,26 +1366,17 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
      */
     async U0() {
       if (outcome === null) {
-        const inputEntry = {
-          kind: 'invoke' as const,
-          operation: entry.operation,
-          execution,
-          initial: entry.initial,
-        }
+        const { operation, initial } = required(invoked, 'invoke')
+        const inputEntry = { kind: 'invoke' as const, operation, execution, initial }
         candidate = {
           kind: 'external-input',
           request: {
             kind: 'input',
-            reference: {
-              kind: 'input',
-              execution,
-              entry: entry.operation,
-              input: entry.initial.id,
-            },
+            reference: { kind: 'input', execution, entry: operation, input: initial.id },
             entry: inputEntry,
-            source: { kind: 'external-input', input: entry.initial.id },
+            source: { kind: 'external-input', input: initial.id },
           },
-          runtime: runtimeContext,
+          runtime: runtimeContext(),
           returnTo: 'U0',
         }
         return step('candidate', null)
@@ -1597,9 +1648,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         originalOpen = {
           ...access,
           execution,
-          operation: entry.operation,
+          operation: required(invoked, 'invoke').operation,
           original: required(acceptance, 'acceptance'),
-          runtime: runtimeContext,
+          runtime: runtimeContext(),
           checkpoint: initial.ok,
         }
       }
@@ -1624,7 +1675,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const advancement = advancementOf(read.ok)
       if (advancement.kind === 'ended') return step('terminal', null)
       if (advancement.kind === 'superseded') return step('superseded', null)
-      if (advancedByAnother(read.ok)) {
+      // A resumed coordinator has no revision yet: this read gives it the saved position.
+      const resumed = revision === null
+      if (!resumed && advancedByAnother(read.ok)) {
         entry.idle()
         return step('found-existing', null)
       }
@@ -1632,8 +1685,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return fail(notYet('E1', `an advancement that is ${advancement.kind}`, '#502 1.4'))
       checkpoint = read.ok.checkpoint
       revision = read.ok.revision
+      if (resumed) iteration = mainCallIteration(read.ok.checkpoint)
       if (read.ok.state.kind !== 'ended')
-        state = waking && read.ok.state.kind === 'waiting' ? resumeState : read.ok.state
+        state = waking && read.ok.state.kind === 'waiting' ? resumeState : goingOn(read.ok.state)
       waking = false
       if (cancellationOf(read.ok) !== undefined) return step('cancel', null)
       return step('allowed', null)
@@ -1719,6 +1773,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         canonical(snapshot.state.waits) === canonical(waits)
       ) {
         yieldedWait = true
+        savedWait = true
         return step('saved-wait', null)
       }
       const saved = await commit('W0', required(checkpoint, 'checkpoint').position, {
@@ -1738,6 +1793,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return step('reconciled', null)
       }
       yieldedWait = true
+      savedWait = true
       return step('saved-wait', null)
     },
     /** R0: committed follows the saved successor; excluded re-evaluates the original local node. */
@@ -3072,6 +3128,23 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   /** The frame of one main attempt of `of`, before its request is prepared. */
+  /**
+   * The iteration of a saved main Model call, for a coordinator that did not send it: the call
+   * path recognizes the saved intent and does not prepare the request again. Null without one.
+   */
+  function mainCallIteration(at: AgentCheckpoint): Iteration | null {
+    const pending = at.calls[0]
+    if (pending?.kind !== 'model' || pending.purpose !== 'main') return null
+    return {
+      ...newIteration(at.step, null, attemptOf(at.step)),
+      action: pending.action,
+      consumption: pending.consumption,
+      position: pending.position,
+      pending,
+      admission: 'unknown',
+    }
+  }
+
   function newIteration(of: StepId, batch: InputBatch | null, attempt: number): Iteration {
     return {
       step: of,
@@ -3416,7 +3489,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   function takeLatestPosition(read: ExecutionSnapshot): void {
     checkpoint = read.checkpoint
     revision = read.revision
-    if (read.state.kind !== 'ended' && read.state.kind !== 'waiting') state = read.state
+    if (read.state.kind !== 'ended' && read.state.kind !== 'waiting') state = goingOn(read.state)
   }
 
   /** The snapshot with the commit this frame left unknown among its unresolved operations. */
@@ -3873,17 +3946,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         checkpoint = at
         // The call path never prepares again from here: M6 recognizes the saved intent, and a
         // request is prepared again only after the Model's authoritative not-accepted voids it.
-        iteration =
-          pending?.kind === 'model' && !beforeIntent && !finishingFault
-            ? {
-                ...newIteration(at.step, null, attemptOf(at.step)),
-                action: pending.action,
-                consumption: pending.consumption,
-                position: pending.position,
-                pending,
-                admission: 'unknown',
-              }
-            : null
+        iteration = beforeIntent || finishingFault ? null : mainCallIteration(at)
         // The first available recovery snapshot already owns these unknown identities. Query
         // them before another fallible read can take the normal E1 -> W0 route.
         reconciliationOperations = read.ok.unresolved
@@ -3892,6 +3955,40 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           null,
         )
         return 'failure' in ran ? ran : succeed(undefined)
+      })
+    },
+    async resume(input) {
+      return exclusive('E1', async () => {
+        const attached = await ports.journal.attach({
+          ...access,
+          execution,
+          operation: input.operation,
+          instance: binding.instance,
+          grant: input.grant,
+          recovery: input.recovery,
+          takeover: null,
+        })
+        if ('failure' in attached) return fail({ node: 'E1', failure: attached.failure })
+        authority = attached.ok.authority
+        return succeed(attached.ok.authority)
+      })
+    },
+    async handOver(input) {
+      return exclusive('W0', async () => {
+        if (!savedWait || pendingCommit !== null || reconciliationOperations.length > 0)
+          return succeed(null)
+        const detached = await ports.journal.detach({
+          ...access,
+          execution,
+          operation: input.operation,
+          authority: required(authority, 'authority'),
+          reason: input.reason,
+        })
+        if ('failure' in detached) return fail({ node: 'W0', failure: detached.failure })
+        // Nothing is left to wait for or to run: the next `waitForWake` answers `stopped`.
+        yieldedWait = false
+        savedWait = false
+        return succeed(detached.ok)
       })
     },
     async waitForWake(input) {
@@ -3931,6 +4028,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return exclusive('E1', async () => {
         waking = yieldedWait
         yieldedWait = false
+        savedWait = false
         const ran = await drive(
           pendingCommit !== null || reconciliationOperations.length > 0 ? 'R0' : 'E1',
           null,
