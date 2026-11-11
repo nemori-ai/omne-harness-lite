@@ -1,9 +1,10 @@
 // AgentRuntimeControl.quiesce of the factory runtime (SPEC "四种控制" 停用, "交接与停用" and the
 // failure table row of quiesce; public API "quiesce 与执行槽的同步义务"). What is delivered: the runtime
 // drains before the first await, a new invoke and resume answer unavailable, a free slot withdraws
-// the registration through the handle and answers drained, and an execution whose drive runs a node
-// is reported as remaining (`unresolved`), never drained. The handover of an execution that waits is
-// in provider-handover.spec.ts.
+// the registration through the handle and answers drained, and an execution in the slot is handed
+// over when the pass of its drive ends on a saved wait. An execution whose handover the Journal did
+// not confirm is reported as remaining (`unresolved`), never drained. More of the handover and the
+// resume are in provider-handover.spec.ts.
 import { describe, expect, it } from 'vitest'
 import type {
   AgentAccessDecision,
@@ -219,27 +220,21 @@ describe('a draining runtime refuses new invoke and resume', () => {
 })
 
 describe('quiesce with an execution in flight', () => {
-  it('answers unresolved with the remaining execution, keeps the registration and does not stop the run', async () => {
+  it('waits for the pass of the drive to end, hands the execution over on its wait for the Model call, and cancels nothing', async () => {
     const { assembly, host } = await assembled()
     const handle = ok(await invoke(assembly))
+    // The drive is in its first pass. It ends on the saved wait for the Model result.
     const answer = ok(await quiesceOf(assembly))
-    expect(answer).toMatchObject({ kind: 'unresolved', remaining: [handle.execution] })
-    expect(host.calls).toEqual([])
-    expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: handle.execution })
+    expect(answer).toMatchObject({ kind: 'drained', remaining: [] })
+    expect(host.calls).toHaveLength(1)
 
-    // The run goes on: quiesce cancels no Model call and ends no execution.
-    assembly.release.open()
-    await eventually(async () => (await shown(assembly)).kind === 'idle')
-    const ended = ok(
+    const handed = ok(
       await assembly.controls.journal.port.load({ ...alice, execution: handle.execution }),
     )
-    expect(ended.state).toMatchObject({ kind: 'ended' })
-    expect(ended.state.kind === 'ended' && ended.state.conclusion.kind).not.toBe('cancelled')
-    expect(ended.controls).toEqual([])
-
-    // The retry of the same operation goes on and answers the current remainder: none.
-    expect(ok(await quiesceOf(assembly))).toMatchObject({ kind: 'drained', remaining: [] })
-    expect(host.calls).toHaveLength(1)
+    expect(handed.state.kind).toBe('suspended')
+    // quiesce cancels no Model call and ends no execution.
+    expect(handed.controls).toEqual([])
+    expect(handed.checkpoint.calls.some(call => call.kind === 'model')).toBe(true)
   })
 })
 
@@ -282,10 +277,11 @@ describe('operation identity of quiesce', () => {
   it('a new quiesce after an unresolved one goes on with the same handover', async () => {
     const { assembly, host } = await assembled()
     ok(await invoke(assembly))
+    // The Journal does not confirm the handover of the first quiesce: the execution remains.
+    assembly.controls.journal.failNext('detach', { kind: 'unavailable' })
     const unresolved = ok(await quiesceOf(assembly, 'quiesce-1'))
     expect(unresolved.kind).toBe('unresolved')
-    assembly.release.open()
-    await eventually(async () => (await shown(assembly)).kind === 'idle')
+    expect(await shown(assembly)).toMatchObject({ kind: 'occupied' })
     expect(ok(await quiesceOf(assembly, 'quiesce-2')).kind).toBe('drained')
     expect(host.calls.map(call => call.operation)).toEqual([operation('quiesce-1')])
   })

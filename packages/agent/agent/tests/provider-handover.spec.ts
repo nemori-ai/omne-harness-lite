@@ -22,7 +22,7 @@ import {
   operation,
   type LoadedWithEntries,
 } from './journal-support.ts'
-import { alice, eventually, invoke } from './loop-support.ts'
+import { alice, eventually, invoke, loopAssembly } from './loop-support.ts'
 import {
   associatedTools,
   deliverModelReply,
@@ -182,6 +182,30 @@ describe('resume of an execution that was handed over', () => {
     await deliverModelReply(assembly, [textBlock('done', 'blk_done')], 'final')
     await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+  })
+
+  it('goes on from the wait for a Model call whose result arrived while no runtime held the execution', async () => {
+    const assembly = await loopAssembly([execution()])
+    ok(await invoke(assembly))
+    ok(
+      await assembly.provider.control.quiesce({
+        ...alice,
+        operation: operation('quiesce-1'),
+        reason: evidence('stop'),
+      }),
+    )
+    const load = async () => ok(await assembly.dependencies.journal.load(input))
+    expect((await load()).state.kind).toBe('suspended')
+    // The Model settles its call now: the receiver keeps the result without an attachment.
+    assembly.release.open()
+
+    const next = ok(
+      await createAgentRuntime(assembly.dependencies, options({ reconciliationDelayMs: 1000 })),
+    )
+    ok(await resumeIn(next))
+
+    await eventually(async () => (await load()).state.kind === 'ended')
+    expect((await load()).state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
   })
 
   it('answers changed and keeps its slot free when the execution was not handed over', async () => {

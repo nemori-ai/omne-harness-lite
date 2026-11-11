@@ -28,17 +28,17 @@ open 尚未认回时，reserved 保存原 coordinator 和 invoke 输入指纹。
 
 ## 停用
 
-<a id="停用"></a>依据 R2-D173。`AgentProvider.control.quiesce` 兑现 agent-contract SPEC「[交接与停用](../agent-contract/SPEC.md#交接与停用)」的一段：空闲实例的 quiesce，以及等待中的 execution 的交接。正在跑节点的 execution 的交接、接管与换代仍是 #502 阶段 5。
+<a id="停用"></a>依据 R2-D173。`AgentProvider.control.quiesce` 兑现 agent-contract SPEC「[交接与停用](../agent-contract/SPEC.md#交接与停用)」的一段：空闲实例的 quiesce，以及在途 execution 停在已保存的等待上时的交接。接管与换代仍是 #502 阶段 5。
 
 - **受理**：quiesce 在第一个 `await` 之前把 runtime 置为 draining，然后核验主体。核验拒绝时，如果没有已受理的停用，draining 解除；核验期间被拒的 invoke 按失败关闭处理。核验通过的第一个 quiesce 成为本 runtime 唯一的停用。
 - **draining**：新的 invoke 与 resume 返回 unavailable，owner 为 `@omne-harness/agent`。受理未知的 R0 待查项的重试也返回 unavailable。同一操作、同一输入的 invoke 重试仍取回原句柄。
 - **执行槽空闲**：runtime 以停用的操作与原因调用登记句柄的 `withdraw`。答复为 withdrawn 或 null 时，quiesce 返回 drained，每个观察以 retired 结束。没有登记句柄时跳过撤登记。`withdraw` 失败、抛出或登记未到 withdrawn 时，quiesce 返回 unavailable，runtime 保持 draining，重试再次撤登记。
-- **执行槽里的 execution 在等待**：驱动睡在已保存到 Journal 的等待上，并且手里没有结果未知的操作时，quiesce 请这个驱动交接。驱动是这个 execution 唯一的写者，交接由它自己做：`Journal.detach` 撤销挂接，execution 进入 suspended，位置、等待与未结束的调用保持原样。交接不取消该 execution 的 Model 与 Tool 调用，不关闭卡片。交接成立后执行槽释放，quiesce 接着按“执行槽空闲”撤登记并返回 drained。`Journal.detach` 没有确认交接时（unavailable、commit-unknown、stale-advance 等），quiesce 返回 unresolved，remaining 为该 execution；驱动回到原来的等待，重试的 quiesce 再请一次。
-- **执行槽被占用的其余情形**（含 R0 待查项）：驱动正在跑节点、等待只在内存里（终结被拒绝后的等待、Journal 不可用而没能保存的等待）、或者手里有结果未知的操作时，quiesce 返回 unresolved，remaining 为该 execution。本实现不交接它，也不取消它的 Model 与 Tool 调用。该 execution 照常推进。E9 释放执行槽后，重试或新的 quiesce 撤登记并返回 drained。
+- **执行槽里有驱动在推进的 execution**：quiesce 向这个驱动提出交接，并等它答复。驱动是这个 execution 唯一的写者，交接由它自己做。它在当前这一遍跑完、入睡之前处理请求；正睡着时被唤醒来处理。这一遍停在已保存到 Journal 的等待上，并且手里没有结果未知的操作时，驱动交接：`Journal.detach` 撤销挂接，execution 进入 suspended，位置、等待与未结束的调用保持原样。交接不取消该 execution 的 Model 与 Tool 调用，不关闭卡片。交接成立后执行槽释放，quiesce 接着按“执行槽空闲”撤登记并返回 drained。
+- **没有交接成的情形**（含 R0 待查项）：这一遍停在只在内存里的等待上（终结被拒绝后的等待、Journal 不可用而没能保存的等待）、手里有结果未知的操作、或者 `Journal.detach` 没有确认交接（unavailable、commit-unknown、stale-advance 等）时，quiesce 返回 unresolved，remaining 为该 execution。驱动回到原来的等待，该 execution 照常推进；重试的 quiesce 再提一次。这一遍以 E9 结束时执行槽已经释放，quiesce 直接撤登记并返回 drained。quiesce 等的是驱动的一遍，不设自己的时限；时限归调用它的宿主。
 - **执行槽为 failed**：见“[运行失败](#运行失败)”。依据 R2-D285。只有确定不能继续的 execution 才有 failed 槽。依赖暂时不可用的 execution 在等待，槽仍为 running，按上一条处理。failed 时没有驱动在推进这个 execution，但它的责任没有交接。quiesce 照样把它算作剩余，返回 unresolved，remaining 为该 execution，不撤登记。重试得到同样的剩余。
 - **操作身份**：drained 之后，同一操作、同一原因的重试认回原结果。同一操作配另一原因返回 conflict。其他操作的 quiesce 认回已受理的那一次，不开始第二次。
 - **依据**：结果的 evidence 由 `agentEvidence` 派生，只在进程内存中，不是耐久记录。
-- **阶段 5 仍未兑现**：正在跑节点的 execution 的交接、quiesce 结果里每个 execution 的交接依据，以及「被接管的执行不计入剩余」。
+- **阶段 5 仍未兑现**：quiesce 结果里每个 execution 的交接依据，以及「被接管的执行不计入剩余」。
 
 ## 恢复
 
@@ -147,9 +147,9 @@ F3 只有取得 Journal ended 才经 F4/E9 释放槽。有效取消可在终态�
 
 依赖不可用时的等待另有用例：任一写节点的提交答 unavailable 时转等待，到检查时刻以同一操作再写并继续；W0 保存等待答 unavailable 时同样不停止，到检查时刻进 E1；Journal 答确定失败（`invalid` 或 `unsupported`）时以失败终结，不等待；收尾节点的提交答 unavailable 时在进程内等待，不提交 waiting。
 
-停用的测试在 `tests/provider-quiesce.spec.ts`：空闲实例 drained 并撤登记一次、draining 之后 invoke 与 resume 返回 unavailable、第一个 `await` 之前已 draining、核验拒绝解除 draining、驱动正在跑节点时 unresolved 且运行照常结束、撤登记失败不报 drained、同一操作认回、另一原因 conflict、停用进行中的新 quiesce 认回原停用。只覆盖内存 Journal 与登记句柄替身。
+停用的测试在 `tests/provider-quiesce.spec.ts`：空闲实例 drained 并撤登记一次、draining 之后 invoke 与 resume 返回 unavailable、第一个 `await` 之前已 draining、核验拒绝解除 draining、驱动的一遍结束在 Model 调用的等待上时交接并返回 drained 且不取消调用、撤登记失败不报 drained、同一操作认回、另一原因 conflict、停用进行中的新 quiesce 认回原停用。只覆盖内存 Journal 与登记句柄替身。
 
-交接与恢复的测试在 `tests/provider-handover.spec.ts`：等 Tool 结果的 execution 在 quiesce 时被交接，状态为 suspended、检查点不变、没有向 Tool 发控制，quiesce 返回 drained；`Journal.detach` 不可用时返回 unresolved，等待与挂接保持，重试后 drained；另一个运行时 resume 之后取得第 2 个挂接，保存同一个等待，原调用只发过一次，收到结果后走到 complete；交接期间到达的结果在 resume 之后被取用；execution 没有交接时 resume 答 changed 且执行槽保持空闲；执行槽被占时 resume 答 busy。只覆盖内存 Journal。
+交接与恢复的测试在 `tests/provider-handover.spec.ts`：等 Tool 结果的 execution 在 quiesce 时被交接，状态为 suspended、检查点不变、没有向 Tool 发控制，quiesce 返回 drained；`Journal.detach` 不可用时返回 unresolved，等待与挂接保持，重试后 drained；另一个运行时 resume 之后取得第 2 个挂接，保存同一个等待，原调用只发过一次，收到结果后走到 complete；交接期间到达的 Tool 结果与 Model 结果在 resume 之后被取用；execution 没有交接时 resume 答 changed 且执行槽保持空闲；执行槽被占时 resume 答 busy。只覆盖内存 Journal。
 
 当前测试核对构造、访问守卫、正常路径、输入承接、请求准备、主调用接缝、回复准入、空动作批、I8 三种去向、原操作认回、等待保存、失通知后的计时重读与等待资源清理，以及终结的候选投影、清单发行与失效、五类 blocked 次序、取消路线的建立、判断与迁移和三个保管变体（内存 Journal 通过 agent-contract 的 Journal 核心一致性套件）。另有一条先等待再收到回复的完整模型请求，核对各节点提交次数、等待内的读取次数、自身 waiting 事件不唤醒与等待期间的重复 invoke。测试使用脚本化 Model 与非耐久内存 Journal，不证明真实提供者或完整恢复。needs-compaction 保留原结果并沿 node-failed 的 unsupported-path 收尾；压缩业务路径仍未实现。内部窄接续从同一内存 Journal 的已存 ready/step 或 PendingCall 重建固定帧，并从 received 条目读取完整材料，覆盖意图提交前后与 producer 已提交而尚未完成 I3 的切点，要求原 runtime、Access/Authority 与旧驱动已停；I2 尚须无未决 Journal 操作。它不是公开恢复或进程耐久。现行 Model 交付（`ModelDelivery` 的结果分支、`ResultPart`、`Settlement`）不带原产出 scope/format：它们只随流式到达的 finish 交出（model-contract SPEC「产出」与 finish 映射），不进 Agent 收到的交付与接收方材料。因此 Agent 收到的每个 reasoning_state 都缺 scope/format，回复不能带 `replay`（message SPEC RS-03）。依据 R2-D268（更正 R2-D70 的「一律返回 unsupported」）：M3 解释结果时，已封的 reasoning_state 与已封的 thinking 都不进入回复块，回复由其余块照常组成；去掉后没有块时按 no-reply 处理。这是 message SPEC 的投影规则允许的：去掉全部续接状态部件、也不剩 thinking 时不带 `replay`。去掉签名后的 thinking 能否回传尚未核实，所以一并去掉。未封的 thinking 按普通 partial 处理。已接收材料保持原样可读。后果是下一轮请求没有回放块（KL-66）。R2-D70 曾让这类结果返回 unsupported，M3 因此停住，Run 在 M6 等待中卡住，不终结。交付补上可选的 replay 通道后，接收方保存它，带 scope/format 的封装 reasoning_state 才作为回复块进入 reply（波 3）。
 

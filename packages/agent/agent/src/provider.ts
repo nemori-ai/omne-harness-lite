@@ -179,9 +179,10 @@ type Quiescing = {
 }
 
 /**
- * The drive of the execution in the slot, as quiesce reaches it. `wait` is set while the drive
- * sleeps in `waitForWake`; aborting it wakes the drive. `asked` is the handover quiesce asked for:
- * the drive is the only writer of its execution, so it makes the handover itself and settles it.
+ * The drive of the execution in the slot, as quiesce reaches it. `asked` is the handover quiesce
+ * asked for: the drive is the only writer of its execution, so it makes the handover itself, when
+ * its current pass is over and before it sleeps, and settles the request. `wait` is set while the
+ * drive sleeps in `waitForWake`; aborting it wakes the drive for the request.
  */
 type Driving = {
   wait: AbortController | null
@@ -507,15 +508,11 @@ export function createProvider<P, B extends ContentBlock>(
   ): void {
     const own: Driving = { wait: null, asked: null }
     driving = own
-    const decline = () => {
-      own.asked?.settle(false)
-      own.asked = null
-    }
-    /** The handover quiesce asked for, made between two waits. True: the slot is free. */
+    /** The handover quiesce asked for, made between a pass and a wait. True: the slot is free. */
     const handOver = async (): Promise<boolean> => {
       const asked = own.asked
-      own.asked = null
       if (asked === null) return false
+      own.asked = null
       const handed = await coordinator.handOver(asked)
       const done = 'ok' in handed && handed.ok !== null
       if (done && slot.kind === 'running' && slot.execution === execution) occupy({ kind: 'free' })
@@ -532,6 +529,7 @@ export function createProvider<P, B extends ContentBlock>(
             answer => 'failure' in answer,
           )
           for (;;) {
+            if (await handOver()) return null
             const controller = new AbortController()
             own.wait = controller
             const wake = await coordinator
@@ -546,13 +544,13 @@ export function createProvider<P, B extends ContentBlock>(
             if ('failure' in wake) return wake.failure
             if (wake.ok === 'stopped') return 'failure' in ran ? ran.failure : null
             if (wake.ok === 'ready') break
-            // Only quiesce cancels the wait. A handover that was not made leaves the wait as it is.
-            if (await handOver()) return null
+            // Only quiesce cancels the wait: the request is answered before the drive sleeps again.
           }
-          decline()
         }
       } finally {
-        decline()
+        // The drive ends: E9 freed the slot, or the run failed. Nothing is left to hand over here.
+        own.asked?.settle(false)
+        own.asked = null
         if (driving === own) driving = null
       }
     }
@@ -785,16 +783,17 @@ export function createProvider<P, B extends ContentBlock>(
   }
 
   /**
-   * Asks the drive that sleeps on its wait to hand its execution over. False: no drive sleeps (it
-   * runs a node, or the run failed), or the drive did not hand over.
+   * Asks the drive of the execution in the slot to hand it over, and waits for its answer. The
+   * drive answers when its current pass is over: a pass that only reads the saved wait again is
+   * short, and a pass that runs a node ends at the next wait. False: no drive works (the run
+   * failed), or the drive did not hand over.
    */
   function askHandover(held: Quiescing): Promise<boolean> {
     const own = driving
-    if (own === null || own.wait === null || own.asked !== null) return Promise.resolve(false)
-    const { wait } = own
+    if (own === null || own.asked !== null) return Promise.resolve(false)
     return new Promise(settle => {
       own.asked = { operation: held.operation, reason: held.reason, settle }
-      wait.abort()
+      own.wait?.abort()
     })
   }
 
@@ -841,11 +840,11 @@ export function createProvider<P, B extends ContentBlock>(
   }
 
   /**
-   * One drain step. An execution whose drive sleeps on a saved wait is handed over by that drive,
-   * and its slot is free (SPEC "交接与停用"). Any other execution stays in the slot and the answer is
-   * `unresolved` with it, never `drained`: a drive that runs a node, a wait in memory, an operation
-   * whose outcome is unknown, a handover the Journal did not confirm, and a `failed` slot (R2-D285:
-   * no drive works on it, but nothing handed it over). A free slot withdraws the registration, ends
+   * One drain step. The drive of an execution is asked to hand it over, and does so when its pass
+   * ends on a wait that is saved in the Journal; its slot is then free (SPEC "交接与停用"). Any other
+   * execution stays in the slot and the answer is `unresolved` with it, never `drained`: a wait in
+   * memory, an operation whose outcome is unknown, a handover the Journal did not confirm, and a
+   * `failed` slot (R2-D285: no drive works on it, but nothing handed it over). A free slot withdraws the registration, ends
    * every observation and answers `drained` for good. The slot cannot be taken while this step
    * waits: the runtime is draining and refuses every new invoke and resume.
    */
