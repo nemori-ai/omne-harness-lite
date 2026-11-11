@@ -240,3 +240,27 @@ for (const [kind, lane] of [
     })
   })
 }
+
+describe('the SQL provider: the Session snapshot of a write cannot be read', () => {
+  it('answers unavailable to the current Authority, not stale-advance; the same commit goes through once the read answers', async () => {
+    const l = await sqlLane('grant-unreadable')
+    const s = scenes.at(-1) as SqlScene
+    const loaded = ok(await l.journal.load({ ...l.access, execution: l.execution }))
+    const input = commitInput(l, l.authority, 'during', loaded.revision)
+    // The storage refuses the read for now, as a full reader queue does.
+    s.rewriteReads.current = (request, answer) =>
+      request.handler.startsWith('session.work')
+        ? {
+            kind: 'unavailable',
+            requestKey: request.requestKey,
+            reason: 'queue_full',
+            diagnostic: null,
+          }
+        : answer
+    const refused = await l.journal.commit(input)
+    s.rewriteReads.current = null
+    expect(refused).toMatchObject({ failure: { kind: 'unavailable' } })
+    // Nothing was decided: the same operation commits under the same Authority.
+    expect(ok(await l.journal.commit(input)).state).toBe('applied')
+  })
+})
