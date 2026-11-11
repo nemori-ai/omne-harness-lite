@@ -287,7 +287,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 已知限制：
 
-- 扫描只在启动时进行一次，不定期补漏。
+- 扫描读完之后每 60 拍才再开一次。唤醒提示丢失的调用，最长要等这么久才被找回。
 
 验证：[executor-retirement.spec.ts](tests/executor-retirement.spec.ts) 的扫描用例（分页、读不到后接着读、`unsupported` 停止、内存表满后接着读）；[lifecycle.spec.ts](tests/runtime-composition/lifecycle.spec.ts) 的两条新执行器用例（原执行可能仍在运行时不接上、不重启；从没启动的调用按原身份启动一次并收场）；[checkpoint.spec.ts](tests/runtime-composition/checkpoint.spec.ts) 的新执行器用例（扫描接手暂停中的调用，停掉之后才到的决定只被接受一次，恢复段从保管读回的检查点恢复一次并收场）。记录仓是声明为耐久的内存记录仓，第二个执行器在同一进程里，不证明真实进程重启或耐久。
 

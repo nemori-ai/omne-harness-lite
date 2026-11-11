@@ -168,8 +168,9 @@ Run，最后做 HITL 的准备与登记。调用只保存最近一个等待的�
   收场时写失效待办（Tool SPEC 第 32 条），推进协程经 invalidate 执行它：尚未答的卡变 `invalidated`，之后的答复得到卡片
   已失效；已答未接手的卡保持 `decided`。失效回包未知时，Tool 以同一操作调 inspectOperation 认回，不再发一次。
 - 唤醒：宿主的每个租户应用经 `withDecided` 包一层，答复成为有效决定之后，[wake.ts](../../src/rows/tool-hitl/wake.ts) 读这张卡
-  的来源，来源是 Tool 调用时请实例宿主 `schedule` 原调用。唤醒只是提示；执行器也按 `driverRetryDelayMs` 重调度未完成的
-  调用，所以丢了唤醒不丢事实。
+  的来源，来源是 Tool 调用时请实例宿主 `schedule` 原调用。唤醒只是提示。等人的调用已经离开执行器的内存表，提示排入的
+  那次运行按账本把它认回；提示丢了，执行器周期性再开的恢复扫描按待办标记找回它，所以丢了唤醒不丢事实
+  （[等人的调用休眠](../../../../packages/tool/tool-host-local/SPEC.md#等人的调用休眠)）。
 
 谁能读、谁能答不在这里定：读者与答复者由注入的受众函数（`holder.audience`）给出，发行注入 `hitlCardAudience`。HITL 的对外
 入口在 `server-entry` 行（[hitl.ts](../../src/rows/server-entry/hitl.ts)）。还没有事务域的租户由宿主的 `qualify` 按 HITL local 的
@@ -199,8 +200,6 @@ Tool 把暂停调用的三样东西各用一笔提交写进调用域：等待的
 - **冷获取的原清理不在本波**：答 `pending`，责任保留。
 - **决策方答 unavailable 后同一进程只查原操作**：Tool 驱动在本进程记下回包不明的登记，之后只调 inspectOperation。登记在写
   HITL 之前就答了 unavailable（例如还没有受众）时，HITL 查不到原操作，本进程一直答 unknown，直到重启后再 ensure。
-- **等人期间按重试周期读决定**：执行器按 `driverRetryDelayMs`（运维者缺省 50ms）重调度未完成调用，暂停的 Ask 调用每次都经
-  inspect 读 HITL，一张未答的卡约每秒 20 次读。
 - **resume 段收到的答复值是 JsonValue 树**：Tool 把 resolve 给出的树原样交给检查点作者，Ask 的结果投影按普通 JSON 值读，
   选项与原话的答复投影成 `ask-response-mismatch`。跳过与插队不带值，不受影响。修复归 Tool（切片 03 交回）。
 - **归档之后被取消的执行收不了尾**（切片 09 观察，交回 Session 与 Agent）：归档向 Agent 发取消，暂停中的 Ask 以
