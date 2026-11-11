@@ -29,10 +29,12 @@ async function suspended() {
   const checkpoint = checkpointBinding(authority, askingAuthor())
   const released = { kind: 'released', evidence: evidence('environment-released') } as const
   const bridge = scriptedBridge('registers')
+  /** What the decision owner reports about a wait; a test may replace it. */
+  const reports = { inspect: bridge.inspect }
   const harness = startHarness({
     authority,
     bindingsPort: () => checkpoint.bindings,
-    decisions: bridge,
+    decisions: { ...bridge, inspect: input => reports.inspect(input) },
     driverRetryDelayMs: 5,
     environmentsPort: base =>
       Object.assign(base, {
@@ -47,7 +49,7 @@ async function suspended() {
     quiet = (await harness.host.runScheduled()) === 0 ? quiet + 1 : 0
   }
   expect((await harness.state('c1')).phase).toBe('suspended')
-  return Object.assign(harness, { bridge })
+  return Object.assign(harness, { bridge, reports })
 }
 
 describe('a principal the guard does not allow on the call', () => {
@@ -156,6 +158,33 @@ describe('a field of the owner that is not what the command takes', () => {
     for (const [field, answer] of answers)
       expect(answer).toMatchObject({ failure: { kind: 'invalid', field } })
     expect(harness.memory.commits).toBe(commits)
+  })
+})
+
+describe('a decision the owner reports under another registration', () => {
+  it('is not the decision of this wait: the driver does not accept it', async () => {
+    const harness = await suspended()
+    harness.bridge.decide(FIRST, { kind: 'no-answer' })
+    harness.reports.inspect = async input => {
+      const reported = await harness.bridge.inspect(input)
+      if ('failure' in reported) return reported
+      const registration = evidence('registration/another-wait', 'test-decisions')
+      return succeed({ ...reported.ok, registration })
+    }
+    const commits = harness.memory.commits
+    const driver = harness.host.driver()
+    if (!('advance' in driver) || typeof driver.advance !== 'function')
+      throw new Error('fixture driver handle')
+    const step: unknown = await driver.advance({
+      ...OWNER,
+      instance: await harness.host.instanceOf(OWNER.call),
+      signal: new AbortController().signal,
+    })
+    expect(step).toMatchObject({ kind: 'blocked' })
+    // The value was not asked for and nothing was written: the wait is still open.
+    expect(harness.bridge.resolved).toEqual([])
+    expect(harness.memory.commits).toBe(commits)
+    expect((await harness.state('c1')).phase).toBe('suspended')
   })
 })
 
