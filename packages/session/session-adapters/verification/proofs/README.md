@@ -17,3 +17,5 @@
 ## 本包事实
 
 [batch-budget.md](batch-budget.md) 论证 SPEC 的批内条数约束，区分业务事实与物理封套。它只证明计数上界，运行时与活性的验证边界见该文。
+
+[permission-mode.md](permission-mode.md) 论证模式投影和询问裁定的有限输入性质。它不建立身份资格、原动作归属或生产发布/捕获的当前性。

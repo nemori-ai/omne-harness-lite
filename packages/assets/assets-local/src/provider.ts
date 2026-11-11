@@ -4,13 +4,13 @@ import { projectAssetSettings } from '@omne-harness/assets'
 import { SettingsIdSchema } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
-  SettingsSqlGuardBindingSchema,
   type SettingsProjectionBinding,
-  type SettingsSqlGuards,
 } from '@omne-harness/settings-local'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
-import { digest, identity, json, withinBudget } from './encoding.ts'
+import { digest, equal, identity, json, withinBudget } from './encoding.ts'
 import {
+  assetLookupSchema,
+  assetResultSchema,
   changeHoldingSchema,
   domainSchema,
   HANDLER,
@@ -35,19 +35,19 @@ import type {
 } from './types.ts'
 const fail = (reason: Failure['reason']): Failure => ({ kind: 'rejected', reason })
 
-export const assetsSettingsGuards = {
-  participant: PARTICIPANT,
-  command(binding: Parameters<SettingsSqlGuards['command']>[0]) {
-    return {
-      participant: PARTICIPANT,
-      facts: { kind: 'guard', binding: json(SettingsSqlGuardBindingSchema.parse(binding)) },
-    }
-  },
-} satisfies SettingsSqlGuards
 export function assetsSettingsProjectionCommand(binding: SettingsProjectionBinding): FactCommandV2 {
   return {
     participant: PARTICIPANT,
     facts: { kind: 'capture', binding: json(SettingsProjectionBindingSchema.parse(binding)) },
+  }
+}
+export function assetsPublicationCommand(binding: SettingsProjectionBinding): FactCommandV2 {
+  return {
+    participant: PARTICIPANT,
+    facts: {
+      kind: 'capturePublication',
+      binding: json(SettingsProjectionBindingSchema.parse(binding)),
+    },
   }
 }
 function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
@@ -101,7 +101,9 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
   let closed: Promise<void> | undefined
   function run<T>(task: () => Promise<T>): Promise<T | Failure> {
     if (closed) return Promise.resolve(fail('closing'))
-    const promise = task().catch(() => fail('unavailable'))
+    const promise = Promise.resolve()
+      .then(task)
+      .catch(() => fail('unavailable'))
     active.add(promise)
     void promise.then(() => active.delete(promise))
     return promise
@@ -132,7 +134,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     const parsed = mutationSchema.safeParse(value)
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
-  async function read(kind: 'holding' | 'version', lookup: unknown) {
+  async function read(kind: 'asset' | 'holding' | 'version', lookup: unknown) {
     const result = await options.storage.read({
       domain: options.domain,
       handler: HANDLER,
@@ -147,6 +149,19 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         )
   }
   return {
+    readAsset: input =>
+      run(async () => {
+        const parsed = assetLookupSchema.safeParse(input)
+        if (!parsed.success) return fail('invalid_input')
+        const result = assetResultSchema.parse(await read('asset', parsed.data))
+        if (
+          result.kind === 'asset' &&
+          (result.asset.assetRef !== parsed.data.assetRef ||
+            !equal(result.asset.domain, options.domain))
+        )
+          return fail('unavailable')
+        return result
+      }),
     publish: input =>
       run(async () => {
         const command = publishCommand(options, input)

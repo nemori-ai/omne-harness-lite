@@ -41,7 +41,13 @@ export function boundAccessCheck<P>(checked: SessionCheckedAccess<P>): SessionAc
     check: request =>
       Promise.resolve(
         withinBinding(checked.request, request)
-          ? { kind: 'allowed', evidence: checked.evidence }
+          ? {
+              kind: 'allowed',
+              evidence: checked.evidence,
+              ...(checked.writeQualification === undefined
+                ? {}
+                : { writeQualification: checked.writeQualification }),
+            }
           : { kind: 'denied' },
       ),
   }

@@ -26,6 +26,11 @@
       "config": {}
     },
     {
+      "id": "governance",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "stubPlugin",
       "config": {}

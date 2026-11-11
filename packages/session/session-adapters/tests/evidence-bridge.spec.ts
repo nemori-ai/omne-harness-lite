@@ -17,6 +17,7 @@ import type {
 import {
   adoptedInitializationFixture,
   creation,
+  evidence,
   guard,
   initializationFixtureFacts,
   initializationFixtureGuard,
@@ -46,7 +47,21 @@ type Answer = (
 function command(kind: SessionCommand['kind'], base: typeof A = A): SessionCommand {
   return {
     kind,
-    input: { tenant: base.tenant, session: base.session, operation: operationId(`op-${kind}`) },
+    input: {
+      tenant: base.tenant,
+      session: base.session,
+      operation: operationId(`op-${kind}`),
+      ...(kind === 'change'
+        ? {
+            declaration: {
+              kind: 'declaration',
+              item: 'fixture',
+              value: null,
+              basis: evidence('declaration'),
+            },
+          }
+        : {}),
+    },
   } as unknown as SessionCommand
 }
 
@@ -169,6 +184,36 @@ describe('the material table, split by command', () => {
     expect(asked).toEqual(names.map(source => ({ source, kind })))
     expect(answer).toEqual(succeed(names.map(source => guard(`${source}-source`, source, kind))))
   })
+
+  it.each([null, { pick: 'deny', allowedSet: null }] as const)(
+    'leaves permission assignment %j to the protected transaction without adoption material',
+    async rule => {
+      const { asked, prepare } = await assembled({ adoption: async () => succeed([]) })
+      const change: SessionCommand = {
+        kind: 'change',
+        input: {
+          tenant: A.tenant,
+          session: A.session,
+          operation: operationId('permission-change'),
+          declaration: {
+            kind: 'permission-assignment',
+            capabilityId: 'calendar',
+            enforcementKey: 'create',
+            definition: {
+              origin: { kind: 'independent', providerId: 'calendar', definitionRef: 'v1' },
+              itemId: 'create',
+              revision: '1',
+            },
+            rule,
+            expectedRevision: '0',
+            authorization: evidence('caller-reference-is-not-write-authority'),
+          },
+        },
+      }
+      expect(await prepare(change, A)).toEqual(succeed([]))
+      expect(asked).toEqual([])
+    },
+  )
 
   it('asks no source and hands no material for a command outside the table', async () => {
     const { asked, prepare } = await assembled()

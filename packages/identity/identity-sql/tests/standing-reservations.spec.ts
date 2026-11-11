@@ -180,6 +180,86 @@ it('holds one stable operation, conflicts on changed content, and rejects forged
   ).toEqual({ kind: 'denied' })
 })
 
+it('keeps organization settings and cost qualifications distinct across reservation recovery', async () => {
+  const fixture = await setup()
+  expect(
+    await fixture.deployment.provider.reservations.reserve({
+      principal: fixture.principal,
+      binding: fixture.binding,
+      required: ['organization-settings-manage'],
+    }),
+  ).toEqual({ kind: 'denied' })
+  const system = fixture.authority.issuer.issueSystem({ component: 'settings-test' })
+  if (!('ok' in system)) throw new Error('system')
+  const issued = fixture.authority.issuer.issueActingForTenant({
+    actor: system.ok,
+    tenant: fixture.organization.tenant,
+    work: { owner: 'settings-test', work: 'admin-operation' },
+  })
+  const scope = tenantCodec.encode(fixture.organization.tenant)
+  if (!('ok' in issued) || !scope.ok) throw new Error('administrator principal')
+  const binding = {
+    ...fixture.binding,
+    principalRef: standingPrincipalRef(issued.ok),
+    scopeRef: scope.value,
+  }
+  const settingsRequest = {
+    principal: issued.ok,
+    binding: { ...binding, operationId: 'settings-original' },
+    required: ['organization-settings-manage'] as const,
+  }
+  const costRequest = {
+    principal: issued.ok,
+    binding: { ...binding, operationId: 'cost-original' },
+    required: ['organization-cost-ledger-read'] as const,
+  }
+  const settings = await fixture.deployment.provider.reservations.reserve(settingsRequest)
+  const costs = await fixture.deployment.provider.reservations.reserve(costRequest)
+  expect(settings.kind).toBe('held')
+  expect(costs.kind).toBe('held')
+  if (settings.kind !== 'held' || costs.kind !== 'held') throw new Error('held reservations')
+  expect(
+    await fixture.deployment.provider.reservations.reserve({
+      ...costRequest,
+      required: ['organization-settings-manage'],
+    }),
+  ).toEqual({ kind: 'operation-conflict' })
+  fixture.deployment.provider.stop()
+  await fixture.deployment.scrypt.module.close()
+  await fixture.deployment.storage.close({ remove: false })
+  opened.splice(opened.indexOf(fixture.deployment), 1)
+  const storage = await openSqliteStorage(fixture.deployment.storage.base)
+  const replacement = await openProvider({
+    storage,
+    principalVerifier: fixture.authority.verifier,
+    destinationResolver: {
+      async seal(reservation) {
+        return { kind: 'terminal', reservation, outcome: 'aborted' }
+      },
+    },
+  })
+  opened.push({
+    ...replacement,
+    async close() {
+      await replacement.close()
+      await storage.close({ remove: true })
+    },
+  })
+  expect(await replacement.provider.reservations.reserve(settingsRequest)).toEqual(settings)
+  expect(await replacement.provider.reservations.reserve(costRequest)).toEqual(costs)
+  for (const held of [settings, costs]) {
+    expect(await replacement.provider.reservations.settle(held.reservation)).toMatchObject({
+      kind: 'terminal',
+      reservation: held.reservation,
+      outcome: 'aborted',
+    })
+  }
+  expect(await replacement.provider.reservations.reserve(costRequest)).toMatchObject({
+    kind: 'terminal',
+    outcome: 'aborted',
+  })
+})
+
 it('keeps the membership and admission barrier until the injected destination seal succeeds', async () => {
   let available = false
   const calls: StandingReservation[] = []
@@ -237,14 +317,14 @@ it('rejects a fabricated completion and retains the held reservation on stop', a
   })
   const held = await fixture.reserve()
   if (held.kind !== 'held') throw new Error('held')
-  expect((await fixture.deployment.provider.reservations.settle(held.reservation.id)).kind).toBe(
+  expect((await fixture.deployment.provider.reservations.settle(held.reservation)).kind).toBe(
     'unavailable',
   )
   await pending(fixture.deployment.provider.governance.removeMember(fixture.change))
   valid = true
   resolverCalls = 0
   fixture.deployment.provider.stop()
-  expect(await fixture.deployment.provider.reservations.settle(held.reservation.id)).toMatchObject({
+  expect(await fixture.deployment.provider.reservations.settle(held.reservation)).toMatchObject({
     kind: 'unavailable',
     diagnostic: 'provider-stopped',
   })
@@ -461,7 +541,7 @@ it('persists holds and intents across Worker restart and fails closed without a 
   const operation = await pending(
     fixture.deployment.provider.governance.removeMember(fixture.change),
   )
-  expect(await fixture.deployment.provider.reservations.settle(held.reservation.id)).toEqual({
+  expect(await fixture.deployment.provider.reservations.settle(held.reservation)).toEqual({
     kind: 'unavailable',
     diagnostic: 'destination-resolver-missing',
   })
@@ -489,7 +569,7 @@ it('persists holds and intents across Worker restart and fails closed without a 
   expect(
     await replacement.provider.governanceRecovery.resume({ login: fixture.admin.login, operation }),
   ).toMatchObject({ kind: 'finished', operation, outcome: { kind: 'succeeded' } })
-  expect(await replacement.provider.reservations.settle(held.reservation.id)).toMatchObject({
+  expect(await replacement.provider.reservations.settle(held.reservation)).toMatchObject({
     kind: 'terminal',
     outcome: 'aborted',
   })
@@ -1022,7 +1102,7 @@ it('accepts a terminal whose JSON object properties arrive in a different order'
   })
   const held = await fixture.reserve()
   if (held.kind !== 'held') throw new Error('held')
-  expect(await fixture.deployment.provider.reservations.settle(held.reservation.id)).toMatchObject({
+  expect(await fixture.deployment.provider.reservations.settle(held.reservation)).toMatchObject({
     kind: 'terminal',
     outcome: 'aborted',
   })
@@ -1072,4 +1152,375 @@ it('recovers invitation acceptance by the same logical operation after admission
   expect(
     await fixture.deployment.provider.standing.read({ tenant: fixture.memberTenant }),
   ).toMatchObject({ kind: 'member' })
+})
+
+it('settles a never-sent request and fences late reserve across Worker reopen', async () => {
+  const fixture = await setup({
+    async seal(reservation) {
+      return { kind: 'terminal', reservation, outcome: 'aborted' }
+    },
+  })
+  const request = { binding: fixture.binding, required: [] }
+  const result = await fixture.deployment.provider.reservations.settle(request)
+  expect(result).toMatchObject({
+    kind: 'terminal',
+    outcome: 'aborted',
+    reservation: { id: standingReservationId(request.binding, []) },
+  })
+  expect(await fixture.reserve()).toEqual(result)
+  fixture.deployment.provider.stop()
+  await fixture.deployment.scrypt.module.close()
+  await fixture.deployment.storage.close({ remove: false })
+  opened.splice(opened.indexOf(fixture.deployment), 1)
+  const storage = await openSqliteStorage(fixture.deployment.storage.base)
+  const replacement = await openProvider({ storage, principalVerifier: fixture.authority.verifier })
+  opened.push({
+    ...replacement,
+    async close() {
+      await replacement.close()
+      await storage.close({ remove: true })
+    },
+  })
+  expect(await replacement.provider.reservations.settle(request)).toEqual(result)
+  expect(
+    await replacement.provider.reservations.reserve({ ...request, principal: fixture.principal }),
+  ).toEqual(result)
+  expect(await replacement.provider.reservations.recover()).toMatchObject({
+    kind: 'recovered',
+    examined: 0,
+    settled: 0,
+  })
+})
+
+it('closes a denied request without granting qualifications or blocking membership changes', async () => {
+  const fixture = await setup({
+    async seal(reservation) {
+      return { kind: 'terminal', reservation, outcome: 'aborted' }
+    },
+  })
+  const request = { binding: fixture.binding, required: ['organization-settings-manage'] as const }
+  expect(
+    await fixture.deployment.provider.reservations.reserve({
+      ...request,
+      principal: fixture.principal,
+    }),
+  ).toEqual({ kind: 'denied' })
+  expect(await fixture.deployment.provider.reservations.settle(request)).toMatchObject({
+    kind: 'terminal',
+    outcome: 'aborted',
+  })
+  expect(
+    await fixture.deployment.provider.reservations.reserve({
+      ...request,
+      principal: fixture.principal,
+    }),
+  ).toMatchObject({ kind: 'terminal', outcome: 'aborted' })
+  expect(await fixture.deployment.provider.governance.removeMember(fixture.change)).toMatchObject({
+    kind: 'succeeded',
+  })
+})
+
+it.each(['aborted', 'committed'] as const)(
+  'settles reserve that wins after the initial absent read with destination %s',
+  async outcome => {
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const fixture = await setup({
+      async seal(reservation) {
+        entered.resolve()
+        await resume.promise
+        return { kind: 'terminal', reservation, outcome }
+      },
+    })
+    const pending = fixture.deployment.provider.reservations.settle({
+      binding: fixture.binding,
+      required: [],
+    })
+    await entered.promise
+    expect(await fixture.reserve()).toMatchObject({ kind: 'held' })
+    resume.resolve()
+    expect(await pending).toMatchObject({ kind: 'terminal', outcome })
+    expect(await fixture.reserve()).toMatchObject({ kind: 'terminal', outcome })
+  },
+)
+
+it('does not manufacture a committed reservation or poison its later valid settlement', async () => {
+  const fixture = await setup({
+    async seal(reservation) {
+      return { kind: 'terminal', reservation, outcome: 'committed' }
+    },
+  })
+  const request = { binding: fixture.binding, required: [] }
+  expect(await fixture.deployment.provider.reservations.settle(request)).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'committed-reservation-missing',
+  })
+  expect(await fixture.reserve()).toMatchObject({ kind: 'held' })
+  expect(await fixture.deployment.provider.reservations.settle(request)).toMatchObject({
+    kind: 'terminal',
+    outcome: 'committed',
+  })
+})
+
+it('preserves a never-sent request when the destination is unavailable', async () => {
+  const fixture = await setup({
+    async seal() {
+      return { kind: 'unavailable', diagnostic: 'offline' }
+    },
+  })
+  expect(
+    await fixture.deployment.provider.reservations.settle({
+      binding: fixture.binding,
+      required: [],
+    }),
+  ).toMatchObject({ kind: 'unavailable' })
+  expect(await fixture.reserve()).toMatchObject({ kind: 'held' })
+})
+
+it('rejects changed request bindings and qualifications before routing to a destination', async () => {
+  let calls = 0
+  const fixture = await setup({
+    async seal(reservation) {
+      calls += 1
+      return { kind: 'terminal', reservation, outcome: 'aborted' }
+    },
+  })
+  expect(await fixture.reserve()).toMatchObject({ kind: 'held' })
+  for (const binding of [
+    { ...fixture.binding, destination: 'other' },
+    { ...fixture.binding, inputDigest: 'other' },
+  ]) {
+    expect(
+      await fixture.deployment.provider.reservations.settle({ binding, required: [] }),
+    ).toEqual({ kind: 'operation-conflict' })
+  }
+  expect(
+    await fixture.deployment.provider.reservations.settle({
+      binding: fixture.binding,
+      required: ['organization-settings-manage'],
+    }),
+  ).toEqual({ kind: 'operation-conflict' })
+  expect(calls).toBe(0)
+  expect(await fixture.reserve()).toMatchObject({ kind: 'held' })
+})
+
+it('rechecks the original binding when a competing request wins during destination sealing', async () => {
+  const entered = Promise.withResolvers<void>()
+  const resume = Promise.withResolvers<void>()
+  const fixture = await setup({
+    async seal(reservation) {
+      entered.resolve()
+      await resume.promise
+      return { kind: 'terminal', reservation, outcome: 'aborted' }
+    },
+  })
+  const pending = fixture.deployment.provider.reservations.settle({
+    binding: fixture.binding,
+    required: [],
+  })
+  await entered.promise
+  const other = {
+    principal: fixture.principal,
+    binding: { ...fixture.binding, inputDigest: 'other' },
+    required: [],
+  }
+  const held = await fixture.deployment.provider.reservations.reserve(other)
+  expect(held.kind).toBe('held')
+  resume.resolve()
+  expect(await pending).toEqual({ kind: 'operation-conflict' })
+  expect(await fixture.deployment.provider.reservations.reserve(other)).toEqual(held)
+})
+
+it('freezes the complete request before awaiting its destination', async () => {
+  const entered = Promise.withResolvers<void>()
+  const resume = Promise.withResolvers<void>()
+  const fixture = await setup({
+    async seal(reservation) {
+      entered.resolve()
+      await resume.promise
+      return { kind: 'terminal', reservation, outcome: 'aborted' }
+    },
+  })
+  const request = { binding: { ...fixture.binding }, required: [] }
+  const pending = fixture.deployment.provider.reservations.settle(request)
+  await entered.promise
+  request.binding.inputDigest = 'changed-after-call'
+  resume.resolve()
+  expect(await pending).toMatchObject({
+    kind: 'terminal',
+    reservation: { binding: fixture.binding },
+  })
+  expect(await fixture.reserve()).toMatchObject({ kind: 'terminal', outcome: 'aborted' })
+})
+
+it('recovers a lost settlement reply without submitting a new phase', async () => {
+  let lose = false
+  const keys: string[] = []
+  const fixture = await setup(
+    {
+      async seal(reservation) {
+        return { kind: 'terminal', reservation, outcome: 'aborted' }
+      },
+    },
+    storage => ({
+      ...storage,
+      async commit(request, options) {
+        const result = await storage.commit(request, options)
+        if (request.commands[0]?.facts['kind'] === 'standing-settle-request') {
+          keys.push(request.identity.operationKey)
+          if (lose) return { kind: 'unknown', identity: request.identity, diagnostic: 'lost' }
+        }
+        return result
+      },
+      query: id =>
+        lose
+          ? Promise.resolve({ kind: 'unknown', identity: id, diagnostic: 'lost' })
+          : storage.query(id),
+    }),
+  )
+  const request = { binding: fixture.binding, required: [] }
+  lose = true
+  expect(await fixture.deployment.provider.reservations.settle(request)).toMatchObject({
+    kind: 'unavailable',
+  })
+  lose = false
+  expect(await fixture.deployment.provider.reservations.settle(request)).toMatchObject({
+    kind: 'terminal',
+    outcome: 'aborted',
+  })
+  expect(keys).toEqual([`${standingReservationId(request.binding, [])}/settle-request/1`])
+  expect(await fixture.reserve()).toMatchObject({ kind: 'terminal', outcome: 'aborted' })
+})
+
+it('reuses one canonical settlement envelope after an unsubmitted response is lost', async () => {
+  let suppress = true
+  const envelopes: unknown[] = []
+  const fixture = await setup(
+    {
+      async seal(reservation) {
+        return { kind: 'terminal', reservation, outcome: 'aborted' }
+      },
+    },
+    storage => ({
+      ...storage,
+      async commit(request, options) {
+        if (request.commands[0]?.facts['kind'] === 'standing-settle-request') {
+          envelopes.push(structuredClone(request))
+          if (suppress)
+            return { kind: 'unknown', identity: request.identity, diagnostic: 'transport-lost' }
+        }
+        return storage.commit(request, options)
+      },
+      query: id =>
+        suppress
+          ? Promise.resolve({ kind: 'unknown', identity: id, diagnostic: 'transport-lost' })
+          : storage.query(id),
+    }),
+  )
+  const request = {
+    binding: fixture.binding,
+    required: ['organization-settings-manage', 'organization-cost-ledger-read'] as const,
+  }
+  expect(await fixture.deployment.provider.reservations.settle(request)).toMatchObject({
+    kind: 'unavailable',
+  })
+  suppress = false
+  expect(
+    await fixture.deployment.provider.reservations.settle({
+      ...request,
+      required: [
+        'organization-cost-ledger-read',
+        'organization-settings-manage',
+        'organization-cost-ledger-read',
+      ],
+    }),
+  ).toMatchObject({ kind: 'terminal', outcome: 'aborted' })
+  expect(envelopes).toHaveLength(2)
+  expect(envelopes[1]).toEqual(envelopes[0])
+})
+
+it('observes the exact original reservation without creating, sealing or releasing anything', async () => {
+  let seals = 0
+  const fixture = await setup({
+    async seal(reservation) {
+      seals++
+      return { kind: 'terminal', reservation, outcome: 'aborted' }
+    },
+  })
+  const { reservations } = fixture.deployment.provider
+  const request = { binding: fixture.binding, required: [] }
+  expect(await reservations.observe(request)).toEqual({ kind: 'not_found' })
+  expect(seals).toBe(0)
+  const held = await fixture.reserve()
+  expect(held.kind).toBe('held')
+  expect(await reservations.observe(request)).toEqual(held)
+  expect(seals).toBe(0)
+  const settled = await reservations.settle(request)
+  expect(settled).toMatchObject({ kind: 'terminal', outcome: 'aborted' })
+  expect(await reservations.observe(request)).toEqual(settled)
+  expect(seals).toBe(1)
+})
+it('does not confuse a conflicting or unreadable reservation with an absent one', async () => {
+  let unavailable = false
+  const fixture = await setup(undefined, storage => ({
+    ...storage,
+    async read(request) {
+      if (unavailable && request.handler === 'identity.coordination')
+        throw new Error('reader offline')
+      return storage.read(request)
+    },
+  }))
+  expect((await fixture.reserve()).kind).toBe('held')
+  const reservations = fixture.deployment.provider.reservations
+  const request = { binding: fixture.binding, required: [] }
+  expect(
+    await reservations.observe({
+      ...request,
+      binding: { ...request.binding, inputDigest: 'changed' },
+    }),
+  ).toEqual({ kind: 'operation-conflict' })
+  expect(
+    await reservations.observe({ ...request, required: ['organization-settings-manage'] }),
+  ).toEqual({ kind: 'operation-conflict' })
+  expect(
+    await reservations.observe({
+      ...request,
+      binding: { ...request.binding, scopeRef: 'invalid' },
+    }),
+  ).toMatchObject({ kind: 'unavailable' })
+  unavailable = true
+  expect(await reservations.observe(request)).toMatchObject({ kind: 'unavailable' })
+  unavailable = false
+  expect(await reservations.observe(request)).toMatchObject({ kind: 'held' })
+  fixture.deployment.provider.stop()
+  expect(await reservations.observe(request)).toMatchObject({
+    kind: 'unavailable',
+    diagnostic: 'provider-stopped',
+  })
+})
+it('recognizes an accepted hold after the original reserve reply and receipt queries are lost', async () => {
+  const lost = new Set<string>()
+  const fixture = await setup(undefined, storage => ({
+    ...storage,
+    async commit(request) {
+      const result = await storage.commit(request)
+      if (request.commands.some(c => c.facts['kind'] === 'standing-reserve')) {
+        lost.add(request.identity.operationKey)
+        throw new Error('lost reserve reply')
+      }
+      return result
+    },
+    async query(identity) {
+      return lost.has(identity.operationKey)
+        ? { kind: 'unknown', identity, diagnostic: 'lost receipt' }
+        : storage.query(identity)
+    },
+  }))
+  expect((await fixture.reserve()).kind).toBe('unavailable')
+  expect(
+    await fixture.deployment.provider.reservations.observe({
+      binding: fixture.binding,
+      required: [],
+    }),
+  ).toMatchObject({ kind: 'held', reservation: { binding: fixture.binding, required: [] } })
 })

@@ -5,10 +5,10 @@ import {
   SettingsDefinitionRefSchema,
   SettingsIdSchema,
   SettingsReferenceSchema,
+  SettingsSourceIdentitiesSchema,
 } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
-  SettingsSqlGuardBindingSchema,
   SettingsTargetProjectionSchema,
 } from '@omne-harness/settings-local'
 
@@ -27,7 +27,6 @@ export const selectionSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('follow') }),
   z.strictObject({ kind: z.literal('pinned'), version: SettingsIdSchema }),
 ])
-export const sourceIdsSchema = SettingsTargetProjectionSchema.shape.sourceIds
 export const grantsSchema = SettingsTargetProjectionSchema.shape.grants.refine(
   grants =>
     new Set(grants.map(grant => grant.sourceId)).size === grants.length &&
@@ -72,11 +71,16 @@ export const holdingSchema = z
     revision: revisionSchema,
     ownerRevision: revisionSchema,
     state: z.enum(['held', 'removed']),
+    enabled: z.boolean(),
     selection: selectionSchema,
-    sourceIds: sourceIdsSchema,
+    sourceLayout: SettingsSourceIdentitiesSchema,
     grants: grantsSchema,
   })
-  .refine(holding => holding.grants.every(grant => holding.sourceIds.includes(grant.sourceId)))
+  .refine(holding =>
+    holding.grants.every(grant =>
+      holding.sourceLayout.some(source => source.sourceId === grant.sourceId),
+    ),
+  )
 export const publishMetadataSchema = z.strictObject({
   operationId: SettingsIdSchema,
   assetRef: SettingsReferenceSchema,
@@ -98,10 +102,14 @@ export const holdSchema = z
     scopeRef: SettingsReferenceSchema,
     assetRef: SettingsReferenceSchema,
     selection: selectionSchema,
-    sourceIds: sourceIdsSchema,
+    sources: SettingsSourceIdentitiesSchema,
     grants: grantsSchema,
   })
-  .refine(holding => holding.grants.every(grant => holding.sourceIds.includes(grant.sourceId)))
+  .refine(holding =>
+    holding.grants.every(grant =>
+      holding.sources.some(source => source.sourceId === grant.sourceId),
+    ),
+  )
 export const changeHoldingSchema = z.strictObject({
   operationId: SettingsIdSchema,
   holdingRef: SettingsReferenceSchema,
@@ -109,10 +117,11 @@ export const changeHoldingSchema = z.strictObject({
   expectedRevision: revisionSchema,
   change: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('remove') }),
+    z.strictObject({ kind: z.literal('setEnabled'), enabled: z.boolean() }),
     z.strictObject({ kind: z.literal('selectVersion'), selection: selectionSchema }),
     z.strictObject({
       kind: z.literal('updateSources'),
-      sourceIds: sourceIdsSchema,
+      sources: SettingsSourceIdentitiesSchema,
       grants: grantsSchema,
     }),
     z.strictObject({ kind: z.literal('updateGrants'), grants: grantsSchema }),
@@ -129,8 +138,11 @@ export const mutationBindingSchema = z.strictObject({
 })
 export const workerCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('mutate'), binding: mutationBindingSchema }),
-  z.strictObject({ kind: z.literal('guard'), binding: SettingsSqlGuardBindingSchema }),
   z.strictObject({ kind: z.literal('capture'), binding: SettingsProjectionBindingSchema }),
+  z.strictObject({
+    kind: z.literal('capturePublication'),
+    binding: SettingsProjectionBindingSchema,
+  }),
 ])
 export const failureSchema = z.strictObject({
   kind: z.literal('rejected'),
@@ -165,6 +177,12 @@ export const holdingLookupSchema = z.strictObject({
   holdingRef: SettingsReferenceSchema,
   scopeRef: SettingsReferenceSchema,
 })
+export const assetLookupSchema = z.strictObject({ assetRef: SettingsReferenceSchema })
+export const assetResultSchema = z.union([
+  z.strictObject({ kind: z.literal('asset'), asset: assetSchema }),
+  z.strictObject({ kind: z.literal('absent') }),
+  failureSchema,
+])
 export const versionLookupSchema = z.strictObject({
   assetRef: SettingsReferenceSchema,
   version: SettingsIdSchema,
@@ -192,6 +210,7 @@ export const versionResultSchema = z.union([
   failureSchema,
 ])
 export const readRequestSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('asset'), domain: domainSchema, lookup: assetLookupSchema }),
   z.strictObject({ kind: z.literal('holding'), domain: domainSchema, lookup: holdingLookupSchema }),
   z.strictObject({ kind: z.literal('version'), domain: domainSchema, lookup: versionLookupSchema }),
 ])

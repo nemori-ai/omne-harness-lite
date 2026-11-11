@@ -208,7 +208,8 @@ describe('the migration execution-record/006-fact-blob', () => {
   })
 
   it('the participant owns er_fact and sl_blob, and the session participant reads er_fact', () => {
-    const [record, sessionParticipant] = materials.participants
+    const record = materials.participants.find(value => value.participant === 'execution-record')
+    const sessionParticipant = materials.participants.find(value => value.participant === 'session')
     expect(record?.ownedTables).toEqual(expect.arrayContaining(['er_fact', 'sl_blob']))
     expect(sessionParticipant?.readTables).toContain('er_fact')
     expect(sessionParticipant?.readTables).not.toContain('er_fact_idx')

@@ -122,19 +122,29 @@ function readPage(raw: Record<string, unknown>, port: ReadPort): HandlerOutcome 
   }
 }
 
+function readReservation(raw: Record<string, unknown>, port: ReadPort): HandlerOutcome | undefined {
+  const key =
+    raw['query'] === 'reservation'
+      ? { column: 'reservation_id', value: raw['id'] }
+      : raw['query'] === 'reservation-operation'
+        ? { column: 'operation_ref', value: raw['operationRef'] }
+        : undefined
+  if (key === undefined || !isText(key.value)) return undefined
+  const row = oneRow(
+    port,
+    `SELECT * FROM id_standing_reservation WHERE ${key.column} = ? LIMIT 1`,
+    [key.value],
+  )
+  return { kind: 'read', output: { row: row === undefined ? null : view(row) } }
+}
+
 const handler: ReadHandlerModule = {
   handler: 'identity.coordination',
   protocol: '1',
   read(raw, port) {
     if (!isRecord(raw)) return { kind: 'failed', diagnostic: 'input' }
-    if (raw['query'] === 'reservation' && isText(raw['id'])) {
-      const row = oneRow(
-        port,
-        'SELECT * FROM id_standing_reservation WHERE reservation_id = ? LIMIT 1',
-        [raw['id']],
-      )
-      return { kind: 'read', output: { row: row === undefined ? null : view(row) } }
-    }
+    const reservation = readReservation(raw, port)
+    if (reservation !== undefined) return reservation
     if (raw['query'] === 'intent' && isText(raw['operationId']))
       return readIntent(raw, raw['operationId'], port)
     if (raw['query'] === 'reservations' || raw['query'] === 'intents') return readPage(raw, port)

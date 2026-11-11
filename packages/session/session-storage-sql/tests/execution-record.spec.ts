@@ -33,6 +33,8 @@ import {
   decodeSessionReply,
   executionRecordFacts,
   sessionCheckFacts,
+  sessionCommitCommands,
+  SESSION_LOG_PARTICIPANTS,
   sessionCommandFacts,
   type ExecutionRecordWrite,
   type SessionCheck,
@@ -102,7 +104,7 @@ async function joint(
     identity: identity(name, tenant),
     combinationVersion: 'c1',
     manifestDigest: 'a'.repeat(64),
-    commands,
+    commands: sessionCommitCommands(commands),
   })
 }
 
@@ -242,7 +244,7 @@ describe('the materials of the Session log combination', () => {
   })
 
   it('both participants form a combination, execution-record before session', () => {
-    const manifest = combinationManifest({ catalog, participants: ['execution-record', 'session'] })
+    const manifest = combinationManifest({ catalog, participants: SESSION_LOG_PARTICIPANTS })
     expect(manifest.kind).toBe('manifest')
     if (manifest.kind !== 'manifest') return
     expect(JSON.stringify(manifest.manifest).indexOf('"execution-record"')).toBeLessThan(
@@ -262,13 +264,15 @@ describe('the first publication: one commit with an execution-record and a sessi
     ])
     expect(result.kind).toBe('committed')
     if (result.kind !== 'committed') return
-    expect(result.responses.map(item => item.participant)).toEqual(['execution-record', 'session'])
+    expect(result.responses.map(item => item.participant)).toEqual(SESSION_LOG_PARTICIPANTS)
     expect(decodeExecutionRecordReply(result.responses[0]!.reply)).toEqual({
       kind: 'published',
       published: '1',
       digest: expect.any(String),
     })
-    expect(decodeSessionReply(result.responses[1]!.reply).kind).toBe('participated')
+    expect(
+      decodeSessionReply(result.responses.find(item => item.participant === 'session')!.reply).kind,
+    ).toBe('participated')
     const after = await root(a)
     expect(after?.published).toBe('1')
     expect(BigInt(after!.sessionPosition)).toBeGreaterThan(BigInt(before!.sessionPosition))
@@ -429,7 +433,9 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
     ])
     expect(result.kind).toBe('committed')
     if (result.kind !== 'committed') return
-    expect(decodeSessionReply(result.responses[1]!.reply)).toMatchObject({
+    expect(
+      decodeSessionReply(result.responses.find(item => item.participant === 'session')!.reply),
+    ).toMatchObject({
       kind: 'participated',
       result: { kind: 'checked', advance: 'ordinary' },
     })
@@ -457,7 +463,9 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
     ])
     expect(result.kind).toBe('rolled_back')
     if (result.kind !== 'rolled_back') return
-    expect(decodeSessionReply(result.responses[1]!.reply)).toEqual({
+    expect(
+      decodeSessionReply(result.responses.find(item => item.participant === 'session')!.reply),
+    ).toEqual({
       kind: 'stopped',
       failure: { kind: 'denied', action: 'submit' },
     })
@@ -481,7 +489,8 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
       ])
     const foreign = await attach('aop_attach_1', evidence('not-a-grant'))
     expect(
-      foreign.kind === 'rolled_back' && decodeSessionReply(foreign.responses[1]!.reply),
+      foreign.kind === 'rolled_back' &&
+        decodeSessionReply(foreign.responses.find(item => item.participant === 'session')!.reply),
     ).toEqual({ kind: 'stopped', failure: { kind: 'denied', action: 'attach' } })
     expect((await attach('aop_attach_2', grant)).kind).toBe('committed')
   })
@@ -523,12 +532,14 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
       ])
     const earlier = await attach('aop_wind_1', first)
     expect(
-      earlier.kind === 'rolled_back' && decodeSessionReply(earlier.responses[1]!.reply),
+      earlier.kind === 'rolled_back' &&
+        decodeSessionReply(earlier.responses.find(item => item.participant === 'session')!.reply),
     ).toMatchObject({ kind: 'stopped', failure: { kind: 'stale-advance', current: null } })
     const winding = await attach('aop_wind_2', last)
     expect(winding.kind).toBe('committed')
     expect(
-      winding.kind === 'committed' && decodeSessionReply(winding.responses[1]!.reply),
+      winding.kind === 'committed' &&
+        decodeSessionReply(winding.responses.find(item => item.participant === 'session')!.reply),
     ).toMatchObject({
       kind: 'participated',
       result: { kind: 'checked', advance: 'wind-down', attempt: expect.any(String) },
@@ -551,9 +562,13 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
         grant: grant as never,
       }),
     ])
-    expect(result.kind === 'rolled_back' && decodeSessionReply(result.responses[1]!.reply)).toEqual(
-      { kind: 'stopped', failure: { kind: 'invalid', field: 'storage', reason: 'missing-row' } },
-    )
+    expect(
+      result.kind === 'rolled_back' &&
+        decodeSessionReply(result.responses.find(item => item.participant === 'session')!.reply),
+    ).toEqual({
+      kind: 'stopped',
+      failure: { kind: 'invalid', field: 'storage', reason: 'missing-row' },
+    })
   })
 
   it('a cancelled finish participates only under the control the SE26 of the Run refers to (PA-02)', async () => {
@@ -586,7 +601,8 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
     ] as const) {
       const refused = await finish(name, by)
       expect(
-        refused.kind === 'rolled_back' && decodeSessionReply(refused.responses[1]!.reply),
+        refused.kind === 'rolled_back' &&
+          decodeSessionReply(refused.responses.find(item => item.participant === 'session')!.reply),
       ).toMatchObject({ kind: 'stopped', failure: { kind: 'changed' } })
     }
     expect(count(a, 'er_operation')).toBe(0)
@@ -609,7 +625,8 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
       }),
     ])
     expect(
-      result.kind === 'rolled_back' && decodeSessionReply(result.responses[1]!.reply),
+      result.kind === 'rolled_back' &&
+        decodeSessionReply(result.responses.find(item => item.participant === 'session')!.reply),
     ).toMatchObject({ kind: 'stopped', failure: { kind: 'changed' } })
     expect(count(a, 'er_operation')).toBe(0)
   })
@@ -636,7 +653,9 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
       sessionCheckFacts({ kind: 'submit', tenant: TENANT_A, session: SESSION, execution, value }),
     ])
   const stoppedAs = (result: Awaited<ReturnType<typeof joint>>) =>
-    result.kind === 'rolled_back' ? decodeSessionReply(result.responses[1]!.reply) : result.kind
+    result.kind === 'rolled_back'
+      ? decodeSessionReply(result.responses.find(item => item.participant === 'session')!.reply)
+      : result.kind
 
   it('open holds on the receipt of the SE13 Session handed to invoke, not on the origin of the input', async () => {
     const a = await app()
@@ -652,7 +671,8 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
     })
     expect(result.kind).toBe('committed')
     expect(
-      result.kind === 'committed' && decodeSessionReply(result.responses[1]!.reply),
+      result.kind === 'committed' &&
+        decodeSessionReply(result.responses.find(item => item.participant === 'session')!.reply),
     ).toMatchObject({
       kind: 'participated',
       result: { kind: 'checked', advance: 'ordinary' },
@@ -806,7 +826,8 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
     const result = await submit(a, 'aop_submit_se11', execution, acceptedAs('input-2', second))
     expect(result.kind).toBe('committed')
     expect(
-      result.kind === 'committed' && decodeSessionReply(result.responses[1]!.reply),
+      result.kind === 'committed' &&
+        decodeSessionReply(result.responses.find(item => item.participant === 'session')!.reply),
     ).toMatchObject({
       kind: 'participated',
       result: { kind: 'checked' },
@@ -833,7 +854,10 @@ describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
       kind: 'stopped',
       failure: { kind: 'invalid', field: 'storage', reason: 'read-bound' },
     })
-    expect(result.kind === 'rolled_back' && result.responses[1]?.reply).toMatchObject({
+    expect(
+      result.kind === 'rolled_back' &&
+        result.responses.find(item => item.participant === 'session')?.reply,
+    ).toMatchObject({
       kind: 'conflict',
       basis: { diagnostic: expect.stringContaining('read bound') },
     })

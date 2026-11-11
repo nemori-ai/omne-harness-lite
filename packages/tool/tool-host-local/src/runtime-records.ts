@@ -23,7 +23,9 @@ export function createRuntimeRecords(
   const authority = createLocalStartCoordinator({
     store: input.store,
     access: input.access.start,
-    ...(input.access.request === undefined ? {} : { requestAccess: input.access.request }),
+    ...(input.access.request === undefined
+      ? {}
+      : { requestAccess: { access: input.access.request, commit: input.conditionalCommit } }),
     guardsOf: input.guardsOf,
     permitRequirements: input.permitRequirements,
     commitAttempts: input.configuration.ledgerCommitAttempts,

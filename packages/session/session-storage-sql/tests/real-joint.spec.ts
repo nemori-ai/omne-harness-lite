@@ -1,3 +1,4 @@
+import { sessionCommitCommands } from '../src/participants.ts'
 // The joint commit of the Session log combination over the real sqlite-provider: real Workers, real
 // files. One commit with an execution-record and a session command is all or nothing on the real
 // write Worker; the publication of either side moves the common root that the real read Worker
@@ -94,11 +95,18 @@ describe('the joint commit on the real write Worker', () => {
     const result = await app.storage.commit({
       identity: identityOf(TENANT_A, 'dom_0', 'aop_joint'),
       ...app.combination,
-      commands: [executionRecordFacts(jointWrite()), sessionCommandFacts(accept('joint'), login)],
+      commands: sessionCommitCommands([
+        executionRecordFacts(jointWrite()),
+        sessionCommandFacts(accept('joint'), login),
+      ]),
     })
     expect(result.kind).toBe('committed')
     if (result.kind !== 'committed') return
-    expect(result.responses.map(item => item.participant)).toEqual(['execution-record', 'session'])
+    expect(result.responses.map(item => item.participant)).toEqual([
+      'execution-record',
+      'session-ordinary-basis',
+      'session',
+    ])
     expect(decodeExecutionRecordReply(result.responses[0]!.reply)).toEqual({
       kind: 'published',
       published: '1',
@@ -116,7 +124,7 @@ describe('the joint commit on the real write Worker', () => {
     const result = await app.storage.commit({
       identity: identityOf(TENANT_A, 'dom_0', 'aop_refused'),
       ...app.combination,
-      commands: [
+      commands: sessionCommitCommands([
         executionRecordFacts(jointWrite({ operation: 'aop_refused' })),
         sessionCheckFacts({
           kind: 'attach',
@@ -125,7 +133,7 @@ describe('the joint commit on the real write Worker', () => {
           execution: 'exe_1',
           grant: { owner: 'x', record: 'not-a-grant', revision: '1', digest: 'sha256:x' },
         }),
-      ],
+      ]),
     })
     expect(result.kind).toBe('rolled_back')
     if (result.kind !== 'rolled_back') return
@@ -155,13 +163,13 @@ describe('the size of the content blocks of one session', () => {
     const refused = await app.storage.commit({
       identity: identityOf(TENANT_A, 'dom_0', 'aop_over'),
       ...app.combination,
-      commands: [command('aop_over', room + 1)],
+      commands: sessionCommitCommands([command('aop_over', room + 1)]),
     })
     expect(refused).toMatchObject({ kind: 'rejected_before_accept', reason: 'command_limit' })
     const accepted = await app.storage.commit({
       identity: identityOf(TENANT_A, 'dom_0', 'aop_edge'),
       ...app.combination,
-      commands: [command('aop_edge', room)],
+      commands: sessionCommitCommands([command('aop_edge', room)]),
     })
     expect(accepted.kind).toBe('committed')
     const found = decodeExecutionRecordBlob(
@@ -197,7 +205,11 @@ describe('the process is killed after the joint receipt came back', () => {
     const found = await app.storage.query(identityOf(TENANT_A, 'dom_0', 'aop_joint'))
     expect(queryKindOf(found)).toBe('committed')
     if (found.kind !== 'committed') return
-    expect(found.responses.map(item => item.participant)).toEqual(['execution-record', 'session'])
+    expect(found.responses.map(item => item.participant)).toEqual([
+      'execution-record',
+      'session-ordinary-basis',
+      'session',
+    ])
     expect(await stateOf(app)).toEqual({ published: '1', state: { receipt: 'joint' } })
     const input = await app.port.readInput({ ...app.access(TENANT_A), input: 'joint' as never })
     expect('ok' in input).toBe(true)

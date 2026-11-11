@@ -194,7 +194,7 @@ describe('the first publication point', () => {
     const before = { session: count(s, 'sl_entry'), agent: (await load(s)).revision }
     s.commits.length = 0
     const receipt = ok(await s.view.journal.commit(await messageRequest(s, open.authority)))
-    expect(s.commits).toEqual([['execution-record', 'session']])
+    expect(s.commits).toEqual([['execution-record', 'session', 'session-ordinary-basis']])
     expect(count(s, 'sl_entry')).toBeGreaterThan(before.session)
     expect((await load(s)).revision).toBe(receipt.revision)
     expect(Number(receipt.revision)).toBe(Number(before.agent) + 1)
@@ -294,7 +294,7 @@ describe('the later interpretation commit', () => {
     s.commits.length = 0
     s.controls?.failWrite(/INSERT OR REPLACE INTO sl_state/)
     expect(await s.port.commitEntries(input)).toHaveProperty('failure')
-    expect(s.commits).toEqual([['session']])
+    expect(s.commits).toEqual([['session', 'session-ordinary-basis']])
     expect(await load(s)).toEqual(agent)
     expect((await work(s)).entriesProgress).toEqual(progress)
     ok(await s.port.commitEntries(input))

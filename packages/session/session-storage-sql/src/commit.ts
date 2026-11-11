@@ -1,3 +1,4 @@
+import { SESSION_ORDINARY_BASIS, sessionCommitCommands } from './commit-basis.ts'
 // The write path (SQL r2 section 17): `commit`, `commitEntries` and the original-receipt lookup go
 // through the storage commit, the `session` participant. The response evidence of a rollback keeps
 // the original failure basis, so no failure is recomputed outside the transaction.
@@ -46,6 +47,7 @@ import {
   type Context,
   type TenantDomainRef,
 } from './context.ts'
+import type { SessionProtectedBasisSource, SessionProtectedCommit } from './protected-basis.ts'
 
 /**
  * What a committed answer must match: the operation identity and the digest of its input. Another
@@ -70,15 +72,49 @@ const identityOf = (domain: TenantDomainRef, operation: string, key: string): Sq
   operationKey: key,
 })
 
-const requestOf = <P>(
-  context: Context<P>,
-  identity: SqlIdentity,
-  command: FactCommandV2,
-): CommitRequestV2 => ({
-  identity,
+/** What a storage commit adds to its identity: the combination and the complete command set. */
+type Submission = Omit<CommitRequestV2, 'identity'>
+/** Forms the submission of one delivery, after the storage said that no delivery is committed. */
+type Submit = () => Promise<Outcome<Submission, SessionFailure>>
+
+/** The registered combination with the ordinary basis producer. It needs nothing outside. */
+const ordinaryOf = <P>(context: Context<P>, command: FactCommandV2): Submission => ({
   ...context.options.combination,
-  commands: [command],
+  commands: sessionCommitCommands([command]),
 })
+
+/** The combination and the producer commands that the protected source forms for this delivery. */
+function protectedSubmission<P>(
+  source: SessionProtectedBasisSource<P>,
+  commit: SessionProtectedCommit<P>,
+): Submit {
+  return async () => {
+    let basis: Awaited<ReturnType<SessionProtectedBasisSource<P>>>
+    try {
+      basis = await source(commit)
+    } catch (error) {
+      return failure(
+        unavailable(
+          `the protected basis source threw: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      )
+    }
+    if ('failure' in basis) return basis
+    const { combination, commands } = basis.ok
+    const own = [SESSION_PARTICIPANT, SESSION_ORDINARY_BASIS]
+    if (commands.some(command => own.includes(command.participant)))
+      return failure({
+        kind: 'invalid',
+        field: 'basis',
+        reason: 'a protected basis carries no Session command and no ordinary basis',
+      })
+    return succeed({
+      combinationVersion: combination.combinationVersion,
+      manifestDigest: combination.manifestDigest,
+      commands: [commit.session, ...commands],
+    })
+  }
+}
 
 const sessionFacts = (facts: Readonly<Record<string, JsonValue>>): FactCommandV2 => ({
   participant: SESSION_PARTICIPANT,
@@ -174,9 +210,12 @@ function fromResult(
   }
 }
 
-/** The process memory of one storage operation's generations: tenant, domain and operation. */
-const generationKey = (domain: TenantDomainRef, operation: string): string =>
-  JSON.stringify([domain.text, domain.domain.transactionDomain, operation])
+/**
+ * The process memory of one storage operation's generations: tenant, domain, session and
+ * operation, as the identity of a generation names them.
+ */
+const generationKey = (domain: TenantDomainRef, session: string, operation: string): string =>
+  JSON.stringify([domain.text, domain.domain.transactionDomain, session, operation])
 
 /**
  * Notes what generation `attempt` of `key` turned out to be (SPEC W1 attempts, step 3). A rolled
@@ -194,11 +233,41 @@ function saw(
     generations.set(key, attempt)
 }
 
+/** A generation of one storage operation, as the storage receipts place it (SPEC W1 attempts). */
+type Generation =
+  | Readonly<{ kind: 'committed'; receipt: ReceiptV2 }>
+  | Readonly<{ kind: 'unknown' }>
+  /** Every earlier generation is rolled back and this one is not used. */
+  | Readonly<{ kind: 'open'; attempt: number; identity: SqlIdentity }>
+
+/** Walks the generations of one operation from `from`: the committed one, or the first open one. */
+async function generationFrom<P>(
+  context: Context<P>,
+  domain: TenantDomainRef,
+  session: string,
+  operation: string,
+  from: number,
+): Promise<Generation> {
+  const key = generationKey(domain, session, operation)
+  for (let attempt = from; ; attempt += 1) {
+    const identity = identityOf(domain, operation, JSON.stringify([session, operation, attempt]))
+    const found = await context.options.storage.query(identity)
+    saw(context.generations, key, attempt, found.kind)
+    if (found.kind === 'rolled_back') continue
+    if (found.kind === 'committed') return { kind: 'committed', receipt: found }
+    if (found.kind === 'unknown') return { kind: 'unknown' }
+    return { kind: 'open', attempt, identity }
+  }
+}
+
 /**
  * Commits the participant facts of one operation of `session` in the tenant domain. The attempt
  * generation is chosen by the storage receipts: a generation is used only when every earlier one is
  * a rolled back receipt, so an older attempt can never take effect beside a newer one (SPEC W1).
  * `mark` says of a recalled result that it is a recall; the default fits a batch or control result.
+ * `submit` forms the combination and the commands; the default is the ordinary basis. It is asked
+ * only when no delivery of the operation is committed. When it fails, the receipts are asked once
+ * more, so a delivery that committed meanwhile is recalled and is not answered with that failure.
  * A fresh committed batch is folded into the work cache before the answer returns (SPEC RT-04); a
  * fold that cannot be made registers nothing and never changes the answer.
  */
@@ -209,30 +278,31 @@ export async function commitFacts<P>(
   expected: Expected,
   command: FactCommandV2,
   mark: Recall = markRecovered,
+  submit: Submit = () => Promise.resolve(succeed(ordinaryOf(context, command))),
 ): Promise<Outcome<unknown, SessionFailure>> {
-  // Known limitation: the storage identity is `<SessionOperationId>#<generation>` in the tenant
-  // domain, so one identity is one operation per tenant, not per session. An identity reused in
-  // another session answers `conflict` and writes nothing (the safe side); the SL07 domain
-  // (tenant, session, identity) relies on OP-00 never reusing an identity across sessions.
   const { operation } = expected
   const { storage } = context.options
   const { generations } = context
-  const key = generationKey(domain, operation)
+  const key = generationKey(domain, session, operation)
+  const unknown = failure({ kind: 'commit-unknown', operation })
   // No bound: every refusal of the participant, `changed` included, rolls back and uses up a
   // generation, and the caller comes again with the same operation (SPEC W1 attempts).
-  for (let attempt = (generations.get(key) ?? 0) + 1; ; attempt += 1) {
-    const identity = identityOf(domain, operation, `${operation}#${attempt}`)
-    const found = await storage.query(identity)
-    saw(generations, key, attempt, found.kind)
-    if (found.kind === 'rolled_back') continue
-    if (found.kind === 'committed') return fromCommitted(found, expected, true, mark)
-    if (found.kind === 'unknown') return failure({ kind: 'commit-unknown', operation })
+  for (let from = (generations.get(key) ?? 0) + 1; ;) {
+    const slot = await generationFrom(context, domain, session, operation, from)
+    if (slot.kind === 'committed') return fromCommitted(slot.receipt, expected, true, mark)
+    if (slot.kind === 'unknown') return unknown
+    const submission = await submit()
+    if ('failure' in submission) {
+      const again = await generationFrom(context, domain, session, operation, slot.attempt)
+      if (again.kind === 'committed') return fromCommitted(again.receipt, expected, true, mark)
+      return again.kind === 'unknown' ? unknown : submission
+    }
     let work: SessionWorkReply | undefined
-    const result = await storage.commit(requestOf(context, identity, command))
+    const result = await storage.commit({ identity: slot.identity, ...submission.ok })
     if (result.kind === 'committed' || result.kind === 'rolled_back')
-      saw(generations, key, attempt, result.kind)
+      saw(generations, key, slot.attempt, result.kind)
     else if (result.kind === 'identity_conflict')
-      saw(generations, key, attempt, result.existing.kind)
+      saw(generations, key, slot.attempt, result.existing.kind)
     const settled = fromResult(result, expected, mark, fresh => {
       work = fresh
     })
@@ -248,6 +318,7 @@ export async function commitFacts<P>(
         work,
       )
     if (settled !== 'next-attempt') return settled
+    from = slot.attempt + 1
   }
 }
 
@@ -268,8 +339,8 @@ export async function commit<P, K extends MutationName>(
     access.session !== command.input.session
   )
     return failure({ kind: 'denied', action: command.kind })
-  const decided = await qualify(context, mutationAccessRequest(access, command))
-  if ('failure' in decided) return decided
+  const allowed = await context.access(mutationAccessRequest(access, command))
+  if ('failure' in allowed) return allowed
   // A Tool target is refused before any identity, session or storage lookup (SPEC XC-INTERRUPT).
   if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
     return failure({ kind: 'unsupported' })
@@ -279,8 +350,8 @@ export async function commit<P, K extends MutationName>(
   try {
     // The allowed decision goes into the facts, so the participant writes it with the operation
     // record in the same transaction (session-contract SPEC「当前操作的访问裁定」).
-    const base = sessionCommandFacts(command, input.guards)
-    facts = { ...base, facts: { ...base.facts, evidence: encodeValue(decided.ok) } }
+    const base = sessionCommandFacts(command, input.guards, context.intakeLimits)
+    facts = { ...base, facts: { ...base.facts, evidence: encodeValue(allowed.ok.evidence) } }
   } catch (error) {
     return failure({
       kind: 'invalid',
@@ -288,12 +359,25 @@ export async function commit<P, K extends MutationName>(
       reason: error instanceof Error ? error.message : 'not JSON data',
     })
   }
+  const expected = { operation: command.input.operation, digest: commandDigest(command) }
+  const source = context.options.protectedBasis
+  if (
+    source === undefined ||
+    command.kind !== 'change' ||
+    command.input.declaration.kind !== 'permission-assignment'
+  )
+    return commitFacts(context, domain.ok, command.input.session, expected, facts)
+  // The basis of a permission assignment comes from the protected source (docs/commit-basis.md).
+  const qualification = allowed.ok.writeQualification
+  if (qualification === undefined) return failure({ kind: 'denied', action: command.kind })
   return commitFacts(
     context,
     domain.ok,
     command.input.session,
-    { operation: command.input.operation, digest: commandDigest(command) },
+    expected,
     facts,
+    markRecovered,
+    protectedSubmission(source, { access, command, qualification, session: facts }),
   )
 }
 
@@ -306,16 +390,19 @@ async function lookup<P>(
   action: string,
 ): Promise<Outcome<Found | null, SessionFailure>> {
   const identity = identityOf(domain, 'session.lookup', `lookup#${operation}#${randomUUID()}`)
-  const result = await context.options.storage.commit(
-    requestOf(
+  const result = await context.options.storage.commit({
+    identity,
+    ...ordinaryOf(
       context,
-      identity,
       sessionFacts({ intent: 'query', tenant: domain.text, session, operation }),
     ),
-  )
+  })
   if (result.kind !== 'committed')
     return failure(unavailable(`the receipt lookup did not commit: ${result.kind}`))
-  const answer = result.responses[0].reply.response as { kind: string }
+  const entry = result.responses.find(item => item.participant === SESSION_PARTICIPANT)
+  const answer = entry?.reply.kind === 'participated' ? entry.reply.response : null
+  if (typeof answer !== 'object' || answer === null || !('kind' in answer))
+    return failure(unavailable('the receipt lookup has no Session answer'))
   if (answer.kind === 'no-session') return failure({ kind: 'denied', action })
   return succeed(answer.kind === 'operation' ? (answer as Found) : null)
 }
@@ -346,6 +433,7 @@ async function exclusion<P>(
   context: Context<P>,
   domain: TenantDomainRef,
   operation: SessionOperationId,
+  session: string,
 ): Promise<
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'attempt-rejected' }>
@@ -357,7 +445,7 @@ async function exclusion<P>(
   // rolled back generations are finite, so the search always stops (SPEC R7).
   for (let attempt = 1; ; attempt += 1) {
     const found = await context.options.storage.query(
-      identityOf(domain, operation, `${operation}#${attempt}`),
+      identityOf(domain, operation, JSON.stringify([session, operation, attempt])),
     )
     if (found.kind === 'rolled_back') rolledBack ||= !leftNoRecord(found)
     else if (found.kind === 'unknown') return { kind: 'unknown' }
@@ -392,7 +480,10 @@ async function resolve<P>(
   const found = await lookup(context, domain.ok, access.session, operation, name)
   if ('failure' in found) return found
   if (found.ok !== null) return succeed({ found: found.ok, rest: null })
-  return succeed({ found: null, rest: await exclusion(context, domain.ok, operation) })
+  return succeed({
+    found: null,
+    rest: await exclusion(context, domain.ok, operation, access.session),
+  })
 }
 
 type Unfound = ControlOperationResolution & OperationResolution

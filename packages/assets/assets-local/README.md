@@ -10,26 +10,28 @@ Import the package by its public name:
 
 ```ts
 import {
-  assetsSettingsGuards,
   assetsSettingsProjectionCommand,
   assetsSqlMaterials,
   createAssetsLocal,
 } from '@omne-harness/assets-local'
 ```
 
-Combine `assetsSqlMaterials()` with the consumer's SQL materials. Register the resulting combination before creating the owner with `{ storage, domain, combinationVersion, manifestDigest, categories }`. The domain must be a tenant domain. For a single-owner Settings backend, pass `assetsSettingsGuards` as its `guards` option.
+Combine `assetsSqlMaterials()` with the consumer's SQL materials. Register the resulting combination before creating the owner with `{ storage, domain, combinationVersion, manifestDigest, categories }`. The domain must be a tenant domain.
 
-For a combination with a separate guard router, use `assetsSqlMaterials({ settingsGuard: false })`. This removes `settings.current` from the participant descriptor. The consumer calls `assetsSettingsProjectionCommand(binding)` and consumes `settings.assets-projection` through the public Settings projection schema. That combination must not call `assetsSettingsGuards` directly.
+A consumer calls `assetsSettingsProjectionCommand(binding)` and consumes `settings.assets-projection` through the public Settings projection schema.
 
 The owner supports these operations:
 
+- `readAsset` returns the current asset publication revision and latest-version reference, or explicit absence. Use its `revision` for a conditional publication; `ownerRevision` is a different sequence.
 - `publish` takes an `operationId`, `assetRef`, `pinned` body and `expectedRevision`. Use revision `0` for the first version.
-- `hold` takes a fresh `holdingRef`, tenant `scopeRef`, `assetRef`, version selection, ordered `sourceIds` and grants. A successful new holding has revision `1`.
-- `changeHolding` takes the holding identity, `expectedRevision` and one change: `remove`, `selectVersion`, `updateSources` or `updateGrants`.
+- `hold` takes a fresh `holdingRef`, tenant `scopeRef`, `assetRef`, version selection, ordered source identities and grants. A successful new holding has revision `1`.
+- `changeHolding` takes the holding identity, `expectedRevision` and one change: `remove`, `setEnabled`, `selectVersion`, `updateSources` or `updateGrants`. `setEnabled` carries an `enabled` boolean.
 - `readHolding` returns the holding and its selected version. Removed holdings return `selected: null`.
 - `readVersion` returns an immutable published version.
 - `getOperation` retrieves the original result by operation ID, including after a lost reply.
 - `close` stops admission and drains accepted calls. It leaves the shared storage open.
+
+Disabled holdings keep their values and remain visible in management. Runtime capture refuses them. Enabling changes the current owner revision and requires a new current read. A removed holding cannot be enabled again.
 
 Types are exported from [src/index.ts](src/index.ts). [Tests](tests/README.md) contain complete SQLite combination examples.
 

@@ -86,19 +86,20 @@ function configuration(
 export async function openStorage(
   root: string,
   tenants: readonly TenantId[],
-  options: Readonly<{ globalReadResultBytes?: number }> = {},
+  options: Readonly<{ globalReadResultBytes?: number; participants?: readonly string[] }> = {},
 ) {
   await mkdir(root, { recursive: true })
   const materials = toolStorageMaterials()
+  const participants = options.participants ?? [TOOL_PARTICIPANT]
   const catalog: SqlMaterialCatalog = {
     catalogProtocol: 'sql-catalog/1',
     ...materials,
     declaredCombinations: {
-      tenant: { combinationVersion: 'windows-tool-e2-v1', participants: [TOOL_PARTICIPANT] },
+      tenant: { combinationVersion: 'windows-tool-e2-v1', participants },
       system: null,
     },
   }
-  const built = combinationManifest({ catalog, participants: [TOOL_PARTICIPANT] })
+  const built = combinationManifest({ catalog, participants })
   if (built.kind !== 'manifest') throw new Error(`Tool SQL combination unavailable: ${built.kind}`)
   const combination = {
     combinationVersion: 'windows-tool-e2-v1',
@@ -147,7 +148,7 @@ export async function openStorage(
       const registered = await created.storage.registerCombination({
         ...domain,
         ...combination,
-        participants: [TOOL_PARTICIPANT],
+        participants,
       })
       assert.equal(registered.kind, 'registered', JSON.stringify(registered))
       entries.set(encoded.value, domain)
@@ -162,6 +163,7 @@ export async function openStorage(
     return {
       /** The raw storage, for the read-budget case that must not depend on the whole assembly. */
       storage: created.storage,
+      combination,
       domains,
       store: createSqlToolLedgerStore<ToolMessageContentBlock>(options),
       custody: createSqlToolOutputCustody<unknown>({

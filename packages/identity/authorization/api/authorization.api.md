@@ -22,6 +22,9 @@
 - `EffectiveArguments` · `evidence.d.ts`
 - `ExpiryReading` · `system-action.d.ts`
 - `GrantOutcome` · `permit.d.ts`
+- `InquiryDisposition` · `inquiry.d.ts`
+- `InquiryPolicy` · `inquiry.d.ts`
+- `InquiryRequirement` · `inquiry.d.ts`
 - `MaintenanceGrant` · `system-action.d.ts`
 - `MaintenanceGrantReading` · `system-action.d.ts`
 - `MaintenanceGrantSource` · `system-reference.d.ts`
@@ -49,6 +52,7 @@
 - `SystemActionTarget` · `system-action.d.ts`
 - `canonicalText` · `evidence.d.ts`
 - `decideAdmission` · `admission.d.ts`
+- `decideInquiry` · `inquiry.d.ts`
 - `decideSystemAction` · `system-action.d.ts`
 - `decisionEvidence` · `evidence.d.ts`
 - `decodePermitId` · `permit.d.ts`
@@ -145,6 +149,8 @@ export declare function decisionEvidence(record: string, revision: string, conte
 
 ```ts
 export { decideAdmission } from './admission.ts';
+export { decideInquiry } from './inquiry.ts';
+export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts';
 export type { AdmissionBasis, AdmissionCheck, AdmissionDecision, AdmissionFacts, AdmissionInput, DenialReason, StandingBasis, } from './admission.ts';
 export { canonicalText, decisionEvidence, digestOf, effectiveArgumentsOf, noArguments, } from './evidence.ts';
 export type { DecisionEvidence, DurableEvidence, EffectiveArguments } from './evidence.ts';
@@ -160,6 +166,17 @@ export { SYSTEM_ACTION_MATRIX } from './system-matrix.ts';
 export type { SystemActionRow } from './system-matrix.ts';
 export { referenceSystemActionAuthorization } from './system-reference.ts';
 export type { MaintenanceGrantSource, SystemActionClock, SystemActionDependencies, } from './system-reference.ts';
+```
+
+## 声明文件 `inquiry.d.ts`
+
+```ts
+export type InquiryPolicy = Readonly<{
+    onAsk: 'deny' | 'ask-human' | 'skip-ask';
+}>;
+export type InquiryRequirement = 'none' | 'required' | 'prohibited' | 'unavailable';
+export type InquiryDisposition = 'continue' | 'ask-human' | 'deny' | 'unavailable';
+export declare function decideInquiry(requirement: InquiryRequirement, policy: InquiryPolicy | null): InquiryDisposition;
 ```
 
 ## 声明文件 `operation.d.ts`

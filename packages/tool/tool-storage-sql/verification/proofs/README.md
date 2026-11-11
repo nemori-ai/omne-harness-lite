@@ -26,4 +26,4 @@
 
 <!-- documentation:placeholder -->
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+本包目前没有书面证明。

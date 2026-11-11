@@ -20,22 +20,31 @@ import type {
   ToolMessageContentBlock,
   ToolOutputCustody,
 } from '@omne-harness/tool-contract/provider'
-import { createLocalToolClock, type LocalToolForwarding } from '@omne-harness/tool-host-local'
+import {
+  createLocalToolClock,
+  type LocalToolForwarding,
+  type LocalInvocationQualifier,
+} from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
 type EnvironmentGuardedHostCommit = LocalToolRuntimeInput['environment']['guarded']
+type StartConditionalCommit = LocalToolRuntimeInput['conditionalCommit']
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
 
-export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
+export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins> &
+  Readonly<{
+    qualification: LocalInvocationQualifier<unknown>
+  }>
 
 /** `tool-records` 行在自己的受信上下文里建出的 SQL 端口。 */
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore<ToolMessageContentBlock>
   custody: ToolOutputCustody<unknown>
   guarded: EnvironmentGuardedHostCommit
+  conditional: StartConditionalCommit
 }>
 
 type Witnessed = { execution: string; sources: Set<string> }
@@ -181,6 +190,16 @@ export function lateCustody(holder: ToolRuntimeHolder): ToolOutputCustody<unknow
     retainResult: input =>
       holder.sql?.custody.retainResult(input) ?? Promise.resolve(custodyUnavailable),
   } satisfies ToolOutputCustody<unknown>)
+}
+
+/** 交给 bundle 的带条件提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */
+export function lateConditional(holder: ToolRuntimeHolder): StartConditionalCommit {
+  const conditional: StartConditionalCommit = {
+    commit: input =>
+      holder.sql?.conditional.commit(input) ??
+      Promise.resolve(unavailableRead('tool-records: no SQL conditional commit is installed')),
+  }
+  return Object.freeze(conditional)
 }
 
 /** 交给 bundle 的守护宿主提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */

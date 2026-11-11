@@ -1,17 +1,21 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
-import { GUARD_FACT } from './schema.ts'
+import { settingsStandalonePublicationFact } from './standalone-publication.ts'
+import { STANDALONE_READ } from './standalone-read-schema.ts'
+import { SOURCE_WRITE_FACT } from './source-write.ts'
 import { settingsStandaloneProjectionFact } from './projection.ts'
 import {
   STANDALONE_MIGRATION,
   STANDALONE_PARTICIPANT,
+  STANDALONE_PROJECTION,
   STANDALONE_PROTOCOL,
   STANDALONE_TABLES,
 } from './standalone-schema.ts'
-export function settingsStandaloneMaterials(
-  options: { settingsGuard?: boolean } = {},
-): Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'> {
+export function settingsStandaloneMaterials(): Pick<
+  SqlMaterialCatalog,
+  'participants' | 'migrations' | 'readHandlers'
+> {
   const file = (name: string) => {
     const moduleUrl = new URL(
       `./${name}.${import.meta.url.endsWith('.ts') ? 'ts' : 'js'}`,
@@ -32,11 +36,19 @@ export function settingsStandaloneMaterials(
         ...participant,
         ownedTables: STANDALONE_TABLES,
         readTables: [],
+        requiresFacts: [SOURCE_WRITE_FACT],
+        providesFacts: [],
+        allowedFunctions: [],
+        grouping: 'groupable',
+      },
+      {
+        participant: STANDALONE_PROJECTION,
+        protocol: STANDALONE_PROTOCOL,
+        ...file('standalone-projection'),
+        ownedTables: [],
+        readTables: ['st_targets'],
         requiresFacts: [],
-        providesFacts: [
-          settingsStandaloneProjectionFact,
-          ...(options.settingsGuard === false ? [] : [GUARD_FACT]),
-        ],
+        providesFacts: [settingsStandaloneProjectionFact, settingsStandalonePublicationFact],
         allowedFunctions: [],
         grouping: 'groupable',
       },
@@ -49,6 +61,16 @@ export function settingsStandaloneMaterials(
         requires: [],
       },
     ],
-    readHandlers: [],
+    readHandlers: [
+      {
+        ...STANDALONE_READ,
+        ...file('standalone-read'),
+        ordering: 'snapshot',
+        readTables: ['st_targets'],
+        requiresMigrations: [STANDALONE_MIGRATION],
+        maxRowsRead: 1,
+        maxOutputBytes: 2 * 1024 * 1024,
+      },
+    ],
   }
 }

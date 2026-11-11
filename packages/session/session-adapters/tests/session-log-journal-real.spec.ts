@@ -68,7 +68,7 @@ describe('the first publication point on the real sqlite-provider', () => {
     const before = (await work(s)).revision
     s.commits.length = 0
     const receipt = ok(await s.view.journal.commit(await messageRequest(s, open.authority)))
-    expect(s.commits).toEqual([['execution-record', 'session']])
+    expect(s.commits).toEqual([['execution-record', 'session', 'session-ordinary-basis']])
     expect(Number((await work(s)).revision)).toBeGreaterThan(Number(before))
     const reloaded = ok(await s.fresh().journal.load({ ...s.access, execution: s.execution }))
     expect(reloaded.revision).toBe(receipt.revision)
@@ -187,7 +187,11 @@ describe('the later interpretation commit on the real sqlite-provider', () => {
         start: { kind: 'initial' },
       }),
     ).toHaveProperty('failure')
-    expect(s.commits.every(item => item.length === 1 && item[0] === 'session')).toBe(true)
+    expect(
+      s.commits.every(
+        item => item.length === 2 && item[0] === 'session' && item[1] === 'session-ordinary-basis',
+      ),
+    ).toBe(true)
     expect(await load(s)).toEqual(agent)
     expect((await work(s)).entriesProgress).toEqual(progress)
     ok(

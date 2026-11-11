@@ -6,6 +6,7 @@ export type PublicOutcome = GovernanceResponse['outcome'] | SessionResponse['out
 
 export const STATUS_BY_OUTCOME: Readonly<Record<PublicOutcome, number>> = Object.freeze({
   succeeded: 200,
+  limited: 429,
   'no-change': 200,
   'not-committed': 200,
   'need-decision': 202,

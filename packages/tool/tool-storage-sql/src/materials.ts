@@ -1,4 +1,4 @@
-// The static materials of the Tool storage: one participant, one migration and three read handlers,
+// The Tool storage materials: a writer, an optional record guard, one migration and three readers,
 // as the SQL storage contract describes them (sql-contract §4). The application aggregates these
 // with the materials of the other owners into one catalog and declares the combination; this
 // member never builds a catalog, a Cordis service or a domain registration.

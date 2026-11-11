@@ -62,6 +62,8 @@ const decision = await check.check({
 
 `decideAdmission` 与参考件都不抛出。参考件的依赖抛出时，结论是 `unavailable`，诊断不带异常文本。
 
+`InquiryPolicy` 与 `decideInquiry` 表达结构化裁定后的询问处理。它们不认识 Session 模式，`continue` 不构成准入许可。行为归 [AU-09](SPEC.md#au-09-阶段范围公开形状与维护)，有限输入由 `tests/inquiry.spec.ts` 穷举。
+
 ## 设计
 
 `src/admission.ts` 是裁定的纯函数与类型。`src/reference.ts` 读依赖并调用它。`src/permit.ts` 定义许可、台账端口与内存台账。`src/evidence.ts` 定义证据与规范 JSON 的 SHA-256 摘要。`src/operation.ts` 定义操作与目标。`src/system-action.ts` 是系统动作的纯裁定与类型，`src/system-matrix.ts` 是矩阵，`src/system-reference.ts` 读依赖并调用纯裁定，`src/testing/` 是替身。[内部设计](docs/internals.md)维护机制与流程。

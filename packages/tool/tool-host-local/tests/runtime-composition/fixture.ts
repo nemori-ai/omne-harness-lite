@@ -378,6 +378,8 @@ export async function fixture(
   }
   const input: LocalToolRuntimeInput = {
     store,
+    // No verdict of this fixture carries a condition.
+    conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
     custody,
     content: null,
     sources,

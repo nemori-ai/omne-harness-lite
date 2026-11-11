@@ -47,7 +47,7 @@ import {
   strangerAccess,
   type LineWorld,
 } from './world.ts'
-import { sessionOnlyRollbackExplained } from './cp3-rollbacks.ts'
+import { SESSION_ORDINARY_BASIS, sessionOnlyRollbackExplained } from './cp3-rollbacks.ts'
 import { entriesOf } from '../host-support.ts'
 
 const worlds: LineWorld[] = []
@@ -135,12 +135,17 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     // invoke: the Journal open was one storage commit of the Agent records and the Session check.
     // The handoff provider saves the admission intent before the open, as one commit of the
     // execution-record participant alone (M-GENERATION SaveIntent), so the open is the first commit
-    // with both participants.
+    // with both participants. The Session command in it carries the ordinary commit basis in the same
+    // transaction (session-storage-sql docs/commit-basis.md), so `session-ordinary-basis` joins it.
     const opening = w.commits.find(
       seen =>
         seen.participants.includes('execution-record') && seen.participants.includes('session'),
     )
-    expect([...(opening?.participants ?? [])].sort()).toEqual(['execution-record', 'session'])
+    expect([...(opening?.participants ?? [])].sort()).toEqual([
+      'execution-record',
+      'session',
+      'session-ordinary-basis',
+    ])
     expect(opening?.result.kind).toBe('committed')
 
     // The assembly read the earlier context through the Agent's history head and built the Model
@@ -158,7 +163,9 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
     // With the real AD-02 and handoff, optimistic concurrency is the contract: a commit may roll back
     // as a conflict and its logical operation commits afterwards. Whether a rollback happens depends
     // on the interleaving, so none is required; when there are rollbacks, each one is explained
-    // (R2-D157). Every rollback is all-conflict;
+    // (R2-D157). Every rollback is all-conflict, except the ordinary basis beside a Session command:
+    // it owns no table and does not judge, so it has answered `participated` (session-storage-sql
+    // docs/commit-basis.md);
     // an Agent records commit that lost the head commits again under the same operation; a Session
     // commit that found its input no longer pending lost to the path that took it, so the log holds
     // that one take; a Session commitLog that found the execution head moved answered `changed` and
@@ -167,7 +174,11 @@ describe('CP3: from a Session input to the save of the Model result on the sessi
       seen.result.kind === 'rolled_back' ? [{ seen, position, result: seen.result }] : [],
     )
     for (const { seen, position, result } of rolledBack) {
-      expect(result.responses.every(response => response.reply.kind === 'conflict')).toBe(true)
+      for (const response of result.responses)
+        expect([response.participant, response.reply.kind]).toEqual([
+          response.participant,
+          response.participant === SESSION_ORDINARY_BASIS ? 'participated' : 'conflict',
+        ])
       if (seen.participants.includes('execution-record')) {
         const again = w.commits
           .slice(position + 1)

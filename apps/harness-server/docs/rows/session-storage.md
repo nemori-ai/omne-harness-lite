@@ -43,3 +43,19 @@ session-storage-sql 对目录缺项答 `unavailable`（[SPEC 失败表](../../..
 ```sh
 pnpm --filter @omne-harness/harness-server exec vitest run tests/rows/storage tests/rows/session-storage --typecheck.enabled=false
 ```
+
+## 受信的权限配值委派
+
+行把 `protectedBasis` 交给 Session 存储。提交 `permission-assignment` 时，Session 存储按[受保护提交](../../../../packages/session/session-storage-sql/docs/commit-basis.md#受保护提交)的顺序调用它。行每次被调用时现取应用受信键 `sessionPermissionBackend`，把后端 `basis` 的答复原样交回。根上的同名服务不可替换该键。未登记租户先答 denied，不调用后端。普通命令不读取此键。后端缺席时答 unavailable，owner 为 `harness.session-permission-write`。
+
+该键不是行的必需 inject。后端缺席不阻止普通会话服务启动。后端只给出提交依据的计划，不授予业务权限：写资格来自访问裁定，依据由提交里的参加者重新核对。
+
+后端卸载后，下次调用重新读取当前服务。已经交给存储的提交由 Session 的回执结算。
+
+## 生产材料与治理组合
+
+默认 storageHost 异步构造生产材料目录。原 Session、Identity、Model 和 Tool 核心材料继续由 `storageCatalog` 提供；Governance、Assets、prepared Settings 及应用投影从各拥有者公开材料导出合并。Session 组合仍只选择原参加者，其 manifest 不因新增未选材料而变化。原始 Settings 修改写者不与 prepared 写者同时登记。
+
+应用 `governanceStorageCombinations` 定义元数据、声明修改、资产、采用、目录、Settings 目录和 Session 权限设清所需的组合。每组先经 SQL 契约检查唯一表拥有者、事实依赖及迁移闭包，再得到摘要。函数只描述组合；租户提供者仍须在原租户域显式登记，不能把材料目录存在视为业务实例已就绪。登记可以同身份重试，不能假设多组登记整体原子成功。
+
+Tool 发行快照核验成功才加入钉住该代次的发行参加者。快照不可用时，普通存储及原 Session 组合仍可装配，依赖 Tool 发行的治理组合拒绝构造。材料安装不发布资产、不创建租户持有、不采用声明，也不授予权限。这些行为仍归实际应用服务与其具名装配规则。

@@ -1,3 +1,4 @@
+import { sessionCommitCommands } from '../src/participants.ts'
 // The Session storage over the real sqlite-provider: a real write Worker and read Worker pool, real
 // files in a temporary directory, built only through the public entry of the provider. The
 // node:sqlite double of the other specs of this member does not appear here.
@@ -55,6 +56,41 @@ const failureOf = (value: unknown): Record<string, unknown> => {
 const CREATE_OPERATION = 'sop_create-session-1'
 
 describe('commit through the real write Worker', () => {
+  it('isolates identical local operations and atomically limits concurrent inputs in each session', async () => {
+    const app = await open({ intakeLimits: { maxPendingInputs: 2, maxInputBytes: 4096 } })
+    ok(await app.create(TENANT_A, 'one'))
+    ok(await app.create(TENANT_A, 'two'))
+    const requests = ['one', 'two'].flatMap(session =>
+      ['a', 'b', 'c'].map(name => ({ session, name })),
+    )
+    const results = await Promise.all(
+      requests.map(({ session, name }) => app.accept(TENANT_A, session, name)),
+    )
+    for (const session of ['one', 'two']) {
+      const own = results.filter((_, index) => requests[index]?.session === session)
+      expect(own.filter(result => 'ok' in result)).toHaveLength(2)
+      expect(own.filter(result => 'failure' in result)).toEqual([
+        { failure: { kind: 'limited', resource: 'pending-inputs', limit: 2 } },
+      ])
+      const state = ok<{ pending: readonly string[] }>(
+        await app.port.readWork(app.access(TENANT_A, session)),
+      )
+      expect(state.pending).toEqual(['a', 'b'])
+      expect(
+        ok(
+          await app.port.queryOperation({
+            ...app.access(TENANT_A, session),
+            operation: operationId('accept-a'),
+          }),
+        ),
+      ).toMatchObject({ kind: 'committed' })
+      expect(ok(await app.accept(TENANT_A, session, 'a'))).toMatchObject({ recovered: true })
+      expect(failureOf(await app.accept(TENANT_A, session, 'a', 'changed'))).toMatchObject({
+        kind: 'conflict',
+      })
+    }
+  }, 30_000)
+
   it('a created session is committed, read back through the read Worker and recalled by its original receipt', async () => {
     const app = await open()
     const created = ok<{ receipt: { revision: string } }>(await app.create(TENANT_A))
@@ -123,7 +159,7 @@ describe('the access evidence through the real write Worker', () => {
     const answer = await app.storage.commit({
       identity: identityOf(TENANT_A, app.domainOf(TENANT_A), 'session.lookup'),
       ...app.combination,
-      commands: [
+      commands: sessionCommitCommands([
         {
           participant: 'session',
           facts: {
@@ -133,11 +169,12 @@ describe('the access evidence through the real write Worker', () => {
             operation: operationId('create-session-1'),
           },
         },
-      ],
+      ]),
     })
     expect(answer.kind).toBe('committed')
-    const response = (answer as unknown as { responses: { reply: { response: unknown } }[] })
-      .responses[0]?.reply.response
+    const response = (
+      answer as unknown as { responses: { participant: string; reply: { response: unknown } }[] }
+    ).responses.find(item => item.participant === 'session')?.reply.response
     expect(response).toMatchObject({
       kind: 'operation',
       evidence: { owner: 'conformance', record: 'access/create', revision: '1' },
@@ -215,7 +252,9 @@ describe('limits', () => {
     expect(accepted).toBeLessThan(names.length)
     for (const [index, result] of results.entries()) {
       const kind = queryKindOf(
-        await app.storage.query(identityOf(TENANT_A, 'dom_0', `sop_create-${names[index]}`)),
+        await app.storage.query(
+          identityOf(TENANT_A, 'dom_0', `sop_create-${names[index]}`, 1, names[index]),
+        ),
       )
       if ('ok' in result) expect(kind).toBe('committed')
       else {

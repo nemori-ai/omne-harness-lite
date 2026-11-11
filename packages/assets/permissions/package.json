@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft permissions package; complete the accepted public contract before delivery",
+  "description": "Permission declarations, Settings projections, and pure bound evaluation",
   "engines": {
     "node": ">=24"
   },
@@ -24,7 +24,10 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/settings": "workspace:*",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

@@ -455,6 +455,10 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 `judgeAgentDefinition` 的输入是封闭对象：`category` 为 `AgentDefinition`，`name` 是非空字符串。定义不带版本：`version` 不是声明表的成员，输入带 `version` 时按“声明表没有列出的成员”得到 `malformed`。每个新 execution 采用当时的合法胜出者，规则见[定义专题的版本采用](docs/public-api/definition.md#版本采用与实际变化)。`references` 与 `attributes` 必须是数组。空数组合法。缺席和 null 拒绝。每个引用是封闭对象，`capability` 是带非空 `category` 与非空 `name` 的封闭对象，`resident` 可省略，给出时是布尔值。每个 attribute 是只含 `item` 的封闭对象。允许的 item 是 `first_token_wait_limit`、`post_first_token_stall_limit`、`model`，常量 `ATTRIBUTE_ITEMS` 列出它们。`item` 是字符串但不在这三项里时得到 `unknown-attribute`。其他结构问题都得到 `malformed`。同一 capability 的 category 与 name 至多一次，重复得到 `duplicate-capability`。同一 `item` 出现两次得到 `malformed`。成功结果的 attribute 只保留 `item`。成功结果没有版本字段。本入口不读取资产库。
 
+`permissionBounds` 是定义作者声明的权限上界，复用 Permissions 的 `PermissionUpperBound` 公共值。省略表示该已成功解析的定义不额外收紧权限；定义不可用不能按省略处理。给出时为 1 至 64 项，按 `capabilityId` 与 `enforcementKey` 唯一匹配。每项 `allowedSet` 包含 0 至 64 个不同的合法值标识，空集表示禁止。字段及元素的未知成员、重复匹配项和重复值均拒绝。成功输出逐层冻结且与输入无共享对象。声明判断不读取动态权限定义；消费时遇到所匹配权限定义不支持的值，不能放宽为无约束。
+
+权限上界只收紧，不包含选值或授权。准入适配器从原动作的精确采用解析定义，普通恢复不能换为最新定义。上界与其他允许集合取交集；无声明时该轴为完整值集合，来源不可用时该轴为未知。原动作资格、当前来源协调和准入裁定仍由各自拥有者处理。
+
 `instructions` 是定义携带的系统提示词，可省略（R2-D124：定义是它的提示词的唯一源）。省略时成功值里也没有这个成员，判定结果、冻结输出与规范文本与没有这条规则时逐字相同。给出时它是有序段的数组，规则如下，常量 `INSTRUCTION_LIMITS` 列出数值与 id 形状。
 
 | 规则 | 不满足时 |
@@ -472,10 +476,11 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 1. 复制。复制按自有键的次序逐层遍历输入。遍历到每个值时，复制检查深度、单个对象的成员数、JSON 值个数、字符串长度与数字文本长度，也检查这个值是不是函数或访问器。原型、循环引用等其他复制问题同样在遍历到该值时报告。所以限额问题与 `executable` 哪个先报告，取决于遍历先到达哪一个。例如定义先有函数成员、后有超长字符串成员时得到 `executable`，两个成员的次序相反时得到 `malformed`。
 2. 字节上限。复制完成之后，判断才计算整份文本的字节数。所以输入超过字节上限、后面的成员里又有函数时，得到 `executable`。
-3. 结构问题。schema 校验的第一个问题决定原因，其余问题不报告。问题按 schema 的成员次序排列：`category`、`name`、`references`、`attributes`、`instructions`，然后是声明表没有列出的成员。这个次序与输入的键序无关。
+3. 结构问题。schema 校验的第一个问题决定原因，其余问题不报告。问题按 schema 的成员次序排列：`category`、`name`、`references`、`attributes`、`instructions`、`permissionBounds`，然后是声明表没有列出的成员。这个次序与输入的键序无关。
 4. 重复的 capability。
 5. 重复的 item。
 6. `instructions` 的组合规则：按段的次序，每段依次查 id 形状、id 重复、`text` 字节数、变量标记。
+7. `permissionBounds` 的关口唯一性与允许值唯一性。
 
 扩展按提交顺序返回。每项声明含 `name`、`position`、`power` 与 `implementation`，可含 `dimension`、`needs`、`onError` 与 `unavailability`。输入还可带来源提示 `source`，值是 `workspace` 或 `author`。`source` 只用于上限判断，不进入成功值，因为设计类型 `LoopExtensionDeclaration` 没有 `source` 字段。`name` 必须是非空字符串。声明表没有列出的成员一律得到 `malformed`。
 
@@ -561,7 +566,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 正文规则与 `judgeAgentDefinition` 同源，同一组夹具在两个入口上得到相同的接受与拒绝。差别有三处。第一，正文不带 `category` 键，因为注册表的键给出类别，带它得到 `unknown-field`。第二，`context.capabilityName` 给出时，正文 `name` 必须与它相等。第三，`judgeAgentDefinition` 按上文的声明限额检查输入，正文契约不另设限额，读树的限额由调用 `readBodyText` 的一方给出。
 
-正文判断的拒绝原因共八个，与 `RefusalReason` 分开，条件见下表。正文与定义同样不带版本：`version` 是未列出的键，得到 `unknown-field`。
+正文判断的拒绝原因共九个，与 `RefusalReason` 分开，条件见下表。正文与定义同样不带版本：`version` 是未列出的键，得到 `unknown-field`。
 
 | 拒绝原因 | 条件 |
 | --- | --- |
@@ -571,6 +576,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 | `invalid-resident` | 引用的 `resident` 存在，但不是布尔值 |
 | `unknown-attribute` | `attributes` 缺失或不是数组，某项不是对象，或某项的 `item` 不在 `ATTRIBUTE_ITEMS` 里 |
 | `duplicate-attribute` | 同一 `item` 出现多次 |
+| `invalid-permission-bounds` | `permissionBounds` 不满足公共上界结构或唯一性规则，包括空声明数组、重复匹配项、重复值或未知字段 |
 | `invalid-instructions` | `instructions` 存在但违反声明判断的任一条 `instructions` 规则：不是非空数组、段数超过 32、段不是对象、`id` 或 `text` 缺失、为空或不是字符串、`id` 形状不合或重复、`text` 超过 10000 字节或含 `{{` |
 | `unknown-field` | 正文、引用、能力、属性项或提示词段里有未列出的键 |
 
@@ -581,9 +587,10 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 3. `references`：先查它是不是数组，再逐个引用依次查 `capability`、`resident`、引用与能力里的未知键。全部引用通过后查重复的 capability。
 4. `attributes`：先查它是不是数组，再逐项依次查 `item`、属性项里的未知键、重复的 `item`。
 5. `instructions`（存在时）：先查它是不是非空数组，再逐段依次查 `id` 与 `text`、段里的未知键，全部段通过后查段数与组合规则。
-5. 正文顶层的未知键。
+6. `permissionBounds` 的结构与唯一性。
+7. 正文顶层的未知键。
 
-第一，`deriveDeclarations` 的 `entries` 取正文的 attribute 项。设计没有给出 AgentDefinition 的声明词汇，所以沿用上文已经固定的 attribute 词表，不新造概念。第二，嵌套对象里的未知键一律得到 `unknown-field`，与 `judgeAgentDefinition` 的严格对象一致。第三，`references` 与 `attributes` 缺失按拒绝处理，不视为空表，与上文“缺席和 null 拒绝”一致。第四，上表的七个拒绝原因与上面的检查次序。
+第一，`deriveDeclarations` 的 `entries` 取正文的 attribute 项。设计没有给出 AgentDefinition 的声明词汇，所以沿用上文已经固定的 attribute 词表，不新造概念。第二，权限上界内的未知键得到 `invalid-permission-bounds`，其他嵌套对象里的未知键得到 `unknown-field`，与 `judgeAgentDefinition` 的严格对象一致。第三，`references` 与 `attributes` 缺失按拒绝处理，不视为空表，与上文“缺席和 null 拒绝”一致。第四，上表的九个拒绝原因与上面的检查次序。
 
 ### 验证入口
 
@@ -795,6 +802,16 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 7. 循环判断不可用时，Conclusion 记不可用分支，守卫事实保持上一次的值，Agent 不伪造判断。它报错时按后置位置的报错规则处置，守卫事实同样保持上一次的值。
 8. 守卫判断的费用归原 Agent 执行。守卫事实缺依据时不编造通过，规则见“[性能、诊断与维护](#性能诊断与维护)”。
 9. M2 的临时兜底（R2-D221）：循环判断在波 3 交付之前，一次执行最多走 `maxRunSteps` 步。这个数值项属于通用实现的工厂配置，缺省为 50，见[工厂配置](../agent/docs/public-api.md#工厂配置)。一步是一次主模型请求及其工具调用。已走满上限时，Agent 不开新一步，执行以 kind 为 `guard`、`level` 为 3 的失败候选结束，`basis` 记上限与已走步数。这条兜底不写守卫事实，也不改变第 1 至 8 条。完整的循环判断见波 3。
+
+#### 原动作资格读取
+
+`AgentActionQualification.qualify` 读取待判动作的原事实。它由 Agent 拥有，不解释权限规则，也不产生许可。调用方以原 Access、完整执行挂接、execution、action、passage、原调用、生效参数和精确 Tool 采用定位动作。类型见 [action-qualification.ts](src/action-qualification.ts)。
+
+提供者先通过原 Journal 核验读取资格。读取失败时，不继续读材料。当前执行必须仍可推进或等待判断，完整挂接必须匹配；当前批次中恰有一个同名 action，其判断为 pending 或 waiting、passage 与生效参数相同，且没有发起的 Tool call。waiting 只表示原动作尚待判断，不表示人的答复已获准。
+
+原调用必须从本 step 的原 received entry 和材料还原，并与请求完整相同。可信 Tool 请求来源对该原调用返回可执行工具及相同精确采用；直接作答不构成可执行动作。checkpoint 的 definition 是 Agent 定义，不得作为 Tool 采用替代。
+
+成功返回绑定原定位的观察、同一 Journal 快照中的原 Agent 采用 agentDefinition、执行修订和历史依据。agentDefinition 来自 checkpoint.definition，不能来自调用者或第二次读取；request.definition 仍只表示 Tool 采用。定位错配返回 denied；原依赖失败保留其结果，依赖异常返回 unavailable。观察不保证返回时或未来动作发起时仍当前。需要与权限同一次提交的消费者，必须让原持久拥有者在该事务核回 tenant、execution 归属及观察修订；没有此核回不能声称取得同一份当前依据。线上的身份编码继续服从各原身份契约，运行时主体不进入观察。
 
 #### 整批判断屏障与动作准入
 
@@ -1842,6 +1859,8 @@ J01 规定一份 Journal 内 Agent 条目的读取形状。Agent 在执行记录
 J02 规定结果的去处、常驻的结果接收方、保存回执与账目。结果接收方实现 Model 的 `ModelResultReceiver` 与 Tool 的 `ToolResultReceiver`，按原拥有者的协议返回 saved 回执。结果接收方由 Agent 宿主装配并常驻，是 Agent 实例外的角色，不随实例重装配丢失状态。回执与失败的形状、saved 的合取事实和 push 的决定顺序归 Model 的[结果推送与保存](../../model/model-contract/SPEC.md#结果推送与保存)与 Tool 的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)。本小节只规定接收方在 Agent 一侧的责任。
 
 1. 去处。生产者推送到受理时冻结的 `ConsumerRef`。接收方按冻结 consumer 和原调用引用查找原 `PendingCall`、consumption、execution 与原 instance，不重新选择去处。稳定目标查询由保存原消费绑定的提供者实现，以 Access、冻结 consumer 和原调用引用为查询依据。原绑定随 Journal 已提交的 PendingCall 建立，包含租户、execution、原 instance、reference、consumer 与 consumption。checkpoint 清掉已完成调用、原 attachment 脱离或实例销毁后，提供者仍保留这份绑定供迟到交付和账目使用。不得从当前 attachment 或任意 consumer 文本猜测 instance。查询端口是 `ModelReceptionTargets`：`forExecution` 返回一个 execution 的全部原 Model 绑定，`resolve` 按调用引用与冻结 consumer 返回一个绑定。`resolve` 的可选 `execution` 只是路由：接收方从本 Agent 自己登记的消费位置读出它，按 execution 分存绑定的提供者只读该 execution 的记录。绑定属于别的 execution 时按不存在答 denied，需要路由的提供者在没有路由时也答 denied。目标始终取自已提交的绑定（依据 R2-D237）。 Tool 的查询端口是 `ToolReceptionTargets`，规则相同，只是绑定来自已提交的 associated Tool PendingCall：`resolve` 在没有原消费关联时答 null（Tool 协议据此答 `not-accepted`），路由不符或缺少所需路由时答 denied；路由从本 Agent 登记的 Tool 消费位置读出，`work` 就是 execution（依据 R2-D273）。
+
+Tool 原绑定的 `ToolReceptionTarget.definition` 是建立绑定时的 Agent 采用，不是 Tool 采用，也不是查询时的最新 Agent 定义。提供者随原关联保留它。切换当前定义、移除当前调用或重装配后，原绑定仍返回同一采用。该来源事实不授予执行许可，消费者仍须核当前权限与执行资格。
 2. 租户。调用引用的文本不含租户（R2-D357）。接收方用原拥有者的公开 resolve 函数，以 `access.tenant` 解析引用，租户取自 `access.tenant`。接收方不从引用、去处、地址或宿主取得租户。另一租户的引用在本租户解析成功，指向本租户里同身份的调用。本租户没有这个调用时，答复与该调用从未存在时相同：Model 一侧的目标查询找不到绑定，返回 denied；Tool 一侧没有原消费关联，返回 `not-accepted`。无权访问时同样返回 denied。接收方不为引用属于另一租户而另设失败，也不泄漏存在性。跨租户的隔离由 Access 的租户与存储分区保证（R2-D370）。
 3. 保存。`received` 条目的唯一写入者是结果接收方。它经 `AgentReceivedCommits.commit` 提交完整冻结载荷的 `Material`，或不依赖生产者待释放副本的可恢复引用的材料表示，以及尚无材料证据的条目草稿。提供者在同一次提交中建立完整 `received` 条目、材料与 saved 依据。接收方取得 committed 的原结果后才返回 saved，不在调用方先 preserve 再 record：事实与条目不分两次写。saved 证据的 owner 是冻结的 `consumer.owner`，证据定位 `received` 条目、材料和原消费责任。能力与未知处理见“[接收共同提交](#接收共同提交)”。
 4. 认回键。结果的认回键是（租户，生产者种类，调用，结果版本）。账目的认回键是（调用，Model 的 dispatch 或 Tool 的账目事件 event，修订），租户取自 Access。键直接取生产者的交付键：Model 的 `ModelDeliveryKey` 与 Tool 的 `ToolDeliveryKey`。接收操作身份由完整交付键确定派生，提供者再按租户与 execution 分域。新旧接收入口共享此认回键，同键同内容认回原条目与原 saved。同键异 consumer、consumption、材料或账目返回 conflict，原条目不变。提交未知时只查询原 operation；仍为 unknown 时不发 saved，不自动换身份。excluded 不冒充成功。
@@ -2125,3 +2144,9 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 ### 验证边界
 
 完整调用链见[消费与系统定位](docs/context.md)，正常与失败场景见[持续验证场景](verification/scenarios.md)。类型样例只证明所列公开形状可连接，纯状态模型只覆盖所建交错。实际 Storage、同提交授权、生产者动作围栏、断电保管、真实 HITL 和跨进程必须由后继提供者取证。Agent 保管 Tool 内容 ref 与附件地址文本，不加载二进制，也不把地址文本自动转成媒体。需要附件时另起合法读取，依新的结果声明决定后续模型感知。请求组装者把 ToolDefinition 投影为 Model 工具声明，说明已包含 programmable 含义，并保管原工具及命令路由。Model adapter 只转换该声明为供应商 payload；Agent 不预生成供应商字段或以 JsonValue 扩充块语法。MODEL-E01 的共享契约迁移仍待实现与验证。
+
+### Tool 原 Agent 关联观察
+
+`AgentToolQualification` 只读取 Agent 原事实。consumer 只用于定位 execution，不证明请求属于该 Agent。首次 Tool 尚未关联时，提供者从当前已打开屏障的批次核已允许动作、已保存 intent 和完整发送请求。屏障、参数、采用或消费位置不一致时拒绝。已关联时，提供者按原调用引用及 consumer 读取稳定 Tool 绑定，再核保存的完整业务请求；原请求保存早于屏障生成，屏障本身由 Tool 原来源证明。
+
+结果的 Agent 采用来自获验 intent 的 checkpoint 或原 Tool 绑定，不能以当前定义替代旧绑定采用。结果同时返回该次 Journal 读取的 revision/history，应用在消费事务中核回修订。固定请求和位置在首次 await 前复制，运行时主体与租户值保持原身份。访问拒绝不能继续读取材料；依赖错误为封闭 unavailable。该观察不证明调用者自报的 call/admission 真实，也不授予执行许可；Tool 原来源核验及当前权限判断必须另行成立。

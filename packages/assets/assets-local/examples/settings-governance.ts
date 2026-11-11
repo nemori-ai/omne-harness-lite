@@ -16,7 +16,7 @@ const input = z
   .parse(JSON.parse(readFileSync(inputPath, 'utf8')))
 const w = await openCatalogWorld({
   assets: {
-    materials: assetsSqlMaterials({ settingsGuard: false }),
+    materials: assetsSqlMaterials(),
     command: assetsSettingsProjectionCommand,
   },
 })
@@ -46,7 +46,13 @@ try {
     scopeRef: target.scopeRef,
     assetRef: 'manual-asset',
     selection: { kind: 'follow' },
-    sourceIds: ['tenant'],
+    sources: [
+      {
+        sourceId: 'tenant',
+        ownerRef: 'deployment',
+        scope: { kind: 'tenant', subjectRef: 'tenant-a' },
+      },
+    ],
     grants: [{ sourceId: 'tenant', actions: ['set', 'clear', 'lock', 'unlock'] }],
   })
   assert.equal(held.kind, 'committed')
@@ -67,10 +73,10 @@ try {
     definitionRef: definitionRef(),
     action: { kind: 'set' as const, value: input.enabled },
   }
-  const saved = await w.service.commands.change(w.principal, command)
+  const saved = await w.write(w.principal, command)
   assert.equal(saved.kind, 'committed')
   show('save', saved)
-  const replay = await w.service.commands.change(w.principal, command)
+  const replay = await w.write(w.principal, command)
   assert.deepEqual(replay, saved)
   show('same-operation-replay', replay)
   assert.equal(
@@ -89,7 +95,7 @@ try {
   const incompatible = await w.service.queries.evaluate(w.principal, view)
   assert.deepEqual(incompatible, { kind: 'rejected', reason: 'definition_changed' })
   show('new-definition-needs-decision', incompatible)
-  const adopted = await w.maintenance.rebase({
+  const adopted = await w.rebase({
     protocol: 'settings-rebase/1',
     requestId: 'adopt',
     operationId: 'adopt',

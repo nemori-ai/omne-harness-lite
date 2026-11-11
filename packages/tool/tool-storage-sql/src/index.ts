@@ -14,5 +14,12 @@ export {
   type SqlToolGuardedHostCommitInput,
   type SqlToolGuardedHostCommitResult,
 } from './guarded-host-commit.ts'
+export {
+  createSqlToolConditionalCommit,
+  type SqlToolCondition,
+  type SqlToolConditionalCommit,
+  type SqlToolConditionalCommitInput,
+  type SqlToolConditionalCommitResult,
+} from './conditional-commit.ts'
 export { createSqlToolOutputCustody } from './custody.ts'
 export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } from './materials.ts'

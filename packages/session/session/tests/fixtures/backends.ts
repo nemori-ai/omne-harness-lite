@@ -4,6 +4,7 @@
 import type {
   GuardCommand,
   SessionAccessCheck,
+  SessionIntakeLimits,
   SessionCommand,
   SessionDelegatedTransactions,
   SessionTransactionPort,
@@ -45,24 +46,29 @@ export function fixtureInitializationGuard(command: InitializationCommand): Guar
   )
 }
 
-export const memoryBackend: BackendFactory = {
-  name: 'memory pair',
-  open: accessCheck => {
-    const initialization = createMemoryInitializationSource()
-    const { transactions, delegated } = createMemorySessionTransactionPair<string>({
-      initialization,
-      history: createMemorySessionHistorySource(),
-      accessCheck,
-    })
-    return Promise.resolve({
-      name: 'memory pair',
-      transactions,
-      delegated,
-      initializationGuards: async command => {
-        initialization.controls.register(command, fixtureInitializationGuard(command))
-        return succeeded(await initialization.prepare(command), 'initialization source')
-      },
-      dispose: () => Promise.resolve(),
-    })
-  },
+export function memoryBackendWithLimits(intakeLimits?: SessionIntakeLimits): BackendFactory {
+  return {
+    name: 'memory pair',
+    open: accessCheck => {
+      const initialization = createMemoryInitializationSource()
+      const { transactions, delegated } = createMemorySessionTransactionPair<string>({
+        initialization,
+        history: createMemorySessionHistorySource(),
+        accessCheck,
+        ...(intakeLimits === undefined ? {} : { intakeLimits }),
+      })
+      return Promise.resolve({
+        name: 'memory pair',
+        transactions,
+        delegated,
+        initializationGuards: async command => {
+          initialization.controls.register(command, fixtureInitializationGuard(command))
+          return succeeded(await initialization.prepare(command), 'initialization source')
+        },
+        dispose: () => Promise.resolve(),
+      })
+    },
+  }
 }
+
+export const memoryBackend = memoryBackendWithLimits()

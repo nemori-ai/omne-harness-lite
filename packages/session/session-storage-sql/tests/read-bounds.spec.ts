@@ -23,7 +23,7 @@ async function diagnosticOf(a: App, operation: string): Promise<string> {
     transactionDomain: DOMAIN,
     operation: operationId(operation),
     protocolVersion: '2',
-    operationKey: `${operationId(operation)}#1`,
+    operationKey: JSON.stringify(['session-1', operationId(operation), 1]),
   })
   const stop = receipt.kind === 'rolled_back' ? receipt.responses.at(-1)?.reply : undefined
   return stop?.kind === 'conflict'

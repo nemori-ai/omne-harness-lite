@@ -18,6 +18,8 @@
 - `ActionId` · `identity.d.ts`
 - `ActionIdentity` · `extensions.d.ts`
 - `ActionJudgment` · `evaluation.d.ts`
+- `ActionQualification` · `action-qualification.d.ts`
+- `ActionQualificationRequest` · `action-qualification.d.ts`
 - `ActionSlot` · `evaluation.d.ts`
 - `ActionToolCall` · `evaluation.d.ts`
 - `AdmissionDecision` · `passages.d.ts`
@@ -31,6 +33,7 @@
 - `AgentAccountHandoff` · `receiving.d.ts`
 - `AgentAccountOutcome` · `receiving.d.ts`
 - `AgentAccountOutlet` · `receiving.d.ts`
+- `AgentActionQualification` · `action-qualification.d.ts`
 - `AgentAdoptions` · `execution.d.ts`
 - `AgentCheckpoint` · `evaluation.d.ts`
 - `AgentClock` · `execution.d.ts`
@@ -70,6 +73,7 @@
 - `AgentRuntime` · `execution.d.ts`
 - `AgentRuntimeControl` · `execution.d.ts`
 - `AgentState` · `execution.d.ts`
+- `AgentToolQualification` · `tool-qualification.d.ts`
 - `AssetReference` · `definition.d.ts`
 - `AttributeDeclaration` · `definition.d.ts`
 - `AttributeItem` · `definition.d.ts`
@@ -270,6 +274,8 @@
 - `TerminalParticipantFacts` · `finishing.d.ts`
 - `ToolAssociationRecord` · `finishing.d.ts`
 - `ToolIntentKey` · `finishing.d.ts`
+- `ToolQualification` · `tool-qualification.d.ts`
+- `ToolQualificationRequest` · `tool-qualification.d.ts`
 - `ToolReceptionTarget` · `receiving.d.ts`
 - `ToolReceptionTargets` · `receiving.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
@@ -352,6 +358,25 @@
 - `sampleStartFence` · `testing-journal-samples.d.ts`
 - `testCancellationPolicyInstallation` · `testing-cancellation.d.ts`
 
+## 声明文件 `action-qualification.d.ts`
+
+```ts
+import type { ActionAdmission } from './passages.ts';
+import type { Adoption, DurableEvidence, ExecutionRevision } from './identity.ts';
+import type { Reply } from './evaluation.ts';
+export type ActionQualificationRequest<P> = Omit<Parameters<ActionAdmission<P>['admit']>[0], 'permissions' | 'decision'>;
+export type ActionQualification = Readonly<{
+    version: 1;
+    request: Omit<ActionQualificationRequest<unknown>, 'principal'>;
+    agentDefinition: Adoption;
+    revision: ExecutionRevision;
+    history: DurableEvidence;
+}>;
+export interface AgentActionQualification<P> {
+    qualify(input: ActionQualificationRequest<P>): Reply<ActionQualification>;
+}
+```
+
 ## 声明文件 `body-contract.d.ts`
 
 ```ts
@@ -404,6 +429,7 @@ export {};
 ## 声明文件 `definition.d.ts`
 
 ```ts
+import type { PermissionUpperBound } from '@omne-harness/permissions';
 export declare const ATTRIBUTE_ITEMS: readonly [
     'first_token_wait_limit',
     'post_first_token_stall_limit',
@@ -436,6 +462,7 @@ export type AgentDefinition = {
     readonly references: readonly AssetReference[];
     readonly attributes: readonly AttributeDeclaration[];
     readonly instructions?: readonly InstructionSection[];
+    readonly permissionBounds?: readonly PermissionUpperBound[];
 };
 export declare function attributeItem(text: string | undefined): AttributeItem | undefined;
 ```
@@ -2245,6 +2272,8 @@ export type * from './passages.ts';
 export type * from './receiving.ts';
 export type * from './request.ts';
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts';
+export type * from './action-qualification.ts';
+export type * from './tool-qualification.ts';
 ```
 
 ## 声明文件 `journal.d.ts`
@@ -3120,7 +3149,7 @@ import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
 import type { PendingCall, Reply } from './evaluation.ts';
 import type { CommandReceipt, ExecutionMutation } from './execution.ts';
-import type { Access, AgentExecutionId, AgentInstanceId, Authority, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts';
+import type { Access, Adoption, AgentExecutionId, AgentInstanceId, Authority, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts';
 import type { AgentJournal } from './journal.ts';
 import type { AgentMaterials, Material } from './passages.ts';
 export type StartFenceEntry = Readonly<{
@@ -3243,6 +3272,7 @@ export interface ModelReceptionTargets<P> {
 export type ToolReceptionTarget = Readonly<{
     execution: AgentExecutionId;
     instance: AgentInstanceId;
+    definition: Adoption;
     pending: Extract<PendingCall, {
         kind: 'tool';
         association: 'associated';
@@ -4156,4 +4186,29 @@ export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';
 export { agentJournalReplayConformance, agentJournalReplayTraces, agentJournalViolatingTraces, replayJournalTrace, type JournalReplayState, type JournalReplayStep, type JournalReplayTrace, } from './testing-journal-replay.ts';
 export { describeMaterial, entryPage, materialDigest, receivedEntriesOf, } from './testing-journal-reads.ts';
+```
+
+## 声明文件 `tool-qualification.d.ts`
+
+```ts
+import type { ToolCallId, ToolInvokeRequest, ToolOperationId } from '@omne-harness/tool-contract';
+import type { Access, Adoption, AgentExecutionId, DurableEvidence, ExecutionRevision } from './identity.ts';
+import type { Reply } from './evaluation.ts';
+export type ToolQualificationRequest<P> = Access<P> & Readonly<{
+    call: ToolCallId;
+    admission: ToolOperationId;
+    request: ToolInvokeRequest;
+}>;
+export type ToolQualification = Readonly<{
+    version: 1;
+    request: Omit<ToolQualificationRequest<unknown>, 'principal'>;
+    execution: AgentExecutionId;
+    association: 'intent' | 'associated';
+    agentDefinition: Adoption;
+    revision: ExecutionRevision;
+    history: DurableEvidence;
+}>;
+export interface AgentToolQualification<P> {
+    qualify(input: ToolQualificationRequest<P>): Reply<ToolQualification>;
+}
 ```

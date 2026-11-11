@@ -78,7 +78,7 @@ import {
 } from '@omne-harness/session-cordis-contract/cordis'
 import {
   SESSION_EXECUTION_HANDLER,
-  SESSION_PROTOCOL,
+  SESSION_READ_PROTOCOL,
   decodeSessionExecution,
 } from '@omne-harness/session-storage-sql/participants'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
@@ -195,7 +195,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
       result = await options.storage.read({
         domain: found.domain,
         handler: SESSION_EXECUTION_HANDLER,
-        protocol: SESSION_PROTOCOL,
+        protocol: SESSION_READ_PROTOCOL,
         requestKey: randomUUID(),
         input: { tenant: tenant.value, execution: scope.execution },
       })

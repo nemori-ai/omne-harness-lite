@@ -587,6 +587,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             targets.set(key, {
               execution: execution.id,
               instance,
+              definition: structuredClone(execution.checkpoint.definition),
               pending: structuredClone(pending),
             })
           consumerExecutions.set(

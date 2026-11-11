@@ -21,7 +21,7 @@ const request = (view: Awaited<ReturnType<typeof openCatalogWorld>>['view']) => 
 })
 it('aggregates real target state, retains values across declaration unload and denies retired target receipts', async () => {
   const w = await open()
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
     revision: 1,
   })
@@ -54,7 +54,7 @@ it('aggregates real target state, retains values across declaration unload and d
     }),
   ).toMatchObject({ kind: 'committed' })
   expect(
-    await w.service.commands.getOperation(w.principal, {
+    await w.prepared.getOperation(w.principal, {
       target: w.change.target,
       operationId: w.change.operationId,
     }),
@@ -81,7 +81,7 @@ it('requires validated runtime selection and rechecks real membership before eve
 })
 it('re-adopts an exact new definition explicitly and preserves operation recovery', async () => {
   const w = await open()
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
   })
   const next = { ...definition, version: '2', items: [] }
@@ -113,17 +113,20 @@ it('re-adopts an exact new definition explicitly and preserves operation recover
     kind: 'rejected',
     reason: 'definition_changed',
   })
-  expect(await w.maintenance.rebase(command)).toMatchObject({ kind: 'committed', revision: 2 })
-  expect(await w.maintenance.rebase(command)).toMatchObject({ kind: 'committed', revision: 2 })
+  expect(await w.rebase(command)).toMatchObject({ kind: 'committed', revision: 2 })
+  expect(await w.rebase(command)).toMatchObject({ kind: 'committed', revision: 2 })
   expect(
-    await w.maintenance.getOperation({ target: w.change.target, operationId: 'migration' }),
+    await w.prepared.getOperation(w.principal, {
+      target: w.change.target,
+      operationId: 'migration',
+    }),
   ).toMatchObject({ kind: 'committed', revision: 2 })
   expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({
     kind: 'complete',
     entries: [],
   })
   expect(
-    await w.service.commands.readChanges(w.principal, {
+    await w.prepared.readChanges(w.principal, {
       target: w.change.target,
       afterRevision: 1,
       limit: 10,
@@ -158,7 +161,7 @@ it('binds pages to the complete captured basis and a finite lifetime', async () 
     kind: 'rejected',
     reason: 'basis_changed',
   })
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
   })
   expect(await w.service.queries.readCatalog(w.principal, next)).toEqual({
@@ -241,7 +244,7 @@ it('counts only active requested standalone targets, not retired history', async
     kind: 'catalog',
     entries: [{ target: w.change.target }],
   })
-  expect(await w.service.commands.change(w.principal, w.change)).toMatchObject({
+  expect(await w.write(w.principal, w.change)).toMatchObject({
     kind: 'committed',
   })
 }, 30000)
@@ -264,3 +267,45 @@ it('recovers the original standalone owner operation and rejects reads after clo
     reason: 'closing',
   })
 })
+
+it.each(['before', 'after'] as const)(
+  'settles catalog capture when membership is revoked %s its SQL commit',
+  async order => {
+    const reached = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>()
+    const w = await openCatalogWorld({
+      wrapCatalog: storage => ({
+        ...storage,
+        async commit(input) {
+          if (input.identity.operation !== 'settings.capture') return storage.commit(input)
+          if (order === 'before') {
+            reached.resolve()
+            await release.promise
+            return storage.commit(input)
+          }
+          const result = await storage.commit(input)
+          reached.resolve()
+          await release.promise
+          return result
+        },
+      }),
+    })
+    opened.push(w)
+    const pending = w.catalog.read(w.principal, w.view)
+    try {
+      await reached.promise
+      expect(await w.remove()).toEqual({ kind: 'succeeded' })
+    } finally {
+      release.resolve()
+    }
+    expect(await pending).toMatchObject(
+      order === 'before'
+        ? { kind: 'rejected', reason: 'basis_changed' }
+        : { completeness: 'complete' },
+    )
+    expect(await w.catalog.read(w.principal, w.view)).toEqual({
+      kind: 'rejected',
+      reason: 'forbidden',
+    })
+  },
+)

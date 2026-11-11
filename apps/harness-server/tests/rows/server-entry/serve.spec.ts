@@ -180,6 +180,7 @@ describe('server-entry row: configuration', () => {
     const { serverEntryConfig } = await import('../../../src/rows/server-entry/config.ts')
     expect(serverEntryConfig.parse({})).toEqual({
       listenPort: 8787,
+      maxInFlightRequests: 64,
       maxBodyBytes: { small: 16384, input: 1048576 },
       heartbeatIntervalMs: 15000,
       jsonBudgets: {

@@ -299,6 +299,8 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     }
     const bundle = createLocalToolRuntimePlugins({
       store,
+      // This composition configures no request policy, so no start carries a condition.
+      conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
       custody: sql.custody,
       content: null,
       sources,

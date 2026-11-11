@@ -107,7 +107,9 @@ export const SESSION_POLICY = Object.freeze({
     deny(OUTSIDE_MATRIX),
   ),
   change: row(
-    member('SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。覆盖全部声明种类'),
+    member(
+      'SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。逐权限配值还需具名登录写资格，见会话逐权限配值的直接登录政策',
+    ),
     deny(
       'SW:129：Agent 不能直接写模式。SS:609 只列 intake。Agent 经 HITL 改模式的证据没有解释形状（AU-11「首批不覆盖的部分」）',
     ),

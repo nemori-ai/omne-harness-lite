@@ -1,3 +1,4 @@
+import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
 // The production Agent Journal provider on the Session log (AG-07, AD-01, R2-D292): the Agent
 // facts of one session are the second append-only family of the Session log, in the
 // `execution-record` participant of the session's transaction domain, and the Journal provider is
@@ -57,7 +58,7 @@ import {
 import {
   EXECUTION_BATCH_MAX_FACTS,
   SESSION_HISTORY_ROOT_HANDLER,
-  SESSION_PROTOCOL,
+  SESSION_READ_PROTOCOL,
   decodeExecutionRecordReply,
   decodeSessionHistoryRoot,
   decodeSessionReply,
@@ -1382,7 +1383,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const output = await readOutput(options.storage, {
       domain,
       handler: SESSION_HISTORY_ROOT_HANDLER,
-      protocol: SESSION_PROTOCOL,
+      protocol: SESSION_READ_PROTOCOL,
       input: { tenant: book.tenantText, session: book.session },
     })
     const unreadable = 'the common root of the session is not readable'
@@ -1883,7 +1884,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       }
     const blobs = await storeBlobsFirst(book, domain, execution, prepared.blobs)
     if ('failure' in blobs) return { kind: 'answer', value: blobs }
-    const commands: FactCommandV2[] = [
+    const commands = sessionCommitCommands([
       executionRecordFacts({
         tenant: book.tenant,
         session: book.session,
@@ -1900,7 +1901,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       }),
       ...scratch.checks.map(check => sessionCheckFacts(check)),
       ...scratch.commands.map(command => sessionCommandFacts(command, [])),
-    ]
+    ])
     const outcome = await commitJournal({
       storage: options.storage,
       domain,

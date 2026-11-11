@@ -29,6 +29,8 @@
 
 #### CP-01 Session 为提交方的命令
 
+通知的事件种类来自原提交批次，不能漏掉回执的首条事件。历史 `begin.from` 不含起点本身，因此不能以 `receipt.first` 前向读取该批。协调器从当前固定上界反向分页，按回执修订收集条目，到回执首条即停止，再恢复原顺序。后续并发提交不混入原通知；读取失败时不以部分批次充作完整通知，不改变已耐久的业务回执。此机制不把尽力通知升级为可靠投递。
+
 | 步 | 动作 | 输入 | 输出 | 失败分支 |
 | --- | --- | --- | --- | --- |
 | 1 核权与认回原操作 | 核对 `Access`；按面操作的请求调用一次 `accessCheck.check`；allowed 后以请求与证据调用 `SessionDelegatedTransactions.bind`，取得本次面操作的委派视图，本命令其余各步（含 `changed` 重做）的端口调用都经该视图；按 OP-00 派生 `SessionOperationId` 与规范化参数摘要，摘要只覆盖语义参数；经视图点查操作记录；调用 `resolveOperation` | 命令参数；操作记录 | `new`、`recovered`（原回执）或 `conflict` | 缺租户 `invalid`；跨租户 `denied`；`check` 答 `denied`：返回 `denied`，不继续；`check` 答 `unavailable` 或抛错：返回 `unavailable`，`owner` 取字面值 `'sessionAccessCheck'`（与 Cordis 服务键同名，不装配 Cordis 时也取这个值），不继续；会话在该租户下不存在（`create` 除外）：返回 `denied`，与跨租户不可区分；`recovered` 时按当前读取资格返回原回执，`recovered` 为真，流水线结束；`conflict` 返回，不提交 |

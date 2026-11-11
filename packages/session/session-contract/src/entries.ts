@@ -78,6 +78,13 @@ export type InitializationItem = Omit<
 >
 
 export type SessionEntry =
+  | Readonly<{
+      kind: 'session.permission-assigned'
+      declaration: Extract<DeclarationChange, { kind: 'permission-assignment' }>
+      previousRevision: string
+      revision: string
+      authority: DurableEvidence
+    }>
   | Readonly<{ kind: 'session.todo-added'; item: TodoItemId; text: string }>
   | Readonly<{ kind: 'session.todo-completed' | 'session.todo-removed'; item: TodoItemId }>
   | Readonly<{
@@ -537,6 +544,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'session.mode-changed',
   'session.model-selected',
   'session.declaration-adopted',
+  'session.permission-assigned',
   'session.context-registration-changed',
   'session.recovery-input-adopted',
   'session.workspace-changed',

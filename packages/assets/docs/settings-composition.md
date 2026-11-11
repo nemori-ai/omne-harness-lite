@@ -1,5 +1,7 @@
 # 设置的独立使用、资产组合与动态目录
 
+动态贡献与授权的共同生命周期增量见[治理贡献合同](governance-contributions.md)。该 HJ0 候选细化精确租约、管理/运行目录、采用围栏与重装配，不替代本页的配值规则。
+
 本页维护资产与设置协作所需的数理模型、领域分解与对象责任。产品依据为[设置组合](../../../.meta_harness/design/product/assets-and-rules/design.md#settings-composition)。设置可独立使用，也可组合进资产；技术类型在下文仅为设计名称，不是现有公开导出。精确 wire Schema、持久化提供者及跨域装配仍须由实现提交兑现。
 
 ## 责任与边界

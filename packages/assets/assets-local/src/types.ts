@@ -2,6 +2,8 @@ import type { z } from 'zod'
 import type { CategoryRegistry, PinnedBody } from '@omne-harness/assets'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type {
+  assetLookupSchema,
+  assetResultSchema,
   changeHoldingSchema,
   committedSchema,
   failureSchema,
@@ -27,9 +29,11 @@ export type AssetsMutationResult =
   | z.infer<typeof failureSchema>
   | Readonly<{ kind: 'unknown'; operationId: string }>
 export type AssetsOperationResult = AssetsMutationResult | Readonly<{ kind: 'not_found' }>
+export type AssetsReadResult = z.infer<typeof assetResultSchema>
 export type AssetsHoldingResult = z.infer<typeof holdingResultSchema>
 export type AssetsVersionResult = z.infer<typeof versionResultSchema>
 export interface AssetsLocal {
+  readAsset(input: z.infer<typeof assetLookupSchema>): Promise<AssetsReadResult>
   publish(input: AssetsPublish): Promise<AssetsMutationResult>
   hold(input: AssetsHold): Promise<AssetsMutationResult>
   changeHolding(input: AssetsHoldingChange): Promise<AssetsMutationResult>

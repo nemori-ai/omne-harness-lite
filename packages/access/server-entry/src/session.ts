@@ -117,6 +117,8 @@ function decodeUserMessage(wire: JsonValue): Message | undefined {
 
 function failureOutcome(failure: SessionFailure): PublicOutcome {
   switch (failure.kind) {
+    case 'limited':
+      return 'limited'
     case 'denied':
       return 'denied'
     case 'invalid':
@@ -140,6 +142,10 @@ function failureOutcome(failure: SessionFailure): PublicOutcome {
       // A kind outside the public result set of the operation: the entry cannot say allowed now.
       return 'basis-unavailable'
   }
+}
+
+function failureBody(failure: SessionFailure): Readonly<Record<string, string | number>> {
+  return failure.kind === 'limited' ? { resource: failure.resource, limit: failure.limit } : {}
 }
 
 function sourceOf(evidence: DurableEvidence): SessionTerminalSource {
@@ -281,7 +287,8 @@ async function createSession(
     context,
   )
   if (result === 'unknown') return answer('unknown', {})
-  if ('failure' in result) return answer(failureOutcome(result.failure), {})
+  if ('failure' in result)
+    return answer(failureOutcome(result.failure), failureBody(result.failure))
   return answer('succeeded', { session: target.session, recovered: result.ok.receipt.recovered })
 }
 
@@ -305,7 +312,8 @@ async function queryOperation(
     context,
   )
   if (result === 'basis-unavailable') return answer('basis-unavailable', {})
-  if ('failure' in result) return answer(failureOutcome(result.failure), {})
+  if ('failure' in result)
+    return answer(failureOutcome(result.failure), failureBody(result.failure))
   const resolution = result.ok
   const isCreate = request.operation === 'query-create-session'
   switch (resolution.kind) {
@@ -348,7 +356,8 @@ async function sendInput(
     context,
   )
   if (result === 'unknown') return answer('unknown', {})
-  if ('failure' in result) return answer(failureOutcome(result.failure), {})
+  if ('failure' in result)
+    return answer(failureOutcome(result.failure), failureBody(result.failure))
   return answer('succeeded', { recovered: result.ok.recovered })
 }
 
@@ -379,7 +388,8 @@ async function readHistory(
     context,
   )
   if (result === 'basis-unavailable') return answer('basis-unavailable', {})
-  if ('failure' in result) return answer(failureOutcome(result.failure), {})
+  if ('failure' in result)
+    return answer(failureOutcome(result.failure), failureBody(result.failure))
   return answer('succeeded', pageOf(result.ok))
 }
 
@@ -503,7 +513,8 @@ async function cancelRun(
     context,
   )
   if (result === 'unknown') return answer('unknown', {})
-  if ('failure' in result) return answer(failureOutcome(result.failure), {})
+  if ('failure' in result)
+    return answer(failureOutcome(result.failure), failureBody(result.failure))
   const { answer: saved } = result.ok
   switch (saved.kind) {
     case 'requested':
@@ -556,7 +567,8 @@ async function stopCall(
   )
   if (result === 'unknown') return answer('unknown', {})
   if (producer.kind === 'tool') return answer(toolTargetOutcome(result), {})
-  if ('failure' in result) return answer(failureOutcome(result.failure), {})
+  if ('failure' in result)
+    return answer(failureOutcome(result.failure), failureBody(result.failure))
   const { answer: saved } = result.ok
   switch (saved.kind) {
     case 'requested':

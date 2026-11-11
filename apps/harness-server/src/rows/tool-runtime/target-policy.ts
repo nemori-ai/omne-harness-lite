@@ -4,6 +4,7 @@ import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provid
 import {
   TOOL_FORWARDING_OWNER,
   type LocalToolCatalogViewSource,
+  type ToolRequestAccess,
 } from '@omne-harness/tool-host-local'
 import { targetResidency } from '../../entry/tool-target-residency.ts'
 import type { ToolTargetPolicy } from '../authorization/tool-target-policy.ts'
@@ -34,7 +35,7 @@ export function withTargetAdmissionPolicy(
         // Start guards still recheck current execution policy before every new start.
         return source
       }
-      const verdict = await policy.qualify(input)
+      const verdict = await policy.qualify({ ...input, admission: input.operation })
       return verdict.kind === 'allowed' ? source : verdict
     },
   }
@@ -69,6 +70,37 @@ export function currentTargetPolicy(
       return target.failure.kind === 'denied'
         ? { kind: 'denied', reason: target.failure.action }
         : { kind: 'unavailable', diagnostic: 'The current target residency cannot be verified.' }
+    },
+  }
+}
+
+/** Start-time policy uses the admission saved by the original Tool ledger, never the start operation. */
+export function admittedTargetAccess(
+  store: ToolLedgerStore<ToolMessageContentBlock>,
+  policy: ToolTargetPolicy,
+): ToolRequestAccess<unknown> {
+  const unavailable = () => ({
+    kind: 'unavailable' as const,
+    diagnostic: 'The original Tool admission is unavailable.',
+  })
+  return {
+    async qualify(input) {
+      try {
+        const current = await store.read({ kind: 'call', tenant: input.tenant, call: input.call })
+        if (current.kind !== 'complete') return unavailable()
+        const rows = current.records.filter(record => record.kind === 'call')
+        if (rows.length !== 1 || rows[0]?.kind !== 'call') return unavailable()
+        const call = rows[0].call
+        if (
+          call.call !== input.call ||
+          canonicalDigest(call.tenant) !== canonicalDigest(input.tenant) ||
+          canonicalDigest(call.request) !== canonicalDigest(input.request)
+        )
+          return { kind: 'denied', reason: 'The target disagrees with the original Tool call.' }
+        return await policy.qualify({ ...input, admission: call.admission })
+      } catch {
+        return unavailable()
+      }
     },
   }
 }
