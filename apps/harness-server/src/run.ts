@@ -39,6 +39,7 @@ import {
 import { loadTree, type ResolvedTree } from './plugin-tree.ts'
 import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts'
 import type { LoadedRow } from './readiness.ts'
+import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-bound.ts'
 import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
 import { prepareStartupDirectory } from './startup-directory.ts'
 import { createTrust, type Trust } from './trust.ts'
@@ -764,6 +765,7 @@ async function runServeWithHostFiles(
     checkModelRowConsistency(tree.rows)
     disclosure = compileToolResultDisclosure(tree.rows)
     checkToolsReplyBudget(tree.rows)
+    checkSuspensionCommandBound(tree.rows)
     parseFactoryConfigs(tree.rows, { executionHost, telemetry })
     rows = tree.rows.map(row => rowSpecOf(row, profile, manifests, probes))
   } catch (error) {

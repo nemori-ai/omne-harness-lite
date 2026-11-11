@@ -175,6 +175,10 @@ Run，最后做 HITL 的准备与登记。调用只保存最近一个等待的�
 入口在 `server-entry` 行（[hitl.ts](../../src/rows/server-entry/hitl.ts)）。还没有事务域的租户由宿主的 `qualify` 按 HITL local 的
 同一条资格规则判断读者，再答空页或拒绝。
 
+### 暂停内容与存储命令上限
+
+Tool 把暂停调用的三样东西各用一笔提交写进调用域：等待的请求原文、检查点状态、答复。Tool 契约给了三者的上界（`WAIT_REQUEST_MAX_BYTES`、`CHECKPOINT_STATE_MAX_BYTES`、`WAIT_RESPONSE_MAX_BYTES`）。存储行的命令上限 `maxCommandBytes` 是运维值，两者的关系在配置边界核对（`src/rows/tool-runtime/suspension-bound.ts` 的 `checkSuspensionCommandBound`，与 `checkToolsReplyBudget` 同处调用）：`storage` 行与 `tool-records` 行都是发行导出时，`maxCommandBytes` 小于 `SUSPENSION_COMMAND_BYTES`（1048576）启动失败，退出码 2。这个数是三样里按存放形式算最大的那一个的两倍：请求原文是规范 JSON 文本，作为记录里的字符串至多两倍；状态是 base64 文本；另一半留给同一笔提交里的其余记录。有了这条关系，记录仓不会因为大小确定拒绝这三笔提交，所以账本没有为「暂停被记录仓拒绝」另设终局。用例在 `tests/rows/tool-runtime/suspension-bound.spec.ts` 与 `tests/local/operator-defaults.spec.ts`。
+
 ## 具名缺件与已知限制
 
 - **consumer 指名的执行是否属于这个会话不核对**：来源资格只核主体与 consumer 的拥有者和用途。跨租户仍被拒。
