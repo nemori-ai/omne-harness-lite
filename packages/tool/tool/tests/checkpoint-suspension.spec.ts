@@ -3,7 +3,9 @@
 // checkpoint, the opening wait and its two duties; the registration with the decision owner by the
 // original identity; and the park that frees the execution slot.
 import { afterEach, describe, expect, it } from 'vitest'
+import { writeJsonText } from '@omne-harness/json-text'
 import type { ToolCallId, ToolWaitId } from '@omne-harness/tool-contract'
+import { canonicalDigest } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import { snapshotOf } from '../src/ledger-decider.ts'
 import { releaseBasisOf } from '../src/ledger-start.ts'
@@ -15,15 +17,8 @@ import {
   scriptedBridge,
   type BridgeScript,
 } from './checkpoint-values.ts'
-import {
-  callId,
-  evidence,
-  ok,
-  operationId,
-  principalA,
-  tenantA,
-  type Block,
-} from './runtime-values.ts'
+import { callId, evidence, ok, operationId, principalA, tenantA } from './runtime-values.ts'
+import { question } from './scope-values.ts'
 import {
   admitCall,
   auditQueues,
@@ -85,13 +80,22 @@ describe('a checkpointed segment that returns suspended', () => {
     const state = await harness.state('c1')
     expect(state).toMatchObject({
       phase: 'suspended',
-      checkpoint: evidence(`checkpoint/${start.operation}`, 'test-host'),
+      checkpoint: { owner: 'test-host', record: `checkpoint/${start.operation}` },
       execution: { kind: 'suspended' },
       timing: { kind: 'paused', accumulatedMs: '25' },
       wait: { kind: 'ask', wait, registration, decision: null },
     })
     expect(read.waits).toMatchObject([{ phase: 'open', intent: { kind: 'ask', wait } }])
-    expect(read.checkpoint).toEqual(evidence(`checkpoint/${start.operation}`, 'test-host'))
+    // The ledger keeps the state of that checkpoint and the request original of the wait, each
+    // bound by the digest of its evidence.
+    expect(read.checkpointState).toEqual({
+      payload: read.checkpoint,
+      state: Buffer.from('{"asked":"which file?"}').toString('base64'),
+    })
+    expect(read.checkpoint?.digest).toBe(canonicalDigest(read.checkpointState?.state))
+    const original = writeJsonText(question('which file?'))
+    expect(read.waitRequest).toEqual({ wait, request: original })
+    expect(read.waits[0]?.intent.request.digest).toBe(canonicalDigest(original))
     // The initial segment ran once; the wait and the park owe nothing more.
     expect(checkpoint.segments).toEqual([start.operation])
     expect(read.tasks.map(task => task.kind)).not.toContain('suspend')
@@ -152,7 +156,7 @@ describe('a checkpointed segment that returns suspended', () => {
   })
 
   it('does not park when the wait reached responding before the park ran: the call keeps its slot', async () => {
-    const memory = createMemoryToolLedgerStore<Block>()
+    const memory = createMemoryToolLedgerStore()
     const { harness } = await suspendedCall('registers', {
       memory,
       commands: base => ({
@@ -270,7 +274,7 @@ describe('the identities and the release basis of a suspension', () => {
 })
 
 /** Writes the wait of `call` as `responding`, the way an accepted decision leaves it. */
-async function respond(memory: MemoryToolLedgerStore<Block>, call: ToolCallId): Promise<void> {
+async function respond(memory: MemoryToolLedgerStore, call: ToolCallId): Promise<void> {
   const domain = { kind: 'call', tenant: tenantA, call } as const
   const read = await memory.read(domain)
   if (read.kind !== 'complete') throw new Error('the call domain is unreadable')

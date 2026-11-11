@@ -131,40 +131,6 @@ export function bundleSettle(ctx: Context): Input['settle'] {
   }
 }
 
-/**
- * bundle 为检查点作者保管段的状态与等待请求（`authorExecution.checkpoint`）。bundle 还没建好时答 unavailable，
- * 段不暂停。
- */
-export function bundleCheckpoint(ctx: Context): NonNullable<Input['checkpoint']> {
-  return async input => {
-    const bundle = toolRuntimeHolder(ctx).bundle
-    if (bundle === null)
-      return fail({
-        kind: 'unavailable',
-        dependency: 'toolRuntime',
-        diagnostic: 'the tool runtime bundle is not built',
-      })
-    return bundle.value.authorExecution.checkpoint(input)
-  }
-}
-
-/**
- * bundle 为检查点作者读回 resume 段的输入（`authorExecution.resumption`）：检查点状态与账本固定的答复。bundle 还没建好
- * 时答 unavailable，段不运行。
- */
-export function bundleResumption(ctx: Context): NonNullable<Input['resumption']> {
-  return async input => {
-    const bundle = toolRuntimeHolder(ctx).bundle
-    if (bundle === null)
-      return fail({
-        kind: 'unavailable',
-        dependency: 'toolRuntime',
-        diagnostic: 'the tool runtime bundle is not built',
-      })
-    return bundle.value.authorExecution.resumption(input)
-  }
-}
-
 const bindingsPlugin: Plugin.Object = {
   name: 'tool-bindings',
   inject: [toolContributionAuthorityKey],
@@ -191,8 +157,6 @@ const bindingsPlugin: Plugin.Object = {
       authority: startAuthorityProxy(ctx),
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
-      checkpoint: bundleCheckpoint(ctx),
-      resumption: bundleResumption(ctx),
       capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
     })
     // Both services register in this row's fiber: `toolBindings` here, `toolCatalog` in its constructor.

@@ -80,7 +80,7 @@ it.each([
     'another request',
     (i: Continuity) => ({
       ...i,
-      request: { ...i.request, fallback: !i.request.fallback },
+      requestDigest: 'f'.repeat(64),
     }),
   ],
 ])('denies continuity for %s', async (_name, vary) => {

@@ -103,7 +103,7 @@ function matchesCall(call: CallDocument, record: BoundRecord, input: ContinuityI
     call.admission === record.admission &&
     digest(call.owner.evidence) === digest(record.evidenceAdoption) &&
     digest(call.state.consumer) === digest(input.consumer) &&
-    digest(input.request) === call.requestDigest
+    input.requestDigest === call.requestDigest
   )
 }
 /** The call, operation and binding that one confirmed pass wrote or saw for the record's call. */

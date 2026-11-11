@@ -3,11 +3,10 @@
 // the test provider of this member runs only the `tool` participant. The application tests run a
 // real condition participant with the real provider.
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { CommitRequestV2, CommitResultV2, SqlStorage } from '@omne-harness/sql-contract'
 import type { LedgerCommitInput, LedgerDomain } from '@omne-harness/tool'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
-import { createSqlToolConditionalCommit } from '../src/index.ts'
+import { createSqlToolConditionalCommit, createSqlToolLedgerStore } from '../src/index.ts'
 import { openApp, TENANT_A, UNREGISTERED, type App } from './fixtures/app.ts'
 
 const opened: App[] = []
@@ -21,7 +20,7 @@ const revision = (value: string) => {
   return decoded.ok
 }
 const host: LedgerDomain = { kind: 'host', tenant: TENANT_A, key: 'start-coordinator' }
-const ledger = (domain: LedgerDomain = host): LedgerCommitInput<ContentBlock> => ({
+const ledger = (domain: LedgerDomain = host): LedgerCommitInput => ({
   domain,
   expected: revision('0'),
   revision: revision('1'),
@@ -42,7 +41,13 @@ async function world(stop?: Stop | 'none') {
   const app = await openApp()
   opened.push(app)
   const seen: CommitRequestV2[] = []
+  let reads = 0
   const storage = {
+    database: app.options.storage.database,
+    read: (input: Parameters<SqlStorage['read']>[0]) => {
+      reads += 1
+      return app.options.storage.read(input)
+    },
     commit: async (request: CommitRequestV2) => {
       seen.push(request)
       const base = {
@@ -50,6 +55,7 @@ async function world(stop?: Stop | 'none') {
         inputDigest: 'd'.repeat(64),
         combinationVersion: request.combinationVersion,
         manifestDigest: request.manifestDigest,
+        recalled: false,
       }
       return (stop === undefined
         ? { ...base, kind: 'committed', responses: [] }
@@ -60,7 +66,12 @@ async function world(stop?: Stop | 'none') {
           }) as unknown as CommitResultV2
     },
   } as unknown as SqlStorage
-  return { seen, commit: createSqlToolConditionalCommit<ContentBlock>({ ...app.options, storage }) }
+  return {
+    seen,
+    reads: () => reads,
+    store: createSqlToolLedgerStore({ ...app.options, storage }),
+    commit: createSqlToolConditionalCommit({ ...app.options, storage }),
+  }
 }
 
 describe('conditional ledger commit over SQL', () => {
@@ -84,6 +95,20 @@ describe('conditional ledger commit over SQL', () => {
       revision: '1',
     })
     expect(request.commands[2]!.facts['writes']).toHaveLength(1)
+  })
+
+  it('keeps the ledger snapshot of the store current: the next read sees the write and reads no storage', async () => {
+    const w = await world()
+    // The store reads the domain once and keeps the snapshot.
+    expect(await w.store.read(host)).toMatchObject({ kind: 'complete', revision: '0', records: [] })
+    const before = w.reads()
+    expect(await w.commit.commit({ condition, ledger: ledger() })).toEqual({ kind: 'committed' })
+    // The scripted storage wrote nothing, so only the kept snapshot can hold the new record.
+    const after = await w.store.read(host)
+    expect(after).toMatchObject({ kind: 'complete', revision: '1' })
+    if (after.kind !== 'complete') throw new Error('unreachable')
+    expect(after.records).toHaveLength(1)
+    expect(w.reads()).toBe(before)
   })
 
   it.each([
@@ -148,7 +173,7 @@ describe('conditional ledger commit over SQL', () => {
 
   it('rejects a ledger write whose host value is not JSON data and sends nothing', async () => {
     const w = await world()
-    const writes: LedgerCommitInput<ContentBlock>['writes'] = [
+    const writes: LedgerCommitInput['writes'] = [
       { kind: 'put', record: { kind: 'host', host: { key: 'acceptance-1', value: () => 0 } } },
     ]
     const answer = await w.commit.commit({ condition, ledger: { ...ledger(), writes } })

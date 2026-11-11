@@ -76,13 +76,13 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 
 配置目录里只有 `server.json`。状态目录里有下面这些：
 
-| 路径               | 内容                                            | 谁创建                       |
-| ------------------ | ----------------------------------------------- | ---------------------------- |
+| 路径               | 内容                                                                                          | 谁创建                       |
+| ------------------ | --------------------------------------------------------------------------------------------- | ---------------------------- |
 | `model-vault.json` | 秘密保管库（settings-local `./secrets`）。宿主上唯一含秘密的文件；模型凭据是其中的 Model 绑定 | `setup`                      |
-| `workspace/`       | 默认工作区                                      | `setup`                      |
-| `host-files/`      | 执行宿主的状态目录，也是 Shell 的临时目录       | `setup`，缺失时 `serve` 重建 |
-| `storage/`         | `storage` 行的存储根                            | `serve`                      |
-| 游标签名密钥       | 入口对象的状态文件（`--state-root` 即状态目录） | `serve`                      |
+| `workspace/`       | 默认工作区                                                                                    | `setup`                      |
+| `host-files/`      | 执行宿主的状态目录，也是 Shell 的临时目录                                                     | `setup`，缺失时 `serve` 重建 |
+| `storage/`         | `storage` 行的存储根                                                                          | `serve`                      |
+| 游标签名密钥       | 入口对象的状态文件（`--state-root` 即状态目录）                                               | `serve`                      |
 
 ### 配置文件
 
@@ -161,8 +161,8 @@ Next:
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `storage`                                                                        | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                                                                                                                                              |
 | `session-storage`                                                                | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                                                                                                                                                   |
-| `secret-custody`                                                                 | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。`model-credential` 行经本行读同一个文件，没有运维者值，见[秘密保管行](docs/rows/secret-custody.md)；`settings` 行没有运维者值，见[设置行](docs/rows/settings.md)                                                                                                                                                                              |
-| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由由发行供应商 OpenRouter 的正文推出，本档不改端点。`model-records.diagnostics` 是 `tenant-self` 读取与占位的保留采用                                                                                                                                                     |
+| `secret-custody`                                                                 | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。`model-credential` 行经本行读同一个文件，没有运维者值，见[秘密保管行](docs/rows/secret-custody.md)；`settings` 行没有运维者值，见[设置行](docs/rows/settings.md)                                                 |
+| `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由由发行供应商 OpenRouter 的正文推出，本档不改端点。`model-records.diagnostics` 是 `tenant-self` 读取与占位的保留采用                                                                                                                  |
 | `tool-host`                                                                      | Shell：可执行文件取配置，参数见下，`cwd` 是工作区，结果上限 32768 字节。Files：`cwd` 是工作区，结果上限 32768 字节                                                                                                                                                       |
 | `tool-records`、`execution-host`                                                 | 文件根是工作区，宿主状态目录是 `host-files/`                                                                                                                                                                                                                             |
 | `request-context`、`agent-context`、`agent-host`、`session-ad03`、`session-ad04` | 各自的上限与工厂数值                                                                                                                                                                                                                                                     |
@@ -206,6 +206,10 @@ search 只返回合法非常驻，五项均已实际常驻时成功返回空页�
 TodoItems 作者只得到本次执行绑定的清单能力。应用从可信 Session 工作主体和原 ToolCallId 取得 Session 范围及稳定操作身份，并固定命令与参数；模型不提供 Session、租户或主体标识。每次访问经 Session 当前授权，状态、原操作回执与访问证据同事务提交。add/remove/mark_complete 逐项生效，list 保留完成项并隐藏已移除项，跨 Run 沿同一 Session 延续。提交未知须认回原操作，不能用新模型调用代替。执行作用域关闭后撤销绑定能力。
 
 清单结果通过既有 Tool→Agent 结果链进入历史，同 Session 接续按使用指导主动 list。本次发行未采用自动 Runtime Context 待办投影，不承诺自动注入或每次模型请求必见最新待办；这些保证不能从逐项持久清单推导。
+
+工具正文的当前系统上限由最终运维者覆盖后的 `tool-records.configuration.offloading.maxInlineUtf8Bytes` 唯一提供。`serve` 在装载插件前验证配置，并把该数值编译成只读的请求披露检查。每个根只安装一次，Model 发送行捕获该检查，不读取 live Tool 服务。非法配置在预检失败；缺少真实 Tool 配置时，工具消息被明确拒绝，普通模型请求不受这项政策限制。
+
+实际发送前，对每条 tool 消息分别累计 `toModel` 文本的 UTF-8 字节。相等允许，超限拒绝；人类专用文本、原生媒体/文件引用及其他角色的消息不计入这项工具正文预算。原 ToolResult、程序 data、已保存历史和固定请求不被改写。旧候选、历史或已受理请求在新激活恢复时仍经同一发送检查，拒绝沿 Model 的耐久 not-sent 失败链收场，不重新执行工具。首版不自动把旧历史派生成更小表示；不能安全披露时明确失败。政策变更需新根/进程，不支持激活期间热替换，也不撤回已经发出的请求。当前 Model 持久故障仅记 `excluded / transport-denied`，详细拒绝 action 不保留到耐久 fault，这是诊断限制。
 
 Web 作者只得到本次执行附着的 `WebAccess`（`tool-bindings` 行按 `isReleaseToolRequest` 为 Web 的调用附着，顺序在 Tools 与 TodoItems 之后，执行作用域关闭后撤除）。提供者是 `@omne-harness/tool-host-local/web` 的 `createWebAccess`，提供者数值（Exa 端点、超时、跳数、字节上限）归运维者层 `tool-bindings.web`，作者构造值 `resultMaxBytes` 与 `maxSearchResults` 归 `tool-host.construction.Web`；缺 `tool-bindings.web` 时不附着，Web 的 search 与 fetch 答 unavailable。search 的 key 是行事租户的 Web 设置 `exa.apiKey`：附着（`src/rows/tool-bindings/web.ts` 的 `releaseExaKey`）按调用读受信 `settingsSecretCustody`，经 tool-host-local 的 `createLocalToolCredentials` 解析，选层顺序是租户、组织、官方，组织层恒未配置，官方层对每个合法租户已持有（assets-and-rules F7）；引用在调用开始时选定，使用时只读这个引用，中途被清除则这次调用失败，不改选别的层（I-4、I-8）。没有任何层配了 key 时 search 返回 `unconfigured`，fetch 照常取页。本机档的 Web 直连宿主网络，不经执行环境设施，沙箱与多租户部署的出口控制是已知限制。
 
@@ -345,6 +349,8 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 | 4      | 仍有 PENDING 或未完成 LOADING                                                                                                                          |
 | 5      | 启动码为 0 但关闭 incomplete                                                                                                                           |
 
+**进程的结束。**命令报出结果之后进程立即结束，不等任何句柄：入口先等 stdout 与 stderr 把已写的内容交给系统，再以结果的退出码退出（`src/process-end.ts` 的 `endProcess`）。已停止的服务留下的重试定时器或没关的端口不能让进程留着。只设置 `process.exitCode` 不够，它要等进程里每个句柄都结束。判据：`tests/process-end.spec.ts`。
+
 启动码非零时取启动码。启动期 `start` 抛出时，`outcome` 为 `start-failed`，退出码为 3，见「有序关闭」节「启动与停止状态」第 3 条。`serve` 里一个入口对象的 `install` 抛出时，入口不装载任何行，stderr 写 `serve: entry-object <名>: install failed`，错误消息不写进 stdout，然后发起计划停止，退出 3。这时没有行登记过句柄，关闭报告把预期登记者记为 `not-registered`。
 
 用法错误时，stderr 写 `<子命令>: <原因>`，再写该子命令的用法行。`s0` 的用法行不变：`usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>`。`serve` 的用法行是：`usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]`。`setup` 的用法与输出见[本机单用户档](#setup)。位置参数里没有 `serve`，也不是恰好一个 `s0` 时（包括无参数），按 S0 路径处理，stderr 写 `s0: expected subcommand s0`，再写 `s0` 的用法行。位置参数里有 `serve` 但不是恰好一个 `serve` 时，stderr 写 `serve: expected subcommand serve`，再写 `serve` 的用法行。
@@ -450,3 +456,27 @@ sequenceDiagram
 - `StubService` 使用动态服务键，只在 S0 替身内部使用，不对外导出。
 - IC-2：`s0-double` 占位对象以 `provide` 普通值提供，没有服务定义。只给 S0 替身行，真实消费者不得到占位（DP1-C11）。
 - IC-8：S0 的 `rowPlugin`（`src/run.ts` 的 `stubRowPlugin`）与 `serve` 的包装插件（`src/row.ts` 的 `defineRow`）的 `inject` 由清单计算，不是字面数组。补偿：`defineRow` 要求声明的 `injects` 包含被包装插件的字面 `inject`，不符即抛出。声明再由 `real-manifests-sync` 与 `stubs.ts` 比较。
+
+### Tool 生命周期遥测
+
+`tool-records` 与 `tool-body-sweep` 显式 inject `telemetry`，各自包装实际 SQL 记录仓的提交口。应用将 Tool 生命周期观察投影为 `omne.tool.material.lifecycle` 事件。作用域取真实租户；调用关联采用调用标识的 SHA-256 投影。事件字段只有阶段、闭合失败类别、条目数及可选正文总字节数，不包含正文、data、路径或自由异常文本。
+
+事件不参与结果交接、清理或升级准入。禁用、容量丢弃、出口失败、依赖缺席和关闭均不能改变 Tool 的原答复。该接线只使用独立事件，不分配 segment、长期配对表或独立定时器。持久状态仍从 Tool 查询，不能用遥测计数证明材料已清理。
+
+### Tool 正文清扫
+
+`session-storage`在发布服务前逐个确认持久目录内租户的当前组合登记。目录中的既有租户不依赖新的会话create触发补登记。登记失败或最终未知使行失败；关闭后不开始下一次登记或发布服务。该前置屏障沿SQL原有幂等登记和迁移事务。
+
+发行授予表没有 Tool 材料维护用途。会话 Tool guard 的动作集合只有 `ToolLedgerAction`。
+
+`tool-body-sweep` 行为每个租户调度 Tool 的正文清扫，回收由 Tool 运行时执行：
+
+- 它按 `intervalMs` 定时运行。每一步枚举租户域，并在每个租户内取至多 `limit` 个到期项。
+- 对每个到期项，Tool 先删除正文存储中的字节，再在账本提交 `reclaimed` 并撤销排期。
+- 中途崩溃后，下一步重跑得到相同结果。
+
+该行使用 tenantDomainScannerPrincipal 枚举租户域。写入许可密钥与正文时钟取自同一运行时 holder，正文存储由公开 SQL 构造器创建。普通工具执行不依赖该行。
+
+运维者提供 combinationVersion、ledgerCommitAttempts、intervalMs 和 limit。正常关闭时，business 阶段停止调度并排空，先于 composition 与 storage。截止时间到时返回 incomplete，不声称已取消外部操作。
+
+单步失败与 runner 异常只记录失败种类与计数，不输出正文、身份或原异常文本。目录接口当前仍提供完整快照，内存成本随租户数增长。每步到期读取和回收数都有上界。

@@ -14,12 +14,8 @@
 //   调用，长跑进程里这些表只随在途调用数增长，不随累计调用数增长（L3 评审 N5）。
 // - bundle 本身：由 `tool-records` 行按运维者配置建一次，其余四行等它建好再装自己的插件。
 import type { Context } from '@deepseek-ai/cordis'
-import { canonicalDigest, type ToolLedgerStore } from '@omne-harness/tool'
-import type {
-  ToolClock,
-  ToolMessageContentBlock,
-  ToolOutputCustody,
-} from '@omne-harness/tool-contract/provider'
+import { canonicalDigest, type LedgerRecord, type ToolLedgerStore } from '@omne-harness/tool'
+import type { ToolClock } from '@omne-harness/tool-contract/provider'
 import {
   createLocalToolClock,
   type LocalToolForwarding,
@@ -27,13 +23,16 @@ import {
 } from '@omne-harness/tool-host-local'
 import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-local/cordis'
 
-type EnvironmentGuardedHostCommit = LocalToolRuntimeInput['environment']['guarded']
+import { randomBytes } from 'node:crypto'
+
 type StartConditionalCommit = LocalToolRuntimeInput['conditionalCommit']
-import type {
-  PrincipalVerifier,
-  SystemPrincipal,
-  TenantStandingSource,
-} from '@omne-harness/identity'
+import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
+import {
+  decodeToolInstant,
+  type ToolBodyPermitKey,
+  type ToolBodyStore,
+  type ToolInstantClock,
+} from '@omne-harness/tool-contract/provider'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
@@ -45,11 +44,8 @@ export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
 
 /** `tool-records` 行在自己的受信上下文里建出的 SQL 端口。 */
 export type ToolSqlPorts = Readonly<{
-  store: ToolLedgerStore<ToolMessageContentBlock>
-  custody: ToolOutputCustody<unknown>
-  /** 受信读回 `custody` 保管的原件。 */
-  readOutput: LocalToolRuntimeInput['readOutput']
-  guarded: EnvironmentGuardedHostCommit
+  store: ToolLedgerStore
+  bodies: NonNullable<LocalToolRuntimeInput['bodies']>
   conditional: StartConditionalCommit
 }>
 
@@ -59,18 +55,21 @@ export type ToolRuntimeHolder = {
   /** Late forwarding work is drained by the business shutdown before the runtime closes. */
   toolsForwarding: LocalToolForwarding<unknown> | null
   readonly clock: ToolClock
+  /** One permit key per process: the ledger signs with it, the SQL body store verifies with it. */
+  readonly bodyPermitKey: ToolBodyPermitKey
+  /** The participant clock of issuer, settler, store and reader in this process. */
+  readonly bodyClock: ToolInstantClock
   /** 当前 SQL 端口；`tool-records` 行不在时为 null。 */
   sql: ToolSqlPorts | null
   /** 执行域的 schema-provider；`tool-environments` 行装载时交来，撤除时收回。 */
   schemaProvider: SchemaProvider | null
+  bodySchemas: NonNullable<LocalToolRuntimeInput['bodySchemas']> | null
   /** 当前会话工作主体读口；`tool-records` 行不在时为 undefined。 */
   workPrincipals: () => SessionWorkPrincipals<unknown> | undefined
   /** identity 的核验器，入口逐次现取；入口没有交来时为 undefined。 */
   verifier: () => PrincipalVerifier | undefined
   /** identity 的当前资格读口，入口逐次现取；入口没有交来时为 undefined。 */
   standing: () => TenantStandingSource | undefined
-  /** 入口签发的部署租户扫描主体（`tenant-domain-scanner`），跨租户的待办扫描以它枚举租户；入口没有交来时为 undefined。 */
-  scanner: () => SystemPrincipal | undefined
   /** bundle 与建它所用配置的摘要；未建时为 null。 */
   bundle: Readonly<{ value: ToolRuntimeBundle; configDigest: string }> | null
   /** 建好 bundle 时兑现。 */
@@ -114,12 +113,25 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
   const created: ToolRuntimeHolder = {
     toolsForwarding: null,
     clock: createLocalToolClock(),
+    bodyPermitKey: { secret: randomBytes(32) },
+    bodyClock: {
+      now: () => {
+        const decoded = decodeToolInstant(
+          new Date(
+            /* wall-clock: clock-source -- Tool body permits, expiry and sweep */ Date.now(),
+          ).toISOString(),
+        )
+        if ('failure' in decoded)
+          throw new Error('tool-runtime: the host clock gave a non-canonical instant')
+        return decoded.ok
+      },
+    },
     sql: null,
     schemaProvider: null,
+    bodySchemas: null,
     workPrincipals: () => undefined,
     verifier: () => undefined,
     standing: () => undefined,
-    scanner: () => undefined,
     bundle: null,
     ready,
     resolve,
@@ -140,30 +152,41 @@ const unavailableRead = (diagnostic: string) => ({ kind: 'unavailable' as const,
  * 结清，由之后的读补上）。
  * 声明 `durable`：它只转交给 SQL 记录仓，从不在内存里保存记录。
  */
-export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessageContentBlock> {
+export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
+  const observe = (row: LedgerRecord) => {
+    if (row.kind !== 'call') return
+    const key = callKeyOf(row.call.tenant, row.call.call)
+    if (row.call.state.phase === 'settled') {
+      // The record says the call ended: release it whatever way that commit reached this process.
+      settleCall(holder, key)
+      return
+    }
+    if (row.call.execution === null) return
+    const execution = canonicalDigest(row.call.execution)
+    const old = holder.witnessed.get(key)
+    const current = old?.execution === execution ? old : { execution, sources: new Set<string>() }
+    current.sources.add(canonicalDigest(row.call.state.source))
+    holder.witnessed.set(key, current)
+  }
   return Object.freeze({
     durability: 'durable' as const,
     async read(domain) {
       const sql = holder.sql
       if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
       const answer = await sql.store.read(domain)
-      if (answer.kind === 'complete')
-        for (const row of answer.records) {
-          if (row.kind !== 'call') continue
-          const key = callKeyOf(row.call.tenant, row.call.call)
-          if (row.call.state.phase === 'settled') {
-            // The record says the call ended: release it whatever way that commit reached this process.
-            settleCall(holder, key)
-            continue
-          }
-          if (row.call.execution === null) continue
-          const execution = canonicalDigest(row.call.execution)
-          const old = holder.witnessed.get(key)
-          const current =
-            old?.execution === execution ? old : { execution, sources: new Set<string>() }
-          current.sources.add(canonicalDigest(row.call.state.source))
-          holder.witnessed.set(key, current)
-        }
+      if (answer.kind === 'complete') for (const row of answer.records) observe(row)
+      return answer
+    },
+    async due(tenant, now, limit) {
+      const sql = holder.sql
+      if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
+      return sql.store.due(tenant, now, limit)
+    },
+    async readRecord(domain, key) {
+      const sql = holder.sql
+      if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
+      const answer = await sql.store.readRecord(domain, key)
+      if (answer.kind === 'complete' && answer.record !== null) observe(answer.record)
       return answer
     },
     scanPending(input) {
@@ -186,25 +209,7 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessag
             settleCall(holder, callKeyOf(write.record.call.tenant, write.record.call.call))
       return answer
     },
-  } satisfies ToolLedgerStore<ToolMessageContentBlock>)
-}
-
-const custodyUnavailable = {
-  failure: {
-    kind: 'unavailable' as const,
-    dependency: 'tool-records',
-    diagnostic: 'no SQL output custody is installed',
-  },
-}
-
-/** 交给 bundle 的输出保管：逐次读当前 SQL 保管，缺席答 `unavailable`。 */
-export function lateCustody(holder: ToolRuntimeHolder): ToolOutputCustody<unknown> {
-  return Object.freeze({
-    preserve: input => holder.sql?.custody.preserve(input) ?? Promise.resolve(custodyUnavailable),
-    inspect: input => holder.sql?.custody.inspect(input) ?? Promise.resolve(custodyUnavailable),
-    retainResult: input =>
-      holder.sql?.custody.retainResult(input) ?? Promise.resolve(custodyUnavailable),
-  } satisfies ToolOutputCustody<unknown>)
+  } satisfies ToolLedgerStore)
 }
 
 /** 交给 bundle 的带条件提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */
@@ -215,21 +220,6 @@ export function lateConditional(holder: ToolRuntimeHolder): StartConditionalComm
       Promise.resolve(unavailableRead('tool-records: no SQL conditional commit is installed')),
   }
   return Object.freeze(conditional)
-}
-
-/** 交给 bundle 的原件读取：逐次读当前 SQL 保管，缺席答 `unavailable`。 */
-export function lateReadOutput(holder: ToolRuntimeHolder): LocalToolRuntimeInput['readOutput'] {
-  return input => holder.sql?.readOutput(input) ?? Promise.resolve(custodyUnavailable)
-}
-
-/** 交给 bundle 的守护宿主提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */
-export function lateGuarded(holder: ToolRuntimeHolder): EnvironmentGuardedHostCommit {
-  const guarded: EnvironmentGuardedHostCommit = {
-    commit: input =>
-      holder.sql?.guarded.commit(input) ??
-      Promise.resolve(unavailableRead('tool-records: no SQL guarded commit is installed')),
-  }
-  return Object.freeze(guarded)
 }
 
 /** 见证核对：这个原调用在记录仓里有这个执行与这份来源证据。 */
@@ -249,4 +239,22 @@ export function witnessed(
 export function awaitBundle(ctx: Context): Promise<ToolRuntimeBundle> {
   const holder = toolRuntimeHolder(ctx)
   return holder.bundle === null ? holder.ready : Promise.resolve(holder.bundle.value)
+}
+
+/** The SQL body store of the current `tool-records` row; unavailable answers while it is absent. */
+export function lateBodyStore(holder: ToolRuntimeHolder): ToolBodyStore {
+  const unavailable = {
+    kind: 'unavailable',
+    diagnostic: 'tool-records SQL ports are not mounted',
+  } as const
+  return Object.freeze({
+    durability: 'durable',
+    put: (permit, seq, bytes) =>
+      holder.sql?.bodies.store.put(permit, seq, bytes) ?? Promise.resolve(unavailable),
+    seal: (permit, manifest) =>
+      holder.sql?.bodies.store.seal(permit, manifest) ?? Promise.resolve(unavailable),
+    read: (body, range) =>
+      holder.sql?.bodies.store.read(body, range) ?? Promise.resolve(unavailable),
+    delete: body => holder.sql?.bodies.store.delete(body) ?? Promise.resolve(unavailable),
+  } satisfies ToolBodyStore)
 }

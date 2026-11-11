@@ -62,6 +62,7 @@ function firstDown(faults: RecordStoreFaults, stores: readonly RecordStore[]): s
 /** A store that is down fails every read and every commit that touches it, before it runs. */
 export function withRecordFaults(storage: SqlStorage, faults: RecordStoreFaults): SqlStorage {
   return {
+    database: storage.database,
     registerCombination: input => storage.registerCombination(input),
     query: identity => storage.query(identity),
     read(request, options) {
@@ -122,6 +123,7 @@ export function withLostReplies(
 ): SqlStorage & { queries(): number } {
   let queries = 0
   return {
+    database: storage.database,
     registerCombination: input => storage.registerCombination(input),
     read: (request, options) => storage.read(request, options),
     async commit(request, options) {

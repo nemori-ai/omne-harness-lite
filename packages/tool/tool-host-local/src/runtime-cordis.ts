@@ -71,18 +71,31 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   let executor: ReturnType<typeof createRuntimeExecutor> | null = null
   let retired = false
   let forwarding: ToolForwardRuntime<unknown> | undefined
+  const bodyUnavailable = (operation: string) =>
+    Promise.resolve(
+      fail({
+        kind: 'unavailable' as const,
+        operation,
+        reason: 'The body writer records are unavailable.',
+      }),
+    )
   const authorExecution = createRuntimeAuthorExecution({
     ...input,
-    recovery: request =>
-      records === null
-        ? Promise.resolve(
-            fail({
-              kind: 'unavailable' as const,
-              dependency: 'toolRecords',
-              diagnostic: 'Tool records are not ready.',
-            }),
-          )
-        : records.ledger.commands.loadRecovery(request),
+    bodyWrites: {
+      begin: request =>
+        records?.ledger.bodyWrites.begin(request) ?? bodyUnavailable(request.operation),
+      append: request =>
+        records?.ledger.bodyWrites.append(request) ?? bodyUnavailable(request.operation),
+      seal: request =>
+        records?.ledger.bodyWrites.seal(request) ?? bodyUnavailable(request.operation),
+      inspect: request => records?.ledger.bodyWrites.inspect(request) ?? bodyUnavailable('inspect'),
+    },
+    finalPlanner: {
+      planFinal: request =>
+        records === null
+          ? Promise.resolve(runtimeUnavailable('toolFinalPlanner'))
+          : records.ledger.finalPlanner.planFinal(request),
+    },
   })
   const stages = createRuntimeStages(input, () => environment)
   const receivers: { current: DeliveryPosition<unknown, ToolMessageContentBlock>['receiver'] } = {
@@ -101,10 +114,10 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       stages,
       records,
       () => host,
-      wake =>
+      (wake, purpose) =>
         !retired &&
         executor !== null &&
-        (wake === null ? executor.live() : executor.remember(wake)),
+        (wake === null ? executor.live() : executor.remember(wake, purpose)),
       wake => executor?.rejectAdmission(wake),
       wake => executor?.knows(wake) ?? false,
     )
@@ -113,20 +126,27 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
     retired = true
     forwarding = undefined
     lifetime.abort()
-    authorExecution.close()
+    const bodyClose = await authorExecution.close()
     await executor?.close()
+    if ('failure' in bodyClose)
+      throw new Error(
+        `Tool body custody remains unresolved during retirement: ${bodyClose.failure.kind}`,
+      )
   }
   // A named type keeps the declaration on RuntimeAuthorExecution; an inferred one would inline
   // exchange-refs types that this member does not depend on.
   const publicAuthorExecution: RuntimeAuthorExecution = {
     scope: authorExecution.scope,
     settle: authorExecution.settle,
-    checkpoint: authorExecution.checkpoint,
-    resumption: authorExecution.resumption,
   }
   return {
     authorExecution: publicAuthorExecution,
     forwarding: () => forwarding,
+    async forwardedResult(request: Parameters<typeof input.sources.forwardedResult>[0]) {
+      if (retired) return runtimeUnavailable('forwarded-result')
+      const answer = await input.sources.forwardedResult(request)
+      return retired ? runtimeUnavailable('forwarded-result') : answer
+    },
     records: {
       name: 'local-tool-records',
       apply(ctx: Context) {
@@ -188,6 +208,12 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
           ctx,
           settings: input,
           dependencies: dependencies(ctx),
+          resultDelivery: {
+            read: request =>
+              records === null || retired
+                ? runtimeUnavailable('toolResultDelivery')
+                : records.ledger.delivery.read(request),
+          },
           receiver: consumer => receivers.current(consumer),
           recovery,
         })
@@ -211,6 +237,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       retired,
       pendingOutputCustody: authorExecution.pending(),
       retainedAuthorReturns: authorExecution.retainedReturns(),
+      pendingBodyScopes: authorExecution.pendingBodyScopes(),
       executor: executor?.diagnostics() ?? null,
     }),
   }

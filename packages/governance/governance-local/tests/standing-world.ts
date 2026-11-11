@@ -125,6 +125,7 @@ export async function openStandingWorld(options: StandingWorldOptions = {}) {
     }).source,
     scrypt: opened.module,
     decoyMaterial: material.material,
+    accessRefreshGranularity: duration('PT600S'),
     principalVerifier: authority.verifier,
     destinationResolver: resolver,
     identifiers: {

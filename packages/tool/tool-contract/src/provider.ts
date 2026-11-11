@@ -1,9 +1,46 @@
+export type {
+  ToolBodyWrites,
+  ToolBodyWriteInput,
+  ToolBodyWriteFailure,
+  ToolBodyWriteReply,
+  SealedToolBody,
+} from './body-writer.ts'
+export type { ToolBodyReader } from './body-reads.ts'
 // The `./provider` entry of the Tool contract package: the provider protocol that only the Tool
 // implementation members use (SPEC「公开入口的分组」rules 2 and 3): ports that outside providers
 // implement, protocol records between providers, custody and account read/write ports, loading
 // and the binding registry, executor binding and start records, the author adapters, and the
 // value types only they reference. Every name is defined once, in the same modules as the root
 // entry; a name is exported from one entry only. It does not import Cordis or another Tool package.
+export {
+  decodeToolInstant,
+  manifestOf,
+  sha256Hex,
+  signBodyPermit,
+  verifyBodyPermit,
+  type ToolBodyChunk,
+  type ToolBodyDeleteAnswer,
+  type ToolBodyManifest,
+  type ToolBodyPermit,
+  type ToolBodyPermitClaims,
+  type ToolBodyPermitKey,
+  type ToolBodyPermitVerdict,
+  type ToolBodyPutAnswer,
+  type ToolBodyRange,
+  type ToolBodyReadAnswer,
+  type ToolBodyRef,
+  type ToolBodySealAnswer,
+  type ToolBodyStore,
+  type ToolBodyStoreUnavailable,
+  type ToolInstant,
+  type ToolInstantClock,
+} from './body-store.ts'
+export type {
+  ToolCanonicalFingerprint,
+  ToolFinalEnvelope,
+  ToolPlannedFinal,
+  ToolFinalPlanner,
+} from './materials.ts'
 export { describedAdoption } from './adoption.ts'
 export type { AdoptionRules } from './adoption.ts'
 export {
@@ -11,6 +48,7 @@ export {
   decodeToolCursor,
   decodeToolDeliveryId,
   decodeToolInstanceId,
+  decodeToolBodyId,
   decodeToolResultVersion,
   decodeToolRevision,
   decodeToolWaitId,
@@ -23,6 +61,7 @@ export type {
   ToolCredentialUsage,
 } from './credentials.ts'
 export {
+  judgeCommittedToolResult,
   defaultResultPolicy,
   defaultResultPolicyAdoption,
   defaultResultPolicyRules,
@@ -101,7 +140,11 @@ export type {
   ToolCheckpointDeclaration,
   ToolSegmentContext,
 } from './checkpointed-author.ts'
-export { authorDecision, CLOSED_RESULT_MAX_BYTES } from './checkpointed-author.ts'
+export {
+  authorDecision,
+  CHECKPOINT_STATE_MAX_BYTES,
+  CLOSED_RESULT_MAX_BYTES,
+} from './checkpointed-author.ts'
 export type {
   ResultPolicy,
   TextRenderer,
@@ -194,7 +237,6 @@ export type {
   ToolAccounts,
   ToolContentReader,
   ToolOffloader,
-  ToolOutputCustody,
   ToolReads,
 } from './custody.ts'
 export type {
@@ -232,3 +274,4 @@ export type {
   ToolForwardSource,
   ToolForwardRuntime,
 } from './forwarding.ts'
+export { returnGuide } from './return-description.ts'

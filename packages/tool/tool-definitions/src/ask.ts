@@ -27,6 +27,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { askClosedResult, askResult, readAskState } from './ask-result.ts'
 import { parseConstruction, tree } from './protocol.ts'
+import { textReturns } from './returns.ts'
 
 const encoder = new TextEncoder()
 
@@ -77,7 +78,7 @@ export const askExecutor: CheckpointedToolExecutor<AskArguments, string, null> =
   },
 }
 
-const returns = { kind: 'ordinary', program: { kind: 'none' } } as const
+const returns = textReturns(askAdoption)
 
 /**
  * Ask 的命令工具：两条命令共用 `askExecutor`，都声明 `askWaitContract`。结果是 resume 段投影出的

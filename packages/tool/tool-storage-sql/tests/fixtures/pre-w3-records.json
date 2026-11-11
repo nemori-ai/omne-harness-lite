@@ -1,0 +1,760 @@
+[
+  {
+    "kind": "call",
+    "key": "call",
+    "record": {
+      "kind": "call",
+      "call": {
+        "tenant": {
+          "name": "TenantId",
+          "organization": {
+            "name": "OrganizationId",
+            "text": "org_00000000000000000000000000"
+          },
+          "account": {
+            "name": "AccountId",
+            "text": "acc_11111111111111111111111111"
+          }
+        },
+        "call": "legacy-ordinary",
+        "admission": "op-legacy-ordinary",
+        "request": {
+          "availability": {
+            "kind": "available",
+            "definition": {
+              "adoption": {
+                "owner": "test-owner",
+                "name": "read_file",
+                "revision": "1",
+                "digest": "sha256:read_file"
+              },
+              "name": "read_file",
+              "requiredCapabilities": [],
+              "description": "The read_file tool.",
+              "backgroundAllowed": false,
+              "declarations": {
+                "adoption": {
+                  "owner": "test-owner",
+                  "name": "declarations",
+                  "revision": "1",
+                  "digest": "sha256:declarations"
+                },
+                "environment": null,
+                "attachments": [],
+                "inputModalities": [],
+                "outputModalities": [],
+                "settings": null
+              },
+              "kind": "function",
+              "parameters": {
+                "schema": {
+                  "kind": "object",
+                  "entries": [
+                    {
+                      "key": "type",
+                      "value": {
+                        "kind": "string",
+                        "value": "object"
+                      }
+                    }
+                  ]
+                },
+                "vocabulary": {
+                  "owner": "test-owner",
+                  "name": "json-schema",
+                  "revision": "1",
+                  "digest": "sha256:json-schema"
+                },
+                "descriptions": [
+                  {
+                    "path": "path",
+                    "text": "The path value."
+                  }
+                ]
+              },
+              "returns": {
+                "kind": "ordinary",
+                "program": {
+                  "kind": "none"
+                }
+              }
+            },
+            "executor": {
+              "owner": "test-owner",
+              "name": "exec",
+              "revision": "1",
+              "digest": "sha256:exec"
+            },
+            "layer": {
+              "kind": "official"
+            }
+          },
+          "command": null,
+          "arguments": {
+            "original": "{\"path\":\"a.txt\"}",
+            "effective": "{\"path\":\"a.txt\"}",
+            "complete": true
+          },
+          "settings": {
+            "owner": "test-owner",
+            "name": "settings",
+            "revision": "1",
+            "digest": "sha256:settings"
+          },
+          "context": {
+            "owner": "test-owner",
+            "name": "context",
+            "revision": "1",
+            "digest": "sha256:context"
+          },
+          "workspace": null,
+          "environment": null,
+          "requesterScope": {
+            "ref": "test-requester-scope"
+          },
+          "resources": [],
+          "scope": {
+            "owner": "scope-owner",
+            "key": "scope-1",
+            "grant": {
+              "owner": "test-owner",
+              "record": "grant-1",
+              "revision": "1",
+              "digest": "sha256:grant-1"
+            }
+          },
+          "consumer": {
+            "owner": "consumer",
+            "work": "work-1",
+            "position": "position-1",
+            "purpose": "tool-result"
+          },
+          "batchDecision": null,
+          "mode": "foreground",
+          "limits": {
+            "concurrency": 1,
+            "foregroundMs": null,
+            "backgroundAfterMs": null
+          },
+          "invocation": {
+            "kind": "direct",
+            "source": {
+              "owner": "test-owner",
+              "record": "entry",
+              "revision": "1",
+              "digest": "sha256:entry"
+            }
+          }
+        },
+        "initiator": {
+          "owner": "test-owner",
+          "subject": "entry",
+          "revision": "1"
+        },
+        "state": {
+          "call": "legacy-ordinary",
+          "revision": "9",
+          "phase": "settled",
+          "result": "v1",
+          "foreground": {
+            "kind": "final",
+            "result": "v1"
+          },
+          "effect": {
+            "kind": "occurred",
+            "evidence": {
+              "owner": "test-owner",
+              "record": "legacy-ordinary-effect",
+              "revision": "1",
+              "digest": "sha256:legacy-ordinary-effect"
+            }
+          },
+          "execution": {
+            "kind": "ended",
+            "evidence": {
+              "owner": "@omne-harness/tool",
+              "record": "fact-event:{\"call\":\"legacy-ordinary\",\"event\":\"legacy-ordinary-event\",\"owner\":\"test-owner\",\"start\":\"op-legacy-ordinary/start\",\"tenant\":{\"account\":\"acc_11111111111111111111111111\",\"organization\":\"org_00000000000000000000000000\"}}",
+              "revision": "8",
+              "digest": "sha256:450831e5a3f09c34e8a40d071f521eede58d7d6ea5408851f82c63d9b3e34309"
+            }
+          },
+          "timing": {
+            "kind": "unknown",
+            "accumulatedMs": "0",
+            "segment": {
+              "operation": "op-legacy-ordinary/start",
+              "source": "test-clock",
+              "epoch": "epoch-1",
+              "marker": {
+                "owner": "test-owner",
+                "record": "segment-legacy-ordinary",
+                "revision": "1",
+                "digest": "sha256:segment-legacy-ordinary"
+              }
+            },
+            "diagnostic": "execution-end-clock-marker-unavailable"
+          },
+          "controls": [],
+          "delivery": {
+            "kind": "pending",
+            "delivery": "d1",
+            "consumer": {
+              "owner": "consumer",
+              "work": "work-1",
+              "position": "position-1",
+              "purpose": "tool-result"
+            }
+          },
+          "supplements": [],
+          "wait": {
+            "kind": "none"
+          },
+          "queue": {
+            "kind": "released",
+            "key": "[\"scope-owner\",\"scope-1\",\"read_file\"]",
+            "ordinal": "1",
+            "evidence": {
+              "owner": "@omne-harness/tool",
+              "record": "fact-event:{\"call\":\"legacy-ordinary\",\"event\":\"legacy-ordinary-event\",\"owner\":\"test-owner\",\"start\":\"op-legacy-ordinary/start\",\"tenant\":{\"account\":\"acc_11111111111111111111111111\",\"organization\":\"org_00000000000000000000000000\"}}",
+              "revision": "8",
+              "digest": "sha256:450831e5a3f09c34e8a40d071f521eede58d7d6ea5408851f82c63d9b3e34309"
+            }
+          },
+          "relation": "foreground",
+          "terminal": {
+            "kind": "completed"
+          },
+          "source": {
+            "owner": "@omne-harness/tool",
+            "record": "state:{\"call\":\"legacy-ordinary\",\"tenant\":{\"account\":\"acc_11111111111111111111111111\",\"organization\":\"org_00000000000000000000000000\"}}",
+            "revision": "9",
+            "digest": "sha256:80012f34503e24f85a21785621aee44ed834258e2741fe39944193693ec0f801"
+          }
+        },
+        "preparations": [
+          {
+            "tenant": {
+              "name": "TenantId",
+              "organization": {
+                "name": "OrganizationId",
+                "text": "org_00000000000000000000000000"
+              },
+              "account": {
+                "name": "AccountId",
+                "text": "acc_11111111111111111111111111"
+              }
+            },
+            "call": "legacy-ordinary",
+            "operation": "op-legacy-ordinary/plan",
+            "adoption": {
+              "owner": "test-owner",
+              "name": "environment",
+              "revision": "1",
+              "digest": "sha256:environment"
+            },
+            "inputDigest": "sha256:d7b841b780102a9c8d71eec8c48e25124bc1eaa1401fe46f1947e58a8e09a1e2",
+            "purpose": "initial",
+            "request": {
+              "availability": {
+                "kind": "available",
+                "definition": {
+                  "adoption": {
+                    "owner": "test-owner",
+                    "name": "read_file",
+                    "revision": "1",
+                    "digest": "sha256:read_file"
+                  },
+                  "name": "read_file",
+                  "requiredCapabilities": [],
+                  "description": "The read_file tool.",
+                  "backgroundAllowed": false,
+                  "declarations": {
+                    "adoption": {
+                      "owner": "test-owner",
+                      "name": "declarations",
+                      "revision": "1",
+                      "digest": "sha256:declarations"
+                    },
+                    "environment": null,
+                    "attachments": [],
+                    "inputModalities": [],
+                    "outputModalities": [],
+                    "settings": null
+                  },
+                  "kind": "function",
+                  "parameters": {
+                    "schema": {
+                      "kind": "object",
+                      "entries": [
+                        {
+                          "key": "type",
+                          "value": {
+                            "kind": "string",
+                            "value": "object"
+                          }
+                        }
+                      ]
+                    },
+                    "vocabulary": {
+                      "owner": "test-owner",
+                      "name": "json-schema",
+                      "revision": "1",
+                      "digest": "sha256:json-schema"
+                    },
+                    "descriptions": [
+                      {
+                        "path": "path",
+                        "text": "The path value."
+                      }
+                    ]
+                  },
+                  "returns": {
+                    "kind": "ordinary",
+                    "program": {
+                      "kind": "none"
+                    }
+                  }
+                },
+                "executor": {
+                  "owner": "test-owner",
+                  "name": "exec",
+                  "revision": "1",
+                  "digest": "sha256:exec"
+                },
+                "layer": {
+                  "kind": "official"
+                }
+              },
+              "command": null,
+              "arguments": {
+                "original": "{\"path\":\"a.txt\"}",
+                "effective": "{\"path\":\"a.txt\"}",
+                "complete": true
+              },
+              "settings": {
+                "owner": "test-owner",
+                "name": "settings",
+                "revision": "1",
+                "digest": "sha256:settings"
+              },
+              "context": {
+                "owner": "test-owner",
+                "name": "context",
+                "revision": "1",
+                "digest": "sha256:context"
+              },
+              "workspace": null,
+              "environment": null,
+              "requesterScope": {
+                "ref": "test-requester-scope"
+              },
+              "resources": [],
+              "scope": {
+                "owner": "scope-owner",
+                "key": "scope-1",
+                "grant": {
+                  "owner": "test-owner",
+                  "record": "grant-1",
+                  "revision": "1",
+                  "digest": "sha256:grant-1"
+                }
+              },
+              "consumer": {
+                "owner": "consumer",
+                "work": "work-1",
+                "position": "position-1",
+                "purpose": "tool-result"
+              },
+              "batchDecision": null,
+              "mode": "foreground",
+              "limits": {
+                "concurrency": 1,
+                "foregroundMs": null,
+                "backgroundAfterMs": null
+              },
+              "invocation": {
+                "kind": "direct",
+                "source": {
+                  "owner": "test-owner",
+                  "record": "entry",
+                  "revision": "1",
+                  "digest": "sha256:entry"
+                }
+              }
+            }
+          }
+        ],
+        "environment": {
+          "preparation": "op-legacy-ordinary/plan",
+          "resources": {
+            "owner": "test-owner",
+            "record": "environment-legacy-ordinary",
+            "revision": "1",
+            "digest": "sha256:environment-legacy-ordinary"
+          }
+        },
+        "start": {
+          "kind": "start",
+          "operation": "op-legacy-ordinary/start",
+          "executor": {
+            "owner": "test-owner",
+            "name": "exec",
+            "revision": "1",
+            "digest": "sha256:exec"
+          },
+          "execution": {
+            "tenant": {
+              "name": "TenantId",
+              "organization": {
+                "name": "OrganizationId",
+                "text": "org_00000000000000000000000000"
+              },
+              "account": {
+                "name": "AccountId",
+                "text": "acc_11111111111111111111111111"
+              }
+            },
+            "call": "legacy-ordinary",
+            "instance": "instance-1",
+            "generation": "1"
+          }
+        },
+        "startRejection": null,
+        "execution": {
+          "tenant": {
+            "name": "TenantId",
+            "organization": {
+              "name": "OrganizationId",
+              "text": "org_00000000000000000000000000"
+            },
+            "account": {
+              "name": "AccountId",
+              "text": "acc_11111111111111111111111111"
+            }
+          },
+          "call": "legacy-ordinary",
+          "instance": "instance-1",
+          "generation": "1"
+        }
+      }
+    }
+  },
+  {
+    "kind": "fact-batch",
+    "key": "fact-batch:[\"op-legacy-ordinary/start\",\"test-owner\",\"legacy-ordinary-batch\"]",
+    "record": {
+      "kind": "fact-batch",
+      "batch": {
+        "tenant": {
+          "name": "TenantId",
+          "organization": {
+            "name": "OrganizationId",
+            "text": "org_00000000000000000000000000"
+          },
+          "account": {
+            "name": "AccountId",
+            "text": "acc_11111111111111111111111111"
+          }
+        },
+        "call": "legacy-ordinary",
+        "start": {
+          "operation": "op-legacy-ordinary/start",
+          "executor": {
+            "owner": "test-owner",
+            "name": "exec",
+            "revision": "1",
+            "digest": "sha256:exec"
+          },
+          "execution": {
+            "tenant": {
+              "name": "TenantId",
+              "organization": {
+                "name": "OrganizationId",
+                "text": "org_00000000000000000000000000"
+              },
+              "account": {
+                "name": "AccountId",
+                "text": "acc_11111111111111111111111111"
+              }
+            },
+            "call": "legacy-ordinary",
+            "instance": "instance-1",
+            "generation": "1"
+          },
+          "kind": "start"
+        },
+        "source": {
+          "owner": "test-owner",
+          "record": "legacy-ordinary-final",
+          "revision": "1",
+          "digest": "sha256:legacy-ordinary-final"
+        },
+        "batch": "legacy-ordinary-batch",
+        "after": null,
+        "cursor": "legacy-ordinary-cursor",
+        "events": ["legacy-ordinary-event"],
+        "receipt": {
+          "start": "op-legacy-ordinary/start",
+          "batch": "legacy-ordinary-batch",
+          "cursor": "legacy-ordinary-cursor",
+          "custody": {
+            "owner": "@omne-harness/tool",
+            "record": "fact-custody:{\"batch\":\"legacy-ordinary-batch\",\"call\":\"legacy-ordinary\",\"owner\":\"test-owner\",\"start\":\"op-legacy-ordinary/start\",\"tenant\":{\"account\":\"acc_11111111111111111111111111\",\"organization\":\"org_00000000000000000000000000\"}}",
+            "revision": "8",
+            "digest": "sha256:a879fa49e82b81140d497934eacab72bc49e36675c106920c981e66386e83376"
+          }
+        },
+        "acknowledgement": {
+          "kind": "pending"
+        }
+      }
+    }
+  },
+  {
+    "kind": "fact-event",
+    "key": "fact-event:[\"op-legacy-ordinary/start\",\"test-owner\",\"legacy-ordinary-event\"]",
+    "record": {
+      "kind": "fact-event",
+      "fact": {
+        "event": "legacy-ordinary-event",
+        "fact": {
+          "kind": "final",
+          "raw": {
+            "codec": {
+              "owner": "test-owner",
+              "name": "codec",
+              "revision": "1",
+              "digest": "sha256:codec"
+            },
+            "custody": {
+              "owner": "@omne-harness/tool-storage-sql",
+              "record": "raw/legacy-ordinary/legacy-ordinary-raw",
+              "revision": "1",
+              "digest": "sha256:84a11797c171c4006aa07a6bb5c148e2880b73baab0b2de0344f6150bc0f1c0d"
+            },
+            "content": {
+              "storage": "@omne-harness/tool-storage-sql",
+              "key": "[\"legacy-ordinary\",\"legacy-ordinary-raw\"]",
+              "mediaType": "application/octet-stream",
+              "bytes": "15",
+              "digest": "sha256:3b40938e84c4924983655e0f9c0018317875eb529da0263e067c6548bc833958"
+            }
+          },
+          "result": {
+            "content": [
+              {
+                "kind": "text",
+                "id": "answer",
+                "visibility": {
+                  "toHuman": true,
+                  "toModel": true
+                },
+                "text": "ordinary answer"
+              }
+            ],
+            "data": {
+              "kind": "none"
+            },
+            "original": {
+              "kind": "none"
+            },
+            "attachments": [
+              {
+                "storage": "native-file",
+                "key": "/fixture/native-deliverable.txt",
+                "mediaType": "text/plain",
+                "bytes": "46",
+                "digest": "sha256:44a2c72b51fcd07928267935ffb6af2b539073898bcde3f32c0bb798cb8a3a9d"
+              }
+            ]
+          },
+          "terminal": {
+            "kind": "completed"
+          },
+          "effect": {
+            "kind": "occurred",
+            "evidence": {
+              "owner": "test-owner",
+              "record": "legacy-ordinary-effect",
+              "revision": "1",
+              "digest": "sha256:legacy-ordinary-effect"
+            }
+          }
+        },
+        "key": "[\"op-legacy-ordinary/start\",\"test-owner\",\"legacy-ordinary-event\"]",
+        "start": {
+          "operation": "op-legacy-ordinary/start",
+          "executor": {
+            "owner": "test-owner",
+            "name": "exec",
+            "revision": "1",
+            "digest": "sha256:exec"
+          },
+          "execution": {
+            "tenant": {
+              "name": "TenantId",
+              "organization": {
+                "name": "OrganizationId",
+                "text": "org_00000000000000000000000000"
+              },
+              "account": {
+                "name": "AccountId",
+                "text": "acc_11111111111111111111111111"
+              }
+            },
+            "call": "legacy-ordinary",
+            "instance": "instance-1",
+            "generation": "1"
+          },
+          "kind": "start"
+        },
+        "source": {
+          "owner": "test-owner",
+          "record": "legacy-ordinary-final",
+          "revision": "1",
+          "digest": "sha256:legacy-ordinary-final"
+        },
+        "evidence": {
+          "owner": "@omne-harness/tool",
+          "record": "fact-event:{\"call\":\"legacy-ordinary\",\"event\":\"legacy-ordinary-event\",\"owner\":\"test-owner\",\"start\":\"op-legacy-ordinary/start\",\"tenant\":{\"account\":\"acc_11111111111111111111111111\",\"organization\":\"org_00000000000000000000000000\"}}",
+          "revision": "8",
+          "digest": "sha256:450831e5a3f09c34e8a40d071f521eede58d7d6ea5408851f82c63d9b3e34309"
+        },
+        "tenant": {
+          "name": "TenantId",
+          "organization": {
+            "name": "OrganizationId",
+            "text": "org_00000000000000000000000000"
+          },
+          "account": {
+            "name": "AccountId",
+            "text": "acc_11111111111111111111111111"
+          }
+        },
+        "call": "legacy-ordinary"
+      }
+    }
+  },
+  {
+    "kind": "result",
+    "key": "result:v1",
+    "record": {
+      "kind": "result",
+      "result": {
+        "tenant": {
+          "name": "TenantId",
+          "organization": {
+            "name": "OrganizationId",
+            "text": "org_00000000000000000000000000"
+          },
+          "account": {
+            "name": "AccountId",
+            "text": "acc_11111111111111111111111111"
+          }
+        },
+        "call": "legacy-ordinary",
+        "result": "v1",
+        "relation": "original",
+        "terminal": {
+          "kind": "completed"
+        },
+        "actual": null,
+        "effect": {
+          "kind": "occurred",
+          "evidence": {
+            "owner": "test-owner",
+            "record": "legacy-ordinary-effect",
+            "revision": "1",
+            "digest": "sha256:legacy-ordinary-effect"
+          }
+        },
+        "value": {
+          "content": [
+            {
+              "kind": "text",
+              "id": "answer",
+              "visibility": {
+                "toHuman": true,
+                "toModel": true
+              },
+              "text": "ordinary answer"
+            }
+          ],
+          "data": {
+            "kind": "none"
+          },
+          "original": {
+            "kind": "none"
+          },
+          "attachments": [
+            {
+              "storage": "native-file",
+              "key": "/fixture/native-deliverable.txt",
+              "mediaType": "text/plain",
+              "bytes": "46",
+              "digest": "sha256:44a2c72b51fcd07928267935ffb6af2b539073898bcde3f32c0bb798cb8a3a9d"
+            }
+          ]
+        },
+        "delivery": {
+          "kind": "pending",
+          "delivery": "d1",
+          "consumer": {
+            "owner": "consumer",
+            "work": "work-1",
+            "position": "position-1",
+            "purpose": "tool-result"
+          }
+        },
+        "source": {
+          "owner": "@omne-harness/tool",
+          "record": "result:{\"call\":\"legacy-ordinary\",\"delivery\":\"d1\",\"operation\":\"legacy-ordinary-settle\",\"result\":\"v1\",\"tenant\":{\"account\":\"acc_11111111111111111111111111\",\"organization\":\"org_00000000000000000000000000\"}}",
+          "revision": "9",
+          "digest": "sha256:a48cd5b2b84df96d8683799f62080e06967599cb2fa59ad9e28fc8a1a6630e7a"
+        },
+        "settledBy": "legacy-ordinary-settle",
+        "custody": {
+          "kind": "execution",
+          "final": {
+            "owner": "@omne-harness/tool",
+            "record": "fact-event:{\"call\":\"legacy-ordinary\",\"event\":\"legacy-ordinary-event\",\"owner\":\"test-owner\",\"start\":\"op-legacy-ordinary/start\",\"tenant\":{\"account\":\"acc_11111111111111111111111111\",\"organization\":\"org_00000000000000000000000000\"}}",
+            "revision": "8",
+            "digest": "sha256:450831e5a3f09c34e8a40d071f521eede58d7d6ea5408851f82c63d9b3e34309"
+          },
+          "raw": {
+            "codec": {
+              "owner": "test-owner",
+              "name": "codec",
+              "revision": "1",
+              "digest": "sha256:codec"
+            },
+            "custody": {
+              "owner": "@omne-harness/tool-storage-sql",
+              "record": "raw/legacy-ordinary/legacy-ordinary-raw",
+              "revision": "1",
+              "digest": "sha256:84a11797c171c4006aa07a6bb5c148e2880b73baab0b2de0344f6150bc0f1c0d"
+            },
+            "content": {
+              "storage": "@omne-harness/tool-storage-sql",
+              "key": "[\"legacy-ordinary\",\"legacy-ordinary-raw\"]",
+              "mediaType": "application/octet-stream",
+              "bytes": "15",
+              "digest": "sha256:3b40938e84c4924983655e0f9c0018317875eb529da0263e067c6548bc833958"
+            }
+          },
+          "retainOperation": "retain-result:sha256:37b245534e8e9ed5eba3585d6d73579dcf70237484152dd9c84770e3dc0e4f6e",
+          "retained": {
+            "owner": "@omne-harness/tool-storage-sql",
+            "record": "retain/legacy-ordinary/retain-result:sha256:37b245534e8e9ed5eba3585d6d73579dcf70237484152dd9c84770e3dc0e4f6e",
+            "revision": "1",
+            "digest": "sha256:0516f8044d51f42e5beb4b85f8e5ca0c14ed07f8096843a553e298ca2b38c68c"
+          },
+          "cleanup": {
+            "kind": "planned",
+            "operation": "release-environment:sha256:631b2720ab1d48479cd16f2c39c2ef9161480b8d12a86852620e3a7efd6690eb"
+          }
+        }
+      }
+    }
+  }
+]

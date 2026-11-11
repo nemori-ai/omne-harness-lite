@@ -12,9 +12,10 @@ import {
 } from '../authorization/current-tool-permission.ts'
 import { toolAssetTarget } from './tool-installation-assets.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
-import type {
-  SessionPermissionMappedSource,
-  SessionPermissionSettingsResolver,
+import { organizationSettingsSource } from './organization-settings.ts'
+import {
+  mappedDefinition,
+  type SessionPermissionMappedSource,
 } from './session-permission-settings.ts'
 
 export type PermissionReadMapping = Readonly<{
@@ -25,10 +26,14 @@ export type PermissionReadMapping = Readonly<{
 export type PermissionReadMappingOptions = Readonly<{
   scope: GovernanceScope
   release(): ToolRelease
-  settings: SessionPermissionSettingsResolver
 }>
 
-/** Locates an actual owner target. The subsequent capture still checks adoption and current facts. */
+/**
+ * Addresses the target of a release tool. The installation holds the tool at `toolAssetTarget`, and
+ * the organization source has a fixed address too, so the mapping reads nothing. An address is not
+ * evidence that the target exists: the basis read and the acceptance commit check the adoption,
+ * the definition and the current facts at this address.
+ */
 export function createPermissionReadMapping(options: PermissionReadMappingOptions) {
   const scope = structuredClone(options.scope)
   return async (input: ToolPermissionAction): Promise<PermissionReadMapping | undefined> => {
@@ -43,15 +48,20 @@ export function createPermissionReadMapping(options: PermissionReadMappingOption
       const released = structuredClone(available)
       const operation = { ...input.operation }
       const argumentsDigest = effectiveArgumentsOf(input.effectiveArguments).digest
-      const mapped =
-        released.interpretation.definition.settings === null
-          ? { target: toolAssetTarget(released.entry, tenant.value), source: null }
-          : await options.settings({
-              scope,
-              declaration: released.entry.governance.declaration,
-              permission: released.interpretation.definition,
-            })
-      if (mapped === undefined) return undefined
+      const target = toolAssetTarget(released.entry, tenant.value)
+      let source: PermissionReadMapping['source'] = null
+      if (released.interpretation.definition.settings !== null) {
+        const settings = mappedDefinition({
+          declaration: released.entry.governance.declaration,
+          permission: released.interpretation.definition,
+        })
+        if (settings === undefined) return undefined
+        source = organizationSettingsSource({
+          organizationId: organization.value,
+          definition: settings,
+        })
+      }
+      const mapped = { target, source }
       const { binding, definition } = released.interpretation
       return {
         permission: PermissionBasisRequestSchema.parse({

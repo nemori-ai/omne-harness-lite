@@ -1,9 +1,10 @@
 // A checkpointed author through the whole local host: the runtime plugins, the start coordinator,
-// the local binding with its custody and the real ledger and driver. The decision owner is a
+// the local binding and the real ledger and driver. The decision owner is a
 // scripted double; the store is the in-memory one declared durable, so this proves the assembly,
 // not durability. A decision then resumes the call from its checkpoint once, and the call ends.
 import { expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
+import { canonicalDigest } from '@omne-harness/tool'
 import {
   resolveToolInvocationRef,
   type DecisionValue,
@@ -15,7 +16,6 @@ import {
   type ToolDecisionBridge,
   type ToolValueSchema,
 } from '@omne-harness/tool-contract/provider'
-import { waitRequestOperation } from '@omne-harness/tool-host-local'
 import { adoption, request } from '../coordinator-values.ts'
 import { accepted, fixture, unbox } from './fixture.ts'
 
@@ -113,32 +113,42 @@ it.each([false, true])(
   async lost => {
     const scripted = bridge(lost)
     let segments = 0
-    const world = await fixture(undefined, undefined, 32, false, undefined, undefined, {
-      waits: [ask],
-      decisions: scripted.decisions,
-      executor: {
-        checkpoint: {
-          schema: { id: 'state', revision: '1', digest: 'sha256:state' },
-          codec: adoption('state-codec'),
-          maxBytes: 64,
+    const world = await fixture(
+      undefined,
+      undefined,
+      32,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        waits: [ask],
+        decisions: scripted.decisions,
+        executor: {
+          checkpoint: {
+            schema: { id: 'state', revision: '1', digest: 'sha256:state' },
+            codec: adoption('state-codec'),
+            maxBytes: 64,
+          },
+          initial: async () => {
+            segments += 1
+            return succeed({
+              kind: 'suspended',
+              closedResult: CLOSED,
+              state: new TextEncoder().encode('{"asked":1}'),
+              wait: {
+                kind: 'ask',
+                key: 'k',
+                contract: ask,
+                request: { kind: 'string', value: 'which?' },
+              },
+            })
+          },
+          resume: async () => fail({ kind: 'unsupported', reason: 'not here' }),
         },
-        initial: async () => {
-          segments += 1
-          return succeed({
-            kind: 'suspended',
-            closedResult: CLOSED,
-            state: new TextEncoder().encode('{"asked":1}'),
-            wait: {
-              kind: 'ask',
-              key: 'k',
-              contract: ask,
-              request: { kind: 'string', value: 'which?' },
-            },
-          })
-        },
-        resume: async () => fail({ kind: 'unsupported', reason: 'not here' }),
       },
-    })
+    )
     try {
       const reference = accepted(await world.api.invoke(world.invocation('asked')))
       const query = world.query(reference)
@@ -165,21 +175,14 @@ it.each([false, true])(
       expect(segments).toBe(1)
       expect(scripted.ensured).toEqual([`${wait}/ensure`])
       expect(scripted.inspected).toEqual(lost ? [`${wait}/ensure`] : [])
-      // The request of the wait is kept under the operation that the wait identity derives, and
-      // that keeping is the request evidence of the wait: the decision owner finds it from the wait.
+      // The ledger keeps the request original of the wait and the state of the checkpoint, and the
+      // evidence of each binds the digest of what is kept.
       const intent = recovery.waits[0]?.intent
       if (wait === undefined || intent?.kind !== 'ask') throw new Error('no Ask wait')
-      const kept = unbox(
-        await world.custody.inspect({
-          principal: 'alice',
-          tenant: world.tenantA,
-          call: parts.call,
-          operation: unbox(waitRequestOperation(wait)),
-        }),
-      )
-      expect(kept).toMatchObject({ kind: 'retained', raw: { custody: intent.request } })
-      // The checkpoint is kept in the host's custody before the wait is published.
-      expect(recovery.state.phase === 'suspended' && recovery.state.checkpoint.owner).toBeTruthy()
+      expect(recovery.waitRequest?.wait).toBe(wait)
+      expect(intent.request.digest).toBe(canonicalDigest(recovery.waitRequest?.request))
+      expect(recovery.checkpointState?.payload).toEqual(recovery.checkpoint)
+      expect(recovery.checkpoint?.digest).toBe(canonicalDigest(recovery.checkpointState?.state))
       const { scope } = request()
       const queue = await world.store.read({
         kind: 'queue',
@@ -201,36 +204,46 @@ it.each([false, true])(
 it('resumes the call from its checkpoint once after the decision, and ends it with the resume segment', async () => {
   const scripted = bridge(false)
   const resumed: Readonly<{ state: string; response: ToolDecision<unknown> }>[] = []
-  const world = await fixture(undefined, undefined, 32, false, undefined, undefined, {
-    waits: [ask],
-    decisions: scripted.decisions,
-    executor: {
-      checkpoint: {
-        schema: { id: 'state', revision: '1', digest: 'sha256:state' },
-        codec: adoption('state-codec'),
-        maxBytes: 64,
-      },
-      initial: async () =>
-        succeed({
-          kind: 'suspended',
-          closedResult: CLOSED,
-          state: new TextEncoder().encode('{"asked":1}'),
-          wait: {
-            kind: 'ask',
-            key: 'k',
-            contract: ask,
-            request: { kind: 'string', value: 'which?' },
-          },
-        }),
-      resume: async input => {
-        resumed.push({
-          state: new TextDecoder().decode(input.checkpoint),
-          response: input.response,
-        })
-        return succeed({ kind: 'completed', value: 'resumed' })
+  const world = await fixture(
+    undefined,
+    undefined,
+    32,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      waits: [ask],
+      decisions: scripted.decisions,
+      executor: {
+        checkpoint: {
+          schema: { id: 'state', revision: '1', digest: 'sha256:state' },
+          codec: adoption('state-codec'),
+          maxBytes: 64,
+        },
+        initial: async () =>
+          succeed({
+            kind: 'suspended',
+            closedResult: CLOSED,
+            state: new TextEncoder().encode('{"asked":1}'),
+            wait: {
+              kind: 'ask',
+              key: 'k',
+              contract: ask,
+              request: { kind: 'string', value: 'which?' },
+            },
+          }),
+        resume: async input => {
+          resumed.push({
+            state: new TextDecoder().decode(input.checkpoint),
+            response: input.response,
+          })
+          return succeed({ kind: 'completed', value: 'resumed' })
+        },
       },
     },
-  })
+  )
   try {
     const reference = accepted(await world.api.invoke(world.invocation('asked')))
     const query = world.query(reference)
@@ -272,36 +285,46 @@ it('resumes the call from its checkpoint once after the decision, and ends it wi
 it('takes over a suspended call in a second executor by its recovery scan, accepts a decision that came while no executor ran, and resumes from the kept checkpoint, once', async () => {
   const scripted = bridge(false)
   const resumed: Readonly<{ state: string; response: ToolDecision<unknown> }>[] = []
-  const world = await fixture(undefined, undefined, 32, false, undefined, undefined, {
-    waits: [ask],
-    decisions: scripted.decisions,
-    executor: {
-      checkpoint: {
-        schema: { id: 'state', revision: '1', digest: 'sha256:state' },
-        codec: adoption('state-codec'),
-        maxBytes: 64,
-      },
-      initial: async () =>
-        succeed({
-          kind: 'suspended',
-          closedResult: CLOSED,
-          state: new TextEncoder().encode('{"asked":1}'),
-          wait: {
-            kind: 'ask',
-            key: 'k',
-            contract: ask,
-            request: { kind: 'string', value: 'which?' },
-          },
-        }),
-      resume: async input => {
-        resumed.push({
-          state: new TextDecoder().decode(input.checkpoint),
-          response: input.response,
-        })
-        return succeed({ kind: 'completed', value: 'resumed' })
+  const world = await fixture(
+    undefined,
+    undefined,
+    32,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      waits: [ask],
+      decisions: scripted.decisions,
+      executor: {
+        checkpoint: {
+          schema: { id: 'state', revision: '1', digest: 'sha256:state' },
+          codec: adoption('state-codec'),
+          maxBytes: 64,
+        },
+        initial: async () =>
+          succeed({
+            kind: 'suspended',
+            closedResult: CLOSED,
+            state: new TextEncoder().encode('{"asked":1}'),
+            wait: {
+              kind: 'ask',
+              key: 'k',
+              contract: ask,
+              request: { kind: 'string', value: 'which?' },
+            },
+          }),
+        resume: async input => {
+          resumed.push({
+            state: new TextDecoder().decode(input.checkpoint),
+            response: input.response,
+          })
+          return succeed({ kind: 'completed', value: 'resumed' })
+        },
       },
     },
-  })
+  )
   let reopened: Awaited<ReturnType<typeof world.newExecutor>> | null = null
   try {
     const reference = accepted(await world.api.invoke(world.invocation('asked')))
@@ -357,30 +380,40 @@ it('takes over a suspended call in a second executor by its recovery scan, accep
 
 it('stops the call suspended on its wait in the whole local host: it settles, the registration is invalidated once and the queue holds no entry', async () => {
   const scripted = bridge(false)
-  const world = await fixture(undefined, undefined, 32, false, undefined, undefined, {
-    waits: [ask],
-    decisions: scripted.decisions,
-    executor: {
-      checkpoint: {
-        schema: { id: 'state', revision: '1', digest: 'sha256:state' },
-        codec: adoption('state-codec'),
-        maxBytes: 64,
+  const world = await fixture(
+    undefined,
+    undefined,
+    32,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      waits: [ask],
+      decisions: scripted.decisions,
+      executor: {
+        checkpoint: {
+          schema: { id: 'state', revision: '1', digest: 'sha256:state' },
+          codec: adoption('state-codec'),
+          maxBytes: 64,
+        },
+        initial: async () =>
+          succeed({
+            kind: 'suspended',
+            closedResult: CLOSED,
+            state: new TextEncoder().encode('{"asked":1}'),
+            wait: {
+              kind: 'ask',
+              key: 'k',
+              contract: ask,
+              request: { kind: 'string', value: 'which?' },
+            },
+          }),
+        resume: async () => fail({ kind: 'unsupported', reason: 'not here' }),
       },
-      initial: async () =>
-        succeed({
-          kind: 'suspended',
-          closedResult: CLOSED,
-          state: new TextEncoder().encode('{"asked":1}'),
-          wait: {
-            kind: 'ask',
-            key: 'k',
-            contract: ask,
-            request: { kind: 'string', value: 'which?' },
-          },
-        }),
-      resume: async () => fail({ kind: 'unsupported', reason: 'not here' }),
     },
-  })
+  )
   try {
     const reference = accepted(await world.api.invoke(world.invocation('asked')))
     const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
@@ -424,12 +457,8 @@ it('stops the call suspended on its wait in the whole local host: it settles, th
       key: JSON.stringify([scope.owner, scope.key]),
     })
     if (queue.kind !== 'complete') throw new Error('the queue domain is unreadable')
+    // The release deleted the entry of the call: the queue holds nothing of it.
     expect(queue.records.filter(record => record.kind === 'queue-entry')).toEqual([])
-    expect(
-      queue.records.flatMap(record =>
-        record.kind === 'queue-release' ? [record.release.call] : [],
-      ),
-    ).toEqual([parts.call])
   } finally {
     await world.close()
   }

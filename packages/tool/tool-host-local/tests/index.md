@@ -15,7 +15,6 @@
 - [作者绑定的注册化身、命令分派及拒绝清理](author-binding-regressions.spec.ts)。
 - [检查点作者的 initial 段、resume 段与检查点证明](checkpointed-binding.spec.ts)。
 - [检查点作者在整机本地组合中的暂停、恢复与叫停](runtime-composition/checkpoint.spec.ts)。
-- [段的派生身份](segment-operations.spec.ts)。
 - [Catalog 测试](catalog.spec.ts)。
 - [缺席端口测试](absent-ports.spec.ts)。
 - [部件对 createToolRuntime 的组合测试](runtime-composition.spec.ts)。
@@ -32,6 +31,7 @@
 - [R2-D164 同租户投递的轮次](delivery/turns.spec.ts)。
 - [R2-D273 接收方缺席或查找答 unavailable 时的待推、具名 warn 与退避](delivery/absent-receiver.spec.ts)。
 - [R2-D282 接收方对推送答 unavailable 时的待推、具名 warn、退避与复位](delivery/unavailable-receiver.spec.ts)。
+- [C6 转发副本随父调用交付释放](delivery/forwarded-copies.spec.ts)。
 - [测试夹具](fixtures/index.md)。
 - [包索引](../index.md)。
 

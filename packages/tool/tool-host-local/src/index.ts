@@ -5,11 +5,17 @@ export type {
 } from './start-permit-requirements.ts'
 export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
 export { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
-export { waitRequestOperation, type SegmentOperationRejection } from './segment-operations.ts'
 export type { LocalAuthorExecution } from './live-author-execution.ts'
+export { createLocalCallRecords } from './call-records.ts'
+export {
+  callHostDomain,
+  retentionHostDomain,
+  START_GUARDS_DOMAIN_KEY,
+  tenantHostDomain,
+  type HostAggregate,
+} from './host-domains.ts'
 export {
   createLocalStartCoordinator,
-  START_COORDINATOR_DOMAIN_KEY,
   START_COORDINATOR_OWNER,
   startCoordinatorAdoption,
   type GuardResource,
@@ -72,7 +78,6 @@ export {
   createLocalInvocationSource,
   createLocalInvocationQualifier,
   createLocalOperationIdentities,
-  INVOCATION_SOURCE_DOMAIN_KEY,
   type LocalInvocationSource,
   type LocalInvocationSourceInput,
   type PrincipalCodec,
@@ -92,11 +97,15 @@ export {
   type LocalStartGuardInput,
 } from './start-guard.ts'
 export { createLocalTextResults } from './text-results.ts'
+export { createLocalToolBodySchemas } from './body-schemas.ts'
 export {
   createEnvironmentStateStore,
   type EnvironmentAddress,
   type EnvironmentStorageOptions,
   type EnvironmentStateStore,
+  type RetainedCreator,
+  type RetainedResourceFact,
+  type RetentionState,
 } from './environment-state.ts'
 export {
   createEnvironmentResourceLedger,
@@ -115,6 +124,7 @@ export {
 export type { LocalToolCatalogView, LocalToolCatalogViewSource } from './catalog-view.ts'
 export type { LocalToolCatalogSearchConfiguration } from './catalog-ranking.ts'
 
+export { createLocalToolResultDelivery, type LocalDeliveryInput } from './result-delivery.ts'
 export { createLocalToolForwarding } from './tool-forwarding.ts'
 export type { LocalToolForwarding, LocalToolForwardingInput } from './tool-forwarding.ts'
 

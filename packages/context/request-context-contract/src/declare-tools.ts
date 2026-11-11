@@ -1,5 +1,5 @@
 import type { ToolDeclaration } from '@omne-harness/model-contract'
-import { commandCallSchema, commandMenu } from '@omne-harness/tool-contract'
+import { commandCallSchema, commandMenu, returnSummary } from '@omne-harness/tool-contract'
 import type { ToolAdoption } from './values.js'
 import { digest } from './internal.js'
 export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './values.js'
@@ -21,7 +21,11 @@ export function declareTools(tools: readonly ToolAdoption[]): ToolDeclarationSet
     const def = adopted.availability.definition
     const declaration: ToolDeclaration =
       def.kind === 'function'
-        ? { name: def.name, description: def.description, argumentsSchema: def.parameters.schema }
+        ? {
+            name: def.name,
+            description: `${def.description}\n\n${returnSummary(def.returns)}`,
+            argumentsSchema: def.parameters.schema,
+          }
         : {
             name: def.name,
             description: `${def.description}\n\n${commandMenu(def)}`,

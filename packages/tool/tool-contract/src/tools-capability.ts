@@ -46,6 +46,7 @@ export function attachToolsCapability(
   const context: ToolExecutionContext = {
     mode: scope.context.mode,
     signal: scope.context.signal,
+    body: scope.context.body,
     emit: update => scope.context.emit(update),
     wait: scope.context.wait.bind(scope.context),
   }

@@ -3414,7 +3414,6 @@ export type Preparation = Readonly<{
 }> | Readonly<{
     kind: 'ready';
     request: M.FixedModelRequest;
-    capacity: M.ResultCapacity;
     budget: DurableEvidence;
     recipient: ModelRecipient;
     coverage: DurableEvidence;
@@ -3459,7 +3458,6 @@ export type CompactionState = Readonly<{
 export type FinalRequest = Readonly<{
     preparation: ActionId;
     request: M.FixedModelRequest;
-    capacity: M.ResultCapacity;
     recipient: ModelRecipient;
     coverage: DurableEvidence;
     alterations: readonly DurableEvidence[];

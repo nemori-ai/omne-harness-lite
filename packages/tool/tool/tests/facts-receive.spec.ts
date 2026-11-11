@@ -3,14 +3,13 @@ import { decodeToolInstanceId, decodeToolWaitId } from '@omne-harness/tool-contr
 import type { ProcessBlock, ToolTerminal } from '@omne-harness/tool-contract'
 import type {
   FactBatch,
-  ToolExecutionFact,
+  ToolFinalEnvelope,
   ToolLiveExecution,
 } from '@omne-harness/tool-contract/provider'
 import { createToolLedger, type FactBatchRecord } from '@omne-harness/tool'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import { admitCall, startHarness } from './start-values.ts'
 import {
-  adoption,
   callId,
   configurationOf,
   evidence,
@@ -33,7 +32,7 @@ async function running(options: Parameters<typeof startHarness>[0] = {}) {
   const access = { principal: principalA, tenant: tenantA, call: callId('facts') }
   const recovery = ok(await harness.commands.loadRecovery(access))
   if (recovery.start === null) throw new Error('the fixture did not start')
-  const batch: FactBatch<Block> = {
+  const batch: FactBatch = {
     start: recovery.start,
     source: evidence('facts-source'),
     batch: 'first',
@@ -45,6 +44,16 @@ async function running(options: Parameters<typeof startHarness>[0] = {}) {
     harness,
     access,
     batch,
+    seal: async (final: ToolFinalEnvelope<Block>) =>
+      ok(
+        await harness.ledger.finalPlanner.planFinal({
+          ...access,
+          start: batch.start,
+          source: batch.source,
+          operation: operationId('test-final'),
+          final,
+        }),
+      ),
     receive: (value = batch) =>
       harness.commands.receiveFacts({ ...access, start: batch.start, batch: value }),
   }
@@ -89,11 +98,7 @@ describe('fact custody', () => {
   })
 })
 
-function next(
-  batch: FactBatch<Block>,
-  events: FactBatch<Block>['events'],
-  name = 'second',
-): FactBatch<Block> {
+function next(batch: FactBatch, events: FactBatch['events'], name = 'second'): FactBatch {
   return { ...batch, batch: name, after: batch.cursor, cursor: `opaque/${name}`, events }
 }
 async function records(harness: Awaited<ReturnType<typeof running>>['harness']) {
@@ -101,20 +106,9 @@ async function records(harness: Awaited<ReturnType<typeof running>>['harness']) 
   if (read.kind !== 'complete') throw new Error('unreadable fixture')
   return read.records
 }
-function finalFact(): Extract<ToolExecutionFact<Block>, { kind: 'final' }> {
+function finalFact(): ToolFinalEnvelope<Block> {
   return {
     kind: 'final',
-    raw: {
-      codec: adoption('codec'),
-      custody: evidence('raw-custody'),
-      content: {
-        storage: 'memory',
-        key: 'original',
-        mediaType: 'application/json',
-        bytes: '123',
-        digest: 'sha256:raw',
-      },
-    },
     result: {
       content: [text('answer', 'done')],
       data: { kind: 'none' },
@@ -198,7 +192,7 @@ describe('batch identities and continuity', () => {
       const { harness, batch, receive } = await running()
       ok(await receive())
       const before = await records(harness)
-      const changed: FactBatch<Block> =
+      const changed: FactBatch =
         field === 'source'
           ? { ...batch, source: { ...batch.source, record: 'changed', revision: '2' } }
           : field === 'start'
@@ -327,7 +321,7 @@ describe('atomic custody and recovery', () => {
     expect(ok(await receive())).toEqual(receipt)
   })
   it('rebuilds and reads complete final after the source drops its batch on receipt', async () => {
-    let source: ToolLiveExecution<Block> | null = null
+    let source: ToolLiveExecution | null = null
     let released = false
     const fixture = await running({
       bindingPort: base => ({
@@ -336,7 +330,7 @@ describe('atomic custody and recovery', () => {
           const started = await base.start(input, environment)
           if ('failure' in started) return started
           const original = started.ok
-          const wrapped: ToolLiveExecution<Block> = {
+          const wrapped: ToolLiveExecution = {
             ...original,
             facts: async function* (input) {
               if (released) return
@@ -355,7 +349,7 @@ describe('atomic custody and recovery', () => {
     })
     const { harness, access } = fixture
     const fact = finalFact()
-    const readSource = (): ToolLiveExecution<Block> | null => source
+    const readSource = (): ToolLiveExecution | null => source
     const live = readSource()
     if (live === null || fixture.batch.start.kind !== 'start') throw new Error('no source')
     await harness.binding.controls.finish(fixture.batch.start, fact)
@@ -380,7 +374,7 @@ describe('atomic custody and recovery', () => {
       guards(),
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(harness.memory),
     )
     const recovery = ok(await rebuilt.commands.loadRecovery(access))
     const tasks = recovery.tasks.filter(task => task.kind === 'settle')
@@ -402,11 +396,7 @@ describe('atomic custody and recovery', () => {
     expect(recovery.state.phase).toBe('running')
     expect(recovery.state.queue.kind).toBe('held')
     expect(recovery.result).toBeNull()
-    expect(
-      (await records(harness)).some(
-        record => record.kind === 'queue-release' || record.kind === 'result',
-      ),
-    ).toBe(false)
+    expect((await records(harness)).some(record => record.kind === 'result')).toBe(false)
     expect(
       await rebuilt.facts.read({ ...access, basis: { ...task.basis, digest: 'forged' } }),
     ).toMatchObject({ failure: { kind: 'invalid', field: 'basis' } })
@@ -421,7 +411,9 @@ describe('atomic custody and recovery', () => {
     expect(
       await rebuilt.facts.read({ ...access, tenant: tenantB, basis: task.basis }),
     ).toMatchObject({ failure: { kind: 'denied' } })
-    ok(await receive(next(batch, [{ event: 'final-again', fact }])))
+    const pointer = batch.events.find(event => event.fact.kind === 'final')?.fact
+    if (pointer?.kind !== 'final') throw new Error('Missing final pointer')
+    ok(await receive(next(batch, [{ event: 'final-again', fact: pointer }])))
     expect(
       (await records(harness)).filter(
         record => record.kind === 'task' && record.task.kind === 'settle',
@@ -434,7 +426,10 @@ describe('atomic custody and recovery', () => {
           [
             {
               event: 'different-final',
-              fact: { ...fact, terminal: { kind: 'failed', cause: 'executor', diagnostic: 'bad' } },
+              fact: {
+                ...pointer,
+                terminal: { kind: 'failed', cause: 'executor', diagnostic: 'bad' },
+              },
             },
           ],
           'third',
@@ -585,7 +580,8 @@ describe('fixed producer boundary and current access', () => {
   ])(
     'rejects a failed terminal with an $label cause before saving any event',
     async ({ cause }) => {
-      const { harness, access, batch } = await running()
+      const { harness, access, batch, seal } = await running()
+      const pointer = await seal(finalFact())
       const before = await records(harness)
       const commits = harness.memory.commits
       const malformed = {
@@ -595,7 +591,7 @@ describe('fixed producer boundary and current access', () => {
           {
             event: 'final',
             fact: {
-              ...finalFact(),
+              ...pointer,
               terminal: { kind: 'failed', cause, diagnostic: 'bad arguments' },
             },
           },
@@ -616,12 +612,12 @@ describe('fixed producer boundary and current access', () => {
   it.each(['arguments', 'environment', 'executor', 'runtime-lost', 'result'] as const)(
     'preserves the valid failed terminal cause %s as a string',
     async cause => {
-      const { harness, access, batch, receive } = await running()
+      const { harness, access, batch, receive, seal } = await running()
       const terminal = { kind: 'failed', cause, diagnostic: 'failed' } as const
       ok(
         await receive({
           ...batch,
-          events: [{ event: 'final', fact: { ...finalFact(), terminal } }],
+          events: [{ event: 'final', fact: await seal({ ...finalFact(), terminal }) }],
         }),
       )
       const recovery = ok(await harness.commands.loadRecovery(access))
@@ -654,14 +650,14 @@ describe('fixed producer boundary and current access', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(harness.memory),
     )
     ok(await ledger.commands.receiveFacts({ ...access, start: mutable.start, batch: mutable }))
     const recovery = ok(await ledger.commands.loadRecovery(access))
     expect(recovery.streams[0]).toMatchObject({ start: original.start, source: original.source })
     expect((await records(harness)).filter(record => record.kind === 'fact-event')).toHaveLength(1)
   })
-  it.each(['accessor', 'cycle', 'extra', 'invalid-result', 'hidden-process'] as const)(
+  it.each(['accessor', 'cycle', 'extra', 'hidden-process'] as const)(
     'rejects %s data without evaluating accessors or committing',
     async fault => {
       const { harness, access, batch } = await running()
@@ -676,10 +672,6 @@ describe('fixed producer boundary and current access', () => {
         })
       if (fault === 'cycle') Object.assign(mutable, { events: [mutable] })
       if (fault === 'extra') Object.assign(mutable, { extra: true })
-      if (fault === 'invalid-result')
-        Object.assign(mutable, {
-          events: [{ event: 'final', fact: { ...finalFact(), result: { bad: true } } }],
-        })
       if (fault === 'hidden-process')
         Object.assign(mutable, {
           events: [
@@ -732,7 +724,7 @@ describe('fixed producer boundary and current access', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
-      testSettlementPorts(),
+      testSettlementPorts(harness.memory),
     )
     expect(await ledger.commands.receiveFacts({ ...access, start: batch.start, batch })).toEqual({
       failure: {
@@ -824,9 +816,9 @@ describe('closed fact shapes and complete original identities', () => {
   ] satisfies readonly ToolTerminal[]
 
   it.each(terminals)('preserves legal terminal $kind with its complete cause', async terminal => {
-    const { harness, access, batch, receive } = await running()
+    const { harness, access, batch, receive, seal } = await running()
     const fact = { ...finalFact(), terminal }
-    ok(await receive({ ...batch, events: [{ event: 'final', fact }] }))
+    ok(await receive({ ...batch, events: [{ event: 'final', fact: await seal(fact) }] }))
     const saved = ok(await harness.commands.loadRecovery(access))
     const settle = saved.tasks.find(task => task.kind === 'settle')
     if (settle?.kind !== 'settle') throw new Error('missing saved terminal')
@@ -862,9 +854,10 @@ describe('closed fact shapes and complete original identities', () => {
     { kind: 'interrupted', cause: { kind: 'resume-rejected' } },
   ])('rejects malformed terminal %# atomically', async terminal => {
     const f = await running()
+    const pointer = await f.seal(finalFact())
     await rejectsWholeBatch(f, {
       ...f.batch,
-      events: [...f.batch.events, { event: 'bad-final', fact: { ...finalFact(), terminal } }],
+      events: [...f.batch.events, { event: 'bad-final', fact: { ...pointer, terminal } }],
     })
     ok(await f.receive())
   })
@@ -1038,7 +1031,7 @@ describe('process validation and within-batch progression', () => {
     const extended = processBlock('hello world', '5')
     const events = [
       { event: 'multi', fact: { kind: 'process', blocks: [initial, extended, initial] } },
-    ] satisfies FactBatch<Block>['events']
+    ] satisfies FactBatch['events']
     ok(await f.receive({ ...f.batch, events }))
     const saved = await records(f.harness)
     expect(saved.filter(record => record.kind === 'process')).toMatchObject([
@@ -1072,4 +1065,85 @@ describe('process validation and within-batch progression', () => {
       ok(await f.receive())
     },
   )
+})
+
+it('refuses a rendered final with an invalid result before preparing custody', async () => {
+  const f = await running()
+  const before = f.harness.memory.commits
+  const answer = await Reflect.apply(f.harness.ledger.finalPlanner.planFinal, null, [
+    {
+      ...f.access,
+      start: f.batch.start,
+      source: f.batch.source,
+      operation: operationId('invalid-final'),
+      final: { ...finalFact(), result: { bad: true } },
+    },
+  ])
+  expect(answer).toMatchObject({
+    failure: { kind: 'invalid', field: 'batch.events.fact.result', reason: 'policy' },
+  })
+  expect(f.harness.memory.commits).toBe(before)
+})
+
+describe('the final fact of a call (adoption at receipt)', () => {
+  async function otherFinal(f: Awaited<ReturnType<typeof running>>) {
+    const base = finalFact()
+    return ok(
+      await f.harness.ledger.finalPlanner.planFinal({
+        ...f.access,
+        start: f.batch.start,
+        source: f.batch.source,
+        operation: operationId('other-final'),
+        final: { ...base, result: { ...base.result, content: [text('answer', 'other')] } },
+      }),
+    )
+  }
+
+  it('fixes the final value at the first final and refuses a later final with another value', async () => {
+    const f = await running()
+    const first = await f.seal(finalFact())
+    ok(await f.receive())
+    const second = next(f.batch, [{ event: 'final-a', fact: first }])
+    ok(await f.receive(second))
+    const other = await otherFinal(f)
+    expect(await f.receive(next(second, [{ event: 'final-b', fact: other }], 'third'))).toEqual({
+      failure: { kind: 'invalid', field: 'batch.events.fact', reason: 'final-conflict' },
+    })
+    const saved = (await records(f.harness)).filter(
+      record => record.kind === 'fact-event' && record.fact.fact.kind === 'final',
+    )
+    expect(saved).toHaveLength(1)
+  })
+
+  it('refuses two finals with different values inside one batch and saves none of it', async () => {
+    const f = await running()
+    const first = await f.seal(finalFact())
+    const other = await otherFinal(f)
+    ok(await f.receive())
+    const before = (await records(f.harness)).length
+    expect(
+      await f.receive(
+        next(f.batch, [
+          { event: 'final-a', fact: first },
+          { event: 'final-b', fact: other },
+        ]),
+      ),
+    ).toEqual({
+      failure: { kind: 'invalid', field: 'batch.events.fact', reason: 'final-conflict' },
+    })
+    expect((await records(f.harness)).length).toBe(before)
+  })
+
+  it('adopts the same final again under a new event without a second final record', async () => {
+    const f = await running()
+    const first = await f.seal(finalFact())
+    ok(await f.receive())
+    const second = next(f.batch, [{ event: 'final-a', fact: first }])
+    ok(await f.receive(second))
+    ok(await f.receive(next(second, [{ event: 'final-again', fact: first }], 'third')))
+    const finals = (await records(f.harness)).flatMap(record =>
+      record.kind === 'fact-event' && record.fact.fact.kind === 'final' ? [record.fact.event] : [],
+    )
+    expect(finals).toEqual(['final-a', 'final-again'])
+  })
 })

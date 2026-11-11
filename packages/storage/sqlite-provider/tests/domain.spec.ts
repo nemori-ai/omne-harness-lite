@@ -245,7 +245,7 @@ describe('opening an existing domain (path A)', () => {
 
     const second = await provide(built)
     const again = await second.storage.commit(commitRequest(built))
-    expect(again).toEqual(committed)
+    expect(again).toEqual({ ...committed, recalled: true })
     await second.control.close({ initiator: 'disposal' })
     expect(rows(domainFile(), 'select generation from _sql_generation')).toEqual([
       { generation: 2 },

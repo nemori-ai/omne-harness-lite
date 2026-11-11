@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import {
   decodeActionId,
   decodeActionBatchId,
@@ -185,7 +186,7 @@ function request(consumer: PendingCall['position']): ToolInvokeRequest {
           vocabulary: adoption('json-schema'),
           descriptions: [],
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption('codec')),
       },
       executor: adoption('executor'),
     },

@@ -12,6 +12,7 @@ import { createSqliteStorage } from './provider.ts'
 
 /** The `StorageService` instance. Every method forwards to the function object of the provider. */
 class SqliteStorageService extends StorageService {
+  readonly database: SqlStorage['database']
   readonly registerCombination: SqlStorage['registerCombination']
   readonly commit: SqlStorage['commit']
   readonly query: SqlStorage['query']
@@ -19,6 +20,7 @@ class SqliteStorageService extends StorageService {
 
   constructor(ctx: Context, storage: SqlStorage) {
     super(ctx)
+    this.database = storage.database
     this.registerCombination = input => storage.registerCombination(input)
     this.commit = (input, options) => storage.commit(input, options)
     this.query = identity => storage.query(identity)

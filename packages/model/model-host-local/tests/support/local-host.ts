@@ -20,7 +20,7 @@ import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harnes
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies, type ProxyConfig } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
-import { assembleLocalModel } from '@omne-harness/model-host-local'
+import { assembleLocalModel, type LocalModelConfig } from '@omne-harness/model-host-local'
 import { createTestCredentials } from './credentials.ts'
 import { factorySupplier } from './profiles.ts'
 
@@ -60,14 +60,12 @@ export const FAMILIES = composeFamilies([
   createOpenAiFamily({
     tokenizer: openAiTokenizerResources(),
     executor: EXECUTOR,
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: FAMILY_LIMITS,
     margin: MARGIN,
   }),
   createAnthropicFamily({
     tokenizer: anthropicTokenizerResources(),
     executor: EXECUTOR,
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: FAMILY_LIMITS,
     margin: MARGIN,
   }),
@@ -87,10 +85,9 @@ export const TRANSPORT_LIMITS = {
   },
 }
 // A real reply arrives as about one fact per token: a short OpenAI answer at medium effort is about
-// a hundred facts. The in-memory ModelCommands charge every confirmed snapshot of a call to its
-// capacity (model SPEC, the material of a call), and a snapshot holds all blocks so far. A save per
-// fact therefore makes the material grow with the square of the fact count, and the work of each
-// save with it. So the runtime collects facts into batches: up to 16 KiB of facts, or 100 ms from
+// a hundred facts. Every save confirms a snapshot, and a snapshot holds all blocks so far. A save
+// per fact therefore makes the work grow with the square of the fact count. So the runtime
+// collects facts into batches: up to 16 KiB of facts, or 100 ms from
 // the first fact of a batch. A body that arrives at once makes a few batches, and a streamed reply
 // one batch per 100 ms at most.
 const CONFIGURATION: ModelConfiguration = {
@@ -103,9 +100,6 @@ const CONFIGURATION: ModelConfiguration = {
   retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
-
-/** The capacity of the one call of a host: all of the in-memory store, which holds no other call. */
-const CALL_CAPACITY = { bytes: '1000000', blocks: '100', attachmentBytes: '0' }
 
 export function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {
   if ('ok' in outcome) return outcome.ok
@@ -145,6 +139,7 @@ function recording<P>(send: ModelSendBoundary<P>) {
 
 export type LocalHostInput = Readonly<{
   request: FixedModelRequest
+  requestDisclosure?: LocalModelConfig<unknown>['requestDisclosure']
   /** Names the call, the instance, the operations and the vault file. */
   label: string
   /** A private directory for the vault file. */
@@ -196,7 +191,7 @@ export function assembleLocalHost(input: LocalHostInput) {
       resultPageParts: 8,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: CALL_CAPACITY,
+      unacknowledgedResults: 10,
     },
     authority: {
       authorize: ({ access, action }) =>
@@ -259,6 +254,9 @@ export function assembleLocalHost(input: LocalHostInput) {
     providers: ['openrouter'],
   })
   const host = assembleLocalModel({
+    ...(input.requestDisclosure === undefined
+      ? {}
+      : { requestDisclosure: input.requestDisclosure }),
     credentials: credentials.port,
     materialization: {
       maxRecords: 4,
@@ -323,7 +321,6 @@ export function assembleLocalHost(input: LocalHostInput) {
             position: 'answer',
             purpose: 'local-model-test',
           },
-          capacity: CALL_CAPACITY,
         }),
       )
       const driven = await provider.driver.drive(

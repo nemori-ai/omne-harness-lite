@@ -12,6 +12,22 @@
 
 当前处于0.0.0至0.1.0研发阶段。演进沿[当前政策](docs/engineering/publication.md#当前演进与消费者)同步真实消费者并删除替代实现，进入0.1.0重新评估。历史字节不构成兼容承诺。
 
+<!-- BEGIN:pqw-skills-resident-card -->
+
+## 做事方式
+
+做每件事都带着下面六个想法和一个立场。正文在同名技能里，记不清就加载。
+
+- **拆。** 先找独立变化的量和各自的拥有者，交叉成表逐格看，同一个结构只设计一次。`think-orthogonal`
+- **找差异。** 先写它应该是什么样，再看它现在是什么样。差异就是全部工作，不多做。`think-ought-vs-is`
+- **定形。** 碰到状态与操作先写全化表，翻成领域模型和对象模型，再写代码。`think-model-first`
+- **建。** 先做对，再专门做好一轮。好不好看结构读数、差分变异和品味核对单。`think-right-then-well`
+- **证。** 每个结论带证据，或者标明是推出来的、猜的。证据要真的检验了它声称检验的东西。`think-evidence`
+- **转手。** 写不下来的上下文用得多的事自己做；决定后面很多步的事放在每一步都看得见的回路里；一块多大由接的一方验得完多少定。`think-closed-loop`
+- **对人。** 看到需求不清、不值得做，或一程大过人验得完的量，说一次，带依据和建议。人定了就照做。`candid-friend`
+
+<!-- END:pqw-skills-resident-card -->
+
 ## 知识放哪
 
 项目要求、工程约定、技术架构与领域关系在[docs](docs/README.md)；实际包、应用和工具拥有公开形状、完整必要行为、使用指南、设计理由与持续验证资源。[`.meta_harness/`](.meta_harness/AGENTS.md)保持产品规则、独立目标、统一语言、领域对象、持续研究和项目独有的技能；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露[生成物](.meta_harness/tooling/README.md)，不直接修改。唯一源与退出条件归[文档治理](docs/engineering/documentation.md#位置与唯一源)，过程材料留[任务tmp](docs/development.md#终态与过程材料)。
@@ -20,9 +36,9 @@
 
 ## 研发流程
 
-大改动（新增领域、跨领域纵线、子系统重构、较大改造）走 pqw `single-session-dev-flow`：定义期由人主导，过了交接点由代理自主交付；小修、原型、诊断按它的「不够格」一节转 Matt `tdd`、`prototype`、`diagnosing-bugs`。流程的环节与做法只归 pqw 各技能，本仓库只在下面的接入节给出 omne 的命令与位置。
+大改动（新增领域、跨领域纵线、子系统重构、较大改造）走 pqw `single-session-dev-flow`：定义期由人主导，交接期由设计会话与人定约、定程并交出一程，交付期由代理自主交付；小修、原型、诊断按它的「不够格」一节转 Matt `tdd`、`prototype`、`diagnosing-bugs`。流程的环节与做法只归 pqw 各技能，本仓库只在下面的接入节给出 omne 的命令与位置。
 
-卡就是交接信息包：设计段落盘进 `integration/mainline` 后发卡，交付会话只读卡与它链接的正式文档就开工。发卡、开工、开 PR、请求 gate 确认与接受的命令归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)。合入的门与准入的时机归[集成规则](docs/engineering/integration.md)。
+卡就是交接信息包：设计段落盘进 `integration/mainline` 后，设计会话一次发一程的卡，交付会话只读这张卡与它链接的 spec、正式文档就开工，做完在卡上交回，由设计会话与人收回。发卡、开工、开 PR、请求 gate 确认与接受的命令归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)。合入的门与准入的时机归[集成规则](docs/engineering/integration.md)。
 
 ## pqw-skills 接入
 
@@ -44,7 +60,11 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：先核 `git status` 干净、分支已合回，再删目录并 `git worktree prune` |
 | 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
 | 子代理的模型与档位政策 | [子代理的模型与档位](docs/engineering/skills.md#子代理的模型与档位) |
-| 交接信息包放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`） |
+| 交接信息包与路线图放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`）；分程时路线图放父卡 |
+| 跨会话协调用什么 | GitHub issue：卡正文放包，卡评论放交付声明与退包，关卡即接受 |
+| 不做与推迟的记录放哪 | 未提供 |
+| 常驻卡片 | 本文件「做事方式」一节：`initialize_agents.py` 从 pqw 的 `resident-card.md` 写入受管段落，`pnpm run check:agents` 核逐字相同；不手改 |
+| pqw 的版本 | 项目只钉接入约定的版本（`.meta_harness/agents/pqw/contract-version`）；正文读约定版本相同的最新发行版，见[外部技能集](.meta_harness/tooling/README.md#外部技能集) |
 
 ## 研发品味
 
@@ -66,14 +86,16 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 
 ## 按任务展开
 
-| 当前判断 | 加载入口与停止点 |
-| --- | --- |
-| 开工前建立系统图景、理解知识体系或普通阅读 | 架构、领域、契约、装配与实现切片先读一次[开工定向](docs/orientation.md)；整体理解读[体系上下文](docs/knowledge-map-agent.md)；其余从[读者入口](docs/README.md)找实际应用或包。找到本次责任就停 |
-| 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 |
-| 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 |
-| 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；按[维护指南](docs/maintenance.md)同步真实消费者 |
-| 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡与合入加载 `omne-card`；每条流程事实的拥有者见[流程事实在哪](docs/engineering/README.md#流程事实在哪)；局部修复与环境从[开发指南](docs/development.md)起 |
-| Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本；未覆盖行为保留假设并以源码或验证补足 |
+「重点带的」是「做事方式」里这类活最容易丢的几个想法，其余照样带。
+
+| 当前判断 | 加载入口与停止点 | 重点带的 |
+| --- | --- | --- |
+| 开工前建立系统图景、理解知识体系或普通阅读 | 架构、领域、契约、装配与实现切片先读一次[开工定向](docs/orientation.md)；整体理解读[体系上下文](docs/knowledge-map-agent.md)；其余从[读者入口](docs/README.md)找实际应用或包。找到本次责任就停 | 拆、证 |
+| 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 | 拆、找差异、对人 |
+| 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 | 对人、找差异、拆 |
+| 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；按[维护指南](docs/maintenance.md)同步真实消费者 | 拆、找差异 |
+| 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡与合入加载 `omne-card`；每条流程事实的拥有者见[流程事实在哪](docs/engineering/README.md#流程事实在哪)；局部修复与环境从[开发指南](docs/development.md)起 | 转手、证、对人 |
+| Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本；未覆盖行为保留假设并以源码或验证补足 | 证、找差异 |
 
 ## Cursor Cloud specific instructions
 

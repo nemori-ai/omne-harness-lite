@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { describe, expect, it } from 'vitest'
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { readJsonText } from '@omne-harness/json-text'
@@ -103,7 +104,7 @@ async function call(
   if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
   return operation.author.output.check({ arguments: parsed.ok, value: answer.ok })
 }
-const textOf = (result: ToolResult<ContentBlock>) =>
+const textOf = (result: Readonly<{ content: readonly ContentBlock[] }>) =>
   result.content.flatMap(block => (block.kind === 'text' ? [block.text] : [])).join('\n')
 
 describe('Tools complete author', () => {
@@ -131,6 +132,21 @@ describe('Tools complete author', () => {
   it('requires an invocation capability for every business command', async () => {
     const answer = value(await call('search', { query: '', after: null, limit: 10 }))
     expect(textOf(answer)).toBe('ERROR: unavailable')
+  })
+
+  it('accepts body references and forwards the page cursor unchanged through the trusted capability', async () => {
+    const request = { kind: 'body', reference: 'tb1.fixed-body', after: 'tc1.fixed-page' } as const
+    let received: unknown
+    const bound = capability({
+      readResult: async args => {
+        received = args
+        return empty
+      },
+    })
+    expect(value(await call('read_result', request, bound))).toEqual(empty)
+    expect(received).toEqual(request)
+    const help = textOf(value(await call('help', { command: 'read_result' })))
+    expect(help).toContain('"const":"body"')
   })
 
   it.each([
@@ -215,7 +231,7 @@ describe('Tools complete author', () => {
                     kind === 'schema'
                       ? { schema: tree(schema), vocabulary: adoption, descriptions: [] }
                       : { kind: 'executor-owned', usage, protocol: adoption },
-                  returns: { kind: 'ordinary', program: { kind: 'none' } },
+                  returns: ordinaryReturnFixture(adoption),
                 },
               })
             },
@@ -232,6 +248,12 @@ describe('Tools complete author', () => {
       expect(command).toBe('command: search')
       expect(description).toBe('Find a lawful nonresident tool.')
       expect(parameters).toBe(`parameters: ${kind === 'schema' ? JSON.stringify(schema) : usage}`)
+      expect(textOf(reply)).toContain(
+        'Returns fixture-value@1. Model body: text. Program data: none.',
+      )
+      expect(textOf(reply)).toContain(
+        'Return value schema fixture-value@1 (sha256:fixture-value): {}',
+      )
     },
   )
 
@@ -255,7 +277,7 @@ describe('Tools complete author', () => {
         name: 'Tools',
         programmable: false,
         availability: kind,
-        next: 'Inspect one command for its complete parameters.',
+        next: 'Inspect one command for its parameter and return schemas.',
       })
       expect(result.commands.map((command: { name: string }) => command.name)).toEqual([
         'help',

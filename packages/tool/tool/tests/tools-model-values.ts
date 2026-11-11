@@ -1,3 +1,6 @@
+import type { SettlementRenderer } from './settlement-values.ts'
+import { judgeCommittedToolResult } from '@omne-harness/tool-contract/provider'
+import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
 import { createReaderFixture } from './reader-fixture.ts'
 import { createHash } from 'node:crypto'
 import { judgeContentBlock } from '@omne-harness/content-block'
@@ -12,7 +15,6 @@ import { createMemoryToolContent } from '@omne-harness/tool/testing'
 import {
   type Access,
   type Attachment,
-  type RawOutput,
   type ToolDefinition,
   type ToolInvocationRef,
   type ToolResult,
@@ -31,13 +33,13 @@ import { scope } from './scope-values.ts'
 import { startHarness } from './start-values.ts'
 import { testAssembly } from './testing-values.ts'
 import {
+  testSettlementPorts,
   adoption,
   configurationOf,
   evidence,
   functionDefinition,
   guards,
   ok,
-  operationId,
   principalA,
   request,
   tenantA,
@@ -46,7 +48,7 @@ import {
 
 type View = readonly ToolMessageContentBlock[]
 export type ModelRead = Readonly<{
-  kind: 'result' | 'attachment'
+  kind: 'result' | 'attachment' | 'body'
   reference: string
   after: string | null
 }>
@@ -104,7 +106,7 @@ export class PagingModel {
     }
   }
   original(view: View): ModelRead {
-    return { kind: 'attachment', reference: modelField(view, 'originalReference'), after: null }
+    return { kind: 'body', reference: modelField(view, 'bodyReference'), after: null }
   }
 }
 
@@ -151,7 +153,7 @@ export function sourceBlocks(): readonly ToolMessageContentBlock[] {
 export async function modelHost(
   input: Readonly<{
     terminal?: ToolTerminal
-    value?: (raw: RawOutput) => ToolResult<ToolMessageContentBlock>
+    value?: SettlementRenderer
   }> = {},
 ) {
   const content = createMemoryToolContent<Principal>()
@@ -180,7 +182,7 @@ export async function modelHost(
       outputModalities: ['text', 'image', 'voice', 'video'],
     },
     returns: {
-      kind: 'structured',
+      ...structuredReturnFixture(adoption('source-result')),
       program:
         input.value === undefined
           ? {
@@ -201,9 +203,9 @@ export async function modelHost(
     },
   } satisfies ToolDefinition
   let sourceExecutions = 0
+  let sourceFailure: unknown = null
   const positions: string[] = []
   const h = startHarness({
-    custodyPort: () => content.custody,
     resultPageBytes: options.resultPageBytes,
     bindingPort: base => ({
       ...base,
@@ -211,55 +213,31 @@ export async function modelHost(
         const live = await base.start(start, environment)
         if ('failure' in live) return live
         const source = start.request.command === null
-        const preserve = (bytes: Uint8Array, codec: RawOutput['codec']) =>
-          content.custody.preserve({
-            principal: start.principal,
-            tenant: start.tenant,
-            call: start.call,
-            operation: operationId(`raw-${start.call}`),
-            codec,
-            bytes,
-            source: evidence('source-output'),
-          })
         const output = async () => {
-          if (source) {
-            const raw = ok(
-              await preserve(new TextEncoder().encode('original bytes'), adoption('source-codec')),
-            )
-            const value = ok(
+          if (source)
+            return ok(
               await executeTool(
                 {},
                 {
                   execute: async () => {
                     sourceExecutions += 1
-                    return sourceValue(raw)
+                    return sourceValue(h.ledger, start)
                   },
                 },
                 environment,
                 scope().scope,
               ),
             )
-            return { raw, value }
-          }
-          const value = ok(
+          return ok(
             await authorRun(tools, start.request.command ?? '', start.request.arguments, start),
           )
-          const registration = readToolRegistration(tools.implementation)
-          if (registration?.kind !== 'commands') throw new Error('Not registered')
-          const operation = registration.operations.find(([name]) => name === start.request.command)
-          if (operation === undefined) throw new Error('Not a registered command')
-          const raw = ok(
-            await preserve(
-              ok(operation[1].author.codec.encode(value)),
-              operation[1].author.codec.adoption,
-            ),
-          )
-          return { raw, value }
         }
-        const { raw, value } = await output()
+        const value = await output().catch(error => {
+          sourceFailure = error instanceof Error ? error.message : String(error)
+          throw error
+        })
         await h.binding.controls.finish(start.start, {
           kind: 'final',
-          raw,
           result: value,
           terminal: source ? (input.terminal ?? { kind: 'completed' }) : { kind: 'completed' },
           effect: { kind: 'not-occurred', evidence: evidence('read-only') },
@@ -293,7 +271,7 @@ export async function modelHost(
     createMemoryToolClock(),
     configurationOf({ resultPageBytes: options.resultPageBytes }),
     {
-      custody: content.custody,
+      bodies: testSettlementPorts(h.memory).bodies,
       releaseInspection: h.environments,
       content: content.reader,
     },
@@ -307,7 +285,6 @@ export async function modelHost(
       admissions: ledger.admissions,
       queues: ledger.queues,
       rejections: ledger.rejections,
-      facts: ledger.facts,
       sourceIssuer: h.source.issuer,
       operationIdentities: h.identities.operationIdentities,
     },
@@ -315,6 +292,7 @@ export async function modelHost(
   ).runtime
   let failNextSourceRead = false
   const reads = {
+    body: reader.body,
     queries: {
       readResult: async (access: Parameters<typeof reader.queries.readResult>[0]) => {
         if (failNextSourceRead && access.reference === sourceReference) {
@@ -325,7 +303,7 @@ export async function modelHost(
         if ('failure' in response) return response
         return succeed({
           ...response.ok,
-          value: ok(defaultResultPolicy.judgeResult(response.ok.value)),
+          value: ok(judgeCommittedToolResult(defaultResultPolicy, response.ok.value)),
         })
       },
     },
@@ -375,7 +353,10 @@ export async function modelHost(
         }
       }
     }
-    throw new Error('Invocation did not settle')
+    const recovery = ok(await h.ledger.commands.loadRecovery({ ...access, call }))
+    throw new Error(
+      `Invocation did not settle: ${JSON.stringify({ sourceFailure, state: recovery.state, tasks: recovery.tasks })}`,
+    )
   }
   const source = await invoke(null, {}, { principal: principalA, tenant: tenantA })
   ok(

@@ -199,7 +199,6 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
     preparation: f.preparation,
     conversions: createAbsentConversionResults<string>(),
     model,
-    resultCapacity: { bytes: '1048576', blocks: '1024', attachmentBytes: '0' },
     tools: toolsSourceOf(absentToolLookup),
     stepResults: async () => ({ kind: 'unavailable', diagnostic: 'none' }),
   })

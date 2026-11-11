@@ -73,8 +73,8 @@ describe('the materials of the Tool storage', () => {
     expect(ordering).toEqual({
       'tool.ledger.read': 'domain-serial',
       'tool.ledger.pending': 'domain-serial',
-      'tool.custody.manifest': 'snapshot',
-      'tool.custody.chunk': 'snapshot',
+      'tool.body.read': 'snapshot',
+      'tool.due.read': 'domain-serial',
     })
     for (const handler of materials.readHandlers) {
       expect(handler.maxOutputBytes).toBeLessThanOrEqual(4_194_304)
@@ -84,7 +84,7 @@ describe('the materials of the Tool storage', () => {
 })
 
 describe('the migrations of the Tool storage', () => {
-  it('keep the published first migration and add the pending marker table after it', () => {
+  it('keep the baseline migration and add the pending marker table after it', () => {
     expect(
       materials.migrations.map(item => ({
         owner: item.owner,
@@ -92,17 +92,17 @@ describe('the migrations of the Tool storage', () => {
         requires: item.requires,
       })),
     ).toEqual([
-      { owner: 'tool', id: '001-tool-ledger-custody', requires: [] },
+      { owner: 'tool', id: 'r6-001-tool-ledger-body-due', requires: [] },
       {
         owner: 'tool',
-        id: '002-tool-pending',
-        requires: [{ owner: 'tool', id: '001-tool-ledger-custody' }],
+        id: 'r6-002-tool-pending',
+        requires: [{ owner: 'tool', id: 'r6-001-tool-ledger-body-due' }],
       },
     ])
     expect(materials.participants[0]?.ownedTables).toContain('tl_pending')
     const pending = materials.readHandlers.find(item => item.handler === 'tool.ledger.pending')
     expect(pending?.readTables).toEqual(['tl_pending'])
-    expect(pending?.requiresMigrations).toEqual([{ owner: 'tool', id: '002-tool-pending' }])
+    expect(pending?.requiresMigrations).toEqual([{ owner: 'tool', id: 'r6-002-tool-pending' }])
   })
 })
 

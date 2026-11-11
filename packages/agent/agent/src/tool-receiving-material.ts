@@ -226,11 +226,9 @@ export function toolReceivedDraft(
 }
 
 /** Validates saved bytes independently of the live runtime or producer's retained copy. */
-export function readToolDeliveryMaterial<P>(
-  access: Access<P>,
+export function decodeAgentToolDeliveryMaterial(
   material: Material<ContentBlock>,
-  expected: Omit<ReceivedEntry, 'material'>,
-): ToolDelivery<ContentBlock> | null {
+): Readonly<{ tenant: string; delivery: ToolDelivery<ContentBlock> }> | null {
   try {
     if (
       material.kind !== 'facts' ||
@@ -238,9 +236,27 @@ export function readToolDeliveryMaterial<P>(
     )
       return null
     const value = plain(material.value)
-    if (!object(value) || !delivery(value.delivery)) return null
-    if ('failure' in judgeToolDelivery({ tenant: access.tenant, delivery: value.delivery }))
+    if (!object(value) || typeof value.tenant !== 'string' || !delivery(value.delivery)) return null
+    const tenant = tenantCodec.parse(value.tenant)
+    if (
+      !tenant.ok ||
+      'failure' in judgeToolDelivery({ tenant: tenant.value, delivery: value.delivery })
+    )
       return null
+    return { tenant: value.tenant, delivery: value.delivery }
+  } catch {
+    return null
+  }
+}
+
+export function readToolDeliveryMaterial<P>(
+  access: Access<P>,
+  material: Material<ContentBlock>,
+  expected: Omit<ReceivedEntry, 'material'>,
+): ToolDelivery<ContentBlock> | null {
+  try {
+    const value = decodeAgentToolDeliveryMaterial(material)
+    if (value === null) return null
     const tenant = tenantCodec.encode(access.tenant)
     if (!tenant.ok || value.tenant !== tenant.value) return null
     const { kind, consumer, consumption, delivery: received } = expected

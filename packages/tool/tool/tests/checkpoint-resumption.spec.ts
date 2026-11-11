@@ -53,7 +53,6 @@ function setup(
     environmentsPort: releasing,
     ...options,
   })
-  checkpoint.attach(harness)
   return { harness, checkpoint, bridge, authority, author }
 }
 
@@ -133,7 +132,7 @@ describe('a decision of a suspended checkpointed call', () => {
     ])
     // The slot was freed by the resume segment's real end.
     expect(await harness.queue()).toEqual([])
-    expect(await harness.released()).toEqual(['c1'])
+    expect(await harness.released('c1')).toBe(true)
     // A later wake-up finds nothing to do: the checkpoint is not resumed again.
     await harness.drive('c1')
     await settle(harness)
@@ -302,6 +301,8 @@ describe('the queue entry of a call whose decision was accepted', () => {
       store: memory => ({
         durability: memory.durability,
         scanPending: input => memory.scanPending(input),
+        readRecord: memory.readRecord,
+        due: memory.due,
         read: domain => memory.read(domain),
         commit: async input => {
           for (const write of input.writes)
@@ -371,7 +372,6 @@ function restarted(built: Built, environmentsPort: StartOptions['environmentsPor
     driverRetryDelayMs: 5,
     environmentsPort,
   })
-  built.checkpoint.attach(second)
   return second
 }
 

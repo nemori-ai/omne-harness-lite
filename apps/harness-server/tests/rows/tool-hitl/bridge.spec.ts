@@ -1,4 +1,4 @@
-// 决策方（`rows/tool-hitl/bridge.ts`）对它两侧端口的用法：Tool 一侧是调用的恢复读、保管的请求与会话读，HITL 一侧
+// 决策方（`rows/tool-hitl/bridge.ts`）对它两侧端口的用法：Tool 一侧是调用的恢复读（含等待的请求原文）与会话读，HITL 一侧
 // 是准备、登记、原操作查询、请求读、接收者绑定、接手与失效。两侧都是替身；真实组合见同目录的 release-ask.spec.ts 与
 // release-reply.spec.ts。
 import { describe, expect, it } from 'vitest'
@@ -9,8 +9,9 @@ import type {
 } from '@omne-harness/human-intervention'
 import { hitlCommandBinding } from '@omne-harness/human-intervention-local'
 import { inProcessPrincipalAuthority, standingPrincipalRef } from '@omne-harness/identity'
-import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { succeed } from '@omne-harness/operation-result'
+import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolCallId, ToolOperationId, ToolWaitId } from '@omne-harness/tool-contract'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import { hitlCardAudience, hitlEntryRef } from '../../../src/entry/hitl-entry-principals.ts'
@@ -48,7 +49,6 @@ const evidence = (record: string) => ({
   revision: '1',
   digest: `sha256:${record}`,
 })
-const requestEvidence = evidence('request')
 const terminal = evidence('terminal')
 const card = {
   cardId: 'q1',
@@ -61,23 +61,17 @@ const card = {
   ],
   declineConsequence: '跳过此题，不作答',
 }
-const read = readJsonText(JSON.stringify({ questions: [card] }), {
-  maxBytes: 65536,
-  maxDepth: 8,
-  maxItems: 1024,
-  maxMembers: 16,
-  maxStringLength: 4096,
-  maxNumberLength: 32,
-})
-if (read.kind !== 'ok') throw new Error('fixture request')
-/** The bytes tool-host-local keeps for a wait request: the JSON of the `JsonValue` tree. */
-const keptBytes = new TextEncoder().encode(JSON.stringify(read.value))
+/** The request original that the ledger keeps for the wait: the JSON text of the Ask request. */
+const ORIGINAL = JSON.stringify({ questions: [card] })
+/** The request evidence of the wait binds the digest of the original. */
+const requestEvidence = { ...evidence('request'), digest: canonicalDigest(ORIGINAL) }
 
 type Registered = Extract<CommandResult<'registerRequest'>, { kind: 'registered' }>
 
 function world(
   options: Readonly<{
-    kept?: typeof requestEvidence
+    /** The request original the call keeps; null when it keeps none. The Ask request by default. */
+    kept?: string | null
     audience?: HitlAudience | undefined
     register?: CommandResult<'registerRequest'>
     /** The cards of the HITL request, as `getRequest` reads them. */
@@ -163,22 +157,12 @@ function world(
         ? options.audience
         : () => ({ readers: [reader], responders: [reader] }),
     registrar: () => registrar,
-    readOutput: async () =>
-      succeed({
-        codec: {
-          owner: '@omne-harness/tool-host-local',
-          name: 'wait-request-json',
-          revision: '1',
-          digest: 'sha256:codec',
-        },
-        bytes: keptBytes,
-        custody: options.kept ?? requestEvidence,
-      }),
     recoveryOf: async () =>
       succeed({
         request: {
           consumer: { owner: 'agent', work: 'exec-1', position: 'a1', purpose: 'action' },
         },
+        waitRequest: options.kept === null ? null : { wait, request: options.kept ?? ORIGINAL },
         waits: [
           {
             intent: { kind: 'ask', wait, request: requestEvidence },
@@ -305,11 +289,13 @@ describe('the Tool decision owner over HITL', () => {
     ])
   })
 
-  it('refuses a kept request that is not the request of the wait, without writing to HITL', async () => {
-    const w = world({ kept: evidence('another') })
-    expect(await w.ensure()).toMatchObject({ failure: { kind: 'invalid', field: 'request' } })
-    expect(w.calls.prepared).toEqual([])
-    expect(w.calls.registered).toEqual([])
+  it('refuses a kept request that the request evidence of the wait does not bind, or a call that keeps none, without writing to HITL', async () => {
+    for (const kept of [JSON.stringify({ questions: [] }), null]) {
+      const w = world({ kept })
+      expect(await w.ensure()).toMatchObject({ failure: { kind: 'invalid', field: 'request' } })
+      expect(w.calls.prepared).toEqual([])
+      expect(w.calls.registered).toEqual([])
+    }
   })
 
   it('answers unavailable while no audience is installed, without writing to HITL', async () => {

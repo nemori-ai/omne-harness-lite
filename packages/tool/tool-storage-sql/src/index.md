@@ -6,15 +6,17 @@
 
 - [README.md](README.md)：源码目录的职责
 - [index.ts](index.ts)：根入口与公开定义
-- [options.ts](options.ts)：选项、信封预留与构造期核对
+- [options.ts](options.ts)：选项与所有者名
 - [ledger-store.ts](ledger-store.ts)：`ToolLedgerStore` 适配器
-- [guarded-host-commit.ts](guarded-host-commit.ts)：带原调用修订条件的 host 提交
-- [ledger-wire.ts](ledger-wire.ts)：共用账本地址、写入编码与结果映射
-- [custody.ts](custody.ts)：`ToolOutputCustody` 适配器与原件字节的受信读取
+- [body-store.ts](body-store.ts)：`ToolBodyStore` 适配器
+- [ledger-wire.ts](ledger-wire.ts)：共用账本地址、写入与断言编码与结果映射
 - [tenant.ts](tenant.ts)：租户事务域解析与提交请求
 - [json.ts](json.ts)：严格 JSON 编码
 - [materials.ts](materials.ts)：静态材料
-- [worker/participant.ts](worker/participant.ts)：`tool` 参加者
+- [worker/participant.ts](worker/participant.ts)：`tool` 参加者的账本写入与到期索引
+- [worker/participant-body.ts](worker/participant-body.ts)：`tool` 参加者的正文命令
 - [worker/migration.ts](worker/migration.ts)：迁移
-- [worker/read-ledger.ts](worker/read-ledger.ts)、[worker/read-manifest.ts](worker/read-manifest.ts)、[worker/read-chunk.ts](worker/read-chunk.ts)：读 handler
+- [worker/read-ledger.ts](worker/read-ledger.ts)、[worker/read-body.ts](worker/read-body.ts)、[worker/read-due.ts](worker/read-due.ts)：读 handler
 - [worker/schema.ts](worker/schema.ts)、[worker/facts.ts](worker/facts.ts)、[worker/support.ts](worker/support.ts)：表、事实协议与行访问
+
+

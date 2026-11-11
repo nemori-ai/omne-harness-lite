@@ -93,6 +93,7 @@ export async function openSystemReads(rows: SystemRows) {
   /** Every tenant domain that a read reached. */
   const reads: string[] = []
   const storage: SqlStorage = {
+    database: real.storage.database,
     registerCombination: input => real.storage.registerCombination(input),
     commit: request => real.storage.commit(request),
     query: identity => real.storage.query(identity),

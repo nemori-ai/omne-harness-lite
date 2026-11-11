@@ -10,8 +10,7 @@
 // factory. It reads `toolCatalog` and the release consumer again on every call, through the plugin
 // context, so the injects stay the seven above; a session without resident tools never reads them.
 //
-// Configuration (data only, from the operator layer): `resultCapacity` (three decimal texts) and
-// optional `materials`. The `owner` of the registrations and the evidence is fixed by the release
+// Configuration (data only, from the operator layer): optional `materials`. The `owner` of the registrations and the evidence is fixed by the release
 // code (`AGENT_CONTEXT_OWNER`, R2-D202): the source registration grant of `requestContextTrust`
 // names it, so a configuration that gives `owner` is refused.
 // No measurement observer is handed in here; the C1 collection wires it.

@@ -70,6 +70,7 @@ export function createSqlModelRecordsPlugin<P, C>(
     readonly recall
     readonly scanPending
     readonly loadRecovery
+    readonly loadRequest
     readonly claim
     readonly prepareDispatch
     readonly recordMaterialization
@@ -113,6 +114,7 @@ export function createSqlModelRecordsPlugin<P, C>(
       this.recall = commands.recall
       this.scanPending = commands.scanPending
       this.loadRecovery = commands.loadRecovery
+      this.loadRequest = commands.loadRequest
       this.claim = commands.claim
       this.prepareDispatch = commands.prepareDispatch
       this.recordMaterialization = commands.recordMaterialization

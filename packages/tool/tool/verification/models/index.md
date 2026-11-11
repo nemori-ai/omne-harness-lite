@@ -21,3 +21,6 @@
 - [不持名额就启动的负控](SuspendedSlots-unsafe-skiphold.cfg)。
 - [停泊条目不计入容量的负控](SuspendedSlots-unsafe-parkfree.cfg)。
 - [只从 held 删除条目的负控](SuspendedSlots-unsafe-norelease.cfg)。
+
+- [调用域生命周期模型](call-lifecycle/README.md)。
+- [调用域生命周期的 TLA+ 规格](call-lifecycle/CallLifecycle.tla)。

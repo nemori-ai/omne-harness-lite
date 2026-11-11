@@ -1,14 +1,11 @@
-import type { Adoption, ResultCapacity } from '@omne-harness/model-contract'
+import type { Adoption } from '@omne-harness/model-contract'
 import type { ModelConsumerOwnerDeclaration } from '@omne-harness/model-contract/provider'
 import type { ModelObservationLimits } from '@omne-harness/model/commands'
 import type { SqlModelCommandsOptions } from './commands.ts'
 
 /** Data for one records plugin life. Every bound is explicit. */
 export type SqlModelRecordsConfig = Readonly<
-  Pick<
-    SqlModelCommandsOptions<unknown>,
-    'owners' | 'limits' | 'maxCallBytes' | 'maxCommandBytes'
-  > & {
+  Pick<SqlModelCommandsOptions<unknown>, 'owners' | 'limits' | 'requestChunkBytes'> & {
     observation?: ModelObservationLimits
     combinationVersion: string
     send: Readonly<{ mirrorBytes: number; maxClaims: number }>
@@ -58,21 +55,6 @@ function owner(value: unknown): ModelConsumerOwnerDeclaration {
   }
 }
 
-function decimal(value: unknown, name: string): string {
-  const parsed = text(value, name)
-  if (!/^(0|[1-9][0-9]*)$/.test(parsed)) throw new TypeError(`${name} must be a decimal count`)
-  return parsed
-}
-
-function capacity(value: unknown): ResultCapacity {
-  const input = record(value, 'limits.capacity')
-  return {
-    bytes: decimal(input['bytes'], 'capacity.bytes'),
-    blocks: decimal(input['blocks'], 'capacity.blocks'),
-    attachmentBytes: decimal(input['attachmentBytes'], 'capacity.attachmentBytes'),
-  }
-}
-
 function observation(value: unknown): ModelObservationLimits {
   const input = record(value, 'observation')
   return {
@@ -113,10 +95,9 @@ function parse(value: unknown): SqlModelRecordsConfig {
       resultPageParts: count(limits['resultPageParts'], 'limits.resultPageParts'),
       resultPageTargetBytes: count(limits['resultPageTargetBytes'], 'limits.resultPageTargetBytes'),
       readIdleMs: count(limits['readIdleMs'], 'limits.readIdleMs'),
-      capacity: capacity(limits['capacity']),
+      unacknowledgedResults: count(limits['unacknowledgedResults'], 'limits.unacknowledgedResults'),
     },
-    maxCallBytes: count(input['maxCallBytes'], 'maxCallBytes'),
-    maxCommandBytes: count(input['maxCommandBytes'], 'maxCommandBytes'),
+    requestChunkBytes: count(input['requestChunkBytes'], 'requestChunkBytes'),
     combinationVersion: text(input['combinationVersion'], 'combinationVersion'),
     send: {
       mirrorBytes: count(send['mirrorBytes'], 'send.mirrorBytes'),

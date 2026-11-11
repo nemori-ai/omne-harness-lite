@@ -125,7 +125,6 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
   const preparation = {
     maxCitedCalls: 8,
     openai: {
-      maxSerializedBytes: 4 * 1024 * 1024,
       limits: {
         toolArguments: {
           maxBytes: 65_536,
@@ -174,11 +173,10 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       resultPageParts: 16,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+      // One unacknowledged result at a time: a second call of the tenant waits for the first.
+      unacknowledgedResults: 1,
     },
-    // `maxCommandBytes` is the storage provider's (`providerConfig`); `maxCallBytes` leaves the reserve.
-    maxCallBytes: 524_288,
-    maxCommandBytes: 1_048_576,
+    requestChunkBytes: 65536,
     combinationVersion: COMBINATION_VERSION,
     send: { mirrorBytes: 4_194_304, maxClaims: 8 },
     // The read face `modelDiagnostics` (A12: the operator layer gives what the release does not).
@@ -294,8 +292,7 @@ export function hostShell(): Readonly<{ executable: string; argsPrefix: string[]
 
 /**
  * Tool 运行时组、宿主提供者与两个作者的运维者值（测试值）。文件根与宿主状态目录在存储根的父目录下新建；
- * `tool-records` 的 `maxCommandBytes` 与 `storage` 行相同（`providerConfig` 的 1048576），`combinationVersion`
- * 与 `session-storage` 行相同。
+ * `tool-records` 的 `combinationVersion` 与 `session-storage` 行相同。
  */
 export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoint?: string }) {
   const base = dirname(options.storageRoot)
@@ -334,8 +331,6 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
     records: {
       filesRoot,
       combinationVersion: COMBINATION_VERSION,
-      maxCommandBytes: 1048576,
-      maxChunkBytes: 16384,
       configuration: {
         authorBufferBytes: 65536,
         authorBufferItems: 256,
@@ -350,6 +345,33 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
         queueCapacity: 64,
         driverRetryDelayMs: 50,
         driverStepsPerRun: 32,
+        offloading: {
+          maxInlineUtf8Bytes: 65_536,
+          maxRetentionMs: 86_400_000,
+          maxBodyBytes: 16_777_216,
+          previewUtf8Bytes: 1_024,
+          maxPageBytes: 65_536,
+          permitMs: 30_000,
+          clockSkewMs: 1_000,
+          orphanGraceMs: 60_000,
+          maxWriterMetadataBytes: 1_048_576,
+          jsonDocument: {
+            maxBytes: 1_048_576,
+            maxDepth: 64,
+            maxItems: 65_536,
+            maxMembers: 65_536,
+            maxStringLength: 1_048_576,
+            maxNumberLength: 64,
+          },
+          jsonRecord: {
+            maxBytes: 65_536,
+            maxDepth: 32,
+            maxItems: 4096,
+            maxMembers: 4096,
+            maxStringLength: 65_536,
+            maxNumberLength: 64,
+          },
+        },
       },
       capacity: 64,
       observersPerCall: 4,
@@ -408,9 +430,33 @@ export function operatorLayer(options: {
       // 文件根与宿主状态目录在存储根旁边新建；Shell 用本机的 shell（Windows 是 powershell，其余是 /bin/sh）；
       // 运行时组的数值取 L-TOOL C06 组合用例的同一组值（tool-storage-sql windows-composition/assembly.ts）。
       { kind: 'replace', id: 'tool-host', config: { construction: tools.construction } },
-      // The release row has no Tools capability and no Web provider values; the test layer adds Web.
-      { kind: 'replace', id: 'tool-bindings', config: { web: tools.web } },
+      // The release row has no Tools capability and no Web provider values; the test layer adds both
+      // in one op, because a `replace` swaps the whole config of the row.
+      {
+        kind: 'replace',
+        id: 'tool-bindings',
+        config: {
+          tools: {
+            attemptMs: 250,
+            resultPageBytes: 65_536,
+            replyMaxBytes: 65_536,
+            contentPageBytes: 4096,
+          },
+          web: tools.web,
+        },
+      },
       { kind: 'replace', id: 'tool-records', config: tools.records },
+      {
+        kind: 'replace',
+        id: 'tool-body-sweep',
+        config: {
+          combinationVersion: tools.records.combinationVersion,
+          ledgerCommitAttempts: tools.records.configuration.ledgerCommitAttempts,
+          orphanGraceMs: tools.records.configuration.offloading.orphanGraceMs,
+          intervalMs: 1000,
+          limit: 100,
+        },
+      },
       { kind: 'replace', id: 'execution-host', config: tools.host },
       // B1（R2-D136）：Context 侧与 Session 适配行的数值归运维者层，发行层不写。这里是测试值：
       // 账目收件口的上限、agent-context 的采用身份与结果容量、AD-03/AD-04 的索引上界与页大小（成员初值）。
@@ -422,11 +468,7 @@ export function operatorLayer(options: {
       {
         kind: 'replace',
         id: 'agent-context',
-        config: {
-          // The result capacity of one call is at most `maxCallBytes` of model-records (N1): a larger
-          // one is refused at the admission as `capacity` (G-DIALOG layer 9).
-          resultCapacity: { bytes: '524288', blocks: '100', attachmentBytes: '0' },
-        },
+        config: {},
       },
       {
         kind: 'replace',

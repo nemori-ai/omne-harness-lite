@@ -2765,6 +2765,9 @@ importers:
       '@omne-harness/execution-environment-cordis-contract':
         specifier: workspace:*
         version: link:../../execution/execution-environment-cordis-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity

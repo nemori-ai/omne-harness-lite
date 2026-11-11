@@ -71,14 +71,12 @@ try {
   const openai = createOpenAiFamily({
     tokenizer: openAiTokenizerResources(),
     executor,
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: LIMITS,
     margin,
   })
   const anthropic = createAnthropicFamily({
     tokenizer: anthropicTokenizerResources(),
     executor,
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: LIMITS,
     margin,
   })

@@ -10,7 +10,6 @@ import {
 import type { ToolLedgerAction } from '@omne-harness/tool'
 import { admitCall, startHarness } from './start-values.ts'
 import {
-  adoption,
   callId,
   evidence,
   ok,
@@ -20,11 +19,10 @@ import {
   referenceFor,
   tenantA,
   text,
-  type Block,
 } from './runtime-values.ts'
 
 function fixture() {
-  const lives = new Map<string, ToolLiveExecution<Block>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const stops: ControlDispatch[] = []
   const deniedActions: ToolLedgerAction[] = []
   let progress: ControlProgress = { kind: 'pending', diagnostic: 'not dispatched' }
@@ -34,7 +32,7 @@ function fixture() {
       ...base,
       start: async (...args) => {
         const started = ok(await base.start(...args))
-        const live: ToolLiveExecution<Block> = {
+        const live: ToolLiveExecution = {
           ...started,
           stop: async input => {
             stops.push(input)
@@ -319,18 +317,8 @@ describe('durable control progression', () => {
       await h.runOnce('release', abort.signal)
       const recovery = ok(await h.commands.loadRecovery(access))
       if (recovery.start?.kind !== 'start') throw new Error('missing start')
-      const raw = ok(
-        await h.custody.preserve({
-          ...access,
-          operation: operationId('raw'),
-          codec: adoption('codec'),
-          bytes: new TextEncoder().encode('done'),
-          source: evidence('raw'),
-        }),
-      )
       await h.binding.controls.finish(recovery.start, {
         kind: 'final',
-        raw,
         terminal: { kind: 'completed' },
         effect: { kind: 'occurred', evidence: evidence('effect') },
         result: {

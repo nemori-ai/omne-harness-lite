@@ -1,8 +1,9 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
+  hostKey,
   isTenantShape,
+  recordKey,
   type CallRecord,
   type LedgerDomain,
   type ToolSourceGuard,
@@ -15,6 +16,7 @@ import {
   type ConsumerRef,
   type FixedToolRequest,
   type Reply,
+  type ToolCallId,
   type ToolForwardIntent,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
@@ -30,6 +32,9 @@ import {
 import type { LocalInvocationSourceInput, PrincipalJson } from './invocation-source.ts'
 import type { ObserveInvocationRecord } from './invocation-qualification.ts'
 import { localArgumentLimits } from './ledger-guards.ts'
+import { isReceivedCopyKey, receivedCopyKey, sourceDomain, sourceKey } from './source-identities.ts'
+
+export { isReceivedCopyKey, receivedCopyKey, sourceDomain, sourceKey }
 
 export const TOOL_FORWARDING_OWNER = '@omne-harness/tool-host-local/tools-forwarding'
 export const forwardingConsumer = (call: string): ConsumerRef => ({
@@ -37,13 +42,6 @@ export const forwardingConsumer = (call: string): ConsumerRef => ({
   work: call,
   position: 'execute',
   purpose: 'tools-target',
-})
-export const sourceKey = (consumer: ConsumerRef) =>
-  `source:${JSON.stringify([consumer.owner, consumer.work, consumer.position, consumer.purpose])}`
-export const sourceDomain = (tenant: LedgerDomain['tenant']): LedgerDomain => ({
-  kind: 'host',
-  tenant,
-  key: 'invocation-source',
 })
 export const isObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === 'object' && value !== null
@@ -180,8 +178,8 @@ function matchesTarget(
   ).every(key => same(parent[key], target[key]))
 }
 
-export function createInvocationForwarding<P, B extends ContentBlock>(
-  input: LocalInvocationSourceInput<P, B>,
+export function createInvocationForwarding<P>(
+  input: LocalInvocationSourceInput<P>,
   directGuard: ToolSourceGuard<P>,
   identitiesOf: (
     tenant: LedgerDomain['tenant'],
@@ -280,13 +278,14 @@ export function createInvocationForwarding<P, B extends ContentBlock>(
     return succeed(parent)
   }
   const storedOf = async (access: Access<P>, consumer: ConsumerRef) => {
-    const read = await input.store.read(sourceDomain(access.tenant))
-    if (read.kind !== 'complete') return unavailable()
-    const row = read.records.find(
-      row => row.kind === 'host' && row.host.key === sourceKey(consumer),
+    const read = await input.store.readRecord(
+      sourceDomain(access.tenant, consumer),
+      hostKey(sourceKey(consumer)),
     )
-    if (row === undefined) return succeed({ read, stored: null })
-    observe?.(sourceDomain(access.tenant), row)
+    if (read.kind !== 'complete') return unavailable()
+    const row = read.record
+    if (row === null) return succeed({ read, stored: null })
+    observe?.(sourceDomain(access.tenant, consumer), row)
     const stored = row.kind === 'host' ? parseForward(row.host.value) : null
     return stored === null ? unavailable() : succeed({ read, stored })
   }
@@ -361,7 +360,6 @@ export function createInvocationForwarding<P, B extends ContentBlock>(
             fixedDigest: canonicalDigest(request),
             invocation: request.invocation,
             principal: input.principalCodec.encode(parent.principal),
-            received: [],
             origin: {
               kind: 'forwarded',
               parent: parent.call,
@@ -378,7 +376,7 @@ export function createInvocationForwarding<P, B extends ContentBlock>(
           let commit
           try {
             commit = await input.store.commit({
-              domain: sourceDomain(parent.tenant),
+              domain: sourceDomain(parent.tenant, consumer),
               expected: read.revision,
               revision,
               writes: [
@@ -442,7 +440,49 @@ export function createInvocationForwarding<P, B extends ContentBlock>(
       }
     },
   }
-  return { source, recoverBinding, verifyStored, storedOf }
+  /**
+   * Releases the received copies of the forwarding slot of `parent` (C6: the copies go with the
+   * parent call's own result delivery). It reads the slot's domain whole: that domain holds one
+   * parent's slot and the copies of that parent's target, so its size is bounded by that one
+   * fan-out, never by the tenant's history. A call that is not a forwarding parent has nothing
+   * to release. Idempotent: a repeated release finds no copy and writes nothing.
+   */
+  const releaseReceivedCopies = async (
+    given: Readonly<{
+      tenant: LedgerDomain['tenant']
+      call: ToolCallId
+      request: FixedToolRequest
+    }>,
+  ): Promise<'released' | 'unavailable'> => {
+    if (input.forwarding === undefined || !input.forwarding.isParent(given.request))
+      return 'released'
+    const consumer = forwardingConsumer(given.call)
+    const domain = sourceDomain(given.tenant, consumer)
+    for (let attempt = 0; attempt < input.commitAttempts; attempt++) {
+      const read = await input.store.read(domain)
+      if (read.kind !== 'complete') return 'unavailable'
+      const copies = read.records.filter(
+        row => row.kind === 'host' && isReceivedCopyKey(consumer, row.host.key),
+      )
+      if (copies.length === 0) return 'released'
+      let committed
+      try {
+        committed = await input.store.commit({
+          domain,
+          expected: read.revision,
+          revision: nextSourceRevision(read.revision),
+          writes: copies.map(row => ({ kind: 'delete' as const, key: recordKey(row) })),
+        })
+      } catch {
+        return 'unavailable'
+      }
+      if (committed.kind === 'committed') return 'released'
+      if (committed.kind === 'unavailable') return 'unavailable'
+      // A conflict or an unknown answer: the next round reads what is left and deletes it.
+    }
+    return 'unavailable'
+  }
+  return { source, recoverBinding, verifyStored, storedOf, releaseReceivedCopies }
 }
 
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'

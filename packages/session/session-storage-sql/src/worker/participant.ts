@@ -19,6 +19,7 @@ import {
   type HistoryEntry,
   type OperationRecord,
   type ProducerRef,
+  type ResidentTool,
   type RoutedInput,
   type RunId,
   type SessionCallLookup,
@@ -30,10 +31,11 @@ import {
 } from '@omne-harness/session-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import type {
-  ParticipantModule,
-  ParticipantPort,
-  ParticipantReply,
+import {
+  packText,
+  type ParticipantModule,
+  type ParticipantPort,
+  type ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
 import { writeEntryText } from '../entry-codec.ts'
@@ -55,6 +57,7 @@ import {
   definite,
   definiteBasis,
   oneRow,
+  packed,
   readVersion,
   refusingMalformedEntries,
   rowsOf,
@@ -497,7 +500,37 @@ export function maintainModelView(
   return current
 }
 
-function maintainDerived(
+type ResidentRow = Readonly<{ key: string; capability: string; shape: ResidentTool['shape'] }>
+
+const shapeText = (row: ResidentRow): string => JSON.stringify(encodeValue(row.shape))
+
+/**
+ * The rows of the resident index that a snapshot stands for: none before the session exists and
+ * none once it is archived, else one row per registered key whose capability has a definition. The
+ * map key is the rest of the primary key of a row, after the tenant and the session.
+ */
+function residentRows(snapshot: WorkSnapshot | null): ReadonlyMap<string, ResidentRow> {
+  const rows = new Map<string, ResidentRow>()
+  if (snapshot === null || snapshot.lifecycle === 'archived') return rows
+  for (const pair of snapshot.residentKeys ?? []) {
+    const resident = snapshot.residents.find(item => item.capability === pair.capability)
+    if (resident !== undefined)
+      rows.set(JSON.stringify([pair.key, pair.capability]), {
+        key: pair.key,
+        capability: pair.capability,
+        shape: resident.shape,
+      })
+  }
+  return rows
+}
+
+/**
+ * The derived rows of a published batch (W3). The pending index and the resident index hold the
+ * rows of every session of the tenant, so each is maintained by the difference between the rows of
+ * the previous snapshot and those of the new one, and each statement names a whole primary key: a
+ * batch that leaves them alone runs no statement, and none visits the rows of another session.
+ */
+export function maintainDerived(
   port: ParticipantPort,
   tenant: string,
   session: string,
@@ -520,16 +553,23 @@ function maintainDerived(
         reason,
         session,
       ])
-  port.execute('DELETE FROM sl_resident_idx WHERE tenant = ? AND session = ?', [tenant, session])
-  if (snapshot.lifecycle !== 'archived')
-    for (const pair of snapshot.residentKeys ?? []) {
-      const resident = snapshot.residents.find(item => item.capability === pair.capability)
-      if (resident !== undefined)
-        port.execute(
-          'INSERT OR REPLACE INTO sl_resident_idx (resident_key, tenant, session, capability, shape) VALUES (?, ?, ?, ?, ?)',
-          [pair.key, tenant, session, pair.capability, JSON.stringify(encodeValue(resident.shape))],
-        )
-    }
+  const indexed = residentRows(previous)
+  const residents = residentRows(snapshot)
+  for (const [id, row] of indexed)
+    if (!residents.has(id))
+      port.execute(
+        'DELETE FROM sl_resident_idx WHERE resident_key = ? AND tenant = ? AND session = ? AND capability = ?',
+        [row.key, tenant, session, row.capability],
+      )
+  for (const [id, row] of residents) {
+    const old = indexed.get(id)
+    if (old !== undefined && (old.shape === row.shape || shapeText(old) === shapeText(row)))
+      continue
+    port.execute(
+      'INSERT OR REPLACE INTO sl_resident_idx (resident_key, tenant, session, capability, shape) VALUES (?, ?, ?, ?, ?)',
+      [row.key, tenant, session, row.capability, shapeText(row)],
+    )
+  }
   port.execute('DELETE FROM sl_released_scope_idx WHERE tenant = ? AND session = ?', [
     tenant,
     session,
@@ -560,7 +600,7 @@ export function initializationReceipts(
     [tenant, session, BigInt(limit + 1)],
   )
   if (rows.length > limit) return null
-  return rows.map(row => JSON.parse(text(row['receipt'])) as CommitReceipt)
+  return rows.map(row => JSON.parse(packed(row['receipt'])) as CommitReceipt)
 }
 
 /**
@@ -615,7 +655,7 @@ function writeEntries(
         BigInt(entry.id),
         BigInt(entry.revision),
         entry.kind,
-        body,
+        packText(body),
         BigInt(Buffer.byteLength(body)),
       ],
     )
@@ -700,7 +740,7 @@ function insertOperation(
   const { tenant, session, operation, digest, form, revision, receipt, result } = record
   port.execute(
     'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [tenant, session, operation, digest, form, revision, receipt, result],
+    [tenant, session, operation, digest, form, revision, packText(receipt), packText(result)],
   )
 }
 
@@ -772,8 +812,8 @@ function runQuery(
         : {
             kind: 'operation',
             form: text(row['form']),
-            receipt: JSON.parse(text(row['receipt'])) as JsonValue,
-            result: JSON.parse(text(row['result'])) as JsonValue,
+            receipt: JSON.parse(packed(row['receipt'])) as JsonValue,
+            result: JSON.parse(packed(row['result'])) as JsonValue,
             evidence:
               stored === undefined ? null : (JSON.parse(text(stored['evidence'])) as JsonValue),
           },
@@ -835,7 +875,7 @@ function commandStart(
   )
   if (held !== undefined && text(held['form']) === 'answer')
     return isControl(command) && text(held['input_digest']) === commandDigest(command)
-      ? participated(decodeValue(JSON.parse(text(held['result'])) as JsonValue), true)
+      ? participated(decodeValue(JSON.parse(packed(held['result'])) as JsonValue), true)
       : stopped({ kind: 'conflict', operation })
 
   const journal = oneRow(
@@ -909,7 +949,7 @@ function commandReads(
     compaction: null,
     ...(frozen === undefined
       ? {}
-      : { frozenReceipt: JSON.parse(text(frozen['receipt'])) as CommitReceipt }),
+      : { frozenReceipt: JSON.parse(packed(frozen['receipt'])) as CommitReceipt }),
     ...(command.kind === 'cancelRun' && previous !== null
       ? { runs: [runLookup(previous, command.input.run)] }
       : {}),
@@ -978,6 +1018,7 @@ function recallOriginal(
   )
   if (original === undefined)
     return definite('missing-row', 'a recalled operation without a record')
+  const receipt = packed(original['receipt'])
   if (held === undefined && command.kind === 'completeInitialization') {
     insertOperation(port, {
       tenant,
@@ -985,16 +1026,16 @@ function recallOriginal(
       operation,
       digest: commandDigest(command),
       form: 'batch',
-      revision: BigInt((JSON.parse(text(original['receipt'])) as CommitReceipt).revision),
-      receipt: text(original['receipt']),
-      result: text(original['receipt']),
+      revision: BigInt((JSON.parse(receipt) as CommitReceipt).revision),
+      receipt,
+      result: receipt,
     })
     storeEvidence(port, { tenant, session, operation }, evidence)
   }
   const value =
     command.kind === 'completeInitialization'
-      ? { ...(JSON.parse(text(original['receipt'])) as CommitReceipt), recovered: true }
-      : decodeValue(JSON.parse(text(original['result'])) as JsonValue)
+      ? { ...(JSON.parse(receipt) as CommitReceipt), recovered: true }
+      : decodeValue(JSON.parse(packed(original['result'])) as JsonValue)
   return participated(value, true)
 }
 
@@ -1113,7 +1154,7 @@ function recordOf(command: SessionCommand, start: CommandStart): OperationRecord
     : {
         operation: command.input.operation,
         digest: text(held['input_digest']),
-        receipt: JSON.parse(text(held['receipt'])) as CommitReceipt,
+        receipt: JSON.parse(packed(held['receipt'])) as CommitReceipt,
       }
 }
 

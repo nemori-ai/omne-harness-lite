@@ -22,7 +22,6 @@ import {
   type ResultPart,
   type ModelCallId,
   type ModelOperationId,
-  type ResultCapacity,
   type ResultVersion,
   type Supplier,
 } from '@omne-harness/model-contract'
@@ -101,8 +100,6 @@ const consumer: ConsumerRef = {
   purpose: 'purpose',
 }
 
-const capacity: ResultCapacity = { bytes: '1000', blocks: '10', attachmentBytes: '0' }
-
 export const evidence = (label: string): DurableEvidence => ({
   owner: 'fixture',
   record: label,
@@ -150,7 +147,6 @@ export const admission = (name: string): Admit<Principal> => ({
   operation: operation(`admit-${name}`),
   request,
   consumer,
-  capacity,
 })
 
 /** The scripted provider that stands for whatever serves the calls, with the helpers that read it. */

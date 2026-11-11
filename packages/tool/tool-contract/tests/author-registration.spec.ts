@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import { succeed } from '@omne-harness/operation-result'
 import {
+  CHECKPOINT_STATE_MAX_BYTES,
   defineCommandTool,
   defineFunctionTool,
   defineToolOperation,
@@ -58,6 +59,18 @@ function shellOperation(): Operation {
 }
 
 describe('author registration', () => {
+  it('rejects an ordinary output codec that differs from the published value codec', () => {
+    const author = ordinaryAuthor()
+    const registered = defineToolOperation({
+      parameters: { kind: 'declared', value: parameters() },
+      returns: ordinaryReturns,
+      author: { ...author, codec: { ...author.codec, adoption: adoption('other-codec') } },
+    })
+    expect(registered).toEqual({
+      failure: { field: 'author.codec.adoption', reason: 'value-codec-mismatch' },
+    })
+  })
+
   it('author registration: a function tool projects its one operation into judged implementation facts', () => {
     let runs = 0
     const author = ordinaryAuthor()
@@ -216,19 +229,19 @@ describe('author registration', () => {
     } as const
     const accepted = defineToolOperation({
       parameters: { kind: 'declared', value: parameters() },
-      returns: { kind: 'ordinary', program: declared },
+      returns: { ...ordinaryReturns, program: declared },
       author: { ...author, program },
     })
     expect('ok' in accepted).toBe(true)
     const none = defineToolOperation({
       parameters: { kind: 'declared', value: parameters() },
-      returns: { kind: 'ordinary', program: declared },
+      returns: { ...ordinaryReturns, program: declared },
       author,
     })
     expect(none).toEqual({ failure: { field: 'author.program.kind', reason: 'program-mismatch' } })
     const other = defineToolOperation({
       parameters: { kind: 'declared', value: parameters() },
-      returns: { kind: 'ordinary', program: declared },
+      returns: { ...ordinaryReturns, program: declared },
       author: { ...author, program: { ...program, adoption: adoption('other') } },
     })
     expect(other).toEqual({
@@ -462,6 +475,13 @@ describe('checkpointed author', () => {
     expect(
       define({ ...segments(), checkpoint: { ...segments().checkpoint, maxBytes: 0 } }),
     ).toEqual({ failure: { field: 'author.executor.checkpoint.maxBytes', reason: 'range' } })
+    // The ledger keeps the state in one record of the call: a declaration over the bound is refused.
+    const bounded = (maxBytes: number) =>
+      define({ ...segments(), checkpoint: { ...segments().checkpoint, maxBytes } })
+    expect(bounded(CHECKPOINT_STATE_MAX_BYTES)).toHaveProperty('ok')
+    expect(bounded(CHECKPOINT_STATE_MAX_BYTES + 1)).toEqual({
+      failure: { field: 'author.executor.checkpoint.maxBytes', reason: 'range' },
+    })
     expect(
       define({ ...segments(), checkpoint: { ...segments().checkpoint, extra: true } }),
     ).toMatchObject({ failure: { field: 'author.executor.checkpoint.extra' } })

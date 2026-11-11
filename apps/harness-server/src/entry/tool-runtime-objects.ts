@@ -34,7 +34,6 @@ import { sessionWorkPrincipalsKey } from '@omne-harness/session-cordis-contract/
 import { toolHitlHolder } from '../rows/tool-hitl/holder.ts'
 import { toolRuntimeHolder, witnessed } from '../rows/tool-runtime/holder.ts'
 import { hitlCardAudience } from './hitl-entry-principals.ts'
-import { issueTenantDomainScanner } from './tenant-domain-scanner.ts'
 import { toolDecisionsIssuerOf } from './principals.ts'
 import type { EntryObjectModule } from '../types.ts'
 
@@ -108,9 +107,6 @@ export const toolClock: EntryObjectModule = {
         .get(tenantStandingKey)
       return standing
     }
-    // The pending scan of the Tool ledger lists the deployment's tenants with this principal only.
-    const scanner = issueTenantDomainScanner(env)
-    holder.scanner = () => scanner
     // The decision owner of the Ask waits (`rows/tool-hitl`): Identity's reservations, which the HITL
     // writes reserve through, and the principal that registers the waits of a tenant.
     const hitl = toolHitlHolder(scope)

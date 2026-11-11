@@ -14,7 +14,7 @@
 | 行 | 成员工厂 | 构造时交入的运行时对象 | 配置 |
 | --- | --- | --- | --- |
 | `request-context` | `RequestContextProvider`，行体以子 fiber 装载 | 账目四个端口：来源核验与读取资格见下节「账目端口」，另两个是具名缺件 | `limits`（运维者层）；可选 `selection` |
-| `agent-context` | `createAgentContextPlugin(agentContextPluginInput)` | 组六的工具读口 `catalogToolLookup`（`rows/agent-context/tools.ts`）：逐次现取 `toolCatalog` 与发行确认的文本消费者材料，经 `toolCatalog.inspect` 读常驻绑定所指工具的完整定义，读不到时组六失败关闭（G-TOOLS6）。不带测量观察者，C1 采集时交入 | `resultCapacity`、可选 `materials`（运维者层）。`owner` 由发行代码固定为 `AGENT_CONTEXT_OWNER`（`src/assembly/agent-context-owner.ts`，R2-D202），配置给 `owner` 时行加载失败 |
+| `agent-context` | `createAgentContextPlugin(agentContextPluginInput)` | 组六的工具读口 `catalogToolLookup`（`rows/agent-context/tools.ts`）：逐次现取 `toolCatalog` 与发行确认的文本消费者材料，经 `toolCatalog.inspect` 读常驻绑定所指工具的完整定义，读不到时组六失败关闭（G-TOOLS6）。不带测量观察者，C1 采集时交入 | 可选 `materials`（运维者层）。`owner` 由发行代码固定为 `AGENT_CONTEXT_OWNER`（`src/assembly/agent-context-owner.ts`，R2-D202），配置给 `owner` 时行加载失败 |
 | `agent-account-outlet` | `AgentAccountOutletProvider` | 无 | `sender`：出站插件的采用身份（发行数据） |
 | `session-ad02` | `createSessionJournalInterpretationPlugin({ coordinator })` | 协调者主体来源 | 无 |
 | `session-ad03` | `createSessionContextHolder({ coordinator, translation, … })`，三个子插件来自同一次调用 | 协调者主体来源；`createSessionContextTranslation(adoptedContextDefinitions)` | `scopeIndexEntries`、`pageBytes`（运维者层） |
@@ -68,6 +68,13 @@
 
 [账目端口用例](../../tests/rows/request-context/accounting.spec.ts)与[行用例](../../tests/rows/request-context/index.spec.ts)证明来源核验与读取资格的放行、拒绝与不可用；[持有者事实用例](../../tests/entry/runtime-context-replay-facts.spec.ts)证明入口按调用在受信作用域读取 `sessionReplayFacts`，缺席时答不可用，根上的同名提供者伪造不了 `known`。
 
+## W3 结果承接的生产验证
+
+W3 只采用 Tool 已提交的归一化结果。消费方在 saved 前独立耐久保存内联材料，历史保存卸载预览及固定期限，程序 data 不自动成为模型消息。生产 Tool 接收方、同一 Journal 材料读口和 Session 适配必须共同验证，不能用测试世界的 reader 替代实际发行行。
+
+`session-ad06` 注入 Agent 的 `decodeAgentToolDeliveryMaterial` 和受信 `sessionWorkPrincipals` 协调者来源。Agent 解码自有材料；Session 适配器继续核对原绑定、消费位置和提交条件。Tool 解除回执进入日志的 `JC-RELEASE-TOOL-PATH` 仍是另一项责任，补齐材料读取不自动关闭它。
+
+本行沿既有发布事件唤醒消费。显式补读使用 `consumeSessionToolLog(ctx, target)`，仅访问 ctx 所属根的当前行代次；行撤除后返回 unavailable，另一根不受影响。该订阅不提供耐久 outbox：最后一次事件丢失，或消费失败后没有新事件时，仍需下一事件或显式 consumeSessionToolLog 补读。验收须验证 Tool 已释放交付副本后，显式补读仍能从 Agent 独立材料认回原位置，不重复 Session 日志。这个已有进展限制不允许 Agent 在耐久承接前 ACK，也不延长正文 TTL。
 
 ## 会话模式的装配与发布
 

@@ -11,28 +11,26 @@ const domain = (tenant: string): DomainRef => ({
   transactionDomain: 'shared-domain',
 })
 
-/** A storage whose generations below `rolledBackBelow` are rolled back; it records every query. */
+/**
+ * A storage whose generations below `rolledBackBelow` are rolled back receipts of earlier calls;
+ * it records every commit it is sent.
+ */
 function storage(rolledBackBelow: number, commitAnswer: 'committed' | 'unknown') {
-  const queried: string[] = []
+  const sent: string[] = []
   const generation = (identity: SqlIdentity) => Number(identity.operationKey.split('#')[1])
   const fake = {
-    query(identity: SqlIdentity) {
-      queried.push(identity.operationKey)
-      return Promise.resolve(
-        generation(identity) < rolledBackBelow
-          ? { kind: 'rolled_back' }
-          : { kind: 'not_committed' },
-      )
-    },
-    commit() {
+    commit({ identity }: { identity: SqlIdentity }) {
+      sent.push(identity.operationKey)
+      if (generation(identity) < rolledBackBelow)
+        return Promise.resolve({ kind: 'rolled_back', responses: [], recalled: true })
       return Promise.resolve(
         commitAnswer === 'committed'
-          ? { kind: 'committed', responses: [] }
+          ? { kind: 'committed', responses: [], recalled: false }
           : { kind: 'unknown', diagnostic: 'the answer was lost' },
       )
     },
   }
-  return { storage: fake as unknown as SqlStorage, queried }
+  return { storage: fake as unknown as SqlStorage, sent }
 }
 
 const combination = {} as JournalCombination
@@ -49,7 +47,7 @@ describe('the generation memory of the Journal commit', () => {
       commands: [],
       generations,
     })
-    expect(a.queried).toEqual(['op#1', 'op#2', 'op#3'])
+    expect(a.sent).toEqual(['op#1', 'op#2', 'op#3'])
     expect(generations.size).toBe(1)
 
     const b = storage(1, 'committed')
@@ -61,6 +59,6 @@ describe('the generation memory of the Journal commit', () => {
       commands: [],
       generations,
     })
-    expect(b.queried).toEqual(['op#1'])
+    expect(b.sent).toEqual(['op#1'])
   })
 })

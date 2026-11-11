@@ -4,7 +4,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { fail } from '@omne-harness/operation-result'
 import { toolCommandsKey } from '@omne-harness/tool-cordis-contract/cordis'
-import { readSqlToolOutputBytes } from '@omne-harness/tool-storage-sql'
 import { sessionWorkReaderOf } from '../../entry/tool-requests.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { createToolHitlBridge, TOOL_HITL_OWNER } from './bridge.ts'
@@ -35,7 +34,6 @@ export function mountToolHitl(
     host: () => hitl.host,
     audience: () => hitl.audience,
     registrar: tenant => hitl.registrar(tenant),
-    readOutput: readSqlToolOutputBytes(options),
     recoveryOf: async access => {
       const commands = ctx.get(toolCommandsKey)
       if (commands === undefined)

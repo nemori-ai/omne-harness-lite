@@ -2,7 +2,6 @@
 // 索引，关闭重开后仍在；在 002 之前就已迁移的事务域，下次打开时补上标记表。数据库直接检查，
 // 不只经端口。
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { LedgerCommitInput, LedgerDomain } from '@omne-harness/tool'
 import { decodeToolCallId, type ToolCallId } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
@@ -44,11 +43,7 @@ const domainOf = (text: string, tenant = TENANT_A): LedgerDomain => ({
   call: call(text),
 })
 
-function commitOf(
-  domain: LedgerDomain,
-  expected: string,
-  pending: boolean,
-): LedgerCommitInput<ContentBlock> {
+function commitOf(domain: LedgerDomain, expected: string, pending: boolean): LedgerCommitInput {
   return {
     domain,
     expected: decoded(decodeToolRevision(expected)),
@@ -113,6 +108,7 @@ describe('the pending marker of a call domain', () => {
       expected: '0',
       revision: '1',
       writes: [],
+      asserts: [],
       pending: true,
     }
     expect(participant.execute(facts, port)).toEqual({
@@ -140,10 +136,10 @@ describe('the pending marker of a call domain', () => {
   it('reaches a domain that was migrated before the marker table: the next open adds the table', async () => {
     const first = await openApp({ keep: true })
     await first.store.commit(commitOf(domainOf('old'), '0', false))
-    // The domain as the first migration alone left it: no marker table, no record of 002.
+    // The domain as the baseline migration alone left it: no marker table, no record of the second.
     const name = domainNameOf(TENANT_A)
     first.sqlite.inspect(name, 'DROP TABLE tl_pending')
-    first.sqlite.inspect(name, "DELETE FROM _sql_migration WHERE id = '002-tool-pending'")
+    first.sqlite.inspect(name, "DELETE FROM _sql_migration WHERE id = 'r6-002-tool-pending'")
     first.sqlite.close()
     const second = await app({ directory: first.directory })
     expect(await second.store.commit(commitOf(domainOf('old'), '1', true))).toEqual({

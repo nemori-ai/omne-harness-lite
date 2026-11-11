@@ -94,11 +94,24 @@ export function metadata(): DefinitionMetadata {
 
 export const ordinaryReturns = {
   kind: 'ordinary',
+  value: {
+    kind: 'encoded-value',
+    codec: adoption('output-codec'),
+    value: {
+      identity: { id: 'output', revision: '1', digest: 'sha256:output' },
+      definition: { schema: json('{}'), vocabulary: adoption('json-schema'), descriptions: [] },
+    },
+  },
   program: { kind: 'none' },
+  body: { kind: 'text', codec: adoption('utf8') },
+  offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
 } as const satisfies ToolReturnDeclaration
 export const structuredReturns = {
   kind: 'structured',
+  value: { kind: 'tool-result', contract: adoption('ToolResult') },
   program: { kind: 'none' },
+  body: { kind: 'text', codec: adoption('utf8') },
+  offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
 } as const satisfies ToolReturnDeclaration
 
 export function functionDefinition(): ToolDefinition {

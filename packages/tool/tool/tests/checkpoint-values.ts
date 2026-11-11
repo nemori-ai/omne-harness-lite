@@ -1,12 +1,16 @@
 // The doubles of a checkpointed call on the real runtime, ledger and driver: a minimal checkpointed
 // author, a checkpointed binding that runs its initial and resume segments, and a scripted decision
-// owner. The binding keeps its executions and state bytes in memory and proves nothing about a
-// durable host; the host-local binding is tested in its own package.
+// owner. The binding keeps its executions in memory and proves nothing about a durable host; the
+// host-local binding is tested in its own package. The state of a checkpoint and the request
+// original of a wait go to the ledger, and a resume gets its state and its response from the
+// driver. A decision owner reads the request original from the recovery of the call.
+import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   ControlProgress,
   DecisionValue,
   DurableEvidence,
+  ResponseRecord,
   ToolDecision,
   ToolFailure,
   ToolStartRecord,
@@ -16,7 +20,6 @@ import type {
   AuthorSegment,
   CheckpointedToolExecutor,
   ControlDispatch,
-  ToolCommands,
   ExternalOperationResolution,
   FactBatch,
   SuspensionProgress,
@@ -26,20 +29,18 @@ import type {
   ToolExecutionFact,
   ToolExecutorBinding,
   ToolLiveExecution,
-  ToolOutputCustody,
   ToolPrimitiveFailure,
   ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
 import { canonicalDigest } from '@omne-harness/tool'
-import { adoption, evidence, type Block, type Principal } from './runtime-values.ts'
+import { adoption, evidence, type Principal } from './runtime-values.ts'
 import { askContract, question } from './scope-values.ts'
 import type { TestEnvironment } from './start-values.ts'
 
 type Checkpointed = Extract<
-  ToolExecutorBinding<Principal, Block, TestEnvironment>,
+  ToolExecutorBinding<Principal, TestEnvironment>,
   { kind: 'checkpointed' }
 >
-type Access = Readonly<{ principal: Principal; tenant: never; call: never }>
 export type Segment = Outcome<AuthorSegment<Uint8Array, unknown>, ToolPrimitiveFailure>
 
 export const STATE_CODEC = adoption('ask-state-codec')
@@ -92,7 +93,7 @@ export function askingAuthor(
 type Execution = {
   readonly start: ToolStartRecord
   readonly source: DurableEvidence
-  readonly batches: FactBatch<Block>[]
+  readonly batches: FactBatch[]
   readonly waiters: Set<() => void>
   /** The responses this execution's segment consumed: its resume's response. */
   consumed: string[]
@@ -100,27 +101,17 @@ type Execution = {
   outcome:
     | null
     | Readonly<{ kind: 'completed' }>
-    | Readonly<{ kind: 'suspended'; payload: DurableEvidence }>
+    | Readonly<{ kind: 'suspended'; payload: DurableEvidence; state: string }>
 }
 
 export type CheckpointBinding = Readonly<{
-  bindings: ToolBindings<Principal, Block, TestEnvironment>
+  bindings: ToolBindings<Principal, TestEnvironment>
   /** The starts and resumes whose segment ran, in order. */
   readonly segments: string[]
   /** 各段执行收到的 stop，按到达顺序。 */
   readonly stops: ControlDispatch[]
   /** The suspensions the binding was asked to prove. */
   readonly suspensions: SuspensionRecord[]
-  /**
-   * Gives the binding the ledger it reads the committed ResponseRecord of a resume from, as a
-   * host-local binding reads it through its assembly, and the custody of its raw outputs.
-   */
-  attach(
-    host: Readonly<{
-      commands: Pick<ToolCommands<Principal, Block>, 'loadRecovery'>
-      custody: ToolOutputCustody<Principal>
-    }>,
-  ): void
 }>
 
 /**
@@ -136,11 +127,7 @@ export function checkpointBinding(
   const segments: string[] = []
   const stops: ControlDispatch[] = []
   const suspensions: SuspensionRecord[] = []
-  // The encoded state of each kept checkpoint, by the digest of its payload evidence.
-  const states = new Map<string, Uint8Array>()
-  let ledger: Pick<ToolCommands<Principal, Block>, 'loadRecovery'> | null = null
-  let custody: ToolOutputCustody<Principal> | null = null
-  const publish = (execution: Execution, fact: ToolExecutionFact<Block>) => {
+  const publish = (execution: Execution, fact: ToolExecutionFact) => {
     const index = execution.batches.length + 1
     execution.batches.push({
       start: execution.start,
@@ -156,23 +143,32 @@ export function checkpointBinding(
     execution.ended = true
     for (const waiter of execution.waiters) waiter()
   }
-  /** How a segment ended: a final, or the Ask wait it suspends on with its kept state. */
-  const finish = async (execution: Execution, segment: Segment, access?: Access) => {
+  /**
+   * How a segment ended: a final, or the Ask wait it suspends on. The payload evidence binds the
+   * digest of the state text and the request evidence the digest of the request text, as the
+   * ledger checks them.
+   */
+  const finish = (execution: Execution, segment: Segment, resumed: boolean) => {
     const { start } = execution
     if ('ok' in segment && segment.ok.kind === 'suspended') {
-      const payload = evidence(`checkpoint/${start.operation}`, 'test-host')
-      states.set(canonicalDigest(payload), segment.ok.state)
+      const state = Buffer.from(segment.ok.state).toString('base64')
+      const payload = {
+        ...evidence(`checkpoint/${start.operation}`, 'test-host'),
+        digest: canonicalDigest(state),
+      }
+      const request = writeJsonText(segment.ok.wait.request)
       const { contract } = segment.ok.wait
-      execution.outcome = { kind: 'suspended', payload }
+      execution.outcome = { kind: 'suspended', payload, state }
       publish(execution, {
         kind: 'wait',
+        request,
         value: {
           kind: 'ask',
           wait: `${start.operation}/wait` as never,
           resume: payload,
           request: {
             ...evidence(`request/${start.operation}`, 'test-host'),
-            digest: canonicalDigest(segment.ok.wait.request),
+            digest: canonicalDigest(request),
           },
           schemas: {
             contract: contract.adoption,
@@ -187,18 +183,8 @@ export function checkpointBinding(
       })
     } else {
       execution.outcome = { kind: 'completed' }
-      // A resume segment that completes ends its call with a final over its preserved output.
-      if (access !== undefined && custody !== null) {
-        const final = completedFinal()
-        const raw = await custody.preserve({
-          ...access,
-          operation: `${start.operation}/raw` as never,
-          codec: final.raw.codec,
-          bytes: new TextEncoder().encode('done'),
-          source: execution.source,
-        })
-        if ('ok' in raw) publish(execution, { ...final, raw: raw.ok } as never)
-      }
+      // A resume segment that completes ends its call with a final.
+      if (resumed) publish(execution, completedFinal())
     }
     end(execution)
   }
@@ -208,26 +194,21 @@ export function checkpointBinding(
   })
   const run = async (execution: Execution, environment: TestEnvironment) => {
     segments.push(execution.start.operation)
-    await finish(execution, await author.initial(null, environment, context()))
+    finish(execution, await author.initial(null, environment, context()), false)
   }
   /**
-   * Runs the resume segment: the committed ResponseRecord of the wait that resumes at this
-   * checkpoint, read from the ledger, and the state kept for that checkpoint. The `continued` fact
-   * goes first, at the point where the author gets the decision.
+   * Runs the resume segment with what the driver gave: the state of the checkpoint and the
+   * committed ResponseRecord of the wait that resumes there. The `continued` fact goes first, at
+   * the point where the author gets the decision.
    */
-  const runResume = async (execution: Execution, environment: TestEnvironment, access: Access) => {
+  const runResume = async (
+    execution: Execution,
+    environment: TestEnvironment,
+    kept: string,
+    response: ResponseRecord,
+  ) => {
     const { start } = execution
-    if (start.kind !== 'resume' || ledger === null) throw new Error('no resume input')
-    const recovery = await ledger.loadRecovery(access)
-    if ('failure' in recovery) throw new Error('the ledger is unreadable')
-    const wait = recovery.ok.waits.find(
-      record =>
-        record.phase === 'responding' &&
-        canonicalDigest(record.intent.resume) === canonicalDigest(start.checkpoint),
-    )
-    const state = states.get(canonicalDigest(start.checkpoint))
-    if (wait?.phase !== 'responding' || state === undefined) throw new Error('no resume input')
-    const { response } = wait
+    const state = new Uint8Array(Buffer.from(kept, 'base64'))
     if (response.response.kind !== 'decision') throw new Error('not a decision')
     segments.push(start.operation)
     execution.consumed = [response.operation]
@@ -238,13 +219,13 @@ export function checkpointBinding(
       timing: evidence(`continued/${start.operation}`, 'test-host'),
     })
     const decision: DecisionValue = response.response.value
-    await finish(
+    finish(
       execution,
       await author.resume({ checkpoint: state, response: decision }, environment, context()),
-      access,
+      true,
     )
   }
-  const live = (execution: Execution): ToolLiveExecution<Block> => ({
+  const live = (execution: Execution): ToolLiveExecution => ({
     async *facts({ after, signal }) {
       let next =
         after === null ? 0 : execution.batches.findIndex(batch => batch.cursor === after) + 1
@@ -287,6 +268,7 @@ export function checkpointBinding(
       return { kind: 'not-suspended', evidence: evidence('completed') }
     return {
       kind: 'suspended',
+      state: execution.outcome.state,
       checkpoint: {
         schema: suspension.schema,
         payload: execution.outcome.payload,
@@ -309,10 +291,12 @@ export function checkpointBinding(
       call: never
       start: ToolStartRecord
       permit: Parameters<Checkpointed['start']>[0]['permit']
+      request: Parameters<Checkpointed['start']>[0]['request']
     }>,
     segment: (execution: Execution) => Promise<void>,
-  ): Promise<Outcome<ToolLiveExecution<Block>, ToolFailure>> => {
+  ): Promise<Outcome<ToolLiveExecution, ToolFailure>> => {
     const consumed = await authority.consume({
+      request: input.request,
       principal: input.principal,
       tenant: input.tenant,
       call: input.call,
@@ -363,11 +347,7 @@ export function checkpointBinding(
     inspectSuspension: suspension => Promise.resolve(succeed(proof(suspension))),
     resume: (input, environment) =>
       launch(input as never, execution =>
-        runResume(execution, environment, {
-          principal: input.principal,
-          tenant: input.tenant as never,
-          call: input.call as never,
-        }).catch(() => {
+        runResume(execution, environment, input.state, input.response).catch(() => {
           execution.outcome = { kind: 'completed' }
           end(execution)
         }),
@@ -381,10 +361,6 @@ export function checkpointBinding(
     segments,
     stops,
     suspensions,
-    attach: host => {
-      ledger = host.commands
-      custody = host.custody
-    },
     bindings: {
       inspect: () => Promise.reject(new Error("inspect is the Catalog's")),
       resolve: () => Promise.resolve(succeed(binding)),

@@ -13,7 +13,6 @@ import {
   ok,
   request,
   tenantA,
-  type Block,
 } from './runtime-values.ts'
 import {
   admitCall,
@@ -30,7 +29,7 @@ afterEach(auditQueues)
 const rejected = { kind: 'invalid', field: 'storage', reason: 'command_limit' } as const
 
 /** A harness whose store rejects up to `times` commits matching `matches`, counting each one. */
-function rejecting(matches: (input: LedgerCommitInput<Block>) => boolean, times: number) {
+function rejecting(matches: (input: LedgerCommitInput) => boolean, times: number) {
   const seen = { rejectable: 0 }
   let armed = false
   const harness = startHarness({
@@ -100,7 +99,7 @@ describe('11 a commit the ledger store rejects', () => {
 
 /** Whether a commit writes the operation record of `operation`: the commit of that operation. */
 function putsOperation(operation: string) {
-  return (input: LedgerCommitInput<Block>) =>
+  return (input: LedgerCommitInput) =>
     input.writes.some(
       write =>
         write.kind === 'put' &&
@@ -111,7 +110,7 @@ function putsOperation(operation: string) {
 
 /** Whether a commit is a queue-domain commit that deletes the entry of `call`: its release. */
 function releasesEntry(call: string) {
-  return (input: LedgerCommitInput<Block>) =>
+  return (input: LedgerCommitInput) =>
     input.domain.kind === 'queue' &&
     input.writes.some(write => write.kind === 'delete' && write.key === `entry:${call}`)
 }
@@ -144,7 +143,7 @@ describe('23 a step of a call that never started, rejected by the store', () => 
     expect(recovery.tasks).toEqual([
       expect.objectContaining({ kind: 'deliver', operation: 'op-c1/ledger-rejected' }),
     ])
-    expect(await harness.released()).toContain('c1')
+    expect(await harness.released('c1')).toBe(true)
     expect(await harness.queue()).toEqual([{ call: 'c2', ordinal: '2', stage: 'preparing' }])
     await harness.drive('c2')
     expect(harness.binding.executions).toEqual(['c2'])
@@ -158,9 +157,9 @@ describe('23 a step of a call that never started, rejected by the store', () => 
     await admitCall(harness, 'c2')
     await harness.runOnce('c1')
     expect(await harness.state('c1')).toMatchObject(minimalTerminal)
-    expect(await harness.released()).not.toContain('c1')
+    expect(await harness.released('c1')).toBe(false)
     await harness.runOnce('c1')
-    expect(await harness.released()).toContain('c1')
+    expect(await harness.released('c1')).toBe(true)
     const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
     expect(recovery.tasks.map(task => task.kind)).toEqual(['deliver'])
     await harness.drive('c2')

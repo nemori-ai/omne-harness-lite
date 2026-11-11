@@ -3,7 +3,6 @@
 // boundary: it wraps the binding of a double, the executions that it hands out and the handles
 // that it may change (`settle`, `completeStop`), and it never calls a control of a double to make
 // the double behave.
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ControlProgress } from '@omne-harness/tool-contract'
 import type {
@@ -24,7 +23,7 @@ import { evidence } from './tool-values.ts'
 export type Environment = { readonly resource: string }
 export type Fixture = ToolExecutorBindingFixture<string, Environment>
 export type Binding = Fixture['binding']
-export type Execution = ToolLiveExecution<ContentBlock>
+export type Execution = ToolLiveExecution
 export type Handles = Partial<
   Omit<Fixture, 'binding' | 'access' | 'environment' | 'request' | 'permit'>
 >
@@ -59,7 +58,7 @@ export function overExecution(
       const answer = await real.inspectStart(input)
       return 'failure' in answer || answer.ok.kind !== 'live'
         ? answer
-        : succeed<ToolStartLookup<ContentBlock>>({
+        : succeed<ToolStartLookup>({
             kind: 'live',
             execution: wrap(answer.ok.execution),
           })
@@ -148,7 +147,7 @@ export function generated(
         const answer = await masked.inspectStart(input)
         return 'failure' in answer || answer.ok.kind !== 'live'
           ? answer
-          : succeed<ToolStartLookup<ContentBlock>>({
+          : succeed<ToolStartLookup>({
               kind: 'live',
               execution: executions(answer.ok.execution),
             })
@@ -206,7 +205,7 @@ export const coalescingFacts = variant(real => ({
     facts: input =>
       (async function* () {
         const iterator = execution.facts(input)[Symbol.asyncIterator]()
-        const ready: FactBatch<ContentBlock>[] = []
+        const ready: FactBatch[] = []
         for (;;) {
           const next = await Promise.race([
             iterator.next(),

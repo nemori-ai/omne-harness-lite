@@ -2,10 +2,9 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   DurableEvidence,
-  RawOutput,
   ToolOperationId,
   ToolFailure,
-  ToolResult,
+  ToolRenderedResult,
 } from '@omne-harness/tool-contract'
 import type {
   PreparationRecord,
@@ -15,7 +14,7 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import { decodeToolOperationId } from '@omne-harness/tool-contract'
 import { invalid, type MutationInput } from './boundary.ts'
-import { digestOf, mintEvidence } from './evidence.ts'
+import { digestOf, mintEvidence, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
   put,
@@ -25,13 +24,13 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import { taskKey, type CallRecord, type LedgerWrite } from './ledger-store.ts'
 import { releaseBasisOf } from './ledger-start.ts'
 
 /** Domain-separated digests fit even when a provider's original operation is at its size limit. */
 export function settlementOperation(
-  purpose: 'retain-result' | 'release-environment',
+  purpose: 'release-environment',
   place: unknown,
 ): ToolOperationId {
   const decoded = decodeToolOperationId(`${purpose}:${digestOf(place)}`)
@@ -41,11 +40,10 @@ export function settlementOperation(
 
 /** Immutable event history includes references replaced in the current process projection. */
 export function processCustodyCovered<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
-  raw: RawOutput,
-  value: ToolResult<B>,
+  snapshot: Snapshot,
+  value: ToolRenderedResult<B>,
 ): boolean {
-  const retained = [raw.content, ...value.attachments]
+  const retained = value.attachments
   return [...snapshot.facts.values()].every(
     saved =>
       saved.fact.kind !== 'process' ||
@@ -61,14 +59,14 @@ export function releaseIntent(preparation: PreparationRecord, custody: DurableEv
 }
 
 /** Both automatic and public planning use this canonical record and write set. */
-export function planEnvironmentRelease<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function planEnvironmentRelease(
+  snapshot: Snapshot,
   call: CallRecord,
   final: DurableEvidence,
   custody: DurableEvidence,
   mint: Mint,
 ): Outcome<
-  Readonly<{ release: ReleaseRecord; writes: readonly LedgerWrite<B>[] }> | null,
+  Readonly<{ release: ReleaseRecord; writes: readonly LedgerWrite[] }> | null,
   ToolFailure
 > {
   const environment = call.environment
@@ -128,7 +126,7 @@ export type RecordReleaseCommand = CleanupCommand &
   Readonly<{ release: unknown; outcome: ReleaseProgress }>
 export type RecordTaskCommand = CleanupCommand & Readonly<{ task: unknown; resolution: unknown }>
 
-function revisedCall<B extends ContentBlock>(call: CallRecord, mint: Mint): LedgerWrite<B> {
+function revisedCall(call: CallRecord, mint: Mint): LedgerWrite {
   const { source: _source, ...body } = call.state
   const state = { ...body, revision: mint.revision }
   return put({
@@ -149,11 +147,12 @@ function revisedCall<B extends ContentBlock>(call: CallRecord, mint: Mint): Ledg
 }
 
 export function decidePlanRelease<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+  snapshot: Snapshot,
   command: PlanReleaseCommand,
   mint: Mint,
   unsupported: Outcome<never, ToolFailure>,
-): Decision<ReleaseRecord, B> {
+  value: ToolRenderedResult<B> | null,
+): Decision<ReleaseRecord> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'plan-release')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'plan-release') return reply(succeed(known.ok.receipt.release))
@@ -168,12 +167,13 @@ export function decidePlanRelease<B extends ContentBlock>(
   const result = snapshot.results.get(call.state.result)
   if (
     result?.custody.kind !== 'execution' ||
-    !sameFactValue(result.custody.retained, command.custody)
+    !sameFactValue(result.custody.materialized, command.custody)
   )
     return reply(invalid('custody', 'not-original-result-custody'))
   if (
     result.terminal.kind !== 'completed' ||
-    !processCustodyCovered(snapshot, result.custody.raw, result.value)
+    value === null ||
+    !processCustodyCovered(snapshot, value)
   )
     return reply(unsupported)
   const planned = planEnvironmentRelease(snapshot, call, basis.proof, command.custody, mint)
@@ -192,14 +192,14 @@ export function decidePlanRelease<B extends ContentBlock>(
       ...writes,
       ...(release.operation === command.operation
         ? []
-        : [put<B>(operationRecord(command, { kind: 'plan-release', release }, mint))]),
+        : [put(operationRecord(command, { kind: 'plan-release', release }, mint))]),
       revisedCall(call, mint),
     ],
   }
 }
 
-export function checkRelease<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function checkRelease(
+  snapshot: Snapshot,
   command: RecordReleaseCommand,
 ): Outcome<
   | Readonly<{ kind: 'recalled'; evidence: DurableEvidence }>
@@ -224,11 +224,11 @@ export function checkRelease<B extends ContentBlock>(
   return succeed({ kind: 'fresh', ...original })
 }
 
-export function decideRecordRelease<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideRecordRelease(
+  snapshot: Snapshot,
   command: RecordReleaseCommand,
   mint: Mint,
-): Decision<DurableEvidence, B> {
+): Decision<DurableEvidence> {
   const checked = checkRelease(snapshot, command)
   if ('failure' in checked) return reply(checked)
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.evidence))
@@ -263,12 +263,12 @@ export function decideRecordRelease<B extends ContentBlock>(
   }
 }
 
-export function decideRecordFactsTask<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideRecordFactsTask(
+  snapshot: Snapshot,
   command: RecordTaskCommand,
   mint: Mint,
   unsupported: Outcome<never, ToolFailure>,
-): Decision<DurableEvidence, B> {
+): Decision<DurableEvidence> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'record-task')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'record-task') return reply(succeed(known.ok.receipt.evidence))

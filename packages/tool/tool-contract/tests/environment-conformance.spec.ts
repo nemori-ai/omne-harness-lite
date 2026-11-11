@@ -36,6 +36,7 @@ import {
   type Variant,
 } from './conformance-harness.ts'
 import { maskKinds, maskedMethods } from './generated-provider.ts'
+import { fixedRequest } from '../src/testing-values.ts'
 import {
   asynchronousRelease,
   deferredPreparation,
@@ -448,6 +449,7 @@ const variants: readonly Variant<Fixture>[] = [
               await real.prepare({
                 ...base.access,
                 call: preparation.call,
+                request: fixedRequest(),
                 preparation: {
                   ...preparation,
                   operation: decoded(decodeToolOperationId(`${preparation.operation}-leak`)),

@@ -20,7 +20,6 @@ import {
   type ModelCalls,
   type ModelInstanceId,
   type ModelOperationId,
-  type ResultCapacity,
   type Supplier,
 } from '@omne-harness/model-contract'
 import { createScriptedModelProvider } from '@omne-harness/model-contract/testing'
@@ -101,8 +100,6 @@ const consumer: ConsumerRef = {
   purpose: 'purpose',
 }
 
-const capacity: ResultCapacity = { bytes: '1000', blocks: '10', attachmentBytes: '0' }
-
 /** The explicit identity of one request: who asks, for which tenant, about which call. */
 export const access = (name: string, tenantId: TenantId = tenantA) => ({
   principal: coordinator,
@@ -126,7 +123,6 @@ export const admission = (name: string): Admit<Principal> => ({
   operation: operation(`admit-${name}`),
   request,
   consumer,
-  capacity,
 })
 
 /** One admission that the coordinator sent: for which call and operation, and whether it was accepted. */

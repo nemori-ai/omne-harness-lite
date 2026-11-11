@@ -191,6 +191,11 @@
       "config": {}
     },
     {
+      "id": "tool-body-sweep",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "tool-bindings",
       "plugin": "stubPlugin",
       "config": {}

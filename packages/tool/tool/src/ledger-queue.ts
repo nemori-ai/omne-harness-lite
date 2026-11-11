@@ -3,11 +3,11 @@
 // queue domain cannot read that domain, so an entry can outlive the step that should have moved
 // or removed it. The reconcile reads the call domains of the entries that stand in the waiter's
 // way and repairs only what the call domain proves: an entry whose call holds a release basis is
-// deleted with its tombstone, and a call that still owes the queue domain a step is reported so
-// that the driver runs it. It never changes the stage of another call's entry, and it reads the
+// deleted, and a call that still owes the queue domain a step is reported so that the driver
+// runs it. It never changes the stage of another call's entry, and it reads the
 // call domains plainly: a fenced read would write an exclusion record and exclude the in-flight
 // redo of the call's owner.
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
@@ -24,21 +24,20 @@ import {
   queueKeyOf,
   releaseBasisOf,
   type QueueSnapshot,
-  type Release,
 } from './ledger-start.ts'
 import type { LedgerDomain, QueueEntryRecord } from './ledger-store.ts'
 
 type QueueDomain = Extract<LedgerDomain, { kind: 'queue' }>
 
 /** What the ledger gives the reconcile: its own authorization, reads and queue transaction. */
-export type QueueMaintenance<P, B extends ContentBlock> = Readonly<{
+export type QueueMaintenance<P> = Readonly<{
   /** The boundary and the qualification of a `recover` entry. */
   authorize(input: unknown): Promise<Outcome<CallInput<P>, ToolFailure>>
-  read(domain: LedgerDomain): Promise<Outcome<Snapshot<B>, ToolFailure>>
+  read(domain: LedgerDomain): Promise<Outcome<Snapshot, ToolFailure>>
   readQueue(domain: QueueDomain): Promise<Outcome<QueueSnapshot, ToolFailure>>
   transactQueue<T>(
     domain: QueueDomain,
-    decide: (snapshot: QueueSnapshot) => Decision<T, B>,
+    decide: (snapshot: QueueSnapshot) => Decision<T>,
     unknown: Outcome<T, ToolFailure>,
   ): Promise<Outcome<T, ToolFailure>>
   /** Does the park duty `operation` of an authorized call: the queue step, then its closing. */
@@ -76,19 +75,18 @@ function inTheWay(queue: QueueSnapshot, call: ToolCallId): QueueEntryRecord[] {
  * What the call domains of `peers` prove, read plainly: the calls that hold a release basis, and
  * the calls that still owe the queue domain a step (an open `queue` task).
  */
-async function survey<P, B extends ContentBlock>(
-  ops: QueueMaintenance<P, B>,
+async function survey<P>(
+  ops: QueueMaintenance<P>,
   tenant: CallInput<P>['tenant'],
   peers: readonly QueueEntryRecord[],
-): Promise<Outcome<Readonly<{ releases: Release[]; redrive: ToolCallId[] }>, ToolFailure>> {
-  const releases: Release[] = []
+): Promise<Outcome<Readonly<{ releases: ToolCallId[]; redrive: ToolCallId[] }>, ToolFailure>> {
+  const releases: ToolCallId[] = []
   const redrive: ToolCallId[] = []
   for (const peer of peers) {
     const owned = await ops.read({ kind: 'call', tenant, call: peer.call })
     if ('failure' in owned) return owned
     if (owned.ok.call === null) continue
-    const basis = releaseBasisOf(owned.ok)
-    if (basis !== null) releases.push({ call: peer.call, basis })
+    if (releaseBasisOf(owned.ok) !== null) releases.push(peer.call)
     // A suspended call that still owes its park holds a slot that it is about to give up.
     if (
       owned.ok.tasks.some(
@@ -102,9 +100,7 @@ async function survey<P, B extends ContentBlock>(
   return succeed({ releases, redrive })
 }
 
-export function createQueueReconciler<P, B extends ContentBlock>(
-  ops: QueueMaintenance<P, B>,
-): ToolLedgerQueues<P> {
+export function createQueueReconciler<P>(ops: QueueMaintenance<P>): ToolLedgerQueues<P> {
   return {
     reconcile: async input => {
       const checked = await ops.authorize(input)

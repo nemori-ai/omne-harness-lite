@@ -118,6 +118,7 @@ function scene<P, E>(fixture: ToolEnvironmentFixture<P, E>, access: Access<P> = 
     ...access,
     call: preparation.call,
     preparation,
+    request,
   })
   const completion = completionOf(fixture, 'settle')
   const prepare = async (preparation: PreparationRecord): Promise<PreparationProgress<E>> =>
@@ -141,6 +142,8 @@ function scene<P, E>(fixture: ToolEnvironmentFixture<P, E>, access: Access<P> = 
     completion,
     /** What every call of the scene sends besides its record: its access. */
     sends: [access] as const,
+    /** The fixed request every preparation of the scene is for. */
+    request,
     record,
     prepare,
     inspect,
@@ -333,7 +336,7 @@ async function restartLosesEnvironment<P, E>(fixture: Fixture<P, E>): Promise<vo
   await s.prepared(record)
   const allocated = fixture.allocations?.()
   const after = await restart.call(fixture)
-  const input = { ...fixture.access, call: record.call, preparation: record }
+  const input = { ...fixture.access, call: record.call, preparation: record, request: s.request }
   expectKind(succeeded(await after.inspectPreparation(input), 'inspect'), 'lost', 'inspect')
   expectKind(succeeded(await after.prepare(input), 'prepare'), 'lost', 'prepare again')
   if (allocated !== undefined)
@@ -383,6 +386,7 @@ async function preparationConflict<P, E>(fixture: Fixture<P, E>): Promise<void> 
         ...fixture.access,
         call: record.call,
         preparation: other,
+        request: s.request,
       }),
       'prepare with another input under the same operation',
     ).kind,
@@ -680,10 +684,6 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
         dependency: 'tool-environment',
         diagnostic: 'the original environment adapter is unavailable',
       })
-    if ('request' in record) {
-      const judged = judgeFixedToolRequest(record.request)
-      if ('failure' in judged) return fail({ kind: 'invalid', ...judged.failure })
-    }
     return succeed(undefined)
   }
   const prepareNew = (
@@ -726,13 +726,12 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
     prepare: input => {
       const checked = check(input, input.preparation)
       if ('failure' in checked) return reply(checked)
-      const judged = judgeFixedToolRequest(input.preparation.request)
+      const judged = judgeFixedToolRequest(input.request)
       if ('failure' in judged) return reply(fail({ kind: 'invalid', ...judged.failure }))
       const record = Object.freeze({
         ...input.preparation,
         tenant: input.tenant,
         adoption: Object.freeze({ ...input.preparation.adoption }),
-        request: judged.ok,
       })
       const at = key(input.tenant, record.call, record.operation)
       const digest = digestOf({ kind: 'prepare', record })

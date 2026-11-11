@@ -193,7 +193,6 @@ describe('a call that waits a second time', () => {
       decisions: bridge,
       driverRetryDelayMs: 5,
     })
-    checkpoint.attach(harness)
     const settle = async () => {
       for (let quiet = 0, round = 0; quiet < 3 && round < 200; round += 1) {
         await new Promise(resolve => setTimeout(resolve, 2))

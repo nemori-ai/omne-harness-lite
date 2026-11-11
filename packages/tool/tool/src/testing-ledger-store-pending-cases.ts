@@ -1,7 +1,6 @@
 // 待办标记的一致性用例（G1，契约 P01「通知丢失由 scanPending 补偿」）。标记随调用域的提交原子地
 // 写下或删掉，扫描按键集分页、跨租户列出带标记的调用。内存记录仓与 SQL 记录仓跑同一套用例。
 import assert from 'node:assert/strict'
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolCallId } from '@omne-harness/tool-contract'
 import type {
   LedgerCommitInput,
@@ -14,7 +13,7 @@ import type {
 import type { LedgerStoreCase, StoreCaseDependencies } from './testing-ledger-store-types.ts'
 import { batch, callId, hostRecord, required, snapshot } from './testing-ledger-values.ts'
 
-type Store = ToolLedgerStore<ContentBlock>
+type Store = ToolLedgerStore
 type Scan = NonNullable<Store['scanPending']>
 
 const tenantText = (tenant: TenantId) =>
@@ -48,7 +47,7 @@ function callCommit(
   expected: string,
   next: string,
   pending: boolean | undefined,
-): LedgerCommitInput<ContentBlock> {
+): LedgerCommitInput {
   const input = batch(domain, [hostRecord(`r${next}`, { revision: next })], expected, next)
   return pending === undefined ? input : { ...input, pending }
 }

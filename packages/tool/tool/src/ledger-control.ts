@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
@@ -12,20 +11,21 @@ import {
 } from '@omne-harness/tool-contract'
 import type { ControlDispatch } from '@omne-harness/tool-contract/provider'
 import { invalid, type MutationInput } from './boundary.ts'
-import { mintEvidence } from './evidence.ts'
+import { mintEvidence, sameFactValue } from './evidence.ts'
 import {
-  firstResultWrites,
   operationRecord,
   put,
   queueTask,
   recall,
   reply,
+  settlementWrites,
+  syntheticChannels,
   type Decision,
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
-import { commonOf, nextState, type ClosedWaitText, type StateBody } from './ledger-start.ts'
+import type { PreparedSynthetic, SyntheticDecision } from './ledger-result-preparation.ts'
+import { commonOf, dropSuspensionContent, nextState, type StateBody } from './ledger-start.ts'
 import {
   taskKey,
   type CallRecord,
@@ -65,20 +65,23 @@ function withControls(
  *   段一 live 即送达；
  * - 已记录 live 启动或已结束的调用：stop 保存停止待办，或记 `already-ended`。
  * 其余控制答 unsupported。
+ *
+ * 让暂停中的调用收场时，结果是账本自己形成的：先答 `prepare-synthetic`，由调用方把作者预写的文字
+ * 写成结果通道，再带着 `prepared` 重新决策（与未启动调用的终局同一条路）。
  */
-export function decideControl<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideControl(
+  snapshot: Snapshot,
   command: ControlCommand,
-  closedText: ClosedWaitText<B>,
+  prepared: PreparedSynthetic | null,
   mint: Mint,
-): Decision<ControlReceipt, B> {
+): SyntheticDecision<ControlReceipt> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'control')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'control') return reply(succeed(known.ok.receipt.control))
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
   if (call.state.phase === 'suspended')
-    return decideSuspendedControl(snapshot, call, command, closedText, mint)
+    return decideSuspendedControl(snapshot, call, command, prepared, mint)
   const resumeStarting = call.start?.kind === 'resume' && call.state.execution.kind === 'starting'
   if (
     command.intent.kind !== 'stop' ||
@@ -141,7 +144,7 @@ export function decideControl<B extends ContentBlock>(
       ...(ended
         ? []
         : [
-            put<B>({
+            put({
               kind: 'task',
               task: {
                 kind: 'stop',
@@ -163,7 +166,7 @@ export function invalidationOperation(wait: string): ToolOperationId | null {
 }
 
 /** 调用当前的等待：尚未关闭的那一个。一个暂停中的调用恰有一个。 */
-function currentWait<B extends ContentBlock>(snapshot: Snapshot<B>): WaitLedgerRecord | undefined {
+function currentWait(snapshot: Snapshot): WaitLedgerRecord | undefined {
   return [...snapshot.waits.values()].find(wait => wait.record.phase !== 'closed')
 }
 
@@ -188,13 +191,13 @@ function closedTiming(timing: ToolState['timing']): ToolState['timing'] {
  * 调用记录的 CAS 决定取消与 acceptDecision 的先后：取消先成立时，之后的接受见调用已收场而被拒；
  * 接受先成立时，取消仍然成立，恢复不再进行。
  */
-function decideSuspendedControl<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function decideSuspendedControl(
+  snapshot: Snapshot,
   call: CallRecord,
   command: ControlCommand,
-  closedText: ClosedWaitText<B>,
+  prepared: PreparedSynthetic | null,
   mint: Mint,
-): Decision<ControlReceipt, B> {
+): SyntheticDecision<ControlReceipt> {
   const { intent } = command
   if (intent.kind === 'background') return reply(invalid('intent', 'ask-wait-cannot-background'))
   if (call.state.phase !== 'suspended' || call.state.execution.kind !== 'suspended')
@@ -214,18 +217,25 @@ function decideSuspendedControl<B extends ContentBlock>(
     cause: { kind: 'control', operation: command.operation, withdrawn: intent.kind === 'withdraw' },
   } as const
   // 结果是作者为「等待被关闭」预写的那一份：调用没有答案，也没有运行恢复段。
-  const made = closedText(committed.closedResult)
+  const made = syntheticChannels(
+    command,
+    { terminal, consumer: call.request.consumer, closedResult: committed.closedResult },
+    prepared,
+  )
+  if ('kind' in made) return made
   if ('failure' in made) return reply(made)
   const effect = { kind: 'unknown', diagnostic: 'suspended-segments-effect-unreported' } as const
-  const first = firstResultWrites(
+  const settled = settlementWrites(
+    snapshot,
     command,
     call.request.consumer,
     terminal,
-    effect,
     made.ok,
-    { kind: 'synthetic' },
     mint,
+    effect,
   )
+  if ('failure' in settled) return reply(settled)
+  const first = settled.ok
   const { version, delivery } = first.version
   const source = mintEvidence(
     'operation',
@@ -270,9 +280,10 @@ function decideSuspendedControl<B extends ContentBlock>(
       task.kind === 'prepare' ||
       (task.kind === 'wait-registration' && task.action === 'ensure'),
   )
-  const writes: LedgerWrite<B>[] = [
+  const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...call, state } }),
     ...first.writes,
+    ...dropSuspensionContent(snapshot),
     put({
       kind: 'wait',
       wait: {
@@ -319,11 +330,11 @@ export function controlFinished(progress: ControlProgress): boolean {
   )
 }
 
-export function decideRecordControl<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideRecordControl(
+  snapshot: Snapshot,
   command: ProgressCommand,
   mint: Mint,
-): Decision<ControlRecord, B> {
+): Decision<ControlRecord> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'record-control')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'record-control') return reply(succeed(known.ok.receipt.control))
@@ -371,11 +382,11 @@ export function decideRecordControl<B extends ContentBlock>(
 }
 
 /** A confirmed denial closes only propagation; execution and all other duties remain intact. */
-export function rejectControl<B extends ContentBlock>(
+export function rejectControl(
   call: CallRecord,
   original: ControlRecord,
   mint: Mint,
-): Decision<ControlRecord, B> {
+): Decision<ControlRecord> {
   const control: ControlRecord = {
     ...original,
     progress: {

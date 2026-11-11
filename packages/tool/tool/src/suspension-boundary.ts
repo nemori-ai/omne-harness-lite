@@ -8,6 +8,7 @@ import {
   type ToolOperationId,
 } from '@omne-harness/tool-contract'
 import {
+  CHECKPOINT_STATE_MAX_BYTES,
   CLOSED_RESULT_MAX_BYTES,
   type Checkpoint,
   type SuspensionRecord,
@@ -67,7 +68,20 @@ export function judgeSuspensionField(value: unknown): Outcome<SuspensionRecord, 
   })
 }
 
-/** A checkpoint as the binding proved it: custody, start, consumed responses, boundary, exclusion. */
+/**
+ * The state of a suspended segment as the binding gave it: base64 text of at most
+ * CHECKPOINT_STATE_MAX_BYTES bytes. The ledger keeps the text and does not decode it.
+ */
+export function judgeCheckpointStateField(value: unknown): Outcome<string, ToolFailure> {
+  if (typeof value !== 'string') return invalid('state', 'type')
+  if (value.length > Math.ceil(CHECKPOINT_STATE_MAX_BYTES / 3) * 4)
+    return invalid('state', 'too-large')
+  if (value.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value))
+    return invalid('state', 'not-base64')
+  return succeed(value)
+}
+
+/** A checkpoint as the binding proved it: payload, start, consumed responses, boundary, exclusion. */
 export function judgeCheckpointField(value: unknown): Outcome<Checkpoint, ToolFailure> {
   const keys = [
     'schema',

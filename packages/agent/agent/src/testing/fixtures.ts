@@ -266,7 +266,6 @@ export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
       parameterAdoptions: [],
       source: testAdoption('request-source'),
     },
-    capacity: { bytes: '1048576', blocks: '1024', attachmentBytes: '0' },
     budget: testEvidence(`budget/${input.action}`),
     recipient: input.selection.recipient,
     coverage: input.context.coverage,
@@ -275,8 +274,8 @@ export function readyPreparation<P>(input: PrepareInput<P>): ReadyPreparation {
 
 export function createScriptedRequestPreparation<P>(): ScriptedRequestPreparation<P> {
   const prepare = scriptedMethod<PrepareInput<P>, Out<RequestPreparation<P>['prepare']>>(input => {
-    const { request, capacity, ...common } = readyPreparation(input)
-    if (input.previous !== null) return succeed({ ...common, kind: 'ready', request, capacity })
+    const { request, ...common } = readyPreparation(input)
+    if (input.previous !== null) return succeed({ ...common, kind: 'ready', request })
     const { system, messages, tools, toolChoice, parameters, representation, source } = request
     return succeed({
       ...common,

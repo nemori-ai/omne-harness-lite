@@ -2,12 +2,11 @@
 // 非耐久记录仓，脚本化的决策方与按段执行的检查点绑定。三个位置：等待 opening 或 open 时暂停，
 // 答复已接受而在排队，prepareResume 之后、恢复段 live 之前。
 import { afterEach, describe, expect, it } from 'vitest'
-import { fail } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolWaitId } from '@omne-harness/tool-contract'
 import type { DecisionValue } from '@omne-harness/tool-contract'
 import { mintEvidence } from '../src/evidence.ts'
 import { invalidationOperation } from '../src/ledger-control.ts'
-import { taskKey } from '../src/ledger-store.ts'
+import { CHECKPOINT_STATE_KEY, taskKey, WAIT_REQUEST_KEY } from '../src/ledger-store.ts'
 import {
   asking,
   askingAuthor,
@@ -24,7 +23,6 @@ import {
   STOP as STOP_INTENT,
   STOP_OPERATION,
   SUBJECT,
-  closedText,
 } from './control-decider-values.ts'
 import {
   committed,
@@ -82,7 +80,6 @@ function setup(
     driverRetryDelayMs: 5,
     ...options,
   })
-  checkpoint.attach(harness)
   return { harness, checkpoint, bridge, author }
 }
 
@@ -164,7 +161,7 @@ async function expectInvalidatedAndReleased(built: Built, terminal: DurableEvide
     read.tasks.filter(task => task.kind === 'wait-registration' || task.kind === 'queue'),
   ).toEqual([])
   expect(await harness.queue()).toEqual([])
-  expect(await harness.released()).toEqual(['c1'])
+  expect(await harness.released('c1')).toBe(true)
 }
 
 describe('a stop of a call suspended on its wait', () => {
@@ -287,7 +284,7 @@ describe('a stop of a call whose decision was accepted', () => {
     expect(checkpoint.segments).toEqual(['op-c1/start', 'op-c2/start'])
     expect(author.resumed).toEqual([])
     expect(await harness.queue()).toEqual([{ call: 'c2', ordinal: '2', stage: 'held' }])
-    expect(await harness.released()).toEqual(['c1'])
+    expect(await harness.released('c1')).toBe(true)
     expect(bridge.invalidated).toHaveLength(1)
   })
 
@@ -688,14 +685,6 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
     })
   })
 
-  it('answers the failure of the result factory, and commits nothing', async () => {
-    const { harness } = await suspendedCall()
-    const snapshot = await snapshotOfCall(harness)
-    const failure = { kind: 'unavailable', dependency: 'result-factory', diagnostic: 'no text' }
-    const refused = decideStop(snapshot, STOP_INTENT, () => fail(failure) as never)
-    expect(replied(refused)).toEqual({ failure })
-  })
-
   describe('the timing of the call', () => {
     const segment = {
       operation: operationId('op-c1/start'),
@@ -780,7 +769,10 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
     const crowded = { ...snapshot, tasks: [...old, ...kept] }
     const decision = committed(decideStop(crowded))
     const deleted = decision.writes.flatMap(write => (write.kind === 'delete' ? [write.key] : []))
-    expect(deleted.sort()).toEqual(old.map(task => taskKey(task)).sort())
+    // 收场的提交同时删掉调用为暂停保存的两样内容：检查点状态与等待的请求原文。
+    expect(deleted.sort()).toEqual(
+      [...old.map(task => taskKey(task)), CHECKPOINT_STATE_KEY, WAIT_REQUEST_KEY].sort(),
+    )
   })
 
   it('records a withdraw as withdrawn, and refuses to send the asking call to the background', async () => {
@@ -802,9 +794,7 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
     const first = committed(decideStop(snapshot))
     const after = afterCommit(snapshot, first.writes as never)
     expect(replied(decideStop(after))).toEqual({ ok: first.value })
-    expect(
-      replied(decideStop(after, STOP_INTENT, closedText, { inputDigest: 'digest-other' })),
-    ).toEqual({
+    expect(replied(decideStop(after, STOP_INTENT, { inputDigest: 'digest-other' }))).toEqual({
       failure: { kind: 'conflict', operation: STOP_OPERATION },
     })
   })

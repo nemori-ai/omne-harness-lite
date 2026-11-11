@@ -1,5 +1,6 @@
 // Output custody, durable reads, content pages and accounts.
 import type { CallAccount } from '@omne-harness/call-account'
+import type { ToolBodyReader } from './body-reads.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -30,21 +31,6 @@ export type RawOutput = Readonly<{
   content: Attachment
   custody: DurableEvidence
 }>
-export interface ToolOutputCustody<P> {
-  preserve(
-    input: Mutation<P> & Readonly<{ codec: Adoption; bytes: Uint8Array; source: DurableEvidence }>,
-  ): Reply<RawOutput>
-  inspect(
-    input: Mutation<P>,
-  ): Reply<
-    | Readonly<{ kind: 'retained'; raw: RawOutput }>
-    | Readonly<{ kind: 'unknown' }>
-    | Readonly<{ kind: 'excluded'; evidence: DurableEvidence }>
-  >
-  retainResult(
-    input: Mutation<P> & Readonly<{ raw: RawOutput; value: ToolResult<ContentBlock> }>,
-  ): Reply<DurableEvidence>
-}
 export type ProcessSnapshot = Readonly<{
   cursor: ToolCursor
   state: ToolState
@@ -76,9 +62,9 @@ export interface ToolContentReader<P> {
         maxBytes: number
       }>,
   ): Reply<ContentPage>
-  raw(input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<RawOutput>
 }
 export interface ToolReads<P, B extends ContentBlock> {
+  readonly body: ToolBodyReader<P>
   lookup(input: CallAccess<P> & Readonly<{ admission: ToolOperationId }>): Reply<ToolLookup>
   operation(
     input: CallAccess<P> & Readonly<{ operation: ToolOperationId }>,

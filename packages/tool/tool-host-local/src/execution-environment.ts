@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import {
   acquisitionRef,
   type AcquireInput,
@@ -33,6 +32,7 @@ import {
 } from './author-environment.ts'
 import { fixedPreparationInput, fixedReleaseInput } from './environment-input.ts'
 import {
+  closedAcquisition,
   createEnvironmentStateStore,
   environmentFailure,
   preparationKey,
@@ -89,10 +89,7 @@ export function createLocalEnvironmentPlanResolver<P>(
         return environmentFailure('current tool qualification unavailable')
       const binding = await input.binding(request)
       if ('failure' in binding) return binding
-      if (
-        canonicalDigest(binding.ok.scope) !==
-        canonicalDigest(request.preparation.request.requesterScope)
-      )
+      if (canonicalDigest(binding.ok.scope) !== canonicalDigest(request.request.requesterScope))
         return fail({ kind: 'denied', action: 'environment-scope' })
       const required = await input.requirement(request)
       if ('failure' in required) return required
@@ -123,7 +120,7 @@ export function createLocalEnvironmentPlanResolver<P>(
         acquire: {
           acquisition: acquisitionRef(key),
           origin: binding.ok.origin,
-          scope: request.preparation.request.requesterScope,
+          scope: request.request.requesterScope,
           placement,
           ledger: await ledger,
           guard: input.guard,
@@ -138,7 +135,7 @@ export function createLocalEnvironmentPlanResolver<P>(
 export type LocalExecutionEnvironmentInput<P> = Readonly<{
   adoption: Adoption
   execution: ExecutionEnvironment<P>
-  store: ToolLedgerStore<ContentBlock>
+  store: ToolLedgerStore
   plans: EnvironmentPlanResolver<P>
   naming: FileObjectNaming<P>
   cleanup: OriginalCleanup<P>
@@ -425,8 +422,7 @@ export function createLocalExecutionEnvironment<P>(
     if ('failure' in plan) return plan
     if (
       !tenantEquals(request.tenant, request.preparation.tenant) ||
-      canonicalDigest(plan.ok.acquire.scope) !==
-        canonicalDigest(request.preparation.request.requesterScope)
+      canonicalDigest(plan.ok.acquire.scope) !== canonicalDigest(request.request.requesterScope)
     )
       return fail({ kind: 'denied', action: 'environment-binding' })
     if (existing.ok && local) return reconnect(request, existing.ok, local, plan.ok)
@@ -488,6 +484,7 @@ export function createLocalExecutionEnvironment<P>(
         evidence: receipt({ original: acquired, preparation: request.preparation }),
         release: null,
         resources: [],
+        reservations: [],
       })
     })
     if ('failure' in saved) return saved
@@ -549,8 +546,7 @@ export function createLocalExecutionEnvironment<P>(
       )
         return fail({ kind: 'conflict', operation: fixed.release.operation })
       return succeed({
-        ...record,
-        closed: true,
+        ...closedAcquisition(record),
         release: record.release ?? { record: fixed.release, confirmed: false },
       })
     })
@@ -572,11 +568,10 @@ export function createLocalExecutionEnvironment<P>(
         ...record,
         closed: true,
         release: { record: record.release.record, confirmed: true },
-        // A handed-over resource belongs to its retention scope; this release did not stop it.
-        resources: record.resources.map(resource => ({
-          ...resource,
-          stop: resource.stop === 'handedOver' ? 'handedOver' : 'confirmed',
-        })),
+        // The acquisition's duty for every resource ends here: the release stopped the ones it
+        // still owned, and a handed-over one belongs to its retention scope, which shows it as
+        // `handedOver` for as long as it holds it.
+        resources: record.resources.map(resource => ({ ...resource, stop: 'confirmed' })),
         evidence: record.release.confirmed
           ? record.evidence
           : receipt({ release: record.release.record, original: record.original, released: true }),

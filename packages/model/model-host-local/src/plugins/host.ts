@@ -16,10 +16,11 @@ import { randomUUID } from 'node:crypto'
 import { Service, symbols, type Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ModelRuntimeProvider } from '@omne-harness/model'
-import type {
-  ModelInitialExecution,
-  ModelObservationHost,
-  ModelObservationSource,
+import {
+  drivable,
+  type ModelInitialExecution,
+  type ModelObservationHost,
+  type ModelObservationSource,
 } from '@omne-harness/model/commands'
 import type {
   CallAccess,
@@ -67,8 +68,9 @@ export type HostEvent =
   | Readonly<{ kind: 'handed-over'; undispatched: number }>
 
 type HostInput = Readonly<{
-  settings: Pick<ModelHostSettings, 'concurrencyLimit' | 'wakeCapacity'>
+  settings: Pick<ModelHostSettings, 'concurrencyLimit' | 'wakeCapacity' | 'scanIntervalMs'>
   authority: ModelHostAuthority<unknown>
+  clock: ModelClock
   /** The current observation qualification of the observer; see `ModelHostPluginOptions`. */
   qualifyObservation: ModelHostPluginOptions['qualifyObservation']
   observation?: ModelObservationHost<unknown>
@@ -87,11 +89,14 @@ function keyOf(tenant: TenantId, call: ModelCallId): string | undefined {
  * already set. At most `concurrencyLimit` drives run, each started by this host from its own
  * closure, never under a caller's context. Waiting work is a map of at most `wakeCapacity` keys,
  * so a full host refuses a wake and creates no promise for it. The durable pending work stays in
- * `ModelCommands`; nothing here marks it done.
+ * `ModelCommands`; nothing here marks it done. A drive that ended without ending the call, on a
+ * call that this process can still drive, is woken again after `scanIntervalMs`.
  */
 function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
-  const { settings, authority, report } = input
+  const { settings, authority, clock, report } = input
   const wakes = new Map<string, Wake>()
+  /** The calls that wait for their next wake after a drive that can be driven again. */
+  const owed = new Set<string>()
   const running = new Map<string, Promise<void>>()
   const routes = new Map<string, { publication: Publication; handle: ModelHandle<unknown> }>()
   const stopDrives = new AbortController()
@@ -99,27 +104,52 @@ function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
   let bound: { driver: ModelDriver<unknown>; binding: ModelDriverBinding } | undefined
   let closing: Reply<void> | undefined
 
-  async function drive(driver: ModelDriver<unknown>, target: Wake): Promise<void> {
+  /** Whether the call is owed another drive. */
+  async function drive(driver: ModelDriver<unknown>, target: Wake): Promise<boolean> {
     try {
       const resolved = await authority.resolve(target)
       if ('failure' in resolved) {
         // No trusted input for this call, for example no evidence that the old process ended: the
         // call is not driven. Queries and custody are other services and stay available.
         report({ kind: 'blocked', failure: resolved.failure.kind })
-        return
+        return false
       }
-      if (stopDrives.signal.aborted) return
+      if (stopDrives.signal.aborted) return false
       const outcome = await driver.drive(resolved.ok, stopDrives.signal)
-      if ('failure' in outcome) report({ kind: 'drive-failed', failure: outcome.failure.kind })
+      if ('ok' in outcome) return false
+      report({ kind: 'drive-failed', failure: outcome.failure.kind })
+      return drivable(outcome.failure)
     } catch {
       report({ kind: 'drive-threw' })
+      return false
     }
+  }
+
+  /** Sets the wake bit of an owed call after the pause. A full queue is asked again a pause later. */
+  async function wakeLater(key: string, target: Wake): Promise<void> {
+    if (owed.has(key)) return
+    owed.add(key)
+    try {
+      for (;;) {
+        const instant = new Date(Date.parse(clock.now()) + settings.scanIntervalMs).toISOString()
+        const waited = await clock.waitUntil(instant, stopDrives.signal)
+        if (waited !== 'elapsed') return
+        if (wakes.has(key) || wakes.size < settings.wakeCapacity) break
+      }
+      wakes.set(key, target)
+    } catch {
+      /* A clock that fails wakes nothing. The durable pending work stays in the commands. */
+    } finally {
+      owed.delete(key)
+    }
+    pump()
   }
 
   function start(driver: ModelDriver<unknown>, key: string, target: Wake): void {
     // `drive` does not reject, so the chained promise needs no handler of its own.
-    const task = drive(driver, target).finally(() => {
+    const task = drive(driver, target).then(again => {
       running.delete(key)
+      if (again) void wakeLater(key, target)
       pump()
     })
     running.set(key, task)
@@ -455,6 +485,7 @@ export function createModelRuntimeLocalPlugin(
       const host = createLocalDriverHost({
         settings,
         authority: ctx.modelHostAuthority,
+        clock: ctx.modelClock,
         qualifyObservation: access => options.qualifyObservation(access),
         report: event => reportOf(ctx, event),
         ...(observation !== undefined && { observation }),

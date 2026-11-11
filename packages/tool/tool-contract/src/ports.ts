@@ -7,7 +7,7 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ToolDecision } from './author-context.ts'
 import type { ToolInspection } from './authoring.ts'
-import type { RawOutput } from './custody.ts'
+import type { ToolPlannedFinal } from './materials.ts'
 import type { FixedToolRequest, ToolAvailability, ToolInvocation } from './definitions.ts'
 import type { ToolExecutionRef } from './execution.ts'
 import type {
@@ -50,11 +50,15 @@ import type {
   ToolRecoveryBinding,
   WaitIntent,
 } from './records.ts'
-import type { Effect, Reply, ToolResult, ToolTerminal } from './results.ts'
+import type { Reply } from './results.ts'
 
 export type DecisionValue = ToolDecision<JsonValue>
 export interface ToolDecisionBridge<P> {
   inspectOperation(input: Mutation<P>): Reply<ExternalOperationResolution>
+  /**
+   * Registers the wait with the decision owner. `request` is the evidence that binds the request
+   * original; the owner reads the original from the recovery of the call (`waitRequest`).
+   */
   ensure(
     input: Mutation<P> & Readonly<{ wait: ToolWaitId; request: DurableEvidence }>,
   ): Reply<DurableEvidence>
@@ -77,9 +81,15 @@ export interface ToolDecisionBridge<P> {
       }>,
   ): Reply<DecisionValue>
 }
-export type ToolExecutionFact<B extends ContentBlock> =
+export type ToolExecutionFact =
   | Readonly<{ kind: 'process'; blocks: readonly ProcessBlock[] }>
-  | Readonly<{ kind: 'wait'; value: WaitIntent }>
+  /**
+   * The wait a segment suspends on. `request` is the request original of the wait: the JSON text
+   * that the author encoded, within `value.schemas.requestMaxBytes` UTF-8 bytes. The digest of the
+   * evidence `value.request` is the canonical digest of that text. The ledger keeps the text for
+   * the call without reading it, and the recovery of the call gives it to the decision owner.
+   */
+  | Readonly<{ kind: 'wait'; value: WaitIntent; request: string }>
   | Readonly<{
       kind: 'continued'
       wait: ToolWaitId
@@ -88,15 +98,9 @@ export type ToolExecutionFact<B extends ContentBlock> =
     }>
   | Readonly<{ kind: 'program-scheduling'; value: ProgramScheduling }>
   | Readonly<{ kind: 'account'; event: string; value: CallAccount }>
-  | Readonly<{
-      kind: 'final'
-      raw: RawOutput
-      result: ToolResult<B>
-      terminal: ToolTerminal
-      effect: Effect
-    }>
-export interface ToolLiveExecution<B extends ContentBlock> {
-  facts(input: Readonly<{ after: string | null; signal: AbortSignal }>): AsyncIterable<FactBatch<B>>
+  | ToolPlannedFinal
+export interface ToolLiveExecution {
+  facts(input: Readonly<{ after: string | null; signal: AbortSignal }>): AsyncIterable<FactBatch>
   acknowledge(input: FactReceipt): Reply<DurableEvidence>
   stop(input: ControlDispatch): Reply<ControlProgress>
   inspectControl(input: ControlDispatch): Reply<ControlProgress>
@@ -109,18 +113,18 @@ export type ToolStartRecord = Readonly<{
   execution: ToolExecutionRef
 }> &
   (Readonly<{ kind: 'start' }> | Readonly<{ kind: 'resume'; checkpoint: DurableEvidence }>)
-export type ToolStartLookup<B extends ContentBlock> =
+export type ToolStartLookup =
   | Readonly<{ kind: 'not-started'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
-  | Readonly<{ kind: 'live'; execution: ToolLiveExecution<B> }>
+  | Readonly<{ kind: 'live'; execution: ToolLiveExecution }>
   | Readonly<{
       kind: 'settled'
       source: DurableEvidence
       event: string
-      fact: Extract<ToolExecutionFact<B>, { kind: 'final' }>
+      fact: Extract<ToolExecutionFact, { kind: 'final' }>
     }>
   | Readonly<{ kind: 'lost'; continuity: DurableEvidence }>
-export type ToolExecutorBinding<P, B extends ContentBlock, E> =
+export type ToolExecutorBinding<P, E> =
   | Readonly<{
       kind: 'live-only'
       start(
@@ -131,10 +135,10 @@ export type ToolExecutorBinding<P, B extends ContentBlock, E> =
             request: FixedToolRequest
           }>,
         environment: E,
-      ): Reply<ToolLiveExecution<B>>
+      ): Reply<ToolLiveExecution>
       inspectStart(
         input: CallAccess<P> & Readonly<{ start: ToolStartRecord }>,
-      ): Reply<ToolStartLookup<B>>
+      ): Reply<ToolStartLookup>
     }>
   | Readonly<{
       kind: 'checkpointed'
@@ -147,21 +151,28 @@ export type ToolExecutorBinding<P, B extends ContentBlock, E> =
             request: FixedToolRequest
           }>,
         environment: E,
-      ): Reply<ToolLiveExecution<B>>
+      ): Reply<ToolLiveExecution>
       inspectStart(
         input: CallAccess<P> & Readonly<{ start: ToolStartRecord }>,
-      ): Reply<ToolStartLookup<B>>
+      ): Reply<ToolStartLookup>
       suspend(input: SuspensionRecord): Reply<SuspensionProgress>
       inspectSuspension(input: SuspensionRecord): Reply<SuspensionProgress>
+      /**
+       * Runs the segment after the checkpoint that `start.checkpoint` names. `state` is the
+       * committed state of that checkpoint as base64 text, and `response` the committed response
+       * of the wait that resumes there. The ledger gives both, so the binding reads no record.
+       */
       resume(
         input: CallAccess<P> &
           Readonly<{
             start: Extract<ToolStartRecord, { kind: 'resume' }>
             permit: StartPermit
             request: FixedToolRequest
+            state: string
+            response: ResponseRecord
           }>,
         environment: E,
-      ): Reply<ToolLiveExecution<B>>
+      ): Reply<ToolLiveExecution>
     }>
 export interface PreparedEnvironment<E> {
   readonly value: E
@@ -171,24 +182,22 @@ export interface PreparedEnvironment<E> {
 export interface ToolEnvironment<P, E> {
   readonly adoption: Adoption
   prepare(
-    input: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
+    input: CallAccess<P> & Readonly<{ preparation: PreparationRecord; request: FixedToolRequest }>,
   ): Reply<PreparationProgress<E>>
   inspectPreparation(
-    input: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
+    input: CallAccess<P> & Readonly<{ preparation: PreparationRecord; request: FixedToolRequest }>,
   ): Reply<PreparationProgress<E>>
   release(input: CallAccess<P> & Readonly<{ release: ReleaseRecord }>): Reply<ReleaseProgress>
   inspectRelease(
     input: CallAccess<P> & Readonly<{ release: ReleaseRecord }>,
   ): Reply<ReleaseProgress>
 }
-export interface ToolBindings<P, B extends ContentBlock, E> {
+export interface ToolBindings<P, E> {
   inspect(input: ToolInspection<P>): Reply<ToolAvailability>
   resolve(
     input: CallAccess<P> & Readonly<{ request: FixedToolRequest }>,
-  ): Reply<ToolExecutorBinding<P, B, E>>
-  recover(
-    input: CallAccess<P> & Readonly<{ start: ToolStartRecord }>,
-  ): Reply<ToolRecoveryBinding<B>>
+  ): Reply<ToolExecutorBinding<P, E>>
+  recover(input: CallAccess<P> & Readonly<{ start: ToolStartRecord }>): Reply<ToolRecoveryBinding>
 }
 export interface ToolInstanceHost<P> {
   install(driver: ToolDriver<P>): Readonly<{ release(): Promise<void> }>

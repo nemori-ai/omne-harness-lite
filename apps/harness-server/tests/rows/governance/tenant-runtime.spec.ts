@@ -1,3 +1,4 @@
+import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-assets.ts'
 import { canonicalText } from '@omne-harness/authorization'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
 // @module-tag slow
@@ -742,7 +743,9 @@ it('installs the actual Tool release and adopts its original holdings before exp
       request: fixture.input.request,
     },
   }
-  const request = await runtime.permissionRequest(action)
+  if (runtime.permissionBasis === undefined) throw new Error('permission reader not installed')
+  const first = await runtime.permissionBasis.readCurrent({ ...action, inquiry: null })
+  const request = first.request
   expect(request).toMatchObject({
     scope: { tenantId: w.options.scope.tenantRef, sessionId: 'request-session' },
     operation: action.operation,
@@ -754,13 +757,19 @@ it('installs the actual Tool release and adopts its original holdings before exp
   )
   expect(targets).toHaveLength(1)
   const target = targets[0]!.target
+  // The installation holds the tool at the address that consumers compute.
+  expect(target).toEqual(toolAssetTarget(tool, w.options.scope.tenantRef))
   expect(request?.scope.targetId).toBe(canonicalText(target))
-  expect(await runtime.permissionRequest({ ...action, principal: w.principal })).toBeUndefined()
-  if (request === undefined || runtime.permissionBasis === undefined)
-    throw new Error('permission reader not installed')
   expect(
-    await runtime.permissionBasis.readCurrent({ ...action, inquiry: null }, request),
-  ).toMatchObject({ reading: { kind: 'unavailable' }, condition: null })
+    (
+      await runtime.permissionBasis.readCurrent({
+        ...action,
+        principal: w.principal,
+        inquiry: null,
+      })
+    ).request,
+  ).toBeNull()
+  expect(first).toMatchObject({ reading: { kind: 'unavailable' }, condition: null })
   const boundary = new Context()
   cleanup.push(() => boundary.fiber.dispose())
   const routes: string[] = []
@@ -775,19 +784,17 @@ it('installs the actual Tool release and adopts its original holdings before exp
     })
   })
   if (reader === undefined) throw new Error('permission query service not installed')
-  expect(await reader.request(action)).toEqual(request)
+  const read = (input: typeof action) => reader!.readCurrent({ ...input, inquiry: null })
+  expect((await read(action)).request).toEqual(request)
   expect(routes).toEqual([w.options.scope.tenantRef])
-  expect(await reader.request({ ...action, principal: { ...principal } })).toBeUndefined()
-  expect(await reader.request({ ...action, principal: w.principal })).toBeUndefined()
+  expect((await read({ ...action, principal: { ...principal } })).request).toBeNull()
+  expect((await read({ ...action, principal: w.principal })).request).toBeNull()
   expect(routes).toHaveLength(1)
-  expect(await reader.readCurrent({ ...action, inquiry: null }, request)).toMatchObject({
-    reading: { kind: 'unavailable' },
-    condition: null,
-  })
+  expect(await read(action)).toMatchObject({ reading: { kind: 'unavailable' }, condition: null })
   await provider.dispose()
   const opened = routes.length
-  expect(await reader.request(action)).toBeUndefined()
-  expect(await reader.readCurrent({ ...action, inquiry: null }, request)).toMatchObject({
+  expect(await read(action)).toMatchObject({
+    request: null,
     reading: { kind: 'unavailable' },
     condition: null,
   })

@@ -207,7 +207,7 @@ GovernanceContributionLifetime 检查一次原调用、迟到的受理、调用�
 
 | 类别 | 模型里的状态 | 源码 |
 | --- | --- | --- |
-| 耐久 | 人的决定、调用账本的阶段、保管的检查点、提供者的准备记录、Agent 收下的结果 | HITL 答复提交；tool 的 `ledger-resumption.ts`；tool-host-local 的 `runtime-author.ts`（`readOutput`）；`execution-environment.ts` 的环境状态；agent 的 `tool-receiving.ts` |
+| 耐久 | 人的决定、调用账本的阶段、账本保存的检查点状态、提供者的准备记录、Agent 收下的结果 | HITL 答复提交；tool 的 `ledger-resumption.ts` 与 `ledger-suspension.ts`（`checkpoint-state` 记录）；`execution-environment.ts` 的环境状态；agent 的 `tool-receiving.ts` |
 | 仅进程内 | 执行器的调用表、Session 的作用域索引、内存里的检查点副本、驱动「问过提供者」的记忆、提供者持有的活环境、正在运行的恢复段、按 owner 登记的结果接收方、Run 的驱动循环 | tool-host-local 的 `runtime-executor.ts`；session-adapters 的 `context-holder.ts`；tool 的 `driver.ts`（`environmentsAsked`）；`execution-environment.ts`（`live`）；tool-cordis-contract 的接收方登记；agent 的 `provider.ts` |
 
 每个负控把一项输入放回进程内，即实现曾经的样子：

@@ -5,13 +5,12 @@ import {
   readToolInvocationRef,
   decodeToolRevision,
   type FactBatch,
-  type ToolExecutionFact,
+  type ToolFinalEnvelope,
   type ToolLiveExecution,
 } from '@omne-harness/tool-contract/provider'
-import { completedFinal } from '@omne-harness/tool-contract/testing'
+import { completedFinalEnvelope as completedFinal } from '@omne-harness/tool-contract/testing'
 import { startHarness, losingCommits, type StartOptions } from './start-values.ts'
 import {
-  adoption,
   evidence,
   ok,
   operationId,
@@ -39,10 +38,10 @@ function fixture(
   options: StartOptions & {
     channel?: 'end' | 'throw'
     returning?: Promise<void>
-    pendingFinal?: { seen: ReturnType<typeof deferred<FactBatch<Block>>>; resume: Promise<void> }
+    pendingFinal?: { seen: ReturnType<typeof deferred<FactBatch>>; resume: Promise<void> }
   } = {},
 ) {
-  const lives = new Map<string, ToolLiveExecution<Block>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const controllers = new Map<string, AbortController>()
   const stats = {
     returns: 0,
@@ -75,7 +74,7 @@ function fixture(
         const started = await base.start(...args)
         if ('failure' in started) return started
         const original = started.ok
-        const live: ToolLiveExecution<Block> = {
+        const live: ToolLiveExecution = {
           ...original,
           acknowledge: receipt => {
             stats.acknowledgements += 1
@@ -174,19 +173,8 @@ function fixture(
   const final = async (
     call: string,
     terminal: ToolTerminal = { kind: 'completed' },
-  ): Promise<Extract<ToolExecutionFact<Block>, { kind: 'final' }>> => ({
+  ): Promise<ToolFinalEnvelope<Block>> => ({
     kind: 'final',
-    raw: ok(
-      await h.custody.preserve({
-        principal: principalA,
-        tenant: tenantA,
-        call: readCall(call),
-        operation: operationId('raw'),
-        codec: adoption('codec'),
-        bytes: new TextEncoder().encode('raw'),
-        source: evidence('raw-source'),
-      }),
-    ),
     result: {
       ...completedFinal().result,
       content: [text('answer', 'done')],
@@ -229,7 +217,7 @@ function fixture(
 
 describe('original final settlement in one shared driver', () => {
   it('settles a saved final with current minted access and releases its queue and delivery', async () => {
-    const seen = deferred<FactBatch<Block>>()
+    const seen = deferred<FactBatch>()
     const resumed = deferred<void>()
     const f = fixture({
       minted: new Set([tenantA]),
@@ -267,10 +255,20 @@ describe('original final settlement in one shared driver', () => {
         queue: { kind: 'released' },
         delivery: { kind: 'pending', consumer: first.payload.consumer },
       })
-      expect(saved.result).toEqual(final.result)
+      expect(saved.result).not.toBeNull()
+      if (saved.result === null) throw new Error('missing result reference')
+      expect(
+        ok(
+          await f.h.ledger.reads.result({
+            ...first.access,
+            result: saved.result.version,
+            after: null,
+          }),
+        ).value,
+      ).toEqual(final.result)
       expect(saved.tasks.some(task => task.kind === 'settle' || task.kind === 'queue')).toBe(false)
       expect(saved.tasks.some(task => task.kind === 'deliver')).toBe(true)
-      expect(await f.h.released()).toContain(first.call)
+      expect(await f.h.released(first.call)).toBe(true)
       expect(f.h.binding.executions).toEqual([first.call, second.call])
       expect(
         ok(await f.h.ledger.reads.operation({ ...first.access, operation: settle.operation })),
@@ -292,7 +290,9 @@ describe('original final settlement in one shared driver', () => {
         }),
       ).toMatchObject({ kind: 'released' })
       expect((await f.load(first.call)).tasks.some(task => task.kind === 'deliver')).toBe(false)
-      expect(ok(await f.h.runtime.queries.readResult({ ...read, after: null }))).toEqual(original)
+      expect(await f.h.runtime.queries.readResult({ ...read, after: null })).toMatchObject({
+        failure: { kind: 'not-found', target: 'result', reason: 'released' },
+      })
       expect(f.h.binding.executions.filter(call => call === first.call)).toHaveLength(1)
     } finally {
       resumed.resolve()
@@ -309,7 +309,7 @@ describe('original final settlement in one shared driver', () => {
         commit: input =>
           offline &&
           input.domain.kind === 'queue' &&
-          input.writes.some(write => write.kind === 'put' && write.record.kind === 'queue-release')
+          input.writes.some(write => write.kind === 'delete' && write.key.startsWith('entry:'))
             ? Promise.resolve({ kind: 'unavailable', diagnostic: 'queue offline' })
             : memory.commit(input),
       }),
@@ -353,7 +353,7 @@ describe('original final settlement in one shared driver', () => {
     expect(f.stats.loads - loads).toBeLessThanOrEqual(3)
     expect(f.h.host.scheduled).toEqual([])
     expect((await f.load(first.call)).tasks.some(task => task.kind === 'queue')).toBe(true)
-    expect(await f.h.released()).not.toContain(first.call)
+    expect(await f.h.released(first.call)).toBe(false)
     expect(f.h.binding.executions).toEqual([first.call])
     expect((await f.load(second.call)).state.phase).toBe('queued')
     // Discard the prior unavailable retry. The blocked run itself adds no immediate work.
@@ -363,15 +363,7 @@ describe('original final settlement in one shared driver', () => {
   it('F01 keeps the second call queued after retention until the original call commit lands', async () => {
     const committing = deferred<void>()
     const release = deferred<void>()
-    let retains = 0
     const f = fixture({
-      custodyPort: base => ({
-        ...base,
-        retainResult: input => {
-          retains += 1
-          return base.retainResult(input)
-        },
-      }),
       store: memory => ({
         ...memory,
         commit: async input => {
@@ -396,7 +388,6 @@ describe('original final settlement in one shared driver', () => {
     await flush()
     const running = f.h.runOnce(first.call, first.controller.signal)
     await committing.promise
-    expect(retains).toBe(1)
     expect((await f.load(first.call)).state.phase).toBe('running')
     await f.h.runOnce(second.call, second.controller.signal)
     expect(f.h.binding.executions).toEqual([first.call])
@@ -411,12 +402,21 @@ describe('original final settlement in one shared driver', () => {
     const retained = deferred<void>()
     const retaining = deferred<void>()
     const f = fixture({
-      custodyPort: base => ({
-        ...base,
-        retainResult: async input => {
-          retaining.resolve()
-          await retained.promise
-          return base.retainResult(input)
+      store: memory => ({
+        ...memory,
+        commit: async input => {
+          if (
+            input.writes.some(
+              write =>
+                write.kind === 'put' &&
+                write.record.kind === 'operation' &&
+                write.record.operation.receipt.kind === 'preserve-result',
+            )
+          ) {
+            retaining.resolve()
+            await retained.promise
+          }
+          return memory.commit(input)
         },
       }),
     })
@@ -480,28 +480,26 @@ describe('original final settlement in one shared driver', () => {
   })
 
   it.each(['dropped', 'applied'] as const)(
-    'F05 repairs an %s unknown queue commit by replaying the original preserve task',
+    'F05 repairs an %s unknown queue commit without reading a released final envelope',
     async mode => {
       const operations: string[] = []
-      let retains = 0
+      let releasedReads = 0
       const f = fixture({
         store: memory =>
           losingCommits(
             memory,
-            input =>
-              input.domain.kind === 'queue' &&
-              input.writes.some(
-                write => write.kind === 'put' && write.record.kind === 'queue-release',
-              ),
+            input => {
+              if (
+                input.domain.kind !== 'queue' ||
+                !input.writes.some(
+                  write => write.kind === 'delete' && write.key.startsWith('entry:'),
+                )
+              )
+                return false
+              return true
+            },
             mode,
           ),
-        custodyPort: base => ({
-          ...base,
-          retainResult: input => {
-            retains += 1
-            return base.retainResult(input)
-          },
-        }),
         commands: base => ({
           ...base,
           preserveResult: input => {
@@ -521,34 +519,24 @@ describe('original final settlement in one shared driver', () => {
       await f.pump()
       expect((await f.load(first.call)).tasks.some(task => task.kind === 'queue')).toBe(false)
       expect(f.h.binding.executions).toEqual([first.call, second.call])
-      expect(retains).toBe(1)
       expect(new Set(operations).size).toBe(1)
       expect(operations.length).toBeGreaterThanOrEqual(2)
-      expect(await f.h.released()).toContain(first.call)
+      expect(await f.h.released(first.call)).toBe(true)
+      expect(releasedReads).toBe(0)
       await f.close()
     },
   )
 
   it('F05 reconciles a predecessor after the release notification is lost, then closes its original queue task', async () => {
     let allowRelease = false
-    let retains = 0
     const f = fixture({
-      custodyPort: base => ({
-        ...base,
-        retainResult: input => {
-          retains += 1
-          return base.retainResult(input)
-        },
-      }),
       store: memory => ({
         ...memory,
         commit: input => {
           if (
             !allowRelease &&
             input.domain.kind === 'queue' &&
-            input.writes.some(
-              write => write.kind === 'put' && write.record.kind === 'queue-release',
-            )
+            input.writes.some(write => write.kind === 'delete' && write.key.startsWith('entry:'))
           )
             return Promise.resolve({ kind: 'unavailable', diagnostic: 'queue offline' })
           return memory.commit(input)
@@ -573,7 +561,6 @@ describe('original final settlement in one shared driver', () => {
     expect(f.h.binding.executions).toEqual([first.call, second.call])
     await f.h.runOnce(first.call, first.controller.signal)
     expect((await f.load(first.call)).tasks.some(task => task.kind === 'queue')).toBe(false)
-    expect(retains).toBe(1)
     await f.close()
   })
 
@@ -769,7 +756,7 @@ describe('original final settlement in one shared driver', () => {
   )
 
   it('F11 repairs the queue while an original next is still unresolved', async () => {
-    const seen = deferred<FactBatch<Block>>()
+    const seen = deferred<FactBatch>()
     const resume = deferred<void>()
     const f = fixture({ pendingFinal: { seen, resume: resume.promise } })
     const first = await f.invoke('first')
@@ -845,7 +832,17 @@ it.each(['end', 'throw'] as const)(
     expect(f.stats.returns).toBe(1)
     expect(f.stats.readers).toBe(0)
     const saved = ok(await f.h.ledger.commands.loadRecovery(first.access))
-    expect(saved.result).toEqual(final.result)
+    expect(saved.result).not.toBeNull()
+    if (saved.result === null) throw new Error('missing result reference')
+    expect(
+      ok(
+        await f.h.ledger.reads.result({
+          ...first.access,
+          result: saved.result.version,
+          after: null,
+        }),
+      ).value,
+    ).toEqual(final.result)
     expect(saved.state).toMatchObject({
       phase: 'settled',
       terminal: final.terminal,
@@ -858,7 +855,7 @@ it.each(['end', 'throw'] as const)(
 )
 
 it.each(['cancelled', 'unavailable'] as const)(
-  'keeps the original final read %s from initiating preservation or wake',
+  'retains settlement responsibility when its entered command is %s without another driver wake',
   async mode => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const entered = deferred<void>()
@@ -922,16 +919,22 @@ it.each(['cancelled', 'unavailable'] as const)(
         },
       })
     else await expect(running).resolves.toMatchObject({ kind: 'blocked' })
-    expect(preserves).toBe(0)
+    expect(preserves).toBe(1)
     expect(f.h.host.scheduleAttempts).toHaveLength(schedules)
     const saved = await f.load(first.call)
-    expect(saved.state.phase).toBe('running')
-    expect(saved.result).toBeNull()
-    expect(saved.tasks).toContainEqual(
-      expect.objectContaining({ kind: 'settle', state: 'pending' }),
-    )
+    if (mode === 'unavailable') {
+      expect(saved.state.phase).toBe('running')
+      expect(saved.result).toBeNull()
+      expect(saved.tasks).toContainEqual(
+        expect.objectContaining({ kind: 'settle', state: 'pending' }),
+      )
+      expect(await f.h.released(first.call)).toBe(false)
+    } else {
+      expect(saved.state.phase).toBe('settled')
+      expect(saved.result).not.toBeNull()
+      expect(await f.h.released(first.call)).toBe(true)
+    }
     expect((await f.load(second.call)).state.phase).toBe('queued')
-    expect(await f.h.released()).not.toContain(first.call)
     expect(f.h.binding.executions).toEqual([first.call])
     await f.close()
   },

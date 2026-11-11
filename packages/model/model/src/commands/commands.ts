@@ -1,3 +1,4 @@
+import { requestHead } from '@omne-harness/model-contract/provider'
 import { randomUUID } from 'node:crypto'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -16,7 +17,6 @@ import type {
   ModelFailure,
   ModelOperationId,
   ReadStart,
-  ResultCapacity,
   Revision,
   Settlement,
   Snapshot,
@@ -56,6 +56,7 @@ import {
   receiptBinds,
   retryable,
   retryChoiceFailure,
+  executionFailed,
   settlementFailure,
   tasks,
   unresolved,
@@ -67,6 +68,7 @@ import {
   expireReads,
   hasDispatchContent,
   lateTerminal,
+  abandonReceiveWindows,
   mergeReceiveWindow,
   reduceFacts,
   releaseMaterial,
@@ -77,26 +79,15 @@ import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
 
-const SHARE_ITEMS = ['bytes', 'blocks', 'attachmentBytes'] as const
-
 /**
- * The share check of an admission. A call above the share in any item never fits: `capacity`. A
- * call that fits, while the held share plus the call is above the share, fits later: the share is
- * full now, so `unavailable` on `model-capacity`, and the caller admits the same call again.
+ * The share check of an admission. Every admitted call holds one place until its result is
+ * acknowledged and released. A full share is full now and has room later: `unavailable` on
+ * `model-capacity`, and the caller admits the same call again.
  */
-function shareRefusal(
-  share: ResultCapacity,
-  held: Pick<ModelCommandStorage, 'reserved'>,
-  capacity: ResultCapacity,
-): ModelFailure | null {
-  if (SHARE_ITEMS.some(item => BigInt(capacity[item]) > BigInt(share[item])))
-    return { kind: 'capacity', required: capacity }
-  const full = SHARE_ITEMS.filter(
-    item => held.reserved(item) + BigInt(capacity[item]) > BigInt(share[item]),
-  )
-  return full.length === 0
+function shareRefusal(share: number, storage: Pick<ModelCommandStorage, 'held'>) {
+  return storage.held() < share
     ? null
-    : unavailable('model-capacity', `the tenant share is full: ${full.join(', ')}`)
+    : unavailable('model-capacity', 'the tenant share is full: unacknowledged results')
 }
 
 /** Every execution write first needs its call, still at the revision that the writer expected. */
@@ -144,8 +135,8 @@ export function callCommands<P>(
         })
       const input = checked.ok
       return core.runWrite(input, () => {
-        const { call, operation, request, consumer, capacity } = input
-        const fields = { call, operation, request, consumer, capacity }
+        const { call, operation, request, consumer } = input
+        const fields = { call, operation, request, consumer }
         return core.write({
           input,
           method: 'admit',
@@ -162,7 +153,7 @@ export function callCommands<P>(
               }
             const owner = core.owner(consumer.owner)
             if (!owner) return { failure: invalid('consumer.owner', 'undeclared') }
-            const refused = shareRefusal(core.options.limits.capacity, core.storage, capacity)
+            const refused = shareRefusal(core.options.limits.unacknowledgedResults, core.storage)
             if (refused) return { failure: refused }
             const actor = core.authorize(input, 'admit', undefined, call, consumer)
             if ('failure' in actor) return actor
@@ -184,9 +175,8 @@ export function callCommands<P>(
                 control: { kind: 'none' },
                 custody: { kind: 'producer' },
               },
-              request: structuredClone(request),
+              request: structuredClone(requestHead(request)),
               requestDigest: digest(request),
-              capacity: structuredClone(capacity),
               initiator: structuredClone(actor.ok),
               admission: operation,
               owner: structuredClone(owner),
@@ -205,7 +195,11 @@ export function callCommands<P>(
               },
             }
             return {
-              ok: { value: admission, receipt: { kind: 'admit', admission: { ...admission } } },
+              ok: {
+                value: admission,
+                receipt: { kind: 'admit', admission: { ...admission } },
+                body: request,
+              },
             }
           },
           replay: (_call, binding) =>
@@ -330,6 +324,7 @@ export function callCommands<P>(
                 }
               const legality = settlementFailure(call, input.termination)
               if (legality) return { failure: legality }
+              if (executionFailed(input.termination)) abandonReceiveWindows(call)
               const version = resultVersion()
               const settlement: Settlement = {
                 version,
@@ -362,7 +357,7 @@ export function callCommands<P>(
 export function recoveryCommands<P>(
   core: ModelCommandCore<P>,
   bound?: BoundCommandAccess<P>,
-): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'claim'> {
+): Pick<ModelCommands<P>, 'scanPending' | 'loadRecovery' | 'loadRequest' | 'claim'> {
   const scans = new Map<string, { tenant: string; calls: readonly ModelCallId[]; offset: number }>()
   function scanPage(scope: string, after: string | null, limit: number) {
     const root = core.storage.documents(scope)
@@ -415,7 +410,6 @@ export function recoveryCommands<P>(
             ok: {
               state: structuredClone(call.state),
               request: structuredClone(call.request),
-              capacity: structuredClone(call.capacity),
               initiator: structuredClone(call.initiator),
               admission: call.admission,
               execution: call.execution === null ? null : { ...call.execution },
@@ -427,6 +421,23 @@ export function recoveryCommands<P>(
           }
         }),
       ),
+    loadRequest: async input => {
+      const held = await core.runRead(input, () =>
+        core.read(input, 'recovery', call =>
+          call.request === null
+            ? { failure: invalid('call', 'recovery-material-released') }
+            : { ok: null },
+        ),
+      )
+      if ('failure' in held) return held
+      const tenant = core.identity(input)
+      if (typeof tenant !== 'string') return { failure: tenant }
+      const body = await core.storage.readBody(tenant, input.call)
+      if ('failure' in body) return body
+      return body.ok === null
+        ? { failure: invalid('call', 'recovery-material-released') }
+        : { ok: body.ok }
+    },
     claim: input =>
       core.runWrite(input, () =>
         core.write({
@@ -655,7 +666,7 @@ export function dispatchCommands<P>(
               account: null,
               materialization: null,
               // Identities only. They outlive the request material, which cleanup releases.
-              messages: call.request.messages.map(message => message.id),
+              messages: [...call.request.messageIds],
             },
             logicalTerminal: null,
             windows: new Map(),
@@ -802,11 +813,6 @@ export function dispatchCommands<P>(
                 state: structuredClone(call.state),
               }
               call.snapshots.set(call.cursor, snapshot)
-              if (
-                BigInt(call.dispatches.reduce((count, item) => count + item.blocks.length, 0)) >
-                BigInt(call.capacity.blocks)
-              )
-                return { failure: { kind: 'capacity', required: call.capacity } }
               return {
                 ok: {
                   value: structuredClone(snapshot),
@@ -1139,7 +1145,7 @@ export function consumptionCommands<P>(
   }
 }
 
-/** All 22 methods over one core. */
+/** All 23 methods over one core. */
 export function modelCommands<P>(
   core: ModelCommandCore<P>,
   bound?: BoundCommandAccess<P>,

@@ -35,7 +35,6 @@ for (const [kind, diagnostic] of [
         operation: admission,
         request: f.request,
         consumer: f.consumer,
-        capacity: f.capacity,
       }),
     ).toMatchObject({ ok: { call: f.call } })
     const fault = { cause: 'credential', diagnostic, upstreamStatus: null }
@@ -107,7 +106,6 @@ for (const read of ['answers unavailable', 'throws'] as const)
         operation: admission,
         request: f.request,
         consumer: f.consumer,
-        capacity: f.capacity,
       }),
     ).toHaveProperty('ok')
     try {

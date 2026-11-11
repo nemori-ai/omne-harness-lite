@@ -34,7 +34,6 @@ import {
   type ToolInstanceHost,
   type ToolLoader,
   type ToolOffloader,
-  type ToolOutputCustody,
   type ToolReads,
   type ToolResourceResponses,
   type ToolStartAuthority,
@@ -112,6 +111,7 @@ export abstract class ToolRuntimeService<P, B extends ContentBlock>
   abstract readonly instances: ToolRuntime<P, B>['instances']
   abstract readonly observation: ToolRuntime<P, B>['observation']
   abstract readonly content: ToolRuntime<P, B>['content']
+  abstract readonly body: ToolRuntime<P, B>['body']
   abstract readonly catalog: ToolRuntime<P, B>['catalog']
 }
 export const toolRuntimeKey = ToolRuntimeService.provide
@@ -166,15 +166,15 @@ export const toolCommandsKey = ToolCommandsService.provide
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolBindingsService<P, B extends ContentBlock, E>
   extends Service
-  implements ToolBindings<P, B, E>, ToolBindingRegistry<P, E, B>
+  implements ToolBindings<P, E>, ToolBindingRegistry<P, E, B>
 {
   static readonly provide = 'toolBindings'
   constructor(ctx: Context) {
     super(ctx, ToolBindingsService.provide)
   }
-  abstract readonly inspect: ToolBindings<P, B, E>['inspect']
-  abstract readonly resolve: ToolBindings<P, B, E>['resolve']
-  abstract readonly recover: ToolBindings<P, B, E>['recover']
+  abstract readonly inspect: ToolBindings<P, E>['inspect']
+  abstract readonly resolve: ToolBindings<P, E>['resolve']
+  abstract readonly recover: ToolBindings<P, E>['recover']
   abstract readonly register: ToolBindingRegistry<P, E, B>['register']
   abstract readonly snapshot: ToolBindingRegistry<P, E, B>['snapshot']
   abstract readonly pins: ToolBindingRegistry<P, E, B>['pins']
@@ -468,6 +468,7 @@ export abstract class ToolReadsService<P, B extends ContentBlock>
   abstract readonly diagnostics: ToolReads<P, B>['diagnostics']
   abstract readonly account: ToolReads<P, B>['account']
   abstract readonly content: ToolReads<P, B>['content']
+  abstract readonly body: ToolReads<P, B>['body']
 }
 export const toolReadsKey = ToolReadsService.provide
 
@@ -532,18 +533,6 @@ export abstract class ToolResourceResponsesService<P>
 export const toolResourceResponsesKey = ToolResourceResponsesService.provide
 
 /** @owner packages/tool/tool-cordis-contract */
-export abstract class ToolOutputCustodyService<P> extends Service implements ToolOutputCustody<P> {
-  static readonly provide = 'toolOutputCustody'
-  constructor(ctx: Context) {
-    super(ctx, ToolOutputCustodyService.provide)
-  }
-  abstract readonly preserve: ToolOutputCustody<P>['preserve']
-  abstract readonly inspect: ToolOutputCustody<P>['inspect']
-  abstract readonly retainResult: ToolOutputCustody<P>['retainResult']
-}
-export const toolOutputCustodyKey = ToolOutputCustodyService.provide
-
-/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolChildrenService<P> extends Service implements ToolChildren<P> {
   static readonly provide = 'toolChildren'
   constructor(ctx: Context) {
@@ -605,7 +594,6 @@ declare module '@deepseek-ai/cordis' {
     toolStartAuthority: ToolStartAuthorityService<unknown>
     toolStartFence: ToolStartFenceService<unknown>
     toolResourceResponses: ToolResourceResponsesService<unknown>
-    toolOutputCustody: ToolOutputCustodyService<unknown>
     toolChildren: ToolChildrenService<unknown>
     toolAccounts: ToolAccountsService<unknown>
     toolOffloader: ToolOffloaderService<unknown, ContentBlock>

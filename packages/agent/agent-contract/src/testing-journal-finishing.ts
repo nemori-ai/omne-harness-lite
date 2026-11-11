@@ -225,7 +225,7 @@ function refusedContent(name: string, call: M.ModelCallId): Partial<FinishCandid
       source: evidence(`failure/${name}`),
       kind: 'model-refused',
       call,
-      failure: { kind: 'capacity', required: { bytes: '1', blocks: '1', attachmentBytes: '0' } },
+      failure: { kind: 'invalid', field: 'request', reason: 'refused' },
     },
   }
 }

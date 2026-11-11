@@ -16,8 +16,12 @@ function forbidden(specifier: string): boolean {
 
 it('root entry exports the independent execution functions, the ledger, the runtime factory and the two host-record checks', () => {
   expect(Object.keys(tool).sort()).toEqual([
+    'CALL_RECORD_KEY',
+    'INITIAL_REVISION',
     'canonicalDigest',
+    'checkToolResultBody',
     'createIndependentToolScope',
+    'createToolBodyScope',
     'createToolDriver',
     'createToolFactAcknowledgementGuard',
     'createToolForwardRuntime',
@@ -26,8 +30,13 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'createToolResultReader',
     'createToolRuntime',
     'createToolRuntimeFacade',
+    'createToolSweep',
+    'encodeToolCanonical',
     'executeTool',
+    'hostKey',
     'isTenantShape',
+    'observeToolLedgerCommit',
+    'pageToolResult',
     'recordKey',
     'toolLedgerAdoption',
     'toolRuntimeAdoption',
@@ -38,11 +47,13 @@ it('testing entry exports the non-durable store, the access table double and its
   const testing = await import('@omne-harness/tool/testing')
   expect(Object.keys(testing).sort()).toEqual([
     'TEST_SOURCE_OWNER',
+    'createMemoryToolBodies',
     'createMemoryToolContent',
     'createMemoryToolLedgerStore',
     'createMemoryToolLedgerStoreFixture',
     'createTableToolAccess',
     'createTestInvocationSource',
+    'createTestResultChannels',
     'createTestToolDependencies',
     'createTestToolIdentities',
     'toolAccessGuardConformance',

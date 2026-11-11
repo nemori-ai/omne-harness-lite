@@ -53,6 +53,7 @@ async function hostContext(options: Readonly<{ clock?: boolean }> = {}): Promise
   const storage = await openSqliteStorage()
   cleanups.push(() => storage.close({ remove: true }))
   class TestStorage extends StorageService {
+    readonly database = storage.storage.database
     readonly registerCombination: SqlStorage['registerCombination'] = input =>
       storage.storage.registerCombination(input)
     readonly commit: SqlStorage['commit'] = (input, options) =>
@@ -74,6 +75,7 @@ async function hostContext(options: Readonly<{ clock?: boolean }> = {}): Promise
 const CONFIG = Object.freeze({
   maxLifetime: 'PT2592000S',
   idlePeriod: 'PT604800S',
+  accessRefreshGranularity: 'PT3600S',
   invitationDefaultDuration: 'PT604800S',
   invitationMaxDuration: 'PT2592000S',
 })

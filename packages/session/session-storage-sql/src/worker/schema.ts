@@ -7,12 +7,12 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     epoch TEXT NOT NULL, PRIMARY KEY (tenant, session)) STRICT`,
   `CREATE TABLE sl_entry (
     tenant TEXT NOT NULL, session TEXT NOT NULL, position INTEGER NOT NULL, revision INTEGER NOT NULL,
-    kind TEXT NOT NULL, entry TEXT NOT NULL, bytes INTEGER NOT NULL,
+    kind TEXT NOT NULL, entry BLOB NOT NULL, bytes INTEGER NOT NULL,
     PRIMARY KEY (tenant, session, position)) STRICT`,
   `CREATE INDEX sl_kind_idx ON sl_entry (tenant, session, kind, position)`,
   `CREATE TABLE sl_operation (
     tenant TEXT NOT NULL, session TEXT NOT NULL, operation TEXT NOT NULL, input_digest TEXT NOT NULL,
-    form TEXT NOT NULL, revision INTEGER, receipt TEXT NOT NULL, result TEXT NOT NULL,
+    form TEXT NOT NULL, revision INTEGER, receipt BLOB NOT NULL, result BLOB NOT NULL,
     PRIMARY KEY (tenant, session, operation)) STRICT`,
   `CREATE INDEX sl_operation_revision_idx ON sl_operation (tenant, session, revision)`,
   `CREATE TABLE sl_state (
@@ -95,7 +95,7 @@ export const OPERATION_EVIDENCE_MIGRATION = Object.freeze({
 export const STATE_ITEM_STATEMENTS: readonly string[] = [
   `CREATE TABLE sl_state_item (
     tenant TEXT NOT NULL, session TEXT NOT NULL, path TEXT NOT NULL, seq INTEGER NOT NULL,
-    value TEXT NOT NULL, PRIMARY KEY (tenant, session, path, seq)) STRICT, WITHOUT ROWID`,
+    value BLOB NOT NULL, PRIMARY KEY (tenant, session, path, seq)) STRICT, WITHOUT ROWID`,
 ]
 
 export const STATE_ITEM_TABLES: readonly string[] = ['sl_state_item']

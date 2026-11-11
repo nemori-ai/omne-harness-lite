@@ -10,17 +10,13 @@ import {
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import {
   createSqlToolLedgerStore,
-  createSqlToolOutputCustody,
-  readSqlToolOutputBytes,
-  createSqlToolGuardedHostCommit,
   toolStorageMaterials,
   TOOL_PARTICIPANT,
 } from '@omne-harness/tool-storage-sql'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 
 // The budget scenario produces a 2,723,278-byte plan command, including retained request copies.
-const maxCommandBytes = 4_194_304
+const DEFAULT_MAX_COMMAND_BYTES = 4_194_304
 
 /**
  * Test fixture SQL capacity per R2-D115: aligned with production candidate (sqlite-provider
@@ -34,10 +30,11 @@ const maxCommandBytes = 4_194_304
 const DEFAULT_GLOBAL_READ_RESULT_BYTES = 134217728
 
 /** Same provider policy dimensions as sqlite-provider/tests/support.ts, over this test's real root. */
-function configuration(
+export function configuration(
   storageRoot: string,
   readBytes: number,
   globalReadResultBytes = DEFAULT_GLOBAL_READ_RESULT_BYTES,
+  maxCommandBytes = DEFAULT_MAX_COMMAND_BYTES,
 ): SqliteStorageConfig {
   return {
     storageRoot,
@@ -87,8 +84,13 @@ function configuration(
 export async function openStorage(
   root: string,
   tenants: readonly TenantId[],
-  options: Readonly<{ globalReadResultBytes?: number; participants?: readonly string[] }> = {},
+  options: Readonly<{
+    globalReadResultBytes?: number
+    maxCommandBytes?: number
+    participants?: readonly string[]
+  }> = {},
 ) {
+  const maxCommandBytes = options.maxCommandBytes ?? DEFAULT_MAX_COMMAND_BYTES
   await mkdir(root, { recursive: true })
   const materials = toolStorageMaterials()
   const participants = options.participants ?? [TOOL_PARTICIPANT]
@@ -113,6 +115,7 @@ export async function openStorage(
       root,
       Math.max(4_194_304, ...materials.readHandlers.map(item => item.maxOutputBytes)),
       options.globalReadResultBytes ?? DEFAULT_GLOBAL_READ_RESULT_BYTES,
+      maxCommandBytes,
     ),
     materials: catalog,
     closeLeases: {
@@ -162,22 +165,15 @@ export async function openStorage(
     }
     const options = { storage: created.storage, domains, combination }
     const listing = [...entries].map(([tenant, domain]) => ({ tenant, domain }))
+    const listed = async () => ({ kind: 'ready', revision: '1', entries: listing }) as const
     return {
       /** The raw storage, for the read-budget case that must not depend on the whole assembly. */
       storage: created.storage,
       combination,
       domains,
-      store: createSqlToolLedgerStore<ToolMessageContentBlock>({
-        ...options,
-        tenants: async () => ({ kind: 'ready', revision: '1', entries: listing }),
-      }),
-      custody: createSqlToolOutputCustody<unknown>({
-        ...options,
-        maxCommandBytes,
-        maxChunkBytes: 16384,
-      }),
-      readOutput: readSqlToolOutputBytes(options),
-      guarded: createSqlToolGuardedHostCommit(options),
+      /** The registered tenant domains, as the cross-tenant scan of the store reads them. */
+      tenants: listed,
+      store: createSqlToolLedgerStore({ ...options, tenants: listed }),
       materials: catalog,
       close,
     }

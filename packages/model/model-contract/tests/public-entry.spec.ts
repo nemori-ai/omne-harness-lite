@@ -72,6 +72,7 @@ it('the provider entry exports exactly the runtime values of the provider protoc
       'judgeReplayDeclaration',
       'projectReplay',
       'readCredentialLayer',
+      'requestHead',
       'resolveModelOperationRef',
       'selectCredentialLayer',
     ].sort(),

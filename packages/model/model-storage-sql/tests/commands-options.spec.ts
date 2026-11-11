@@ -6,7 +6,6 @@ import {
 } from '@omne-harness/model/commands'
 import {
   createSqlModelCommands,
-  COMMAND_RESERVE_BYTES,
   type SqlModelCommands,
   type SqlModelCommandsOptions,
 } from '../src/index.ts'
@@ -14,7 +13,6 @@ import {
   coreOptions,
   DIGEST,
   lookup,
-  MAX_CALL_BYTES,
   sqliteStorage,
   tenantOf,
   textOf,
@@ -62,9 +60,8 @@ function assemble(extra: Partial<SqlModelCommandsOptions<Principal>> = {}) {
     ...core.options,
     storage: sqliteStorage().storage,
     domains: lookup([textOf(tenant)], 'options'),
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
     ...extra,
   })
   if (result.observations) cleanups.push(() => result.observations?.close())
@@ -108,9 +105,8 @@ it('builds the initial execution without an observation source for the initial r
     initialRun: initialRun(),
     storage: sqliteStorage().storage,
     domains: lookup([textOf(tenant)], 'options'),
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
   })
   const { initial, observations } = result
   if (!initial) throw new Error('assembly')

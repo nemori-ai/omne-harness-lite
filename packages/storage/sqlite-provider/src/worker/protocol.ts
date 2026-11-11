@@ -89,7 +89,8 @@ export type CommitWorkerRejection =
   | 'participant_dependency_missing'
 
 export type CommitReply =
-  | Readonly<{ kind: 'receipt'; receipt: ReceiptV2 }>
+  /** `recalled`: the Worker recognised an earlier receipt, or another job of the group ran the identity. */
+  | Readonly<{ kind: 'receipt'; receipt: ReceiptV2; recalled: boolean }>
   | Readonly<{ kind: 'conflict'; existing: ReceiptV2 }>
   | Readonly<{ kind: 'rejected'; reason: CommitWorkerRejection }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>

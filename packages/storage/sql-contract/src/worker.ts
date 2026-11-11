@@ -2,6 +2,8 @@
 // migration and read handler modules that implement these interfaces. Imports no Cordis.
 import type { FactKey, JsonValue, ParticipatedReply } from './types.ts'
 
+export { packText, unpackText } from './text-pack.ts'
+
 export type SqlValue = null | boolean | number | bigint | string | Uint8Array
 
 export type SqlCell = null | number | bigint | string | Uint8Array

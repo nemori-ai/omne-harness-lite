@@ -13,8 +13,19 @@ export type {
   ToolLedgerRecovery,
 } from './construction.ts'
 export { createIndependentToolScope } from './independent-scope.ts'
+export {
+  createToolBodyScope,
+  type ToolBodyScope,
+  type ToolBodyScopeInput,
+} from './body-write-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
+export { createToolSweep, type CallRemoval, type ToolLedgerSweep } from './ledger-sweep.ts'
+export {
+  observeToolLedgerCommit,
+  type ToolLifecycleObservation,
+  type ToolLifecycleObserver,
+} from './lifecycle-observation.ts'
 export type {
   AccountRecord,
   SavedFact,
@@ -27,11 +38,16 @@ export type {
   ExclusionRecord,
   HostRecord,
   LedgerCommit,
+  LedgerAssertion,
   LedgerCommitInput,
   LedgerDomain,
   LedgerPendingScan,
   LedgerPendingScanInput,
   LedgerRead,
+  LedgerRecordRead,
+  LedgerDueRead,
+  DueEntry,
+  TenantId,
   LedgerRecord,
   LedgerWrite,
   OperationReceipt,
@@ -39,7 +55,6 @@ export type {
   PendingCall,
   QueueCounterRecord,
   QueueEntryRecord,
-  QueueReleaseRecord,
   ReleaseBasis,
   ResultRecord,
   ResultCustody,
@@ -48,7 +63,7 @@ export type {
   StartRejection,
   ToolLedgerStore,
 } from './ledger-store.ts'
-export { recordKey } from './ledger-store.ts'
+export { recordKey, hostKey, CALL_RECORD_KEY } from './ledger-store.ts'
 export type {
   AccessVerdict,
   GrantVerdict,
@@ -67,7 +82,8 @@ export type {
 // The two checks a host provider that keeps records in the store's `host` domain needs to answer
 // the same way as the ledger: the tenant shape and the canonical digest.
 export { isTenantShape } from './boundary.ts'
-export { digestOf as canonicalDigest } from './evidence.ts'
+export { digestOf as canonicalDigest, INITIAL_REVISION } from './evidence.ts'
+export { encodeToolCanonical, type EncodedToolCanonical } from './canonical-codec.ts'
 export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from './runtime.ts'
 export {
   createToolDriver,
@@ -85,3 +101,6 @@ export {
 } from './tools.ts'
 export { createToolForwardRuntime } from './runtime-forwarding.ts'
 export { outputCodec as createToolMessageResultCodec } from './tools-results.ts'
+export { checkToolResultBody } from './result-body-validation.ts'
+
+export { pageToolResult } from './result-page.ts'

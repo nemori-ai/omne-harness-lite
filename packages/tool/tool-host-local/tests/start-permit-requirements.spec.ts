@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { ToolLedgerStore, AccessVerdict } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
   createLocalStartCoordinator,
-  START_COORDINATOR_DOMAIN_KEY,
+  callHostDomain,
   type StartPermitRequirement,
   type StartPermitRequirements,
   type StartCoordinatorAccess,
@@ -45,11 +45,11 @@ function barrier() {
 async function fixture(
   options: Readonly<{
     missing?: boolean
-    wrap?: (memory: ToolLedgerStore<ContentBlock>) => ToolLedgerStore<ContentBlock>
+    wrap?: (memory: ToolLedgerStore) => ToolLedgerStore
     access?: StartCoordinatorAccess<string>
   }> = {},
 ) {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   const store = options.wrap?.(memory) ?? memory
   let answer = noPermit
   let thrown = false
@@ -87,16 +87,17 @@ async function fixture(
     execution: { tenant: call.tenant, call: call.call, instance: instanceId, generation: '1' },
   }
   const prepare = (value = fixed) => authority.prepare({ ...call, start, request: value })
-  const consume = (permit: StartPermit) =>
-    authority.consume({ ...call, permit, executorReceipt: evidence('real-capsule') })
+  const consume = (permit: StartPermit, value = fixed) =>
+    authority.consume({
+      ...call,
+      permit,
+      executorReceipt: evidence('real-capsule'),
+      request: value,
+    })
   const execute = (permit: StartPermit) =>
     author.binding.start({ ...call, start, request: fixed, permit }, author.environment)
   const records = async () => {
-    const result = await memory.read({
-      kind: 'host',
-      tenant: call.tenant,
-      key: START_COORDINATOR_DOMAIN_KEY,
-    })
+    const result = await memory.read(callHostDomain(call.tenant, 'start', call.call))
     if (result.kind !== 'complete') throw new Error('memory read failed')
     return result.records.flatMap(record => (record.kind === 'host' ? [record.host.value] : []))
   }
@@ -134,7 +135,7 @@ async function fixture(
 
 describe('R2-D60 start permit requirements', () => {
   it('does not issue a permit without a requirement source', async () => {
-    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const store = createMemoryToolLedgerStore()
     const authority = createLocalStartCoordinator({
       store,
       access: access(),
@@ -246,6 +247,8 @@ describe('R2-D60 start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        readRecord: (domain, key) => memory.readRecord(domain, key),
+        due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
         commit: async input => {
           if (conflict) {
@@ -283,6 +286,8 @@ describe('R2-D60 start permit requirements', () => {
         wrap: memory => ({
           durability: 'none',
           scanPending: input => memory.scanPending(input),
+          readRecord: (domain, key) => memory.readRecord(domain, key),
+          due: (tenant, now, limit) => memory.due(tenant, now, limit),
           read: domain => memory.read(domain),
           commit: async input => {
             if (conflict) {
@@ -339,6 +344,8 @@ describe('R2-D60 start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        readRecord: (domain, key) => memory.readRecord(domain, key),
+        due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: async domain => {
           if (block) {
             block = false
@@ -370,7 +377,7 @@ describe('R2-D60 start permit requirements', () => {
     const principal = { subject: 'original' }
     let seen: FixedToolRequest | undefined
     const authority = createLocalStartCoordinator({
-      store: createMemoryToolLedgerStore<ContentBlock>(),
+      store: createMemoryToolLedgerStore(),
       access: {
         qualify: async () => {
           entered.open()
@@ -457,14 +464,17 @@ describe('R2-D60 start permit requirements', () => {
         },
       }),
     ).toHaveProperty('failure.kind', 'conflict')
-    expect(unbox(await f.consume(permit)).kind).toBe('started')
+    expect(await f.consume(permit)).toMatchObject({
+      failure: { kind: 'invalid', field: 'request', reason: 'not-the-permitted-request' },
+    })
+    expect(unbox(await f.consume(permit, commands)).kind).toBe('started')
     expect(f.questions.at(-1)?.request).toEqual(commands)
   })
 
   it('passes distinct complete actions and identities to the source for two tenants', async () => {
     const seen: unknown[] = []
     const authority = createLocalStartCoordinator({
-      store: createMemoryToolLedgerStore<ContentBlock>(),
+      store: createMemoryToolLedgerStore(),
       access: access(),
       guardsOf: () => [],
       commitAttempts: 4,
@@ -501,7 +511,7 @@ describe('R2-D60 start permit requirements', () => {
     expect(seen).toEqual([inputs[0], inputs[0], inputs[1], inputs[1]])
   })
 
-  it.each(['request', 'inputDigest', 'requestBinding', 'requirementSource'] as const)(
+  it.each(['inputDigest', 'requestBinding', 'requirementSource'] as const)(
     'does not adopt a pending record with missing %s or overwrite it on prepare',
     async field => {
       let legacy = false
@@ -509,6 +519,8 @@ describe('R2-D60 start permit requirements', () => {
         wrap: memory => ({
           durability: 'none',
           scanPending: input => memory.scanPending(input),
+          readRecord: (domain, key) => memory.readRecord(domain, key),
+          due: (tenant, now, limit) => memory.due(tenant, now, limit),
           commit: input => memory.commit(input),
           read: async domain => {
             const read = await memory.read(domain)
@@ -550,6 +562,8 @@ describe('R2-D60 start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        readRecord: (domain, key) => memory.readRecord(domain, key),
+        due: (tenant, now, limit) => memory.due(tenant, now, limit),
         commit: input => memory.commit(input),
         read: async domain => {
           const read = await memory.read(domain)
@@ -589,6 +603,8 @@ describe('R2-D60 start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        readRecord: (domain, key) => memory.readRecord(domain, key),
+        due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
         commit: async input => {
           const result = await memory.commit(input)
@@ -616,6 +632,8 @@ describe('R2-D60 start permit requirements', () => {
       wrap: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        readRecord: (domain, key) => memory.readRecord(domain, key),
+        due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
         commit: async input => {
           if (lose) {

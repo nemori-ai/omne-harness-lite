@@ -84,12 +84,12 @@ describe('the binding hands the retained view as both retention ledgers (#1137)'
       tenant: TENANT_A,
       call: 'call-binding',
       operation: 'prepare-binding',
-      request: { requesterScope: scope.ok },
     }
     const request = {
       tenant: TENANT_A,
       call: 'call-binding',
       preparation,
+      request: { requesterScope: scope.ok },
     } as unknown as Parameters<typeof input.plan.binding>[0]
     const bound = await input.plan.binding(request)
     if ('failure' in bound) throw new Error(`binding: ${JSON.stringify(bound.failure)}`)

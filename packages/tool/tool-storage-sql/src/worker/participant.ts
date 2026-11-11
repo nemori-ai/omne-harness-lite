@@ -1,26 +1,22 @@
 // The `tool` participant module. It runs inside the provider's write transaction, so every command
-// is atomic: a ledger commit checks the domain revision and applies its writes in input order; a
-// chunk keeps one piece of an original unless a manifest already seals the operation; a manifest
-// checks that the chunks hold exactly the declared bytes before it seals them. A stopping reply
-// rolls the whole command back. It never begins, commits or rolls back, and keeps no state between
+// is atomic: a ledger commit checks the domain revision and its read-set assertions, then applies
+// its writes in input order; a body command keeps, seals or deletes the chunks of one body. A
+// stopping reply rolls the whole command back. It never begins, commits or rolls back, and keeps no state between
 // calls.
-import { createHash } from 'node:crypto'
-import type { JsonValue } from '@omne-harness/sql-contract'
-import type {
-  ParticipantModule,
-  ParticipantPort,
-  ParticipantReply,
+import {
+  packText,
+  type ParticipantModule,
+  type ParticipantPort,
+  type ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import {
   parseFacts,
-  type ChunkFacts,
-  type CustodyAddress,
-  type GuardedHostFacts,
   type LedgerFacts,
-  type ManifestFacts,
+  type LedgerWriteFact,
   type ParticipantAnswer,
   type StopBasis,
 } from './facts.ts'
+import { commitBody } from './participant-body.ts'
 import { PARTICIPANT, PROTOCOL } from './schema.ts'
 import { oneRow, text } from './support.ts'
 
@@ -33,27 +29,108 @@ const stopped = (basis: StopBasis): ParticipantReply => ({ kind: 'conflict', bas
 /** The revision of a domain that was never committed (`INITIAL_REVISION` of the ledger). */
 const INITIAL_REVISION = '0'
 
-function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantReply {
-  const domain = [facts.tenant, facts.kind, facts.name] as const
+/** The revision of one domain of the tenant, `INITIAL_REVISION` when it was never committed. */
+function revisionOf(port: ParticipantPort, domain: readonly [string, string, string]): string {
   const row = oneRow(
     port,
     'SELECT revision FROM tl_domain WHERE tenant = ? AND kind = ? AND name = ? LIMIT 1',
     domain,
   )
-  const current = row === undefined ? INITIAL_REVISION : text(row['revision'])
+  return row === undefined ? INITIAL_REVISION : text(row['revision'])
+}
+
+type Domain = readonly [tenant: string, kind: string, name: string]
+
+/**
+ * Writes one record. The fixed part is written only when the command gives it; a `kept` put
+ * changes the other part alone and stops when the store holds no fixed part to keep.
+ */
+function put(
+  port: ParticipantPort,
+  domain: Domain,
+  write: Extract<LedgerWriteFact, { op: 'put' }>,
+): StopBasis | null {
+  const record = packText(JSON.stringify(write.record))
+  if (write.fixed?.kind === 'kept') {
+    const held = oneRow(
+      port,
+      `SELECT 1 AS held FROM tl_record
+       WHERE tenant = ? AND kind = ? AND name = ? AND key = ? AND fixed IS NOT NULL LIMIT 1`,
+      [...domain, write.key],
+    )
+    if (held === undefined) return { reason: 'fixed-missing' }
+    port.execute(
+      'UPDATE tl_record SET record = ? WHERE tenant = ? AND kind = ? AND name = ? AND key = ?',
+      [record, ...domain, write.key],
+    )
+    return null
+  }
+  const fixed = write.fixed === undefined ? null : packText(JSON.stringify(write.fixed.value))
+  port.execute(
+    `INSERT INTO tl_record (tenant, kind, name, key, record, fixed) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (tenant, kind, name, key)
+     DO UPDATE SET record = excluded.record, fixed = excluded.fixed`,
+    [...domain, write.key, record, fixed],
+  )
+  return null
+}
+
+function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantReply {
+  const domain = [facts.tenant, facts.kind, facts.name] as const
+  const current = revisionOf(port, domain)
   if (current !== facts.expected) return stopped({ reason: 'revision', current })
-  for (const write of facts.writes)
-    if (write.op === 'put')
-      port.execute(
-        `INSERT INTO tl_record (tenant, kind, name, key, record) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT (tenant, kind, name, key) DO UPDATE SET record = excluded.record`,
-        [...domain, write.key, JSON.stringify(write.record)],
-      )
-    else
-      port.execute('DELETE FROM tl_record WHERE tenant = ? AND kind = ? AND name = ? AND key = ?', [
-        ...domain,
-        write.key,
+  // The assertions read the same transaction as the writes: nothing of the tenant moves between.
+  for (const assertion of facts.asserts)
+    if (revisionOf(port, [facts.tenant, assertion.kind, assertion.name]) !== assertion.revision)
+      return stopped({ reason: 'assertion', current })
+  // A drop leaves no row of the domain: its records, its due entries and its revision.
+  if (facts.writes.some(write => write.op === 'drop')) {
+    // The store refuses a malformed drop before it sends it; one that arrives is not this protocol.
+    if (facts.writes.length !== 1 || facts.revision !== INITIAL_REVISION)
+      return { kind: 'unsupported', basis: { reason: 'facts' } }
+    for (const table of ['tl_record', 'tl_due', 'tl_domain'])
+      port.execute(`DELETE FROM ${table} WHERE tenant = ? AND kind = ? AND name = ?`, [...domain])
+    // 调用域整域删除后没有待推进的工作：它的待办标记一并删掉。
+    if (facts.kind === 'call')
+      port.execute('DELETE FROM tl_pending WHERE tenant = ? AND call = ?', [
+        facts.tenant,
+        facts.name,
       ])
+    return participated({ kind: 'committed' })
+  }
+  for (const write of facts.writes)
+    switch (write.op) {
+      case 'drop':
+        throw new Error('a drop is handled before the other writes')
+      case 'put': {
+        const stop = put(port, domain, write)
+        if (stop !== null) return stopped(stop)
+        break
+      }
+      case 'delete':
+        port.execute(
+          'DELETE FROM tl_record WHERE tenant = ? AND kind = ? AND name = ? AND key = ?',
+          [...domain, write.key],
+        )
+        break
+      case 'schedule':
+        port.execute(
+          `INSERT INTO tl_due (tenant, kind, name, key, due_at) VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (tenant, kind, name, key) DO UPDATE SET due_at = excluded.due_at`,
+          [...domain, write.key, write.dueAt],
+        )
+        break
+      case 'unschedule':
+        port.execute('DELETE FROM tl_due WHERE tenant = ? AND kind = ? AND name = ? AND key = ?', [
+          ...domain,
+          write.key,
+        ])
+        break
+      default: {
+        const exhaustive: never = write
+        return exhaustive
+      }
+    }
   port.execute(
     `INSERT INTO tl_domain (tenant, kind, name, revision) VALUES (?, ?, ?, ?)
      ON CONFLICT (tenant, kind, name) DO UPDATE SET revision = excluded.revision`,
@@ -70,115 +147,6 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
   return participated({ kind: 'committed' })
 }
 
-function commitGuardedHost(facts: GuardedHostFacts, port: ParticipantPort): ParticipantReply {
-  const row = oneRow(
-    port,
-    "SELECT revision FROM tl_domain WHERE tenant = ? AND kind = 'call' AND name = ? LIMIT 1",
-    [facts.call.tenant, facts.call.name],
-  )
-  if (row === undefined || text(row['revision']) !== facts.callExpected)
-    return stopped({ reason: 'call-changed' })
-  return commitLedger(facts.hostCommit, port)
-}
-
-const addressOf = (facts: CustodyAddress) => [facts.tenant, facts.call, facts.operation] as const
-
-/** The digest and answer of the manifest that seals `operation`, if one does. */
-function sealed(port: ParticipantPort, facts: CustodyAddress) {
-  const row = oneRow(
-    port,
-    'SELECT digest, answer FROM tl_manifest WHERE tenant = ? AND call = ? AND operation = ? LIMIT 1',
-    addressOf(facts),
-  )
-  return row === undefined
-    ? null
-    : { digest: text(row['digest']), answer: JSON.parse(text(row['answer'])) as JsonValue }
-}
-
-/** The bytes of a chunk as base64 gives them, or null when `data` is not canonical base64. */
-function decode(data: string): Uint8Array | null {
-  const bytes = Buffer.from(data, 'base64')
-  return bytes.toString('base64') === data ? new Uint8Array(bytes) : null
-}
-
-function keepChunk(facts: ChunkFacts, port: ParticipantPort): ParticipantReply {
-  const seal = sealed(port, facts)
-  // A sealed operation keeps its chunks: a resend of it writes nothing, another input conflicts.
-  if (seal !== null)
-    return seal.digest === facts.digest
-      ? participated({ kind: 'chunk' })
-      : stopped({ reason: 'operation' })
-  const bytes = decode(facts.data)
-  if (bytes === null) return { kind: 'failed', diagnostic: 'chunk data is not canonical base64' }
-  port.execute(
-    `INSERT INTO tl_chunk (tenant, call, operation, idx, data) VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT (tenant, call, operation, idx) DO UPDATE SET data = excluded.data`,
-    [...addressOf(facts), BigInt(facts.index), bytes],
-  )
-  return participated({ kind: 'chunk' })
-}
-
-/** True when the chunks 0 to `chunks - 1` exist and hold exactly `bytes` bytes of digest `sha256`. */
-function chunksHold(facts: ManifestFacts, port: ParticipantPort): boolean {
-  const hash = createHash('sha256')
-  let total = 0
-  for (let index = 0; index < facts.chunks; index += 1) {
-    const row = oneRow(
-      port,
-      'SELECT data FROM tl_chunk WHERE tenant = ? AND call = ? AND operation = ? AND idx = ? LIMIT 1',
-      [...addressOf(facts), BigInt(index)],
-    )
-    const data = row?.['data']
-    if (!(data instanceof Uint8Array)) return false
-    hash.update(data)
-    total += data.length
-  }
-  return total === facts.bytes && hash.digest('hex') === facts.sha256
-}
-
-/** True when a retained projection's raw output is sealed in the same tenant and call. */
-function holderSealed(facts: ManifestFacts, port: ParticipantPort): boolean {
-  if (facts.holds === null) return true
-  const row = oneRow(
-    port,
-    `SELECT seal FROM tl_manifest
-      WHERE tenant = ? AND call = ? AND operation = ? AND kind = 'raw' LIMIT 1`,
-    [facts.tenant, facts.call, facts.holds.operation],
-  )
-  return row !== undefined && text(row['seal']) === facts.holds.seal
-}
-
-function seal(facts: ManifestFacts, port: ParticipantPort): ParticipantReply {
-  const existing = sealed(port, facts)
-  if (existing !== null)
-    return existing.digest === facts.digest
-      ? participated({ kind: 'sealed', answer: existing.answer })
-      : stopped({ reason: 'operation' })
-  if (!holderSealed(facts, port)) return stopped({ reason: 'holder' })
-  if (!chunksHold(facts, port)) return stopped({ reason: 'chunks' })
-  // A crash of a longer attempt may have left chunks past the end; they are never read, so drop them.
-  port.execute(
-    'DELETE FROM tl_chunk WHERE tenant = ? AND call = ? AND operation = ? AND idx >= ?',
-    [...addressOf(facts), BigInt(facts.chunks)],
-  )
-  port.execute(
-    `INSERT INTO tl_manifest
-      (tenant, call, operation, kind, digest, bytes, chunks, sha256, seal, answer)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      ...addressOf(facts),
-      facts.kind,
-      facts.digest,
-      BigInt(facts.bytes),
-      BigInt(facts.chunks),
-      facts.sha256,
-      facts.seal,
-      JSON.stringify(facts.answer),
-    ],
-  )
-  return participated({ kind: 'sealed', answer: facts.answer })
-}
-
 const participant: ParticipantModule = {
   participant: PARTICIPANT,
   protocol: PROTOCOL,
@@ -188,12 +156,10 @@ const participant: ParticipantModule = {
     switch (facts.intent) {
       case 'ledger':
         return commitLedger(facts, port)
-      case 'guarded-host':
-        return commitGuardedHost(facts, port)
-      case 'chunk':
-        return keepChunk(facts, port)
-      case 'manifest':
-        return seal(facts, port)
+      case 'body-put':
+      case 'body-seal':
+      case 'body-delete':
+        return commitBody(facts, port)
       default: {
         const exhaustive: never = facts
         return exhaustive

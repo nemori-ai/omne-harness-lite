@@ -29,6 +29,8 @@
 - 构造时，发送资源用一个空凭据槽建一个探针传输，检查配置。传输拒绝的配置（路由不是纯 `https:` 地址、限额越界、家族贡献或网络资源不合格）让构造抛出 `RangeError`。探针不发送，构造时即开始关闭，发送资源的 `close` 等待其结果。
 - 每次 `acquire` 建一个新的 pi 传输。这个传输的凭据槽是本资源的私有闭包，其他资源读不到它。网络资源与家族贡献由所有资源共享。
 - `acquire` 先核当前 execution，再按显式的 `materialization.maxRecords` 预留名额，之后才创建真实传输。每资源捕获原 demand，`prepare` 核原 request、supplier 与空 resent，重复准备复用原 Promise。
+- 装配可给 `requestDisclosure`，同步检查固定请求是否满足本次宿主激活的披露政策。它须为无副作用的纯函数，不改请求，不读取可变政策。发送资源先核 demand 绑定，再调用它，允许后才准备 pi 传输。重复准备认回同一检查结果；新资源重新检查。省略表示独立宿主未采用上层披露政策，不表示满足任何应用的工具正文上限。
+- 检查返回 `denied`、`invalid` 或 `unsupported` 时，沿 Model 既有传输拒绝协议记录 not-sent 与失败终态。不能只返回未发送而跳过耐久记录。`unavailable` 或检查抛错保留既有不可用/认回责任，不当作允许。政策在一次激活内不变化，连接重试使用已检查的相同请求；新激活检查恢复的固定请求。已经发送或发送事实未知的请求保持原发送协议，不被新政策追溯改成未发送。
 - 同一 prepared 的并发 `materialize` 共享一个 Promise。底层真实成功产出处才登记完整非秘密绑定与回执；重复成功返回原对象，重复失败认回原失败，不再次物化。释放期间迟到的成功产物不登记，并关闭该产物。
 - `startWithCredential(materialized, value, signal)` 先核对 `materialized` 出自本资源。不是本资源交出的物化传输让调用抛出 `SendResourceDefect`，`reason` 为 `foreign-materialization`；资源释放后调用抛出 `SendResourceDefect`，`reason` 为 `resource-released`。这两种情形都不填槽，也不发送。
 - 核对通过后，资源填入凭据，同步调用 `materialized.start(signal)`，在 `finally` 中清空凭据槽。`start` 正常返回或抛出时，槽都在 `startWithCredential` 返回前清空。pi 传输在 `start` 的同步调用内读槽一次，所以凭据只在这次调用期间存在。
@@ -36,7 +38,7 @@
 - `release()` 开始时先撤销该资源的 reader 可读性并归还预留，再关闭 pi 传输并等待完成。重复调用返回同一结果，传输只关闭一次。底层关闭失败也不能继续证明已撤销的来源。
 - `close()` 拒绝之后的 `acquire`，后者返回 `{ kind: 'unavailable', dependency: 'pi-send-resources', diagnostic: 'send-resources-closed' }`。`close()` 释放仍打开的资源，关闭探针，等待它们完成；第一个失败在全部完成后抛出。重复调用返回同一结果。`close()` 不关闭网络资源。
 
-reader 只有 `prove`，没有任意 register 或 sign 操作。它每次先核当前 execution，再查真实产出记录，调用 model 的 `describeModelMaterialization` 比较原 tenant/call/execution/dispatch、请求、供应商、consumer、initiator 与完整 receipt 的描述摘要。真实回执经过两次值克隆仍可验证，只有相同形状而没有真实记录不能验证。真实记录缺失或撤除为 `model-materialization/source-unavailable`，记录存在但绑定改变为 `invalid(receipt, binding)`。同一键的其他活资源不能覆盖来源。reader 不授 start 权，start 仍要求本资源原物化对象。
+reader 只有 `prove`，没有任意 register 或 sign 操作。它每次先核当前 execution，再查真实产出记录，调用 model 的 `describeModelMaterialization` 比较原 tenant/call/execution/dispatch、请求摘要、供应商、consumer、initiator 与完整 receipt 的描述摘要。真实回执经过两次值克隆仍可验证，只有相同形状而没有真实记录不能验证。真实记录缺失或撤除为 `model-materialization/source-unavailable`，记录存在但绑定改变为 `invalid(receipt, binding)`。同一键的其他活资源不能覆盖来源。reader 不授 start 权，start 仍要求本资源原物化对象。
 
 记录没有 TTL，不因提交未知而遗忘。sender 的物化或开窗提交未知时保留原资源和记录，不重新物化或 start。这里的先撤 reader 顺序属于 `resource.release`；上层 sender 仍沿原协议先关闭 materialized、prepared，再释放 resource，不把它改称全局资源排空顺序。
 
@@ -60,13 +62,24 @@ reader 只有 `prove`，没有任意 register 或 sign 操作。它每次先核�
 宿主与目录插件从 `./cordis` 导出。名称、注入键与责任以 [model 的装配设计](../model/docs/cordis.md#单机提供者的插件划分)为准，本包实现它。
 
 - `ModelInstancesLocalPlugin` 与 `ModelConvertersLocalPlugin` 分别继承契约包的目录服务，静态注入 `modelPublicationAuthority` 与 `modelConverterAuthority`。权威缺席时 fiber 停在等待，不发布服务。权威换代或撤除时 Cordis 连同目录一起卸载再装载，后继目录从空开始，旧目录登记的 handle 不由它服务。非解析器租户的 `connect` 返回 `invalid`，字段为 `tenant`。
-- 宿主部分由 `createModelRuntimeLocalPlugin(options)` 造出的类装载，静态注入 `modelCommands`、`modelClock`、`modelHostAuthority`，发布 `modelInstanceHost`；提供者带 `runtime` 时同时发布 `modelRuntime`，见[运行门面与结果推送](#运行门面与结果推送)。配置是 `concurrencyLimit`、`wakeCapacity`、`scanBatchSize` 与 `scanIntervalMs`，四项必需，正整数（`scanIntervalMs` 为非负整数），其余取值让加载失败，不取默认值。宿主本身不用 `scanBatchSize` 与 `scanIntervalMs`。结果推送的启动扫描用 `scanBatchSize` 作页长，见[运行门面与结果推送](#运行门面与结果推送)。`scanIntervalMs` 留给周期恢复扫描，目前没有消费者。
+- 宿主部分由 `createModelRuntimeLocalPlugin(options)` 造出的类装载，静态注入 `modelCommands`、`modelClock`、`modelHostAuthority`，发布 `modelInstanceHost`；提供者带 `runtime` 时同时发布 `modelRuntime`，见[运行门面与结果推送](#运行门面与结果推送)。配置是 `concurrencyLimit`、`wakeCapacity`、`scanBatchSize` 与 `scanIntervalMs`，四项必需，都是正整数，其余取值让加载失败，不取默认值。宿主本身不用 `scanBatchSize`。结果推送的启动扫描用 `scanBatchSize` 作页长，见[运行门面与结果推送](#运行门面与结果推送)。`scanIntervalMs` 是宿主再次唤醒一个调用之前的间隔，见[驱动结束而调用未收场](#驱动结束而调用未收场)。
 - `bind` 是插件与本域执行宿主之间的装配操作，不在服务面上。同一宿主只认一个 driver：同一对象重复绑定认回原 binding，其他对象返回 `conflict`，已关闭的宿主拒绝新绑定。未绑定或已关闭时 `schedule` 返回 `unavailable`。
 - `schedule` 只置唤醒位：同一 tenant/call 已有位时不再入队；等待中的不同调用最多 `wakeCapacity` 个，满了返回 `unavailable`、诊断 `queue-full`，不为它建 Promise。最多 `concurrencyLimit` 个 drive 同时运行，由宿主自己的闭包启动，不挂在调用方 fiber 上。一个正在运行的调用被再次唤醒时保留其位，drive 交还后重跑一次。成功只表示本地唤醒被接受，不是耐久入队。
 - drive 输入由 `modelHostAuthority.resolve` 取得。它答失败时（例如取不到旧进程终止证据）宿主不驱动该调用，报告一条诊断；原待办仍在 `ModelCommands` 里，查询与保管由别的服务继续，宿主不把它们算作完成。
 - `publish` 只接受当前绑定的代次：同一发布认回原回执，旧代次返回 `stale-instance` 且不夺回路由，较晚代次取代旧路由。`withdraw` 只撤除登记匹配的发布。`directory.connect` 先经装配给的 `qualifyObservation` 核当前观察资格，失败（含 `denied`）原样返回，命中路由不当作授权。
 - 有序关闭是一个流程：先 quiesce（`provider.quiesce`，拒绝或抛出只报告），再停派发、发停止信号并等待每个 drive 交还，最后撤发布服务的贡献（Cordis 撤除子插件）。未派发的唤醒明确留给后继，计数写进诊断，不报告为完成。shutdown 不抛出：它之后的撤除若被跳过，服务就撤不掉。
 - 发布服务的子插件在 bind 之后、同一个 `try` 里创建。启动窗口里 fiber 被卸载、子插件创建失败时，已绑定的宿主关闭，此后 `schedule` 返回 `unavailable`、诊断 `host-closed`，服务不发布。
+
+### 驱动结束而调用未收场
+
+一次 drive 交回失败时，宿主按失败的含义决定是否再次唤醒这个调用。分类由 `@omne-harness/model/commands` 的 `drivable` 给出，规则归 [model-contract](../model-contract/SPEC.md)。
+
+- 答复未知、依赖暂时不可用、期望修订过期：这个进程仍能推进调用。宿主等待 `scanIntervalMs`，再置这个调用的唤醒位。同一调用同一时刻只有一次等待。
+- 其余失败：不再唤醒。确定拒绝的调用已由 driver 收场；执行被接管的调用归接手的实例。
+- 等待结束时唤醒队列已满，宿主再等一个间隔，不丢弃这次唤醒。
+- 宿主关闭后等待结束的唤醒不再派发。时钟失败时不唤醒，原待办仍在 `ModelCommands` 里。
+
+这条保证只在本进程存活期间成立。进程重启之后找回未收场的调用属于周期恢复扫描，尚未实现。
 
 ### 首次执行与公共观察接线
 
@@ -220,7 +233,7 @@ source 的 `openHost` 成功后，宿主在发布路由的同一同步段先 att
 - [runtime-push.spec.ts](tests/runtime-push.spec.ts)：真实 Cordis 4.0.4、真实 model 运行时与内存 `ModelCommands`、脚本传输与脚本接收方（代 agent-host-local 的接收方）。核对：冻结的结果交付与 retained ACK；saved 的四项事实各缺一项时不 ACK；键或证据 owner 不符的回执不算 saved；未知时用原键原载荷重投；ACK 未知时以原操作认回；清理失败保持确认、后继完成清理；没有接收方时等待、登记后推送；正文释放后每个晚到修订一个账目交付；账目在结果 saved 之后；晚到账目超界被拒并可观察、有名额后接受；未知后被拒的重投保持未知；晚到账目接受未知时不归还名额、同一操作重交不另占；卸载等正在接纳的晚到账目并交给后继、停后拒收；两个存活 fiber 争同一 owner；因别的依赖重跑后重新登记；撤除时未完成推送交给后继。启动扫描（模拟重启：新插件类与空账本，同一份内存 `ModelCommands`）：saved 未 ACK 的结果以原键原载荷再推、ACK 并归还份额；已提交而回包丢失的 ACK 只续做清理、不再推送；已结清的调用下次启动不唤醒；未收场的调用不唤醒；扫描被拒时报告警告、custody 不变。
 - [runtime-cancel.spec.ts](tests/runtime-cancel.spec.ts)（慢层）：本地 HTTPS 流进行中的 `calls.cancel`。核对：终止在传输报告物理停止之后，已交付内容保留，费用不写零；同租户另一调用照常完成；取消与自然完成同时到达时只有一个终止。
 - [runtime-host.spec.ts](tests/runtime-host.spec.ts)（慢层）：真实 Cordis 4.0.4 上的整装配（运行时插件、发送阶段插件、真实 model 运行时、model-storage-sql 的耐久 `ModelCommands` 与协调器）跑 model-contract 的 53 项提供者义务；每项出现一次，失败只允许显式的已知失败表，not-applicable 只允许显式允许表（两张表目前都为空）；`assembly.json` 的实现描述取自实际装出的后端。见[53 项提供者义务](#53-项提供者义务)。
-- [line-e2e.spec.ts](tests/line-e2e.spec.ts)（慢层）：线内贯通。一个进程、一个真实 Cordis 4.0.4 根 Context 装出凭据服务（真实保管库上的凭据端口）、官方档案、请求准备、发送阶段、运行门面与推送，耐久 `ModelCommands` 用 model-storage-sql 的 `createSqlModelCommands`（命令与发送协调器共核）；走完 准备 → 发送（回放 `openai-tool-call` 合成件，请求摘要等于旁注）→ 持久（关掉并重开 SQLite 文件后新命令读出终态与结果页）→ 推送（接收方替身先 saved，生产方才 ACK，之后清理 released）→ 取消（`exchange-stopped` 先于 settle，终止为该取消的 interrupted）。SQL 提供者是 node:sqlite 文件替身，不覆盖 sqlite-provider 的 Worker、队列与耐久；接收方是脚本替身。设 `OMNE_EVIDENCE_OUT` 时写脱敏 `line-e2e.json`。
+- [line-e2e.spec.ts](tests/line-e2e.spec.ts)（慢层）：线内贯通。一个进程、一个真实 Cordis 4.0.4 根 Context 装出凭据服务（真实保管库上的凭据端口）、官方档案、请求准备、发送阶段、运行门面与推送，耐久 `ModelCommands` 用 model-storage-sql 的 `createSqlModelCommands`（命令与发送协调器共核）；走完 准备 → 发送（回放 `openai-tool-call` 合成件，请求摘要等于旁注）→ 持久（关掉并重开 SQLite 文件后新命令读出终态与结果页）→ 推送（接收方替身先 saved，生产方才 ACK，之后清理 released）→ 取消（`exchange-stopped` 先于 settle，终止为该取消的 interrupted）→ 大请求（请求大于存储的一条命令，受理、整份送达并正常收场）。SQL 提供者是 node:sqlite 文件替身，它拒绝超过 1 MiB 的命令，不覆盖 sqlite-provider 的 Worker、队列与耐久；接收方是脚本替身。设 `OMNE_EVIDENCE_OUT` 时写脱敏 `line-e2e.json`。
 - [plugins-preparation.spec.ts](tests/plugins-preparation.spec.ts)：真实 Cordis 4.0.4 下无运行面与网络时的 `prepare`、档案拒绝、租约交还、卸载后查询仍可用、同一命令上的第 2 轮锚点与另一份命令的读不到、卸载后的租约、命令换代。`modelPreparationResources`：经键取得的租约读到注入命令里的调用，键随插件撤除，旧引用拒绝新租约，重装后键恢复；真实插件跑契约成员的两条符合性用例。
 - [local-model.spec.ts](tests/local-model.spec.ts)（慢层）：本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文，两家各有一条回复含推理续接状态部件。调用经保管库上的凭据端口、装配的发送边界、真实 pi 传输、两个家族与 model 运行时。测试核对：请求带凭据端口从官方层读出的 `Bearer` 占位值；事实以唯一的 `ended` 结束；调用收场，发出记录的终局与之相同；物化回执带该家族记录产出的 `replayFormat`；账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands`，并经 `dispatches` 读回；`payableAmount` 得到已知的 `openrouter-credit` 金额；占位值不出现在事实与发出记录中。
 - [continuation.spec.ts](tests/continuation.spec.ts)（慢层）：两家各让一次带推理状态的调用 X 经装配收场、读取、确认并释放请求材料，再用 `preparation` 的真实租约与真实家族计量器计量延续 X 的下一次请求。测试核对：锚点命中；金额等于 X 的 `input`、`cache-read` 与 `cache-write` 之和加新增部分的估算；余量只按估算部分计算；方法名以 `+continuation-anchored/1` 结尾；带 X 回复的请求比不带时恰好多 X 的输出 token 数。另一租户声明 X 时，计量结果与声明一个不存在的调用逐字节相同。

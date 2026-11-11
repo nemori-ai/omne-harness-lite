@@ -100,7 +100,7 @@ it('requires custody before effects and submits the saved request after closing 
       }),
     ]),
   })
-  expect(await reopened.storage.commit(saved.envelope)).toEqual(receipt)
+  expect(await reopened.storage.commit(saved.envelope)).toEqual({ ...receipt, recalled: true })
 })
 
 it('keeps an old pending envelope when its material is missing and later sends only that envelope under a new metadata combination', async () => {

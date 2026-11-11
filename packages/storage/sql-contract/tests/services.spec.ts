@@ -36,6 +36,7 @@ describe('StorageService', () => {
     try {
       const inner = await createMemorySqlStorage({ materials: fixture.materials })
       class Probe extends StorageService {
+        readonly database = inner.storage.database
         readonly registerCombination: SqlStorage['registerCombination'] = input =>
           inner.storage.registerCombination(input)
         readonly commit: SqlStorage['commit'] = (input, options) =>

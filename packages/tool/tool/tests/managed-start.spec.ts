@@ -78,18 +78,8 @@ async function finish(harness: StartHarness, call: string): Promise<void> {
   const access = { principal: principalA, tenant: tenantA, call: callId(call) }
   const recovery = ok(await harness.commands.loadRecovery(access))
   if (recovery.start?.kind !== 'start') throw new Error(`${call} has no start record`)
-  const raw = ok(
-    await harness.custody.preserve({
-      ...access,
-      operation: operationId(`raw-${call}`),
-      codec: adoption('codec'),
-      bytes: new TextEncoder().encode('done'),
-      source: evidence(`raw-${call}`),
-    }),
-  )
   await harness.binding.controls.finish(recovery.start, {
     ...completedFinal(),
-    raw,
     result: {
       ...completedFinal().result,
       content: [text('answer', 'done')],
@@ -800,7 +790,6 @@ describe('19 write commands: boundary and qualification', () => {
             adoption: adoption('environment'),
             inputDigest: 'sha256:x',
             purpose: 'initial',
-            request: fixedRequestForNamedSourceGuard(),
           },
           resources: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
         }),

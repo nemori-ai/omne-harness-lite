@@ -39,7 +39,7 @@ import {
   type IndependentCommand,
 } from '@omne-harness/human-intervention-local'
 import { standingPrincipalRef } from '@omne-harness/identity'
-import { judgeJsonValue, readJsonText, writeJsonText } from '@omne-harness/json-text'
+import { readJsonText } from '@omne-harness/json-text'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SessionId, WorkSnapshot } from '@omne-harness/session-contract'
@@ -59,8 +59,6 @@ import type {
   ToolDecisionBridge,
   ToolRecovery,
 } from '@omne-harness/tool-contract/provider'
-import { waitRequestOperation } from '@omne-harness/tool-host-local'
-import type { SqlToolOutputBytes } from '@omne-harness/tool-storage-sql'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import { HITL_DESTINATION, type TenantHitl, type ToolHitlHost } from './host.ts'
 import type { HitlAudience } from './holder.ts'
@@ -84,19 +82,17 @@ const ANSWER_LIMITS = {
   maxNumberLength: 32,
 }
 
+type Recovery = Pick<ToolRecovery, 'request' | 'waits' | 'waitRequest' | 'tasks'>
+
 export type ToolHitlBridgeInput = Readonly<{
   host: () => ToolHitlHost | null
   audience: () => HitlAudience | undefined
   /** 为租户签发决策方的登记主体；入口没有交来时答 undefined。 */
   registrar: (tenant: TenantId) => ActingForTenantPrincipal | undefined
-  /** 受信读取保管的原件字节（tool-storage-sql 的 `readSqlToolOutputBytes`）。 */
-  readOutput: (
-    input: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
-  ) => Reply<SqlToolOutputBytes | null>
-  /** 原调用的固定请求、等待与待办（Tool 账本的恢复读）。 */
+  /** 原调用的固定请求、等待、等待的请求原文与待办（Tool 账本的恢复读）。 */
   recoveryOf: (
     input: Readonly<{ principal: unknown; tenant: TenantId; call: ToolCallId }>,
-  ) => Reply<Pick<ToolRecovery<never>, 'request' | 'waits' | 'tasks'>>
+  ) => Reply<Recovery>
   /** 以会话工作主体读会话快照；读不到时答 undefined 或失败。 */
   readWork: (
     input: Readonly<{ tenant: TenantId; session: SessionId }>,
@@ -123,21 +119,12 @@ export function runOf(work: WorkSnapshot, execution: string): string | undefined
 }
 
 /**
- * Ask 等待请求（tool-definitions `AskWaitRequest`）的卡片，按 HITL 的 Question 形状。保管的字节是 tool-host-local
- * `wait-request-json` codec 写的：等待请求的 `JsonValue` 树按 `JSON.stringify` 编码。这里先判成合法的树，
- * 再按 JSON 文本读出普通值。别的 codec 与不合法的树都答 undefined。
+ * Ask 等待请求（tool-definitions `AskWaitRequest`）的卡片，按 HITL 的 Question 形状。`original` 是账本为调用
+ * 保存的请求原文：作者请求的 JSON 文本。不是 JSON、或没有 `questions` 的都答 undefined。
  */
-function questionsOf(kept: SqlToolOutputBytes): unknown {
-  if (
-    kept.codec.owner !== '@omne-harness/tool-host-local' ||
-    kept.codec.name !== 'wait-request-json'
-  )
-    return undefined
+function questionsOf(original: string): unknown {
   try {
-    const tree: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(kept.bytes))
-    const judged = judgeJsonValue(tree)
-    if (!('ok' in judged)) return undefined
-    const parsed: unknown = JSON.parse(writeJsonText(judged.ok))
+    const parsed: unknown = JSON.parse(original)
     return typeof parsed === 'object' && parsed !== null && 'questions' in parsed
       ? parsed.questions
       : undefined
@@ -210,10 +197,9 @@ function decisionOf(batch: readonly Decided[]): Outcome<DecisionValue, ToolFailu
 }
 
 type Access = Readonly<{ principal: unknown; tenant: TenantId; call: ToolCallId }>
-type Recovery = Pick<ToolRecovery<never>, 'request' | 'waits' | 'tasks'>
-type FindWait = (recovery: Pick<ToolRecovery<never>, 'waits' | 'tasks'>) => ToolWaitId | undefined
+type FindWait = (recovery: Pick<ToolRecovery, 'waits' | 'tasks'>) => ToolWaitId | undefined
 
-/** 第 1 步：等待与保管的请求原文。读回的保管证据必须等于等待的请求证据。 */
+/** 第 1 步：等待与账本保存的请求原文。原文的摘要必须是等待的请求证据所绑定的那一个。 */
 async function keptAsk(
   input: ToolHitlBridgeInput,
   access: Access,
@@ -231,14 +217,12 @@ async function keptAsk(
   // 调用为这个等待保管的证据，必须与决策方读到的相同。
   if (request !== null && canonicalDigest(intent.request) !== canonicalDigest(request))
     return invalid('request', 'the request is not the request of the wait')
-  const operation = waitRequestOperation(wait)
-  if ('failure' in operation) return invalid('wait', operation.failure.reason)
-  const kept = await input.readOutput({ ...access, operation: operation.ok })
-  if ('failure' in kept) return kept
-  if (kept.ok === null) return invalid('request', 'the wait request was never kept')
-  if (canonicalDigest(kept.ok.custody) !== canonicalDigest(intent.request))
+  // 调用只保存最近一个等待的请求原文：别的等待的登记无从重建。
+  const kept = fixed.ok.waitRequest
+  if (kept === null || kept.wait !== wait) return invalid('request', 'the wait request is not kept')
+  if (canonicalDigest(kept.request) !== intent.request.digest)
     return invalid('request', 'the kept request is not the request of the wait')
-  const questions = questionsOf(kept.ok)
+  const questions = questionsOf(kept.request)
   if (questions === undefined) return invalid('request', 'the kept request is not an Ask request')
   return succeed({ fixed: fixed.ok, wait, questions })
 }

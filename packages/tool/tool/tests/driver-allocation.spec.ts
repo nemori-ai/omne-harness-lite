@@ -188,10 +188,6 @@ describe('driver first adoption from an original allocation fact', () => {
     adoption: original => ({ ...original, adoption: { ...original.adoption, revision: 'other' } }),
     inputDigest: original => ({ ...original, inputDigest: 'other' }),
     purpose: original => ({ ...original, purpose: 'resume' }),
-    fixedInput: original => ({
-      ...original,
-      request: { ...original.request, settings: { ...original.request.settings, digest: 'other' } },
-    }),
   }
   it.each(Object.entries(mismatches))(
     'rejects an allocated fact with a different %s',

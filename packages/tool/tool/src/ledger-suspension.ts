@@ -1,7 +1,6 @@
 // The pure deciders of a checkpointed call's wait (P06, P07): the plan of a suspension, the
 // suspend commit that opens the wait, the attachment of its registration, and the duty that parks
 // the queue entry. Each reads one call-domain snapshot and one command; nothing here reads a port.
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
@@ -48,8 +47,7 @@ import {
 } from './ledger-store.ts'
 
 type AskIntent = Extract<WaitIntent, { kind: 'ask' }>
-type SavedWait<B extends ContentBlock> = FactEventRecord<B> &
-  Readonly<{ fact: Readonly<{ kind: 'wait'; value: AskIntent }> }>
+type SavedWait = FactEventRecord & Readonly<{ fact: Readonly<{ kind: 'wait'; value: AskIntent }> }>
 
 function same(left: unknown, right: unknown): boolean {
   return digestOf(left) === digestOf(right)
@@ -66,13 +64,10 @@ export function registrationOperation(wait: ToolWaitId): Outcome<ToolOperationId
 }
 
 /** The saved Ask wait fact that the segment of `start` ended with, or undefined. */
-export function savedWaitOf<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
-  start: ToolStartRecord,
-): SavedWait<B> | undefined {
+export function savedWaitOf(snapshot: Snapshot, start: ToolStartRecord): SavedWait | undefined {
   for (const saved of snapshot.facts.values())
     if (saved.fact.kind === 'wait' && saved.fact.value.kind === 'ask' && same(saved.start, start))
-      return saved as SavedWait<B>
+      return saved as SavedWait
   return undefined
 }
 
@@ -83,8 +78,8 @@ function touched(record: CallRecord, revision: Mint['revision']): ToolState {
 }
 
 /** The call a suspension step addresses: gated, running in the foreground, on its own start. */
-function runningCall<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function runningCall(
+  snapshot: Snapshot,
   command: WriteCommand,
   start: ToolStartRecord,
 ): Outcome<CallRecord, ToolFailure> {
@@ -116,11 +111,11 @@ export type PlanSuspensionCommand = WriteCommand &
  * start was planned before. One commit saves the suspension with its start and checkpoint schema,
  * and the `suspend` task that owes its checkpoint commit.
  */
-export function decidePlanSuspension<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decidePlanSuspension(
+  snapshot: Snapshot,
   command: PlanSuspensionCommand,
   mint: Mint,
-): Decision<SuspensionRecord, B> {
+): Decision<SuspensionRecord> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'plan-suspension')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined)
@@ -166,6 +161,8 @@ export type SuspendCommand = WriteCommand &
   Readonly<{
     suspension: SuspensionRecord
     checkpoint: Checkpoint
+    /** The state of the suspended segment as base64 text; `checkpoint.payload` binds its digest. */
+    state: string
     /** The timing with the running segment closed, as the ledger sampled it before this decision. */
     timing: ToolTiming
   }>
@@ -175,7 +172,7 @@ export type SuspendCommand = WriteCommand &
  * that a resume segment continued is closed, and its response stays named by the saved
  * `continued` fact of that segment.
  */
-function acceptedResponses<B extends ContentBlock>(snapshot: Snapshot<B>): ReadonlySet<string> {
+function acceptedResponses(snapshot: Snapshot): ReadonlySet<string> {
   const accepted = new Set<string>()
   for (const { record } of snapshot.waits.values())
     if (record.phase === 'responding') accepted.add(record.response.operation)
@@ -185,10 +182,11 @@ function acceptedResponses<B extends ContentBlock>(snapshot: Snapshot<B>): Reado
 }
 
 /** Why the checkpoint does not belong to the planned suspension and its wait, or nothing. */
-function refuseCheckpoint<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function refuseCheckpoint(
+  snapshot: Snapshot,
   suspension: SuspensionRecord,
   checkpoint: Checkpoint,
+  state: string,
   intent: AskIntent,
 ): Outcome<void, ToolFailure> {
   if (!same(checkpoint.schema, suspension.schema))
@@ -200,6 +198,7 @@ function refuseCheckpoint<B extends ContentBlock>(
     return invalid('checkpoint.consumedResponses', 'not-accepted-by-this-call')
   if (!same(intent.resume, checkpoint.payload))
     return invalid('checkpoint.payload', 'not-the-resume-of-the-wait')
+  if (digestOf(state) !== checkpoint.payload.digest) return invalid('state', 'digest-mismatch')
   if (snapshot.waits.has(intent.wait)) return invalid('wait', 'wait-identity-used')
   return succeed(undefined)
 }
@@ -208,15 +207,16 @@ function refuseCheckpoint<B extends ContentBlock>(
  * Commits the suspension (P06 opening, P07 suspend): the call runs on the planned start, the
  * checkpoint is the binding's proof for the planned suspension, and the wait of the saved fact
  * resumes at that checkpoint. One commit writes `suspended` with the checkpoint and the closed
- * timing segment, the wait `opening`, the checkpoint on the suspension, the `wait-registration`
+ * timing segment, the wait `opening`, the checkpoint on the suspension, the state of the
+ * checkpoint under its own key, the `wait-registration`
  * task that owes the registration, and the `suspend` task that owes the park of the queue entry. It
  * removes the task of the plan and the facts task: the segment's stream ended at its wait.
  */
-export function decideSuspend<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideSuspend(
+  snapshot: Snapshot,
   command: SuspendCommand,
   mint: Mint,
-): Decision<ToolState, B> {
+): Decision<ToolState> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'suspend')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined) return reply(succeed(receiptOf(known.ok.receipt, 'suspend').state))
@@ -229,7 +229,13 @@ export function decideSuspend<B extends ContentBlock>(
   const saved = savedWaitOf(snapshot, planned.suspension.start)
   if (saved === undefined) return reply(invalid('suspension', 'no-saved-ask-wait'))
   const intent = saved.fact.value
-  const refused = refuseCheckpoint(snapshot, planned.suspension, command.checkpoint, intent)
+  const refused = refuseCheckpoint(
+    snapshot,
+    planned.suspension,
+    command.checkpoint,
+    command.state,
+    intent,
+  )
   if ('failure' in refused) return reply(refused)
   const registration = registrationOperation(intent.wait)
   if ('failure' in registration) return reply(registration)
@@ -250,9 +256,14 @@ export function decideSuspend<B extends ContentBlock>(
     suspension: planned.suspension.operation,
   }
   const pending = { state: 'pending', diagnostic: null } as const
-  const writes: LedgerWrite<B>[] = [
+  const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...record, state } }),
     put({ kind: 'suspension', suspension: { ...planned, checkpoint } }),
+    // The call holds one checkpoint state: this write replaces the one of an earlier suspension.
+    put({
+      kind: 'checkpoint-state',
+      checkpointState: { payload: checkpoint.payload, state: command.state },
+    }),
     put({ kind: 'wait', wait }),
     put(operationRecord(command, { kind: 'suspend', state }, mint)),
     { kind: 'delete', key: taskKey({ kind: 'suspend', operation: planned.suspension.operation }) },
@@ -305,11 +316,11 @@ export type AttachRegistrationCommand = WriteCommand &
  * wait `open` with the registration, the same Ask wait state on the call, and removes the
  * `wait-registration` task of the ensure.
  */
-export function decideAttachRegistration<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideAttachRegistration(
+  snapshot: Snapshot,
   command: AttachRegistrationCommand,
   mint: Mint,
-): Decision<WaitRecord, B> {
+): Decision<WaitRecord> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'attach-registration')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined)
@@ -368,10 +379,7 @@ export type ParkDuty =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'park' | 'close'; record: CallRecord; holder: ToolOperationId }>
 
-export function parkDutyOf<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
-  operation: ToolOperationId,
-): ParkDuty {
+export function parkDutyOf(snapshot: Snapshot, operation: ToolOperationId): ParkDuty {
   const record = snapshot.call
   const task = snapshot.tasks.find(
     candidate => candidate.kind === 'suspend' && candidate.operation === operation,
@@ -394,10 +402,10 @@ export function parkDutyOf<B extends ContentBlock>(
 }
 
 /** Removes the park duty `operation` after the queue domain answered it. */
-export function decideClosePark<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideClosePark(
+  snapshot: Snapshot,
   operation: ToolOperationId,
-): Decision<Readonly<{ closed: boolean }>, B> {
+): Decision<Readonly<{ closed: boolean }>> {
   const open = snapshot.tasks.some(task => task.kind === 'suspend' && task.operation === operation)
   if (!open) return reply(succeed({ closed: false }))
   return {
@@ -412,11 +420,11 @@ export function decideClosePark<B extends ContentBlock>(
  * stays with its original identity and its refusal reason; nothing answers for the person, and
  * the wait stays as it is until its call ends. One commit marks the task and keeps the receipt.
  */
-export function decideBlockRegistration<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideBlockRegistration(
+  snapshot: Snapshot,
   command: RecordTaskCommand,
   mint: Mint,
-): Decision<DurableEvidence, B> {
+): Decision<DurableEvidence> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'record-task')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'record-task') return reply(succeed(known.ok.receipt.evidence))
@@ -458,11 +466,11 @@ export function decideBlockRegistration<B extends ContentBlock>(
  * `wait-registration{action:'invalidate'}`，回执是决策方对原失效操作的回执（invalidate 的答复，或
  * inspectOperation 认回的 committed）。同一笔提交删除失效待办并保存回执。失效不改调用的终局。
  */
-export function decideCompleteInvalidation<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideCompleteInvalidation(
+  snapshot: Snapshot,
   command: RecordTaskCommand,
   mint: Mint,
-): Decision<DurableEvidence, B> {
+): Decision<DurableEvidence> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'record-task')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'record-task') return reply(succeed(known.ok.receipt.evidence))

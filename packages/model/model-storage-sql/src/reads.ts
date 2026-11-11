@@ -1,13 +1,13 @@
-// The two read handlers of the Model records and the main-thread reads over them. The handler
+// The read handlers of the Model records and the main-thread reads over them. The handler
 // halves run in the provider's read Worker and carry the tenant condition in every statement;
 // the main-thread halves resolve the tenant domain and parse the output once (documents.ts).
 import { randomUUID } from 'node:crypto'
 import {
   decodeModelCallId,
+  type FixedModelRequest,
   type ModelCallId,
   type ModelFailure,
   type ModelOperationId,
-  type ResultCapacity,
 } from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -16,12 +16,22 @@ import type {
   SqlStorage,
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
-import type { ReadHandlerModule, ReadPort, SqlCell } from '@omne-harness/sql-contract/worker'
+import {
+  unpackText,
+  type ReadHandlerModule,
+  type ReadPort,
+  type SqlCell,
+} from '@omne-harness/sql-contract/worker'
 import { parseCallRead, type CallRead } from './documents.ts'
 import { PROTOCOL, TABLES, type Table } from './schema.ts'
 
 export const CALL_HANDLER = 'model.call'
 export const PENDING_HANDLER = 'model.pending'
+export const REQUEST_HANDLER = 'model.request'
+/** `maxOutputBytes` of `model.request`: one chunk of a request body and its position. */
+export const REQUEST_READ_MAX_OUTPUT_BYTES = 4 * 1024 * 1024
+/** `maxRowsRead` of `model.request`: the call row and one chunk row. */
+export const REQUEST_READ_MAX_ROWS = 2
 /** `maxOutputBytes` of `model.call`: 4 MiB, at most the provider's `maxReadResultBytes`. */
 export const CALL_READ_MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 /** `maxRowsRead` of `model.call`. Dispatch and part rows above it make the read unavailable. */
@@ -32,11 +42,11 @@ export const PENDING_PAGE_MAX = 1000
 const DEPENDENCY = 'model-records'
 
 /**
- * The share that the calls of one tenant hold: the capacity of every call whose request material
- * is held. The read of `model.call` reports it; the participant checks a new call against it.
+ * How many calls of one tenant hold a result that is not released: the calls whose request
+ * material is held. The read of `model.call` reports it; the participant checks a new call
+ * against it.
  */
-export const HELD_SHARE_SQL = `SELECT COALESCE(SUM(cap_bytes), 0) AS bytes,
-    COALESCE(SUM(cap_blocks), 0) AS blocks, COALESCE(SUM(cap_attachment), 0) AS attachment
+export const HELD_CALLS_SQL = `SELECT COUNT(*) AS held
   FROM md_call WHERE tenant = ? AND request IS NOT NULL`
 
 export const unavailable = (diagnostic: string): ModelFailure => ({
@@ -49,9 +59,13 @@ export const unavailable = (diagnostic: string): ModelFailure => ({
 
 type Cell = string | number | null
 
-/** A cell as JSON: INTEGER as a safe integer, TEXT as text. A blob or a large integer stops. */
+/**
+ * A cell as JSON: INTEGER as a safe integer, TEXT as text, a BLOB (a `json` column) as its packed
+ * text. A large integer stops.
+ */
 function jsonCell(cell: SqlCell | undefined): Cell {
   if (cell === null || cell === undefined || typeof cell === 'string') return cell ?? null
+  if (cell instanceof Uint8Array) return unpackText(cell)
   const value = typeof cell === 'bigint' ? Number(cell) : cell
   if (typeof value !== 'number' || !Number.isSafeInteger(value))
     throw new Error('a cell is not a safe integer or text')
@@ -102,15 +116,10 @@ function readCallRows(input: JsonValue, port: ReadPort): JsonValue {
           [tenant, operation],
         )[0]
   // The read port demands a LIMIT on every statement; the aggregate gives one row.
-  const held = rows(port, `${HELD_SHARE_SQL} LIMIT 1`, [tenant])[0]
-  const capacity = {
-    bytes: String(held?.['bytes'] ?? 0),
-    blocks: String(held?.['blocks'] ?? 0),
-    attachmentBytes: String(held?.['attachment'] ?? 0),
-  }
+  const held = rows(port, `${HELD_CALLS_SQL} LIMIT 1`, [tenant])[0]?.['held'] ?? 0
   const operationRow = bound ?? null
   if (head === undefined)
-    return { call: null, dispatches: [], parts: [], operation: operationRow, capacity }
+    return { call: null, dispatches: [], parts: [], operation: operationRow, held }
   // Three rows are read above; the rest of the budget is for dispatches and parts together.
   const budget = CALL_READ_MAX_ROWS - 3
   const dispatches = rows(
@@ -126,7 +135,7 @@ function readCallRows(input: JsonValue, port: ReadPort): JsonValue {
     [tenant, call, BigInt(budget - dispatches.length + 1)],
   )
   if (dispatches.length + parts.length > budget) throw new Error('the call exceeds the row bound')
-  return { call: head, dispatches, parts, operation: operationRow, capacity }
+  return { call: head, dispatches, parts, operation: operationRow, held }
 }
 
 function readPendingRows(input: JsonValue, port: ReadPort): JsonValue {
@@ -154,6 +163,35 @@ function readPendingRows(input: JsonValue, port: ReadPort): JsonValue {
   }
 }
 
+/**
+ * One chunk of the body of the call that holds its material. `seq` names the chunk. The answer is
+ * null when no call holds material under this identity, or when the chunk is not there.
+ */
+function readRequestChunk(input: JsonValue, port: ReadPort): JsonValue {
+  const scope = record(input)
+  const tenant = textInput(scope, 'tenant')
+  const call = textInput(scope, 'call')
+  const seq = scope['seq']
+  if (typeof seq !== 'number' || !Number.isSafeInteger(seq) || seq < 0)
+    throw new Error('invalid input seq')
+  const held = rows(
+    port,
+    'SELECT request_digest FROM md_call WHERE tenant = ? AND call = ? AND request IS NOT NULL LIMIT 1',
+    [tenant, call],
+  )[0]
+  if (held === undefined) return { chunk: null }
+  const chunk = rows(
+    port,
+    `SELECT total, body FROM md_request
+      WHERE tenant = ? AND call = ? AND digest = ? AND seq = ? LIMIT 1`,
+    [tenant, call, String(held['request_digest']), BigInt(seq)],
+  )[0]
+  return {
+    chunk:
+      chunk === undefined ? null : { total: chunk['total'] ?? null, body: chunk['body'] ?? null },
+  }
+}
+
 function handler(
   name: string,
   read: (input: JsonValue, port: ReadPort) => JsonValue,
@@ -176,6 +214,8 @@ function handler(
 
 /** `model.call`: the call row, its dispatches and parts, the operation row and the tenant share used. */
 export const callHandler: ReadHandlerModule = handler(CALL_HANDLER, readCallRows)
+/** `model.request`: one chunk of the request body of a call that holds its material. */
+export const requestHandler: ReadHandlerModule = handler(REQUEST_HANDLER, readRequestChunk)
 /** `model.pending`: one page of the calls of a tenant that carry a pending mark, by call. */
 export const pendingHandler: ReadHandlerModule = handler(PENDING_HANDLER, readPendingRows)
 
@@ -218,8 +258,6 @@ async function readHandler(
   )
 }
 
-const NO_CAPACITY: ResultCapacity = { bytes: '0', blocks: '0', attachmentBytes: '0' }
-
 export type CallReadInput = Readonly<{
   tenant: string
   call: ModelCallId
@@ -236,8 +274,7 @@ export async function readCall(
   domain: DomainOf,
   input: CallReadInput,
 ): Promise<Outcome<CallRead, ModelFailure>> {
-  if (domain.kind === 'unregistered')
-    return succeed({ record: undefined, binding: null, capacity: NO_CAPACITY })
+  if (domain.kind === 'unregistered') return succeed({ record: undefined, binding: null, held: 0 })
   const output = await readHandler(storage, domain.domain, CALL_HANDLER, {
     tenant: input.tenant,
     call: input.call,
@@ -279,4 +316,36 @@ export async function readPending(
     ids.push(id.ok)
   }
   return succeed({ calls: ids, next: more ? (ids[ids.length - 1] ?? null) : null })
+}
+
+/**
+ * The whole request body of a call, read chunk by chunk and put together. Null when the call
+ * holds no material. A body that is not whole, or that does not parse, makes the read unavailable:
+ * the participant admits a call only with its whole body, so this is a damaged store.
+ */
+export async function readRequestBody(
+  storage: SqlStorage,
+  domain: DomainOf,
+  input: Readonly<{ tenant: string; call: ModelCallId }>,
+): Promise<Outcome<FixedModelRequest | null, ModelFailure>> {
+  if (domain.kind === 'unregistered') return succeed(null)
+  const pieces: string[] = []
+  for (let seq = 0, total = 1; seq < total; seq += 1) {
+    const output = await readHandler(storage, domain.domain, REQUEST_HANDLER, { ...input, seq })
+    if ('failure' in output) return output
+    const chunk = isObject(output.ok) ? output.ok['chunk'] : undefined
+    if (chunk === null && seq === 0) return succeed(null)
+    if (chunk === undefined || chunk === null || !isObject(chunk))
+      return fail(unavailable('the request body is not whole'))
+    const { total: count, body } = chunk
+    if (typeof count !== 'number' || count <= seq || typeof body !== 'string')
+      return fail(unavailable('a request body chunk does not have the stored shape'))
+    total = count
+    pieces.push(body)
+  }
+  try {
+    return succeed(JSON.parse(pieces.join('')) as FixedModelRequest)
+  } catch {
+    return fail(unavailable('the request body does not parse'))
+  }
 }

@@ -1,9 +1,10 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 // Builders for the start coordinator tests: tenants with the shape of legal-identity's TenantId,
 // a principal that belongs to some tenants, a fixed request, a start record and an access guard
 // that answers by tenant membership. Each builder returns a fresh value.
 import { testingTenant } from '@omne-harness/tool-contract/testing'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
@@ -100,7 +101,7 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
           vocabulary: adoption('json-schema'),
           descriptions: [{ path: 'path', text: 'The path value.' }],
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption('codec')),
       },
       executor: adoption('exec'),
     },
@@ -170,11 +171,11 @@ export const noPermitRequirements: StartPermitRequirements<unknown> = {
   check: async () => ({ kind: 'not-required', source: evidence('test-no-permit-required') }),
 }
 
-export function coordinator<B extends ContentBlock>(
-  store: ToolLedgerStore<B>,
+export function coordinator(
+  store: ToolLedgerStore,
   options: Readonly<{ guards?: readonly GuardResource[]; unavailable?: string }> = {},
 ) {
-  return createLocalStartCoordinator<Principal, B>({
+  return createLocalStartCoordinator<Principal>({
     store,
     access: access(options),
     permitRequirements: noPermitRequirements,
@@ -190,18 +191,20 @@ export function callAccess(call: string) {
 
 /** A store over `memory` whose next commit answers `answer` without writing, once. */
 export function failingNextCommit(
-  memory: ToolLedgerStore<ContentBlock>,
+  memory: ToolLedgerStore,
   answer: 'unknown' | 'unavailable' | 'rejected',
-): ToolLedgerStore<ContentBlock> & Readonly<{ arm(): void }> {
+): ToolLedgerStore & Readonly<{ arm(): void }> {
   let armed = false
   return {
     durability: 'none',
     scanPending: input => memory.scanPending(input),
+    readRecord: (domain, key) => memory.readRecord(domain, key),
+    due: (tenant, now, limit) => memory.due(tenant, now, limit),
     arm: () => {
       armed = true
     },
     read: domain => memory.read(domain),
-    commit: (input: LedgerCommitInput<ContentBlock>) => {
+    commit: (input: LedgerCommitInput) => {
       if (!armed) return memory.commit(input)
       armed = false
       return Promise.resolve(failedCommits[answer])

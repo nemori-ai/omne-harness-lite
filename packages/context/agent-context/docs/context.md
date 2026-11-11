@@ -35,7 +35,6 @@ const requests = createAgentRequests({
   preparation,
   conversions,
   model,
-  resultCapacity,
   tools: toolsSourceOf(toolLookup),
   stepResults: absentStepResults,
 })

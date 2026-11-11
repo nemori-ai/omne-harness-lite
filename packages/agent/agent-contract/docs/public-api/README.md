@@ -19,7 +19,7 @@
 
 [行为与约束](../../SPEC.md#身份原位置与纯求值)。
 
-源码中以 `M.*` 引用的名称（ModelCallId、ModelOperationId、AssembledModelInput、FixedModelRequest、ResultCapacity、ResultPage、ModelRuntime、ProfileResolution、Parameter、Supplier、Termination、ModelFault、DispatchRecord、RetryResolution）来自 [Model 契约](../../../../model/model-contract/docs/public-api.md)，由 `@omne-harness/model-contract` 的根入口导出。`T.*` 引用的名称由 `@omne-harness/tool-contract` 的根入口导出。消息中的工具部件使用 `@omne-harness/message` 导出的 `ToolPart`。`Action.original` 把 `ToolPart` 收窄到 `kind: 'tool_call'`：动作只来自工具调用部件，不来自工具结果部件。
+源码中以 `M.*` 引用的名称（ModelCallId、ModelOperationId、AssembledModelInput、FixedModelRequest、ResultPage、ModelRuntime、ProfileResolution、Parameter、Supplier、Termination、ModelFault、DispatchRecord、RetryResolution）来自 [Model 契约](../../../../model/model-contract/docs/public-api.md)，由 `@omne-harness/model-contract` 的根入口导出。`T.*` 引用的名称由 `@omne-harness/tool-contract` 的根入口导出。消息中的工具部件使用 `@omne-harness/message` 导出的 `ToolPart`。`Action.original` 把 `ToolPart` 收窄到 `kind: 'tool_call'`：动作只来自工具调用部件，不来自工具结果部件。
 
 - [identity.ts](../../src/identity.ts)：品牌身份的泛型 `AgentIdentity`，十六个品牌身份（`AgentInstanceId`、`StepId`、`ActionId`、`PassageId`、`CardRoundId`、`ActionBatchId`、`AgentExecutionId`、`ExecutionAttachmentId`、`AgentRegistrationId`、`AgentOperationId`、`ExecutionRevision`、`InputId`、`InputBatchId`、`ConsumptionId`、回复准入的序位 `ReplyAdmissionSequence` 与页游标 `ReplyAdmissionPageCursor`）、`Authority`、`Continuation`、`AgentInstant` 与品牌时刻文本 `UtcInstantText`，再导出的 `Adoption`、`DurableEvidence`、`ConsumerRef`（唯一定义在 [exchange-refs](../../../../common/exchange-refs/SPEC.md)）与 `Access`（唯一定义在 legal-identity），常量 `AGENT_IDENTITY_MAX_LENGTH`，十六个 `decode*` 解码函数（`decodeReplyAdmissionSequence` 只接受规范十进制非负整数），结构判定 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`，以及它们的失败类型 `IdentityFailure` 与 `StructureFailure`。规则见 [SPEC 的身份解码与结构判定](../../SPEC.md#身份解码与结构判定)。
 - [evaluation.ts](../../src/evaluation.ts)：纯求值的值与端口。有 `ProducedResult`、`InputBatch`、`ProgressionDirective`、`Waiting`、`AgentConclusion`、`FailureCandidate`、`PreparedContextTransition`、`Failure` 与 `Reply`，原调用的 `ModelPurpose`、`PendingCall`、`ActionJudgment`（`denied` 可带 `answer`，指向作答材料）、`Action`、`ActionBarrier`、`ActionSlot`、`ActionBatch`，回复准入的 `ModelReplyAdmission`、`ReplyAdmissionPrefix`、`ReplyAdmissionProjection`、`ReplyAdmissionFrom`、`ReplyAdmissionItem`、`ReplyAdmissionPageTail`、`ReplyAdmissionGapReason`、`ReplyAdmissionPage` 与 checkpoint 的读取位置 `ReplyAdmissionRead`，守卫的 `GuardLevel` 与 `GuardFact`，`AgentCheckpoint`、`RuntimeConditions`、`ProducerDecisionView`、`AdvancementFact`、`LoopFacts`、`Next` 与 `AgentEvaluator`。
@@ -49,7 +49,7 @@ Next 的种类对应 [Loop 完整算法](../../../agent/docs/architecture/loop-a
 - `compaction-invalid` 带计划身份。derive 返回的进度与计划不符时带 `progress`，即期望值与返回值。压缩转换的共同提交判定转换非法时带 `transition`，即判定依据。
 - `request-rejected` 带 Model 请求准备的确定拒绝：`failure` 是 `prepare` 或 `resume` 返回的 invalid（field 为 request），`model` 是 Model 的原结果，`selection` 是选择依据。
 - `no-reply` 带没有有效回复的原调用。原调用被 Model 判为失败收场时另带可选的 `fault`，它与该调用 Settlement 的 `termination.fault` 完全相等；原调用正常完成却没有内容时没有这个字段。依据是 R2-D356。
-- `model-refused` 带 Model 在受理时确定拒绝的原调用：`call` 是原 ModelCallId，`failure` 是 `admit` 返回的原拒绝，种类为 denied、invalid、unsupported 或 capacity，`source` 是原调用的固定请求依据。行为见 SPEC 的“[作为 Model 调用方](../../SPEC.md#作为-model-调用方)”第 5 条，依据是 R2-D237。
+- `model-refused` 带 Model 在受理时确定拒绝的原调用：`call` 是原 ModelCallId，`failure` 是 `admit` 返回的原拒绝，种类为 denied、invalid 或 unsupported，`source` 是原调用的固定请求依据。行为见 SPEC 的“[作为 Model 调用方](../../SPEC.md#作为-model-调用方)”第 5 条，依据是 R2-D237。
 - `message-rejected` 的 `from` 为被拒收消息的来源，`evidence` 为拒收依据，两者指向 `ExecutionSnapshot.handoffs` 中同一个原 outcome。它只用于工具结果或被拒绝动作的拒绝消息被拒收，并由 H0 路由到 F1 提出失败候选的情形。压缩转换消息被拒收归 `cannot-fit`。
 - `extension-stop` 带输出 `stop` 且 `terminal` 为 `failed` 的扩展调用。
 - `guard` 带守卫 L3 的依据。`basis` 等于形成该候选时 `AgentCheckpoint.guard` 的 `basis`，候选由 I8 按该守卫事实提出。
@@ -74,7 +74,7 @@ readReplyAdmissions 读固定范围 `(from, through]`：`from` 必填，为 orig
 
 [行为与约束](../../SPEC.md#请求中的职责划分)。
 
-本节引用 `@omne-harness/model-contract` 导出的 `M.ProfileResolution` 与 `M.Parameter`、`M.AssembledModelInput`、`M.FixedModelRequest` 和 `M.ResultCapacity`。`ModelPurpose`、`ModelRecipient`、`SelectedModel`、`ModelContextRead`、`CompactionProgress`、`CompactionAdvance`、`CompactionState` 与 `FinalRequest` 由本包定义为 Agent 自有的端口形状。它们不是 Model 或 Context 的导出。Context 一侧对应接缝的方向已接受，Context 契约的文字尚未写出，见算法页的接口增量与开放问题。
+本节引用 `@omne-harness/model-contract` 导出的 `M.ProfileResolution` 与 `M.Parameter`、`M.AssembledModelInput` 和 `M.FixedModelRequest`。`ModelPurpose`、`ModelRecipient`、`SelectedModel`、`ModelContextRead`、`CompactionProgress`、`CompactionAdvance`、`CompactionState` 与 `FinalRequest` 由本包定义为 Agent 自有的端口形状。它们不是 Model 或 Context 的导出。Context 一侧对应接缝的方向已接受，Context 契约的文字尚未写出，见算法页的接口增量与开放问题。
 
 - [request.ts](../../src/request.ts)：`ModelRecipient`、`SelectedModel` 与端口 `ModelSelection`，`ContextContent`、`ModelContextRead` 与端口 `ModelContextReader`，`CompactionProgress`、`Preparation`、`CompactionAdvance`、`CompactionState`、`FinalRequest` 与端口 `RequestPreparation`，以及端口 `CurrentConditions`。`ModelPurpose` 在 [evaluation.ts](../../src/evaluation.ts)。
 

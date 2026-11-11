@@ -19,7 +19,6 @@ import {
   principalA,
   principalB,
   tenantA,
-  type Block,
   type Principal,
 } from './runtime-values.ts'
 
@@ -38,7 +37,7 @@ function fixture(options: StartOptions = {}) {
   let progress: ControlProgress = { kind: 'pending', diagnostic: 'not dispatched' }
   const checkedSubjects: string[] = []
   const directory = new Map<string, Principal>()
-  const lives = new Map<string, ToolLiveExecution<Block>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const subjects = () =>
     testControlSubjects(
       {
@@ -123,8 +122,8 @@ async function started(f: ReturnType<typeof fixture>, run: (signal: AbortSignal)
 }
 
 async function replaceRecords(
-  store: ToolLedgerStore<Block>,
-  replace: (record: LedgerRecord<Block>) => LedgerRecord<Block>,
+  store: ToolLedgerStore,
+  replace: (record: LedgerRecord) => LedgerRecord,
 ) {
   const domain = { kind: 'call', tenant: tenantA, call: access.call } as const
   const read = await store.read(domain)

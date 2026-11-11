@@ -211,9 +211,11 @@ it('serializes competing human answers and recovers the original submission on r
     'already-decided',
     'decided',
   ])
-  expect(await commit(world, a.command.operation, independentRequestCommands(a, waitRef))).toEqual(
-    results[0],
-  )
+  // The storage recognises the replay as the earlier commit and answers its receipt as recalled.
+  expect(await commit(world, a.command.operation, independentRequestCommands(a, waitRef))).toEqual({
+    ...results[0],
+    recalled: true,
+  })
   expect((await request(world, ref))?.cards[0]).toMatchObject({
     kind: 'decided',
     decision: { reply: { text: ' original answer ' } },

@@ -11,7 +11,6 @@ import type {
   DispatchRecord,
   DurableEvidence,
   ResultPart,
-  ResultCapacity,
   ModelFailure,
   ModelHandle,
   Settlement,
@@ -86,7 +85,6 @@ export type CallRecord<P> = {
   /** The tenant as `scopeOf` gives it; two tenants are the same exactly when their scopes are. */
   readonly scope: string
   readonly call: ModelCallId
-  readonly capacity: ResultCapacity
   readonly admission: ModelOperationId
   readonly reference: ModelInvocationRef
   readonly consumer: ConsumerRef

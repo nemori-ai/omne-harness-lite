@@ -120,7 +120,7 @@ describe('the basis of a call that settled with an ended execution', () => {
         edit(
           r,
           'result',
-          result(() => ({ custody: { kind: 'none' } })),
+          result(() => ({ custody: { kind: 'synthetic' } })),
         ),
     ],
     [
@@ -133,7 +133,7 @@ describe('the basis of a call that settled with an ended execution', () => {
         ),
     ],
     [
-      'a result over another raw output',
+      'a result that fixed another value of the final',
       (r: Records) =>
         edit(
           r,
@@ -141,26 +141,10 @@ describe('the basis of a call that settled with an ended execution', () => {
           result(original => ({
             custody: {
               ...original.result.custody,
-              raw: {
-                ...(original.result.custody as { raw: object }).raw,
-                codec: { owner: 'x', name: 'x', revision: '1', digest: 'sha256:x' },
+              finalValue: {
+                ...(original.result.custody as { finalValue: object }).finalValue,
+                digest: 'sha256:another-final',
               },
-            },
-          })),
-        ),
-    ],
-    [
-      'a result value that differs from the saved final',
-      (r: Records) =>
-        edit(
-          r,
-          'result',
-          result(() => ({
-            value: {
-              content: [],
-              data: { kind: 'none' },
-              original: { kind: 'none' },
-              attachments: [],
             },
           })),
         ),
@@ -210,26 +194,14 @@ describe('the basis of a call that settled with an ended execution', () => {
         ),
     ],
     [
-      'a saved final with another raw output',
+      'a saved final with another value',
       (r: Records) =>
         edit(
           r,
           'fact-event',
           saved(
-            () => ({
-              raw: {
-                codec: { owner: 'x', name: 'x', revision: '1', digest: 'sha256:x' },
-                custody: elsewhere,
-                content: {
-                  storage: 'memory',
-                  key: 'k',
-                  mediaType: 'x/y',
-                  bytes: '1',
-                  digest: 'sha256:k',
-                },
-              },
-            }),
-            'final',
+            original => ({ value: { ...original.fact.value, digest: 'sha256:another-final' } }),
+            'event',
           ),
         ),
     ],

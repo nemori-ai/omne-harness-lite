@@ -53,7 +53,6 @@ const assembled = testing.createTestModelDependencies({
     resultPageParts: 1,
     resultPageTargetBytes: 1024,
     readIdleMs: 1000,
-    capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
   },
   start: '2026-10-19T00:00:00Z',
   maxWaiters: 2,
@@ -191,7 +190,7 @@ const runtimeDependencies = testing.createTestModelDependencies({
     resultPageParts: 1,
     resultPageTargetBytes: 1024,
     readIdleMs: 1000,
-    capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+    unacknowledgedResults: 10,
   },
   start: '2026-10-19T00:00:00Z',
   maxWaiters: 2,
@@ -238,7 +237,6 @@ const admission = {
   operation: decoded(decodeModelOperationId('mop_installed-admit')),
   request,
   consumer: { owner: 'installed', work: 'work', position: 'position', purpose: 'test' },
-  capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
 }
 decoded(await provider.runtime.calls.admit(admission))
 runtimeDependencies.controls.commands.configureResultPaging({

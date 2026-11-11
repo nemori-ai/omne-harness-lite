@@ -40,7 +40,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
   - 失败。`agentClock` 读不到时刻或不能等待，或者一次运行抛出时，宿主记 error，按同样的退避加倍等待后再排期。这次等待用进程计时器，因为时钟本身不可用。条目保留在驱动集合里。
   - 拒绝与停止。答 denied 时停止驱动这个 execution 并记 warn。停止时中止在途的维护，不撤销已开始的交接。
 - 账目出站与 saved。共同提交、材料核对和入队之后就答 saved，不等待 outlet。发行的账目出站在没有目标解析器时答 `unavailable`（`scope-unresolved`），这只让账目留在待办里由维护驱动重试，不挡住 saved。
-- 配置。`reception` 可选，六项都是正整数：`records`、`bytes`、`attachments`、`inFlight`、`retryMs`、`retryMaxMs`，且 `retryMaxMs` 不小于 `retryMs`。缺省时取 `src/reception.ts` 的 `RECEPTION_INITIAL`，它们是配置初值，不是本成员的上限。
+- 配置。`reception` 可选，六项都是正整数：`records`、`bytes`、`attachments`、`inFlight`、`retryMs`、`retryMaxMs`，且 `retryMaxMs` 不小于 `retryMs`。缺省时取 `src/reception.ts` 的 `RECEPTION_INITIAL`，它们是配置初值，不是本成员的上限。`records`、`bytes` 与 `attachments` 只计结论未定的交付（在途或提交结果未知），已保存的交付不占用，见 agent-contract 的[容量与背压](../agent-contract/SPEC.md#接收共同提交)。
 
 用例在 `tests/reception.spec.ts`：登记后推送的回复让 execution 越过 M1 并结束；供应方答 400 的失败结果同样保存，execution 以 no-reply 失败结束；有序停止撤销登记，之后的推送是 `no-receiver`；宿主停机期间推送失败的结果在插件体恢复后重投，只保存一次；outlet 答 `scope-unresolved` 时仍答 saved，驱动的重试稍后送达账目；`agentClock` 读不到一次之后驱动照常继续；等待按次加倍并在 `retryMaxMs` 封顶；答 denied 时停止并记 warn；插件体重跑后待办账目照样送达；被拒推送不覆盖获准推送的 Access。Model 是 model-contract 的脚本化推送器，从 Model runtime 的登记表解析接收方。这些用例不证明真实 Model 宿主、会话日志 Journal 或进程重启。
 
@@ -87,7 +87,7 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
    - session-adapters `createJournalReceiving.received.commit` 是 22，基线 21。多出的 1 是同操作认回的出口，判断本身在 `recommitted` 里。
    - session-adapters `buildObligations` 是 44，与基线相同。收场失败的判断已拆到 `settlesCall`。agent 的同名函数是 43，基线 42，多出的 1 来自 L11-FAIL 的 1624f49f2（`model-refused`），不是本成员的改动。
    - agent-host-local `issuesOf` 是 13，与基线相同。新的 `receptionIssues` 是 6，低于 warn（10）。
-   触发条件：这些函数再增加分支时，先按核验步骤拆分。
+     触发条件：这些函数再增加分支时，先按核验步骤拆分。
 
 ## 独立结果接收组件
 

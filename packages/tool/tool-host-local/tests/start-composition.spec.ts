@@ -1,8 +1,5 @@
 import { adoption } from './coordinator-values.ts'
-import {
-  createMemoryToolEnvironment,
-  createMemoryToolOutputCustody,
-} from '@omne-harness/tool-contract/testing'
+import { createMemoryToolEnvironment } from '@omne-harness/tool-contract/testing'
 // The local start coordinator under the real Tool runtime, ledger and driver, over one
 // non-durable store: the call domain, the queue domain and the coordinator's host domain. The
 // binding stages a capsule and consumes its permit through the coordinator, as P04 requires of
@@ -47,7 +44,7 @@ function rejecting<T extends object>(methods: readonly string[]): T {
   return out as T
 }
 
-function liveExecution(): ToolLiveExecution<Block> {
+function liveExecution(): ToolLiveExecution {
   const later = () => Promise.reject(new Error('not read here'))
   return {
     facts: () => ({
@@ -70,10 +67,10 @@ function liveExecution(): ToolLiveExecution<Block> {
 function assembly(
   options: Readonly<{
     beforeConsume?: () => Promise<void>
-    store?: (memory: ToolLedgerStore<Block>) => ToolLedgerStore<Block>
+    store?: (memory: ToolLedgerStore) => ToolLedgerStore
   }> = {},
 ) {
-  const memory = createMemoryToolLedgerStore<Block>()
+  const memory = createMemoryToolLedgerStore()
   const store = options.store === undefined ? memory : options.store(memory)
   const authority = coordinator(store)
   const identities = createTestToolIdentities()
@@ -97,7 +94,7 @@ function assembly(
   })
   const starts: string[] = []
   const executions: string[] = []
-  const binding: ToolExecutorBinding<Principal, Block, null> = {
+  const binding: ToolExecutorBinding<Principal, null> = {
     kind: 'live-only',
     start: async input => {
       starts.push(input.call)
@@ -107,6 +104,7 @@ function assembly(
         tenant: input.tenant,
         call: input.call,
         permit: input.permit,
+        request: input.request,
         executorReceipt: evidence(`capsule-${input.call}`),
       })
       if ('failure' in consumed) return consumed
@@ -171,7 +169,48 @@ function assembly(
       elapsed: () => Promise.reject(new Error('timing')),
       waitUntil: () => Promise.reject(new Error('timing')),
     },
-    { resultPageBytes: 4_096, ledgerCommitAttempts: 8, queueCapacity: 8 },
+    {
+      resultPageBytes: 4_096,
+      ledgerCommitAttempts: 8,
+      authorBufferBytes: 65_536,
+      authorBufferItems: 128,
+      queueCapacity: 8,
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+      },
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+        maxPageBytes: 65_536,
+        permitMs: 30_000,
+        clockSkewMs: 1_000,
+        orphanGraceMs: 60_000,
+        maxWriterMetadataBytes: 1_048_576,
+        jsonDocument: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 65_536,
+          maxMembers: 65_536,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+        jsonRecord: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 4096,
+          maxMembers: 4096,
+          maxStringLength: 65_536,
+          maxNumberLength: 64,
+        },
+      },
+    },
     testSettlementPorts(),
   )
   let driver: ToolDriver<Principal> | null = null
@@ -183,7 +222,6 @@ function assembly(
       admissions: ledger.admissions,
       queues: ledger.queues,
       rejections: ledger.rejections,
-      facts: ledger.facts,
       reads: ledger.reads,
       bindings: {
         inspect: () => Promise.reject(new Error('catalog')),
@@ -228,7 +266,6 @@ function assembly(
         'invalidate',
         'resolve',
       ]),
-      custody: rejecting(['preserve', 'inspect', 'retainResult']),
       catalog: rejecting(['inspect', 'usage', 'search']),
       children: rejecting(['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
     },
@@ -244,6 +281,41 @@ function assembly(
       reconciliationDelayMs: 0,
       ledgerCommitAttempts: 8,
       queueCapacity: 8,
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+      },
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+        maxPageBytes: 65_536,
+        permitMs: 30_000,
+        clockSkewMs: 1_000,
+        orphanGraceMs: 60_000,
+        maxWriterMetadataBytes: 1_048_576,
+        jsonDocument: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 65_536,
+          maxMembers: 65_536,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+        jsonRecord: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 4096,
+          maxMembers: 4096,
+          maxStringLength: 65_536,
+          maxNumberLength: 64,
+        },
+      },
     },
   )
   let reference: ToolInvocationRef | undefined
@@ -330,6 +402,8 @@ describe('G5 under the runtime', () => {
       store: memory => ({
         durability: 'none',
         scanPending: input => memory.scanPending(input),
+        readRecord: (domain, key) => memory.readRecord(domain, key),
+        due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
         commit: input => {
           if (
@@ -361,7 +435,6 @@ describe('G5 under the runtime', () => {
 function testSettlementPorts() {
   return {
     content: null,
-    custody: createMemoryToolOutputCustody<Principal>(),
     releaseInspection: createMemoryToolEnvironment<Principal>(),
   }
 }

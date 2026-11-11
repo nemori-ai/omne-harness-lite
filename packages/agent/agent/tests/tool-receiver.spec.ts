@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createAgentToolReceiver,
   createToolReceiverState,
+  decodeAgentToolDeliveryMaterial,
   readToolDeliveryMaterial,
   type ToolReceiverDependencies,
   type ToolReceptionTarget,
@@ -22,7 +23,10 @@ import {
   type ToolDelivery,
 } from '@omne-harness/tool-contract'
 import { decodeToolDeliveryId, decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
-import { toolResultReceiverConformance } from '@omne-harness/tool-contract/testing'
+import {
+  runConformanceCase,
+  toolResultReceiverConformance,
+} from '@omne-harness/tool-contract/testing'
 import { toolDeliveryMaterial, toolReceivedDraft } from '../src/tool-receiving-material.ts'
 import { json, plain, object } from '../src/receiving-values.ts'
 import {
@@ -165,7 +169,6 @@ async function setup() {
     strangerAccess: { ...access, principal: 'stranger' },
     consumer,
     otherConsumer,
-    tenantCapacity: 2,
     revoke() {
       allowed = false
     },
@@ -175,9 +178,16 @@ async function setup() {
 }
 
 describe('Tool result receiver conformance', () => {
+  // A saved result keeps no record, so this receiver has no share of saved keys to fill: the
+  // capacity case does not apply. The in-flight limit has its own case below.
+  const noShare = 'one tenant at its capacity is backpressured without blocking another'
   for (const entry of toolResultReceiverConformance<string>())
     it(entry.name, async () => {
-      await entry.run(await setup())
+      expect(await runConformanceCase(entry, await setup())).toEqual(
+        entry.name === noShare
+          ? { kind: 'not-applicable', handle: 'tenantCapacity' }
+          : { kind: 'passed' },
+      )
     })
 })
 
@@ -196,7 +206,7 @@ it('receives a late result after detach and receiver reassembly with the origina
     }),
   )
   const rebuilt = ok(createAgentToolReceiver(s.dependencies, s.state))
-  expect(s.state.receptions.size).toBe(1)
+  expect(s.state.receptions.size).toBe(0)
   const late = {
     ...s.delivery,
     relation: 'late' as const,
@@ -344,10 +354,10 @@ it('rechecks current qualification even for a saved key and preserves facts on r
   expect(
     await s.receiver.retry({ access, execution: execution(), signal: signal() }),
   ).toHaveProperty('failure.kind', 'denied')
-  expect(s.state.receptions.size).toBe(1)
+  expect(s.state.receptions.size).toBe(0)
 })
 
-it('recovers saved results from the same journal without another commit', async () => {
+it('recovers saved results from the same journal by query, and a repeated push is recognised', async () => {
   const s = await setup()
   const saved = ok(await s.push()),
     received = s.dependencies.provider.received
@@ -375,10 +385,15 @@ it('recovers saved results from the same journal without another commit', async 
   expect(await rebuilt.recover({ access, execution: execution(), signal: signal() })).toEqual({
     ok: { pending: 0, diagnostics: [] },
   })
+  expect(commits).toBe(0)
+  expect(state.receptions.size).toBe(0)
+  // The producer pushes the same delivery again: the Journal recognises the operation.
   expect(await rebuilt.push({ access, delivery: s.delivery, signal: signal() })).toEqual({
     ok: saved,
   })
-  expect(commits).toBe(0)
+  expect(
+    (await loadWithEntries(s.journal.provider, { ...access, execution: execution() })).entries,
+  ).toHaveLength(1)
 })
 
 it('checks the complete saved payload before returning the provider receipt', async () => {
@@ -515,6 +530,7 @@ it.each(['terminal', 'actualTerminal', 'effect', 'value', 'tenant'] as const)(
     if (material.kind !== 'facts') throw new Error('facts required')
     const decoded = readToolDeliveryMaterial(access, material, expected)
     expect(decoded).toEqual(s.delivery)
+    expect(decodeAgentToolDeliveryMaterial(material)?.delivery).toEqual(s.delivery)
     const original = plain(material.value)
     if (!object(original) || !object(original.delivery)) throw new Error('envelope required')
     if (field === 'tenant') Object.assign(original, { tenant: 'foreign' })
@@ -522,8 +538,23 @@ it.each(['terminal', 'actualTerminal', 'effect', 'value', 'tenant'] as const)(
     expect(
       readToolDeliveryMaterial(access, { ...material, value: json(original) }, expected),
     ).toBeNull()
+    expect(decodeAgentToolDeliveryMaterial({ ...material, value: json(original) })).toBeNull()
   },
 )
+
+it('checks the consuming tenant separately from decoding and rejects unknown schemas', async () => {
+  const s = await setup()
+  const foreign = toolDeliveryMaterial(otherTenant, s.delivery)
+  expect(decodeAgentToolDeliveryMaterial(foreign)?.delivery).toEqual(s.delivery)
+  expect(
+    readToolDeliveryMaterial(access, foreign, toolReceivedDraft(s.delivery, consumption('call-1'))),
+  ).toBeNull()
+  const material = toolDeliveryMaterial(access, s.delivery)
+  if (material.kind !== 'facts') throw new Error('facts required')
+  expect(
+    decodeAgentToolDeliveryMaterial({ ...material, schema: { ...material.schema, revision: '2' } }),
+  ).toBeNull()
+})
 
 it('treats a second push of a key that is still being written as unknown without a second commit', async () => {
   const s = await setup(),
@@ -566,7 +597,9 @@ it('treats a second push of a key that is still being written as unknown without
   expect(await receiver.push({ access, delivery: s.delivery, signal: signal() })).toEqual({
     ok: saved,
   })
-  expect(commits).toBe(1)
+  expect(
+    (await loadWithEntries(s.journal.provider, { ...access, execution: execution() })).entries,
+  ).toHaveLength(1)
 })
 
 it('does not report saved when the provider receipt names another execution', async () => {

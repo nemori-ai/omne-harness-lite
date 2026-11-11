@@ -33,7 +33,6 @@ import type {
   ProviderName,
   ReadId,
   RequestBudget,
-  ResultCapacity,
   ResultVersion,
   Revision,
   Supplier,
@@ -86,7 +85,6 @@ export const profileSupplier: ProfileSupplier = {
   provider,
   model: 'model',
 }
-export const capacity: ResultCapacity = { bytes: '1', blocks: '1', attachmentBytes: '0' }
 export const tool: ToolDeclaration = { name: 'tool', description: 'd', argumentsSchema: json }
 export const limit: ModelLimit = { metric: 'image-bytes', provided: '1', upstream: [] }
 export const tokenLimit: TokenLimit = { provided: '1', upstream: [] }

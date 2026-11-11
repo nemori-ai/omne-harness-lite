@@ -7,7 +7,6 @@ import {
   type Effect,
   type DurableEvidence,
   type ProcessBlock,
-  type RawOutput,
   type ToolFailure,
   type ToolStartRecord,
   type ToolTerminal,
@@ -19,8 +18,11 @@ import {
   type FactReceipt,
   type ResultPolicy,
   type ToolExecutionFact,
+  type ToolFinalEnvelope,
 } from '@omne-harness/tool-contract/provider'
+
 import { readOwnSlot } from '@omne-harness/tool-contract/binding'
+import { digestOf } from './evidence.ts'
 import {
   invalid,
   isTenantShape,
@@ -215,22 +217,6 @@ function effect(value: unknown): value is Effect {
     'ok' in judgeEvidenceField(value.evidence, 'effect.evidence')
   )
 }
-function raw(value: unknown): Outcome<RawOutput, ToolFailure> {
-  if (!closed(value, ['codec', 'content', 'custody']))
-    return invalid('batch.events.fact.raw', 'shape')
-  const codec = judgeAdoptionField(value.codec, 'raw.codec')
-  const custody = judgeEvidenceField(value.custody, 'raw.custody')
-  const content = judgeContentBlock({
-    kind: 'file',
-    id: 'raw',
-    visibility: { toHuman: false, toModel: false },
-    ref: value.content,
-    transcript: null,
-  })
-  if ('failure' in codec || 'failure' in custody || 'rejected' in content || !('ref' in content.ok))
-    return invalid('batch.events.fact.raw', 'shape')
-  return succeed({ codec: codec.ok, custody: custody.ok, content: content.ok.ref })
-}
 function positive(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 }
@@ -244,15 +230,15 @@ function schemaIdentity(value: unknown): value is { id: string; revision: string
 }
 /**
  * The wait a checkpointed segment ended with (P06): an Ask intent with its wait identity, its
- * resume and request evidence and the fixed wait schemas. An Ask has no expiry. A resource wait is
- * not received.
+ * resume and request evidence and the fixed wait schemas, and the request original. The original
+ * is text within `schemas.requestMaxBytes` UTF-8 bytes, and the request evidence binds its digest;
+ * the ledger does not read it. An Ask has no expiry. A resource wait is not received.
  */
-function askWait<B extends ContentBlock>(
+function askWait(
   value: Data,
   adoption: Adoption,
-): Outcome<ToolExecutionFact<B>, ToolFailure> {
-  if (!closed(value, ['kind', 'value']) || !object(value.value))
-    return invalid('batch.events.fact', 'shape')
+): Outcome<Extract<ToolExecutionFact, { kind: 'wait' }>, ToolFailure> {
+  if (!object(value.value)) return invalid('batch.events.fact', 'shape')
   const intent = value.value
   if (intent.kind !== 'ask')
     return {
@@ -262,6 +248,7 @@ function askWait<B extends ContentBlock>(
         reason: 'receiveFacts supports Ask waits only; a resource wait blocks the complete batch',
       },
     }
+  if (!closed(value, ['kind', 'value', 'request'])) return invalid('batch.events.fact', 'shape')
   if (!closed(intent, ['wait', 'resume', 'schemas', 'kind', 'request']))
     return invalid('batch.events.fact.value', 'shape')
   const wait = decodeToolWaitId(intent.wait)
@@ -293,8 +280,15 @@ function askWait<B extends ContentBlock>(
   if ('failure' in contract) return contract
   const source = judgeEvidenceField(schemas.source, 'batch.events.fact.value.schemas.source')
   if ('failure' in source) return source
+  const original = value.request
+  if (typeof original !== 'string') return invalid('batch.events.fact.request', 'type')
+  if (Buffer.byteLength(original) > schemas.requestMaxBytes)
+    return invalid('batch.events.fact.request', 'too-large')
+  if (digestOf(original) !== request.ok.digest)
+    return invalid('batch.events.fact.request', 'digest-mismatch')
   return succeed({
     kind: 'wait',
+    request: original,
     value: {
       kind: 'ask',
       wait: wait.ok,
@@ -317,7 +311,9 @@ function askWait<B extends ContentBlock>(
  * consumed, and the timing evidence of the real resume point. The ledger checks the three against
  * the call's responding wait when it saves the fact.
  */
-function continued(value: Data): Outcome<ToolExecutionFact<never>, ToolFailure> {
+function continued(
+  value: Data,
+): Outcome<Extract<ToolExecutionFact, { kind: 'continued' }>, ToolFailure> {
   if (!closed(value, ['kind', 'wait', 'response', 'timing']))
     return invalid('batch.events.fact', 'shape')
   const wait = decodeToolWaitId(value.wait)
@@ -332,7 +328,7 @@ function fact<B extends ContentBlock>(
   value: unknown,
   policy: ResultPolicy<B>,
   adoption: Adoption,
-): Outcome<ToolExecutionFact<B>, ToolFailure> {
+): Outcome<Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalEnvelope<B>, ToolFailure> {
   if (!object(value)) return invalid('batch.events.fact', 'shape')
   if (value.kind === 'process') {
     if (!closed(value, ['kind', 'blocks']) || !Array.isArray(value.blocks))
@@ -359,19 +355,16 @@ function fact<B extends ContentBlock>(
     return invalid('batch.events.fact.kind', 'variant')
   }
   if (
-    !closed(value, ['kind', 'raw', 'result', 'terminal', 'effect']) ||
+    !closed(value, ['kind', 'result', 'terminal', 'effect']) ||
     !terminal(value.terminal) ||
     !effect(value.effect)
   )
     return invalid('batch.events.fact', 'shape')
-  const original = raw(value.raw)
-  if ('failure' in original) return original
   // The result policy owns runtime validation and the narrower B, just as in result rendering.
   const result = policy.judgeResult(value.result as Parameters<typeof policy.judgeResult>[0])
   if ('failure' in result) return invalid('batch.events.fact.result', 'policy')
   return succeed({
     kind: 'final',
-    raw: original.ok,
     result: result.ok,
     terminal: value.terminal,
     effect: value.effect,
@@ -382,7 +375,7 @@ export function fixFactInput<B extends ContentBlock>(
   input: unknown,
   policy: ResultPolicy<B>,
   adoption: Adoption,
-): Outcome<Readonly<{ start: ToolStartRecord; batch: FactBatch<B> }>, ToolFailure> {
+): Outcome<Readonly<{ start: ToolStartRecord; batch: FactBatch }>, ToolFailure> {
   try {
     if (!object(input)) return invalid('input', 'type')
     const startSlot = readOwnSlot(input, 'start')
@@ -404,7 +397,7 @@ export function fixFactInput<B extends ContentBlock>(
     const source = judgeEvidenceField(data.source, 'batch.source')
     if ('failure' in original) return original
     if ('failure' in source) return source
-    const events: FactBatch<B>['events'][number][] = []
+    const events: FactBatch['events'][number][] = []
     for (const event of data.events) {
       if (!closed(event, ['event', 'fact']) || !text(event.event))
         return invalid('batch.events', 'shape')
@@ -472,31 +465,31 @@ export function fixFactAcknowledgement(
   }
 }
 
-/** Uses the trusted fact boundary for public settlement fields without accepting a caller proof. */
-export function fixFinalInput<B extends ContentBlock>(
+export function fixFinalPlanningInput<B extends ContentBlock>(
   input: unknown,
   policy: ResultPolicy<B>,
   adoption: Adoption,
-): Outcome<Extract<ToolExecutionFact<B>, { kind: 'final' }>, ToolFailure> {
+): Outcome<
+  Readonly<{ start: ToolStartRecord; source: DurableEvidence; final: ToolFinalEnvelope<B> }>,
+  ToolFailure
+> {
   try {
     if (!object(input)) return invalid('input', 'type')
-    const fields: Data = { kind: 'final' }
-    for (const [target, source] of [
-      ['raw', 'raw'],
-      ['result', 'value'],
-      ['terminal', 'terminal'],
-      ['effect', 'effect'],
-    ] as const) {
-      const slot = readOwnSlot(input, source)
-      if (slot.kind !== 'value') return invalid(source, 'own-data-required')
-      fields[target] = copyData(slot.value)
+    const fields: Data = {}
+    for (const key of ['start', 'source', 'final']) {
+      const slot = readOwnSlot(input, key)
+      if (slot.kind !== 'value') return invalid(key, 'own-data-required')
+      fields[key] = copyData(slot.value)
     }
-    const checked = fact(fields, policy, adoption)
-    if ('failure' in checked) return checked
-    if (checked.ok.kind !== 'final') return invalid('input', 'final-required')
-    copyData(checked.ok)
-    return succeed(structuredClone(checked.ok))
+    const checkedStart = start(fields.start)
+    if ('failure' in checkedStart) return checkedStart
+    const source = judgeEvidenceField(fields.source, 'source')
+    if ('failure' in source) return source
+    const final = fact(fields.final, policy, adoption)
+    if ('failure' in final) return final
+    if (final.ok.kind !== 'final') return invalid('final', 'final-required')
+    return succeed({ start: checkedStart.ok, source: source.ok, final: structuredClone(final.ok) })
   } catch {
-    return invalid('result', 'unserializable-or-invalid-data')
+    return invalid('final', 'unserializable-or-invalid-data')
   }
 }

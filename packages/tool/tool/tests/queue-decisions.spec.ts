@@ -38,7 +38,6 @@ function snapshot(entries: readonly QueueEntryRecord[], next = '100'): QueueSnap
     domain: { kind: 'queue' } as QueueSnapshot['domain'],
     revision: '1' as QueueSnapshot['revision'],
     entries: new Map(entries.map(item => [item.call, item])),
-    released: new Set(),
     next,
   }
 }

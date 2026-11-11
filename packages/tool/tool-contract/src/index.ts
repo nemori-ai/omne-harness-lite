@@ -1,13 +1,22 @@
+export type {
+  ToolBodyFrame,
+  ToolBodyWriter,
+  ToolBodyWriterStatus,
+  ToolBodyBeginReceipt,
+  ToolBodyAppendReceipt,
+} from './body-writer.ts'
 // The root entry of the Tool contract package: the names that members outside the Tool group
 // import, and the names their declarations reference (SPEC「公开入口的分组」rule 1). The provider
 // protocol is on `./provider`; the readers of the author inside a handle are on `./binding`. It
 // does not import Cordis or another Tool package.
 export { decodeToolCallId, decodeToolOperationId } from './identity.ts'
+export type { ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyReader } from './body-reads.ts'
 export type {
   Access,
   Adoption,
   ConsumerRef,
   DurableEvidence,
+  ToolBodyId,
   ToolCallId,
   ToolCursor,
   ToolDeliveryId,
@@ -43,12 +52,15 @@ export type {
   SourceLayer,
   ToolArguments,
   ToolAvailability,
+  ToolBodyDeclaration,
   ToolCommandDeclaration,
   ToolDefinition,
   ToolEnvironmentDeclaration,
   ToolImplementationShape,
   ToolInvocation,
   ToolProgramDeclaration,
+  ToolOffloadingDeclaration,
+  ToolPublishedSchema,
   ToolReturnDeclaration,
   ToolSchemaIdentity,
 } from './definitions.ts'
@@ -66,6 +78,10 @@ export type {
   ToolLookup,
   ToolRelation,
   ToolResult,
+  ToolRenderedResult,
+  ToolOffloadedBody,
+  ToolBodyRetention,
+  ToolBodyRepresentation,
   ToolResultData,
   ToolState,
   ToolTerminal,
@@ -167,3 +183,4 @@ export type {
   ToolFixedReadArguments,
   ToolsReadArguments,
 } from './tools-protocol.ts'
+export { returnSummary } from './return-description.ts'

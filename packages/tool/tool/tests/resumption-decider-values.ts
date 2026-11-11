@@ -21,22 +21,14 @@ import {
   type ResumeInput,
   type Segment,
 } from './checkpoint-values.ts'
-import {
-  callId,
-  evidence,
-  ok,
-  operationId,
-  principalA,
-  tenantA,
-  type Block,
-} from './runtime-values.ts'
+import { callId, evidence, ok, operationId, principalA, tenantA } from './runtime-values.ts'
 import { admitCall, startHarness, testAuthority, type StartHarness } from './start-values.ts'
 
 export const FIRST = 'op-c1/start/wait' as ToolWaitId
 export const ACCESS = { principal: principalA, tenant: tenantA, call: callId('c1') }
 export const CALL = ACCESS.call as ToolCallId
 
-export type CallSnapshot = Snapshot<Block>
+export type CallSnapshot = Snapshot
 
 export function text(value: string) {
   return { kind: 'string', value } as const
@@ -78,7 +70,7 @@ export type Captured = Readonly<{
 export async function suspendedCall(
   options: Readonly<{ resume?: (input: ResumeInput, count: number) => Promise<Segment> }> = {},
 ) {
-  const memory = createMemoryToolLedgerStore<Block>()
+  const memory = createMemoryToolLedgerStore()
   const authority = testAuthority()
   const author = askingAuthor(
     undefined,
@@ -130,7 +122,6 @@ export async function suspendedCall(
       },
     }),
   })
-  binding.attach(harness)
   await admitCall(harness, 'c1')
   await harness.drive('c1')
   await settle(harness)
@@ -250,10 +241,7 @@ export function withFacts(
 }
 
 /** 把一次提交写下的操作记录并入快照，得到这笔提交之后的快照。 */
-export function afterCommit(
-  snapshot: CallSnapshot,
-  writes: readonly LedgerWrite<Block>[],
-): CallSnapshot {
+export function afterCommit(snapshot: CallSnapshot, writes: readonly LedgerWrite[]): CallSnapshot {
   const operations = new Map(snapshot.operations)
   for (const write of writes)
     if (write.kind === 'put' && write.record.kind === 'operation')
@@ -261,13 +249,13 @@ export function afterCommit(
   return { ...snapshot, operations }
 }
 
-export function putsOf(writes: readonly LedgerWrite<Block>[], kind: string): Record_[] {
+export function putsOf(writes: readonly LedgerWrite[], kind: string): Record_[] {
   return writes.flatMap(write =>
     write.kind === 'put' && write.record.kind === kind ? [write.record as Record_] : [],
   )
 }
 
-export function committed<V>(decision: Decision<V, Block>) {
+export function committed<V>(decision: Decision<V>) {
   if (decision.kind !== 'commit') throw new Error(`not a commit: ${JSON.stringify(decision)}`)
   return decision
 }
@@ -276,7 +264,7 @@ export function invalidOf(field: string, reason: string) {
   return { failure: { kind: 'invalid', field, reason } }
 }
 
-export function replied<V>(decision: Decision<V, Block>) {
+export function replied<V>(decision: Decision<V>) {
   if (decision.kind !== 'reply') throw new Error(`not a reply: ${JSON.stringify(decision)}`)
   return decision.outcome
 }

@@ -45,7 +45,7 @@ Agent 脚本组合或编排工具受[可编程调用许可](../../../.meta_harne
 
 工具契约维护输入、执行/等待、控制及效果，具体提供者维护环境或协议兑现；发起/消费协调者维护资格与可靠交接。工具失败的精确分类由原工具/消息契约细化。
 
-上层沿[工具runtime](../../architecture/runtime/tool-runtime.md)、[执行环境](../../architecture/runtime/execution-environment.md)、[安全](../../architecture/security/README.md)；产品依据[产品正文](../../../.meta_harness/design/product/tool-execution/design.md)。验证见[组合入口](../verification.md)。
+上层沿[工具runtime](../../architecture/runtime/tool-runtime.md)、[执行环境](../../architecture/runtime/execution-environment.md)、[安全](../../architecture/security/README.md)；产品依据[产品正文](../../../.meta_harness/design/product/tool-execution/design.md)。验证见[组合入口](../verification.md)。结果卸载的责任划分、跨域交接与组合验证责任见[结果卸载](architecture.md#结果卸载)。
 
 ## 后续设计与维护
 

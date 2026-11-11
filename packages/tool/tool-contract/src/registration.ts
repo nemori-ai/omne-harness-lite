@@ -1,7 +1,7 @@
 // Author registration (P13 multi-command): operation handles and the definitions they project.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { CheckpointedToolExecutor } from './checkpointed-author.ts'
+import { CHECKPOINT_STATE_MAX_BYTES, type CheckpointedToolExecutor } from './checkpointed-author.ts'
 import type { ToolExecutor } from './execution.ts'
 import type {
   ToolAuthor,
@@ -94,10 +94,16 @@ function adopted(check: Check<unknown>): Check<unknown> {
 const waitHandle: Check<unknown> = (value, at) =>
   isToolWaitContract(value) ? succeed(value) : reject(at, 'type')
 
+const checkpointMaxBytes: Check<number> = (value, at) => {
+  const checked = positiveSafeInteger(value, at)
+  if ('failure' in checked || checked.ok <= CHECKPOINT_STATE_MAX_BYTES) return checked
+  return reject(at, 'range')
+}
+
 const checkpointDeclaration = record({
   schema: schemaIdentity,
   codec: adoption,
-  maxBytes: positiveSafeInteger,
+  maxBytes: checkpointMaxBytes,
 })
 
 /**
@@ -188,6 +194,11 @@ const OPERATION_RULES: readonly OperationRule[] = [
     spec.returns.kind === spec.author.kind
       ? undefined
       : { field: 'author.kind', reason: 'mode-mismatch' },
+  spec =>
+    spec.returns.kind === 'ordinary' &&
+    !sameAdoption(spec.returns.value.codec, spec.author.codec.adoption)
+      ? { field: 'author.codec.adoption', reason: 'value-codec-mismatch' }
+      : undefined,
   spec => programMismatch(spec.returns.program, spec.author.program),
 ]
 

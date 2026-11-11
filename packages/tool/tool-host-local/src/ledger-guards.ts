@@ -13,7 +13,6 @@ import {
   type ToolLedgerBudgets,
   type ToolLedgerGuards,
 } from '@omne-harness/tool'
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolBindings } from '@omne-harness/tool-contract/provider'
 import {
@@ -60,9 +59,9 @@ export interface ToolRequestAccess<P> {
  * Commits ledger writes together with one start condition. `condition-failed` means the condition
  * no longer holds and nothing took effect: the caller reads again and asks the policy again.
  */
-export interface ConditionalLedgerCommit<B extends ContentBlock = ContentBlock> {
+export interface ConditionalLedgerCommit {
   commit(
-    input: Readonly<{ condition: StartCondition; ledger: LedgerCommitInput<B> }>,
+    input: Readonly<{ condition: StartCondition; ledger: LedgerCommitInput }>,
   ): Promise<LedgerCommit | Readonly<{ kind: 'condition-failed' }>>
 }
 
@@ -81,7 +80,7 @@ export type LocalToolLedgerGuardsInput<P, E = unknown> = Readonly<{
   /** The value of `createLocalInvocationSource`; its `guard` becomes `guards.sources`. */
   sources: LocalInvocationSource<P>
   /** Recovers the original source confirmation; it answers `unavailable` when it cannot. */
-  bindings: Pick<ToolBindings<P, ToolMessageContentBlock, E>, 'recover'>
+  bindings: Pick<ToolBindings<P, E>, 'recover'>
   /** The value of `createLocalGrantVerifiers`. */
   grants: ReadonlyMap<string, ToolGrantVerifier<P>>
   /** Defaults to `localArgumentLimits`. */
@@ -128,9 +127,7 @@ export function createLocalToolLedgerGuards<P, E = unknown>(
   return Object.freeze({
     access: access.guard,
     sources: sources.guard,
-    factAcknowledgements: createToolFactAcknowledgementGuard<P, ToolMessageContentBlock, E>(
-      bindings,
-    ),
+    factAcknowledgements: createToolFactAcknowledgementGuard<P, E>(bindings),
     grants,
     starts: createLocalStartGuard<P>({
       access: access.start,

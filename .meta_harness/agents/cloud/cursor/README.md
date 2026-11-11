@@ -16,7 +16,7 @@ author 与 committer 是潘其威(William)，邮箱是 `46810637+PanQiWei@users.
 
 ## pqw-skills
 
-pqw-skills 是钉了提交的子模块，不在镜像里安装。`install.sh` 先运行 `git submodule update --init`，再编译 agent 生成物，版本与[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用)一致。
+pqw-skills 是子模块，不在镜像里安装。`install.sh` 先运行 `git submodule update --init`，再编译 agent 生成物；读哪一版按[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用)的规则。
 
 ## Matt skills
 

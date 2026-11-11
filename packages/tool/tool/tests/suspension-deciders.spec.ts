@@ -74,6 +74,7 @@ function suspendOf(
     inputDigest: 'digest-suspend',
     suspension: input.suspension,
     checkpoint: input.checkpoint,
+    state: input.state,
     timing: timing as never,
   }
   return { snapshot, command }

@@ -1,6 +1,6 @@
 // Tool 运行时组的配置（B 段）：bundle 只建一次，建时就要全部数值，所以整组的配置只放在 `tool-records` 行上
 // （一个插件体、一个记录仓、一个启动协调器）。字段的含义归 `@omne-harness/tool` 的 `ToolConfiguration` 与
-// tool-host-local 的 `LocalToolRuntimeInput`；`maxCommandBytes`、`maxChunkBytes` 归 tool-storage-sql 的输出保管。
+// tool-host-local 的 `LocalToolRuntimeInput`。记录仓经 `storage` 行的提供者提交，命令上限只在那一行。
 // 发行层不写数值（R2-D6 同一口径）：全部由运维者层给，缺任何一项本行装载时失败，不取成员初值冒充部署值。
 import { isAbsolute } from 'node:path'
 import type { ToolConfiguration } from '@omne-harness/tool'
@@ -10,6 +10,14 @@ const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 const nonNegative = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER)
 /** 计时器能保持的最长延迟（`driverRetryDelayMs` 的上界，见 ToolConfiguration）。 */
 const timerMs = z.number().int().min(1).max(2_147_483_647)
+const jsonLimits = z.strictObject({
+  maxBytes: positive,
+  maxDepth: positive,
+  maxItems: positive,
+  maxMembers: positive,
+  maxStringLength: positive,
+  maxNumberLength: positive,
+})
 
 export const toolConfigurationSchema = z.strictObject({
   authorBufferBytes: positive,
@@ -20,12 +28,25 @@ export const toolConfigurationSchema = z.strictObject({
   processBatchDelayMs: nonNegative,
   observerBufferBytes: positive,
   resultPageBytes: positive,
+  offloading: z.strictObject({
+    maxInlineUtf8Bytes: positive,
+    maxRetentionMs: positive,
+    maxBodyBytes: positive,
+    previewUtf8Bytes: positive,
+    maxPageBytes: positive,
+    maxWriterMetadataBytes: positive,
+    permitMs: positive,
+    clockSkewMs: nonNegative,
+    orphanGraceMs: positive,
+    jsonDocument: jsonLimits,
+    jsonRecord: jsonLimits,
+  }),
   reconciliationDelayMs: nonNegative,
   ledgerCommitAttempts: positive,
   queueCapacity: positive,
   driverStepsPerRun: positive,
   driverRetryDelayMs: timerMs,
-}) satisfies z.ZodType<ToolConfiguration>
+}) satisfies z.ZodType<Omit<ToolConfiguration, 'readResultArguments'>>
 
 /** 与 `execution-host` 行的绝对路径同一规则。 */
 const absolutePath = z
@@ -40,10 +61,6 @@ export const toolRuntimeConfigSchema = z.strictObject({
   filesRoot: absolutePath,
   /** 与 `session-storage` 行相等：Tool 参加者在会话存储组合里，同一事务域、同一登记。 */
   combinationVersion: z.string().min(1).max(1024),
-  /** 交给 `storage` 行的同一个值（装配页 `tool-records` 行）。 */
-  maxCommandBytes: positive,
-  /** 输出保管一块原字节的上限；编码后加信封必须放进一条命令。 */
-  maxChunkBytes: positive,
   configuration: toolConfigurationSchema,
   capacity: positive,
   observersPerCall: positive,

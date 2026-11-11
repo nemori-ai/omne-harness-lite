@@ -319,7 +319,7 @@ ModelCommands 是持久边界。以下是提供者内部的逻辑记录，不要
 
 | 记录 | 唯一键与必要关联 | 原子变更及访问路径 |
 | --- | --- | --- |
-| Call | tenant、call；固定 request、consumer、capacity、revision | admit 与容量占用及原 operation 同提交；按 call 点查 |
+| Call | tenant、call；固定 request、consumer、revision | admit 与份额名额及原 operation 同提交；按 call 点查 |
 | Operation | tenant、call、operation；动作、固定输入指纹、结果或未决位置 | 同身份同输入返回原结果；不同输入 conflict；结果与业务写一起提交 |
 | Execution | tenant、call、generation；instance、宿主来源、排除证据 | claim 条件递增；所有推进写核当前代次；旧代次不能再写执行状态 |
 | Dispatch | tenant、call、dispatch；supplier、物化回执、send状态、首内容 | prepareDispatch、recordMaterialization、recordSend 分步条件写；send未知不能回退未发送 |

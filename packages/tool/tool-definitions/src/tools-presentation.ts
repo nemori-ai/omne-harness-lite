@@ -1,5 +1,7 @@
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { writeJsonText } from '@omne-harness/json-text'
+import { returnSummary } from '@omne-harness/tool-contract'
+import { returnGuide } from '@omne-harness/tool-contract/provider'
 import type {
   SearchPage,
   ToolFailure,
@@ -44,8 +46,12 @@ export function presentSearch(page: SearchPage): ToolResult<ToolMessageContentBl
             ? entry.definition.commands.map(command => ({
                 name: command.name,
                 summary: command.summary,
+                returns: returnSummary(command.returns),
               }))
             : [],
+        ...(entry.definition.kind === 'function'
+          ? { returns: returnSummary(entry.definition.returns) }
+          : {}),
       })),
       next: page.next,
     }),
@@ -63,7 +69,7 @@ export function presentInspection(view: ToolUsageView): ToolResult<ToolMessageCo
   if (view.usage !== null) {
     const parameters = view.usage.parameters
     return toolsText(
-      `${JSON.stringify(overview)}\ncommand: ${view.usage.command ?? 'null'}\n${view.usage.description}\nparameters: ${'schema' in parameters ? writeJsonText(parameters.schema) : parameters.usage}`,
+      `${JSON.stringify(overview)}\ncommand: ${view.usage.command ?? 'null'}\n${view.usage.description}\nparameters: ${'schema' in parameters ? writeJsonText(parameters.schema) : parameters.usage}\n${returnGuide(view.usage.returns)}`,
     )
   }
   return toolsText(
@@ -71,9 +77,13 @@ export function presentInspection(view: ToolUsageView): ToolResult<ToolMessageCo
       ...overview,
       commands:
         definition.kind === 'commands'
-          ? definition.commands.map(command => ({ name: command.name, summary: command.summary }))
+          ? definition.commands.map(command => ({
+              name: command.name,
+              summary: command.summary,
+              returns: returnSummary(command.returns),
+            }))
           : [],
-      next: 'Inspect one command for its complete parameters.',
+      next: 'Inspect one command for its parameter and return schemas.',
     }),
   )
 }

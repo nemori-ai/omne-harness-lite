@@ -39,6 +39,7 @@ function undecidedNext(s: SqlScene) {
   const control = { next: false }
   const undecided = new Set<string>()
   const storage: SqlStorage = {
+    database: s.storage.database,
     registerCombination: input => s.storage.registerCombination(input),
     read: (request, options) => s.storage.read(request, options),
     commit: input => {

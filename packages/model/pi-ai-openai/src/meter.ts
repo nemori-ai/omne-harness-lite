@@ -256,7 +256,6 @@ export function createOpenAiMeter(
   record: OpenAiRecord,
   tokenizer: ModelTextTokenizer,
   margin: MeterMargin,
-  maxSerializedBytes: number,
 ): FamilyMeter {
   const representation = componentAdoption(record, 'representation')
   const instance = createCalibratedMeter<UnitContent>({
@@ -269,7 +268,6 @@ export function createOpenAiMeter(
     },
     basis: countingBasis(record),
     margin,
-    maxSerializedBytes,
     outputGroup: OUTPUT_GROUP_METHOD,
     uncountable: 'encrypted-reasoning-not-countable',
     tokens: { tokenizer, form: 'as-written' },

@@ -90,7 +90,27 @@ export function createReportTool() {
           ],
         },
       },
-      returns: { kind: 'ordinary', program: { kind: 'none' } },
+      returns: {
+        kind: 'ordinary',
+        value: {
+          kind: 'encoded-value',
+          codec: codec.adoption,
+          value: {
+            identity: { id: 'string', revision: '1', digest: 'sha256:string' },
+            definition: {
+              schema: {
+                kind: 'object',
+                entries: [{ key: 'type', value: { kind: 'string', value: 'string' } }],
+              },
+              vocabulary: adoption('json-schema'),
+              descriptions: [],
+            },
+          },
+        },
+        program: { kind: 'none' },
+        body: { kind: 'text', codec: adoption('utf8') },
+        offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+      },
       author: {
         kind: 'ordinary',
         // This codec uses the strict JSON parser, including duplicate-key rejection.

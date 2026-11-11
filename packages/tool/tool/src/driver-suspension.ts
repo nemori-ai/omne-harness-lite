@@ -93,7 +93,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
 
   const write = (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     operation: ToolOperationId,
   ): WriteContext & Readonly<{ principal: P }> => ({
     ...executionOf(step),
@@ -103,7 +103,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
   })
 
   /** The checkpointed binding of the call, or null when the call runs as a live coroutine. */
-  const checkpointed = async (step: Step<P>, recovery: ToolRecovery<B>) => {
+  const checkpointed = async (step: Step<P>, recovery: ToolRecovery) => {
     const resolved = await bindings.resolve({ ...access(step), request: recovery.request })
     if ('failure' in resolved) return resolved
     return succeed(resolved.ok.kind === 'checkpointed' ? resolved.ok : null)
@@ -113,7 +113,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
    * The stream of a running segment ended. A checkpointed segment ends at its wait, so its
    * suspension is planned; null tells the caller that the binding runs live coroutines.
    */
-  const plan = async (step: Step<P>, recovery: ToolRecovery<B>): Promise<Result | null> => {
+  const plan = async (step: Step<P>, recovery: ToolRecovery): Promise<Result | null> => {
     if (recovery.state.phase !== 'running' || recovery.start === null) return null
     // A suspension of this start was planned already: its `suspend` task owes the next step, and
     // a recall of the plan moves nothing. Reading the ended stream again and recalling the plan
@@ -141,7 +141,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
   /** Commits the checkpoint that the binding proves for the planned suspension (P07). */
   const commit = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: SuspendTask,
   ): Promise<Result> => {
     const binding = await checkpointed(step, recovery)
@@ -167,6 +167,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
         ...write(step, recovery, operations.ok.commit),
         suspension: task.suspension,
         checkpoint: progress.ok.checkpoint,
+        state: progress.ok.state,
       }),
     )
   }
@@ -174,7 +175,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
   /** Parks the queue entry of a suspended call, then wakes the calls that wait for a slot. */
   const park = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: SuspendTask,
   ): Promise<Result> => {
     const parked = await queues.park({ ...access(step), operation: task.operation })
@@ -190,7 +191,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
    */
   const suspension = (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: SuspendTask,
   ): (() => Promise<Result>) | null => {
     if (task.operation !== task.suspension.operation) return () => park(step, recovery, task)
@@ -199,7 +200,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
 
   const attach = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: RegistrationTask,
     registration: DurableEvidence,
   ): Promise<Result> => {
@@ -239,7 +240,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
   /** What the decision owner says about an ensure whose answer was not certain (P06). */
   const recall = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: RegistrationTask,
   ): Promise<Result | 'ensure'> => {
     const inspected = await decisions.inspectOperation({
@@ -265,7 +266,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
    */
   const register = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: RegistrationTask,
   ): Promise<Result> => {
     const intent = recovery.waits.find(wait => wait.intent.wait === task.wait)?.intent
@@ -375,7 +376,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
   /** The step a `wait-registration` task owes now, or null when it waits for another step. */
   const registration = (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: RegistrationTask,
   ): (() => Promise<Result>) | null => {
     if (task.state !== 'pending') return null

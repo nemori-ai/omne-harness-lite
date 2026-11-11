@@ -38,7 +38,6 @@ try {
     operation: admission,
     request: checked.ok,
     consumer: example.consumer,
-    capacity: example.capacity,
   })
   if ('failure' in admitted)
     throw new Error(`Admission failed: ${JSON.stringify(admitted.failure)}`)

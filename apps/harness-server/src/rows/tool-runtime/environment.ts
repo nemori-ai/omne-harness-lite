@@ -44,7 +44,7 @@ import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis
 import { environmentNeedSchemaRef } from '@omne-harness/execution-environment-contract'
 import { readEnvironmentNeed } from '../tool-host/release-author.ts'
 import type { ReleaseToolIdentity } from './access.ts'
-import { callKeyOf, lateGuarded, lateStore, type ToolRuntimeHolder } from './holder.ts'
+import { callKeyOf, lateStore, type ToolRuntimeHolder } from './holder.ts'
 
 type EnvironmentInput = LocalToolRuntimeInput['environment']
 type Preparation = Parameters<EnvironmentInput['plan']['ledger']>[0]
@@ -220,7 +220,6 @@ export function createReleaseEnvironment(
   const origins = new Map<OriginRef, string>()
   const state: EnvironmentStateStore = createEnvironmentStateStore({
     store: lateStore(holder),
-    guarded: lateGuarded(holder),
     mode: 'production',
     commitAttempts: options.commitAttempts,
   })
@@ -252,7 +251,7 @@ export function createReleaseEnvironment(
       const regular = await createEnvironmentResourceLedger(input)
       const retained = await createRetainedTerminalLedger({
         ...input,
-        scope: request.preparation.request.requesterScope,
+        scope: request.request.requesterScope,
       })
       return { regular, retained }
     })()
@@ -306,7 +305,7 @@ export function createReleaseEnvironment(
 
   const plan: EnvironmentInput['plan'] = {
     async requirement(request) {
-      if (request.preparation.request.availability.definition.declarations.environment === null)
+      if (request.request.availability.definition.declarations.environment === null)
         return succeed({
           allowedBindings: [{ kind: 'host_machine' as const }],
           facilities: [],
@@ -315,7 +314,7 @@ export function createReleaseEnvironment(
       const provider = options.schemaProvider()
       if (provider === null)
         return unavailable('tool-environments', 'the environment schema provider is not installed')
-      const need = await readEnvironmentNeed(request.preparation.request.availability.definition, {
+      const need = await readEnvironmentNeed(request.request.availability.definition, {
         provider,
         schema: environmentNeedSchemaRef,
       })
@@ -335,7 +334,7 @@ export function createReleaseEnvironment(
       const origin = originRef(`tool:${request.call}:${request.preparation.operation}`)
       origins.set(origin, callKeyOf(request.tenant, request.call))
       const view = await ledgers(request)
-      const scope = request.preparation.request.requesterScope
+      const scope = request.request.requesterScope
       return succeed({
         origin,
         scope,
@@ -358,7 +357,6 @@ export function createReleaseEnvironment(
 
   const input: EnvironmentInput = {
     adoption: RELEASE_ENVIRONMENT_ADOPTION,
-    guarded: lateGuarded(holder),
     naming,
     cleanup: {
       settle: async () =>

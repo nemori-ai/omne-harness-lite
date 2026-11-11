@@ -192,7 +192,7 @@
 - **宿主**：—（归属于[租户](#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变）
 - **身份**：会话的身份标识。**agent 的身份标识恒等于它**，换 agent runtime 也不变，agent 之间互相寻址靠它。所选 AgentDefinition 身份固定、同身份内容按运行装配边界热重载；会话设置、context 注册与已知能力记录为其属性；能力身份合法纳入后保留，当前数据、实现与可用性分别求值，不新增独立对象。常驻工具例外：每项的名字与参数形状在会话内不变，会话为每项保存首次采用的定义
 - **生灭**：创建/初始化 → 运行/活跃 ⇄ 休眠（往返无上限）→ 归档（租户手动，或按出厂时限自动）→ 撤销归档回休眠。**无删除、无过期、无回收**；「运行/活跃」只看日志上最新那次运行完结没有。另有冻结：采用点判定常驻工具的形状无法保持时，会话进入冻结。此后会话不再开始新的运行，在途运行照常收场。冻结不可逆，没有解冻。冻结后的会话仍可归档，撤销归档后回到冻结
-- **依据**：[PF-015 §4 会话的生命周期](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)（rev 21）；[PF-015 §5.1](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#51-四个状态怎么走)（rev 21）；[PF-015 §6.1](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#61-会话不会消失)（rev 21）；[PF-015 §6.12](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)（rev 21）；[PF-015 §6.16–6.19](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)（rev 21）；[会话产品页 常驻工具无法保持形状时，会话冻结](../product/sessions-and-work/design.md#frozen)（rev 7）；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 6）
+- **依据**：[PF-015 §4 会话的生命周期](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)（rev 21）；[PF-015 §5.1](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#51-四个状态怎么走)（rev 21）；[PF-015 §6.1](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#61-会话不会消失)（rev 21）；[PF-015 §6.12](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)（rev 21）；[PF-015 §6.16–6.19](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#616-会话组成与创建输入)（rev 21）；[会话产品页 常驻工具无法保持形状时，会话冻结](../product/sessions-and-work/design.md#frozen)（rev 8）；[工具执行产品页 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 8）
 - **补充依据**：[PF-015 §6.22](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#622-会话作用域的输入与供给)（rev 21）；冻结的裁定见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)，常驻工具的规则见已采用的 [RFC-0012 会话常驻集合的规则](../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 - **并入**：「会话内的那个 agent」——身份恒等、一对一，没有独立于会话的身份机制，是会话的一个面
 
@@ -201,7 +201,7 @@
 - **宿主**：[会话](#ul-session--会话)（附着在恰好一个会话上）
 - **身份**：有身份，且「身份在数据里，不在进程里」；铸新身份是「新一次运行」的专属权利。标识形式正文未述。开始条目可带一个「延续自哪次运行」的链接
 - **生灭**：有仍具待处理资格的未承接输入、且没有未终结的运行，并满足当前准入与适用的登录确认 → 落一条开始条目（写明承接了哪些）→ 在跑 ⇄ 停着等（模型调用在途 / 卡片未答完 / 动作结果没齐；此时可以一副协程都没有）→ 落终态：完成 · 失败 · 被取消。终态是吸收态；会话未归档时，之后回来的有效待处理输入在满足新 Run 当前准入与登录确认后可开下一次运行，归档期间迟到事实仅留痕不入队；会话冻结后不再开下一次运行，冻结前在途的运行照常走到终态；不存在「先排着」。**系统为已发生的中断追补的提醒本身不取得待处理资格，不开新运行**。终结之后不再为它发起新动作，**尝试被取代或运行终结前已发起的那些，响应体与账迟到了照样落、归这个运行、标明迟到**。同一会话任一时刻至多一个未终结的运行
-- **依据**：[PF-012 §4 Run](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run)（rev 25）；[PF-012 §4 边界](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#边界什么让它开始什么让它结束)（rev 25）；[PF-012 §4 Run 是三样东西的归属单位](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 25）；[PF-012 §5.13](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#513-run-拥有什么归属的判据)（rev 25）；[PF-012 §5.1](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#51-run-与-agent-loop-是一体两面)（rev 25）；[PF-012 §6.17 I-11](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 25）；[会话产品页 常驻工具无法保持形状时，会话冻结](../product/sessions-and-work/design.md#frozen)（rev 7）
+- **依据**：[PF-012 §4 Run](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run)（rev 25）；[PF-012 §4 边界](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#边界什么让它开始什么让它结束)（rev 25）；[PF-012 §4 Run 是三样东西的归属单位](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 25）；[PF-012 §5.13](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#513-run-拥有什么归属的判据)（rev 25）；[PF-012 §5.1](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#51-run-与-agent-loop-是一体两面)（rev 25）；[PF-012 §6.17 I-11](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 25）；[会话产品页 常驻工具无法保持形状时，会话冻结](../product/sessions-and-work/design.md#frozen)（rev 8）
 
 ### UL-agent-runtime · agent runtime
 
@@ -393,12 +393,27 @@
 
 ### UL-offloaded-result · 被卸载的原始结果
 
-- **宿主**：正文未述。它由一次[工具执行](#ul-tool-execution--工具执行)产出，却从来没进过[会话日志](#ul-session-log--会话日志)——日志里只有那条占位；物理存放归属未述；原始全文持续可回取，不因卸载、压缩、Run 结束或会话归档过期
-- **身份**：正文未述。只要求占位里写得出「有多大、怎么取全文」，agent 据此分页取回
-- **生灭**：工具结果落成消息之前判定太大 → 原始结果存起来，消息里换成带摘要的占位；之后可被分页取回，取回是往后追加两条新消息，不把占位换回去。当前没有删除或到期回收规则，不能自行缩短全文可回取承诺
-- **依据**：[PF-006 §4 卸载](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#卸载)（rev 24）；[PF-006 §6.10](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 24）；[PF-012 §5.10](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 25）
-- **并入**：「原始结果」「全文」——正文当同一物用。「工具原件」只在 PF-015 出现一次，且「原件」在 PF-013 另有所指，词条已列为弃用
-- **未裁**：它存进的[存储](pending.md#存储)同样没有定义
+- **宿主**：不随 Session、Run 或执行句柄的退出消失。Tool 负责在固定期限内保管，具体物理后端不决定其寿命。
+- **身份**：原工具调用的关联与正文读回引用；具体标识编码归 Tool 契约。
+- **生灭**：模型正文被另存，最终结果固定后开始有限保留期。预览披露期限和读回方式。到期后拒绝新读取并自动回收；回收只删除这份卸载正文的字节，不删除程序值和原生资源目标，它们按各自的寿命保留。消费、重试、分页、压缩、归档和重启不刷新期限。
+- **依据**：[工具执行：结果保管、卸载与模型采用](../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **并入**：「卸载正文」「卸载全文」在本对象语境下指同一正文，不指 program data、作者原返回或原生资源目标。
+
+### UL-body-entry · 正文条目
+
+- **宿主**：—。它保存在开启这份正文的那次工具调用的调用域中，寿命止于回收，不随该调用结算、Session、Run 或执行句柄的退出而结束
+- **身份**：正文身份；每个正文条目一个，不复用、不在结果之间共享、不去重；具体编码未述
+- **生灭**：账本确认执行活跃、代次匹配且调用未结算后提交开启 → 已开启 → 已封存 → 已关联（结果提交时）→ 已回收；调用结算时未关联的从已开启或已封存转为孤儿 → 已回收；回收后不留行。状态图见[部署无关原则](../../../packages/tool/docs/architecture.md#部署无关原则)
+- **依据**：[工具执行：结果保管、卸载与模型采用](../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **补充依据**：产品正文只定卸载正文、期限与回收，不分解账本与存储；本对象由 [Tool 领域的结果卸载领域模型](../../../docs/domains/tool-execution/architecture.md#领域模型)与[工具执行组的部署无关原则](../../../packages/tool/docs/architecture.md#部署无关原则)定义
+
+### UL-body-bytes · 正文字节
+
+- **宿主**：[正文条目](#ul-body-entry--正文条目)——回收先删除字节，再记录正文条目已回收；字节实际保存在正文存储中
+- **身份**：所属正文的正文身份；同一正文内的分块按序号区分；具体编码未述
+- **生灭**：在有效写入许可下按分块追加 → 存储校验分块齐全并写入封存清单（此后耐久、不可变）→ 回收时删除；所有操作幂等，同一序号写入不同内容报告冲突
+- **依据**：[工具执行：结果保管、卸载与模型采用](../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **补充依据**：产品正文只定卸载正文、期限与回收，不分解账本与存储；本对象由 [Tool 领域的结果卸载领域模型](../../../docs/domains/tool-execution/architecture.md#领域模型)与[工具执行组的部署无关原则](../../../packages/tool/docs/architecture.md#部署无关原则)定义
 
 ### UL-schedule · 日程
 

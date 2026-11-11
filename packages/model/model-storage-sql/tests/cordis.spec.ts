@@ -16,14 +16,12 @@ import {
   createSqlModelRecordsPlugin,
   type ModelRecordsActivation,
 } from '@omne-harness/model-storage-sql/cordis'
-import { COMMAND_RESERVE_BYTES } from '../src/index.ts'
 import {
   callId,
   coreOptions,
   DIGEST,
   instanceId,
   lookup,
-  MAX_CALL_BYTES,
   opId,
   proof,
   sqliteStorage,
@@ -54,8 +52,7 @@ function scene() {
   const config = {
     owners: core.options.owners,
     limits: core.options.limits,
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
+    requestChunkBytes: 65536,
     combinationVersion: 'v1',
     send: { mirrorBytes: 2 ** 22, maxClaims: 8 },
   }
@@ -187,18 +184,15 @@ it('rejects every absent configuration group and numeric field without defaults'
   ])
     invalid.push({ ...f.config, send: { ...f.config.send, mirrorBytes: value } })
   invalid.push(
-    { ...f.config, maxCallBytes: f.config.maxCommandBytes },
     { ...f.config, limits: { ...f.config.limits, scanPageCalls: 1001 } },
     { ...f.config, combinationVersion: '' },
   )
-  for (const key of ['maxCallBytes', 'maxCommandBytes'])
-    invalid.push({ ...f.config, [key]: undefined })
   for (const key of [
     'scanPageCalls',
     'resultPageParts',
     'resultPageTargetBytes',
     'readIdleMs',
-    'capacity',
+    'unacknowledgedResults',
   ])
     invalid.push({ ...f.config, limits: { ...f.config.limits, [key]: undefined } })
   for (const key of ['mirrorBytes', 'maxClaims'])

@@ -98,7 +98,7 @@ function scene<P>(fixture: ToolStartAuthorityFixture<P>, access: Access<P> = fix
   const request = fixture.request ?? fixedRequest()
   const completion = completionOf(fixture, 'settle')
   const tryConsume = (permit: StartPermit, capsule = 'capsule') =>
-    authority.consume({ ...callAccess, permit, executorReceipt: evidence(capsule) })
+    authority.consume({ ...callAccess, permit, executorReceipt: evidence(capsule), request })
   const tryInspect = () => authority.inspect({ ...callAccess, start })
   /** The final answer of `consume`, or the refusal of it: `unknown` is driven by `settle`. */
   const tryConsumeFinal = (permit: StartPermit, capsule = 'capsule', what = 'consume') =>

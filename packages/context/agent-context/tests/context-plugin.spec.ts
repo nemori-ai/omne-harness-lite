@@ -43,20 +43,14 @@ import { createScriptedReaderEligibility } from '@omne-harness/runtime-context-c
 import { createTestAuthorityPorts } from '@omne-harness/runtime-context-contract/testing'
 import type { EligibilityId } from '@omne-harness/runtime-context-contract'
 import { modelRequestPreparationKey } from '@omne-harness/model-cordis-contract/cordis'
-import {
-  RESULT_CAPACITY,
-  createWorld,
-  evidence,
-  owner,
-  type World,
-} from './fixtures/context-world.ts'
+import { createWorld, evidence, owner, type World } from './fixtures/context-world.ts'
 
 // `FiberState` is a const enum in Cordis 4.0.4, erased at runtime: PENDING is its first member,
 // ACTIVE its third and FAILED its fourth.
 const PENDING = 0
 const ACTIVE = 2
 const FAILED = 3
-const config = { owner, resultCapacity: RESULT_CAPACITY }
+const config = { owner }
 
 /** The adoptions double: one definition, `coding`, with two instruction sections; others invalid. */
 const CODING: AgentDefinition = {
@@ -356,12 +350,12 @@ describe('AgentContextProvider on real Cordis', () => {
     })
   })
 
-  it('fails to load a configuration without a result capacity', async () => {
+  it('fails to load a configuration with a field that it does not have', async () => {
     const w = await createWorld()
     const { plugins } = await providers(w)
     const ctx = new Context()
     for (const key of KEYS) await plugins[key](ctx)
-    const plugin = ctx.plugin(AgentContextProvider, { owner } as never)
+    const plugin = ctx.plugin(AgentContextProvider, { owner, resultCapacity: {} } as never)
     await Promise.resolve(plugin).catch(() => undefined)
     expect(plugin.state).toBe(FAILED)
     expect(ctx.get(agentRequestsKey)).toBeUndefined()

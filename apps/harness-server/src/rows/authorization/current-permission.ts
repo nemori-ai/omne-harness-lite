@@ -33,7 +33,6 @@ export function currentPermissionOf(ctx: Context) {
   return createCurrentToolPermission({
     release: () => releaseOf(ctx),
     source: () => ctx.get(currentToolPermissionKey),
-    request: async input => ctx.get(currentToolPermissionKey)?.request(input),
     inquiry: input => inquiryOf(ctx, input),
   })
 }

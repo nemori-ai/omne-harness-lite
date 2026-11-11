@@ -1,3 +1,4 @@
+import { MIN_JOB_INPUT_BYTES } from './input-jobs.ts'
 import type { TokenizerDefinition } from '@omne-harness/model-contract'
 import type {
   TokenizationFailure,
@@ -101,6 +102,7 @@ export function validInput(value: unknown): value is ExecutorInput {
     ['workers', 'maxLeases', 'maxInputBytes', 'jobTimeoutMs', 'maxWorkerOldSpaceMb'].every(
       key => typeof limits[key] === 'number' && limits[key] > 0,
     ) &&
+    Number(limits.maxInputBytes) >= MIN_JOB_INPUT_BYTES &&
     Number(limits.jobTimeoutMs) <= 2147483647 &&
     Number(limits.cancellationGraceMs) <= 2147483647
   )

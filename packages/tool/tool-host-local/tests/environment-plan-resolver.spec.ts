@@ -45,9 +45,16 @@ const preparation: PreparationRecord = {
   adoption: adoption('environment'),
   inputDigest: 'input-1',
   purpose: 'initial',
-  request: request(),
 }
-const prepare = { tenant: tenantA, principal: principalA, call: preparation.call, preparation }
+/** The fixed request of the call travels beside the preparation record. */
+const fixed = request()
+const prepare = {
+  tenant: tenantA,
+  principal: principalA,
+  call: preparation.call,
+  preparation,
+  request: fixed,
+}
 const facts = { system: 'fixture', release: '1', architecture: 'fixture', facilities: [] }
 
 type Placed = Awaited<ReturnType<ExecutionEnvironment<Principal>['resolvePlacement']>>
@@ -57,7 +64,7 @@ type Qualified = Awaited<ReturnType<LocalEnvironmentPlanInput<Principal>['access
 function resolver(
   changes: Readonly<{
     qualified?: Qualified['kind']
-    scope?: PreparationRecord['request']['requesterScope']
+    scope?: (typeof fixed)['requesterScope']
     placed?: Placed
   }> = {},
 ) {
@@ -73,7 +80,7 @@ function resolver(
     binding: async () =>
       succeed({
         origin: originRef('caller'),
-        scope: changes.scope ?? preparation.request.requesterScope,
+        scope: changes.scope ?? fixed.requesterScope,
       }),
     guard: { authorize: async () => 'authorized' as const },
     ledger: async () => {
@@ -94,7 +101,7 @@ describe('the plan of a preparation', () => {
     const first = await r.resolve()
     expect(first).toMatchObject({
       ok: {
-        acquire: { placement, scope: preparation.request.requesterScope },
+        acquire: { placement, scope: fixed.requesterScope },
         facts,
       },
     })
@@ -112,7 +119,7 @@ describe('the plan of a preparation', () => {
   })
 
   it('denies a binding whose scope is not the scope of the request', async () => {
-    const other = { ...preparation.request.requesterScope, ref: 'session-scope:other' }
+    const other = { ...fixed.requesterScope, ref: 'session-scope:other' }
     expect(await resolver({ scope: other as never }).resolve()).toEqual(
       fail({ kind: 'denied', action: 'environment-scope' }),
     )

@@ -58,7 +58,7 @@ export function waitStepOperation(
 }
 
 /** The responding wait whose decision resumes at the call's checkpoint, or undefined. */
-function respondingWait<B extends ContentBlock>(recovery: ToolRecovery<B>): Responding | undefined {
+function respondingWait(recovery: ToolRecovery): Responding | undefined {
   const { state } = recovery
   if (state.phase !== 'suspended') return undefined
   const found = recovery.waits.find(
@@ -74,7 +74,7 @@ export function createResumptionDriver<P, B extends ContentBlock, E>(
 ) {
   const write = (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     operation: ToolOperationId,
   ): WriteContext & Readonly<{ principal: P }> => ({
     ...executionOf(step),
@@ -107,7 +107,7 @@ export function createResumptionDriver<P, B extends ContentBlock, E>(
    * call idle until a wake-up. The registration that the owner reports must be the one the wait
    * holds; another one is not this wait's decision.
    */
-  const decide = async (step: Step<P>, recovery: ToolRecovery<B>): Promise<Result> => {
+  const decide = async (step: Step<P>, recovery: ToolRecovery): Promise<Result> => {
     const { state } = recovery
     if (state.phase !== 'suspended' || state.wait.kind !== 'ask') return IDLE
     const { wait, registration } = state.wait
@@ -138,7 +138,7 @@ export function createResumptionDriver<P, B extends ContentBlock, E>(
    * `waiting` tells the caller that the call waits for its place; a refused start qualification
    * stops the run with the reason.
    */
-  const resume = async (step: Step<P>, recovery: ToolRecovery<B>): Promise<Result | 'waiting'> => {
+  const resume = async (step: Step<P>, recovery: ToolRecovery): Promise<Result | 'waiting'> => {
     const wait = respondingWait(recovery)
     if (wait === undefined || recovery.state.phase !== 'suspended')
       return { kind: 'blocked', diagnostic: 'the queue task of a suspended call has no decision' }
@@ -157,7 +157,7 @@ export function createResumptionDriver<P, B extends ContentBlock, E>(
   }
 
   /** The waits whose resume segment continued them and that `closeWait` still owes. */
-  const continued = (recovery: ToolRecovery<B>): readonly Responding[] =>
+  const continued = (recovery: ToolRecovery): readonly Responding[] =>
     recovery.waits.flatMap(wait =>
       wait.phase === 'responding' && wait.progress.kind === 'continued' ? [wait] : [],
     )
@@ -165,7 +165,7 @@ export function createResumptionDriver<P, B extends ContentBlock, E>(
   /** Closes a continued wait under `<wait>/close`, with the evidence of its `continued` fact. */
   const close = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     wait: Responding,
   ): Promise<Result> => {
     if (wait.progress.kind !== 'continued') return IDLE

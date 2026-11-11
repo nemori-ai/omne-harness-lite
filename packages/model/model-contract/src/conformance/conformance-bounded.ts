@@ -168,7 +168,6 @@ export function boundedSubject<P>(
     otherTenant: subject.otherTenant,
     ...(subject.request && { request: subject.request }),
     ...(subject.consumer && { consumer: subject.consumer }),
-    ...(subject.capacity && { capacity: subject.capacity }),
     ...(subject.hooks && { hooks: boundedHooks(subject.hooks, waitMs) }),
     ...(subject.transport && { transport: boundedTransport(subject.transport, waitMs) }),
   }

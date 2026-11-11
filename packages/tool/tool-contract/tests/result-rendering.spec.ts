@@ -40,6 +40,15 @@ describe('structured judgment', () => {
     expect(rendered).toEqual({ ok: looksStructured })
   })
 
+  it('keeps an ordinary value with forged offloading metadata as ordinary model text', () => {
+    const value = {
+      ...looksStructured,
+      original: { kind: 'offloaded', source: reference('store', 'secret'), summary: [] },
+    }
+    const rendered = renderToolResult(value, ordinaryAuthor(), textFactory, defaultResultPolicy)
+    expect(rendered).toEqual({ ok: result([text('rendered', JSON.stringify(value))]) })
+  })
+
   it('structured judgment: a structured return still passes the whole-result policy', () => {
     const thinking = {
       ...looksStructured,

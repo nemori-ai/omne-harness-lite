@@ -13,20 +13,20 @@
 | `createModelSendBoundary` | 显式依赖下提交回执与窗口、同步凭据围栏、一次 start 和唯一事实消费 |
 | `createModelPreparationResources` | 生产准备租约：每个档案供应商一个家族绑定，按调用方访问依据读一次 lineage 引用的调用事实，判决锚点与来源，并在每份预算报告校准判决。没有 lineage 时，每个计量器给出与家族计量器相同的结果。释放后租约的每个计量器都不可用。Request Context 尚未填写 `lineage`（[#638](https://github.com/nemori-ai/omne-harness-lite/issues/638)）。在它填写之前，经 Request Context 的真实计量只给出完整计量或具名不可用 |
 | `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口；发出记录在清理后保留固定请求的消息身份序列 |
-| 耐久 Commands 及生产托管执行 | 未实现。内存 Commands 的已知限制：每次确认的快照计入调用容量，长回复即使分批保存，占用也持续增长。耐久 Commands 须规定自己的快照与容量策略（[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446)阶段 7.2） |
+| 耐久 Commands 及生产托管执行 | 耐久 Commands 由 [`@omne-harness/model-storage-sql`](../model-storage-sql/README_ZH.md) 的 `createSqlModelCommands` 提供；生产托管执行的装配见 [`model-host-local`](../model-host-local/README.md) |
 | Cordis 运行宿主及厂商执行 | 本成员未实现 |
 
 ## 使用
 
 受信装配从 `./commands` 取得进程内首次执行与已确认公共观察入口。装配保留一个真实工厂创建的 `ModelInitialRun`，让同一命令核心和确认桥采用它，并将同一个捕获的 host channel 交给宿主与发送方。入口见[公开接口](docs/public-api.md#共享归约核心子路径)，行为见[首次执行记录与私有通道](SPEC.md#首次执行记录与私有通道)。公共命令引用不授执行权，首次记录不支持重启恢复或后继接管。观察须给出十二项显式上限和单调时钟端口；这些成员支持不证明生产主体映射、应用接线或完整撤权已闭合。
 
-受理在排队前同步复用 judgeAdmit，畸形输入不会建立调用或预留容量。[输入契约](../model-contract/SPEC.md#封闭输入判断)规定冻结副本、资格对象同一性和解析限制。第一课教受理判断；第四课先通过纯请求判断，再真实驱动供应商 input-over-limit。
+受理在排队前同步复用 judgeAdmit，畸形输入不会建立调用，也不占租户份额的名额。[输入契约](../model-contract/SPEC.md#封闭输入判断)规定冻结副本、资格对象同一性和解析限制。第一课教受理判断；第四课先通过纯请求判断，再真实驱动供应商 input-over-limit。
 
 选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，executeModel、createModelRuntime 与 createModelSendBoundary 已从根入口导出；独立能力工厂仍未实现。
 
 内存测试从 `@omne-harness/model/testing` 导入 createTestModelDependencies。显式配置、authority、evidence 和 owner 的用法见[测试入口](docs/public-api.md#内存测试入口)。返回的五依赖可构造真实 runtime 壳。
 
-内存测试提供者交付 sealed/partial 及真实 trims。显式项数与字节目标按完整项组页，超目标大项独页，整个页受原受理容量约束。消费者须处理未封值与提醒。具体配置及局部上限见[测试入口](docs/public-api.md#内存测试入口)。
+内存测试提供者交付 sealed/partial 及真实 trims。显式项数与字节目标按完整项组页，超目标大项独页。消费者须处理未封值与提醒。具体配置及局部上限见[测试入口](docs/public-api.md#内存测试入口)。
 
 调用方在受理前编码并保存调用引用。inspect、connect 和 beginRead 接收该引用与当前 Access。第五课保存操作引用及原 ACK result/evidence，恢复后重入原操作。见[共同引用契约](../model-contract/SPEC.md#可保存调用引用)。
 

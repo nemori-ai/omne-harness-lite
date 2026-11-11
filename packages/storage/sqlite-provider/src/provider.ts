@@ -83,6 +83,7 @@ export async function createSqliteStorage(
       }),
   )
   const storage: SqlStorage = {
+    database: Object.freeze({}),
     registerCombination: createRegister(core),
     commit: createCommit(core),
     query: createQuery(core),

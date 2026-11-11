@@ -19,11 +19,12 @@ export interface ToolEnvironmentAllocationFixture<P, E> {
 }
 
 function scene<P, E>(fixture: ToolEnvironmentAllocationFixture<P, E>) {
+  const request = fixedRequest()
   const preparation = {
-    ...preparationRecord(fixture.access, callId('allocated-call'), 'allocation-1', fixedRequest()),
+    ...preparationRecord(fixture.access, callId('allocated-call'), 'allocation-1', request),
     adoption: fixture.environment.adoption,
   }
-  const input = { ...fixture.access, call: preparation.call, preparation }
+  const input = { ...fixture.access, call: preparation.call, preparation, request }
   return {
     preparation,
     prepare: async () => succeeded(await fixture.environment.prepare(input), 'prepare'),

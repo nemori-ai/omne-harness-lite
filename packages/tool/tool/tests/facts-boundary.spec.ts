@@ -2,20 +2,25 @@
 // does not trust. A fact that is not a closed record of its kind is refused as `invalid` with the
 // field that carries the fault, and a batch with such a fact is saved in no part.
 import { describe, expect, it } from 'vitest'
+import { canonicalDigest } from '@omne-harness/tool'
 import { admitCall, startHarness } from './start-values.ts'
-import { adoption, callId, evidence, ok, principalA, tenantA, text } from './runtime-values.ts'
+import { callId, evidence, ok, principalA, tenantA, text } from './runtime-values.ts'
 
 const identity = { id: 'schema', revision: '1', digest: 'sha256:schema' }
+
+/** The request original of the wait, as the JSON text its author encoded. */
+const REQUEST = JSON.stringify({ question: 'which file?' })
 
 /** A well-formed Ask wait, the way a checkpointed segment ends. */
 function askWait(): Record<string, unknown> {
   return {
     kind: 'wait',
+    request: REQUEST,
     value: {
       kind: 'ask',
       wait: 'op-facts/start/wait',
       resume: evidence('resume'),
-      request: evidence('request'),
+      request: { ...evidence('request'), digest: canonicalDigest(REQUEST) },
       schemas: {
         contract: {
           owner: 'test-owner',
@@ -34,21 +39,10 @@ function askWait(): Record<string, unknown> {
   }
 }
 
-/** A well-formed final fact: raw output custody, a result, the terminal and the effect. */
+/** A well-formed final fact: a result, the terminal and the effect. */
 function finalFact(): Record<string, unknown> {
   return {
     kind: 'final',
-    raw: {
-      codec: adoption('codec'),
-      custody: evidence('raw-custody'),
-      content: {
-        storage: 'memory',
-        key: 'original',
-        mediaType: 'application/json',
-        bytes: '123',
-        digest: 'sha256:raw',
-      },
-    },
     result: {
       content: [text('answer', 'done')],
       data: { kind: 'none' },
@@ -143,9 +137,33 @@ describe('a fact that is not a closed record of its kind', () => {
     ],
     [
       'a wait fact whose value is not an object',
-      { kind: 'wait', value: 'ask' },
+      { kind: 'wait', value: 'ask', request: REQUEST },
       'batch.events.fact',
       'shape',
+    ],
+    [
+      'a wait fact without its request original',
+      wait(['request'], undefined),
+      'batch.events.fact',
+      'shape',
+    ],
+    [
+      'a request original that is not text',
+      wait(['request'], { question: 'which file?' }),
+      'batch.events.fact.request',
+      'type',
+    ],
+    [
+      'a request original over the request limit of the wait',
+      wait(['request'], 'x'.repeat(1025)),
+      'batch.events.fact.request',
+      'too-large',
+    ],
+    [
+      'a request original that the request evidence does not bind',
+      wait(['request'], JSON.stringify({ question: 'another one?' })),
+      'batch.events.fact.request',
+      'digest-mismatch',
     ],
     [
       'an Ask intent with a field of its own',
@@ -296,24 +314,6 @@ describe('a fact that is not a closed record of its kind', () => {
       'a final fact whose effect is not an effect',
       { ...finalFact(), effect: { kind: 'unknown' } },
       'batch.events.fact',
-      'shape',
-    ],
-    [
-      'a final fact whose raw output is not closed',
-      edited(finalFact(), ['raw', 'extra'], 1),
-      'batch.events.fact.raw',
-      'shape',
-    ],
-    [
-      'a final fact whose raw codec is not an adoption',
-      edited(finalFact(), ['raw', 'codec'], { owner: 'o' }),
-      'batch.events.fact.raw',
-      'shape',
-    ],
-    [
-      'a final fact whose raw content is not a file reference',
-      edited(finalFact(), ['raw', 'content'], 'text'),
-      'batch.events.fact.raw',
       'shape',
     ],
     [

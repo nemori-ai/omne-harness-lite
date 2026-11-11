@@ -1,70 +1,42 @@
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
+  checkToolResultBody,
   createIndependentToolScope,
+  createToolBodyScope,
   type ToolConfiguration,
+  type ToolLedgerPorts,
 } from '@omne-harness/tool'
 import {
   decodeToolOperationId,
-  type Adoption,
-  type DurableEvidence,
   type FixedToolRequest,
-  type ToolOperationId,
-  type Reply,
+  type ToolFailure,
   type ToolTerminal,
   type ProcessBlock,
 } from '@omne-harness/tool-contract'
 import {
   commandArguments,
   defaultResultPolicy,
-  describedAdoption,
   renderToolResult,
-  type CallAccess,
   type ToolMessageContentBlock,
-  type ToolOutputCustody,
-  type ToolRecovery,
+  type ToolFinalPlanner,
   type ToolWaiter,
+  type ToolBodyWrites,
+  type ToolExecutionScope,
+  type ToolPrimitiveFailure,
 } from '@omne-harness/tool-contract/provider'
 import type { ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingsInput } from './executor-binding.ts'
 import type { ToolEnvironmentValue } from './author-environment.ts'
-import { segmentOperation } from './segment-operations.ts'
 import { createLocalTextResults } from './text-results.ts'
 
 export type RuntimeAuthorExecution = Pick<
   LocalToolBindingsInput<unknown, ToolEnvironmentValue, ToolMessageContentBlock>,
   'scope' | 'settle'
-> &
-  Required<
-    Pick<
-      LocalToolBindingsInput<unknown, ToolEnvironmentValue, ToolMessageContentBlock>,
-      'checkpoint' | 'resumption'
-    >
-  >
-
-/**
- * A trusted read of a kept original by its address: its bytes, codec and custody evidence, or
- * `null` when nothing is kept there. The assembly gives the reader of the custody it installs.
- */
-export type ToolOutputReader = (
-  input: Pick<CallAccess<unknown>, 'tenant' | 'call'> & Readonly<{ operation: ToolOperationId }>,
-) => Reply<Readonly<{ codec: Adoption; bytes: Uint8Array; custody: DurableEvidence }> | null>
-
-const failureCodec = describedAdoption({
-  owner: '@omne-harness/tool-host-local',
-  name: 'author-failure-json',
-  revision: '1',
-})
-
-/** The codec of the kept request of a segment's Ask wait: its JSON text in UTF-8. */
-const waitRequestCodec = describedAdoption({
-  owner: '@omne-harness/tool-host-local',
-  name: 'wait-request-json',
-  revision: '1',
-})
+>
 
 function interruption(call: Parameters<RuntimeAuthorExecution['settle']>[0]): ToolTerminal | null {
-  if (call.outcome.kind !== 'failed' || !call.execution.signal.aborted) return null
+  if (!call.execution.signal.aborted) return null
   const control: unknown = call.execution.signal.reason
   if (
     typeof control !== 'object' ||
@@ -102,55 +74,55 @@ function interruption(call: Parameters<RuntimeAuthorExecution['settle']>[0]): To
 export function createRuntimeAuthorExecution(
   input: Readonly<{
     configuration: ToolConfiguration
-    custody: ToolOutputCustody<unknown>
-    /** Reads a checkpoint state back from `custody` for a resume. */
-    readOutput: ToolOutputReader
-    /** The call's recovery as its ledger holds it, for the ResponseRecord of a resume. */
-    recovery: (request: CallAccess<unknown>) => Reply<ToolRecovery<ToolMessageContentBlock>>
+    finalPlanner: ToolFinalPlanner<unknown, ToolMessageContentBlock>
+    bodyWrites: ToolBodyWrites<unknown>
+    bodySchemas?: ToolLedgerPorts<unknown>['bodySchemas']
   }>,
 ): RuntimeAuthorExecution &
-  Readonly<{ close(): void; pending(): number; retainedReturns(): number }> {
+  Readonly<{
+    close(): Promise<Outcome<void, ToolPrimitiveFailure>>
+    pending(): number
+    retainedReturns(): number
+    pendingBodyScopes(): number
+  }> {
   const text = createLocalTextResults()
   const shutdown = new AbortController()
-  const pending = new Map<string, Parameters<ToolOutputCustody<unknown>['preserve']>[0]>()
+  const bodies = new Set<() => ReturnType<ToolExecutionScope['finish']>>()
+  type FinalRequest = Parameters<typeof input.finalPlanner.planFinal>[0]
+  const finals = new Map<string, FinalRequest>()
+  let validating = 0
   const unencoded = new Map<AbortSignal, Parameters<RuntimeAuthorExecution['settle']>[0]>()
-  const retry = () =>
+  const retry = (signal = shutdown.signal) =>
     new Promise<void>(resolve => {
       const done = () => {
         clearTimeout(timer)
-        shutdown.signal.removeEventListener('abort', done)
+        signal.removeEventListener('abort', done)
         resolve()
       }
       const timer = setTimeout(done, input.configuration.driverRetryDelayMs ?? 1000)
-      shutdown.signal.addEventListener('abort', done, { once: true })
-      if (shutdown.signal.aborted) done()
+      signal.addEventListener('abort', done, { once: true })
+      if (signal.aborted) done()
     })
-  const retain = async (request: Parameters<ToolOutputCustody<unknown>['preserve']>[0]) => {
+  /** Plans the final on the ledger; a transient refusal retries until the host retires. */
+  const planFinal = async (request: FinalRequest) => {
     const key = canonicalDigest([request.tenant, request.call, request.operation])
-    pending.set(key, request)
+    finals.set(key, request)
     while (!shutdown.signal.aborted) {
       try {
-        const preserved = await input.custody.preserve(request)
-        if ('ok' in preserved) {
-          pending.delete(key)
-          return preserved
+        const answer = await input.finalPlanner.planFinal(request)
+        if ('ok' in answer) {
+          finals.delete(key)
+          return answer
         }
-        if (preserved.failure.kind !== 'unavailable' && preserved.failure.kind !== 'commit-unknown')
-          return preserved
-        const inspected = await input.custody.inspect(request)
-        if ('ok' in inspected && inspected.ok.kind === 'retained') {
-          pending.delete(key)
-          return succeed(inspected.ok.raw)
-        }
-      } catch {
-        // The original bytes and operation stay owned here when custody cannot answer.
-      }
+        if (answer.failure.kind !== 'unavailable' && answer.failure.kind !== 'commit-unknown')
+          return answer
+      } catch {}
       await retry()
     }
     return fail({
       kind: 'unavailable' as const,
-      dependency: 'toolOutputCustody',
-      diagnostic: 'Original output custody remains unresolved after executor retirement.',
+      dependency: 'toolFinalPlanner',
+      diagnostic: 'Final planning remains unresolved after executor retirement.',
     })
   }
   const absentWaits: ToolWaiter = {
@@ -162,10 +134,23 @@ export function createRuntimeAuthorExecution(
       }),
   }
   return {
-    close: () => shutdown.abort(),
-    pending: () => pending.size,
+    async close() {
+      shutdown.abort()
+      const outcomes = await Promise.all([...bodies].map(finish => finish()))
+      return bodies.size === 0
+        ? succeed(undefined)
+        : (outcomes.find(answer => 'failure' in answer) ??
+            fail({
+              kind: 'unknown',
+              operation: 'body-scope-close',
+              reason: 'Body custody handoff remains unconfirmed.',
+            }))
+    },
+    pendingBodyScopes: () => bodies.size,
+    pending: () => finals.size + validating,
     retainedReturns: () => unencoded.size,
-    scope({ execution }) {
+    scope({ execution, principal, tenant, call, start }) {
+      if (shutdown.signal.aborted) throw new Error('The author execution host has retired.')
       const blocks = new Map<string, ProcessBlock>()
       const scope = createIndependentToolScope({
         signal: execution.signal,
@@ -206,70 +191,65 @@ export function createRuntimeAuthorExecution(
         },
       })
       if ('failure' in scope) throw new TypeError(`Invalid author scope: ${scope.failure.reason}`)
-      return scope.ok
-    },
-    async checkpoint(call) {
-      const state = segmentOperation(call.start.operation, 'checkpoint')
-      const request = segmentOperation(call.start.operation, 'wait-request')
-      if ('failure' in state || 'failure' in request)
-        return fail({ kind: 'invalid', field: 'operation', reason: 'derived-operation' })
-      const requestBytes = new TextEncoder().encode(JSON.stringify(call.wait.request))
-      if (requestBytes.byteLength > call.wait.contract.request.maxBytes)
-        return fail({ kind: 'invalid', field: 'wait.request', reason: 'too-large' })
-      const keep = (operation: typeof state.ok, codec: typeof call.codec, bytes: Uint8Array) =>
-        retain({
-          principal: call.principal,
-          tenant: call.tenant,
-          call: call.call,
-          operation,
-          codec,
-          bytes: bytes.slice(),
-          source: call.execution.source,
+      const bodySignal = AbortSignal.any([execution.signal, shutdown.signal])
+      const body = createToolBodyScope({
+        binding: { principal, tenant, call, start, source: execution.source },
+        writes: {
+          begin: request => input.bodyWrites.begin(request),
+          append: request => input.bodyWrites.append(request),
+          seal: request => input.bodyWrites.seal(request),
+          inspect: request => input.bodyWrites.inspect(request),
+        },
+        signal: bodySignal,
+        limits: scope.ok.limits,
+      })
+      const local = scope.ok
+      let bodyClosing: ReturnType<ToolExecutionScope['finish']> | undefined
+      const finishBody = (exit: 'returned' | 'failed') => {
+        bodyClosing ??= body.finish(exit).then(answer => {
+          if (body.handoffConfirmed) bodies.delete(retireBody)
+          return answer
         })
-      const payload = await keep(state.ok, call.codec, call.state)
-      if ('failure' in payload) return payload
-      const kept = await keep(request.ok, waitRequestCodec, requestBytes)
-      if ('failure' in kept) return kept
-      return succeed({ payload: payload.ok.custody, request: kept.ok.custody })
-    },
-    async resumption(call) {
-      const read = await input.recovery({
-        principal: call.principal,
-        tenant: call.tenant,
-        call: call.call,
-      })
-      if ('failure' in read) return read
-      // The wait that resumes at this checkpoint, with the response its ledger committed.
-      const wait = read.ok.waits.find(
-        record =>
-          record.phase === 'responding' &&
-          canonicalDigest(record.intent.resume) === canonicalDigest(call.start.checkpoint),
-      )
-      if (wait?.phase !== 'responding')
-        return fail({ kind: 'invalid' as const, field: 'start', reason: 'no-accepted-decision' })
-      // The state was kept under the suspended segment's start, which the ResponseRecord names.
-      const operation = segmentOperation(wait.response.start.operation, 'checkpoint')
-      if ('failure' in operation)
-        return fail({ kind: 'invalid' as const, field: 'operation', reason: 'derived-operation' })
-      const kept = await input.readOutput({
-        tenant: call.tenant,
-        call: call.call,
-        operation: operation.ok,
-      })
-      if ('failure' in kept) return kept
-      if (
-        kept.ok === null ||
-        canonicalDigest(kept.ok.custody) !== canonicalDigest(call.start.checkpoint)
-      )
-        return fail({ kind: 'invalid' as const, field: 'start', reason: 'checkpoint-not-kept' })
-      return succeed({ checkpoint: kept.ok.bytes, response: wait.response })
+        return bodyClosing
+      }
+      const retireBody = () => finishBody('failed')
+      bodies.add(retireBody)
+      let finished: ReturnType<ToolExecutionScope['finish']> | undefined
+      return {
+        context: {
+          mode: local.context.mode,
+          signal: local.context.signal,
+          body: body.writer,
+          emit: update => local.context.emit(update),
+          wait: local.context.wait.bind(local.context),
+        },
+        limits: local.limits,
+        finish(exit) {
+          finished ??= Promise.all([local.finish(exit), finishBody(exit)]).then(
+            outcomes =>
+              outcomes.find(
+                answer =>
+                  'failure' in answer &&
+                  (answer.failure.kind === 'unknown' || answer.failure.kind === 'unavailable'),
+              ) ??
+              outcomes.find(answer => 'failure' in answer) ??
+              succeed(undefined),
+          )
+          return finished
+        },
+      }
     },
     async settle(call) {
-      const interrupted = interruption(call)
+      const authorInterruption = call.outcome.kind === 'failed' ? interruption(call) : null
+      const closing = call.closing.then(outcome => ({
+        outcome,
+        interrupted:
+          authorInterruption ??
+          ('failure' in outcome && outcome.failure.kind === 'cancelled'
+            ? interruption(call)
+            : null),
+      }))
       const author = call.operation.author
-      const operation = decodeToolOperationId(`${call.start.operation}/raw`)
-      if ('failure' in operation)
-        return fail({ kind: 'invalid', field: 'operation', reason: operation.failure.reason })
       const failed = (reason: string, cause: 'executor' | 'result' = 'result') => ({
         result: text.text(reason),
         terminal: { kind: 'failed', cause, diagnostic: reason } satisfies ToolTerminal,
@@ -297,16 +277,22 @@ export function createRuntimeAuthorExecution(
       }
       unencoded.delete(call.execution.signal)
       const bytes = encoded.ok.slice()
-      const raw = await retain({
-        principal: call.principal,
-        tenant: call.tenant,
-        call: call.call,
-        operation: operation.ok,
-        codec: call.outcome.kind === 'returned' ? author.codec.adoption : failureCodec,
-        bytes,
-        source: call.execution.source,
-      })
-      if ('failure' in raw) return raw
+      const closed = await closing
+      if (
+        'failure' in closed.outcome &&
+        (closed.outcome.failure.kind === 'unknown' || closed.outcome.failure.kind === 'unavailable')
+      )
+        return fail({
+          kind: 'unavailable',
+          dependency: 'author-scope',
+          diagnostic: closed.outcome.failure.reason,
+        })
+      const executionFailure =
+        call.outcome.kind === 'failed'
+          ? call.outcome.reason
+          : 'failure' in closed.outcome
+            ? closed.outcome.failure.reason
+            : null
       let projected:
         | ReturnType<typeof failed>
         | {
@@ -314,7 +300,7 @@ export function createRuntimeAuthorExecution(
             terminal: ToolTerminal
           }
       try {
-        if (call.outcome.kind === 'failed') projected = failed(call.outcome.reason, 'executor')
+        if (executionFailure !== null) projected = failed(executionFailure, 'executor')
         else {
           const decoded = author.codec.decode(bytes)
           const argumentsValue = savedArguments(author, call.request)
@@ -342,18 +328,84 @@ export function createRuntimeAuthorExecution(
           dependency: 'toolResultPolicy',
           diagnostic: projected.result.failure.reason,
         })
-      return succeed({
-        kind: 'final',
-        raw: raw.ok,
+      if (projected.terminal.kind === 'completed') {
+        validating++
+        try {
+          for (;;) {
+            if (shutdown.signal.aborted)
+              return fail({
+                kind: 'unavailable',
+                dependency: 'bodySchemas',
+                diagnostic: 'Body validation remains unresolved after executor retirement.',
+              })
+            const checked = await checkToolResultBody({
+              request: call.request,
+              result: projected.result.ok,
+              configuration: input.configuration,
+              ...(input.bodySchemas === undefined ? {} : { schemas: input.bodySchemas }),
+            })
+            if ('ok' in checked) break
+            if (checked.failure.kind === 'invalid' || checked.failure.kind === 'unsupported') {
+              projected = failed(checked.failure.reason)
+              break
+            }
+            if (shutdown.signal.aborted) return checked
+            await retry()
+          }
+        } finally {
+          validating--
+        }
+      }
+      if ('failure' in projected.result)
+        return fail({
+          kind: 'unavailable',
+          dependency: 'toolResultPolicy',
+          diagnostic: projected.result.failure.reason,
+        })
+      const finalOperation = decodeToolOperationId(`final:${canonicalDigest(call.start.operation)}`)
+      if ('failure' in finalOperation)
+        return fail({ kind: 'invalid', field: 'operation', reason: finalOperation.failure.reason })
+      const plan = (final: Pick<FinalRequest['final'], 'result' | 'terminal'>) =>
+        planFinal({
+          principal: call.principal,
+          tenant: call.tenant,
+          call: call.call,
+          operation: finalOperation.ok,
+          start: call.start,
+          source: call.execution.source,
+          final: {
+            kind: 'final',
+            ...final,
+            effect: {
+              kind: 'unknown',
+              diagnostic: 'Author completion does not prove the disposition of external effects.',
+            },
+          },
+        })
+      const planned = await plan({
         result: projected.result.ok,
-        terminal: interrupted ?? projected.terminal,
-        effect: {
-          kind: 'unknown',
-          diagnostic: 'Author completion does not prove the disposition of external effects.',
-        },
+        terminal: closed.interrupted ?? projected.terminal,
       })
+      // The ledger cannot keep this result, now or later. The call still ends: its final is a
+      // failure that names the refusal. Nothing of the refused final was written, so the same
+      // operation plans the replacement.
+      if (!('failure' in planned) || !isResultRefusal(planned.failure)) return planned
+      const refused = failed(`The ledger refused the result: ${refusalText(planned.failure)}`)
+      if ('failure' in refused.result) return planned
+      return plan({ result: refused.result.ok, terminal: closed.interrupted ?? refused.terminal })
     },
   }
+}
+
+/** A refusal that the content of the final decides: the same final is refused whenever it is sent. */
+function isResultRefusal(
+  failure: ToolFailure,
+): failure is Extract<ToolFailure, { kind: 'invalid' | 'unsupported' }> {
+  return failure.kind === 'invalid' || failure.kind === 'unsupported'
+}
+
+function refusalText(failure: Extract<ToolFailure, { kind: 'invalid' | 'unsupported' }>): string {
+  return failure.kind === 'invalid' ? `${failure.field}: ${failure.reason}` : failure.reason
 }
 
 /**

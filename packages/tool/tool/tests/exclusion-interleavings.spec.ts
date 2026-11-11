@@ -33,7 +33,7 @@ const excludedOf = (op: string) => ({
   },
 })
 
-type Hook = { matches: (i: LedgerCommitInput<Block>) => boolean; land: () => Promise<unknown> }
+type Hook = { matches: (i: LedgerCommitInput) => boolean; land: () => Promise<unknown> }
 type Entry = {
   label: string
   ops: string[]
@@ -43,13 +43,15 @@ type Entry = {
   revision: string
 }
 function hooked() {
-  const memory = createMemoryToolLedgerStore<Block>()
+  const memory = createMemoryToolLedgerStore()
   const hooks: Hook[] = []
   const log: Entry[] = []
   let label = ''
-  const store: ToolLedgerStore<Block> = {
+  const store: ToolLedgerStore = {
     durability: 'none',
     scanPending: input => memory.scanPending(input),
+    readRecord: memory.readRecord,
+    due: memory.due,
     read: d => memory.read(d),
     commit: async input => {
       const i = hooks.findIndex(h => h.matches(input))
@@ -119,6 +121,25 @@ describe('14 exclusion interleavings', () => {
     expect(landedOps(h.log, 'op-2')).toEqual([])
     expect(ok(await ledger.commands.releaseDelivery(rel('op-2'))).kind).toBe('released')
     expect((await h.records()).records.some(r => r.kind === 'exclusion')).toBe(false)
+  })
+
+  it('CallLifecycle Admit: a fence written before the call is due for removal; the admission of the call ends that schedule', async () => {
+    const h = hooked()
+    const ledger: ToolLedger<Principal, Block> = ledgerOver(h.store)
+    const tenant = admission('call-1', 'op-1').tenant
+    const dueKeys = async () => {
+      const read = await h.store.due(tenant, '9999-12-31T00:00:00.000Z' as never, 10)
+      if (read.kind !== 'complete') throw new Error('due index unreadable')
+      return read.entries.map(entry => entry.key)
+    }
+    await ledger.reads.lookup(lk('op-9'))
+    expect(await dueKeys()).toEqual(['call'])
+    ok(
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
+    )
+    expect(await dueKeys()).toEqual([])
   })
 
   it('14 exclusion: a fence of another operation does not exclude an in-flight admission', async () => {

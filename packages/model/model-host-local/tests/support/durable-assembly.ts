@@ -82,11 +82,11 @@ import {
   ModelHostAuthorityService,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
-  COMMAND_RESERVE_BYTES,
   callHandler,
   createSqlModelCommands,
   modelMigration,
   pendingHandler,
+  requestHandler,
   type SqlModelCommandsOptions,
 } from '@omne-harness/model-storage-sql'
 // The participant module of the model records. It is the default export of that member's
@@ -171,7 +171,6 @@ const OWNER: ModelConsumerOwnerDeclaration = {
   evidence: ADOPTION,
 }
 const CONSUMER = { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' }
-const CAPACITY = { bytes: '100000', blocks: '100', attachmentBytes: '100000' }
 const REQUEST: FixedModelRequest = {
   profile: ADOPTION,
   suppliers: [
@@ -203,7 +202,7 @@ const HOST_SETTINGS = {
   concurrencyLimit: 8,
   wakeCapacity: 64,
   scanBatchSize: 10,
-  scanIntervalMs: 0,
+  scanIntervalMs: 25,
 }
 const STAGE_SETTINGS = { maxRetainedAttempts: 64 }
 const PUSH_LIMITS: ResultPushLimits = {
@@ -229,9 +228,8 @@ const CORE_LIMITS = {
   resultPageParts: 2,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+  unacknowledgedResults: 10,
 }
-const MAX_CALL_BYTES = 1 << 20
 const DOMAIN = 'shared'
 const DIGEST = 'a'.repeat(64)
 const WAIT_MS = 4000
@@ -280,7 +278,11 @@ type SqlStorage = SqlModelCommandsOptions<unknown>['storage']
 type TenantDomainLookup = SqlModelCommandsOptions<unknown>['domains']
 type CommitRequest = Parameters<SqlStorage['commit']>[0]
 type CommitResult = Awaited<ReturnType<SqlStorage['commit']>>
-type Receipt = Extract<CommitResult, { kind: 'committed' | 'rolled_back' }>
+/** A stored receipt: what `query` answers. `commit` answers it with the `recalled` mark. */
+type Receipt = Extract<
+  Awaited<ReturnType<SqlStorage['query']>>,
+  { kind: 'committed' | 'rolled_back' }
+>
 type SqlIdentity = CommitRequest['identity']
 type MigrationPort = Parameters<typeof modelMigration.up>[0]
 type QueryRows = ReturnType<MigrationPort['execute']>
@@ -305,7 +307,9 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
 }
 
 type Domain = { readonly db: DatabaseSync; readonly receipts: Map<string, Receipt> }
-const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
+const HANDLERS = new Map(
+  [callHandler, pendingHandler, requestHandler].map(item => [item.handler, item]),
+)
 const keyOf = (identity: SqlIdentity) =>
   JSON.stringify([identity.scope, identity.operation, identity.operationKey])
 
@@ -367,6 +371,7 @@ function sqliteStorage(): SqlStorage {
     return domain
   }
   return {
+    database: {},
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request): Promise<CommitResult> {
       const domain = domainOf(request.identity.transactionDomain)
@@ -376,12 +381,12 @@ function sqliteStorage(): SqlStorage {
         return Promise.resolve(
           existing.inputDigest ===
             sha256({ identity: request.identity, commands: request.commands })
-            ? existing
+            ? { ...existing, recalled: true }
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       const receipt = executeCommit(domain, request)
       domain.receipts.set(key, receipt)
-      return Promise.resolve(receipt)
+      return Promise.resolve({ ...receipt, recalled: false })
     },
     query(identity) {
       const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))
@@ -450,6 +455,7 @@ function faultyStorage(inner: SqlStorage) {
   let fault: StorageFault | undefined
   const injected: { request: string; effect: StorageFault['effect'] }[] = []
   const storage: SqlStorage = {
+    database: inner.database,
     registerCombination: input => inner.registerCombination(input),
     async commit(request) {
       const selected = fault
@@ -609,9 +615,8 @@ function durableOptions(
     ...core,
     storage: faults.storage,
     domains: lookup([textOf(TENANT), textOf(OTHER_TENANT)], DOMAIN),
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
     send: { mirrorBytes: 1 << 24, sources: [source] },
   } satisfies SqlModelCommandsOptions<unknown>
   return { faults, options }
@@ -733,6 +738,7 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
     declare readonly recordMaterialization: ModelCommands<unknown>['recordMaterialization']
@@ -1202,8 +1208,7 @@ export async function durableSubject(
     const recordsFiber = root.plugin(Records, {
       owners: records.owners,
       limits: records.limits,
-      maxCallBytes: records.maxCallBytes,
-      maxCommandBytes: records.maxCommandBytes,
+      requestChunkBytes: records.requestChunkBytes,
       combinationVersion: records.combination.combinationVersion,
       send: { mirrorBytes: records.send.mirrorBytes, maxClaims: 64 },
     })
@@ -1486,7 +1491,6 @@ export async function durableSubject(
     otherTenant: OTHER_TENANT,
     request: REQUEST,
     consumer: CONSUMER,
-    capacity: CAPACITY,
     transport: {
       transport: countedTransport,
       sends: () => sends,

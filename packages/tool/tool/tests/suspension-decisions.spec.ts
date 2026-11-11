@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DurableEvidence, ToolRevision } from '@omne-harness/tool-contract'
 import type { Checkpoint, SuspensionRecord, ToolClock } from '@omne-harness/tool-contract/provider'
-import { createToolLedger } from '@omne-harness/tool'
+import { canonicalDigest, createToolLedger } from '@omne-harness/tool'
 import { nextRevision } from '../src/evidence.ts'
 import { admitCall, startHarness } from './start-values.ts'
 import {
@@ -22,18 +22,22 @@ import {
 } from './runtime-values.ts'
 
 const wait = 'op-facts/start/wait'
-const resume = evidence('resume')
+/** The state of the suspended segment as base64 text, and the request original as JSON text. */
+const STATE = Buffer.from('{"asked":"which file?"}').toString('base64')
+const REQUEST = JSON.stringify({ question: 'which file?' })
+const resume = { ...evidence('resume'), digest: canonicalDigest(STATE) }
 const schema = adoption('state-codec')
 
 function askFact(waitId: string) {
   const shape = { id: 'schema', revision: '1', digest: 'sha256:schema' }
   return {
     kind: 'wait',
+    request: REQUEST,
     value: {
       kind: 'ask',
       wait: waitId,
       resume,
-      request: evidence('request'),
+      request: { ...evidence('request'), digest: canonicalDigest(REQUEST) },
       schemas: {
         contract: adoption('contract'),
         request: shape,
@@ -131,11 +135,13 @@ async function waiting(withWait = true, waitId: string = wait) {
     suspension: SuspensionRecord,
     checkpoint: Checkpoint,
     operation = 'op-facts/start/suspended',
+    state = STATE,
   ) =>
     harness.commands.suspend({
       ...(await write(operation)),
       suspension,
       checkpoint,
+      state,
     })
   return {
     harness,
@@ -279,13 +285,14 @@ describe('the timing of a suspension', () => {
         waitUntil: () => Promise.reject(new Error('waitUntil belongs to timing')),
       },
       configurationOf({}),
-      { content: null, custody: ports.custody, releaseInspection: ports.releaseInspection },
+      { content: null, bodies: ports.bodies, releaseInspection: ports.releaseInspection },
     )
     const state = ok(
       await ledger.commands.suspend({
         ...(await f.write('op-facts/start/suspended')),
         suspension: planned,
         checkpoint: f.checkpointOf(),
+        state: STATE,
       }),
     )
     return { f, state }

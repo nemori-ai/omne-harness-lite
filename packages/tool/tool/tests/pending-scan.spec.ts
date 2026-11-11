@@ -47,7 +47,6 @@ function setup(script: BridgeScript = 'registers', options: StartOptions = {}) {
     environmentsPort: releasing,
     ...options,
   })
-  checkpoint.attach(harness)
   return { harness, checkpoint, bridge, authority }
 }
 

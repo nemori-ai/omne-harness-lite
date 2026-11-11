@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 import type { AgentCheckpoint, AgentJournal, Material } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { ok, operation } from './fixtures/common-journal.ts'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import { sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 const CONSUMER = { owner: 'suite', work: 'work', position: 'at', purpose: 'action' }
@@ -63,7 +64,9 @@ function lastEnvelopeDigest(s: SqlScene): string {
   const rows = s.controls?.select(
     `SELECT body FROM er_fact WHERE session = '${s.access.session}' AND ord = 0 AND pub = (SELECT MAX(pub) FROM er_fact WHERE session = '${s.access.session}')`,
   ).rows
-  return String((JSON.parse(String(rows?.[0]?.[0] ?? '{}')) as { digest?: string }).digest ?? '')
+  const body = rows?.[0]?.[0]
+  const text = body === undefined ? '{}' : unpackText(body as Uint8Array)
+  return String((JSON.parse(text) as { digest?: string }).digest ?? '')
 }
 
 describe('the head of the provider and the log of the core across a material preserve', () => {

@@ -10,12 +10,10 @@
 
 | 导出                                                                                                                            | 定义                                                        | 行为条款                   |
 | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------- |
-| `createSqlToolLedgerStore`、`SqlToolLedgerStore`                                                                                | [src/ledger-store.ts](../src/ledger-store.ts)               | TS-01、TS-02、TS-03、TS-09 |
-| `createSqlToolGuardedHostCommit`、`SqlToolGuardedHostCommit`、`SqlToolGuardedHostCommitInput`、`SqlToolGuardedHostCommitResult` | [src/guarded-host-commit.ts](../src/guarded-host-commit.ts) | TS-03、TS-11               |
+| `createSqlToolLedgerStore`、`SqlToolLedgerStore`                                                                                | [src/ledger-store.ts](../src/ledger-store.ts)               | TS-01、TS-02、TS-03、TS-09、TS-11、TS-14 |
+| `createSqlToolBodyStore`、`SqlToolBodyStore`、`SqlToolBodyStoreOptions`                                                       | [src/body-store.ts](../src/body-store.ts)                   | TS-03、TS-06、TS-09、TS-13 |
 | `createSqlToolConditionalCommit`、`SqlToolConditionalCommit`、`SqlToolConditionalCommitInput`、`SqlToolConditionalCommitResult`、`SqlToolCondition` | [src/conditional-commit.ts](../src/conditional-commit.ts) | TS-03、TS-12 |
-| `createSqlToolOutputCustody`                                                                                                    | [src/custody.ts](../src/custody.ts)                         | TS-03 至 TS-08             |
-| `readSqlToolOutputBytes`、`SqlToolOutputBytes`                                                                                  | [src/custody.ts](../src/custody.ts)                         | TS-03、TS-13               |
-| `SqlToolStorageOptions`、`SqlToolOutputCustodyOptions`、`CHUNK_ENVELOPE_BYTES`、`TOOL_STORAGE_OWNER`                            | [src/options.ts](../src/options.ts)                         | TS-07                      |
+| `SqlToolStorageOptions`、`TOOL_STORAGE_OWNER` | [src/options.ts](../src/options.ts) | TS-03 |
 | `toolStorageMaterials`、`ToolStorageMaterials`、`TOOL_PARTICIPANT`                                                              | [src/materials.ts](../src/materials.ts)                     | TS-10                      |
 
-端口形状 `ToolLedgerStore` 归 [`@omne-harness/tool`](../../tool/src/ledger-store.ts)，`ToolOutputCustody` 归 [`@omne-harness/tool-contract`](../../tool-contract/src/custody.ts)。
+端口形状 `ToolLedgerStore` 归 [`@omne-harness/tool`](../../tool/src/ledger-store.ts)，`ToolBodyStore` 归 [`@omne-harness/tool-contract`](../../tool-contract/src/body-store.ts)，通过该包的 provider 入口导出。

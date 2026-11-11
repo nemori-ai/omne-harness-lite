@@ -1,3 +1,4 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { createIndependentToolScope, canonicalDigest } from '@omne-harness/tool'
@@ -54,7 +55,7 @@ export function authorModule(
       if (definition.kind !== 'function') throw new Error('function fixture')
       const operation = defineToolOperation({
         parameters: { kind: 'declared', value: definition.parameters },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: ordinaryReturnFixture(adoption('codec')),
         author: {
           kind: 'ordinary',
           parameters: { adoption: adoption('parameters'), parse: parsed },
@@ -104,12 +105,12 @@ export const loadAuthor = (
     services: {},
   })
 
-type Final = Extract<ToolExecutionFact<ContentBlock>, { kind: 'final' }>
+type Final = Extract<ToolExecutionFact, { kind: 'final' }>
 export async function bindingFixture(
   consume?: ToolStartAuthority<string>['consume'],
 ): Promise<ToolExecutorBindingFixture<string, unknown> & Readonly<{ pins(): string }>> {
   let launches = 0
-  const actors = new Map<string, LocalAuthorExecution<ContentBlock>>()
+  const actors = new Map<string, LocalAuthorExecution>()
   const completes = new Map<AbortSignal, (value: Final) => void>()
   const results = new Map<AbortSignal, Final>()
   const held = new Set<AbortSignal>()
@@ -219,7 +220,12 @@ export async function bindingFixture(
     },
     finish,
     loseContinuity: async start => {
-      actor(start).lose(completedFinal().raw.custody)
+      actor(start).lose({
+        owner: 'author-values',
+        record: 'continuity',
+        revision: '1',
+        digest: 'sha256:continuity',
+      })
     },
     blindInspection: start => {
       actor(start).observationAvailable(false)

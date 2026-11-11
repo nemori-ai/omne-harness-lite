@@ -16,4 +16,6 @@
 
 ## 本包事实
 
-不适用。本包没有自己的形式模型，也没有登记形式任务。共同协议的模型性质与前提记在 [model-contract](../../../model-contract/verification/models/index.md)，那里也没有可执行模型。
+[CallEnds](call-ends/README.md) 检查“每次调用都有结局”：执行写入被确定拒绝时调用以失败收场，这次收场不会被确定拒绝，答复未确认之后 driver 被再次运行，消费者最终拿到结果。建模对象、性质、三个具名负控、运行命令与模型到代码的对应在该模型自己的 README。模型不覆盖执行被接管、进程重启与重试策略。
+
+共同协议的其他模型性质与前提记在 [model-contract](../../../model-contract/verification/models/index.md)。

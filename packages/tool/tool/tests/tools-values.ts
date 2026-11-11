@@ -1,3 +1,4 @@
+import { judgeCommittedToolResult } from '@omne-harness/tool-contract/provider'
 import { createReaderFixture, type ReaderFixture } from './reader-fixture.ts'
 import { createHash } from 'node:crypto'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -17,8 +18,8 @@ import {
   type Attachment,
   type ResultPage,
   type ToolArguments,
+  type ToolRenderedResult,
   type ToolResult,
-  type RawOutput,
 } from '@omne-harness/tool-contract'
 import {
   defaultResultPolicy,
@@ -28,17 +29,17 @@ import {
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { checkMessage } from '../src/tools-results.ts'
-import { settlementFixture } from './settlement-values.ts'
+import { settlementFixture, type SettlementValue } from './settlement-values.ts'
 import { startHarness } from './start-values.ts'
 import { scope } from './scope-values.ts'
 import { testAssembly } from './testing-values.ts'
 import {
+  testSettlementPorts,
   adoption,
   configuration,
   evidence,
   guards,
   ok,
-  operationId,
   principalA,
   referenceFor,
   request,
@@ -72,12 +73,12 @@ export const visible = (id: string, body: string) => ({
   ...text(id, body),
   visibility: { toHuman: true, toModel: true },
 })
-export function body(value: ToolResult<ToolMessageContentBlock>): string {
+export function body(value: ToolRenderedResult<ToolMessageContentBlock>): string {
   return value.content
     .flatMap(block => (block.kind === 'text' && block.visibility.toModel ? [block.text] : []))
     .join('\n')
 }
-export function token(value: ToolResult<ToolMessageContentBlock>, field: string): string {
+export function token(value: ToolRenderedResult<ToolMessageContentBlock>, field: string): string {
   const line = body(value)
     .split('\n')
     .find(
@@ -118,11 +119,13 @@ export async function authorRun(
   return checkMessage(ok(author.codec.decode(encoded)))
 }
 export async function sourceFixture(
-  value: ToolResult<Block> | ((raw: RawOutput) => ToolResult<Block>) = result([
-    visible('one', 'source'),
-  ]),
+  value: SettlementValue = result([visible('one', 'source')]),
   overrides: Partial<ToolsOptions> = {},
   deniedActions: ToolLedgerAction[] = [],
+  sourceOptions: Pick<
+    NonNullable<Parameters<typeof settlementFixture>[0]>,
+    'definition' | 'bodySchemas'
+  > = {},
 ) {
   const bytes = new TextEncoder().encode('中🙂\u0000')
   const attachment: Attachment = {
@@ -133,7 +136,7 @@ export async function sourceFixture(
     digest: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
   }
   const content = createMemoryToolContent<Principal>()
-  const f = await settlementFixture({ custody: content.custody, value })
+  const f = await settlementFixture({ ...sourceOptions, value })
   const settled = ok(await f.preserve())
   if (settled.phase !== 'settled') throw new Error('not settled')
   ok(content.controls.seed({ ...f.access, attachment, bytes }))
@@ -147,7 +150,7 @@ export async function sourceFixture(
     createMemoryToolClock(),
     config,
     {
-      custody: content.custody,
+      bodies: testSettlementPorts(f.harness.memory).bodies,
       releaseInspection: f.environment,
       content: content.reader,
     },
@@ -161,7 +164,6 @@ export async function sourceFixture(
       admissions: ledger.admissions,
       queues: ledger.queues,
       rejections: ledger.rejections,
-      facts: ledger.facts,
     },
     config,
   ).runtime
@@ -172,12 +174,13 @@ export async function sourceFixture(
     result: settled.result,
   }
   const reads = {
+    body: runtime.body,
     content: runtime.content,
     queries: {
       readResult: async (input: Parameters<typeof runtime.queries.readResult>[0]) => {
         const response = await runtime.queries.readResult(input)
         if ('failure' in response) return response
-        const checked = defaultResultPolicy.judgeResult(response.ok.value)
+        const checked = judgeCommittedToolResult(defaultResultPolicy, response.ok.value)
         if ('failure' in checked) throw new Error(checked.failure.reason)
         return succeed({ ...response.ok, value: checked.ok })
       },
@@ -236,21 +239,8 @@ export function registeredFixture(
         if (registered?.kind !== 'commands') throw new Error('not commands')
         const operation = registered.operations.find(([name]) => name === input.request.command)
         if (operation === undefined) throw new Error('not a command')
-        const bytes = ok(operation[1].author.codec.encode(value))
-        const raw = ok(
-          await h.custody.preserve({
-            principal: input.principal,
-            tenant: input.tenant,
-            call: input.call,
-            operation: operationId(`raw-${input.call}`),
-            codec: operation[1].author.codec.adoption,
-            bytes,
-            source: evidence('author-output'),
-          }),
-        )
         await h.binding.controls.finish(input.start, {
           kind: 'final',
-          raw,
           result: value,
           terminal: { kind: 'completed' },
           effect: { kind: 'not-occurred', evidence: evidence('read-only') },

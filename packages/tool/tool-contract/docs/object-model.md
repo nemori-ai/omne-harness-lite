@@ -4,6 +4,41 @@
 
 本页只列契约对象。实现包 `tool` 自有的对象见 tool 对象模型（`tool/docs/object-model.md`）。
 
+## 正文保管的关系与职责
+
+以下是 [有限期正文保管](../SPEC.md#正文存储端口与到期索引) 的职责关系，不要求逐项建立类、服务或进程。
+
+```mermaid
+classDiagram
+    class ToolOperation
+    class ReturnDeclaration
+    class ExecutionScope
+    class BodyWriter
+    class BodyEntry
+    class BodyStore
+    class CommittedResult
+    class DueIndex
+    class BodyReader
+    class Sweep
+    ToolOperation *-- ReturnDeclaration : 固定返回结构与策略
+    ExecutionScope *-- BodyWriter : 限定调用和输出屏障
+    BodyWriter --> BodyEntry : 账本提交 opened 后签发许可
+    BodyWriter --> BodyStore : 按许可写分块并封存
+    CommittedResult --> BodyEntry : 一次最终提交关联正文
+    CommittedResult --> DueIndex : 按期限排期
+    BodyReader --> BodyEntry : 核资格、关联与期限
+    BodyReader --> BodyStore : 按范围读取
+    Sweep --> DueIndex : 读到期项
+    Sweep --> BodyStore : 先删字节
+    Sweep --> BodyEntry : 再记 reclaimed
+```
+
+返回声明是值，随精确操作采用固定。writer 是调用期能力，其退出不能丢掉已受理写入。committed 固定结果版本、内联的通道值与正文期限，后续交付和读取不能改写该版本。正文条目由 Tool 账本管理，只有账本提交能使正文可达；正文存储只保存不可变分块与封存清单，没有业务状态。
+
+策略计量、预览选择和合法转换是纯判定。writer、读取及清扫分别暴露最小接口；普通作者没有全局保管权限，清扫没有执行工具或任意读取结果的权限。Tool 不认识 Session 实例，只核其公开交接证据。Cordis 负责组装这些能力及管理提供者生命周期，不决定正文属于哪个业务通道。
+
+到期判断和物理删除分开。读回不使用页租约，每页单独判断到期，不续期。原生文件目标不作为 Tool 正文登记。程序数据归程序交付，正文到期不删除它。
+
 ## 调用方怎样使用
 
 下例是职责伪代码。每个操作都要处理成功、拒绝和未知三类结果。它不表示某个实现已经提供全部操作，实现范围见各实现包的 SPEC。
@@ -29,7 +64,7 @@
     拒绝：读取资格不足时整次拒绝，不伪装为 data=none
     未知：读到内容不等于已承接，承接结果未知时不解除交付
     承接后调用 commands.releaseDelivery，带消费位置和交接证据
-        只解除这一版的交付关系，不删除全文
+        解除这一版的交付，正文期限独立
         回执未知时用返回的操作引用经 queries.queryOperation 认回，不重新发送意图
 
 控制方对原调用提交 commands.control：stop、withdraw（必须带 reach）或 background
@@ -56,7 +91,7 @@ Tool 建模自己承担的责任：一次原调用的真实执行、等待、控
 | 分类 | Tool 内的表示 | 原拥有者保留的责任 |
 | --- | --- | --- |
 | 上游公开语言 | 直接依赖其公开入口：TenantId、ContentBlock、Outcome（operation-result）、json-text、资产身份 | 上游拥有值的定义和演进；Tool 不建立同义类型 |
-| 本域定义的端口 | 契约声明、由外部实现的部分：启动资格（ToolStartAuthority，及其给外层调用方的视图 ToolStartFence）、结果接收（ToolResultReceiver）、决策桥（ToolDecisionBridge）与资源回应（ToolResourceResponses）、环境（ToolEnvironment）、执行者绑定（ToolBindings）、时钟（ToolClock）、实例宿主（ToolInstanceHost）、输出保管（ToolOutputCustody）、目录（ToolCatalog）、结果政策（ResultPolicy）、ToolChildren。每个端口的职责与失效见下文应用对象表。消费者能力档案 ToolConsumerProfile 是调用者交来的输入值 | 实现者对自己提供的事实负责，例如环境资源是否存在、决定是否唯一；端口按单一需要切分，没有为某个外部角色准备的字段 |
+| 本域定义的端口 | 契约声明、由外部实现的部分：启动资格（ToolStartAuthority，及其给外层调用方的视图 ToolStartFence）、结果接收（ToolResultReceiver）、决策桥（ToolDecisionBridge）与资源回应（ToolResourceResponses）、环境（ToolEnvironment）、执行者绑定（ToolBindings）、时钟（ToolClock）、实例宿主（ToolInstanceHost）、正文存储（ToolBodyStore）、目录（ToolCatalog）、结果政策（ResultPolicy）、ToolChildren。每个端口的职责与失效见下文应用对象表。消费者能力档案 ToolConsumerProfile 是调用者交来的输入值 | 实现者对自己提供的事实负责，例如环境资源是否存在、决定是否唯一；端口按单一需要切分，没有为某个外部角色准备的字段 |
 | 不建模 | 调用方的工作对象、调用方的推进动作、模型、决策方的界面、停止的业务原因 | 各自的拥有者；调用方用调用号、操作号和 ConsumerRef 与 Tool 的事实关联 |
 
 记录仓与范围授予核验者是 `tool` 实现包自己的端口，不在契约里，见 tool 对象模型（`tool/docs/object-model.md#跨域概念与内部可见范围`）。契约只规定 `ResourceScope.grant` 是范围拥有者授予的耐久证据，核验者由装配按范围拥有者声明（[SPEC](../SPEC.md#342-值定义和固定请求)）。`ProgramTools` 不是外部实现的端口：Tool 把它交给程序，见下文应用对象表。
@@ -80,7 +115,7 @@ Tool 建模自己承担的责任：一次原调用的真实执行、等待、控
 | ClockSegment / ToolTiming | 值及累计记录，来源 + epoch + marker | 前台实际运行量、暂停点和未知 | 转换同提交；不会恢复归零 |
 | Checkpoint / SuspensionRecord | 协议值，原暂停 operation | schema、已做效果、已消费答复、旧执行排除 | checkpoint 只供唯一后继 resume；普通函数没有它 |
 | RawOutput / ToolResult | 不可变结果值，保管身份及 resultVersion | 原值无损保管、展示内容、具名程序数据和附件 | 独立于执行环境；renderer 或输出校验失败也保留原件 |
-| Delivery | 聚合内实体，resultVersion + delivery + consumer | 待交付或已解除关系、生产侧回执 | 每个晚到版本各有一项；解除不删除全文 |
+| Delivery | 聚合内实体，resultVersion + delivery + consumer | 待交付或已解除关系、生产侧回执 | 每个晚到版本各有一项；解除不改变正文期限 |
 | ProcessProjection | 持久投影，call + cursor + block index | 已展示过程的快照和增量顺序 | 无活体仍能读取；不能进入消费方的请求内容 |
 | AccountFact | 不可变来源事实，owner/event/start/revision | 原执行用量、未知和费用修订 | 调用终局后继续补录；读取账目不授正文权 |
 | FactProgress | 持久源流记录，start + source | 已保存cursor、待确认FactReceipt | receiveFacts同提交，恢复经loadRecovery，不读私表 |
@@ -180,7 +215,7 @@ classDiagram
 
 实例状态。每次执行有一个独有的 ToolExecutionScope，它是输出顺序、容量、等待 key 和收尾状态的唯一写者。它创建的 ToolExecutionContext 只把受限的 emit、wait 和 signal 借给作者。上下文可处于接收、等待、收尾或关闭阶段。等待期间可以接收合法过程输出，但只能认回当前 key 的等待。收尾关闭新原语入口，输出屏障与等待清理继续。检查点保存的是协议数据和提供者明确支持的程序位置，不保存这个对象或 Promise。完整守卫与取消优先级归 [P11](../SPEC.md#p11-作者输出与等待原语)。ToolInstanceHost 的调度与目录、驱动协程、live execution、signal 和订阅也是实例状态，由获得它们的宿主持有。独立协程负责某一段推进；Cordis fiber 负责其服务贡献与可撤资源。它们退出都不能删除 ToolCall。
 
-持久状态。本域有两个持久一致边界。调用域以 ToolCall 为持久聚合根，由 Commands 唯一写。队列域以 QueueReservation 跨调用持久，同一并发范围内原子裁定。契约不要求两个边界共同事务，跨域转换的顺序见 tool 的 architecture（`tool/docs/architecture.md#队列域与跨域提交`）。协议记录、操作回执、待办和计时证据由存储承诺耐久，原输出和结果经 ToolOutputCustody 保管。从这些值重建协调器，不反序列化对象图。每次读取和变更都核当前资格及原归属。StartPermit 可失效，不是永久授权。
+持久状态。本域有两个持久一致边界。调用域以 ToolCall 为持久聚合根，由 Commands 唯一写。队列域以 QueueReservation 跨调用持久，同一并发范围内原子裁定。契约不要求两个边界共同事务，跨域转换的顺序见 tool 的 architecture（`tool/docs/architecture.md#队列域与跨域提交`）。协议记录、操作回执、待办、计时证据与结果的内联通道值由记录仓承诺耐久，卸载正文的字节由 ToolBodyStore 保管。从这些值重建协调器，不反序列化对象图。每次读取和变更都核当前资格及原归属。StartPermit 可失效，不是永久授权。
 
 ## 状态与转移
 
@@ -202,7 +237,7 @@ stateDiagram-v2
     Settled --> Settled: 迟到事实 控制 保管与清理
 ```
 
-下图是队列条目（QueueReservation）的阶段，边上标调用域的条件。释放执行名额与删除条目是两件事：条目停泊时只释放执行名额，凭释放依据删除条目时才写墓碑。规则见 [P02](../SPEC.md#p02-定义准入与队列)。
+下图是队列条目（QueueReservation）的阶段，边上标调用域的条件。释放执行名额与删除条目是两件事：条目停泊时只释放执行名额，凭释放依据才删除条目。删除不留墓碑，已释放是调用域的事实。规则见 [P02](../SPEC.md#p02-定义准入与队列)。
 
 ```mermaid
 stateDiagram-v2
@@ -214,7 +249,7 @@ stateDiagram-v2
     Parked --> Ready: 答复已接受 以新序号重新排队
     Held --> Deleted: 释放依据成立
     Parked --> Deleted: 调用收场 释放依据 suspended-exclusion
-    Deleted --> [*]: 写墓碑
+    Deleted --> [*]
     note right of Parked
         不持有执行名额
         仍计入 queueCapacity
@@ -296,7 +331,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | ToolProvider | 一个 ToolRuntime，加恢复、静默与交接入口（recover、quiesce、inspectDrain、handover） | 受信恢复者的 Access；handover 另带 successor 与 inventory | 由实现包的 `createToolRuntime` 产生；它的构造依赖（commands、bindings、environments、decisions、instances、clock、resultPolicy、authority、resources、custody、catalog 等端口）属于实现包，见 tool 的 public-api（`tool/docs/public-api.md`） |
 | ToolCommands 提供者 | 契约只规定接口和行为。提供者自己的存储、资格核验和队列守卫见 tool 对象模型（`tool/docs/object-model.md`） | WriteContext 或 Mutation、明确协议值 | 不可用返回 unavailable/commit-unknown；不能换内存实现冒称耐久 |
 | ToolCall 决定器 | 无外部服务，只读已核 guard 快照 | 当前状态、具名命令 | 纯计算结果含变更与任务；事务端再次核 revision/queue/guard |
-| ToolDriver | Commands、ToolBindings、ToolEnvironment、ToolStartAuthority、ToolDecisionBridge、ToolResourceResponses、ToolOutputCustody、ToolClock、ToolChildren 的阶段适配器 | tenant/call、host 提供的 instance、宿主取消 signal（`run`） | 从事实重建协调，不重放外部调用；查询未知仍能承担责任 |
+| ToolDriver | Commands、ToolBindings、ToolEnvironment、ToolStartAuthority、ToolDecisionBridge、ToolResourceResponses、ToolClock、ToolChildren 的阶段适配器 | tenant/call、host 提供的 instance、宿主取消 signal（`run`） | 从事实重建协调，不重放外部调用；查询未知仍能承担责任 |
 | ToolLoader / ToolBindingRegistry | 设置快照适配器、schema、资格守卫 / 已核装载贡献 | load 输入 `{ asset, settings, module, services }` / ToolLoadedRegistration（带登记键、派生 definition 与 shape）与 ToolAuthority | C 为构造配置，A 为调用参数，E 为服务依赖；不互相替代。登记表按登记键查，不做层序；同键规则见 [G7](../SPEC.md#342-契约缺口决定) |
 | ToolBindings | 资产/装配的合法采用解析、执行提供者映射 | 固定 adoption、原 start 或消费方档案 | resolve 新发起与 recover 原查询分面；不自动取最新实现 |
 | ToolRecoveryBinding | `ToolBindings.recover` 按原启动记录交出的恢复面 | 原 start、事实回执、暂停记录、控制派发 | 只有原事实查询与控制（acknowledge、inspectStart、inspectSuspension、stop、inspectControl），没有 start；撤权后仍须有受权托管者处理原责任 |
@@ -319,7 +354,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | PreparedEnvironment | 环境拥有者产生受限 E 和持久资源身份 | 不接受任意重绑定 | E 不可序列化；清理通过环境协议，非对象销毁即业务完成 |
 | ToolDecisionBridge | 决策方的 ensure/inspect/resolve/invalidate 适配 | 原 wait、请求登记、决定和终局依据 | 决定仍由决策方唯一拥有，不把普通消息当决定 |
 | ToolResourceResponses | 各资源协议登记、认回、到期、失效及资格校验器 | 原等待、受信应答/到期证据 | 与决策方分开；没有默认资源超时 |
-| ToolOutputCustody / ContentReader | 耐久内容与附件提供者、当前读取资格 | 原 operation、codec/bytes 或精确结果引用 | 返回耐久证据；临时 URL 不够；读取与删除权分开 |
+| ToolBodyStore / ContentReader | 正文存储与附件字节提供者、当前读取资格 | 写入许可与正文引用，或精确结果引用 | 正文存储只按许可写、按键读与删，没有业务状态；临时 URL 不够；读取与删除权分开 |
 | ToolCatalog | 合法定义选择、消费者能力与设置读取 | inspect/search/usage 的范围 | 同实例数据变化可重求值，不依赖 Cordis 重跑；常驻项的 name 与参数形状在持有者存续期间不变（[R1](../SPEC.md#会话常驻规则r1r5)） |
 | ToolInstanceHost | 长期宿主上下文、调度器、目录及发布资格 | 安装 driver，按 call 唤醒 | 不挂在调用方下；同 call 提示归并；可从扫描补偿 |
 | ToolDirectory / ToolHandle | 发布资格与贡献 token / 发布代次 `(instance, generation)`、该代次的过程流 `stream` 与只服务该引用的观察源 `observation` | connect（受信路由查找，只服务实例绑定）；普通观察经门面的 `instances.current` 与 `observation.observe({ ref, access, signal })`，没有 `after` | 只提供观察路由；已建立的观察在代次替换后以 `producer-ended`/`stale-instance` 结束，对非当前代次的新观察请求在门面层得到 `stale-stream`，不暗连后继。按 [SPEC D-10](../SPEC.md#公共流协议上的观察)；门面实现在 `tool/src/stream-facade.ts` |
@@ -356,7 +391,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | [CAP-TL06](../verification/README.md#产品到成员的覆盖) 等待答复 | WaitIntent/WaitRecord、ResponseRecord、ToolDecisionBridge、ToolResourceResponses | 一次等待只有一个有效答复；登记或确认丢失后可认回；Ask 不用资源超时 |
 | [CAP-TL07](../verification/README.md#产品到成员的覆盖) 结果及采用 | ToolAuthor、OutputCodec、ResultPolicy、RawOutput、ToolResult | 原件先于渲染与政策检查保管；失败不重跑，不假报耐久 |
 | [CAP-TL08](../verification/README.md#产品到成员的覆盖) 过程观察 | ProcessBlock、公共 `StreamFrame` 上的 `ToolStreamSnapshot` / `ToolStreamDelta` / `ToolStreamEnd`、ProcessSnapshot、ProcessProjection | 保存先于展示；快照与增量无缝隙；人用内容不进入消费方的请求 |
-| [CAP-TL09](../verification/README.md#产品到成员的覆盖) 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | 回执丢失后可认回；每个晚到版本各有交付；解除不删除全文 |
+| [CAP-TL09](../verification/README.md#产品到成员的覆盖) 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | 回执丢失后可认回；每个晚到版本各有交付；解除不改变正文期限，不删除原生资源 |
 | [CAP-TL10](../verification/README.md#产品到成员的覆盖) 控制与撤回 | ToolControl、ControlDispatch/Progress、PhysicalExecution | 受理不等于已停；拒绝或未知不假报停止；withdraw 的 reach 必填且范围分别生效；reach 不及目标当时的关系时回 rejected（out-of-reach），调用不变 |
 | [CAP-TL11](../verification/README.md#产品到成员的覆盖) 原调用恢复 | ToolRecovery、ToolTask、RecoveryBinding、Checkpoint、DrainState | 响应丢失或查询未知时认回原操作；被围栏的旧协调者不再推进；恢复不产生第二次执行 |
 | [CAP-TL12](../verification/README.md#产品到成员的覆盖) 执行账 | CallAccount、recordAccount、ToolAccounts | 同源事实不重计；修订替代原值；未知不当作零；读取账目不披露内容 |

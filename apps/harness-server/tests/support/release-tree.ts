@@ -9,6 +9,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { DatabaseSync } from 'node:sqlite'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import { expect } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { ListPoolSchema, type PoolItem } from '@omne-harness/human-intervention'
@@ -211,10 +212,17 @@ function sqliteFiles(storageRoot: string): string[] {
   return files
 }
 
-/** The durable Tool records of the tenant domain: call states and queue entries, read from SQLite. */
-export function toolRecords(storageRoot: string): Readonly<{ phases: string[]; stages: string[] }> {
-  const phases: string[] = []
-  const stages: string[] = []
+/** One row of the Tool ledger as SQLite holds it: the domain it belongs to and its record. */
+type LedgerRow = Readonly<{ kind: string; name: string; record: Record<string, unknown> }>
+
+/**
+ * The Tool ledger rows of every tenant domain under `storageRoot`. The store keeps a record as
+ * packed text, and the fixed request of a call record in a column of its own: both are read back
+ * the way the store reads them.
+ */
+function ledgerRows(storageRoot: string): readonly LedgerRow[] {
+  const rows: LedgerRow[] = []
+  const unpacked = (value: unknown) => JSON.parse(unpackText(value as Uint8Array)) as unknown
   for (const file of sqliteFiles(storageRoot)) {
     const db = new DatabaseSync(file, { readOnly: true })
     try {
@@ -222,20 +230,39 @@ export function toolRecords(storageRoot: string): Readonly<{ phases: string[]; s
         .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tl_record'`)
         .get()
       if (table === undefined) continue
-      for (const row of db.prepare(`SELECT record FROM tl_record`).all()) {
-        const record = JSON.parse(String(row['record'])) as {
-          kind: string
-          call?: { state?: { phase?: string } }
-          entry?: { stage?: string }
-        }
-        if (record.kind === 'call' && record.call?.state?.phase !== undefined)
-          phases.push(record.call.state.phase)
-        if (record.kind === 'queue-entry' && record.entry?.stage !== undefined)
-          stages.push(record.entry.stage)
+      for (const row of db.prepare(`SELECT kind, name, record, fixed FROM tl_record`).all()) {
+        const record = unpacked(row['record']) as Record<string, unknown>
+        const call = record['call']
+        rows.push({
+          kind: String(row['kind']),
+          name: String(row['name']),
+          record:
+            row['fixed'] === null || typeof call !== 'object' || call === null
+              ? record
+              : { ...record, call: { ...call, request: unpacked(row['fixed']) } },
+        })
       }
     } finally {
       db.close()
     }
+  }
+  return rows
+}
+
+/** The durable Tool records of the tenant domain: call states and queue entries, read from SQLite. */
+export function toolRecords(storageRoot: string): Readonly<{ phases: string[]; stages: string[] }> {
+  const phases: string[] = []
+  const stages: string[] = []
+  for (const row of ledgerRows(storageRoot)) {
+    const record = row.record as {
+      kind: string
+      call?: { state?: { phase?: string } }
+      entry?: { stage?: string }
+    }
+    if (record.kind === 'call' && record.call?.state?.phase !== undefined)
+      phases.push(record.call.state.phase)
+    if (record.kind === 'queue-entry' && record.entry?.stage !== undefined)
+      stages.push(record.entry.stage)
   }
   return { phases, stages }
 }
@@ -258,39 +285,28 @@ export type ToolCallRow = Readonly<{
 export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
   const calls = new Map<string, { tool: string; phase: string }>()
   const entries = new Map<string, NonNullable<ToolCallRow['entry']>>()
-  for (const file of sqliteFiles(storageRoot)) {
-    const db = new DatabaseSync(file, { readOnly: true })
-    try {
-      const table = db
-        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tl_record'`)
-        .get()
-      if (table === undefined) continue
-      for (const row of db.prepare(`SELECT name, record FROM tl_record`).all()) {
-        const record = JSON.parse(String(row['record'])) as {
-          kind: string
-          call?: {
-            call: string
-            state: { phase: string }
-            request: { availability: { definition?: { name: string } } }
-          }
-          entry?: { call: string; ordinal: string; stage: string; scopeBudget: number | null }
-        }
-        if (record.kind === 'call' && record.call !== undefined)
-          calls.set(record.call.call, {
-            tool: record.call.request.availability.definition?.name ?? '',
-            phase: record.call.state.phase,
-          })
-        if (record.kind === 'queue-entry' && record.entry !== undefined)
-          entries.set(record.entry.call, {
-            domain: String(row['name']),
-            ordinal: record.entry.ordinal,
-            stage: record.entry.stage,
-            scopeBudget: record.entry.scopeBudget,
-          })
+  for (const row of ledgerRows(storageRoot)) {
+    const record = row.record as {
+      kind: string
+      call?: {
+        call: string
+        state: { phase: string }
+        request: { availability: { definition?: { name: string } } }
       }
-    } finally {
-      db.close()
+      entry?: { call: string; ordinal: string; stage: string; scopeBudget: number | null }
     }
+    if (record.kind === 'call' && record.call !== undefined)
+      calls.set(record.call.call, {
+        tool: record.call.request.availability.definition?.name ?? '',
+        phase: record.call.state.phase,
+      })
+    if (record.kind === 'queue-entry' && record.entry !== undefined)
+      entries.set(record.entry.call, {
+        domain: row.name,
+        ordinal: record.entry.ordinal,
+        stage: record.entry.stage,
+        scopeBudget: record.entry.scopeBudget,
+      })
   }
   return [...calls]
     .map(([call, { tool, phase }]) => ({ call, tool, phase, entry: entries.get(call) ?? null }))
@@ -310,35 +326,20 @@ export type ToolCallLedger = Readonly<{
   waits: readonly Readonly<{ phase: string; cause: string | null }>[]
   /** The duties of the call that are still there: the kind, and the action of a wait duty. */
   tasks: readonly string[]
-  /** The queue domain holds the tombstone of the call: its entry was released. */
+  /**
+   * The entry of the call was released: the call settled with a released queue position and the
+   * queue domain holds no entry of it. A release deletes the entry and writes nothing else.
+   */
   released: boolean
 }>
 
 /** The Tool calls of the tenant domain with their waits and duties, read from SQLite. */
 export function toolLedger(storageRoot: string): readonly ToolCallLedger[] {
-  type Row = { kind: string; name: string; record: Record<string, unknown> }
-  const rows: Row[] = []
-  for (const file of sqliteFiles(storageRoot)) {
-    const db = new DatabaseSync(file, { readOnly: true })
-    try {
-      const table = db
-        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tl_record'`)
-        .get()
-      if (table === undefined) continue
-      for (const row of db.prepare(`SELECT kind, name, record FROM tl_record`).all())
-        rows.push({
-          kind: String(row['kind']),
-          name: String(row['name']),
-          record: JSON.parse(String(row['record'])) as Record<string, unknown>,
-        })
-    } finally {
-      db.close()
-    }
-  }
-  const released = new Set(
+  const rows = ledgerRows(storageRoot)
+  const queued = new Set(
     rows.flatMap(row =>
-      row.record['kind'] === 'queue-release'
-        ? [String((row.record['release'] as { call: string }).call)]
+      row.record['kind'] === 'queue-entry'
+        ? [String((row.record['entry'] as { call: string }).call)]
         : [],
     ),
   )
@@ -350,6 +351,7 @@ export function toolLedger(storageRoot: string): readonly ToolCallLedger[] {
         phase: string
         terminal?: { kind: string }
         execution: { kind: string }
+        queue: { kind: string }
       }
       request: { availability: { definition?: { name: string } } }
     }
@@ -371,7 +373,7 @@ export function toolLedger(storageRoot: string): readonly ToolCallLedger[] {
           const task = row.record['task'] as { kind: string; action?: string }
           return [task.action === undefined ? task.kind : `${task.kind}/${task.action}`]
         }),
-        released: released.has(call.call),
+        released: call.state.queue.kind === 'released' && !queued.has(call.call),
       },
     ]
   })

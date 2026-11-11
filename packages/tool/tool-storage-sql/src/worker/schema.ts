@@ -1,34 +1,50 @@
 // The tables of the Tool storage. Every table is keyed by tenant first, and every statement of the
 // participant and the read handlers filters on it, so rows of another tenant are never read even
 // in a store that holds them by mistake. The ledger tables keep the records of the ToolLedgerStore
-// domains; the custody tables keep originals by chunk and seal each one with a manifest. Custody
-// rows never touch `tl_domain`: they move no ledger domain revision.
+// domains: `record` is the part of a record that changes, `fixed` the part that is written once
+// and never again (NULL for a record that has none). The body tables keep the immutable chunks and the manifest of each body. Body rows
+// never touch `tl_domain`: they move no ledger domain revision.
 export const SCHEMA_STATEMENTS: readonly string[] = [
   `CREATE TABLE tl_domain (
     tenant TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, revision TEXT NOT NULL,
     PRIMARY KEY (tenant, kind, name)) STRICT`,
   `CREATE TABLE tl_record (
     tenant TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL,
-    record TEXT NOT NULL, PRIMARY KEY (tenant, kind, name, key)) STRICT`,
-  `CREATE TABLE tl_chunk (
-    tenant TEXT NOT NULL, call TEXT NOT NULL, operation TEXT NOT NULL, idx INTEGER NOT NULL,
-    data BLOB NOT NULL, PRIMARY KEY (tenant, call, operation, idx)) STRICT`,
-  `CREATE TABLE tl_manifest (
-    tenant TEXT NOT NULL, call TEXT NOT NULL, operation TEXT NOT NULL, kind TEXT NOT NULL,
-    digest TEXT NOT NULL, bytes INTEGER NOT NULL, chunks INTEGER NOT NULL, sha256 TEXT NOT NULL,
-    seal TEXT NOT NULL, answer TEXT NOT NULL, PRIMARY KEY (tenant, call, operation)) STRICT`,
+    record BLOB NOT NULL, fixed BLOB, PRIMARY KEY (tenant, kind, name, key)) STRICT`,
+  // The body store: immutable chunks of one body and the one manifest that seals them.
+  `CREATE TABLE tl_body_chunk (
+    tenant TEXT NOT NULL, call TEXT NOT NULL, body TEXT NOT NULL, seq INTEGER NOT NULL,
+    data BLOB NOT NULL, PRIMARY KEY (tenant, call, body, seq)) STRICT`,
+  `CREATE TABLE tl_body_manifest (
+    tenant TEXT NOT NULL, call TEXT NOT NULL, body TEXT NOT NULL, chunks INTEGER NOT NULL,
+    bytes INTEGER NOT NULL, digest TEXT NOT NULL, PRIMARY KEY (tenant, call, body)) STRICT`,
+  // The due index of the ledger: one entry per scheduled key of a domain, read by tenant and instant.
+  `CREATE TABLE tl_due (
+    tenant TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL,
+    due_at TEXT NOT NULL, PRIMARY KEY (tenant, kind, name, key)) STRICT`,
+  `CREATE INDEX tl_due_by_instant ON tl_due (tenant, due_at)`,
 ]
 
-export const TOOL_TABLES: readonly string[] = ['tl_domain', 'tl_record', 'tl_chunk', 'tl_manifest']
+export const TOOL_TABLES: readonly string[] = [
+  'tl_domain',
+  'tl_record',
+  'tl_body_chunk',
+  'tl_body_manifest',
+  'tl_due',
+]
 
 /** The participant name: the one writer of every `tl_` table. */
 export const PARTICIPANT = 'tool'
 
-export const MIGRATION = Object.freeze({ owner: 'tool', id: '001-tool-ledger-custody' })
+/**
+ * The r6 baseline. A database migrated under the pre-r6 baseline (`001-tool-ledger-custody`)
+ * holds a marker this catalog does not list, so the provider quarantines it instead of migrating.
+ */
+export const MIGRATION = Object.freeze({ owner: 'tool', id: 'r6-001-tool-ledger-body-due' })
 
 // 调用域的待办标记（契约 P01「通知丢失由 scanPending 补偿」）：有待推进工作的调用一行，与调用域的
 // 记录在同一事务里写下或删掉。主键就是扫描的索引：按租户、再按调用身份的键集分页，不读调用记录。
-// 001 已经发布，它的模块字节不能改，所以这张表由下一份迁移建立。
+// 这张表由基线之后的一份迁移建立，基线的模块字节不变。
 export const PENDING_STATEMENTS: readonly string[] = [
   `CREATE TABLE tl_pending (
     tenant TEXT NOT NULL, call TEXT NOT NULL, PRIMARY KEY (tenant, call)) STRICT, WITHOUT ROWID`,
@@ -36,13 +52,18 @@ export const PENDING_STATEMENTS: readonly string[] = [
 
 export const PENDING_TABLES: readonly string[] = ['tl_pending']
 
-export const PENDING_MIGRATION = Object.freeze({ owner: 'tool', id: '002-tool-pending' })
+export const PENDING_MIGRATION = Object.freeze({ owner: 'tool', id: 'r6-002-tool-pending' })
 export const PROTOCOL = '1'
 
 export const LEDGER_READ_HANDLER = 'tool.ledger.read'
-export const MANIFEST_READ_HANDLER = 'tool.custody.manifest'
-export const CHUNK_READ_HANDLER = 'tool.custody.chunk'
+export const BODY_READ_HANDLER = 'tool.body.read'
+export const DUE_READ_HANDLER = 'tool.due.read'
 export const PENDING_READ_HANDLER = 'tool.ledger.pending'
+
+/** The most chunks one body read returns; the adapter reads a longer range in several reads. */
+export const BODY_READ_CHUNKS = 64
+/** The most due entries one read returns. */
+export const DUE_READ_ENTRIES = 1_000
 
 /** The most rows one ledger domain read returns; a larger domain is refused, never truncated. */
 export const LEDGER_READ_ROWS = 100_000

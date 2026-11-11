@@ -16,6 +16,7 @@ import { evidence } from '@omne-harness/session-contract/testing'
 import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
 import { m0Checkpoint } from './fixtures/adopted-request.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import { sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
@@ -202,7 +203,10 @@ describe('a commit that brings no new fact (R2-D307)', () => {
           s.controls?.select(
             `SELECT body FROM er_fact WHERE session = '${s.access.session}' AND pub = ${String(pub)} AND ord = 0`,
           ).rows ?? []
-        ).reduce((sum, row) => sum + Buffer.byteLength(String(row[0]), 'utf8'), 0),
+        ).reduce(
+          (sum, row) => sum + Buffer.byteLength(unpackText(row[0] as Uint8Array), 'utf8'),
+          0,
+        ),
       )
     }
     expect(Math.max(...sizes)).toBeLessThan(512)

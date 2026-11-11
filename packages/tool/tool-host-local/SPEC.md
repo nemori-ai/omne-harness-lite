@@ -16,11 +16,28 @@
 
 R2-D60（[#421 的采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6587795951)）限定本波只启动可信来源明确判定不需授权许可的完整固定动作。`permitRequirements` 的可选性只保持旧构造形状，缺席时不允许新启动。生产来源由装配提供，完整授权许可的 grant/consume 配对留在波 3。本包不从空资源、空能力列表、工具名或访问资格推导无需许可。
 
-### 1 排序域
+### 1 排序域与放置
 
-协调器的全部记录放在记录仓的 `host` 域，每个租户一个域，键是 `start-coordinator`。每个操作读这个域、做决定、按域修订号条件提交，同一进程内同一租户的操作还经过该租户的串行区。所以同一租户的许可、受理、拒绝、排除与失效有一个共同的先后，它就是提交的先后。排序只在一个租户的域内需要成立，不同租户的操作不互相排队。修订冲突时重读重判，最多 `commitAttempts` 次，用尽后回复 `unavailable`。
+一次调用的启动事实（许可、受理、启动拒绝、整次调用的排除、排除操作与排除标记）放在该调用自己的 `host` 域 `start@<call>`。守卫与失效操作放在租户级的 `host` 域 `start-guards`，它只随控制动作增长，与调用数无关。域名由 [host-domains.ts](src/host-domains.ts) 统一生成。热路径只读本调用的域，`prepare` 与 `consume` 另读 `start-guards`；`inspect`、`exclude` 与 `invalidate` 只读自己写的域。没有任何随租户历史增长的读取，所以每次调用的读写量与该租户已结算的调用数无关（能力组[部署无关原则](../docs/architecture.md#部署无关原则)第 6、7 条）。
 
-实施状态：租户串行区是本包必须兑现的承诺。仅有进程级串行区的提供者不满足该隔离要求。成员测试与实际 prepare 路径的验证完成前，不能从本条声明推定已实现。
+宿主全部 `host` 域的放置：
+
+| 事实                                 | 域                                                          | 读取方式                                       | 大小随什么增长                                                       |
+| ------------------------------------ | ----------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
+| 启动许可、受理、拒绝、排除及排除操作 | `start@<call>`                                              | 整读（一个调用的几条记录）                     | 该调用的启动动作                                                     |
+| 守卫与失效操作                       | `start-guards`                                              | 整读                                           | 控制动作，不随调用数                                                 |
+| 来源绑定、转发目标槽                 | `source@<call>`                                             | 按键读                                         | 不增长                                                               |
+| 转发收到的副本                       | 父调用转发槽所在的 `source@<目标 call>`，每个交付键一条记录 | 按键读；父调用交付释放时整读该域一次并删除副本 | 该父调用目标的交付数，随父交付释放归零                               |
+| 结果交付记录                         | `delivery@<call>`                                           | 按键读                                         | 该调用的结果版本数                                                   |
+| 环境获取记录                         | `environment@<call>`                                        | 按键读                                         | 该调用的资源数                                                       |
+| 环境保留作用域                       | `retention@<作用域摘要>`                                    | 按键读；不删除                                 | 作用域记录随已接手的存活资源数；收场事实是按键冷记录，从不被汇总读取 |
+| 控制主体                             | `control@<call>`                                            | 按键读                                         | 不增长                                                               |
+
+以调用标识为名的 `start@<call>`、`source@<call>`、`delivery@<call>` 与 `environment@<call>` 随所属调用删除。删除由 Tool 账本的清扫在调用域到期时执行，规则见 tool 的[调用状态的生命周期](../tool/SPEC.md#调用状态的生命周期)。宿主自己不为这些域排期。
+
+`prepare` 与 `consume` 读本调用的域与 `start-guards`、做决定、按本调用域的修订号条件提交。`consume` 的受理提交另带读集断言：`start-guards` 的修订号仍等于本次读到的修订号，任一不符即 `conflict`、不写入。失效在受理读到守卫之后、受理提交之前落下时，受理提交冲突，重读看到守卫前进，回复永久拒绝（[start-coordinator.spec.ts](tests/start-coordinator.spec.ts) 在该窗口内注入失效）。两个域没有共同的修订顺序，受理与失效的先后由提交裁定：失效先提交则本次重读看到守卫前进、提交永久拒绝；受理先提交则失效落在它之后、启动在途。失效在提交之后才回复证据，所以已经回复的失效一定被之后的受理看到（P04）。这个栅栏由 [StartConsume 模型](verification/models/start-consume/README.md)检查。修订冲突时重读重判，最多 `commitAttempts` 次，用尽后回复 `unavailable`。
+
+同一进程内，写同一个域的操作还经过该域的串行区，它只减少同域操作的修订冲突，不是先后正确的前提，也不跨域排序。
 
 本排序域只在一个进程内验证过。两个进程共用记录仓的装配没有验证，所以本协调器不声明跨进程的启动保证（P04）。
 
@@ -28,7 +45,7 @@ R2-D60（[#421 的采用决定](https://github.com/nemori-ai/omne-harness-lite/i
 
 `prepare` 在首次异步等待前固定租户、调用、启动记录与完整请求，保留原主体引用。请求经契约判断器复制并冻结，不冻结调用方对象。它先核访问资格，再进入本租户串行区重核资格和当前许可需求。只有 `not-required` 携带完整 `DurableEvidence` 时才签发许可。`required` 回复 `unsupported`，采用为 `startCoordinatorAdoption`，原因为 `authorization-permit-required-in-wave2`。缺来源、未知、不可用、抛错或非法答复均回复 `unavailable`，依赖为 `start-permit-requirements`，不公开异常正文。
 
-协调器对 `guardsOf(request)` 的每个资源读取当前守卫修订号，从未失效的守卫是 `0`。许可记录保存完整固定请求、规范摘要、租户/调用/完整启动/原许可摘要的绑定，以及本次无需许可的来源证据。相同待决启动的不同固定请求回复 `conflict`。旧待决记录缺少完整绑定时回复 `unavailable`，不覆盖旧记录。请求相同的新许可可替换当前许可，但不清除已有的永久拒绝或受理。许可本身不授权执行。
+协调器从 `start-guards` 对 `guardsOf(request)` 的每个资源读取当前守卫修订号，从未失效的守卫是 `0`，其证据的修订号是 `start-guards` 当时的域修订号。许可不断言守卫域：签发与失效之间落下的失效由 `consume` 的第 3 步发现。许可记录保存固定请求的规范摘要、租户/调用/完整启动/原许可摘要的绑定，以及本次无需许可的来源证据。它不保存请求本身：请求只存在原调用里，`consume` 由调用方把请求一并交来。相同待决启动的不同固定请求回复 `conflict`。旧待决记录缺少完整绑定时回复 `unavailable`，不覆盖旧记录。请求相同的新许可可替换当前许可，但不清除已有的永久拒绝或受理。许可本身不授权执行。
 
 `invalidate` 把一个守卫的修订号加一，与失效操作记录一起提交之后才回复失效证据。每个租户内，操作号绑定完整守卫输入的规范摘要与首次证据。摘要涵盖 owner、resource、revision、完整 evidence 与 scope 变体的全部契约字段，不受属性顺序或额外属性影响。同操作号、同输入重送时回复首次证据，守卫不再前进；同操作号、异输入回复 `conflict`，`operation` 为本次操作号，不写记录。后续失效或使用同一记录仓重建协调器不改变原操作的绑定。提交结果未知回复 `commit-unknown`，不可用回复 `unavailable`，两者都不给证据。
 
@@ -38,16 +55,16 @@ R2-D60（[#421 的采用决定](https://github.com/nemori-ai/omne-harness-lite/i
 
 1. 该启动已有受理时回复原 `started`，已有启动拒绝或整次调用的排除时回复原 `rejected`。
 2. 许可不是该启动的当前许可（摘要不同，或已被 `inspect` 收回）：有排除标记时回复 `not-started` 与该标记，否则回复 `invalid`（`permit: not-issued`）。
-3. 许可里任一守卫的修订号已不是当前修订号：提交永久的启动拒绝，回复 `rejected`。失效先成立，所以不发起。
-4. 从持久记录重新校验完整请求、规范摘要与原许可绑定。旧待决记录缺完整请求或绑定时回复 `unknown`，保留原身份。
+3. 许可里任一守卫的修订号已不是 `start-guards` 里的当前修订号：提交永久的启动拒绝，回复 `rejected`。失效先成立，所以不发起。
+4. 校验持久记录里的规范摘要与原许可绑定，再核对调用方交来的请求的摘要等于它。旧待决记录缺摘要或绑定时回复 `unknown`，保留原身份。交来的请求不是签发许可时的那一份时回复 `invalid`（`request`，`not-the-permitted-request`），不写入。
 5. 在串行区内重核当前访问资格和许可需求。访问被拒或明确需要许可时，提交永久拒绝并收回许可。需许可的原因为 `authorization-permit-required-in-wave2`。依赖不可用、缺席、未知、抛错或非法答复时回复 `unknown`，保留待决许可，不保存受理。
-6. 当前资格与无需许可结论成立后，提交唯一受理并收回许可，回复 `started`。受理记录与受理证据包含消费时的无需许可来源证据，不伪造授权许可消费事实。每次 CAS 冲突都重读记录并重核来源，不沿用上次允许结果。
+6. 当前资格与无需许可结论成立后，向本调用域提交唯一受理并收回许可，断言 `start-guards` 的修订号未变，回复 `started`。受理记录与受理证据包含消费时的无需许可来源证据，不伪造授权许可消费事实。本调用域或守卫域的每次冲突都重读两个域并重核来源，不沿用上次允许结果。
 
 受理或拒绝提交结果未知回复 `unknown`。之后重送同一许可认回实际提交的原事实。已有受理或拒绝无需再次查询许可需求来源，入口的访问资格检查仍然适用。旧受理不因缺少新来源字段而消失。最终重核后来源变化仍属于已有残余窗口，本包不承诺跨来源的瞬时撤权。
 
 ### 4 inspect
 
-`inspect` 回复已有的受理或拒绝。都没有时，它先提交排除标记并收回当前许可，再回复 `not-started`。所以在这个回答之前签发的许可，在回答之后不能被受理。之后签发的新许可可以受理，这就是同一启动身份在排除证明之后的首次执行。已有标记且没有未收回的许可时，直接回复该标记，不再提交。
+`inspect` 只读本调用的域，不读 `start-guards`。它回复已有的受理或拒绝。都没有时，它先提交排除标记并收回当前许可，再回复 `not-started`。所以在这个回答之前签发的许可，在回答之后不能被受理。之后签发的新许可可以受理，这就是同一启动身份在排除证明之后的首次执行。已有标记且没有未收回的许可时，直接回复该标记，不再提交。
 
 ### 5 exclude
 
@@ -76,6 +93,30 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 调用者以后显式请求同一原 prepare 时，仍核完整绑定和当前资格，才能重新尝试首次发送；inspect 不代发。原 prepare 一经调用，即使抛错、丢答或结果未知，也不能沿“未发送”路径返额，继续保留原查询与清理责任。已有可靠 excluded 允许同键重新排队时，新一轮预占重新记录是否已发送；该轮派发前失败也先返还本地预占。unknown、allocated 与仍需清理的 rejected 不适用。已确认释放的退休项不因该区分恢复资格。
 
 公平性以前提为界：有限参与者、正权重、持续调度、有界 provider 答复与反复有容量。它不保证执行完成或强制回收长期 lease。验证必须通过实际 prepare 路径证明替换策略被消费，并观察 A 租户慢或满时 B 能推进。孤立策略对象的单测不能证明宿主隔离。真实耐久与跨进程提供者另验。
+
+环境获取记录放在该调用的 `host` 域 `environment@<call>`，按原 call/operation 键读写。保留作用域跨调用：每个作用域有自己的 `host` 域 `retention@<作用域摘要>`，里面一条作用域记录（键 `scope`）和下文的收场记录，域名由 [host-domains.ts](src/host-domains.ts) 的 `retentionHostDomain` 生成，所以一个会话的提交不与另一个会话争同一个修订号。两者都只用 `ToolLedgerStore.readRecord`，不加载同租户的无关环境历史。需要当前资格的变更（许可、保留许可、交接）在提交里断言原调用域的修订号等于本次核对时读到的修订号：调用结算在中间落下即 `conflict`，重读后回复 `not-settled`。这取代了原来的守护宿主提交。
+
+预留（`plan`）记在创建它的获取自己的 `environment@<call>` 记录里，不进入作用域：还没有移交的预留只有创建它的获取能为它记账（执行环境契约[保留进程](../../execution/execution-environment-contract/SPEC.md#停止)）。创建者对自己预留的 `stopped` 写在自己的域里，不受作用域是否关闭影响。`plan` 按键读作用域记录，作用域已关闭时答 `closed`，不写作用域。
+
+作用域记录只保存作用域已接手的资源。每个条目带资源、`permitted`（保留终端）或 `adopted`（保留进程）、停止事实（`active` 或 `unconfirmed`）与创建者引用（创建它的获取的 call、operation 与原获取绑定的摘要），不复制准备记录或请求；需要创建者时按键读它的 `environment@<call>`。接手（保留终端的 `permit`、保留进程的 `adopt`）是唯一的跨域事件：一次作用域提交加入条目，断言创建者获取记录所在域与原调用域的修订号，并核对创建者记录里有该键的预留、创建者仍开放、作用域仍开放。接手的条目活到停止被确认：作用域的任一视图都能记它的停止，`stopped(key, 'confirmed')` 先把创建者获取记录里该键的停止事实写成 `confirmed`，再在同一次作用域提交中删去该条目并写入收场事实；`unconfirmed` 只改停止事实。
+
+`close` 把作用域标为已关闭。作用域只有开放与已关闭两个状态，已关闭不回到开放；作用域记录永不删除，已关闭的记录就是耐久的关闭信号，之后 `plan`、`permit`、`adopt` 答 `closed`。
+
+收场事实按执行环境契约[停止](../../execution/execution-environment-contract/SPEC.md#停止)第 7 项保存。保留进程的停止被确认时，删去作用域条目的那次提交在同一个作用域域里写入一条按键记录 `ended/<进程键>`。`ended(key)` 用 `readRecord` 读这一条记录：有记录答 `confirmed`，没有答 `none`，读不到或记录无效答 `unavailable`；它从不读整个域。提供者据此对已离开其索引的保留进程的 `stop` 答 `confirmed`。保留终端没有收场事实。
+
+获取记录随所属调用由 Tool 账本的清扫删除（[调用状态的生命周期](../tool/SPEC.md#调用状态的生命周期)），宿主自己不排期。清扫经 `createLocalCallRecords` 请宿主放手一个调用的记录。宿主在下面任一条件成立时答 `held`，不删除任何记录：该调用的某条获取记录里还有未确认的停止事实；保留作用域还持有该调用创建的条目（作用域确认停止时先写创建者的获取记录）；该调用是被转发的调用，而转发它的调用的记录还在（来源记录的 `origin.parent` 指向它）。三个条件一旦都不成立就不会再成立：作用域只接手未停止的预留，调用标识不重用。否则宿主删除以该调用为名的 `start@`、`source@`、`delivery@`、`control@` 四个域，最后删除 `environment@` 域，并以判定时读到的修订号为条件；任一域在此期间被改写时答 `held`。判据：[retained-process-ledger.spec.ts](tests/retained-process-ledger.spec.ts) 的宿主放手记录一组。作用域记录与收场事实跨调用，不删除。三者都只按键读写，从不被跨调用或跨作用域汇总读取，所以每次读取都不随租户的已结算调用数或作用域里停止过的进程数增长。
+
+交接（保留作用域 `adopt` 原获取的资源）只写作用域的记录，并断言获取记录所在域与原调用域未变。获取记录不保存 `handedOver`：读取获取记录时按其 `retentionScope` 的作用域记录把作用域已采纳的本获取资源标为 `handedOver`；写回获取记录时，这些键保留获取自己存的停止事实，所以交接事实只有作用域一个拥有者。释放确认把获取的全部资源写成 `confirmed`（获取对它们的责任到此结束）；被交接的资源在作用域持有期间仍读作 `handedOver`，作用域确认它停止之后读作 `confirmed`。获取记录带保留作用域时，它的每次变更都断言自己作用域的域修订号未变，因此获取的变更与作用域的交接在两个域之间线性化：先提交者成立，后提交者重读重判。提交窗口内注入交接的栅栏用例见 [resources.spec.ts](tests/environment-adapter/resources.spec.ts)。单键读取的保持论证见 [单键读取](../tool/verification/proofs/record-read.md)。
+
+| 记录                                   | 所在域与键                                    | 写入者                     | 何时产生                  | 何时消失                                         |
+| -------------------------------------- | --------------------------------------------- | -------------------------- | ------------------------- | ------------------------------------------------ |
+| 获取记录（含本获取的预留及其停止事实） | `environment@<call>`，按原 call/operation 键  | 获取所在的调用             | 准备环境；`plan` 加入预留 | 随所属调用由账本的清扫删除，宿主自己不排期       |
+| 作用域记录                             | `retention@<作用域摘要>`，键 `scope`          | 接手或关闭                 | 第一次接手或第一次关闭    | 不删除；关闭后即关闭信号                         |
+| 作用域条目（已接手的资源）             | 作用域记录内，按资源键                        | `permit`、`adopt`          | 接手生效                  | 停止被确认时移除                                 |
+| 接管事实                               | 作用域条目的已接管状态                        | `adopt`                    | 接手生效                  | 随条目移除；获取记录不保存它，读取时由作用域推导 |
+| 结束事实                               | `retention@<作用域摘要>`，键 `ended/<进程键>` | 停止确认的同一次作用域提交 | 保留进程停止被确认        | 不删除                                           |
+
+获取记录的写入断言其作用域所在域的版本；接手只写作用域域并断言获取记录所在域与原调用域的版本。两侧都在读取与提交之间被对方提交时得到冲突并重新判定。
 
 ### 环境资源诊断边界
 
@@ -148,7 +189,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ## 缺席端口（D-07）
 
-`createAbsentToolPorts` 返回 `toolDecisions`、`toolResourceResponses`、`toolChildren`。每个方法回复 `unavailable`，`dependency` 是端口名，`diagnostic` 写明被问的操作（`<端口>.<方法>`）。不抛出，不回复空成功。这三个端口在 M2 之后由各自的提供者取代。`toolOutputCustody` 不属于缺席端口，本包也不提供它。
+`createAbsentToolPorts` 返回 `toolDecisions`、`toolResourceResponses`、`toolChildren`。每个方法回复 `unavailable`，`dependency` 是端口名，`diagnostic` 写明被问的操作（`<端口>.<方法>`）。不抛出，不回复空成功。这三个端口在 M2 之后由各自的提供者取代。
 
 ## 账本守卫（TL-11）
 
@@ -187,7 +228,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 `createLocalInvocationSource({ store, authority, principalCodec, commitAttempts })` 返回 `{ issuer, guard }`。`issuer` 交 runtime 作 `sourceIssuer`，`guard` 交账本作 `guards.sources`。
 
-- 绑定放在记录仓的 `host` 域，域键 `invocation-source`，每个租户一个域，每个消费者位置一条记录。同一消费者在另一个租户落在另一个域，读不到原绑定。
+- 绑定放在它所命名调用的 `host` 域 `source@<call>`，调用 id 由租户与消费者的摘要确定性派生，所以读者先算出域再按键读取，一个域只有一条绑定。同一消费者在另一个租户派生出另一个调用与另一个域，读不到原绑定。
 - `resolve` 的顺序：请求形状，租户形状，`authority.qualify`（`denied` 与 `unavailable` 在读记录仓之前返回），主体编码，读域。已有绑定时先问 `authority.samePrincipal({ current, original })`，不同主体答 `denied`；请求与原请求不同答 `conflict`（`operation` 为原受理操作）；否则答 `bound` 且 `recovered` 为真。没有绑定时条件提交一条记录，答 `bound`。
 - call 与 admission 的身份由租户与消费者的摘要得出，所以同一输入永远得同一身份。提交结果未知时答 `issuance-unknown`，带的就是重试会用的身份：记录已写入则重试认回，未写入则重试写入。
 - 存下的主体解不开（记录形状不对，或 `principalCodec.decode` 拒绝）答 `association-unknown`，不签发新身份。
@@ -240,6 +281,14 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 验证：[executor-retirement.spec.ts](tests/executor-retirement.spec.ts) 的扫描用例（分页、读不到后接着读、`unsupported` 停止、内存表满后接着读）；[lifecycle.spec.ts](tests/runtime-composition/lifecycle.spec.ts) 的两条新执行器用例（原执行可能仍在运行时不接上、不重启；从没启动的调用按原身份启动一次并收场）；[checkpoint.spec.ts](tests/runtime-composition/checkpoint.spec.ts) 的新执行器用例（扫描接手暂停中的调用，停掉之后才到的决定只被接受一次，恢复段从保管读回的检查点恢复一次并收场）。记录仓是声明为耐久的内存记录仓，第二个执行器在同一进程里，不证明真实进程重启或耐久。
 
+## 冻结交付的持久表示
+
+宿主冻结交付元数据、结果承诺、当时的 account、操作身份和阶段。结果承诺包含渲染通道的指纹及最终正文描述。前者覆盖 content、data、attachments、source 和 summary，后者覆盖 bodyId、表示、字节数、预览类型及期限。推送时分别核对，两部分均不得变化。冻结记录不保存第二份完整 ToolResult。结果承诺与最终版本绑定，重试不重新计算 account。之后的运行按交付键认回自己的记录，承诺取冻结时的值：释放把结果记录的已释放通道换成摘要（Tool C6），释放后从账本重算的指纹不再等于冻结的承诺，不能用它认记录。读回的承诺要先解码：指纹核对编码、算法、摘要和字节数，正文描述用已提交结果的同一判定。解码失败的记录不认，交付答 `delivery-record` 不可用，不推送也不释放。
+
+只有 frozen 阶段的推送读取正文。宿主通过同一 ToolLedger 的 delivery.read 还原最终通道，核对指纹及完整 ToolDelivery，并在推送前重核当前资格。结果值不可读时交付仍欠，不返回部分结果，也不释放责任。接收方已经可靠保存后的 saved、release-unknown、released 和 done 恢复只消费元数据与原回执，不依赖正文仍可读。
+
+这项表示迁移不新增交付阶段。原 frozen 到 saved 到 released 到 done 的提交顺序和未知操作认回保持不变。正文期限与物理回收由 Tool 拥有，宿主记录不延长其寿命。
+
 ## 结果交付的推送退避
 
 执行器把结果推给冻结 owner 的接收方。接收方可能缺席，也可能在场却答 `unavailable`。后一种情形实测过：Journal 拒收一笔超限提交，同一笔被重推 714 次。两种情形走同一套退避（R2-D273、R2-D282）。
@@ -286,38 +335,44 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ### 检查点作者的 initial 段
 
-操作的作者按段执行时，`resolve` 给出 checkpointed 绑定，其 `checkpointSchema` 是作者声明的检查点 codec。构造依赖缺 `checkpoint` 时，`resolve` 对这类作者回复 `unavailable`，不装配可恢复模式。启动的核对、去重与许可消费与 live-only 相同。
+操作的作者按段执行时，`resolve` 给出 checkpointed 绑定，其 `checkpointSchema` 是作者声明的检查点 codec。启动的核对、去重与许可消费与 live-only 相同。
 
-许可消费后，绑定运行作者的 `initial` 段。段上下文只有 `emit` 与 `signal`，没有 `wait`。段的结果按下列规则处理：
+许可消费后，绑定运行作者的 `initial` 段。段上下文只有 `emit` 与 `signal`，没有 `wait`。段返回后，绑定关闭 Scope 一次：段返回失败时按 `failed` 关闭，其余按 `returned` 关闭。段的结果按下列规则处理：
 
 - `completed` 与 live-only 的正常返回一样经 `settle` 形成 final。
 - 段失败或抛错时以作者失败收场。
-- `suspended` 先过两项检查：等待须是作者 `waits` 声明过的 Ask 协议，状态字节不超过声明的 `maxBytes`。任一项不成立时以作者失败收场。
-- 检查通过后，绑定经 `checkpoint` 依次保管状态字节与等待请求，二者各用本 start 派生的操作。两者都保管后，绑定发布 Ask 的 `wait` 事实，然后结束执行流。等待身份是 `<start>/wait`，接续位置是状态的保管证据，请求证据是请求的保管证据。保管失败时段不暂停，以作者失败收场。状态与请求的保管操作分别是 `<start>/checkpoint` 与 `<start>/wait-request`。这些派生只在 [segment-operations.ts](src/segment-operations.ts) 写一次。根入口导出 `waitRequestOperation`：装配凭等待身份找回请求的保管操作，再从保管读回请求原文；不是本宿主派生的等待身份答 `not-a-segment-wait`。
+- `suspended` 先等 Scope 确认收场，再过四项检查：等待须是作者 `waits` 声明过的 Ask 协议；收场文本不为空且不超过 `CLOSED_RESULT_MAX_BYTES`；状态字节不超过声明的 `maxBytes`；等待请求是合法的 JSON 值，它的 JSON 文本不超过协议的请求上限。Scope 未确认收场或任一项不成立时，段不暂停，以作者失败收场。
+- 检查通过后，绑定发布 Ask 的 `wait` 事实，然后结束执行流。事实带请求原文，即等待请求的 JSON 文本。等待身份是 `<start>/wait`，这个派生只在 [segment-operations.ts](src/segment-operations.ts) 写一次。请求证据与接续位置是本宿主的证据，摘要分别等于请求原文与状态文本的规范摘要。状态文本是状态字节的 base64。Tool 账本核对两个摘要后保存请求原文与状态，本宿主不保存它们的耐久副本。
 
-`suspend` 与 `inspectSuspension` 只证明，不停止任何东西，因为段已经返回。暂停段的回答是 `suspended` 与检查点。initial 段的已消费答复为空，恢复段的已消费答复是它接续的那个 ResponseRecord 的操作。效果边界与旧执行排除是本宿主的证据。已完成段的回答是 `not-suspended`。段尚未返回时回答 `unknown`。其他 schema 的回答是 `rejected`。段结束且全部事实已确认后解除 pin，恢复段须重新取得。
+`suspend` 与 `inspectSuspension` 只证明，不停止任何东西，因为段已经返回。暂停段的回答是 `suspended`、检查点与状态文本。initial 段的已消费答复为空，恢复段的已消费答复是它接续的那个 ResponseRecord 的操作。效果边界与旧执行排除是本宿主的证据，都绑定状态。已完成段的回答是 `not-suspended`。段尚未返回时回答 `unknown`。其他 schema 的回答是 `rejected`。段结束且全部事实已确认后解除 pin，恢复段须重新取得。
 
 ### 检查点作者的 resume 段
 
-`resume` 接受 Tool 账本保存的 resume 记录，核对、去重与许可消费与 start 相同：同一 resume 记录的重复调用认回原执行，不再运行作者。首次调用先经构造依赖 `resumption` 读恢复输入，读到之后才消费许可。恢复输入有两项：resume 记录所指检查点的状态字节，以及调用账本为在该检查点等待的 Ask 固定的 ResponseRecord。缺 `resumption`、读不到输入，或回应不是本调用的决定时，`resume` 回复失败，不运行作者，也不消费许可。
+`resume` 接受 Tool 账本保存的 resume 记录，核对、去重与许可消费与 start 相同：同一 resume 记录的重复调用认回原执行，不再运行作者。恢复输入随 `resume` 的入参到达，由 Tool 的推进协程从调用的恢复读取里取出：`state` 是 resume 记录所指检查点的状态文本，`response` 是调用账本为在该检查点等待的 Ask 固定的 ResponseRecord。本宿主不读 Tool 的记录。回应不是本调用的决定时，`resume` 回复 `invalid`（`not-a-decision-of-this-call`），不运行作者，也不消费许可。
 
-许可消费后，绑定先发布 `continued` 事实：等待身份、ResponseRecord 的操作，以及本宿主的计时证据。作者在这一点拿到决定，所以这是真实的恢复点。然后绑定以 `{ checkpoint, response }` 运行作者的 `resume` 段，`response` 是 ResponseRecord 里的决定。段上下文与 initial 段相同，只有 `emit` 与 `signal`。构造依赖 `capability` 只用于首次 start，resume 不接收它。段的结果按 initial 段的规则处理。段再次 suspended 时，等待身份由 resume 记录派生，即 `<resume>/wait`，状态与请求以 `<resume>/checkpoint` 与 `<resume>/wait-request` 保管。
+许可消费后，绑定先发布 `continued` 事实：等待身份、ResponseRecord 的操作，以及本宿主的计时证据。作者在这一点拿到决定，所以这是真实的恢复点。然后绑定以 `{ checkpoint, response }` 运行作者的 `resume` 段，`checkpoint` 是 `state` 解码后的字节，`response` 是 ResponseRecord 里的决定。段上下文与 initial 段相同，只有 `emit` 与 `signal`。构造依赖 `capability` 只用于首次 start，resume 不接收它。段的结果按 initial 段的规则处理。段再次 suspended 时，等待身份由 resume 记录派生，即 `<resume>/wait`。
 
-`createRuntimeAuthorExecution` 的 `resumption` 从耐久保管读回状态字节，本进程不留副本：
-
-1. 从同一组合的账本 `loadRecovery` 读调用的恢复记录，取在该检查点处于 `responding` 的等待。没有这样的等待时回复 `invalid`（`no-accepted-decision`）。
-2. 等待的 ResponseRecord 记着暂停段的 start。状态的保管操作由它派生，即 `<start>/checkpoint`。
-3. 构造依赖 `readOutput` 按租户、调用与这个操作读回原件。保管里没有原件，或原件的保管证据不等于 resume 记录的检查点时，回复 `invalid`（`checkpoint-not-kept`）。
-
-所以进程重启后，新执行器接手的暂停中调用同样能恢复。运行时组合的 `authorExecution` 带出 `resumption`，装配把它接到绑定的构造依赖。
+状态由账本保存，所以进程重启后，新执行器接手的暂停中调用同样能恢复。
 
 启动协调器接受 resume 记录。resume 用自己的操作取得许可，guard 集合与许可要求和首次 start 相同。许可要求的 `check` 也收到 resume 记录。转发父调用只认首次 start。
 
-`createRuntimeAuthorExecution` 的 `checkpoint` 经 `ToolOutputCustody.preserve` 保管两份字节，沿用原输出保管的重试。请求按 JSON 文本以 `wait-request-json` codec 保管，超过协议的请求上限时回复 `invalid`。请求的 schema 校验尚未实现。
+请求的 schema 校验尚未实现。
 
 运行时组合的可选输入 `decisions` 在每次调用时读取 Ask 等待的决策方。缺它或它答 undefined 时，等待遇到缺席端口。账本的 `acceptDecision` 经同一个决策方的 `resolve` 取得决定。
 
-[检查点绑定测试](tests/checkpointed-binding.spec.ts)验证段上下文、保管、最后事实、检查点证明与等待身份。[派生测试](tests/segment-operations.spec.ts)验证派生与拒绝；整机组合测试另核对凭等待身份派生的操作正好保管了等待的请求证据。[整机组合测试](tests/runtime-composition/checkpoint.spec.ts)在本地运行时插件、启动协调器、本地绑定与真实账本下验证停泊与登记，决定之后从检查点恢复一次并收场，以及暂停中被叫停时调用收场、原登记失效一次、队列域不留条目。两者的决策方与记录仓是测试提供者，不证明耐久。
+[检查点绑定测试](tests/checkpointed-binding.spec.ts)验证段上下文、最后事实与请求原文、检查点证明与等待身份。[整机组合测试](tests/runtime-composition/checkpoint.spec.ts)在本地运行时插件、启动协调器、本地绑定与真实账本下验证停泊与登记、账本保存的请求原文与状态同各自证据的摘要相符，决定之后从检查点恢复一次并收场，以及暂停中被叫停时调用收场、原登记失效一次、队列域不留条目。两者的决策方与记录仓是测试提供者，不证明耐久。
+
+作者返回值与 Scope 收场结论分别保存。绑定在作者返回后同步调用 `finish` 关闭新受理，把原 outcome 与完整 `closing` Promise 交给受信 `settle`。`settle` 须先在内存中编码原 R，再等待收场确认，不能因收场失败改写原 outcome。绑定的原 attempt 持有待结算输入；只有 final 确认并发布后才解除这份本地持有，回调抛错或保管拒绝不解除。该本地持有不是耐久回执，也不提供跨进程重跑作者的许可。
+
+生产结算在内存里用原作者 codec 编码并解码返回，渲染后交账本计划最终事实（`finalPlanner.planFinal`）；收场仍 pending 时不发布 final，unknown/unavailable 时保留原件并报告未结责任。已确认的收场失败可以产生失败终局，不能产生 completed。控制身份在收场确认时核原 tenant/call/start/operation，原 stop/withdraw 若在该确认前导致取消，保留其身份；确认后的控制不能改写这次收场事实。`finish` 同步抛错或异步拒绝全化为收场 unknown，原 R 保持不变。定制 `settle` 也须履行上述顺序与屏障义务；本地 Promise 不进入数据契约或持久证据。
+
+最终事实由账本在记录时计划：绑定把渲染结果交给 `planFinal`，得到首屏加正文条目引用的最终事实，再作为事实发布。账本对这份结果答 `invalid` 或 `unsupported` 时，同一份结果每次交去都被拒（例如首屏或某个非文本块超过一页结果）。绑定这时改交一条失败终局：`failed`，`cause` 为 `result`，诊断写明账本拒绝的字段与原因。被拒的那次没有写入任何东西，所以改交的终局沿用同一个最终操作号。调用因此照常收场，不停在运行中。`denied`、`conflict` 与其他失败不走这条路：它们不由结果的内容决定。batches 与 settled lookup 只保存计划后的 final 及指纹，不保存正文字节；FactReceipt 允许移除宿主重传缓存。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
+
+正文 writer 由受信装配绑定原调用、执行代次和固定声明，再注入本次执行 Scope。作者不能提供这些身份。Scope 关闭时先拒绝新的正文操作，再通过 Tool 的正文写入端口确认已受理责任的保管或排除未受理操作。仅有本地 Promise 完成或 disposer 返回，不构成交接凭据。关闭答复未知时保留未结责任，不发布 completed。
+
+runtime 退出先停止新调用和 writer 新受理，再等待未登记操作完成登记或得到明确拒绝，最后释放本地执行持有。正文存储与账本依赖须存活到交接完成；依赖提前失效时报告 unknown 和未交接责任。后继 runtime 不复用旧 Scope，也不重新执行作者业务函数。旧进程未封存的正文保持 opened，原调用结算时成为孤儿，宽限期后由清扫回收。
+
+正文恢复与调用事实推进独立。片段提供者不可用或不返回时，不得阻止已取得的最终失败结果结算；结算可明确放弃不再采用的正文。每个调用至多有一个在途正文恢复，整个宿主至多有 capacity 个。调用退役不提前归还仍在执行的恢复名额；操作终结才归还。诊断保留恢复失败类别及在途数量，不把普通调用推进成功解释为正文恢复成功。
 
 `./author` 导出 `contributeTool`、`createToolAuthorPlugin` 与 `createLocalToolGenerations`。作者插件静态依赖 toolBindings/toolGenerations，不提供服务键。贡献登记与撤除配对到作者 fiber 的 effect。服务适配器必须在普通函数中读取调用时的 `this.ctx`，用同步调用作用域把 fiber uid 传给登记表；箭头函数捕获提供者 Context 会产生错误归属。
 
@@ -333,15 +388,23 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ## 单目标转发来源与保管
 
+来源绑定及转发结果读回经 `ToolLedgerStore.readRecord` 取得精确消费者槽。它们不加载同租户的无关来源记录。返回的域修订号仍用于原 CAS，原主体、当前资格、完整请求、结果摘要和退休状态的检查保持不变。
+
 `createLocalInvocationSource` 可选的 forwarding 配置提供惰性 start authority 与精确发行采用判定 isParent。缺少配置只禁用转发，普通调用保持原行为。来源逐次核父 CallRecord、完整 request/start、原主体和当前 consumer 资格，并要求 authority.inspect 证实 consume.started。prepared start 本身不授予转发。父历史 settled 不阻止原槽恢复与结果接收。
 
 同一父调用只有 execute 槽。consumer owner 固定为 `@omne-harness/tool-host-local/tools-forwarding`，work 是父 call，position 为 execute，purpose 为 tools-target。普通 issuer 在读取关联前拒绝该 owner。来源自己生成 consumer；应用 prepareTarget 只提供业务目标。目标 scope、requesterScope、context、workspace、resources、limits 与 mode 继承父请求，batchDecision 为 null。目标 settings 和 environment 来自目标采用。
 
-原槽、父证明、完整固定目标与 principal 在既有 invocation-source host 域同一次 CAS 提交。已存槽优先认回，不以最新设置替换。received 更新保留全部原字段。recoverBinding 只读取与 tenant/call/admission/完整固定请求匹配的持久主体投影，核 direct 原 mint 或 forwarded 记录摘要；它不返回活凭据，不做当前资格授予。运行时据该投影向身份拥有者重新取得会话工作主体，再调用 guard 核原主体、direct 来源或 forwarded 父证明及当前资格。任何一步失败均不启动 driver；不把转发恢复成 direct。当前 programmatic 启动仍受 M2 拒绝限制。
+原槽、父证明、完整固定目标与 principal 在目标调用的 `source@<call>` 域同一次 CAS 提交；目标调用 id 由父调用的转发 consumer 派生，所以该域也只属于这一个父调用的 execute 槽。接收到的副本是普通副本（C6）：每个交付键一条记录，键为 `<槽键>/delivery/<交付键摘要>`，放在同一个域里，保存与读回都按键进行，槽记录本身不随副本增长。副本随父调用自己的结果交付释放：交付 worker 在父调用的交付记录到 `released` 之后、标为 `done` 之前，调用来源的 `releaseReceivedCopies`，它整读该域一次（只有这一个父调用的槽与副本，大小以该父调用的扇出为界）并在一次提交里删除全部副本；删除没落下时交付停在 `released`，下一轮再释放。不是转发父的调用不读不写。已存槽优先认回，不以最新设置替换。recoverBinding 只读取与 tenant/call/admission/完整固定请求匹配的持久主体投影，核 direct 原 mint 或 forwarded 记录摘要；它不返回活凭据，不做当前资格授予。运行时据该投影向身份拥有者重新取得会话工作主体，再调用 guard 核原主体、direct 来源或 forwarded 父证明及当前资格。任何一步失败均不启动 driver；不把转发恢复成 direct。当前 programmatic 启动仍受 M2 拒绝限制。
 
 source.receiver 在同一关联内保存完整交付和 saved 证据。接收先核当前资格、原目标引用、完整 consumer 与交付关系。只有 durable store 确认提交后才 saved。提交未知回复 outcome-unknown，生产者保留 owed。读回比较实际 payload 摘要和原键，并核 receiver evidence，不能只相信 stored digest。result、late version 与 account 的键分开。
 
+配置 `forwarding.results` 后，`source.forwardedResult` 按原引用和固定结果版本读取消费方保管的副本。该配置提供 read-result 访问守卫、结果策略和正安全整数页预算。未配置时回复 unavailable。读口核原 call/admission、consumer、转发关联、原主体与当前资格，再核完整交付摘要和 saved 证据。它不能把账户记录或另一版本当成本次结果。损坏或无法确认的副本拒绝读取，不回退成成功。副本读取及关联核验后重新检查当前 read-result 资格。
+
+消费方分页复用 Tool 的完整内容块与固定游标规则。原生附件和卸载正文仍沿各自读口，保管副本不延长正文期限。Tool 普通查询在生产侧交付已释放时仍拒绝读取。应用仅在该明确状态下，把 Tools 的读取转到消费方读口；授权拒绝、存储不可用等失败不得触发回退。runtime bundle 退休后拒绝新读，也不交出退休期间返回的迟到结果。此读口不新增存储副本或回收任务。
+
 `createLocalToolForwarding` 惰性取得 runtime、forwarding、catalog、consumer profile、目标 prepare 与 reader。source/admission 尝试受正安全整数 attemptMs 约束。目标观察预算为零，只查一次状态，未 settled 即 pending。预算或父 abort 只结束等待，provider 继续承担已经发起的 promise。scope.finish 关闭新调用和等待，不发送 stop。provider.close 禁新工作、关闭 attachment 的等待并等待在途操作收口，返回 pending 与仍未知的原父数量。close 不能证明未知准入已撤销。
+
+已知现象（2026-11-10 实测，非缺陷）：因为目标观察预算为零，目标在受理的那一刻几乎不会已经 settled，所以 `Tools execute` 的回应通常是 `pending`（原因 `waiting`），模型要再发一次 `read_result`（按调用取结果）才拿到首屏。26 次真实模型运行里每次都是这样，每次经 Tools 的调用多一个模型请求。`attemptMs` 不影响这一点：它只约束 source 与 admission 的尝试，实测把它从 250 调到 5000 毫秒，回应仍是 `pending`。这是当前设计的直接结果，是否给目标观察一个非零的等待预算（换取少一次往返）留作以后的优化题目。数据在本程 W3 的切片 09 汇总里，列名 `other read_result calls`。
 
 execute 在入口核 live 与原固定 intent 并启动 provider work 后，provider 就承担该次 prepare、来源关联和准入。父 finish、abort 或观察超时不取消这项工作。继续时使用父固定请求解出的原意图，不因调用方随后修改参数而改目标。close 先禁新方法并结束观察，再等待已接受 work 收口。
 
@@ -360,6 +423,16 @@ start guard 先保留 M2 programmatic 围栏，再核当前调用身份，最后
 启动条件（`StartCondition`）是策略随放行给出的一个值。宿主不读它的内容。consume 的放行带条件时，coordinator 把 acceptance 的账本写入与条件交给 `ConditionalLedgerCommit` 一次提交：两者在一个事务里一起成立，或都不成立。条件不成立时该端口答 `condition-failed`，没有任何写入；coordinator 按修订冲突的同一条路径重读账本、重问策略，再决定放行或拒绝。连续 `commitAttempts` 次不成立答 unavailable，不写 acceptance。放行不带条件（`null`）时沿用普通账本提交。prepare 与 start guard 只用放行与否，不提交条件。coordinator 的 `requestAccess` 把策略与这个提交端口成对接收，所以不存在有条件而没有提交端口的装配。runtime 装配的 `conditionalCommit` 是必填项。
 
 consume 与 inspect 先认回原 started 或 rejected 历史，不用新规则改写既成事实。新增策略不撤销已发生副作用。条件覆盖的范围由给出条件的策略决定；条件之外的外部撤权不与存储提交原子同步。验证见 [请求策略反例](tests/request-access.spec.ts) 和 [真实执行绑定组合](tests/runtime-composition/forwarding.spec.ts)。
+
+## 正文 schema 适配
+
+`createLocalToolBodySchemas` 消费装配提供的 schema-provider 和一个精确的 vocabulary 采用。它实现 Tool 的窄校验端口。provider 的创建、预算和关闭归装配；适配器不拥有另一个缓存，不读取 Session 或工具注册表。`LocalToolRuntimeInput.bodySchemas` 把此端口交给账本和作者归一化，缺席时结构化封存或直接正文校验明确不可用。
+
+直接正文校验位于原返回编解码、作者 scope 关闭及结果投影之后，计划最终事实之前。绑定调用 Tool 的 `checkToolResultBody`；invalid 或 unsupported 走原有 result 失败投影。其他未确认校验沿 driverRetryDelayMs 重试，保留同一原结果和 settlement，不再次执行作者。校验等待计入 pending 诊断。宿主退役阻止下一次检查和 final 发布；已发出的校验不声称被撤销。此重试只覆盖当前 live-only 作者绑定，不新增跨进程原函数恢复承诺。账本保存的计划后 final 不等于后继宿主已经具备重新运行任意 codec/renderer 的能力。
+
+缓存身份取原公开 schema 的完整身份和定义摘要。相同标签下的不同定义不复用同一检查对象；恢复采用 writer 固定的定义。未知 vocabulary 或 provider 不支持的构造返回 unsupported。provider 关闭、容量拒绝及暂时失败返回 unavailable，schema 不匹配返回 invalid。
+
+本适配器只构造校验副本。正文和 schema 定义中的每个数字都按符号、去零系数及十进制指数比较原词法与 Number 回写词法。两者数学值相等且 Number 有限时，才把副本交给 provider 的 exact-or-reject 路径。正负零统一按数学零校验。不能无损投影的数字返回 unsupported，不转成字符串，不舍入原值。原正文、JsonValue、data 及 schema 身份保持不变。本版限制不是通用任意精度 JSON Schema 的支持承诺。
 
 ## Web 提供者（`./web` 子路径）
 

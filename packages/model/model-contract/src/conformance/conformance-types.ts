@@ -11,7 +11,6 @@ import type {
   ModelCallId,
   ModelInstanceId,
   ModelOperationId,
-  ResultCapacity,
   Supplier,
   Termination,
 } from '../index.ts'
@@ -118,7 +117,6 @@ export type ConformanceSubject<P> = Readonly<{
   /** Values that the provider accepts in `admit`; the defaults of the suite when left out. */
   request?: FixedModelRequest
   consumer?: ConsumerRef
-  capacity?: ResultCapacity
   hooks?: ConformanceHooks<P>
   transport?: ConformanceTransport
   /** Releases what the subject holds; called after each check. */
@@ -214,7 +212,6 @@ export type Scene<P> = Readonly<{
   subject: ConformanceSubject<P>
   request: FixedModelRequest
   consumer: ConsumerRef
-  capacity: ResultCapacity
   waitMs: number
 }>
 

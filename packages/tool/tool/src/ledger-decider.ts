@@ -1,3 +1,13 @@
+import type { BodyEntryRecord } from './ledger-body-records.ts'
+import type { ResultPolicyRecord } from './ledger-result-policy.ts'
+import { settleResultBodies } from './ledger-result-uses.ts'
+import type {
+  PreparedSynthetic,
+  ResultPreparationRecord,
+  SyntheticDecision,
+  SyntheticNeed,
+} from './ledger-result-preparation.ts'
+import { releasedResultValue, type ResultValue } from './ledger-result-material.ts'
 // The pure admission decider (P01, P02) and the delivery release decider (P08). A decision reads
 // the domain snapshot and the command, and answers either a reply without writes or a set of
 // writes with the value to reply after the commit. It reads no port, runs no tool and mints no
@@ -16,7 +26,7 @@ import type {
   ToolCallId,
   ToolFailure,
   ToolOperationId,
-  ToolResult,
+  ToolRenderedResult,
   ToolResultVersion,
   ToolRevision,
   ToolState,
@@ -25,6 +35,7 @@ import type {
 import type {
   ParsedToolArguments,
   ToolArgumentsRejection,
+  ToolInstant,
   ToolTask,
 } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
@@ -33,9 +44,11 @@ import {
   LEDGER_OWNER,
   deliveryId,
   mintEvidence,
-  resultVersion,
+  digestOf,
+  FIRST_RESULT_VERSION,
 } from './evidence.ts'
 import {
+  CALL_DUE_KEY,
   taskKey,
   factKey,
   type FactEventRecord,
@@ -46,6 +59,7 @@ import {
   type AccountRecord,
   type CallAccount,
   type CallRecord,
+  type CheckpointStateRecord,
   type ExclusionRecord,
   type LedgerDomain,
   type LedgerRead,
@@ -58,17 +72,22 @@ import {
   type SuspensionLedgerRecord,
   type TenantId,
   type WaitLedgerRecord,
+  type WaitRequestRecord,
 } from './ledger-store.ts'
 
 /** The records of one domain, indexed for the deciders and the read projections. */
-export type Snapshot<B extends ContentBlock> = Readonly<{
+export type Snapshot = Readonly<{
+  /** The body entries of the call by body identity (BodyLifecycle `status`). */
+  bodies: ReadonlyMap<string, BodyEntryRecord>
+  resultPolicies: ReadonlyMap<string, ResultPolicyRecord>
+  resultPreparations: ReadonlyMap<string, ResultPreparationRecord>
   domain: LedgerDomain
   revision: ToolRevision
   call: CallRecord | null
   operations: ReadonlyMap<string, OperationRecord>
-  results: ReadonlyMap<string, ResultRecord<B>>
+  results: ReadonlyMap<string, ResultRecord>
   releases: ReadonlyMap<string, EnvironmentReleaseRecord>
-  facts: ReadonlyMap<string, FactEventRecord<B>>
+  facts: ReadonlyMap<string, FactEventRecord>
   batches: ReadonlyMap<string, FactBatchRecord>
   streams: ReadonlyMap<string, FactStreamRecord>
   process: readonly ProcessRecord[]
@@ -78,30 +97,48 @@ export type Snapshot<B extends ContentBlock> = Readonly<{
   suspensions: ReadonlyMap<string, SuspensionLedgerRecord>
   /** The waits by wait identity. */
   waits: ReadonlyMap<string, WaitLedgerRecord>
+  /** The request original of the last accepted Ask wait, or null. */
+  waitRequest: WaitRequestRecord | null
+  /** The state of the last committed checkpoint, or null. */
+  checkpointState: CheckpointStateRecord | null
   /** The exclusion fences by operation; the ledger reads them, the deciders do not. */
   exclusions: ReadonlyMap<string, ExclusionRecord>
 }>
 
 /** Indexes the records of a call domain. A record of another domain kind is not expected here. */
-export function snapshotOf<B extends ContentBlock>(
+export function snapshotOf(
   domain: LedgerDomain,
-  read: Extract<LedgerRead<B>, { kind: 'complete' }>,
-): Snapshot<B> {
+  read: Extract<LedgerRead, { kind: 'complete' }>,
+): Snapshot {
+  const bodies = new Map<string, BodyEntryRecord>()
+  const resultPolicies = new Map<string, ResultPolicyRecord>()
+  const resultPreparations = new Map<string, ResultPreparationRecord>()
   const releases = new Map<string, EnvironmentReleaseRecord>()
-  const facts = new Map<string, FactEventRecord<B>>()
+  const facts = new Map<string, FactEventRecord>()
   const batches = new Map<string, FactBatchRecord>()
   const streams = new Map<string, FactStreamRecord>()
   const process: ProcessRecord[] = []
   let call: CallRecord | null = null
   const operations = new Map<string, OperationRecord>()
-  const results = new Map<string, ResultRecord<B>>()
+  const results = new Map<string, ResultRecord>()
   const accounts: AccountRecord[] = []
   const tasks: ToolTask[] = []
   const exclusions = new Map<string, ExclusionRecord>()
   const suspensions = new Map<string, SuspensionLedgerRecord>()
   const waits = new Map<string, WaitLedgerRecord>()
+  let waitRequest: WaitRequestRecord | null = null
+  let checkpointState: CheckpointStateRecord | null = null
   for (const record of read.records) {
     switch (record.kind) {
+      case 'body-entry':
+        bodies.set(record.body.bodyId, record.body)
+        break
+      case 'result-policy':
+        resultPolicies.set(record.policy.operation, record.policy)
+        break
+      case 'result-preparation':
+        resultPreparations.set(record.preparation.id, record.preparation)
+        break
       case 'environment-release':
         releases.set(record.environmentRelease.release.preparation, record.environmentRelease)
         break
@@ -144,11 +181,20 @@ export function snapshotOf<B extends ContentBlock>(
       case 'wait':
         waits.set(record.wait.record.intent.wait, record.wait)
         break
+      case 'wait-request':
+        waitRequest = record.waitRequest
+        break
+      case 'checkpoint-state':
+        checkpointState = record.checkpointState
+        break
       default:
         throw new Error(`a ${record.kind} record does not belong to a call domain`)
     }
   }
   return {
+    bodies,
+    resultPolicies,
+    resultPreparations,
     domain,
     releases,
     facts,
@@ -163,31 +209,39 @@ export function snapshotOf<B extends ContentBlock>(
     tasks,
     suspensions,
     waits,
+    waitRequest,
+    checkpointState,
     exclusions,
   }
 }
 
-export type Decision<T, B extends ContentBlock> =
+export type Decision<T> =
   | Readonly<{ kind: 'reply'; outcome: Outcome<T, ToolFailure> }>
-  | Readonly<{ kind: 'commit'; writes: readonly LedgerWrite<B>[]; value: T }>
+  | Readonly<{ kind: 'commit'; writes: readonly LedgerWrite[]; value: T }>
 
 /** What the ledger mints for one attempt: the revision the commit will set. */
 export type Mint = Readonly<{ revision: ToolRevision }>
 
-export function reply<T, B extends ContentBlock>(outcome: Outcome<T, ToolFailure>): Decision<T, B> {
+export function reply<T>(outcome: Outcome<T, ToolFailure>): Decision<T> {
   return { kind: 'reply', outcome }
 }
 
-export function put<B extends ContentBlock>(record: LedgerRecord<B>): LedgerWrite<B> {
+export function put(record: LedgerRecord): LedgerWrite {
   return { kind: 'put', record }
 }
+
+/**
+ * CallLifecycle `Admit`: a domain that held only an exclusion fence was due for removal; a domain
+ * that holds the call is due again only when its delivery is released.
+ */
+const ADMITTED_NOT_DUE: LedgerWrite = { kind: 'unschedule', key: CALL_DUE_KEY }
 
 /**
  * P01: a committed operation answers again with its original receipt when the input is the same,
  * and `conflict` when the input differs. An `undefined` success means the operation is new.
  */
-export function recall<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function recall(
+  snapshot: Snapshot,
   operation: ToolOperationId,
   inputDigest: string,
   kind: OperationReceipt['kind'],
@@ -215,7 +269,7 @@ export type AdmitCommand = Readonly<{
 /** The pure functions the admit decision needs: the strict argument parse and the text result. */
 export type AdmitTools<B extends ContentBlock> = Readonly<{
   arguments(input: ToolArguments): Outcome<ParsedToolArguments, ToolArgumentsRejection>
-  text(reason: string): Outcome<ToolResult<B>, Readonly<{ reason: string }>>
+  text(reason: string): Outcome<ToolRenderedResult<B>, Readonly<{ reason: string }>>
 }>
 
 /** What an admission decision answers: the state, and whether it recalled a committed admission. */
@@ -231,11 +285,12 @@ export type Admitted = Readonly<{ state: ToolState; recovered: boolean }>
  * commitment (P02); otherwise the call is accepted with the task that carries it to the queue.
  */
 export function decideAdmit<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+  snapshot: Snapshot,
   command: AdmitCommand,
-  tools: AdmitTools<B>,
+  tools: Pick<AdmitTools<B>, 'arguments'>,
   mint: Mint,
-): Decision<Admitted, B> {
+  prepared: PreparedSynthetic | null,
+): SyntheticDecision<Admitted> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'admit')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined) return reply(succeed({ state: stateOf(known.ok), recovered: true }))
@@ -246,10 +301,11 @@ export function decideAdmit<B extends ContentBlock>(
     return reply(invalid('request.mode', 'background-not-allowed'))
   if (request.availability.kind === 'known-unavailable')
     return settle(
+      snapshot,
       command,
       { kind: 'unavailable', reason: request.availability.reason },
-      tools,
       mint,
+      prepared,
     )
   if (request.invocation.kind === 'programmatic' && definition.programmable !== true)
     return reply(
@@ -260,7 +316,8 @@ export function decideAdmit<B extends ContentBlock>(
       }),
     )
   const parsed = tools.arguments(request.arguments)
-  if ('failure' in parsed) return argumentsFailure(command, parsed.failure, tools, mint)
+  if ('failure' in parsed)
+    return argumentsFailure(snapshot, command, parsed.failure, mint, prepared)
   return acceptWithinCapacity(command, mint)
 }
 
@@ -268,10 +325,7 @@ export function decideAdmit<B extends ContentBlock>(
  * Accepts the call, or refuses an admission whose queue holds as many unreleased calls as its
  * capacity (P02: a capacity refusal comes before any commitment).
  */
-function acceptWithinCapacity<B extends ContentBlock>(
-  command: AdmitCommand,
-  mint: Mint,
-): Decision<Admitted, B> {
+function acceptWithinCapacity(command: AdmitCommand, mint: Mint): Decision<Admitted> {
   const { queue } = command
   if (queue === null || queue.load < queue.capacity) return accept(command, mint)
   return reply(
@@ -312,11 +366,12 @@ function acceptedState(command: AdmitCommand, revision: ToolRevision): ToolState
 }
 
 /** Accepts a real tool call: the call record, the receipt and the task that carries it on. */
-function accept<B extends ContentBlock>(command: AdmitCommand, mint: Mint): Decision<Admitted, B> {
+function accept(command: AdmitCommand, mint: Mint): Decision<Admitted> {
   const state = acceptedState(command, mint.revision)
   return {
     kind: 'commit',
     writes: [
+      ADMITTED_NOT_DUE,
       put({ kind: 'call', call: callRecord(command, state) }),
       put(operationRecord(command, { kind: 'admit', state }, mint)),
       put({ kind: 'task', task: queueTask(command.operation, state.source) }),
@@ -354,7 +409,7 @@ function callRecord(command: AdmitCommand, state: ToolState): CallRecord {
  * exclusion fence advances the domain revision without a new state, so it does not make the
  * holder of the current state stale.
  */
-export function stateRevision<B extends ContentBlock>(snapshot: Snapshot<B>): ToolRevision {
+export function stateRevision(snapshot: Snapshot): ToolRevision {
   return snapshot.call?.state.revision ?? INITIAL_REVISION
 }
 
@@ -367,12 +422,13 @@ function stateOf(record: OperationRecord): ToolState {
   return record.receipt.state
 }
 
-function argumentsFailure<B extends ContentBlock>(
+function argumentsFailure(
+  snapshot: Snapshot,
   command: AdmitCommand,
   rejection: ToolArgumentsRejection,
-  tools: AdmitTools<B>,
   mint: Mint,
-): Decision<Admitted, B> {
+  prepared: PreparedSynthetic | null,
+): SyntheticDecision<Admitted> {
   switch (rejection.kind) {
     case 'incomplete':
       return reply(invalid('request.arguments.complete', 'incomplete'))
@@ -380,7 +436,13 @@ function argumentsFailure<B extends ContentBlock>(
       return reply(invalid(`request.arguments.${rejection.field}`, rejection.reason))
     case 'invalid': {
       const diagnostic = `${rejection.field}: ${rejection.reason}`
-      return settle(command, { kind: 'failed', cause: 'arguments', diagnostic }, tools, mint)
+      return settle(
+        snapshot,
+        command,
+        { kind: 'failed', cause: 'arguments', diagnostic },
+        mint,
+        prepared,
+      )
     }
     default: {
       const exhaustive: never = rejection
@@ -429,9 +491,9 @@ function replacementAccount(call: ToolCallId): CallAccount {
 
 /** The text of a terminal that no tool produced, made by the trusted factory (P02). */
 export function terminalText<B extends ContentBlock>(
-  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' | 'interrupted' }>,
+  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
   text: AdmitTools<B>['text'],
-): Outcome<ToolResult<B>, ToolFailure> {
+): Outcome<ToolRenderedResult<B>, ToolFailure> {
   return ledgerText(describeTerminal(terminal), text)
 }
 
@@ -439,7 +501,7 @@ export function terminalText<B extends ContentBlock>(
 export function ledgerText<B extends ContentBlock>(
   words: string,
   text: AdmitTools<B>['text'],
-): Outcome<ToolResult<B>, ToolFailure> {
+): Outcome<ToolRenderedResult<B>, ToolFailure> {
   const made = text(words)
   if ('ok' in made) return made
   return fail({
@@ -450,30 +512,30 @@ export function ledgerText<B extends ContentBlock>(
 }
 
 /** The first result version of a call and its pending delivery. */
-export type FirstVersion<B extends ContentBlock> = Readonly<{
+export type FirstVersion = Readonly<{
   version: ToolResultVersion
   delivery: Extract<DeliveryState, { kind: 'pending' }>
-  record: ResultRecord<B>
+  record: ResultRecord
 }>
 
 /**
  * The first original result and its delivery relation. Execution and synthetic settlement add
  * their own state, custody duties and accounting without duplicating the result identity.
  */
-export function firstResultWrites<B extends ContentBlock>(
+export function firstResultWrites(
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
   terminal: ToolTerminal,
   effect: Effect,
-  value: ToolResult<B>,
+  value: ResultRecord['value'],
   custody: ResultCustody,
   mint: Mint,
-): Readonly<{ version: FirstVersion<B>; writes: readonly LedgerWrite<B>[] }> {
+): Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }> {
   const { tenant, call, operation } = place
-  const version = resultVersion(1)
+  const version = FIRST_RESULT_VERSION
   const delivery = { kind: 'pending', delivery: deliveryId(1), consumer } as const
   const resultPlace = { tenant, call, result: version, delivery: delivery.delivery, operation }
-  const record: ResultRecord<B> = {
+  const record: ResultRecord = {
     tenant,
     call,
     result: version,
@@ -502,28 +564,37 @@ export function firstResultWrites<B extends ContentBlock>(
   }
 }
 
-/** Synthetic settlement additionally records the work of producing a replacement result. */
-export function settlementWrites<B extends ContentBlock>(
+/**
+ * Synthetic settlement additionally records the work of producing a replacement result. `effect` is
+ * what the call did before the ledger settled it: nothing for a call that never started, unknown
+ * for a call whose segments ran before a control closed its wait.
+ */
+export function settlementWrites(
+  snapshot: Snapshot,
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
-  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
-  value: ToolResult<B>,
+  terminal: SyntheticNeed['terminal'],
+  value: ResultValue,
   mint: Mint,
-): Readonly<{ version: FirstVersion<B>; writes: readonly LedgerWrite<B>[] }> {
+  effect: Effect = { kind: 'not-started' },
+): Outcome<Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }>, ToolFailure> {
   const first = firstResultWrites(
     place,
     consumer,
     terminal,
-    { kind: 'not-started' },
+    effect,
     value,
     { kind: 'synthetic' },
     mint,
   )
+  const uses = settleResultBodies(snapshot, first.version.record, null)
+  if ('failure' in uses) return uses
   const account = replacementAccount(place.call)
-  return {
+  return succeed({
     version: first.version,
     writes: [
       ...first.writes,
+      ...uses.ok,
       put({
         kind: 'account',
         account: {
@@ -541,20 +612,35 @@ export function settlementWrites<B extends ContentBlock>(
         },
       }),
     ],
-  }
+  })
 }
 
 /** A logical terminal formed at admission: dummy unavailable or an arguments failure (P02). */
-function settle<B extends ContentBlock>(
+function settle(
+  snapshot: Snapshot,
   command: AdmitCommand,
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
-  tools: AdmitTools<B>,
   mint: Mint,
-): Decision<Admitted, B> {
-  const made = terminalText(terminal, tools.text)
+  prepared: PreparedSynthetic | null,
+): SyntheticDecision<Admitted> {
+  const made = syntheticChannels(
+    command,
+    { terminal, consumer: command.request.consumer },
+    prepared,
+  )
+  if ('kind' in made) return made
   if ('failure' in made) return reply(made)
   const { tenant, call, request } = command
-  const settled = settlementWrites(command, request.consumer, terminal, made.ok, mint)
+  const settledReply = settlementWrites(
+    snapshot,
+    command,
+    request.consumer,
+    terminal,
+    made.ok,
+    mint,
+  )
+  if ('failure' in settledReply) return reply(settledReply)
+  const settled = settledReply.ok
   const state = logicalState(
     tenant,
     call,
@@ -566,6 +652,7 @@ function settle<B extends ContentBlock>(
   return {
     kind: 'commit',
     writes: [
+      ADMITTED_NOT_DUE,
       put({ kind: 'call', call: { ...callRecord(command, state), state } }),
       put(operationRecord(command, { kind: 'admit', state }, mint)),
       ...settled.writes,
@@ -574,11 +661,11 @@ function settle<B extends ContentBlock>(
   }
 }
 
-export function operationRecord<B extends ContentBlock>(
+export function operationRecord(
   command: Pick<AdmitCommand, 'tenant' | 'call' | 'operation' | 'inputDigest'>,
   receipt: OperationReceipt,
   mint: Mint,
-): LedgerRecord<B> {
+): LedgerRecord {
   return {
     kind: 'operation',
     operation: {
@@ -654,10 +741,10 @@ function handoffEvidence(handoff: Handoff): Readonly<{ field: string; value: Dur
 }
 
 /** The result version a release names, or why the release cannot proceed (P08). */
-function releaseTarget<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function releaseTarget(
+  snapshot: Snapshot,
   command: ReleaseCommand,
-): Outcome<ResultRecord<B>, ToolFailure> {
+): Outcome<ResultRecord, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
   if (snapshot.call.state.phase !== 'settled') return fail({ kind: 'not-settled' })
   const record = snapshot.results.get(command.result)
@@ -675,13 +762,34 @@ function releaseTarget<B extends ContentBlock>(
  * Decides one delivery release. Order: recall by operation; the version, delivery and consumer
  * must be the recorded ones; the handoff evidence must belong to the consumer; an already
  * released delivery answers its released state; otherwise the release is committed with a
- * Tool-side receipt, and the deliver task of that version is done.
+ * Tool-side receipt, the channel values of the record give way to their summary (C6), and the
+ * deliver task of that version is done.
  */
-export function decideRelease<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+/**
+ * The instant after which the domain of a released call may be dropped (CallLifecycle `Ack`): the
+ * grace after the acknowledgement, or the expiry of an offloaded body when that is later, so the
+ * body stays readable for its whole retention.
+ */
+function removalInstant(snapshot: Snapshot, graceEnd: ToolInstant): ToolInstant {
+  let latest = graceEnd
+  for (const record of snapshot.results.values()) {
+    const original = record.value.original
+    if (original.kind === 'offloaded' && original.retention.expiresAt > latest)
+      latest = original.retention.expiresAt
+  }
+  return latest
+}
+
+/**
+ * `graceEnd` is the acknowledgement instant plus G on the ledger's clock; null when the ledger has
+ * no instant clock, and then the domain is not scheduled.
+ */
+export function decideRelease(
+  snapshot: Snapshot,
   command: ReleaseCommand,
   mint: Mint,
-): Decision<ReleasedDelivery, B> {
+  graceEnd: ToolInstant | null,
+): Decision<ReleasedDelivery> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'release-delivery')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined) return reply(succeed(deliveryOf(known.ok)))
@@ -705,13 +813,25 @@ export function decideRelease<B extends ContentBlock>(
   return {
     kind: 'commit',
     writes: [
-      put({ kind: 'result', result: { ...record, delivery: released } }),
+      put({
+        kind: 'result',
+        result: { ...record, delivery: released, value: releasedResultValue(record.value) },
+      }),
       put(operationRecord(command, { kind: 'release-delivery', delivery: released }, mint)),
       put({
         kind: 'call',
         call: { ...call, state: withDelivery(call, record, released, mint) },
       }),
       { kind: 'delete', key: taskKey({ kind: 'deliver', operation: record.settledBy }) },
+      ...(graceEnd === null
+        ? []
+        : [
+            {
+              kind: 'schedule' as const,
+              key: CALL_DUE_KEY,
+              dueAt: removalInstant(snapshot, graceEnd),
+            },
+          ]),
     ],
     value: released,
   }
@@ -723,9 +843,9 @@ function deliveryOf(record: OperationRecord): ReleasedDelivery {
 }
 
 /** The state after a release: the original delivery or the supplement of that version changes. */
-function withDelivery<B extends ContentBlock>(
+function withDelivery(
   call: CallRecord,
-  record: ResultRecord<B>,
+  record: ResultRecord,
   released: ReleasedDelivery,
   mint: Mint,
 ): ToolState {
@@ -742,4 +862,21 @@ function withDelivery<B extends ContentBlock>(
         }
   const place = { tenant: call.tenant, call: call.call }
   return { ...body, source: mintEvidence('state', place, mint.revision, body) }
+}
+
+export function syntheticChannels(
+  command: Readonly<{ operation: ToolOperationId; inputDigest: string }>,
+  need: SyntheticNeed,
+  prepared: PreparedSynthetic | null,
+):
+  | Outcome<ResultValue, ToolFailure>
+  | Readonly<{ kind: 'prepare-synthetic'; need: SyntheticNeed }> {
+  if (prepared === null) return { kind: 'prepare-synthetic', need }
+  if (
+    prepared.operation !== command.operation ||
+    prepared.inputDigest !== command.inputDigest ||
+    digestOf(prepared.need) !== digestOf(need)
+  )
+    return fail({ kind: 'conflict', operation: command.operation })
+  return succeed(prepared.state.value)
 }

@@ -16,6 +16,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { SessionInputScope, WorkSnapshot } from '@omne-harness/session-contract'
 import historyHandler from '../src/worker/read-history.ts'
 import { entryOfText, pageEntries, storedText } from './fixtures/entry-text.ts'
+import { packText, unpacked } from './fixtures/packed.ts'
 import { scenarioEntries } from './fixtures/session-scenario.ts'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
 
@@ -51,7 +52,7 @@ function writeAll(db: Db, session: string, entries: readonly Record<string, unkn
       BigInt(entry['id'] as string),
       BigInt(entry['revision'] as string),
       entry['kind'] as string,
-      body,
+      packText(body),
       BigInt(Buffer.byteLength(body)),
     ])
     times.push((performance.now() - start) * 1000)
@@ -113,7 +114,7 @@ describe('entry-codec-bench', () => {
         )
         .rows.map(row => {
           if (run === 0) bytes += Number(row[1])
-          return String(row[0])
+          return unpacked(row[0])
         })
       for (const text of texts) {
         const start = performance.now()

@@ -3,7 +3,6 @@ import type {
   Admit,
   ConsumerRef,
   FixedModelRequest,
-  ResultCapacity,
   Supplier,
   Termination,
 } from '@omne-harness/model-contract'
@@ -126,7 +125,7 @@ describe('the values that the conformance suite sends when the subject gives non
     }
   })
 
-  it('sends a consumer and a capacity that have every field', async () => {
+  it('sends a consumer that has every field', async () => {
     const first = firstAdmission(await sent(subject => subject))
     expect(first.consumer).toEqual({
       owner: 'conformance',
@@ -134,7 +133,6 @@ describe('the values that the conformance suite sends when the subject gives non
       position: 'position-1',
       purpose: 'purpose',
     })
-    expect(first.capacity).toEqual({ bytes: '1000', blocks: '10', attachmentBytes: '0' })
   })
 
   it('asks for the page after the first and for the close of a read that other tenants never had', async () => {
@@ -153,12 +151,10 @@ describe('the values that the conformance suite sends when the subject gives non
 
 describe('the values that the subject gives to the conformance suite', () => {
   const consumer: ConsumerRef = { owner: 'mine', work: 'w', position: 'p', purpose: 'q' }
-  const capacity: ResultCapacity = { bytes: '5', blocks: '2', attachmentBytes: '1' }
 
-  it('are the consumer and the capacity that the provider receives in place of the defaults', async () => {
-    const first = firstAdmission(await sent(subject => ({ ...subject, consumer, capacity })))
+  it('are the consumer that the provider receives in place of the default', async () => {
+    const first = firstAdmission(await sent(subject => ({ ...subject, consumer })))
     expect(first.consumer).toBe(consumer)
-    expect(first.capacity).toBe(capacity)
   })
 
   it('are the request that the provider receives in place of the default', async () => {

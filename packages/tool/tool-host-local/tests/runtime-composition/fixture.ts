@@ -1,13 +1,10 @@
+import { createMemoryToolBodies } from '@omne-harness/tool/testing'
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { catalogSearch, catalogView } from '../catalog-view-fixture.ts'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { expect } from 'vitest'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import {
-  canonicalDigest,
-  type ToolConfiguration,
-  type ToolLedgerStore,
-  type LedgerWrite,
-} from '@omne-harness/tool'
+import { canonicalDigest, type ToolConfiguration, type ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type {
   ToolDelivery,
@@ -17,9 +14,11 @@ import type {
   ToolResultReceiver,
   ToolsExecuteAnswer,
   ToolForwardIntent,
+  ToolBodyDeclaration,
 } from '@omne-harness/tool-contract'
 import { resolveToolInvocationRef, toolsCapabilityOf } from '@omne-harness/tool-contract'
 import {
+  defaultResultPolicy,
   defineFunctionTool,
   defineCommandTool,
   defineToolOperation,
@@ -31,7 +30,6 @@ import {
   type ToolExecutionContext,
   type ToolWaitContract,
 } from '@omne-harness/tool-contract/provider'
-import { createMemoryToolOutputCustody } from '@omne-harness/tool-contract/testing'
 import {
   ToolClockService,
   ToolPublicationAuthorityService,
@@ -78,6 +76,41 @@ export const configuration: ToolConfiguration = {
   queueCapacity: 32,
   driverRetryDelayMs: 10,
   driverStepsPerRun: 16,
+  readResultArguments: {
+    maxBytes: 65_536,
+    maxDepth: 32,
+    maxItems: 4096,
+    maxMembers: 256,
+    maxStringLength: 32_768,
+    maxNumberLength: 64,
+  },
+  offloading: {
+    maxInlineUtf8Bytes: 65_536,
+    maxRetentionMs: 86_400_000,
+    maxBodyBytes: 16_777_216,
+    previewUtf8Bytes: 1_024,
+    maxPageBytes: 65_536,
+    permitMs: 30_000,
+    clockSkewMs: 1_000,
+    orphanGraceMs: 60_000,
+    maxWriterMetadataBytes: 1_048_576,
+    jsonDocument: {
+      maxBytes: 1_048_576,
+      maxDepth: 64,
+      maxItems: 65_536,
+      maxMembers: 65_536,
+      maxStringLength: 1_048_576,
+      maxNumberLength: 64,
+    },
+    jsonRecord: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 4096,
+      maxMembers: 4096,
+      maxStringLength: 65_536,
+      maxNumberLength: 64,
+    },
+  },
 }
 export type Author = (
   args: string,
@@ -93,6 +126,11 @@ export async function fixture(
   enableForwarding = false,
   requestAccess?: ToolRequestAccess<unknown>,
   forwardingPreparation?: () => Promise<void>,
+  body?: Readonly<{
+    declaration: ToolBodyDeclaration
+    schemas: LocalToolRuntimeInput['bodySchemas']
+  }>,
+  configure: (base: ToolConfiguration) => ToolConfiguration = base => base,
   /** A checkpointed author in place of `author`, and the decision owner of its waits. */
   checkpointed?: Readonly<{
     executor: CheckpointedToolExecutor<string, string, ToolEnvironmentValue>
@@ -101,14 +139,15 @@ export async function fixture(
   }>,
 ) {
   const root = new Context()
-  const memory = createMemoryToolLedgerStore<ToolMessageContentBlock>()
-  const store: ToolLedgerStore<ToolMessageContentBlock> = {
+  const memory = createMemoryToolLedgerStore()
+  const store: ToolLedgerStore = {
     durability: 'durable',
     read: memory.read,
+    readRecord: memory.readRecord,
+    due: memory.due,
     commit: memory.commit,
     scanPending: memory.scanPending,
   }
-  const custody = createMemoryToolOutputCustody<unknown>()
   const clock = createLocalToolClock()
   const deliveries: ToolDelivery<ToolMessageContentBlock>[] = []
   const signals = new Map<string, AbortSignal>()
@@ -156,6 +195,7 @@ export async function fixture(
     ...(enableForwarding
       ? {
           forwarding: {
+            results: { access: access.guard, policy: defaultResultPolicy, pageBytes: 4096 },
             authority: () => root.get('toolStartAuthority'),
             isParent: (request: import('@omne-harness/tool-contract').FixedToolRequest) =>
               request.availability.definition.adoption.name === 'Tools',
@@ -201,7 +241,7 @@ export async function fixture(
       },
     },
   })
-  let bindings: ToolBindings<unknown, ToolMessageContentBlock, ToolEnvironmentValue> | undefined
+  let bindings: ToolBindings<unknown, ToolEnvironmentValue> | undefined
   const authority = authorityFor({ kind: 'official' }, 'read_file')
   const toolsAuthority = authorityFor({ kind: 'official' }, 'Tools')
   const verifier = {
@@ -249,7 +289,10 @@ export async function fixture(
         { kind: 'declared'; value: typeof parameters }
       >({
         parameters: { kind: 'declared', value: parameters },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: {
+          ...ordinaryReturnFixture(adoption('output')),
+          ...(body === undefined ? {} : { body: body.declaration }),
+        },
         author: {
           kind: 'ordinary',
           parameters: {
@@ -277,7 +320,8 @@ export async function fixture(
               typeof value === 'string'
                 ? succeed(new TextEncoder().encode(value))
                 : fail({ reason: 'not text' }),
-            decode: bytes => succeed(new TextDecoder().decode(bytes)),
+            decode: bytes =>
+              succeed(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)),
           },
           output: {
             adoption: adoption('output-check'),
@@ -388,15 +432,15 @@ export async function fixture(
   }
   const input: LocalToolRuntimeInput = {
     store,
+    bodies: createMemoryToolBodies(),
     // No verdict of this fixture carries a condition.
     conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
-    custody,
-    readOutput: custody.controls.readOutput,
     content: null,
+    ...(body === undefined ? {} : { bodySchemas: body.schemas }),
     sources,
     access,
     clock,
-    configuration,
+    configuration: configure(configuration),
     guardsOf: () => [],
     permitRequirements: {
       check: async () => ({ kind: 'not-required', source: evidence('frozen-no-permit-action') }),
@@ -441,33 +485,12 @@ export async function fixture(
         settle: async () =>
           succeed({ kind: 'pending', diagnostic: 'Frozen provider has no cold cleanup.' }),
       },
-      guarded: {
-        commit: async value => {
-          const call = await store.read(value.call)
-          if (call.kind !== 'complete')
-            return { kind: 'unavailable', diagnostic: 'fixture read failure' }
-          const writes: LedgerWrite<ToolMessageContentBlock>[] = []
-          for (const write of value.hostCommit.writes) {
-            if (write.kind === 'delete') writes.push(write)
-            else if (write.record.kind === 'host')
-              writes.push({ kind: 'put', record: write.record })
-            else
-              return {
-                kind: 'unavailable',
-                diagnostic: 'the frozen host commit accepts only host records',
-              }
-          }
-          return call.revision === value.callExpected
-            ? store.commit({ ...value.hostCommit, writes })
-            : { kind: 'call-changed' }
-        },
-      },
       plan: {
         requirement: async () => succeed(placement.requirement),
         binding: async value =>
           succeed({
             origin: originRef('fixture'),
-            scope: value.preparation.request.requesterScope,
+            scope: value.request.requesterScope,
           }),
         guard: { authorize: async () => 'authorized' },
         facts: async () =>
@@ -562,6 +585,7 @@ export async function fixture(
     },
   })
   await authorFiber
+  const consumedResults: ToolDelivery<ToolMessageContentBlock>[] = []
   const defaultReceiver: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
     async push(value) {
       deliveries.push(structuredClone(value.delivery))
@@ -577,7 +601,14 @@ export async function fixture(
       name: `consumer-${deliveries.length}`,
       inject: ['toolRuntime'],
       apply(ctx: Context) {
-        ctx.toolRuntime.registerResultReceiver('consumer', receiver ?? defaultReceiver)
+        const capture: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
+          async push(value) {
+            const outcome = await (receiver ?? defaultReceiver).push(value)
+            if ('ok' in outcome) consumedResults.push(structuredClone(value.delivery))
+            return outcome
+          },
+        }
+        ctx.toolRuntime.registerResultReceiver('consumer', capture)
       },
     })
   let consumer = receive()
@@ -643,7 +674,7 @@ export async function fixture(
             },
     }
   }
-  async function settled(reference: ToolInvocationRef, tenant = tenantA) {
+  async function settledState(reference: ToolInvocationRef, tenant = tenantA) {
     try {
       await expect
         .poll(
@@ -663,23 +694,46 @@ export async function fixture(
     const found = unbox(await api.queries.lookup(query(reference, tenant)))
     if (found.kind !== 'found' || found.state.phase !== 'settled')
       throw new Error('Missing settlement')
-    return unbox(
-      await api.queries.readResult({
-        ...query(reference, tenant),
-        result: found.state.result,
-        after: null,
-      }),
+    return found.state
+  }
+  async function settled(reference: ToolInvocationRef, tenant = tenantA) {
+    const state = await settledState(reference, tenant)
+    const read = await api.queries.readResult({
+      ...query(reference, tenant),
+      result: state.result,
+      after: null,
+    })
+    if ('ok' in read) return read.ok
+    if (read.failure.kind !== 'not-found' || read.failure.reason !== 'released')
+      throw new Error(JSON.stringify(read.failure))
+    const version = state.result
+    const delivered = consumedResults.findLast(
+      item =>
+        item.kind === 'result' && item.key.reference === reference && item.key.result === version,
     )
+    if (delivered?.kind !== 'result')
+      throw new Error('released result has no consumer receipt in this fixture')
+    return {
+      result: delivered.key.result,
+      terminal: delivered.terminal,
+      effect: delivered.effect,
+      actualTerminal: delivered.actualTerminal,
+      relation: delivered.relation,
+      delivery: delivered.delivery,
+      source: delivered.source,
+      value: delivered.value,
+      next: null,
+    }
   }
   return {
     root,
     input,
     plugins,
     api,
+    external,
     directory,
     environments,
     executor,
-    custody,
     store,
     deliveries,
     signals,
@@ -714,6 +768,15 @@ export async function fixture(
     streamQuery,
     snapshot,
     settled,
+    settledState,
+    async authorLookup(reference: ToolInvocationRef) {
+      const { call } = unbox(resolveToolInvocationRef(reference, tenantA))
+      const access = { tenant: tenantA, principal: principal(tenantA), call }
+      const recovery = unbox(await root.toolCommands.loadRecovery(access))
+      if (recovery.start === null) throw new Error('Missing author start')
+      const binding = unbox(await bindings.recover({ ...access, start: recovery.start }))
+      return unbox(await binding.inspectStart(recovery.start))
+    },
     tenantA,
     tenantB,
     revoke: () => {

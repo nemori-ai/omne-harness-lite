@@ -36,8 +36,16 @@ export type AuthorSegment<S, R> =
   | Readonly<{ kind: 'suspended'; state: S; wait: AuthorWait; closedResult: string }>
 
 /**
+ * The most bytes the state of one checkpoint may take. The ledger keeps the state as base64 text
+ * in one record of the call domain, and writes it in the one commit of the suspension: the bound
+ * keeps that commit inside the command limit of the record store and the call domain inside its
+ * read limit.
+ */
+export const CHECKPOINT_STATE_MAX_BYTES = 262_144
+
+/**
  * The checkpoint an author declares: the schema of its state, the codec of the state bytes, and
- * the most bytes one state may take.
+ * the most bytes one state may take, at most CHECKPOINT_STATE_MAX_BYTES.
  */
 export type ToolCheckpointDeclaration = Readonly<{
   schema: ToolSchemaIdentity

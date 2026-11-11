@@ -1,10 +1,10 @@
 // Source verification happens outside the transaction. These decisions preserve the original duty.
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolFailure } from '@omne-harness/tool-contract'
 import type { FactProgress, FactReceipt } from '@omne-harness/tool-contract/provider'
 import { invalid, type MutationInput } from './boundary.ts'
-import { factTaskOperation, mintEvidence } from './evidence.ts'
+import { factTaskOperation, mintEvidence, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
   put,
@@ -14,7 +14,7 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import { factProgress, sameFactValue } from './ledger-facts.ts'
+import { factProgress } from './ledger-facts.ts'
 import { factKey, taskKey, type FactBatchRecord } from './ledger-store.ts'
 
 export type FactAcknowledgementCommand = MutationInput<unknown> &
@@ -28,8 +28,8 @@ type Acknowledgement =
   | Readonly<{ kind: 'batch'; batch: FactBatchRecord }>
 
 /** No source call is allowed before this original operation and custody check succeeds. */
-export function checkFactAcknowledgement<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function checkFactAcknowledgement(
+  snapshot: Snapshot,
   command: FactAcknowledgementCommand,
 ): Outcome<Acknowledgement, ToolFailure> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'fact-acknowledgement')
@@ -57,11 +57,11 @@ export function checkFactAcknowledgement<B extends ContentBlock>(
   return succeed({ kind: 'batch', batch })
 }
 
-export function decideFactAcknowledgement<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideFactAcknowledgement(
+  snapshot: Snapshot,
   command: FactAcknowledgementCommand,
   mint: Mint,
-): Decision<FactProgress, B> {
+): Decision<FactProgress> {
   const checked = checkFactAcknowledgement(snapshot, command)
   if ('failure' in checked) return reply(checked)
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.progress))

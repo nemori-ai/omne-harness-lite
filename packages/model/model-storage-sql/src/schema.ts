@@ -1,4 +1,4 @@
-// The four tables of the durable Model call document and their migration. Each column is declared
+// The five tables of the durable Model call document and their migration. Each column is declared
 // once, in `TABLES`: the DDL, the migration check and the row parser all read that list. Every
 // table is keyed by tenant first, and every statement that reads or writes it filters on tenant.
 import type { MigrationModule, MigrationPort } from '@omne-harness/sql-contract/worker'
@@ -9,7 +9,10 @@ export const MODEL_PARTICIPANT = 'model'
 export const PROTOCOL = '1'
 export const MIGRATION = Object.freeze({ owner: 'model', id: '001-model-records' })
 
-/** `text` and `json` columns hold TEXT; `int` columns hold INTEGER and travel as safe integers. */
+/**
+ * `text` columns hold TEXT. `json` columns hold JSON text in the packed text form of sql-contract
+ * §10.1, a BLOB. `int` columns hold INTEGER and travel as safe integers.
+ */
 export type ColumnKind = 'text' | 'json' | 'int'
 export type Column = Readonly<{ name: string; kind: ColumnKind; nullable: boolean }>
 export type Table = Readonly<{
@@ -20,6 +23,12 @@ export type Table = Readonly<{
   constraints: readonly string[]
   indexes: readonly string[]
 }>
+
+const SQL_TYPE: Readonly<Record<ColumnKind, string>> = {
+  text: 'TEXT',
+  json: 'BLOB',
+  int: 'INTEGER',
+}
 
 const column = (name: string, kind: ColumnKind, nullable = false): Column => ({
   name,
@@ -38,9 +47,6 @@ const CALL: Table = {
     column('initiator', 'json'),
     column('request', 'json', true),
     column('request_digest', 'text'),
-    column('cap_bytes', 'int'),
-    column('cap_blocks', 'int'),
-    column('cap_attachment', 'int'),
     column('state', 'json'),
     column('execution', 'json', true),
     column('retry', 'json', true),
@@ -59,6 +65,26 @@ const CALL: Table = {
     'CREATE INDEX md_call_pending_idx ON md_call (tenant, call) WHERE pending = 1',
     'CREATE INDEX md_call_held_idx ON md_call (tenant) WHERE request IS NOT NULL',
   ],
+}
+
+/**
+ * The body of the request of a call: the whole fixed request as JSON text, cut into chunks. The
+ * call row keeps the head. A chunk is keyed by the call and the digest of the request, so the
+ * chunks of another input of the same call are other rows. `total` is the chunk count of the body.
+ */
+const REQUEST: Table = {
+  name: 'md_request',
+  columns: [
+    column('tenant', 'text'),
+    column('call', 'text'),
+    column('digest', 'text'),
+    column('seq', 'int'),
+    column('total', 'int'),
+    column('body', 'json'),
+  ],
+  primaryKey: ['tenant', 'call', 'digest', 'seq'],
+  constraints: ['CHECK (seq >= 0)', 'CHECK (total > seq)'],
+  indexes: [],
 }
 
 const DISPATCH: Table = {
@@ -116,6 +142,7 @@ const OPERATION: Table = {
 
 export const TABLES = Object.freeze({
   call: CALL,
+  request: REQUEST,
   dispatch: DISPATCH,
   part: PART,
   operation: OPERATION,
@@ -125,8 +152,7 @@ export const MODEL_TABLES: readonly string[] = Object.values(TABLES).map(table =
 
 function createTable(table: Table): string {
   const columns = table.columns.map(
-    item =>
-      `${item.name} ${item.kind === 'int' ? 'INTEGER' : 'TEXT'}${item.nullable ? '' : ' NOT NULL'}`,
+    item => `${item.name} ${SQL_TYPE[item.kind]}${item.nullable ? '' : ' NOT NULL'}`,
   )
   const clauses = [...columns, `PRIMARY KEY (${table.primaryKey.join(', ')})`, ...table.constraints]
   return `CREATE TABLE ${table.name} (${clauses.join(', ')}) STRICT`

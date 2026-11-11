@@ -1,3 +1,6 @@
+# pqw-skills releases extracted beside the pinned submodule by tooling/src/pqw_contract.py; rebuildable.
+/.vendor-float/
+
 # Rebuildable host projections; authored inputs live under agents/.
 # Cursor Cloud Agent reads Dockerfile, environment.json and install.sh from
 # the checkout before install. Those three files are committed. Generated

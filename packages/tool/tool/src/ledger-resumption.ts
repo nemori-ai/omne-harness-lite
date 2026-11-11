@@ -3,7 +3,6 @@
 // at the resume segment's `continued` fact. Each reads one call-domain snapshot and one command;
 // nothing here reads a port. The step names follow verification/models/SuspendedSlots.tla:
 // `decideAcceptDecision` is `Answer`, `decidePrepareResume` is `Resume`.
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolOperationId,
@@ -80,8 +79,8 @@ export type AcceptDecisionCommand = Readonly<{
  * wait that took a decision already is refused: P06 orders the cancellation and the answer on the
  * call record, so a decision that comes after the cancellation is not an answer.
  */
-export function refuseDecision<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function refuseDecision(
+  snapshot: Snapshot,
   wait: ToolWaitId,
 ): Outcome<Readonly<{ record: CallRecord; found: WaitLedgerRecord }>, ToolFailure> {
   const record = snapshot.call
@@ -106,11 +105,11 @@ export function refuseDecision<B extends ContentBlock>(
  * the owner resolved it. A resend of the same operation recalls
  * the wait state; any other acceptance of the same wait is refused, so one wait has one answer.
  */
-export function decideAcceptDecision<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideAcceptDecision(
+  snapshot: Snapshot,
   command: AcceptDecisionCommand,
   mint: Mint,
-): Decision<WaitState, B> {
+): Decision<WaitState> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'accept-decision')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined)
@@ -193,9 +192,12 @@ function resumePreparation(
     call: command.call,
     operation: operation.ok,
     adoption: bound.adoption,
-    inputDigest: digestOf({ wait: command.wait, adoption: bound.adoption, request: bound.request }),
+    inputDigest: digestOf({
+      wait: command.wait,
+      adoption: bound.adoption,
+      request: record.request,
+    }),
     purpose: 'resume',
-    request: bound.request,
   })
 }
 
@@ -227,11 +229,11 @@ export type ResumePlanCommand = WriteCommand &
  * still owes the requeue. One commit records the preparation, drops the call's environment and
  * replaces the `prepare` task.
  */
-export function decideResumePlan<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideResumePlan(
+  snapshot: Snapshot,
   command: ResumePlanCommand,
   mint: Mint,
-): Decision<PreparationRecord, B> {
+): Decision<PreparationRecord> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'plan-preparation')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined)
@@ -260,7 +262,6 @@ export function decideResumePlan<B extends ContentBlock>(
     adoption: current.adoption,
     inputDigest: command.inputDigest,
     purpose: 'resume',
-    request: record.request,
   }
   const body: StateBody = {
     ...commonOf(suspended),
@@ -301,8 +302,8 @@ function prepareTask(preparation: PreparationRecord): ToolTask {
 }
 
 /** The responding wait whose decision resumes at `checkpoint`, or undefined. */
-function respondingAt<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+function respondingAt(
+  snapshot: Snapshot,
   checkpoint: DurableEvidence,
 ): WaitLedgerRecord | undefined {
   for (const wait of snapshot.waits.values())
@@ -318,8 +319,8 @@ function respondingAt<B extends ContentBlock>(
  * The ledger asks this before the queue steps, so a refused resume moves no entry; the decider asks
  * it again under the transaction's snapshot.
  */
-export function refuseResume<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function refuseResume(
+  snapshot: Snapshot,
   record: CallRecord,
   checkpoint: DurableEvidence,
 ): Outcome<WaitLedgerRecord, ToolFailure> {
@@ -357,11 +358,11 @@ export type ResumeIntent = Readonly<{ state: ToolState; start: Resume }>
  * the held position, the `start` task, and removes the `queue` task. The checkpoint is consumed: a
  * later resume of it finds the call no longer suspended.
  */
-export function decidePrepareResume<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decidePrepareResume(
+  snapshot: Snapshot,
   command: PrepareResumeCommand,
   mint: Mint,
-): Decision<ResumeIntent, B> {
+): Decision<ResumeIntent> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'prepare-resume')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined) {
@@ -426,11 +427,11 @@ export type CloseWaitCommand = WriteCommand &
  * One commit closes the wait with cause `continued` and touches the call state. The timing segment
  * of the resume began when its start was recorded, at the segment's real start.
  */
-export function decideCloseWait<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideCloseWait(
+  snapshot: Snapshot,
   command: CloseWaitCommand,
   mint: Mint,
-): Decision<ToolState, B> {
+): Decision<ToolState> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'close-wait')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined) return reply(succeed(receiptOf(known.ok.receipt, 'close-wait').state))

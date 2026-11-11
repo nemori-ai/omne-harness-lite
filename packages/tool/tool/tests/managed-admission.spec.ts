@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { LedgerRecord, ToolLedger, ToolLedgerStore } from '@omne-harness/tool'
-import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
+import { createMemoryToolLedgerStore, type MemoryCommitFault } from '@omne-harness/tool/testing'
 import type { ToolInvokeOutcome, ToolState } from '@omne-harness/tool-contract'
 import {
   admission,
@@ -45,6 +45,19 @@ function accepted(outcome: ToolInvokeOutcome) {
 function rejected(outcome: ToolInvokeOutcome) {
   if (outcome.kind !== 'rejected') throw new Error(`expected rejected: ${JSON.stringify(outcome)}`)
   return outcome
+}
+
+function faultAdmission(store: Harness['store'], fault: MemoryCommitFault) {
+  const commit = store.commit.bind(store)
+  let injected = false
+  const calls = vi.spyOn(store, 'commit').mockImplementation(input => {
+    if (!injected && putsOperation('op-1')(input)) {
+      injected = true
+      store.injectCommit(fault)
+    }
+    return commit(input)
+  })
+  return () => calls.mock.calls.filter(([input]) => putsOperation('op-1')(input)).length
 }
 
 function readmit(assembly: Harness, call: string, operation: string) {
@@ -118,9 +131,11 @@ describe('10 boundary and qualification', () => {
       diagnostic: 'source-guard threw an exception; its message is not reported',
     })
     expect(unverified.store.commits).toBe(0)
-    const throwing: ToolLedgerStore<Block> = {
+    const throwing: ToolLedgerStore = {
       durability: 'none',
       scanPending: () => Promise.reject(new Error(secret)),
+      readRecord: () => Promise.reject(new Error(secret)),
+      due: () => Promise.reject(new Error(secret)),
       read: () => Promise.reject(new Error(secret)),
       commit: () => Promise.reject(new Error(secret)),
     }
@@ -204,6 +219,7 @@ describe('10 boundary and qualification', () => {
     accepted(
       await runtime.invoke({ principal: principalA, tenant: tenantA, request: dummyRequest() }),
     )
+    const committed = store.commits
     expect(
       await runtime.queries.lookup({
         principal: principalA,
@@ -223,7 +239,7 @@ describe('10 boundary and qualification', () => {
         failure: { kind: 'invalid', field: 'request.limits.concurrency', reason: 'range' },
       },
     )
-    expect(store.commits).toBe(1)
+    expect(store.commits).toBe(committed)
   })
 
   it('10 boundary: a forged source is denied and an unavailable guard blocks the admission', async () => {
@@ -330,8 +346,8 @@ describe('10 boundary and qualification', () => {
     expect(await ordinals(tenantB)).toEqual(['1'])
   })
 
-  it('10 boundary: an admission needs only the admit permission, not the query permission', async () => {
-    const assembly = harness({ deniedActions: ['query-operation'] })
+  it('10 boundary: an admission and its retry need no query, write or recover permission', async () => {
+    const assembly = harness({ deniedActions: ['query-operation', 'write', 'recover'] })
     accepted(await assembly.admitInternal(dummyRequest()))
     const recalled = ok(await readmit(assembly, 'call-1', 'op-1'))
     expect(recalled.recovered).toBe(true)
@@ -415,13 +431,14 @@ describe('11 operation idempotency (P01)', () => {
       ),
     )
     expect(first.recovered).toBe(false)
+    const committed = store.commits
     const again = ok(
       await ledger.admissions.admit(
         admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
       ),
     )
     expect(again).toEqual({ state: first.state, recovered: true })
-    expect(store.commits).toBe(1)
+    expect(store.commits).toBe(committed)
   })
 
   it('11 idempotency: the same operation with another input is a conflict', async () => {
@@ -447,6 +464,7 @@ describe('11 operation idempotency (P01)', () => {
         admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
       ),
     )
+    const committed = store.commits
     expect(
       await ledger.admissions.admit(
         admission('call-1', 'op-2', fixedRequestForNamedSourceGuard(dummyRequest())),
@@ -454,7 +472,7 @@ describe('11 operation idempotency (P01)', () => {
     ).toEqual({
       failure: { kind: 'stale-revision', current: first.state.revision },
     })
-    expect(store.commits).toBe(1)
+    expect(store.commits).toBe(committed)
   })
 
   it('11 idempotency: a write context whose expected revision is not current is stale-revision before anything else', async () => {
@@ -514,7 +532,7 @@ describe('11 operation idempotency (P01)', () => {
   it('11 idempotency: an unknown commit is reported, then the original is recognised and not admitted twice', async () => {
     for (const fault of ['unknown-applied', 'throw-applied'] as const) {
       const { ledger, store } = harness()
-      store.injectCommit(fault)
+      const attempts = faultAdmission(store, fault)
       expect(
         await ledger.admissions.admit(
           admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
@@ -536,13 +554,13 @@ describe('11 operation idempotency (P01)', () => {
       )
       expect(recalled.recovered).toBe(true)
       expect(settledTerminal(recalled.state).kind).toBe('unavailable')
-      expect(store.commits).toBe(1)
+      expect(attempts()).toBe(1)
     }
   })
 
   it('11 idempotency: an unknown commit that was dropped is not committed, and the resend admits once', async () => {
     const { ledger, store } = harness()
-    store.injectCommit('unknown-dropped')
+    const attempts = faultAdmission(store, 'unknown-dropped')
     expect(
       await ledger.admissions.admit(
         admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
@@ -562,14 +580,13 @@ describe('11 operation idempotency (P01)', () => {
       ),
     )
     expect(admitted.recovered).toBe(false)
-    // The dropped attempt, the exclusion fence of the query, and the admission.
-    expect(store.commits).toBe(3)
+    expect(attempts()).toBe(2)
   })
 
   it('11 idempotency: not-committed excludes an in-flight commit that lands later', async () => {
     const { ledger, store } = harness()
     const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
-    store.injectCommit('unknown-delayed')
+    faultAdmission(store, 'unknown-delayed')
     expect(
       await ledger.admissions.admit(
         admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
@@ -591,12 +608,14 @@ describe('11 operation idempotency (P01)', () => {
   })
 
   it('11 idempotency: a commit that lands before the fence is recognised, not excluded', async () => {
-    const memory = createMemoryToolLedgerStore<Block>()
-    memory.injectCommit('unknown-delayed')
+    const memory = createMemoryToolLedgerStore()
+    faultAdmission(memory, 'unknown-delayed')
     // The held commit lands just before the fence commit, as a slow store would apply it.
-    const racing: ToolLedgerStore<Block> = {
+    const racing: ToolLedgerStore = {
       durability: 'none',
       scanPending: input => memory.scanPending(input),
+      readRecord: memory.readRecord,
+      due: memory.due,
       read: domain => memory.read(domain),
       commit: input => {
         if (putsExclusion(input)) memory.landDelayed()
@@ -714,7 +733,7 @@ describe('11 operation idempotency (P01)', () => {
 
   it('11 idempotency: revision conflicts are retried up to the configured attempts, then unavailable', async () => {
     const once = harness({ ledgerCommitAttempts: 1 })
-    once.store.injectCommit('conflict')
+    faultAdmission(once.store, 'conflict')
     expect(
       await once.ledger.admissions.admit(
         admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
@@ -727,7 +746,7 @@ describe('11 operation idempotency (P01)', () => {
       },
     })
     const twice = harness({ ledgerCommitAttempts: 2 })
-    twice.store.injectCommit('conflict')
+    const attempts = faultAdmission(twice.store, 'conflict')
     expect(
       ok(
         await twice.ledger.admissions.admit(
@@ -735,7 +754,7 @@ describe('11 operation idempotency (P01)', () => {
         ),
       ).recovered,
     ).toBe(false)
-    expect(twice.store.commits).toBe(2)
+    expect(attempts()).toBe(2)
   })
 
   it('11 idempotency: a read failure of the store is unavailable, never a missing call', async () => {
@@ -781,22 +800,27 @@ describe('12 logical terminals (P02)', () => {
 
   it('12 logical terminal: one commit holds the call, the operation, the result, the account and the deliver task', async () => {
     const assembly = harness()
-    accepted(await assembly.admitInternal(dummyRequest()))
-    expect(assembly.store.commits).toBe(1)
+    const commits = vi.spyOn(assembly.store, 'commit')
+    const admitted = accepted(await assembly.admitInternal(dummyRequest()))
+    const terminalCommits = commits.mock.calls.filter(([input]) =>
+      input.writes.some(
+        write =>
+          write.kind === 'put' && ['call', 'result', 'account', 'task'].includes(write.record.kind),
+      ),
+    )
+    expect(terminalCommits).toHaveLength(1)
+    const final = terminalCommits[0]?.[0]
+    if (final === undefined) throw new Error('missing terminal commit')
     const read = await assembly.store.read({
       kind: 'call',
       tenant: tenantA,
       call: callId('call-1'),
     })
     if (read.kind !== 'complete') throw new Error('read failed')
-    expect(read.revision).toBe('1')
-    expect(read.records.map(record => record.kind).sort()).toEqual([
-      'account',
-      'call',
-      'operation',
-      'result',
-      'task',
-    ])
+    expect(read.revision).toBe(admitted.state.revision)
+    expect(
+      final.writes.flatMap(write => (write.kind === 'put' ? [write.record.kind] : [])).sort(),
+    ).toEqual(['account', 'call', 'operation', 'result', 'task'])
     expect(read.records.find(record => record.kind === 'task')).toEqual({
       kind: 'task',
       task: {
@@ -970,11 +994,13 @@ const EXCLUDED = {
  * admission must then stop, because its negative answer was already given (P01).
  */
 async function overtakenAdmission() {
-  const memory = createMemoryToolLedgerStore<Block>()
+  const memory = createMemoryToolLedgerStore()
   const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
   let negative: unknown = null
+  let beforeRace = 0
   const ledger: ToolLedger<Principal, Block> = ledgerOver(
     interleaving(memory, putsOperation('op-1'), async () => {
+      beforeRace = memory.commits
       negative = await ledger.reads.operation(query)
     }),
   )
@@ -985,13 +1011,13 @@ async function overtakenAdmission() {
   expect(negative).toEqual({ ok: { kind: 'not-committed' } })
   expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
   // The fence of the first query, the overtaken commit, and the fence of the second query.
-  expect(memory.commits).toBe(3)
-  return { memory, ledger, query }
+  expect(memory.commits).toBe(beforeRace + 3)
+  return { memory, ledger, query, completedCommits: memory.commits }
 }
 
 describe('14 exclusion fence (P01)', () => {
   it('14 exclusion: a negative answer during an in-flight admission stops it, and the same identity is then admitted once', async () => {
-    const { memory, ledger, query } = await overtakenAdmission()
+    const { memory, ledger, query, completedCommits } = await overtakenAdmission()
     const admitted = ok(
       await ledger.admissions.admit(
         admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
@@ -999,7 +1025,7 @@ describe('14 exclusion fence (P01)', () => {
     )
     expect(admitted.recovered).toBe(false)
     expect(await ledger.reads.operation(query)).toMatchObject({ ok: { kind: 'committed' } })
-    expect(memory.commits).toBe(4)
+    expect(memory.commits).toBe(completedCommits + 1)
     const again = ok(
       await ledger.admissions.admit(
         admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
@@ -1022,7 +1048,7 @@ describe('14 exclusion fence (P01)', () => {
   it('14 exclusion: an operation that committed before the fence is recalled, not excluded', async () => {
     // The retrying release of op-2 re-reads a domain where op-2 committed and a lookup fenced
     // op-2 after that (the admission is op-1, so op-2 is "not accepted"): recall wins.
-    const memory = createMemoryToolLedgerStore<Block>()
+    const memory = createMemoryToolLedgerStore()
     const ledger: ToolLedger<Principal, Block> = ledgerOver(
       interleaving(memory, putsOperation('op-2'), async () => {
         ok(await ledger.commands.releaseDelivery(releaseOf('op-2')))
@@ -1034,22 +1060,26 @@ describe('14 exclusion fence (P01)', () => {
         ).toEqual({ ok: { kind: 'not-accepted', operation: 'op-2' } })
       }),
     )
-    ok(
+    const admitted = ok(
       await ledger.admissions.admit(
         admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
       ),
     )
+    const committed = memory.commits
     const released = ok(await ledger.commands.releaseDelivery(releaseOf('op-2')))
     expect(released.kind).toBe('released')
     const records = await recordsOf(memory)
     expect(records.filter(record => record.kind === 'exclusion')).toEqual([
-      { kind: 'exclusion', exclusion: { operation: 'op-2', revision: '3' } },
+      {
+        kind: 'exclusion',
+        exclusion: { operation: 'op-2', revision: String(BigInt(admitted.state.revision) + 2n) },
+      },
     ])
-    expect(memory.commits).toBe(4)
+    expect(memory.commits).toBe(committed + 3)
   })
 
   it('14 exclusion: a later negative replaces the fence; a command that read the latest fence is not excluded by it', async () => {
-    const memory = createMemoryToolLedgerStore<Block>()
+    const memory = createMemoryToolLedgerStore()
     const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
     const ledger: ToolLedger<Principal, Block> = ledgerOver(
       interleaving(memory, putsOperation('op-1'), async () => {
@@ -1068,9 +1098,14 @@ describe('14 exclusion fence (P01)', () => {
     ).toEqual({
       failure: EXCLUDED,
     })
-    expect(await recordsOf(memory)).toEqual([
-      { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '2' } },
-    ])
+    const stopped = await recordsOf(memory)
+    expect(stopped.some(record => record.kind === 'call' || record.kind === 'result')).toBe(false)
+    const fences = stopped.filter(record => record.kind === 'exclusion')
+    expect(fences).toHaveLength(1)
+    const fence = fences[0]
+    if (fence?.kind !== 'exclusion') throw new Error('missing exclusion')
+    expect(fence.exclusion.operation).toBe('op-1')
+    expect(BigInt(fence.exclusion.revision)).toBeGreaterThan(1n)
     // Read after the second fence, then a conflict without a newer fence: admitted on the retry.
     memory.injectCommit('conflict')
     const admitted = ok(
@@ -1079,7 +1114,7 @@ describe('14 exclusion fence (P01)', () => {
       ),
     )
     expect(admitted.recovered).toBe(false)
-    expect(admitted.state.revision).toBe('3')
+    expect(admitted.state.revision).toBe(String(BigInt(fence.exclusion.revision) + 1n))
   })
 
   it('14 exclusion: the admitting commit removes the fence, and the next same submission is recalled', async () => {
@@ -1096,16 +1131,19 @@ describe('14 exclusion fence (P01)', () => {
       { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '1' } },
     ])
     const admitted = accepted(await assembly.admitInternal(dummyRequest()))
-    expect((await recordsOf(store)).map(record => record.kind).sort()).toEqual([
-      'account',
-      'call',
-      'operation',
-      'result',
-      'task',
-    ])
+    const committed = store.commits
+    const records = await recordsOf(store)
+    expect(records.some(record => record.kind === 'exclusion')).toBe(false)
+    expect(
+      records.filter(
+        record => record.kind === 'operation' && record.operation.operation === 'op-1',
+      ),
+    ).toHaveLength(1)
+    for (const kind of ['call', 'result', 'account', 'task'])
+      expect(records.filter(record => record.kind === kind)).toHaveLength(1)
     const again = ok(await readmit(assembly, 'call-1', 'op-1'))
     expect(again).toEqual({ state: admitted.state, recovered: true })
-    expect(store.commits).toBe(2)
+    expect(store.commits).toBe(committed)
   })
 
   it('14 exclusion: a negative probe of another tenant or without the query permission writes nothing', async () => {
@@ -1131,7 +1169,7 @@ describe('14 exclusion fence (P01)', () => {
   })
 })
 
-async function recordsOf(store: ToolLedgerStore<Block>): Promise<readonly LedgerRecord<Block>[]> {
+async function recordsOf(store: ToolLedgerStore): Promise<readonly LedgerRecord[]> {
   const read = await store.read({ kind: 'call', tenant: tenantA, call: callId('call-1') })
   if (read.kind !== 'complete') throw new Error('read failed')
   return read.records

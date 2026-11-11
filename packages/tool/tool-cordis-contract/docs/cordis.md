@@ -53,12 +53,12 @@ export declare class ToolInstancesService<P> extends Service implements ToolDire
 export const toolInstancesKey = ToolInstancesService.provide
 
 /** @owner packages/tool/tool-contract */
-export abstract class ToolBindingsService<P, B extends ContentBlock, E> extends Service implements ToolBindings<P, B, E>, ToolBindingRegistry<P, E, B> {
+export abstract class ToolBindingsService<P, B extends ContentBlock, E> extends Service implements ToolBindings<P, E>, ToolBindingRegistry<P, E, B> {
   static readonly provide = 'toolBindings'
   constructor(ctx: Context) { super(ctx, ToolBindingsService.provide) }
-  abstract readonly inspect: ToolBindings<P, B, E>['inspect']
-  abstract readonly resolve: ToolBindings<P, B, E>['resolve']
-  abstract readonly recover: ToolBindings<P, B, E>['recover']
+  abstract readonly inspect: ToolBindings<P, E>['inspect']
+  abstract readonly resolve: ToolBindings<P, E>['resolve']
+  abstract readonly recover: ToolBindings<P, E>['recover']
   abstract readonly register: ToolBindingRegistry<P, E, B>['register']
   abstract readonly snapshot: ToolBindingRegistry<P, E, B>['snapshot']
   abstract readonly pins: ToolBindingRegistry<P, E, B>['pins']
@@ -148,7 +148,6 @@ Reader 的实现用 tool-contract 根入口的 `encodeResidentKey` 生成 Sessio
 | toolStartAuthority | ToolStartAuthority | Tool | 启动阶段必需；工作资格与推进资格的失效共排序，身份与权限的撤权在 consume 再核（[授权消费点与撤权再核](../../tool-contract/SPEC.md#授权消费点与撤权再核)） |
 | toolStartFence | ToolStartFence（ToolStartAuthority 的 invalidate 视图） | Tool | 外层调用方使启动失效时必需；与 toolStartAuthority 由同一提供者兑现同一排序域，两个键分属两个排序域的装配不具备启动围栏保证；失效证据由外层调用方写成独立的 `start-fence` 条目（[外层调用方的启动围栏](../../tool-contract/SPEC.md#外层调用方的启动围栏)） |
 | toolResourceResponses | ToolResourceResponses | Tool | 资源应答阶段局部必需 |
-| toolOutputCustody | ToolOutputCustody | Tool | 原输出与附件保管阶段必需 |
 | toolChildren | ToolChildren | Tool | 程序执行方组合阶段必需；父程序退出后由scanPending/loadRecovery驱动child和program-fence待办 |
 | toolAccounts | ToolAccounts | Tool | 按组织或租户读取执行账，独立授权 |
 | toolOffloader | ToolOffloader | Tool | 单结果卸载适配，不覆盖原结果 |
@@ -227,3 +226,11 @@ authorBufferBytes、authorBufferItems、authorWaitHistoryBytes、authorWaitHisto
 本包至少验证根入口无 Cordis、本包 `./cordis` 不引任何 Tool 实现、每个键只取自一个定义类的静态 provide。依赖的实际撤除范围、旧引用拒绝及当前身份核验归继承这些定义的插件，见 tool-host-local 的验证义务（`tool-host-local/docs/cordis.md#验证义务`）。
 
 普通 toolRuntime.invoke 消费来源 resolve 的原子关联，不暴露无键调用身份分配服务。装配者显式配对来源的 authority/guard，当前主体每次重核。公开 control 每次是新 operation，旧 unknown 的操作引用独立查询；此契约定义不提供生产来源或控制状态机。
+
+## W3 正文保管的装配边界
+
+Tool 的正文存储、许可密钥与参与者时钟经账本的构造端口 `ToolLedgerPorts.bodies` 注入，不经 Cordis 服务键。本成员不定义正文存储或清扫的服务，也不建立通用对象存储服务。作者 writer 由每次执行作用域绑定，不能作为全局 service 暴露，也不能把原始 Cordis Context 传给作者。
+
+清扫由 Tool 账本执行，应用只调度它（[清扫与回收](../../tool-contract/SPEC.md#清扫与回收)）。业务运行时门面不因此获得任意正文删除。正文存储缺席时，写入与读回答 unavailable，原任务保留；重装配不重新执行工具，也不刷新期限。
+
+提供者可替换为本地文件或对象存储实现，但旧正文引用必须仍由原存储处理，或经已验证迁移交接。纯工厂只消费窄端口，生命周期及注入由插件负责，不能把提供者销毁解释为正文删除完成。

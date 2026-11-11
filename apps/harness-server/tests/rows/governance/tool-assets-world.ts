@@ -39,6 +39,7 @@ import {
   createToolAssetCategory,
   toolAssetPublication,
 } from '../../../src/rows/governance/tool-assets.ts'
+import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-assets.ts'
 import { loadProductionRelease, type ToolRelease } from '../../../src/entry/tool-release.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 
@@ -158,11 +159,8 @@ export async function toolAssetsWorld(
   const categories = createCategoryRegistry()
   categories.register(createToolAssetCategory(release))
   const owner = createAssetsLocal({ ...combination, domain, storage: made.storage, categories })
-  const target: SettingsTargetProjection['target'] = {
-    policyId: 'asset',
-    scopeRef: domain.scope.tenant,
-    targetRef: 'shell',
-  }
+  // The address the installation holds the tool at, which consumers compute too.
+  const target: SettingsTargetProjection['target'] = toolAssetTarget(entry, domain.scope.tenant)
   let closed = false
   return {
     root,

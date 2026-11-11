@@ -14,7 +14,7 @@ import type { RuntimeCompositionInput, RuntimeStages } from './runtime-compositi
 
 export type RuntimeRecords = Readonly<{
   ledger: ToolLedger<unknown, ToolMessageContentBlock>
-  authority: ReturnType<typeof createLocalStartCoordinator<unknown, ToolMessageContentBlock>>
+  authority: ReturnType<typeof createLocalStartCoordinator<unknown>>
 }>
 
 export function createRuntimeRecords(
@@ -40,7 +40,8 @@ export function createRuntimeRecords(
   const ports: ToolLedgerPorts<unknown> = {
     controlSubjects: input.controlSubjects,
     content: input.content,
-    custody: input.custody,
+    ...(input.bodySchemas === undefined ? {} : { bodySchemas: input.bodySchemas }),
+    bodies: input.bodies,
     releaseInspection: stages.environments,
     // acceptDecision resolves the decision through the decision owner read at each call.
     decisions: {
@@ -107,6 +108,7 @@ export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): vo
     diagnostics = ledger.reads.diagnostics
     account = ledger.reads.account
     content = ledger.reads.content
+    body = ledger.reads.body
   }
   class Authority extends ToolStartAuthorityService<unknown> {
     exclude = authority.exclude

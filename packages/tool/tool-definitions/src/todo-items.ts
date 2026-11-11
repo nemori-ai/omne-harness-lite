@@ -1,3 +1,4 @@
+import { textReturns } from './returns.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { CommandTable } from '@omne-harness/tool-contract'
@@ -22,7 +23,7 @@ import {
   type TodoArguments,
 } from './todo-items-protocol.ts'
 
-const returns = { kind: 'ordinary', program: { kind: 'none' } } as const
+const returns = textReturns(todoAdoption)
 const guide =
   'Todo items belong to the current Session. Use stable item ids. Text is preserved and must be nonblank, at most 4096 UTF-8 bytes. list defaults to 50 items, with a maximum of 100. Pass the complete next cursor to continue. A changed revision requires restarting from the first page. recovered receipts describe the original operation, not the current item state. commit-unknown does not prove failure: preserve the original call identity and intent. Never create a new add to recover an unknown result. Changing text requires add then remove, which are separate operations. No automatic Context projection is provided.'
 const menu: CommandTable = {
@@ -164,7 +165,8 @@ export const todoItemsToolModule: ToolImplementationModule<null, ToolMessageCont
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'TodoItems',
-    revision: '1',
+    revision: '2',
+    returns: 'Published raw value, model body and system offloading policy.',
     changes: 'Five bound Session Todo commands with complete JSON receipts and pages.',
   }),
   createAuthor: createTodoItemsAuthor,

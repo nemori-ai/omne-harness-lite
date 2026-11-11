@@ -67,11 +67,7 @@ type Continue = Readonly<{ kind: 'continue'; progressed: boolean }>
 type StepResult = Continue | DriverStop
 type RunFailures = { skipped: Set<string>; first: DriverStop | null; retry: boolean }
 /** The phases of a call that holds no start record; nothing of it ever ran. */
-const UNSTARTED: readonly ToolRecovery<ContentBlock>['state']['phase'][] = [
-  'accepted',
-  'preparing',
-  'queued',
-]
+const UNSTARTED: readonly ToolRecovery['state']['phase'][] = ['accepted', 'preparing', 'queued']
 const CONTINUE: Continue = { kind: 'continue', progressed: true }
 const STALLED: Continue = { kind: 'continue', progressed: false }
 const IDLE: DriverStop = { kind: 'idle' }
@@ -164,7 +160,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const context = (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     suffix: Suffix,
     base: ToolOperationId = recovery.admission,
   ): Outcome<WriteContext & Readonly<{ principal: P }>, ToolFailure> => {
@@ -185,7 +181,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
    */
   const startContext = (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     start: ToolStartRecord,
     suffix: Suffix,
   ) =>
@@ -284,7 +280,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
    * ahead or holding a slot that still owes the queue a step is run. The waiter changes no
    * other call's entry. A refused request to run a call is a store-like failure of this run.
    */
-  const awaitPlace = async (step: Step<P>, recovery: ToolRecovery<B>): Promise<StepResult> => {
+  const awaitPlace = async (step: Step<P>, recovery: ToolRecovery): Promise<StepResult> => {
     const stop = noteWaiting(step, recovery.request)
     const reconciled = await queues.reconcile({
       principal: step.principal,
@@ -310,7 +306,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   /** Settles a pending call whose invocation the host excluded (P04 rejectPending). */
   const rejectPending = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     reason: string,
     exclusion: DurableEvidence,
   ): Promise<StepResult> => {
@@ -328,7 +324,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
    */
   const settleRejected = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     reason: string,
   ): Promise<StepResult> => {
     const write = context(step, recovery, 'ledger-rejected')
@@ -352,7 +348,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
    */
   const afterRejected = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     result: StepResult,
   ): Promise<StepResult> => {
     if (result.kind !== 'failed') return result
@@ -366,10 +362,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
    * The store's reason when a settled call's open `queue` task belongs to its minimal failure
    * terminal, or null: the release of that terminal is redone by resending it.
    */
-  const ledgerRejectedReason = (
-    recovery: ToolRecovery<B>,
-    task: ToolOperationId,
-  ): string | null => {
+  const ledgerRejectedReason = (recovery: ToolRecovery, task: ToolOperationId): string | null => {
     const operation = derivedOperation(recovery.admission, 'ledger-rejected')
     const { state } = recovery
     if (!('ok' in operation) || task !== operation.ok) return null
@@ -383,7 +376,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   /** The host excludes the whole pending invocation, then the call settles (P04). */
   const excludeAndReject = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     reason: string,
   ): Promise<StepResult> => {
     const write = context(step, recovery, 'exclude')
@@ -399,7 +392,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return rejectPending(step, recovery, reason, exclusion.ok)
   }
 
-  const plan = async (step: Step<P>, recovery: ToolRecovery<B>): Promise<StepResult> => {
+  const plan = async (step: Step<P>, recovery: ToolRecovery): Promise<StepResult> => {
     if (recovery.request.availability.kind !== 'available')
       return blocked('an accepted call of an unavailable tool has nothing to prepare')
     const write = context(step, recovery, 'plan')
@@ -416,7 +409,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const continueAllocation = async (
     step: Step<P>,
-    request: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
+    request: CallAccess<P> &
+      Readonly<{ preparation: PreparationRecord; request: FixedToolRequest }>,
     read: Outcome<PreparationProgress<E>, ToolFailure>,
   ): Promise<Outcome<PreparationProgress<E>, ToolFailure>> => {
     if ('failure' in read) return read
@@ -434,6 +428,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   /** One preparation step may continue first adoption once, always with the original input. */
   const askEnvironment = async (
     step: Step<P>,
+    recovery: ToolRecovery,
     task: Extract<ToolTask, { kind: 'prepare' }>,
   ): Promise<Outcome<PreparationProgress<E>, ToolFailure>> => {
     const matching = matchEnvironmentAdoption(environments, task.preparation.adoption)
@@ -444,6 +439,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       tenant: step.tenant,
       call: step.call,
       preparation: task.preparation,
+      request: recovery.request,
     }
     const inspect = environmentsAsked.has(key)
     const read = await (inspect
@@ -464,7 +460,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
    */
   const replanResume = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     lost: PreparationRecord,
   ): Promise<StepResult> => {
     environmentsPrepared.delete(callKey(step.tenant, step.call))
@@ -497,7 +493,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
    */
   const resumeEnvironment = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
   ): Promise<StepResult | null> => {
     const preparation = recovery.preparations.at(-1)
     if (preparation?.purpose !== 'resume') return null
@@ -509,6 +505,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       tenant: step.tenant,
       call: step.call,
       preparation,
+      request: recovery.request,
     })
     if ('failure' in read) return { kind: 'failed', failure: read.failure }
     if (read.ok.kind === 'lost') return replanResume(step, recovery, preparation)
@@ -521,10 +518,10 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const prepare = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: Extract<ToolTask, { kind: 'prepare' }>,
   ): Promise<StepResult> => {
-    const progress = await askEnvironment(step, task)
+    const progress = await askEnvironment(step, recovery, task)
     if ('failure' in progress) return { kind: 'failed', failure: progress.failure }
     const prepared = progress.ok
     switch (prepared.kind) {
@@ -588,13 +585,13 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     }
   }
 
-  const enqueue = async (step: Step<P>, recovery: ToolRecovery<B>): Promise<StepResult> => {
+  const enqueue = async (step: Step<P>, recovery: ToolRecovery): Promise<StepResult> => {
     const write = context(step, recovery, 'enqueue')
     if ('failure' in write) return { kind: 'failed', failure: write.failure }
     return after(await commands.enqueue(write.ok))
   }
 
-  const prepareStart = async (step: Step<P>, recovery: ToolRecovery<B>): Promise<StepResult> => {
+  const prepareStart = async (step: Step<P>, recovery: ToolRecovery): Promise<StepResult> => {
     const write = context(step, recovery, 'start')
     if ('failure' in write) return { kind: 'failed', failure: write.failure }
     const intent = await commands.prepareStart(write.ok)
@@ -608,7 +605,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const recordStart = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     invocation: ToolStartRecord,
     outcome: StartProgress,
   ): Promise<StepResult> => {
@@ -624,6 +621,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   /** The environment of the call: the value prepared in this process, or the provider's record. */
   const environmentOf = async (
     step: CallAccess<P>,
+    recovery: ToolRecovery,
     preparation: PreparationRecord,
   ): Promise<Outcome<E, ToolFailure>> => {
     const matching = matchEnvironmentAdoption(environments, preparation.adoption)
@@ -635,6 +633,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       tenant: step.tenant,
       call: step.call,
       preparation,
+      request: recovery.request,
     })
     if ('failure' in progress) return progress
     const checked = checkedPreparationProgress(progress.ok, preparation)
@@ -663,7 +662,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const unknownStart = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     start: ToolStartRecord,
     diagnostic: string,
   ): Promise<StepResult> => {
@@ -675,7 +674,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const rejectFailedStart = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     start: ToolStartRecord,
   ): Promise<StepResult> => {
     const found = await binding.inspect(step, recovery, start)
@@ -698,7 +697,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const fence = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     start: ToolStartRecord,
   ): Promise<StepResult> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
@@ -757,7 +756,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   /** A settled call with a `queue` task still owes the queue domain its release (crash repair). */
   const repairRelease = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     cancelled: () => boolean,
   ): Promise<StepResult> => {
     const rejection = recovery.startRejection
@@ -779,7 +778,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   /** 完成暂停中收场的调用的释放待办，再唤醒同一范围里等名额的调用（Tool SPEC 第 32 条）。 */
   const releaseSuspended = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: Extract<ToolTask, { basis: DurableEvidence }>,
   ): Promise<StepResult> => {
     const released = await queues.release({
@@ -795,7 +794,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const settle = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     task: Extract<ToolTask, { basis: DurableEvidence }>,
     cancelled: () => boolean,
   ): Promise<StepResult> => {
@@ -813,11 +812,10 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return CONTINUE
   }
 
-  type Action = (step: Step<P>, recovery: ToolRecovery<B>) => Promise<StepResult>
+  type Action = (step: Step<P>, recovery: ToolRecovery) => Promise<StepResult>
 
   /** The call domain still owes the queue domain a step (a `queue` task). */
-  const owesQueue = (recovery: ToolRecovery<B>) =>
-    recovery.tasks.some(task => task.kind === 'queue')
+  const owesQueue = (recovery: ToolRecovery) => recovery.tasks.some(task => task.kind === 'queue')
   const owing =
     (action: Action): Action =>
     (step, recovery) =>
@@ -839,7 +837,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
    * The step of each phase once no duty of the call is left: the way to a start (P02, P03, P04),
    * and the way of a suspended call back to a start (P06, P07). A phase with no entry is idle.
    */
-  const phaseSteps: Readonly<Partial<Record<ToolRecovery<B>['state']['phase'], Action>>> = {
+  const phaseSteps: Readonly<Partial<Record<ToolRecovery['state']['phase'], Action>>> = {
     accepted: owing(plan),
     preparing: (step, recovery) => {
       const task = recovery.tasks.find(item => item.kind === 'prepare')
@@ -863,7 +861,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   type Duty = Readonly<{ key: string; run: () => Promise<StepResult> }>
   type DutyRule = (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     cancelled: () => boolean,
   ) => readonly Duty[]
 
@@ -942,7 +940,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const stepOf = async (
     step: Step<P>,
-    recovery: ToolRecovery<B>,
+    recovery: ToolRecovery,
     cancelled: () => boolean,
     failures: RunFailures,
   ): Promise<StepResult> => {

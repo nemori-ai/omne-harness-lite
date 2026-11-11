@@ -16,7 +16,12 @@ import {
   type SqlIdentity,
   type StoppingEntry,
 } from '@omne-harness/sql-contract'
-import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
+import {
+  packText,
+  unpackText,
+  type ParticipantModule,
+  type ParticipantPort,
+} from '@omne-harness/sql-contract/worker'
 import { clipDiagnostic } from '../fields.ts'
 import { canonicalJson, isStrictJson, utf8Length } from '../json.ts'
 import type { WorkerState } from './domain.ts'
@@ -32,8 +37,8 @@ const sortNames = (names: readonly string[]): string[] => [...names].sort()
 export function readReceipt(db: DatabaseSync, identity: SqlIdentity): ReceiptV2 | null {
   const row = db
     .prepare('select receipt from _sql_receipt where operation = ? and operation_key = ?')
-    .get(identity.operation, identity.operationKey) as { receipt: string } | undefined
-  return row === undefined ? null : (JSON.parse(row.receipt) as ReceiptV2)
+    .get(identity.operation, identity.operationKey) as { receipt: Uint8Array } | undefined
+  return row === undefined ? null : (JSON.parse(unpackText(row.receipt)) as ReceiptV2)
 }
 
 export function insertReceipt(db: DatabaseSync, receipt: ReceiptV2): void {
@@ -44,7 +49,7 @@ export function insertReceipt(db: DatabaseSync, receipt: ReceiptV2): void {
     receipt.identity.operationKey,
     receipt.kind,
     receipt.inputDigest,
-    JSON.stringify(receipt),
+    packText(JSON.stringify(receipt)),
   )
 }
 

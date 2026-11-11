@@ -226,6 +226,14 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
         )
         expect(stageOf(world, 'Shell')).toBe('held')
         await cancelRun(world, session)
+        // `cancel-run` answers once Session took the control; the Agent stops the calls later. A
+        // control and a resume both write the call record, and the record takes the first one
+        // (model InterruptCascade). The slot is given back after the control settled the Ask.
+        await pollUntil(
+          'the control to settle the Ask',
+          () => askOf(world),
+          row => row?.phase === 'settled',
+        )
         // The slot comes free even when the stop does not end the Shell; the Ask still does not resume.
         writeFileSync(join(dirname(world.storageRoot), 'workspace', 'go-b'), '')
         const { ask, calls } = await closed(world)

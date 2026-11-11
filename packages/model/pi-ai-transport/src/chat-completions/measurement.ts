@@ -4,7 +4,6 @@
 // input digest and the per-unit extra tokens. Pure. A family gives only its own values: its
 // adoptions, how to read the units of its token input, its image rules, its tokenizer, the name of
 // its output-group method and the diagnostic of an uncountable reasoning unit.
-import { fitsSerializedBytes } from './serialization.ts'
 import { sorted } from './json.ts'
 import { createHash } from 'node:crypto'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -120,8 +119,6 @@ export type CalibratedMeterRules<U extends MeteredUnit> = Readonly<{
   adoptions: Readonly<{ meter: Adoption; representation: Adoption; media: Adoption }>
   basis: ModelCountingBasis
   margin: MeterMargin
-  /** Maximum UTF-8 bytes of the serialized token input, checked before writing JSON. */
-  maxSerializedBytes: number
   /** The method name suffix of a measurement that counted a unit as the output of its source. */
   outputGroup: string
   /** The diagnostic of a reasoning unit that no output count stands for. */
@@ -237,16 +234,7 @@ function exactChecks(measure: MeterFacts, method: Adoption): readonly BudgetChec
 async function countWith(
   tokens: CalibratedMeterRules<MeteredUnit>['tokens'],
   tokenInput: JsonValue,
-  maxSerializedBytes: number,
 ): Promise<Outcome<bigint, TransportFailure>> {
-  if (!fitsSerializedBytes(tokenInput, maxSerializedBytes))
-    return {
-      failure: {
-        kind: 'unavailable',
-        dependency: 'tokenizer',
-        diagnostic: 'serialized-input-too-large',
-      },
-    }
   const written = writeJsonText(sorted(tokenInput))
   const text = tokens.form === 'nfkc' ? written.normalize('NFKC') : written
   const counted = await tokens.tokenizer.count([{ kind: 'text', text }])
@@ -274,14 +262,6 @@ async function measureCalibrated<U extends MeteredUnit>(
   // Media that is not read yet has no pixels here; the media path is not part of this meter.
   if (representation.kind === 'pending-media')
     return { failure: { kind: 'unsupported', field: 'representation.kind', adapter } }
-  if (!fitsSerializedBytes(representation.tokenInput, rules.maxSerializedBytes))
-    return {
-      failure: {
-        kind: 'unavailable',
-        dependency: 'tokenizer',
-        diagnostic: 'serialized-input-too-large',
-      },
-    }
   const { assembled: _assembled, ...facts } = submitted
   const measure = structuredClone(facts)
   const calibration = structuredClone(input.calibration)
@@ -293,7 +273,7 @@ async function measureCalibrated<U extends MeteredUnit>(
     units: owned.units,
     reasoning: units.map(unit => unit.reasoning),
     calibration,
-    count: body => countWith(rules.tokens, body, rules.maxSerializedBytes),
+    count: body => countWith(rules.tokens, body),
     extra: unitExtras(() => rules.imageTokens({ units, media: owned.media })),
     uncountable: rules.uncountable,
     dependency: rules.owner,
@@ -326,8 +306,6 @@ async function measureCalibrated<U extends MeteredUnit>(
 export function createCalibratedMeter<U extends MeteredUnit>(
   rules: CalibratedMeterRules<U>,
 ): CalibratedInputMeter {
-  if (!Number.isSafeInteger(rules.maxSerializedBytes) || rules.maxSerializedBytes <= 0)
-    throw new RangeError('maxSerializedBytes must be a positive safe integer')
   return Object.freeze({
     basis: rules.basis,
     measure: (measure: MeasureInput) =>

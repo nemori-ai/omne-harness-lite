@@ -28,6 +28,10 @@ By default the output goes to `omne-closeout/<commit>[-dirty]/` in the system te
 | 1    | Build failed, a reading failed, a mutation measurement is invalid, or a risk rule was not checked |
 | 2    | Usage error, or the mutation range is above the limit                                             |
 
+## Which pqw scripts run
+
+The adapter reads the same copy as the skill text. It reads `.meta_harness/.vendor-float/pqw-skills` when the consumer contract version there equals the version that the project pins. In other conditions it reads the submodule `.meta_harness/agents/vendor/pqw-skills`. The [generation tooling](../../.meta_harness/tooling/README.md#pqw-skills-只钉接入约定的版本) gives the rule and makes the first copy.
+
 ## Out of scope
 
 This member does not calculate cyclomatic complexity or CRAP. It does not pair functions with the base, parse TypeScript or write a Stryker configuration. pqw owns these. Member budgets, duplicate code, dependency direction and cycles belong to repo-toolchain and `pnpm run lint:deps`.

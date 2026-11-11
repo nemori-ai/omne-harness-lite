@@ -29,6 +29,10 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(canonical(value))
 }
 
+export function sameFactValue(left: unknown, right: unknown): boolean {
+  return canonicalJson(left) === canonicalJson(right)
+}
+
 function canonical(value: unknown): unknown {
   if (typeof value === 'object' && value !== null)
     return Array.isArray(value) ? value.map(canonical) : canonicalObject(value)
@@ -58,6 +62,11 @@ export function digestOf(value: unknown): string {
 
 /** The record kinds the ledger mints evidence for. Each kind is one purpose (P01, P08, P09). */
 export type EvidenceKind =
+  | 'body-write'
+  | 'page-lease'
+  | 'body-expiration'
+  | 'result-custody'
+  | 'result-preparation'
   | 'state'
   | 'result'
   | 'delivery'
@@ -125,13 +134,15 @@ export function resultVersion(ordinal: number): ToolResultVersion {
   return minted(decodeToolResultVersion(`v${ordinal}`), `v${ordinal}`)
 }
 
+export const FIRST_RESULT_VERSION = resultVersion(1)
+
 export function deliveryId(ordinal: number): ToolDeliveryId {
   return minted(decodeToolDeliveryId(`d${ordinal}`), `d${ordinal}`)
 }
 
 /** Purpose and full locator determine a distinct task identity within the call domain. */
 export function factTaskOperation(
-  purpose: 'settle' | 'fact-ack' | 'facts-blocked',
+  purpose: 'settle' | 'fact-ack' | 'facts-blocked' | 'final-material',
   locator: unknown,
 ) {
   const text = `${purpose}:${digestOf(locator)}`

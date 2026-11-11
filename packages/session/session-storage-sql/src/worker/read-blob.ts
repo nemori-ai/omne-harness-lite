@@ -1,7 +1,7 @@
 // One content block of the tenant by its digest (TB-04). A digest the tenant does not hold answers
 // `denied`, whether no block has it or a block of another tenant has it: the answer tells nothing
 // of another tenant.
-import { big, handler, oneRow, text } from './support.ts'
+import { big, handler, oneRow, packed, text } from './support.ts'
 
 export default handler('execution-record.blob', (input, port) => {
   const value =
@@ -21,6 +21,6 @@ export default handler('execution-record.blob', (input, port) => {
         digest,
         media: text(row['media']),
         size: String(big(row['size'])),
-        payload: text(row['payload']),
+        payload: packed(row['payload']),
       }
 })

@@ -8,7 +8,6 @@ import type {
   AgentAdoptions,
   AgentToolQualification,
 } from '@omne-harness/agent-contract'
-import { canonicalText } from '@omne-harness/authorization'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import { GovernanceTargetBindingSchema } from '@omne-harness/governance-local'
 import type {
@@ -18,7 +17,6 @@ import type {
 } from '@omne-harness/identity'
 import { organizationCodec, tenantCodec } from '@omne-harness/legal-identity'
 import {
-  PermissionBasisRequestSchema,
   PermissionCurrentBasisSchema,
   evaluatePermission,
   type PermissionBasisReading,
@@ -76,6 +74,8 @@ export type PermissionBasisReadOptions = PermissionReadMappingOptions &
   }>
 
 export type CurrentPermissionRead = Readonly<{
+  /** The request of this check, from its one mapping; null when the check stopped before it. */
+  request: PermissionBasisRequest | null
   reading: PermissionBasisReading
   /** Present only with a current reading. */
   condition: StartCondition | null
@@ -85,10 +85,10 @@ const unavailable = (sourceRef = 'harness.permission-basis'): PermissionBasisRea
   kind: 'unavailable',
   sourceRef,
 })
-const without = (reading: PermissionBasisReading): CurrentPermissionRead => ({
-  reading,
-  condition: null,
-})
+const without = (
+  reading: PermissionBasisReading,
+  request: PermissionBasisRequest | null = null,
+): CurrentPermissionRead => ({ request, reading, condition: null })
 
 const missingOrganization = (): PermissionSource => ({
   kind: 'unavailable',
@@ -98,29 +98,22 @@ const missingOrganization = (): PermissionSource => ({
 export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
   const map = createPermissionReadMapping(options)
 
-  const matchesScope = (principal: Principal, request: PermissionBasisRequest) => {
+  /** The request comes from the mapping of this scope, so the principal's tenant decides. */
+  const matchesScope = (principal: Principal) => {
     const tenant = tenantCodec.encode(principal.tenant)
     const organization = organizationCodec.encode(principal.tenant.organization)
-    return (
-      tenant.ok &&
-      organization.ok &&
-      tenant.value === options.scope.tenantRef &&
-      request.scope.tenantId === tenant.value &&
-      request.scope.organizationId === organization.value &&
-      request.scope.deploymentId === options.scope.deploymentId &&
-      request.scope.logicalServiceId === options.scope.logicalServiceId
-    )
+    return tenant.ok && organization.ok && tenant.value === options.scope.tenantRef
   }
 
   /** Identity is in another domain. It is read for every check. */
-  async function member(principal: Principal, request: PermissionBasisRequest) {
+  async function member(principal: Principal) {
     const checked = await options.identity.verifier.verify(principal)
     if (checked.kind === 'unavailable') return unavailable()
     if (
       checked.kind !== 'verified' ||
       checked.principal !== principal ||
       checked.principal.kind !== 'acting-for-tenant' ||
-      !matchesScope(principal, request)
+      !matchesScope(principal)
     )
       return { kind: 'denied' as const }
     const standing = await options.identity.standing.read({ tenant: principal.tenant })
@@ -174,10 +167,7 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
         })
   }
 
-  async function read(
-    raw: ToolPermissionContext,
-    request: PermissionBasisRequest,
-  ): Promise<CurrentPermissionRead> {
+  async function read(raw: ToolPermissionContext): Promise<CurrentPermissionRead> {
     const context = {
       ...raw,
       operation: { ...raw.operation },
@@ -185,14 +175,14 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
       origin: structuredClone(raw.origin),
       inquiry: capturedInquirySchema.parse(raw.inquiry),
     }
-    const standing = await member(context.principal, request)
+    const standing = await member(context.principal)
     if (standing.kind !== 'member') return without(standing)
+    // One mapping for one check: it gives the request and the target the basis is read at.
     const mapped = await map(context)
     if (mapped === undefined) return without(unavailable('harness.permission-target'))
-    if (canonicalText(mapped.permission) !== canonicalText(request))
-      return without({ kind: 'invalid-input', reason: 'binding' })
+    const request = mapped.permission
     const qualification = await qualified(context, request)
-    if (qualification.kind !== 'qualified') return without(qualification)
+    if (qualification.kind !== 'qualified') return without(qualification, request)
     const { origin } = qualification
     const commands = permissionBasisCommands(
       permissionBasisRequestSchema.parse({
@@ -214,7 +204,7 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
       origin.configuration,
     )
     const projected = await readProjection(options.storage, options.domain, options.read, commands)
-    if (projected.kind !== 'completed') return without(unavailable())
+    if (projected.kind !== 'completed') return without(unavailable(), request)
     const basis: PermissionBasis = permissionBasisSchema.parse(projected.response)
     const current = PermissionCurrentBasisSchema.parse({
       kind: 'current',
@@ -228,8 +218,9 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
       },
     })
     if (evaluatePermission(current.evaluation).kind === 'invalid-input')
-      return without(unavailable())
+      return without(unavailable(), request)
     return {
+      request,
       reading: current,
       condition: {
         ...options.conditions[origin.configuration],
@@ -239,16 +230,10 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
   }
 
   return {
-    requestFor: async (input: Parameters<typeof map>[0]) => (await map(input))?.permission,
-    async readCurrent(
-      context: ToolPermissionContext,
-      raw: PermissionBasisRequest,
-    ): Promise<CurrentPermissionRead> {
-      const request = PermissionBasisRequestSchema.safeParse(raw)
-      if (!request.success) return without({ kind: 'invalid-input', reason: 'structure' })
+    async readCurrent(context: ToolPermissionContext): Promise<CurrentPermissionRead> {
       try {
         if (!options.accepting()) return without(unavailable())
-        const answer = await read(context, request.data)
+        const answer = await read(context)
         return options.accepting() ? answer : without(unavailable())
       } catch {
         return without(unavailable())

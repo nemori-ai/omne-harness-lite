@@ -119,6 +119,14 @@ Ask 是检查点作者，按 [Tool 契约](../tool-contract/SPEC.md)「恢复型
 
 [Ask 作者测试](tests/ask.spec.ts)经公开入口运行参数编解码器、initial 段与命令工具的登记。请求与答复的形状用真实的 schema-provider 按等待协议声明的 JSON Schema 核对。测试不经过 Tool 账本、宿主或 HITL。
 
+## W3 操作返回声明
+
+具体作者行为保持各节责任。每条操作从其现有声明表生成返回结构、程序协议与正文格式，help/inspect 和注册定义共用该源。Tools 及各多命令工具保持 wrapped 编码，常驻/非常驻边界不变。
+
+作者捕获或返回字符串的 resultMaxBytes 与 Tool 的模型正文内联上限分别生效。作者已经截断或设施已经丢弃的输出不能被 runtime 卸载补回。截断须继续如实说明；W3 不顺带重做 Shell 的捕获和后台机制。普通完整返回由 runtime 判断是否卸载，结构化作者可使用同调用 writer 提供完整正文和符合预算的摘要。
+
+TodoItems 的业务分页仍由 Session 拥有。正文卸载不改 list 游标，也不让工具读取 Session 实例或要求模型提供身份。返回 schema 与失败分支必须包含实际可达结果，不能只描述成功值。
+
 ## Web 作者
 
 Web 采用[元能力产品](../../../.meta_harness/design/product/meta-capabilities/design.md#meta-web)的 Web 规则。公开窄口 `WebAccess`、`WebFailure`、`SearchHit`、`FetchedPage` 与 `attachWebAccess` 归 [web-port.ts](src/web-port.ts)。作者不认识搜索供应商、HTTP 客户端、凭据或租户：它从每次调用附着的端口取结果，只负责参数、结果文本与失败文本。

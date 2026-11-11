@@ -26,9 +26,8 @@ import {
   type ToolDecisionBridge,
   type ToolEnvironment,
   type ToolExecutorBinding,
-  type ToolLiveExecution,
-  type ToolExecutionFact,
-  type ToolOutputCustody,
+  type ToolFinalEnvelope,
+  type ToolFinalPlanner,
   type ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
 import {
@@ -38,6 +37,7 @@ import {
   type LedgerCommitInput,
   type ToolDependencies,
   type ToolLedgerStore,
+  type ToolLedgerPorts,
 } from '@omne-harness/tool'
 import { createMemoryToolExecutorBinding } from '@omne-harness/tool-contract/testing'
 import {
@@ -79,6 +79,7 @@ export type EnvironmentAnswer = 'prepared' | 'rejected' | 'unavailable' | 'pendi
 
 export type StartOptions = HarnessOptions &
   Readonly<{
+    bodySchemas?: ToolLedgerPorts<Principal>['bodySchemas']
     controlSubjects?: ToolControlSubjects<Principal> | null
     omitRuntimeControls?: boolean
     /** The answer of the environment provider by call; `prepared` when absent. */
@@ -89,15 +90,14 @@ export type StartOptions = HarnessOptions &
     environmentsPort?: (base: TestEnvironments) => ToolEnvironment<Principal, TestEnvironment>
     bindingPort?: (base: LiveBinding) => LiveBinding
     bindingsPort?: (
-      base: ToolBindings<Principal, Block, TestEnvironment>,
-    ) => ToolBindings<Principal, Block, TestEnvironment>
-    custodyPort?: (base: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
+      base: ToolBindings<Principal, TestEnvironment>,
+    ) => ToolBindings<Principal, TestEnvironment>
     /** The decision owner of the waits; every method refuses when absent. */
     decisions?: ToolDecisionBridge<Principal>
     /** Builds over this memory instead of a new one: a second runtime over the same records. */
-    memory?: MemoryToolLedgerStore<Block>
+    memory?: MemoryToolLedgerStore
     /** Wraps the memory store, to make one commit or read of the start path misbehave. */
-    store?: (memory: MemoryToolLedgerStore<Block>) => ToolLedgerStore<Block>
+    store?: (memory: MemoryToolLedgerStore) => ToolLedgerStore
     readsPort?: (
       base: ToolDependencies<Principal, Block, TestEnvironment>['reads'],
     ) => ToolDependencies<Principal, Block, TestEnvironment>['reads']
@@ -281,62 +281,28 @@ function testEnvironments(initial: ReadonlyMap<string, EnvironmentAnswer>): Test
  * binding was asked for, `executions` every executor run, `environments` what each run got.
  */
 export type TestBinding = Readonly<{
-  bindings: ToolBindings<Principal, Block, TestEnvironment>
+  bindings: ToolBindings<Principal, TestEnvironment>
   readonly attempts: string[]
   readonly executions: string[]
   readonly environments: TestEnvironment[]
   readonly inspected: ToolStartRecord[]
   readonly capsules: DurableEvidence[]
-  readonly controls: ReturnType<
-    typeof createMemoryToolExecutorBinding<Principal, TestEnvironment>
-  >['controls']
+  readonly controls: Omit<
+    ReturnType<typeof createMemoryToolExecutorBinding<Principal, TestEnvironment>>['controls'],
+    'finish'
+  > & {
+    finish(
+      start: Extract<ToolStartRecord, { kind: 'start' }>,
+      final: ToolFinalEnvelope<ContentBlock>,
+    ): Promise<void>
+  }
 }>
 
-type LiveBinding = Extract<
-  ToolExecutorBinding<Principal, Block, TestEnvironment>,
-  { kind: 'live-only' }
->
-
-function requireMessageResultBlock(block: ContentBlock): Block {
-  if (block.kind === 'text' || 'ref' in block) return block
-  throw new Error('the start fixture accepts only message-result blocks')
-}
-
-function messageExecution(execution: ToolLiveExecution<ContentBlock>): ToolLiveExecution<Block> {
-  return {
-    ...execution,
-    facts: async function* (input) {
-      for await (const batch of execution.facts(input)) {
-        yield {
-          ...batch,
-          events: batch.events.map(event => ({ ...event, fact: messageFact(event.fact) })),
-        }
-      }
-    },
-  }
-}
-
-function messageFact(fact: ToolExecutionFact<ContentBlock>): ToolExecutionFact<Block> {
-  if (fact.kind !== 'final') return fact
-  const result = fact.result
-  return {
-    ...fact,
-    result: {
-      ...result,
-      content: result.content.map(requireMessageResultBlock),
-      original:
-        result.original.kind === 'none'
-          ? result.original
-          : {
-              ...result.original,
-              summary: result.original.summary.map(requireMessageResultBlock),
-            },
-    },
-  }
-}
+type LiveBinding = Extract<ToolExecutorBinding<Principal, TestEnvironment>, { kind: 'live-only' }>
 
 function testBinding(
   authority: ToolStartAuthority<Principal>,
+  planner: ToolFinalPlanner<Principal, ContentBlock>,
   wrap: (base: LiveBinding) => LiveBinding = base => base,
 ): TestBinding {
   const attempts: string[] = []
@@ -344,7 +310,7 @@ function testBinding(
   const environments: TestEnvironment[] = []
   const inspected: ToolStartRecord[] = []
   const capsules: DurableEvidence[] = []
-  const executor = createMemoryToolExecutorBinding<Principal, TestEnvironment>()
+  const executor = createMemoryToolExecutorBinding<Principal, TestEnvironment>(planner)
   const binding = wrap({
     kind: 'live-only',
     start: async (input, environment) => {
@@ -352,6 +318,7 @@ function testBinding(
       const capsule = evidence(`capsule-${input.call}`)
       capsules.push(capsule)
       const consumed = await authority.consume({
+        request: input.request,
         principal: input.principal,
         tenant: input.tenant,
         call: input.call,
@@ -369,20 +336,13 @@ function testBinding(
       if ('failure' in live) return live
       executions.push(input.call)
       environments.push(environment)
-      return succeed(messageExecution(live.ok))
+      return succeed(live.ok)
     },
     inspectStart: async input => {
       inspected.push(input.start)
       const found = await executor.binding.inspectStart(input)
       if ('failure' in found) return found
-      if (found.ok.kind === 'settled') {
-        const fact = messageFact(found.ok.fact)
-        if (fact.kind !== 'final') throw new Error('the executor final is not final')
-        return succeed({ ...found.ok, fact })
-      }
-      return found.ok.kind === 'live'
-        ? succeed({ kind: 'live', execution: messageExecution(found.ok.execution) })
-        : succeed(found.ok)
+      return found
     },
   })
   return {
@@ -391,7 +351,7 @@ function testBinding(
     environments,
     inspected,
     capsules,
-    controls: executor.controls,
+    controls: { ...executor.controls, finish: executor.controls.finishEnvelope },
     bindings: {
       inspect: () => Promise.reject(new Error("inspect is the Catalog's")),
       resolve: () => Promise.resolve(succeed(binding)),
@@ -437,7 +397,7 @@ function refusing<T extends object>(name: string, methods: readonly string[]): T
 }
 
 export type StartHarness = Readonly<{
-  memory: MemoryToolLedgerStore<Block>
+  memory: MemoryToolLedgerStore
   runtime: ReturnType<typeof createToolRuntime<Principal, Block, TestEnvironment>>['runtime']
   /** 提供者的恢复入口：按租户扫描有待推进工作的调用，并请宿主运行它们。 */
   recover: ReturnType<typeof createToolRuntime<Principal, Block, TestEnvironment>>['recover']
@@ -452,7 +412,6 @@ export type StartHarness = Readonly<{
   environments: TestEnvironments
   identities: TestToolIdentities
   source: TestInvocationSource<Principal>
-  custody: ToolOutputCustody<Principal>
   internalRequests: Map<string, FixedToolRequest>
   /** The calls whose timing segment the clock was asked to begin. */
   begun: readonly string[]
@@ -462,8 +421,11 @@ export type StartHarness = Readonly<{
   runOnce(call: string, signal?: AbortSignal): Promise<void>
   /** The queue maintenance entry of the ledger. */
   queues: ToolDependencies<Principal, Block, TestEnvironment>['queues']
-  /** The calls the queue domain of the default key holds a tombstone for. */
-  released(): Promise<readonly string[]>
+  /**
+   * Whether the place of a call admitted with `op-<call>` is released: its call domain shows the
+   * release, and the queue domain of the default key holds no entry for it.
+   */
+  released(call: string): Promise<boolean>
   /** The current state of a call admitted with `op-<call>`. */
   state(call: string): Promise<ToolState>
   /** The queue entries of the default request's scope, as the queue domain holds them. */
@@ -471,7 +433,7 @@ export type StartHarness = Readonly<{
 }>
 
 export function startHarness(options: StartOptions = {}): StartHarness {
-  const memory = options.memory ?? createMemoryToolLedgerStore<Block>()
+  const memory = options.memory ?? createMemoryToolLedgerStore()
   const store = options.store === undefined ? memory : options.store(memory)
   const spies: Spies = { calls: new Map() }
   const clock = testClock()
@@ -484,18 +446,33 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const host = testHost(spies, identities.instanceIdentities)
   const authority = options.authority ?? testAuthority()
   const authorityPort = options.authorityPort?.(authority) ?? authority
-  const binding = options.binding ?? testBinding(authorityPort, options.bindingPort)
+  const binding: TestBinding =
+    options.binding ??
+    testBinding(
+      authorityPort,
+      {
+        planFinal: input =>
+          ledger.finalPlanner.planFinal({
+            ...input,
+            final: {
+              ...input.final,
+              result: ok(guards(options).policy.judgeResult(input.final.result)),
+            },
+          }),
+      },
+      options.bindingPort,
+    )
   const bindings = options.bindingsPort?.(binding.bindings) ?? binding.bindings
   const factAcknowledgements = createToolFactAcknowledgementGuard(bindings)
   const environments = testEnvironments(options.environment ?? new Map())
-  const originalCustody = testSettlementPorts().custody
-  const custody = options.custodyPort?.(originalCustody) ?? originalCustody
   const controlSubjects =
     options.controlSubjects === undefined
       ? testControlSubjects(guards(options).access)
       : options.controlSubjects
+  const settlementPorts = testSettlementPorts(memory)
   const settlement = {
-    custody,
+    ...(options.bodySchemas === undefined ? {} : { bodySchemas: options.bodySchemas }),
+    bodies: settlementPorts.bodies,
     releaseInspection: environments,
     content: null,
     ...(controlSubjects === null ? {} : { controlSubjects }),
@@ -522,7 +499,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     admissions: publicLedger.admissions,
     queues: ledger.queues,
     rejections: ledger.rejections,
-    facts: ledger.facts,
     reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
     bindings,
     environments: options.environmentsPort?.(environments) ?? environments,
@@ -541,7 +517,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       'invalidate',
       'resolve',
     ]),
-    custody,
     catalog: refusing('catalog', ['inspect', 'usage', 'search']),
     children: refusing('children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
     operationIdentities: identities.operationIdentities,
@@ -562,12 +537,13 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       instance: await host.instanceOf(callId(call)),
       signal,
     })
-  const released = async () => {
-    const read = await memory.read({ kind: 'queue', tenant: tenantA, key: queueKey() })
-    if (read.kind !== 'complete') throw new Error('the queue domain is unreadable')
-    return read.records.flatMap(record =>
-      record.kind === 'queue-release' ? [record.release.call as string] : [],
-    )
+  const released = async (call: string) => {
+    const read = await memory.read({ kind: 'call', tenant: tenantA, call: callId(call) })
+    if (read.kind !== 'complete') throw new Error('the call domain is unreadable')
+    const record = read.records.find(candidate => candidate.kind === 'call')
+    if (record?.kind !== 'call') throw new Error(`${call} was not admitted`)
+    const shown = record.call.startRejection !== null || record.call.state.queue.kind === 'released'
+    return shown && !(await queue()).some(entry => entry.call === call)
   }
   const state = async (call: string) => {
     const found = ok(
@@ -617,7 +593,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     environments,
     identities,
     source,
-    custody,
     begun: clock.begun,
     drive,
     runOnce,
@@ -680,8 +655,8 @@ async function unaccounted(
 
 /**
  * The accounting invariant of the queue entries (SPEC 22), checked over every harness this test
- * built: every unreleased entry is accounted for by its call domain, and no call has both an
- * entry and a tombstone. A violation is an entry that nothing would ever move or remove.
+ * built: every entry is accounted for by its call domain, and the queue domain holds nothing but
+ * entries and its counter. A violation is an entry that nothing would ever move or remove.
  */
 export async function auditQueues(): Promise<void> {
   const harnesses = audited.splice(0)
@@ -693,13 +668,13 @@ export async function auditQueues(): Promise<void> {
       key: queueKey(),
     })
     if (read.kind !== 'complete') continue
-    const tombstones = new Set<string>()
-    for (const record of read.records)
-      if (record.kind === 'queue-release') tombstones.add(record.release.call as string)
     for (const record of read.records) {
-      if (record.kind !== 'queue-entry') continue
+      if (record.kind === 'queue-counter') continue
+      if (record.kind !== 'queue-entry') {
+        problems.push(`a ${record.kind} record in the queue domain`)
+        continue
+      }
       const { entry } = record
-      if (tombstones.has(entry.call)) problems.push(`${entry.call}: an entry beside its tombstone`)
       const why = await unaccounted(harness, { ...entry, operation: entry.operation })
       if (why !== null) problems.push(`${entry.call}: ${why}`)
     }
@@ -778,15 +753,17 @@ export async function toStarting(harness: StartHarness, call: string) {
  * commit can never be accepted (`command_limit`).
  */
 export function losingCommits(
-  memory: ToolLedgerStore<Block>,
-  matches: (input: LedgerCommitInput<Block>) => boolean,
+  memory: ToolLedgerStore,
+  matches: (input: LedgerCommitInput) => boolean,
   fault: 'dropped' | 'applied' | 'unavailable' | 'rejected',
   times = 1,
-): ToolLedgerStore<Block> {
+): ToolLedgerStore {
   let left = times
   return {
     durability: 'none',
     scanPending: input => memory.scanPending(input),
+    readRecord: memory.readRecord,
+    due: memory.due,
     read: domain => memory.read(domain),
     commit: async input => {
       if (left === 0 || !matches(input)) return memory.commit(input)
@@ -807,9 +784,9 @@ export function losingCommits(
  * a port (read 1); the transaction then reads again (read 2, or 3 after a port's own re-read).
  */
 export function landingAfterRead(
-  memory: ToolLedgerStore<Block>,
+  memory: ToolLedgerStore,
   land: () => Promise<unknown>,
-): Readonly<{ store: ToolLedgerStore<Block>; arm(afterReads: number): void }> {
+): Readonly<{ store: ToolLedgerStore; arm(afterReads: number): void }> {
   let left = 0
   return {
     arm: afterReads => {
@@ -818,6 +795,8 @@ export function landingAfterRead(
     store: {
       durability: 'none',
       scanPending: input => memory.scanPending(input),
+      readRecord: memory.readRecord,
+      due: memory.due,
       read: async domain => {
         const result = await memory.read(domain)
         if (left > 0 && domain.kind === 'call') {

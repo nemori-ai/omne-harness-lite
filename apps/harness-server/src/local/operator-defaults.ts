@@ -5,8 +5,9 @@
 //
 // Sources of the values: the operator layer of joint B (`tools/joint-b/operator.mjs`) and of the
 // coding agent tutorial, which ran a real model with 15 tool calls on the WIRE head `1a34bcba6`.
-// Where the two differ, the tutorial value is taken: Shell and Files results at 32768 bytes, Files
-// with a working directory (R2-D295), and a `tool-records` reconciliation delay of 1000 ms.
+// Where the two differ, the tutorial value is taken: Files with a working directory (R2-D295) and a
+// `tool-records` reconciliation delay of 1000 ms. The result bound of Shell, Files and Web is not
+// from those sources: see `TOOL_RESULT_BYTES`.
 // No measurement backs these numbers, and the adoption references are placeholders with a zero
 // digest. SPEC.md lists this as a known limitation.
 //
@@ -98,7 +99,6 @@ export const LOCAL_TOKENIZERS = {
 const PREPARATION = {
   maxCitedCalls: 8,
   openai: {
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: {
       toolArguments: {
         maxBytes: 65_536,
@@ -116,13 +116,13 @@ const PREPARATION = {
 
 /**
  * How many model calls of the one tenant may be in flight at once. The tenant's share in
- * `model-records` is this many result capacities of one call, and every bound on the way of a call
+ * `model-records` is this many unacknowledged results, and every bound on the way of a call
  * (host drives, result pushes, send claims, materialized transports, connections) admits as many.
  */
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 
-/** The result capacity of one call; at most `maxCallBytes` of model-records (N1). */
-const CALL_RESULT_CAPACITY = { bytes: 524_288, blocks: 100, attachmentBytes: 0 } as const
+/** G of the Tool ledger: the runtime and the sweep row take the same value. */
+const TOOL_ORPHAN_GRACE_MS = 60_000
 
 const MODEL_HOST = {
   host: {
@@ -150,16 +150,7 @@ const MODEL_HOST = {
   },
 } as const
 
-/** `count` result capacities of one call, in the decimal text of the row configurations. */
-function capacityText(call: typeof CALL_RESULT_CAPACITY, count: number) {
-  return {
-    bytes: String(call.bytes * count),
-    blocks: String(call.blocks * count),
-    attachmentBytes: String(call.attachmentBytes * count),
-  }
-}
-
-/** The storage provider's command bound. `model-records` and `tool-records` use the same value. */
+/** The storage provider's command bound. The Tool record store commits through that provider. */
 const MAX_COMMAND_BYTES = 1_048_576
 
 function modelRecords(combinationVersion: string) {
@@ -176,10 +167,10 @@ function modelRecords(combinationVersion: string) {
       resultPageParts: 16,
       resultPageTargetBytes: MODEL_HOST.runtime.resultPageTargetBytes,
       readIdleMs: MODEL_HOST.runtime.readIdleMs,
-      capacity: capacityText(CALL_RESULT_CAPACITY, LOCAL_CONCURRENT_MODEL_CALLS),
+      unacknowledgedResults: LOCAL_CONCURRENT_MODEL_CALLS,
     },
-    maxCallBytes: CALL_RESULT_CAPACITY.bytes,
-    maxCommandBytes: MAX_COMMAND_BYTES,
+    // One chunk of a request body travels in one command: a quarter of the provider's bound.
+    requestChunkBytes: MAX_COMMAND_BYTES / 4,
     combinationVersion,
     send: { mirrorBytes: 4_194_304, maxClaims: LOCAL_CONCURRENT_MODEL_CALLS },
     // The read face `modelDiagnostics`: a tenant reads its own calls; the retention is a placeholder adoption.
@@ -358,14 +349,18 @@ export function shellEnvironment(
   }
 }
 
-const TOOL_RESULT_BYTES = 32_768
+/**
+ * The most bytes one Shell, Files or Web result keeps. It is above the inline threshold
+ * (`offloading.maxInlineUtf8Bytes`), so a result between the two is offloaded with a bounded first
+ * screen and read back by pages. A bound under the threshold cuts every large result to a head and
+ * tail window before offloading can see it, and the cut bytes are lost.
+ */
+const TOOL_RESULT_BYTES = 1_048_576
 
 function toolRecords(workspace: string, combinationVersion: string) {
   return {
     filesRoot: workspace,
     combinationVersion,
-    maxCommandBytes: MAX_COMMAND_BYTES,
-    maxChunkBytes: 16_384,
     configuration: {
       authorBufferBytes: 65_536,
       authorBufferItems: 256,
@@ -380,6 +375,33 @@ function toolRecords(workspace: string, combinationVersion: string) {
       queueCapacity: 64,
       driverRetryDelayMs: 50,
       driverStepsPerRun: 32,
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+        maxPageBytes: 65_536,
+        permitMs: 30_000,
+        clockSkewMs: 1_000,
+        orphanGraceMs: TOOL_ORPHAN_GRACE_MS,
+        maxWriterMetadataBytes: 1_048_576,
+        jsonDocument: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 65_536,
+          maxMembers: 65_536,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+        jsonRecord: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 4096,
+          maxMembers: 4096,
+          maxStringLength: 65_536,
+          maxNumberLength: 64,
+        },
+      },
     },
     capacity: 64,
     observersPerCall: 4,
@@ -517,13 +539,27 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ],
     ['tool-records', toolRecords(settings.workspace, combinationVersion)],
     [
+      'tool-body-sweep',
+      {
+        combinationVersion,
+        ledgerCommitAttempts: 16,
+        orphanGraceMs: TOOL_ORPHAN_GRACE_MS,
+        intervalMs: 1000,
+        limit: 100,
+      },
+    ],
+    [
       'tool-bindings',
       {
         tools: {
           attemptMs: 250,
           resultPageBytes: 65_536,
+          // Not above the inline threshold of the runtime: `checkToolsReplyBudget`.
           replyMaxBytes: 65_536,
-          contentPageBytes: 4096,
+          // The page of a body read back. Measured on real models with a 32 KiB body: the tokens
+          // and the cost of a task follow the number of pages read (4 KiB: 8 pages, 16 KiB: 2
+          // pages, about a third of the cost), with the same answers.
+          contentPageBytes: 16_384,
         },
         // Web provider values of the local profile: initial values without a measurement, configurable.
         // The local profile reaches the host network directly; sandbox or multi-tenant egress control
@@ -544,7 +580,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       'request-context',
       { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
     ],
-    ['agent-context', { resultCapacity: capacityText(CALL_RESULT_CAPACITY, 1) }],
+    ['agent-context', {}],
     ['agent-host', AGENT_HOST],
     ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65_536 }],

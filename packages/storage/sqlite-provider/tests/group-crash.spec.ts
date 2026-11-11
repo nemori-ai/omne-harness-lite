@@ -98,8 +98,12 @@ describe('C13: a Worker that exits inside a group', () => {
       storage.commit(crash('x')),
     ])
     expect(kinds(results)).toEqual(['committed', 'rolled_back', 'unknown'])
-    expect(await storage.query(identityOf(results[0]))).toEqual(results[0])
-    expect(await storage.query(identityOf(results[1]))).toEqual(results[1])
+    expect({ ...(await storage.query(identityOf(results[0]))), recalled: false }).toEqual(
+      results[0],
+    )
+    expect({ ...(await storage.query(identityOf(results[1]))), recalled: false }).toEqual(
+      results[1],
+    )
     expect((await storage.query(identityOf(results[2]))).kind).toBe('not_committed')
   })
 })

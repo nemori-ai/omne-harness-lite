@@ -6,10 +6,10 @@
 
 - [independent-scope.ts](../src/independent-scope.ts)：`createIndependentToolScope`（G2）。它检查 `IndependentToolScopeInput`，返回 `ToolExecutionScope` 或 `{ field, reason }` 失败。`field` 是被拒绝的字段路径，例如 `limits.authorBufferBytes`。`reason` 是 `type`、`range`、`missing`、`accessor` 或 `unknown-field`。作用域内 `emit`、`wait` 与 `finish` 的失败是 `ToolPrimitiveFailure` 值。各种情况对应的种类见 [SPEC 的失败解释](../SPEC.md#失败解释)。
 - [execute-tool.ts](../src/execute-tool.ts)：`executeTool` 与其失败类型 `ExecuteToolFailure`。`effect` 为 `not-started` 时作者没有运行。`effect` 为 `unknown` 时作者运行过。
-- [construction.ts](../src/construction.ts)：`ToolDependencies` 与 `ToolConfiguration`，即 `createToolRuntime` 的构造形状。`ToolDependencies` 显式注入 operationIdentities、sourceIssuer.resolve 与同账本的 facts；宿主把 instance 传给 driver.run。`ToolConfiguration.queueCapacity` 是一个并发范围内尚未释放的调用数上限；可选的 `ToolConfiguration.driverStepsPerRun` 是推进协程一次运行的步数上限，缺省 16；可选的 `ToolConfiguration.driverRetryDelayMs` 是因记录仓或端口失败结束、环境答 `pending` 或 `unknown`、或用尽步数而没有提交或认回任何一步的运行再被运行前的等待毫秒数（SPEC 第 23 条），缺省 1000，给出时是 1 到 2147483647 的整数；`ToolLedgerConfiguration` 是账本读取的配置部分（`resultPageBytes`、`ledgerCommitAttempts`、`queueCapacity`）；`ToolLedgerAdmissions` 是账本的 admit 入口，回复状态与 `recovered`，runtime 经 `ToolDependencies.admissions` 使用它；`ToolLedgerQueues` 是账本的队列维护入口，`reconcile` 为一个排队的调用对它所在的队列 key 对账（`QueueReconciliation` 是答案），推进协程经 `ToolDependencies.queues` 使用它；`ToolLedgerRejections` 是账本的最小失败终局入口，`settle` 给记录仓确定拒绝了某一步、且没有启动记录的调用写 `failed`（`cause` 为 `runtime-lost`）终局并释放排队名额，推进协程经 `ToolDependencies.rejections` 使用它（SPEC 第 23 条）。配置检查在 [configuration.ts](../src/configuration.ts)。
-- [ledger.ts](../src/ledger.ts)：`createToolLedger(store, guards, clock, configuration, ports)`（签名取自 G1，返回值含 G1 记载的 `queues`）返回 `{ commands, reads, admissions, queues, rejections, facts }`。第五参数 `ToolLedgerPorts<P>` 从 construction.ts 导出，显式注入 `custody.retainResult`、原环境的 `releaseInspection.inspectRelease` 与 `content` 字节读口或 `null`。`commands` 与 `reads` 是契约的 `ToolCommands` 与 `ToolReads`。`toolLedgerAdoption` 是它在 `unsupported` 答复中的采用。配置超出范围时抛 `TypeError`。已实现的操作与各种拒绝见 [SPEC 的受理账本](../SPEC.md#受理账本怎样满足-p01p02p08-与-p09)。
-- [ledger-store.ts](../src/ledger-store.ts)：记录仓端口 `ToolLedgerStore` 与它的事务域（`call`、`queue`、`host`）、记录、写入、读取和提交结果类型；`recordKey` 给出记录在域内的唯一键。存储提供者实现这个端口。宿主提供者把自己的耐久记录放在 `host` 域，记录类型是 `HostRecord`。调用域的待办标记随提交的 `LedgerCommitInput.pending` 维护，可选的 `scanPending`（输入 `LedgerPendingScanInput`，答复 `LedgerPendingScan`，条目 `PendingCall`）按标记分页，见 [SPEC 第 33 条](../SPEC.md#33-恢复扫描与待办标记p01p09)。
-  提交结果 `LedgerCommit` 有五种：`committed`、`conflict`、`unknown`、`unavailable` 与 `rejected`。`unavailable` 与 `rejected` 都没有写入。`unavailable` 表示记录仓此刻不能受理，同一提交以后可以再送。`rejected` 带 `reason`，表示同一提交每次送都被拒绝，例如写入集超过记录仓的命令上限。账本把 `rejected` 译成确定失败 `invalid`，`field` 为 `storage`，`reason` 为记录仓的原因，不重读，也不计入 `ledgerCommitAttempts`。直接消费这个端口的宿主提供者同样把 `rejected` 交成确定失败，不当作 `unavailable` 或结果未知。规则见 [SPEC 第 11 条](../SPEC.md#11-操作幂等p01)。
+- [construction.ts](../src/construction.ts)：`ToolDependencies` 与 `ToolConfiguration`，即 `createToolRuntime` 的构造形状。`ToolDependencies` 显式注入 operationIdentities 与 sourceIssuer.resolve；宿主把 instance 传给 driver.run。`ToolConfiguration.queueCapacity` 是一个并发范围内尚未释放的调用数上限；可选的 `ToolConfiguration.driverStepsPerRun` 是推进协程一次运行的步数上限，缺省 16；可选的 `ToolConfiguration.driverRetryDelayMs` 是因记录仓或端口失败结束、环境答 `pending` 或 `unknown`、或用尽步数而没有提交或认回任何一步的运行再被运行前的等待毫秒数（SPEC 第 23 条），缺省 1000，给出时是 1 到 2147483647 的整数；`ToolLedgerConfiguration` 是账本读取的配置部分（`resultPageBytes`、`ledgerCommitAttempts`、`queueCapacity`、`offloading`）；`ToolLedgerAdmissions` 是账本的 admit 入口，回复状态与 `recovered`，runtime 经 `ToolDependencies.admissions` 使用它；`ToolLedgerQueues` 是账本的队列维护入口，`reconcile` 为一个排队的调用对它所在的队列 key 对账（`QueueReconciliation` 是答案），推进协程经 `ToolDependencies.queues` 使用它；`ToolLedgerRejections` 是账本的最小失败终局入口，`settle` 给记录仓确定拒绝了某一步、且没有启动记录的调用写 `failed`（`cause` 为 `runtime-lost`）终局并释放排队名额，推进协程经 `ToolDependencies.rejections` 使用它（SPEC 第 23 条）。配置检查在 [configuration.ts](../src/configuration.ts)。
+- [ledger.ts](../src/ledger.ts)：`createToolLedger(store, guards, clock, configuration, ports)`（签名取自 G1，返回值含 G1 记载的 `queues`）返回 `{ commands, reads, admissions, queues, rejections, facts, bodyWrites, finalPlanner, sweep, delivery, controls }`。第五参数 `ToolLedgerPorts<P>` 从 construction.ts 导出，显式注入 `bodies`（正文存储、许可密钥与参与者时钟）、原环境的 `releaseInspection.inspectRelease` 与 `content` 字节读口或 `null`。`commands` 与 `reads` 是契约的 `ToolCommands` 与 `ToolReads`。`toolLedgerAdoption` 是它在 `unsupported` 答复中的采用。配置超出范围时抛 `TypeError`。已实现的操作与各种拒绝见 [SPEC 的受理账本](../SPEC.md#受理账本怎样满足-p01p02p08-与-p09)。
+- [ledger-store.ts](../src/ledger-store.ts)：记录仓端口 `ToolLedgerStore` 与它的事务域（`call`、`queue`、`host`）、记录、写入、读取和提交结果类型；`recordKey` 给出记录在域内的唯一键，`hostKey` 编码宿主槽键。`LedgerRecordRead` 只含单条记录与域修订号，供 `readRecord` 返回；完整域读取仍返回 `LedgerRead`。`LedgerAssertion` 是 `commit` 可选 `asserts` 的元素：同租户另一个域及其必须仍然成立的修订号（[SPEC](../SPEC.md#记录仓的同租户读集断言)）。`CALL_RECORD_KEY` 是调用域里 `call` 记录的键，供只读原调用的读者使用。存储提供者实现这个端口。宿主提供者把自己的耐久记录放在 `host` 域，记录类型是 `HostRecord`。调用域的待办标记随提交的 `LedgerCommitInput.pending` 维护，可选的 `scanPending`（输入 `LedgerPendingScanInput`，答复 `LedgerPendingScan`，条目 `PendingCall`）按标记分页，见 [SPEC 第 33 条](../SPEC.md#33-恢复扫描与待办标记p01p09)。
+  提交结果 `LedgerCommit` 有五种：`committed`、`conflict`、`unknown`、`unavailable` 与 `rejected`。`unavailable` 与 `rejected` 都没有写入。`unavailable` 表示记录仓此刻不能受理，同一提交以后可以再送。`rejected` 带 `reason`，表示同一提交每次送都被拒绝，例如写入集超过记录仓的命令上限，或 `asserts` 指向另一租户的域。账本把 `rejected` 译成确定失败 `invalid`，`field` 为 `storage`，`reason` 为记录仓的原因，不重读，也不计入 `ledgerCommitAttempts`；带调用域断言的队列步骤同样如此。直接消费这个端口的宿主提供者同样把 `rejected` 交成确定失败，不当作 `unavailable` 或结果未知。规则见 [SPEC 第 11 条](../SPEC.md#11-操作幂等p01)。
 - [construction.ts](../src/construction.ts) 的 `ToolLedgerRecovery` 是账本的受信恢复扫描（`ToolLedger.recovery`），跨租户分页列出有待推进工作的调用，只给宿主在构造时取得。
 - [ledger-guards.ts](../src/ledger-guards.ts)：`ToolLedgerGuards`，即账本的受信快照：`ToolAccessGuard`、`ToolSourceGuard`、必填来源确认守卫 `ToolFactAcknowledgementGuard`、按范围拥有者声明的授予核验器 `ToolGrantVerifier`、启动守卫 `ToolStartGuard`、文本结果工厂、结果政策与 `ToolLedgerBudgets`。
 - [boundary.ts](../src/boundary.ts) 的 `isTenantShape` 与 [evidence.ts](../src/evidence.ts) 的 `canonicalDigest`：宿主提供者在 `host` 域里用与账本相同的租户形状检查与规范摘要。
@@ -29,12 +29,12 @@
 
 - [fact-acknowledgements.ts](../src/fact-acknowledgements.ts)：`createToolFactAcknowledgementGuard(bindings)` 配对同一 runtime 的恢复入口。来源确认的核验顺序与未知重入见 [SPEC](../SPEC.md#24-原执行事实保管p05p08)。
 
-`facts` 是实现包的 ToolLedgerFacts 读口，SavedFact 保留原 start、source、event、cursor 与完整 fact。它凭精确 event evidence 和当前 recover 资格读取，供 settle 消费者恢复原 final。`preserveResult` 使用 WriteContext，主动调用独立保管后再提交原结果与后继责任。`planRelease`、`recordRelease` 与受限 `recordTask(blocked)` 使用 Mutation，不含 caller expected。完整条件、未知和支持边界见 [收场规则](../SPEC.md#26-原结果收场与释放责任)。普通 runtime 不暴露事实写入或此恢复读口。自动原事实推进、信号寿命和恢复缺口见 [SPEC 第 25 条](../SPEC.md#25-原事实受管推进)。
+`facts` 是实现包的 ToolLedgerFacts 读口，SavedFact 保留原 start、source、event 和 evidence。它凭精确 event evidence 和当前 recover 资格读取，pending 返回计划后的 final，settled 返回结果版本与结算凭据。`preserveResult` 使用 WriteContext 和原 basis，先认回原操作，再取回 pending final 并提交结果与后继责任，不读任何存储。driver 不再依赖 facts 读口。`ToolRecovery.result` 只提供结果版本与来源凭据，不需要访问正文仓；`reads.result` 保持完整结果的读取资格与公开分页形状。`planRelease`、`recordRelease` 与受限 `recordTask(blocked)` 使用 Mutation，不含 caller expected。完整条件、未知和支持边界见 [收场规则](../SPEC.md#26-原结果收场与释放责任)。普通 runtime 不暴露事实写入或此恢复读口。自动原事实推进、信号寿命和恢复缺口见 [SPEC 第 25 条](../SPEC.md#25-原事实受管推进)。
 
 - [ledger-content.ts](../src/ledger-content.ts) 实现结果与附件关联、IO 前后资格及页面核验。行为与 provider 证明责任见 [内容读取](../SPEC.md#27-固定结果与内容读取)。
-- [testing.ts](../src/testing.ts) 经 testing 入口导出 `createMemoryToolContent`、`MemoryToolContent` 与 `MemoryContentFault`。`createTestToolDependencies` 将它装配为 `doubles.content` 并复用其 custody。内存提供者只拥有字节及游标，不维护第二份结果账本。
+- [testing.ts](../src/testing.ts) 经 testing 入口导出 `createMemoryToolContent`、`MemoryToolContent` 与 `MemoryContentFault`。`createTestToolDependencies` 将它装配为 `doubles.content`，正文存储来自同一入口的 `createMemoryToolBodies`。内存提供者只拥有字节及游标，不维护第二份结果账本。
 
-`ToolAccessGuard.qualify` 的 `read-raw-content` 表示原件字节操作，须在一个可信权限事实判定点检查两项基础权限与主体/租户/call 范围。它不是可单独授予的新许可位。guard 无一致视图时答 unavailable。raw 元数据继续使用 read-raw；普通附件继续使用 read-content。精确失败与返回时序由 [SPEC 第 27 条](../SPEC.md#27-固定结果与内容读取)拥有。
+`ToolAccessGuard.qualify` 的动作集合是 `ToolLedgerAction`，每个动作就是一项权限；没有 `read-raw`、`read-raw-content`（原始返回不进入保管端口）或 `maintain-materials`（到期正文由清扫回收，不是系统动作）。guard 无一致视图时答 unavailable。附件与正文字节使用 read-content。精确失败与返回时序由 [SPEC 第 27 条](../SPEC.md#27-固定结果与内容读取)拥有。
 
 - [tools.ts](../src/tools.ts) 从根入口导出 createToolResultReader、ToolResultReader、ToolsAccess、ToolsOptions 与 ToolsReadRuntime。present 返回固定结果首屏，read 按固定 result/attachment 引用读取，readReply 收齐有界新回应；工厂不注册作者。createToolMessageResultCodec 导出同一结构化结果的有界 codec。签名归源码，行为与预算见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
 
@@ -56,7 +56,7 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 
 [testing-access.ts](../src/testing-access.ts) 给出 `ToolAccessGuard` 的表替身与提供者套件。依据是 M2 冻结批 RD-TOOLHEAD r2。它们是 `./testing` 的可加导出，不改 `ToolAccessGuard` 的形状。
 
-- `createTableToolAccess({ principalKey, allow })` 按显式的允许表 `ToolAccessRule[]` 作答，返回 `TableToolAccess`。判定顺序：处于 `fail` 状态时答 `unavailable`。租户不是 legal-identity 铸出的值时答 `denied`，原因 `forged-tenant`。表里有一条规则的主体键、租户文本、动作与调用都匹配时答 `allowed`。否则答 `denied`，原因 `no-rule`。没有默认放行，另一租户的请求因租户不同找不到规则。规则省略 `call` 时匹配该租户的任意调用，`call: null` 只匹配不带调用的请求（`invalidate`）。`read-raw-content` 只认同名规则，一次查表就是一个判定点，不拼两个基础权限。
+- `createTableToolAccess({ principalKey, allow })` 按显式的允许表 `ToolAccessRule[]` 作答，返回 `TableToolAccess`。判定顺序：处于 `fail` 状态时答 `unavailable`。租户不是 legal-identity 铸出的值时答 `denied`，原因 `forged-tenant`。表里有一条规则的主体键、租户文本、动作与调用都匹配时答 `allowed`。否则答 `denied`，原因 `no-rule`。没有默认放行，另一租户的请求因租户不同找不到规则。规则省略 `call` 时匹配该租户的任意调用，`call: null` 只匹配不带调用的请求（`invalidate`）。一次查表就是一个判定点。
 - `start` 视图在结构上满足 tool-host-local 的 `StartCoordinatorAccess<P>`，与 `guard` 共用同一张表和同一个 `fail` 状态。tool 不依赖 tool-host-local，所以这里只给结构相容的类型 `TableStartAccess<P>`。可赋值的类型断言由 tool-host-local 的测试承担。
 - 替身声明 `durability: 'none'`，不能装配进生产。生产代码不导入 `./testing`。
 - `toolAccessGuardConformance()` 是每个守卫提供者都要通过的五条用例，夹具类型是 `ToolAccessGuardFixture<P>`：`allowed` 答 `allowed`；`unlisted` 答 `denied`；`otherTenant`（与 `allowed` 只差租户）答 `denied`；伪造租户答 `denied`；依赖失败（夹具的 `breakDependency`）答 `unavailable`，不答 `allowed`。夹具没有 `breakDependency` 时最后一条报告不适用。替身先跑这个套件，应用的真实守卫适配接上后跑同一套件。
@@ -72,3 +72,17 @@ The cases have stable `name` and `clause` fields. Direct consumption and the evi
 [createToolForwardRuntime](../src/runtime-forwarding.ts) 接收窄准入依赖与 provider `ToolForwardSource`，返回独立 `ToolForwardRuntime`。普通 invoke 与该工厂共用 [runtime-admission.ts](../src/runtime-admission.ts)。来源、容量预约与结果接收责任见 [单目标转发准入](../SPEC.md#单目标转发准入)。
 
 `SourceVerdict.denied` 在 [ledger-guards.ts](../src/ledger-guards.ts) 区分真实来源的当前策略拒绝与 forged。准入拒绝和 fact acknowledgement 拒绝均保留原责任，见同节行为约定。
+
+## 最终事实的计划、正文写入与清扫
+
+`createToolLedger` 返回的 `finalPlanner` 实现 tool-contract provider 入口的 `ToolFinalPlanner`。执行记录 final 时，它按正文策略计划结果，超过阈值的结果在此刻写成系统正文。行为见 [最终事实的计划与结算](../SPEC.md#最终事实的计划与结算)。
+
+`delivery.read({ principal, tenant, call, result })` 是宿主交付分面，返回固定版本的完整 ToolResult，不采用模型分页预算。它核验 recover 资格与同一结果，已释放交付拒绝读取。读取失败不会解除交付责任。宿主不得把完整值另存为冻结记录；已保存交付的收尾只消费原回执。
+
+`bodyWrites` 实现 tool-contract 的 `ToolBodyWrites`，返回的 `SealedToolBody` 没有期限。`createToolBodyScope` 把它绑定到一次受信调用与有限的本地缓冲。规则见 [正文写入](../SPEC.md#正文写入)。
+
+`sweep` 与根入口的 `createToolSweep(store, bodies, ledgerCommitAttempts)` 执行同一清扫：读到期索引，先删字节，再提交 `reclaimed`。`createToolSweep` 供应用在不持有整个账本时调度清扫。规则见 [清扫](../SPEC.md#清扫)。
+
+`encodeToolCanonical` 是事实指纹的规范编码，见 [事实指纹编码 v1](../SPEC.md#事实指纹编码-v1)。
+
+`pageToolResult` 是生产侧与消费方保管共用的纯分页函数。输入是已核身份、固定版本元数据、完整 ToolResult 与页预算，输出保持完整内容块及绑定租户、调用、版本和投影的游标。它不读取仓库、不授权，也不改变保管期限。调用者须在取得完整值后和披露前完成自己的资格检查。源码见 [result-page.ts](../src/result-page.ts)。

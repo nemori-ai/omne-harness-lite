@@ -614,7 +614,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     if (registered.kind !== 'registered') throw new Error(`registration ${registered.kind}`)
   }
   const commits: SeenCommit[] = []
+  // `seeing` and the wrapper of a joint world are the database of `real`: the Journal providers
+  // over any of them share what is kept for it (`SqlStorage.database`).
   const seeing: SqlStorage = {
+    database: real.database,
     registerCombination: input => real.registerCombination(input),
     commit: async (request, commitOptions) => {
       const result = await real.commit(request, commitOptions)
@@ -629,7 +632,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     read: (request, readOptions) => real.read(request, readOptions),
   }
   // W2: a joint world may count what goes through the shared storage; by default there is no wrapper.
-  const storage: SqlStorage = options.wrapStorage?.(seeing) ?? seeing
+  const wrapped = options.wrapStorage?.(seeing)
+  const storage: SqlStorage = wrapped ?? seeing
   const lookup: TenantDomainLookup = {
     lookup: input => {
       const domain = domains[input.tenant]
@@ -976,7 +980,6 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   })
   await mount(options.contextPlugin ?? AgentContextProvider, {
     owner: { owner: 'agent-context', name: 'cp3', revision: '1', digest: 'd' },
-    resultCapacity: { bytes: '1048576', blocks: '1024', attachmentBytes: '0' },
   })
 
   // The conditions and the selection of the execution: consistent with the fixture profile.

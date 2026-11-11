@@ -1,4 +1,9 @@
-import type { CommitResultV2, DomainRef, QueryResultV2 } from '@omne-harness/sql-contract'
+import type {
+  CommitResultV2,
+  DomainRef,
+  QueryResultV2,
+  ReceiptV2,
+} from '@omne-harness/sql-contract'
 import type { AssetsOperationResult } from './types.ts'
 import { equal, identity } from './encoding.ts'
 import { PARTICIPANT, PROTOCOL, receiptSchema, type Mutation } from './schema.ts'
@@ -12,6 +17,7 @@ export function receiptResult(
   if (!equal(result.identity, identity(domain, operationId))) return unknown
   switch (result.kind) {
     case 'unknown':
+    case 'not_recallable':
       return unknown
     case 'not_committed':
       return { kind: 'not_found' }
@@ -33,7 +39,7 @@ export function receiptResult(
   }
 }
 function terminalReceipt(
-  result: Extract<CommitResultV2, { kind: 'committed' | 'rolled_back' }>,
+  result: ReceiptV2,
   domain: DomainRef,
   operationId: string,
   command?: Mutation,
@@ -49,11 +55,7 @@ function terminalReceipt(
   if (result.kind === 'rolled_back' && receipt.result.kind !== 'rejected') return unknown
   return receipt.result
 }
-function decodeReceipt(
-  result: Extract<CommitResultV2, { kind: 'committed' | 'rolled_back' }>,
-  domain: DomainRef,
-  operationId: string,
-) {
+function decodeReceipt(result: ReceiptV2, domain: DomainRef, operationId: string) {
   const entry = result.responses.find(
     response => response.participant === PARTICIPANT && response.protocol === PROTOCOL,
   )

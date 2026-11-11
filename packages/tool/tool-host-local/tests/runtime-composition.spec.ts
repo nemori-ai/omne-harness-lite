@@ -43,6 +43,41 @@ const configuration: ToolConfiguration = {
   reconciliationDelayMs: 0,
   ledgerCommitAttempts: 8,
   queueCapacity: 8,
+  readResultArguments: {
+    maxBytes: 65_536,
+    maxDepth: 32,
+    maxItems: 4096,
+    maxMembers: 256,
+    maxStringLength: 32_768,
+    maxNumberLength: 64,
+  },
+  offloading: {
+    maxInlineUtf8Bytes: 65_536,
+    maxRetentionMs: 86_400_000,
+    maxBodyBytes: 16_777_216,
+    previewUtf8Bytes: 1_024,
+    maxPageBytes: 65_536,
+    permitMs: 30_000,
+    clockSkewMs: 1_000,
+    orphanGraceMs: 60_000,
+    maxWriterMetadataBytes: 1_048_576,
+    jsonDocument: {
+      maxBytes: 1_048_576,
+      maxDepth: 64,
+      maxItems: 65_536,
+      maxMembers: 65_536,
+      maxStringLength: 1_048_576,
+      maxNumberLength: 64,
+    },
+    jsonRecord: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 4096,
+      maxMembers: 4096,
+      maxStringLength: 65_536,
+      maxNumberLength: 64,
+    },
+  },
 }
 
 function composition() {

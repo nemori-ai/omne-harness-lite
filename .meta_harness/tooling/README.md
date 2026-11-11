@@ -88,7 +88,7 @@ rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev
 
 生成器从一个 `agents/` 源根按固定 host_layout 编译各宿主目录，源里有 `cloud/<host>/` 时一并编译该宿主的三份 Cloud Agent 运行时文件，并提供独立的相对软链接工具。
 `host_layout.py` 拥有宿主清单与路径，`projection.py` 解析源和适配并产生内存产物，`compile_agents.py` 负责 CLI 与预检写入，
-`link_agents.py` 暴露项目入口，`initialize_agents.py` 串接生成与接入。没有安装更新器、发布事务或知识图谱依赖。
+`link_agents.py` 暴露项目入口，`resident_card.py` 把 pqw-skills 的常驻卡片写进根入口，`initialize_agents.py` 串接生成、接入与常驻卡片。没有安装更新器、发布事务或知识图谱依赖。
 
 ## 使用
 
@@ -140,7 +140,22 @@ slots:
 保留可执行位，`SKILL.md` 照样核 frontmatter。与 `agents/skills/` 里的项目技能同名时项目技能优先，
 外部的那份不生成；项目删掉自己的那份后，外部的接手。两个技能集有同名技能时整体预检失败。
 新检出先 `git submodule update --init`；没有初始化的子模块是空目录，生成器预检失败并提示这条命令，不会悄悄少生成一整套技能。
-钉的版本与采用范围归[技能入口](../../docs/engineering/skills.md#来源与项目采用)。
+采用范围归[技能入口](../../docs/engineering/skills.md#来源与项目采用)。
+
+### pqw-skills 只钉接入约定的版本
+
+pqw-skills 把项目要跟着改的三样（接入节的槽位名、交接信息包的节名、常驻卡片）列在它的 `design/consumer-contract.json`，带一个整数 `version`。本项目在 `agents/pqw/contract-version` 记下自己满足的那个版本。子模块提交是下限；技能正文与脚本读「约定版本相同的最新发行版」，所以 pqw-skills 发一版正文，本仓库不用提交。
+
+```sh
+uv run --locked python .meta_harness/tooling/src/pqw_contract.py --project-root .
+uv run --locked python .meta_harness/tooling/src/pqw_contract.py --project-root . --check
+```
+
+- 不带 `--check`：拉 pqw-skills 的 tag，找约定版本等于所钉版本、并且在子模块提交之后的最新 tag，把它解到 `.meta_harness/.vendor-float/pqw-skills/`（不进 Git）。没有更新的就删掉这个目录，读子模块。拉不到 tag 时用本机已有的。`--offline` 不拉。`initialize_agents.py` 第一步就跑它。
+- 读哪一份只有一条规则：浮动目录的约定版本等于所钉版本就读它，否则读子模块。生成器、常驻卡片与 [pqw-adapter](../../tools/pqw-adapter/README_ZH.md) 都按这条规则读，技能正文与脚本不会各读一版。
+- `--check` 只读：子模块的约定版本等于所钉版本；根 `AGENTS.md`「pqw-skills 接入」有约定列出的每个槽位；卡模板的二级标题等于约定的节名。`pnpm run check:agents` 的第一步就是它。
+- pqw-skills 的约定版本涨了：浮动停在旧约定的最后一版。要用新版时，在一个 PR 里把子模块指到新版、改 `contract-version`，再按 `--check` 报的逐条改接入节与卡模板。
+- 没有网络的环境（gate、CI）读子模块。约定版本相同，接入节与卡模板对两份都成立。
 
 ## 宿主钩子
 
@@ -176,6 +191,16 @@ uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root .
 `install` 必须是非空字符串。这三份需要提交：Cursor 在安装脚本之前从检出读取它们。
 skills、agents 和 hooks 仍由 `.meta_harness/.gitignore` 排除，检出后重新编译。
 
+## 常驻卡片
+
+pqw-skills 发行一份[常驻卡片](../agents/vendor/pqw-skills/skills/single-session-dev-flow/resident-card.md)，项目把它分隔线以下的部分原样放进每个会话第一刻就读的入口文件。本仓库放在根 `AGENTS.md` 的受管段落里，段落由 `<!-- BEGIN:pqw-skills-resident-card -->` 与 `<!-- END:pqw-skills-resident-card -->` 两行框住，位置由根入口自己定。
+
+```sh
+uv run --locked python .meta_harness/tooling/src/resident_card.py --project-root .
+uv run --locked python .meta_harness/tooling/src/resident_card.py --project-root . --check
+```
+
+写入时把两行标记之间换成钉住版本的卡片，标记以外的字节不动；`initialize_agents.py` 在链接之后跑这一步。`--check` 只读，段落与钉住的卡片有一个字不同就失败，`pnpm run check:agents` 的最后一步就是它。升级子模块之后重跑初始化，再提交根 `AGENTS.md` 的变化。标记缺失、重复或次序颠倒，卡片文件没有恰好一行 `---` 或分隔线以下为空，子模块没有初始化，都让两种模式失败且不写文件。持续检查在 `tests/test_resident_card.py`。它不核卡片里的技能名是否存在，那是 pqw-skills 自己的仓库检查。
 
 ## Cursor 原生包与项目视图
 

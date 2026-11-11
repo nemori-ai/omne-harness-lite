@@ -26,6 +26,7 @@ import {
   startRun,
   workOf,
 } from './fixtures/real-provider.ts'
+import { unpacked } from './fixtures/packed.ts'
 import { migratedPort } from './fixtures/sqlite-storage.ts'
 
 const ok = <T>(value: unknown): T => {
@@ -43,7 +44,7 @@ function rowsOf(port: Rows): Map<string, string> {
   for (const row of port.execute(
     "SELECT path, seq, value FROM sl_state_item WHERE tenant = 't' AND session = 's'",
   ).rows)
-    out.set(`${String(row[0])}#${String(row[1])}`, String(row[2]))
+    out.set(`${String(row[0])}#${String(row[1])}`, unpacked(row[2]))
   return out
 }
 
@@ -232,7 +233,7 @@ describe('a session of 200 steps: the bytes of one commit do not grow with the s
         tenant,
         'session-1',
       ])
-      .rows.reduce((sum, row) => sum + String(row[0]).length, String(head).length)
+      .rows.reduce((sum, row) => sum + unpacked(row[0]).length, String(head).length)
   }
 
   /**

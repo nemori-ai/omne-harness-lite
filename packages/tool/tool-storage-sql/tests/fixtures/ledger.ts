@@ -1,3 +1,6 @@
+import { createMemoryToolBodies } from '@omne-harness/tool/testing'
+import type { JsonLimits } from '@omne-harness/json-text'
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // A real Tool ledger (`createToolLedger` of `@omne-harness/tool`) over a given store, with a fixed
 // non-production trust model: one principal of one tenant is qualified, the invocation source is
 // the test source of `@omne-harness/tool/testing`, and the other ports are the in-memory doubles
@@ -12,6 +15,7 @@ import {
   canonicalDigest,
   type ToolLedgerGuards,
   type ToolLedgerStore,
+  type ToolLedgerPorts,
 } from '@omne-harness/tool'
 import { createTestInvocationSource } from '@omne-harness/tool/testing'
 import {
@@ -19,12 +23,12 @@ import {
   type Adoption,
   type FixedToolRequest,
   type ToolInvokeRequest,
+  type ToolBodyDeclaration,
 } from '@omne-harness/tool-contract'
 import { defaultResultPolicy } from '@omne-harness/tool-contract/provider'
 import {
   createMemoryToolClock,
   createMemoryToolEnvironment,
-  createMemoryToolOutputCustody,
 } from '@omne-harness/tool-contract/testing'
 
 export type Principal = Readonly<{ subject: 'alice' | 'bob' }>
@@ -58,7 +62,7 @@ const adoption = (name: string): Adoption => ({
   digest: `sha256:${name}`,
 })
 
-function invokeRequest(): ToolInvokeRequest {
+function invokeRequest(body?: ToolBodyDeclaration, argumentsText = '{}'): ToolInvokeRequest {
   return {
     availability: {
       kind: 'available',
@@ -87,11 +91,14 @@ function invokeRequest(): ToolInvokeRequest {
           vocabulary: adoption('json-schema'),
           descriptions: [],
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: {
+          ...ordinaryReturnFixture(adoption('codec')),
+          ...(body === undefined ? {} : { body }),
+        },
       },
     },
     command: null,
-    arguments: { original: '{}', effective: '{}', complete: true },
+    arguments: { original: argumentsText, effective: argumentsText, complete: true },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
@@ -128,8 +135,15 @@ export function fixedRequest(): FixedToolRequest {
 
 export type LedgerWorld = Awaited<ReturnType<typeof ledgerWorld>>
 
-/** The trust model and one admitted-to-be input of `tenant`; `ledgerOver` builds a ledger on a store. */
-export async function ledgerWorld(tenant: TenantId) {
+/**
+ * The trust model and one admitted-to-be input of `tenant`; `ledgerOver` builds a ledger on a store.
+ * `argumentsText` is the JSON text of the call's arguments; the argument budget admits its size.
+ */
+export async function ledgerWorld(
+  tenant: TenantId,
+  body?: ToolBodyDeclaration,
+  argumentsText = '{}',
+) {
   const principal: Principal = { subject: 'alice' }
   const qualify: ToolLedgerGuards<Principal, ContentBlock>['access']['qualify'] = async input =>
     input.principal.subject === 'alice' &&
@@ -147,7 +161,7 @@ export async function ledgerWorld(tenant: TenantId) {
           : { kind: 'denied', reason: 'different-subject' },
     },
   })
-  const request = invokeRequest()
+  const request = invokeRequest(body, argumentsText)
   const issued = await source.issuer.resolve({ principal, tenant, request })
   if (issued.kind !== 'bound') throw new Error('the fixture source must bind the invocation')
   const access = { principal, tenant, call: issued.call }
@@ -195,23 +209,73 @@ export async function ledgerWorld(tenant: TenantId) {
     policy: defaultResultPolicy,
     budgets: {
       arguments: {
-        maxBytes: 4096,
+        maxBytes: Math.max(4096, Buffer.byteLength(argumentsText)),
         maxDepth: 16,
         maxItems: 256,
         maxMembers: 64,
-        maxStringLength: 1024,
+        maxStringLength: Math.max(1024, argumentsText.length),
         maxNumberLength: 32,
       },
     },
   }
-  const ledgerOver = (store: ToolLedgerStore<ContentBlock>) =>
+  const memoryBodies = createMemoryToolBodies()
+  const ledgerOver = (
+    store: ToolLedgerStore,
+    bodyOptions: Readonly<{
+      schemas?: ToolLedgerPorts<Principal>['bodySchemas']
+      limits?: JsonLimits
+      bodies?: ToolLedgerPorts<Principal>['bodies']
+    }> = {},
+  ) =>
     createToolLedger<Principal, ContentBlock>(
       store,
       guards,
       createMemoryToolClock(),
-      { resultPageBytes: 4096, ledgerCommitAttempts: 4, queueCapacity: 16 },
       {
-        custody: createMemoryToolOutputCustody<Principal>(),
+        resultPageBytes: 4096,
+        ledgerCommitAttempts: 4,
+        authorBufferBytes: 65_536,
+        authorBufferItems: 128,
+        queueCapacity: 16,
+        readResultArguments: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 4096,
+          maxMembers: 256,
+          maxStringLength: 32_768,
+          maxNumberLength: 64,
+        },
+        offloading: {
+          maxInlineUtf8Bytes: 65_536,
+          maxRetentionMs: 86_400_000,
+          maxBodyBytes: 16_777_216,
+          previewUtf8Bytes: 1_024,
+          maxPageBytes: 65_536,
+          permitMs: 30_000,
+          clockSkewMs: 1_000,
+          orphanGraceMs: 60_000,
+          maxWriterMetadataBytes: 1_048_576,
+          jsonDocument: bodyOptions.limits ?? {
+            maxBytes: 1_048_576,
+            maxDepth: 64,
+            maxItems: 65_536,
+            maxMembers: 65_536,
+            maxStringLength: 1_048_576,
+            maxNumberLength: 64,
+          },
+          jsonRecord: bodyOptions.limits ?? {
+            maxBytes: 65_536,
+            maxDepth: 32,
+            maxItems: 4096,
+            maxMembers: 4096,
+            maxStringLength: 65_536,
+            maxNumberLength: 64,
+          },
+        },
+      },
+      {
+        bodies: bodyOptions.bodies ?? memoryBodies,
+        ...(bodyOptions.schemas === undefined ? {} : { bodySchemas: bodyOptions.schemas }),
         releaseInspection: createMemoryToolEnvironment<Principal>(),
         content: null,
       },

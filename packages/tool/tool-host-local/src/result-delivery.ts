@@ -1,8 +1,11 @@
+import { judgeCallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
+  encodeToolCanonical,
+  type ToolLedger,
   isTenantShape,
   type CallRecord,
   type ResultRecord,
@@ -13,6 +16,8 @@ import {
   encodeToolInvocationRef,
   judgeToolDelivery,
   type ConsumerRef,
+  type DurableEvidence,
+  type FixedToolRequest,
   type Reply,
   type ToolCallId,
   type ToolDelivery,
@@ -22,6 +27,7 @@ import {
   judgeHandoff,
   type CallAccess,
   type ToolCommands,
+  type ToolCanonicalFingerprint,
   type ToolOperationIdentities,
   type ToolReads,
   type ToolTask,
@@ -31,6 +37,7 @@ import {
   deliveryUnavailable,
   type DeliveryBase,
   type DeliveryRecord,
+  type ResultValueCommitment,
 } from './delivery-state.ts'
 import { processMonotonicMs } from './clock.ts'
 
@@ -39,9 +46,10 @@ export type DeliveryPosition<P, B extends ContentBlock> = Readonly<{
   receiver(consumer: ConsumerRef): Reply<ToolResultReceiver<P, B>>
 }>
 export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
-  store: ToolLedgerStore<B>
+  store: ToolLedgerStore
   commands: ToolCommands<P, B>
   reads: ToolReads<P, B>
+  resultDelivery: ToolLedger<P, B>['delivery']
   identities: ToolOperationIdentities
   access: ToolAccessGuard<P>
   position: DeliveryPosition<P, B>
@@ -64,6 +72,14 @@ export type LocalDeliveryInput<P, B extends ContentBlock> = Readonly<{
   warn?: (message: string) => void
   /** A monotonic reading in milliseconds for that pacing. Absent: the process monotonic timer of `clock.ts`. */
   now?: () => number
+  /**
+   * Releases what the call's result delivery kept alive: the received copies of its forwarding
+   * slot (C6). Run after the delivery is released and before it is done; a delivery whose copies
+   * are not released stays short of `done`, and the next run tries again. Absent: nothing to release.
+   */
+  forwardedCopies?: (
+    call: Readonly<{ tenant: TenantId; call: ToolCallId; request: FixedToolRequest }>,
+  ) => Promise<'released' | 'unavailable'>
 }>
 
 /** The answer of `DeliveryPosition.receiver` when no receiver is registered for the owner. */
@@ -92,10 +108,7 @@ function storedTenantKey(value: unknown): string | null {
   return tenant === null ? null : tenantKey(tenant)
 }
 
-function resultBase<B extends ContentBlock>(
-  call: CallRecord,
-  result: ResultRecord<B>,
-): DeliveryBase<B> | null {
+function resultDeliveryBase(call: CallRecord, result: ResultRecord): DeliveryBase | null {
   const tenant = restoreTenant(call.tenant)
   if (tenant === null) return null
   const reference = encodeToolInvocationRef({ tenant, call: call.call, admission: call.admission })
@@ -114,8 +127,36 @@ function resultBase<B extends ContentBlock>(
     actualTerminal: result.actual,
     effect: result.effect,
     source: result.source,
-    value: result.value,
+    value: {
+      fingerprint: fingerprintOf(result.value),
+      original:
+        result.value.original.kind === 'none'
+          ? { kind: 'none' }
+          : offloadedDescription(result.value.original),
+    },
   }
+}
+
+/** The body descriptor the delivery commits to: the offloaded original without its summary. */
+function offloadedDescription(
+  original: Extract<ResultRecord['value']['original'], { kind: 'offloaded' }>,
+): Extract<ResultValueCommitment['original'], { kind: 'offloaded' }> {
+  const { summary: _summary, ...description } = original
+  return description
+}
+
+/** The fingerprint of the channels as the model sees them: the body descriptor is not part of it. */
+function fingerprintOf(value: ResultRecord['value']): ToolCanonicalFingerprint {
+  const original = value.original
+  const encoded = encodeToolCanonical({
+    ...value,
+    original:
+      original.kind === 'none'
+        ? original
+        : { kind: 'offloaded', source: original.source, summary: original.summary },
+  })
+  if ('failure' in encoded) throw new Error('a committed result value is always encodable')
+  return encoded.ok.fingerprint
 }
 
 /** The key of one call of one tenant: the owner of its table entries. */
@@ -194,11 +235,11 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
    */
   const paced = new Map<string, Map<string, Pace>>()
 
-  function pacedOf(access: CallAccess<P>, record: DeliveryRecord<B>): Pace | undefined {
+  function pacedOf(access: CallAccess<P>, record: DeliveryRecord): Pace | undefined {
     return paced.get(callKeyOf(access))?.get(record.digest)
   }
 
-  function unpace(access: CallAccess<P>, record: DeliveryRecord<B>): void {
+  function unpace(access: CallAccess<P>, record: DeliveryRecord): void {
     const key = callKeyOf(access)
     const entries = paced.get(key)
     if (entries === undefined) return
@@ -251,14 +292,19 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
 
   async function freeze(
     access: CallAccess<P>,
-    base: DeliveryBase<B>,
+    base: DeliveryBase,
     task: ToolTask,
-  ): Reply<DeliveryRecord<B>> {
+  ): Reply<DeliveryRecord> {
     const account = await input.accountAtFreeze(access)
     if ('failure' in account) return account
     const payload = structuredClone({ ...base, account: account.ok })
-    const judged = judgeToolDelivery({ tenant: access.tenant, delivery: payload })
-    if ('failure' in judged) return deliveryUnavailable('delivery-account')
+    if (
+      payload.account !== null &&
+      (!('ok' in judgeCallAccount(payload.account)) ||
+        payload.account.subject.kind !== 'tool_execution' ||
+        payload.account.subject.id !== access.call)
+    )
+      return deliveryUnavailable('delivery-account')
     const freezeOperation = await input.identities.newOperation()
     if ('failure' in freezeOperation) return freezeOperation
     const release = await input.identities.newOperation()
@@ -282,9 +328,9 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
 
   async function push(
     access: CallAccess<P>,
-    record: DeliveryRecord<B>,
+    record: DeliveryRecord,
     signal: AbortSignal,
-  ): Reply<DeliveryRecord<B>> {
+  ): Reply<DeliveryRecord> {
     if (record.phase.kind !== 'frozen') return succeed(record)
     const waiting = pacedAway(access, record)
     if (waiting !== null) return deliveryUnavailable(waiting.dependency)
@@ -293,12 +339,32 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     const receiver = await receiverOf(access, record)
     if ('failure' in receiver) return receiver
     if (signal.aborted) return deliveryUnavailable('delivery-wait')
+    const value = await input.resultDelivery.read({
+      ...qualified.ok,
+      result: record.payload.key.result,
+    })
+    if ('failure' in value) return value
+    const original = value.ok.original
+    const description =
+      original.kind === 'offloaded' ? offloadedDescription(original) : { kind: 'none' as const }
+    if (
+      canonicalDigest(fingerprintOf(value.ok)) !==
+        canonicalDigest(record.payload.value.fingerprint) ||
+      canonicalDigest(description) !== canonicalDigest(record.payload.value.original)
+    )
+      return deliveryUnavailable('delivery-value')
+    const payload = { ...record.payload, value: value.ok }
+    if ('failure' in judgeToolDelivery({ tenant: access.tenant, delivery: payload }))
+      return deliveryUnavailable('delivery-value')
+    const ready = await current(access)
+    if ('failure' in ready) return ready
+    if (signal.aborted) return deliveryUnavailable('delivery-wait')
     let saved
     try {
       saved = await wait(
         receiver.ok.push({
-          access: qualified.ok,
-          delivery: structuredClone(record.payload),
+          access: ready.ok,
+          delivery: structuredClone(payload),
           signal,
         }),
         signal,
@@ -331,7 +397,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
   }
 
   /** The wait of `record` while the last push was paced and the wait is not over; else null. */
-  function pacedAway(access: CallAccess<P>, record: DeliveryRecord<B>): Pace | null {
+  function pacedAway(access: CallAccess<P>, record: DeliveryRecord): Pace | null {
     const waiting = pacedOf(access, record)
     return waiting !== undefined && now() < waiting.until ? waiting : null
   }
@@ -339,7 +405,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
   /** The receiver of the frozen consumer; an unavailable answer paces the next look. */
   async function receiverOf(
     access: CallAccess<P>,
-    record: DeliveryRecord<B>,
+    record: DeliveryRecord,
   ): Reply<ToolResultReceiver<P, B>> {
     let receiver
     try {
@@ -360,7 +426,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
    * clears the pacing and writes one named warning with the tenant, the call, the delivery and the
    * reason (R2-D327). The delivery stays owed: no backoff, no loss; the next drive pushes again.
    */
-  function failed(access: CallAccess<P>, record: DeliveryRecord<B>, reason: string): void {
+  function failed(access: CallAccess<P>, record: DeliveryRecord, reason: string): void {
     unpace(access, record)
     say(
       `result delivery ${String(record.payload.delivery)} of call ${String(access.call)} of tenant ` +
@@ -375,7 +441,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
    */
   function pace(
     access: CallAccess<P>,
-    record: DeliveryRecord<B>,
+    record: DeliveryRecord,
     cause: Readonly<{ dependency: string; diagnostic?: string }>,
   ): void {
     const last = pacedOf(access, record)
@@ -391,7 +457,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     )
   }
 
-  async function released(access: CallAccess<P>, record: DeliveryRecord<B>): Promise<boolean> {
+  async function released(access: CallAccess<P>, record: DeliveryRecord): Promise<boolean> {
     const read = await input.store.read({ kind: 'call', tenant: access.tenant, call: access.call })
     if (read.kind !== 'complete') return false
     return read.records.some(
@@ -408,46 +474,63 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
 
   async function release(
     access: CallAccess<P>,
-    record: DeliveryRecord<B>,
+    record: DeliveryRecord,
     signal: AbortSignal,
-  ): Reply<DeliveryRecord<B>> {
-    if (
-      record.phase.kind === 'frozen' ||
-      record.phase.kind === 'done' ||
-      record.phase.kind === 'released'
-    )
+  ): Reply<DeliveryRecord> {
+    if (record.phase.kind !== 'saved' && record.phase.kind !== 'release-unknown')
       return succeed(record)
     const qualified = await current(access)
     if ('failure' in qualified) return qualified
     if (signal.aborted) return deliveryUnavailable('delivery-wait')
+    const evidence = record.phase.evidence
     if (record.phase.kind === 'release-unknown') {
-      const resolution = await input.reads.operation({ ...qualified.ok, operation: record.release })
-      if ('failure' in resolution || resolution.ok.kind === 'unknown')
-        return deliveryUnavailable('delivery-release')
-      if (resolution.ok.kind === 'committed') {
-        if (!(await released(access, record))) return deliveryUnavailable('delivery-release')
-        return state.save(
-          access,
-          { ...record, phase: { kind: 'released', evidence: record.phase.evidence } },
-          record,
-        )
-      }
+      const recalled = await recallRelease(access, qualified.ok, record, evidence)
+      if (recalled !== null) return recalled
     }
+    return sendRelease(access, qualified.ok, record, evidence, signal)
+  }
+
+  /**
+   * The outcome of a release whose answer was lost, by its operation: released when it committed
+   * and the result record shows it; null when it definitely did not commit, so it is sent again.
+   */
+  async function recallRelease(
+    access: CallAccess<P>,
+    qualified: CallAccess<P>,
+    record: DeliveryRecord,
+    evidence: DurableEvidence,
+  ): Promise<Awaited<Reply<DeliveryRecord>> | null> {
+    const resolution = await input.reads.operation({ ...qualified, operation: record.release })
+    if ('failure' in resolution || resolution.ok.kind === 'unknown')
+      return deliveryUnavailable('delivery-release')
+    if (resolution.ok.kind !== 'committed') return null
+    if (!(await released(access, record))) return deliveryUnavailable('delivery-release')
+    return state.save(access, { ...record, phase: { kind: 'released', evidence } }, record)
+  }
+
+  /** Marks the release unknown, sends it under the record's release operation, and keeps the answer. */
+  async function sendRelease(
+    access: CallAccess<P>,
+    qualified: CallAccess<P>,
+    record: DeliveryRecord,
+    evidence: DurableEvidence,
+    signal: AbortSignal,
+  ): Reply<DeliveryRecord> {
     const marked = await state.save(
       access,
-      { ...record, phase: { kind: 'release-unknown', evidence: record.phase.evidence } },
+      { ...record, phase: { kind: 'release-unknown', evidence } },
       record,
     )
     if ('failure' in marked || marked.ok.phase.kind !== 'release-unknown') return marked
     if (signal.aborted) return deliveryUnavailable('delivery-wait')
     const attempt = marked.ok
     const answer = await input.commands.releaseDelivery({
-      ...qualified.ok,
+      ...qualified,
       operation: attempt.release,
       result: attempt.payload.key.result,
       delivery: attempt.payload.delivery,
       consumer: attempt.payload.consumer,
-      evidence: { kind: 'retained', custody: record.phase.evidence },
+      evidence: { kind: 'retained', custody: evidence },
     })
     if ('failure' in answer) return answer
     if (
@@ -455,53 +538,82 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       canonicalDigest(answer.ok.consumer) !== canonicalDigest(attempt.payload.consumer)
     )
       return deliveryUnavailable('delivery-release')
-    return state.save(
-      access,
-      { ...attempt, phase: { kind: 'released', evidence: record.phase.evidence } },
-      attempt,
+    return state.save(access, { ...attempt, phase: { kind: 'released', evidence } }, attempt)
+  }
+
+  /** The delivery's record, frozen now when it has none and its task is owed. */
+  async function frozenRecord(
+    access: CallAccess<P>,
+    base: DeliveryBase,
+    task: ToolTask | undefined,
+    sweep: Sweep,
+  ): Promise<DeliveryRecord | null> {
+    const loaded = await state.load(access, base)
+    if ('failure' in loaded) {
+      sweep.certain = false
+      return null
+    }
+    if (loaded.ok !== null) return loaded.ok
+    if (task === undefined) return null
+    const frozen = await freeze(access, base, task)
+    if ('failure' in frozen) {
+      sweep.certain = false
+      return null
+    }
+    return frozen.ok
+  }
+
+  /** Pushes the frozen delivery of `task`, keeping the run's owed set in step with its phase. */
+  async function pushOwed(
+    access: CallAccess<P>,
+    frozen: DeliveryRecord,
+    task: ToolTask | undefined,
+    signal: AbortSignal,
+    sweep: Sweep,
+  ): Promise<DeliveryRecord | null> {
+    if (frozen.phase.kind === 'frozen') sweep.owed.add(frozen.digest)
+    if (task !== undefined && frozen.task !== task.operation) return null
+    const saved = await push(access, frozen, signal)
+    if ('failure' in saved) return null
+    if (saved.ok.phase.kind !== 'frozen') sweep.owed.delete(frozen.digest)
+    return saved.ok
+  }
+
+  /** A released delivery is done once what it kept alive is released (C6). */
+  async function finish(
+    access: CallAccess<P>,
+    request: FixedToolRequest,
+    record: DeliveryRecord,
+  ): Promise<boolean> {
+    if (record.phase.kind !== 'released') return record.phase.kind === 'done'
+    if (
+      input.forwardedCopies !== undefined &&
+      (await input.forwardedCopies({ tenant: access.tenant, call: access.call, request })) !==
+        'released'
     )
+      return false
+    const finished = await state.save(
+      access,
+      { ...record, phase: { kind: 'done', evidence: record.phase.evidence } },
+      record,
+    )
+    return 'ok' in finished && finished.ok.phase.kind === 'done'
   }
 
   async function deliver(
     access: CallAccess<P>,
-    base: DeliveryBase<B>,
+    request: FixedToolRequest,
+    base: DeliveryBase,
     task: ToolTask | undefined,
     signal: AbortSignal,
     sweep: Sweep,
   ): Promise<boolean> {
-    const loaded = await state.load(access, base)
-    if ('failure' in loaded) {
-      sweep.certain = false
-      return false
-    }
-    const frozen =
-      loaded.ok === null
-        ? task === undefined
-          ? null
-          : await freeze(access, base, task)
-        : succeed(loaded.ok)
-    if (frozen !== null && 'failure' in frozen) sweep.certain = false
-    if (frozen === null || 'failure' in frozen || signal.aborted) return false
-    if (frozen.ok.phase.kind === 'frozen') sweep.owed.add(frozen.ok.digest)
-    if (task !== undefined && frozen.ok.task !== task.operation) return false
-    const saved = await push(access, frozen.ok, signal)
-    if ('ok' in saved && saved.ok.phase.kind !== 'frozen') sweep.owed.delete(frozen.ok.digest)
-    if ('failure' in saved || signal.aborted) return false
-    const outcome = await release(access, saved.ok, signal)
-    if (
-      'failure' in outcome ||
-      outcome.ok.phase.kind === 'frozen' ||
-      outcome.ok.phase.kind === 'saved' ||
-      outcome.ok.phase.kind === 'release-unknown'
-    )
-      return false
-    if (outcome.ok.phase.kind === 'done') return true
-    const finished = await state.save(
-      access,
-      { ...outcome.ok, phase: { kind: 'done', evidence: outcome.ok.phase.evidence } },
-      outcome.ok,
-    )
-    return 'ok' in finished && finished.ok.phase.kind === 'done'
+    const frozen = await frozenRecord(access, base, task, sweep)
+    if (frozen === null || signal.aborted) return false
+    const saved = await pushOwed(access, frozen, task, signal, sweep)
+    if (saved === null || signal.aborted) return false
+    const outcome = await release(access, saved, signal)
+    return 'ok' in outcome && (await finish(access, request, outcome.ok))
   }
 
   async function run(
@@ -528,7 +640,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     const sweep: Sweep = { owed: new Set(), certain: true }
     for (const row of read.records) {
       if (row.kind !== 'result' || signal.aborted) continue
-      const base = resultBase(call.call, row.result)
+      const base = resultDeliveryBase(call.call, row.result)
       if (
         base === null ||
         row.result.call !== access.call ||
@@ -544,7 +656,10 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
           canonicalDigest(item.consumer) === canonicalDigest(base.consumer),
       )
       if (task === undefined && row.result.delivery.kind !== 'released') continue
-      if ((await deliver(qualified.ok, base, task, signal, sweep)) && task !== undefined)
+      if (
+        (await deliver(qualified.ok, call.call.request, base, task, signal, sweep)) &&
+        task !== undefined
+      )
         pending -= 1
     }
     // What this run did not see owed is saved, released, excluded or gone: its entry goes too.

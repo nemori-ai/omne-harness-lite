@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolLedgerStore } from './ledger-store.ts'
 
 type Awaitable<T> = T | Promise<T>
@@ -16,7 +15,7 @@ export type ToolLedgerStoreControls = Readonly<{
 
 /** A fresh store for one case. The consumer owns cleanup, including failed cases. */
 export type ToolLedgerStoreFixture = Readonly<{
-  store: ToolLedgerStore<ContentBlock>
+  store: ToolLedgerStore
   controls: ToolLedgerStoreControls
   close(): Awaitable<void>
 }>

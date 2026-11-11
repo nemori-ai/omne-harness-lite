@@ -192,6 +192,7 @@ export async function governanceAdoptionWorld(
   const snapshot = await register('target-snapshot', snapshotParticipants)
   const failures: unknown[] = []
   const observedStorage: SqlStorage = {
+    database: w.storage.database,
     registerCombination: input => w.storage.registerCombination(input),
     commit: async (...args) => {
       const result = await w.storage.commit(...args)

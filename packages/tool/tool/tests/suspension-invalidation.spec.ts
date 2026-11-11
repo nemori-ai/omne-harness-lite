@@ -439,7 +439,6 @@ async function stoppedCall(wrapped: Wrapped = {}) {
     decisions,
     driverRetryDelayMs: 5,
   })
-  checkpoint.attach(harness)
   const access = { principal: principalA, tenant: tenantA, call: callId('c1') }
   const settle = async () => {
     for (let quiet = 0, round = 0; quiet < 3 && round < 200; round += 1) {
