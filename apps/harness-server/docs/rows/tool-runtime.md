@@ -216,6 +216,7 @@ Run，最后做 HITL 的准备与登记。调用只保存最近一个等待的�
 - [无事务域租户的资格](../../tests/rows/tool-hitl/host-qualify.spec.ts)：核验主体、租户一致与成员资格。
 - [答复与恢复在发行树上](../../tests/rows/tool-hitl/release-reply.spec.ts)：从会话入口与待办池各答一次，三种答复在 question 与 approval 上的结果文字，两个入口并发只一方成立，CLI 的列卡、读卡与答复。
 - [Ask 在发行树上出卡](../../tests/rows/tool-hitl/release-ask.spec.ts)：ask 与 request_approval 各一次，调用暂停、条目停泊，按会话与按池列出同一组卡；Run 在登记前结束时 `session.run-live` 拒绝登记，不出卡。共用支架在 [release-tree.ts](../../tests/support/release-tree.ts)。
+- [等人时停服与重启后接续](../../tests/rows/tool-hitl/release-restart.spec.ts)：Ask 暂停、条目停泊时停服，Agent 把等待中的执行交接出去，停服退出码为 0。重启后 Session 的启动扫描按部署的租户枚举找回这个 Run，取得新的推进资格并请 Agent 恢复；人答复后调用恢复一次，Agent 在新挂接下收下结果，Run 结束，再次停服退出码为 0。进程被强杀、来不及交接时不在此列（接管未实现）。
 - [回包丢失在发行树上](../../tests/rows/tool-hitl/release-cancel.spec.ts)：真实登记之后回包换成未知，Tool 经 inspectOperation 按原登记认回，不再登记，只有一张卡；答复之后调用恢复一次并收场，条目删除，Run 结束，停服退出码为 0。叫停与归档的发行树场景见上一节的已知限制。
 
 - [请求供给者](../../tests/entry/tool-requests.spec.ts)：完整请求经 Tool 公开判定通过；核验器、目录、作用域绑定、

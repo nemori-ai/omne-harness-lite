@@ -76,9 +76,9 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 
 已知缺口：
 
-1. Runtime 一侧的停用义务只兑现了一部分，依据 R2-D173，见 [Agent SPEC](../agent/SPEC.md#停用)。生产工厂的 quiesce 让空闲实例 drained，并经登记句柄撤登记，所以空闲实例能被回收。执行槽被占用时，包括运行失败的 execution，quiesce 答 unresolved，因为在途 execution 的 detach 与交接是 #502 阶段 5。invoke 预约执行槽时仍报告 idle，open 受理之后才报告 occupied（XC-AGINST 第 3.5 节第 2 条）。宿主对 unresolved、抛出与无答复的处置用测试包装验证。
+1. Runtime 一侧的停用义务只兑现了一部分，依据 R2-D173，见 [Agent SPEC](../agent/SPEC.md#停用)。生产工厂的 quiesce 让空闲实例 drained，并经登记句柄撤登记，所以空闲实例能被回收。执行槽被占用、驱动睡在已保存的等待上且没有未知提交时，quiesce 请驱动把这次执行交接出去（Journal `detach`），成功后放槽、撤登记，答 drained；重启后由 Session 的扫描找回并经恢复入口接上（[Agent SPEC](../agent/SPEC.md#停用)）。其余占用的情形 quiesce 仍答 unresolved：受理在途、正在跑节点、有未知提交在对账、交接的提交答不可用或未知，以及运行失败的 execution。旧进程丢失之后的接管是 #502 阶段 5。invoke 预约执行槽时仍报告 idle，open 受理之后才报告 occupied（XC-AGINST 第 3.5 节第 2 条）。宿主对 unresolved、抛出与无答复的处置用测试包装验证。
 2. 结果接收方的状态只在内存。进程重启后宿主不知道哪些 execution 还有账目待办，只在 Model 再次推送、解析出目标时开始驱动该 execution 的维护。本成员不证明进程重启后的重推：本发行 Model 一侧的推送账本是内存实现（harness-server 的 `src/model/composition.ts`）。触发条件：要求跨进程恢复交付。
-3. 本成员不注入 `assemblyLifecycle`，因为它还没有 kernel-basis 的定义。有序停止由装配的行句柄调用插件对象的 `quiesceAll`，见“[有序停止](#有序停止)”。用生产工厂时，实例的执行槽被占用（缺口 1），或者其中的运行已失败（见“[运行失败](#运行失败)”），有序停止答 incomplete。
+3. 本成员不注入 `assemblyLifecycle`，因为它还没有 kernel-basis 的定义。有序停止由装配的行句柄调用插件对象的 `quiesceAll`，见“[有序停止](#有序停止)”。用生产工厂时，实例的执行槽被占用而又不在可交接的等待上（缺口 1），或者其中的运行已失败（见“[运行失败](#运行失败)”），有序停止答 incomplete。有序停止期间宿主自己的 fiber 须保持活动：撤登记经宿主的上下文取实例目录，宿主注入的任一服务先被卸载都会让它失败。装配按依赖逆序停止同一阶段的各行来保证这一点（harness-server SPEC「阶段规则」）。
 4. 局部依赖在每次调用时经 `ctx.get` 现取，缺席时立即答 unavailable。设计中的阶段子 fiber（`ctx.inject`）尚未实现。`ToolRuntime` 中不返回 Reply 的成员在缺席时也得到 Reply 形状的失败；本版不装配 Tool 阶段。
 5. 恢复入口的 reconcile 在核验之后答具名 unavailable。
 6. 宿主的预约表与槽表只在内存，只在本进程有效。已结束实例的记录保留到插件体结束。
