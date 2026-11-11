@@ -1,5 +1,6 @@
 import {
   deriveDriveOperation,
+  runCancelledBy,
   type AgentDrivePort,
   type ControlProgress,
   type ProducerRef,
@@ -28,10 +29,21 @@ type Round =
 
 const only = <T>(items: readonly T[]): T | null => (items.length === 1 ? (items[0] ?? null) : null)
 
-function cancelRunExecution(snapshot: WorkSnapshot, target: ControlProgress['target'], run: RunId) {
-  if (target.kind !== 'run' || target.run !== run) return null
+/** The execution a Run ran on; null unless the history names exactly one. */
+function executionOf(snapshot: WorkSnapshot, run: RunId) {
   const executions = snapshot.executions?.filter(item => item.run === run) ?? []
   return only(executions)?.execution.execution ?? null
+}
+
+function cancelRunExecution(snapshot: WorkSnapshot, target: ControlProgress['target'], run: RunId) {
+  return target.kind !== 'run' || target.run !== run ? null : executionOf(snapshot, run)
+}
+
+/** The execution of the Run an archive ended; null when the session had no active Run then. */
+function archivedExecution(snapshot: WorkSnapshot, progress: ControlProgress) {
+  const run =
+    progress.target.kind === 'session' ? runCancelledBy(snapshot, progress.operation) : null
+  return run === null ? null : executionOf(snapshot, run)
 }
 
 function producerExecution(
@@ -67,6 +79,8 @@ function originalExecution(snapshot: WorkSnapshot, progress: ControlProgress): s
   if (progress.intent.kind !== 'control') return null
   const intent = progress.intent.value
   if (intent.kind === 'cancel-run') return cancelRunExecution(snapshot, progress.target, intent.run)
+  // An archive cancels the Run that was active: its execution gets the same cancel (AD-14).
+  if (intent.kind === 'archive') return archivedExecution(snapshot, progress)
   if (intent.kind === 'stop-call' || intent.kind === 'background-tool')
     return producerExecution(snapshot, progress.target, intent.producer)
   return null

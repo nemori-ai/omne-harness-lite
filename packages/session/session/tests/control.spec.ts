@@ -44,6 +44,62 @@ it('SC-02 本地取消传播原操作与原执行', async () => {
   expect((await readControlWork(f.h)).controls[0]?.state).toBe('propagating')
 })
 
+it('SC-02 归档向被它取消的 Run 的执行传播同一取消', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  succeeded(
+    await f.h.faces('intake').work.control({
+      ...f.h.access(),
+      operation: operationId('archive'),
+      intent: { kind: 'archive' },
+    }),
+    'archive',
+  )
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  expect(f.control).toHaveBeenCalledWith({
+    tenant: f.h.access().tenant,
+    session: f.h.access().session,
+    execution: f.original.execution.execution,
+    operation: deriveDriveOperation({
+      kind: 'control',
+      execution: f.original.execution.execution,
+      control: operationId('archive'),
+    }),
+    control: operationId('archive'),
+    intent: { kind: 'archive' },
+  })
+  const after = await readControlWork(f.h)
+  expect(after.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'cancelled' } })
+  expect(after.controls[0]?.state).toBe('propagating')
+})
+
+it('SC-02 归档只向它自己终结的那个 Run 的执行发送', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  await f.cancel()
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  // The cancel ended the first Run. The pending input starts a later Run, and the archive ends it.
+  await vi.waitFor(async () => {
+    const { run } = await readControlWork(f.h)
+    if (run.kind !== 'active' || run.run === f.original.run) throw new Error('waiting for Run')
+  })
+  const later = (await readControlWork(f.h)).run
+  if (later.kind !== 'active') throw new Error('no later Run')
+  succeeded(
+    await f.h.faces('intake').work.control({
+      ...f.h.access(),
+      operation: operationId('archive'),
+      intent: { kind: 'archive' },
+    }),
+    'archive',
+  )
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(2))
+  expect(f.control.mock.calls.map(([input]) => [input.control, input.execution])).toEqual([
+    [operationId('cancel'), f.original.execution.execution],
+    [operationId('archive'), later.execution.execution],
+  ])
+})
+
 it('SC-02 后继 Run 不接原取消', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 3 } } })
   open.push(f.h)

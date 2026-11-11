@@ -267,6 +267,7 @@
 - `resolveControlScope` · 包 `@omne-harness/session-contract`
 - `resolveOperation` · 包 `@omne-harness/session-contract`
 - `routeInput` · 包 `@omne-harness/session-contract`
+- `runCancelledBy` · 包 `@omne-harness/session-contract`
 - `sessionInputBytes` · 包 `@omne-harness/session-contract`
 - `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`

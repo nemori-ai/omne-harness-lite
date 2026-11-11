@@ -18,6 +18,7 @@ import {
   reduce,
   resolveCascade,
   resolveControlScope,
+  runCancelledBy,
   resolveOperation,
   routeInput,
   type CommittedBatch,
@@ -723,6 +724,21 @@ describe('the pure judgments at their edges', () => {
     ).toEqual(refusal)
     // A dispatch start asks for no login.
     expect(decided('dispatch', {}).kind).toBe('entries')
+  })
+
+  it('names no Run for a control that ended none', () => {
+    const snapshot = dormant()
+    // No Run at all, and a Run that another source ended as cancelled.
+    expect(runCancelledBy(snapshot, operationId('archive'))).toBeNull()
+    const run = 'run_other' as never
+    const ended = {
+      ...snapshot,
+      run: {
+        kind: 'terminal' as const,
+        terminal: { run, outcome: 'cancelled' as const, evidence: evidence('another-control') },
+      },
+    }
+    expect(runCancelledBy(ended, operationId('archive'))).toBeNull()
   })
 
   it('disabled idle and empty cascade have explicit decisions', () => {

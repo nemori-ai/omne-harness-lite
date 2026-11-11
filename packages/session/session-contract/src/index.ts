@@ -182,6 +182,7 @@ export {
   type RunStartJudgment,
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
+export { runCancelledBy } from './decision-support.ts'
 export { batchEvidence, reduce } from './reduce.ts'
 export { expandHistoryEntries } from './entries.ts'
 export {
