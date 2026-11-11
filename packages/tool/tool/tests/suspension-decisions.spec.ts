@@ -232,6 +232,33 @@ describe('planning a suspension on a call that cannot suspend', () => {
     })
   })
 
+  it('refuses the wait fact of a background call before any suspension is planned', async () => {
+    const f = await waiting(false)
+    await f.withState({
+      relation: 'background',
+      foreground: { kind: 'background', call: callId('facts'), source: { kind: 'launched' } },
+    })
+    const commits = f.harness.memory.commits
+    const answer = await Reflect.apply(f.harness.commands.receiveFacts, null, [
+      {
+        ...f.access,
+        start: f.start,
+        batch: {
+          start: f.start,
+          source: evidence('facts-source'),
+          batch: 'first',
+          after: null,
+          cursor: 'opaque/end',
+          events: [{ event: 'event-1', fact: askFact(wait) }],
+        },
+      },
+    ])
+    expect(answer).toEqual({
+      failure: { kind: 'invalid', field: 'batch.events.fact', reason: 'background-cannot-wait' },
+    })
+    expect(f.harness.memory.commits).toBe(commits)
+  })
+
   it.each([
     [
       'planSuspension',
@@ -452,6 +479,19 @@ describe('committing a suspension', () => {
     const before = await f.records()
     expect(await f.suspend(planned, checkpoint)).toEqual({
       failure: { kind: 'invalid', field, reason },
+    })
+    expect(await f.records()).toEqual(before)
+    expect((await f.harness.state('facts')).phase).toBe('running')
+  })
+
+  it('refuses a state that the payload of the checkpoint does not bind', async () => {
+    const f = await waiting()
+    const planned = ok(await f.plan())
+    const before = await f.records()
+    // Well-formed base64 of another text: the payload binds the digest of the planned state.
+    const other = Buffer.from('{"asked":"another file?"}').toString('base64')
+    expect(await f.suspend(planned, f.checkpointOf(), 'op-facts/start/suspended', other)).toEqual({
+      failure: { kind: 'invalid', field: 'state', reason: 'digest-mismatch' },
     })
     expect(await f.records()).toEqual(before)
     expect((await f.harness.state('facts')).phase).toBe('running')

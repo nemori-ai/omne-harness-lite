@@ -886,6 +886,57 @@ describe('a replay after a lost answer or a crash', () => {
   })
 })
 
+describe('the continued fact of a resume segment', () => {
+  type Receive = Built['harness']['commands']['receiveFacts']
+  type Batch = Parameters<Receive>[0]
+
+  it('is the responding wait of this resume and its response, once', async () => {
+    // The first batch of the resume segment is held before the ledger sees it; the same batch is
+    // then given with another wait, with another response and with a second `continued` fact.
+    const held = Promise.withResolvers<{ input: Batch; receive: Receive }>()
+    const release = Promise.withResolvers<void>()
+    const built = await suspended({
+      commands: base => ({
+        ...base,
+        receiveFacts: async input => {
+          if (input.start.kind === 'resume') {
+            held.resolve({ input, receive: base.receiveFacts })
+            await release.promise
+          }
+          return base.receiveFacts(input)
+        },
+      }),
+    })
+    built.bridge.decide(FIRST, { kind: 'declined' })
+    const driving = built.harness.drive('c1')
+    const { input, receive } = await held.promise
+    const [event] = input.batch.events
+    if (event?.fact.kind !== 'continued') throw new Error('the resume segment gave no continued')
+    const withEvents = (events: readonly unknown[]) =>
+      receive({ ...input, batch: { ...input.batch, events } } as never)
+    const refused = (reason: string) => ({
+      failure: { kind: 'invalid', field: 'batch.events.fact', reason },
+    })
+    const commits = built.harness.memory.commits
+    const elsewhere = 'not-the-responding-wait-of-this-resume'
+    expect(
+      await withEvents([{ ...event, fact: { ...event.fact, wait: `${FIRST}/another` } }]),
+    ).toEqual(refused(elsewhere))
+    expect(
+      await withEvents([{ ...event, fact: { ...event.fact, response: `${FIRST}/another` } }]),
+    ).toEqual(refused(elsewhere))
+    expect(await withEvents([event, { ...event, event: 'again' }])).toEqual(
+      refused('second-continued-of-a-segment'),
+    )
+    expect(built.harness.memory.commits).toBe(commits)
+    // The batch as the segment gave it is received, and the call ends through its resume.
+    release.resolve()
+    await driving
+    await settle(built.harness)
+    expect((await built.harness.state('c1')).phase).toBe('settled')
+  })
+})
+
 /** 以真实的 `commands.control` 叫停 `c1`：调用收场，当前等待以 `cancelled` 关闭（Tool SPEC 第 32 条）。 */
 async function cancel(commands: Built['harness']['commands']): Promise<void> {
   ok(

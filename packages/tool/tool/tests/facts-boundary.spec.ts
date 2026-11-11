@@ -85,7 +85,8 @@ async function running() {
   const recovery = ok(await harness.commands.loadRecovery(access))
   if (recovery.start === null) throw new Error('the fixture did not start')
   const start = recovery.start
-  const receive = (fact: unknown) =>
+  /** One batch of the same source: `after` is the batch it follows, or null for the first. */
+  const send = (facts: readonly unknown[], batch = 'first', after: string | null = null) =>
     Reflect.apply(harness.commands.receiveFacts, null, [
       {
         ...access,
@@ -93,14 +94,15 @@ async function running() {
         batch: {
           start,
           source: evidence('facts-source'),
-          batch: 'first',
-          after: null,
-          cursor: 'opaque/end',
-          events: [{ event: 'event-1', fact }],
+          batch,
+          after: after === null ? null : `opaque/${after}`,
+          cursor: `opaque/${batch}`,
+          events: facts.map((fact, index) => ({ event: `${batch}-${index + 1}`, fact })),
         },
       },
     ]) as Promise<{ failure?: { kind: string; field?: string; reason?: string } }>
-  return { harness, receive }
+  const receive = (fact: unknown) => send([fact])
+  return { harness, receive, send }
 }
 
 describe('a fact that is not a closed record of its kind', () => {
@@ -380,4 +382,38 @@ describe('a fact that is not a closed record of its kind', () => {
     const answer = await (await running()).receive(continuedFact())
     expect(answer.failure).toMatchObject({ kind: 'invalid', reason: 'continued-without-resume' })
   })
+})
+
+// A segment ends once: with its final, or with the one wait it suspends on, and nothing follows
+// the wait. A first start continues no wait, so its `continued` fact is refused for that alone;
+// the order of a `continued` fact on a resume start is in checkpoint-resumption.spec.ts.
+describe('the order of the facts of one start', () => {
+  const orders: Array<[string, () => unknown, () => unknown, string]> = [
+    ['a wait after the final', finalFact, askWait, 'wait-after-final'],
+    ['a second wait', askWait, askWait, 'second-wait-of-a-segment'],
+    ['a final after the wait', askWait, finalFact, 'fact-after-wait'],
+    ['a continued fact after the final', finalFact, continuedFact, 'continued-after-final'],
+  ]
+  const refused = (reason: string) => ({ kind: 'invalid', field: 'batch.events.fact', reason })
+
+  it.each(orders)(
+    'refuses %s in one batch and saves nothing',
+    async (_name, first, then, reason) => {
+      const { harness, send } = await running()
+      const commits = harness.memory.commits
+      expect((await send([first(), then()])).failure).toEqual(refused(reason))
+      expect(harness.memory.commits).toBe(commits)
+    },
+  )
+
+  it.each(orders)(
+    'refuses %s in a later batch and keeps the first',
+    async (_name, first, then, reason) => {
+      const { harness, send } = await running()
+      expect(await send([first()])).toHaveProperty('ok')
+      const commits = harness.memory.commits
+      expect((await send([then()], 'second', 'first')).failure).toEqual(refused(reason))
+      expect(harness.memory.commits).toBe(commits)
+    },
+  )
 })
