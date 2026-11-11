@@ -20,7 +20,7 @@ function note(value: unknown): unknown {
 /**
  * The same ports, with every failure that a method answers (directly or through its promise)
  * noted as a port's answer. Methods run on the original objects; nested port objects are wrapped
- * the same way, once each. The proxy stands over an empty target, because production ports are
+ * the same way, once each, and so are the members under a callable member. The proxy stands over an empty target, because production ports are
  * frozen and a proxy may not answer another value for a frozen property of its target; keys and
  * descriptors are read from the original, so spreading a wrapped port keeps its members.
  */
@@ -28,11 +28,24 @@ export function notingPorts<T extends object>(ports: T): T {
   const known = wrapped.get(ports)
   if (known !== undefined) return known as T
   const wrap = (value: unknown): unknown => {
-    if (typeof value === 'function')
-      return (...args: unknown[]) => {
-        const result: unknown = Reflect.apply(value, ports, args)
-        return result instanceof Promise ? result.then(note) : note(result)
-      }
+    if (typeof value === 'function') {
+      const member = value
+      // A callable member can be a namespace too: the stage port of the host answers a callable
+      // proxy for every member, because it reads its provider at each call and cannot tell a
+      // namespace from a method. So the members under a callable stay reachable, wrapped alike.
+      return new Proxy(() => undefined, {
+        apply: (_target, _receiver, args: unknown[]) => {
+          const result: unknown = Reflect.apply(member, ports, args)
+          return result instanceof Promise ? result.then(note) : note(result)
+        },
+        // What every function has (`bind`, `call`, `apply`) works on the wrapper itself, so a
+        // bound or applied method is still noted.
+        get: (target, key, receiver) =>
+          key in Function.prototype
+            ? Reflect.get(target, key, receiver)
+            : wrap(Reflect.get(member, key)),
+      })
+    }
     if (typeof value === 'object' && value !== null && !(value instanceof Promise))
       return notingPorts(value)
     return value
