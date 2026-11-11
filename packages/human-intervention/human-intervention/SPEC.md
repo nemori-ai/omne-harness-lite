@@ -1,6 +1,6 @@
 # human-intervention/human-intervention 行为要求与采用范围
 
-本文件维护具名文档目标的完整必要行为。workspace草稿不成立公开业务形状、发布版本或运行能力。HJ0 已采用本文末节所列公共协议、全化模型与权限组合设计。各项实现和真实组合验证须分别核实，不从技术采用推断已交付。产品范围见[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)，精确协作、机制与技术缺项见[内部设计](docs/internals.md)。本文件不重复未来公开类型，也不以机制未定取消已明确的行为。
+本文件维护具名文档目标的完整必要行为。workspace草稿不成立公开业务形状、发布版本或运行能力。HJ0 已采用本文末节所列公共协议、全化模型与权限组合设计。0.0.0 → 0.1.0 阶段纳入本域全部能力；各项实现和真实组合验证须分别核实，不从技术采用推断已交付。产品范围见[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)，精确协作、机制与技术缺项见[内部设计](docs/internals.md)。本文件不重复未来公开类型，也不以机制未定取消已明确的行为。
 
 ## 责任与消费者
 
