@@ -2,14 +2,11 @@
 """Resolve explicit host strategies into runtime artifacts without writing outputs."""
 from __future__ import annotations
 
-import hashlib
-import importlib.util
 import json
 import os
 import re
 import stat
 import subprocess
-import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
@@ -20,7 +17,6 @@ from host_layout import HOSTS
 
 IGNORED = {"__pycache__", ".pytest_cache", ".git", ".venv"}
 SKILL_TARGETS = {host: layout.skills for host, layout in HOSTS.items()}
-ROLE_TARGETS = tuple(HOSTS[host].agents for host in ("codex", "claude-code"))
 RUNTIME_EXCLUDES = {"AGENTS.md", "CLAUDE.md", ".design", "evals"}
 # Host-neutral hooks become each host's project hook file. Both hosts read the same
 # `{"hooks": {<event>: [{"matcher"?, "hooks": [handler]}]}}` shape for these events.
@@ -40,14 +36,8 @@ HOST_HOOK_EVENTS = {"claude-code": set(HOOK_EVENTS), "codex": {"Stop", "Subagent
                     "cursor": {"Stop", "SubagentStop"}}
 # Claude Code matches a SessionStart matcher against the `source` field of the hook input.
 SESSION_SOURCES = ("startup", "resume", "clear", "compact", "fork")
-HOOK_FIELDS = {"id", "events", "hosts", "subagent_types", "session_sources", "command", "timeout"}
-# Matchers made only of these characters are exact names on both hosts, never a regex.
-AGENT_TYPE = re.compile(r"[A-Za-z0-9_-]+")
+HOOK_FIELDS = {"id", "events", "hosts", "session_sources", "command", "timeout"}
 SLOT = re.compile(r"\{\{[A-Z][A-Z0-9_]*\}\}")
-DEFAULT_RENDERER = (
-    Path(__file__).resolve().parents[2]
-    / "agents/skills/design-subagents/canonical/scripts/render_pair.py"
-)
 
 
 class Artifact(NamedTuple):
@@ -210,29 +200,31 @@ def project_skill(skill: Path, host: str) -> dict[Path, Artifact]:
     return outputs
 
 
-def load_module(path: Path):
-    module_spec = importlib.util.spec_from_file_location("meta_harness_role_renderer", path)
-    if module_spec is None or module_spec.loader is None:
-        raise ValueError(f"cannot load role renderer: {path}")
-    module = importlib.util.module_from_spec(module_spec)
-    previous = sys.dont_write_bytecode
-    try:
-        sys.dont_write_bytecode = True
-        sys.path.insert(0, str(path.parent))
-        try:
-            module_spec.loader.exec_module(module)
-        finally:
-            sys.path.pop(0)
-    finally:
-        sys.dont_write_bytecode = previous
-    return module
+def vendor_skills(source: Path):
+    """External skill sets pinned under vendor/<set>/ (git submodules) contribute skills/<name>/SKILL.md."""
+    vendor = source / "vendor"
+    if not vendor.is_dir():
+        return
+    for collection in members(vendor):
+        skills = collection / "skills"
+        if not skills.is_dir():
+            # An uninitialised submodule is an empty directory; projecting nothing would silently drop the set.
+            raise ValueError(f"vendor skill set has no skills/: {collection} (run git submodule update --init)")
+        yield from (skill for skill in members(skills) if (skill / "SKILL.md").is_file())
 
 
-def load_renderer(path: Path):
-    module = load_module(path)
-    if not callable(getattr(module, "render", None)):
-        raise ValueError(f"role renderer must expose render(source): {path}")
-    return module.render
+def project_vendor_skill(skill: Path, host: str) -> dict[Path, Artifact]:
+    """A vendor skill is host-neutral and copied verbatim; it has no adapters or slots."""
+    outputs = {}
+    for file in source_files(skill):
+        relative = file.relative_to(skill)
+        if any(part in RUNTIME_EXCLUDES for part in relative.parts):
+            continue
+        content = file.read_bytes()
+        if relative == Path("SKILL.md"):
+            validate_skill(content.decode("utf-8"), skill.name)
+        outputs[SKILL_TARGETS[host] / skill.name / relative] = Artifact(content, 0o755 if file_mode(file) & 0o111 else 0o644)
+    return outputs
 
 
 def distinct_names(value, allowed) -> bool:
@@ -240,7 +232,7 @@ def distinct_names(value, allowed) -> bool:
             and all(isinstance(name, str) and name in allowed for name in value))
 
 
-def hook_groups(entry, roles: set[str]) -> tuple[tuple[str, ...], dict[str, dict]]:
+def hook_groups(entry) -> tuple[tuple[str, ...], dict[str, dict]]:
     """Validate one hook declaration; return its hosts and one matcher group per event."""
     hook_id = entry.get("id") if isinstance(entry, dict) else None
     if not isinstance(hook_id, str) or not hook_id.strip():
@@ -265,31 +257,24 @@ def hook_groups(entry, roles: set[str]) -> tuple[tuple[str, ...], dict[str, dict
     timeout = entry.get("timeout")
     if type(timeout) is not int or timeout <= 0:
         raise ValueError(f"hook timeout must be a positive integer of seconds: {hook_id}")
-    types = entry.get("subagent_types")
-    if types is not None and (not isinstance(types, list) or not types or any(
-            not isinstance(name, str) or not AGENT_TYPE.fullmatch(name) or name not in roles
-            for name in types)):
-        raise ValueError(f"subagent_types must name existing roles, got {types!r}: {hook_id}")
     sources = entry.get("session_sources")
     if sources is not None and ("SessionStart" not in events or not distinct_names(sources, SESSION_SOURCES)):
         raise ValueError(f"session_sources must be distinct names from {list(SESSION_SOURCES)} "
                          f"on a SessionStart hook, got {sources!r}: {hook_id}")
     handler = {"type": "command", "command": command, "timeout": timeout}
-    # `Stop` takes no matcher on any host. The other events match one input field each.
-    matchers = {"SubagentStop": types, "SessionStart": sources}
+    # Only `SessionStart` takes a matcher; `Stop` and `SubagentStop` apply to every agent.
     groups = {}
     for event in events:
-        names = matchers.get(event)
+        names = sources if event == "SessionStart" else None
         groups[event] = {"matcher": "|".join(names), "hooks": [handler]} if names else {"hooks": [handler]}
     return tuple(hosts), groups
 
 
-def project_hooks(directory: Path, hosts: tuple[str, ...], roles: set[str]) -> dict[Path, Artifact]:
+def project_hooks(directory: Path, hosts: tuple[str, ...]) -> dict[Path, Artifact]:
     """Render `hooks/hooks.yaml` into each selected host's project hook file.
 
     No `hooks.yaml`, or an empty list, produces nothing. A host that no declaration
-    targets gets no file. `subagent_types` only narrows `SubagentStop`, and
-    `session_sources` only narrows `SessionStart`.
+    targets gets no file. `session_sources` only narrows `SessionStart`.
     """
     source = directory / "hooks.yaml"
     if not source.is_file():
@@ -300,7 +285,7 @@ def project_hooks(directory: Path, hosts: tuple[str, ...], roles: set[str]) -> d
     by_host: dict[str, dict[str, list[dict]]] = {host: {} for host in hosts}
     seen = set()
     for entry in data["hooks"]:
-        targets, groups = hook_groups(entry, roles)
+        targets, groups = hook_groups(entry)
         if entry["id"] in seen:
             raise ValueError(f"duplicate hook id: {entry['id']}")
         seen.add(entry["id"])
@@ -408,11 +393,10 @@ def _project_cloud_host(directory: Path, package: Path) -> dict[Path, Artifact]:
     return outputs
 
 
-def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
-                    hosts: tuple[str, ...] = ("claude-code", "codex")) -> dict[Path, Artifact]:
+def compile_sources(source: Path, hosts: tuple[str, ...] = ("claude-code", "codex")) -> dict[Path, Artifact]:
     no_symlinks(source.absolute())
     source = source.resolve()
-    # Validate the entire tree before loading trusted compiler code or producing output.
+    # Validate the entire tree before producing output.
     list(source_files(source))
     if not hosts or len(set(hosts)) != len(hosts) or set(hosts) - SKILL_TARGETS.keys():
         raise ValueError("select distinct supported hosts")
@@ -425,45 +409,27 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
             raise ValueError(f"duplicate output: {relative}")
         outputs[relative] = artifact
 
+    own = set()
     for skill in members(source / "skills"):
+        own.add(skill.name)
         for host in hosts:
             for relative, artifact in project_skill(skill, host).items():
                 add(relative, artifact)
-
-    role_sources = list(members(source / "roles"))
-    old_hosts = tuple(host for host in hosts if host != "cursor")
-    render = load_renderer(renderer_path) if role_sources and old_hosts else None
-    qualified_summaries = {}
-    if "cursor" in hosts:
-        from cursor_projection import project_cursor_role
-        for role in role_sources:
-            projected = project_cursor_role(role)
-            add(projected.path, Artifact(projected.text.encode("utf-8"), 0o644))
-            if projected.dispatch_qualified:
-                qualified_summaries[role.name] = hashlib.sha256(projected.text.encode("utf-8")).hexdigest()
-    for role in role_sources if old_hosts else ():
-        rendered = render(role)
-        if not isinstance(rendered, dict) or len(rendered) != 2:
-            raise ValueError(f"role renderer must produce two native files: {role}")
-        if {path.parent for path in rendered} != set(ROLE_TARGETS):
-            raise ValueError(f"role renderer returned unexpected target directories: {role}")
-        for relative, text in rendered.items():
-            if not isinstance(text, str):
-                raise ValueError(f"role renderer must return text: {relative}")
-            host = "codex" if relative.parent == Path(".codex/agents") else "claude-code"
-            if host in hosts:
-                add(relative, Artifact(text.encode("utf-8"), 0o644))
+    # The project's own skill keeps its name until the project retires it.
+    for skill in (s for s in vendor_skills(source) if s.name not in own):
+        for host in hosts:
+            for relative, artifact in project_vendor_skill(skill, host).items():
+                add(relative, artifact)
 
     hooks = source / "hooks"
     if hooks.exists() and not hooks.is_dir():
         raise ValueError(f"hooks source must be a directory: {hooks}")
     if hooks.is_dir():
-        for relative, artifact in project_hooks(hooks, old_hosts, {role.name for role in role_sources}).items():
+        for relative, artifact in project_hooks(hooks, tuple(host for host in hosts if host != "cursor")).items():
             add(relative, artifact)
     if "cursor" in hosts:
         from cursor_projection import project_cursor_package
-        for relative, artifact in project_cursor_package(
-                source, {role.name for role in role_sources}, qualified_summaries).items():
+        for relative, artifact in project_cursor_package(source).items():
             add(relative, artifact)
     for relative, artifact in project_cloud(source, hosts).items():
         add(relative, artifact)

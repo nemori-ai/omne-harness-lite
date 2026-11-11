@@ -20,8 +20,8 @@
 | 能力怎样分组、单个成员承诺什么 | [能力组与成员文档要求](member-documentation.md)、[产品包组织](package-organization.md)、实际[能力组](../packages/README.md)及成员 README | 能力组 `packages/<domain>/` 解释工程分解、依赖和组合责任。实际 `packages/<domain>/<package>/`、应用和工具成员拥有公开使用、精确行为、机制、运行限制与验证资源。目标目录或文档登记不证明成员已实现。 |
 | 形状与行为分别从哪里读 | 实际成员的公开代码与 Schema，以及其长期 SPEC 或相应协调者契约 | 类型、字段和校验拥有可表达的形状；SPEC 说明类型不能完整表达的条件、失败、状态、生命周期和资源责任。完整成员文档还可包含指南、内部设计、理由及验证，不能用薄 SPEC 代替。 |
 | 术语、对象、上游机制与研究从哪里查 | 内部[统一语言](../.meta_harness/design/ubiquitous_language/README.md)、[领域对象](../.meta_harness/design/domain_objects/README.md)、[机制读数](../.meta_harness/design/basis/README.md)；[研究入口](../.meta_harness/research/README.md) | 术语与对象各有当前依据；上游读数须按采用版本核对，不自动成为本项目规则。根研究区的职责与结构待负责人确定，现有专题沿其入口读取；[agent研究](../.meta_harness/agents/research/README.md)按自己的范围维护。旧技术材料从[保留入口](../.meta_harness/design/architecture/README.md)核对，冲突内容不能迁成并列架构权威。 |
-| 项目独有 agent 能力、生成和检查在哪里 | 内部[agents 源](../.meta_harness/agents/README.md)、[tooling](../.meta_harness/tooling/README.md)；仓库[tools](../tools/README.md) | Skills 和 roles 在 canonical 源维护，由工具生成宿主入口。生成、宿主加载、检查通过和实际行为分别取证；不要手改生成物。 |
-| 一次任务、证据和历史放哪里 | 本次工作树 `tmp/<task>/`；正式成果按下文保留；被取代正文留 Git 历史 | 候选、逐轮评审、原始输出及单次执行证据留 tmp。可复跑的测试、模型和夹具随实际消费者维护；历史文件与封存包只说明来源，不自动授予当前支持或兼容。 |
+| 项目独有 agent 能力、生成和检查在哪里 | 内部[agents 源](../.meta_harness/agents/README.md)、[tooling](../.meta_harness/tooling/README.md)；仓库[tools](../tools/README.md) | Skills 在 canonical 源维护，由工具生成宿主入口。生成、宿主加载、检查通过和实际行为分别取证；不要手改生成物。 |
+| 一次任务、证据和历史放哪里 | 本次工作树 `tmp/<task>/`，规则归[位置与唯一源](engineering/documentation.md#位置与唯一源)；被取代正文留 Git 历史 | 候选、原始输出及单次执行证据留 tmp。可复跑的测试、模型和夹具随实际消费者维护；历史文件与封存包只说明来源，不自动授予当前支持或兼容。 |
 
 meta的[独立目标入口](../.meta_harness/design/foundation/README.md)保留设计工作区的导航，本项目现行目标仍只读docs/requirements.md。研究、候选与已采用要求分别判断，不因进入设计目录自动取得权威。
 
@@ -29,7 +29,7 @@ meta的[独立目标入口](../.meta_harness/design/foundation/README.md)保留�
 
 先读本次适用的[项目要求](requirements.md)和内部产品规则，再沿已接受的[架构](architecture/README.md)与[领域责任](domains/README.md)找到实际成员。适用的[工程约定](engineering/README.md)约束整个过程。成员的实现和验证用来检查承诺是否兑现，不能反过来降低目标。产品规则也不能越过项目要求或已接受的系统架构。若两处说法冲突，核对精确版本、范围和接受依据，将受影响部分交语义拥有者裁定。
 
-[文档治理](engineering/documentation.md#四类长期成果与普通任务)区分四类长期成果。产品设计维护持续的产品规则；[RFC](rfcs/README.md)保留正式审议的方案、最小决定范围及写回关系；长期规格维护当前必要行为；技术设计说明如何兑现及必要理由。RFC条目在真实审议发生后建立，不从旧PF补造提案历史。正式 Issue 是一次交付的任务源，记录范围、条件与具名决定；Project 是派生调度视图。日常操作先从[交付入口](engineering/agent-delivery.md)核对配置的实际启用范围，未启用时只形成获准任务草稿。普通局部修复已有承诺可用时，无须先写 RFC。
+[文档治理](engineering/documentation.md#四类长期成果与普通任务)区分四类长期成果。产品设计维护持续的产品规则；[RFC](rfcs/README.md)保留正式审议的方案、最小决定范围及写回关系；长期规格维护当前必要行为；技术设计说明如何兑现及必要理由。RFC条目在真实审议发生后建立，不从旧PF补造提案历史。正式 Issue 是一次交付的任务源，卡就是交接信息包，规则归[卡与交接信息包](engineering/delivery.md#卡就是交接信息包)；Project 是派生视图。普通局部修复已有承诺可用时，无须先写 RFC。
 
 一份正文存在、结构检查通过、技术决定接受、实现完成、装配可用、验证通过、产品支持和交付接受是不同事实。[验证说明](verification.md)解释各类证据能支持的结论。缺材料、未执行、无法判定和已证偏离应分别记录；只暂停依赖缺口的工作。正式源改动后，同步其真实消费者，并让被取代的权威正文退出。旧字节留在 Git 历史，不成为第二份当前规范。
 

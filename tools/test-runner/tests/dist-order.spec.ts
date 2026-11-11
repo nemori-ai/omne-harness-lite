@@ -6,9 +6,7 @@ import { runGraph, type CheckStep } from '../src/testing/check-graph.ts'
 import { checkSteps } from '../src/testing/check-steps.ts'
 
 const steps = checkSteps({
-  baseline: 'HEAD',
   runnerCli: 'runner',
-  devFlowDeliveryCli: 'delivery',
   devFlowIntegrationCli: 'integration',
 }).filter(step => ['build', 'typecheck', 'lint:oxlint'].includes(step.name))
 

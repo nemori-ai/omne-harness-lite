@@ -16,6 +16,8 @@ owner: Brian Lee
 
 > **更正标注（2026-10-20）**：「决定范围」第 6 项把“经升级流程更新检查器”的出处写成 RFC-0004「实质备选」。这句话实际在 RFC-0004「验证与消费者切换」探路表“合并队列直接把轨道移到被检查的提交”一行的后果列。本更正不改变本提案的决定与替代内容。依据是 [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) revision 1 的接受，见 [#420 的接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/420#issuecomment-6283221477)。
 
+> **更正标注（2026-11-10）**：首段「RFC-0004 保持 accepted」与现状不符：RFC-0004 已被 [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) 整篇取代，status 为 superseded。本标注不改变本提案的决定。
+
 ## 问题与有效输入
 
 RFC-0004 规定由 `github-gate` 上的一个文件记录受信检查器的提交号，升级经一条专门的升级流程：新旧检查器都运行，确认后原子更新 main、受信版本文件与采用标签。这一设计同时决定了 #217。第二阶段才实施这条升级流程。

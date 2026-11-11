@@ -4,6 +4,6 @@
 
 从[入口](README.md)定位正式维护的产品draft、已接受范围和旧来源。旧PF保持历史身份及修订；正式维护位置、产品接受及阶段范围分别判断。topic按产品问题成立，不机械照搬工程组。阶段未定沿正文缺项维护，不因落位变为承诺。
 
-起草或修订产品加载 `product-design`，写前及写后按其要求应用 `asd-ste100`、`pstack:technical-writing`、`pstack:unslop`。正文用[四块模板](.templates/topic/design.md)，需求按用户路径解释，能力和状态单独提炼，最后维护有效未决；分责和技术唯一源沿[正文指导](../../agents/skills/product-design/canonical/references/product-document.md)。不代选尚未裁定的阶段范围。
+起草或修订产品加载 `product-design`，写作加载 pqw `clear-writing`，规则见[文档写作规则](../../../docs/engineering/documentation.md#文档写作规则)。正文用[四块模板](.templates/topic/design.md)，需求按用户路径解释，能力和状态单独提炼，最后维护有效未决；分责和技术唯一源沿[正文指导](../../agents/skills/product-design/canonical/references/product-document.md)。不代选尚未裁定的阶段范围。
 
 使用已有概念先查[统一语言](../ubiquitous_language/index.md)；改词条或对象才加载对应治理技能。含义或采用范围变化时同步真实消费者与相关依据，不通过换目录、补时间词或删除缺项规避冲突。

@@ -63,7 +63,7 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 
 ## 与技能来源表的差异
 
-[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用) 固定 pstack port 0.9.79、Matt 1.3.1 与 ub-mode 的 revision。本宿主按负责人要求跟随上游最新版本，所以实际版本可能比来源表新。版本差异按 [开发指南](../../../../docs/development.md#初始化-coding-agent-插件) 核对和报告。跟随最新版本不扩大方法采用范围。
+[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用) 固定 pstack port 0.9.79、Matt 1.3.1 与 ub-mode 的 revision。本宿主按负责人要求跟随上游最新版本，所以实际版本可能比来源表新。版本差异按 [开发指南](../../../../docs/development.md#初始化-coding-agent-插件) 核对和报告。跟随最新版本不扩大方法采用范围。pqw-skills 不在此列：它是钉了提交的子模块，`session-start.sh` 每次会话按检出里的钉值初始化，版本与来源表一致。
 
 ## 未验证的部分
 

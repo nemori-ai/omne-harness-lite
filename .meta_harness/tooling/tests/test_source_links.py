@@ -126,7 +126,7 @@ def test_retired_root_cannot_return_as_empty_tree_or_alias(tmp_path: Path, name:
     assert f'retired design root exists: {name}' in markdown(root)
 
 
-@pytest.mark.parametrize('target', ['requirements.md', 'architecture/runtime/assembly.md', 'domains/identity/README.md', 'architecture/constraints.json', 'engineering/documentation.md', 'engineering/delivery.md', 'engineering/work-types.md', 'engineering/agent-delivery.md', 'engineering/github-delivery.json', 'rfcs/README.md'])
+@pytest.mark.parametrize('target', ['requirements.md', 'architecture/runtime/assembly.md', 'domains/identity/README.md', 'architecture/constraints.json', 'engineering/documentation.md', 'engineering/delivery.md', 'engineering/work-types.md', 'engineering/github-delivery.json', 'rfcs/README.md'])
 def test_adopted_documents_require_their_explicit_execution_checkout(tmp_path: Path, target: str) -> None:
     root = tmp_path / '.meta_harness/design'
     save(tmp_path / 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
@@ -148,7 +148,7 @@ def test_adoption_does_not_open_all_docs(tmp_path: Path, target: str) -> None:
     assert any('escapes design root' in error for error in markdown(root, tmp_path))
 
 
-@pytest.mark.parametrize('target_name', ['requirements.md', 'engineering/agent-delivery.md'])
+@pytest.mark.parametrize('target_name', ['requirements.md', 'engineering/delivery.md'])
 @pytest.mark.parametrize('mutation', ['missing', 'anchor', 'symlink', 'encoded-traversal', 'other-checkout'])
 def test_adopted_document_boundaries_fail_closed(tmp_path: Path, mutation: str, target_name: str) -> None:
     execution = tmp_path / 'execution'

@@ -1,5 +1,0 @@
-# 源配置片段；生成器添加 developer_instructions 后才是完整原生角色文件。
-name = "{{role_name}}"
-description = "{{dispatch_description}}"
-# 仅在精确目标已确认时填写 model 与受支持的 model_reasoning_effort。
-# 按角色授权和宿主实际能力选择 sandbox_mode 等设置，不自动扩大权限。

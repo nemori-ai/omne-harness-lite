@@ -84,7 +84,7 @@ function passingRecord(head = fixture.c): Record<string, unknown> {
     failedStep: null,
     startedAt: '2026-10-30T08:00:00.000Z',
     finishedAt: '2026-10-30T08:10:00.000Z',
-    caches: { test: 'off', depGraph: 'off', mutation: 'unknown' },
+    caches: { test: 'off', depGraph: 'off' },
   }
 }
 
@@ -121,7 +121,31 @@ describe('给了记录：只看那一份', () => {
     })
     expect(formatEvidence(evidence)).toEqual([
       `F ${fixture.f} 采用 C ${fixture.c} 的全量准入，树 ${fixture.tree(fixture.c)} 相同；记录 ${record}；` +
-        '缓存 test=off, depGraph=off, mutation=unknown',
+        '缓存 test=off, depGraph=off',
+    ])
+  })
+
+  it('旧记录的 caches 里多出已删的 mutation 字段时照常接受，缓存只展示 test 与 depGraph', () => {
+    const record = writeRecord('explicit-pass-old-caches', {
+      ...passingRecord(),
+      caches: { test: 'on', depGraph: 'off', mutation: 'unknown' },
+    })
+    const evidence = admissionEvidence(fixture.root, { for: fixture.f, record })
+    expect(evidence.kind).toBe('accepted')
+    expect(formatEvidence(evidence)).toEqual([
+      `F ${fixture.f} 采用 C ${fixture.c} 的全量准入，树 ${fixture.tree(fixture.c)} 相同；记录 ${record}；` +
+        '缓存 test=on, depGraph=off',
+    ])
+  })
+
+  it('记录里没有 caches 时照常接受，缓存两项都展示为 unknown', () => {
+    const { caches: _dropped, ...withoutCaches } = passingRecord()
+    const record = writeRecord('explicit-pass-no-caches', withoutCaches)
+    const evidence = admissionEvidence(fixture.root, { for: fixture.f, record })
+    expect(evidence.kind).toBe('accepted')
+    expect(formatEvidence(evidence)).toEqual([
+      `F ${fixture.f} 采用 C ${fixture.c} 的全量准入，树 ${fixture.tree(fixture.c)} 相同；记录 ${record}；` +
+        '缓存 test=unknown, depGraph=unknown',
     ])
   })
 
@@ -391,6 +415,11 @@ describe('给了记录：只看那一份', () => {
   it.each([
     ['不是 JSON', () => '{ 半截'],
     ['缓存状态写错', () => JSON.stringify({ ...passingRecord(), caches: { test: 'yes' } })],
+    [
+      'depGraph 的缓存状态写错',
+      () => JSON.stringify({ ...passingRecord(), caches: { test: 'on', depGraph: 'yes' } }),
+    ],
+    ['缓存状态是 null', () => JSON.stringify({ ...passingRecord(), caches: null })],
   ])('记录读不出（%s）时拒绝', (_name, text) => {
     mkdirSync(join(fixture.root, 'tmp/admission'), { recursive: true })
     writeFileSync(join(fixture.root, 'tmp/admission/broken.json'), text())
