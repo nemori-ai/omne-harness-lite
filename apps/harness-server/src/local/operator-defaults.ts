@@ -149,7 +149,7 @@ const MODEL_HOST = {
   },
 } as const
 
-/** The storage provider's command bound. `tool-records` uses the same value. */
+/** The storage provider's command bound. The Tool record store commits through that provider. */
 const MAX_COMMAND_BYTES = 1_048_576
 
 function modelRecords(combinationVersion: string) {
@@ -354,7 +354,6 @@ function toolRecords(workspace: string, combinationVersion: string) {
   return {
     filesRoot: workspace,
     combinationVersion,
-    maxCommandBytes: MAX_COMMAND_BYTES,
     configuration: {
       authorBufferBytes: 65_536,
       authorBufferItems: 256,

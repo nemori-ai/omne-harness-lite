@@ -291,8 +291,7 @@ export function hostShell(): Readonly<{ executable: string; argsPrefix: string[]
 
 /**
  * Tool 运行时组、宿主提供者与两个作者的运维者值（测试值）。文件根与宿主状态目录在存储根的父目录下新建；
- * `tool-records` 的 `maxCommandBytes` 与 `storage` 行相同（`providerConfig` 的 1048576），`combinationVersion`
- * 与 `session-storage` 行相同。
+ * `tool-records` 的 `combinationVersion` 与 `session-storage` 行相同。
  */
 export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoint?: string }) {
   const base = dirname(options.storageRoot)
@@ -330,7 +329,6 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
     records: {
       filesRoot,
       combinationVersion: 'session-composite/6',
-      maxCommandBytes: 1048576,
       configuration: {
         authorBufferBytes: 65536,
         authorBufferItems: 256,
