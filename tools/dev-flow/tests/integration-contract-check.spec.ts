@@ -13,7 +13,6 @@ import {
   parseCheckRun,
   runContractCheck,
 } from '../src/integration/contract-check.ts'
-import { git } from '../src/integration/git.ts'
 import { IntegrationError } from '../src/integration/parse.ts'
 import {
   contracts,
@@ -23,7 +22,7 @@ import {
   write,
   writeSnapshots,
 } from './fixtures/contract-api.ts'
-import { init } from './fixtures/integration.ts'
+import { git, init } from './fixtures/integration.ts'
 
 const homes: string[] = []
 afterEach(() => {
@@ -201,5 +200,10 @@ describe('integration contract-check with the installed omne-contract-api', () =
     const result = cli(root)
     expect(result.status).toBe(2)
     expect(result.stdout).toBe('')
+    // The failure goes to standard error as one JSON line with its code and message.
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      code: expect.any(String),
+      message: expect.any(String),
+    })
   })
 })

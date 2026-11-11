@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { parseCliOptions } from '../delivery/cli-options.ts'
+import { parseCliOptions } from './cli-options.ts'
 import { readFileSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
-import { runGhCommand } from '../delivery/github-read.ts'
-import { InputError, parseConfig } from '../delivery/protocol.ts'
-import { readJson, repositoryFile } from '../delivery/repository-files.ts'
+import { runGhCommand } from '../shared/gh.ts'
+import { InputError } from '../shared/input.ts'
+import { DELIVERY_CONFIG_PATH, parseConfig } from './delivery-config.ts'
+import { readJson, repositoryFile } from './repository-files.ts'
 import { waitGate } from './gate.ts'
 import { IntegrationError } from './parse.ts'
 
@@ -34,7 +35,7 @@ try {
     notePath = values.get('--note')
   if (run === 0 || notePath === undefined) throw new InputError(usage)
   const config = parseConfig(
-    readJson(values.get('--config') ?? repositoryFile('docs/engineering/github-delivery.json')),
+    readJson(values.get('--config') ?? repositoryFile(DELIVERY_CONFIG_PATH)),
   )
   const result = await waitGate({
     repository: config.repository,

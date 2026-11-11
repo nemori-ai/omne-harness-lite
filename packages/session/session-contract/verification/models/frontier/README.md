@@ -61,6 +61,6 @@ PM02 审计需要 `witness-pm02-frozen-accept-race` 与 `negative-pm02-frozen-st
 
 ## 方法来源与声明限度
 
-方法来自固定工具基线 `eb62dc8c2c3a92d95101172431f4c4ba635fca7b` 的 [验证规则](../../../../../../docs/verification.md)、[verification-facility](../../../../../../.meta_harness/agents/skills/verification-facility/canonical/SKILL.md)与本成员验证拥有者。分类器核对具名目标与状态证据，轨迹函数与破坏断言保留原语义。来源台账供核对，不是运行时对原任务目录的依赖。
+方法来自固定工具基线 `eb62dc8c2c3a92d95101172431f4c4ba635fca7b` 的 [验证规则](../../../../../../docs/verification.md)、[verification-facility](https://github.com/nemori-ai/omne-harness-lite/blob/eb62dc8c2c3a92d95101172431f4c4ba635fca7b/.meta_harness/agents/skills/verification-facility/canonical/SKILL.md)与本成员验证拥有者。分类器核对具名目标与状态证据，轨迹函数与破坏断言保留原语义。来源台账供核对，不是运行时对原任务目录的依赖。
 
 TLC 检查有限状态并使用 64 位指纹，不是定理证明。原子动作依赖真实提供者的共同根、原子发布、不可变连续日志及完整目录。尚未证明真实 CAS、数据库事务、磁盘耐久、跨进程恢复、完整第二租户、无界历史或无条件活性。P-5 最终资格与新 ended、Model ACK、Tool intent 完整字段、scope 初始化和所有产品入口另需实现证据。原运行日志、失败、超时与逐轮审阅材料留任务 tmp，不属于本资源。

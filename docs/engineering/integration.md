@@ -1,260 +1,50 @@
-# 多层分支集成
+# 轨道与 gate
 
-本页拥有工程路线、双基线与权限规则。精确工具行为归[集成工具契约](../../tools/dev-flow/src/integration/SPEC.md)，命令归其[README](../../tools/dev-flow/src/integration/README.md)。任务仍归[现有交付协议](delivery.md)，不新增活动队列或自动接受规则。
+本页拥有轨道、gate 与准入的时机和规则。精确工具行为归[集成工具契约](../../tools/dev-flow/src/integration/SPEC.md)，命令归其[README](../../tools/dev-flow/src/integration/README.md)；进轨道、提升与发行的操作顺序归 [`omne-card`](../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md)。卡与接受归[卡与交接信息包](delivery.md)，不新增活动队列或自动接受规则。
 
 ## 分支与任务
 
-自 2026-10-15 起，四条主干的进入按[现行准入](#现行准入)执行：`github-gate` 的流程构造合并并写记录标签。本机集成工具只负责任务开工、状态读取、基线、task-sync，为提升 PR 生成说明的「所含的卡」与「契约变化」两节（`ri-notes`，只读；契约发现让它退出 1），以及在 `pnpm run check` 中核对契约快照与 dist（`contract-check`）。它不构造候选，不验证候选，也不发布。
+自 2026-10-15 起，四条主干的进入按[现行准入](#现行准入)执行：`github-gate` 的流程构造合并并写记录标签。本机集成工具只负责在 `pnpm run check` 中核对契约快照与 dist（`contract-check`）、等待 gate 运行并代为确认（`gate-cli.ts wait`），以及派发工具包的发行运行（`release-run`）。它不构造候选，不验证候选，也不发布。
 
-main 保存完整集成结果。任意数量的 integration/<track> 保存已登记责任轨道。stable 指向 main 中经过完整检查的既有 checkpoint。轨道和 stable 不加用户名；工作及临时分支遵守人的署名约定。
+main 保存完整集成结果。`integration/mainline` 是唯一的轨道。stable 指向 main 中经过完整检查的既有 checkpoint。轨道和 stable 不加用户名；工作及临时分支遵守人的署名约定。
 
-任务从真实 Issue 的 revision 和当前 attempt 开始。指定调度者记录并读回人的责任、分支、route、不可变 taskBase、写范围与条件定位。任务进入 route 中具名的那条轨道。在子轨道上做的卡，route 具名该子轨道。cross-track 或 global 完整单元先进入一条具名的顶层轨道，并具名受影响责任，再随它进入 main。目录不能自动决定路线。
+一张卡由一个会话从卡给定的起点交付，经 gate 进入 `integration/mainline`，见[卡就是交接信息包](delivery.md#卡就是交接信息包)。交付会话在工作分支上用普通的 `git merge` 合并 `origin/integration/mainline` 来同步轨道头，步骤见 `omne-card`「开工」与「进轨道」。依据 [RFC-0014](../rfcs/RFC-0014-single-card-session-and-gate-relief.md)：认卡、执行记录（attempt）、绑定、`start`、task context、双基线、目标基线同步与轨道树已退役。
 
 ## 轨道责任与保护
 
-[policy registry](integration-policy.json) 登记轨道身份、owner、状态、上游和固定起点。下表是当前的轨道责任。`start` 读取当前 HEAD 提交中的 registry，只为状态为 active 的轨道开工，并核对它的上游链，见[轨道树与上游](#轨道树与上游)。
+[policy registry](integration-policy.json) 登记轨道身份、owner、状态、上游和固定起点。下表是当前的轨道责任。
 
 | 轨道                                | 责任与适用任务                                                                                                                           |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `integration/mainline`              | 联调轨道，见[交付线](#交付线)：唯一的顶层轨道，各子轨道的上游，承接跨线集成、联合验收、破坏性契约改动及直接以它为目标的卡。在它上面完成联调测试与验收后直接提升到 main。依据 [#973](https://github.com/nemori-ai/omne-harness-lite/issues/973) |
-| `integration/session-run`、`integration/app-access`、`integration/model`、`integration/tool-exec`、`integration/m2-toolchain` | M2 五条线的子轨道，分别承接[线与归属](#线与归属)中的线卡，上游都是 `mainline`。登记与分支创建分别读回；两者齐备前不派发线卡。 |
+| `integration/mainline`              | 联调轨道：唯一的轨道，上游是 main，承接卡、跨线集成、联合验收与破坏性契约改动。在它上面完成联调测试与验收后直接提升到 main。依据 [#973](https://github.com/nemori-ai/omne-harness-lite/issues/973) |
 
-新轨道由 `gate-track` 流程从上游的 first-parent 提交创建，起点记在 registry 的 `initialBase`，见[轨道树与上游](#轨道树与上游)。后续上游变化通过 FI 同步，不改写起点。任务 route 必须明确选择轨道，不设置隐含默认轨道。
+轨道的起点记在 registry 的 `initialBase`，后续合并不改写起点。不再新建轨道或子轨道。
 
 GitHub 对 `integration/**/*` 分别实施三项保护：只有仓库管理员可删除，所有人禁止非快进更新，创建与更新只允许发布身份 `omne-harness-lite-publish`。删除权限不代替退役交接和具体动作授权。
 
 main 与 stable 禁止删除和非快进更新，创建与更新只允许发布身份。adoption、unit、checkpoint 标签禁止修改和删除，无 bypass。其中采用标签（`omne/integration/adoption/*`）与旧 unit 标签作为历史保留，任何工具不再读取。平台保护不验证任务接受；管理员修改规则本身属于管理权限。
 
-## 轨道树与上游
+## 三类 PR
 
-规则依据 [RFC-0011](../rfcs/RFC-0011-trunk-admission-and-track-tree.md) 第 4 至 6 节。
+主干之间只有下面三类 PR，其他组合一律拒绝，包括个人分支进 main：
 
-- 每条轨道只有一个上游，是 main 或另一条轨道。全部轨道组成一棵以 main 为根的树。上游为 main 的轨道是顶层轨道。层数不设上限。
-- 轨道只与它的上游和它的直接子轨道交换提交。main 不直接同步给子轨道，子轨道不直接进入 main，兄弟轨道之间也不流动。兄弟轨道要共享成果，先提升到共同的上游，再从上游同步。
-- 这条规则约束主干之间的 PR，不约束个人分支的内容。从 main 顶端开出的个人分支可以进入子轨道，把上游还没有的 main 提交带进子轨道。gate 不能识别这种情形，轨道的 owner 按约定拒绝这样的 PR，要求先逐层同步。
+| base | head | 类别 | 覆盖核对 | 工具链闸门 |
+| --- | --- | --- | --- | --- |
+| `integration/mainline` | 个人分支 | work | 无 | 命中清单时需要 |
+| `main` | `integration/mainline` | promote | mainline 在核对下限之后的每个 first-parent 提交都有目标为 mainline 的 unit | 不需要 |
+| `stable` | `main` | stable | main 在切换点之后的 first-parent 历史 | 不需要 |
 
-一条轨道的上游按下列顺序确定。`gate-publish`、`gate-track`、`gate-reconcile` 与 `start` 使用同一个顺序：
-
-1. 有 `omne/gate/track/<名>` 起点标签时，取标签正文的 `parent`。标签没有 `parent` 字段时，上游为 main。
-2. 否则在 `github-gate` 的 `gate/cutover.json` 中登记了切换点时，上游为 main。现在没有按这一条确定上游的轨道：`gate/cutover.json` 里的 `integration/legacy-refactor` 与 `integration/engineering-toolchain` 已退役，分支已删除（#973）。
-3. 两者都没有时拒绝。
-
-核对下限的读取顺序是切换点优先于起点标签：先取 `gate/cutover.json` 中的切换点，没有时取起点标签指向的提交，两者都没有就拒绝。所以 admin 为一条子轨道移动核对下限，不会改变它的上游。
-
-轨道名符合 `^[a-z0-9][a-z0-9-]{1,40}$`，不能是 `main`、`stable`、`release` 或 `github-gate`，也不能是已在 `gate/cutover.json` 中登记的名称。子轨道同样命名为 `integration/<名>`，层级由记录表示，不由名称表示。轨道创建后不能更换上游；需要不同的上游时，删除原轨道，再创建一条名称不同的新轨道。
-
-registry 的 `parent` 是投影，取值为 `main` 或上游轨道的名称。`initialBase` 是轨道在上游上的起点提交。
-
-`gate-publish` 与 `gate-track` 不读 registry。`start` 为一条轨道开工时，核对它和它的上游链，任一不满足就拒绝，精确规则见[集成工具契约](../../tools/dev-flow/src/integration/SPEC.md#上游链核对)：
-
-- 链上每一条轨道都已登记，分支都存在于远端。
-- 目标轨道为 active，上游链上的其他轨道为 active 或 paused。
-- registry 的 `parent` 与起点标签或切换点一致。
-
-新建轨道时，派发 `gate-track` 并传入轨道名、`parent`、起点提交与接收决定评论的 Issue。流程核对下列条件，任一不满足就拒绝，不创建任何分支或标签：
-
-- `parent` 为轨道时，这条上游能按上述顺序确定上游，分支存在。
-- 新轨道的分支与起点标签都不存在。
-- 起点在上游的 first-parent 历史上。上游为轨道时，起点还须是它的核对下限或之后的提交。
-
-确认者核对上游在 registry 中为 active，写在说明中。registry 可以先登记 owner、责任、`parent` 与 `initialBase`，再创建分支；登记不证明分支已存在。派发任务前，两者必须齐备并通过上游链核对。
-
-## 交付线
-
-交付线是卡的路线与写入归属的单位。它把工作区成员和仓库中的其他路径分给各条交付线。交付线与 Git 轨道是不同对象，由线归属表的 `track` 关联。M2 的五条线采用子轨道，依据 [#783 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6516545609)与 [#784 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/784#issuecomment-6544910141)。交付线不是领域、插件或部署单位。
-
-```mermaid
-flowchart TD
-  main["main"] --> LR["integration/mainline<br/>联调轨道"]
-  LR -->|"FI 同步"| B1["integration/线轨道"]
-  B1 -->|"提升 PR"| LR
-  CL["闭包分支"] -. "线内合入" .-> P["线父分支<br/>线父卡本波的 attempt<br/>及本波其他卡"]
-  P -. "波末准入与 gate" .-> B1
-  CI["integration 卡<br/>track 为 null 的线卡"] -. "准入与 gate" .-> LR
-```
-
-图中同步沿上游关系向下，提升沿它向上。收口点 F(w) 是第 w 波收口时实际读回的联调轨道提交，术语见[负责人状态](map-reduce-states.md#术语)。开波把 F 同步到各参加线的轨道。Reduce 在开波 FI 后从实际同步后的线轨道头建本波的线父分支并推送，线负责人是它的唯一写者，在它上面对线父卡本波的 attempt 运行 `start`。闭包分支从父分支开出。虚线箭头是工作进入的分支。
-
-### 线与归属
-
-[线归属表](delivery-lines.json)是交付线及其归属的唯一源。
-
-- 表列出每条线的 ID、名称、owner、线轨道、拥有的路径与契约成员，联调轨道拥有的路径，以及共享路径 `shared`。共享路径不计入归属：其中的路径仍按各线与联调轨道的路径判定归属，任何卡只可在其中写入由本卡其他改动生成或登记的变化，写法见[交付协议](delivery.md#卡属性与合法组合)。
-- 路径按目录前缀匹配。每个工作区成员恰好属于一条线或联调轨道。表中没有列出的路径归联调轨道。
-- 本线的目标轨道由 `track` 指定；`null` 表示直接进入联调轨道。M2 的映射是 `session-run`、`app-access`、`model`、`tool-exec` 各进入同名轨道，`engineering-toolchain` 进入 `m2-toolchain`，上游都是 `mainline`。`platform` 与 `time-reach` 保留 `null`。registry 登记轨道的状态、轨道负责人（`tracks[].owner`）与上游；线归属表登记交付线负责人（`lines[].owner`）、路径与契约成员归属。两类 owner 属于不同对象，不能因负责人相同而合并。
-- 改变线的划分或归属由负责人决定，改动经 PR 进入联调轨道。
-- 契约成员由 `contracts` 列出。common 共享包按主要改动方归入各线，并列为契约成员，所以线内的卡对它们只做可加改动。
-
-### 卡进入哪条轨道
-
-联调轨道是 `integration/mainline`。卡的 route 按线归属表选择：
-
-- 交付线为 `integration` 或本线 `track` 为 `null` 的卡直接进入联调轨道。
-- 有线轨道的线会话，每波的派发单位是线父卡上本波的一个 attempt，route 具名该线轨道。线内工作按闭包合入本线本波的父分支。波末父分支经一次准入和一次 gate 进入线轨道，规则见[线父分支](#线父分支)。Reduce 接收线轨道到联调轨道的提升 PR，承担跨线联调与整波检查。
-- 不在线会话内的卡，route 具名的轨道是线轨道时，仍逐张经准入和 gate 进入该轨道。
-
-几张卡可以叠在一条批次分支上，共用一次准入和一次 gate。线父分支是线内的默认批次，见下一节。Reduce 是几张连续 `integration` 卡的唯一写者时，这几张卡也可以合成个人批次，不逐张进入联调轨道：
-
-- Reduce 把它们叠在一条个人批次分支上，在本地合并并解决冲突。
-- 在批次头上只跑一次准入，只走一次 gate 进入联调轨道。PR 说明按[进轨道 PR 的说明](#进轨道-pr-的说明)逐张列出这几张卡。
-- 每张卡的判据证据仍贴在各自的卡上，接受仍逐卡进行。
-
-批次内各卡的证据与接受仍分别保留。个人批次的动作顺序见 `integrate` 技能「处理一条交回」中的[几张连续的卡合成一个批次](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md#几张连续的卡合成一个批次)。
-
-卡的交付线、性质与合法组合由[交付协议](delivery.md#卡属性与合法组合)定义。
-
-### 线父分支
-
-线父分支是一条线在一波里的工作分支，也是本线本波的批次分支。依据是 PanQiWei 2026-11-01 的两次要求：线内的集成是线自己的事，线内工作先合入父分支，整波做完才进线轨道。所以每波真实的集成准入数等于本波活跃的线数，另加 Reduce 的整波验证。
-
-Reduce 与线负责人的分工如下。分工的理由是：卡拆得越细，等待与交接的无效时间越多。Reduce 守住目标与边界，线负责人决定怎样到达。
-
-- Reduce 每波给每条线三样：线包、线父卡上本波的一个 attempt、首次消息或 delta。线包定本线里程碑的目标、边界与验收，以及本波的交付边界。模板见 `.meta_harness/human/map-reduce-delivery/templates/line-pack.md`。
-- 线负责人决定怎样拆闭包、排顺序、派子代理与并行，并负责线内的合并与联调。线内的计划与进度写在 `tmp/line-<线>/`。为内部工作另建 Issue 不是必需的。确有独立跟踪价值时，线负责人自建子卡，挂在线父卡下。本波有几张卡时按[本波有几张卡](#本波有几张卡)处理。
-- 设计点不另建卡。线包「需 Reduce 批复」一节列出这些点。线把候选与评审报告贴在线父卡上，Reduce 批复。等批复期间，线推进不依赖它的闭包。
-
-1. 派发：Reduce 用 `dispatch-cli` 在线父卡上登记本波的 attempt。binding 的 branch 是父分支名 `<用户名>/<线短名>-w<波号>`，例如 `PanQiWei/session-run-w1`。taskBase 是开波 FI 后的线轨道头，也就是父分支的起点。route 具名本线轨道。写范围是本线本波的目录。性质与契约变更按[交付协议](delivery.md#卡属性与合法组合)取合法组合，契约变更取本波的最高级。线内只能是 `none` 或 `additive`。破坏性切换按[里程碑内的规则](#里程碑内的规则)第 3 条由 `integration` 卡承接。
-2. 建立与开工：Reduce 在开波 FI 后从 taskBase 建父分支并推送到远端，派发前读回。线负责人是父分支的唯一写者。在父分支工作树上对这个 attempt 运行 `start`，再用 `status` 读回。`start` 核对当前分支等于 binding 的 branch、taskBase 是 HEAD 的祖先、route 的轨道及上游链，并把当时的线轨道远端头记为 targetBase。一个工作树只绑定一个任务，所以父分支工作树只绑定这个 attempt。
-3. 闭包：闭包分支从父分支头开出，在各自的工作树里工作，不运行 `start`。闭包要用父分支上已合入的成果时，合并父分支头。闭包分支只留在本地，不推送。写范围检查从 taskBase 起沿父分支计算改动，远端跟踪分支带进来的提交不计入，见[改动的写范围与线归属](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。闭包留在本地，它的改动才计入线父卡 attempt 的写范围。
-4. 线内合入：线负责人把做完的闭包合入父分支。这一步不跑准入，不开 PR，不走 gate。门槛在闭包一级，合并前必须满足下列条件：
-   - 闭包涉及的成员 build、typecheck 与 test 通过。
-   - `pnpm run preflight` 通过。
-   - 按风险做的独立验收（qa 或实现评审）已有结论。
-   - 契约成员的快照差异需要语义复核时，已按[契约变更的语义复核](delivery.md#契约变更的语义复核)完成具名复核，attest 绑定父分支上的对应 head。
-5. 合并提交：线负责人的合并提交写 `Agent-Role: main`。只有 Agent-Role 为 main 或 qa 的提交能改 `acceptance/`。
-6. 波末：本波的闭包都合入父分支后，线负责人按顺序执行：
-   1. 线轨道有新头时，父分支合并它，再运行 `task-sync`，按[两条基线](#两条基线)移动 targetBase。
-   2. 在父分支头运行线包「线内联调」一项，再只跑一次 `pnpm run admission`。全机准入一次一个，由 `scripts/with-test-slot.mjs` 的运行名额排队保证；准入命令自动排队，不需要人工互斥。名额的覆盖缺口由 L-ENG 核实。少数用例失败时只定向重跑这些用例。
-   3. 开一个 PR，从父分支进入本线轨道。说明按[进轨道 PR 的说明](#进轨道-pr-的说明)写。「所含的卡」列线父卡的 revision 与本波的 attempt，再逐张列本波其他卡的 revision 与 attempt。
-   4. 走一次 gate，读回合入。
-   5. 在线父卡上发本波的交接报告，再按[线会话记录](#线会话记录)交回 Reduce。
-
-进线轨道的准入与提升 RI 的复用：线父分支进线轨道前，已在合并线轨道新头之后的结果上跑过一次准入（第 6 步第 2 项）。Reduce 做提升 RI 时，若 RI 合并结果的树与那次准入时的树相同（期间 mainline 没有前进），就复用那次准入，不再跑，比对方法与证据写法按[树相同时复用准入](#树相同时复用准入)。树不同时，Reduce 在 RI 合并结果上跑一次准入。所以每波的集成准入数等于活跃线数，再加 mainline 前进时的必要复跑与整波验证。
-
-合入父分支只算线内合入。它不算工作被接受，也不算工作进入了轨道。本波 attempt 与本波其他卡的接受，在父分支进入线轨道之后按现行规则逐卡进行。本波的判据证据贴在线父卡上，其他卡的证据贴在各自的卡上。
-
-#### 本波有几张卡
-
-依据是 PanQiWei 2026-11-01 的要求：一条线在一波里有几张卡时，机制要允许线负责人一次认领本波全部的卡，并只提交一个最终的集成 PR。
-
-- 情形 1（默认）：本波只有线父卡上的一个 attempt。上面的第 1 到 6 步就是全部做法。
-- 情形 2：本波另有几张卡。它们可能是已有的载体卡，也可能是 Reduce 或线负责人建的子卡。线负责人一次认领本波全部的卡，在同一条父分支上按闭包推进，最后只开一个集成 PR，从父分支进入本线轨道。
-
-情形 2 的做法受工具的现行能力约束。task context 只有一个 owner task：`start` 在已绑定的工作树上遇到另一张卡时拒绝，写范围检查与语义复核都只读 owner task 的 binding。所以做法如下：
-
-1. 线父卡上本波的 attempt 是父分支工作树唯一的 context。它的写范围覆盖本线本波全部的卡，契约变更取这些卡的最高级。
-2. 其他每张卡各自登记 binding：taskBase 都是父分支的起点，branch 写父分支名，route 具名本线轨道，写范围在线父卡 attempt 的写范围之内。Reduce 登记载体卡与它建的卡，线负责人登记自建的子卡。写集求交时，本线只传线父卡 attempt 的 binding，不再逐张传入其他卡，否则它们与线父卡 attempt 的写范围必然相交。
-3. 一次认领：线负责人在线父卡发一条认领评论，逐张列出本波的卡及各自的 revision 与 attempt，并在每张卡上发一条指向它的认卡评论。线负责人读回每张卡的 binding，核对 taskBase、route 与写范围。其他卡不运行 `start`，原因是一个工作树只能有一个 context，而父分支只能在一个工作树里检出。
-4. 闭包可以服务一张卡或几张卡。闭包表写明每个闭包服务哪张卡。门槛与情形 1 相同。
-5. 一个集成 PR：「所含的卡」先列线父卡的 revision 与本波的 attempt，再逐张列其他卡的 revision 与 attempt。`ri-notes` 读取一个 PR 声明的多张卡。gate 不按机器核对卡身份，确认者按清单核对。
-6. 证据与接受逐卡进行：每张卡的判据证据贴在该卡上，本波交接报告逐张列出它们。
-
-需工具支持的缺口：对其他卡一次运行 `start` 并读回，要求一个工作树记录多张卡。现行 `tools/dev-flow/src/integration/engine.ts` 的 `bind` 在已有 context 的 owner task 不同时拒绝，`start` 也只为一个 owner task 写 context。实现时要让 `bind` 把同一父分支上的卡追加进 context 的 `tasks`，`status` 逐张读回，并决定写范围检查（`tools/dev-flow/src/delivery/change-scope.ts` 的 `changeScope`）是否改按 `tasks` 的并集判断。工具改好之前，按上面第 3 步读回 binding，不运行 `start`。
-
-### 跨线依赖
-
-本节的线指交付线。一条交付线的卡只依赖其他交付线的契约，不依赖其他交付线的实现。卡在交付条件中只引用本交付线的卡与交付线为 `integration` 的卡；依赖其他交付线的契约形状时，写一条 `capability` 条件，目标是开波时收口点上可读到的那个形状，见[不变量](#不变量)第 3 条。需要跨交付线的真实装配、集成点或联合验收时，调度者在联调轨道上建交付线为 `integration` 的卡，由它承接跨线条件。所以跨线的阻塞点只出现在联调轨道上。
-
-### 线轨道的同步与提升
-
-开波时，轨道 owner 按固定收口点 F 执行从联调轨道到线轨道的 FI，读回源头、目标头和合并提交。线包记录实际同步点。线父卡本波的 attempt 按[线父分支](#线父分支)建立 binding 与不可变 taskBase，按 `start` 读回 targetBase。目标线轨道前进时，父分支按[两条基线](#两条基线)先合并再 `task-sync`，以工具记录的 targetBase 运行影响面检查。
-
-波内不擅自 FI 新的联调轨道输入。额外同步点或工具链小批次提前提升必须由计划或 delta 明确，且不能改变其他线的冻结输入。兄弟线的成果仍经共同上游交换。交回后由 Reduce 接管提升中的冲突、迁移和验证；保存来源轨道原 head、候选 head、目标 head、targetBase、merge 链与实际合入结果。ready 不等于合入或接受。下一波再从新 F 执行 FI，不重放旧补丁。
-
-## 里程碑与契约基线
-
-里程碑是一段交付期，用 GitHub Milestone 表达。负责人创建 Milestone 并在描述中写明范围与结束标志，里程碑即开始；关闭 Milestone 即里程碑结束。卡所属的里程碑是 Issue 的 milestone 字段，由调度者设置。Project 的 Wave 字段记录卡所属的波，不镜像里程碑。Milestone 仍由 Issue 字段拥有，Wave 的节奏沿[当前迭代](agent-delivery.md#2-建卡或修订卡)。契约成员由[线归属表](delivery-lines.json)的 `contracts` 列出。
-
-### 可加改动
-
-构造一个值的一方是写方，读取它的一方是读方。一个契约类型的写方包括它的每个提供者与替身。消费者传入的回调，参数由提供者写、消费者读，返回值由消费者写、提供者读。可加改动是不破坏任何已有写方或读方的改动。卡级按本卡 `taskBase` 到候选 head 的改动判断；里程碑级按[已登记基线](#里程碑内的规则)到候选 head 的累计改动核对。
-
-下表列出常见形状，不穷举。未列出的改动也按是否破坏任一既有写方或读方判断：
-
-| 改动 | 对写方 | 对读方 |
-| --- | --- | --- |
-| 加可选字段 | 不破坏 | 不破坏 |
-| 加必填字段 | 破坏 | 不破坏 |
-| 必填改为可选 | 不破坏 | 破坏 |
-| 可选改为必填 | 破坏 | 不破坏 |
-| 删除字段 | 破坏 | 破坏 |
-| 给联合加成员 | 不破坏 | 破坏；契约事先声明该联合开放时不破坏 |
-| 从联合删成员 | 破坏 | 不破坏 |
-| 给由别人实现的接口加必填方法 | 破坏 | 不破坏 |
-
-[人类协作者指南](../../.meta_harness/human/stable-contracts.md)解释这张表的由来和设计方法。它是说明材料，规则以本节为准。
-
-### 里程碑内的规则
-
-1. 里程碑起点，联调轨道上一张性质为 `baseline` 的卡在评论中登记本里程碑的基线，再派发其他卡。登记包括联调轨道上的基线提交，以及该提交上线归属表 `contracts` 列出的契约成员；成员有 API 快照时，同时登记快照摘要。每次收口与 reduce 只推进代码收口点，不重建契约基线。之后的破坏性改动只补登记受影响成员，其他成员继续沿用原基线。集成节点以各成员已登记的基线提交为参照，用 `contract:api` 快照核对累计变化；累计为 breaking 的改动必须对应一张已登记的 `integration` 卡。API 快照反映公开形状，不能替代完整行为兼容性的核对。
-2. 线内的卡对契约成员只做可加改动，卡级比较范围是本卡 `taskBase` 到候选 head。自 M2 起，非重构型里程碑内只允许可加改动。里程碑类型取 Milestone 描述，唯一源见[交付协议第 4 条](delivery.md#契约变更与里程碑类型)。
-3. 不得不做破坏性改动时，执行者先停止依赖该改动的工作，调度者置 Needs decision，由人拍板，具体责任见[交付协议](delivery.md#契约变更与里程碑类型)。裁定同意后分两阶段执行：
-   - 原线内卡只做兼容开发，新旧形状共存，契约变更仍为 `none` 或 `additive`。这项裁定是[当前演进政策](publication.md#当前演进与消费者)允许新旧形状暂时共存的依据。
-   - reduce 时，由联调轨道上一张性质为 `integration` 的卡一次切换提供者、同步全部消费者并删除旧形状，见[完整集成](#完整集成)。完成后在 baseline 卡上只补登记受影响成员的新基线提交。旧形状未删除时，承接卡不接受，负责人不关闭 Milestone。
-4. 基线登记后才加入的契约成员，首次入轨的卡将它申报为 `additive`；baseline 卡补登记该成员的首份 API 快照。
-5. 没设里程碑的卡由 `start` 拒绝，沿用[字段总表后的开工规则](delivery.md#字段总表)，不另设例外。
-6. 本规则登记前已派发的在途卡，仍按本卡 `taskBase` 到候选 head 申报卡级「契约变化」，不追溯修改派发。
-
-登记的格式与核对：
-
-1. 登记评论带一个 `json omne-contract-baseline:v1` 机读区块，由 `omne-contract-api --baseline-write <基线提交> --milestone <里程碑名>` 生成，原样贴进评论。区块对每个成员记基线提交、快照文件的 `sha256` 与 `api` 目录的树号 `apiTree`，不记几个成员拼接的摘要。基线文件不入库。
-2. 补登记只写受影响的成员，生成时加 `--member <成员目录>`。较晚的登记覆盖同一成员较早的登记。
-3. `breakingCards` 列出承接破坏性改动的 `integration` 卡。调度者在破坏性裁定读回后补登记它。
-4. 只有登记者发的区块算登记。登记者是 publish 环境的审批者，即能派发的人。别人发的区块不改基线，也不加 `breakingCards`，读取结果列出这些评论。
-5. 集成节点用 dev-flow 的 `baseline-cli.ts read <baseline 卡号> --out <文件>` 读出并合并全部登记，再用 `omne-contract-api --baseline <文件>` 核对累计变化。`--baseline` 与 `--baseline-write` 从 repo-toolchain 0.0.16 起提供。仓库钉住的版本早于 0.0.16 时，从源码运行：`node --experimental-strip-types tools/repo-toolchain/src/declarations/api-cli.ts --baseline <文件>`。命令见 [dev-flow 交付观察说明](../../tools/dev-flow/src/delivery/README.md#契约基线的读取)。
-6. 核对在下列情况失败：
-   - 有成员判不了：登记的成员在它的基线提交上不是契约成员或没有快照；或者成员在基线点（全部登记提交的共同祖先）上已是契约成员，却没有登记。`breakingCards` 不能放行这些成员。
-   - 累计为 review 而登记没有 `breakingCards`。经语义复核通路承接、且有效记录为 additive 的 review 成员除外，见 [delivery.md](delivery.md#契约变更的语义复核) 的契约变更语义复核。
-
-   基线点之后才加入的成员按上面里程碑内的规则第 4 条，整份算新增。有 `breakingCards` 时核对通过，只说明登记了承接卡；每个 review 成员由哪张卡承接，由集成节点核对。
-
-## 进轨道 PR 的说明
-
-个人分支进入轨道的 PR，以及提升 PR（子轨道进上游轨道、顶层轨道进 main），说明中必须包含下面两节。提升 PR 汇总自上一次提升以来进入来源轨道的全部 PR 的这两节。同步 PR（上游进轨道）与进入 stable 的 PR 不写。
-
-```text
-## 所含的卡
-- #<Issue 编号> revision <交付修订> attempt `<attempt>`：<这张卡在上一层或 main 上要满足的条件，没有写“无”>
-
-## 契约变化
-- <契约成员在线归属表中的路径>：<none、additive 或 breaking>。additive 写新增的导出或字段；breaking 写承接它的卡
-```
-
-「所含的卡」的行格式照录 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」，以它为准。PR 没有改动契约成员时，「契约变化」一节写「无」。第一阶段由确认者核对：「所含的卡」与 PR 实际带入的卡一致；每张卡的契约变化按本卡 `taskBase` 到候选 head 判断。
-
-本地核对分两处：
-
-1. 卡级：已绑定的工作树上，`pnpm run check` 比较本卡改到的契约成员自 `taskBase` 的快照差异与 binding 的契约变更。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，检查失败。经语义复核通路承接、且有效记录为 additive 的 review 成员除外，见 [delivery.md](delivery.md#契约变更的语义复核) 的契约变更语义复核。只比较本卡自己改了 `api` 目录的成员，合并进来的别的卡对其他成员的快照变化不计入。对本卡改到的成员，比较从 `taskBase` 到工作树，合并进来的别的卡对同一成员的变化也计入。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
-2. 提升：`pnpm run ri-notes --track <轨道 ID> --format markdown` 生成两节。PR 申报的级别高于所含卡的契约变更、联调轨道以外出现 breaking，或申报与快照差异不符时，命令退出 1。先改申报或停下交裁定，再提出 PR。快照差异不可得时只报告，退出 0。
-
-提升 PR 的确认者在 gate 说明里贴本地 `ri-notes` 的退出码与标准错误最后一行的汇总。所含的卡、快照差异与申报是否一致，以这两项为机器结果。个人分支（含批次分支与线父分支）进轨道的 PR 不运行 `ri-notes`：两节手写，逐张列本次带入的卡。确认者按本节开头「第一阶段由确认者核对」一句人工核对；卡级核对的输出在各卡交接报告第 1 节，批次 head 的准入输出在准入证据评论。线父分支已绑定线父卡的 attempt，它的卡级核对随波末准入运行，输出也在准入证据评论。该轨道下一次提升时，`ri-notes` 对汇总后的申报与快照差异做核对，不逐批次核对。gate 一侧对说明格式与卡身份的核对归 `github-gate` 的拥有者。
-
-多卡 PR 按每个契约成员汇总所含卡对它的变化，按 `none < additive < breaking` 取最高级别，不相互抵消；每张卡对成员的级别仍不超过这张卡的契约变更。breaking 只出现在进入联调轨道或 main 的 PR 中。
-
-里程碑累计核对仍以各成员已登记的基线提交为参照，见[里程碑内的规则](#里程碑内的规则)，不以 PR 的卡级申报代替。
+main 只接受 mainline 的提升，所以没有从 main 同步进 mainline 的 PR。核对下限先取 `github-gate` 上 `gate/cutover.json` 的切换点，没有时取起点标签 `omne/gate/track/mainline` 指向的提交。gate 流程的实际判定归 `github-gate` 分支的 `gate/README.md`。
 
 ## 完整集成
 
-工作分支经 PR 向轨道运输完整源前缀。FI 经上游进轨道的 PR，把上游的完整前缀带到轨道。RI 经轨道进上游的 PR，把轨道未被上游覆盖的完整单元提升到上游。顶层轨道的上游是 main。破坏性跨轨道修改同时交付定义、提供者、真实消费者与测试。选择性 cherry-pick 不构成正式 RI。
+工作分支经 PR 向 mainline 运输完整源前缀。提升经 mainline 进 main 的 PR，把 mainline 未被 main 覆盖的完整单元带到 main。破坏性修改同时交付定义、提供者、真实消费者与测试。选择性 cherry-pick 不构成正式提升。
 
-`gate-publish` 每次合并同时创建不可修改的 `omne/gate/unit` 记录标签。每次提升前，流程核对来源轨道的每个 first-parent 提交都有 unit 记录，所以缺口在每一层都被拦住。每卡的 revision、attempt 和 taskBase 仍由各自 Issue 的 binding 记录。运输层改变不自动新建卡或提高交付修订。
-
-## 两条基线
-
-每个任务工作树的 task context 保存两条基线。
-
-- `targetBase`（目标基线）是最近一次同步进来的目标提交。开工时它是 `start` 读到的远端目标分支提交，之后只由 task-sync 更新。影响面计算与组合检查以它为准。
-- `taskBase`（任务起点）在开工时固定，任何同步都不改变它。逐提交审计、验收锁与先改后改回的核对都从它开始，并照常检查合并进来的提交的全部父提交。
-
-全局 main 趋势仍使用 main。
-
-任务执行期间同步目标分支分两步。第一步，执行者在自己的工作分支上用普通的 `git merge` 合并远端目标分支的某个提交 T，自己解决冲突并提交。第二步，执行者运行 `task-sync`，命令核对后把本工作树 context 的 `targetBase` 原子更新为 T。`targetBase` 只能前进，不能后退或改到另一条历史。核对条件与调用方式见[工具指南](../../tools/dev-flow/src/integration/README.md#同步目标分支)。
-
-`gate-publish` 构造合并时固定目标 B 和源 S（PR head），合并提交 C 的第一父为 B，第二父为 S。这一描述只适用于闸门构造的合并。stable 不产生合并，只快进到 main first-parent 历史上的已有提交。工作分支上的同步合并由执行者完成，第一父是工作分支自己。
+`gate-publish` 每次合并同时创建不可修改的 `omne/gate/unit` 记录标签。每次提升前，流程核对 mainline 的每个 first-parent 提交都有 unit 记录，所以缺口被拦住。运输层改变不自动新建卡或提高交付修订。
 
 ## 权限、候选与恢复
 
-四条主干的发布由 `github-gate` 的流程执行，确认权限见[现行准入](#现行准入)。本机集成工具不构造候选，也不验证或发布。确认不是任务接受。进入轨道、main、stable、交付接受与关闭分别记录。发布流程不修改 Stage、接受或关闭。
+四条主干的发布由 `github-gate` 的流程执行，确认权限见[现行准入](#现行准入)。本机集成工具不构造候选，也不验证或发布。确认不是任务接受。进入轨道、main、stable、交付接受与关闭分别记录。发布流程不写卡的接受，也不关卡。
 
 运行结果未知时，先读运行页面、目标分支和 `omne/gate/*` 标签，不盲目重新派发。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。
 
@@ -265,50 +55,39 @@ Reduce 与线负责人的分工如下。分工的理由是：卡拆得越细，�
 
 admin 修改规则集属于管理权限，定时核对与记录核对照常适用。
 
-## 稳定点与轨道演进
+## 稳定点与轨道
 
 stable 选择 main first-parent 历史上的已有提交，只要求旧 stable 是其祖先。完整检查的要求见[第二阶段目标](#第二阶段目标)。main 后续前进不改变选定 checkpoint。
 
-轨道 registry 记录稳定 ID、分支、owner、来源、状态、`parent` 与 `initialBase`。状态取 active、paused、retiring 或 retired，只有 active 的轨道接受新任务。paused 只表示不派发新任务，paused 的轨道仍可同步与提升。新轨道的分支与起点标签由 `gate-track` 创建。owner 更换先交接未提升 prefix 与活动任务。
+轨道 registry 记录稳定 ID、分支、owner、来源、状态、`parent` 与 `initialBase`。只登记 `integration/mainline`，它的 `parent` 是 main。owner 更换先交接未提升的成果与活动的卡。
 
-删除轨道就是退役轨道，由 admin 删除轨道分支。
-
-- 唯一的硬条件：没有其他轨道以它为上游时，才能删除。删除前以起点标签为准确认：所有现存 `integration/*` 分支的起点标签 `parent` 都不指向它。registry 只作参考。子轨道先删除，退役沿子树自下而上进行。
-- 轨道上的记录标签保留，不删除，分支删除后这些提交仍可经标签找到。
-- 尚未提升的成果由删除的人负责处理，例如先提升、经个人分支转入其他轨道，或确认放弃。不要求固定格式的记录。
-- registry 条目事后整理：删除条目或修改状态，按普通改动经任意轨道进入。retiring 为可选标记，owner 想在删除前停止派发时可以标记；标记随同步到达目标轨道后才对该轨道的开工生效。
-- 删除 ref、工作树或唯一临时材料仍按[工作约定](workflow.md#责任与协作交接)和[发布边界](publication.md)取得明确授权。Git revert 不撤销外部副作用。
-
-平台不能按上游关系阻止删除。误删仍有子轨道的轨道时，`start` 拒绝为上游链断开的轨道开工，`gate-publish` 拒绝进入这样的轨道，`gate-reconcile` 为它们开缺口 Issue。
+其他 `integration/*` 分支不再登记，由 admin 删除。轨道上的记录标签保留，分支删除后这些提交仍可经标签找到。尚未提升的成果由删除的人负责处理，例如经个人分支转入 mainline，或确认放弃。删除 ref、工作树或唯一临时材料仍按[工作约定](workflow.md#责任与协作交接)和[发布边界](publication.md)取得明确授权。Git revert 不撤销外部副作用。
 
 ## 现行准入
 
-现行准入依据 [RFC-0011 revision 1](../rfcs/RFC-0011-trunk-admission-and-track-tree.md#决定范围)。它取代 RFC-0004 中仍然有效的范围，并部分取代 RFC-0009 的三处条款与 RFC-0002 的准入缓存策略。RFC-0008 与 RFC-0009 的其余准入条款仍由原提案拥有，RFC-0011 第 16 至 18 节只作复述。第一阶段自 2026-10-15 起执行，切换记录见 [Issue #208](https://github.com/nemori-ai/omne-harness-lite/issues/208#issuecomment-6184302633)。多层轨道自 2026-10-20 起执行，见 [#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)。
+现行准入依据 [RFC-0011 revision 1](../rfcs/RFC-0011-trunk-admission-and-track-tree.md#决定范围)。它取代 RFC-0004 中仍然有效的范围，并部分取代 RFC-0009 的三处条款与 RFC-0002 的准入缓存策略。RFC-0008 与 RFC-0009 的其余准入条款仍由原提案拥有，RFC-0011 第 16 至 18 节只作复述。第一阶段自 2026-10-15 起执行，切换记录见 [Issue #208](https://github.com/nemori-ai/omne-harness-lite/issues/208#issuecomment-6184302633)。单一轨道依据 [RFC-0014](../rfcs/RFC-0014-single-card-session-and-gate-relief.md)，它部分取代 RFC-0011 的轨道树与 RFC-0009 的双基线。
 
-四条主干是 `integration/<track>`、`main`、`stable` 和 `release`。代码沿轨道树逐层提升。上游向直接子轨道的同步是唯一反向流动。`release` 只定对外发布的位置，还没有创建。
+四条主干是 `integration/mainline`、`main`、`stable` 和 `release`。代码从 mainline 提升到 main。`release` 只定对外发布的位置，还没有创建。
 
 第一阶段的规则如下。
 
-- 四条主干只经 PR 进入，个人工作分支不受限制。轨道 T 接受个人分支、T 的上游和 T 的直接子轨道的 PR。main 只接受顶层轨道的 PR。stable 只接受 main 的 PR，并且只快进到 main 的 first-parent 历史上的提交。base 为轨道时，它的上游链上每一条轨道都必须能确定上游，分支都必须存在。其他组合一律拒绝，包括跨层、兄弟轨道之间和个人分支进 main。head 为 `stable`、`release` 或 `github-gate` 时一律拒绝。`release` 创建之前，以它为 base 的 PR 一律拒绝。
+- 四条主干只经 PR 进入，个人工作分支不受限制。PR 只有[三类](#三类-pr)。stable 只快进到 main 的 first-parent 历史上的提交。head 为 `stable`、`release` 或 `github-gate` 时一律拒绝。`release` 创建之前，以它为 base 的 PR 一律拒绝。
 - 派发 `github-gate` 分支上的 `gate-publish` 流程，传入 PR 号和 PR head 的完整提交号。合入 stable 时还要传 checkpoint 名称。命令见 `github-gate` 分支的 `gate/README.md`。
-- 任务卡的派发评论由 `publish` environment 的 reviewer 发出，`start` 据此核对开工准入并写入 task context。没有 task context 的检出也能运行本地检查，基线退回 `origin/main`；收工钩子例外，它在 `origin/main` 与活跃轨道中取离 HEAD 最近的合并点，见[收工钩子](../../tools/repo-toolchain/README_ZH.md#收工钩子)。
+- 本地检查的基线取显式给出的基线，没有时取 `origin/main`；收工钩子例外，它在 `origin/main` 与活跃轨道中取离 HEAD 最近的合并点，见[收工钩子](../../tools/repo-toolchain/README_ZH.md#收工钩子)。
 - 一位 admin 在 Actions 的 `publish` environment 中确认，必须填写说明。admin 可以确认自己的 PR。agent 可以用 admin 的凭据代为确认，说明中注明代为确认的人。
-- 个人分支进入任何一层轨道的 PR 如果改动仓库工具链，确认前多一道审批。流程用 `git merge-tree` 算出合并结果，把结果相对目标改动的文件与 `github-gate` 上的 `gate/toolchain-paths.txt` 比对。命中时，先由 `repo-toolchain-review` environment 的确认者确认，再进入 `publish` 的确认。工具链确认也必须填写说明，说明原文写进发布决定评论。未命中的 PR 不经这道审批。同步（上游进轨道）、提升（轨道进上游）和 main 进 stable 不经这道审批，它们搬运的提交都已经从个人分支进入过某条轨道。路径清单由卡 [#332](https://github.com/nemori-ai/omne-harness-lite/issues/332) 建立，只在 `github-gate` 上维护。
-- 个人分支进入任何一层轨道的 PR 如果改动 `docs/engineering/api-review-owners.json`，`publish` 的确认者在确认前逐条核对改动的条目。对新增或改动的条目，确认者运行 dev-flow 的 `api-review-cli.ts verify-owner-adoption`，核对引用的评论在本仓库存在，正文摘要、更新时间与作者 node ID 与条目一致；再阅读该评论，核对正文是有权决定线归属的负责人对该条 lineId、owner login 与 node ID 的明确决定（代笔时附可核对的授权输入）。对删除的条目，确认者只核对删除由有权决定线归属的负责人决定。确认说明写明所核评论的 URL 与该命令的退出码。任一项不成立时不确认。
+- 个人分支进入 mainline 的 PR 如果改动仓库工具链，确认前多一道审批。流程用 `git merge-tree` 算出合并结果，把结果相对目标改动的文件与 `github-gate` 上的 `gate/toolchain-paths.txt` 比对。命中时，先由 `repo-toolchain-review` environment 的确认者确认，再进入 `publish` 的确认。工具链确认也必须填写说明，说明原文写进发布决定评论。未命中的 PR 不经这道审批。提升（mainline 进 main）和 main 进 stable 不经这道审批，它们搬运的提交都已经从个人分支进入过 mainline。路径清单由卡 [#332](https://github.com/nemori-ai/omne-harness-lite/issues/332) 建立，只在 `github-gate` 上维护。
 - 确认后，发布身份 `omne-harness-lite-publish` 构造合并提交。第一父为目标，第二父为 PR head，有冲突就停止，冲突先在来源分支解决。它在一次原子推送中更新目标并创建记录标签，推送比较派发时读到的目标。合并写 `omne/gate/unit/<结果提交号>`。stable 写 `omne/gate/stable/<提交号>` 和 `omne/gate/checkpoint/<名称>`，同一提交只能进入 stable 一次：另一次发布已把 stable 推进到同一提交时，记录已存在，整次推送失败。标签正文是 `omne-gate-record:v1` JSON。
-- 提升前，即 head 是 base 的直接子轨道或 base 为 main 时，流程核对来源轨道在核对下限之后的每个 first-parent 提交都有目标为该轨道的 unit。同步不做这项核对，上游的记录由上游自己的提升负责。发布 stable 前，对 main 在切换点之后的 first-parent 历史做同样的核对。有缺口就停止。
-- 提升 PR 由该轨道的 owner 提出。PR 说明列出自上一次提升以来进入该轨道的卡，以及这些卡在上一层或 main 上要满足的条件，每张卡写 Issue 编号、revision 与 attempt。格式见 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」。确认者据此核对条件。个人分支进轨道的 PR 与提升 PR 还要写「契约变化」，见[进轨道 PR 的说明](#进轨道-pr-的说明)。
+- 提升前，流程核对 mainline 在核对下限之后的每个 first-parent 提交都有目标为 mainline 的 unit。发布 stable 前，对 main 在切换点之后的 first-parent 历史做同样的核对。有缺口就停止。
+- 提升 PR 由 mainline 的 owner 提出。「所含的卡」列出自上一次提升以来合入 mainline 的卡，以及这些卡在 main 上要满足的条件，行格式见 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」。确认者据此核对条件。个人分支进 mainline 的 PR 只列本卡。两类 PR 都写「契约变化」，格式见 [PR 模板](../../.github/pull_request_template.md)。
 - 已知限制：admin 停用规则集后直接推送主干，平台不能阻止，只能事后发现，依据是组织审计日志和定时核对。其中一种情形流程也无法区分：admin 在流程最后读取目标与推送之间，把 stable 直接推到本次要发布的同一提交。这时流程仍会写入记录。
 - 流程不运行测试。自动检查具备之前，确认暂代轨道的自动检查，说明中写明本地运行了哪些检查及结果。确认不等于交付接受。
-- `gate-reconcile` 每小时从 main 触发一次，只开缺口 Issue，不创建标签。它报告核对下限之后没有记录的主干提交、没有对应 stable 记录的 stable 尖端，以及上游链上有分支不存在的轨道。缺口不设处理时限。缺口存在时，相应主干的提升被拦住。三类缺口的闭合方式不同：
-  - 没有 unit 的主干提交，两步都完成后缺口才闭合。移动下限只改变核对范围，不改变上游。
-    1. 该轨道的 owner 或任一 admin 在缺口 Issue 中写具名决定。决定说明缺口提交的来源和处置，并列出该提交带来的卡（Issue 编号、revision 与 attempt）。
+- `gate-reconcile` 每小时从 main 触发一次，只开缺口 Issue，不创建标签。它报告核对下限之后没有记录的主干提交与没有对应 stable 记录的 stable 尖端。缺口不设处理时限。缺口存在时，相应主干的提升被拦住。两类缺口的闭合方式不同：
+  - 没有 unit 的主干提交，两步都完成后缺口才闭合。移动下限只改变核对范围。
+    1. mainline 的 owner 或任一 admin 在缺口 Issue 中写具名决定。决定说明缺口提交的来源和处置，并列出该提交带来的卡（Issue 编号）。
     2. admin 在 `gate/cutover.json` 中把该分支的切换点改为缺口中最后一个没有 unit 的 first-parent 提交，并在缺口 Issue 中注明这次修改的提交。
   - stable 的尖端没有记录：admin 在缺口 Issue 中写具名决定，stable 下一次经流程发布后闭合。
-  - 上游链上有分支不存在：上游不能更换，被删除的名称不能重建，所以上游链断开的各轨道只能自下而上删除，全部删除后闭合。
 - 2026-10-15 登记的原切换点之前的历史，按 #208 的决定整体认可，不补记录。下限移动后跳过的提交，以缺口 Issue 中的具名决定为依据。
-- 新轨道由 `gate-track` 流程在 admin 确认后从上游的 first-parent 提交创建，并写带 `parent` 的 `omne/gate/track/<轨道名>` 起点标签，规则见[轨道树与上游](#轨道树与上游)。
-- `@omne-harness/repo-toolchain` 与 `@omne-harness/repo-config` 由 `gate-release` 流程发到 npm。要发布的提交必须已有 unit 记录，并在 main 或某条轨道的 first-parent 历史上；版本号取自该提交的 `package.json`，npm 上已有的版本不再发布。确认走 `npm-release` environment，必须填写说明。发布用 npm 可信发布（GitHub OIDC，不存长期 token），附来源证明；流程把结果写进指定 Issue 的决定评论。命令见 `github-gate` 分支的 `gate/README.md`。首个版本 0.0.1 由 AIEPhoenix 手动发布，记录见 [#332](https://github.com/nemori-ai/omne-harness-lite/issues/332#issuecomment-6209941107)。仓库检查运行哪个版本由 `pnpm-workspace.yaml` 的 catalog 钉住，升级先发版本、再改钉子，见[仓库工具链的版本](../development.md#仓库工具链的版本)。
+- `@omne-harness/repo-toolchain` 与 `@omne-harness/repo-config` 由 `gate-release` 流程发到 npm。要发布的提交必须已有 unit 记录，并在 main 或 mainline 的 first-parent 历史上；版本号取自该提交的 `package.json`，npm 上已有的版本不再发布。确认走 `npm-release` environment，必须填写说明。发布用 npm 可信发布（GitHub OIDC，不存长期 token），附来源证明；流程把结果写进指定 Issue 的决定评论。命令见 `github-gate` 分支的 `gate/README.md`。首个版本 0.0.1 由 AIEPhoenix 手动发布，记录见 [#332](https://github.com/nemori-ai/omne-harness-lite/issues/332#issuecomment-6209941107)。仓库检查运行哪个版本由 `pnpm-workspace.yaml` 的 catalog 钉住，升级先发版本、再改钉子，见[仓库工具链的版本](../development.md#仓库工具链的版本)。
 
 平台配置如下。main、轨道和 stable 的创建与更新只允许发布身份。`github-gate` 只有 admin 能创建和更新，禁止删除和非快进。`omne/gate/*` 标签只有发布身份能创建，任何人不能修改或删除。仓库只允许 merge commit。`publish` environment 的确认者为 admin，关闭管理员跳过，只接受 `github-gate` 上的运行。`repo-toolchain-review` 与 `npm-release` 两个 environment 的确认者与 `publish` 相同，同样关闭管理员跳过、只接受 `github-gate` 上的运行，不存放密钥。调整 `publish` 的确认者时同步调整它们。切换点记在 `github-gate` 的 `gate/cutover.json`。历史记录的认可范围见上文 `gate-reconcile` 一条的末项。
 
@@ -318,9 +97,9 @@ stable 选择 main first-parent 历史上的已有提交，只要求旧 stable �
 
 交付身份的密钥只放在 `delivery` environment。该 environment 只接受 `github-gate` 上的运行，所以只有 admin 写入 `github-gate` 的流程能使用这把密钥。该 environment 不设确认者，流程运行时不等人确认。
 
-`github-gate` 上的 `delivery-facts` 与 `delivery-stage` 用交付身份为 Claude Code 云端会话读取开工事实、修改 Project Stage，用法见 `github-gate` 的 `gate/README.md`。本地会话直接读取并修改 Stage，不经过这两个流程。所以「Stage 只能由有资格的人修改」只在云端路径上由流程强制；本地路径与 Project 成员的写权限按现行约定执行。`delivery-stage` 只核对触发者是 `publish` 的 reviewer，不核对他是不是这张卡的调度者，单一调度者在云端同样是约定。两个流程写死了 Project ID 与 Stage 字段 ID；修改[交付配置](github-delivery.json)的 `project` 时，同时修改 `github-gate` 上的这两个流程。交付配置的 `project` 还登记看板字段与选项的 ID。修改 Project ID、Stage 字段 ID 或 Stage 选项时，同步这两个流程；只改其他看板字段时不需要。
+`github-gate` 上的 `delivery-facts` 用交付身份为 Claude Code 云端会话读取开工事实，用法见 `github-gate` 的 `gate/README.md`。本地会话直接读取，不经过这个流程。
 
-已知风险：交付身份的密钥外泄时，持有者能修改组织内全部 Project，能编辑或关闭本仓库的 Issue（包括卡正文与 binding），也能发出伪造的开工事实评论，使云端会话的 `start` 接受没有派发资格的作者。这把密钥按与 admin 权限同等的级别保管和轮换。
+已知风险：交付身份的密钥外泄时，持有者能修改组织内全部 Project，能编辑或关闭本仓库的 Issue（包括卡正文），也能发出伪造的开工事实评论。这把密钥按与 admin 权限同等的级别保管和轮换。
 
 ### 第二阶段目标
 
@@ -332,212 +111,19 @@ stable 的完整检查即 `OMNE_ADMISSION=1 FULL=1 pnpm run check`，由目标�
 
 ## 同步与提升的节奏
 
-以事件触发为主。开工或重新接活时，owner 比较工作任务、来源轨道和它的上游的实际 SHA；RI 前及上游有破坏性变更后，再核是否需要 FI 或任务同步。main 的变化逐层同步：先同步进顶层轨道，再从它同步进下一层。任务同步按[两条基线](#两条基线)先合并、再运行 task-sync。活跃轨道以完整小批量及时提升，避免长时间累积漂移。空闲轨道在恢复活动时同步，不按日历给所有轨道增加全量构建或付费模型预算。
-
-RI 后，来源轨道若还要继续工作，先检查上游是否包含新的组合修正或其他轨道前缀；需要这些变化时执行 FI。轨道已包含同一上游内容时不为流程制造空同步。其他活跃轨道按受影响契约同步；破坏性公共变更由集成 owner 协调相关 owner，在继续依赖工作前闭合。空闲轨道保留已知漂移，恢复时处理。
+以事件触发为主。交付会话在开 PR 前与 mainline 头有破坏性变更后，按[分支与任务](#分支与任务)合并轨道头。mainline 以完整小批量及时提升 main，避免长时间累积漂移。不按日历增加全量构建或付费模型预算。破坏性公共变更由 mainline 的 owner 协调相关 owner，在继续依赖工作前闭合。
 
 `gate-publish` 遇到冲突就停止，冲突先在来源分支解决，涉及含义的取舍交相应语义 owner。worker 提供来源和测试，不直接修改共享目标来解决冲突。解决冲突后的合并结果需要实际组合验证；各源单独通过不能代替它。
-
-## 集成节点的清单
-
-本节拥有常驻 Reduce 与 Line 的协作规则：组织前提、线会话记录的格式、不变量、读写交叉、失败处理、等待命令与平台写入。Reduce 与 Line 的阶段、恢复、收口顺序和 redo 与接管处置归[负责人状态](map-reduce-states.md)，术语也在那里定义。波段编排的判断方法归 `dispatch` 技能的[波段编排](../../.meta_harness/agents/skills/dispatch/canonical/references/wave-planning.md)。工具编码与可执行接口归[交付工具](../../tools/dev-flow/src/delivery/README.md)。技能负责动作顺序，模板只填写本次事实与引用。首次开工和恢复先读本节与状态正文，不只凭图或上一条会话记忆继续。
-
-本节的协作规则依据下列组织前提：
-
-- 一个负责人。
-- 全部会话使用同一个 GitHub 账号。
-- 会话创建与通信由 Reduce 按本次明确授权执行。已授权本机直接协作时，通过 mirasim 创建、发送并读回；没有直接通信授权或能力时，才由人原样转发。
-
-等待命令只认评论首行的标记，不按作者过滤。这个做法依据上述前提。出现跨组织、多个账号或互不信任的参与方时，前提失效，须重新设计信任边界。
-
-同一里程碑由同一个 reduce 会话负责，且它是人唯一的设计联系点。Reduce 负责全局设计、跨线的消费者迁移、跨线的实现与联调、集成冲突及交回后的问题。Line 是跨波持续的线会话，负责获准本线本波的细化、实现和验证。一个 Line 负责的范围可以覆盖一个或几个领域，其中跨领域的集成与联调归这个 Line，在交回前完成。Line 不是路径归属表里的交付线。线会话为一个闭包派出子代理时，该子代理只持有这一次任务，不替代常驻 Line。轨道写入单写，Reduce 的等待持续挂起。
-
-- 收口点 F(w) 见[术语](map-reduce-states.md#术语)。波以当前收口卡 R(w) 为界。
-- 线父卡承载线包、delta、交回记录、每波的交接报告与长期责任。每波的派发单位是线父卡上的一个 attempt。派发命令把它的 binding 写在线父卡上，线负责人在父分支工作树上对它运行 `start`。线包引用这份 binding，branch、taskBase 与写范围不得手抄成第二份权威。
-- 线内工作按闭包先合入本线本波的父分支。波末父分支经一次准入和一次 gate 合入线轨道，线轨道承载本线结果。规则见[线父分支](#线父分支)。ready、blocked、failed 都必须交回明确结果。零差异不造空 PR。
-- 交回、实际合入和整波放行分别核对。PR ready、单卡接受和队列暂空都不能代替其中任何一步。
-
-### 线会话记录
-
-线父卡上有两种协作记录。Reduce 发布 delta，Line 发布交回记录。两种记录都是人读评论。评论第一行是标记：delta 用 `<!-- line-delta -->`，交回记录用 `<!-- line-handoff -->`。等待命令按这个标记发现评论。普通评论和没有标记的评论不授予开工或放行。
-
-两种记录的正文都写下列固定项：
-
-| 项 | delta | 交回记录 |
-| --- | --- | --- |
-| 波 | 本条 delta 指向的波 | 本次交回的波 |
-| F | 下一次开工的收口点 | 本次执行所基于的收口点 |
-| assignment 或结果 | active、idle、redo 或 terminal，及其依据 | ready、blocked 或 failed |
-| 任务与 binding 链接 | 线父卡上本波的 attempt 及其 binding，本波另有卡时逐张列出。idle 与 terminal 写「无」 | 本波的 attempt、线父卡上的本波交接报告评论、父分支进线轨道的 PR 与提升 PR，或「无 PR」 |
-| 变化 | 原候选到最终候选的变化与原因、本波变化、外域变化、消费者迁移、工具与技能版本变化。停止、取消、限定接受和完成分别写明 | 已完成部分、未完成部分及原因 |
-| 等待 | Line 下一步等待的对象 | 本线交回后挂起的等待命令 |
-
-assignment 的含义：
-
-- active：下一波有任务。核对从 F 到线轨道的 FI 结果与固定同步点，再按线父卡上本波的 attempt 开工。
-- idle：下一波轮空。delta 写明原因。Line 不建父分支，不交空 PR，继续等待下一条 delta。
-- redo：同一波重做。Reduce 已更正输入，并在线父卡上登记了新 attempt。Line 按新 binding 重新开工。redo 不推进波号。
-- terminal：本线结束。Line 交最终报告后停止。只有 terminal 结束本线。
-
-delta 传达已核对的事实，不改写在途 attempt 的 taskBase。新 attempt 由派发命令登记在线父卡上，delta 只引用它。Line 按发布顺序逐条读取 delta，不跳过 idle delta，不按未来参与预案跳波。Line 不在波内逐卡吸收新的输入。技能与信息包消费本节的记录格式，不另立格式。
-
-Line 交回时交下列几样。零差异时没有 PR，只有报告与交回记录。
-
-- 父分支进线轨道的 PR：已经过波末准入与 gate 合入，并已读回。准入证据写明运行准入的父分支头。
-- 提升 PR：从本线轨道进入联调轨道，在父分支合入线轨道之后开出。用 `ri-notes` 生成「所含的卡」与「契约变化」，按[进轨道 PR 的说明](#进轨道-pr-的说明)核对。交回记录保存实际来源 head、目标 head、候选 head、targetBase 与后续 merge 链。
-- 交接报告：每波一份，是线父卡上的一条评论。它写父分支进线轨道的 PR 链接、运行准入的父分支头与合入提交，并逐张列本波其他卡及其证据评论。报告只陈述事实，固定五节：
-  1. 做了什么：逐条对照验收，写达到或未达到，并给出证据。
-  2. 没做什么及原因。
-  3. 发现的冲突，带文件与行。实际做法与卡或技能要求的流程不一致时，也写在这里，并写明补救。
-  4. 给集成节点的提示：合并顺序、依赖、已知的脆弱点。线会话的本波交接报告，以及不在线内的卡的交接报告，在这一节附本会话的派发台账（`dispatch-ledger/`）增量，做法见 `delegate` 的[反思](../../.meta_harness/agents/skills/delegate/canonical/references/reflection.md)。交回记录的「变化」项给出这份增量的链接。
-  5. 评审闭合：逐轮结论、修复、复验、返工原因与证据。没有评审或返工时明确说明。
-- 交回记录：线父卡上的一条评论，固定项见上表。
-
-不在线内的卡交回时也用这五节交接报告，每张卡一条卡评论，写 PR 链接与 head 提交号。
-
-### 不变量
-
-1. 波内输入冻结。Line 不读取别线未集成产出，不主动升级工具、技能或策略。
-2. 跨线写集不相交。一张卡的写集也不落进另一条线的卡读集中的产品语义正文，分类见[读写交叉的两类](#读写交叉的两类)。共享路径有具名单写者，不因生成文件而允许并发写。派发台账目录 `.meta_harness/agents/evaluation/dispatch-ledger/` 的单写者是 reduce。reduce 只在两处写它：放行之后下一波联调轨道上的第一个提交，以及里程碑最后一波经 gate 的单独 PR。线会话与卡执行者只交台账增量，不写这个目录。
-3. 跨线依赖由已接受输入及 F 承接。本波不能依赖另一条线尚未交出的结果。
-4. 破坏性变更必须同步真实消费者。分解、跨线的迁移及跨线差异由 reduce 负责；一个 Line 负责范围内跨领域的迁移与差异由这个 Line 负责。契约成员的破坏性切换仍按[里程碑内的规则](#里程碑内的规则)第 3 条，由联调轨道上的 `integration` 卡完成。
-5. 交回开始即冻结候选。Line 与 reduce 不能同时持有该候选的代码写权。
-6. Line 只在开工读取输入、结束执行交结果两个边界协调。波中不问人，不通过普通评论向 reduce 求方案。
-
-### 读写交叉的两类
-
-读写交叉指一张卡计入的写范围路径与另一张卡读集中的路径相同，或一条在另一条下面。卡的读集是它写入的成员、这些成员按 `workspace:` 依赖传递到的成员，以及任务信息包引用的正文页。求法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#写范围求交)。
-
-每个交叉按两条路径中较长的那条归类。较长的路径是两张卡实际共同涉及的范围。两类按路径、扩展名与读者登记划分，不读文件内容。本节的「正文」也包括源码与配置。
-
-| 类 | 路径 | 处置 |
-| --- | --- | --- |
-| 工程方法与验证正文 | 给人和 agent 读的说明页，按下面的三项与目录规则判定 | 记录，不停止。读方按本波收口点的版本消费这些说明页 |
-| 产品语义正文 | 上一行以外的全部路径。例如产品正文 `.meta_harness/design/**`、契约成员、`docs/architecture/**`、`docs/domains/**`、`packages/**` 与 `apps/**` 的源码与随包文档，`tools/**` 与 `scripts/**` 的源码与配置，以及被代码读取的配置、数据与程序 | 停止。两张卡不在同一波，调度者改分解 |
-
-一个文件是工程方法与验证正文，必须同时满足下面三项：
-
-1. 文件在 `.meta_harness/agents/**`、`docs/engineering/**`、`docs/development.md`、`docs/verification.md`、`tools/**` 或 `scripts/**` 中。
-2. 文件的扩展名是 `.md`，或者文件是技能包装 `.meta_harness/agents/skills/*/adapters/**/strategy.yaml`。技能包装只决定技能怎样投影给宿主，各线按收口点的投影消费。
-3. `tools/test-runner/test-runs.config.json` 的读者规则（`affected.readers[].paths`）与全局路径（`affected.globalPaths`）都不登记这个文件。这两项登记的文件被代码读取。Python 路径（`affected.pythonPaths`）只表示改动要运行 pytest，不算登记。
-
-较长的路径在收口点上是目录时，目录下每个被跟踪的文件都按这三项判定。全部满足时这个交叉才是第一类。有一个文件不满足时这个交叉是第二类，输出写明这个文件。命令读不到登记或文件清单时，全部交叉都是第二类，输出写明原因。其他文件的交叉都是第二类，例如 `.json`、`.ts`、`.mjs`、`.py` 与其他位置的 `.yaml`。
-
-第一类只覆盖上面三项认得的说明页。代码读取一份 `.md` 文件，而读者规则没有登记它时，命令把它的交叉判为第一类，这个交叉就被漏判。这是已知的剩余风险。所以 `read-overlap-frozen:` 行逐条列出每个第一类交叉，调度者逐条复核。
-
-写范围交集不分类，交集落在任何路径上都停止。`scope-cli.ts` 对第一类输出 `read-overlap-frozen`，对第二类输出 `read-overlap`。只有写范围交集与第二类交叉使命令退出 1。
-
-调度者在收口点的检出上运行求交。每张卡的读集文件列出它的任务信息包引用的正文页。任务 tmp 与线归属表的 `shared` 路径不计入写范围。
-
-```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件> <读集文件>...
-```
-
-退出 1 时不派发这组卡，先改分解。退出 0 时逐条复核标准错误中的 `read-overlap-frozen:` 行，把结果写进线包的交叉检查结果。
-
-### 线怎样工作
-
-Line 的五个阶段、遇阻交回、redo 与接管处置及恢复归[负责人状态的 Line 状态空间](map-reduce-states.md#4-line-状态空间)。交回物的格式见[线会话记录](#线会话记录)，等待命令见[等待监督](#等待监督)。
-
-### 失败处理
-
-| 情形 | 处置与禁止动作 |
-| --- | --- |
-| Line 硬阻塞或失败 | Line 交回 blocked 或 failed 后停写。Reduce 发 redo delta 或接管，不等普通问答 |
-| 分解错误造成的集成冲突 | 不走常规的退回 Line 修复路径。Reduce 接管后负责全部集成冲突、跨域修改、消费者迁移及改后验证，不能只处理 shared 冲突。记录冲突文件、责任和对下一波分解的影响。确需 Line 同波再执行时，Reduce 登记新 attempt 并发 redo delta |
-| 候选冲突、越界、准入失败 | Reduce 冻结发布并修复或获得范围决定，验证当前候选。不自动退回旧 attempt |
-| 未到约定期限或远机沉默 | 保留 pending 或 unknown，不能推断失联或跳过结果 |
-| 期限届满 | 核对事实，由 reduce 决定等待、重排或取消。范围变化具名，不伪装成功 |
-| 写入、合并或发布的响应丢失 | 保存原操作输入，先读回实际结果再决定。结果未知时不重复 POST 或 merge |
-| 等待命令、权限或事件文件故障 | 明确诊断并恢复。Line 记录状态后等人转告。Reduce 恢复后先对账，不报告空队列成功 |
-
-### 接受与逐收口续接
-
-收口顺序与放行守卫归[负责人状态的收口顺序](map-reduce-states.md#收口顺序)。
-
-### 等待监督
-
-命令用法归[交付工具](../../tools/dev-flow/src/delivery/README.md#事件等待)。
-
-Line 在交回后、交 blocked 后和轮空时挂一条等待，作为前台阻塞的命令运行：
-
-- delta：`wait-cli.ts comment --issue <线父卡> --marker line-delta --since <交回时间>`。超时与失败的处置见 [Line 状态空间](map-reduce-states.md#4-line-状态空间)的「等待」一行。
-
-Reduce 在波内挂两条等待：
-
-- 提升 PR：`wait-cli.ts pr-ready --base <联调轨道> [--ignore <pr>@<head> ...] --since <起点>`。
-- 交回记录：`wait-cli.ts any --comment <线父卡>:line-handoff ...`。每条参加线写一个 `--comment`。
-
-等待命中只是唤醒，命中的那一条不代表全部待处理事件。Line 与 Reduce 每次被唤醒都这样处理，Line 读到 idle delta 后再等也一样：
-
-1. 读回相关父卡上的全部带标记记录：Line 读本线父卡的 `line-delta`，Reduce 读每条参加线父卡的 `line-handoff`。读法是 `gh api repos/<repo>/issues/<父卡>/comments --paginate`，按首行标记过滤。读回不带时间起点。
-2. 与已处理集合比对，按发布顺序逐条处理尚未处理的记录，不跳过 idle delta。全部处理完才回到等待：Line 只有在最后一条是 idle 时才再等，不能处理完一条 idle 就重挂。已处理集合记评论 id：Line 记在本线状态文件，Reduce 记在波段队列的「等待」一项。
-3. `comment` 与 `any` 的命中输出带 `next`，重挂就用它：`--since <next.since>`（没有这个字段就不带 `--since`），已处理集合里每个评论 id 写一条 `--seen <id>`，至少包含 `next.seen`。工具不前移起点，已处理的评论按 id 排除，所以同一秒创建的记录、另一条线上更早创建而尚未处理的记录、积压的几条，重挂后都会立即返回；已处理的记录，包括对账先找到而投递后到的那条，不会再唤醒。读回没有新记录时直接按 `next` 重挂。不要自己用 `receivedAt` 或评论创建时间当起点，也不要加减时间余量。
-4. `pr-ready` 的对账不受 `--since` 约束，防止立即再唤醒的只有 `--ignore`。唤醒后读回联调轨道上全部开着的 PR，处理待处理的提升 PR；重挂时对当前开着、本次不处理的每个 PR 都写一条 `--ignore <pr>@<当前 head>`，包括 Reduce 推进后换了 head 的提升 PR 和等 gate 的同步 PR。命中来自事件文件时，`--since` 用这次的 delivery id；来自对账时，`--since` 不变。
-5. 每条等待都带 `--timeout`。命令到期时先对账一次再退出3，对账命中就按命中返回。退出3后仍先做一次读回（交回记录与 delta 按第 1 步，`pr-ready` 按第 4 步），处理新记录，再用同一起点重跑，并把读回后已处理的评论 id 各写一条 `--seen`。
-
-已知限制：读回时 GitHub 尚未返回刚创建的记录，会让这一次等待漏过它，由退出3前的对账和第 5 步的读回找回；这条记录是一波最后一条时，最长要等一个超时。ISO 起点在事件文件里按本机收到时间 `receivedAt` 比，本机时钟比 GitHub 慢过投递延迟时，事件路径会漏过起点之后的记录，同样靠超时前后的读回找回。
-
-处理一项时，另一条等待保持挂起。宿主不能同时挂两条等待时，Reduce 按 `integrate` 技能让两条等待轮流前台阻塞。这时 [I03](map-reduce-states.md#5-两个负责人的组合不变式) 指轮换中没有遗漏事件。
-
-下图是一次交回与下一条 delta 的事件路径。本机接收器把 GitHub 投递写进事件文件，等待命令读这个文件。
-
-```mermaid
-sequenceDiagram
-  participant L as Line
-  participant G as GitHub
-  participant R as 本机接收器
-  participant E as 事件文件 events.jsonl
-  participant D as Reduce
-  Note over L,D: 每条等待命令启动时对账一次，到期退出 3 之前再对账一次。条件已满足就立即返回
-  L->>G: 在线父卡发 line-handoff 交回记录
-  G->>R: 投递评论事件
-  R->>E: 追加一行事件
-  E-->>D: wait-cli any 命中，退出 0
-  Note over D: 命中只表示有事件，不等于整波放行
-  D->>D: 读回全部交回记录，去重处理后重挂
-  D->>G: 在线父卡发 line-delta
-  G->>R: 投递评论事件
-  R->>E: 追加一行事件
-  E-->>L: wait-cli comment 命中，退出 0
-  Note over L,D: 退出 3 是超时，先读回，再用命中输出的 next 重挂（--since 加已处理评论的 --seen）。退出 2 是等待失败，在状态里记 unknown
-```
-
-Reduce 自己启动的对象由 Reduce 自己观察，包括 gate 运行与审批、子代理与检查进程，以及约定期限。审批交有权者，Reduce 不自动批准。期限到达时，Reduce 核对事实并决定等待、重排或取消。
-
-等待命令只发现事件。Issue 关闭或评论命中不代表整波已放行。GitHub 变化以事件驱动，等待命令在启动时与到期前各对账一次。Reduce 不周期扫描所有 Issue、PR、评论或 Line 进度。普通问答评论与波中 Line 心跳不属于依赖。远机未暴露的进程保持未知。
-
-## Issue 与 Project 的配合
-
-每卡声明 completionTarget，并按同一条件表记录 start、integration、acceptance。completionTarget 为 `track` 时，指 route 中的那条轨道；之后随该轨道逐层进入上游与 main 属于运输。integration 可限定目标层或实际 ref；未声明为 all。限定为 track 层的条件，只在进入 route 中的那条轨道时适用；要在上一层轨道或 main 之前满足的条件，写明实际 ref。只要求进入 main 前满足的条件，不阻 work→track。最终“main/stable 已包含本结果”属于 acceptance，不作为自身运输前置。
-
-完成 track 即可接受的卡，后续仍可能随完整 prefix 进入 main/stable。卡的历史 revision 与 attempt 保留在 Issue 记录中，后续运输由确认者核对当前输入与适用条件。接受或关闭既不拒绝、也不自动许可未来的运输。
-
-可选的 Integration target 与 Integration progress 视图归[交付协议的多层集成交接](delivery.md#多层集成的交接)。
-
-dev-flow 对平台的写入限于下列范围：
-
-- 派发记录：`dispatch-cli` 写派发评论与卡正文中的 binding。
-- 标签同步：只增删一张卡的 `kind:`、`line:`、`nature:`、`contract:` 四族标签。
-- 看板日期与属性字段：`start` 新建 task context 后尽力写 Dispatched at、Line、Kind 与 Wave。写入失败只向标准错误报告，不改变 `start` 的输出、context 与退出码。云端会话不写，只报告一行。Delivered at、Accepted at 与 Cycle days 由 `board-cli.ts` 写入。
-- Stage：`board-cli.ts` 的 `delivered`、`integrating`、`accepted` 按本地路径把 Stage 改为 In review、Integrating、Accepted。运行者见[交付操作](agent-delivery.md#4-推进和更新状态)。
-- 里程碑流转：`milestone-cli.ts` 建里程碑，改卡的里程碑并发流转评论。
-- 整波放行：Reduce 按[收口顺序](map-reduce-states.md#收口顺序)关闭本波收口卡。命令不授予接受权。
-- 事件接入：显式管理事件接收所需的仓库 hook。创建、恢复及清理由[事件等待合同](../../tools/dev-flow/src/delivery/SPEC.md#事件等待)约束，不从普通等待推断管理权。
-- 包发布：`release-run` 按[包发布运行合同](../../tools/dev-flow/src/integration/SPEC.md#包发布运行命令)触发 `gate-release.yml` 的 `github-gate` 运行，写前保存意图并读回精确运行。默认只观察；只有显式 `--approve --note FILE`、平台允许当前账号审批且本次授权有效时，才能批准 `npm-release`，不批准其他环境。包发布不构成整波 reduce 放行。
-- 部署批准：`gate-cli wait` 按运行者已有权限与本次授权批准 gate 的部署，命令不授予确认资格。
-
-此外，云端会话开工时，`start` 派发 `delivery-facts`。字段 ID 与选项 ID 登记在[交付配置](github-delivery.json)。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。
 
 ## 清理与 policy registry
 
 清理前先核 Git 已发布、各卡剩余接受与投影责任已交接、唯一 tmp 有去向，再按现有权限清理。ref 状态未知或分裂时保留证据，不盲目重建或重试。
 
-[policy registry](integration-policy.json) 只含 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`。`timeouts` 只含网络读取时限 `networkMs`。其他字段由工具拒绝。registry 属于仓库工具链路径，改动经仓库工具链变更闸门确认，见 [RFC-0008](../rfcs/RFC-0008-repo-toolchain-trust.md)。工具读取当前 HEAD 提交中的 registry，改动进入某个工作树的 HEAD 后即对该树生效。
+[policy registry](integration-policy.json) 只含 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`。`timeouts` 只含网络读取时限 `networkMs`。它现在的读者是收工钩子：按它的轨道找本树的基线分支（[hook-base.ts](../../tools/repo-toolchain/src/loop/hook-base.ts)）。registry 属于仓库工具链路径，改动经仓库工具链变更闸门确认，见 [RFC-0008](../rfcs/RFC-0008-repo-toolchain-trust.md)。
 
 ## 检查责任
 
-第一阶段的检查责任按[现行准入](#现行准入)执行：提交 PR 的人在有 task context 的任务工作树中运行检查，确认者在说明中写明实际命令和结果。没有 task context 的检出，基线退回 `origin/main`（收工钩子的基线例外，见现行准入）；不伪造 Issue 绑定，也不手写 context。没有任务 context 的 main 本身，例如进入 stable 的 PR，第一阶段没有正式检查入口；确认者写明实际运行的命令及其限制，不写成正式检查结论。第二阶段由报告身份在候选上运行必需检查。
+第一阶段的检查责任按[现行准入](#现行准入)执行：提交 PR 的人在本卡的工作树中运行检查，确认者在说明中写明实际命令和结果。基线按现行准入取显式基线或 `origin/main`（收工钩子的基线例外，见现行准入）。main 本身，例如进入 stable 的 PR，第一阶段没有正式检查入口；确认者写明实际运行的命令及其限制，不写成正式检查结论。第二阶段由报告身份在候选上运行必需检查。
 
 进入任何一条主干（轨道、main、stable、release）之前的检查都是准入检查，不读 turbo 任务缓存（本地与远程），只写本地缓存。缓存命中时任务不会真正运行，检查会显示通过而实际没有运行。合并前的检查带 `OMNE_ADMISSION=1` 运行，进入 stable 时由确认者带这个变量运行；确认说明写明实际命令，没有带这个变量的运行不作为准入检查结论。准入只有一步失败时，按[增量准入](#增量准入)提供证据。准入检查是否写远程缓存仍归 [RFC-0002](../rfcs/RFC-0002-engineering-toolchain.md) 的未决项。成员测试的结果缓存与依赖图缓存同样按这条规则：准入时不读，只写。其他缓存（例如 pnpm 按锁文件完整性校验取包的 store）不在这条规则内。本地缓存 `.turbo/` 不进入 Git。
 
@@ -576,9 +162,9 @@ dev-flow 对平台的写入限于下列范围：
 
 ### 树相同时复用准入
 
-波末收口要在 F 上做全量准入，即 `OMNE_ADMISSION=1 FULL=1 pnpm run check`，见[负责人状态](map-reduce-states.md#阶段内的核对)的 VERIFY_WAVE 第 1 步。F 的树与一个已通过全量准入的头的树相同时，那次准入就是 F 上的全量准入，不重跑。
+要在一个提交 F 上做全量准入（`OMNE_ADMISSION=1 FULL=1 pnpm run check`）时，例如 `integration/mainline` 提升 main，F 的树与一个已通过全量准入的头的树相同，那次准入就是 F 上的全量准入，不重跑。
 
 - 比对方法：对两个提交分别运行 `git rev-parse <提交>^{tree}`。两个输出相同，两棵树就相同。核对命令：`node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-evidence --for <F>`，它在本树 `tmp/admission/*.json` 里找树与 F 相同、干净且每步都通过的全量准入记录：带 `FULL=1` 的整次准入记录，或 H1 带了 `FULL=1` 的接续记录。接受时写明两个提交与树哈希（退出 0），否则逐项列出拒绝原因（退出 1）。
 - 准入证据写明两个提交与同一个树哈希。
 - 那次准入可以是一次整次运行，也可以是按[增量准入](#增量准入)组成的证据。用增量准入的证据复用时，H1 上的那次整次运行必须带 `FULL=1`。H1 上只按影响面运行时，组成的证据不是全量准入，不能按本条复用。
-- 本条只替代全量准入。里程碑联调命令照常在 F 上运行。
+- 本条只替代全量准入。联调验收命令照常在 F 上运行。

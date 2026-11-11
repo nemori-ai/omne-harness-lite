@@ -80,6 +80,18 @@
         "why": "repo-toolchain 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，test-runner 的 test-slot.spec.ts 执行 with-test-slot.sh"
       },
       {
+        "paths": [
+          "scripts/test-formatting.sh",
+          "scripts/format.sh",
+          "scripts/install-format-hook.sh",
+          "scripts/pre-commit-format",
+          ".oxfmtrc.json",
+          ".vscode/settings.json"
+        ],
+        "members": ["tools/repo-toolchain"],
+        "why": "repo-toolchain 的 formatting-boundaries.spec.ts 跑 scripts/test-formatting.sh（格式脚本的自测，它把这几份文件复制进沙箱再验格式范围、幂等、部分暂存与钩子安装），formatting-environment.spec.ts 直接跑 format.sh、install-format-hook.sh 与 pre-commit-format；准入不再单跑 test:format，没有这条就改了格式脚本也不跑它的自测"
+      },
+      {
         "paths": ["scripts/with-test-slot.sh", "scripts/with-test-slot.mjs"],
         "members": ["tools/dev-flow"],
         "why": "dev-flow 的 integration-boundaries.spec.ts 把 with-test-slot.mjs 复制进夹具并执行（预准入的构建一步经它起 turbo）"
@@ -87,19 +99,17 @@
       {
         "paths": ["tools/repo-toolchain/src/**", "tools/repo-toolchain/tests/fixtures/**"],
         "members": ["tools/dev-flow", "tools/test-runner"],
-        "why": "dev-flow 的 dependency-report.spec.ts、repository-environment.spec.ts 与 test-runner 的 loop-acceptance.spec.ts 经相对路径 ../../repo-toolchain/tests/fixtures/loop-canary/repository.ts 导入 repo-toolchain 的夹具，夹具再导入 ../../../src/deps/graph.ts；两个成员装的是钉住的 npm 包，turbo 图里没有指向本地 repo-toolchain 的边，没有这条就漏选"
+        "why": "dev-flow 的 dependency-report.spec.ts 与 test-runner 的 loop-acceptance.spec.ts 经相对路径 ../../repo-toolchain/tests/fixtures/loop-canary/repository.ts 导入 repo-toolchain 的夹具，夹具再导入 ../../../src/deps/graph.ts；两个成员装的是钉住的 npm 包，turbo 图里没有指向本地 repo-toolchain 的边，没有这条就漏选"
       },
       {
         "paths": [
           "docs/engineering/github-delivery.json",
-          ".github/ISSUE_TEMPLATE/work-item.md",
-          ".github/ISSUE_TEMPLATE/task.md",
           ".meta_harness/design/product/*/README.md",
           ".meta_harness/design/product/*/design.md",
           ".meta_harness/design/product/*/acceptance.md"
         ],
         "members": ["tools/dev-flow", "tools/product-checks"],
-        "why": "dev-flow 的 delivery 读取普通任务协议；product-checks 的 scenario-status 从当前产品 README、正文及编号场景读取长期覆盖，变化须运行真实消费者测试"
+        "why": "dev-flow 的 gate 读交付配置的仓库名；product-checks 的 scenario-status 从当前产品 README、正文及编号场景读取长期覆盖，变化须运行真实消费者测试"
       },
       {
         "paths": ["packages/agent/agent-cordis-contract/SPEC.md"],
@@ -161,15 +171,10 @@
       ".github/**",
       ".vscode/**",
       ".editorconfig",
-      ".oxfmtrc.json",
       ".oxlintrc.json",
       ".dependency-cruiser.cjs",
       "knip.json",
       "scripts/*.md",
-      "scripts/format.sh",
-      "scripts/install-format-hook.sh",
-      "scripts/pre-commit-format",
-      "scripts/test-formatting.sh",
       "scripts/model-probe.mjs",
       "scripts/package-cli.sh",
       "scripts/package-tenancy-host.sh",
@@ -200,10 +205,6 @@
   },
   "triage": {
     "repeats": 3
-  },
-  "mutation": {
-    "testTimeoutSeconds": 60,
-    "recheckMaxMutants": 8
   },
   "cache": {
     "env": ["NODE_OPTIONS", "OMNE_RUNNER_ROOT", "VITEST_*"],

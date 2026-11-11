@@ -55,7 +55,7 @@
 
 - 先按[开发初始化](development.md#准备可用的检出)准备检出和coding agent插件，再从[局部修复](context-map.md#局部修复)或[领域设计路径](context-map.md#领域设计与新增模块)定位成员与局部约定。
 - 依[源码布局](workspace.md)找公开承诺，按[验证说明](verification.md)选择受影响检查。工作步骤从[工程场景](engineering/scenarios/README.md)展开，技能采用与加载继续归[技能入口](engineering/skills.md)。
-- 处理一次交付卡时读[交付操作](engineering/agent-delivery.md)与适用类型，先核启用范围；当前SPEC和设计仍随拥有者读取。
+- 处理一次交付卡时读[卡与交接信息包](engineering/delivery.md#卡就是交接信息包)，命令归 `omne-card`；当前SPEC和设计仍随拥有者读取。
 - 局部承诺和验证责任明确后停止扩大阅读。新增公开保证或产品含义转[公开边界路径](context-map.md#公开边界变更)；关键依据缺失时只暂停依赖的实施，交语义拥有者裁定。
 
 ## 验证评审者
@@ -86,7 +86,7 @@
 
 - 安排研发前，按[给负责人的开发指南](development_human.md)核对所用harness、插件初始化及责任。判断交付时从[贡献与接受](../CONTRIBUTING.md)及[验证说明](verification.md)核对范围、基线与实际证据。
 - 用[冲突与验收](context-map.md#冲突与验收)定位缺项与拥有者，从[质量与证据](engineering/quality.md)看成果依据，从[完成声明](engineering/workflow.md#完成与交付声明)看结论边界。方法采用沿[技能入口](engineering/skills.md)，不要求逐项通跑技能。
-- 通过对话建卡、取任务或维护阶段时，走[交付操作](engineering/agent-delivery.md)，先核启用范围。技术方案审议从[RFC入口](rfcs/README.md)展开；日常接入、当前规范与过去决定分别判断。
+- 发卡与接受走[卡与交接信息包](engineering/delivery.md)，命令归 `omne-card`。技术方案审议从[RFC入口](rfcs/README.md)展开；日常接入、当前规范与过去决定分别判断。
 - 责任和接受范围明确后停止展开。红项、跨批依赖或未知影响需要对应细节；关键证据或裁决未到位时暂停相应接受。正文、工具、实际运行与读者体验分别判断，留空仍由工具报告缺项。
 
 ## 顶层入口分工
@@ -103,7 +103,7 @@ docs/
 ├── assets/knowledge-map.svg   知识地图的静态图，正文有文字替代
 ├── AGENTS.md / CLAUDE.md       本区跨任务心智、触发与宿主入口
 ├── requirements.md            项目目标、范围与全局要求
-├── development.md             开发初始化、工具操作与检查选择
+├── development.md             开发环境与命令
 ├── development_human.md       负责人介入、核对与接受
 ├── workspace.md               顶层源码归属与开发workspace
 ├── package-organization.md    目标能力组、SDK位置与包边界
@@ -128,7 +128,7 @@ docs/
 |---|---|
 | [项目 README](../README.md) | 项目目标、阶段与开始入口 |
 | 本页 | 十类读者的起点、前提及首轮路径 |
-| [任务地图](context-map.md) | 共享任务的上下文、展开和停止条件 |
+| [任务地图](context-map.md) | 产品、架构与领域该去哪读，以及展开和停止条件 |
 | [开工定向](orientation.md) | 领域地图、核心四项方向与顶层架构图。做架构、领域、契约、装配、实现切片或设计评审的人与 agent 开工前读一次，其余任务走各自入口；图的事实归所列出处，不另立正文 |
 | [知识地图](knowledge-map.md)、[体系上下文](knowledge-map-agent.md) | 同一知识体系的人类图文说明与agent整体上下文；不另立规范或任务流程 |
 | [文档维护指南](maintenance.md) | 选择信息粒度及新增、拆页、整合、登记和检查的维护步骤 |
@@ -142,6 +142,4 @@ docs/
 | [验证](verification.md)、[防御](defensive-patterns.md)、[整洁回路](clean-loop.md) | 检查能力与限制、项目防御要求及质量反馈机制；迁移时须同时核对实际读取者 |
 | 内部 [产品](../.meta_harness/design/product/README.md)、[研究](../.meta_harness/research/README.md)、[agent 能力](../.meta_harness/agents/README.md) | 私有源的内部入口，不作公共必读 |
 
-角色起点由本页维护，任务路由由 context-map 维护；局部细节继续随领域／成员，不在各入口复制相同正文。发现失效路径交对应源维护者，导航调整交文档维护者。
-
-工作分支同步、轨道提升及稳定点从[多层分支集成](engineering/integration.md)进入；实际命令与启用前提由[工具指南](../tools/dev-flow/src/integration/README.md)维护。
+角色起点由本页维护，产品、架构与领域的阅读路由由 context-map 维护，研发流程的事实见[流程事实在哪](engineering/README.md#流程事实在哪)；局部细节继续随领域／成员，不在各入口复制相同正文。发现失效路径交对应源维护者，导航调整交文档维护者。

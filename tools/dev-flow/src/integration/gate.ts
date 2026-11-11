@@ -1,5 +1,5 @@
-import { REST_HEADERS, type GhCommand } from '../delivery/github-read.ts'
-import { array, record } from '../delivery/protocol.ts'
+import { REST_HEADERS, type GhCommand } from '../shared/gh.ts'
+import { array, record } from '../shared/input.ts'
 import { IntegrationError } from './parse.ts'
 
 /**

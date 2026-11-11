@@ -8,7 +8,7 @@
 
 - [dev-flow](../dev-flow/README_ZH.md)：开工准入、任务绑定、Issue 与看板读取、包模板。
 - [product-checks](../product-checks/README_ZH.md)：本仓库的产品规则、验收覆盖声明与场景状态。
-- [test-runner](../test-runner/README_ZH.md)：影响面计划、成员测试、耗时账本与差分变异。
+- [test-runner](../test-runner/README_ZH.md)：影响面计划、成员测试与耗时账本；差分变异经 [pqw-adapter](../pqw-adapter/README_ZH.md)。
 
 ## 仓库根与配置
 
@@ -61,7 +61,7 @@ pnpm --filter @omne-harness/repo-toolchain test
 
 ## Git 环境隔离
 
-显式仓库的 Git 子进程由 [git-environment.ts](src/core/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts) 与 [integration-transport.spec.ts](../dev-flow/tests/integration-transport.spec.ts)。
+显式仓库的 Git 子进程由 [git-environment.ts](src/core/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts)。
 
 ## 依赖图与依赖规则
 
@@ -369,7 +369,7 @@ omne-metrics --plan <计划文件> --coverage --coverage-parallel 3x5   # 覆盖
 pnpm run loop:status                                   # 全仓现状
 pnpm run loop:status --base <任务基线>                  # 另列这次变更里要解释的红项，并核验收锁
 pnpm run loop:status --snapshot                        # 干净的工作树上追加一条趋势快照
-pnpm run loop:status --base <基线> --strict --out <目录>   # 严格模式，pnpm run check 的最后一步
+pnpm run loop:status --base <基线> --strict --out <目录>   # 严格模式，mainline 提升 main 时的整仓健康读数
 ```
 
 **除硬线外一切只报告。**退出码 1 只在硬线被破时：依赖违规或环（与 `pnpm run metrics`、`lint:deps` 读[同一张依赖图](#依赖图与依赖规则)；无法解析的导入归 `lint:deps`，不算硬线；按[组环例外](#组环例外)放行的组环不算硬线），
@@ -380,9 +380,9 @@ pnpm run loop:status --base <基线> --strict --out <目录>   # 严格模式，
 有哪个报「没数据」，「硬线」一段列出是哪几个、原因是什么，退出 1；配置里关掉的不算，照旧写明是关掉的。
 对照表那一项没有开关、也不进指标，不在此列。「没有基线快照，与基线比未判」是趋势的事，不算传感器没数据。
 它要求给 `--base` 与 `--out`（缺了按用法错退出 2），草稿写进 `--out` 目录下的 `proposals/`，不写趋势快照（与 `--snapshot` 同用也是用法错）——
-回路目录里一个字节都不动。`pnpm run check` 的最后一步就是它，见[自动化入口](../../scripts/README.md)。
+回路目录里一个字节都不动。它不在 `pnpm run check` 里：mainline 提升 main 的 PR 开出后跑一次，摘要贴在提升 PR 上，只报告不挡（做法归 `omne-card` 技能的「提升与发行」）。
 
-CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须与 strict 同用。仓库的 `pnpm run check` 不传范围，使用默认 `all`。
+CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须与 strict 同用。提升 main 时的整仓健康读数不传范围，使用默认 `all`。
 工具复用当前传感器的源码清单，并枚举固定 targetBase、实际 merge-base、每个任务 taskBase 的 Git 树，按同一规则统计源码和测试。相同提交去重。没有 task context 的仓库使用有效显式 base 及其 merge-base。
 只有当前与全部基线的两类计数均为零，duplication、assertions 启用但无数据时才列入 `hardLines.sensors.notApplicable`，原因码为 `engineering-without-product-inputs`。
 `status.json` 的 `scope.evidence` 保存当前计数和各基线的精确提交、计数。原始 `sensors` 仍是 no-data；终端与 Markdown 点名工程范围不适用。关闭项仍列 `off`，其他启用的无数据项仍列 `silent` 并失败。
@@ -404,9 +404,9 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `status/<提交短号>[-dirty]/status.md` | 与终端打印相同的文字，分五段：抬头（含用的哪条基线快照）、硬线、各项指标的带位、要解释的红项、超预算的成员（含比基线变差的成员）与对照表条数；`--out` 可改目录                         |
 | `status/…/status.json`                | 全量：每个传感器的原始结果（有数据／没数据及原因）、每个成员的四项预算、带位与各项与基线比的结果、要解释的红项全集（函数一类每条带与基线比的结果，没变差的另列在 `functionsNotWorse`） |
-| `proposals/<成员路径斜杠换成 ->.md`   | 超预算成员的清理草稿，同一成员覆盖旧稿；六个固定章节与[派发模板](../../.meta_harness/agents/roles/cleanup-task.md)同名同序（常量 `CLEANUP_SECTIONS`）                                  |
+| `proposals/<成员路径斜杠换成 ->.md`   | 超预算成员的清理草稿，同一成员覆盖旧稿；六个固定章节与[派发模板](../../docs/clean-loop-cleanup-task.md)同名同序（常量 `CLEANUP_SECTIONS`）                                  |
 | `trend.jsonl`                         | 趋势快照，一行一条：提交、各指标的值与带位、各成员的预算值与带位                                                                                                                       |
-| `hook-state.json`、`hook.log`         | [收工钩子](#收工钩子)反馈过的读数（分支与指纹）与它自己出错的原因，一行一次                                                                                                            |
+| `hook-readings.json`、`hook.log`      | [收工钩子](#收工钩子)每棵工作树、每条分支上一次量到的读数（类别、位置与函数的圈复杂度），与它自己出错的原因，一行一次                                                                  |
 
 **三条带**：每个指标与每项成员预算都有提醒线、处置线、解除线（数值越大越差，`release ≤ warn ≤ act`）。值到处置线进入处置；
 进入之后要回落到解除线及以下才解除，低于处置线但高于解除线仍是处置，这样一个值在线附近摆动时带位不跟着来回翻。
@@ -576,7 +576,7 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 ## 收工钩子
 
 `src/loop/stop-hook.ts` 由宿主（Claude Code、Codex）在 agent 收工时调用（`Stop` 与 `SubagentStop`），
-把「这次变更里要解释的红项」作为**事实**反馈给 agent：只陈述位置与数值，不写该怎么改。
+把「这次变更里要解释的红项」里**比上一次新出现或变差的**作为**事实**反馈给 agent：只陈述位置与数值，不写该怎么改。
 宿主配置由 `.meta_harness/agents/hooks/hooks.yaml` 生成，怎么生效、怎么关见那里的 README。
 
 标准输入是宿主给的 JSON 对象。要反馈时向标准输出写**恰好一个** `{"decision":"block","reason":"…"}`（两端在这两个事件上都接受这个最小形状，
@@ -586,7 +586,10 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 
 1. `OMNE_LOOP_HOOK=off` → 什么都不做；输入解析不了、不是对象 → 不反馈。
 2. `stop_hook_active` 为 `true`（这次收工已经因钩子续跑过）→ 不反馈。**每次收工至多拦一次。**
-3. 工作目录取输入的 `cwd`，没有就用进程的当前目录；不在 git 仓库里 → 不反馈。`loop` 配置的 `hook.enabled` 为 `false` → 不反馈。
+3. 工作目录取输入的 `cwd`，没有就用进程的当前目录；不在 git 仓库里 → 不反馈。
+   跑的这份脚本不在被量的仓库里（例如手工从别的检出调它），且没给 `OMNE_RUNNER_ROOT` → 不量，按下面「出错」的路径给用户一句「量不了」：
+   别的检出里的工具可能落后，量出来的会是旧代码的读数。`loop` 配置（从被量的仓库读）的 `hook.enabled` 为 `false` → 不反馈。
+   本检出没装依赖（从脚本所在处解析不到 TypeScript 解析器）→ 不起量读数的线程，同样只给用户一句「量不了」；主线程本来就不加载解析器。
 4. 这次变更（相对下面的基线；已提交、未提交、未跟踪都算）没碰产品源码、全局 `constraints.json` 或其引用的Markdown源 → 不反馈。
    **基线**这样取：
    - 有 task context：取它的 `taskBase`（没有 ownerTask 时取 `targetBase`），不看轨道登记。
@@ -597,39 +600,56 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
      policy 读不到或读不懂时没有轨道候选，只用 `primaryBranch`（位置按 `origin`）。一个候选也求不出时基线是 `HEAD`，只看未提交的改动。
    - 直接在轨道分支上工作时，HEAD 就是轨道尖端，基线也是它，只看未提交的改动；要看相对 `primaryBranch` 的全部变更，手给 `pnpm run loop:status --base main`。
 5. 量**静态那部分**读数：变更函数里超 alert、且比基线涨了或新出现的（与 `pnpm run loop:status` 同一个判法，见上「要解释的函数与基线比」，基线是这里的合并点；
-   反馈的那一行末尾补「原 N」「新出现」或拿不准的原因，原来就超线、这次没变差的不反馈）、新增的跨成员依赖、其中稳定依赖不稳定的、改动过的测试文件里没有断言的用例，加依赖违规与环两条硬线（全仓的）。
-   不跑重复代码（全仓二十多秒）、覆盖率、工作树与 topic 那几项。量在 worker 线程里跑，超过 `hook.timeoutSeconds`（初值 40；宿主那侧另配 60）就放弃。
+   反馈的那一行末尾补「原 N」「新出现」或拿不准的原因，原来就超线、这次没变差的不反馈）、新增的跨成员依赖、其中稳定依赖不稳定的、改动过的测试文件里没有断言的用例，加依赖违规与环两条硬线。
+   不跑重复代码（全仓二十多秒）、覆盖率、工作树与 topic 那几项。量在一个子进程里跑，超过 `hook.timeoutSeconds`（初值 40；宿主那侧另配 60）就放弃，
+   连同它起的进程（dependency-cruiser）整组杀掉。不用 worker 线程：线程卡在同步的子进程调用里时，终止它与主进程退出都要等那次调用返回，宿主那侧的时限会先到。
+   **依赖项只看改动文件的边**（[`hook-graph.ts`](src/loop/hook-graph.ts)），不算整张工作树依赖图：一条依赖边属于发出导入的文件，新增的边只可能出自改过的文件，
+   新的环或方向违规一定含一条新边。所以钩子取基线合并点上按提交缓存的依赖图（`<git-common-dir>/omne-dep-graph/`，与 `loop:status` 的基线图同一份），
+   只对这次改过且还在的源文件（`packages`、`apps`、`examples`、`tools`、`scripts` 下，含未跟踪的）跑一层 dependency-cruiser，规则与解析选项同 `lint:deps`，
+   只往下走这些文件，不走它们的导入目标；再把基线图里这些文件发出的依赖与违规换成现算的。成员边、成员环与组环在换过的依赖上重算，
+   新增跨成员依赖、稳定依赖不稳定（成员的不稳定度按换过的成员图算）、dependency-cruiser 的方向规则与全局预期的方向行都读这张图。耗时随改动的文件数走，不随仓库大小走。
+   基线图这次没有缓存时现算（全仓一次 dependency-cruiser），与下面 BASE 架构读数一样最先做：这次超时，超时的那句警告同样写明「基线的读数这次已备好存下，下次收工不再重算」。
+   **解析配置变了时依赖项不量**，读数里只多一句「本次改了解析配置，依赖项看 pnpm run lint:deps」，不退回全量：没改的文件的导入可能换了落点，基线图里它们的边不再可信。
+   算「变了」的是：根上的 `.dependency-cruiser.cjs` 或 `tsconfig*.json` 内容变了，或某个成员的 `package.json` 里 `name`、`exports`、`main`、`module`、`types`、`typings`、`imports` 变了。
+   两边都在才比：新加、删掉的不算，导入新成员的文件本身就在改动里。`pnpm-lock.yaml` 只管第三方包，成员里的 tsconfig 不进 dependency-cruiser，版本号、脚本这些字段不影响落点，都不算。
+   不覆盖、留给 `pnpm run lint:deps` 的：同一成员里的文件环（基线图只留跨成员的依赖），没改的文件指向已删文件的旧边。
    同时按 BASE 的架构预期判断新增偏离，分别报告全局及原节点预期的语义改动；机械范围见 [CONFORMANCE](src/arch/CONFORMANCE.md)。仅修改预期也可产生反馈，未发布新全局预期的节点继续由原声明传感器消费。
-6. 没有红项 → 不反馈。同一分支上同一组读数已经反馈过 → 不反馈：每条取「类别＋位置（路径与函数名、或成员对）」，**不含行号**，排序后求哈希，
-   连同分支名记进回路目录的 `hook-state.json`，最多记 `hook.stateLimit`（初值 200）组，超了丢最旧的。多了一项、换了分支都算新的一组。
+   架构读数 BASE 那一侧（BASE 的架构预期、实际抽取、其中的偏离行）按提交算一次，存进回路目录的 `hook-baseline/`（[`baseline-cache.ts`](src/loop/baseline-cache.ts)），之后只读。
+   键是 BASE 提交、配置里 `sensors.architecture` 那一段、检查器代码的摘要（本包代码目录里每个文件的路径与内容，加 TypeScript 版本）与存储格式版本；
+   键对不上、文件坏了都重算并覆盖，不给旧数；最多留 10 份。同一仓库的工作树共用这些文件，读出来的 BASE 坐标换成当前的根。
+   这一步在量读数里最先做：BASE 刚换、还没有缓存时，即使这次超时，基线读数也已存下，超时的那句警告会写明「下次收工不再重算」。
+   当前工作树那一侧每次都重算，抽取与判偏离共用一个 TypeScript 程序。方向行读运行检查器那棵树的预期与依赖图，不进这份缓存。
+6. 只反馈比上一次新出现或变差的：每条取「类别＋位置（路径与函数名、或成员对）」，**不含行号**；函数另记圈复杂度。
+   上一次是这棵工作树、这条分支最近一次量出的读数，记在回路目录的 `hook-readings.json`，每棵工作树每条分支一条，最多 `hook.stateLimit`（初值 200）条，超了丢最旧的；读数变了才重写。
+   上一次没有的类别与位置算新出现，同一个函数圈复杂度比上一次大算变差；一条都没有 → 不反馈。修掉之后又改回来的，中间那次读数里没有它，改回来再报一次。
+   没有上一次（这棵树这条分支第一次量）时全部算新。旧版的 `hook-state.json` 不读。
 7. 反馈的文字列前 `hook.maxItems`（初值 12）条，多的写「另有 N 条」，整段不超过 `hook.maxChars`（初值 4000）个字符；硬线排最前，截断时截掉的是报告项。
 
 第 3 步找到仓库之后任何一步抛错或超时 → 不反馈给 agent，往回路目录的 `hook.log` 追加一行原因（写日志失败也吞掉），
 并用 `systemMessage` 给用户一句警告：没量出读数、原因的前 300 个字符、日志在哪。**钩子自己出错从不拦住 agent，但不闷声**——
 不出这一句，「钩子坏了」与「没有红项」在会话里看起来一模一样。
 
-**跑的是哪一份脚本**由宿主配置里的命令定（`hooks.yaml`）：会话所在的工作树里有这份脚本且装了依赖（认 `tools/repo-toolchain/node_modules/typescript`），
-跑它自己的；否则跑主检出里的那一份，量的仍是会话所在的那棵工作树。刚 `git worktree add` 出来、还没装依赖的工作树走的就是后一条——
-2026-10-02 第一次在真实会话里触发时正是栽在这里：脚本在新工作树里加载不了解析器，只记了日志。主检出自己也没装依赖时，结果是上面那句警告。
+**跑的是哪一份脚本**由宿主配置里的命令定（`hooks.yaml`）：只跑会话所在那棵工作树自己的，不借别的检出。
+这棵树没有这份脚本（停在旧提交上）→ 命令退出 0，什么都不说；刚 `git worktree add` 出来、还没装依赖的 → 按第 3 步只报「量不了」，装好依赖之后才量。
 
 每次调用都重新计算 `git merge-base <primaryBranch> HEAD`，不沿用上一次的基线。
-架构读取先把基线解析成固定 commit，再按该树的 blob ID 批量读取文件；不缓存跨提交的读数，也不逐文件启动 Git。
+架构读取先把基线解析成固定 commit，再按该树的 blob ID 批量读取文件，不逐文件启动 Git；缓存按这个 commit 存（见第 5 步），不跨提交沿用。
 成员源码与数据文件按最长成员路径前缀分配，文件清单只遍历一次。读取失败仍报错，不以当前工作树补齐旧提交的缺失文件。
 同步主线可能让已交付的改动退出本次差分。需要核对整个任务时，用固定的任务起点运行
 `pnpm run loop:status --base <任务起点commit>`；这个显式基线不改变自动钩子的基线。
 没有输出时还需区分没有新红项、已反馈、递归 Stop 和测量错误，不能仅凭同步发生在先就认定基线损坏。
 
-实测（本仓库全量，2026-10-01，8 核机器上负载很低时）：碰了产品源码、有一处红项的一次 2.5 秒；没碰产品源码的 0.8 秒。
-另有一轮完整检查在跑时，前者量到过 3.2 秒。大头是解析全部产品源码（方向与稳定依赖都要全图），约 1.7 秒。
-函数与基线比之后（2026-10-02，机器上另有一轮完整检查、1 分钟负载 2 到 7）：存量超线函数改一行不加分支、不反馈的三次 2.6 到 3.2 秒，
-加一个分支、反馈一条的 2.5 秒；多出的一次 `git diff -M --name-status` 与每个文件一次 `git show` 合计十几毫秒，再加只解析那几个文件的基线文本。
+实测（本仓库全量，2026-11-10，8 核 Linux）：从基线起改过的源文件 75 个、两份基线都已缓存时，依赖项约 2.5 秒（一层 dependency-cruiser 约 2 秒），
+一次收工 23 到 33 秒（1 分钟负载 5 到 17）；其余大头是当前工作树的架构抽取（16 到 24 秒，一个 TypeScript 程序加遍历全部产品源码）与度量报告（4 到 7 秒），这两项随仓库大小走。
+再多改 60 个文件（共 135 个）时依赖项约 6 秒，一次收工 23.8 到 28.9 秒（负载 5 到 6）。两份基线都没有缓存的第一次（基线刚换）超过 40 秒，只给用户一句「已备好」的警告，下一次照常给读数。
 
-**不能声称**：反馈过的读数被处理了——它只提醒一次，交代与否由交付说明与接受的人核对；没被反馈等于没有红项——
+**不能声称**：反馈过的读数被处理了——它只在新出现或变差时提醒，交代与否由交付说明与接受的人核对；没被反馈等于没有红项——
 没碰产品源码、全局约束或原节点声明，或者钩子关了、出错或超时、`stop_hook_active` 为真时都不反馈，重复代码与覆盖率不在其中，
 **改动落在会话当前目录之外的另一棵工作树里时也不反馈**（hook只量payload的 `cwd` 所在检出；每个写者须显式进入自己的检出，不能只给exec设置workdir就声称宿主cwd已迁移。shell脚本可用当前目录回退，但配置选择依脚本位置；真实host cwd未经验证仍是未覆盖。协作交接见[责任与协作交接](../../docs/engineering/workflow.md#责任与协作交接)）；宿主真的调用了它——
 生成配置不等于宿主已加载、已信任，要在真实会话里另行核实（Claude Code 一端 2026-10-02 见过一次真实调用；Codex 一端还没有）；
 警告一定到了用户眼前——`systemMessage` 怎样显示由宿主定，两端都只按文档核对过，没有在真实会话里看过它显示出来的样子。
-自测：`tests/loop-hook.spec.ts`（判断，外部动作用替身）、`tests/loop-stop-hook.spec.ts`（入口与线程，用临时仓库与子进程）；
+自测：`tests/loop-hook.spec.ts`（判断，外部动作用替身）、`tests/loop-stop-hook.spec.ts`（入口与线程，用临时仓库与子进程）、
+`tests/loop-hook-graph.spec.ts`（依赖项只换改动文件的边，以整张工作树图对照；解析配置变了只出那一句）；
 命令选哪一份脚本由 `.meta_harness/tooling/tests/test_compile_hooks.py` 拿真的工作树跑。
 
 ## 流程体检页
@@ -673,7 +693,7 @@ pnpm run loop:health # --out 可改产物目录
 
 ## 契约 API 快照
 
-契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/integration.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
+契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/delivery.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
 
 ```sh
 omne-contract-api --write                 # 从 dist 重写快照（先构建）
@@ -704,7 +724,7 @@ omne-contract-api --baseline <区块文件>    # 逐成员从登记的提交比�
 
 - 改了契约成员公开面的卡，在同一个 PR 里构建并运行 `--write`，把快照的变化一起提交。`--check` 报不一致时，先判断改动是否有意。
 - 本工具改了快照格式（格式版本变了）时，全部快照要重新生成。
-- 谁写首份快照、格式变化时谁重新生成，规则见[里程碑内的规则](../../docs/engineering/integration.md#里程碑内的规则)。
+- 谁写首份快照、格式变化时谁重新生成，规则见[里程碑内的规则](../../docs/engineering/delivery.md#破坏性契约改动)。
 
 `--diff` 的前提：
 

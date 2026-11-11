@@ -184,10 +184,9 @@ export interface CheckDependencies {
   readonly environment?: EnvironmentIo
 }
 
-/** 步骤表的入口脚本路径（相对根）；check 与预检共用。 */
+/** 步骤表的入口脚本路径（相对根）。 */
 export const STEP_INPUTS = {
   runnerCli: 'tools/test-runner/src/testing/cli.ts',
-  devFlowDeliveryCli: 'tools/dev-flow/src/delivery/change-scope-cli.ts',
   devFlowIntegrationCli: 'tools/dev-flow/src/integration/cli.ts',
 } as const
 
@@ -196,8 +195,6 @@ function cacheStates(env: NodeJS.ProcessEnv, full: boolean): CacheStates {
   return {
     test: cachePolicy(env, { noCache: false, full, build: true }).read ? 'on' : 'off',
     depGraph: env[DEP_GRAPH_CACHE_ENV] === '0' ? 'off' : 'on',
-    // check 不跑变异，变异增量的状态这里不知道。
-    mutation: 'unknown',
   }
 }
 
@@ -285,8 +282,7 @@ export async function runCheck(
     return 2
   }
   if (options.list) {
-    for (const line of describeSteps(stepTable({ ...STEP_INPUTS, baseline: '<基线>' })))
-      console.log(line)
+    for (const line of describeSteps(stepTable(STEP_INPUTS))) console.log(line)
     return 0
   }
   const admission = options.admission || admissionRequested(process.env)
@@ -322,7 +318,7 @@ export async function runCheck(
   env['BASELINE'] = targetBase
   const at = coordinatesAt(root, undefined)
   const cores = availableParallelism()
-  const steps = stepTable({ ...STEP_INPUTS, baseline: targetBase })
+  const steps = stepTable(STEP_INPUTS)
 
   // 接续的判断在写任何东西之前：拒绝就以 2 退出，不留日志、不写记录。
   let resume: AcceptedResume | undefined

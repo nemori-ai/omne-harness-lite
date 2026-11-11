@@ -1,0 +1,3 @@
+[submodule ".meta_harness/agents/vendor/pqw-skills"]
+	path = .meta_harness/agents/vendor/pqw-skills
+	url = https://github.com/PanQiWei/pqw-skills.git
