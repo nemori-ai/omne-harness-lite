@@ -88,7 +88,7 @@ rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev
 
 生成器从一个 `agents/` 源根按固定 host_layout 编译各宿主目录，源里有 `cloud/<host>/` 时一并编译该宿主的三份 Cloud Agent 运行时文件，并提供独立的相对软链接工具。
 `host_layout.py` 拥有宿主清单与路径，`projection.py` 解析源和适配并产生内存产物，`compile_agents.py` 负责 CLI 与预检写入，
-`link_agents.py` 暴露项目入口，`initialize_agents.py` 串接生成与接入。没有安装更新器、发布事务或知识图谱依赖。
+`link_agents.py` 暴露项目入口，`resident_card.py` 把 pqw-skills 的常驻卡片写进根入口，`initialize_agents.py` 串接生成、接入与常驻卡片。没有安装更新器、发布事务或知识图谱依赖。
 
 ## 使用
 
@@ -176,6 +176,16 @@ uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root .
 `install` 必须是非空字符串。这三份需要提交：Cursor 在安装脚本之前从检出读取它们。
 skills、agents 和 hooks 仍由 `.meta_harness/.gitignore` 排除，检出后重新编译。
 
+## 常驻卡片
+
+pqw-skills 发行一份[常驻卡片](../agents/vendor/pqw-skills/skills/single-session-dev-flow/resident-card.md)，项目把它分隔线以下的部分原样放进每个会话第一刻就读的入口文件。本仓库放在根 `AGENTS.md` 的受管段落里，段落由 `<!-- BEGIN:pqw-skills-resident-card -->` 与 `<!-- END:pqw-skills-resident-card -->` 两行框住，位置由根入口自己定。
+
+```sh
+uv run --locked python .meta_harness/tooling/src/resident_card.py --project-root .
+uv run --locked python .meta_harness/tooling/src/resident_card.py --project-root . --check
+```
+
+写入时把两行标记之间换成钉住版本的卡片，标记以外的字节不动；`initialize_agents.py` 在链接之后跑这一步。`--check` 只读，段落与钉住的卡片有一个字不同就失败，`pnpm run check:agents` 的最后一步就是它。升级子模块之后重跑初始化，再提交根 `AGENTS.md` 的变化。标记缺失、重复或次序颠倒，卡片文件没有恰好一行 `---` 或分隔线以下为空，子模块没有初始化，都让两种模式失败且不写文件。持续检查在 `tests/test_resident_card.py`。它不核卡片里的技能名是否存在，那是 pqw-skills 自己的仓库检查。
 
 ## Cursor 原生包与项目视图
 
