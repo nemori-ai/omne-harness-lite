@@ -6,6 +6,8 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `ACTION_ADMISSION_DECLARATION` · `extensions.d.ts`
+- `ACTION_ADMISSION_IMPLEMENTATION` · `extensions.d.ts`
 - `AGENT_IDENTITY_MAX_LENGTH` · `identity.d.ts`
 - `ATTRIBUTE_ITEMS` · `definition.d.ts`
 - `AcceptedInput` · `execution.d.ts`
@@ -114,6 +116,7 @@
 - `ControlStageFact` · `execution.d.ts`
 - `CoverageFacet` · `finishing.d.ts`
 - `CurrentConditions` · `request.d.ts`
+- `DECISION_CARD_DRAFT_SCHEMA` · `judge-output.d.ts`
 - `DecisionCardDraft` · `extensions.d.ts`
 - `DecisionCards` · `passages.d.ts`
 - `Dimension` · `extensions.d.ts`
@@ -282,7 +285,11 @@
 - `UtcInstantText` · `identity.d.ts`
 - `VoidedIntent` · `evaluation.d.ts`
 - `Waiting` · `evaluation.d.ts`
+- `admissionActionOf` · `identity.d.ts`
+- `admissionPassageOf` · `identity.d.ts`
 - `agentBodyContract` · `body-contract.d.ts`
+- `cardDraftOf` · `judge-output.d.ts`
+- `cardRequestOf` · `judge-output.d.ts`
 - `decodeActionBatchId` · `identity.d.ts`
 - `decodeActionId` · `identity.d.ts`
 - `decodeAgentExecutionId` · `identity.d.ts`
@@ -1424,6 +1431,8 @@ export type LoopExtensionDeclaration = Readonly<{
     onError?: ErrorPolicy;
     unavailability?: UnavailabilityPolicy;
 }>;
+export declare const ACTION_ADMISSION_DECLARATION: LoopExtensionDeclaration;
+export declare const ACTION_ADMISSION_IMPLEMENTATION: Adoption;
 export type ExtensionInput = Readonly<{
     position: Position;
     dimension?: Dimension;
@@ -2230,6 +2239,8 @@ export declare const decodeAgentInstanceId: IdentityDecoder<AgentInstanceId, "Ag
 export declare const decodeStepId: IdentityDecoder<StepId, "StepId">;
 export declare const decodeActionId: IdentityDecoder<ActionId, "ActionId">;
 export declare const decodePassageId: IdentityDecoder<PassageId, "PassageId">;
+export declare function admissionPassageOf(action: ActionId): ReturnType<typeof decodePassageId>;
+export declare function admissionActionOf(passage: PassageId): ActionId | null;
 export declare const decodeCardRoundId: IdentityDecoder<CardRoundId, "CardRoundId">;
 export declare const decodeActionBatchId: IdentityDecoder<ActionBatchId, "ActionBatchId">;
 export declare const decodeAgentExecutionId: IdentityDecoder<AgentExecutionId, "AgentExecutionId">;
@@ -2254,14 +2265,14 @@ export declare function judgeAuthority(value: unknown): Outcome<Authority, Struc
 export { agentBodyContract } from './body-contract.ts';
 export { obligationCategoryOf } from './finishing.ts';
 export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts';
-export { POSITIONS, POWERS } from './extensions.ts';
+export { ACTION_ADMISSION_DECLARATION, ACTION_ADMISSION_IMPLEMENTATION, POSITIONS, POWERS, } from './extensions.ts';
 export { judgeAgentDefinition } from './judge-definition.ts';
 export { judgeLoopExtensions } from './judge-extensions.ts';
 export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
-export { judgeExtensionOutput, POSITION_OUTPUTS } from './judge-output.ts';
+export { DECISION_CARD_DRAFT_SCHEMA, POSITION_OUTPUTS, cardDraftOf, cardRequestOf, judgeExtensionOutput, } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
 export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
-export { AGENT_IDENTITY_MAX_LENGTH, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
+export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, admissionPassageOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './execution.ts';
 export type * from './extensions.ts';
@@ -2573,8 +2584,9 @@ export {};
 ## 声明文件 `judge-output.d.ts`
 
 ```ts
-import { type Dimension, type ExtensionOutput, type Position, type Power } from './extensions.ts';
-import type { Subject } from './passages.ts';
+import { type DecisionCardDraft, type Dimension, type ExtensionOutput, type Position, type Power } from './extensions.ts';
+import { type Adoption } from './identity.ts';
+import type { CardRequest, Subject } from './passages.ts';
 import type { Judgment, OutputRefusalReason } from './judgment.ts';
 type OutputKind = ExtensionOutput['kind'];
 type SplitPosition = 'before_model_call' | 'after_model_call' | 'after_action';
@@ -2600,6 +2612,9 @@ export type ExtensionOutputJudgeInput = Readonly<{
     output: unknown;
 }>;
 export declare function judgeExtensionOutput(input: ExtensionOutputJudgeInput): Judgment<ExtensionOutput, OutputRefusalReason>;
+export declare const DECISION_CARD_DRAFT_SCHEMA: Adoption;
+export declare function cardRequestOf(identity: string, draft: DecisionCardDraft): CardRequest;
+export declare function cardDraftOf(request: CardRequest): DecisionCardDraft | null;
 export {};
 ```
 
@@ -2853,10 +2868,11 @@ export interface DecisionCards<P> {
         requests: readonly CardRequest[];
     }>): Reply<readonly DurableEvidence[]>;
     lookup(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
         passage: PassageId;
         round: CardRoundId;
         original: DurableEvidence;
-        requests: readonly string[];
+        requests: readonly CardRequest[];
     }>): Reply<Readonly<{
         kind: 'presented';
         cards: readonly DurableEvidence[];

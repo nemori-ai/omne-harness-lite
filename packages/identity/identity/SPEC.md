@@ -290,7 +290,9 @@
 
 登录可以作为原工作：`work.owner` 为 `identity-login`、`work.work` 为识别结果 `login`（`LoginStateId`）经 `loginStateCodec` 编码的文本时，原工作的拥有者是 identity 自己。持有者对 `loginProof` 的识别成功、且目标租户的账号等于识别出的账号，就是这项关系核对。这只适用于登录识别所在的同一次请求；它不引入登录实例主体，也不证明当前成员资格或动作获准。
 
-签发系统主体要求非空 `component`。签发代租户行事主体还要求：`actor` 是同一权威签发的系统主体，`tenant` 是已解析的租户，`work` 的两个成员非空。任一形状条件不满足，返回 `IssueFailure`，不签发。输入不是对象，或 `work` 不是对象，同样返回 `IssueFailure`，不抛出。除上一段的登录外，原工作关系核对的具体提供者端口尚未定义；这是未交付能力，不能因参考件能签发而省略上述前置核对。
+租户的 HITL 卡片处理也可以作为原工作：`work` 为 `{ owner: 'harness.hitl', work: 'cards' }`。这个主体是租户的入口主体，代表这个租户读卡和答卡。`work` 是固定文本，所以同一租户每次签发都得到同一个 `standingPrincipalRef`，与这次请求用哪一份登录无关。关系核对与上一段相同：同一次请求里对 `loginProof` 的识别成功，且目标租户的账号等于识别出的账号。核对只适用于这一次请求。入口主体同样不证明当前成员资格或动作获准，HITL 在操作点再核。
+
+签发系统主体要求非空 `component`。签发代租户行事主体还要求：`actor` 是同一权威签发的系统主体，`tenant` 是已解析的租户，`work` 的两个成员非空。任一形状条件不满足，返回 `IssueFailure`，不签发。输入不是对象，或 `work` 不是对象，同样返回 `IssueFailure`，不抛出。除上两段的登录与 HITL 入口外，原工作关系核对的具体提供者端口尚未定义；这是未交付能力，不能因参考件能签发而省略上述前置核对。
 
 `PrincipalVerifier.verify(value)` 答 `verified`、`rejected` 或 `unavailable`。核验是判定，不是解码：`verified` 返回的 `principal` 就是传入的那个值，同一个对象。跨进程场景在边界先把收到的数据解码成主体，再用它构造 `Access`；核验仍对那个值判定。与已签发主体形状相同的手写副本答 `rejected`。核验器不能回答时答 `unavailable`，不答 `verified`。核验只证明来源；它不证明当前成员资格，也不证明动作获准。
 
@@ -298,13 +300,14 @@
 
 ### 持有者与关系核对位置
 
-本发行有三个代租户行事主体的持有者。每个持有者在签发之前核对原工作关系。应用装配页登记同一张表，见[持有者与关系核对位置](../../../docs/architecture/runtime/application-assembly.md#principal-holders)。
+本发行有四个代租户行事主体的持有者。每个持有者在签发之前核对原工作关系。应用装配页登记同一张表，见[持有者与关系核对位置](../../../docs/architecture/runtime/application-assembly.md#principal-holders)。
 
 | 持有者                                       | 位置                                                       | 关系核对                                           |
 | -------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------- |
 | server-entry 的登录步骤                      | `packages/access/server-entry/src/identity-steps.ts`       | 账号相等：识别出的账号等于目标租户的账号，见上一段 |
 | 会话工作主体的签发者 `sessionWorkPrincipals` | `apps/harness-server/src/entry/session-work-principals.ts` | 会话的归属读口                                     |
 | Model 宿主权威                               | `apps/harness-server/src/entry/model-authorities.ts`       | 原受理记录                                         |
+| HITL 入口主体的签发者 `hitlEntryPrincipals` | `apps/harness-server/src/entry/hitl-entry-principals.ts` | 同一次请求的登录识别成功，且目标租户的账号等于识别出的账号。签发 `{ actor: server-entry, tenant, work: { owner: 'harness.hitl', work: 'cards' } }` |
 
 进程内参考件不实现持有约束。在本发行里，装配用两样东西兑现这项约束：
 

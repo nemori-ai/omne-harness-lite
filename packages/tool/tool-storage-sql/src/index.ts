@@ -4,6 +4,7 @@
 export {
   CHUNK_ENVELOPE_BYTES,
   TOOL_STORAGE_OWNER,
+  type SqlToolLedgerStoreOptions,
   type SqlToolOutputCustodyOptions,
   type SqlToolStorageOptions,
 } from './options.ts'
@@ -21,5 +22,9 @@ export {
   type SqlToolConditionalCommitInput,
   type SqlToolConditionalCommitResult,
 } from './conditional-commit.ts'
-export { createSqlToolOutputCustody } from './custody.ts'
+export {
+  createSqlToolOutputCustody,
+  readSqlToolOutputBytes,
+  type SqlToolOutputBytes,
+} from './custody.ts'
 export { TOOL_PARTICIPANT, toolStorageMaterials, type ToolStorageMaterials } from './materials.ts'

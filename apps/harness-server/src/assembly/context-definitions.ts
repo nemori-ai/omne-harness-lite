@@ -13,7 +13,7 @@ import type {
   StatefulBlockDescriptor,
 } from '@omne-harness/runtime-context-contract'
 import {
-  sessionInquiryBinding,
+  sessionModesBindings,
   type SessionContextDefinitions,
 } from '@omne-harness/session-adapters/cordis'
 import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
@@ -88,7 +88,7 @@ export function createContextDefinitions(
 const ADOPTED: readonly DeclaredContextBlocks[] = [
   {
     definition: SESSION_MODES_PUBLICATION,
-    bindings: [sessionInquiryBinding],
+    bindings: sessionModesBindings,
     declarations: [],
   },
 ]

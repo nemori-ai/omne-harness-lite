@@ -110,6 +110,16 @@ examples 是可读教学与可重复运行的消费检查。正式三条场景�
 
 [driver-allocation.spec.ts](driver-allocation.spec.ts) 用独立记录的非耐久环境替身验证分配答复丢失后的一次原键采用、完整绑定拒绝、有界重试和重连禁采用。
 
+[checkpoint-suspension.spec.ts](checkpoint-suspension.spec.ts) 对应 SPEC 第 30 条。它用真实 runtime、账本与推进协程，以及 [checkpoint-values.ts](checkpoint-values.ts) 的检查点绑定替身与脚本化决策方，验证下列行为：suspended 与检查点的一笔提交、停泊释放名额、停泊条目计入容量、登记回包丢失后按原操作认回而不再登记、明确拒绝后阻塞登记待办、等待已进入 responding 时不停泊，以及 `suspended-exclusion` 的判定。`suspended-exclusion` 用例经真实的 `control` 让调用收场。「答复先于停泊」的 responding 状态由测试直接写入，用来核停泊的定义域。替身不证明真实决策方或耐久。
+
+[checkpoint-resumption.spec.ts](checkpoint-resumption.spec.ts) 对应 SPEC 第 31 条，用同一组替身。替身绑定的恢复段从账本读已提交的 ResponseRecord，用内存里保管的状态字节运行作者的 `resume`，先发 `continued` 事实。它验证下列行为：决定接受一次、检查点恢复一次、调用以恢复段收场；三种决定原样交到恢复段；取消先成立时决定不被接受，也不向决策方取值；同一接受重送时认回，另一次接受被拒；停泊落在接受之后的条目被送回 `ready` 再取得名额；第二次等待用新身份；接受与恢复的回包丢失、换一个运行时之后都不重复恢复。取消经真实的 `control` 提交。
+
+[resumption-deciders.spec.ts](resumption-deciders.spec.ts) 与 [suspension-deciders.spec.ts](suspension-deciders.spec.ts) 直接对检查点调用的决策器取证。快照由 [resumption-decider-values.ts](resumption-decider-values.ts) 在真实运行的调用上、账本问到命令的那一刻读下来；要账本自己到不了的前置状态时，只改快照里的一条记录（账本在事务前读一次、事务里再判一次，两次之间别处可能改了记录）。恢复一侧验证：接受决定、准备恢复、关闭等待三个决策器的每个拒绝分支给出的种类与原因，以及提交时写下的调用状态、等待记录、回执与待办；`refuseDecision`、`refuseResume` 的前置判定。暂停一侧验证：计划、提交与登记三笔提交写下的记录与撤掉的待办，停泊待办 `parkDutyOf` 与 `decideClosePark` 的取舍，登记被拒后的阻塞回执，以及检查点所耗响应的认定。快照取自非耐久账本；这些用例不证明真实决策方或耐久。
+
+[suspended-control.spec.ts](suspended-control.spec.ts) 对应 SPEC 第 32 条，用同一组替身。它验证下列行为：暂停（等待 `opening` 或 `open`）与排队（等待 `responding`、条目 `ready`）两个位置的 stop 同提交让调用收场、关闭等待、写失效与释放待办；失效经决策方执行一次，回包丢失后经 `inspectOperation` 认回而不重发；条目删除且墓碑在，名额回到范围；答复接受之后叫停，恢复段不运行；withdraw 以 `withdrawn: true` 收场，background 被拒；`prepareResume` 之后的 stop 在恢复段 live 后送达该段。替身不证明真实决策方、耐久或跨进程。 同一文件还把真实运行里读下来的快照直接交给 `decideControl`（场景在 [control-decider-values.ts](control-decider-values.ts)）：已启动调用的 stop 保存待办或记 `already-ended`，其余控制与状态答 `unsupported`；暂停中调用的叫停对检查点、当前等待、失效操作、计时、队列位置与被取代待办的每个拒绝与提交分支。
+
+[suspension-invalidation.spec.ts](suspension-invalidation.spec.ts) 对应 SPEC 第 32 条的失效待办：驱动器一步在决策方与账本命令的替身上直接运行，验证哪些任务欠下这一步，失效成功后记完成，回包不确定时按原操作认回而不换身份重发，`excluded` 后同一身份再发，`pending` 或 `unknown` 时稍后再问，决策方明确拒绝时记阻塞并保留原因，以及不确定记忆的保留与清除；真实运行里再验证账本中的待办结局。替身不证明真实决策方、耐久或跨进程。
+
 ## E9 固定延迟工具观察
 
 [support/tool-measurement.ts](support/tool-measurement.ts) 的 `createMeasuredFixedDelayTool` 返回真实 `ToolExecutor` 形状的固定延迟替身。通过 `executeTool` 和独立作用域调用它，每次产生一条 `external-wait-interval`，包含 runId、round、进程、单调时钟代次、stage、起止、logCount，以及 provider、invocationId、definedDelay 和实际起止。它只测作者执行区间，不包含准入、排队、结果推送或模型耗时。

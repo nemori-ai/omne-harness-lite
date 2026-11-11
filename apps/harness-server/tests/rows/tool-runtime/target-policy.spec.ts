@@ -26,6 +26,7 @@ it('applies target policy to new admissions while retaining custody of an exactl
       checks = 0
     const store: ToolLedgerStore<ToolMessageContentBlock> = {
       durability: 'none',
+      scanPending: () => Promise.resolve({ kind: 'page', calls: [], more: false }),
       read: async () => {
         reads++
         return {

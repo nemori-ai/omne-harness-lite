@@ -11,6 +11,7 @@ import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sql
 import {
   createSqlToolLedgerStore,
   createSqlToolOutputCustody,
+  readSqlToolOutputBytes,
   createSqlToolGuardedHostCommit,
   toolStorageMaterials,
   TOOL_PARTICIPANT,
@@ -160,17 +161,22 @@ export async function openStorage(
       },
     }
     const options = { storage: created.storage, domains, combination }
+    const listing = [...entries].map(([tenant, domain]) => ({ tenant, domain }))
     return {
       /** The raw storage, for the read-budget case that must not depend on the whole assembly. */
       storage: created.storage,
       combination,
       domains,
-      store: createSqlToolLedgerStore<ToolMessageContentBlock>(options),
+      store: createSqlToolLedgerStore<ToolMessageContentBlock>({
+        ...options,
+        tenants: async () => ({ kind: 'ready', revision: '1', entries: listing }),
+      }),
       custody: createSqlToolOutputCustody<unknown>({
         ...options,
         maxCommandBytes,
         maxChunkBytes: 16384,
       }),
+      readOutput: readSqlToolOutputBytes(options),
       guarded: createSqlToolGuardedHostCommit(options),
       materials: catalog,
       close,

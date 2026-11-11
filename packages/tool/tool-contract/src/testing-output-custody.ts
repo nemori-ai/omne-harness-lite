@@ -376,6 +376,15 @@ export interface MemoryToolOutputCustody<P> extends ToolOutputCustody<P> {
   readonly durability: 'none'
   readonly controls: Readonly<{
     readBytes(raw: RawOutput): Promise<Uint8Array>
+    /** Reads what is kept at an address: the bytes, codec and custody evidence, or `null`. */
+    readOutput(
+      input: Readonly<{ tenant: Tenant; call: ToolCallId; operation: string }>,
+    ): Promise<
+      Outcome<
+        Readonly<{ codec: Adoption; bytes: Uint8Array; custody: DurableEvidence }> | null,
+        ToolFailure
+      >
+    >
     failNext(): void
     dropNextAnswer(): void
     settle(): Promise<void>
@@ -491,6 +500,16 @@ export function createMemoryToolOutputCustody<P>(): MemoryToolOutputCustody<P> {
       for (const { raw: kept, bytes } of outputs.values())
         if (kept.content.key === raw.content.key) return Promise.resolve(bytes.slice())
       return Promise.reject(new Error('the custody keeps no output under this reference'))
+    },
+    readOutput: input => {
+      const found = outputs.get(keyOf(input.tenant, input.call, input.operation))
+      return reply(
+        succeed(
+          found === undefined
+            ? null
+            : { codec: found.raw.codec, bytes: found.bytes.slice(), custody: found.raw.custody },
+        ),
+      )
     },
     failNext: () => {
       failing = true

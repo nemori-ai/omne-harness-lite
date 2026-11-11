@@ -95,6 +95,14 @@ export type {
   ToolWaiter,
 } from './author-context.ts'
 export type {
+  AuthorSegment,
+  AuthorWait,
+  CheckpointedToolExecutor,
+  ToolCheckpointDeclaration,
+  ToolSegmentContext,
+} from './checkpointed-author.ts'
+export { authorDecision } from './checkpointed-author.ts'
+export type {
   ResultPolicy,
   TextRenderer,
   ToolCommands,
@@ -126,6 +134,7 @@ export type {
   ParameterCodec,
   TextResultFactory,
   ToolAuthor,
+  ToolAuthorExecutor,
   ToolAuthority,
   ToolBindingDrain,
   ToolBindingEntry,

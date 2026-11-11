@@ -49,6 +49,7 @@ import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from './testi
 
 import type { ToolLedgerStoreFixture } from './testing-ledger-store-types.ts'
 import { storeCases } from './testing-ledger-store-cases.ts'
+import { storePendingCases } from './testing-ledger-store-pending-cases.ts'
 import { storeFaultCases } from './testing-ledger-store-fault-cases.ts'
 import { compositionCases } from './testing-ledger-composition-cases.ts'
 import { createTestInvocationSource } from './testing-source.ts'
@@ -356,11 +357,12 @@ const ledgerStoreCaseDependencies = {
   },
 }
 
-/** Provider-level snapshot, conditional commit, isolation and fault checks (G1/G6). */
+/** Provider-level snapshot, conditional commit, isolation, fault and pending-marker checks (G1/G6). */
 export function toolLedgerStoreConformance(): readonly ConformanceCase<ToolLedgerStoreFixture>[] {
   return [
     ...storeCases(ledgerStoreCaseDependencies),
     ...storeFaultCases(ledgerStoreCaseDependencies),
+    ...storePendingCases(ledgerStoreCaseDependencies),
   ]
 }
 

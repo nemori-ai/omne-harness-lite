@@ -6,7 +6,7 @@
 
 ## 范围与依据
 
-除核心日志参加者外，静态材料还提供按组合启用的只读守卫 `session-permission-guard`。它核当前权限关系；不进入默认的 `SESSION_LOG_PARTICIPANTS`，也不增加业务表。
+除核心日志参加者外，静态材料还提供按组合启用的只读守卫 `session-permission-guard` 与 `session.run-live`。它们分别核当前权限关系，以及会话未归档且 Run 仍在进行；不进入默认的 `SESSION_LOG_PARTICIPANTS`，也不增加业务表。
 
 本成员拥有四类东西：
 
@@ -356,6 +356,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 | `sl_pending_idx`        | `(tenant, reason, session)`                                             | R8                             |
 | `sl_resident_idx`       | `(resident_key, tenant, session)` 加 `capability`、`admitted_position`  | R10                            |
 | `sl_released_scope_idx` | `(tenant, session, scope)` 加 `task`、`position`                        | R11                            |
+| `sl_scope_idx`          | `(tenant, scope)` 加 `session`、`generation`                            | [SO-01](#so-01)                |
 
 本成员不为推理续接状态部件建任何索引，也不建推理回放索引。部件随 SE10 的内容块留在 `sl_entry.payload` 里。
 
@@ -758,6 +759,19 @@ releasedScopes(principal, scope = system, after, limit):
 - 停止：`stop()` 之后每次读都答 `unavailable`，诊断含 `closing`，记住的答案也不例外，不再触及存储。
 - 验证：[binding-narrow.spec.ts](tests/binding-narrow.spec.ts)、[principal-bindings.spec.ts](tests/principal-bindings.spec.ts) 与 harness-server 的 `tests/rows/session-storage/principal-bindings.spec.ts`。
 
+
+<a id="so-01"></a>
+
+**SO-01 作用域归属读口。**`createSessionScopeOwners` 答一个 Context 作用域由哪个会话铸造：租户、会话与代次。作用域文本是租户、会话与代次的单向摘要，Session 在铸作用域的那笔提交里留下回查的路。
+
+- 写：`session` 参加者每次提交按工作快照的作用域绑定（`contextScopes`）写 `sl_scope_idx`，主键（租户、作用域），列有会话与代次。创建铸第 1 代，撤销归档铸下一代，两者都随铸造的那笔提交写下。一行写下后不改不删：作用域的归属与代次不变，已结束的作用域也保留归属。迁移是 `session/007-scope-index`。
+- 读：按目录快照的租户顺序，在每个已登记租户的事务域里点查一次 `session.scope-owner`，第一个有记录的租户即是归属。读口不问访问裁定，与 BD-01 同是归属事实的受信读口，只交给装配入口。
+- 答复：找到答 `owned`。所有域都查过而没有记录答 `unknown`（伪造、他租户或尚未铸造的作用域）。目录不可读、任一域读失败、读口已停止都答 `unavailable`，不答 `unknown`：作用域可能就在读不到的那个域里。
+- 记忆：`owned` 在进程内按作用域文本记住，不再读，上限 `SCOPE_OWNER_MEMO`；`unknown` 不记，作用域可能随后才铸造。
+- 容量：未命中的一次查找读的域数等于已登记租户数。单机首版的租户数少；租户数增长到这条读成为热点时，按调用方已知的租户改为单域点查。
+
+验证：[scope-owners.spec.ts](tests/scope-owners.spec.ts)（创建与撤销归档留下的归属、新读口只凭行作答、伪造与他租户答 unknown、读不到答 unavailable、记住的归属）。
+
 <a id="rt-04"></a>
 
 **RT-04 存储侧缓存。**本成员缓存不可变或可重算的派生物：预编译语句、每个事务域的迁移版本与归约版本、R10 取 shape 时按 `(tenant, session, position)` 缓存的 SE36 载荷，以及下面的工作缓存。`sl_journal` 的读数本身不缓存，R7 不缓存。条目缓存与 CA-3 的命令处理器快照槽归 `session`，视图前缀摘要缓存归 `session-adapters`，本成员不持有它们。写 Worker 内的 `session` 参加者另复用已解析的快照：每次提交仍读该会话的 `sl_state` 头行，头文本与保留项逐字相等时才复用（R2-D96），见[Worker 内的两处保留](#worker-retention)。
@@ -968,6 +982,25 @@ todos 使用现有快照分块，不新建 Todo 表或迁移。读取仍是完�
 `session/006-permission-current` 在提供者的原子迁移内，从原日志重建两表。迁移按会话和事件位置分页，用已有 `sl_operation_revision_idx` 找原批次回执，再按 `sl_entry` 主键范围取完整批次。原解释规则归 session-contract 的 `rebuildSessionPermissions`。它通过原 `writeState` 更新需要升级的分块快照，不直接改 head 而遗漏分块 token。
 
 升级保留原日志、操作记录、回执和 SQL 封套。快照未覆盖日志、批次缺口、原解释不支持、原快照或既有投影矛盾时失败并回滚，不发布空权限。重跑相同已完成迁移不增加修订或改变配值。相关行为验证见 `tests/permission-current.spec.ts`、`tests/permission-current-migration.spec.ts`；真实提供者迁移与重开由 `tests/permission-current-real.spec.ts` 覆盖，其原表输入来自具名种子迁移。它不替代并发捕获验收。
+
+### 同事务 Run 进行中核回
+
+`session.run-live` 是独立只读参加者。`runLiveGuardFacts` 携带 tenant、session 和 run，tenant 是 legal-identity 编码后的文本；精确形状归 [run-live.ts](src/run-live.ts)。它供其他拥有者的提交使用，例如 HITL 登记和答复一张来自会话内工作的卡片。
+
+参加者在提交事务内按 `(tenant, session)` 读 `sl_journal` 与 `sl_state` 的头，只再读头里的 `run` 成员，不读集合分块。结果如下：
+
+| 读到的状态 | 回复 |
+| --- | --- |
+| 没有这个会话 | conflict/session-absent |
+| 快照头没有覆盖日志尾 | failed，回滚并保留诊断 |
+| `lifecycle` 为 `archived` | conflict/session-archived |
+| `run` 不是 `active`，或不是输入的 Run | conflict/run-not-live |
+| 其他 | 发布 `SESSION_RUN_LIVE_FACT`（`session.run-live/1`），正文是输入 |
+| 输入不合形状 | unsupported |
+
+取消 Run 与归档都在同一笔 Session 提交里写入该 Run 的终局（session-contract `decide-management.ts` 的 `cancelsRun`），所以 `run` 是进行中的这个 Run 已经排除了已取消和已终局。守卫不授予访问资格，不解释为什么调用方需要 Run 进行中，也不在另一事务里有效。同一笔提交里另有 Session 写入时，守卫看到的是按提供者执行顺序已写入的状态；守卫的预期用法是不带 Session 写入的其他拥有者提交。
+
+装配者显式将守卫加入需要它的组合。`tests/run-live-guard-real.spec.ts` 用真实 SQLite Worker 验证进行中通过、其他 Run 或会话或租户拒绝、取消后与归档后拒绝，并核对同笔的 Session 写入随拒绝回滚。HITL 登记与答复同真实守卫的组合由装配交付验证。
 
 ### 同事务当前性守卫
 

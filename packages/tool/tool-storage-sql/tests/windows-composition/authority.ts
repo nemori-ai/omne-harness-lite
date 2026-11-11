@@ -230,6 +230,7 @@ export function witnessStore(store: ToolLedgerStore<ToolMessageContentBlock>) {
   const wrapped: ToolLedgerStore<ToolMessageContentBlock> = {
     durability: store.durability,
     commit: input => store.commit(input),
+    scanPending: input => store.scanPending(input),
     async read(domain) {
       const answer = await store.read(domain)
       if (answer.kind === 'complete')

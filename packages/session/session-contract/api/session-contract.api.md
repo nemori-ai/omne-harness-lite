@@ -205,6 +205,7 @@
 - `SessionReconciliation` · `faces.d.ts`
 - `SessionRevision` · `identity.d.ts`
 - `SessionRunLookup` · `control-values.d.ts`
+- `SessionScopeOwnerSource` · `ports.d.ts`
 - `SessionTakenRecord` · `history-values.d.ts`
 - `SessionTodos` · `todos.d.ts`
 - `SessionTransactionPort` · `ports.d.ts`
@@ -1720,7 +1721,7 @@ export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCo
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
 export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionControlReceipt, SessionModelSelection, SessionRunLookup, } from './control-values.ts';
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt, } from './interpretation-values.ts';
-export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, SessionAdoptionPlanAnswer, SessionAdoptionPlanInput, SessionAdoptionRecorded, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionPrincipalBindingSource, SessionTransactionPort, SessionWorkPrincipals, } from './ports.ts';
+export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, SessionAdoptionPlanAnswer, SessionAdoptionPlanInput, SessionAdoptionRecorded, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionTransactionPort, SessionWorkPrincipals, } from './ports.ts';
 export { sessionModesBlock } from './block.ts';
 export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest } from './decide.ts';
@@ -2675,6 +2676,20 @@ export interface SessionPrincipalBindingSource {
         kind: 'unavailable' | 'quarantined';
     }>>>;
 }
+export interface SessionScopeOwnerSource {
+    lookup(input: Readonly<{
+        scope: string;
+    }>): Promise<Outcome<Readonly<{
+        kind: 'owned';
+        tenant: TenantId;
+        session: SessionId;
+        generation: string;
+    }> | Readonly<{
+        kind: 'unknown';
+    }>, Extract<SessionFailure, {
+        kind: 'unavailable';
+    }>>>;
+}
 export interface SessionWorkPrincipals<P> {
     forSession(input: Readonly<{
         actor: 'coordinator' | 'maintainer';
@@ -2834,8 +2849,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:6f9fc2f8c4183e4ffa9cf1d8305d6384e6f0a3c832c6936d228c4dd3ece113c5";
-export declare const SESSION_RELEASE_DIGEST = "sha256:6f9fc2f8c4183e4ffa9cf1d8305d6384e6f0a3c832c6936d228c4dd3ece113c5";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f3c89e39c20947cbfeb9a183d1f233a2b0258e8744fa9aac6cf2504b4b7f6e96";
+export declare const SESSION_RELEASE_DIGEST = "sha256:f3c89e39c20947cbfeb9a183d1f233a2b0258e8744fa9aac6cf2504b4b7f6e96";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

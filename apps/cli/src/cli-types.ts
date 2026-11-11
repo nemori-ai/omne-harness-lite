@@ -18,7 +18,7 @@ export interface CommandServices {
   /** Builds the transport for one public location. Throws `TypeError` when the address is refused. */
   readonly createTransport: (
     origin: string,
-    location: 'governance' | 'session',
+    location: 'governance' | 'session' | 'hitl',
   ) => GovernanceTransport
   /** Reads the account credential. `prompt` receives the text to show before a hidden read. */
   readonly readCredential: (prompt: (text: string) => void) => Promise<CredentialRead>

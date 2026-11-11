@@ -10,7 +10,6 @@ import {
   toolStartAuthorityKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
-  createLocalGrantVerifiers,
   createLocalInvocationSource,
   createLocalInvocationQualifier,
   type LocalInvocationSourceInput,
@@ -34,12 +33,14 @@ import { createReleaseEnvironment } from './environment.ts'
 import {
   lateConditional,
   lateCustody,
+  lateReadOutput,
   lateStore,
   toolRuntimeHolder,
   type ToolRuntimeBundle,
   type ToolRuntimeHolder,
 } from './holder.ts'
-import { RELEASE_TOOL_SCOPE } from './scope.ts'
+import { runScopeGrants } from './scope.ts'
+import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
@@ -106,11 +107,12 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     store,
     conditionalCommit: lateConditional(holder),
     custody: lateCustody(holder),
+    readOutput: lateReadOutput(holder),
     content: null,
     sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },
     access: { ...identity.access, request: admittedTargetAccess(store, requestAccess) },
     subjects: identity.subjects,
-    grants: createLocalGrantVerifiers(RELEASE_TOOL_SCOPE),
+    grants: runScopeGrants(),
     guardsOf: () => [],
     permitRequirements: releasePermitRequirements(root, identity),
     clock: holder.clock,
@@ -119,6 +121,8 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     // authors is the environment this bundle prepares, so the narrower type is the same object.
     bindings: () => root.get(toolBindingsKey) as ReturnType<LocalToolRuntimeInput['bindings']>,
     catalog: () => root.get(toolCatalogKey),
+    // The decision owner of the Ask waits, built by `tool-records` (`rows/tool-hitl`); absent, the absent port.
+    decisions: () => toolHitlHolder(root).bridge ?? undefined,
     environment: environment.input,
     capacity: config.capacity,
     observersPerCall: config.observersPerCall,

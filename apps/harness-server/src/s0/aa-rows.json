@@ -25,6 +25,7 @@
     "agent-adoptions",
     "adoption-sources",
     "agent-model-selection",
+    "agent-cards",
     "agent-host",
     "agent-instances",
     "model-host",
@@ -88,7 +89,8 @@
         "sessionPermissionBackend",
         "standingDestinationResolver",
         "toolInvocationQualification",
-        "currentToolPermission"
+        "currentToolPermission",
+        "sessionModesInstallation"
       ]
     },
     {
@@ -108,6 +110,7 @@
         "storage",
         "tenantDomainLookup",
         "sessionPrincipalBindings",
+        "sessionScopeOwners",
         "sessionDelegatedTransactions",
         "systemActionAuthorization",
         "sessionPermissionBackend"
@@ -170,6 +173,12 @@
       "row": "session-ad14",
       "names": [
         "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "agent-host",
+      "names": [
+        "sessionModesInstallation"
       ]
     },
     {

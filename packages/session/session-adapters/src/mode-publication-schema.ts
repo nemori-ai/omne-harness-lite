@@ -17,6 +17,14 @@ const inquiry = z
     translation: adoption,
   })
   .readonly()
+const interaction = z
+  .strictObject({
+    humanInteraction: z.boolean(),
+    requestApproval: z.boolean(),
+    source: evidence,
+    translation: adoption,
+  })
+  .readonly()
 const basis = z
   .strictObject({
     tenant: text,
@@ -30,6 +38,9 @@ const basis = z
 export const sessionInquirySchema = z.strictObject({ inquiry, basis }).readonly()
 export type SessionInquiryView = z.infer<typeof sessionInquirySchema>
 
+export const sessionInteractionSchema = z.strictObject({ interaction, basis }).readonly()
+export type SessionInteractionView = z.infer<typeof sessionInteractionSchema>
+
 export const sessionModesPublicationSchema = z
   .strictObject({
     modes: z
@@ -40,6 +51,7 @@ export const sessionModesPublicationSchema = z
       })
       .readonly(),
     inquiry,
+    interaction,
     basis,
   })
   .readonly()

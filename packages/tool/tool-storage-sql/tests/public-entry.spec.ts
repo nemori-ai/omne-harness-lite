@@ -30,6 +30,7 @@ describe('public entries', () => {
       'createSqlToolGuardedHostCommit',
       'createSqlToolLedgerStore',
       'createSqlToolOutputCustody',
+      'readSqlToolOutputBytes',
       'toolStorageMaterials',
     ])
   })

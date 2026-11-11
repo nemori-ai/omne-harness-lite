@@ -6,7 +6,11 @@ import {
 } from '@omne-harness/tool'
 import {
   decodeToolOperationId,
+  type Adoption,
+  type DurableEvidence,
   type FixedToolRequest,
+  type ToolOperationId,
+  type Reply,
   type ToolTerminal,
   type ProcessBlock,
 } from '@omne-harness/tool-contract'
@@ -15,23 +19,47 @@ import {
   defaultResultPolicy,
   describedAdoption,
   renderToolResult,
+  type CallAccess,
   type ToolMessageContentBlock,
   type ToolOutputCustody,
+  type ToolRecovery,
   type ToolWaiter,
 } from '@omne-harness/tool-contract/provider'
 import type { ToolOperationSlot } from '@omne-harness/tool-contract/binding'
 import type { LocalToolBindingsInput } from './executor-binding.ts'
 import type { ToolEnvironmentValue } from './author-environment.ts'
+import { segmentOperation } from './segment-operations.ts'
 import { createLocalTextResults } from './text-results.ts'
 
 export type RuntimeAuthorExecution = Pick<
   LocalToolBindingsInput<unknown, ToolEnvironmentValue, ToolMessageContentBlock>,
   'scope' | 'settle'
->
+> &
+  Required<
+    Pick<
+      LocalToolBindingsInput<unknown, ToolEnvironmentValue, ToolMessageContentBlock>,
+      'checkpoint' | 'resumption'
+    >
+  >
+
+/**
+ * A trusted read of a kept original by its address: its bytes, codec and custody evidence, or
+ * `null` when nothing is kept there. The assembly gives the reader of the custody it installs.
+ */
+export type ToolOutputReader = (
+  input: Pick<CallAccess<unknown>, 'tenant' | 'call'> & Readonly<{ operation: ToolOperationId }>,
+) => Reply<Readonly<{ codec: Adoption; bytes: Uint8Array; custody: DurableEvidence }> | null>
 
 const failureCodec = describedAdoption({
   owner: '@omne-harness/tool-host-local',
   name: 'author-failure-json',
+  revision: '1',
+})
+
+/** The codec of the kept request of a segment's Ask wait: its JSON text in UTF-8. */
+const waitRequestCodec = describedAdoption({
+  owner: '@omne-harness/tool-host-local',
+  name: 'wait-request-json',
   revision: '1',
 })
 
@@ -75,6 +103,10 @@ export function createRuntimeAuthorExecution(
   input: Readonly<{
     configuration: ToolConfiguration
     custody: ToolOutputCustody<unknown>
+    /** Reads a checkpoint state back from `custody` for a resume. */
+    readOutput: ToolOutputReader
+    /** The call's recovery as its ledger holds it, for the ResponseRecord of a resume. */
+    recovery: (request: CallAccess<unknown>) => Reply<ToolRecovery<ToolMessageContentBlock>>
   }>,
 ): RuntimeAuthorExecution &
   Readonly<{ close(): void; pending(): number; retainedReturns(): number }> {
@@ -175,6 +207,62 @@ export function createRuntimeAuthorExecution(
       })
       if ('failure' in scope) throw new TypeError(`Invalid author scope: ${scope.failure.reason}`)
       return scope.ok
+    },
+    async checkpoint(call) {
+      const state = segmentOperation(call.start.operation, 'checkpoint')
+      const request = segmentOperation(call.start.operation, 'wait-request')
+      if ('failure' in state || 'failure' in request)
+        return fail({ kind: 'invalid', field: 'operation', reason: 'derived-operation' })
+      const requestBytes = new TextEncoder().encode(JSON.stringify(call.wait.request))
+      if (requestBytes.byteLength > call.wait.contract.request.maxBytes)
+        return fail({ kind: 'invalid', field: 'wait.request', reason: 'too-large' })
+      const keep = (operation: typeof state.ok, codec: typeof call.codec, bytes: Uint8Array) =>
+        retain({
+          principal: call.principal,
+          tenant: call.tenant,
+          call: call.call,
+          operation,
+          codec,
+          bytes: bytes.slice(),
+          source: call.execution.source,
+        })
+      const payload = await keep(state.ok, call.codec, call.state)
+      if ('failure' in payload) return payload
+      const kept = await keep(request.ok, waitRequestCodec, requestBytes)
+      if ('failure' in kept) return kept
+      return succeed({ payload: payload.ok.custody, request: kept.ok.custody })
+    },
+    async resumption(call) {
+      const read = await input.recovery({
+        principal: call.principal,
+        tenant: call.tenant,
+        call: call.call,
+      })
+      if ('failure' in read) return read
+      // The wait that resumes at this checkpoint, with the response its ledger committed.
+      const wait = read.ok.waits.find(
+        record =>
+          record.phase === 'responding' &&
+          canonicalDigest(record.intent.resume) === canonicalDigest(call.start.checkpoint),
+      )
+      if (wait?.phase !== 'responding')
+        return fail({ kind: 'invalid' as const, field: 'start', reason: 'no-accepted-decision' })
+      // The state was kept under the suspended segment's start, which the ResponseRecord names.
+      const operation = segmentOperation(wait.response.start.operation, 'checkpoint')
+      if ('failure' in operation)
+        return fail({ kind: 'invalid' as const, field: 'operation', reason: 'derived-operation' })
+      const kept = await input.readOutput({
+        tenant: call.tenant,
+        call: call.call,
+        operation: operation.ok,
+      })
+      if ('failure' in kept) return kept
+      if (
+        kept.ok === null ||
+        canonicalDigest(kept.ok.custody) !== canonicalDigest(call.start.checkpoint)
+      )
+        return fail({ kind: 'invalid' as const, field: 'start', reason: 'checkpoint-not-kept' })
+      return succeed({ checkpoint: kept.ok.bytes, response: wait.response })
     },
     async settle(call) {
       const interrupted = interruption(call)

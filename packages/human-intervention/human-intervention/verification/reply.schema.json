@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:omne:hitl:1:reply-submission",
+  "type": "object",
+  "properties": {
+    "protocol": {
+      "const": "hitl/1"
+    },
+    "operation": {
+      "type": "object",
+      "properties": {
+        "tenantRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "actorRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "operationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "tenantRef",
+        "actorRef",
+        "operationId"
+      ],
+      "additionalProperties": false
+    },
+    "expectedRevision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "reply": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "selection"
+            },
+            "optionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "kind",
+            "optionId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "text"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            }
+          },
+          "required": [
+            "kind",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "decline"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "cardRef": {
+      "type": "object",
+      "properties": {
+        "request": {
+          "type": "object",
+          "properties": {
+            "tenantRef": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "requestId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "tenantRef",
+            "requestId"
+          ],
+          "additionalProperties": false
+        },
+        "cardId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "request",
+        "cardId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "protocol",
+    "operation",
+    "cardRef",
+    "expectedRevision",
+    "reply"
+  ],
+  "additionalProperties": false
+}

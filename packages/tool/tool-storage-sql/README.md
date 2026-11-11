@@ -10,9 +10,9 @@ This package keeps the durable records of the Tool ledger and the originals of t
 
 | Part                                                 | State                                                                                                           |
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `createSqlToolLedgerStore`                           | Implemented. `durability: 'durable'`. One `domain-serial` read and one revision-conditioned SQL commit per call |
+| `createSqlToolLedgerStore`                           | Implemented. `durability: 'durable'`. One `domain-serial` read and one revision-conditioned SQL commit per call. `scanPending` pages the pending markers (SPEC TS-14) |
 | `createSqlToolOutputCustody`                         | Implemented. Originals of any size are kept in chunks and sealed by a manifest committed last                   |
-| `toolStorageMaterials()`                             | Implemented. One participant `tool`, one migration, three read handlers, all on `tl_` tables                    |
+| `toolStorageMaterials()`                             | Implemented. One participant `tool`, two migrations, four read handlers, all on `tl_` tables                    |
 | `./cordis` plugin, `tool-records` row, catalog merge | Not in this package. They belong to the application (wave B and L-APP)                                          |
 | Real SQLite provider, two processes, power loss      | Not verified. Left to integration A                                                                             |
 
@@ -47,7 +47,7 @@ The port shapes belong to [`@omne-harness/tool`](../tool/src/ledger-store.ts) (`
 
 ## Design
 
-`src/ledger-store.ts` and `src/custody.ts` are the two adapters. `src/tenant.ts` resolves the transaction domain of a tenant through the directory. The Worker modules in `src/worker/` are the `tool` participant, the migration and three read handlers. They share one facts protocol in `src/worker/facts.ts`. [docs/architecture.md](docs/architecture.md) describes the tables and the mechanisms, and [docs/flows.md](docs/flows.md) the commit and custody flows.
+`src/ledger-store.ts` and `src/custody.ts` are the two adapters. `src/tenant.ts` resolves the transaction domain of a tenant through the directory. The Worker modules in `src/worker/` are the `tool` participant, the two migrations and four read handlers. They share one facts protocol in `src/worker/facts.ts`. [docs/architecture.md](docs/architecture.md) describes the tables and the mechanisms, and [docs/flows.md](docs/flows.md) the commit and custody flows.
 
 ## Configuration and operation
 
@@ -55,10 +55,11 @@ The port shapes belong to [`@omne-harness/tool`](../tool/src/ledger-store.ts) (`
 | -------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `storage`, `domains` | Application assembly | The trusted `storage` and `tenantDomainLookup` rows. A tenant that the directory does not hold is not written |
 | `combination`        | Application assembly | The combination that lists the `tool` participant for the tenant scope                                        |
+| `tenants` (optional) | Application assembly | The snapshot of the published tenant directory. Without it, a scan across tenants answers `unsupported`       |
 | `maxCommandBytes`    | Application assembly | The same value as the `storage` row. The assembly passes one value to both rows                               |
 | `maxChunkBytes`      | Application assembly | Its base64 form plus `CHUNK_ENVELOPE_BYTES` must fit `maxCommandBytes`, or the factory throws `RangeError`    |
 
-No option has a default. The package never registers a tenant or a combination.
+No option has a default. `tenants` may be absent. The package never registers a tenant or a combination.
 
 ## Verification
 

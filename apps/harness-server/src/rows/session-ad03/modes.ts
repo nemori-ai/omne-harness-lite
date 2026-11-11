@@ -5,7 +5,7 @@ import {
   prepareContextRegistration,
   sessionModesDescriptor,
   sessionModesProducer,
-  sessionInquiryBinding,
+  sessionModesBindings,
 } from '@omne-harness/session-adapters/cordis'
 import { createRuntimeContextAuthority } from '../../entry/runtime-context-trust.ts'
 import {
@@ -177,7 +177,7 @@ async function prepareInitial(
         creating: true,
         required: true,
         basedOn: 0,
-        bindings: [sessionInquiryBinding],
+        bindings: sessionModesBindings,
         parameters: undefined,
       },
       { commit: record.decision.commit },

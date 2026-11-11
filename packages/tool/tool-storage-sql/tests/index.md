@@ -10,6 +10,7 @@
 - [ledger-store-conformance.spec.ts](ledger-store-conformance.spec.ts)：两组记录仓套件（G1、P01）
 - [custody-conformance.spec.ts](custody-conformance.spec.ts)：保管套件（P05）
 - [custody-chunks.spec.ts](custody-chunks.spec.ts)：分块、中断与重送、修订号、构造期核对
+- [output-bytes.spec.ts](output-bytes.spec.ts)：受信读取保管的原件字节（TS-13）
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：租户隔离
 - [reopen.spec.ts](reopen.spec.ts)：关闭再打开数据库文件
 - [atomic-commit.spec.ts](atomic-commit.spec.ts)：原子提交与修订号冲突

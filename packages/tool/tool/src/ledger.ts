@@ -35,11 +35,14 @@ import {
   type ToolResultVersion,
   type ToolStartRecord,
   type ToolState,
+  type ToolTiming,
+  type ToolWaitId,
+  type DecisionValue,
 } from '@omne-harness/tool-contract'
 import {
   decodeToolDeliveryId,
-  decodeToolInstanceId,
   decodeToolResultVersion,
+  decodeToolWaitId,
   describedAdoption,
   judgeConsumerRef,
   judgeFixedToolRequest,
@@ -74,12 +77,16 @@ import type {
   ToolLedgerFacts,
   ToolLedgerPorts,
   ToolLedgerControls,
+  ToolLedgerRecovery,
 } from './construction.ts'
+import { fixJsonTree } from './json-tree.ts'
+import { pendingAfter } from './ledger-pending.ts'
 import {
   fixFactAcknowledgement,
   fixFactBasis,
   fixFactInput,
   fixFinalInput,
+  judgeStartRecord,
 } from './facts-boundary.ts'
 import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
 import { decideReceiveFacts, readSavedFact, sameFactValue } from './ledger-facts.ts'
@@ -95,6 +102,24 @@ import {
   type Snapshot,
 } from './ledger-decider.ts'
 import { fixCleanupFields, fixReleaseOutcome } from './cleanup-boundary.ts'
+import {
+  decideAttachRegistration,
+  decideBlockRegistration,
+  decideClosePark,
+  decideCompleteInvalidation,
+  decidePlanSuspension,
+  decideSuspend,
+  parkDutyOf,
+} from './ledger-suspension.ts'
+import { judgeCheckpointField, judgeSuspensionField } from './suspension-boundary.ts'
+import {
+  decideAcceptDecision,
+  decideCloseWait,
+  decidePrepareResume,
+  decideResumePlan,
+  refuseDecision,
+  refuseResume,
+} from './ledger-resumption.ts'
 import {
   decidePlanRelease,
   checkRelease,
@@ -121,8 +146,10 @@ import {
   decidePrepared,
   decideQueueHold,
   decideQueueOrder,
+  decideQueuePark,
   decideQueueReady,
   decideQueueRelease,
+  decideQueueRequeue,
   decideRecordStart,
   decideLedgerRejected,
   decideRejectPending,
@@ -140,7 +167,9 @@ import {
   type CallRecord,
   type LedgerCommit,
   type LedgerDomain,
+  type LedgerPendingScanInput,
   type LedgerWrite,
+  type PendingCall,
   type QueueEntryRecord,
   type ToolLedgerStore,
 } from './ledger-store.ts'
@@ -156,7 +185,12 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
   /** The minimal failure terminal after a step the store rejected for good (SPEC 23). */
   rejections: ToolLedgerRejections<P>
   facts: ToolLedgerFacts<P, B>
+  /** The trusted recovery scan across tenants; the host takes it at construction. */
+  recovery: ToolLedgerRecovery
 }>
+
+/** 一页扫描最多列出的调用数。 */
+const SCAN_LIMIT = 1000
 
 /** The identity of this ledger implementation, named in its `unsupported` answers. */
 export const toolLedgerAdoption: Adoption = describedAdoption({
@@ -282,9 +316,16 @@ export function createToolLedger<P, B extends ContentBlock>(
     expected: Snapshot<B>['revision'],
     revision: Snapshot<B>['revision'],
     writes: readonly LedgerWrite<B>[],
+    pending?: boolean,
   ): Promise<LedgerCommit> => {
     try {
-      return await store.commit({ domain, expected, revision, writes })
+      return await store.commit({
+        domain,
+        expected,
+        revision,
+        writes,
+        ...(pending === undefined ? {} : { pending }),
+      })
     } catch {
       // The store may have applied the writes before it threw, so the outcome is unknown.
       return { kind: 'unknown', diagnostic: thrown('ledger-store') }
@@ -329,7 +370,8 @@ export function createToolLedger<P, B extends ContentBlock>(
    * reader's fence does not exclude it, and it re-fences instead. A command that pre-reads the
    * domain before its first transaction (to gate a queue step or a port call) passes that revision
    * as `since`: the pre-read is its first read, so a negative answer given after it stops the
-   * command whatever the steps between the pre-read and the transaction did.
+   * command whatever the steps between the pre-read and the transaction did. 调用域的每笔提交都
+   * 带上提交生效后的待办标记，由这里按读到的记录与写入算出，决策器不写标记。
    */
   const transact = async <T>(
     domain: LedgerDomain,
@@ -340,13 +382,14 @@ export function createToolLedger<P, B extends ContentBlock>(
   ): Reply<T> => {
     let firstRead = since
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const snapshot = await read(domain)
-      if ('failure' in snapshot) return snapshot
-      firstRead ??= snapshot.ok.revision
-      if (operation !== null && excludedSince(snapshot.ok, operation, firstRead))
+      const raw = await readDomain(domain)
+      if ('failure' in raw) return raw
+      const snapshot = snapshotOf(domain, raw.ok)
+      firstRead ??= snapshot.revision
+      if (operation !== null && excludedSince(snapshot, operation, firstRead))
         return excluded(operation)
-      const revision = nextRevision(snapshot.ok.revision)
-      const decision = await decide(snapshot.ok, { revision })
+      const revision = nextRevision(snapshot.revision)
+      const decision = await decide(snapshot, { revision })
       if (decision.kind === 'reply') return decision.outcome
       const operations = new Set(operation === null ? [] : [operation])
       for (const write of decision.writes) {
@@ -354,14 +397,97 @@ export function createToolLedger<P, B extends ContentBlock>(
           operations.add(write.record.operation.operation)
       }
       for (const identity of operations) {
-        if (excludedSince(snapshot.ok, identity, firstRead)) return excluded(identity)
+        if (excludedSince(snapshot, identity, firstRead)) return excluded(identity)
       }
       const writes = withExclusionsRemoved(decision.writes, operations)
-      const committed = await commit(domain, snapshot.ok.revision, revision, writes)
+      const pending = domain.kind === 'call' ? pendingAfter(raw.ok.records, writes) : undefined
+      const committed = await commit(domain, snapshot.revision, revision, writes, pending)
       const answer = answerOf(committed, decision.value, unknown)
       if (answer !== null) return answer
     }
     return unavailable('ledger-store', `${attempts} revision conflicts in a row`)
+  }
+
+  /**
+   * 读一页待办标记。`limit` 已经过边界检查。记录仓答复 `unsupported` 时回复 `unsupported`，
+   * 读不到或抛错时回复 `unavailable`。
+   */
+  const scanStore = async (
+    input: LedgerPendingScanInput,
+  ): Reply<Readonly<{ calls: readonly PendingCall[]; more: boolean }>> => {
+    let answer: Awaited<ReturnType<typeof store.scanPending>>
+    try {
+      answer = await store.scanPending(input)
+    } catch {
+      return unavailable('ledger-store', thrown('ledger-store'))
+    }
+    if (answer.kind === 'unavailable') return unavailable('ledger-store', answer.diagnostic)
+    if (answer.kind === 'unsupported')
+      return fail({ kind: 'unsupported', adoption: toolLedgerAdoption, reason: answer.reason })
+    return succeed({ calls: answer.calls, more: answer.more })
+  }
+
+  /** 一页的大小：1 到 SCAN_LIMIT 的整数。 */
+  const judgeLimit = (value: unknown): Outcome<number, ToolFailure> =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 && value <= SCAN_LIMIT
+      ? succeed(value)
+      : invalid('limit', `expected an integer from 1 to ${SCAN_LIMIT}`)
+
+  /**
+   * 契约的 scanPending：只扫输入的租户，按调用身份分页，游标是上一页最后一个调用。列出的每个
+   * 调用都按 `recover` 问资格，有一个被拒绝就整页拒绝，不默默去掉它。空页不问资格。
+   */
+  const scanPending: ToolCommands<P, B>['scanPending'] = async input => {
+    if (typeof input !== 'object' || input === null) return invalid('input', 'type')
+    const tenant: unknown = Reflect.get(input, 'tenant')
+    if (!isTenantShape(tenant) || !('principal' in input)) return denied('recover')
+    const limit = judgeLimit(Reflect.get(input, 'limit'))
+    if ('failure' in limit) return limit
+    const cursor: unknown = Reflect.get(input, 'after')
+    let after: PendingCall | null = null
+    if (cursor !== null) {
+      const call = decodeToolCallId(cursor)
+      if ('failure' in call) return invalid('after', call.failure.reason)
+      after = { tenant, call: call.ok }
+    }
+    const page = await scanStore({ tenant, after, limit: limit.ok })
+    if ('failure' in page) return page
+    const principal = Reflect.get(input, 'principal') as P
+    for (const listed of page.ok.calls) {
+      const allowed = await access({ principal, tenant, call: listed.call }, 'recover')
+      if ('failure' in allowed) return allowed
+    }
+    const last = page.ok.calls.at(-1)
+    return succeed({
+      calls: page.ok.calls.map(listed => listed.call),
+      next: page.ok.more && last !== undefined ? last.call : null,
+    })
+  }
+
+  const recovery: ToolLedgerRecovery = {
+    scan: async input => {
+      if (typeof input !== 'object' || input === null) return invalid('input', 'type')
+      const limit = judgeLimit(Reflect.get(input, 'limit'))
+      if ('failure' in limit) return limit
+      const after: unknown = Reflect.get(input, 'after')
+      if (after !== null) {
+        if (typeof after !== 'object' || !isTenantShape(Reflect.get(after, 'tenant')))
+          return invalid('after', 'tenant')
+        const call = decodeToolCallId(Reflect.get(after, 'call'))
+        if ('failure' in call) return invalid('after', call.failure.reason)
+      }
+      const page = await scanStore({
+        tenant: null,
+        after: after as PendingCall | null,
+        limit: limit.ok,
+      })
+      if ('failure' in page) return page
+      const last = page.ok.calls.at(-1)
+      return succeed({
+        calls: page.ok.calls,
+        next: page.ok.more && last !== undefined ? last : null,
+      })
+    },
   }
 
   /**
@@ -613,7 +739,7 @@ export function createToolLedger<P, B extends ContentBlock>(
   const text = (terminal: Parameters<typeof terminalText<B>>[0]) =>
     terminalText(terminal, admitTools.text)
 
-  /** How many unreleased calls the request's queue holds, read before an admission (P02). */
+  /** How many unreleased calls the queue of the request's scope holds before admission (P02). */
   const queueLoad = async (
     checked: MutationInput<P>,
     request: FixedToolRequest,
@@ -639,7 +765,13 @@ export function createToolLedger<P, B extends ContentBlock>(
   ): Promise<Outcome<OrderOutcome, ToolFailure>> =>
     transactQueue(
       queueDomain(tenant, request),
-      snapshot => decideQueueOrder(snapshot, { ...command, limit: request.limits.concurrency }),
+      snapshot =>
+        decideQueueOrder(snapshot, {
+          ...command,
+          tool: request.availability.definition.name,
+          limit: request.limits.concurrency,
+          scopeBudget: request.limits.scopeBudget,
+        }),
       commitUnknown(command.operation),
     )
 
@@ -736,7 +868,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     context: WriteEntry<P>,
     command: WriteCommand,
     before: Snapshot<B>,
-    planned: Readonly<{ request: FixedToolRequest; purpose: 'initial' | 'resume' }>,
+    planned: Readonly<{ request: FixedToolRequest }>,
   ): Promise<Outcome<QueueEntryRecord, ToolFailure>> => {
     const gated = preGate(before, context)
     if ('failure' in gated) return gated
@@ -767,12 +899,23 @@ export function createToolLedger<P, B extends ContentBlock>(
     })
     const before = await peek(context.ok)
     if ('failure' in before) return before
+    // A resume segment keeps the place its call holds: nothing is asked of the queue domain.
+    if (purpose === 'resume')
+      return transact(
+        callDomain(context.ok),
+        command.operation,
+        (snapshot, mint) =>
+          decideResumePlan(
+            snapshot,
+            { ...command, request: judged.ok, environmentAdoption: environmentAdoption.ok },
+            mint,
+          ),
+        commitUnknown(command.operation),
+        before.ok.revision,
+      )
     let entry: QueueEntryRecord | null = null
     if (!committedBefore(before.ok, command.operation)) {
-      const placed = await placeForPlan(context.ok, command, before.ok, {
-        request: judged.ok,
-        purpose,
-      })
+      const placed = await placeForPlan(context.ok, command, before.ok, { request: judged.ok })
       if ('failure' in placed) return placed
       entry = placed.ok
     }
@@ -787,7 +930,6 @@ export function createToolLedger<P, B extends ContentBlock>(
             ...command,
             request: judged.ok,
             environmentAdoption: environmentAdoption.ok,
-            purpose,
             entry: ordinal ?? missingEntry(context.ok.call, command.operation),
             key: queueKeyOf(judged.ok),
           },
@@ -1093,6 +1235,255 @@ export function createToolLedger<P, B extends ContentBlock>(
     return releaseQueue(context.ok, record.ok, settled.ok)
   }
 
+  /**
+   * The timing of a suspension with its running segment closed (P07): the elapsed time of the
+   * committed segment is added and the timing pauses. A clock that cannot answer leaves the timing
+   * unknown with its segment, as a settlement does; elapsed time is never reset.
+   */
+  const closeSegment = async (timing: ToolTiming): Promise<ToolTiming> => {
+    if (timing.kind !== 'running') return timing
+    const unknown = {
+      kind: 'unknown',
+      accumulatedMs: timing.accumulatedMs,
+      segment: timing.segment,
+      diagnostic: 'suspension-elapsed-unavailable',
+    } as const
+    try {
+      const elapsed = await clock.elapsed(timing.segment.marker)
+      if ('failure' in elapsed || !/^(0|[1-9][0-9]*)$/u.test(elapsed.ok.milliseconds))
+        return unknown
+      const total = BigInt(timing.accumulatedMs) + BigInt(elapsed.ok.milliseconds)
+      return { kind: 'paused', accumulatedMs: total.toString() }
+    } catch {
+      return unknown
+    }
+  }
+
+  const planSuspension: ToolCommands<P, B>['planSuspension'] = async input => {
+    const context = await writeEntry(input)
+    if ('failure' in context) return context
+    const fixed = fixCleanupFields(input, ['start', 'schema'])
+    if ('failure' in fixed) return fixed
+    const start = judgeStartRecord(fixed.ok['start'])
+    if ('failure' in start) return invalid('start', 'shape')
+    const schema = judgeAdoptionField(fixed.ok['schema'], 'schema')
+    if ('failure' in schema) return schema
+    const fields = { start: start.ok, schema: schema.ok }
+    const command = { ...writeCommand(context.ok, fields), ...fields }
+    return transact(
+      callDomain(context.ok),
+      command.operation,
+      (snapshot, mint) => decidePlanSuspension(snapshot, command, mint),
+      commitUnknown(command.operation),
+    )
+  }
+
+  const suspend: ToolCommands<P, B>['suspend'] = async input => {
+    const context = await writeEntry(input)
+    if ('failure' in context) return context
+    const fixed = fixCleanupFields(input, ['suspension', 'checkpoint'])
+    if ('failure' in fixed) return fixed
+    const suspension = judgeSuspensionField(fixed.ok['suspension'])
+    if ('failure' in suspension) return suspension
+    const checkpoint = judgeCheckpointField(fixed.ok['checkpoint'])
+    if ('failure' in checkpoint) return checkpoint
+    const fields = { suspension: suspension.ok, checkpoint: checkpoint.ok }
+    const command = { ...writeCommand(context.ok, fields), ...fields }
+    const before = await peek(context.ok)
+    if ('failure' in before) return before
+    const record = recordOf(before.ok)
+    if ('failure' in record) return record
+    const timing = committedBefore(before.ok, command.operation)
+      ? record.ok.state.timing
+      : await closeSegment(record.ok.state.timing)
+    return transact(
+      callDomain(context.ok),
+      command.operation,
+      (snapshot, mint) => decideSuspend(snapshot, { ...command, timing }, mint),
+      commitUnknown(command.operation),
+      before.ok.revision,
+    )
+  }
+
+  const attachRegistration: ToolCommands<P, B>['attachRegistration'] = async input => {
+    const context = await writeEntry(input)
+    if ('failure' in context) return context
+    const wait = decodeToolWaitId(Reflect.get(input, 'wait'))
+    if ('failure' in wait) return invalid('wait', wait.failure.reason)
+    const registration = judgeEvidenceField(Reflect.get(input, 'registration'), 'registration')
+    if ('failure' in registration) return registration
+    const fields = { wait: wait.ok, registration: registration.ok }
+    const command = { ...writeCommand(context.ok, fields), ...fields }
+    return transact(
+      callDomain(context.ok),
+      command.operation,
+      (snapshot, mint) => decideAttachRegistration(snapshot, command, mint),
+      commitUnknown(command.operation),
+    )
+  }
+
+  /**
+   * The decision the owner resolves from the evidence it reported for the wait (P06, P12). It is
+   * asked only for a wait that can take a decision, so a decision that comes after a cancellation
+   * is not consumed for nothing. An answer outside the three decision kinds is a fault of the
+   * owner: it is reported, never read as a person's answer.
+   */
+  const resolveDecision = async (
+    checked: MutationInput<P>,
+    wait: ToolWaitId,
+    decision: DurableEvidence,
+    maxBytes: number,
+  ): Promise<Outcome<DecisionValue, ToolFailure>> => {
+    const decisions = settlement.decisions
+    if (decisions === undefined)
+      return unavailable('tool-decisions', 'no decision owner is assembled for this ledger')
+    let resolved: Awaited<ReturnType<typeof decisions.resolve>>
+    try {
+      resolved = await decisions.resolve({
+        principal: checked.principal,
+        tenant: checked.tenant,
+        call: checked.call,
+        wait,
+        decision: structuredClone(decision),
+      })
+    } catch {
+      return unavailable('tool-decisions', thrown('tool-decisions'))
+    }
+    if ('failure' in resolved)
+      return resolved.failure.kind === 'commit-unknown'
+        ? unavailable('tool-decisions', 'the decision owner could not confirm the decision')
+        : resolved
+    return judgeDecisionValue(resolved.ok, maxBytes)
+  }
+
+  const acceptDecision: ToolCommands<P, B>['acceptDecision'] = async input => {
+    const checked = judgeMutationInput<P>(input, 'accept-decision')
+    if ('failure' in checked) return checked
+    const wait = decodeToolWaitId(Reflect.get(input, 'wait'))
+    if ('failure' in wait) return invalid('wait', wait.failure.reason)
+    const decision = judgeEvidenceField(Reflect.get(input, 'decision'), 'decision')
+    if ('failure' in decision) return decision
+    const allowed = await access(checked.ok, 'accept-decision')
+    if ('failure' in allowed) return allowed
+    const { operation } = checked.ok
+    const fields = { wait: wait.ok, decision: decision.ok }
+    const before = await read(callDomain(checked.ok))
+    if ('failure' in before) return before
+    // A committed operation is recalled before the decider reads the value.
+    let value: DecisionValue = { kind: 'no-answer' }
+    if (!committedBefore(before.ok, operation)) {
+      const refused = refuseDecision(before.ok, wait.ok)
+      if ('failure' in refused) return refused
+      const { intent } = refused.ok.found.record
+      const resolved = await resolveDecision(
+        checked.ok,
+        wait.ok,
+        decision.ok,
+        intent.schemas.responseMaxBytes,
+      )
+      if ('failure' in resolved) return resolved
+      value = resolved.ok
+    }
+    const command = {
+      tenant: checked.ok.tenant,
+      call: checked.ok.call,
+      operation,
+      inputDigest: digestOf(fields),
+      ...fields,
+      value,
+    }
+    return transact(
+      callDomain(checked.ok),
+      operation,
+      (snapshot, mint) => decideAcceptDecision(snapshot, command, mint),
+      commitUnknown(operation),
+      before.ok.revision,
+    )
+  }
+
+  /**
+   * The resume of a suspended call whose decision was accepted (P02, P07). After the gates on the
+   * pre-read and the current start qualification, the queue domain takes two steps: a parked entry
+   * is requeued at a new ordinal (the model's `Requeue`), and then the entry takes a slot, or keeps
+   * the slot it never gave up (`Hold`). The call domain then saves the resume record (`Resume`).
+   * While the call waits for a slot nothing is written to the call domain, and a later resend
+   * recalls the requeue.
+   */
+  const prepareResume: ToolCommands<P, B>['prepareResume'] = async input => {
+    const context = await writeEntry(input)
+    if ('failure' in context) return context
+    const checkpoint = judgeEvidenceField(Reflect.get(input, 'checkpoint'), 'checkpoint')
+    if ('failure' in checkpoint) return checkpoint
+    const command = {
+      ...writeCommand(context.ok, { checkpoint: checkpoint.ok }),
+      checkpoint: checkpoint.ok,
+    }
+    const before = await peek(context.ok)
+    if ('failure' in before) return before
+    let hold = null
+    if (!committedBefore(before.ok, command.operation)) {
+      const gated = preGate(before.ok, context.ok)
+      if ('failure' in gated) return gated
+      const record = gated.ok
+      const refused = refuseResume(before.ok, record, checkpoint.ok)
+      if ('failure' in refused) return refused
+      const permitted = await qualifyStart(context.ok, record.request)
+      if ('failure' in permitted) return permitted
+      const domain = queueDomain(context.ok.tenant, record.request)
+      const step = { call: context.ok.call, operation: command.operation }
+      const requeued = await transactQueue(
+        domain,
+        snapshot => decideQueueRequeue(snapshot, step),
+        commitUnknown(command.operation),
+      )
+      if ('failure' in requeued) return requeued
+      const held = await transactQueue(
+        domain,
+        snapshot => decideQueueHold(snapshot, { ...step, keep: true }),
+        commitUnknown(command.operation),
+      )
+      if ('failure' in held) return held
+      hold = held.ok
+    }
+    const outcome = hold
+    return transact(
+      callDomain(context.ok),
+      command.operation,
+      (snapshot, mint) =>
+        decidePrepareResume(
+          snapshot,
+          {
+            ...command,
+            execution: executionOf(context.ok),
+            hold: outcome ?? {
+              kind: 'held',
+              entry: missingEntry(context.ok.call, command.operation),
+            },
+          },
+          mint,
+        ),
+      commitUnknown(command.operation),
+      before.ok.revision,
+    )
+  }
+
+  const closeWait: ToolCommands<P, B>['closeWait'] = async input => {
+    const context = await writeEntry(input)
+    if ('failure' in context) return context
+    const wait = decodeToolWaitId(Reflect.get(input, 'wait'))
+    if ('failure' in wait) return invalid('wait', wait.failure.reason)
+    const continuation = judgeEvidenceField(Reflect.get(input, 'continuation'), 'continuation')
+    if ('failure' in continuation) return continuation
+    const fields = { wait: wait.ok, continuation: continuation.ok }
+    const command = { ...writeCommand(context.ok, fields), ...fields }
+    return transact(
+      callDomain(context.ok),
+      command.operation,
+      (snapshot, mint) => decideCloseWait(snapshot, command, mint),
+      commitUnknown(command.operation),
+    )
+  }
+
   const confirmEnvironmentRelease = async (
     context: MutationInput<P>,
     release: ReleaseRecord,
@@ -1141,36 +1532,34 @@ export function createToolLedger<P, B extends ContentBlock>(
               subject: subject.ok,
               inputDigest: digestOf(intent.ok),
             }
-            return decideControl(snapshot, command, mint)
+            return decideControl(snapshot, command, text, mint)
           }),
         )
       })
     },
-    acceptDecision: input =>
-      later(input, 'accept-decision', 'acceptDecision', 'waits, decisions and resources'),
+    acceptDecision,
     acceptResource: input =>
       later(input, 'accept-resource', 'acceptResource', 'waits, decisions and resources'),
-    scanPending: () => Promise.resolve(unsupported('scanPending', 'recovery scan')),
+    scanPending,
     loadRecovery: input => query(input, 'recover', snapshot => readRecovery(snapshot)),
     claim: input => later(input, 'recover', 'claim', 'recovery scan'),
     planPreparation,
     prepared,
     enqueue,
     prepareStart,
-    prepareResume: input => write(input, 'prepareResume', 'checkpointed executors'),
+    prepareResume,
     rejectPending,
     recordStart,
     preserveProcess: input =>
       write(input, 'preserveProcess', 'process observation and diagnostics'),
     openWait: input => write(input, 'openWait', 'waits, decisions and resources'),
-    attachRegistration: input =>
-      write(input, 'attachRegistration', 'waits, decisions and resources'),
+    attachRegistration,
     attachResource: input => write(input, 'attachResource', 'waits, decisions and resources'),
-    planSuspension: input => write(input, 'planSuspension', 'checkpointed executors'),
-    suspend: input => write(input, 'suspend', 'checkpointed executors'),
+    planSuspension,
+    suspend,
     preserveResult,
     recordResponse: input => write(input, 'recordResponse', 'waits, decisions and resources'),
-    closeWait: input => write(input, 'closeWait', 'waits, decisions and resources'),
+    closeWait,
     recordControl: async input => {
       const fixed = fixCleanupFields(input, ['control', 'source', 'progress'])
       if ('failure' in fixed) return fixed
@@ -1327,12 +1716,19 @@ export function createToolLedger<P, B extends ContentBlock>(
         }
         return Promise.resolve(
           succeed((snapshot, mint) =>
-            decideRecordFactsTask(
-              snapshot,
-              command,
-              mint,
-              unsupported('recordTask', 'settled facts blocked only'),
-            ),
+            isRegistrationTask(fixed.ok['task'])
+              ? isDone(fixed.ok['resolution'])
+                ? decideCompleteInvalidation(snapshot, command, mint)
+                : decideBlockRegistration(snapshot, command, mint)
+              : decideRecordFactsTask(
+                  snapshot,
+                  command,
+                  mint,
+                  unsupported(
+                    'recordTask',
+                    'settled facts blocked, refused registrations and done invalidations only',
+                  ),
+                ),
           ),
         )
       })
@@ -1386,6 +1782,54 @@ export function createToolLedger<P, B extends ContentBlock>(
     read,
     readQueue,
     transactQueue,
+    park: async (checked, operation) => {
+      const own = await read(callDomain(checked))
+      if ('failure' in own) return own
+      const duty = parkDutyOf(own.ok, operation)
+      if (duty.kind === 'none') return succeed({ parked: false })
+      let parked = false
+      if (duty.kind === 'park') {
+        const queued = await transactQueue(
+          queueDomain(checked.tenant, duty.record.request),
+          snapshot =>
+            decideQueuePark(snapshot, { call: checked.call, operation, holder: duty.holder }),
+          commitUnknown(operation),
+        )
+        if ('failure' in queued) return queued
+        parked = queued.ok.kind === 'parked'
+      }
+      const closed = await transact(
+        callDomain(checked),
+        null,
+        snapshot => decideClosePark(snapshot, operation),
+        commitUnknown(operation),
+      )
+      return 'failure' in closed ? closed : succeed({ parked })
+    },
+    release: async (checked, operation) => {
+      const own = await read(callDomain(checked))
+      if ('failure' in own) return own
+      const { call } = own.ok
+      if (call === null) return invalid('call', 'unknown-call')
+      if (!own.ok.tasks.some(task => task.kind === 'queue' && task.operation === operation))
+        return succeed({ released: false })
+      if (call.request.availability.kind !== 'available') return invalid('call', 'no-queue-place')
+      const basis = releaseBasisOf(own.ok)
+      if (basis === null) return invalid('call', 'no-release-basis')
+      const released = await transactQueue(
+        queueDomain(checked.tenant, call.request),
+        snapshot => decideQueueRelease(snapshot, [{ call: checked.call, basis }]),
+        commitUnknown(operation),
+      )
+      if ('failure' in released) return released
+      const closed = await transact(
+        callDomain(checked),
+        null,
+        snapshot => decideCloseQueueTask(snapshot, operation),
+        commitUnknown(operation),
+      )
+      return 'failure' in closed ? closed : succeed({ released: true })
+    },
   })
 
   return Object.freeze({
@@ -1404,7 +1848,22 @@ export function createToolLedger<P, B extends ContentBlock>(
         return query(input, 'recover', snapshot => readSavedFact(snapshot, basis.ok))
       },
     } satisfies ToolLedgerFacts<P, B>),
+    recovery: Object.freeze(recovery),
   })
+}
+
+/** recordTask 收到的处置是否为 done：等待失效以对端回执完成。 */
+function isDone(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && Reflect.get(value, 'kind') === 'done'
+}
+
+/** Whether a task given to recordTask names a wait registration. */
+function isRegistrationTask(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Reflect.get(value, 'kind') === 'wait-registration'
+  )
 }
 
 /**
@@ -1412,7 +1871,15 @@ export function createToolLedger<P, B extends ContentBlock>(
  * already committed: the transaction recalls the receipt and never reads this value.
  */
 function missingEntry(call: ToolCallId, operation: ToolOperationId) {
-  return { call, ordinal: '0', stage: 'held', operation, limit: null } as const
+  return {
+    call,
+    ordinal: '0',
+    stage: 'held',
+    operation,
+    tool: '',
+    limit: null,
+    scopeBudget: null,
+  } as const
 }
 
 function decodeToolOperationIdField(
@@ -1465,49 +1932,22 @@ function judgePreparationIdentity(
   return succeed({ tenant, call: call.ok, operation: operation.ok })
 }
 
-/** An execution reference given back by a caller: tenant shape, call, instance and generation. */
-function judgeExecutionRefField(
-  value: unknown,
-  field: string,
-): Outcome<ToolExecutionRef, ToolFailure> {
-  if (typeof value !== 'object' || value === null) return invalid(field, 'type')
-  const tenant: unknown = Reflect.get(value, 'tenant')
-  if (!isTenantShape(tenant)) return invalid(`${field}.tenant`, 'type')
-  const call = decodeToolCallId(Reflect.get(value, 'call'))
-  if ('failure' in call) return invalid(`${field}.call`, call.failure.reason)
-  const instance = decodeToolInstanceId(Reflect.get(value, 'instance'))
-  if ('failure' in instance) return invalid(`${field}.instance`, instance.failure.reason)
-  const generation: unknown = Reflect.get(value, 'generation')
-  if (typeof generation !== 'string' || generation.length === 0)
-    return invalid(`${field}.generation`, 'type')
-  return succeed({ tenant, call: call.ok, instance: instance.ok, generation })
-}
-
 /** The execution reference a write context names: its instance and generation on the call. */
 function executionOf(context: WriteInput): ToolExecutionRef {
   const { tenant, call, instance, generation } = context
   return { tenant, call, instance, generation }
 }
 
-/** A start record given back by a caller (recordStart): a `start` kind with decodable identity. */
+/**
+ * A start record given back by a caller (recordStart): a closed `start` record, or the `resume`
+ * record of a checkpoint (P07), with decodable identity.
+ */
 function judgeStartRecordField(value: unknown): Outcome<ToolStartRecord, ToolFailure> {
   if (typeof value !== 'object' || value === null) return invalid('invocation', 'type')
-  if (Reflect.get(value, 'kind') !== 'start') return invalid('invocation.kind', 'value')
-  const operation = decodeToolOperationIdField(
-    Reflect.get(value, 'operation'),
-    'invocation.operation',
-  )
-  if ('failure' in operation) return operation
-  const executor = judgeAdoptionField(Reflect.get(value, 'executor'), 'invocation.executor')
-  if ('failure' in executor) return executor
-  const execution = judgeExecutionRefField(Reflect.get(value, 'execution'), 'invocation.execution')
-  if ('failure' in execution) return execution
-  return succeed({
-    kind: 'start',
-    operation: operation.ok,
-    executor: executor.ok,
-    execution: execution.ok,
-  })
+  const kind: unknown = Reflect.get(value, 'kind')
+  if (kind !== 'start' && kind !== 'resume') return invalid('invocation.kind', 'value')
+  const judged = judgeStartRecord(value)
+  return 'failure' in judged ? invalid('invocation', 'shape') : judged
 }
 
 /** The exclusion evidence of a `not-started` or `rejected` start progress. */
@@ -1599,4 +2039,22 @@ function judgeRelease(input: object): Outcome<ReleaseFields, ToolFailure> {
     consumer: consumer.ok,
     evidence: evidence.ok,
   })
+}
+
+/**
+ * A decision as the decision owner resolved it (P06, P12): one of the three closed kinds. An
+ * answer is a tagged JSON tree within the response bound that the wait's schemas fix; it is
+ * copied, so nothing the owner holds can change it later.
+ */
+function judgeDecisionValue(value: unknown, maxBytes: number): Outcome<DecisionValue, ToolFailure> {
+  if (typeof value !== 'object' || value === null) return invalid('decision', 'type')
+  const kind: unknown = Reflect.get(value, 'kind')
+  const keys = Object.keys(value)
+  if ((kind === 'no-answer' || kind === 'declined') && keys.length === 1) return succeed({ kind })
+  if (kind !== 'answer' || keys.length !== 2 || !Object.hasOwn(value, 'value'))
+    return invalid('decision', 'not-a-decision')
+  const tree = fixJsonTree(Reflect.get(value, 'value'), maxBytes)
+  return 'failure' in tree
+    ? invalid('decision.value', tree.failure.reason)
+    : succeed({ kind, value: tree.ok.value })
 }

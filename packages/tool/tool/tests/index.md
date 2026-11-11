@@ -18,6 +18,11 @@
 - [推进协程的重新推进测试](driver-retrigger.spec.ts)。
 - [绑定启动、失败与未知认回测试](binding-start.spec.ts)。
 - [绑定启动的并发交错测试](binding-races.spec.ts)。
+- [检查点作者的可靠暂停测试](checkpoint-suspension.spec.ts)及其[替身](checkpoint-values.ts)。
+- [检查点作者答复后的接续测试](checkpoint-resumption.spec.ts)。
+- [恢复一侧决策器的拒绝与提交](resumption-deciders.spec.ts)、[暂停一侧决策器的提交与拒绝](suspension-deciders.spec.ts)及其[场景与快照工具](resumption-decider-values.ts)。
+- [暂停中调用的叫停与收场测试](suspended-control.spec.ts)，含叫停决策器直接取证及其[场景与快照工具](control-decider-values.ts)。
+- [收场调用的失效待办测试](suspension-invalidation.spec.ts)。
 - [未知异常与未处理拒绝的观察工具](caught-rejection.ts)。
 - [测试依赖装配行为](testing-dependencies.spec.ts)。
 - [测试依赖装配类型](testing-dependencies.spec-d.ts)。

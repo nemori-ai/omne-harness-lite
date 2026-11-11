@@ -100,6 +100,7 @@ describe('G5 the start ordering domain', () => {
       let block = false
       const store: ToolLedgerStore<ContentBlock> = {
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         read: async domain => {
           if (block) {
             block = false
@@ -675,6 +676,7 @@ describe('G5 tenants and qualification', () => {
   // arrives is a silent failure, whatever holds the store.
   const neverSettles = (): ToolLedgerStore<ContentBlock> => ({
     durability: 'none',
+    scanPending: () => new Promise(() => {}),
     read: () => new Promise(() => {}),
     commit: () => new Promise(() => {}),
   })

@@ -2,8 +2,10 @@ import type { NeedBinding, SuppliedBlockDescriptor } from '@omne-harness/runtime
 import { sessionModesBlock } from '@omne-harness/session-contract'
 import {
   sessionInquirySchema,
+  sessionInteractionSchema,
   sessionModesPublicationSchema,
   type SessionInquiryView,
+  type SessionInteractionView,
   type SessionModesPublication,
 } from '../mode-publication-schema.ts'
 
@@ -44,3 +46,25 @@ export const sessionInquiryBinding = Object.freeze({
     return Object.freeze({ inquiry: publication.inquiry, basis: publication.basis })
   },
 } satisfies NeedBinding<'session.modes', SessionInquiryView>)
+
+export const sessionInteractionBinding = Object.freeze({
+  key: 'session.modes',
+  need: Object.freeze({
+    name: 'session.human-interaction',
+    shape: sessionInteractionSchema,
+    consumer: 'coordinator',
+    purpose: 'Meta-capability availability with the exact published Session collaboration basis',
+    necessity: 'required',
+  }),
+  integrator: 'coordinator',
+  translate: (value: unknown): SessionInteractionView => {
+    const publication = sessionModesPublicationSchema.parse(value)
+    return Object.freeze({ interaction: publication.interaction, basis: publication.basis })
+  },
+} satisfies NeedBinding<'session.modes', SessionInteractionView>)
+
+/** Every binding of `session.modes`: a registration of the block binds all of them. */
+export const sessionModesBindings = Object.freeze([
+  sessionInquiryBinding,
+  sessionInteractionBinding,
+])

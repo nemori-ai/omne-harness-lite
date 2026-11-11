@@ -69,7 +69,7 @@ export type Transport =
 export function openTransport(
   environment: CommandEnvironment,
   origin: string,
-  location: 'governance' | 'session',
+  location: 'governance' | 'session' | 'hitl',
 ): Transport {
   try {
     const transport = environment.services.createTransport(origin, location)
@@ -181,7 +181,7 @@ export function loadLogin(
   values: Option,
   output: CliOutput,
   environment: CommandEnvironment,
-  location: 'governance' | 'session',
+  location: 'governance' | 'session' | 'hitl',
 ): LoadedLogin {
   const given = givenServer(values, environment)
   const early = given === undefined ? undefined : openTransport(environment, given, location)

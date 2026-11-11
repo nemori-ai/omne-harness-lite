@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import {
+  admissionPassageOf,
   decodeActionId,
-  decodePassageId,
   type Access,
   type Action,
   type ActionBatch,
@@ -10,7 +10,10 @@ import {
   type Adoption,
   type AgentExecutionId,
   type Authority,
+  type CardAnswer,
+  type CardRemark,
   type ConsumerRef,
+  type DecisionCardDraft,
   type DurableEvidence,
   type Failure,
   type Material,
@@ -83,7 +86,7 @@ export function actionOf(step: StepId, original: ActionToolCall, ordinal: number
     original: { callId: original.callId },
     effectiveArguments: argumentsText(original.arguments),
     call: null,
-    judgment: { kind: 'pending', passage: minted(decodePassageId(`${id}/admission`)) },
+    judgment: { kind: 'pending', passage: minted(admissionPassageOf(id)) },
   }
 }
 
@@ -107,7 +110,11 @@ export type ToolAdmission =
       evidence: DurableEvidence
       request: ToolInvokeRequest
     }>
+  | Readonly<{ kind: 'asked'; action: Action; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
+
+/** The one valid answer of a person to the card of the admission, handed back to the admission. */
+export type HandBack = Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }>
 
 const judged = (action: Action): Outcome<ToolAdmission, Failure> =>
   succeed({ kind: 'judged', action })
@@ -127,7 +134,7 @@ function asUnavailable(owner: string, failure: Failure): Outcome<ToolAdmission, 
   return fail(failure)
 }
 
-/** An admission that did not allow the action: a denial, an unavailable admission, or a failure. */
+/** An admission that did not allow the action: a denial, a card for a person, or unavailable. */
 function notAllowed(
   action: Action,
   decision: Exclude<AdmissionDecision, { kind: 'allow' }>,
@@ -136,13 +143,13 @@ function notAllowed(
     return judged({ ...action, judgment: { kind: 'denied', evidence: decision.evidence } })
   if (decision.kind === 'unavailable')
     return unavailableAdmission('agentActionAdmission', decision.diagnostic)
-  // need-decision: the decision card round is not implemented yet.
-  return fail({ kind: 'unsupported' })
+  return succeed({ kind: 'asked', action, card: decision.card, evidence: decision.evidence })
 }
 
 /**
  * A0 for one pending action: describe, admit and prepare its request. `original` is the
- * `tool_call` part the action names, read back from the preserved reply.
+ * `tool_call` part the action names, read back from the preserved reply. `handBack` is null on
+ * the first call and carries the answer of the person when the admission asked for one.
  */
 export async function admitToolAction<P>(
   ports: Ports<P>,
@@ -151,6 +158,7 @@ export async function admitToolAction<P>(
   advance: Authority,
   action: Action,
   original: ActionToolCall,
+  handBack: HandBack | null,
 ): Promise<Outcome<ToolAdmission, Failure>> {
   if (action.judgment.kind !== 'pending') return judged(action)
   if (original.callId !== action.original.callId)
@@ -176,7 +184,7 @@ export async function admitToolAction<P>(
     passage: action.judgment.passage,
     definition,
     permissions: [],
-    decision: null,
+    decision: handBack,
   })
   if ('failure' in admitted) return asUnavailable('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
@@ -229,14 +237,19 @@ export function toolCallAnswerOf(material: Material<ContentBlock>): string | nul
  * judgment names the material (SPEC "工具执行与结果承接" 10). The material comes first; a crash
  * before the judgment commit leaves a block that no fact refers to, and the same request preserved
  * again answers the same source.
+ *
+ * 保存的请求把 `scopeBudget` 写入 `limits.scopeBudget`，即本 run 并发范围的预算，由 Tool 执行
+ * （SPEC「工具执行与结果承接」第 1 条）。Agent 自己不计数调用。`scope` 沿用受信请求来源给出的值。
  */
 export async function preserveAllowedRequest<P>(
   ports: Ports<P>,
   access: Access<P>,
   execution: AgentExecutionId,
   allowed: Extract<ToolAdmission, { kind: 'allowed' }>,
+  scopeBudget: number,
 ): Promise<Outcome<Action, Failure>> {
-  const { action, evidence, request } = allowed
+  const { action, evidence } = allowed
+  const request = { ...allowed.request, limits: { ...allowed.request.limits, scopeBudget } }
   const stored = await ports.materials.preserve({
     ...access,
     execution,

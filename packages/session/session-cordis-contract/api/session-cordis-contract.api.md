@@ -215,6 +215,7 @@
 - `SessionRunLookup` · 包 `@omne-harness/session-contract`
 - `SessionScopeLookup` · `context-facts.d.ts`
 - `SessionScopeLookupAnswer` · `context-facts.d.ts`
+- `SessionScopeOwnerSource` · 包 `@omne-harness/session-contract`
 - `SessionTakenRecord` · 包 `@omne-harness/session-contract`
 - `SessionTodos` · 包 `@omne-harness/session-contract`
 - `SessionTransactionPort` · 包 `@omne-harness/session-contract`
@@ -292,6 +293,7 @@
 - `SessionProductionSourceService` · `cordis.d.ts`
 - `SessionReplayFactsService` · `cordis.d.ts`
 - `SessionScopeLookupService` · `cordis.d.ts`
+- `SessionScopeOwnersService` · `cordis.d.ts`
 - `SessionService` · `cordis.d.ts`
 - `SessionTransactionPortService` · `cordis.d.ts`
 - `SessionWorkPrincipalsService` · `cordis.d.ts`
@@ -314,6 +316,7 @@
 - `sessionProductionSourceKey` · `cordis.d.ts`
 - `sessionReplayFactsKey` · `cordis.d.ts`
 - `sessionScopeLookupKey` · `cordis.d.ts`
+- `sessionScopeOwnersKey` · `cordis.d.ts`
 - `sessionScopeReleaseKey` · `cordis.d.ts`
 - `sessionTransactionsKey` · `cordis.d.ts`
 - `sessionWorkPrincipalsKey` · `cordis.d.ts`
@@ -403,7 +406,7 @@ export interface SessionScopeLookup {
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
+import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts';
@@ -467,6 +470,12 @@ export declare abstract class SessionPrincipalBindingsService extends Service im
     abstract readonly read: SessionPrincipalBindingSource['read'];
 }
 export declare const sessionPrincipalBindingsKey = "sessionPrincipalBindings";
+export declare abstract class SessionScopeOwnersService extends Service implements SessionScopeOwnerSource {
+    static readonly provide = "sessionScopeOwners";
+    constructor(ctx: Context);
+    abstract readonly lookup: SessionScopeOwnerSource['lookup'];
+}
+export declare const sessionScopeOwnersKey = "sessionScopeOwners";
 export declare abstract class SessionIdentityBridgeService<P = unknown> extends Service implements SessionIdentityBridge<P> {
     static readonly provide = "sessionIdentity";
     constructor(ctx: Context);
@@ -578,6 +587,7 @@ declare module '@deepseek-ai/cordis' {
         sessionDelegatedTransactions: SessionDelegatedTransactionsService<unknown>;
         sessionWorkPrincipals: SessionWorkPrincipalsService<unknown>;
         sessionPrincipalBindings: SessionPrincipalBindingsService;
+        sessionScopeOwners: SessionScopeOwnersService;
         sessionIdentity: SessionIdentityBridgeService<unknown>;
         sessionEvidence: SessionEvidenceBridgeService<unknown>;
         sessionClock: SessionClockService;

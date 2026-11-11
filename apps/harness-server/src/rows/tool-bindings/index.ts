@@ -1,11 +1,13 @@
 // `tool-bindings` 行（AA 插件树、简报 B3-T2a 第 5、6、9 项）：绑定登记表与 Catalog。一个插件、一个 fiber
 // 提供两个服务：类静态 provide 的 `toolBindings`，与构造时注册的 `toolCatalog`（L-TOOL 事实清单 §4）。
-// 四个工厂参数：
+// 五个工厂参数：
 // - `availability`：发行静态事实与执行环境的在场事实，见 `availability.ts`。
 // - `authority`：逐次读取当前 `toolStartAuthority` 的窄代理。提供者是 `tool-records` 行装的 bundle records 插件
 //   （同一个启动协调器），本行不建第二个。
 // - `scope`、`settle`：Tool 运行时组同一个 bundle 的 `authorExecution.scope` 与 `authorExecution.settle`（B 段，
 //   L-TOOL 事实清单 §1）。逐次读本次运行的 bundle；还没建好时 scope 抛出 unavailable、settle 答 unavailable。
+// - `checkpoint`：同一个 bundle 的 `authorExecution.checkpoint`，检查点作者（Ask）暂停时保管段的状态与等待请求。
+// - `resumption`：同一个 bundle 的 `authorExecution.resumption`，检查点作者恢复时读回检查点状态与账本固定的答复。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
 import type {
@@ -129,6 +131,40 @@ export function bundleSettle(ctx: Context): Input['settle'] {
   }
 }
 
+/**
+ * bundle 为检查点作者保管段的状态与等待请求（`authorExecution.checkpoint`）。bundle 还没建好时答 unavailable，
+ * 段不暂停。
+ */
+export function bundleCheckpoint(ctx: Context): NonNullable<Input['checkpoint']> {
+  return async input => {
+    const bundle = toolRuntimeHolder(ctx).bundle
+    if (bundle === null)
+      return fail({
+        kind: 'unavailable',
+        dependency: 'toolRuntime',
+        diagnostic: 'the tool runtime bundle is not built',
+      })
+    return bundle.value.authorExecution.checkpoint(input)
+  }
+}
+
+/**
+ * bundle 为检查点作者读回 resume 段的输入（`authorExecution.resumption`）：检查点状态与账本固定的答复。bundle 还没建好
+ * 时答 unavailable，段不运行。
+ */
+export function bundleResumption(ctx: Context): NonNullable<Input['resumption']> {
+  return async input => {
+    const bundle = toolRuntimeHolder(ctx).bundle
+    if (bundle === null)
+      return fail({
+        kind: 'unavailable',
+        dependency: 'toolRuntime',
+        diagnostic: 'the tool runtime bundle is not built',
+      })
+    return bundle.value.authorExecution.resumption(input)
+  }
+}
+
 const bindingsPlugin: Plugin.Object = {
   name: 'tool-bindings',
   inject: [toolContributionAuthorityKey],
@@ -155,6 +191,8 @@ const bindingsPlugin: Plugin.Object = {
       authority: startAuthorityProxy(ctx),
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),
+      checkpoint: bundleCheckpoint(ctx),
+      resumption: bundleResumption(ctx),
       capability: releaseCapability(ctx, { tools, web: config.web ?? null }),
     })
     // Both services register in this row's fiber: `toolBindings` here, `toolCatalog` in its constructor.

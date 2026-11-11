@@ -71,7 +71,19 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   let executor: ReturnType<typeof createRuntimeExecutor> | null = null
   let retired = false
   let forwarding: ToolForwardRuntime<unknown> | undefined
-  const authorExecution = createRuntimeAuthorExecution(input)
+  const authorExecution = createRuntimeAuthorExecution({
+    ...input,
+    recovery: request =>
+      records === null
+        ? Promise.resolve(
+            fail({
+              kind: 'unavailable' as const,
+              dependency: 'toolRecords',
+              diagnostic: 'Tool records are not ready.',
+            }),
+          )
+        : records.ledger.commands.loadRecovery(request),
+  })
   const stages = createRuntimeStages(input, () => environment)
   const receivers: { current: DeliveryPosition<unknown, ToolMessageContentBlock>['receiver'] } = {
     current: async () =>
@@ -109,6 +121,8 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   const publicAuthorExecution: RuntimeAuthorExecution = {
     scope: authorExecution.scope,
     settle: authorExecution.settle,
+    checkpoint: authorExecution.checkpoint,
+    resumption: authorExecution.resumption,
   }
   return {
     authorExecution: publicAuthorExecution,
@@ -168,11 +182,14 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       apply(ctx: Context) {
         if (executor !== null || retired)
           throw new Error('This Tool executor generation has retired.')
+        const recovery = records?.ledger.recovery
+        if (recovery === undefined) throw new Error('Tool records are not ready.')
         executor = createRuntimeExecutor({
           ctx,
           settings: input,
           dependencies: dependencies(ctx),
           receiver: consumer => receivers.current(consumer),
+          recovery,
         })
         ctx.effect(() => close)
       },

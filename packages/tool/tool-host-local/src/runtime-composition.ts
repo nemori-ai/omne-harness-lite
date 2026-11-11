@@ -23,8 +23,10 @@ import {
   type ToolForwardSource,
   type ToolForwardBinding,
   type CallAccess,
+  type ToolDecisionBridge,
 } from '@omne-harness/tool-contract/provider'
 import type { ToolEnvironmentValue } from './author-environment.ts'
+import type { ToolOutputReader } from './runtime-author.ts'
 import type {
   LocalExecutionEnvironmentInput,
   LocalEnvironmentPlanInput,
@@ -45,6 +47,8 @@ export type LocalToolRuntimeInput = Readonly<{
   /** Commits an acceptance together with the condition of its request policy verdict. */
   conditionalCommit: ConditionalLedgerCommit<ToolMessageContentBlock>
   custody: ToolOutputCustody<unknown>
+  /** The trusted reader of what `custody` keeps: a resume reads its checkpoint state here. */
+  readOutput: ToolOutputReader
   content: ToolLedgerPorts<unknown>['content']
   sources: LocalInvocationSource<unknown, ToolMessageContentBlock>
   access: ToolHostAccess<unknown>
@@ -56,6 +60,11 @@ export type LocalToolRuntimeInput = Readonly<{
   configuration: ToolConfiguration
   bindings(): Bindings | undefined
   catalog(): ToolCatalog<unknown> | undefined
+  /**
+   * The decision owner of the Ask waits of checkpointed authors (P06), read at each call. Absent,
+   * or answering undefined, the waits meet the absent port (D-07): every method is `unavailable`.
+   */
+  decisions?(): ToolDecisionBridge<unknown> | undefined
   environment: Readonly<{
     adoption: LocalExecutionEnvironmentInput<unknown>['adoption']
     plan: Omit<LocalEnvironmentPlanInput<unknown>, 'execution' | 'access'>
@@ -196,6 +205,14 @@ export function createRuntimeDependencies(
     return bound
   }
   const absent = createAbsentToolPorts<unknown>()
+  const decisionsOf = (): ToolDecisionBridge<unknown> => input.decisions?.() ?? absent.toolDecisions
+  const decisions: ToolDecisionBridge<unknown> = {
+    inspectOperation: request => decisionsOf().inspectOperation(request),
+    ensure: request => decisionsOf().ensure(request),
+    inspect: request => decisionsOf().inspect(request),
+    invalidate: request => decisionsOf().invalidate(request),
+    resolve: request => decisionsOf().resolve(request),
+  }
   return {
     ...records.ledger,
     admissions: {
@@ -211,7 +228,7 @@ export function createRuntimeDependencies(
     clock: input.clock,
     resultPolicy: defaultResultPolicy,
     custody: input.custody,
-    decisions: absent.toolDecisions,
+    decisions,
     resources: absent.toolResourceResponses,
     children: absent.toolChildren,
     operationIdentities: createLocalOperationIdentities(),

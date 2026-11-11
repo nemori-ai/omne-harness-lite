@@ -148,6 +148,7 @@ export type {
   SessionInternalPrincipals,
   SessionNotifier,
   SessionPrincipalBindingSource,
+  SessionScopeOwnerSource,
   SessionTransactionPort,
   SessionWorkPrincipals,
 } from './ports.ts'

@@ -122,6 +122,23 @@ export const decodeStepId = decoderOf<StepId, 'StepId'>('StepId')
 export const decodeActionId = decoderOf<ActionId, 'ActionId'>('ActionId')
 /** Decodes the text of a `PassageId`. Gives the brand only, not existence or eligibility. */
 export const decodePassageId = decoderOf<PassageId, 'PassageId'>('PassageId')
+const ADMISSION_SUFFIX = '/admission'
+
+/**
+ * The Passage of the official admission of an action: the last link of the chain of the action.
+ * The loop names the Passage with it, and a card provider tells an admission card by it.
+ */
+export function admissionPassageOf(action: ActionId): ReturnType<typeof decodePassageId> {
+  return decodePassageId(`${action}${ADMISSION_SUFFIX}`)
+}
+
+/** The action whose official admission `passage` is; `null` for any other Passage. */
+export function admissionActionOf(passage: PassageId): ActionId | null {
+  if (!passage.endsWith(ADMISSION_SUFFIX)) return null
+  const action = decodeActionId(passage.slice(0, -ADMISSION_SUFFIX.length))
+  return 'ok' in action ? action.ok : null
+}
+
 /** Decodes the text of a `CardRoundId`. Gives the brand only, not existence or eligibility. */
 export const decodeCardRoundId = decoderOf<CardRoundId, 'CardRoundId'>('CardRoundId')
 /** Decodes the text of an `ActionBatchId`. Gives the brand only, not existence or eligibility. */

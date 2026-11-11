@@ -1,10 +1,12 @@
 export {
   RequestInvalidError,
   createGovernanceClient,
+  createHitlClient,
   createSessionClient,
   type CallerResult,
   type ClientOptions,
   type GovernanceClient,
+  type HitlClient,
   type PublicResponse,
   type SessionClient,
 } from './client.ts'
@@ -32,6 +34,32 @@ export type {
   ProofInput,
   SessionOperation,
   SessionRequest,
+} from '@omne-harness/public-contract'
+// HITL 请求与卡片视图的形状，原样转出。SDK 只在公开契约读过响应之后才交出 `body`，所以调用者按
+// 这些类型读成功的正文。
+export type {
+  HitlCard,
+  HitlCardDelivery,
+  HitlCardFilter,
+  HitlCardItem,
+  HitlCardOrigin,
+  HitlCardPage,
+  HitlCardRef,
+  HitlCardState,
+  HitlDecision,
+  HitlDecisionRef,
+  HitlLimitedBody,
+  HitlOperation,
+  HitlOption,
+  HitlOriginKind,
+  HitlQuestion,
+  HitlReply,
+  HitlReplyResult,
+  HitlReplySubmission,
+  HitlRequest,
+  HitlRequestBodies,
+  HitlSubmissionRef,
+  HitlSuccessBodies,
 } from '@omne-harness/public-contract'
 // The diagnostics page of `read-session-diagnostics`, passed through. The SDK hands the body over
 // only after the contract read it, so a caller reads it in these shapes.

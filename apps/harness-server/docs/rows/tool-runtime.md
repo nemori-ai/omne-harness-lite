@@ -19,7 +19,7 @@ executor、runtime 六个插件和 `authorExecution`。五行装同一个 bundle
 
 | 行                  | 装什么                                                             | 提供                                                                                           | 静态 inject                                                          |
 | ------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `tool-records`      | records 插件；在受信存储子树内建 SQL 记录仓、输出保管与守护提交    | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者组 `tool-start`）；受信原来源查询 `toolInvocationQualification` | `storage`、`tenantDomainLookup`                                      |
+| `tool-records`      | records 插件；在受信存储子树内建 SQL 记录仓、输出保管与守护提交    | `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者组 `tool-start`）；受信原来源查询 `toolInvocationQualification` | `storage`、`tenantDomainLookup`、`tenantDomains`                     |
 | `tool-runtime`      | 门面插件                                                           | `toolRuntime`                                                                                  | `toolCommands`、`toolReads`                                          |
 | `tool-executor`     | 实例宿主装在行 fiber，长期执行宿主装在子 fiber。行体承载，业务阶段 | `toolInstanceHost`                                                                             | `toolCommands`、`toolClock`（子 fiber 另 inject `toolInstanceHost`） |
 | `tool-instances`    | 实例目录                                                           | `toolInstances`                                                                                | `toolPublicationAuthority`                                           |
@@ -51,8 +51,10 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 - 会话工作主体重签：入口对象 `toolClock` 安装时，把入口自己的 `sessionWorkPrincipals` 受信读口交给共享状态。
   `tool-records` 的可见集合不变。
 - 来源资格：调用方是本租户的会话工作主体，consumer 是 Agent 的动作位置（`@omne-harness/agent`，`action`）。
-- 并发作用域：发行唯一的作用域（[scope.ts](../../src/rows/tool-runtime/scope.ts)），授予核验器与请求供给者
-  取同一个值。
+- 并发范围：每个 run 一个范围（[scope.ts](../../src/rows/tool-runtime/scope.ts)）。请求供给者用 `runToolScope`
+  按租户与 consumer 的 owner、work 给出范围与授予证据；`grants` 用同一文件的 `runScopeGrants`，只认按调用的租户
+  与 `scope.key` 重算后相符的授予。所以两个 run 互不排队，同一个 key 在别的租户下被拒绝。范围预算是 Agent 写入
+  请求的 `toolConcurrency`。
 - 启动许可需求：发行清单里的官方 Shell、Files，调用方是本租户的会话工作主体时不需要另取许可。其余答
   `unavailable`。
 - 环境：只有宿主机落点。需求经执行域的 schema-provider 校验 environment 声明并取值。绑定的 origin 由调用与
@@ -84,8 +86,8 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 宿主提供者在 `execution-host` 工厂行，见[宿主文件工厂](execution-host.md)。
 
-可信作用域绑定的 Scope 归属读 `session-ad03` 的 `sessionScopeLookup`（R2-D14），再经受信
-`sessionPrincipalBindings` 核对归属。查找缺席时答 `unavailable`。
+可信作用域绑定的 Scope 归属读 `session-ad03` 的 `sessionScopeLookup`（R2-D14）；它没答出时（冷启动后它对会话下一次提交之前的作用域答
+unknown），读 `session-storage` 行的受信 `sessionScopeOwners`，再经受信 `sessionPrincipalBindings` 核对归属。两者都缺席时答 `unavailable`。
 
 ## 两个入口对象
 
@@ -97,7 +99,7 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 [`releaseToolRequestsOf(ctx)`](../../src/entry/tool-requests.ts) 是 `agent-host` 行
 `createAgentHostRow({ toolRequestsOf })` 要的形状：给一个上下文，返回 `describe` 与 `prepare` 两个面。它不是服务键，
-不进配置。每次调用经 `ctx` 现取五个来源：
+不进配置。每次调用经 `ctx` 现取六个来源：
 
 | 字段             | 来源                                                                                                                                                                                    | 缺席或不符                                                                                                       |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -106,8 +108,56 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 | `requesterScope` | 会话快照 `contextScopes` 的最新一条，未结束；会话以 `coordinator` 调用方类读（Session 的 `readWork` 只接受 `coordinator` 与 `maintainer`；来源代 Agent 做 Tool 消费，属 `coordinator`） | 读不到、没有作用域、已结束都答 `unavailable`                                                                     |
 | 作用域归属       | 入口对象 `executionScopeBinding`                                                                                                                                                        | 缺席或不明答 `unavailable`；未绑定或绑到别的租户答 `denied`                                                      |
 | 设置采用         | 发行清单里这个作者的固定设置采用                                                                                                                                                        | 发行快照不可用答 `unavailable`                                                                                   |
+| 元能力命令的可用性 | 本发行的元能力宿主（[meta-capabilities.ts](../../src/entry/meta-capabilities.ts)）：Ask 的 `ask` 要会话的 `humanInteraction`，`request_approval` 要 `requestApproval`。两个值是 Session 翻译好的协作投影，经 Runtime Context 的 `sessionInteractionBinding` 以 `coordinator` 读（[published-view.ts](../../src/rows/session-ad03/published-view.ts)），宿主不认识模式词。`request_approval` 另读权限一侧翻译好的询问处理（`sessionInquiryBinding` 的 `policy.onAsk`）：为 `deny`（权限模式 `never`）时会话不向人问批准，命令不可用；协作一侧已经关掉时不再读它。`describe` 与 `prepare` 各现读一次；其余工具与命令不读 | 值为 false 时调用不运行，`describe` 答 `answered`，正文是命令名与原因，`prepare` 答 `unavailable`；读不到答 `unavailable` |
 
 其余字段固定：`workspace` 为 `null`，`resources` 为空，前台执行，不加请求级的并发与时限，`context` 是本供给者的采用。
+
+## Ask 等待的决策方（Tool 与 HITL 的组合）
+
+Tool 的检查点作者（发行里只有 Ask）暂停后，等待由 HITL 保管。组合承担者是 `src/rows/tool-hitl/` 的决策方，它实现
+Tool 的 `ToolDecisionBridge`，Tool 运行时组的 bundle 经 `decisions` 输入逐次读它。没有新行，也没有新服务键：
+
+- `tool-records` 行在受信存储子树里建 HITL 宿主（[host.ts](../../src/rows/tool-hitl/host.ts)）与决策方
+  （[bridge.ts](../../src/rows/tool-hitl/bridge.ts)），交给按运行的共享状态（[holder.ts](../../src/rows/tool-hitl/holder.ts)），
+  行撤除时关闭并收回。HITL 的应用按租户事务域建，与会话组合同一个事务域与组合。
+- HITL 的参加者与 Session 的只读守卫 `session.run-live` 并入会话组合（[composite.ts](../../src/rows/session-storage/composite.ts)，
+  组合版本当时升到 `session-composite/6`；Tool 记录仓加了待办标记表后为 `/7`），材料并入存储目录（[catalog.ts](../../src/rows/storage/catalog.ts)）。来源带会话与 Run 时，
+  登记与答复在同一笔提交里核对会话未归档、该 Run 仍在进行。
+- 入口对象 `toolClock` 交来 identity 的保留读口 `standingReservations`，以及只签决策方主体（组件 `toolDecisions`）的窄签发
+  （[principals.ts](../../src/entry/principals.ts) 的 `toolDecisionsIssuerOf`）。
+- `governance` 行的封口目的端按保留的拥有者与目的端分路：HITL 的保留（拥有者 `human-intervention`，目的端
+  `harness.hitl`）交给 HITL 宿主，其余照旧。
+- 检查点作者的保管经 `tool-bindings` 行的 `checkpoint` 交给同一个 bundle 的 `authorExecution.checkpoint`；恢复时的 resume 段输入经同一行的 `resumption` 交给 `authorExecution.resumption`。
+
+ensure 从等待身份派生保管请求的操作（tool-host-local 的 `waitRequestOperation`），经 tool-storage-sql 的
+`readSqlToolOutputBytes` 读回请求原文，核对读回的保管证据等于等待的请求证据，再从原调用取会话与 Run，最后做 HITL 的准备
+与登记。两个 HITL 操作的身份都由 call + wait 派生，重送认回原结果。登记被原工作守卫拒绝时答 `conflict`：Tool 把它当确定的
+拒绝，不换身份重试。inspectOperation 先在调用的等待待办里找到这个操作，再按待办的 `action` 认回原操作：
+
+- `ensure`：重建同一登记，向 HITL 查原登记。committed 给出与 ensure 相同的证据。
+- `invalidate`：以同一派生身份与待办的终局证据重建失效命令，向 HITL 查原失效。committed 给出与 invalidate 成功时相同的
+  回执。
+
+两种都是：HITL 已封口的操作答 excluded，其余答 unknown。认回只读，不写 HITL。
+
+答复与恢复：
+
+- inspect 重建登记命令并按原操作认回登记，再读请求。全部卡片都有决定时，决定证据是请求与全部 DecisionRef 的摘要，不含
+  修订，所以接手改变修订之后 Tool 按原操作重送 acceptDecision 仍是同一输入。还有卡待答或已失效时答 null。
+- resolve 核对证据仍是这批决定，然后在 HITL 接手：以 call + wait 派生的身份 `bindReceiver`（期望代次 `0`），逐卡
+  `consumeDecision` 并以回执 `acknowledgeDelivery`，卡片的交接随之为 accepted。之后按登记的卡片顺序给出整批答复，答复值是
+  json-text 的 JsonValue 树：至少一题有答复时为 answer，跳过的卡为 no-answer；全部跳过时为 no-answer。resolve 没有自己的
+  操作身份，接手回包未知与 HITL 的拒绝都答 unavailable，Tool 不据此接受决定。
+- invalidate 以派生身份调 `invalidateWait`。决策方只拿到终局的证据，原因固定为 `origin-terminal`。Tool 让暂停中的调用
+  收场时写失效待办（Tool SPEC 第 32 条），推进协程经 invalidate 执行它：尚未答的卡变 `invalidated`，之后的答复得到卡片
+  已失效；已答未接手的卡保持 `decided`。失效回包未知时，Tool 以同一操作调 inspectOperation 认回，不再发一次。
+- 唤醒：宿主的每个租户应用经 `withDecided` 包一层，答复成为有效决定之后，[wake.ts](../../src/rows/tool-hitl/wake.ts) 读这张卡
+  的来源，来源是 Tool 调用时请实例宿主 `schedule` 原调用。唤醒只是提示；执行器也按 `driverRetryDelayMs` 重调度未完成的
+  调用，所以丢了唤醒不丢事实。
+
+谁能读、谁能答不在这里定：读者与答复者由注入的受众函数（`holder.audience`）给出，发行注入 `hitlCardAudience`。HITL 的对外
+入口在 `server-entry` 行（[hitl.ts](../../src/rows/server-entry/hitl.ts)）。还没有事务域的租户由宿主的 `qualify` 按 HITL local 的
+同一条资格规则判断读者，再答空页或拒绝。
 
 ## 具名缺件与已知限制
 
@@ -127,11 +177,31 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
   进程结束。契约不为未收场的调用设超时（Ask 无超时，名额与等待不因时间释放），这里也不自设超时回收。
 - **bundle 每次运行只建一次**：实例宿主与执行宿主不能在同一次运行里重装，重装时成员抛出，行 `FAILED`。
 - **冷获取的原清理不在本波**：答 `pending`，责任保留。
+- **决策方答 unavailable 后同一进程只查原操作**：Tool 驱动在本进程记下回包不明的登记，之后只调 inspectOperation。登记在写
+  HITL 之前就答了 unavailable（例如还没有受众）时，HITL 查不到原操作，本进程一直答 unknown，直到重启后再 ensure。
+- **等人期间按重试周期读决定**：执行器按 `driverRetryDelayMs`（运维者缺省 50ms）重调度未完成调用，暂停的 Ask 调用每次都经
+  inspect 读 HITL，一张未答的卡约每秒 20 次读。
+- **resume 段收到的答复值是 JsonValue 树**：Tool 把 resolve 给出的树原样交给检查点作者，Ask 的结果投影按普通 JSON 值读，
+  选项与原话的答复投影成 `ask-response-mismatch`。跳过与插队不带值，不受影响。修复归 Tool（切片 03 交回）。
+- **发行树上叫停与归档到不了暂停中的 Ask**（切片 05 观察，交回 Agent 与 Session）：Ask 暂停时 `cancel-run` 或归档，Session
+  在同一笔提交里结束 Run，Agent 的推进随后在 E2 以 `stale-advance` 停下（`agent run stopped on a failure ... node=E2`），
+  没有走到 F0，所以不向 Tool 发 stop。Ask 保持 `suspended`，卡片保持待答，条目保持停泊，Run 的控制停在 `propagating`，
+  停服退出码为 5。答复已接受、条目 ready 时叫停也一样：名额空出之后恢复段照常运行。
+- **同一批里两个 Ask 动作**：模型一次给出两个 Ask 调用时，账本里只有一个调用，停在 `queued`。启动守卫的权限捕获每次都被
+  Governance 封口（`sealed`），目标准入答 unavailable（切片 02 端到端中观察到，原因未查清）。端到端改为每个会话一个 Ask 调用。
 
 ## 持续验证
 
+- [决策方](../../tests/rows/tool-hitl/bridge.spec.ts)：两侧替身；登记的来源、受众与准备，证据不符或缺受众时不写 HITL，守卫拒绝读成 `conflict`，原操作查询的三种答复；inspect 的批次就绪与证据稳定，resolve 的接手、卡片顺序与 JsonValue 树，证据不符时不接手，invalidate 的派生身份；失效的认回按原失效操作查询，回执与 invalidate 相同，未提交答 excluded，登记的认回不受影响。
+- [唤醒](../../tests/rows/tool-hitl/wake.spec.ts)：只有 decided 唤醒，只唤醒 Tool 来源，唤醒失败不改变答复的结果。
+- [无事务域租户的资格](../../tests/rows/tool-hitl/host-qualify.spec.ts)：核验主体、租户一致与成员资格。
+- [答复与恢复在发行树上](../../tests/rows/tool-hitl/release-reply.spec.ts)：从会话入口与待办池各答一次，三种答复在 question 与 approval 上的结果文字，两个入口并发只一方成立，CLI 的列卡、读卡与答复。
+- [Ask 在发行树上出卡](../../tests/rows/tool-hitl/release-ask.spec.ts)：ask 与 request_approval 各一次，调用暂停、条目停泊，按会话与按池列出同一组卡；Run 在登记前结束时 `session.run-live` 拒绝登记，不出卡。共用支架在 [release-tree.ts](../../tests/support/release-tree.ts)。
+- [回包丢失在发行树上](../../tests/rows/tool-hitl/release-cancel.spec.ts)：真实登记之后回包换成未知，Tool 经 inspectOperation 按原登记认回，不再登记，只有一张卡；答复之后调用恢复一次并收场，条目删除，Run 结束，停服退出码为 0。叫停与归档的发行树场景见上一节的已知限制。
+
 - [请求供给者](../../tests/entry/tool-requests.spec.ts)：完整请求经 Tool 公开判定通过；核验器、目录、作用域绑定、
   会话作用域、发行快照任一缺席或不符时答 `unavailable` 或 `denied`；跨租户被拒。
+  Ask 的两条命令按会话的人机交互各自判定：关闭时答原因、不运行，`prepare` 再判一次；读不到答 `unavailable`；其他工具不读它。
 - [请求供给者读会话](../../tests/entry/tool-requests-session.spec.ts)：在真实 `session-provider` 行与真实存储上，
   供给者的会话读口以 `coordinator` 调用方类读到会话快照；`reader` 调用方类被 Session 拒绝（`denied readWork`）。
 - [进程内组合](../../tests/rows/tool-runtime/composition.spec.ts)：真实 SQLite、真实五行与执行四行、真实入口对象，

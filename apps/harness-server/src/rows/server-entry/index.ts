@@ -9,6 +9,9 @@
 // (only `calls.inspect` and `calls.dispatches`) and `modelDiagnostics`. `toolRuntime` is a local
 // dependency, read on every call: absent, the tool reads of the projection answer `unavailable`,
 // which the member writes as a gap, and the entry serves the rest.
+//
+// HITL 位置（member SPEC「HITL 位置」）：入口面把每个租户事务域的 HITL 应用（`rows/tool-hitl`）按调用现取，
+// 入口主体由 `hitlEntryPrincipals` 签发（`src/entry/hitl-entry-principals.ts`）。
 import type { Context } from '@deepseek-ai/cordis'
 import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
@@ -25,8 +28,11 @@ import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { toolRuntimeKey, type ToolRuntimeService } from '@omne-harness/tool-cordis-contract/cordis'
 import { modesInitialization } from '../../assembly/session-modes-initialization.ts'
+import { createHitlEntryPrincipals } from '../../entry/hitl-entry-principals.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
+import { HITL_LOCATION } from '../tool-hitl/host.ts'
 import { serverEntryConfig, type ServerEntryRowConfig } from './config.ts'
+import { hitlFacesOfCall } from './hitl.ts'
 import { governanceOfCall, identityOfCall } from './identity.ts'
 import { settingsOfCall } from './settings.ts'
 import { entryDiagnostics } from './telemetry.ts'
@@ -122,7 +128,13 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
   const parsed = serverEntryConfig.parse(raw)
   const { diagnosticsKinds: _kinds, maxRuns: _runs, maxCallsPerRun: _calls, ...config } = parsed
   const entry = createServerEntry({
-    config: { listenAddress: LOOPBACK, ...config, ...projectionOf(parsed) },
+    // HITL 位置的位置引用与决策方登记用的位置相同，不由运维者配置。
+    config: {
+      listenAddress: LOOPBACK,
+      ...config,
+      ...projectionOf(parsed),
+      hitlLocationRef: HITL_LOCATION,
+    },
     dependencies: {
       identity: identityOfCall(ctx),
       governance: governanceOfCall(ctx),
@@ -133,6 +145,9 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
       diagnostics: entryDiagnostics(ctx.telemetry),
       ...diagnosticPorts(ctx),
       toolQueries: toolQueriesOfCall(ctx),
+      hitl: hitlFacesOfCall(ctx),
+      // 入口主体的签发者只交给 HITL 位置，用本行受信可见的签发者建（ID-16 持有者表）。
+      hitlEntryPrincipals: createHitlEntryPrincipals(ctx.principalIssuer),
     },
   })
   // A fiber that unloads while the tree runs (a provider change) closes the listener too.

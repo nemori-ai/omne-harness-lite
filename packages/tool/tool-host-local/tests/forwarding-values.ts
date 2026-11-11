@@ -77,6 +77,7 @@ export async function forwardingFixture(
   let allowed = true
   const store: ToolLedgerStore<ContentBlock> = {
     durability: options.store?.durability ?? (options.durableDeclaration ? 'durable' : 'none'),
+    scanPending: input => memory.scanPending(input),
     read: memory.read,
     async commit(input) {
       const fault = nextCommit

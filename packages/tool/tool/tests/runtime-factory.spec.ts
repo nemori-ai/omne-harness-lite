@@ -161,7 +161,6 @@ describe('17 the runtime factory and later increments', () => {
       readProcess: runtime.queries.readProcess({ ...access, reference, at: null }),
       readWait: runtime.queries.readWait({ ...access, reference, wait: 'w1' as never }),
       readDiagnostics: runtime.queries.readDiagnostics({ ...access, reference, after: null }),
-      recover: provider.recover({ principal: principalA, tenant: tenantA }),
       quiesce: provider.quiesce(),
       inspectDrain: provider.inspectDrain({ principal: principalA, tenant: tenantA }),
     }
@@ -176,6 +175,10 @@ describe('17 the runtime factory and later increments', () => {
       if (failure?.kind === 'unsupported' && failure.adoption !== undefined)
         expect([toolRuntimeAdoption.name, 'tool-ledger']).toContain(failure.adoption.name)
     }
+    // recover belongs to the recovery scan now: it answers how many calls it scheduled.
+    expect(await provider.recover({ principal: principalA, tenant: tenantA })).toMatchObject({
+      ok: { scheduled: expect.stringMatching(/^\d+$/u) },
+    })
     expect(
       await runtime.commands.control({ ...access, reference, intent: { kind: 'stop' } }),
     ).toMatchObject({
@@ -256,6 +259,100 @@ describe('17 the runtime factory and later increments', () => {
     expect(typeof host.driver().run).toBe('function')
     expect(host.scheduled).toEqual([])
     expect(store.commits + store.reads).toBe(0)
+  })
+})
+
+describe('the recovery entry of the provider: the pending scan, page by page, into the instance host', () => {
+  const who = { principal: principalA, tenant: tenantA }
+  type Dependencies = ReturnType<typeof testAssembly>['dependencies']
+  type Scan = Dependencies['commands']['scanPending']
+  type Schedule = Dependencies['instances']['schedule']
+
+  /** A provider whose scan and schedule are the given ones; `asked` lists the cursors of the scan. */
+  function recovering(pages: Scan, schedule?: Schedule) {
+    const { dependencies, configuration: config } = testAssembly()
+    const asked: (string | null)[] = []
+    const scheduled: string[] = []
+    const provider = createToolRuntime(
+      {
+        ...dependencies,
+        commands: {
+          ...dependencies.commands,
+          scanPending: input => {
+            asked.push(input.after)
+            return pages(input)
+          },
+        },
+        instances: {
+          ...dependencies.instances,
+          schedule:
+            schedule ??
+            (input => {
+              scheduled.push(input.call)
+              return dependencies.instances.schedule(input)
+            }),
+        },
+      },
+      config,
+    )
+    return { provider, asked, scheduled }
+  }
+
+  const page = (calls: readonly string[], next: string | null) =>
+    Promise.resolve({ ok: { calls: calls.map(callId), next: next === null ? null : callId(next) } })
+
+  it('schedules the calls of every page and follows the cursor to the last page', async () => {
+    const { provider, asked, scheduled } = recovering(input =>
+      input.after === null ? page(['c1', 'c2'], 'c2') : page(['c3'], null),
+    )
+    expect(await provider.recover(who)).toEqual({ ok: { scheduled: '3' } })
+    expect(asked).toEqual([null, 'c2'])
+    expect(scheduled).toEqual(['c1', 'c2', 'c3'])
+  })
+
+  it('answers the failure of the scan as it is, and schedules nothing more', async () => {
+    const down = {
+      failure: { kind: 'unavailable', dependency: 'ledger-store', diagnostic: 'injected' },
+    } as const
+    const { provider, scheduled } = recovering(input =>
+      input.after === null ? page(['c1'], 'c1') : Promise.resolve(down),
+    )
+    expect(await provider.recover(who)).toEqual(down)
+    expect(scheduled).toEqual(['c1'])
+  })
+
+  it('answers unavailable for a scan that throws, without the text of the exception', async () => {
+    const { provider } = recovering(() => Promise.reject(new Error('secret of the store')))
+    const answer = await provider.recover(who)
+    expect(answer).toMatchObject({ failure: { kind: 'unavailable', dependency: 'commands' } })
+    expect(JSON.stringify(answer)).not.toContain('secret')
+  })
+
+  it('answers the failure of the instance host as it is, and stops at that call', async () => {
+    const down = {
+      failure: { kind: 'unavailable', dependency: 'instance-host', diagnostic: 'injected' },
+    } as const
+    const tried: string[] = []
+    const { provider, asked } = recovering(
+      () => page(['c1', 'c2'], 'c2'),
+      input => {
+        tried.push(input.call)
+        return Promise.resolve(down)
+      },
+    )
+    expect(await provider.recover(who)).toEqual(down)
+    expect(tried).toEqual(['c1'])
+    expect(asked).toEqual([null])
+  })
+
+  it('answers unavailable for an instance host that throws, without the text of the exception', async () => {
+    const { provider } = recovering(
+      () => page(['c1'], null),
+      () => Promise.reject(new Error('secret of the host')),
+    )
+    const answer = await provider.recover(who)
+    expect(answer).toMatchObject({ failure: { kind: 'unavailable', dependency: 'instances' } })
+    expect(JSON.stringify(answer)).not.toContain('secret')
   })
 })
 

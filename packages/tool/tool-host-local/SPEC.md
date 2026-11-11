@@ -69,7 +69,7 @@ R2-D60（[#421 的采用决定](https://github.com/nemori-ai/omne-harness-lite/i
 
 prepare 在发出外部获取前保存原准备与原获取引用。取消、pending、unknown 和重试策略沿原记录决定等待、查询、结清，或在查询确认已分配后进入原获取的首次采用/认回。inspect 只刷新事实，不签发租约。后续同键 acquire 必须保持 acquisition、tenant、origin、scope、placement、provider 及全部获取输入不变，并且原登记、guard、ledger 有效且当前准入成立。首次采用不再次调用 provider 获取，也不重新计划、许可或接续。采用失败、已失效或已结清的原记录不复活。策略不能批准更换原键重新获取。确定的零分配配额拒绝是原键终局，合法重新排队必须由调用者明确提供新操作，不能由策略偷偷重发。查询不可用时保留原名额和任务。旧调用已经在途或持有资源时，取消与配额下降不自动返额、回滚效果或清除清理责任。
 
-调度器消费 ToolEnvironment 的 allocated 事实时，先核其原准备绑定。inspectPreparation 只转达事实，不因策略为 recognize 就执行采用。对调用方已经请求的原 prepare，重试策略允许 recognize 且原条目仍有效时，调度器才可在查询后沿完全相同输入再次 prepare；它不新增获取成本或操作身份。wait 或 inspect 只保留或刷新原事实。allocated、pending、unknown 及尚有清理责任的 rejected 都不返额。已确认释放的条目不因迟到分配事实、重试答复或重新获权而恢复排队；每次等待后及转发前仍核原采用和条目未退休。冷恢复的原描述 allocated 不能映射成这条首次采用路径。
+调度器消费 ToolEnvironment 的 allocated 事实时，先核其原准备绑定。inspectPreparation 只转达事实，不因策略为 recognize 就执行采用。对调用方已经请求的原 prepare，重试策略允许 recognize 且原条目仍有效时，调度器才可在查询后沿完全相同输入再次 prepare；它不新增获取成本或操作身份。wait 或 inspect 只保留或刷新原事实。allocated、pending、unknown、`lost` 及尚有清理责任的 rejected 都不返额。已确认释放的条目不因迟到分配事实、重试答复或重新获权而恢复排队；每次等待后及转发前仍核原采用和条目未退休。冷恢复的原描述 allocated 不能映射成这条首次采用路径。
 
 宿主把调用原适配器 prepare 前的本地预占与已经发出的原请求分开保存。首次派发的当前资格或原采用核验失败，且原 prepare 尚未被调用时，只撤回这次本地预占；不调用适配器释放、不报告资源 released，也不生成零分配证据。资格抛错时亦先撤本地预占，再进入下述资源诊断边界。返还本地预占不等待诊断接收完成。原身份与固定输入的绑定仍保留。
 
@@ -199,7 +199,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 `createLocalGrantVerifiers({ owner, key, grant })` 返回只含这一个 owner 的 `Map`。请求的 `scope` 与传入值的 owner、key 相等，且 `grant` 的 owner、record、revision、digest 四项都相同时答 `granted`，否则答 `refused`。没有声明的 owner 由账本答 `denied`。值由装配给出，装配把同一个范围值也交给 Agent 组装请求（D1 结论第 1 条），所以两边没有各自复制的配方。
 
-已知限制：M2 每个装配只有一个范围，所有调用共用同一个 FIFO 键前缀（键由 owner、key 与工具名组成）。核验器不按租户或主体区分；`limits.concurrency` 随请求进入，它的可信来源不在本件。
+已知限制：M2 每个装配只有一个范围，所有调用共用同一个队列 key（key 由 owner 与 key 组成，不含工具名）。核验器不按租户或主体区分。`limits.concurrency` 与 `limits.scopeBudget` 随请求进入，它们的可信来源不在本件。
 
 ### 启动守卫
 
@@ -213,7 +213,32 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 ## 实例宿主与普通调用的边界
 
-`createLocalToolRuntimePlugins` 组装生产实例宿主和实例身份。宿主在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不接受全局 instance。执行器在每次投递结果之后用一次新鲜恢复判定调用是否完成（已结清、没有 pending 任务、投递 pending 为 0）；完成的调用在没有 run 进行时退役，若有 run 正在进行则在该 run 结束时退役，重试 interval 不再重排它。同一租户的投递 run 按到达顺序轮流，后来的调用等自己的轮次；capacity 按在途的租户数计（每租户同时至多一个 run），一个租户在途加排队的 run 不超过 capacity，排队不占别的租户的名额（R2-D164、R2-D186）。超出时答 `unavailable`，`dependency` 为 `delivery-capacity`：它表示这个租户的在途加排队已满，或在途的租户数已满，不再表示“同租户已有 run 在途”。交付仍欠，由重试 interval 再推。组合测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger、本地启动协调器与实例宿主贯通。该证据不证明真实 SQL/Windows 端到端、claim、换实例接管或重启恢复。精确装配责任见[运行时组合工厂](docs/cordis.md#运行时组合工厂)。
+`createLocalToolRuntimePlugins` 组装生产实例宿主和实例身份。宿主在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不接受全局 instance。执行器在每次投递结果之后用一次新鲜恢复判定调用是否完成（已结清、没有 pending 任务、投递 pending 为 0）；完成的调用在没有 run 进行时退役，若有 run 正在进行则在该 run 结束时退役，重试 interval 不再重排它。同一租户的投递 run 按到达顺序轮流，后来的调用等自己的轮次；capacity 按在途的租户数计（每租户同时至多一个 run），一个租户在途加排队的 run 不超过 capacity，排队不占别的租户的名额（R2-D164、R2-D186）。超出时答 `unavailable`，`dependency` 为 `delivery-capacity`：它表示这个租户的在途加排队已满，或在途的租户数已满，不再表示“同租户已有 run 在途”。交付仍欠，由重试 interval 再推。组合测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger、本地启动协调器与实例宿主贯通。该证据不证明真实 SQL/Windows 端到端或 claim。精确装配责任见[运行时组合工厂](docs/cordis.md#运行时组合工厂)。
+
+### 运行停在失败或阻塞上的日志
+
+驱动每次运行调用之后告诉执行器停在哪里。运行以失败或阻塞停下时，执行器向 `tool-executor` 日志写一条 warn：调用身份，以及失败的 `kind` 与它的各个字段，或阻塞的原因。日志不带租户。同一调用按重试间隔反复停在同一原因上时不再写；原因变化时再写一条；调用不再停在失败或阻塞上时写一条 info，说明它从哪个原因走出。调用退役时忘掉它的记录。规则在 [run-stop-log.ts](src/run-stop-log.ts)，验证见 [run-stop-log.spec.ts](tests/run-stop-log.spec.ts)。
+
+### 启动扫描与旧调用的接手
+
+执行器建成时开始一次恢复扫描（契约 P09 recover，Tool SPEC 第 33 条）。它用账本的受信入口 `ToolLedger.recovery.scan` 跨租户、每页 100 个地读有待推进工作的调用，把每个调用记入内存表并交给实例宿主运行。之后的推进与受理的调用相同：实例宿主按 `recover` 资格解析访问，驱动按调用当前的阶段与待办推进它，执行器不改驱动的推进规则。
+
+- 内存表满时，扫描停在当前游标。重试 interval 的下一拍接着读，所以有调用退场之后扫描继续。
+- 扫描读不到（`unavailable`）或抛出时，写一条 warn，下一拍从同一游标接着读。
+- 扫描回复 `unsupported` 时（记录仓不能扫描），写一条 warn，不再重试。旧调用不被接手。
+- 读完最后一页后不再扫描。进程内此后丢失的唤醒由重试 interval 与原有的唤醒补。
+
+接手的边界按当前段的归属判定。当前段由调用的当前启动记录（`ToolStartRecord.execution.instance`）定归属，没有启动记录时看调用的执行引用。当前段属于别的实例，且执行阶段是 `starting`、`live` 或 `unknown` 时，原执行可能仍在旧实例里运行：执行器不接上它，也不重新启动它，计一次 `foreignExecutionRuns`，从内存表放掉这个调用。暂停中、已结束、从没启动，或当前段由本实例准备的调用，由本实例接着推进。
+
+新执行器接手暂停中的调用后，恢复段在本进程按段准备自己的环境（Tool [SPEC](../tool/SPEC.md) 第 31 条），检查点字节从耐久保管读回（见[检查点作者的 resume 段](#检查点作者的-resume-段)），所以接手的调用能恢复并收场。
+
+诊断 `recoveryScan` 是扫描的状态（`waiting`、`running`、`done`、`unsupported`），`recoveredCalls` 是扫描记入内存表的调用数。
+
+已知限制：
+
+- 扫描只在启动时进行一次，不定期补漏。
+
+验证：[executor-retirement.spec.ts](tests/executor-retirement.spec.ts) 的扫描用例（分页、读不到后接着读、`unsupported` 停止、内存表满后接着读）；[lifecycle.spec.ts](tests/runtime-composition/lifecycle.spec.ts) 的两条新执行器用例（原执行可能仍在运行时不接上、不重启；从没启动的调用按原身份启动一次并收场）；[checkpoint.spec.ts](tests/runtime-composition/checkpoint.spec.ts) 的新执行器用例（扫描接手暂停中的调用，停掉之后才到的决定只被接受一次，恢复段从保管读回的检查点恢复一次并收场）。记录仓是声明为耐久的内存记录仓，第二个执行器在同一进程里，不证明真实进程重启或耐久。
 
 ## 结果交付的推送退避
 
@@ -257,7 +282,42 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 启动输入确定无效时，绑定释放本调用尚未使用的解析 pin。合法重试须重新取得原注册的 pin。已经发起或结果未知的执行不受该清理影响。同形回退的 executor 与固定 start.executor 不同时，本实现仍拒绝启动并释放未使用的 pin。该回退如何衔接固定请求与实际执行来源，仍须 Tool 账本、Driver 和绑定的组合承担者闭合；当前作者工厂不声明这条路径可执行。
 
-每个作者执行有独立 signal、事实流和控制记录。停止先返回 accepted，作者实际结束后才变为 stopped。事实按 cursor 重读，确认按 batch 认回；作者已结束且全部事实已有保管回执时解除 pin。未知返回、失去观察或保管失败继续保留责任。Scope 与最终结果转换是显式构造依赖。该执行绑定只支持 live-only，不承诺跨进程恢复。
+每个作者执行有独立 signal、事实流和控制记录。停止先返回 accepted，作者实际结束后才变为 stopped。事实按 cursor 重读，确认按 batch 认回；作者已结束且全部事实已有保管回执时解除 pin。未知返回、失去观察或保管失败继续保留责任。Scope 与最终结果转换是显式构造依赖。执行绑定不承诺跨进程恢复。
+
+### 检查点作者的 initial 段
+
+操作的作者按段执行时，`resolve` 给出 checkpointed 绑定，其 `checkpointSchema` 是作者声明的检查点 codec。构造依赖缺 `checkpoint` 时，`resolve` 对这类作者回复 `unavailable`，不装配可恢复模式。启动的核对、去重与许可消费与 live-only 相同。
+
+许可消费后，绑定运行作者的 `initial` 段。段上下文只有 `emit` 与 `signal`，没有 `wait`。段的结果按下列规则处理：
+
+- `completed` 与 live-only 的正常返回一样经 `settle` 形成 final。
+- 段失败或抛错时以作者失败收场。
+- `suspended` 先过两项检查：等待须是作者 `waits` 声明过的 Ask 协议，状态字节不超过声明的 `maxBytes`。任一项不成立时以作者失败收场。
+- 检查通过后，绑定经 `checkpoint` 依次保管状态字节与等待请求，二者各用本 start 派生的操作。两者都保管后，绑定发布 Ask 的 `wait` 事实，然后结束执行流。等待身份是 `<start>/wait`，接续位置是状态的保管证据，请求证据是请求的保管证据。保管失败时段不暂停，以作者失败收场。状态与请求的保管操作分别是 `<start>/checkpoint` 与 `<start>/wait-request`。这些派生只在 [segment-operations.ts](src/segment-operations.ts) 写一次。根入口导出 `waitRequestOperation`：装配凭等待身份找回请求的保管操作，再从保管读回请求原文；不是本宿主派生的等待身份答 `not-a-segment-wait`。
+
+`suspend` 与 `inspectSuspension` 只证明，不停止任何东西，因为段已经返回。暂停段的回答是 `suspended` 与检查点。initial 段的已消费答复为空，恢复段的已消费答复是它接续的那个 ResponseRecord 的操作。效果边界与旧执行排除是本宿主的证据。已完成段的回答是 `not-suspended`。段尚未返回时回答 `unknown`。其他 schema 的回答是 `rejected`。段结束且全部事实已确认后解除 pin，恢复段须重新取得。
+
+### 检查点作者的 resume 段
+
+`resume` 接受 Tool 账本保存的 resume 记录，核对、去重与许可消费与 start 相同：同一 resume 记录的重复调用认回原执行，不再运行作者。首次调用先经构造依赖 `resumption` 读恢复输入，读到之后才消费许可。恢复输入有两项：resume 记录所指检查点的状态字节，以及调用账本为在该检查点等待的 Ask 固定的 ResponseRecord。缺 `resumption`、读不到输入，或回应不是本调用的决定时，`resume` 回复失败，不运行作者，也不消费许可。
+
+许可消费后，绑定先发布 `continued` 事实：等待身份、ResponseRecord 的操作，以及本宿主的计时证据。作者在这一点拿到决定，所以这是真实的恢复点。然后绑定以 `{ checkpoint, response }` 运行作者的 `resume` 段，`response` 是 ResponseRecord 里的决定。段上下文与 initial 段相同，只有 `emit` 与 `signal`。构造依赖 `capability` 只用于首次 start，resume 不接收它。段的结果按 initial 段的规则处理。段再次 suspended 时，等待身份由 resume 记录派生，即 `<resume>/wait`，状态与请求以 `<resume>/checkpoint` 与 `<resume>/wait-request` 保管。
+
+`createRuntimeAuthorExecution` 的 `resumption` 从耐久保管读回状态字节，本进程不留副本：
+
+1. 从同一组合的账本 `loadRecovery` 读调用的恢复记录，取在该检查点处于 `responding` 的等待。没有这样的等待时回复 `invalid`（`no-accepted-decision`）。
+2. 等待的 ResponseRecord 记着暂停段的 start。状态的保管操作由它派生，即 `<start>/checkpoint`。
+3. 构造依赖 `readOutput` 按租户、调用与这个操作读回原件。保管里没有原件，或原件的保管证据不等于 resume 记录的检查点时，回复 `invalid`（`checkpoint-not-kept`）。
+
+所以进程重启后，新执行器接手的暂停中调用同样能恢复。运行时组合的 `authorExecution` 带出 `resumption`，装配把它接到绑定的构造依赖。
+
+启动协调器接受 resume 记录。resume 用自己的操作取得许可，guard 集合与许可要求和首次 start 相同。许可要求的 `check` 也收到 resume 记录。转发父调用只认首次 start。
+
+`createRuntimeAuthorExecution` 的 `checkpoint` 经 `ToolOutputCustody.preserve` 保管两份字节，沿用原输出保管的重试。请求按 JSON 文本以 `wait-request-json` codec 保管，超过协议的请求上限时回复 `invalid`。请求的 schema 校验尚未实现。
+
+运行时组合的可选输入 `decisions` 在每次调用时读取 Ask 等待的决策方。缺它或它答 undefined 时，等待遇到缺席端口。账本的 `acceptDecision` 经同一个决策方的 `resolve` 取得决定。
+
+[检查点绑定测试](tests/checkpointed-binding.spec.ts)验证段上下文、保管、最后事实、检查点证明与等待身份。[派生测试](tests/segment-operations.spec.ts)验证派生与拒绝；整机组合测试另核对凭等待身份派生的操作正好保管了等待的请求证据。[整机组合测试](tests/runtime-composition/checkpoint.spec.ts)在本地运行时插件、启动协调器、本地绑定与真实账本下验证停泊与登记，决定之后从检查点恢复一次并收场，以及暂停中被叫停时调用收场、原登记失效一次、队列域不留条目。两者的决策方与记录仓是测试提供者，不证明耐久。
 
 `./author` 导出 `contributeTool`、`createToolAuthorPlugin` 与 `createLocalToolGenerations`。作者插件静态依赖 toolBindings/toolGenerations，不提供服务键。贡献登记与撤除配对到作者 fiber 的 effect。服务适配器必须在普通函数中读取调用时的 `this.ctx`，用同步调用作用域把 fiber uid 传给登记表；箭头函数捕获提供者 Context 会产生错误归属。
 

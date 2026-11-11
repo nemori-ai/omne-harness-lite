@@ -2,13 +2,13 @@
 
 [English](README.md)
 
-`governance-public/1` 与 `session-public/1` 两个协议的纯编解码。它把请求或响应对象转成字节并转回，读取时校验整份文档。客户端与服务端适配共用本包，就共用同一套消息、`outcome` 与拒绝规则，不必各写一份。SDK 与服务端接入是它的前两个消费者。
+`governance-public/1`、`session-public/1` 与 `hitl-public/1` 三个协议的纯编解码。它把请求或响应对象转成字节并转回，读取时校验整份文档。客户端与服务端适配共用本包，就共用同一套消息、`outcome` 与拒绝规则，不必各写一份。SDK 与服务端接入是它的前两个消费者。
 
 ## 职责与状态
 
-本成员实现 38 项治理请求操作（其中 4 项管理行事租户的设置项）与 8 项会话操作，含会话中断的 `cancel-run` 与 `stop-call`，以及只读的会话诊断投影 `read-session-diagnostics`。它还识别 4 项本阶段不提供的治理操作。[行为规格](SPEC.md) 拥有规则。[主入口](src/index.ts) 导出八个协议函数及其输入、结果类型，两种协议各四个，另导出租户、组织、账号、登录状态的[身份文本函数](SPEC.md#身份值的文本)八个。[治理消息类型](src/messages.ts) 与[会话消息类型](src/session-messages.ts) 把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md) 索引全部导出。
+本成员实现 38 项治理请求操作（其中 4 项管理行事租户的设置项）与 8 项会话操作，含会话中断的 `cancel-run` 与 `stop-call`，以及只读的会话诊断投影 `read-session-diagnostics`。它还实现 4 项 HITL 操作：`list-cards`、`read-card`、`submit-reply` 与 `query-submit-reply`。它还识别 4 项本阶段不提供的治理操作。[行为规格](SPEC.md) 拥有规则。[主入口](src/index.ts) 导出十二个协议函数及其输入、结果类型，三种协议各四个，另导出租户、组织、账号、登录状态的[身份文本函数](SPEC.md#身份值的文本)八个。[治理消息类型](src/messages.ts)、[会话消息类型](src/session-messages.ts) 与 [HITL 消息类型](src/hitl-messages.ts) 把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md) 索引全部导出。
 
-本成员不核验身份、不判断授权、不执行业务，也不选择传输保护协议。[承载绑定](docs/http-binding.md) 写两个位置的 HTTP 与 SSE 承载。identity 与 authorization 继续拥有身份、授权与业务操作的责任。Session 继续拥有会话业务规则。SDK 和 server-entry 是独立消费者，各自承担后续交付义务。
+本成员不核验身份、不判断授权、不执行业务，也不选择传输保护协议。[承载绑定](docs/http-binding.md) 写三个位置的 HTTP 与 SSE 承载。identity 与 authorization 继续拥有身份、授权与业务操作的责任。Session 继续拥有会话业务规则。HITL 继续拥有卡片、答复与资格的规则。SDK 和 server-entry 是独立消费者，各自承担后续交付义务。
 
 ## 使用
 
@@ -44,9 +44,9 @@ if (encoded.kind === 'encoded') {
 
 ## 契约
 
-[公开编解码条款](SPEC.md#公开编解码入口与实现细化)定义检查顺序、封闭字段、预算、关联与诊断。[会话编解码条款](SPEC.md#会话编解码函数)把同一组规则用于会话一组，并写明第 1 步中哪些检查归服务端接入。八个函数同步执行，没有外部副作用。无效编程参数抛固定的 `TypeError`，无效请求或响应模型返回 `invalid`。诊断只有有限的 code，不含凭据、证明、输入路径或原始字节。
+[公开编解码条款](SPEC.md#公开编解码入口与实现细化)定义检查顺序、封闭字段、预算、关联与诊断。[会话编解码条款](SPEC.md#会话编解码函数)把同一组规则用于会话一组，并写明第 1 步中哪些检查归服务端接入。[HITL 编解码条款](SPEC.md#hitl-编解码函数)写 HITL 一组的差别。十二个协议函数同步执行，没有外部副作用。无效编程参数抛固定的 `TypeError`，无效请求或响应模型返回 `invalid`。诊断只有有限的 code，不含凭据、证明、输入路径或原始字节。
 
-稳定的承诺是八个协议函数、八个身份文本函数、它们的输入与结果类型，以及两个协议的操作、结果与正文形状。改动其中任何一项都是协议变更。
+稳定的承诺是十二个协议函数、八个身份文本函数、它们的输入与结果类型，以及三个协议的操作、结果与正文形状。改动其中任何一项都是协议变更。
 
 读出请求只证明协议合规。对会话请求，这只覆盖第 1 步中本成员负责的检查：`message` 只核到 JSON 对象与 `role` 为 `user`，完整的消息解码由服务端接入完成。读出响应只证明该操作的结果形状与关联合规。它们都不证明业务授权或耐久提交。
 
@@ -76,9 +76,11 @@ pnpm --filter @omne-harness/public-contract typecheck
 
 `session-protocol.spec.ts` 用正反向量覆盖 `readSessionRequest` 负责的第 1 步规则。其中 `message` 只覆盖对象与 `role` 的检查，不含完整消息解码。它还覆盖两个位置上的跨版本拒绝。`session-responses.spec.ts` 覆盖每个会话操作的每个结果、封闭正文、历史页、`unmatched`、`unreadable` 与共同拒绝的重载。`session-consumption.spec-d.ts` 验证会话操作、正文与结果的类型。`session-control-protocol.spec.ts`、`session-control-responses.spec.ts` 与 `session-control-consumption.spec-d.ts` 覆盖 `cancel-run` 与 `stop-call` 的请求、结果集合、成功正文与类型，每条用例只违反一条规则。本成员不把 Session 结果映射为线上结果，也不派生操作身份，两者归服务端接入。
 
+`hitl-protocol.spec.ts` 用正反向量覆盖 4 项 HITL 操作的请求：`filter.states` 必填、`sessionRef` 的文本格式、`limit` 的范围、`card` 与 `reply` 的封闭形状，以及两个方向的跨位置拒绝。`hitl-responses.spec.ts` 覆盖每个 HITL 操作的结果集合、每个操作的空正文 `stage-not-provided`、不含原等待路由字段的封闭卡片视图、答复结果的三个分支，以及共同拒绝的重载。
+
 `fixtures/client.ts` 与 `fixtures/server.ts` 各自只从包名消费。两个 fixture 各有一次治理往返和一次会话往返。`install-closure.spec.ts` 打包本包及三个工作区依赖，建立干净安装，编译两端，并通过 Node 在 `dist` 上运行两次往返。安装测试需要 pnpm，以及可用的 jsonc-parser 注册表或缓存。测试清理临时安装，把闭包记录写入任务的临时证据目录。`fixtures/profile.mjs` 从 `dist` 入口观察有界负载。
 
-这些检查覆盖纯协议与独立制品消费。真实传输、登录、授权、存储、Session 调用，以及完整的治理与会话旅程仍由各自拥有者验证。
+这些检查覆盖纯协议与独立制品消费。真实传输、登录、授权、存储、Session 与 HITL 调用，以及完整的治理、会话与 HITL 旅程仍由各自拥有者验证。
 
 ## 维护
 

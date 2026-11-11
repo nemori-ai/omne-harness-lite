@@ -13,13 +13,17 @@ export type LedgerWriteFact =
   | Readonly<{ op: 'put'; key: string; record: JsonValue }>
   | Readonly<{ op: 'delete'; key: string }>
 
-/** One revision-conditioned commit of one ledger domain. */
+/**
+ * One revision-conditioned commit of one ledger domain. `pending` 只出现在调用域的提交里：
+ * `true` 在同一事务里写这个调用的待办标记，`false` 删掉它，缺省不动它。
+ */
 export type LedgerFacts = DomainAddress &
   Readonly<{
     intent: 'ledger'
     expected: string
     revision: string
     writes: readonly LedgerWriteFact[]
+    pending?: boolean
   }>
 
 /** A host CAS conditional on a previously checked call snapshot in the same tenant. */
@@ -80,6 +84,15 @@ export type LedgerReadOutput = Readonly<{
   records: readonly StoredRecord[]
 }>
 
+/** 一个租户的待办标记的一页：调用身份大于 `after` 的，最多 `limit` 个。 */
+export type PendingReadInput = Readonly<{ tenant: string; after: string | null; limit: number }>
+
+/** 这一页的调用，按调用身份升序；`more` 表示最后一个之后还有标记。 */
+export type PendingReadOutput = Readonly<{ calls: readonly string[]; more: boolean }>
+
+/** 一页最多读的标记数，与账本的一页上限相同。 */
+export const PENDING_READ_LIMIT = 1000
+
 export type ManifestRow = Readonly<{
   kind: ManifestKind
   digest: string
@@ -137,7 +150,11 @@ function ledgerOf(value: JsonObject): LedgerFacts | null {
     return null
   const parsed = writes.map(writeOf)
   if (!parsed.every((write): write is LedgerWriteFact => write !== null)) return null
-  return { ...domain, intent: 'ledger', expected, revision, writes: parsed }
+  const pending = value['pending']
+  if (pending === undefined)
+    return { ...domain, intent: 'ledger', expected, revision, writes: parsed }
+  if (typeof pending !== 'boolean' || domain.kind !== 'call') return null
+  return { ...domain, intent: 'ledger', expected, revision, writes: parsed, pending }
 }
 
 function guardedHostOf(value: JsonObject): GuardedHostFacts | null {
@@ -223,6 +240,15 @@ export function parseFacts(facts: JsonObject): ToolFacts | null {
 
 export function parseDomainAddress(value: JsonValue): DomainAddress | null {
   return isObject(value) ? domainOf(value) : null
+}
+
+export function parsePendingInput(value: JsonValue): PendingReadInput | null {
+  if (!isObject(value)) return null
+  const tenant = textOf(value, 'tenant')
+  const after = value['after'] === null ? null : textOf(value, 'after')
+  const limit = countOf(value, 'limit')
+  if (tenant === null || (after === null && value['after'] !== null) || limit === null) return null
+  return limit < 1 || limit > PENDING_READ_LIMIT ? null : { tenant, after, limit }
 }
 
 export function parseChunkInput(value: JsonValue): ChunkReadInput | null {

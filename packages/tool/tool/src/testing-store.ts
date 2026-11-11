@@ -10,7 +10,11 @@ import {
   type LedgerCommit,
   type LedgerCommitInput,
   type LedgerDomain,
+  type LedgerPendingScan,
+  type LedgerPendingScanInput,
   type LedgerRecord,
+  type PendingCall,
+  type TenantId,
   type ToolLedgerStore,
 } from './ledger-store.ts'
 
@@ -49,6 +53,7 @@ export interface MemoryToolLedgerStore<B extends ContentBlock> extends ToolLedge
   readonly commits: number
   /** How many reads were attempted, faults included. */
   readonly reads: number
+  scanPending(input: LedgerPendingScanInput): Promise<LedgerPendingScan>
 }
 
 type Domain<B extends ContentBlock> = {
@@ -62,6 +67,16 @@ function domainKey(domain: LedgerDomain): string {
   return JSON.stringify([domain.kind, ...tenant, domain.kind === 'call' ? domain.call : domain.key])
 }
 
+/** 租户在本记录仓全序里的键：组织与账号文本的 JSON。 */
+function tenantOrder(tenant: TenantId): string {
+  return JSON.stringify([tenant.organization.text, tenant.account.text])
+}
+
+/** 待办标记的全序键：先租户，再调用。 */
+function pendingOrder(entry: PendingCall): string {
+  return JSON.stringify([tenantOrder(entry.tenant), entry.call])
+}
+
 /** A deep copy that keeps no reference to the caller's value, as a real store would. */
 function copy<T>(value: T): T {
   return structuredClone(value)
@@ -69,6 +84,8 @@ function copy<T>(value: T): T {
 
 export function createMemoryToolLedgerStore<B extends ContentBlock>(): MemoryToolLedgerStore<B> {
   const domains = new Map<string, Domain<B>>()
+  // 待办标记：全序键到调用。与调用域的记录在同一次 `apply` 里改变。
+  const pending = new Map<string, PendingCall>()
   const readFaults: MemoryReadFault[] = []
   const commitFaults: MemoryCommitFault[] = []
   const held: LedgerCommitInput<B>[] = []
@@ -92,6 +109,29 @@ export function createMemoryToolLedgerStore<B extends ContentBlock>(): MemoryToo
     }
     target.records = records
     target.revision = input.revision
+    const { domain } = input
+    if (domain.kind !== 'call' || input.pending === undefined) return
+    // 租户身份是 legal-identity 签发的不可变值，副本会失去签发身份，所以保留原引用。
+    const entry: PendingCall = { tenant: domain.tenant, call: domain.call }
+    if (input.pending) pending.set(pendingOrder(entry), entry)
+    else pending.delete(pendingOrder(entry))
+  }
+
+  const scanPending = (input: LedgerPendingScanInput): LedgerPendingScan => {
+    const tenant = input.tenant === null ? null : tenantOrder(input.tenant)
+    const after = input.after === null ? null : pendingOrder(input.after)
+    const listed = [...pending.entries()]
+      .filter(
+        ([key, entry]) =>
+          (after === null || key > after) &&
+          (tenant === null || tenantOrder(entry.tenant) === tenant),
+      )
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return {
+      kind: 'page',
+      calls: listed.slice(0, input.limit).map(([, entry]) => ({ ...entry })),
+      more: listed.length > input.limit,
+    }
   }
 
   const commit = (input: LedgerCommitInput<B>): LedgerCommit => {
@@ -148,5 +188,6 @@ export function createMemoryToolLedgerStore<B extends ContentBlock>(): MemoryToo
       commits += 1
       return Promise.resolve(commit(input))
     },
+    scanPending: input => Promise.resolve(scanPending(input)),
   }
 }

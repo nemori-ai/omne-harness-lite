@@ -533,7 +533,9 @@ describe('ordinary invocation and saved references', () => {
 
   it('records each host instance on its actual execution and reuses it on repeated wake-ups', async () => {
     const base = startHarness()
-    const unlimited = { limits: { concurrency: null, foregroundMs: null, backgroundAfterMs: null } }
+    const unlimited = {
+      limits: { concurrency: null, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
+    }
     await admitCall(base, 'first', unlimited)
     await admitCall(base, 'second', unlimited)
     await base.drive('first', 'second')

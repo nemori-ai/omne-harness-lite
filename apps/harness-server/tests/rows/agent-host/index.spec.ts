@@ -348,7 +348,7 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     consumer,
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
   } as never)
   return ok(judged as never)
 }

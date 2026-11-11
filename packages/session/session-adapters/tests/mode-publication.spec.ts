@@ -3,10 +3,16 @@ import { adoption, evidence, operationId } from '@omne-harness/session-contract/
 import { decodeSessionPermissionMode } from '@omne-harness/session-storage-sql/participants'
 import {
   createSessionModesPublication,
+  SESSION_COLLABORATION_MODE_TRANSLATION,
   SESSION_MODES_PUBLICATION,
   type SessionModesPublicationInput,
 } from '../src/index.ts'
-import { sessionInquiryBinding, sessionModesDescriptor } from '../src/cordis.ts'
+import {
+  sessionInquiryBinding,
+  sessionInteractionBinding,
+  sessionModesBindings,
+  sessionModesDescriptor,
+} from '../src/cordis.ts'
 import { ok } from './fixtures/common-journal.ts'
 import { sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
@@ -162,6 +168,52 @@ it('rejects a partial or malformed publication at the Runtime Context boundary',
   ).toHaveProperty('issues')
 })
 
+it('with an owner permission override, still needs the original default for a mode that nothing changed', async () => {
+  const { input } = await fixture()
+  if (input.defaults.kind !== 'available') throw new Error('no defaults')
+  const overridden = {
+    ...input,
+    permission: {
+      ...input.permission,
+      mode: {
+        ...input.permission.mode,
+        override: { value: 'never', source: evidence('override') },
+      },
+    },
+  } satisfies SessionModesPublicationInput
+  const collaboration = {
+    kind: 'collaboration-mode',
+    value: 'auto-drive',
+    authorization: evidence('collaboration'),
+  } as const
+  const environment = {
+    kind: 'environment-mode',
+    value: adoption('new-environment'),
+    authorization: evidence('environment'),
+    setting: evidence('setting'),
+  } as const
+  // The default is gone, and at most one of the two other modes was changed since.
+  for (const changes of [[], [collaboration], [environment]])
+    expect(
+      createSessionModesPublication({
+        ...overridden,
+        defaults: { kind: 'unavailable' },
+        work: { ...input.work, changes },
+      }),
+    ).toEqual({ kind: 'unavailable', reason: 'default-mode-missing' })
+  // A default whose adoption differs in one field is not the original default.
+  for (const key of ['owner', 'name', 'revision', 'digest'] as const)
+    expect(
+      createSessionModesPublication({
+        ...overridden,
+        defaults: {
+          ...input.defaults,
+          adoption: { ...input.defaults.adoption, [key]: 'another' },
+        },
+      }),
+    ).toEqual({ kind: 'unavailable', reason: 'default-mode-mismatch' })
+})
+
 it('uses the latest environment and collaboration changes with the owner permission override', async () => {
   const { input } = await fixture()
   const environment = adoption('new-environment')
@@ -202,8 +254,31 @@ it('uses the latest environment and collaboration changes with the owner permiss
     value: {
       modes: { permission: 'never', collaboration: 'auto-drive', environment },
       inquiry: { policy: { onAsk: 'deny' }, source: evidence('override') },
+      interaction: {
+        humanInteraction: false,
+        requestApproval: false,
+        source: evidence('new-collaboration'),
+        translation: SESSION_COLLABORATION_MODE_TRANSLATION,
+      },
     },
   })
+})
+
+it('translates the default co-work into an open interaction, selected with its basis', async () => {
+  const { input } = await fixture()
+  const result = createSessionModesPublication(input)
+  if (result.kind !== 'ready') throw new Error('not ready')
+  if (input.defaults.kind !== 'available') throw new Error('no defaults')
+  expect(result.value.interaction).toEqual({
+    humanInteraction: true,
+    requestApproval: true,
+    source: input.defaults.source,
+    translation: SESSION_COLLABORATION_MODE_TRANSLATION,
+  })
+  const selected = sessionInteractionBinding.translate(result.value)
+  expect(selected).toEqual({ interaction: result.value.interaction, basis: result.value.basis })
+  expect(sessionInteractionBinding.need.consumer).toBe('coordinator')
+  expect(sessionModesBindings).toEqual([sessionInquiryBinding, sessionInteractionBinding])
 })
 
 it('uses explicit creation without defaults and detaches caller-owned source objects', async () => {
@@ -235,4 +310,8 @@ it('uses explicit creation without defaults and detaches caller-owned source obj
   environment.name = 'mutated'
   expect(result.value).toEqual(copied)
   expect(result.value.inquiry.source).toEqual(input.permission.creationSource)
+  expect(result.value.interaction).toMatchObject({
+    humanInteraction: true,
+    source: input.permission.creationSource,
+  })
 })

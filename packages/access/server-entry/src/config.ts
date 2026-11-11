@@ -34,6 +34,11 @@ export type ServerEntryConfig = Readonly<{
   diagnosticsKinds?: readonly string[]
   maxRuns?: number
   maxCallsPerRun?: number
+  /**
+   * HITL 位置交给 `listPool` 的位置引用（SPEC「HITL 位置」），与装配给 HITL 查询的固定位置相同。
+   * 装配给了 HITL 入口面时必须有它。
+   */
+  hitlLocationRef?: string
 }>
 
 export class ServerEntryConfigError extends Error {
@@ -75,6 +80,11 @@ export function checkConfig(config: ServerEntryConfig): ServerEntryConfig {
   positiveInteger(config.observation.perInstance, 'observation.perInstance')
   nonNegativeInteger(config.observation.cancelRetentionMs, 'observation.cancelRetentionMs')
   checkDiagnostics(config)
+  if (
+    config.hitlLocationRef !== undefined &&
+    (typeof config.hitlLocationRef !== 'string' || config.hitlLocationRef === '')
+  )
+    throw new ServerEntryConfigError('server-entry: hitlLocationRef must be a non-empty string')
   return config
 }
 

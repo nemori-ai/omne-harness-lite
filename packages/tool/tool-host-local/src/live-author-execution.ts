@@ -60,6 +60,8 @@ export function createLiveAuthorExecution<B extends ContentBlock>(
       cursor,
       events: [{ event, fact }],
     })
+    // A segment that suspends ends its stream at its wait; only a final settles the start.
+    if (fact.kind === 'wait') ended = true
     if (fact.kind === 'final') {
       ended = true
       lookup = { kind: 'settled', source, event, fact }

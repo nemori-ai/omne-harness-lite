@@ -4,6 +4,7 @@ import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
 import {
   encodeInitialContextRegistration,
   sessionInquiryBinding,
+  sessionModesBindings,
 } from '@omne-harness/session-adapters/cordis'
 import {
   contextScopeOf,
@@ -24,7 +25,7 @@ const encoded = encodeInitialContextRegistration(
   {
     definition: SESSION_MODES_PUBLICATION,
     key: sessionInquiryBinding.key,
-    bindings: [sessionInquiryBinding],
+    bindings: sessionModesBindings,
     parameters: undefined,
   },
   adoptedContextDefinitions,

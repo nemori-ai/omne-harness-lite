@@ -111,6 +111,7 @@ function windowStore(
   let raced = false
   const racing: ToolLedgerStore<Block> = {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     read: async domain => {
       if (reads.failing > 0 && domain.kind === 'call') {
         reads.failing -= 1
@@ -187,6 +188,7 @@ describe('22 release memory: a released call never regains an entry', () => {
       environment: new Map([['c1', 'rejected']]),
       store: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         read: domain => memory.read(domain),
         commit: input => {
           commits.push(input)

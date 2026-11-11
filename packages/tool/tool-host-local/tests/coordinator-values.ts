@@ -117,7 +117,7 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
     consumer: { owner: 'consumer', work: 'work-1', position: 'position-1', purpose: 'tool-result' },
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     ...overrides,
   }
 }
@@ -196,6 +196,7 @@ export function failingNextCommit(
   let armed = false
   return {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     arm: () => {
       armed = true
     },

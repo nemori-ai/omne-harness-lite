@@ -12,7 +12,7 @@ Tool 记录仓与原件保管的 SQL 提供者。根入口导出 `createSqlToolL
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `createSqlToolLedgerStore`                   | 已实现。`durability: 'durable'`。每次调用是一次 `domain-serial` 读，或一次按修订号条件的 SQL 提交 |
 | `createSqlToolOutputCustody`                 | 已实现。任意大小的原件分块保存，最后提交清单封存                                                  |
-| `toolStorageMaterials()`                     | 已实现。一个参加者 `tool`、一条迁移、三个读 handler，全部在 `tl_` 表上                            |
+| `toolStorageMaterials()`                     | 已实现。一个参加者 `tool`、两条迁移、四个读 handler，全部在 `tl_` 表上                            |
 | `./cordis` 插件、`tool-records` 行、目录合并 | 不在本包，归应用侧（波 B 与 L-APP）                                                               |
 | 真实 SQLite 提供者、两个进程、断电           | 未验证，留联调 A                                                                                  |
 
@@ -47,13 +47,14 @@ const custody = createSqlToolOutputCustody({
 
 ## 设计
 
-`src/ledger-store.ts` 与 `src/custody.ts` 是两个适配器。`src/tenant.ts` 经目录解析租户的事务域。`src/worker/` 里的 Worker 模块是 `tool` 参加者、迁移与三个读 handler，它们共用 `src/worker/facts.ts` 的事实协议。[docs/architecture.md](docs/architecture.md) 写表与机制，[docs/flows.md](docs/flows.md) 写提交与保管的流程。
+`src/ledger-store.ts` 与 `src/custody.ts` 是两个适配器。`src/tenant.ts` 经目录解析租户的事务域。`src/worker/` 里的 Worker 模块是 `tool` 参加者、两条迁移与四个读 handler，它们共用 `src/worker/facts.ts` 的事实协议。[docs/architecture.md](docs/architecture.md) 写表与机制，[docs/flows.md](docs/flows.md) 写提交与保管的流程。
 
 ## 配置与运行
 
 | 选项                 | 拥有者   | 规则                                                                                          |
 | -------------------- | -------- | --------------------------------------------------------------------------------------------- |
 | `storage`、`domains` | 应用装配 | 受信的 `storage` 与 `tenantDomainLookup` 行。目录不含的租户不写入                             |
+| `tenants`（可选） | 应用装配 | 已发布租户目录的快照。没有它时，跨租户的待办扫描答 `unsupported` |
 | `combination`        | 应用装配 | 为租户作用域列出 `tool` 参加者的组合                                                          |
 | `maxCommandBytes`    | 应用装配 | 与 `storage` 行同一个值，装配把同一个值交给两行                                               |
 | `maxChunkBytes`      | 应用装配 | 其 base64 长度加 `CHUNK_ENVELOPE_BYTES` 必须不超过 `maxCommandBytes`，否则工厂抛 `RangeError` |

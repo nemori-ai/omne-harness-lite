@@ -2,15 +2,20 @@
 // 成员模块的工厂在构造时要一份共享的 Scope 来源，而来源需要入口受信的 `sessionPrincipalBindings`，
 // 受信上下文只有 `install(scope, env)` 才拿得到。所以这里按 `env` 懒建一份来源：同一次运行内四个模块共用它，
 // 不同运行互不相通（`WeakMap` 以 `env` 为键，不留进程级状态）。
-// Scope 归属读 `session-ad03` 事实子插件提供的 `sessionScopeLookup`（R2-D14：入口用它解出会话，再经受信
-// `sessionPrincipalBindings` 核对归属），每次调用经 `env.readTrusted` 在受信作用域「会话回放事实」里现取，
-// 缺席答 unavailable。Tool B 段接上；受信名收紧（R2-D163、R2-D168）后根上的同名提供者读不到。
+// Scope 归属先读 `session-ad03` 事实子插件提供的 `sessionScopeLookup`（进程内索引，R2-D14：入口用它解出会话，
+// 再经受信 `sessionPrincipalBindings` 核对归属）。索引没答出时（冷启动后它对会话下一次提交之前的作用域答
+// unknown），入口用 unknown 以外的途径补：读 `session-storage` 行提供的受信 `sessionScopeOwners`，即 Session
+// 在铸作用域的那笔提交里写下的归属。两者都每次调用经 `env.readTrusted` 现取，都缺席时答 unavailable。Tool B 段接上；受信名收紧（R2-D163、R2-D168）后根上的同名提供者读不到。
 // AD-15 的恢复授权生产来源尚未交付：读口答缺席，落到成员默认的 unavailable，不补造来源。
-import type { SessionPrincipalBindingSource } from '@omne-harness/session-contract'
+import type {
+  SessionPrincipalBindingSource,
+  SessionScopeOwnerSource,
+} from '@omne-harness/session-contract'
 import type { SessionScopeLookup } from '@omne-harness/session-cordis-contract'
 import {
   sessionPrincipalBindingsKey,
   sessionScopeLookupKey,
+  sessionScopeOwnersKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { createExecutionAuthorityModules } from './execution-authorities.ts'
@@ -31,26 +36,35 @@ function readPrincipalBindings(env: EntryEnv): SessionPrincipalBindingSource | u
   return source
 }
 
-/** `sessionScopeLookup` 的答案换成应用的归属投影；查找服务缺席时为 undefined。 */
+/**
+ * 应用的作用域归属投影：进程内索引（`sessionScopeLookup`）答出就用它；没答出、或索引缺席时，读 Session
+ * 落盘的归属（`sessionScopeOwners`）。两者都缺席时为 undefined。
+ */
 export function ownershipFrom(
   lookup: SessionScopeLookup | undefined,
+  owners: SessionScopeOwnerSource | undefined,
 ): SessionScopeOwnershipSource | undefined {
-  if (lookup === undefined) return undefined
+  if (lookup === undefined && owners === undefined) return undefined
   return {
     async lookup(scope) {
-      const answer = await lookup.lookup(scope)
-      switch (answer.kind) {
-        case 'known':
-          return {
-            kind: 'bound',
-            tenant: answer.tenant,
-            session: answer.session,
-            generation: answer.generation,
-          }
-        case 'unknown':
-          return { kind: 'unknown' }
-        default:
-          return { kind: 'unavailable' }
+      const indexed = lookup === undefined ? undefined : await lookup.lookup(scope)
+      if (indexed?.kind === 'known')
+        return {
+          kind: 'bound',
+          tenant: indexed.tenant,
+          session: indexed.session,
+          generation: indexed.generation,
+        }
+      if (owners === undefined)
+        return indexed?.kind === 'unknown' ? { kind: 'unknown' } : { kind: 'unavailable' }
+      const kept = await owners.lookup({ scope: scope.ref })
+      if ('failure' in kept) return { kind: 'unavailable' }
+      if (kept.ok.kind === 'unknown') return { kind: 'unknown' }
+      return {
+        kind: 'bound',
+        tenant: kept.ok.tenant,
+        session: kept.ok.session,
+        generation: kept.ok.generation,
       }
     },
   }
@@ -62,7 +76,10 @@ export function sessionScopesOf(env: EntryEnv): SessionScopeSource {
   if (made !== undefined) return made
   const created = createSessionScopeSource({
     readOwnership: () =>
-      ownershipFrom(env.readTrusted(sessionScopeLookupKey).get(sessionScopeLookupKey)),
+      ownershipFrom(
+        env.readTrusted(sessionScopeLookupKey).get(sessionScopeLookupKey),
+        env.readTrusted(sessionScopeOwnersKey).get(sessionScopeOwnersKey),
+      ),
     readPrincipalBindings: () => readPrincipalBindings(env),
   })
   scopesByEnv.set(env, created)

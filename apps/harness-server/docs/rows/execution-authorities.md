@@ -6,6 +6,8 @@
 
 普通授权先核验主体。只有代租户主体且主体租户与显式 access 租户一致时才继续。resolve 与 describe 核对 scope 绑定；acquire 与 inspect-original 同时核对 original 的租户与 scope；inspect 核对动作租户。缺少来源或来源抛出答 unavailable。unbound 答 refused，unknown 保持 unknown。绑定端口保留 ScopeBindingSource 的四态。
 
+scope 绑定答 unknown 或 unavailable 时，授权向 `execution-authority` 日志写一条 warn，带 scope 引用与答复，不带主体与租户。同一 scope 的同一答复只写一次；它之后答了别的，再出现时重新写。记住的 scope 有上界（256 个），满了清空重记。
+
 恢复入口逐次委派受信来源，保留 authorized、notAuthorized、unavailable 三态。缺少来源、来源抛出或非法回答均答 unavailable。`createRecoveryAccess` 的品牌只标识对象形状，不授予恢复许可。当前基线没有 AD-15 的生产恢复授权来源，默认不开放恢复。
 
 普通授权的 current 使用 [Runtime Context 信任入口](runtime-context-trust.md) 的进程代次桥。它绑定读取方 fiber，在第一次等待前捕获。一个读取方退役不影响其他读取方，旧答案不复活。撤权、工作失效与 Request Context 换代没有同步来源到此桥，不闭合 #677。

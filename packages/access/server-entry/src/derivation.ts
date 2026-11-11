@@ -38,6 +38,14 @@ export function sessionIdentity(tenantText: string, createCallId: string): strin
   return sha256Hex(['session-public/1:session', tenantText, createCallId])
 }
 
+/**
+ * The submission identity of a HITL reply (SPEC「HITL 提交身份的派生规则」): the same tenant and
+ * `replyId` give the same identity before and after a crash and under any login.
+ */
+export function hitlReplyIdentity(tenantText: string, replyId: string): string {
+  return sha256Hex(['hitl-public/1-reply', tenantText, replyId])
+}
+
 export function inputIdentity(tenantText: string, sessionText: string, inputId: string): string {
   return sha256Hex(['session-public/1:input', tenantText, sessionText, inputId])
 }

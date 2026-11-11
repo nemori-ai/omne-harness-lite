@@ -32,12 +32,16 @@ import type {
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import migration from '../../src/worker/migration.ts'
+import pendingMigration from '../../src/worker/migration-pending.ts'
 import participant from '../../src/worker/participant.ts'
 import readChunk from '../../src/worker/read-chunk.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readManifest from '../../src/worker/read-manifest.ts'
+import readPending from '../../src/worker/read-pending.ts'
 
-const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readManifest, readChunk]
+const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readPending, readManifest, readChunk]
+/** 按 `requires` 的拓扑序：001 的 Tool 表，然后 002 的待办标记表。 */
+const MIGRATIONS = [migration, pendingMigration] as const
 
 export type SqliteStorageOptions = Readonly<{
   /** The directory that holds one database file per transaction domain. */
@@ -93,7 +97,7 @@ const identityText = (identity: SqlIdentity): string =>
 function execute(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
   const statement = db.prepare(sql)
   statement.setReadBigInts(true)
-  if (/^\s*(SELECT|WITH)/iu.test(sql)) {
+  if (/^\s*(SELECT|WITH|EXPLAIN)/iu.test(sql)) {
     const rows = statement.all(...(params as never[])) as Record<string, SqlCell>[]
     const columns = rows[0] === undefined ? [] : Object.keys(rows[0])
     return {
@@ -162,25 +166,23 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         }
         rowsOf(db, 'INSERT INTO _sql_binding (scope) VALUES (?)', [scopeText(scope)])
       }
-      const done = rowsOf(db, 'SELECT 1 AS done FROM _sql_migration WHERE owner = ? AND id = ?', [
-        migration.owner,
-        migration.id,
-      ])
-      if (done.length === 0) {
+      for (const step of MIGRATIONS) {
+        const done = rowsOf(db, 'SELECT 1 AS done FROM _sql_migration WHERE owner = ? AND id = ?', [
+          step.owner,
+          step.id,
+        ])
+        if (done.length > 0) continue
         const port = {
           execute: (sql: string, params: readonly SqlValue[]) => execute(db, sql, params),
         }
         db.exec('BEGIN IMMEDIATE')
-        migration.up(port)
-        const verdict = migration.verify(port)
+        step.up(port)
+        const verdict = step.verify(port)
         if (verdict.kind !== 'verified') {
           db.exec('ROLLBACK')
           throw new Error(`migration failed: ${verdict.diagnostic}`)
         }
-        rowsOf(db, 'INSERT INTO _sql_migration (owner, id) VALUES (?, ?)', [
-          migration.owner,
-          migration.id,
-        ])
+        rowsOf(db, 'INSERT INTO _sql_migration (owner, id) VALUES (?, ?)', [step.owner, step.id])
         db.exec('COMMIT')
       }
       const scopeRow = rowsOf(db, 'SELECT scope FROM _sql_binding LIMIT 1')[0]
@@ -381,6 +383,6 @@ export function migratedPort(): Readonly<{
     requireFact: () => null,
     provideFact: () => undefined,
   }
-  migration.up(port)
+  for (const step of MIGRATIONS) step.up(port)
   return { port, rows: (sql, params = []) => rowsOf(db, sql, params) }
 }

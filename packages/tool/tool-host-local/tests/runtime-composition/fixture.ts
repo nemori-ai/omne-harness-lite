@@ -23,10 +23,13 @@ import {
   defineFunctionTool,
   defineCommandTool,
   defineToolOperation,
+  type CheckpointedToolExecutor,
   type ToolBindings,
+  type ToolDecisionBridge,
   type ToolImplementationModule,
   type ToolMessageContentBlock,
   type ToolExecutionContext,
+  type ToolWaitContract,
 } from '@omne-harness/tool-contract/provider'
 import { createMemoryToolOutputCustody } from '@omne-harness/tool-contract/testing'
 import {
@@ -90,6 +93,12 @@ export async function fixture(
   enableForwarding = false,
   requestAccess?: ToolRequestAccess<unknown>,
   forwardingPreparation?: () => Promise<void>,
+  /** A checkpointed author in place of `author`, and the decision owner of its waits. */
+  checkpointed?: Readonly<{
+    executor: CheckpointedToolExecutor<string, string, ToolEnvironmentValue>
+    waits: readonly ToolWaitContract<unknown, 'ask'>[]
+    decisions: ToolDecisionBridge<unknown>
+  }>,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore<ToolMessageContentBlock>()
@@ -97,6 +106,7 @@ export async function fixture(
     durability: 'durable',
     read: memory.read,
     commit: memory.commit,
+    scanPending: memory.scanPending,
   }
   const custody = createMemoryToolOutputCustody<unknown>()
   const clock = createLocalToolClock()
@@ -246,8 +256,8 @@ export async function fixture(
             adoption: adoption('arguments'),
             parse: input => succeed(input.effective),
           },
-          waits: [],
-          executor: {
+          waits: forwarding ? [] : (checkpointed?.waits ?? []),
+          executor: (!forwarding ? checkpointed?.executor : undefined) ?? {
             async execute(args, environment, context) {
               if (forwarding) {
                 const capability = toolsCapabilityOf(context)
@@ -381,6 +391,7 @@ export async function fixture(
     // No verdict of this fixture carries a condition.
     conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
     custody,
+    readOutput: custody.controls.readOutput,
     content: null,
     sources,
     access,
@@ -393,6 +404,7 @@ export async function fixture(
     grants: createLocalGrantVerifiers(fixed.scope),
     bindings: () => bindings,
     catalog: () => catalog,
+    ...(checkpointed === undefined ? {} : { decisions: () => checkpointed.decisions }),
     subjects: {
       async project(value) {
         try {
@@ -722,9 +734,14 @@ export async function fixture(
       consumer = receive()
       await consumer
     },
+    /**
+     * A second runtime over the same records, as a restarted process has it: its own plugins, its
+     * own start authority, and author bindings that settle into its own author execution.
+     */
     async newExecutor() {
       const nextRoot = new Context()
-      const next = createLocalToolRuntimePlugins(input)
+      let nextBindings: typeof bindings
+      const next = createLocalToolRuntimePlugins({ ...input, bindings: () => nextBindings })
       const external = nextRoot.plugin({
         name: 'frozen-reopened-external',
         apply(ctx: Context) {
@@ -739,9 +756,14 @@ export async function fixture(
         nextRoot.plugin(next.instanceHost),
         nextRoot.plugin(next.instances),
         nextRoot.plugin(next.environments),
-        nextRoot.plugin(next.executor),
-        nextRoot.plugin(next.runtime),
       ])
+      nextBindings = createLocalToolBindings({
+        registry,
+        catalog,
+        authority: nextRoot.toolStartAuthority,
+        ...next.authorExecution,
+      })
+      await Promise.all([nextRoot.plugin(next.executor), nextRoot.plugin(next.runtime)])
       return {
         api: nextRoot.toolRuntime,
         plugins: next,

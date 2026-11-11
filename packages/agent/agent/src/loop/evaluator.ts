@@ -11,6 +11,7 @@
 // position that is a continuation point) answer `unsupported`. J5 routes those positions in the
 // coordinator without extending LoopFacts or Next.
 import {
+  admissionActionOf,
   decodeReplyAdmissionSequence,
   decodeStepId,
   judgeAdoption,
@@ -156,7 +157,13 @@ function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
   const { checkpoint } = facts
   const round = toolRound(checkpoint.batch)
   if (round === 'open') return unsupported
-  if (checkpoint.passages.some(passage => passage.progress.kind !== 'applied')) return unsupported
+  // The passage of an official admission belongs to its action batch, which is over here.
+  if (
+    checkpoint.passages.some(
+      passage => admissionActionOf(passage.id) === null && passage.progress.kind !== 'applied',
+    )
+  )
+    return unsupported
   const waiting = producerWaits(facts)
   if (waiting === null) return unsupported
   if (facts.consumption.some(item => item.custody === null && item.completion === null))

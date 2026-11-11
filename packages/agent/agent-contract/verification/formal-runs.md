@@ -1,6 +1,6 @@
-# 收尾协议形式模型的运行记录
+# 形式模型的运行记录
 
-本页是 [Finishing.tla](models/Finishing.tla) 的 TLC 运行与轨迹回放的索引。每行写明输入摘要、工具版本、参数、预算、输出与判读。原始日志不进本包，保存在任务过程目录（见“原始证据”）。规模上限与映射见 [formal-mapping.md](formal-mapping.md)，判读规则见 [models/README.md](models/README.md)。
+本页是 [Finishing.tla](models/Finishing.tla) 的 TLC 运行与轨迹回放的索引，以及 [CardRounds.tla](models/CardRounds.tla) 的 TLC 运行记录（见末节“[等人状态点模型](#等人状态点模型)”）。每行写明输入摘要、工具版本、参数、预算、输出与判读。原始日志不进本包，保存在任务过程目录（见“原始证据”）。规模上限与映射见 [formal-mapping.md](formal-mapping.md)，判读规则见 [models/README.md](models/README.md)。
 
 本页的结论只在所列规模上限内成立。它不是证明，也不表示实现符合模型。
 
@@ -101,3 +101,63 @@
 ## 原始证据
 
 原始日志在执行工作树的任务过程目录 `tmp/line-session-run/w1/logs/C06b/runs/<UTC 时间>/`，不进 Git。每个目录含模型、配置与脚本的快照，各案的 `tlc.log`，以及汇总 `results.json`。本页各表取自两个目录：模型检查 `20261101T210408.906542Z`，轨迹导出 `20261101T211921.457775Z`。同一父目录中较早的目录是本次修订中只跑 S7 负控的过程运行，已被取代。上一版模型（`c35cc33…`）的运行在 `tmp/line-session-run/w1/logs/C06/runs/`，已被本页的运行取代。
+
+## 等人状态点模型
+
+模型 [CardRounds.tla](models/CardRounds.tla) SHA-256 `51c0fa56f64e197a8d190bbe8a6c4a8d5ee1f2b93d6d14b373b73242498b8bc2`；运行目录 `20261109T150735.843347Z`。规模上限、映射与模型取的读法见 [formal-mapping.md](formal-mapping.md#等人状态点模型)。
+
+| 项 | 值 |
+| --- | --- |
+| 运行环境 | macOS 宿主（aarch64）。经 `node scripts/with-test-slot.mjs` 取运行名额后执行 `run.py cardrounds`。源码提交为分支基线 `23108e6d1`，模型、配置与 `run.py` 是该提交之上未提交的修订（快照在运行目录），随后以本页同一提交保存 |
+| JDK | Homebrew OpenJDK 21.0.13 |
+| TLC | `TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)`，即 tla2tools 1.7.4。JAR SHA-256 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88` |
+| 参数 | 广度优先模型检查；`-workers 1`（`FORMAL_WORKERS=1`，机器上同时有差分变异在跑）；`-Xmx4096m`；`-XX:+UseParallelGC`；`-fp 0`；`-deadlock`（终止状态不是死锁） |
+| 预算 | 每案 1200 秒。所有运行都在预算内结束，没有缩小规模 |
+| 判定 | `run.py cardrounds` 运行 23 个控制，全部通过，退出 0 |
+
+| 配置 | 配置 SHA-256（前 12 位） | 期望 | TLC 报告 | 退出码 | 不同状态数 | 深度 | 用时（秒） | 判读 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `cardrounds-safety` | `4b46ff638de9` | 无反例 | 无反例，搜索完成 | 0 | 370869 | 42 | 23.419 | 正控通过 |
+| `cardrounds-safety-wide` | `463f4c6315e0` | 无反例 | 无反例，搜索完成 | 0 | 1849234 | 46 | 102.053 | 正控通过 |
+| `cardrounds-progress` | `0a14682d82a5` | 无反例 | 无反例，搜索完成 | 0 | 40996 | 40 | 11.674 | 正控通过 |
+| `cardrounds-settle` | `01d2455bb562` | 无反例 | 无反例，搜索完成 | 0 | 370869 | 42 | 126.099 | 正控通过 |
+| `cardrounds-reach-two-rounds` | `9a9c2b34f7cc` | NeverTwoRoundsApplied | `NeverTwoRoundsApplied` 违反 | 12 | 48736 | 20 | 7.114 | 见证可达 |
+| `cardrounds-reach-exclusion` | `0d3771c3174b` | NeverPresentAfterExclusion | `NeverPresentAfterExclusion` 违反 | 12 | 444 | 8 | 5.898 | 见证可达 |
+| `cardrounds-reach-lookup` | `9ef95e2efc27` | NeverLookupAfterCrash | `NeverLookupAfterCrash` 违反 | 12 | 18068 | 16 | 6.544 | 见证可达 |
+| `cardrounds-reach-mixed` | `fedbc3359f0d` | NeverMixedSettlement | `NeverMixedSettlement` 违反 | 12 | 1262 | 10 | 5.949 | 见证可达 |
+| `cardrounds-reach-fail-after-answer` | `9ac358145b15` | NeverFailAfterAnswer | `NeverFailAfterAnswer` 违反 | 12 | 5511 | 13 | 6.112 | 见证可达 |
+| `cardrounds-reach-denied` | `bdd5190bba9e` | NeverDeniedInvalidation | `NeverDeniedInvalidation` 违反 | 12 | 8183 | 14 | 6.154 | 见证可达 |
+| `cardrounds-reach-late-creation` | `7d6decc5d451` | NeverLateCreationSettled | `NeverLateCreationSettled` 违反 | 12 | 1492 | 10 | 5.92 | 见证可达 |
+| `cardrounds-bad-nobarrier` | `2c9cb62bacca` | BarrierBeforePresent | `BarrierBeforePresent` 违反 | 12 | 22 | 4 | 5.841 | 负控命中 `BarrierBeforePresent` |
+| `cardrounds-bad-newround` | `bbf38fd8e717` | OncePresent | `OncePresent` 违反 | 12 | 452 | 8 | 5.901 | 负控命中 `OncePresent` |
+| `cardrounds-bad-noinvalidate` | `e6aae90d6621` | ClosedLeavesNoLiveCard | `ClosedLeavesNoLiveCard` 违反 | 12 | 745 | 9 | 5.888 | 负控命中 `ClosedLeavesNoLiveCard` |
+| `cardrounds-bad-asnone` | `69a9f5af3c8e` | ClosedLeavesNoLiveCard | `ClosedLeavesNoLiveCard` 违反 | 12 | 861 | 9 | 5.929 | 负控命中 `ClosedLeavesNoLiveCard` |
+| `cardrounds-bad-rehandback` | `1c4380cbe11f` | OnceHandBack | `OnceHandBack` 违反 | 12 | 15313 | 16 | 6.305 | 负控命中 `OnceHandBack` |
+| `cardrounds-bad-partial` | `34c00cb24c84` | AllAnsweredBeforeHandBack | `AllAnsweredBeforeHandBack` 违反 | 12 | 650 | 9 | 5.941 | 负控命中 `AllAnsweredBeforeHandBack` |
+| `cardrounds-bad-late` | `6b75a3b034fc` | NoAdoptAfterStop | `NoAdoptAfterStop` 违反 | 12 | 5529 | 13 | 6.061 | 负控命中 `NoAdoptAfterStop` |
+| `cardrounds-bad-invalidasanswer` | `ba48c675c179` | NoAnswerAfterInvalidate | `NoAnswerAfterInvalidate` 违反 | 12 | 1389 | 10 | 5.998 | 负控命中 `NoAnswerAfterInvalidate` |
+| `cardrounds-bad-timeout` | `3e9f59df60f5` | NoFabricatedAnswer | `NoFabricatedAnswer` 违反 | 12 | 205 | 7 | 5.903 | 负控命中 `NoFabricatedAnswer` |
+| `cardrounds-bad-holdslot` | `abc55210c028` | WaitHoldsNoSlot | `WaitHoldsNoSlot` 违反 | 12 | 7 | 3 | 5.875 | 负控命中 `WaitHoldsNoSlot` |
+| `cardrounds-bad-rewind` | `e9308eb7b1aa` | RecoveryMonotone | `RecoveryMonotone` 违反 | 13 | 400 | 8 | 5.921 | 负控命中 `RecoveryMonotone` |
+| `cardrounds-bad-noresume` | `20ef998f4163` | Progress | 时序性质违反 | 13 | 15161 | — | 8.11 | 负控命中 `Progress`（该配置唯一的 PROPERTY） |
+
+负控与见证的状态数与深度是 TLC 找到第一个反例时的读数。判读只看被违反的性质。全部负控与见证使用 `cardrounds-safety` 的常量，只多一个故意的错误或一条见证，所以负控命中的反例归因于那个错误。`cardrounds-bad-noresume` 使用 `cardrounds-progress` 的常量。
+
+各负控反例的步骤（最短反例，省略初始状态）：
+
+| 负控 | 反例的步骤 | 错误在哪一步 |
+| --- | --- | --- |
+| `nobarrier` | StartInvoke、FinishInvoke(ask)、PresentOk | 另一条链尚未开始，第一条链的卡片已呈现 |
+| `newround` | 两链各 StartInvoke、FinishInvoke(ask)，PresentLost(created)、NewRoundForUnknown、PresentOk | 原 round 的卡片已创建，回执丢失，同一 ask 在第二个 round 下再次创建 |
+| `noinvalidate` | 两链出卡，PresentOk、Cancel、End、CloseRound | 终结之后已呈现的一轮不作废就关闭，卡片仍为 pending |
+| `asnone` | 两链出卡，PresentLost、Cancel、End、CloseRound | present 结果未知的一轮不 lookup 就按“无卡片”关闭 |
+| `rehandback` | 两链出卡，PresentOk，两张卡片答复并读取，StartHandBack、FinishHandBack(final)、Crash、Recover、StartHandBack、FinishHandBack | 已有最终结论的 Passage 在恢复后再交回同一轮 |
+| `partial` | 两链出卡，PresentOk，一张卡片答复并读取，StartHandBack | 另一张卡片尚无答复时交回 |
+| `late` | 两链出卡，PresentOk，两张卡片答复并读取，StartHandBack、Cancel、FinishHandBack | 取消之后仍提交回放结果 |
+| `invalidasanswer` | 两链出卡，PresentOk、Cancel、End、InvalidateRound(回执丢失)、ReadCard | 作废的卡片被读作答复 |
+| `timeout` | 两链出卡，PresentOk、ReadCard | 尚无答复的卡片被读作答复 |
+| `holdslot` | StartInvoke、FinishInvoke(ask) | 没有进行中的调用，执行名额仍被占用 |
+| `rewind` | 两链出卡，PresentOk、Crash、Recover | 恢复把 presented 改回 requested |
+| `noresume` | 两链出卡，PresentLost、Crash、Recover、LookupNotPresented、PresentOk、两张卡片答复并读取，之后只有停顿 | 已答复的一轮在崩溃之后不再交回，Passage 永不 applied |
+
+原始日志在本次任务的过程目录 `tmp/hitl-redo-20261109/evidence/s08-model/runs/20261109T150735.843347Z/`（主检出），不进 Git。目录含模型、配置与脚本的快照，各案的 `tlc.log`，以及汇总 `results.json`。

@@ -6,6 +6,6 @@
 - [节点验收表](node-acceptance.md)
 - [可执行测试](../tests/README.md)
 - [形式模型](models/README.md)
-- [收尾协议模型的规模上限与映射](formal-mapping.md)
-- [收尾协议模型的运行记录](formal-runs.md)
+- [形式模型的规模上限与映射](formal-mapping.md)
+- [形式模型的运行记录](formal-runs.md)
 - [局部证明与前提](proofs/README.md)

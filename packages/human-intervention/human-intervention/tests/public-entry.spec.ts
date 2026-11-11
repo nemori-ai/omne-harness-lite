@@ -1,6 +1,14 @@
 import { expect, it } from 'vitest'
+import {
+  decodeHitlCommand,
+  decideReply,
+  invalidateCard,
+  QuestionSchema,
+} from '@omne-harness/human-intervention'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/human-intervention')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+it('exposes the accepted command boundary and pure card decisions', () => {
+  expect(decodeHitlCommand('submitReply', '{}')).toEqual({ kind: 'invalid-input', reason: 'shape' })
+  expect(QuestionSchema.safeParse({ kind: 'question', options: [] }).success).toBe(false)
+  expect(typeof decideReply).toBe('function')
+  expect(typeof invalidateCard).toBe('function')
 })

@@ -67,6 +67,12 @@ export type PreparationProgress<E> =
   | Readonly<{ kind: 'prepared'; environment: PreparedEnvironment<E> }>
   | Readonly<{ kind: 'excluded'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'rejected'; reason: string; evidence: DurableEvidence }>
+  /**
+   * The environment of this preparation is live in no process: it was acquired by a process that is
+   * gone (cold recovery). The original record keeps its cleanup responsibility; the caller may plan
+   * another preparation for the segment, never adopt this one.
+   */
+  | Readonly<{ kind: 'lost'; evidence: DurableEvidence; diagnostic: string }>
   | Readonly<{ kind: 'pending' | 'unknown'; diagnostic: string }>
 export type ReleaseRecord = ProtocolIdentity &
   Readonly<{

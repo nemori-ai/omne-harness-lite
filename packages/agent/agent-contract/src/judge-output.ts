@@ -1,4 +1,9 @@
-import { judgeJsonValue, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
+import {
+  judgeJsonValue,
+  writeJsonText,
+  type JsonLimits,
+  type JsonValue,
+} from '@omne-harness/json-text'
 import type * as M from '@omne-harness/model-contract'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { z } from 'zod'
@@ -13,8 +18,8 @@ import {
   type Position,
   type Power,
 } from './extensions.ts'
-import { decodeActionId, type ActionId, type UtcInstantText } from './identity.ts'
-import type { Subject } from './passages.ts'
+import { decodeActionId, type ActionId, type Adoption, type UtcInstantText } from './identity.ts'
+import type { CardRequest, Subject } from './passages.ts'
 import type { Judgment, OutputRefusalReason } from './judgment.ts'
 
 type OutputKind = ExtensionOutput['kind']
@@ -438,4 +443,49 @@ export function judgeExtensionOutput(
   const reason = outputRefusal(parsed, located.row, input)
   if (reason !== undefined) return refuse(reason)
   return { kind: 'accepted', value: freezeDeep(build(parsed)) }
+}
+
+/** Names the shape of the value of a decision card request: the card draft of an `ask`. */
+export const DECISION_CARD_DRAFT_SCHEMA: Adoption = Object.freeze({
+  owner: 'agent',
+  name: 'decision-card-draft',
+  revision: '1',
+  digest: 'agent:decision-card-draft/1',
+})
+
+/** A value of plain JSON data without numbers, as the tree of json-text. */
+function treeOf(value: unknown): JsonValue {
+  if (value === null) return { kind: 'null' }
+  if (typeof value === 'string') return { kind: 'string', value }
+  if (typeof value === 'boolean') return { kind: 'boolean', value }
+  if (Array.isArray(value)) return { kind: 'array', items: value.map(treeOf) }
+  return {
+    kind: 'object',
+    entries: Object.entries(value as object)
+      .filter(([, member]) => member !== undefined)
+      .map(([key, member]) => ({ key, value: treeOf(member) })),
+  }
+}
+
+/**
+ * The request of one card of a round: the draft, under the identity the Agent fixed for the card.
+ * The loop and a card provider read the draft with `cardDraftOf`; neither parses the value itself.
+ */
+export function cardRequestOf(identity: string, draft: DecisionCardDraft): CardRequest {
+  return { identity, schema: DECISION_CARD_DRAFT_SCHEMA, value: treeOf(draft) }
+}
+
+/** The draft a card request carries; `null` for another shape, or for a value that is no draft. */
+export function cardDraftOf(request: CardRequest): DecisionCardDraft | null {
+  const { owner, name, revision, digest } = DECISION_CARD_DRAFT_SCHEMA
+  const { schema } = request
+  if (
+    schema.owner !== owner ||
+    schema.name !== name ||
+    schema.revision !== revision ||
+    schema.digest !== digest
+  )
+    return null
+  const parsed = card.safeParse(JSON.parse(writeJsonText(request.value)))
+  return parsed.success ? copyCard(parsed.data) : null
 }

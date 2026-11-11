@@ -14,19 +14,22 @@
 | `IdentityGovernance`                    | identity 的公开类型  | 18 个治理操作与成功业务访问的报告。可选，与 `IdentityOperations` 共用记录                                                                                                                               |
 | `SettingsGovernance`                    | `src/settings.ts`    | 4 个设置操作。可选；缺席时这 4 个操作答 `stage-not-provided`。端口拥有准入、声明与保管：本成员只交出登录的代租户行事主体、行事租户与请求里的资产、项和秘密。端口只有管理语义，没有取用 |
 | `SessionIngressFaces`                   | `src/faces.ts`       | Session 四个面中本成员实际调用的子集：`management.create`、`work.accept`、`work.queryOperation`、`work.cancelRun`、`work.stopCall`、`history.begin`、`history.next`。真实 `SessionService` 按结构满足它 |
+| `HitlIngressFaces`                      | `src/faces.ts`       | HITL 应用中本成员声明的子集：`queries.listPool`、`queries.getCard`、`queries.getOperation`、`commands.submitReply` 与 `bindSubmitReply`。可选；缺席时 4 个 HITL 操作答 `stage-not-provided`。本阶段只调用 `listPool` 与 `getCard` |
+| `HitlEntryPrincipals`                   | `src/faces.ts`       | 入口主体持有者 `hitlEntryPrincipals` 的端口：输入只有识别出的账号与目标租户，答 `issued` 或 `refused`。可选；缺席、拒绝或抛错时答 `basis-unavailable`。接入再核签发的主体是这个租户的入口主体，不是就同样答 `basis-unavailable` |
 | `DefinitionResolver`                    | `src/faces.ts`       | 定义名到 `SessionCreation` 采用字段的解析函数。映射数据归 `definition-mappings`，装配注入函数                                                                                                           |
 | `DiagnosticSink`                        | `src/diagnostics.ts` | 结构化诊断。事件只有 code、path 与 operation，没有正文、证明、凭据、主体或依赖的错误文本                                                                                                                |
 | `AgentFinishReader`、`ModelCallInspector`、`ModelAttemptReader`、`ToolCallReader` | `src/session-view/sources.ts` | 会话诊断投影的四个读端口：Agent 的 `readFinish`、Model 的 `inspect` 与 `dispatches` 及 `ModelDiagnostics`、Tool 的 `lookup`、`account` 与 `readDiagnostics`。都可选；缺席是 `unsupported` 缺口 |
 
-本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。治理操作的资格由 identity 在提交时判断（identity ID-18）。设置操作的资格由 `settings` 端口判断。
+本成员不调用 authorization。会话操作的资格由 Session 面在访问裁定里判断（handoff「登录到 Access」第 3 点）。HITL 操作的资格由 HITL 判断。治理操作的资格由 identity 在提交时判断（identity ID-18）。设置操作的资格由 `settings` 端口判断。
 
 ## 模块
 
 | 文件                | 责任                                                                                                                                             |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `http.ts`           | `createServerEntry`：只绑 `127.0.0.1` 的监听、承载页第 1 到第 5 步、按路径读取请求体并计数、分派到两个位置、写出答复、`stop`                     |
+| `http.ts`           | `createServerEntry`：只绑 `127.0.0.1` 的监听、承载页第 1 到第 5 步、按路径读取请求体并计数、分派到三个位置、写出答复、`stop`                     |
 | `governance.ts`     | 治理位置：声明不提供的 14 个操作的常量；`register-and-activate` 与 `issue-login` 交 identity；18 个治理操作的第 4、6 步与到治理端口的映射；4 个设置操作的第 4、6 步、代租户行事主体与到 `settings` 的映射 |
 | `session.ts`        | 会话位置：读取分派、八个操作的判断次序第 2 到第 6 步、Session 结果到公开 `outcome` 的映射；`read-session-diagnostics` 的配置核对、游标开封与封印、公开正文的组装 |
+| `hitl.ts`           | HITL 位置：用 `readHitlRequest` 读取；部署声明不提供的操作常量（本阶段是 `submit-reply` 与 `query-submit-reply`）；第 2、3 步与入口主体的签发；`listPool` 与 `getCard` 的调用、结果映射与卡片视图（`origin` 只留种类与三个引用）；本位置的编码 |
 | `session-view/`     | 会话诊断投影。`project.ts` 是纯投影：条目到 Run 骨架，各来源的答复到一个 Run 的视图与缺口；`sources.ts` 是来源适配：端口类型、失败种类到缺口原因的映射、抛错到 `unavailable`；`cursor.ts` 用本实例随机密钥封印续页游标；`index.ts` 是编排：按页读 Session、收集 Run、向来源扇出、合成页。它不认识 HTTP、Cordis 或 CLI |
 | `identity-steps.ts` | 登录识别，账号关系核对，签发代租户行事主体，成功业务访问的报告。系统主体在首次需要时签发一次并保留                                               |
 | `derivation.ts`     | 会话标识、输入标识、三族操作身份与登录入口证据的派生                                                                                             |
@@ -46,7 +49,7 @@
 
 ## 依赖抛错的两类
 
-`session.ts` 用两个包装区分调用类别。`commitCall` 包 `create`、`accept`、`cancelRun`、`stopCall`：抛错答 `unknown`，状态 500 带响应体。`readCall` 包 `queryOperation`、`history.begin`、`history.next` 与整个诊断投影：Session 抛错答 `basis-unavailable`。投影内 Agent、Model、Tool 端口的抛错不到达 `readCall`：`sources.ts` 把它们收成 `unavailable` 缺口，页照常返回。identity 的登录识别与签发者抛错也是 `basis-unavailable`，在 `identity-steps.ts`。
+`session.ts` 用两个包装区分调用类别。`commitCall` 包 `create`、`accept`、`cancelRun`、`stopCall`：抛错答 `unknown`，状态 500 带响应体。`readCall` 包 `queryOperation`、`history.begin`、`history.next` 与整个诊断投影：Session 抛错答 `basis-unavailable`。投影内 Agent、Model、Tool 端口的抛错不到达 `readCall`：`sources.ts` 把它们收成 `unavailable` 缺口，页照常返回。identity 的登录识别与签发者抛错也是 `basis-unavailable`，在 `identity-steps.ts`。`hitl.ts` 把 `listPool` 与 `getCard` 的抛错答成 `basis-unavailable`，诊断 `hitl.read-fault`，`operation` 为抛出的方法名。持有者的缺席、拒绝与抛错同样答 `basis-unavailable`，诊断 `issuer.fault`，`operation` 为 `hitlEntryPrincipals`。诊断 code 是公开类型，装配的遥测枚举逐项对应它，新增一项要两边一起改。
 
 Session 失败种类在该操作公开结果集之外时（例如 `login-required`），映射为 `basis-unavailable`。`unsupported` 按契约表映射为 `unsupported`，不看 `producer` 的种类；它只在 `stop-call` 的结果集里。编码函数会拒绝不在该操作结果集里的 `outcome`，这时答复是 `no-answer`。
 
@@ -95,6 +98,7 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 | `tests/session-operations.spec.ts`   | 七个既有操作、判断次序逐步、denied 逐字节相同、两类依赖抛错                                                                    |
 | `tests/session-view.spec.ts`         | 纯投影对四个来源的替身：Run 骨架只来自 Session、两个分支的解析、结构化原因、每种缺口、截断与不披露、分页与 Run 过滤、自由文本不进视图、不调用写口 |
 | `tests/session-diagnostics-operation.spec.ts` | `read-session-diagnostics` 的判断次序、`denied` 与 `read-history` 逐字节相同、页上界、未配置、游标篡改与续页重核资格、端口缺席、只读 |
+| `tests/hitl-location.spec.ts`        | HITL 位置：同租户两份登录得到同一个入口主体、两个入口调用同一个 `listPool`、位置引用来自配置、卡片视图不含路由字段、`denied` 在各个原因下逐字节相同、入口面缺席与声明不提供时答 `stage-not-provided` 且不识别登录、HITL 结果映射、读取抛错与持有者故障答 `basis-unavailable`、配置核对 |
 | `tests/derivation.spec.ts`           | 每族只改一个字段身份就变；`messageId` 不进身份                                                                                 |
 | `tests/observation.spec.ts`          | 确认先于帧、心跳、取消、替换、连接关闭、确认前断开后名额释放与 `stop()` 返回、并发建立只放行一个、手写读取的每条封闭规则、stop |
 | `tests/sse-stream.spec.ts`           | 串行写入者在客户端已断开的响应上构造：立即关闭、不写字节、`finished` 落定                                                      |
@@ -102,7 +106,7 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 | `tests/secrets.spec.ts`              | 响应、诊断与错误文本里没有登录证明、凭据与签发者，带正控                                                                       |
 | `tests/status.spec.ts`               | 状态码表与承载页逐项相同                                                                                                       |
 
-用例经 `tests/support/harness.ts` 起真实回环 HTTP，用 identity 的 `./testing` 参考替身（`inProcessIdentity`：共用记录的操作端口与治理端口、可控时钟与记录库故障开关）、进程内主体权威与 `tests/support/session-double.ts` 的 Session 面替身。替身保持 Session 自己写明的判定顺序，它不证明真实 Session、持久 identity 或跨进程主体来源。
+用例经 `tests/support/harness.ts` 起真实回环 HTTP，用 identity 的 `./testing` 参考替身（`inProcessIdentity`：共用记录的操作端口与治理端口、可控时钟与记录库故障开关）、进程内主体权威与 `tests/support/session-double.ts` 的 Session 面替身。HITL 用例另用 `tests/support/hitl-double.ts` 的 HITL 入口面替身与入口主体持有者替身。替身保持 Session 自己写明的判定顺序，它不证明真实 Session、持久 identity 或跨进程主体来源。
 
 ## 观察接入的责任选择
 

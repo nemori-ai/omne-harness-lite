@@ -122,6 +122,19 @@ export const ATTEMPT_GRANT_STATEMENTS: readonly string[] = [
 
 export const ATTEMPT_GRANT_TABLES: readonly string[] = ['sl_attempt_grant']
 
+// The owner of each Context scope a session minted, derived in the commit that mints it from the
+// snapshot's scope bindings: the scope text is a one-way digest, so this is the way back to its
+// session. A scope's owner and generation never change; an ended scope keeps its row.
+export const SCOPE_INDEX_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_scope_idx (
+    tenant TEXT NOT NULL, scope TEXT NOT NULL, session TEXT NOT NULL, generation TEXT NOT NULL,
+    PRIMARY KEY (tenant, scope)) STRICT`,
+]
+
+export const SCOPE_INDEX_TABLES: readonly string[] = ['sl_scope_idx']
+
+export const SCOPE_INDEX_MIGRATION = Object.freeze({ owner: 'session', id: '007-scope-index' })
+
 export const ATTEMPT_GRANT_MIGRATION = Object.freeze({
   owner: 'session',
   id: '005-attempt-grant',

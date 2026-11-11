@@ -703,6 +703,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(catalog).toMatchObject({ kind: 'page', completeness: 'complete' })
   if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
   expect(catalog.items.map(item => item.declaration.reference.definitionId).sort()).toEqual([
+    'tool.Ask',
     'tool.Files',
     'tool.Shell',
     'tool.TodoItems',
@@ -722,7 +723,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   })
   expect(settings).toMatchObject({ completeness: 'complete' })
   if ('kind' in settings) throw new Error(JSON.stringify(settings))
-  expect(settings.views).toHaveLength(5)
+  expect(settings.views).toHaveLength(6)
   const tool = w.release.manifest.entries.find(entry => entry.asset.name === 'Shell')!
   const principal = w.workPrincipal('request-session')
   const { ledgerWorld } =

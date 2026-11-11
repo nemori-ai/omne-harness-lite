@@ -28,7 +28,7 @@ import { TenantStandingSourceService, tenantStandingKey } from '@omne-harness/id
 import type { TenantStandingReading } from '@omne-harness/identity'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
-import { succeed } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeScopeRef, type ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import type {
   ResidentKey,
@@ -330,6 +330,9 @@ function requestSource(ctx: Context) {
     readWork: async () => succeed(snapshot),
     scopeBinding: () => ctx.get(executionScopeBindingKey),
     release: () => releaseOf(ctx),
+    // No test here calls a meta command, so the interaction is never read.
+    interaction: async () => fail('no meta command in this test'),
+    inquiry: async () => fail('no meta command in this test'),
   })
 }
 

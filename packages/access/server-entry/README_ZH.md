@@ -8,7 +8,7 @@
 
 ## 职责与状态
 
-本成员拥有两个位置的入口职责：HTTP 监听、请求读取与计数、按路径分派、登录识别、行事租户核对、Session 调用、状态码映射、SSE 观察写出，以及有序停止。它不拥有业务行为，也不持有登录表。
+本成员拥有各个位置的入口职责：HTTP 监听、请求读取与计数、按路径分派、登录识别、行事租户核对、Session 调用、状态码映射、SSE 观察写出，以及有序停止。它不拥有业务行为，也不持有登录表。
 
 已实现：
 
@@ -25,6 +25,7 @@
 
 - 本部署声明不提供的 14 个治理操作答 `stage-not-provided`：`public-health`、`replace-credential`、`query-organization`、隶属的 8 个操作、`judge-admission` 与两个授权表达操作。
 - 观察的 `state`、`refreshing`、`snapshot`、`delta` 与 `gap` 帧。
+- HITL 位置 `/hitl-public/1`（规格「HITL 位置」）。它经 HITL 的窄入口面 `HitlIngressFaces` 提供 `list-cards`、`read-card`、`submit-reply` 与 `query-submit-reply`。入口面只含 `listPool`、`getCard` 与 `getOperation` 三个查询、`submitReply` 命令，以及 HITL 提供者的命令绑定。接入在同一次请求的登录核对之后，用持有者 `hitlEntryPrincipals` 为目标租户签发的入口主体调用 HITL。这个位置的 `denied` 在各个原因下除 `messageId` 外逐字节相同，接入不另核资格。接入从目标租户与 `replyId` 派生 `submit-reply` 的提交身份，所以同一 `replyId` 的再送在任一份登录下都认回原提交。`query-submit-reply` 组成同一条命令，经 HITL 提供者的绑定找到原操作。装配没有给 HITL 入口面时，四个操作都答 `stage-not-provided`。
 - TLS、远程访问与多实例部署的粘性路由。
 
 ## 使用
@@ -57,9 +58,9 @@ await entry.stop()
 
 上面的数值只是示例。初值归装配配置，本成员不写死任何初值。
 
-`start()` 只在 `127.0.0.1` 上监听明文 HTTP/1.1。地址是其他值时以 `ServerEntryConfigError` 拒绝，不改写地址。端口 0 由宿主分配，实际端口在返回值里。`stop()` 停止接受新连接，给每个活动观察发 `ended(unavailable)`，等在途请求写完答复，再关闭全部连接。两个位置的路径固定：`/governance-public/1` 与 `/session-public/1`。
+`start()` 只在 `127.0.0.1` 上监听明文 HTTP/1.1。地址是其他值时以 `ServerEntryConfigError` 拒绝，不改写地址。端口 0 由宿主分配，实际端口在返回值里。`stop()` 停止接受新连接，给每个活动观察发 `ended(unavailable)`，等在途请求写完答复，再关闭全部连接。三个位置的路径固定：`/governance-public/1`、`/session-public/1` 与 `/hitl-public/1`。
 
-依赖有三类：identity 的操作、治理端口与签发者，Session 的面，以及定义名到创建字段的解析函数。治理端口是必需的，必须与 identity 的操作用同一份记录。装配按调用现取治理服务时，服务缺席由端口答 `basis-unavailable`。可选的 `settings` 端口承接 4 个设置操作，省略时这 4 个操作答 `stage-not-provided`。可选的诊断汇在省略时不影响运行。会话诊断投影另有四个可选的读端口：`agentJournal`（Agent 的 `readFinish`）、`modelCalls`（Model 的 `inspect` 与 `dispatches`）、`modelDiagnostics`（Model 的派发诊断）与 `toolQueries`（Tool 的 `lookup`、`account` 与 `readDiagnostics`）；缺席的端口让对应的值成为 `unknown`，原因 `unsupported`。完整的依赖表与配置字段表在 [README.md](README.md#dependencies)。
+依赖有三类：identity 的操作、治理端口与签发者，Session 的面，以及定义名到创建字段的解析函数。治理端口是必需的，必须与 identity 的操作用同一份记录。装配按调用现取治理服务时，服务缺席由端口答 `basis-unavailable`。可选的 `settings` 端口承接 4 个设置操作，省略时这 4 个操作答 `stage-not-provided`。可选的 `hitl` 入口面承接 4 个 HITL 操作，省略时这 4 个操作答 `stage-not-provided`；给了它，配置就必须有 `hitlLocationRef`。可选的 `hitlEntryPrincipals` 持有者为目标租户签发入口主体，接入只交给它识别出的账号与目标租户，不交出登录；它缺席、拒绝签发或抛出时，HITL 操作答 `basis-unavailable`。可选的诊断汇在省略时不影响运行。会话诊断投影另有四个可选的读端口：`agentJournal`（Agent 的 `readFinish`）、`modelCalls`（Model 的 `inspect` 与 `dispatches`）、`modelDiagnostics`（Model 的派发诊断）与 `toolQueries`（Tool 的 `lookup`、`account` 与 `readDiagnostics`）；缺席的端口让对应的值成为 `unknown`，原因 `unsupported`。完整的依赖表与配置字段表在 [README.md](README.md#dependencies)。
 
 ## 契约
 
@@ -67,7 +68,7 @@ await entry.stop()
 
 - 只绑 `127.0.0.1`，只说明文 HTTP/1.1。地址不合时启动失败。
 - 状态码只由 `outcome` 决定。同一个 `outcome` 总是得到同一个状态码和同样形状的响应体。
-- 会话位置的 `denied` 不披露会话是否存在，各个原因下响应除 `messageId` 外逐字节相同。
+- 会话位置的 `denied` 不披露会话是否存在，各个原因下响应除 `messageId` 外逐字节相同。HITL 位置的 `denied` 不披露卡片是否存在，规则相同。
 - 本成员不改写 identity 与 Session 的 `denied` 和 `basis-unavailable`，也不另持登录表。登录证明、凭据与签发者不进任何输出。
 - Tool 目标的 `stop-call` 得到 `unsupported`，与会话存在与否、`controlId` 是否用过无关，并且不写任何记录。
 - 观察记录只在本实例内存里。
@@ -87,7 +88,8 @@ await entry.stop()
 配置字段、依赖类型与限制的完整说明在 [README.md](README.md)。要点：
 
 - 监听地址只能是 `127.0.0.1`，端口 0 表示由宿主分配。
-- 两个路径各有请求体上限，它同时是该路径 json-text 读取的 `maxBytes`。
+- 治理路径用 small 上限，会话路径与 HITL 路径用 input 上限。上限同时是该路径 json-text 读取的 `maxBytes`。
+- `hitlLocationRef` 是 HITL 位置交给 `listPool` 的位置引用，与装配给 HITL 查询的固定位置相同。
 - 观察有每登录与本实例的并发上界，以及观察结束后记录的保留期。
 - `read-history` 与 `read-session-diagnostics` 的页大小受 `maxPageBytes` 约束，`read-history` 披露的条目种类由 `historyKinds` 给出。
 - 会话诊断投影读取的种类、每页 Run 数上限与每个 Run 进入扇出的调用数上限由 `diagnosticsKinds`、`maxRuns`、`maxCallsPerRun` 给出。三项一起给或一起省略；省略时 `read-session-diagnostics` 答 `basis-unavailable`。

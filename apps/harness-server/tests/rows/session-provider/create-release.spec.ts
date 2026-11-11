@@ -1,4 +1,4 @@
-import { readPublishedInquiry } from '../../../src/rows/authorization/published-inquiry.ts'
+import { readPublishedView } from '../../../src/rows/session-ad03/published-view.ts'
 import '../../../src/rows/session-ad03/modes.ts'
 import { modesInitialization } from '../../../src/assembly/session-modes-initialization.ts'
 import { sessionAd03Row } from '../../../src/rows/session-ad03/index.ts'
@@ -19,7 +19,7 @@ import { sessionInquiryBinding } from '@omne-harness/session-adapters/cordis'
 // is in SQLite: a tree started again over the same storage reads it back. A creation that the mapping
 // does not hold is `invalid` and creates nothing.
 //
-// The `coding` definition names Files, Shell, Tools and TodoItems as resident tools. Its cases
+// The `coding` definition names Files, Shell, Tools, TodoItems and Ask as resident tools. Its cases
 // add the real Tool rows `tool-bindings`, `tool-host` (with the operator construction of the tests)
 // and `tool-residency` on the release entry objects, with the local operator's storage configuration.
 // Without the Tool rows the creation fails closed and creates nothing.
@@ -88,7 +88,7 @@ import { TENANT_A } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
 type Distribution = Readonly<{ rows: readonly Readonly<{ id: string; config: unknown }>[] }>
-const residentNames = ['Files', 'Shell', 'Tools', 'TodoItems', 'Web']
+const residentNames = ['Files', 'Shell', 'Tools', 'TodoItems', 'Ask', 'Web']
 const releaseDistribution = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 ) as Distribution
@@ -527,7 +527,7 @@ it(
     async function readForPermission(tree: Awaited<ReturnType<typeof start>>) {
       const modes = tree.modesProbe()
       if (modes === undefined) throw new Error('mode installation unavailable')
-      return readPublishedInquiry(
+      const view = await readPublishedView(
         {
           work: faces(tree, 'coordinator').work,
           eligibility: tree.root.runtimeContextReaderEligibility,
@@ -536,7 +536,9 @@ it(
           recoverSession: input => modes.recoverSession(input),
         },
         { principal: tree.modeReader, tenant: input.tenant, session: input.session },
+        sessionInquiryBinding,
       )
+      return 'ok' in view ? view.ok : null
     }
     const expectedInquiry = {
       inquiry: { policy: { onAsk: 'skip-ask' } },

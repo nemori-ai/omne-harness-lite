@@ -180,7 +180,7 @@ export function fixedRequest(): FixedToolRequest {
     consumer: { owner: 'consumer', work: 'work-1', position: 'position-1', purpose: 'tool-result' },
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
   }
 }
 

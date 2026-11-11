@@ -510,6 +510,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Files: { resultMaxBytes: TOOL_RESULT_BYTES, cwd: settings.workspace },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
+          Ask: { resultMaxBytes: 1_048_576 },
           Web: { resultMaxBytes: TOOL_RESULT_BYTES, maxSearchResults: 10 },
         },
       },

@@ -266,6 +266,7 @@ describe('system principals against the ten-row matrix with the release grant ta
       'sessionPrincipals.coordinator',
       'sessionPrincipals.maintainer',
       'sessionWorkPrincipals',
+      'toolDecisions',
     ])
     const verifier = verifierOf(fixture.env)
     await expect(verifier.verify(principals.coordinator)).resolves.toMatchObject({

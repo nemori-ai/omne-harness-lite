@@ -13,6 +13,9 @@
 - [宿主时钟的契约一致性](clock-conformance.spec.ts)、[时钟规则](clock.spec.ts)与[手动时间源](clock-values.ts)。
 - [登记表的契约一致性与登记规则](bindings-conformance.spec.ts)。
 - [作者绑定的注册化身、命令分派及拒绝清理](author-binding-regressions.spec.ts)。
+- [检查点作者的 initial 段、resume 段与检查点证明](checkpointed-binding.spec.ts)。
+- [检查点作者在整机本地组合中的暂停、恢复与叫停](runtime-composition/checkpoint.spec.ts)。
+- [段的派生身份](segment-operations.spec.ts)。
 - [Catalog 测试](catalog.spec.ts)。
 - [缺席端口测试](absent-ports.spec.ts)。
 - [部件对 createToolRuntime 的组合测试](runtime-composition.spec.ts)。

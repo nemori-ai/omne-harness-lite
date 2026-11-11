@@ -1,4 +1,4 @@
-// A9: the static materials (sql-contract §4). One participant named `tool`, one migration and the
+// A9: the static materials (sql-contract §4). One participant named `tool`, two migrations and the
 // read handlers, all on `tl_` tables, each module described by its build-fixed file URL and the
 // SHA-256 of its bytes. The materials form a valid combination alone, and beside a stand-in of the
 // Session participant of the same shape; a stand-in that owns a `tl_` table is refused, which
@@ -59,7 +59,7 @@ describe('the materials of the Tool storage', () => {
       ...materials.migrations.map(item => [item.moduleUrl, item.checksum] as const),
       ...materials.readHandlers.map(item => [item.moduleUrl, item.codeDigest] as const),
     ]
-    expect(modules.length).toBe(5)
+    expect(modules.length).toBe(7)
     for (const [url, digest] of modules) {
       expect(url.startsWith('file:')).toBe(true)
       expect(sha256(url)).toBe(digest)
@@ -72,6 +72,7 @@ describe('the materials of the Tool storage', () => {
     )
     expect(ordering).toEqual({
       'tool.ledger.read': 'domain-serial',
+      'tool.ledger.pending': 'domain-serial',
       'tool.custody.manifest': 'snapshot',
       'tool.custody.chunk': 'snapshot',
     })
@@ -79,6 +80,29 @@ describe('the materials of the Tool storage', () => {
       expect(handler.maxOutputBytes).toBeLessThanOrEqual(4_194_304)
       for (const table of handler.readTables) expect(table).toMatch(/^tl_/u)
     }
+  })
+})
+
+describe('the migrations of the Tool storage', () => {
+  it('keep the published first migration and add the pending marker table after it', () => {
+    expect(
+      materials.migrations.map(item => ({
+        owner: item.owner,
+        id: item.id,
+        requires: item.requires,
+      })),
+    ).toEqual([
+      { owner: 'tool', id: '001-tool-ledger-custody', requires: [] },
+      {
+        owner: 'tool',
+        id: '002-tool-pending',
+        requires: [{ owner: 'tool', id: '001-tool-ledger-custody' }],
+      },
+    ])
+    expect(materials.participants[0]?.ownedTables).toContain('tl_pending')
+    const pending = materials.readHandlers.find(item => item.handler === 'tool.ledger.pending')
+    expect(pending?.readTables).toEqual(['tl_pending'])
+    expect(pending?.requiresMigrations).toEqual([{ owner: 'tool', id: '002-tool-pending' }])
   })
 })
 

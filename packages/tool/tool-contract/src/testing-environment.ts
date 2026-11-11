@@ -76,13 +76,18 @@ export interface ToolEnvironmentFixture<P, E> {
   excludeDeferred?(preparation: PreparationRecord): Promise<void>
   /** Makes the next new preparation fail with this reason (it takes effect at once). */
   rejectNext?(reason: string): void
+  /**
+   * The port of a new process over the same durable state: every environment the old process held
+   * live is gone, every record stays.
+   */
+  restart?(): Promise<ToolEnvironment<P, E>>
 }
 
 const UNSETTLED = ['pending', 'unknown']
 
 /**
  * The answer model of the environment port (P03): `allocated`, `pending` and `unknown` keep the original task,
- * so every other kind of a preparation (`prepared`, `excluded`, `rejected`) and of a release
+ * so every other kind of a preparation (`prepared`, `excluded`, `rejected`, `lost`) and of a release
  * (`released`, `rejected`) is final.
  */
 export const environmentAnswers = {
@@ -321,6 +326,20 @@ async function rejectionKept<P, E>(fixture: Fixture<P, E>): Promise<void> {
   )
 }
 
+async function restartLosesEnvironment<P, E>(fixture: Fixture<P, E>): Promise<void> {
+  const restart = handle(fixture.restart, 'restart')
+  const s = scene(fixture)
+  const record = s.record()
+  await s.prepared(record)
+  const allocated = fixture.allocations?.()
+  const after = await restart.call(fixture)
+  const input = { ...fixture.access, call: record.call, preparation: record }
+  expectKind(succeeded(await after.inspectPreparation(input), 'inspect'), 'lost', 'inspect')
+  expectKind(succeeded(await after.prepare(input), 'prepare'), 'lost', 'prepare again')
+  if (allocated !== undefined)
+    assert.equal(fixture.allocations?.(), allocated, 'a lost environment is not allocated again')
+}
+
 async function releaseResent<P, E>(fixture: Fixture<P, E>): Promise<void> {
   const s = scene(fixture)
   const record = s.record()
@@ -530,6 +549,10 @@ export function toolEnvironmentConformance<P, E>(): readonly ConformanceCase<Fix
     named('another tenant does not receive the resource of a tenant', foreignPreparation),
     named('another tenant cannot release the resource of a tenant', foreignRelease),
     named('another tenant learns nothing of a release by inspectRelease', foreignInspectRelease),
+    named(
+      'an environment prepared before a restart is lost to the new process and not allocated again',
+      restartLosesEnvironment,
+    ),
   ]
 }
 
@@ -548,10 +571,12 @@ export interface MemoryToolEnvironment<P> extends ToolEnvironment<P, MemoryEnvir
     outstanding(): number
     /** The next allocation loses its initial answer before first adoption. */
     allocateBeforeAdoption(): void
-    /** Lose only the local registration, leaving the original operation known and unsettled. */
+    /** Lose only the local registration, as a restart does: the operation answers `lost`, unsettled. */
     forgetRegistration(preparation: PreparationRecord): void
     /** A terminal adoption failure retains the original allocation and cleanup responsibility. */
     failAdoption(preparation: PreparationRecord, reason: string): void
+    /** A new process over the same records: every registration is gone. */
+    restart(): Promise<ToolEnvironment<P, MemoryEnvironment>>
     hold(): void
     settle(): Promise<void>
     excludeDeferred(preparation: PreparationRecord): Promise<void>
@@ -623,6 +648,13 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
         return { kind: 'pending', diagnostic: 'the allocation is deferred' }
     }
   }
+
+  /** A preparation this double was asked for whose registration is gone: its cleanup stays owed. */
+  const lost = (at: string): PreparationProgress<MemoryEnvironment> => ({
+    kind: 'lost',
+    evidence: mintEvidence('environment/lost', { at }),
+    diagnostic: 'original registration lost; query and cleanup retained',
+  })
 
   const adapterAdoption = adoption('environment')
   const check = (
@@ -715,13 +747,7 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
         preparations.set(at, { kind: 'prepared', progress })
         return reply(succeed(progress))
       }
-      if (known && existing === undefined)
-        return reply(
-          succeed({
-            kind: 'unknown',
-            diagnostic: 'original registration lost; query and cleanup retained',
-          }),
-        )
+      if (known && existing === undefined) return reply(succeed(lost(at)))
       // An exclusion lets the original operation ask again; every other answer is the original.
       if (existing !== undefined && existing.kind !== 'excluded')
         return reply(succeed(answer(existing)))
@@ -733,10 +759,13 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
       const entry = preparations.get(
         key(input.tenant, input.preparation.call, input.preparation.operation),
       )
+      const at = key(input.tenant, input.preparation.call, input.preparation.operation)
       return reply(
         succeed(
           entry === undefined
-            ? { kind: 'unknown', diagnostic: 'no preparation of this operation was seen' }
+            ? asked.has(at)
+              ? lost(at)
+              : { kind: 'unknown', diagnostic: 'no preparation of this operation was seen' }
             : answer(entry),
         ),
       )
@@ -800,6 +829,11 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
     forgetRegistration: preparation => {
       preparations.delete(key(preparation.tenant, preparation.call, preparation.operation))
     },
+    restart: () => {
+      for (const [at, entry] of preparations)
+        if (entry.kind === 'prepared' || entry.kind === 'allocated') preparations.delete(at)
+      return Promise.resolve(environment)
+    },
     failAdoption: (preparation, reason) => {
       const at = key(preparation.tenant, preparation.call, preparation.operation)
       if (preparations.has(at))
@@ -849,5 +883,6 @@ export function memoryToolEnvironmentFixture(): ToolEnvironmentFixture<string, M
     settle: controls.settle,
     excludeDeferred: controls.excludeDeferred,
     rejectNext: controls.rejectNext,
+    restart: controls.restart,
   }
 }

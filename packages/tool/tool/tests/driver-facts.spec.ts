@@ -3,7 +3,6 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import { type ToolStartRecord } from '@omne-harness/tool-contract'
 import {
   decodeToolResultVersion,
-  decodeToolWaitId,
   readToolInvocationRef,
   type ToolLiveExecution,
   type ToolRecoveryBinding,
@@ -139,11 +138,11 @@ function fixture(
                               ...next.value.events,
                               {
                                 event: 'unsupported',
+                                // An account fact: still not received (P05 accounts).
                                 fact: {
-                                  kind: 'continued',
-                                  wait: ok(decodeToolWaitId('wait')),
-                                  response: operationId('answer'),
-                                  timing: evidence('timing'),
+                                  kind: 'account',
+                                  event: 'unsupported',
+                                  value: {} as never,
                                 },
                               },
                             ],

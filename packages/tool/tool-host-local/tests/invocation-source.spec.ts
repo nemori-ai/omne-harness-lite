@@ -86,6 +86,7 @@ function observed() {
   }
   const store: ToolLedgerStore<ContentBlock> = {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     read: async (domain: LedgerDomain): Promise<LedgerRead<ContentBlock>> => {
       counts.reads += 1
       const fault = take('read-unavailable', 'read-throws')

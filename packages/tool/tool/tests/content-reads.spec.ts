@@ -69,6 +69,7 @@ async function fixture(
   let qualificationHook: Readonly<{ action: ToolLedgerAction; run(): Promise<void> }> | null = null
   const store: ToolLedgerStore<Block> = {
     durability: 'none',
+    scanPending: input => f.harness.memory.scanPending(input),
     read: async domain => {
       const answer = await f.harness.memory.read(domain)
       const hook = readHook

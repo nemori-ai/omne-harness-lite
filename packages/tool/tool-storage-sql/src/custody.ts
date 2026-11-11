@@ -9,20 +9,27 @@ import { createHash, randomUUID } from 'node:crypto'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { canonicalDigest } from '@omne-harness/tool'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
   DurableEvidence,
   RawOutput,
+  ToolCallId,
   ToolFailure,
   ToolOperationId,
 } from '@omne-harness/tool-contract'
 import type { ToolOutputCustody } from '@omne-harness/tool-contract/provider'
 import { NotJsonError, toJson } from './json.ts'
 import { isDefiniteRejection } from './ledger-wire.ts'
-import { checkChunkBound, TOOL_STORAGE_OWNER, type SqlToolOutputCustodyOptions } from './options.ts'
+import {
+  checkChunkBound,
+  TOOL_STORAGE_OWNER,
+  type SqlToolOutputCustodyOptions,
+  type SqlToolStorageOptions,
+} from './options.ts'
 import { requestOf, resolveTenant, type TenantDomain } from './tenant.ts'
 import type { CustodyAddress, ManifestFacts, ManifestKind, ManifestRow } from './worker/facts.ts'
-import { MANIFEST_READ_HANDLER, PROTOCOL } from './worker/schema.ts'
+import { CHUNK_READ_HANDLER, MANIFEST_READ_HANDLER, PROTOCOL } from './worker/schema.ts'
 import { isObject } from './worker/support.ts'
 
 type Reply<T> = Promise<Outcome<T, ToolFailure>>
@@ -150,28 +157,94 @@ type Keeping = CustodyAddress &
     holds: ManifestFacts['holds']
   }>
 
+/** One snapshot read of a custody handler, or `unavailable` when the read does not answer. */
+async function readHandler(
+  options: SqlToolStorageOptions,
+  at: TenantDomain,
+  handler: string,
+  input: JsonValue,
+): Reply<JsonValue> {
+  const answer = await options.storage.read({
+    domain: at.domain,
+    handler,
+    protocol: PROTOCOL,
+    requestKey: randomUUID(),
+    input,
+  })
+  return answer.kind === 'read'
+    ? succeed(answer.output)
+    : unavailable(`custody read: ${answer.kind === 'cancelled' ? 'cancelled' : answer.reason}`)
+}
+
+/** The manifest of one custody operation, or null while none is committed. */
+async function readManifest(
+  options: SqlToolStorageOptions,
+  at: TenantDomain,
+  address: CustodyAddress,
+): Reply<ManifestRow | null> {
+  const output = await readHandler(options, at, MANIFEST_READ_HANDLER, address)
+  if ('failure' in output) return output
+  const found = isObject(output.ok) ? output.ok['manifest'] : undefined
+  if (found === null) return succeed(null)
+  const row = manifestRowOf(found)
+  return row === null ? unavailable('custody read: the row is not a manifest') : succeed(row)
+}
+
+/** The bytes of one kept original and the codec and custody evidence its manifest seals. */
+export type SqlToolOutputBytes = Readonly<{
+  codec: Adoption
+  bytes: Uint8Array
+  custody: DurableEvidence
+}>
+
+/**
+ * The trusted read of the whole original that one operation of one call preserved (SPEC TS-13). It
+ * is not a method of `ToolOutputCustody`: only the assembly that composes a Tool provider uses it.
+ * The bytes are read chunk by chunk and checked against the byte count and the SHA-256 of the
+ * manifest; a mismatch answers `unavailable`. An operation that kept no original answers null.
+ */
+export function readSqlToolOutputBytes(
+  options: SqlToolStorageOptions,
+): (
+  input: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
+) => Reply<SqlToolOutputBytes | null> {
+  return async input => {
+    const resolved = await resolveTenant(options, input.tenant)
+    if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
+    const address = { tenant: resolved.at.tenant, call: input.call, operation: input.operation }
+    const found = await readManifest(options, resolved.at, address)
+    if ('failure' in found) return found
+    // A projection keeps a result value, not an original: nothing to read as bytes (as TS-08).
+    if (found.ok === null || found.ok.kind !== 'raw') return succeed(null)
+    const raw = rawOf(found.ok.answer)
+    const chunks = Number(found.ok.chunks)
+    if (raw === null || !Number.isSafeInteger(chunks) || chunks < 0)
+      return unavailable('custody read: the manifest does not parse')
+    const parts: Buffer[] = []
+    for (let index = 0; index < chunks; index += 1) {
+      const chunk = await readHandler(options, resolved.at, CHUNK_READ_HANDLER, {
+        ...address,
+        index,
+      })
+      if ('failure' in chunk) return chunk
+      const data = isObject(chunk.ok) ? chunk.ok['data'] : null
+      if (typeof data !== 'string') return unavailable(`custody read: chunk ${index} is missing`)
+      parts.push(Buffer.from(data, 'base64'))
+    }
+    const bytes = new Uint8Array(Buffer.concat(parts))
+    return String(bytes.length) !== found.ok.bytes || sha256(bytes) !== found.ok.sha256
+      ? unavailable('custody read: the chunks do not match the manifest')
+      : succeed({ codec: raw.codec, bytes, custody: raw.custody })
+  }
+}
+
 export function createSqlToolOutputCustody<P>(
   options: SqlToolOutputCustodyOptions,
 ): ToolOutputCustody<P> {
   const maxChunkBytes = checkChunkBound(options)
 
-  const manifest = async (at: TenantDomain, address: CustodyAddress): Reply<ManifestRow | null> => {
-    const answer = await options.storage.read({
-      domain: at.domain,
-      handler: MANIFEST_READ_HANDLER,
-      protocol: PROTOCOL,
-      requestKey: randomUUID(),
-      input: address,
-    })
-    if (answer.kind !== 'read')
-      return unavailable(
-        `custody read: ${answer.kind === 'cancelled' ? 'cancelled' : answer.reason}`,
-      )
-    const found = isObject(answer.output) ? answer.output['manifest'] : undefined
-    if (found === null) return succeed(null)
-    const row = manifestRowOf(found)
-    return row === null ? unavailable('custody read: the row is not a manifest') : succeed(row)
-  }
+  const manifest = (at: TenantDomain, address: CustodyAddress): Reply<ManifestRow | null> =>
+    readManifest(options, at, address)
 
   /**
    * Commits the chunks and then the manifest. Each commit is one SQL operation; an answer that is

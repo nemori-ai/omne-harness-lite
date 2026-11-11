@@ -50,6 +50,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'TOOL_IDENTITY_MAX_LENGTH',
     'TOOL_REFERENCE_MAX_LENGTH',
     'attachToolsCapability',
+    'authorDecision',
     'commandArguments',
     'commandExample',
     'commandGuide',

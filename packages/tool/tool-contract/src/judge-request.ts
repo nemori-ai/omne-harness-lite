@@ -66,6 +66,7 @@ const scope: Check<ResourceScope> = record({ owner: filled, key: filled, grant: 
 
 const limits = record({
   concurrency: nullable(positiveSafeInteger),
+  scopeBudget: nullable(positiveSafeInteger),
   foregroundMs: nullable(nonNegativeSafeInteger),
   backgroundAfterMs: nullable(nonNegativeSafeInteger),
 })

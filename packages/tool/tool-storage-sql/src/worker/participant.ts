@@ -59,6 +59,14 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
      ON CONFLICT (tenant, kind, name) DO UPDATE SET revision = excluded.revision`,
     [...domain, facts.revision],
   )
+  // 待办标记与记录同一事务：命令回滚时两者都不落地。
+  if (facts.pending === true)
+    port.execute('INSERT INTO tl_pending (tenant, call) VALUES (?, ?) ON CONFLICT DO NOTHING', [
+      facts.tenant,
+      facts.name,
+    ])
+  else if (facts.pending === false)
+    port.execute('DELETE FROM tl_pending WHERE tenant = ? AND call = ?', [facts.tenant, facts.name])
   return participated({ kind: 'committed' })
 }
 

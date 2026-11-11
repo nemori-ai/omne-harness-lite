@@ -109,3 +109,36 @@ node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/is
 ```
 
 安全配置必须完整搜索、状态队列归零且无错误。custody 负控允许以已应用但未确认的保管进入提交，必须命中 `Invariant ResultRequiresConfirmedCustody is violated`。queue 负控允许在 queue 未确认时关闭 call duty，必须命中 `Invariant CloseRequiresQueueConfirmation is violated`。超时、语法错误和无关异常都不算负控成功。模型/config/JAR SHA-256、工具版本、命令、退出码、状态数及完整原日志留任务 tmp。状态导出可用于核验三域未知切点及完成状态确实可达，不以最终成功退出代替这些观察。
+
+## 暂停与执行名额模型
+
+[SuspendedSlots.tla](SuspendedSlots.tla) 检查检查点调用在暂停、答复与恢复期间，调用域和队列域分两笔提交时的名额性质。调用阶段 `call[c]` 与队列条目阶段 `entry[c]` 是两个变量。每个动作对应一笔账本提交，两个域之间没有共同事务。驱动任务会一直重试，所以两笔提交之间发生崩溃，等价于两笔提交之间的任意延迟，由交错覆盖。`Crash` 表示正在运行的作者段丢失，调用按失联收场。
+
+有界实例为 3 个调用（其中 2 个会等人）、执行名额 1、未终局容量 2。模型不建模 FIFO 次序，只建模数量上限。受理时的容量检查视为一笔原子提交。受理时读取容量与提交受理不在同一事务，可能短暂超额，这不在本模型范围。人可能永远不答，所以 `Answer` 和 `Cancel` 没有公平性。
+
+| 性质 | 含义 |
+| --- | --- |
+| `CapacityBound` | held 条目数不超过名额上限 |
+| `RunningImpliesHeld` | 正在运行的调用一定持有名额 |
+| `ParkedImpliesSuspended` | 停泊的条目对应的调用已提交暂停（或已就绪、已收场） |
+| `OutstandingBound` | 未终局条目（ready、held、parked）数不超过容量 |
+| `NoStrandedEntry` | 收场的调用最终删除条目 |
+| `SuspendedReleasesSlot` | 暂停且持有名额的调用最终释放名额 |
+| `ReadyProgresses` | 就绪的调用最终恢复运行或收场 |
+
+`Park` 的定义域是调用已暂停且尚未就绪。答复先于停泊到达时，调用保留名额，直接恢复。如果允许就绪后再停泊，会出现「停泊、重新排队、再取得、再停泊」的活锁，进展性质被违反。
+
+源码映射：`Admit` 对应受理与 `decideQueueOrder`；`Hold` 对应 `decideQueueHold`；`Start` 和 `Resume` 对应启动协调器签发许可后的 `decideRecordStart`（`kind:'start'` 与 `kind:'resume'`）；`Suspend` 对应 Tool 调用域自己的 suspend 提交，该提交同时记下等待 opening 与登记任务；`Park` 与 `Requeue` 对应队列域的停泊与重新排队；`Answer` 对应 Tool 调用域的 `acceptDecision` 提交；`Release` 对应 `decideQueueRelease`。
+
+四个负控各只检查一条具名性质：`unsafe-early` 允许暂停提交前停泊，必须违反 `ParkedImpliesSuspended`；`unsafe-skiphold` 允许不持名额就启动，必须违反 `RunningImpliesHeld`；`unsafe-parkfree` 让停泊条目不计入容量，必须违反 `OutstandingBound`；`unsafe-norelease` 只从 held 删除条目，必须违反 `NoStrandedEntry`。
+
+在仓库根目录运行（`TLA2TOOLS_JAR` 指向 tla2tools.jar）：
+
+```bash
+for c in SuspendedSlots SuspendedSlots-unsafe-early SuspendedSlots-unsafe-skiphold SuspendedSlots-unsafe-parkfree SuspendedSlots-unsafe-norelease; do
+  java -cp "$TLA2TOOLS_JAR" tlc2.TLC -deadlock -workers 1 -metadir "tmp/tlc-$c" \
+    -config "packages/tool/tool/verification/models/$c.cfg" packages/tool/tool/verification/models/SuspendedSlots.tla
+done
+```
+
+`-deadlock` 关闭死锁检查：全部调用收场后没有后续动作，这是预期终态。安全配置必须无错误退出；三个不变量负控以退出码 12 命中对应不变量，`unsafe-norelease` 以退出码 13 命中时序性质。模型通过只说明这个有界实例和上述前提，不证明实现符合；实现符合性由契约测试在真实账本上验证。

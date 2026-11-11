@@ -8,7 +8,7 @@ Message and `outcome` meanings stay in the [public contract](../public-contract/
 
 ## Responsibility and status
 
-This package owns the entry duties of both locations: the HTTP listener, request reading and counting, dispatch by path, login recognition, the acting tenant check, Session calls, status code mapping, SSE observation writes, and the ordered stop. It owns no business behavior and holds no login table. Business meaning and authoritative facts stay with their capabilities.
+This package owns the entry duties of its locations: the HTTP listener, request reading and counting, dispatch by path, login recognition, the acting tenant check, Session calls, status code mapping, SSE observation writes, and the ordered stop. It owns no business behavior and holds no login table. Business meaning and authoritative facts stay with their capabilities.
 
 Implemented:
 
@@ -25,6 +25,7 @@ Not implemented at this stage:
 
 - The fourteen governance operations this deployment declares not provided answer `stage-not-provided`: `public-health`, `replace-credential`, `query-organization`, the eight affiliation operations, `judge-admission`, and the two authorization expression operations.
 - The `state`, `refreshing`, `snapshot`, `delta`, and `gap` observation frames. Reattachment and refresh wait for the joint work.
+- The HITL location `/hitl-public/1` (SPEC「HITL 位置」). It serves `list-cards`, `read-card`, `submit-reply`, and `query-submit-reply` through the narrow HITL faces `HitlIngressFaces`. The faces hold three queries (`listPool`, `getCard`, `getOperation`), the `submitReply` command, and the command binding of the HITL provider. After the login check of the same request, the holder `hitlEntryPrincipals` issues the entry principal of the target tenant, and the entry acts with it. A `denied` in this location is byte-identical for every reason except for `messageId`. The entry does not check eligibility again. The entry derives the submission identity of `submit-reply` from the target tenant and `replyId`, so a resend with the same `replyId` recalls the original submission under any login. `query-submit-reply` builds the same command and finds the original operation through the binding of the HITL provider. Without the HITL faces, all four operations answer `stage-not-provided`.
 - TLS, remote access, and the sticky routing of a multi-instance deployment.
 
 ## Usage
@@ -61,7 +62,7 @@ The numbers above are an example. Every value comes from the assembly configurat
 
 `start()` listens on `127.0.0.1` only and speaks plain HTTP/1.1. When `listenAddress` is any other address, `start()` refuses with `ServerEntryConfigError` and does not rewrite the address. A `listenPort` of 0 asks the host for a free port, and the returned value carries the actual port. `stop()` stops accepting new connections, sends `ended(unavailable)` to each active observation, waits for in-flight requests to finish their answers, and then closes every connection.
 
-The two locations have fixed paths: `/governance-public/1` and `/session-public/1`.
+The three locations have fixed paths: `/governance-public/1`, `/session-public/1`, and `/hitl-public/1`.
 
 ### Dependencies
 
@@ -76,6 +77,8 @@ The two locations have fixed paths: `/governance-public/1` and `/session-public/
 | `modelCalls` | `ModelCallInspector`, the `inspect` and `dispatches` of Model's calls, optional | Resolves the Model references of `call.bound` in `read-session-diagnostics`, and reads the dispatch records that carry the account of each dispatch. Without it every Model call is `unknown` with reason `unsupported` |
 | `modelDiagnostics` | `ModelAttemptReader`, Model's `ModelDiagnostics`, optional | The dispatch diagnostics of a resolved Model call. Without it `dispatches` stay empty with a gap |
 | `toolQueries` | `ToolCallReader`, the `lookup`, `account` and `readDiagnostics` of Tool's invocation queries, optional | The state, the account and the first diagnostics page of the Tool references of `call.bound`. Without it every Tool call is `unknown` with reason `unsupported` |
+| `hitl` | `HitlIngressFaces`, the HITL faces this package declares, optional | The four HITL operations. A real HITL application satisfies it structurally. Without it the four operations answer `stage-not-provided`. With it, the configuration must give `hitlLocationRef` |
+| `hitlEntryPrincipals` | `HitlEntryPrincipals`, the holder port this package declares, optional | Issues the entry principal of the target tenant after the login check of the same request. The entry gives it the recognized account and the target tenant only, not the login. Without it, or when it refuses or throws, a HITL operation answers `basis-unavailable` |
 | `resolveDefinition` | `DefinitionResolver` | `create-session` resolves a definition name into the fields the creation adopts. A returned `undefined` answers `invalid` |
 | `diagnostics` | `DiagnosticSink`, optional | Structured diagnostic events. An event holds no body, login proof, credential, principal, or dependency error text |
 
@@ -87,7 +90,7 @@ The stable promises are:
 
 - The entry listens on `127.0.0.1` only and speaks plain HTTP/1.1. A wrong address fails the start and the entry does not rewrite it.
 - A status code comes from the `outcome` only. The same `outcome` always gets the same status code and the same response body shape.
-- A `denied` in either location does not reveal its reason. Every `denied` reason gives a byte-identical response except for `messageId`. A `not-visible` is the same for an object that does not exist and one that belongs to another account.
+- A `denied` in the session or HITL location does not reveal its reason. Every `denied` reason gives a byte-identical response except for `messageId`. A `not-visible` is the same for an object that does not exist and one that belongs to another account.
 - No login proof, credential, or issuer enters any output. No diagnostic holds a login identifier or a `loginId`. The entry does not rewrite the `denied` and `basis-unavailable` results of identity and Session.
 - A declared not-provided operation answers `stage-not-provided` before any login recognition.
 - Only a `succeeded` session operation and an established observation report a business access. A failed report does not change the answer.
@@ -111,7 +114,8 @@ The public contract does not depend on this package, and neither does the SDK. T
 | Field | Meaning |
 | --- | --- |
 | `listenAddress`, `listenPort` | The address must be `127.0.0.1`. A port of 0 asks the host to assign one |
-| `maxBodyBytes.small`, `maxBodyBytes.input` | The body limits of the governance and session paths. Each limit is also the `maxBytes` of that path's json-text read |
+| `maxBodyBytes.small`, `maxBodyBytes.input` | The body limits of the governance path, and of the session and HITL paths. Each limit is also the `maxBytes` of that path's json-text read |
+| `hitlLocationRef` | The location reference that the HITL location gives to `listPool`. It is the same fixed location that the assembly gives to the HITL queries. It is required when the HITL faces are given |
 | `heartbeatIntervalMs` | The SSE heartbeat interval. At this stage it is also the length of one observation round, after which the entry checks the login of the observation again |
 | `jsonBudgets` | The other five json-text read budgets |
 | `maxPageBytes` | The upper bound of `pageBytes` in `read-history` and `read-session-diagnostics` |

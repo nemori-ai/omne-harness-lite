@@ -1,4 +1,11 @@
 export {
+  SESSION_RUN_LIVE_FACT,
+  SESSION_RUN_LIVE_GUARD,
+  RunLiveSchema,
+  runLiveGuardFacts,
+  type RunLive,
+} from './run-live.ts'
+export {
   SESSION_PERMISSION_CURRENT_HANDLER,
   SESSION_PERMISSION_MODE_HANDLER,
   SESSION_PERMISSION_CURRENT_FACT,

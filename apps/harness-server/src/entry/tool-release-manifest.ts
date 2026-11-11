@@ -49,6 +49,11 @@ export const RELEASE_TOOLS = Object.freeze([
     construction: Object.freeze(['resultMaxBytes']),
   }),
   Object.freeze({
+    name: 'Ask',
+    export: 'askToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
     name: 'Web',
     export: 'webToolModule',
     construction: Object.freeze(['resultMaxBytes', 'maxSearchResults']),
@@ -184,6 +189,7 @@ export async function importReleaseModules(packageRoot: string): Promise<Release
     filesToolModule: releaseModuleOf(namespace, 'filesToolModule'),
     toolsToolModule: releaseModuleOf(namespace, 'toolsToolModule'),
     todoItemsToolModule: releaseModuleOf(namespace, 'todoItemsToolModule'),
+    askToolModule: releaseModuleOf(namespace, 'askToolModule'),
     webToolModule: releaseModuleOf(namespace, 'webToolModule'),
   })
 }

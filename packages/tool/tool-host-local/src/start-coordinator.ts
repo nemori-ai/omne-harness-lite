@@ -431,13 +431,15 @@ function judgeExecution(value: unknown, field: string): Outcome<ToolExecutionRef
   )
 }
 
-/** A first-start record: the start kind, its operation, its executor adoption and execution. */
-function judgeStart(
-  value: unknown,
-  field: string,
-): Outcome<Extract<ToolStartRecord, { kind: 'start' }>, ToolFailure> {
+/**
+ * A start record: the first start, or the resume of a checkpoint (P07), with its operation, its
+ * executor adoption and execution; a resume also names its checkpoint. A resume takes a permit of
+ * its own through the same guards as a first start.
+ */
+function judgeStart(value: unknown, field: string): Outcome<ToolStartRecord, ToolFailure> {
   if (!isObject(value)) return invalid(field, 'type')
-  if (Reflect.get(value, 'kind') !== 'start') return invalid(`${field}.kind`, 'value')
+  const kind: unknown = Reflect.get(value, 'kind')
+  if (kind !== 'start' && kind !== 'resume') return invalid(`${field}.kind`, 'value')
   const operation = decodeToolOperationId(Reflect.get(value, 'operation'))
   if ('failure' in operation) return invalid(`${field}.operation`, operation.failure.reason)
   const executor = texts(
@@ -448,14 +450,15 @@ function judgeStart(
   if ('failure' in executor) return executor
   const execution = judgeExecution(Reflect.get(value, 'execution'), `${field}.execution`)
   if ('failure' in execution) return execution
-  return succeed(
-    Object.freeze({
-      kind: 'start',
-      operation: operation.ok,
-      executor: Object.freeze(executor.ok),
-      execution: execution.ok,
-    }),
-  )
+  const common = {
+    operation: operation.ok,
+    executor: Object.freeze(executor.ok),
+    execution: execution.ok,
+  }
+  if (kind === 'start') return succeed(Object.freeze({ kind, ...common }))
+  const checkpoint = judgeEvidence(Reflect.get(value, 'checkpoint'), `${field}.checkpoint`)
+  if ('failure' in checkpoint) return checkpoint
+  return succeed(Object.freeze({ kind, ...common, checkpoint: Object.freeze(checkpoint.ok) }))
 }
 
 type CallInput<P> = Readonly<{ principal: P; tenant: TenantId; call: ToolCallId }>
@@ -482,7 +485,7 @@ type PermitGuard = Readonly<{ owner: string; resource: string; revision: string 
 
 /** The parts of a permit the coordinator reads back, and the digest it stored them under. */
 type PermitInput = Readonly<{
-  start: Extract<ToolStartRecord, { kind: 'start' }>
+  start: ToolStartRecord
   guards: readonly PermitGuard[]
   digest: string
   inputDigest: string
@@ -540,11 +543,7 @@ function judgePermit(
   })
 }
 
-function sameStartCall(
-  start: Extract<ToolStartRecord, { kind: 'start' }>,
-  tenant: TenantId,
-  call: ToolCallId,
-): boolean {
+function sameStartCall(start: ToolStartRecord, tenant: TenantId, call: ToolCallId): boolean {
   return (
     start.execution.call === call &&
     canonicalDigest(start.execution.tenant) === canonicalDigest(tenant)

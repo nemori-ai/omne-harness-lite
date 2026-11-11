@@ -211,6 +211,12 @@ importers:
       '@omne-harness/governance-local':
         specifier: workspace:*
         version: link:../../packages/governance/governance-local
+      '@omne-harness/human-intervention':
+        specifier: workspace:*
+        version: link:../../packages/human-intervention/human-intervention
+      '@omne-harness/human-intervention-local':
+        specifier: workspace:*
+        version: link:../../packages/human-intervention/human-intervention-local
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../packages/identity/identity
@@ -359,6 +365,9 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../packages/common/content-block
+      '@omne-harness/sdk':
+        specifier: workspace:*
+        version: link:../../packages/access/sdk
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -476,6 +485,9 @@ importers:
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../agent/agent-contract
+      '@omne-harness/human-intervention':
+        specifier: workspace:*
+        version: link:../../human-intervention/human-intervention
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../identity/identity
@@ -1626,7 +1638,54 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/human-intervention/human-intervention:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/human-intervention/human-intervention-local:
+    dependencies:
+      '@omne-harness/human-intervention':
+        specifier: workspace:*
+        version: link:../human-intervention
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../../identity/identity
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      canonicalize:
+        specifier: 5.1.0
+        version: 5.1.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@omne-harness/identity-sql':
+        specifier: workspace:*
+        version: link:../../identity/identity-sql
+      '@omne-harness/scrypt':
+        specifier: workspace:*
+        version: link:../../identity/scrypt
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

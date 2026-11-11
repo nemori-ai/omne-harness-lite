@@ -205,10 +205,16 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     return { kind: 'failed', failure: recorded.failure }
   }
 
+  /**
+   * Receives the next batch of the running start. `ended` is asked when the stream of a running
+   * call ended without a final: a checkpointed segment ends at its wait, and its answer is the
+   * step that follows; null keeps the reading of a live coroutine that ended its stream.
+   */
   const receive = async (
     step: Step<P>,
     recovery: ToolRecovery<B>,
     cancelled: () => boolean,
+    ended: () => Promise<Result | null> = () => Promise.resolve(null),
   ): Promise<Result> => {
     const start = recovery.start
     if (start === null) return { kind: 'blocked', diagnostic: 'a facts task has no original start' }
@@ -278,6 +284,10 @@ export function createFactDriver<P, B extends ContentBlock, E>(
         return result
       }
       close(key, session)
+      if (ready.kind === 'ended') {
+        const next = await ended()
+        if (next !== null) return next
+      }
       void session.closing?.then(() => {
         if (!session.signal.aborted && !step.signal.aborted)
           wake({ ...step, signal: session.signal }, true)

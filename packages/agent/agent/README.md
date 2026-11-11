@@ -173,7 +173,7 @@ E4 has two pure decisions (J5). The coordinator routes recovery from the checkpo
 The evaluator handles input boundaries and iteration decisions.
 The transition table uses `resume-<node>` labels for recovery destinations.
 The A and T graphs return named `unsupported` for stage 2.
-The X graph belongs to stage 3. The C graph and compaction calls belong to stage 4.
+The X graph belongs to stage 3. The C graph and compaction calls belong to stage 4. The card round of the official admission is delivered ahead of the X graph: when the admission answers `need-decision`, A0 and A1 save the round, present its cards once, wait for the person at W0 with a `human` wait, and call the admission again with the answer. The passage of an admission enters the checkpoint when the admission first asks and leaves it with its action batch. The steps are in `src/loop/passages.ts` and `src/loop/admission-chain.ts`, and the mapping to the CardRounds model is in the [formal mapping](../agent-contract/verification/formal-mapping.md). Closing a card round is not delivered: an all-denied batch with cards that are out, a card that was invalidated, a cancel and an end with an open round answer `unsupported-path`.
 These routes do not implement public `resume`, attachment recovery or general restoration of transient handler frames (stage 5). Only the narrow I2/M6 continuation above is implemented.
 
 R0 queries the original operation slot. Unknown retains that slot and its expected revision without another waiting commit.

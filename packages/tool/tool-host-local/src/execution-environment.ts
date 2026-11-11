@@ -100,7 +100,10 @@ export function createLocalEnvironmentPlanResolver<P>(
         { principal: request.principal, tenant: request.tenant },
         { scope: binding.ok.scope, requirement: required.ok },
       )
-      if (placement.kind !== 'placement') return environmentFailure(`placement ${placement.kind}`)
+      if (placement.kind === 'rejected')
+        return environmentFailure(`placement rejected: ${placement.reason}`)
+      if (placement.kind === 'unknown')
+        return environmentFailure(`placement unknown: ${placement.cause}`)
       if (canonicalDigest(placement.requirement) !== canonicalDigest(required.ok))
         return environmentFailure('placement requirement mismatch')
       const facts = await input.facts(placement)
@@ -176,6 +179,22 @@ function terminalPreparation(
     default:
       return undefined
   }
+}
+
+/**
+ * The answer for a record this process holds no registration of: a process that is gone acquired
+ * its environment, and the architecture does not take over the environment of an old process. A
+ * terminal record keeps its answer; any other is `lost`, and the record keeps its cleanup.
+ */
+function coldPreparation(record: EnvironmentState): PreparationProgress<ToolEnvironmentValue> {
+  return (
+    terminalPreparation(record) ?? {
+      kind: 'lost',
+      evidence: record.evidence,
+      diagnostic:
+        'the environment was acquired by a process that is gone; its record keeps the cleanup',
+    }
+  )
 }
 
 function inspectedState(
@@ -401,7 +420,7 @@ export function createLocalExecutionEnvironment<P>(
       return fail({ kind: 'conflict', operation: request.preparation.operation })
     if (existing.ok?.closed) return environmentFailure('original acquisition is closed')
     const local = live.get(key(request.preparation))
-    if (existing.ok && !local) return inspect(request, existing.ok)
+    if (existing.ok && !local) return succeed(coldPreparation(existing.ok))
     const plan = await input.plans.resolve(request)
     if ('failure' in plan) return plan
     if (
@@ -593,6 +612,7 @@ export function createLocalExecutionEnvironment<P>(
       if (!found.ok) return unknown('original preparation unavailable')
       if (found.ok.digest !== digest(checked.ok))
         return fail({ kind: 'conflict', operation: checked.ok.preparation.operation })
+      if (!live.has(key(checked.ok.preparation))) return succeed(coldPreparation(found.ok))
       return inspect(checked.ok, found.ok)
     },
     release: request => release(request, false),

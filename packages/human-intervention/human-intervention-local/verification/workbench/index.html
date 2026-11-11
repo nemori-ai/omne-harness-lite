@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="control-token" content="CONTROL_TOKEN" />
+    <title>独立 HITL 验证台</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/client.js"></script>
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">HUMAN INTERVENTION · 独立子系统</p>
+        <h1>需要你做的决定</h1>
+        <p>临时验证环境，不操作正式数据。所有卡片与答复使用真实本地存储。</p>
+      </div>
+      <span class="badge" id="assembly">装配中</span>
+    </header>
+    <main>
+      <section class="panel composer" aria-labelledby="create-title">
+        <h2 id="create-title">发起一个独立请求</h2>
+        <p>不需要会话或 Agent。两张卡片可验证“整批接手后才能继续”。</p>
+        <form id="create-form">
+          <label
+            >问题标题<input name="title" maxlength="200" value="下一步采用哪种方案？" required
+          /></label>
+          <label
+            >给答复人的说明<textarea name="description" maxlength="2000" rows="3" required>
+请根据当前情况选择，也可以直接写下你的想法。</textarea>
+          </label>
+          <label class="check"
+            ><input type="checkbox" name="batch" />建立两张卡片，观察批次等待</label
+          >
+          <button type="submit" class="primary">创建请求</button>
+        </form>
+        <hr />
+        <h2>验证装配恢复</h2>
+        <p>重装应用服务会保留当前数据库与未完成请求。它不等于进程重启。</p>
+        <button id="remount" type="button">重装应用服务</button>
+        <p class="caption">
+          当前浏览器是本机验证操作者。此页面不证明产品登录、Agent/Tool 接入或动作授权已经完成。
+        </p>
+      </section>
+      <section class="workspace" aria-labelledby="pool-title">
+        <div class="toolbar">
+          <div>
+            <h2 id="pool-title">请求池</h2>
+            <p id="summary">正在读取当前请求</p>
+          </div>
+          <button id="refresh" type="button">刷新</button>
+        </div>
+        <nav id="filters" aria-label="按状态筛选">
+          <button data-filter="all" aria-pressed="true">全部</button
+          ><button data-filter="pending" aria-pressed="false">待答复</button
+          ><button data-filter="delivery" aria-pressed="false">待接手</button
+          ><button data-filter="accepted" aria-pressed="false">已接手</button
+          ><button data-filter="invalidated" aria-pressed="false">已取消</button>
+        </nav>
+        <p id="status" role="status" aria-live="polite"></p>
+        <div id="cards"></div>
+        <button id="more" type="button" hidden>加载更多</button>
+        <section class="panel evidence" aria-labelledby="evidence-title">
+          <div class="toolbar">
+            <h2 id="evidence-title">最近一次操作</h2>
+            <div>
+              <button id="retry" type="button" disabled>原操作重试</button
+              ><button id="inspect" type="button" disabled>查询原结果</button>
+            </div>
+          </div>
+          <p>重试保留原操作身份。unknown 表示结果尚未确认，不能按失败创建新操作。</p>
+          <pre id="result">尚未提交操作。</pre>
+        </section>
+      </section>
+    </main>
+    <footer>领域负责请求与决定，原等待拥有者负责恢复与接手。读取、答复、接手分别显示。</footer>
+  </body>
+</html>

@@ -14,6 +14,7 @@ import type {
   SessionProductionSource,
   SessionDelegatedTransactions,
   SessionPrincipalBindingSource,
+  SessionScopeOwnerSource,
   SessionWorkPrincipals,
   DurableEvidence,
   ScopeReleasePort,
@@ -156,6 +157,22 @@ export abstract class SessionPrincipalBindingsService
   abstract readonly read: SessionPrincipalBindingSource['read']
 }
 export const sessionPrincipalBindingsKey = SessionPrincipalBindingsService.provide
+
+/**
+ * The durable owner of a Context scope: the session that minted it, read from the record Session
+ * writes in the minting commit. Trusted: the `session-storage` row provides it, and only the
+ * assembly entry reads it, per call, where the holder's in-process index has not seen the scope.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionScopeOwnersService extends Service implements SessionScopeOwnerSource {
+  static readonly provide = 'sessionScopeOwners'
+  constructor(ctx: Context) {
+    super(ctx, SessionScopeOwnersService.provide)
+  }
+  abstract readonly lookup: SessionScopeOwnerSource['lookup']
+}
+export const sessionScopeOwnersKey = SessionScopeOwnersService.provide
 
 /** @owner packages/session/session-contract */
 export abstract class SessionIdentityBridgeService<P = unknown>
@@ -376,6 +393,7 @@ declare module '@deepseek-ai/cordis' {
     sessionDelegatedTransactions: SessionDelegatedTransactionsService<unknown>
     sessionWorkPrincipals: SessionWorkPrincipalsService<unknown>
     sessionPrincipalBindings: SessionPrincipalBindingsService
+    sessionScopeOwners: SessionScopeOwnersService
     sessionIdentity: SessionIdentityBridgeService<unknown>
     sessionEvidence: SessionEvidenceBridgeService<unknown>
     sessionClock: SessionClockService

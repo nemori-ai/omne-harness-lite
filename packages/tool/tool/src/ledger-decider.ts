@@ -55,7 +55,9 @@ import {
   type OperationRecord,
   type ResultRecord,
   type ResultCustody,
+  type SuspensionLedgerRecord,
   type TenantId,
+  type WaitLedgerRecord,
 } from './ledger-store.ts'
 
 /** The records of one domain, indexed for the deciders and the read projections. */
@@ -72,6 +74,10 @@ export type Snapshot<B extends ContentBlock> = Readonly<{
   process: readonly ProcessRecord[]
   accounts: readonly AccountRecord[]
   tasks: readonly ToolTask[]
+  /** The suspensions by the operation that planned them. */
+  suspensions: ReadonlyMap<string, SuspensionLedgerRecord>
+  /** The waits by wait identity. */
+  waits: ReadonlyMap<string, WaitLedgerRecord>
   /** The exclusion fences by operation; the ledger reads them, the deciders do not. */
   exclusions: ReadonlyMap<string, ExclusionRecord>
 }>
@@ -92,6 +98,8 @@ export function snapshotOf<B extends ContentBlock>(
   const accounts: AccountRecord[] = []
   const tasks: ToolTask[] = []
   const exclusions = new Map<string, ExclusionRecord>()
+  const suspensions = new Map<string, SuspensionLedgerRecord>()
+  const waits = new Map<string, WaitLedgerRecord>()
   for (const record of read.records) {
     switch (record.kind) {
       case 'environment-release':
@@ -130,6 +138,12 @@ export function snapshotOf<B extends ContentBlock>(
       case 'exclusion':
         exclusions.set(record.exclusion.operation, record.exclusion)
         break
+      case 'suspension':
+        suspensions.set(record.suspension.suspension.operation, record.suspension)
+        break
+      case 'wait':
+        waits.set(record.wait.record.intent.wait, record.wait)
+        break
       default:
         throw new Error(`a ${record.kind} record does not belong to a call domain`)
     }
@@ -147,6 +161,8 @@ export function snapshotOf<B extends ContentBlock>(
     results,
     accounts,
     tasks,
+    suspensions,
+    waits,
     exclusions,
   }
 }
@@ -190,8 +206,8 @@ export type AdmitCommand = Readonly<{
   request: FixedToolRequest
   inputDigest: string
   /**
-   * The queue of the request's FIFO key as read before this decision: how many unreleased calls
-   * it holds and the configured capacity. Null when the ledger did not read it (a dummy).
+   * The queue of the request's concurrency scope as read before this decision: how many unreleased
+   * calls it holds and the configured capacity. Null when the ledger did not read it (a dummy).
    */
   queue: Readonly<{ load: number; capacity: number }> | null
 }>
@@ -262,7 +278,7 @@ function acceptWithinCapacity<B extends ContentBlock>(
     fail({
       kind: 'unavailable',
       dependency: 'tool-queue',
-      diagnostic: `the queue of this scope and tool holds ${queue.load} unreleased calls, its capacity`,
+      diagnostic: `the queue of this scope holds ${queue.load} unreleased calls, its capacity`,
     }),
   )
 }
@@ -413,7 +429,7 @@ function replacementAccount(call: ToolCallId): CallAccount {
 
 /** The text of a terminal that no tool produced, made by the trusted factory (P02). */
 export function terminalText<B extends ContentBlock>(
-  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
+  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' | 'interrupted' }>,
   text: AdmitTools<B>['text'],
 ): Outcome<ToolResult<B>, ToolFailure> {
   const made = text(describeTerminal(terminal))

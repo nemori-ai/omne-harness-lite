@@ -61,6 +61,24 @@ export type LoopExtensionDeclaration = Readonly<{
   onError?: ErrorPolicy
   unavailability?: UnavailabilityPolicy
 }>
+/**
+ * The official action admission as the ledger names it: the trusted system extension at the end
+ * of the chain before an action (SPEC "整批判断屏障与动作准入" 2). Its Passage carries this
+ * declaration and this exact adoption, and its Conclusions carry the name, the adoption and the
+ * power.
+ */
+export const ACTION_ADMISSION_DECLARATION: LoopExtensionDeclaration = Object.freeze({
+  name: 'action_admission',
+  position: 'before_action',
+  power: 'veto',
+  implementation: Object.freeze({ kind: 'builtin', builtinName: 'action_admission' }),
+})
+export const ACTION_ADMISSION_IMPLEMENTATION: Adoption = Object.freeze({
+  owner: 'agent',
+  name: 'action-admission',
+  revision: '1',
+  digest: 'agent:action-admission/1',
+})
 
 export type ExtensionInput = Readonly<{
   position: Position

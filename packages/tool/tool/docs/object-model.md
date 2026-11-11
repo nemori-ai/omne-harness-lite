@@ -56,10 +56,10 @@
 | ToolLedger | 冻结的工厂产物 `{ commands, reads, admissions, queues, facts }`，构造时固定 store、guards、clock、configuration、ToolLedgerPorts（custody、releaseInspection、content 字节读口或 null） | 命令入口做边界检查、资格、读取、决定和按修订号提交；读取入口核当前资格与结果关联，字节由显式 content 端口提供 | 无调用事实的私有副本；构造后不改 |
 | 决定器 | 纯函数，输入快照、一条命令、已核验的 guard 事实和本次铸造的修订号 | 输出“只回复不写”或“写入一组记录并回复” | 不读端口，不发通知，不运行工具 |
 | ToolLedgerStore | 端口，两个操作 read 与 commit，声明 durability | read 返回一个事务域的全部记录和域修订号；commit 在 expected 相符时原子写入，否则答 conflict；结果不确定答 unknown，暂时不可用答 unavailable，确定拒绝答 rejected（带 reason） | 提供者拥有耐久；`none` 只出现在 `./testing` |
-| 事务域 | 判别联合：call（tenant + call）、queue（tenant + FIFO key）、host（tenant + key） | call 域拥有一次原调用的全部记录；queue 域拥有同 key 的顺序与名额；host 域供宿主保存自己的耐久记录 | 域修订号每次提交加一；本包不解释 host 域内容 |
+| 事务域 | 判别联合：call（tenant + call）、queue（tenant + 队列 key，即并发范围）、host（tenant + key） | call 域拥有一次原调用的全部记录；queue 域拥有同一并发范围的顺序与名额；host 域供宿主保存自己的耐久记录 | 域修订号每次提交加一；本包不解释 host 域内容 |
 | call / operation / result / environment-release / account / task 记录 | 判别联合记录，各有唯一键 | 原调用、已提交操作及其回执、结果版本及交付关系、账目修订、待办 | 与状态变化同提交；字段见 [architecture](architecture.md#本包的记录仓与决定器g1) |
 | exclusion 记录 | `exclusion:<operation>`，值是操作号与围栏提交的域修订号 | 否定答案的排除围栏，使按旧修订号准备的在途提交失败 | 该操作的提交删除它；只由否定答案写入 |
-| queue-entry / queue-counter / queue-release 记录 | queue 域内，`entry:<call>`、`counter` 与 `released:<call>` | 一个调用在该 key 下的序号、阶段、最后移动它的操作和固定的并发上限；下一个序号；已释放调用的墓碑与释放依据 | 条目删除即释放名额，删除与墓碑同提交；墓碑在 0.0.x 不剪枝，有墓碑的调用不再得到条目 |
+| queue-entry / queue-counter / queue-release 记录 | queue 域内，`entry:<call>`、`counter` 与 `released:<call>` | 一个调用在该并发范围内的序号、阶段、工具名、最后移动它的操作、固定的工具上限与范围预算；下一个序号；已释放调用的墓碑与释放依据 | 条目删除即释放名额，删除与墓碑同提交；墓碑在 0.0.x 不剪枝，有墓碑的调用不再得到条目 |
 | host 记录 | host 域内，`host:<key>` | 宿主提供者的一条记录 | 值由提供者自己校验 |
 | ToolLedgerGuards | 受信快照：access、sources、factAcknowledgements、grants、starts、results、policy、budgets | 资格、来源、范围授予、启动资格、文本结果、结果政策与参数解析预算 | 构造时由宿主固定；决定器只消费它们的结论 |
 | 证据铸造 | 每种证据各自铸造：state、result、delivery、operation、account | `record` 是种类加定位值的规范 JSON，`digest` 覆盖种类、定位值与内容 | 定位值总含租户与调用，两个租户的同号调用不共享证据 |

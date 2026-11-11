@@ -24,7 +24,7 @@ import {
   judgeToolDefinition,
   judgeToolInvokeRequest,
 } from '@omne-harness/tool-contract/provider'
-import { filesToolModule, shellToolModule } from '@omne-harness/tool-definitions'
+import { askToolModule, filesToolModule, shellToolModule } from '@omne-harness/tool-definitions'
 import { sessionWorkIssuerOf } from '../../src/entry/principals.ts'
 import { releaseOf } from '../../src/entry/tool-release.ts'
 import { governanceOf } from '../../src/entry/tool-release-manifest.ts'
@@ -35,7 +35,7 @@ import {
   type ToolRequestPorts,
 } from '../../src/entry/tool-requests.ts'
 import { toolRuntimeHolder } from '../../src/rows/tool-runtime/holder.ts'
-import { RELEASE_TOOL_SCOPE } from '../../src/rows/tool-runtime/scope.ts'
+import { runToolScope } from '../../src/rows/tool-runtime/scope.ts'
 import { TEST_CONSTRUCTION, entryOf, releaseFixture, tree } from '../rows/tool-host/support.ts'
 import { fixtureTenant, okOf } from './support.ts'
 
@@ -64,8 +64,9 @@ async function world() {
   const facts = {
     Shell: okOf(shellToolModule.createAuthor(tree(TEST_CONSTRUCTION.Shell)), 'Shell').facts,
     Files: okOf(filesToolModule.createAuthor(tree(TEST_CONSTRUCTION.Files)), 'Files').facts,
+    Ask: okOf(askToolModule.createAuthor(tree(TEST_CONSTRUCTION.Ask)), 'Ask').facts,
   }
-  for (const name of ['Shell', 'Files'] as const)
+  for (const name of ['Shell', 'Files', 'Ask'] as const)
     definitions.set(
       name,
       okOf(
@@ -107,6 +108,8 @@ async function world() {
     readWork: async () => succeed(snapshot),
     scopeBinding: () => bindings,
     release: () => releaseOf(fixture.root),
+    interaction: async () => succeed({ humanInteraction: true, requestApproval: true }),
+    inquiry: async () => succeed('ask-human' as const),
   }
   return { fixture, ports, principalA, principalB, snapshot, definitions }
 }
@@ -204,7 +207,8 @@ describe('the trusted Tool request source', () => {
         complete: true,
       },
       requesterScope: SCOPE,
-      scope: RELEASE_TOOL_SCOPE,
+      // The concurrency scope of the run of the action, granted to the tenant of the request.
+      scope: runToolScope(TENANT_A, actionInput(principalA).consumer),
       workspace: null,
       resources: [],
       mode: 'foreground',
@@ -346,6 +350,180 @@ function recordingSession(snapshot: WorkSnapshot, callers: unknown[]) {
   }
   return { name: 'fixture-session', apply: (ctx: Context) => void new RecordingSession(ctx) }
 }
+
+const ASK = JSON.stringify({
+  command: 'ask',
+  params: {
+    questions: [{ title: 'Which port?', options: [{ label: '8081' }, { label: '3000' }] }],
+  },
+})
+const APPROVAL = JSON.stringify({
+  command: 'request_approval',
+  params: {
+    action: 'Delete the build directory',
+    reason: 'It holds stale output.',
+    impact: 'The next build is slower.',
+    reversibility: 'The output can be built again.',
+    fallback: 'I keep the directory.',
+  },
+})
+
+describe('the meta-capability host: Ask runs only while the session lets the model ask a person', () => {
+  const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+  type Interaction = Readonly<{ humanInteraction: boolean; requestApproval: boolean }> | null
+
+  type OnAsk = 'deny' | 'ask-human' | 'skip-ask' | null
+
+  async function hosted(interaction: () => Interaction, onAsk: () => OnAsk = () => 'ask-human') {
+    const { ports, principalA } = await world()
+    const reads: unknown[] = []
+    const inquiries: unknown[] = []
+    const source = createReleaseToolRequests({
+      ...ports,
+      interaction: async access => {
+        reads.push(access)
+        const value = interaction()
+        return value === null ? fail('the publication is not there') : succeed(value)
+      },
+      inquiry: async access => {
+        inquiries.push(access)
+        const value = onAsk()
+        return value === null ? fail('the publication is not there') : succeed(value)
+      },
+    })
+    const call = (name: string, args: string) => actionInput(principalA, TENANT_A, name, args)
+    return { source, call, reads, inquiries, principalA }
+  }
+  const open = () => ({ humanInteraction: true, requestApproval: true })
+
+  it('routes both commands while the interaction is open, and reads it for the call session', async () => {
+    const { source, call, reads, principalA } = await hosted(() => ({
+      humanInteraction: true,
+      requestApproval: true,
+    }))
+    for (const [args, command] of [
+      [ASK, 'ask'],
+      [APPROVAL, 'request_approval'],
+    ] as const) {
+      const input = call('Ask', args)
+      const described = await source.describe(input)
+      if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
+      expect(
+        await source.prepare({ ...input, definition: described.ok.definition, admission }),
+      ).toMatchObject({ ok: { command } })
+    }
+    expect(reads[0]).toEqual({ principal: principalA, tenant: TENANT_A, session: 'ses-a' })
+  })
+
+  it('answers each command with its reason while the interaction is closed, and never runs it', async () => {
+    const { source, call } = await hosted(() => ({
+      humanInteraction: false,
+      requestApproval: false,
+    }))
+    expect(await source.describe(call('Ask', ASK))).toEqual({
+      ok: {
+        kind: 'answered',
+        text: 'Ask: the command "ask" is not available now. This session does not let you ask a person (collaboration mode). Continue without the answer, or stop and report what you need.',
+      },
+    })
+    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
+      ok: {
+        kind: 'answered',
+        text: expect.stringMatching(
+          /^Ask: the command "request_approval" is not available now\. .*This is not permission: do not do the action\.$/,
+        ),
+      },
+    })
+  })
+
+  it('judges each command by its own value', async () => {
+    const { source, call } = await hosted(() => ({
+      humanInteraction: true,
+      requestApproval: false,
+    }))
+    expect(await source.describe(call('Ask', ASK))).toMatchObject({ ok: { kind: 'tool' } })
+    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
+      ok: { kind: 'answered' },
+    })
+  })
+
+  it('judges again at prepare: an interaction closed after describe is not run', async () => {
+    let open = true
+    const { source, call } = await hosted(() => ({
+      humanInteraction: open,
+      requestApproval: open,
+    }))
+    const input = call('Ask', ASK)
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
+    open = false
+    expect(
+      await source.prepare({ ...input, definition: described.ok.definition, admission }),
+    ).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  it('answers unavailable when the interaction cannot be read, and does not read it for other tools', async () => {
+    const { source, call, reads } = await hosted(() => null)
+    expect(await source.describe(call('Ask', ASK))).toMatchObject({
+      failure: {
+        kind: 'unavailable',
+        diagnostic:
+          'the human interaction of the session is unreadable: the publication is not there',
+      },
+    })
+    reads.length = 0
+    expect(await source.describe(call('Shell', EXECUTE))).toMatchObject({ ok: { kind: 'tool' } })
+    // A call that names no command of Ask is answered with the guide, before any read.
+    expect(await source.describe(call('Ask', '{"command":"nope"}'))).toMatchObject({
+      ok: { kind: 'answered' },
+    })
+    expect(reads).toEqual([])
+  })
+
+  it('closes request_approval while the permission side asks nobody, and leaves ask open', async () => {
+    const { source, call, inquiries, principalA } = await hosted(open, () => 'deny')
+    expect(await source.describe(call('Ask', ASK))).toMatchObject({ ok: { kind: 'tool' } })
+    expect(inquiries).toEqual([])
+    expect(await source.describe(call('Ask', APPROVAL))).toEqual({
+      ok: {
+        kind: 'answered',
+        text: 'Ask: the command "request_approval" is not available now. This session asks nobody for approval (permission mode). This is not permission: do not do the action.',
+      },
+    })
+    expect(inquiries).toEqual([{ principal: principalA, tenant: TENANT_A, session: 'ses-a' }])
+  })
+
+  it.each(['ask-human', 'skip-ask'] as const)(
+    'keeps request_approval open while the inquiry policy is %s',
+    async policy => {
+      const { source, call } = await hosted(open, () => policy)
+      expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({ ok: { kind: 'tool' } })
+    },
+  )
+
+  it('answers unavailable for request_approval when the inquiry policy cannot be read', async () => {
+    const { source, call } = await hosted(open, () => null)
+    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
+      failure: {
+        kind: 'unavailable',
+        diagnostic:
+          'the permission inquiry of the session is unreadable: the publication is not there',
+      },
+    })
+    expect(await source.describe(call('Ask', ASK))).toMatchObject({ ok: { kind: 'tool' } })
+  })
+
+  it('does not read the inquiry policy when the collaboration already closes request_approval', async () => {
+    const { source, call, inquiries } = await hosted(
+      () => ({ humanInteraction: true, requestApproval: false }),
+      () => 'deny',
+    )
+    expect(await source.describe(call('Ask', APPROVAL))).toMatchObject({
+      ok: { kind: 'answered', text: expect.stringContaining('(collaboration mode)') },
+    })
+    expect(inquiries).toEqual([])
+  })
+})
 
 describe('the release composition releaseToolRequestsOf on a real Cordis root (R2-D189 N1)', () => {
   it('reads the session as the coordinator caller and the scope binding under executionScopeBinding', async () => {

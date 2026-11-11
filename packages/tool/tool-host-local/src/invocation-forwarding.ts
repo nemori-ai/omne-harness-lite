@@ -250,7 +250,8 @@ export function createInvocationForwarding<P, B extends ContentBlock>(
     const read = await readParent({ ...access, call: id.ok })
     if ('failure' in read || read.ok.start === null) return unavailable()
     const parent = read.ok
-    if (parent.start === null) return unavailable()
+    // A forwarding parent runs as a first start; a resume of a checkpointed call forwards nothing.
+    if (parent.start?.kind !== 'start') return unavailable()
     const checked = await checkParent({
       ...access,
       call: parent.call,
@@ -423,7 +424,7 @@ export function createInvocationForwarding<P, B extends ContentBlock>(
         const found = await storedOf(access, forwardingConsumer(parent.ok.call))
         if ('failure' in found) return found
         if (found.ok.stored === null) {
-          if (parent.ok.start === null) return denied()
+          if (parent.ok.start?.kind !== 'start') return denied()
           const checked = await checkParent({
             ...access,
             call: parent.ok.call,

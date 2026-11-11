@@ -14,6 +14,7 @@
 | `createSqlToolGuardedHostCommit`、`SqlToolGuardedHostCommit`、`SqlToolGuardedHostCommitInput`、`SqlToolGuardedHostCommitResult` | [src/guarded-host-commit.ts](../src/guarded-host-commit.ts) | TS-03、TS-11               |
 | `createSqlToolConditionalCommit`、`SqlToolConditionalCommit`、`SqlToolConditionalCommitInput`、`SqlToolConditionalCommitResult`、`SqlToolCondition` | [src/conditional-commit.ts](../src/conditional-commit.ts) | TS-03、TS-12 |
 | `createSqlToolOutputCustody`                                                                                                    | [src/custody.ts](../src/custody.ts)                         | TS-03 至 TS-08             |
+| `readSqlToolOutputBytes`、`SqlToolOutputBytes`                                                                                  | [src/custody.ts](../src/custody.ts)                         | TS-03、TS-13               |
 | `SqlToolStorageOptions`、`SqlToolOutputCustodyOptions`、`CHUNK_ENVELOPE_BYTES`、`TOOL_STORAGE_OWNER`                            | [src/options.ts](../src/options.ts)                         | TS-07                      |
 | `toolStorageMaterials`、`ToolStorageMaterials`、`TOOL_PARTICIPANT`                                                              | [src/materials.ts](../src/materials.ts)                     | TS-10                      |
 

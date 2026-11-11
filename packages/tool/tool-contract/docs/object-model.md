@@ -72,7 +72,7 @@ Tool 建模自己承担的责任：一次原调用的真实执行、等待、控
 | FixedToolRequest | 不可变值，原调用与输入摘要 | 固定原始/生效参数、来源、消费位置、工作区身份、环境、限额 | 准入后不变；秘密按字段权限读取 |
 | ToolCall | 持久聚合根，tenant + call | 原调用阶段、关系、真实执行确定性、效果、等待、控制、结果和责任 | Commands 唯一写；宿主退出后存在；不序列化活体对象 |
 | OperationRecord | 聚合内实体，call + operation | 输入去重、原操作结果及提交未知认回 | 与状态和待办同提交；不能只存 revision |
-| QueueReservation | 本域跨调用实体，tenant + scope（owner、key）+ 工具身份 | 持久 FIFO、并发占位、排除与释放 | 同 queue key 原子裁定；实现版本不是另一队列 |
+| QueueReservation | 本域跨调用实体，tenant + 并发范围（owner、key），每个调用一个条目，条目记录工具名 | 范围级持久 FIFO、工具上限与范围预算下的名额、停泊、排除与释放 | 同一并发范围原子裁定；停泊条目不持有名额，仍计入 `queueCapacity`；实现版本不是另一队列 |
 | PreparationRecord / ReleaseRecord | 协议值，原 operation | 原环境分配及清理责任 | Tool 保存意图，环境拥有者保存资源真相 |
 | ToolStartRecord / StartPermit | 协议值，start/resume operation | 原执行链、当前资格版本和受理关联 | permit 可失效；历史 start 不改；不是永久授权 |
 | WaitRecord | 聚合内实体，call + wait | opening/open/responding/closed、原登记/资源应答、接续位置 | 可跨调用方和宿主换代；决策方的决定不归它写 |
@@ -180,7 +180,7 @@ classDiagram
 
 实例状态。每次执行有一个独有的 ToolExecutionScope，它是输出顺序、容量、等待 key 和收尾状态的唯一写者。它创建的 ToolExecutionContext 只把受限的 emit、wait 和 signal 借给作者。上下文可处于接收、等待、收尾或关闭阶段。等待期间可以接收合法过程输出，但只能认回当前 key 的等待。收尾关闭新原语入口，输出屏障与等待清理继续。检查点保存的是协议数据和提供者明确支持的程序位置，不保存这个对象或 Promise。完整守卫与取消优先级归 [P11](../SPEC.md#p11-作者输出与等待原语)。ToolInstanceHost 的调度与目录、驱动协程、live execution、signal 和订阅也是实例状态，由获得它们的宿主持有。独立协程负责某一段推进；Cordis fiber 负责其服务贡献与可撤资源。它们退出都不能删除 ToolCall。
 
-持久状态。本域有两个持久一致边界。调用域以 ToolCall 为持久聚合根，由 Commands 唯一写。队列域以 QueueReservation 跨调用持久，同 queue key 原子裁定。契约不要求两个边界共同事务，跨域转换的顺序见 tool 的 architecture（`tool/docs/architecture.md#队列域与跨域提交`）。协议记录、操作回执、待办和计时证据由存储承诺耐久，原输出和结果经 ToolOutputCustody 保管。从这些值重建协调器，不反序列化对象图。每次读取和变更都核当前资格及原归属。StartPermit 可失效，不是永久授权。
+持久状态。本域有两个持久一致边界。调用域以 ToolCall 为持久聚合根，由 Commands 唯一写。队列域以 QueueReservation 跨调用持久，同一并发范围内原子裁定。契约不要求两个边界共同事务，跨域转换的顺序见 tool 的 architecture（`tool/docs/architecture.md#队列域与跨域提交`）。协议记录、操作回执、待办和计时证据由存储承诺耐久，原输出和结果经 ToolOutputCustody 保管。从这些值重建协调器，不反序列化对象图。每次读取和变更都核当前资格及原归属。StartPermit 可失效，不是永久授权。
 
 ## 状态与转移
 
@@ -200,6 +200,25 @@ stateDiagram-v2
     Running --> Settled: 逻辑或真实终局
     Suspended --> Settled: 合法取消或接续拒绝
     Settled --> Settled: 迟到事实 控制 保管与清理
+```
+
+下图是队列条目（QueueReservation）的阶段，边上标调用域的条件。释放执行名额与删除条目是两件事：条目停泊时只释放执行名额，凭释放依据删除条目时才写墓碑。规则见 [P02](../SPEC.md#p02-定义准入与队列)。
+
+```mermaid
+stateDiagram-v2
+    [*] --> Preparing: 条目取得序号
+    Preparing --> Ready: 原环境确认
+    Ready --> Held: 范围内无序号更小的 preparing 或 ready 条目 且未超工具上限与范围预算
+    Held --> Parked: suspended 已提交 释放执行名额
+    Held --> Held: 答复先于停泊被接受 保持 held 直接恢复
+    Parked --> Ready: 答复已接受 以新序号重新排队
+    Held --> Deleted: 释放依据成立
+    Parked --> Deleted: 调用收场 释放依据 suspended-exclusion
+    Deleted --> [*]: 写墓碑
+    note right of Parked
+        不持有执行名额
+        仍计入 queueCapacity
+    end note
 ```
 
 ```mermaid
@@ -332,7 +351,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | [CAP-TL01](../verification/README.md#产品到成员的覆盖) 定义呈现取用 | ToolDefinition、ToolGovernance、ToolImplementationFacts、ToolCatalog、ParameterCodec、ToolPresentation | 呈现与采用的定义一致，定义由资产治理与实现派生且 name 不一致即拒绝装载，包装来源不能洗白，未声明 programmable 即不可程序调用 |
 | [CAP-TL02](../verification/README.md#产品到成员的覆盖) 动态可用及 dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability（含 layer）、ToolBindingRegistry、换代协调者 | 可用性列出全部未满足条件；dummy 不解析参数、不分配环境、不启动；常驻项按 R1–R5 保持同形，冻结只在采用点且要耐久证据 |
 | [CAP-TL03](../verification/README.md#产品到成员的覆盖) 当前准入固定发起 | FixedToolRequest、ToolStartRecord、StartPermit、ToolStartAuthority | 同身份异输入被拒；资格失效后旧请求不能再发起 |
-| [CAP-TL04](../verification/README.md#产品到成员的覆盖) 设置限额队列 | QueueReservation、QueuePosition、ResourceScope（含 grant） | 同 key 的 FIFO 与名额原子裁定；授予缺失或属于他方即拒绝；不同租户不共队列 |
+| [CAP-TL04](../verification/README.md#产品到成员的覆盖) 设置限额队列 | QueueReservation、QueuePosition、ResourceScope（含 grant） | 同一并发范围的 FIFO 与名额原子裁定，名额同时受工具上限与范围预算限制；授予缺失或属于他方即拒绝；不同租户不共队列 |
 | [CAP-TL05](../verification/README.md#产品到成员的覆盖) 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | 转后台须许可；重复转换只产生一个占位；不回前台 |
 | [CAP-TL06](../verification/README.md#产品到成员的覆盖) 等待答复 | WaitIntent/WaitRecord、ResponseRecord、ToolDecisionBridge、ToolResourceResponses | 一次等待只有一个有效答复；登记或确认丢失后可认回；Ask 不用资源超时 |
 | [CAP-TL07](../verification/README.md#产品到成员的覆盖) 结果及采用 | ToolAuthor、OutputCodec、ResultPolicy、RawOutput、ToolResult | 原件先于渲染与政策检查保管；失败不重跑，不假报耐久 |

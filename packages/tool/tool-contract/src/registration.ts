@@ -1,6 +1,8 @@
 // Author registration (P13 multi-command): operation handles and the definitions they project.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { CheckpointedToolExecutor } from './checkpointed-author.ts'
+import type { ToolExecutor } from './execution.ts'
 import type {
   ToolAuthor,
   ToolImplementation,
@@ -30,6 +32,7 @@ import {
   literal,
   member,
   nonBlank,
+  positiveSafeInteger,
   record,
   reject,
   slot,
@@ -39,7 +42,7 @@ import {
   type ShapeRejection,
 } from './shape.ts'
 import { COMMAND_CALL_ENCODINGS, type CommandCallEncoding } from './command-call.ts'
-import { adoption, sameAdoption, sameSchemaIdentity } from './value-shapes.ts'
+import { adoption, sameAdoption, sameSchemaIdentity, schemaIdentity } from './value-shapes.ts'
 import { isToolWaitContract, valueSchema } from './wait-contract.ts'
 
 type Rejection = Readonly<{ field: string; reason: string }>
@@ -91,10 +94,32 @@ function adopted(check: Check<unknown>): Check<unknown> {
 const waitHandle: Check<unknown> = (value, at) =>
   isToolWaitContract(value) ? succeed(value) : reject(at, 'type')
 
+const checkpointDeclaration = record({
+  schema: schemaIdentity,
+  codec: adoption,
+  maxBytes: positiveSafeInteger,
+})
+
+/**
+ * The executor of an author. One that names a `checkpoint` runs in segments: it needs `initial`
+ * and `resume` and a closed checkpoint declaration. Any other one runs as a live coroutine and
+ * needs `execute`.
+ */
+const executor: Check<unknown> = (value, at) => {
+  if (typeof value !== 'object' || value === null) return reject(at, 'type')
+  const declared = capabilityMember(value, at, 'checkpoint')
+  if ('failure' in declared) return declared
+  if (declared.ok === undefined) return capability('execute')(value, at)
+  const methods = capability('initial', 'resume')(value, at)
+  if ('failure' in methods) return methods
+  const checkpoint = checkpointDeclaration(declared.ok, member(at, 'checkpoint'))
+  return 'failure' in checkpoint ? checkpoint : succeed(value)
+}
+
 const authorCommon = {
   parameters: adopted(capability('parse')),
   waits: list(waitHandle),
-  executor: capability('execute'),
+  executor,
   codec: adopted(capability('encode', 'decode')),
   output: adopted(capability('check')),
 }
@@ -166,12 +191,35 @@ const OPERATION_RULES: readonly OperationRule[] = [
   spec => programMismatch(spec.returns.program, spec.author.program),
 ]
 
-/** What an operation handle keeps for the binding: the author and the checked declarations. */
+type AnyCheckpointed = CheckpointedToolExecutor<unknown, unknown, unknown>
+
+/**
+ * What an operation handle keeps for the binding: the author and the checked declarations. An
+ * author that runs in segments keeps its executor in `segments`; its `author.executor` then only
+ * refuses, so a binding that runs live coroutines cannot run it by mistake.
+ */
 export type ToolOperationSlot = Readonly<{
   author: AnyAuthor
   parameters: ToolOperationParameters
   returns: ToolReturnDeclaration
+  segments: AnyCheckpointed | null
 }>
+
+/** The live executor that stands in the author of a checkpointed operation. */
+const runsInSegments: ToolExecutor<unknown, unknown, unknown> = Object.freeze({
+  execute: () =>
+    Promise.reject(
+      new TypeError('this author runs in segments: only a checkpointed binding runs it'),
+    ),
+})
+
+function isCheckpointed(value: unknown): value is AnyCheckpointed {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    inheritedSlot(value, 'checkpoint').kind === 'value'
+  )
+}
 /** What a registration keeps for the binding: one operation, or one per command name. */
 export type ToolRegistrationSlot =
   | Readonly<{ kind: 'function'; operation: ToolOperationSlot }>
@@ -223,14 +271,26 @@ export function defineToolOperation<
 >(input: ToolOperationSpec<A, R, E, B, P>): Outcome<ToolOperation<E, B, P>, Rejection> {
   const checked = judgeUnknown(operationSpec, input, 'input')
   if ('failure' in checked) return checked
-  // The author passed the closed check of its kind above.
-  const spec = { ...checked.ok, author: checked.ok.author as AnyAuthor }
+  // The author passed the closed check of its kind above; its executor is one of the two kinds.
+  const given = checked.ok.author as Omit<AnyAuthor, 'executor'> & Readonly<{ executor: unknown }>
+  const segments = isCheckpointed(given.executor) ? given.executor : null
+  const author = (segments === null ? given : { ...given, executor: runsInSegments }) as AnyAuthor
+  const spec = { ...checked.ok, author }
+  // A segment waits only by returning an Ask, so the author must declare the Ask it may use.
+  if (segments !== null && !given.waits.some(wait => wait.kind === 'ask'))
+    return reject('input.author.waits', 'checkpointed-without-ask')
   const broken = OPERATION_RULES.map(rule => rule(spec)).find(failure => failure !== undefined)
   if (broken !== undefined) return fail(broken)
+  const slot: ToolOperationSlot = {
+    author,
+    parameters: spec.parameters,
+    returns: spec.returns,
+    segments,
+  }
   const handle = marked(
     { parameters: spec.parameters, returns: spec.returns },
     operationMark,
-    Object.freeze(spec),
+    Object.freeze(slot),
   )
   // The mark holds the author; the phantom brand of ToolOperation has no run-time value.
   return succeed(handle as unknown as ToolOperation<E, B, P>)

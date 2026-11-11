@@ -1,8 +1,15 @@
 // The status code of each public outcome (binding page「状态码映射」). The key type is the union of
 // every outcome the public contract can encode, so a missing row fails the type check.
-import type { GovernanceResponse, SessionResponse } from '@omne-harness/public-contract'
+import type {
+  GovernanceResponse,
+  HitlResponse,
+  SessionResponse,
+} from '@omne-harness/public-contract'
 
-export type PublicOutcome = GovernanceResponse['outcome'] | SessionResponse['outcome']
+export type PublicOutcome =
+  | GovernanceResponse['outcome']
+  | SessionResponse['outcome']
+  | HitlResponse['outcome']
 
 export const STATUS_BY_OUTCOME: Readonly<Record<PublicOutcome, number>> = Object.freeze({
   succeeded: 200,

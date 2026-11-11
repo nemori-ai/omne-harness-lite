@@ -84,6 +84,11 @@ export function copyData(value: unknown, path = new Set<object>()): unknown {
   }
 }
 
+/** A start record given back by a trusted producer: a closed `start` or `resume` record. */
+export function judgeStartRecord(value: unknown): Outcome<ToolStartRecord, ToolFailure> {
+  return start(value)
+}
+
 function start(value: unknown): Outcome<ToolStartRecord, ToolFailure> {
   if (
     !object(value) ||
@@ -226,6 +231,103 @@ function raw(value: unknown): Outcome<RawOutput, ToolFailure> {
     return invalid('batch.events.fact.raw', 'shape')
   return succeed({ codec: codec.ok, custody: custody.ok, content: content.ok.ref })
 }
+function positive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
+function schemaIdentity(value: unknown): value is { id: string; revision: string; digest: string } {
+  return (
+    closed(value, ['id', 'revision', 'digest']) &&
+    text(value.id) &&
+    text(value.revision) &&
+    text(value.digest)
+  )
+}
+/**
+ * The wait a checkpointed segment ended with (P06): an Ask intent with its wait identity, its
+ * resume and request evidence and the fixed wait schemas. An Ask has no expiry. A resource wait is
+ * not received.
+ */
+function askWait<B extends ContentBlock>(
+  value: Data,
+  adoption: Adoption,
+): Outcome<ToolExecutionFact<B>, ToolFailure> {
+  if (!closed(value, ['kind', 'value']) || !object(value.value))
+    return invalid('batch.events.fact', 'shape')
+  const intent = value.value
+  if (intent.kind !== 'ask')
+    return {
+      failure: {
+        kind: 'unsupported',
+        adoption,
+        reason: 'receiveFacts supports Ask waits only; a resource wait blocks the complete batch',
+      },
+    }
+  if (!closed(intent, ['wait', 'resume', 'schemas', 'kind', 'request']))
+    return invalid('batch.events.fact.value', 'shape')
+  const wait = decodeToolWaitId(intent.wait)
+  if ('failure' in wait) return invalid('batch.events.fact.value.wait', wait.failure.reason)
+  const resume = judgeEvidenceField(intent.resume, 'batch.events.fact.value.resume')
+  if ('failure' in resume) return resume
+  const request = judgeEvidenceField(intent.request, 'batch.events.fact.value.request')
+  if ('failure' in request) return request
+  const schemas = intent.schemas
+  const keys = [
+    'contract',
+    'request',
+    'response',
+    'requestMaxBytes',
+    'responseMaxBytes',
+    'expiry',
+    'source',
+  ]
+  if (
+    !closed(schemas, keys) ||
+    !schemaIdentity(schemas.request) ||
+    !schemaIdentity(schemas.response) ||
+    !positive(schemas.requestMaxBytes) ||
+    !positive(schemas.responseMaxBytes) ||
+    schemas.expiry !== 'forbidden'
+  )
+    return invalid('batch.events.fact.value.schemas', 'shape')
+  const contract = judgeAdoptionField(schemas.contract, 'batch.events.fact.value.schemas.contract')
+  if ('failure' in contract) return contract
+  const source = judgeEvidenceField(schemas.source, 'batch.events.fact.value.schemas.source')
+  if ('failure' in source) return source
+  return succeed({
+    kind: 'wait',
+    value: {
+      kind: 'ask',
+      wait: wait.ok,
+      resume: resume.ok,
+      request: request.ok,
+      schemas: {
+        contract: contract.ok,
+        request: schemas.request,
+        response: schemas.response,
+        requestMaxBytes: schemas.requestMaxBytes,
+        responseMaxBytes: schemas.responseMaxBytes,
+        expiry: 'forbidden',
+        source: source.ok,
+      },
+    },
+  })
+}
+/**
+ * The `continued` fact of a resume segment (P06, P11): the wait it continues, the response it
+ * consumed, and the timing evidence of the real resume point. The ledger checks the three against
+ * the call's responding wait when it saves the fact.
+ */
+function continued(value: Data): Outcome<ToolExecutionFact<never>, ToolFailure> {
+  if (!closed(value, ['kind', 'wait', 'response', 'timing']))
+    return invalid('batch.events.fact', 'shape')
+  const wait = decodeToolWaitId(value.wait)
+  if ('failure' in wait) return invalid('batch.events.fact.wait', wait.failure.reason)
+  const response = decodeToolOperationId(value.response)
+  if ('failure' in response) return invalid('batch.events.fact.response', response.failure.reason)
+  const timing = judgeEvidenceField(value.timing, 'batch.events.fact.timing')
+  if ('failure' in timing) return timing
+  return succeed({ kind: 'continued', wait: wait.ok, response: response.ok, timing: timing.ok })
+}
 function fact<B extends ContentBlock>(
   value: unknown,
   policy: ResultPolicy<B>,
@@ -243,13 +345,15 @@ function fact<B extends ContentBlock>(
     }
     return succeed({ kind: 'process', blocks })
   }
+  if (value.kind === 'wait') return askWait(value, adoption)
+  if (value.kind === 'continued') return continued(value)
   if (value.kind !== 'final') {
-    if (['wait', 'continued', 'account', 'program-scheduling'].includes(String(value.kind)))
+    if (['account', 'program-scheduling'].includes(String(value.kind)))
       return {
         failure: {
           kind: 'unsupported',
           adoption,
-          reason: `receiveFacts supports process/final; ${String(value.kind)} blocks the complete batch`,
+          reason: `receiveFacts supports process, final, Ask wait and continued; ${String(value.kind)} blocks the complete batch`,
         },
       }
     return invalid('batch.events.fact.kind', 'variant')

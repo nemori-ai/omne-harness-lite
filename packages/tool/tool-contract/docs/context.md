@@ -92,9 +92,9 @@ stateDiagram-v2
   Ask --> Settled: cancellation or confirmed loss
 ```
 
-准备/队列取消和发起时后台是契约另行允许的分支，这张图仅示原前台代表路径。名额在 Foreground、Ask、Background 均被占用；实际收场或可靠排除后释放，逻辑终局本身不释放名额。Ask 没有超时边，不能转后台。后台最终结果不能再次为后台占位或 dummy。
+准备/队列取消和发起时后台是契约另行允许的分支，这张图仅示原前台代表路径。名额在 Foreground、Background 及存活协程的 Ask 等待中均被占用。检查点作者可靠暂停后，队列条目停泊，释放执行名额，仍计入 `queueCapacity`。其余情况下名额在实际收场或可靠排除后释放，逻辑终局本身不释放名额。Ask 没有超时边，不能转后台。后台最终结果不能再次为后台占位或 dummy。
 
-一次 Ask 的顺序为 openWait 保存意图、原接续点和登记任务，决策方 ensure 认回对原请求的登记，attachRegistration 保存关联；决策方在固定 schema 及业务资格校验后作唯一有效决定，非法提交只反馈提交方并保持等待，acceptDecision 保存 ResponseRecord 及接续责任，然后向原执行者 answer。答复应答丢失时仍使用原 wait/decision；执行者重复 answer 不重复后续效果。停在可恢复检查点的执行者只能 resume 未做步骤，普通函数不能靠重新 execute 模拟接续。
+一次 Ask 的顺序为 openWait 保存意图、原接续点和登记任务，决策方 ensure 认回对原请求的登记，attachRegistration 保存关联；决策方在固定 schema 及业务资格校验后作唯一有效决定，非法提交只反馈提交方并保持等待，acceptDecision 保存 ResponseRecord 及接续责任。存活协程作者由 answer 交回原执行者；检查点作者重新取得名额后，以 ResponseRecord 为输入运行 resume 段。答复应答丢失时仍使用原 wait/decision；执行者重复 answer 不重复后续效果。停在可恢复检查点的执行者只能 resume 未做步骤，普通函数不能靠重新 execute 模拟接续。
 
 ## 交付与全文
 
@@ -126,7 +126,7 @@ stateDiagram-v2
 | 环境准备成功，排队期间撤权 | 实际 start 拒绝，环境按原责任释放，不暗换宿主 | 环境与执行边界提供者 |
 | prepareStart 保存意图后、真实调用前撤回 programmable | 启动围栏拒绝；可靠排除启动后记录 rejected，再保存 unavailable 终局；恢复只收场，不重新 start | 启动围栏、ToolCommands 与恢复提供者 |
 | 拒绝记录已确认，保存不可用结果前崩溃 | loadRecovery 返回 startRejection 和 settle 待办，继续原结果交付和资源释放，不因许可重新开放而发起 | ToolCommands 与宿主恢复者 |
-| 达到并发上限 | 原受理不变，FIFO 等待；已有 Ask/后台仍计数 | ToolCommands/调度提供者 |
+| 达到工具上限或范围预算 | 原受理不变，在所属并发范围内按 FIFO 等待；后台与存活协程的 Ask 等待仍计数，检查点作者停泊的调用不计数，但仍计入 `queueCapacity` | ToolCommands/调度提供者 |
 | 实际 start 后回执未落盘 | 原操作未知，不能再次 execute | Tool 执行与存储组合 |
 | 前台上限到达时正在 Ask | Ask 时间不累计，无默认回答，无后台转换 | Tool 时间/等待提供者 |
 | 转后台后调用方退出 | 原 Tool 继续，最后交原 consumer；不建第二执行 | Tool 宿主与消费方 |

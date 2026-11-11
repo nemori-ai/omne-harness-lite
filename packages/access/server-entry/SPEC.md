@@ -1,10 +1,12 @@
 # 服务端接入行为规格
 
-本页拥有治理位置与会话位置的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、请求体上限和 SSE 格式只归[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)。各小节的采用依据见该节开头。
+本页拥有治理位置、会话位置与 HITL 位置的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、请求体上限和 SSE 格式只归[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)。各小节的采用依据见该节开头。
 
 下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话位置和承载页的引用、「[位置与操作范围](#位置与操作范围)」整节（含各小节）、「[验证](#验证)」一节中会话位置与 HTTP 层的验证义务。其余条款保持各自原有的采用状态。「[会话诊断投影](#会话诊断投影)」小节，「会话位置」一节里写 `read-session-diagnostics` 的句子与表格内容，以及「[依赖](#依赖)」「[验证](#验证)」中会话诊断投影的条款，不在 DP-2 的采用范围内：它们由 [RFC-0013](../../../docs/rfcs/RFC-0013-engineering-telemetry.md) revision 2 的本地范围另行采用。
 
 「[治理位置](#治理位置)」「[成功业务访问的报告](#成功业务访问的报告)」「[登录失效时结束观察](#登录失效时结束观察)」三个小节，以及「[服务端的 HTTP 层责任](#服务端的-http-层责任)」与「[验证](#验证)」中治理端口的条款，按 Reduce 的 R2-D203、R2-D204 与身份治理交付规格的 F2、F3、C4、C5 修订。
+
+「[HITL 位置](#hitl-位置)」「[HITL 提交身份的派生规则](#hitl-提交身份的派生规则)」两个小节，以及「[服务端的 HTTP 层责任](#服务端的-http-层责任)」与「[验证](#验证)」中 HITL 位置的条款，不在 DP-2 的采用范围内。它们按系统架构的[领域能力的公开位置](../../../docs/architecture/layers-and-dependencies.md#领域能力的公开位置)写定。
 
 ## 入口职责
 
@@ -20,9 +22,9 @@
 
 ## 位置与操作范围
 
-接入有两个位置。治理位置读写 `governance-public/1`，会话位置读写 `session-public/1`。接入按请求路径选择位置和读取函数，不按消息里的版本文本分派。路径、方法、内容类型、状态码与请求体上限在[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)。本页不复制那张表。
+接入有三个位置。治理位置读写 `governance-public/1`，会话位置读写 `session-public/1`，HITL 位置读写 `hitl-public/1`。接入按请求路径选择位置和读取函数，不按消息里的版本文本分派。路径、方法、内容类型、状态码与请求体上限在[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)。本页不复制那张表。
 
-两个位置的 HTTP 层先于公开契约的判断次序。HTTP 层的步骤和次序见[请求与响应规则](../public-contract/docs/http-binding.md#请求与响应规则)。HTTP 层的失败不调用 identity、authorization 和 Session。
+每个位置的 HTTP 层先于公开契约的判断次序。HTTP 层的步骤和次序见[请求与响应规则](../public-contract/docs/http-binding.md#请求与响应规则)。HTTP 层的失败不调用 identity、authorization、Session 和 HITL。
 
 状态码不替代消息里的 `outcome`。接入只由 `outcome` 决定状态码，映射见[状态码映射](../public-contract/docs/http-binding.md#状态码映射)。同一个 `outcome` 总是得到同一个状态码和同样形状的响应体。
 
@@ -35,7 +37,7 @@
 - 4 个设置操作：`list-settings`、`set-setting`、`describe-setting`、`clear-setting`。接入把它们交给装配给的 `settings` 端口，规则见[设置项](#设置项)。
 - 部署声明不提供的 14 个操作：`public-health`、`replace-credential`、`query-organization`、隶属的 8 个操作、`judge-admission`、`submit-authorization-expression` 与 `withdraw-authorization-expression`。声明是成员常量 `NOT_PROVIDED_GOVERNANCE_OPERATIONS`（`src/governance.ts`）。规则见公开契约的[部署声明不提供的操作](../public-contract/SPEC.md#部署声明不提供的操作)：请求通过第 3 步的封闭字段检查之后，接入答 `stage-not-provided`，`body` 为空，不识别登录，也不读取账号库。
 
-识别登录不是公开操作。它是两个位置判断次序里的内部步骤。
+识别登录不是公开操作。它是各位置判断次序里的内部步骤。
 
 #### 设置项
 
@@ -75,7 +77,7 @@
 - 会话位置的 7 个操作答 `succeeded`。编码失败时没有答复，不报告。
 - `observe-session` 建立成功，即认领到名额之后。
 
-其他请求都不报告：失败的请求、治理操作、`cancel-observation`、声明不提供的操作和仅完成识别的请求。
+其他请求都不报告：失败的请求、治理操作、HITL 位置的操作、`cancel-observation`、声明不提供的操作和仅完成识别的请求。
 
 接入先写出答复，再报告。`observe-session` 在流附着、连接关闭的监听登记之后再报告。接入不等报告结束，也不给报告设时限。报告永不结束时，答复照常写出，名额照常释放，`stop()` 照常结束。报告答 `basis-unavailable` 或 Promise 被拒绝时，接入记诊断 `identity.fault`，答复不变。
 
@@ -205,6 +207,63 @@ flowchart TD
 
 碰撞测试分两层。接入的碰撞测试归接入，见[验证](#验证)：每个族只改一个字段，身份就变。摘要算法本身的碰撞测试归 Session，已在 Session 的 `deriveIngressOperation` 测试中。
 
+### HITL 位置
+
+本节兑现公开契约的[HITL 公开操作](../public-contract/SPEC.md#hitl-公开操作)。接入是这个位置的组合承担者：它经 HITL 声明的公开查询与命令调用 HITL，不另核资格。读者、答复者、当前成员资格与一卡一决都由 HITL 判断。
+
+接入按公开契约的[HITL 判断次序](../public-contract/SPEC.md#hitl-判断次序)处理 HITL 消息。下表写接入在每一步的职责。
+
+| 步骤 | 接入的职责 |
+| --- | --- |
+| 1 协议读取 | 用 `readHitlRequest` 读取。不合规是 `protocol-rejected`，HITL 不被调用。部署声明不提供的 HITL 操作在这之后答 `stage-not-provided`，不识别登录 |
+| 2 登录识别 | 把 `loginProof` 交给 identity 的登录识别，得到账号与登录。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表 |
+| 3 目标租户与入口主体 | 目标租户的账号不等于识别出的账号时答 `denied`，不调用持有者。账号相等时，把识别出的账号与目标租户交给装配给的入口主体持有者 `hitlEntryPrincipals`，取得入口主体。持有者缺席、拒绝签发或抛出时答 `basis-unavailable` |
+| 4 HITL 判断 | 以入口主体作为 `Access`，调用 HITL 入口面的对应方法。结果按公开契约的映射表对外表示 |
+
+入口主体是 `{ kind: 'acting-for-tenant', actor, tenant, work }`：`actor` 是本成员的系统主体，`component` 为 `server-entry`；`tenant` 是目标租户；`work` 是 `{ owner: 'harness.hitl', work: 'cards' }`。`work` 是固定文本，所以同一租户的每次请求都得到同一个主体引用，与这次请求用哪一份登录无关。出卡方登记卡片时，用这个引用固定读者与答复者，规则见 HITL 的[公开入口与受众](../../human-intervention/human-intervention/docs/protocol.md#公开入口与受众)。签发者与关系核对见 identity 的[持有者与关系核对位置](../../identity/identity/SPEC.md#持有者与关系核对位置)。
+
+接入只声明下面这个窄入口面，真实的 HITL 应用在结构上满足它。下面是设计形状：
+
+```ts
+type HitlIngressFaces<P> = Readonly<{
+  queries: Pick<HumanInterventionQueries<P>, 'listPool' | 'getCard' | 'getOperation'>
+  commands: Pick<HumanInterventionCommands<P>, 'submitReply'>
+  /** HITL 提供者对一条 submitReply 命令的绑定：原操作身份与输入摘要。 */
+  bindSubmitReply(command: SubmitReply): Readonly<{ operationRef: OperationRef; inputDigest: string }>
+}>
+```
+
+公开操作到入口面的映射如下。四次调用的 `protocol` 都是 `hitl/1`。
+
+| 公开操作 | 入口面的方法 | 输入 |
+| --- | --- | --- |
+| `list-cards` | `queries.listPool` | `tenantRef` 为目标租户的租户文本；`locationRef` 为部署配置 `hitlLocationRef`；`filter` 与 `limit` 取 body；`cursor` 为 null 时省略，否则取 body |
+| `read-card` | `queries.getCard` | `cardRef` 取 body 的 `card` |
+| `submit-reply` | `commands.submitReply` | `operation` 为派生的提交身份；`cardRef`、`expectedRevision` 与 `reply` 取 body |
+| `query-submit-reply` | `queries.getOperation` | 按上一行组成同一条 `submitReply` 命令，交给 `bindSubmitReply`，取得 `operationRef` 与 `inputDigest`。接入不另写摘要算法 |
+
+补充规则如下。
+
+- 位置引用 `hitlLocationRef` 是部署配置，与装配给 HITL 查询的固定位置相同。客户端不填它。
+- 装配没有给 HITL 入口面时，四个操作都按[HITL 部署声明不提供的操作](../public-contract/SPEC.md#hitl-部署声明不提供的操作)处理：通过第 1 步之后答 `stage-not-provided`，不识别登录。声明的其余部分是成员常量，列出本部署不提供的 HITL 操作。四个操作的接入都已实现，所以这份常量是空的。
+- `list-cards` 带不带 `sessionRef` 都调用同一个 `listPool`，`filter` 原样交给 HITL。接入不按来源或会话自行过滤结果。
+- 接入把 HITL 的池项按公开契约的[卡片视图](../public-contract/SPEC.md#卡片视图)编码。`origin` 只取 `kind`、`sessionRef`、`runRef` 与 `toolCallRef`，其余成员原样编码。
+- HITL 位置的 `denied` 不披露卡片是否存在。接入对所有 `denied` 原因给出逐字节相同的响应，见[denied 的一致性](../public-contract/docs/http-binding.md#denied-的一致性)。
+- HITL 位置的操作不报告成功业务访问，所以不刷新登录的空闲计时。
+- HITL 入口面的 `listPool` 或 `getCard` 抛出时，结果是 `basis-unavailable`。接入记诊断 `hitl.read-fault`，`operation` 是抛出的方法名。`bindSubmitReply` 或 `getOperation` 抛出时，结果同样是 `basis-unavailable`，诊断的 `operation` 是 `getOperation`。HITL 给出的 `unavailable` 答复不是故障，不记这个诊断。
+- `query-submit-reply` 认回的原操作不是答复命令时，同一提交身份对应了不同内容，结果是 `conflict`。
+
+### HITL 提交身份的派生规则
+
+本节兑现公开契约[答复的提交与认回](../public-contract/SPEC.md#答复的提交与认回)分给服务端接入的派生规则。`submit-reply` 与 `query-submit-reply` 用同一个派生。
+
+1. 派生是确定性的。同一次提交在崩溃前后、换一份登录之后，得到同一个身份。
+2. `tenantRef` 是目标租户的租户文本，取法同[派生身份](../../../docs/architecture/runtime/runtime-contract-handoff.md#派生身份)。
+3. `actorRef` 是 identity 的 `standingPrincipalRef` 对入口主体的结果。入口主体对同一租户稳定，所以它也稳定。
+4. `operationId` 是字符串数组 `["hitl-public/1-reply", 租户文本, replyId]` 的摘要。编码与摘要同[派生身份](../../../docs/architecture/runtime/runtime-contract-handoff.md#派生身份)：不带 replacer 与缩进的 `JSON.stringify`，取 UTF-8 字节的 SHA-256，写成小写十六进制，不加前缀。
+5. 身份不含登录文本，也不含 `messageId`。换新的 `messageId`、重连或换登录都不产生新身份。
+6. 同一 `replyId` 对应不同内容时，HITL 的输入摘要不同，HITL 答 `conflict`。
+
 ### 服务端的 HTTP 层责任
 
 下面的规则属于服务端自己，不是两端共用的承载保证。
@@ -224,6 +283,7 @@ flowchart TD
 - Session 的提交类调用：`create`、`accept`、`cancelRun` 与 `stopCall`。调用开始之后抛出异常或不可达时，结果是 `unknown`，状态 500，带 `unknown` 的响应体。提交可能已经发生，所以接入不答 `basis-unavailable`。依据是公开契约：只有存储提交之前来源不可读才是 `basis-unavailable`（[Session 结果与线上结果](../public-contract/SPEC.md#session-结果与线上结果)），`commit-unknown` 映射为 `unknown`（[结果](../public-contract/SPEC.md#结果)）。调用者用原标识原样再送，或用查询操作认回。
 - 治理位置的 `register-and-activate` 与 `issue-login`：identity 的公开入口抛出异常或不可达时，签发或激活可能已经提交。公开契约[结果闭合与关联](../public-contract/SPEC.md#结果闭合与关联)给这两个操作的结果集没有线上 `unknown`，丢失回执只是调用者本地未知。所以接入不构造业务结果，写出响应体为空的状态 500，并关闭连接。
 - 治理位置的 18 个治理操作：治理端口的 Promise 被拒绝时，结果对接入未知（identity ID-18）。`create-organization` 的结果集有线上 `unknown`，接入答 `unknown`，状态 500，带响应体。其余 17 个操作的结果集没有线上 `unknown`，接入写出响应体为空的状态 500，并关闭连接。接入不答 `basis-unavailable`。
+- HITL 位置：入口主体持有者，以及 HITL 的 `listPool`、`getCard`、`getOperation` 与 `bindSubmitReply` 是读取类依赖。它们抛出异常或不可达时，结果是 `basis-unavailable`，状态 503。`submitReply` 是提交类调用。调用开始之后它抛出异常或不可达时，结果是 `unknown`，状态 500，带响应体。调用者用同一 `replyId` 原样再送，或用 `query-submit-reply` 认回。
 
 响应体为空的状态 500 表示接入没有可信答复。它只用于接入自身的故障和上面治理位置的两种情况。接入写出它之后关闭连接。接入不把这类情况写成 `denied`、`succeeded` 或 `basis-unavailable`。`unknown` 的状态 500 带响应体，不属于这一条。
 
@@ -234,6 +294,8 @@ flowchart TD
 公开契约不依赖服务端接入。SDK 不依赖服务端接入。
 
 [会话诊断投影](#会话诊断投影)让本成员以只读方式消费 agent-contract、model-contract 与 tool-contract 的类型与读口。`DIR-ACCESS-MODEL` 与 `DIR-ACCESS-TOOL` 只约束公开契约、SDK 与 stream-arrival，不约束本成员。公开契约仍不依赖这三个成员：诊断页的形状在公开契约里以自己的词声明。
+
+[HITL 位置](#hitl-位置)让本成员消费 human-intervention 公开的查询、命令与值类型。本成员不依赖 HITL 的提供者包：输入摘要由装配经入口面给出。公开契约仍不依赖 human-intervention：HITL 消息的形状在公开契约里以自己的词声明。
 
 ## 设计签名
 
@@ -291,6 +353,16 @@ function receiveRevoke(entry: GovernanceEntry, protectedBytes: Uint8Array): Prom
 - 会话路径上一份大于治理路径上限、不大于会话路径上限的 `create-session` 进入公开契约的判断次序，不得到 413。
 - 两个观察操作的手写读取拒绝每一条封闭规则的违例，结果是 `protocol-rejected`，Session 不被调用。
 - 接入的碰撞测试：每个会话族只改一个字段，`SessionOperationId` 就变。只换 `messageId`，它不变。
+
+HITL 位置另有下列验证义务。
+
+- HITL 位置的 `denied` 在各个原因下，响应除 `messageId` 外逐字节相同。原因包括登录缺失或无效、目标租户的账号不是识别出的账号、HITL 的资格拒绝、卡片不存在与卡片属于其他租户。
+- 部署声明不提供的 HITL 操作，以及装配没有给 HITL 入口面时的四个操作，都答 `stage-not-provided`，登录识别没有被调用。
+- 同一租户的两份不同登录得到同一个入口主体引用。两个租户的入口主体引用不同。
+- `list-cards` 带与不带 `sessionRef` 调用同一个 `listPool`。`locationRef` 来自部署配置。客户端在 body 写位置引用时是 `protocol-rejected`。
+- 卡片视图的 `origin` 不含原等待的路由字段。
+- 负控：让 `listPool` 抛出异常，响应是状态 503 和 `basis-unavailable`。让 `submitReply` 在调用开始后抛出异常，响应是状态 500 和带响应体的 `unknown`。
+- 提交身份的碰撞测试：只改 `tenant` 或 `replyId`，`operationId` 就变。只换 `messageId` 或登录，它不变。
 
 会话诊断投影另有下列验证义务。纯投影用各来源的替身验证；操作层用 HTTP 层替身验证。
 

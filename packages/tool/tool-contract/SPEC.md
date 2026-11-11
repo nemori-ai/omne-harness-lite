@@ -271,7 +271,7 @@ resolve 先核当前主体对合法 tenant/consumer 的资格，再访问关联�
 
 原受理回执为 accepted 时首次唤醒宿主。认回后只用当前 lookup 判断是否补 wake：仍待启动则补，已 running/settled 不补，查询未知允许保守补 wake。查询失败不撤销原 accepted。宿主按 tenant/call 归并待处理或并发 wake，driver 保持启动唯一。内部 admit 尝试次数可以多次，唯一受理事实、队列责任和真实启动分别观察。唤醒失败不回滚受理；当前 tool 实现依赖调用方重入，不承诺无人重入的自动扫描。共享内存来源只有非耐久单进程证据。
 
-普通接口由 `queries`、`commands`、`instances`、`observation`、`content` 和 `catalog` 组成。`instances` 是引用读面 `current`，`observation` 是公共流协议的观察面，两者见[公共流协议上的观察](#公共流协议上的观察)。queries 的 lookup 用调用引用内的原 admission；queryOperation 用操作引用内的原 operation。commands 只有 control 和 releaseDelivery。control 的成功结果为带操作引用的 `committed`。releaseDelivery 为每次意图分配 operation，成功返回 `released` 及原生产者耐久回执，不附本次操作引用，也不承诺本次新增操作记录。首次释放与已释放后的重入使用同一成功形状。两者的未知结果为带原操作引用的 `commit-unknown`，拒绝为 `rejected`。回执未知后用原操作引用查询提交结果，不自动重发。`not-committed` 或 `rolled-back` 只否定这次操作，不证明交付仍 pending。可靠否定后，调用方可以明确再次 releaseDelivery，取得已有释放回执。unknown 或不可读时继续保留未知。lookup 用原 admission 定位并返回当前权威 ToolState，其中的 delivery 可用于认回已有释放。invoke 的 state 才是受理时回执。readProcess 当前未支持，ResultPage 不含 DeliveryState。acceptDecision/acceptResource 留在受信内部端口。每次合法公开 control 都先分配新的 operation，再委托内部 commands.control；同参数重发不是原操作认回。调用方持有原操作引用时应先 queryOperation 对账，引用丢失时本协议没有按控制意图找回的能力。新的 committed 不证明旧 unknown 已完成。新 stop 不撤销旧 stop，新 withdraw 以其提交时的 reach 和关系判断。当前真实 ledger 仍返回 unsupported，此时身份已消耗但没有控制事实，门面返回 rejected/unsupported，不暴露已登记操作。
+普通接口由 `queries`、`commands`、`instances`、`observation`、`content` 和 `catalog` 组成。`instances` 是引用读面 `current`，`observation` 是公共流协议的观察面，两者见[公共流协议上的观察](#公共流协议上的观察)。queries 的 lookup 用调用引用内的原 admission；queryOperation 用操作引用内的原 operation。commands 只有 control 和 releaseDelivery。control 的成功结果为带操作引用的 `committed`。releaseDelivery 为每次意图分配 operation，成功返回 `released` 及原生产者耐久回执，不附本次操作引用，也不承诺本次新增操作记录。首次释放与已释放后的重入使用同一成功形状。两者的未知结果为带原操作引用的 `commit-unknown`，拒绝为 `rejected`。回执未知后用原操作引用查询提交结果，不自动重发。`not-committed` 或 `rolled-back` 只否定这次操作，不证明交付仍 pending。可靠否定后，调用方可以明确再次 releaseDelivery，取得已有释放回执。unknown 或不可读时继续保留未知。lookup 用原 admission 定位并返回当前权威 ToolState，其中的 delivery 可用于认回已有释放。invoke 的 state 才是受理时回执。readProcess 当前未支持，ResultPage 不含 DeliveryState。acceptDecision/acceptResource 留在受信内部端口。每次合法公开 control 都先分配新的 operation，再委托内部 commands.control；同参数重发不是原操作认回。调用方持有原操作引用时应先 queryOperation 对账，引用丢失时本协议没有按控制意图找回的能力。新的 committed 不证明旧 unknown 已完成。新 stop 不撤销旧 stop，新 withdraw 以其提交时的 reach 和关系判断。实现包对 live 调用的 withdraw 与 background、以及首次启动尚未 live 时的控制仍返回 unsupported；此时身份已消耗但没有控制事实，门面返回 rejected/unsupported，不暴露已登记操作。
 
 `ToolInvocationRef` 和 `ToolOperationRef` 是独立字符串品牌，版本 2 分别编码为 `["tool-invocation",2,call,admission]` 和 `["tool-operation",2,call,admission,operation]`。文本不含租户（R2-D357）：租户来自调用方的 Access，每个租户的存储有自己的分区。encode 的输入仍含 tenant，未铸造的 tenant 返回 type，但 tenant 不写入文本。身份沿现有身份词法。codec 只接受固定数组长度、标记与版本，总长度最多 1565 个 UTF-16 code units。版本 1 的文本返回 version，没有兼容读取。编解码不读存储、不生成业务身份；编码生成规范 JSON，解码允许同结构的非规范空白并返回规范值。失败为 type、version、shape 或 length。引用不含 principal、instance 或 generation，不授予权限、不证明调用存在，也不创建第二张持久定位表。
 
@@ -311,13 +311,13 @@ ToolCommands 隐藏本域提交、当前资格、队列与保管机制。它只�
 
 admit 同提交固定当前身份、合法定义/执行者匹配、实际调用方式与来源、调用参数、原消费位置、完整批判断依据及待办。明确是 dummy 时只形成不可用结果和真实替换件处理账目，不进入真实环境和队列。实际工具先准备环境，再按资源 scope 与工具身份进入队列。环境准备失败不退到更宽松宿主。
 
-enqueue 保存唯一顺序，不以当前内存队列决定先后。同一 scope 的前台、后台和内部等待共用名额；每个 scope 按自己固定的 concurrency 与同一 FIFO 规则工作，null 表示没有数量上限但仍服从资源提供者容量准入。队列容量不足时，新的受理可以在承诺前拒绝；已经受理的超额并发按序等待，不能当执行失败。
+enqueue 保存唯一顺序，不以当前内存队列决定先后。同一并发范围内，同工具的前台与后台调用共用工具上限，范围内的全部调用共用范围预算。存活协程的内部等待占名额。检查点作者可靠暂停后停泊，不占名额。每个范围按同一 FIFO 规则工作，上限或预算为 null 表示没有该项数量上限，但仍服从资源提供者容量准入。队列容量不足时，新的受理可以在承诺前拒绝；已经受理的超额并发按序等待，不能当执行失败。
 
 prepareStart 按 [P02](#p02-定义准入与队列) 的对账保存核对队首/名额、未取消、未记录 startRejection、原定义与实现匹配、当前调用方式许可、当前推进和业务资格、授权与原批判断适用性：队列域裁定并持有名额，调用域保存唯一启动意图，两者由同一操作身份对账，不是一个跨域事务。真实 executor 调用前还须进入与相关撤权、撤回、控制、推进代次变化共用的启动围栏。先资格变化则不启动；先启动则按在途控制处置。占位与外部效果不能同一 SQL 原子提交，recordStart 未知时查询原身份，不再次调用 executor。
 
 实际发起不重跑已经完成且仍适用的扩展。决定所依据的参数、定义或动作发生变化时，旧批准不能沿用，交原协调者重新判断。有效判断不齐不能启动其中已批准的部分。批判断引用由其拥有者验证，不能由 Tool 自报整批已准许。
 
-名额只在真实执行收场，或准备、排队及启动意图阶段可靠排除执行并因取消或 startRejection 收场时释放。拒绝路径沿本页 preserveResult 保存终局及待交付责任，不因返回 unsupported 就提前释放名额。后台化、Ask、调用方退出和观察断线不释放名额。宿主持有环境对象，结束后释放仍属于本执行的资源；释放不删除保管所需附件，也不声称外部效果可撤回。替换宿主先排除旧实际执行能力，不能只换数据库代次。
+名额只在真实执行收场，准备、排队及启动意图阶段可靠排除执行并因取消或 startRejection 收场，或检查点作者已提交 suspended 且旧执行已排除时释放。最后一种情况下，队列条目停泊并释放执行名额，调用收场时再删除条目。拒绝路径沿本页 preserveResult 保存终局及待交付责任，不因返回 unsupported 就提前释放名额。后台化、存活协程的 Ask 等待、调用方退出和观察断线不释放名额。宿主持有环境对象，结束后释放仍属于本执行的资源；释放不删除保管所需附件，也不声称外部效果可撤回。替换宿主先排除旧实际执行能力，不能只换数据库代次。
 
 <a id="342-等待计时与接续"></a>
 
@@ -333,7 +333,7 @@ openWait 要求前台且未收场，先保存原 WaitIntent、接续依据和登
 
 后台不开放需要答复的 ToolWait。resource 分支是有具名期限的资源应答协议，不是普通 Promise 调度；尚在此等待时转换后台须先由原资源协议结束等待，否则拒绝转换。后台内部普通 I/O 的失败归执行失败，不形成新的交互等待或 no-response 终局；已真实开始的后台执行最终只允许 completed/failed/interrupted；从未启动且可靠排除的调用可保存 unavailable。Ask 始终不能通过提前结束或虚构答复换取后台许可。
 
-普通 JS 函数依赖存活协程继续 await，不能因序列化了一段字节就宣称其调用栈可恢复。可恢复 executor 必须在采用中声明 checkpoint Schema、保存边界、恢复入口及旧执行排除条件。实例连续性仍在时从原实例继续；确证丢失后，`ToolCommands.settleLost` 形成异常终局并保留未知效果，不自动重放，对应[接续原调用与确认自身失联](#接续原调用与确认自身失联)表中“Tool 自身可靠确认失去连续性”一行。恢复型执行者的完整 checkpoint 接口在本页后续提供者增量中闭合，尚未声明的执行者不能被装配为可恢复模式。
+普通 JS 函数依赖存活协程继续 await，不能因序列化了一段字节就宣称其调用栈可恢复。可恢复 executor 必须在采用中声明 checkpoint Schema、保存边界、恢复入口及旧执行排除条件。实例连续性仍在时从原实例继续；确证丢失后，`ToolCommands.settleLost` 形成异常终局并保留未知效果，不自动重放，对应[接续原调用与确认自身失联](#接续原调用与确认自身失联)表中“Tool 自身可靠确认失去连续性”一行。恢复型执行者按段执行。段是执行者的一次执行，即 `initial` 或 `resume`。每段返回 `completed`（结果）或 `suspended`（按声明 codec 编码的状态与一个 Ask 等待请求）。段上下文只有过程输出与取消信号，没有 `wait` 原语，所以作者只能以返回 `suspended` 的方式等人，不能在执行名额之外等待。`resume` 只接收已提交的检查点与该等待固定的 ResponseRecord，不重跑已完成的段。台账把答复值存为 json-text 的值树；交给 `resume` 之前，宿主用 `authorDecision` 把答复值解码为普通 JSON，作者按自己在等待契约里声明的形状读取。段在执行中失联时按上句失联收场，不补检查点，也不把段当作可安全重放。只支持 Ask 等待。resource 等待与存活协程的 `wait(ask)` 不在支持范围内。尚未声明的执行者不能被装配为可恢复模式。
 
 <a id="342-结果过程与后继责任"></a>
 
@@ -397,11 +397,16 @@ recordLateResult 处理旧实例排除之后、外部已准入操作的原输出
 
 lookup 的 supplements 列出这些晚到版本及其独立 delivery，消费者按精确版本读取和解除关系。旧版本 delivery 已解除不自动解除新版本，也不允许因此删除原全文。晚到关系沿原 consumer 交当前合格承接者处理历史、保管或允许的后续用途，绝不据此恢复旧工作推进或已撤回的投递资格。当前没有合格读取者时，Tool 继续保管；没有必要继续业务也不免除全文保留。这个端口只补真实原结果，不接受新参数、重试、后台占位或 dummy，不产生第二执行。
 
-checkpointed.suspend 先让原执行停在可恢复位置、保存已发生效果及后续步骤，并证明旧执行不会继续。commands.suspend 验证证据后共同保存 suspended、checkpoint 及旧实例撤资格，原名额和等待保留。合法 resume 只能从已提交的同一检查点接续未做步骤，不能重跑 start 或已完成效果。过程中崩溃而不能证明安全暂停时，仍走未知/自身失联分支，不自动补一个检查点。live-only 无此入口，其计算资源不能在等待时随意销毁。
+checkpointed.suspend 先让原执行停在可恢复位置、保存已发生效果及后续步骤，并证明旧执行不会继续。commands.suspend 验证证据后共同保存 suspended、checkpoint 及旧实例撤资格，原等待保留，名额按 P02 停泊释放。合法 resume 只能从已提交的同一检查点接续未做步骤，不能重跑 start 或已完成效果。过程中崩溃而不能证明安全暂停时，仍走未知/自身失联分支，不自动补一个检查点。live-only 无此入口，其计算资源不能在等待时随意销毁。
 
 prepareResume 在同一启动排序域内核验当前资格、未记录 startRejection、原检查点及旧执行排除，保存具名 resume 调用记录，不增加第二个并发名额。resume 与 start 都按 ToolStartRecord.operation 认回。inspectStart 对两种记录均适用；恢复返回的 invocations 保留完整原启动/接续链，start 指当前尚需认回的记录。接续回执未知时先查询该记录，不能换操作号再次 resume。controls 保存每项未完控制的原意图及传播进度，恢复者不会从 task 名称猜 stop 或 background。返回 live 时重新连接原控制通道，不重新 prepare 环境或替换原执行资源；只有确证暂停后合法接续，才按原环境采用重新取得所需资源。
 
-answer 接收原 ResponseRecord。Ask 经 decisions.resolve 核实后由 acceptDecision 保存，资源回应经 acceptResource 的专有协议核实；随后交原 live execution。回执丢失按原 wait/decision 认回；执行者也须按同一决定去重，不能重复从等待后的第一步发效果。决策方只提供决定，动作授权仍由相应领域核验。暂停等待恢复先核原等待及决定再 answer，不从普通消息的文本猜答案。
+Ask 经 decisions.resolve 核实后由 acceptDecision 保存 ResponseRecord，资源回应经 acceptResource 的专有协议核实。之后两类执行者的路径不同：
+
+- 存活协程作者：answer 任务把原 ResponseRecord 交原 live execution。
+- 检查点作者：acceptDecision 之后经 requeue 重新排队，取得名额后 prepareResume，以 ResponseRecord 为输入运行 resume 段。
+
+回执丢失按原 wait/decision 认回；执行者也须按同一决定去重，不能重复从等待后的第一步发效果。决策方只提供决定，动作授权仍由相应领域核验。暂停等待恢复先核原等待及决定，再运行 resume 段，不从普通消息的文本猜答案。
 
 facts 按批次、来源事件及游标保存并确认；同一原 final 只成立一次，流先耗尽或抛错不当完成。过程块 sequence 是该 index 的非负十进制序列；重复同值认回，异值冲突，open 的 mode 固定，closed 后不能更新。append 的 content 是已累计的完整当前值，必须保留前序内容，replace 只替换同一 index。持久批保存完成后才发布快照，trim 明示实际裁剪而不删除必要原过程责任。
 
@@ -650,7 +655,7 @@ guide 是定义的投影，由 `commandGuide` 机械派生（D-104）。多命�
 
 准入后选择环境并准备资源，再进入适用并发排队。环境无法满足、准备失败或无法确认隔离时不执行，说明原因，不静默退回宿主或更宽松环境。无特殊环境声明的工具使用明确直接依赖，不凭空造沙箱要求。
 
-同一并发范围、同一工具前后台合计并发，上限超出按发起次序排队，不直接拒绝或报执行失败。内部等待仍属未收场执行。转后台不减少计数。每个调用只在自己的显式资源范围内计数，不套虚构的外部限额，其 FIFO、准入前容量拒绝和名额协议见 [P02](#p02-定义准入与队列)。
+同一并发范围、同一工具前后台合计并发。超出上限的调用按入队先后取得名额，答复后恢复的调用按重新入队的先后排队，不直接拒绝或报执行失败。并发范围还可以带范围预算，限制该范围内所有工具同时执行的调用数。存活协程的内部等待仍占执行名额。检查点作者可靠暂停后，调用不占执行名额，仍属未收场调用。转后台不减少计数。每个调用只在自己的显式资源范围内计数，不套虚构的外部限额，其 FIFO、准入前容量拒绝和名额协议见 [P02](#p02-定义准入与队列)。
 
 排队后实际发起重新检查有效推进资格、业务状态、当前授权、定义约定及实现匹配。权限收窄不能因为原参数未变就沿用旧允许。无关 reload 不要求协调者重新判断；决定依据已变化时，不自动借旧批准。新资格与启动共同成立的精确边界由协调者明确并验证。
 
@@ -945,7 +950,7 @@ push 的 `access` 是代原租户行事的主体。双方诊断分别记录该�
 
 没有定义默认和合法配值时，没有前台上限或并发上限。转后台阈值属于偏好且只在许可后台时可用，不等同于前台上限。精确计时、暂停、恢复和原固定设置的协议见 [P07](#p07-计时控制与检查点)，但不能将恢复重新计时当作绕过已适用上限。
 
-同一并发范围同一工具的同时执行计入前台、后台及其内部等待；超额按发起次序排队，不当执行失败。排队是尚未实际执行的状态，开始前重核资格。资源准备或控制受理不是完成，名额获取、释放和队列恢复见 [P02](#p02-定义准入与队列) 与 [P09](#p09-账目恢复与退出)，不能转后台释放后漏计仍运行执行。
+同一并发范围同一工具的同时执行计入前台、后台及存活协程的内部等待。检查点作者可靠暂停后不计入，答复接受后重新排队取得名额。超额调用按入队先后取得名额，答复后恢复的调用按重新入队的先后排队，不当执行失败。排队是尚未实际执行的状态，开始前重核资格。资源准备或控制受理不是完成，名额获取、释放和队列恢复见 [P02](#p02-定义准入与队列) 与 [P09](#p09-账目恢复与退出)，不能转后台释放后漏计仍运行执行。
 
 ### 内部等待与有效答复
 
@@ -976,7 +981,7 @@ Tool 区分三类中断原因：控制请求（带控制操作号，并说明是
 - `all`：撤回目标调用的前台执行和后台执行。目标调用已在后台时，形成 interrupted 逻辑终局，不形成前台 final，因为已有后台占位。对程序调用，关闭屏障覆盖全部子调用。
 - `foreground-and-unadmitted`：只有目标调用在控制提交时是前台关系，Tool 才撤回它；是否已经启动不改变这一点。发起即后台的调用在受理时已固定后台占位并交给调用方，关系从受理起就是后台，不属于这个 reach，要撤回它须用 `all`。名字里的 unadmitted 指程序调用尚未受理的子调用预留，不指目标本身。对程序调用，关闭屏障只覆盖前台子调用及未受理预留，其余已受理的后台执行不自动跟随。目标调用在控制提交时是后台关系（已转后台，或发起即后台，不论是否已启动），控制仍作为已提交的 ControlRecord 保存，返回回执，进度为 `rejected`，原因 `out-of-reach`。这是回执里的进度，不是 ToolFailure 的拒绝。Tool 不形成中断，也不改变该调用。
 
-Tool 报告实际收场，不以调用方存活为前提。控制方的业务事实和控制的实际结果分别保存。控制提交路径在实现包中尚未实现，本节是契约，不表示实现已具备。
+Tool 报告实际收场，不以调用方存活为前提。控制方的业务事实和控制的实际结果分别保存。实现包已实现 live 调用的 stop，以及暂停中调用的 stop 与 withdraw，范围见 [Tool SPEC](../tool/SPEC.md) 第 29、32 条；其余控制按本节契约，实现尚未具备。
 
 已发执行可能继续产生真实效果。Tool 继续保管原结果、真实收场和成本，不把撤回后的真实成功伪报物理中断。结果不能恢复业务推进、创建工作对象或恢复入队资格。控制方不重启旧调用，控制后的真实状态也不倒退。
 
@@ -1033,9 +1038,9 @@ ToolCatalog 根据当前合法候选与实际消费方能力求值。可用结�
 
 admit 核 scope 的 grant、consumer、真实来源、固定设置与限额、定义/实现匹配、参数完整性和批判断。容量不足可以在受理前拒绝。`complete=false` 返回 invalid 且不受理。完整参数解析失败形成原调用的 arguments 失败结果；已知不可用则不解析参数，形成 unavailable 结果。两者同提交原结果、原位置、delivery 和实际替换处理账目，不创建环境或真实执行。无法保管该结果时不报告受理完成。未知目标不能构造 dummy。
 
-真实工具准入后 planPreparation 保存原环境、原采用和具名任务。环境准备确认后 enqueue。FIFO key 在租户内为 [owner, key, 工具名]，tenant 是队列域身份的一部分，owner 与 key 相同的不同租户不共享队列；key 不含实现版本，换实现不绕过同工具限制。顺序来自已受理调用的持久序号；准备尚未完成的较早调用不占执行名额，但后来的同 key 调用不得越过仍在准备且未被可靠关闭的较早项。scope 由其拥有者授予，admit 核验 grant，不能由调用者任意换键。不同调用的队首判断、名额计数与 prepareStart 的队列步骤必须在同一队列事务中裁定，单个 ToolCall 的 CAS 不足以防止超发。
+真实工具准入后 planPreparation 保存原环境、原采用和具名任务。环境准备确认后 enqueue。队列域在租户内按并发范围 [owner, key] 划分，tenant 是队列域身份的一部分，owner 与 key 相同的不同租户不共享队列。条目记录工具名、受理时固定的工具上限 `limits.concurrency` 与范围预算 `limits.scopeBudget`；工具名不含实现版本，换实现不绕过同工具限制。顺序来自持久序号，同一范围内按序号取得名额；准备尚未完成的较早调用不占执行名额，但后来的调用不得越过仍在准备且未被可靠关闭的较早项。取得名额须同时满足：同工具的持有数小于工具上限，范围的持有数小于范围预算；null 表示该项不限。`queueCapacity` 限制一个范围内尚未释放的条目数，可靠暂停的条目仍计入。scope 由其拥有者授予，admit 核验 grant，不能由调用者任意换键。不同调用的队首判断、名额计数与 prepareStart 的队列步骤必须在同一队列事务中裁定，单个 ToolCall 的 CAS 不足以防止超发。
 
-prepareStart 原子地对账保存（契约不要求两域共同事务，“原子地”指每个域内的提交）：核未取消、无启动拒绝、队首和名额、固定匹配与当前资格，在队列域裁定并持有名额 held，在调用域保存唯一 ToolStartRecord、starting 和启动任务。两域没有共同事务，名额可以先于启动记录被持有，由同一操作身份的重做对账；没有启动记录的 held 名额是待履行义务，不是启动，也不得被调用域以外的路径撤回。等待、后台化、宿主退出、暂停均不释放名额。实际结束、可信物理排除或可靠确认连续性丢失并证明旧执行不再占执行资源后，才共同保存释放依据。仅逻辑 settled 不足以释放。
+prepareStart 原子地对账保存（契约不要求两域共同事务，“原子地”指每个域内的提交）：核未取消、无启动拒绝、队首和名额、固定匹配与当前资格，在队列域裁定并持有名额 held，在调用域保存唯一 ToolStartRecord、starting 和启动任务。两域没有共同事务，名额可以先于启动记录被持有，由同一操作身份的重做对账；没有启动记录的 held 名额是待履行义务，不是启动，也不得被调用域以外的路径撤回。后台化、宿主退出及存活协程的等待均不释放名额。检查点作者可靠暂停并提交 suspended 后，队列条目由 held 转为停泊（parked），释放执行名额。停泊是条目等待答复的阶段：条目不持有执行名额，仍计入 `queueCapacity`。答复接受后条目转回 ready，以新序号排队重新取得。暂停后尚未停泊就已接受答复的调用，保留原名额直接恢复。实际结束、可信物理排除、可靠确认连续性丢失并证明旧执行不再占执行资源，或已提交 suspended 且旧执行已排除之后，才共同保存释放依据。最后一种释放依据名为 `suspended-exclusion`。仅逻辑 settled 不足以释放。
 
 ### P03 环境准备和释放
 
@@ -1044,6 +1049,8 @@ PreparationRecord 固定原调用、操作、环境采用、输入摘要和 init
 `PreparationProgress` 的 `allocated` 表示原环境分配已确认，当前原登记尚未完成首次采用。它不是 `prepared`，不含可执行环境、租约或执行许可。答复携带原 `PreparationRecord` 与定位原分配事实的耐久证据；tenant、call、准备操作、适配器采用、输入摘要及完整固定准备输入必须与本次原请求一致。证据的拥有者、记录、修订和摘要来自原事实拥有者，不以回显请求或自造摘要代替。适配器在发出外部获取前保存的原获取映射及其查询、清理定位继续有效；答复丢失不能丢掉这份责任。Tool 不因此创建另一份 EE 获取记录，也不把这份证据当作工具输出保管回执。
 
 只有适配器能确认原本地登记仍存在、原获取已分配且处于尚未完成首次采用的路径时，才可返回 `allocated`。原登记、首次捕获的 guard 和 ledger 的对应关系必须仍可核对。此事实不是未来动作的授权。仅原描述查询得到 allocated、adoption 为空，或孤立的 provisional 状态均不足以产生该分支。原登记已丢失、冷恢复、采用失败、失效、释放中、已释放或已结清均不返回可首次采用的分支；按既有未知、拒绝与清理规则保留原身份及责任。EE 的 notAllocated 是原键终局，不得为让 Tool 同键重新排队而转成 excluded。
+
+`lost` 表示这个准备的环境不在任何进程里活着：获取它的进程已经不在（冷恢复）。适配器在本进程见到原记录、却没有本进程的登记、也没有在途的准备时答 `lost`，不再查询原获取。架构不接管旧进程的环境，所以这不是暂时状态：同一准备永远不会再成为 `prepared`。答复携带原记录的耐久证据。原记录保留身份与清理责任，`lost` 不释放它，也不授权首次采用。调用方可以为同一段以另一个操作身份计划新的准备；用不用、怎样用，由调用方按段的用途定。`lost` 是终局答复，不保留原任务。
 
 `inspectPreparation` 可以返回 `allocated`，但本身仍只查询原事实，不调用 prepare、acquire、plan、permit、adopt 或设施动作，不新签发租约。`prepare` 可以报告该事实，也可以沿完整原输入完成首次采用；每次进入采用仍须重核原登记、首次 guard 与 ledger、原采用、scope 状态及当前准入。首次调用与查询后的接续共用原来的唯一采用转移，不重复 provider 分配，不重新计划、许可或接续。当前条件不成立时，保留原分配查询与清理责任，不回退提供者或换操作。
 
@@ -1152,9 +1159,9 @@ resource 的 opening 同提交 resource-wait/ensure 任务，evidence 指向原 
 
 取消或终局同提交 resource-wait/invalidate；若ensure回包晚到仍认回原登记后执行失效。失效、ensure或expire回包未知都调用该对端 inspectOperation(principal,tenant,call,operation)，不删任务。committed 返回原操作的真实回执，逐项绑定动作种类、原wait、采用和输入摘要；excluded 必须排除所有延迟应用，pending/unknown 保留原任务。recordTask(done) 核这个对端回执，不能拿 Tool 本域 queryOperation 代替它。Ask ensure/invalidate 使用 decisions.inspectOperation 承接相同查询义务。inspect(wait) 只读业务关联与决定/回应，不用它猜测一次失效操作已完成。attachResource 和 attachRegistration 均拒绝在已关闭等待上重新开放，但迟到登记证据仍用于清理。资源契约不支持到期时 expire 返回 unsupported，不能把 Ask 接入该通路。
 
-acceptDecision 核原请求唯一有效决定与原等待仍有效，固定 ResponseRecord、responding 和 answer 任务。acceptResource 经对应 contract 的 ToolResourceResponses 校验真实来源、载荷与资格；资源到期也必须由该协议给 expired 证据。Ask 没有 deadline 和 expired 分支。普通 Promise/I/O 不建 ToolWait。
+acceptDecision 核原请求唯一有效决定与原等待仍有效，固定 ResponseRecord 与 responding。一次 Ask 有多张卡时，decision 证据是 HITL WaitOwner 的批次就绪摘要，即请求与全部 DecisionRef，ResponseRecord 按卡片顺序保存整批答复。之后两类执行者的路径不同：存活协程作者的调用同提交 answer 任务，由 answer 交原 live execution。检查点作者的调用经 requeue 重新排队，取得名额后 prepareResume，以 ResponseRecord 为输入运行 resume 段。acceptResource 经对应 contract 的 ToolResourceResponses 校验真实来源、载荷与资格；资源到期也必须由该协议给 expired 证据。Ask 没有 deadline 和 expired 分支。普通 Promise/I/O 不建 ToolWait。
 
-answer 接收完整原 ResponseRecord，执行者按 operation、wait、决定/资源事实去重，接受回执不代表已继续执行。回包未知查 inspectAnswer，不换号重答。continued 事实提供真实恢复点；closeWait 验证该事实，同提交关闭等待与新计时段。后续动作仍经过自己的当前授权。live-only 协程丢失后不能重建调用栈；checkpointed 将已消费答复和接续位置写入检查点。
+answer 接收完整原 ResponseRecord，执行者按 operation、wait、决定/资源事实去重，接受回执不代表已继续执行。回包未知查 inspectAnswer，不换号重答。continued 事实提供真实恢复点；closeWait 验证该事实，同提交关闭等待与新计时段。后续动作仍经过自己的当前授权。live-only 协程丢失后不能重建调用栈。检查点作者的接续位置保存在检查点里，已消费的答复保存在 ResponseRecord 里。
 
 取消与答复在原 ToolCall 事务排序。取消先成立则关闭等待，后到决定不被当作答案；答复先成立则保留该事实，随后取消阻止尚未获准的后续动作并请求停止。已在途动作仍保管实际收场。登记失效是具名可靠任务，失败不回滚业务终局，也不填默认回答。后台状态不能 openWait；有效 Ask 或 resource 等待不能转后台。resource 结束后可重新评估转换，Ask 不得为了转换而伪造结束。
 
@@ -1166,7 +1173,7 @@ ToolTiming 保存累计前台运行量和当前 ClockSegment，来源/epoch/mark
 
 control(stop) 与 control(withdraw) 先保存意图（withdraw 带必填的 reach）、控制操作号和传播任务。pending/unknown、accepted、stopped、already-ended、rejected 分别保留。只有实际收场证据证明 stopped；accepted 不释放名额。withdraw 在提交时先按 reach 比较目标调用当时的关系。reach 为 foreground-and-unadmitted 而目标是后台关系（已转后台或发起即后台）时，控制结果为 rejected，原因 `out-of-reach`，不形成中断，调用保持原样，已保存的意图记录该拒绝。在 reach 范围内，处于前台关系的目标可以先形成 interrupted 逻辑结果（cause 为 control，withdrawn 为 true）和前台 final，实际效果保持真实或未知。已在后台的目标在 reach 为 all 时形成 interrupted 逻辑终局，没有前台 final。迟到结果另存版本。单次控制不自动终结消费方的工作。控制资格在传播时复核；变窄时记录拒绝，不擦除已保存意图。
 
-planSuspension 仅允许 checkpointed，先保存原 start、schema 和操作。suspend/inspectSuspension 认回原暂停。成功须同时给检查点保管、已完成效果边界、已消费答复和旧执行排除。Commands.suspend 才提交 suspended，保持名额和原等待。unknown 不 resume、不销毁唯一活体。prepareResume 核当前资格、同一未消费检查点及旧执行排除，以新 resume operation 保存唯一后继；未知查原 resume，不能另起恢复。首次 start 与后继 resume 的效果账不能混淆。
+planSuspension 仅允许 checkpointed，先保存原 start、schema 和操作。suspend/inspectSuspension 认回原暂停。成功须同时给检查点保管、已完成效果边界、已消费答复和旧执行排除。Commands.suspend 才提交 suspended，保持原等待，名额按 P02 停泊释放。unknown 不 resume、不销毁唯一活体。prepareResume 核当前资格、同一未消费检查点及旧执行排除，以新 resume operation 保存唯一后继；未知查原 resume，不能另起恢复。首次 start 与后继 resume 的效果账不能混淆。
 
 程序执行方的计时还接受可信执行环境的 ProgramScheduling。执行源以原 execution、source、sequence 和实际 marker 交 program-scheduling 事实，receiveFacts 委托与 recordScheduling 相同的具名转换。blocked 必须证明当前没有可运行 continuation 且只等待所列原子调用；runnable 才开启计算段。脚本自报、一次Promise未完成或调用方断线都不是调度证据。
 
@@ -1240,11 +1247,11 @@ wait 调用先预留当前等待位置并设输出屏障，再按 P06 保管原�
 
 有效外部回应经 P06 校验与保管，原执行者消费原 ResponseRecord 后，在放行作者 continuation 的实际边界固定一次 continued 事实及计时证据，并承担 P05 的源保管责任，然后把成功结果交给作者。它不等待观察者或下一轮事实 ACK 才放行。Tool 后续保存该事实并 closeWait，计时采用源的实际恢复点，不采用迟到通知的接收时刻。答复被接收、实际接续和作者拿到结果分别可核对，ACK 或 answer 回包丢失不重复放行 continuation。
 
-ask 成功值保留 answer、no-answer、declined；Tool 不把 answer 猜成授权。resource 返回按所传 schema 校验后的 response 或协议认可的 expired，不提供任意 T 断言。无效响应提交只向提交方返回 invalid 和安全的问题路径，原 wait 保持未完成；不得因此 resolve 或 reject 作者的 wait Promise。请求本身非法可在开放前令 wait 返回 invalid，校验设施故障另走 unavailable/unknown，不能伪装为提交者填写错误。没有有效回应时不能自动填写空值。等待期间前台运行计时暂停，并发名额保持；不能同时转后台。
+ask 成功值保留 answer、no-answer、declined；Tool 不把 answer 猜成授权。HITL 答复到这三种值的整批映射见 [HITL 协议的入口、来源与答复的解释](../../human-intervention/human-intervention/docs/protocol.md#入口来源与答复的解释)。resource 返回按所传 schema 校验后的 response 或协议认可的 expired，不提供任意 T 断言。无效响应提交只向提交方返回 invalid 和安全的问题路径，原 wait 保持未完成；不得因此 resolve 或 reject 作者的 wait Promise。请求本身非法可在开放前令 wait 返回 invalid，校验设施故障另走 unavailable/unknown，不能伪装为提交者填写错误。没有有效回应时不能自动填写空值。存活协程的 wait 期间前台运行计时暂停，并发名额保持；不能同时转后台。
 
 取消以 P06 的原调用排序为准。取消先于回应成立，wait 返回 cancelled，登记失效继续由持久任务完成。回应先成立后又取消，不撤销已保存回应；原执行者在放行前已确认取消时返回 cancelled，否则可以交原回应，不能声称跨进程通知已瞬时到达。后续动作仍通过当前授权边界，迟到停止请求经 signal 处理并保留实际执行事实。捕获取消不会恢复已撤资格。signal 是本次真实执行的停止信号，不能复用 UI 观察 signal 或调用方连接 signal。
 
-作者有未结束的 wait 却正常 return 属于作者协议错误。绑定保存原返回值，拒绝正常 completed，按失败终局关闭等待并可靠安排失效；不能在 final 后再恢复被遗弃的 continuation。return、取消或实例关闭后的新原语返回 closed 或 cancelled，既存输出、回应与外部效果仍按原身份保管。检查点暂停和恢复必须保存输出屏障位置、wait/key 映射、已消费回应及作者接续位置，并排除旧执行；普通 async 函数不会自动获得此能力。
+作者有未结束的 wait 却正常 return 属于作者协议错误。绑定保存原返回值，拒绝正常 completed，按失败终局关闭等待并可靠安排失效；不能在 final 后再恢复被遗弃的 continuation。return、取消或实例关闭后的新原语返回 closed 或 cancelled，既存输出、回应与外部效果仍按原身份保管。存活协程作者的暂停必须保存输出屏障位置、wait/key 映射、已消费回应及作者接续位置；普通 async 函数不会自动获得此能力。检查点作者按段暂停，保存检查点与 ResponseRecord，并排除旧执行，没有 wait/key 映射。
 
 #### 独立消费与失败解释
 
@@ -1310,7 +1317,7 @@ ToolBindings 提供者经 `register` 接收已装载的 ToolImplementation，按
 
 登记会封闭不同 A/R，但不隐藏环境 E 或内容块 B 的兼容性。一个注册中的操作使用同一显式 E/B 契约。某个函数只需部分依赖时，由作者提供窄适配；独立服务可按操作注入，不自动并集全部权限。ToolOperation 与 ToolImplementation 是当前执行域的能力，不是 settings 或数据记录，不能交给程序执行方。恢复保存原采用及可恢复来源，不序列化这些闭包。
 
-程序执行方的静态 SDK 从具体 command 的公开程序 schema 生成或绑定类型，不能从已经封闭的 A/R 或任意 call<T> 推断业务类型。普通 R 与编码后的 data 可以不同。动态字符串选命令时，返回仍是具名统一封装，消费者须按实际命令及采用核对。工具级 programmable、身份、准入、FIFO、并发和控制规则保持，不因为命令是独立函数而把它变成独立工具或绕过托管调用。
+程序执行方的静态 SDK 从具体 command 的公开程序 schema 生成或绑定类型，不能从已经封闭的 A/R 或任意 call<T> 推断业务类型。普通 R 与编码后的 data 可以不同。动态字符串选命令时，返回仍是具名统一封装，消费者须按实际命令及采用核对。工具级 programmable、身份、准入、并发和控制规则保持：子调用计入目标工具的工具上限，并在所属并发范围内按序号取得名额。系统不因为命令是独立函数而把它变成独立工具或绕过托管调用。
 
 <a id="p14-附件引用与模型交付"></a>
 
@@ -1396,7 +1403,7 @@ reserve 先耐久保存 parent、position、childCallId、admissionOperation、�
 
 可信来源保留 programmatic 根、父调用及包装链，转经 Tools、SDK、脚本资源等入口不可洗成 direct。真实目标在 admit 和最终启动边界都检查显式 programmable=true 与当前授权。程序执行方自身不许可，因此直接和间接递归均拒绝。包装工具不得把私有 executor 泄漏给程序。可见工具集合可以比当前许可更窄，不能更宽；缓存发现结果不代替实际发起核验。
 
-所有子调用保留真实的消费位置和 scope，按真实目标工具的 FIFO 和限额计数。外层程序执行方的一个名额不替代各子名额。子工具各选自己的合法环境，不继承代码域对宿主资源的无限能力。
+所有子调用保留真实的消费位置和 scope，计入真实目标工具的工具上限，并在所属并发范围内按序号取得名额。外层程序执行方的一个名额不替代各子名额。子工具各选自己的合法环境，不继承代码域对宿主资源的无限能力。
 
 父子登记与交接时序见[程序子调用时序](docs/flows.md#程序子调用时序)。
 

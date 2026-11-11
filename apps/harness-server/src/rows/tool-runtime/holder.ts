@@ -29,7 +29,11 @@ import type { createLocalToolRuntimePlugins } from '@omne-harness/tool-host-loca
 
 type EnvironmentGuardedHostCommit = LocalToolRuntimeInput['environment']['guarded']
 type StartConditionalCommit = LocalToolRuntimeInput['conditionalCommit']
-import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
+import type {
+  PrincipalVerifier,
+  SystemPrincipal,
+  TenantStandingSource,
+} from '@omne-harness/identity'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
@@ -43,6 +47,8 @@ export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins>
 export type ToolSqlPorts = Readonly<{
   store: ToolLedgerStore<ToolMessageContentBlock>
   custody: ToolOutputCustody<unknown>
+  /** 受信读回 `custody` 保管的原件。 */
+  readOutput: LocalToolRuntimeInput['readOutput']
   guarded: EnvironmentGuardedHostCommit
   conditional: StartConditionalCommit
 }>
@@ -63,6 +69,8 @@ export type ToolRuntimeHolder = {
   verifier: () => PrincipalVerifier | undefined
   /** identity 的当前资格读口，入口逐次现取；入口没有交来时为 undefined。 */
   standing: () => TenantStandingSource | undefined
+  /** 入口签发的部署租户扫描主体（`tenant-domain-scanner`），跨租户的待办扫描以它枚举租户；入口没有交来时为 undefined。 */
+  scanner: () => SystemPrincipal | undefined
   /** bundle 与建它所用配置的摘要；未建时为 null。 */
   bundle: Readonly<{ value: ToolRuntimeBundle; configDigest: string }> | null
   /** 建好 bundle 时兑现。 */
@@ -111,6 +119,7 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
     workPrincipals: () => undefined,
     verifier: () => undefined,
     standing: () => undefined,
+    scanner: () => undefined,
     bundle: null,
     ready,
     resolve,
@@ -157,6 +166,12 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore<ToolMessag
         }
       return answer
     },
+    scanPending(input) {
+      const sql = holder.sql
+      if (sql === null)
+        return Promise.resolve(unavailableRead('tool-records: no SQL ledger store is installed'))
+      return sql.store.scanPending(input)
+    },
     async commit(input) {
       const sql = holder.sql
       if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
@@ -200,6 +215,11 @@ export function lateConditional(holder: ToolRuntimeHolder): StartConditionalComm
       Promise.resolve(unavailableRead('tool-records: no SQL conditional commit is installed')),
   }
   return Object.freeze(conditional)
+}
+
+/** 交给 bundle 的原件读取：逐次读当前 SQL 保管，缺席答 `unavailable`。 */
+export function lateReadOutput(holder: ToolRuntimeHolder): LocalToolRuntimeInput['readOutput'] {
+  return input => holder.sql?.readOutput(input) ?? Promise.resolve(custodyUnavailable)
 }
 
 /** 交给 bundle 的守护宿主提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */

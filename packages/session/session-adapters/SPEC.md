@@ -373,7 +373,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 - 作用域到会话的索引只从 `committed` 通知与未能建索引的会话的重读建立。进程重启之后，一个会话在下一次提交之前，K-RC 对它的作用域答 `unavailable`。
 - `session.modes` 生产者插件已实现，验证边界见模式发布部分；默认应用已接入按租户挂载、生产者权威和初始采用。变化提醒子插件、第 1b 项、第 1c 项、归档之后撤销资格，以及签发时核对未应用的 SE07 仍未交付。
 - 每次同步都重读该会话的全部上下文记录，不按游标增量读取。事实插件经历史子插件对每个上下文类通知也重读一次（与回放子插件各读一次），成本随会话的上下文记录数线性增长（E9）。作用域绑定的读取不读快照，行数是 SE27 与 SE28 的条数，随归档与撤销归档的次数增长，不随会话历史增长。SE27 的载荷带归档任务列表，大小随子会话数增长。
-- 事实插件只在自己运行期间建索引。它重启或冷启动后，一个会话的作用域答 `unknown`，直到该会话下一次出现 `committed` 通知：任何种类的首次通知都按作用域绑定记下未结束的作用域，已结束的作用域还要等上下文类通知按记录记下（R2-D14「冷启动后未见过的作用域：答 unknown」）。需要冷启动即可查找时，由调用方用 `unknown` 以外的途径补，本成员不提供。
+- 事实插件只在自己运行期间建索引。它重启或冷启动后，一个会话的作用域答 `unknown`，直到该会话下一次出现 `committed` 通知：任何种类的首次通知都按作用域绑定记下未结束的作用域，已结束的作用域还要等上下文类通知按记录记下（R2-D14「冷启动后未见过的作用域：答 unknown」）。需要冷启动即可查找时，由调用方用 `unknown` 以外的途径补，本成员不提供；发行装配读 session-storage-sql 的作用域归属读口（其 SPEC 的 SO-01）。
 
 `historySessionOf(source)`（`src/history-session.ts`，根入口导出）从 Journal 核心铸的 history 证据解出 (tenant 文本, session)，供 ad03、ad04、ad05、ad14 行的 `heads.sessionOf` 使用。规则：owner 等于 Journal 的 owner；record 为命名空间、execution 与 `/history`；命名空间是 JSON 文本 `[tenant, session]`。它不解释 `consumer.work`，不授访问权；调用方在使用 session 之前仍须把 tenant 文本与调用者的租户比较并检查访问。它与 `materialSessionOf` 同源，不共享私有辅助函数。
 
@@ -814,13 +814,15 @@ AgentInstanceRef = { owner: 'agent', id: JSON.stringify(["slot1", <SessionId 文
 
 权限轴的纯投影由根入口 `projectSessionPermissionMode` 提供。输入和结果形状归 [permission-mode.ts](src/permission-mode.ts)。覆盖存在时使用覆盖值及原证据；否则显式创建使用创建值及原创建证据；tenant-default 必须消费与原采用四字段全等的默认观察。缺失或错配返回 unavailable，不能退到最新默认。默认观察必须由可信模式来源解析器提供，字段相同本身不授予资格。
 
+协作轴的纯投影由根入口 `projectSessionCollaborationMode` 提供，形状归 [collaboration-mode.ts](src/collaboration-mode.ts)。它按上表给出 `humanInteraction` 与 `requestApproval`，带协作值的来源与 `SESSION_COLLABORATION_MODE_TRANSLATION`。来源是最后一条已提交的协作模式变更的授权证据；没有变更时，显式创建用创建证据，tenant-default 用默认观察的来源。
+
 投影在模式提交的发布或恢复阶段计算，结果包含 `InquiryPolicy`、实际模式来源和 `SESSION_PERMISSION_MODE_TRANSLATION`。它不持有状态，也不在调用时读取默认值。投影不可变，消费者只读取它的 policy。Runtime Context 绑定、原动作与同捕获修订仍由实际装配接通；纯函数存在不表示这些路径已经验证。有限模型与执行守护见[权限模式证明](verification/proofs/permission-mode.md)。
 
 `createSessionModesPublication` 将原模式查询与工作快照合成不可变发布材料。两者的 tenant/session 和权限修订必须一致，否则返回 unavailable。创建时的显式模式或精确默认采用提供基础值；已提交覆盖提供相应轴的当前值。所需默认缺失、采用不符或发布材料不合法均明确不可用，不补隐含默认。三轴均有合法覆盖时不依赖已被覆盖的默认值。
 
-发布材料的 `modes` 保留 Session 三轴值，`inquiry` 保存预计算投影，`basis` 保存范围、工作快照修订、权限修订和原权限来源。实际载体的 Adoption 是适配器拥有的 `SESSION_MODES_PUBLICATION`，摘要覆盖完整 JSON schema；它不冒用 Session 三轴值的 schema。公开类型及 shape 归 [mode-publication-schema.ts](src/mode-publication-schema.ts)。`./cordis` 的 `sessionModesDescriptor` 按原 supplied/persisted 声明供给载体，并增补 ContextBlocks。
+发布材料的 `modes` 保留 Session 三轴值，`inquiry` 保存询问投影，`interaction` 保存协作投影，`basis` 保存范围、工作快照修订、权限修订和原权限来源。实际载体的 Adoption 是适配器拥有的 `SESSION_MODES_PUBLICATION`，摘要覆盖完整 JSON schema；它不冒用 Session 三轴值的 schema。公开类型及 shape 归 [mode-publication-schema.ts](src/mode-publication-schema.ts)。`./cordis` 的 `sessionModesDescriptor` 按原 supplied/persisted 声明供给载体，并增补 ContextBlocks。
 
-`sessionInquiryBinding` 仅面向 coordinator，选择同份材料中的 inquiry 与 basis，不重新解释模式，不在读取时补取最新修订。捕获组合必须核验这份 basis；发布后发生变更时，不能把旧策略与新读到的修订拼接。`SessionContextHolderInput.registrationApplied` 是成功注册应用后的可选通知口。成功 finishReplay 后通知最终注册；成功 applyCommit 的注册变化或作用域结束后通知新状态。失败重放、失败应用不发成功通知；回调异常只报告通知失败，不改写已应用事实。通知不是提交证据，也不代替来源重读。应用可据此刷新 supplied 模式。
+`sessionInquiryBinding` 仅面向 coordinator，选择同份材料中的 inquiry 与 basis，不重新解释模式，不在读取时补取最新修订。`sessionInteractionBinding` 同样仅面向 coordinator，需要名 `session.human-interaction`，选择同份材料中的 interaction 与 basis。`sessionModesBindings` 列出这个块的全部绑定；登记 `session.modes` 时绑定它的全部成员，不另挑子集。捕获组合必须核验这份 basis；发布后发生变更时，不能把旧策略与新读到的修订拼接。`SessionContextHolderInput.registrationApplied` 是成功注册应用后的可选通知口。成功 finishReplay 后通知最终注册；成功 applyCommit 的注册变化或作用域结束后通知新状态。失败重放、失败应用不发成功通知；回调异常只报告通知失败，不改写已应用事实。通知不是提交证据，也不代替来源重读。应用可据此刷新 supplied 模式。
 
 `prepareContextRegistration` 核对返回 judged.change 的完整变更：身份、修订、required、bindings、parameters 及 stateful declaration。bindings 的语义允许原机制复制容器，但其中函数与 schema 必须保持原采用；不能仅比较头字段就接受另一份内容。
 

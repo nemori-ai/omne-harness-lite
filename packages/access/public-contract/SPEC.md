@@ -1,16 +1,16 @@
 # 系统公开契约行为规格
 
-本页拥有治理消息与会话公开消息的字段、`outcome`、操作名，以及同一输入的可见结果。身份和授权的业务事实仍归 identity 与 authorization，会话的业务事实归 Session。本页固定两个协议版本及其操作名。它选定 HTTP 承载，承载映射写在[承载绑定](docs/http-binding.md)。它不选定传输保护协议，也不决定这两类消息以外的 SDK 覆盖范围。
+本页拥有治理消息、会话公开消息与 HITL 公开消息的字段、`outcome`、操作名，以及同一输入的可见结果。身份和授权的业务事实仍归 identity 与 authorization，会话的业务事实归 Session，卡片与答复的业务事实归 [HITL](../../human-intervention/human-intervention/SPEC.md)。本页固定三个协议版本及其操作名。新位置按[领域能力的公开位置](../../../docs/architecture/layers-and-dependencies.md#领域能力的公开位置)加入。它选定 HTTP 承载，承载映射写在[承载绑定](docs/http-binding.md)。它不选定传输保护协议，也不决定这三类消息以外的 SDK 覆盖范围。
 
 SDK 和服务端接入使用本页的结果表。它们不另写一套结果含义。
 
 ## 共同消息
 
-本节与[重复的 protocolVersion](#重复的-protocolversion)按治理位置书写。会话位置适用同样规则，其中的 `governance-public/1` 读作 `session-public/1`，见[会话公开操作](#会话公开操作)。
+本节与[重复的 protocolVersion](#重复的-protocolversion)按治理位置书写。会话位置与 HITL 位置适用同样规则，其中的 `governance-public/1` 分别读作 `session-public/1` 与 `hitl-public/1`，见[会话公开操作](#会话公开操作)与[HITL 公开操作](#hitl-公开操作)。
 
 请求和响应都是一个 JSON 对象。公开契约用 `packages/common/json-text` 的严格读取。注释、尾逗号和重复键都不是本协议的合法消息。
 
-治理位置只接受一个协议版本，文本为 `governance-public/1`。会话消息使用 `session-public/1`，见[会话公开操作](#会话公开操作)。以后增加版本必须改本页。调用者发送另一个版本时，整份消息得到 `protocol-rejected`。本地和远程可以使用不同的传输适配。适配变化不改变租户、授权、登录或完成的含义。本页不定义中心标识。
+治理位置只接受一个协议版本，文本为 `governance-public/1`。会话消息使用 `session-public/1`，见[会话公开操作](#会话公开操作)。HITL 消息使用 `hitl-public/1`，见[HITL 公开操作](#hitl-公开操作)。以后增加版本必须改本页。调用者发送另一个版本时，整份消息得到 `protocol-rejected`。本地和远程可以使用不同的传输适配。适配变化不改变租户、授权、登录或完成的含义。本页不定义中心标识。
 
 请求字段：
 
@@ -94,7 +94,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | `protocol-rejected` | 消息不被接受 | 任何业务事实 |
 | `stage-not-provided` | 本阶段，或本部署不提供该操作 | 主体是否存在，或删除、创建已经代替该操作，以及登录是否有效 |
 
-`need-decision` 的 `body` 只含原决定请求的标识。等待超时、连接断开和实例丢失不产生人的答复，也不写成批准或拒绝。答复的交付仍归人工交互的拥有者。本页不定义答复消息。
+`need-decision` 的 `body` 只含原决定请求的标识。等待超时、连接断开和实例丢失不产生人的答复，也不写成批准或拒绝。这个结果只传引用，不带卡片内容，也不受理答复。调用者在 HITL 位置读卡和答复，见[HITL 公开操作](#hitl-公开操作)。卡片与答复的业务事实仍归 HITL。
 
 `no-change` 在邀请和隶属的重复处置上，`body` 携带已经形成的那一个终结。它不表示这次又写了一次。
 
@@ -538,7 +538,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 ### 结果
 
-下列六个对外结果只用于 `session-public/1`，补充[对外结果](#对外结果)的表：
+下列对外结果用于 `session-public/1`，补充[对外结果](#对外结果)的表。HITL 位置也使用其中的 `invalid`、`limited` 与 `not-committed`，它们在该位置的含义见[HITL 结果](#hitl-结果)：
 
 | outcome | 调用者可以知道的 | 不能从该结果推出的 |
 | --- | --- | --- |
@@ -858,23 +858,156 @@ sequenceDiagram
 
 部署不能给出这三条时，取消与替换方面协议只保证连接关闭即取消，`not-found` 不表示观察已结束。
 
+## HITL 公开操作
+
+本节拥有 HITL 公开消息的字段、`outcome`、操作名、判断次序与 body。卡片、答复、资格与一卡一决的业务事实归 [HITL](../../human-intervention/human-intervention/SPEC.md)，各操作的业务含义见 HITL 的[公共协议](../../human-intervention/human-intervention/docs/protocol.md)。登录与主体归 [identity](../../identity/identity/SPEC.md)。服务端接入怎样把这些消息接到 HITL，见服务端接入的[HITL 位置](../server-entry/SPEC.md#hitl-位置)。本节用本页的词声明形状，字段取自 HITL 的公开定义。本成员不导入 HITL 的包。
+
+四个操作各对应 HITL 已有的一个查询或命令，不增加业务含义：
+
+| 操作 | HITL 的查询或命令 | 用途 |
+| --- | --- | --- |
+| `list-cards` | `listPool` | 列出卡片。`filter` 带 `sessionRef` 时是会话入口，不带时是待办池。两个入口是同一个操作，读同一份数据 |
+| `read-card` | `getCard` | 按卡片引用读一张卡 |
+| `submit-reply` | `submitReply` | 提交人对一张卡的一次处理 |
+| `query-submit-reply` | `getOperation` | 回包未知时，按原提交认回结果 |
+
+本位置不提供观察操作。新卡的在线提示和离线收件箱归通知能力。
+
+### HITL 的版本与信封
+
+HITL 消息的协议版本是 `hitl-public/1`，与另外两个位置分开计版本。严格 JSON 读取、重复 `protocolVersion`、可信 `messageId` 与协议拒绝的规则同[共同消息](#共同消息)与[重复的 protocolVersion](#重复的-protocolversion)，其中的版本文本换成 `hitl-public/1`。HITL 位置的 `protocol-rejected` 响应写 `hitl-public/1`。服务端按位置选择读取函数，不按消息里的版本文本分派。HITL 位置收到另外两个版本的消息是 `protocol-rejected`。另外两个位置收到 `hitl-public/1` 的消息，同样是 `protocol-rejected`。
+
+`loginProof` 与 `actingTenant` 的字段要求同共同消息。信封按操作闭合：
+
+| 操作 | `loginProof` | `actingTenant` | body 字段（全部必填） |
+| --- | --- | --- | --- |
+| `list-cards` | 必填 | 禁止 | `tenant`、`filter`、`cursor`、`limit` |
+| `read-card` | 必填 | 禁止 | `tenant`、`card` |
+| `submit-reply` | 必填 | 禁止 | `tenant`、`card`、`expectedRevision`、`reply`、`replyId` |
+| `query-submit-reply` | 必填 | 禁止 | `tenant`、`card`、`expectedRevision`、`reply`、`replyId` |
+
+HITL 按原提交身份和原内容的摘要认回一次提交，所以 `query-submit-reply` 带原提交的全部内容。除本表四个操作外，任何其他操作名在 HITL 位置都是 `protocol-rejected`。
+
+### HITL body 字段
+
+| 字段 | 要求 |
+| --- | --- |
+| `tenant` | 租户文本，读取规则与 `tenantId` 相同（见[本地值与线上表示](#本地值与线上表示)）。它是目标租户，不是行事租户。 |
+| `filter` | 对象。`states` 必填，是 1 至 3 项的数组，每项取 `pending`、`decided`、`invalidated` 之一。下列三个键可以省略：`originKind` 取 `tool`、`agent-extension`、`admission`、`independent` 之一；`sessionRef` 是会话标识文本，与会话位置的 `session` 字段同一编码（64 个小写十六进制字符），按卡片来源的 `sessionRef` 原文比较；`delivery` 取 `pending`、`accepted`、`superseded` 之一。其他键都被拒绝。 |
+| `cursor` | 键必须出现。null 表示读首页。否则是非空字符串，即上一页回复里 `next` 的原文。续页时 `tenant` 与 `filter` 必须与首页相同。 |
+| `limit` | JSON 整数，1 至 100，一页至多的卡片数。续页时可以改变。 |
+| `card` | 卡片引用，恰含 `request` 与 `cardId` 两个键。`request` 恰含 `tenantRef` 与 `requestId` 两个键。三个值都是非空字符串。调用者原样使用 `list-cards` 或 `read-card` 返回的卡片 `ref`。 |
+| `expectedRevision` | 匹配 `^(0\|[1-9][0-9]*)$` 的文本，即人作答时看到的卡片 `revision`。 |
+| `reply` | 恰为三种形状之一：`{ kind: 'selection', optionId }`、`{ kind: 'text', text }` 或 `{ kind: 'decline' }`。`optionId` 与 `text` 是非空字符串。一次提交只含一种。 |
+| `replyId` | 非空字符串，调用者在首次发送前生成的提交标识。唯一范围是同一租户。同一次提交的重试保持同值。人的新一次处理使用新值，即使内容与上一次相同。 |
+
+客户端不填写操作身份、操作者或位置引用。body 出现这类字段时，按封闭字段是 `protocol-rejected`。字符串的长度预算归 HITL：超出 HITL 预算的内容在第 4 步得到 `invalid`。
+
+### HITL 判断次序
+
+服务端接入按下面的次序处理一份已经完成传输保护的 HITL 消息。前一步给出终端结果时，不做后面的步骤。
+
+1. 协议读取：严格 JSON、版本、操作名、信封与 body 的封闭字段和类型；`tenant` 的内层读取；`filter`、`card` 与 `reply` 的封闭形状；`cursor` 是 null 或非空字符串；`limit` 的范围；`expectedRevision` 的文本格式。任一不合规是 `protocol-rejected`，HITL 不被调用。必填 `loginProof` 缺失或为空字符串不在这一步拒绝。通过本步的请求，若操作是部署声明不提供的 HITL 操作，立刻返回 `stage-not-provided` 和空 `body`，不进入第 2 步，见[HITL 部署声明不提供的操作](#hitl-部署声明不提供的操作)。
+2. 登录识别：`loginProof` 交给 identity。缺失、空字符串、无效或不是本部署签发的证明，对外同一份 `denied`。依据不可得是 `basis-unavailable`。
+3. 目标租户与入口主体：`tenant` 的账号不等于识别出的账号时是 `denied`。账号相等时，具名持有者为该租户签发入口主体，见[持有者与关系核对位置](../../identity/identity/SPEC.md#持有者与关系核对位置)。持有者未安装或签发失败时是 `basis-unavailable`。
+4. HITL 判断：资格、卡片存在、一卡一决与业务规则由 HITL 判断，结果按下表映射。主体在该租户下没有当前读取或答复资格、卡片不存在、卡片属于其他租户，对外都是 `denied`，不能区分。
+
+HITL 位置没有行事租户步骤，也没有部署范围步骤。`limit` 的上界由本页固定。服务端接入按部署配置给出位置引用，客户端不填它。
+
+### HITL 结果
+
+HITL 位置使用下列结果。`succeeded`、`denied`、`basis-unavailable`、`unknown`、`protocol-rejected` 与 `stage-not-provided` 的含义同[对外结果](#对外结果)。其余结果在本位置的含义如下：
+
+| outcome | 调用者可以知道的 | 不能从该结果推出的 |
+| --- | --- | --- |
+| `invalid` | 消息合乎协议，但 HITL 不接受这份内容。例如所选项不在卡片的选项里，或游标失效、被篡改、与过滤条件不符 | 卡片是否存在，或调用者的资格状态 |
+| `limited` | 一项结果或一次提交超出 HITL 的预算，这次没有结果 | 原样再送会成功 |
+| `conflict` | `list-cards`：续页时快照已变，调用者从首页重读。`submit-reply` 与 `query-submit-reply`：卡片修订已变，或同一 `replyId` 对应了不同内容 | 卡片当前是否已有有效处理 |
+| `not-committed` | 原提交已确定没有成立，调用者可以用原 `replyId` 重新发起 | 重新发起一定成功 |
+
+| operation | 线上业务 outcome | HITL 结果的映射 |
+| --- | --- | --- |
+| `list-cards` | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable` | `listPool`：`page` 为 `succeeded` |
+| `read-card` | `succeeded`、`denied`、`invalid`、`limited`、`basis-unavailable` | `getCard`：`found` 为 `succeeded` |
+| `submit-reply` | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`、`unknown` | `submitReply`：`decided`、`already-decided` 与 `invalidated` 为 `succeeded`，以 `kind` 区分 |
+| `query-submit-reply` | `succeeded`、`not-committed`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`、`unknown` | `getOperation`：`committed` 按原提交的结果映射，规则同 `submit-reply`；`not-committed` 为 `not-committed`；`unknown` 为 `unknown`；`conflict` 为 `conflict` |
+
+表中没有另写的 HITL 结果按同一规则映射：`denied` 为 `denied`，`invalid-input` 为 `invalid`，`limited` 为 `limited`，`conflict` 为 `conflict`，`unavailable` 为 `basis-unavailable`，`unknown` 为 `unknown`。每个操作另有第 1 步的 `protocol-rejected`，以及部署声明不提供时的 `stage-not-provided`。
+
+HITL 位置的 `denied` 不能推出卡片是否存在。HITL 先核资格，再查原提交的回执。所以撤权之后，原样再送和 `query-submit-reply` 都得到 `denied`，不披露原结果。
+
+| 结果 | body |
+| --- | --- |
+| `list-cards` 的 `succeeded` | `items`、`next`、`snapshotRef`、`completeness`，见[卡片视图](#卡片视图) |
+| `read-card` 的 `succeeded` | `item`，形状同 `items` 的一项 |
+| `submit-reply` 与 `query-submit-reply` 的 `succeeded` | 以 `kind` 区分的三个分支，见[答复的提交与认回](#答复的提交与认回) |
+| `limited` | `resource` 为非空字符串，`limit` 为正安全整数。两者照 HITL 原样给出 |
+| 其他结果 | 空对象 |
+
+### 卡片视图
+
+`list-cards` 与 `read-card` 的结果是 HITL 的查询投影，不是第二份决定权威。`items` 的每一项有 `card`、`origin` 与 `displayContext` 三个成员。
+
+| 成员 | 内容 |
+| --- | --- |
+| `card.ref` | 卡片引用，形状同 body 的 `card` |
+| `card.revision` | 十进制文本，这次读取依据的卡片修订 |
+| `card.question` | `kind` 取 `question`、`approval`、`admission`、`extension` 之一；另有 `cardId`、`title`、`description`、`declineConsequence` 与 `options`。每个选项有 `id`、`label` 与 `description`。`approval` 与 `admission` 的选项可以另有 `effectRef` |
+| `card.kind` | `pending`、`decided` 或 `invalidated` |
+| `card.decision` | 只在 `decided` 时出现：`ref`（`card`、`decisionId` 与 `submission`；`submission` 恰含 `tenantRef`、`actorRef`、`operationId`）、`reply`（形状同 body 的 `reply`）、`basisRef` 与 `commitReceipt` |
+| `card.delivery` | 只在 `decided` 时出现：`kind` 为 `pending`，或为 `accepted`、`superseded` 并带 `receiptRef` |
+| `card.reason`、`card.terminalEvidenceRef` | 只在 `invalidated` 时出现。`reason` 取 `cancelled`、`archived`、`origin-terminal`、`continuity-lost` 之一 |
+| `origin` | 卡片的来源：`kind` 取 `tool`、`agent-extension`、`admission`、`independent` 之一；可以另有 `sessionRef`、`runRef` 与 `toolCallRef` |
+| `displayContext` | 非空字符串，出卡方给出的展示上下文 |
+
+- 标识与名称是非空字符串，修订是十进制文本。没有列出的字段都被拒绝。
+- HITL 已按当前资格裁剪卡片内容。本页不另增内容。
+- `origin` 只含来源种类与会话、Run、Tool 调用的引用。原等待的路由字段不进入视图：答复回到哪里由 HITL 按原等待决定，客户端不选择。
+- 每张卡都允许自由作答和跳过。这不是字段，客户端总是提供这两种处理。
+- `next` 是字符串或 null。它原样作为下一次的 `cursor`。null 表示这个快照内已读完。
+- `snapshotRef` 是这一页依据的池快照引用。`completeness` 为 `complete` 时，这一页按快照和容量读完。它不表示全部卡片都在这一页。`completeness` 为 `partial` 时，输出预算先耗尽，`next` 仍可续读。
+- 游标绑定租户、位置、过滤条件与快照修订。游标不是读取资格，每一页都重新核验当前资格。
+
+### 答复的提交与认回
+
+`submit-reply` 与 `query-submit-reply` 的 `succeeded` body 是以 `kind` 区分的三个互斥分支：
+
+| kind | 其余成员 | 含义 |
+| --- | --- | --- |
+| `decided` | `decisionRef`（形状同 `card.decision.ref`）、`revision`、`delivery`（`pending` 或 `accepted`） | 人的处理与原等待的关联已经共同成立。它不表示权限或动作已经生效 |
+| `already-decided` | `decision`（形状同 `card.decision`） | 这张卡已经有一个有效处理，这次提交没有成为第二个 |
+| `invalidated` | `reason`，非空字符串 | 卡片已经失效，这次提交没有成为有效处理 |
+
+- 一张卡只有一个有效处理。会话入口和待办池读同一张卡，经同一个操作提交。两个入口或两次并发提交只有一个成立。
+- 服务端接入从 `tenant` 与 `replyId` 确定性地派生提交身份，规则归服务端接入的[HITL 提交身份的派生规则](../server-entry/SPEC.md#hitl-提交身份的派生规则)。入口主体对同一租户稳定，所以换一份登录原样再送，仍认回同一次提交。
+- `messageId` 只关联一次传输，不进入提交身份。
+- 连接断开、超时与响应丢失使调用者本地保持未知，不是未提交。调用者可以用同一 `replyId` 原样再送 `submit-reply`，同内容得到原结果。调用者也可以用同样的内容发 `query-submit-reply`。确认 `not-committed` 之前，不换新 `replyId` 重做同一次处理。
+- 同一 `replyId` 对应不同内容时是 `conflict`，响应不含原提交的内容。
+- SDK 的零字节再送规则同[未知、重复、重试、缓存和列表](#未知重复重试缓存和列表)。`list-cards` 与 `read-card` 只读，没有 `unknown`。调用者原样再送即可。
+
+### HITL 部署声明不提供的操作
+
+部署可以声明自己不提供某些 HITL 操作，机制同[部署声明不提供的操作](#部署声明不提供的操作)，差别只在次序：请求通过第 1 步之后，对声明不提供的操作立刻返回 `stage-not-provided`，`body` 为空对象。不识别登录，也不调用 HITL。声明只能取自本节的四个操作名。HITL 位置没有本页固定的阶段操作，所以 `stage-not-provided` 只来自部署的声明。
+
 ## 三个成员
 
 公开契约拥有本文件中的字段、`outcome`、操作名和重复时的可见后果。它可以引用 identity 已公开的标识纯值。它不引用服务端存储类型、Cordis 类型或 server-entry 的类型。
 
 SDK 依赖公开契约，以及调用者提供的传输适配接口。它不依赖 server-entry。它不依赖服务器存储包。安装闭包以 SDK 发布产物的依赖清单为准。源码能编译不能代替该清单。
 
-服务端接入依赖公开契约，并把已经通过协议检查的请求交给 identity 与 authorization 的公开入口。会话消息另交给 Session 的公开入口，映射见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。服务端接入按 message 包完整解码 `message`，见[会话编解码函数](#会话编解码函数)。它不改写允许和拒绝。它不把存储对象放到公开响应里。[会话观察](#会话观察)另经 model-contract 的 `ModelStreamReferences.current` 与 stream-arrival 的 `StreamObserver.observe` 组合，只调用这两个公开端口，不导入它们的实现。下面的依赖图是三个成员依赖边的唯一来源。
+服务端接入依赖公开契约，并把已经通过协议检查的请求交给 identity 与 authorization 的公开入口。会话消息另交给 Session 的公开入口，映射见[公开接入与宿主](../../../docs/architecture/runtime/runtime-contract-handoff.md#318-公开接入与宿主)。服务端接入按 message 包完整解码 `message`，见[会话编解码函数](#会话编解码函数)。它不改写允许和拒绝。它不把存储对象放到公开响应里。[会话观察](#会话观察)另经 model-contract 的 `ModelStreamReferences.current` 与 stream-arrival 的 `StreamObserver.observe` 组合，只调用这两个公开端口，不导入它们的实现。HITL 消息另交给 human-intervention 的公开查询与命令，见[HITL 公开操作](#hitl-公开操作)。下面的依赖图是三个成员依赖边的唯一来源。
 
 ```text
 client application -> sdk -> public-contract
 server-entry -> public-contract
 server-entry -> identity and authorization public entries
 server-entry -> session public entries
+server-entry -> human-intervention public entries
 server-entry -> message
 server-entry -> model-contract (current)
 server-entry -> stream-arrival (observe)
 public-contract does not import message or session-contract
+public-contract does not import human-intervention
 public-contract does not import model-contract or stream-arrival
 public-contract does not import sdk or server-entry
 sdk does not import server-entry
@@ -908,19 +1041,18 @@ const encoded = encodeGovernanceRequest({
 ## 仍不在本页决定
 
 - 成功业务访问如何报告。identity ID-11 继续拥有该公开形状。这些治理操作不代替那份报告。
-- 人工决定的答复消息。需要决定时只返回原请求标识。
 - 传输保护协议、登录证明的密码学形式、存储和治理名单的页大小。[会话观察](#会话观察)只固定 SSE 承载下确认与帧的先后，HTTP 承载格式见[承载绑定](docs/http-binding.md)。
 - 资产确认时刻。它归资产读面，不是这些治理消息。
 
 ## 公开编解码入口与实现细化
 
-本节固定纯协议编解码行为。公开类型由 [src/index.ts](src/index.ts) 导出的[治理消息定义](src/messages.ts)与[会话消息定义](src/session-messages.ts)拥有。本节不重复完整 TypeScript 定义。实现与验证的范围见 [README](README_ZH.md#验证)。
+本节固定纯协议编解码行为。公开类型由 [src/index.ts](src/index.ts) 导出的[治理消息定义](src/messages.ts)、[会话消息定义](src/session-messages.ts)与 HITL 消息定义拥有。本节不重复完整 TypeScript 定义。实现与验证的范围见 [README](README_ZH.md#验证)。
 
 ### 操作集合与函数
 
 正常信封表包含38个不同操作。另有4个本阶段不提供的操作，总共42个。`GovernanceProvidedOperation` 仅包含正常38项。`GovernanceOperation` 包含全部42项。`GovernanceRequest` 只表示正常操作的已读取请求，不为阶段未提供操作构造业务请求。`GovernanceResponse<O>` 按全部42个操作分别关联结果和 body。每个正常操作的响应还包含 `stage-not-provided`，因为部署可以声明它不提供，见[部署声明不提供的操作](#部署声明不提供的操作)。阶段行只有 `protocol-rejected` 或 `stage-not-provided`。
 
-主入口导出治理与会话两组纯函数，每组四个，及其公开输入结果类型。另有[身份值的文本](#身份值的文本)的八个函数。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)。
+主入口导出治理、会话与 HITL 三组纯函数，每组四个，及其公开输入结果类型。另有[身份值的文本](#身份值的文本)的八个函数。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)，HITL 一组见[HITL 编解码函数](#hitl-编解码函数)。
 
 | 函数 | 输入与可见结果 |
 | --- | --- |
@@ -984,6 +1116,23 @@ const encoded = encodeGovernanceRequest({
 - 历史页每项的 `payload` 本地为 json-text 值树，原样保留。`revision`、`kind` 与 `scannedThrough` 是字符串，可以为空。
 - `entryId` 是非空字符串，因为[历史页](#历史页)规定它的规则同 message 包的 `RecordEntryRef`，而 `RecordEntryRef` 非空。
 - `next` 是 null 或非空字符串，因为它原样作为下一次的 `cursor`，而 `cursor` 只能是 null 或非空字符串（见[会话 body 字段](#会话-body-字段)）。
+
+### HITL 编解码函数
+
+HITL 一组读写 `hitl-public/1` 的消息，四个函数是 `readHitlRequest`、`readHitlResponse`、`encodeHitlRequest` 与 `encodeHitlResponse`。参数、可见结果和拒绝方式与[会话编解码函数](#会话编解码函数)逐行对应，下面只写差别。
+
+- `readHitlRequest` 不读出 `stage-not-provided`，因为 HITL 位置没有本页固定的阶段操作。部署声明不提供的操作仍读出 `request`，由服务端接入按声明应答。
+- `readHitlResponse` 对每个 HITL 操作都接受 `body` 为空对象的 `stage-not-provided`，因为部署可以声明不提供任一操作。
+- `encodeHitlResponse` 的共同拒绝重载可以编码 `protocol-rejected` 与 `stage-not-provided`，规则同治理一组。
+- 每个 HITL 操作允许的线上业务 outcome 见[HITL 结果](#hitl-结果)的「operation／线上业务 outcome」表。各结果的 body 见同一节的「结果／body」表、[卡片视图](#卡片视图)与[答复的提交与认回](#答复的提交与认回)。这些来源和[HITL body 字段](#hitl-body-字段)表没有列出的字段都被拒绝。
+
+HITL 字段的本地值如下：
+
+- `tenant` 本地为完整 `TenantId`，读取规则同 `tenantId`。
+- `limit` 与 `limited` 的 `limit` 本地是 JavaScript 安全整数。
+- `cursor`、`next` 是 null 或非空字符串。`expectedRevision` 与 `revision` 保留原文本。
+- `filter`、`card`、`reply` 与卡片视图本地是封闭的纯数据对象。`reply`、`card.kind`、`card.delivery`、`card.question.kind` 与成功 body 是以 `kind` 字面量区分的联合，各分支互斥。
+- 标识与文本的长度预算不在本成员核对。它们由 HITL 判断，超出时是 `invalid`。
 
 ### 本地值与线上表示
 

@@ -34,6 +34,7 @@
 2. 当前修订号不等于 `expected` 时，停止并回滚。端口答 `conflict` 与当前修订号，不写入任何东西。
 3. 按输入顺序执行写入：`put` 按键替换，`delete` 删除该键，键不存在时什么也不做。
 4. 把账本域修订号设为 `revision`。写入集为空或只删除不存在的键时，修订号同样推进。
+5. 调用域的提交带 `pending` 时，在同一事务里维护这个调用的待办标记（TS-14）：`true` 写一行 `tl_pending`，已有时不变；`false` 删掉它。缺省不动标记。别的账本域不带 `pending`：适配器不发出它，参加者收到时按协议不符答 `unsupported`。
 
 结果对应如下：
 
@@ -98,7 +99,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-10 材料
 
-`toolStorageMaterials()` 返回写参加者 `tool`、一条迁移 `tool/001-tool-ledger-custody` 与三个读 handler。`tool` 拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
+`toolStorageMaterials()` 返回写参加者 `tool`、两条迁移与四个读 handler。迁移 `tool/001-tool-ledger-custody` 建 `tl_domain`、`tl_record`、`tl_chunk` 与 `tl_manifest`，它已发布，模块字节不再改变（sqlite-provider §5.4：标记的 checksum 与目录不同时该域进入 `quarantined`）。迁移 `tool/002-tool-pending` 依赖 001，建 `tl_pending`。在 002 之前已迁移的事务域，提供者下次打开它时执行 002。002 不回填标记：已有调用域在它的下一笔提交之前没有标记（已知限制 9）。读 handler 是 `tool.ledger.read`、`tool.ledger.pending`（`domain-serial`，依赖 002）、`tool.custody.manifest` 与 `tool.custody.chunk`。`tool` 拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
 
 ### TS-11 带原调用条件的 host 提交
 
@@ -134,6 +135,30 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 工厂不自动重试，不新建表或迁移，`tool` 参加者的代码不变。
 
+### TS-14 待办标记与扫描
+
+待办标记是 `tl_pending` 的一行，主键 `(tenant, call)`。它按 TS-02 第 5 步与调用域的记录同一事务写下或删掉，所以记录回滚时标记也不落地，标记语句失败时记录也回滚。标记不是 `LedgerRecord`，整域读不返回它，它也不单独推进修订号。
+
+`scanPending(input)` 只读标记，不读调用记录：
+
+- 单个租户（`tenant` 不为 `null`）：租户按 TS-03 解析，在它的事务域里用读 handler `tool.ledger.pending`（`domain-serial`）按主键范围取调用身份大于游标的最多 `limit` 行。游标的租户不是该租户时答 `unavailable`。
+- 跨租户（`tenant` 为 `null`）：按记录仓的必需构造选项 `tenants` 列出部署已登记的租户事务域（sql-contract §2.4 `TenantDomains.enumerate` 的结果）。装配用获准枚举的主体绑定它，记录仓不持有主体。列举答 `denied`、`unavailable` 或抛出时整页答 `unavailable`。列举成功时按租户文本的顺序逐个读其中的事务域，从游标的租户开始。每个域各自读一次，整个扫描不是同一时刻的快照。目录在扫描期间登记的、排在游标之前的租户，本次扫描不列出。
+- 一个域读不到、目录不可读、目录项不是该租户的作用域，或一行不是调用身份时，答 `unavailable`，不答更短的页。
+- 返回的租户由 legal-identity 从目录文本解析而来，是签发的租户身份。
+- `more` 为 `true` 时，最后一项之后可能还有标记。正好在一个租户末尾填满一页、后面还有租户时也答 `true`，下一页可能为空。
+
+一页最多 1000 行（读 handler 的 `maxRowsRead` 为 1001）。
+
+### TS-13 受信读取保管的原件字节
+
+`readSqlToolOutputBytes(options)` 返回一个读函数。输入是租户、调用与保管操作，输出是该操作保管的全部原件字节，以及清单封存的 codec 与保管证据 `custody`。它不是 `ToolOutputCustody` 端口的方法。只有组合 Tool 提供者的受信装配使用它，例如决策方读取 Ask 等待请求的原文。本包不核验主体，规则与[所有权一节](#所有权失败与生命周期)相同。
+
+- 租户按 TS-03 解析。目录不含该租户时答 `unavailable`。
+- 先读清单，再按清单的块数逐块读取。两个读都用 `snapshot`（TS-09）。
+- 读回的字节数与 SHA-256 必须等于清单记录的值。不相等或缺块时答 `unavailable`，不交付字节。
+- 从未保管的操作答 null。以投影保管的操作也答 null，因为它保管的是结果值，不是原件（与 TS-08 相同）。
+- 读取不写入任何东西。
+
 ## 所有权、失败与生命周期
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
@@ -153,6 +178,8 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 6. 每次提交（包括每个块）在提供者的回执表里留下一条回执。原件越大，回执越多。
 7. 清单提交在一个写事务内重读全部块并计算 SHA-256，代价与原件大小成正比。
 8. 值为 `undefined` 的记录成员按 JSON 省略。读回的记录没有这些成员。
+9. 002 不回填待办标记。升级之前写入、之后没有再提交的调用域不在扫描里。本阶段不做数据迁移。
+10. 跨租户扫描逐个打开目录里的租户事务域。租户多时启动扫描的代价随租户数增长。
 
 ## 组合与验证
 
@@ -160,6 +187,8 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | TS-01、TS-02        | `tests/ledger-store-conformance.spec.ts` 运行 `toolLedgerStoreConformance()` 与 `toolLedgerStoreCompositionConformance()`，七个故障手柄都有来源，没有不适用项；`tests/atomic-commit.spec.ts` | SQLite 测试提供者（`tests/fixtures/sqlite-storage.ts`），不是 sqlite-provider                    |
 | TS-03               | `tests/tenant-isolation.spec.ts`：同键两租户、他租户行混入同一库、目录外的租户                                                                                                               | 同上                                                                                             |
+| TS-14               | `tests/ledger-store-conformance.spec.ts` 的 `store.pending-*` 用例；`tests/pending-marker.spec.ts`：同事务回滚、非调用域、重开、在 002 之前迁移的域、主键范围的查询计划、没有目录与他租户游标 | 同上。查询计划用例在测试里复写了 handler 的语句形状 |
+| TS-13               | `tests/output-bytes.spec.ts`：多块读回、块被改动或缺失、从未保管、投影、他租户与目录外租户                                                                                                   | 同上                                                                                             |
 | TS-04、TS-05、TS-08 | `tests/custody-conformance.spec.ts` 运行 `toolOutputCustodyConformance()`，没有不适用项；`tests/custody-chunks.spec.ts`；`tests/participant.spec.ts`                                         | 同上                                                                                             |
 | TS-06、TS-07        | `tests/custody-chunks.spec.ts`                                                                                                                                                               | 同上                                                                                             |
 | 重开                | `tests/reopen.spec.ts`：关闭再打开同一组数据库文件                                                                                                                                           | 进程内关闭与重开，不是进程终止或断电                                                             |

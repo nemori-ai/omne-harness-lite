@@ -9,8 +9,8 @@ import {
   SESSION_COMMIT_PROTOCOL,
 } from './commit-basis.ts'
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
-// their ten migrations (four of `session`: the log, the execution index, the operation evidence
-// table and the snapshot chunks; six of `execution-record`: its records, the preadmission records,
+// their migrations (of `session`: the log, the execution index, the operation evidence table, the
+// snapshot chunks, the attempt grants and the scope owners; six of `execution-record`: its records, the preadmission records,
 // the original attempt of an admission, the state parts, the fact bodies, and the fact family with
 // the content blocks that replaces the state parts and the fact bodies) and their
 // read handlers, as the SQL storage contract describes them
@@ -20,6 +20,7 @@ import {
 // aggregates these with the materials of the other owners into one catalog and declares the
 // combination; this member never builds a catalog, a Cordis service or a domain registration.
 import { createHash } from 'node:crypto'
+import { SESSION_RUN_LIVE_FACT, SESSION_RUN_LIVE_GUARD } from './run-live.ts'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type {
@@ -59,6 +60,8 @@ import {
   STATE_ITEM_TABLES,
   ATTEMPT_GRANT_MIGRATION,
   ATTEMPT_GRANT_TABLES,
+  SCOPE_INDEX_MIGRATION,
+  SCOPE_INDEX_TABLES,
 } from './worker/schema.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
@@ -87,6 +90,10 @@ const stateItemMigrationRef = Object.freeze({
 const attemptGrantMigrationRef = Object.freeze({
   owner: ATTEMPT_GRANT_MIGRATION.owner,
   id: ATTEMPT_GRANT_MIGRATION.id,
+})
+const scopeIndexMigrationRef = Object.freeze({
+  owner: SCOPE_INDEX_MIGRATION.owner,
+  id: SCOPE_INDEX_MIGRATION.id,
 })
 const recordMigrationRef = Object.freeze({
   owner: EXECUTION_RECORD_MIGRATION.owner,
@@ -255,6 +262,14 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_released_scope_idx'],
   },
   {
+    // The session that minted a Context scope: one point read (SessionScopeOwnerSource).
+    handler: 'session.scope-owner',
+    file: 'read-scope-owner',
+    tables: SCOPE_INDEX_TABLES,
+    migrations: [scopeIndexMigrationRef],
+    maxRowsRead: 1,
+  },
+  {
     handler: 'session.history-root',
     file: 'read-history-root',
     tables: ['sl_journal', 'sl_entry', 'er_root'],
@@ -331,6 +346,7 @@ export function sessionStorageMaterials(
   const readOutputLimitBytes = requireReadOutputLimit(options)
   const permissionMigration = module('permission-current-migration')
   const permissionGuard = module('permission-current-guard')
+  const runLiveGuard = module('run-live-guard')
   const participant = module('participant')
   const ordinaryBasis = module('ordinary-basis')
   const record = module('execution-record')
@@ -340,6 +356,7 @@ export function sessionStorageMaterials(
   const evidenceMigration = module('operation-evidence-migration')
   const stateItemMigration = module('state-item-migration')
   const attemptGrantMigration = module('attempt-grant-migration')
+  const scopeIndexMigration = module('scope-index-migration')
   const preadmissionMigration = module('preadmission-migration')
   const admissionAttemptMigration = module('admission-attempt-migration')
   const statePartMigration = module('state-part-migration')
@@ -347,6 +364,18 @@ export function sessionStorageMaterials(
   const factBlobMigration = module('fact-blob-migration')
   return {
     participants: [
+      {
+        participant: SESSION_RUN_LIVE_GUARD,
+        protocol: '1',
+        moduleUrl: runLiveGuard.moduleUrl,
+        codeDigest: runLiveGuard.digest,
+        ownedTables: [],
+        readTables: ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES],
+        requiresFacts: [],
+        providesFacts: [SESSION_RUN_LIVE_FACT],
+        allowedFunctions: [],
+        grouping: 'singleton',
+      },
       {
         participant: SESSION_PERMISSION_GUARD,
         protocol: '1',
@@ -392,6 +421,7 @@ export function sessionStorageMaterials(
           ...OPERATION_EVIDENCE_TABLES,
           ...STATE_ITEM_TABLES,
           ...ATTEMPT_GRANT_TABLES,
+          ...SCOPE_INDEX_TABLES,
         ],
         readTables: EXECUTION_RECORD_INDEX_TABLES,
         requiresFacts: [SESSION_COMMIT_BASIS],
@@ -454,6 +484,12 @@ export function sessionStorageMaterials(
         moduleUrl: permissionMigration.moduleUrl,
         checksum: permissionMigration.digest,
         requires: [attemptGrantMigrationRef],
+      },
+      {
+        ...scopeIndexMigrationRef,
+        moduleUrl: scopeIndexMigration.moduleUrl,
+        checksum: scopeIndexMigration.digest,
+        requires: [migrationRef],
       },
       {
         ...preadmissionMigrationRef,

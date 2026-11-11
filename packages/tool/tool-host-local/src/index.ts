@@ -5,6 +5,7 @@ export type {
 } from './start-permit-requirements.ts'
 export { createLocalToolLoader, type LocalToolLoaderInput } from './author-loader.ts'
 export { createLocalToolBindings, type LocalToolBindingsInput } from './executor-binding.ts'
+export { waitRequestOperation, type SegmentOperationRejection } from './segment-operations.ts'
 export type { LocalAuthorExecution } from './live-author-execution.ts'
 export {
   createLocalStartCoordinator,

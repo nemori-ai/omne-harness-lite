@@ -1,5 +1,5 @@
 // The queue maintenance entry of the ledger (SPEC 22): the reconcile that a waiting call asks for
-// its FIFO key. A queue entry repeats a fact that its call domain owns (the call's stage), and the
+// its queue key. A queue entry repeats a fact that its call domain owns (the call's stage), and the
 // queue domain cannot read that domain, so an entry can outlive the step that should have moved
 // or removed it. The reconcile reads the call domains of the entries that stand in the waiter's
 // way and repairs only what the call domain proves: an entry whose call holds a release basis is
@@ -9,7 +9,12 @@
 // redo of the call's owner.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ToolCallId, ToolFailure } from '@omne-harness/tool-contract'
+import {
+  decodeToolOperationId,
+  type ToolCallId,
+  type ToolFailure,
+  type ToolOperationId,
+} from '@omne-harness/tool-contract'
 import { invalid, type CallInput } from './boundary.ts'
 import type { QueueReconciliation, ToolLedgerQueues } from './construction.ts'
 import type { Decision, Snapshot } from './ledger-decider.ts'
@@ -36,6 +41,16 @@ export type QueueMaintenance<P, B extends ContentBlock> = Readonly<{
     decide: (snapshot: QueueSnapshot) => Decision<T, B>,
     unknown: Outcome<T, ToolFailure>,
   ): Promise<Outcome<T, ToolFailure>>
+  /** Does the park duty `operation` of an authorized call: the queue step, then its closing. */
+  park(
+    checked: CallInput<P>,
+    operation: ToolOperationId,
+  ): Promise<Outcome<Readonly<{ parked: boolean }>, ToolFailure>>
+  /** 完成已授权调用的释放待办 `operation`：队列域释放，然后调用域关闭待办。 */
+  release(
+    checked: CallInput<P>,
+    operation: ToolOperationId,
+  ): Promise<Outcome<Readonly<{ released: boolean }>, ToolFailure>>
 }>
 
 const NOTHING: QueueReconciliation = { released: [], redrive: [] }
@@ -74,7 +89,15 @@ async function survey<P, B extends ContentBlock>(
     if (owned.ok.call === null) continue
     const basis = releaseBasisOf(owned.ok)
     if (basis !== null) releases.push({ call: peer.call, basis })
-    if (owned.ok.tasks.some(task => task.kind === 'queue')) redrive.push(peer.call)
+    // A suspended call that still owes its park holds a slot that it is about to give up.
+    if (
+      owned.ok.tasks.some(
+        task =>
+          task.kind === 'queue' ||
+          (task.kind === 'suspend' && owned.ok.call?.state.phase === 'suspended'),
+      )
+    )
+      redrive.push(peer.call)
   }
   return succeed({ releases, redrive })
 }
@@ -105,6 +128,20 @@ export function createQueueReconciler<P, B extends ContentBlock>(
         RELEASE_UNKNOWN,
       )
       return 'failure' in done ? done : succeed({ released: done.ok, redrive })
+    },
+    park: async input => {
+      const checked = await ops.authorize(input)
+      if ('failure' in checked) return checked
+      const operation = decodeToolOperationId(Reflect.get(input as object, 'operation'))
+      if ('failure' in operation) return invalid('operation', operation.failure.reason)
+      return ops.park(checked.ok, operation.ok)
+    },
+    release: async input => {
+      const checked = await ops.authorize(input)
+      if ('failure' in checked) return checked
+      const operation = decodeToolOperationId(Reflect.get(input as object, 'operation'))
+      if ('failure' in operation) return invalid('operation', operation.failure.reason)
+      return ops.release(checked.ok, operation.ok)
     },
   }
 }

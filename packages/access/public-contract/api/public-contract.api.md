@@ -21,6 +21,39 @@
 - `GovernanceResponseRead` · `messages.d.ts`
 - `GovernanceStageNotProvided` · `messages.d.ts`
 - `GovernanceStageOperation` · `messages.d.ts`
+- `HitlCard` · `hitl-messages.d.ts`
+- `HitlCardDelivery` · `hitl-messages.d.ts`
+- `HitlCardFilter` · `hitl-messages.d.ts`
+- `HitlCardItem` · `hitl-messages.d.ts`
+- `HitlCardOrigin` · `hitl-messages.d.ts`
+- `HitlCardPage` · `hitl-messages.d.ts`
+- `HitlCardRef` · `hitl-messages.d.ts`
+- `HitlCardState` · `hitl-messages.d.ts`
+- `HitlCodecLimits` · `hitl-messages.d.ts`
+- `HitlDecision` · `hitl-messages.d.ts`
+- `HitlDecisionRef` · `hitl-messages.d.ts`
+- `HitlDiagnostic` · `hitl-messages.d.ts`
+- `HitlEncodeResult` · `hitl-messages.d.ts`
+- `HitlLimitedBody` · `hitl-messages.d.ts`
+- `HitlOperation` · `hitl-messages.d.ts`
+- `HitlOption` · `hitl-messages.d.ts`
+- `HitlOriginKind` · `hitl-messages.d.ts`
+- `HitlOutcomes` · `hitl-messages.d.ts`
+- `HitlProtocolRejected` · `hitl-messages.d.ts`
+- `HitlProtocolResult` · `hitl-messages.d.ts`
+- `HitlQuestion` · `hitl-messages.d.ts`
+- `HitlReply` · `hitl-messages.d.ts`
+- `HitlReplyResult` · `hitl-messages.d.ts`
+- `HitlReplySubmission` · `hitl-messages.d.ts`
+- `HitlRequest` · `hitl-messages.d.ts`
+- `HitlRequestBodies` · `hitl-messages.d.ts`
+- `HitlRequestRead` · `hitl-messages.d.ts`
+- `HitlResponse` · `hitl-messages.d.ts`
+- `HitlResponseEncodeInput` · `hitl-messages.d.ts`
+- `HitlResponseRead` · `hitl-messages.d.ts`
+- `HitlStageNotProvided` · `hitl-messages.d.ts`
+- `HitlSubmissionRef` · `hitl-messages.d.ts`
+- `HitlSuccessBodies` · `hitl-messages.d.ts`
 - `LoginStateId` · 包 `@omne-harness/legal-identity`
 - `OrganizationId` · 包 `@omne-harness/legal-identity`
 - `ProofInput` · `messages.d.ts`
@@ -69,6 +102,8 @@
 - `encodeAccountIdText` · `identity-text.d.ts`
 - `encodeGovernanceRequest` · `codec.d.ts`
 - `encodeGovernanceResponse` · `codec.d.ts`
+- `encodeHitlRequest` · `hitl-codec.d.ts`
+- `encodeHitlResponse` · `hitl-codec.d.ts`
 - `encodeLoginStateIdText` · `identity-text.d.ts`
 - `encodeOrganizationIdText` · `identity-text.d.ts`
 - `encodeSessionRequest` · `session-codec.d.ts`
@@ -77,6 +112,8 @@
 - `readAccountIdText` · `identity-text.d.ts`
 - `readGovernanceRequest` · `codec.d.ts`
 - `readGovernanceResponse` · `codec.d.ts`
+- `readHitlRequest` · `hitl-codec.d.ts`
+- `readHitlResponse` · `hitl-codec.d.ts`
 - `readLoginStateIdText` · `identity-text.d.ts`
 - `readOrganizationIdText` · `identity-text.d.ts`
 - `readSessionRequest` · `session-codec.d.ts`
@@ -156,6 +193,302 @@ export declare function readRequestDocument(bytes: Uint8Array, limits: JsonLimit
 };
 ```
 
+## 声明文件 `hitl-codec.d.ts`
+
+```ts
+import type { HitlCodecLimits, HitlEncodeResult, HitlOperation, HitlProtocolResult, HitlRequest, HitlRequestRead, HitlResponseEncodeInput, HitlResponseRead } from './hitl-messages.ts';
+export declare function readHitlRequest(input: {
+    readonly bytes: Uint8Array;
+    readonly limits: HitlCodecLimits;
+}): HitlRequestRead;
+export declare function readHitlResponse<O extends HitlOperation>(input: {
+    readonly bytes: Uint8Array;
+    readonly operation: O;
+    readonly expectedMessageId: string;
+    readonly limits: HitlCodecLimits;
+}): HitlResponseRead<O>;
+export declare function encodeHitlRequest(input: {
+    readonly request: HitlRequest;
+    readonly limits: HitlCodecLimits;
+}): HitlEncodeResult;
+export declare function encodeHitlResponse(input: {
+    readonly response: HitlProtocolResult;
+    readonly limits: HitlCodecLimits;
+}): HitlEncodeResult;
+export declare function encodeHitlResponse<O extends HitlOperation>(input: HitlResponseEncodeInput<O>): HitlEncodeResult;
+```
+
+## 声明文件 `hitl-messages.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { EmptyBody, GovernanceCodecLimits, GovernanceDiagnostic, GovernanceEncodeResult, ProofInput } from './messages.ts';
+export type HitlCodecLimits = GovernanceCodecLimits;
+export type HitlDiagnostic = GovernanceDiagnostic;
+export type HitlEncodeResult = GovernanceEncodeResult;
+export type HitlCardRef = {
+    readonly request: {
+        readonly tenantRef: string;
+        readonly requestId: string;
+    };
+    readonly cardId: string;
+};
+export type HitlReply = {
+    readonly kind: 'selection';
+    readonly optionId: string;
+} | {
+    readonly kind: 'text';
+    readonly text: string;
+} | {
+    readonly kind: 'decline';
+};
+export type HitlCardState = 'pending' | 'decided' | 'invalidated';
+export type HitlOriginKind = 'tool' | 'agent-extension' | 'admission' | 'independent';
+export type HitlCardFilter = {
+    readonly states: readonly HitlCardState[];
+    readonly originKind?: HitlOriginKind;
+    readonly sessionRef?: string;
+    readonly delivery?: 'pending' | 'accepted' | 'superseded';
+};
+export type HitlReplySubmission = {
+    readonly tenant: TenantId;
+    readonly card: HitlCardRef;
+    readonly expectedRevision: string;
+    readonly reply: HitlReply;
+    readonly replyId: string;
+};
+export type HitlRequestBodies = {
+    'list-cards': {
+        readonly tenant: TenantId;
+        readonly filter: HitlCardFilter;
+        readonly cursor: string | null;
+        readonly limit: number;
+    };
+    'read-card': {
+        readonly tenant: TenantId;
+        readonly card: HitlCardRef;
+    };
+    'submit-reply': HitlReplySubmission;
+    'query-submit-reply': HitlReplySubmission;
+};
+export type HitlOperation = keyof HitlRequestBodies;
+export type HitlRequestByOperation = {
+    readonly [O in HitlOperation]: {
+        readonly protocolVersion: 'hitl-public/1';
+        readonly messageId: string;
+        readonly operation: O;
+        readonly proof: ProofInput;
+        readonly body: HitlRequestBodies[O];
+    };
+};
+export type HitlRequest<O extends HitlOperation = HitlOperation> = HitlRequestByOperation[O];
+export type HitlOption = {
+    readonly id: string;
+    readonly label: string;
+    readonly description: string;
+};
+type HitlQuestionFields = {
+    readonly cardId: string;
+    readonly title: string;
+    readonly description: string;
+    readonly declineConsequence: string;
+};
+export type HitlQuestion = HitlQuestionFields & ({
+    readonly kind: 'question' | 'extension';
+    readonly options: readonly HitlOption[];
+} | {
+    readonly kind: 'approval' | 'admission';
+    readonly options: readonly (HitlOption & {
+        readonly effectRef?: string;
+    })[];
+});
+export type HitlSubmissionRef = {
+    readonly tenantRef: string;
+    readonly actorRef: string;
+    readonly operationId: string;
+};
+export type HitlDecisionRef = {
+    readonly card: HitlCardRef;
+    readonly decisionId: string;
+    readonly submission: HitlSubmissionRef;
+};
+export type HitlDecision = {
+    readonly ref: HitlDecisionRef;
+    readonly reply: HitlReply;
+    readonly basisRef: string;
+    readonly commitReceipt: string;
+};
+export type HitlCardDelivery = {
+    readonly kind: 'pending';
+} | {
+    readonly kind: 'accepted' | 'superseded';
+    readonly receiptRef: string;
+};
+type HitlCardFields = {
+    readonly ref: HitlCardRef;
+    readonly revision: string;
+    readonly question: HitlQuestion;
+};
+export type HitlCard = HitlCardFields & ({
+    readonly kind: 'pending';
+} | {
+    readonly kind: 'decided';
+    readonly decision: HitlDecision;
+    readonly delivery: HitlCardDelivery;
+} | {
+    readonly kind: 'invalidated';
+    readonly reason: 'cancelled' | 'archived' | 'origin-terminal' | 'continuity-lost';
+    readonly terminalEvidenceRef: string;
+});
+export type HitlCardOrigin = {
+    readonly kind: HitlOriginKind;
+    readonly sessionRef?: string;
+    readonly runRef?: string;
+    readonly toolCallRef?: string;
+};
+export type HitlCardItem = {
+    readonly card: HitlCard;
+    readonly origin: HitlCardOrigin;
+    readonly displayContext: string;
+};
+export type HitlCardPage = {
+    readonly items: readonly HitlCardItem[];
+    readonly next: string | null;
+    readonly snapshotRef: string;
+    readonly completeness: 'complete' | 'partial';
+};
+export type HitlReplyResult = {
+    readonly kind: 'decided';
+    readonly decisionRef: HitlDecisionRef;
+    readonly revision: string;
+    readonly delivery: 'pending' | 'accepted';
+} | {
+    readonly kind: 'already-decided';
+    readonly decision: HitlDecision;
+} | {
+    readonly kind: 'invalidated';
+    readonly reason: string;
+};
+export type HitlSuccessBodies = {
+    'list-cards': HitlCardPage;
+    'read-card': {
+        readonly item: HitlCardItem;
+    };
+    'submit-reply': HitlReplyResult;
+    'query-submit-reply': HitlReplyResult;
+};
+export type HitlOutcomes = {
+    'list-cards': 'succeeded' | 'denied' | 'invalid' | 'limited' | 'conflict' | 'basis-unavailable';
+    'read-card': 'succeeded' | 'denied' | 'invalid' | 'limited' | 'basis-unavailable';
+    'submit-reply': 'succeeded' | 'denied' | 'invalid' | 'limited' | 'conflict' | 'basis-unavailable' | 'unknown';
+    'query-submit-reply': 'succeeded' | 'not-committed' | 'denied' | 'invalid' | 'limited' | 'conflict' | 'basis-unavailable' | 'unknown';
+};
+export type HitlLimitedBody = {
+    readonly resource: string;
+    readonly limit: number;
+};
+export type HitlProtocolRejected = {
+    readonly protocolVersion: 'hitl-public/1';
+    readonly messageId?: string;
+    readonly outcome: 'protocol-rejected';
+    readonly body: EmptyBody;
+};
+export type HitlStageNotProvided = {
+    readonly protocolVersion: 'hitl-public/1';
+    readonly messageId?: string;
+    readonly outcome: 'stage-not-provided';
+    readonly body: EmptyBody;
+};
+export type HitlProtocolResult = HitlProtocolRejected | HitlStageNotProvided;
+export type HitlBusinessResponse<O extends HitlOperation> = {
+    readonly [K in HitlOutcomes[O]]: {
+        readonly protocolVersion: 'hitl-public/1';
+        readonly messageId: string;
+        readonly outcome: K;
+        readonly body: K extends 'succeeded' ? HitlSuccessBodies[O] : K extends 'limited' ? HitlLimitedBody : EmptyBody;
+    };
+}[HitlOutcomes[O]];
+export type HitlResponseByOperation = {
+    readonly [O in HitlOperation]: HitlProtocolResult | HitlBusinessResponse<O>;
+};
+export type HitlResponse<O extends HitlOperation = HitlOperation> = HitlResponseByOperation[O];
+export type HitlRequestRead = {
+    readonly kind: 'request';
+    readonly request: HitlRequest;
+} | {
+    readonly kind: 'protocol-rejected';
+    readonly response: HitlProtocolRejected;
+    readonly diagnostic: HitlDiagnostic;
+};
+export type HitlResponseRead<O extends HitlOperation> = {
+    readonly kind: 'response';
+    readonly response: HitlResponse<O>;
+} | {
+    readonly kind: 'unmatched';
+} | {
+    readonly kind: 'unreadable';
+    readonly diagnostic: HitlDiagnostic;
+};
+export type HitlResponseEncodeInput<O extends HitlOperation = HitlOperation> = {
+    readonly [K in O]: {
+        readonly operation: K;
+        readonly response: HitlResponse<K>;
+        readonly limits: HitlCodecLimits;
+    };
+}[O];
+export {};
+```
+
+## 声明文件 `hitl-rules.d.ts`
+
+```ts
+import { type Family } from './operation-rules.ts';
+import type { HitlOperation, HitlOutcomes } from './hitl-messages.ts';
+declare const outcomes: {
+    readonly 'list-cards': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "limited",
+        "conflict",
+        "basis-unavailable"
+    ];
+    readonly 'read-card': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "limited",
+        "basis-unavailable"
+    ];
+    readonly 'submit-reply': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "limited",
+        "conflict",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'query-submit-reply': readonly [
+        "succeeded",
+        "not-committed",
+        "denied",
+        "invalid",
+        "limited",
+        "conflict",
+        "basis-unavailable",
+        "unknown"
+    ];
+};
+type MissingOutcomes = {
+    readonly [O in HitlOperation]: Exclude<HitlOutcomes[O], (typeof outcomes)[O][number]>;
+}[HitlOperation];
+type OutcomesComplete<Missing extends never> = Missing;
+export type HitlOutcomeTableComplete = OutcomesComplete<MissingOutcomes>;
+export declare const hitlFamily: Family<'hitl-public/1', HitlOperation, never>;
+export {};
+```
+
 ## 声明文件 `identity-text.d.ts`
 
 ```ts
@@ -178,6 +511,8 @@ export { readGovernanceRequest, readGovernanceResponse, encodeGovernanceRequest,
 export { readSessionRequest, readSessionResponse, encodeSessionRequest, encodeSessionResponse, } from './session-codec.ts';
 export type { GovernanceProvidedOperation, GovernanceStageOperation, GovernanceOperation, GovernanceRequest, GovernanceResponse, GovernanceCodecLimits, ProofInput, GovernanceProtocolRejected, GovernanceStageNotProvided, GovernanceProtocolResult, GovernanceDiagnostic, GovernanceRequestRead, GovernanceResponseRead, GovernanceEncodeResult, GovernanceResponseEncodeInput, SettingAssetSelector, SettingItemView, SettingLayers, SettingLayerState, SettingState, } from './messages.ts';
 export type { SessionOperation, SessionRequestBodies, SessionProducerRef, SessionTerminalSource, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionDiagnosticsPage, SessionDiagnosticGap, SessionDiagnosticGapSource, SessionDiagnosticGapReason, SessionDiagnosticUnknown, SessionDiagnosticInstant, SessionDiagnosticMilliseconds, SessionAdoptionRef, SessionRunDiagnostic, SessionRunAttempts, SessionRunTerminal, SessionRunCause, SessionRunControl, SessionModelCallDiagnostic, SessionModelAttemptDiagnostic, SessionToolCallDiagnostic, SessionToolDiagnosticEntry, SessionFactCount, SessionCallAccountView, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
+export { readHitlRequest, readHitlResponse, encodeHitlRequest, encodeHitlResponse, } from './hitl-codec.ts';
+export type { HitlOperation, HitlRequestBodies, HitlRequest, HitlCardRef, HitlReply, HitlCardState, HitlOriginKind, HitlCardFilter, HitlReplySubmission, HitlOption, HitlQuestion, HitlSubmissionRef, HitlDecisionRef, HitlDecision, HitlCardDelivery, HitlCard, HitlCardOrigin, HitlCardItem, HitlCardPage, HitlReplyResult, HitlOutcomes, HitlSuccessBodies, HitlLimitedBody, HitlResponse, HitlProtocolRejected, HitlStageNotProvided, HitlProtocolResult, HitlCodecLimits, HitlDiagnostic, HitlRequestRead, HitlResponseRead, HitlEncodeResult, HitlResponseEncodeInput, } from './hitl-messages.ts';
 export { readTenantText, encodeTenantText, readOrganizationIdText, encodeOrganizationIdText, readAccountIdText, encodeAccountIdText, readLoginStateIdText, encodeLoginStateIdText, } from './identity-text.ts';
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
 ```
@@ -688,7 +1023,7 @@ export {};
 
 ```ts
 import type { GovernanceProvidedOperation, GovernanceStageOperation } from './messages.ts';
-export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'positive-integer' | 'parameters' | 'json' | 'user-message';
+export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'revision' | 'positive-integer' | 'page-limit' | 'parameters' | 'json' | 'user-message';
 export type Rule = {
     readonly kind: LeafKind;
 } | {
@@ -704,6 +1039,7 @@ export type Rule = {
     readonly kind: 'array';
     readonly item: Rule;
     readonly nonempty?: true;
+    readonly max?: number;
 } | {
     readonly kind: 'one-of';
     readonly rules: readonly Rule[];
@@ -717,6 +1053,7 @@ export type Family<V extends string, P extends string, S extends string> = {
     readonly version: V;
     readonly error: string;
     readonly stages: readonly S[];
+    readonly declarable: boolean;
     readonly isProvided: (value: unknown) => value is P;
     readonly requestRule: (operation: P) => RequestRule;
     readonly responseRule: (operation: P, outcome: string) => Rule | undefined;

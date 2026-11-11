@@ -1,16 +1,16 @@
-# 人在回路协作设计候选
+# 人在回路协作设计
 
-本页保存尚待技术采用的设计，不表示实现、产品接受或阶段承诺。完整必要行为见[human-intervention/human-intervention SPEC](../human-intervention/SPEC.md)，产品范围见[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)。
+HJ0公共协议和形式模型已由用户接受。本页维护组内责任与协作，具体实现状态见组入口，不以设计代替运行证据。完整必要行为见[human-intervention/human-intervention SPEC](../human-intervention/SPEC.md)，产品范围见[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)。
 
 ## 技术采用与验证分工
 
-Q-HI02–Q-HI05 分别承接公开数据/资格接口、一致提交、拓展恢复协议及提示/披露组合。独立领域接口不直接依赖 Cordis 业务含义；装配才沿已有 IC 守住唯一服务定义、公开纯入口、依赖和撤除责任。需不可信代码时消费正式安全和环境合同，不把普通插件当隔离。
+Q-HI02–Q-HI05 分别承接公开数据/资格接口、一致提交、拓展恢复协议及提示/披露组合；其中公开接口为 `hitl-public/1`，见[公开入口与受众](../human-intervention/docs/protocol.md#公开入口与受众)。独立领域接口不直接依赖 Cordis 业务含义；装配才沿已有 IC 守住唯一服务定义、公开纯入口、依赖和撤除责任。需不可信代码时消费正式安全和环境合同，不把普通插件当隔离。
 
 HITL 验证关联、一次有效处理和披露；原 Tool/Run 验证批次、消费及控制；授权验证允许值/资格/效果；存储验证耐久与交接；环境验证实际限制；通知验证交付。共同 V-HI01–V-HI20 由真实组合运行，重点包括竞争、保存失败、响应丢失、撤权及换代。图示和导航检查不证明这些行为已实现。
 
 ## 本组工程分解与公开依赖
 
-原 Tool/Run 提供请求与等待位置，身份/授权与设置提供当前资格及合法授权事实；交付面只呈现有权内容，正式通知承接实际形成的提示。HITL 不依赖消费者内部存储，也不接管原执行。 本组只具名一个文档成员，不创建额外服务、统一 SPEC 或源码依赖。具体公开形状及提供者尚待采用。
+原 Tool/Run 提供请求与等待位置，身份/授权与设置提供当前资格及合法授权事实；交付面只呈现有权内容，正式通知承接实际形成的提示。HITL 不依赖消费者内部存储，也不接管原执行。当前 human-intervention 成员拥有公开形状、纯卡片规则和命令/查询接口。它只依赖 Schema 库，不导入 Session、Agent、Tool 或 Cordis。[human-intervention-local](../human-intervention-local/README_ZH.md) 消费 SQL 公共参与者/读口合同，已实现独立 WaitOwner、Identity 成员资格协调及独立等待的命令、查询和恢复应用服务。其[内部架构](../human-intervention-local/docs/architecture.md)说明实际持久化分工。独立验收仍待完成；该独立装配不代表真实 Tool/Run 及完整授权组合已经接通。
 
 ## 机制与流程导航
 

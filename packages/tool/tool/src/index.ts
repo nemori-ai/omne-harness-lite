@@ -10,6 +10,7 @@ export type {
   ToolLedgerPorts,
   ToolControlSubjects,
   ToolLedgerControls,
+  ToolLedgerRecovery,
 } from './construction.ts'
 export { createIndependentToolScope } from './independent-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
@@ -28,11 +29,14 @@ export type {
   LedgerCommit,
   LedgerCommitInput,
   LedgerDomain,
+  LedgerPendingScan,
+  LedgerPendingScanInput,
   LedgerRead,
   LedgerRecord,
   LedgerWrite,
   OperationReceipt,
   OperationRecord,
+  PendingCall,
   QueueCounterRecord,
   QueueEntryRecord,
   QueueReleaseRecord,
@@ -65,7 +69,12 @@ export type {
 export { isTenantShape } from './boundary.ts'
 export { digestOf as canonicalDigest } from './evidence.ts'
 export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from './runtime.ts'
-export { createToolDriver, type ToolDriverHandle, type DriverPolicy } from './driver.ts'
+export {
+  createToolDriver,
+  type DriverPolicy,
+  type DriverStop,
+  type ToolDriverHandle,
+} from './driver.ts'
 export { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
 export {
   createToolResultReader,

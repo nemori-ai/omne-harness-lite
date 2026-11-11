@@ -123,6 +123,7 @@ export type Label =
   | 'denied'
   | 'dispatched'
   | 'judge'
+  | 'carded'
   | 'slotted'
   | 'received'
   | 'batch'
@@ -243,6 +244,8 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I4', on: 'tools', to: 'A0' },
   { from: 'A0', on: 'judged', to: 'A1' },
   { from: 'A1', on: 'judge', to: 'A0' },
+  { from: 'A1', on: 'carded', to: 'A1' },
+  { from: 'A1', on: 'wait', to: 'W0' },
   { from: 'A1', on: 'open', to: 'A2' },
   { from: 'A1', on: 'denied', to: 'A3' },
   { from: 'A2', on: 'dispatched', to: 'T0' },
@@ -255,8 +258,7 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'T3', on: 'wait', to: 'W0' },
   { from: 'T3', on: 'batch', to: 'T4' },
   { from: 'T3', on: 'admit', to: 'T5' },
-  // A2's wait for a free place of toolConcurrency (A2 -> A2 in the graph): a slot that T1 filled
-  // frees a place, and an association-unknown intent is sent again with its original request.
+  // 没有槽位的获准动作回到 A2（图中的 A2 -> A2）：尚未发起的动作或关联未知的 intent 以原请求发起。
   { from: 'T3', on: 'dispatch', to: 'A2' },
   { from: 'T4', on: 'proceed', to: 'T5' },
   { from: 'T5', on: 'admitted', to: 'I8' },

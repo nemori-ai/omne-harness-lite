@@ -539,6 +539,12 @@ function maintainDerived(
       'INSERT OR REPLACE INTO sl_released_scope_idx (tenant, session, scope, data) VALUES (?, ?, ?, ?)',
       [tenant, session, scope.scope, JSON.stringify(encodeValue(scope))],
     )
+  // A scope is minted once and keeps its owner, so a row is only ever added.
+  for (const binding of snapshot.contextScopes ?? [])
+    port.execute(
+      'INSERT OR IGNORE INTO sl_scope_idx (tenant, scope, session, generation) VALUES (?, ?, ?, ?)',
+      [tenant, binding.scope, session, binding.generation],
+    )
 }
 
 /** Every operation receipt of the session, in revision order, that completeInitialization recalls. */

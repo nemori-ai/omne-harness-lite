@@ -19,8 +19,11 @@ import { storageCatalog } from '../storage/catalog.ts'
  * their migrations to the catalog, adopting combination /6.
  * The Session writer no longer publishes `session.commit-result`, so its material and the manifest
  * digest changed, adopting combination /7.
+ * The HITL participants and the Session guard `session.run-live` joined for the Ask waits of Tool
+ * (`rows/tool-hitl`), and the Tool ledger gained the pending-call marker table
+ * (`tool/002-tool-pending`) for the recovery scan, adopting combination /8.
  */
-export const COMBINATION_VERSION = 'session-composite/7'
+export const COMBINATION_VERSION = 'session-composite/8'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string

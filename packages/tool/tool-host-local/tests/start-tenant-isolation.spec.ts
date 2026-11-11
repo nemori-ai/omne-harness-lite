@@ -31,6 +31,7 @@ it('lets tenant B commit while A is blocked in its read and keeps A consume behi
   let block = false
   const store: ToolLedgerStore<ContentBlock> = {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     read: async domain => {
       if (block && domain.tenant.account.text === tenantA.account.text) {
         block = false
@@ -86,6 +87,7 @@ it('an earlier completed tail does not remove its blocked successor from the ten
   let reads = 0
   const store: ToolLedgerStore<ContentBlock> = {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     read: async domain => {
       reads += 1
       if (reads === 1) {

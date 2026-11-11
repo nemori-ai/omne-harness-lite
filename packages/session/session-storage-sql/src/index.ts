@@ -22,6 +22,11 @@ export {
   type SessionPrincipalBindingsOptions,
 } from './bindings.ts'
 export {
+  createSessionScopeOwners,
+  type SessionScopeOwners,
+  type SessionScopeOwnersOptions,
+} from './scope-owners.ts'
+export {
   sessionStorageMaterials,
   type SessionStorageMaterials,
   type SessionStorageMaterialsOptions,

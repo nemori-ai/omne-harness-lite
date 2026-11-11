@@ -70,6 +70,7 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 | `sessionDelegatedTransactions` | `SessionDelegatedTransactions` | 会话存储组合（`session-storage` 行） | `session-provider` 行，进 `inject` |
 | `sessionWorkPrincipals` | `SessionWorkPrincipals` | 装配入口 | `session-provider` 行，进 `inject` |
 | `sessionPrincipalBindings` | `SessionPrincipalBindingSource` | 会话存储组合（`session-storage` 行） | 只由装配入口按调用读取，没有行 `inject` |
+| `sessionScopeOwners` | `SessionScopeOwnerSource` | 会话存储组合（`session-storage` 行） | 只由装配入口按调用读取，没有行 `inject`；入口在 `sessionScopeLookup` 没答出时读它 |
 | `sessionReplayFacts` | `SessionReplayFacts` | AD-03 持有者的装配行（`session-ad03`，由其事实插件回答） | Runtime Context 的装配入口按调用读取，没有行 `inject` |
 | `sessionScopeLookup` | `SessionScopeLookup` | AD-03 持有者的装配行（`session-ad03`，由其事实插件回答） | 装配入口按调用读取，没有行 `inject` |
 | `sessionAdoptedRequests` | `SessionAdoptedRequests` | 会话日志 Journal 提供者（`agent-journal` 行，与 `agentJournal` 同一插件体） | AD-04 的历史源子插件（`session-ad04` 行）按调用读取，没有行 `inject`；缺席时窄采用来源答 `unavailable` |

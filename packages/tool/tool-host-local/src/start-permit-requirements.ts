@@ -10,12 +10,15 @@ export type StartPermitRequirement =
   | Readonly<{ kind: 'required'; reason: string }>
   | Readonly<{ kind: 'unknown' | 'unavailable'; diagnostic: string }>
 
-/** A trusted, current decision about the complete fixed action, not call access alone. */
+/**
+ * A trusted, current decision about the complete fixed action, not call access alone. It is asked
+ * again for each resume of a checkpointed call, with the resume record (P07: the same start fence).
+ */
 export interface StartPermitRequirements<P> {
   check(
     input: CallAccess<P> &
       Readonly<{
-        start: Extract<ToolStartRecord, { kind: 'start' }>
+        start: ToolStartRecord
         request: FixedToolRequest
       }>,
   ): Promise<StartPermitRequirement>

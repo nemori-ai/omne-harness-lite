@@ -240,16 +240,20 @@ describe('batch identities and continuity', () => {
       expect(harness.memory.commits).toBe(count)
     },
   )
-  it.each(['wait', 'continued', 'account', 'program-scheduling'] as const)(
+  // An Ask wait is received (checkpointed segments); a resource wait is still not. A `continued`
+  // fact is received on a resume start only; its case is below.
+  it.each(['resource wait', 'account', 'program-scheduling'] as const)(
     'rejects an entire batch containing unsupported %s',
     async kind => {
       const { harness, access, batch } = await running()
       const count = harness.memory.commits
+      const fact =
+        kind === 'resource wait' ? { kind: 'wait', value: { kind: 'resource' } } : { kind }
       const unsupported = {
         ...batch,
         events: [
           ...batch.events,
-          { event: 'unsupported', fact: { kind } },
+          { event: 'unsupported', fact },
           { event: 'last', fact: finalFact() },
         ],
       }
@@ -262,6 +266,29 @@ describe('batch identities and continuity', () => {
       expect((await records(harness)).some(record => record.kind.startsWith('fact-'))).toBe(false)
     },
   )
+  it('rejects an entire batch whose continued fact belongs to no resume (P06)', async () => {
+    const { harness, access, batch } = await running()
+    const count = harness.memory.commits
+    const continued = {
+      kind: 'continued',
+      wait: `${batch.start.operation}/wait`,
+      response: `${batch.start.operation}/wait/accept`,
+      timing: { owner: 'test-host', record: 'timing', revision: '1', digest: 'sha256:timing' },
+    }
+    const rejected = {
+      ...batch,
+      events: [...batch.events, { event: 'continued', fact: continued }],
+    }
+    const answer = await Reflect.apply(harness.commands.receiveFacts, null, [
+      { ...access, start: batch.start, batch: rejected },
+    ])
+    // A first start continues no wait: the batch is invalid, and nothing of it is saved.
+    expect(answer).toMatchObject({
+      failure: { kind: 'invalid', reason: 'continued-without-resume' },
+    })
+    expect(harness.memory.commits).toBe(count)
+    expect((await records(harness)).some(record => record.kind.startsWith('fact-'))).toBe(false)
+  })
 })
 
 describe('atomic custody and recovery', () => {
@@ -742,7 +769,7 @@ describe('fixed producer boundary and current access', () => {
     })
     ok(await receive())
     await admitCall(harness, 'other', {
-      limits: { concurrency: 2, foregroundMs: null, backgroundAfterMs: null },
+      limits: { concurrency: 2, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     })
     await harness.drive('other')
     const otherAccess = { ...access, call: callId('other') }

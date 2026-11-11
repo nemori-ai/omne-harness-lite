@@ -3,7 +3,7 @@ import type { GovernanceTransport, TransportReport } from './transport.ts'
 export interface HttpTransportOptions {
   /** A loopback `http:` origin: `127.0.0.1` or `localhost`, with no credential, path, or query. */
   readonly origin: string
-  readonly location: 'governance' | 'session'
+  readonly location: 'governance' | 'session' | 'hitl'
   /** Cancels sends. A send cancelled before it began is `not-sent`; one cancelled later is `uncertain`. */
   readonly signal?: AbortSignal
 }
@@ -11,6 +11,7 @@ export interface HttpTransportOptions {
 const paths = {
   governance: '/governance-public/1',
   session: '/session-public/1',
+  hitl: '/hitl-public/1',
 } as const
 
 const loopbackHosts: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost'])

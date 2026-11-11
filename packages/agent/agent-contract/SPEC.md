@@ -74,7 +74,7 @@ associated 只证明已知调用身份，不证明受理提交成功。Tool 提�
 
 Agent 保存的 `pending.position` 与原请求的 `request.consumer` 按 owner、work、position、purpose 四个字段逐一相等。两个领域分别拥有自己的类型。消费位置不是 ConsumptionId。Agent 为每次逻辑动作保存唯一且稳定的原位置，恢复或替换挂接不重建它。新逻辑动作使用新位置，重发原动作使用完整原 consumer。
 
-`fixed` 指向 `AgentMaterials.preserve` 成功返回的 facts 材料，与 `allowed.request` 是同一份材料（R2-D292）。其 value 是判断时冻结的完整 `ToolInvokeRequest`，`batchDecision` 为 null；发起时由屏障记录填入屏障依据，见“[工具执行与结果承接](#工具执行与结果承接)”第 10 条。schema 是该材料格式的精确 Adoption。恢复解读后以 Tool 的 `judgeToolInvokeRequest` 校验，并核对 consumer 投影。只存 ToolPart、参数摘要或 consumer 不满足要求，当前 catalog 不能重建原请求。具体 schema 实例与序列化须由后续 A2 采用方案绑定，本节不指定虚构 schema。
+`fixed` 指向 `AgentMaterials.preserve` 成功返回的 facts 材料，与 `allowed.request` 是同一份材料（R2-D292）。其 value 是判断时冻结的完整 `ToolInvokeRequest`，`batchDecision` 为 null，`limits.scopeBudget` 为工厂配置 `toolConcurrency`；发起时由屏障记录填入屏障依据，见“[工具执行与结果承接](#工具执行与结果承接)”第 10 条。schema 是该材料格式的精确 Adoption。恢复解读后以 Tool 的 `judgeToolInvokeRequest` 校验，并核对 consumer 投影。只存 ToolPart、参数摘要或 consumer 不满足要求，当前 catalog 不能重建原请求。具体 schema 实例与序列化须由后续 A2 采用方案绑定，本节不指定虚构 schema。
 
 AgentMaterials 提供者拥有材料，Journal 拥有 fixed 绑定及 effect intent。判断时先保存完整材料，再提交判断；之后共同保存 Tool intent、原位置与 effect intent，随后才能 invoke。材料成功而 Journal 未知时保留材料，沿原 Journal operation 查询。只有可靠排除原写入或全部消费责任终结后才能回收。原意图或引用未知时继续保留，checkpoint 前进不丢材料。
 
@@ -767,13 +767,13 @@ RegisteredReads 只路由已登记只读协议，不接受任意 URL、方法或
 
 压缩步骤的模型调用只经过压缩用途的调模型之前与之后两次经过，不经过主请求的那一次调模型之前位置。扩展用途的模型调用不经过这两个位置；它的请求准备以用途 `extension` 调用 prepare 并传空的 `beforeModelCall`，返回 needs-compaction 时不进入压缩计划，而是作为装不下的失败交回扩展。压缩用途与扩展用途的模型选择各用哪份历史依据，见[压缩用途与扩展用途的模型调用](docs/public-api/extensions.md#压缩用途与扩展用途的模型调用)。
 
-每一轮卡片的 round 是稳定的 `CardRoundId`，是卡片轮次自己的身份类型，不复用 ActionId。present 的 identity 在保存卡片需求前确定，卡片端口按原卡请求去重，原扩展调用与卡片需求先保存后呈现。卡片轮次的已请求状态表示卡片草稿已入台账而呈现回执未知。返回未知时，lookup 使用已保存的 passage、round、original 和完整请求身份集合查询原呈现，不要求未知的 card DurableEvidence，也不要求旧 advance 仍有效；当前读取资格仍核验。presented 的 cards 按原请求顺序一一对应，不能遗漏未确认成员。批内只有部分创建时保持 unknown，拥有者持续完成原批或认回确定结果，不能重新问已创建卡。not-presented 需要排除原创建及延迟写入的证据；只有此前提和当前推进仍有效时才可继续同请求呈现。查询不可用保持失败，不能当 not-presented。
+每一轮卡片的 round 是稳定的 `CardRoundId`，是卡片轮次自己的身份类型，不复用 ActionId。present 的 identity 在保存卡片需求前确定，卡片端口按原卡请求去重，原扩展调用与卡片需求先保存后呈现。卡片轮次的已请求状态表示卡片草稿已入台账而呈现回执未知。返回未知时，lookup 使用已保存的 execution、passage、round、original 和完整有序请求查询原呈现，不要求未知的 card DurableEvidence，也不要求旧 advance 仍有效；这些输入与 present 的相同（去掉 advance），因为按原操作身份与原输入认回的提供者要用它们重建原操作，只有请求身份不够；当前读取资格仍核验。presented 的 cards 按原请求顺序一一对应，不能遗漏未确认成员。批内只有部分创建时保持 unknown，拥有者持续完成原批或认回确定结果，不能重新问已创建卡。not-presented 需要排除原创建及延迟写入的证据；只有此前提和当前推进仍有效时才可继续同请求呈现。查询不可用保持失败，不能当 not-presented。
 
 取得原卡后 read 返回的 chosen、declined 与 remark 都是人的原处理，不给默认批准或超时。卡片来自作者扩展，或官方准入以外的受信系统扩展（例如循环判断）时，由原扩展按原规则解释。卡片来自官方准入时，chosen 与 declined 按“[整批判断屏障与动作准入](#整批判断屏障与动作准入)”第 6 条处置。两种来源的 remark 都按该节第 11 条处置。declined 表示没有答案，不授予动作，Agent 不因此重问同一张卡。Tool 内部 Ask 只经 Tool 的受信内部 acceptDecision 端口，不接到 Agent 扩展的卡片中。
 
 条件终结之前，Agent 只完成当前必要处置，并固定由存续保管方接续的卡片责任，不为结束执行而先作废尚无答复的卡片。tryFinish 固定的卡片责任见“[终结责任清单](#终结责任清单)”。执行终结后，未清的卡片责任由长期 reconcile 按原身份接续，不需要 runtime，规则如下。
 
-1. requested 但 present 结果未知时，责任不是“无卡片”。reconcile 沿同一 passage、round、original 与请求身份集合调用现有 lookup。
+1. requested 但 present 结果未知时，责任不是“无卡片”。reconcile 沿同一 execution、passage、round、original 与完整有序请求调用现有 lookup。
 2. lookup 返回 presented 后取得原 cards。not-presented 只有排除了原呈现和迟到呈现才可关闭该项。unknown 或 unavailable 保留原待办。
 3. 对存在的卡片，reconcile 用稳定派生的同一 invalidate operation 调用现有 invalidate，reason 指向原终态处置。
 4. 答复与作废在同一排序中裁定。已成立的答复保留，其余卡片作废。
@@ -832,7 +832,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 判断按下列规则进行。
 
 1. 同一动作的执行动作之前链按声明顺序串行，后一个扩展读到前一个扩展的有效改写。不同动作的链并行，互不等待，也互不读取对方的 Conclusion。
-2. 官方动作准入是每条链末尾的受信系统扩展。它经 ActionAdmission 端口取得当前准入。端口输入的 `permissions` 是按需要名的一组读取 `NamedCapturedRead`：每项的 `need` 是官方准入所声明的需要名，与扩展声明 `needs` 的 `name` 同义，名字互不相同，次序按声明次序。空列表表示没有读取，不表示有授权。官方准入声明为必需的需要读不到时，不论是 `fresh` 还是 `replay` 的调用，都等同官方准入不可用，本批全部动作被拒绝；作者扩展与受信系统扩展的不可用处置和它一起写在“[声明判断](#声明判断)”的 `needs` 一段。读取怎样产生归读面的拥有者，本契约只定形状。端口输入的 `decision.answer` 携带该卡片唯一有效的人的处理，即 `CardAnswer` 或 `CardRemark`。准入结果：allow 记为该动作的 allowed 判断并保存准入证据，deny 记为 denied，need-decision 按卡片草稿出一轮卡片，unavailable 使本批全部动作被拒绝。端口返回 denied 或 unavailable 的 Failure 时，按 unavailable 处理。全拒时不放行任何动作，也不出卡。同批其他链已开出但尚未呈现的卡片轮次不再呈现。已呈现的卡片由 Agent 以 DecisionCards.invalidate 作废其中尚无答复的卡片，已有答复保留。这些已询问的扩展调用不再以 `replay` 调用。同批仍在运行的链不再被等待：其中尚未开始的扩展调用不再开始，正在进行的调用结束后其 Conclusion 只记录不采纳，链末不再调用 admit。
+2. 官方动作准入是每条链末尾的受信系统扩展。它在台账里的声明是常量 `ACTION_ADMISSION_DECLARATION`（执行动作之前位置，干预力 veto），精确采用是常量 `ACTION_ADMISSION_IMPLEMENTATION`；它的 Passage 与 Conclusion 都带这两个值。它经 ActionAdmission 端口取得当前准入。端口输入的 `permissions` 是按需要名的一组读取 `NamedCapturedRead`：每项的 `need` 是官方准入所声明的需要名，与扩展声明 `needs` 的 `name` 同义，名字互不相同，次序按声明次序。空列表表示没有读取，不表示有授权。官方准入声明为必需的需要读不到时，不论是 `fresh` 还是 `replay` 的调用，都等同官方准入不可用，本批全部动作被拒绝；作者扩展与受信系统扩展的不可用处置和它一起写在“[声明判断](#声明判断)”的 `needs` 一段。读取怎样产生归读面的拥有者，本契约只定形状。端口输入的 `decision.answer` 携带该卡片唯一有效的人的处理，即 `CardAnswer` 或 `CardRemark`。准入结果：allow 记为该动作的 allowed 判断并保存准入证据，deny 记为 denied，need-decision 按卡片草稿出一轮卡片，unavailable 使本批全部动作被拒绝。端口返回 denied 或 unavailable 的 Failure 时，按 unavailable 处理。全拒时不放行任何动作，也不出卡。同批其他链已开出但尚未呈现的卡片轮次不再呈现。已呈现的卡片由 Agent 以 DecisionCards.invalidate 作废其中尚无答复的卡片，已有答复保留。这些已询问的扩展调用不再以 `replay` 调用。同批仍在运行的链不再被等待：其中尚未开始的扩展调用不再开始，正在进行的调用结束后其 Conclusion 只记录不采纳，链末不再调用 admit。
 3. 同批每条链都到达最终 Conclusion 或合法等待之后，Agent 才一次呈现本轮全部卡片。呈现前，卡片轮次已经提交为已请求。
 4. 屏障在三个条件同时成立时打开：每条链都有最终 Conclusion，每张卡片都已处理，至少一个动作被允许。卡片所属轮次为 processed 或 present-failed 都计入“已处理”；以呈现失败结束的链计入“有最终 Conclusion”（第 11 条）。屏障状态与打开依据随 checkpoint 提交。屏障打开之前不发起任何已获准的动作，一个动作已经被允许不能越过其他动作尚未完成的判断。
 5. 原扩展消费答复后再次返回 `ask`，或后继扩展返回 `ask`，都开出新一轮卡片。新一轮有新的 round，仍属原批，屏障继续关闭。
@@ -860,10 +860,10 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 
 屏障打开后，Agent 按下列规则发起获准动作并承接结果。全拒时的拒绝槽位也按第 3、5 条处理。节点次序归 Loop 算法页。
 
-1. 并发上限：获准动作按工厂配置 `toolConcurrency` 并行发起，超出上限的动作按原动作顺序等待名额。上限是可序列化配置，见[通用工厂](../agent/docs/public-api.md#工厂配置)。Tool 自己的并发与排队规则另行适用。
+1. 并发上限：Agent 按原动作顺序发起全部获准动作。工厂配置 `toolConcurrency` 作为本 run 并发范围的范围预算随请求交给 Tool：判断允许动作时，Agent 把它写入保存的完整请求的 `limits.scopeBudget`。Agent 不计数在途调用。由 Tool 限制同时执行的调用数，超出的调用按原动作顺序等待名额，答复后恢复的调用重新入队排队。可靠暂停等人的调用不占名额。上限是可序列化配置，见[通用工厂](../agent/docs/public-api.md#工厂配置)。Tool 的名额规则见 [P02](../../tool/tool-contract/SPEC.md#p02-定义准入与队列)。
 2. 逐槽保管：每个动作有一个 ActionSlot。真实结果到达，或 Tool 确认转后台并给出耐久占位时，Agent 按原动作身份把结果或占位保管到该槽位。真实结果保管之后，Agent 解除该结果的生产责任。本句不适用于 Tool 的推送路径：推送路径下 Tool 宿主收到 saved 后自己解除，见开放问题 [AGENT-M05](../agent/docs/architecture/open-questions.md#agent-m05)。后台占位保管之后，Agent 只释放占位这一版本的前台交付。原 consumption 的结果责任不因占位而释放，最终结果仍以它到达，见本节第 8 条。最终结果的保管与释放见[机制页](../agent/docs/architecture/mechanisms.md#等待消费与退出)。Tool 的失败结果也是可消费的结果。
 3. 单结果经过：每个结果槽位与拒绝槽位各自经过执行动作之后的单结果范围，含结果卸载这一受信系统扩展的改写。单结果经过，以及该槽位相关的 Agent 自身事件（`producer` 与 `entry`）的分配，不等待其他槽位。拒绝槽位的 outcome 为 denied。后台占位不经过单结果范围：该槽位的候选消息由占位直接形成，`each` 为 null。
-4. 整批经过：本批每个动作都已有槽位（等待并发名额的获准动作尚未建立槽位，所以本条不成立），全部槽位都具备结果、后台占位或拒绝，全部单结果经过都结束，且至少一个槽位已发起时，Agent 运行一次执行动作之后的整批范围。已发起指 Tool 受理了该动作，槽位曾为 dispatched。该范围只允许 observed、inject、stop、ask，不改写候选，不撤销工具的实际效果。后台槽位在整批 subject 中的 outcome 为 executed，terminal 为 null。全部动作都被拒绝时不经过整批范围，见上文“整批判断屏障与动作准入”第 9 条。
+4. 整批经过：本批每个动作都已有槽位，全部槽位都具备结果、后台占位或拒绝，全部单结果经过都结束，且至少一个槽位已发起时，Agent 运行一次执行动作之后的整批范围。已发起指 Tool 受理了该动作，槽位曾为 dispatched。该范围只允许 observed、inject、stop、ask，不改写候选，不撤销工具的实际效果。后台槽位在整批 subject 中的 outcome 为 executed，terminal 为 null。全部动作都被拒绝时不经过整批范围，见上文“整批判断屏障与动作准入”第 9 条。
 5. 消息准入：单结果经过之后、整批经过（如有）之后，Agent 按原动作顺序对每个槽位先以 P 固定候选，经 `MessageHandoff.prepare` 取得准入结果，再以 Ja 把结果与真实历史同次提交。槽位的 `handoff` 记原 H 的引用，准入进度随 checkpoint 保存，恢复时不重复提交已进入历史的消息。拒收的后果见下文“消息准入”。
 6. 发起前再核：Tool 在实际发起处按原准入证据与当前权限再核，Agent 不以旧允许代替这次再核。两段再核各自的槽位结果见上文“整批判断屏障与动作准入”第 8 条。
 7. 后台：转后台保持原 Tool 执行身份、原 PendingCall 与原消费关系。Agent 不接管 Tool 的协程或内部等待，不启动第二次工具。后台占位足以满足该槽位，当前步骤不等待后台的真实结束。后台关系与许可归 Tool 的[前后台的关系边界](../../tool/tool-contract/SPEC.md#前后台的关系边界)。
@@ -1018,7 +1018,7 @@ Journal query 的 rejected 只指 recordControl 的持久审计拒绝。Handoff 
 | 操作 | 输入要点 | 成功返回 | 错误与未知 |
 | --- | --- | --- | --- |
 | DecisionCards.present | Access、advance、passage、round、原输入依据、完整有序请求 | 与请求逐项对应的卡片依据 | denied；conflict（同 round 异请求集合）；unavailable；commit-unknown，先 lookup |
-| DecisionCards.lookup | Access、passage、round、原输入依据、完整请求身份集合 | presented、not-presented 或 unknown | denied；unavailable。查询不可用不是 not-presented |
+| DecisionCards.lookup | Access、execution、passage、round、原输入依据、完整有序请求 | presented、not-presented 或 unknown | denied；unavailable。查询不可用不是 not-presented |
 | DecisionCards.read | Access、卡片依据 | chosen、declined、remark、pending 或 invalidated | denied；unavailable。不可用时保持原等待，不猜答复 |
 | DecisionCards.invalidate | Access、操作身份、passage、round、卡片依据、原因依据 | 每张卡片的当前答复或作废依据 | denied；conflict（同一操作配不同卡片集合）；unavailable；commit-unknown |
 | ActionAdmission.admit | Access、advance、execution、passage、动作、原参数、生效参数、定义采用、按需要名的一组读取（空列表表示没有读取）、人的处理（chosen、declined 或 remark，可空） | allow、deny、need-decision 或 unavailable | denied；unavailable；invalid（答复不属于该动作或该卡片）。成功返回的 unavailable 与 Failure 的 denied、unavailable 都使本批全拒，见“整批判断屏障与动作准入”第 2 条 |

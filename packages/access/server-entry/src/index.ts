@@ -5,7 +5,14 @@ export { createServerEntry } from './http.ts'
 export type { Listening, ServerEntry, ServerEntryDependencies } from './http.ts'
 export type { JsonBudgets, ServerEntryConfig } from './config.ts'
 export { ServerEntryConfigError } from './config.ts'
-export type { DefinitionResolver, ResolvedDefinition, SessionIngressFaces } from './faces.ts'
+export type {
+  DefinitionResolver,
+  HitlEntryIssue,
+  HitlEntryPrincipals,
+  HitlIngressFaces,
+  ResolvedDefinition,
+  SessionIngressFaces,
+} from './faces.ts'
 export type {
   AgentFinishReader,
   DiagnosticPorts,

@@ -2,7 +2,11 @@
 // lookup and the combination the application registered for the tenant scope. The custody also
 // needs the chunk size and the command bound of the `storage` row, so that every chunk fits in one
 // command (sql-contract §7.2 step 7).
-import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
+import type {
+  SqlStorage,
+  TenantDomainListing,
+  TenantDomainLookup,
+} from '@omne-harness/sql-contract'
 
 export type SqlToolStorageOptions = Readonly<{
   storage: SqlStorage
@@ -14,6 +18,15 @@ export type SqlToolStorageOptions = Readonly<{
   /** The combination version and manifest digest the application registered for the tenant scope. */
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
 }>
+
+export type SqlToolLedgerStoreOptions = SqlToolStorageOptions &
+  Readonly<{
+    /**
+     * 部署已登记的租户事务域（sql-contract §2.4 `TenantDomains.enumerate` 的结果），跨租户的待办扫描
+     * 按它逐个租户读标记。装配用获准枚举的主体绑定它；记录仓不持有主体。
+     */
+    tenants: () => Promise<TenantDomainListing>
+  }>
 
 export type SqlToolOutputCustodyOptions = SqlToolStorageOptions &
   Readonly<{

@@ -30,22 +30,13 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
   const invoke = async (
     step: CallAccess<P>,
     recovery: ToolRecovery<B>,
-    start: Extract<ToolStartRecord, { kind: 'start' }>,
+    start: ToolStartRecord,
   ): Promise<Invocation> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
     const permit = await authority.prepare({ ...access, start, request: recovery.request })
     if ('failure' in permit) return { kind: 'port-failed', failure: permit.failure }
     const binding = await bindings.resolve({ ...access, request: recovery.request })
     if ('failure' in binding) return { kind: 'port-failed', failure: binding.failure }
-    if (binding.ok.kind !== 'live-only')
-      return {
-        kind: 'port-failed',
-        failure: {
-          kind: 'unsupported',
-          adoption: start.executor,
-          reason: 'a checkpointed binding needs a later increment',
-        },
-      }
     const preparation = recovery.preparations.at(-1)
     if (preparation === undefined)
       return {
@@ -54,12 +45,22 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
       }
     const environment = await environmentOf(step, preparation)
     if ('failure' in environment) return { kind: 'port-failed', failure: environment.failure }
+    const bound = binding.ok
+    // A resume runs the next segment of a checkpointed author (P07); a live-only binding has none.
+    if (start.kind === 'resume' && bound.kind !== 'checkpointed')
+      return {
+        kind: 'port-failed',
+        failure: { kind: 'invalid', field: 'binding', reason: 'not-checkpointed' },
+      }
     try {
-      const live = await binding.ok.start(
-        { ...access, start, permit: permit.ok, request: recovery.request },
-        environment.ok,
-      )
-      if ('failure' in live) return { kind: 'binding-failed' }
+      const input = { ...access, permit: permit.ok, request: recovery.request }
+      const live =
+        start.kind === 'start'
+          ? await bound.start({ ...input, start }, environment.ok)
+          : bound.kind === 'checkpointed'
+            ? await bound.resume({ ...input, start }, environment.ok)
+            : null
+      if (live === null || 'failure' in live) return { kind: 'binding-failed' }
       lives.set(startKey(step, start), live.ok)
       return { kind: 'live' }
     } catch {
