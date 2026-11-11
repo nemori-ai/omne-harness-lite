@@ -83,7 +83,9 @@ omne submit-reply --request <requestId> --card <cardId> --revision <revision> --
 ## 四、等人的时候，别的照常
 
 1. 在卡片还没答的时候，另建一个会话并发一条普通消息。应当看到它照常得到回答。
-2. 在等人的那个会话里再发一条普通消息。应当看到这条消息被受理并排队，卡片仍是待处理；它不会被当成卡片的答案。
+2. 在等人的那个会话里再发一条普通消息。应当看到这条消息被受理，卡片仍是待处理；它不会被当成卡片的答案。
+
+第 2 步有一条已知限制，走之前先读：这条消息之后，这个会话当前的 Run 不会结束。答复卡片后 Ask 照常恢复，Agent 也会再回答一次，但 `read-session-diagnostics` 一直显示 `not ended`，这时在 `serve` 的终端按 Ctrl+C，退出码是 5。原因是 Session 还没有实现把 Run 进行中受理的输入交给这个 Run，见 [Tool 运行时行的已知限制](rows/tool-runtime.md#具名缺件与已知限制)。所以第 2 步请用一个单独的会话走，不要接着用它走第五、第六节。
 
 ## 五、叫停
 
@@ -119,4 +121,5 @@ omne submit-reply --request <requestId> --card <cardId> --revision <revision> --
 - 只结束一次工具调用：`stop-call --producer-kind tool` 答 `unsupported`。
 - 插队（加急输入）：还没有实现。
 - 通知收件箱：还没有实现；卡片只能靠列卡看到。
+- 等人时发进同一会话的消息被这个 Run 处理：还没有实现；消息被受理，但这个 Run 不会结束（见第四节）。
 - 进程被强行杀死之后的接手：不在本页，停服要用 Ctrl+C。

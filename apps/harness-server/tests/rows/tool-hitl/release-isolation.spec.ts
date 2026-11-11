@@ -4,13 +4,16 @@
 // 等人时的会话隔离与排队（切片 07，验收 C8）：
 // - 一个会话的 Ask 在等人时，另一个会话照常跑完；答复之后等人的会话也跑完。
 // - 等人期间向同一会话再送一条输入：它进入会话的输入队列，不被当作卡片的答复；答复卡片后 Ask 以卡片的答复
-//   恢复一次，那条输入不出现在工具结果里。之后 Run 不一定跑完：Agent 的等待节点 W0 读会话公共根时若撞上
-//   这条输入的提交，答 unavailable，Agent 不重试而让 Run 停在失败上（agent-host-local SPEC「运行失败」，
-//   计划波 3），所以这里不等 Run 结束。
+//   恢复一次，那条输入不出现在工具结果里。之后这个 Run 不会结束，所以这里不等它结束：Session 还没有实现
+//   「续入」（把 Run 进行中受理的输入交给本 Run，session SPEC「实现现状」），而有未交入的输入时 Session 不让
+//   Run 收场。见 Tool 运行时行的已知限制「Run 进行中受理的输入」。
+// - 同一批里两个 Ask 调用（验收 C2、C5）：两张卡都列出，两个调用都停泊；只答一张时模型读不到任何结果，
+//   两张都答了 Run 才继续并结束，两条结果按调用次序排列。
 // 脚本按请求体选调用：只有带「start: ask」的会话会调 Ask，其余直接回文本。
 // 同一租户的几个 Run 同时继续有已知限制（agent-host-local SPEC「运行失败」，R2-D256），所以等人的会话停在 Ask
 // 上之后才开第二个会话，第二个会话跑完之后才答复。
 // 发行的 `coding` 定义在本文件里跳过权限询问（与 release-ask 相同），只为不让询问策略挡住调用。
+import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import {
   answerCard,
@@ -40,9 +43,26 @@ const ASK = JSON.stringify({
     ],
   },
 })
+const APPROVAL = JSON.stringify({
+  command: 'request_approval',
+  params: {
+    action: 'Delete the build directory',
+    reason: 'It holds stale artifacts.',
+    impact: 'The next build takes longer.',
+    reversibility: 'The build directory can be rebuilt.',
+    fallback: 'Keep it and build into a new directory.',
+  },
+})
 const options = {
   script: toolCallsThenText(body =>
-    body.includes('start: ask') ? [{ id: 'call_a', tool: 'Ask', arguments: ASK }] : [],
+    body.includes('start: two')
+      ? [
+          { id: 'call_a', tool: 'Ask', arguments: ASK },
+          { id: 'call_b', tool: 'Ask', arguments: APPROVAL },
+        ]
+      : body.includes('start: ask')
+        ? [{ id: 'call_a', tool: 'Ask', arguments: ASK }]
+        : [],
   ),
   permission: 'bypass-permissions',
 }
@@ -130,6 +150,67 @@ describe('a session that waits for a person does not hold up the others (C8)', (
         // The Ask resumed once with the answer of the card, never with the note.
         expect(toolResults(answered)).toEqual([ANSWER])
         expect(askOf(world)).toMatchObject({ phase: 'settled', terminal: 'completed' })
+      })
+    },
+  )
+})
+
+describe('two Ask calls of one batch each wait for a person (C2, C5)', () => {
+  it(
+    'both cards are listed and both calls park; one answer gives the model nothing, and after both the Run ends with the results in call order',
+    { timeout: 300_000 },
+    async () => {
+      await onReleaseTree(options, async world => {
+        const asks = () => toolLedger(world.storageRoot).filter(row => row.tool === 'Ask')
+        const session = await world.startSession('start: two')
+        const cards = await pollUntil(
+          'the two cards',
+          () => world.cards({ sessionRef: session }),
+          found => found.length === 2,
+        )
+        await pollUntil(
+          'both calls parked',
+          () => toolCalls(world.storageRoot).filter(row => row.tool === 'Ask'),
+          rows => rows.length === 2 && rows.every(row => row.entry?.stage === 'parked'),
+        )
+        expect(asks().map(row => row.phase)).toEqual(['suspended', 'suspended'])
+        const question = cards.find(item => item.card.question.kind === 'question')
+        if (question === undefined) throw new Error('no question card')
+        const first = await world.cli([
+          'submit-reply',
+          '--request',
+          question.card.ref.request.requestId,
+          '--card',
+          question.card.ref.cardId,
+          '--revision',
+          question.card.revision,
+          '--text',
+          'Use 8081',
+          '--reply-id',
+          `reply-first-${session}`,
+        ])
+        expect(first.status, first.stderr).toBe(0)
+        // The answered call settles; the other one still waits, and the batch gives no result yet.
+        await pollUntil('the answered call to settle', asks, rows =>
+          rows.some(row => row.phase === 'settled'),
+        )
+        await sleep(1_000)
+        expect(
+          asks()
+            .map(row => row.phase)
+            .sort(),
+        ).toEqual(['settled', 'suspended'])
+        expect((await historyOf(world, session)).some(entry => entry.kind === 'message.tool')).toBe(
+          false,
+        )
+        // The card that is left is the approval; own words are no decision, and the Run goes on.
+        await answerCard(world, session, 'Ask me again tomorrow')
+        const done = await ended(world, session)
+        const results = toolResults(done)
+        expect(results).toHaveLength(2)
+        expect(results[0]).toBe(ANSWER)
+        expect(results[1]).toContain('Ask me again tomorrow')
+        expect(done.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
       })
     },
   )

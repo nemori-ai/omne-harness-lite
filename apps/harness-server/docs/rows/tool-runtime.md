@@ -207,8 +207,11 @@ Tool 把暂停调用的三样东西各用一笔提交写进调用域：等待的
 - **公开入口不能中断单个工具调用**：`stop-call` 对 Tool 目标一律答 `unsupported`（接入域的规则）。所以「只结束这次 Ask、
   Run 继续、模型读到 Ask 为等待被关闭预写的结果」这条路径在发行里走不到，由 Tool 与 Agent 的契约测试验证。
 - **被取消的执行在调用收场之后还要收尾**：这段时间里停服，Agent 宿主把它记为未交接，退出码为 5。
-- **同一批里两个 Ask 动作**：模型一次给出两个 Ask 调用时，账本里只有一个调用，停在 `queued`。启动守卫的权限捕获每次都被
-  Governance 封口（`sealed`），目标准入答 unavailable（切片 02 端到端中观察到，原因未查清）。端到端改为每个会话一个 Ask 调用。
+- **Run 进行中受理的输入**（切片 13 独立验收发现，交回 Session）：Run 还没有结束时（包括 Ask 在等人时）向同一会话再送输入，
+  输入被受理并进入会话历史，不会被当作卡片的答复。但这个 Run 之后不会结束：Session 成员还没有实现「续入」（把 Run 进行中
+  受理的输入交给本 Run，见 [session SPEC「实现现状」](../../../../packages/session/session/SPEC.md#实现现状)），而有未交入的输入时
+  Session 不让 Run 收场。Agent 每个对账间隔重试一次终结，每次写一批执行记录，不记告警。这时停服，Agent 宿主把执行记为
+  未交接，退出码为 5。它与 Ask 无关，任何进行中的 Run 都一样；卡片等人只是让这段时间变长。
 
 ## 持续验证
 
@@ -217,7 +220,8 @@ Tool 把暂停调用的三样东西各用一笔提交写进调用域：等待的
 - [无事务域租户的资格](../../tests/rows/tool-hitl/host-qualify.spec.ts)：核验主体、租户一致与成员资格。
 - [答复与恢复在发行树上](../../tests/rows/tool-hitl/release-reply.spec.ts)：从会话入口与待办池各答一次，三种答复在 question 与 approval 上的结果文字，两个入口并发只一方成立，CLI 的列卡、读卡与答复。
 - [Ask 在发行树上出卡](../../tests/rows/tool-hitl/release-ask.spec.ts)：ask 与 request_approval 各一次，调用暂停、条目停泊，按会话与按池列出同一组卡；Run 在登记前结束时 `session.run-live` 拒绝登记，不出卡。共用支架在 [release-tree.ts](../../tests/support/release-tree.ts)。
-- [等人时停服与重启后接续](../../tests/rows/tool-hitl/release-restart.spec.ts)：Ask 暂停、条目停泊时停服，Agent 把等待中的执行交接出去，停服退出码为 0。重启后 Session 的启动扫描按部署的租户枚举找回这个 Run，取得新的推进资格并请 Agent 恢复；人答复后调用恢复一次，Agent 在新挂接下收下结果，Run 结束，再次停服退出码为 0。进程被强杀、来不及交接时不在此列（接管未实现）。
+- [等人时的隔离与一批两个 Ask](../../tests/rows/tool-hitl/release-isolation.spec.ts)：一个会话的 Ask 等人时另一个会话照常跑完；等人期间送进同一会话的输入不被当作答复，Ask 以卡片的答复恢复一次（之后 Run 不结束，见已知限制「Run 进行中受理的输入」）；模型一次给出两个 Ask 调用时两张卡都列出、两个调用都停泊，只答一张时模型读不到结果，两张都答了 Run 才结束，结果按调用次序排列。
+- [等人时停服与重启后接续](../../tests/rows/tool-hitl/release-restart.spec.ts)：Ask 暂停、条目停泊时停服，Agent 把等待中的执行交接出去，停服退出码为 0。重启后 Session 的启动扫描按部署的租户枚举找回这个 Run，取得新的推进资格并请 Agent 恢复；人答复后调用恢复一次，Agent 在新挂接下收下结果，Run 结束，再次停服退出码为 0。另有两条：答复已在 HITL 成立而 Tool 在这一次服务里没看到，重启后接手一次；卡片登记没有落地就停服，重启后登记一次、只有一张卡。进程被强杀、来不及交接时不在此列（接管未实现）。
 - [手测说明里的命令](../../tests/rows/tool-hitl/release-walkthrough.spec.ts)：照 [hitl-walkthrough.md](../hitl-walkthrough.md) 的次序用 `omne` 走一遍：两个入口列到同一张卡，读卡，选项与跳过两种答复，重复提交得到 `already-decided`，从诊断取 Run 的标识后 `cancel-run`，卡片进入失效列表，迟到的答复得到 `invalidated`。
 - [回包丢失在发行树上](../../tests/rows/tool-hitl/release-cancel.spec.ts)：真实登记之后回包换成未知，Tool 经 inspectOperation 按原登记认回，不再登记，只有一张卡；答复之后调用恢复一次并收场，条目删除，Run 结束，停服退出码为 0。叫停与归档的发行树场景见上一节的已知限制。
 
