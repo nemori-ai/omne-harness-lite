@@ -1,9 +1,7 @@
 // The assembly that the history-cost runs drive (C8): the release distribution, real SQLite storage,
 // the `omne` CLI and the local model gateway, all as `rows/tool-runtime/release-tool-delivery.spec.ts`
 // assembles them. The payload comes from the release Shell, which prints a file of its working
-// directory. The `coding` definition skips only the human inquiry (`bypass-permissions`); the current
-// permission source is the real one. The server runs in this process, so `sql-probe.ts` sees its
-// statements. One call is one Shell call in a new session, so the Agent's history stays one call
+// directory. The server runs in this process, so `sql-probe.ts` sees its statements. One call is one Shell call in a new session, so the Agent's history stays one call
 // long and only the tenant's history grows.
 import {
   mkdirSync,
@@ -31,7 +29,6 @@ import {
   savedTenant,
 } from '../r9/support.ts'
 import { connectable, until } from '../rows/server-entry/support.ts'
-import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
 import {
   INLINE_THRESHOLD,
   PAGE_BYTES,
@@ -75,16 +72,9 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
   })
   const gateway = await startModelGateway(model.script)
   gateway.trustInProcess()
-  const release = JSON.parse(
+  const release: unknown = JSON.parse(
     readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
-  ) as { rows: { id: string; config: unknown }[] }
-  const adoptions = release.rows.find(row => row.id === 'agent-adoptions')
-  if (adoptions === undefined) throw new Error('No Agent mappings')
-  const mappings = agentAdoptionsConfig.parse(adoptions.config)
-  const coding = mappings.mappings.find(mapping => mapping.name === 'coding')
-  if (coding === undefined) throw new Error('No coding mapping')
-  coding.modes.permission = 'bypass-permissions'
-  adoptions.config = mappings
+  )
   const controller = new AbortController()
   const port = await freePort()
   const layer = operatorLayer({ storageRoot, port, modelRoute: gateway.url }) as { ops: Op[] }
@@ -113,8 +103,9 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
       const construction = config['construction'] as Record<string, unknown> | undefined
       if (construction?.['Shell'] !== undefined) {
         const shell = construction['Shell'] as Record<string, unknown>
-        // The Shell bound leaves room for the offloaded payload and its frame.
         writeFileSync(join(String(shell['cwd']), PAYLOAD_FILE), author.body)
+        // The operator layer of the tests bounds a Shell result at 32 KiB; the payload and its
+        // frame need more.
         return {
           ...op,
           config: {

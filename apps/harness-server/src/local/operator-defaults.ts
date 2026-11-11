@@ -5,8 +5,9 @@
 //
 // Sources of the values: the operator layer of joint B (`tools/joint-b/operator.mjs`) and of the
 // coding agent tutorial, which ran a real model with 15 tool calls on the WIRE head `1a34bcba6`.
-// Where the two differ, the tutorial value is taken: Shell and Files results at 32768 bytes, Files
-// with a working directory (R2-D295), and a `tool-records` reconciliation delay of 1000 ms.
+// Where the two differ, the tutorial value is taken: Files with a working directory (R2-D295) and a
+// `tool-records` reconciliation delay of 1000 ms. The result bound of Shell, Files and Web is not
+// from those sources: see `TOOL_RESULT_BYTES`.
 // No measurement backs these numbers, and the adoption references are placeholders with a zero
 // digest. SPEC.md lists this as a known limitation.
 //
@@ -348,7 +349,13 @@ export function shellEnvironment(
   }
 }
 
-const TOOL_RESULT_BYTES = 32_768
+/**
+ * The most bytes one Shell, Files or Web result keeps. It is above the inline threshold
+ * (`offloading.maxInlineUtf8Bytes`), so a result between the two is offloaded with a bounded first
+ * screen and read back by pages. A bound under the threshold cuts every large result to a head and
+ * tail window before offloading can see it, and the cut bytes are lost.
+ */
+const TOOL_RESULT_BYTES = 1_048_576
 
 function toolRecords(workspace: string, combinationVersion: string) {
   return {
