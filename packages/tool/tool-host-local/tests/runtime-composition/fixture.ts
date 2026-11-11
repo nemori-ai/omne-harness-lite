@@ -127,6 +127,7 @@ export async function fixture(
     declaration: ToolBodyDeclaration
     schemas: LocalToolRuntimeInput['bodySchemas']
   }>,
+  configure: (base: ToolConfiguration) => ToolConfiguration = base => base,
 ) {
   const root = new Context()
   const memory = createMemoryToolLedgerStore()
@@ -427,7 +428,7 @@ export async function fixture(
     sources,
     access,
     clock,
-    configuration,
+    configuration: configure(configuration),
     guardsOf: () => [],
     permitRequirements: {
       check: async () => ({ kind: 'not-required', source: evidence('frozen-no-permit-action') }),

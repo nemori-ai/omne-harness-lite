@@ -296,7 +296,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 生产结算在内存里用原作者 codec 编码并解码返回，渲染后交账本计划最终事实（`finalPlanner.planFinal`）；收场仍 pending 时不发布 final，unknown/unavailable 时保留原件并报告未结责任。已确认的收场失败可以产生失败终局，不能产生 completed。控制身份在收场确认时核原 tenant/call/start/operation，原 stop/withdraw 若在该确认前导致取消，保留其身份；确认后的控制不能改写这次收场事实。`finish` 同步抛错或异步拒绝全化为收场 unknown，原 R 保持不变。定制 `settle` 也须履行上述顺序与屏障义务；本地 Promise 不进入数据契约或持久证据。
 
-最终事实由账本在记录时计划：绑定把渲染结果交给 `planFinal`，得到首屏加正文条目引用的最终事实，再作为事实发布。batches 与 settled lookup 只保存计划后的 final 及指纹，不保存正文字节；FactReceipt 允许移除宿主重传缓存。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
+最终事实由账本在记录时计划：绑定把渲染结果交给 `planFinal`，得到首屏加正文条目引用的最终事实，再作为事实发布。账本对这份结果答 `invalid` 或 `unsupported` 时，同一份结果每次交去都被拒（例如首屏或某个非文本块超过一页结果）。绑定这时改交一条失败终局：`failed`，`cause` 为 `result`，诊断写明账本拒绝的字段与原因。被拒的那次没有写入任何东西，所以改交的终局沿用同一个最终操作号。调用因此照常收场，不停在运行中。`denied`、`conflict` 与其他失败不走这条路：它们不由结果的内容决定。batches 与 settled lookup 只保存计划后的 final 及指纹，不保存正文字节；FactReceipt 允许移除宿主重传缓存。失去 live-only 连续性仍按原限制报告，不凭封存引用声称能重启任意作者函数。
 
 正文 writer 由受信装配绑定原调用、执行代次和固定声明，再注入本次执行 Scope。作者不能提供这些身份。Scope 关闭时先拒绝新的正文操作，再通过 Tool 的正文写入端口确认已受理责任的保管或排除未受理操作。仅有本地 Promise 完成或 disposer 返回，不构成交接凭据。关闭答复未知时保留未结责任，不发布 completed。
 

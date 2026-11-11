@@ -10,6 +10,7 @@ import {
 import {
   decodeToolOperationId,
   type FixedToolRequest,
+  type ToolFailure,
   type ToolTerminal,
   type ProcessBlock,
 } from '@omne-harness/tool-contract'
@@ -365,25 +366,47 @@ export function createRuntimeAuthorExecution(
       const finalOperation = decodeToolOperationId(`final:${canonicalDigest(call.start.operation)}`)
       if ('failure' in finalOperation)
         return fail({ kind: 'invalid', field: 'operation', reason: finalOperation.failure.reason })
-      return planFinal({
-        principal: call.principal,
-        tenant: call.tenant,
-        call: call.call,
-        operation: finalOperation.ok,
-        start: call.start,
-        source: call.execution.source,
-        final: {
-          kind: 'final',
-          result: projected.result.ok,
-          terminal: closed.interrupted ?? projected.terminal,
-          effect: {
-            kind: 'unknown',
-            diagnostic: 'Author completion does not prove the disposition of external effects.',
+      const plan = (final: Pick<FinalRequest['final'], 'result' | 'terminal'>) =>
+        planFinal({
+          principal: call.principal,
+          tenant: call.tenant,
+          call: call.call,
+          operation: finalOperation.ok,
+          start: call.start,
+          source: call.execution.source,
+          final: {
+            kind: 'final',
+            ...final,
+            effect: {
+              kind: 'unknown',
+              diagnostic: 'Author completion does not prove the disposition of external effects.',
+            },
           },
-        },
+        })
+      const planned = await plan({
+        result: projected.result.ok,
+        terminal: closed.interrupted ?? projected.terminal,
       })
+      // The ledger cannot keep this result, now or later. The call still ends: its final is a
+      // failure that names the refusal. Nothing of the refused final was written, so the same
+      // operation plans the replacement.
+      if (!('failure' in planned) || !isResultRefusal(planned.failure)) return planned
+      const refused = failed(`The ledger refused the result: ${refusalText(planned.failure)}`)
+      if ('failure' in refused.result) return planned
+      return plan({ result: refused.result.ok, terminal: closed.interrupted ?? refused.terminal })
     },
   }
+}
+
+/** A refusal that the content of the final decides: the same final is refused whenever it is sent. */
+function isResultRefusal(
+  failure: ToolFailure,
+): failure is Extract<ToolFailure, { kind: 'invalid' | 'unsupported' }> {
+  return failure.kind === 'invalid' || failure.kind === 'unsupported'
+}
+
+function refusalText(failure: Extract<ToolFailure, { kind: 'invalid' | 'unsupported' }>): string {
+  return failure.kind === 'invalid' ? `${failure.field}: ${failure.reason}` : failure.reason
 }
 
 /**
