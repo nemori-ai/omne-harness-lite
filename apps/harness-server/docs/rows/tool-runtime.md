@@ -183,10 +183,13 @@ ensure 从等待身份派生保管请求的操作（tool-host-local 的 `waitReq
   inspect 读 HITL，一张未答的卡约每秒 20 次读。
 - **resume 段收到的答复值是 JsonValue 树**：Tool 把 resolve 给出的树原样交给检查点作者，Ask 的结果投影按普通 JSON 值读，
   选项与原话的答复投影成 `ask-response-mismatch`。跳过与插队不带值，不受影响。修复归 Tool（切片 03 交回）。
-- **发行树上叫停与归档到不了暂停中的 Ask**（切片 05 观察，交回 Agent 与 Session）：Ask 暂停时 `cancel-run` 或归档，Session
-  在同一笔提交里结束 Run，Agent 的推进随后在 E2 以 `stale-advance` 停下（`agent run stopped on a failure ... node=E2`），
-  没有走到 F0，所以不向 Tool 发 stop。Ask 保持 `suspended`，卡片保持待答，条目保持停泊，Run 的控制停在 `propagating`，
-  停服退出码为 5。答复已接受、条目 ready 时叫停也一样：名额空出之后恢复段照常运行。
+- **归档之后被取消的执行收不了尾**（切片 09 观察，交回 Session 与 Agent）：归档向 Agent 发取消，暂停中的 Ask 以
+  `interrupted` 收场，卡片以 `cancelled` 关闭，名额释放。但会话已归档之后，Agent 的终结提交一直不被接受（F3 反复对账），
+  执行不结束，Agent 宿主的执行槽不释放，这时停服的退出码为 5。归档在本发行里没有公开入口。叫停（`cancel-run`）不受影响：
+  调用与卡片收场之后执行以 cancelled 结束，停服退出码为 0。
+- **公开入口不能中断单个工具调用**：`stop-call` 对 Tool 目标一律答 `unsupported`（接入域的规则）。所以「只结束这次 Ask、
+  Run 继续、模型读到 Ask 为等待被关闭预写的结果」这条路径在发行里走不到，由 Tool 与 Agent 的契约测试验证。
+- **被取消的执行在调用收场之后还要收尾**：这段时间里停服，Agent 宿主把它记为未交接，退出码为 5。
 - **同一批里两个 Ask 动作**：模型一次给出两个 Ask 调用时，账本里只有一个调用，停在 `queued`。启动守卫的权限捕获每次都被
   Governance 封口（`sealed`），目标准入答 unavailable（切片 02 端到端中观察到，原因未查清）。端到端改为每个会话一个 Ask 调用。
 

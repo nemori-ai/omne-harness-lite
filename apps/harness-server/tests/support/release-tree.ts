@@ -2,13 +2,15 @@
 // 脚本网关，每条 CLI 命令起一个 `omne` 子进程（先构建 `apps/cli`）。场景只给网关脚本与断言。
 // 支架提供：起停服务、注册与登录一个用户、再登录一次、建会话并送一条输入、读会话历史、读 Tool 的耐久记录、经进程内的
 // HITL 应用列卡，以及经 HITL 位置（`/hitl-public/1`）的真实 HTTP 往返。停服后答服务的退出码。入口对象 `toolClock` 被包一层，只为取得本次运行
-// 的入口环境、Tool 决策方的共享状态与 Tool 运行时服务，树的其余部分不变。卡片的受众是发行注入的规则，场景可以换掉它。
+// 的入口环境、Tool 决策方的共享状态、Tool 运行时服务与 Session 服务，树的其余部分不变。卡片的受众是发行注入的规则，场景可以换掉它。
+// 公开契约没有归档会话的操作，所以归档经进程内 Session 服务的 `work.control`，主体是该会话的会话工作主体。
 // 场景可以换掉 Tool 队列的容量（运维者层 `tool-records` 行的 `queueCapacity`）。
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { expect } from 'vitest'
+import type { Context } from '@deepseek-ai/cordis'
 import { ListPoolSchema, type PoolItem } from '@omne-harness/human-intervention'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -19,12 +21,14 @@ import {
   type HitlRequest,
   type HitlResponse,
 } from '@omne-harness/public-contract'
+import type { SessionId, SessionOperationId } from '@omne-harness/session-contract'
+import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { ToolRuntime } from '@omne-harness/tool-contract'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import * as cordis from '../../src/cordis.ts'
 import { entryObjects } from '../../src/entry/index.ts'
-import { toolDecisionsIssuerOf } from '../../src/entry/principals.ts'
+import { sessionWorkIssuerOf, toolDecisionsIssuerOf } from '../../src/entry/principals.ts'
 import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
 import {
   toolHitlHolder,
@@ -445,6 +449,11 @@ export type ReleaseTree = Readonly<{
   cards(
     filter?: Readonly<{ sessionRef?: string; states?: readonly string[] }>,
   ): Promise<readonly PoolItem[]>
+  /**
+   * Archives `session` through the in-process Session service, as the session work principal of the
+   * session; answers what `work.control` answers.
+   */
+  archive(session: string): ReturnType<SessionService['work']['control']>
 }>
 
 export type ReleaseTreeOptions = Readonly<{
@@ -518,6 +527,7 @@ async function serveOnce(
   let env: EntryEnv | undefined
   let hitl: ToolHitlHolder | undefined
   let toolRuntime: (() => ReleaseToolRuntime) | undefined
+  let toolScope: Context | undefined
   let exitCode: number | undefined
   const objects: readonly EntryObjectModule[] = entryObjects.map(object =>
     object.name === 'toolClock'
@@ -526,6 +536,7 @@ async function serveOnce(
           async install(scope, given) {
             await object.install(scope, given)
             env = given
+            toolScope = scope
             hitl = toolHitlHolder(scope)
             toolRuntime = () => {
               const runtime = scope.get(toolRuntimeKey) as ReleaseToolRuntime | undefined
@@ -555,8 +566,14 @@ async function serveOnce(
   })
   try {
     await until(() => connectable('127.0.0.1', port), 'the server to listen', 20_000)
-    if (env === undefined || hitl === undefined || toolRuntime === undefined)
+    if (
+      env === undefined ||
+      hitl === undefined ||
+      toolRuntime === undefined ||
+      toolScope === undefined
+    )
       throw new Error('toolClock was not installed')
+    const scope = toolScope
     const issue = toolDecisionsIssuerOf(env)
     const cli = (args: readonly string[], credential?: string) =>
       runOmne({
@@ -609,6 +626,23 @@ async function serveOnce(
       )
       return page.kind === 'page' ? page.items : []
     }
+    const issueWork = sessionWorkIssuerOf(env)
+    const archive: ReleaseTree['archive'] = async session => {
+      const { tenant } = registrar()
+      const principal = issueWork({ tenant, session })
+      if ('failure' in principal) throw new Error('no session work principal')
+      const service = scope.intercept(sessionKey, { caller: 'intake' }).get(sessionKey) as
+        | SessionService
+        | undefined
+      if (service === undefined) throw new Error('no Session service')
+      return service.work.control({
+        principal: principal.ok,
+        tenant,
+        session: session as SessionId,
+        operation: `sop_release-tree-archive-${session}` as SessionOperationId,
+        intent: { kind: 'archive' },
+      })
+    }
     await body({
       port,
       home,
@@ -622,6 +656,7 @@ async function serveOnce(
       startSession,
       registrar,
       cards,
+      archive,
     })
   } finally {
     controller.abort('test: stop')
