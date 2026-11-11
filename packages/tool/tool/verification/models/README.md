@@ -121,6 +121,8 @@ done
 
 [SuspendedSlots.tla](SuspendedSlots.tla) 检查检查点调用在暂停、答复与恢复期间，调用域和队列域分两笔提交时的名额性质。调用阶段 `call[c]` 与队列条目阶段 `entry[c]` 是两个变量。每个动作对应一笔账本提交，两个域之间没有共同事务。驱动任务会一直重试，所以两笔提交之间发生崩溃，等价于两笔提交之间的任意延迟，由交错覆盖。`Crash` 表示正在运行的作者段丢失，调用按失联收场。
 
+停泊与重新排队都是先读调用域、再提交队列域，两步之间可以隔任意多步。模型把它们各拆成「读」与「落」两个动作，落的那一笔只看队列域自己的条目。`holder[c]` 记持有名额的是哪一段的操作：1 是第一段的启动，2 是恢复。`basis[c]` 是调用域里的释放依据：`physical-end`（执行结束），或 `suspended-exclusion`（调用在暂停中被控制收场，由 suspend 提交证明没有活的执行体）。条目只凭释放依据删除，停泊不是释放。
+
 有界实例为 3 个调用（其中 2 个会等人）、执行名额 1、未终局容量 2。模型不建模 FIFO 次序，只建模数量上限。受理时的容量检查视为一笔原子提交。受理时读取容量与提交受理不在同一事务，可能短暂超额，这不在本模型范围。人可能永远不答，所以 `Answer` 和 `Cancel` 没有公平性。
 
 | 性质 | 含义 |
@@ -129,26 +131,30 @@ done
 | `RunningImpliesHeld` | 正在运行的调用一定持有名额 |
 | `ParkedImpliesSuspended` | 停泊的条目对应的调用已提交暂停（或已就绪、已收场） |
 | `OutstandingBound` | 未终局条目（ready、held、parked）数不超过容量 |
+| `ReleaseRequiresBasis` | 条目被删除时，调用域一定已有释放依据 |
+| `NoResurrection` | 删除的条目不再出现：迟到的停泊或重新排队不重建它 |
 | `NoStrandedEntry` | 收场的调用最终删除条目 |
 | `SuspendedReleasesSlot` | 暂停且持有名额的调用最终释放名额 |
 | `ReadyProgresses` | 就绪的调用最终恢复运行或收场 |
 
-`Park` 的定义域是调用已暂停且尚未就绪。答复先于停泊到达时，调用保留名额，直接恢复。如果允许就绪后再停泊，会出现「停泊、重新排队、再取得、再停泊」的活锁，进展性质被违反。
+`ParkRead` 的定义域是调用已暂停且尚未就绪。答复先于停泊到达时，恢复沿用第一段还持有的名额（`Keep`），并把条目改记到恢复的操作上；此后迟到的 `ParkLand` 对不上持有者，什么也不写。如果允许就绪后再停泊，会出现「停泊、重新排队、再取得、再停泊」的活锁，进展性质被违反。
 
-源码映射：`Admit` 对应受理与 `decideQueueOrder`；`Hold` 对应 `decideQueueHold`；`Start` 和 `Resume` 对应启动协调器签发许可后的 `decideRecordStart`（`kind:'start'` 与 `kind:'resume'`）；`Suspend` 对应 Tool 调用域自己的 suspend 提交，该提交同时记下等待 opening 与登记任务；`Park` 与 `Requeue` 对应队列域的停泊与重新排队；`Answer` 对应 Tool 调用域的 `acceptDecision` 提交；`Release` 对应 `decideQueueRelease`。
+这个模型与 [SettlementRelease](SettlementRelease.tla) 的分工：SettlementRelease 检查一个已启动调用以 `physical-end` 收场时保管、调用域与队列域三处的交接。条目的阶段移动（停泊、重新排队）与 `suspended-exclusion` 这种依据在本模型检查。SettlementRelease 的三条队列性质在这里的对应是：`NoResurrection` 同名；`NoDoubleHold` 是 `CapacityBound`；`QueueHoldsOnlyLive` 由 `ReleaseRequiresBasis` 与 `NoStrandedEntry` 两条给出（没有依据不删，有依据最终删）。
 
-四个负控各只检查一条具名性质：`unsafe-early` 允许暂停提交前停泊，必须违反 `ParkedImpliesSuspended`；`unsafe-skiphold` 允许不持名额就启动，必须违反 `RunningImpliesHeld`；`unsafe-parkfree` 让停泊条目不计入容量，必须违反 `OutstandingBound`；`unsafe-norelease` 只从 held 删除条目，必须违反 `NoStrandedEntry`。
+源码映射：`Admit` 对应受理与 `decideQueueOrder`；`Hold` 与 `Keep` 对应 `decideQueueHold`（`Keep` 是它带 `keep` 的分支）；`Start` 和 `Resume` 对应启动协调器签发许可后的 `decideRecordStart`（`kind:'start'` 与 `kind:'resume'`）；`Suspend` 对应 Tool 调用域自己的 suspend 提交，该提交同时记下等待 opening 与登记任务；`ParkLand` 对应 `decideQueuePark`，`RequeueLand` 对应 `decideQueueRequeue`，两个 `Read` 是驱动在这之前对调用域的读取；`Cancel` 对应控制让暂停中的调用收场，依据由 `releaseBasisOf` 的 `suspended-exclusion` 分支给出；`Answer` 对应 Tool 调用域的 `acceptDecision` 提交；`Release` 对应 `decideQueueRelease`。
+
+六个负控各只检查一条具名性质：`unsafe-early` 允许暂停提交前停泊，必须违反 `ParkedImpliesSuspended`；`unsafe-skiphold` 允许不持名额就启动，必须违反 `RunningImpliesHeld`；`unsafe-parkfree` 让停泊条目不计入容量，必须违反 `OutstandingBound`；`unsafe-norelease` 只从 held 删除条目，必须违反 `NoStrandedEntry`；`unsafe-parkdelete` 让停泊删除条目、答复后重建，必须违反 `NoResurrection`；`unsafe-parkanyholder` 让停泊不核对持有者，迟到的停泊会停掉恢复段的名额，必须违反 `RunningImpliesHeld`。
 
 在仓库根目录运行（`TLA2TOOLS_JAR` 指向 tla2tools.jar）：
 
 ```bash
-for c in SuspendedSlots SuspendedSlots-unsafe-early SuspendedSlots-unsafe-skiphold SuspendedSlots-unsafe-parkfree SuspendedSlots-unsafe-norelease; do
+for c in SuspendedSlots SuspendedSlots-unsafe-early SuspendedSlots-unsafe-skiphold SuspendedSlots-unsafe-parkfree SuspendedSlots-unsafe-norelease SuspendedSlots-unsafe-parkdelete SuspendedSlots-unsafe-parkanyholder; do
   java -cp "$TLA2TOOLS_JAR" tlc2.TLC -deadlock -workers 1 -metadir "tmp/tlc-$c" \
     -config "packages/tool/tool/verification/models/$c.cfg" packages/tool/tool/verification/models/SuspendedSlots.tla
 done
 ```
 
-`-deadlock` 关闭死锁检查：全部调用收场后没有后续动作，这是预期终态。安全配置必须无错误退出；三个不变量负控以退出码 12 命中对应不变量，`unsafe-norelease` 以退出码 13 命中时序性质。模型通过只说明这个有界实例和上述前提，不证明实现符合；实现符合性由契约测试在真实账本上验证。
+`-deadlock` 关闭死锁检查：全部调用收场后没有后续动作，这是预期终态。安全配置必须无错误退出；四个不变量负控以退出码 12 命中对应不变量，`unsafe-norelease` 与 `unsafe-parkdelete` 以退出码 13 命中时序性质与动作性质。模型通过只说明这个有界实例和上述前提，不证明实现符合；实现符合性由契约测试在真实账本上验证。
 
 ## 调用域生命周期模型
 
