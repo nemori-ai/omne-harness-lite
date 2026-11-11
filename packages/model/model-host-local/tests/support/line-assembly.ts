@@ -81,7 +81,8 @@ type Principal = Readonly<{ subject: string }>
 type Storage = SqlModelCommandsOptions<Principal>['storage']
 type CommitRequest = Parameters<Storage['commit']>[0]
 type CommitResult = Awaited<ReturnType<Storage['commit']>>
-type Receipt = Extract<CommitResult, { kind: 'committed' | 'rolled_back' }>
+/** A stored receipt: what `query` answers. `commit` answers it with the `recalled` mark. */
+type Receipt = Extract<Awaited<ReturnType<Storage['query']>>, { kind: 'committed' | 'rolled_back' }>
 type SqlIdentity = CommitRequest['identity']
 type ReadPort = Parameters<typeof modelMigration.up>[0]
 type QueryRows = ReturnType<ReadPort['execute']>
@@ -306,7 +307,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === digestOf(request.commands)
-            ? existing
+            ? { ...existing, recalled: true }
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       if (
@@ -320,7 +321,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
           reason: 'command_limit',
           diagnostic: null,
         } as CommitResult)
-      return Promise.resolve(executeCommit(request))
+      return Promise.resolve({ ...executeCommit(request), recalled: false })
     },
     query(identity) {
       const found = receiptOf(keyOf(identity))

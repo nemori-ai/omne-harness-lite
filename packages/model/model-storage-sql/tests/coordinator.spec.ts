@@ -141,7 +141,7 @@ function sqliteStorage() {
       const existing = domain.receipts.get(key)
       if (existing !== undefined)
         return existing.inputDigest === inputDigestV2(request)
-          ? existing
+          ? { ...existing, recalled: true }
           : { kind: 'identity_conflict', identity: request.identity, existing }
       const receipt = execute(domain, request)
       domain.receipts.set(key, receipt)
@@ -149,7 +149,7 @@ function sqliteStorage() {
         hooks.loseNextReply = false
         return { kind: 'unknown', identity: request.identity, diagnostic: null }
       }
-      return receipt
+      return { ...receipt, recalled: false }
     },
     query(identity) {
       const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))

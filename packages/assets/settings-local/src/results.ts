@@ -4,7 +4,13 @@ import type {
   SettingsOperationResult,
   SettingsTarget,
 } from '@omne-harness/settings'
-import type { CommitResultV2, QueryResultV2, DomainRef } from '@omne-harness/sql-contract'
+import type {
+  CommitResultV2,
+  CommittedV2,
+  DomainRef,
+  QueryResultV2,
+  RolledBackV2,
+} from '@omne-harness/sql-contract'
 import { TERMINAL_PARTICIPANT } from './terminal-schema.ts'
 import { equal, identity } from './encoding.ts'
 import {
@@ -69,10 +75,7 @@ export function receiptResult(
       return rolledBackReceipt(result, lookup, guardParticipant)
   }
 }
-function committedReceipt(
-  result: Extract<CommitResultV2, { kind: 'committed' }>,
-  lookup: OperationLookup,
-): SettingsOperationResult {
+function committedReceipt(result: CommittedV2, lookup: OperationLookup): SettingsOperationResult {
   const unknown = { kind: 'unknown' as const, operationId: lookup.operationId }
   const entry = result.responses.find(
     response => response.participant === PARTICIPANT && response.protocol === PROTOCOL,
@@ -88,7 +91,7 @@ function committedReceipt(
   return parsed.data.result
 }
 function rolledBackReceipt(
-  result: Extract<CommitResultV2, { kind: 'rolled_back' }>,
+  result: RolledBackV2,
   lookup: OperationLookup,
   guardParticipant: string,
 ): SettingsOperationResult {

@@ -320,10 +320,10 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
       if (existing !== null)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
-            ? existing
+            ? { ...existing, recalled: true }
             : { kind: 'identity_conflict', identity, existing },
         )
-      return Promise.resolve(run(domain, request))
+      return Promise.resolve({ ...run(domain, request), recalled: false })
     },
     query: (identity): Promise<QueryResultV2> => {
       const domain = domainOf(identity.scope, identity.transactionDomain, false)

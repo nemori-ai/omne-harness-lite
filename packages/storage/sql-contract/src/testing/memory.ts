@@ -487,7 +487,7 @@ class MemorySqlStorage implements SqlStorage {
     const existing = keepsReceipt(identity) ? domain.receipts.get(receiptKey(identity)) : undefined
     if (existing !== undefined)
       return existing.inputDigest === inputDigest
-        ? existing
+        ? { ...existing, recalled: true }
         : { kind: 'identity_conflict', identity, existing }
 
     const entries: (ParticipatedEntry | StoppingEntry)[] = []
@@ -526,7 +526,7 @@ class MemorySqlStorage implements SqlStorage {
         responses: entries,
       } as unknown as ReceiptV2 // entries end with the stopping entry, by the branch above
       if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
-      return receipt
+      return { ...receipt, recalled: false }
     }
     const receipt = {
       kind: 'committed',
@@ -537,7 +537,7 @@ class MemorySqlStorage implements SqlStorage {
       responses: entries,
     } as unknown as ReceiptV2 // the loop reached its end, so every entry participated
     if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
-    return receipt
+    return { ...receipt, recalled: false }
   }
 
   /** A commanded participant needs a fact whose provider is not commanded (SPEC 7.2 step 15). */

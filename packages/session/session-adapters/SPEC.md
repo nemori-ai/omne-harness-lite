@@ -934,12 +934,12 @@ Agent 规则：判定次序、认回、修订号与条件终结协议是本成�
 5. 副本有变化时，一次存储 `commit` 带两条命令：`execution-record` 的写入（这次写入的一批事实、它们引用的内容块、执行头行与原受理目录，见[事实族存储](#分区存储)）与派生的 Session 参加。存储操作身份由 execution 与 Agent 操作确定地编码，代次为 `#<n>`。存储答复之后，提供者经 `report` 报出这次发布的字节与结果（[发布观测](#发布观测)）。
 6. 只有已提交回执成为答复。其余结果都丢弃副本，下次调用从存储重建：
    - `execution-record` 的修订号或发布计数冲突：重建副本后重做本次调用，最多 4 轮，之后答 `unavailable`。4 轮是本提供者的固定策略（`agent-journal.ts` 的 `ROUNDS`），不是配置项：连输 4 次发布竞争的会话在争用，再多一轮没有帮助。这个 `unavailable` 是暂时的，Agent 等待后以同一操作再写。
-   - 代次：一次写从起点往后找第一个没有用过的代次，用它提交。已回滚的代次跳过。代次数不设上限。提供者在进程内按操作记住已见到的最大代次，下一次从它往后找。进程重启后从 `#1` 往后找。
+   - 代次：一次写从起点往后逐个代次直接提交，不先 `query`；存储在执行之前认出早先的回执并在答复里标明（sql-contract 的[认回标记](../../storage/sql-contract/SPEC.md#认回标记)）。答复是认回的回滚回执时进入下一代次；是认回的已提交回执时按下面 `identity_conflict` 的同一规则认回。代次数不设上限。提供者在进程内按操作记住已见到的最大代次，下一次从它往后找。进程重启后从 `#1` 往后找。
    - 原操作行冲突：摘要与本次相同时重建并重做，核心按原答案认回。摘要不同时答 `conflict`。
    - `identity_conflict` 的原回执为 `committed`：同上按摘要分两支。原回执为 `rolled_back`：进入下一代次。
    - Session 参加停止：按 [AD-01](#ad-01) 对应表译为 Agent 的失败。Session 参加者失败：`unavailable`。不支持：`unsupported`。
    - 存储 `unknown` 或 `writer_not_current`：`commit-unknown`。同一操作再次调用时，副本从存储重建，核心按原操作认回。提供者在进程内记住这次未定的写入（代次与核心给它的记录键），之后每次调用先向存储 `query` 它：已提交则从耐久记录认回；存储证明该代次没有执行（`not_committed`）或已回滚则该操作 `excluded`，证据是 `session-log-journal` 的记录；仍未定则该操作在副本里是待决项，`query` 答 `unknown`，同一 execution 的终结清单带一个未知的操作项，`tryFinish` 答 `unavailable`。已排除的操作随下一次成功发布一起存入耐久记录。没有 Agent 操作身份的写入（材料保存）在这里答 `unavailable`，不编造身份；它按材料的 identity 幂等，重试是安全的。
-   - 发送前的 `query` 答 `unknown`：存储此刻答不出这一代次是否执行过（例如读队列已满），本次调用还没有发送。答 `unavailable`，诊断带存储给的原因，不记未定写入。Agent 按依赖等待，到检查时刻以同一操作再写。进程重启前的一次发送若已生效，同一身份的下一次查询认回它；存储按身份去重，同一操作不会生效两次。
+   - 存储在受理之前以暂时性原因拒绝：本次调用什么也没有写。答 `unavailable`，诊断带存储给的原因，不记未定写入。Agent 按依赖等待，到检查时刻以同一操作再写。进程重启前的一次发送若已生效，同一身份的下一次提交认回它；存储按身份去重，同一操作不会生效两次。
    - 存储受理前拒绝：按 sql-contract 对该原因的[定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)翻译，本成员不另行判断。暂时的原因（`closing`、`queue_full`、`domain_unavailable`）答 `unavailable`，诊断写明存储的原因。答 `unavailable` 的写没有生效，Agent 按依赖等待，到检查时刻以同一操作再写。确定的原因分两种答复，Agent 都按确定节点故障以失败终结 Run，不等待：
      - `combination_unregistered` 与 `participant_not_in_combination`：答 `unsupported`。这是 agent-contract 中 `AgentJournal.commit` 失败表的「unsupported（含缺历史组合或参加者）」。`unsupported` 装不下原因，存储的原因写进[发布观测](#发布观测)的 warn 日志。
      - 其余确定的原因（例如 `command_limit`、`manifest_mismatch`）：答 `invalid`，`field` 为 `storage`，`reason` 为存储的原因名。

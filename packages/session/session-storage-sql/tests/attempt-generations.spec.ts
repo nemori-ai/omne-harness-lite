@@ -64,12 +64,13 @@ describe('the attempt generations of one operation have no bound', () => {
 
     const mark = a.provider.calls.length
     expect(await a.accept(TENANT_A, 'session-1', 'again')).toHaveProperty('ok')
-    // The process remembers the generations it saw rolled back and does not ask them again.
-    const asked = a.provider.calls
-      .slice(mark)
-      .filter(call => call.kind === 'query')
-      .map(call => call.identity.operationKey)
-    expect(asked).toEqual([identityOf('accept-again', ROLLED_BACK + 1).operationKey])
+    // The process remembers the generations it saw rolled back: it sends the next one alone, and
+    // asks the storage nothing before it.
+    const after = a.provider.calls.slice(mark)
+    expect(after.filter(call => call.kind === 'query')).toEqual([])
+    expect(
+      after.filter(call => call.kind === 'commit').map(call => call.identity.operationKey),
+    ).toEqual([identityOf('accept-again', ROLLED_BACK + 1).operationKey])
     expect((await a.provider.storage.query(identityOf('accept-again', ROLLED_BACK + 1))).kind).toBe(
       'committed',
     )

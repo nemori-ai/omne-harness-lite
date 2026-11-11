@@ -220,8 +220,13 @@ describe('waiters of one identity inside a group (SPEC 7.7.3)', () => {
       storage.commit(op(built, 'a', [seqCommand({ tag: 'other' })])),
     ])
     expect(first.kind).toBe('committed')
-    expect(same).toEqual(first)
-    expect(other).toEqual({ kind: 'identity_conflict', identity: first.identity, existing: first })
+    expect(first).toMatchObject({ recalled: false })
+    expect(same).toEqual({ ...first, recalled: true })
+    expect(other).toEqual({
+      kind: 'identity_conflict',
+      identity: first.identity,
+      existing: { ...first, recalled: undefined },
+    })
     expect(readRows(workspace, 'select tag from t_seq')).toEqual([{ tag: 'a' }])
   })
 
@@ -246,7 +251,7 @@ describe('waiters of one identity inside a group (SPEC 7.7.3)', () => {
       storage.commit(again),
       storage.commit(op(built, 'b', [seqCommand({ tag: 'b' })])),
     ])
-    expect(repeated).toEqual(original)
+    expect(repeated).toEqual({ ...original, recalled: true })
     expect(fresh.kind).toBe('committed')
     expect(readRows(workspace, 'select tag from t_seq order by n')).toEqual([
       { tag: 'a' },

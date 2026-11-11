@@ -61,6 +61,7 @@ const rolledBack =
     kind: 'rolled_back',
     ...receipt(request),
     responses: [{ participant: 'tool', protocol: 'tool/1', reply }],
+    recalled: false,
   })
 
 const lostWithoutDiagnostic: Answer = request => ({

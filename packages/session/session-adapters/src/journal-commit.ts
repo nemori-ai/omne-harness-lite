@@ -166,34 +166,32 @@ async function commitFrom(
   }
 }
 
-/** One generation: its answer, or `rolled back` when it is an earlier rolled back receipt. */
+/**
+ * One generation: its answer, or `rolled back` when it is an earlier rolled back receipt. The
+ * commit is sent without a query first: the storage recognises an earlier receipt of the identity
+ * before it runs anything, and its answer says so (`recalled`, sql-contract §8, model
+ * `RecallAtCommit`). A caller that got no answer asks later, with `standingOf`.
+ */
 async function commitGeneration(
   input: JournalCommitInput,
   attempt: number,
 ): Promise<JournalCommitResult | 'rolled back'> {
-  const identity = identityOf(input.domain, input.operation, attempt)
-  const found = await input.storage.query(identity)
-  if (found.kind === 'rolled_back') return 'rolled back'
-  if (found.kind === 'committed') return { kind: 'committed', receipt: found, recalled: true }
-  // The storage could not answer whether this generation ran. This call has sent nothing, so there
-  // is no write of its own to hold: the same operation comes again, and a send of an earlier
-  // process, if it took effect, is recalled by the query then (SPEC 生产提供者的实现现状, step 6).
-  if (found.kind === 'unknown')
-    return {
-      kind: 'unavailable',
-      diagnostic: `the storage could not tell whether the write ran: ${found.diagnostic ?? ''}`,
-    }
   const request: CommitRequestV2 = {
-    identity,
+    identity: identityOf(input.domain, input.operation, attempt),
     ...input.combination,
     commands: input.commands,
   }
   const result = await input.storage.commit(request)
   switch (result.kind) {
-    case 'committed':
-      return { kind: 'committed', receipt: result, recalled: false }
-    case 'rolled_back':
-      return { kind: 'rolled-back', receipt: result }
+    case 'committed': {
+      const { recalled, ...receipt } = result
+      return { kind: 'committed', receipt, recalled }
+    }
+    case 'rolled_back': {
+      // A recalled rollback is the receipt of an earlier call: this generation is spent.
+      const { recalled, ...receipt } = result
+      return recalled ? 'rolled back' : { kind: 'rolled-back', receipt }
+    }
     case 'unknown':
       return { kind: 'unknown', diagnostic: result.diagnostic ?? '', attempt }
     case 'identity_conflict':

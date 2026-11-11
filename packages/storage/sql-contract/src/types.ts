@@ -176,12 +176,14 @@ export type CommitRejectedV2 =
       diagnostic: StorageDiagnostic
     }>
 
-export type CommitResultV2 =
-  | CommittedV2
-  | RolledBackV2
-  | UnknownV2
-  | IdentityConflictV2
-  | CommitRejectedV2
+/**
+ * A receipt as `commit` answers it. `recalled` is true when the storage recognised an earlier
+ * receipt of the identity and ran nothing for this call; false when the commands of this call
+ * ran and gave the receipt. The mark is part of the answer, not of the stored receipt.
+ */
+export type CommitReceiptV2 = ReceiptV2 & Readonly<{ recalled: boolean }>
+
+export type CommitResultV2 = CommitReceiptV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2
 
 /** The provider builds this value. Caller code never assembles it (§8). */
 export type NotCommittedV2 = Readonly<{

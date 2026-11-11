@@ -159,9 +159,10 @@ export class GroupRunner {
       for (const job of [entry.job, ...entry.waiters]) send(job, make(job))
     }
     const settleReceipt = (entry: Entry, receipt: ReceiptV2): void =>
+      // The commands of the entry's own job ran. A waiter of the same identity ran nothing.
       settle(entry, job =>
         job.request.inputDigest === entry.job.request.inputDigest
-          ? { kind: 'receipt', receipt }
+          ? { kind: 'receipt', receipt, recalled: job !== entry.job }
           : { kind: 'conflict', existing: receipt },
       )
     const settleUnknown = (entry: Entry, diagnostic: string): void =>
@@ -385,7 +386,7 @@ export class GroupRunner {
         send(
           job,
           existing.inputDigest === job.request.inputDigest
-            ? { kind: 'receipt', receipt: existing }
+            ? { kind: 'receipt', receipt: existing, recalled: true }
             : { kind: 'conflict', existing },
         )
         continue

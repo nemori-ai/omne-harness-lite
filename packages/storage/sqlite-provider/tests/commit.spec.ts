@@ -117,20 +117,24 @@ describe('execution and evidence', () => {
     const first = await ready()
     const request = commitRequest(built)
     const committed = await first.storage.commit(request)
-    expect(await first.storage.commit(request)).toEqual(committed)
+    expect(await first.storage.commit(request)).toEqual({ ...committed, recalled: true })
     const changed = commitRequest(built, {
       commands: [command('ledger', { note: 'other' }), command('auditor')],
     })
     expect(await first.storage.commit(changed)).toEqual({
       kind: 'identity_conflict',
       identity: request.identity,
-      existing: committed,
+      // The existing receipt is the stored one: it has no `recalled` mark.
+      existing: { ...committed, recalled: undefined },
     })
     await first.control.close({ initiator: 'disposal' })
     const second = await createProvider(workspace, built)
     providers.push(second)
-    expect(await second.storage.commit(request)).toEqual(committed)
-    expect(await second.storage.query(request.identity)).toEqual(committed)
+    expect(await second.storage.commit(request)).toEqual({ ...committed, recalled: true })
+    expect(await second.storage.query(request.identity)).toEqual({
+      ...committed,
+      recalled: undefined,
+    })
     expect(rows('select count(*) n from t_ledger')).toEqual([{ n: 1 }])
   })
 
@@ -142,7 +146,7 @@ describe('execution and evidence', () => {
     if (row === undefined) throw new Error('no receipt row')
     expect(row.receipt).toBeInstanceOf(Uint8Array)
     expect(row.receipt[0]).toBe(1)
-    expect(JSON.parse(unpackText(row.receipt))).toEqual(committed)
+    expect({ ...JSON.parse(unpackText(row.receipt)), recalled: false }).toEqual(committed)
   })
 
   it('a different operation key is a new identity and runs again', async () => {
@@ -166,8 +170,8 @@ describe('execution and evidence', () => {
       'ledger:participated',
       'auditor:conflict',
     ])
-    expect(await storage.query(request.identity)).toEqual(result)
-    expect(await storage.commit(request)).toEqual(result)
+    expect({ ...(await storage.query(request.identity)), recalled: false }).toEqual(result)
+    expect(await storage.commit(request)).toEqual({ ...result, recalled: true })
     const later = await storage.commit(
       commitRequest(built, { identity: identity({ operationKey: 'later' }) }),
     )

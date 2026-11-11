@@ -226,7 +226,7 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
-            ? existing
+            ? { ...existing, recalled: true }
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       const receipt = execute(request)
@@ -235,7 +235,7 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
         lose = false
         return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: 'lost' })
       }
-      return Promise.resolve(receipt)
+      return Promise.resolve({ ...receipt, recalled: false })
     },
     query: identity =>
       Promise.resolve(

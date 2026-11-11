@@ -155,10 +155,14 @@ function fromResult(
   onWork: OnWork,
 ): Outcome<unknown, SessionFailure> | 'next-attempt' {
   switch (result.kind) {
+    // A recalled receipt is the receipt of an earlier call (sql-contract §8, model
+    // `RecallAtCommit`): a committed one is recognised, a rolled back one spends the generation.
     case 'committed':
-      return fromCommitted(result, expected, false, mark, onWork)
+      return result.recalled
+        ? fromCommitted(result, expected, true, mark)
+        : fromCommitted(result, expected, false, mark, onWork)
     case 'rolled_back':
-      return fromRolledBack(result)
+      return result.recalled ? 'next-attempt' : fromRolledBack(result)
     case 'unknown':
       return failure({ kind: 'commit-unknown', operation: expected.operation })
     case 'identity_conflict':
@@ -221,12 +225,9 @@ export async function commitFacts<P>(
   // No bound: every refusal of the participant, `changed` included, rolls back and uses up a
   // generation, and the caller comes again with the same operation (SPEC W1 attempts).
   for (let attempt = (generations.get(key) ?? 0) + 1; ; attempt += 1) {
+    // No query first: the storage recognises an earlier receipt of the identity before it runs
+    // anything, and the answer says so.
     const identity = identityOf(domain, operation, `${operation}#${attempt}`)
-    const found = await storage.query(identity)
-    saw(generations, key, attempt, found.kind)
-    if (found.kind === 'rolled_back') continue
-    if (found.kind === 'committed') return fromCommitted(found, expected, true, mark)
-    if (found.kind === 'unknown') return failure({ kind: 'commit-unknown', operation })
     let work: SessionWorkReply | undefined
     const result = await storage.commit(requestOf(context, identity, command))
     if (result.kind === 'committed' || result.kind === 'rolled_back')

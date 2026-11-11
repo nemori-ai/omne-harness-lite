@@ -14,6 +14,7 @@
 - `CombinationProblem` · `types.d.ts`
 - `CombinationRegistrationV2` · `types.d.ts`
 - `CommitOptions` · `types.d.ts`
+- `CommitReceiptV2` · `types.d.ts`
 - `CommitRejectReason` · `types.d.ts`
 - `CommitRejectedV2` · `types.d.ts`
 - `CommitRequestV2` · `types.d.ts`
@@ -505,7 +506,10 @@ export type CommitRejectedV2 = Readonly<{
     reason: Exclude<CommitRejectReason, PreDecodeRejectReason>;
     diagnostic: StorageDiagnostic;
 }>;
-export type CommitResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2;
+export type CommitReceiptV2 = ReceiptV2 & Readonly<{
+    recalled: boolean;
+}>;
+export type CommitResultV2 = CommitReceiptV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2;
 export type NotCommittedV2 = Readonly<{
     kind: 'not_committed';
     identity: SqlIdentity;

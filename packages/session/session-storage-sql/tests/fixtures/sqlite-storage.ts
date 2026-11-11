@@ -349,7 +349,7 @@ export function createSqliteStorage(): SqliteStorage {
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
-            ? existing
+            ? { ...existing, recalled: true }
             : { kind: 'identity_conflict', identity, existing },
         )
       const receipt = execute(domain, request, identity)
@@ -359,7 +359,7 @@ export function createSqliteStorage(): SqliteStorage {
         lose = false
         return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'reply lost' })
       }
-      return Promise.resolve(receipt)
+      return Promise.resolve({ ...receipt, recalled: false })
     },
     query(identity): Promise<QueryResultV2> {
       calls.push({ kind: 'query', identity })

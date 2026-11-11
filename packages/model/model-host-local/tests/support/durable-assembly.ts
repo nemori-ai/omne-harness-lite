@@ -278,7 +278,11 @@ type SqlStorage = SqlModelCommandsOptions<unknown>['storage']
 type TenantDomainLookup = SqlModelCommandsOptions<unknown>['domains']
 type CommitRequest = Parameters<SqlStorage['commit']>[0]
 type CommitResult = Awaited<ReturnType<SqlStorage['commit']>>
-type Receipt = Extract<CommitResult, { kind: 'committed' | 'rolled_back' }>
+/** A stored receipt: what `query` answers. `commit` answers it with the `recalled` mark. */
+type Receipt = Extract<
+  Awaited<ReturnType<SqlStorage['query']>>,
+  { kind: 'committed' | 'rolled_back' }
+>
 type SqlIdentity = CommitRequest['identity']
 type MigrationPort = Parameters<typeof modelMigration.up>[0]
 type QueryRows = ReturnType<MigrationPort['execute']>
@@ -377,12 +381,12 @@ function sqliteStorage(): SqlStorage {
         return Promise.resolve(
           existing.inputDigest ===
             sha256({ identity: request.identity, commands: request.commands })
-            ? existing
+            ? { ...existing, recalled: true }
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
       const receipt = executeCommit(domain, request)
       domain.receipts.set(key, receipt)
-      return Promise.resolve(receipt)
+      return Promise.resolve({ ...receipt, recalled: false })
     },
     query(identity) {
       const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))
