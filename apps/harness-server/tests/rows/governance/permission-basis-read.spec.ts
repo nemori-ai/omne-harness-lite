@@ -1,3 +1,4 @@
+// @module-tag slow
 // The current permission of a real Agent action, read with the real provider, the real Session
 // storage, the real Agent journal and adopted Governance. A check is a read. The condition of the
 // reading makes a later commit fail when a tenant-domain fact changed after the check.

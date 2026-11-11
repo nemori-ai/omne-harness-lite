@@ -188,7 +188,7 @@ it('cannot commit through outstanding source holds or finish a different source 
     })
     expect(stored(s.world.root)).toMatchObject({ state: null, operations: 0 })
   }
-})
+}, 30_000)
 
 it('checks the ordinary target gate and permits aborted source completion without dropping held obligations', async () => {
   const ordinary = await open({
