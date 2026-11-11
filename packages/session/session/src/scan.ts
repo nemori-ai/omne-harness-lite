@@ -1,7 +1,8 @@
 // S3, the recovery scanner of one tenant (SPEC S3), in the subset this member hands work to: a
-// session with pending inputs goes to S1, each unknown operation goes to S4. The startup scan reads
-// the union of reasons; the periodic scan reads `inputs` and `unresolved`. The other reasons have
-// no handler in this member yet (SPEC「实现现状」). The cursor is not persistent.
+// session with pending inputs goes to S1, each unknown operation goes to S4, a control that
+// propagates goes to C3, and an active Run goes to the recovery of C2. The startup scan reads the
+// union of reasons; the periodic scan reads `inputs`, `unresolved`, `controls` and `run`. The other
+// reasons have no handler in this member yet (SPEC「实现现状」). The cursor is not persistent.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   PendingReason,
@@ -15,6 +16,7 @@ import type { ControlPropagation } from './control.ts'
 import { OWNERS, unavailable } from './failures.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import type { SchedulingPolicy } from './policy.ts'
+import type { Recovery } from './recover.ts'
 import type { Resolution } from './resolution.ts'
 import {
   sessionKey,
@@ -31,7 +33,7 @@ export type Scan = Readonly<{
   stopAll(): void
 }>
 
-const PERIODIC_REASONS: readonly PendingReason[] = ['inputs', 'unresolved', 'controls']
+const PERIODIC_REASONS: readonly PendingReason[] = ['inputs', 'unresolved', 'controls', 'run']
 
 export function createScan<P>(
   input: Readonly<{
@@ -43,10 +45,11 @@ export function createScan<P>(
     advance: Advance
     resolution: Resolution
     controls: ControlPropagation
+    recovery: Recovery
   }>,
 ): Scan {
-  const { lifecycle, policy, scheduling, principals, maintainer, advance, resolution, controls } =
-    input
+  const { lifecycle, policy, scheduling, principals, maintainer } = input
+  const { advance, resolution, controls, recovery } = input
   const scanners = new Map<string, Readonly<{ handle: MaintenanceHandle; stop: AbortController }>>()
 
   const page = (tenant: TenantId, after: string | null, reason?: PendingReason) =>
@@ -66,6 +69,7 @@ export function createScan<P>(
     if ('failure' in snapshot) return
     if (snapshot.ok.controls.some(control => control.state === 'propagating')) controls.trigger(ref)
     if (snapshot.ok.pending.length > 0) advance.trigger(ref)
+    if (snapshot.ok.run.kind === 'active') recovery.trigger(ref)
     for (const operation of snapshot.ok.unresolved)
       resolution.watch(ref, operation, () => {
         advance.trigger(ref)

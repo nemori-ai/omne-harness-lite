@@ -7,7 +7,17 @@ export type SessionDiagnostic = Readonly<{
   /** The coordinator or scheduler that stopped (SPEC S1, C2). */
   owner: 'S1' | 'C2'
   /** The step that failed. */
-  step: 'read' | 'startRun' | 'replay' | 'invoke' | 'receive' | 'finishRun' | 'freeze'
+  step:
+    | 'read'
+    | 'startRun'
+    | 'replay'
+    | 'invoke'
+    | 'receive'
+    | 'finishRun'
+    | 'freeze'
+    | 'detach'
+    | 'claim'
+    | 'resume'
   tenant: WorkSnapshot['tenant']
   session: SessionId
   /** The Run the step served; null before a Run is known. */

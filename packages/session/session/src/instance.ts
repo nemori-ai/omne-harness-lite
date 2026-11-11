@@ -21,6 +21,7 @@ import { createSessionMeasurer, type SessionMeasure } from './measure.ts'
 import { checkSessionConfiguration, type SessionConfiguration } from './policy.ts'
 import { createReads } from './reads.ts'
 import { createResolution } from './resolution.ts'
+import { createRecovery } from './recover.ts'
 import { createScan, type MaintenanceHandle } from './scan.ts'
 import { createScheduling, type TenantId } from './scheduling.ts'
 
@@ -126,6 +127,12 @@ export function createSessionInstance<P>(
     coordinator: faces.coordinator,
   })
   const controlPropagation = controls
+  const recovery = createRecovery({
+    dependencies,
+    lifecycle,
+    scheduling,
+    coordinator: faces.coordinator,
+  })
   const scan = createScan({
     lifecycle,
     policy,
@@ -135,6 +142,7 @@ export function createSessionInstance<P>(
     advance: wired,
     resolution,
     controls: controlPropagation,
+    recovery,
   })
 
   return Object.freeze({
