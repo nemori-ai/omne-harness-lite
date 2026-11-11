@@ -10,6 +10,7 @@ import {
   type ResourceLedger,
 } from '@omne-harness/execution-environment-contract'
 import { succeed } from '@omne-harness/operation-result'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 
@@ -20,7 +21,10 @@ import {
   createScriptedCommandFacility,
 } from '@omne-harness/execution-environment-contract/testing'
 import type { FileObjectNaming, ToolEnvironmentValue } from '../../src/author-environment.ts'
-import { createLocalExecutionEnvironment } from '../../src/execution-environment.ts'
+import {
+  createLocalEnvironmentPlanResolver,
+  createLocalExecutionEnvironment,
+} from '../../src/execution-environment.ts'
 import { createEnvironmentStateStore } from '../../src/environment-state.ts'
 import { createEnvironmentResourceLedger } from '../../src/environment-resource-ledger.ts'
 import {
@@ -444,4 +448,48 @@ it('prepares an acquisition without any complete read of an environment domain',
   expect(await f.state.read(f.preparation)).toMatchObject({
     ok: { allocation: { kind: 'allocated' } },
   })
+})
+
+function anotherScope() {
+  const scope = decodeScopeRef({ ref: 'another-scope' })
+  if ('failure' in scope) throw new Error('invalid fixture scope')
+  return scope.ok
+}
+
+it('refuses a preparation whose plan is for another scope than the request, before any acquisition', async () => {
+  const f = fixture()
+  const other = anotherScope()
+  expect(
+    await f
+      .build()
+      .prepare({ ...f.prepare, request: { ...f.prepare.request, requesterScope: other } }),
+  ).toEqual({ failure: { kind: 'denied', action: 'environment-binding' } })
+  expect(f.acquire).not.toHaveBeenCalled()
+  expect(await f.state.read(f.preparation)).toEqual({ ok: null })
+})
+
+it('the plan resolver refuses a binding whose scope is not the scope of the request', async () => {
+  const f = fixture()
+  const requirement = vi.fn()
+  const resolver = createLocalEnvironmentPlanResolver<Principal>({
+    execution: {} as never,
+    access: { qualify: async () => ({ kind: 'allowed' }) },
+    requirement,
+    binding: async () =>
+      succeed({
+        origin: originRef('caller'),
+        scope: anotherScope(),
+      }),
+    guard: { authorize: async () => 'authorized' },
+    ledger: async () => {
+      throw new Error('no ledger is opened for a refused plan')
+    },
+    facts: async () => {
+      throw new Error('no facts are read for a refused plan')
+    },
+  })
+  expect(await resolver.resolve(f.prepare)).toEqual({
+    failure: { kind: 'denied', action: 'environment-scope' },
+  })
+  expect(requirement).not.toHaveBeenCalled()
 })
