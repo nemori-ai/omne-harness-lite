@@ -159,7 +159,6 @@ export function preparationOf(
     adoption: adoption('environment'),
     inputDigest: canonicalDigest(request),
     purpose: 'initial',
-    request,
   }
 }
 
@@ -172,7 +171,7 @@ export function acquisitionOf(
     tenant: preparation.tenant,
     acquisition: acquisitionRef(`acquisition-${preparation.call}`),
     origin: originRef('caller'),
-    scope: preparation.request.requesterScope,
+    scope,
     placement: {
       kind: 'placement',
       binding: { kind: 'host_machine' },

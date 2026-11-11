@@ -38,6 +38,7 @@ function revision(text: string) {
 
 async function fixture(retained = false) {
   const store = createMemoryToolLedgerStore()
+  const fixed = request()
   const preparation: PreparationRecord = {
     tenant: tenantA,
     call: callId('call'),
@@ -45,13 +46,12 @@ async function fixture(retained = false) {
     adoption: adoption('environment'),
     inputDigest: 'input',
     purpose: 'initial',
-    request: request(),
   }
   const original: OriginalAcquisition = {
     tenant: tenantA,
     acquisition: acquisitionRef('original'),
     origin: originRef('caller'),
-    scope: preparation.request.requesterScope,
+    scope: fixed.requesterScope,
     placement: {
       kind: 'placement',
       binding: { kind: 'host_machine' },
@@ -70,7 +70,7 @@ async function fixture(retained = false) {
     tenant: tenantA,
     call: preparation.call,
     admission: operationId('admission'),
-    request: preparation.request,
+    request: fixed,
     initiator: { owner: 'fixture', subject: 'alice', revision: '1' },
     preparations: [preparation],
     environment: null,
@@ -112,9 +112,7 @@ async function fixture(retained = false) {
   await state.update(preparation, () =>
     succeed({
       preparation,
-      original: retained
-        ? { ...original, retentionScope: preparation.request.requesterScope }
-        : original,
+      original: retained ? { ...original, retentionScope: fixed.requesterScope } : original,
       digest: canonicalDigest(preparation),
       allocation: { kind: 'sent' },
       closed: false,
@@ -168,7 +166,7 @@ async function fixture(retained = false) {
     createRetainedTerminalLedger({
       state,
       address: preparation,
-      scope: preparation.request.requesterScope,
+      scope: fixed.requesterScope,
       authorize: async () => (allowed ? 'authorized' : 'notAuthorized'),
     })
   return {
@@ -181,6 +179,7 @@ async function fixture(retained = false) {
     store,
     state,
     preparation,
+    fixed,
     ledger,
     resource,
     build,
@@ -361,7 +360,7 @@ it('does not substitute the ordinary acquisition scope for an absent retained bi
 /** The stored state of the retention scope's record, or undefined when there is none. */
 async function scopeRecordState(f: Awaited<ReturnType<typeof fixture>>): Promise<unknown> {
   const read = await f.store.readRecord(
-    retentionDomain(tenantA, f.preparation.request.requesterScope),
+    retentionDomain(tenantA, f.fixed.requesterScope),
     hostKey(RETENTION_RECORD_KEY),
   )
   if (read.kind !== 'complete') throw new Error('fixture scope unavailable')
@@ -391,7 +390,7 @@ it('a closed scope keeps what it took over until the stop is confirmed, and keep
   const retained = await f.retention()
   await retained.plan(f.resource)
   expect(await retained.permit(f.resource.key)).toBe('confirmed')
-  const scope = retentionDomain(tenantA, f.preparation.request.requesterScope)
+  const scope = retentionDomain(tenantA, f.fixed.requesterScope)
   await retained.close()
   expect(await f.store.readRecord(scope, hostKey(RETENTION_RECORD_KEY))).toMatchObject({
     record: { kind: 'host' },

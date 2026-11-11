@@ -145,7 +145,7 @@ type PermitRecord = Readonly<{
   call: ToolCallId
   start: ToolOperationId
   digest: string
-  request?: FixedToolRequest
+  /** The digest of the fixed request; the request itself stays with the call. */
   inputDigest?: string
   requestBinding?: string
   requirementSource?: DurableEvidence
@@ -563,21 +563,19 @@ function requestBinding(
   return canonicalDigest({ tenant, call, start, inputDigest, permit })
 }
 
-function storedRequest(
+/** The digest of the request the stored permit is bound to, or null when the binding is not intact. */
+function boundInput(
   stored: PermitRecord,
   tenant: TenantId,
   call: ToolCallId,
   start: ToolStartRecord,
-): FixedToolRequest | null {
-  const request = judgeFixedToolRequest(stored.request)
-  if ('failure' in request || readRequirementSource(stored.requirementSource) === null) return null
-  const inputDigest = canonicalDigest(request.ok)
-  if (
-    stored.inputDigest !== inputDigest ||
-    stored.requestBinding !== requestBinding(tenant, call, start, inputDigest, stored.digest)
-  )
+): string | null {
+  const { inputDigest } = stored
+  if (inputDigest === undefined || readRequirementSource(stored.requirementSource) === null)
     return null
-  return request.ok
+  return stored.requestBinding === requestBinding(tenant, call, start, inputDigest, stored.digest)
+    ? inputDigest
+    : null
 }
 
 function rejectStart(
@@ -865,7 +863,7 @@ export function createLocalStartCoordinator<P>(
       async (snapshot, revision) => {
         const existing = snapshot.records.get(startKey('permit', call, start.ok.operation))
         if (existing?.kind === 'permit') {
-          const original = storedRequest(existing, tenant, call, start.ok)
+          const original = boundInput(existing, tenant, call, start.ok)
           if (original === null)
             return reply(
               fail({
@@ -874,7 +872,7 @@ export function createLocalStartCoordinator<P>(
                 diagnostic: REQUIREMENTS_UNAVAILABLE,
               }),
             )
-          if (canonicalDigest(original) !== inputDigest)
+          if (original !== inputDigest)
             return reply(fail({ kind: 'conflict', operation: start.ok.operation }))
         }
         const currentAccess = await qualify(principal, tenant, call, 'start')
@@ -935,7 +933,6 @@ export function createLocalStartCoordinator<P>(
           call,
           start: start.ok.operation,
           digest,
-          request: request.ok,
           inputDigest,
           requestBinding: requestBinding(tenant, call, start.ok, inputDigest, digest),
           requirementSource: requirement.source,
@@ -954,6 +951,11 @@ export function createLocalStartCoordinator<P>(
     if ('failure' in permit) return permit
     const receipt = judgeEvidence(Reflect.get(raw, 'executorReceipt'), 'executorReceipt')
     if ('failure' in receipt) return receipt
+    const judged = judgeFixedToolRequest(Reflect.get(raw, 'request'))
+    if ('failure' in judged)
+      return invalid(`request.${judged.failure.field}`, judged.failure.reason)
+    const request = judged.ok
+    const inputDigest = canonicalDigest(request)
     const allowed = await qualify(principal, tenant, call, 'start')
     if ('failure' in allowed) return allowed
     const start = permit.ok.start.operation
@@ -976,9 +978,10 @@ export function createLocalStartCoordinator<P>(
           const reason = `guard ${moved.owner}/${moved.resource} was invalidated before the start`
           return rejectStart(tenant, stored, revision, reason)
         }
-        const request = storedRequest(stored, tenant, call, permit.ok.start)
-        if (request === null || stored.inputDigest !== permit.ok.inputDigest)
+        const original = boundInput(stored, tenant, call, permit.ok.start)
+        if (original === null || original !== permit.ok.inputDigest)
           return reply(unknownProgress(REQUIREMENTS_UNAVAILABLE))
+        if (original !== inputDigest) return reply(invalid('request', 'not-the-permitted-request'))
         const currentAccess = await qualify(principal, tenant, call, 'start')
         if ('failure' in currentAccess) {
           if (currentAccess.failure.kind === 'denied')

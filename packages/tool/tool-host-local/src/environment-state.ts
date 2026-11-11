@@ -286,8 +286,7 @@ function preparation(value: unknown): PreparationRecord | null {
   const identity = protocol(value)
   if (!identity || !object(value) || (value.purpose !== 'initial' && value.purpose !== 'resume'))
     return null
-  const request = judgeFixedToolRequest(value.request)
-  return 'failure' in request ? null : { ...identity, purpose: value.purpose, request: request.ok }
+  return { ...identity, purpose: value.purpose }
 }
 function release(value: unknown): EnvironmentState['release'] | undefined {
   if (value === null) return null
@@ -677,7 +676,6 @@ export function createEnvironmentStateStore(options: EnvironmentStorageOptions) 
       !tenant.ok ||
       !tenantEquals(tenant.value, address.tenant) ||
       call.call !== address.call ||
-      canonicalDigest(call.request) !== canonicalDigest(expected.request) ||
       !call.preparations.some(item => canonicalDigest(item) === canonicalDigest(expected))
     )
       return environmentFailure('original call preparation binding mismatch')

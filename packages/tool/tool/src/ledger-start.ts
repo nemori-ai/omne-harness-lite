@@ -461,7 +461,6 @@ export function decidePlanPreparation(
     adoption: command.environmentAdoption,
     inputDigest: command.inputDigest,
     purpose: 'initial',
-    request: record.request,
   }
   const queue: QueuePosition = {
     kind: 'waiting',

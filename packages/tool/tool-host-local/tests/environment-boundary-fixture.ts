@@ -52,13 +52,13 @@ export function environmentBoundaryFixture() {
       adoption: backing.adoption,
       inputDigest: canonicalDigest(fixed),
       purpose: 'initial',
-      request: fixed,
     }
     return {
       principal: tenant === tenantA ? principalA : principalB,
       tenant,
       call: record.call,
       preparation: record,
+      request: fixed,
     }
   }
   const release = async (input: ReturnType<typeof preparation>) => {

@@ -57,6 +57,7 @@ const consumeWith = (permit: StartPermit, call = 'c1') => ({
   ...callAccess(call),
   permit,
   executorReceipt: evidence(`capsule-${call}`),
+  request: request(),
 })
 
 describe('G5 the start ordering domain', () => {
@@ -679,7 +680,12 @@ describe('G5 tenants and qualification', () => {
     const foreign = { principal: principalB, tenant: tenantA as never, call: callId('c1') }
     const answers = [
       await authority.prepare({ ...foreign, start: startOf('c1'), request: request() }),
-      await authority.consume({ ...foreign, permit, executorReceipt: evidence('capsule') }),
+      await authority.consume({
+        ...foreign,
+        permit,
+        executorReceipt: evidence('capsule'),
+        request: request(),
+      }),
       await authority.inspect({ ...foreign, start: startOf('c1') }),
       await authority.exclude({ ...foreign, operation: operationId('op-x'), reason: 'r' }),
       await authority.invalidate({ ...invalidation('revoke-1'), principal: principalB }),
@@ -714,6 +720,7 @@ describe('G5 tenants and qualification', () => {
           ...accessB,
           permit: permitB,
           executorReceipt: evidence('capsule'),
+          request: request(),
         }),
       ).kind,
     ).toBe('started')

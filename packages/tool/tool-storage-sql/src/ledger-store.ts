@@ -30,15 +30,18 @@ import { keeping, LedgerKeeper } from './ledger-keeper.ts'
 import {
   addressOf,
   assertsOf,
+  joined,
+  lacksFixed,
   ledgerAnswer,
   notJson,
   sameTenant,
+  type FixedMode,
   unavailable,
   writesOf,
 } from './ledger-wire.ts'
 import type { SqlToolStorageOptions } from './options.ts'
 import { requestOf, resolveTenant } from './tenant.ts'
-import type { LedgerFacts, LedgerWriteFact } from './worker/facts.ts'
+import type { LedgerFacts } from './worker/facts.ts'
 import {
   DUE_READ_ENTRIES,
   DUE_READ_HANDLER,
@@ -57,7 +60,7 @@ function storedRecordsOf(rows: JsonValue | undefined): StoredRecord[] | null {
   const records: StoredRecord[] = []
   for (const row of rows) {
     if (!isObject(row) || typeof row['key'] !== 'string' || row['record'] === undefined) return null
-    records.push({ key: row['key'], record: row['record'] })
+    records.push({ key: row['key'], record: joined(row['record'], row['fixed']) })
   }
   return records
 }
@@ -145,22 +148,26 @@ export function createSqlToolLedgerStore(options: SqlToolStorageOptions): SqlToo
       return { kind: 'rejected', reason: 'a drop is the only write and names the initial revision' }
     const resolved = await resolveTenant(options, input.domain.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
-    let writes: readonly LedgerWriteFact[]
+    const sent = (fixed: FixedMode) => {
+      const facts: LedgerFacts = {
+        ...addressOf(resolved.at.tenant, input.domain),
+        intent: 'ledger',
+        expected: input.expected,
+        revision: input.revision,
+        writes: writesOf(input, fixed),
+        asserts: assertsOf(input),
+      }
+      return options.storage.commit(requestOf(options, resolved.at, facts))
+    }
     try {
-      writes = writesOf(input)
+      // A domain that was never committed holds no record, so its first commit gives the fixed
+      // part. Every later commit leaves it out; the participant says so when it holds none.
+      const answer = await sent(input.expected === INITIAL_REVISION ? 'given' : 'kept')
+      return ledgerAnswer(lacksFixed(answer) ? await sent('given') : answer)
     } catch (error) {
       if (error instanceof NotJsonError) return notJson(error)
       throw error
     }
-    const facts: LedgerFacts = {
-      ...addressOf(resolved.at.tenant, input.domain),
-      intent: 'ledger',
-      expected: input.expected,
-      revision: input.revision,
-      writes,
-      asserts: assertsOf(input),
-    }
-    return ledgerAnswer(await options.storage.commit(requestOf(options, resolved.at, facts)))
   }
 
   const read = async (domain: LedgerDomain): Promise<LedgerRead> => {

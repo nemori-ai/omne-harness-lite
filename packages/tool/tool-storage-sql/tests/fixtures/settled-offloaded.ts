@@ -29,8 +29,9 @@ export async function settledOffloaded(
   app: Pick<App, 'store' | 'options'>,
   tenant = TENANT_A,
   text = 'x'.repeat(70 * 1024),
+  argumentsText = '{}',
 ) {
-  const world = await ledgerWorld(tenant)
+  const world = await ledgerWorld(tenant, undefined, argumentsText)
   let now = '2026-11-10T00:00:00.000Z'
   const permitKey = { secret: randomBytes(32) }
   const clock = { now: () => ok(decodeToolInstant(now)) }

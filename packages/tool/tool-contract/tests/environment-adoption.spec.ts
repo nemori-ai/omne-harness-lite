@@ -15,12 +15,13 @@ it('all four environment operations refuse a different adapter without allocatin
   const environment = createMemoryToolEnvironment<string>()
   const access = memoryAccess('caller')
   const call = callId('original')
-  const original = preparationRecord(access, call, 'prepare', fixedRequest())
+  const request = fixedRequest()
+  const original = preparationRecord(access, call, 'prepare', request)
   const wrong = { ...original, adoption: adoption('replacement') }
   const release = releaseRecord(wrong, 'release', evidence('resource'))
   for (const reply of [
-    await environment.prepare({ ...access, call, preparation: wrong }),
-    await environment.inspectPreparation({ ...access, call, preparation: wrong }),
+    await environment.prepare({ ...access, call, preparation: wrong, request }),
+    await environment.inspectPreparation({ ...access, call, preparation: wrong, request }),
     await environment.release({ ...access, call, release }),
     await environment.inspectRelease({ ...access, call, release }),
   ])
@@ -39,32 +40,40 @@ it('does not allocate for absent scope, mismatched declaration, missing tenant o
   const environment = createMemoryToolEnvironment<string>()
   const access = memoryAccess('caller')
   const call = callId('original')
-  const original = preparationRecord(access, call, 'prepare', fixedRequest())
-  const missingScope = { ...original.request }
+  const request = fixedRequest()
+  const original = preparationRecord(access, call, 'prepare', request)
+  const missingScope = { ...request }
   Reflect.deleteProperty(missingScope, 'requesterScope')
   expect(
     await environment.prepare({
       ...access,
       call,
-      preparation: { ...original, request: missingScope },
+      preparation: original,
+      request: missingScope,
     }),
   ).toMatchObject({ failure: { kind: 'invalid', field: 'requesterScope' } })
   const mismatched = {
-    ...original.request,
+    ...request,
     environment: { adoption: adoption('other'), value: { kind: 'null' as const } },
   }
   expect(
     await environment.prepare({
       ...access,
       call,
-      preparation: { ...original, request: mismatched },
+      preparation: original,
+      request: mismatched,
     }),
   ).toMatchObject({ failure: { kind: 'invalid', field: 'environment' } })
-  const missingTenant = { ...access, call, preparation: original }
+  const missingTenant = { ...access, call, preparation: original, request }
   Reflect.deleteProperty(missingTenant, 'tenant')
   expect(await environment.prepare(missingTenant)).toMatchObject({ failure: { kind: 'denied' } })
   expect(
-    await environment.prepare({ ...memoryOtherAccess('other'), call, preparation: original }),
+    await environment.prepare({
+      ...memoryOtherAccess('other'),
+      call,
+      preparation: original,
+      request,
+    }),
   ).toMatchObject({ failure: { kind: 'denied' } })
   expect(environment.controls.allocations()).toBe(0)
 })
@@ -73,17 +82,25 @@ it('reconnects serialized records under the original tenant and refuses a foreig
   const environment = createMemoryToolEnvironment<string>()
   const access = memoryAccess('caller')
   const call = callId('restored')
-  const preparation = structuredClone(preparationRecord(access, call, 'prepare', fixedRequest()))
-  const prepared = await environment.prepare({ ...access, call, preparation })
+  const request = fixedRequest()
+  const preparation = structuredClone(preparationRecord(access, call, 'prepare', request))
+  const prepared = await environment.prepare({ ...access, call, preparation, request })
   expect(prepared).toMatchObject({ ok: { kind: 'prepared' } })
-  expect(await environment.inspectPreparation({ ...access, call, preparation })).toEqual(prepared)
+  expect(await environment.inspectPreparation({ ...access, call, preparation, request })).toEqual(
+    prepared,
+  )
   const release = structuredClone(releaseRecord(preparation, 'release', evidence('resource')))
   const released = await environment.release({ ...access, call, release })
   expect(released).toMatchObject({ ok: { kind: 'released' } })
   expect(await environment.inspectRelease({ ...access, call, release })).toEqual(released)
   for (const reply of [
-    await environment.prepare({ ...memoryOtherAccess('other'), call, preparation }),
-    await environment.inspectPreparation({ ...memoryOtherAccess('other'), call, preparation }),
+    await environment.prepare({ ...memoryOtherAccess('other'), call, preparation, request }),
+    await environment.inspectPreparation({
+      ...memoryOtherAccess('other'),
+      call,
+      preparation,
+      request,
+    }),
     await environment.release({ ...memoryOtherAccess('other'), call, release }),
     await environment.inspectRelease({ ...memoryOtherAccess('other'), call, release }),
   ])

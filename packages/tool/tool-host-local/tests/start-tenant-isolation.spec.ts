@@ -58,6 +58,7 @@ it('lets tenant B commit while A is blocked in its read, and decides A by commit
   await entered.wait
   const consumed = authority.consume({
     ...callAccess('a'),
+    request: request(),
     permit: prepared.ok,
     executorReceipt: evidence('a'),
   })

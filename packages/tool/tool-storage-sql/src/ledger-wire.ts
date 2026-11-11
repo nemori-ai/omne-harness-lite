@@ -8,6 +8,7 @@ import {
   type LedgerCommit,
   type LedgerCommitInput,
   type LedgerDomain,
+  type LedgerRecord,
 } from '@omne-harness/tool'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { toJson, type NotJsonError } from './json.ts'
@@ -42,17 +43,40 @@ export function assertsOf(input: LedgerCommitInput): readonly LedgerAssertionFac
   })
 }
 
-export function writesOf(input: LedgerCommitInput): readonly LedgerWriteFact[] {
+/** How a commit sends the fixed part of a record that has one. */
+export type FixedMode = 'given' | 'kept'
+
+/**
+ * A record in the two parts the store keeps: the part that changes, and the part that is written
+ * once. Only the call record has a fixed part: its request, which no step of the call changes.
+ */
+function partsOf(record: LedgerRecord): Readonly<{ record: unknown; fixed?: unknown }> {
+  if (record.kind !== 'call') return { record }
+  const { request, ...state } = record.call
+  return { record: { kind: record.kind, call: state }, fixed: request }
+}
+
+/** The record that `partsOf` took apart, from the two parts a read gives back. */
+export function joined(record: JsonValue, fixed: JsonValue | undefined): JsonValue {
+  if (fixed === undefined || !isObject(record) || !isObject(record['call'])) return record
+  return { ...record, call: { ...record['call'], request: fixed } }
+}
+
+function putOf(record: LedgerRecord, path: string, mode: FixedMode): LedgerWriteFact {
+  const parts = partsOf(record)
+  const put = { op: 'put', key: recordKey(record), record: toJson(parts.record, path) } as const
+  if (parts.fixed === undefined) return put
+  if (mode === 'kept') return { ...put, fixed: { kind: 'kept' } }
+  return { ...put, fixed: { kind: 'given', value: toJson(parts.fixed, path) } }
+}
+
+export function writesOf(input: LedgerCommitInput, mode: FixedMode): readonly LedgerWriteFact[] {
   return input.writes.map((write, index): LedgerWriteFact => {
     switch (write.kind) {
       case 'drop':
         return { op: 'drop' }
       case 'put':
-        return {
-          op: 'put',
-          key: recordKey(write.record),
-          record: toJson(write.record, `writes[${index}]`),
-        }
+        return putOf(write.record, `writes[${index}]`, mode)
       case 'delete':
         return { op: 'delete', key: write.key }
       case 'schedule':
@@ -76,6 +100,15 @@ function stopOf(basis: JsonValue): StopBasis | null {
 }
 
 export type CommitAnswer = Awaited<ReturnType<SqlToolStorageOptions['storage']['commit']>>
+
+/** Whether the participant stopped a `kept` put: the store holds no fixed part under the key. */
+export function lacksFixed(answer: CommitAnswer): boolean {
+  if (answer.kind !== 'rolled_back') return false
+  const stop = answer.responses[answer.responses.length - 1]?.reply
+  return (
+    stop?.kind === 'conflict' && isObject(stop.basis) && stop.basis['reason'] === 'fixed-missing'
+  )
+}
 
 /**
  * Whether the same commit is refused again whenever it is sent (sql-contract「提交拒绝原因的定性」):

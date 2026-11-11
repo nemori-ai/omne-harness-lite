@@ -166,7 +166,12 @@ it('a coordinator rebuilt over the reopened store refuses an old permit after an
     }),
   )
   const consumed = ok(
-    await rebuilt.consume({ ...callAccess, permit, executorReceipt: evidence('capsule') }),
+    await rebuilt.consume({
+      ...callAccess,
+      permit,
+      executorReceipt: evidence('capsule'),
+      request: fixedRequest(),
+    }),
   )
   expect(consumed.kind).toBe('rejected')
   expect(ok(await rebuilt.inspect({ ...callAccess, start })).kind).not.toBe('started')

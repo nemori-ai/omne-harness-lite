@@ -104,6 +104,7 @@ function assembly(
         tenant: input.tenant,
         call: input.call,
         permit: input.permit,
+        request: input.request,
         executorReceipt: evidence(`capsule-${input.call}`),
       })
       if ('failure' in consumed) return consumed

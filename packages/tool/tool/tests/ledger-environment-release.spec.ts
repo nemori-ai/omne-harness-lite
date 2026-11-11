@@ -92,14 +92,17 @@ describe('canonical environment cleanup ledger', () => {
     }
     const input = {
       ...original,
-      preparation: { ...original.preparation, request: { ...original.preparation.request } },
+      preparation: {
+        ...original.preparation,
+        adoption: { ...original.preparation.adoption },
+      },
       custody: { ...original.custody },
     }
     const before = (await f.records()).filter(row => row.kind === 'result')
     gate.arm()
     const pending = f.ledger.commands.planRelease(input)
     await gate.entered
-    input.preparation.request.command = 'replaced-during-qualification'
+    input.preparation.adoption.digest = 'replaced-during-qualification'
     input.preparation = { ...input.preparation, operation: operationId('replaced-preparation') }
     input.custody.record = 'replaced-custody'
     gate.resume()
@@ -176,7 +179,7 @@ describe('canonical environment cleanup ledger', () => {
     expect(after.state.delivery).toEqual((await f.load()).state.delivery)
   })
 
-  it.each(['custody', 'preparation', 'request', 'adoption'] as const)(
+  it.each(['custody', 'preparation', 'inputDigest', 'adoption'] as const)(
     'rejects changed %s and operation reuse',
     async field => {
       const f = await releasedFixture()
@@ -187,12 +190,9 @@ describe('canonical environment cleanup ledger', () => {
           ...f.plan,
           preparation: { ...f.plan.preparation, operation: operationId('wrong') },
         },
-        request: {
+        inputDigest: {
           ...f.plan,
-          preparation: {
-            ...f.plan.preparation,
-            request: { ...f.plan.preparation.request, timeout: 'wrong' },
-          },
+          preparation: { ...f.plan.preparation, inputDigest: 'sha256:wrong' },
         },
         adoption: {
           ...f.plan,

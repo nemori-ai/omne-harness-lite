@@ -62,6 +62,7 @@ function revision(text: string) {
   return parsed.ok
 }
 
+const fixed = request()
 const preparation: PreparationRecord = {
   tenant: tenantA,
   call: callId('call'),
@@ -69,7 +70,6 @@ const preparation: PreparationRecord = {
   adoption: adoption('environment'),
   inputDigest: 'input',
   purpose: 'initial',
-  request: request(),
 }
 const placement: Placement = {
   kind: 'placement',
@@ -87,7 +87,7 @@ const original: OriginalAcquisition = {
   tenant: tenantA,
   acquisition: acquisitionRef('original'),
   origin: originRef('caller'),
-  scope: preparation.request.requesterScope,
+  scope: fixed.requesterScope,
   placement,
 }
 const resource: ManagedResource = {
@@ -102,7 +102,7 @@ function callRecord(): CallRecord {
     tenant: tenantA,
     call: preparation.call,
     admission: operationId('admission'),
-    request: preparation.request,
+    request: fixed,
     initiator: { owner: 'fixture', subject: 'alice', revision: '1' },
     preparations: [preparation],
     environment: null,
@@ -144,7 +144,7 @@ async function fixture() {
   await state.update(preparation, () =>
     succeed({
       preparation,
-      original: { ...original, retentionScope: preparation.request.requesterScope },
+      original: { ...original, retentionScope: fixed.requesterScope },
       digest: canonicalDigest(preparation),
       allocation: { kind: 'sent' },
       closed: false,
@@ -164,7 +164,7 @@ async function fixture() {
     createRetainedTerminalLedger({
       state: createEnvironmentStateStore({ store, mode: 'test' }),
       address: preparation,
-      scope: preparation.request.requesterScope,
+      scope: fixed.requesterScope,
       authorize,
     })
   const processes = await retained()
@@ -185,7 +185,7 @@ async function fixture() {
   async function domain() {
     const acquired = await stored(acquisitionDomain(preparation), preparationKey(preparation))
     const retention = await stored(
-      retentionDomain(tenantA, preparation.request.requesterScope),
+      retentionDomain(tenantA, fixed.requesterScope),
       RETENTION_RECORD_KEY,
     )
     const find = (facts: Fact[] | undefined) =>
@@ -438,7 +438,7 @@ async function otherCallView(f: Awaited<ReturnType<typeof fixture>>) {
       original: {
         ...original,
         acquisition: acquisitionRef('original-b'),
-        retentionScope: preparation.request.requesterScope,
+        retentionScope: fixed.requesterScope,
       },
       digest: canonicalDigest(other),
       allocation: { kind: 'sent' },
@@ -452,14 +452,14 @@ async function otherCallView(f: Awaited<ReturnType<typeof fixture>>) {
   return createRetainedTerminalLedger({
     state,
     address: other,
-    scope: preparation.request.requesterScope,
+    scope: fixed.requesterScope,
     authorize: async () => 'authorized',
   })
 }
 
 /** The host keys of the scope's domain, read whole: the scope record and its end facts. */
 async function scopeKeys(f: Awaited<ReturnType<typeof fixture>>) {
-  const read = await f.store.read(retentionDomain(tenantA, preparation.request.requesterScope))
+  const read = await f.store.read(retentionDomain(tenantA, fixed.requesterScope))
   if (read.kind !== 'complete') throw new Error('fixture scope unavailable')
   return read.records.flatMap(record => (record.kind === 'host' ? [record.host.key] : []))
 }
@@ -544,7 +544,7 @@ describe("a stop of a handed-over key is the retention scope's to record", () =>
     expect(whole).not.toHaveBeenCalled()
     expect(keyed).toHaveBeenCalledTimes(1)
     expect(keyed).toHaveBeenCalledWith(
-      retentionDomain(tenantA, preparation.request.requesterScope),
+      retentionDomain(tenantA, fixed.requesterScope),
       hostKey(`ended/${resource.key}`),
     )
   })
@@ -715,6 +715,7 @@ describe('the environment plan hands processes to acquire', () => {
       principal: principalA,
       call: preparation.call,
       preparation,
+      request: fixed,
     }
     return { env, acquire, prepare, state }
   }
@@ -813,7 +814,7 @@ function anotherScope() {
 function viewOver(
   f: Awaited<ReturnType<typeof fixture>>,
   wrap: (state: StateStore) => StateStore,
-  scope = preparation.request.requesterScope,
+  scope = fixed.requesterScope,
 ) {
   return createRetainedTerminalLedger({
     state: wrap(createEnvironmentStateStore({ store: f.store, mode: 'test' })),
@@ -1075,7 +1076,7 @@ describe('a stored environment record that does not decode is not used', () => {
     const f = await fixture()
     await f.reserved()
     expect(await f.processes.adopt(resource.key)).toBe('confirmed')
-    const scope = preparation.request.requesterScope
+    const scope = fixed.requesterScope
     await rewrite(f, retentionDomain(tenantA, scope), RETENTION_RECORD_KEY, change)
     const state = createEnvironmentStateStore({ store: f.store, mode: 'test' })
     expect(await state.readRetention(preparation, scope)).toEqual(
@@ -1157,7 +1158,7 @@ describe('the host lets go of the records of a call only when its acquisitions c
     })
     expect(await remove(f)).toEqual({ ok: 'held' })
     expect(await f.processes.stopped(resource.key, 'confirmed')).toBe('recorded')
-    const scope = retentionDomain(tenantA, preparation.request.requesterScope)
+    const scope = retentionDomain(tenantA, fixed.requesterScope)
     const kept = await records(f, scope)
     expect(await remove(f)).toEqual({ ok: 'removed' })
     expect(await records(f, acquisitionDomain(preparation))).toEqual({ revision: '0', count: 0 })

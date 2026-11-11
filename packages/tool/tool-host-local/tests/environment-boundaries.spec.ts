@@ -323,7 +323,8 @@ it.each(['call', 'operation', 'purpose', 'inputDigest', 'request'] as const)(
     const original = f.preparation('a')
     const malformed = { ...original, preparation: { ...original.preparation } }
     if (field === 'call') Reflect.set(malformed, field, '')
-    else Reflect.set(malformed.preparation, field, field === 'request' ? {} : '')
+    else if (field === 'request') Reflect.set(malformed, field, {})
+    else Reflect.set(malformed.preparation, field, '')
     const events: ToolEnvironmentDiagnostic[] = []
     const environment = createLocalScheduledEnvironment({
       ...f,

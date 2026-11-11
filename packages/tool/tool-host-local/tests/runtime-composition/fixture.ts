@@ -476,7 +476,7 @@ export async function fixture(
         binding: async value =>
           succeed({
             origin: originRef('fixture'),
-            scope: value.preparation.request.requesterScope,
+            scope: value.request.requesterScope,
           }),
         guard: { authorize: async () => 'authorized' },
         facts: async () =>

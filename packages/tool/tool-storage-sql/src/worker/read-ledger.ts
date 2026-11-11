@@ -26,13 +26,13 @@ const handler: ReadHandlerModule = {
       key === undefined
         ? rowsOf(
             port,
-            `SELECT key, record FROM tl_record WHERE tenant = ? AND kind = ? AND name = ?
+            `SELECT key, record, fixed FROM tl_record WHERE tenant = ? AND kind = ? AND name = ?
             ORDER BY key LIMIT ?`,
             [...domain, BigInt(LEDGER_READ_ROWS + 1)],
           )
         : rowsOf(
             port,
-            'SELECT key, record FROM tl_record WHERE tenant = ? AND kind = ? AND name = ? AND key = ? LIMIT 1',
+            'SELECT key, record, fixed FROM tl_record WHERE tenant = ? AND kind = ? AND name = ? AND key = ? LIMIT 1',
             [...domain, key],
           )
     if (rows.length > LEDGER_READ_ROWS)
@@ -42,6 +42,7 @@ const handler: ReadHandlerModule = {
       records: rows.map(row => ({
         key: text(row['key']),
         record: JSON.parse(packed(row['record'])) as JsonValue,
+        ...(row['fixed'] === null ? {} : { fixed: JSON.parse(packed(row['fixed'])) as JsonValue }),
       })),
     }
     return { kind: 'read', output }

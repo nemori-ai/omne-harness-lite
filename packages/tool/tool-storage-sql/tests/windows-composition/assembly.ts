@@ -379,7 +379,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
         },
         plan: {
           requirement: async request => {
-            const checked = await schemas.check(request.preparation.request.availability.definition)
+            const checked = await schemas.check(request.request.availability.definition)
             if ('failure' in checked) return checked
             if (!checked.ok.layers.includes('host_machine'))
               return fail({ kind: 'denied', action: 'windows-e2-placement' })
@@ -396,7 +396,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
             const view = await ledgers(request)
             return succeed({
               origin,
-              scope: request.preparation.request.requesterScope,
+              scope: request.request.requesterScope,
               retention: { scope: authority.scope, ledger: view.retained },
             })
           },

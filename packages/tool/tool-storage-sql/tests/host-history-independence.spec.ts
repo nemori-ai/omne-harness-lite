@@ -236,6 +236,7 @@ async function consumedStart(
     await ports.authority.consume({
       ...callAccess,
       permit,
+      request,
       executorReceipt: evidence(`capsule-${width(index)}`),
     }),
   )
@@ -680,6 +681,7 @@ describe(`the Tool and host paths after 20 and after ${String(N)} settled Tools 
       const consumed = await ports.authority.consume({
         ...callAccess,
         permit: ok(permit),
+        request,
         executorReceipt: evidence('capsule-fresh'),
       })
       expect(consumed).toMatchObject({ ok: { kind: 'started' } })

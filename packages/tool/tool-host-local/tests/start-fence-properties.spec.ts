@@ -173,6 +173,7 @@ async function run(
       const used = pick(trace.issued)
       const answer = await authority.consume({
         ...callAccess(CALL),
+        request: request(),
         permit: used.permit,
         executorReceipt: evidence('capsule'),
       })

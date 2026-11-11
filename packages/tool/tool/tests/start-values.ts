@@ -314,6 +314,7 @@ function testBinding(
       const capsule = evidence(`capsule-${input.call}`)
       capsules.push(capsule)
       const consumed = await authority.consume({
+        request: input.request,
         principal: input.principal,
         tenant: input.tenant,
         call: input.call,

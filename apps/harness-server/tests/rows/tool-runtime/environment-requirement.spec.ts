@@ -34,8 +34,8 @@ it.each(['Tools', 'TodoItems', 'Web'] as const)(
           adoption: RELEASE_ENVIRONMENT_ADOPTION,
           inputDigest: canonicalDigest(request),
           purpose: 'initial',
-          request,
         },
+        request,
       })
       expect(answer).toEqual({
         ok: { allowedBindings: [{ kind: 'host_machine' }], facilities: [], isolation: [] },
@@ -53,8 +53,8 @@ it.each(['Tools', 'TodoItems', 'Web'] as const)(
             adoption: RELEASE_ENVIRONMENT_ADOPTION,
             inputDigest: canonicalDigest(files),
             purpose: 'initial',
-            request: files,
           },
+          request: files,
         }),
       ).toMatchObject({ failure: { kind: 'unavailable' } })
     } finally {

@@ -21,6 +21,7 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
   { authority, bindings }: Pick<ToolDependencies<P, B, E>, 'authority' | 'bindings'>,
   environmentOf: (
     access: CallAccess<P>,
+    recovery: ToolRecovery,
     preparation: PreparationRecord,
   ) => Promise<Outcome<E, ToolFailure>>,
 ) {
@@ -52,7 +53,7 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
         kind: 'port-failed',
         failure: { kind: 'invalid', field: 'call', reason: 'no-preparation' },
       }
-    const environment = await environmentOf(step, preparation)
+    const environment = await environmentOf(step, recovery, preparation)
     if ('failure' in environment) return { kind: 'port-failed', failure: environment.failure }
     try {
       const live = await binding.ok.start(

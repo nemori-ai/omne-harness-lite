@@ -9,8 +9,15 @@ export type DomainKind = 'call' | 'queue' | 'host'
 
 export type DomainAddress = Readonly<{ tenant: string; kind: DomainKind; name: string }>
 
+/**
+ * The part of a record that never changes after its first write. `given` carries it; `kept` says
+ * that the store already holds it, so the command does not carry it again.
+ */
+export type FixedPart = Readonly<{ kind: 'given'; value: JsonValue }> | Readonly<{ kind: 'kept' }>
+
 export type LedgerWriteFact =
-  | Readonly<{ op: 'put'; key: string; record: JsonValue }>
+  /** `record` is the part that changes. A record with no fixed part has no `fixed`. */
+  | Readonly<{ op: 'put'; key: string; record: JsonValue; fixed?: FixedPart }>
   | Readonly<{ op: 'delete'; key: string }>
   | Readonly<{ op: 'schedule'; key: string; dueAt: string }>
   | Readonly<{ op: 'unschedule'; key: string }>
@@ -48,6 +55,8 @@ export type StopBasis =
   | Readonly<{ reason: 'revision'; current: string }>
   /** An assertion did not hold; `current` is the revision of the written domain. */
   | Readonly<{ reason: 'assertion'; current: string }>
+  /** A `put` said `kept`, and the store holds no fixed part under the key. */
+  | Readonly<{ reason: 'fixed-missing' }>
   /** The body holds other bytes at the sequence number, or another manifest seals it. */
   | Readonly<{ reason: 'body-conflict' }>
   /** The chunks do not hold what the manifest declares. */
@@ -59,8 +68,11 @@ export type ParticipantAnswer =
   | Readonly<{ kind: 'body-sealed' }>
   | Readonly<{ kind: 'body-deleted' }>
 
-/** One stored record with the key it is stored under, so the reader can check the two agree. */
-export type StoredRecord = Readonly<{ key: string; record: JsonValue }>
+/**
+ * One stored record with the key it is stored under, so the reader can check the two agree.
+ * `fixed` is the fixed part of the record, when it has one.
+ */
+export type StoredRecord = Readonly<{ key: string; record: JsonValue; fixed?: JsonValue }>
 
 export type LedgerReadOutput = Readonly<{
   revision: string | null
@@ -95,6 +107,13 @@ function domainOf(value: JsonObject): DomainAddress | null {
   return { tenant, kind, name }
 }
 
+function fixedOf(value: JsonValue | undefined): FixedPart | null {
+  if (!isObject(value)) return null
+  if (value['kind'] === 'kept') return { kind: 'kept' }
+  const given = value['value']
+  return value['kind'] === 'given' && given !== undefined ? { kind: 'given', value: given } : null
+}
+
 function writeOf(value: JsonValue): LedgerWriteFact | null {
   if (!isObject(value)) return null
   if (value['op'] === 'drop') return { op: 'drop' }
@@ -111,7 +130,10 @@ function writeOf(value: JsonValue): LedgerWriteFact | null {
     }
     case 'put': {
       const record = value['record']
-      return record === undefined ? null : { op: 'put', key, record }
+      if (record === undefined) return null
+      if (value['fixed'] === undefined) return { op: 'put', key, record }
+      const fixed = fixedOf(value['fixed'])
+      return fixed === null ? null : { op: 'put', key, record, fixed }
     }
     default:
       return null

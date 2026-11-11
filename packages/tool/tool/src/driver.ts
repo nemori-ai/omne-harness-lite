@@ -392,7 +392,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const continueAllocation = async (
     step: Step<P>,
-    request: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
+    request: CallAccess<P> &
+      Readonly<{ preparation: PreparationRecord; request: FixedToolRequest }>,
     read: Outcome<PreparationProgress<E>, ToolFailure>,
   ): Promise<Outcome<PreparationProgress<E>, ToolFailure>> => {
     if ('failure' in read) return read
@@ -410,6 +411,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   /** One preparation step may continue first adoption once, always with the original input. */
   const askEnvironment = async (
     step: Step<P>,
+    recovery: ToolRecovery,
     task: Extract<ToolTask, { kind: 'prepare' }>,
   ): Promise<Outcome<PreparationProgress<E>, ToolFailure>> => {
     const matching = matchEnvironmentAdoption(environments, task.preparation.adoption)
@@ -420,6 +422,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       tenant: step.tenant,
       call: step.call,
       preparation: task.preparation,
+      request: recovery.request,
     }
     const inspect = environmentsAsked.has(key)
     environmentsAsked.add(key)
@@ -437,7 +440,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     recovery: ToolRecovery,
     task: Extract<ToolTask, { kind: 'prepare' }>,
   ): Promise<StepResult> => {
-    const progress = await askEnvironment(step, task)
+    const progress = await askEnvironment(step, recovery, task)
     if ('failure' in progress) return { kind: 'failed', failure: progress.failure }
     const prepared = progress.ok
     switch (prepared.kind) {
@@ -525,6 +528,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   /** The environment of the call: the value prepared in this process, or the provider's record. */
   const environmentOf = async (
     step: CallAccess<P>,
+    recovery: ToolRecovery,
     preparation: PreparationRecord,
   ): Promise<Outcome<E, ToolFailure>> => {
     const matching = matchEnvironmentAdoption(environments, preparation.adoption)
@@ -536,6 +540,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       tenant: step.tenant,
       call: step.call,
       preparation,
+      request: recovery.request,
     })
     if ('failure' in progress) return progress
     const checked = checkedPreparationProgress(progress.ok, preparation)

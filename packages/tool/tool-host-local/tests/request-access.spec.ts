@@ -108,7 +108,7 @@ describe('current request policy at the local start boundary', () => {
     const f = fixture(() => (allow ? allowed() : denied()))
     const permit = ok(await f.prepare())
     allow = false
-    const input = { ...f.call, permit, executorReceipt: evidence('executor') }
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
     const result = ok(await f.authority.consume(input))
     expect(result).toMatchObject({ kind: 'rejected', exclusion: { owner: expect.any(String) } })
     expect(ok(await f.authority.inspect({ ...f.call, start: f.start }))).toEqual(result)
@@ -135,7 +135,12 @@ describe('current request policy at the local start boundary', () => {
         kind: 'unavailable',
       })
       const result = ok(
-        await f.authority.consume({ ...f.call, permit, executorReceipt: evidence('executor') }),
+        await f.authority.consume({
+          ...f.call,
+          permit,
+          executorReceipt: evidence('executor'),
+          request: f.fixed,
+        }),
       )
       expect(result.kind).toBe('unknown')
       expect(JSON.stringify(result)).not.toContain('secret-policy-payload')
@@ -161,7 +166,12 @@ describe('current request policy at the local start boundary', () => {
         })
         expect(
           ok(
-            await f.authority.consume({ ...f.call, permit, executorReceipt: evidence('executor') }),
+            await f.authority.consume({
+              ...f.call,
+              permit,
+              executorReceipt: evidence('executor'),
+              request: f.fixed,
+            }),
           ),
         ).toMatchObject({ kind: 'rejected' })
         expect(f.asked).toHaveLength(3)
@@ -174,7 +184,7 @@ describe('current request policy at the local start boundary', () => {
     let allow = true
     const f = fixture(() => (allow ? allowed() : denied()))
     const permit = ok(await f.prepare())
-    const input = { ...f.call, permit, executorReceipt: evidence('executor') }
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
     const started = ok(await f.authority.consume(input))
     expect(started.kind).toBe('started')
     allow = false

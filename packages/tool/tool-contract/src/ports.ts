@@ -160,10 +160,10 @@ export interface PreparedEnvironment<E> {
 export interface ToolEnvironment<P, E> {
   readonly adoption: Adoption
   prepare(
-    input: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
+    input: CallAccess<P> & Readonly<{ preparation: PreparationRecord; request: FixedToolRequest }>,
   ): Reply<PreparationProgress<E>>
   inspectPreparation(
-    input: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
+    input: CallAccess<P> & Readonly<{ preparation: PreparationRecord; request: FixedToolRequest }>,
   ): Reply<PreparationProgress<E>>
   release(input: CallAccess<P> & Readonly<{ release: ReleaseRecord }>): Reply<ReleaseProgress>
   inspectRelease(

@@ -246,7 +246,6 @@ export function preparationRecord(
     adoption: adoption('environment'),
     inputDigest: digestOf(request),
     purpose: 'initial',
-    request,
   }
 }
 

@@ -572,7 +572,6 @@ describe('19 write commands: boundary and qualification', () => {
             adoption: adoption('environment'),
             inputDigest: 'sha256:x',
             purpose: 'initial',
-            request: fixedRequestForNamedSourceGuard(),
           },
           resources: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
         }),

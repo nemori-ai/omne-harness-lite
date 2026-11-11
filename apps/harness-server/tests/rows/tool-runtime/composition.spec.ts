@@ -373,8 +373,26 @@ async function requestFor(ctx: Context, principal: unknown, command: string, par
   return prepared.ok
 }
 
+/**
+ * Resolves when the test has read the result of the call it is making. The receiver answers
+ * `saved` only after that: a saved delivery is released, and a released result is not readable.
+ */
+let resultRead: Promise<void> = Promise.resolve()
+
 /** Invokes, waits for the settled call, and reads the whole original result as text. */
 async function call(runtime: Runtime, principal: unknown, request: ToolInvokeRequest) {
+  let read: () => void = () => undefined
+  resultRead = new Promise(resolve => {
+    read = resolve
+  })
+  try {
+    return await settledText(runtime, principal, request)
+  } finally {
+    read()
+  }
+}
+
+async function settledText(runtime: Runtime, principal: unknown, request: ToolInvokeRequest) {
   const caller = { principal, tenant: TENANT_A }
   const outcome = await runtime.invoke({ ...caller, request })
   if (outcome.kind !== 'accepted') throw new Error(`invoke: ${JSON.stringify(outcome)}`)
@@ -451,6 +469,7 @@ async function ready(
   const receiver: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
     async push(input) {
       saved.push(input.delivery)
+      await resultRead
       const key = canonicalDigest(input.delivery.key)
       return succeed({
         key: input.delivery.key,

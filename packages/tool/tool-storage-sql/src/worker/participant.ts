@@ -9,7 +9,13 @@ import {
   type ParticipantPort,
   type ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
-import { parseFacts, type LedgerFacts, type ParticipantAnswer, type StopBasis } from './facts.ts'
+import {
+  parseFacts,
+  type LedgerFacts,
+  type LedgerWriteFact,
+  type ParticipantAnswer,
+  type StopBasis,
+} from './facts.ts'
 import { commitBody } from './participant-body.ts'
 import { PARTICIPANT, PROTOCOL } from './schema.ts'
 import { oneRow, text } from './support.ts'
@@ -33,6 +39,42 @@ function revisionOf(port: ParticipantPort, domain: readonly [string, string, str
   return row === undefined ? INITIAL_REVISION : text(row['revision'])
 }
 
+type Domain = readonly [tenant: string, kind: string, name: string]
+
+/**
+ * Writes one record. The fixed part is written only when the command gives it; a `kept` put
+ * changes the other part alone and stops when the store holds no fixed part to keep.
+ */
+function put(
+  port: ParticipantPort,
+  domain: Domain,
+  write: Extract<LedgerWriteFact, { op: 'put' }>,
+): StopBasis | null {
+  const record = packText(JSON.stringify(write.record))
+  if (write.fixed?.kind === 'kept') {
+    const held = oneRow(
+      port,
+      `SELECT 1 AS held FROM tl_record
+       WHERE tenant = ? AND kind = ? AND name = ? AND key = ? AND fixed IS NOT NULL LIMIT 1`,
+      [...domain, write.key],
+    )
+    if (held === undefined) return { reason: 'fixed-missing' }
+    port.execute(
+      'UPDATE tl_record SET record = ? WHERE tenant = ? AND kind = ? AND name = ? AND key = ?',
+      [record, ...domain, write.key],
+    )
+    return null
+  }
+  const fixed = write.fixed === undefined ? null : packText(JSON.stringify(write.fixed.value))
+  port.execute(
+    `INSERT INTO tl_record (tenant, kind, name, key, record, fixed) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (tenant, kind, name, key)
+     DO UPDATE SET record = excluded.record, fixed = excluded.fixed`,
+    [...domain, write.key, record, fixed],
+  )
+  return null
+}
+
 function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantReply {
   const domain = [facts.tenant, facts.kind, facts.name] as const
   const current = revisionOf(port, domain)
@@ -54,13 +96,11 @@ function commitLedger(facts: LedgerFacts, port: ParticipantPort): ParticipantRep
     switch (write.op) {
       case 'drop':
         throw new Error('a drop is handled before the other writes')
-      case 'put':
-        port.execute(
-          `INSERT INTO tl_record (tenant, kind, name, key, record) VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT (tenant, kind, name, key) DO UPDATE SET record = excluded.record`,
-          [...domain, write.key, packText(JSON.stringify(write.record))],
-        )
+      case 'put': {
+        const stop = put(port, domain, write)
+        if (stop !== null) return stopped(stop)
         break
+      }
       case 'delete':
         port.execute(
           'DELETE FROM tl_record WHERE tenant = ? AND kind = ? AND name = ? AND key = ?',

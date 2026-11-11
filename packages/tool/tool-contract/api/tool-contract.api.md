@@ -2679,9 +2679,11 @@ export interface ToolEnvironment<P, E> {
     readonly adoption: Adoption;
     prepare(input: CallAccess<P> & Readonly<{
         preparation: PreparationRecord;
+        request: FixedToolRequest;
     }>): Reply<PreparationProgress<E>>;
     inspectPreparation(input: CallAccess<P> & Readonly<{
         preparation: PreparationRecord;
+        request: FixedToolRequest;
     }>): Reply<PreparationProgress<E>>;
     release(input: CallAccess<P> & Readonly<{
         release: ReleaseRecord;
@@ -3020,7 +3022,6 @@ export type ProtocolIdentity = Readonly<{
 }>;
 export type PreparationRecord = ProtocolIdentity & Readonly<{
     purpose: 'initial' | 'resume';
-    request: FixedToolRequest;
 }>;
 export type PreparationProgress<E> = Readonly<{
     kind: 'allocated';
@@ -3101,6 +3102,7 @@ export interface ToolStartAuthority<P> {
     consume(input: CallAccess<P> & Readonly<{
         permit: StartPermit;
         executorReceipt: DurableEvidence;
+        request: FixedToolRequest;
     }>): Reply<StartProgress>;
     inspect(input: CallAccess<P> & Readonly<{
         start: ToolStartRecord;

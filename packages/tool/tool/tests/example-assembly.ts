@@ -271,6 +271,7 @@ export function createDemo() {
             const consumed = await test.doubles.authority.consume({
               ...access,
               call: input.call,
+              request: input.request,
               permit: input.permit,
               executorReceipt: evidence(capsule, capsules.get(capsule)),
             })

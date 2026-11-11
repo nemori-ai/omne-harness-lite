@@ -87,8 +87,13 @@ async function fixture(
     execution: { tenant: call.tenant, call: call.call, instance: instanceId, generation: '1' },
   }
   const prepare = (value = fixed) => authority.prepare({ ...call, start, request: value })
-  const consume = (permit: StartPermit) =>
-    authority.consume({ ...call, permit, executorReceipt: evidence('real-capsule') })
+  const consume = (permit: StartPermit, value = fixed) =>
+    authority.consume({
+      ...call,
+      permit,
+      executorReceipt: evidence('real-capsule'),
+      request: value,
+    })
   const execute = (permit: StartPermit) =>
     author.binding.start({ ...call, start, request: fixed, permit }, author.environment)
   const records = async () => {
@@ -456,7 +461,10 @@ describe('R2-D60 start permit requirements', () => {
         },
       }),
     ).toHaveProperty('failure.kind', 'conflict')
-    expect(unbox(await f.consume(permit)).kind).toBe('started')
+    expect(await f.consume(permit)).toMatchObject({
+      failure: { kind: 'invalid', field: 'request', reason: 'not-the-permitted-request' },
+    })
+    expect(unbox(await f.consume(permit, commands)).kind).toBe('started')
     expect(f.questions.at(-1)?.request).toEqual(commands)
   })
 
@@ -500,7 +508,7 @@ describe('R2-D60 start permit requirements', () => {
     expect(seen).toEqual([inputs[0], inputs[0], inputs[1], inputs[1]])
   })
 
-  it.each(['request', 'inputDigest', 'requestBinding', 'requirementSource'] as const)(
+  it.each(['inputDigest', 'requestBinding', 'requirementSource'] as const)(
     'does not adopt a pending record with missing %s or overwrite it on prepare',
     async field => {
       let legacy = false

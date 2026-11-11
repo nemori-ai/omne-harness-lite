@@ -56,11 +56,12 @@ export type ProtocolIdentity = Readonly<{
   adoption: Adoption
   inputDigest: string
 }>
-export type PreparationRecord = ProtocolIdentity &
-  Readonly<{
-    purpose: 'initial' | 'resume'
-    request: FixedToolRequest
-  }>
+/**
+ * One planned preparation of a call. It does not hold the fixed request: the call holds it once,
+ * and `inputDigest` binds this preparation to it. A port that needs the request takes it beside
+ * the record.
+ */
+export type PreparationRecord = ProtocolIdentity & Readonly<{ purpose: 'initial' | 'resume' }>
 export type PreparationProgress<E> =
   | Readonly<{ kind: 'allocated'; preparation: PreparationRecord; evidence: DurableEvidence }>
   | Readonly<{ kind: 'prepared'; environment: PreparedEnvironment<E> }>
@@ -110,8 +111,14 @@ export interface ToolStartAuthority<P> {
   prepare(
     input: CallAccess<P> & Readonly<{ start: ToolStartRecord; request: FixedToolRequest }>,
   ): Reply<StartPermit>
+  /** `request` is the fixed request the permit was prepared for; the authority keeps only its digest. */
   consume(
-    input: CallAccess<P> & Readonly<{ permit: StartPermit; executorReceipt: DurableEvidence }>,
+    input: CallAccess<P> &
+      Readonly<{
+        permit: StartPermit
+        executorReceipt: DurableEvidence
+        request: FixedToolRequest
+      }>,
   ): Reply<StartProgress>
   inspect(input: CallAccess<P> & Readonly<{ start: ToolStartRecord }>): Reply<StartProgress>
   invalidate(

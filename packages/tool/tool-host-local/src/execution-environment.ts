@@ -89,10 +89,7 @@ export function createLocalEnvironmentPlanResolver<P>(
         return environmentFailure('current tool qualification unavailable')
       const binding = await input.binding(request)
       if ('failure' in binding) return binding
-      if (
-        canonicalDigest(binding.ok.scope) !==
-        canonicalDigest(request.preparation.request.requesterScope)
-      )
+      if (canonicalDigest(binding.ok.scope) !== canonicalDigest(request.request.requesterScope))
         return fail({ kind: 'denied', action: 'environment-scope' })
       const required = await input.requirement(request)
       if ('failure' in required) return required
@@ -120,7 +117,7 @@ export function createLocalEnvironmentPlanResolver<P>(
         acquire: {
           acquisition: acquisitionRef(key),
           origin: binding.ok.origin,
-          scope: request.preparation.request.requesterScope,
+          scope: request.request.requesterScope,
           placement,
           ledger: await ledger,
           guard: input.guard,
@@ -406,8 +403,7 @@ export function createLocalExecutionEnvironment<P>(
     if ('failure' in plan) return plan
     if (
       !tenantEquals(request.tenant, request.preparation.tenant) ||
-      canonicalDigest(plan.ok.acquire.scope) !==
-        canonicalDigest(request.preparation.request.requesterScope)
+      canonicalDigest(plan.ok.acquire.scope) !== canonicalDigest(request.request.requesterScope)
     )
       return fail({ kind: 'denied', action: 'environment-binding' })
     if (existing.ok && local) return reconnect(request, existing.ok, local, plan.ok)

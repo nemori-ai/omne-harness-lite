@@ -62,7 +62,7 @@ const adoption = (name: string): Adoption => ({
   digest: `sha256:${name}`,
 })
 
-function invokeRequest(body?: ToolBodyDeclaration): ToolInvokeRequest {
+function invokeRequest(body?: ToolBodyDeclaration, argumentsText = '{}'): ToolInvokeRequest {
   return {
     availability: {
       kind: 'available',
@@ -98,7 +98,7 @@ function invokeRequest(body?: ToolBodyDeclaration): ToolInvokeRequest {
       },
     },
     command: null,
-    arguments: { original: '{}', effective: '{}', complete: true },
+    arguments: { original: argumentsText, effective: argumentsText, complete: true },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
@@ -135,8 +135,15 @@ export function fixedRequest(): FixedToolRequest {
 
 export type LedgerWorld = Awaited<ReturnType<typeof ledgerWorld>>
 
-/** The trust model and one admitted-to-be input of `tenant`; `ledgerOver` builds a ledger on a store. */
-export async function ledgerWorld(tenant: TenantId, body?: ToolBodyDeclaration) {
+/**
+ * The trust model and one admitted-to-be input of `tenant`; `ledgerOver` builds a ledger on a store.
+ * `argumentsText` is the JSON text of the call's arguments; the argument budget admits its size.
+ */
+export async function ledgerWorld(
+  tenant: TenantId,
+  body?: ToolBodyDeclaration,
+  argumentsText = '{}',
+) {
   const principal: Principal = { subject: 'alice' }
   const qualify: ToolLedgerGuards<Principal, ContentBlock>['access']['qualify'] = async input =>
     input.principal.subject === 'alice' &&
@@ -154,7 +161,7 @@ export async function ledgerWorld(tenant: TenantId, body?: ToolBodyDeclaration) 
           : { kind: 'denied', reason: 'different-subject' },
     },
   })
-  const request = invokeRequest(body)
+  const request = invokeRequest(body, argumentsText)
   const issued = await source.issuer.resolve({ principal, tenant, request })
   if (issued.kind !== 'bound') throw new Error('the fixture source must bind the invocation')
   const access = { principal, tenant, call: issued.call }
@@ -202,11 +209,11 @@ export async function ledgerWorld(tenant: TenantId, body?: ToolBodyDeclaration) 
     policy: defaultResultPolicy,
     budgets: {
       arguments: {
-        maxBytes: 4096,
+        maxBytes: Math.max(4096, Buffer.byteLength(argumentsText)),
         maxDepth: 16,
         maxItems: 256,
         maxMembers: 64,
-        maxStringLength: 1024,
+        maxStringLength: Math.max(1024, argumentsText.length),
         maxNumberLength: 32,
       },
     },

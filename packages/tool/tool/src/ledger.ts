@@ -1602,9 +1602,6 @@ function judgePreparationField(value: unknown): Outcome<PreparationRecord, ToolF
   if (purpose !== 'initial' && purpose !== 'resume') return invalid('preparation.purpose', 'value')
   const inputDigest: unknown = Reflect.get(value, 'inputDigest')
   if (typeof inputDigest !== 'string') return invalid('preparation.inputDigest', 'type')
-  const request = judgeFixedToolRequest(Reflect.get(value, 'request'))
-  if ('failure' in request)
-    return invalid(`preparation.request.${request.failure.field}`, request.failure.reason)
   const adoption = judgeAdoptionField(Reflect.get(value, 'adoption'), 'preparation.adoption')
   if ('failure' in adoption) return adoption
   return succeed({
@@ -1612,7 +1609,6 @@ function judgePreparationField(value: unknown): Outcome<PreparationRecord, ToolF
     adoption: adoption.ok,
     inputDigest,
     purpose,
-    request: request.ok,
   })
 }
 

@@ -81,9 +81,14 @@ function fixture(decision: 'recognize' | 'inspect' | 'wait' = 'recognize') {
       adoption: backing.adoption,
       inputDigest: canonicalDigest(fixed),
       purpose: 'initial',
+    }
+    return {
+      principal: principalA,
+      tenant: tenantA,
+      call: preparation.call,
+      preparation,
       request: fixed,
     }
-    return { principal: principalA, tenant: tenantA, call: preparation.call, preparation }
   }
   return {
     backing,
@@ -249,10 +254,6 @@ describe('scheduled original first adoption', () => {
     adoption: original => ({ ...original, adoption: { ...original.adoption, revision: 'other' } }),
     inputDigest: original => ({ ...original, inputDigest: 'other' }),
     purpose: original => ({ ...original, purpose: 'resume' }),
-    fixedInput: original => ({
-      ...original,
-      request: { ...original.request, settings: { ...original.request.settings, digest: 'other' } },
-    }),
   }
   it.each(Object.entries(changes))(
     'rejects a fact with a different %s for both inspection and recognition',

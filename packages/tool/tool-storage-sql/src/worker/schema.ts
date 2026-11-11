@@ -1,7 +1,8 @@
 // The tables of the Tool storage. Every table is keyed by tenant first, and every statement of the
 // participant and the read handlers filters on it, so rows of another tenant are never read even
 // in a store that holds them by mistake. The ledger tables keep the records of the ToolLedgerStore
-// domains; the body tables keep the immutable chunks and the manifest of each body. Body rows
+// domains: `record` is the part of a record that changes, `fixed` the part that is written once
+// and never again (NULL for a record that has none). The body tables keep the immutable chunks and the manifest of each body. Body rows
 // never touch `tl_domain`: they move no ledger domain revision.
 export const SCHEMA_STATEMENTS: readonly string[] = [
   `CREATE TABLE tl_domain (
@@ -9,7 +10,7 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
     PRIMARY KEY (tenant, kind, name)) STRICT`,
   `CREATE TABLE tl_record (
     tenant TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL,
-    record BLOB NOT NULL, PRIMARY KEY (tenant, kind, name, key)) STRICT`,
+    record BLOB NOT NULL, fixed BLOB, PRIMARY KEY (tenant, kind, name, key)) STRICT`,
   // The body store: immutable chunks of one body and the one manifest that seals them.
   `CREATE TABLE tl_body_chunk (
     tenant TEXT NOT NULL, call TEXT NOT NULL, body TEXT NOT NULL, seq INTEGER NOT NULL,

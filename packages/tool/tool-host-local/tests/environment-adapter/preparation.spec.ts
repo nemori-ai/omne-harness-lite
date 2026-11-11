@@ -46,10 +46,10 @@ function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => 
     adoption: adoption('environment'),
     inputDigest: 'input-1',
     purpose: 'initial',
-    request: request(),
   }
+  const fixed = request()
   const access = { tenant: tenantA, principal: principalA, call: preparation.call }
-  const prepare = { ...access, preparation }
+  const prepare = { ...access, preparation, request: fixed }
   const placement: Placement = {
     kind: 'placement',
     binding: { kind: 'host_machine' },
@@ -66,7 +66,7 @@ function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => 
     tenant: tenantA,
     acquisition: acquisitionRef('original'),
     origin: originRef('caller'),
-    scope: preparation.request.requesterScope,
+    scope: fixed.requesterScope,
     placement,
   }
   const releaseLease = vi.fn<EnvironmentLease['release']>(async () => ({ kind: 'released' }))
@@ -424,7 +424,7 @@ for (const test of toolEnvironmentConformance<Principal, ToolEnvironmentValue>()
     await test.run({
       environment: f.build(),
       access: { tenant: tenantA, principal: principalA },
-      request: f.preparation.request,
+      request: f.prepare.request,
       allocations: () => f.acquire.mock.calls.length,
     })
   })

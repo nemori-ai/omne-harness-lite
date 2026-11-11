@@ -110,6 +110,18 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 保管者不改变 TS-01 至 TS-15 的任何答复，`toolLedgerStoreConformance()` 的全部用例照常通过。判据：`tests/ledger-keeper.spec.ts`（在内存记录仓上数往返次数）与 `tests/record-read-boundary.spec.ts`（单键读的 SQL 边界）。
 
+### TS-17 调用记录的固定请求只写一次
+
+本条兑现 `tool` SPEC 的[固定请求只保存一份](../tool/SPEC.md#固定请求只保存一份)第 3 条。记录仓端口不变：`put` 仍交来整条调用记录，读取仍答出整条调用记录。
+
+1. 一条记录在表里分成两部分：`tl_record.record` 是会变的部分，`tl_record.fixed` 是写一次就不再写的部分，没有时为 NULL。只有调用记录有固定部分，就是它的 `request`。
+2. 写入命令里，调用记录的 `put` 带 `fixed`。`given` 带着请求，参加者把它写进 `fixed` 列。`kept` 不带请求，参加者只更新 `record` 列。没有固定部分的记录不带 `fixed`，写入时 `fixed` 列置 NULL。
+3. 域的期望修订号是初始值时，记录仓发 `given`：这个域还没有任何记录。其余提交发 `kept`。
+4. 参加者收到 `kept` 而该键下没有固定部分时，以 `fixed-missing` 停下，整条命令回滚。记录仓随即用 `given` 重发同一次提交。这只发生在调用记录第一次出现在一个已经提交过的域里时。
+5. 读取把两部分拼回一条调用记录。整域删除与按键删除连同固定部分一起删。
+
+性质：受理之后重写调用记录的提交，命令大小与请求大小无关。判据：`tests/request-once.spec.ts`（两份参数合计接近命令上限的调用走到收场，收场后只有调用记录的 `fixed` 列带着请求；装不下的请求在受理时被拒且不留行；调用记录晚出现时补发）与 `tests/participant.spec.ts`（`given`、`kept` 与 `fixed-missing`）。
+
 ## 所有权、失败与生命周期
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
@@ -143,7 +155,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ## 正文存储与到期索引的实现映射
 
-正文与到期索引的命令沿同一 `tool` 参加者执行（`body-put`、`body-seal`、`body-delete` 与 `ledger` 的 `schedule`/`unschedule`）。表：`tl_domain`、`tl_record`、`tl_body_chunk`、`tl_body_manifest`、`tl_due`。`tl_record.record` 是 `BLOB`，存记录 JSON 的压缩文本（[sql-contract §10.1](../../storage/sql-contract/SPEC.md#101-大文本列的存储格式)）；读上限仍按还原后的 JSON 计。读 handler：`tool.ledger.read`、`tool.body.read`、`tool.due.read`；一条迁移 `tool/r6-001-tool-ledger-body-due`。打开 r6 基线之前建的库时，SQL 提供者发现当前目录不列出的迁移标记，拒绝该事务域，不迁移旧数据（C9，`tests/old-baseline-quarantine.spec.ts`）。
+正文与到期索引的命令沿同一 `tool` 参加者执行（`body-put`、`body-seal`、`body-delete` 与 `ledger` 的 `schedule`/`unschedule`）。表：`tl_domain`、`tl_record`、`tl_body_chunk`、`tl_body_manifest`、`tl_due`。`tl_record.record` 与 `tl_record.fixed` 是 `BLOB`，存记录两部分各自的 JSON 的压缩文本（[sql-contract §10.1](../../storage/sql-contract/SPEC.md#101-大文本列的存储格式)）；读上限仍按还原后的 JSON 计。读 handler：`tool.ledger.read`、`tool.body.read`、`tool.due.read`；一条迁移 `tool/r6-001-tool-ledger-body-due`。打开 r6 基线之前建的库时，SQL 提供者发现当前目录不列出的迁移标记，拒绝该事务域，不迁移旧数据（C9，`tests/old-baseline-quarantine.spec.ts`）。
 
 ### TS-13 正文存储
 
