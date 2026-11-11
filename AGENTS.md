@@ -60,10 +60,11 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：先核 `git status` 干净、分支已合回，再删目录并 `git worktree prune` |
 | 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
 | 子代理的模型与档位政策 | [子代理的模型与档位](docs/engineering/skills.md#子代理的模型与档位) |
-| 交接信息包放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`）；分程时路线图放父卡 |
+| 交接信息包与路线图放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`）；分程时路线图放父卡 |
 | 跨会话协调用什么 | GitHub issue：卡正文放包，卡评论放交付声明与退包，关卡即接受 |
 | 不做与推迟的记录放哪 | 未提供 |
-| 常驻卡片 | 本文件「做事方式」一节：`initialize_agents.py` 从钉住的 `resident-card.md` 写入受管段落，`pnpm run check:agents` 核逐字相同；不手改 |
+| 常驻卡片 | 本文件「做事方式」一节：`initialize_agents.py` 从 pqw 的 `resident-card.md` 写入受管段落，`pnpm run check:agents` 核逐字相同；不手改 |
+| pqw 的版本 | 项目只钉接入约定的版本（`.meta_harness/agents/pqw/contract-version`）；正文读约定版本相同的最新发行版，见[外部技能集](.meta_harness/tooling/README.md#外部技能集) |
 
 ## 研发品味
 
