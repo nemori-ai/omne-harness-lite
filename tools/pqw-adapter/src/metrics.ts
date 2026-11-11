@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { linesArgument, type ReadingConfig } from './config.ts'
-import { PQW_SCRIPTS, slugOf } from './locations.ts'
+import { pqwScripts, slugOf } from './locations.ts'
 import type { ChangedMember, Grouping } from './members.ts'
 import type { Executor, Outcome } from './process.ts'
 
@@ -62,7 +62,7 @@ export interface MetricsCall {
 
 export function metricsArgs(call: MetricsCall): string[] {
   return [
-    join(call.root, PQW_SCRIPTS, 'metrics.mjs'),
+    join(pqwScripts(call.root), 'metrics.mjs'),
     '--repo',
     call.root,
     '--base',

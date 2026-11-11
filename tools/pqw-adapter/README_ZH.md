@@ -28,6 +28,10 @@ pnpm run risk -- --base <起点>
 | 1   | 构建失败、读数失败、变异测量无效，或风险规则没判全 |
 | 2   | 用法错误，或变异范围超过上限                       |
 
+## 读哪一版 pqw 脚本
+
+适配层与技能正文读同一处：`.meta_harness/.vendor-float/pqw-skills` 的接入约定版本等于项目钉的版本时读它，否则读子模块 `.meta_harness/agents/vendor/pqw-skills`。规则与生成见[生成工具](../../.meta_harness/tooling/README.md#pqw-skills-只钉接入约定的版本)。
+
 ## 不做的事
 
 适配层不计算圈复杂度、CRAP，不做基线配对或 TypeScript 解析，也不拼 Stryker 配置。这些归 pqw。成员预算、重复代码、依赖方向与环归 repo-toolchain 与 `pnpm run lint:deps`。

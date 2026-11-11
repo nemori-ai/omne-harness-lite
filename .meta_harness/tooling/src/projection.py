@@ -13,6 +13,7 @@ from typing import NamedTuple
 
 import yaml
 
+import pqw_contract
 from host_layout import HOSTS
 
 IGNORED = {"__pycache__", ".pytest_cache", ".git", ".venv"}
@@ -206,6 +207,9 @@ def vendor_skills(source: Path):
     if not vendor.is_dir():
         return
     for collection in members(vendor):
+        # pqw-skills is read from the newest release that keeps the pinned consumer contract, when one is extracted.
+        if collection.name == pqw_contract.VENDOR.name:
+            collection = pqw_contract.source_root(source.absolute())
         skills = collection / "skills"
         if not skills.is_dir():
             # An uninitialised submodule is an empty directory; projecting nothing would silently drop the set.

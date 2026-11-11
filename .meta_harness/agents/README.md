@@ -5,10 +5,10 @@
 | 源 | 内容 | 输出（相对显式指定的输出根） |
 |---|---|---|
 | `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | 项目自有技能，只装本项目独有的知识 | `.agents/skills/<name>/`、`.claude/skills/<name>/`、`.cursor/skills/<name>/` |
-| [`vendor/<技能集>/`](../tooling/README.md#外部技能集) | 钉了提交的外部技能集（git 子模块），现在是 pqw-skills | 原样复制到每个所选宿主的技能目录；与项目技能同名时项目技能优先 |
+| [`vendor/<技能集>/`](../tooling/README.md#外部技能集) | 外部技能集（git 子模块），现在是 pqw-skills；子模块提交是下限，实际读接入约定版本相同的最新发行版 | 原样复制到每个所选宿主的技能目录；与项目技能同名时项目技能优先 |
 | [`hooks/hooks.yaml`](hooks/README.md) | 宿主无关的钩子声明：收工与 Claude Code 会话开始 | `.claude/settings.json`、`.codex/hooks.json`、`.cursor/hooks.json` 及 Cursor bridge 资源 |
 | [`cloud/<host>/`](cloud/README.md) | 按宿主分的云端环境源：`cursor/` 与 `claude-code/` | Cursor 的 `Dockerfile`、`environment.json`、`install.sh` 投影到 `.cursor/` 并提交；`claude-code/` 只做检查，不投影 |
-| [`pqw/`](pqw/spec-addendum.md) | pqw spec 与 plan 模板的本项目附加节 | 不生成，由根 `AGENTS.md`「pqw-skills 接入」引用 |
+| [`pqw/`](pqw/spec-addendum.md) | pqw spec 与 plan 模板的本项目附加节；`contract-version` 是本项目满足的 pqw 接入约定版本 | 不生成，由根 `AGENTS.md`「pqw-skills 接入」引用 |
 | [`roles/engineering-taste.md`](roles/engineering-taste.md) | 研发品味的项目补充 | 不生成 |
 
 [`research/`](research/README.md) 保存方法仍依赖的上游事实、适用版本与限制，不保存本项目如何讨论、迁移或验证这些方法的过程。规矩本身归 canonical skills。过程材料放哪归[位置与唯一源](../../docs/engineering/documentation.md#位置与唯一源)。

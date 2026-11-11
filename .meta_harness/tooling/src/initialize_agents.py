@@ -5,6 +5,7 @@ from pathlib import Path
 
 import compile_agents
 import link_agents
+import pqw_contract
 import resident_card
 from host_layout import HOSTS
 
@@ -17,6 +18,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
     project = args.project_root.absolute()
     common = ["--host", args.host, *(["--check"] if args.check else [])]
+    # First decide which pqw-skills release is read: checking verifies the pinned contract, generating advances to
+    # the newest release that keeps it.
+    result = pqw_contract.main(["--project-root", str(project), *(["--check"] if args.check else [])])
+    if result:
+        return result
     result = compile_agents.main(["--source", str(project / ".meta_harness/agents"),
                                   "--output", str(project / ".meta_harness"), *common])
     if result:

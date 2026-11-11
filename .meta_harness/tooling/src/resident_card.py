@@ -6,7 +6,9 @@ import argparse
 import sys
 from pathlib import Path
 
-CARD = Path(".meta_harness/agents/vendor/pqw-skills/skills/single-session-dev-flow/resident-card.md")
+import pqw_contract
+
+CARD =Path(".meta_harness/agents/vendor/pqw-skills/skills/single-session-dev-flow/resident-card.md")
 ENTRY = Path("AGENTS.md")
 BEGIN = "<!-- BEGIN:pqw-skills-resident-card -->"
 END = "<!-- END:pqw-skills-resident-card -->"
@@ -34,7 +36,7 @@ def with_card(entry: str, card: str) -> str:
 
 
 def sync(project: Path, check: bool) -> None:
-    source = project / CARD
+    source = pqw_contract.root(project) / CARD.relative_to(pqw_contract.VENDOR)
     if not source.is_file():
         raise ValueError(f"missing pinned resident card {CARD}; run `git submodule update --init`")
     entry = project / ENTRY
