@@ -165,6 +165,21 @@ function withQueueCapacity(layer: unknown, capacity: number | undefined): unknow
   }
 }
 
+/**
+ * The operator layer with the Agent's reconciliation delay at 50 ms. The shared test layer sets it
+ * to 0, and an execution that waits then runs again at once, some 200 times a second. The scenarios
+ * here wait for a person for seconds, in several sessions at a time: the store load of that spin is
+ * not what they examine. The release value is 1000 ms.
+ */
+function withAgentWaitInterval(layer: unknown): unknown {
+  const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
+  return {
+    ops: ops.map(op =>
+      op.id === 'agent-host' ? { ...op, config: { ...op.config, reconciliationDelayMs: 50 } } : op,
+    ),
+  }
+}
+
 async function post(port: number, body: unknown): Promise<{ status: number; body: string }> {
   const response = await fetch(`http://127.0.0.1:${String(port)}${SESSION_PATH}`, {
     method: 'POST',
@@ -551,11 +566,13 @@ async function serveOnce(
   )
   const finished = runServe({
     distribution: releaseDistribution(options),
-    operator: withQueueCapacity(
-      withHistoryKinds(
-        operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
+    operator: withAgentWaitInterval(
+      withQueueCapacity(
+        withHistoryKinds(
+          operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
+        ),
+        options.queueCapacity,
       ),
-      options.queueCapacity,
     ),
     plugins: { ...cordis },
     entryObjects: objects,
