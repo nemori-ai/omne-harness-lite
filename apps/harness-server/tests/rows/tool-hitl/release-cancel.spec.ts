@@ -303,8 +303,10 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
           },
         })
         expect(viaHttp.status).toBe(200)
-        expect(viaHttp.response).toMatchObject({ outcome: 'succeeded' })
-        expect((viaHttp.response?.body as HitlReplyResult).kind).toBe('invalidated')
+        expect(viaHttp.response).toMatchObject({
+          outcome: 'succeeded',
+          body: { kind: 'invalidated' } satisfies Pick<HitlReplyResult, 'kind'>,
+        })
         const viaCli = await world.cli([
           'submit-reply',
           '--request',
