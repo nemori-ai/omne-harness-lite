@@ -348,7 +348,11 @@ async function askedCall(
   const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
   const access = { tenant: world.tenantA, principal: 'alice', call: parts.call }
   const recovery = async () => unbox(await world.root.toolCommands.loadRecovery(access))
-  const executor = () => world.plugins.diagnostics().executor
+  const executor = () => {
+    const diagnostics = world.plugins.diagnostics().executor
+    if (diagnostics === null) throw new Error('the world has no executor')
+    return diagnostics
+  }
   return { world, parts, recovery, executor }
 }
 

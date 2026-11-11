@@ -110,12 +110,12 @@ function hitlAnswer(
 }
 
 /** 持有者给出的主体必须是这个租户的入口主体，否则不能拿它调用 HITL。 */
-function isEntryPrincipal(principal: ActingForTenantPrincipal | undefined, tenant: TenantId) {
+function isEntryPrincipal(principal: ActingForTenantPrincipal, tenant: TenantId) {
   return (
-    principal?.kind === 'acting-for-tenant' &&
-    principal.actor?.kind === 'system' &&
+    principal.kind === 'acting-for-tenant' &&
+    principal.actor.kind === 'system' &&
     principal.actor.component === COMPONENT &&
-    principal.work?.owner === ENTRY_WORK.owner &&
+    principal.work.owner === ENTRY_WORK.owner &&
     principal.work.work === ENTRY_WORK.work &&
     tenantEquals(principal.tenant, tenant)
   )
@@ -136,7 +136,7 @@ async function admit(
     if (issued?.kind === 'issued' && isEntryPrincipal(issued.principal, tenant))
       return issued.principal
   } catch {
-    // 持有者抛出，与持有者缺席、拒绝签发同样处理。
+    // 持有者抛出或给出不成形的主体，与持有者缺席、拒绝签发同样处理。
   }
   emit(context.diagnostics, { code: 'issuer.fault', operation: 'hitlEntryPrincipals' })
   return UNAVAILABLE

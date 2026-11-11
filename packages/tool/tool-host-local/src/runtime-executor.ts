@@ -14,6 +14,7 @@ import type {
   ToolInstanceHost,
   ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
+import { owesWork, waitsForPerson } from './call-dormancy.ts'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
 import { createRunStopLog } from './run-stop-log.ts'
@@ -59,9 +60,6 @@ type Entry = {
   dormant: boolean
   progress: string
 }
-
-/** The wait phases a suspended call still has work on: registering, the decision, the resume. */
-const LIVE_WAIT: ReadonlySet<string> = new Set(['opening', 'open', 'responding'])
 
 /** How many timer ticks pass before a finished recovery scan is armed again. */
 const RESCAN_TICKS = 60
@@ -286,27 +284,6 @@ export function createRuntimeExecutor(
     else dormantExits += 1
   }
   /**
-   * Whether the ledger shows work of the call that a run would do: a pending task, or a suspended
-   * call with a live wait. It is what the pending marker of the record store says (Tool SPEC 33).
-   */
-  const owesWork = (recovery: Recovered): boolean =>
-    recovery.ok.tasks.some(task => task.state === 'pending') ||
-    (recovery.ok.state.phase === 'suspended' &&
-      recovery.ok.waits.some(wait => LIVE_WAIT.has(wait.phase)))
-  /**
-   * Whether only a person can move the call: it is suspended on an Ask wait that is open, and no
-   * task is pending. An idle run of such a call asked the decision owner and heard no decision.
-   */
-  const waitsForPerson = (recovery: Recovered): boolean => {
-    const { state, waits, tasks } = recovery.ok
-    if (state.phase !== 'suspended' || state.wait.kind !== 'ask') return false
-    const asked = state.wait.wait
-    return (
-      !tasks.some(task => task.state === 'pending') &&
-      waits.some(wait => wait.phase === 'open' && wait.intent.wait === asked)
-    )
-  }
-  /**
    * The entry of a run. A call the table holds runs under its entry. A call it does not hold is a
    * dormant call that a hint or a late run woke: it comes back when the ledger shows work of it
    * and the table has room. With no room the recovery scan is armed again and finds it later.
@@ -317,7 +294,7 @@ export function createRuntimeExecutor(
     const known = calls.get(keyOf(step))
     if (known !== undefined) return known
     const recovery = await dependencies.commands.loadRecovery(step)
-    if ('failure' in recovery || !owesWork(recovery)) return null
+    if ('failure' in recovery || !owesWork(recovery.ok)) return null
     if (remember(step)) {
       reentries += 1
       return calls.get(keyOf(step)) ?? null
@@ -393,7 +370,7 @@ export function createRuntimeExecutor(
         if (abort.signal.aborted) return
         const after = await dependencies.commands.loadRecovery(step)
         if ('failure' in after) return
-        if (progress.kind === 'idle' && waitsForPerson(after)) {
+        if (progress.kind === 'idle' && waitsForPerson(after.ok)) {
           entry.dormant = true
           return
         }

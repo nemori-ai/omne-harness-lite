@@ -1,18 +1,13 @@
 import { z } from 'zod'
 
-const encoder = new TextEncoder()
 export const HITL_COMMAND_MAX_BYTES = 262_144
 
+/** Well-formed text of 1 to `maxCodePoints` code points, so at most four times as many UTF-8 bytes. */
 function text(maxCodePoints: number) {
   return z
     .string()
     .min(1)
-    .refine(
-      value =>
-        value.isWellFormed() &&
-        [...value].length <= maxCodePoints &&
-        encoder.encode(value).byteLength <= maxCodePoints * 4,
-    )
+    .refine(value => value.isWellFormed() && [...value].length <= maxCodePoints)
 }
 
 export const HitlIdentifierSchema = text(256)
