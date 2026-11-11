@@ -3,13 +3,10 @@ import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import { mintEvidence } from '../src/evidence.ts'
 import { settlementOperation } from '../src/ledger-environment-release.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fail } from '@omne-harness/operation-result'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { auditQueues, admitCall } from './start-values.ts'
 import { settlementFixture, refProcess } from './settlement-values.ts'
 import {
-  adoption,
-  callId,
   evidence,
   guards,
   configurationOf,
@@ -20,8 +17,6 @@ import {
   operationId,
   principalB,
   tenantB,
-  text,
-  type Principal,
 } from './runtime-values.ts'
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))

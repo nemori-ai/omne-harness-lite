@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { succeed } from '@omne-harness/operation-result'
 import { observeToolLedgerCommit, type ToolLifecycleObservation } from '@omne-harness/tool'
 import { settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'

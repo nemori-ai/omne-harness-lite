@@ -1,18 +1,9 @@
 import type { ToolBodyPage } from '@omne-harness/tool-contract'
 import type { ToolDefinition } from '@omne-harness/tool-contract'
-import { fail, succeed } from '@omne-harness/operation-result'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { sealedText, settlementFixture } from './settlement-values.ts'
+import { settlementFixture } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
-import {
-  adoption,
-  configuration,
-  evidence,
-  functionDefinition,
-  ok,
-  operationId,
-  text,
-} from './runtime-values.ts'
+import { adoption, configuration, functionDefinition, ok, text } from './runtime-values.ts'
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))
 afterEach(async () => {

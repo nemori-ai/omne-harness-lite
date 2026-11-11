@@ -17,7 +17,6 @@ import {
 import {
   commandArguments,
   defaultResultPolicy,
-  describedAdoption,
   renderToolResult,
   type ToolMessageContentBlock,
   type ToolFinalPlanner,

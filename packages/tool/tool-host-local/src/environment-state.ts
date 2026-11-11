@@ -31,7 +31,6 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   decodeToolRevision,
-  judgeFixedToolRequest,
   type PreparationRecord,
   type ReleaseRecord,
 } from '@omne-harness/tool-contract/provider'

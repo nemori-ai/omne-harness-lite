@@ -1,14 +1,11 @@
 import { createBodyWriting, instantAfter } from './ledger-body-writer.ts'
 import { createLedgerSweep, type ToolLedgerSweep } from './ledger-sweep.ts'
-import type { BodyPolicy } from './result-offloading.ts'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
-import { entryBySource } from './ledger-body-entries.ts'
 import { firstResultReference } from './result-address.ts'
 import { answerOf, createLedgerTransactions, type Decide } from './ledger-transactions.ts'
 import { createLedgerAccess } from './ledger-access.ts'
-import { pinResultPolicy } from './ledger-result-policy.ts'
 import { activateResultDecision } from './ledger-result-activation.ts'
-import { resultBodyPolicy, systemBodyPolicy } from './result-offloading.ts'
+import { systemBodyPolicy } from './result-offloading.ts'
 import {
   createResultPreparation,
   type PendingSynthetic,
@@ -54,7 +51,6 @@ import {
   type ToolLookup,
   type ToolOperationId,
   type ToolResultVersion,
-  type ToolRenderedResult,
   type ToolResult,
   type ToolStartRecord,
   type ToolState,

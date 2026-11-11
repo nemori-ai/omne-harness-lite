@@ -10,7 +10,6 @@ import {
 import type { ToolLedgerAction } from '@omne-harness/tool'
 import { admitCall, startHarness } from './start-values.ts'
 import {
-  adoption,
   callId,
   evidence,
   ok,

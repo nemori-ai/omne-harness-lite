@@ -5,11 +5,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { LedgerDomain, LedgerRecord } from '@omne-harness/tool'
-import {
-  decodeToolCallId,
-  decodeToolOperationId,
-  type DurableEvidence,
-} from '@omne-harness/tool-contract'
+import { decodeToolCallId } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { packText } from '@omne-harness/sql-contract/worker'
@@ -52,26 +48,6 @@ const record = (value: unknown): LedgerRecord => ({
   kind: 'host',
   host: { key: 'same', value },
 })
-const codec = { owner: 'test', name: 'bytes', revision: '1', digest: 'sha256:bytes' }
-const source: DurableEvidence = {
-  owner: 'test',
-  record: 'final',
-  revision: '1',
-  digest: 'sha256:final',
-}
-const mutation = (tenant: TenantId) => ({
-  principal: 'tester',
-  tenant,
-  call: decoded(decodeToolCallId('shared')),
-  operation: decoded(decodeToolOperationId('preserve-1')),
-})
-const bytesOf = (text: string) => new TextEncoder().encode(text)
-
-function ok<T>(answer: { ok: T } | { failure: unknown }): T {
-  if ('failure' in answer)
-    throw new Error(`expected success, got ${JSON.stringify(answer.failure)}`)
-  return answer.ok
-}
 
 const commit = (a: App, tenant: TenantId, value: unknown) =>
   a.store.commit({

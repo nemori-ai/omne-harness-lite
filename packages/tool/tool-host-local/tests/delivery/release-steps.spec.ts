@@ -43,7 +43,7 @@ it('recalls a lost release that committed once the result record shows it releas
     expect(await f.ledger.commands.releaseDelivery(input)).toHaveProperty('ok')
     return fail({ kind: 'commit-unknown', operation: input.operation })
   })
-  vi.mocked(f.input.reads.operation).mockImplementation(async input => committed())
+  vi.mocked(f.input.reads.operation).mockImplementation(async _input => committed())
   const forwardedCopies = vi.fn(async () => 'released' as const)
   const worker = createLocalToolResultDelivery({ ...f.input, forwardedCopies })
   expect(await f.drive(worker)).toEqual(succeed({ pending: 1 }))
@@ -59,7 +59,7 @@ it('does not take a committed release query while the result record is not relea
   vi.mocked(f.input.commands.releaseDelivery).mockImplementation(async input =>
     fail({ kind: 'commit-unknown', operation: input.operation }),
   )
-  vi.mocked(f.input.reads.operation).mockImplementation(async input => committed())
+  vi.mocked(f.input.reads.operation).mockImplementation(async _input => committed())
   expect(await f.drive()).toEqual(succeed({ pending: 1 }))
   expect(await f.drive()).toEqual(succeed({ pending: 1 }))
   expect(f.input.commands.releaseDelivery).toHaveBeenCalledTimes(1)

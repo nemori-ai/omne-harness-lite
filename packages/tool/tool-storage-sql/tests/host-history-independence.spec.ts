@@ -35,7 +35,6 @@ import {
   canonicalDigest,
   hostKey,
   type CallRecord,
-  type LedgerDomain,
   type LedgerRecord,
   type ResultRecord,
   type ToolLedgerStore,
@@ -582,14 +581,6 @@ async function endedRead(store: ToolLedgerStore, index: number): Promise<ReadCou
     records: counting.count.records - before.records,
     bytes: counting.count.bytes - before.bytes,
   }
-}
-
-/** The records and bytes of one host domain that spans calls, for the report. */
-async function domainSize(store: ToolLedgerStore, domain: LedgerDomain) {
-  const read = await store.read(domain)
-  return read.kind === 'complete'
-    ? { records: read.records.length, bytes: Buffer.byteLength(JSON.stringify(read.records)) }
-    : { unavailable: read.diagnostic }
 }
 
 describe(`the Tool and host paths after 20 and after ${String(N)} settled Tools calls`, () => {

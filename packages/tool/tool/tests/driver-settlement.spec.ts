@@ -11,7 +11,6 @@ import {
 import { completedFinalEnvelope as completedFinal } from '@omne-harness/tool-contract/testing'
 import { startHarness, losingCommits, type StartOptions } from './start-values.ts'
 import {
-  adoption,
   evidence,
   ok,
   operationId,
@@ -19,7 +18,6 @@ import {
   request,
   tenantA,
   text,
-  testSettlementPorts,
   type Block,
   callId as readCall,
 } from './runtime-values.ts'

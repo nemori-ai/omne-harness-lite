@@ -6,12 +6,11 @@ import {
   type ToolDependencies,
   type ToolLedger,
 } from '@omne-harness/tool'
-import type { DurableEvidence, ToolStartRecord } from '@omne-harness/tool-contract'
+import type { DurableEvidence } from '@omne-harness/tool-contract'
 import type {
   ToolDriver,
   ToolInstanceHost,
   ToolMessageContentBlock,
-  ToolBodyWrites,
 } from '@omne-harness/tool-contract/provider'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'

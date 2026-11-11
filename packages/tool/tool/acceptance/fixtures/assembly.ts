@@ -447,7 +447,9 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
               const checked = ok(
                 author.output.check({ arguments: argumentsValue, value: returned }),
               )
-              const bytes = ok(author.codec.encode(checked))
+              // The original codec must be able to encode the checked value; the bytes are not kept.
+              ok(author.codec.encode(checked))
+
               const value = ok(
                 renderToolResult(
                   checked,

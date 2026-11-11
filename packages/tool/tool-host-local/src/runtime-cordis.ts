@@ -1,7 +1,7 @@
 import { createToolForwardRuntime } from '@omne-harness/tool'
 import type { ToolForwardRuntime } from '@omne-harness/tool-contract/provider'
 import type { Context } from '@deepseek-ai/cordis'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail } from '@omne-harness/operation-result'
 import type {
   ToolInstanceHost,
   ToolMessageContentBlock,

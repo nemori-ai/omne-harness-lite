@@ -3,11 +3,10 @@
 // store finds the call and its result, and a repeated admission recalls the original without a
 // second record.
 import { afterEach, expect, it } from 'vitest'
-import { succeed } from '@omne-harness/operation-result'
 
 import type { LedgerRecord } from '@omne-harness/tool'
 import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
-import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
+import { decodeToolOperationId } from '@omne-harness/tool-contract'
 import { openApp, TENANT_A, type App } from './fixtures/app.ts'
 import { ledgerWorld } from './fixtures/ledger.ts'
 

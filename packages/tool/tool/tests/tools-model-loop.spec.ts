@@ -1,4 +1,3 @@
-import { sealedText } from './settlement-values.ts'
 import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
 import { toolsAdoption } from '../src/tools-protocol.ts'
 import { describe, expect, it } from 'vitest'
@@ -10,8 +9,7 @@ import {
   PagingModel,
   sourceBlocks,
 } from './tools-model-values.ts'
-import { adoption, ok, principalB, tenantB } from './runtime-values.ts'
-import { result, visible } from './tools-values.ts'
+import { ok, principalB, tenantB } from './runtime-values.ts'
 
 function expectFailure(view: readonly ToolMessageContentBlock[], code: string) {
   const text = modelText(view)

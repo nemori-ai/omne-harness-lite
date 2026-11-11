@@ -15,7 +15,6 @@ import { createMemoryToolContent } from '@omne-harness/tool/testing'
 import {
   type Access,
   type Attachment,
-  type RawOutput,
   type ToolDefinition,
   type ToolInvocationRef,
   type ToolResult,
@@ -41,7 +40,6 @@ import {
   functionDefinition,
   guards,
   ok,
-  operationId,
   principalA,
   request,
   tenantA,

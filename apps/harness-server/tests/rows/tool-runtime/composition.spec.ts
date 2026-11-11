@@ -24,17 +24,11 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
-import {
-  decodeToolInvocationRef,
-  decodeToolBodyId,
-  decodeToolResultVersion,
-} from '@omne-harness/tool-contract/provider'
 import type { Context } from '@deepseek-ai/cordis'
 import { TenantStandingSourceService, tenantStandingKey } from '@omne-harness/identity/cordis'
 import type { TenantStandingReading } from '@omne-harness/identity'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
 import { decodeScopeRef, type ScopeBindingSource } from '@omne-harness/runtime-context-contract'
 import type {

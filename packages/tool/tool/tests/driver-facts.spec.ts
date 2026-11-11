@@ -11,10 +11,8 @@ import {
 import {
   completedFinalEnvelope as completedFinal,
   completedFinal as completedFinalPointer,
-  createMemoryToolClock,
   createMemoryToolStartAuthority,
 } from '@omne-harness/tool-contract/testing'
-import { createToolLedger } from '@omne-harness/tool'
 import {
   admitCall,
   startHarness,
@@ -23,11 +21,9 @@ import {
   type StartHarness,
 } from './start-values.ts'
 import {
-  configurationOf,
   fixedRequestForNamedSourceGuard,
   callId,
   evidence,
-  guards,
   ok,
   operationId,
   principalA,
@@ -37,7 +33,6 @@ import {
   tenantB,
   text,
   type Principal,
-  testSettlementPorts,
 } from './runtime-values.ts'
 
 function deferred<T>() {
