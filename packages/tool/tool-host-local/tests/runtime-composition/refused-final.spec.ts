@@ -23,7 +23,7 @@ it(
       expect(delivered.terminal).toMatchObject({
         kind: 'failed',
         cause: 'result',
-        diagnostic: expect.stringContaining('first-screen-exceeds-result-page'),
+        diagnostic: 'The ledger refused the result: content: first-screen-exceeds-result-page',
       })
       expect(world.launches()).toBe(1)
     } finally {

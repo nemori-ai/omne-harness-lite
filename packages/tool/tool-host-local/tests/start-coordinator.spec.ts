@@ -589,6 +589,23 @@ describe('G5 the start ordering domain', () => {
     expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
   })
 
+  it('G5 consume: the request must be the one the permit was prepared for', async () => {
+    const authority = coordinator(createMemoryToolLedgerStore())
+    const permit = await permitFor(authority, 'c1')
+    expect(await authority.consume({ ...consumeWith(permit), request: {} as never })).toMatchObject(
+      { failure: { kind: 'invalid', field: expect.stringMatching(/^request\./) } },
+    )
+    const fixed = request()
+    const other = { ...fixed, limits: { ...fixed.limits, concurrency: 2 } }
+    expect(await authority.consume({ ...consumeWith(permit), request: other })).toEqual({
+      failure: { kind: 'invalid', field: 'request', reason: 'not-the-permitted-request' },
+    })
+    // The permit names the digest of its request; another digest is not the stored binding.
+    const renamed = { ...permit, inputDigest: 'sha256:other' }
+    expect(ok(await authority.consume(consumeWith(renamed))).kind).toBe('unknown')
+    expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
+  })
+
   it('G5 consume: an unreadable acceptance ledger is unavailable, never an acceptance or a rejection', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
