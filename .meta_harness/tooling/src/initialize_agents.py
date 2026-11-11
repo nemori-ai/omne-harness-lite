@@ -5,6 +5,7 @@ from pathlib import Path
 
 import compile_agents
 import link_agents
+import resident_card
 from host_layout import HOSTS
 
 
@@ -20,7 +21,10 @@ def main(argv=None):
                                   "--output", str(project / ".meta_harness"), *common])
     if result:
         return result
-    return link_agents.main(["--project-root", str(project), *common])
+    result = link_agents.main(["--project-root", str(project), *common])
+    if result:
+        return result
+    return resident_card.main(["--project-root", str(project), *(["--check"] if args.check else [])])
 
 
 if __name__ == "__main__":

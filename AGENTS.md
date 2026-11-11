@@ -12,6 +12,22 @@
 
 当前处于0.0.0至0.1.0研发阶段。演进沿[当前政策](docs/engineering/publication.md#当前演进与消费者)同步真实消费者并删除替代实现，进入0.1.0重新评估。历史字节不构成兼容承诺。
 
+<!-- BEGIN:pqw-skills-resident-card -->
+
+## 做事方式
+
+做每件事都带着下面六个想法和一个立场。正文在同名技能里，记不清就加载。
+
+- **拆。** 先找独立变化的量和各自的拥有者，交叉成表逐格看，同一个结构只设计一次。`think-orthogonal`
+- **找差异。** 先写它应该是什么样，再看它现在是什么样。差异就是全部工作，不多做。`think-ought-vs-is`
+- **定形。** 碰到状态与操作先写全化表，翻成领域模型和对象模型，再写代码。`think-model-first`
+- **建。** 先做对，再专门做好一轮。好不好看结构读数、差分变异和品味核对单。`think-right-then-well`
+- **证。** 每个结论带证据，或者标明是推出来的、猜的。证据要真的检验了它声称检验的东西。`think-evidence`
+- **转手。** 写不下来的上下文用得多的事自己做；决定后面很多步的事放在每一步都看得见的回路里；一块多大由接的一方验得完多少定。`think-closed-loop`
+- **对人。** 看到需求不清、不值得做，或一程大过人验得完的量，说一次，带依据和建议。人定了就照做。`candid-friend`
+
+<!-- END:pqw-skills-resident-card -->
+
 ## 知识放哪
 
 项目要求、工程约定、技术架构与领域关系在[docs](docs/README.md)；实际包、应用和工具拥有公开形状、完整必要行为、使用指南、设计理由与持续验证资源。[`.meta_harness/`](.meta_harness/AGENTS.md)保持产品规则、独立目标、统一语言、领域对象、持续研究和项目独有的技能；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露[生成物](.meta_harness/tooling/README.md)，不直接修改。唯一源与退出条件归[文档治理](docs/engineering/documentation.md#位置与唯一源)，过程材料留[任务tmp](docs/development.md#终态与过程材料)。
