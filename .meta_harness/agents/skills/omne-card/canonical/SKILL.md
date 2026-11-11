@@ -110,7 +110,7 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
    node --experimental-strip-types tools/dev-flow/src/integration/gate-cli.ts wait --run <运行号> --note <说明文件> --environments <环境列表>
    ```
 
-   环境列表默认只写 `publish`。改动命中 `github-gate` 上 `gate/toolchain-paths.txt` 的工具链路径时，写 `repo-toolchain-review,publish`。参数、退出码与长度上限见集成工具说明「等待 gate 并代为确认」。
+   环境列表只写 `publish`，每次发布只确认一次。改动命中 `github-gate` 上 `gate/toolchain-paths.txt` 的工具链路径时，在说明里写明为什么改这些路径。参数、退出码与长度上限见集成工具说明「等待 gate 并代为确认」。
 6. 读回：运行成功，目标分支等于流程报告的结果，记录标签存在，PR 上有发布决定评论。
 
 既有授权能覆盖精确动作时沿用，不重复询问。发布真实 ref 或写平台仍须任务授权及工具核验的真实决定；本技能本身不授写权。
