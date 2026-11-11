@@ -7,6 +7,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   deriveDriveOperation,
+  deriveSessionOperation,
+  expectedRevision,
   type AgentDrivePort,
   type ExecutionStatus,
   type WorkSnapshot,
@@ -65,6 +67,9 @@ function handedOver(h: Harness, handover = evidence('handover')) {
   h.drive.resume = resume
   return { detach, resume, handover }
 }
+
+/** The session of the harness, as the recovery names it to the Agent. */
+const sessionRef = (h: Harness) => ({ tenant: TENANT_A, session: h.access().session })
 
 /** One startup scan of the tenant: a new scanner reads the union of reasons once. */
 async function scan(h: Harness): Promise<void> {
@@ -160,6 +165,222 @@ describe('the recovery of an active Run (PM-14)', () => {
 
     expect(agent.resume).not.toHaveBeenCalled()
     expect((await activeRun(h)).advance).toEqual(run.advance)
+  })
+})
+
+describe('what a step of the recovery leaves when it fails (PM-05)', () => {
+  /** The C2 diagnostics of the recovery steps, as (step, reason). */
+  const reported = (h: Harness) =>
+    h
+      .diagnostics()
+      .filter(d => d.owner === 'C2' && ['detach', 'claim', 'resume'].includes(d.step))
+      .map(d => [d.step, d.reason])
+  const settle = () => new Promise(resolve => setTimeout(resolve, 20))
+
+  it('asks the Agent for the record of the execution of the session, and derives the detach from the advance', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    const inspect = vi.fn<AgentDrivePort['inspect']>(async () => ({ ok: status('suspended') }))
+    h.drive.inspect = inspect
+
+    await scan(h)
+    await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
+
+    const execution = run.execution.execution
+    expect(inspect.mock.calls[0]![0]).toEqual({ ...sessionRef(h), execution })
+    expect(agent.detach.mock.calls[0]![0].operation).toBe(
+      deriveDriveOperation({ kind: 'detach', execution, advance: run.advance! }),
+    )
+    expect(reported(h)).toEqual([])
+  })
+
+  it('a resume that the Agent refuses for good is reported, and the claim stays', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    agent.resume.mockImplementation(async () => ({ failure: { kind: 'denied' } }))
+
+    await scan(h)
+    await vi.waitFor(() => expect(reported(h)).toEqual([['resume', 'denied']]))
+    expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
+  })
+
+  it.each(['unavailable', 'busy', 'commit-unknown'] as const)(
+    'a resume that answers %s is left to the next scan without a report',
+    async kind => {
+      const { h } = await acceptedRun()
+      const agent = handedOver(h)
+      agent.resume.mockImplementation(
+        async () =>
+          ({
+            failure:
+              kind === 'commit-unknown'
+                ? { kind, operation: 'op' }
+                : kind === 'busy'
+                  ? { kind }
+                  : { kind, diagnostic: 'later' },
+          }) as never,
+      )
+
+      await scan(h)
+      await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
+      await settle()
+      expect(reported(h)).toEqual([])
+    },
+  )
+
+  it('a detach that fails for good is reported and nothing is claimed; an unavailable one is not reported', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    agent.detach.mockImplementationOnce(async () => ({ failure: { kind: 'denied' } }))
+
+    await scan(h)
+    await vi.waitFor(() => expect(reported(h)).toEqual([['detach', 'denied']]))
+    expect(agent.resume).not.toHaveBeenCalled()
+    expect((await activeRun(h)).advance).toEqual(run.advance)
+
+    agent.detach.mockImplementationOnce(async () => ({
+      failure: { kind: 'unavailable', diagnostic: 'later' },
+    }))
+    await scan(h)
+    await vi.waitFor(() => expect(agent.detach).toHaveBeenCalledTimes(2))
+    await settle()
+    expect(reported(h)).toEqual([['detach', 'denied']])
+    expect(agent.resume).not.toHaveBeenCalled()
+  })
+
+  it('a port that throws is an unavailable port: nothing is reported, and the next scan goes on', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    const inspect = vi.fn<AgentDrivePort['inspect']>(async () => {
+      throw new Error('inspect crashed')
+    })
+    h.drive.inspect = inspect
+    await scan(h)
+    await vi.waitFor(() => expect(inspect).toHaveBeenCalledTimes(1))
+    await settle()
+    expect(agent.detach).not.toHaveBeenCalled()
+
+    h.drive.inspect = async () => ({ ok: status('suspended') })
+    agent.resume.mockImplementationOnce(async () => {
+      throw new Error('resume crashed')
+    })
+    await scan(h)
+    await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
+    await settle()
+    expect(reported(h)).toEqual([])
+    // The claim of the crashed resume is recognized: the next scan resumes under the same attempt.
+    await scan(h)
+    await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(2))
+    expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
+  })
+
+  it('without the Agent drive port the recovery asks nothing', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    const inspect = vi.fn<AgentDrivePort['inspect']>(async () => ({ ok: status('suspended') }))
+    h.drive.inspect = inspect
+    h.setDrive(false)
+
+    await scan(h)
+    await settle()
+    expect(inspect).not.toHaveBeenCalled()
+    expect(agent.resume).not.toHaveBeenCalled()
+    expect((await activeRun(h)).advance).toEqual(run.advance)
+  })
+
+  it('a query of the claim that does not answer claims nothing: the next scan asks again', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    // The check of the query, which follows the detach, answers unavailable once.
+    agent.detach.mockImplementationOnce(async () => {
+      h.checks.script({ kind: 'unavailable', diagnostic: 'the access check is offline' })
+      return { ok: agent.handover }
+    })
+
+    await scan(h)
+    await vi.waitFor(() => expect(agent.detach).toHaveBeenCalledTimes(1))
+    await settle()
+    expect(agent.resume).not.toHaveBeenCalled()
+    expect((await activeRun(h)).advance).toEqual(run.advance)
+    expect(reported(h)).toEqual([])
+
+    await scan(h)
+    await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
+    expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
+  })
+
+  it('a claim that is refused for good is reported and nothing is resumed', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    // After the detach come the check of the query, which passes, and the check of the claim.
+    agent.detach.mockImplementationOnce(async () => {
+      h.checks.script(
+        { kind: 'allowed', evidence: evidence('access/queryOperation') },
+        { kind: 'denied' },
+      )
+      return { ok: agent.handover }
+    })
+
+    await scan(h)
+    await vi.waitFor(() => expect(reported(h)).toEqual([['claim', 'denied']]))
+    expect(agent.resume).not.toHaveBeenCalled()
+    expect((await activeRun(h)).advance).toEqual(run.advance)
+  })
+
+  it('another recovery that claims first makes this claim fail without a report, and nothing is resumed here', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    // Between the snapshot this recovery read and its claim, another recovery claims the Run
+    // for a handover of its own: the Run layer moved, so the claim here does not commit.
+    agent.detach.mockImplementationOnce(async () => {
+      const snapshot = await read(h)
+      const instance = sessionSlotReference(h.access().session, run.adoption)
+      const continuity = evidence('handover-of-another-recovery')
+      succeeded(
+        await h.faces('coordinator').work.claim({
+          principal: 'system:coordinator',
+          ...sessionRef(h),
+          operation: deriveSessionOperation({ kind: 'claim', run: run.run, instance, continuity }),
+          run: run.run,
+          instance,
+          continuity,
+          expected: expectedRevision(snapshot, 'claim'),
+        }),
+        'the claim of the other recovery',
+      )
+      return { ok: agent.handover }
+    })
+
+    await scan(h)
+    await vi.waitFor(() => expect(agent.detach).toHaveBeenCalledTimes(1))
+    await settle()
+    expect(agent.resume).not.toHaveBeenCalled()
+    expect(reported(h)).toEqual([])
+    // The other recovery holds the advance: one attempt more, not two.
+    expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
+  })
+
+  it('triggers that arrive while a check is in flight are absorbed into one more check', async () => {
+    const { h } = await acceptedRun()
+    handedOver(h)
+    let release = () => {}
+    const held = new Promise<void>(resolve => (release = resolve))
+    const inspect = vi.fn<AgentDrivePort['inspect']>(async () => {
+      if (inspect.mock.calls.length === 1) await held
+      return { ok: status('open') }
+    })
+    h.drive.inspect = inspect
+
+    await scan(h)
+    await vi.waitFor(() => expect(inspect).toHaveBeenCalledTimes(1))
+    await scan(h)
+    await scan(h)
+    await settle()
+    expect(inspect).toHaveBeenCalledTimes(1)
+    release()
+    await vi.waitFor(() => expect(inspect).toHaveBeenCalledTimes(2))
+    await settle()
+    expect(inspect).toHaveBeenCalledTimes(2)
   })
 })
 
