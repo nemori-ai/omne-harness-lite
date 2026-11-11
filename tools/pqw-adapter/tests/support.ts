@@ -1,14 +1,20 @@
 // 用例共用的假仓库、假执行器与成员。
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { onTestFinished } from 'vitest'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 import type { ReadingConfig } from '../src/config.ts'
 import type { ChangedMember } from '../src/members.ts'
 import type { Command, Executor, Outcome } from '../src/process.ts'
 import type { Repo } from '../src/repo.ts'
 
-export const scratch = (): string => realpathSync(mkdtempSync(join(tmpdir(), 'pqw-adapter-test-')))
+// 只在用例体内调用：目录随这条用例结束而删除。
+export function scratch(): string {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'pqw-adapter-test-')))
+  onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
+  return dir
+}
 
 export const member = (path: string, test = true): WorkspaceMember => ({
   path,
