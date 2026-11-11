@@ -131,32 +131,41 @@ describe('current request policy at the local start boundary', () => {
     expect(f.asked).toHaveLength(2)
   })
 
-  it.each(['unavailable', 'throw', 'missing', 'malformed', 'no-condition'] as const)(
-    'does not accept a configured provider that answers %s',
-    async mode => {
-      let healthy = true
-      const f = fixture(async () => {
-        if (healthy) return { kind: 'allowed', condition: null }
-        if (mode === 'throw') throw new Error('secret-policy-payload')
-        if (mode === 'missing') return undefined as never
-        if (mode === 'malformed') return { kind: 'allowed-invalid' } as never
-        if (mode === 'no-condition') return { kind: 'allowed' } as never
-        return { kind: 'unavailable', diagnostic: 'row-unavailable' }
-      })
-      const permit = ok(await f.prepare())
-      healthy = false
-      expect(await f.prepare()).toMatchObject({ failure: { kind: 'unavailable' } })
-      expect(await f.guard.qualifyStart({ ...f.call, request: f.fixed })).toMatchObject({
-        kind: 'unavailable',
-      })
-      const result = ok(
-        await f.authority.consume({ ...f.call, permit, executorReceipt: evidence('executor') }),
-      )
-      expect(result.kind).toBe('unknown')
-      expect(JSON.stringify(result)).not.toContain('secret-policy-payload')
-      expect(await f.acceptanceCount()).toBe(0)
-    },
-  )
+  it.each([
+    'unavailable',
+    'throw',
+    'missing',
+    'malformed',
+    'no-condition',
+    'condition-of-another-kind',
+    'condition-not-an-object',
+  ] as const)('does not accept a configured provider that answers %s', async mode => {
+    let healthy = true
+    const f = fixture(async () => {
+      if (healthy) return { kind: 'allowed', condition: null }
+      if (mode === 'throw') throw new Error('secret-policy-payload')
+      if (mode === 'missing') return undefined as never
+      if (mode === 'malformed') return { kind: 'allowed-invalid' } as never
+      if (mode === 'no-condition') return { kind: 'allowed' } as never
+      if (mode === 'condition-of-another-kind')
+        return { kind: 'allowed-invalid', condition: {} } as never
+      if (mode === 'condition-not-an-object')
+        return { kind: 'allowed', condition: 'basis' } as never
+      return { kind: 'unavailable', diagnostic: 'row-unavailable' }
+    })
+    const permit = ok(await f.prepare())
+    healthy = false
+    expect(await f.prepare()).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await f.guard.qualifyStart({ ...f.call, request: f.fixed })).toMatchObject({
+      kind: 'unavailable',
+    })
+    const result = ok(
+      await f.authority.consume({ ...f.call, permit, executorReceipt: evidence('executor') }),
+    )
+    expect(result.kind).toBe('unknown')
+    expect(JSON.stringify(result)).not.toContain('secret-policy-payload')
+    expect(await f.acceptanceCount()).toBe(0)
+  })
 
   it.each(['prepare', 'consume'] as const)(
     'rechecks current policy after a %s CAS conflict',
@@ -249,7 +258,9 @@ describe('current request policy at the local start boundary', () => {
     const permit = ok(await f.prepare())
     f.holdsWhen(() => false)
     const input = { ...f.call, permit, executorReceipt: evidence('executor') }
-    expect(await f.authority.consume(input)).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(await f.authority.consume(input)).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: '4 revision or condition conflicts in a row' },
+    })
     expect(f.conditions).toHaveLength(4)
     expect(await f.acceptanceCount()).toBe(0)
   })

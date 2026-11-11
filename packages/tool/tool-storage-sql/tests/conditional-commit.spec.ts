@@ -38,7 +38,7 @@ const condition = {
 
 type Stop = Readonly<{ participant: string; reply: Readonly<Record<string, unknown>> }>
 
-async function world(stop?: Stop) {
+async function world(stop?: Stop | 'none') {
   const app = await openApp()
   opened.push(app)
   const seen: CommitRequestV2[] = []
@@ -56,7 +56,7 @@ async function world(stop?: Stop) {
         : {
             ...base,
             kind: 'rolled_back',
-            responses: [{ ...stop, protocol: '1' }],
+            responses: stop === 'none' ? [] : [{ ...stop, protocol: '1' }],
           }) as unknown as CommitResultV2
     },
   } as unknown as SqlStorage
@@ -83,6 +83,7 @@ describe('conditional ledger commit over SQL', () => {
       expected: '0',
       revision: '1',
     })
+    expect(request.commands[2]!.facts['writes']).toHaveLength(1)
   })
 
   it.each([
@@ -115,12 +116,34 @@ describe('conditional ledger commit over SQL', () => {
       { ...condition, commands: [{ participant: 'tool', facts: {} }] },
     ],
     ['a command without facts', { ...condition, commands: [{ participant: 'owner.projection' }] }],
+    ['no manifest digest', { ...condition, manifestDigest: undefined }],
+    ['a command that is null', { ...condition, commands: [null] }],
+    [
+      'a command whose facts are null',
+      { ...condition, commands: [{ participant: 'p', facts: null }] },
+    ],
+    [
+      'a participant that is not a string',
+      { ...condition, commands: [{ participant: 1, facts: {} }] },
+    ],
+    [
+      'one malformed command after a well-formed one',
+      { ...condition, commands: [condition.commands[0], { participant: 'owner.projection' }] },
+    ],
   ])('rejects a condition with %s and sends nothing', async (_name, malformed) => {
     const w = await world()
-    expect(await w.commit.commit({ condition: malformed, ledger: ledger() })).toMatchObject({
+    expect(await w.commit.commit({ condition: malformed, ledger: ledger() })).toEqual({
       kind: 'rejected',
+      reason: 'start condition: not SQL commands',
     })
     expect(w.seen).toEqual([])
+  })
+
+  it('does not read a rollback without any response as a failed condition', async () => {
+    const w = await world('none')
+    const answer = await w.commit.commit({ condition, ledger: ledger() })
+    expect(answer.kind).not.toBe('condition-failed')
+    expect(answer.kind).not.toBe('committed')
   })
 
   it('answers unavailable for a tenant without a published domain and sends nothing', async () => {
