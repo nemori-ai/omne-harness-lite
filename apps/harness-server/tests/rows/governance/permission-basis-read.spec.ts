@@ -130,8 +130,6 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     const read = createPermissionBasisRead({
       scope: w.scope,
       release: () => w.release,
-      // This world has no organization source: the organization layer stays unavailable.
-      settings: async () => ({ target: w.target, source: null }) as never,
       // Counts the commits that a check sends. A check must send none.
       storage: {
         ...w.storage,

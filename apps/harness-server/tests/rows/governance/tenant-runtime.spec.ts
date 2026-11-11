@@ -1,3 +1,4 @@
+import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-assets.ts'
 import { canonicalText } from '@omne-harness/authorization'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
 // @module-tag slow
@@ -755,6 +756,8 @@ it('installs the actual Tool release and adopts its original holdings before exp
   )
   expect(targets).toHaveLength(1)
   const target = targets[0]!.target
+  // The installation holds the tool at the address that consumers compute.
+  expect(target).toEqual(toolAssetTarget(tool, w.options.scope.tenantRef))
   expect(request?.scope.targetId).toBe(canonicalText(target))
   expect(
     (
