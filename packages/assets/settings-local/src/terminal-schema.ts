@@ -10,8 +10,6 @@ export const terminalSchema = z.strictObject({
   binding: operationBindingSchema,
   state: z.enum(['committed', 'aborted']),
 })
-export const terminalLookupSchema = operationBindingSchema.omit({ commandDigest: true })
-export type SettingsSqlTerminalLookup = z.infer<typeof terminalLookupSchema>
 export const terminalCommandSchema = z.strictObject({
   kind: z.enum(['consume', 'seal']),
   binding: operationBindingSchema,
