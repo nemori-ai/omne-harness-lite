@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
+  callHostDomain,
   createLocalStartCoordinator,
   createLocalStartGuard,
   PROGRAMMATIC_NOT_IN_M2,
@@ -22,7 +23,7 @@ import {
 } from './coordinator-values.ts'
 
 function fixture(answer: () => Promise<RequestAccessVerdict>) {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   let conflict = false
   const asked: Parameters<ToolRequestAccess<Principal>['qualify']>[0][] = []
   const requestAccess = {
@@ -32,8 +33,10 @@ function fixture(answer: () => Promise<RequestAccessVerdict>) {
     },
   }
   let onConflict = () => {}
-  const store: ToolLedgerStore<ContentBlock> = {
+  const store: ToolLedgerStore = {
     durability: 'none',
+    readRecord: (domain, key) => memory.readRecord(domain, key),
+    due: memory.due,
     read: memory.read,
     commit: async input => {
       if (conflict) {
@@ -46,7 +49,7 @@ function fixture(answer: () => Promise<RequestAccessVerdict>) {
   }
   const conditions: StartCondition[] = []
   let holds: (condition: StartCondition) => boolean = () => true
-  const conditional: ConditionalLedgerCommit<ContentBlock> = {
+  const conditional: ConditionalLedgerCommit = {
     commit: async ({ condition, ledger }) => {
       conditions.push(structuredClone(condition))
       return holds(condition) ? store.commit(ledger) : { kind: 'condition-failed' }
@@ -65,7 +68,7 @@ function fixture(answer: () => Promise<RequestAccessVerdict>) {
   const start = startOf('target-policy')
   const prepare = () => authority.prepare({ ...call, start, request: fixed })
   const acceptanceCount = async () => {
-    const found = await memory.read({ kind: 'host', tenant: call.tenant, key: 'start-coordinator' })
+    const found = await memory.read(callHostDomain(call.tenant, 'start', call.call))
     if (found.kind !== 'complete') throw new Error('fixture store unavailable')
     return found.records.filter(
       row => row.kind === 'host' && JSON.stringify(row.host.value).includes('"acceptance"'),
@@ -122,7 +125,7 @@ describe('current request policy at the local start boundary', () => {
     const f = fixture(() => (allow ? allowed() : denied()))
     const permit = ok(await f.prepare())
     allow = false
-    const input = { ...f.call, permit, executorReceipt: evidence('executor') }
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
     const result = ok(await f.authority.consume(input))
     expect(result).toMatchObject({ kind: 'rejected', exclusion: { owner: expect.any(String) } })
     expect(ok(await f.authority.inspect({ ...f.call, start: f.start }))).toEqual(result)
@@ -160,7 +163,12 @@ describe('current request policy at the local start boundary', () => {
       kind: 'unavailable',
     })
     const result = ok(
-      await f.authority.consume({ ...f.call, permit, executorReceipt: evidence('executor') }),
+      await f.authority.consume({
+        ...f.call,
+        permit,
+        executorReceipt: evidence('executor'),
+        request: f.fixed,
+      }),
     )
     expect(result.kind).toBe('unknown')
     expect(JSON.stringify(result)).not.toContain('secret-policy-payload')
@@ -185,7 +193,12 @@ describe('current request policy at the local start boundary', () => {
         })
         expect(
           ok(
-            await f.authority.consume({ ...f.call, permit, executorReceipt: evidence('executor') }),
+            await f.authority.consume({
+              ...f.call,
+              permit,
+              executorReceipt: evidence('executor'),
+              request: f.fixed,
+            }),
           ),
         ).toMatchObject({ kind: 'rejected' })
         expect(f.asked).toHaveLength(3)
@@ -198,7 +211,7 @@ describe('current request policy at the local start boundary', () => {
     let allow = true
     const f = fixture(() => (allow ? allowed() : denied()))
     const permit = ok(await f.prepare())
-    const input = { ...f.call, permit, executorReceipt: evidence('executor') }
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
     const started = ok(await f.authority.consume(input))
     expect(started.kind).toBe('started')
     allow = false
@@ -218,7 +231,7 @@ describe('current request policy at the local start boundary', () => {
     const f = fixture(() => allowedWhile('b1'))
     const permit = ok(await f.prepare())
     expect(f.conditions).toEqual([])
-    const input = { ...f.call, permit, executorReceipt: evidence('executor') }
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
     expect(ok(await f.authority.consume(input)).kind).toBe('started')
     expect(f.conditions).toEqual([{ basis: 'b1' }])
     expect(await f.acceptanceCount()).toBe(1)
@@ -233,7 +246,7 @@ describe('current request policy at the local start boundary', () => {
       basis = 'b2'
       return false
     })
-    const input = { ...f.call, permit, executorReceipt: evidence('executor') }
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
     expect(ok(await f.authority.consume(input)).kind).toBe('started')
     expect(f.conditions).toEqual([{ basis: 'b1' }, { basis: 'b2' }])
     expect(f.asked).toHaveLength(3)
@@ -248,7 +261,7 @@ describe('current request policy at the local start boundary', () => {
       allow = false
       return false
     })
-    const input = { ...f.call, permit, executorReceipt: evidence('executor') }
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
     expect(ok(await f.authority.consume(input))).toMatchObject({ kind: 'rejected' })
     expect(await f.acceptanceCount()).toBe(0)
   })
@@ -257,7 +270,7 @@ describe('current request policy at the local start boundary', () => {
     const f = fixture(() => allowedWhile('b1'))
     const permit = ok(await f.prepare())
     f.holdsWhen(() => false)
-    const input = { ...f.call, permit, executorReceipt: evidence('executor') }
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
     expect(await f.authority.consume(input)).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: '4 revision or condition conflicts in a row' },
     })

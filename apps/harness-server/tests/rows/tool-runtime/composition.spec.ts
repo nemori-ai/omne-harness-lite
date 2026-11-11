@@ -13,6 +13,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -21,7 +22,8 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { DatabaseSync } from 'node:sqlite'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { LocalInvocationQualifier } from '@omne-harness/tool-host-local'
 import { TenantStandingSourceService, tenantStandingKey } from '@omne-harness/identity/cordis'
@@ -79,13 +81,18 @@ import { releaseOf } from '../../../src/entry/tool-release.ts'
 import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
+import { callHostDomain } from '@omne-harness/tool-host-local'
 import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
 import { permissionOriginsOf } from '../../../src/rows/governance/permission-origins.ts'
 import { sessionWorkOf } from '../../../src/rows/tool-runtime/session-work.ts'
+import { TOOL_BODY_SCHEMA_VOCABULARY } from '../../../src/entry/tool-body-schemas.ts'
 import type { EntryObjectModule } from '../../../src/types.ts'
 import { toolRowsOperatorConfig } from '../../r9/support.ts'
 import { compositionAuthority, compositionAuthorityWithPolicy } from './composition-authority.ts'
+import { maintenancePolicy } from './maintenance-policy.ts'
+import { tenantDomainScannerPrincipal } from '../../../src/entry/tenant-domain-scanner.ts'
+import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
 import { withLiveRows } from '../model/support.ts'
 import {
   TENANT_A,
@@ -111,6 +118,7 @@ function okScope(ref: string) {
 
 const bases: string[] = []
 afterEach(() => {
+  vi.useRealTimers()
   for (const base of bases.splice(0)) rmSync(base, { recursive: true, force: true })
 })
 
@@ -226,6 +234,7 @@ function rowsOf(storageRoot: string) {
   return {
     tools,
     rows: [
+      { id: 'telemetry', plugin: 'telemetry', config: { implementation: 'disabled' } },
       {
         id: 'storage',
         plugin: 'storageRow',
@@ -270,6 +279,7 @@ function rowsOf(storageRoot: string) {
 const entryObjects = (work: EntryObjectModule): readonly EntryObjectModule[] => [
   principalVerifier,
   principalIssuer,
+  tenantDomainScannerPrincipal,
   compositionAuthority,
   toolReleaseRegistrant,
   toolContributionAuthority,
@@ -373,8 +383,26 @@ async function requestFor(ctx: Context, principal: unknown, command: string, par
   return prepared.ok
 }
 
+/**
+ * Resolves when the test has read the result of the call it is making. The receiver answers
+ * `saved` only after that: a saved delivery is released, and a released result is not readable.
+ */
+let resultRead: Promise<void> = Promise.resolve()
+
 /** Invokes, waits for the settled call, and reads the whole original result as text. */
 async function call(runtime: Runtime, principal: unknown, request: ToolInvokeRequest) {
+  let read: () => void = () => undefined
+  resultRead = new Promise(resolve => {
+    read = resolve
+  })
+  try {
+    return await settledText(runtime, principal, request)
+  } finally {
+    read()
+  }
+}
+
+async function settledText(runtime: Runtime, principal: unknown, request: ToolInvokeRequest) {
   const caller = { principal, tenant: TENANT_A }
   const outcome = await runtime.invoke({ ...caller, request })
   if (outcome.kind !== 'accepted') throw new Error(`invoke: ${JSON.stringify(outcome)}`)
@@ -451,6 +479,7 @@ async function ready(
   const receiver: ToolResultReceiver<unknown, ToolMessageContentBlock> = {
     async push(input) {
       saved.push(input.delivery)
+      await resultRead
       const key = canonicalDigest(input.delivery.key)
       return succeed({
         key: input.delivery.key,
@@ -490,7 +519,7 @@ type Ran = Readonly<{
 async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
   const { storageRoot } = workspace()
   const { rows, tools } = rowsOf(storageRoot)
-  const policy = accessPolicyRow(allowAll)
+
   const saved: ToolDelivery<ToolMessageContentBlock>[] = []
   const { value, run } = await withLiveRows(
     {
@@ -499,7 +528,7 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
         ...cordis,
         identityStandIn,
         residencyStandIn,
-        policyAccess: policy.plugin,
+        policyAccess: maintenancePolicy,
       },
       entryObjects: entryObjects(work),
       probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
@@ -577,6 +606,221 @@ function expectRan(ran: Ran): void {
 }
 
 describe('Tool segment B: the release rows in one process composition', () => {
+  it('closes the body schema domain when the real Tool records row is removed', async () => {
+    const { storageRoot } = workspace()
+    const { rows } = rowsOf(storageRoot)
+
+    const parse = (text: string) => {
+      const read = readJsonText(text, {
+        maxBytes: 1024,
+        maxDepth: 8,
+        maxItems: 32,
+        maxMembers: 16,
+        maxStringLength: 256,
+        maxNumberLength: 32,
+      })
+      if (read.kind !== 'ok') throw new Error('JSON fixture required')
+      return read
+    }
+    const schema = {
+      identity: { id: 'amount', revision: '1', digest: 'amount-v1' },
+      definition: {
+        schema: parse('{"type":"number"}').value,
+        vocabulary: TOOL_BODY_SCHEMA_VOCABULARY,
+        descriptions: [],
+      },
+    }
+    const read = parse('1.00')
+    const { value, run } = await withLiveRows(
+      {
+        rows,
+        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: maintenancePolicy },
+        entryObjects: entryObjects(workPrincipalsOverStandIn),
+        probe: [toolRuntimeKey],
+      },
+      async ctx => {
+        const holder = toolRuntimeHolder(ctx)
+        const schemas = holder.bodySchemas
+        if (schemas == null) throw new Error('body schema provider was not mounted')
+        expect(await schemas.check(schema, read)).toHaveProperty('ok')
+        return { holder, schemas }
+      },
+    )
+    expect(run.result.exitCode).toBe(0)
+    expect(value.holder.bodySchemas).toBeNull()
+    expect(await value.schemas.check(schema, read)).toHaveProperty('failure.kind', 'unavailable')
+  })
+
+  it(
+    'the sweep removes a released call with its unread Shell body at the expiry of the body, and the native file the command wrote stays',
+    { timeout: 90_000 },
+    async () => {
+      const { storageRoot } = workspace()
+      const { rows, tools } = rowsOf(storageRoot)
+      // A 5000 byte output offloads at this threshold. The body writer keeps the default permit
+      // window, so a loaded machine cannot outrun it; the body expires `retentionMs` after
+      // publication, and the test moves the application clock past that instant instead of waiting.
+      const offloading = tools.records.configuration.offloading
+      offloading.maxInlineUtf8Bytes = 4096
+      offloading.previewUtf8Bytes = 256
+      const retentionMs = offloading.orphanGraceMs
+      offloading.maxRetentionMs = retentionMs
+      const sweep = {
+        id: 'tool-body-sweep',
+        plugin: 'toolBodySweepRow',
+        config: {
+          combinationVersion: tools.records.combinationVersion,
+          ledgerCommitAttempts: tools.records.configuration.ledgerCommitAttempts,
+          orphanGraceMs: tools.records.configuration.offloading.orphanGraceMs,
+          intervalMs: 20,
+          limit: 100,
+        },
+      }
+      const saved: ToolDelivery<ToolMessageContentBlock>[] = []
+      const { value, run } = await withLiveRows(
+        {
+          rows: [...rows, sweep],
+          plugins: {
+            ...cordis,
+            identityStandIn,
+            residencyStandIn,
+            policyAccess: maintenancePolicy,
+          },
+          entryObjects: entryObjects(workPrincipalsOverStandIn),
+          probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A],
+        },
+        async ctx => {
+          const { runtime, principal } = await ready(ctx, saved)
+          // `echo` and `>` read the same in sh and PowerShell; nothing reads the body back.
+          const request = await requestFor(
+            ctx,
+            principal,
+            'Shell.execute',
+            JSON.stringify({ script: `echo native > native.txt; echo ${'x'.repeat(5000)}` }),
+          )
+          const invoked = await runtime.invoke({ principal, tenant: TENANT_A, request })
+          if (invoked.kind !== 'accepted') throw new Error(`invoke: ${JSON.stringify(invoked)}`)
+          const delivered = await until(
+            'result delivery',
+            async () => saved.find(item => item.kind === 'result'),
+            item => item !== undefined,
+            30_000,
+          )
+          if (delivered?.kind !== 'result' || delivered.value.original.kind !== 'offloaded')
+            throw new Error(`expected an offloaded body: ${JSON.stringify(delivered)}`)
+          const bodyId = delivered.value.original.bodyId
+          const call = readToolInvocationRef(invoked.reference).call
+          const sql = toolRuntimeHolder(ctx).sql
+          if (sql === null) throw new Error('SQL not installed')
+          // The call comes to rest first: the result is released and no duty is left. A sweep that
+          // met an open task would move the removal one grace on.
+          await until(
+            'the call to come to rest',
+            async () => {
+              const answer = await sql.store.read({ kind: 'call', tenant: TENANT_A, call })
+              if (answer.kind !== 'complete') throw new Error('ledger read unavailable')
+              return answer.records
+            },
+            records =>
+              records.some(
+                record => record.kind === 'call' && record.call.state.delivery?.kind === 'released',
+              ) &&
+              records.every(
+                record =>
+                  record.kind !== 'task' ||
+                  (record.task.kind === 'clock' && record.task.state === 'blocked'),
+              ),
+            30_000,
+          )
+          // The body is published: move the application clock past its expiry and the skew. The
+          // clock keeps running from there; the sweep runs on it and nothing else is faked.
+          vi.useFakeTimers({
+            toFake: ['Date'],
+            shouldAdvanceTime: true,
+            now:
+              Date.now() +
+              Math.max(retentionMs, offloading.orphanGraceMs) +
+              offloading.clockSkewMs +
+              1000,
+          })
+          // The sweep runs on the application clock. The result was released, so at the expiry of
+          // the body the sweep reclaims the body and then removes the call domain with the records
+          // the host kept for the call (spec C15).
+          await until(
+            'the sweep to remove the call domain',
+            async () => {
+              const answer = await sql.store.read({ kind: 'call', tenant: TENANT_A, call })
+              if (answer.kind !== 'complete') throw new Error('ledger read unavailable')
+              return answer
+            },
+            answer => answer.revision === '0' && answer.records.length === 0,
+            20_000,
+          )
+          for (const aggregate of [
+            'start',
+            'source',
+            'delivery',
+            'environment',
+            'control',
+          ] as const)
+            expect(await sql.store.read(callHostDomain(TENANT_A, aggregate, call))).toMatchObject({
+              kind: 'complete',
+              revision: '0',
+              records: [],
+            })
+          expect(
+            await runtime.body.read({
+              principal,
+              tenant: TENANT_A,
+              reference: invoked.reference,
+              result: delivered.key.result,
+              bodyId,
+              after: null,
+              maxBytes: 64,
+            }),
+          ).toEqual({ failure: { kind: 'not-found', target: 'result', reason: 'missing' } })
+          return { call }
+        },
+      )
+      expect(run.result.exitCode, JSON.stringify(run.of('shutdown-result'))).toBe(0)
+      expect(value.call).toBeDefined()
+      // The command's own file is not the Tool's to reclaim.
+      expect(existsSync(join(tools.filesRoot, 'native.txt'))).toBe(true)
+      // Physically: no body bytes, no due entry and no ledger record remain in the tenant's domain.
+      const domains = join(storageRoot, 'domains')
+      const counts = readdirSync(domains)
+        .filter(name => name.endsWith('.sqlite'))
+        .flatMap(name => {
+          const db = new DatabaseSync(join(domains, name), { readOnly: true })
+          try {
+            if (!db.prepare("SELECT name FROM sqlite_schema WHERE name='tl_body_chunk'").get())
+              return []
+            const n = (table: string) =>
+              Number((db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n)
+            return [
+              {
+                chunks: n('tl_body_chunk'),
+                manifests: n('tl_body_manifest'),
+                due: n('tl_due'),
+                callRecords: Number(
+                  (
+                    db
+                      .prepare(
+                        "SELECT count(*) AS n FROM tl_record WHERE kind = 'call' OR name LIKE '%@call-%'",
+                      )
+                      .get() as { n: number }
+                  ).n,
+                ),
+              },
+            ]
+          } finally {
+            db.close()
+          }
+        })
+      expect(counts).toEqual([{ chunks: 0, manifests: 0, due: 0, callRecords: 0 }])
+    },
+  )
+
   it('qualifies the original source inside target admission without recursion and retires its read port', async () => {
     const { storageRoot } = workspace()
     const { rows } = rowsOf(storageRoot)
@@ -639,11 +883,11 @@ describe('Tool segment B: the release rows in one process composition', () => {
   it('rejects a direct Agent call to an adopted but nonresident tool before any file write', async () => {
     const { storageRoot } = workspace()
     const { rows, tools } = rowsOf(storageRoot)
-    const policy = accessPolicyRow(allowAll)
+
     await withLiveRows(
       {
         rows,
-        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+        plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: maintenancePolicy },
         entryObjects: entryObjects(workPrincipalsOverStandIn),
         probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
       },
@@ -681,13 +925,18 @@ describe('Tool segment B: the release rows in one process composition', () => {
     async () => {
       const { storageRoot } = workspace()
       const { rows, tools } = rowsOf(storageRoot)
-      const policy = accessPolicyRow(allowAll)
+
       const saved: ToolDelivery<ToolMessageContentBlock>[] = []
       const calls = 6
       const { value } = await withLiveRows(
         {
           rows,
-          plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+          plugins: {
+            ...cordis,
+            identityStandIn,
+            residencyStandIn,
+            policyAccess: maintenancePolicy,
+          },
           entryObjects: entryObjects(workPrincipalsOverStandIn),
           probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
         },
@@ -746,12 +995,17 @@ describe('Tool segment B: the release rows in one process composition', () => {
       // A junction outside the root that points into it: `..` from there is the outside directory.
       const outsideToIn = join(outside, 'to-ws')
       symlinkSync(child, outsideToIn, 'junction')
-      const policy = accessPolicyRow(allowAll)
+
       const saved: ToolDelivery<ToolMessageContentBlock>[] = []
       const { value } = await withLiveRows(
         {
           rows,
-          plugins: { ...cordis, identityStandIn, residencyStandIn, policyAccess: policy.plugin },
+          plugins: {
+            ...cordis,
+            identityStandIn,
+            residencyStandIn,
+            policyAccess: maintenancePolicy,
+          },
           entryObjects: entryObjects(workPrincipalsOverStandIn),
           probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, WORK_A, WORK_B],
         },

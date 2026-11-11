@@ -26,7 +26,6 @@
 - [结果推送、启动围栏视图与受理记录的编译用例](result-delivery.spec-d.ts)。
 - 三个新套件的合法提供者：[启动围栏](start-fence-legal.ts)、[授权消费点](start-authorization-legal.ts)、[结果接收端口](result-receiver-legal.ts)。
 - [执行者绑定套件自证](executor-binding-conformance.spec.ts)。
-- [输出保管套件自证](output-custody-conformance.spec.ts)。
 - [时钟套件自证](clock-conformance.spec.ts)。
 - [决策桥套件自证](decision-bridge-conformance.spec.ts)。
 - [资源应答套件自证](resource-responses-conformance.spec.ts)。

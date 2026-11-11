@@ -41,7 +41,6 @@ function newRecord<P>(
     call: input.call,
     admission: input.operation,
     reference,
-    capacity: structuredClone(input.capacity),
     consumer: structuredClone(input.consumer),
     revision: 1,
     lifecycle: { phase: 'accepted' },
@@ -86,7 +85,6 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
       call: input.call,
       request: input.request,
       consumer: input.consumer,
-      capacity: input.capacity,
     }
     const known = core.operations.get(scoped(scope, input.operation))
     if (known !== undefined)

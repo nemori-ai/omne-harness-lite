@@ -1,3 +1,4 @@
+import { judgeCommittedToolResult } from '@omne-harness/tool-contract/provider'
 import { createReaderFixture, type ReaderFixture } from './reader-fixture.ts'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -50,6 +51,41 @@ export const configuration: ToolConfiguration = {
   ledgerCommitAttempts: 8,
   queueCapacity: 16,
   driverStepsPerRun: 32,
+  readResultArguments: {
+    maxBytes: 65_536,
+    maxDepth: 32,
+    maxItems: 4096,
+    maxMembers: 256,
+    maxStringLength: 32_768,
+    maxNumberLength: 64,
+  },
+  offloading: {
+    maxInlineUtf8Bytes: 65_536,
+    maxRetentionMs: 86_400_000,
+    maxBodyBytes: 16_777_216,
+    previewUtf8Bytes: 1_024,
+    maxPageBytes: 65_536,
+    permitMs: 30_000,
+    clockSkewMs: 1_000,
+    orphanGraceMs: 60_000,
+    maxWriterMetadataBytes: 1_048_576,
+    jsonDocument: {
+      maxBytes: 1_048_576,
+      maxDepth: 64,
+      maxItems: 65_536,
+      maxMembers: 65_536,
+      maxStringLength: 1_048_576,
+      maxNumberLength: 64,
+    },
+    jsonRecord: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 4096,
+      maxMembers: 4096,
+      maxStringLength: 65_536,
+      maxNumberLength: 64,
+    },
+  },
 }
 
 export function createDemo() {
@@ -235,6 +271,7 @@ export function createDemo() {
             const consumed = await test.doubles.authority.consume({
               ...access,
               call: input.call,
+              request: input.request,
               permit: input.permit,
               executorReceipt: evidence(capsule, capsules.get(capsule)),
             })
@@ -292,21 +329,9 @@ export function createDemo() {
                       valueOf(author.output.check({ arguments: argumentsValue, value })),
                     ),
                   )
-            const bytes = valueOf(author.codec.encode(value))
-            const raw = valueOf(
-              await test.doubles.custody.preserve({
-                ...access,
-                call: input.call,
-                operation: valueOf(await identities.operationIdentities.newOperation()),
-                codec: author.codec.adoption,
-                bytes,
-                source: evidence(`author-output-${input.call}`, { bytes: bytes.length }),
-              }),
-            )
             // Publish the actual author's result as the source's final fact. Never seed ledger state.
-            await test.doubles.executor.controls.finish(input.start, {
+            await test.doubles.executor.controls.finishEnvelope(input.start, {
               kind: 'final',
-              raw,
               result,
               terminal: { kind: 'completed' },
               effect: { kind: 'not-occurred', evidence: evidence('read-only-report', input.call) },
@@ -346,6 +371,7 @@ export function createDemo() {
   )
   const tools = createReaderFixture<string>(
     {
+      body: provider.runtime.body,
       queries: {
         readResult: async input => {
           const reply = await provider.runtime.queries.readResult(input)
@@ -353,7 +379,7 @@ export function createDemo() {
             ? reply
             : succeed({
                 ...reply.ok,
-                value: valueOf(defaultResultPolicy.judgeResult(reply.ok.value)),
+                value: valueOf(judgeCommittedToolResult(defaultResultPolicy, reply.ok.value)),
               })
         },
       },

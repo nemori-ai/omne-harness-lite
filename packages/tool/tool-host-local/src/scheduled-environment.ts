@@ -39,6 +39,8 @@ export type LocalScheduledEnvironmentInput<P, E> = Readonly<{
 type Entry<E> = {
   readonly digest: string
   readonly preparation: EnvironmentPreparationInput<unknown>['preparation']
+  /** The fixed request of the call, kept in memory to qualify its release. */
+  readonly request: EnvironmentPreparationInput<unknown>['request']
   readonly queue: DrrQueue
   occupied: boolean
   sent: boolean
@@ -396,6 +398,7 @@ export function createLocalScheduledEnvironment<P, E>(
     const entry: Entry<E> = {
       digest,
       preparation,
+      request: request.request,
       queue,
       occupied: false,
       sent: false,
@@ -494,6 +497,7 @@ export function createLocalScheduledEnvironment<P, E>(
           tenant: request.tenant,
           call: request.call,
           preparation: entry.preparation,
+          request: entry.request,
         },
         undefined,
         request.release.operation,

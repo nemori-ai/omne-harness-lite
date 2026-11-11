@@ -30,7 +30,6 @@
 - `ToolLoadFailure` · `cordis.d.ts`
 - `ToolLoadState` · `cordis.d.ts`
 - `ToolOffloaderService` · `cordis.d.ts`
-- `ToolOutputCustodyService` · `cordis.d.ts`
 - `ToolPublication` · `cordis.d.ts`
 - `ToolPublicationAuthority` · `cordis.d.ts`
 - `ToolPublicationAuthorityService` · `cordis.d.ts`
@@ -62,7 +61,6 @@
 - `toolInstanceHostKey` · `cordis.d.ts`
 - `toolInstancesKey` · `cordis.d.ts`
 - `toolOffloaderKey` · `cordis.d.ts`
-- `toolOutputCustodyKey` · `cordis.d.ts`
 - `toolPublicationAuthorityKey` · `cordis.d.ts`
 - `toolReadsKey` · `cordis.d.ts`
 - `toolResidencyReaderKey` · `cordis.d.ts`
@@ -127,7 +125,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
-import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolOutputCustody, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
+import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
     private readonly resultReceivers;
@@ -141,6 +139,7 @@ export declare abstract class ToolRuntimeService<P, B extends ContentBlock> exte
     abstract readonly instances: ToolRuntime<P, B>['instances'];
     abstract readonly observation: ToolRuntime<P, B>['observation'];
     abstract readonly content: ToolRuntime<P, B>['content'];
+    abstract readonly body: ToolRuntime<P, B>['body'];
     abstract readonly catalog: ToolRuntime<P, B>['catalog'];
 }
 export declare const toolRuntimeKey = "toolRuntime";
@@ -184,12 +183,12 @@ export declare abstract class ToolCommandsService<P, B extends ContentBlock> ext
     abstract readonly recordTask: ToolCommands<P, B>['recordTask'];
 }
 export declare const toolCommandsKey = "toolCommands";
-export declare abstract class ToolBindingsService<P, B extends ContentBlock, E> extends Service implements ToolBindings<P, B, E>, ToolBindingRegistry<P, E, B> {
+export declare abstract class ToolBindingsService<P, B extends ContentBlock, E> extends Service implements ToolBindings<P, E>, ToolBindingRegistry<P, E, B> {
     static readonly provide = "toolBindings";
     constructor(ctx: Context);
-    abstract readonly inspect: ToolBindings<P, B, E>['inspect'];
-    abstract readonly resolve: ToolBindings<P, B, E>['resolve'];
-    abstract readonly recover: ToolBindings<P, B, E>['recover'];
+    abstract readonly inspect: ToolBindings<P, E>['inspect'];
+    abstract readonly resolve: ToolBindings<P, E>['resolve'];
+    abstract readonly recover: ToolBindings<P, E>['recover'];
     abstract readonly register: ToolBindingRegistry<P, E, B>['register'];
     abstract readonly snapshot: ToolBindingRegistry<P, E, B>['snapshot'];
     abstract readonly pins: ToolBindingRegistry<P, E, B>['pins'];
@@ -403,6 +402,7 @@ export declare abstract class ToolReadsService<P, B extends ContentBlock> extend
     abstract readonly diagnostics: ToolReads<P, B>['diagnostics'];
     abstract readonly account: ToolReads<P, B>['account'];
     abstract readonly content: ToolReads<P, B>['content'];
+    abstract readonly body: ToolReads<P, B>['body'];
 }
 export declare const toolReadsKey = "toolReads";
 export declare abstract class ToolCatalogService<P> extends Service implements ToolCatalog<P> {
@@ -440,14 +440,6 @@ export declare abstract class ToolResourceResponsesService<P> extends Service im
     abstract readonly resolve: ToolResourceResponses<P>['resolve'];
 }
 export declare const toolResourceResponsesKey = "toolResourceResponses";
-export declare abstract class ToolOutputCustodyService<P> extends Service implements ToolOutputCustody<P> {
-    static readonly provide = "toolOutputCustody";
-    constructor(ctx: Context);
-    abstract readonly preserve: ToolOutputCustody<P>['preserve'];
-    abstract readonly inspect: ToolOutputCustody<P>['inspect'];
-    abstract readonly retainResult: ToolOutputCustody<P>['retainResult'];
-}
-export declare const toolOutputCustodyKey = "toolOutputCustody";
 export declare abstract class ToolChildrenService<P> extends Service implements ToolChildren<P> {
     static readonly provide = "toolChildren";
     constructor(ctx: Context);
@@ -493,7 +485,6 @@ declare module '@deepseek-ai/cordis' {
         toolStartAuthority: ToolStartAuthorityService<unknown>;
         toolStartFence: ToolStartFenceService<unknown>;
         toolResourceResponses: ToolResourceResponsesService<unknown>;
-        toolOutputCustody: ToolOutputCustodyService<unknown>;
         toolChildren: ToolChildrenService<unknown>;
         toolAccounts: ToolAccountsService<unknown>;
         toolOffloader: ToolOffloaderService<unknown, ContentBlock>;

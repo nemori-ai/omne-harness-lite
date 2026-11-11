@@ -81,6 +81,14 @@ TodoItems 采用 [Session Todo 契约](../../session/session-contract/SPEC.md)�
 
 [Todo 作者测试](tests/todo-items.spec.ts)通过真实 commandArguments、参数解码、executeTool、输出校验和 codec 检查业务映射。Tools 组合使用真实 attachToolsCapability。绑定业务方法使用定向替身，未覆盖完整应用、SQL、真实 Agent 或自动 Runtime Context 投影。
 
+## W3 操作返回声明
+
+具体作者行为保持各节责任。每条操作从其现有声明表生成返回结构、程序协议与正文格式，help/inspect 和注册定义共用该源。Tools 及各多命令工具保持 wrapped 编码，常驻/非常驻边界不变。
+
+作者捕获或返回字符串的 resultMaxBytes 与 Tool 的模型正文内联上限分别生效。作者已经截断或设施已经丢弃的输出不能被 runtime 卸载补回。截断须继续如实说明；W3 不顺带重做 Shell 的捕获和后台机制。普通完整返回由 runtime 判断是否卸载，结构化作者可使用同调用 writer 提供完整正文和符合预算的摘要。
+
+TodoItems 的业务分页仍由 Session 拥有。正文卸载不改 list 游标，也不让工具读取 Session 实例或要求模型提供身份。返回 schema 与失败分支必须包含实际可达结果，不能只描述成功值。
+
 ## Web 作者
 
 Web 采用[元能力产品](../../../.meta_harness/design/product/meta-capabilities/design.md#meta-web)的 Web 规则。公开窄口 `WebAccess`、`WebFailure`、`SearchHit`、`FetchedPage` 与 `attachWebAccess` 归 [web-port.ts](src/web-port.ts)。作者不认识搜索供应商、HTTP 客户端、凭据或租户：它从每次调用附着的端口取结果，只负责参数、结果文本与失败文本。

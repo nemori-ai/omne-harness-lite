@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   ControlProgress,
@@ -10,7 +9,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { ControlDispatch } from '@omne-harness/tool-contract/provider'
 import { invalid, type MutationInput } from './boundary.ts'
-import { mintEvidence } from './evidence.ts'
+import { mintEvidence, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
   put,
@@ -20,7 +19,7 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import { sameFactValue } from './ledger-facts.ts'
+
 import { taskKey, type CallRecord } from './ledger-store.ts'
 
 type Command = MutationInput<unknown> & Readonly<{ inputDigest: string }>
@@ -48,11 +47,11 @@ function withControls(
   }
 }
 
-export function decideControl<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideControl(
+  snapshot: Snapshot,
   command: ControlCommand,
   mint: Mint,
-): Decision<ControlReceipt, B> {
+): Decision<ControlReceipt> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'control')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'control') return reply(succeed(known.ok.receipt.control))
@@ -116,7 +115,7 @@ export function decideControl<B extends ContentBlock>(
       ...(ended
         ? []
         : [
-            put<B>({
+            put({
               kind: 'task',
               task: {
                 kind: 'stop',
@@ -140,11 +139,11 @@ export function controlFinished(progress: ControlProgress): boolean {
   )
 }
 
-export function decideRecordControl<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function decideRecordControl(
+  snapshot: Snapshot,
   command: ProgressCommand,
   mint: Mint,
-): Decision<ControlRecord, B> {
+): Decision<ControlRecord> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'record-control')
   if ('failure' in known) return reply(known)
   if (known.ok?.receipt.kind === 'record-control') return reply(succeed(known.ok.receipt.control))
@@ -192,11 +191,11 @@ export function decideRecordControl<B extends ContentBlock>(
 }
 
 /** A confirmed denial closes only propagation; execution and all other duties remain intact. */
-export function rejectControl<B extends ContentBlock>(
+export function rejectControl(
   call: CallRecord,
   original: ControlRecord,
   mint: Mint,
-): Decision<ControlRecord, B> {
+): Decision<ControlRecord> {
   const control: ControlRecord = {
     ...original,
     progress: {

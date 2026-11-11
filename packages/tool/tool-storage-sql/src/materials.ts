@@ -1,4 +1,4 @@
-// The Tool storage materials: a writer, an optional record guard, one migration and three readers,
+// The static materials of the Tool storage: its participant, migrations and read handlers,
 // as the SQL storage contract describes them (sql-contract §4). The application aggregates these
 // with the materials of the other owners into one catalog and declares the combination; this
 // member never builds a catalog, a Cordis service or a domain registration.
@@ -12,10 +12,12 @@ import type {
   ReadOrdering,
 } from '@omne-harness/sql-contract'
 import {
-  CHUNK_READ_HANDLER,
+  BODY_READ_CHUNKS,
+  BODY_READ_HANDLER,
+  DUE_READ_ENTRIES,
+  DUE_READ_HANDLER,
   LEDGER_READ_HANDLER,
   LEDGER_READ_ROWS,
-  MANIFEST_READ_HANDLER,
   MIGRATION,
   PARTICIPANT,
   PROTOCOL,
@@ -48,7 +50,7 @@ type Handler = Readonly<{
 
 /**
  * The ledger domain read is `domain-serial`: it is ordered after every write admitted before it
- * (sql-contract §9.3, §17). The custody reads are snapshots: a manifest is immutable once committed.
+ * (sql-contract §9.3, §17). The body read is a snapshot: a sealed body is immutable.
  */
 const HANDLERS: readonly Handler[] = [
   {
@@ -59,18 +61,18 @@ const HANDLERS: readonly Handler[] = [
     rows: LEDGER_READ_ROWS + 2,
   },
   {
-    handler: MANIFEST_READ_HANDLER,
-    file: 'read-manifest',
+    handler: BODY_READ_HANDLER,
+    file: 'read-body',
     ordering: 'snapshot',
-    tables: ['tl_manifest'],
-    rows: 1,
+    tables: ['tl_body_manifest', 'tl_body_chunk'],
+    rows: BODY_READ_CHUNKS + 1,
   },
   {
-    handler: CHUNK_READ_HANDLER,
-    file: 'read-chunk',
-    ordering: 'snapshot',
-    tables: ['tl_chunk'],
-    rows: 1,
+    handler: DUE_READ_HANDLER,
+    file: 'read-due',
+    ordering: 'domain-serial',
+    tables: ['tl_due'],
+    rows: DUE_READ_ENTRIES,
   },
 ]
 
@@ -91,7 +93,7 @@ export function toolStorageMaterials(): ToolStorageMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: TOOL_TABLES,
+        ownedTables: [...TOOL_TABLES],
         readTables: [],
         requiresFacts: [],
         providesFacts: [],

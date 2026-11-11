@@ -1,6 +1,6 @@
 // The conformance suite of `SqlStorage` (SPEC 16.1). It runs through the public interface only, so
 // it fits the memory double and any provider. It covers the scenarios that need no database:
-// C01 to C07, C12, C14 and C16. The scenarios that need SQLite, Workers or files (C08 to C11, C13,
+// C01 to C07, C12, C14, C16 and C24. The scenarios that need SQLite, Workers or files (C08 to C11, C13,
 // C15, C17 to C23) belong to the provider package. A pass of this suite does not show them.
 import { canonicalJson } from '../canonical.ts'
 import { inputDigestV2 } from '../digest.ts'
@@ -74,6 +74,17 @@ function committed(result: CommitResultV2): Extract<CommitResultV2, { kind: 'com
   return result
 }
 
+/** The stored receipt of a commit answer: the answer without its `recalled` mark. */
+function stored(answer: CommitResultV2): unknown {
+  if (answer.kind !== 'committed' && answer.kind !== 'rolled_back') return answer
+  const { recalled: _mark, ...receipt } = answer
+  return receipt
+}
+
+/** Whether the answer is a receipt that the storage recognised without running this call. */
+const recalled = (answer: CommitResultV2): boolean | null =>
+  answer.kind === 'committed' || answer.kind === 'rolled_back' ? answer.recalled : null
+
 const absentIdentity = (over: Partial<SqlIdentity> = {}): SqlIdentity =>
   identity({ transactionDomain: 'absent-domain', ...over })
 
@@ -88,7 +99,10 @@ const SCENARIOS: readonly Scenario[] = [
       const request = commitRequest(materials)
       const first = committed(await storage.commit(request))
       same(first.identity, request.identity, 'the receipt carries the identity of the request')
-      same(await storage.commit(request), first, 'the same identity and input is recognized')
+      expect(first.recalled === false, 'the commit that ran is not marked recalled')
+      const again = await storage.commit(request)
+      same(stored(again), stored(first), 'the same identity and input is recognized')
+      expect(recalled(again) === true, 'a recognised receipt is marked recalled')
       for (const change of [{ operation: 'other-op' }, { operationKey: 'other-key' }]) {
         const next = committed(
           await storage.commit(commitRequest(materials, { identity: identity(change) })),
@@ -102,7 +116,7 @@ const SCENARIOS: readonly Scenario[] = [
       )
       same(
         conflict,
-        { kind: 'identity_conflict', identity: request.identity, existing: first },
+        { kind: 'identity_conflict', identity: request.identity, existing: stored(first) },
         'the same identity with another input conflicts',
       )
       const protocol1 = await storage.commit(
@@ -127,8 +141,8 @@ const SCENARIOS: readonly Scenario[] = [
       )
       const reordered: CommitRequestV2 = { ...request, commands: [...request.commands].reverse() }
       same(
-        await storage.commit(reordered),
-        first,
+        stored(await storage.commit(reordered)),
+        stored(first),
         'the order of commands does not change the digest',
       )
       const lossy = await storage.commit(
@@ -216,7 +230,12 @@ const SCENARIOS: readonly Scenario[] = [
       })
       const first = await storage.commit(request)
       expect(first.kind === 'rolled_back', 'the operation rolls back')
-      same(await storage.query(request.identity), first, 'query returns the original response')
+      expect(recalled(first) === false, 'the rollback that ran is not marked recalled')
+      same(
+        await storage.query(request.identity),
+        stored(first),
+        'query returns the original response',
+      )
       committed(
         await storage.commit(
           commitRequest(materials, {
@@ -228,10 +247,12 @@ const SCENARIOS: readonly Scenario[] = [
       )
       same(
         await storage.query(request.identity),
-        first,
+        stored(first),
         'a later state does not change the response',
       )
-      same(await storage.commit(request), first, 'asking again returns the original response')
+      const again = await storage.commit(request)
+      same(stored(again), stored(first), 'asking again returns the original response')
+      expect(recalled(again) === true, 'a recognised rollback is marked recalled')
     },
   },
   {
@@ -240,7 +261,7 @@ const SCENARIOS: readonly Scenario[] = [
     async run({ storage, materials }) {
       await registerSmall(storage, materials)
       const first = committed(await storage.commit(commitRequest(materials)))
-      same(await storage.query(identity()), first, 'a committed receipt is returned')
+      same(await storage.query(identity()), stored(first), 'a committed receipt is returned')
       const none: QueryResultV2 = await storage.query(identity({ operationKey: 'never' }))
       expect(
         none.kind === 'not_committed',
@@ -253,6 +274,63 @@ const SCENARIOS: readonly Scenario[] = [
         )
       const absent = await storage.query(absentIdentity())
       expect(absent.kind === 'unknown', `an absent domain is unknown, got ${absent.kind}`)
+    },
+  },
+  {
+    id: 'C24',
+    title: 'a commit that is never recalled keeps no receipt',
+    async run({ storage, materials }) {
+      await registerAll(storage, materials)
+      const all = { combinationVersion: 'all-v1' }
+      const never = identity({ operationKey: 'once', recall: 'never' })
+      const first = committed(
+        await storage.commit(commitRequest(materials, { ...all, identity: never })),
+      )
+      same(first.identity, never, 'the result carries the identity of the request')
+      same(
+        await storage.query(never),
+        { kind: 'not_recallable', identity: never },
+        'query does not recognize a commit that is never recalled',
+      )
+      const again = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: never,
+          commands: [command('session', { revision: 'changed' }), command('agent-journal')],
+        }),
+      )
+      expect(
+        again.kind === 'committed',
+        `the same identity with another input runs again, got ${kindOf(again)}`,
+      )
+      const recallable = await storage.query(identity({ operationKey: 'once' }))
+      expect(
+        recallable.kind === 'not_committed',
+        `the recallable identity with the same key has no receipt, got ${recallable.kind}`,
+      )
+      const stopped = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: identity({ operationKey: 'stopped', recall: 'never' }),
+          commands: [command('session'), command('probe', { mode: 'conflict' })],
+        }),
+      )
+      expect(stopped.kind === 'rolled_back', `a conflict reply rolls back, got ${kindOf(stopped)}`)
+      const stoppedQuery = await storage.query(identity({ operationKey: 'stopped' }))
+      expect(
+        stoppedQuery.kind === 'not_committed',
+        `a rollback that is never recalled keeps no receipt, got ${stoppedQuery.kind}`,
+      )
+      const other = await storage.commit(
+        commitRequest(materials, {
+          ...all,
+          identity: identity({ operationKey: 'other', recall: 'sometimes' as never }),
+        }),
+      )
+      expect(
+        kindOf(other) === 'rejected_before_accept/field_missing',
+        `an unknown recall value is refused, got ${kindOf(other)}`,
+      )
     },
   },
   {
@@ -404,7 +482,7 @@ const SCENARIOS: readonly Scenario[] = [
           'registration finds the domain occupied',
         )
       }
-      same(await storage.query(identity()), mine, 'the owner still recognizes its receipt')
+      same(await storage.query(identity()), stored(mine), 'the owner still recognizes its receipt')
       await registerSmall(storage, materials, TENANT_B, 'domain-b')
       const other = committed(
         await storage.commit(

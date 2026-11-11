@@ -4,7 +4,6 @@ import { succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import { boundedSubject } from '../src/conformance/conformance-bounded.ts'
 import {
-  DEFAULT_CAPACITY,
   DEFAULT_CONSUMER,
   DEFAULT_REQUEST,
   DEFAULT_SUPPLIER,
@@ -200,18 +199,16 @@ describe('the view of a subject that the checks use', () => {
   it('hands on the values that the subject gives, and invents none that it does not', () => {
     const plain = createScriptedConformanceSubject()
     const bare = boundedSubject(plain, WAIT)
-    for (const key of ['request', 'consumer', 'capacity']) expect(key in bare).toBe(false)
+    for (const key of ['request', 'consumer']) expect(key in bare).toBe(false)
     const given = boundedSubject(
       {
         ...plain,
         request: DEFAULT_REQUEST,
         consumer: DEFAULT_CONSUMER,
-        capacity: DEFAULT_CAPACITY,
       },
       WAIT,
     )
     expect(given.request).toEqual(DEFAULT_REQUEST)
     expect(given.consumer).toEqual(DEFAULT_CONSUMER)
-    expect(given.capacity).toEqual(DEFAULT_CAPACITY)
   })
 })

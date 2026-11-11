@@ -20,7 +20,7 @@
 | 项       | 内容                                                                                                                                                                                                            |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `inject` | `requestContext`、`contextHolderSources`（K-RQ）、`runtimeContextReaderEligibility`（K-RC）、`runtimeContext`（`{ consumer: 'model' }`）、`modelRequestPreparation`、`modelPreparationResources`（X-3，按键名） |
-| 配置     | `owner`（采用身份）、`resultCapacity`（三项十进制文本）、可选的 `materials`（正安全整数，默认 256）。不合的配置使加载失败                                                                                       |
+| 配置     | `owner`（采用身份）、可选的 `materials`（正安全整数，默认 256）。不合的配置使加载失败                                                                                       |
 | 提供     | `agentRequests`、`agentModelContext`                                                                                                                                                                            |
 | 事件     | 无                                                                                                                                                                                                              |
 

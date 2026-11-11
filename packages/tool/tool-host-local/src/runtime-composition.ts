@@ -19,7 +19,6 @@ import {
   type ToolInstanceHost,
   type ToolMessageContentBlock,
   type ToolClock,
-  type ToolOutputCustody,
   type ToolForwardSource,
   type ToolForwardBinding,
   type CallAccess,
@@ -29,7 +28,6 @@ import type {
   LocalExecutionEnvironmentInput,
   LocalEnvironmentPlanInput,
 } from './execution-environment.ts'
-import type { EnvironmentGuardedHostCommit } from './environment-state.ts'
 import type { LocalInstanceInput } from './instance-host.ts'
 import { createLocalOperationIdentities, type LocalInvocationSource } from './invocation-source.ts'
 import type { ConditionalLedgerCommit, ToolHostAccess } from './ledger-guards.ts'
@@ -38,14 +36,15 @@ import type { RuntimeRecords } from './runtime-records.ts'
 import { createAbsentToolPorts } from './absent-ports.ts'
 import type { LocalToolControlSubjectsInput } from './control-subject-adapter.ts'
 
-type Bindings = ToolBindings<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
+type Bindings = ToolBindings<unknown, ToolEnvironmentValue>
 export type RuntimeEnvironment = ToolEnvironment<unknown, ToolEnvironmentValue>
 export type LocalToolRuntimeInput = Readonly<{
-  store: ToolLedgerStore<ToolMessageContentBlock>
+  store: ToolLedgerStore
   /** Commits an acceptance together with the condition of its request policy verdict. */
-  conditionalCommit: ConditionalLedgerCommit<ToolMessageContentBlock>
-  custody: ToolOutputCustody<unknown>
+  conditionalCommit: ConditionalLedgerCommit
+  bodies: NonNullable<ToolLedgerPorts<unknown>['bodies']>
   content: ToolLedgerPorts<unknown>['content']
+  bodySchemas?: ToolLedgerPorts<unknown>['bodySchemas']
   sources: LocalInvocationSource<unknown, ToolMessageContentBlock>
   access: ToolHostAccess<unknown>
   subjects: RuntimeSourceRecovery
@@ -61,7 +60,6 @@ export type LocalToolRuntimeInput = Readonly<{
     plan: Omit<LocalEnvironmentPlanInput<unknown>, 'execution' | 'access'>
     naming: LocalExecutionEnvironmentInput<unknown>['naming']
     cleanup: LocalExecutionEnvironmentInput<unknown>['cleanup']
-    guarded: EnvironmentGuardedHostCommit
   }>
   capacity: number
   observersPerCall: number
@@ -74,6 +72,8 @@ export type RuntimeCompositionInput = LocalToolRuntimeInput &
     controlSubjects: ToolControlSubjects<unknown>
     resolveAccess: LocalInstanceInput<unknown>['resolveAccess']
   }>
+
+export type RuntimeCallPurpose = 'execute' | 'body-recovery'
 
 export const runtimeUnavailable = (dependency: string) =>
   Promise.resolve(
@@ -152,7 +152,10 @@ export function createRuntimeDependencies(
   stages: RuntimeStages,
   records: RuntimeRecords,
   host: () => ToolInstanceHost<unknown> | null,
-  admit: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0] | null) => boolean,
+  admit: (
+    wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0] | null,
+    purpose?: RuntimeCallPurpose,
+  ) => boolean,
   rejectAdmission: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) => void,
   knows: (wake: Parameters<ToolInstanceHost<unknown>['schedule']>[0]) => boolean,
 ): ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue> & {
@@ -182,7 +185,8 @@ export function createRuntimeDependencies(
             diagnostic: 'The original admission cannot be assigned to this executor.',
           },
         }
-      if (prior.records.some(row => row.kind === 'call')) return bound
+      const original = prior.records.find(row => row.kind === 'call')
+      if (original !== undefined) return bound
     }
     if (!admit(wake))
       return {
@@ -210,7 +214,6 @@ export function createRuntimeDependencies(
     authority: records.authority,
     clock: input.clock,
     resultPolicy: defaultResultPolicy,
-    custody: input.custody,
     decisions: absent.toolDecisions,
     resources: absent.toolResourceResponses,
     children: absent.toolChildren,
@@ -255,7 +258,7 @@ export function createRuntimeDependencies(
 }
 
 export type RuntimeSourceRecovery = Pick<
-  LocalToolControlSubjectsInput<unknown, ToolMessageContentBlock>,
+  LocalToolControlSubjectsInput<unknown>,
   'project' | 'resolveSessionWork'
 >
 

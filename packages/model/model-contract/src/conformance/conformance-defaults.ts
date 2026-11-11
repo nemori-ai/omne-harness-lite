@@ -1,14 +1,7 @@
 // The values that the suite sends to a provider when the subject gives none of its own. They are
 // data of the right shape and mean nothing to a real provider: a subject whose provider checks
 // them gives its own.
-import type {
-  Adoption,
-  ConsumerRef,
-  FixedModelRequest,
-  ProviderName,
-  ResultCapacity,
-  Supplier,
-} from '../index.ts'
+import type { Adoption, ConsumerRef, FixedModelRequest, ProviderName, Supplier } from '../index.ts'
 import { decodeProviderName } from '../provider-name.ts'
 
 const decoded = decodeProviderName('provider')
@@ -49,12 +42,6 @@ export const DEFAULT_CONSUMER: ConsumerRef = {
   work: 'work-1',
   position: 'position-1',
   purpose: 'purpose',
-}
-
-export const DEFAULT_CAPACITY: ResultCapacity = {
-  bytes: '1000',
-  blocks: '10',
-  attachmentBytes: '0',
 }
 
 /** The same request with another fixed source, so a provider that fixes inputs sees a difference. */

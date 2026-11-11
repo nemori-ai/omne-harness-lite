@@ -58,6 +58,7 @@ export type LocalModelConfig<P> = Readonly<{
   transportLimits: PiTransportLimits
   maxRetainedAttempts: number
   materialization: PiMaterializationOptions
+  requestDisclosure?: PiSendResourcesConfig['requestDisclosure']
   /**
    * Told before each retry of a send whose request bytes had not left (`transportLimits.connectRetry`),
    * with the call, the dispatch, which retry it is, the wait before it and why. A throw is dropped.
@@ -174,6 +175,9 @@ export function assembleOver<P, N extends ClosableNetwork>(
       routes: config.routes,
       limits: config.transportLimits,
       materialization: config.materialization,
+      ...(config.requestDisclosure === undefined
+        ? {}
+        : { requestDisclosure: config.requestDisclosure }),
       ...(config.onConnectRetry === undefined ? {} : { onConnectRetry: config.onConnectRetry }),
     })
     send = createModelSendBoundary<P>({

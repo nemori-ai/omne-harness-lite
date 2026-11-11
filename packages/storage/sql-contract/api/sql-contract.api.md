@@ -14,6 +14,7 @@
 - `CombinationProblem` · `types.d.ts`
 - `CombinationRegistrationV2` · `types.d.ts`
 - `CommitOptions` · `types.d.ts`
+- `CommitReceiptV2` · `types.d.ts`
 - `CommitRejectReason` · `types.d.ts`
 - `CommitRejectedV2` · `types.d.ts`
 - `CommitRequestV2` · `types.d.ts`
@@ -32,6 +33,7 @@
 - `MigrationDescriptor` · `types.d.ts`
 - `MigrationRef` · `types.d.ts`
 - `NotCommittedV2` · `types.d.ts`
+- `NotRecallableV2` · `types.d.ts`
 - `OperationIdentityV1` · `types.d.ts`
 - `ParticipantDescriptor` · `types.d.ts`
 - `ParticipatedEntry` · `types.d.ts`
@@ -119,6 +121,8 @@
 - `ReadPort` · `worker.d.ts`
 - `SqlCell` · `worker.d.ts`
 - `SqlValue` · `worker.d.ts`
+- `packText` · `text-pack.d.ts`
+- `unpackText` · `text-pack.d.ts`
 
 ## 声明文件 `canonical.d.ts`
 
@@ -142,6 +146,7 @@ import type { SqlStorage, StorageHost, TenantDomainLookup, TenantDomains } from 
 export declare abstract class StorageService extends Service implements SqlStorage {
     static readonly provide = "storage";
     constructor(ctx: Context);
+    abstract readonly database: SqlStorage['database'];
     abstract readonly registerCombination: SqlStorage['registerCombination'];
     abstract readonly commit: SqlStorage['commit'];
     abstract readonly query: SqlStorage['query'];
@@ -382,6 +387,13 @@ export type TenantDomainLookupVerdicts = Readonly<{
 export declare function runTenantDomainLookupConformance(fixture: () => TenantDomainLookupFixture | Promise<TenantDomainLookupFixture>): Promise<TenantDomainLookupVerdicts>;
 ```
 
+## 声明文件 `text-pack.d.ts`
+
+```ts
+export declare function packText(text: string): Uint8Array;
+export declare function unpackText(bytes: Uint8Array): string;
+```
+
 ## 声明文件 `types.d.ts`
 
 ```ts
@@ -405,6 +417,7 @@ export type SqlIdentity = Readonly<{
     operation: string;
     protocolVersion: ProtocolVersionV2;
     operationKey: string;
+    recall?: 'never';
 }>;
 export type FactCommandV2 = Readonly<{
     participant: string;
@@ -493,7 +506,10 @@ export type CommitRejectedV2 = Readonly<{
     reason: Exclude<CommitRejectReason, PreDecodeRejectReason>;
     diagnostic: StorageDiagnostic;
 }>;
-export type CommitResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2;
+export type CommitReceiptV2 = ReceiptV2 & Readonly<{
+    recalled: boolean;
+}>;
+export type CommitResultV2 = CommitReceiptV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2;
 export type NotCommittedV2 = Readonly<{
     kind: 'not_committed';
     identity: SqlIdentity;
@@ -505,7 +521,11 @@ export type NotCommittedV2 = Readonly<{
         operationNotQueued: true;
     }>;
 }>;
-export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2;
+export type NotRecallableV2 = Readonly<{
+    kind: 'not_recallable';
+    identity: SqlIdentity;
+}>;
+export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2 | NotRecallableV2;
 export type RegistrationKey = Readonly<{
     scope: StorageScope;
     transactionDomain: string;
@@ -563,6 +583,7 @@ export type ReadResult = Readonly<{
     diagnostic: StorageDiagnostic;
 }>;
 export interface SqlStorage {
+    readonly database: object;
     registerCombination(input: CombinationRegistrationV2): Promise<RegisterResultV2>;
     commit(input: CommitRequestV2, options?: CommitOptions): Promise<CommitResultV2>;
     query(identity: SqlIdentity): Promise<QueryResultV2>;
@@ -784,6 +805,7 @@ export {};
 
 ```ts
 import type { FactKey, JsonValue, ParticipatedReply } from './types.ts';
+export { packText, unpackText } from './text-pack.ts';
 export type SqlValue = null | boolean | number | bigint | string | Uint8Array;
 export type SqlCell = null | number | bigint | string | Uint8Array;
 export type QueryRows = Readonly<{

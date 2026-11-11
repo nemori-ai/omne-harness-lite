@@ -24,10 +24,7 @@ import {
   defaultResultPolicy,
   type ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
-import {
-  createMemoryToolEnvironment,
-  createMemoryToolOutputCustody,
-} from '@omne-harness/tool-contract/testing'
+import { createMemoryToolEnvironment } from '@omne-harness/tool-contract/testing'
 import {
   createLocalGrantVerifiers,
   createLocalInvocationSource,
@@ -55,7 +52,7 @@ const scope = fixedRequest().scope
 
 /** The real ledger with the production guards over a store that counts its reads and commits. */
 function assembly() {
-  const memory = createMemoryToolLedgerStore<ToolMessageContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   const counts = { reads: 0, commits: 0 }
   const store: typeof memory = {
     ...memory,
@@ -105,9 +102,49 @@ function assembly() {
     store,
     guards,
     createLocalToolClock(),
-    { resultPageBytes: 4_096, ledgerCommitAttempts: 4, queueCapacity: 16 },
     {
-      custody: createMemoryToolOutputCustody<P>(),
+      resultPageBytes: 4_096,
+      ledgerCommitAttempts: 4,
+      authorBufferBytes: 65_536,
+      authorBufferItems: 128,
+      queueCapacity: 16,
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+      },
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+        maxPageBytes: 65_536,
+        permitMs: 30_000,
+        clockSkewMs: 1_000,
+        orphanGraceMs: 60_000,
+        maxWriterMetadataBytes: 1_048_576,
+        jsonDocument: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 65_536,
+          maxMembers: 65_536,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+        jsonRecord: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 4096,
+          maxMembers: 4096,
+          maxStringLength: 65_536,
+          maxNumberLength: 64,
+        },
+      },
+    },
+    {
       releaseInspection: createMemoryToolEnvironment<P>(),
       content: null,
     },

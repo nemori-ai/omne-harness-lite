@@ -28,7 +28,6 @@ import {
   type ModelInstanceId,
   type ModelOperationId,
   type Observation,
-  type ResultCapacity,
   type ResultVersion,
   type Supplier,
 } from '@omne-harness/model-contract'
@@ -111,8 +110,6 @@ export const consumer: ConsumerRef = {
   purpose: 'purpose',
 }
 
-export const capacity: ResultCapacity = { bytes: '1000', blocks: '10', attachmentBytes: '0' }
-
 export const evidence = (label: string): DurableEvidence => ({
   owner: 'test',
   record: label,
@@ -139,7 +136,6 @@ export function admission(name: string, over: Partial<Admit<Principal>> = {}): A
     operation: operation(`admit-${name}`),
     request,
     consumer,
-    capacity,
     ...over,
   }
 }

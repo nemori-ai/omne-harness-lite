@@ -30,12 +30,11 @@ Model 的对象分三组。长期配置与请求值描述档案、固定请求�
 
 调用方 先以 judgeAdmit 判断 typed Access 和未知 payload，失败 field/reason 归 SPEC 的封闭输入判断。成功保留 P/tenant，同步固定独立 payload。
 
-调用方 受理 ModelCalls.admit（call、operation、固定请求、ConsumerRef、结果容量）
-    成功：返回原受理。原调用与容量同提交成立。受理不表示供应商已收到
+调用方 受理 ModelCalls.admit（call、operation、固定请求、ConsumerRef）
+    成功：返回原受理。原调用与它的份额名额同提交成立。受理不表示供应商已收到
     拒绝：denied(action='admit')（原工作资格失效，不披露原工作是否存在）
           invalid(field='consumer.owner')（该 owner 既无守卫声明也无免守卫声明）
           conflict（同 call 配不同固定采用）
-          capacity（调用永远放不下：容量大于整个租户份额、全局上界或单调用上界）
     暂时：unavailable（份额此刻被占满，或依赖不可用）。不受理；等待后以原 call 与原 operation 再受理
     未知：commit-unknown。用 inspect 按原 operation 查询，不换 call 再发
           只有权威未受理证明才得到 not-accepted，此后才可按原 operation 重新提交相同输入
@@ -191,7 +190,7 @@ ToolDeclaration 的说明由组装方形成。ModelToolPayloadAdapter 只把它�
 | ReadId | 一次真实完整结果读取及进度 | ACK 保护已开始读。闲置、撤权或宿主失联可明确结束 |
 | Handoff | processed 或 retained 的外部可核验事实 | 当前承接者取得的证据，不是 saved 布尔值 |
 | CustodyState | Model 仍保管，或已交接且清理有进度 | ACK 后不回滚，清理责任独立延续 |
-| RecoveryRecord | 原请求、容量、原发起主体的 ActorRef、原受理、策略决定、代次、未知操作与责任种类 | 恢复宿主读取的耐久事实。ActorRef 是可核验的原事实引用，不是秘密或授权 token |
+| RecoveryRecord | 原请求、原发起主体的 ActorRef、原受理、策略决定、代次、未知操作与责任种类 | 恢复宿主读取的耐久事实。ActorRef 是可核验的原事实引用，不是秘密或授权 token |
 
 ```mermaid
 classDiagram
@@ -267,10 +266,10 @@ classDiagram
 | 分类 | 内容 | 决定时点 |
 | --- | --- | --- |
 | 档案定义值 | 有序非空供应商、回退声明、含文本的输入模态集合与输出模态集合（成员取自文字、图片、语音）、上下文限制、限额、参数、表示与计量采用、重试策略采用 | 档案维护时校验，规则见 [SPEC 上游限制与提供上限](../SPEC.md#上游限制与提供上限)。修订产生新快照，不改原采用 |
-| 参数词表与容量 | temperature、top-p、max-output-tokens、stop 的取值范围。容量三字段为非负整数，bytes 与 blocks 必须为正 | 解析时检查范围，每次受理时校验 |
+| 参数词表 | temperature、top-p、max-output-tokens、stop 的取值范围 | 解析时检查范围，每次受理时校验 |
 | 受理时冻结的采用 | 供应商次序、凭据引用、参数采用（含解析后的默认值）、转换采用、源修订、ConsumerRef | 受理时冻结。恢复时不随当前档案、配置或供应商默认值改变 |
 | 受理时冻结的消费者 owner 声明 | 该调用适用的 `work` 与 `evidence`，见 [public-api](public-api.md#消费者-owner-的装配声明) | 受理点 C 冻结进受理事实，是提供者自己的耐久事实，不进 `CallState` 或 `RecoveryRecord` 的公开形状。S 点、策略点与 ACK 读冻结值，不读当前装配（[SPEC 参数与注入](../SPEC.md#342-参数与注入的裁定)） |
-| 每次操作参数 | principal、tenant、call、operation，以及各操作自己的输入：request、consumer、capacity、result、read、after 等 | 每次调用。受理、读取和 ACK 的 operation 分别固定，各自重试复用 |
+| 每次操作参数 | principal、tenant、call、operation，以及各操作自己的输入：request、consumer、result、read、after 等 | 每次调用。受理、读取和 ACK 的 operation 分别固定，各自重试复用 |
 | 装配声明 | 每个可受理 owner 的守卫参加者或免守卫声明，以及受信证据适配器。形状见 [public-api](public-api.md#消费者-owner-的装配声明) | 装配时。未声明的 owner 一律拒绝受理。受守卫 owner 以资格参加者协议闭合为前提，闭合前构造失败（[SPEC 资格](../SPEC.md#342-资格共同提交与实际发送)） |
 | 构造注入的依赖 | commands、send、retry、instances、clock 五项能力。ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送提供者注入。 | 构造时。缺席沿原失败协议报告：commands 不可用不能认成功，send 缺席不发，retry 不可用则以 policy-unavailable 收场 |
 | 提供者端口 | ModelProfileSource、ModelPreparationResources、ModelContentAuthority、ModelInputMeter、ModelTextTokenizer、ModelDiagnostics、ModelConverterCatalog | 装配时注入或提供。ModelConverterCatalog 装配时提供给消息转换，Model runtime 不永久依赖它。取得与释放按各自协议 |

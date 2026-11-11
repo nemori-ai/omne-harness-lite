@@ -16,22 +16,22 @@
 | 判读 | 正控看 `Model checking completed. No error has been found.`。负控看 `Invariant <名> is violated` 或 `Action property <名> is violated` 的名字是否就是配置点名的那条。活性负控只声明一条性质，看 `Temporal properties were violated`。退出码只作参考 |
 | 运行时间 | 2026-11-04（北京时间） |
 
-输入摘要：`Admission.tla` SHA-256 `d3ee9d6f43d5c384753b09eca02594dce2f7be708c00b7dd7570b48700425631`，`ResultPush.tla` SHA-256 `fafa320a305b6d4f43f9c25435622c734679d5135828a7ec150ced22447a6d19`。
+输入摘要：`Admission.tla` SHA-256 `c78bd98335fe926f0f55190a0ab6c802176e92c54b55edc23c6888385e26e2c0`，`ResultPush.tla` SHA-256 `fafa320a305b6d4f43f9c25435622c734679d5135828a7ec150ced22447a6d19`。
 
-常量：Admission 为 Share 10、Other 6、CapBig 5、CapSmall 3、MaxWrites 2、MaxUnknown 2。ResultPush 为 MaxRedeliveries 1、MaxAccounts 2、MaxPending 1、RefusalsInPlay TRUE；`push-wide` 为 2、3、2；`LiveSpec` 的配置 RefusalsInPlay 为 FALSE。
+常量：Admission 为 Share 2、MaxUnknown 2。ResultPush 为 MaxRedeliveries 1、MaxAccounts 2、MaxPending 1、RefusalsInPlay TRUE；`push-wide` 为 2、3、2；`LiveSpec` 的配置 RefusalsInPlay 为 FALSE。
 
 ## Admission
 
+本节是 2026-11-11 的重跑读数：份额从字节改为未确认结果的个数，模型删去了容量与截断的动作。这次在 macOS 上直接运行同一个 JAR，openjdk version `21.0.13.0.2` 2026-10-22，`-workers 1 -deadlock`，没有记录深度。上表的工具与参数描述 ResultPush 各行的那次运行。
+
 | 配置 | 期望 | 结论 | 生成 / 不同状态 | 深度 | 判读 |
 | --- | --- | --- | --- | --- | --- |
-| `admission` | 无反例 | 无反例 | 221 / 106 | 12 | 正控：六条不变量与 `RecordImmutable` |
-| `bad-recall-ignores-unknown-once` | `OneAcceptedPerWork` | 同名违反 | 357 / 175 | 9 | 命中：未决写期间 recall 答 not-accepted，调用方换 c2 受理，随后 c1 落地，两条记录 |
-| `bad-recall-ignores-unknown-authority` | `NotAcceptedIsAuthoritative` | 同名违反 | 231 / 110 | 8 | 命中 |
-| `bad-admit-upserts` | `RecordImmutable` | 动作性质违反 | 39 / 27 | 6 | 命中 |
-| `bad-capacity-ignored` | `CapacityHonest` | 同名违反 | 86 / 45 | 6 | 命中 |
-| `bad-truncate-capacity` | `CapacityHonest` | 同名违反 | 69 / 40 | 6 | 命中 |
-| `bad-truncate-write` | `NoSilentTruncation` | 同名违反 | 165 / 84 | 8 | 命中 |
-| `bad-tenant-leak` | `TenantIsolation` | 同名违反 | 19 / 18 | 4 | 命中 |
+| `admission` | 无反例 | 无反例 | 180 / 78 | - | 正控：五条不变量与 `RecordImmutable` |
+| `bad-recall-ignores-unknown-once` | `OneAcceptedPerWork` | 同名违反 | 131 / 63 | - | 命中：未决写期间 recall 答 not-accepted，调用方换 c2 受理，随后 c1 落地，两条记录 |
+| `bad-recall-ignores-unknown-authority` | `NotAcceptedIsAuthoritative` | 同名违反 | 18 / 14 | - | 命中 |
+| `bad-admit-upserts` | `RecordImmutable` | 动作性质违反 | 25 / 15 | - | 命中 |
+| `bad-share-ignored` | `ShareHonest` | 同名违反 | 8 / 7 | - | 命中：份额已满仍受理 |
+| `bad-tenant-leak` | `TenantIsolation` | 同名违反 | 11 / 10 | - | 命中 |
 
 ## ResultPush
 

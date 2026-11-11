@@ -69,8 +69,6 @@ export type AgentRequestsOptions<P> = Readonly<{
   conversions: ConversionResultSource<P>
   /** The Model request preparation that fixes a candidate or a summary step. */
   model: ModelRequestPreparation<P>
-  /** The result capacity that a ready preparation carries. */
-  resultCapacity: M.ResultCapacity
   tools: ToolsSource<P>
   stepResults: StepResultSource<P>
   /**
@@ -109,7 +107,7 @@ const settledAll = (settlements: readonly SourceSettlement[]): SourceSettlement 
 }
 
 export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentRequests<P> {
-  const { materials, parts, requestContext, model, resultCapacity } = options
+  const { materials, parts, requestContext, model } = options
   const definitions: DefinitionSource<P> = options.definitions ?? absentDefinitions
   const measurer = createContextMeasurer(options.measure)
   const owner: Adoption = materials.owner
@@ -296,7 +294,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
         ...shared,
         kind: 'ready',
         request: request.ok,
-        capacity: resultCapacity,
         // The fixed facts at this moment: the candidate's own coverage, the window of the profile
         // that fixed it and the forecast of its budget report (RQ-14). Agent keeps the value.
         state: encodeFixedRequestRecord({
@@ -567,7 +564,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
         ),
         kind: 'ready',
         request: request.ok,
-        capacity: resultCapacity,
         budget: materials.mint('budget', entry.place, step.assembled),
         recipient: input.selection.recipient,
         coverage: evidence,

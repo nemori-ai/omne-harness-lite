@@ -10,7 +10,7 @@ import {
   alice,
   call,
   callRef,
-  capacity,
+  consumer,
   dispatch,
   evidence,
   failureOf,
@@ -537,7 +537,7 @@ describe('recognising an operation', () => {
     const { calls } = scripted.provider.runtime
     await calls.admit(admission('a'))
     expect(
-      failureOf(await calls.admit(admission('a', { capacity: { ...capacity, bytes: '999' } }))),
+      failureOf(await calls.admit(admission('a', { consumer: { ...consumer, purpose: 'other' } }))),
     ).toEqual({ kind: 'conflict', operation: operation('admit-a'), revision: '1' })
   })
 
@@ -546,11 +546,12 @@ describe('recognising an operation', () => {
     const { calls } = scripted.provider.runtime
     await calls.admit(admission('a'))
     const reordered = {
-      bytes: capacity.bytes,
-      attachmentBytes: capacity.attachmentBytes,
-      blocks: capacity.blocks,
+      purpose: consumer.purpose,
+      position: consumer.position,
+      work: consumer.work,
+      owner: consumer.owner,
     }
-    expect(must(await calls.admit(admission('a', { capacity: reordered }))).recovered).toBe(true)
+    expect(must(await calls.admit(admission('a', { consumer: reordered }))).recovered).toBe(true)
   })
 
   it('reports the revision the call has now when an admission conflicts', async () => {
@@ -562,7 +563,7 @@ describe('recognising an operation', () => {
       dispatch: dispatch('d'),
       firstContent: 'none-proven',
     })
-    const other = admission('a', { capacity: { ...capacity, bytes: '999' } })
+    const other = admission('a', { consumer: { ...consumer, purpose: 'other' } })
     expect(failureOf(await calls.admit(other))).toEqual({
       kind: 'conflict',
       operation: operation('admit-a'),

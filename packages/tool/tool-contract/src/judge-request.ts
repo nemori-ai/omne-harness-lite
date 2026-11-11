@@ -43,19 +43,22 @@ const nonNegativeSafeInteger: Check<number> = (value, at) => {
   return Number.isSafeInteger(value) && value >= 0 ? succeed(value) : reject(at, 'range')
 }
 
-const availability: Check<ToolAvailability> = variant('kind', {
-  available: record({
-    kind: literal('available'),
-    definition: toolDefinition,
-    executor: adoption,
-    layer: sourceLayer,
-  }),
-  'known-unavailable': record({
-    kind: literal('known-unavailable'),
-    definition: toolDefinition,
-    reason: nonBlank,
-  }),
-})
+function availabilityFor<T>(definition: Check<T>) {
+  return variant('kind', {
+    available: record({
+      kind: literal('available'),
+      definition,
+      executor: adoption,
+      layer: sourceLayer,
+    }),
+    'known-unavailable': record({
+      kind: literal('known-unavailable'),
+      definition,
+      reason: nonBlank,
+    }),
+  })
+}
+const availability: Check<ToolAvailability> = availabilityFor(toolDefinition)
 
 const invocation: Check<ToolInvocation> = record({
   kind: literal('direct', 'programmatic'),
@@ -105,8 +108,13 @@ const callerFields = {
  * The command of a request selects one operation of the definition (P13). A function tool takes
  * no command. A multi-command tool needs a named command that it declares.
  */
+type RequestDefinition = Pick<ToolDefinition, 'declarations'> &
+  (
+    | Readonly<{ kind: 'function' }>
+    | Readonly<{ kind: 'commands'; commands: readonly Readonly<{ name: string }>[] }>
+  )
 function commandRule(
-  definition: ToolDefinition,
+  definition: RequestDefinition,
   command: string | null,
   at: string,
 ): ShapeRejection | undefined {
@@ -118,7 +126,11 @@ function commandRule(
   return known ? undefined : { field, reason: 'unknown-command' }
 }
 
-function requestRule(request: ToolInvokeRequest, at: string): ShapeRejection | undefined {
+function requestRule(
+  request: Omit<ToolInvokeRequest, 'availability'> &
+    Readonly<{ availability: Readonly<{ definition: RequestDefinition }> }>,
+  at: string,
+): ShapeRejection | undefined {
   const declared = request.availability.definition.declarations.environment
   const fixed = request.environment
   const matches =

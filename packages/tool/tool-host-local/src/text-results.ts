@@ -16,7 +16,7 @@ const LOGICAL_BLOCK_ID = 'logical'
  * model, with no data, no original and no attachment. A value that the policy rejects is a
  * refusal that names the rule; the ledger turns it into `unavailable` (`result-factory`).
  */
-export function createLocalTextResults(): TextResultFactory<ToolMessageContentBlock> {
+export function createLocalTextResults() {
   return Object.freeze({
     text(value: string) {
       const judged = defaultResultPolicy.judge({
@@ -33,5 +33,5 @@ export function createLocalTextResults(): TextResultFactory<ToolMessageContentBl
         attachments: [],
       } as const)
     },
-  })
+  } satisfies TextResultFactory<ToolMessageContentBlock>)
 }

@@ -315,7 +315,7 @@ describe('the exact texts of a call', () => {
   it('writes the menu: the call form, then one line per command', () => {
     const legend = 'In signatures, ? marks an optional field and a|b lists the allowed values.'
     expect(commandMenu(wrapped)).toBe(
-      `Call with {"command": <name>, "params": {…fields}}. ${legend}\nread {path?} - Read a file.\nshell {…} - Run a command.`,
+      `Call with {"command": <name>, "params": {…fields}}. ${legend}\nread {path?} - Read a file. Returns output@1. Model body: text. Program data: none.\nshell {…} - Run a command. Returns ToolResult. Model body: text. Program data: none.`,
     )
     expect(commandMenu(flat).split('\n')[0]).toBe(
       `Call with {"command": <name>, …fields}. ${legend}`,
@@ -338,7 +338,15 @@ describe('the exact texts of a call', () => {
     // A name that is no command reads the guide of the tool.
     expect(commandGuide(guided, 'nope')).toBe(commandGuide(guided))
     expect(commandGuide(guided, 'shell')).toBe(
-      'Usage: files {"command": "shell", "params": {…}}\nRun a command.\nPaths are absolute.',
+      [
+        'Usage: files {"command": "shell", "params": {…}}',
+        'Run a command.',
+        'Returns ToolResult. Model body: text. Program data: none.',
+        'Return contract: {"owner":"test-owner","name":"ToolResult","revision":"1","digest":"sha256:ToolResult"}',
+        'Body codec: {"owner":"test-owner","name":"utf8","revision":"1","digest":"sha256:utf8"}',
+        'Offloading policy: {"inline":{"kind":"system"},"retention":{"kind":"system"}}',
+        'Paths are absolute.',
+      ].join('\n'),
     )
     const read = commandGuide(guided, 'read').split('\n')
     expect(read.slice(0, 2)).toEqual([

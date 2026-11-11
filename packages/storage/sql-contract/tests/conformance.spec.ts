@@ -23,6 +23,7 @@ function subjectWith(wrap?: Wrap, controlOverride?: 'noop-close'): SqlConformanc
       const { storage, control } = await createMemorySqlStorage({ materials })
       if (wrap === undefined) return { storage, control }
       const wrapped: SqlStorage = {
+        database: storage.database,
         registerCombination: input => storage.registerCombination(input),
         commit: (input, options) => storage.commit(input, options),
         query: input => storage.query(input),

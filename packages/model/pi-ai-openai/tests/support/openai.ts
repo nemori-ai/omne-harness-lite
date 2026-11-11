@@ -56,7 +56,6 @@ afterAll(async () => {
 export const CONFIG: OpenAiFamilyConfig = {
   tokenizer: openAiTokenizerResources(),
   executor: EXECUTOR,
-  maxSerializedBytes: 4 * 1024 * 1024,
   limits: {
     toolArguments: {
       maxBytes: 65_536,

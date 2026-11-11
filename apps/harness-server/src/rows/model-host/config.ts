@@ -13,7 +13,7 @@ export const modelHostConfig = z.strictObject({
     concurrencyLimit: count(1),
     wakeCapacity: count(1),
     scanBatchSize: count(1),
-    scanIntervalMs: count(0),
+    scanIntervalMs: count(1),
   }),
   /** `ModelConfiguration` of `@omne-harness/model`. */
   runtime: z.strictObject({

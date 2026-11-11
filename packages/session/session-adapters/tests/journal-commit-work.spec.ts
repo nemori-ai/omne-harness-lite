@@ -109,6 +109,7 @@ describe('a Session reply with a result the Journal cannot decode', () => {
     const s = await sqlScene('undecodable-result')
     try {
       const wrapped: SqlStorage = {
+        database: s.storage.database,
         registerCombination: input => s.storage.registerCombination(input),
         query: identity => s.storage.query(identity),
         read: (request, options) => s.storage.read(request, options),

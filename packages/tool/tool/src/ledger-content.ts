@@ -4,10 +4,10 @@ import {
   type Adoption,
   type Attachment,
   type ContentPage,
-  type RawOutput,
   type Reply,
   type ToolFailure,
   type ToolResultVersion,
+  type ToolResult,
 } from '@omne-harness/tool-contract'
 import {
   decodeToolResultVersion,
@@ -17,7 +17,9 @@ import { invalid, judgeCallInput, type CallInput } from './boundary.ts'
 import type { ToolLedgerAction } from './ledger-guards.ts'
 import type { Snapshot } from './ledger-decider.ts'
 import { resultRecord } from './ledger-reads.ts'
+
 import type { ResultRecord } from './ledger-store.ts'
+import type { BodyReadInput } from './ledger-body-reads.ts'
 
 type ResultInput<P> = CallInput<P> & Readonly<{ result: ToolResultVersion }>
 type ContentInput<P> = Parameters<ToolContentReader<P>['read']>[0]
@@ -77,12 +79,9 @@ function contentInput<P>(input: ContentInput<P>): Outcome<ContentInput<P>, ToolF
 }
 
 function association<B extends ContentBlock>(
-  record: ResultRecord<B>,
   attachment: Attachment,
-): Outcome<Readonly<{ raw: boolean }>, ToolFailure> {
-  const raw = record.custody.kind === 'execution' ? record.custody.raw.content : null
-  const exactRaw = raw !== null && sameAttachment(raw, attachment)
-  const value = record.value
+  value: ToolResult<B>,
+): Outcome<void, ToolFailure> {
   const refs = [
     ...value.attachments,
     ...value.content.flatMap(block => ('ref' in block ? [block.ref] : [])),
@@ -93,11 +92,9 @@ function association<B extends ContentBlock>(
       ...value.original.summary.flatMap(block => ('ref' in block ? [block.ref] : [])),
     )
   }
-  if (!exactRaw && !refs.some(ref => sameAttachment(ref, attachment)))
-    return invalid('attachment', 'not-in-result')
-  return succeed({
-    raw: raw !== null && raw.storage === attachment.storage && raw.key === attachment.key,
-  })
+  return refs.some(ref => sameAttachment(ref, attachment))
+    ? succeed(undefined)
+    : invalid('attachment', 'not-in-result')
 }
 
 function providerFailure(reason: string): Outcome<never, ToolFailure> {
@@ -142,12 +139,16 @@ export function createLedgerContent<P, B extends ContentBlock>(
     adoption: Adoption
     provider: Pick<ToolContentReader<P>, 'read'> | null
     authorize(input: CallInput<P>, action: ToolLedgerAction): Reply<void>
-    load(input: CallInput<P>): Reply<Snapshot<B>>
+    load(input: CallInput<P>): Reply<Snapshot>
+    resultValue(input: CallInput<P>, record: ResultRecord): Reply<ToolResult<B>>
+    bodyBytes(input: BodyReadInput<P>): Reply<ContentPage>
   }>,
 ): ToolContentReader<P> {
   const locate = async (input: ResultInput<P>) => {
     const snapshot = await ports.load(input)
-    return 'failure' in snapshot ? snapshot : resultRecord(snapshot.ok, input.result)
+    if ('failure' in snapshot) return snapshot
+    const record = resultRecord(snapshot.ok, input.result)
+    return 'failure' in record ? record : succeed({ record: record.ok })
   }
   return Object.freeze<ToolContentReader<P>>({
     read: async input => {
@@ -158,13 +159,13 @@ export function createLedgerContent<P, B extends ContentBlock>(
       if ('failure' in allowed) return allowed
       const before = await locate(value)
       if ('failure' in before) return before
-      const linked = association(before.ok, value.attachment)
+      const original = before.ok.record.value.original
+      if (original.kind === 'offloaded' && sameAttachment(original.source, value.attachment))
+        return ports.bodyBytes({ ...value, bodyId: original.bodyId })
+      const result = await ports.resultValue(value, before.ok.record)
+      if ('failure' in result) return result
+      const linked = association(value.attachment, result.ok)
       if ('failure' in linked) return linked
-      const permitted = await ports.authorize(
-        value,
-        linked.ok.raw ? 'read-raw-content' : 'read-content',
-      )
-      if ('failure' in permitted) return permitted
       if (ports.provider === null)
         return fail({
           kind: 'unsupported',
@@ -181,25 +182,12 @@ export function createLedgerContent<P, B extends ContentBlock>(
       if ('failure' in candidate) return candidate
       const after = await locate(value)
       if ('failure' in after) return after
-      const stillLinked = association(after.ok, value.attachment)
+      const currentValue = await ports.resultValue(value, after.ok.record)
+      if ('failure' in currentValue) return currentValue
+      const stillLinked = association(value.attachment, currentValue.ok)
       if ('failure' in stillLinked) return stillLinked
-      const current = await ports.authorize(
-        value,
-        stillLinked.ok.raw ? 'read-raw-content' : 'read-content',
-      )
+      const current = await ports.authorize(value, 'read-content')
       return 'failure' in current ? current : candidate
-    },
-    raw: async input => {
-      const fixed = fixResultInput<P>(input, 'read-raw')
-      if ('failure' in fixed) return fixed
-      const allowed = await ports.authorize(fixed.ok, 'read-raw')
-      if ('failure' in allowed) return allowed
-      const record = await locate(fixed.ok)
-      if ('failure' in record) return record
-      if (record.ok.custody.kind !== 'execution') return invalid('result', 'no-raw-output')
-      const raw: RawOutput = structuredClone(record.ok.custody.raw)
-      const current = await ports.authorize(fixed.ok, 'read-raw')
-      return 'failure' in current ? current : succeed(raw)
     },
   })
 }

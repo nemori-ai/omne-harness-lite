@@ -10,7 +10,7 @@ import {
   RequestPreparationService,
   agentAdoptionsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
-import type { ModelPreparationResources, ResultCapacity } from '@omne-harness/model-contract'
+import type { ModelPreparationResources } from '@omne-harness/model-contract'
 import { modelRequestPreparationKey } from '@omne-harness/model-cordis-contract/cordis'
 import { fail } from '@omne-harness/operation-result'
 import { createAbsentConversionResults } from '@omne-harness/request-context'
@@ -40,8 +40,6 @@ import { absentStepResults, definitionSourceOf, unavailable } from './translate.
 export const MODEL_PREPARATION_RESOURCES = 'modelPreparationResources'
 
 const ADOPTION_FIELDS = ['owner', 'name', 'revision', 'digest'] as const
-const CAPACITY_FIELDS = ['bytes', 'blocks', 'attachmentBytes'] as const
-const DECIMAL = /^(0|[1-9][0-9]*)$/u
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -55,16 +53,6 @@ function isAdoption(value: unknown): value is Adoption {
     isRecord(value) &&
     hasExactly(value, ADOPTION_FIELDS) &&
     ADOPTION_FIELDS.every(name => typeof value[name] === 'string')
-  )
-}
-function isCapacity(value: unknown): value is ResultCapacity {
-  return (
-    isRecord(value) &&
-    hasExactly(value, CAPACITY_FIELDS) &&
-    CAPACITY_FIELDS.every(name => {
-      const member = value[name]
-      return typeof member === 'string' && DECIMAL.test(member)
-    })
   )
 }
 
@@ -113,30 +101,26 @@ export const DEFAULT_MATERIAL_CAPACITY = 256
 
 /**
  * The configuration of `AgentContextProvider`: the adoption identity that owns the registrations
- * and the evidence, the result capacity that a ready preparation carries, and the capacity of
- * each material table.
+ * and the evidence, and the capacity of each material table.
  */
 export type AgentContextConfig = Readonly<{
   owner: Adoption
-  resultCapacity: ResultCapacity
   materials?: number
 }>
 
 const decodeContextConfig: Decoder<AgentContextConfig> = (value, path) => {
   const fail = (message: string) => ({ ok: false as const, issues: [{ path, message }] })
   if (!isRecord(value)) return fail('The plugin configuration must be an object')
-  const { owner, resultCapacity, materials } = value
-  const known = ['owner', 'resultCapacity', 'materials']
+  const { owner, materials } = value
+  const known = ['owner', 'materials']
   if (Object.keys(value).some(name => !known.includes(name)))
-    return fail('The plugin configuration has the fields owner, resultCapacity and materials')
+    return fail('The plugin configuration has the fields owner and materials')
   if (!isAdoption(owner))
     return fail('owner must be an adoption: owner, name, revision and digest, all text')
-  if (!isCapacity(resultCapacity))
-    return fail('resultCapacity must give bytes, blocks and attachmentBytes as decimal text')
-  if (materials === undefined) return { ok: true, value: { owner, resultCapacity } }
+  if (materials === undefined) return { ok: true, value: { owner } }
   if (typeof materials !== 'number' || !Number.isSafeInteger(materials) || materials < 1)
     return fail('materials must be a positive safe integer')
-  return { ok: true, value: { owner, resultCapacity, materials } }
+  return { ok: true, value: { owner, materials } }
 }
 
 /** Provides agentModelContext in the fiber of the provider of agentRequests. */
@@ -204,7 +188,6 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         preparation,
         conversions: createAbsentConversionResults(),
         model: ctx.modelRequestPreparation,
-        resultCapacity: config.resultCapacity,
         // The sixth group: the resident bindings of the conditions, read through the tool lookup.
         tools: toolsSourceOf(toolLookup),
         stepResults: absentStepResults,

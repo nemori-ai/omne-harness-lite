@@ -43,9 +43,6 @@ for (const target of [1024, 128]) {
         expect(await f.provider.runtime.consumption.readNext(nextInput)).toEqual({ ok: next })
         if (next.kind !== 'reading') throw new Error('read ended prematurely')
         expect(next.page.settlement).toEqual(settlement)
-        expect(Buffer.byteLength(JSON.stringify(next.page))).toBeLessThanOrEqual(
-          Number(f.admit.capacity.bytes),
-        )
         parts.push(...next.page.parts)
         after = next.page.next
       }

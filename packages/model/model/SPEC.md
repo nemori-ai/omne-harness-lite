@@ -10,7 +10,6 @@
 
 主体分类、异步资格捕获、读前与读后复核由装配兑现。核心只向注入的权威询问相应动作，不根据主体形状自行放行。动作分离的回归在 [memory-dispatch.spec.ts](tests/memory-dispatch.spec.ts)，其中同一份有效迟到账目在只读资格下拒绝，在写资格下可保存。
 
-
 ## 独立执行
 
 独立函数 `executeModel` 执行一次供应商请求，不重试、不保管、不 ACK。其 signal 请求该次传输停止，返回事实仍须区分请求取消与真实停止。托管模式的观察 signal 不传给它。托管模式只有原调用的有效控制可以请求传输停止。
@@ -65,11 +64,11 @@ createModelRuntime 的构造形状以 [runtime.ts](src/runtime.ts) 为唯一声�
 
 retryBackoffMs 是本实现的默认退避；次数、接收方及首内容边界沿共同重试协议。
 
-配置不设未经测量的生产默认值。发行装配必须显式提供全部字段并注明来源，策略默认仍严格采用 SPEC 的供应商顺序与次数规则。缺配置是加载失败，不是隐式无界队列。输出队列满时背压，观察者落后时结束该观察并允许快照重连；不能因慢观察者无限保存重复快照。resultPageTargetBytes 是完整结果项的组页目标，超目标单项独页，不分割、截断或转换类型。整个 ResultPage 的规范 UTF-8 JSON 字节数不超过原容量 C，消费者须能接收接近 C 的单页。已有媒体引用保持原资格，不提供任意 text/tool_call/partial 附件化协议。
+配置不设未经测量的生产默认值。发行装配必须显式提供全部字段并注明来源，策略默认仍严格采用 SPEC 的供应商顺序与次数规则。缺配置是加载失败，不是隐式无界队列。输出队列满时背压，观察者落后时结束该观察并允许快照重连；不能因慢观察者无限保存重复快照。resultPageTargetBytes 是完整结果项的组页目标，超目标单项独页，不分割、截断或转换类型。所以消费者不能把目标当作硬接收上限。已有媒体引用保持原资格，不提供任意 text/tool_call/partial 附件化协议。
 
 outputBatchBytes 按事实 JSON 的 UTF-8 逻辑字节数触发持久输出批次。outputBatchDelayMs=0 时，收到一条事实后先保存，再读取下一条。正数延迟从首事实开始计时，允许跨片聚合。字节阈值或计时到期请求保存，终止或 EOF 立即闭合批次。已经挂起的 next 仍属原窗口，完成后将整批保存，不把它追溯划入后继窗口。只有前批保存与后继开窗均确认后才开始后继读取。
 
-批延迟是安全读取边界上的软触发，不保证最大可见延迟。挂起读取持续沉默时，已收前缀也可能一直未保存展示。单条事实可超过字节目标，Commands 仍按原调用容量接纳或拒绝，不截断事实。未确认批次不向观察者发布，首内容窗口与游标仍沿[共同协议](../model-contract/SPEC.md#展示诊断与实施证据)。
+批延迟是安全读取边界上的软触发，不保证最大可见延迟。挂起读取持续沉默时，已收前缀也可能一直未保存展示。单条事实可超过字节目标，Commands 完整接纳它，不截断事实。未确认批次不向观察者发布，首内容窗口与游标仍沿[共同协议](../model-contract/SPEC.md#展示诊断与实施证据)。
 
 ## 实现与验证
 
@@ -143,14 +142,15 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 
 未实现操作的 diagnostic 为 `managed-runtime-not-implemented operation=<操作> stage=<阶段>`，dependency 为 model-runtime。操作和阶段取固定字面量，不含请求、身份或秘密。诊断供人阅读，不是解析协议。每次未实现操作返回独立的回复与 failure 对象。
 
-独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。prepareDispatch 把固定请求的消息身份序列抄进发出记录的 `messages`；`dispatches` 返回它，清理释放请求材料时保留它。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和总预留从原责任派生，容量为整个装配共用的有限上界。
+独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。prepareDispatch 把固定请求的消息身份序列抄进发出记录的 `messages`；`dispatches` 返回它，清理释放请求材料时保留它。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和持有个数从原责任派生，份额为整个装配共用的有限上界。
 
-<a id="共享归约核心"></a>**共享归约核心。** 22 个方法的规则在 [src/commands/](src/commands/index.ts)，内存实现与耐久实现共用同一份。这是[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446) MD-03 决定 D3 第 2 条的选项 A。`createModelCommandsCore(options, storage)` 构造核心：构造时校验限额与 owner 声明，校验失败时抛出。`modelCommands(core)` 给出完整的 `ModelCommands`。两个实现的边界如下：
+<a id="共享归约核心"></a>**共享归约核心。** 23 个方法的规则在 [src/commands/](src/commands/index.ts)，内存实现与耐久实现共用同一份。这是[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446) MD-03 决定 D3 第 2 条的选项 A。`createModelCommandsCore(options, storage)` 构造核心：构造时校验限额与 owner 声明，校验失败时抛出。`modelCommands(core)` 给出完整的 `ModelCommands`。两个实现的边界如下：
 
-- 核心拥有每个方法的检查次序、调用文档的变化、回执与认回、待决写的阻挡、单调用容量、流事实归约、分页、读关系和发送绑定。核心只经端口读写，不做 I/O，也不持有进程外的状态。
-- 存储实现 [ModelCommandStorage](src/commands/storage.ts)：`run` 一次只运行一个尝试；`documents` 读一个租户的调用与 operation 绑定；`reserved` 给出容量汇总；`commit` 在所读调用仍为当前值时写入调用并绑定 operation，返回 `committed` 或 `unknown`；`publish` 只用于读关系的进度；可选的 `pending(tenant, after, limit)` 由存储自己分页选出待恢复调用（`PendingPage`）。存储给出 `pending` 时，`scanPending` 在同样的资格与 limit 检查之后直接调用它，不经 `run`。
-- 汇总范围由存储决定。内存存储汇总整个装配，`limits.capacity` 是整个装配共用的上界。
-- 受理新调用时，核心按 `limits.capacity` 与 `reserved` 的汇总判断份额。调用容量任一项大于 `limits.capacity` 时，这个调用永远放不下，核心答 `capacity`。调用本身放得下、而汇总加上它超过份额时，份额此刻被占满，核心答 `unavailable`，依赖名 `model-capacity`，诊断写明份额已满（写法同 [commands/value.ts](src/commands/value.ts) 的 `unavailable(dependency, diagnostic)`）。SQL 存储在提交时复核份额、发现此刻被占满时答同一个依赖名。规则归 model-contract 的[按租户的串行区与公平](../model-contract/SPEC.md#按租户的串行区与公平)。
+- 核心拥有每个方法的检查次序、调用文档的变化、回执与认回、待决写的阻挡、流事实归约、分页、读关系和发送绑定。核心只经端口读写，不做 I/O，也不持有进程外的状态。
+- 存储实现 [ModelCommandStorage](src/commands/storage.ts)：`run` 一次只运行一个尝试；`documents` 读一个租户的调用与 operation 绑定；`held` 给出持有结果的调用个数；`commit` 在所读调用仍为当前值时写入调用并绑定 operation，返回 `committed` 或 `unknown`；受理的写入另带 `body`，即完整的固定请求，存储须使调用与它的完整请求一起成立；`readBody(tenant, call)` 读回这份请求，调用不存在或请求材料已释放时答空；`publish` 只用于读关系的进度；可选的 `pending(tenant, after, limit)` 由存储自己分页选出待恢复调用（`PendingPage`）。存储给出 `pending` 时，`scanPending` 在同样的资格与 limit 检查之后直接调用它，不经 `run`。
+- 调用文档只保存请求头（`FixedRequestHead`）。核心的规则只读请求头与请求摘要，不读正文，所以受理之后的每次写入与请求大小无关。`loadRequest` 先按 `loadRecovery` 的资格读调用，再经 `readBody` 取完整请求；请求材料已释放时答 invalid(call, recovery-material-released)。driver 在 `prepareDispatch` 成立之后调用 `loadRequest`，把完整请求交给发送边界。
+- 计数范围由存储决定。内存存储计整个装配，`limits.unacknowledgedResults` 是整个装配共用的上界。
+- 受理新调用时，核心按 `limits.unacknowledgedResults` 与 `held` 的个数判断份额。每个已受理、请求材料尚未释放的调用占一个名额；ACK 与清理完成后材料释放，名额归还。份额已满时核心答 `unavailable`，依赖名 `model-capacity`，诊断写明份额已满（写法同 [commands/value.ts](src/commands/value.ts) 的 `unavailable(dependency, diagnostic)`）。SQL 存储在提交时复核份额、发现此刻被占满时答同一个依赖名。份额不按字节计，所以没有“这个调用永远放不下”的拒绝。规则归 model-contract 的[按租户的串行区与公平](../model-contract/SPEC.md#按租户的串行区与公平)。
 - 内存存储 [testing/state.ts](src/testing/state.ts) 只保留同步围栏、内存文档、注入未知与 reveal、测试控制和发送协调器。
 
 核心与端口经子路径 `@omne-harness/model/commands` 导出：`createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS`、`hasRecoveryWork` 与端口类型。根入口不导出它们，根入口只放运行面；子路径给耐久存储这类提供者装配核心，不是消费者接口。核心用到的规范编码、摘要与身份铸造在 [commands/value.ts](src/commands/value.ts)，[testing/value.ts](src/testing/value.ts) 只重新导出它们，所以子路径的导入图不经 testing，产品代码的 `no-testing-import` 检查也不受影响。testing 入口仍转导核心，供内存实现的测试使用。
@@ -167,13 +167,11 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 
 `hasRecoveryWork(call, pending?)` 回答一份调用文档是否还有待恢复工作：`pending` 是该调用仍为 `unknown` 的 operation，缺省为空。它与 `scanPending` 选调用用的是同一条规则，所以自己选待恢复调用的存储问同一个问题，不另写一份规则。用例固定两者的一致。
 
-已知限制：内存 Commands 把每次确认的 Snapshot 计入调用容量。长回复即使分批保存，占用也随确认次数持续增长。耐久 Commands 须规定自己的快照与容量策略，这项工作归[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446)阶段 7.2。
-
 发送边界在准备前复制 execution、request、supplier、consumer 和 initiator 的值，后续异步步骤、计数和关闭使用同一份需求。合法 TenantId 与不透明 P 保留原身份，AbortSignal 保留原取消语义。调用者改写外层字段或嵌套值不改变本次发送；实际 start 仍重核当前资格、代次与控制。请求参数的统一校验覆盖 parameters、parameterAdoptions.applied 和显式 origin.requested。已知非法参数沿原结果通道拒绝，不进入摘要或消耗 unknown 注入；已有 operation 的异输入仍按原绑定冲突。retry 的决定认回也核对原请求，不重复消费决定。请求拥有的 suppliers、parameters、system、messages、tools、parameterAdoptions 及三个参数承载位置中的 stop 都要求数组无空位，并保留各自的元素规则。合法空序列仍允许，suppliers 与 stop 保持非空要求。内部规范编码独立拒绝空位，不将其编码为合法空数组。
 
-内存分页以 resultPageParts 限项数、resultPageTargetBytes 定目标。每页先放一个完整 ResultPart，再在项数及候选 parts 数组规范 UTF-8 JSON 字节数都允许时加入后项。对象键递归排序，数组保序，字符串按 JSON.stringify 转义，孤立代理码元不丢失。首项超目标独页，空结果有空 parts 与真实终局。页包装、next 和 Settlement 另受原容量 C 硬界。受理时复制装配默认页配置。受信 configureResultPaging 只能在结果尚未收场且没有 read 时调整；结果冻结后拒绝修改。读只保存固定源的必要位置与保护元数据，不缓存第二份页正文。合法 after 从真实组页起点和该读最远已返回页派生，未发出的页起点拒绝。
+内存分页以 resultPageParts 限项数、resultPageTargetBytes 定目标。每页先放一个完整 ResultPart，再在项数及候选 parts 数组规范 UTF-8 JSON 字节数都允许时加入后项。对象键递归排序，数组保序，字符串按 JSON.stringify 转义，孤立代理码元不丢失。首项超目标独页，空结果有空 parts 与真实终局。受理时复制装配默认页配置。受信 configureResultPaging 只能在结果尚未收场且没有 read 时调整；结果冻结后拒绝修改。读只保存固定源的必要位置与保护元数据，不缓存第二份页正文。合法 after 从真实组页起点和该读最远已返回页派生，未发出的页起点拒绝。
 
-保存计费还包含原请求/主体/采用、输出与真实 trim/曾有内容事实、历史确认 Snapshot、原状态/账目/重试、最终有序 parts 的交付表示。实现 [judge.ts](src/commands/judge.ts) 为每个 dispatch 保留4096字节实际终局槽，逻辑终局尚未固定时另保留4096字节。逻辑终局固定后按其实际编码计费，晚到实际回执不覆盖它。分页配置的完整规范对象计入材料，从受理起预留两个正安全整数的最大表示及键和包装。控制器在既有 exclusive 内检查身份、正安全整数和冻结条件，复制 call、按原容量检查后一次发布；失败保留原对象与配置。另保留8192字节 Settlement、12288字节 custody、1024字节 control、首个读1024字节和最大游标页包装64字节。实际材料落入相应槽后消费预留，不重复计费。每个已接纳的 open 窗口分别保留闭合状态增长和完整确认 Snapshot，Snapshot 包含当前正文及最大修订、游标和控制额度。没有 open 窗口且逻辑终局尚未到达时，另保留一个最大合法窗口及其确认 Snapshot。每次开窗和保存都在原提交边界按剩余义务重算，首个终局不撤销其他窗口的预留。容量不足在受理、准备或合法前缀保存边界拒绝，不发布半份事实。这个额度模型不等于 JavaScript 堆占用。
+终局与结算各有固定的编码上界：实际终局与逻辑终局各 4096 字节，Settlement 8192 字节。超过上界的终局在输入边界被拒绝，不发布半份事实。控制器在既有 exclusive 内检查身份、正安全整数和冻结条件，复制 call 后一次发布；失败保留原对象与配置。
 
 本地 terminal、身份事实及证据的规范编码分别最多4096字节，Settlement 最多8192字节。超长终局在 preserve/recordLateFact/策略 stop 的首次输入边界拒绝，证据在可信返回边界拒绝。consumer owner 构造/替换时最多512 UTF-8字节，避免受理无法形成有限 ACK 证据的 owner；窗口身份规范编码最多256字节，清理诊断规范编码最多4096字节。revision、cursor 和读取位置不超过 Number.MAX_SAFE_INTEGER，十进制游标最多16字节，实际铸造同时校验。UUIDv4 结果/读取身份和 SHA-256 摘要使用固定文本形状。runtime 的组页实际由注入的 Commands 拥有。内存页配置由上述受信控制准备，不证明生产后端或生产参数映射。
 
@@ -189,21 +187,26 @@ operation 长期只保存 SHA-256 输入指纹、方法、调用、原提交修�
 
 receiver 在终止 preserve 的确认回执下固定原 ended、Snapshot 和独立的接收失败，先推进内部阶段再通知观察投影。终止确认后不再读取原流。completed 和 failed 保留原 ended。真实 interrupted 仅关联同次确认 Snapshot 的 ControlState.operation，不读取可变 dispatch.terminal 推断原终局。
 
-| 路径                                                                           | 当前实现状态                                                                              |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| 原 completed、completed/limit、input-over-limit                                | 已实现收场。limit 保留正常完成及真实 trim，reported 未报告字段保持 null                   |
-| 无需新策略的 failed、首内容后失联                                              | 已实现原失败收场，保留已确认部分输出；接收失联仍沿 drive 返回失败                         |
-| 原有效控制及真实 interrupted；无 dispatch 的已保存控制                         | 已实现关联原控制收场；无 dispatch 时不发送                                                |
-| 首内容前可重试失败等待策略                                                     | 策略循环尚未实现，保留 retry-not-decided 等真实拒绝，不制造默认 stop                      |
-| 无控制 interrupted、sender.not-started、已有 dispatch 但本实例没有确认终止证据 | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测                  |
-| runtime 读取与 processed ACK                                                   | 已实现，见[结果消费支持](#结果消费支持)                                                   |
-| retained ACK、生产调度、跨进程恢复                                             | 尚未实现，继续各自后续阶段。quiesce 已实现，见[受理闸门与计数](#quiesce-的受理闸门与计数) |
+| 路径                                                                 | 当前实现状态                                                                                                                                                                                         |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 原 completed、completed/limit、input-over-limit                      | 已实现收场。limit 保留正常完成及真实 trim，reported 未报告字段保持 null                                                                                                                              |
+| 无需新策略的 failed、首内容后失联                                    | 已实现原失败收场，保留已确认部分输出；接收失联仍沿 drive 返回失败                                                                                                                                    |
+| 原有效控制及真实 interrupted；无 dispatch 的已保存控制               | 已实现关联原控制收场；无 dispatch 时不发送                                                                                                                                                           |
+| 首内容前可重试失败等待策略                                           | 策略循环尚未实现，保留 retry-not-decided 等真实拒绝，不制造默认 stop                                                                                                                                 |
+| 执行写入被确定拒绝：准备、开窗、保存，以及发送边界不带终局的确定拒绝 | 已实现。以成因 `persistence` 收场并释放原流，原拒绝作为这次 drive 的失败交回。规则见 [model-contract](../model-contract/SPEC.md)，答复的分类在 [execution-write.ts](src/commands/execution-write.ts) |
+| 执行写入答复未知、暂时不可用或期望修订过期                           | 已实现。这次 drive 交回失败，阶段与原写入保留；非终止批回到待保存，下次 drive 按当前修订保存同一批。再次唤醒由宿主负责                                                                               |
+| 发送边界没有开始发送，也没有记下终局，原因是暂时不可用               | 已实现一半。下次 drive 再问发送边界。dispatch 已记过物化回执时发送边界答 unknown，这种情形要等重试策略                                                                                               |
+| 无控制 interrupted、已有 dispatch 但本实例没有确认终止证据           | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测                                                                                                                             |
+| runtime 读取与 processed ACK                                         | 已实现，见[结果消费支持](#结果消费支持)                                                                                                                                                              |
+| retained ACK、生产调度、跨进程恢复                                   | 尚未实现，继续各自后续阶段。quiesce 已实现，见[受理闸门与计数](#quiesce-的受理闸门与计数)                                                                                                            |
 
 Activity 持有唯一的固定 settle 输入。首次写前读取当前资格、代次和 revision。query unknown、失败、调用异常或已知 committed 但原回执暂不可得时，保留原 operation、expected 和完整终局。后续 drive 先核当前资格，查询原操作，并以原参数取得回执，不重新发送或读取原流。
 
 只有明确 expected 冲突、query 完整排除旧提交、当前资格及原代次仍成立时，终止 preserve 或 settle 才能建立新 operation。旧输入永不修改，终止 preserve 保留原 window 与完整 facts。两处共享每次 drive 最多一次替代意图的额度，再次竞争交回真实失败，下一次合法 drive 才继续。权威已 settled 时消费既有结果，不另写终局。
 
 release 与业务收场分别记录。receiver 只启动一次 iterator.return 并缓存结果。driver 固定终止阶段后先发起 release，同时独立推进 settle，不先等待 release。原 drive 锁一直覆盖真实释放等待，防止第二消费者。释放挂起时 inspect 仍可读取已确认 Settlement。释放失败在收场确认后由 drive 返回，后续 drive 不重做 return 或 close。若同轮收场和释放都失败，先返回收场操作的失败，释放失败仍缓存，收场确认后再次可见。
+
+业务收场确认且资源释放成功后，活动退出 finish，丢弃 receiver 及其发送材料引用。活动仅保留 done，或保留原接收失败的 failed。公开观察继续使用已有确认快照。收场未知或释放未成功时，不执行此转换。
 
 settle 确认后先固定内部阶段，再安排附带状态刷新。刷新失败不重做业务写。后续取消、可信 recordLateFact 和事件重放不能改变原 Settlement 的 termination、version 或 source。未知事实不先展示。此实现仅在当前进程持有原确认依据时接续，不证明生产耐久、跨进程恢复或真实厂商停止。
 
@@ -247,14 +250,14 @@ Q 里还带执行代次（`execution`），所以比较比五项更严。栅栏�
 
 **交错逐条覆盖。**
 
-| 读取与写入之间发生的事 | 为什么命题仍成立 |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| 另一个 ACK（另一操作）先提交 | 保管已是 `acknowledged`，Q 不含保管。写入沿原分支返回现有确认，不覆盖它；采用的答复仍须是对 Q(c₂) 的确认。同一操作已绑定时走认回，不用读到的答复 |
-| 清理推进或完成 | 清理只在 `acknowledged` 之后发生，不改变 Q；此时写入返回现有确认，不恢复保管 |
-| 换代（`claim`，代次加一） | 执行代次在 Q 里，Q(c₁) ≠ Q(c₂)，写入答 `unavailable`（`evidence-not-read-for-this-call`），不写；同一操作再来时按新代次提问 |
-| owner 或证据采用变化 | consumer 与证据采用在受理时冻结，调用上的 owner 不变；装配换了适配器对象时，对象身份不同，答复不被采用 |
-| 结果版本变化 | 已收场调用的结果版本固定；ACK 给的版本不同时，两处的前置判定都答 `handoff-invalid`，不问适配器 |
-| 读失败、适配器答 `unavailable` 或 `handoff-invalid` | 不是确认，写入原样返回失败，不写 |
+| 读取与写入之间发生的事                              | 为什么命题仍成立                                                                                                                                 |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 另一个 ACK（另一操作）先提交                        | 保管已是 `acknowledged`，Q 不含保管。写入沿原分支返回现有确认，不覆盖它；采用的答复仍须是对 Q(c₂) 的确认。同一操作已绑定时走认回，不用读到的答复 |
+| 清理推进或完成                                      | 清理只在 `acknowledged` 之后发生，不改变 Q；此时写入返回现有确认，不恢复保管                                                                     |
+| 换代（`claim`，代次加一）                           | 执行代次在 Q 里，Q(c₁) ≠ Q(c₂)，写入答 `unavailable`（`evidence-not-read-for-this-call`），不写；同一操作再来时按新代次提问                      |
+| owner 或证据采用变化                                | consumer 与证据采用在受理时冻结，调用上的 owner 不变；装配换了适配器对象时，对象身份不同，答复不被采用                                           |
+| 结果版本变化                                        | 已收场调用的结果版本固定；ACK 给的版本不同时，两处的前置判定都答 `handoff-invalid`，不问适配器                                                   |
+| 读失败、适配器答 `unavailable` 或 `handoff-invalid` | 不是确认，写入原样返回失败，不写                                                                                                                 |
 
 **守护用例。** [handoff-evidence.spec.ts](tests/handoff-evidence.spec.ts) 的「does not keep an answer read for the call before it was claimed again」：在适配器答复之前对同一调用 `claim`，断言答 `unavailable`、保管仍是 `producer`、同一操作随后确认。负控：把核对改成只看 `proof === null`，这条用例变红。同一文件还覆盖晚到的确认、晚到的 `unavailable`、拒绝不写，以及写入先拒的 ACK 不问适配器。
 
@@ -360,7 +363,7 @@ continuity 绑定原调用、admission、instance、operation 和证据采用，
 十二项上限全部为显式正安全整数，不设生产默认值。`timing` 提供同一进程单调时间域与可取消等待。
 
 | 配置                                     | 约束                                       |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| ---------------------------------------- | ------------------------------------------ |
 | `maxSnapshotBytes`、`maxDeltaBytes`      | 完整首帧与差分帧的规范 UTF-8 JSON 字节上限 |
 | `maxQueuedFrames`、`maxQueuedBytes`      | 每个 iterator 的 FIFO 帧数与逻辑字节       |
 | `maxObserversPerTenant`、`maxObservers`  | 租户与全局活观察者名额                     |
@@ -421,32 +424,32 @@ Commands 以本域已确认 not-sent、无内容、原单条失败事实和其�
 
 凭据缺失与读不出，以及上述传输准备明确拒绝，均沿带 fault 的确定拒绝路径。下表的 credential 行以凭据为例，传输准备采用上一节的 cause：
 
-| 步骤与存储答复 | 边界答复 | driver | 结局 |
-| --- | --- | --- | --- |
-| not-sent 记录确认，终止写确认 | not-started，`unavailable`（`credential-missing` 或 `credential-unreadable`） | 读记录，有终止，结算 | 结算，`cause: credential` |
-| 终止写确认后释放失败 | 同上，尝试与容量保留 | 读记录，有终止，结算 | 结算 |
-| not-sent 记录或终止写未确认（已落地或未落地） | unknown，原写保留 | 下一次 drive 重放同一 operation | 重试 |
-| not-sent 记录或终止写被明确拒绝（`stale-instance`、`conflict`、`denied`） | not-started，失败就是这次拒绝 | 读记录：拒绝前已落地终止就结算，否则以该拒绝结束 | 结算或确定拒绝 |
-| 明确拒绝后释放失败 | 同上，尝试与容量保留，重复 send 答 unknown `resource-release-failed` | 同上 | 结算或确定拒绝 |
-| 任一情况下读记录失败或抛出 | 不适用 | 保留「按记录结算」阶段，返回读取失败，下一次 drive 重读 | 重试 |
-| 结算写遇到接管 | 不适用 | 以 `stale-instance` 结束 | 确定拒绝 |
+| 步骤与存储答复                                                            | 边界答复                                                                      | driver                                                  | 结局                      |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------- |
+| not-sent 记录确认，终止写确认                                             | not-started，`unavailable`（`credential-missing` 或 `credential-unreadable`） | 读记录，有终止，结算                                    | 结算，`cause: credential` |
+| 终止写确认后释放失败                                                      | 同上，尝试与容量保留                                                          | 读记录，有终止，结算                                    | 结算                      |
+| not-sent 记录或终止写未确认（已落地或未落地）                             | unknown，原写保留                                                             | 下一次 drive 重放同一 operation                         | 重试                      |
+| not-sent 记录或终止写被明确拒绝（`stale-instance`、`conflict`、`denied`） | not-started，失败就是这次拒绝                                                 | 读记录：拒绝前已落地终止就结算，否则以该拒绝结束        | 结算或确定拒绝            |
+| 明确拒绝后释放失败                                                        | 同上，尝试与容量保留，重复 send 答 unknown `resource-release-failed`          | 同上                                                    | 结算或确定拒绝            |
+| 任一情况下读记录失败或抛出                                                | 不适用                                                                        | 保留「按记录结算」阶段，返回读取失败，下一次 drive 重读 | 重试                      |
+| 结算写遇到接管                                                            | 不适用                                                                        | 以 `stale-instance` 结束                                | 确定拒绝                  |
 
 其他解析结果：
 
-| 步骤与存储答复 | 边界答复 | driver | 结局 |
-| --- | --- | --- | --- |
-| value：记录确认 | started，交出原流 | 接收并按流的终止结算 | 结算 |
-| value：记录未确认或被拒绝 | unknown，原流保留，不再 start | 重试原写 | 重试；执行被接管时一直是 unknown，见已知限制 |
-| denied 或 scope 错配 | not-started，`denied` 或 `invalid` | 读记录，无终止，以该拒绝结束 | 确定拒绝 |
+| 步骤与存储答复            | 边界答复                           | driver                       | 结局                                         |
+| ------------------------- | ---------------------------------- | ---------------------------- | -------------------------------------------- |
+| value：记录确认           | started，交出原流                  | 接收并按流的终止结算         | 结算                                         |
+| value：记录未确认或被拒绝 | unknown，原流保留，不再 start      | 重试原写                     | 重试；执行被接管时一直是 unknown，见已知限制 |
+| denied 或 scope 错配      | not-started，`denied` 或 `invalid` | 读记录，无终止，以该拒绝结束 | 确定拒绝                                     |
 
 已知限制：下列出口仍让调用方等待。前三行的失败是 `unavailable`，而同一个 dispatch 已不能再发送，driver 的 `failed` 阶段也不重试。最后一行是有意的：可能已发送的调用只能等原记录。
 
-| 出口 | 诊断 |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| 凭据端口答 `unavailable` 或抛出 | `credential-unavailable` |
+| 出口                                                                         | 诊断                                                                                                             |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 凭据端口答 `unavailable` 或抛出                                              | `credential-unavailable`                                                                                         |
 | 当前资格不可得、取得资源前已取消、传输 prepare 或物化返回 unavailable 或抛错 | `qualification-unavailable`、`cancelled-before-prepare`、`cancelled-before-start`、`transport-prepare-failed` 等 |
-| 没有写终止的拒绝之后释放失败 | `resource-release-failed` |
-| 已经 start 而发送记录始终不能确认（例如执行被接管） | `send-record-unconfirmed`。可能已发送，所以不得改报未发，也不得判成 credential 失败 |
+| 没有写终止的拒绝之后释放失败                                                 | `resource-release-failed`                                                                                        |
+| 已经 start 而发送记录始终不能确认（例如执行被接管）                          | `send-record-unconfirmed`。可能已发送，所以不得改报未发，也不得判成 credential 失败                              |
 
 消除它们需要为每个出口选定结局，例如以哪一种 `ModelFaultCause` 结算，这会改变 Model 的调用结局，每个出口的结局登记为 D-86。确定拒绝的机制不限于凭据：fence 拒绝带上 `fault`，边界就写终止，driver 就按记录结算。
 

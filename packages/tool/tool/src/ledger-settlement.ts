@@ -1,15 +1,19 @@
+import { settleResultBodies } from './ledger-result-uses.ts'
+import { checkBodyReferences } from './ledger-body-entries.ts'
+import type { ToolInstant } from '@omne-harness/tool-contract/provider'
+import type { ResultValue } from './ledger-result-material.ts'
+import { matchesFinalValue } from './fact-values.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   DurableEvidence,
   ToolExecutionRef,
   ToolFailure,
-  ToolOperationId,
   ToolState,
 } from '@omne-harness/tool-contract'
-import type { ToolExecutionFact, ToolTask } from '@omne-harness/tool-contract/provider'
+import type { ToolFinalEnvelope, ToolTask } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
-import { mintEvidence, resultVersion } from './evidence.ts'
+import { mintEvidence, resultVersion, sameFactValue } from './evidence.ts'
 import {
   firstResultWrites,
   operationRecord,
@@ -21,12 +25,8 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
-import {
-  planEnvironmentRelease,
-  processCustodyCovered,
-  settlementOperation,
-} from './ledger-environment-release.ts'
-import { sameFactValue } from './ledger-facts.ts'
+import { planEnvironmentRelease, processCustodyCovered } from './ledger-environment-release.ts'
+
 import type { WriteCommand } from './ledger-start.ts'
 import {
   taskKey,
@@ -34,30 +34,28 @@ import {
   type CleanupDuty,
   type LedgerWrite,
   type ResultRecord,
-  type SavedFact,
+  type FactEventRecord,
 } from './ledger-store.ts'
 
-type Final<B extends ContentBlock> = Extract<ToolExecutionFact<B>, { kind: 'final' }>
-export type PreserveCommand<B extends ContentBlock> = WriteCommand &
+type Final<B extends ContentBlock> = ToolFinalEnvelope<B>
+export type PreserveCommand = WriteCommand &
   Readonly<{
     execution: ToolExecutionRef
-    final: Final<B>
+    basis: DurableEvidence
   }>
-type OriginalFinal<B extends ContentBlock> = SavedFact<B> & Readonly<{ fact: Final<B> }>
-export type SettlementCheck<B extends ContentBlock> =
+export type SettlementCheck =
   | Readonly<{ kind: 'recalled'; state: ToolState }>
   | Readonly<{
       kind: 'fresh'
       call: CallRecord
-      saved: OriginalFinal<B>
+      saved: FactEventRecord
       task: Extract<ToolTask, { kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock' }>
-      retainOperation: ToolOperationId
     }>
 
-export function checkSettlement<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
-  command: PreserveCommand<B>,
-): Outcome<SettlementCheck<B>, ToolFailure> {
+export function checkSettlement(
+  snapshot: Snapshot,
+  command: PreserveCommand,
+): Outcome<SettlementCheck, ToolFailure> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'preserve-result')
   if ('failure' in known) return known
   const call = snapshot.call
@@ -82,13 +80,14 @@ export function checkSettlement<B extends ContentBlock>(
   const task = snapshot.tasks.find(task => task.kind === 'settle')
   if (task === undefined || task.kind !== 'settle') return invalid('final', 'saved-final-required')
   const saved = [...snapshot.facts.values()].find(saved =>
-    sameFactValue(saved.evidence, task.basis),
+    sameFactValue(saved.evidence, command.basis),
   )
   if (
     saved === undefined ||
     saved.fact.kind !== 'final' ||
+    saved.fact.payload.kind !== 'pending' ||
     !sameFactValue(saved.start, call.start) ||
-    !sameFactValue(saved.fact, command.final)
+    !sameFactValue(task.basis, command.basis)
   )
     return invalid('final', 'not-original-final')
   if (call.state.relation === 'background' && saved.fact.terminal.kind === 'no-response')
@@ -97,13 +96,7 @@ export function checkSettlement<B extends ContentBlock>(
     kind: 'fresh',
     call,
     task,
-    saved: { ...saved, fact: saved.fact },
-    retainOperation: settlementOperation('retain-result', {
-      tenant: call.tenant,
-      call: call.call,
-      settle: task.operation,
-      final: saved.evidence,
-    }),
+    saved,
   })
 }
 
@@ -122,7 +115,7 @@ function settledState<B extends ContentBlock>(
   call: CallRecord,
   final: Final<B>,
   basis: DurableEvidence,
-  delivery: ResultRecord<B>['delivery'],
+  delivery: ResultRecord['delivery'],
   mint: Mint,
 ): Outcome<ToolState, ToolFailure> {
   const current = call.state
@@ -160,20 +153,28 @@ function settledState<B extends ContentBlock>(
 }
 
 export function decidePreserveResult<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
-  command: PreserveCommand<B>,
-  retained: DurableEvidence,
+  snapshot: Snapshot,
+  command: PreserveCommand,
+  final: Final<B>,
+  value: ResultValue,
+  orphanDue: ToolInstant | null,
   mint: Mint,
-): Decision<ToolState, B> {
+): Decision<ToolState> {
   const checked = checkSettlement(snapshot, command)
   if ('failure' in checked) return reply(checked)
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.state))
-  const { call, saved, task, retainOperation } = checked.ok
-  const final = saved.fact
+  const { call, saved, task } = checked.ok
+  if (!matchesFinalValue(saved.value, final)) return reply(invalid('final', 'not-original-final'))
+  const materialized = mintEvidence(
+    'result-custody',
+    { tenant: call.tenant, call: call.call, operation: command.operation },
+    mint.revision,
+    { final: saved.evidence, value },
+  )
   const completed = final.terminal.kind === 'completed'
-  const covered = completed && processCustodyCovered(snapshot, final.raw, final.result)
+  const covered = completed && processCustodyCovered(snapshot, final.result)
   const planned = covered
-    ? planEnvironmentRelease(snapshot, call, saved.evidence, retained, mint)
+    ? planEnvironmentRelease(snapshot, call, saved.evidence, materialized, mint)
     : succeed(null)
   if ('failure' in planned) return reply(planned)
   const plan = planned.ok
@@ -197,22 +198,34 @@ export function decidePreserveResult<B extends ContentBlock>(
     call.request.consumer,
     final.terminal,
     final.effect,
-    final.result,
+    value,
     {
       kind: 'execution',
       final: saved.evidence,
-      raw: final.raw,
-      retainOperation,
-      retained,
+      finalValue: saved.value,
+      materialized,
       cleanup,
     },
     mint,
   )
+  const references = checkBodyReferences([
+    ...final.result.attachments,
+    ...final.result.content.flatMap(block => ('ref' in block ? [block.ref] : [])),
+    ...(final.result.original.kind === 'offloaded'
+      ? final.result.original.summary.flatMap(block => ('ref' in block ? [block.ref] : []))
+      : []),
+  ])
+  if ('failure' in references) return reply(references)
+  const uses = settleResultBodies(snapshot, first.version.record, orphanDue)
+  if ('failure' in uses) return reply(uses)
+  if (saved.fact.kind !== 'final' || saved.fact.payload.kind !== 'pending')
+    return reply(invalid('final', 'pending-final-required'))
   const state = settledState(call, final, saved.evidence, first.version.delivery, mint)
   if ('failure' in state) return reply(state)
-  const writes: LedgerWrite<B>[] = [
+  const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...call, state: state.ok } }),
     ...first.writes,
+    ...uses.ok,
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),
     put({
       kind: 'task',
@@ -226,6 +239,25 @@ export function decidePreserveResult<B extends ContentBlock>(
     }),
     ...(plan?.writes ?? []),
   ]
+  for (const alias of snapshot.facts.values()) {
+    if (alias.fact.kind !== 'final' || !sameFactValue(alias.start, saved.start)) continue
+    writes.push(
+      put({
+        kind: 'fact-event',
+        fact: {
+          ...alias,
+          fact: {
+            ...alias.fact,
+            payload: {
+              kind: 'settled',
+              result: first.version.version,
+              settlement: state.ok.source,
+            },
+          },
+        },
+      }),
+    )
+  }
   if (plan === null)
     writes.push(put({ kind: 'task', task: { ...task, state: 'blocked', diagnostic } }))
   else writes.push({ kind: 'delete', key: taskKey(task) })

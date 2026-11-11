@@ -88,6 +88,41 @@ const configuration: ToolConfiguration = {
   reconciliationDelayMs: 0,
   ledgerCommitAttempts: 8,
   queueCapacity: 4,
+  readResultArguments: {
+    maxBytes: 65_536,
+    maxDepth: 32,
+    maxItems: 4096,
+    maxMembers: 256,
+    maxStringLength: 32_768,
+    maxNumberLength: 64,
+  },
+  offloading: {
+    maxInlineUtf8Bytes: 65_536,
+    maxRetentionMs: 86_400_000,
+    maxBodyBytes: 16_777_216,
+    previewUtf8Bytes: 1_024,
+    maxPageBytes: 65_536,
+    permitMs: 30_000,
+    clockSkewMs: 1_000,
+    orphanGraceMs: 60_000,
+    maxWriterMetadataBytes: 1_048_576,
+    jsonDocument: {
+      maxBytes: 1_048_576,
+      maxDepth: 64,
+      maxItems: 65_536,
+      maxMembers: 65_536,
+      maxStringLength: 1_048_576,
+      maxNumberLength: 64,
+    },
+    jsonRecord: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 4096,
+      maxMembers: 4096,
+      maxStringLength: 65_536,
+      maxNumberLength: 64,
+    },
+  },
 }
 
 function textResult(value: string): ToolResult<ContentBlock> {
@@ -152,7 +187,27 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
           descriptions: [],
         },
       },
-      returns: { kind: 'ordinary', program: { kind: 'none' } },
+      returns: {
+        kind: 'ordinary',
+        value: {
+          kind: 'encoded-value',
+          codec: adoption('utf8-output'),
+          value: {
+            identity: { id: 'string', revision: '1', digest: 'sha256:string' },
+            definition: {
+              schema: {
+                kind: 'object',
+                entries: [{ key: 'type', value: { kind: 'string', value: 'string' } }],
+              },
+              vocabulary: adoption('json-schema'),
+              descriptions: [],
+            },
+          },
+        },
+        program: { kind: 'none' },
+        body: { kind: 'text', codec: adoption('utf8') },
+        offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+      },
       author: {
         kind: 'ordinary',
         parameters: parameterCodec,
@@ -262,7 +317,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
         }),
     },
   }
-  const lives = new Map<string, ToolLiveExecution<ContentBlock>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const executed = new Set<string>()
   let bindingError: unknown = null
   const providers: TestToolDependencies<string> = createTestToolDependencies({
@@ -392,16 +447,9 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
               const checked = ok(
                 author.output.check({ arguments: argumentsValue, value: returned }),
               )
-              const bytes = ok(author.codec.encode(checked))
-              const raw = ok(
-                await providers.dependencies.custody.preserve({
-                  ...input,
-                  operation: ok(await identities.operationIdentities.newOperation()),
-                  codec: author.codec.adoption,
-                  bytes,
-                  source: evidence('executed-return', returned),
-                }),
-              )
+              // The original codec must be able to encode the checked value; the bytes are not kept.
+              ok(author.codec.encode(checked))
+
               const value = ok(
                 renderToolResult(
                   checked,
@@ -410,9 +458,8 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
                   defaultResultPolicy,
                 ),
               )
-              await providers.doubles.executor.controls.finish(input.start, {
+              await providers.doubles.executor.controls.finishEnvelope(input.start, {
                 kind: 'final',
-                raw,
                 result: value,
                 terminal: { kind: 'completed' },
                 effect: {
@@ -420,7 +467,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
                   evidence: evidence('author-completed', { start: input.start, returned }),
                 },
               })
-              observe('source-produced-final', { raw, value })
+              observe('source-produced-final', { value })
             }
             return succeed(live)
           } catch (error) {
@@ -572,11 +619,21 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
     assert.equal(released.kind, 'released')
     const current = await state(reference)
     assert.equal(current.delivery?.kind, 'released')
-    assert.deepEqual(
-      await readAll(reference, settled.result),
-      pages,
-      'release must preserve complete content and fixed result',
-    )
+    // Registered S1: inline material may be released once unused; reading continues from the
+    // content the consumer saved before `processed`, and Tool answers `released`.
+    const after = await runtime.queries.readResult({
+      ...access,
+      reference,
+      result: settled.result,
+      after: null,
+    })
+    assert.ok('failure' in after, 'a released result must not be readable from Tool')
+    assert.deepEqual(after.failure, { kind: 'not-found', target: 'result', reason: 'released' })
+    const saved = completions.get(delivery.delivery) as typeof record | undefined
+    assert.ok(saved, 'the consumer completion record must still be available')
+    assert.equal(saved.result, settled.result, 'saved content keeps the fixed result version')
+    assert.deepEqual(saved.paragraphs, paragraphs, 'saved content equals the content that was read')
+    assert.equal(digest(saved.paragraphs), record.bodyDigest, 'saved content keeps the same digest')
     return record
   }
   function saveEvidence(name: string, value: unknown) {

@@ -488,7 +488,7 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
     ...f.admit,
     position,
     initiator: record.initiator,
-    request: record.request,
+    request: unbox(await commands.loadRequest(f.admit)),
     dispatches: unbox(await commands.dispatches(f.admit)),
     failure: fault,
   } satisfies Parameters<ModelRetryPolicy<typeof f.principal>['decide']>[0]

@@ -10,9 +10,10 @@ import {
   type ResourceLedger,
 } from '@omne-harness/execution-environment-contract'
 import { succeed } from '@omne-harness/operation-result'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { PreparationRecord, ReleaseRecord } from '@omne-harness/tool-contract/provider'
 import { toolEnvironmentConformance } from '@omne-harness/tool-contract/testing'
 import {
@@ -20,7 +21,10 @@ import {
   createScriptedCommandFacility,
 } from '@omne-harness/execution-environment-contract/testing'
 import type { FileObjectNaming, ToolEnvironmentValue } from '../../src/author-environment.ts'
-import { createLocalExecutionEnvironment } from '../../src/execution-environment.ts'
+import {
+  createLocalEnvironmentPlanResolver,
+  createLocalExecutionEnvironment,
+} from '../../src/execution-environment.ts'
 import { createEnvironmentStateStore } from '../../src/environment-state.ts'
 import { createEnvironmentResourceLedger } from '../../src/environment-resource-ledger.ts'
 import {
@@ -35,10 +39,8 @@ import {
 } from '../coordinator-values.ts'
 
 /** `wrap` puts a store double between the adapter and the memory store. */
-function fixture(
-  wrap: (memory: ToolLedgerStore<ContentBlock>) => ToolLedgerStore<ContentBlock> = memory => memory,
-) {
-  const store = createMemoryToolLedgerStore<ContentBlock>()
+function fixture(wrap: (memory: ToolLedgerStore) => ToolLedgerStore = memory => memory) {
+  const store = createMemoryToolLedgerStore()
   const ledgerStore = wrap(store)
   const state = createEnvironmentStateStore({ store: ledgerStore, mode: 'test' })
   const preparation: PreparationRecord = {
@@ -48,10 +50,10 @@ function fixture(
     adoption: adoption('environment'),
     inputDigest: 'input-1',
     purpose: 'initial',
-    request: request(),
   }
+  const fixed = request()
   const access = { tenant: tenantA, principal: principalA, call: preparation.call }
-  const prepare = { ...access, preparation }
+  const prepare = { ...access, preparation, request: fixed }
   const placement: Placement = {
     kind: 'placement',
     binding: { kind: 'host_machine' },
@@ -68,7 +70,7 @@ function fixture(
     tenant: tenantA,
     acquisition: acquisitionRef('original'),
     origin: originRef('caller'),
-    scope: preparation.request.requesterScope,
+    scope: fixed.requesterScope,
     placement,
   }
   const releaseLease = vi.fn<EnvironmentLease['release']>(async () => ({ kind: 'released' }))
@@ -426,8 +428,68 @@ for (const test of toolEnvironmentConformance<Principal, ToolEnvironmentValue>()
     await test.run({
       environment: f.build(),
       access: { tenant: tenantA, principal: principalA },
-      request: f.preparation.request,
+      request: f.prepare.request,
       allocations: () => f.acquire.mock.calls.length,
     })
   })
 }
+
+it('prepares an acquisition without any complete read of an environment domain', async () => {
+  const f = fixture()
+  const read = f.store.read.bind(f.store)
+  vi.spyOn(f.store, 'read').mockImplementation(domain =>
+    domain.kind === 'host' &&
+    (domain.key.startsWith('environment@') || domain.key.startsWith('retention@'))
+      ? Promise.resolve({ kind: 'unavailable', diagnostic: 'complete domain reads are not used' })
+      : read(domain),
+  )
+  expect(await f.build().prepare(f.prepare)).toMatchObject({ ok: { kind: 'prepared' } })
+  expect(f.acquire).toHaveBeenCalledTimes(1)
+  expect(await f.state.read(f.preparation)).toMatchObject({
+    ok: { allocation: { kind: 'allocated' } },
+  })
+})
+
+function anotherScope() {
+  const scope = decodeScopeRef({ ref: 'another-scope' })
+  if ('failure' in scope) throw new Error('invalid fixture scope')
+  return scope.ok
+}
+
+it('refuses a preparation whose plan is for another scope than the request, before any acquisition', async () => {
+  const f = fixture()
+  const other = anotherScope()
+  expect(
+    await f
+      .build()
+      .prepare({ ...f.prepare, request: { ...f.prepare.request, requesterScope: other } }),
+  ).toEqual({ failure: { kind: 'denied', action: 'environment-binding' } })
+  expect(f.acquire).not.toHaveBeenCalled()
+  expect(await f.state.read(f.preparation)).toEqual({ ok: null })
+})
+
+it('the plan resolver refuses a binding whose scope is not the scope of the request', async () => {
+  const f = fixture()
+  const requirement = vi.fn()
+  const resolver = createLocalEnvironmentPlanResolver<Principal>({
+    execution: {} as never,
+    access: { qualify: async () => ({ kind: 'allowed' }) },
+    requirement,
+    binding: async () =>
+      succeed({
+        origin: originRef('caller'),
+        scope: anotherScope(),
+      }),
+    guard: { authorize: async () => 'authorized' },
+    ledger: async () => {
+      throw new Error('no ledger is opened for a refused plan')
+    },
+    facts: async () => {
+      throw new Error('no facts are read for a refused plan')
+    },
+  })
+  expect(await resolver.resolve(f.prepare)).toEqual({
+    failure: { kind: 'denied', action: 'environment-scope' },
+  })
+  expect(requirement).not.toHaveBeenCalled()
+})

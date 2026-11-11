@@ -20,7 +20,6 @@ import { decodeInputBatchId } from '@omne-harness/agent-contract'
 import { digest, tenantText } from '../src/records.ts'
 import { createStaging, type StagedGroups } from '../src/staging.ts'
 import {
-  RESULT_CAPACITY,
   authority,
   createWorld,
   evidence,
@@ -89,7 +88,6 @@ describe('prepare', () => {
     const result = okOf(await prepared(w, { beforeModelCall: w.passed }))
     if (result.kind !== 'ready') throw new Error(`expected ready, got ${result.kind}`)
     expect(result.request.messages).toEqual(w.candidates.at(-1)?.assembled.messages)
-    expect(result.capacity).toEqual(RESULT_CAPACITY)
     expect(w.counts.model).toBe(1)
   })
 

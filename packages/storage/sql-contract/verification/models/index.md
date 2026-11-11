@@ -9,3 +9,4 @@
 <!-- documentation:placeholder -->
 
 - [README.md](README.md)：模型清单与前提
+- [recall-at-commit/](recall-at-commit/README.md)：提交时认回、不先查询的模型（RecallAtCommit）

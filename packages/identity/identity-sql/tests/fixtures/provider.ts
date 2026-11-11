@@ -40,6 +40,7 @@ export function duration(text: string): Duration {
 export const START = '2026-10-25T12:00:00Z'
 export const LONG = 'PT86400S'
 export const SHORT = 'PT3600S'
+export const REFRESH = 'PT60S'
 
 export type ProviderOptions = Readonly<{
   clock?: IdentityClock
@@ -54,6 +55,8 @@ export type ProviderOptions = Readonly<{
   build?: IdentitySqlBuild
   principalVerifier?: PrincipalVerifier
   destinationResolver?: StandingDestinationResolver
+  /** The access refresh granularity g. Default `REFRESH`. */
+  accessRefreshGranularity?: string
 }>
 
 export type OpenedProvider = Readonly<{
@@ -87,6 +90,7 @@ export async function openProvider(options: ProviderOptions = {}): Promise<Opene
     invitationTerms: invitationTerms.source,
     scrypt: scrypt.module,
     decoyMaterial: scrypt.decoyMaterial,
+    accessRefreshGranularity: duration(options.accessRefreshGranularity ?? REFRESH),
     ...(options.identifiers === undefined ? {} : { identifiers: options.identifiers }),
     ...(options.principalVerifier === undefined
       ? {}

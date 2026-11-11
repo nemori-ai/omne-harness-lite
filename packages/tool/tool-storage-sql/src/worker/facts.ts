@@ -9,92 +9,88 @@ export type DomainKind = 'call' | 'queue' | 'host'
 
 export type DomainAddress = Readonly<{ tenant: string; kind: DomainKind; name: string }>
 
-export type LedgerWriteFact =
-  | Readonly<{ op: 'put'; key: string; record: JsonValue }>
-  | Readonly<{ op: 'delete'; key: string }>
+/**
+ * The part of a record that never changes after its first write. `given` carries it; `kept` says
+ * that the store already holds it, so the command does not carry it again.
+ */
+export type FixedPart = Readonly<{ kind: 'given'; value: JsonValue }> | Readonly<{ kind: 'kept' }>
 
-/** One revision-conditioned commit of one ledger domain. */
+export type LedgerWriteFact =
+  /** `record` is the part that changes. A record with no fixed part has no `fixed`. */
+  | Readonly<{ op: 'put'; key: string; record: JsonValue; fixed?: FixedPart }>
+  | Readonly<{ op: 'delete'; key: string }>
+  | Readonly<{ op: 'schedule'; key: string; dueAt: string }>
+  | Readonly<{ op: 'unschedule'; key: string }>
+  | Readonly<{ op: 'drop' }>
+
+/** A domain of the same tenant whose revision must still hold when the commit is applied. */
+export type LedgerAssertionFact = Readonly<{ kind: DomainKind; name: string; revision: string }>
+
+/** One revision-conditioned commit of one ledger domain, with its read-set assertions. */
 export type LedgerFacts = DomainAddress &
   Readonly<{
     intent: 'ledger'
     expected: string
     revision: string
     writes: readonly LedgerWriteFact[]
+    asserts: readonly LedgerAssertionFact[]
   }>
 
-/** A host CAS conditional on a previously checked call snapshot in the same tenant. */
-export type GuardedHostFacts = Readonly<{
-  intent: 'guarded-host'
-  call: DomainAddress
-  callExpected: string
-  hostCommit: LedgerFacts
-}>
+/** The address of one body of the body store. */
+export type BodyAddress = Readonly<{ tenant: string; call: string; body: string }>
 
-/** The key of one original or retained projection: the operation that kept it. */
-export type CustodyAddress = Readonly<{ tenant: string; call: string; operation: string }>
+export type BodyPutFacts = BodyAddress & Readonly<{ intent: 'body-put'; seq: number; data: string }>
 
-/** One chunk of the bytes kept under `operation`. `digest` names the whole custody input. */
-export type ChunkFacts = CustodyAddress &
-  Readonly<{ intent: 'chunk'; digest: string; index: number; data: string }>
+export type BodySealFacts = BodyAddress &
+  Readonly<{ intent: 'body-seal'; chunks: number; bytes: number; digest: string }>
 
-export type ManifestKind = 'raw' | 'retain'
+export type BodyDeleteFacts = BodyAddress & Readonly<{ intent: 'body-delete' }>
 
-/**
- * The manifest that seals the chunks of `operation`. `seal` is the custody digest a raw output
- * names, or the digest of the retained evidence. A retained projection `holds` the raw output it
- * was kept over: the operation and the seal of that output in the same tenant and call.
- */
-export type ManifestFacts = CustodyAddress &
-  Readonly<{
-    intent: 'manifest'
-    kind: ManifestKind
-    digest: string
-    bytes: number
-    chunks: number
-    sha256: string
-    seal: string
-    answer: JsonValue
-    holds: Readonly<{ operation: string; seal: string }> | null
-  }>
+export type BodyFacts = BodyPutFacts | BodySealFacts | BodyDeleteFacts
 
-export type ToolFacts = LedgerFacts | GuardedHostFacts | ChunkFacts | ManifestFacts
+export type ToolFacts = LedgerFacts | BodyFacts
 
 /** Why the participant stopped a command; the adapters map each reason to one port answer. */
 export type StopBasis =
   | Readonly<{ reason: 'revision'; current: string }>
-  | Readonly<{ reason: 'call-changed' }>
-  | Readonly<{ reason: 'operation' }>
-  | Readonly<{ reason: 'chunks' }>
-  | Readonly<{ reason: 'holder' }>
+  /** An assertion did not hold; `current` is the revision of the written domain. */
+  | Readonly<{ reason: 'assertion'; current: string }>
+  /** A `put` said `kept`, and the store holds no fixed part under the key. */
+  | Readonly<{ reason: 'fixed-missing' }>
+  /** The body holds other bytes at the sequence number, or another manifest seals it. */
+  | Readonly<{ reason: 'body-conflict' }>
+  /** The chunks do not hold what the manifest declares. */
+  | Readonly<{ reason: 'body-not-ready'; diagnostic: string }>
 
 export type ParticipantAnswer =
   | Readonly<{ kind: 'committed' }>
-  | Readonly<{ kind: 'chunk' }>
-  | Readonly<{ kind: 'sealed'; answer: JsonValue }>
+  | Readonly<{ kind: 'body-kept' }>
+  | Readonly<{ kind: 'body-sealed' }>
+  | Readonly<{ kind: 'body-deleted' }>
 
-/** One stored record with the key it is stored under, so the reader can check the two agree. */
-export type StoredRecord = Readonly<{ key: string; record: JsonValue }>
+/**
+ * One stored record with the key it is stored under, so the reader can check the two agree.
+ * `fixed` is the fixed part of the record, when it has one.
+ */
+export type StoredRecord = Readonly<{ key: string; record: JsonValue; fixed?: JsonValue }>
 
 export type LedgerReadOutput = Readonly<{
   revision: string | null
   records: readonly StoredRecord[]
 }>
 
-export type ManifestRow = Readonly<{
-  kind: ManifestKind
-  digest: string
-  bytes: string
-  chunks: string
-  sha256: string
-  seal: string
-  answer: JsonValue
+export type BodyReadInput = BodyAddress & Readonly<{ first: number; count: number }>
+
+export type BodyReadOutput = Readonly<{
+  manifest: Readonly<{ chunks: number; bytes: number; digest: string }> | null
+  chunks: readonly Readonly<{ seq: number; data: string }>[]
 }>
 
-export type ManifestReadOutput = Readonly<{ manifest: ManifestRow | null }>
+export type DueReadInput = Readonly<{ tenant: string; now: string; limit: number }>
 
-export type ChunkReadInput = CustodyAddress & Readonly<{ index: number }>
-
-export type ChunkReadOutput = Readonly<{ data: string | null }>
+export type DueReadOutput = Readonly<{
+  entries: readonly Readonly<{ kind: DomainKind; name: string; key: string; dueAt: string }>[]
+}>
 
 // ---------------------------------------------------------------------------------------------
 // The parse of the facts and handler inputs, where they enter a Worker module
@@ -111,21 +107,79 @@ function domainOf(value: JsonObject): DomainAddress | null {
   return { tenant, kind, name }
 }
 
-export function custodyAddressOf(value: JsonValue): CustodyAddress | null {
+function fixedOf(value: JsonValue | undefined): FixedPart | null {
   if (!isObject(value)) return null
-  const tenant = textOf(value, 'tenant')
-  const call = textOf(value, 'call')
-  const operation = textOf(value, 'operation')
-  return tenant === null || call === null || operation === null ? null : { tenant, call, operation }
+  if (value['kind'] === 'kept') return { kind: 'kept' }
+  const given = value['value']
+  return value['kind'] === 'given' && given !== undefined ? { kind: 'given', value: given } : null
 }
 
 function writeOf(value: JsonValue): LedgerWriteFact | null {
   if (!isObject(value)) return null
+  if (value['op'] === 'drop') return { op: 'drop' }
   const key = textOf(value, 'key')
   if (key === null) return null
-  if (value['op'] === 'delete') return { op: 'delete', key }
-  const record = value['record']
-  return value['op'] === 'put' && record !== undefined ? { op: 'put', key, record } : null
+  switch (value['op']) {
+    case 'delete':
+      return { op: 'delete', key }
+    case 'unschedule':
+      return { op: 'unschedule', key }
+    case 'schedule': {
+      const dueAt = textOf(value, 'dueAt')
+      return dueAt === null ? null : { op: 'schedule', key, dueAt }
+    }
+    case 'put': {
+      const record = value['record']
+      if (record === undefined) return null
+      if (value['fixed'] === undefined) return { op: 'put', key, record }
+      const fixed = fixedOf(value['fixed'])
+      return fixed === null ? null : { op: 'put', key, record, fixed }
+    }
+    default:
+      return null
+  }
+}
+
+export function bodyAddressOf(value: JsonValue): BodyAddress | null {
+  if (!isObject(value)) return null
+  const tenant = textOf(value, 'tenant')
+  const call = textOf(value, 'call')
+  const body = textOf(value, 'body')
+  return tenant === null || call === null || body === null ? null : { tenant, call, body }
+}
+
+function bodyOf(value: JsonObject): BodyFacts | null {
+  const address = bodyAddressOf(value)
+  if (address === null) return null
+  switch (value['intent']) {
+    case 'body-put': {
+      const seq = countOf(value, 'seq')
+      const data = value['data']
+      return seq === null || typeof data !== 'string'
+        ? null
+        : { ...address, intent: 'body-put', seq, data }
+    }
+    case 'body-seal': {
+      const chunks = countOf(value, 'chunks')
+      const bytes = countOf(value, 'bytes')
+      const digest = textOf(value, 'digest')
+      return chunks === null || bytes === null || digest === null
+        ? null
+        : { ...address, intent: 'body-seal', chunks, bytes, digest }
+    }
+    case 'body-delete':
+      return { ...address, intent: 'body-delete' }
+    default:
+      return null
+  }
+}
+
+function assertionOf(value: JsonValue): LedgerAssertionFact | null {
+  if (!isObject(value)) return null
+  const kind = value['kind']
+  const name = textOf(value, 'name')
+  const revision = textOf(value, 'revision')
+  return name === null || revision === null || !isDomainKind(kind) ? null : { kind, name, revision }
 }
 
 function ledgerOf(value: JsonObject): LedgerFacts | null {
@@ -133,76 +187,20 @@ function ledgerOf(value: JsonObject): LedgerFacts | null {
   const expected = textOf(value, 'expected')
   const revision = textOf(value, 'revision')
   const writes = value['writes']
-  if (domain === null || expected === null || revision === null || !Array.isArray(writes))
+  const asserts = value['asserts']
+  if (
+    domain === null ||
+    expected === null ||
+    revision === null ||
+    !Array.isArray(writes) ||
+    !Array.isArray(asserts)
+  )
     return null
   const parsed = writes.map(writeOf)
   if (!parsed.every((write): write is LedgerWriteFact => write !== null)) return null
-  return { ...domain, intent: 'ledger', expected, revision, writes: parsed }
-}
-
-function guardedHostOf(value: JsonObject): GuardedHostFacts | null {
-  const callValue = value['call']
-  const hostValue = value['hostCommit']
-  const call = isObject(callValue) ? domainOf(callValue) : null
-  const hostCommit = isObject(hostValue) ? ledgerOf(hostValue) : null
-  const callExpected = textOf(value, 'callExpected')
-  if (
-    call?.kind !== 'call' ||
-    hostCommit?.kind !== 'host' ||
-    callExpected === null ||
-    call.tenant !== hostCommit.tenant
-  )
-    return null
-  return { intent: 'guarded-host', call, callExpected, hostCommit }
-}
-
-function chunkOf(value: JsonObject): ChunkFacts | null {
-  const address = custodyAddressOf(value)
-  const digest = textOf(value, 'digest')
-  const index = countOf(value, 'index')
-  const data = value['data']
-  if (address === null || digest === null || index === null || typeof data !== 'string') return null
-  return { ...address, intent: 'chunk', digest, index, data }
-}
-
-function holdsOf(value: JsonValue | undefined): ManifestFacts['holds'] | undefined {
-  if (value === null) return null
-  if (!isObject(value)) return undefined
-  const operation = textOf(value, 'operation')
-  const seal = textOf(value, 'seal')
-  return operation === null || seal === null ? undefined : { operation, seal }
-}
-
-/** What a manifest declares about the kept bytes and its own answer. */
-function declaredOf(
-  value: JsonObject,
-): Pick<ManifestFacts, 'digest' | 'sha256' | 'seal' | 'answer'> | null {
-  const digest = textOf(value, 'digest')
-  const sha256 = textOf(value, 'sha256')
-  const seal = textOf(value, 'seal')
-  const answer = value['answer']
-  return digest === null || sha256 === null || seal === null || answer === undefined
-    ? null
-    : { digest, sha256, seal, answer }
-}
-
-function manifestOf(value: JsonObject): ManifestFacts | null {
-  const address = custodyAddressOf(value)
-  const kind = value['kind']
-  const declared = declaredOf(value)
-  const bytes = countOf(value, 'bytes')
-  const chunks = countOf(value, 'chunks')
-  const holds = holdsOf(value['holds'])
-  if (
-    address === null ||
-    (kind !== 'raw' && kind !== 'retain') ||
-    declared === null ||
-    bytes === null ||
-    chunks === null ||
-    holds === undefined
-  )
-    return null
-  return { ...address, ...declared, intent: 'manifest', kind, bytes, chunks, holds }
+  const assertions = asserts.map(assertionOf)
+  if (!assertions.every((item): item is LedgerAssertionFact => item !== null)) return null
+  return { ...domain, intent: 'ledger', expected, revision, writes: parsed, asserts: assertions }
 }
 
 /** The facts of one `tool` command, or null when they are not a command of this protocol. */
@@ -210,12 +208,10 @@ export function parseFacts(facts: JsonObject): ToolFacts | null {
   switch (facts['intent']) {
     case 'ledger':
       return ledgerOf(facts)
-    case 'guarded-host':
-      return guardedHostOf(facts)
-    case 'chunk':
-      return chunkOf(facts)
-    case 'manifest':
-      return manifestOf(facts)
+    case 'body-put':
+    case 'body-seal':
+    case 'body-delete':
+      return bodyOf(facts)
     default:
       return null
   }
@@ -225,9 +221,18 @@ export function parseDomainAddress(value: JsonValue): DomainAddress | null {
   return isObject(value) ? domainOf(value) : null
 }
 
-export function parseChunkInput(value: JsonValue): ChunkReadInput | null {
-  const address = custodyAddressOf(value)
+export function parseBodyReadInput(value: JsonValue): BodyReadInput | null {
+  const address = bodyAddressOf(value)
   if (address === null || !isObject(value)) return null
-  const index = countOf(value, 'index')
-  return index === null ? null : { ...address, index }
+  const first = countOf(value, 'first')
+  const count = countOf(value, 'count')
+  return first === null || count === null ? null : { ...address, first, count }
+}
+
+export function parseDueReadInput(value: JsonValue): DueReadInput | null {
+  if (!isObject(value)) return null
+  const tenant = textOf(value, 'tenant')
+  const now = textOf(value, 'now')
+  const limit = countOf(value, 'limit')
+  return tenant === null || now === null || limit === null ? null : { tenant, now, limit }
 }

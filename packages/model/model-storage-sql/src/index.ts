@@ -61,11 +61,9 @@ export {
   type StoredPart,
 } from './documents.ts'
 export {
-  COMMAND_RESERVE_BYTES,
   DEFAULT_ATTEMPT_LIMIT,
   DEFAULT_UNRESOLVED_LIMIT,
   PART_MERGE_THRESHOLD,
-  READ_RESERVE_BYTES,
   createSqlModelStorage,
   planParts,
   type ModelStorageLimits,
@@ -77,9 +75,11 @@ export {
   CALL_READ_MAX_OUTPUT_BYTES,
   CALL_READ_MAX_ROWS,
   PENDING_HANDLER,
+  REQUEST_HANDLER,
   PENDING_PAGE_MAX,
   callHandler,
   pendingHandler,
+  requestHandler,
   type CallReadInput,
   type PendingPage,
 } from './reads.ts'

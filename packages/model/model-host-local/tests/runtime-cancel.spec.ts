@@ -54,9 +54,6 @@ const CONFIGURATION: ModelConfiguration = {
   retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
-/** The capacity of one call; the store holds a few such calls at once. */
-const CAPACITY = { bytes: '200000', blocks: '20', attachmentBytes: '0' }
-const STORE_CAPACITY = { bytes: '1000000', blocks: '100', attachmentBytes: '0' }
 
 function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {
   if ('ok' in outcome) return outcome.ok
@@ -170,7 +167,7 @@ function assembleHost(label: string) {
       resultPageParts: 16,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: STORE_CAPACITY,
+      unacknowledgedResults: 10,
     },
     authority: {
       authorize: ({ access, action }) =>
@@ -291,7 +288,6 @@ function assembleHost(label: string) {
         operation: op(`admit-${name}`),
         request,
         consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'cancel-test' },
-        capacity: CAPACITY,
       }),
     )
     const driven = provider.driver.drive(

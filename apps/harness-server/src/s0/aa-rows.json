@@ -38,6 +38,7 @@
     "settings",
     "model-records",
     "tool-records",
+    "tool-body-sweep",
     "tool-bindings",
     "tool-runtime",
     "tool-executor",
@@ -155,6 +156,12 @@
       ]
     },
     {
+      "row": "session-ad06",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
       "row": "session-ad09",
       "names": [
         "principalVerifier"
@@ -233,6 +240,14 @@
         "storage",
         "tenantDomainLookup",
         "toolInvocationQualification"
+      ]
+    },
+    {
+      "row": "tool-body-sweep",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {

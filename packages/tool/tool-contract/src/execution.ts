@@ -51,6 +51,7 @@ import type {
   Effect,
   Reply,
   ToolResult,
+  ToolRenderedResult,
   ToolState,
   ToolTerminal,
   WaitState,
@@ -65,7 +66,9 @@ export interface ToolExecutor<A, R, E> {
 export interface ResultPolicy<B extends ContentBlock> {
   readonly adoption: Adoption
   judge(value: ContentBlock): Outcome<B, Readonly<{ reason: string }>>
-  judgeResult(value: ToolResult<ContentBlock>): Outcome<ToolResult<B>, Readonly<{ reason: string }>>
+  judgeResult(
+    value: ToolRenderedResult<ContentBlock>,
+  ): Outcome<ToolRenderedResult<B>, Readonly<{ reason: string }>>
 }
 export type ToolExecutionRef = Readonly<{
   tenant: TenantId
@@ -75,7 +78,7 @@ export type ToolExecutionRef = Readonly<{
 }>
 export type WriteContext = ToolExecutionRef &
   Readonly<{ operation: ToolOperationId; expected: ToolRevision }>
-export type ToolRecovery<B extends ContentBlock> = Readonly<{
+export type ToolRecovery = Readonly<{
   state: ToolState
   request: FixedToolRequest
   admission: ToolOperationId
@@ -86,12 +89,11 @@ export type ToolRecovery<B extends ContentBlock> = Readonly<{
   startRejection: Readonly<{ reason: string; exclusion: DurableEvidence }> | null
   invocations: readonly ToolStartRecord[]
   controls: readonly ControlRecord[]
-  result: ToolResult<B> | null
+  result: Readonly<{ version: ToolResultVersion; source: DurableEvidence }> | null
   unresolved: readonly ToolOperationId[]
   preparations: readonly PreparationRecord[]
   waits: readonly WaitRecord[]
   suspensions: readonly SuspensionRecord[]
-  rawOutputs: readonly RawOutput[]
   tasks: readonly ToolTask[]
   program: ProgramClosure | null
   scheduling: ProgramScheduling | null
@@ -119,7 +121,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
   scanPending(
     input: Access<P> & Readonly<{ after: string | null; limit: number }>,
   ): Reply<Readonly<{ calls: readonly ToolCallId[]; next: string | null }>>
-  loadRecovery(input: CallAccess<P>): Reply<ToolRecovery<B>>
+  loadRecovery(input: CallAccess<P>): Reply<ToolRecovery>
   claim(
     input: Mutation<P> & Readonly<{ instance: ToolInstanceId; continuity: DurableEvidence }>,
   ): Reply<ToolExecutionRef>
@@ -163,10 +165,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
   suspend(
     input: WriteContext & Readonly<{ suspension: SuspensionRecord; checkpoint: Checkpoint }>,
   ): Reply<ToolState>
-  preserveResult(
-    input: WriteContext &
-      Readonly<{ raw: RawOutput; value: ToolResult<B>; terminal: ToolTerminal; effect: Effect }>,
-  ): Reply<ToolState>
+  preserveResult(input: WriteContext & Readonly<{ basis: DurableEvidence }>): Reply<ToolState>
   recordResponse(
     input: WriteContext & Readonly<{ response: ResponseRecord; outcome: ResponseProgress }>,
   ): Reply<WaitRecord>
@@ -178,7 +177,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
       Readonly<{ control: ToolOperationId; source: DurableEvidence; progress: ControlProgress }>,
   ): Reply<ControlRecord>
   receiveFacts(
-    input: CallAccess<P> & Readonly<{ start: ToolStartRecord; batch: FactBatch<B> }>,
+    input: CallAccess<P> & Readonly<{ start: ToolStartRecord; batch: FactBatch }>,
   ): Reply<FactReceipt>
   recordFactAcknowledgement(
     input: Mutation<P> & Readonly<{ receipt: FactReceipt; sourceReceipt: DurableEvidence }>,

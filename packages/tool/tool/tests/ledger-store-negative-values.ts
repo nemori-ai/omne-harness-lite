@@ -1,4 +1,3 @@
-import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   LedgerCommitInput,
   LedgerDomain,
@@ -10,14 +9,12 @@ import {
   type ToolLedgerStoreFixture,
 } from '@omne-harness/tool/testing'
 
-type Store = ToolLedgerStore<ContentBlock>
+type Store = ToolLedgerStore
 export function wrappedFixture(wrap: (store: Store) => Store): ToolLedgerStoreFixture {
   const fixture = createMemoryToolLedgerStoreFixture()
   return { ...fixture, store: wrap(fixture.store) }
 }
-export function readMap(
-  map: (read: LedgerRead<ContentBlock>) => LedgerRead<ContentBlock>,
-): ToolLedgerStoreFixture {
+export function readMap(map: (read: LedgerRead) => LedgerRead): ToolLedgerStoreFixture {
   return wrappedFixture(store => ({
     ...store,
     read: async domain => map(await store.read(domain)),
@@ -44,13 +41,14 @@ export function collapseDomains(): ToolLedgerStoreFixture {
     return {
       ...store,
       read: domain => store.read(collapse(domain)),
+      readRecord: (domain, key) => store.readRecord(collapse(domain), key),
       commit: input => store.commit({ ...input, domain: collapse(input.domain) }),
     }
   })
 }
 export function aliasInput(): ToolLedgerStoreFixture {
   return wrappedFixture(store => {
-    let last: LedgerCommitInput<ContentBlock> | undefined
+    let last: LedgerCommitInput | undefined
     return {
       ...store,
       commit: async input => {
@@ -71,7 +69,7 @@ export function aliasInput(): ToolLedgerStoreFixture {
 }
 export function aliasOutput(): ToolLedgerStoreFixture {
   return wrappedFixture(store => {
-    let cached: LedgerRead<ContentBlock> | undefined
+    let cached: LedgerRead | undefined
     return {
       ...store,
       read: async domain => {
@@ -83,7 +81,7 @@ export function aliasOutput(): ToolLedgerStoreFixture {
 }
 export function shallowOutput(): ToolLedgerStoreFixture {
   return wrappedFixture(store => {
-    let cached: LedgerRead<ContentBlock> | undefined
+    let cached: LedgerRead | undefined
     return {
       ...store,
       read: async domain => {
@@ -129,7 +127,7 @@ export function oldPartialApply(): ToolLedgerStoreFixture {
 export function lateWithoutCas(): ToolLedgerStoreFixture {
   const fixture = createMemoryToolLedgerStoreFixture()
   let armed = false
-  let held: LedgerCommitInput<ContentBlock> | undefined
+  let held: LedgerCommitInput | undefined
   return {
     ...fixture,
     store: {

@@ -217,8 +217,6 @@ export function failureOfModel(failure: ModelFailure): Failure {
       return { kind: 'invalid', field: 'request', reason: failure.reason }
     case 'unsupported':
       return { kind: 'invalid', field: 'request', reason: `unsupported: ${failure.field}` }
-    case 'capacity':
-      return { kind: 'invalid', field: 'request', reason: 'capacity' }
     case 'unavailable':
       return unavailable(failure.diagnostic, failure.dependency)
     case 'conflict':

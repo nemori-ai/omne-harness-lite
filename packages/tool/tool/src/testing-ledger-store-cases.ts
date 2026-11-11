@@ -18,6 +18,86 @@ export function storeCases(deps: StoreCaseDependencies): readonly LedgerStoreCas
   const replacement = hostRecord('first', { replaced: true })
   return [
     {
+      name: 'store.record-snapshot',
+      clause: 'G1',
+      run: async ({ store }) => {
+        const key = recordKey(first)
+        assert.deepEqual(await store.readRecord(domain, key), {
+          kind: 'complete',
+          revision: revision('0'),
+          record: null,
+        })
+        await store.commit(batch(domain, [first, second]))
+        assert.deepEqual(await store.readRecord(domain, key), {
+          kind: 'complete',
+          revision: revision('1'),
+          record: first,
+        })
+        assert.deepEqual(await store.readRecord(domain, 'host:absent'), {
+          kind: 'complete',
+          revision: revision('1'),
+          record: null,
+        })
+        await store.commit({
+          ...batch(domain, [], '1', '2'),
+          writes: [{ kind: 'delete', key }],
+        })
+        assert.deepEqual(await store.readRecord(domain, key), {
+          kind: 'complete',
+          revision: revision('2'),
+          record: null,
+        })
+      },
+    },
+    {
+      name: 'store.record-cas-other-key',
+      clause: 'G1',
+      run: async ({ store }) => {
+        await store.commit(batch(domain, [first]))
+        const read = await store.readRecord(domain, recordKey(first))
+        assert.ok(read.kind === 'complete')
+        await store.commit(batch(domain, [second], '1', '2'))
+        assert.deepEqual(
+          await store.commit({
+            ...batch(domain, [replacement], '1', '3'),
+            expected: read.revision,
+          }),
+          { kind: 'conflict', current: revision('2') },
+        )
+        assert.deepEqual(await store.readRecord(domain, recordKey(first)), {
+          kind: 'complete',
+          revision: revision('2'),
+          record: first,
+        })
+      },
+    },
+    {
+      name: 'store.record-isolation',
+      clause: 'G1',
+      run: async ({ store }) => {
+        await store.commit(batch(domain, [first]))
+        const otherTenant = deps.tenant(`org_${'2'.repeat(26)}`, `acc_${'1'.repeat(26)}`)
+        for (const other of [
+          { ...domain, tenant: otherTenant },
+          { ...domain, key: 'other' },
+        ])
+          assert.deepEqual(await store.readRecord(other, recordKey(first)), {
+            kind: 'complete',
+            revision: revision('0'),
+            record: null,
+          })
+        const read = await store.readRecord(domain, recordKey(first))
+        assert.ok(read.kind === 'complete' && read.record?.kind === 'host')
+        const value = read.record.host.value as { nested: unknown[] }
+        value.nested.push('changed')
+        assert.deepEqual(await store.readRecord(domain, recordKey(first)), {
+          kind: 'complete',
+          revision: revision('1'),
+          record: first,
+        })
+      },
+    },
+    {
       name: 'store.snapshot',
       clause: 'G1',
       run: async ({ store }) => {
@@ -231,6 +311,91 @@ export function storeCases(deps: StoreCaseDependencies): readonly LedgerStoreCas
           expected,
           'nested read values must not alias stored records',
         )
+      },
+    },
+    {
+      name: 'store.asserts-hold',
+      clause: 'G1',
+      run: async ({ store }) => {
+        const guard: LedgerDomain = {
+          kind: 'host',
+          tenant: domain.tenant,
+          key: 'conformance-guard',
+        }
+        await store.commit(batch(guard, [hostRecord('guard', { armed: true })]))
+        const read = await store.readRecord(guard, recordKey(hostRecord('guard', null)))
+        assert.ok(read.kind === 'complete')
+        assert.deepEqual(
+          await store.commit({
+            ...batch(domain, [first]),
+            asserts: [{ domain: guard, revision: read.revision }],
+          }),
+          { kind: 'committed' },
+          'a commit whose assertion holds must commit',
+        )
+        snapshot(await store.read(domain), '1', [first], 'the asserted commit must be visible')
+        snapshot(
+          await store.read(guard),
+          '1',
+          [hostRecord('guard', { armed: true })],
+          'an assertion must not advance the asserted domain',
+        )
+      },
+    },
+    {
+      name: 'store.asserts-conflict',
+      clause: 'G1',
+      run: async ({ store }) => {
+        const guard: LedgerDomain = {
+          kind: 'host',
+          tenant: domain.tenant,
+          key: 'conformance-guard',
+        }
+        const other: LedgerDomain = { kind: 'call', tenant: domain.tenant, call: callId('held') }
+        await store.commit(batch(guard, [hostRecord('guard', { armed: true })]))
+        await store.commit(batch(guard, [hostRecord('guard', { armed: false })], '1', '2'))
+        for (const asserts of [
+          [{ domain: guard, revision: revision('1') }],
+          [
+            { domain: guard, revision: revision('2') },
+            { domain: other, revision: revision('1') },
+          ],
+        ])
+          assert.deepEqual(
+            await store.commit({ ...batch(domain, [first]), asserts }),
+            { kind: 'conflict', current: revision('0') },
+            'a commit with one failed assertion must conflict with the written domain current',
+          )
+        snapshot(await store.read(domain), '0', [], 'a failed assertion must write nothing')
+        assert.deepEqual(
+          await store.commit({
+            ...batch(domain, [first]),
+            asserts: [
+              { domain: guard, revision: revision('2') },
+              { domain: other, revision: revision('0') },
+            ],
+          }),
+          { kind: 'committed' },
+          'a never committed asserted domain holds at revision 0',
+        )
+      },
+    },
+    {
+      name: 'store.asserts-same-tenant',
+      clause: 'G1',
+      run: async ({ store }) => {
+        const otherTenant = deps.tenant(`org_${'2'.repeat(26)}`, `acc_${'1'.repeat(26)}`)
+        const foreign: LedgerDomain = { kind: 'host', tenant: otherTenant, key: 'conformance' }
+        const answer = await store.commit({
+          ...batch(domain, [first]),
+          asserts: [{ domain: foreign, revision: revision('0') }],
+        })
+        assert.equal(
+          answer.kind,
+          'rejected',
+          'an assertion on another tenant is refused for good before anything is attempted',
+        )
+        snapshot(await store.read(domain), '0', [], 'a refused commit must write nothing')
       },
     },
   ]

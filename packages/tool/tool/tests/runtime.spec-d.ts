@@ -1,9 +1,18 @@
+import type { ToolBodyWrites, ToolInstant } from '@omne-harness/tool-contract/provider'
 import { expectTypeOf, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { FixedToolRequest, Reply, ToolState } from '@omne-harness/tool-contract'
+import type {
+  FixedToolRequest,
+  Reply,
+  ToolState,
+  ToolResult,
+  ToolResultVersion,
+} from '@omne-harness/tool-contract'
 import type {
   Mutation,
+  CallAccess,
   ToolClock,
+  ToolFinalPlanner,
   ToolCommands,
   ToolProvider,
   ToolReads,
@@ -20,6 +29,7 @@ import {
   type ToolLedgerRejections,
   type ToolLedgerFacts,
   type ToolLedgerStore,
+  type ResultRecord,
   type ToolLedgerPorts,
   type ToolLedgerControls,
 } from '@omne-harness/tool'
@@ -48,7 +58,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
   type P = { subject: string }
   expectTypeOf(createToolLedger<P, ContentBlock>).parameters.toEqualTypeOf<
     [
-      ToolLedgerStore<ContentBlock>,
+      ToolLedgerStore,
       ToolLedgerGuards<P, ContentBlock>,
       ToolClock,
       ToolLedgerConfiguration,
@@ -57,6 +67,18 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
   >()
   expectTypeOf(createToolLedger<P, ContentBlock>).returns.toEqualTypeOf<
     Readonly<{
+      delivery: Readonly<{
+        read(
+          input: CallAccess<P> & Readonly<{ result: ToolResultVersion }>,
+        ): Reply<ToolResult<ContentBlock>>
+      }>
+      bodyWrites: ToolBodyWrites<P>
+      sweep(
+        tenant: CallAccess<P>['tenant'],
+        now: ToolInstant,
+        limit: number,
+      ): Reply<Readonly<{ reclaimed: number; removed: number }>>
+      finalPlanner: ToolFinalPlanner<P, ContentBlock>
       controls: ToolLedgerControls<P>
       commands: ToolCommands<P, ContentBlock>
       reads: ToolReads<P, ContentBlock>
@@ -79,4 +101,8 @@ it('ledger content provider is explicit and may be disabled with null', () => {
     ToolContentReader<string>,
     'read'
   > | null>()
+})
+
+it('the result record keeps the committed ToolResult inline', () => {
+  expectTypeOf<ResultRecord['value']>().toEqualTypeOf<ToolResult<ContentBlock>>()
 })

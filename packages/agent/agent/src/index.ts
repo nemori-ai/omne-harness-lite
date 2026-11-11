@@ -64,7 +64,11 @@ export type {
   ToolReceptionTargets,
   ToolReceptionCapacity,
 } from './tool-receiving-types.ts'
-export { agentToolDeliverySchema, readToolDeliveryMaterial } from './tool-receiving-material.ts'
+export {
+  agentToolDeliverySchema,
+  decodeAgentToolDeliveryMaterial,
+  readToolDeliveryMaterial,
+} from './tool-receiving-material.ts'
 
 export { createAgentActionQualification } from './action-qualification.ts'
 export type { AgentActionQualificationSources } from './action-qualification.ts'

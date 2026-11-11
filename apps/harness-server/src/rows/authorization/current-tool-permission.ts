@@ -73,13 +73,17 @@ export type ToolPermissionDecision =
 export type ToolPermissionCheck = Readonly<{
   check(input: ToolPermissionAction): Promise<ToolPermissionDecision>
 }>
-/** The reading of the current permission and the condition that keeps it current at a commit. */
-export type CurrentPermissionRead = Readonly<{ reading: unknown; condition: StartCondition | null }>
+/**
+ * The request of one check, the reading of the current permission for it, and the condition that
+ * keeps the reading current at a commit. The source maps the action to its request once per check.
+ */
+export type CurrentPermissionRead = Readonly<{
+  request: unknown
+  reading: unknown
+  condition: StartCondition | null
+}>
 export type CurrentPermissionSource = Readonly<{
-  readCurrent(
-    context: ToolPermissionContext,
-    request: PermissionBasisRequest,
-  ): Promise<CurrentPermissionRead>
+  readCurrent(context: ToolPermissionContext): Promise<CurrentPermissionRead>
 }>
 export type ToolPermissionContext = ToolPermissionAction &
   Readonly<{ inquiry: SessionInquiryView | null }>
@@ -87,7 +91,6 @@ export type ToolPermissionPorts = Readonly<{
   release(): ToolRelease
   source(): CurrentPermissionSource | undefined
   inquiry(input: ToolPermissionAction): Promise<SessionInquiryView | null>
-  request(input: ToolPermissionAction): Promise<PermissionBasisRequest | undefined>
 }>
 
 const unavailable = () => ({
@@ -196,18 +199,14 @@ export function createCurrentToolPermission(ports: ToolPermissionPorts): ToolPer
         const released = releasedToolPermission(ports.release(), captured)
         if (released === undefined) return unavailable()
         const { interpretation } = released
-        const parsed = PermissionBasisRequestSchema.safeParse(await ports.request(captured))
-        if (!parsed.success || !toolPermissionRequestMatches(captured, parsed.data, interpretation))
-          return unavailable()
         const source = ports.source()
         if (source === undefined) return unavailable()
         const inquiry = capturedInquirySchema.parse(await ports.inquiry(captured).catch(() => null))
-        return interpretReading(
-          parsed.data,
-          interpretation,
-          await source.readCurrent({ ...captured, inquiry }, parsed.data),
-          inquiry,
-        )
+        const read = await source.readCurrent({ ...captured, inquiry })
+        const parsed = PermissionBasisRequestSchema.safeParse(read.request)
+        if (!parsed.success || !toolPermissionRequestMatches(captured, parsed.data, interpretation))
+          return unavailable()
+        return interpretReading(parsed.data, interpretation, read, inquiry)
       } catch {
         return unavailable()
       }

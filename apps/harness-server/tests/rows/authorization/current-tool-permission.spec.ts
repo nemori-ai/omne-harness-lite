@@ -154,11 +154,10 @@ function world() {
   const ports: ToolPermissionPorts = {
     release: () => release,
     inquiry: async () => inquiry,
-    request: async () => request,
     source: () => ({
       readCurrent: async () => {
         reads++
-        return { reading, condition }
+        return { request, reading, condition }
       },
     }),
   }
@@ -208,17 +207,25 @@ it.each(['arguments', 'operation', 'tenant', 'session', 'implementation'])(
     expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({
       kind: 'unavailable',
     })
-    expect(w.reads()).toBe(0)
+    // The request comes with the reading of the same check; a request of another action gives
+    // no decision.
+    expect(w.reads()).toBe(1)
   },
 )
 
 it('refuses a previous response for changed arguments', async () => {
   const w = world()
+  const source = w.ports.source()
   const ports: ToolPermissionPorts = {
     ...w.ports,
-    request: async input => ({
-      ...w.request,
-      argumentsDigest: effectiveArgumentsOf(input.effectiveArguments).digest,
+    source: () => ({
+      readCurrent: async context => ({
+        ...(await source!.readCurrent(context)),
+        request: {
+          ...w.request,
+          argumentsDigest: effectiveArgumentsOf(context.effectiveArguments).digest,
+        },
+      }),
     }),
   }
   expect(
@@ -306,12 +313,11 @@ it('carries the original owner context and the unchanged issued principal to the
   const check = createCurrentToolPermission({
     ...w.ports,
     source: () => ({
-      readCurrent: async (context, request) => {
+      readCurrent: async context => {
         expect(context.principal).toBe(w.input.principal)
         expect(context.origin).toEqual(w.input.origin)
         expect(context.origin).not.toBe(w.input.origin)
-        expect(request).toEqual(w.request)
-        return { reading: w.current, condition: null }
+        return { request: w.request, reading: w.current, condition: null }
       },
     }),
   })
@@ -368,7 +374,7 @@ it('uses the same immutable published inquiry for capture and interpretation', a
       readCurrent: async context => {
         captured = context.inquiry
         policy.onAsk = 'skip-ask'
-        return { reading: w.current, condition: null }
+        return { request: w.request, reading: w.current, condition: null }
       },
     }),
   })
@@ -419,10 +425,7 @@ it('the default authorization row adopts the current source on each call without
     const source = await ctx.plugin(scope => {
       new CurrentPermissionService(scope, {
         identity: { verifier: w.authority.verifier, standing },
-        runtime: async () => ({
-          permissionRequest: w.ports.request,
-          permissionBasis,
-        }),
+        runtime: async () => ({ permissionBasis }),
       })
     })
     try {

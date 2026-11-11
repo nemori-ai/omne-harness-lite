@@ -99,13 +99,13 @@ function fixture(changes: Partial<ToolEnvironmentSchedulingPolicy<Principal>> = 
       adoption: provider.adoption,
       inputDigest: canonicalDigest(fixed),
       purpose: 'initial',
-      request: fixed,
     }
     return {
       principal: tenant === tenantA ? principalA : principalB,
       tenant,
       call: record.call,
       preparation: record,
+      request: fixed,
     }
   }
   const release = async (input: ReturnType<typeof preparation>) => {
@@ -456,7 +456,7 @@ it('keeps tenant FIFO through slow qualification and freezes each call settings 
   const provider: ToolEnvironment<Principal, MemoryEnvironment> = {
     ...f.provider,
     prepare: input => {
-      seen.push(input.preparation.request.settings.digest)
+      seen.push(input.request.settings.digest)
       return f.provider.prepare(input)
     },
   }
@@ -473,25 +473,19 @@ it('keeps tenant FIFO through slow qualification and freezes each call settings 
     },
   })
   const firstInput = f.preparation('first')
-  const firstSettings = { ...firstInput.preparation.request.settings }
+  const firstSettings = { ...firstInput.request.settings }
   const first = wrapper.prepare({
     ...firstInput,
-    preparation: {
-      ...firstInput.preparation,
-      request: { ...firstInput.preparation.request, settings: firstSettings },
-    },
+    request: { ...firstInput.request, settings: firstSettings },
   })
   await entered.wait
   firstSettings.digest = 'changed-after-entry'
   const secondInput = f.preparation('second')
   const second = wrapper.prepare({
     ...secondInput,
-    preparation: {
-      ...secondInput.preparation,
-      request: {
-        ...secondInput.preparation.request,
-        settings: { ...secondInput.preparation.request.settings, digest: 'second-settings' },
-      },
+    request: {
+      ...secondInput.request,
+      settings: { ...secondInput.request.settings, digest: 'second-settings' },
     },
   })
   const foreign = f.preparation('other', tenantB)
@@ -502,8 +496,8 @@ it('keeps tenant FIFO through slow qualification and freezes each call settings 
   expect(await second).toMatchObject({ ok: { kind: 'prepared' } })
   expect(f.calls).toEqual(['other', 'first', 'second'])
   expect(seen).toEqual([
-    foreign.preparation.request.settings.digest,
-    firstInput.preparation.request.settings.digest,
+    foreign.request.settings.digest,
+    firstInput.request.settings.digest,
     'second-settings',
   ])
 })

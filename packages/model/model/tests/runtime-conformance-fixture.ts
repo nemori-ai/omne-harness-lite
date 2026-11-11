@@ -120,7 +120,6 @@ export function runtimeConformanceSubject(
     otherTenant: identity('6'),
     request: f.admit.request,
     consumer: f.admit.consumer,
-    capacity: f.admit.capacity,
     transport: {
       transport: countedTransport,
       sends: () => sends,

@@ -1,7 +1,7 @@
 // Tool 运行时组的五行（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：一次 `createLocalToolRuntimePlugins` 返回的
 // 六个插件分装到五行，每行一个 fiber，全部共用一份记录仓、账本、启动协调器和 driver：
 // - `tool-records`：records 插件，提供 `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者
-//   组 `tool-start`）。本行在受信存储子树内建 SQL 记录仓、输出保管与守护提交，交给共享状态；整组的运维者配置也只在
+//   组 `tool-start`）。本行在受信存储子树内建 SQL 记录仓与输出保管，交给共享状态；整组的运维者配置也只在
 //   本行（bundle 建一次就要全部数值）。会话工作主体（受信）不经本行：入口对象 `toolClock` 安装时把入口自己的
 //   受信读口交给共享状态（`entry/tool-runtime-objects.ts`），本行的可见集合不变。
 // - `tool-runtime`：门面插件，提供 `toolRuntime`。
@@ -12,10 +12,14 @@
 // 四行等 `tool-records` 建好 bundle 再装；`tool-records` 一直不装时它们停在装载中，不答就绪。
 // 已知限制：bundle 每次运行只建一次，实例宿主与执行宿主不能在同一运行里重装（成员抛出，行 FAILED）。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
+import { observeToolLedgerCommit } from '@omne-harness/tool'
+import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
+import { processInstance } from '../telemetry/instance.ts'
+import { createToolLifecycleTelemetry } from './telemetry.ts'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+
 import {
   toolClockKey,
   toolCommandsKey,
@@ -29,10 +33,9 @@ import {
   toolStartFenceKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import {
+  createSqlToolBodyStore,
   createSqlToolConditionalCommit,
-  createSqlToolGuardedHostCommit,
   createSqlToolLedgerStore,
-  createSqlToolOutputCustody,
 } from '@omne-harness/tool-storage-sql'
 import {
   closeEnvironmentSchemaProvider,
@@ -40,6 +43,7 @@ import {
 } from '../../entry/schema-domain.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
+import { createReleaseBodySchemas } from '../../entry/tool-body-schemas.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { ensureToolRuntimeBundle } from './bundle.ts'
@@ -67,17 +71,20 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
     domains,
     combination: { combinationVersion: config.combinationVersion, manifestDigest: manifest.digest },
   }
+  const store = createSqlToolLedgerStore(options)
+  const holder = toolRuntimeHolder(ctx)
+  const { bodyPermitKey: permitKey, bodyClock: clock } = holder
   const sql = Object.freeze({
-    store: createSqlToolLedgerStore<ToolMessageContentBlock>(options),
-    custody: createSqlToolOutputCustody<unknown>({
-      ...options,
-      maxCommandBytes: config.maxCommandBytes,
-      maxChunkBytes: config.maxChunkBytes,
-    }),
-    guarded: createSqlToolGuardedHostCommit(options),
+    store: {
+      ...store,
+      commit: observeToolLedgerCommit(
+        store.commit,
+        createToolLifecycleTelemetry(() => ctx.get(telemetryKey, false), processInstance),
+      ),
+    },
+    bodies: { store: createSqlToolBodyStore({ ...options, permitKey, clock }), permitKey, clock },
     conditional: createSqlToolConditionalCommit(options),
   })
-  const holder = toolRuntimeHolder(ctx)
   holder.sql = sql
   ctx.effect(
     () => () => {
@@ -89,11 +96,21 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
 
 const recordsPlugin: Plugin.Object = {
   name: 'tool-records',
-  inject: [storageKey, tenantDomainLookupKey],
+  inject: [storageKey, tenantDomainLookupKey, telemetryKey],
   Config: toolRuntimeConfigSchema,
-  apply(ctx: Context, value: unknown) {
+  async apply(ctx: Context, value: unknown) {
     const config = toolRuntimeConfigSchema.parse(value)
     mountSql(ctx, config)
+    const holder = toolRuntimeHolder(ctx)
+    const body = createReleaseBodySchemas()
+    holder.bodySchemas = body.schemas
+    ctx.effect(
+      () => () => {
+        if (holder.bodySchemas === body.schemas) holder.bodySchemas = null
+        body.close()
+      },
+      'tool-records.body-schemas',
+    )
     const bundle = ensureToolRuntimeBundle(ctx, config)
     bundle.records.apply(ctx)
     new ToolInvocationQualificationService(ctx, bundle.qualification)
@@ -111,7 +128,7 @@ export const toolRecordsRow = defineRow({
       toolStartFenceKey,
       toolInvocationQualificationKey,
     ],
-    injects: [storageKey, tenantDomainLookupKey],
+    injects: [storageKey, tenantDomainLookupKey, telemetryKey],
     sameProviderGroup: 'tool-start',
   },
   lifecycle: { kind: 'none' },

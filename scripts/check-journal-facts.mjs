@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Journal 事实体守卫：扫测试世界生成的库里 `er_fact.body`，里面出现内容类型的判别键（`role`、`content`、
+// Journal 事实体守卫：扫测试世界生成的库里 `er_fact.body`（sql-contract §10.1 的压缩文本，先解码），里面出现内容类型的判别键（`role`、`content`、
 // `messages`、`system`）就判红。Journal 的事实只存引用、摘要和小值；这些键说明有 `Message`、模型请求或
 // 工具请求的内容被整份拷进了事实体，违背「Journal 自有部分不含日志或生产者已有内容」。
 //
@@ -14,6 +14,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
+import { unpackText } from '../packages/storage/sql-contract/src/text-pack.ts'
 
 /** 内容类型的判别键。键名整词相等才算，`contentDigest` 这类不算。 */
 export const CONTENT_KEYS = Object.freeze(['role', 'content', 'messages', 'system'])
@@ -57,9 +58,7 @@ export function scanDatabase(file) {
       const where = `pub=${row.pub} ord=${row.ord} kind=${row.kind}`
       let parsed
       try {
-        parsed = JSON.parse(
-          typeof row.body === 'string' ? row.body : Buffer.from(row.body).toString('utf8'),
-        )
+        parsed = JSON.parse(unpackText(row.body))
       } catch {
         violations.push(`${where}: body is not JSON`)
         continue

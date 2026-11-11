@@ -188,7 +188,7 @@ async function diagnosticsFixture(
                 failure: {
                   kind: 'model-refused',
                   call: 'mc',
-                  failure: { kind: 'capacity', required: {} },
+                  failure: { kind: 'denied', action: 'admit' },
                   step: null,
                   at: '0',
                   source: evidence('f'),
@@ -388,7 +388,7 @@ describe('the judgment order of read-history', () => {
       outcome: 'failed',
       cause: {
         record: 'model-refused',
-        structured: { kind: 'model-refused', failure: 'capacity' },
+        structured: { kind: 'model-refused', failure: 'denied' },
       },
     })
     expect(page.runs[0]!.modelCalls[0]).toMatchObject({

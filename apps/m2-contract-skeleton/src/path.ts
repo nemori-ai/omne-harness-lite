@@ -924,7 +924,7 @@ function contextBridge(
         return { failure: { kind: 'unavailable', owner: PATH_OWNER, diagnostic: 'no-session-run' } }
       const frame = await deps.preparationFrame(input)
       if ('failure' in frame || frame.ok.kind !== 'ready') return frame
-      const { request, capacity: _capacity, ...common } = frame.ok
+      const { request, ...common } = frame.ok
       const previous = input.previous
       if (previous === null) return assembleRequest(scene, tenant, deps, round.log, common)
       // P1: fix the request from the assembled input of P0, carrying Request Context's content.
@@ -951,7 +951,7 @@ type ReadyFrame = Omit<
     >['ok'],
     { kind: 'ready' }
   >,
-  'request' | 'capacity'
+  'request'
 >
 
 /** P0: assemble the request input through Request Context over the Session history. */

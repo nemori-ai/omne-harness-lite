@@ -19,7 +19,7 @@ sha256sum "$JAR" ./*.tla ./*.cfg > out/sha256.txt
 : > out/summary.txt
 if [ $# -gt 0 ]; then names=("$@"); else
   names=(admission bad-recall-ignores-unknown-once bad-recall-ignores-unknown-authority \
-         bad-admit-upserts bad-capacity-ignored bad-truncate-capacity bad-truncate-write \
+         bad-admit-upserts bad-share-ignored \
          bad-tenant-leak \
          push push-wide push-live \
          bad-ack-without-saved bad-ack-without-adapter bad-release-before-ack \
@@ -33,7 +33,7 @@ if [ $# -gt 0 ]; then names=("$@"); else
 fi
 module_of() {
   case "$1" in
-    admission|bad-recall-*|bad-admit-*|bad-capacity-*|bad-truncate-*|bad-tenant-*) echo Admission ;;
+    admission|bad-recall-*|bad-admit-*|bad-share-*|bad-tenant-*) echo Admission ;;
     send|send-*|bad-send-*|known-send-*) echo SendBoundary ;;
     *) echo ResultPush ;;
   esac

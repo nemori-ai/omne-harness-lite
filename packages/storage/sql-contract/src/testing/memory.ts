@@ -179,6 +179,8 @@ type Domain = {
 const factId = (fact: FactKey): string => JSON.stringify([fact.key, fact.protocol])
 const receiptKey = (identity: SqlIdentity): string =>
   JSON.stringify([identity.operation, identity.operationKey])
+/** A commit whose identity is never recalled keeps no receipt (SPEC 3.1). */
+const keepsReceipt = (identity: SqlIdentity): boolean => identity.recall !== 'never'
 const sortNames = (names: readonly string[]): string[] => [...names].sort()
 
 type PortViolation = 'port_violation' | 'fact_violation'
@@ -243,6 +245,7 @@ type Outcome =
   | Readonly<{ kind: 'stopped'; reply: RecordedReply }>
 
 class MemorySqlStorage implements SqlStorage {
+  readonly database = Object.freeze({})
   closing = false
   readonly queue = new SerialQueue()
   private readonly domains = new Map<string, Domain>()
@@ -481,10 +484,10 @@ class MemorySqlStorage implements SqlStorage {
     if (this.dependencyMissing(named, [...members])) return reject('participant_dependency_missing')
 
     const inputDigest = inputDigestV2(input)
-    const existing = domain.receipts.get(receiptKey(identity))
+    const existing = keepsReceipt(identity) ? domain.receipts.get(receiptKey(identity)) : undefined
     if (existing !== undefined)
       return existing.inputDigest === inputDigest
-        ? existing
+        ? { ...existing, recalled: true }
         : { kind: 'identity_conflict', identity, existing }
 
     const entries: (ParticipatedEntry | StoppingEntry)[] = []
@@ -522,8 +525,8 @@ class MemorySqlStorage implements SqlStorage {
         manifestDigest: input.manifestDigest,
         responses: entries,
       } as unknown as ReceiptV2 // entries end with the stopping entry, by the branch above
-      domain.receipts.set(receiptKey(identity), receipt)
-      return receipt
+      if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
+      return { ...receipt, recalled: false }
     }
     const receipt = {
       kind: 'committed',
@@ -533,8 +536,8 @@ class MemorySqlStorage implements SqlStorage {
       manifestDigest: input.manifestDigest,
       responses: entries,
     } as unknown as ReceiptV2 // the loop reached its end, so every entry participated
-    domain.receipts.set(receiptKey(identity), receipt)
-    return receipt
+    if (keepsReceipt(identity)) domain.receipts.set(receiptKey(identity), receipt)
+    return { ...receipt, recalled: false }
   }
 
   /** A commanded participant needs a fact whose provider is not commanded (SPEC 7.2 step 15). */
@@ -644,6 +647,7 @@ class MemorySqlStorage implements SqlStorage {
     if (this.closing) return Promise.resolve(unknown('closing'))
     if (decoded.identity === null) return Promise.resolve(unknown('invalid_identity'))
     const valid = decoded.identity
+    if (!keepsReceipt(valid)) return Promise.resolve({ kind: 'not_recallable', identity: valid })
     return new Promise(resolve => {
       this.queue.submit({
         start: () => {

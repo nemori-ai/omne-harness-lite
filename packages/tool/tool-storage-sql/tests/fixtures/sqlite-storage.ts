@@ -2,7 +2,8 @@
 // it cannot run the `tool` participant or the read handlers; this one runs the real Worker modules
 // of this member against one database file per transaction domain. It keeps the receipts in the
 // same file and commits them in the same transaction as the participant's writes, so a closed and
-// reopened storage over the same directory recalls every committed operation. It models receipts,
+// reopened storage over the same directory recalls every committed operation. An identity that is
+// never recalled keeps no receipt and its query answers not_recallable. It models receipts,
 // rollback by a stopping reply or a throwing participant, recognition by the full identity, scope
 // partition, strict JSON facts and the command bound. It does not model Workers, queues, the group
 // commit, read ordering under concurrency or power loss, and a pass proves none of those.
@@ -33,18 +34,30 @@ import type {
 } from '@omne-harness/sql-contract/worker'
 import migration from '../../src/worker/migration.ts'
 import participant from '../../src/worker/participant.ts'
-import readChunk from '../../src/worker/read-chunk.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
-import readManifest from '../../src/worker/read-manifest.ts'
+import readBody from '../../src/worker/read-body.ts'
+import readDue from '../../src/worker/read-due.ts'
+import { READ_OUTPUT_BYTES } from '../../src/worker/schema.ts'
 
-const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readManifest, readChunk]
+const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readBody, readDue]
 
 export type SqliteStorageOptions = Readonly<{
   /** The directory that holds one database file per transaction domain. */
   directory: string
   /** The command bound of sql-contract §7.2 step 7. Default 1048576, the provider's initial value. */
   maxCommandBytes?: number
+  /** Sees every statement the participant and the read handlers of this member run, after it ran. */
+  observe?: StatementObserver
 }>
+
+/** One statement of the participant or of a read handler, with its parameters and its result. */
+export type ObservedStatement = Readonly<{
+  sql: string
+  params: readonly SqlValue[]
+  result: QueryRows
+}>
+
+export type StatementObserver = (statement: ObservedStatement) => void
 
 export type Row = Readonly<Record<string, SqlCell>>
 
@@ -162,26 +175,25 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         }
         rowsOf(db, 'INSERT INTO _sql_binding (scope) VALUES (?)', [scopeText(scope)])
       }
-      const done = rowsOf(db, 'SELECT 1 AS done FROM _sql_migration WHERE owner = ? AND id = ?', [
-        migration.owner,
-        migration.id,
-      ])
-      if (done.length === 0) {
-        const port = {
-          execute: (sql: string, params: readonly SqlValue[]) => execute(db, sql, params),
-        }
-        db.exec('BEGIN IMMEDIATE')
-        migration.up(port)
-        const verdict = migration.verify(port)
-        if (verdict.kind !== 'verified') {
-          db.exec('ROLLBACK')
-          throw new Error(`migration failed: ${verdict.diagnostic}`)
-        }
-        rowsOf(db, 'INSERT INTO _sql_migration (owner, id) VALUES (?, ?)', [
-          migration.owner,
-          migration.id,
+      for (const step of [migration]) {
+        const done = rowsOf(db, 'SELECT 1 AS done FROM _sql_migration WHERE owner = ? AND id = ?', [
+          step.owner,
+          step.id,
         ])
-        db.exec('COMMIT')
+        if (done.length === 0) {
+          const port = {
+            execute: (sql: string, params: readonly SqlValue[]) => execute(db, sql, params),
+          }
+          db.exec('BEGIN IMMEDIATE')
+          step.up(port)
+          const verdict = step.verify(port)
+          if (verdict.kind !== 'verified') {
+            db.exec('ROLLBACK')
+            throw new Error(`migration failed: ${verdict.diagnostic}`)
+          }
+          rowsOf(db, 'INSERT INTO _sql_migration (owner, id) VALUES (?, ?)', [step.owner, step.id])
+          db.exec('COMMIT')
+        }
       }
       const scopeRow = rowsOf(db, 'SELECT scope FROM _sql_binding LIMIT 1')[0]
       const parsed: StorageScope =
@@ -202,10 +214,18 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
   }
 
   const save = (domain: Domain, receipt: ReceiptV2) => {
+    if (receipt.identity.recall === 'never') return
     rowsOf(domain.db, 'INSERT INTO _sql_receipt (identity, receipt) VALUES (?, ?)', [
       identityText(receipt.identity),
       JSON.stringify(receipt),
     ])
+  }
+
+  /** Runs one statement of the member and shows it to the observer. */
+  const observed = (db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows => {
+    const result = execute(db, sql, params)
+    options.observe?.({ sql, params, result })
+    return result
   }
 
   const portOf = (db: DatabaseSync): ParticipantPort => {
@@ -216,7 +236,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
       execute: (sql, params) => {
         ordinal += 1
         if (fail === ordinal) throw new Error(`injected: statement ${ordinal} failed`)
-        return execute(db, sql, params)
+        return observed(db, sql, params)
       },
       requireFact: () => null,
       provideFact: () => undefined,
@@ -272,6 +292,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
   }
 
   const storage: SqlStorage = {
+    database: {},
     registerCombination: input => {
       domainOf(input.scope, input.transactionDomain, true)
       return Promise.resolve({ kind: 'registered', registration: input })
@@ -295,17 +316,18 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         return rejected('command_limit')
       const domain = domainOf(identity.scope, identity.transactionDomain, false)
       if (domain === null) return rejected('combination_unregistered')
-      const existing = saved(domain, identity)
+      const existing = identity.recall === 'never' ? null : saved(domain, identity)
       if (existing !== null)
         return Promise.resolve(
           existing.inputDigest === inputDigestV2(request)
-            ? existing
+            ? { ...existing, recalled: true }
             : { kind: 'identity_conflict', identity, existing },
         )
-      return Promise.resolve(run(domain, request))
+      return Promise.resolve({ ...run(domain, request), recalled: false })
     },
     query: (identity): Promise<QueryResultV2> => {
       const domain = domainOf(identity.scope, identity.transactionDomain, false)
+      if (identity.recall === 'never') return Promise.resolve({ kind: 'not_recallable', identity })
       if (domain === null)
         return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'domain_unavailable' })
       return Promise.resolve(
@@ -332,13 +354,17 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         outcome = module.read(structuredClone(request.input), {
           execute: (sql, params) => {
             if (!/^\s*SELECT/iu.test(sql)) throw new Error('a read handler ran a write')
-            return execute(domain.db, sql, params)
+            return observed(domain.db, sql, params)
           },
         })
       } catch {
         return unavailable('read_failed')
       }
       if (outcome.kind !== 'read' || !isJson(outcome.output)) return unavailable('read_failed')
+      // The provider's `maxReadResultBytes` (sqlite-provider SPEC 12.1): an output above the
+      // handler's declared bound is refused, never truncated.
+      if (Buffer.byteLength(JSON.stringify(outcome.output), 'utf8') > READ_OUTPUT_BYTES)
+        return unavailable('read_failed')
       return Promise.resolve({
         kind: 'read',
         requestKey: request.requestKey,

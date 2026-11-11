@@ -1,4 +1,5 @@
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
+import { requestHead } from '@omne-harness/model-contract/provider'
 import { expectTypeOf, it } from 'vitest'
 import type {
   Access,
@@ -55,7 +56,6 @@ import {
   block,
   budget,
   call,
-  capacity,
   consumer,
   dispatch,
   evidence,
@@ -207,8 +207,7 @@ it('dispatch plans and retry facts keep the policy position and the decision apa
 it('RecoveryRecord holds the original request, the actor and the open work', () => {
   const record: RecoveryRecord = {
     state,
-    request,
-    capacity,
+    request: requestHead(request),
     initiator: { owner: 'o', subject: 's', revision: '1' },
     admission: operation,
     execution: null,

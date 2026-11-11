@@ -28,7 +28,10 @@ export type SessionPermissionSettingsInput = Readonly<{
 export type SessionPermissionSettingsResolver = (
   input: SessionPermissionSettingsInput,
 ) => Promise<SessionPermissionMappedSource | undefined>
-function mappedDefinition(input: SessionPermissionSettingsInput) {
+/** The Settings definition of the declaration that carries the permission; undefined when the two disagree. */
+export function mappedDefinition(
+  input: Pick<SessionPermissionSettingsInput, 'declaration' | 'permission'>,
+) {
   const projected = projectPermissionSettings(input.permission)
   if (projected.kind !== 'projected') return undefined
   const expected = projected.definition

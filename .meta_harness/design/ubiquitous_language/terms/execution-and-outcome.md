@@ -28,7 +28,7 @@
 > **EN**: The optional `programmable` property of a tool definition. It permits an agent to call the tool from a script that combines or orchestrates tool calls. Only explicit `true` permits this use. An omitted value or `false` does not.
 
 - **形态**：属性
-- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 6）
+- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 8）
 - **别混**：不是当前动作授权、常驻标记或后台许可。独立程序消费 SDK 不自动属于 Agent 脚本编排；脚本经 SDK 或通用调用入口间接调用工具，仍属于该许可的范围。
 
 ### UL-tool-definition · 工具定义 · Tool Definition
@@ -39,7 +39,8 @@
 > 声明之外，**前台上限与并发上限两项偏好类设置的默认值也由它给**。
 > **多命令工具在模型面前是一份一行一命令的紧凑命令清单**：每个命令那一行说明必填；
 > 作者带不带各命令的完整参数由他定。带了完整参数的命令，那一行还列出它接受的字段名、是否可选和封闭取值；
-> 字段类型、字段说明与完整 schema 只供系统校验与 `inspect`/`help` 答用法，**不进模型面前**。
+> 字段类型、字段说明与完整 schema 供系统校验与 `inspect`/`help` 答用法，不展开到常驻命令清单中。
+> 每项操作还声明返回结构和正文格式。常驻说明给出紧凑的返回摘要，完整返回 schema 从详细用法取得。
 > 它不是作者直接写下的数据。系统装载工具实现时，从工具资产的一个已发布版本与该资产引用的实现派生它：名字、所需能力与可编程声明取自资产；参数形状、命令表、说明、能不能后台与其余声明取自实现。它记下的采用版本等于那个资产版本。
 > 资产的名字、能力名与定义的名字必须一致，不一致时系统拒绝装载。
 >
@@ -55,7 +56,8 @@
 > command's line of description is required. Whether the author includes each command's full arguments
 > is the author's call. For a command with full arguments, its line also lists the field names, which
 > fields are optional, and any closed set of values. Field types, field descriptions and the full schema
-> serve only validation and `inspect`/`help`, and **never reach the model**.
+> serve validation and `inspect`/`help`; the resident command list does not expand them.
+> Each operation also declares its return structure and body format. The resident description presents a compact return summary; detailed usage provides the full return schema.
 > It is not data that an author writes directly. When the system loads a tool implementation,
 > it derives the definition from one published version of the tool asset and the
 > implementation that the asset references. The name, the required capabilities and the
@@ -67,7 +69,7 @@
 - **形态**：视图
 - **出处**：[PF-006 §5.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同) · [§5.3](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样) ·
   [工具说明与每个参数的说明，必填](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具说明与每个参数的说明必填) ·
-  [多命令工具的定义里带多少](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · 多命令工具在模型面前的清单与出错时的用法见[工具执行：工具作者必须说明什么](../../product/tool-execution/design.md#工具作者必须说明什么)（rev 6） · [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
+  [多命令工具的定义里带多少](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#多命令工具的定义里带多少是工具作者的权衡)（rev 24） · 多命令工具在模型面前的清单与出错时的用法见[工具执行：工具作者必须说明什么](../../product/tool-execution/design.md#工具作者必须说明什么)（rev 8） · [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；装载时派生与各字段的来源见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)，形态由属性改为视图的理由见 [C-66](../conflicts.md#c-71工具定义由长期数据改为装载时派生)
 - **别混**：与[工具](capabilities-and-composition.md#ul-tool--工具--tool)不是一回事——
   工具是那一类资产，**工具定义是资产与实现合成出的那一份表示**；
   同一个身份下，官方、组织、租户、工作区各层的资产各自派生自己的一份，形状可以不同
@@ -463,65 +465,132 @@
 
 ### UL-result-offloading · 结果卸载 · Result Offloading
 
-> **中**：**即便是「进消息的那部分」，也可能大到装不下。**卸载 =
-> **原始结果存起来，消息里换成一条带摘要的占位**。
-> **卸载不是全卸载**：占位里留着**够用的那部分内容**，加上有多大、怎么取全文——
-> **很多时候 agent 看占位就够了，根本不必去取全文，这正是它值得做的理由**。
+> **中**：把工具结果中原本供模型阅读的正文另存，在首次模型消息中呈现作者摘要或[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)及读回引用的过程。程序值和原生资源引用不因存在于同一次结果中而被卸载。
 >
-> **EN**: **Even the part meant for the message can be too large to fit.** Offloading
-> means **storing the original result and putting a summarising placeholder in the
-> message instead**. **It is not a wholesale offload**: the placeholder keeps **enough
-> of the content to be useful**, plus how large the whole is and how to fetch it —
-> **often the placeholder is all the agent needs, which is exactly why this is worth
-> doing**.
+> **EN**: Storing a tool result's model-facing body separately and presenting the author's summary or a mechanical preview with a retrieval reference in the first model message. Program data and native resource references are separate result components.
 
 - **形态**：过程
-- **出处**：[PF-006 §4 卸载](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#卸载)（rev 24） · [§6.10](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 24）
-- **别混**：**裸写「卸载」不作数**——那个词在别处指卸载插件、卸载软件
-- **⚠️ 注意**：**「换成」说的是相对于原始结果，不是在记录里替换。**
-  [会话日志里从头到尾只有占位那一条](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)——
-  **原始结果从来没进过日志**；而 agent 取回全文，是**往后追加两条新消息**
-- **注意**：**它与前台/后台、与等待态是三个不耦合的维度**
-- **注意**：**取回全文要能分页**——不分页就等于把刚卸下去的东西原样搬回来，**卸载当场作废**
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混**：裸写「卸载」不作为本词的跨领域简称，插件卸载是另一过程。原生图片、文件或数据集引用不属于结果卸载。
+- **注意**：首次追加的是预览，不是在 Session 日志中改写已存在的全文。后续读取追加新返回，不替换旧预览，也不重做原工具效果。
+- **注意**：结果卸载与执行的前后台关系、内部等待分别判断。正文按披露的期限保管，读回支持按声明格式分页。
+- **注意**：是否卸载由[卸载触发阈值](#ul-offloading-threshold--卸载触发阈值--offloading-threshold)决定；卸载后首次呈现的大小由[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)决定。
 
 ### UL-offloaded-result · 被卸载的原始结果 · Offloaded Result
 
-> **中**：一次[工具执行](#ul-tool-execution--工具执行--tool-execution)**本该进消息、
-> 却因为太大而被[卸载](#ul-result-offloading--结果卸载--result-offloading)存起来的那一份完整结果**。
-> **它从来没进过[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)**——
-> 进去的一直是那条占位。agent 要看它得**分页取回**，
-> 而取回是**往后追加两条新消息**，不是把占位换回去。
+> **中**：一次工具调用的结果中，由结果卸载另存并可通过原调用关联与读回引用识别的完整模型正文。它不包括该结果的程序值或原生资源目标。首次消息只呈现预览，后续页是新的返回。
 >
-> **EN**: The **full result** of a tool execution that was meant for the message but got
-> **stored aside instead, because it was too large to fit**. **It never entered the
-> session log** — what went in was the placeholder, all along. An agent that wants it
-> **fetches it back a page at a time**, and fetching **appends two new messages** rather
-> than putting the original back where the placeholder sits.
+> **EN**: The complete model-facing body stored separately by result offloading, identified through its original call association and retrieval reference. It excludes program data and native resource targets. The first message contains a preview; later pages are new results.
 
-- **留存边界**：全文可回取不因卸载、压缩、Run 结束或会话归档而过期；产品未设删除或到期回收规则。读取仍受权限约束。
+- **留存边界**：有限期限和当前读取资格由工具执行契约约束。正文到期后不可新读且自动回收，读取、ACK、压缩、Run 结束和归档不刷新期限。每读取一页都单独核对期限，到期判定的时钟偏差见[读回到期窗口](#ul-read-expiry-window--读回到期窗口--read-expiry-window)。
 - **形态**：对象
-- **出处**：[PF-006 §4 卸载](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#卸载)（rev 24） ·
-  [§6.10](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#610-结果太大时卸载而卸载是第三个维度)（rev 24） ·
-  [PF-012 §5.10](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#510-卸载结果落成消息之前的那一关)（rev 25）
-- **别混 ①**：**不是那条占位**——占位进了消息，带着够用的那部分、有多大、怎么取；
-  **这一条是被留在外面的那份全的**
-- **别混 ②**：**不是[附件](#ul-attachment--附件--attachment)**——
-  附件是工具**有意**不放进对话的产出，这一条是**本该进对话、只因太大而被挪走**的
-- **弃用**：~~「工具原件」~~——[「原件」在模态那边另有所指](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件)
-  （一个内容块里没被转成文本的那一份）
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混 ①**：它不是进入消息的作者摘要或[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)，也不是未经校验的作者原返回或完整 ToolResult 封装。
+- **别混 ②**：它不是原生[附件](#ul-attachment--附件--attachment)。附件本来就以资源引用交付，不能仅因结果正文到期而删除目标。
+- **弃用**：「工具原件」。该说法与模型模态转换中的原件混淆。
+
+### UL-offloading-threshold · 卸载触发阈值 · Offloading Threshold
+
+> **中**：一项工具操作的模型正文可以直接呈现给模型的最大字节数。它取作者为该操作声明的上限与系统装配上限中的较小值，作者未声明更小值时等于系统上限。正文超过它时被卸载。它只决定正文是否卸载，不决定卸载后模型首次看到的内容大小。
+>
+> **EN**: The largest model-facing body, in bytes, that a tool operation may present to the model directly. It is the smaller of the cap the author declares for that operation and the system cap set at assembly. Without a smaller author cap it equals the system cap. A body larger than it is offloaded. It decides only whether a body is offloaded, not how much the model sees first after offloading.
+
+- **形态**：属性
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混 ①**：不是[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)。卸载预览预算约束卸载后首次呈现的大小，卸载触发阈值只用来判断是否卸载。
+- **别混 ②**：裸写「触发阈值」不作为本词的简称。工具的自动转后台阈值是另一项声明。
+
+### UL-offload-preview-budget · 卸载预览预算 · Offload Preview Budget
+
+> **中**：正文被卸载后，模型首次看到的预览部分的字节上限。预览部分指作者内容与作者摘要，或机械预览的节选；描述头是元信息，不计入它。它取以下三项中的最小值：作者预览上限、系统预览上限、[卸载触发阈值](#ul-offloading-threshold--卸载触发阈值--offloading-threshold)除以 k 后向下取整；作者未声明预览上限时取后两项中的较小值。k 由系统装配给定。作者内容、作者摘要和[机械预览](#ul-mechanical-preview--机械预览--mechanical-preview)的节选计入它；描述头另有固定上限。
+>
+> **EN**: The byte limit on the preview part the model sees first after a body is offloaded. The preview part is the author content and author summary, or the excerpts of the mechanical preview. The header is metadata and does not count. It is the smallest of three values: the author's preview cap, the system preview cap, and the offloading threshold divided by k and rounded down. Without an author preview cap it is the smaller of the last two. Assembly sets k. Author content, the author summary and the excerpts of the mechanical preview count against it; the header has its own fixed bound.
+
+- **形态**：属性
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混**：不是读回分页的页预算。后续页是新的返回，按页预算分页。
+- **注意**：它与正文大小无关。作者内容或摘要超出它时，结果明确报告不能采用，不被截断。
+
+### UL-mechanical-preview · 机械预览 · Mechanical Preview
+
+> **中**：正文被卸载而作者没有提供摘要时，系统按正文格式从正文算出、在首次模型消息中呈现的结构化预览。它由描述头和节选组成。描述头说明正文格式、总字节数、行数或记录数、正文 schema 的身份、到期时间及读回方式。节选与格式对齐，受卸载预览预算约束：文本取首部和尾部，在行边界截断；JSON Lines 取开头和末尾的完整记录；JSON 文档给出键、值类型和数组长度的层级大纲。节选不超过[卸载预览预算](#ul-offload-preview-budget--卸载预览预算--offload-preview-budget)；描述头是元信息，不计入该预算，只含固定字段和 schema 的身份，大小有固定上限。机械预览不含语义摘要，也不含截断的 JSON 文本。
+>
+> **EN**: The structured preview that the system computes from an offloaded body, by the body's format, when the author supplies no summary. It appears in the first model message. It has a header and excerpts. The header gives the body's format, total bytes, line or record count, schema identity, expiry time and how to read the body back. The excerpts follow the format and stay within the offload preview budget: text gives the head and tail cut at line boundaries; JSON Lines gives the first and last complete records; a JSON document gives an outline of keys, value types and array lengths. The header is metadata outside that budget; it holds only fixed fields and the schema identity, so its size has a fixed bound. It contains no semantic summary and no truncated JSON text.
+
+- **形态**：视图
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混 ①**：不是作者摘要。作者摘要由作者提供，系统不编造语义摘要。
+- **别混 ②**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)截到某个长度的前缀。
+- **注意**：系统在作者内容之后追加的描述头，与机械预览的描述头说明同样的内容。
+
+### UL-read-expiry-window · 读回到期窗口 · Read Expiry Window
+
+> **中**：[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)的到期时间之前 ε 到之后 ε 的时间段。ε 是系统装配声明的各参与方时钟偏差上界。窗口内的一次读回可能已被拒绝，也可能仍然成功；窗口外的读回结果只按到期时间确定。读取跨过到期时间且正文已被回收时，答复为找不到，不答复正文损坏。
+>
+> **EN**: The span from ε before to ε after the expiry time of an offloaded result, where ε is the clock-skew bound between participants declared at assembly. Inside the span a read may already be refused, or it may still succeed. Outside the span the result depends only on the expiry time. A read that crosses the expiry time after the body is reclaimed answers not found, never an integrity failure.
+
+- **形态**：规则
+- **出处**：[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混**：不是期限的延长。窗口不刷新期限，到期前已获准的读取也不延续到期限之后。
+
+### UL-body-entry · 正文条目 · Body Entry
+
+> **中**：账本对一份卸载正文所做的权威记录，保存在开启这份正文的那次工具调用的调用域中。它记录写入意图、封存、与恰好一个结果的关联，以及回收。它的状态按顺序为已开启、已封存、已关联、已回收；调用结算时尚未关联的正文，从已开启或已封存转为孤儿，再转为已回收。每个正文条目对应一个正文身份，正文身份不复用、不在结果之间共享、不去重。正文是否存在、是否可读，以它为准。它不保存正文字节，也不保存期限：期限由结果的正文描述和[到期索引](#ul-due-index--到期索引--due-index)保存。
+>
+> **EN**: The ledger's authoritative record of one offloaded body. It is kept in the call domain of the tool call that opened the body. It records the write intent, the seal, the link to exactly one result, and the reclaim. Its states are opened, sealed, linked and reclaimed, in that order. When the call settles, a body that has no link goes from opened or sealed to orphaned, and then to reclaimed. Each entry has one body identity. The system does not reuse, share or deduplicate a body identity. The entry decides whether a body exists and whether it can be read. It holds no body bytes and no expiry. The body descriptor of the result and the due index hold the expiry.
+
+- **形态**：对象
+- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则)；卸载正文与期限的产品规则见[工具执行：结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）
+- **别混 ①**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)。被卸载的原始结果是已关联到结果、可以读回的完整正文；正文条目在关联之前已经存在，从未关联的正文条目成为孤儿后被回收，不成为被卸载的原始结果。
+- **别混 ②**：不是[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)。记录条目在会话日志中，正文条目在 Tool 的账本中。
+- **注意**：账本只在确认调用的执行仍活跃、执行代次匹配且调用未结算后，才提交开启并签发[写入许可](#ul-write-permit--写入许可--write-permit)。回收先删除[正文字节](#ul-body-bytes--正文字节--body-bytes)，再在账本中记录已回收；回收之后不留行。
+
+### UL-body-bytes · 正文字节 · Body Bytes
+
+> **中**：正文存储为一份卸载正文保存的不可变字节。正文存储按分块写入它们，并以封存清单确认分块齐全。正文存储没有业务状态：它不知道这份正文属于哪个结果、何时到期、谁有权读取。字节在存储中存在，不表示正文可读；正文是否可读由账本中的[正文条目](#ul-body-entry--正文条目--body-entry)及其关联的结果判定。
+>
+> **EN**: The immutable bytes of one offloaded body that the body store keeps. The store writes them in chunks and confirms with a seal manifest that all chunks are present. The body store has no business state. It does not know the result, the expiry or the read authorization of a body. Bytes in the store do not make a body readable. The body entry in the ledger and its linked result decide that.
+
+- **形态**：对象
+- **出处**：[Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型) · [工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则)
+- **别混**：不是[被卸载的原始结果](#ul-offloaded-result--被卸载的原始结果--offloaded-result)。字节只是正文的内容部分，正文的存在、关联与期限都在账本中。
+- **注意**：存储只在有效[写入许可](#ul-write-permit--写入许可--write-permit)下接受写入和封存，所有操作幂等；同一序号写入不同内容时，存储以条件写报告冲突。存储报告封存成功，表示字节已耐久。
+
+### UL-due-index · 到期索引 · Due Index
+
+> **中**：账本提供的回收排期原语。账本提交可以为一份正文排期或撤销排期，回收方按租户与到期时间查询到期项。它是回收唯一的调度来源：结果提交时，已关联的正文按结果固定的期限排期；调用结算时，孤儿按结算时间加宽限期 G 排期；回收完成时撤销排期。
+>
+> **EN**: The ledger primitive that schedules reclaim. A ledger commit can schedule or unschedule one body. The reclaimer queries due items by tenant and due time. It is the only scheduling source for reclaim. At result commit, a linked body is scheduled at the expiry that the result fixes. At call settlement, an orphaned body is scheduled at the settlement time plus the grace period G. A completed reclaim unschedules the body.
+
+- **形态**：规则
+- **出处**：[工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则) · [Tool 领域的结果卸载领域模型](../../../../docs/domains/tool-execution/architecture.md#领域模型)
+- **别混**：不是[日程](#ul-schedule--日程--schedule)或定时作业。它只为正文回收排期，不发起工作。
+- **注意**：期限在结果提交的同一次账本提交中写入结果的正文描述和到期索引；[正文条目](#ul-body-entry--正文条目--body-entry)与正文存储都不保存期限。
+
+### UL-write-permit · 写入许可 · Write Permit
+
+> **中**：账本为一份正文签发的、有截止时间的写入授权。账本先确认调用的执行仍活跃、执行代次匹配且调用未结算，并耐久提交[正文条目](#ul-body-entry--正文条目--body-entry)的开启，然后才签发它。它绑定租户、调用、正文和执行代次，带截止时间，并用装配给定的密钥签名。正文存储自己校验签名和截止时间，拒绝没有有效许可的写入和封存。执行仍活跃时，账本为同一份正文续发许可。
+>
+> **EN**: A write authorization for one body, with a deadline, that the ledger issues. The ledger issues it only after it confirms that the execution of the call is still active, the execution generation matches and the call is not settled, and after it durably commits the opening of the body entry. It binds the tenant, the call, the body and the execution generation, and it has a deadline. It is signed with a key that assembly supplies. The body store checks the signature and the deadline itself. It refuses a write or a seal that has no valid permit. While the execution is active, the ledger renews the permit for the same body.
+
+- **形态**：属性
+- **出处**：[工具执行组的部署无关原则](../../../../packages/tool/docs/architecture.md#部署无关原则) · [BodyLifecycle 模型的动作](../../../../packages/tool/tool-contract/verification/models/body-lifecycle/README.md#3-动作)（`Renew`）
+- **别混 ①**：不是[资源账本](grounding-and-isolation.md#ul-resource-ledger--资源账本--resource-ledger)中的许可。那种许可准许受管资源的首个外部效果；写入许可只准许向正文存储写入一份正文。
+- **别混 ②**：不是读回授权。读回授权由访问守卫在每次读回时判定，写入许可不授予读取。
+- **注意**：许可时长 W 由装配给定。孤儿宽限期 G 和正文保留期限都必须大于 W + 2ε，否则截止时间内的迟到写入可能在回收后把字节写回。
 
 ### UL-delivery-release · 交付责任解除 · Delivery Release
 
 > **中**：**生产方（一次模型调用或一次工具执行）对一份已收场结果所负交付责任的解除。当前合法消费者已处理完成该结果，或已可靠保存后续所需的内容、原身份和处理位置之后，解除才成立。**
 > 解除只有两条路径：先完成处理并可靠保存完成事实，或先可靠保管内容再处理。
 > 读取、展示、拿到引用和开始处理，都不足以解除。
-> 模型一侧的解除叫 ACK，另要求整次调用真实收场，重试与等待重试决定期间不能解除；工具一侧解除对应的待交付关系，不删除工具全文。
+> 模型一侧的解除叫 ACK，另要求整次调用真实收场，重试与等待重试决定期间不能解除；工具一侧解除对应的待交付关系；材料是否释放仍按各组成的保管责任和有限期限判断。
 > 解除之后，接续从消费侧保存的数据继续。
 >
-> **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation and does not delete the full tool result. After the release, continuation proceeds from the data the consumer saved.
+> **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation. Material release follows each component's custody duties and retention period. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 4）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 6）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 4）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 8）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 4）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
@@ -541,7 +610,7 @@
 > attempt, a rebuilt instance or a recovery does not change it.
 
 - **形态**：属性
-- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 7）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 6）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 4）
+- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 8）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 8）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 4）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。拓展点是设计时穷举的固定位点；消费位置随每次调用产生，指那次调用的接收处
 - **注意**：[交付责任解除](#ul-delivery-release--交付责任解除--delivery-release)要求消费侧保存原身份与处理位置，那个处理位置就是消费位置
 
@@ -613,7 +682,7 @@
 > outcome is unknown still counts as open.
 
 - **形态**：视图
-- **出处**：[会话与工作：一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 7）；[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 5）
+- **出处**：[会话与工作：一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 8）；[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 5）
 - **别混**：不是[运行等待态](interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)。运行等待态说一次运行此刻停在哪里；未结工作说整个会话还欠着什么，运行终结后仍在执行的后台工具也算
 - **注意**：同一份未结工作供三处判断：运行能否完成、会话是否连续空闲、压缩时哪些历史条目必须留在[保留名单](record-and-context.md#ul-retained-set--保留名单--retained-set)里或覆盖范围之后
 

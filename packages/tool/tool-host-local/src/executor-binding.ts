@@ -26,15 +26,33 @@ import {
 } from './live-author-execution.ts'
 
 type Start = Extract<ToolStartRecord, { kind: 'start' }>
-type StartInput<P, B extends ContentBlock, E> = Parameters<ToolExecutorBinding<P, B, E>['start']>[0]
-type Final<B extends ContentBlock> = Extract<ToolExecutionFact<B>, { kind: 'final' }>
+type StartInput<P, E> = Parameters<ToolExecutorBinding<P, E>['start']>[0]
+type Final = Extract<ToolExecutionFact, { kind: 'final' }>
+
+function closeScope(
+  scope: ToolExecutionScope,
+  exit: Parameters<ToolExecutionScope['finish']>[0],
+): ReturnType<ToolExecutionScope['finish']> {
+  const unknown = () =>
+    fail({
+      kind: 'unknown' as const,
+      operation: 'scope.finish',
+      reason: 'The execution scope did not confirm its closing responsibility.',
+    })
+  try {
+    return scope.finish(exit).catch(unknown)
+  } catch {
+    return Promise.resolve(unknown())
+  }
+}
+
 export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
   registry: LocalToolBindingRegistry<P, E, B>
   catalog: Pick<ToolCatalog<P>, 'inspect'>
   authority: ToolStartAuthority<P>
   scope(
     input: CallAccess<P> &
-      Readonly<{ start: Start; request: FixedToolRequest; execution: LocalAuthorExecution<B> }>,
+      Readonly<{ start: Start; request: FixedToolRequest; execution: LocalAuthorExecution }>,
   ): ToolExecutionScope
   capability?(
     input: CallAccess<P> & Readonly<{ start: Start; request: FixedToolRequest }>,
@@ -50,24 +68,25 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
         outcome:
           | Readonly<{ kind: 'returned'; value: unknown }>
           | Readonly<{ kind: 'failed'; reason: string }>
-        execution: LocalAuthorExecution<B>
+        closing: ReturnType<ToolExecutionScope['finish']>
+        execution: LocalAuthorExecution
       }>,
-  ): Reply<Final<B>>
+  ): Reply<Final>
 }>
 
 export function createLocalToolBindings<P, E, B extends ContentBlock>(
   dependencies: LocalToolBindingsInput<P, E, B>,
-): ToolBindings<P, B, E> {
+): ToolBindings<P, E> {
   type Bound = ToolBindingSelection<P, E, B> & {
     requestDigest: string
     accessKey: string
-    binding: Extract<ToolExecutorBinding<P, B, E>, { kind: 'live-only' }>
+    binding: Extract<ToolExecutorBinding<P, E>, { kind: 'live-only' }>
   }
   type Attempt = {
     digest: string
     start: Start
-    execution: LocalAuthorExecution<B>
-    answer: ReturnType<ToolExecutorBinding<P, B, E>['start']>
+    execution: LocalAuthorExecution
+    answer: ReturnType<ToolExecutorBinding<P, E>['start']>
   }
   const bindings = new Map<string, Bound>()
   const attempts = new Map<string, Attempt>()
@@ -78,14 +97,15 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     fail({ kind: 'unavailable' as const, dependency: 'toolBindings', diagnostic })
 
   const launch = async (
-    input: StartInput<P, B, E>,
+    input: StartInput<P, E>,
     environment: E,
     operation: ToolOperationSlot,
-    execution: LocalAuthorExecution<B>,
+    execution: LocalAuthorExecution,
   ): Promise<void> => {
     let parsed: unknown
     let outcome: Parameters<typeof dependencies.settle>[0]['outcome']
     let scope: ToolExecutionScope | undefined
+    let closing: ReturnType<ToolExecutionScope['finish']> = Promise.resolve(succeed(undefined))
     try {
       // The arguments of a multi-command tool are the whole call; its command codec parses the
       // parameters only (D-94). Arguments that the command does not take fail with the reason
@@ -109,21 +129,22 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       scope = dependencies.scope({ ...input, execution })
       scope = dependencies.capability?.(input, scope) ?? scope
       const value = await operation.author.executor.execute(parsed, environment, scope.context)
-      const closed = await scope.finish('returned')
-      if ('failure' in closed) throw new Error(closed.failure.reason)
       outcome = { kind: 'returned', value }
+      closing = closeScope(scope, 'returned')
     } catch (error) {
-      if (scope !== undefined) await scope.finish('failed')
       outcome = { kind: 'failed', reason: error instanceof Error ? error.message : 'author failed' }
+      if (scope !== undefined) closing = closeScope(scope, 'failed')
     }
     const settled = await dependencies.settle({
       ...input,
       operation,
       arguments: parsed,
       outcome,
+      closing,
       execution,
     })
     if ('ok' in settled) execution.publish(settled.ok)
+    else execution.observationAvailable(false)
   }
 
   const makeBinding = (bound: Omit<Bound, 'binding'>): Bound['binding'] => {
@@ -172,7 +193,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
             return Promise.resolve(unavailable(retained.failure.diagnostic))
           pin = retained.ok
         } else assigned = true
-        const execution = createLiveAuthorExecution<B>({
+        const execution = createLiveAuthorExecution({
           start: input.start,
           release: pin.release,
         })

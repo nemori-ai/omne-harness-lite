@@ -142,7 +142,6 @@ describe('default strategies in a real operation group', () => {
         })),
       },
       consumer: { owner: 'test', work: 'w', position: 'p', purpose: 'u' },
-      capacity: { bytes: '1', blocks: '1', attachmentBytes: '0' },
     })
     expect(judged).toHaveProperty('ok')
     const hex = /^[0-9a-f]{64}$/u

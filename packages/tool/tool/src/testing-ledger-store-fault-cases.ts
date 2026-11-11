@@ -17,6 +17,20 @@ export function storeFaultCases(deps: StoreCaseDependencies): readonly LedgerSto
   const records = [first, second]
   return [
     {
+      name: 'store.record-unavailable',
+      clause: 'G1',
+      run: async ({ store, controls }) => {
+        const arm = required(controls.readUnavailable, 'readUnavailable', deps)
+        await arm()
+        assert.equal((await store.readRecord(domain, recordKey(first))).kind, 'unavailable')
+        assert.deepEqual(await store.readRecord(domain, recordKey(first)), {
+          kind: 'complete',
+          revision: '0',
+          record: null,
+        })
+      },
+    },
+    {
       name: 'store.read-unavailable',
       clause: 'G1',
       run: async ({ store, controls }) => {

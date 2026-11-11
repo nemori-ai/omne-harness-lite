@@ -14,7 +14,8 @@ import participant from '../src/worker/participant.ts'
 import { sessionCommandFacts, sessionCommitDigest } from '../src/participants.ts'
 import { readState, writeState } from '../src/worker/state-rows.ts'
 import { readEntryText, writeEntryText } from '../src/entry-codec.ts'
-import { rowsOf, text } from '../src/worker/support.ts'
+import { packText } from '@omne-harness/sql-contract/worker'
+import { packed, rowsOf, text } from '../src/worker/support.ts'
 
 async function beforeMigration(withAssignment = false) {
   const a = await app()
@@ -157,14 +158,20 @@ describe('permission relation migration from the original event log', () => {
       'SELECT entry FROM sl_entry WHERE tenant = ? AND session = ? ORDER BY position LIMIT 100',
       [tenant, scope.session],
     ).map(row => {
-      const entry = readEntryText(text(row['entry']))
+      const entry = readEntryText(packed(row['entry']))
       return { ...entry, schema: { ...entry.schema, digest } }
     })
     for (const entry of original) {
       const bytes = writeEntryText(entry)
       w.port.execute(
         'UPDATE sl_entry SET entry = ?, bytes = ? WHERE tenant = ? AND session = ? AND position = ?',
-        [bytes, BigInt(Buffer.byteLength(bytes)), tenant, scope.session, BigInt(entry.id)],
+        [
+          packText(bytes),
+          BigInt(Buffer.byteLength(bytes)),
+          tenant,
+          scope.session,
+          BigInt(entry.id),
+        ],
       )
     }
     const source = batchEvidence(
@@ -213,12 +220,15 @@ describe('permission relation migration from the original event log', () => {
       w.port,
       "SELECT entry FROM sl_entry WHERE kind = 'session.mode-changed' LIMIT 1",
     )[0]!
-    const entry = readEntryText(text(row['entry']))
+    const entry = readEntryText(packed(row['entry']))
     const altered = writeEntryText({
       ...entry,
       schema: { ...entry.schema, digest: 'sha256:' + 'f'.repeat(64) },
     })
-    w.port.execute('UPDATE sl_entry SET entry = ? WHERE position = ?', [altered, BigInt(entry.id)])
+    w.port.execute('UPDATE sl_entry SET entry = ? WHERE position = ?', [
+      packText(altered),
+      BigInt(entry.id),
+    ])
     expect(() => migration.up(w.port)).toThrow('unsupported or mixed')
   })
 

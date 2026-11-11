@@ -28,6 +28,7 @@ import { sessionWorkPrincipals } from './session-work-principals.ts'
 import { storageHost } from './storage-host.ts'
 import { toolContributionAuthority, toolReleaseRegistrant } from './tool-release.ts'
 import { toolResidencyPrincipal } from './tool-residency-principal.ts'
+import { tenantDomainScannerPrincipal } from './tenant-domain-scanner.ts'
 import { toolClock, toolPublicationAuthority } from './tool-runtime-objects.ts'
 
 export const entryObjects: readonly EntryObjectModule[] = [
@@ -37,6 +38,7 @@ export const entryObjects: readonly EntryObjectModule[] = [
   governanceInstallationPrincipals,
   agentHostPrincipal,
   toolResidencyPrincipal,
+  tenantDomainScannerPrincipal,
   toolReleaseRegistrant,
   toolContributionAuthority,
   toolClock,

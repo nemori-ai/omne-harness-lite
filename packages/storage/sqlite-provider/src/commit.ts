@@ -183,7 +183,7 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         }
         switch (reply.kind) {
           case 'receipt':
-            return reply.receipt
+            return { ...reply.receipt, recalled: reply.recalled }
           case 'conflict':
             return { kind: 'identity_conflict', identity, existing: reply.existing }
           case 'rejected':

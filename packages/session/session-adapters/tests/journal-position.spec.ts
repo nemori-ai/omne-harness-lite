@@ -15,6 +15,7 @@ import { evidence } from '@omne-harness/session-contract/testing'
 import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
 import { random, type Random } from './fixtures/property.ts'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import { sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 type Journal = AgentJournal<string>
@@ -92,11 +93,11 @@ function publications(s: SqlScene): Row[] {
 /** The bytes of the fact bodies of a publication, the envelope and the family only (no bridge). */
 function familyBytes(s: SqlScene, pub: number): number {
   const rows = s.controls?.select(
-    `SELECT kind, length(body) FROM er_fact WHERE session = '${s.access.session}' AND pub = ${String(pub)}`,
+    `SELECT kind, body FROM er_fact WHERE session = '${s.access.session}' AND pub = ${String(pub)}`,
   ).rows
   return (rows ?? [])
     .filter(row => !String(row[0]).startsWith('core.'))
-    .reduce((sum, row) => sum + Number(row[1]), 0)
+    .reduce((sum, row) => sum + unpackText(row[1] as Uint8Array).length, 0)
 }
 
 const published = (s: SqlScene): number =>

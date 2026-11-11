@@ -29,6 +29,12 @@ function scope(finish: ToolExecutionScope['finish']): ToolExecutionScope {
     context: {
       mode: 'managed',
       signal: new AbortController().signal,
+      body: {
+        begin: async () => fail({ kind: 'closed', reason: 'fixture' }),
+        append: async () => fail({ kind: 'closed', reason: 'fixture' }),
+        seal: async () => fail({ kind: 'closed', reason: 'fixture' }),
+        inspect: async () => fail({ kind: 'closed', reason: 'fixture' }),
+      },
       emit: async () => fail({ kind: 'closed', reason: 'fixture' }),
       wait: async () => fail({ kind: 'closed', reason: 'fixture' }),
     },
@@ -57,6 +63,7 @@ describe('provider Tools capability attachment', () => {
     expect(toolsCapabilityOf(original.context)).toBeUndefined()
     expect(toolsCapabilityOf(attached.context)).toBe(capability)
     expect(attached.context.signal).toBe(original.context.signal)
+    expect(attached.context.body).toBe(original.context.body)
     const first = attached.finish('returned')
     expect(toolsCapabilityOf(attached.context)).toBeUndefined()
     expect(attached.finish('failed')).toBe(first)

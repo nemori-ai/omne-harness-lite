@@ -1,3 +1,4 @@
+import type { FixedRequestHead } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ModelInitialRun } from './initial.ts'
 import type { CommandWrite, RunScope } from './storage.ts'
@@ -21,7 +22,6 @@ import type {
   OutputCursor,
   ReadId,
   ReadState,
-  ResultCapacity,
   ResultTrim,
   ResultVersion,
   RetryDecision,
@@ -70,11 +70,13 @@ export type EvidenceContext = Readonly<{
   execution: ExecutionRef | null
   call: ModelCallId
   consumer: ConsumerRef
-  request: FixedModelRequest
+  /** The head of the fixed request, and the digest of the whole request. */
+  request: FixedRequestHead
+  requestDigest: string
 }> &
   Pick<ExecutionRef, 'tenant'>
 /** What the commands give the consumer owner's evidence adapter for one ACK. */
-export type HandoffEvidenceInput = Omit<EvidenceContext, 'request'> &
+export type HandoffEvidenceInput = Omit<EvidenceContext, 'request' | 'requestDigest'> &
   Readonly<{
     result: ResultVersion
     evidence: Handoff
@@ -94,7 +96,7 @@ export interface ModelCommandsEvidence {
       Readonly<{ dispatch: string; supplier: Supplier; receipt: MaterializationReceipt }>,
   ): Outcome<DurableEvidence, ModelFailure>
   lateFact(
-    input: Omit<EvidenceContext, 'request'> &
+    input: Omit<EvidenceContext, 'request' | 'requestDigest'> &
       Readonly<{
         dispatch: string
         supplier: Supplier
@@ -128,15 +130,16 @@ export interface ModelCommandsEvidence {
   >
 }
 /**
- * `capacity` bounds the sum that the storage reports from `reserved`. The storage decides the
- * scope of that sum: the memory storage sums the whole assembly.
+ * `unacknowledgedResults` bounds the count that the storage reports from `held`: the calls that
+ * were admitted and whose result the consumer has not acknowledged and released. The storage
+ * decides the scope of that count: the memory storage counts the whole assembly.
  */
 export type ModelCommandsLimits = Readonly<{
   scanPageCalls: number
   resultPageParts: number
   resultPageTargetBytes: number
   readIdleMs: number
-  capacity: ResultCapacity
+  unacknowledgedResults: number
 }>
 export type ResultPaging = Pick<ModelCommandsLimits, 'resultPageParts' | 'resultPageTargetBytes'>
 export type ModelCommandsCoreOptions<P> = Readonly<{
@@ -251,9 +254,9 @@ export type DispatchDocument = {
 /** One call, as the commands read and write it. */
 export type CallDocument = {
   state: CallState
-  request: FixedModelRequest | null
+  /** The head of the fixed request; null once the material is released. The body is apart. */
+  request: FixedRequestHead | null
   requestDigest: string
-  capacity: ResultCapacity
   initiator: ActorRef
   admission: ModelOperationId
   owner: ModelConsumerOwnerDeclaration
@@ -277,4 +280,5 @@ export type WriteIdentity = Pick<ExecutionRef, 'tenant' | 'call'> & {
   readonly operation: ModelOperationId
 }
 export type Draft = { tenant: TenantDocuments; call: CallDocument | undefined }
-export type Applied<T> = { value: T; receipt: Receipt }
+/** What a write changes. `body` is the whole request of the call that the write admits. */
+export type Applied<T> = { value: T; receipt: Receipt; body?: FixedModelRequest }

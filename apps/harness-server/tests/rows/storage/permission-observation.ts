@@ -23,32 +23,25 @@ export function permissionObservation(trace: PermissionObservation[]): EntryObje
       })
       env.readTrusted(currentToolPermissionKey).inject([currentToolPermissionKey], ctx => {
         const service = ctx.currentToolPermission
-        const request = service.request
         const read = service.readCurrent
-        const requestSpy = vi.spyOn(service, 'request').mockImplementation(async input => {
-          const result = await request(input)
-          trace.push({ stage: 'request', result: result === undefined ? 'unavailable' : 'mapped' })
+        const readSpy = vi.spyOn(service, 'readCurrent').mockImplementation(async input => {
+          const result = await read(input)
+          trace.push({
+            stage: 'request',
+            result: result.request === null ? 'unavailable' : 'mapped',
+          })
+          const reading = result.reading as { kind: string; sourceRef?: string }
+          trace.push({
+            stage: 'current',
+            result: {
+              reading: reading.kind,
+              source: reading.sourceRef ?? null,
+              inquiry: input.inquiry ?? null,
+            },
+          })
           return result
         })
-        const readSpy = vi
-          .spyOn(service, 'readCurrent')
-          .mockImplementation(async (input, request) => {
-            const result = await read(input, request)
-            const reading = result.reading as { kind: string; sourceRef?: string }
-            trace.push({
-              stage: 'current',
-              result: {
-                reading: reading.kind,
-                source: reading.sourceRef ?? null,
-                inquiry: input.inquiry ?? null,
-              },
-            })
-            return result
-          })
-        ctx.effect(() => () => {
-          requestSpy.mockRestore()
-          readSpy.mockRestore()
-        })
+        ctx.effect(() => () => readSpy.mockRestore())
       })
       scope.inject([agentActionAdmissionKey], ctx => {
         const service = ctx.agentActionAdmission

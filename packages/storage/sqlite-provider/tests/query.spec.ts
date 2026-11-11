@@ -45,7 +45,7 @@ describe('query on a ready domain', () => {
   it('returns the receipt with its evidence', async () => {
     const { storage } = await ready()
     const committed = await storage.commit(commitRequest(built))
-    expect(await storage.query(identity())).toEqual(committed)
+    expect({ ...(await storage.query(identity())), recalled: false }).toEqual(committed)
   })
 
   it('returns not_committed with all five proofs when nothing is saved and nothing is pending', async () => {

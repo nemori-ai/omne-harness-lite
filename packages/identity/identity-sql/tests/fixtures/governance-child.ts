@@ -169,6 +169,7 @@ async function openCurrent(offset: string) {
       maxDuration: must(parseDuration('PT86400S'), 'long'),
     }).source,
     scrypt: scrypt.module,
+    accessRefreshGranularity: must(parseDuration('PT60S'), 'refresh'),
     decoyMaterial: scrypt.decoyMaterial,
   })
   return {

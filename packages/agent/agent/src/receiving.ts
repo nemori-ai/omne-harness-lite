@@ -142,6 +142,15 @@ export function createAgentModelReceiver<P>(
       diagnose(reception.operation, String(error), reception)
       return unknown()
     }
+    return conclude(reception, result, query, stopped)
+  }
+  /** What one answer of the Journal means for the delivery: the commit state and the reply. */
+  async function conclude(
+    reception: Reception<P>,
+    result: Awaited<ReturnType<typeof received.query>>,
+    query: boolean,
+    stopped?: AbortSignal,
+  ): Promise<Outcome<ModelSavedReceipt, ModelDeliveryFailure>> {
     if ('failure' in result) {
       diagnose(reception.operation, result.failure, reception)
       if (result.failure.kind === 'denied') return fail({ kind: 'denied' })
@@ -187,6 +196,39 @@ export function createAgentModelReceiver<P>(
     state.diagnostics.delete(reception.operation)
     outlet.enqueue(reception, value)
     return succeed(structuredClone({ key: reception.delivery.key, evidence: value.saved }))
+  }
+  /**
+   * A delivery without a record under a stopped signal: nothing new is written. The Journal is
+   * asked for its operation; a delivery it holds is answered saved, any other is not accepted.
+   */
+  async function recognise(
+    access: Access<P>,
+    target: ModelReceptionTarget,
+    delivery: ModelDelivery,
+  ): Promise<Outcome<ModelSavedReceipt, ModelDeliveryFailure>> {
+    const probe: Reception<P> = {
+      access,
+      target,
+      binding: bindingKey(access, target),
+      delivery,
+      operation: receptionOperation(access, delivery.key),
+      bytes: 0,
+      attachments: 0,
+      commit: { kind: 'unknown' },
+    }
+    let found
+    try {
+      found = await received.query({
+        ...access,
+        execution: target.execution,
+        operation: probe.operation,
+      })
+    } catch {
+      return unknown()
+    }
+    if ('ok' in found && found.ok.kind === 'unknown')
+      return fail({ kind: 'cancelled-before-accept' })
+    return conclude(probe, found, true)
   }
   async function admit(
     access: Access<P>,
@@ -289,7 +331,7 @@ export function createAgentModelReceiver<P>(
     let reception = state.receptions.get(key)
     if (reception && canonical(reception.delivery) !== canonical(delivery))
       return fail({ kind: 'conflict' })
-    if (!reception && input.signal.aborted) return fail({ kind: 'cancelled-before-accept' })
+    if (!reception && input.signal.aborted) return recognise(input.access, target, delivery)
     const capacity = dependencies.capacity(input.access.tenant)
     if (Object.values(capacity).some(value => !Number.isSafeInteger(value) || value < 0))
       return unavailable('capacity')
@@ -333,30 +375,30 @@ export function createAgentModelReceiver<P>(
     state.active.set(tenant, active + 1)
     state.writing.add(key)
     const current = reception
-    const previouslySaved = current.commit.kind === 'saved'
     const work = (async () => {
       try {
+        // Maintenance brings a delivery the Journal may hold: it asks, it does not write again.
         const outcome = await finish(
           current,
-          current.commit.kind === 'unknown' ||
-            current.commit.kind === 'saved' ||
-            current.commit.kind === 'excluded',
+          maintenance || current.commit.kind === 'unknown',
           maintenance ? input.signal : undefined,
         )
         if ('ok' in outcome)
           outlet.drain(input.access, new Set([bindingKey(input.access, target)]), input.signal)
         return outcome
+      } catch (error) {
+        current.commit = { kind: 'unknown' }
+        diagnose(current.operation, String(error), current)
+        return unknown()
       } finally {
         state.active.set(tenant, (state.active.get(tenant) ?? 1) - 1)
         state.writing.delete(key)
+        // A record stays only while its outcome is not known: maintenance owes that one a query.
+        // A decided delivery needs none; the Journal recognises its operation when it comes again.
+        if (current.commit.kind !== 'unknown') state.receptions.delete(key)
       }
-    })().catch(error => {
-      current.commit = { kind: 'unknown' }
-      diagnose(current.operation, String(error), current)
-      return unknown()
-    })
+    })()
     retainTask(state, work)
-    if (previouslySaved) return work
     if (input.signal.aborted)
       return current.commit.kind === 'saved'
         ? succeed(

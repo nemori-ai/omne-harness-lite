@@ -13,6 +13,7 @@ export function createModelCommandsCore<P>(
   return new ModelCommandCore(options, storage)
 }
 export { modelCommands } from './commands.ts'
+export { drivable } from './execution-write.ts'
 export { createModelInitialRun } from './initial.ts'
 export { createModelInitialExecution } from './initial-execution.ts'
 export type {
@@ -23,7 +24,7 @@ export type {
   ModelInitialExecution,
   ModelInitialHostChannel,
 } from './initial.ts'
-export { describeModelMaterialization } from './value.ts'
+export { describeModelMaterialization, modelRequestDigest } from './value.ts'
 export type { MaterializationDescriptionInput } from './value.ts'
 export { createModelObservationStorage } from './observation.ts'
 export type {

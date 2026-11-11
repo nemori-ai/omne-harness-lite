@@ -3,6 +3,7 @@
 // and the Cordis plugin that publishes `modelDiagnostics`. The call documents are written through
 // the real participant on node:sqlite (fixture.ts); the read goes through the `model.diagnostics`
 // handler loaded from the static materials. Nothing here proves the Worker or durability.
+import { requestHead } from '@omne-harness/model-contract/provider'
 import { createHmac } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -21,10 +22,14 @@ import type { ModelCommandsAuthority } from '@omne-harness/model/commands'
 import { modelDiagnosticsKey } from '@omne-harness/model-cordis-contract/cordis'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue, SqlStorage } from '@omne-harness/sql-contract'
-import type { ReadPort, SqlValue } from '@omne-harness/sql-contract/worker'
+import {
+  packText,
+  unpackText,
+  type ReadPort,
+  type SqlValue,
+} from '@omne-harness/sql-contract/worker'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  COMMAND_RESERVE_BYTES,
   DIAGNOSTICS_PAGE_MAX,
   createSqlModelDiagnostics,
   createSqlModelStorage,
@@ -38,7 +43,6 @@ import { createSqlModelDiagnosticsPlugin } from '@omne-harness/model-storage-sql
 import {
   ADOPTION,
   DIGEST,
-  MAX_CALL_BYTES,
   OWNER,
   REQUEST,
   callId,
@@ -123,9 +127,8 @@ function callOf(
       custody: { kind: 'producer' },
       phase: 'accepted',
     },
-    request: REQUEST,
+    request: requestHead(REQUEST),
     requestDigest: DIGEST,
-    capacity: { bytes: '1000', blocks: '10', attachmentBytes: '0' },
     initiator: { owner: 'identity', subject: 'trusted-0', revision: '1' },
     admission,
     owner: OWNER,
@@ -157,6 +160,7 @@ async function write(
         operation,
         expected: original,
         call: change(original === undefined ? undefined : structuredClone(original)),
+        ...(original === undefined && { body: REQUEST }),
         binding: {
           call,
           method: original === undefined ? 'admit' : 'control',
@@ -181,9 +185,8 @@ function scene(registered: readonly string[] = [textOf(A), textOf(B)]) {
     domains,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     limits: {
-      tenantCapacity: core.options.limits.capacity,
-      maxCallBytes: MAX_CALL_BYTES,
-      maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
+      tenantResults: core.options.limits.unacknowledgedResults,
+      requestChunkBytes: 65536,
     },
   })
   const dependencies = { storage: sqlite.storage, domains, authority: core.options.authority }
@@ -780,7 +783,13 @@ describe('the cursor in detail', () => {
 
 // --- Stored rows that do not parse ------------------------------------------------------------
 
-/** Writes one column of one stored dispatch row, as a damaged or foreign writer would leave it. */
+/** The JSON columns of a dispatch row: they hold the packed text form (sql-contract §10.1). */
+const PACKED = new Set(['record', 'logical_terminal'])
+
+/**
+ * Writes one column of one stored dispatch row, as a damaged or foreign writer would leave it. A
+ * text for a JSON column is stored in the packed text form, so only its content is damaged.
+ */
 function rewriteDispatch(
   f: Scene,
   call: ModelCallId,
@@ -788,10 +797,11 @@ function rewriteDispatch(
   column: string,
   value: SqlValue,
 ): void {
+  const cell = PACKED.has(column) && typeof value === 'string' ? packText(value) : value
   f.sqlite.seed(
     SHARED,
     `UPDATE md_dispatch SET ${column} = ? WHERE tenant = ? AND call = ? AND seq = ?`,
-    [value, textOf(A), call, BigInt(seq)],
+    [cell, textOf(A), call, BigInt(seq)],
   )
 }
 
@@ -807,9 +817,9 @@ function rewriteRecord(
     'SELECT record FROM md_dispatch WHERE tenant = ? AND call = ? AND seq = ?',
     [textOf(A), call, BigInt(seq)],
   )
-  const text = row?.[0]
-  if (typeof text !== 'string') throw new Error('no stored record')
-  const record: unknown = JSON.parse(text)
+  const stored = row?.[0]
+  if (!(stored instanceof Uint8Array)) throw new Error('no stored record')
+  const record: unknown = JSON.parse(unpackText(stored))
   if (!isRecord(record)) throw new Error('the stored record is not an object')
   rewriteDispatch(f, call, seq, 'record', JSON.stringify(edit(record)))
 }

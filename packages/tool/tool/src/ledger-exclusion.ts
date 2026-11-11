@@ -2,7 +2,7 @@
 // an operation excludes every in-flight commit of it. A command remembers the domain revision of
 // its first read; a newer exclusion fence of its operation stops it with a retryable answer. The
 // ledger gives that answer and the driver recognises it here, so the two cannot drift apart.
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { ToolFailure, ToolOperationId } from '@omne-harness/tool-contract'
 import { isLaterRevision } from './evidence.ts'
@@ -18,10 +18,10 @@ const EXCLUDED_TEXT = ' was excluded by a negative answer; resubmit with the sam
  * command's first read. A fence the command saw on its first read is not newer, so a fresh
  * submission after the negative proceeds. A committed operation is never excluded: recall wins.
  */
-export function excludedSince<B extends ContentBlock>(
-  snapshot: Snapshot<B>,
+export function excludedSince(
+  snapshot: Snapshot,
   operation: ToolOperationId,
-  firstRead: Snapshot<B>['revision'],
+  firstRead: Snapshot['revision'],
 ): boolean {
   if (snapshot.operations.has(operation)) return false
   const exclusion = snapshot.exclusions.get(operation)
@@ -51,10 +51,10 @@ export function isExcludedFailure(failure: ToolFailure): boolean {
 }
 
 /** A commit removes the exclusion fences of all its operation receipts. */
-export function withExclusionsRemoved<B extends ContentBlock>(
-  writes: readonly LedgerWrite<B>[],
+export function withExclusionsRemoved(
+  writes: readonly LedgerWrite[],
   operations: ReadonlySet<ToolOperationId>,
-): readonly LedgerWrite<B>[] {
+): readonly LedgerWrite[] {
   return [
     ...writes,
     ...[...operations].map(operation => ({

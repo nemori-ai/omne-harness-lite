@@ -7,7 +7,7 @@ import type { MaintenanceGrant, MaintenanceGrantSource } from '@omne-harness/aut
 import type { SystemPurpose } from './cells.ts'
 
 /** The revision and generation of the table. Bump when a record changes. */
-export const MAINTENANCE_GRANT_REVISION = '3'
+export const MAINTENANCE_GRANT_REVISION = '6'
 
 /** The component name of the agent host maintenance principal (DP-1 table 3-3). */
 export const AGENT_HOST_COMPONENT = 'agent-host'

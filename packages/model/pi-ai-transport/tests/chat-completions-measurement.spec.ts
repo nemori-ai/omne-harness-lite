@@ -257,7 +257,6 @@ describe('createCalibratedMeter', () => {
     overrides: Partial<CalibratedMeterRules<MeteredUnit>> = {},
   ): CalibratedMeterRules<MeteredUnit> => ({
     owner: 'family',
-    maxSerializedBytes: 4 * 1024 * 1024,
     supplier: supplier.adoption,
     adoptions: { meter: METER, representation: REPRESENTATION, media: adoption('media') },
     basis,
@@ -366,9 +365,7 @@ describe('createCalibratedMeter', () => {
     }
     const anchor = { covered: [U1], inputTotal: '100' }
     const calibration: MeterCalibration = { anchor: anchored ? anchor : null, outputs: [] }
-    const expected = await createCalibratedMeter(
-      rules({ maxSerializedBytes: 64 }),
-    ).measureCalibrated(input, calibration)
+    const expected = await createCalibratedMeter(rules()).measureCalibrated(input, calibration)
     const gate = Promise.withResolvers<void>()
     let calls = 0
     const delayed: ModelTextTokenizer = {
@@ -380,7 +377,7 @@ describe('createCalibratedMeter', () => {
       },
     }
     const pending = createCalibratedMeter(
-      rules({ maxSerializedBytes: 64, tokens: { tokenizer: delayed, form: 'as-written' } }),
+      rules({ tokens: { tokenizer: delayed, form: 'as-written' } }),
     ).measureCalibrated(input, calibration)
     expect(calls).toBe(1)
     text.value = 'L'.repeat(100_000)
@@ -607,27 +604,5 @@ describe('createCalibratedMeter', () => {
     const measured = await result
     expect(inputAmount(measured)).toBe('123')
     expect('ok' in measured && measured.ok.kind).toBe('complete')
-  })
-
-  it('refuses oversized input before counting or digest serialization, even when calibration would remove it', async () => {
-    let counts = 0
-    const observed: ModelTextTokenizer = {
-      ...tokenizer,
-      count: async () => {
-        counts += 1
-        return { ok: { tokens: '0' } }
-      },
-    }
-    const meter = createCalibratedMeter(
-      rules({ maxSerializedBytes: 4, tokens: { tokenizer: observed, form: 'as-written' } }),
-    )
-    expect(await meter.measureCalibrated(metered, anchored('100'))).toEqual({
-      failure: {
-        kind: 'unavailable',
-        dependency: 'tokenizer',
-        diagnostic: 'serialized-input-too-large',
-      },
-    })
-    expect(counts).toBe(0)
   })
 })

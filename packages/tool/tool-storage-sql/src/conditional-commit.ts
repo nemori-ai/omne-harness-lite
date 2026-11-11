@@ -1,39 +1,29 @@
-import type { ContentBlock } from '@omne-harness/content-block'
-import type { FactCommandV2 } from '@omne-harness/sql-contract'
+// The ledger commit that takes effect only together with a condition: commands of other
+// participants that run before the ledger write in the same SQL transaction (TS-12).
 import type { LedgerCommit, LedgerCommitInput } from '@omne-harness/tool'
-import { NotJsonError } from './json.ts'
-import { addressOf, ledgerAnswer, notJson, unavailable, writesOf } from './ledger-wire.ts'
-import type { CommitAnswer } from './ledger-wire.ts'
+import { ledgerAnswer, type CommitAnswer } from './ledger-wire.ts'
+import { conditionalLedgerCommit, type LedgerCommitCondition } from './ledger-store.ts'
 import type { SqlToolStorageOptions } from './options.ts'
-import { requestOf, resolveTenant } from './tenant.ts'
-import type { LedgerFacts, LedgerWriteFact } from './worker/facts.ts'
 import { PARTICIPANT } from './worker/schema.ts'
 
-export type SqlToolConditionalCommitInput<B extends ContentBlock> = Readonly<{
+export type SqlToolConditionalCommitInput = Readonly<{
   condition: Readonly<Record<string, unknown>>
-  ledger: LedgerCommitInput<B>
+  ledger: LedgerCommitInput
 }>
 
 export type SqlToolConditionalCommitResult = LedgerCommit | Readonly<{ kind: 'condition-failed' }>
 
-export type SqlToolConditionalCommit<B extends ContentBlock> = Readonly<{
-  commit(input: SqlToolConditionalCommitInput<B>): Promise<SqlToolConditionalCommitResult>
+export type SqlToolConditionalCommit = Readonly<{
+  commit(input: SqlToolConditionalCommitInput): Promise<SqlToolConditionalCommitResult>
 }>
 
-/**
- * The SQL form of a condition: commands of other participants, and the registered combination
- * that holds those participants together with the Tool participant.
- */
-export type SqlToolCondition = Readonly<{
-  combinationVersion: string
-  manifestDigest: string
-  commands: readonly FactCommandV2[]
-}>
+/** The SQL form of a condition. */
+export type SqlToolCondition = LedgerCommitCondition
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-function isCommand(value: unknown): value is FactCommandV2 {
+function isCommand(value: unknown): value is SqlToolCondition['commands'][number] {
   return (
     isRecord(value) &&
     typeof value['participant'] === 'string' &&
@@ -53,10 +43,15 @@ function conditionOf(value: Readonly<Record<string, unknown>>): SqlToolCondition
     : null
 }
 
-function answerOf(answer: CommitAnswer): SqlToolConditionalCommitResult {
+/** What the store answers inside this module when a condition participant stopped the commit. */
+const CONDITION_FAILED = 'tool-storage-sql: the condition of the commit did not hold'
+
+/** A stop of another participant than the Tool participant is the condition: nothing took effect. */
+function answerOf(answer: CommitAnswer): LedgerCommit {
   if (answer.kind === 'rolled_back') {
     const stop = answer.responses.at(-1)
-    if (stop !== undefined && stop.participant !== PARTICIPANT) return { kind: 'condition-failed' }
+    if (stop !== undefined && stop.participant !== PARTICIPANT)
+      return { kind: 'rejected', reason: CONDITION_FAILED }
   }
   return ledgerAnswer(answer)
 }
@@ -64,41 +59,21 @@ function answerOf(answer: CommitAnswer): SqlToolConditionalCommitResult {
 /**
  * The condition commands run before the ledger write in one SQL transaction. When a condition
  * participant stops the operation, nothing took effect and the answer is `condition-failed`.
- * A condition never names the Tool participant: it cannot write the ledger.
+ * A condition never names the Tool participant: it cannot write the ledger. The commit goes
+ * through the keeper of the database, as every ledger commit of the process does (TS-16).
  */
-export function createSqlToolConditionalCommit<B extends ContentBlock = ContentBlock>(
+export function createSqlToolConditionalCommit(
   options: SqlToolStorageOptions,
-): SqlToolConditionalCommit<B> {
+): SqlToolConditionalCommit {
   return {
     commit: async input => {
       const condition = conditionOf(input.condition)
       if (condition === null)
         return { kind: 'rejected', reason: 'start condition: not SQL commands' }
-      const resolved = await resolveTenant(options, input.ledger.domain.tenant)
-      if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
-      let writes: readonly LedgerWriteFact[]
-      try {
-        writes = writesOf(input.ledger)
-      } catch (error) {
-        if (error instanceof NotJsonError) return notJson(error)
-        throw error
-      }
-      const facts: LedgerFacts = {
-        ...addressOf(resolved.at.tenant, input.ledger.domain),
-        intent: 'ledger',
-        expected: input.ledger.expected,
-        revision: input.ledger.revision,
-        writes,
-      }
-      const ledger = requestOf(options, resolved.at, facts)
-      return answerOf(
-        await options.storage.commit({
-          ...ledger,
-          combinationVersion: condition.combinationVersion,
-          manifestDigest: condition.manifestDigest,
-          commands: [...condition.commands, ...ledger.commands],
-        }),
-      )
+      const answer = await conditionalLedgerCommit(options, condition, answerOf)(input.ledger)
+      return answer.kind === 'rejected' && answer.reason === CONDITION_FAILED
+        ? { kind: 'condition-failed' }
+        : answer
     },
   }
 }

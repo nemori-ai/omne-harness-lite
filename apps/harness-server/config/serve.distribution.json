@@ -23,6 +23,7 @@
       "config": {
         "maxLifetime": "PT2592000S",
         "idlePeriod": "PT604800S",
+        "accessRefreshGranularity": "PT3600S",
         "invitationDefaultDuration": "PT604800S",
         "invitationMaxDuration": "PT2592000S"
       }
@@ -145,8 +146,8 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/7",
-        "manifestDigest": "a0557942977297b8f36fef0223a3c1d41fabe117f430239e97d7983ef6c8ccbe"
+        "combinationVersion": "session-composite/8",
+        "manifestDigest": "fb6dbef0db86e79fa0288b04b2e48365570d32defeef428a4bff12cd7663159e"
       }
     },
     {
@@ -158,8 +159,8 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/7",
-        "manifestDigest": "a0557942977297b8f36fef0223a3c1d41fabe117f430239e97d7983ef6c8ccbe"
+        "combinationVersion": "session-composite/8",
+        "manifestDigest": "fb6dbef0db86e79fa0288b04b2e48365570d32defeef428a4bff12cd7663159e"
       }
     },
     {
@@ -424,6 +425,11 @@
     {
       "id": "tool-records",
       "plugin": "toolRecordsRow",
+      "config": {}
+    },
+    {
+      "id": "tool-body-sweep",
+      "plugin": "toolBodySweepRow",
       "config": {}
     },
     {

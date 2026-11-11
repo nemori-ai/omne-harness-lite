@@ -93,14 +93,18 @@ export type FixedModelRequest = Readonly<{
   parameterAdoptions: readonly ParameterAdoption[]
   source: Adoption
 }>
-export type ResultCapacity = Readonly<{
-  bytes: string
-  blocks: string
-  attachmentBytes: string
-}>
+/**
+ * What the record of a call keeps of its fixed request for its own decisions: every field except
+ * the content (`system`, `messages`, `tools`), and the identities of the messages in their order.
+ * The content is kept once, apart from the record, and is read only to send the request.
+ */
+export type FixedRequestHead = Readonly<
+  Omit<FixedModelRequest, 'system' | 'messages' | 'tools'> & {
+    messageIds: readonly Message['id'][]
+  }
+>
 export type Admit<P> = Mutation<P> &
   Readonly<{
     request: FixedModelRequest
     consumer: ConsumerRef
-    capacity: ResultCapacity
   }>

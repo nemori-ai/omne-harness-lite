@@ -50,7 +50,6 @@ const ANTHROPIC_FIXTURES = join(fileURLToPath(FIXTURES_ROOT), RECORDS_DIRECTORY)
 const executor = await testExecutor([openAiTokenizerResources()])
 const OPENAI_FAMILY = createOpenAiFamily({
   executor,
-  maxSerializedBytes: CONFIG.maxSerializedBytes,
   tokenizer: openAiTokenizerResources(),
   limits: CONFIG.limits,
   margin: { percent: '10', source: MARGIN_SOURCE },

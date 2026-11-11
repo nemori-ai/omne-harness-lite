@@ -103,7 +103,6 @@ beforeAll(async () => {
     },
     margin: { percent: '10', source: hex('margin-policy') },
     executor,
-    maxSerializedBytes: 4 * 1024 * 1024,
   })
   const acquired = await composeFamilies([family]).acquire(supplier, new AbortController().signal)
   if (!('ok' in acquired)) throw new Error(`acquire: ${JSON.stringify(acquired.failure)}`)

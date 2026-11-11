@@ -151,7 +151,7 @@ async function realPreparation(hooks: { plan?: () => void; release?: () => Promi
       resultPageParts: 1,
       resultPageTargetBytes: 1024,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+      unacknowledgedResults: 10,
     },
   }).commands
   class Commands extends Service {

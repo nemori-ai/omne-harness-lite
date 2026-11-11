@@ -33,11 +33,12 @@ function blocks(): readonly ModelBlock[] {
     throw new Error('fixture blocks')
   return [text.ok, tool.ok]
 }
-async function completed(firstText?: string, capacityBytes?: string, pageParts = 1) {
+async function completed(firstText?: string, share?: number, pageParts = 1) {
   const f = fixture()
-  if (capacityBytes !== undefined)
-    Object.assign(f.admit, { capacity: { ...f.admit.capacity, bytes: capacityBytes } })
-  Object.assign(f.options.limits, { resultPageParts: pageParts })
+  Object.assign(f.options.limits, {
+    resultPageParts: pageParts,
+    ...(share !== undefined && { unacknowledgedResults: share }),
+  })
   const memory = createMemoryModelCommands(f.options)
   const { commands } = memory
   unbox(await commands.admit(f.admit))
@@ -332,8 +333,8 @@ it('unknown writes block release, reveal does not repeat effects, and cleanup us
     unbox(await f.commands.advanceCleanup({ ...f.execution, operation: op('release') })),
   ).toMatchObject({ cleanup: 'released' })
 })
-it('uses one fixed-result body for a tiny first page and a 4KiB next page within a tight reservation', async () => {
-  const f = await completed('tiny', '45000')
+it('uses one fixed-result body for a tiny first page and a 4KiB next page', async () => {
+  const f = await completed('tiny')
   const started = unbox(await f.commands.acquireRead(f.readInput))
   if (
     started.kind !== 'started' ||
@@ -350,13 +351,12 @@ it('uses one fixed-result body for a tiny first page and a 4KiB next page within
   expect(await f.commands.nextRead(next)).toEqual({ ok: page })
   expect(unbox(await f.commands.acquireRead(f.readInput))).toEqual(started)
 })
-it('releases the reservation after ACK and real resource completion without consuming capacity on a failed admission', async () => {
-  const f = await completed()
+it('gives the place of a call back after ACK and real resource completion, and holds nothing for a failed admission', async () => {
+  const f = await completed(undefined, 1)
   const other = {
     ...f.admit,
     call: unbox((await import('@omne-harness/model-contract')).decodeModelCallId('mcall_other')),
     operation: op('other-admission'),
-    capacity: { ...f.admit.capacity, bytes: '950000' },
   }
   expect(await f.commands.admit(other)).toMatchObject({
     failure: { kind: 'unavailable', dependency: 'model-capacity' },
@@ -364,8 +364,12 @@ it('releases the reservation after ACK and real resource completion without cons
   expect(unbox(await f.commands.query(other))).toEqual({ kind: 'not-committed' })
   unbox(await f.commands.handoff(f.handoff()))
   expect(
-    unbox(await f.commands.advanceCleanup({ ...f.execution, operation: op('release-capacity') })),
+    unbox(await f.commands.advanceCleanup({ ...f.execution, operation: op('release-place') })),
   ).toMatchObject({ cleanup: 'released' })
+  // The release deletes the request: the head and the body are both gone.
+  expect(await f.commands.loadRequest(f.admit)).toEqual({
+    failure: { kind: 'invalid', field: 'call', reason: 'recovery-material-released' },
+  })
   expect(unbox(await f.commands.admit(other)).recovered).toBe(false)
 })
 
@@ -380,9 +384,6 @@ it('groups whole 4KiB text and tool calls by the byte target even when ten parts
   )
   for (const page of [read.value.page, second.page]) {
     expect(Buffer.byteLength(JSON.stringify(page.parts))).toBeGreaterThan(1024)
-    expect(Buffer.byteLength(JSON.stringify(page))).toBeLessThanOrEqual(
-      Number(f.admit.capacity.bytes),
-    )
   }
 })
 

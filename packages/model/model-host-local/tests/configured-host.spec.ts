@@ -38,7 +38,7 @@ const CALL = unbox(decodeModelCallId('mcall_configured'))
 const ADOPTION = { owner: 'test', name: 'test', revision: '1', digest: '0'.repeat(64) }
 // Values from runtime-push.spec.ts, for a bounded in-process fixture. No production defaults.
 const CONFIG = {
-  host: { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 0 },
+  host: { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 25 },
   runtime: {
     outputBatchBytes: 1,
     outputBatchDelayMs: 0,
@@ -114,7 +114,7 @@ function fixture() {
       resultPageParts: 4,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '200', attachmentBytes: '0' },
+      unacknowledgedResults: 10,
     },
   })
   const commands = memory.dependencies.commands
@@ -123,6 +123,7 @@ function fixture() {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
     declare readonly recordMaterialization: ModelCommands<unknown>['recordMaterialization']
@@ -309,7 +310,6 @@ it('drives with the injected authority principal and delegates the complete send
         operation: unbox(decodeModelOperationId('mop_admit')),
         request: REQUEST,
         consumer: { owner: 'test', work: 'work', position: 'position', purpose: 'test' },
-        capacity: { bytes: '100000', blocks: '20', attachmentBytes: '0' },
       }),
     )
     await expect.poll(() => f.sends.length).toBe(1)

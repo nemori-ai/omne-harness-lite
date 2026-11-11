@@ -84,7 +84,7 @@ the following 17 required numbers. There are no numeric defaults.
 | `host`    | `concurrencyLimit`            | Positive safe integer       |
 | `host`    | `wakeCapacity`                | Positive safe integer       |
 | `host`    | `scanBatchSize`               | Positive safe integer       |
-| `host`    | `scanIntervalMs`              | Non-negative safe integer   |
+| `host`    | `scanIntervalMs`              | Positive safe integer       |
 | `runtime` | `outputBatchBytes`            | Positive finite integer     |
 | `runtime` | `outputBatchDelayMs`          | Non-negative finite integer |
 | `runtime` | `observerBufferBytes`         | Positive finite integer     |

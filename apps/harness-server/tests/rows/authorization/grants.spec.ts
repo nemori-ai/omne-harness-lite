@@ -58,7 +58,7 @@ function agentInstanceRequest(
 }
 
 describe('the release grant table', () => {
-  it('is a frozen constant with a record for each of the four system holders', () => {
+  it('is a frozen constant with a record for each system holder', () => {
     expect(Object.isFrozen(MAINTENANCE_GRANTS)).toBe(true)
     expect(AGENT_HOST_COMPONENT).toBe('agent-host')
     expect(Object.keys(MAINTENANCE_GRANTS).sort()).toEqual([

@@ -120,6 +120,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentJournalEntries',
       'agentMaterials',
       'sessionTransactions',
+      'sessionWorkPrincipals',
     ],
   },
   'session-ad09': { provides: ['sessionIdentity'], injects: ['principalVerifier'] },
@@ -241,7 +242,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'toolStartFence',
       'toolInvocationQualification',
     ],
-    injects: ['storage', 'tenantDomainLookup'],
+    injects: ['storage', 'tenantDomainLookup', 'telemetry'],
     group: 'tool-start',
   },
   'tool-bindings': {
@@ -255,6 +256,17 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'tool-executor': {
     provides: ['toolInstanceHost'],
     injects: ['toolCommands', 'toolClock'],
+    phase: 'business',
+  },
+  'tool-body-sweep': {
+    provides: [],
+    injects: [
+      'storage',
+      'tenantDomainLookup',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+      'telemetry',
+    ],
     phase: 'business',
   },
   'tool-host': {

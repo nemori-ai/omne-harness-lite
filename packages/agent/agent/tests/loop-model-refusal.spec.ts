@@ -1,5 +1,5 @@
 // R2-D237: what M6 does with an admission that the Model does not accept. A definite refusal
-// (denied, invalid, unsupported, capacity) is the failure candidate `model-refused`, and F1 ends the
+// (denied, invalid, unsupported) is the failure candidate `model-refused`, and F1 ends the
 // run with it: the original call and the Model's refusal are readable in the candidate. An
 // unavailable Model is a dependency wait at M6 with its owner; the wake at the check time admits the
 // same call again, and the run goes on to its reply. The scripted Model and the memory Journal are
@@ -16,7 +16,6 @@ import { alice, eventually, invoke, loopAssembly, type LoopAssembly } from './lo
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 
 const REFUSALS: readonly ModelFailure[] = [
-  { kind: 'capacity', required: { bytes: '1000000', blocks: '20', attachmentBytes: '0' } },
   { kind: 'denied', action: 'admit' },
   { kind: 'invalid', field: 'request', reason: 'tools[0].name' },
   {

@@ -453,7 +453,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-72：附着（动作）与工作区附着（值）
 
 - **类型**：同名不同义。2026-10-27 评审 #837 的文档时发现。
-- **来源**：[工作区附着](terms/scope-and-resolution.md#ul-workspace-attachment--工作区附着--workspace-attachment)按 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)指一个引用值：实例标识加装载依据。[工作区产品正文 J-WS01](../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)（rev 4）写「报告附着成功」「不报告已附着」，J-WS06 写「为同一会话附着、更换、解除工作区」。[租户—工作区关系](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界写「不作为该租户的工作区附着或装配来源」，[工作区实例](terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)写「不用时可不再附着」。这些地方的「附着」都是把工作区接到会话上的动作或其结果。
+- **来源**：[工作区附着](terms/scope-and-resolution.md#ul-workspace-attachment--工作区附着--workspace-attachment)按 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)指一个引用值：实例标识加装载依据。[工作区产品正文 J-WS01](../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)（rev 5）写「报告附着成功」「不报告已附着」，J-WS06 写「为同一会话附着、更换、解除工作区」。[租户—工作区关系](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界写「不作为该租户的工作区附着或装配来源」，[工作区实例](terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)写「不用时可不再附着」。这些地方的「附着」都是把工作区接到会话上的动作或其结果。
 - **差别**：一个是会话里保存的值，一个是会话与工作区之间的动作。下游读到「附着成功」时，可能把它读成「`workspaceAttachment` 已写入」，而产品正文的意思是「选择已正式采用」。
 - **处置**：词条保留引用值的含义，「别混」写明动作用法不是本词。产品正文与其他词条暂不回改。
 - **负责与闭合条件**：工作区契约卡（[#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) 剩余责任）在发布工作区契约成员时收敛两种用法：为动作或值另定说法，或给裸用加限定。产品正文与相关词条按结论回改后闭合。
@@ -476,3 +476,10 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：词条形态写「未定」，[领域对象的待裁](../domain_objects/pending.md#输出代)立一项。裁之前，下游不按任何一种读法立对象条目。RFC-0013 继续用这个词审议换代协议。
 - **负责与闭合条件**：产品负责人补一段产品正文定义它，形态改为对象并立条目；或者裁定它不是产品概念，形态改为非对象的取值。任一发生后闭合。
 - **状态**：待裁。
+
+### C-75：卸载正文与整份 ToolResult、永久保留的旧投影
+
+- **类型**：旧词义及对象寿命与产品新决定不一致。
+- **原冲突**：UL-offloaded-result 将完整工具结果都算作卸载对象，并保留无到期规则的旧承诺。程序值与原生资源可能因此被正文清理误删，也可能使过期正文仍被混合原返回长期占有。
+- **采用依据**：PanQiWei 于 2026-11-07 明确限定卸载对象为给模型看的正文，并要求内联交接后释放、卸载正文有限期清理、原生资源及业务效果由原拥有者管理，见 [W3 授权与范围](https://github.com/nemori-ai/omne-harness-lite/issues/184#issuecomment-6704642297)。
+- **处置**：[工具执行产品正文](../product/tool-execution/design.md#结果保管卸载与模型采用)与词条、对象条目按该范围同步。当前定义不由历史 PF 的永久保留文字覆盖。技术实现及验证仍由 [W3 交付卡](https://github.com/nemori-ai/omne-harness-lite/issues/1168)承担。

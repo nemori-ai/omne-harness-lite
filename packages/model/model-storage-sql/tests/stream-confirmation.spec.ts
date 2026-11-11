@@ -7,18 +7,14 @@ import {
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import { decodeDispatchId, encodeModelInvocationRef } from '@omne-harness/model-contract'
 import type { SqlStorage } from '@omne-harness/sql-contract'
-import {
-  createSqlModelCommands,
-  COMMAND_RESERVE_BYTES,
-  type SqlModelCommands,
-} from '../src/index.ts'
+import { packText, unpackText } from '@omne-harness/sql-contract/worker'
+import { createSqlModelCommands, type SqlModelCommands } from '../src/index.ts'
 import {
   callId,
   coreOptions,
   DIGEST,
   instanceId,
   lookup,
-  MAX_CALL_BYTES,
   opId,
   sqliteStorage,
   tenantOf,
@@ -80,9 +76,8 @@ function scene(
     observation: { limits: observationLimits, timing },
     storage: wrap(sqlite.storage),
     domains: lookup([textOf(tenant)], 'confirmation'),
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
   })
   const { initial, observations } = result
   if (!initial || !observations) throw new Error('assembly')
@@ -162,10 +157,16 @@ it('a real SQL CAS retry publishes only the final state, never the first staged 
     [Symbol.asyncIterator]()
   expect(await iterator.next()).toMatchObject({ value: { kind: 'snapshot' } })
   s.sqlite.hooks.beforeCommit = () => {
+    const [[stored]] = s.sqlite.rows(
+      'confirmation',
+      'SELECT state FROM md_call WHERE tenant = ? AND call = ?',
+      [textOf(s.tenant), s.admit.call],
+    ) as [[Uint8Array]]
+    const state = { ...(JSON.parse(unpackText(stored)) as object), revision: '8' }
     s.sqlite.seed(
       'confirmation',
-      "UPDATE md_call SET row_version = row_version + 1, state = json_set(state, '$.revision', '8') WHERE tenant = ? AND call = ?",
-      [textOf(s.tenant), s.admit.call],
+      'UPDATE md_call SET row_version = row_version + 1, state = ? WHERE tenant = ? AND call = ?',
+      [packText(JSON.stringify(state)), textOf(s.tenant), s.admit.call],
     )
   }
   const commits = s.sqlite.commits()

@@ -1,3 +1,4 @@
+import type { JsonLimits, JsonRead } from '@omne-harness/json-text'
 // The construction shapes of the Tool runtime factory and the ledger factory. They belong to the
 // implementation, not to the contract: another implementation may take different dependencies
 // and configuration.
@@ -11,6 +12,7 @@ import type {
   ToolState,
   ControlRecord,
   ToolOperationId,
+  ToolPublishedSchema,
 } from '@omne-harness/tool-contract'
 import type { CallAccess, WriteContext } from '@omne-harness/tool-contract/provider'
 import type { AccessVerdict } from './ledger-guards.ts'
@@ -28,11 +30,32 @@ import type {
   ToolInstanceHost,
   ToolInvocationSourceIssuer,
   ToolOperationIdentities,
-  ToolOutputCustody,
   ToolReads,
   ToolResourceResponses,
   ToolStartAuthority,
+  ToolBodyPermitKey,
+  ToolBodyStore,
+  ToolInstantClock,
 } from '@omne-harness/tool-contract/provider'
+
+export type ToolOffloadingConfiguration = Readonly<{
+  maxInlineUtf8Bytes: number
+  maxRetentionMs: number
+  maxBodyBytes: number
+  previewUtf8Bytes: number
+  /** k: the preview budget is at most the offloading threshold divided by k, rounded down. Absent means 8. */
+  previewDivisor?: number
+  maxPageBytes: number
+  maxWriterMetadataBytes: number
+  jsonDocument: JsonLimits
+  jsonRecord: JsonLimits
+  /** W: how long one write permit lasts on the issuer's clock. */
+  permitMs: number
+  /** ε: the largest clock difference between any two participants of the deployment. */
+  clockSkewMs: number
+  /** G: the time after settlement at which an orphaned body is due for reclaim. Must exceed W + 2ε. */
+  orphanGraceMs: number
+}>
 
 export type ToolConfiguration = ToolAuthorLimits &
   Readonly<{
@@ -41,6 +64,8 @@ export type ToolConfiguration = ToolAuthorLimits &
     observerBufferBytes: number
     /** The most bytes of whole content blocks on one result page (P08). */
     resultPageBytes: number
+    offloading: ToolOffloadingConfiguration
+    readResultArguments: JsonLimits
     reconciliationDelayMs: number
     /** How many times a ledger command re-reads and re-decides after a revision conflict. */
     ledgerCommitAttempts: number
@@ -69,7 +94,13 @@ export type ToolConfiguration = ToolAuthorLimits &
 /** The part of the configuration that the ledger reads. The same configuration value fits. */
 export type ToolLedgerConfiguration = Pick<
   ToolConfiguration,
-  'resultPageBytes' | 'ledgerCommitAttempts' | 'queueCapacity'
+  | 'authorBufferBytes'
+  | 'authorBufferItems'
+  | 'resultPageBytes'
+  | 'ledgerCommitAttempts'
+  | 'queueCapacity'
+  | 'offloading'
+  | 'readResultArguments'
 >
 
 /**
@@ -123,12 +154,11 @@ export type ToolLedgerRejections<P> = Readonly<{
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   /** The ledger's original-controller check before a pending stop is sent. */
   controls?: ToolLedgerControls<P>
-  facts: ToolLedgerFacts<P, B>
   commands: ToolCommands<P, B>
   admissions: ToolLedgerAdmissions<P>
   queues: ToolLedgerQueues<P>
   rejections: ToolLedgerRejections<P>
-  bindings: ToolBindings<P, B, E>
+  bindings: ToolBindings<P, E>
   environments: ToolEnvironment<P, E>
   decisions: ToolDecisionBridge<P>
   instances: ToolInstanceHost<P>
@@ -136,7 +166,6 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   resultPolicy: ResultPolicy<B>
   authority: ToolStartAuthority<P>
   resources: ToolResourceResponses<P>
-  custody: ToolOutputCustody<P>
   catalog: ToolCatalog<P>
   reads: ToolReads<P, B>
   children: ToolChildren<P>
@@ -146,7 +175,7 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   sourceIssuer: ToolInvocationSourceIssuer<P>
 }>
 
-/** Trusted recovery consumers can recover complete original facts by their exact evidence. */
+/** Reads pending original facts or settled final receipts by their exact evidence. */
 export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
   read(
     input: CallAccess<P> & Readonly<{ basis: DurableEvidence }>,
@@ -155,10 +184,21 @@ export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
 
 /** Explicit ledger providers. A null content reader disables byte reads only. */
 export type ToolLedgerPorts<P> = Readonly<{
+  bodySchemas?: Readonly<{
+    check(schema: ToolPublishedSchema, read: Extract<JsonRead, { kind: 'ok' }>): Reply<void>
+  }>
+  /**
+   * Body custody (BodyLifecycle): the store holds immutable chunks under permits the ledger signs
+   * with `permitKey`; `clock` is the ledger's own participant clock (issuer, settler and reader).
+   */
+  bodies?: Readonly<{
+    store: ToolBodyStore
+    permitKey: ToolBodyPermitKey
+    clock: ToolInstantClock
+  }>
   /** A trusted identity owner. Absence disables new controls and pending propagation. */
   controlSubjects?: ToolControlSubjects<P>
   content: Pick<ToolContentReader<P>, 'read'> | null
-  custody: Pick<ToolOutputCustody<P>, 'retainResult'>
   releaseInspection: Pick<ToolEnvironment<P, unknown>, 'adoption' | 'inspectRelease'>
 }>
 

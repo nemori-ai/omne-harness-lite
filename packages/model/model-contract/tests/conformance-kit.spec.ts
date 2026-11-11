@@ -4,7 +4,6 @@ import type { ScriptedPrincipal } from '@omne-harness/model-contract/testing'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  DEFAULT_CAPACITY,
   DEFAULT_CONSUMER,
   DEFAULT_REQUEST,
   variantOf,
@@ -252,10 +251,9 @@ describe('the scene helpers of the conformance kit', () => {
       operation: operationId('admit-a'),
       request: DEFAULT_REQUEST,
       consumer: DEFAULT_CONSUMER,
-      capacity: DEFAULT_CAPACITY,
     })
-    const other = { bytes: '1', blocks: '1', attachmentBytes: '0' }
-    expect(admitInput(scene, 'a', { capacity: other }).capacity).toBe(other)
+    const other = { ...DEFAULT_CONSUMER, purpose: 'other' }
+    expect(admitInput(scene, 'a', { consumer: other }).consumer).toBe(other)
   })
 
   it('copies the data of an admission and keeps its identities', () => {
@@ -264,7 +262,6 @@ describe('the scene helpers of the conformance kit', () => {
     expect(copy).toEqual(input)
     expect(copy.request).not.toBe(input.request)
     expect(copy.consumer).not.toBe(input.consumer)
-    expect(copy.capacity).not.toBe(input.capacity)
     expect(copy.call).toBe(input.call)
     expect(copy.operation).toBe(input.operation)
   })

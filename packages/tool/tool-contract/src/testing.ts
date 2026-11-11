@@ -2,6 +2,7 @@
 // and a non-durable double for each port that passes its suite. A suite returns a list of cases
 // and does not depend on a test framework; a case fails with a `node:assert` AssertionError. Each
 // double declares `durability: 'none'` and must not be assembled into production.
+export { ordinaryReturnFixture, structuredReturnFixture } from './testing-returns.ts'
 export {
   NotApplicable,
   completionOf,
@@ -66,6 +67,7 @@ export {
 } from './testing-environment.ts'
 export {
   completedFinal,
+  completedFinalEnvelope,
   createMemoryToolExecutorBinding,
   executorBindingAnswers,
   memoryToolExecutorBindingFixture,
@@ -74,13 +76,14 @@ export {
   type ToolExecutorBindingFixture,
 } from './testing-executor-binding.ts'
 export {
-  createMemoryToolOutputCustody,
-  memoryToolOutputCustodyFixture,
-  outputCustodyAnswers,
-  toolOutputCustodyConformance,
-  type MemoryToolOutputCustody,
-  type ToolOutputCustodyFixture,
-} from './testing-output-custody.ts'
+  createManualInstantClock,
+  createMemoryToolBodyStore,
+  instantAt,
+  memoryToolBodyStoreFixture,
+  toolBodyStoreConformance,
+  type MemoryToolBodyStore,
+  type ToolBodyStoreFixture,
+} from './testing-body-store.ts'
 export {
   clockAnswers,
   createMemoryToolClock,

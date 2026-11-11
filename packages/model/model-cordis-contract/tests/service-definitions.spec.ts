@@ -93,6 +93,7 @@ class Commands extends ModelCommandsService<unknown> {
   readonly recall = unused
   readonly scanPending = unused
   readonly loadRecovery = unused
+  readonly loadRequest = unused
   readonly claim = unused
   readonly prepareDispatch = unused
   readonly recordMaterialization = unused

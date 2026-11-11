@@ -89,6 +89,7 @@ export function createFaultyStorage(inner: SqlStorage): FaultyStorage {
 
   return {
     storage: {
+      database: inner.database,
       registerCombination: input => inner.registerCombination(input),
       commit,
       query: identity => inner.query(identity),

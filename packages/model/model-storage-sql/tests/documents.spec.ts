@@ -103,9 +103,7 @@ function documentOf(): CallDocument {
       fallback: false,
       retryPolicy: ADOPTION,
       parameters: [{ kind: 'temperature', value: 0.5 }],
-      system: [],
-      messages: [],
-      tools: [],
+      messageIds: [],
       toolChoice: 'auto',
       declarations: [{ produces: 'r/m', accepts: ['r/m'], foreignThinking: 'omit' }],
       representation: ADOPTION,
@@ -113,7 +111,6 @@ function documentOf(): CallDocument {
       source: ADOPTION,
     },
     requestDigest: 'digest',
-    capacity: { bytes: '1000', blocks: '10', attachmentBytes: '5' },
     initiator: { owner: 'authority', subject: 'subject', revision: '1' },
     admission: OPERATION,
     owner: { consumerOwner: 'owner', work: { kind: 'exempt' }, evidence: ADOPTION },
@@ -208,7 +205,7 @@ function outputOf(document: CallDocument = documentOf()): Output {
     ),
     parts: PARTS.map(item => ok(encodePartRow(TEXT, CALL, item))),
     operation: ok(encodeOperationRow(TEXT, OPERATION, BINDING)),
-    capacity: { bytes: '1000', blocks: '10', attachmentBytes: '5' },
+    held: 3,
   }
 }
 
@@ -228,13 +225,12 @@ describe('parse of a call read', () => {
     expect(read.record?.pending).toBe(true)
     expect(read.record?.parts).toEqual(PARTS)
     expect(read.binding).toEqual({ ...BINDING, operation: OPERATION })
-    expect(read.capacity).toEqual({ bytes: '1000', blocks: '10', attachmentBytes: '5' })
+    expect(read.held).toBe(3)
   })
 
   it('gives no record and an empty answer for a call without rows', () => {
-    const empty = { bytes: '0', blocks: '0', attachmentBytes: '0' }
-    const output = { call: null, dispatches: [], parts: [], operation: null, capacity: empty }
-    expect(ok(parse(output))).toEqual({ record: undefined, binding: null, capacity: empty })
+    const output = { call: null, dispatches: [], parts: [], operation: null, held: 0 }
+    expect(ok(parse(output))).toEqual({ record: undefined, binding: null, held: 0 })
   })
 
   it('keeps the binding of an operation bound to another call', () => {

@@ -3,7 +3,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Access, Admit, FixedModelRequest } from './root.ts'
 import { decodeModelCallId, decodeModelOperationId } from './identity-values.ts'
 import { InputTree, captureRoot, dataField, freezeTree, rejected } from './input-tree.ts'
-import { capacityShape, consumerShape, requestShape } from './request-shape.ts'
+import { consumerShape, requestShape } from './request-shape.ts'
 export { MODEL_INPUT_LIMITS } from './input-tree.ts'
 
 export type ModelInputRejection = Readonly<{
@@ -45,7 +45,6 @@ export type ModelAdmitCandidate<P> = Access<P> &
     operation: unknown
     request: unknown
     consumer: unknown
-    capacity: unknown
   }>
 export function judgeFixedModelRequest(
   value: unknown,
@@ -56,7 +55,7 @@ export function judgeFixedModelRequest(
   return 'failure' in parsed ? parsed : succeed(freezeTree(parsed.ok))
 }
 
-const admitKeys = ['principal', 'tenant', 'call', 'operation', 'request', 'consumer', 'capacity']
+const admitKeys = ['principal', 'tenant', 'call', 'operation', 'request', 'consumer']
 function captureAdmitFields(
   value: unknown,
 ): Outcome<Record<string, PropertyDescriptor>, ModelInputRejection> {
@@ -76,7 +75,7 @@ function copyAdmitPayload(
 ): Outcome<Record<string, unknown>, ModelInputRejection> {
   const tree = new InputTree(true)
   const payload: Record<string, unknown> = {}
-  for (const key of ['call', 'operation', 'request', 'consumer', 'capacity']) {
+  for (const key of ['call', 'operation', 'request', 'consumer']) {
     const budget = tree.key(key, `/${key}`)
     if (budget) return fail(budget)
     const copied = tree.copy(fields[key]?.value, `/${key}`, 2)
@@ -109,8 +108,6 @@ export function judgeAdmit<P>(
   if ('failure' in request) return request
   const consumer = consumerShape(payload.consumer)
   if ('failure' in consumer) return consumer
-  const capacity = capacityShape(payload.capacity)
-  if ('failure' in capacity) return capacity
   return succeed(
     Object.freeze({
       principal,
@@ -119,7 +116,6 @@ export function judgeAdmit<P>(
       operation: operation.ok,
       request: freezeTree(request.ok),
       consumer: freezeTree(consumer.ok),
-      capacity: freezeTree(capacity.ok),
     }),
   )
 }

@@ -12,6 +12,7 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import { decodeRows, foldAll, receiptOf, type FactRow } from '../src/journal/index.ts'
 import { JOURNAL_OWNER } from '../src/testing/journal-values.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
+import { unpackText } from '@omne-harness/sql-contract/worker'
 import { sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
 /** The stored batches of the scene's session, decoded as a reader decodes them. */
@@ -25,7 +26,7 @@ function storedBatches(s: SqlScene) {
   // `kinds` columns are the storage operation and an event's consequence kinds).
   const facts: FactRow[] = (rows ?? []).map(row => {
     const ord = Number(row[1])
-    const body = String(row[7])
+    const body = unpackText(row[7] as Uint8Array)
     const envelope = ord === 0 ? (JSON.parse(body) as { op: string; kinds: string[] }) : null
     return {
       tenant: text.value,

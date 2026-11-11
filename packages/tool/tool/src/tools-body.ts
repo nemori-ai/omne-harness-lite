@@ -1,0 +1,118 @@
+import type { Access } from '@omne-harness/tool-contract'
+import { writeJsonText } from '@omne-harness/json-text'
+import { judgeContentBlock } from '@omne-harness/content-block'
+import { formatError, formatKeyValue, formatSuccess, formatUsage } from '@omne-harness/unix-format'
+import type { ToolsOptions, ToolsReadRuntime } from './tools.ts'
+import { callableRead, protocol, type ReadArguments } from './tools-protocol.ts'
+import {
+  bounded,
+  budgetFailure,
+  failureResult,
+  fits,
+  message,
+  type MessageResult,
+} from './tools-results.ts'
+
+export function createToolsBodyReader<P>(runtime: ToolsReadRuntime<P>, options: ToolsOptions) {
+  const refs = protocol(options.arguments)
+  const error = (failure: Parameters<typeof failureResult>[0]) =>
+    bounded(failureResult(failure), options)
+  const recordBudgetError = (position: string) =>
+    bounded(
+      message(
+        [
+          formatError('record-too-large'),
+          formatKeyValue({ position }),
+          'A complete record cannot be displayed within the current reply budget.',
+        ].join('\n'),
+      ),
+      options,
+    )
+  return async (
+    input: ReadArguments,
+    access: Access<P>,
+    after: string | null,
+  ): Promise<MessageResult> => {
+    const source = refs.readBody(input.reference)
+    if ('failure' in source) return error(source.failure)
+    let maxBytes = options.contentPageBytes
+    for (;;) {
+      const response = await runtime.body.read({ ...access, ...source.ok, after, maxBytes })
+      if ('failure' in response) {
+        const failure = response.failure
+        if (failure.kind === 'invalid' && failure.field === 'maxBytes') {
+          const match = /^first-record-does-not-fit:(0|[1-9][0-9]*)$/.exec(failure.reason)
+          if (match?.[1] !== undefined) return recordBudgetError(match[1])
+        }
+        return error(failure)
+      }
+      const page = response.ok
+      const text =
+        page.kind === 'json-lines'
+          ? page.records.map(record => `${writeJsonText(record)}\n`).join('')
+          : page.text
+      if (
+        page.result !== source.ok.result ||
+        page.bodyId !== source.ok.bodyId ||
+        Buffer.byteLength(text) > maxBytes
+      )
+        return error(budgetFailure())
+      const next = page.next === null ? null : refs.cursor('body', input.reference, page.next)
+      if (next !== null && !callableRead({ ...input, after: next }, options.arguments))
+        return error(budgetFailure())
+      const block = judgeContentBlock({
+        kind: 'text',
+        id: 'Tools.body',
+        visibility: { toModel: true, toHuman: true },
+        text,
+      })
+      if ('rejected' in block || block.ok.kind !== 'text') return error(budgetFailure())
+      const value = message(
+        [
+          formatSuccess('body read'),
+          formatKeyValue({
+            reading: 'success',
+            reference: input.reference,
+            position: page.position,
+            bodyBytes: page.bodyBytes,
+            expiresAt: page.expiresAt,
+            encoding: 'utf-8',
+            format: page.kind,
+            ...(page.kind === 'json-lines'
+              ? {
+                  recordSchema: JSON.stringify(page.representation.recordSchema),
+                  records: String(page.records.length),
+                }
+              : {}),
+            ...(page.kind === 'json-document'
+              ? {
+                  completeness: page.completeness,
+                  schema: JSON.stringify(page.representation.schema),
+                }
+              : {}),
+            next: next ?? 'null',
+          }),
+          next === null
+            ? 'Body traversal ended.'
+            : formatUsage('Tools', 'read_result', JSON.stringify({ ...input, after: next })),
+        ].join('\n'),
+        [block.ok],
+      )
+      if (fits(value, options)) return value
+      const first = text.codePointAt(0)
+      const minimum =
+        page.kind === 'json-lines'
+          ? page.records[0] === undefined
+            ? 1
+            : Buffer.byteLength(writeJsonText(page.records[0])) + 1
+          : first === undefined
+            ? 1
+            : Buffer.byteLength(String.fromCodePoint(first))
+      if (maxBytes <= minimum)
+        return page.kind === 'json-lines'
+          ? recordBudgetError(page.position)
+          : error(budgetFailure())
+      maxBytes = Math.max(minimum, Math.floor(maxBytes / 2))
+    }
+  }
+}

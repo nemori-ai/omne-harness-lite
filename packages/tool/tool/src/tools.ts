@@ -23,6 +23,7 @@ export type ToolsOptions = Readonly<{
 export type ToolsReadRuntime<P> = Readonly<{
   queries: Pick<ToolRuntime<P, ToolMessageContentBlock>['queries'], 'readResult'>
   content: Pick<ToolRuntime<P, ToolMessageContentBlock>['content'], 'read'>
+  body: ToolRuntime<P, ToolMessageContentBlock>['body']
 }>
 /** Fixed result/attachment reading and presentation, independent of any tool author. */
 export type ToolResultReader<P> = Readonly<{

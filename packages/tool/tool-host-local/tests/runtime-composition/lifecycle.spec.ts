@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { createLocalToolRuntimePlugins } from '../../src/runtime-cordis.ts'
 import { createRuntimeSourceAccess } from '../../src/runtime-composition.ts'
-import { INVOCATION_SOURCE_DOMAIN_KEY } from '../../src/invocation-source.ts'
+import { callHostDomain } from '../../src/host-domains.ts'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { succeed } from '@omne-harness/operation-result'
@@ -247,11 +247,7 @@ it('does not re-sign a principal when the stored original invocation binding is 
     const reference = accepted(await world.api.invoke(world.invocation('corrupt-source')))
     await world.settled(reference)
     const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
-    const domain = {
-      kind: 'host' as const,
-      tenant: world.tenantA,
-      key: INVOCATION_SOURCE_DOMAIN_KEY,
-    }
+    const domain = callHostDomain(world.tenantA, 'source', parts.call)
     const read = await world.store.read(domain)
     if (read.kind !== 'complete') throw new Error('Missing source domain')
     const source = read.records.find(row => row.kind === 'host')

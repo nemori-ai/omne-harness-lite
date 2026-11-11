@@ -43,12 +43,10 @@ import {
   unavailable,
 } from './value.ts'
 import {
-  capacityValid,
   completionOf,
   encodedBytes,
   hasContent,
   makePage,
-  materialBytes,
   MAX_TERMINATION_BYTES,
   pageEnd,
   resultParts,
@@ -351,6 +349,12 @@ export function mergeReceiveWindow(
   if (call.state.phase === 'running')
     call.state = { ...call.state, firstContent: dispatch.record.firstContent }
 }
+/** The execution owner gives up its open windows. What they received stays unproven. */
+export function abandonReceiveWindows(call: CallDocument): void {
+  for (const dispatch of call.dispatches)
+    for (const [window, state] of dispatch.windows)
+      if (state === 'open') mergeReceiveWindow(call, dispatch, window, false)
+}
 
 // --- Consumption: read relations and cleanup.
 
@@ -408,15 +412,9 @@ export type CallAccessInput<P> = Access<P> & { readonly call: ModelCallId }
 /**
  * The shared commands core. It owns the rules of the 22 methods and reads and writes documents
  * only through `storage`. One write: identity, access, fingerprint, recovery of a bound operation,
- * the block of an unresolved ordered write, the change on a copy, the call capacity, then one
+ * the block of an unresolved ordered write, the change on a copy, then one
  * `commit`.
  */
-/** A drafted call whose retained material exceeds its own result capacity. */
-function overCapacity(call: CallDocument | undefined): ModelFailure | null {
-  return call && call.request !== null && materialBytes(call) > BigInt(call.capacity.bytes)
-    ? { kind: 'capacity', required: call.capacity }
-    : null
-}
 /** A first admit reserves its initial record before the commit, when the core has an initial run. */
 function beginInitialAdmission<P, T>(
   initialRun: ModelInitialRun<P> | undefined,
@@ -446,16 +444,13 @@ export class ModelCommandCore<P> {
       ...options,
       owners: structuredClone(options.owners),
       evidence: [...options.evidence],
-      limits: Object.freeze({
-        ...options.limits,
-        capacity: Object.freeze({ ...options.limits.capacity }),
-      }),
+      limits: Object.freeze({ ...options.limits }),
     })
     positiveLimit(this.options.limits.scanPageCalls, 'scanPageCalls')
     positiveLimit(this.options.limits.resultPageParts, 'resultPageParts')
     positiveLimit(this.options.limits.resultPageTargetBytes, 'resultPageTargetBytes')
     positiveLimit(this.options.limits.readIdleMs, 'readIdleMs')
-    if (!capacityValid(this.options.limits.capacity)) throw new RangeError('invalid total capacity')
+    positiveLimit(this.options.limits.unacknowledgedResults, 'unacknowledgedResults')
     this.owners = this.checkOwners(this.options.owners)
   }
   replaceOwners(owners: readonly ModelConsumerOwnerDeclaration[]): void {
@@ -672,8 +667,6 @@ export class ModelCommandCore<P> {
     const applied = args.apply(draft)
     if ('failure' in applied) return applied
     const call = draft.call
-    const over = overCapacity(call)
-    if (over) return { failure: over }
     const begun = beginInitialAdmission(this.options.initialRun, args, key, original, fingerprint)
     if ('failure' in begun) return begun
     const status = this.storage.commit(key, {
@@ -687,6 +680,7 @@ export class ModelCommandCore<P> {
         revision: call?.state.revision ?? revision(),
         receipt: applied.ok.receipt,
       },
+      ...(applied.ok.body !== undefined && { body: applied.ok.body }),
     })
     if (status === 'unknown')
       return { failure: { kind: 'commit-unknown', operation: input.operation } }
@@ -863,8 +857,6 @@ export class ModelCommandCore<P> {
     if (relation.state.kind === 'ended') return { ok: structuredClone(relation.state) }
     const advanced = this.advanceRead(call, relation, action, after)
     if ('failure' in advanced) return advanced
-    if (call.request !== null && materialBytes(call) > BigInt(call.capacity.bytes))
-      return { failure: { kind: 'capacity', required: structuredClone(call.capacity) } }
     this.storage.publish(key, call)
     return {
       ok:

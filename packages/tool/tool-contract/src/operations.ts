@@ -2,7 +2,7 @@ import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { StreamId, StreamObserver, StreamRef } from '@omne-harness/stream-arrival'
 import type { ToolCatalog, ToolInspection } from './authoring.ts'
-import type { ContentPage, DiagnosticPage, ProcessSnapshot, RawOutput } from './custody.ts'
+import type { ContentPage, DiagnosticPage, ProcessSnapshot } from './custody.ts'
 import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
 import type {
   Access,
@@ -238,7 +238,6 @@ export interface ToolInvocationContentReader<P> {
         maxBytes: number
       }>,
   ): Reply<ContentPage>
-  raw(input: InvocationAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<RawOutput>
 }
 
 /**
@@ -249,6 +248,7 @@ export interface ToolInvocationContentReader<P> {
  * Dropping a reference or stopping an observation undoes nothing.
  */
 export interface ToolRuntime<P, B extends ContentBlock> {
+  readonly body: import('./body-reads.ts').ToolInvocationBodyReader<P>
   invoke(input: Access<P> & Readonly<{ request: ToolInvokeRequest }>): Promise<ToolInvokeOutcome>
   inspect(input: ToolInspection<P>): Reply<ToolAvailability>
   readonly queries: ToolInvocationQueries<P, B>

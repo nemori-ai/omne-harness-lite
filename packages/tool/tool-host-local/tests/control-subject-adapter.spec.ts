@@ -16,6 +16,7 @@ import {
   type LocalToolControlSubject,
   type LocalToolControlSubjectsInput,
 } from '../src/control-subject-adapter.ts'
+import { callHostDomain } from '../src/host-domains.ts'
 import {
   adoption,
   callId,
@@ -36,7 +37,7 @@ function ok<T>(outcome: Outcome<T, ToolFailure>): T {
   return outcome.ok
 }
 
-function fixture(store: ToolLedgerStore<ContentBlock> = createMemoryToolLedgerStore()) {
+function fixture(store: ToolLedgerStore = createMemoryToolLedgerStore()) {
   const trusted = new WeakSet<Principal>()
   const current = new Map<string, Principal>()
   const revoked = new Set<string>()
@@ -49,7 +50,7 @@ function fixture(store: ToolLedgerStore<ContentBlock> = createMemoryToolLedgerSt
   }
   const a = mint('session-a')
   const b = mint('session-b')
-  const input: LocalToolControlSubjectsInput<Principal, ContentBlock> = {
+  const input: LocalToolControlSubjectsInput<Principal> = {
     store,
     project: async principal =>
       trusted.has(principal)
@@ -101,7 +102,7 @@ describe('persistent control subjects', () => {
     const subject = ok(await capture)
     expect(await f.build().qualify({ ...context, subject })).toEqual({ kind: 'allowed' })
     expect(await f.build().qualify({ ...caller, subject })).toMatchObject({ kind: 'denied' })
-    const read = await f.store.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+    const read = await f.store.read(callHostDomain(tenantA, 'control', call))
     expect(JSON.stringify(read)).not.toContain('credential-secret')
     expect(JSON.stringify(read)).not.toContain('"principal"')
   })
@@ -156,17 +157,17 @@ describe('persistent control subjects', () => {
       f.build().capture({ ...context, principal: f.b }),
     ])
     expect(ok(first)).toEqual(ok(second))
-    const read = await f.store.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+    const read = await f.store.read(callHostDomain(tenantA, 'control', call))
     expect(read.kind === 'complete' && read.records.length).toBe(1)
   })
 
   it.each(['unknown-applied', 'unknown-dropped', 'throw-applied', 'throw-dropped'] as const)(
     'recognizes only a confirmed original association after %s',
     async fault => {
-      const memory = createMemoryToolLedgerStore<ContentBlock>()
+      const memory = createMemoryToolLedgerStore()
       let armed = true
       const keys: string[] = []
-      const store: ToolLedgerStore<ContentBlock> = {
+      const store: ToolLedgerStore = {
         ...memory,
         commit: async input => {
           const write = input.writes[0]
@@ -186,14 +187,14 @@ describe('persistent control subjects', () => {
       const retry = ok(await f.build().capture({ ...context, principal: f.b }))
       if ('ok' in first) expect(retry).toEqual(first.ok)
       expect(new Set(keys).size).toBe(1)
-      const read = await memory.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+      const read = await memory.read(callHostDomain(tenantA, 'control', call))
       expect(read.kind === 'complete' && read.records.length).toBe(1)
       expect(JSON.stringify(first)).not.toContain('secret')
     },
   )
 
   it('re-reads conflicts within its budget and cannot report an absent record as committed', async () => {
-    const memory = createMemoryToolLedgerStore<ContentBlock>()
+    const memory = createMemoryToolLedgerStore()
     let conflicts = 2
     let commits = 0
     const f = fixture({
@@ -275,7 +276,7 @@ describe('persistent control subjects', () => {
     expect(
       await f.build().capture({ ...context, tenant: { ...tenantA }, principal: f.b }),
     ).toMatchObject({ failure: { kind: 'denied' } })
-    const read = await f.store.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+    const read = await f.store.read(callHostDomain(tenantA, 'control', call))
     expect(read.kind === 'complete' && read.records.length).toBe(0)
   })
 
@@ -289,7 +290,7 @@ describe('persistent control subjects', () => {
         await f.build({ qualify: async () => verdict }).capture({ ...context, principal: f.b }),
       ).toMatchObject({ failure: { kind: verdict.kind } })
     }
-    const read = await f.store.read({ kind: 'host', tenant: tenantA, key: 'control-subjects' })
+    const read = await f.store.read(callHostDomain(tenantA, 'control', call))
     expect(read.kind === 'complete' && read.records.length).toBe(0)
   })
 
@@ -310,7 +311,7 @@ describe('persistent control subjects', () => {
         .build()
         .qualify({ ...context, subject }),
     ).toMatchObject({ kind: 'unavailable' })
-    const domain = { kind: 'host', tenant: tenantA, key: 'control-subjects' } as const
+    const domain = callHostDomain(tenantA, 'control', call)
     const read = await f.store.read(domain)
     if (read.kind !== 'complete') throw new Error('fixture read')
     const record = read.records[0]
@@ -334,7 +335,7 @@ describe('persistent control subjects', () => {
     const subject = ok(await f.build().capture({ ...context, principal: f.b }))
     const store: typeof f.store = {
       ...f.store,
-      read: async () => {
+      readRecord: async () => {
         if (kind === 'throws') throw new Error('secret')
         return { kind: 'unavailable', diagnostic: 'down' }
       },
@@ -362,20 +363,17 @@ describe('persistent control subjects', () => {
       const subject = ok(await f.build().capture({ ...context, principal: f.b }))
       const damaged: typeof f.store = {
         ...f.store,
-        read: async domain => {
-          const read = await f.store.read(domain)
-          if (read.kind !== 'complete') return read
+        readRecord: async (domain, key) => {
+          const read = await f.store.readRecord(domain, key)
+          if (read.kind !== 'complete' || read.record?.kind !== 'host') return read
+          const value = read.record.host.value
+          if (typeof value !== 'object' || value === null) throw new Error('fixture record')
           return {
             ...read,
-            records: read.records.map(record => {
-              if (record.kind !== 'host') return record
-              const value = record.host.value
-              if (typeof value !== 'object' || value === null) throw new Error('fixture record')
-              return {
-                ...record,
-                host: { ...record.host, value: { ...value, [field]: 'corrupt' } },
-              }
-            }),
+            record: {
+              ...read.record,
+              host: { ...read.record.host, value: { ...value, [field]: 'corrupt' } },
+            },
           }
         },
       }
@@ -388,7 +386,7 @@ describe('persistent control subjects', () => {
   )
 
   it('answers a commit the store rejects as a definite failure without another attempt', async () => {
-    const memory = createMemoryToolLedgerStore<ContentBlock>()
+    const memory = createMemoryToolLedgerStore()
     let commits = 0
     const f = fixture({
       ...memory,
@@ -404,7 +402,7 @@ describe('persistent control subjects', () => {
   })
 
   it('does not retry a commit that the store reports as unavailable', async () => {
-    const memory = createMemoryToolLedgerStore<ContentBlock>()
+    const memory = createMemoryToolLedgerStore()
     let commits = 0
     const f = fixture({
       ...memory,
@@ -448,11 +446,51 @@ function ledgerFor(f: ReturnType<typeof fixture>) {
     f.store,
     guards,
     createMemoryToolClock(),
-    { resultPageBytes: 4096, ledgerCommitAttempts: 3, queueCapacity: 10 },
+    {
+      resultPageBytes: 4096,
+      ledgerCommitAttempts: 3,
+      authorBufferBytes: 65_536,
+      authorBufferItems: 128,
+      queueCapacity: 10,
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+      },
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+        maxPageBytes: 65_536,
+        permitMs: 30_000,
+        clockSkewMs: 1_000,
+        orphanGraceMs: 60_000,
+        maxWriterMetadataBytes: 1_048_576,
+        jsonDocument: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 65_536,
+          maxMembers: 65_536,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+        jsonRecord: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 4096,
+          maxMembers: 4096,
+          maxStringLength: 65_536,
+          maxNumberLength: 64,
+        },
+      },
+    },
     {
       controlSubjects: f.build(),
       content: null,
-      custody: { retainResult: never },
       releaseInspection: { adoption: adoption('environment'), inspectRelease: never },
     },
   )

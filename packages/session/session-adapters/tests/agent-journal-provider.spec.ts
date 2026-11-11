@@ -78,7 +78,11 @@ import {
   SessionAccessCheckService,
   sessionAdoptedRequestsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
-import type { DomainRef, SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
+import {
+  type DomainRef,
+  type SqlStorage,
+  type TenantDomainLookup,
+} from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
 import { createSessionLogJournal, materialSessionOf } from '../src/cordis/agent-journal.ts'
@@ -161,6 +165,7 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
   // The operations whose commit never ran and whose outcome stays undecided (`pending`).
   const undecided = new Set<string>()
   const wrapped: SqlStorage = {
+    database: storage.database,
     registerCombination: input => storage.registerCombination(input),
     commit: async (input, options) => {
       const hold = wiring.hold
@@ -196,6 +201,7 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
     },
   }
   class Storage extends StorageService {
+    readonly database = storage.database
     readonly registerCombination = wrapped.registerCombination
     readonly commit = wrapped.commit
     readonly query = wrapped.query
@@ -1290,14 +1296,14 @@ describe('agentJournalEntries and agentMaterials: the same provider as agentJour
   })
 })
 
-/** The failure of a candidate whose Model call the Model refused for capacity (RFC-0013 A2). */
-const refusedForCapacity = (): FailureCandidate => ({
+/** The failure of a candidate whose Model call the Model refused (RFC-0013 A2). */
+const refusedByModel = (): FailureCandidate => ({
   step: null,
   at: '2026-11-05T00:00:00Z',
   source: evidence('failure/refused'),
   kind: 'model-refused',
   call: MODEL_CALL,
-  failure: { kind: 'capacity', required: { bytes: '1', blocks: '1', attachmentBytes: '0' } },
+  failure: { kind: 'denied', action: 'admit' },
 })
 
 /** The failure of a candidate whose Model call settled as failed upstream, with the settlement's fault. */
@@ -1422,7 +1428,7 @@ describe('readFinish: the finish candidate of a settling or ended execution (RFC
   it('through the plugin, a model-refused end: null before any candidate, the current intent while settling, the final intent with the capacity refusal after the end', async () => {
     const s = await scene('finish-refused')
     const { journal } = await assembled(s)
-    const seen = await endWithFailure(s, journal(), refusedForCapacity())
+    const seen = await endWithFailure(s, journal(), refusedByModel())
 
     expect(seen.beforeCandidate).toEqual({ ok: null })
     expect(seen.whileSettling).toEqual({ ok: seen.settlingIntent })
@@ -1433,7 +1439,7 @@ describe('readFinish: the finish candidate of a settling or ended execution (RFC
     expect(final?.failure).toMatchObject({
       kind: 'model-refused',
       call: MODEL_CALL,
-      failure: { kind: 'capacity' },
+      failure: { kind: 'denied' },
     })
     expect(final?.obligations).not.toBeNull()
   })
@@ -1481,7 +1487,7 @@ describe('readFinish: the finish candidate of a settling or ended execution (RFC
     const read = journal().readFinish
     expect(read).toBeDefined()
     if (read === undefined) return
-    await endWithFailure(s, journal(), refusedForCapacity())
+    await endWithFailure(s, journal(), refusedByModel())
     const commits = s.commits.length
     const unknown = ok(decodeAgentExecutionId('run_never/execution'))
 

@@ -1,7 +1,7 @@
 import { fail } from '@omne-harness/operation-result'
 import type { AccessVerdict } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
+
 import {
   createLocalInvocationSource,
   createLocalToolLedgerGuards,
@@ -20,7 +20,7 @@ import {
 
 function assemble(access: ToolHostAccess<Subject>) {
   const sources = createLocalInvocationSource({
-    store: createMemoryToolLedgerStore<ToolMessageContentBlock>(),
+    store: createMemoryToolLedgerStore(),
     authority: {
       qualify: async () => ({ kind: 'unavailable', diagnostic: 'not issuing' }),
       samePrincipal: samePrincipalBySubject,

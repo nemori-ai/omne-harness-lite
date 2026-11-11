@@ -269,7 +269,8 @@ export function createSendMirror(
           pass.seen.set(callKey(tenant, document.state.call), { tenant, document })
       return view
     },
-    reserved: field => inner.reserved(field),
+    held: () => inner.held(),
+    readBody: (tenant, call) => inner.readBody(tenant, call),
     commit(tenant: string, write: CommandWrite) {
       const status = inner.commit(tenant, write)
       if (pass !== null) pass.staged = { tenant, call: write.binding.call, document: write.call }

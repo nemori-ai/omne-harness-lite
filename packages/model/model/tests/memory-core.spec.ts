@@ -28,7 +28,10 @@ it('admission freezes input, isolates tenants and recognizes a legally reminted 
     failure: { kind: 'denied', action: 'facts' },
   })
   const record = unbox(await f.commands.loadRecovery(f.admit))
-  expect(record.request).toEqual(f.admit.request)
+  expect(unbox(await f.commands.loadRequest(f.admit))).toEqual(f.admit.request)
+  // The record keeps the head: every field except the content, and the message identities.
+  const { system: _system, messages, tools: _tools, ...head } = f.admit.request
+  expect(record.request).toEqual({ ...head, messageIds: messages.map(message => message.id) })
   expect(record.initiator).toEqual({ owner: 'identity', subject: 'trusted', revision: '1' })
   expect(record.tasks).toEqual(['execute'])
 })
@@ -40,7 +43,10 @@ it('tenant-wide operation bindings reject cross-call, cross-method and changed i
   })
   expect(await f.commands.control(f.admit)).toMatchObject({ failure: { kind: 'conflict' } })
   expect(
-    await f.commands.admit({ ...f.admit, capacity: { ...f.admit.capacity, bytes: '99999' } }),
+    await f.commands.admit({
+      ...f.admit,
+      consumer: { ...f.admit.consumer, purpose: 'other' },
+    }),
   ).toMatchObject({ failure: { kind: 'conflict' } })
   f.store.control.replaceOwners([])
   expect(unbox(await f.commands.admit(f.admit)).recovered).toBe(true)
@@ -68,7 +74,10 @@ for (const effect of ['applied', 'not-applied'] as const)
     })
     expect(await f.commands.admit(f.admit)).toMatchObject({ failure: { kind: 'commit-unknown' } })
     expect(
-      await f.commands.admit({ ...f.admit, capacity: { ...f.admit.capacity, bytes: '12345' } }),
+      await f.commands.admit({
+        ...f.admit,
+        consumer: { ...f.admit.consumer, purpose: 'other' },
+      }),
     ).toMatchObject({ failure: { kind: 'conflict' } })
     expect(() =>
       f.store.control.reveal({
@@ -212,7 +221,7 @@ it('protects receipts from caller mutation and validates a forged tenant before 
   ).toMatchObject({ failure: { kind: 'denied' } })
   expect(calls).toBe(0)
 })
-it('derives one finite reservation total across tenants and does not reserve after rejection', async () => {
+it('counts the held calls of every tenant in one share and holds nothing for a rejection', async () => {
   const a = fixture()
   const other = identity('6')
   const authority = {
@@ -222,17 +231,14 @@ it('derives one finite reservation total across tenants and does not reserve aft
   const store = new MemoryState({
     ...a.options,
     authority,
-    limits: {
-      ...a.options.limits,
-      capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100' },
-    },
+    limits: { ...a.options.limits, unacknowledgedResults: 1 },
   })
   const commands = callCommands(store)
-  const input = { ...a.admit, capacity: { bytes: '90000', blocks: '40', attachmentBytes: '40' } }
+  const input = a.admit
   const full = { failure: { kind: 'unavailable', dependency: 'model-capacity' } }
   unbox(await commands.admit(input))
   expect(await commands.admit({ ...input, tenant: other })).toMatchObject(full)
-  expect(store.reserved('bytes')).toBe(90000n)
+  expect(store.held()).toBe(1)
   expect(await commands.admit({ ...input, tenant: other })).toMatchObject(full)
 })
 it('rejects asynchronous authority and adapter reentry before any partial admission is visible', async () => {

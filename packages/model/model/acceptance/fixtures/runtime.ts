@@ -132,7 +132,7 @@ export function createAcceptanceAssembly(script: {
       resultPageParts: script.paging?.parts ?? 8,
       resultPageTargetBytes: script.paging?.targetBytes ?? 1024,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
+      unacknowledgedResults: 10,
     },
     authority: {
       // Every protected access checks the actual principal and the minted tenant.
@@ -298,7 +298,6 @@ export function createAcceptanceAssembly(script: {
     consumer,
     // This is the observer application's completion store, not a Model API or durable backend.
     completedRecords,
-    capacity: { bytes: '100000', blocks: '10', attachmentBytes: '0' },
     driveInput: {
       principal,
       tenant: scope,

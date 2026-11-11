@@ -16,6 +16,7 @@ import type {
 import { operationId, sessionId } from '@omne-harness/session-contract/testing'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { storedText } from './fixtures/entry-text.ts'
+import { packText } from './fixtures/packed.ts'
 import { createSessionStorage } from '../src/index.ts'
 import { readHistory } from '../src/worker/history-index.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
@@ -90,11 +91,12 @@ async function readBoth(a: App) {
 /** `a` with a port over a storage object of its own: a work cache of its own (SPEC RT-04). */
 function apart(a: App): App {
   const storage: SqlStorage = {
+    database: {},
     registerCombination: input => a.provider.storage.registerCombination(input),
     commit: request => a.provider.storage.commit(request),
     query: identity => a.provider.storage.query(identity),
     read: request => a.provider.storage.read(request),
-  } as SqlStorage
+  }
   return { ...a, port: createSessionStorage<string>({ ...a.storageOptions, storage }) }
 }
 
@@ -200,8 +202,11 @@ function tree(value: unknown): unknown {
 
 type Db = ReturnType<typeof migratedPort>['port']
 
-function entryText(position: number, revision: number, kind: string, data: object): string {
-  return storedText({ id: String(position), revision: String(revision), kind, payload: tree(data) })
+/** The stored `entry` cell of one row: the codec text in the packed text form. */
+function entryText(position: number, revision: number, kind: string, data: object): Uint8Array {
+  return packText(
+    storedText({ id: String(position), revision: String(revision), kind, payload: tree(data) }),
+  )
 }
 
 function insert(

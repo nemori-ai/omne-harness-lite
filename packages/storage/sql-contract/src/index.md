@@ -11,3 +11,4 @@
 - [README.md](README.md)：源码目录的职责
 - [index.ts](index.ts)：根入口与公开定义
 - [cordis.ts](cordis.ts)：Cordis 绑定入口
+- [text-pack.ts](text-pack.ts)：大文本列的存储格式 `packText`、`unpackText`

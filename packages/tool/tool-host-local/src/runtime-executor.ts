@@ -1,6 +1,11 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { succeed } from '@omne-harness/operation-result'
-import { canonicalDigest, createToolDriver, type ToolDependencies } from '@omne-harness/tool'
+import {
+  canonicalDigest,
+  createToolDriver,
+  type ToolDependencies,
+  type ToolLedger,
+} from '@omne-harness/tool'
 import type { DurableEvidence } from '@omne-harness/tool-contract'
 import type {
   ToolDriver,
@@ -9,7 +14,11 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
-import { waitRuntime, type RuntimeCompositionInput } from './runtime-composition.ts'
+import {
+  waitRuntime,
+  type RuntimeCallPurpose,
+  type RuntimeCompositionInput,
+} from './runtime-composition.ts'
 import type { ToolEnvironmentValue } from './author-environment.ts'
 
 type Wake = Parameters<ToolInstanceHost<unknown>['schedule']>[0]
@@ -28,6 +37,7 @@ type Recovered = Extract<
 >
 type Entry = {
   wake: Wake
+  readonly purpose: RuntimeCallPurpose
   publication: Publication | null
   fiber: Fiber | null
   started: boolean
@@ -46,6 +56,7 @@ export function createRuntimeExecutor(
     ctx: Context
     settings: RuntimeCompositionInput
     dependencies: ToolDependencies<unknown, ToolMessageContentBlock, ToolEnvironmentValue>
+    resultDelivery: ToolLedger<unknown, ToolMessageContentBlock>['delivery']
     receiver: Parameters<
       typeof createLocalToolResultDelivery<unknown, ToolMessageContentBlock>
     >[0]['position']['receiver']
@@ -61,9 +72,11 @@ export function createRuntimeExecutor(
     store: settings.store,
     commands: dependencies.commands,
     reads: dependencies.reads,
+    resultDelivery: input.resultDelivery,
     identities: dependencies.operationIdentities,
     access: settings.access.guard,
     position: { access: settings.resolveAccess, receiver: input.receiver },
+    forwardedCopies: settings.sources.releaseReceivedCopies,
     capacity: settings.capacity,
     // No receiver, or one that answers unavailable: the delivery stays owed, paced and named (R2-D273, R2-D282).
     pacing: {
@@ -92,12 +105,13 @@ export function createRuntimeExecutor(
     retryDelayMs: settings.configuration.driverRetryDelayMs ?? 1000,
   })
   const keyOf = (wake: Wake) => canonicalDigest([wake.tenant, wake.call])
-  const remember = (wake: Wake): boolean => {
+  const remember = (wake: Wake, purpose: RuntimeCallPurpose = 'execute'): boolean => {
     const key = keyOf(wake)
     if (calls.has(key)) return !abort.signal.aborted
     if (abort.signal.aborted || calls.size >= settings.capacity) return false
     calls.set(key, {
       wake,
+      purpose,
       publication: null,
       fiber: null,
       started: false,
@@ -258,7 +272,9 @@ export function createRuntimeExecutor(
         if ('failure' in before) return
         entry.started = true
         // A new executor cannot attach an old execution by resolving the latest providers.
-        if (before.ok.execution !== null && before.ok.execution.instance !== step.instance) {
+        const foreign =
+          before.ok.execution !== null && before.ok.execution.instance !== step.instance
+        if (foreign) {
           foreignExecutionRuns += 1
           if (calls.get(keyOf(step)) === entry) {
             calls.delete(keyOf(step))
@@ -266,6 +282,7 @@ export function createRuntimeExecutor(
           }
           return
         }
+        // A saved final can release an unused writer while its fragment provider is unavailable.
         const progress = await driver.advance(step)
         entry.progress =
           progress.kind === 'failed'

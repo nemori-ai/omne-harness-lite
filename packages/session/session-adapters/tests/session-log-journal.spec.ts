@@ -99,6 +99,7 @@ async function messageRequest(
 /** A provider over the scene's records whose storage commit refuses before it accepts. */
 function refusedBy(s: SqlScene, reason: CommitRejectReason) {
   const storage: SqlStorage = {
+    database: s.storage.database,
     registerCombination: input => s.storage.registerCombination(input),
     query: identity => s.storage.query(identity),
     read: (request, options) => s.storage.read(request, options),
@@ -121,10 +122,14 @@ function refusedBy(s: SqlScene, reason: CommitRejectReason) {
   }).forSession(s.access).journal
 }
 
-/** A provider over the scene's storage with the given commit, query and read in place. */
+/**
+ * A provider over the scene's storage with the given commit, query and read in place. It names
+ * another database, so what the members keep for the scene's storage does not answer its reads.
+ */
 function over(s: SqlScene, storage: Partial<SqlStorage>) {
   return createSessionLogJournal<string>({
     storage: {
+      database: {},
       registerCombination: input => s.storage.registerCombination(input),
       query: identity => s.storage.query(identity),
       read: (request, options) => s.storage.read(request, options),
@@ -153,18 +158,18 @@ function rolledBackBelow(
 ) {
   const rolled = new Set<string>()
   const generation = (key: string) => Number(key.slice(key.lastIndexOf('#') + 1))
-  const receipt = { kind: 'rolled_back', responses: [] } as never
+  const receipt = { kind: 'rolled_back', responses: [] }
   return over(s, {
-    query: identity => {
-      asked.push(identity.operationKey)
-      return generation(identity.operationKey) < first || rolled.has(identity.operationKey)
-        ? Promise.resolve(receipt)
-        : s.storage.query(identity)
-    },
     commit: (request, options) => {
+      const key = request.identity.operationKey
+      asked.push(key)
+      // A generation below `first`, or one this storage already rolled back, is a receipt of an
+      // earlier call: the storage recognises it and runs nothing.
+      if (generation(key) < first || rolled.has(key))
+        return Promise.resolve({ ...receipt, recalled: true } as never)
       if (commits === 'stored') return s.storage.commit(request, options)
-      rolled.add(request.identity.operationKey)
-      return Promise.resolve(receipt)
+      rolled.add(key)
+      return Promise.resolve({ ...receipt, recalled: false } as never)
     },
   })
 }
@@ -464,7 +469,7 @@ describe('unknown, tenancy and registration', () => {
     expect(await journal.commit(request)).toMatchObject({ failure: {} })
     const first = asked.length
     expect(await journal.commit(request)).toMatchObject({ failure: {} })
-    // The second write asks only the remembered generation and the next one, not #1 to #10 again.
+    // The second write sends only the remembered generation and the next one, not #1 to #10 again.
     expect(asked.length - first).toBe(2)
     expect(asked.slice(first)).toEqual([
       expect.stringMatching(/#10$/),
@@ -472,25 +477,31 @@ describe('unknown, tenancy and registration', () => {
     ])
   })
 
-  // #1174: a query before the send that the storage cannot answer means nothing was sent. It is
-  // unavailable, not an unknown write: holding it would turn the later `not_committed` into an
-  // exclusion, and the same operation would never be written.
-  it('a query before the send that the storage cannot answer is unavailable, holds nothing, and the same operation then commits', async () => {
-    const { s, open } = await opened('pre-send-unknown')
+  // #1174: a write the storage did not take means nothing was sent. It is unavailable, not an
+  // unknown write: holding it would turn the later `not_committed` into an exclusion, and the same
+  // operation would never be written. The commit is sent without a query first, so the storage
+  // says this itself, by a refusal before acceptance.
+  it('a commit the storage refuses before acceptance for a temporary reason holds nothing, and the same operation then commits', async () => {
+    const { s, open } = await opened('pre-accept-refused')
     const request = await messageRequest(s, open.authority)
     const before = (await load(s)).revision
     let refused = 0
     const journal = over(s, {
-      query: identity => {
+      commit: (input, options) => {
         if (refused === 0) {
           refused += 1
-          return Promise.resolve({ kind: 'unknown', identity, diagnostic: 'queue_full' } as never)
+          return Promise.resolve({
+            kind: 'rejected_before_accept',
+            identity: input.identity,
+            reason: 'domain_unavailable',
+            diagnostic: null,
+          } as never)
         }
-        return s.storage.query(identity)
+        return s.storage.commit(input, options)
       },
     })
     expect(await journal.commit(request)).toMatchObject({
-      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('queue_full') },
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('domain_unavailable') },
     })
     expect(
       ok(await journal.query({ ...s.access, execution: s.execution, operation: request.operation }))
@@ -579,6 +590,7 @@ describe('unknown, tenancy and registration', () => {
     // cannot tell whether it ran until it decides.
     let sent = false
     const unknownUntilDecided: SqlStorage = {
+      database: s.storage.database,
       registerCombination: input => s.storage.registerCombination(input),
       read: (read, options) => s.storage.read(read, options),
       commit: input => {
@@ -683,6 +695,7 @@ function reporting(
   commit?: SqlStorage['commit'],
 ) {
   const storage: SqlStorage = {
+    database: s.storage.database,
     registerCombination: input => s.storage.registerCombination(input),
     query: identity => s.storage.query(identity),
     read: (request, options) => s.storage.read(request, options),

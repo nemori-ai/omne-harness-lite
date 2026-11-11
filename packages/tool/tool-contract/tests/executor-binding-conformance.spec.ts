@@ -2,7 +2,6 @@
 // each case fails under a violating variant that breaks the rule of that case, and a fixture
 // without control handles reports the cases that need them as not applicable.
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import {
@@ -174,7 +173,7 @@ const variants: readonly Variant<Fixture>[] = [
         inspectStart: async input => {
           const answer = await real.inspectStart(input)
           if ('failure' in answer || answer.ok.kind !== 'live') return answer
-          return succeed<ToolStartLookup<ContentBlock>>({
+          return succeed<ToolStartLookup>({
             kind: 'not-started',
             exclusion: evidence('hidden'),
           })
@@ -190,7 +189,7 @@ const variants: readonly Variant<Fixture>[] = [
         inspectStart: async input => {
           const answer = await real.inspectStart(input)
           if ('failure' in answer || answer.ok.kind !== 'not-started') return answer
-          return succeed<ToolStartLookup<ContentBlock>>({
+          return succeed<ToolStartLookup>({
             kind: 'lost',
             continuity: evidence('fabricated'),
           })
@@ -206,7 +205,7 @@ const variants: readonly Variant<Fixture>[] = [
         inspectStart: async input => {
           const answer = await real.inspectStart(input)
           if ('failure' in answer || answer.ok.kind !== 'settled') return answer
-          return succeed<ToolStartLookup<ContentBlock>>({
+          return succeed<ToolStartLookup>({
             ...answer.ok,
             fact: {
               ...answer.ok.fact,
@@ -225,7 +224,7 @@ const variants: readonly Variant<Fixture>[] = [
         inspectStart: async input => {
           const answer = await real.inspectStart(input)
           if ('failure' in answer || answer.ok.kind !== 'lost') return answer
-          return succeed<ToolStartLookup<ContentBlock>>({ kind: 'unknown', diagnostic: 'unclear' })
+          return succeed<ToolStartLookup>({ kind: 'unknown', diagnostic: 'unclear' })
         },
       },
     })),
@@ -324,7 +323,7 @@ const variants: readonly Variant<Fixture>[] = [
             inspectStart: async input => {
               const answer = await real.inspectStart(input)
               if (!closed || 'failure' in answer || answer.ok.kind !== 'live') return answer
-              return succeed<ToolStartLookup<ContentBlock>>({
+              return succeed<ToolStartLookup>({
                 kind: 'settled',
                 source: evidence('source'),
                 event: 'event-x',
@@ -778,7 +777,7 @@ const variants: readonly Variant<Fixture>[] = [
           if (!isForeign(input.tenant) || 'failure' in answer) return answer
           const known = await real.inspectStart({ ...input, tenant: own.tenant })
           return 'ok' in known && known.ok.kind === 'live'
-            ? succeed<ToolStartLookup<ContentBlock>>({ kind: 'unknown', diagnostic: 'not yours' })
+            ? succeed<ToolStartLookup>({ kind: 'unknown', diagnostic: 'not yours' })
             : answer
         },
       },
@@ -795,7 +794,7 @@ const variants: readonly Variant<Fixture>[] = [
             if (isForeign(input.tenant)) forgotten = true
             return forgotten && !isForeign(input.tenant)
               ? Promise.resolve(
-                  succeed<ToolStartLookup<ContentBlock>>({
+                  succeed<ToolStartLookup>({
                     kind: 'unknown',
                     diagnostic: 'forgotten',
                   }),
@@ -864,7 +863,7 @@ const variants: readonly Variant<Fixture>[] = [
           const answer = await real.inspectStart(input)
           if ('failure' in answer || answer.ok.kind !== 'live') return answer
           const live = answer.ok.execution
-          return succeed<ToolStartLookup<ContentBlock>>({
+          return succeed<ToolStartLookup>({
             kind: 'live',
             execution: {
               ...live,
@@ -888,7 +887,7 @@ const variants: readonly Variant<Fixture>[] = [
           const answer = await real.inspectStart(input)
           return 'failure' in answer || answer.ok.kind !== 'settled'
             ? answer
-            : succeed<ToolStartLookup<ContentBlock>>({ ...answer.ok, event: '' })
+            : succeed<ToolStartLookup>({ ...answer.ok, event: '' })
         },
       },
     })),
@@ -902,7 +901,7 @@ const variants: readonly Variant<Fixture>[] = [
           const answer = await real.inspectStart(input)
           return 'failure' in answer || answer.ok.kind !== 'settled'
             ? answer
-            : succeed<ToolStartLookup<ContentBlock>>({
+            : succeed<ToolStartLookup>({
                 ...answer.ok,
                 source: { ...answer.ok.source, owner: '' },
               })
@@ -919,7 +918,7 @@ const variants: readonly Variant<Fixture>[] = [
           const answer = await real.inspectStart(input)
           return 'failure' in answer || answer.ok.kind !== 'lost'
             ? answer
-            : succeed<ToolStartLookup<ContentBlock>>({
+            : succeed<ToolStartLookup>({
                 ...answer.ok,
                 continuity: { ...answer.ok.continuity, [field]: '' },
               })
@@ -936,7 +935,7 @@ const variants: readonly Variant<Fixture>[] = [
           const answer = await real.inspectStart(input)
           return 'failure' in answer || answer.ok.kind !== 'unknown'
             ? answer
-            : succeed<ToolStartLookup<ContentBlock>>({ kind: 'unknown', diagnostic: '' })
+            : succeed<ToolStartLookup>({ kind: 'unknown', diagnostic: '' })
         },
       },
     })),
@@ -1198,7 +1197,7 @@ const variants: readonly Variant<Fixture>[] = [
           inspectStart: async input => {
             const answer = await real.inspectStart(input)
             return ended && last !== null && 'ok' in answer && answer.ok.kind !== 'live'
-              ? succeed<ToolStartLookup<ContentBlock>>({ kind: 'live', execution: last })
+              ? succeed<ToolStartLookup>({ kind: 'live', execution: last })
               : answer
           },
         },

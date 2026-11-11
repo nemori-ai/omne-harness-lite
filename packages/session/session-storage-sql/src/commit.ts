@@ -191,10 +191,14 @@ function fromResult(
   onWork: OnWork,
 ): Outcome<unknown, SessionFailure> | 'next-attempt' {
   switch (result.kind) {
+    // A recalled receipt is the receipt of an earlier call (sql-contract §8, model
+    // `RecallAtCommit`): a committed one is recognised, a rolled back one spends the generation.
     case 'committed':
-      return fromCommitted(result, expected, false, mark, onWork)
+      return result.recalled
+        ? fromCommitted(result, expected, true, mark)
+        : fromCommitted(result, expected, false, mark, onWork)
     case 'rolled_back':
-      return fromRolledBack(result)
+      return result.recalled ? 'next-attempt' : fromRolledBack(result)
     case 'unknown':
       return failure({ kind: 'commit-unknown', operation: expected.operation })
     case 'identity_conflict':
@@ -265,9 +269,10 @@ async function generationFrom<P>(
  * generation is chosen by the storage receipts: a generation is used only when every earlier one is
  * a rolled back receipt, so an older attempt can never take effect beside a newer one (SPEC W1).
  * `mark` says of a recalled result that it is a recall; the default fits a batch or control result.
- * `submit` forms the combination and the commands; the default is the ordinary basis. It is asked
- * only when no delivery of the operation is committed. When it fails, the receipts are asked once
- * more, so a delivery that committed meanwhile is recalled and is not answered with that failure.
+ * `submit` forms the combination and the commands when a basis source must be asked; without it
+ * the commit uses the ordinary basis and is sent without a query first. A source is asked only
+ * when no delivery of the operation is committed. When it fails, the receipts are asked once more,
+ * so a delivery that committed meanwhile is recalled and is not answered with that failure.
  * A fresh committed batch is folded into the work cache before the answer returns (SPEC RT-04); a
  * fold that cannot be made registers nothing and never changes the answer.
  */
@@ -278,7 +283,7 @@ export async function commitFacts<P>(
   expected: Expected,
   command: FactCommandV2,
   mark: Recall = markRecovered,
-  submit: Submit = () => Promise.resolve(succeed(ordinaryOf(context, command))),
+  submit?: Submit,
 ): Promise<Outcome<unknown, SessionFailure>> {
   const { operation } = expected
   const { storage } = context.options
@@ -287,22 +292,37 @@ export async function commitFacts<P>(
   const unknown = failure({ kind: 'commit-unknown', operation })
   // No bound: every refusal of the participant, `changed` included, rolls back and uses up a
   // generation, and the caller comes again with the same operation (SPEC W1 attempts).
-  for (let from = (generations.get(key) ?? 0) + 1; ;) {
-    const slot = await generationFrom(context, domain, session, operation, from)
-    if (slot.kind === 'committed') return fromCommitted(slot.receipt, expected, true, mark)
-    if (slot.kind === 'unknown') return unknown
-    const submission = await submit()
-    if ('failure' in submission) {
-      const again = await generationFrom(context, domain, session, operation, slot.attempt)
-      if (again.kind === 'committed') return fromCommitted(again.receipt, expected, true, mark)
-      return again.kind === 'unknown' ? unknown : submission
+  for (let attempt = (generations.get(key) ?? 0) + 1; ; attempt += 1) {
+    let identity: SqlIdentity
+    let submission: Submission
+    if (submit === undefined) {
+      // The ordinary basis asks no one, so the commit is sent without a query first: the storage
+      // recognises an earlier receipt of the identity before it runs anything, and the answer
+      // says so (sql-contract 认回标记). A recalled rollback spends the generation.
+      identity = identityOf(domain, operation, JSON.stringify([session, operation, attempt]))
+      submission = ordinaryOf(context, command)
+    } else {
+      // A basis source is asked only when no delivery of the operation is committed, and the
+      // receipts are asked once more when it fails (model `SessionPermissionWrite`).
+      const slot = await generationFrom(context, domain, session, operation, attempt)
+      if (slot.kind === 'committed') return fromCommitted(slot.receipt, expected, true, mark)
+      if (slot.kind === 'unknown') return unknown
+      const asked = await submit()
+      if ('failure' in asked) {
+        const again = await generationFrom(context, domain, session, operation, slot.attempt)
+        if (again.kind === 'committed') return fromCommitted(again.receipt, expected, true, mark)
+        return again.kind === 'unknown' ? unknown : asked
+      }
+      attempt = slot.attempt
+      identity = slot.identity
+      submission = asked.ok
     }
     let work: SessionWorkReply | undefined
-    const result = await storage.commit({ identity: slot.identity, ...submission.ok })
+    const result = await storage.commit({ identity, ...submission })
     if (result.kind === 'committed' || result.kind === 'rolled_back')
-      saw(generations, key, slot.attempt, result.kind)
+      saw(generations, key, attempt, result.kind)
     else if (result.kind === 'identity_conflict')
-      saw(generations, key, slot.attempt, result.existing.kind)
+      saw(generations, key, attempt, result.existing.kind)
     const settled = fromResult(result, expected, mark, fresh => {
       work = fresh
     })
@@ -318,7 +338,6 @@ export async function commitFacts<P>(
         work,
       )
     if (settled !== 'next-attempt') return settled
-    from = slot.attempt + 1
   }
 }
 
@@ -381,7 +400,10 @@ export async function commit<P, K extends MutationName>(
   )
 }
 
-/** The write-path lookup of the original receipt, in the transaction domain that owns it. */
+/**
+ * The write-path lookup of the original receipt, in the transaction domain that owns it. The
+ * lookup writes nothing and nobody recalls it, so it keeps no receipt of its own (sql-contract §3.1).
+ */
 async function lookup<P>(
   context: Context<P>,
   domain: TenantDomainRef,
@@ -389,7 +411,11 @@ async function lookup<P>(
   operation: SessionOperationId,
   action: string,
 ): Promise<Outcome<Found | null, SessionFailure>> {
-  const identity = identityOf(domain, 'session.lookup', `lookup#${operation}#${randomUUID()}`)
+  // The lookup keeps no receipt: no caller recalls it (sql-contract §3.1).
+  const identity: SqlIdentity = {
+    ...identityOf(domain, 'session.lookup', `lookup#${operation}#${randomUUID()}`),
+    recall: 'never',
+  }
   const result = await context.options.storage.commit({
     identity,
     ...ordinaryOf(

@@ -16,8 +16,10 @@ import {
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
+  decodeRevision,
   type FixedModelRequest,
   type ModelCallId,
+  type ModelFailure,
   type ModelHandle,
 } from '@omne-harness/model-contract'
 import type {
@@ -51,7 +53,7 @@ const callOf = (name: string): ModelCallId => unbox(decodeModelCallId(`mcall_${n
 const instanceOf = (name: string) => unbox(decodeModelInstanceId(`minst_${name}`))
 const evidence = { owner: 'host', record: 'r', revision: '1', digest: '1'.repeat(64) }
 
-const SETTINGS = { concurrencyLimit: 2, wakeCapacity: 3, scanBatchSize: 10, scanIntervalMs: 0 }
+const SETTINGS = { concurrencyLimit: 2, wakeCapacity: 3, scanBatchSize: 10, scanIntervalMs: 250 }
 
 async function until(check: () => boolean, label: string): Promise<void> {
   for (let tries = 0; tries < 400; tries += 1) {
@@ -68,6 +70,7 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
     declare readonly recordMaterialization: ModelCommands<unknown>['recordMaterialization']
@@ -150,7 +153,7 @@ function memoryCommands() {
       resultPageParts: 1,
       resultPageTargetBytes: 1024,
       readIdleMs: 1000,
-      capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+      unacknowledgedResults: 10,
     },
   }).commands
 }
@@ -180,6 +183,7 @@ function fixture(
     return gate
   }
   const state = {
+    wait: (): Promise<'elapsed' | 'cancelled'> => Promise.resolve('elapsed'),
     resolve: async (input: { tenant: TenantId; call: ModelCallId }) =>
       ({
         ok: {
@@ -195,9 +199,13 @@ function fixture(
   class Authority extends ModelHostAuthorityService<unknown> {
     readonly resolve = (input: { tenant: TenantId; call: ModelCallId }) => state.resolve(input)
   }
+  const waits: string[] = []
   class Clock extends ModelClockService {
     readonly now = () => '2026-11-02T00:00:00.000Z'
-    readonly waitUntil = () => Promise.resolve('elapsed' as const)
+    readonly waitUntil = (instant: string) => {
+      waits.push(instant)
+      return state.wait()
+    }
   }
   const commands = memoryCommands()
   const Commands = commandsServiceOver(commands)
@@ -244,6 +252,7 @@ function fixture(
   return {
     ctx,
     log,
+    waits,
     driven,
     gateOf,
     state,
@@ -641,7 +650,6 @@ it('does not drive a call without trusted input, and the durable pending work st
       operation: unbox(decodeModelOperationId('mop_admit')),
       request,
       consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
-      capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
     }),
   )
   // The restarted process cannot show that the old one ended: the authority has no input to give.
@@ -887,5 +895,78 @@ describe('what the host keeps apart, and what it refuses to share', () => {
     expect(await f.ctx.modelInstanceHost.schedule(wake('b'))).toEqual({ ok: { queued: true } })
     await until(() => f.driven.length === 2, 'the drive of the reloaded host')
     f.gateOf(callOf('b')).open()
+  })
+})
+
+describe('a drive that ended without ending the call', () => {
+  /** A fixture whose driver answers the scripted outcomes in order, then succeeds. */
+  function scripted(outcomes: Awaited<ReturnType<ModelDriver<unknown>['drive']>>[]) {
+    const drives: string[] = []
+    const f = fixture(
+      {},
+      {
+        provider: () => ({
+          driver: {
+            drive: async input => {
+              drives.push(input.call)
+              return outcomes.shift() ?? { ok: undefined }
+            },
+          },
+          quiesce: async () => ({ ok: { pending: '0', running: '0' } }),
+        }),
+      },
+    )
+    return { ...f, drives }
+  }
+
+  const again: ModelFailure[] = [
+    { kind: 'unavailable', dependency: 'store', diagnostic: 'busy' },
+    { kind: 'commit-unknown', operation: unbox(decodeModelOperationId('mop_lost')) },
+    {
+      kind: 'conflict',
+      operation: unbox(decodeModelOperationId('mop_old')),
+      revision: unbox(decodeRevision('7')),
+    },
+  ]
+  const ended: ModelFailure[] = [
+    { kind: 'invalid', field: 'facts', reason: 'refused' },
+    { kind: 'stale-instance', instance: instanceOf('successor') },
+    { kind: 'denied', action: 'execute' },
+  ]
+  for (const failure of again)
+    it(`wakes the call again one pause after a drive that answered ${failure.kind}`, async () => {
+      const f = scripted([{ failure }, { failure }])
+      await f.load()
+      await f.ctx.modelInstanceHost.schedule(wake('a'))
+      await until(() => f.drives.length === 3, 'the third drive')
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(f.drives).toEqual([callOf('a'), callOf('a'), callOf('a')])
+      expect(f.waits).toEqual(['2026-11-02T00:00:00.250Z', '2026-11-02T00:00:00.250Z'])
+    })
+
+  for (const failure of ended)
+    it(`does not wake the call again after a drive that answered ${failure.kind}`, async () => {
+      const f = scripted([{ failure }])
+      await f.load()
+      await f.ctx.modelInstanceHost.schedule(wake('a'))
+      await until(() => f.drives.length === 1, 'the drive')
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(f.drives).toEqual([callOf('a')])
+      expect(f.waits).toEqual([])
+    })
+
+  it('does not wake the call again once the host closes during the pause', async () => {
+    const f = scripted([
+      { failure: { kind: 'unavailable', dependency: 'store', diagnostic: 'busy' } },
+    ])
+    const pause = Promise.withResolvers<'elapsed'>()
+    const fiber = await f.load()
+    f.state.wait = () => pause.promise
+    await f.ctx.modelInstanceHost.schedule(wake('a'))
+    await until(() => f.drives.length === 1, 'the drive')
+    await fiber.dispose()
+    pause.resolve('elapsed')
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(f.drives).toEqual([callOf('a')])
   })
 })

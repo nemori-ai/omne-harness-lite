@@ -67,13 +67,13 @@
 
 ### 有界调度与缓存
 
-所有 limits 必须显式给出，包不提供宿主默认值。字段只接受非负安全整数。workers、maxLeases、maxInputBytes、jobTimeoutMs、maxWorkerOldSpaceMb 必须大于零。jobTimeoutMs 不超过 Node 定时器的 2147483647ms 上限。资源集非空，重复的完整 definition 被拒绝。
+所有 limits 必须显式给出，包不提供宿主默认值。字段只接受非负安全整数。workers、maxLeases、jobTimeoutMs、maxWorkerOldSpaceMb 必须大于零。maxInputBytes 至少 164，即一个两码元字符单独成一次作业的保留字节数。jobTimeoutMs 不超过 Node 定时器的 2147483647ms 上限。资源集非空，重复的完整 definition 被拒绝。
 
 - `maxLeases` 限制尚未完成释放的租约数。每个租约固定在一个 worker 槽，同一租约最多一个 count 执行。
 - 空闲槽可直接接纳一个 count。等待任务同时受全局 `maxQueuedJobs`、`maxQueuedBytes` 和每租约 `maxLeaseQueuedJobs` 约束。超限立即返回 `unavailable`。
-- 输入的保守保留字节数是 `32 + sum(128 + 2 * string.length)`。字符串是 text 或 special-token 的 name；按 UTF-16 码元计费。`maxInputBytes` 限制每次输入，`maxQueuedBytes` 只计尚未交给 worker 的等待输入。这不是 UTF-8 字节数或进程 RSS。
+- 输入的保守保留字节数是 `32 + sum(128 + 2 * string.length)`。字符串是 text 或 special-token 的 name；按 UTF-16 码元计费。`maxInputBytes` 限制一次 worker 作业，不限制一次 `count` 的输入：输入超过它时，执行器把输入切成几次作业，依次计数，把 token 数相加（见 [input-jobs.ts](src/input-jobs.ts)）。文本只在字符之间切，special-token 不切；一个 special-token 单独超过上界时返回 `unavailable`（`tokenizer retained input limit exceeded`）。切点两侧各自分词，每个切点使结果与整段计数相差至多几个 token；装得下的输入只有一次作业，结果不变。任一次作业失败时整次 `count` 返回该失败，不给部分和。`maxQueuedBytes` 只计尚未交给 worker 的等待输入。这不是 UTF-8 字节数或进程 RSS。
 - 每个 worker 按等待租约轮转。一个租约完成后，剩余任务排到该槽其他等待租约之后。固定槽避免一份 lease 缓存乘以 worker 数；不同槽之间不迁移缓存。
-- `jobTimeoutMs` 从 count 接纳开始计时，覆盖排队和执行。超时结束调用者等待，但物理容量仍保留至计数确认或线程实际退出。
+- `jobTimeoutMs` 对每次作业从接纳开始计时，覆盖排队和执行。超时结束调用者等待，但物理容量仍保留至计数确认或线程实际退出。
 - 相邻普通文本仍先合并。缓存只复用完整 ordinary run 上原 regex 的完整 match 计数，不能把任意文本块或消息的计数相加。非有限 ranks 保留原 reference fallback，不缓存这条路径。
 - 每个 worker 的缓存字节和条目上限分别是全局上限除以 worker 数向下取整。余数不分配。每份租约另受 `maxLeaseCacheBytes`、`maxLeaseCacheEntries` 限制。LRU 淘汰同时满足两级上限。
 - 每片缓存按 `2 * piece.length + 256` 字节计费，包含保守条目开销。排队字符串和缓存片段均复制为独立字符串，避免切片隐式保留完整上游文本。大于 `maxPieceBytes` 或任一字节上限的片段不缓存。零缓存上限禁用相应缓存。不同租约即使文本和 definition 相同也不共享明文缓存。

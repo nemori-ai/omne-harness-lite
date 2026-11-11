@@ -21,7 +21,10 @@ import { tenantDomainLookupKey, tenantDomainsKey } from '@omne-harness/sql-contr
 import { runTenantDomainLookupConformance } from '@omne-harness/sql-contract/testing'
 import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
 import { storageHost } from '../../../src/entry/storage-host.ts'
-import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
+import {
+  COMBINATION_VERSION,
+  agentJournalCombination,
+} from '../../../src/rows/agent-journal/config.ts'
 import { storageCatalog } from '../../../src/rows/storage/catalog.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS } from '../../../src/rows/session-storage/composite.ts'
 import {
@@ -232,7 +235,41 @@ describe('tenant registration (acceptance 1)', () => {
 })
 
 describe('restart (acceptance 2, in-process)', () => {
-  test('a second tree on the same state root and storage root reads the tenant back without a new registration', async () => {
+  test('registers the current combination before writing an existing session after upgrade', async () => {
+    const ws = workspace()
+    const first = await load(ws, { combinationVersion: 'startup-upgrade/old' })
+    started(first)
+    const command = createCommand(TENANT_A, 'upgrade-session')
+    const input = {
+      access: access(TENANT_A, 'upgrade-session'),
+      command,
+      guards: createGuards(command),
+    }
+    const original = await transactions(first).commit(input)
+    expect('ok' in original, JSON.stringify(original)).toBe(true)
+    expect(await first.shutdown()).toMatchObject({ overall: 'settled' })
+    await first.dispose()
+
+    const second = await load(ws, { combinationVersion: 'startup-upgrade/current' })
+    started(second)
+    const archived = await transactions(second).commit({
+      access: input.access,
+      command: {
+        kind: 'control',
+        input: {
+          tenant: TENANT_A,
+          session: input.access.session,
+          operation: operationId('upgrade-archive'),
+          intent: { kind: 'archive' },
+        },
+      },
+      guards: [],
+    })
+    expect(archived, JSON.stringify(archived)).toHaveProperty('ok')
+    expect(JSON.parse(readFileSync(ws.directoryFile, 'utf8')).tenants).toEqual([textOf(TENANT_A)])
+  })
+
+  test('a second tree confirms the same combination and reads the tenant without creating another session', async () => {
     const ws = workspace()
     const first = await load(ws)
     started(first)
@@ -252,7 +289,7 @@ describe('restart (acceptance 2, in-process)', () => {
     })
     const work = await transactions(second).readWork(access(TENANT_A, 's1'))
     expect('ok' in work, JSON.stringify(work)).toBe(true)
-    // 第二次启动只读目录：这个租户在目录里，所以没有再向访问裁定要 create 之外的裁定。
+    // 启动确认的是已有租户的组合，不发起新的会话 create。
     expect(second.check.controls.asked().map(r => r.operation)).toEqual(['readWork'])
   })
 
@@ -313,6 +350,16 @@ describe('restart (acceptance 2, in-process)', () => {
 })
 
 describe('the composite declaration (acceptance 6)', () => {
+  test('the shipped Journal and handoff configurations match the current storage catalog', () => {
+    const release = JSON.parse(
+      readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
+    )
+    const expected = agentJournalCombination()
+    for (const id of ['agent-journal', 'session-handoff']) {
+      const row = release.rows.find((row: { id: string }) => row.id === id)
+      expect(row?.config, id).toMatchObject(expected)
+    }
+  })
   test('the registered participants are the named constant, and every one of them has material in the catalog', () => {
     const catalog = storageCatalog()
     const names = catalog.participants.map(item => item.participant)
@@ -325,7 +372,7 @@ describe('the composite declaration (acceptance 6)', () => {
     expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
     const catalog = storageCatalog()
     expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
-    expect(COMBINATION_VERSION).toBe('session-composite/7')
+    expect(COMBINATION_VERSION).toBe('session-composite/8')
   })
 
   test('segment B: the tool participant and its migration are in the same combination', () => {

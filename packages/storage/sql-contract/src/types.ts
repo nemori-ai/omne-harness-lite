@@ -26,13 +26,18 @@ export type DomainRef = Readonly<{
 /** Protocol 2 replaces protocol 1 for every new commit (§3.3). */
 export type ProtocolVersionV2 = '2'
 
-/** The five identity dimensions. Two identities are equal only if all five are equal (§3.1). */
+/**
+ * The five identity dimensions and the recall declaration. Two identities are equal only if all
+ * six are equal (§3.1). `recall: 'never'` declares that nobody recalls this operation: the provider
+ * keeps no receipt of it, and `query` answers `not_recallable` (§3.1, §8).
+ */
 export type SqlIdentity = Readonly<{
   scope: StorageScope
   transactionDomain: string
   operation: string
   protocolVersion: ProtocolVersionV2
   operationKey: string
+  recall?: 'never'
 }>
 
 export type FactCommandV2 = Readonly<{
@@ -171,12 +176,14 @@ export type CommitRejectedV2 =
       diagnostic: StorageDiagnostic
     }>
 
-export type CommitResultV2 =
-  | CommittedV2
-  | RolledBackV2
-  | UnknownV2
-  | IdentityConflictV2
-  | CommitRejectedV2
+/**
+ * A receipt as `commit` answers it. `recalled` is true when the storage recognised an earlier
+ * receipt of the identity and ran nothing for this call; false when the commands of this call
+ * ran and gave the receipt. The mark is part of the answer, not of the stored receipt.
+ */
+export type CommitReceiptV2 = ReceiptV2 & Readonly<{ recalled: boolean }>
+
+export type CommitResultV2 = CommitReceiptV2 | UnknownV2 | IdentityConflictV2 | CommitRejectedV2
 
 /** The provider builds this value. Caller code never assembles it (§8). */
 export type NotCommittedV2 = Readonly<{
@@ -191,7 +198,15 @@ export type NotCommittedV2 = Readonly<{
   }>
 }>
 
-export type QueryResultV2 = CommittedV2 | RolledBackV2 | UnknownV2 | NotCommittedV2
+/** The identity declares `recall: 'never'`, so no receipt exists to recognize it by (§8). */
+export type NotRecallableV2 = Readonly<{ kind: 'not_recallable'; identity: SqlIdentity }>
+
+export type QueryResultV2 =
+  | CommittedV2
+  | RolledBackV2
+  | UnknownV2
+  | NotCommittedV2
+  | NotRecallableV2
 
 export type RegistrationKey = Readonly<{
   scope: StorageScope
@@ -289,6 +304,13 @@ export type ReadResult =
  * them (§2.5).
  */
 export interface SqlStorage {
+  /**
+   * The identity of the database. Every storage object over one database of a process carries the
+   * same object here; storages over different databases carry different objects. A wrapper that
+   * forwards to a storage carries the identity of that storage. A member that keeps something for
+   * each database (a cache, a snapshot, a count) uses it as the key.
+   */
+  readonly database: object
   registerCombination(input: CombinationRegistrationV2): Promise<RegisterResultV2>
   commit(input: CommitRequestV2, options?: CommitOptions): Promise<CommitResultV2>
   query(identity: SqlIdentity): Promise<QueryResultV2>

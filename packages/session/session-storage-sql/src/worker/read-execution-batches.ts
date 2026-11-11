@@ -10,11 +10,12 @@ import {
   batchesOf,
   FACT_COLUMNS,
   FACT_PAGE_ROWS,
+  factRows,
   sessionHead,
   wholeBatches,
   type BatchOutput,
 } from './fact-rows.ts'
-import { handler, rowsOf, scopeOf } from './support.ts'
+import { handler, scopeOf } from './support.ts'
 
 /** The publications after `after` are there in order, through the last one of the page. */
 function contiguous(batches: readonly BatchOutput[], after: bigint): boolean {
@@ -36,7 +37,7 @@ export default handler('execution-record.facts', (input, port) => {
   const published = String(head.published)
   if (from >= head.published) return { kind: 'facts', published, batches: [], next: null }
   const filter = execution === null ? '' : ' AND execution = ?'
-  const rows = rowsOf(
+  const rows = factRows(
     port,
     `SELECT ${FACT_COLUMNS} FROM er_fact
       WHERE tenant = ? AND session = ? AND pub > ?${filter}

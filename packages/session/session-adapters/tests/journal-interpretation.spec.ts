@@ -67,6 +67,7 @@ async function interpreted(
   // The JSON size of every execution-record command committed and of every Agent records read.
   const bytes = { written: [] as number[], read: [] as number[] }
   const base = s.storage
+  // The same database as `base`: the scene's own provider and the plugin share what is kept for it.
   s.storage = {
     ...base,
     commit: request => {
