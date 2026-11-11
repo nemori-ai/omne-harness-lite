@@ -270,3 +270,40 @@ GovernanceContributionLifetime 检查一次原调用、迟到的受理、调用�
 今天的实现与模型的对照：`dies` 与 `no-archive` 是修之前的行为。模型不证明 SQL、进程或真实调度，也不证明实现符合；实现符合性由发行树的叫停、归档与中断场景验证。
 
 运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models InterruptCascade`。
+
+## 停服的交接与恢复
+
+[ShutdownHandoff](models/ShutdownHandoff.tla) 检查一个 Run 的执行等在一次 Ask 调用上时，服务有序停下再启动，四个拥有者怎样把「谁在推进这次执行」交出去再接上。停服不是打断：等待与卡片原样保留。
+
+| 拥有者 | 模型里的状态 | 排序点 |
+| --- | --- | --- |
+| Session | 持有推进资格的 attempt | `claim` 授予新的 attempt。一次交接只认领一次，重复的认回原结果 |
+| Journal | 执行状态、唯一的 active 挂接、挂接所带 grant 对应的 attempt | `detach` 与 `attach` 是条件提交。`attach` 在同一次提交里向 Session 核对 grant 是当前 attempt |
+| Agent | 本进程运行时的执行槽 | 驱动循环是这次执行唯一的写者，交接由它自己在安全点做 |
+| Tool | 调用 | 调用自己耐久。结果经 Agent 宿主的接收方写进 Journal，不要求有活的执行 |
+
+有序停服分三步：运行时开始停用，不再接受新的 invoke 与 resume；睡在已保存等待上的驱动交接，Journal 撤销它的挂接，执行进入 `suspended`；执行槽里不再有挂着的执行，进程结束。重启后，Session 的恢复读到执行已交接，认领新的 attempt；运行时在新 attempt 的 grant 下取得新挂接，执行进入 `reconciling`；新的协调器读回已保存的位置，回到等这次调用的节点，再保存等待。人答复后调用完成，结果进 Journal，驱动取走结果，Run 走完。
+
+| 性质 | 含义 |
+| --- | --- |
+| `CleanStop` | 有序停服不留下「只是在等待、却没有交接」的执行 |
+| `WaitSurvives` | 停服不中断等人的调用 |
+| `AdvanceUnderAttempt` | 在推进的挂接所带的 grant，属于持有推进资格的 attempt |
+| `StaleWriterRejected` | 已交接的挂接的提交不生效 |
+| `RunEnds` | 有序停服之后服务再起来、人给出答复，Run 一定走完 |
+
+每个负控是把交接做坏的一种方式：
+
+| 配置 | 做坏的地方 | 预期 |
+| --- | --- | --- |
+| `no-detach` | 停用时不交接，执行槽被占就结束进程 | `CleanStop` 被违反 |
+| `stop-cancels` | 把停服当成打断，交接时中断等人的调用 | `WaitSurvives` 被违反 |
+| `stale-grant` | 认领之后仍带旧 attempt 的 grant 取得挂接，Journal 不核对 | `AdvanceUnderAttempt` 被违反 |
+| `stale-write` | 交接之后旧驱动的提交仍被接受 | `StaleWriterRejected` 被违反 |
+| `no-recovery` | 重启后没有人发现已交接的执行 | `RunEnds` 被违反 |
+
+前提：除人的答复、停服与进程丢失外，每一步都弱公平。服务至多启动三次。模型只有一个 Run、一次调用。进程丢失，或驱动正在跑节点时停服，挂接留在 active：继续推进要接管，本发行没有，Session 按 PM-14 等待。模型保留这两种运行只用来检查安全性质，`RunEnds` 不对它们声称。Session 一侧两个恢复者同时认领的排序由 session-contract 的 `RunAdvance` 检查，不在本模型里。
+
+今天的实现与模型的对照：`no-detach` 与 `no-recovery` 是修之前的行为。模型不证明 SQL、进程或真实调度，也不证明实现符合；实现符合性由发行树的停服与重启场景验证。
+
+运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models ShutdownHandoff`。

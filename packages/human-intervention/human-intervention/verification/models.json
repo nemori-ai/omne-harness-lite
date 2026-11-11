@@ -985,6 +985,42 @@
       "model": "models/InterruptCascade.tla",
       "config": "models/interruptcascade-end-early.cfg",
       "expected": "EndsAfterSettle"
+    },
+    {
+      "name": "shutdownhandoff-none",
+      "model": "models/ShutdownHandoff.tla",
+      "config": "models/shutdownhandoff-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "shutdownhandoff-no-detach",
+      "model": "models/ShutdownHandoff.tla",
+      "config": "models/shutdownhandoff-no-detach.cfg",
+      "expected": "CleanStop"
+    },
+    {
+      "name": "shutdownhandoff-stop-cancels",
+      "model": "models/ShutdownHandoff.tla",
+      "config": "models/shutdownhandoff-stop-cancels.cfg",
+      "expected": "WaitSurvives"
+    },
+    {
+      "name": "shutdownhandoff-stale-grant",
+      "model": "models/ShutdownHandoff.tla",
+      "config": "models/shutdownhandoff-stale-grant.cfg",
+      "expected": "AdvanceUnderAttempt"
+    },
+    {
+      "name": "shutdownhandoff-stale-write",
+      "model": "models/ShutdownHandoff.tla",
+      "config": "models/shutdownhandoff-stale-write.cfg",
+      "expected": "StaleWriterRejected"
+    },
+    {
+      "name": "shutdownhandoff-no-recovery",
+      "model": "models/ShutdownHandoff.tla",
+      "config": "models/shutdownhandoff-no-recovery.cfg",
+      "expected": "temporal:RunEnds"
     }
   ]
 }
