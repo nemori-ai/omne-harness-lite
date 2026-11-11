@@ -146,6 +146,17 @@ describe('conditional ledger commit over SQL', () => {
     expect(answer.kind).not.toBe('committed')
   })
 
+  it('rejects a ledger write whose host value is not JSON data and sends nothing', async () => {
+    const w = await world()
+    const writes: LedgerCommitInput<ContentBlock>['writes'] = [
+      { kind: 'put', record: { kind: 'host', host: { key: 'acceptance-1', value: () => 0 } } },
+    ]
+    const answer = await w.commit.commit({ condition, ledger: { ...ledger(), writes } })
+    expect(answer).toMatchObject({ kind: 'rejected' })
+    expect(answer.kind === 'rejected' && answer.reason).toContain('is not JSON data')
+    expect(w.seen).toEqual([])
+  })
+
   it('answers unavailable for a tenant without a published domain and sends nothing', async () => {
     const w = await world()
     const answer = await w.commit.commit({
