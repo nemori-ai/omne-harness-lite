@@ -3,9 +3,12 @@ import { z } from 'zod'
 import { OperationRefSchema } from '@omne-harness/human-intervention'
 import { afterEach, expect, it } from 'vitest'
 import {
+  createHitlStandingDestination,
   createIdentityQualifiedHitl,
   IndependentCommandSchema,
 } from '@omne-harness/human-intervention-local'
+import { standingReservationId } from '@omne-harness/identity'
+import { canonical } from '../src/encoding.ts'
 import { openIdentityWorld } from './identity-world.ts'
 
 const opened: Awaited<ReturnType<typeof openIdentityWorld>>[] = []
@@ -273,4 +276,201 @@ it('keeps revocation pending while the destination is offline, then resumes by s
     release.resolve()
   }
   expect(await pending).toMatchObject({ kind: 'conflict', reason: 'operation-sealed' })
+})
+
+/** A second service over the same storage, with one part of the world replaced. */
+function serviceOf(
+  w: Awaited<ReturnType<typeof open>>,
+  change: Readonly<{ options?: object; identity?: object }> = {},
+) {
+  return createIdentityQualifiedHitl({
+    ...w.terminalOptions,
+    storage: w.world.storage,
+    destination: w.destination,
+    required: [],
+    ...change.options,
+    identity: {
+      verifier: w.authority.verifier,
+      standing: w.identity.standing,
+      reservations: w.identity.reservations,
+      ...change.identity,
+    },
+  } as Parameters<typeof createIdentityQualifiedHitl>[0])
+}
+
+it.each([
+  [
+    'the verifier is unavailable',
+    { identity: { verifier: { verify: async () => ({ kind: 'unavailable' }) } } },
+    { kind: 'unavailable', reason: 'identity-verifier' },
+  ],
+  [
+    'the verifier throws',
+    {
+      identity: {
+        verifier: {
+          verify: async () => {
+            throw new Error('verifier down')
+          },
+        },
+      },
+    },
+    { kind: 'unavailable', reason: 'identity-read' },
+  ],
+  [
+    'the verified principal does not act for a tenant',
+    {
+      identity: {
+        verifier: { verify: async () => ({ kind: 'verified', principal: { kind: 'system' } }) },
+      },
+    },
+    { kind: 'denied', reason: 'principal' },
+  ],
+  [
+    'the standing read is unavailable',
+    { identity: { standing: { read: async () => ({ kind: 'unavailable' }) } } },
+    { kind: 'unavailable', reason: 'identity-standing' },
+  ],
+  [
+    'the member lacks a required qualification',
+    {
+      options: { required: ['organization-settings-manage'] },
+      identity: {
+        standing: {
+          read: async () => ({ kind: 'member', qualifications: ['organization-cost-ledger-read'] }),
+        },
+      },
+    },
+    { kind: 'denied', reason: 'qualification' },
+  ],
+])('answers the reason and writes nothing when %s', async (_name, change, expected) => {
+  const w = await open()
+  const service = serviceOf(w, change)
+  expect(await service.execute(w.principal, w.command)).toEqual(expected)
+  expect(await service.inspect(w.principal, w.binding)).toEqual(expected)
+  expect(await w.terminal.inspect(w.binding)).toEqual({ kind: 'absent' })
+  await service.close()
+})
+
+it('admits a member that holds every required qualification', async () => {
+  const w = await open()
+  const service = serviceOf(w, {
+    options: { required: ['organization-settings-manage'] },
+    identity: {
+      standing: {
+        read: async () => ({
+          kind: 'member',
+          qualifications: ['organization-cost-ledger-read', 'organization-settings-manage'],
+        }),
+      },
+    },
+  })
+  expect(await service.inspect(w.principal, w.binding)).not.toMatchObject({ kind: 'denied' })
+  await service.close()
+})
+
+it('denies a principal whose tenant is not the tenant of the domain', async () => {
+  const w = await open()
+  const scope = { kind: 'tenant', tenant: 'another-tenant' }
+  const service = serviceOf(w, { options: { domain: { ...w.terminalOptions.domain, scope } } })
+  expect(await service.execute(w.principal, w.command)).toEqual({
+    kind: 'denied',
+    reason: 'tenant',
+  })
+  await service.close()
+})
+
+it('is not built over a domain that is not a tenant domain', async () => {
+  const w = await open()
+  const domain = { ...w.terminalOptions.domain, scope: { kind: 'global' } }
+  expect(() => serviceOf(w, { options: { domain } })).toThrow('HITL requires a tenant domain')
+})
+
+it.each([
+  ['actor', { actorRef: 'other' }],
+  ['tenant', { tenantRef: 'other' }],
+])(
+  'denies the inspection of an operation of another %s as not its owner',
+  async (_name, change) => {
+    const w = await open()
+    expect(
+      await w.backend.inspect(w.principal, {
+        ...w.binding,
+        operationRef: OperationRefSchema.parse({ ...w.binding.operationRef, ...change }),
+      }),
+    ).toEqual({ kind: 'denied', reason: 'operation-owner' })
+  },
+)
+
+it('refuses a required qualification that Identity does not name', async () => {
+  const w = await open()
+  expect(() => serviceOf(w, { options: { required: ['not-a-qualification'] } })).toThrow(
+    'Unknown Identity qualification',
+  )
+})
+
+/** The reservation Identity holds for the registration of the world, with some fields changed. */
+function reservationOf(
+  w: Awaited<ReturnType<typeof open>>,
+  change: Readonly<Record<string, string>> = {},
+) {
+  const { operationRef, inputDigest } = w.binding
+  const binding = {
+    version: 'standing/1' as const,
+    owner: 'human-intervention',
+    operationId: operationRef.operationId,
+    principalRef: operationRef.actorRef,
+    destination: w.destination,
+    scopeRef: operationRef.tenantRef,
+    targetRef: canonical(operationRef),
+    inputDigest,
+    ...change,
+  }
+  return { id: standingReservationId(binding, []), binding, required: [] }
+}
+const sealOf = (w: Awaited<ReturnType<typeof open>>) =>
+  createHitlStandingDestination({ ...w.terminalOptions, destination: w.destination }).seal
+
+it('seals the operation a reservation of this destination names', async () => {
+  const w = await open()
+  const reservation = reservationOf(w)
+  expect(await sealOf(w)(reservation)).toMatchObject({ kind: 'terminal', reservation })
+  expect(await w.terminal.inspect(w.binding)).toMatchObject({ kind: 'terminal' })
+})
+
+it.each([
+  ['another owner', (_w: unknown) => ({ owner: 'another-owner' })],
+  ['another destination', (_w: unknown) => ({ destination: 'another-destination' })],
+  ['another tenant scope', (_w: unknown) => ({ scopeRef: 'another-tenant' })],
+  ['another principal', (_w: unknown) => ({ principalRef: 'another-principal' })],
+  ['another operation', (_w: unknown) => ({ operationId: 'another-operation' })],
+  [
+    'a target of another tenant',
+    (w: Awaited<ReturnType<typeof open>>) => ({
+      targetRef: canonical({ ...w.binding.operationRef, tenantRef: 'another-tenant' }),
+    }),
+  ],
+  [
+    'a target that is not in canonical form',
+    (w: Awaited<ReturnType<typeof open>>) => ({
+      targetRef: JSON.stringify(w.binding.operationRef, null, 1),
+    }),
+  ],
+])('does not seal for a reservation of %s', async (_name, change) => {
+  const w = await open()
+  expect(await sealOf(w)(reservationOf(w, change(w)))).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'hitl-destination-unavailable',
+  })
+  expect(await w.terminal.inspect(w.binding)).toEqual({ kind: 'absent' })
+})
+
+it('does not seal for a value that is not a reservation', async () => {
+  const w = await open()
+  const forged = { ...reservationOf(w), id: 'standing/1/forged' }
+  expect(await sealOf(w)(forged as never)).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'hitl-destination-unavailable',
+  })
+  expect(await w.terminal.inspect(w.binding)).toEqual({ kind: 'absent' })
 })

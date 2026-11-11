@@ -182,13 +182,17 @@ describe('readHitlResponse 的 outcome 矩阵', () => {
   })
 
   it('关联值不同得到 unmatched', () => {
-    expect(read('read-card', response('denied', {}), 'other').kind).toBe('unmatched')
+    expect(read('read-card', response('denied', {}), 'other')).toStrictEqual({ kind: 'unmatched' })
   })
 
   it('会话版本的响应读不出', () => {
-    expect(
-      read('read-card', { ...response('denied', {}), protocolVersion: 'session-public/1' }).kind,
-    ).toBe('unreadable')
+    const foreign = read('read-card', {
+      ...response('denied', {}),
+      protocolVersion: 'session-public/1',
+    })
+    expect(foreign.kind).toBe('unreadable')
+    // 读不出的原因随结果一起交回。
+    expect(foreign).toHaveProperty('diagnostic.code')
   })
 })
 
@@ -245,6 +249,8 @@ describe('卡片视图', () => {
       read('read-card', response('succeeded', { item: { ...pendingItem, card } })).kind
     expect(withCard({ ...pendingItem.card, revision: 1 })).toBe('unreadable')
     expect(withCard({ ...pendingItem.card, revision: '01' })).toBe('unreadable')
+    expect(withCard({ ...pendingItem.card, revision: '1a' })).toBe('unreadable')
+    expect(withCard({ ...pendingItem.card, revision: '10' })).toBe('response')
     expect(withCard({ ...pendingItem.card, ref: { ...cardRef, cardId: '' } })).toBe('unreadable')
     expect(
       read('read-card', response('succeeded', { item: { ...pendingItem, displayContext: '' } }))

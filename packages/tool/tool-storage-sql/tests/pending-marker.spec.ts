@@ -285,6 +285,20 @@ describe('the scan of every tenant', () => {
     expect(page).toMatchObject({ more: true })
   })
 
+  it('says there is no more when a full page ends the last tenant', async () => {
+    const store = await marked()
+    const page = await store.scanPending({
+      tenant: null,
+      after: { tenant: MIDDLE, call: call('c3') },
+      limit: 2,
+    })
+    expect(namesOf(page)).toEqual([
+      [textOf(LAST), 'c4'],
+      [textOf(LAST), 'c5'],
+    ])
+    expect(page).toMatchObject({ more: false })
+  })
+
   it('says there is no more when one tenant holds as many rows as the page asks', async () => {
     const a = await app()
     for (const text of ['c1', 'c2']) await a.store.commit(commitOf(domainOf(text), '0', true))
@@ -297,6 +311,10 @@ describe('the scan of every tenant', () => {
 
   it.each([
     ['a text that is no tenant', { ...entryOf(TENANT_A), tenant: 'not-a-tenant' }],
+    [
+      'a text that is no tenant, in a domain that names the same text',
+      { tenant: 'not-a-tenant', domain: domainRef('not-a-tenant', domainNameOf(TENANT_A)) },
+    ],
     [
       'a domain that is not a tenant domain',
       { ...entryOf(TENANT_A), domain: { ...entryOf(TENANT_A).domain, scope: { kind: 'global' } } },

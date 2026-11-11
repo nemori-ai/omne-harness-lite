@@ -56,9 +56,12 @@ export type HitlDouble = Readonly<{
   /** 下一次 `method` 调用抛出，或答给出的失败。 */
   failNext(
     method: 'listPool' | 'getCard' | 'submitReply' | 'getOperation' | 'bindSubmitReply',
-    failure: Failure | Readonly<{ kind: 'unknown' }> | 'throw',
+    failure: Injected | 'throw',
   ): void
 }>
+
+/** 注入给下一次调用的答复：一种失败、结果未知，或提交身份被登记命令占着。 */
+type Injected = Failure | Readonly<{ kind: 'unknown' }> | Readonly<{ kind: 'held-by-register' }>
 
 function tenantText(tenant: TenantId): string {
   const encoded = tenantCodec.encode(tenant)
@@ -69,12 +72,12 @@ function tenantText(tenant: TenantId): string {
 export function createHitlDouble(): HitlDouble {
   const calls: Call[] = []
   const cards: { item: PoolItem; readers: readonly string[] }[] = []
-  const failures = new Map<string, Failure | Readonly<{ kind: 'unknown' }> | 'throw'>()
+  const failures = new Map<string, Injected | 'throw'>()
   const submitted = new Map<string, Submitted>()
   const decisions = new Map<string, Decision>()
   const readable = (principal: ActingForTenantPrincipal, readers: readonly string[]) =>
     readers.includes(standingPrincipalRef(principal))
-  const injected = (method: string): Failure | Readonly<{ kind: 'unknown' }> | undefined => {
+  const injected = (method: string): Injected | undefined => {
     const failure = failures.get(method)
     failures.delete(method)
     if (failure === 'throw') throw new Error(`${method} exploded`)
@@ -122,6 +125,15 @@ export function createHitlDouble(): HitlDouble {
       async getOperation(principal, query): Promise<OperationInspection> {
         calls.push({ method: 'getOperation', principal, input: query })
         const failure = injected('getOperation')
+        if (failure?.kind === 'held-by-register')
+          // 同一提交身份被登记命令占着：不是答复命令的结果。
+          return {
+            kind: 'committed',
+            operationRef: query.operationRef,
+            method: 'registerRequest',
+            inputDigest: query.inputDigest,
+            commitReceipt: 'receipt-1',
+          } as unknown as OperationInspection
         if (failure !== undefined)
           return failure.kind === 'unknown'
             ? { kind: 'unknown', operationRef: query.operationRef }
@@ -234,27 +246,51 @@ export type EntryPrincipalsDouble = Readonly<{
   /** 给出租户的入口主体引用，与持有者签发的同一。 */
   refOf(tenant: TenantId): string
   /** 下一次签发的行为。 */
-  next(behaviour: 'refuse' | 'throw' | 'other-tenant', other?: TenantId): void
+  next(behaviour: HolderBehaviour, other?: TenantId): void
 }>
+
+/** 持有者下一次签发时的偏离：拒绝、抛出，或给出一个不是这个租户入口主体的主体。 */
+export type HolderBehaviour =
+  | 'refuse'
+  | 'throw'
+  | 'other-tenant'
+  | 'other-component'
+  | 'other-work-owner'
+  | 'other-work'
+  | 'not-acting'
+  | 'actor-not-system'
+  | 'no-principal'
 
 /** 按 identity「持有者与关系核对位置」签发 `{ actor: server-entry, tenant, work: harness.hitl/cards }`。 */
 export function createEntryPrincipalsDouble(): EntryPrincipalsDouble {
   const { issuer } = inProcessPrincipalAuthority()
   const system = issuer.issueSystem({ component: 'server-entry' })
   if ('failure' in system) throw new Error('fixture system principal was not issued')
-  const issue = (tenant: TenantId): ActingForTenantPrincipal => {
-    const issued = issuer.issueActingForTenant({
-      actor: system.ok,
-      tenant,
-      work: { owner: 'harness.hitl', work: 'cards' },
-    })
+  const elsewhere = issuer.issueSystem({ component: 'another-entry' })
+  if ('failure' in elsewhere) throw new Error('fixture system principal was not issued')
+  const issue = (
+    tenant: TenantId,
+    actor = system.ok,
+    work = { owner: 'harness.hitl', work: 'cards' },
+  ): ActingForTenantPrincipal => {
+    const issued = issuer.issueActingForTenant({ actor, tenant, work })
     if ('failure' in issued) throw new Error('fixture entry principal was not issued')
     return issued.ok
   }
+  /** 一个偏离的主体。后两种不是签发者给出的值，只有形状。 */
+  const deviant = (kind: HolderBehaviour, tenant: TenantId): unknown => {
+    if (kind === 'other-component') return issue(tenant, elsewhere.ok)
+    if (kind === 'other-work-owner')
+      return issue(tenant, system.ok, { owner: 'harness.other', work: 'cards' })
+    if (kind === 'other-work')
+      return issue(tenant, system.ok, { owner: 'harness.hitl', work: 'drafts' })
+    if (kind === 'not-acting') return { ...issue(tenant), kind: 'system' }
+    if (kind === 'actor-not-system')
+      return { ...issue(tenant), actor: { ...system.ok, kind: 'acting-for-tenant' } }
+    return undefined
+  }
   const inputs: string[][] = []
-  let behaviour:
-    | Readonly<{ kind: 'refuse' | 'throw' | 'other-tenant'; other?: TenantId }>
-    | undefined
+  let behaviour: Readonly<{ kind: HolderBehaviour; other?: TenantId }> | undefined
   return {
     inputs,
     holder: {
@@ -266,6 +302,11 @@ export function createEntryPrincipalsDouble(): EntryPrincipalsDouble {
         if (current?.kind === 'refuse') return { kind: 'refused' }
         if (current?.kind === 'other-tenant' && current.other !== undefined)
           return { kind: 'issued', principal: issue(current.other) }
+        if (current !== undefined)
+          return {
+            kind: 'issued',
+            principal: deviant(current.kind, input.tenant),
+          } as HitlEntryIssue
         return { kind: 'issued', principal: issue(input.tenant) }
       },
     },

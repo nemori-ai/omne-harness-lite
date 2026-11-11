@@ -47,6 +47,8 @@ type Setup = Readonly<{
   hitl: HitlDouble
   holder: EntryPrincipalsDouble
   recognitions: string[]
+  /** 置真后登录识别答 `basis-unavailable`。 */
+  identityDown: { value: boolean }
 }>
 
 async function start(
@@ -55,6 +57,7 @@ async function start(
   const hitl = createHitlDouble()
   const holder = createEntryPrincipalsDouble()
   const recognitions: string[] = []
+  const identityDown = { value: false }
   const dependencies: Partial<ServerEntryDependencies> = {
     ...(options.faces === false ? {} : { hitl: hitl.faces }),
     ...(options.holder === false ? {} : { hitlEntryPrincipals: holder.holder }),
@@ -66,12 +69,14 @@ async function start(
       issueLogin: input => base.issueLogin(input),
       recognizeLogin: input => {
         recognitions.push(input.loginProof)
+        if (identityDown.value)
+          return Promise.resolve({ kind: 'basis-unavailable', diagnostic: 'identity down' })
         return base.recognizeLogin(input)
       },
     }),
     dependencies,
   })
-  return { fixture, hitl, holder, recognitions }
+  return { fixture, hitl, holder, recognitions, identityDown }
 }
 
 function hitlMessage(
@@ -602,23 +607,66 @@ describe('HITL 结果与依赖故障', () => {
     },
   )
 
-  it.each(['refuse', 'throw', 'other-tenant'] as const)(
-    '持有者 %s 时是 basis-unavailable，HITL 不被调用',
-    async behaviour => {
-      const { hitl, holder } = await start()
-      const alice = await login(fixture!, 'alice')
-      const bob = await login(fixture!, 'bob')
-      holder.next(behaviour, bob.tenant)
-      const reply = await post(listCards(alice, alice.tenantText))
-      expect(reply.status).toBe(503)
-      expect(outcomeOf(reply)).toBe('basis-unavailable')
-      expect(hitl.calls).toEqual([])
-      expect(fixture!.diagnostics).toContainEqual({
-        code: 'issuer.fault',
-        operation: 'hitlEntryPrincipals',
-      })
-    },
-  )
+  it.each([
+    'refuse',
+    'throw',
+    'other-tenant',
+    'other-component',
+    'other-work-owner',
+    'other-work',
+    'not-acting',
+    'actor-not-system',
+    'no-principal',
+  ] as const)('持有者 %s 时是 basis-unavailable，HITL 不被调用', async behaviour => {
+    const { hitl, holder } = await start()
+    const alice = await login(fixture!, 'alice')
+    const bob = await login(fixture!, 'bob')
+    holder.next(behaviour, bob.tenant)
+    const reply = await post(listCards(alice, alice.tenantText))
+    expect(reply.status).toBe(503)
+    expect(outcomeOf(reply)).toBe('basis-unavailable')
+    expect(hitl.calls).toEqual([])
+    expect(fixture!.diagnostics).toContainEqual({
+      code: 'issuer.fault',
+      operation: 'hitlEntryPrincipals',
+    })
+  })
+
+  it('登录识别答 basis-unavailable 时是 basis-unavailable，不调用持有者', async () => {
+    const { hitl, holder, identityDown } = await start()
+    const alice = await login(fixture!, 'alice')
+    identityDown.value = true
+    const reply = await post(listCards(alice, alice.tenantText))
+    expect(reply.status).toBe(503)
+    expect(outcomeOf(reply)).toBe('basis-unavailable')
+    expect(holder.inputs).toEqual([])
+    expect(hitl.calls).toEqual([])
+  })
+
+  it('提交身份被别的命令占着时 query-submit-reply 是 conflict', async () => {
+    const { hitl } = await start()
+    const alice = await login(fixture!, 'alice')
+    hitl.failNext('getOperation', { kind: 'held-by-register' })
+    const reply = await post(
+      hitlMessage('query-submit-reply', submission(alice), { loginProof: alice.loginProof }),
+    )
+    expect(reply.status).toBe(409)
+    expect(reply.json).toMatchObject({ outcome: 'conflict', body: {} })
+  })
+
+  it.each([
+    ['不是 JSON 的内容类型', { headers: { 'content-type': 'text/plain' } }, 415],
+    ['超过上限的请求体', { body: 'x'.repeat(65_537) }, 413],
+  ] as const)('HITL 路径上%s是本位置的 protocol-rejected', async (_name, options, status) => {
+    await start()
+    const reply = await send(fixture!.port, HITL_PATH, { body: '{}', ...options })
+    expect(reply.status).toBe(status)
+    expect(reply.json).toEqual({
+      protocolVersion: 'hitl-public/1',
+      outcome: 'protocol-rejected',
+      body: {},
+    })
+  })
 
   it('持有者缺席时是 basis-unavailable', async () => {
     const { hitl } = await start({ holder: false })
@@ -657,6 +705,22 @@ describe('配置', () => {
         },
       }),
     ).toThrow(ServerEntryConfigError)
+  })
+
+  it('hitlLocationRef 不是字符串时构造失败', () => {
+    const double = identityDouble()
+    expect(() =>
+      createServerEntry({
+        config: baseConfig({ hitlLocationRef: 7 as unknown as string }),
+        dependencies: {
+          identity: double.operations,
+          governance: double.governance,
+          issuer: inProcessPrincipalAuthority().issuer,
+          session: createSessionDouble({ members: new Map() }).faces,
+          resolveDefinition,
+        },
+      }),
+    ).toThrow('server-entry: hitlLocationRef must be a non-empty string')
   })
 
   it('hitlLocationRef 为空字符串时构造失败', () => {

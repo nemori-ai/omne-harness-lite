@@ -4,7 +4,12 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commandUnrecognized, resultUncertain } from './support/expected.ts'
+import {
+  commandMissing,
+  commandUnrecognized,
+  notLoggedIn,
+  resultUncertain,
+} from './support/expected.ts'
 import {
   defaultAnswer,
   issuedProof,
@@ -204,5 +209,39 @@ describe('submit-reply', () => {
     expect(result.code).toBe(code)
     expect(JSON.parse(result.stdout)).toMatchObject({ result: 'response', outcome })
     expect(result.stderr).toBe(code === 5 ? resultUncertain('submit-reply') : '')
+  })
+})
+
+describe('what every HITL command needs', () => {
+  it.each([
+    ['read-card', ['--request', 'r-1'], '--card'],
+    ['read-card', ['--card', 'q1'], '--request'],
+    ['submit-reply', ['--request', 'r-1', '--card', 'q1', '--decline'], '--revision'],
+    ['submit-reply', ['--card', 'q1', '--revision', '0', '--decline'], '--request'],
+  ])('%s %j names the missing %s and sends nothing', async (command, given, option) => {
+    const service = await loggedIn()
+    const result = await cli([command, ...given])
+    expect(result).toMatchObject({ code: 2, stdout: '', stderr: commandMissing(command, option) })
+    expect(hitlSeen(service)).toEqual([])
+  })
+
+  it.each([
+    ['list-cards', []],
+    ['read-card', ref],
+    ['submit-reply', [...ref, '--revision', '0', '--decline']],
+  ])('%s without a login exits 1 and sends nothing', async (command, given) => {
+    const service = await serve()
+    const result = await cli([command, ...given])
+    expect(result).toMatchObject({ code: 1, stdout: '', stderr: notLoggedIn })
+    expect(hitlSeen(service)).toEqual([])
+  })
+
+  it.each([
+    ['list-cards', []],
+    ['submit-reply', [...ref, '--revision', '0', '--decline']],
+  ])('%s --tenant names another tenant of the login', async (command, given) => {
+    const service = await loggedIn()
+    await cli([command, ...given, '--tenant', otherTenantText])
+    expect(hitlSeen(service)[0]?.wire['body']).toMatchObject({ tenant: otherTenantText })
   })
 })

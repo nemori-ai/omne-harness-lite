@@ -497,9 +497,13 @@ describe('checkpointed author', () => {
 
   it('checkpointed author: the Ask of a segmented author declares sizes within the system bounds', () => {
     // The ledger keeps the request and the response of that Ask in records of the call.
-    const sized = (side: 'request' | 'response', maxBytes: number) => {
+    const sized = (
+      side: 'request' | 'response',
+      maxBytes: number,
+      kind: 'ask' | 'resource' = 'ask',
+    ) => {
       const wait = defineToolWaitContract({
-        kind: 'ask',
+        kind,
         adoption: adoption('ask-protocol'),
         request: valueSchema('request'),
         response: valueSchema('response'),
@@ -514,6 +518,12 @@ describe('checkpointed author', () => {
     expect(define(segments(), [sized('request', WAIT_REQUEST_MAX_BYTES + 1)])).toEqual(over)
     expect(define(segments(), [sized('response', WAIT_RESPONSE_MAX_BYTES)])).toHaveProperty('ok')
     expect(define(segments(), [sized('response', WAIT_RESPONSE_MAX_BYTES + 1)])).toEqual(over)
+    // The bound is on the Ask, wherever it stands among the waits; a resource wait keeps its own.
+    const resourceOver = sized('request', WAIT_REQUEST_MAX_BYTES + 1, 'resource')
+    expect(
+      define(segments(), [resourceOver, sized('request', WAIT_REQUEST_MAX_BYTES + 1)]),
+    ).toEqual(over)
+    expect(define(segments(), [ask.ok, resourceOver])).toHaveProperty('ok')
     // An author that runs in one execution keeps the limits of its own protocol.
     const plain = defineToolOperation({
       parameters: { kind: 'declared', value: parameters() },

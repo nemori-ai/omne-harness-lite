@@ -26,7 +26,7 @@
 - [登记表与 Catalog 的测试构造器](binding-values.ts)。
 - [测试构造器](coordinator-values.ts)。
 - [导入图遍历工具](module-graph.ts)。
-- [R2-D164 完成调用的退役与重排](executor-retirement.spec.ts)。等人的调用休眠、被提示认回、决定在空转的 run 结束时到达、提示丢失时由周期扫描找回、账本无工作的调用不记入，在 [runtime-composition/checkpoint.spec.ts](runtime-composition/checkpoint.spec.ts)。
+- [R2-D164 完成调用的退役与重排](executor-retirement.spec.ts)。等人的调用休眠、被提示认回、决定在空转的 run 结束时到达、提示丢失时由周期扫描找回、账本无工作的调用不记入，在 [runtime-composition/checkpoint.spec.ts](runtime-composition/checkpoint.spec.ts)。「账本上有没有这次调用的工作」与「是不是只有人能推动」两条判定的逐格用例在 [call-dormancy.spec.ts](call-dormancy.spec.ts)。
 - [R2-D327 接收方确定失败的 warn 与结局，退避表项随交付释放](delivery/receiver-failure.spec.ts)。
 - [R2-D164 同租户投递的轮次](delivery/turns.spec.ts)。
 - [R2-D273 接收方缺席或查找答 unavailable 时的待推、具名 warn 与退避](delivery/absent-receiver.spec.ts)。
