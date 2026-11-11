@@ -3,7 +3,7 @@
 // 位点、Stryker 配置、沙箱预检、复核与增量全在 pqw，这里只拼参数、读回 JSON、汇总。
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { FAST_VITEST_CONFIG, PQW_SCRIPTS, STRYKER_MODULES, slugOf } from './locations.ts'
+import { FAST_VITEST_CONFIG, STRYKER_MODULES, pqwScripts, slugOf } from './locations.ts'
 import type { ChangedMember } from './members.ts'
 import type { Executor, Outcome } from './process.ts'
 
@@ -28,7 +28,7 @@ export interface MutationCall {
  */
 export function mutationArgs(call: MutationCall): string[] {
   return [
-    join(call.root, PQW_SCRIPTS, 'mutation.mjs'),
+    join(pqwScripts(call.root), 'mutation.mjs'),
     '--repo',
     call.root,
     '--project',

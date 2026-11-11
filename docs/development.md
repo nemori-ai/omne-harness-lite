@@ -24,7 +24,7 @@ git status --short
 git submodule update --init
 ```
 
-外部技能集 pqw-skills 是钉了提交的子模块（`.meta_harness/agents/vendor/pqw-skills`），新检出与新工作树都先初始化它；没有初始化时生成 agent 投影会失败，见[生成工具](../.meta_harness/tooling/README.md#外部技能集)。
+外部技能集 pqw-skills 是子模块（`.meta_harness/agents/vendor/pqw-skills`），新检出与新工作树都先初始化它。子模块的提交是下限，生成投影时会改读接入约定版本相同的最新发行版，所以 pqw-skills 发新版不需要在本仓库提交。没有初始化时生成 agent 投影会失败，见[生成工具](../.meta_harness/tooling/README.md#外部技能集)。
 
 完整检查需要 Git、Bash、[uv](https://docs.astral.sh/uv/getting-started/installation/)，
 以及根 `package.json` 的 `engines`/`packageManager` 指定的 Node 与 pnpm。
