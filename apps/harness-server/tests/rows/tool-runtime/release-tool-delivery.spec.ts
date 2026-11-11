@@ -375,14 +375,14 @@ const resultText = (entry: Entry | undefined): string =>
     .join('')
 
 /**
- * The cases that add a test author to the release. They do not run since the governance line
- * (#1184): the storage participant `harness.tool-permission-release` loads the production release
- * in the Worker and binds the run to its generation, so a tree whose release has any other
- * generation has no permission source and no tool call starts. `createToolReleaseEntries(load)`
- * does not reach the Worker. The production paths of the same mechanisms run below with the
- * release tools (Shell offloading, Tools pages, return schemas); the author body mechanics run in
- * `@omne-harness/tool` and `@omne-harness/tool-host-local`. Remove the skip when a release other
- * than the production one can be governed.
+ * The cases that add a test author to the release. The governed release tree excludes them: the
+ * storage participant `harness.tool-permission-release` loads and verifies the production release
+ * in the Worker and refuses any other generation (docs/rows/permission-interpretation.md), so a
+ * tree with a test author has no permission source and no tool call starts. The same mechanisms
+ * run below on the release tree with the release tools (Shell offloading, Tools pages, return
+ * schemas). Each case here is being matched against the cases of `@omne-harness/tool` and
+ * `@omne-harness/tool-host-local`; a covered case is removed, an uncovered one moves to an
+ * assembly without governance.
  */
 const withTestAuthor = it.skip
 
