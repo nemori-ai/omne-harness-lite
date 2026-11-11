@@ -207,6 +207,26 @@ describe('a stop of a call suspended on its wait', () => {
     expect(built.bridge.ensured).toHaveLength(1)
   })
 
+  it('refuses a registration that arrives after the control closed the wait: the wait is not opened again', async () => {
+    const built = await suspended({ script: 'refuses' })
+    ok(await built.harness.commands.control(STOP))
+    const read = await expectSettledByStop(built)
+    // 登记的回包晚到：叫停已经关闭了这个等待。
+    const late = await built.harness.commands.attachRegistration({
+      ...ACCESS,
+      instance: read.execution?.instance as never,
+      generation: '1',
+      operation: operationId(`${FIRST}/ensure/attach`),
+      expected: read.state.revision,
+      wait: FIRST,
+      registration: evidence(`registration/${FIRST}`, 'test-decisions'),
+    })
+    expect(late).toEqual({ failure: { kind: 'invalid', field: 'wait', reason: 'phase:closed' } })
+    const after = await recovery(built.harness)
+    expect(after.state.revision).toBe(read.state.revision)
+    expect(after.waits).toMatchObject([{ phase: 'closed' }])
+  })
+
   it('recalls an invalidation whose answer was lost through inspectOperation, and never invalidates again', async () => {
     const built = await suspended()
     built.bridge.invalidation('answer-lost')

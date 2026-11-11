@@ -3,12 +3,17 @@
 // 本进程的脚本网关。先构建 `apps/cli`。
 // 重启接续（切片 06，验收 C7）：同一状态根上把服务停掉再起一次。
 // - 答复之前重启：卡片在第二次起服务后仍可答，答复之后原调用恢复一次并收场，结果交给 Agent。
-// - 答复之后立即重启：答复已在 HITL 成立、原调用还没接手时停服，第二次起服务后接手、恢复一次并收场。
-// 第一次停服时 Ask 仍在等人；等待中停服的交接是切片 09 的事，这里只记下两次的退出码，只核第二次。
-// 重启后 Run 接着跑完不在 C7 里：Agent 宿主重启后不接续 Run（#502 第 5 阶段），所以只核到 Agent 收下结果。
+// - 已答未接手时重启：答复已在 HITL 成立，这一次服务里 Tool 看不到这个决定（决策方的 inspect 被挡成「还没有决定」），
+//   调用仍在等。停服，第二次起服务后接手、恢复一次并收场。接手因此只可能发生在重启之后。
+// - 等待中停服再重启（切片 09，验收 C10）：第一次停服把等待中的执行交接出去，重启后 Run 走到结束。
+// - 登记还在途时重启：这一次服务里卡片登记不上（决策方的 ensure 答不可用），等待停在 opening。停服，第二次起服务后
+//   登记一次，只有一张卡；答复后调用恢复一次，Run 走到结束。
+// 四条都核两次停服的退出码为 0：停服时执行都在等，Agent 把它交接出去。
 // 同一租户的几个 Run 同时继续有已知限制（agent-host-local SPEC「运行失败」，R2-D256），所以只让一个 Run 推进。
 // 发行的 `coding` 定义在本文件里跳过权限询问（与 release-ask 相同），只为不让询问策略挡住调用。
 import { describe, expect, it } from 'vitest'
+import { fail } from '@omne-harness/operation-result'
+import type { ToolDecisionBridge } from '@omne-harness/tool-contract/provider'
 import {
   answerCard,
   historyOf,
@@ -80,6 +85,23 @@ async function resumedOnce(world: ReleaseTree, session: string): Promise<void> {
   expect(cards.map(item => item.card.kind)).toEqual(['decided'])
 }
 
+/** The decision owner of the run, with some of its ports replaced for this run of the service. */
+function withBridge(world: ReleaseTree, replace: Partial<ToolDecisionBridge<unknown>>): void {
+  const real = world.hitl.bridge
+  if (real === null) throw new Error('no decision owner')
+  world.hitl.bridge = { ...real, ...replace }
+}
+
+/** Waits for the end of the Run of `session` and checks that it ended once. */
+async function endedOnce(world: ReleaseTree, session: string): Promise<void> {
+  const entries = await pollUntil(
+    'the end of the Run of the session',
+    () => historyOf(world, session),
+    seen => seen.some(entry => entry.kind === 'run.terminal'),
+  )
+  expect(entries.filter(entry => entry.kind === 'run.terminal')).toHaveLength(1)
+}
+
 describe('a waiting Ask goes on after the service restarts on the same state (C7)', () => {
   it(
     'a card that was not answered before the restart is answered after it, and the call resumes once',
@@ -97,26 +119,37 @@ describe('a waiting Ask goes on after the service restarts on the same state (C7
           await resumedOnce(world, session)
         },
       ])
-      expect(exits.at(-1)).toBe(0)
+      expect(exits).toEqual([0, 0])
     },
   )
 
   it(
-    'an answer that holds in HITL just before the stop is taken over after the restart, once',
+    'an answer that holds in HITL and that Tool did not see before the stop is taken over after the restart, once',
     { timeout: 300_000 },
     async () => {
       let session = ''
       const exits = await onReleaseTreeRuns(options, [
         async world => {
+          // In this run of the service Tool never sees a decision: the call cannot go on here.
+          const real = world.hitl.bridge
+          if (real === null) throw new Error('no decision owner')
+          withBridge(world, {
+            async inspect(input) {
+              const seen = await real.inspect(input)
+              return 'ok' in seen ? { ok: { ...seen.ok, decision: null } } : seen
+            },
+          })
           session = await parkedAsk(world)
-          // The answer holds in HITL; the service stops right after it, before the call goes on.
           await answerCard(world, session, 'Use 8081')
+          const cards = await world.cards({ sessionRef: session, states: ['decided'] })
+          expect(cards).toHaveLength(1)
+          expect(askOf(world)).toMatchObject({ phase: 'suspended' })
         },
         async world => {
           await resumedOnce(world, session)
         },
       ])
-      expect(exits.at(-1)).toBe(0)
+      expect(exits).toEqual([0, 0])
     },
   )
 
@@ -134,15 +167,46 @@ describe('a waiting Ask goes on after the service restarts on the same state (C7
           await answerCard(world, session, 'Use 8081')
           await resumedOnce(world, session)
           // The Agent took the result under its new attachment, asked the model again and ended.
-          const entries = await pollUntil(
-            'the end of the Run of the session',
-            () => historyOf(world, session),
-            seen => seen.some(entry => entry.kind === 'run.terminal'),
-          )
-          expect(entries.filter(entry => entry.kind === 'run.terminal')).toHaveLength(1)
+          await endedOnce(world, session)
         },
       ])
       // Both stops leave nothing unresolved: the first one handed the waiting execution over.
+      expect(exits).toEqual([0, 0])
+    },
+  )
+
+  it(
+    'a registration that did not land before the stop lands once after the restart: one card, and the answer resumes the call',
+    { timeout: 300_000 },
+    async () => {
+      let session = ''
+      const exits = await onReleaseTreeRuns(options, [
+        async world => {
+          // In this run of the service the decision owner cannot take the registration.
+          withBridge(world, {
+            ensure: async () =>
+              fail({ kind: 'unavailable', dependency: 'tool-decisions', diagnostic: 'held' }),
+          })
+          session = await world.startSession('start: ask')
+          const ask = await pollUntil(
+            'the Ask to suspend with its wait opening',
+            () => askOf(world),
+            row => row?.phase === 'suspended' && row.waits.some(wait => wait.phase === 'opening'),
+          )
+          expect(ask?.waits).toEqual([{ phase: 'opening', cause: null }])
+          expect(await world.cards({ sessionRef: session })).toEqual([])
+        },
+        async world => {
+          await pollUntil(
+            'the card',
+            () => world.cards({ sessionRef: session, states: ['pending', 'decided'] }),
+            cards => cards.length === 1,
+          )
+          await answerCard(world, session, 'Use 8081')
+          await resumedOnce(world, session)
+          await endedOnce(world, session)
+        },
+      ])
       expect(exits).toEqual([0, 0])
     },
   )
