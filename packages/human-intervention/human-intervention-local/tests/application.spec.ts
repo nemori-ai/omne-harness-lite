@@ -285,6 +285,48 @@ it('rejects invented reply routing and revoked callers with the original operati
   ).toMatchObject({ kind: 'denied' })
 })
 
+it.each([
+  [
+    'an operation',
+    (w: Awaited<ReturnType<typeof open>>) =>
+      w.app.getOperation(
+        w.principal,
+        operationQuery(hitlCommandBinding('registerRequest', w.request)),
+      ),
+  ],
+  [
+    'a wait',
+    (w: Awaited<ReturnType<typeof open>>) =>
+      w.app.getWait(
+        w.principal,
+        GetWaitSchema.parse({ protocol: 'hitl/1', waitRef: w.request.origin.wait }),
+      ),
+  ],
+])(
+  'answers the denial when the caller loses its standing while %s is being read',
+  async (_name, read) => {
+    // The standing was good when the read began. What was read is not disclosed after it is lost.
+    const lose = { armed: false, now: async (): Promise<unknown> => undefined }
+    const w = await open(storage => ({
+      ...storage,
+      async read(input) {
+        const result = await storage.read(input)
+        if (lose.armed) {
+          lose.armed = false
+          expect(await lose.now()).toEqual({ kind: 'succeeded' })
+        }
+        return result
+      },
+    }))
+    await register(w)
+    expect(await read(w)).not.toMatchObject({ kind: 'denied' })
+    lose.now = () => w.remove()
+    lose.armed = true
+    expect(await read(w)).toEqual({ kind: 'denied', reason: 'qualification' })
+    expect(lose.armed).toBe(false)
+  },
+)
+
 it('rejects new writes on close and drains a write already admitted before closing children', async () => {
   const reached = Promise.withResolvers<void>(),
     release = Promise.withResolvers<void>()

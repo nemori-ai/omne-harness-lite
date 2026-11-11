@@ -201,6 +201,25 @@ it('does not reveal private or absent requests to another issued principal, or a
   expect(await service.getRequest({ ...w.principal }, get(w))).toMatchObject({ kind: 'denied' })
 })
 
+it('denies every read that names another tenant, whatever the rest of the reference is', async () => {
+  const w = await open(),
+    service = queries(w)
+  const foreign = RequestRefSchema.parse({ ...w.registered.requestRef, tenantRef: 'other' })
+  const denied = { kind: 'denied', reason: 'request-access' }
+  expect(await service.getRequest(w.principal, { ...get(w), requestRef: foreign })).toEqual(denied)
+  const card = GetCardSchema.parse({
+    protocol: 'hitl/1',
+    cardRef: { ...w.registered.cards[0], request: foreign },
+  })
+  expect(await service.getCard(w.principal, card)).toEqual(denied)
+  expect(await service.listPool(w.principal, pool(w, { tenantRef: 'other' }))).toEqual({
+    kind: 'denied',
+    reason: 'pool-location',
+  })
+  // The same reference under the tenant of the principal is read.
+  expect(await service.getRequest(w.principal, get(w))).toMatchObject({ kind: 'found' })
+})
+
 it('checks current membership on every page and after a slow request read', async () => {
   const w = await open(),
     service = queries(w)
