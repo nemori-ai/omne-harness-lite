@@ -42,7 +42,8 @@ export const valueSchema: Check<ToolValueSchema<unknown>> = record({
 /**
  * The most bytes the request of the Ask of a checkpointed author may take. The ledger keeps the
  * request original as text in one record of the call domain and writes it in the commit that
- * saves the wait fact. Escaped inside the record, the text takes at most twice its size.
+ * saves the wait fact. A canonical JSON text takes at most twice its size as a string of the
+ * record.
  */
 export const WAIT_REQUEST_MAX_BYTES = 262_144
 
