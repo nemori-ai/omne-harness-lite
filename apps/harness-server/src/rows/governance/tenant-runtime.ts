@@ -123,7 +123,6 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
       epoch: runtime.epoch,
       service,
       permissionBasis,
-      permissionRequest: permissionBasis?.requestFor ?? (async () => undefined),
       sessionPermissionBasis: createSessionPermissionBasisSource({
         scope: options.scope,
         domain: options.domain,
