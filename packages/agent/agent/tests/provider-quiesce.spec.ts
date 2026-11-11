@@ -238,6 +238,47 @@ describe('quiesce with an execution in flight', () => {
   })
 })
 
+describe('quiesce with an execution whose wait is not saved', () => {
+  it('does not hand the execution over while its wait is only in the process; the drive goes on and ends it', async () => {
+    let offline = true
+    let refused = 0
+    const assembly = await loopAssembly([execution()], dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        commit: input => {
+          if (!offline || !input.operation.startsWith('W0/'))
+            return dependencies.journal.commit(input)
+          refused += 1
+          return Promise.resolve(
+            fail({ kind: 'unavailable', owner: 'agentJournal', diagnostic: 'offline' }),
+          )
+        },
+      },
+    }))
+    const access = { ...alice, execution: execution() }
+    const loaded = async () => ok(await assembly.dependencies.journal.load(access))
+    ok(await invoke(assembly))
+    await eventually(async () => refused > 0)
+
+    // The Journal holds no wait to come back to: a successor could not continue this execution.
+    expect(ok(await quiesceOf(assembly, 'quiesce-1'))).toMatchObject({
+      kind: 'unresolved',
+      remaining: [execution()],
+    })
+    expect(await shown(assembly)).toMatchObject({ kind: 'occupied' })
+    const kept = await loaded()
+    expect(kept.state.kind).not.toBe('suspended')
+    expect(kept.executionAttachment).not.toBeNull()
+
+    // The execution was not lost: its drive goes on when the Model result comes, and ends it.
+    offline = false
+    assembly.release.open()
+    await eventually(async () => (await loaded()).state.kind === 'ended')
+    expect(ok(await quiesceOf(assembly, 'quiesce-2')).kind).toBe('drained')
+  })
+})
+
 describe('operation identity of quiesce', () => {
   it('a retry of the same operation and reason answers the original result and withdraws once', async () => {
     const { assembly, host } = await assembled()

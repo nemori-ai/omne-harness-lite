@@ -257,6 +257,22 @@ describe('an admission that asks a person', () => {
     expect(calls[1]?.effectiveArguments).toBe(rewrite.effectiveArguments)
     expect(calls[0]?.effectiveArguments).not.toBe(rewrite.effectiveArguments)
   })
+
+  it('keeps the effective arguments when the person chooses an option that is not bound to the rewrite', async () => {
+    const assembly = await cardAssembly()
+    const rewrite = { option: 'no', effectiveArguments: '{"path":"notes.txt","safe":"true"}' }
+    assembly.controls.admission.admit.always(async call =>
+      call.decision === null ? ask('Run it safely?', { proposedRewrite: rewrite }) : allow,
+    )
+    // The person answers `once`; the rewrite belongs to `no`.
+    assembly.controls.cards.read.always(async () => ({ ok: chosen }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    const { calls } = assembly.controls.admission.admit
+    await eventually(async () => calls.length === 2)
+    expect(calls[1]?.effectiveArguments).toBe(calls[0]?.effectiveArguments)
+    expect(calls[1]?.effectiveArguments).not.toBe(rewrite.effectiveArguments)
+  })
 })
 
 describe('the barrier of a batch with a card', () => {
