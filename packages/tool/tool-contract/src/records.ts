@@ -253,6 +253,8 @@ export type SuspensionRecord = ProtocolIdentity &
 export type Checkpoint = Readonly<{
   schema: Adoption
   payload: DurableEvidence
+  /** The text the call answers with when a control closes the wait of this checkpoint. */
+  closedResult: string
   start: ToolStartRecord
   consumedResponses: readonly ToolOperationId[]
   effectBoundary: DurableEvidence

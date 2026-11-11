@@ -7,7 +7,11 @@ import {
   type ToolFailure,
   type ToolOperationId,
 } from '@omne-harness/tool-contract'
-import type { Checkpoint, SuspensionRecord } from '@omne-harness/tool-contract/provider'
+import {
+  CLOSED_RESULT_MAX_BYTES,
+  type Checkpoint,
+  type SuspensionRecord,
+} from '@omne-harness/tool-contract/provider'
 import { invalid, isTenantShape, judgeAdoptionField, judgeEvidenceField } from './boundary.ts'
 import { judgeStartRecord } from './facts-boundary.ts'
 
@@ -65,13 +69,26 @@ export function judgeSuspensionField(value: unknown): Outcome<SuspensionRecord, 
 
 /** A checkpoint as the binding proved it: custody, start, consumed responses, boundary, exclusion. */
 export function judgeCheckpointField(value: unknown): Outcome<Checkpoint, ToolFailure> {
-  const keys = ['schema', 'payload', 'start', 'consumedResponses', 'effectBoundary', 'exclusion']
+  const keys = [
+    'schema',
+    'payload',
+    'closedResult',
+    'start',
+    'consumedResponses',
+    'effectBoundary',
+    'exclusion',
+  ]
   const data = closed(value, keys, 'checkpoint')
   if ('failure' in data) return data
   const schema = judgeAdoptionField(data.ok['schema'], 'checkpoint.schema')
   if ('failure' in schema) return schema
   const payload = judgeEvidenceField(data.ok['payload'], 'checkpoint.payload')
   if ('failure' in payload) return payload
+  const closedResult = data.ok['closedResult']
+  if (typeof closedResult !== 'string') return invalid('checkpoint.closedResult', 'type')
+  if (closedResult.length === 0) return invalid('checkpoint.closedResult', 'empty')
+  if (new TextEncoder().encode(closedResult).byteLength > CLOSED_RESULT_MAX_BYTES)
+    return invalid('checkpoint.closedResult', 'too-large')
   const start = judgeStartRecord(data.ok['start'])
   if ('failure' in start) return invalid('checkpoint.start', 'shape')
   const consumed = data.ok['consumedResponses']
@@ -89,6 +106,7 @@ export function judgeCheckpointField(value: unknown): Outcome<Checkpoint, ToolFa
   return succeed({
     schema: schema.ok,
     payload: payload.ok,
+    closedResult,
     start: start.ok,
     consumedResponses,
     effectBoundary: effectBoundary.ok,

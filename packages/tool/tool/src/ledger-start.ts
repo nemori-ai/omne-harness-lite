@@ -857,9 +857,14 @@ function intentOf(receipt: OperationReceipt): StartIntent {
   return { state: receipt.state, start: receipt.start }
 }
 
-/** 账本自己形成的终局的文本工厂：dummy、首次启动被拒，以及暂停中被叫停的调用。 */
+/** 账本自己形成的终局的文本工厂：dummy 与首次启动被拒。 */
 export type TerminalText<B extends ContentBlock> = (
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' | 'interrupted' }>,
+) => Outcome<ToolResult<B>, ToolFailure>
+
+/** 暂停中被叫停的调用的结果工厂：文字是作者为「等待被关闭」预写的那一份。 */
+export type ClosedWaitText<B extends ContentBlock> = (
+  closedResult: string,
 ) => Outcome<ToolResult<B>, ToolFailure>
 
 /**

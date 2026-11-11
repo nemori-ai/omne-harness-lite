@@ -96,6 +96,7 @@ import {
   decideRelease,
   snapshotOf,
   stateRevision,
+  ledgerText,
   terminalText,
   type Decision,
   type Mint,
@@ -738,6 +739,7 @@ export function createToolLedger<P, B extends ContentBlock>(
 
   const text = (terminal: Parameters<typeof terminalText<B>>[0]) =>
     terminalText(terminal, admitTools.text)
+  const closedText = (closedResult: string) => ledgerText(closedResult, admitTools.text)
 
   /** How many unreleased calls the queue of the request's scope holds before admission (P02). */
   const queueLoad = async (
@@ -1532,7 +1534,7 @@ export function createToolLedger<P, B extends ContentBlock>(
               subject: subject.ok,
               inputDigest: digestOf(intent.ok),
             }
-            return decideControl(snapshot, command, text, mint)
+            return decideControl(snapshot, command, closedText, mint)
           }),
         )
       })

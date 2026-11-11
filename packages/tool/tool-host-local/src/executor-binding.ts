@@ -15,6 +15,7 @@ import type {
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   authorDecision,
+  CLOSED_RESULT_MAX_BYTES,
   commandArguments,
   describeCommandArgumentsRejection,
   type AuthorWait,
@@ -109,6 +110,7 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
 /** The end of a segment that suspended: its checkpoint parts and the wait it published. */
 type SuspendedSegment = Readonly<{
   payload: DurableEvidence
+  closedResult: string
   boundary: DurableEvidence
   exclusion: DurableEvidence
   intent: WaitIntent
@@ -244,13 +246,19 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     operation: ToolOperationSlot,
     execution: LocalAuthorExecution<B>,
     attempt: Attempt,
-    suspended: Readonly<{ state: Uint8Array; wait: AuthorWait }>,
+    suspended: Extract<AuthorSegment<Uint8Array, unknown>, { kind: 'suspended' }>,
   ): Promise<string | null> => {
     const segments = operation.segments
     if (segments === null || dependencies.checkpoint === undefined)
       return 'the author runs in segments without checkpoint custody'
-    const { state, wait } = suspended
+    const { state, wait, closedResult } = suspended
     if (!declaredWait(operation, wait)) return 'the segment waits for an Ask it did not declare'
+    if (
+      typeof closedResult !== 'string' ||
+      closedResult.length === 0 ||
+      new TextEncoder().encode(closedResult).byteLength > CLOSED_RESULT_MAX_BYTES
+    )
+      return 'the segment gives no result for a closed wait within the bound'
     if (!(state instanceof Uint8Array) || state.byteLength > segments.checkpoint.maxBytes)
       return 'the segment state exceeds the declared checkpoint size'
     const kept = await dependencies.checkpoint({
@@ -284,6 +292,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     }
     attempt.segment = {
       payload: kept.ok.payload,
+      closedResult,
       intent,
       boundary: localAuthorEvidence(`segment-boundary/${key}`, [input.start, intent]),
       exclusion: localAuthorEvidence(`segment-returned/${key}`, [input.start, kept.ok.payload]),
@@ -390,6 +399,7 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       checkpoint: {
         schema: suspension.schema,
         payload: ended.payload,
+        closedResult: ended.closedResult,
         start: attempt.start,
         consumedResponses: attempt.consumed,
         effectBoundary: ended.boundary,

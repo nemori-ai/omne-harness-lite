@@ -187,6 +187,24 @@ describe('suspension: the checkpoint a binding proved', () => {
       'shape',
     ],
     [
+      'a result for a closed wait that is not a text',
+      replaced(fresh.suspend, ['checkpoint', 'closedResult'], 7),
+      'checkpoint.closedResult',
+      'type',
+    ],
+    [
+      'an empty result for a closed wait',
+      replaced(fresh.suspend, ['checkpoint', 'closedResult'], ''),
+      'checkpoint.closedResult',
+      'empty',
+    ],
+    [
+      'a result for a closed wait above its bound',
+      replaced(fresh.suspend, ['checkpoint', 'closedResult'], 'x'.repeat(1025)),
+      'checkpoint.closedResult',
+      'too-large',
+    ],
+    [
       'consumed responses that are not a list',
       replaced(fresh.suspend, ['checkpoint', 'consumedResponses'], 'none'),
       'checkpoint.consumedResponses',

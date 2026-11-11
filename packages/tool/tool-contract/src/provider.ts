@@ -101,7 +101,7 @@ export type {
   ToolCheckpointDeclaration,
   ToolSegmentContext,
 } from './checkpointed-author.ts'
-export { authorDecision } from './checkpointed-author.ts'
+export { authorDecision, CLOSED_RESULT_MAX_BYTES } from './checkpointed-author.ts'
 export type {
   ResultPolicy,
   TextRenderer,

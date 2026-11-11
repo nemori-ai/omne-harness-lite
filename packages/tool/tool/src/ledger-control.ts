@@ -25,7 +25,7 @@ import {
   type Snapshot,
 } from './ledger-decider.ts'
 import { sameFactValue } from './ledger-facts.ts'
-import { commonOf, nextState, type StateBody, type TerminalText } from './ledger-start.ts'
+import { commonOf, nextState, type ClosedWaitText, type StateBody } from './ledger-start.ts'
 import {
   taskKey,
   type CallRecord,
@@ -69,7 +69,7 @@ function withControls(
 export function decideControl<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   command: ControlCommand,
-  text: TerminalText<B>,
+  closedText: ClosedWaitText<B>,
   mint: Mint,
 ): Decision<ControlReceipt, B> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'control')
@@ -78,7 +78,7 @@ export function decideControl<B extends ContentBlock>(
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
   if (call.state.phase === 'suspended')
-    return decideSuspendedControl(snapshot, call, command, text, mint)
+    return decideSuspendedControl(snapshot, call, command, closedText, mint)
   const resumeStarting = call.start?.kind === 'resume' && call.state.execution.kind === 'starting'
   if (
     command.intent.kind !== 'stop' ||
@@ -192,7 +192,7 @@ function decideSuspendedControl<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   call: CallRecord,
   command: ControlCommand,
-  text: TerminalText<B>,
+  closedText: ClosedWaitText<B>,
   mint: Mint,
 ): Decision<ControlReceipt, B> {
   const { intent } = command
@@ -213,7 +213,8 @@ function decideSuspendedControl<B extends ContentBlock>(
     kind: 'interrupted',
     cause: { kind: 'control', operation: command.operation, withdrawn: intent.kind === 'withdraw' },
   } as const
-  const made = text(terminal)
+  // 结果是作者为「等待被关闭」预写的那一份：调用没有答案，也没有运行恢复段。
+  const made = closedText(committed.closedResult)
   if ('failure' in made) return reply(made)
   const effect = { kind: 'unknown', diagnostic: 'suspended-segments-effect-unreported' } as const
   const first = firstResultWrites(

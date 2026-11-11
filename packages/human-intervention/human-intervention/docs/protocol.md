@@ -88,7 +88,7 @@ local装配中，独立请求的HITL与原等待参与者位于同一登记SQL�
 | Agent 系统放行卡（admission） | Agent，经 DecisionCards | chosen：所选授权范围交 Authorization 解释 | 按授权拥有者规则解释；不明确时为 remark，不形成授权 | declined：本次不放行，不写持久授权 |
 | Agent 扩展件卡 | Agent，经 DecisionCards | chosen | 交原扩展件解释；没有准驳时为 remark | declined：交原扩展件，扩展件可收紧，不能放宽 |
 
-一次 Ask 的 ToolDecision 按整批给出：至少一题有答复时为 answer，值按卡片顺序列出每题的选中项、原话或「没有答案」；全部题目都是 decline 时为 no-answer。人经 Session 的插队控制解除等待时，Ask 得到 declined，即「拒绝回复」。插队不是答复种类，插队的消息照常进入会话队列。
+一次 Ask 的 ToolDecision 按整批给出：至少一题有答复时为 answer，值按卡片顺序列出每题的选中项、原话或「没有答案」；全部题目都是 decline 时为 no-answer。叫停、归档、中断或插队在人作答之前解除等待时，不产生决定：Ask 的调用以被中断收场，不运行恢复段，给模型的是 Ask 为「等待被关闭」预写的结果（授权卡是没有获得批准、不要执行该动作，提问是没有选择），卡片失效并记下原因。Tool 的决定协议另有 declined 这种决定，本发行没有产出它的决策方。插队不是答复种类，插队的消息照常进入会话队列。
 
 会话历史只经原拥有者已有的路径写入一次：Ask 的结果是原动作槽位的工具结果，由 Agent 的消息交接写入；放行卡和扩展件卡的结果是 Agent 动作批次的槽位结果与执行记录。会话历史不新增「卡片答复」条目，也不记录入口。会话界面上的卡片是 HITL 查询投影，不是历史条目。
 

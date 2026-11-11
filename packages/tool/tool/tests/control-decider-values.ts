@@ -32,9 +32,9 @@ export const STOP_OPERATION = operationId('stop-c1')
 export const SUBJECT: DurableEvidence = evidence('control-subject')
 export const STOP: ToolControl = { kind: 'stop' }
 
-/** 账本给终局造文本的工厂。 */
-export function terminalText() {
-  const made = textFactory().text('the call was interrupted')
+/** 账本为被叫停的调用造结果的工厂：文字是作者为「等待被关闭」预写的那一份。 */
+export function closedText(closedResult: string) {
+  const made = textFactory().text(closedResult)
   if ('failure' in made) throw new Error('the text factory of the tests does not fail')
   return succeed(made.ok)
 }
@@ -56,7 +56,7 @@ export function controlCommand(intent: ToolControl, changes: Record_ = {}) {
 export function decideStop(
   snapshot: CallSnapshot,
   intent: ToolControl = STOP,
-  text: Parameters<typeof decideControl<Block>>[2] = terminalText,
+  text: Parameters<typeof decideControl<Block>>[2] = closedText,
   changes: Record_ = {},
 ) {
   return decideControl(snapshot, controlCommand(intent, changes), text, mintOf(snapshot))

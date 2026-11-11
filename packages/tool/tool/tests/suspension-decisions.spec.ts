@@ -120,6 +120,7 @@ async function waiting(withWait = true, waitId: string = wait) {
   const checkpointOf = (changes: Partial<Checkpoint> = {}): Checkpoint => ({
     schema,
     payload: resume,
+    closedResult: 'Nothing was answered: the question was closed.',
     start,
     consumedResponses: [],
     effectBoundary: evidence('boundary'),

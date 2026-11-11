@@ -25,7 +25,7 @@ import {
   type ToolOperation,
   type ToolOperationParameters,
 } from '@omne-harness/tool-contract/provider'
-import { askResult, readAskState } from './ask-result.ts'
+import { askClosedResult, askResult, readAskState } from './ask-result.ts'
 import { parseConstruction, tree } from './protocol.ts'
 
 const encoder = new TextEncoder()
@@ -58,6 +58,7 @@ export const askExecutor: CheckpointedToolExecutor<AskArguments, string, null> =
     return succeed({
       kind: 'suspended',
       state,
+      closedResult: askClosedResult(args.command),
       wait: {
         kind: 'ask',
         key: args.command,

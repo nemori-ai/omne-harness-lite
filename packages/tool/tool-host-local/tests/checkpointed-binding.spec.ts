@@ -131,10 +131,13 @@ function segmentedModule(
   }
 }
 
+const CLOSED = 'Nothing was answered: the question was closed.'
+
 const suspended = (state = new Uint8Array([1, 2, 3]), wait = ask): Segment =>
   succeed({
     kind: 'suspended',
     state,
+    closedResult: CLOSED,
     wait: { kind: 'ask', key: 'k', contract: wait, request: question },
   })
 
@@ -410,6 +413,7 @@ describe('the local binding of a checkpointed author', () => {
       checkpoint: {
         schema: codec,
         payload: evidence(`state/${record.operation}`),
+        closedResult: CLOSED,
         start: record,
         consumedResponses: [],
         effectBoundary: expect.objectContaining({ owner: 'tool-host-local' }),
@@ -448,10 +452,19 @@ describe('the local binding of a checkpointed author', () => {
     expect(waits).toEqual([['start-c1/wait'], ['resume-c1-1/wait']])
   })
 
-  it('settles a segment that waits for an undeclared Ask, or keeps too large a state, as a failure of the author', async () => {
+  it('settles a segment that waits for an undeclared Ask, keeps too large a state, or gives no result for a closed wait, as a failure of the author', async () => {
+    const noClosedResult = 'the segment gives no result for a closed wait within the bound'
+    const closing = (closedResult: unknown): Segment => {
+      const segment = suspended()
+      if ('failure' in segment) throw new Error('the suspended segment of the tests does not fail')
+      return succeed({ ...segment.ok, closedResult } as typeof segment.ok)
+    }
     const cases = [
       [suspended(undefined, otherAsk), 'the segment waits for an Ask it did not declare'],
       [suspended(new Uint8Array(17)), 'the segment state exceeds the declared checkpoint size'],
+      [closing(''), noClosedResult],
+      [closing(undefined), noClosedResult],
+      [closing('x'.repeat(1025)), noClosedResult],
     ] as const
     for (const [segment, reason] of cases) {
       const { start, kept, settlements } = await harness(() => Promise.resolve(segment))

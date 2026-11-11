@@ -57,6 +57,16 @@ function approvalText(question: Question, answer: Answer): string | null {
 }
 
 /**
+ * 等待被控制关闭时这次调用的结果文字：叫停、归档、中断或插队在人作答之前解除了等待。
+ * 它说明没有发生什么，不是人的答复。两条命令各一句，模型据此知道动作没有获得批准，或没有选择。
+ */
+export function askClosedResult(command: AskState['command']): string {
+  return command === 'request_approval'
+    ? 'No approval was obtained: the request was closed before the person decided. Do not perform the action.'
+    : 'No selection was made: the question was closed before the person answered.'
+}
+
+/**
  * 把一次等待的决定投影成结果文字。答复要与检查点的题目逐张对上：卡片数、顺序与身份相同，
  * 选中的选项属于该题。对不上时返回失败，不猜。
  */

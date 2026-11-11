@@ -592,7 +592,7 @@ release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送
 - 收场状态 `settled`。终局为 `interrupted`，原因为 `{kind:'control', operation, withdrawn}`，`operation` 是本次控制的操作。withdraw 时 `withdrawn` 为 `true`。账本不伪造答案。
 - `execution` 保留 `{kind:'suspended', checkpoint}`。这是 `suspended-exclusion` 释放依据读取的形状（第 20、22 条）。
 - 效果记为 `unknown`，因为已运行的段可能产生过效果。计时 `paused` 改为 `closed` 并保留累计，`unknown` 保持原样。调用状态的队列位置改为 `released`，证据是暂停提交的旧执行排除。
-- 第一个结果版本与交付待办。结果文本由受信的结果工厂给出，保管为 `synthetic`。
+- 第一个结果版本与交付待办。结果文本是已提交检查点里的 `closedResult`，即作者为“等待被关闭”预写的文字，经受信的结果工厂形成并判定，保管为 `synthetic`。
 - 控制记录，进度为 `already-ended`，证据是暂停提交的旧执行排除。暂停已经排除旧执行，所以没有 `stop` 待办。
 - 当前等待以 `cancelled` 关闭，证据是控制记录的 `source`。
 - 失效待办：`wait-registration`，`action` 为 `invalidate`，操作是 `<wait>/invalidate`，证据是收场状态的 `source`。

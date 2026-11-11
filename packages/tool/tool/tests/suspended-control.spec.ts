@@ -12,6 +12,7 @@ import {
   asking,
   askingAuthor,
   checkpointBinding,
+  CLOSED_RESULT,
   scriptedBridge,
   type BridgeScript,
   type Segment,
@@ -23,7 +24,7 @@ import {
   STOP as STOP_INTENT,
   STOP_OPERATION,
   SUBJECT,
-  terminalText,
+  closedText,
 } from './control-decider-values.ts'
 import {
   committed,
@@ -546,10 +547,11 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
       source,
       progress,
     })
-    // 终局的结果由账本自己造，没有执行者的原件。
+    // 终局的结果由账本自己造，没有执行者的原件。文字是作者为「等待被关闭」预写的那一份。
     expect(putsOf(decision.writes, 'result')).toMatchObject([
       { result: { custody: { kind: 'synthetic' }, settledBy: STOP_OPERATION } },
     ])
+    expect(JSON.stringify(putsOf(decision.writes, 'result'))).toContain(CLOSED_RESULT)
     expect(putsOf(decision.writes, 'wait')).toMatchObject([
       { wait: { record: { phase: 'closed', cause: 'cancelled', evidence: source } } },
     ])
@@ -801,7 +803,7 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
     const after = afterCommit(snapshot, first.writes as never)
     expect(replied(decideStop(after))).toEqual({ ok: first.value })
     expect(
-      replied(decideStop(after, STOP_INTENT, terminalText, { inputDigest: 'digest-other' })),
+      replied(decideStop(after, STOP_INTENT, closedText, { inputDigest: 'digest-other' })),
     ).toEqual({
       failure: { kind: 'conflict', operation: STOP_OPERATION },
     })

@@ -432,7 +432,15 @@ export function terminalText<B extends ContentBlock>(
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' | 'interrupted' }>,
   text: AdmitTools<B>['text'],
 ): Outcome<ToolResult<B>, ToolFailure> {
-  const made = text(describeTerminal(terminal))
+  return ledgerText(describeTerminal(terminal), text)
+}
+
+/** A text the ledger gives as the result of a call: the trusted factory makes and judges it. */
+export function ledgerText<B extends ContentBlock>(
+  words: string,
+  text: AdmitTools<B>['text'],
+): Outcome<ToolResult<B>, ToolFailure> {
+  const made = text(words)
   if ('ok' in made) return made
   return fail({
     kind: 'unavailable',

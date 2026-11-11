@@ -173,6 +173,7 @@
 - `AuthorSegment` · `checkpointed-author.d.ts`
 - `AuthorWait` · `checkpointed-author.d.ts`
 - `AvailabilityFacts` · `authoring.d.ts`
+- `CLOSED_RESULT_MAX_BYTES` · `checkpointed-author.d.ts`
 - `COMMAND_CALL_ENCODINGS` · `command-call.d.ts`
 - `CallAccess` · `identity.d.ts`
 - `Checkpoint` · `records.d.ts`
@@ -1037,6 +1038,7 @@ export interface ToolSegmentContext extends ToolProcessEmitter {
     readonly signal: AbortSignal;
 }
 export type AuthorWait = ToolAskRequest<unknown>;
+export declare const CLOSED_RESULT_MAX_BYTES = 1024;
 export type AuthorSegment<S, R> = Readonly<{
     kind: 'completed';
     value: R;
@@ -1044,6 +1046,7 @@ export type AuthorSegment<S, R> = Readonly<{
     kind: 'suspended';
     state: S;
     wait: AuthorWait;
+    closedResult: string;
 }>;
 export type ToolCheckpointDeclaration = Readonly<{
     schema: ToolSchemaIdentity;
@@ -2649,7 +2652,7 @@ export type { ToolMessageContentBlock } from './results.ts';
 export type { ToolDirectory, ToolHandle } from './operations.ts';
 export type { IndependentToolScopeInput, ToolAskRequest, ToolAuthorLimits, ToolEmitReceipt, ToolExecutionContext, ToolExecutionScope, ToolPrimitiveFailure, ToolProcessEmitter, ToolProcessReceiver, ToolProcessUpdate, ToolResourceReply, ToolResourceWaitRequest, ToolResponseCandidate, ToolWaitContract, ToolWaitProtocolDefinition, ToolWaitResponseValidator, ToolWaitValidation, ToolWaiter, } from './author-context.ts';
 export type { AuthorSegment, AuthorWait, CheckpointedToolExecutor, ToolCheckpointDeclaration, ToolSegmentContext, } from './checkpointed-author.ts';
-export { authorDecision } from './checkpointed-author.ts';
+export { authorDecision, CLOSED_RESULT_MAX_BYTES } from './checkpointed-author.ts';
 export type { ResultPolicy, TextRenderer, ToolCommands, ToolExecutor, ToolRecovery, WriteContext, } from './execution.ts';
 export type { PreparedEnvironment, ToolBindings, ToolClock, ToolDecisionBridge, ToolDriver, ToolEnvironment, ToolExecutionFact, ToolExecutorBinding, ToolInstanceHost, ToolInstanceIdentities, ToolInvocationSourceIssuer, ToolInvocationSourceOutcome, ToolLiveExecution, ToolOperationIdentities, ToolProvider, ToolStartLookup, } from './ports.ts';
 export type { AvailabilityFacts, OutputCodec, ParameterCodec, TextResultFactory, ToolAuthor, ToolAuthorExecutor, ToolAuthority, ToolBindingDrain, ToolBindingEntry, ToolBindingKey, ToolBindingKeyFailure, ToolBindingRegistry, ToolBindingScope, ToolContribution, ToolContributionFailure, ToolImplementation, ToolImplementationDeclaration, ToolImplementationModule, ToolLoadedRegistration, ToolLoader, ToolOperation, ToolOperationParameters, ToolOperationSpec, ToolPresentation, ToolProgramContract, ToolProgramOutput, ToolReturnValidator, ToolShape, ToolShapeParameters, } from './authoring.ts';
@@ -2990,6 +2993,7 @@ export type SuspensionRecord = ProtocolIdentity & Readonly<{
 export type Checkpoint = Readonly<{
     schema: Adoption;
     payload: DurableEvidence;
+    closedResult: string;
     start: ToolStartRecord;
     consumedResponses: readonly ToolOperationId[];
     effectBoundary: DurableEvidence;

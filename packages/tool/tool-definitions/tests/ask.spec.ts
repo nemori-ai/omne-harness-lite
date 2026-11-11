@@ -34,6 +34,7 @@ async function suspended(args: AskArguments) {
   if (segment.ok.kind !== 'suspended') throw new Error('Ask initial must suspend.')
   return {
     state: JSON.parse(new TextDecoder().decode(segment.ok.state)),
+    closedResult: segment.ok.closedResult,
     wait: segment.ok.wait,
     request: JSON.parse(writeJsonText(segment.ok.wait.request)),
   }
@@ -236,6 +237,21 @@ describe('ask', () => {
     expect(await askExecutor.initial(args, null, context)).toEqual({
       failure: { kind: 'invalid', reason: 'invalid-field:questions[0].options' },
     })
+  })
+})
+
+describe('the result for a wait that a control closes', () => {
+  // The call is interrupted and no resume segment runs, so the text is written at the suspension.
+  it('says for a question that nothing was selected', async () => {
+    expect((await suspended(parsed('ask', oneQuestion))).closedResult).toBe(
+      'No selection was made: the question was closed before the person answered.',
+    )
+  })
+
+  it('says for an approval that it was not obtained and the action must not be performed', async () => {
+    expect((await suspended(parsed('request_approval', approval))).closedResult).toBe(
+      'No approval was obtained: the request was closed before the person decided. Do not perform the action.',
+    )
   })
 })
 

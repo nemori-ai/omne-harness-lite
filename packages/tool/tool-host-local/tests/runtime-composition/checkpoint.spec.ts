@@ -37,6 +37,9 @@ const ask = unbox(
   }),
 )
 
+/** The result the authors of these tests wrote for a wait that a control closes. */
+const CLOSED = 'Nothing was answered: the question was closed.'
+
 function bridge(lost: boolean) {
   const registrations = new Map<string, DurableEvidence>()
   const ensured: string[] = []
@@ -123,6 +126,7 @@ it.each([false, true])(
           segments += 1
           return succeed({
             kind: 'suspended',
+            closedResult: CLOSED,
             state: new TextEncoder().encode('{"asked":1}'),
             wait: {
               kind: 'ask',
@@ -209,6 +213,7 @@ it('resumes the call from its checkpoint once after the decision, and ends it wi
       initial: async () =>
         succeed({
           kind: 'suspended',
+          closedResult: CLOSED,
           state: new TextEncoder().encode('{"asked":1}'),
           wait: {
             kind: 'ask',
@@ -279,6 +284,7 @@ it('takes over a suspended call in a second executor by its recovery scan, accep
       initial: async () =>
         succeed({
           kind: 'suspended',
+          closedResult: CLOSED,
           state: new TextEncoder().encode('{"asked":1}'),
           wait: {
             kind: 'ask',
@@ -363,6 +369,7 @@ it('stops the call suspended on its wait in the whole local host: it settles, th
       initial: async () =>
         succeed({
           kind: 'suspended',
+          closedResult: CLOSED,
           state: new TextEncoder().encode('{"asked":1}'),
           wait: {
             kind: 'ask',

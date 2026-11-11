@@ -99,11 +99,11 @@ Ask 是检查点作者，按 [Tool 契约](../tool-contract/SPEC.md)「恢复型
 ### 段
 
 - initial 段再核一次参数，因为执行者不能假定调用方用了同一个编解码器。不合规时返回 `invalid`，不产生等待。
-- 参数合规时，initial 段返回 suspended。`state` 是 UTF-8 JSON，记下命令与题目：卡片身份、标题、选项身份与标签。`wait` 是 Ask 等待，`key` 是命令名，`contract` 是 `askWaitContract`，`request` 是 `{questions: [卡片]}`，按出卡顺序排列。
+- 参数合规时，initial 段返回 suspended。`state` 是 UTF-8 JSON，记下命令与题目：卡片身份、标题、选项身份与标签。`wait` 是 Ask 等待，`key` 是命令名，`contract` 是 `askWaitContract`，`request` 是 `{questions: [卡片]}`，按出卡顺序排列。`closedResult` 是等待被控制关闭时的结果文字：ask 为 `No selection was made: the question was closed before the person answered.`，request_approval 为 `No approval was obtained: the request was closed before the person decided. Do not perform the action.`。叫停、归档、中断与插队在人作答之前解除等待时，模型读到的是这一句。
 - initial 段不输出过程，也不等人。段上下文只有过程输出与取消信号。
-- 等待协议的种类是 ask，`expiry` 是 `forbidden`。答复值是 `{answers}`，按卡片顺序，每项是 `selection`（`optionId`）、`text`（至多 8192）或 `no-answer`。全部跳过时 Tool 的决定是 no-answer，插队时是 declined，二者都不带答复值。
+- 等待协议的种类是 ask，`expiry` 是 `forbidden`。答复值是 `{answers}`，按卡片顺序，每项是 `selection`（`optionId`）、`text`（至多 8192）或 `no-answer`。全部跳过时 Tool 的决定是 no-answer，不带答复值。Tool 的决定协议另有 declined，同样不带答复值，本发行没有产出它的决策方。打断不产生决定，调用给出的是 `closedResult`。
 - resume 段的输入是已提交的检查点与该等待的 ToolDecision。它不再等人：读回题目，把决定投影成结果文字，调用随之完成。检查点读不出时返回 `invalid`（`ask-state-unreadable`）；答复与题目对不上（卡片数、顺序、身份不同，或选中的选项不属于该题）时返回 `invalid`（`ask-response-mismatch`），不猜。投影归 [ask-result.ts](src/ask-result.ts)。
-- 结果按卡片顺序每题一行，文本一律用 JSON 字符串字面量加引号：选中为 `Q1 <标题>: selected "<label>"`，自由作答为 `Q2 <标题>: the person wrote: "<文本>"`，跳过为 `Q3 <标题>: no answer (the person skipped this question)`。全部跳过为 `The person did not answer any question.`，插队为 `The person declined to reply.`。request_approval 的结果是 `Approved: <action>`、`Not approved: <action>`、`No decision. The person wrote: "<文本>". This is not permission.` 或 `No decision: the person did not approve or reject. This is not permission.`。
+- 结果按卡片顺序每题一行，文本一律用 JSON 字符串字面量加引号：选中为 `Q1 <标题>: selected "<label>"`，自由作答为 `Q2 <标题>: the person wrote: "<文本>"`，跳过为 `Q3 <标题>: no answer (the person skipped this question)`。全部跳过为 `The person did not answer any question.`，declined 为 `The person declined to reply.`。request_approval 的结果是 `Approved: <action>`、`Not approved: <action>`、`No decision. The person wrote: "<文本>". This is not permission.` 或 `No decision: the person did not approve or reject. This is not permission.`。
 
 ### 给模型的文字
 

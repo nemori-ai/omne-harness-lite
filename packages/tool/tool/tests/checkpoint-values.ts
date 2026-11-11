@@ -44,11 +44,15 @@ export type Segment = Outcome<AuthorSegment<Uint8Array, unknown>, ToolPrimitiveF
 
 export const STATE_CODEC = adoption('ask-state-codec')
 
+/** The result the double's author wrote for a wait that a control closes. */
+export const CLOSED_RESULT = 'No file was chosen: the question was closed.'
+
 /** A segment that suspends on one question, with `state` as its encoded state. */
 export function asking(state: string, text = 'which file?'): Segment {
   return succeed({
     kind: 'suspended',
     state: new TextEncoder().encode(state),
+    closedResult: CLOSED_RESULT,
     wait: { kind: 'ask', key: 'which-file', contract: askContract(), request: question(text) },
   })
 }
@@ -286,6 +290,7 @@ export function checkpointBinding(
       checkpoint: {
         schema: suspension.schema,
         payload: execution.outcome.payload,
+        closedResult: CLOSED_RESULT,
         start: suspension.start,
         consumedResponses: execution.consumed as never,
         effectBoundary: evidence(`boundary/${suspension.start.operation}`, 'test-host'),

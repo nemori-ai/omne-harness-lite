@@ -22,13 +22,18 @@ export interface ToolSegmentContext extends ToolProcessEmitter {
 /** The one wait a segment may end with. Only Ask is supported. */
 export type AuthorWait = ToolAskRequest<unknown>
 
+/** The most UTF-8 bytes the result for a closed wait may take. */
+export const CLOSED_RESULT_MAX_BYTES = 1024
+
 /**
  * How a segment ends: with the result of the call, or suspended with the state that the next
- * segment needs and the Ask that it waits for.
+ * segment needs and the Ask that it waits for. `closedResult` is the text the call answers with
+ * when a control closes that wait before a person answered: the call is interrupted and no later
+ * segment runs. The text says what did not happen. It is not an answer of the person.
  */
 export type AuthorSegment<S, R> =
   | Readonly<{ kind: 'completed'; value: R }>
-  | Readonly<{ kind: 'suspended'; state: S; wait: AuthorWait }>
+  | Readonly<{ kind: 'suspended'; state: S; wait: AuthorWait; closedResult: string }>
 
 /**
  * The checkpoint an author declares: the schema of its state, the codec of the state bytes, and
