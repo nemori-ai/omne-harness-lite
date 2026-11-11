@@ -230,3 +230,43 @@ GovernanceContributionLifetime 检查一次原调用、迟到的受理、调用�
 今天的实现与模型的对照：前五个负控对应的缺口已修（检查点读回、扫描的租户来源、驱动只在作答后记下问过、环境 `lost` 与恢复段重新计划），`volatile-scope` 由 Session 作用域归属的耐久反查补。`abandon-possibly-live` 与 `no-run-recovery` 仍是今天的行为：前者要执行宿主对本进程从没运行过的启动答确定的 `lost`，并按效果未知收场，归切片 13 的故障矩阵；后者归 Agent 的 #502 第 5 阶段。模型不证明 SQL、进程或真实调度，也不证明实现符合。实现符合性由发行树的重启场景（harness-server `tests/rows/tool-hitl/release-restart.spec.ts`）验证。
 
 运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models RestartContinuation`。
+
+## 打断的级联
+
+[InterruptCascade](models/InterruptCascade.tla) 检查一个 Run 的执行等在一次 Ask 调用上时被打断，四个拥有者怎样把这次调用与它的卡片收场。打断有四种入口：叫停这个 Run、归档会话、中断单个调用、加急输入。它们共用一条级联，入口只决定级联之后做什么。模型里有发行已有的三种：`cancel` 与 `archive` 结束 Run，`stop` 只结束这次调用。加急输入用的是 `stop` 那一段。
+
+| 拥有者 | 模型里的状态 | 排序点 |
+| --- | --- | --- |
+| Session | Run 与控制请求 | 受理控制的那一笔提交同时结束 Run（PM-13）；Agent 稍后才得知 |
+| Agent | 执行循环的位置与执行槽 | 取消在 Journal 里记为成立之后，循环才转去收场并请求中断调用 |
+| Tool | 调用记录、调用的结果、关闭卡片的待办 | 控制与接受决定都写调用记录，由它定先后 |
+| HITL | 卡片 | 答复与失效都写卡片；答复的提交同时核 Run 仍在进行 |
+
+级联是：记下打断；Agent 请求 Tool 中断前台调用；等人的调用以作者为「等待被关闭」预写的结果收场并释放名额；卡片随后关闭并写明原因；之后执行才结束，下一个输入才被取走。
+
+| 性质 | 含义 |
+| --- | --- |
+| `RecordedBeforeStop` | Tool 被请求中断时，控制已在 Agent 的 Journal 里成立 |
+| `ClosedStaysClosed` | 被控制收场的调用不再接受决定，结果保持为预写的那一份 |
+| `AnswerIsThePersons` | 调用给出答案时，卡片一定是人答的 |
+| `EndsAfterSettle`、`NextAfterCascade` | 调用收场、结果到达执行之后，执行才结束，下一个 Run 才取得执行槽 |
+| `CancelEnds` | 结束 Run 的打断一定让执行走到结束，循环不死在半路 |
+| `CallSettles` | 每一次打断都让调用收场 |
+| `CardCloses` | 被控制收场的调用不留下仍在等待的卡片 |
+
+每个负控是把级联做坏的一种方式：
+
+| 配置 | 做坏的地方 | 预期 |
+| --- | --- | --- |
+| `dies` | 循环醒来时取消还没记成立，Session 答推进资格已失，循环把它当成节点失败停下 | `CancelEnds` 被违反 |
+| `no-archive` | 归档的控制不发给 Agent | `CancelEnds` 被违反 |
+| `stop-unrecorded` | 循环一见推进资格已失就去中断调用，不等取消记成立 | `RecordedBeforeStop` 被违反 |
+| `accept-after-settle` | 已被控制收场的调用仍接受决定 | `ClosedStaysClosed` 被违反 |
+| `no-close` | 关闭卡片的待办不执行 | `CardCloses` 被违反 |
+| `end-early` | 取消的执行不等调用确认收场就结束 | `EndsAfterSettle` 被违反 |
+
+前提：除人的答复与打断本身外，每一步都弱公平。Run 被取消之后，人的答复被 Session 的 `session.run-live` 守卫拒绝。只中断单个调用时 Run 仍在进行，答复可以先于关闭成立：卡片保持已答，调用没有采用它，随后的失效把这份决定记为未被接手。模型只有一个调用与一张卡；一批多个调用各自独立地走同一条级联。Agent 自己出的卡（官方准入的卡片轮次）在取消与全拒时的收场由 agent-contract 的 `CardRounds` 检查，不在本模型里。停服不是打断：停服时等待与卡片保留，见「重启后的接续」。
+
+今天的实现与模型的对照：`dies` 与 `no-archive` 是修之前的行为。模型不证明 SQL、进程或真实调度，也不证明实现符合；实现符合性由发行树的叫停、归档与中断场景验证。
+
+运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models InterruptCascade`。

@@ -943,6 +943,48 @@
       "model": "models/RestartContinuation.tla",
       "config": "models/restartcontinuation-rerun-segment.cfg",
       "expected": "ResumeOnce"
+    },
+    {
+      "name": "interruptcascade-none",
+      "model": "models/InterruptCascade.tla",
+      "config": "models/interruptcascade-none.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "interruptcascade-dies",
+      "model": "models/InterruptCascade.tla",
+      "config": "models/interruptcascade-dies.cfg",
+      "expected": "temporal:CancelEnds"
+    },
+    {
+      "name": "interruptcascade-no-archive",
+      "model": "models/InterruptCascade.tla",
+      "config": "models/interruptcascade-no-archive.cfg",
+      "expected": "temporal:CancelEnds"
+    },
+    {
+      "name": "interruptcascade-stop-unrecorded",
+      "model": "models/InterruptCascade.tla",
+      "config": "models/interruptcascade-stop-unrecorded.cfg",
+      "expected": "RecordedBeforeStop"
+    },
+    {
+      "name": "interruptcascade-accept-after-settle",
+      "model": "models/InterruptCascade.tla",
+      "config": "models/interruptcascade-accept-after-settle.cfg",
+      "expected": "ClosedStaysClosed"
+    },
+    {
+      "name": "interruptcascade-no-close",
+      "model": "models/InterruptCascade.tla",
+      "config": "models/interruptcascade-no-close.cfg",
+      "expected": "temporal:CardCloses"
+    },
+    {
+      "name": "interruptcascade-end-early",
+      "model": "models/InterruptCascade.tla",
+      "config": "models/interruptcascade-end-early.cfg",
+      "expected": "EndsAfterSettle"
     }
   ]
 }
