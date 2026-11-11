@@ -1,8 +1,10 @@
-// The assembly that the history-cost runs drive (C8): the release distribution with the payload
-// tool added as `largeBodyRelease` adds it, real SQLite storage, the `omne` CLI and the local model
-// gateway, all as `rows/tool-runtime/release-tool-delivery.spec.ts` assembles them. The server runs
-// in this process, so `sql-probe.ts` sees its statements. One call is one Tools call in a new
-// session, so the Agent's history stays one call long and only the tenant's history grows.
+// The assembly that the history-cost runs drive (C8): the release distribution, real SQLite storage,
+// the `omne` CLI and the local model gateway, all as `rows/tool-runtime/release-tool-delivery.spec.ts`
+// assembles them. The payload comes from the release Shell, which prints a file of its working
+// directory. The `coding` definition skips only the human inquiry (`bypass-permissions`); the current
+// permission source is the real one. The server runs in this process, so `sql-probe.ts` sees its
+// statements. One call is one Shell call in a new session, so the Agent's history stays one call
+// long and only the tenant's history grows.
 import {
   mkdirSync,
   mkdtempSync,
@@ -29,16 +31,22 @@ import {
   savedTenant,
 } from '../r9/support.ts'
 import { connectable, until } from '../rows/server-entry/support.ts'
-import { adoptLargeBody, largeBodyRelease } from '../rows/tool-runtime/large-body-release.ts'
-import { INLINE_THRESHOLD, PAGE_BYTES, payload, type PayloadKind } from './payload.ts'
+import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
+import {
+  INLINE_THRESHOLD,
+  PAGE_BYTES,
+  PAYLOAD_FILE,
+  PAYLOAD_SCRIPT,
+  payload,
+  type PayloadKind,
+} from './payload.ts'
 import { createTraversal } from './traversal.ts'
 
 type Op = Readonly<{ kind: string; id: string; config?: Record<string, unknown> }>
 
 /** The payload kind named on the command line. */
 export function payloadKind(value: string | undefined): PayloadKind {
-  if (value !== 'inline' && value !== 'text' && value !== 'json-lines')
-    throw new Error('give a payload kind: inline, text or json-lines')
+  if (value !== 'inline' && value !== 'text') throw new Error('give a payload kind: inline or text')
   return value
 }
 
@@ -60,13 +68,23 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
   mkdirSync(stateRoot)
 
   const author = payload(kind)
-  const model = createTraversal({ body: author.body, pageBytes: PAGE_BYTES })
+  const model = createTraversal({
+    body: author.body,
+    script: PAYLOAD_SCRIPT,
+    pageBytes: PAGE_BYTES,
+  })
   const gateway = await startModelGateway(model.script)
   gateway.trustInProcess()
-  const release: unknown = JSON.parse(
+  const release = JSON.parse(
     readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
-  )
-  const extension = largeBodyRelease(author.module)
+  ) as { rows: { id: string; config: unknown }[] }
+  const adoptions = release.rows.find(row => row.id === 'agent-adoptions')
+  if (adoptions === undefined) throw new Error('No Agent mappings')
+  const mappings = agentAdoptionsConfig.parse(adoptions.config)
+  const coding = mappings.mappings.find(mapping => mapping.name === 'coding')
+  if (coding === undefined) throw new Error('No coding mapping')
+  coding.modes.permission = 'bypass-permissions'
+  adoptions.config = mappings
   const controller = new AbortController()
   const port = await freePort()
   const layer = operatorLayer({ storageRoot, port, modelRoute: gateway.url }) as { ops: Op[] }
@@ -89,6 +107,19 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
               replyMaxBytes: INLINE_THRESHOLD,
               attemptMs: 5000,
             },
+          },
+        }
+      }
+      const construction = config['construction'] as Record<string, unknown> | undefined
+      if (construction?.['Shell'] !== undefined) {
+        const shell = construction['Shell'] as Record<string, unknown>
+        // The Shell bound leaves room for the offloaded payload and its frame.
+        writeFileSync(join(String(shell['cwd']), PAYLOAD_FILE), author.body)
+        return {
+          ...op,
+          config: {
+            ...config,
+            construction: { ...construction, Shell: { ...shell, resultMaxBytes: 131_072 } },
           },
         }
       }
@@ -116,10 +147,9 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
   operator.ops = operator.ops.map(op => ({ ...op, config: tune(op.id, op.config ?? {}) }))
   const stderr: string[] = []
   const finished = runServe({
-    distribution: adoptLargeBody(release),
+    distribution: release,
     operator,
-    plugins: { ...cordis, toolHostRow: extension.toolHostRow },
-    entryObjects: extension.entryObjects,
+    plugins: cordis,
     stateRoot,
     stop: controller.signal,
     readinessTimeoutMs: 15_000,
@@ -176,7 +206,6 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
     return reached.outcome === 'completed' ? 'completed' : JSON.stringify(reached)
   }
 
-  let calls = 0
   return {
     base,
     author,
@@ -190,7 +219,7 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
     },
 
     /**
-     * One Tools call of the tenant of `home` in a new session, as SQL phase `ordinal`: from
+     * One Shell call of the tenant of `home` in a new session, as SQL phase `ordinal`: from
      * `send-input` to the terminal of its Run. With `readBack` the model reads the whole body back
      * page by page and the digest is checked. `settleMs` keeps the work the call leaves behind (the
      * release of its delivered values) in its phase.
@@ -226,8 +255,6 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
       const result = model.result()
       if (result.errors.length > 0 || !result.completed)
         throw new Error(`call ${String(ordinal)}: ${JSON.stringify(result.errors)}`)
-      calls += 1
-      if (author.executions() !== calls) throw new Error('one payload execution per call')
       if (options.readBack && result.digest !== author.digest)
         throw new Error('the body read back differs')
       return { elapsedMs, pages: result.pages, requests: result.requests }

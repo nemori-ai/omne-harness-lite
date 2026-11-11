@@ -1,7 +1,7 @@
-// The scripted model of one history-cost call: it asks `Tools` to execute the payload tool once,
-// then follows the read instructions of the result. An inline result ends the call when the body
-// arrives whole; an offloaded one is read page by page until `Body traversal ended.`, checking that
-// every page continues the original bytes. A seeding call (`readBody: false`) stops at the first
+// The scripted model of one history-cost call: it calls the release Shell once with the payload
+// script, then follows the read instructions of the result. An inline result ends the call when the
+// body arrives whole; an offloaded one is read page by page until `Body traversal ended.`, checking
+// that the pages are contiguous and that together they hold the original bytes. A seeding call (`readBody: false`) stops at the first
 // body read instruction, so its body stays unread and the result settles with it offloaded.
 import { createHash } from 'node:crypto'
 import type { GatewayScript } from '../fixtures/model-gateway.ts'
@@ -17,6 +17,7 @@ type State = {
   requests: number
   errors: string[]
   cursors: Set<string>
+  pagesText: string[]
   lastRead: Read | undefined
   digest: string | null
 }
@@ -25,7 +26,9 @@ function check(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
 
-export function createTraversal(input: Readonly<{ body: string; pageBytes: number }>) {
+export function createTraversal(
+  input: Readonly<{ body: string; script: string; pageBytes: number }>,
+) {
   const original = Buffer.from(input.body)
   const digest = createHash('sha256').update(original).digest('hex')
   let state: State | undefined
@@ -42,6 +45,7 @@ export function createTraversal(input: Readonly<{ body: string; pageBytes: numbe
       requests: 0,
       errors: [],
       cursors: new Set(),
+      pagesText: [],
       lastRead: undefined,
       digest: null,
     }
@@ -56,19 +60,17 @@ export function createTraversal(input: Readonly<{ body: string; pageBytes: numbe
       check(Number(position) === current.bytes, 'body position must be contiguous')
       const page = Buffer.from(parts.at(-1) ?? '')
       check(page.length > 0 && page.length <= input.pageBytes, 'body page byte budget')
-      check(
-        page.equals(original.subarray(current.bytes, current.bytes + page.length)),
-        'body bytes changed',
-      )
+      current.pagesText.push(parts.at(-1) ?? '')
       current.bytes += page.length
       current.pages += 1
       if (text.includes('Body traversal ended.')) {
-        check(current.bytes === original.length, 'body ended before all bytes arrived')
+        // The Shell result frames its output, so the body holds the payload, not only the payload.
+        check(current.pagesText.join('').includes(input.body), 'the body read back differs')
         current.completed = true
         current.digest = digest
         return undefined
       }
-    } else if (parts.includes(input.body)) {
+    } else if (text.includes(input.body)) {
       current.bytes = original.length
       current.completed = true
       current.digest = digest
@@ -113,7 +115,8 @@ export function createTraversal(input: Readonly<{ body: string; pageBytes: numbe
       model?: string
       messages: { role: string; content: string | { text?: string }[] }[]
     }
-    let args: Read | { command: 'execute'; params: Record<string, unknown> } | undefined
+    let args: Read | undefined
+    let shell = false
     const current = state
     try {
       check(current !== undefined, 'start the model before sending input')
@@ -121,7 +124,7 @@ export function createTraversal(input: Readonly<{ body: string; pageBytes: numbe
       check(current.requests <= 64, 'one call exceeded 64 model requests')
       if (current.phase === 'execute') {
         current.phase = 'result'
-        args = { command: 'execute', params: { name: 'W3LargeBody', command: null, arguments: {} } }
+        shell = true
       } else {
         const latest = request.messages.findLast(message => message.role === 'tool')
         check(latest !== undefined, 'missing tool reply')
@@ -137,8 +140,13 @@ export function createTraversal(input: Readonly<{ body: string; pageBytes: numbe
       current?.errors.push(String(error).slice(0, 1000))
       args = undefined
     }
+    const call = shell
+      ? { name: 'Shell', arguments: { command: 'execute', params: { script: input.script } } }
+      : args === undefined
+        ? undefined
+        : { name: 'Tools', arguments: args }
     const delta =
-      args === undefined
+      call === undefined
         ? { content: current?.completed === true ? 'HISTORY_COST_DONE' : 'HISTORY_COST_FAILED' }
         : {
             tool_calls: [
@@ -146,13 +154,13 @@ export function createTraversal(input: Readonly<{ body: string; pageBytes: numbe
                 index: 0,
                 id: `history_cost_${String((sequence += 1))}`,
                 type: 'function',
-                function: { name: 'Tools', arguments: JSON.stringify(args) },
+                function: { name: call.name, arguments: JSON.stringify(call.arguments) },
               },
             ],
           }
     const events = [
       { model: request.model ?? 'unknown', provider: 'OpenAI', choices: [{ delta }] },
-      { choices: [{ delta: {}, finish_reason: args === undefined ? 'stop' : 'tool_calls' }] },
+      { choices: [{ delta: {}, finish_reason: call === undefined ? 'stop' : 'tool_calls' }] },
     ]
     return {
       status: 200,

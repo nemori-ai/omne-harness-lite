@@ -1,8 +1,3 @@
-import { largeBodyRelease, adoptLargeBody } from './large-body-release.ts'
-import { largeBodyModel } from './large-body-model.ts'
-import { LARGE_TOOL } from './large-body-author.ts'
-import { writerBodyAuthor, WRITER_BODY, WRITER_SUMMARY } from './writer-body-author.ts'
-import { structuredBodyAuthor } from './structured-body-author.ts'
 import { observeToolResults, resultsReleased } from './release-material-observation.ts'
 // @module-tag slow
 // 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关。先构建 `apps/cli`。
@@ -209,7 +204,6 @@ const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] 
 async function turnOnRelease(
   script: GatewayScript,
   shellResultMaxBytes?: number,
-  extension?: ReturnType<typeof largeBodyRelease>,
   checkRelease: 'inline' | 'offloaded' | null = null,
   reopenLimit?: number,
 ) {
@@ -224,7 +218,7 @@ async function turnOnRelease(
   const { construction } = toolRowsOperatorConfig({ storageRoot: dir.storageRoot })
   const start = (maxInlineUtf8Bytes?: number) =>
     runServe({
-      distribution: extension === undefined ? release : adoptLargeBody(release),
+      distribution: release,
       operator: withHistoryKinds(
         operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: gateway.url }),
         shellResultMaxBytes === undefined
@@ -235,11 +229,7 @@ async function turnOnRelease(
             },
         maxInlineUtf8Bytes,
       ),
-      plugins: {
-        ...cordis,
-        ...(extension === undefined ? {} : { toolHostRow: extension.toolHostRow }),
-      },
-      ...(extension === undefined ? {} : { entryObjects: extension.entryObjects }),
+      plugins: cordis,
       stateRoot: dir.stateRoot,
       stop: controller.signal,
       readinessTimeoutMs: 15_000,
@@ -374,152 +364,7 @@ const resultText = (entry: Entry | undefined): string =>
     .map(block => String(block['text'] ?? ''))
     .join('')
 
-/**
- * The cases that add a test author to the release. The governed release tree excludes them: the
- * storage participant `harness.tool-permission-release` loads and verifies the production release
- * in the Worker and refuses any other generation (docs/rows/permission-interpretation.md), so a
- * tree with a test author has no permission source and no tool call starts. The same mechanisms
- * run below on the release tree with the release tools (Shell offloading, Tools pages, return
- * schemas). Each case here is being matched against the cases of `@omne-harness/tool` and
- * `@omne-harness/tool-host-local`; a covered case is removed, an uncovered one moves to an
- * assembly without governance.
- */
-const withTestAuthor = it.skip
-
 describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
-  withTestAuthor.each(
-    (['json-document', 'json-lines'] as const).flatMap(format =>
-      (['direct-small', 'direct-large'] as const).map(delivery => ({ format, delivery })),
-    ),
-  )(
-    'W3-B direct $delivery $format reaches the production Agent',
-    { timeout: 240_000 },
-    async ({ format, delivery }) => {
-      const author = structuredBodyAuthor(format, true, delivery)
-      const large = delivery === 'direct-large'
-      if (large) expect(Buffer.byteLength(author.original)).toBeGreaterThan(2048)
-      const model = largeBodyModel(FINAL, large, 'completed', large ? undefined : author.original)
-      const { entries } = await turnOnRelease(
-        model.script,
-        undefined,
-        largeBodyRelease(author.module),
-      )
-      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
-      expect(model.completed()).toBe(true)
-      expect(author.executions()).toBe(1)
-      const pages = entries
-        .filter(entry => entry.kind === 'message.tool')
-        .flatMap(blocksOf)
-        .filter(block => block['id'] === 'Tools.body')
-      if (large) {
-        expect(pages.length).toBeGreaterThan(1)
-        expect(pages.map(page => String(page['text'])).join('')).toBe(author.original)
-      } else {
-        expect(pages).toHaveLength(0)
-        expect(model.replies.some(reply => reply.includes(author.original))).toBe(true)
-      }
-      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
-    },
-  )
-
-  withTestAuthor.each(['json-document', 'json-lines'] as const)(
-    'W3-B direct small invalid %s becomes a failed Tool result',
-    { timeout: 240_000 },
-    async format => {
-      const author = structuredBodyAuthor(format, false, 'direct-small')
-      const model = largeBodyModel(FINAL, false, 'failed')
-      const { entries } = await turnOnRelease(
-        model.script,
-        undefined,
-        largeBodyRelease(author.module),
-      )
-      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
-      expect(model.completed()).toBe(true)
-      expect(author.executions()).toBe(1)
-      expect(model.replies.some(reply => /sourceTerminal\s*:\s*failed/.test(reply))).toBe(true)
-      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
-    },
-  )
-
-  withTestAuthor.each(['json-document', 'json-lines'] as const)(
-    'W3-B rejects a schema-invalid %s body and finishes the production Agent run',
-    { timeout: 240_000 },
-    async format => {
-      const author = structuredBodyAuthor(format, false)
-      const model = largeBodyModel(FINAL, false, 'failed')
-      const { entries } = await turnOnRelease(
-        model.script,
-        undefined,
-        largeBodyRelease(author.module),
-      )
-      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
-      expect(model.completed()).toBe(true)
-      expect(author.executions()).toBe(1)
-      expect(model.replies.some(reply => /sourceTerminal\s*:\s*failed/.test(reply))).toBe(true)
-      expect(
-        entries
-          .filter(entry => entry.kind === 'message.tool')
-          .flatMap(blocksOf)
-          .some(block => block['id'] === 'Tools.body'),
-      ).toBe(false)
-      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
-    },
-  )
-
-  withTestAuthor.each(['json-document', 'json-lines'] as const)(
-    'W3-B reads a schema-validated %s author body through the production Agent',
-    { timeout: 240_000 },
-    async format => {
-      const author = structuredBodyAuthor(format)
-      const model = largeBodyModel(FINAL, true)
-      const { entries } = await turnOnRelease(
-        model.script,
-        undefined,
-        largeBodyRelease(author.module),
-      )
-      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
-      expect(model.completed()).toBe(true)
-      expect(author.executions()).toBe(1)
-      const pages = entries
-        .filter(entry => entry.kind === 'message.tool')
-        .flatMap(entry => blocksOf(entry).filter(block => block['id'] === 'Tools.body'))
-      expect(pages.length).toBeGreaterThan(1)
-      expect(pages.map(page => String(page['text'])).join('')).toBe(author.original)
-      expect(model.replies.some(reply => reply.includes(format))).toBe(true)
-      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
-    },
-  )
-
-  withTestAuthor(
-    'W3-B writes an author body, drains unawaited writes and reads every page through the release Agent',
-    { timeout: 240_000 },
-    async () => {
-      const author = writerBodyAuthor()
-      const model = largeBodyModel(FINAL, true)
-      const { entries } = await turnOnRelease(
-        model.script,
-        undefined,
-        largeBodyRelease(author.module),
-      )
-      expect(model.errors, JSON.stringify(model.replies)).toEqual([])
-      expect(model.completed()).toBe(true)
-      expect(author.executions()).toBe(1)
-      expect(author.pending).toHaveLength(2)
-      for (const pending of author.pending) expect(await pending).toHaveProperty('ok')
-      expect(model.replies.some(reply => reply.includes(WRITER_SUMMARY))).toBe(true)
-      const pages = entries
-        .filter(entry => entry.kind === 'message.tool')
-        .flatMap(entry => blocksOf(entry).filter(block => block['id'] === 'Tools.body'))
-      expect(pages.length).toBeGreaterThan(1)
-      expect(pages.map(page => String(page['text'])).join('')).toBe(WRITER_BODY)
-      for (const body of model.requests) {
-        const request = JSON.parse(body) as { tools: { function: { name: string } }[] }
-        expect(request.tools.map(tool => tool.function.name)).not.toContain(LARGE_TOOL)
-      }
-      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
-    },
-  )
-
   it(
     'W3-A carries return schemas through native declarations, Tools.inspect and command help into model requests',
     { timeout: 240_000 },
@@ -579,7 +424,6 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
           },
         ]),
         undefined,
-        undefined,
         'inline',
         512,
       )
@@ -602,12 +446,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
       const shell =
         'awk \'BEGIN { printf "W3-BODY-BEGIN\\n"; for(i=0;i<10240;i++) printf "中🙂"; printf "\\nW3-BODY-END\\n" }\''
       const model = bodyReadingModel(shell, FINAL)
-      const { entries, modelRequests } = await turnOnRelease(
-        model.script,
-        131_072,
-        undefined,
-        'offloaded',
-      )
+      const { entries, modelRequests } = await turnOnRelease(model.script, 131_072, 'offloaded')
       expect(model.errors).toEqual([])
       expect(model.ended()).toBe(true)
       expect(modelRequests).toBe(model.requests.length)
@@ -659,37 +498,11 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
           },
         ]),
         8 * 1024 * 1024,
-        undefined,
         'inline',
       )
       expect(resultText(entries.find(entry => entry.kind === 'message.tool'))).toContain(
         'W3-SMALL-OK',
       )
-      expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
-    },
-  )
-
-  withTestAuthor(
-    'W3-A offloads a five MiB nonresident test author through the real release runtime',
-    { timeout: 240_000 },
-    async () => {
-      const model = largeBodyModel(FINAL)
-      const { entries, logs } = await turnOnRelease(model.script, undefined, largeBodyRelease())
-      expect(
-        model.errors,
-        JSON.stringify({ replies: model.replies.map(reply => reply.slice(0, 2000)), logs }),
-      ).toEqual([])
-      expect(model.completed()).toBe(true)
-      const preview = model.replies.at(-1) ?? ''
-      expect(preview).toContain('W3-BEGIN')
-      expect(preview).toContain('W3-END')
-      expect(preview).toContain('"reference":"tb1.')
-      expect(Buffer.byteLength(preview)).toBeLessThanOrEqual(65_536)
-      for (const request of model.requests) {
-        const value = JSON.parse(request) as { tools: { function: { name: string } }[] }
-        expect(value.tools.map(tool => tool.function.name)).not.toContain(LARGE_TOOL)
-        expect(request).not.toContain('x'.repeat(65_537))
-      }
       expect(entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
     },
   )

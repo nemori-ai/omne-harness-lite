@@ -1,5 +1,5 @@
 // One history-cost run on the release tree (C8, V7b), on the assembly of `assembly.ts`. Every call
-// is one Tools call in a new session of the same tenant. Seeding calls leave their body
+// is one Shell call in a new session of the same tenant. Seeding calls leave their body
 // unread; the measured calls read it back page by page. The run measures `measured` calls after 20
 // settled calls and `measured` calls after 200, each from `send-input` to the terminal of its Run,
 // and marks each call's phase for `sql-probe.ts`, so the SQL counts of a call can be compared at
