@@ -61,6 +61,8 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
 | 子代理的模型与档位政策 | [子代理的模型与档位](docs/engineering/skills.md#子代理的模型与档位) |
 | 交接信息包放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`） |
+| 不做与推迟的记录放哪 | 未提供 |
+| 常驻卡片 | 本文件「做事方式」一节：`initialize_agents.py` 从钉住的 `resident-card.md` 写入受管段落，`pnpm run check:agents` 核逐字相同；不手改 |
 
 ## 研发品味
 
@@ -82,14 +84,16 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 
 ## 按任务展开
 
-| 当前判断 | 加载入口与停止点 |
-| --- | --- |
-| 开工前建立系统图景、理解知识体系或普通阅读 | 架构、领域、契约、装配与实现切片先读一次[开工定向](docs/orientation.md)；整体理解读[体系上下文](docs/knowledge-map-agent.md)；其余从[读者入口](docs/README.md)找实际应用或包。找到本次责任就停 |
-| 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 |
-| 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 |
-| 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；按[维护指南](docs/maintenance.md)同步真实消费者 |
-| 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡与合入加载 `omne-card`；每条流程事实的拥有者见[流程事实在哪](docs/engineering/README.md#流程事实在哪)；局部修复与环境从[开发指南](docs/development.md)起 |
-| Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本；未覆盖行为保留假设并以源码或验证补足 |
+「重点带的」是「做事方式」里这类活最容易丢的几个想法，其余照样带。
+
+| 当前判断 | 加载入口与停止点 | 重点带的 |
+| --- | --- | --- |
+| 开工前建立系统图景、理解知识体系或普通阅读 | 架构、领域、契约、装配与实现切片先读一次[开工定向](docs/orientation.md)；整体理解读[体系上下文](docs/knowledge-map-agent.md)；其余从[读者入口](docs/README.md)找实际应用或包。找到本次责任就停 | 拆、证 |
+| 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 | 拆、找差异、对人 |
+| 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 | 对人、找差异、拆 |
+| 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；按[维护指南](docs/maintenance.md)同步真实消费者 | 拆、找差异 |
+| 研发流程、发卡、合入与发行 | 环节做法读 pqw 技能；发卡与合入加载 `omne-card`；每条流程事实的拥有者见[流程事实在哪](docs/engineering/README.md#流程事实在哪)；局部修复与环境从[开发指南](docs/development.md)起 | 转手、证、对人 |
+| Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本；未覆盖行为保留假设并以源码或验证补足 | 证、找差异 |
 
 ## Cursor Cloud specific instructions
 

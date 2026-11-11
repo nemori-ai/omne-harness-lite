@@ -7,3 +7,5 @@
 旧实现已从仓库删除，从固定提交中的[legacy入口](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)查源。旧源不改变docs要求及架构权威；旧政策不能覆盖新树。未接受候选与探路件继续留任务tmp。
 
 新建或拆分成员时核对依赖方向、独立使用及Cordis集成边界；同步组导航、登记、真实消费者和相称验证。文档维护沿[维护指南](../docs/maintenance.md)，公开承诺和命令不复制进常驻提示。
+
+在这里写实现，[做事方式](../AGENTS.md#做事方式)里重点带定形、建、证。
