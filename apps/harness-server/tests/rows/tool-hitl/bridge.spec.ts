@@ -83,6 +83,8 @@ function world(
     /** The cards of the HITL request, as `getRequest` reads them. */
     cards?: readonly unknown[]
     consume?: (command: { decisionRef: unknown }) => unknown
+    /** How the wait of the call closed; null while it is open. A control closed it by default. */
+    closed?: 'cancelled' | 'terminal' | 'continued' | null
   }> = {},
 ) {
   const calls = {
@@ -177,7 +179,14 @@ function world(
         request: {
           consumer: { owner: 'agent', work: 'exec-1', position: 'a1', purpose: 'action' },
         },
-        waits: [{ intent: { kind: 'ask', wait, request: requestEvidence } }],
+        waits: [
+          {
+            intent: { kind: 'ask', wait, request: requestEvidence },
+            ...(options.closed === null
+              ? { phase: 'open' }
+              : { phase: 'closed', cause: options.closed ?? 'cancelled' }),
+          },
+        ],
         tasks: [
           {
             kind: 'wait-registration',
@@ -451,27 +460,73 @@ describe('the Tool decision owner over HITL', () => {
   it('invalidate asks HITL to invalidate the wait under a derived identity, and recalls it', async () => {
     const w = world()
     const terminal = evidence('terminal')
-    const answer = unwrap(await w.bridge.invalidate({ ...w.access, wait, terminal }))
+    const cause = 'cancelled' as const
+    const answer = unwrap(await w.bridge.invalidate({ ...w.access, wait, terminal, cause }))
     expect(answer).toMatchObject({ revision: '3' })
+    // A wait that a control closed is invalidated as cancelled, not as the end of the original work.
     expect(w.calls.invalidated).toMatchObject([
       {
         waitRef: { owner: 'tool', waitId: wait },
-        reason: 'origin-terminal',
+        reason: 'cancelled',
         operation: { actorRef: standingPrincipalRef(registrar) },
       },
     ])
-    unwrap(await w.bridge.invalidate({ ...w.access, wait, terminal }))
+    unwrap(await w.bridge.invalidate({ ...w.access, wait, terminal, cause }))
     expect(w.calls.invalidated[1]).toEqual(w.calls.invalidated[0])
     w.invalidating({ kind: 'unknown', operationRef: {} })
-    expect(await w.bridge.invalidate({ ...w.access, wait, terminal })).toMatchObject({
+    expect(await w.bridge.invalidate({ ...w.access, wait, terminal, cause })).toMatchObject({
       failure: { kind: 'commit-unknown', operation: duty },
     })
+  })
+
+  it('invalidates a wait whose original execution ended on its own as origin-terminal', async () => {
+    const w = world()
+    unwrap(await w.bridge.invalidate({ ...w.access, wait, terminal, cause: 'terminal' }))
+    expect(w.calls.invalidated).toMatchObject([{ reason: 'origin-terminal' }])
+  })
+
+  it('recalls an invalidation with the cause the closed wait of the call names', async () => {
+    const committed = {
+      kind: 'committed',
+      method: 'invalidateWait',
+      result: { kind: 'invalidated', affected: 1, revision: '3', operationRef: {} },
+    } as const
+    const ended = world({ closed: 'terminal' })
+    unwrap(
+      await ended.bridge.invalidate({
+        ...ended.access,
+        operation: undo,
+        wait,
+        terminal,
+        cause: 'terminal',
+      }),
+    )
+    unwrap(await ended.inspect(committed, undo))
+    // The recall asks for the same input as the invalidation of that cause.
+    expect(ended.calls.operations).toEqual([
+      {
+        protocol: 'hitl/1',
+        ...hitlCommandBinding('invalidateWait', ended.calls.invalidated[0] as InvalidateWait),
+      },
+    ])
+    // A wait that is not closed by a control or a terminal has no invalidation to recall.
+    for (const closed of [null, 'continued'] as const) {
+      const open = world({ closed })
+      expect(unwrap(await open.inspect(committed, undo))).toMatchObject({ kind: 'unknown' })
+      expect(open.calls.operations).toEqual([])
+    }
   })
 
   it('recalls an invalidation whose answer was lost as committed, with the receipt that invalidate gives', async () => {
     const w = world()
     const given = unwrap(
-      await w.bridge.invalidate({ ...w.access, operation: undo, wait, terminal }),
+      await w.bridge.invalidate({
+        ...w.access,
+        operation: undo,
+        wait,
+        terminal,
+        cause: 'cancelled',
+      }),
     )
     const command = w.calls.invalidated[0] as InvalidateWait
     const recalled = await w.inspect(

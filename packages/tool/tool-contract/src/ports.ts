@@ -61,8 +61,13 @@ export interface ToolDecisionBridge<P> {
   inspect(
     input: CallAccess<P> & Readonly<{ wait: ToolWaitId }>,
   ): Reply<Readonly<{ registration: DurableEvidence; decision: DurableEvidence | null }>>
+  /**
+   * `cause` is how the wait closed: `cancelled` when a control closed it, `terminal` when the
+   * original execution ended on its own. The owner keeps it as the reason of the invalidation.
+   */
   invalidate(
-    input: Mutation<P> & Readonly<{ wait: ToolWaitId; terminal: DurableEvidence }>,
+    input: Mutation<P> &
+      Readonly<{ wait: ToolWaitId; terminal: DurableEvidence; cause: 'cancelled' | 'terminal' }>,
   ): Reply<DurableEvidence>
   resolve(
     input: CallAccess<P> &

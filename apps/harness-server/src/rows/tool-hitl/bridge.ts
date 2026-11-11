@@ -331,6 +331,9 @@ function commandsOf(
   return succeed({ prepare: prepare.data, register: register.data })
 }
 
+/** 等待怎样关闭：被控制关闭，或原执行自己终局。 */
+type InvalidationCause = Parameters<ToolDecisionBridge<unknown>['invalidate']>[0]['cause']
+
 type Invalidation = Readonly<{
   at: Registration['at']
   principal: ActingForTenantPrincipal
@@ -468,11 +471,15 @@ export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolDecisionBr
     }
   }
 
-  /** 失效命令：只由租户、登记主体、等待与终局证据决定，所以 invalidate 与认回得到同一命令。 */
+  /**
+   * 失效命令：只由租户、登记主体、等待、终局证据与等待的关闭原因决定，所以 invalidate 与认回得到
+   * 同一命令。控制关闭的等待记为 cancelled，原执行自己终局的记为 origin-terminal。
+   */
   const invalidation = async (
     access: Access,
     wait: ToolWaitId,
     terminal: DurableEvidence,
+    cause: InvalidationCause,
   ): Promise<Outcome<Invalidation, ToolFailure>> => {
     const host = input.host()
     if (host === null) return unavailable('the HITL host is not installed')
@@ -492,8 +499,7 @@ export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolDecisionBr
       },
       waitRef: toolWaitRef(wait),
       terminalEvidenceRef: `tool-terminal/${canonicalDigest(terminal).replace(/^sha256:/, '')}`,
-      // 决策方只收到终局的证据，不收到原因。
-      reason: 'origin-terminal',
+      reason: cause === 'cancelled' ? 'cancelled' : 'origin-terminal',
     })
     if (!command.success) return invalid('operation', 'the wait does not form a HITL invalidation')
     return succeed({ at: at.tenant, principal, command: command.data })
@@ -524,8 +530,9 @@ export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolDecisionBr
     request: Parameters<ToolDecisionBridge<unknown>['inspectOperation']>[0],
     wait: ToolWaitId,
     terminal: DurableEvidence,
+    cause: InvalidationCause,
   ): Promise<ExternalOperationResolution> => {
-    const built = await invalidation(request, wait, terminal)
+    const built = await invalidation(request, wait, terminal, cause)
     if ('failure' in built)
       return {
         kind: 'unknown',
@@ -560,11 +567,16 @@ export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolDecisionBr
         operation: request.operation,
         diagnostic: 'no wait duty of the call has the operation',
       })
-    return succeed(
-      task.action === 'invalidate'
-        ? await recallInvalidation(request, task.wait, task.evidence)
-        : await recallEnsure(request, task.wait),
-    )
+    if (task.action !== 'invalidate') return succeed(await recallEnsure(request, task.wait))
+    // 失效待办与关闭等待在同一笔提交里写下：原因取自这个已关闭的等待。
+    const closed = fixed.ok.waits.find(record => record.intent.wait === task.wait)
+    if (closed?.phase !== 'closed' || closed.cause === 'continued')
+      return succeed({
+        kind: 'unknown' as const,
+        operation: request.operation,
+        diagnostic: 'the wait of the invalidation is not closed by a control or a terminal',
+      })
+    return succeed(await recallInvalidation(request, task.wait, task.evidence, closed.cause))
   }
 
   /**
@@ -689,7 +701,7 @@ export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolDecisionBr
   }
 
   const invalidate: ToolDecisionBridge<unknown>['invalidate'] = async request => {
-    const built = await invalidation(request, request.wait, request.terminal)
+    const built = await invalidation(request, request.wait, request.terminal, request.cause)
     if ('failure' in built) return built
     const { at, principal, command } = built.ok
     const answer = await at.application.invalidateWait(principal, command)

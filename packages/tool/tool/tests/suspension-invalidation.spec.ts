@@ -110,10 +110,16 @@ function stepOf(answers: Answers = {}) {
       evidence: TERMINAL,
     } as never
   }
-  const recoveryIn = (phase: string) => ({ state: { phase }, waits: [] }) as never
+  /** 调用的恢复信息：处于给定阶段，等待 `wait` 已被控制关闭（`closed` 另给时按所给）。 */
+  const recoveryIn = (
+    phase: string,
+    closed: object = { phase: 'closed', cause: 'cancelled' },
+    wait: string = WAIT,
+  ) => ({ state: { phase }, waits: [{ intent: { wait }, ...closed }] }) as never
   /** 这一步此刻欠下的工作；调用已收场，等待没有别的步骤。 */
   const run = (task = taskOf(), phase = 'settled') => {
-    const next = driver.registration(step as never, recoveryIn(phase), task)
+    const { wait } = task as { wait: string }
+    const next = driver.registration(step as never, recoveryIn(phase, undefined, wait), task)
     if (next === null) throw new Error('the task owes no step now')
     return next()
   }
@@ -142,6 +148,27 @@ describe('the step of an invalidation duty: which task owes it now', () => {
   })
 })
 
+describe('the cause an invalidation carries', () => {
+  it('is how the wait of the duty closed: by a control, or by the end of the original execution', async () => {
+    for (const cause of ['cancelled', 'terminal'] as const) {
+      const { driver, step, taskOf, recoveryIn, invalidated } = stepOf()
+      const next = driver.registration(
+        step as never,
+        recoveryIn('settled', { phase: 'closed', cause }),
+        taskOf(),
+      )
+      await next?.()
+      expect(invalidated).toMatchObject([{ cause }])
+    }
+  })
+
+  it('owes no step while the wait is not closed, or closed by its continuation', () => {
+    const { driver, step, taskOf, recoveryIn } = stepOf()
+    for (const closed of [{ phase: 'open' }, { phase: 'closed', cause: 'continued' }])
+      expect(driver.registration(step as never, recoveryIn('settled', closed), taskOf())).toBeNull()
+  })
+})
+
 describe('an invalidation the decision owner answers', () => {
   it('records the duty done on the receipt, under an operation derived from the invalidation', async () => {
     const { run, invalidated, inspected, recorded } = stepOf()
@@ -154,6 +181,7 @@ describe('an invalidation the decision owner answers', () => {
         operation: INVALIDATION,
         wait: WAIT,
         terminal: TERMINAL,
+        cause: 'cancelled',
       },
     ])
     expect(inspected).toEqual([])

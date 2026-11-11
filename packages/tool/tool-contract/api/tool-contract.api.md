@@ -2277,6 +2277,7 @@ export interface ToolDecisionBridge<P> {
     invalidate(input: Mutation<P> & Readonly<{
         wait: ToolWaitId;
         terminal: DurableEvidence;
+        cause: 'cancelled' | 'terminal';
     }>): Reply<DurableEvidence>;
     resolve(input: CallAccess<P> & Readonly<{
         wait: ToolWaitId;

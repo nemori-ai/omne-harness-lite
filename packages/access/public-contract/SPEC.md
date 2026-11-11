@@ -956,7 +956,7 @@ HITL 位置的 `denied` 不能推出卡片是否存在。HITL 先核资格，再
 | `card.kind` | `pending`、`decided` 或 `invalidated` |
 | `card.decision` | 只在 `decided` 时出现：`ref`（`card`、`decisionId` 与 `submission`；`submission` 恰含 `tenantRef`、`actorRef`、`operationId`）、`reply`（形状同 body 的 `reply`）、`basisRef` 与 `commitReceipt` |
 | `card.delivery` | 只在 `decided` 时出现：`kind` 为 `pending`，或为 `accepted`、`superseded` 并带 `receiptRef` |
-| `card.reason`、`card.terminalEvidenceRef` | 只在 `invalidated` 时出现。`reason` 取 `cancelled`、`archived`、`origin-terminal`、`continuity-lost` 之一 |
+| `card.reason`、`card.terminalEvidenceRef` | 只在 `invalidated` 时出现。`reason` 取 `cancelled`、`archived`、`origin-terminal`、`continuity-lost` 之一。`cancelled` 表示等待在人作答之前被控制关闭（叫停、归档、中断或插队）：原工作按出卡方预写的默认结果收场，这张卡不能再答。`origin-terminal` 表示原工作自己已经终局 |
 | `origin` | 卡片的来源：`kind` 取 `tool`、`agent-extension`、`admission`、`independent` 之一；可以另有 `sessionRef`、`runRef` 与 `toolCallRef` |
 | `displayContext` | 非空字符串，出卡方给出的展示上下文 |
 

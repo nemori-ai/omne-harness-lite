@@ -148,7 +148,7 @@ ensure 从等待身份派生保管请求的操作（tool-host-local 的 `waitReq
   `consumeDecision` 并以回执 `acknowledgeDelivery`，卡片的交接随之为 accepted。之后按登记的卡片顺序给出整批答复，答复值是
   json-text 的 JsonValue 树：至少一题有答复时为 answer，跳过的卡为 no-answer；全部跳过时为 no-answer。resolve 没有自己的
   操作身份，接手回包未知与 HITL 的拒绝都答 unavailable，Tool 不据此接受决定。
-- invalidate 以派生身份调 `invalidateWait`。决策方只拿到终局的证据，原因固定为 `origin-terminal`。Tool 让暂停中的调用
+- invalidate 以派生身份调 `invalidateWait`。原因随等待的关闭原因：控制关闭的等待记 `cancelled`，原执行自己终局的记 `origin-terminal`。Tool 让暂停中的调用
   收场时写失效待办（Tool SPEC 第 32 条），推进协程经 invalidate 执行它：尚未答的卡变 `invalidated`，之后的答复得到卡片
   已失效；已答未接手的卡保持 `decided`。失效回包未知时，Tool 以同一操作调 inspectOperation 认回，不再发一次。
 - 唤醒：宿主的每个租户应用经 `withDecided` 包一层，答复成为有效决定之后，[wake.ts](../../src/rows/tool-hitl/wake.ts) 读这张卡

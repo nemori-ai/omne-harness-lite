@@ -320,7 +320,11 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
    * 按原操作经 inspectOperation 认回，不换身份重发；`excluded` 证明原失效不会落地，同一身份可以再发。
    * 决策方明确拒绝时，待办记为阻塞并保留拒绝原因，终局不变。
    */
-  const invalidate = async (step: Step<P>, task: RegistrationTask): Promise<Result> => {
+  const invalidate = async (
+    step: Step<P>,
+    task: RegistrationTask,
+    cause: 'cancelled' | 'terminal',
+  ): Promise<Result> => {
     const key = uncertainKey(step, task.operation)
     if (uncertain.has(key)) {
       const recalled = await recallInvalidation(step, task)
@@ -331,6 +335,7 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
       operation: task.operation,
       wait: task.wait,
       terminal: task.evidence,
+      cause,
     })
     if ('ok' in answered) return invalidated(step, task, answered.ok)
     const { failure } = answered
@@ -374,8 +379,13 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     task: RegistrationTask,
   ): (() => Promise<Result>) | null => {
     if (task.state !== 'pending') return null
-    if (task.action === 'invalidate')
-      return recovery.state.phase === 'settled' ? () => invalidate(step, task) : null
+    if (task.action === 'invalidate') {
+      // 失效待办与关闭等待在同一笔提交里写下，所以这个等待已经关闭，原因不是 continued。
+      const closed = recovery.waits.find(wait => wait.intent.wait === task.wait)
+      if (recovery.state.phase !== 'settled' || closed?.phase !== 'closed') return null
+      const { cause } = closed
+      return cause === 'continued' ? null : () => invalidate(step, task, cause)
+    }
     return recovery.state.phase === 'suspended' ? () => register(step, recovery, task) : null
   }
 
