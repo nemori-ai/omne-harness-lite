@@ -19,6 +19,8 @@ import {
   type ResultPolicy,
   type ToolExecutionFact,
   type ToolFinalEnvelope,
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
 } from '@omne-harness/tool-contract/provider'
 
 import { readOwnSlot } from '@omne-harness/tool-contract/binding'
@@ -276,6 +278,11 @@ function askWait(
     schemas.expiry !== 'forbidden'
   )
     return invalid('batch.events.fact.value.schemas', 'shape')
+  if (
+    schemas.requestMaxBytes > WAIT_REQUEST_MAX_BYTES ||
+    schemas.responseMaxBytes > WAIT_RESPONSE_MAX_BYTES
+  )
+    return invalid('batch.events.fact.value.schemas', 'range')
   const contract = judgeAdoptionField(schemas.contract, 'batch.events.fact.value.schemas.contract')
   if ('failure' in contract) return contract
   const source = judgeEvidenceField(schemas.source, 'batch.events.fact.value.schemas.source')

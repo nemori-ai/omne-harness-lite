@@ -43,7 +43,12 @@ import {
 } from './shape.ts'
 import { COMMAND_CALL_ENCODINGS, type CommandCallEncoding } from './command-call.ts'
 import { adoption, sameAdoption, sameSchemaIdentity, schemaIdentity } from './value-shapes.ts'
-import { isToolWaitContract, valueSchema } from './wait-contract.ts'
+import {
+  isToolWaitContract,
+  valueSchema,
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
+} from './wait-contract.ts'
 
 type Rejection = Readonly<{ field: string; reason: string }>
 type AnyAuthor = ToolAuthor<unknown, unknown, unknown, ContentBlock>
@@ -290,6 +295,17 @@ export function defineToolOperation<
   // A segment waits only by returning an Ask, so the author must declare the Ask it may use.
   if (segments !== null && !given.waits.some(wait => wait.kind === 'ask'))
     return reject('input.author.waits', 'checkpointed-without-ask')
+  // The ledger keeps the request and the response of that Ask in records of the call.
+  if (
+    segments !== null &&
+    given.waits.some(
+      wait =>
+        wait.kind === 'ask' &&
+        (wait.request.maxBytes > WAIT_REQUEST_MAX_BYTES ||
+          wait.response.maxBytes > WAIT_RESPONSE_MAX_BYTES),
+    )
+  )
+    return reject('input.author.waits', 'checkpointed-ask-over-bound')
   const broken = OPERATION_RULES.map(rule => rule(spec)).find(failure => failure !== undefined)
   if (broken !== undefined) return fail(broken)
   const slot: ToolOperationSlot = {

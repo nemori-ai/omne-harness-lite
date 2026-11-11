@@ -389,7 +389,7 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 ### 20 准备与排队
 
 1. admit 受理真实工具时同提交调用记录、受理回执与一条 `queue` 待办。状态是 `accepted`、`execution` 与 `effect` 为 `not-started`、`queue` 为 `none`、`delivery` 为 `null`。后台起步的调用同时固定后台占位。
-2. admit 回复前，账本在队列域给该调用分配序号，条目阶段是 `preparing`。所以一个在另一个 admit 回复之后受理的调用，序号更大。这一步只属于首次受理：认回的受理回复首次回执里的 `accepted` 状态，即使调用已经收场、条目已经释放，也不再分配。已释放的调用得不到条目：队列域记着它（第 22 条），创建条目的步骤回复 `released`，admit 的回复不变。这一步失败时受理仍然成立，序号改由 `planPreparation` 分配。
+2. admit 回复前，账本在队列域给该调用分配序号，条目阶段是 `preparing`。所以一个在另一个 admit 回复之后受理的调用，序号更大。这一步只属于首次受理：认回的受理回复首次回执里的 `accepted` 状态，即使调用已经收场、条目已经释放，也不再分配。已释放的调用得不到条目：创建条目的提交断言它读到的调用域修订号，调用域里已有释放依据时不创建（第 22 条，队列域不为已释放的调用保存任何记录），创建条目的步骤回复 `released`，admit 的回复不变。这一步失败时受理仍然成立，序号改由 `planPreparation` 分配。
 3. `planPreparation` 保存 `PreparationRecord` 与 `prepare` 待办（准备记录不带请求，见下面的「固定请求只保存一份」），状态改为 `preparing`，`queue` 为 `waiting` 与序号。只接受 `initial` 用途与受理时固定的请求。`resume` 用途回复 `unsupported`。
 4. `prepared` 核对准备记录是本调用计划的那一条，记下环境证据，删除 `prepare` 待办，写 `queue` 待办。
 5. `enqueue` 先把队列条目改为 `ready`，再把状态改为 `queued`。
@@ -689,7 +689,7 @@ release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送
 
 检查点作者按段执行，契约见[恢复型执行者按段执行](../tool-contract/SPEC.md#等待计时与接续)。本条说明 initial 段返回 suspended 之后的路径。每一步是一个拥有者域内的一笔提交，或一次按原身份的端口调用。
 
-1. 绑定把段的 Ask 等待作为执行流的最后一个事实交出，然后结束执行流。`receiveFacts` 接收 Ask 的 `wait` 事实。一个段只能以一个 final 或一个 wait 结束。wait 之后的事实、后台调用的 wait 和 resource 等待都被拒绝。事实带请求原文：一段不超过等待 `requestMaxBytes` 的文本，等待的请求证据的摘要须等于它的规范摘要，否则回复 `invalid`（`batch.events.fact.request`）。账本不解读原文。事实记录只保存等待的意图；原文另存为调用域的 `wait-request` 记录，键是常量，所以一个调用任何时刻至多保存一份，后来的等待事实覆盖它。
+1. 绑定把段的 Ask 等待作为执行流的最后一个事实交出，然后结束执行流。`receiveFacts` 接收 Ask 的 `wait` 事实。一个段只能以一个 final 或一个 wait 结束。wait 之后的事实、后台调用的 wait 和 resource 等待都被拒绝。等待声明的 `requestMaxBytes` 不超过 `WAIT_REQUEST_MAX_BYTES`（262144），`responseMaxBytes` 不超过 `WAIT_RESPONSE_MAX_BYTES`（524288），否则回复 `invalid`（`batch.events.fact.value.schemas`，`range`）。事实带请求原文：一段不超过等待 `requestMaxBytes` 的文本，等待的请求证据的摘要须等于它的规范摘要，否则回复 `invalid`（`batch.events.fact.request`）。账本不解读原文。事实记录只保存等待的意图；原文另存为调用域的 `wait-request` 记录，键是常量，所以一个调用任何时刻至多保存一份，后来的等待事实覆盖它。
 2. 执行流结束而没有 final 时，推进协程解析绑定。绑定是 checkpointed 时，协程以 `<start>/suspension` 调用 `planSuspension`，传入原 start 与绑定声明的检查点 schema。账本核对调用在前台运行于该 start、已保存该 start 的 Ask wait 事实，且该 start 没有计划过暂停。同一笔提交保存暂停记录和 `suspend` 待办。
 3. 协程把暂停记录交给绑定的 `suspend`。绑定证明检查点后，协程以 `<start>/suspended` 调用 `suspend`。`suspend` 的入参带检查点与状态文本，状态文本是段状态的 base64，不超过 `CHECKPOINT_STATE_MAX_BYTES` 字节的状态。账本核对检查点的 schema 与 start 是计划的那一份、已消费答复都是本调用接受过的、等待的接续位置就是检查点、等待身份没有用过，且检查点 `payload` 的摘要等于状态文本的规范摘要（否则回复 `invalid`，`state: digest-mismatch`）。同一笔提交写入下列各项：
    - `suspended`，检查点，`execution` 为 `suspended`。

@@ -39,6 +39,21 @@ export const valueSchema: Check<ToolValueSchema<unknown>> = record({
   maxBytes: positiveSafeInteger,
 })
 
+/**
+ * The most bytes the request of the Ask of a checkpointed author may take. The ledger keeps the
+ * request original as text in one record of the call domain and writes it in the commit that
+ * saves the wait fact. Escaped inside the record, the text takes at most twice its size.
+ */
+export const WAIT_REQUEST_MAX_BYTES = 262_144
+
+/**
+ * The most bytes the response to the Ask of a checkpointed author may take. The ledger keeps the
+ * response in the wait record and writes it in the commit that accepts the decision. With
+ * CHECKPOINT_STATE_MAX_BYTES the two bounds keep each of those commits inside the command limit
+ * of the record store, and the call domain inside its read limit.
+ */
+export const WAIT_RESPONSE_MAX_BYTES = 524_288
+
 const protocol = {
   adoption,
   request: valueSchema,

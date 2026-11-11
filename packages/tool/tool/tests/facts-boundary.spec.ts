@@ -3,6 +3,10 @@
 // field that carries the fault, and a batch with such a fact is saved in no part.
 import { describe, expect, it } from 'vitest'
 import { canonicalDigest } from '@omne-harness/tool'
+import {
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
+} from '@omne-harness/tool-contract/provider'
 import { admitCall, startHarness } from './start-values.ts'
 import { callId, evidence, ok, principalA, tenantA, text } from './runtime-values.ts'
 
@@ -269,6 +273,18 @@ describe('a fact that is not a closed record of its kind', () => {
       wait(['value', 'schemas', 'requestMaxBytes'], 2 ** 53),
       'batch.events.fact.value.schemas',
       'shape',
+    ],
+    [
+      'a request limit above the system bound',
+      wait(['value', 'schemas', 'requestMaxBytes'], WAIT_REQUEST_MAX_BYTES + 1),
+      'batch.events.fact.value.schemas',
+      'range',
+    ],
+    [
+      'a response limit above the system bound',
+      wait(['value', 'schemas', 'responseMaxBytes'], WAIT_RESPONSE_MAX_BYTES + 1),
+      'batch.events.fact.value.schemas',
+      'range',
     ],
     [
       'a response limit of zero',

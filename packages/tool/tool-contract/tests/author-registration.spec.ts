@@ -3,6 +3,8 @@ import type { JsonValue } from '@omne-harness/json-text'
 import { succeed } from '@omne-harness/operation-result'
 import {
   CHECKPOINT_STATE_MAX_BYTES,
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
   defineCommandTool,
   defineFunctionTool,
   defineToolOperation,
@@ -491,6 +493,37 @@ describe('checkpointed author', () => {
     expect(define(segments(), [])).toEqual({
       failure: { field: 'input.author.waits', reason: 'checkpointed-without-ask' },
     })
+  })
+
+  it('checkpointed author: the Ask of a segmented author declares sizes within the system bounds', () => {
+    // The ledger keeps the request and the response of that Ask in records of the call.
+    const sized = (side: 'request' | 'response', maxBytes: number) => {
+      const wait = defineToolWaitContract({
+        kind: 'ask',
+        adoption: adoption('ask-protocol'),
+        request: valueSchema('request'),
+        response: valueSchema('response'),
+        expiry: 'forbidden',
+        [side]: { ...valueSchema(side), maxBytes },
+      })
+      if (!('ok' in wait)) throw new Error(wait.failure.reason)
+      return wait.ok
+    }
+    const over = { failure: { field: 'input.author.waits', reason: 'checkpointed-ask-over-bound' } }
+    expect(define(segments(), [sized('request', WAIT_REQUEST_MAX_BYTES)])).toHaveProperty('ok')
+    expect(define(segments(), [sized('request', WAIT_REQUEST_MAX_BYTES + 1)])).toEqual(over)
+    expect(define(segments(), [sized('response', WAIT_RESPONSE_MAX_BYTES)])).toHaveProperty('ok')
+    expect(define(segments(), [sized('response', WAIT_RESPONSE_MAX_BYTES + 1)])).toEqual(over)
+    // An author that runs in one execution keeps the limits of its own protocol.
+    const plain = defineToolOperation({
+      parameters: { kind: 'declared', value: parameters() },
+      returns: ordinaryReturns,
+      author: {
+        ...ordinaryAuthor(),
+        waits: [sized('request', WAIT_REQUEST_MAX_BYTES + 1)] as never,
+      },
+    })
+    expect(plain).toHaveProperty('ok')
   })
 
   it('checkpointed author: a resource wait does not stand in for the Ask a segment waits by', () => {

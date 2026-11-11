@@ -357,6 +357,8 @@
 - `ToolWaitResponseValidator` · `author-context.d.ts`
 - `ToolWaitValidation` · `author-context.d.ts`
 - `ToolWaiter` · `author-context.d.ts`
+- `WAIT_REQUEST_MAX_BYTES` · `wait-contract.d.ts`
+- `WAIT_RESPONSE_MAX_BYTES` · `wait-contract.d.ts`
 - `WriteContext` · `execution.d.ts`
 - `attachToolsCapability` · `tools-capability.d.ts`
 - `authorDecision` · `checkpointed-author.d.ts`
@@ -3003,7 +3005,7 @@ export { judgeToolState } from './judge-state.ts';
 export { evaluateToolAvailability, presentTool } from './catalog.ts';
 export { TOOL_REFERENCE_MAX_LENGTH, decodeToolInvocationRef, decodeToolOperationRef, readToolInvocationRef, toolStreamCallCodec, } from './reference.ts';
 export { defineCommandTool, defineFunctionTool, defineToolOperation } from './registration.ts';
-export { defineToolWaitContract } from './wait-contract.ts';
+export { defineToolWaitContract, WAIT_REQUEST_MAX_BYTES, WAIT_RESPONSE_MAX_BYTES, } from './wait-contract.ts';
 export { createDefaultParameterCodec, judgeToolArguments } from './parameter-codec.ts';
 export type { ParsedToolArguments, ToolArgumentsRejection } from './parameter-codec.ts';
 export { renderToolResult } from './result-rendering.ts';
@@ -5103,6 +5105,8 @@ import type { ToolWaitContract, ToolWaitProtocolDefinition } from './author-cont
 import type { ToolValueSchema } from './definitions.ts';
 import { type Check } from './shape.ts';
 export declare const valueSchema: Check<ToolValueSchema<unknown>>;
+export declare const WAIT_REQUEST_MAX_BYTES = 262144;
+export declare const WAIT_RESPONSE_MAX_BYTES = 524288;
 export declare function isToolWaitContract(value: unknown): boolean;
 export declare function defineToolWaitContract<A, K extends 'ask' | 'resource'>(definition: ToolWaitProtocolDefinition<A, K>): Outcome<ToolWaitContract<A, K>, Readonly<{
     reason: string;

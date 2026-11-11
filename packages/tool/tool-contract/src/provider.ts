@@ -100,7 +100,11 @@ export {
   toolStreamCallCodec,
 } from './reference.ts'
 export { defineCommandTool, defineFunctionTool, defineToolOperation } from './registration.ts'
-export { defineToolWaitContract } from './wait-contract.ts'
+export {
+  defineToolWaitContract,
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
+} from './wait-contract.ts'
 export { createDefaultParameterCodec, judgeToolArguments } from './parameter-codec.ts'
 export type { ParsedToolArguments, ToolArgumentsRejection } from './parameter-codec.ts'
 export { renderToolResult } from './result-rendering.ts'
