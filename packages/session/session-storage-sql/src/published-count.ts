@@ -1,44 +1,37 @@
 // The publication count of the Agent records of each session, as this process knows it (RT-06).
 // The count has one kind of writer: a publication of the Agent records, which is conditional on
 // the count. Every publication of this process and every root read reports here, so the count is
-// known without a read of the storage. A publication of another process is seen at most
-// `PUBLISHED_COUNT_MAX_AGE_MS` later, or when a publication of this process is refused.
+// known without a read of the storage. One process writes a database (sqlite-provider §13.5), so
+// no publication goes past this keeper; a count that is stale all the same is found when a
+// publication of this process is refused.
 import type { SqlStorage } from '@omne-harness/sql-contract'
-
-/** How long a known count answers before the storage confirms it again. */
-export const PUBLISHED_COUNT_MAX_AGE_MS = 1_000
 
 /** The sessions whose count one database keeps; the least recently confirmed one leaves first. */
 const KEPT_SESSIONS = 4_096
-
-type Known = Readonly<{ published: number; confirmedAt: number }>
 
 /** What a caller that needs the count of a session does. */
 export type PublishedCountPlan =
   /** The count is known: no read. */
   | Readonly<{ kind: 'known'; published: number }>
-  /** The storage is asked: nothing is known, a write is undecided, or the last answer is too old. */
+  /** The storage is asked: nothing is known, or a write is undecided. */
   | Readonly<{ kind: 'read' }>
 
 /**
  * `undecided`: a publication of the caller has an unknown outcome, so the count may have moved
- * without an answer. `at` is a monotonic clock in milliseconds.
+ * without an answer.
  */
 export function planPublishedCount(
-  known: Known | undefined,
+  known: number | undefined,
   undecided: boolean,
-  at: number,
 ): PublishedCountPlan {
-  if (known === undefined || undecided || at - known.confirmedAt > PUBLISHED_COUNT_MAX_AGE_MS)
-    return { kind: 'read' }
-  return { kind: 'known', published: known.published }
+  return known === undefined || undecided ? { kind: 'read' } : { kind: 'known', published: known }
 }
 
 /** The counts of the sessions of one database. */
 export class PublishedCounts {
-  readonly #known = new Map<string, Known>()
+  readonly #known = new Map<string, number>()
 
-  get(session: string): Known | undefined {
+  get(session: string): number | undefined {
     return this.#known.get(session)
   }
 
@@ -47,11 +40,11 @@ export class PublishedCounts {
    * committed. The count only grows, so an answer below the known count is a read that a
    * publication crossed, and it changes nothing.
    */
-  confirm(session: string, published: number, at: number): void {
+  confirm(session: string, published: number): void {
     const known = this.#known.get(session)
-    if (known !== undefined && known.published > published) return
+    if (known !== undefined && known > published) return
     this.#known.delete(session)
-    this.#known.set(session, { published, confirmedAt: at })
+    this.#known.set(session, published)
     if (this.#known.size <= KEPT_SESSIONS) return
     const oldest = this.#known.keys().next().value
     if (oldest !== undefined) this.#known.delete(oldest)

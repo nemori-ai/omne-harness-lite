@@ -1,10 +1,9 @@
 // When the session-log Journal reads the common root of a session (SPEC「已发布计数由本进程保管」).
 // The publication count has one writer in a process: the publications of the Journal providers
 // over one storage. So what they published and read is the count, and a call reads the root only
-// when the process cannot know it: nothing was read yet, a publication did not answer plainly, or
-// the last confirmation by the storage is older than the bound. On the node:sqlite double that
-// records every handler read.
-import { afterEach, expect, it, vi } from 'vitest'
+// when the process cannot know it: nothing was read yet, or a publication did not answer plainly.
+// On the node:sqlite double that records every handler read.
+import { expect, it } from 'vitest'
 import { ok } from './fixtures/common-journal.ts'
 import { admitted, applied, load, opened, prepared } from './fixtures/main-reply.ts'
 import type { SqlScene } from './fixtures/sql-scene.ts'
@@ -12,10 +11,6 @@ import type { SqlScene } from './fixtures/sql-scene.ts'
 const ROOT = 'session.history-root'
 const rootReads = (s: SqlScene): number =>
   (s.controls?.reads ?? []).filter(handler => handler === ROOT).length
-
-afterEach(() => {
-  vi.useRealTimers()
-})
 
 /** A scene whose provider published once: the main reply Ja. */
 async function published(name: string) {
@@ -55,17 +50,4 @@ it('a publication whose outcome is unknown makes the next call read the root', a
   const confirmed = rootReads(s)
   await load(s)
   expect(rootReads(s)).toBe(confirmed)
-})
-
-it('the storage confirms the count again after the bound: one root read, then none', async () => {
-  // Only the monotonic clock is faked, and before the scene: every instant is on the same clock.
-  vi.useFakeTimers({ toFake: ['performance'] })
-  const { s, ja } = await published('root-aged')
-  ok(await s.view.journal.commit(ja))
-  await load(s)
-  const before = rootReads(s)
-  vi.advanceTimersByTime(1_001)
-  await load(s)
-  await load(s)
-  expect(rootReads(s)).toBe(before + 1)
 })

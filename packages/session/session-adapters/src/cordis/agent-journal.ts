@@ -964,8 +964,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   const books = new Map<string, Book<P>>()
   /** The publication counts this process knows, shared by every provider over the storage. */
   const counts = publishedCountsOf(options.storage)
-  const now = (): number =>
-    /* wall-clock: operation-timing -- The age of a known publication count is a monotonic duration since the storage confirmed it (session-storage-sql RT-06). */ performance.now()
   /** Whether a write of the book has an unknown outcome: the count may have moved unanswered. */
   const undecided = (book: Book<P>): boolean => {
     for (const held of book.held.values()) if (held.standing === 'unknown') return true
@@ -1551,7 +1549,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
    * their facts when nothing was read yet.
    */
   async function sync(book: Book<P>, domain: DomainRef): Promise<Outcome<Copy<P>, Failure>> {
-    const plan = planPublishedCount(counts.get(book.key), undecided(book), now())
+    const plan = planPublishedCount(counts.get(book.key), undecided(book))
     let published: number
     let excluded = false
     if (plan.kind === 'known') published = plan.published
@@ -1560,7 +1558,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       if (typeof root === 'string') return fail(unavailable(root))
       excluded = await settleHeld(book, domain)
       published = Number(root.published)
-      counts.confirm(book.key, published, now())
+      counts.confirm(book.key, published)
     }
     const read = readerOf(options.storage, domain)
     if (book.published === null) {
@@ -2146,7 +2144,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     book.view = { ...book.view, head: Math.max(book.view.head, pub) }
     for (const blob of prepared.blobs) book.blobs.set(blob.digest, blob.payload)
     book.published = pub
-    counts.confirm(book.key, pub, now())
+    counts.confirm(book.key, pub)
     // The published fold is the one source of position: the core's view is set to it, and the
     // batches the core appended for this publication leave its log; the next command appends at
     // the next publication count. (The cell keeps a draft only when it is touched.)

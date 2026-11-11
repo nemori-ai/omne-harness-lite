@@ -1011,7 +1011,6 @@ export { readCachedSessionWork }
  */
 export { registerSessionWorkIndex }
 export {
-  PUBLISHED_COUNT_MAX_AGE_MS,
   planPublishedCount,
   publishedCountsOf,
   type PublishedCountPlan,

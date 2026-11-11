@@ -9,7 +9,7 @@ import argparse, hashlib, json, os, pathlib, re, subprocess, time
 ROOT = pathlib.Path(__file__).resolve().parent
 MODULE = 'PublishedCount'
 JAR_SHA256 = '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88'
-CASES = [('positive', None), ('assume-applied', 'KnownIsPast'), ('never-read', 'TakenIsBoundedStale')]
+CASES = [('positive', None), ('assume-applied', 'KnownIsPast')]
 parser = argparse.ArgumentParser()
 parser.add_argument('--case')
 parser.add_argument('--jar', default=os.environ.get('TLA2TOOLS_JAR'))
