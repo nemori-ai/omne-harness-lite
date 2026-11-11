@@ -61,10 +61,6 @@ export const operationSchema = z.strictObject({
   revision: z.number().int().nonnegative(),
   changed: z.boolean(),
 })
-export const operationRecordSchema = z.strictObject({
-  binding: operationBindingSchema,
-  result: operationSchema,
-})
 export const stateRecordSchema = z
   .strictObject({
     scope: scopeSchema,

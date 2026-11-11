@@ -19,7 +19,6 @@ export const observationSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('absent') }),
   z.strictObject({ kind: z.literal('conflict'), reason: z.literal('operation') }),
 ])
-export type OperationObservation = z.infer<typeof observationSchema>
 export default {
   ...OPERATION_HANDLER,
   read(raw, port) {

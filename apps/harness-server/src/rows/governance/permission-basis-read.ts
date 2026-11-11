@@ -256,5 +256,3 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
     },
   }
 }
-
-export type PermissionBasisRead = ReturnType<typeof createPermissionBasisRead>
