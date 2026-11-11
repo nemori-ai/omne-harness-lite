@@ -2,7 +2,7 @@
 // of the commit, and a revision conflict writes nothing; the database is checked directly, not only
 // through the port.
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { LedgerDomain, LedgerRecord } from '@omne-harness/tool'
 import { decodeToolCallId } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
@@ -31,7 +31,7 @@ const domain: LedgerDomain = {
   tenant: TENANT_A,
   call: decoded(decodeToolCallId('call-1')),
 }
-const host = (key: string): LedgerRecord<ContentBlock> => ({
+const host = (key: string): LedgerRecord => ({
   kind: 'host',
   host: { key, value: key },
 })

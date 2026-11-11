@@ -79,10 +79,10 @@
 
 | 持有者组件名                   | 记录                                                     | 用途                                                                          |
 | ------------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `toolResidencyPrincipal`       | `maintenance-grant/toolResidencyPrincipal`，修订 3       | `resident-references`                                                         |
-| `sessionPrincipals.maintainer` | `maintenance-grant/sessionPrincipals.maintainer`，修订 3 | `pending-sessions`                                                            |
-| `agent-host`                   | `maintenance-grant/agent-host`，修订 3                   | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
-| `tenant-domain-scanner`        | `maintenance-grant/tenant-domain-scanner`，修订 3        | `enumerate-tenants`                                                           |
+| `toolResidencyPrincipal`       | `maintenance-grant/toolResidencyPrincipal`，修订 6       | `resident-references`                                                         |
+| `sessionPrincipals.maintainer` | `maintenance-grant/sessionPrincipals.maintainer`，修订 6 | `pending-sessions`                                                            |
+| `agent-host`                   | `maintenance-grant/agent-host`，修订 6                   | `agent-instance-publish`、`agent-instance-quiesce`、`agent-instance-withdraw` |
+| `tenant-domain-scanner`        | `maintenance-grant/tenant-domain-scanner`，修订 6        | `enumerate-tenants`                                                           |
 
 <!-- /policy:grants -->
 
@@ -562,7 +562,7 @@ C3b 的动态解释协议见 [事务内权限解释](permission-interpretation.m
 
 `createToolAccessGuard(readAdmission)` 是纯工厂。它返回的同一个 qualify 对象满足 `ToolAccessGuard` 与 `StartCoordinatorAccess`。消费行每次提供当前 AU-11 读口，撤除后返回 undefined；缺依赖答 `unavailable`。工厂不增加服务键，也不缓存允许结果。
 
-普通台账动作和 `start` 要求非空 call、可信 Session 工作主体和本租户成员资格，映射到 `tool/<action>` 与 `tool/call`。`invalidate`、`read-raw`、`read-raw-content` 缺本波资格来源，一律答 `unavailable`；后者不以两次异步检查拼出双权限一致读取。
+普通台账动作和 `start` 要求非空 call、可信 Session 工作主体和本租户成员资格，映射到 `tool/<action>` 与 `tool/call`。`invalidate` 缺本波资格来源，答 `unavailable`。`ToolLedgerAction` 没有 `read-raw`、`read-raw-content` 或 `maintain-materials`。
 
 入口 `issueTenantDomainScanner(env)` 经本运行受信签发器签出 `tenant-domain-scanner`，只把主体交给扫描者，不交签发器、不 provide 新键。部署枚举经 `systemActionAuthorization` 由本行判断，用的是本行的核验器与收紧后的授予表，不能用组件名文本或复制的主体代替真实签发身份。
 

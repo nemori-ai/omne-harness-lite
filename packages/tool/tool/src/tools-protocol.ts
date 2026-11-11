@@ -2,14 +2,17 @@ import { readJsonText, type JsonLimits, type JsonValue } from '@omne-harness/jso
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   type ToolFailure,
+  type ToolBodyId,
   type ToolFixedReadArguments,
   type ToolInvocationRef,
   type ToolResultVersion,
 } from '@omne-harness/tool-contract'
 import {
   decodeToolInvocationRef,
+  decodeToolBodyId,
   decodeToolResultVersion,
   describedAdoption,
+  readToolInvocationRef,
 } from '@omne-harness/tool-contract/provider'
 
 export const toolsAdoption = describedAdoption({
@@ -19,13 +22,38 @@ export const toolsAdoption = describedAdoption({
 })
 export type ReadArguments = ToolFixedReadArguments
 export type ResultReference = Readonly<{ reference: ToolInvocationRef; result: ToolResultVersion }>
+export type BodyReference = ResultReference & Readonly<{ bodyId: ToolBodyId }>
 export type AttachmentReference = Readonly<{
   source: ResultReference
   reference: string
-  selector: number | 'original'
+  selector: number
 }>
 
+/**
+ * A body reference shows its identities raw, separated by spaces the identity lexicon excludes, so
+ * the first screen that carries it grows by at most one byte per identity character.
+ */
+export function encodeBodyReference(value: BodyReference): string {
+  const { call, admission } = readToolInvocationRef(value.reference)
+  return `tb1.${[call, admission, value.result, value.bodyId].join(' ')}`
+}
+
+function readBodyFields(fields: string): Outcome<BodyReference, ToolFailure> {
+  const bad = fail<ToolFailure>({ kind: 'invalid', field: 'reference', reason: 'body-reference' })
+  const [call, admission, version, body, ...rest] = fields.split(' ')
+  if (call === undefined || admission === undefined || version === undefined || body === undefined)
+    return bad
+  if (rest.length > 0) return bad
+  const reference = decodeToolInvocationRef(JSON.stringify(['tool-invocation', 2, call, admission]))
+  const result = decodeToolResultVersion(version)
+  const bodyId = decodeToolBodyId(body)
+  if ('failure' in reference || 'failure' in result || 'failure' in bodyId) return bad
+  return succeed({ reference: reference.ok, result: result.ok, bodyId: bodyId.ok })
+}
+
 export function protocol(limits: JsonLimits) {
+  const projection = (kind: ReadArguments['kind']) =>
+    kind === 'result' ? 'full' : kind === 'body' ? 'text' : 'bytes'
   const allowed = (text: string) =>
     text.length <= limits.maxStringLength && Buffer.byteLength(text) <= limits.maxBytes
   function encode(prefix: string, fields: readonly (string | number)[]): string {
@@ -76,10 +104,15 @@ export function protocol(limits: JsonLimits) {
   return {
     allowed,
     result: (value: ResultReference) => encode('tr1', [1, value.reference, value.result]),
-    attachment: (reference: string, selector: number | 'original') =>
-      encode('ta1', [1, reference, selector]),
+    body: encodeBodyReference,
+    readBody(text: string): Outcome<BodyReference, ToolFailure> {
+      return allowed(text) && text.startsWith('tb1.')
+        ? readBodyFields(text.slice('tb1.'.length))
+        : fail({ kind: 'invalid-cursor', reason: 'invalid-tools-encoding' })
+    },
+    attachment: (reference: string, selector: number) => encode('ta1', [1, reference, selector]),
     cursor: (kind: ReadArguments['kind'], reference: string, after: string) =>
-      encode('tc1', [1, kind, reference, kind === 'result' ? 'full' : 'bytes', after]),
+      encode('tc1', [1, kind, reference, projection(kind), after]),
     readResult,
     readAttachment(text: string): Outcome<AttachmentReference, ToolFailure> {
       const decoded = decode(text, 'ta1', 3)
@@ -88,10 +121,9 @@ export function protocol(limits: JsonLimits) {
       if (
         reference?.kind !== 'string' ||
         !(
-          (selector?.kind === 'string' && selector.value === 'original') ||
-          (selector?.kind === 'number' &&
-            /^(0|[1-9][0-9]*)$/u.test(selector.lexeme) &&
-            Number.isSafeInteger(Number(selector.lexeme)))
+          selector?.kind === 'number' &&
+          /^(0|[1-9][0-9]*)$/u.test(selector.lexeme) &&
+          Number.isSafeInteger(Number(selector.lexeme))
         )
       )
         return fail({ kind: 'invalid', field: 'reference', reason: 'attachment-selector' })
@@ -100,7 +132,7 @@ export function protocol(limits: JsonLimits) {
       return succeed({
         source: source.ok,
         reference: reference.value,
-        selector: selector.kind === 'string' ? 'original' : Number(selector.lexeme),
+        selector: Number(selector.lexeme),
       })
     },
     after(input: ReadArguments): Outcome<string | null, ToolFailure> {
@@ -114,7 +146,8 @@ export function protocol(limits: JsonLimits) {
         reference?.kind !== 'string' ||
         reference.value !== input.reference ||
         projection?.kind !== 'string' ||
-        projection.value !== (input.kind === 'result' ? 'full' : 'bytes') ||
+        projection.value !==
+          (input.kind === 'result' ? 'full' : input.kind === 'body' ? 'text' : 'bytes') ||
         after?.kind !== 'string' ||
         after.value.length === 0
       )
@@ -122,4 +155,17 @@ export function protocol(limits: JsonLimits) {
       return succeed(after.value)
     },
   }
+}
+
+export function callableRead(input: ReadArguments, limits: JsonLimits): boolean {
+  const refs = protocol(limits)
+  if (readJsonText(JSON.stringify(input), limits).kind !== 'ok' || 'failure' in refs.after(input))
+    return false
+  const decoded =
+    input.kind === 'result'
+      ? refs.readResult(input.reference)
+      : input.kind === 'body'
+        ? refs.readBody(input.reference)
+        : refs.readAttachment(input.reference)
+  return 'ok' in decoded
 }

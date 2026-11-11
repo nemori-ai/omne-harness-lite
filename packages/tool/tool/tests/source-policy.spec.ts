@@ -14,7 +14,7 @@ import {
 } from './runtime-values.ts'
 
 it('reports a truthful source policy denial as denied without committing admission', async () => {
-  const store = createMemoryToolLedgerStore<Block>()
+  const store = createMemoryToolLedgerStore()
   const ledger = createToolLedger<Principal, Block>(
     store,
     { ...guards(), sources: { verify: async () => ({ kind: 'denied', reason: 'target-rule' }) } },

@@ -1,17 +1,17 @@
 # @omne-harness/tool-storage-sql 行为规格
 
-本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。本包兑现的端口契约归它们的拥有者：记录仓端口 `ToolLedgerStore` 归 [`@omne-harness/tool`](../tool/src/ledger-store.ts)，原件保管端口 `ToolOutputCustody` 归 [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#p05-执行事实与原输出)，SQL 操作语义归 [`@omne-harness/sql-contract`](../../storage/sql-contract/SPEC.md)。本文件不复制这些契约，只写本包怎样兑现它们。
+本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。本包兑现的端口契约归它们的拥有者：记录仓端口 `ToolLedgerStore` 归 [`@omne-harness/tool`](../tool/src/ledger-store.ts)，正文存储端口 `ToolBodyStore` 与到期索引的契约归 [`@omne-harness/tool-contract`](../tool-contract/SPEC.md#正文存储端口与到期索引)，SQL 操作语义归 [`@omne-harness/sql-contract`](../../storage/sql-contract/SPEC.md)。本文件不复制这些契约，只写本包怎样兑现它们。
 
 ## 范围与依据
 
-本包是 Tool 记录仓与原件保管的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore` 与 `ToolOutputCustody`，并导出静态材料 `toolStorageMaterials()`。`createSqlToolGuardedHostCommit` 另提供带原调用修订条件的 host 提交，供受信集成方写资源许可。`createSqlToolConditionalCommit` 提供带启动条件的账本提交，供启动协调器写 acceptance。
+本包是 Tool 记录仓与正文存储的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore`（含同租户读集断言的条件提交 TS-11、到期索引 TS-14 与整域删除 TS-15）与 `ToolBodyStore`（TS-13），并导出静态材料 `toolStorageMaterials()`。`createSqlToolConditionalCommit` 提供带启动条件的账本提交（TS-12），供启动协调器写 acceptance。
 
 依据：
 
 - tool-exec 线 D2 决策记录（#421 评论 6561321713，线负责人 2026-11-01 决定，第二层）。决策记录修订了 D2 候选（#421 评论 6561130766）的第 1、2.2、2.3、4、5、7 节。两者不一致时以决策记录为准。
 - Reduce 裁定 R1-D2：Tool 的耐久仓与会话日志在同一个租户事务域，共用写队列。
-- #421 r6 的 C-SQL-PERMIT 采用 R2-D18 的可加实现范围，兑现[执行环境的资源许可与原调用终局同序](../../execution/execution-environment-contract/SPEC.md#结果与不变量)。采用范围为 TS-11，不改变 `ToolLedgerStore` 端口。
-- 消费的契约修订：本包合入时 `@omne-harness/tool` 的 `ToolLedgerStore`（G1）与两组记录仓套件，`@omne-harness/tool-contract` 的 P05 与 custody 套件，`@omne-harness/sql-contract` 的 SQL r2（§2.4、§3.2、§4、§7、§9.3、§17）。
+- [执行环境的资源许可与原调用终局同序](../../execution/execution-environment-contract/SPEC.md#结果与不变量)由 `ToolLedgerStore.commit` 的读集断言（`tool` SPEC「记录仓的同租户读集断言」）兑现，本包在 TS-11 实现它；原来的专用守护宿主提交已删除。
+- 消费的契约修订：本包合入时 `@omne-harness/tool` 的 `ToolLedgerStore`（G1）与两组记录仓套件，`@omne-harness/tool-contract` 的正文存储端口与 `toolBodyStoreConformance()`，`@omne-harness/sql-contract` 的 SQL r2（§2.4、§3.2、§4、§7、§9.3、§17）。
 
 状态：实现与包内验证在 #421 r6 闭包 C-LEDGER 完成。交付接受归派发者。本包不提供 `./cordis` 插件，不接 `tool-records` 行，不合并材料目录。这些归应用侧（波 B 与 L-APP）。
 
@@ -26,6 +26,8 @@
 - 每行记录必须是它的行键所指的记录（`recordKey(record)` 等于行键）。不一致时答 `unavailable`，不交付这行。
 - 记录按 JSON 读回。读回的值不与调用方或存储共享引用。
 
+`readRecord(domain, key)` 在同一次 `domain-serial` 读中取得域修订号和指定键的记录。SQL 使用已有的 `(tenant, kind, name, key)` 主键查询，返回零或一行，不扫描其他记录正文。缺失、不可用、格式与行键核对遵循 TS-01。单键读不改变完整域读取的数量和字节限制。
+
 ### TS-02 记录仓提交
 
 `commit(input)` 是一次 SQL 提交，参加者为 `tool`。参加者在写事务内依次做下列事：
@@ -34,18 +36,19 @@
 2. 当前修订号不等于 `expected` 时，停止并回滚。端口答 `conflict` 与当前修订号，不写入任何东西。
 3. 按输入顺序执行写入：`put` 按键替换，`delete` 删除该键，键不存在时什么也不做。
 4. 把账本域修订号设为 `revision`。写入集为空或只删除不存在的键时，修订号同样推进。
+5. 写入集中的 `schedule` 与 `unschedule` 在同一写事务内更新 `tl_due`（TS-14）。索引写入失败使整个事务回滚。
 
 结果对应如下：
 
-| SQL 结果                                        | 端口答复                                                    |
-| ----------------------------------------------- | ----------------------------------------------------------- |
-| `committed`                                     | `committed`                                                 |
-| `rolled_back`，参加者以修订号停止               | `conflict`，带当前修订号                                    |
+| SQL 结果                                        | 端口答复                                                                                                                                       |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `committed`                                     | `committed`                                                                                                                                    |
+| `rolled_back`，参加者以修订号停止               | `conflict`，带当前修订号                                                                                                                       |
 | `rolled_back`，其他原因（参加者抛错、语句失败） | `rejected`，`reason` 为失败类别。明确回滚已持久，提交没有任何效果；失败由输入与已提交的数据决定（sql-contract §7.6），同一提交再试得到同一失败 |
-| `unknown`                                       | `unknown`。账本按它写入的操作认回结果                       |
-| `rejected_before_accept`，暂时的原因            | `unavailable`，诊断带拒绝原因                               |
-| `rejected_before_accept`，确定的原因            | `rejected`，`reason` 为拒绝原因。定性见 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性) |
-| `identity_conflict`                             | `unavailable`。每次提交用新的操作键，提供者没有执行本次提交 |
+| `unknown`                                       | `unknown`。账本按它写入的操作认回结果                                                                                                          |
+| `rejected_before_accept`，暂时的原因            | `unavailable`，诊断带拒绝原因                                                                                                                  |
+| `rejected_before_accept`，确定的原因            | `rejected`，`reason` 为拒绝原因。定性见 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)             |
+| `identity_conflict`                             | `unavailable`。每次提交用新的操作键，提供者没有执行本次提交                                                                                    |
 
 写入的记录不是严格 JSON 时（函数、BigInt、非有限数、类型化数组、环），端口在发出提交之前答 `rejected`：同一写入集再试仍不是严格 JSON。值为 `undefined` 的对象成员按 JSON 省略。
 
@@ -58,65 +61,66 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 - 租户以 legal-identity 的 TenantId 形状进入。本包用 legal-identity 重建并解析租户文本，非法文本答 `unavailable`。
 - 参加者与读 handler 的每条语句都以租户为第一过滤条件。同一数据库里另一租户的行不会被读、认回或覆盖。另一租户对同一调用键的读写，所得答复与从未写过相同。
 
-### TS-04 原件保管：分块与清单
-
-`preserve` 不设单次大小上限（D2 决策记录结论第 3 条）。它按下列顺序保管原件：
-
-1. 读本操作的清单。已有清单时：同一输入答原 `RawOutput`，不写入；另一输入答 `conflict`，不改动任何东西。
-2. 把原件字节切成不超过 `maxChunkBytes` 的块。每块是一次 SQL 提交，键是（租户，调用，操作，块序号）。块提交遇到已封存的操作时：同一输入不写，另一输入答 `conflict`。
-3. 最后提交清单：字节数、块数、SHA-256、封印摘要与答复。参加者先核对第 0 至第 n−1 块正好构成声明的字节与 SHA-256，再删除序号不小于块数的残留块，然后写入清单。核对不成立时答 `conflict`，不写清单。
-
-由此成立：
-
-- 清单落盘之前，`inspect` 不答 `retained`。
-- 中断（进程在清单之前停止）留下的块不可见。同一操作重送时按键覆盖它们，多出的块在清单提交时删除。
-- 块或清单的提交答 `unknown` 时，`preserve` 答 `commit-unknown`。调用方以同一操作重送。
-- 块或清单的提交被存储受理前拒绝时，按 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)作答：暂时的原因答 `unavailable`，诊断带原因，调用方以同一操作重送；确定的原因答 `invalid`，`field` 为 `storage`，`reason` 为原因名。
-- 输入身份由 codec、字节数、SHA-256 与来源证据决定。同一操作、同一身份的重送认回原 `RawOutput`。
-
-`RawOutput` 的 `content.key` 是 JSON 文本 `[call, operation]`，`content.storage` 与 `custody.owner` 是 `@omne-harness/tool-storage-sql`，`custody.digest` 绑定租户、调用、操作与输入身份。
-
-### TS-05 结果投影保管
-
-`retainResult` 只在同一租户、同一调用已有封存的原件，且该原件的封印等于 `raw.custody.digest` 时进行。否则答 `invalid`（`field: 'raw'`）。投影值按严格 JSON 编码，在它自己的操作下按 TS-04 分块保管，清单记录它保管在哪个原件之上。参加者在清单提交时再核一次该原件仍已封存。同一操作重送答原证据，另一投影答 `conflict`。原件不因此改变。
-
 ### TS-06 修订号
 
-保管行与清单不是 `LedgerRecord`，不在任何账本域内。它们不推进任何账本域修订号（评审 N2），整域读也不受原件大小影响。
-
-### TS-07 构造期核对
-
-`createSqlToolOutputCustody` 在构造时核对：`maxChunkBytes` 与 `maxCommandBytes` 都是正安全整数，并且 `maxChunkBytes` 的 base64 长度加信封预留 `CHUNK_ENVELOPE_BYTES` 不超过 `maxCommandBytes`。不成立时抛 `RangeError`，不构造。信封预留覆盖参加者名、意图、租户文本、各 256 字符的调用与操作、块序号与摘要。
-
-### TS-08 对从未保管的操作的 inspect
-
-`inspect` 对从未保管的操作答 `unknown`（决策记录 U1），对以投影保管的操作也答 `unknown`。它不写排除标记。
+正文分块与清单不是 `LedgerRecord`，不在任何账本域内。它们不推进任何账本域修订号（评审 N2），整域读也不受原件大小影响。
 
 ### TS-09 读取次序
 
-`ToolLedgerStore.read` 用 `domain-serial`。保管的两个读（清单、块）用 `snapshot`，因为清单一经提交不再改变。sql-contract §9.3 把「可能写入排除记录的 Tool `lookup`/`queryOperation`」留在写路径（评审 N4）。在本包这一层，排除记录由账本以 `ToolLedgerStore.commit` 写入，按修订号条件提交，提交本身在写路径上。读只给出排除决定所依据的修订号，读与条件提交之间落下的任何写都使该提交答 `conflict`。
+`ToolLedgerStore.read` 与 `due` 用 `domain-serial`。正文清单与分块不可变，`tool.body.read` 用 `snapshot`；读回的授权、期限与读后再核归 Tool 的账本，不归本包。
 
 ### TS-10 材料
 
-`toolStorageMaterials()` 返回写参加者 `tool`、一条迁移 `tool/001-tool-ledger-custody` 与三个读 handler。`tool` 拥有全部 `tl_` 表，不读其他参加者的表，不需要也不提供事实，声明为 `singleton`。每个模块以构建固定的 `file:` URL 与文件字节的 SHA-256 描述。handler 的 `maxOutputBytes` 为 4194304，等于提供者 `maxReadResultBytes` 的初值。
+`toolStorageMaterials()` 返回一个参加者 `tool`、一条迁移 `tool/r6-001-tool-ledger-body-due`（账本、正文存储与到期索引的表）和三个读 handler。模块以文件 URL 与 SHA-256 命名；应用把它们并入组合目录，本包不建目录。
 
-### TS-11 带原调用条件的 host 提交
+### TS-11 带同租户读集断言的提交
 
-`createSqlToolGuardedHostCommit(options)` 返回独立的 `commit` 端口。调用方传入原调用域、此前读取的 `callExpected` 修订，以及现有的 host `LedgerCommitInput`。
+`commit` 的 `asserts` 随 `ledger` 意图进入同一个参加者命令。适配器先核每条断言的域与被写域同租户，不同租户答 `unavailable`，不提交 SQL。参加者在同一个 SQL 操作事务内执行：
 
-调用方在提交前必须核对主体资格、原调用尚未终局、原请求与准备匹配。本工厂不解析 `ToolState`，也不代替这些判断。它只保证已核对快照的修订在 host 写入时仍成立。调用方不能把已经终局的快照作为许可依据。
+1. 按 TS-02 读被写域的修订号，不等于 `expected` 时以 `revision` 原因停止，答 `conflict`。
+2. 对每条断言按租户、域类型与域名读取 `tl_domain`；该域不存在时修订为 `0`。任一修订不等于断言值时以 `assertion` 原因停止，答 `conflict`，`current` 为被写域的当前修订号，没有任何写入。
+3. 两项都成立才应用写入并推进被写域的修订号。断言的域不写、不推进修订号。读取与写入在提供者的同一个写事务内，所以被断言域的提交不能落在评估与写入之间。
 
-参加者在同一个 SQL 操作事务内执行：
+`unknown` 与 `unavailable` 沿 TS-02 映射。调用方在 `conflict` 后重读所有参与的域再决定是否重新提交；`unknown` 后按自己写入的记录认回。本保证只覆盖同一租户事务域内各账本域的排序，不承诺与 Session 的跨域原子性。`toolLedgerStoreConformance()` 的 `store.asserts-*` 用例在本仓上运行。
 
-1. 核对原调用域为 `call`、目标域为 `host`，且两者租户一致。适配器提交前与参加者解析时各核对一次。非法输入不写入。
-2. 按租户、`call` 类型与调用名读取 `tl_domain`。该域不存在或修订不等于 `callExpected` 时答 `call-changed`，host 没有任何写入。缺失的 call 不视为修订 `0` 的已存在调用。
-3. 按 TS-02 执行 host CAS。修订不匹配答 `conflict`，`current` 为 host 当前修订。call 条件和 host 写入都在提供者的同一个写事务内，失败回滚该操作，事务提交后才答 `committed`。
+### TS-15 整域删除
 
-`unknown` 与 `unavailable` 沿 TS-02 映射。工厂不自动重试。`call-changed` 或 host `conflict` 后，调用方重新读取、核对原调用，再决定是否重新提交。`unknown` 后，调用方按原 host mutation 查询认回，查不到时仍保留未知，不能据此重复外部效果。
+记录仓端口的整域删除是一次 SQL 提交，参加者为 `tool`。语义归 `tool` SPEC 的[记录仓的整域删除](../tool/SPEC.md#记录仓的整域删除)。参加者在一个写事务内做下列事：
 
-许可先提交、原调用随后终局时，host 记录仍保留。终局不会自动删除许可，后续清理由 host 记录拥有者显式提交。工厂不新建表或迁移。`guarded-host` 意图属于既有 `tool` 参加者，使用 `tl_domain` 与 `tl_record`。参加者代码摘要改变，装配方必须通过 `toolStorageMaterials()` 重算组合清单摘要。
+1. 按 TS-02 读该账本域的修订号。修订号不等于期望值时，以 `revision` 原因停止并回滚。端口答 `conflict` 与当前修订号，不删除任何行。
+2. 按 `(tenant, kind, name)` 删除三张表里属于该域的行：`tl_record` 的全部记录、`tl_due` 的全部到期条目与 `tl_domain` 的修订号行。
+3. 三项删除在同一个写事务里一起生效或一起回滚。任一删除失败使整个事务回滚。
 
-本保证只覆盖原调用修订与 host 提交的排序，不承诺与 Session ended 的跨域原子性。保留范围资格、关闭状态与已发生效果的控制仍归各自权威。
+每条语句以租户为第一过滤条件，所以另一个租户的同名域不受影响（TS-03）。删除之后读该域，按 TS-01 答 `complete`，修订号 `0`，没有记录。删除不留墓碑。SQL 结果到端口答复的映射同 TS-02。正文表不属于任何账本域，整域删除不碰 `tl_body_chunk` 与 `tl_body_manifest`（TS-06）。
+
+### TS-16 读取用保管的快照作答
+
+本条兑现 `tool` SPEC 的[记录仓读取的新鲜度](../tool/SPEC.md#记录仓读取的新鲜度)。形式模型是 [SnapshotCache](verification/models/snapshot-cache/README.md)。
+
+同一个数据库上的全部记录仓共用一个保管者（`ledger-keeper.ts`）。数据库的身份是 sql-contract 的 `SqlStorage.database`（[§2.6](../../storage/sql-contract/SPEC.md#26-同一个数据库的身份)），所以 Tool 运行时与清扫各自拿到不同的存储对象时仍看到同一份快照。保管者为每个账本域保管它知道的记录：整域读之后是全部记录，单键读之后是读到的那几条。规则如下。
+
+1. 快照知道的内容用快照作答，不向 SQL 存储发请求。整域读要求快照知道整个域，否则读整个域并保管它。单键读只要求快照知道那条记录，否则只读那一条并把它记进快照；它不读无关记录，所以大到整域读不出的域仍然可以单键读。
+2. 提交答 `committed` 且快照的修订号等于期望时，快照按同一个写集合前进到新修订号。写集合是整域删除时，快照丢掉。
+3. 提交答 `conflict` 且快照正是被拒的修订号时，丢掉快照。被断言的域的快照若正是被断言的修订号，也丢掉。提交答 `unknown` 或提供者抛出时丢掉快照。答 `unavailable` 与 `rejected` 时没有写入，快照保留。
+4. 快照没有龄期，保管者不定时向 SQL 存储确认它。依据：一个数据库只由一个进程写（sqlite-provider 的 [§13.5](../../storage/sqlite-provider/SPEC.md#135-进程内写者排除) 与已知限制 L-4），这个进程的提交都经保管者。别的进程写同一个数据库不在支持的部署内；真发生时，按旧快照决定的写入仍被修订号拒绝（规则 3），答“没有”仍由存储作答（规则 5），只有快照知道的内容可能一直是旧的。
+5. 答“没有”不用快照。单键读在快照里找不到该键，或整域读的快照没有记录时，向 SQL 存储读取并以它的答复作答。答复的修订号等于快照的修订号时确认快照，不等时快照只留下这次答复的内容。
+6. 一次读取途中有同一个域的提交在途或完成时，这次读取的答复不成为快照：SQL 存储可能在提交之前答出它，而答复在提交之后才到达。
+7. 交给读取方的记录是它自己的副本，读取方改动它不影响之后的读取。快照按记录键排序，与 SQL 整域读的次序相同。
+8. 一个保管者最多保管 512 个域，最久未用的先丢。到期索引不进快照，`due` 每次读 SQL 存储。
+
+保管者不改变 TS-01 至 TS-15 的任何答复，`toolLedgerStoreConformance()` 的全部用例照常通过。判据：`tests/ledger-keeper.spec.ts`（在内存记录仓上数往返次数）与 `tests/record-read-boundary.spec.ts`（单键读的 SQL 边界）。
+
+### TS-17 调用记录的固定请求只写一次
+
+本条兑现 `tool` SPEC 的[固定请求只保存一份](../tool/SPEC.md#固定请求只保存一份)第 3 条。记录仓端口不变：`put` 仍交来整条调用记录，读取仍答出整条调用记录。
+
+1. 一条记录在表里分成两部分：`tl_record.record` 是会变的部分，`tl_record.fixed` 是写一次就不再写的部分，没有时为 NULL。只有调用记录有固定部分，就是它的 `request`。
+2. 写入命令里，调用记录的 `put` 带 `fixed`。`given` 带着请求，参加者把它写进 `fixed` 列。`kept` 不带请求，参加者只更新 `record` 列。没有固定部分的记录不带 `fixed`，写入时 `fixed` 列置 NULL。
+3. 域的期望修订号是初始值时，记录仓发 `given`：这个域还没有任何记录。其余提交发 `kept`。
+4. 参加者收到 `kept` 而该键下没有固定部分时，以 `fixed-missing` 停下，整条命令回滚。记录仓随即用 `given` 重发同一次提交。这只发生在调用记录第一次出现在一个已经提交过的域里时。
+5. 读取把两部分拼回一条调用记录。整域删除与按键删除连同固定部分一起删。
+
+性质：受理之后重写调用记录的提交，命令大小与请求大小无关。判据：`tests/request-once.spec.ts`（两份参数合计接近命令上限的调用走到收场，收场后只有调用记录的 `fixed` 列带着请求；装不下的请求在受理时被拒且不留行；调用记录晚出现时补发）与 `tests/participant.spec.ts`（`given`、`kept` 与 `fixed-missing`）。
 
 ### TS-12 带启动条件的账本提交
 
@@ -130,6 +134,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 - 条件里的任一参加者停下操作时答 `condition-failed`。整个操作回滚，账本没有写入。
 - `tool` 参加者因修订不符停下时答 `conflict`，`current` 为当前修订。
 - 条件不是这个形状、没有命令或点名 `tool` 参加者时答 `rejected`，不发出操作。条件不能写账本。
+- 这次提交与记录仓的其他提交走同一个保管者（TS-16），读集断言（TS-11）与调用记录的固定部分（TS-17）照常生效：提交成功后快照随它前进，条件不成立或被拒时快照保留。
 - `unknown` 与 `unavailable` 沿 TS-02 映射。
 
 工厂不自动重试，不新建表或迁移，`tool` 参加者的代码不变。
@@ -138,8 +143,8 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
 - 信任假设（评审 N5）：本包不核验主体。调用方（账本、执行侧与启动协调器）在调用之前已核验主体与租户资格。本包只按受信的目录解析租户的事务域，并在每条语句里按租户过滤。
-- 每次提交使用新的 SQL 操作键（`tool.ledger`、`tool.guarded-host`、`tool.chunk`、`tool.manifest`）。端口按自己的记录认回结果，不认回 SQL 回执。
-- 已提交的写入与保管不因任何对象被丢弃而撤销。
+- 每次提交使用新的 SQL 操作键（`tool.ledger`、`tool.body-put`、`tool.body-seal`、`tool.body-delete`），身份带 `recall: 'never'`（[sql-contract §3.1](../../storage/sql-contract/SPEC.md#不认回的提交)），提供者不为它写回执。端口按自己的记录认回结果：账本按操作记录与域修订，正文存储按分块与清单的现状（同序号同字节答 `kept`，同清单答 `sealed`，删除幂等）。提交结果未知时，端口读回这些记录，不重新执行工具。端口从不重用 SQL 身份；同一端口操作重送时，账本的修订守卫与正文的不可变性认回原结果，不产生第二份结果。
+- 已提交的写入与正文不因任何对象被丢弃而撤销。
 
 ## 已知限制
 
@@ -147,23 +152,33 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 2. 两条不等式（评审 N1）。左侧上界归 `tool` 的 P08 拥有者，在它给出之前是已知限制：
    - 一次 `ToolLedgerStore.commit` 的写入集，编码后加信封不超过 `storage` 行的 `maxCommandBytes`。超过时提供者拒绝（`command_limit`），端口答 `rejected`，`reason` 为 `command_limit`。
    - 一个账本域的全部记录，编码后不超过读 handler 的 `maxOutputBytes`（4194304）与提供者的 `maxReadResultBytes`，记录数不超过 100000。超过时读答 `unavailable`。
-3. 原件全文永久保留，与会话日志在同一个 SQLite 文件里增长，没有到期删除（评审 N7）。重开阈值的归属由 Reduce 在 RI 时定。
-4. `inspect` 对从未保管的操作答 `unknown`（U1），P05 拥有者另定时再改。
-5. 只验证了单进程。两个进程共用一个库、真实 SQLite 提供者的 Worker、持久与断电都未验证，留联调 A。
-6. 每次提交（包括每个块）在提供者的回执表里留下一条回执。原件越大，回执越多。
-7. 清单提交在一个写事务内重读全部块并计算 SHA-256，代价与原件大小成正比。
-8. 值为 `undefined` 的记录成员按 JSON 省略。读回的记录没有这些成员。
+3. 正文删除与整域删除去掉对应的行，产生可复用页，不承诺 SQLite 文件立即缩小。回收后的正文条目随调用域的整域删除去掉（TS-15）。
+4. 两个进程同时共用一个库、强杀与断电耐久未验证。
+5. 封存在一个写事务内重读全部分块并计算 SHA-256，代价与正文大小成正比。
+6. 值为 `undefined` 的记录成员按 JSON 省略。读回的记录没有这些成员。
 
 ## 组合与验证
 
-| 义务                | 持续验证                                                                                                                                                                                     | 前提与未覆盖                                                                                     |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| TS-01、TS-02        | `tests/ledger-store-conformance.spec.ts` 运行 `toolLedgerStoreConformance()` 与 `toolLedgerStoreCompositionConformance()`，七个故障手柄都有来源，没有不适用项；`tests/atomic-commit.spec.ts` | SQLite 测试提供者（`tests/fixtures/sqlite-storage.ts`），不是 sqlite-provider                    |
-| TS-03               | `tests/tenant-isolation.spec.ts`：同键两租户、他租户行混入同一库、目录外的租户                                                                                                               | 同上                                                                                             |
-| TS-04、TS-05、TS-08 | `tests/custody-conformance.spec.ts` 运行 `toolOutputCustodyConformance()`，没有不适用项；`tests/custody-chunks.spec.ts`；`tests/participant.spec.ts`                                         | 同上                                                                                             |
-| TS-06、TS-07        | `tests/custody-chunks.spec.ts`                                                                                                                                                               | 同上                                                                                             |
-| 重开                | `tests/reopen.spec.ts`：关闭再打开同一组数据库文件                                                                                                                                           | 进程内关闭与重开，不是进程终止或断电                                                             |
-| 启动围栏            | `tests/start-coordinator.spec.ts`：`tool-host-local` 的协调器在本仓上运行三组启动套件，并在重开后重建                                                                                        | 授权套件的用例全部不适用（协调器没有授权消费点）                                                 |
-| TS-10               | `tests/materials.spec.ts`、`tests/public-entry.spec.ts`                                                                                                                                      | 真实的三方材料合并由应用侧验证                                                                   |
-| TS-11               | `tests/guarded-host-commit.spec.ts`：真实 Tool 终局、两个 SQLite 连接竞争、租户隔离、丢答、操作中失败与重开                                                                                  | 使用 node:sqlite 测试提供者和真实参加者。未验证 sqlite-provider Worker、组提交、跨进程竞争或断电 |
-| TS-12 | `tests/conditional-commit.spec.ts`：发出的操作里命令的次序与组合、条件参加者停下、账本修订冲突、坏条件不发出、未登记租户 | 存储答复是脚本给的；真实条件参加者与真实提供者的同事务行为由应用侧验证 |
+| 义务                       | 持续验证                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 前提与未覆盖                                                                                                                                  |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| TS-01、TS-02、TS-11、TS-15 | `tests/ledger-store-conformance.spec.ts` 运行 `toolLedgerStoreConformance()`（含 `store.asserts-*` 与整域删除用例）与 `toolLedgerStoreCompositionConformance()`，七个故障手柄都有来源，没有不适用项；`tests/atomic-commit.spec.ts`；`tests/ledger-asserts.spec.ts`：排队中的提交在执行时才评估断言，两个连接之间被断言域的写入使断言在执行时失败                                                                                                                                                         | SQLite 测试提供者（`tests/fixtures/sqlite-storage.ts`），不是 sqlite-provider；提供者的 4 MiB 读出上限由该测试双身按 `READ_OUTPUT_BYTES` 复现 |
+| TS-03                      | `tests/tenant-isolation.spec.ts`：同键两租户、他租户行混入同一库、目录外的租户；`tests/tenant-isolation-live.spec.ts`：正文表与到期索引上的同一性质——A 的正文对 B 不到期、不被 B 的清扫回收、B 的账本与正文仓读不到、B 的删除不动它；混入 A 库的 B 行不进入 A 的到期读、清扫、正文读与删除                                                                                                                                                                                                               | 同上                                                                                                                                          |
+| TS-06                      | `tests/body-revision-live.spec.ts`：真实 sqlite-provider 上写入三块正文并封存清单，前后 `tl_domain` 的全部行不变，调用域与宿主域经 `read` 读到的修订号不变，按写入前修订号的账本提交仍然落盘                                                                                                                                                                                                                                                                                                             | 慢层；只覆盖写入与封存，删除正文不在本用例                                                                                                    |
+| 不写回执（C10）            | `tests/receipts-live.spec.ts`：真实 sqlite-provider 上一次带卸载正文的完整调用（受理、准备、启动、正文块与封存、最终事实、收场，≥ 8 次提交）后 `_sql_receipt` 行数不变                                                                                                                                                                                                                                                                                                                                   |
+| 重开                       | `tests/reopen.spec.ts`：关闭再打开同一组数据库文件                                                                                                                                                                                                                                                                                                                                                                                                                                                       | 进程内关闭与重开，不是进程终止或断电                                                                                                          |
+| 启动围栏                   | `tests/start-coordinator.spec.ts`：`tool-host-local` 的协调器在本仓上运行三组启动套件，并在重开后重建                                                                                                                                                                                                                                                                                                                                                                                                    | 授权套件的用例全部不适用（协调器没有授权消费点）                                                                                              |
+| 历史无关（C7 host）        | `tests/host-history-independence.spec.ts`：种入 200 次 Tools 调用（来源绑定、控制主体、父与目标两次受理、环境获取与长寿命保留作用域里的保留终端与移交后停止的保留进程、转发槽与一条收到的副本、父调用经真实账本驱动到 `done` 的结果交付）后新调用能启动；计数记录仓显示一次 Tools 调用在宿主路径上读到的记录数与字节数在 20 与 200 次历史下逐项相等，保留作用域记录的大小两次相等；作用域的收场记录随已停止的保留进程增长（等于停止数），只计数，读一条收场事实恰读一条记录；`start-guards` 大小单独报告 | 慢层；接收方、资格与材料是替身，账本与宿主工厂是真件                                                                                          |
+| TS-12                      | `tests/conditional-commit.spec.ts`：发出的操作里命令的次序与组合、条件参加者停下、账本修订冲突、坏条件不发出、未登记租户；存储答复是脚本给的，真实条件参加者与真实提供者的同事务行为由应用侧验证 |
+| TS-10                      | `tests/materials.spec.ts`、`tests/public-entry.spec.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 真实的三方材料合并由应用侧验证                                                                                                                |
+
+## 正文存储与到期索引的实现映射
+
+正文与到期索引的命令沿同一 `tool` 参加者执行（`body-put`、`body-seal`、`body-delete` 与 `ledger` 的 `schedule`/`unschedule`）。表：`tl_domain`、`tl_record`、`tl_body_chunk`、`tl_body_manifest`、`tl_due`。`tl_record.record` 与 `tl_record.fixed` 是 `BLOB`，存记录两部分各自的 JSON 的压缩文本（[sql-contract §10.1](../../storage/sql-contract/SPEC.md#101-大文本列的存储格式)）；读上限仍按还原后的 JSON 计。读 handler：`tool.ledger.read`、`tool.body.read`、`tool.due.read`；一条迁移 `tool/r6-001-tool-ledger-body-due`。打开 r6 基线之前建的库时，SQL 提供者发现当前目录不列出的迁移标记，拒绝该事务域，不迁移旧数据（C9，`tests/old-baseline-quarantine.spec.ts`）。
+
+### TS-13 正文存储
+
+`createSqlToolBodyStore(options)` 在 SQL 存储契约上兑现 [`ToolBodyStore`](../tool-contract/SPEC.md#正文存储端口与到期索引)。`options` 在记录仓的选项之外给出 `permitKey` 与 `clock`：适配器在发送命令之前、在本进程内用 `verifyBodyPermit` 校验许可签名，并用 `clock.now()` 判断截止时间；参加者不接收时钟，只保持对象不可变。`put`、`seal`、`delete` 各是一次 SQL 提交（意图 `body-put`、`body-seal`、`body-delete`），冲突与未就绪由参加者以 `body-conflict`、`body-not-ready` 停止并回滚；`sealed` 在提供者提交清单之后才答出。`read` 用 `tool.body.read`（`snapshot`）按序号范围读取，一次最多 `BODY_READ_CHUNKS` 块，更长的范围分多次读取；正文一旦封存就不再变化，两次读取之间被删除的正文答 `absent`。表：`tl_body_chunk(tenant, call, body, seq, data)` 与 `tl_body_manifest(tenant, call, body, chunks, bytes, digest)`，都不碰 `tl_domain`。判据：`tests/body-store-conformance.spec.ts` 在 SQLite 测试提供者上运行 `toolBodyStoreConformance()`，`crash` 手柄关闭并重开同一目录。
+
+### TS-14 到期索引
+
+`ledger` 意图的写入集接受 `schedule` 与 `unschedule`，参加者在同一个写事务内写 `tl_due(tenant, kind, name, key, due_at)`，所以它们与记录写入和修订号推进一起生效或一起回滚。`ToolLedgerStore.due` 用 `tool.due.read`（`domain-serial`）读取 `due_at <= now` 的条目，一次最多 `DUE_READ_ENTRIES` 条，适配器把更大的 `limit` 收窄到这个上限。判据：`tests/ledger-store-conformance.spec.ts` 的 `due.*` 用例。

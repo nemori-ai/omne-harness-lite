@@ -36,6 +36,8 @@ function world() {
     store: {
       durability: 'durable',
       read: async () => ({ kind: 'complete', revision: '1', records: state.rows }),
+      readRecord: async () => ({ kind: 'complete', revision: '1', record: state.rows[0] ?? null }),
+      due: async () => ({ kind: 'complete', entries: [] }),
       commit: async (input: unknown) => {
         if (state.landed)
           for (const write of (input as { writes: { record: Row }[] }).writes)
@@ -102,4 +104,42 @@ describe('per-call tables release on the settled state', () => {
     expect(isWitnessed(holder, 'c2')).toBe(true)
     expect(forgotten).toEqual([callKeyOf(TENANT, 'c1')])
   })
+})
+
+it('single-record reads preserve call witnesses and release them on the settled record', async () => {
+  const { holder, state, store, forgotten, domain } = world()
+  state.rows = [row('c1', 'running')]
+  await store.readRecord(domain, 'call')
+  expect(isWitnessed(holder, 'c1')).toBe(true)
+  state.rows = [row('c1', 'settled')]
+  await store.readRecord(domain, 'call')
+  expect(isWitnessed(holder, 'c1')).toBe(false)
+  expect(forgotten).toEqual([callKeyOf(TENANT, 'c1')])
+  holder.sql = null
+  expect(await store.readRecord(domain, 'call')).toMatchObject({ kind: 'unavailable' })
+})
+
+it('absent and unavailable point reads leave existing call witnesses intact', async () => {
+  const { holder, state, store, forgotten, domain } = world()
+  state.rows = [row('c1', 'running')]
+  await store.readRecord(domain, 'call')
+  state.rows = []
+  expect(await store.readRecord(domain, 'missing')).toMatchObject({
+    kind: 'complete',
+    record: null,
+  })
+  if (holder.sql === null) throw new Error('fixture store required')
+  holder.sql = {
+    ...holder.sql,
+    store: {
+      ...holder.sql.store,
+      readRecord: async () => ({ kind: 'unavailable', diagnostic: 'storage offline' }),
+    },
+  }
+  expect(await store.readRecord(domain, 'call')).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'storage offline',
+  })
+  expect(isWitnessed(holder, 'c1')).toBe(true)
+  expect(forgotten).toEqual([])
 })

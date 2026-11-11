@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { recordKey } from '../src/ledger-store.ts'
 import { describe, it } from 'vitest'
 import type { ConformanceCase } from '@omne-harness/tool-contract/testing'
 import { runConformanceCase } from '@omne-harness/tool-contract/testing'
@@ -31,6 +32,30 @@ function control(
 }
 const noFault = () => {}
 const negatives = [
+  {
+    name: 'store.record-snapshot',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        readRecord: domain => store.readRecord(domain, 'host:absent'),
+      })),
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'store.record-cas-other-key',
+    fixture: ignoreCas,
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'store.record-isolation',
+    fixture: collapseDomains,
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'store.record-unavailable',
+    fixture: () => control(() => ({ readUnavailable: noFault })),
+    message: 'Expected values to be strictly',
+  },
   {
     name: 'store.snapshot',
     fixture: () =>
@@ -147,6 +172,38 @@ const negatives = [
     message: 'rejected batch must preserve every record and the revision',
   },
   {
+    // A store that refuses every commit with an assertion, as one that never read them would.
+    name: 'store.asserts-hold',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input =>
+          (input.asserts ?? []).length > 0
+            ? Promise.resolve({ kind: 'conflict', current: input.expected })
+            : store.commit(input),
+      })),
+    message: 'a commit whose assertion holds must commit',
+  },
+  {
+    // A store that drops the assertions and applies the writes.
+    name: 'store.asserts-conflict',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input => store.commit({ ...input, asserts: [] }),
+      })),
+    message: 'a commit with one failed assertion must conflict',
+  },
+  {
+    name: 'store.asserts-same-tenant',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input => store.commit({ ...input, asserts: [] }),
+      })),
+    message: 'an assertion on another tenant is refused',
+  },
+  {
     name: 'ledger.idempotency',
     fixture: withoutOperations,
     message: 'same-input retry must recall admission',
@@ -196,6 +253,109 @@ const negatives = [
     name: 'ledger.fence-commitUnavailable',
     fixture: () => control(() => ({ commitUnavailable: noFault })),
     message: 'unavailable fence must fail the query',
+  },
+  {
+    name: 'due.schedule-lands-with-commit',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        due: (tenant, _now, limit) => store.due(tenant, '9999-12-31T00:00:00.000Z' as never, limit),
+      })),
+    message: 'nothing is due before its instant',
+  },
+  {
+    name: 'due.conflict-schedules-nothing',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: async input => {
+          const result = await store.commit(input)
+          if (result.kind !== 'conflict') return result
+          await store.commit({
+            ...input,
+            expected: result.current,
+            revision: `${Number(result.current) + 1}` as never,
+            writes: input.writes.filter(write => write.kind === 'schedule'),
+          })
+          return result
+        },
+      })),
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'due.reschedule-replaces-and-unschedule-removes',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input =>
+          store.commit({
+            ...input,
+            writes: input.writes.filter(write => write.kind !== 'unschedule'),
+          }),
+      })),
+    message: 'Expected values to be strictly',
+  },
+  {
+    name: 'due.keys-are-per-domain-and-per-tenant',
+    fixture: () =>
+      wrappedFixture(store => {
+        let first: Parameters<typeof store.due>[0] | undefined
+        return {
+          ...store,
+          due: (tenant, now, limit) => {
+            first ??= tenant
+            return store.due(first, now, limit)
+          },
+        }
+      }),
+    message: 'another tenant sees nothing',
+  },
+  {
+    name: 'due.lost-answer-leaves-index-committed',
+    fixture: () =>
+      control(f => ({
+        unknownApplied: async () => {
+          assert.ok(f.controls.unknownDropped)
+          await f.controls.unknownDropped()
+        },
+      })),
+    message: 'Expected values to be strictly',
+  },
+  {
+    // A store that deletes the records of a dropped domain and keeps its due entries.
+    name: 'drop.leaves-the-domain-as-never-committed',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: async input => {
+          if (!input.writes.some(write => write.kind === 'drop')) return store.commit(input)
+          const read = await store.read(input.domain)
+          assert.ok(read.kind === 'complete')
+          return store.commit({
+            ...input,
+            revision: `${Number(input.expected) + 1}` as never,
+            writes: read.records.map(record => ({ kind: 'delete', key: recordKey(record) })),
+          })
+        },
+      })),
+    message: 'Expected values to be strictly',
+  },
+  {
+    // A store that takes a drop with another write and applies the other write only.
+    name: 'drop.is-the-only-write-and-resets-the-revision',
+    fixture: () =>
+      wrappedFixture(store => ({
+        ...store,
+        commit: input =>
+          input.writes.some(write => write.kind === 'drop') && input.writes.length > 1
+            ? store.commit({
+                ...input,
+                revision: `${Number(input.expected) + 1}` as never,
+                writes: input.writes.filter(write => write.kind !== 'drop'),
+              })
+            : store.commit(input),
+      })),
+    message: 'a drop with another write is refused',
   },
 ] satisfies readonly Readonly<{
   name: string

@@ -54,11 +54,11 @@ import {
   modelRuntimeKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import {
-  COMMAND_RESERVE_BYTES,
   callHandler,
   createSqlModelCommands,
   modelMigration,
   pendingHandler,
+  requestHandler,
   type SqlModelCommandsOptions,
 } from '@omne-harness/model-storage-sql'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
@@ -73,6 +73,7 @@ import {
 import { vaultCredentialPlugin } from './credentials.ts'
 import { FAMILIES, PLACEHOLDER, ROUTE_PATH, TRANSPORT_LIMITS, decoded } from './local-host.ts'
 import { factorySupplier } from './profiles.ts'
+import type { RequestDisclosure } from '@omne-harness/model-host-local'
 
 // --- Values -------------------------------------------------------------------------------------
 
@@ -80,7 +81,8 @@ type Principal = Readonly<{ subject: string }>
 type Storage = SqlModelCommandsOptions<Principal>['storage']
 type CommitRequest = Parameters<Storage['commit']>[0]
 type CommitResult = Awaited<ReturnType<Storage['commit']>>
-type Receipt = Extract<CommitResult, { kind: 'committed' | 'rolled_back' }>
+/** A stored receipt: what `query` answers. `commit` answers it with the `recalled` mark. */
+type Receipt = Extract<Awaited<ReturnType<Storage['query']>>, { kind: 'committed' | 'rolled_back' }>
 type SqlIdentity = CommitRequest['identity']
 type ReadPort = Parameters<typeof modelMigration.up>[0]
 type QueryRows = ReturnType<ReadPort['execute']>
@@ -100,10 +102,6 @@ export const REQUIRED: ModalityRequirement = {
   modalities: ['text'],
   source: { owner: HOST_OWNER, record: 'required', revision: '1', digest: '1'.repeat(64) },
 }
-/** The capacity of one call; the tenant share holds a few such calls at once. */
-export const CAPACITY = { bytes: '200000', blocks: '20', attachmentBytes: '0' }
-const TENANT_SHARE = { bytes: '1000000', blocks: '100', attachmentBytes: '0' }
-const MAX_CALL_BYTES = 1 << 20
 // Every fact is saved before the next one is read, so the content before a cancel is confirmed.
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 1,
@@ -119,7 +117,7 @@ const HOST_SETTINGS = {
   concurrencyLimit: 4,
   wakeCapacity: 16,
   scanBatchSize: 10,
-  scanIntervalMs: 0,
+  scanIntervalMs: 25,
 }
 const PUSH_LIMITS: ResultPushLimits = {
   maxConcurrentCalls: 4,
@@ -200,11 +198,15 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
   return { columns: [], rows: [], changes: BigInt(result.changes), lastInsertRowid: null }
 }
 
-const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
+const HANDLERS = new Map(
+  [callHandler, pendingHandler, requestHandler].map(item => [item.handler, item]),
+)
 const keyOf = (identity: SqlIdentity) =>
   JSON.stringify([identity.scope, identity.operation, identity.operationKey])
 const digestOf = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value), 'utf8').digest('hex')
+/** The bound of one command, as the release storage has it: a larger command is refused. */
+export const MAX_COMMAND_BYTES = 1 << 20
 const NOT_COMMITTED_PROOFS = {
   writerGenerationExcluded: true,
   oldTransactionTerminated: true,
@@ -234,6 +236,7 @@ export type FileStorage = Readonly<{
  * `SqlStorage` over one `node:sqlite` file for one transaction domain. Every commit runs the real
  * participant in one transaction; the receipt is stored in the same file, so a repeated identity
  * is recognised after `reopen`. `read` runs the member's read handlers on the same connection.
+ * A command above `MAX_COMMAND_BYTES` is refused before it runs, as the release storage refuses it.
  */
 export async function openFileStorage(file: string): Promise<FileStorage> {
   const participant = await loadParticipant()
@@ -296,6 +299,7 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
     return receipt
   }
   const storage: Storage = {
+    database: {},
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request) {
       const key = keyOf(request.identity)
@@ -303,10 +307,21 @@ export async function openFileStorage(file: string): Promise<FileStorage> {
       if (existing !== undefined)
         return Promise.resolve(
           existing.inputDigest === digestOf(request.commands)
-            ? existing
+            ? { ...existing, recalled: true }
             : { kind: 'identity_conflict', identity: request.identity, existing },
         )
-      return Promise.resolve(executeCommit(request))
+      if (
+        request.commands.some(
+          command => Buffer.byteLength(JSON.stringify(command), 'utf8') > MAX_COMMAND_BYTES,
+        )
+      )
+        return Promise.resolve({
+          kind: 'rejected_before_accept',
+          identity: request.identity,
+          reason: 'command_limit',
+          diagnostic: null,
+        } as CommitResult)
+      return Promise.resolve({ ...executeCommit(request), recalled: false })
     },
     query(identity) {
       const found = receiptOf(keyOf(identity))
@@ -405,7 +420,7 @@ function coreOptions(): ModelCommandsCoreOptions<Principal> {
       resultPageParts: 16,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: TENANT_SHARE,
+      unacknowledgedResults: 10,
     },
   }
 }
@@ -440,9 +455,8 @@ export function durableCommands(storage: Storage, profile?: ModelProfile) {
     ...coreOptions(),
     storage,
     domains,
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
-    maxCallBytes: MAX_CALL_BYTES,
-    maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
     ...(profile === undefined
       ? {}
       : { send: { mirrorBytes: 1 << 20, sources: sourcesOf(profile) } }),
@@ -534,6 +548,7 @@ function commandsServiceOver(commands: ModelCommands<Principal>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
     declare readonly recordMaterialization: ModelCommands<unknown>['recordMaterialization']
@@ -588,6 +603,7 @@ class LineClock extends ModelClockService {
 }
 
 export type LineInput = Readonly<{
+  requestDisclosure?: RequestDisclosure
   /** A private directory for the vault file. */
   directory: string
   storage: FileStorage
@@ -659,6 +675,9 @@ export async function assembleLine(input: LineInput) {
   await load(preparation.plugin, { maxCitedCalls: 8 })
 
   const Stage = createModelSendStagePlugin({
+    ...(input.requestDisclosure === undefined
+      ? {}
+      : { requestDisclosure: input.requestDisclosure }),
     families: FAMILIES,
     coordinator: durable.coordinator,
     materialization: {

@@ -4,6 +4,7 @@ import {
   type Access,
   type AgentExecutionId,
   type AgentJournalEntry,
+  type AgentOperationId,
   type Failure,
   type ReceivedCommitValue,
   type Reply,
@@ -273,20 +274,18 @@ export function createAgentToolReceiver<P>(
         : fail({ kind: 'denied' })
     return admit(access, value)
   }
-  /** Conflict, cancellation and capacity gates, in this order, before a reception is kept. */
+  /** Conflict and capacity gates, in this order, before a reception is kept. */
   function gate(
     pending: Pending<P>,
     current: ToolReception<P> | undefined,
-    signal: AbortSignal,
   ): Outcome<Readonly<{ capacity: Capacity; active: number }>, ToolDeliveryFailure> {
-    const { access, value, target, recalled, key, tenant } = pending
+    const { access, value, target, key, tenant } = pending
     if (
       current &&
       (toolValueText(current.delivery) !== toolValueText(value) ||
         binding(current.access, current.target) !== binding(access, target))
     )
       return fail({ kind: 'conflict' })
-    if (!current && !recalled && signal.aborted) return fail({ kind: 'cancelled-before-accept' })
     const capacity = dependencies.capacity(access.tenant)
     if (Object.values(capacity).some(limit => !Number.isSafeInteger(limit) || limit < 0))
       return unavailable('capacity')
@@ -294,6 +293,32 @@ export function createAgentToolReceiver<P>(
     if (active >= capacity.inFlight) return fail({ kind: 'backpressured', resource: 'in-flight' })
     if (state.writing.has(key)) return unknown()
     return succeed({ capacity, active })
+  }
+  function operationOf(key: string): AgentOperationId {
+    const operation = decodeAgentOperationId(
+      `received-tool-${createHash('sha256').update(key).digest('hex')}`,
+    )
+    if ('failure' in operation) throw new Error('invalid derived Tool reception operation')
+    return operation.ok
+  }
+  /**
+   * A delivery without a record under a stopped signal: nothing new is written. The Journal is
+   * asked for its operation; a delivery it holds is answered saved, any other is not accepted.
+   */
+  async function recognise(pending: Pending<P>): Promise<Saved> {
+    const probe: ToolReception<P> = {
+      access: pending.access,
+      target: pending.target,
+      delivery: pending.value,
+      operation: operationOf(pending.key),
+      bytes: 0,
+      attachments: 0,
+      commit: { kind: 'unknown' },
+    }
+    const outcome = await finish(probe, true)
+    if ('ok' in outcome) return outcome
+    state.diagnostics.delete(probe.operation)
+    return fail({ kind: 'cancelled-before-accept' })
   }
   /** Records a first-seen delivery against the tenant's record, byte and attachment limits. */
   function keep(
@@ -309,15 +334,11 @@ export function createAgentToolReceiver<P>(
       return fail({ kind: 'backpressured', resource: 'bytes' })
     if (kept.reduce((total, item) => total + item.attachments, refs) > capacity.attachments)
       return fail({ kind: 'backpressured', resource: 'attachments' })
-    const operation = decodeAgentOperationId(
-      `received-tool-${createHash('sha256').update(key).digest('hex')}`,
-    )
-    if ('failure' in operation) throw new Error('invalid derived Tool reception operation')
     const reception: ToolReception<P> = {
       access,
       target,
       delivery: value,
-      operation: operation.ok,
+      operation: operationOf(key),
       bytes,
       attachments: refs,
       commit: { kind: recalled ? 'unknown' : 'new' },
@@ -338,6 +359,9 @@ export function createAgentToolReceiver<P>(
         } finally {
           state.writing.delete(key)
           state.active.set(tenant, (state.active.get(tenant) ?? 1) - 1)
+          // A record stays only while its outcome is not known: maintenance owes that one a query.
+          // A decided delivery needs none; the Journal recognises its operation when it comes again.
+          if (reception.commit.kind !== 'unknown') state.receptions.delete(key)
         }
       })(),
     )
@@ -354,7 +378,8 @@ export function createAgentToolReceiver<P>(
       tenant = tenantKey(access)
     let current = state.receptions.get(key)
     const pending = { access, value, target: admitted.ok, recalled, key, tenant }
-    const gated = gate(pending, current, input.signal)
+    if (!current && !recalled && input.signal.aborted) return recognise(pending)
+    const gated = gate(pending, current)
     if ('failure' in gated) return gated
     const { capacity, active } = gated.ok
     if (!current) {
@@ -365,10 +390,8 @@ export function createAgentToolReceiver<P>(
     current.access = access
     state.active.set(tenant, active + 1)
     state.writing.add(key)
-    const reception = current,
-      wasSaved = current.commit.kind === 'saved'
+    const reception = current
     const work = write(reception, key, tenant)
-    if (wasSaved) return work
     return raceAbort(work, input.signal, () =>
       reception.commit.kind === 'saved'
         ? succeed(

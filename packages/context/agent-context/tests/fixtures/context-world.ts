@@ -112,7 +112,6 @@ export const evidence = (record: string): DurableEvidence => ({
 })
 /** The durable evidence of the history head that the holder resolves. */
 export const HEAD = evidence('history-head')
-export const RESULT_CAPACITY = { bytes: '1048576', blocks: '1024', attachmentBytes: '0' }
 
 export function userMessage(index: number, text: string): Message {
   const id = parseMessageId(`msg_${String(index).padStart(22, 'a')}`)
@@ -467,7 +466,6 @@ export async function createWorld(options: WorldOptions = {}) {
     preparation: f.preparation,
     conversions: createAbsentConversionResults<string>(),
     model,
-    resultCapacity: RESULT_CAPACITY,
     tools: options.tools ?? toolsSourceOf(absentToolLookup),
     stepResults: options.stepResults ?? (async () => ({ kind: 'unavailable', diagnostic: 'none' })),
     ...(options.definitions === undefined ? {} : { definitions: options.definitions }),

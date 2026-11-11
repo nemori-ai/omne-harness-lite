@@ -40,7 +40,7 @@ function closure(entry: string): { files: Set<string>; external: Set<string> } {
 }
 
 describe('runtime exports of the entries', () => {
-  it('the root exports the four pure functions and nothing else', async () => {
+  it('the root exports the pure functions and nothing else', async () => {
     const root = await import('@omne-harness/sql-contract')
     expect(Object.keys(root).sort()).toEqual([
       'combinationManifest',
@@ -50,9 +50,9 @@ describe('runtime exports of the entries', () => {
     ])
   })
 
-  it('the worker entry exports no value', async () => {
+  it('the worker entry exports the text pack pair and nothing else', async () => {
     const worker = await import('@omne-harness/sql-contract/worker')
-    expect(Object.keys(worker)).toEqual([])
+    expect(Object.keys(worker).sort()).toEqual(['packText', 'unpackText'])
   })
 
   it('the cordis entry exports the four services and their keys', async () => {

@@ -78,7 +78,7 @@ export function fixedPreparationInput<P>(
   const record = input.preparation
   if (!matchingEnvironment(environment, record.adoption))
     return environmentUnavailable('the original environment adapter is unavailable')
-  const judged = judgeFixedToolRequest(record.request)
+  const judged = judgeFixedToolRequest(input.request)
   if ('failure' in judged) return fail({ kind: 'invalid', ...judged.failure })
   if (!validPreparation(record))
     return fail({ kind: 'invalid', field: 'preparation', reason: 'invalid preparation input' })
@@ -93,8 +93,8 @@ export function fixedPreparationInput<P>(
       adoption: Object.freeze({ ...record.adoption }),
       inputDigest: record.inputDigest,
       purpose: record.purpose,
-      request: judged.ok,
     }),
+    request: judged.ok,
   })
 }
 

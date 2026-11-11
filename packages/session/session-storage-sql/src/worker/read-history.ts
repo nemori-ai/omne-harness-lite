@@ -4,7 +4,7 @@
 // `readEntryText` (entry-codec.ts).
 import { readEntryText } from '../entry-codec.ts'
 import type { JsonValue } from '@omne-harness/sql-contract'
-import { big, handler, oneRow, PAGE_ROWS, rowsOf, scopeOf, text } from './support.ts'
+import { big, handler, oneRow, packed, PAGE_ROWS, rowsOf, scopeOf } from './support.ts'
 
 const MAX_KINDS = 64
 
@@ -107,7 +107,7 @@ export default handler('session.history', (raw, port) => {
         seen.add(position)
         return true
       })
-      .map(row => text(row['entry']))
+      .map(row => packed(row['entry']))
   }
   const upperRow = oneRow(
     port,
@@ -127,8 +127,8 @@ export default handler('session.history', (raw, port) => {
     interpreter:
       sample === undefined
         ? null
-        : (readEntryText(text(sample['entry'])).schema as unknown as JsonValue),
-    entries: taken.map(row => text(row['entry'])),
+        : (readEntryText(packed(sample['entry'])).schema as unknown as JsonValue),
+    entries: taken.map(row => packed(row['entry'])),
     scannedThrough: String(lastPosition),
     next: exhausted
       ? null

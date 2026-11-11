@@ -248,7 +248,7 @@ describe('query', () => {
     const h = await open(fx.fixture())
     await small(h)
     const committed = await h.storage.commit(commitRequest(fx.fixture()))
-    expect(await h.storage.query(identity())).toEqual(committed)
+    expect({ ...(await h.storage.query(identity())), recalled: false }).toEqual(committed)
   })
 
   it('returns not_committed with the five proofs for a ready domain without a receipt', async () => {
@@ -362,7 +362,7 @@ describe('partition by scope', () => {
     )
     expect(a.kind).toBe('committed')
     expect(b.kind).toBe('committed')
-    expect(await h.storage.query(identity())).toEqual(a)
+    expect({ ...(await h.storage.query(identity())), recalled: false }).toEqual(a)
   })
 })
 
@@ -584,8 +584,8 @@ describe('concurrent calls on one identity', () => {
       h.storage.commit(commitRequest(fx.fixture())),
       h.storage.commit(commitRequest(fx.fixture())),
     ])
-    expect(first.kind).toBe('committed')
-    expect(second).toEqual(first)
+    expect(first).toMatchObject({ kind: 'committed', recalled: false })
+    expect(second).toEqual({ ...first, recalled: true })
   })
 
   it('the first attempt keeps the interpretation: the other input gets identity_conflict', async () => {
@@ -600,6 +600,7 @@ describe('concurrent calls on one identity', () => {
       ),
     ])
     expect(first.kind).toBe('committed')
-    expect(second).toMatchObject({ kind: 'identity_conflict', existing: first })
+    expect(second).toMatchObject({ kind: 'identity_conflict' })
+    expect({ ...Reflect.get(second, 'existing'), recalled: false }).toEqual(first)
   })
 })

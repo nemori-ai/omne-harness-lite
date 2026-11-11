@@ -3,8 +3,9 @@
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
 - [提供者协议入口](provider.ts)。
+- [最终事实与指纹](materials.ts)：精确 final、计划后的 final、计划端口与规范 JSON 指纹。
+- [正文存储端口](body-store.ts)：写入许可、封存清单与 `ToolBodyStore`。
 - [绑定提供者入口](binding.ts)。
-- [一致性套件入口](testing.ts)：[用例类型](testing-case.ts)、[启动排序域与授权替身](testing-start-authority.ts)、[外层调用方的启动围栏](testing-start-fence.ts)、[授权消费点](testing-start-authorization.ts)、[结果接收端口](testing-result-receiver.ts)、[环境](testing-environment.ts)、[执行者绑定](testing-executor-binding.ts)、[输出保管](testing-output-custody.ts)、[时钟](testing-clock.ts)、[决策桥](testing-decision-bridge.ts)、[资源应答](testing-resource-responses.ts)、两者共有的[外部关联用例](testing-external.ts)和[合法值](testing-values.ts)。
 - [资产正文端口](contract.ts)。
 - [品牌身份与解码函数](identity.ts)。
 - [定义与固定请求](definitions.ts)。

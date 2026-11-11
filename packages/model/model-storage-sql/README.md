@@ -6,13 +6,13 @@ The SQL storage member of Model. It implements `ModelCommandStorage`, the storag
 
 ## Responsibility and status
 
-This package owns six things: the four tables `md_call`, `md_dispatch`, `md_part`, and `md_operation` with their migration; the parse from rows to the call document; the SQL `ModelCommandStorage`, whose runs read, run the core's work, and commit with CAS; the participant `model` with the three read handlers `model.call`, `model.pending`, and `model.diagnostics`; `createSqlModelCommands`, which puts the shared core on this storage; and `createSqlModelDiagnostics`, the read face `ModelDiagnostics.list` over the same rows.
+This package owns six things: the five tables `md_call`, `md_dispatch`, `md_part`, `md_operation`, and `md_request` with their migration; the parse from rows to the call document; the SQL `ModelCommandStorage`, whose runs read, run the core's work, and commit with CAS; the participant `model` with the four read handlers `model.call`, `model.pending`, `model.request`, and `model.diagnostics`; `createSqlModelCommands`, which puts the shared core on this storage; and `createSqlModelDiagnostics`, the read face `ModelDiagnostics.list` over the same rows.
 
 The package does not own the rules of the Model commands. The shared core of `@omne-harness/model` owns them. It does not own the commit protocol, the receipts, or the tenant domain directory. The storage contract and the application own them.
 
 Status: `draft`. The [implementation status](SPEC.md#实现现状) of the SPEC gives the coverage.
 
-- Implemented: `createSqlModelCommands` (with `send`, also the send coordinator over the same core), `createSendMirror`, `createSqlModelStorage`, the tables and the migration, the row parse, the participant, the three handler modules, the static materials `modelStorageMaterials()` with their `codeDigest`, and the construction checks.
+- Implemented: `createSqlModelCommands` (with `send`, also the send coordinator over the same core), `createSendMirror`, `createSqlModelStorage`, the tables and the migration, the row parse, the participant, the four handler modules, the static materials `modelStorageMaterials()` with their `codeDigest`, and the construction checks.
 - Implemented: the `./cordis` factory `createSqlModelRecordsPlugin`, which publishes `modelCommands` and owns a separate send plugin fiber.
 - Implemented: `createSqlModelDiagnostics` and the `./cordis` factory `createSqlModelDiagnosticsPlugin`, which publishes `modelDiagnostics`. The page carries the whitelist fields only. Every `timing` is `unknown`, because the storage holds no phase times. The [diagnostics read face](SPEC.md#诊断读面) of the SPEC gives the field mapping, the qualification mapping, the cursor, and the retention adoption.
 - Known difference: after a restart, `query` can answer `not-committed` for a write whose outcome was unknown before the restart. The [known differences](SPEC.md#已知差异) of the SPEC give all differences from the memory commands.
@@ -34,12 +34,10 @@ const { commands } = createSqlModelCommands({
   storage,
   domains,
   combination,
-  maxCallBytes,
-  maxCommandBytes,
 })
 ```
 
-`commands` has the 22 methods of `ModelCommands`. The shared core runs each method with `run(work, scope)` of the storage. The scope gives the tenant, the call, and, for a write, the operation. In `work` the core reads with `documents` and `reserved`, and it writes one time with `commit` or `publish`. After a CAS conflict, the run reads again and runs the work again. `scanPending` uses the `pending` port of the storage and does not run an attempt.
+`commands` has the 23 methods of `ModelCommands`. The shared core runs each method with `run(work, scope)` of the storage. The scope gives the tenant, the call, and, for a write, the operation. In `work` the core reads with `documents` and `held`, and it writes one time with `commit` or `publish`. After a CAS conflict, the run reads again and runs the work again. `scanPending` uses the `pending` port of the storage and does not run an attempt.
 
 The factory also accepts an optional `initialRun`, `observation: { limits, timing }`, and `reportConfirmation`. It returns `initial` and `observations`, each `null` when disabled. All enabled parts share one core. Initial records remain process-local and add no SQL takeover table. See [final confirmation and private ports](SPEC.md#最终确认与私有侧口).
 
@@ -71,9 +69,9 @@ The application must supply these mappings:
 | `options.inject`                             | Supply the complete list of service key constants needed by `resolve`. Exclude `modelCommands`, which this plugin provides.                                                                                                                                                |
 | `options.resolve(ctx, config)`               | Return `storage`, `domains`, `clock`, `authority`, `evidence`, `sources`, and `manifestDigest` for this activation. The application owns policy and the registered storage combination.                                                                                    |
 | `options.sendStage(coordinator, activation)` | Return `{ plugin, config }` for the existing send stage. For the local host, call `createModelSendStagePlugin` from `@omne-harness/model-host-local/cordis` with this coordinator and the application's remaining send options. Its config supplies `maxRetainedAttempts`. |
-| `config`                                     | Supply `owners`, all `limits` fields, `maxCallBytes`, `maxCommandBytes`, `combinationVersion`, and `send: { mirrorBytes, maxClaims }`. This entry supplies no numeric defaults.                                                                                            |
+| `config`                                     | Supply `owners`, all `limits` fields, `requestChunkBytes`, `combinationVersion`, and `send: { mirrorBytes, maxClaims }`. This entry supplies no numeric defaults.                                                                                                          |
 
-All 22 methods delegate to one SQL command instance. Only the closure passes its coordinator to the send factory. No coordinator service key exists. Do not include the send child's credential dependency in the records dependency list unless `resolve` itself requires it. The send child declares its own dependencies.
+All 23 methods delegate to one SQL command instance. Only the closure passes its coordinator to the send factory. No coordinator service key exists. Do not include the send child's credential dependency in the records dependency list unless `resolve` itself requires it. The send child declares its own dependencies.
 
 For initial execution, `resolve` can return the runtime's `initialRun`. For observation, put all twelve limits in `config.observation` and return `observation: { timing }` from `resolve`. Supplying only one observation part fails loading. `sendStage(coordinator, activation)` receives `activation.initial` and the optional `{ commands, source }` observation pair. Its commands value is the actual records Service object. Pass that pair to the host without replacement. Existing callbacks can ignore the second argument. These objects stay in closures. The [records specification](SPEC.md#cordis-记录插件) owns the binding and lifecycle rules.
 
@@ -113,7 +111,7 @@ Without Cordis, call `createSqlModelDiagnostics({ storage, domains, authority, d
 
 ## Contracts
 
-The public types and the runtime checks are in [src/](src/index.md). The behavior is in the [SPEC](SPEC.md). The SPEC also records how this package meets the storage port of the shared core, and the invariants N1, N2, N3, N5, N6, and N7. The types of the storage port belong to `@omne-harness/model/commands`. The root entry exports them again without change.
+The public types and the runtime checks are in [src/](src/index.md). The behavior is in the [SPEC](SPEC.md). The SPEC also records how this package meets the storage port of the shared core, and the invariants N2, N3, N5, N6, and N7. The types of the storage port belong to `@omne-harness/model/commands`. The root entry exports them again without change.
 
 ## Design
 
@@ -123,26 +121,24 @@ Each column is declared one time, in `TABLES` of `src/schema.ts`. The migration,
 
 ## Configuration and operation
 
-| Option            | Meaning                                                                                |
-| ----------------- | -------------------------------------------------------------------------------------- |
-| `owners`          | The consumer owner declarations of the shared core                                     |
-| `authority`       | The qualification port of the shared core                                              |
-| `evidence`        | The evidence adapters of the shared core                                               |
-| `clock`           | The clock of the shared core                                                           |
-| `limits`          | The limits of the shared core. `limits.capacity` is the share of one tenant            |
-| `storage`         | The `SqlStorage` of the application                                                    |
-| `domains`         | The `TenantDomainLookup` of the application                                            |
-| `combination`     | The combination version and manifest digest that the application registered            |
-| `maxCallBytes`    | The largest call material                                                              |
-| `maxCommandBytes` | The `maxCommandBytes` of the provider                                                  |
-| `attemptLimit`    | Rounds of one run, default 8. Attempt generations have no limit                        |
-| `unresolvedLimit` | Operations with an unknown outcome that the process keeps for one tenant, default 1024 |
+| Option            | Meaning                                                                                                                     |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `owners`          | The consumer owner declarations of the shared core                                                                          |
+| `authority`       | The qualification port of the shared core                                                                                   |
+| `evidence`        | The evidence adapters of the shared core                                                                                    |
+| `clock`           | The clock of the shared core                                                                                                |
+| `limits`          | The limits of the shared core. `limits.unacknowledgedResults` is the share of one tenant: a count of unacknowledged results |
+| `storage`         | The `SqlStorage` of the application                                                                                         |
+| `domains`         | The `TenantDomainLookup` of the application                                                                                 |
+| `combination`     | The combination version and manifest digest that the application registered                                                 |
+| `attemptLimit`    | Rounds of one run, default 8. Attempt generations have no limit                                                             |
+| `unresolvedLimit` | Operations with an unknown outcome that the process keeps for one tenant, default 1024                                      |
 
-Construction fails when `maxCallBytes` plus the 64 KiB command reserve is more than `maxCommandBytes` (N1), and when `limits.scanPageCalls` is more than 1000. A call whose `capacity.bytes` is more than `maxCallBytes` is refused when it is admitted.
+Construction fails when `limits.scanPageCalls` is more than 1000.
 
 ## Verification
 
-The tests in [tests/](tests/index.md) run the real participant, migration, and read handlers on `node:sqlite` in-memory databases. Most of them run the 22 methods through the shared core. They compare the accounts suite on the memory and the SQL commands. [cordis.spec.ts](tests/cordis.spec.ts) adds real Cordis lifecycle and configuration checks with a named send-stage substitute. [diagnostics.spec.ts](tests/diagnostics.spec.ts) writes call documents through the real participant, reads them through the loaded `model.diagnostics` handler, and loads the diagnostics plugin in real Cordis. These tests do not cover real transport, the Worker, durability, queues, or close of the real provider.
+The tests in [tests/](tests/index.md) run the real participant, migration, and read handlers on `node:sqlite` in-memory databases. Most of them run the 23 methods through the shared core. They compare the accounts suite on the memory and the SQL commands. [cordis.spec.ts](tests/cordis.spec.ts) adds real Cordis lifecycle and configuration checks with a named send-stage substitute. [diagnostics.spec.ts](tests/diagnostics.spec.ts) writes call documents through the real participant, reads them through the loaded `model.diagnostics` handler, and loads the diagnostics plugin in real Cordis. These tests do not cover real transport, the Worker, durability, queues, or close of the real provider.
 
 ## Maintenance
 

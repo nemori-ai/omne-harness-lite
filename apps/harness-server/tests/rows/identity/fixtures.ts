@@ -73,6 +73,7 @@ function identityCatalog(): SqlMaterialCatalog {
 }
 
 class ForwardingStorage extends StorageService {
+  readonly database: SqlStorage['database']
   readonly registerCombination: SqlStorage['registerCombination']
   readonly commit: SqlStorage['commit']
   readonly query: SqlStorage['query']
@@ -80,6 +81,7 @@ class ForwardingStorage extends StorageService {
 
   constructor(ctx: Context, storage: SqlStorage) {
     super(ctx)
+    this.database = storage.database
     this.registerCombination = input => storage.registerCombination(input)
     this.commit = (input, options) => storage.commit(input, options)
     this.query = identity => storage.query(identity)
@@ -117,10 +119,11 @@ export const fixtureSqliteStorage = defineRow({
   plugin: memberPlugin,
 })
 
-/** The four values of the identity row as the release writes them. */
+/** The five values of the identity row as the release writes them. */
 export type ReleaseIdentityConfig = Readonly<{
   maxLifetime: string
   idlePeriod: string
+  accessRefreshGranularity: string
   invitationDefaultDuration: string
   invitationMaxDuration: string
 }>

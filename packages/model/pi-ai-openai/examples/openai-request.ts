@@ -36,7 +36,6 @@ try {
   const family = createOpenAiFamily({
     tokenizer: openAiTokenizerResources(),
     executor,
-    maxSerializedBytes: 4 * 1024 * 1024,
     limits: {
       toolArguments: {
         maxBytes: 65_536,

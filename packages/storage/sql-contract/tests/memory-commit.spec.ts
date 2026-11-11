@@ -455,7 +455,8 @@ describe('execution and receipts', () => {
     const reordered = commitRequest(fx.fixture(), {
       commands: [...commitRequest(fx.fixture()).commands].reverse(),
     })
-    expect(await h.storage.commit(reordered)).toEqual(first)
+    expect(first).toMatchObject({ recalled: false })
+    expect(await h.storage.commit(reordered)).toEqual({ ...first, recalled: true })
   })
 
   it('reports identity_conflict with the existing receipt for the same identity and another input', async () => {
@@ -467,7 +468,14 @@ describe('execution and receipts', () => {
         commands: [command('session', { revision: 'other' }), command('agent-journal')],
       }),
     )
-    expect(result).toEqual({ kind: 'identity_conflict', identity: identity(), existing: first })
+    expect({
+      ...result,
+      existing: { ...Reflect.get(result, 'existing'), recalled: false },
+    }).toEqual({
+      kind: 'identity_conflict',
+      identity: identity(),
+      existing: first,
+    })
   })
 
   it.each([
@@ -588,8 +596,8 @@ describe('failed and stopping replies roll the operation back (SPEC 7.6)', () =>
       combinationVersion: 'all-v1',
       commands: [command('session'), command('probe', { mode: 'conflict' })],
     })
-    expect(await h.storage.commit(request)).toEqual(result)
-    expect(await h.storage.query(identity())).toEqual(result)
+    expect(await h.storage.commit(request)).toEqual({ ...result, recalled: true })
+    expect({ ...(await h.storage.query(identity())), recalled: false }).toEqual(result)
   })
 
   it('bounds a reported diagnostic by maxDiagnosticBytes', async () => {

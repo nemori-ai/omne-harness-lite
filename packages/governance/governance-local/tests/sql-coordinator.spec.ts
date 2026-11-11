@@ -21,6 +21,7 @@ afterEach(async () => {
 })
 function wrap(storage: SqlStorage, overrides: Partial<SqlStorage>): SqlStorage {
   return {
+    database: storage.database,
     registerCombination: input => storage.registerCombination(input),
     commit: input => storage.commit(input),
     query: input => storage.query(input),
@@ -288,7 +289,7 @@ it.each(corruptions)(
       async commit(request) {
         const result = await w.storage.commit(request)
         if (result.kind !== 'committed') throw new Error(JSON.stringify(result))
-        return corrupt(result)
+        return { ...corrupt(result), recalled: result.recalled }
       },
     })
     const result = await coordinator(w, storage).send(prepared.request.binding, 'apply')

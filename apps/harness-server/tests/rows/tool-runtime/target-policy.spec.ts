@@ -1,10 +1,7 @@
 import { expect, it } from 'vitest'
 import { canonicalDigest, type CallRecord, type ToolLedgerStore } from '@omne-harness/tool'
 import { decodeToolOperationId, decodeToolCallId } from '@omne-harness/tool-contract'
-import {
-  decodeToolRevision,
-  type ToolMessageContentBlock,
-} from '@omne-harness/tool-contract/provider'
+import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { TOOL_FORWARDING_OWNER } from '@omne-harness/tool-host-local'
 import {
   admittedTargetAccess,
@@ -24,8 +21,12 @@ it('applies target policy to new admissions while retaining custody of an exactl
     let admitted: CallRecord | null = null
     let reads = 0,
       checks = 0
-    const store: ToolLedgerStore<ToolMessageContentBlock> = {
+    const store: ToolLedgerStore = {
       durability: 'none',
+      due: async () => ({ kind: 'complete', entries: [] }),
+      readRecord: async () => {
+        throw new Error('source policy requires a complete call snapshot')
+      },
       read: async () => {
         reads++
         return {

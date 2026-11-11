@@ -48,13 +48,13 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 
 #### §2.1 成员与入口
 
-| 成员 | 入口 | 内容 |
-| --- | --- | --- |
-| `packages/storage/sql-contract` | `.` | 词汇类型、`SqlStorage`、材料与清单类型、四个纯函数（含提交拒绝原因的定性 `commitRejectionNature`）、关闭控制口与宿主接口、目录形状。不导入 Cordis（IC-4）。 |
-| 同上 | `./worker` | Worker 内的模块与端口接口、`SqlValue`、`QueryRows`。不导入 Cordis。 |
-| 同上 | `./cordis` | `StorageService`、`StorageHostService`、`TenantDomainsService`（依赖 Context r3）、`TenantDomainLookupService` 与 `Context` 增补。 |
-| 同上 | `./testing` | 内存替身与 `runSqlStorageConformance`（§16）；目录查找的替身与 `runTenantDomainLookupConformance`（§2.4）。 |
-| `packages/storage/sqlite-provider` | `.`、`./cordis` | 见 [sqlite-provider 规格](../sqlite-provider/SPEC.md)。 |
+| 成员                               | 入口            | 内容                                                                                                                                                                                                                     |
+| ---------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/storage/sql-contract`    | `.`             | 词汇类型、`SqlStorage`、材料与清单类型、纯函数（四个摘要与定性函数，含提交拒绝原因的定性 `commitRejectionNature`；数据库身份是 `SqlStorage.database`，见 §2.6）、关闭控制口与宿主接口、目录形状。不导入 Cordis（IC-4）。 |
+| 同上                               | `./worker`      | Worker 内的模块与端口接口、`SqlValue`、`QueryRows`，大文本列的 `packText` 与 `unpackText`（§10.1）。不导入 Cordis。                                                                                                      |
+| 同上                               | `./cordis`      | `StorageService`、`StorageHostService`、`TenantDomainsService`（依赖 Context r3）、`TenantDomainLookupService` 与 `Context` 增补。                                                                                       |
+| 同上                               | `./testing`     | 内存替身与 `runSqlStorageConformance`（§16）；目录查找的替身与 `runTenantDomainLookupConformance`（§2.4）。                                                                                                              |
+| `packages/storage/sqlite-provider` | `.`、`./cordis` | 见 [sqlite-provider 规格](../sqlite-provider/SPEC.md)。                                                                                                                                                                  |
 
 成员名表达契约种类与后端（IC-7）。根接口名 `SqlStorage` 属于 sql-contract，表达同一契约种类。服务键表达能力，是 `storage`。
 
@@ -88,6 +88,16 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 4. 另一作用域的请求得到与 `absent` 相同的结果（§5.5）。唯一的例外是登记的 `domain_occupied`。
 5. 「字节」指 RFC 8785 规范写出后的 UTF-8 字节数。
 
+### §2.6 同一个数据库的身份
+
+一个进程里，有的成员为每个数据库保管一份东西：缓存、快照、计数。它们要认出两个 `SqlStorage` 对象背后是不是同一个数据库。身份是契约上的字段 `SqlStorage.database`，不靠对象的形状推断。
+
+1. 提供者为自己的每个数据库给出一个对象。同一个数据库上的每个存储对象都带同一个对象；不同数据库的存储对象带不同的对象。
+2. 转发到另一个存储的包装带那个存储的 `database`。用展开复制一个存储的对象自然带着它；自己逐个写方法的包装须显式写上。
+3. 保管者以 `storage.database` 为键。Cordis 的服务代理把属性读转发到被包装的服务对象，所以各插件拿到的代理给出同一个值。
+
+一个转发的包装若给出另一个对象，各成员就为它另保管一份。那是装配错误：本契约不为它规定陈旧上界。
+
 ### §3 身份与摘要
 
 #### §3.1 身份与字段规则
@@ -96,11 +106,28 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 
 幂等认回与 `identity_conflict` 都比较完整的五项。五项中任何一项不同，就是另一个操作。`scope` 先比较 `kind`，`kind` 为 `tenant` 时再比较 `tenant`。另一作用域使用相同的操作键，也是另一个操作。那个操作不认回本作用域的回执，也不和本作用域的回执冲突。系统作用域只写作 `{ kind: 'system' }`。空租户不是系统作用域（IC-18）。系统作用域不能取得租户域，租户作用域也不能取得系统域。
 
+<a id="认回标记"></a>
+
+`commit` 答回执时带一个标记 `recalled`。提供者在执行之前认出同一身份、同一输入的早先回执时，不执行任何命令，答那份回执，`recalled` 为 `true`。本次调用的命令被执行并产生回执时，`recalled` 为 `false`。同一组里同一身份的几个调用，只有一个被执行，其余的答同一份回执且 `recalled` 为 `true`。标记属于答复，不属于保存的回执：`query` 的答复与 `identity_conflict` 的 `existing` 都不带它。
+
+有了这个标记，调用方不必在提交之前先 `query`：直接提交，由答复区分“这次提交生效了”与“认回了早先的回执”。只有答复是 `unknown` 时，调用方才在再次发送之前 `query`。形式模型是 [RecallAtCommit](verification/models/recall-at-commit/README.md)。
+
+<a id="不认回的提交"></a>
+
+身份还可以带认回声明 `recall`。它只有一个值 `'never'`，省略时提交保存回执。`recall: 'never'` 声明没有调用方会认回这个操作。认回与冲突也比较这一项：`recall` 不同的两个身份是两个操作。对这样的身份，提供者不读回执，也不写回执：
+
+- 同身份再次 `commit` 时，命令再执行一次。输入不同也不返回 `identity_conflict`。
+- `query` 返回 `not_recallable`（§8），不返回 `not_committed`。
+- 回滚之后不写回滚回执，所以不需要第二个短事务（§7.7.1）。
+
+这类提交的参加者必须自身幂等：同一命令执行两次，与执行一次的状态相同。提交结果为 `unknown` 时，提供者不能告诉调用方结果。认回是调用方的责任：调用方用自己记录的事实认回原操作，例如 Tool 账本的操作记录与域修订。不能用自己的事实认回结果的操作不使用这个声明。
+
 【提案 P-02】字段规则：
 
 - 名字类字段（`tenant`、`operation`、`operationKey`、`combinationVersion`、`participant`、`handler`、`protocol`、`requestKey`）是非空、合法 UTF-16、UTF-8 不超过 1024 字节的字符串。
 - `transactionDomain` 另限 UTF-8 不超过 120 字节（文件名限制见 [sqlite-provider 规格](../sqlite-provider/SPEC.md) §5.1）。
 - 摘要类字段是 64 个字符的小写十六进制。
+- `recall` 省略，或者是 `'never'`。
 
 违反时，`commit` 与 `registerCombination` 返回 `field_missing`，`query` 返回 `unknown`，`read` 返回 `invalid`。
 
@@ -181,33 +208,33 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 域状态按（作用域，事务域）在一个提供者代际内维护。提供者代际是一次成功构造得到的实例。
 
-| 状态 | 含义 |
-| --- | --- |
-| `absent` | 没有文件，或文件没有绑定行 |
-| `unopened` | 有绑定行，本代际还没有打开它 |
-| `opening` | 正在执行 DO-1 |
-| `ready` | 写准入开放。子状态 `read-paused`、`write-stopped` 见提供者规格 §12.3 |
-| `recovering` | 写 Worker 异常退出，退出尚未被观察到 |
-| `quarantined` | 持久或静态故障，保持到插件重跑或进程重启 |
-| `draining`、`closed` | 提供者正在关闭、已经关闭（§13） |
+| 状态                 | 含义                                                                 |
+| -------------------- | -------------------------------------------------------------------- |
+| `absent`             | 没有文件，或文件没有绑定行                                           |
+| `unopened`           | 有绑定行，本代际还没有打开它                                         |
+| `opening`            | 正在执行 DO-1                                                        |
+| `ready`              | 写准入开放。子状态 `read-paused`、`write-stopped` 见提供者规格 §12.3 |
+| `recovering`         | 写 Worker 异常退出，退出尚未被观察到                                 |
+| `quarantined`        | 持久或静态故障，保持到插件重跑或进程重启                             |
+| `draining`、`closed` | 提供者正在关闭、已经关闭（§13）                                      |
 
 #### §5.5 域状态 × 操作 → 结果
 
 各操作控制侧的拒绝（§6.2、§7.2、§9.2）先于本表判断。非正常结果都带诊断。
 
-| 域状态 | `registerCombination` | `commit` | `query` | `read` |
-| --- | --- | --- | --- | --- |
-| `absent` | 路径 B | `combination_unregistered` | `unknown` | `domain_unavailable` |
-| 绑定另一作用域 | `domain_occupied` | `combination_unregistered` | `unknown` | `domain_unavailable` |
-| `unopened` | 路径 A，成功后按 `ready` | 同左 | 同左 | 同左 |
-| `opening` | 排队，按打开结果处理 | 同左，已预留 | 同左 | 同左，计入读等待期限 |
-| 打开失败时的等待者 | `domain_unavailable` | `domain_unavailable` | `unknown` | `domain_unavailable` |
-| `ready` | 正常 | 正常 | 正常 | 正常 |
-| `ready`，`read-paused` | 正常 | 正常 | 正常 | 排队，到期为 `queue_timeout` |
-| `ready`，`write-stopped` | `domain_unavailable` | `domain_unavailable` | 正常 | 按 `read-paused` |
-| `recovering` | `writer_not_current` | `writer_not_current` | `unknown` | `domain_unavailable` |
-| `quarantined` | `domain_unavailable` | `domain_unavailable` | `unknown` | `domain_unavailable` |
-| `draining`、`closed` | `closing` | `closing` | `unknown` | `closing` |
+| 域状态                   | `registerCombination`    | `commit`                   | `query`   | `read`                       |
+| ------------------------ | ------------------------ | -------------------------- | --------- | ---------------------------- |
+| `absent`                 | 路径 B                   | `combination_unregistered` | `unknown` | `domain_unavailable`         |
+| 绑定另一作用域           | `domain_occupied`        | `combination_unregistered` | `unknown` | `domain_unavailable`         |
+| `unopened`               | 路径 A，成功后按 `ready` | 同左                       | 同左      | 同左                         |
+| `opening`                | 排队，按打开结果处理     | 同左，已预留               | 同左      | 同左，计入读等待期限         |
+| 打开失败时的等待者       | `domain_unavailable`     | `domain_unavailable`       | `unknown` | `domain_unavailable`         |
+| `ready`                  | 正常                     | 正常                       | 正常      | 正常                         |
+| `ready`，`read-paused`   | 正常                     | 正常                       | 正常      | 排队，到期为 `queue_timeout` |
+| `ready`，`write-stopped` | `domain_unavailable`     | `domain_unavailable`       | 正常      | 按 `read-paused`             |
+| `recovering`             | `writer_not_current`     | `writer_not_current`       | `unknown` | `domain_unavailable`         |
+| `quarantined`            | `domain_unavailable`     | `domain_unavailable`       | `unknown` | `domain_unavailable`         |
+| `draining`、`closed`     | `closing`                | `closing`                  | `unknown` | `closing`                    |
 
 「路径 A」「路径 B」指提供者的 DO-1 打开路径（提供者规格 §5.3）。域打开期间到达的操作排队，等待打开结果；打开失败时为 `domain_unavailable`。`writer_not_current` 只用于旧 Worker 退出尚未被观察的 `recovering`【提案 P-08】。它是暂时结果。提供者不发通知，调用方按有界策略重试。Context r3 把这项重试归会话存储组合。
 
@@ -295,32 +322,32 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 每个拒绝原因是暂时的或确定的。暂时的原因来自存储此刻的状态：同一请求以后可以受理。调用方按依赖等待，到检查时刻以同一身份再提交。确定的原因来自请求内容或本构建的装配事实：同一请求再提交得到同一拒绝。调用方不等待，按确定失败处理。
 
-| 原因 | 定性 | 理由 |
-| --- | --- | --- |
-| `closing` | 暂时 | 关闭的是这一个提供者代际。下一个代际可以受理同一请求 |
-| `queue_full` | 暂时 | 在途操作结算后，预留归还 |
-| `writer_not_current` | 暂时 | 旧 Worker 的退出被观察之后，域回到可写（§5.5） |
-| `domain_unavailable` | 暂时 | 域的故障是存储的状态，不是请求的性质。`quarantined` 保持到插件重跑或进程重启，之后同一请求可以受理 |
-| `field_missing` | 确定 | 请求缺字段或违反 §3.1 的字段规则 |
-| `unsupported_protocol` | 确定 | 协议版本是请求内容 |
-| `participant_repeated` | 确定 | 命令的参加者是请求内容 |
-| `facts_not_json` | 确定 | `facts` 是请求内容 |
-| `command_limit` | 确定 | 上限是提供者的构造配置。同一请求再提交仍超限 |
-| `combination_unregistered` | 确定 | 登记是装配事实。`commit` 不建立登记 |
-| `manifest_mismatch` | 确定 | 请求的清单摘要与登记不同。这是构建与登记的事实 |
-| `material_unavailable` | 确定 | 本构建没有该组合的精确材料 |
-| `participant_not_in_combination` | 确定 | 命令的参加者不在登记中。这是请求与登记的事实 |
-| `participant_dependency_missing` | 确定 | 请求缺少依赖的提供者命令 |
+| 原因                             | 定性 | 理由                                                                                               |
+| -------------------------------- | ---- | -------------------------------------------------------------------------------------------------- |
+| `closing`                        | 暂时 | 关闭的是这一个提供者代际。下一个代际可以受理同一请求                                               |
+| `queue_full`                     | 暂时 | 在途操作结算后，预留归还                                                                           |
+| `writer_not_current`             | 暂时 | 旧 Worker 的退出被观察之后，域回到可写（§5.5）                                                     |
+| `domain_unavailable`             | 暂时 | 域的故障是存储的状态，不是请求的性质。`quarantined` 保持到插件重跑或进程重启，之后同一请求可以受理 |
+| `field_missing`                  | 确定 | 请求缺字段或违反 §3.1 的字段规则                                                                   |
+| `unsupported_protocol`           | 确定 | 协议版本是请求内容                                                                                 |
+| `participant_repeated`           | 确定 | 命令的参加者是请求内容                                                                             |
+| `facts_not_json`                 | 确定 | `facts` 是请求内容                                                                                 |
+| `command_limit`                  | 确定 | 上限是提供者的构造配置。同一请求再提交仍超限                                                       |
+| `combination_unregistered`       | 确定 | 登记是装配事实。`commit` 不建立登记                                                                |
+| `manifest_mismatch`              | 确定 | 请求的清单摘要与登记不同。这是构建与登记的事实                                                     |
+| `material_unavailable`           | 确定 | 本构建没有该组合的精确材料                                                                         |
+| `participant_not_in_combination` | 确定 | 命令的参加者不在登记中。这是请求与登记的事实                                                       |
+| `participant_dependency_missing` | 确定 | 请求缺少依赖的提供者命令                                                                           |
 
 `cancelled` 不在上表。它来自调用方自己已中止的 `signal`，不来自请求内容，也不来自存储的状态。它的定性尚未确定。
 
 #### 提交的其余规则
 
-- 同一操作身份和同一输入摘要再次调用 `commit` 时，提供者返回已保存的回执，不再执行命令。同一组中暂存的同身份调用成为等待者，在原结果持久之前不交付（§7.7.3）【提案 P-09】。
+- 同一操作身份和同一输入摘要再次调用 `commit` 时，提供者返回已保存的回执，不再执行命令。`recall: 'never'` 的身份没有回执，本条与下一条不适用（§3.1）。同一组中暂存的同身份调用成为等待者，在原结果持久之前不交付（§7.7.3）【提案 P-09】。
 - 同一操作身份配到不同输入摘要时，提供者返回 `identity_conflict`，并带上已有回执。
 - `commit` 返回 `rolled_back` 时，明确回滚回执已经持久保存。回滚之后提供者没有保存这份回执时，`commit` 返回 `unknown`。`ROLLBACK` 本身失败时，`commit` 也返回 `unknown`。本组有新暂存前缀时，整事务结束为 `unknown`（§7.7.2）。环境类错误为 `unknown`（§7.6）【提案 P-09、P-04】。
 - 能确定的受理前失败返回 `rejected_before_accept`。其余不能判定的结果返回 `unknown`。
-- 持久回执只有已提交和明确回滚。`commit` 返回 `committed`、`rolled_back`、`unknown`、`identity_conflict` 或 `rejected_before_accept`。
+- 持久回执只有已提交和明确回滚。`recall: 'never'` 的提交没有持久回执：`committed` 与 `rolled_back` 只报告本次执行，`rolled_back` 不需要第二个短事务。`commit` 返回 `committed`、`rolled_back`、`unknown`、`identity_conflict` 或 `rejected_before_accept`。
 
 #### §7.4 参加者端口与事实格
 
@@ -359,12 +386,12 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 【提案 P-04】本节闭合 S1「尚未决定」第 2 条。
 
-| 失败来源 | 记录的回复 | 结果 |
-| --- | --- | --- |
-| 参加者回复 `conflict`、`unsupported` 或 `failed` | 原回复（`failed` 记类别 `participant_reported`） | 明确回滚 |
-| authorizer 拒绝、事实格违规、参加者抛错、回复非法、回复超限 | `failed`，类别依次为 `port_violation`、`fact_violation`、`participant_threw`、`invalid_reply`、`response_limit` | 明确回滚 |
-| 由语句与数据决定的 SQLite 错误：`SQLITE_CONSTRAINT`（含扩展码）、`SQLITE_MISMATCH`、`SQLITE_RANGE`、`SQLITE_TOOBIG`、语法或模式类的 `SQLITE_ERROR` | 参加者捕获后的回复；参加者未捕获，或仍回复 `participated` 时，记为 `failed`（`sql_error`） | 明确回滚 |
-| 其他 SQLite 错误（`BUSY`、`LOCKED`、`IOERR`、`FULL`、`NOMEM`、`CORRUPT`、`NOTADB`、`CANTOPEN`、`READONLY`、`PROTOCOL`、`INTERRUPT` 及未列出的错误码）与提供者内部错误 | 只进诊断 | `unknown`，不写回滚回执 |
+| 失败来源                                                                                                                                                              | 记录的回复                                                                                                      | 结果                    |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 参加者回复 `conflict`、`unsupported` 或 `failed`                                                                                                                      | 原回复（`failed` 记类别 `participant_reported`）                                                                | 明确回滚                |
+| authorizer 拒绝、事实格违规、参加者抛错、回复非法、回复超限                                                                                                           | `failed`，类别依次为 `port_violation`、`fact_violation`、`participant_threw`、`invalid_reply`、`response_limit` | 明确回滚                |
+| 由语句与数据决定的 SQLite 错误：`SQLITE_CONSTRAINT`（含扩展码）、`SQLITE_MISMATCH`、`SQLITE_RANGE`、`SQLITE_TOOBIG`、语法或模式类的 `SQLITE_ERROR`                    | 参加者捕获后的回复；参加者未捕获，或仍回复 `participated` 时，记为 `failed`（`sql_error`）                      | 明确回滚                |
+| 其他 SQLite 错误（`BUSY`、`LOCKED`、`IOERR`、`FULL`、`NOMEM`、`CORRUPT`、`NOTADB`、`CANTOPEN`、`READONLY`、`PROTOCOL`、`INTERRUPT` 及未列出的错误码）与提供者内部错误 | 只进诊断                                                                                                        | `unknown`，不写回滚回执 |
 
 理由：前三行的失败只由输入与当时的数据决定，持久的 `rolled_back` 是真实的历史。环境错误可能是暂时的。返回 `unknown` 后，调用方经 `query` 与五项证明确认没有提交，再用同一身份重做。
 
@@ -380,20 +407,20 @@ SQLite 提供者在下列情况下不能判定结果，`commit` 返回 `unknown`
 
 「新暂存的 A」是本组中 B 之前、已执行但尚未持久的操作。「前缀」是这些操作的集合。
 
-| 事件 | 新暂存的 A | 当前的 B | 后缀 C | 提供者的后续责任 |
-| --- | --- | --- | --- | --- |
-| B 明确失败，前缀与第二个短事务都成功 | `committed` | `rolled_back` | 排队 | 继续，不把 B 的失败归给 A |
-| B 明确失败，前缀成功，第二个短事务失败或不确定 | `committed` | `unknown` | 等连接状态明确 | B 实际有回执时 `query` 认回，否则按五项证明 |
-| B 明确失败，前缀 COMMIT 失败或不确定 | `unknown` | `unknown` | 同上 | 不保存 B 的依据 |
-| B 遇环境错误，`ROLLBACK TO` 成功 | 按前缀的真实结果 | `unknown` | 排队 | §7.6 |
-| B 的语句结束了整个外层事务，有新暂存前缀 | `unknown` | `unknown` | 未执行，等恢复 | 丢弃全部暂存。不把 A 标为 `rolled_back`，不保存依赖 A 的 B 依据 |
-| 同上，没有新暂存前缀 | 不适用 | 第二个短事务持久后为 `rolled_back`，否则 `unknown` | 排队 | §7.7.5【提案 P-10】 |
-| `ROLLBACK TO` 或 `RELEASE` 失败，事务状态不明 | `unknown` | `unknown` | 未执行 | 停止该代际的准入，收尾并恢复，不在该连接上处理后缀 |
-| 外层 COMMIT 确定失败而事务仍在 | `unknown` | `unknown` | 等收尾 | 不自动重执。即使确定没有提交，`commit` 也不返回 `not_committed` |
-| COMMIT 完成而响应丢失，或不能判定是否持久 | `unknown` | `unknown` | 等恢复 | 不补写回滚回执，由 `query` 认回 |
-| Worker 在外层 COMMIT 之前退出 | `unknown` | `unknown` | 已发送未结算的调用为 `unknown` | 观察到退出后，经 DO-1 路径 A 恢复 |
-| Worker 在前缀提交之后、B 的回执之前退出 | `query` 认回 `committed` | `unknown`，恢复后可能为 `not_committed` | 同上 | B 的易失依据已丢失，不重算 |
-| Worker 在 B 的回执提交之后、回复之前退出 | `query` 认回 `committed` | `query` 认回 `rolled_back` | 同上 | 响应与回执同在 |
+| 事件                                           | 新暂存的 A               | 当前的 B                                           | 后缀 C                         | 提供者的后续责任                                                |
+| ---------------------------------------------- | ------------------------ | -------------------------------------------------- | ------------------------------ | --------------------------------------------------------------- |
+| B 明确失败，前缀与第二个短事务都成功           | `committed`              | `rolled_back`                                      | 排队                           | 继续，不把 B 的失败归给 A                                       |
+| B 明确失败，前缀成功，第二个短事务失败或不确定 | `committed`              | `unknown`                                          | 等连接状态明确                 | B 实际有回执时 `query` 认回，否则按五项证明                     |
+| B 明确失败，前缀 COMMIT 失败或不确定           | `unknown`                | `unknown`                                          | 同上                           | 不保存 B 的依据                                                 |
+| B 遇环境错误，`ROLLBACK TO` 成功               | 按前缀的真实结果         | `unknown`                                          | 排队                           | §7.6                                                            |
+| B 的语句结束了整个外层事务，有新暂存前缀       | `unknown`                | `unknown`                                          | 未执行，等恢复                 | 丢弃全部暂存。不把 A 标为 `rolled_back`，不保存依赖 A 的 B 依据 |
+| 同上，没有新暂存前缀                           | 不适用                   | 第二个短事务持久后为 `rolled_back`，否则 `unknown` | 排队                           | §7.7.5【提案 P-10】                                             |
+| `ROLLBACK TO` 或 `RELEASE` 失败，事务状态不明  | `unknown`                | `unknown`                                          | 未执行                         | 停止该代际的准入，收尾并恢复，不在该连接上处理后缀              |
+| 外层 COMMIT 确定失败而事务仍在                 | `unknown`                | `unknown`                                          | 等收尾                         | 不自动重执。即使确定没有提交，`commit` 也不返回 `not_committed` |
+| COMMIT 完成而响应丢失，或不能判定是否持久      | `unknown`                | `unknown`                                          | 等恢复                         | 不补写回滚回执，由 `query` 认回                                 |
+| Worker 在外层 COMMIT 之前退出                  | `unknown`                | `unknown`                                          | 已发送未结算的调用为 `unknown` | 观察到退出后，经 DO-1 路径 A 恢复                               |
+| Worker 在前缀提交之后、B 的回执之前退出        | `query` 认回 `committed` | `unknown`，恢复后可能为 `not_committed`            | 同上                           | B 的易失依据已丢失，不重算                                      |
+| Worker 在 B 的回执提交之后、回复之前退出       | `query` 认回 `committed` | `query` 认回 `rolled_back`                         | 同上                           | 响应与回执同在                                                  |
 
 Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方得到 `unknown`（诊断 `worker_exited`）【提案 P-13】。批级故障只卷入新暂存的身份，本组之前已持久的回执不受影响。提供者记录一次批诊断，逐个结算原请求，不伪造业务响应。批级故障扩大 `unknown` 的范围，这是可见的可靠性成本，它不扩大业务回滚的范围。
 
@@ -421,6 +448,8 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 
 下列情形返回 `unknown`：提供者关闭已经开始；字段违规，或协议版本不是 `'2'`；队列已满；域为 `absent` 或绑定另一作用域；打开失败；域为 `quarantined` 或 `recovering`。这些结果不透露另一作用域是否有相同操作键的回执【提案 P-01】。域为 `unopened` 时，`query` 触发域打开。
 
+身份带 `recall: 'never'` 时，`query` 返回 `not_recallable`，不读域，也不打开域。提供者关闭与字段违规仍先返回 `unknown`。提供者不保存这样的操作的任何记录，所以 `not_committed` 对它不成立。
+
 域为 `ready` 时：
 
 1. 持久回执存在：返回该回执与原响应证据。
@@ -433,12 +462,12 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 
 操作结果一览：
 
-| 操作 | 返回 |
-| --- | --- |
-| `registerCombination` | `registered` 和已保存的登记，或 `rejected_before_accept` 和原因，或 `unknown` |
-| `commit` | `committed`、`rolled_back`、`unknown`、`identity_conflict` 和已有回执、`rejected_before_accept` |
-| `query` | 已提交回执、明确回滚回执、未知、未提交 |
-| `read` | 读结果，或带原因的 `unavailable` |
+| 操作                  | 返回                                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| `registerCombination` | `registered` 和已保存的登记，或 `rejected_before_accept` 和原因，或 `unknown`                   |
+| `commit`              | `committed`、`rolled_back`、`unknown`、`identity_conflict` 和已有回执、`rejected_before_accept` |
+| `query`               | 已提交回执、明确回滚回执、未知、未提交、不可认回（`not_recallable`）                            |
+| `read`                | 读结果，或带原因的 `unavailable`                                                                |
 
 ### §9 read
 
@@ -477,17 +506,17 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 
 读的原因与提交一样分为暂时与确定，判别方法与[提交拒绝原因的定性](#提交拒绝原因的定性)相同。
 
-| 原因 | 定性 | 理由 |
-| --- | --- | --- |
-| `closing` | 暂时 | 关闭的是这一个提供者代际 |
-| `queue_full` | 暂时 | 在途读取结算后，队列位置与结果预留归还 |
-| `domain_unavailable` | 暂时 | 域的故障是存储的状态，不是请求的性质 |
-| `queue_timeout` | 暂时 | 排队时间由同时在途的读取、域打开与屏障决定 |
-| `read_timeout` | 暂时 | 运行时间受同时在途的读写与机器负载影响。空载时也超时的读是配置问题，不在「上限只影响完成的早晚」这一性质的前提内 |
-| `worker_exited` | 暂时 | 读 Worker 退出之后，提供者使用新的读 Worker |
-| `invalid` | 确定 | 请求不能解码，或违反 §3.1 的字段规则 |
-| `read_limit` | 确定 | 输入超限是请求内容。输出与行数超限由已提交的数据决定，等待不会使它变小 |
-| `handler_unavailable` | 确定 | 目录是本构建的装配事实 |
+| 原因                  | 定性 | 理由                                                                                                             |
+| --------------------- | ---- | ---------------------------------------------------------------------------------------------------------------- |
+| `closing`             | 暂时 | 关闭的是这一个提供者代际                                                                                         |
+| `queue_full`          | 暂时 | 在途读取结算后，队列位置与结果预留归还                                                                           |
+| `domain_unavailable`  | 暂时 | 域的故障是存储的状态，不是请求的性质                                                                             |
+| `queue_timeout`       | 暂时 | 排队时间由同时在途的读取、域打开与屏障决定                                                                       |
+| `read_timeout`        | 暂时 | 运行时间受同时在途的读写与机器负载影响。空载时也超时的读是配置问题，不在「上限只影响完成的早晚」这一性质的前提内 |
+| `worker_exited`       | 暂时 | 读 Worker 退出之后，提供者使用新的读 Worker                                                                      |
+| `invalid`             | 确定 | 请求不能解码，或违反 §3.1 的字段规则                                                                             |
+| `read_limit`          | 确定 | 输入超限是请求内容。输出与行数超限由已提交的数据决定，等待不会使它变小                                           |
+| `handler_unavailable` | 确定 | 目录是本构建的装配事实                                                                                           |
 
 下面两个原因的定性尚未确定，因为一个原因包含性质不同的情形：
 
@@ -498,9 +527,9 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 
 #### §9.3 读取次序
 
-| 次序 | 排序与快照 | 消费者 |
-| --- | --- | --- |
-| `snapshot` | 取空闲、无事务的读连接。`BEGIN` 后的首个读取固定快照，同一事务内完成全部 `SELECT`。快照包含调用之前已返回 `committed` 的提交。 | Session 普通页、模型视图、Agent load、生产者纯读取 |
+| 次序            | 排序与快照                                                                                                                                                                                                                                                                                                                                           | 消费者                                                                            |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `snapshot`      | 取空闲、无事务的读连接。`BEGIN` 后的首个读取固定快照，同一事务内完成全部 `SELECT`。快照包含调用之前已返回 `committed` 的提交。                                                                                                                                                                                                                       | Session 普通页、模型视图、Agent load、生产者纯读取                                |
 | `domain-serial` | 先取连接，再申请该域的读屏障。屏障与写共用一个到达顺序：屏障排在此前已准入的写之后，从排队起，后来的写与同类读排在它后面；读不能饿死写，写也不能饿死读。轮到时确认当前组已结束，再建立快照。屏障持有到读事务结束、读 Worker 的退出被观察到，或提供者的持有上界到期，以先到者为准；上界的取值与等待屏障的上界归提供者规格（SQLite 提供者规格 §9.3）。 | `ToolLedgerStore.read` 等要求与同域 `commit` 串行的读取。第一版屏障覆盖整个物理域 |
 
 每次成功返回之前，提供者确认语句已结束、行已物化、事务已结束。提供者不复用读事务。一次 `read` 提供一个快照。跨多次 `read` 的分页由领域自己的固定读根与不可变记录保持范围，不长期持有 SQLite 事务。不能重建时，领域返回 gap、changed 或 unavailable，不拼接不同修订。领域适配器在交付每一页之前，按原领域要求核对当前资格，不复用建立快照之前缓存的结果。
@@ -521,6 +550,16 @@ handler 同步执行 `read(input, port)`。读连接为 `query_only`，不开共
 - `facts` 中的领域位置仍是十进制文本，由领域 codec 转为 `bigint`。`facts` 不能含 `bigint`。
 - `QueryRows` 只在 Worker 内使用，不直接作为 HTTP JSON。
 
+#### §10.1 大文本列的存储格式
+
+`./worker` 入口导出 `packText(text): Uint8Array` 与 `unpackText(bytes): string`。参加者与提供者在各自的编码处和解码处调用它们。大文本列的类型是 `BLOB`。拥有该列的参加者决定哪一列是大文本列。标识、键与摘要列不用这个格式。
+
+- 首字节是格式标记。`0` 表示其后是原文的 UTF-8 字节。`1` 表示其后是原文 UTF-8 字节的 raw DEFLATE 压缩，用 Node `zlib.deflateRawSync` 的默认级别，不带字典。
+- 原文短于 128 个 UTF-8 字节时用标记 `0`，否则用标记 `1`。
+- `unpackText` 对标记 `0` 与 `1` 还原原文。读回的文本与写入的文本逐字节相等。没有首字节或首字节是其他值时，它抛出错误，不把字节当原文。
+- 读上限、写上限与按文本计的量照旧按解码后的文本计，不按落盘字节计。例如 `maxOutputBytes`、`maxCommandBytes` 与行的 `bytes` 列。
+- SQL 不读这些列的内容。约束、索引与条件只用它们是否为 `NULL`。
+
 ### §11 资格与外域前提
 
 SQL 不判断资格，也不提供撤权排序。按 Reduce 的范围裁定，资格核验在每次提交尝试内调用一次，撤权在下一次核验时生效。核验与提交之间的窗口是已知限制 L-1。参加者在事务内读取资格事实时，按 §7.5 的依赖顺序先于依赖它的领域写参加者执行。事务事实只运输语义拥有者定义的结果。
@@ -533,29 +572,29 @@ Session 采用响应证据后，删除事务外重算的正常退路。R7 的操
 
 采用 Cordis `4.0.4`。basis 的 probe 记录见 `.meta_harness/design/basis/README.md`。下表是设计符合，不是运行通过。提供者部分见提供者规格 §14。
 
-| IC | 承载 | 后继须能失败的验证 |
-| --- | --- | --- |
-| 1、3 | 三个服务定义唯一在 sql-contract；抽象 Service `implements` 根接口；`@owner` 按真实路径核对 | 定义唯一；签名来自同一根接口 |
-| 2 | `static readonly provide`；提供者继承，不再 provide | 重复 provide 失败（basis `service-subclass-provides-its-key`） |
-| 4、5 | 两个成员的根不导入 Cordis；领域适配只消费 sql-contract | 源码、声明与产物检查 |
-| 6、18 | 一个 isolate 一个 `storage` 提供者；作用域显式，空租户不是系统作用域；注入不是授权 | 另一租户的相同操作键不认回也不冲突（basis `isolate-hides-instances-not-data`） |
-| 7 | 键 `storage`、`storageHost`、`tenantDomains`、`tenantDomainLookup` 表达能力 | 没有以实现命名的键 |
-| 9–12 | 不新增公开事件。结果拥有者先收下持久回执，再做可能失败的通知 | 通知失败不改变提交结果 |
+| IC    | 承载                                                                                       | 后继须能失败的验证                                                             |
+| ----- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| 1、3  | 三个服务定义唯一在 sql-contract；抽象 Service `implements` 根接口；`@owner` 按真实路径核对 | 定义唯一；签名来自同一根接口                                                   |
+| 2     | `static readonly provide`；提供者继承，不再 provide                                        | 重复 provide 失败（basis `service-subclass-provides-its-key`）                 |
+| 4、5  | 两个成员的根不导入 Cordis；领域适配只消费 sql-contract                                     | 源码、声明与产物检查                                                           |
+| 6、18 | 一个 isolate 一个 `storage` 提供者；作用域显式，空租户不是系统作用域；注入不是授权         | 另一租户的相同操作键不认回也不冲突（basis `isolate-hides-instances-not-data`） |
+| 7     | 键 `storage`、`storageHost`、`tenantDomains`、`tenantDomainLookup` 表达能力                | 没有以实现命名的键                                                             |
+| 9–12  | 不新增公开事件。结果拥有者先收下持久回执，再做可能失败的通知                               | 通知失败不改变提交结果                                                         |
 
 ### §17 消费者路由
 
-| 公开入口 | SQL 路由 |
-| --- | --- |
-| Session `commit` | 写路径，`session` 参加者；响应证据保存原失败依据 |
-| Session readWork、readInput、loadRecovery、history、readModelView、pending | `snapshot`，每页一个有界事务 |
-| Session references、releasedScopes | 逐个租户域 `snapshot`；目录归 Context r3 与应用 |
-| Session queryOperation（R7） | 写路径先查原回执，未命中按原归属 `query` |
-| Agent load、inputs、readReplyAdmissions | `snapshot`；准入范围按 D5（Agent 契约拥有者） |
-| Agent journal.query、ExecutionRecovery.query、`received` | 写路径；`received` 与 ACK 是两次提交 |
-| Model scanPending、loadRecovery、dispatches | 经 Model 提供者分类的 `snapshot` |
-| Model admit、retry、发送前裁定、acquireRead、beginRead、ACK、commands.query | 写路径 |
-| `ToolLedgerStore.read`、Tool readResult、account、loadRecovery | `domain-serial` |
-| `ToolLedgerStore.commit`、Tool lookup、queryOperation | 写路径；call、queue、host 各自提交 |
+| 公开入口                                                                    | SQL 路由                                         |
+| --------------------------------------------------------------------------- | ------------------------------------------------ |
+| Session `commit`                                                            | 写路径，`session` 参加者；响应证据保存原失败依据 |
+| Session readWork、readInput、loadRecovery、history、readModelView、pending  | `snapshot`，每页一个有界事务                     |
+| Session references、releasedScopes                                          | 逐个租户域 `snapshot`；目录归 Context r3 与应用  |
+| Session queryOperation（R7）                                                | 写路径先查原回执，未命中按原归属 `query`         |
+| Agent load、inputs、readReplyAdmissions                                     | `snapshot`；准入范围按 D5（Agent 契约拥有者）    |
+| Agent journal.query、ExecutionRecovery.query、`received`                    | 写路径；`received` 与 ACK 是两次提交             |
+| Model scanPending、loadRecovery、dispatches                                 | 经 Model 提供者分类的 `snapshot`                 |
+| Model admit、retry、发送前裁定、acquireRead、beginRead、ACK、commands.query | 写路径                                           |
+| `ToolLedgerStore.read`、Tool readResult、account、loadRecovery              | `domain-serial`                                  |
+| `ToolLedgerStore.commit`、Tool lookup、queryOperation                       | 写路径；call、queue、host 各自提交               |
 
 `_sql_` 表（绑定、写代际、回执、响应证据、迁移标记、登记）归 SQL 提供者。领域表归各自的参加者拥有者。D5 的公开协议归 Agent 契约拥有者。SQL 只承诺 `(作用域, execution, admission_sequence)` 有序唯一索引，读成本 `O(log N + Δ)`，前提是拥有者给出可验证的下界与完整前缀依据。
 
@@ -610,33 +649,34 @@ PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约，返回已提�
 
 ### §16.1 场景
 
-下列场景是验证义务，不是已运行的结果。场景 C01 至 C23 都须在相应成员内运行并保存提交、命令、环境、退出码与原始日志。验证单元按顺序为：V1 契约与同源替身；V2 Windows Node Worker 提供者；V3 消费者与索引；V4 LI-A3-5 与 E9 的真实轨迹与测量。
+下列场景是验证义务，不是已运行的结果。场景 C01 至 C24 都须在相应成员内运行并保存提交、命令、环境、退出码与原始日志。验证单元按顺序为：V1 契约与同源替身；V2 Windows Node Worker 提供者；V3 消费者与索引；V4 LI-A3-5 与 E9 的真实轨迹与测量。
 
-| ID | 性质 | 必须变红的反例 |
-| --- | --- | --- |
-| C01 | 完整身份认回 | 改动五个维度之一，或同身份改输入 |
-| C02 | 两种摘要（含 §4.4 向量） | 命令或对象键顺序改变摘要；非 JSON 值被接受 |
-| C03 | 多参加者同提交、依赖顺序与平局规则 | 缺依赖参加者仍执行；执行了 `commands` 以外的参加者 |
-| C04 | 两段回滚与组内局部失败（§7.7.1、§7.7.5） | 第二个短事务失败或有前缀的整事务结束时返回 `rolled_back` |
-| C05 | 原响应不丢失 | 回滚后改状态再 `query` 得到新理由 |
-| C06 | 五项证明与待决索引 | 撤掉任一项证明，或删除暂存与等待者状态后返回 `not_committed` |
-| C07 | 端口与事实格边界 | 越权表、事务控制、捕获错误后继续执行、跨操作读事实 |
-| C08 | 64 位值 | number 强转、截断、`lastInsertRowid` 泄露 |
-| C09 | snapshot 一致，读前提交可见 | 两次 SELECT 看到不同状态；复用旧事务 |
-| C10 | `domain-serial` 与整组串行 | 快照建好后提前释放屏障 |
-| C11 | 写型读取留在写路径 | 这些读取进入读 Worker |
-| C12 | `commit` 与 `read` 的取消 | 取消后立即减计数；运行中的连接交给下一个请求 |
-| C13 | Worker 崩溃的逐身份结果（§7.7.2） | 旧 Worker 未退出就启动新写者；旧代际回复被接收 |
-| C14 | 关闭期限与报告闩锁 | 迟到结束提前 release；把结束 Worker 当回滚 |
-| C15 | 有界资源 | 每域合规而全局无界；先全量读取再计数 |
-| C16 | 分区与文件绑定 | 另一作用域结果与 `absent` 不同；文件别名被接受 |
-| C17 | DO-1 与原子迁移 | 重启后需要再调用登记才迁移；迁移失败后放行写准入；打开失败返回 `rolled_back` 或 `not_committed` |
-| C18 | G1 批写 | 保存前发布；跨 ACK 与 `received` 合并 |
-| C19 | WAL 维护 | 降低 FULL；维护饿死 `query` |
-| C20 | G2-P：两个真实原操作同一物理提交 | 全部材料标 singleton；把 G1 片段数当身份数 |
-| C21 | 分组资格与模块纯度 | FK-1 合组后变为成功；时间函数被允许；模块跨调用缓存状态 |
-| C22 | SQ-1 序位 | 模块缓存序位上界；失败后在同一外层事务继续后缀 |
-| C23 | Cordis 装配 | 构造失败未使 fiber `FAILED`；Worker 挂在调用方 ctx；重跑后出现两个写者 |
+| ID  | 性质                                     | 必须变红的反例                                                                                           |
+| --- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| C01 | 完整身份认回                             | 改动五个维度之一，或同身份改输入                                                                         |
+| C02 | 两种摘要（含 §4.4 向量）                 | 命令或对象键顺序改变摘要；非 JSON 值被接受                                                               |
+| C03 | 多参加者同提交、依赖顺序与平局规则       | 缺依赖参加者仍执行；执行了 `commands` 以外的参加者                                                       |
+| C04 | 两段回滚与组内局部失败（§7.7.1、§7.7.5） | 第二个短事务失败或有前缀的整事务结束时返回 `rolled_back`                                                 |
+| C05 | 原响应不丢失                             | 回滚后改状态再 `query` 得到新理由                                                                        |
+| C06 | 五项证明与待决索引                       | 撤掉任一项证明，或删除暂存与等待者状态后返回 `not_committed`                                             |
+| C07 | 端口与事实格边界                         | 越权表、事务控制、捕获错误后继续执行、跨操作读事实                                                       |
+| C08 | 64 位值                                  | number 强转、截断、`lastInsertRowid` 泄露                                                                |
+| C09 | snapshot 一致，读前提交可见              | 两次 SELECT 看到不同状态；复用旧事务                                                                     |
+| C10 | `domain-serial` 与整组串行               | 快照建好后提前释放屏障                                                                                   |
+| C11 | 写型读取留在写路径                       | 这些读取进入读 Worker                                                                                    |
+| C12 | `commit` 与 `read` 的取消                | 取消后立即减计数；运行中的连接交给下一个请求                                                             |
+| C13 | Worker 崩溃的逐身份结果（§7.7.2）        | 旧 Worker 未退出就启动新写者；旧代际回复被接收                                                           |
+| C14 | 关闭期限与报告闩锁                       | 迟到结束提前 release；把结束 Worker 当回滚                                                               |
+| C15 | 有界资源                                 | 每域合规而全局无界；先全量读取再计数                                                                     |
+| C16 | 分区与文件绑定                           | 另一作用域结果与 `absent` 不同；文件别名被接受                                                           |
+| C17 | DO-1 与原子迁移                          | 重启后需要再调用登记才迁移；迁移失败后放行写准入；打开失败返回 `rolled_back` 或 `not_committed`          |
+| C18 | G1 批写                                  | 保存前发布；跨 ACK 与 `received` 合并                                                                    |
+| C19 | WAL 维护                                 | 降低 FULL；维护饿死 `query`                                                                              |
+| C20 | G2-P：两个真实原操作同一物理提交         | 全部材料标 singleton；把 G1 片段数当身份数                                                               |
+| C21 | 分组资格与模块纯度                       | FK-1 合组后变为成功；时间函数被允许；模块跨调用缓存状态                                                  |
+| C22 | SQ-1 序位                                | 模块缓存序位上界；失败后在同一外层事务继续后缀                                                           |
+| C23 | Cordis 装配                              | 构造失败未使 fiber `FAILED`；Worker 挂在调用方 ctx；重跑后出现两个写者                                   |
+| C24 | 不认回的提交（§3.1）                     | `recall: 'never'` 的提交留下回执；`query` 对它返回 `not_committed`；同身份异输入返回 `identity_conflict` |
 
 S1 的其他验证要求保留：查询携带的作用域与回执不同时返回 `unknown`；两个参加者的事实同时出现在同一份已提交回执中，任一命令失败时该回执为明确回滚；回执已经写入、响应尚未返回时结束 Worker，用原身份 `query` 得到已提交回执；锁等待超过 `lockWaitMs` 时 `commit` 返回 `unknown`；断电耐久只在记录了相应故障试验时声明。测试通过 `commit` 和 `query` 观察结果，不直接断言 SQL 文本。
 
@@ -644,4 +684,4 @@ S1 的其他验证要求保留：查询携带的作用域与回执不同时返�
 
 验证资源在 `tests/`：每条字段规则、每个拒绝原因各一条只违反它的用例，相邻两步的顺序用例，摘要向量与 RFC 8785 数字用例，`combinationManifest` 每类问题的用例，入口与不含 Cordis 的依赖检查，以及符合性套件对替身和故意违规提供者的用例。
 
-符合性套件只含 C01 至 C07、C12、C14、C16。场景 C08 至 C11、C13、C15、C17 至 C23 由 [sqlite-provider](../sqlite-provider/SPEC.md) 的提供者测试承担，这个套件不覆盖它们（已知限制）；替身通过套件不证明这些性质。提供者在 SQLite 上的行为只由提供者测试证明。仍未执行的项：跨进程排除、真实磁盘的 Windows 故障注入、SQL-T01 断电、E9。
+符合性套件只含 C01 至 C07、C12、C14、C16、C24。场景 C08 至 C11、C13、C15、C17 至 C23 由 [sqlite-provider](../sqlite-provider/SPEC.md) 的提供者测试承担，这个套件不覆盖它们（已知限制）；替身通过套件不证明这些性质。提供者在 SQLite 上的行为只由提供者测试证明。仍未执行的项：跨进程排除、真实磁盘的 Windows 故障注入、SQL-T01 断电、E9。

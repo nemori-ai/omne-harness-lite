@@ -28,7 +28,6 @@ try {
     operation: admission,
     request: example.request,
     consumer: example.consumer,
-    capacity: example.capacity,
   })
   if ('failure' in checked)
     throw new Error(`Input rejected: ${checked.failure.field} ${checked.failure.reason}`)

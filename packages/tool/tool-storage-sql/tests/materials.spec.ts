@@ -72,8 +72,8 @@ describe('the materials of the Tool storage', () => {
     )
     expect(ordering).toEqual({
       'tool.ledger.read': 'domain-serial',
-      'tool.custody.manifest': 'snapshot',
-      'tool.custody.chunk': 'snapshot',
+      'tool.body.read': 'snapshot',
+      'tool.due.read': 'domain-serial',
     })
     for (const handler of materials.readHandlers) {
       expect(handler.maxOutputBytes).toBeLessThanOrEqual(4_194_304)

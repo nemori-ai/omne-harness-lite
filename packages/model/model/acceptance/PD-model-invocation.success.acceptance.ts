@@ -45,7 +45,6 @@ it('observes a real successful call, reads every page and acknowledges actual co
     operation: admission,
     request: f.request,
     consumer: f.consumer,
-    capacity: f.capacity,
   })
   expect(admitted).toMatchObject({ ok: { call: f.call, recovered: false } })
   if ('failure' in admitted) throw new Error('Admission failed')

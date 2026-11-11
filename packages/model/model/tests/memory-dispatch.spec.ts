@@ -311,55 +311,6 @@ it('input-over-limit cannot prepare a retry and late terminal facts preserve log
   const record = unbox(await f.commands.loadRecovery(f.admit))
   expect(record.state.phase === 'settled' && record.state.settlement).toEqual(settlement)
 })
-it('counts historical confirmation material and refuses the whole batch when the reservation would be exceeded', async () => {
-  const f = await running()
-  unbox(
-    await f.commands.openReceiveWindow({
-      ...(await f.write()),
-      dispatch: f.dispatch,
-      window: 'open',
-    }),
-  )
-  unbox(
-    await f.commands.preserve({
-      ...(await f.write()),
-      dispatch: f.dispatch,
-      window: 'open',
-      facts: [{ kind: 'block-open', index: '0', mode: 'append', content: 'text' }],
-    }),
-  )
-  let refused = false
-  for (let i = 0; i < 30; i += 1) {
-    const window = `delta-${i}`
-    const open = await f.commands.openReceiveWindow({
-      ...(await f.write()),
-      dispatch: f.dispatch,
-      window,
-    })
-    if ('failure' in open) {
-      refused = open.failure.kind === 'capacity'
-      break
-    }
-    const before = unbox(await f.commands.loadRecovery(f.admit))
-    const input = {
-      ...(await f.write()),
-      dispatch: f.dispatch,
-      window,
-      facts: [
-        { kind: 'block-delta', index: '0', delta: 'x'.repeat(1000) },
-      ] satisfies TransportFact[],
-    }
-    const result = await f.commands.preserve(input)
-    if ('failure' in result) {
-      expect(result.failure.kind).toBe('capacity')
-      expect(unbox(await f.commands.loadRecovery(f.admit))).toEqual(before)
-      expect(await f.commands.preserve(input)).toEqual(result)
-      refused = true
-      break
-    }
-  }
-  expect(refused).toBe(true)
-})
 for (const kind of ['text', 'thinking', 'voice'] as const)
   it(`counts actual ${kind} content but not its empty opening`, async () => {
     const f = await running()

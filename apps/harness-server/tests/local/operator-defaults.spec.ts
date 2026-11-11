@@ -81,6 +81,30 @@ describe('localOperatorLayer over the bundled distribution', () => {
     }
   })
 
+  // A fixed tool request holds the arguments twice (original and effective), and its admission is
+  // one storage command (Tool SPEC「固定请求只保存一份」). The model bounds the arguments of a call;
+  // with this relation the storage never refuses an admission for its size.
+  it('bounds the arguments of a tool call so that an admission fits one storage command', () => {
+    const limits = z.object({
+      preparation: z.object({
+        openai: z.object({
+          limits: z.object({ toolArguments: z.object({ maxBytes: z.number() }) }),
+        }),
+      }),
+      storage: z.object({ maxCommandBytes: z.number() }),
+    })
+    const configOf = (id: string) => layer.ops.find(item => item.id === id)?.config
+    const { preparation, storage } = limits.parse({
+      preparation: configOf('model-request-preparation'),
+      storage: configOf('storage'),
+    })
+    const argumentBytes = preparation.openai.limits.toolArguments.maxBytes
+    const commandBytes = storage.maxCommandBytes
+    // A JSON string escapes to at most six bytes for one, so the two texts take at most twelve
+    // times the argument bound inside the command; the rest of the request is far below the rest.
+    expect(argumentBytes * 12).toBeLessThan(commandBytes)
+  })
+
   it('names only the vault path for the secret custody, and no secret anywhere', () => {
     // The model credential row reads the vault through the custody row; it and the `settings` row
     // take no operator value.
@@ -104,13 +128,9 @@ describe('localOperatorLayer over the bundled distribution', () => {
   it('admits LOCAL_CONCURRENT_MODEL_CALLS model calls of one tenant at once on every bound', () => {
     const calls = LOCAL_CONCURRENT_MODEL_CALLS
     expect(calls).toBe(20)
-    const one = z
-      .object({ resultCapacity: z.record(z.string(), z.string()) })
-      .parse(configOf(layer, 'agent-context')).resultCapacity
     const records = z
       .object({
-        limits: z.object({ capacity: z.record(z.string(), z.string()) }),
-        maxCallBytes: z.number(),
+        limits: z.object({ unacknowledgedResults: z.number() }),
         send: z.object({ maxClaims: z.number() }),
         sendStage: z.object({
           materialization: z.object({ maxRecords: z.number() }),
@@ -118,10 +138,8 @@ describe('localOperatorLayer over the bundled distribution', () => {
         }),
       })
       .parse(configOf(layer, 'model-records'))
-    // The tenant's share holds exactly `calls` result capacities of one call, and no more.
-    for (const [unit, value] of Object.entries(one))
-      expect(BigInt(records.limits.capacity[unit] ?? '0'), unit).toBe(BigInt(value) * BigInt(calls))
-    expect(String(records.maxCallBytes)).toBe(one['bytes'])
+    // The tenant's share holds exactly `calls` unacknowledged results.
+    expect(records.limits.unacknowledgedResults).toBe(calls)
     expect(records.send.maxClaims).toBe(calls)
     expect(records.sendStage.materialization.maxRecords).toBe(calls)
     expect(records.sendStage.network.maxConnections).toBe(calls)

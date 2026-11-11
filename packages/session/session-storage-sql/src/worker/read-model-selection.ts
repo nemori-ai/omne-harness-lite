@@ -2,7 +2,7 @@
 import { plainOf } from '../codec.ts'
 import { readEntryText } from '../entry-codec.ts'
 import { readMember } from './state-rows.ts'
-import { big, handler, oneRow, scopeOf, text } from './support.ts'
+import { big, handler, oneRow, packed, scopeOf, text } from './support.ts'
 
 type Selection = { name: string; basis: unknown }
 
@@ -39,7 +39,7 @@ export default handler('session.model-selection', (input, port) => {
   let selection: Selection | undefined
   let at = 1n
   if (saved !== undefined) {
-    const entry = readEntryText(text(saved['entry']), 'sl_entry session.model-selected')
+    const entry = readEntryText(packed(saved['entry']), 'sl_entry session.model-selected')
     const declaration = (
       plainOf(entry.payload) as {
         declaration?: { kind?: string; name?: string; basis?: unknown }
@@ -62,6 +62,6 @@ export default handler('session.model-selection', (input, port) => {
     kind: 'selection',
     selection: selection as never,
     revision: snapshot.revision,
-    source: (JSON.parse(text(origin['receipt'])) as { source: never }).source,
+    source: (JSON.parse(packed(origin['receipt'])) as { source: never }).source,
   }
 })

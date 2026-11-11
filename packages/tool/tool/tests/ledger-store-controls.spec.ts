@@ -39,6 +39,14 @@ describe('missing controls are independent and checked before any IO', () => {
         controls,
         store: {
           durability: 'none',
+          readRecord: (domain, key) => {
+            io += 1
+            return original.store.readRecord(domain, key)
+          },
+          due: (tenant, now, limit) => {
+            io += 1
+            return original.store.due(tenant, now, limit)
+          },
           read: domain => {
             io += 1
             return original.store.read(domain)

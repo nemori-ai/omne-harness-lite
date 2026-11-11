@@ -52,6 +52,7 @@ import {
   encodeDuration,
   encodeInstant,
   parseInstant,
+  type Duration,
   type Instant,
 } from '@omne-harness/utc-instant'
 import { addDuration, isPositive } from './deadline.ts'
@@ -95,6 +96,11 @@ export type IdentitySqlInput = Readonly<{
   terms: LoginTermsSource
   /** The member invitation durations, read at every issue (identity SPEC ID-18). */
   invitationTerms: InvitationTermsSource
+  /**
+   * Access reports within this time of the last refresh commit nothing (SPEC IS-14). Positive;
+   * the configuration keeps it shorter than the idle period.
+   */
+  accessRefreshGranularity: Duration
   /** An open scrypt module. The caller closes it after `stop()`. */
   scrypt: ScryptModule
   /** Material derived from a random secret at start, compared for an unknown account (DP3-C6). */
@@ -567,7 +573,7 @@ export function createIdentitySql(input: IdentitySqlInput): IdentitySql {
       query: identity => storage.query(identity),
       read,
     },
-    { invitationTerms, identifiers },
+    { invitationTerms, identifiers, accessRefreshGranularity: input.accessRefreshGranularity },
   )
 
   return Object.freeze({

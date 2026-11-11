@@ -6,6 +6,7 @@ import type {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { definitionKey, frozenDefinition } from './definition.ts'
 import type { ExecutorInput, TiktokenExecutor, TiktokenLease } from './executor-types.ts'
+import { jobsOf, retainedInputBytes } from './input-jobs.ts'
 import type { CacheStats } from './piece-cache.ts'
 import {
   parseReply,
@@ -207,7 +208,18 @@ class Executor implements TiktokenExecutor {
     )
   }
 
-  private count(lease: Lease, input: readonly TokenizationSegment[]): Promise<CountResult> {
+  /** Counts an input of any size: one worker job for each bounded part, the counts added. */
+  private async count(lease: Lease, input: readonly TokenizationSegment[]): Promise<CountResult> {
+    let tokens = 0n
+    for (const job of jobsOf(input, this.input.limits.maxInputBytes)) {
+      const counted = await this.countJob(lease, job)
+      if (!('ok' in counted)) return counted
+      tokens += BigInt(counted.ok.tokens)
+    }
+    return succeed({ tokens: String(tokens) })
+  }
+
+  private countJob(lease: Lease, input: readonly TokenizationSegment[]): Promise<CountResult> {
     const reject = (diagnostic: string) => {
       this.totals.rejectedJobs++
       return Promise.resolve(unavailable(diagnostic))
@@ -217,7 +229,7 @@ class Executor implements TiktokenExecutor {
     if (lease.slot.phase.kind === 'dead') return reject('tokenizer worker is unavailable')
     if (this.sequence >= Number.MAX_SAFE_INTEGER)
       return reject('tokenizer identity space exhausted')
-    const bytes = this.retainedInputBytes(input)
+    const bytes = retainedInputBytes(input)
     if (bytes > this.input.limits.maxInputBytes)
       return reject('tokenizer retained input limit exceeded')
     if (!this.hasCapacity(lease, bytes)) return reject('tokenizer queue limit exceeded')
@@ -243,15 +255,6 @@ class Executor implements TiktokenExecutor {
     this.enqueue(lease)
     this.dispatch(lease.slot)
     return job.result.promise
-  }
-
-  private retainedInputBytes(input: readonly TokenizationSegment[]): number {
-    let bytes = 32
-    for (const segment of input) {
-      bytes += 128 + 2 * (segment.kind === 'text' ? segment.text.length : segment.name.length)
-      if (bytes > this.input.limits.maxInputBytes) break
-    }
-    return bytes
   }
 
   private hasCapacity(lease: Lease, bytes: number): boolean {

@@ -1,3 +1,5 @@
+import { defaultResultPolicy } from '@omne-harness/tool-contract/provider'
+import { TOOL_READ_ARGUMENTS } from '../../entry/tool-read-budget.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 // 建 Tool 运行时组的唯一 bundle（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：`createLocalToolRuntimePlugins` 的
 // 每个输入只取已核来源，缺席时由各自的窄代理答 `unavailable`。`tool-records` 行按运维者配置调用一次；同一运行的
@@ -15,7 +17,6 @@ import {
   createLocalInvocationQualifier,
   type LocalInvocationSourceInput,
 } from '@omne-harness/tool-host-local'
-import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
   createLocalToolRuntimePlugins,
   type LocalToolRuntimeInput,
@@ -32,8 +33,8 @@ import { createReleaseToolIdentity, releasePrincipalCodec } from './access.ts'
 import type { ToolRuntimeConfig } from './config.ts'
 import { createReleaseEnvironment } from './environment.ts'
 import {
+  lateBodyStore,
   lateConditional,
-  lateCustody,
   lateStore,
   toolRuntimeHolder,
   type ToolRuntimeBundle,
@@ -86,7 +87,7 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     authorization: () => toolTargetPolicyOf(root),
     view: () => releaseCatalogViewOf(root),
   })
-  const sourceInput: LocalInvocationSourceInput<unknown, ToolMessageContentBlock> = {
+  const sourceInput: LocalInvocationSourceInput<unknown> = {
     store,
     authority: identity.sourceAuthority,
     principalCodec: releasePrincipalCodec,
@@ -94,6 +95,11 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     forwarding: {
       authority: () => root.get(toolStartAuthorityKey, false),
       isParent: request => isReleaseToolsRequest(releaseOf(root), request),
+      results: {
+        access: identity.access.guard,
+        policy: defaultResultPolicy,
+        pageBytes: config.configuration.resultPageBytes,
+      },
     },
   }
   const sources = createLocalInvocationSource(sourceInput)
@@ -104,8 +110,23 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
   })
   const input: LocalToolRuntimeInput = {
     store,
+    bodySchemas: {
+      check: (schema, read) =>
+        holder.bodySchemas?.check(schema, read) ??
+        Promise.resolve({
+          failure: {
+            kind: 'unavailable',
+            dependency: 'body-schema',
+            diagnostic: 'tool-records body schema provider is not mounted',
+          },
+        }),
+    },
+    bodies: {
+      store: lateBodyStore(holder),
+      permitKey: holder.bodyPermitKey,
+      clock: holder.bodyClock,
+    },
     conditionalCommit: lateConditional(holder),
-    custody: lateCustody(holder),
     content: null,
     sources: { ...sources, guard: withTargetAdmissionPolicy(sources.guard, store, requestAccess) },
     access: { ...identity.access, request: admittedTargetAccess(store, requestAccess) },
@@ -114,7 +135,7 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     guardsOf: () => [],
     permitRequirements: releasePermitRequirements(root, identity),
     clock: holder.clock,
-    configuration: config.configuration,
+    configuration: { ...config.configuration, readResultArguments: TOOL_READ_ARGUMENTS },
     // The bindings row is built for any environment value; at run time the value it hands to the
     // authors is the environment this bundle prepares, so the narrower type is the same object.
     bindings: () => root.get(toolBindingsKey) as ReturnType<LocalToolRuntimeInput['bindings']>,

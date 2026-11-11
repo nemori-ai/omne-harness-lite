@@ -3,10 +3,9 @@
 // gives back its original result, without a second commit and without a second row. Also: commits
 // that stay undecided, the per-tenant bound on them, and a commit outside its run's operation.
 import { describe, expect, it } from 'vitest'
-import { COMMAND_RESERVE_BYTES, createSqlModelStorage } from '@omne-harness/model-storage-sql'
+import { createSqlModelStorage } from '@omne-harness/model-storage-sql'
 import {
   DIGEST,
-  MAX_CALL_BYTES,
   callId,
   instanceId,
   lookup,
@@ -174,9 +173,8 @@ describe('a commit outside the operation of its run', () => {
       domains: lookup([textOf(A)], subject.domain),
       combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
       limits: {
-        tenantCapacity: subject.core.options.limits.capacity,
-        maxCallBytes: MAX_CALL_BYTES,
-        maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
+        tenantResults: subject.core.options.limits.unacknowledgedResults,
+        requestChunkBytes: 65536,
       },
     })
     const tenant = textOf(A)

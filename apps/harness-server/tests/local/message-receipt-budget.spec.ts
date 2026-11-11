@@ -153,7 +153,7 @@ describe('local SQL receipt budget for tool message handoff', () => {
         execution: 'same-execution',
       })
       const again = await commit('outcome', outcome)
-      expect(again).toEqual(fixed)
+      expect(again).toEqual({ ...fixed, recalled: true })
       const read = await made.storage.read({
         domain,
         handler: EXECUTION_RECORD_HANDLERS.preadmission,

@@ -23,16 +23,3 @@ it('C01 executes once through production services and releases the saved origina
     await world.close()
   }
 })
-
-it('retains and recognizes an unknown original raw output without re-executing the author', async () => {
-  const world = await fixture()
-  try {
-    world.custody.controls.dropNextAnswer()
-    const reference = accepted(await world.api.invoke(world.invocation('unknown-raw')))
-    expect((await world.settled(reference)).terminal).toEqual({ kind: 'completed' })
-    expect(world.launches()).toBe(1)
-    expect(world.plugins.diagnostics().pendingOutputCustody).toBe(0)
-  } finally {
-    await world.close()
-  }
-})

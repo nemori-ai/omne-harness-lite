@@ -44,10 +44,7 @@ declare const runtime: ToolRuntime<Principal, ContentBlock>
 declare const invocationRef: ToolInvocationRef
 declare const payload: ToolInvokeRequest
 declare const operationRef: ToolOperationRef
-declare const liveOnly: Extract<
-  ToolExecutorBinding<Principal, ContentBlock, object>,
-  { kind: 'live-only' }
->
+declare const liveOnly: Extract<ToolExecutorBinding<Principal, object>, { kind: 'live-only' }>
 declare const execution: ToolExecutionContext
 declare const validator: ToolWaitResponseValidator<Principal>
 declare const askRequest: ToolAskRequest

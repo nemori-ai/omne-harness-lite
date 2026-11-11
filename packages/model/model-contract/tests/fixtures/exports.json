@@ -147,11 +147,6 @@
               "pending": false
             },
             {
-              "name": "ResultCapacity",
-              "kind": "type",
-              "pending": false
-            },
-            {
               "name": "Admit",
               "kind": "type",
               "pending": false
@@ -979,6 +974,16 @@
             {
               "name": "RecoveryRecord",
               "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FixedRequestHead",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "requestHead",
+              "kind": "value",
               "pending": false
             },
             {

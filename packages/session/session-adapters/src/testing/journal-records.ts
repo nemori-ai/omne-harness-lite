@@ -375,6 +375,18 @@ export function projectExecution(
     )
       throw error
   }
+  const ended = view.finish.ended
+  if (ended !== null && projected.checkpoint !== undefined) {
+    const recorded = new Map(view.observations.map(item => [item.passage, item]))
+    projected.observations = projected.checkpoint.passages
+      .filter(passage => passage.position === 'after_terminal')
+      .map(passage => ({
+        terminal: ended.disposition,
+        passage: passage.id,
+        implementation: passage.implementation,
+        observed: recorded.get(passage.id)?.observed ?? null,
+      }))
+  }
   const revisionAt = (pub: number): number | undefined => byPub.get(pub)?.[1].revision
   const opAt = (pub: number): AgentOperationId | undefined => byPub.get(pub)?.[0]
   // Events: the AgentEvent of each event fact, caused by the receipt evidence of its batch (the
@@ -468,7 +480,6 @@ export function projectExecution(
   const ledger: AdmissionLedger = { origin, retainedFrom: 1, rangesFrom: 0, projection }
   projected.admissionLedger = ledger
   // Handoffs: each H as the reader records keep it.
-  const ended = view.finish.ended
   projected.handoffs = [...view.handoffs.values()].flatMap((item): HandoffRecord[] => {
     const outcome =
       item.resolved === null ? null : blob<HandoffOutcome>(context.blobs, item.resolved.outcome)

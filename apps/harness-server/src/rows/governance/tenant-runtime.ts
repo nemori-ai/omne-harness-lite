@@ -98,14 +98,11 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     const { service } = runtime
     let closed = false
     const permissionBasis =
-      options.permissionRelease === undefined ||
-      options.settings === undefined ||
-      handler === undefined
+      options.permissionRelease === undefined || handler === undefined
         ? undefined
         : createPermissionBasisRead({
             scope: options.scope,
             release: options.permissionRelease,
-            settings: options.settings,
             storage: options.storage,
             domain: options.domain,
             epoch: runtime.epoch,
@@ -123,7 +120,6 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
       epoch: runtime.epoch,
       service,
       permissionBasis,
-      permissionRequest: permissionBasis?.requestFor ?? (async () => undefined),
       sessionPermissionBasis: createSessionPermissionBasisSource({
         scope: options.scope,
         domain: options.domain,

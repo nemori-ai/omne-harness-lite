@@ -56,13 +56,26 @@ it('backfills original Session rows in a real migration Worker and retains the q
       const result = a.provider.select('dom_0', `SELECT * FROM ${table} LIMIT 100`, [])
       return result.rows.map(row => ({
         sql: `INSERT INTO ${table} (${result.columns.join(',')}) VALUES (${result.columns.map(() => '?').join(',')})`,
-        params: row.map(value => (typeof value === 'bigint' ? String(value) : value)),
+        // A packed text column is a BLOB; JSON carries it as base64.
+        params: row.map(value =>
+          typeof value === 'bigint'
+            ? String(value)
+            : value instanceof Uint8Array
+              ? { base64: Buffer.from(value).toString('base64') }
+              : value,
+        ),
       }))
     },
   )
   const seedRef = { owner: 'session', id: '005-permission-test-seed' }
   const source = `export default { owner: 'session', id: '005-permission-test-seed', up(port) {
-    for (const row of ${JSON.stringify(inserts)}) port.execute(row.sql, row.params)
+    for (const row of ${JSON.stringify(inserts)})
+      port.execute(
+        row.sql,
+        row.params.map(value =>
+          value !== null && typeof value === 'object' ? Buffer.from(value.base64, 'base64') : value,
+        ),
+      )
   }, verify() { return { kind: 'verified' } } }`
   const file = join(root, 'seed.mjs')
   await writeFile(file, source)

@@ -31,7 +31,10 @@ async function twoCalls() {
           call: { ...f.call, call: later, state: { ...f.call.state, call: later } },
         },
       },
-      { kind: 'put', record: { kind: 'result', result: { ...f.result, call: later } } },
+      {
+        kind: 'put',
+        record: { kind: 'result', result: await f.resultFor({ ...f.access, call: later }) },
+      },
       { kind: 'put', record: { kind: 'task', task: f.task } },
     ],
   })
@@ -73,7 +76,13 @@ async function twoCalls() {
             call: { ...f.call, tenant: tenantB, call, state: { ...f.call.state, call } },
           },
         },
-        { kind: 'put', record: { kind: 'result', result: { ...f.result, tenant: tenantB, call } } },
+        {
+          kind: 'put',
+          record: {
+            kind: 'result',
+            result: await f.resultFor({ ...f.access, tenant: tenantB, call }),
+          },
+        },
         { kind: 'put', record: { kind: 'task', task: f.task } },
       ],
     })

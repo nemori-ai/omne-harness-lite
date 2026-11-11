@@ -88,7 +88,7 @@ describe('C04: local failure inside a group (SPEC 7.7.1)', () => {
       { operation_key: 'b', kind: 'rolled_back' },
       { operation_key: 'c', kind: 'committed' },
     ])
-    expect(await storage.query(identityOf(b))).toEqual(b)
+    expect({ ...(await storage.query(identityOf(b))), recalled: false }).toEqual(b)
   })
 
   it('the first failure stops the group: a second failing operation is not started in the same transaction', async () => {
@@ -113,7 +113,7 @@ describe('C04: a statement that ends the whole transaction (SPEC 7.7.2, 7.7.5)',
     const stored = rolledBack(result)
     const last = stored.responses[stored.responses.length - 1]
     expect(last?.reply.kind === 'failed' && last.reply.category).toBe('sql_error')
-    expect(await storage.query(identityOf(result))).toEqual(result)
+    expect({ ...(await storage.query(identityOf(result))), recalled: false }).toEqual(result)
     expect(
       readRows(workspace, 'select operation_key, kind from _sql_receipt order by rowid'),
     ).toEqual([

@@ -3,8 +3,8 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeToolOperationId, type ToolFailure } from '@omne-harness/tool-contract'
 import type { CallAccess, ToolRecovery, ToolTask } from '@omne-harness/tool-contract/provider'
 import type { ToolDependencies } from './construction.ts'
-import { digestOf } from './evidence.ts'
-import { sameFactValue } from './ledger-facts.ts'
+import { digestOf, sameFactValue } from './evidence.ts'
+
 import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import { controlFinished } from './ledger-control.ts'
 
@@ -30,7 +30,7 @@ export function createControlDriver<P, B extends ContentBlock, E>({
   return {
     stop: async (
       access: CallAccess<P>,
-      recovery: ToolRecovery<B>,
+      recovery: ToolRecovery,
       task: Extract<ToolTask, { kind: 'stop' }>,
     ): Promise<Outcome<void, ToolFailure>> => {
       const original = recovery.controls.find(item => item.operation === task.control.operation)

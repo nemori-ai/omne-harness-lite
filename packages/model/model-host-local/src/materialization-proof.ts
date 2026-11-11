@@ -1,6 +1,7 @@
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   describeModelMaterialization,
+  modelRequestDigest,
   type ModelCommandsEvidence,
 } from '@omne-harness/model/commands'
 import type { ModelFailure, TransportFailure } from '@omne-harness/model-contract'
@@ -113,6 +114,7 @@ export function materializationRecords(options: PiMaterializationOptions) {
         const capturedReceipt = structuredClone(receipt)
         const description = describeModelMaterialization({
           ...demand,
+          requestDigest: modelRequestDigest(demand.request),
           receipt: capturedReceipt,
         })
         if (Buffer.byteLength(JSON.stringify(description.source), 'utf8') > 4096)

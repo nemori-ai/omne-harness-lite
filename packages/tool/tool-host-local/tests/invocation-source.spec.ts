@@ -4,7 +4,7 @@
 // parameters; the store is the in-memory store of `@omne-harness/tool/testing`, so these cases
 // prove behaviour over one store object, not durability.
 import { describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { fail } from '@omne-harness/operation-result'
 import type {
   AccessVerdict,
@@ -12,6 +12,7 @@ import type {
   LedgerCommitInput,
   LedgerDomain,
   LedgerRead,
+  LedgerRecordRead,
   ToolInvokeAuthority,
   ToolLedgerStore,
 } from '@omne-harness/tool'
@@ -23,7 +24,7 @@ import {
 } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import {
-  INVOCATION_SOURCE_DOMAIN_KEY,
+  callHostDomain,
   createLocalInvocationSource,
   createLocalOperationIdentities,
   type PrincipalCodec,
@@ -74,7 +75,7 @@ type Fault =
 
 /** A store over the memory store that counts reads and commits and fails the next one on demand. */
 function observed() {
-  const memory = createMemoryToolLedgerStore<ContentBlock>()
+  const memory = createMemoryToolLedgerStore()
   const counts = { reads: 0, commits: 0 }
   let armed: { fault: Fault; times: number } | null = null
   const take = (...faults: Fault[]): Fault | null => {
@@ -84,16 +85,24 @@ function observed() {
     if (armed.times === 0) armed = null
     return fault
   }
-  const store: ToolLedgerStore<ContentBlock> = {
+  const store: ToolLedgerStore = {
     durability: 'none',
-    read: async (domain: LedgerDomain): Promise<LedgerRead<ContentBlock>> => {
+    due: memory.due,
+    read: async (domain: LedgerDomain): Promise<LedgerRead> => {
       counts.reads += 1
       const fault = take('read-unavailable', 'read-throws')
       if (fault === 'read-unavailable') return { kind: 'unavailable', diagnostic: 'store is down' }
       if (fault === 'read-throws') throw new Error('secret connection string')
       return memory.read(domain)
     },
-    commit: async (input: LedgerCommitInput<ContentBlock>): Promise<LedgerCommit> => {
+    readRecord: async (domain: LedgerDomain, key: string): Promise<LedgerRecordRead> => {
+      counts.reads += 1
+      const fault = take('read-unavailable', 'read-throws')
+      if (fault === 'read-unavailable') return { kind: 'unavailable', diagnostic: 'store is down' }
+      if (fault === 'read-throws') throw new Error('secret connection string')
+      return memory.readRecord(domain, key)
+    },
+    commit: async (input: LedgerCommitInput): Promise<LedgerCommit> => {
       counts.commits += 1
       const fault = take('lost-reply', 'unknown-unwritten', 'conflict', 'commit-throws', 'rejected')
       if (fault === 'rejected') return { kind: 'rejected', reason: 'command_limit' }
@@ -122,7 +131,7 @@ function observed() {
 }
 
 function source(
-  store: ToolLedgerStore<ContentBlock>,
+  store: ToolLedgerStore,
   authorityValue: ToolInvokeAuthority<P> = authority(),
   commitAttempts = 4,
 ) {
@@ -220,12 +229,16 @@ describe('TL-11 invocation source: issuance and recall', () => {
     const b = await bound(issuer, resolveInput({ tenant: tenantB }))
     expect(b.recovered).toBe(false)
     expect(b.call).not.toBe(a.call)
-    for (const [tenant, expected] of [
-      [tenantA, 1],
-      [tenantB, 1],
+    // Each binding lives in the source domain of the call it names, in its own tenant.
+    for (const [tenant, outcome] of [
+      [tenantA, a],
+      [tenantB, b],
     ] as const) {
-      const read = await memory.read({ kind: 'host', tenant, key: INVOCATION_SOURCE_DOMAIN_KEY })
-      expect(read.kind === 'complete' && read.records.length).toBe(expected)
+      const read = await memory.read(callHostDomain(tenant, 'source', outcome.call))
+      expect(read.kind === 'complete' && read.records.length).toBe(1)
+      const other = tenant === tenantA ? tenantB : tenantA
+      const foreign = await memory.read(callHostDomain(other, 'source', outcome.call))
+      expect(foreign.kind === 'complete' && foreign.records.length).toBe(0)
     }
   })
 
@@ -272,8 +285,8 @@ describe('TL-11 invocation source: issuance and recall', () => {
   it('TL-11 a stored principal that cannot be decoded is association-unknown, not a new identity', async () => {
     const { store, memory, counts } = observed()
     const { issuer } = source(store)
-    await bound(issuer)
-    const domain = { kind: 'host', tenant: tenantA, key: INVOCATION_SOURCE_DOMAIN_KEY } as const
+    const outcome = await bound(issuer)
+    const domain = callHostDomain(tenantA, 'source', outcome.call)
     const read = await memory.read(domain)
     if (read.kind !== 'complete') throw new Error('fixture read failed')
     const [record] = read.records
@@ -302,11 +315,9 @@ describe('TL-11 invocation source: issuance and recall', () => {
     const all = await Promise.all([1, 2, 3, 4].map(() => bound(issuer)))
     expect(new Set(all.map(outcome => outcome.call)).size).toBe(1)
     expect(all.filter(outcome => !outcome.recovered)).toHaveLength(1)
-    const read = await memory.read({
-      kind: 'host',
-      tenant: tenantA,
-      key: INVOCATION_SOURCE_DOMAIN_KEY,
-    })
+    const [one] = all
+    if (one === undefined) throw new Error('fixture: no outcome')
+    const read = await memory.read(callHostDomain(tenantA, 'source', one.call))
     expect(read.kind === 'complete' && read.records.length).toBe(1)
   })
 })
@@ -569,11 +580,7 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     const { store, memory } = observed()
     const { issuer, guard } = source(store)
     const outcome = await bound(issuer)
-    const domain: LedgerDomain = {
-      kind: 'host',
-      tenant: tenantA,
-      key: INVOCATION_SOURCE_DOMAIN_KEY,
-    }
+    const domain: LedgerDomain = callHostDomain(tenantA, 'source', outcome.call)
     const read = await memory.read(domain)
     if (read.kind !== 'complete') throw new Error('fixture read failed')
     const [stored] = read.records

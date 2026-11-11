@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ControlProgress, DurableEvidence, ToolStartRecord } from '@omne-harness/tool-contract'
@@ -15,30 +14,30 @@ export function localAuthorEvidence(record: string, value: unknown): DurableEvid
   return { owner: 'tool-host-local', record, revision: '1', digest: canonicalDigest(value) }
 }
 
-export interface LocalAuthorExecution<B extends ContentBlock> {
-  readonly live: ToolLiveExecution<B>
+export interface LocalAuthorExecution {
+  readonly live: ToolLiveExecution
   readonly signal: AbortSignal
   readonly source: DurableEvidence
-  publish(fact: ToolExecutionFact<B>): void
-  inspect(): ToolStartLookup<B>
+  publish(fact: ToolExecutionFact): void
+  inspect(): ToolStartLookup
   pendingAcknowledgements(): number
   observationAvailable(available: boolean): void
   lose(continuity: DurableEvidence): void
 }
 
-export function createLiveAuthorExecution<B extends ContentBlock>(
+export function createLiveAuthorExecution(
   input: Readonly<{
     start: ToolStartRecord
     release(): void
   }>,
-): LocalAuthorExecution<B> {
+): LocalAuthorExecution {
   const controller = new AbortController()
   const source = localAuthorEvidence(randomUUID(), input.start)
-  const batches: FactBatch<B>[] = []
+  const batches: FactBatch[] = []
   const acknowledgements = new Map<string, { digest: string; evidence: DurableEvidence }>()
   const controls = new Map<string, { digest: string; value: ControlProgress }>()
   const listeners = new Set<() => void>()
-  let lookup: ToolStartLookup<B>
+  let lookup: ToolStartLookup
   let readable = true
   let ended = false
   const wake = () => {
@@ -48,7 +47,7 @@ export function createLiveAuthorExecution<B extends ContentBlock>(
     canonicalDigest(control.start) === canonicalDigest(input.start) &&
     canonicalDigest(control.tenant) === canonicalDigest(input.start.execution.tenant) &&
     control.call === input.start.execution.call
-  const publish = (fact: ToolExecutionFact<B>): void => {
+  const publish = (fact: ToolExecutionFact): void => {
     if (ended) throw new Error('the author execution ended')
     const cursor = String(batches.length + 1)
     const event = `${source.record}/${cursor}`
@@ -70,7 +69,7 @@ export function createLiveAuthorExecution<B extends ContentBlock>(
     }
     wake()
   }
-  const live: ToolLiveExecution<B> = {
+  const live: ToolLiveExecution = {
     async *facts({ after, signal }) {
       let index = after === null ? 0 : batches.findIndex(batch => batch.cursor === after) + 1
       if (after !== null && index === 0) throw new Error('unknown author fact cursor')
@@ -156,7 +155,7 @@ export function createLiveAuthorExecution<B extends ContentBlock>(
     publish,
     signal: controller.signal,
     source,
-    inspect: (): ToolStartLookup<B> =>
+    inspect: (): ToolStartLookup =>
       readable ? lookup : { kind: 'unknown', diagnostic: 'execution observation unavailable' },
     pendingAcknowledgements: () => batches.length - acknowledgements.size,
     observationAvailable: (available: boolean) => {

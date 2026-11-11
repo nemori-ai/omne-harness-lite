@@ -1,16 +1,22 @@
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createIndependentToolScope } from '@omne-harness/tool'
 import type { FixedToolRequest, ToolStartRecord } from '@omne-harness/tool-contract'
 import {
+  returnGuide,
   defineCommandTool,
   defineToolOperation,
   type ToolAuthority,
   type ToolImplementationModule,
 } from '@omne-harness/tool-contract/provider'
 import { completedFinal, createMemoryToolStartAuthority } from '@omne-harness/tool-contract/testing'
-import { createLocalToolBindings, type LocalToolBindingsInput } from '@omne-harness/tool-host-local'
+import {
+  createLocalToolBindings,
+  createLocalToolCatalog,
+  type LocalToolBindingsInput,
+} from '@omne-harness/tool-host-local'
 import {
   authorAccess,
   authorAuthority,
@@ -20,7 +26,16 @@ import {
   unbox,
 } from './author-values.ts'
 import { authorityFor, fiberedRegistry, scriptedVerifier } from './binding-values.ts'
-import { adoption, callId, instanceId, operationId, request } from './coordinator-values.ts'
+import {
+  adoption,
+  callId,
+  evidence,
+  instanceId,
+  operationId,
+  request,
+} from './coordinator-values.ts'
+
+import { catalogSearch, catalogView } from './catalog-view-fixture.ts'
 
 type Start = Extract<ToolStartRecord, { kind: 'start' }>
 type Settlement = Parameters<LocalToolBindingsInput<string, unknown, ContentBlock>['settle']>[0]
@@ -215,16 +230,34 @@ describe('author binding registration ownership', () => {
   })
 })
 
-function commandModule(events: string[]): ToolImplementationModule<unknown, ContentBlock> {
-  const operation = (name: string) =>
+function commandModule(
+  events: string[],
+  limits?: Readonly<Record<'first' | 'second', number>>,
+): ToolImplementationModule<unknown, ContentBlock> {
+  const declared = request().availability.definition
+  if (declared.kind !== 'function') throw new Error('expected function parameters')
+  const operation = (name: 'first' | 'second') =>
     unbox(
       defineToolOperation({
-        parameters: {
-          kind: 'executor-owned',
-          usage: `Pass ${name}`,
-          protocol: adoption(`protocol-${name}`),
+        parameters:
+          limits === undefined
+            ? {
+                kind: 'executor-owned',
+                usage: `Pass ${name}`,
+                protocol: adoption(`protocol-${name}`),
+              }
+            : { kind: 'declared', value: declared.parameters },
+        returns: {
+          ...ordinaryReturnFixture(adoption(`codec-${name}`)),
+          ...(limits === undefined
+            ? {}
+            : {
+                offloading: {
+                  inline: { kind: 'bounded' as const, maxInlineUtf8Bytes: limits[name] },
+                  retention: { kind: 'system' as const },
+                },
+              }),
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
         author: {
           kind: 'ordinary',
           parameters: {
@@ -281,6 +314,130 @@ function call(command: string, value: string): string {
 }
 
 describe('author binding command selection', () => {
+  it('keeps two command limits aligned across definition, usage and binding replacement', async () => {
+    const events: string[] = []
+    const fixture = await harness(commandModule(events, { first: 2048, second: 4096 }))
+    const catalog = createLocalToolCatalog({
+      registry: fixture.registry,
+      view: catalogView(fixture.registry),
+      search: catalogSearch,
+      availability: {
+        judge: async () =>
+          succeed({
+            qualification: 'allowed',
+            dependencies: [],
+            inputCompatible: true,
+            outputCompatible: true,
+            attachmentsReadable: true,
+          }),
+      },
+    })
+    const consumer = {
+      capabilities: evidence('capabilities'),
+      conversion: null,
+      attachmentAccess: evidence('attachments'),
+    }
+    const definitions = [fixture.loaded]
+    const old = new Map<
+      string,
+      {
+        binding: Awaited<ReturnType<typeof fixture.resolve>>
+        input: Awaited<ReturnType<typeof fixture.input>>
+        live: unknown
+      }
+    >()
+    for (const command of ['first', 'second'] as const) {
+      const fixed = {
+        ...fixture.fixed,
+        command,
+        arguments: {
+          original: call(command, command),
+          effective: call(command, command),
+          complete: true,
+        },
+      }
+      const binding = await fixture.resolve(fixed, command)
+      const input = await fixture.input(fixed, command)
+      old.set(command, { binding, input, live: unbox(await binding.start(input, {})) })
+    }
+    await new Promise<void>(resolve => setImmediate(resolve))
+    for (const command of ['first', 'second'] as const) {
+      const usage = unbox(
+        await catalog.usage({
+          ...authorAccess,
+          name: 'read_file',
+          command,
+          consumer,
+          adoption: fixture.loaded.definition.adoption,
+        }),
+      )
+      const definition = fixture.loaded.definition
+      if (definition.kind !== 'commands') throw new Error('expected command definition')
+      expect(usage.returns).toEqual(
+        definition.commands.find(item => item.name === command)?.returns,
+      )
+      expect(
+        fixture.settlements.find(item => item.request.command === command)?.operation.returns,
+      ).toEqual(usage.returns)
+    }
+    expect(fixture.contribution.release()).toEqual({ removed: true })
+    const successor = unbox(
+      await loadAuthor({
+        ...commandModule(events, { first: 4096, second: 2048 }),
+        executor: adoption('commands-next'),
+      }),
+    )
+    fixture.register(successor)
+    definitions.push(successor)
+    for (const command of ['first', 'second'] as const) {
+      const prior = old.get(command)
+      if (prior === undefined) throw new Error('missing original binding')
+      expect(unbox(await prior.binding.start(prior.input, {}))).toBe(prior.live)
+      const fixed = {
+        ...fixture.fixed,
+        command,
+        availability: {
+          kind: 'available' as const,
+          definition: successor.definition,
+          executor: successor.executor,
+          layer: successor.key.layer,
+        },
+        arguments: {
+          original: call(command, command),
+          effective: call(command, command),
+          complete: true,
+        },
+      }
+      const binding = await fixture.resolve(fixed, `next-${command}`)
+      unbox(
+        await binding.start(await fixture.input(fixed, `next-${command}`, successor.executor), {}),
+      )
+      const usage = unbox(
+        await catalog.usage({
+          ...authorAccess,
+          name: 'read_file',
+          command,
+          consumer,
+          adoption: successor.definition.adoption,
+        }),
+      )
+      const definition = successor.definition
+      if (definition.kind !== 'commands') throw new Error('expected command definition')
+      expect(usage.returns).toEqual(
+        definition.commands.find(item => item.name === command)?.returns,
+      )
+    }
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(fixture.settlements.map(item => item.operation.returns.offloading.inline)).toEqual([
+      { kind: 'bounded', maxInlineUtf8Bytes: 2048 },
+      { kind: 'bounded', maxInlineUtf8Bytes: 4096 },
+      { kind: 'bounded', maxInlineUtf8Bytes: 4096 },
+      { kind: 'bounded', maxInlineUtf8Bytes: 2048 },
+    ])
+    expect(events.filter(event => event.startsWith('execute-'))).toHaveLength(4)
+    expect(definitions[0]?.definition).not.toEqual(definitions[1]?.definition)
+  })
+
   it('dispatches the second command with its parser and settlement operation', async () => {
     const events: string[] = []
     const fixture = await harness(commandModule(events))
@@ -346,6 +503,7 @@ describe('author binding command selection', () => {
         'read_file second: expected second.',
         'Usage: read_file {"command": "second", "params": {…}}',
         'Second command',
+        returnGuide(ordinaryReturnFixture(adoption('codec-second'))),
       ].join('\n'),
     })
     expect(fixture.settlements[0]?.operation.author.parameters.adoption.name).toBe(

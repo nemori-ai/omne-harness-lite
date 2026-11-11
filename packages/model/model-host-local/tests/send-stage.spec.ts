@@ -76,7 +76,6 @@ const TEST_ADOPTION: Adoption = {
   revision: '1',
   digest: '0'.repeat(64),
 }
-const CALL_CAPACITY = { bytes: '1000000', blocks: '100', attachmentBytes: '0' }
 const CONFIGURATION: ModelConfiguration = {
   outputBatchBytes: 16_384,
   outputBatchDelayMs: 100,
@@ -122,7 +121,7 @@ function sceneOf(request: FixedModelRequest, label: string) {
       resultPageParts: 8,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: CALL_CAPACITY,
+      unacknowledgedResults: 10,
     },
     authority: {
       authorize: ({ access, action }) =>
@@ -182,6 +181,7 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
     declare readonly recordMaterialization: ModelCommands<unknown>['recordMaterialization']
@@ -384,7 +384,6 @@ function runtimeOver(scene: Scene, send: ModelSendBoundary<Principal>) {
             position: 'answer',
             purpose: 'local-model-test',
           },
-          capacity: CALL_CAPACITY,
         }),
       )
       return provider.driver.drive(

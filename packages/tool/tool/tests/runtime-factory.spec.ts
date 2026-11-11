@@ -11,7 +11,6 @@ import {
   principalA,
   referenceFor,
   tenantA,
-  type Block,
   testSettlementPorts,
 } from './runtime-values.ts'
 import { testAssembly } from './testing-values.ts'
@@ -87,7 +86,7 @@ describe('17 the runtime factory and later increments', () => {
   })
 
   it('17 factory: the ledger checks the configuration it reads and throws at construction', () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     const clock = testAssembly().dependencies.clock
     for (const [key, value] of [
       ['ledgerCommitAttempts', 0],
@@ -112,12 +111,12 @@ describe('17 the runtime factory and later increments', () => {
   })
 
   it('requires explicit settlement ports without the old construction fallback', () => {
-    const store = createMemoryToolLedgerStore<Block>()
+    const store = createMemoryToolLedgerStore()
     const clock = testAssembly().dependencies.clock
     const ports = testSettlementPorts()
     expect(() =>
       createToolLedger(store, guards(), clock, configuration(), undefined as never),
-    ).toThrow('settlement.custody.retainResult: missing')
+    ).toThrow('settlement.releaseInspection.inspectRelease: missing')
     expect(() =>
       createToolLedger(store, guards(), clock, configuration(), {
         ...ports,
@@ -140,12 +139,6 @@ describe('17 the runtime factory and later increments', () => {
         configuration(),
       ),
     ).toThrow('dependencies.operationIdentities: missing')
-    expect(() =>
-      createToolRuntime({ ...dependencies, facts: undefined as never }, configuration()),
-    ).toThrow('dependencies.facts: missing')
-    expect(() =>
-      createToolRuntime({ ...dependencies, facts: {} as never }, configuration()),
-    ).toThrow('dependencies.facts.read: missing')
     expect(() =>
       createToolRuntime({ ...dependencies, sourceIssuer: undefined as never }, configuration()),
     ).toThrow('dependencies.sourceIssuer: missing')

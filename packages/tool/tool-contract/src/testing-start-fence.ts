@@ -71,7 +71,8 @@ function scene<P>(fixture: Fixture<P>, access: Access<P> = fixture.access) {
     const callAccess = { ...access, call }
     const tryConsumeFinal = (permit: StartPermit, capsule = 'capsule') =>
       finalAnswer({
-        ask: () => authority.consume({ ...callAccess, permit, executorReceipt: evidence(capsule) }),
+        ask: () =>
+          authority.consume({ ...callAccess, permit, executorReceipt: evidence(capsule), request }),
         row: answers.consume,
         completion,
         what: `consume of ${name}`,
@@ -84,7 +85,12 @@ function scene<P>(fixture: Fixture<P>, access: Access<P> = fixture.access) {
         succeeded(await tryConsumeFinal(permit, capsule), `consume of ${name}`),
       consume: async (permit: StartPermit): Promise<StartProgress> =>
         succeeded(
-          await authority.consume({ ...callAccess, permit, executorReceipt: evidence('capsule') }),
+          await authority.consume({
+            ...callAccess,
+            permit,
+            executorReceipt: evidence('capsule'),
+            request,
+          }),
           `consume of ${name}`,
         ),
       inspect: async (): Promise<StartProgress> =>

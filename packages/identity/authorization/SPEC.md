@@ -260,7 +260,7 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 ### 用途矩阵
 
-`SYSTEM_ACTION_MATRIX` 是仅有的十行。授予记录用 `purpose` 点名行。授予不能互借：持有某一行用途的主体对其他行得到 `grant-missing`。
+`SYSTEM_ACTION_MATRIX` 只允许下表列出的动作。授予记录用 `purpose` 点名行。授予不能互借：持有某一行用途的主体对其他行得到 `grant-missing`。
 
 | 用途 | operation | target 分支与资源 | 参数 |
 | --- | --- | --- | --- |
@@ -276,6 +276,8 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 | `agent-instance-withdraw` | agent `withdraw` | 租户；agent `instance` | 固定 |
 
 固定行的 `arguments` 是 `noArguments()`。需要矩阵之外的系统动作时，先给出该动作的既有职责与原义务绑定，再增行。
+
+Tool 的到期正文由 Tool 运行时按自己的到期索引回收，应用只排期；它不需要系统动作，矩阵里没有 Tool 行。
 
 三个 `agent-instance-*` 行的持有者是 Agent 宿主维护主体。它的既有职责是发布已取得的实例，并在停用时让实例静默与撤回（XC-AGINST r2 第 3.3 节第 4 步与第 3.4 节）。实例身份在资源键里，`AgentAccessCheck` 的输入没有参数成员，所以三行都是固定参数。发布与预约的绑定由 Agent 自己的登记协议核对，不归本端口。租户分支的租户是实例所在分区。
 

@@ -20,8 +20,6 @@ const ACTIONS = {
   'read-diagnostics': true,
   'read-result': true,
   'read-content': true,
-  'read-raw': false,
-  'read-raw-content': false,
   'release-delivery': true,
   account: true,
   recover: true,

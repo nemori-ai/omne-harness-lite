@@ -3,6 +3,7 @@
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
 - [独立执行作用域](independent-scope.ts)。
+- [正文写入作用域](body-write-scope.ts)：本次调用的队列、背压与持久关闭交接。
 - [执行包装器](execute-tool.ts)。
 - [作者限额检查](limits.ts)。
 - [等待请求的 JSON 树](json-tree.ts)。
@@ -12,6 +13,7 @@
 - [账本受信快照](ledger-guards.ts)。
 - [边界检查](boundary.ts)。
 - [证据与身份铸造](evidence.ts)。
+- [事实指纹的规范编码](canonical-codec.ts)：[事实指纹编码 v1](../SPEC.md#事实指纹编码-v1) 的独立编码入口，不改变既有证据编码。
 - [受理与交付解除决定器](ledger-decider.ts)。
 - [到启动为止的决定器：队列域与调用域](ledger-start.ts)。
 - [队列维护入口：等待者对账](ledger-queue.ts)。
@@ -45,3 +47,9 @@
 - [ledger-environment-release.ts](ledger-environment-release.ts)：历史保管闭包、canonical 计划与释放观察。
 - [cleanup-boundary.ts](cleanup-boundary.ts)：清理 Mutation 的封闭复制。
 - [driver-settlement.ts](driver-settlement.ts)：按原 task 恢复 final 和 preserveResult。
+
+
+- [事实指纹与批次身份](fact-values.ts)。
+
+
+- [首次结果读取身份](result-address.ts)从已授权的调用定位值和首次版本构造固定引用，供结果准备生成读回说明。

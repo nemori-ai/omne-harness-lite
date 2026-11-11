@@ -42,8 +42,8 @@ export type LedgerAssemblyDependencies = StoreCaseDependencies &
     createLedger: Factory
     source: typeof createTestInvocationSource<Principal>
     clock(): Parameters<Factory>[2]
-    custody(): Parameters<Factory>[4]['custody']
     environment(): Parameters<Factory>[4]['releaseInspection']
+    bodies(): NonNullable<Parameters<Factory>[4]['bodies']>
   }>
 const adoption = (name: string): Adoption => ({
   owner: 'ledger-conformance',
@@ -81,7 +81,24 @@ function invokeRequest(): ToolInvokeRequest {
           vocabulary: adoption('json-schema'),
           descriptions: [],
         },
-        returns: { kind: 'ordinary', program: { kind: 'none' } },
+        returns: {
+          kind: 'ordinary',
+          value: {
+            kind: 'encoded-value',
+            codec: adoption('codec'),
+            value: {
+              identity: { id: 'fixture-value', revision: '1', digest: 'sha256:fixture-value' },
+              definition: {
+                schema: { kind: 'object', entries: [] },
+                vocabulary: adoption('json-schema'),
+                descriptions: [],
+              },
+            },
+          },
+          program: { kind: 'none' },
+          body: { kind: 'text', codec: adoption('utf8') },
+          offloading: { inline: { kind: 'system' }, retention: { kind: 'system' } },
+        },
       },
     },
     command: null,
@@ -213,6 +230,14 @@ export async function ledgerAssembly(
       reads += 1
       return fixture.store.read(domain)
     },
+    readRecord: (domain, key) => {
+      reads += 1
+      return fixture.store.readRecord(domain, key)
+    },
+    due: (tenant, now, limit) => {
+      reads += 1
+      return fixture.store.due(tenant, now, limit)
+    },
     commit: command => {
       commits += 1
       return fixture.store.commit(command)
@@ -222,8 +247,49 @@ export async function ledgerAssembly(
     store,
     guards,
     deps.clock(),
-    { resultPageBytes: 4096, ledgerCommitAttempts: 4, queueCapacity: 16 },
-    { custody: deps.custody(), releaseInspection: deps.environment(), content: null },
+    {
+      authorBufferBytes: 65_536,
+      authorBufferItems: 128,
+      resultPageBytes: 4096,
+      ledgerCommitAttempts: 4,
+      queueCapacity: 16,
+      readResultArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 256,
+        maxStringLength: 32_768,
+        maxNumberLength: 64,
+      },
+      offloading: {
+        maxInlineUtf8Bytes: 65_536,
+        maxRetentionMs: 86_400_000,
+        maxBodyBytes: 16_777_216,
+        previewUtf8Bytes: 1_024,
+        maxPageBytes: 65_536,
+        permitMs: 30_000,
+        clockSkewMs: 1_000,
+        orphanGraceMs: 60_000,
+        maxWriterMetadataBytes: 1_048_576,
+        jsonDocument: {
+          maxBytes: 1_048_576,
+          maxDepth: 64,
+          maxItems: 65_536,
+          maxMembers: 65_536,
+          maxStringLength: 1_048_576,
+          maxNumberLength: 64,
+        },
+        jsonRecord: {
+          maxBytes: 65_536,
+          maxDepth: 32,
+          maxItems: 4096,
+          maxMembers: 4096,
+          maxStringLength: 65_536,
+          maxNumberLength: 64,
+        },
+      },
+    },
+    { releaseInspection: deps.environment(), content: null, bodies: deps.bodies() },
   )
   return {
     ledger,

@@ -1,8 +1,9 @@
 # Tool 协议模型索引
 
-<!-- documentation:placeholder -->
-
-- [目录职责与待补内容](README.md)。
+- [正文生命周期模型](body-lifecycle/README.md)：账本与正文存储为两个独立参与者、五个独立时钟的 BodyLifecycle 模型，守有限期限、先耐久再发布与有界聚合，含具名负控、进展配置和运行入口。
+- [有界披露模型](disclosure/README.md)：首屏为描述头加预览的 Disclosure 模型，守有界披露，含具名负控和运行入口。
+- [交接释放模型](handoff/README.md)：Handoff 模型，守消费方耐久承接后才释放与同一身份只追加一次，含具名负控和运行入口。
+- [目录职责](README.md)。
 - [包索引](../../index.md)。
 
-本目录当前没有其他资源。
+模型检查不代替实现和部署验收。

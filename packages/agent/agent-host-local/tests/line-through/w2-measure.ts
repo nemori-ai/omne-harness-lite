@@ -362,6 +362,7 @@ function partsReadOf(request: ReadRequest, result: ReadResult): PartsRead {
 /** The storage the world shares, with each commit and each read counted. */
 export function countingStorage(storage: SqlStorage, counters: RoundCounters): SqlStorage {
   return {
+    database: storage.database,
     registerCombination: input => storage.registerCombination(input),
     query: identity => storage.query(identity),
     commit: async (request, options) => {

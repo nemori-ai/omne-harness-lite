@@ -8,8 +8,8 @@ import { storageCatalog } from '../storage/catalog.ts'
 /**
  * The `combinationVersion` the release gives the rows of the session log combination. Wave 2 moved
  * it from `session-composite/1` to `session-composite/2` once (R2-D65): the `model` participant
- * joined and the session log gained a migration. A version change does not re-register the tenants
- * that the old version registered; a development environment clears its storage root (R2-D98).
+ * joined and the session log gained a migration. The session-storage row now confirms the current
+ * combination for every persisted tenant before publishing its services.
  * Segment B of the Tool wiring moved it to `session-composite/4` once more: the `tool` participant
  * of the Tool ledger joined the same combination. The Agent Journal fact family moved it to
  * `session-composite/4` (R2-D342): the session log gained the state-item and execution-fact
@@ -19,8 +19,10 @@ import { storageCatalog } from '../storage/catalog.ts'
  * their migrations to the catalog, adopting combination /6.
  * The Session writer no longer publishes `session.commit-result`, so its material and the manifest
  * digest changed, adopting combination /7.
+ * W3 immutable Tool materials add a migration on top of the governance catalog, adopting
+ * combination /8.
  */
-export const COMBINATION_VERSION = 'session-composite/7'
+export const COMBINATION_VERSION = 'session-composite/8'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string

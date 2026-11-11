@@ -130,8 +130,6 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     const read = createPermissionBasisRead({
       scope: w.scope,
       release: () => w.release,
-      // This world has no organization source: the organization layer stays unavailable.
-      settings: async () => ({ target: w.target, source: null }) as never,
       // Counts the commits that a check sends. A check must send none.
       storage: {
         ...w.storage,
@@ -196,8 +194,6 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
         original: request.original,
       },
     })
-    const permission = await read.requestFor(action())
-    if (permission === undefined) throw new Error('The action has no permission request')
     const commit = (commands: unknown) =>
       w.storage.commit({
         identity: {
@@ -211,7 +207,8 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
       })
 
     // The reading carries the bound of the original Agent definition.
-    const first = await read.readCurrent(action(), permission)
+    const first = await read.readCurrent(action())
+    expect(first.request).not.toBeNull()
     const basis = current(first.reading)
     expect(evaluatePermission(basis.evaluation)).toMatchObject({
       kind: 'denied',
@@ -225,7 +222,7 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     // An inquiry of another Session permission revision gives no reading.
     const published = inquiry
     inquiry = { ...inquiry, basis: { ...inquiry.basis, permissionRevision: '999' } }
-    expect(await read.readCurrent(action(), permission)).toMatchObject({
+    expect(await read.readCurrent(action())).toMatchObject({
       reading: { kind: 'unavailable' },
       condition: null,
     })
@@ -234,35 +231,27 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     // P3: the Agent commits its own progress during the check, after the origin is qualified.
     // The execution revision is not part of the basis, so the check still gives the reading.
     advanceAfterQualification = true
-    const raced = await read.readCurrent(action(), permission)
+    const raced = await read.readCurrent(action())
     expect(advanced?.after).not.toBe(advanced?.before)
     expect(current(raced.reading).evaluation).toEqual(basis.evaluation)
     advanceAfterQualification = false
     // The progress commit changed the arguments of the action. Later checks use them.
-    const next = await read.requestFor(action(CHANGED))
-    if (next === undefined) throw new Error('The changed action has no permission request')
-    expect(next.argumentsDigest).toBe(effectiveArgumentsOf(CHANGED).digest)
-
-    // A request that does not belong to this action gives no current reading.
-    for (const changed of [
-      { ...next, operation: { owner: 'agent', operationId: 'another-action' } },
-      { ...next, argumentsDigest: effectiveArgumentsOf('{"other":true}').digest },
-      { ...next, scope: { ...next.scope, sessionId: 'another-session' } },
-    ]) {
-      const answer = await read.readCurrent(action(CHANGED), changed)
-      expect(answer.reading.kind).not.toBe('current')
-      expect(answer.condition).toBeNull()
-    }
+    // One check maps the action once: the reading comes with the request of that action, so a
+    // reading for another request cannot be asked for.
+    const changed = await read.readCurrent(action(CHANGED))
+    expect(changed.request?.argumentsDigest).toBe(effectiveArgumentsOf(CHANGED).digest)
+    expect(current(changed.reading).request).toEqual(changed.request)
 
     // P2: Identity is in another domain. Each check reads the standing of that moment.
     const reads = standingReads
     standing = { kind: 'not-member', evidence: { record: 'fixture', revision: '2' } }
-    expect(await read.readCurrent(action(CHANGED), next)).toEqual({
+    expect(await read.readCurrent(action(CHANGED))).toEqual({
+      request: null,
       reading: { kind: 'denied' },
       condition: null,
     })
     standing = { kind: 'unavailable', diagnostic: 'fixture' }
-    expect(await read.readCurrent(action(CHANGED), next)).toMatchObject({
+    expect(await read.readCurrent(action(CHANGED))).toMatchObject({
       reading: { kind: 'unavailable' },
       condition: null,
     })
@@ -273,7 +262,7 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     expect(commits).toBe(0)
 
     // P1: while the facts are the ones that the check saw, a commit with the condition holds.
-    const held = await read.readCurrent(action(CHANGED), next)
+    const held = await read.readCurrent(action(CHANGED))
     expect(held.condition).not.toBeNull()
     expect(await commit(held.condition!['commands'])).toMatchObject({ kind: 'committed' })
     // The adoption changes after the check. The same condition now stops the commit.
@@ -286,7 +275,7 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
     const stopped = await commit(held.condition!['commands'])
     expect(stopped.kind).toBe('rolled_back')
     // The next check reads the new facts and gives no reading.
-    expect(await read.readCurrent(action(CHANGED), next)).toMatchObject({
+    expect(await read.readCurrent(action(CHANGED))).toMatchObject({
       reading: { kind: 'unavailable' },
       condition: null,
     })

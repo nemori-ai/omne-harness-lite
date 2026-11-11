@@ -226,7 +226,7 @@ facts 材料保存原租户编码与完整 ModelDelivery。精确采用为 owner
 
 新交付取得租户独立的 records、bytes、attachments 与 inFlight 额度后，经原共同提交端口一次保存材料和 received。unknown 继续查询原 operation，不能再次 preserve 或新建提交身份。重复 key 不占新逻辑额度，实际在途调用仍占 inFlight。signal 只结束等待，不撤销已受理的写入；真实写入结束才释放在途额度。
 
-Tool 完整材料采用 [公共 SPEC 的结果接收](../../agent-contract/SPEC.md#结果接收) 中 R2-D36 的 facts schema。`readToolDeliveryMaterial(access, material, expected)` 验证材料并返回完整 ToolDelivery，不合法时返回 null。该函数不核当前资格，也不证明耐久。Tool 的结果和迟到账目各自按原 key 保存，尚无账目保持 null。接收方只返回 saved，生产者自行完成 release。Model 专用的 AgentAccountOutlet 不用于 Tool 账目。
+Tool 完整材料采用 [公共 SPEC 的结果接收](../../agent-contract/SPEC.md#结果接收) 中 R2-D36 的 facts schema。`decodeAgentToolDeliveryMaterial(material)` 只解码 Agent 自有 schema，核对 envelope 租户格式和交付关系，返回 `{ tenant, delivery }` 或 null。它不依赖 Session；消费适配器仍须核原日志位置、当前资格和消费绑定。`readToolDeliveryMaterial(access, material, expected)` 验证材料并返回完整 ToolDelivery，不合法时返回 null。该函数不核当前资格，也不证明耐久。Tool 的结果和迟到账目各自按原 key 保存，尚无账目保持 null。接收方只返回 saved，生产者自行完成 release。Model 专用的 AgentAccountOutlet 不用于 Tool 账目。
 
 retry 只认回本次授权绑定集合中的未知操作。recover 从同一 Journal 的 received 与完整材料认回已保存结果，不重写材料。两者返回 `Reply<ToolReceiverReport>`，返回前重核当前资格。inspect 是宿主管理的全局视图，不作为租户查询。内存状态和测试 Journal 只支持同进程接续，不能据此宣称 SQLite 耐久、Tool release 日志或跨进程恢复已完成。
 

@@ -33,7 +33,6 @@ it('keeps a real driver credential refusal local and not sent', async () => {
       operation: admission,
       request: f.request,
       consumer: f.consumer,
-      capacity: f.capacity,
     }),
   ).toMatchObject({ ok: { call: f.call } })
   try {

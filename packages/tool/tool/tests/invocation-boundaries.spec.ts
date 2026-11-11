@@ -121,11 +121,11 @@ const entries: readonly Entry[] = [
     run: (r, input) => untrusted(r.content.read, input),
   },
   {
-    name: 'content.raw',
-    action: 'read-raw',
+    name: 'body.read',
+    action: 'read-content',
     field: 'reference',
     command: false,
-    run: (r, input) => untrusted(r.content.raw, input),
+    run: (r, input) => untrusted(r.body.read, input),
   },
 ]
 
@@ -191,7 +191,7 @@ describe.each(entries)('$name reference boundary', entry => {
       vi.spyOn(reads, 'result'),
       vi.spyOn(reads, 'account'),
       vi.spyOn(reads.content, 'read'),
-      vi.spyOn(reads.content, 'raw'),
+      vi.spyOn(reads.body, 'read'),
       vi.spyOn(commands, 'releaseDelivery'),
       vi.spyOn(instances.directory, 'connect'),
       vi.spyOn(operationIdentities, 'newOperation'),
@@ -218,7 +218,7 @@ it.each(entries.filter(entry => entry.name === 'control' || entry.name === 'cont
     expect(result).toMatchObject(
       entry.command
         ? { kind: 'rejected', failure: { kind: 'invalid', field: 'call', reason: 'unknown-call' } }
-        : { failure: { kind: 'invalid', field: 'call', reason: 'unknown-call' } },
+        : { failure: { kind: 'not-found', target: 'result', reason: 'missing' } },
     )
     expect(mint).toHaveBeenCalledTimes(entry.name === 'control' ? 1 : 0)
     expect(base.store.commits).toBe(0)

@@ -85,10 +85,11 @@ it('snapshots request data before awaits and withholds evidence on read failures
     ...f.input,
     store: {
       ...f.store,
-      async read(domain) {
+      // The source guard reads one record by key.
+      async readRecord(domain, key) {
         entered.resolve()
         await release.promise
-        return f.store.read(domain)
+        return f.store.readRecord(domain, key)
       },
     },
   })
@@ -102,7 +103,7 @@ it('snapshots request data before awaits and withholds evidence on read failures
     ...f.input,
     store: {
       ...f.store,
-      async read() {
+      async readRecord() {
         throw new Error('secret storage path')
       },
     },

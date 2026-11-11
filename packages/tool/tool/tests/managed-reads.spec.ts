@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { succeed } from '@omne-harness/operation-result'
+import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import type { ResultPage, ToolResult } from '@omne-harness/tool-contract'
+import { settlementFixture } from './settlement-values.ts'
 import {
   callId,
+  configuration,
   operationId,
   textOf,
   dummyRequest,
@@ -21,6 +24,18 @@ import {
 } from './runtime-values.ts'
 
 const access = { principal: principalA, tenant: tenantA }
+
+it('reports an authoritative missing result for a call that was never admitted', async () => {
+  const assembly = harness()
+  expect(
+    await assembly.runtime.queries.readResult({
+      ...access,
+      reference: referenceFor('missing-call', 'missing-admission'),
+      result: ok(decodeToolResultVersion('v1')),
+      after: null,
+    }),
+  ).toEqual({ failure: { kind: 'not-found', target: 'result', reason: 'missing' } })
+})
 
 describe('14 queries (P01)', () => {
   it('14 queries: lookup by the reference answers the authoritative state', async () => {
@@ -94,8 +109,15 @@ describe('14 queries (P01)', () => {
     await assembly.admitInternal(dummyRequest())
     const operation = assembly.operationRefOf('call-1', 'op-1')
     const plain = ok(await assembly.runtime.queries.queryOperation({ ...access, operation }))
-    const reordering: ToolLedgerStore<Block> = {
+    const reordering: ToolLedgerStore = {
       durability: 'none',
+      due: assembly.store.due,
+      readRecord: async (domain, key) => {
+        const read = await assembly.store.readRecord(domain, key)
+        return read.kind === 'complete' && read.record !== null
+          ? { ...read, record: reversed(read.record) }
+          : read
+      },
       read: async domain => {
         const read = await assembly.store.read(domain)
         return read.kind === 'complete' ? { ...read, records: read.records.map(reversed) } : read
@@ -220,7 +242,7 @@ describe('15 result pages and the account (P08, P09)', () => {
         after: null,
       }),
     ).toEqual({
-      failure: { kind: 'invalid', field: 'result', reason: 'unknown-version' },
+      failure: { kind: 'not-found', target: 'result', reason: 'missing' },
     })
   })
 
@@ -329,16 +351,14 @@ describe('15 result pages and the account (P08, P09)', () => {
   })
 
   it('15 pages: a block larger than the page is a named refusal, never a cut block', async () => {
-    const assembly = harness({ resultPageBytes: 16 })
-    await assembly.admitInternal(dummyRequest())
+    // Settlement commits only results whose blocks fit the page, so the reader meets a larger block
+    // only when the page is configured smaller after the commit.
+    const f = await settlementFixture()
+    const settled = ok(await f.preserve())
+    if (settled.phase !== 'settled') throw new Error('fixture did not settle')
+    f.rebuild(configuration().offloading, undefined, 16)
     const refused = failure(
-      await assembly.runtime.queries.readResult({
-        principal: principalA,
-        tenant: tenantA,
-        reference: referenceFor('call-1', 'op-1'),
-        result: 'v1' as never,
-        after: null,
-      }),
+      await f.ledger.reads.result({ ...f.access, result: settled.result, after: null }),
     )
     expect(refused).toMatchObject({
       kind: 'unsupported',

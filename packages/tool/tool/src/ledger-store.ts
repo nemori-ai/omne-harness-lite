@@ -1,7 +1,11 @@
+import type { BodyEntryRecord } from './ledger-body-records.ts'
+import type { ResultPolicyRecord } from './ledger-result-policy.ts'
+import type { ResultPreparationRecord } from './ledger-result-preparation.ts'
 // The ledger store port (G1): one domain read and one revision-conditioned atomic commit. The
 // store keeps records by key inside a transaction domain and interprets none of them. A durable
 // provider (#280) and the non-durable store of `./testing` implement the same port.
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { ResultValue } from './ledger-result-material.ts'
 import type {
   Access,
   ControlReceipt,
@@ -10,13 +14,11 @@ import type {
   ReleasedDelivery,
   DurableEvidence,
   Effect,
-  RawOutput,
   FixedToolRequest,
   ProcessBlock,
   ToolCallId,
   ToolExecutionRef,
   ToolOperationId,
-  ToolResult,
   ToolResultVersion,
   ToolRevision,
   ToolStartRecord,
@@ -24,6 +26,7 @@ import type {
   ToolTerminal,
 } from '@omne-harness/tool-contract'
 import type {
+  ToolInstant,
   ReleaseRecord,
   ReleaseProgress,
   FactReceipt,
@@ -33,6 +36,9 @@ import type {
   ToolCommands,
   ToolRecovery,
   ToolTask,
+  ToolFinalEnvelope,
+  ToolPlannedFinal,
+  ToolCanonicalFingerprint,
 } from '@omne-harness/tool-contract/provider'
 
 /** The tenant identity as the contract types it; the ledger does not import legal-identity. */
@@ -73,7 +79,7 @@ export type CallRecord = Readonly<{
   call: ToolCallId
   admission: ToolOperationId
   request: FixedToolRequest
-  initiator: ToolRecovery<never>['initiator']
+  initiator: ToolRecovery['initiator']
   state: ToolState
   preparations: readonly PreparationRecord[]
   environment: ConfirmedEnvironment | null
@@ -84,6 +90,7 @@ export type CallRecord = Readonly<{
 
 /** The complete named result of one committed operation (P01 `committed.receipt`). */
 export type OperationReceipt =
+  | Readonly<{ kind: 'prepare-result'; basis: DurableEvidence }>
   | Readonly<{ kind: 'admit'; state: ToolState }>
   | Readonly<{ kind: 'control'; control: ControlReceipt; subject?: DurableEvidence }>
   | Readonly<{ kind: 'record-control'; control: ControlRecord }>
@@ -126,9 +133,8 @@ export type ResultCustody =
   | Readonly<{
       kind: 'execution'
       final: DurableEvidence
-      raw: RawOutput
-      retainOperation: ToolOperationId
-      retained: DurableEvidence
+      finalValue: ToolCanonicalFingerprint
+      materialized: DurableEvidence
       cleanup: CleanupDuty
     }>
 
@@ -138,7 +144,7 @@ export type EnvironmentReleaseRecord = Readonly<{
 }>
 
 /** One result version with its delivery relation. `settledBy` is the operation that made it. */
-export type ResultRecord<B extends ContentBlock> = Readonly<{
+export type ResultRecord = Readonly<{
   tenant: TenantId
   call: ToolCallId
   result: ToolResultVersion
@@ -146,7 +152,7 @@ export type ResultRecord<B extends ContentBlock> = Readonly<{
   terminal: ToolTerminal
   actual: ToolTerminal | null
   effect: Effect
-  value: ToolResult<B>
+  value: ResultValue
   delivery: DeliveryState
   source: DurableEvidence
   settledBy: ToolOperationId
@@ -162,21 +168,40 @@ export type AccountRecord = Readonly<{
   value: CallAccount
 }>
 
-/** Original facts are immutable custody records, separate from their downstream tasks. */
+type SettledFinal = Pick<ToolPlannedFinal, 'terminal' | 'effect'> &
+  Readonly<{
+    kind: 'settled-final'
+    result: ToolResultVersion
+    settlement: DurableEvidence
+  }>
+
+/** Recovery returns an exact pending final or its committed settlement receipt. */
 export type SavedFact<B extends ContentBlock> = Readonly<{
   start: ToolStartRecord
   source: DurableEvidence
   event: string
-  fact: ToolExecutionFact<B>
+  fact: Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalEnvelope<B> | SettledFinal
   evidence: DurableEvidence
 }>
-export type FactEventRecord<B extends ContentBlock> = SavedFact<B> &
+/** The planned final stays in the record; its payload says whether a result committed it. */
+export type StoredFinalFact = ToolPlannedFinal &
   Readonly<{
+    payload:
+      | Readonly<{ kind: 'pending' }>
+      | Readonly<{ kind: 'settled'; result: ToolResultVersion; settlement: DurableEvidence }>
+  }>
+export type StoredExecutionFact = Exclude<ToolExecutionFact, { kind: 'final' }> | StoredFinalFact
+
+export type FactEventRecord = Omit<SavedFact<ContentBlock>, 'fact'> &
+  Readonly<{
+    fact: StoredExecutionFact
+    value: ToolCanonicalFingerprint
     tenant: TenantId
     call: ToolCallId
     key: string
   }>
 export type FactBatchRecord = Readonly<{
+  value: ToolCanonicalFingerprint
   tenant: TenantId
   call: ToolCallId
   start: ToolStartRecord
@@ -241,8 +266,8 @@ export type QueueCounterRecord = Readonly<{ next: string }>
 
 /**
  * What a call domain holds that lets the queue domain release the call's place (P02: a place is
- * released on a proof, never on a logical end alone). The queue domain cannot read the call
- * domain, so the caller names the basis and the tombstone keeps it.
+ * released on a proof, never on a logical end alone). It is a fact of the call and stays in the
+ * call domain; the queue domain never records it.
  */
 export type ReleaseBasis =
   /** The start fence excluded the whole invocation: it never started and never will. */
@@ -259,40 +284,40 @@ export type ReleaseBasis =
    */
   | Readonly<{ kind: 'ledger-rejected'; result: DurableEvidence }>
 
-/**
- * The tombstone of a released call (P02): the queue domain never gives this call an entry again.
- * It is written in the same commit that deletes the entry, and a call that had no entry yet gets
- * it too, so a creation step that runs after the release finds it. It is never pruned in 0.0.x:
- * a time bound may reclaim it later under the compaction of the recovery increment, but never as a safety rule.
- */
-export type QueueReleaseRecord = Readonly<{ call: ToolCallId; basis: ReleaseBasis }>
-
 /** A record of a host provider. The ledger stores it by key and never reads its value. */
 export type HostRecord = Readonly<{ key: string; value: unknown }>
 
-export type LedgerRecord<B extends ContentBlock> =
+export type LedgerRecord =
+  | Readonly<{ kind: 'body-entry'; body: BodyEntryRecord }>
+  | Readonly<{ kind: 'result-policy'; policy: ResultPolicyRecord }>
+  | Readonly<{ kind: 'result-preparation'; preparation: ResultPreparationRecord }>
   | Readonly<{ kind: 'call'; call: CallRecord }>
   | Readonly<{ kind: 'operation'; operation: OperationRecord }>
-  | Readonly<{ kind: 'result'; result: ResultRecord<B> }>
+  | Readonly<{ kind: 'result'; result: ResultRecord }>
   | Readonly<{ kind: 'account'; account: AccountRecord }>
   | Readonly<{ kind: 'environment-release'; environmentRelease: EnvironmentReleaseRecord }>
   | Readonly<{ kind: 'task'; task: ToolTask }>
-  | Readonly<{ kind: 'fact-event'; fact: FactEventRecord<B> }>
+  | Readonly<{ kind: 'fact-event'; fact: FactEventRecord }>
   | Readonly<{ kind: 'fact-batch'; batch: FactBatchRecord }>
   | Readonly<{ kind: 'fact-stream'; stream: FactStreamRecord }>
   | Readonly<{ kind: 'process'; process: ProcessRecord }>
   | Readonly<{ kind: 'exclusion'; exclusion: ExclusionRecord }>
   | Readonly<{ kind: 'queue-entry'; entry: QueueEntryRecord }>
   | Readonly<{ kind: 'queue-counter'; counter: QueueCounterRecord }>
-  | Readonly<{ kind: 'queue-release'; release: QueueReleaseRecord }>
   | Readonly<{ kind: 'host'; host: HostRecord }>
 
 /** The unique key of a record inside its domain. A `put` with the same key replaces the record. */
-export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): string {
+export function recordKey(record: LedgerRecord): string {
   if (isQueueRecord(record)) return queueRecordKey(record)
   switch (record.kind) {
+    case 'body-entry':
+      return `body:${record.body.bodyId}`
+    case 'result-policy':
+      return `result-policy:${record.policy.operation}`
+    case 'result-preparation':
+      return `result-preparation:${record.preparation.id}`
     case 'call':
-      return 'call'
+      return CALL_RECORD_KEY
     case 'operation':
       return `operation:${record.operation.operation}`
     case 'result':
@@ -322,28 +347,19 @@ export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): stri
   }
 }
 
-type QueueRecord<B extends ContentBlock> = Extract<
-  LedgerRecord<B>,
-  { kind: 'queue-entry' | 'queue-counter' | 'queue-release' }
->
+type QueueRecord = Extract<LedgerRecord, { kind: 'queue-entry' | 'queue-counter' }>
 
-function isQueueRecord<B extends ContentBlock>(record: LedgerRecord<B>): record is QueueRecord<B> {
-  return (
-    record.kind === 'queue-entry' ||
-    record.kind === 'queue-counter' ||
-    record.kind === 'queue-release'
-  )
+function isQueueRecord(record: LedgerRecord): record is QueueRecord {
+  return record.kind === 'queue-entry' || record.kind === 'queue-counter'
 }
 
 /** The key of a record of a queue domain. */
-function queueRecordKey<B extends ContentBlock>(record: QueueRecord<B>): string {
+function queueRecordKey(record: QueueRecord): string {
   switch (record.kind) {
     case 'queue-entry':
       return queueEntryKey(record.entry.call)
     case 'queue-counter':
       return QUEUE_COUNTER_KEY
-    case 'queue-release':
-      return queueReleaseKey(record.release.call)
     default: {
       const exhaustive: never = record
       return exhaustive
@@ -363,44 +379,102 @@ export function queueEntryKey(call: ToolCallId): string {
   return `entry:${call}`
 }
 
-export function queueReleaseKey(call: ToolCallId): string {
-  return `released:${call}`
-}
-
 export const QUEUE_COUNTER_KEY = 'counter'
+
+/** The key of the one `call` record of a call domain, for a read of the call alone. */
+export const CALL_RECORD_KEY = 'call'
+
+/**
+ * The key of the due entry of a call domain itself: the instant after which the sweep may drop
+ * the domain (CallLifecycle `due`). The bodies of the domain have their own entries, under keys
+ * that sort before this one: `due` answers by instant and then by key, so at one instant the
+ * sweep reclaims the bodies before it reaches the domain.
+ */
+export const CALL_DUE_KEY = 'call'
 
 export function hostKey(key: string): string {
   return `host:${key}`
 }
 
-/** A write by key. A `delete` of a key that holds no record is a no-op, not a failure. */
-export type LedgerWrite<B extends ContentBlock> =
-  | Readonly<{ kind: 'put'; record: LedgerRecord<B> }>
+/**
+ * A write by key. A `delete` of a key that holds no record is a no-op, not a failure. `schedule`
+ * and `unschedule` write the due index of the tenant under the written domain and `key`: a
+ * `schedule` of a scheduled key replaces its instant, an `unschedule` of an unscheduled key is a
+ * no-op. They take effect with the rest of the commit, or not at all.
+ *
+ * `drop` removes the whole domain: every record and every due entry of it. It is the only write of
+ * its commit, and the commit names the initial revision as `revision`, so the domain reads as one
+ * that was never committed. The store answers `rejected` to a `drop` with another write or with
+ * another `revision`. The condition on `expected` is that of any commit.
+ */
+export type LedgerWrite =
+  | Readonly<{ kind: 'drop' }>
+  | Readonly<{ kind: 'put'; record: LedgerRecord }>
   | Readonly<{ kind: 'delete'; key: string }>
+  | Readonly<{ kind: 'schedule'; key: string; dueAt: ToolInstant }>
+  | Readonly<{ kind: 'unschedule'; key: string }>
+
+/** One entry of the due index: the domain that scheduled it, its key and its instant. */
+export type DueEntry = Readonly<{ domain: LedgerDomain; key: string; dueAt: ToolInstant }>
 
 /**
- * A domain read. `complete` holds every record of the domain and its current revision, and it
- * includes every commit that returned `committed` before the read began. A domain that was never
- * committed has revision `0` and no records.
+ * The due entries of a tenant with `dueAt <= now`, oldest first, then by key, at most `limit`.
+ * It includes every commit that returned `committed` before the read began.
  */
-export type LedgerRead<B extends ContentBlock> =
-  | Readonly<{ kind: 'complete'; revision: ToolRevision; records: readonly LedgerRecord<B>[] }>
+export type LedgerDueRead =
+  | Readonly<{ kind: 'complete'; entries: readonly DueEntry[] }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-export type LedgerCommitInput<B extends ContentBlock> = Readonly<{
+/**
+ * A domain read. `complete` holds every record of the domain and its revision, and it includes
+ * every commit that returned `committed` through the same provider before the read began. A
+ * commit that another process wrote to the same storage may be missing for a bounded time that
+ * the provider states. A domain that was never committed has revision `0` and no records; the
+ * answer "no records", like `record: null` of `readRecord`, is always the content of the storage
+ * at the read (SPEC「记录仓读取的新鲜度」).
+ */
+export type LedgerRead =
+  | Readonly<{ kind: 'complete'; revision: ToolRevision; records: readonly LedgerRecord[] }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/**
+ * One record and the domain revision from the same snapshot as `read`.
+ * `null` means the key is absent. This result never represents the complete domain.
+ */
+export type LedgerRecordRead =
+  | Readonly<{ kind: 'complete'; revision: ToolRevision; record: LedgerRecord | null }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/**
+ * A read-set assertion of a commit: another domain of the same tenant whose current revision must
+ * still be `revision` when the commit is applied. It writes nothing to that domain and does not
+ * advance its revision. A caller that decided on a snapshot of a domain it does not write asserts
+ * the revision it read, so the decision and the write linearize with the commits of that domain.
+ */
+export type LedgerAssertion = Readonly<{ domain: LedgerDomain; revision: ToolRevision }>
+
+export type LedgerCommitInput = Readonly<{
   domain: LedgerDomain
   expected: ToolRevision
   revision: ToolRevision
-  writes: readonly LedgerWrite<B>[]
+  writes: readonly LedgerWrite[]
+  /**
+   * Domains of the tenant of `domain` whose revision must hold at the commit. An assertion on a
+   * domain of another tenant is a defect of the caller: the store answers `unavailable` and
+   * attempts nothing. The written domain itself is conditioned by `expected`, not listed here.
+   */
+  asserts?: readonly LedgerAssertion[]
 }>
 
 /**
- * The answer of a commit. `conflict` means the domain revision was not `expected` and nothing was
- * written. `unknown` means the store cannot tell whether the writes took effect; the caller
+ * The answer of a commit. `conflict` means the domain revision was not `expected`, or one of the
+ * `asserts` did not hold, and nothing was written; `current` is the revision of the written
+ * domain. `unknown` means the store cannot tell whether the writes took effect; the caller
  * recognises the outcome by the operation it wrote. `unavailable` means nothing was written and
  * the store cannot take the commit at this moment; the same commit may be sent again later.
  * `rejected` means nothing was written and the same commit is refused whenever it is sent (for
- * example a write set over the store's command limit); `reason` is the store's reason.
+ * example a write set over the store's command limit, or an assertion on another tenant's
+ * domain); `reason` is the store's reason.
  */
 export type LedgerCommit =
   | Readonly<{ kind: 'committed' }>
@@ -409,16 +483,22 @@ export type LedgerCommit =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'rejected'; reason: string }>
 
-export interface ToolLedgerStore<B extends ContentBlock> {
+export interface ToolLedgerStore {
   /** `none` is the store of `./testing`; a production assembly needs `durable`. */
   readonly durability: 'none' | 'durable'
-  read(domain: LedgerDomain): Promise<LedgerRead<B>>
+  read(domain: LedgerDomain): Promise<LedgerRead>
+  /** Reads only `key`, with the domain revision and ordering guarantees of `read`. */
+  readRecord(domain: LedgerDomain, key: string): Promise<LedgerRecordRead>
   /**
-   * Atomic: all writes take effect together, or none does. Serialized with `read` per domain. A
+   * Atomic: all writes take effect together, or none does. Serialized with both reads per domain. A
    * committed commit sets the domain revision to `revision` whatever its write set holds: a set
    * with one exclusion record, or a set that changes no record, advances the revision the same
    * way as any other, because the ledger's exclusion fence depends on that advance. There is no
-   * no-op shortcut.
+   * no-op shortcut. The revision check of `domain` and every assertion of `asserts` are evaluated
+   * in the same serialization as the writes: no commit of an asserted domain can land between the
+   * evaluation and the write.
    */
-  commit(input: LedgerCommitInput<B>): Promise<LedgerCommit>
+  commit(input: LedgerCommitInput): Promise<LedgerCommit>
+  /** The due index of one tenant: the only schedule of reclaim (model `due`). */
+  due(tenant: TenantId, now: ToolInstant, limit: number): Promise<LedgerDueRead>
 }

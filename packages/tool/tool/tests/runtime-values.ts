@@ -1,8 +1,7 @@
+import { createMemoryToolBodies } from '@omne-harness/tool/testing'
+import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-import {
-  createMemoryToolEnvironment,
-  createMemoryToolOutputCustody,
-} from '@omne-harness/tool-contract/testing'
+import { createMemoryToolEnvironment } from '@omne-harness/tool-contract/testing'
 // Builders and controllable ports for the managed-runtime tests. Each builder returns a fresh
 // value, so a test can change one field and keep the rest legal. Every port the logical-result
 // path must not touch is a throwing stub that counts its calls.
@@ -152,7 +151,7 @@ export function functionDefinition(overrides: Partial<DefinitionMetadata> = {}):
     ...overrides,
     kind: 'function',
     parameters: parameters(),
-    returns: { kind: 'ordinary', program: { kind: 'none' } },
+    returns: ordinaryReturnFixture(adoption('codec')),
   }
 }
 
@@ -306,9 +305,7 @@ function qualify(
     return { kind: 'unavailable', diagnostic: options.accessUnavailable }
   if (options.minted !== undefined && !options.minted.has(input.tenant))
     return { kind: 'denied', reason: 'not-a-minted-tenant' }
-  const baseActions: readonly ToolLedgerAction[] =
-    input.action === 'read-raw-content' ? ['read-content', 'read-raw'] : [input.action]
-  if (baseActions.some(action => options.deniedActions?.includes(action) === true))
+  if (options.deniedActions?.includes(input.action) === true)
     return { kind: 'denied', reason: 'action-not-granted' }
   const member = input.principal.tenants.includes(tenantKeyOf(input.tenant))
   return member ? { kind: 'allowed' } : { kind: 'denied', reason: 'not-a-member' }
@@ -423,7 +420,42 @@ export function configuration(overrides: Partial<ToolConfiguration> = {}): ToolC
     processBatchBytes: 4_096,
     processBatchDelayMs: 0,
     observerBufferBytes: 65_536,
-    resultPageBytes: 4_096,
+    resultPageBytes: 16_384,
+    readResultArguments: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 4096,
+      maxMembers: 256,
+      maxStringLength: 32_768,
+      maxNumberLength: 64,
+    },
+    offloading: {
+      maxInlineUtf8Bytes: 65_536,
+      maxRetentionMs: 86_400_000,
+      maxBodyBytes: 16_777_216,
+      previewUtf8Bytes: 1_024,
+      maxPageBytes: 65_536,
+      permitMs: 4,
+      clockSkewMs: 1,
+      orphanGraceMs: 7,
+      maxWriterMetadataBytes: 1_048_576,
+      jsonDocument: {
+        maxBytes: 1_048_576,
+        maxDepth: 64,
+        maxItems: 65_536,
+        maxMembers: 65_536,
+        maxStringLength: 1_048_576,
+        maxNumberLength: 64,
+      },
+      jsonRecord: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 4096,
+        maxMembers: 4096,
+        maxStringLength: 65_536,
+        maxNumberLength: 64,
+      },
+    },
     reconciliationDelayMs: 0,
     ledgerCommitAttempts: 8,
     queueCapacity: 64,
@@ -435,6 +467,8 @@ export function configurationOf(options: HarnessOptions): ToolConfiguration {
   const defaults = configuration()
   return configuration({
     resultPageBytes: options.resultPageBytes ?? defaults.resultPageBytes,
+    offloading: options.offloading ?? defaults.offloading,
+    readResultArguments: options.readResultArguments ?? defaults.readResultArguments,
     ledgerCommitAttempts: options.ledgerCommitAttempts ?? defaults.ledgerCommitAttempts,
     queueCapacity: options.queueCapacity ?? defaults.queueCapacity,
     ...(options.driverStepsPerRun === undefined
@@ -533,7 +567,7 @@ export function testHost(spies: Spies, identities: ToolInstanceIdentities): Test
 }
 
 export type Harness = Readonly<{
-  store: MemoryToolLedgerStore<Block>
+  store: MemoryToolLedgerStore
   ledger: ToolLedger<Principal, Block>
   provider: ToolProvider<Principal, Block>
   runtime: ToolProvider<Principal, Block>['runtime']
@@ -553,7 +587,7 @@ export type Harness = Readonly<{
 
 /** A real runtime over the non-durable store; only the ledger ports are real. */
 export function harness(options: HarnessOptions = {}): Harness {
-  const store = createMemoryToolLedgerStore<Block>()
+  const store = createMemoryToolLedgerStore()
   const spies: Spies = { calls: new Map() }
   const clock = stub<ToolDependencies<Principal, Block, null>['clock']>(spies, 'clock', [
     'now',
@@ -568,17 +602,16 @@ export function harness(options: HarnessOptions = {}): Harness {
     ...(options.sourceThrows === undefined ? {} : { throws: options.sourceThrows }),
   })
   const identities = createTestToolIdentities()
-  const custody = stub<ToolDependencies<Principal, Block, null>['custody']>(spies, 'custody', [
-    'preserve',
-    'inspect',
-    'retainResult',
-  ])
   const environments = stub<ToolDependencies<Principal, Block, null>['environments']>(
     spies,
     'environments',
     ['prepare', 'inspectPreparation', 'release', 'inspectRelease'],
   )
-  const settlement = { custody, releaseInspection: environments, content: null }
+  const settlement = {
+    bodies: testSettlementPorts(store).bodies,
+    releaseInspection: environments,
+    content: null,
+  }
   const ledger = createToolLedger(store, guards(options), clock, config, settlement)
   const publicLedger = createToolLedger(
     store,
@@ -593,7 +626,6 @@ export function harness(options: HarnessOptions = {}): Harness {
     admissions: publicLedger.admissions,
     queues: publicLedger.queues,
     rejections: publicLedger.rejections,
-    facts: publicLedger.facts,
     reads: publicLedger.reads,
     bindings: stub(spies, 'bindings', ['inspect', 'resolve', 'recover']),
     environments,
@@ -616,7 +648,6 @@ export function harness(options: HarnessOptions = {}): Harness {
       'invalidate',
       'resolve',
     ]),
-    custody,
     catalog: stub(spies, 'catalog', ['inspect', 'usage', 'search']),
     children: stub(spies, 'children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
     operationIdentities: identities.operationIdentities,
@@ -694,7 +725,7 @@ export function harness(options: HarnessOptions = {}): Harness {
 
 /** A ledger over another store, for a store that the memory store cannot imitate. */
 export function ledgerOver(
-  store: ToolLedgerStore<Block>,
+  store: ToolLedgerStore,
   options: HarnessOptions = {},
 ): ToolLedger<Principal, Block> {
   const spies: Spies = { calls: new Map() }
@@ -787,13 +818,15 @@ export function operationRefFor(
  * commits through this store is forwarded without a second interception.
  */
 export function interleaving(
-  memory: ToolLedgerStore<Block>,
-  matches: (input: LedgerCommitInput<Block>) => boolean,
+  memory: ToolLedgerStore,
+  matches: (input: LedgerCommitInput) => boolean,
   land: () => Promise<unknown>,
-): ToolLedgerStore<Block> {
+): ToolLedgerStore {
   let armed = true
   return {
     durability: 'none',
+    readRecord: memory.readRecord,
+    due: memory.due,
     read: domain => memory.read(domain),
     commit: async input => {
       if (armed && matches(input)) {
@@ -806,7 +839,7 @@ export function interleaving(
 }
 
 /** Whether a commit writes the operation record of `operation`: the commit of that operation. */
-export function putsOperation(operation: string): (input: LedgerCommitInput<Block>) => boolean {
+export function putsOperation(operation: string): (input: LedgerCommitInput) => boolean {
   return input =>
     input.writes.some(
       write =>
@@ -817,14 +850,20 @@ export function putsOperation(operation: string): (input: LedgerCommitInput<Bloc
 }
 
 /** Whether a commit writes an exclusion record: the fence of a negative answer. */
-export function putsExclusion(input: LedgerCommitInput<Block>): boolean {
+export function putsExclusion(input: LedgerCommitInput): boolean {
   return input.writes.some(write => write.kind === 'put' && write.record.kind === 'exclusion')
 }
 
-export function testSettlementPorts() {
+const bodyStores = new WeakMap<object, ReturnType<typeof createMemoryToolBodies>>()
+export function testSettlementPorts(memory?: object) {
+  const bodies =
+    memory === undefined
+      ? createMemoryToolBodies()
+      : (bodyStores.get(memory) ?? createMemoryToolBodies())
+  if (memory !== undefined) bodyStores.set(memory, bodies)
   return {
+    bodies,
     content: null,
-    custody: createMemoryToolOutputCustody<Principal>(),
     releaseInspection: createMemoryToolEnvironment<Principal>(),
   }
 }

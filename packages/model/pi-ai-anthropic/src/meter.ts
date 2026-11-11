@@ -261,7 +261,6 @@ export function createAnthropicMeter(
   record: AnthropicRecord,
   tokenizer: ModelTextTokenizer,
   margin: MeterMargin,
-  maxSerializedBytes: number,
 ): FamilyMeter {
   const representation = componentAdoption(record, 'representation')
   const instance = createCalibratedMeter<UnitContent>({
@@ -274,7 +273,6 @@ export function createAnthropicMeter(
     },
     basis: countingBasis(record),
     margin,
-    maxSerializedBytes,
     outputGroup: OUTPUT_GROUP_METHOD,
     uncountable: 'signed-reasoning-not-countable',
     tokens: { tokenizer, form: 'nfkc' },

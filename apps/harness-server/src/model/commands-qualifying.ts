@@ -8,6 +8,7 @@ const METHODS = [
   'admit',
   'scanPending',
   'loadRecovery',
+  'loadRequest',
   'claim',
   'prepareDispatch',
   'recordMaterialization',

@@ -9,11 +9,10 @@ import {
   type ToolRecoveryBinding,
 } from '@omne-harness/tool-contract/provider'
 import {
-  completedFinal,
-  createMemoryToolClock,
+  completedFinalEnvelope as completedFinal,
+  completedFinal as completedFinalPointer,
   createMemoryToolStartAuthority,
 } from '@omne-harness/tool-contract/testing'
-import { createToolLedger } from '@omne-harness/tool'
 import {
   admitCall,
   startHarness,
@@ -22,11 +21,9 @@ import {
   type StartHarness,
 } from './start-values.ts'
 import {
-  configurationOf,
   fixedRequestForNamedSourceGuard,
   callId,
   evidence,
-  guards,
   ok,
   operationId,
   principalA,
@@ -35,9 +32,7 @@ import {
   tenantA,
   tenantB,
   text,
-  type Block,
   type Principal,
-  testSettlementPorts,
 } from './runtime-values.ts'
 
 function deferred<T>() {
@@ -66,7 +61,7 @@ function fixture(
   } = {},
 ) {
   const signals = new Map<string, AbortSignal>()
-  const lives = new Map<string, ToolLiveExecution<Block>>()
+  const lives = new Map<string, ToolLiveExecution>()
   const stats = {
     readers: 0,
     maxReaders: 0,
@@ -95,7 +90,7 @@ function fixture(
         const result = await base.start(...args)
         if ('failure' in result) return result
         const original = result.ok
-        const wrapped: ToolLiveExecution<Block> = {
+        const wrapped: ToolLiveExecution = {
           ...original,
           facts: input => ({
             [Symbol.asyncIterator]: () => {
@@ -197,7 +192,7 @@ function fixture(
         const live = lives.get(liveKey(input.start))
         if (live === undefined)
           return fail({ kind: 'unavailable', dependency: 'source', diagnostic: 'unavailable' })
-        const recovery: ToolRecoveryBinding<Block> = {
+        const recovery: ToolRecoveryBinding = {
           acknowledge: receipt => live.acknowledge(receipt),
           inspectStart: () =>
             settledInspection
@@ -206,14 +201,7 @@ function fixture(
                     kind: 'settled',
                     source: evidence('source'),
                     event: 'final',
-                    fact: {
-                      ...completedFinal(),
-                      result: {
-                        ...completedFinal().result,
-                        content: [],
-                        original: { kind: 'none' },
-                      },
-                    },
+                    fact: completedFinalPointer(),
                   }),
                 )
               : Promise.resolve(succeed({ kind: 'live', execution: live })),
@@ -328,11 +316,7 @@ describe('managed original facts', () => {
     expect(saved.streams[0]?.pendingAcknowledgements).toEqual([])
     expect(saved.tasks.some(task => task.kind === 'fact-ack')).toBe(false)
     expect(f.h.binding.controls.pendingAcknowledgements(start)).toBe(0)
-    const settle = saved.tasks.find(task => task.kind === 'settle')
-    if (settle?.kind !== 'settle') throw new Error('missing saved final')
-    expect(ok(await f.h.ledger.facts.read({ ...access, basis: settle.basis })).fact).toEqual(
-      completedFinal(),
-    )
+    expect(saved.state.phase).toBe('settled')
     expect(confirmations).toHaveLength(2)
     const original = confirmations[0]
     if (original === undefined) throw new Error('missing confirmation command')
@@ -372,20 +356,7 @@ describe('managed original facts', () => {
     expect(saved.streams[0]?.pendingAcknowledgements).toEqual([])
     expect(saved.tasks.some(task => task.kind === 'fact-ack')).toBe(false)
     expect(f.h.binding.controls.pendingAcknowledgements(c.start)).toBe(0)
-    expect(saved.state.phase).toBe('running')
-    expect(saved.state.queue.kind).toBe('held')
-    const settle = saved.tasks.find(task => task.kind === 'settle')
-    if (settle?.kind !== 'settle') throw new Error('missing final duty')
-    const rebuilt = createToolLedger(
-      f.h.memory,
-      guards(),
-      createMemoryToolClock(),
-      configurationOf({}),
-      testSettlementPorts(),
-    )
-    expect(ok(await rebuilt.facts.read({ ...c.access, basis: settle.basis })).fact).toEqual(
-      completedFinal(),
-    )
+    expect(saved.state.phase).toBe('settled')
     controller.abort()
     await flush()
     expect(f.stats).toMatchObject({ readers: 0, next: 0, maxReaders: 1, maxNext: 1, batches: 2 })
@@ -498,9 +469,7 @@ describe('managed original facts', () => {
     await f.pump()
     expect(receives).toBe(1)
     expect(ok(await f.h.commands.loadRecovery(first.access)).streams).toEqual([])
-    expect(
-      ok(await f.h.commands.loadRecovery(second.access)).tasks.some(task => task.kind === 'settle'),
-    ).toBe(true)
+    expect(ok(await f.h.commands.loadRecovery(second.access)).state.phase).toBe('settled')
     secondSignal.abort()
     await flush()
   })
@@ -937,11 +906,7 @@ describe('reader isolation and command outcomes', () => {
       const saved = ok(await f.h.commands.loadRecovery(second))
       expect(saved.streams[0]?.pendingAcknowledgements).toEqual([])
       expect(f.h.binding.controls.pendingAcknowledgements(secondStart)).toBe(0)
-      const settle = saved.tasks.find(task => task.kind === 'settle')
-      if (settle?.kind !== 'settle') throw new Error('missing second final')
-      expect(ok(await f.h.ledger.facts.read({ ...second, basis: settle.basis })).fact).toEqual(
-        completedFinal(),
-      )
+      expect(saved.state.phase).toBe('settled')
       const firstRecords = await f.h.memory.read({
         kind: 'call',
         tenant: first.tenant,

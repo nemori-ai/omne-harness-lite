@@ -138,8 +138,6 @@ describe('18 testing dependency assembly', () => {
     expect(a.dependencies.authority).toBe(a.doubles.authority)
     expect(a.dependencies.decisions).toBe(a.doubles.decisions)
     expect(a.dependencies.resources).toBe(a.doubles.resources)
-    expect(a.dependencies.custody).toBe(a.doubles.custody)
-    expect(a.doubles.content.custody).toBe(a.doubles.custody)
     expect(a.doubles.content.durability).toBe('none')
     const before = b.dependencies.clock.now()
     const signal = new AbortController().signal
@@ -222,7 +220,48 @@ describe('18 testing dependency assembly', () => {
   it('18 propagates invalid ledger configuration and caller resolver exceptions', () => {
     expect(() =>
       testAssembly({
-        configuration: { resultPageBytes: 0, ledgerCommitAttempts: 1, queueCapacity: 1 },
+        configuration: {
+          authorBufferBytes: 65_536,
+          authorBufferItems: 128,
+          resultPageBytes: 0,
+          ledgerCommitAttempts: 1,
+          queueCapacity: 1,
+          readResultArguments: {
+            maxBytes: 65_536,
+            maxDepth: 32,
+            maxItems: 4096,
+            maxMembers: 256,
+            maxStringLength: 32_768,
+            maxNumberLength: 64,
+          },
+          offloading: {
+            maxInlineUtf8Bytes: 65_536,
+            maxRetentionMs: 86_400_000,
+            maxBodyBytes: 16_777_216,
+            previewUtf8Bytes: 1_024,
+            maxPageBytes: 65_536,
+            permitMs: 30_000,
+            clockSkewMs: 1_000,
+            orphanGraceMs: 60_000,
+            maxWriterMetadataBytes: 1_048_576,
+            jsonDocument: {
+              maxBytes: 1_048_576,
+              maxDepth: 64,
+              maxItems: 65_536,
+              maxMembers: 65_536,
+              maxStringLength: 1_048_576,
+              maxNumberLength: 64,
+            },
+            jsonRecord: {
+              maxBytes: 65_536,
+              maxDepth: 32,
+              maxItems: 4096,
+              maxMembers: 4096,
+              maxStringLength: 65_536,
+              maxNumberLength: 64,
+            },
+          },
+        },
       }),
     ).toThrow('configuration.resultPageBytes: range')
     const failure = new Error('resolver failed')

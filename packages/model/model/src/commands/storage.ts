@@ -1,9 +1,9 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
+  FixedModelRequest,
   ModelCallId,
   ModelFailure,
   ModelOperationId,
-  ResultCapacity,
 } from '@omne-harness/model-contract'
 import type { BindingBase, CallDocument, TenantDocuments } from './types.ts'
 
@@ -14,12 +14,19 @@ import type { BindingBase, CallDocument, TenantDocuments } from './types.ts'
  * exist. The storage writes only while that read is still current: this is the `row_version`
  * comparison of a durable storage. `call` is the new document. `binding` binds `operation` to
  * the call, method, fingerprint, revision and receipt of this write.
+ *
+ * `body` is the whole fixed request. It is present exactly when the write admits the call. The
+ * call document keeps only the head of the request; the storage keeps the body once, apart from
+ * the document. A body has no size bound, so a durable storage writes it in its own steps before
+ * the write of the call, and the call then holds only when its body is whole. The storage deletes
+ * a body that no call came to own, and the body of a call in the step that releases its material.
  */
 export type CommandWrite = Readonly<{
   operation: ModelOperationId
   expected: CallDocument | undefined
   call: CallDocument | undefined
   binding: BindingBase
+  body?: FixedModelRequest
 }>
 
 /**
@@ -51,8 +58,13 @@ export interface ModelCommandStorage {
   run<T>(work: () => Outcome<T, ModelFailure>, scope?: RunScope): Promise<Outcome<T, ModelFailure>>
   /** The calls and operation bindings of one tenant. A tenant without documents reads empty. */
   documents(tenant: string): TenantDocuments
-  /** The capacity that admitted, unreleased calls hold. The storage decides the scope of the sum. */
-  reserved(field: keyof ResultCapacity): bigint
+  /** How many admitted calls hold a result that is not released. The storage decides the scope. */
+  held(): number
+  /** The whole request of the call that holds its material; null when the storage keeps none. */
+  readBody(
+    tenant: string,
+    call: ModelCallId,
+  ): Promise<Outcome<FixedModelRequest | null, ModelFailure>>
   /**
    * Writes the call and binds the operation in one step. `committed`: both hold. `unknown`: the
    * storage cannot tell whether the write holds; it keeps the binding as unresolved.

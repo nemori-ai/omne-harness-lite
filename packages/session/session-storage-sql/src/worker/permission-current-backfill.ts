@@ -9,7 +9,7 @@ import { canonicalText, encodeValue } from '../codec.ts'
 import { readEntryText } from '../entry-codec.ts'
 import { readState, writeState } from './state-rows.ts'
 import { readPermissionCurrent } from './permission-current.ts'
-import { big, oneRow, rowsOf, text, type Executor, type Scope } from './support.ts'
+import { big, oneRow, packed, rowsOf, text, type Executor, type Scope } from './support.ts'
 
 const receiptSchema = z.object({
   first: z.string().regex(/^\d+$/),
@@ -27,7 +27,7 @@ function originalBatch(port: Executor, scope: Scope, revision: string): Committe
   )
   if (records.length !== 1)
     throw new Error('permission migration cannot identify the original batch receipt')
-  const receipt = receiptSchema.parse(JSON.parse(text(records[0]!['receipt'])))
+  const receipt = receiptSchema.parse(JSON.parse(packed(records[0]!['receipt'])))
   if (receipt.revision !== revision || BigInt(receipt.first) > BigInt(receipt.last))
     throw new Error('permission migration batch receipt is inconsistent')
   const entries: HistoryEntry[] = []
@@ -41,7 +41,7 @@ function originalBatch(port: Executor, scope: Scope, revision: string): Committe
     )
     if (rows.length === 0) throw new Error('permission migration batch is incomplete')
     for (const row of rows) {
-      const entry = readEntryText(text(row['entry']))
+      const entry = readEntryText(packed(row['entry']))
       if (
         big(row['position']) !== position ||
         BigInt(entry.id) !== position ||

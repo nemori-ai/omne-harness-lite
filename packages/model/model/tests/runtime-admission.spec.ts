@@ -319,9 +319,7 @@ it('keeps committed admission despite schedule failure, snapshots inputs, and pr
   Object.assign(input.request.suppliers[0], { model: 'mutated' })
   expect(await pending).toMatchObject({ ok: { call: f.admit.call } })
   expect(scheduled).toEqual([{ tenant: f.tenant, call: f.admit.call }])
-  expect(unbox(await f.dependencies.commands.loadRecovery(f.admit)).request).toEqual(
-    f.admit.request,
-  )
+  expect(unbox(await f.dependencies.commands.loadRequest(f.admit))).toEqual(f.admit.request)
 })
 it('returns busy only after authorization, and stopping local work leaves durable responsibility', async () => {
   const f = assembled()

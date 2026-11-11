@@ -27,7 +27,6 @@ export type {
   CredentialLayer,
   ProviderName,
   ReadId,
-  ResultCapacity,
   ResultVersion,
   Revision,
   Supplier,

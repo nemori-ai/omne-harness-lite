@@ -59,7 +59,7 @@ export type TableToolAccess<P> = Readonly<{
  * Builds the table double (the entry exports it as `createTableToolAccess`). A verdict is, in order: `unavailable` while failed; `denied`
  * (`forged-tenant`) when the tenant is not a value that legal-identity minted; `allowed` when a
  * rule matches the principal key, the tenant text, the action and the call; else `denied`
- * (`no-rule`). One lookup is one decision point, so `read-raw-content` needs its own rule.
+ * (`no-rule`). One lookup is one decision point.
  */
 export function tableToolAccess<P>(
   input: Readonly<{ principalKey(principal: P): string; allow: readonly ToolAccessRule[] }>,

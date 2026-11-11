@@ -34,7 +34,7 @@ function row(
 }
 
 /**
- * The ten rows. Another system action needs a new row, with its existing duty and bound obligation.
+ * Another system action needs a new row, with its existing duty and bound obligation.
  * The three agent instance rows bind the agent host maintenance principal to its duty to publish an
  * acquired instance and to quiesce and withdraw it on retirement (XC-AGINST r2 §3.3 step 4, §3.4).
  */

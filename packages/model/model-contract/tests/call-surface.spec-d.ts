@@ -38,7 +38,6 @@ import {
   adoption,
   block,
   call,
-  capacity,
   consumer,
   cursor,
   dispatch,
@@ -116,7 +115,7 @@ it('cancel carries no reason and admit needs the tenant', () => {
     reason: 'user asked',
   })
   // @ts-expect-error the tenant is required
-  void calls.admit({ principal: 'p', call, operation, request, consumer, capacity })
+  void calls.admit({ principal: 'p', call, operation, request, consumer })
   void [adoption, evidence]
 })
 

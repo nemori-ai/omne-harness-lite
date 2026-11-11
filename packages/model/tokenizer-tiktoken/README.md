@@ -52,7 +52,7 @@ The main thread owns admission, deadlines and worker generations. Workers own vo
 
 ## Configuration and operation
 
-`createTiktokenExecutor` accepts a fixed resource array and explicit limits. The package provides no defaults. Limits cover workers, live leases, queued jobs and bytes, input size, caches, timeout, worker heap and replacement rate.
+`createTiktokenExecutor` accepts a fixed resource array and explicit limits. The package provides no defaults. Limits cover workers, live leases, queued jobs and bytes, the size of one worker job, caches, timeout, worker heap and replacement rate. A count input larger than one job is cut into several jobs and their counts are added.
 
 Input and cache accounting use retained UTF-16 plus object overhead, not UTF-8 size or RSS. Counts return Promises. Cancellation can return a failure before physical work ends; release waits for cleanup and close waits for actual thread exit. Node.js 24 or later is required.
 

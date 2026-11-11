@@ -3,13 +3,12 @@
 // store finds the call and its result, and a repeated admission recalls the original without a
 // second record.
 import { afterEach, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import type { LedgerRecord } from '@omne-harness/tool'
 import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
-import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
+import { decodeToolOperationId } from '@omne-harness/tool-contract'
 import { openApp, TENANT_A, type App } from './fixtures/app.ts'
 import { ledgerWorld } from './fixtures/ledger.ts'
-import { createSqlToolOutputCustody } from '../src/index.ts'
 
 const opened: App[] = []
 
@@ -69,32 +68,11 @@ it('a reopened store answers lookup and readResult, and recalls the admission wi
   expect(await second.store.read(domain)).toEqual(before)
   const operations = (read: typeof before) =>
     read.kind === 'complete'
-      ? read.records.filter((record: LedgerRecord<ContentBlock>) => record.kind === 'operation')
+      ? read.records.filter(
+          (record: LedgerRecord) =>
+            record.kind === 'operation' &&
+            [world.input.operation, rejectOperation].includes(record.operation.operation),
+        )
       : []
   expect(operations(before)).toHaveLength(2)
-})
-
-it('a reopened custody still retains the original, and a resend recalls it', async () => {
-  const first = await openApp({ keep: true })
-  opened.push(first)
-  const mutation = {
-    principal: 'tester',
-    tenant: TENANT_A,
-    call: ok(decodeToolCallId('call-1')),
-    operation: ok(decodeToolOperationId('preserve-1')),
-  }
-  const input = {
-    ...mutation,
-    codec: { owner: 'test', name: 'bytes', revision: '1', digest: 'sha256:bytes' },
-    bytes: new TextEncoder().encode('kept across a restart'),
-    source: { owner: 'test', record: 'final', revision: '1', digest: 'sha256:final' },
-  }
-  const raw = ok(await createSqlToolOutputCustody<string>(first.custodyOptions()).preserve(input))
-  first.close()
-  const second = await openApp({ directory: first.directory })
-  opened.push(second)
-  const custody = createSqlToolOutputCustody<string>(second.custodyOptions())
-  expect(ok(await custody.inspect(mutation))).toEqual({ kind: 'retained', raw })
-  expect(ok(await custody.preserve(input))).toEqual(raw)
-  expect(second.faults.commits()).toBe(0)
 })

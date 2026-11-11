@@ -5,8 +5,8 @@
 // that is not of this session and tenant answers `denied`, the same as one that does not exist.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { isCount } from '../codec.ts'
-import { FACT_COLUMNS, factOutput, sessionHead } from './fact-rows.ts'
-import { big, handler, oneRow, PAGE_ROWS, rowsOf, scopeOf, text, type Row } from './support.ts'
+import { FACT_COLUMNS, factOutput, factRows, sessionHead } from './fact-rows.ts'
+import { big, handler, oneRow, PAGE_ROWS, scopeOf, text, type Row } from './support.ts'
 
 const parse = (cell: Row[string] | undefined): JsonValue =>
   cell === null || cell === undefined ? null : (JSON.parse(text(cell)) as JsonValue)
@@ -46,7 +46,7 @@ export default handler('execution-record.events', (input, port) => {
     [scope.tenant, execution, scope.session],
   )
   if (head === undefined) return { kind: 'denied' }
-  const rows = rowsOf(
+  const rows = factRows(
     port,
     `SELECT ${FACT_COLUMNS} FROM er_fact
       WHERE tenant = ? AND execution = ? AND eseq > ? AND session = ?

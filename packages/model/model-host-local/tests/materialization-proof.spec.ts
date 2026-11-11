@@ -14,6 +14,7 @@ import {
 } from '@omne-harness/pi-ai-transport'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { sendResourcesOver } from '../src/send-resources.ts'
+import { proofContext } from './support/proof-context.ts'
 import { readRecordFixture } from './support/records.ts'
 
 function take<T>(value: { ok: T } | { failure: unknown }): T {
@@ -153,13 +154,16 @@ describe('real materialization provenance', () => {
     try {
       const { prepared } = await h.prepare()
       const product = take(await prepared.materialize(new AbortController().signal))
-      const proof = { ...demand, receipt: structuredClone(structuredClone(product.receipt)) }
+      const proof = {
+        ...proofContext(demand),
+        receipt: structuredClone(structuredClone(product.receipt)),
+      }
       const source = take(h.resources.materialization.prove(proof))
       expect(source.owner).toBe('model')
       for (const changed of [
         { ...proof, consumer: { ...proof.consumer, work: 'other' } },
         { ...proof, supplier: { ...proof.supplier, model: 'other' } },
-        { ...proof, request: { ...proof.request, messages: [] } },
+        { ...proof, requestDigest: 'f'.repeat(64) },
         { ...proof, receipt: { ...proof.receipt, replayFormat: 'other' } },
       ])
         expect(h.resources.materialization.prove(changed)).toEqual(binding)
@@ -214,12 +218,12 @@ describe('real materialization provenance', () => {
       expect(h.counts().closed).toBe(1)
       await second.resource.release()
       expect(
-        h.resources.materialization.prove({ ...demand, receipt: product.receipt }),
+        h.resources.materialization.prove({ ...proofContext(demand), receipt: product.receipt }),
       ).toHaveProperty('ok.owner', 'model')
       await first.resource.release()
-      expect(h.resources.materialization.prove({ ...demand, receipt: product.receipt })).toEqual(
-        unavailable,
-      )
+      expect(
+        h.resources.materialization.prove({ ...proofContext(demand), receipt: product.receipt }),
+      ).toEqual(unavailable)
     } finally {
       await h.close()
     }

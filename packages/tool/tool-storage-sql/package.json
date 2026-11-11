@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Tool SQL storage: the durable ToolLedgerStore and ToolOutputCustody over the SQL storage contract, and their static materials",
+  "description": "Tool SQL storage: the durable ToolLedgerStore and ToolBodyStore over the SQL storage contract, and their static materials",
   "engines": {
     "node": ">=24"
   },

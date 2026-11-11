@@ -26,13 +26,9 @@ function bytes(value: unknown): number {
     'utf8',
   )
 }
-async function setup(capacity = '100000', blocks = '100') {
+async function setup() {
   const subject = scriptedProvider()
-  must(
-    await subject.provider.runtime.calls.admit(
-      admission('a', { capacity: { bytes: capacity, blocks, attachmentBytes: '0' } }),
-    ),
-  )
+  must(await subject.provider.runtime.calls.admit(admission('a')))
   const read = async () => {
     const started = must(
       await subject.provider.runtime.consumption.beginRead({
@@ -171,15 +167,12 @@ it('uses exact canonical-array bytes, freezes the scripted result and refuses an
     ).toMatchObject({ failure: { field: 'after' } })
   }
 })
-it('rejects invalid page targets, malformed partials and capacity overflow before publishing settlement', async () => {
-  const f = await setup('1000')
+it('rejects invalid page targets and malformed partials before publishing settlement', async () => {
+  const f = await setup()
   for (const target of [0, -1, 1.5, Infinity, NaN]) {
     expect(() => f.settle([], target)).toThrow('pageTargetBytes')
     await rejectsSettlement(f, [], target)
   }
-  expect(() =>
-    f.settle([{ kind: 'partial', content: 'text', value: 'x'.repeat(2000), trims: [] }], 1),
-  ).toThrow('capacity')
   const lookup = must(
     await f.provider.runtime.calls.inspect({
       ...access('a'),
@@ -192,8 +185,8 @@ it('rejects invalid page targets, malformed partials and capacity overflow befor
     { kind: 'partial', content: 'text', value: 'kept', trims: [] },
   ])
 })
-it('counts long settlement evidence and diagnostics in the complete page hard bound', async () => {
-  const f = await setup('8000')
+it('keeps long settlement evidence and diagnostics in the page', async () => {
+  const f = await setup()
   const termination: Termination = {
     kind: 'failed',
     fault: { cause: 'upstream-protocol', diagnostic: 'x'.repeat(3000), upstreamStatus: null },
@@ -210,7 +203,6 @@ it('counts long settlement evidence and diagnostics in the complete page hard bo
   const page = (await f.read()).page
   expect(page.settlement.termination).toEqual(termination)
   expect(page.settlement.source.record).toBe('e'.repeat(2000))
-  expect(bytes(page)).toBeLessThanOrEqual(8000)
 })
 it('refuses malformed parts and trims atomically and accepts the legal successor', async () => {
   const f = await setup()
@@ -378,55 +370,6 @@ it('canonical result encoding refuses holes without changing dense array bytes',
   expect(canonical([])).toBe('[]')
   expect(canonical([null])).toBe('[null]')
   expect(canonical([{ z: '界\ud800', a: [true, 'x'] }])).toBe('[{"a":[true,"x"],"z":"界\\ud800"}]')
-})
-
-it('enforces aggregate capacity at the independently encoded C and C-1 even when each page fits', async () => {
-  const parts: ResultPart[] = ['first', 'second'].map(value => ({
-    kind: 'partial',
-    content: 'text',
-    value: value.repeat(100),
-    trims: [],
-  }))
-  const settlement = {
-    version: version('a'),
-    termination: { kind: 'completed', reason: 'limit' },
-    cursor: '2',
-    source: evidence('settlement'),
-  }
-  // The contract reserves the maximum cursor wrapper in addition to every result part.
-  const capacity = bytes({ parts, settlement, next: String(Number.MAX_SAFE_INTEGER) })
-  for (const [index, part] of parts.entries())
-    expect(bytes({ parts: [part], settlement, next: index === 0 ? '1' : null })).toBeLessThan(1000)
-  expect(capacity).toBeGreaterThan(1000)
-  for (const limit of [1000, capacity - 1]) {
-    const f = await setup(String(limit))
-    await rejectsSettlement(f, parts, 1)
-    const successor = parts.slice(0, 1)
-    f.settle(successor, 1)
-    expect((await f.read()).page.parts).toEqual(successor)
-  }
-  const f = await setup(String(capacity))
-  f.settle(parts, 1)
-  const first = await f.read()
-  expect(first.page.parts).toEqual(parts.slice(0, 1))
-  expect(first.page.next).toBe('1')
-  expect(
-    must(
-      await f.provider.runtime.consumption.readNext({
-        ...access('a'),
-        read: first.started.read,
-        after: '1',
-      }),
-    ),
-  ).toEqual({ kind: 'reading', page: { parts: parts.slice(1), settlement, next: null } })
-})
-
-it('accepts one result part at blocks 1 and atomically refuses two', async () => {
-  const f = await setup('100000', '1')
-  const part: ResultPart = { kind: 'partial', content: 'text', value: 'x', trims: [] }
-  await rejectsSettlement(f, [part, part], 1)
-  f.settle([part], 1)
-  expect((await f.read()).page.parts).toEqual([part])
 })
 
 it('preserves legal sealed thinking, voice, image and file values without reading media', async () => {

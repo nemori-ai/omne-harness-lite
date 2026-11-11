@@ -80,7 +80,7 @@ function config(overrides: Partial<LocalModelConfig<Principal>> = {}): LocalMode
       resultPageParts: 1,
       resultPageTargetBytes: 1024,
       readIdleMs: 1000,
-      capacity: { bytes: '1', blocks: '1', attachmentBytes: '0' },
+      unacknowledgedResults: 10,
     },
   })
   return {

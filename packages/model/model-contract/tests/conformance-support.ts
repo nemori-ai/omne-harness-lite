@@ -22,11 +22,7 @@ import {
 } from '@omne-harness/model-contract/testing'
 import { succeed } from '@omne-harness/operation-result'
 import { expect } from 'vitest'
-import {
-  DEFAULT_CAPACITY,
-  DEFAULT_CONSUMER,
-  DEFAULT_REQUEST,
-} from '../src/conformance/conformance-defaults.ts'
+import { DEFAULT_CONSUMER, DEFAULT_REQUEST } from '../src/conformance/conformance-defaults.ts'
 import type { Scene } from '../src/conformance/conformance-types.ts'
 
 export type Subject = ConformanceSubject<ScriptedPrincipal>
@@ -37,7 +33,6 @@ export function sceneOf(waitMs = 200): Scene<ScriptedPrincipal> {
     subject: createScriptedConformanceSubject(),
     request: DEFAULT_REQUEST,
     consumer: DEFAULT_CONSUMER,
-    capacity: DEFAULT_CAPACITY,
     waitMs,
   }
 }

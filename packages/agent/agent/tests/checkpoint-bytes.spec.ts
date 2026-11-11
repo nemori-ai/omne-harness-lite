@@ -46,12 +46,11 @@ async function measured(): Promise<Map<number, number>> {
   }
   // The request of step k carries k history messages, as a request over a growing history does.
   assembly.controls.requests.prepare.always(input => {
-    const { request, capacity, ...common } = readyPreparation(input)
+    const { request, ...common } = readyPreparation(input)
     const step = Number(/^step-(\d+)\//u.exec(input.action)?.[1] ?? 0)
     const messages = Array.from({ length: step }, (_, k) => message(`${ROUND_TEXT}${k}`))
     const grown = { ...request, messages }
-    if (input.previous !== null)
-      return succeed({ ...common, kind: 'ready', request: grown, capacity })
+    if (input.previous !== null) return succeed({ ...common, kind: 'ready', request: grown })
     const { system, tools, toolChoice, parameters, representation, source } = grown
     return succeed({
       ...common,

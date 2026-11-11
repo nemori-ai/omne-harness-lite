@@ -65,8 +65,7 @@ const CONSUMER = 'agent-consumer'
 const callOf = (name: string): ModelCallId => unbox(decodeModelCallId(`mcall_${name}`))
 const op = (name: string) => unbox(decodeModelOperationId(`mop_${name}`))
 const ADOPTION = { owner: 'o', name: 'n', revision: '1', digest: '0'.repeat(64) }
-const CAPACITY = { bytes: '100000', blocks: '20', attachmentBytes: '0' }
-const SETTINGS = { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 0 }
+const SETTINGS = { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 25 }
 export const LIMITS: ResultPushLimits = {
   maxConcurrentCalls: 4,
   maxRedeliveries: 2,
@@ -232,7 +231,8 @@ export function world(
      */
     custodyEvidence?: 'verified' | 'unavailable'
     /** The share of the whole assembly; the memory commands sum every tenant against it. */
-    capacity?: Readonly<{ bytes: string; blocks: string; attachmentBytes: string }>
+    /** How many unacknowledged results the tenant may hold. */
+    share?: number
   }> = {},
 ) {
   const ledger = input.ledger ?? createMemoryResultPushLedger()
@@ -301,7 +301,7 @@ export function world(
       resultPageParts: 4,
       resultPageTargetBytes: 4096,
       readIdleMs: 1000,
-      capacity: input.capacity ?? { bytes: '1000000', blocks: '200', attachmentBytes: '0' },
+      unacknowledgedResults: input.share ?? 10,
     },
     sending: {
       maxRetainedAttempts: 8,
@@ -400,6 +400,7 @@ export function world(
     declare readonly recall: ModelCommands<unknown>['recall']
     declare readonly scanPending: ModelCommands<unknown>['scanPending']
     declare readonly loadRecovery: ModelCommands<unknown>['loadRecovery']
+    declare readonly loadRequest: ModelCommands<unknown>['loadRequest']
     declare readonly claim: ModelCommands<unknown>['claim']
     declare readonly prepareDispatch: ModelCommands<unknown>['prepareDispatch']
     declare readonly recordMaterialization: ModelCommands<unknown>['recordMaterialization']
@@ -484,11 +485,11 @@ export function world(
         },
       })
     },
-    async admit(name: string, capacity = CAPACITY) {
-      return unbox(await this.tryAdmit(name, capacity))
+    async admit(name: string) {
+      return unbox(await this.tryAdmit(name))
     },
     /** The admission answer as it is, a refusal included. */
-    tryAdmit(name: string, capacity = CAPACITY) {
+    tryAdmit(name: string) {
       return ctx.modelRuntime.calls.admit({
         principal: PRINCIPAL,
         tenant: TENANT,
@@ -496,7 +497,6 @@ export function world(
         operation: op(`admit-${name}`),
         request,
         consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
-        capacity,
       })
     },
     async custody(name: string) {

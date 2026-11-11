@@ -42,7 +42,7 @@ await scrypt.module.close()
 
 The factory reads no wall clock, opens no scrypt module, registers nothing and closes nothing. The caller registers the combination first, and at the end calls `stop()` before it closes the scrypt module.
 
-Cordis: `@omne-harness/identity-sql/cordis` exports `IdentitySqlPlugin`. It injects `storage` and `identityClock`. Its configuration is two login lifetimes, `maxLifetime` and `idlePeriod`, and two invitation durations, `invitationDefaultDuration` and `invitationMaxDuration`, all `PT<seconds>S` texts. All four are required: without one, the fiber fails. `IDENTITY_SQL_DEFAULT_CONFIG` lists the first values for a deployment that passes them: logins of 30 days and 7 days idle, invitations of 7 days by default and 30 days at most. The plugin body opens scrypt, derives the decoy, registers the combination, builds the provider over the injected clock and provides five keys. See [docs/cordis.md](docs/cordis.md).
+Cordis: `@omne-harness/identity-sql/cordis` exports `IdentitySqlPlugin`. It injects `storage` and `identityClock`. Its configuration is two login lifetimes, `maxLifetime` and `idlePeriod`, the access refresh granularity `accessRefreshGranularity`, and two invitation durations, `invitationDefaultDuration` and `invitationMaxDuration`, all `PT<seconds>S` texts. All five are required: without one, the fiber fails. The granularity must be shorter than `idlePeriod`: an access report within it of the last refresh writes nothing. `IDENTITY_SQL_DEFAULT_CONFIG` lists the first values for a deployment that passes them: logins of 30 days and 7 days idle, one refresh per hour at most, invitations of 7 days by default and 30 days at most. The plugin body opens scrypt, derives the decoy, registers the combination, builds the provider over the injected clock and provides five keys. See [docs/cordis.md](docs/cordis.md).
 
 The application aggregates `identitySqlMaterials()` into its storage catalog. Without that, the participant and the read handlers are not available.
 
@@ -58,7 +58,7 @@ Errors: every outcome is a return value. Only a write whose result cannot be det
 
 ## Configuration and operation
 
-The configuration is the two login lifetimes and the two invitation durations, owned by the `identity` row of the assembly. The scrypt parameters are fixed to `SCRYPT_PROFILE`, a registered IC-14 deviation, see SPEC known limitation 3. Requirements: Node 24 or later, and a `storage` provider whose catalog holds the materials. The caller registers the combination and closes the storage. This member stops the provider and closes scrypt.
+The configuration is the two login lifetimes, the access refresh granularity and the two invitation durations, owned by the `identity` row of the assembly. The scrypt parameters are fixed to `SCRYPT_PROFILE`, a registered IC-14 deviation, see SPEC known limitation 3. Requirements: Node 24 or later, and a `storage` provider whose catalog holds the materials. The caller registers the combination and closes the storage. This member stops the provider and closes scrypt.
 
 ## Verification
 

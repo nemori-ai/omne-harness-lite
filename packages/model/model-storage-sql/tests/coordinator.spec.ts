@@ -43,12 +43,12 @@ import {
 import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
 import participant from '../src/commit.ts'
 import {
-  COMMAND_RESERVE_BYTES,
   callHandler,
   createSqlModelCommands,
   createSqlModelStorage,
   modelMigration,
   pendingHandler,
+  requestHandler,
 } from '../src/index.ts'
 import { createSendMirror } from '../src/coordinator.ts'
 import { providerName } from './provider-name.ts'
@@ -74,7 +74,9 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
 }
 
 type Domain = { readonly db: DatabaseSync; readonly receipts: Map<string, ReceiptV2> }
-const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
+const HANDLERS = new Map(
+  [callHandler, pendingHandler, requestHandler].map(item => [item.handler, item]),
+)
 
 /** A node:sqlite provider with two faults: a lost commit reply, and a held read reply. */
 function sqliteStorage() {
@@ -131,6 +133,7 @@ function sqliteStorage() {
   }
   const keyOf = (identity: SqlIdentity) => `${identity.operation}|${identity.operationKey}`
   const storage: SqlStorage = {
+    database: {},
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     async commit(request): Promise<CommitResultV2> {
       const domain = domainOf(request.identity.transactionDomain)
@@ -138,7 +141,7 @@ function sqliteStorage() {
       const existing = domain.receipts.get(key)
       if (existing !== undefined)
         return existing.inputDigest === inputDigestV2(request)
-          ? existing
+          ? { ...existing, recalled: true }
           : { kind: 'identity_conflict', identity: request.identity, existing }
       const receipt = execute(domain, request)
       domain.receipts.set(key, receipt)
@@ -146,7 +149,7 @@ function sqliteStorage() {
         hooks.loseNextReply = false
         return { kind: 'unknown', identity: request.identity, diagnostic: null }
       }
-      return receipt
+      return { ...receipt, recalled: false }
     },
     query(identity) {
       const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))
@@ -300,7 +303,7 @@ const coreOptions: ModelCommandsCoreOptions<Principal> = {
     resultPageParts: 1,
     resultPageTargetBytes: 1024,
     readIdleMs: 1000,
-    capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+    unacknowledgedResults: 10,
   },
 }
 const source: ModelSendSource<Principal> = {
@@ -331,9 +334,8 @@ const storageOf = (provider: Provider) =>
     domains: lookup,
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
     limits: {
-      tenantCapacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
-      maxCallBytes: 1 << 20,
-      maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
+      tenantResults: 10,
+      requestChunkBytes: 65536,
     },
   })
 
@@ -349,9 +351,8 @@ function sqlAssembly(
     ...coreOptions,
     storage: provider.storage,
     domains: lookup,
+    requestChunkBytes: 65536,
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
-    maxCallBytes: 1 << 20,
-    maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
     send: {
       mirrorBytes: settings.mirrorBytes ?? 1 << 20,
       ...(settings.maxClaims === undefined ? {} : { maxClaims: settings.maxClaims }),
@@ -408,7 +409,6 @@ async function drive(
       operation: op(`admit-${call}`),
       request,
       consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
-      capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
     }),
   )
   let execution: ExecutionRef = {

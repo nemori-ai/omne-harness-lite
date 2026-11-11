@@ -1,3 +1,6 @@
+import { sealedText } from './settlement-values.ts'
+import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
+import { toolsAdoption } from '../src/tools-protocol.ts'
 import { createReaderFixture } from './reader-fixture.ts'
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -26,6 +29,11 @@ function provider(
 ): ToolsReadRuntime<Principal> {
   return {
     queries: { readResult: read },
+    body: {
+      read: async () => {
+        throw new Error('unexpected body read')
+      },
+    },
     content: {
       read: async () => {
         throw new Error('unexpected content read')
@@ -54,7 +62,7 @@ describe('fixed reader with a test-only command transport', () => {
     if (definition.kind !== 'commands') throw new Error('not commands')
     expect(definition.commands.map(command => command.name)).toEqual(['help', 'read_result'])
     for (const command of definition.commands) {
-      expect(command.returns).toEqual({ kind: 'structured', program: { kind: 'none' } })
+      expect(command.returns).toEqual(structuredReturnFixture(toolsAdoption))
       expect(command.parameters.kind).toBe('declared')
     }
     const help = ok(await authorRun(f.tools, 'help', '{}'))
@@ -212,7 +220,7 @@ describe('fixed reader with a test-only command transport', () => {
     // R2-D357: another tenant's partition has no such call; it is answered as a missing one.
     expect(
       body(await f.tools.present({ ...f.access, principal: principalB, tenant: tenantB })),
-    ).toContain('invalid')
+    ).toContain('not-found (result: missing)')
   })
 })
 
@@ -533,17 +541,16 @@ it('declares text input and all supported direct output modalities for an actual
   expect(response.state.terminal.kind).toBe('completed')
 })
 
-it('keeps an offloaded original separate and propagates raw-byte qualification denial through the actual meta call', async () => {
+it('keeps an offloaded body separate and propagates body qualification denial through the actual meta call', async () => {
   const denied: import('@omne-harness/tool').ToolLedgerAction[] = []
   const f = await sourceFixture(
-    raw => ({
+    async (ledger, access) => ({
       ...result([visible('summary', 'summary only')]),
       original: {
         kind: 'offloaded',
-        source: raw.content,
+        source: (await sealedText(ledger, access)).source,
         summary: [visible('summary', 'summary only')],
       },
-      attachments: [raw.content],
     }),
     {},
     denied,
@@ -552,15 +559,15 @@ it('keeps an offloaded original separate and propagates raw-byte qualification d
   expect(token(initial, 'content')).toBe('end')
   expect(token(initial, 'original')).toContain('offloaded')
   expect(initial.original).toEqual({ kind: 'none' })
-  denied.push('read-raw')
+  denied.push('read-content')
   const registered = registeredFixture(f.tools)
   const response = await registered.invoke('read_result', {
-    kind: 'attachment',
-    reference: token(initial, 'originalReference'),
+    kind: 'body',
+    reference: token(initial, 'bodyReference'),
     after: null,
   })
   const value = ok(response.full)
-  expect(body(value)).toContain('denied (read-raw-content)')
+  expect(body(value)).toContain('denied (read-content)')
   expect(value.attachments).toEqual([])
   expect(value.content).toHaveLength(1)
   expect(body(value)).not.toContain('summary only')

@@ -11,8 +11,11 @@ import {
   type ToolInvocationCommands,
   type ToolInvocationContentReader,
   type ToolInvocationQueries,
+  type ToolCallId,
   type ToolInvokeOutcome,
   type ToolInvocationParts,
+  type ToolInvocationRef,
+  type ToolInvokeRequest,
   type ToolOperationId,
   type ToolOperationRef,
   type ToolRuntime,
@@ -24,6 +27,7 @@ import {
   type ToolOperationIdentities,
 } from '@omne-harness/tool-contract/provider'
 import { admitResolvedInvocation, scheduleAcceptedCallBestEffort } from './runtime-admission.ts'
+import { callOffloadingRefusal } from './result-offloading.ts'
 import { checkToolConfiguration, driverRetryDelayMs, driverStepsPerRun } from './configuration.ts'
 import type { ToolConfiguration, ToolDependencies } from './construction.ts'
 import { createToolDriver } from './driver.ts'
@@ -43,7 +47,6 @@ const PORTS = [
   'admissions',
   'queues',
   'rejections',
-  'facts',
   'bindings',
   'environments',
   'decisions',
@@ -52,7 +55,6 @@ const PORTS = [
   'resultPolicy',
   'authority',
   'resources',
-  'custody',
   'catalog',
   'reads',
   'children',
@@ -68,8 +70,6 @@ function checkDependencies<P, B extends ContentBlock, E>(
     if (typeof value !== 'object' || value === null)
       throw new TypeError(`dependencies.${port}: missing`)
   }
-  if (typeof dependencies.facts.read !== 'function')
-    throw new TypeError('dependencies.facts.read: missing')
 }
 
 function unsupported(name: string, increment: string): Promise<Outcome<never, ToolFailure>> {
@@ -90,6 +90,38 @@ function redactedPortExceptionDiagnostic(dependency: string): string {
 
 function rejected(failure: ToolDefiniteFailure): ToolInvokeOutcome {
   return { kind: 'rejected', failure }
+}
+
+/** The request as the caller fixed it, admitted under the system offloading bounds. */
+function admittedRequest(
+  supplied: unknown,
+  configuration: ToolConfiguration,
+): Outcome<ToolInvokeRequest, ToolDefiniteFailure> {
+  const judged = judgeToolInvokeRequest(supplied)
+  if ('failure' in judged)
+    return fail({
+      kind: 'invalid',
+      field: `request.${judged.failure.field}`,
+      reason: judged.failure.reason,
+    })
+  const refusal = callOffloadingRefusal(judged.ok, configuration.offloading)
+  return refusal === null
+    ? judged
+    : fail({ kind: 'invalid', field: 'request.returns.offloading', reason: refusal })
+}
+
+/** The identities the source issuer bound, decoded, with the reference the caller keeps. */
+function resolvedIdentity(
+  tenant: ToolInvocationParts['tenant'],
+  bound: Readonly<{ call: string; admission: string }>,
+): Readonly<{ call: ToolCallId; admission: ToolOperationId; reference: ToolInvocationRef }> | null {
+  const call = decodeToolCallId(bound.call)
+  const admission = decodeToolOperationId(bound.admission)
+  if ('failure' in call || 'failure' in admission) return null
+  const reference = encodeToolInvocationRef({ tenant, call: call.ok, admission: admission.ok })
+  return 'failure' in reference
+    ? null
+    : { call: call.ok, admission: admission.ok, reference: reference.ok }
 }
 
 function identityFailure(failure: ToolFailure): ToolDefiniteFailure {
@@ -176,38 +208,35 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
   const { operationIdentities, sourceIssuer } = dependencies
   const stream = createStreamFacade<P, B>({ directory: instances.directory, reads })
 
-  const invoke: ToolRuntime<P, B>['invoke'] = async input => {
-    if (typeof input !== 'object' || input === null || !('principal' in input))
-      return rejected({ kind: 'denied', action: 'admit' })
-    const judged = judgeToolInvokeRequest(Reflect.get(input, 'request'))
-    if ('failure' in judged)
-      return rejected({
-        kind: 'invalid',
-        field: `request.${judged.failure.field}`,
-        reason: judged.failure.reason,
-      })
-    const request = judged.ok
-    const { principal, tenant } = input
-    let bound: Awaited<ReturnType<typeof sourceIssuer.resolve>>
+  /** The source issuer's binding of a call; an issuer that throws leaves the association unknown. */
+  const resolveSource = async (
+    input: Parameters<typeof sourceIssuer.resolve>[0],
+  ): Promise<Awaited<ReturnType<typeof sourceIssuer.resolve>>> => {
     try {
-      bound = await sourceIssuer.resolve({ principal, tenant, request })
+      return await sourceIssuer.resolve(input)
     } catch {
       return { kind: 'association-unknown' }
     }
+  }
+
+  const invoke: ToolRuntime<P, B>['invoke'] = async input => {
+    if (typeof input !== 'object' || input === null || !('principal' in input))
+      return rejected({ kind: 'denied', action: 'admit' })
+    const request = admittedRequest(Reflect.get(input, 'request'), configuration)
+    if ('failure' in request) return rejected(request.failure)
+    const { principal, tenant } = input
+    const bound = await resolveSource({ principal, tenant, request: request.ok })
     if (bound.kind === 'association-unknown' || bound.kind === 'rejected') return bound
-    const call = decodeToolCallId(bound.call)
-    const admission = decodeToolOperationId(bound.admission)
-    if ('failure' in call || 'failure' in admission) return { kind: 'association-unknown' }
-    const reference = encodeToolInvocationRef({ tenant, call: call.ok, admission: admission.ok })
-    if ('failure' in reference) return { kind: 'association-unknown' }
+    const identity = resolvedIdentity(tenant, bound)
+    if (identity === null) return { kind: 'association-unknown' }
     if (bound.kind === 'issuance-unknown')
-      return { kind: 'commit-unknown', reference: reference.ok }
+      return { kind: 'commit-unknown', reference: identity.reference }
     return admitResolvedInvocation(dependencies, {
       principal,
       tenant,
-      call: call.ok,
-      admission: admission.ok,
-      request: { ...request, invocation: bound.invocation },
+      call: identity.call,
+      admission: identity.admission,
+      request: { ...request.ok, invocation: bound.invocation },
       recovered: bound.recovered,
     })
   }
@@ -316,14 +345,22 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
               maxBytes: input.maxBytes,
             })
       },
-      raw: async input => {
-        const resolved = invocationInput<P>(input, 'read-raw')
-        return 'failure' in resolved
-          ? resolved
-          : reads.content.raw({ ...resolved.ok, result: input.result })
-      },
     }),
     catalog,
+    body: Object.freeze<ToolRuntime<P, B>['body']>({
+      read: async input => {
+        const resolved = invocationInput<P>(input, 'read-content')
+        return 'failure' in resolved
+          ? resolved
+          : reads.body.read({
+              ...resolved.ok,
+              result: input.result,
+              bodyId: input.bodyId,
+              after: input.after,
+              maxBytes: input.maxBytes,
+            })
+      },
+    }),
   }
   return Object.freeze(runtime)
 }

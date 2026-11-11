@@ -52,7 +52,7 @@ try {
 
 ## 配置与运行
 
-`createTiktokenExecutor` 接受固定资源数组与明确的 limits，本包不提供默认值。限制覆盖线程、活跃租约、排队任务与字节、输入大小、缓存、截止时间、worker heap 和替换速率。
+`createTiktokenExecutor` 接受固定资源数组与明确的 limits，本包不提供默认值。限制覆盖线程、活跃租约、排队任务与字节、一次 worker 作业的大小、缓存、截止时间、worker heap 和替换速率。一次计数的输入超过一次作业时，执行器把它切成几次作业，把结果相加。
 
 输入与缓存按保留的 UTF-16 和对象开销计费，不是 UTF-8 大小或 RSS。count 返回 Promise。取消可能先返回失败，release 仍须等待物理清理，close 须等待实际线程退出。运行需要 Node.js 24 或更高版本。
 

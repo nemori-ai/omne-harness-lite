@@ -4,11 +4,11 @@
 //
 // The session diagnostics projection in the application (#1140 A5, RFC-0013 A line): the two smoke
 // failures the RFC starts from, read back through the real CLI from a real `serve` process.
-// - E1: two concurrent sessions of one tenant. The first call holds its share of the result
-//   capacity (`model-records.limits.capacity.bytes` 1000000, `agent-context.resultCapacity.bytes`
-//   524288). The share is full only for now, so the second Run waits instead of ending
+// - E1: two concurrent sessions of one tenant. The first call holds the one place of the tenant
+//   share (`model-records.limits.unacknowledgedResults` 1). The share is full only for now, so the
+//   second Run waits instead of ending
 //   `model-refused` (#1174), and goes on once the first call settles.
-// - E2: the gateway answers HTTP 504 on the streaming request (another tenant: the capacity of E1
+// - E2: the gateway answers HTTP 504 on the streaming request (another tenant: the share of E1
 //   is per tenant). The Run ends `no-reply` with the fault, and the dispatch row of the same call,
 //   from `modelDiagnostics`, ends the same way.
 // - E3: another login reads the session: `denied`, exit 3.
@@ -172,7 +172,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
       sessions.held = await createSession(alice)
       sessions.waiting = await createSession(alice)
       await sendInput(alice, sessions.held, HELD_TEXT)
-      // The first call is in flight: its share of the capacity is reserved until it settles.
+      // The first call is in flight: it holds the place of the share until its result is released.
       await until(() => gateway.held() >= 1, 'the first Model call to reach the gateway', 60_000)
       await sendInput(alice, sessions.waiting, 'the second input of the same tenant')
 

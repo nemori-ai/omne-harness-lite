@@ -16,7 +16,6 @@ import {
   principalA,
   principalB,
   tenantA,
-  type Block,
 } from './runtime-values.ts'
 import {
   admitCall,
@@ -35,7 +34,7 @@ afterEach(async () => {
   await auditQueues()
 })
 
-type Commit = LedgerCommitInput<Block>
+type Commit = LedgerCommitInput
 
 /** Whether a commit is a queue-domain commit that gives a slot to an entry. */
 function holdsSlot(input: Commit): boolean {
@@ -174,6 +173,8 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
     const harness: StartHarness = startHarness({
       store: memory => ({
         durability: 'none',
+        readRecord: memory.readRecord,
+        due: memory.due,
         read: async domain => {
           if (failing > 0 && domain.kind === 'call') {
             failing -= 1
@@ -280,7 +281,7 @@ describe('23 retrigger: when a failed run is run again', () => {
   it('23 retrigger: a run that met only unknown commits waits the retry delay instead of asking to run at once', async () => {
     const harness = startHarness({
       driverRetryDelayMs: 500,
-      store: (memory: MemoryToolLedgerStore<Block>): ToolLedgerStore<Block> =>
+      store: (memory: MemoryToolLedgerStore): ToolLedgerStore =>
         losingCommits(memory, putsOperation('op-c1/plan'), 'dropped', 1_000_000),
     })
     await admitCall(harness, 'c1')
@@ -298,6 +299,8 @@ describe('23 retrigger: when a failed run is run again', () => {
       driverRetryDelayMs: 60_000,
       store: memory => ({
         durability: 'none',
+        readRecord: memory.readRecord,
+        due: memory.due,
         // A reader that gives a negative answer about the start of c1 between the reads of
         // prepareStart: every start intent of c1 is excluded while it polls.
         read: async domain => {
@@ -357,6 +360,8 @@ describe('23 retrigger: when a failed run is run again', () => {
     const harness = startHarness({
       store: memory => ({
         durability: 'none',
+        readRecord: memory.readRecord,
+        due: memory.due,
         read: domain => memory.read(domain),
         // The host stops the run while its plan is being committed, and the store is down.
         commit: async input => {

@@ -53,6 +53,8 @@
     "@omne-harness/tool": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
     "@omne-harness/tool-cordis-contract": "workspace:*",
+    "@omne-harness/execution-environment-cordis-contract": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
     "@omne-harness/tool-definitions": "workspace:*",
     "turndown": "7.2.5",
     "undici": "8.11.2",

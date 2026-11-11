@@ -63,7 +63,8 @@ export const filesToolModule: ToolImplementationModule<
   executor: describedAdoption({
     owner: '@omne-harness/tool-definitions',
     name: 'Files',
-    revision: '2',
+    revision: '3',
+    returns: 'Published raw value, model body and system offloading policy.',
     changes:
       'One declaration with the command in the call, the workspace root in the description, write with parents and help by command name.',
     commands: filesCommands,

@@ -10,6 +10,7 @@
 
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [entries.spec.ts](entries.spec.ts)：四个入口、清单、不含 Cordis 的根、禁用名
+- [database-identity.spec.ts](database-identity.spec.ts)：§2.6 数据库身份：同一个库的对象与经 Cordis 服务拿到的代理带同一个身份，两个库的身份不同
 - [services.spec.ts](services.spec.ts)：三个服务定义
 - [tenant-domain-lookup.spec.ts](tenant-domain-lookup.spec.ts)：目录查找的替身、套件自证与 `TenantDomainLookupService` 装载
 - [digest.spec.ts](digest.spec.ts)：输入摘要与清单摘要
@@ -18,5 +19,6 @@
 - [memory-registry.spec.ts](memory-registry.spec.ts)：替身的登记、query、read、分区、关闭
 - [memory-construct.spec.ts](memory-construct.spec.ts)：替身的构造期检查
 - [conformance.spec.ts](conformance.spec.ts)：符合性套件
+- [text-pack.spec.ts](text-pack.spec.ts)：大文本列的格式标记、阈值、往返与未知标记
 - [helpers.ts](helpers.ts)：测试辅助
 - [fixtures/](fixtures/index.md)：测试固定输入

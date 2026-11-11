@@ -17,6 +17,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { resultMaximumField } from './files.ts'
 import { adoption as vocabulary, parseConstruction, tree, type Field } from './protocol.ts'
+import { textReturns } from './returns.ts'
 import { bounded } from './text.ts'
 import { webAccessOf, type FetchedPage, type SearchHit, type WebFailure } from './web-port.ts'
 import {
@@ -28,7 +29,7 @@ import {
 } from './web-protocol.ts'
 
 const ENCODING = 'wrapped' as const
-const returns = { kind: 'ordinary', program: { kind: 'none' } } as const
+const returns = textReturns(webAdoption)
 /** The count a search asks for when the call gives no limit, bounded by maxSearchResults. */
 const DEFAULT_SEARCH_RESULTS = 5
 const EXTERNAL_DATA_BEGIN =

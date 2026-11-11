@@ -31,10 +31,18 @@ export function writerResponse(receipt: CommittedV2) {
     ? { kind: 'response' as const, value: entry.reply.response }
     : unavailable()
 }
+/** The saved receipt of a commit answer: the `recalled` mark belongs to the answer, not to it. */
+function savedReceipt(
+  answer: (CommittedV2 | RolledBackV2) & Readonly<{ recalled?: boolean }>,
+): CommittedV2 | RolledBackV2 {
+  const { recalled: _mark, ...receipt } = answer
+  return receipt
+}
 function recognizeReceipt(
   envelope: CommitRequestV2,
-  receipt: CommittedV2 | RolledBackV2,
+  answer: CommittedV2 | RolledBackV2,
 ): SqlSubmission {
+  const receipt = savedReceipt(answer)
   if (
     !equal(receipt.identity, envelope.identity) ||
     receipt.inputDigest !== inputDigestV2(envelope) ||
@@ -59,6 +67,8 @@ export function recognizeSubmission(
     case 'not_committed':
       return { kind: 'not-committed', proof: result }
     case 'unknown':
+    // Governance commits no identity with `recall: 'never'`; the answer says nothing about this one.
+    case 'not_recallable':
       return { kind: 'unknown', identity: envelope.identity }
     case 'rejected_before_accept':
       return unavailable()

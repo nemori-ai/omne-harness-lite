@@ -6,7 +6,6 @@ import {
   type LedgerRecord,
   type ToolSourceGuard,
 } from '@omne-harness/tool'
-import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   Reply,
   FixedToolRequest,
@@ -42,10 +41,7 @@ export interface LocalInvocationQualifier<P> {
 }
 
 /** Internal hook on records the source guard actually reads, never on caller-supplied evidence. */
-export type ObserveInvocationRecord = (
-  domain: LedgerDomain,
-  record: LedgerRecord<ContentBlock>,
-) => void
+export type ObserveInvocationRecord = (domain: LedgerDomain, record: LedgerRecord) => void
 
 function observations() {
   const records = new Map<string, InvocationRecordObservation>()

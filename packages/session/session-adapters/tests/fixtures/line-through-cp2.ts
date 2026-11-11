@@ -150,6 +150,7 @@ export async function openCp2(root: string) {
 
   const commits: SeenCommit[] = []
   const storage: SqlStorage = {
+    database: real.database,
     registerCombination: input => real.registerCombination(input),
     commit: async (request, options) => {
       const result = await real.commit(request, options)
@@ -168,6 +169,7 @@ export async function openCp2(root: string) {
           : { kind: 'unregistered' },
     )
   class Storage extends StorageService {
+    readonly database = storage.database
     readonly registerCombination = storage.registerCombination
     readonly commit = storage.commit
     readonly query = storage.query

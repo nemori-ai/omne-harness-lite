@@ -2,19 +2,15 @@ import { expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { fixture, ok } from './fixture.ts'
-import type { ContentBlock } from '@omne-harness/content-block'
-import { canonicalDigest, type ToolLedgerStore } from '@omne-harness/tool'
+import { canonicalDigest, encodeToolCanonical, type ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import { createDeliveryState } from '../../src/delivery-state.ts'
+import { callHostDomain } from '../../src/host-domains.ts'
 
 it('freezes before push and releases through the real ledger without recordTask', async () => {
   const f = await fixture()
   vi.mocked(f.receiver.push).mockImplementationOnce(async input => {
-    const host = await f.store.read({
-      kind: 'host',
-      tenant: f.access.tenant,
-      key: 'result-delivery/v1',
-    })
+    const host = await f.store.read(callHostDomain(f.access.tenant, 'delivery', f.access.call))
     expect(host.kind === 'complete' && host.records.some(row => row.kind === 'host')).toBe(true)
     return f.receive(input)
   })
@@ -37,7 +33,7 @@ it('freezes before push and releases through the real ledger without recordTask'
     terminal: f.result.terminal,
     actualTerminal: f.result.actual,
     source: f.result.source,
-    value: f.result.value,
+    value: f.value,
     account: null,
   })
   const saved = await f.store.read(f.domain)
@@ -101,10 +97,17 @@ it('rejects a same-key payload change without replacing the original freeze', as
   const payload = f.pushes[0]
   if (payload?.kind !== 'result') throw new Error('expected result payload')
   const state = createDeliveryState(f.store)
-  const original = ok(await state.load(f.access, payload))
+  const descriptor = {
+    ...payload,
+    value: {
+      fingerprint: ok(encodeToolCanonical(payload.value)).fingerprint,
+      original: { kind: 'none' as const },
+    },
+  }
+  const original = ok(await state.load(f.access, descriptor))
   if (original === null) throw new Error('expected frozen record')
   const changed = {
-    ...payload,
+    ...descriptor,
     account: {
       subject: { kind: 'tool_execution', id: f.access.call },
       usage: [],
@@ -123,7 +126,7 @@ it('rejects a same-key payload change without replacing the original freeze', as
       null,
     ),
   ).toHaveProperty('failure.kind', 'conflict')
-  expect(await state.load(f.access, payload)).toEqual(succeed(original))
+  expect(await state.load(f.access, descriptor)).toEqual(succeed(original))
 })
 
 it('answers a freeze the store rejects as a definite failure, without another attempt', async () => {
@@ -135,11 +138,18 @@ it('answers a freeze the store rejects as a definite failure, without another at
   await f.drive()
   const payload = f.pushes[0]
   if (payload?.kind !== 'result') throw new Error('expected result payload')
-  const original = ok(await createDeliveryState(f.store).load(f.access, payload))
+  const descriptor = {
+    ...payload,
+    value: {
+      fingerprint: ok(encodeToolCanonical(payload.value)).fingerprint,
+      original: { kind: 'none' as const },
+    },
+  }
+  const original = ok(await createDeliveryState(f.store).load(f.access, descriptor))
   if (original === null) throw new Error('expected frozen record')
-  const empty = createMemoryToolLedgerStore<ContentBlock>()
+  const empty = createMemoryToolLedgerStore()
   let commits = 0
-  const rejecting: ToolLedgerStore<ContentBlock> = {
+  const rejecting: ToolLedgerStore = {
     ...empty,
     commit: async () => {
       commits += 1
@@ -184,3 +194,37 @@ it.each(['version', 'owner', 'account', 'evidence'] as const)(
     expect(f.input.commands.releaseDelivery).not.toHaveBeenCalled()
   },
 )
+
+it('freezes delivery metadata without storing another complete result', async () => {
+  const f = await fixture()
+  expect(await f.drive()).toEqual(succeed({ pending: 0 }))
+  expect(f.pushes[0]).toMatchObject({ value: f.value })
+  const stored = await f.store.read(callHostDomain(f.access.tenant, 'delivery', f.access.call))
+  expect(stored.kind).toBe('complete')
+  expect(JSON.stringify(stored)).not.toContain('unchanged payload')
+})
+
+it('keeps a frozen delivery owed while its result materials are unavailable', async () => {
+  const f = await fixture()
+  vi.mocked(f.input.resultDelivery.read).mockResolvedValueOnce(
+    fail({ kind: 'unavailable', dependency: 'materials', diagnostic: 'offline' }),
+  )
+  expect(await f.drive()).toEqual(succeed({ pending: 1 }))
+  expect(f.receiver.push).not.toHaveBeenCalled()
+  expect(f.input.commands.releaseDelivery).not.toHaveBeenCalled()
+  expect(await f.drive()).toEqual(succeed({ pending: 0 }))
+  expect(f.pushes[0]).toMatchObject({ value: f.value })
+  expect(f.input.accountAtFreeze).toHaveBeenCalledTimes(1)
+})
+
+it('rechecks current qualification after restoring a delivery value', async () => {
+  const f = await fixture()
+  vi.mocked(f.input.resultDelivery.read).mockImplementationOnce(async input => {
+    const value = await f.ledger.delivery.read(input)
+    f.revoke()
+    return value
+  })
+  expect(await f.drive()).toEqual(succeed({ pending: 1 }))
+  expect(f.receiver.push).not.toHaveBeenCalled()
+  expect(f.input.commands.releaseDelivery).not.toHaveBeenCalled()
+})

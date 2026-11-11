@@ -29,7 +29,7 @@ create table _sql_receipt(
   operation_key text not null,
   kind text not null,
   input_digest text not null,
-  receipt text not null,
+  receipt blob not null,
   primary key (operation, operation_key)
 );
 `

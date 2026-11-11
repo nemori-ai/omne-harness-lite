@@ -63,6 +63,7 @@ const fixture: IdentityContractFixture = {
         maxDuration: duration('PT86400S'),
       }).source,
       scrypt: scrypt.module,
+      accessRefreshGranularity: duration('PT60S'),
       decoyMaterial: scrypt.decoyMaterial,
     })
     opened.push({

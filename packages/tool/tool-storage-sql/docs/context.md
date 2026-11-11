@@ -4,21 +4,23 @@
 
 ## 使用方式
 
-最小用法见 [README_ZH.md 的使用一节](../README_ZH.md#使用)。必要依赖是一个 `SqlStorage`、一个 `TenantDomainLookup` 与为租户作用域登记的组合。组合须列出参加者 `tool`，其材料来自 `toolStorageMaterials()`。没有初始化与释放步骤。
+最小用法见 [README_ZH.md 的使用一节](../README_ZH.md#使用)。必要依赖是一个 `SqlStorage`、一个 `TenantDomainLookup` 与为租户作用域登记的组合；正文存储另需账本的许可密钥与存储自己的时钟。组合须列出参加者 `tool`，其材料来自 `toolStorageMaterials()`。没有初始化与释放步骤。
 
 ## 消费者与定位
 
 ```mermaid
 flowchart LR
-  App[应用装配 tool-records 行] --> Store[createSqlToolLedgerStore]
-  App --> Custody[createSqlToolOutputCustody]
+  App[harness-server tool-runtime 与 tool-body-sweep 行] --> Store[createSqlToolLedgerStore]
+  App --> Bodies[createSqlToolBodyStore]
   App --> Catalog[应用材料目录]
   Catalog --> Materials[toolStorageMaterials]
   Store --> Ledger[tool: createToolLedger]
+  Store --> Sweep[tool: createToolSweep]
   Store --> Coordinator[tool-host-local: createLocalStartCoordinator]
-  Custody --> Ledger
+  Bodies --> Ledger
+  Bodies --> Sweep
   Store --> SQL[sql-contract: SqlStorage]
-  Custody --> SQL
+  Bodies --> SQL
 ```
 
-具名消费者：`tool-records` 行（装配页，波 B 接线）与应用的材料目录（L-APP）。依赖方向是 `tool-storage-sql → {tool, tool-contract, sql-contract}`。`tool-host-local` 只在本包测试里作为 devDependency 使用（D2 决策记录 U8），本包不在生产路径上依赖它。
+具名消费者：harness-server 的 `tool-runtime` 行与 `tool-body-sweep` 行，以及应用的材料目录。依赖方向是 `tool-storage-sql → {tool, tool-contract, sql-contract}`。`tool-host-local` 只在本包测试里作为 devDependency 使用（D2 决策记录 U8），本包不在生产路径上依赖它。

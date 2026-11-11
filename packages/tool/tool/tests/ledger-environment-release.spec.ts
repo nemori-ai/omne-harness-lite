@@ -92,14 +92,17 @@ describe('canonical environment cleanup ledger', () => {
     }
     const input = {
       ...original,
-      preparation: { ...original.preparation, request: { ...original.preparation.request } },
+      preparation: {
+        ...original.preparation,
+        adoption: { ...original.preparation.adoption },
+      },
       custody: { ...original.custody },
     }
     const before = (await f.records()).filter(row => row.kind === 'result')
     gate.arm()
     const pending = f.ledger.commands.planRelease(input)
     await gate.entered
-    input.preparation.request.command = 'replaced-during-qualification'
+    input.preparation.adoption.digest = 'replaced-during-qualification'
     input.preparation = { ...input.preparation, operation: operationId('replaced-preparation') }
     input.custody.record = 'replaced-custody'
     gate.resume()
@@ -176,7 +179,7 @@ describe('canonical environment cleanup ledger', () => {
     expect(after.state.delivery).toEqual((await f.load()).state.delivery)
   })
 
-  it.each(['custody', 'preparation', 'request', 'adoption'] as const)(
+  it.each(['custody', 'preparation', 'inputDigest', 'adoption'] as const)(
     'rejects changed %s and operation reuse',
     async field => {
       const f = await releasedFixture()
@@ -187,12 +190,9 @@ describe('canonical environment cleanup ledger', () => {
           ...f.plan,
           preparation: { ...f.plan.preparation, operation: operationId('wrong') },
         },
-        request: {
+        inputDigest: {
           ...f.plan,
-          preparation: {
-            ...f.plan.preparation,
-            request: { ...f.plan.preparation.request, timeout: 'wrong' },
-          },
+          preparation: { ...f.plan.preparation, inputDigest: 'sha256:wrong' },
         },
         adoption: {
           ...f.plan,
@@ -234,7 +234,7 @@ describe('canonical environment cleanup ledger', () => {
             ...f.access,
             operation: operationId('forbidden-plan'),
             preparation: firstPreparation(f),
-            custody: result.result.custody.retained,
+            custody: result.result.custody.materialized,
           }),
         ).kind,
       ).toBe('unsupported')
@@ -249,14 +249,11 @@ describe('canonical environment cleanup ledger', () => {
   )
 
   it('rechecks every historical process reference rather than current projection', async () => {
+    const last = refProcess('last', '2')
+    if (!('ref' in last.content)) throw new Error('fixture ref')
     const f = await settlementFixture({
-      process: raw => [
-        refProcess('lost', '1'),
-        {
-          ...refProcess('last', '2'),
-          content: { ...refProcess('last').content, ref: raw.content },
-        },
-      ],
+      attachments: [last.content.ref],
+      process: [refProcess('lost', '1'), last],
     })
     ok(await f.preserve())
     const result = (await f.records()).find(row => row.kind === 'result')
@@ -268,7 +265,7 @@ describe('canonical environment cleanup ledger', () => {
           ...f.access,
           operation: operationId('incomplete-plan'),
           preparation: firstPreparation(f),
-          custody: result.result.custody.retained,
+          custody: result.result.custody.materialized,
         }),
       ).kind,
     ).toBe('unsupported')
@@ -310,7 +307,7 @@ describe('canonical environment cleanup ledger', () => {
         ...f.access,
         operation: operationId('content-identity-plan'),
         preparation: firstPreparation(f),
-        custody: result.result.custody.retained,
+        custody: result.result.custody.materialized,
       }
       const planned = await f.ledger.commands.planRelease(input)
       if (kind === 'covered-ref') {

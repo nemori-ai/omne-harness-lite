@@ -1034,6 +1034,7 @@ function delegatedCommands(commands: ModelCommands<unknown>): ModelCommands<unkn
     recall: input => commands.recall(input),
     scanPending: input => commands.scanPending(input),
     loadRecovery: input => commands.loadRecovery(input),
+    loadRequest: input => commands.loadRequest(input),
     claim: input => commands.claim(input),
     prepareDispatch: input => commands.prepareDispatch(input),
     recordMaterialization: input => commands.recordMaterialization(input),

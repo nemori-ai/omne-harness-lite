@@ -24,6 +24,7 @@ import {
   sha256,
 } from '../codec.ts'
 import { findPreadmission, preadmissionRecord } from './read-preadmission.ts'
+import { packText } from '@omne-harness/sql-contract/worker'
 import { big, oneRow, text, type Executor, type Row } from './support.ts'
 
 const PROTOCOL = '1'
@@ -247,8 +248,8 @@ function appendBatch(port: Executor, write: Write, pub: bigint): void {
         fact.event === null ? null : BigInt(fact.event.sequence),
         ord === 0 ? write.operation : null,
         json(fact.event?.kinds ?? []),
-        fact.event === null ? null : canonicalText(fact.event.projection),
-        fact.body,
+        fact.event === null ? null : packText(canonicalText(fact.event.projection)),
+        packText(fact.body),
       ],
     ),
   )
@@ -259,7 +260,7 @@ function storeBlobs(port: Executor, tenant: string, blobs: readonly Blob[]): voi
   for (const blob of blobs)
     port.execute(
       'INSERT OR IGNORE INTO sl_blob (tenant, digest, media, size, payload) VALUES (?, ?, ?, ?, ?)',
-      [tenant, blob.digest, blob.media, BigInt(utf8(blob.payload)), blob.payload],
+      [tenant, blob.digest, blob.media, BigInt(utf8(blob.payload)), packText(blob.payload)],
     )
 }
 

@@ -128,7 +128,7 @@ await provider.runtime.calls.dispatches(input)
 
 宿主负责提供可信稳定的 driveInput，不从普通请求推导执行资格。取消 operation 必须不同于原 admission。停止 drive 不取消原调用。当前实现不提供生产池或跨进程恢复。
 
-测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。controls.commands.configureResultPaging({tenant, call, resultPageParts, resultPageTargetBytes}) 只准备尚未收场且没有 read 的调用。两个数值须为正安全整数，结果冻结后拒绝修改。完整配置及最大表示预留进入原容量预算；失败原子不变。runtime 分页由注入的 Commands 拥有，内存测试不证明生产后端。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。
+测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页，所以消费者不能把目标当作硬接收上限。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。controls.commands.configureResultPaging({tenant, call, resultPageParts, resultPageTargetBytes}) 只准备尚未收场且没有 read 的调用。两个数值须为正安全整数，结果冻结后拒绝修改。完整配置及最大表示预留进入原容量预算；失败原子不变。runtime 分页由注入的 Commands 拥有，内存测试不证明生产后端。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。
 
 ## 产品发送构造
 

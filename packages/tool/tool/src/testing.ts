@@ -1,13 +1,9 @@
+import { randomBytes } from 'node:crypto'
+import type { ToolBodyPermitKey, ToolInstant } from '@omne-harness/tool-contract/provider'
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  Attachment,
-  ContentPage,
-  RawOutput,
-  ToolFailure,
-  ToolCatalog,
-} from '@omne-harness/tool-contract'
+import type { Attachment, ContentPage, ToolFailure, ToolCatalog } from '@omne-harness/tool-contract'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type {
   ToolContentReader,
@@ -27,7 +23,6 @@ import {
   createMemoryToolDecisionBridge,
   createMemoryToolEnvironment,
   createMemoryToolExecutorBinding,
-  createMemoryToolOutputCustody,
   createMemoryToolResourceResponses,
   createMemoryToolStartAuthority,
   type MemoryEnvironment,
@@ -35,9 +30,12 @@ import {
   type MemoryToolDecisionBridge,
   type MemoryToolEnvironment,
   type MemoryToolExecutorBinding,
-  type MemoryToolOutputCustody,
   type MemoryToolResourceResponses,
   type MemoryToolStartAuthority,
+  createManualInstantClock,
+  createMemoryToolBodyStore,
+  instantAt,
+  type MemoryToolBodyStore,
 } from '@omne-harness/tool-contract/testing'
 import { tenantKey } from './boundary.ts'
 import type { ToolDependencies, ToolLedgerConfiguration } from './construction.ts'
@@ -49,6 +47,7 @@ import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from './testi
 
 import type { ToolLedgerStoreFixture } from './testing-ledger-store-types.ts'
 import { storeCases } from './testing-ledger-store-cases.ts'
+import { dueCases } from './testing-ledger-due-cases.ts'
 import { storeFaultCases } from './testing-ledger-store-fault-cases.ts'
 import { compositionCases } from './testing-ledger-composition-cases.ts'
 import { createTestInvocationSource } from './testing-source.ts'
@@ -70,8 +69,8 @@ export type TestToolDependenciesInput<P> = Readonly<{
   operationIdentities: ToolOperationIdentities
   sourceIssuer: ToolInvocationSourceIssuer<P>
   bindingsFor(
-    executor: ToolExecutorBinding<P, ContentBlock, MemoryEnvironment>,
-  ): ToolBindings<P, ContentBlock, MemoryEnvironment>
+    executor: ToolExecutorBinding<P, MemoryEnvironment>,
+  ): ToolBindings<P, MemoryEnvironment>
 }>
 
 export type TestToolDoubles<P> = Readonly<{
@@ -81,14 +80,13 @@ export type TestToolDoubles<P> = Readonly<{
   clock: MemoryToolClock
   decisions: MemoryToolDecisionBridge<P>
   resources: MemoryToolResourceResponses<P>
-  custody: MemoryToolOutputCustody<P>
   content: MemoryToolContent<P>
 }>
 
 export type TestToolDependencies<P> = Readonly<{
   durability: 'none'
   dependencies: ToolDependencies<P, ContentBlock, MemoryEnvironment>
-  store: MemoryToolLedgerStore<ContentBlock>
+  store: MemoryToolLedgerStore
   ledger: ToolLedger<P, ContentBlock>
   doubles: TestToolDoubles<P>
 }>
@@ -99,16 +97,17 @@ export function createTestToolDependencies<P>(
 ): TestToolDependencies<P> {
   const content = createMemoryToolContent<P>()
   const doubles: TestToolDoubles<P> = {
-    executor: createMemoryToolExecutorBinding<P, MemoryEnvironment>(),
+    executor: createMemoryToolExecutorBinding<P, MemoryEnvironment>({
+      planFinal: input => ledger.finalPlanner.planFinal(input),
+    }),
     environment: createMemoryToolEnvironment<P>(),
     authority: createMemoryToolStartAuthority<P>(),
     clock: createMemoryToolClock(),
     decisions: createMemoryToolDecisionBridge<P>(),
     resources: createMemoryToolResourceResponses<P>(),
-    custody: content.custody,
     content,
   }
-  const store = createMemoryToolLedgerStore<ContentBlock>()
+  const store = createMemoryToolLedgerStore()
   const bindings = input.bindingsFor(doubles.executor.binding)
   const ledger = createToolLedger(
     store,
@@ -118,7 +117,11 @@ export function createTestToolDependencies<P>(
     },
     doubles.clock,
     input.configuration,
-    { custody: doubles.custody, releaseInspection: doubles.environment, content: content.reader },
+    {
+      bodies: createMemoryToolBodies(),
+      releaseInspection: doubles.environment,
+      content: content.reader,
+    },
   )
   return {
     durability: 'none',
@@ -130,7 +133,6 @@ export function createTestToolDependencies<P>(
       admissions: ledger.admissions,
       queues: ledger.queues,
       rejections: ledger.rejections,
-      facts: ledger.facts,
       reads: ledger.reads,
       bindings,
       environments: doubles.environment,
@@ -140,7 +142,6 @@ export function createTestToolDependencies<P>(
       resultPolicy: input.guards.policy,
       authority: doubles.authority,
       resources: doubles.resources,
-      custody: doubles.custody,
       catalog: input.catalog,
       children: input.children,
       operationIdentities: input.operationIdentities,
@@ -175,7 +176,6 @@ export type MemoryContentFault =
 export type MemoryToolContent<P> = Readonly<{
   durability: 'none'
   reader: Pick<ToolContentReader<P>, 'read'>
-  custody: MemoryToolOutputCustody<P>
   controls: Readonly<{
     seed(input: Seed<P>): Outcome<void, ToolFailure>
     remove(input: Omit<Seed<P>, 'bytes'>): void
@@ -210,7 +210,6 @@ function integrity(attachment: Attachment, bytes: Uint8Array): boolean {
 
 /** Bytes only. Association and current authorization are always checked by the real ledger. */
 export function createMemoryToolContent<P>(): MemoryToolContent<P> {
-  const source = createMemoryToolOutputCustody<P>()
   const bytesByAddress = new Map<string, Uint8Array>()
   let fault: MemoryContentFault | null = null
   let pause: Readonly<{ entered(): void; resumed: Promise<void> }> | null = null
@@ -222,29 +221,6 @@ export function createMemoryToolContent<P>(): MemoryToolContent<P> {
       return missing('source length or sha256 digest does not match')
     bytesByAddress.set(keyOf({ ...input, attachment: attachment.ok }), bytes)
     return succeed(undefined)
-  }
-  const register = async (input: CallAccess<P>, raw: RawOutput): Promise<void> => {
-    const kept = seed({
-      ...input,
-      attachment: raw.content,
-      bytes: await source.controls.readBytes(raw),
-    })
-    if ('failure' in kept) throw new Error('memory custody returned inconsistent bytes')
-  }
-  const custody: MemoryToolOutputCustody<P> = {
-    ...source,
-    preserve: async input => {
-      const fixed = { ...input, bytes: Uint8Array.from(input.bytes) }
-      const answer = await source.preserve(fixed)
-      if ('ok' in answer) await register(fixed, answer.ok)
-      return structuredClone(answer)
-    },
-    inspect: async input => {
-      const fixed = { ...input }
-      const answer = await source.inspect(fixed)
-      if ('ok' in answer && answer.ok.kind === 'retained') await register(fixed, answer.ok.raw)
-      return structuredClone(answer)
-    },
   }
   const page = (input: ReadInput<P>): Outcome<ContentPage, ToolFailure> => {
     const bytes = bytesByAddress.get(keyOf(input))
@@ -298,7 +274,6 @@ export function createMemoryToolContent<P>(): MemoryToolContent<P> {
   }
   return {
     durability: 'none',
-    custody,
     reader: {
       read: async input => {
         const attachment = fixAttachment(input.attachment)
@@ -360,6 +335,7 @@ const ledgerStoreCaseDependencies = {
 export function toolLedgerStoreConformance(): readonly ConformanceCase<ToolLedgerStoreFixture>[] {
   return [
     ...storeCases(ledgerStoreCaseDependencies),
+    ...dueCases(ledgerStoreCaseDependencies),
     ...storeFaultCases(ledgerStoreCaseDependencies),
   ]
 }
@@ -369,9 +345,9 @@ export function toolLedgerStoreCompositionConformance(): readonly ConformanceCas
   return compositionCases({
     ...ledgerStoreCaseDependencies,
     createLedger: createToolLedger,
+    bodies: () => createMemoryToolBodies(),
     source: createTestInvocationSource,
     clock: createMemoryToolClock,
-    custody: createMemoryToolOutputCustody,
     environment: createMemoryToolEnvironment,
   })
 }
@@ -398,4 +374,22 @@ export function toolAccessGuardConformance<P>(): readonly ConformanceCase<
   ToolAccessGuardFixture<P>
 >[] {
   return accessGuardCases<P>({ missing: ledgerStoreCaseDependencies.missing })
+}
+
+export { createTestResultChannels } from './testing-result-channels.ts'
+
+export type MemoryToolBodies = Readonly<{
+  store: MemoryToolBodyStore
+  permitKey: ToolBodyPermitKey
+  clock: ReturnType<typeof createManualInstantClock>
+}>
+
+/**
+ * The non-durable body custody of a test assembly: the memory body store, one permit key and a
+ * manual participant clock shared by issuer, settler, store and reader. Never a production fallback.
+ */
+export function createMemoryToolBodies(start: ToolInstant = instantAt(0)): MemoryToolBodies {
+  const permitKey = { secret: randomBytes(32) }
+  const clock = createManualInstantClock(start)
+  return { store: createMemoryToolBodyStore({ key: permitKey, clock }), permitKey, clock }
 }

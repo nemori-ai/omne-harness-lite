@@ -1,3 +1,5 @@
+import { structuredReturnFixture } from '@omne-harness/tool-contract/testing'
+import { toolsAdoption } from '../src/tools-protocol.ts'
 import { describe, expect, it } from 'vitest'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
@@ -8,7 +10,6 @@ import {
   sourceBlocks,
 } from './tools-model-values.ts'
 import { ok, principalB, tenantB } from './runtime-values.ts'
-import { result, visible } from './tools-values.ts'
 
 function expectFailure(view: readonly ToolMessageContentBlock[], code: string) {
   const text = modelText(view)
@@ -43,7 +44,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
       throw new Error('Not commands')
     expect(host.definition.commands.map(command => command.name)).toEqual(['help', 'read_result'])
     for (const command of host.definition.commands)
-      expect(command.returns).toEqual({ kind: 'structured', program: { kind: 'none' } })
+      expect(command.returns).toEqual(structuredReturnFixture(toolsAdoption))
     const initial = await host.present()
     let view = initial
     const observed: ToolMessageContentBlock[] = []
@@ -114,7 +115,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
       expect(modelText(view)).not.toContain('PRIVATE-DIAGNOSTIC')
     }
     expect(modelField(view, 'content')).toBe('end')
-    expect(modelText(view)).toContain('Attachment and offloaded original bytes are separate reads')
+    expect(modelText(view)).toContain('Attachments use kind=attachment')
     expect(host.actions).not.toContain('read-content')
     const chunks: Buffer[] = []
     let read = model.attachment(initial, 0)
@@ -140,7 +141,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     expect(host.sourceExecutions()).toBe(1)
   })
 
-  it('retains visible credentials after delivery release and adapter reconstruction', async () => {
+  it('reports released for result-bound attachment reads after delivery and adapter reconstruction', async () => {
     const host = await modelHost()
     const model = new PagingModel((await host.call('help', {})).view)
     const initial = await host.present()
@@ -149,11 +150,9 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     expect((await host.release()).kind).toBe('released')
     host.rebuild()
     const rebuilt = await host.present()
-    expect(modelField(rebuilt, 'reference')).toBe(modelField(initial, 'reference'))
-    expect(modelField(rebuilt, 'next')).toBe(modelField(initial, 'next'))
+    expectFailure(rebuilt, 'not-found (result: released)')
     const reply = await host.call('read_result', next)
-    expect(modelField(reply.view, 'reading')).toBe('success')
-    expect(modelField(reply.view, 'reference')).toBe(modelField(initial, 'reference'))
+    expectFailure(reply.view, 'not-found (result: released)')
     expect(host.sourceExecutions()).toBe(1)
   })
 
@@ -165,7 +164,7 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     if (next === null) throw new Error('No continuation')
     // R2-D357: another tenant's partition has no such call; it is answered as a missing one.
     const foreign = await host.call('read_result', next, { principal: principalB, tenant: tenantB })
-    expectFailure(foreign.view, 'invalid')
+    expectFailure(foreign.view, 'not-found (result: missing)')
     expect(foreign.full.attachments).toEqual([])
     expect(foreign.call.state.terminal.kind).toBe('completed')
     host.denied.push('read-result')
@@ -222,65 +221,10 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
     ]
     for (const [index, bad] of cases.entries()) {
       const reply = await host.call('read_result', bad)
-      expectFailure(reply.view, index === 2 ? 'invalid' : 'invalid-cursor')
+      expectFailure(reply.view, index === 2 ? 'not-found (result: missing)' : 'invalid-cursor')
       expect(reply.full.attachments).toEqual([])
       expect(reply.call.state.terminal.kind).toBe('completed')
     }
     expect(host.sourceExecutions()).toBe(1)
-  })
-
-  it('propagates real byte provider failure and checks raw qualification for an associated same-address description variant', async () => {
-    const host = await modelHost({
-      value: raw => {
-        const variant = { ...raw.content, mediaType: 'text/plain' }
-        expect(variant).not.toEqual(raw.content)
-        expect(variant.storage).toBe(raw.content.storage)
-        expect(variant.key).toBe(raw.content.key)
-        return {
-          ...result([visible('summary', 'summary only')], [raw.content, variant]),
-          original: {
-            kind: 'offloaded',
-            source: raw.content,
-            summary: [visible('summary', 'summary only')],
-          },
-        }
-      },
-    })
-    const model = new PagingModel((await host.call('help', {})).view)
-    const initial = await host.present()
-    expect(modelField(initial, 'content')).toBe('end')
-    expect(modelField(initial, 'original')).toBe('offloaded; bytes unread')
-    expect(host.sourceDefinition.returns).toEqual({ kind: 'structured', program: { kind: 'none' } })
-    host.denied.push('read-raw')
-    for (const read of [
-      model.original(initial),
-      model.attachment(initial, 0),
-      model.attachment(initial, 1),
-    ]) {
-      const before = host.actions.length
-      const reply = await host.call('read_result', read)
-      expectFailure(reply.view, 'denied (read-raw-content)')
-      expect(reply.full.attachments).toEqual([])
-      expect(modelText(reply.view)).not.toContain('summary only')
-      const actions = host.actions.slice(before)
-      expect(actions.filter(action => action === 'read-raw-content')).toHaveLength(1)
-      expect(actions.at(-1)).toBe('read-raw-content')
-      expect(host.actions.slice(before)).not.toContain('read-raw')
-    }
-    const bytesHost = await modelHost()
-    const ordinaryInitial = await bytesHost.present()
-    bytesHost.denied.push('read-raw')
-    const first = await bytesHost.call('read_result', model.attachment(ordinaryInitial, 0))
-    expect(modelField(first.view, 'reading')).toBe('success')
-    expect(bytesHost.actions).toContain('read-content')
-    expect(bytesHost.actions).not.toContain('read-raw-content')
-    expect(bytesHost.reads.content).not.toHaveProperty('raw')
-    bytesHost.content.controls.failNext({ kind: 'failure' })
-    const next = model.continue(first.view)
-    if (next === null) throw new Error('No byte continuation')
-    const failed = await bytesHost.call('read_result', next)
-    expectFailure(failed.view, 'unavailable')
-    expect(failed.full.attachments).toEqual([])
-    expect(bytesHost.sourceExecutions()).toBe(1)
   })
 })

@@ -67,7 +67,12 @@ it('detects lost-registration queries that reuse a cached allocation fact', asyn
       access,
       ...backing.controls,
       forgetRegistration: preparation => {
-        stale = backing.inspectPreparation({ ...access, call: preparation.call, preparation })
+        stale = backing.inspectPreparation({
+          ...access,
+          call: preparation.call,
+          preparation,
+          request: fixedRequest(),
+        })
         backing.controls.forgetRegistration(preparation)
       },
     }),
@@ -116,7 +121,7 @@ it('release before first adoption permanently removes the allocation and cannot 
     'prepare',
     fixedRequest(),
   )
-  const input = { ...access, call: preparation.call, preparation }
+  const input = { ...access, call: preparation.call, preparation, request: fixedRequest() }
   environment.controls.allocateBeforeAdoption()
   await environment.prepare(input)
   const allocation = await environment.inspectPreparation(input)
@@ -142,10 +147,15 @@ it('settling a held preparation issues exactly one lease and does not affect a d
   const other = preparationRecord(access, callId('absent'), 'absent-prepare', fixedRequest())
   environment.controls.failAdoption(other, 'not present')
   expect(
-    await environment.inspectPreparation({ ...access, call: other.call, preparation: other }),
+    await environment.inspectPreparation({
+      ...access,
+      call: other.call,
+      preparation: other,
+      request: fixedRequest(),
+    }),
   ).toHaveProperty('ok.kind', 'unknown')
   environment.controls.hold()
-  const input = { ...access, call: preparation.call, preparation }
+  const input = { ...access, call: preparation.call, preparation, request: fixedRequest() }
   expect(await environment.prepare(input)).toHaveProperty('ok.kind', 'pending')
   await environment.controls.settle()
   await environment.controls.settle()

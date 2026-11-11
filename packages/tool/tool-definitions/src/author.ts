@@ -1,3 +1,4 @@
+import { textReturns } from './returns.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   bindingKinds,
@@ -27,7 +28,7 @@ import { bounded } from './text.ts'
 
 /** How the model calls Files and Shell through their one declaration (D-94, R2-D396). */
 export const ENCODING: CommandCallEncoding = 'wrapped'
-const returns = { kind: 'ordinary', program: { kind: 'none' } } as const
+const returns = textReturns(adoption)
 
 export function createAuthor<E>(
   name: string,

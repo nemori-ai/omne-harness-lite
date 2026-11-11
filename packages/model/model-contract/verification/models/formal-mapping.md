@@ -12,7 +12,7 @@
 | P2 | 保管链：ACK 只对 saved 的结果发；acknowledged 必须经 owner 的证据适配器确认（R2-D257）；清理与份额释放只在 ACK 之后；saved 只认原键原 owner 的回执；unknown 只被 saved 取代；saved 终态；已保存的接收方不会被遗忘；账目只在结果 saved 之后推 | SPEC「saved 到 ACK 及清理」「ACK 的前提与效果」「清理范围与读写保护」「晚到账目与有界保管」；model-host-local SPEC「运行门面与结果推送」 | 份额在 ACK 前释放，唯一副本丢失；伪证据接管；接收方已保存的结果永远不再推 | `runtime-push.spec.ts` 的场景用例 | `AckNeedsSaved`、`AckNeedsAdapter`、`ReleaseNeedsAck`、`SavedReceiptMatches`、`SavedReceiverNotLost`、`UnknownOnlyToSaved`、`SavedIsFinal`、`AccountsAfterResultSaved`；守卫为现有 `runtime-push.spec.ts` 的场景用例 |
 | P3 | 每次唤醒的推送工作量有界：一个交付至多推 `1 + maxRedeliveries` 次；`unavailable`、`backpressured`、`cancelled-before-accept` 与无接收方只等下一次唤醒（R2-D273） | model-host-local SPEC「推送与回执」 | 热循环，CPU 与日志被打满 | 只有代码结构 | `PushesPerWakeBounded`；守卫 `runtime-push-bounds.spec.ts`；[证明](../proofs/README.md#p3-每次唤醒的推送次数) |
 | P4 | 推送台账有界：接纳晚账前先占名额，待交付晚账不超过上限，saved 后归还；清理释放后只留键与回执 | SPEC「晚到账目与有界保管」；model-host-local SPEC「晚到账目」「清理」 | 名额不归还，租户晚账永远被拒；正文不丢，已确认调用无界累积 | `runtime-push.spec.ts` 的超界用例 | `PendingAccountsBounded`、`ReservationsMatch`、`BodyDroppedAfterRelease`、进展 `AccountsEventuallyAccepted`；守卫为现有超界用例；[证明](../proofs/README.md#p4-待交付晚账有界) |
-| P5 | 结果容量诚实且不截断：受理按请求的容量预留，总预留不超过份额；超容量的写入可见失败 | SPEC 受理表、`ResultCapacity` 一段 | 静默截断：内容与账目不一致却报成功 | `memory-consumption.spec.ts` | `CapacityHonest`、`NoSilentTruncation`；守卫 `admission-guards.spec.ts`（份额部分） |
+| P5 | 份额按个数不超占：每个已受理、结果未被确认并释放的调用占一个名额；份额已满时受理答 unavailable 且不占名额 | SPEC 受理表、「按租户的串行区与公平」 | 一个租户的未确认结果无界累积 | `memory-consumption.spec.ts` | `ShareHonest`；守卫 `admission-guards.spec.ts`（份额部分） |
 | P6 | 别租户读调用不披露 | SPEC「调用和各次真实发出」「结果、失败和状态」 | 跨租户泄漏 | 存储按租户分区 | `TenantIsolation`；守卫 `admission-guards.spec.ts` |
 | 进展 | 唤醒不断、接收方与适配器回来后不再离开、接收方最终 saved、清理最终成功时：每个收场的调用最终释放份额；每个接纳的晚账最终 saved；每个被提供的晚账最终被接纳 | 同 P2、P4 | 份额永远被占 | 无 | `EventuallyReleased`、`AccountsEventuallySaved`、`AccountsEventuallyAccepted`（`LiveSpec`，`RefusalsInPlay = FALSE`） |
 
@@ -25,8 +25,8 @@
 | `AdmitCommit`、`AdmitConflict`、`AdmitReplay` | `commands.ts` 的 `admit`：记录已存在答 conflict；同身份同输入答 recovered |
 | `AdmitUnknown`、`Resolve` | 存储提交答 `unknown`；未决写的绑定状态 `unknown`；`Resolve` 是排除旧写者后的权威读 |
 | `Recall` | `commands.ts` 的 `recall`：先查同身份的未决写，答 `commit-unknown`；再查记录 |
-| `Fits` | `admit` 的份额检查：已用加本次请求不超过 `limits.capacity` |
-| `Write` | `state.ts` 的写入：材料字节超过调用容量答 `capacity` |
+| `Fits`、`AdmitFull` | `admit` 的份额检查：存储报告的持有个数小于 `limits.unacknowledgedResults` 才受理，否则答 unavailable |
+| `ReleaseOther` | ACK 与清理完成后请求材料释放，该调用不再计入持有个数 |
 | `ForeignRecall` | 存储按租户键分区，加授权核对 |
 
 ## ResultPush 与源码
@@ -48,7 +48,7 @@
 
 | 文件 | 守的性质 | 驱动与判读 | 负控（源码变异） |
 | --- | --- | --- | --- |
-| `model/tests/admission-guards.spec.ts` | P1、P5、P6 | 枚举未知受理的全部合法效果与揭示：揭示前 recall 与重入都答 commit-unknown；揭示后两者一致；换 operation 答 conflict 且记录不变；份额 600000 两次第二次被拒，400000 恰好放入；另一租户读不到 | N1 recall 不看未决写：三个枚举用例全红。N2 份额不检查：份额用例变红 |
+| `model/tests/admission-guards.spec.ts` | P1、P5、P6 | 枚举未知受理的全部合法效果与揭示：揭示前 recall 与重入都答 commit-unknown；揭示后两者一致；换 operation 答 conflict 且记录不变；份额为 2 时第三个调用被拒且不落任何记录，重入已受理的调用不重复占名额；另一租户读不到 | N1 recall 不看未决写：三个枚举用例全红。N2 份额不检查：份额用例变红 |
 | `model-host-local/tests/runtime-push-bounds.spec.ts` | P3 | 真实插件与脚本接收方：接收方一直答 unavailable 或 backpressured 时一次唤醒只推一次；一直答 outcome-unknown 时一次唤醒推 `1 + maxRedeliveries` 次 | N3 unavailable 与 backpressured 时继续重推：两个用例变红 |
 | `model-host-local/tests/runtime-push.spec.ts`（已有） | P2、P4 | 场景用例：saved 四事实缺一不 ACK、外来回执不算 saved、unknown 重投、证据不可用时保留份额、晚账超界被拒 | N5 去掉晚账名额检查：两个晚账用例变红。N4 去掉 `clean` 的 ACK 判断：没有用例变红，见下 |
 

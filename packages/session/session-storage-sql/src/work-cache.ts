@@ -20,7 +20,7 @@ import {
   type SessionHistoryReads,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
-import type { DomainRef, JsonValue, SqlStorage } from '@omne-harness/sql-contract'
+import { type DomainRef, type JsonValue, type SqlStorage } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue } from './codec.ts'
 import { readEntryTexts, StoredEntryMalformed } from './entry-codec.ts'
 import type { HistoryBasis, WorkIndexInput } from './worker/history-index.ts'
@@ -160,41 +160,12 @@ export function createWorkCache(bounds: WorkCacheBounds = {}): WorkCache {
 const caches = new WeakMap<object, WorkCache>()
 
 /**
- * The symbol under which a Cordis service proxy answers the object it wraps (`symbols.original` of
- * `@deepseek-ai/cordis`, a registered symbol). A plain object answers undefined.
- */
-const CORDIS_ORIGINAL = Symbol.for('cordis.original')
-/** How many proxy layers `storeOf` looks through. */
-const PROXY_DEPTH = 8
-
-/**
- * The identity of the database behind `storage`. Cordis hands each plugin context its own proxy
- * of one service object, so the proxies are unwrapped to that object first. Then the object's own
- * `read` function is the identity: a provider makes one `read` closure over its own database, and
- * a wrapper that copies the methods of a storage (an assembly that registers a port as a service)
- * copies that closure, so it reads the same database. A `read` that is not an own function (a
- * class method, shared by every instance) is no identity, and the object itself is used. Two
- * storages over different databases therefore never share an identity; two objects over one
- * database share it only when they share the provider's `read`.
- */
-export function storeOf(storage: SqlStorage): object {
-  let target: object = storage
-  for (let depth = 0; depth < PROXY_DEPTH; depth += 1) {
-    const inner: unknown = (target as { readonly [key: symbol]: unknown })[CORDIS_ORIGINAL]
-    if (typeof inner !== 'object' || inner === null || inner === target) break
-    target = inner
-  }
-  const read: unknown = Object.getOwnPropertyDescriptor(target, 'read')?.value
-  return typeof read === 'function' ? read : target
-}
-
-/**
  * The one cache of a database: the ports, the delegated views, the binding source and the Journal
- * provider that read it through any storage object of the same identity (`storeOf`) share it. The
+ * provider that read it through any storage object of the same identity (`SqlStorage.database` of `sql-contract`) share it. The
  * bounds of the first caller that reaches the database hold for every later one.
  */
 export function workCacheOf(storage: SqlStorage, bounds?: WorkCacheBounds): WorkCache {
-  const store = storeOf(storage)
+  const store = storage.database
   let cache = caches.get(store)
   if (cache === undefined) {
     cache = createWorkCache(bounds)
@@ -432,11 +403,11 @@ export type WorkFoldCounts = {
 }
 
 /**
- * A copy of the fold counts of the database behind `storage` (`storeOf`); all zero while no
+ * A copy of the fold counts of the database behind `storage` (`SqlStorage.database` of `sql-contract`); all zero while no
  * reader or writer reached its cache.
  */
 export function workFoldCounts(storage: SqlStorage): WorkFoldCounts {
-  const cache = caches.get(storeOf(storage))
+  const cache = caches.get(storage.database)
   return cache === undefined
     ? { folded: 0, indexed: 0, skipped: 0, quarantined: 0, stale: 0, republished: 0 }
     : { ...cache.counts }

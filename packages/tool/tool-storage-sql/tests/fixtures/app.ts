@@ -7,13 +7,14 @@ import { join } from 'node:path'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { TenantDomainLookup } from '@omne-harness/sql-contract'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
-import {
-  createSqlToolLedgerStore,
-  type SqlToolOutputCustodyOptions,
-  type SqlToolStorageOptions,
-} from '../../src/index.ts'
+import { createSqlToolLedgerStore, type SqlToolStorageOptions } from '../../src/index.ts'
 import { createFaultyStorage, type FaultyStorage } from './faults.ts'
-import { createSqliteStorage, domainRef, type SqliteStorage } from './sqlite-storage.ts'
+import {
+  createSqliteStorage,
+  domainRef,
+  type SqliteStorage,
+  type StatementObserver,
+} from './sqlite-storage.ts'
 
 /** The tenants of the tool conformance suites and of the coordinator tests. */
 export const SUITE_TENANTS: readonly TenantId[] = [
@@ -52,7 +53,6 @@ export type App = Readonly<{
   sqlite: SqliteStorage
   faults: FaultyStorage
   options: SqlToolStorageOptions
-  custodyOptions(overrides?: Partial<SqlToolOutputCustodyOptions>): SqlToolOutputCustodyOptions
   store: ReturnType<typeof createSqlToolLedgerStore>
   /** Closes the databases and removes the directory. */
   close(): void
@@ -77,13 +77,19 @@ function lookupOf(tenants: readonly TenantId[]): TenantDomainLookup {
  * registered with the `tool` combination, as the session storage composite would do.
  */
 export async function openApp(
-  input: Readonly<{ directory?: string; maxCommandBytes?: number; keep?: boolean }> = {},
+  input: Readonly<{
+    directory?: string
+    maxCommandBytes?: number
+    keep?: boolean
+    observe?: StatementObserver
+  }> = {},
 ): Promise<App> {
   const directory =
     input.directory ?? realpathSync(mkdtempSync(join(tmpdir(), 'tool-storage-sql-')))
   const sqlite = createSqliteStorage({
     directory,
     maxCommandBytes: input.maxCommandBytes ?? MAX_COMMAND_BYTES,
+    ...(input.observe === undefined ? {} : { observe: input.observe }),
   })
   for (const tenant of SUITE_TENANTS) {
     const domain = domainRef(textOf(tenant), domainNameOf(tenant))
@@ -105,12 +111,6 @@ export async function openApp(
     sqlite,
     faults,
     options,
-    custodyOptions: overrides => ({
-      ...options,
-      maxCommandBytes: input.maxCommandBytes ?? MAX_COMMAND_BYTES,
-      maxChunkBytes: 4096,
-      ...overrides,
-    }),
     store: createSqlToolLedgerStore(options),
     close: () => {
       sqlite.close()

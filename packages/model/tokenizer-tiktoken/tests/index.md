@@ -16,7 +16,8 @@
 - [support/resources.ts](support/resources.ts)：两份词表、固定特殊 token 表、独立算出的摘要常量与资源构造
 - [fixtures/](fixtures/index.md)：测试固定输入
 
-- [executor.spec.ts](executor.spec.ts)：真实 worker 的准入、缓存、取消与关闭
+- [executor.spec.ts](executor.spec.ts)：真实 worker 的准入、缓存、取消与关闭，以及大于一次作业的输入按各作业之和计数
+- [input-jobs.spec.ts](input-jobs.spec.ts)：一次计数输入切成作业：每次作业不超过上界、拼回原输入、不切字符与 special-token
 - [executor-lifecycle.spec.ts](executor-lifecycle.spec.ts)：受控故障下的物理结清、身份和公平调度
 - [support/executor.ts](support/executor.ts)：显式测试限额与 executor 清理
 - [support/controlled-worker.ts](support/controlled-worker.ts)：私有可控线程故障 seam

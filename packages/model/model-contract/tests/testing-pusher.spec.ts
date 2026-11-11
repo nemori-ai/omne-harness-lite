@@ -483,9 +483,7 @@ describe('what the push-producer double records instead of a save', () => {
     })
     expect(h.pusher.deliveries()).toEqual([])
     const longest = 'y'.repeat(242)
-    await admitted(h, longest, [], {
-      capacity: { bytes: '4000', blocks: '10', attachmentBytes: '0' },
-    })
+    await admitted(h, longest)
     settle(h, longest)
     expect((await within(h.pusher.settled(callRef(longest)), 'settled')).status).toBe('saved')
   })

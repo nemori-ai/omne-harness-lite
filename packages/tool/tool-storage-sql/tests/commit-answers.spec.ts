@@ -1,24 +1,15 @@
-// TS-02 and TS-04: how the answer of one SQL commit becomes the answer of the port. A reason that
-// comes from the state of the storage at this moment answers `unavailable`, because the same commit
-// can be accepted later; a reason that comes from the commit itself or from the assembly answers
-// `rejected` (the ledger port) or `invalid` with `field: storage` (the custody), because the same
-// commit is refused again whenever it is sent (sql-contract「提交拒绝原因的定性」).
+// TS-02: how the answer of one SQL commit becomes the answer of the port. A reason that comes from
+// the state of the storage at this moment answers `unavailable`, because the same commit can be
+// accepted later; a reason that comes from the commit itself or from the assembly answers
+// `rejected`, because the same commit is refused again whenever it is sent (sql-contract
+// 「提交拒绝原因的定性」).
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ContentBlock } from '@omne-harness/content-block'
 import type { CommitRejectReason, CommitResultV2, SqlStorage } from '@omne-harness/sql-contract'
 import type { LedgerCommitInput, LedgerDomain, LedgerRecord } from '@omne-harness/tool'
-import {
-  decodeToolCallId,
-  decodeToolOperationId,
-  type DurableEvidence,
-} from '@omne-harness/tool-contract'
+import { decodeToolCallId } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
-import {
-  createSqlToolGuardedHostCommit,
-  createSqlToolLedgerStore,
-  createSqlToolOutputCustody,
-} from '../src/index.ts'
-import { openApp, TENANT_A, type App } from './fixtures/app.ts'
+import { createSqlToolLedgerStore } from '../src/index.ts'
+import { openApp, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
 
 const opened: App[] = []
 
@@ -43,16 +34,12 @@ const callDomain: Extract<LedgerDomain, { kind: 'call' }> = {
   tenant: TENANT_A,
   call: decoded(decodeToolCallId('call-1')),
 }
-const hostDomain: LedgerDomain = { kind: 'host', tenant: TENANT_A, key: 'permits' }
-const host = (key: string, value: unknown = key): LedgerRecord<ContentBlock> => ({
+const host = (key: string, value: unknown = key): LedgerRecord => ({
   kind: 'host',
   host: { key, value },
 })
 
-function commitOf(
-  domain: LedgerDomain,
-  ...records: LedgerRecord<ContentBlock>[]
-): LedgerCommitInput<ContentBlock> {
+function commitOf(domain: LedgerDomain, ...records: LedgerRecord[]): LedgerCommitInput {
   return {
     domain,
     expected: revision('0'),
@@ -118,26 +105,11 @@ describe('a ledger commit rejected before acceptance', () => {
     const a = await app({ maxCommandBytes: 4096 })
     const answer = await a.store.commit(commitOf(callDomain, host('big', 'x'.repeat(8192))))
     expect(answer).toEqual({ kind: 'rejected', reason: 'command_limit' })
-    expect(await a.store.read(callDomain)).toEqual({ kind: 'complete', revision: '0', records: [] })
-  })
-
-  it('answers the same through the guarded host commit', async () => {
-    const a = await app()
-    const guard = createSqlToolGuardedHostCommit({
-      ...a.options,
-      storage: refusing(a, 'command_limit'),
+    expect(await a.store.read(callDomain)).toEqual({
+      kind: 'complete',
+      revision: '0',
+      records: [],
     })
-    const input = {
-      call: callDomain,
-      callExpected: revision('0'),
-      hostCommit: commitOf(hostDomain),
-    }
-    expect(await guard.commit(input)).toEqual({ kind: 'rejected', reason: 'command_limit' })
-    const transient = createSqlToolGuardedHostCommit({
-      ...a.options,
-      storage: refusing(a, 'queue_full'),
-    })
-    expect(await transient.commit(input)).toMatchObject({ kind: 'unavailable' })
   })
 })
 
@@ -149,7 +121,11 @@ describe('a ledger commit the participant rolled back without a revision stop', 
     const answer = await a.store.commit(commitOf(callDomain, host('a'), host('b')))
     expect(answer).toMatchObject({ kind: 'rejected' })
     expect(answer.kind === 'rejected' && answer.reason.length).toBeGreaterThan(0)
-    expect(await a.store.read(callDomain)).toEqual({ kind: 'complete', revision: '0', records: [] })
+    expect(await a.store.read(callDomain)).toEqual({
+      kind: 'complete',
+      revision: '0',
+      records: [],
+    })
   })
 })
 
@@ -162,56 +138,24 @@ describe('a write set that is not strict JSON', () => {
     })
     expect(a.faults.commits()).toBe(before)
   })
+})
 
-  it('is rejected by the guarded host commit before any commit is sent', async () => {
+describe('a commit whose assertion names a domain of another tenant', () => {
+  it('is rejected by the ledger store before any commit is sent', async () => {
     const a = await app()
-    const guard = createSqlToolGuardedHostCommit(a.options)
     const before = a.faults.commits()
+    const foreign: LedgerDomain = { kind: 'host', tenant: TENANT_B, key: 'guards' }
     expect(
-      await guard.commit({
-        call: callDomain,
-        callExpected: revision('0'),
-        hostCommit: commitOf(hostDomain, host('bad', 1n)),
+      await a.store.commit({
+        ...commitOf(callDomain, host('a')),
+        asserts: [{ domain: foreign, revision: revision('0') }],
       }),
     ).toMatchObject({ kind: 'rejected' })
     expect(a.faults.commits()).toBe(before)
-  })
-})
-
-describe('a chunk or manifest commit of the custody rejected before acceptance', () => {
-  const source: DurableEvidence = {
-    owner: 'test',
-    record: 'final',
-    revision: '1',
-    digest: 'sha256:final',
-  }
-  const preserve = {
-    principal: 'tester',
-    tenant: TENANT_A,
-    call: decoded(decodeToolCallId('call-1')),
-    operation: decoded(decodeToolOperationId('preserve-1')),
-    codec: { owner: 'test', name: 'bytes', revision: '1', digest: 'sha256:bytes' },
-    bytes: new Uint8Array([1, 2, 3]),
-    source,
-  }
-
-  it('answers invalid with field storage for a definite reason', async () => {
-    const a = await app()
-    const custody = createSqlToolOutputCustody<string>(
-      a.custodyOptions({ storage: refusing(a, 'command_limit') }),
-    )
-    expect(await custody.preserve(preserve)).toEqual({
-      failure: { kind: 'invalid', field: 'storage', reason: 'command_limit' },
+    expect(await a.store.read(callDomain)).toEqual({
+      kind: 'complete',
+      revision: '0',
+      records: [],
     })
-  })
-
-  it('answers unavailable naming the reason for a transient reason', async () => {
-    const a = await app()
-    const custody = createSqlToolOutputCustody<string>(
-      a.custodyOptions({ storage: refusing(a, 'queue_full') }),
-    )
-    const answer = await custody.preserve(preserve)
-    expect(answer).toMatchObject({ failure: { kind: 'unavailable' } })
-    expect(JSON.stringify(answer)).toContain('queue_full')
   })
 })

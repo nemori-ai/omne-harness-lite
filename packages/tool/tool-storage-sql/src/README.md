@@ -16,6 +16,8 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-`guarded-host-commit.ts` 提供原调用修订与 host CAS 在同一事务内的提交。`ledger-wire.ts` 供它和记录仓共用地址、写入编码与 SQL 结果映射。
+`ledger-wire.ts` 放记录仓共用的地址、写入与断言编码和 SQL 结果映射。 `ledger-keeper.ts` 是记录仓的快照保管者（TS-16）：决定是不读写存储的全函数，`Crossings` 判断读取途中有没有提交经过，`keeping` 把两者接到记录仓端口上。
 
-`index.ts` 是根入口。`ledger-store.ts` 与 `custody.ts` 是两个端口适配器，`tenant.ts` 解析租户的事务域并构造提交请求，`json.ts` 做严格 JSON 编码，`options.ts` 放选项与构造期核对，`materials.ts` 描述静态材料。`worker/` 是在 SQL 提供者的 Worker 内运行的模块：`participant.ts`（`tool` 参加者）、`migration.ts`、三个读 handler（`read-ledger.ts`、`read-manifest.ts`、`read-chunk.ts`），以及它们共用的 `schema.ts`、`facts.ts`、`support.ts`。Worker 模块只导入 `sql-contract` 的根与 `./worker` 入口。负责人是 tool-exec 线。
+`index.ts` 是根入口。`ledger-store.ts` 与 `body-store.ts` 是两个端口适配器，`tenant.ts` 解析租户的事务域并构造提交请求，`json.ts` 做严格 JSON 编码，`options.ts` 放选项，`materials.ts` 描述静态材料。`worker/` 是在 SQL 提供者的 Worker 内运行的模块：`participant.ts`（`tool` 参加者的账本写入与到期索引）、`participant-body.ts`（正文命令）、`migration.ts`、三个读 handler（`read-ledger.ts`、`read-body.ts`、`read-due.ts`），以及它们共用的 `schema.ts`、`facts.ts`、`support.ts`。Worker 模块只导入 `sql-contract` 的根与 `./worker` 入口。负责人是 tool-exec 线。
+
+正文的期限、授权与回收时机归 Tool 账本，不在这些适配器内。

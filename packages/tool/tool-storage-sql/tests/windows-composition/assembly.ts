@@ -1,3 +1,4 @@
+import { createMemoryToolBodies } from '@omne-harness/tool/testing'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { appendFile, mkdir, realpath, writeFile } from 'node:fs/promises'
@@ -89,6 +90,41 @@ const configuration: ToolConfiguration = {
   queueCapacity: 64,
   driverRetryDelayMs: 50,
   driverStepsPerRun: 32,
+  readResultArguments: {
+    maxBytes: 65_536,
+    maxDepth: 32,
+    maxItems: 4096,
+    maxMembers: 256,
+    maxStringLength: 32_768,
+    maxNumberLength: 64,
+  },
+  offloading: {
+    maxInlineUtf8Bytes: 65_536,
+    maxRetentionMs: 86_400_000,
+    maxBodyBytes: 16_777_216,
+    previewUtf8Bytes: 1_024,
+    maxPageBytes: 65_536,
+    permitMs: 30_000,
+    clockSkewMs: 1_000,
+    orphanGraceMs: 60_000,
+    maxWriterMetadataBytes: 1_048_576,
+    jsonDocument: {
+      maxBytes: 1_048_576,
+      maxDepth: 64,
+      maxItems: 65_536,
+      maxMembers: 65_536,
+      maxStringLength: 1_048_576,
+      maxNumberLength: 64,
+    },
+    jsonRecord: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 4096,
+      maxMembers: 4096,
+      maxStringLength: 65_536,
+      maxNumberLength: 64,
+    },
+  },
 }
 
 async function cleanupStep<T>(failures: Error[], step: string, operation: () => T | Promise<T>) {
@@ -156,7 +192,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
     const store = witness.store
     const state = createEnvironmentStateStore({
       store,
-      guarded: sql.guarded,
       mode: 'production',
       commitAttempts: configuration.ledgerCommitAttempts,
     })
@@ -301,7 +336,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
       store,
       // This composition configures no request policy, so no start carries a condition.
       conditionalCommit: { commit: async ({ ledger }) => store.commit(ledger) },
-      custody: sql.custody,
+      bodies: createMemoryToolBodies(),
       content: null,
       sources,
       access: authority.access,
@@ -335,7 +370,6 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
           name: 'real-host-environment',
           revision: '1',
         }),
-        guarded: sql.guarded,
         naming: authority.naming,
         cleanup: {
           settle: async () =>
@@ -347,7 +381,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
         },
         plan: {
           requirement: async request => {
-            const checked = await schemas.check(request.preparation.request.availability.definition)
+            const checked = await schemas.check(request.request.availability.definition)
             if ('failure' in checked) return checked
             if (!checked.ok.layers.includes('host_machine'))
               return fail({ kind: 'denied', action: 'windows-e2-placement' })
@@ -364,7 +398,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
             const view = await ledgers(request)
             return succeed({
               origin,
-              scope: request.preparation.request.requesterScope,
+              scope: request.request.requesterScope,
               retention: { scope: authority.scope, ledger: view.retained },
             })
           },

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { operationId } from '@omne-harness/session-contract/testing'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
 import { kindOf } from './fixtures/entries.ts'
+import { packedLiteral } from './fixtures/packed.ts'
 
 async function planted(): Promise<App> {
   const a = await app()
@@ -27,12 +28,12 @@ async function planted(): Promise<App> {
   )
   a.provider.seed(
     domain,
-    "INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes) VALUES (?, ?, 1, 1, 'x', '{}', 2)",
+    `INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes) VALUES (?, ?, 1, 1, 'x', ${packedLiteral('{}')}, 2)`,
     [b, 'ghost'],
   )
   a.provider.seed(
     domain,
-    "INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, 'sop_x', 'd', 'batch', 1, '{}', '{}')",
+    `INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, 'sop_x', 'd', 'batch', 1, ${packedLiteral('{}')}, ${packedLiteral('{}')})`,
     [b, 'ghost'],
   )
   a.provider.seed(

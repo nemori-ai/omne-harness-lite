@@ -1,8 +1,10 @@
+import { readJsonText } from '@omne-harness/json-text'
 // The construction-time checks of the configuration (342: capacities positive, delays
 // non-negative and finite, the driver retry delay a timer can hold, all verified at load). A bad configuration is an assembly defect, so
 // each check throws instead of building a runtime or a ledger that would misbehave later.
 import type { ToolConfiguration, ToolLedgerConfiguration } from './construction.ts'
 import { isPositiveSafeInteger, judgeAuthorLimits } from './limits.ts'
+import { lateWriteWindowMs, offloadingFits, SYSTEM_RETURN } from './result-offloading.ts'
 
 const LEDGER_CAPACITIES = [
   'resultPageBytes',
@@ -47,6 +49,8 @@ function isRuntimeBudget(key: string): boolean {
   return (
     (CAPACITIES as readonly string[]).includes(key) ||
     (DELAYS as readonly string[]).includes(key) ||
+    key === 'offloading' ||
+    key === 'readResultArguments' ||
     key === 'driverStepsPerRun' ||
     key === 'driverRetryDelayMs'
   )
@@ -65,6 +69,7 @@ export function checkToolConfiguration(configuration: ToolConfiguration): void {
     'configuration',
   )
   if ('failure' in limits) throw new TypeError(`${limits.failure.field}: ${limits.failure.reason}`)
+  checkResultConfiguration(configuration)
   checkCapacities(configuration, CAPACITIES)
   if (
     Reflect.get(configuration, 'driverStepsPerRun') !== undefined &&
@@ -85,5 +90,37 @@ export function checkToolConfiguration(configuration: ToolConfiguration): void {
 export function checkLedgerConfiguration(configuration: ToolLedgerConfiguration): void {
   if (typeof configuration !== 'object' || configuration === null)
     throw new TypeError('configuration: type')
-  checkCapacities(configuration, LEDGER_CAPACITIES)
+  checkResultConfiguration(configuration)
+  checkCapacities(configuration, [...LEDGER_CAPACITIES, 'authorBufferBytes', 'authorBufferItems'])
+}
+
+function checkResultConfiguration(configuration: ToolLedgerConfiguration): void {
+  readJsonText('null', configuration.readResultArguments)
+  const policy = configuration.offloading
+  if (typeof policy !== 'object' || policy === null)
+    throw new TypeError('configuration.offloading: required')
+  readJsonText('null', policy.jsonDocument)
+  readJsonText('null', policy.jsonRecord)
+  checkCapacities(policy, [
+    'maxInlineUtf8Bytes',
+    'maxRetentionMs',
+    'maxBodyBytes',
+    'previewUtf8Bytes',
+    'maxPageBytes',
+    'maxWriterMetadataBytes',
+    'permitMs',
+    'orphanGraceMs',
+  ])
+  if (policy.previewDivisor !== undefined) checkCapacities(policy, ['previewDivisor'])
+  if (!isNonNegativeSafeInteger(policy.clockSkewMs))
+    throw new TypeError('configuration.offloading.clockSkewMs: range')
+  // A sweep after the due instant and a late write within its permit must not meet (model
+  // negative controls `grace-too-small` and `ttl-too-small`).
+  const window = lateWriteWindowMs(policy)
+  if (policy.orphanGraceMs <= window)
+    throw new TypeError('configuration.offloading.orphanGraceMs: not-above-late-write-window')
+  if (policy.maxRetentionMs <= window)
+    throw new TypeError('configuration.offloading.maxRetentionMs: not-above-late-write-window')
+  if (!offloadingFits(SYSTEM_RETURN, policy))
+    throw new TypeError('configuration.offloading: header-and-preview-exceed-threshold')
 }

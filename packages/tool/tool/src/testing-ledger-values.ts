@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import type { ContentBlock } from '@omne-harness/content-block'
+
 import { decodeToolCallId, decodeToolOperationId } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -20,7 +20,7 @@ export function success<T>(answer: Outcome<T, unknown>, message = 'fixture value
 export const revision = (text: string) => success(decodeToolRevision(text))
 export const callId = (text: string) => success(decodeToolCallId(text))
 export const operationId = (text: string) => success(decodeToolOperationId(text))
-export const hostRecord = (key: string, value: unknown): LedgerRecord<ContentBlock> => ({
+export const hostRecord = (key: string, value: unknown): LedgerRecord => ({
   kind: 'host',
   host: { key, value },
 })
@@ -33,10 +33,10 @@ export function storeDomain(deps: StoreCaseDependencies): LedgerDomain {
 }
 export function batch(
   domain: LedgerDomain,
-  records: readonly LedgerRecord<ContentBlock>[],
+  records: readonly LedgerRecord[],
   expected = '0',
   next = '1',
-): LedgerCommitInput<ContentBlock> {
+): LedgerCommitInput {
   return {
     domain,
     expected: revision(expected),
@@ -44,16 +44,16 @@ export function batch(
     writes: records.map(record => ({ kind: 'put', record })),
   }
 }
-export async function complete(store: ToolLedgerStore<ContentBlock>, domain: LedgerDomain) {
+export async function complete(store: ToolLedgerStore, domain: LedgerDomain) {
   const read = await store.read(domain)
   assert.equal(read.kind, 'complete', 'store read must return a complete snapshot')
   assert.ok(read.kind === 'complete')
   return { ...read, records: sortedRecords(read.records) }
 }
 export function snapshot(
-  read: LedgerRead<ContentBlock>,
+  read: LedgerRead,
   next: string,
-  records: readonly LedgerRecord<ContentBlock>[],
+  records: readonly LedgerRecord[],
   message: string,
 ): void {
   assert.equal(read.kind, 'complete', message)
@@ -61,7 +61,7 @@ export function snapshot(
   assert.equal(read.revision, next, message)
   assert.deepEqual(sortedRecords(read.records), sortedRecords(records), message)
 }
-function sortedRecords(records: readonly LedgerRecord<ContentBlock>[]) {
+function sortedRecords(records: readonly LedgerRecord[]) {
   return [...records].sort((a, b) => recordKey(a).localeCompare(recordKey(b)))
 }
 export function required<T>(offered: T | undefined, name: string, deps: StoreCaseDependencies): T {

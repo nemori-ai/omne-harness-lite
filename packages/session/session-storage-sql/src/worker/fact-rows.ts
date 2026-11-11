@@ -5,8 +5,18 @@
 // has a publication count but no batch at publication 1 (the migration dropped its records and
 // moved none): it answers `missing`, and its reader answers `unavailable`.
 import type { JsonValue } from '@omne-harness/sql-contract'
+import type { SqlValue } from '@omne-harness/sql-contract/worker'
 import { EXECUTION_BATCH_MAX_FACTS } from '../codec.ts'
-import { big, oneRow, text, type Executor, type Row, type Scope } from './support.ts'
+import {
+  big,
+  oneRow,
+  packed,
+  rowsOf,
+  text,
+  type Executor,
+  type Row,
+  type Scope,
+} from './support.ts'
 
 /** The most fact rows one page reads: two whole batches of the largest size fit. */
 export const FACT_PAGE_ROWS = 2 * EXECUTION_BATCH_MAX_FACTS
@@ -14,6 +24,15 @@ export const FACT_PAGE_ROWS = 2 * EXECUTION_BATCH_MAX_FACTS
 export const FACT_PAGE_TEXT = 256 * 1024
 
 export const FACT_COLUMNS = 'pub, ord, execution, kind, eseq, op, kinds, event, body'
+
+/** The rows of a `FACT_COLUMNS` statement, with the packed `event` and `body` as their texts. */
+export function factRows(port: Executor, sql: string, params: readonly SqlValue[]): Row[] {
+  return rowsOf(port, sql, params).map(row => ({
+    ...row,
+    event: row['event'] === null ? null : packed(row['event']),
+    body: packed(row['body']),
+  }))
+}
 
 /** One fact row as a reader gets it. `event` and `body` are the JSON the writer gave. */
 export type FactOutput = {

@@ -467,7 +467,7 @@ describe('resolutions keep reasons and credentials as scripted (M06)', () => {
 })
 
 describe('failures stay what they are (M07)', () => {
-  it('returns a source failure as set, apart from absent, and a full model failure such as capacity', async () => {
+  it('returns a source failure as set, apart from absent, and a full model failure such as not-settled', async () => {
     const principal = new Agent('alice')
     const access: Access<Agent> = { tenant: tenantA(), principal }
     const scripted = createScriptedModelProfiles<Agent>()
@@ -480,10 +480,8 @@ describe('failures stay what they are (M07)', () => {
       { ...access, route: 'gone', required: requirement() },
       { ok: { kind: 'absent', reason: 'unknown-name' } },
     )
-    const capacity = {
-      failure: { kind: 'capacity', required: { bytes: '1', blocks: '1', attachmentBytes: '0' } },
-    } as const
-    scripted.setList({ ...access, selected: null, required: requirement() }, capacity)
+    const notSettled = { failure: { kind: 'not-settled' } } as const
+    scripted.setList({ ...access, selected: null, required: requirement() }, notSettled)
     const down = await scripted.profiles.resolve({
       ...access,
       route: 'down',
@@ -498,7 +496,7 @@ describe('failures stay what they are (M07)', () => {
     expect(gone).not.toEqual(down)
     expect(
       await scripted.profiles.list({ ...access, selected: null, required: requirement() }),
-    ).toEqual(capacity)
+    ).toEqual(notSettled)
   })
 
   it('answers an unavailable control plane before any scripted answer', async () => {

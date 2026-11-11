@@ -1,3 +1,4 @@
+import { jobsOf } from '../src/input-jobs.ts'
 import { expect, it } from 'vitest'
 import { createTiktokenExecutor } from '../src/index.ts'
 import { executorOf, limits } from './support/executor.ts'
@@ -91,14 +92,43 @@ it('rejects input, per-lease queue, global queue and live-lease excess without s
   expect(executor.acquire(resources.definition, new AbortController().signal)).toHaveProperty(
     'failure',
   )
-  expect(await lease.ok.tokenizer.count([{ kind: 'text', text: 'a'.repeat(256) }])).toHaveProperty(
-    'failure',
-  )
+  // A special token cannot be cut: one that a job cannot hold is refused.
+  expect(
+    await lease.ok.tokenizer.count([{ kind: 'special-token', name: 'n'.repeat(256) }]),
+  ).toEqual({
+    failure: { kind: 'unavailable', diagnostic: 'tokenizer retained input limit exceeded' },
+  })
   const one = lease.ok.tokenizer.count([{ kind: 'text', text: 'abcd' }])
   const two = lease.ok.tokenizer.count([{ kind: 'text', text: 'ab' }])
   expect(await lease.ok.tokenizer.count([])).toHaveProperty('failure')
   expect(await one).toEqual({ ok: { tokens: '1' } })
   expect(await two).toEqual({ ok: { tokens: '1' } })
+}, 15000)
+
+it('counts an input larger than one job as the sum of its jobs', async () => {
+  const resources = syntheticResources()
+  const input = [{ kind: 'text', text: 'abcde fgh '.repeat(100) }] as const
+  const small = await executorOf([resources], { maxInputBytes: 256 })
+  const large = await executorOf([resources])
+  const cut = small.acquire(resources.definition, new AbortController().signal)
+  const whole = large.acquire(resources.definition, new AbortController().signal)
+  if ('failure' in cut || 'failure' in whole) throw new Error('acquire failed')
+  const jobs = [...jobsOf(input, 256)]
+  expect(jobs.length).toBeGreaterThan(10)
+  let sum = 0n
+  for (const job of jobs) {
+    const counted = await whole.ok.tokenizer.count(job)
+    if (!('ok' in counted)) throw new Error('count failed')
+    sum += BigInt(counted.ok.tokens)
+  }
+  expect(await cut.ok.tokenizer.count(input)).toEqual({ ok: { tokens: String(sum) } })
+  // The same input in one job: the cuts change the count by a few tokens at most.
+  const one = await whole.ok.tokenizer.count(input)
+  if (!('ok' in one)) throw new Error('count failed')
+  const difference = sum - BigInt(one.ok.tokens)
+  expect(difference >= 0n ? difference : -difference).toBeLessThanOrEqual(BigInt(2 * jobs.length))
+  await small.close()
+  await large.close()
 }, 15000)
 
 it('cancels queued and running counts, then waits for physical settlement on release', async () => {

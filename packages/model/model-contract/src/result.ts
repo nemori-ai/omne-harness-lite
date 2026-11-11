@@ -13,7 +13,6 @@ import type {
   ModelOperationId,
   Mutation,
   OutputCursor,
-  ResultCapacity,
   ResultVersion,
   Revision,
   DispatchId,
@@ -24,7 +23,6 @@ export type ModelFailure =
   | Readonly<{ kind: 'invalid'; field: string; reason: string }>
   | Readonly<{ kind: 'unsupported'; field: string; adapter: Adoption }>
   | Readonly<{ kind: 'conflict'; operation: ModelOperationId; revision: Revision }>
-  | Readonly<{ kind: 'capacity'; required: ResultCapacity }>
   | Readonly<{ kind: 'unavailable'; dependency: string; diagnostic: string }>
   | Readonly<{ kind: 'commit-unknown'; operation: ModelOperationId }>
   | Readonly<{ kind: 'stale-instance'; instance: ModelInstanceId }>

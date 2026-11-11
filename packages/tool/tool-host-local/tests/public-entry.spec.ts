@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import * as root from '@omne-harness/tool-host-local'
 import {
   describeImport,
   memberPath,
@@ -8,17 +9,17 @@ import {
   type ModuleKind,
 } from './module-graph.ts'
 
-it('root entry exports the local start coordinator (G5), the host clock (G4), the registry and Catalog (G7), the absent ports and the guard factories (TL-11)', async () => {
-  const root = (await import('@omne-harness/tool-host-local')) as Record<string, unknown>
+it('root entry exports the local start coordinator (G5), the host clock (G4), the registry and Catalog (G7), the absent ports and the guard factories (TL-11)', () => {
   expect(Object.keys(root).sort()).toEqual([
-    'INVOCATION_SOURCE_DOMAIN_KEY',
     'PROGRAMMATIC_NOT_IN_M2',
-    'START_COORDINATOR_DOMAIN_KEY',
     'START_COORDINATOR_OWNER',
+    'START_GUARDS_DOMAIN_KEY',
     'TOOL_FORWARDING_OWNER',
+    'callHostDomain',
     'createAbsentToolPorts',
     'createEnvironmentResourceLedger',
     'createEnvironmentStateStore',
+    'createLocalCallRecords',
     'createLocalGrantVerifiers',
     'createLocalInvocationQualifier',
     'createLocalInvocationSource',
@@ -29,6 +30,7 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'createLocalTextResults',
     'createLocalToolBindingRegistry',
     'createLocalToolBindings',
+    'createLocalToolBodySchemas',
     'createLocalToolCatalog',
     'createLocalToolClock',
     'createLocalToolControlSubjects',
@@ -36,9 +38,12 @@ it('root entry exports the local start coordinator (G5), the host clock (G4), th
     'createLocalToolForwarding',
     'createLocalToolLedgerGuards',
     'createLocalToolLoader',
+    'createLocalToolResultDelivery',
     'createRetainedTerminalLedger',
     'localArgumentLimits',
+    'retentionHostDomain',
     'startCoordinatorAdoption',
+    'tenantHostDomain',
   ])
 })
 
