@@ -81,3 +81,28 @@ P2 的守卫以失效证据返回的那一步作为围栏点。这比模型的�
 - 多个 start 和多个守卫资源的组合，只由证明推广，没有机检。
 - 路径守卫 `withinRoot` 与 `placePath` 的属性测试没有写。
 - 表项的释放是在 worker 观察到离开时发生，不是转移的瞬间。没有守卫去测一个既不被驱动、也不被执行器释放的调用；执行器的 `calls` 表只经退役、改由他实例、关闭三条路径放弃调用，三条都释放。
+
+## DormantCalls 与源码
+
+[DormantCalls.tla](models/DormantCalls.tla) 检查一个暂停等人的调用与一个进程里的执行器：调用休眠之后怎样被找回。运行记录见 [formal-runs.md](formal-runs.md#dormantcalls)。
+
+| 性质 | 含义 | 违背后果 | 负控 |
+| --- | --- | --- | --- |
+| `DecisionTaken` | 决定出现之后终被调用接受，提示丢失时也是 | 人答了，调用永远不恢复 | `no-rescan`：不再开恢复扫描 |
+| `HintIsEnough` | 提示排入的那一次 run 就接受决定，不等扫描 | 人答了之后要等到下一轮扫描才恢复 | `no-reentry`：run 不认回不在表里的调用；`leave-after-run`：run 先返回，条目后退场，下一次 run 遇到正在退场的条目而空过 |
+| `DormantIsNotTicked` | 定时器不重排已离开内存表的调用 | 等人的调用每拍空转 | 无（由 `WaitingLeavesTable` 的负控间接覆盖） |
+| `WaitingLeavesTable` | 等人而无事可做的调用离开内存表 | 等人的调用占着执行器的容量，占满后收不进新调用 | `no-dormant`：idle 之后不移出 |
+
+| 模型 | 源码（`src/runtime-executor.ts`） |
+| --- | --- |
+| `present` | 内存表 `calls` 里有这个调用 |
+| `queued` | 实例宿主为它排着一次 run；来源是定时器、提示或扫描 |
+| `Tick` | 重试 interval 对表里每个未完成、未休眠的条目调 `instances.schedule` |
+| `Scan` | `sweep` 按待办标记 `remember` 并 `schedule`；`rearmScan` 每 `RESCAN_TICKS` 拍把结束的扫描再开 |
+| `Run` 的认回 | `entryOf`：不在表里的调用读恢复，`owesWork` 成立就 `remember` |
+| `Run` 的休眠 | 运行答 `idle`，并且 `waitsForPerson` 成立（阶段 `suspended`、所停的 Ask 等待为 `open`、没有 `pending` 待办，与驱动 `decide` 问决策方之前的判据同形）时置 `dormant`；run 的收尾等 `retire` 把条目移出之后才返回 |
+| `Run` 是一步 | 实例宿主对同一个调用串行地跑 run（`instance-host.ts` 的 `advance`），run 进行中到达的排入只置 `dirty`，run 返回后再跑一次；休眠的退场在 run 返回之前完成，所以下一次 run 看不到退场到一半的条目 |
+| `leaving`、`Leave` | 只在负控 `leave-after-run` 里出现：收尾不等 `retire`，条目的 `retiring` 为真时 run 直接返回 |
+| `Answer` | 决策方收到人的答复；提示是应用的 `wakeOnDecision` 调 `schedule`，可能到不了 |
+
+模型没有展开：多个调用与容量（表满时走「再开扫描」这条已建模的路）、控制的提示（与决定的提示同一入口）、进程重启（启动扫描与周期扫描是同一个动作）。源码一侧的守卫是 [checkpoint.spec.ts](../tests/runtime-composition/checkpoint.spec.ts) 的五条用例。前四条各对应一个手工变异：不休眠、不认回、不重扫、不看账本就认回。第五条是「决定在空转的 run 结束时到达」：本机宿主的清理都在内存里，退场只要几个微任务，收尾不等退场时这条用例也通过；把清理人为放慢 50 毫秒后，不等退场的写法变红（提示落空，由扫描找回），等退场的写法通过。所以这一条性质由构造保证，用例守的是场景本身。

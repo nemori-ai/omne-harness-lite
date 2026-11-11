@@ -44,6 +44,11 @@ function bridge(lost: boolean) {
   const registrations = new Map<string, DurableEvidence>()
   const ensured: string[] = []
   const inspected: string[] = []
+  // How often the driver asked for the decision of a wait.
+  let polls = 0
+  // Called once, when the driver next hears that a registered wait has no decision.
+  let undecided: ((input: Parameters<ToolDecisionBridge<unknown>['inspect']>[0]) => void) | null =
+    null
   const resolved: string[] = []
   const invalidated: string[] = []
   const decided = new Map<string, DecisionValue>()
@@ -78,13 +83,17 @@ function bridge(lost: boolean) {
     },
     // A registered wait reports no decision until the person decides it.
     inspect: async input => {
+      polls += 1
       const registration = registrations.get(`${input.wait}/ensure`)
       if (registration === undefined)
         return fail({ kind: 'invalid', field: 'wait', reason: 'not-registered' })
-      return succeed({
-        registration,
-        decision: decided.has(input.wait) ? decisionOf(input.wait) : null,
-      })
+      const decision = decided.has(input.wait) ? decisionOf(input.wait) : null
+      if (decision === null) {
+        const heard = undecided
+        undecided = null
+        heard?.(input)
+      }
+      return succeed({ registration, decision })
     },
     // 失效按操作记下，回执由等待派生。
     invalidate: async input => {
@@ -105,7 +114,17 @@ function bridge(lost: boolean) {
     },
   }
   const decide = (wait: string, value: DecisionValue) => void decided.set(wait, value)
-  return { decisions, ensured, inspected, resolved, invalidated, decide }
+  const whenUndecided = (heard: NonNullable<typeof undecided>) => void (undecided = heard)
+  return {
+    decisions,
+    ensured,
+    inspected,
+    resolved,
+    invalidated,
+    decide,
+    whenUndecided,
+    polls: () => polls,
+  }
 }
 
 it.each([false, true])(
@@ -277,6 +296,162 @@ it('resumes the call from its checkpoint once after the decision, and ends it wi
     expect(after.invocations[1]).toMatchObject({ operation: `${wait}/resume` })
     const result = await world.settled(reference)
     expect(JSON.stringify(result)).toContain('resumed')
+  } finally {
+    await world.close()
+  }
+})
+
+/** A checkpointed author that asks once and ends with the answer. */
+const askingAuthor = (scripted: ReturnType<typeof bridge>) => ({
+  waits: [ask],
+  decisions: scripted.decisions,
+  executor: {
+    checkpoint: {
+      schema: { id: 'state', revision: '1', digest: 'sha256:state' },
+      codec: adoption('state-codec'),
+      maxBytes: 64,
+    },
+    initial: async () =>
+      succeed({
+        kind: 'suspended' as const,
+        closedResult: CLOSED,
+        state: new TextEncoder().encode('{"asked":1}'),
+        wait: {
+          kind: 'ask' as const,
+          key: 'k',
+          contract: ask,
+          request: { kind: 'string' as const, value: 'which?' },
+        },
+      }),
+    resume: async () => succeed({ kind: 'completed' as const, value: 'resumed' }),
+  },
+})
+
+/** A world whose one call asks a person. `arm` runs before the call is invoked. */
+async function askedCall(
+  scripted: ReturnType<typeof bridge>,
+  arm: (world: Awaited<ReturnType<typeof fixture>>) => void = () => undefined,
+) {
+  const world = await fixture(
+    undefined,
+    undefined,
+    32,
+    false,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    askingAuthor(scripted) as never,
+  )
+  arm(world)
+  const reference = accepted(await world.api.invoke(world.invocation('asked')))
+  const parts = unbox(resolveToolInvocationRef(reference, world.tenantA))
+  const access = { tenant: world.tenantA, principal: 'alice', call: parts.call }
+  const recovery = async () => unbox(await world.root.toolCommands.loadRecovery(access))
+  const executor = () => world.plugins.diagnostics().executor
+  return { world, parts, recovery, executor }
+}
+
+/** A world whose one call is suspended on an open wait, with the things a test asks of it. */
+async function waitingCall(scripted: ReturnType<typeof bridge>) {
+  const asked = await askedCall(scripted)
+  await expect
+    .poll(async () => (await asked.recovery()).waits[0]?.phase, { timeout: 3_000 })
+    .toBe('open')
+  const wait = (await asked.recovery()).waits[0]!.intent.wait
+  return { ...asked, wait }
+}
+
+it('a call that waits for a person leaves the executor: no slot of its table, and no run at the retry interval', async () => {
+  const scripted = bridge(false)
+  const { world, recovery, executor } = await waitingCall(scripted)
+  try {
+    // The call is parked and owes nothing: the executor lets it go.
+    await expect.poll(() => executor().knownCalls, { timeout: 3_000 }).toBe(0)
+    expect(executor().dormantExits).toBeGreaterThanOrEqual(1)
+    // Many retry intervals pass (10 ms each): the driver does not ask for the decision again.
+    const asked = scripted.polls()
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(scripted.polls()).toBe(asked)
+    expect((await recovery()).state.phase).toBe('suspended')
+  } finally {
+    await world.close()
+  }
+})
+
+it('the hint of a decision brings the dormant call back, and it resumes once', async () => {
+  const scripted = bridge(false)
+  const { world, parts, recovery, wait, executor } = await waitingCall(scripted)
+  try {
+    await expect.poll(() => executor().knownCalls, { timeout: 3_000 }).toBe(0)
+    scripted.decide(wait, { kind: 'answer', value: { kind: 'string', value: 'b.txt' } })
+    unbox(await world.root.toolInstanceHost.schedule({ tenant: world.tenantA, call: parts.call }))
+    await expect
+      .poll(async () => (await recovery()).state.phase, { timeout: 3_000 })
+      .toBe('settled')
+    expect(executor().reentries).toBe(1)
+    expect(executor().unownedRuns).toBe(0)
+    expect(scripted.resolved).toEqual([wait])
+  } finally {
+    await world.close()
+  }
+})
+
+it('a decision that comes while the idle run ends is taken by the run its hint queued', async () => {
+  const scripted = bridge(false)
+  // The person decides right after the driver heard "no decision", and the hint comes during that
+  // run: the instance host runs the call once more when the run returns.
+  const { world, recovery, executor } = await askedCall(scripted, armed => {
+    scripted.whenUndecided(input => {
+      scripted.decide(input.wait, { kind: 'answer', value: { kind: 'string', value: 'b.txt' } })
+      void armed.root.toolInstanceHost.schedule({ tenant: input.tenant, call: input.call })
+    })
+  })
+  try {
+    await expect
+      .poll(async () => (await recovery()).state.phase, { timeout: 3_000 })
+      .toBe('settled')
+    // The run after the idle one took the call back from the ledger; the scan was not needed.
+    expect(executor().dormantExits).toBe(1)
+    expect(executor().reentries).toBe(1)
+    expect(scripted.resolved).toHaveLength(1)
+  } finally {
+    await world.close()
+  }
+})
+
+it('a decision whose hint was lost is found by the recovery scan, which runs again at a long period', async () => {
+  const scripted = bridge(false)
+  const { world, recovery, wait, executor } = await waitingCall(scripted)
+  try {
+    await expect.poll(() => executor().knownCalls, { timeout: 3_000 }).toBe(0)
+    // The person decides and nothing schedules the call.
+    scripted.decide(wait, { kind: 'answer', value: { kind: 'string', value: 'b.txt' } })
+    await expect
+      .poll(async () => (await recovery()).state.phase, { timeout: 5_000 })
+      .toBe('settled')
+    expect(scripted.resolved).toEqual([wait])
+    expect(executor().recoveredCalls).toBeGreaterThanOrEqual(1)
+  } finally {
+    await world.close()
+  }
+})
+
+it('a run for a call the ledger owes nothing is not taken into the table', async () => {
+  const scripted = bridge(false)
+  const { world, parts, recovery, wait, executor } = await waitingCall(scripted)
+  try {
+    scripted.decide(wait, { kind: 'answer', value: { kind: 'string', value: 'b.txt' } })
+    unbox(await world.root.toolInstanceHost.schedule({ tenant: world.tenantA, call: parts.call }))
+    await expect
+      .poll(async () => (await recovery()).state.phase, { timeout: 3_000 })
+      .toBe('settled')
+    await expect.poll(() => executor().knownCalls, { timeout: 3_000 }).toBe(0)
+    // The call is settled and delivered: a stray hint finds no work and leaves the table alone.
+    const before = executor().unownedRuns
+    unbox(await world.root.toolInstanceHost.schedule({ tenant: world.tenantA, call: parts.call }))
+    await expect.poll(() => executor().unownedRuns).toBe(before + 1)
+    expect(executor().knownCalls).toBe(0)
   } finally {
     await world.close()
   }

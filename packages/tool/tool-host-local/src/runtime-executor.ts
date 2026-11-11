@@ -51,8 +51,20 @@ type Entry = {
    * done. A complete entry is not rescheduled and retires once no run is in progress.
    */
   complete: boolean
+  /**
+   * Judged after a run that was idle: the call is suspended on a wait and owes nothing now. A
+   * dormant entry leaves the table once no run is in progress; a hint, a run the instance host
+   * queued or the recovery scan brings the call back (model DormantCalls).
+   */
+  dormant: boolean
   progress: string
 }
+
+/** The wait phases a suspended call still has work on: registering, the decision, the resume. */
+const LIVE_WAIT: ReadonlySet<string> = new Set(['opening', 'open', 'responding'])
+
+/** How many timer ticks pass before a finished recovery scan is armed again. */
+const RESCAN_TICKS = 60
 
 /** 启动扫描每次向账本要的一页调用数。 */
 const RECOVERY_PAGE = 100
@@ -104,6 +116,8 @@ export function createRuntimeExecutor(
   let completed = 0
   let foreignExecutionRuns = 0
   let unownedRuns = 0
+  let dormantExits = 0
+  let reentries = 0
   const delivery = createLocalToolResultDelivery({
     store: settings.store,
     commands: dependencies.commands,
@@ -148,6 +162,7 @@ export function createRuntimeExecutor(
       retiring: false,
       running: false,
       complete: false,
+      dormant: false,
       progress: 'not-run',
     })
     return true
@@ -247,7 +262,8 @@ export function createRuntimeExecutor(
   })
   const retire = async (wake: Wake, entry: Entry): Promise<void> => {
     const key = keyOf(wake)
-    if (!entry.complete || entry.running || entry.retiring || calls.get(key) !== entry) return
+    const leaving = entry.complete || entry.dormant
+    if (!leaving || entry.running || entry.retiring || calls.get(key) !== entry) return
     entry.retiring = true
     entry.publication?.close('closed')
     try {
@@ -255,6 +271,7 @@ export function createRuntimeExecutor(
     } catch {
       entry.retiring = false
       entry.complete = false
+      entry.dormant = false
       input.ctx
         .logger('tool-executor')
         .warn('Instance observation cleanup is unconfirmed; the local index is retained.')
@@ -265,7 +282,48 @@ export function createRuntimeExecutor(
       stops.forget(key)
       delivery.release(wake)
     }
-    completed += 1
+    if (entry.complete) completed += 1
+    else dormantExits += 1
+  }
+  /**
+   * Whether the ledger shows work of the call that a run would do: a pending task, or a suspended
+   * call with a live wait. It is what the pending marker of the record store says (Tool SPEC 33).
+   */
+  const owesWork = (recovery: Recovered): boolean =>
+    recovery.ok.tasks.some(task => task.state === 'pending') ||
+    (recovery.ok.state.phase === 'suspended' &&
+      recovery.ok.waits.some(wait => LIVE_WAIT.has(wait.phase)))
+  /**
+   * Whether only a person can move the call: it is suspended on an Ask wait that is open, and no
+   * task is pending. An idle run of such a call asked the decision owner and heard no decision.
+   */
+  const waitsForPerson = (recovery: Recovered): boolean => {
+    const { state, waits, tasks } = recovery.ok
+    if (state.phase !== 'suspended' || state.wait.kind !== 'ask') return false
+    const asked = state.wait.wait
+    return (
+      !tasks.some(task => task.state === 'pending') &&
+      waits.some(wait => wait.phase === 'open' && wait.intent.wait === asked)
+    )
+  }
+  /**
+   * The entry of a run. A call the table holds runs under its entry. A call it does not hold is a
+   * dormant call that a hint or a late run woke: it comes back when the ledger shows work of it
+   * and the table has room. With no room the recovery scan is armed again and finds it later.
+   */
+  const entryOf = async (
+    step: Parameters<ToolDriver<unknown>['run']>[0],
+  ): Promise<Entry | null> => {
+    const known = calls.get(keyOf(step))
+    if (known !== undefined) return known
+    const recovery = await dependencies.commands.loadRecovery(step)
+    if ('failure' in recovery || !owesWork(recovery)) return null
+    if (remember(step)) {
+      reentries += 1
+      return calls.get(keyOf(step)) ?? null
+    }
+    rearmScan()
+    return null
   }
   /**
    * Drives the delivery of the call and judges the outcome. The delivery worker owns its own
@@ -294,13 +352,15 @@ export function createRuntimeExecutor(
   }
   const advancing: ToolDriver<unknown> = {
     async run(step) {
-      const entry = calls.get(keyOf(step))
-      if (entry === undefined) {
+      if (abort.signal.aborted) return
+      const entry = await entryOf(step)
+      if (entry === null) {
         unownedRuns += 1
         return
       }
       if (abort.signal.aborted) return
       if (entry.retiring) return
+      entry.dormant = false
       entry.running = true
       try {
         const before = await dependencies.commands.loadRecovery(step)
@@ -333,12 +393,20 @@ export function createRuntimeExecutor(
         if (abort.signal.aborted) return
         const after = await dependencies.commands.loadRecovery(step)
         if ('failure' in after) return
+        if (progress.kind === 'idle' && waitsForPerson(after)) {
+          entry.dormant = true
+          return
+        }
         publish(step, after, entry)
         await entry.publication?.refresh(step, after.ok.admission)
         deliver(step, entry, after)
       } finally {
         entry.running = false
-        void retire(step, entry)
+        // A dormant call leaves before its run returns: the run the host starts next finds the
+        // call gone and takes it back from the ledger, so a hint that came meanwhile is not lost.
+        const dormant = entry.dormant
+        const left = retire(step, entry)
+        if (dormant) await left
       }
     },
   }
@@ -358,6 +426,15 @@ export function createRuntimeExecutor(
   const scanFailed = (message: string) => {
     if (!scan.failing) warn(message)
     scan.failing = true
+  }
+  /**
+   * Arms a finished scan again, from the start: a dormant call whose hint was lost, or that found
+   * no room when its hint came, is found by its pending marker.
+   */
+  function rearmScan(): void {
+    if (scan.state !== 'done') return
+    scan.state = 'waiting'
+    scan.after = null
   }
   /**
    * 启动扫描（契约 P09 recover）：按待办标记分页找回有待推进工作的调用，记入内存表并调度，驱动按
@@ -407,11 +484,15 @@ export function createRuntimeExecutor(
   }
   const retryMs = settings.configuration.driverRetryDelayMs ?? 1000
   // Live calls only: a complete call has nothing left to drive and retires on its own.
+  let ticksSinceScan = 0
   const timer = setInterval(() => {
     for (const entry of calls.values()) {
-      if (entry.retiring || entry.complete) continue
+      if (entry.retiring || entry.complete || entry.dormant) continue
       void dependencies.instances.schedule(entry.wake).catch(() => undefined)
     }
+    // The long fallback for a lost hint: a finished scan runs again every RESCAN_TICKS ticks.
+    ticksSinceScan = scan.state === 'done' ? ticksSinceScan + 1 : 0
+    if (ticksSinceScan >= RESCAN_TICKS) rearmScan()
     void sweep()
   }, retryMs)
   timer.unref()
@@ -429,6 +510,8 @@ export function createRuntimeExecutor(
       knownCalls: calls.size,
       pacedDeliveries: delivery.pacedEntries(),
       completed,
+      dormantExits,
+      reentries,
       foreignExecutionRuns,
       unownedRuns,
       recoveryScan: scan.state,
