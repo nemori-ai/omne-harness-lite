@@ -23,8 +23,10 @@ import { storageCatalog } from '../storage/catalog.ts'
  * participants and the Session guard `session.run-live` joined for the Ask waits of Tool
  * (`rows/tool-hitl`), and the Tool ledger gained the pending-call marker table
  * (`tool/r6-002-tool-pending`) for the recovery scan, adopting combination /9.
+ * The Session writer answers the batch it wrote, so that every committer of the session log tells
+ * it (#1230); its material and the manifest digest changed, adopting combination /10.
  */
-export const COMBINATION_VERSION = 'session-composite/9'
+export const COMBINATION_VERSION = 'session-composite/10'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string
