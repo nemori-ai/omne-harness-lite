@@ -123,6 +123,10 @@ describe('answers outside the binding', () => {
       outcome: 'succeeded',
       body: OPEN,
     })
+    const cut = await serve({ ...jsonReply(200, { outcome: 'succeeded', body: {} }), cut: true })
+    expect(await createHttpProtocolTransport({ origin: cut.origin }).call(request)).toEqual({
+      kind: 'uncertain',
+    })
     const plain = await serve({
       status: 200,
       headers: { 'content-type': 'text/plain' },

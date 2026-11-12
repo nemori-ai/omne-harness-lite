@@ -14,6 +14,8 @@ export interface Reply {
   readonly body?: string | Buffer
   /** Close the connection after the request arrived, without any answer. */
   readonly hangUp?: true
+  /** Write the head and the first half of the body, then close the connection. */
+  readonly cut?: true
 }
 
 export interface LoopbackServer {
@@ -50,6 +52,12 @@ export async function startLoopback(
       void Promise.resolve(handler(item)).then(reply => {
         if (reply.hangUp === true) {
           request.socket.destroy()
+          return
+        }
+        if (reply.cut === true) {
+          const body = Buffer.from(reply.body ?? '')
+          response.writeHead(reply.status, { ...reply.headers, 'content-length': body.length })
+          response.write(body.subarray(0, body.length >> 1), () => request.socket.destroy())
           return
         }
         response.writeHead(reply.status, reply.headers)
