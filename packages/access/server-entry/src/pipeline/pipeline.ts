@@ -23,6 +23,12 @@ export type PipelineAccess = Readonly<{
   graceMs: number
   /** The clock of the grace. Absent: the system clock. */
   clock?: Clock
+  /**
+   * Receives one event at each error point of the pipeline. Separate from the entry's
+   * `ServerEntryDiagnostic`, whose codes the assembly maps one by one. A sink that throws changes
+   * no answer.
+   */
+  diagnostics?: (event: PipelineDiagnostic) => void
 }>
 
 /** The in-flight budget the new address shares with the three existing locations. */
@@ -72,7 +78,6 @@ export type PipelineSettings = Readonly<{
   /** The budgets for writing an answer. */
   writeLimits: JsonLimits
   slots: RequestSlots
-  diagnostics: (event: PipelineDiagnostic) => void
 }>
 
 export type Admission =
@@ -169,6 +174,13 @@ export type Pipeline = Readonly<{
 
 export function createPipeline(access: PipelineAccess, settings: PipelineSettings): Pipeline {
   const clock = access.clock ?? systemClock
+  const diagnose = (event: PipelineDiagnostic): void => {
+    try {
+      access.diagnostics?.(event)
+    } catch {
+      // The sink is the host's; its failure is not the pipeline's to report.
+    }
+  }
 
   /** Steps 7 to 14 of one entered call. `leave` is called exactly once on every path. */
   async function serve(
@@ -178,7 +190,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
   ): Promise<void> {
     const { address, entered, contract } = admitted
     const note = (code: PipelineDiagnosticCode): void =>
-      settings.diagnostics(eventOf(code, address.path, address))
+      diagnose(eventOf(code, address.path, address))
     const messageId = messageIdOf(req)
     if (messageId === undefined) {
       note('access.message-id-rejected')
@@ -282,13 +294,13 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     async handle(req, res) {
       const admission = admit(req, access.registry, settings.loopback)
       if (admission.kind === 'refused') {
-        settings.diagnostics(eventOf(admission.code, admission.path, admission.address))
+        diagnose(eventOf(admission.code, admission.path, admission.address))
         writeBare(res, admission.status, admission.status === 405 ? { allow: 'POST' } : {})
         return
       }
       const release = settings.slots.take(res)
       if (release === undefined) {
-        settings.diagnostics(eventOf('access.busy', admission.address.path, admission.address))
+        diagnose(eventOf('access.busy', admission.address.path, admission.address))
         writeBare(res, 429, { 'x-omne-limit': 'in-flight-requests' })
         admission.entered.leave()
         return

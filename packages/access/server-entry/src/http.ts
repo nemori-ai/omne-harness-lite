@@ -214,7 +214,6 @@ export function createServerEntry(input: {
           readLimits: maxBytes => readLimits(config, maxBytes),
           writeLimits: OUTPUT_LIMITS,
           slots,
-          diagnostics: event => emit(diagnostics, event),
         })
 
   const settle = (): void => {

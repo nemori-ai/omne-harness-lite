@@ -291,7 +291,7 @@ export type Login = Readonly<{
 
 /** Registers an account and issues one login through the governance location. */
 export async function login(
-  fixture: Fixture,
+  fixture: Pick<Fixture, 'port' | 'members'>,
   identifier: string,
   credential = 'pw-secret-1',
 ): Promise<Login> {

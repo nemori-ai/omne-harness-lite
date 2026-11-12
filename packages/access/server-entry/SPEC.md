@@ -323,6 +323,7 @@ type HitlIngressFaces<P> = Readonly<{
 | `identity` | 身份端口 `AccessIdentity`，类型归 [access-cordis-contract](../access-cordis-contract/SPEC.md#身份端口) |
 | `graceMs` | 收场的宽限，毫秒，交给 `settleCall` |
 | `clock` | 可选。宽限用的时钟，缺省 `systemClock` |
+| `diagnostics` | 可选。管道的诊断出口，事件类型 `AccessDiagnostic`，见[诊断](#诊断) |
 
 前三样必填，所以只给一部分编不过。不给 `access` 时，`/api/...` 和别的未知路径一样答空正文的 404。给了，路径不是现有三个位置之一的请求都交给管道。现有三个位置的判断次序与行为不变。
 
@@ -407,7 +408,7 @@ type HitlIngressFaces<P> = Readonly<{
 
 ### 诊断
 
-管道的每个出错点记一条诊断，代码以 `access.` 开头：
+管道的每个出错点记一条诊断，交给 `access.diagnostics`。事件类型是 `AccessDiagnostic`，代码以 `access.` 开头。它不进 `ServerEntryDiagnostic`：装配的遥测按代码逐项对应 `ServerEntryDiagnostic`，往里加代码就要同时改装配。出口抛出时答复不变。
 
 | 代码 | 出错点 |
 | --- | --- |
@@ -424,7 +425,7 @@ type HitlIngressFaces<P> = Readonly<{
 
 ### 依赖方向
 
-`src/pipeline/` 不导入任何领域的契约，也不导入 `src/` 根下的文件。它只导入公开契约、access-cordis-contract、`packages/common` 下的成员、`src/registry/` 与 `src/settle/`。依赖方向的门禁 `entry-registry-knows-no-domain` 守这一条。管道要用的配置值（本机地址、在途预算、两档消息体上限、结构上限）与诊断的出口由 `http.ts` 在构造时传进来。
+`src/pipeline/` 不导入任何领域的契约，也不导入 `src/` 根下的文件。它只导入公开契约、access-cordis-contract、`packages/common` 下的成员、`src/registry/` 与 `src/settle/`。依赖方向的门禁 `entry-registry-knows-no-domain` 守这一条。管道要用的配置值（本机地址、在途预算、两档消息体上限、结构上限）由 `http.ts` 在构造时传进来，诊断的出口在 `access` 里。
 
 现有三个位置与管道共用的只有几个与领域无关的函数（`src/pipeline/headers.ts` 的头比较与计数、`src/pipeline/body.ts` 的读消息体）、状态码对应表与在途预算。现有三个位置不调用管道，管道也不调用它们。
 

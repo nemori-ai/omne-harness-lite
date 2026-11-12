@@ -10,7 +10,13 @@ import type {
   LoginResult,
   Principal,
 } from '@omne-harness/access-cordis-contract'
-import { createAccessRegistry, type Entered, type RegistryForPipeline } from '../../src/index.ts'
+import {
+  createAccessRegistry,
+  type AccessDiagnostic,
+  type Entered,
+  type RegistryForPipeline,
+  type ServerEntryDiagnostic,
+} from '../../src/index.ts'
 import { encoder, raw, send, startFixture, type Fixture, type FixtureOptions } from './harness.ts'
 import { manualClock, type ManualClock } from './manual-clock.ts'
 import { pipelineNotesProtocol, type PipelineNotesProtocol } from './test-contribution.ts'
@@ -264,7 +270,9 @@ export function scriptedNotes(): ScriptedNotes {
   }
 }
 
-export type AccessFixture = Fixture & {
+export type AccessFixture = Omit<Fixture, 'diagnostics'> & {
+  /** The entry's diagnostics and the pipeline's, in the order they came. */
+  readonly diagnostics: (ServerEntryDiagnostic | AccessDiagnostic)[]
   readonly accessIdentity: TestIdentity
   readonly log: RegistryLog
   readonly notes: ScriptedNotes
@@ -281,16 +289,19 @@ export async function startAccessFixture(options: FixtureOptions = {}): Promise<
   const notes = scriptedNotes()
   const accessClock = manualClock()
   const takeDown = registry.mount(notes.contribution)
+  const diagnostics: (ServerEntryDiagnostic | AccessDiagnostic)[] = []
   const fixture = await startFixture({
     ...options,
+    dependencies: { ...options.dependencies, diagnostics: event => diagnostics.push(event) },
     access: {
       registry: log.registry,
       identity: identity.port,
       graceMs: GRACE_MS,
       clock: accessClock,
+      diagnostics: event => diagnostics.push(event),
     },
   })
-  return { ...fixture, accessIdentity: identity, log, notes, accessClock, takeDown }
+  return { ...fixture, diagnostics, accessIdentity: identity, log, notes, accessClock, takeDown }
 }
 
 export type ApiOptions = Readonly<{

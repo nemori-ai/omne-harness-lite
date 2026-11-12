@@ -22,6 +22,10 @@ export type {
 } from './session-view/index.ts'
 export type { DiagnosticSink, ServerEntryDiagnostic } from './diagnostics.ts'
 export type {
+  PipelineDiagnostic as AccessDiagnostic,
+  PipelineDiagnosticCode as AccessDiagnosticCode,
+} from './pipeline/pipeline.ts'
+export type {
   SettingRef,
   SettingsAccess,
   SettingsClearOutcome,
