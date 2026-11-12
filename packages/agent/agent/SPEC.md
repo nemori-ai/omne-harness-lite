@@ -52,7 +52,7 @@ open 尚未认回时，reserved 保存原 coordinator 和 invoke 输入指纹。
 
 ## 依赖不可用时的等待
 
-<a id="依赖不可用时的等待"></a>Journal、Model 或 Tool 答 `unavailable` 表示依赖暂时不可用，不表示节点故障。读与写都一样：协调者按依赖等待，到检查时刻以同一操作再试。资源的上限与同时在途的 Run 数只影响完成的早晚，不影响完成。
+<a id="依赖不可用时的等待"></a>Journal、Model 或 Tool 答 `unavailable` 表示依赖暂时不可用，不表示节点故障。读与写都一样：协调者按依赖等待，到检查时刻以同一操作再试。这样做安全的前提是依赖对同一操作的重复调用返回原结果，即架构页[以同一身份再做一次](../../../docs/architecture/cross-cutting-concepts.md#同身份再做一次)的第一种情形；下一条的 Journal 写提交是这一种。不承诺这一点的依赖答 `unavailable` 时，协调者不自动重做，按原操作认回。资源的上限与同时在途的 Run 数只影响完成的早晚，不影响完成。
 
 - **写提交**：Journal 写提交答 `unavailable` 时，等待的位置按节点分两种。答 `unavailable` 的写没有生效，任何一方的事实都没有保存（agent-contract SPEC「[提交参加者协议](../agent-contract/SPEC.md#提交参加者协议)」的「失败」一行），所以同一操作再写是安全的。这不是结果未知，协调者不查原操作。
   - 非收尾节点：协调者转 W0，记一项依赖等待，owner 取 Journal 答复里的 owner。检查时刻到后经 E1 回原节点，以同一操作再写。
