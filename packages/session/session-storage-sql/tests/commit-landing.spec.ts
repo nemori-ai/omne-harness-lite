@@ -5,12 +5,27 @@
 // alone folds at the same count. Only a fresh batch is told, and nothing here ever throws. The
 // fold is seen through the fold counts of the database (no snapshot is held, so a fold or an index
 // replacement that is tried counts as skipped); the notice through a registered notifier.
-import type { SessionNotifier } from '@omne-harness/session-contract'
+import type { SessionCommand, SessionNotifier, WorkSnapshot } from '@omne-harness/session-contract'
+import {
+  guard,
+  operationId,
+  ordinaryInput,
+  sessionId,
+} from '@omne-harness/session-contract/testing'
 import type { DomainRef, JsonValue, ReceiptV2, SqlStorage } from '@omne-harness/sql-contract'
 import { afterEach, describe, expect, it } from 'vitest'
-import { afterSessionCommit, registerSessionNotifier } from '../src/participants.ts'
+import {
+  afterSessionCommit,
+  decodeSessionReply,
+  executionRecordFacts,
+  registerSessionNotifier,
+  sessionCommandFacts,
+  sessionCommitCommands,
+} from '../src/participants.ts'
 import { workFoldCounts } from '../src/work-cache.ts'
-import { textOf, TENANT_A } from './fixtures/app.ts'
+import { createSessionStorage } from '../src/index.ts'
+import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
+import { identityOf, jointWrite } from './fixtures/real-provider.ts'
 
 type Notice = Parameters<SessionNotifier['committed']>[0]
 
@@ -182,5 +197,118 @@ describe('not a fresh commit', () => {
   it('a commit that did not commit: nothing is folded or told', async () => {
     for (const journal of [undefined, { published: '3' }])
       expect(await land(null, journal)).toEqual({ notices: [], tried: 0 })
+  })
+})
+
+/** The reads of `handler` the storage of `a` served since `from` (an index into its call log). */
+const readsOf = (a: App, handler: string, from: number): number =>
+  a.provider.calls.slice(from).filter(call => call.kind === 'read' && call.handler === handler)
+    .length
+
+const okOf = <T>(value: unknown): T => {
+  expect(value, JSON.stringify(value)).toHaveProperty('ok')
+  return (value as { ok: T }).ok
+}
+
+describe('the landing on a real store', () => {
+  it('a Journal commit with a Session participation folds its batch one count up, and tells it', async () => {
+    const a = await app()
+    okOf(await a.create(TENANT_A))
+    const access = a.access(TENANT_A)
+    const held = okOf<WorkSnapshot>(await a.port.readWork(access))
+    const command: SessionCommand = {
+      kind: 'accept',
+      input: {
+        tenant: TENANT_A,
+        session: sessionId('session-1'),
+        operation: operationId('accept-joint'),
+        value: ordinaryInput('joint'),
+      },
+    }
+    const result = await a.provider.storage.commit({
+      identity: identityOf(TENANT_A, 'dom_0', 'aop_joint'),
+      ...a.storageOptions.combination,
+      commands: sessionCommitCommands([
+        executionRecordFacts(jointWrite()),
+        sessionCommandFacts(command, [guard('login', 'login-entry', 'present')]),
+      ]),
+    })
+    if (result.kind !== 'committed') throw new Error(`the joint commit: ${result.kind}`)
+    const notices: Notice[] = []
+    unregisters.push(
+      registerSessionNotifier(a.provider.storage, {
+        committed: notice => {
+          notices.push(notice)
+          return Promise.resolve()
+        },
+      }),
+    )
+    const before = workFoldCounts(a.provider.storage)
+    await afterSessionCommit({
+      storage: a.provider.storage,
+      domain: DOMAIN,
+      tenant: textOf(TENANT_A),
+      session: 'session-1',
+      answer: { receipt: result, recalled: false },
+      journal: { published: '1' },
+    })
+    expect(workFoldCounts(a.provider.storage).folded - before.folded).toBe(1)
+    const from = a.provider.calls.length
+    const after = okOf<WorkSnapshot>(await a.port.readWork(access))
+    expect(readsOf(a, 'session.work', from)).toBe(0)
+    expect(BigInt(after.revision)).toBe(BigInt(held.revision) + 1n)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(notices.map(notice => notice.revision)).toEqual([after.revision])
+  })
+
+  it('the bounds of the port reach the cache that a commit before any read creates', async () => {
+    const a = await app()
+    okOf(await a.create(TENANT_A))
+    // A storage object of a database identity of its own: no cache exists for it yet.
+    const storage: SqlStorage = { ...a.provider.storage, database: {} }
+    const port = createSessionStorage<string>({
+      ...a.storageOptions,
+      storage,
+      workCache: { sessions: 0 },
+    })
+    okOf(
+      await port.commit({
+        access: a.access(TENANT_A),
+        command: {
+          kind: 'accept',
+          input: {
+            tenant: TENANT_A,
+            session: sessionId('session-1'),
+            operation: operationId('accept-first'),
+            value: ordinaryInput('first'),
+          },
+        },
+        guards: [guard('login', 'login-entry', 'present')],
+      }),
+    )
+    const from = a.provider.calls.length
+    okOf(await port.readWork(a.access(TENANT_A)))
+    okOf(await port.readWork(a.access(TENANT_A)))
+    expect(readsOf(a, 'session.work', from)).toBe(2)
+  })
+})
+
+describe('the reply reader', () => {
+  it('a conflict without a failure and an unsupported reply decode to what they say', () => {
+    expect(decodeSessionReply({ kind: 'conflict', basis: {} } as never)).toEqual({
+      kind: 'failed',
+      diagnostic: 'a session conflict without a failure',
+    })
+    expect(
+      decodeSessionReply({ kind: 'conflict', basis: { failure: { kind: 'denied' } } } as never),
+    ).toEqual({ kind: 'stopped', failure: { kind: 'denied' } })
+    expect(decodeSessionReply({ kind: 'unsupported', basis: { reason: 'r' } } as never)).toEqual({
+      kind: 'unsupported',
+      reason: 'r',
+    })
+    expect(decodeSessionReply({ kind: 'unsupported', basis: null } as never)).toEqual({
+      kind: 'unsupported',
+      reason: 'unsupported',
+    })
   })
 })
