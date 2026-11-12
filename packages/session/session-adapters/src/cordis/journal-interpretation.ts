@@ -29,6 +29,7 @@
 // is interpreted by the next event of the same execution. The durable record of what is left is the
 // gap between the saved progress and the execution's events, so a later scan can make the same call.
 import { createHash } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -83,21 +84,6 @@ function transient(failure: SessionFailure): boolean {
     failure.kind === 'changed' ||
     failure.kind === 'commit-unknown'
   )
-}
-
-/** Resolves true after `ms`, or false at once when `signal` aborts. */
-function pause(ms: number, signal: AbortSignal): Promise<boolean> {
-  if (signal.aborted) return Promise.resolve(false)
-  return new Promise(resolve => {
-    const done = (passed: boolean) => {
-      clearTimeout(timer)
-      signal.removeEventListener('abort', aborted)
-      resolve(passed)
-    }
-    const aborted = () => done(false)
-    const timer = setTimeout(() => done(true), ms)
-    signal.addEventListener('abort', aborted, { once: true })
-  })
 }
 
 /** One call: the execution of one Session whose events are interpreted. */
@@ -361,9 +347,11 @@ export function createSessionJournalInterpretationPlugin<P>(
             `call ${calls} of the interpretation of ${target.execution} answered ${kind}; again in ${retry.wait} ms`,
           )
           const next = { wait: Math.min(retry.wait * policy.multiplier, policy.maxMs), calls }
-          void pause(retry.wait, stopping.signal).then(passed => {
-            if (passed) enqueue(target, () => attempt(target, next))
-          })
+          // A stop aborts the wait; the rejection is the end of the retry, not a failure.
+          void delay(retry.wait, undefined, { signal: stopping.signal }).then(
+            () => enqueue(target, () => attempt(target, next)),
+            () => undefined,
+          )
         }
         const enqueue = subscribePublished(
           ctx,
