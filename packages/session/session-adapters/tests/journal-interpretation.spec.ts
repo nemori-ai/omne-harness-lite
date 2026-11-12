@@ -58,7 +58,11 @@ afterEach(async () => {
  */
 async function interpreted(
   name: string,
-  options: Readonly<{ transactions?: 'absent'; plugin?: 'later' }> = {},
+  options: Readonly<{
+    transactions?: 'absent'
+    plugin?: 'later'
+    retry?: Readonly<{ initialMs: number; multiplier: number; maxMs: number }>
+  }> = {},
 ) {
   const s = await sqlScene(name)
   scenes.push(s)
@@ -102,7 +106,7 @@ async function interpreted(
   const interpretation = createSessionJournalInterpretationPlugin<string>({
     coordinator: async () => succeed(s.access.principal),
     // A short backoff keeps the tests fast; the defaults are checked by the policy test below.
-    retry: QUICK_RETRY,
+    retry: options.retry ?? QUICK_RETRY,
   })
   const mountPlugin = () => c.mount(interpretation.plugin)
   const fiber = options.plugin === 'later' ? null : await mountPlugin()
@@ -538,6 +542,25 @@ describe('AD-02: a Session participant rollback that answers unavailable (KL-146
     await reaches(f.s, '1')
     expect(f.sent).toHaveLength(7)
     expect(logOperations(f.s)).toHaveLength(1)
+  })
+
+  it('an event that comes during the backoff is not held behind it: the queue goes on and commits', async () => {
+    const f = await interpreted('ad02-rollback-queue', {
+      retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
+    })
+    f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.sent).toHaveLength(1), { timeout: 5000 })
+    // The retry waits a minute; a later event of the same session is interpreted at once.
+    await f.c.ctx.serial(
+      'session-adapters/agent-published',
+      f.target.tenant,
+      f.target.session,
+      f.target.execution,
+    )
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(2)
+    expect(logOperations(f.s)).toEqual([f.sent[1]?.observation.operation])
   })
 
   it('a plugin that stops during the backoff sends no more', async () => {

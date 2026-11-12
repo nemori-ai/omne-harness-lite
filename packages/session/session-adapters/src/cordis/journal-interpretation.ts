@@ -24,7 +24,7 @@
 //
 // The plugin keeps nothing but the current generation of its dependencies and one queue per
 // session, so the events of one session are interpreted one after the other; an event waiting for
-// its backoff holds its place. A call made while the plugin is pending or stopped answers
+// its backoff does not hold the queue: it is queued again when the backoff ends. A call made while the plugin is pending or stopped answers
 // `unavailable` and commits nothing. It does not scan the storage when it starts: an event it missed
 // is interpreted by the next event of the same execution. The durable record of what is left is the
 // gap between the saved progress and the execution's events, so a later scan can make the same call.
@@ -277,12 +277,12 @@ function createJournalInterpretation<P>(
 export function createSessionJournalInterpretationPlugin<P>(
   input: SessionJournalInterpretationInput<P>,
 ) {
-  const retry = input.retry ?? DEFAULT_JOURNAL_INTERPRETATION_RETRY
+  const policy = input.retry ?? DEFAULT_JOURNAL_INTERPRETATION_RETRY
   if (
-    !(retry.initialMs > 0) ||
-    !(retry.multiplier >= 1) ||
-    !(retry.maxMs >= retry.initialMs) ||
-    !Number.isFinite(retry.maxMs)
+    !(policy.initialMs > 0) ||
+    !(policy.multiplier >= 1) ||
+    !(policy.maxMs >= policy.initialMs) ||
+    !Number.isFinite(policy.maxMs)
   )
     throw new RangeError(
       'the journal interpretation retry needs 0 < initialMs <= maxMs and multiplier >= 1',
@@ -323,34 +323,50 @@ export function createSessionJournalInterpretationPlugin<P>(
           }
         }
         // The interpretations of one session run one after the other. A call that ended in a
-        // transient failure is made again in the same queue slot after the backoff, so later events
-        // of the session wait behind it; every call reads from the saved progress, so nothing is
-        // committed twice.
-        subscribePublished(
+        // transient failure does not hold the queue: after the backoff the same target is queued
+        // again behind whatever came meanwhile. One execution has at most one such retry waiting;
+        // an event that fails while it waits leaves the retry to it. Every call reads from the saved
+        // progress, so nothing is committed twice.
+        const retrying = new Set<string>()
+        const attempt = async (
+          target: JournalInterpretationTarget,
+          retry: Readonly<{ wait: number; calls: number }> | null,
+        ): Promise<void> => {
+          const key = JSON.stringify([target.session, target.execution])
+          const answer = await guarded(target)
+          if ('ok' in answer || stopped || !transient(answer.failure)) {
+            if (retry !== null) retrying.delete(key)
+            if ('failure' in answer)
+              logger.warn(
+                `the interpretation of ${target.execution} answered ${answer.failure.kind}`,
+              )
+            else if (answer.ok.waiting > 0)
+              logger.warn(
+                `${answer.ok.waiting} events of ${target.execution} have no decided consequences`,
+              )
+            return
+          }
+          if (retry === null && retrying.has(key)) return
+          retrying.add(key)
+          const wait = retry?.wait ?? policy.initialMs
+          const calls = (retry?.calls ?? 0) + 1
+          logger.warn(
+            `call ${calls} of the interpretation of ${target.execution} answered ${answer.failure.kind}; again in ${wait} ms`,
+          )
+          void pause(wait, stopping.signal).then(passed => {
+            if (!passed) return
+            enqueue(target, () =>
+              attempt(target, {
+                wait: Math.min(wait * policy.multiplier, policy.maxMs),
+                calls,
+              }),
+            )
+          })
+        }
+        const enqueue = subscribePublished(
           ctx,
           () => stopped,
-          async target => {
-            for (let wait = retry.initialMs, calls = 1; ; calls += 1) {
-              const answer = await guarded(target)
-              if ('ok' in answer) {
-                if (answer.ok.waiting > 0)
-                  logger.warn(
-                    `${answer.ok.waiting} events of ${target.execution} have no decided consequences`,
-                  )
-                return
-              }
-              const { kind } = answer.failure
-              if (stopped || !transient(answer.failure)) {
-                logger.warn(`the interpretation of ${target.execution} answered ${kind}`)
-                return
-              }
-              logger.warn(
-                `call ${calls} of the interpretation of ${target.execution} answered ${kind}; again in ${wait} ms`,
-              )
-              if (!(await pause(wait, stopping.signal))) return
-              wait = Math.min(wait * retry.multiplier, retry.maxMs)
-            }
-          },
+          target => attempt(target, null),
         )
         ctx.effect(() => {
           current = guarded
