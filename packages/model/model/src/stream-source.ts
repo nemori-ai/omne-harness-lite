@@ -597,6 +597,23 @@ export function createModelObservationSource<P>(
       },
     }
   }
+  /**
+   * The answer of `current` from a held, usable record of the same admission, or null when the call
+   * must be read cold. The record is the confirmed state: every confirmed run of the storage advances
+   * it, and an unconfirmed write makes it unusable. So a reader does not queue on the storage that
+   * the call's own writes go through. Everything else (another tenant's call, an evicted or failed
+   * record, another admission) is read cold and answered as before, so the answer does not tell the
+   * two apart (#1214).
+   */
+  function heldSelection(
+    tenant: TenantId,
+    parts: ModelInvocationParts,
+  ): Outcome<ModelStreamSelection, ModelFailure> | null {
+    const held = records.get(identity(tenant, parts.call))
+    return held && !held.unavailable && held.record.admission === parts.admission
+      ? confirmedCurrent(tenant, parts)
+      : null
+  }
   /** Reserves the bytes of a publication; a new call beyond the retained calls has no room. */
   function reservePublication(publication: Publication, replacing: boolean): () => void {
     if (!replacing && publications.size >= limits.maxRetainedCalls)
@@ -684,14 +701,8 @@ export function createModelObservationSource<P>(
             const denied = authorize(access, parts.ok.call, 'facts')
             if (denied) return { failure: denied }
             if (closed || hostClosed) return { failure: unavailable() }
-            // A held, usable record of the same admission is the confirmed state: every confirmed
-            // run of the storage advances it, and an unconfirmed write makes it unusable. It answers
-            // without a read, so a reader does not queue on the storage that the call's own writes go
-            // through. Everything else (another tenant's call, an evicted or failed record, another
-            // admission) is read cold and answered as before, so the answer does not tell the two apart.
-            const held = records.get(identity(access.tenant, parts.ok.call))
-            if (held && !held.unavailable && held.record.admission === parts.ok.admission)
-              return confirmedCurrent(access.tenant, parts.ok)
+            const hot = heldSelection(access.tenant, parts.ok)
+            if (hot) return hot
             const refreshed = await refresh({
               access,
               reference: original.reference,
