@@ -4,6 +4,8 @@
 
 [Session frontier](frontier/README.md)包含 Frontier、PM02、GapIsolation 和 FrozenActive 四个有限模型。它们分别验证历史前缀与解除、首输入拒收、共享隔离门及 frozen-active 新输入竞争。没有形式 refinement 或完整组合证明。
 
+[input-handover-finish](input-handover-finish/README.md)、[input-handover-quiesce](input-handover-quiesce/README.md) 与 [input-submit-once](input-submit-once/README.md) 检查 Run 进行中受理的输入怎样交给执行：与条件终结的先后、与停服交接的交错、被两个触发重复交入。运行记录在 [formal-runs.md](formal-runs.md#input-handover)。
+
 [run-advance](run-advance/README.md) 检查 Run 与 attempt 层，[wake-up](wake-up/README.md) 检查唤醒与推进失败。它们用 WSL 里的 [run-tlc.sh](run-tlc.sh) 运行，运行记录在 [formal-runs.md](formal-runs.md)。
 
 承诺或实现结构变化时复核抽象、动作映射与输入 hash。产品对应关系须由真实入口及发布点验证提供，不能从模型通过推断。
