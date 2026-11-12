@@ -93,7 +93,7 @@ receiver、observe 与 current 的完整公开声明及实际导入依赖公共�
 
 `ModelStreamSnapshot`、`ModelStreamBase`、`ModelStreamDelta` 和 `ModelStreamProjectionFailure` 定义纯值输入与结果。`diffModelStream` 产生累计块变化，`applyModelStreamDelta` 核对原基线并生成新快照；完整规则与失败顺序归 [SPEC](../SPEC.md#model-投影及差分)。两函数同步核验引用、身份和投影关系，成功结果复制并冻结，不改变输入；它们不证明授权、真实发布或持久保存。观察端口与发布目标查询见[当前目标与公共观察](#model-当前目标与公共观察)。
 
-`encodeModelOutputV1` 与 `decodeModelOutputV1` 在根入口提供 JSON 投影编解码。投影类型为 `ModelOutputV1`、`ModelOutputV1Snapshot`、`ModelOutputV1Delta`，失败类型为 `ModelOutputV1Failure`。解码得到投影值，不恢复完整 `ModelStreamDelta`。编码内部 delta 时必须显式提供 `basePhase`。键集、Model 游标和基线核对规则归 [JSON 投影](../SPEC.md#model-output-v1-的-json-投影)。
+`encodeModelOutputV1` 与 `decodeModelOutputV1` 在根入口提供 JSON 投影编解码；`projectModelOutputV1` 给出同一投影的 JSON 值（`@omne-harness/json-text` 的树），编码就是把它写成文本。投影类型为 `ModelOutputV1`、`ModelOutputV1Snapshot`、`ModelOutputV1Delta`，失败类型为 `ModelOutputV1Failure`。解码得到投影值，不恢复完整 `ModelStreamDelta`。编码内部 delta 时必须显式提供 `basePhase`。键集、Model 游标和基线核对规则归 [JSON 投影](../SPEC.md#model-output-v1-的-json-投影)。
 
 ## Model 当前目标与公共观察
 

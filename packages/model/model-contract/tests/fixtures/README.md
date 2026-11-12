@@ -14,3 +14,5 @@
 public-api 改变时，同步改清单。清单与产物的差异由[导出清单比对](../exports.spec.ts)报告。
 
 [目录索引](index.md)。
+
+- `model-output-v1-encodings.jsonl`：`projectModelOutputV1` 等价用例（`model-output-v1-value.spec.ts`）的样本，共 41 行。每一行记一次 `encodeModelOutputV1` 调用：输入、有没有 `basePhase`、`basePhase` 的值、起点 `f8dc81652` 上的答复。来源是 `model-output-v1.spec.ts` 与 `model-output-v1-sealed-envelope.spec.ts` 交给编码函数的全部输入：在起点的实现里临时记下每次调用，跑这两个文件得到。记下后用起点的实现回放，41 行全部得到同一答复。
