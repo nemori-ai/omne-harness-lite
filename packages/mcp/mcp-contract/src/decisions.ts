@@ -15,7 +15,7 @@ import type {
   UnusableCause,
 } from './outcomes.ts'
 import { errorAnswerOf, peerIdentityOf, readDiscoverResult, type IdentityBound } from './readers.ts'
-import type { TransportFailure, TransportMaterial } from './transport.ts'
+import type { TransportFailure } from './transport.ts'
 import type { PeerIdentity } from './values.ts'
 import {
   ERROR_CLASSES,
@@ -195,11 +195,10 @@ export function requestClassOf(method: RequestMethod, retried: boolean): Request
 
 // ---- The conclusion of a classification (T8) ----
 
-/** The rows that read the exchange itself, not a message: X01, X02, S01–S07, D14, O04, C03, I05. */
+/** The rows that read the exchange itself, not a message: X01, S05–S07, D14, O04, C03, I05. */
 function exchangeConclusionOf(
   answer: AnswerClass,
   context: WireContext,
-  kind: TransportMaterial['kind'],
 ): AnswerConclusion | undefined {
   switch (answer) {
     case 'unsent':
@@ -209,7 +208,7 @@ function exchangeConclusionOf(
       return settle(ABANDONED)
     case 'stream-broken':
     case 'http:2xx':
-      return settle(brokenStream(resends(context, kind)))
+      return settle(brokenStream(resends(context)))
     default:
       return httpStatusConclusionOf(answer)
   }
@@ -230,13 +229,9 @@ function httpStatusConclusionOf(answer: AnswerClass): AnswerConclusion | undefin
   }
 }
 
-/** D15, O05: a read request on Streamable HTTP outside the SSE mode is sent once more. */
-function resends(context: WireContext, kind: TransportMaterial['kind']): boolean {
-  return (
-    kind === 'streamable-http' &&
-    context.mode !== 'sse' &&
-    RESENT_REQUESTS.includes(context.request)
-  )
+/** D15, O05: a read request outside the SSE mode is sent once more. */
+function resends(context: WireContext): boolean {
+  return context.mode !== 'sse' && RESENT_REQUESTS.includes(context.request)
 }
 
 function isErrorClass(text: string): text is ErrorClass {
@@ -321,10 +316,9 @@ function httpErrorWireOf(
 export function concludeAnswer(
   classified: WireClassification,
   context: WireContext,
-  kind: TransportMaterial['kind'],
 ): AnswerConclusion {
   if (classified.kind !== 'answer') return WAIT
-  const exchange = exchangeConclusionOf(classified.answer, context, kind)
+  const exchange = exchangeConclusionOf(classified.answer, context)
   if (exchange !== undefined) return exchange
   const parts = partsOf(classified.answer)
   switch (parts.kind) {
@@ -453,12 +447,12 @@ export function concludeProbe(
 // ---- What a request settles with after a stream is gone, or a refused authorization (T8, T4) ----
 
 /**
- * T8 S01–S04 and the SSE mode: what every request handed to a shared stream settles with when the
- * stream is gone (`stream-broken`): `no-answer` with the cause, never sent again,
- * and the transport not usable any more for the same cause (T1).
+ * The SSE mode: what every request handed to the shared stream settles with when the stream is
+ * gone: `no-answer` (`stream-broken`), never sent again, and the transport not usable any more for
+ * the same cause (T1).
  */
-export function streamGoneAnswerOf(cause: Exclude<UnusableCause, 'session-ended'>): WireAnswer {
-  return { kind: 'no-answer', cause, resend: false, unusable: cause }
+export function streamGoneAnswerOf(): WireAnswer {
+  return { kind: 'no-answer', cause: 'stream-broken', resend: false, unusable: 'stream-broken' }
 }
 
 /** T4: what a request refused with 401 or a scoped 403 settles with, given its discovery (R4). */
@@ -504,7 +498,7 @@ export function stopAnswerOf(phase: InFlightPhase): WireAnswer {
 }
 
 /**
- * T8 S01–S04, X02, the SSE mode and S07: what a request in flight settles with when the line is gone,
+ * The SSE mode and T8 S07: what a request in flight settles with when the line is gone,
  * by its phase. Only the two phases that depend on the line settle: one still authorizing never
  * reached the wire and is `not-sent` (`connection-unavailable`); one sent answers `no-answer` with
  * the cause, except when the peer ended the session (S07): the request that was told so settled
@@ -521,7 +515,7 @@ export function lineGoneAnswerOf(
     case 'authorizing':
       return unusableAnswerOf(NOT_SENT, cause)
     case 'sent':
-      return cause === 'session-ended' ? undefined : streamGoneAnswerOf(cause)
+      return cause === 'session-ended' ? undefined : streamGoneAnswerOf()
     case 'discovery':
       return undefined
     default: {
@@ -545,7 +539,6 @@ export function fallbackGetConclusionOf(
   const conclusion = concludeAnswer(
     classifyWireEvent({ kind: 'http-status', status, headers, body }, context),
     context,
-    'streamable-http',
   )
   return conclusion.kind === 'authorization-required'
     ? conclusion

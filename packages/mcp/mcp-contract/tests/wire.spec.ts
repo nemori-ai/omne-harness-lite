@@ -25,7 +25,6 @@ const answer = (message: Readonly<Record<string, unknown>>) =>
   JSON.stringify({ jsonrpc: '2.0', id: 7, ...message })
 
 type Sample = Readonly<{
-  kind: 'streamable-http'
   request: RequestClass
   event: WireEvent
   session?: boolean
@@ -107,85 +106,74 @@ const STATUSES: Readonly<Record<string, number>> = {
 
 /** Samples built from their class: one or more events for every class of every cell. */
 function samples(): readonly Sample[] {
-  const kind = 'streamable-http'
   const list: Sample[] = []
   for (const request of REQUESTS) {
     list.push(
-      { kind, request, event: { kind: 'unsent' }, expected: 'unsent' },
-      { kind, request, event: { kind: 'nothing' }, expected: 'silent' },
+      { request, event: { kind: 'unsent' }, expected: 'unsent' },
+      { request, event: { kind: 'nothing' }, expected: 'silent' },
     )
-    {
-      list.push(
-        { kind, request, event: { kind: 'http-aborted' }, expected: 'stream-broken' },
-        {
-          kind,
-          request,
-          event: { kind: 'http-stream', messages: [], ended: true },
-          expected: 'http:2xx',
+    list.push(
+      { request, event: { kind: 'http-aborted' }, expected: 'stream-broken' },
+      {
+        request,
+        event: { kind: 'http-stream', messages: [], ended: true },
+        expected: 'http:2xx',
+      },
+      {
+        request,
+        event: { kind: 'http-status', status: 401, headers: {}, body: '' },
+        expected: 'http:401',
+      },
+      {
+        request,
+        event: {
+          kind: 'http-status',
+          status: 403,
+          headers: { 'www-authenticate': 'Bearer error="insufficient_scope"' },
+          body: '',
         },
-        {
-          kind,
-          request,
-          event: { kind: 'http-status', status: 401, headers: {}, body: '' },
-          expected: 'http:401',
-        },
-        {
-          kind,
+        expected: 'http:403+scope',
+      },
+      {
+        request,
+        event: { kind: 'http-status', status: 403, headers: {}, body: 'no' },
+        expected: 'http:403',
+      },
+    )
+    if (!['discover', 'discover-retry', 'initialize'].includes(request))
+      list.push({
+        request,
+        session: true,
+        event: { kind: 'http-status', status: 404, headers: {}, body: '' },
+        expected: 'http:404+session',
+      })
+    for (const [statusClass, status] of Object.entries(STATUSES)) {
+      list.push({
+        request,
+        event: { kind: 'http-status', status, headers: {}, body: 'Not Found' },
+        expected: `http:${statusClass}+plain` as AnswerClass,
+      })
+      for (const [code, error] of ERRORS)
+        list.push({
           request,
           event: {
             kind: 'http-status',
-            status: 403,
-            headers: { 'www-authenticate': 'Bearer error="insufficient_scope"' },
-            body: '',
+            status,
+            headers: {},
+            body: JSON.stringify({ jsonrpc: '2.0', id: null, error }),
           },
-          expected: 'http:403+scope',
-        },
-        {
-          kind,
-          request,
-          event: { kind: 'http-status', status: 403, headers: {}, body: 'no' },
-          expected: 'http:403',
-        },
-      )
-      if (!['discover', 'discover-retry', 'initialize'].includes(request))
-        list.push({
-          kind,
-          request,
-          session: true,
-          event: { kind: 'http-status', status: 404, headers: {}, body: '' },
-          expected: 'http:404+session',
+          expected: `http:${statusClass}+${code}` as AnswerClass,
         })
-      for (const [statusClass, status] of Object.entries(STATUSES)) {
-        list.push({
-          kind,
-          request,
-          event: { kind: 'http-status', status, headers: {}, body: 'Not Found' },
-          expected: `http:${statusClass}+plain` as AnswerClass,
-        })
-        for (const [code, error] of ERRORS)
-          list.push({
-            kind,
-            request,
-            event: {
-              kind: 'http-status',
-              status,
-              headers: {},
-              body: JSON.stringify({ jsonrpc: '2.0', id: null, error }),
-            },
-            expected: `http:${statusClass}+${code}` as AnswerClass,
-          })
-      }
     }
     if (request === 'notification') continue
     for (const [code, error] of ERRORS)
       list.push({
-        kind,
         request,
         event: delivered(answer({ error })),
         expected: `error:${code}` as AnswerClass,
       })
     for (const [expected, result] of RESULTS[request])
-      list.push({ kind, request, event: delivered(answer({ result })), expected })
+      list.push({ request, event: delivered(answer({ result })), expected })
   }
   return list
 }
@@ -196,18 +184,14 @@ describe('classifyWireEvent over the domain of the decision table', () => {
       const got = classifyWireEvent(sample.event, context(sample.request, sample.session))
       return got.kind === 'answer' && got.answer === sample.expected
         ? []
-        : [`${sample.kind} ${sample.request} ${sample.expected}: ${JSON.stringify(got)}`]
+        : [`${sample.request} ${sample.expected}: ${JSON.stringify(got)}`]
     })
     expect(wrong).toEqual([])
   })
 
   it('has a sample for every answer class of every cell, and nothing outside the domain', () => {
-    const cells = new Set(
-      transportCells().map(cell => `${cell.kind} ${cell.request} ${cell.answer}`),
-    )
-    const sampled = new Set(
-      samples().map(sample => `${sample.kind} ${sample.request} ${sample.expected}`),
-    )
+    const cells = new Set(transportCells().map(cell => `${cell.request} ${cell.answer}`))
+    const sampled = new Set(samples().map(sample => `${sample.request} ${sample.expected}`))
     expect([...cells].filter(cell => !sampled.has(cell))).toEqual([])
     expect([...sampled].filter(cell => !cells.has(cell))).toEqual([])
   })

@@ -174,7 +174,7 @@ type Endpoint = Readonly<{ script: PeerScript; credential?: boolean }>
 async function peerOf(script: PeerScript, onRequest?: (method: string) => void): Promise<HttpPeer> {
   const peer = await httpPeer(
     script,
-    { kind: 'streamable-http' },
+    {},
     ['2026-07-28'],
     { clientInfo: CONFIG.clientInfo },
     onRequest === undefined ? {} : { beforeRecord: async method => onRequest(method) },
@@ -189,7 +189,6 @@ function adoptFiles(
   peer: HttpPeer,
   credential = false,
 ): void {
-  if (peer.material.kind !== 'streamable-http') throw new Error('the peer is not on HTTP')
   adoption.adopt({
     tenant: ALICE.tenant,
     scope: SCOPE,

@@ -236,7 +236,7 @@ export function createBuilder<P, S>(
     prepared: PreparedSettings,
     bound: AbortSignal,
   ): Promise<Outcome<void, Failed>> {
-    const { credential, transport } = prepared
+    const { credential, target } = prepared
     if (credential.auth === 'none') return succeed(undefined)
     const holding = entry.ref.holding
     const asked = ask<Outcome<HttpCredentialHandle, CredentialFailure>>(
@@ -244,7 +244,7 @@ export function createBuilder<P, S>(
         ports.credentials.acquire(
           access,
           holding,
-          { kind: 'http-authorization', target: transport.target },
+          { kind: 'http-authorization', target },
           credential.binding,
         ),
       CREDENTIAL_BREACH,
@@ -270,7 +270,7 @@ export function createBuilder<P, S>(
     prepared: PreparedSettings,
     generation: Generation,
   ): Promise<Outcome<TransportMaterial, Failed>> {
-    const { target } = prepared.transport
+    const { target } = prepared
     const { instructionsByteLimit } = config
     const credential = entry.credential
     return succeed(

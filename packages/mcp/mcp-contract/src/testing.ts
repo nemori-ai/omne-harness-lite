@@ -67,7 +67,6 @@ export {
   type ScriptedPeer,
   type TaskScript,
   type TransportFixture,
-  type TransportKind,
 } from './testing-transport.ts'
 export {
   TRANSPORT_TABLE,
@@ -79,7 +78,6 @@ export {
   type RequestClass,
   type TableCell,
   type TableConclusion,
-  type TableKind,
   type TableRow,
 } from './testing-transport-table.ts'
 export {

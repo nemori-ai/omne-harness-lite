@@ -59,7 +59,7 @@ export function interpretAnswer<T>(
 }
 
 /**
- * The answer of a sent call (T8 C01–C05, S03, S04). A `no-answer` keeps the mark that the
+ * The answer of a sent call (T8 C01–C05). A `no-answer` keeps the mark that the
  * transport is not usable any more (T1); so does a `not-sent` that settles a call after it left.
  */
 export function callAnswerOf(wire: WireAnswer): PeerAnswer {

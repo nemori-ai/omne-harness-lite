@@ -1,9 +1,8 @@
 // The transport decision table of SPEC T8 as data. The table is a total function on a closed
-// input domain: material kind × request class × answer class. Each cell of the domain matches
+// input domain: request class × answer class. Each cell of the domain matches
 // exactly one row; each row has one conclusion. The transport suite generates one case per row
 // from this data, and a structural test checks the partition and the coverage.
 import type { NoAnswerCause } from './outcomes.ts'
-import type { TransportMaterial } from './transport.ts'
 import {
   ERROR_CLASSES,
   HTTP_STATUS_CLASSES,
@@ -17,8 +16,6 @@ import {
 } from './wire.ts'
 
 export type { AnswerClass, RequestClass } from './wire.ts'
-
-export type TableKind = TransportMaterial['kind']
 
 export type ExpectedFailure =
   | Readonly<{ kind: 'error-answer' }>
@@ -64,15 +61,13 @@ export type TableConclusion = (
 
 export type TableRow = Readonly<{
   id: string
-  kinds: readonly TableKind[]
   requests: readonly RequestClass[]
   answers: readonly AnswerClass[]
   conclusion: TableConclusion
 }>
 
-export type TableCell = Readonly<{ kind: TableKind; request: RequestClass; answer: AnswerClass }>
+export type TableCell = Readonly<{ request: RequestClass; answer: AnswerClass }>
 
-const HTTP: readonly TableKind[] = ['streamable-http']
 const STATUS_4XX: readonly HttpStatusClass[] = ['400', '404', '405', '406', '415', '429', '4xx']
 const STATUS_5XX: readonly HttpStatusClass[] = ['5xx']
 const CODES: readonly ErrorClass[] = ERROR_CLASSES.filter(code => code !== 'unreadable')
@@ -125,101 +120,87 @@ const AFTER_SESSION: readonly RequestClass[] = [...OPERATIONS, 'tools/call', 'no
 /** SPEC T8, row by row. */
 export const TRANSPORT_TABLE: readonly TableRow[] = [
   // server/discover (T3)
-  { id: 'D01', kinds: HTTP, requests: PROBES, answers: ['result'], conclusion: { kind: 'read' } },
+  { id: 'D01', requests: PROBES, answers: ['result'], conclusion: { kind: 'read' } },
   {
     id: 'D02',
-    kinds: HTTP,
     requests: PROBES,
     answers: ['result:no-common'],
     conclusion: { kind: 'fallback', report: 'legacy' },
   },
   {
     id: 'D03',
-    kinds: HTTP,
     requests: PROBES,
     answers: ['result:unreadable'],
     conclusion: { kind: 'fallback', report: { kind: 'answer-malformed', what: 'discover-shape' } },
   },
   {
     id: 'D04',
-    kinds: HTTP,
     requests: ['discover'],
     answers: below500(['-32022+common']),
     conclusion: { kind: 'retry' },
   },
   {
     id: 'D05',
-    kinds: HTTP,
     requests: ['discover'],
     answers: below500(['-32022+modern']),
     conclusion: malformed('discover-shape'),
   },
   {
     id: 'D06',
-    kinds: HTTP,
     requests: ['discover'],
     answers: below500(['-32022+legacy']),
     conclusion: { kind: 'fallback', report: 'legacy' },
   },
   {
     id: 'D07',
-    kinds: HTTP,
     requests: ['discover-retry'],
     answers: below500(MINUS_32022),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'D08',
-    kinds: HTTP,
     requests: PROBES,
     answers: below500(['-32020', '-32021']),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'D09',
-    kinds: HTTP,
     requests: PROBES,
     answers: ['error:-32601'],
     conclusion: { kind: 'fallback', report: 'legacy' },
   },
   {
     id: 'D10',
-    kinds: HTTP,
     requests: PROBES,
     answers: errors(['-32602', 'other']),
     conclusion: { kind: 'fallback', report: { kind: 'error-answer' } },
   },
   {
     id: 'D11',
-    kinds: HTTP,
     requests: PROBES,
     answers: ['error:unreadable'],
     conclusion: { kind: 'fallback', report: { kind: 'answer-malformed', what: 'error-shape' } },
   },
   {
     id: 'D12',
-    kinds: HTTP,
     requests: PROBES,
     answers: bodies(STATUS_4XX, ['-32601', '-32602', 'other', 'unreadable', 'plain']),
     conclusion: { kind: 'fallback', report: 'legacy' },
   },
   {
     id: 'D14',
-    kinds: HTTP,
     requests: PROBES,
     answers: ['silent'],
     conclusion: ABANDONED,
   },
   {
     id: 'D15',
-    kinds: HTTP,
     requests: PROBES,
     answers: ['stream-broken', 'http:2xx'],
     conclusion: { kind: 'resend' },
   },
   {
     id: 'D16',
-    kinds: HTTP,
     requests: PROBES,
     answers: bodies(STATUS_5XX, [...ERROR_CLASSES, 'plain']),
     conclusion: BROKEN,
@@ -227,42 +208,36 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   // initialize, the legacy path (T3)
   {
     id: 'I01',
-    kinds: HTTP,
     requests: ['initialize'],
     answers: ['result'],
     conclusion: { kind: 'read' },
   },
   {
     id: 'I02',
-    kinds: HTTP,
     requests: ['initialize'],
     answers: ['result:unreadable'],
     conclusion: malformed('discover-shape'),
   },
   {
     id: 'I03',
-    kinds: HTTP,
     requests: ['initialize'],
     answers: anywhere(CODES),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'I04',
-    kinds: HTTP,
     requests: ['initialize'],
     answers: anywhere(['unreadable']),
     conclusion: malformed('error-shape'),
   },
   {
     id: 'I05',
-    kinds: HTTP,
     requests: ['initialize'],
     answers: ['silent'],
     conclusion: ABANDONED,
   },
   {
     id: 'I06',
-    kinds: HTTP,
     requests: ['initialize'],
     answers: ['stream-broken', 'http:2xx', ...bodies(STATUS_5XX, ['plain'])],
     conclusion: BROKEN,
@@ -272,7 +247,6 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     // legacy stream, so the table holds the branch where the fallback does not hold; the branch
     // where it holds is in the legacy HTTP+SSE cases of `mcp-host-local`.
     id: 'I07',
-    kinds: HTTP,
     requests: ['initialize'],
     answers: bodies(STATUS_4XX, ['plain']),
     conclusion: NOT_SENT,
@@ -280,114 +254,98 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   // tools/list and the task operations (T2, T6)
   {
     id: 'L01',
-    kinds: HTTP,
     requests: ['tools/list'],
     answers: ['result'],
     conclusion: { kind: 'read' },
   },
   {
     id: 'L02',
-    kinds: HTTP,
     requests: ['tools/list'],
     answers: ['result:tools-missing'],
     conclusion: malformed('tools-missing'),
   },
   {
     id: 'L03',
-    kinds: HTTP,
     requests: ['tools/list'],
     answers: ['result:cursor-invalid'],
     conclusion: malformed('cursor-invalid'),
   },
   {
     id: 'G01',
-    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result'],
     conclusion: { kind: 'read' },
   },
   {
     id: 'G02',
-    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result:status-unknown'],
     conclusion: malformed('status-unknown'),
   },
   {
     id: 'G03',
-    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result:input-requests-missing'],
     conclusion: malformed('input-requests-missing'),
   },
   {
     id: 'G04',
-    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result:result-missing'],
     conclusion: malformed('result-missing'),
   },
   {
     id: 'G05',
-    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result:error-missing'],
     conclusion: malformed('error-missing'),
   },
   {
     id: 'G06',
-    kinds: HTTP,
     requests: ['tasks/get'],
     answers: anywhere(['-32602']),
     conclusion: { kind: 'expired' },
   },
-  { id: 'W01', kinds: HTTP, requests: WRITES, answers: ['result'], conclusion: { kind: 'read' } },
+  { id: 'W01', requests: WRITES, answers: ['result'], conclusion: { kind: 'read' } },
   {
     id: 'O01',
-    kinds: HTTP,
     requests: ['tools/list', ...WRITES],
     answers: anywhere(CODES),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'O02',
-    kinds: HTTP,
     requests: ['tasks/get'],
     answers: anywhere(CODES.filter(code => code !== '-32602')),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'O03',
-    kinds: HTTP,
     requests: OPERATIONS,
     answers: anywhere(['unreadable']),
     conclusion: malformed('error-shape'),
   },
-  { id: 'O04', kinds: HTTP, requests: OPERATIONS, answers: ['silent'], conclusion: ABANDONED },
+  { id: 'O04', requests: OPERATIONS, answers: ['silent'], conclusion: ABANDONED },
   {
     id: 'O05',
-    kinds: HTTP,
     requests: READS,
     answers: ['stream-broken', 'http:2xx'],
     conclusion: { kind: 'resend' },
   },
   {
     id: 'O06',
-    kinds: HTTP,
     requests: WRITES,
     answers: ['stream-broken', 'http:2xx'],
     conclusion: BROKEN,
   },
   {
     id: 'O07',
-    kinds: HTTP,
     requests: OPERATIONS,
     answers: bodies(STATUS_5XX, ['plain']),
     conclusion: BROKEN,
   },
   {
     id: 'O08',
-    kinds: HTTP,
     requests: OPERATIONS,
     answers: bodies(STATUS_4XX, ['plain']),
     conclusion: NOT_SENT,
@@ -395,35 +353,30 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   // tools/call (T1, T2)
   {
     id: 'C01',
-    kinds: HTTP,
     requests: ['tools/call'],
     answers: ['result'],
     conclusion: { kind: 'answer', answer: 'result' },
   },
   {
     id: 'C02',
-    kinds: HTTP,
     requests: ['tools/call'],
     answers: anywhere(ERROR_CLASSES),
     conclusion: { kind: 'answer', answer: 'error' },
   },
   {
     id: 'C03',
-    kinds: HTTP,
     requests: ['tools/call'],
     answers: ['silent'],
     conclusion: { kind: 'answer', answer: 'abandoned' },
   },
   {
     id: 'C04',
-    kinds: HTTP,
     requests: ['tools/call'],
     answers: ['stream-broken', 'http:2xx', ...bodies(STATUS_5XX, ['plain'])],
     conclusion: { kind: 'answer', answer: 'stream-broken' },
   },
   {
     id: 'C05',
-    kinds: HTTP,
     requests: ['tools/call'],
     answers: bodies(STATUS_4XX, ['plain']),
     conclusion: NOT_SENT,
@@ -431,28 +384,24 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   // what every request class shares
   {
     id: 'S05',
-    kinds: HTTP,
     requests: [...PROBES, 'initialize', ...OPERATIONS, 'tools/call'],
     answers: ['http:401', 'http:403+scope'],
     conclusion: AUTHORIZATION,
   },
   {
     id: 'S06',
-    kinds: HTTP,
     requests: [...PROBES, 'initialize', ...OPERATIONS, 'tools/call'],
     answers: ['http:403'],
     conclusion: NOT_SENT,
   },
   {
     id: 'S07',
-    kinds: HTTP,
     requests: [...OPERATIONS, 'tools/call'],
     answers: ['http:404+session'],
     conclusion: SESSION_ENDED,
   },
   {
     id: 'X01',
-    kinds: HTTP,
     requests: [...PROBES, 'initialize', ...OPERATIONS, 'tools/call'],
     answers: ['unsent'],
     conclusion: NOT_SENT,
@@ -460,7 +409,6 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   // notifications of the client
   {
     id: 'N01',
-    kinds: HTTP,
     requests: ['notification'],
     answers: [
       'unsent',
@@ -477,8 +425,8 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   },
 ]
 
-/** The answers that a request class can get on a material kind. */
-export function answersOf(_kind: TableKind, request: RequestClass): readonly AnswerClass[] {
+/** The answers that a request class can get. */
+export function answersOf(request: RequestClass): readonly AnswerClass[] {
   const transport: readonly AnswerClass[] = ['unsent', 'stream-broken', 'silent']
   if (request === 'notification')
     return [
@@ -503,29 +451,19 @@ export function answersOf(_kind: TableKind, request: RequestClass): readonly Ans
 
 /** Every cell of the domain. */
 export function transportCells(): readonly TableCell[] {
-  return HTTP.flatMap(kind =>
-    REQUEST_CLASSES.flatMap(request =>
-      answersOf(kind, request).map(answer => ({ kind, request, answer })),
-    ),
-  )
+  return REQUEST_CLASSES.flatMap(request => answersOf(request).map(answer => ({ request, answer })))
 }
 
 /** The rows that a cell matches. A sound table gives exactly one. */
 export function rowsOf(cell: TableCell): readonly TableRow[] {
   return TRANSPORT_TABLE.filter(
-    row =>
-      row.kinds.includes(cell.kind) &&
-      row.requests.includes(cell.request) &&
-      row.answers.includes(cell.answer),
+    row => row.requests.includes(cell.request) && row.answers.includes(cell.answer),
   )
 }
 
 /** The cells of a row, in domain order. */
 export function cellsOf(row: TableRow): readonly TableCell[] {
   return transportCells().filter(
-    cell =>
-      row.kinds.includes(cell.kind) &&
-      row.requests.includes(cell.request) &&
-      row.answers.includes(cell.answer),
+    cell => row.requests.includes(cell.request) && row.answers.includes(cell.answer),
   )
 }

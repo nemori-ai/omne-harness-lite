@@ -500,11 +500,7 @@ class ScriptedTransport implements McpTransport {
       // The request fails before it leaves; the peer does not see it (T8 X01).
       return this.apply(
         entry,
-        concludeAnswer(
-          classifyWireEvent({ kind: 'unsent' }, entry.context),
-          entry.context,
-          this.material.kind,
-        ),
+        concludeAnswer(classifyWireEvent({ kind: 'unsent' }, entry.context), entry.context),
         {},
       )
     }
@@ -525,11 +521,7 @@ class ScriptedTransport implements McpTransport {
       const headers = lowerCased(
         reply.kind === 'http' || reply.kind === 'result' ? reply.headers : undefined,
       )
-      const conclusion = concludeAnswer(
-        classifyWireEvent(event, entry.context),
-        entry.context,
-        this.material.kind,
-      )
+      const conclusion = concludeAnswer(classifyWireEvent(event, entry.context), entry.context)
       this.apply(entry, conclusion, headers)
     } catch (defect) {
       this.pending.delete(entry.id)

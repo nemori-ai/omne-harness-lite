@@ -723,9 +723,7 @@ describe('ensure: the connection key (invariant 1)', () => {
     await table.ensure(await admitted(w, files), alice)
     const opens = w.transports.calls.flatMap(call => (call.kind === 'open' ? [call.material] : []))
     expect(opens[0]).toMatchObject({ kind: 'streamable-http', target: TARGET, generation: 1 })
-    expect(opens[0]?.kind === 'streamable-http' && opens[0].credential?.purpose).toBe(
-      'http-authorization',
-    )
+    expect(opens[0]?.credential?.purpose).toBe('http-authorization')
   })
 })
 

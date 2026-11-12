@@ -22,15 +22,13 @@ export type PreparedCredential =
   | Readonly<{ auth: 'none' }>
   | Readonly<{ auth: 'static' | 'oauth'; binding: CredentialBinding }>
 
-/** What the transport is opened on: the address of the endpoint. */
-export type PreparedTransport = Readonly<{ kind: 'streamable-http'; target: ConnectionTarget }>
-
 export type PreparedSettings = Readonly<{
   definition: EndpointDefinition
   credential: PreparedCredential
   /** The peer account, from `peerAccountOf` (K1). */
   account: PeerAccount
-  transport: PreparedTransport
+  /** What the transport is opened on: the address of the endpoint. */
+  target: ConnectionTarget
   /** The connection bound: the setting, or the request's `connectBound` when the setting is absent. */
   bound: Millis
 }>
@@ -51,11 +49,11 @@ function credentialOf(
   return succeed({ auth, binding: credential.value })
 }
 
-function transportOf(adopted: AdoptedOnly): Outcome<PreparedTransport, ConfigRefusal> {
+function targetOf(adopted: AdoptedOnly): Outcome<ConnectionTarget, ConfigRefusal> {
   const { target } = adopted.settings
   if (target.kind === 'absent') return fail({ kind: 'config-missing', item: 'target' })
   if (target.kind === 'invalid') return fail({ kind: 'config-invalid', item: 'target' })
-  return succeed({ kind: 'streamable-http', target: target.value })
+  return succeed(target.value)
 }
 
 function boundOf(
@@ -75,8 +73,8 @@ export function prepareSettings(
   adopted: AdoptedOnly,
   connectBound: Millis | undefined,
 ): Outcome<PreparedSettings, SettingsFailure> {
-  const transport = transportOf(adopted)
-  if ('failure' in transport) return transport
+  const target = targetOf(adopted)
+  if ('failure' in target) return target
   const credential = credentialOf(adopted)
   if ('failure' in credential)
     return credential.failure === 'missing'
@@ -93,7 +91,7 @@ export function prepareSettings(
     definition: adopted.definition,
     credential: credential.ok,
     account: account.ok,
-    transport: transport.ok,
+    target: target.ok,
     bound: bound.ok,
   })
 }

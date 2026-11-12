@@ -270,7 +270,6 @@ class ExplorerStream implements AsyncIterable<string> {
 }
 
 export class ExplorerLine implements Line {
-  readonly kind = 'streamable-http'
   readonly events: AsyncIterable<LineEvent>
   readonly queue = new AsyncQueue<LineEvent>()
   readonly openGet: ((headers: Headers, signal: AbortSignal) => Promise<GetOpened>) | undefined

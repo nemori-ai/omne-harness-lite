@@ -72,7 +72,6 @@ export type GetOpened =
   | Readonly<{ kind: 'unavailable' }>
 
 export interface Line {
-  readonly kind: 'streamable-http'
   /** Writes one message. The signal ends the wait: it ends the exchange. */
   send(message: Outbound, signal: AbortSignal): Promise<Exchange>
   /** The events of the shared stream of the legacy HTTP+SSE mode, until the line closes. */

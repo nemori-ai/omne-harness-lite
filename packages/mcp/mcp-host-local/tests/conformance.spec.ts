@@ -10,7 +10,6 @@ import {
   type ScriptSource,
   type ScriptedPeer,
   type TransportFixture,
-  type TransportKind,
 } from '@omne-harness/mcp-contract/testing'
 import { httpPeer, leftoverServers } from './fixtures/scripted/http.ts'
 
@@ -20,9 +19,8 @@ const CLIENT = {
   clientInfo: { name: 'omne-harness-test', version: '0' },
 } as const
 
-function fixtureOf(kinds: readonly TransportKind[]): TransportFixture {
+function fixtureOf(): TransportFixture {
   return {
-    kinds,
     protocolVersions: VERSIONS,
     async peer(source: ScriptSource, needs: PeerNeeds): Promise<ScriptedPeer> {
       const peer = await httpPeer(source, needs, VERSIONS, CLIENT)
@@ -48,7 +46,7 @@ const NOT_APPLICABLE: Readonly<{ [name: string]: string }> = {
 
 type Counts = { passed: string[]; notApplicable: Map<string, string>; failed: string[] }
 
-function suite(title: string, kinds: readonly TransportKind[], expected: readonly string[]): void {
+function suite(title: string, expected: readonly string[]): void {
   const counts: Counts = { passed: [], notApplicable: new Map(), failed: [] }
   describe(title, () => {
     afterEach(async () => {
@@ -60,7 +58,7 @@ function suite(title: string, kinds: readonly TransportKind[], expected: readonl
       it(name, async () => {
         let verdict
         try {
-          verdict = await runConformanceCase(conformance, fixtureOf(kinds))
+          verdict = await runConformanceCase(conformance, fixtureOf())
         } catch (failure) {
           counts.failed.push(name)
           throw failure
@@ -86,4 +84,4 @@ function suite(title: string, kinds: readonly TransportKind[], expected: readonl
   })
 }
 
-suite('streamable-http', ['streamable-http'], Object.keys(NOT_APPLICABLE))
+suite('streamable-http', Object.keys(NOT_APPLICABLE))

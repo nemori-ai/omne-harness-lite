@@ -81,7 +81,6 @@ import {
 } from '@omne-harness/mcp-contract'
 import type {
   CallRequest,
-  HttpCredentialHandle,
   ListingPage,
   McpTransport,
   SentCall,
@@ -229,14 +228,6 @@ export class Session implements McpTransport {
 
   private get usable(): boolean {
     return !this.closed && this.dead === undefined
-  }
-
-  private get credential(): HttpCredentialHandle | undefined {
-    return this.material.credential
-  }
-
-  private get target(): string {
-    return this.material.target
   }
 
   private get bound(): IdentityBound {
@@ -437,7 +428,7 @@ export class Session implements McpTransport {
    */
   private async authorize(headers: Headers): Promise<boolean> {
     if (!this.usable) return false
-    const credential = this.credential
+    const credential = this.material.credential
     if (credential === undefined) return true
     const answer = await this.callHandle(() => credential.authorize(headers))
     return answer !== undefined && !('failure' in answer)
@@ -459,7 +450,7 @@ export class Session implements McpTransport {
    * is let go, and what was not fetched by then is unavailable.
    */
   private refusalOf(target: string, headers: AnswerHeaders, signal: AbortSignal): Refusal {
-    const credential = this.credential
+    const credential = this.material.credential
     const reported =
       credential === undefined
         ? Promise.resolve()
@@ -702,7 +693,7 @@ export class Session implements McpTransport {
     if (entry.phase.kind !== 'sent') return false
     const classified = classifyWireEvent(event, entry.context)
     if (classified.kind !== 'answer') return false
-    this.apply(entry, concludeAnswer(classified, entry.context, this.line.kind), headers)
+    this.apply(entry, concludeAnswer(classified, entry.context), headers)
     return true
   }
 
@@ -730,7 +721,7 @@ export class Session implements McpTransport {
    */
   private enterDiscovery(entry: Pending, headers: AnswerHeaders): void {
     const refusal = this.refusalOf(
-      this.target,
+      this.material.target,
       headers,
       AbortSignal.any([this.teardown.signal, entry.controller.signal]),
     )
@@ -901,14 +892,14 @@ export class Session implements McpTransport {
   private async refusedGet(opened: Extract<GetOpened, { kind: 'status' }>): Promise<Answered> {
     const conclusion = fallbackGetConclusionOf(opened, this.options.versions)
     if (conclusion.kind === 'settle') return { wire: conclusion.wire }
-    const refusal = this.refusalOf(this.target, opened.headers, this.teardown.signal)
+    const refusal = this.refusalOf(this.material.target, opened.headers, this.teardown.signal)
     const discovery = (await this.untilClosed(refusal.done)) ?? refusal.soFar()
     return { wire: authorizationRequiredAnswerOf(discovery) }
   }
 
   /** Whether the GET stream holds the legacy HTTP+SSE fallback (T3): 200, event-stream, same-origin endpoint. */
   private heldEndpoint(opened: Extract<GetOpened, { kind: 'stream' }>): string | undefined {
-    const target = this.target
+    const target = this.material.target
     const type = (opened.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase()
     if (opened.status !== 200 || type !== 'text/event-stream') return undefined
     const first = opened.first

@@ -76,7 +76,6 @@ function isRecord(value: unknown): value is PlainRecord {
 }
 
 export class MemoryLine implements Line {
-  readonly kind = 'streamable-http'
   readonly sent: Sent[] = []
   readonly aborted: string[] = []
   /** The methods of the writes that waited for their signal and were ended by it (`hang`). */

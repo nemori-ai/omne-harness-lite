@@ -96,7 +96,6 @@ async function* messagesOf(response: Response): AsyncGenerator<string> {
 type Linked = Readonly<{ controller: AbortController; unlink: () => void }>
 
 export class HttpLine implements Line {
-  readonly kind = 'streamable-http'
   readonly events: AsyncIterable<LineEvent>
   readonly openGet: (headers: Headers, signal: AbortSignal) => Promise<GetOpened>
   private readonly queue = new AsyncQueue<LineEvent>()

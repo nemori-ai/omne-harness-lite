@@ -301,8 +301,7 @@ function errorObjectOf(reply: Reply): PlainJson | undefined {
 
 /**
  * The cause an answer of the row is marked with (T1): a `no-answer` its own cause, an ended
- * session `session-ended`, a request that could not be written (X02) `stream-broken`. Undefined
- * on a row that leaves the transport usable. A request after the row carries the same cause.
+ * session `session-ended`. Undefined on a row that leaves the transport usable. A request after the row carries the same cause.
  */
 function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined {
   if (conclusion.unusable !== true) return undefined
@@ -317,7 +316,6 @@ function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined
             : undefined
         : undefined
   if (ended === 'stream-broken' || ended === 'session-ended') return ended
-  if (ended === 'connection-unavailable') return 'stream-broken'
   throw new TypeError(`a row that ends the transport concludes ${JSON.stringify(conclusion)}`)
 }
 
@@ -764,7 +762,7 @@ describe('the session holds every row of T8 on a memory line', () => {
           await checkCell(cell, row.conclusion)
         } catch (failure) {
           throw new Error(
-            `${cell.kind} ${cell.request} ${cell.answer}: ${failure instanceof Error ? failure.message : String(failure)}`,
+            `${cell.request} ${cell.answer}: ${failure instanceof Error ? failure.message : String(failure)}`,
           )
         }
       }
@@ -2238,7 +2236,6 @@ describe('a defect of the session goes to the defect outlet (DP-06): the request
     const outlet = defects()
     const sent: string[] = []
     const line: Line = {
-      kind: 'streamable-http',
       events: new AsyncQueue<LineEvent>(),
       async send(outbound) {
         sent.push(outbound.text)
@@ -2271,7 +2268,6 @@ describe('a defect of the session goes to the defect outlet (DP-06): the request
     const outlet = defects()
     let aborts = 0
     const line: Line = {
-      kind: 'streamable-http',
       events: new AsyncQueue<LineEvent>(),
       async send() {
         const messages = new AsyncQueue<string>()

@@ -39,9 +39,9 @@
 (* The properties are state assertions over snapshots the valid actions     *)
 (* take: the phase an entry was cut at (`cutAt`), its first answer          *)
 (* (`firstOut`), the credential counts at `close()` (`credAtClose`). The    *)
-(* negative controls are of two kinds: `Bugs` injects a defect; run.py      *)
-(* `--mutations` edits a valid action in a copy of this module. Both must   *)
-(* turn the named invariant red; see ../README.md "两种证据能变红".          *)
+(* negative controls are of two kinds: `Bugs` injects a defect; a mutation  *)
+(* of ../models.json edits a valid action in a copy of this module. Both    *)
+(* must turn the named invariant red; see ../README.md "两种证据能变红".     *)
 (*                                                                          *)
 (* The mapping to the real session and to the explorer (tests/model), the   *)
 (* bounds and the TLC results are in ../README.md. The properties are the   *)
@@ -344,7 +344,7 @@ DeadSettles(own, cut, cause, sentAnswer) ==
   /\ authAtDead' = IF Dead THEN authAtDead ELSE cred.auth
 
 (* The line went away: a broken stream, or the end of the shared stream of the  *)
-(* old HTTP+SSE mode (T8 S01-S04, the SSE mode). In the                        *)
+(* old HTTP+SSE mode. In the                                                   *)
 (* same step, authorizing -> notSent and handed to the line -> broken (no-answer *)
 (* with the cause, never sent again). A discovering entry is not touched. The    *)
 (* handle may hang on.                                                           *)
