@@ -167,7 +167,7 @@ function apiTreeOf(root: string, commit: string, directory: string): string | un
 }
 
 /**
- * 从提交 `ref` 生成基线：成员取那个提交的线归属表，`members` 给出时只写这些成员。
+ * 从提交 `ref` 生成基线：成员取那个提交的契约成员表，`members` 给出时只写这些成员。
  * 成员不是那个提交的契约成员、声明不全、没有快照文件或没有 `api` 目录时抛出。
  */
 export function writeBaseline(
@@ -251,7 +251,7 @@ function unreadableRegistration(entry: BaselineMember, before: Side): string | u
 }
 
 /**
- * 逐成员从登记的提交比到工作树的快照，分类与 `--diff` 相同。成员取登记与当前线归属表的并集：
+ * 逐成员从登记的提交比到工作树的快照，分类与 `--diff` 相同。成员取登记与当前契约成员表的并集：
  *
  * - 登记的成员在它的提交上不是契约成员、读不出或没有快照文件时判不了。
  * - 没有登记、只在当前表里的成员：在基线点（全部登记提交的共同祖先）上已是契约成员的，是漏登记，

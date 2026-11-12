@@ -1,5 +1,5 @@
 // 契约 API 快照的三个动作：写快照、核对快照与 dist、对比基线提交上的快照并粗分类。
-// 契约成员清单取线归属表的 `contracts`，快照落点取 `repo-toolchain.config.json` 的 `contractApi` 一节。
+// 契约成员清单取契约成员表的 `contracts`，快照落点取 `repo-toolchain.config.json` 的 `contractApi` 一节。
 // 核对与对比只报告：发现不让命令失败，命令只在用法、配置、基线或工具出错时失败。
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -33,7 +33,7 @@ import {
 } from './api-snapshot.ts'
 
 export interface ContractApiConfig {
-  /** 线归属表的仓库相对路径；成员清单取各线 `contracts` 的并集。 */
+  /** 契约成员表的仓库相对路径；成员清单取各组 `contracts` 的并集。 */
   readonly members: string
   /** 快照路径模板：`{member}` 是成员目录，`{package}` 是不带 scope 的包名。 */
   readonly snapshot: string
@@ -64,12 +64,12 @@ export function readContractApiConfig(path: string = toolchainConfigPath()): Con
   return parseContractApiConfig(readToolchainSection('contractApi', path))
 }
 
-/** 线归属表各线 `contracts` 的并集，按路径排序；本工具只核对读取所需的形状，不校验表的其余部分。 */
+/** 契约成员表各组 `contracts` 的并集，按路径排序；本工具只核对读取所需的形状，不校验表的其余部分。 */
 export function parseContractMembers(text: string): string[] {
   const parsed: unknown = JSON.parse(text)
   const lines =
     typeof parsed === 'object' && parsed !== null && 'lines' in parsed ? parsed.lines : undefined
-  if (!Array.isArray(lines)) throw new Error('线归属表没有 lines 数组')
+  if (!Array.isArray(lines)) throw new Error('契约成员表没有 lines 数组')
   const members = new Set(lines.flatMap(contractsOf))
   return [...members].sort(byCodeUnit)
 }
@@ -81,7 +81,7 @@ function contractsOf(line: unknown): string[] {
     !Array.isArray(contracts) ||
     !contracts.every(item => typeof item === 'string' && item !== '')
   )
-    throw new Error('线归属表里每条线的 contracts 须为路径数组')
+    throw new Error('契约成员表里每组的 contracts 须为路径数组')
   return contracts
 }
 
@@ -107,7 +107,7 @@ export interface Contracts {
 }
 
 /**
- * 契约成员与快照路径的唯一算法，工作树与基线提交共用。线归属表不存在时 `listMissing` 决定：
+ * 契约成员与快照路径的唯一算法，工作树与基线提交共用。契约成员表不存在时 `listMissing` 决定：
  * 工作树上是配置错误（抛出），基线上表示那时还没有契约成员。两个成员落到同一路径时抛出。
  */
 export function locateContracts(
@@ -117,7 +117,7 @@ export function locateContracts(
 ): Contracts {
   const text = read(config.members)
   if (text === undefined && listMissing === 'throw')
-    throw new Error(`没有线归属表 ${config.members}`)
+    throw new Error(`没有契约成员表 ${config.members}`)
   const located: LocatedMember[] = []
   const problems: MemberProblem[] = []
   const owners = new Map<string, string>()
@@ -359,7 +359,7 @@ export function revisionReader(root: string, commit: string): ReadFile {
 
 /**
  * 基线提交上的快照文件对工作树的快照文件，逐成员粗分类。只比快照文件，不读 dist。
- * 成员取基线与当前两份线归属表的并集，各侧的快照路径按各侧的包名算：
+ * 成员取基线与当前两份契约成员表的并集，各侧的快照路径按各侧的包名算：
  * 只在当前是契约成员的整份算新增，只在基线是的整份算删除，包名变了是 review，两侧都没有快照文件是 review。
  */
 export function diffSnapshots(root: string, config: ContractApiConfig, base: string): DiffRun {

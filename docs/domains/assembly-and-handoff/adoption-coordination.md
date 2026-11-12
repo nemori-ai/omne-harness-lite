@@ -19,7 +19,7 @@
 - 采用协调者校验什么，产出什么，失败时怎样表达。
 - 它与 Tool 的 `planAdoption`、Session 的推进协调器 C2、Agent 的 `AgentAdoptions` 怎样分工。
 - 租户公平（J43）对契约有什么约束。
-- 成员放在哪里，叫什么，怎样进入线归属表。
+- 成员放在哪里，叫什么，怎样进入契约成员表。
 - M2 内谁采用它，哪些部分需要持久化，以及 #688 是否保留对 [#687](https://github.com/nemori-ai/omne-harness-lite/issues/687) 的开工条件。
 
 本页不回答：
@@ -253,7 +253,7 @@ Session 规格「身份桥、证据桥与 Context 输入」说已校验候选「
 
 ### 位置与采用范围
 
-**AC-18** 新成员位于 `packages/assembly/adoption-contract`，包名 `@omne-harness/adoption-contract`。成员含纯类型、校验、摘要函数、Cordis 服务定义、内存替身与符合性套件，结构沿 `sql-contract`：入口 `.`、`./cordis`、`./testing`。它依赖 `exchange-refs`、`legal-identity`、`operation-result`、`json-text` 与 Cordis。它不依赖 `assembly`、Session、Agent、Tool 的任何成员，也不被它们依赖。只有应用成员与具名提供者导入它。依据：[线归属表](../../engineering/delivery-lines.json)已预登记 `packages/assembly/adoption-contract`，[产品包组织](../../package-organization.md)规定业务成员不读取 `assembly` 取得全局服务。
+**AC-18** 新成员位于 `packages/assembly/adoption-contract`，包名 `@omne-harness/adoption-contract`。成员含纯类型、校验、摘要函数、Cordis 服务定义、内存替身与符合性套件，结构沿 `sql-contract`：入口 `.`、`./cordis`、`./testing`。它依赖 `exchange-refs`、`legal-identity`、`operation-result`、`json-text` 与 Cordis。它不依赖 `assembly`、Session、Agent、Tool 的任何成员，也不被它们依赖。只有应用成员与具名提供者导入它。依据：[契约成员表](../../engineering/delivery-lines.json)已预登记 `packages/assembly/adoption-contract`，[产品包组织](../../package-organization.md)规定业务成员不读取 `assembly` 取得全局服务。
 
 **AC-19** 契约只有一个 Cordis 服务键 `adoptionCoordinator`，由 `adoption-contract` 的 `./cordis` 定义。`sessionAdoptionSource` 与 `agentAdoptions` 仍由 Session 与 Agent 的 Cordis 契约拥有。它们是消费口，不是第二个来源。同一来源只保留一个键拥有位置。依据：Session 的 Cordis 契约用 `SessionAdoptionSourceService` 定义 `sessionAdoptionSource`。Session 端口把采用、生产、保管三个证据桥消费口标为 XC-ADOPTSRC，三者的键都由 Session 的 Cordis 契约定义。
 
@@ -358,7 +358,7 @@ AC-24 至 AC-26 留在本页，不迁入契约成员的 SPEC。
 登记点：
 
 - 成员目录：`packages/assembly/adoption-contract`，含 `SPEC.md`、双语 README、`documentation.json`、`api/`。
-- 线归属表：`contracts` 增加该目录。
+- 契约成员表：`contracts` 增加该目录。
 - 产品包组织：「装配组有两个目标成员」改为三个，并登记该成员。
 - Cordis 键：`adoptionCoordinator`，进入装配页的服务键清单。
 

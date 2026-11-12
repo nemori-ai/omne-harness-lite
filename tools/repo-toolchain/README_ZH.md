@@ -693,7 +693,7 @@ pnpm run loop:health # --out 可改产物目录
 
 ## 契约 API 快照
 
-契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/delivery.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
+契约成员是[契约成员表](../../docs/engineering/delivery-lines.json)各组 `contracts` 列出的成员。卡对它们缺省只做可加改动，规则见[可加改动](../../docs/engineering/delivery.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
 
 ```sh
 omne-contract-api --write                 # 从 dist 重写快照（先构建）
@@ -707,7 +707,7 @@ omne-contract-api --baseline <区块文件>    # 逐成员从登记的提交比�
 
 配置在 `repo-toolchain.config.json` 的 `contractApi` 一节，有两个键：
 
-- `members`：线归属表的路径。
+- `members`：契约成员表的路径。
 - `snapshot`：快照路径模板，以 `.md` 结尾，至少含 `{member}`（成员目录）或 `{package}`（不带 scope 的包名）之一。
 
 这一节有别的键、缺键或值不合条件时，命令报错退出。两个成员算出同一个快照路径时，命令也报错退出。
@@ -729,7 +729,7 @@ omne-contract-api --baseline <区块文件>    # 逐成员从登记的提交比�
 `--diff` 的前提：
 
 - 它只比快照文件，不读 dist。先用 `--check` 确认工作树的快照与 dist 一致，或先运行 `--write`。
-- 成员取基线与当前两份线归属表的并集，每侧的快照路径按那一侧的包名算。基线上没有快照的成员整份算 `additive`。
+- 成员取基线与当前两份契约成员表的并集，每侧的快照路径按那一侧的包名算。基线上没有快照的成员整份算 `additive`。
 - 判断改动是否可加时，传里程碑登记的基线提交。
 
 快照摘要是快照文件字节的 SHA-256。`--check --json` 对每个有快照文件的成员给出 `sha256`。

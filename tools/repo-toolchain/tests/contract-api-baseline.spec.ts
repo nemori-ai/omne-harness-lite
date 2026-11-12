@@ -289,7 +289,7 @@ describe('checking against a baseline', { timeout: 120_000 }, () => {
   it('cannot judge a member whose registered commit has no such contract member', () => {
     const { root, base } = committedCheckout()
     const baseline = writeBaseline(root, CONFIG, base, { milestone: 'M1' })
-    // The first commit of the fixture holds only a README: no line table, no contract member.
+    // The first commit of the fixture holds only a README: no contract member table, no contract member.
     const empty = git(root, 'rev-list', '--max-parents=0', 'HEAD')
     const [a, b] = baseline.members
     const wrong = {
@@ -346,7 +346,7 @@ describe('checking against a baseline', { timeout: 120_000 }, () => {
     })
   })
 
-  it('counts a registered member that left the line table as a removal', () => {
+  it('counts a registered member that left the contract member table as a removal', () => {
     const { root, base } = committedCheckout()
     const baseline = writeBaseline(root, CONFIG, base, { milestone: 'M1' })
     setContracts(root, ['packages/x/a'])
