@@ -130,11 +130,11 @@ describe('grace', () => {
     const stuck = ignoring()
     const call = setup('save-note', { 'save-note': stuck.handler })
     let answered: SettledAnswer | undefined
-    const settled = call.settle(500).then(answer => {
+    void call.settle(500).then(answer => {
       answered = answer
     })
     let done = false
-    const drained = call.takeDown().then(() => {
+    void call.takeDown().then(() => {
       done = true
     })
     call.clock.advance(499)
@@ -142,8 +142,8 @@ describe('grace', () => {
     expect(answered).toBeUndefined()
     expect(done).toBe(false)
     call.clock.advance(1)
-    await settled
-    await drained
+    // No await on the answer itself: without the grace it would never come.
+    await flush()
     expect(answered).toEqual({ outcome: 'unknown', body: EMPTY })
     expect(done).toBe(true)
     expect(call.steps).toEqual(['respond unknown', 'leave'])
@@ -161,7 +161,7 @@ describe('grace', () => {
       },
     })
     let answered: SettledAnswer | undefined
-    const settled = call.settle(2000).then(answer => {
+    void call.settle(2000).then(answer => {
       answered = answer
     })
     void call.takeDown()
@@ -169,8 +169,9 @@ describe('grace', () => {
     await flush()
     expect(answered).toBeUndefined()
     call.clock.advance(1)
-    await settled
+    await flush()
     expect(answered).toEqual({ outcome: 'basis-unavailable', body: EMPTY })
+    stuck.release()
   })
 
   it('writes the answer of a handler that returns within the grace', async () => {
