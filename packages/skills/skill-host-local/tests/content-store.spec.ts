@@ -50,6 +50,8 @@ type Store = Readonly<{
   /** What the read port of each digest holds. */
   packages: Map<string, Record<string, string>>
   opened: string[]
+  /** The refs that the source gave the read port, one for each read port it asked for. */
+  refs: string[]
   /** Bytes that the store gives in place of the stored ones, by path. */
   tampered: Map<string, string>
   /** A failure that `open` gives for every file. */
@@ -60,6 +62,7 @@ function store(overrides: Partial<Store> = {}): Store {
   return {
     packages: new Map([[DIGEST, { ...FILES }]]),
     opened: [],
+    refs: [],
     tampered: new Map(),
     ...overrides,
   }
@@ -67,35 +70,42 @@ function store(overrides: Partial<Store> = {}): Store {
 
 /** A read port that checks the digest of the bytes it gives, as the read port of assets does. */
 function readerOf(held: Store) {
-  return (digest: string): PackageReader => ({
-    async manifest() {
-      const files = held.packages.get(digest)
-      if (files === undefined) return { failure: 'package-not-found' }
-      return {
-        ok: {
-          entries: Object.entries(files).map(([path, text]) => ({
-            path,
-            bytes: encoder.encode(text).length,
-            digest: digestBytes(encoder.encode(text)),
-          })),
-        },
-      }
-    },
-    async open(path, expected) {
-      held.opened.push(path)
-      if (held.openFailure !== undefined) return { failure: held.openFailure }
-      const files = held.packages.get(digest)
-      if (files === undefined) return { failure: 'package-not-found' }
-      const text = files[path]
-      if (text === undefined || digestBytes(encoder.encode(text)) !== expected)
-        return { failure: 'entry-not-found' }
-      const bytes = encoder.encode(held.tampered.get(path) ?? text)
-      return digestBytes(bytes) === expected ? { ok: bytes } : { failure: 'material-unavailable' }
-    },
-  })
+  return ({ ref, digest }: { ref: string; digest: string }): PackageReader => {
+    held.refs.push(ref)
+    return {
+      async manifest() {
+        const files = held.packages.get(digest)
+        if (files === undefined) return { failure: 'package-not-found' }
+        return {
+          ok: {
+            entries: Object.entries(files).map(([path, text]) => ({
+              path,
+              bytes: encoder.encode(text).length,
+              digest: digestBytes(encoder.encode(text)),
+            })),
+          },
+        }
+      },
+      async open(path, expected) {
+        held.opened.push(path)
+        if (held.openFailure !== undefined) return { failure: held.openFailure }
+        const files = held.packages.get(digest)
+        if (files === undefined) return { failure: 'package-not-found' }
+        const text = files[path]
+        if (text === undefined || digestBytes(encoder.encode(text)) !== expected)
+          return { failure: 'entry-not-found' }
+        const bytes = encoder.encode(held.tampered.get(path) ?? text)
+        return digestBytes(bytes) === expected ? { ok: bytes } : { failure: 'material-unavailable' }
+      },
+    }
+  }
 }
 
-const locator = { kind: 'content-store', digest: DIGEST } as const
+const locator = {
+  kind: 'content-store',
+  digest: DIGEST,
+  ref: 'tenant/skill/weekly-report',
+} as const
 
 describe('C10 the content-store source over the read port of assets', () => {
   it('reads the snapshot and a file through the read port', async () => {
@@ -168,13 +178,53 @@ describe('C10 the content-store source over the read port of assets', () => {
   })
 })
 
+describe('the ref of the locator and the bound on what the source keeps', () => {
+  it('passes the ref of the locator to readerOf as it is, with the digest', async () => {
+    const held = store()
+    const source = createContentStoreSource({ readerOf: readerOf(held) })
+    await source.snapshot(locator)
+    await source.open(locator, DIGEST, packagePath('SKILL.md'))
+    expect(held.refs.length).toBeGreaterThan(0)
+    expect(new Set(held.refs)).toEqual(new Set(['tenant/skill/weekly-report']))
+  })
+
+  it('keeps the 256 snapshots used last and seals the oldest one again', async () => {
+    const packages = new Map<string, Record<string, string>>()
+    const digests: PackageDigest[] = []
+    for (let index = 0; index <= 256; index += 1) {
+      const files = { 'SKILL.md': `package ${index}\n` }
+      const digest = digestOf(files)
+      packages.set(digest, files)
+      digests.push(digest)
+    }
+    const held = store({ packages })
+    const source = createContentStoreSource({ readerOf: readerOf(held) })
+    const at = (index: number) =>
+      ({ kind: 'content-store', digest: digests[index]!, ref: `asset-${index}` }) as const
+    // 0 to 255 fill the 256 places; using 0 again makes 1 the oldest; 256 then pushes 1 out.
+    for (let index = 0; index < 256; index += 1) await source.snapshot(at(index))
+    await source.snapshot(at(0))
+    await source.snapshot(at(256))
+    held.opened.length = 0
+    // Exactly 256 are kept: 0, 2 to 256.
+    for (const index of [0, 2, 255, 256]) await source.snapshot(at(index))
+    expect(held.opened).toEqual([])
+    await source.snapshot(at(1))
+    expect(held.opened).toEqual(['SKILL.md'])
+  })
+})
+
 describe('SkillPackageSource conformance: content-store source over a read port in memory', () => {
   for (const conformance of skillPackageSourceConformance())
     it(`${conformance.clause} ${conformance.name}`, async () => {
       const fixture = {
         source: createContentStoreSource({ readerOf: readerOf(store()) }),
         present: locator,
-        absent: { kind: 'content-store', digest: digestOf({ 'SKILL.md': 'none\n' }) } as const,
+        absent: {
+          kind: 'content-store',
+          digest: digestOf({ 'SKILL.md': 'none\n' }),
+          ref: 'tenant/skill/none',
+        } as const,
         addressing: 'content-digest' as const,
       }
       const answer = await runConformanceCase(conformance, fixture)

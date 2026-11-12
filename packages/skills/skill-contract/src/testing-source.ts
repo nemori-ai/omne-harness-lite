@@ -32,7 +32,9 @@ export type MemoryPackage = Readonly<{
 
 function locatorKey(locator: PackageLocator): string {
   return JSON.stringify(
-    locator.kind === 'directory' ? ['directory', locator.root] : ['content-store', locator.digest],
+    locator.kind === 'directory'
+      ? ['directory', locator.root]
+      : ['content-store', locator.digest, locator.ref],
   )
 }
 

@@ -8,7 +8,7 @@ import {
   readVersion,
   selectedVersion,
 } from './records.ts'
-import { ASSET_LIST_LIMIT, assetSchema, HANDLER, PROTOCOL, readRequestSchema } from './schema.ts'
+import { HANDLER, PROTOCOL, readRequestSchema } from './schema.ts'
 import { canonical, equal, json, scopeRef, withinBudget } from './encoding.ts'
 type ReadRequest = ReturnType<typeof readRequestSchema.parse>
 type Port = Parameters<ReadHandlerModule['read']>[1]
@@ -34,21 +34,6 @@ function heldCapabilityResult(
   ).rows[0]
   if (!row || typeof row[0] !== 'string') return { kind: 'read', output: { kind: 'absent' } }
   return heldResult(readHolding(port, domain, row[0]), port)
-}
-/** Every asset of the domain, by reference and identity, up to `ASSET_LIST_LIMIT`. */
-function assetListResult(
-  request: Extract<ReadRequest, { kind: 'assetList' }>,
-  port: Port,
-): ReturnType<ReadHandlerModule['read']> {
-  const rows = port.execute('SELECT record FROM al_assets ORDER BY asset_key LIMIT ?', [
-    ASSET_LIST_LIMIT + 1,
-  ]).rows
-  if (rows.length > ASSET_LIST_LIMIT) return { kind: 'failed', diagnostic: 'assets_list_limit' }
-  const assets = rows
-    .map(row => decode(assetSchema, row[0]))
-    .filter(asset => equal(asset.domain, request.domain))
-    .map(({ assetRef, category, name }) => ({ assetRef, category, name }))
-  return { kind: 'read', output: json({ kind: 'assets', assets }) }
 }
 function heldResult(
   holding: ReturnType<typeof readHolding>,
@@ -99,20 +84,13 @@ export default {
     if (!request.success) return { kind: 'failed', diagnostic: 'assets_invalid_input' }
     const { domain } = request.data
     if (request.data.kind === 'asset') return assetResult(request.data, port)
-    if (request.data.kind === 'assetList' || request.data.kind === 'heldCapability') {
-      // A domain without any record yet has no asset and no holding.
+    if (request.data.kind === 'heldCapability') {
+      // A domain without any record yet has no holding.
       const current = readDomain(port)
       if (scopeRef(domain) === null || (current !== null && !equal(current.domain, domain)))
         return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
-      if (current === null)
-        return {
-          kind: 'read',
-          output:
-            request.data.kind === 'assetList' ? { kind: 'assets', assets: [] } : { kind: 'absent' },
-        }
-      return request.data.kind === 'assetList'
-        ? assetListResult(request.data, port)
-        : heldCapabilityResult(request.data, port)
+      if (current === null) return { kind: 'read', output: { kind: 'absent' } }
+      return heldCapabilityResult(request.data, port)
     }
     if (!belongs(port, domain))
       return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }

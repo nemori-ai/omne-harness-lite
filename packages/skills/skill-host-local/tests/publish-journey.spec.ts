@@ -34,7 +34,10 @@ describe('C12 publishing a directory as a Skill of the tenant, then reading it',
     const run = await journey(false)
     expect(run.resolution).toMatchObject({
       kind: 'adopted',
-      ref: { layer: 'tenant', locator: { kind: 'content-store', digest: run.version } },
+      ref: {
+        layer: 'tenant',
+        locator: { kind: 'content-store', digest: run.version, ref: 'tenant/skill/sample-skill' },
+      },
     })
     expect(run.body.content).toMatchObject({
       kind: 'text',
@@ -47,7 +50,7 @@ describe('C12 publishing a directory as a Skill of the tenant, then reading it',
     ])
     expect(run.location).toEqual({
       kind: 'local-directory',
-      path: expect.stringMatching(/\/packages\/skills\/sample-skill\/sha256:[0-9a-f]{64}$/),
+      path: expect.stringMatching(/\/packages\/skills\/sample-skill\/sha256-[0-9a-f]{64}$/),
     })
     if (run.location.kind !== 'local-directory') throw new Error('no directory')
     expect(readFileSync(join(run.location.path, 'scripts/report.sh'), 'utf8')).toBe(

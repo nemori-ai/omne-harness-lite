@@ -244,7 +244,7 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     // Step 3: the content-store source reads the read port of assets; a directory locator goes
     // to the directory source. Handing the reader of assets-local to it is this assembly's step.
     const contentStore = createContentStoreSource({
-      readerOf: digest => assets.packages.reader({ capability, version: digest }),
+      readerOf: ({ ref, digest }) => assets.packages.reader({ assetRef: ref, version: digest }),
     })
     const source: SkillPackageSource = {
       snapshot: locator =>
@@ -269,7 +269,7 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
       resolution: answer,
       body: body.ok,
       listing: listing.ok,
-      location: assets.packages.locate({ capability, version: published.version }),
+      location: await assets.packages.locate({ assetRef, version: published.version }),
     }
   } finally {
     await assets.close()

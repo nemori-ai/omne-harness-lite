@@ -20,6 +20,7 @@ import {
   type CapabilityId,
   type PackageReader,
 } from '@omne-harness/assets'
+import type { SqlStorage } from '@omne-harness/sql-contract'
 import { ownerSources } from './sources.ts'
 import { grants, openWorld, type World } from './world.ts'
 
@@ -119,7 +120,12 @@ class Crash extends Error {}
 
 type Step = 'staged' | 'recorded'
 
-async function world(options: { afterPackageStep?: (step: Step) => void | Promise<void> } = {}) {
+async function world(
+  options: {
+    afterPackageStep?: (step: Step) => void | Promise<void>
+    ownerWrap?: (storage: SqlStorage) => SqlStorage
+  } = {},
+) {
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-packages-')))
   const opened = await openWorld({ categories: bundles(), packageRoot, ...options })
   worlds.push(opened)
@@ -150,11 +156,11 @@ function stagingOf(root: string): string[] {
 }
 
 function placed(root: string, version: string): string {
-  return join(root, 'bundles', 'report', version)
+  return join(root, 'bundles', 'report', version.replace(':', '-'))
 }
 
 async function readAll(w: World, version: string) {
-  const reader = w.owner.packages.reader({ capability: report, version })
+  const reader = w.owner.packages.reader({ assetRef: 'tenant/report', version })
   const manifest = await reader.manifest()
   if (!('ok' in manifest)) return manifest
   const files: Record<string, string> = {}
@@ -244,7 +250,7 @@ describe('publish: the cells of the totalized table', () => {
 describe('read: the cells of the totalized table', () => {
   it('读 × 没有：答包不存在', async () => {
     const w = await world()
-    const reader = w.owner.packages.reader({ capability: report, version: versionOf(FIRST) })
+    const reader = w.owner.packages.reader({ assetRef: 'tenant/report', version: versionOf(FIRST) })
     expect(await reader.manifest()).toEqual({ failure: 'package-not-found' })
     expect(await reader.open('SKILL.md', digestBytes(encoder.encode('first')))).toEqual({
       failure: 'package-not-found',
@@ -256,7 +262,7 @@ describe('read: the cells of the totalized table', () => {
     await publish(w, FIRST, 'publish-1')
     expect(await readAll(w, versionOf(FIRST))).toEqual({ ok: FIRST })
     writeFileSync(join(placed(w.packageRoot, versionOf(FIRST)), 'scripts/run.sh'), 'rm -rf /')
-    const reader = w.owner.packages.reader({ capability: report, version: versionOf(FIRST) })
+    const reader = w.owner.packages.reader({ assetRef: 'tenant/report', version: versionOf(FIRST) })
     expect(await reader.open('scripts/run.sh', digestBytes(encoder.encode('echo 1')))).toEqual({
       failure: 'material-unavailable',
     })
@@ -269,14 +275,14 @@ describe('read: the cells of the totalized table', () => {
     const w = await crashingWorld('staged')
     await publish(w, FIRST, 'publish-1')
     expect(stagingOf(w.packageRoot)).toHaveLength(1)
-    const reader = w.owner.packages.reader({ capability: report, version: versionOf(FIRST) })
+    const reader = w.owner.packages.reader({ assetRef: 'tenant/report', version: versionOf(FIRST) })
     expect(await reader.manifest()).toEqual({ failure: 'package-not-found' })
   })
 
   it('读 × 记了没换：答材料不可用', async () => {
     const w = await crashingWorld('recorded')
     await publish(w, FIRST, 'publish-1')
-    const reader = w.owner.packages.reader({ capability: report, version: versionOf(FIRST) })
+    const reader = w.owner.packages.reader({ assetRef: 'tenant/report', version: versionOf(FIRST) })
     expect(await reader.manifest()).toEqual({ failure: 'material-unavailable' })
     expect(await reader.open('SKILL.md', digestBytes(encoder.encode('first')))).toEqual({
       failure: 'material-unavailable',
@@ -395,7 +401,7 @@ describe('publishing a directory', () => {
     })
     for (const [path, text] of Object.entries(FIRST))
       expect(readFileSync(join(placed(w.packageRoot, version), path), 'utf8')).toBe(text)
-    expect(w.owner.packages.locate({ capability: report, version })).toEqual({
+    expect(await w.owner.packages.locate({ assetRef: 'tenant/report', version })).toEqual({
       kind: 'local-directory',
       path: placed(w.packageRoot, version),
     })
@@ -413,7 +419,7 @@ describe('publishing a directory', () => {
   it('C5 manifest 给出清单；open 按路径与摘要给字节；清单之外的路径答条目不存在', async () => {
     const w = await world()
     await publish(w, FIRST, 'publish-1')
-    const reader = w.owner.packages.reader({ capability: report, version: versionOf(FIRST) })
+    const reader = w.owner.packages.reader({ assetRef: 'tenant/report', version: versionOf(FIRST) })
     const manifest = await reader.manifest()
     expect(manifest).toEqual(await memory(FIRST).manifest())
     const digest = digestBytes(encoder.encode('first'))
@@ -451,6 +457,47 @@ describe('publishing a directory', () => {
     expect(await w.owner.readAsset({ assetRef: 'tenant/report' })).toMatchObject({
       kind: 'asset',
       asset: { latestVersion: versionOf(kept), revision: 1 },
+    })
+  })
+})
+
+describe('reading by asset reference, and the directory names', () => {
+  it('一个读口对象里版本记录读一次：manifest 与几次 open 只读一次版本记录', async () => {
+    let versionReads = 0
+    const w = await world({
+      ownerWrap: storage => ({
+        ...storage,
+        read(request, options) {
+          if (JSON.stringify(request.input).includes('"kind":"version"')) versionReads += 1
+          return storage.read(request, options)
+        },
+      }),
+    })
+    await publish(w, FIRST, 'publish-1')
+    versionReads = 0
+    const reader = w.owner.packages.reader({ assetRef: 'tenant/report', version: versionOf(FIRST) })
+    expect(await readAll(w, versionOf(FIRST))).toEqual({ ok: FIRST })
+    versionReads = 0
+    await reader.manifest()
+    await reader.open('SKILL.md', digestBytes(encoder.encode('first')))
+    await reader.open('scripts/run.sh', digestBytes(encoder.encode('echo 1')))
+    expect(versionReads).toBe(1)
+  })
+
+  it('版本号落盘成目录名时没有 Windows 不认的字符，版本号本身不变', async () => {
+    const w = await world()
+    const published = await publish(w, FIRST, 'publish-1')
+    expect(published).toMatchObject({ version: expect.stringMatching(/^sha256:[0-9a-f]{64}$/) })
+    const names = readdirSync(join(w.packageRoot, 'bundles', 'report'))
+    expect(names).toEqual([versionOf(FIRST).replace('sha256:', 'sha256-')])
+    for (const name of names) expect(name).not.toMatch(/[<>:"/\\|?*]/)
+    const location = await w.owner.packages.locate({
+      assetRef: 'tenant/report',
+      version: versionOf(FIRST),
+    })
+    expect(location).toEqual({
+      kind: 'local-directory',
+      path: placed(w.packageRoot, versionOf(FIRST)),
     })
   })
 })
@@ -494,9 +541,11 @@ describe('C8 a directory that does not pass is rejected and nothing is written',
       kind: 'rejected',
       rejection: { kind: 'not-configured' },
     })
-    const reader = w.owner.packages.reader({ capability: report, version: versionOf(FIRST) })
+    const reader = w.owner.packages.reader({ assetRef: 'tenant/report', version: versionOf(FIRST) })
     expect(await reader.manifest()).toEqual({ failure: 'unavailable' })
-    expect(w.owner.packages.locate({ capability: report, version: versionOf(FIRST) })).toEqual({
+    expect(
+      await w.owner.packages.locate({ assetRef: 'tenant/report', version: versionOf(FIRST) }),
+    ).toEqual({
       kind: 'absent',
     })
   })

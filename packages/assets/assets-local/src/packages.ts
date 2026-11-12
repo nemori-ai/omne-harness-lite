@@ -3,7 +3,7 @@
 // bytes are files under the package root. Publishing is an ordered flow, not a transaction:
 // stage, record the version, then swap the staging in. A crash between the record and the swap
 // leaves the staging, and `recover` swaps it in.
-import { existsSync } from 'node:fs'
+import { existsSync, type Dirent } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import {
@@ -52,8 +52,8 @@ export interface PublishedPackages {
     from: PackageReader
     operationId: string
   }): Promise<PackagePublishResult>
-  /** The read port of one version. Each file read checks its digest. */
-  reader(input: { capability: CapabilityId; version: string }): PackageReader
+  /** The read port of one version of one asset. Each file read checks its digest. */
+  reader(input: { assetRef: string; version: string }): PackageReader
   /** The recovery scan at start. */
   recover(): Promise<PackageRecovery>
 }
@@ -64,23 +64,33 @@ export type PackageLocation =
   | Readonly<{ kind: 'absent' }>
 
 export interface LocalPackages extends PublishedPackages {
-  locate(input: { capability: CapabilityId; version: string }): PackageLocation
+  /** Reads the version record, so it answers later; a storage failure rejects, never `absent`. */
+  locate(input: { assetRef: string; version: string }): Promise<PackageLocation>
 }
 
-type AssetIdentity = Readonly<{ assetRef: string; category: string; name: string }>
+/** The identity and the body of one version record. */
+type VersionRecord = Readonly<{ category: string; name: string; body: JsonValue }>
 
 /** What the packages need of the records. */
 export type PackageRecords = Readonly<{
   publish(input: AssetsPublish): Promise<AssetsMutationResult>
   getOperation(operationId: string): Promise<AssetsOperationResult>
   readAssetRevision(assetRef: string): Promise<Outcome<number, string>>
-  /** The body of a version record, or `undefined` when the record is absent. */
-  readVersionBody(
+  /** One version record by asset reference and version, or `undefined` when it is absent. */
+  readVersionRecord(
     assetRef: string,
     version: string,
-  ): Promise<Outcome<JsonValue | undefined, string>>
-  listAssets(): Promise<Outcome<readonly AssetIdentity[], string>>
+  ): Promise<Outcome<VersionRecord | undefined, string>>
 }>
+
+/** The directory name of a version: a version is `sha256:<hex>`, and a colon is no lawful file
+ * name on Windows, so it becomes `sha256-<hex>`. The version itself does not change. */
+export function versionDirectoryName(version: string): string {
+  return version.replaceAll(':', '-')
+}
+
+/** The file in each namespace directory that names its category, for the recovery scan. */
+const CATEGORY_FILE = '.category'
 
 const STAGING = '.staging'
 const SOURCE = 'published-package'
@@ -201,7 +211,7 @@ export function createPublishedPackages(input: {
   const { root, categories, records } = input
 
   function finalOf(root: string, layout: PackageLayout, name: string, version: string): string {
-    return join(root, layout.namespace, name, version)
+    return join(root, layout.namespace, name, versionDirectoryName(version))
   }
   function layoutOf(category: string): PackageLayout | undefined {
     return categories.lookup(category)?.layout
@@ -228,9 +238,12 @@ export function createPublishedPackages(input: {
     )
   }
 
-  /** Moves the staged files to their place. Another swap of the same version may come first. */
-  async function swap(staging: string, final: string): Promise<void> {
+  /** Moves the staged files to their place. Another swap of the same version may come first. The
+   * namespace directory names its category first, so the recovery scan can name the identity. */
+  async function swap(staging: string, final: string, category: string): Promise<void> {
     await mkdir(dirname(final), { recursive: true })
+    const named = join(dirname(dirname(final)), CATEGORY_FILE)
+    if (!existsSync(named)) await writeFile(named, category)
     try {
       await rename(join(staging, 'files'), final)
     } catch (error) {
@@ -249,7 +262,7 @@ export function createPublishedPackages(input: {
         one.meta.version === meta.version,
     )
     if (staged === undefined) throw new Error('a recorded version has neither files nor staging')
-    await swap(staged.dir, final)
+    await swap(staged.dir, final, meta.category)
   }
 
   /** Writes every file through the publisher's reader, then the meta file that marks it whole. */
@@ -272,22 +285,6 @@ export function createPublishedPackages(input: {
     }
     await writeFile(join(staging, 'meta.json'), JSON.stringify(meta))
     return undefined
-  }
-
-  /** The record of the version under any asset of this identity, with the asset reference. */
-  async function recordOf(
-    capability: CapabilityId,
-    version: string,
-  ): Promise<Outcome<{ assetRef: string; body: JsonValue } | undefined, string>> {
-    const listed = await records.listAssets()
-    if (!('ok' in listed)) return listed
-    for (const asset of listed.ok) {
-      if (asset.category !== capability.category || asset.name !== capability.name) continue
-      const body = await records.readVersionBody(asset.assetRef, version)
-      if (!('ok' in body)) return body
-      if (body.ok !== undefined) return succeed({ assetRef: asset.assetRef, body: body.ok })
-    }
-    return succeed(undefined)
   }
 
   async function publish(
@@ -338,7 +335,7 @@ export function createPublishedPackages(input: {
     }
     if (receipt.kind === 'unknown') return { kind: 'unknown', operationId }
     if (receipt.kind === 'rejected') return recordRejected(receipt.reason)
-    const existing = await records.readVersionBody(assetRef, version)
+    const existing = await records.readVersionRecord(assetRef, version)
     if (!('ok' in existing)) return rejected({ kind: 'record-rejected', reason: existing.failure })
     if (existing.ok !== undefined) {
       await completeSwap(root, meta, final)
@@ -367,7 +364,7 @@ export function createPublishedPackages(input: {
       return recordRejected(recorded.reason)
     }
     await input.afterStep?.('recorded')
-    await swap(staging, final)
+    await swap(staging, final, capability.category)
     return { kind: 'published', version, changed: recorded.changed }
   }
 
@@ -377,43 +374,55 @@ export function createPublishedPackages(input: {
       : rejected({ kind: 'record-rejected', reason })
   }
 
-  function reader(request: { capability: CapabilityId; version: string }): PackageReader {
-    const { capability, version } = request
+  /** The version record of one version of one asset: where its files are and its manifest. */
+  async function placeOf(
+    assetRef: string,
+    version: string,
+  ): Promise<Outcome<{ manifest: PackageManifest; final: string }, PackageSourceFailure>> {
+    if (root === undefined) return fail('unavailable')
+    const record = await records.readVersionRecord(assetRef, version)
+    if (!('ok' in record)) return fail('unavailable')
+    if (record.ok === undefined) return fail('package-not-found')
+    const layout = layoutOf(record.ok.category)
+    const manifest = manifestOf(record.ok.body)
+    if (layout === undefined || manifest === undefined) return fail('package-not-found')
+    return succeed({ manifest, final: finalOf(root, layout, record.ok.name, version) })
+  }
+
+  function reader(request: { assetRef: string; version: string }): PackageReader {
+    const { assetRef, version } = request
+    /** The record found once; a reader does not read it again. */
+    let found: { manifest: PackageManifest; final: string } | undefined
     async function located(): Promise<
       Outcome<{ manifest: PackageManifest; final: string }, PackageSourceFailure>
     > {
-      const layout = layoutOf(capability.category)
-      if (root === undefined || layout === undefined) return fail('unavailable')
-      const record = await recordOf(capability, version)
-      if (!('ok' in record)) return fail('unavailable')
-      if (record.ok === undefined) return fail('package-not-found')
-      const manifest = manifestOf(record.ok.body)
-      const final = finalOf(root, layout, capability.name, version)
-      if (manifest === undefined || !(await isDirectory(final))) return fail('material-unavailable')
-      return succeed({ manifest, final })
-    }
-    async function locatedOrUnavailable(): ReturnType<typeof located> {
       try {
-        return await located()
+        if (found === undefined) {
+          const placed = await placeOf(assetRef, version)
+          if (!('ok' in placed)) return placed
+          found = placed.ok
+        }
+        // The files may still be swapped in; that is not cached.
+        return (await isDirectory(found.final)) ? succeed(found) : fail('material-unavailable')
       } catch {
         return fail('unavailable')
       }
     }
     return {
       async manifest() {
-        const found = await locatedOrUnavailable()
-        return 'ok' in found ? succeed(found.ok.manifest) : found
+        const place = await located()
+        return 'ok' in place ? succeed(place.ok.manifest) : place
       },
       async open(path, expected) {
-        const found = await locatedOrUnavailable()
-        if (!('ok' in found)) return found
-        const entry = found.ok.manifest.entries.find(
+        const place = await located()
+        if (!('ok' in place)) return place
+        const entry = place.ok.manifest.entries.find(
           one => one.path === path && one.digest === expected,
         )
         if (entry === undefined) return fail('entry-not-found')
         let bytes: Uint8Array
         try {
-          const read = await readFile(join(found.ok.final, entry.path))
+          const read = await readFile(join(place.ok.final, entry.path))
           bytes = new Uint8Array(read.buffer, read.byteOffset, read.byteLength)
         } catch {
           return fail('material-unavailable')
@@ -431,7 +440,9 @@ export function createPublishedPackages(input: {
       const meta = staged.meta
       const layout = meta === undefined ? undefined : layoutOf(meta.category)
       const recorded =
-        meta === undefined ? undefined : await records.readVersionBody(meta.assetRef, meta.version)
+        meta === undefined
+          ? undefined
+          : await records.readVersionRecord(meta.assetRef, meta.version)
       if (recorded !== undefined && !('ok' in recorded)) throw new Error(recorded.failure)
       if (meta === undefined || layout === undefined || recorded?.ok === undefined) {
         await rm(staged.dir, { recursive: true, force: true })
@@ -444,45 +455,35 @@ export function createPublishedPackages(input: {
         discarded += 1
         continue
       }
-      await swap(staged.dir, final)
+      await swap(staged.dir, final, meta.category)
       completed += 1
     }
     return { completed, discarded, mismatched: await mismatched(root) }
   }
 
-  /** Every identity with a version in place whose files differ from its record. */
+  /**
+   * Every identity with a version in place whose files differ from its record. It starts from the
+   * directories in place, not from the records: a version is the package digest of its manifest,
+   * so the files of a version directory must give back the digest that its name holds.
+   */
   async function mismatched(root: string): Promise<CapabilityId[]> {
-    const listed = await records.listAssets()
-    if (!('ok' in listed)) throw new Error(listed.failure)
     const found = new Map<string, CapabilityId>()
-    for (const asset of listed.ok) {
-      const layout = layoutOf(asset.category)
-      if (layout === undefined) continue
-      const dir = join(root, layout.namespace, asset.name)
-      if (!(await isDirectory(dir))) continue
-      for (const version of await readdir(dir)) {
-        const body = await records.readVersionBody(asset.assetRef, version)
-        if (!('ok' in body)) throw new Error(body.failure)
-        if (body.ok === undefined) continue
-        const manifest = manifestOf(body.ok)
-        if (manifest === undefined || !(await matches(join(dir, version), manifest))) {
-          const id = capabilityId(asset.category, asset.name)
-          if (id.ok) found.set(`${asset.category}\0${asset.name}`, id.id)
-        }
+    for (const namespace of await directoriesIn(root)) {
+      let category: string
+      try {
+        category = await readFile(join(root, namespace, CATEGORY_FILE), 'utf8')
+      } catch {
+        continue
       }
+      for (const name of await directoriesIn(join(root, namespace)))
+        for (const version of await directoriesIn(join(root, namespace, name))) {
+          const dir = join(root, namespace, name, version)
+          if (versionDirectoryName(packageDigest(await entriesIn(dir, ''))) === version) continue
+          const id = capabilityId(category, name)
+          if (id.ok) found.set(`${category}\0${name}`, id.id)
+        }
     }
     return [...found.values()]
-  }
-
-  async function matches(final: string, manifest: PackageManifest): Promise<boolean> {
-    for (const entry of manifest.entries) {
-      try {
-        if (digestBytes(await readFile(join(final, entry.path))) !== entry.digest) return false
-      } catch {
-        return false
-      }
-    }
-    return true
   }
 
   return {
@@ -495,11 +496,41 @@ export function createPublishedPackages(input: {
     },
     reader,
     recover,
-    locate({ capability, version }) {
-      const layout = layoutOf(capability.category)
-      if (root === undefined || layout === undefined) return { kind: 'absent' }
-      const final = finalOf(root, layout, capability.name, version)
-      return existsSync(final) ? { kind: 'local-directory', path: final } : { kind: 'absent' }
+    async locate({ assetRef, version }) {
+      const placed = await placeOf(assetRef, version)
+      if (!('ok' in placed)) {
+        if (placed.failure === 'unavailable' && root !== undefined)
+          throw new Error('the version record cannot be read')
+        return { kind: 'absent' }
+      }
+      return (await isDirectory(placed.ok.final))
+        ? { kind: 'local-directory', path: placed.ok.final }
+        : { kind: 'absent' }
     },
   }
+}
+
+/** The directories in `dir` whose names do not start with a dot. */
+async function directoriesIn(dir: string): Promise<string[]> {
+  let items: Dirent[]
+  try {
+    items = await readdir(dir, { withFileTypes: true })
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return []
+    throw error
+  }
+  return items
+    .filter(item => item.isDirectory() && !item.name.startsWith('.'))
+    .map(item => item.name)
+}
+
+/** The path and digest of every file below `dir`, with `/` between segments. */
+async function entriesIn(dir: string, prefix: string): Promise<{ path: string; digest: string }[]> {
+  const entries: { path: string; digest: string }[] = []
+  for (const item of await readdir(dir, { withFileTypes: true })) {
+    const path = prefix === '' ? item.name : `${prefix}/${item.name}`
+    if (item.isDirectory()) entries.push(...(await entriesIn(join(dir, item.name), path)))
+    else entries.push({ path, digest: digestBytes(await readFile(join(dir, item.name))) })
+  }
+  return entries
 }

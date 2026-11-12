@@ -1,6 +1,7 @@
 export { createContentStoreSource, type PackageReaderOf } from './content-store-source.ts'
 export {
   createSkillDecisions,
+  type CandidateLocator,
   publishedCandidate,
   type Eligibility,
   type SkillCandidate,

@@ -94,10 +94,10 @@
 
 ### 内容库来源
 
-`createContentStoreSource({ readerOf })` 是 `{ kind: 'content-store', digest }` 定位的来源。`readerOf(digest)` 给出这个包摘要的读口，类型是资产契约的 `PackageReader`（[正文是目录的类别](../../assets/assets/SPEC.md#directory-category)）。本成员只认识资产的契约，不导入资产的本机成员：把 `@omne-harness/assets-local` 的 `packages.reader` 接给 `readerOf` 是装配的事，本程只在示例 `examples/publish-journey.ts` 与它的用例里接。目录来源 `createDirectorySource` 只留给读 agent 写的目录与官方的夹具目录。
+`createContentStoreSource({ readerOf })` 是 `{ kind: 'content-store', digest, ref }` 定位的来源。`ref` 是内容库给的不透明引用，本来源不解释它。`readerOf({ ref, digest })` 给出这个包的读口，`ref` 原样交过去；接资产的本机成员时，`ref` 就是资产引用，`readerOf` 是 `({ ref, digest }) => packages.reader({ assetRef: ref, version: digest })`，所以不需要「摘要到能力身份」的表。读口的类型是资产契约的 `PackageReader`（[正文是目录的类别](../../assets/assets/SPEC.md#directory-category)）。本成员只认识资产的契约，不导入资产的本机成员：把 `@omne-harness/assets-local` 的 `packages.reader` 接给 `readerOf` 是装配的事，本程只在示例 `examples/publish-journey.ts` 与它的用例里接。目录来源 `createDirectorySource` 只留给读 agent 写的目录与官方的夹具目录。
 
 - `snapshot` 先取清单，再按清单逐个文件读出字节，用 `packageEntryOf` 算出条目，用 `sealEntries` 封快照，不把整包放在内存里。快照的内容摘要由条目重算，必须等于定位里的摘要，否则答 `bytes-mismatch`：存下来的清单只核对，不信任。
-- 包摘要只对应一份内容，所以一个摘要的快照不变。来源在第一次封好之后按摘要记住它；之后的 `snapshot` 不再读文件，`open` 只读它要的那一个文件。记住的只有快照，没有字节。
+- 包摘要只对应一份内容，所以一个摘要的快照不变。来源在第一次封好之后按摘要记住它；之后的 `snapshot` 不再读文件，`open` 只读它要的那一个文件。记住的只有快照，没有字节，至多 256 个：超出时丢掉最久没用到的那一个，它下次用到时重新封。
 - `open` 的 `digest` 不等于定位里的摘要时答 `package-not-found`（PS7）；快照里没有这个路径答 `entry-not-found`；然后按清单里的路径与摘要从读口读一个文件。
 - 读口的失败按下表映射：`package-not-found` → `package-not-found`；`entry-not-found` → `entry-not-found`；`material-unavailable`（字节与清单对不上）→ `bytes-mismatch`；`unavailable` → `unavailable`。清单里的路径不是包内路径时答 `entry-unreadable`。
 - `directory` 定位不是本来源的包：答 `package-not-found`。
@@ -108,7 +108,7 @@
 
 `createSkillDecisions(inputs)` 交出 `SkillResolution` 与 `SkillReadCheck` 的一对实现。`inputs` 是装配的四个函数：`layers` 给出一个能力身份各层的同名候选（从最宽到最具体，例如官方层的候选清单、租户层按能力身份读到的持有），`eligible` 判断主体能不能用一个候选，`identities` 给出 `adopted` 要求值的身份，`readable` 回答读取判定。「主体能不能用这个能力」没有通用端口，它是装配的输入；示例与用例给的是「同租户的主体都能读」。
 
-- `resolve` 取 `layers`，对每一份候选问 `eligible`，调资产的 `evaluate`，按下列规则翻成 `Resolution`：`winner` 翻成 `adopted`，引用带胜出者的层、版本（合 `AssetVersion` 时）、定位与包摘要，声明投影是胜出者的；`none` 而且出局者里有被禁用的、主体对它的 `eligible` 答「是」，翻成 `known-unavailable`，名字与说明取最具体的那一份，原因是 `This Skill is disabled.`；那一份的 `eligible` 答「不知道」时翻成 `unknown`；`none` 的其余情形翻成 `none`；`unavailable` 翻成 `unknown`。
+- `resolve` 取 `layers`，对每一份候选问 `eligible`，调资产的 `evaluate`，按下列规则翻成 `Resolution`：`winner` 翻成 `adopted`，引用带胜出者的层、版本（合 `AssetVersion` 时）、定位与包摘要，声明投影是胜出者的；候选的内容库定位没有 `ref`，绑定把它填成候选的资产引用；`none` 而且出局者里有被禁用的、主体对它的 `eligible` 答「是」，翻成 `known-unavailable`，名字与说明取最具体的那一份，原因是 `This Skill is disabled.`；那一份的 `eligible` 答「不知道」时翻成 `unknown`；`none` 的其余情形翻成 `none`；`unavailable` 翻成 `unknown`。
 - 带依据时，依据的层等于胜出者的层、依据带的资产版本等于胜出者的版本，才算合法，答 `adopted`，引用的包摘要是依据的；否则答 `basis-not-lawful`。
 - `adopted` 对 `identities` 给出的每个身份求一次 `resolve`，收下 `adopted` 与 `known-unavailable`；任一个答 `unknown`，整个答 `unknown`。
 - `check` 把调用原样转给 `readable`。
@@ -155,14 +155,13 @@
 
 内容库来源、判定端口的绑定与发布示例：
 
-- [tests/content-store.spec.ts](tests/content-store.spec.ts)：内容库来源经一个内存读口读出快照与文件，快照与从全部字节封出的相同；字节或清单与摘要对不上答 `bytes-mismatch`，包不存在答 `package-not-found`；一个摘要只封一次；另跑 `skillPackageSourceConformance()`，PS8 不适用（内容库没有链接）。
+- [tests/content-store.spec.ts](tests/content-store.spec.ts)：内容库来源经一个内存读口读出快照与文件，快照与从全部字节封出的相同；字节或清单与摘要对不上答 `bytes-mismatch`，包不存在答 `package-not-found`；一个摘要只封一次；`ref` 原样交给 `readerOf`；至多记住 256 个快照，丢最久没用到的；另跑 `skillPackageSourceConformance()`，PS8 不适用（内容库没有链接）。
 - [tests/decisions.spec.ts](tests/decisions.spec.ts)：翻译规则逐条一例；候选的来源读不到时答 `unknown`；依据、合法集合与读取判定。
 - [tests/publish-journey.spec.ts](tests/publish-journey.spec.ts) 运行 [examples/publish-journey.ts](examples/publish-journey.ts)：在真实 SQLite 存储与临时根目录上把 `examples/sample-skill/` 发布成租户的 Skill，记成持有，求值答出它，经 `SkillAccess` 读出正文、列出文件（脚本文件在里面），本机位置有这个版本的目录；同名的官方候选声明了不可替换时租户的出局。演示脚本 `node --experimental-strip-types examples/publish-demo.ts` 打印同样的两次运行。
 
 未覆盖：
 
 - 内容库来源没有接进 Cordis 插件：插件的来源仍是目录来源。官方包怎样随发行给出不在本成员。
-- 一个包摘要到它的能力身份的对应由装配给出（`readerOf`）；示例里装配只有一个身份。
 - 真实文件权限位造成的 `EACCES`。测试以 root 运行时 `chmod` 造不出它，所以权限类失败只经注入的接缝验证。
 - 并发写者。只有注入接缝在确定步骤上替换条目的用例，没有并发修改同一目录的压力测试。[残余窗口](#residual-window)没有用例。
 - 单个文件的大小与字节总量没有上限。

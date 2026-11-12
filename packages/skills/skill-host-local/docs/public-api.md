@@ -18,6 +18,6 @@
 | `createDirectorySource`                                  | [src/directory-source.ts](../src/directory-source.ts)            | [定位](../SPEC.md#locator)、[快照](../SPEC.md#snapshot)、[读条目](../SPEC.md#open)、[失败映射](../README.md#behavior) |
 | `DirectoryFs`                                            | [src/fs.ts](../src/fs.ts)                                        | [文件系统接缝](../SPEC.md#seam)                                                                                       |
 | `createContentStoreSource`、`PackageReaderOf` | [src/content-store-source.ts](../src/content-store-source.ts) | [内容库来源](../SPEC.md#content-store) |
-| `createSkillDecisions`、`publishedCandidate`、`SkillDecisionInputs`、`SkillCandidate`、`SkillLayerInput`、`Eligibility` | [src/decisions.ts](../src/decisions.ts) | [判定端口的绑定](../SPEC.md#decisions) |
+| `createSkillDecisions`、`publishedCandidate`、`SkillDecisionInputs`、`SkillCandidate`、`CandidateLocator`、`SkillLayerInput`、`Eligibility` | [src/decisions.ts](../src/decisions.ts) | [判定端口的绑定](../SPEC.md#decisions) |
 | `skillPlugin`                                            | [src/cordis.ts](../src/cordis.ts)                                | [Cordis 插件](../SPEC.md#cordis-插件)、[Cordis 说明](cordis.md)                                                       |
 | 端口 `SkillPackageSource` 与 `SourceFailure`（来自契约） | [skill-contract/src/ports.ts](../../skill-contract/src/ports.ts) | [需求端口](../../skill-contract/SPEC.md#ports)                                                                        |

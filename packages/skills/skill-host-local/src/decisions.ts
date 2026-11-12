@@ -34,10 +34,16 @@ import type {
   SkillResolution,
 } from '@omne-harness/skill-contract/provider'
 
+/** Where a candidate's package is. A content-store locator gets its `ref` from the binding: the
+ * asset reference of the candidate. */
+export type CandidateLocator =
+  | Readonly<{ kind: 'directory'; root: string }>
+  | Readonly<{ kind: 'content-store'; digest: PackageDigest }>
+
 /** One same-named candidate of one layer, with what Skill needs to read it. */
 export type SkillCandidate = Candidate &
   Readonly<{
-    locator: PackageLocator
+    locator: CandidateLocator
     /** The package digest; absent when the body names no package. */
     digest?: PackageDigest
     declared: DeclaredProjection
@@ -123,7 +129,7 @@ export function createSkillDecisions<P, S>(
         capability,
         layer: found.layer,
         ...(isAssetVersion(candidate.version) ? { assetVersion: candidate.version } : {}),
-        locator: candidate.locator,
+        locator: locatorOf(candidate),
         ...(digest === undefined ? {} : { digest }),
       },
       declared: candidate.declared,
@@ -166,6 +172,14 @@ export function createSkillDecisions<P, S>(
   }
 
   return Object.freeze({ resolution, readCheck })
+}
+
+/** The locator of the reference: a content-store locator carries the candidate's asset reference
+ * as the opaque `ref`, which the content store gets back. */
+function locatorOf(candidate: SkillCandidate): PackageLocator {
+  return candidate.locator.kind === 'content-store'
+    ? { kind: 'content-store', digest: candidate.locator.digest, ref: candidate.asset }
+    : candidate.locator
 }
 
 function standIn(capability: CapabilityId, declared: DeclaredProjection): Resolution {

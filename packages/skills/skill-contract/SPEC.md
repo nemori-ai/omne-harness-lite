@@ -459,7 +459,7 @@ no-readable-package
 各个载荷字段这样核对：
 
 - 能力标识：`category` 与 `name` 都是文本，并经资产的 `capabilityId` 重新构造。`capabilityId` 拒绝时不合。`declared.tools` 的每一项同样核对。
-- `ref`：能力标识；`layer` 是四个来源层之一；`locator` 是 `directory`（`root` 是文本）或 `content-store`（`digest` 合 `isPackageDigest`）；可带 `assetVersion`（合 `isAssetVersion`）与 `digest`（合 `isPackageDigest`）。
+- `ref`：能力标识；`layer` 是四个来源层之一；`locator` 是 `directory`（`root` 是文本）或 `content-store`（`digest` 合 `isPackageDigest`，`ref` 是文本：内容库给的不透明引用，Skill 不解释它，原样交回）；可带 `assetVersion`（合 `isAssetVersion`）与 `digest`（合 `isPackageDigest`）。
 - `declared`：`name` 合 `isSkillName`；可带 `description`（合 `isSkillDescription`）；`tools` 是数组。
 - `known-unavailable`：`name` 合 `isSkillName`，`reason` 合 `isSafeReason`，可带的 `description` 合 `isSkillDescription`。
 - 引用身份一致（性质 S7）：`resolve` 的答复必须是关于所请求的身份与依据的。

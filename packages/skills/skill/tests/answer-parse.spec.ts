@@ -131,7 +131,11 @@ describe('parseResolution: adopted', () => {
     ['each source layer: official', ['ref', 'layer'], 'official'],
     ['each source layer: organization', ['ref', 'layer'], 'organization'],
     ['each source layer: workspace', ['ref', 'layer'], 'workspace'],
-    ['a content-store locator', ['ref', 'locator'], { kind: 'content-store', digest: DIGEST }],
+    [
+      'a content-store locator',
+      ['ref', 'locator'],
+      { kind: 'content-store', digest: DIGEST, ref: 'tenant/skill/review' },
+    ],
   ])('takes %s', (_case, path, field) => {
     const answer = withField(ADOPTED, path, field)
     expect(aboutReview(answer)).toStrictEqual(answer)
@@ -182,11 +186,25 @@ describe('parseResolution: adopted', () => {
     ['a locator of a kind outside the set', ['ref', 'locator', 'kind'], 'ftp'],
     ['a directory locator without a root', ['ref', 'locator', 'root'], MISSING],
     ['a directory locator whose root is no text', ['ref', 'locator', 'root'], 5],
-    ['a content-store locator without a digest', ['ref', 'locator'], { kind: 'content-store' }],
+    [
+      'a content-store locator without a digest',
+      ['ref', 'locator'],
+      { kind: 'content-store', ref: 'tenant/skill/review' },
+    ],
+    [
+      'a content-store locator without a ref',
+      ['ref', 'locator'],
+      { kind: 'content-store', digest: DIGEST },
+    ],
+    [
+      'a content-store locator whose ref is no text',
+      ['ref', 'locator'],
+      { kind: 'content-store', digest: DIGEST, ref: 5 },
+    ],
     [
       'a content-store locator with another digest form',
       ['ref', 'locator'],
-      { kind: 'content-store', digest: 'sha1:00' },
+      { kind: 'content-store', digest: 'sha1:00', ref: 'tenant/skill/review' },
     ],
     ['a digest that is no text', ['ref', 'digest'], 5],
     ['a digest of another form', ['ref', 'digest'], 'sha1:00'],

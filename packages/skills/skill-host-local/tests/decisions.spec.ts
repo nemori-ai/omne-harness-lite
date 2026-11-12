@@ -88,7 +88,7 @@ describe('C11 the translation of the evaluation (decision 18)', () => {
         capability: report,
         layer: 'tenant',
         assetVersion: 'tenant/weekly-report-v1',
-        locator: mine.locator,
+        locator: { kind: 'content-store', digest: mine.digest, ref: 'tenant/weekly-report' },
         digest: mine.digest,
       },
       declared: mine.declared,

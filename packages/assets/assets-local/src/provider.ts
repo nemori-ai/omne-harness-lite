@@ -9,7 +9,6 @@ import {
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import { digest, equal, identity, json, withinBudget } from './encoding.ts'
 import {
-  assetListResultSchema,
   assetLookupSchema,
   assetResultSchema,
   heldCapabilityLookupSchema,
@@ -137,10 +136,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     const parsed = mutationSchema.safeParse(value)
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
-  async function read(
-    kind: 'asset' | 'holding' | 'version' | 'heldCapability' | 'assetList',
-    lookup: unknown,
-  ) {
+  async function read(kind: 'asset' | 'holding' | 'version' | 'heldCapability', lookup: unknown) {
     const result = await options.storage.read({
       domain: options.domain,
       handler: HANDLER,
@@ -240,7 +236,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         if (result.kind === 'rejected') return { failure: result.reason }
         return { ok: result.kind === 'asset' ? result.asset.revision : 0 }
       },
-      async readVersionBody(assetRef, version) {
+      async readVersionRecord(assetRef, version) {
         // No version without its asset; reading the asset first also answers a domain that has
         // no record yet, which the version read answers `forbidden`.
         const asset = await local.readAsset({ assetRef })
@@ -248,12 +244,10 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         if (asset.kind === 'absent') return { ok: undefined }
         const result = await local.readVersion({ assetRef, version })
         if (result.kind === 'rejected') return { failure: result.reason }
-        return { ok: result.kind === 'version' ? result.version.body : undefined }
+        if (result.kind === 'absent') return { ok: undefined }
+        const { category, name, body } = result.version
+        return { ok: { category, name, body } }
       },
-      listAssets: () =>
-        run(async () => assetListResultSchema.parse(await read('assetList', {}))).then(result =>
-          result.kind === 'assets' ? { ok: result.assets } : { failure: result.reason },
-        ),
     },
   })
   return { ...local, packages }

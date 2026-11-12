@@ -102,7 +102,10 @@ function locatorOf(value: unknown): PackageLocator | undefined {
     }
     case 'content-store': {
       const digest = fieldOf(value, 'digest')
-      return isPackageDigest(digest) ? Object.freeze({ kind: 'content-store', digest }) : undefined
+      const ref = text(fieldOf(value, 'ref'))
+      return isPackageDigest(digest) && ref !== undefined
+        ? Object.freeze({ kind: 'content-store', digest, ref })
+        : undefined
     }
   }
   return undefined

@@ -55,7 +55,8 @@ export type SnapshotShape = Readonly<{
 /** Where a package is in one kind of source. Opaque to Skill. */
 export type PackageLocator =
   | Readonly<{ kind: 'directory'; root: string }>
-  | Readonly<{ kind: 'content-store'; digest: PackageDigest }>
+  /** `ref` is the opaque reference that the content store gave. Skill passes it back as it is. */
+  | Readonly<{ kind: 'content-store'; digest: PackageDigest; ref: string }>
 
 /** A value of a frontmatter field that Skill keeps as it is. */
 export type ManifestValue =

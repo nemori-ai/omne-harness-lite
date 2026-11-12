@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { settingsAssetsProjectionFact } from '@omne-harness/settings-local'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
-import { ASSET_LIST_LIMIT, HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, TABLES } from './schema.ts'
+import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, TABLES } from './schema.ts'
 function file(name: string) {
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
   const url = new URL(`./${name}.${extension}`, import.meta.url)
@@ -46,8 +46,9 @@ export function assetsSqlMaterials(): Pick<
         ordering: 'snapshot',
         readTables: TABLES,
         requiresMigrations: [MIGRATION],
-        // The domain row and a listing of every asset; a holding read takes five rows.
-        maxRowsRead: ASSET_LIST_LIMIT + 2,
+        // The most rows of one read: a held-capability read takes the domain row, the held
+        // capability index row, the holding, the asset and the selected version.
+        maxRowsRead: 5,
         maxOutputBytes: 2 * 1024 * 1024,
       },
     ],
