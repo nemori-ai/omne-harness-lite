@@ -113,7 +113,10 @@ async function land(
     ...(journal === undefined ? {} : { journal }),
   })
   await new Promise(resolve => setTimeout(resolve, 0))
-  return { notices, tried: workFoldCounts(storage).skipped }
+  // Every count: a fold or a replacement that is tried on no held snapshot counts as skipped, one
+  // that fails as stale; either is a try.
+  const counts = workFoldCounts(storage)
+  return { notices, tried: Object.values(counts).reduce((sum, value) => sum + value, 0) }
 }
 
 describe('a fresh commit', () => {
