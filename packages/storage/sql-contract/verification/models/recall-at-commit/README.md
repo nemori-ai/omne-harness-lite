@@ -42,13 +42,12 @@ TLA2TOOLS_JAR=<TLC 1.7.4 的 jar> python3 check.py --out <输出目录>
 | --- | --- |
 | `Commit` 认到回执 | `sqlite-provider/src/worker/group.ts` 的 `admit`：答 `recalled: true`；同一组里同身份的等待者在 `settleReceipt` 里答 `recalled: true` |
 | `Commit` 执行 | 同文件的 `settleReceipt`：本条目自己的调用答 `recalled: false` |
-| `Take` | `session-adapters/src/journal-commit.ts` 的 `commitGeneration`；`session-storage-sql/src/commit.ts` 的 `fromResult` |
-| `Query`（答复丢失之后） | `journal-commit.ts` 的 `standingOf`；Session 一侧是 R7 |
+| `Take` | `session-adapters/src/journal-commit.ts` 的 `commitGeneration`；`session-storage-sql/src/commit.ts` 的 `fromResult`；`model-storage-sql/src/commit.ts` 的 `commitFacts` 与 `afterCommit`（认回的回滚换下一代，认回的已提交回到重读） |
+| `Query`（答复丢失之后） | `journal-commit.ts` 的 `standingOf`；Session 一侧是 R7；Model 一侧是 `model-storage-sql/src/commit.ts` 的 `settleUnresolved`（「一次 run」第 2 步） |
 
-判据用例：`src/testing/conformance.ts` 的 C01 与 C05；`sqlite-provider/tests/group.spec.ts` 的等待者用例。
+判据用例：`src/testing/conformance.ts` 的 C01 与 C05；`sqlite-provider/tests/group.spec.ts` 的等待者用例；Model 一侧是 `model-storage-sql/tests/commit.spec.ts` 的「attempt generations」与「operation identity」两组。
 
 ## 6. 模型不覆盖的
 
 - 同一身份、不同输入的调用（`identity_conflict`）。它不执行，答早先的回执，与认回同一条路。
 - `recall: 'never'` 的身份：不存回执，不认回。
-- Model 存储的代次选择（`model-storage-sql/src/commit.ts` 的 `freeGeneration`）仍是先查后提交，没有改。
