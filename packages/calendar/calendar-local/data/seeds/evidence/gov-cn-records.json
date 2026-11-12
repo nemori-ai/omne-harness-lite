@@ -1,0 +1,30 @@
+[
+  {
+    "url": "https://www.gov.cn/gongbao/content/2023/content_5736714.htm",
+    "acquiredAt": "2026-11-03T13:11:31.169Z",
+    "status": 200,
+    "name": "gov-cn-2023.html",
+    "sha256": "a062b8d5ff42dc5d37bc92189eaaaebeaf873fbd7e0470b95dd5bb84ee959318"
+  },
+  {
+    "url": "https://www.gov.cn/zhengce/content/202310/content_6911527.htm",
+    "acquiredAt": "2026-11-03T13:11:31.975Z",
+    "status": 200,
+    "name": "gov-cn-2024.html",
+    "sha256": "07c413835443b958c5bf40b94dd47a027bc8b27707c7dd720e5a7d5903807c99"
+  },
+  {
+    "url": "https://www.gov.cn/zhengce/content/202411/content_6986382.htm",
+    "acquiredAt": "2026-11-03T13:11:32.275Z",
+    "status": 200,
+    "name": "gov-cn-2025.html",
+    "sha256": "0510bc1f09ef9b5719e01cf0fa33f618e2a61f05ee7912c549042fea1c31c6a4"
+  },
+  {
+    "url": "https://www.gov.cn/zhengce/content/202511/content_7047090.htm",
+    "acquiredAt": "2026-11-03T13:11:32.527Z",
+    "status": 200,
+    "name": "gov-cn-2026.html",
+    "sha256": "36fe1206ceb7685bc8827350d9552d60fff8393919f6afd0d1b0161c97628c0d"
+  }
+]

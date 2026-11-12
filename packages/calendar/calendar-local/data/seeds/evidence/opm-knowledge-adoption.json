@@ -1,0 +1,11 @@
+{
+  "source": "https://www.rfc-editor.org/rfc/rfc5545#section-3.8.7.2",
+  "rule": "For an iCalendar object without METHOD, DTSTAMP has the meaning of component last modification in the calendar store.",
+  "observedArtifact": "raw/opm.ics",
+  "observedArtifactSha256": "43c3d5f04e277d7173f993419d0f7c111b482cc840478faae9ee51db3ab00a3d",
+  "methodAbsent": true,
+  "dtstamp": "20261102T171224Z",
+  "knowledgeAsOf": "2026-11-02T17:12:24.000Z",
+  "adoption": "Root dispatcher decision in calendar-a1-seeds closure, 2026-11-03",
+  "limitation": "Component revision is not evidence of complete real-time legal knowledge."
+}

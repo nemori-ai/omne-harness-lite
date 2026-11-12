@@ -1,0 +1,169 @@
+{
+  "releaseRef": "calendar-2026-11-03",
+  "releaseDate": "2026-11-03",
+  "generatedAt": "2026-11-03T13:19:54.729Z",
+  "materials": [
+    {
+      "sourceId": "lanceliao-china-holiday-calender",
+      "file": "raw/lanceliao-bundle.json",
+      "sha256": "38022d25a15d21b206d671d7da8c214b1b9880d771507ec0e9901b3cb5302da1",
+      "knowledgeAsOf": "2025-11-04T15:59:04.000Z",
+      "acquiredAt": "2026-11-03T13:06:42.730Z",
+      "lineageRef": "Hand-maintained transcription of gov.cn State Council annual holiday notices; every entry carries a gov.cn URL backlink and quotes the notice's Memo sentence verbatim (machine-checkable per entry)",
+      "authorityRef": "https://github.com/lanceliao/china-holiday-calender/commit/d498762870c0fe394aa56be9547026ff62d8d9c4",
+      "mediaType": "application/json"
+    },
+    {
+      "sourceId": "cg-zhou-holiday-calendar",
+      "file": "raw/cg-bundle.json",
+      "sha256": "1d33f7ff081c1921fa81e7b733ec481251af135ce621923407fe175330c3fb0a",
+      "knowledgeAsOf": "2026-11-02T03:29:24.000Z",
+      "acquiredAt": "2026-11-03T13:10:00.236Z",
+      "lineageRef": "Independently maintained per-year JSON data (cg-zhou, MIT) with its own data pipeline; no gov.cn backlinks in data files; acquisition surface fully disjoint from the lanceliao artifact",
+      "authorityRef": "https://github.com/cg-zhou/holiday-calendar/commit/78443c03bf9339f085c44fbcc9257bbf4a17f8da",
+      "mediaType": "application/json"
+    },
+    {
+      "sourceId": "cg-zhou-index-endyear",
+      "file": "raw/cg-index.json",
+      "sha256": "9b5756d571c98d3ada3bbab05fe61dbae4d8852a9f612ac7b23323aef522377d",
+      "knowledgeAsOf": "2026-11-02T03:29:24.000Z",
+      "acquiredAt": "2026-11-03T13:10:00.236Z",
+      "lineageRef": "Same repository as the cg-zhou oracle: the 181-byte data/index.json declaring per-region endYear",
+      "authorityRef": "https://github.com/cg-zhou/holiday-calendar/blob/78443c03bf9339f085c44fbcc9257bbf4a17f8da/data/index.json",
+      "mediaType": "application/json"
+    },
+    {
+      "sourceId": "cao-syukujitsu-csv",
+      "file": "raw/cao-syukujitsu.csv",
+      "sha256": "cec37a743c96995cdb9cb52b685c9003634682a9b0e1a640a6b9b96881fe964a",
+      "knowledgeAsOf": "2026-02-02T00:30:17.000Z",
+      "acquiredAt": "2026-11-03T12:45:20.793Z",
+      "lineageRef": "The Cabinet Office's own publication surface — the government original itself (1955-2027, 1067 rows), not a transcription of anything",
+      "authorityRef": "https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv",
+      "mediaType": "text/csv",
+      "transportEvidence": [
+        {
+          "url": "https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv",
+          "method": "GET",
+          "status": 200,
+          "etag": "\"5422-649cc6d5b46cb\"",
+          "lastModified": "Mon, 02 Feb 2026 00:30:17 GMT",
+          "contentLength": 21538,
+          "bodyHash": "cec37a743c96995cdb9cb52b685c9003634682a9b0e1a640a6b9b96881fe964a",
+          "knowledgeBasis": "https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv#last-modified=Mon%2C%2002%20Feb%202026%2000%3A30%3A17%20GMT"
+        }
+      ]
+    },
+    {
+      "sourceId": "vacanza-holidays-library",
+      "file": "raw/vacanza-jp-0.108.json",
+      "sha256": "77955a5a67b666debe3cf1e56ab34239f809309b8b7164db3b436477bdb6e3ea",
+      "knowledgeAsOf": "2026-11-02T22:32:10.311Z",
+      "acquiredAt": "2026-11-03T13:10:00.236Z",
+      "lineageRef": "vacanza `holidays` PyPI library — derived from Wikipedia and Bank of Japan sources and never reads the Cabinet Office CSV (measured: 1067/1067 date agreement over 1955-2027 with fully independent descent)",
+      "authorityRef": "https://pypi.org/project/holidays/0.108/",
+      "mediaType": "application/json"
+    },
+    {
+      "sourceId": "usc-6103-computed-rules",
+      "file": "raw/us-rules.json",
+      "sha256": "922431873d39547437ebe65b605b69e801db3b9fc99705089f43a4a5310f7c13",
+      "knowledgeAsOf": "2025-06-16T14:15:56.000Z",
+      "acquiredAt": "2026-11-03T13:19:54.729Z",
+      "lineageRef": "Rule encoding transcribed from statute text: 5 U.S.C. §6103(a) (11 legal holidays) + §6103(b) Saturday→Friday + EO 11582 §3(a) Sunday→Monday; every computed contribution cites its statutory basis per entry",
+      "authorityRef": "https://www.govinfo.gov/content/pkg/USCODE-2023-title5/html/USCODE-2023-title5-partIII-subpartE-chap61-subchapI-sec6103.htm",
+      "mediaType": "application/json",
+      "transportEvidence": [
+        {
+          "url": "https://www.govinfo.gov/content/pkg/USCODE-2023-title5/html/USCODE-2023-title5-partIII-subpartE-chap61-subchapI-sec6103.htm",
+          "method": "GET",
+          "status": 200,
+          "etag": null,
+          "lastModified": "Mon, 16 Jun 2025 14:15:56 GMT",
+          "contentLength": null,
+          "bodyHash": "0c3ef0793a5a8106354d3d3f3d4dc0e9aa9de7803325d01ca95048ff9c4cd806",
+          "knowledgeBasis": "https://www.govinfo.gov/content/pkg/USCODE-2023-title5/html/USCODE-2023-title5-partIII-subpartE-chap61-subchapI-sec6103.htm#Last-Modified=Mon, 16 Jun 2025 14:15:56 GMT; fixed USCODE2023 artifact, includes EO11582 section3(a)"
+        }
+      ]
+    },
+    {
+      "sourceId": "opm-federal-holidays-ics",
+      "file": "raw/opm.ics",
+      "sha256": "43c3d5f04e277d7173f993419d0f7c111b482cc840478faae9ee51db3ab00a3d",
+      "knowledgeAsOf": "2026-11-02T17:12:24.000Z",
+      "acquiredAt": "2026-11-03T13:19:54.729Z",
+      "lineageRef": "OPM's own published ICS of observed federal holiday dates (2021-2030, 112 VEVENTs) — a government publication surface whose acquisition is fully disjoint from the statute-rule computation",
+      "authorityRef": "https://www.opm.gov/policy-data-oversight/pay-leave/federal-holidays/holidays.ics",
+      "mediaType": "text/calendar",
+      "transportEvidence": [
+        {
+          "url": "https://www.opm.gov/policy-data-oversight/pay-leave/federal-holidays/holidays.ics",
+          "method": "GET",
+          "status": 200,
+          "etag": null,
+          "lastModified": null,
+          "contentLength": 44322,
+          "bodyHash": "43c3d5f04e277d7173f993419d0f7c111b482cc840478faae9ee51db3ab00a3d",
+          "knowledgeBasis": "RFC5545 section3.8.7.2; no METHOD; all 112 VEVENT DTSTAMP=20261102T171224Z; component revision, not real-time legal completeness"
+        }
+      ]
+    },
+    {
+      "sourceId": "federal-register-eo-feed",
+      "file": "raw/fr-bundle.json",
+      "sha256": "919da0e83c04031ba93dd418d011130d37b477b689fec3d09a795044ebc96178",
+      "knowledgeAsOf": "2026-11-03T04:59:59.999Z",
+      "acquiredAt": "2026-11-03T13:19:54.729Z",
+      "lineageRef": "Federal Register API — the official electronic edition of presidential documents; every contribution carries document_number / executive_order_number as its per-entry machine-checkable reference",
+      "authorityRef": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bpresidential_document_type%5D%5B%5D=executive_order&order=newest&per_page=1000&fields%5B%5D=document_number&fields%5B%5D=title&fields%5B%5D=publication_date&fields%5B%5D=signing_date&fields%5B%5D=raw_text_url&fields%5B%5D=executive_order_number&conditions%5Bpublication_date%5D%5Bgte%5D=2025-01-01&conditions%5Bpublication_date%5D%5Blte%5D=2026-11-02",
+      "mediaType": "application/json",
+      "transportEvidence": [
+        {
+          "url": "https://www.federalregister.gov/api/v1/documents.json?conditions%5Bpresidential_document_type%5D%5B%5D=executive_order&order=newest&per_page=1000&fields%5B%5D=document_number&fields%5B%5D=title&fields%5B%5D=publication_date&fields%5B%5D=signing_date&fields%5B%5D=raw_text_url&fields%5B%5D=executive_order_number&conditions%5Bpublication_date%5D%5Bgte%5D=2025-01-01&conditions%5Bpublication_date%5D%5Blte%5D=2026-11-02",
+          "method": "GET",
+          "status": 200,
+          "etag": null,
+          "lastModified": null,
+          "contentLength": null,
+          "bodyHash": "078deaef453c5c0554746f09a1bd9e2cc9e30d890228fa61814616ec89824ddb",
+          "knowledgeBasis": "Complete official publication corpus through 2026-11-02 America/New_York end of day; not document revision or acquisition time"
+        }
+      ]
+    }
+  ],
+  "calendars": [
+    {
+      "calendarId": "cn-legal-holidays",
+      "authorityCoverageEnd": "2026-12-31"
+    },
+    {
+      "calendarId": "jp-legal-holidays",
+      "authorityCoverageEnd": "2027-12-31"
+    },
+    {
+      "calendarId": "us-federal-holidays",
+      "authorityCoverageEnd": "2030-12-25"
+    }
+  ],
+  "independenceRegistry": [
+    {
+      "truthSourceId": "lanceliao-china-holiday-calender",
+      "oracleSourceId": "cg-zhou-holiday-calendar",
+      "independent": true,
+      "evidenceRef": "calendar-seed-lineage:cn:2026-11-03"
+    },
+    {
+      "truthSourceId": "cao-syukujitsu-csv",
+      "oracleSourceId": "vacanza-holidays-library",
+      "independent": true,
+      "evidenceRef": "calendar-seed-lineage:jp:holidays-0.108"
+    },
+    {
+      "truthSourceId": "usc-6103-computed-rules",
+      "oracleSourceId": "opm-federal-holidays-ics",
+      "independent": true,
+      "evidenceRef": "calendar-seed-lineage:us:2026-11-03"
+    }
+  ]
+}

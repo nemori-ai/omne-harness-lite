@@ -1,26 +1,29 @@
-PACKAGE_TEMPLATE_DRAFT
+# @omne-harness/calendar
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+[中文](README_ZH.md)
 
-# calendar/calendar
+This member implements Calendar A1 without Cordis. It exports five pure date functions, source parsing and validation, query and supply applications, and the combined application factory. The package remains private at `0.0.0`. Schedule management and prediction exist in their own members; Job execution remains target behavior. Actual cross-domain assembly requires evidence from the participating providers.
 
-本目录只有设计文档，尚无实现、公开类型、配置或运行入口。支持状态未核实，目标公开形状待技术采用。整体产品与技术接受不能从目录推出。
+Public protocols belong to [calendar-contract](../calendar-contract/README.md). Service definitions belong to [calendar-cordis-contract](../calendar-cordis-contract/README.md). SQL persistence, source acquisition, seeds and the runner belong to [calendar-local](../calendar-local/README.md). Tool contributions belong to [calendar-tools](../calendar-tools/README.md).
 
-## 使用与消费边界
+## Use and boundaries
 
-独立消费者先读 [SPEC](SPEC.md) 核对责任、资格及依赖；公开入口尚未成立，不能给出可运行调用示例。Cordis 集成沿项目已采用 IC 另核对定义、依赖、装配及撤除，不改变领域合同，也不自动保证耐久、取消或隔离。
+The [root entry](src/index.ts) exports classifyDay, countWorkingDays, shiftWorkingDays, listWorkingDays and selectNthWorkingDay. Each function reads a validated immutable snapshot and returns a discriminated result with its calculation basis. Pure calculation needs no network, database, clock or Cordis.
 
-## 契约与内部设计
+createCalendarQueries constructs independent queries. createCalendarSupplyApplication constructs supply. createCalendarApplication accepts repository, persistence, queries and supply dependency groups, and returns both applications. Exported source definitions own the exact configuration. See [public API notes](docs/public-api-design.md). Factory dependencies are local objects, not wire values.
 
-[SPEC](SPEC.md)保存完整必要行为及验证义务。[内部设计](docs/internals.md)保存精确机制与[后续技术采用](docs/internals.md#后续技术采用)。组工程关系见[组入口](../README.md)。
+## Contract and internal design
 
-[成员精确关键流程](docs/key-flows.md)承接本成员的动作、提交和恢复分支；跨领域角色仍见所属领域入口。
+[SPEC](SPEC.md) owns behavior and continuing verification obligations. [Internals](docs/internals.md) explains versions, supply, recovery and storage limits. [Key flows](docs/key-flows.md) describes failures and responsibility transfer. The [group entry](../README.md) links related owners.
 
-## 配置、运行与验证
+## Configuration, operation, and verification
 
-provider、公开形状、介质、部署条件和真实执行入口尚待采用。合法配置不能减弱业务不变式；验证沿 SPEC 的具名拥有者和反例落实。尚无实际执行或故障证据证明本候选已兑现。
+Use Node >=24 and ESM. Pure calculation needs no configuration. Queries require trusted authority and environment ports. Supply requires a legal system scope, material custody and publication ports. Identity, settings, notification and Tool host integration remain external prerequisites. SQL L-1/L-4 limits and power-loss durability require provider evidence.
 
-## 维护
+Run `pnpm --filter @omne-harness/calendar build`, `pnpm --filter @omne-harness/calendar typecheck` and `pnpm --filter @omne-harness/calendar test` in the workspace. Continuing tests cover the public entry, queries, supply, supply application and workload. These commands do not establish final independent acceptance or real system integration.
 
-本成员维护行为、机制、必要验证和真实消费者，组维护工程协作。改变参数、版本、提交或恢复条件时核对原事实及相邻拥有者，未定部分只阻塞依赖路径。原未决 ID 保留在技术采用与产品第四章。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+## Maintenance
+
+Keep the contract, public source, flows and both entry files consistent. Source schemas own public shapes. Preserve immutable history, original operations and explicit unknown results. See the [complete obligation mapping](../../schedule/schedule/SPEC.md#来源与目标验收映射).
+
+Formal function semantics and proof obligations are in [the function contract](docs/functions-and-totalization.md). Run `pnpm --filter @omne-harness/calendar verify:formal` with the tools described in [verification](verification/README.md). This is an explicit member gate, not part of the root check command; bounded model success does not prove production refinement.

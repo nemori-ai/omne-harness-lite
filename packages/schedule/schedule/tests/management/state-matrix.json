@@ -1,0 +1,508 @@
+[
+  {
+    "control": "draft",
+    "action": "reviseDraft",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "draft",
+    "error": null
+  },
+  {
+    "control": "draft",
+    "action": "discard",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "discarded",
+    "error": null
+  },
+  {
+    "control": "draft",
+    "action": "promote",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "active",
+    "error": null
+  },
+  {
+    "control": "draft",
+    "action": "pause",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "draft",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "draft",
+    "action": "resume",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "draft",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "draft",
+    "action": "stop",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "draft",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "draft",
+    "action": "update",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "draft",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "draft",
+    "action": "reconfirmConsent",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "draft",
+    "error": null
+  },
+  {
+    "control": "draft",
+    "action": "replace",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "draft",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "active",
+    "action": "reviseDraft",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "active",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "active",
+    "action": "discard",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "active",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "active",
+    "action": "promote",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "active",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "active",
+    "action": "pause",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "paused",
+    "error": null
+  },
+  {
+    "control": "active",
+    "action": "resume",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "noChange",
+    "controlAfter": "active",
+    "error": null
+  },
+  {
+    "control": "active",
+    "action": "stop",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "stopped",
+    "error": null
+  },
+  {
+    "control": "active",
+    "action": "update",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "active",
+    "error": null
+  },
+  {
+    "control": "active",
+    "action": "reconfirmConsent",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "active",
+    "error": null
+  },
+  {
+    "control": "active",
+    "action": "replace",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "superseded",
+    "error": null,
+    "successorControl": "active"
+  },
+  {
+    "control": "paused",
+    "action": "reviseDraft",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "paused",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "paused",
+    "action": "discard",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "paused",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "paused",
+    "action": "promote",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "paused",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "paused",
+    "action": "pause",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "noChange",
+    "controlAfter": "paused",
+    "error": null
+  },
+  {
+    "control": "paused",
+    "action": "resume",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "active",
+    "error": null
+  },
+  {
+    "control": "paused",
+    "action": "stop",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "stopped",
+    "error": null
+  },
+  {
+    "control": "paused",
+    "action": "update",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "paused",
+    "error": null
+  },
+  {
+    "control": "paused",
+    "action": "reconfirmConsent",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "paused",
+    "error": null
+  },
+  {
+    "control": "paused",
+    "action": "replace",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "commit",
+    "controlAfter": "superseded",
+    "error": null,
+    "successorControl": "paused"
+  },
+  {
+    "control": "stopped",
+    "action": "reviseDraft",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "stopped",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "stopped",
+    "action": "discard",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "stopped",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "stopped",
+    "action": "promote",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "stopped",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "stopped",
+    "action": "pause",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "stopped",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "stopped",
+    "action": "resume",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "stopped",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "stopped",
+    "action": "stop",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "noChange",
+    "controlAfter": "stopped",
+    "error": null
+  },
+  {
+    "control": "stopped",
+    "action": "update",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "stopped",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "stopped",
+    "action": "reconfirmConsent",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "stopped",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "stopped",
+    "action": "replace",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "stopped",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "exhausted",
+    "action": "reviseDraft",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "exhausted",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "exhausted",
+    "action": "discard",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "exhausted",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "exhausted",
+    "action": "promote",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "exhausted",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "exhausted",
+    "action": "pause",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "exhausted",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "exhausted",
+    "action": "resume",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "exhausted",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "exhausted",
+    "action": "stop",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "exhausted",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "exhausted",
+    "action": "update",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "exhausted",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "exhausted",
+    "action": "reconfirmConsent",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "exhausted",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "exhausted",
+    "action": "replace",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "exhausted",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "discarded",
+    "action": "reviseDraft",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "discarded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "discarded",
+    "action": "discard",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "discarded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "discarded",
+    "action": "promote",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "discarded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "discarded",
+    "action": "pause",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "discarded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "discarded",
+    "action": "resume",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "discarded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "discarded",
+    "action": "stop",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "discarded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "discarded",
+    "action": "update",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "discarded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "discarded",
+    "action": "reconfirmConsent",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "discarded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "discarded",
+    "action": "replace",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "discarded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "superseded",
+    "action": "reviseDraft",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "superseded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "superseded",
+    "action": "discard",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "superseded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "superseded",
+    "action": "promote",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "superseded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "superseded",
+    "action": "pause",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "superseded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "superseded",
+    "action": "resume",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "superseded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "superseded",
+    "action": "stop",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "superseded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "superseded",
+    "action": "update",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "superseded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "superseded",
+    "action": "reconfirmConsent",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "superseded",
+    "error": "invalid_transition"
+  },
+  {
+    "control": "superseded",
+    "action": "replace",
+    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
+    "result": "rejected",
+    "controlAfter": "superseded",
+    "error": "invalid_transition"
+  }
+]

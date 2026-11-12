@@ -1,10 +1,10 @@
-# 日程与作业协作设计候选
+# 日程与作业关键流程设计
 
-本页保存尚待技术采用的设计，不表示实现、产品接受或阶段承诺。完整必要行为见[schedule/schedule SPEC](../SPEC.md)，产品范围见[产品正文](../../../../.meta_harness/design/product/schedules-and-jobs/design.md)。
+本页说明完整目标的关键流程。F-SJ01中的Schedule保存、预览和管理已有实现；Job接受、执行及外部结果交接仍是后续目标。必要行为归 [SPEC](../SPEC.md)，公开形状及失败结果归成员公开 API 设计。图表示交接与条件，不是运行证据。
 
 ## F-SJ01 保存、预览与后续控制
 
-对应 J-SJ01/J-SJ02，INV-SJ01–INV-SJ04/06/07/08/10/22。人/agent 提交完整意图，入口核对身份及当前资格，按工作类型校验声明和实际日期依据。preview 只读返回有界候选/原因；create/update 一致保存完整定义，创建启用、编辑保持管理状态。准入/计算拒绝不留半份生效；回执未知查原操作。pause/resume/stop 与接受有明确顺序，停止不取消旧 Job。预置只填入内容，不建立独立 Routine。
+对应 J-SJ01/J-SJ02，INV-SJ01–INV-SJ04/06/07/08/10/22。人/agent 提交完整意图，入口核对身份及当前资格，按工作类型校验声明和实际日期依据。preview 只读返回有界候选/原因；create/update 一致保存完整定义，创建明确 active/draft，draft 不扫描；promote 当前复核后从严格未来启用；重要变更原子 replace，文本编辑保持状态。准入/计算拒绝不留半份生效；回执未知查原操作。pause/resume/stop 与接受有明确顺序，停止不取消旧 Job。预置只填入内容，不建立独立 Routine。
 
 
 ## F-SJ02 最终日期校验到可靠接受
@@ -15,7 +15,7 @@
 flowchart TD
     A[到期或已选合法补跑候选] --> B[读取完整定义与当前控制资格]
     B --> Need{本次规则有日历依赖}
-    Need -->|有| C[日历提供明确最新版本和覆盖]
+    Need -->|有| C[按 latest 或 pinned 解析明确版本及覆盖]
     Need -->|无| D[整份规则重算 原结果边界 排除 DST 合并]
     C --> D
     D --> E{前提仍有效且来源未处理}
@@ -29,7 +29,7 @@ flowchart TD
     R --> Q
 ```
 
-日期计算/资格是派生守卫；Job/来源处置/次数/责任是同提交业务单元；执行与通知是提交后交接。定义、日历、暂停/结束或去重前提变化要重核或冲突。调用顺序不足以证明跨拥有者一致性，Q-SJ03/Q-SJ04 提供机制证据。预算/预览不提前制造等待工作。
+日期计算/资格是派生守卫；Job/来源处置/次数/责任是同提交业务单元；执行与通知是提交后交接。定义、日历、暂停/结束或去重前提变化要重核或冲突。调用顺序不足以证明跨拥有者一致性，Q-SJ03/Q-SJ04 提供机制证据。latest 检查当前发布代数，pinned 检查指定版本仍有效及覆盖充分，不因 current 更新而改用新版；未知或无效固定版本不回退。预算/预览不提前制造等待工作。
 
 
 ## F-SJ03 恢复区间与有界补跑
@@ -39,7 +39,7 @@ flowchart TD
 
 ## F-SJ04 同安排重叠、排队与替换
 
-对应 J-SJ05，INV-SJ08/10–INV-SJ12/18/19。跳过不建 Job；并行各自独立；等待先接受固定 Job，前序动作结束后在当前启动资格下继续；替换先接受再发前序控制，需停止的原动作确认后才开始。此前多个并行 Job 全部参与实际判断。确认失败/未知保持替换受阻，Session 归档或请求成功不代替停止。新 Job 取消不能撤销已发旧控制，日历新版不把等待 Job 再变候选。
+对应 J-SJ05，INV-SJ08/10–INV-SJ12/18/19。跳过不建 Job；并行各有独立执行关联，existing仍指指定会话；等待先接受固定 Job，前序动作结束后在当前启动资格下继续；替换先接受再发前序控制，需停止的原动作确认后才开始。此前多个并行 Job 全部参与实际判断。确认失败/未知保持替换受阻，Session 归档或请求成功不代替停止。新 Job 取消不能撤销已发旧控制，日历新版不把等待 Job 再变候选。
 
 
 ## F-SJ06 实际事件、通知承接与整份工作
@@ -98,3 +98,63 @@ flowchart TD
 对应 J-SJ04/J-SJ10/J-SJ11，INV-SJ01/02/19–INV-SJ24。合资格查询读原定义/Job采用/结果和未完责任，投影滞后或故障如实显示；查询不触发写入、重跑或发送。换代停止新准入，原方保管区间/Job/控制/未知至可靠移交，接续方对账原执行/通知和取消后才续未完。无承接方明确受阻，不擦历史。资源释放仅撤自身贡献，晚到结果归原身份，实际残留报告。公共接口、配置和生命周期映射缺项见 Q-SJ02/Q-SJ04–Q-SJ06。
 
 每个流程对应的 V-SJ01–V-SJ24 是持续验证义务。图、有限结构检查与作者自检均不证明并发、耐久、授权、目标判断或真实送达已经成立。
+
+## F-SJ05 执行意图到原执行结算
+
+对应 INV-SJ13–INV-SJ15/21 与 N19–N21。三个分支由 Job 自有 JobExecutor 端口统一承接，适配器认识外域，核心不认识 Session/Agent。
+
+```mermaid
+flowchart TD
+    J[已接受Job 冻结Work] --> G[当前启动资格与未取消围栏]
+    G --> K{Work判别}
+    K -->|program| P[注册程序与schema input 无Session]
+    K -->|agent new| N[按jobId attemptId幂等建会话]
+    K -->|agent existing| E[仅向指定sessionRef交instruction]
+    E --> I[Session intake决定合法消息与推进]
+    N --> I
+    P --> X[原executionRef承接与查询]
+    I --> X
+    E -->|目标无效| B[拒绝或受阻 不能回退new]
+    X -->|pending unknown| Q[原键查询 不能重投或报成功]
+    Q --> X
+    X -->|真实开始| R[记录started与正确Job绑定]
+    R --> O[原目标证据与执行终态入账]
+    O --> F[本域聚合通知与结果各轴]
+```
+
+入队不等于开始/完成。new恢复沿原会话，existing不被解释成self-wake；program无需Agent/模型。取消先于开始则阻断原start，交接未知查原provider；开始先成立则沿真实停止。旧generation禁止新动作，原晚到结果仍保存。
+
+## F-SJ09 草稿、转正与原子替换
+
+create(draft)保存零未来接受的意图，reviseDraft/discard保留审计；promote重新核验当前同意/依赖/quota，选择严格未来候选。active的label/instruction/reminder文字可原地改，program/input、时间、purpose、session或绑定变更必须replace。一个同提交单元保存旧superseded、新identity、lineage、quota转移和回执，任一步失败无半后继。原Job不迁移，unknown查原operation，不另建后继。
+
+## F-SJ10 创建来源、执行位置与成果去向
+
+来源、执行位置和成果去向分别声明。下图分开 agent 成果政策与 program、纯通知结果路径。后两者不被强加 master。
+
+```mermaid
+flowchart TD
+    H[人直接请求 无来源会话] --> Direct[JobCommands 当前准入]
+    A[Agent直接请求 可信来源会话] --> Direct
+    S[调度器到期触发 保留日程作者] --> Scheduled[ScheduleAdmission 时隙准入]
+    Direct --> J[同一Job模型 冻结来源与工作]
+    Scheduled --> J
+    J --> Kind{工作种类}
+    Kind -->|program| Program[原程序结果及声明的事件通知]
+    Kind -->|notification| Notice[原通知承接与真实交付结果]
+    Kind -->|agent| Exec[按Work选择新会话或已有会话]
+    Exec --> Result[原agent执行结果与候选成果]
+    Result --> Policy{Agent结果政策}
+    Policy -->|masterInternal| Return[明确master回传 可选内部归档]
+    Policy -->|userDeliverable| Prepare{声明的成果形成者}
+    Prepare -->|master且有返回目标| M[master整理正式成果]
+    Prepare -->|指定provider| P[provider准备正式成果 无须master]
+    M --> Publish[当前披露校验 幂等发布]
+    P --> Publish
+    P -. 有显式returnTo时独立回传 .-> Return
+    Publish --> Tail[归档与通知分别保管和结算]
+```
+
+直接入口先核验来源、同意、资源及所需能力，再同提交接受。scheduler 的作者快照来自 Schedule，不来自本次调度 principal。直接请求没有时隙，重复批准请求认回原 Job。来源会话不会自动成为执行或返回目标。
+
+没有 returnTo 时回传状态为 notRequested。有 returnTo 且选择 provider 时，回传与 provider 准备分别进行。准备、发布或归档未知时只查询原 operation，不能换 provider、生成第二份成果或重执行 Job。所选能力在接受前缺失则拒绝，接受后失效则保留结果并受阻。验收归 N26/N27。

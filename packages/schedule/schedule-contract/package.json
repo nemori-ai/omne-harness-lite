@@ -1,0 +1,38 @@
+{
+  "name": "@omne-harness/schedule-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Public Schedule value schemas, service protocols and operation identity",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/calendar-contract": "workspace:*",
+    "zod": "catalog:",
+    "@js-temporal/polyfill": "0.5.1",
+    "canonicalize": "5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

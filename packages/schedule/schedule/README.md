@@ -1,26 +1,25 @@
-PACKAGE_TEMPLATE_DRAFT
+# @omne-harness/schedule
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+Public protocols belong to [schedule-contract](../schedule-contract/README.md), and Cordis definitions belong to [schedule-cordis-contract](../schedule-cordis-contract/README.md). This member implements recurrence calculation, Schedule management, prediction and queries without Cordis. Local persistence and assembly belong to [schedule-local](../schedule-local/README.md); tools belong to [schedule-tools](../schedule-tools/README.md).
 
-# schedule/schedule
+This private `0.0.0` package exports three application factories and pure calculation functions from [src/index.ts](src/index.ts). Job admission, execution, scanning, notification and result coordination remain target behavior. Their presence in the full design does not establish implementation.
 
-本目录只有设计文档，尚无实现、公开类型、配置或运行入口。支持状态未核实，目标公开形状待技术采用。整体产品与技术接受不能从目录推出。
+## Use and boundaries
 
-## 使用与消费边界
+Read the [behavior contract](SPEC.md) and [public API index](docs/public-api-design.md). The index separates current exports from future Job interfaces. Direct application calls use the same authorization and durable-operation rules as adapters.
 
-独立消费者先读 [SPEC](SPEC.md) 核对责任、资格及依赖；公开入口尚未成立，不能给出可运行调用示例。Cordis 集成沿项目已采用 IC 另核对定义、依赖、装配及撤除，不改变领域合同，也不自动保证耐久、取消或隔离。
+Use createScheduleManagementApplication for commands, createSchedulePredictionService for date calculation and definition resolution, and createScheduleQueryApplication for read services. Each factory takes explicit dependencies. Cordis bindings and independent tool adapters consume those services. The [group architecture](../docs/architecture.md) defines dependency direction.
 
-## 契约与内部设计
+## Contract and internal design
 
-[SPEC](SPEC.md)保存完整必要行为及验证义务。[内部设计](docs/internals.md)保存精确机制与[后续技术采用](docs/internals.md#后续技术采用)。组工程关系见[组入口](../README.md)。
+[SPEC](SPEC.md) owns observable behavior and verification obligations. The [internal design](docs/internals.md) explains state, persistence, recovery, and lifecycle. [Key flows](docs/key-flows.md) show participants, failure branches, and responsibility transfer. The [group entry](../README.md) links related owners.
 
-[成员精确关键流程](docs/key-flows.md)承接本成员的动作、提交和恢复分支；跨领域角色仍见所属领域入口。
+## Configuration, operation, and verification
 
-## 配置、运行与验证
+Node >=24 and ESM. Factory dependency types are exported from the root. Prediction and queries require explicit budgets and clocks. Management requires current authorization, quota observations and durable persistence. No factory supplies default authority or an empty history provider. Tests cover public behavior and failure cases with conformance dependencies. Real SQLite and worker composition belongs to schedule-local. Production cross-domain integration remains separate.
 
-provider、公开形状、介质、部署条件和真实执行入口尚待采用。合法配置不能减弱业务不变式；验证沿 SPEC 的具名拥有者和反例落实。尚无实际执行或故障证据证明本候选已兑现。
+## Maintenance
 
-## 维护
+Update the behavior, public design, flows, metadata, and both README files together. Implemented public definitions must become the single type source. Keep immutable historical facts, original operation identities, and explicit unknown outcomes. Source acceptance obligations remain in the [complete mapping](SPEC.md#来源与目标验收映射).
 
-本成员维护行为、机制、必要验证和真实消费者，组维护工程协作。改变参数、版本、提交或恢复条件时核对原事实及相邻拥有者，未定部分只阻塞依赖路径。原未决 ID 保留在技术采用与产品第四章。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+Formal function semantics and proof obligations are in [the function contract](docs/functions-and-coordination.md). Run `pnpm --filter @omne-harness/schedule verify:formal` with the tools described in [verification](verification/README.md). This is an explicit member gate, not part of the root check command; bounded model success does not prove production refinement.
