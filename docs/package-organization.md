@@ -369,7 +369,7 @@ Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Ag
 
 本表不改变各组内部成员分工。Session 组只有 session-adapters 导入邻域契约；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
 
-下面这一段写的是现有实现的依赖边。按 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)，会话观察搬出入口之后这两条边随它搬走，那时改这一段和约束登记。access 组的 server-entry 为会话观察另有两条成员级依赖边：`server-entry -> model-contract` 只调用 `ModelStreamReferences.current`，`server-entry -> stream-arrival` 只调用 `StreamObserver.observe`。两条边都不导入实现，public-contract 不依赖这两个成员。access 组依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)。
+下面这一段写的是会话观察按上一版设计要有的依赖边。入口的代码里现在没有它们：入口没有导入 `stream-arrival`，对 `model-contract` 只有会话诊断用的类型导入。按 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)，会话观察是会话一侧的集成成员，这两条边归它，不归入口；那个成员建成时改这一段和约束登记。上一版设计里，access 组的 server-entry 为会话观察另有两条成员级依赖边：`server-entry -> model-contract` 只调用 `ModelStreamReferences.current`，`server-entry -> stream-arrival` 只调用 `StreamObserver.observe`。两条边都不导入实现，public-contract 不依赖这两个成员。access 组依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)。
 
 同一能力的 Cordis 定义入口保持相同依赖方向，不能以服务键、Context/Events 增补或 `import type` 重新引入纯契约禁止的耦合。类型导入、重导出、跨成员相对路径和公开子路径分别核对。实际约束以所引用成员的身份与责任判断，不按名称含有 Session 或 Agent 一词作结论。
 
