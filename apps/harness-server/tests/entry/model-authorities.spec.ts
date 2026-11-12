@@ -46,7 +46,9 @@ import type {
   ModelAcceptedOrigin,
   ModelInitialExecution,
   ModelInitialHostChannel,
+  ModelObservationSource,
 } from '@omne-harness/model/commands'
+import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import {
   modelConverterAuthority,
   modelHostAuthority,
@@ -107,6 +109,17 @@ type Scripted = {
   closes: number
   standing: TenantStandingReading
   onRead?: (target: Parameters<ModelInitialExecution<unknown>['readAcceptance']>[0]) => void
+}
+
+/** 同次 records 激活的观察配对替身：命令只比身份，确认源不开租约。 */
+function scriptedObservation() {
+  const source: ModelObservationSource<unknown> = {
+    openHost: () => ({
+      failure: { kind: 'unavailable', dependency: 'scripted-source', diagnostic: 'not-opened' },
+    }),
+    close: () => {},
+  }
+  return { commands: {} as ModelCommands<unknown>, source, recheckMs: 100 }
 }
 
 /** 首次执行记录与通道的脚本替身：只记录被调用的次序与入参。 */
@@ -207,8 +220,10 @@ async function attachedAndBound(scene: Awaited<ReturnType<typeof installed>>) {
     verifier,
     standing: { read: () => Promise.resolve(script.standing) },
   })
+  const observation = scriptedObservation()
   const attached = records.attach(fixture.root, {
     initial: scriptedInitial(script),
+    observation,
     qualification,
   })
   if ('failure' in attached) throw new Error('fixture: attach failed')
@@ -222,7 +237,7 @@ async function attachedAndBound(scene: Awaited<ReturnType<typeof installed>>) {
   await fiber
   if (hostCtx === undefined) throw new Error('fixture: no host context')
   const binding = scene.hostPort.bindHost(hostCtx)
-  return { qualification, binding, hostFiber: fiber, handle: attached.ok }
+  return { qualification, binding, hostFiber: fiber, handle: attached.ok, observation }
 }
 
 describe('the three model authorities on a real Cordis context', () => {
@@ -573,11 +588,25 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
     expect(scene.script.closes).toBe(1)
   })
 
+  it('the host gets the observation pair of the attachment: the same commands, the source behind the admission point; none after detach', async () => {
+    const scene = await installed()
+    const bound = await attachedAndBound(scene)
+    const pair = okOf(bound.binding.observation(), 'observation pair')
+    expect(pair.commands).toBe(bound.observation.commands)
+    expect(pair.source).not.toBe(bound.observation.source)
+    expect(pair.source.openHost()).toEqual(bound.observation.source.openHost())
+    bound.handle.detach()
+    expect(bound.binding.observation()).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'records-not-attached' },
+    })
+  })
+
   it('a second records attachment is refused while one is attached; after detach the next one is accepted', async () => {
     const scene = await installed()
     const bound = await attachedAndBound(scene)
     const again = scene.records.attach(scene.fixture.root, {
       initial: scriptedInitial(scene.script),
+      observation: scriptedObservation(),
       qualification: bound.qualification,
     })
     expect(again).toMatchObject({ failure: { kind: 'unavailable' } })
@@ -592,6 +621,7 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
     expect(
       scene.records.attach(scene.fixture.root, {
         initial: scriptedInitial(scene.script),
+        observation: scriptedObservation(),
         qualification: bound.qualification,
       }),
     ).toHaveProperty('ok')

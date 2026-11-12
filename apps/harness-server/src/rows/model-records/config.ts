@@ -1,6 +1,8 @@
 // The row configuration of `model-records` (R2-D6, facts a.3): data only. The member's own part
-// (`owners`, `limits`, `requestChunkBytes`, `combinationVersion`, `send`, optional
-// `observation`) is validated by the member's schema; the application's part is validated here:
+// (`owners`, `limits`, `requestChunkBytes`, `combinationVersion`, `send`, `observation`) is
+// validated by the member's schema. The member takes `observation` as optional; the release
+// requires it (#1214: the formal assembly always publishes the public Model stream, and the
+// operator layer gives its bounds). The application's part is validated here:
 // - `initial`: the bounds of the first-execution run of this process.
 // - `sendStage`: what the send child needs beside its one member bound `maxRetainedAttempts`:
 //   the materialization record bound, the official profiles input (equal to the `model-profiles`
@@ -112,6 +114,10 @@ export const modelRecordsConfig = {
         }
       const member = memberSchema['~standard'].validate(value)
       if ('issues' in member) return member
+      if (member.value.observation === undefined)
+        return {
+          issues: [{ message: 'observation: required, the public Model stream is always opened' }],
+        }
       const diagnostics = diagnosticsSchema['~standard'].validate(app.data['diagnostics'])
       if ('issues' in diagnostics)
         return {

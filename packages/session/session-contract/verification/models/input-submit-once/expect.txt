@@ -1,0 +1,3 @@
+positive.cfg pass
+negative-fresh-identity.cfg AcceptOnce
+negative-blind-receipt.cfg OneReceipt

@@ -300,6 +300,8 @@ type StageInput = Readonly<{
   /** The page size of the start scan: the host's `scanBatchSize`. */
   scanBatchSize: number
   report(event: RuntimeEvent): void
+  /** Told once the result body of a call is released: the host retires the call's route. */
+  released?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
 }>
 
 /** The runtime stage of one plugin instance: made before the provider, started after the bind. */
@@ -694,8 +696,11 @@ function createResultPush(
     if (record.acknowledgement !== 'acknowledged' || record.cleanup === 'released') return record
     const execution = await cleanupExecution(record, access)
     if (execution === null) return record
-    if (execution === 'released' || (await advanceCleanup(execution)))
-      return save(dropBody({ ...record, cleanup: 'released' }))
+    if (execution === 'released' || (await advanceCleanup(execution))) {
+      const released = save(dropBody({ ...record, cleanup: 'released' }))
+      input.released?.({ tenant: record.tenant, call: record.call })
+      return released
+    }
     return record
   }
 

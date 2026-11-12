@@ -42,16 +42,16 @@
 流程、报告和退出码与 [model-contract 的说明](../../model-contract/verification/README.md#安装闭包)相同，两个成员各有一份字节相同的 `tests/install/`（D-2）。本成员的差别如下：
 
 - 策略是框架契约：允许 `@deepseek-ai/cordis`，禁止默认 Model（`@omne-harness/model`、`@omne-harness/model-host-local`）和供应商实现。
-- 探针导入两个入口：根入口与 `./cordis`。`./cordis` 在运行时导入 `@deepseek-ai/cordis`，该包与它的传递依赖从工作区锁定的精确版本安装进消费目录。
+- 探针导入两个入口：根入口与 `./cordis`。`./cordis` 在运行时导入 `@deepseek-ai/cordis`，该包与它的传递依赖从工作区已安装的目录安装进消费目录。
 - 慢层测试 `tests/install-consumer.spec.ts` 另有一个传递依赖负例：策略禁止 `@deepseek-ai/cosmokit`（Cordis 自己的依赖）。声明闭包里看不到它，设施必须在安装后的列表里找到并失败。
 
-- 安装步骤只用 `--offline`。失败时整次运行失败。只有明示 `--allow-network`（或 `OMNE_INSTALL_ALLOW_NETWORK=1`）才会再用 `--prefer-offline` 重试。报告字段 `install.mode`（`offline` 或 `network`）与 `install.allowNetwork` 记录这一点。
+- 安装步骤只用 `--offline`，第三方包取自工作区已安装的目录，pnpm 存储与缓存都在消费目录里，不读本机的；消费工程的 `packageManager` 取工作区根的值。失败时整次运行失败。只有明示 `--allow-network`（或 `OMNE_INSTALL_ALLOW_NETWORK=1`）才会再用 `--prefer-offline` 重试。报告字段 `install.mode`（`offline` 或 `network`）与 `install.allowNetwork` 记录这一点。
 - 解析钩子是同步的 `module.registerHooks`，记录 ESM `import` 与 CommonJS `require`，`registerHooks` 不触发 DEP0205。
 - `--work-dir` 必须在成员的 `tmp/` 或仓库的 `tmp/install-closure/` 之下，不得是符号链接，非空时须带标记文件 `.install-closure-consumer`；否则退出码 2，不删除内容。
 
 负例都在慢层（起子进程）：
 
-- `tests/install-closure.spec.ts` 在清单的临时副本里注入默认 Model、本地宿主、pi、厂商 SDK、分词引擎、存储引擎各一个，断言退出码为 1、报告点名被注入的包、没有打包。同一文件另证：`--work-dir` 护栏（成员目录、允许范围之外的目录、无标记的非空目录）退出码为 2 且内容保留，这几条都对测试自己在临时目录里造的成员运行，不指向任何仓库路径；空 pnpm 存储使 `--offline` 失败时退出码为 1、`install.mode` 为 `offline`。
+- `tests/install-closure.spec.ts` 在清单的临时副本里注入默认 Model、本地宿主、pi、厂商 SDK、分词引擎、存储引擎各一个，断言退出码为 1、报告点名被注入的包、没有打包。同一文件另证：`--work-dir` 护栏（成员目录、允许范围之外的目录、无标记的非空目录）退出码为 2 且内容保留，这几条都对测试自己在临时目录里造的成员运行，不指向任何仓库路径；成员声明一个工作区没有安装的第三方包、`--offline` 因此失败时退出码为 1、`install.mode` 为 `offline`。
 - `tests/install-probe.spec.ts` 在手工搭的消费目录里证明祖先 `node_modules` 的 CJS、ESM 与类型依赖、解析到 `src/` 都使对应检查失败。
 - `tests/install-consumer.spec.ts` 对未修改成员做真实打包与安装，断言报告的检查项 id 与预期的完整集合相等、`typeCheck.files` 大于 0、探针入口列表等于两个入口，并在 `afterAll` 里删除它创建的 `tmp/install-closure/` 目录。预期集合里每个被打包的闭包成员各有 `pack`、`tarball-no-source`、`tarball-no-workspace-protocol` 三项，成员列表写在测试里，按设施广度优先的次序共 15 个：本成员、`kernel-basis`、`legal-identity`、`modality`、`model-contract`、`operation-result`，`model-contract` 闭包里的 `assets`、`call-account`、`content-block`、`exchange-refs`、`json-text`、`message`、`stream-arrival`，以及更深一层的 `settings`、`utc-instant`。生产依赖变化时这个列表同步改。model-contract 的同名测试用同一方法，但它探测本成员的五个入口（根入口、`./provider`、`./provider-asset`、`./conformance`、`./testing`），也没有传递依赖负例，所以两份 `install-consumer.spec.ts` 不相同。
 
@@ -140,7 +140,7 @@ Cordis 消费插件是交接 G3 表的第六个角色；其余五个归 [model-c
 - 登记失败到根 `ModelFailure` 的映射没有测试，也没有实现，见 [SPEC](../SPEC.md#实例目录的未决项)。
 - 页面与源码的声明逐字比对对 `ModelInstancesService` 与 `ModelConvertersService` 的 `register` 没有：它们在页面上以属性形式声明，类型相同由 `tests/cordis-entry.spec-d.ts` 检查。
 - Cordis 消费插件夹具已写，只覆盖[角色夹具](#角色夹具)的八条路径与它列出的限度。Service 类单一身份只检查运行时服务一个（`ModelRuntimeService`），其余十四个抽象类与两个具体目录不在此内。已落地的 Context 增补与键常量的类型由 `tests/cordis-entry.spec-d.ts` 检查。
-- 离线安装依赖本机 pnpm 存储里已有的精确版本，缺失时运行失败，设施不自行联网；`--allow-network` 路径只由替身运行器的单元测试覆盖。
+- 离线安装只用工作区里的文件，不依赖本机的 pnpm 版本、存储和 registry 元数据缓存；第三方包在生产闭包里有不止一个版本、或工作区没有安装时运行失败，设施不自行联网；`--allow-network` 路径只由替身运行器的单元测试覆盖。
 - 检查项是否接进报告由对真实成员的正例核对。判断函数收到的输入是否真实不在其内，说明见 [model-contract 的未覆盖](../../model-contract/verification/README.md#未覆盖)末条。
 - 类型断言检查放在 model-contract。本成员的 Service 实现可能合法地使用断言，所以不套用同一规则。
 - 页面不保存声明，没有页面与源码的形状比较。本成员的 `tests/registration-types.spec-d.ts` 与 `tests/cordis-entry.spec-d.ts` 检查已导出名字的形状，不读页面。`sameAs` 检查只证明 `./cordis` 与根入口是同一声明。

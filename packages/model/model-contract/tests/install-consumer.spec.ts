@@ -1,7 +1,7 @@
 // @module-tag slow
 // Packs the member, installs the tarball into a directory under tmp/, and runs pnpm, node and tsc in it.
 import { spawnSync } from 'node:child_process'
-import { readFileSync, rmSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, expect, it } from 'vitest'
@@ -85,7 +85,19 @@ it('installs only the packed closure and every entry resolves inside the consume
   // Without a scenario the consumer depends on the target member alone.
   const manifest = JSON.parse(
     readFileSync(join(workDirectories[0] as string, 'project/package.json'), 'utf8'),
-  ) as { dependencies: Record<string, string> }
+  ) as { dependencies: Record<string, string>; packageManager: string }
   expect(Object.keys(manifest.dependencies)).toEqual(['@omne-harness/model-contract'])
+  // The run reads no pnpm state of the machine: the consumer names the pnpm of the workspace, the
+  // store is its own, and no registry metadata was read or written to resolve a package.
+  const root = JSON.parse(readFileSync(join(workspaceRoot, 'package.json'), 'utf8')) as {
+    packageManager: string
+  }
+  expect(manifest.packageManager).toBe(root.packageManager)
+  expect(existsSync(join(workDirectories[0] as string, 'pnpm-store'))).toBe(true)
+  const cached = readdirSync(join(workDirectories[0] as string, 'pnpm-cache'), {
+    recursive: true,
+    withFileTypes: true,
+  })
+  expect(cached.filter(entry => entry.isFile())).toEqual([])
   expect(run.status).toBe(0)
 })

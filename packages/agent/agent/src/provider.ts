@@ -8,8 +8,9 @@
 // sleeps on a wait saved in the Journal is handed over by that drive (`Journal.detach`), and the slot
 // is free; an execution whose drive runs a node stays in its slot and the answer is `unresolved`.
 // `resume` takes an execution that was handed over: it reserves the slot, `Journal.attach` grants a
-// new attachment, and a new coordinator goes on from the saved position. The remaining bodies answer
-// a named stage-temporary `unavailable` after `allowed`.
+// new attachment, and a new coordinator goes on from the saved position. `input.submit` accepts a
+// later input on the durable view (submit.ts) and wakes a drive that sleeps on its wait. The
+// remaining bodies answer a named stage-temporary `unavailable` after `allowed`.
 //
 // The slot and the observed state never disagree: `observe` shows the state that `stateOf` derives
 // from the slot, and every slot change goes through `occupy`. A run that stopped keeps the slot
@@ -63,25 +64,22 @@ import { agentEvidence } from './loop/identities.ts'
 import { createControlWriter } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type { AgentRunEndedFailedReceiver, AgentRunFailedReceiver } from './run-failure.ts'
+import { submitInput } from './submit.ts'
 
 const OWNER = '@omne-harness/agent'
 
 /** The #502 stage that implements each operation body; see the parent card "阶段与子任务". */
-type Stage = 'stage 3' | 'stage 5' | 'unassigned'
+type Stage = 'stage 3' | 'stage 5'
 
 /**
  * Stage-temporary (#502): the answer of an operation whose body does not exist yet. It says what is
- * missing; it is not a contract failure of the operation. `unassigned`: the stage table of #502
- * names no stage for it yet.
+ * missing; it is not a contract failure of the operation.
  */
 function notImplemented(operation: string, stage: Stage): Failure {
   return {
     kind: 'unavailable',
     owner: OWNER,
-    diagnostic:
-      stage === 'unassigned'
-        ? `${operation} is not implemented yet; #502 assigns it no stage`
-        : `${operation} is not implemented until #502 ${stage}`,
+    diagnostic: `${operation} is not implemented until #502 ${stage}`,
   }
 }
 
@@ -179,10 +177,11 @@ type Quiescing = {
 }
 
 /**
- * The drive of the execution in the slot, as quiesce reaches it. `asked` is the handover quiesce
- * asked for: the drive is the only writer of its execution, so it makes the handover itself, when
- * its current pass is over and before it sleeps, and settles the request. `wait` is set while the
- * drive sleeps in `waitForWake`; aborting it wakes the drive for the request.
+ * The drive of the execution in the slot, as quiesce and submit reach it. `asked` is the handover
+ * quiesce asked for: the drive is the only writer of its execution, so it makes the handover
+ * itself, when its current pass is over and before it sleeps, and settles the request. `wait` is set
+ * while the drive sleeps in `waitForWake`; aborting it wakes the drive for the request, or for the
+ * hint of an accepted submit.
  */
 type Driving = {
   wait: AbortController | null
@@ -341,7 +340,14 @@ export function createProvider<P, B extends ContentBlock>(
     return {
       execution,
       input: {
-        submit: input => guarded(input, 'submit', target, 'unassigned'),
+        async submit(input) {
+          const passed = await guard(input, 'submit', target)
+          if ('failure' in passed) return passed
+          if (input.execution !== execution) return fail(foreign)
+          const answer = await submitInput(dependencies, input)
+          if ('ok' in answer) hint(execution)
+          return answer
+        },
       },
       control: {
         async control(input) {
@@ -377,6 +383,17 @@ export function createProvider<P, B extends ContentBlock>(
   }
 
   let accepted: Accepted | null = null
+
+  /**
+   * The wake hint of an accepted submit (SPEC "输入内容与水位线"): it cancels the wait the drive
+   * sleeps on. With no handover asked, the drive waits again, and a wait reads the execution before
+   * it sleeps: the new revision wakes it. A drive that runs a pass needs no hint for the same reason.
+   * Without a live drive there is nobody to tell; the next legal advance reads the same input
+   * boundary.
+   */
+  function hint(execution: AgentExecutionId): void {
+    if (slot.kind === 'running' && slot.execution === execution) driving?.wait?.abort()
+  }
 
   /**
    * The drive of `execution` stopped on `failure` (SPEC「运行失败」). Only the run that still holds
@@ -544,7 +561,8 @@ export function createProvider<P, B extends ContentBlock>(
             if ('failure' in wake) return wake.failure
             if (wake.ok === 'stopped') return 'failure' in ran ? ran.failure : null
             if (wake.ok === 'ready') break
-            // Only quiesce cancels the wait: the request is answered before the drive sleeps again.
+            // Quiesce or a submit's hint cancelled the wait: a request is answered, then the drive
+            // waits again and reads the execution first.
           }
         }
       } finally {

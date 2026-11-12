@@ -5,7 +5,6 @@
 // temporary choices are pinned by the tests that name them (tests/README.md).
 import { describe, expect, it } from 'vitest'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
-import { fail } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type {
   AgentExecutionHandle,
@@ -15,7 +14,6 @@ import type {
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
-  acceptedInput,
   execution,
   failure,
   ok,
@@ -225,12 +223,11 @@ describe('the handle', () => {
     await eventsOf(handle)
   })
 
-  it('stage-temporary (#502): submit, control and acknowledge answer a named unavailable', async () => {
+  it('stage-temporary (#502): suspend and acknowledge answer a named unavailable', async () => {
     const assembly = await loopAssembly([execution()])
     const handle = ok(await invoke(assembly))
     const mutation = { ...alice, execution: execution(), operation: operation('later') }
     const answers = [
-      await handle.input.submit({ ...mutation, value: acceptedInput('input-2') }),
       await handle.control.control({
         ...mutation,
         command: {
@@ -242,10 +239,6 @@ describe('the handle', () => {
     ]
     for (const answer of answers)
       expect(failure(answer)).toMatchObject({ kind: 'unavailable', owner: '@omne-harness/agent' })
-    // The stage table of #502 assigns submit no stage yet.
-    expect(failure(answers[0] ?? fail({ kind: 'unsupported' }))).toMatchObject({
-      diagnostic: 'submit is not implemented yet; #502 assigns it no stage',
-    })
     assembly.release.open()
     await eventsOf(handle)
   })

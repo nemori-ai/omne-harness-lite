@@ -450,6 +450,8 @@ export type ReleaseTree = Readonly<{
   storageRoot: string
   /** The entry environment of the run: the narrow issuer views of `src/entry/principals.ts` take it. */
   env: EntryEnv
+  /** The context the entry object `toolClock` was installed on: a scenario reads root services from it. */
+  scope: Context
   /** The shared state of the Tool decision owner over HITL (`rows/tool-hitl`). */
   hitl: ToolHitlHolder
   /** The Tool runtime service of the run, as the Agent host reads it; a scenario may wrap `invoke`. */
@@ -667,6 +669,7 @@ async function serveOnce(
       home,
       storageRoot: dir.storageRoot,
       env,
+      scope,
       hitl,
       toolRuntime,
       records,
