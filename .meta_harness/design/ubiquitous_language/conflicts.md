@@ -483,3 +483,20 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **原冲突**：UL-offloaded-result 将完整工具结果都算作卸载对象，并保留无到期规则的旧承诺。程序值与原生资源可能因此被正文清理误删，也可能使过期正文仍被混合原返回长期占有。
 - **采用依据**：PanQiWei 于 2026-11-07 明确限定卸载对象为给模型看的正文，并要求内联交接后释放、卸载正文有限期清理、原生资源及业务效果由原拥有者管理，见 [W3 授权与范围](https://github.com/nemori-ai/omne-harness-lite/issues/184#issuecomment-6704642297)。
 - **处置**：[工具执行产品正文](../product/tool-execution/design.md#结果保管卸载与模型采用)与词条、对象条目按该范围同步。当前定义不由历史 PF 的永久保留文字覆盖。技术实现及验证仍由 [W3 交付卡](https://github.com/nemori-ai/omne-harness-lite/issues/1168)承担。
+
+### C-76：定时执行与会话目标、系统功能与系统维护
+
+- **类型**：旧投影与已确认目标不一致。
+- **来源**：封存 PF-021 rev 8 及旧词条将 agent Job 限定为新建专属会话，Schedule 创建即启用。现行[日程产品执行意图](../product/schedules-and-jobs/design.md#execution-modes)与[管理生命周期](../product/schedules-and-jobs/design.md#schedule-lifecycle)（rev 2）区分程序、新会话、已有会话，并支持草稿和重要变更原子替换。
+- **差别**：按旧定义实现会拒绝已有会话目标、跳过草稿同意，或在恢复时新建错误会话。来源中的系统订阅功能也不能被解释成无 owner 的平台维护。
+- **裁决依据**：负责人在 2026-11-03 本任务确认完整目标，现行产品正文保留采用范围与边界。
+- **处置**：定时作业、定时执行、作业会话及日程对象按现行产品同步。系统日程继续表示平台机械维护；系统日程定义与日程订阅分别表示产品功能及每 owner 采用。词表不改变外域生命周期与权限。
+- **状态**：已按目标产品同步。实现与交付接受另行验证。
+
+### C-77：作业与定时作业、来源会话与结果返回目标
+
+- **类型**：旧投影把 Job 限定为日程到期工作，并将来源会话与 master 整理职责混用。
+- **来源**：[日程与作业 J-SJ00](../product/schedules-and-jobs/design.md#job-creation)与[J-SJ16](../product/schedules-and-jobs/design.md#results)（rev 4）明确人、agent、调度器三类来源和显式结果政策。
+- **差别**：人和 agent 可以直接创建 Job。Scheduled Job 是有日程时隙的 Job 变体，不另立身份或生命周期。agent 来源会话不自动承担执行或成果整理。
+- **处置**：新增 UL-job 对象词条，UL-scheduled-job 改为其变体，原对象条目归入 UL-job。成果发布允许显式 provider 方式，masterInternal 仍要求返回目标。
+- **状态**：产品、公开形状与领域投影已同步，运行支持待实现验证。

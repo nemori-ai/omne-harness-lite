@@ -1,0 +1,255 @@
+{
+  "releaseDate": "2026-11-03",
+  "scope": "CN/JP/US fixed offline inputs for release 2026-11-03",
+  "upstreamPolicyCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+  "sources": [
+    {
+      "sourceId": "lanceliao-china-holiday-calender",
+      "version": "d498762870c0fe394aa56be9547026ff62d8d9c4",
+      "knowledgeAsOf": "2025-11-04T15:59:04Z",
+      "knowledgeBasis": "GitHub immutable commit metadata for holidayAPI.json; Generated field is not used",
+      "originalSha256": "d3309f77cf4a71508ffac1b9cbd7fab03d38df619ed090b63999631d5022dfa8",
+      "url": "https://raw.githubusercontent.com/lanceliao/china-holiday-calender/d498762870c0fe394aa56be9547026ff62d8d9c4/holidayAPI.json",
+      "license": "No LICENSE at pinned revision; adopted without waiting by ADR-107 Amendment A-1. No MIT assertion.",
+      "evidence": [
+        "evidence/lanceliao-commits.json",
+        "evidence/lanceliao-tree.json",
+        "evidence/lanceliao-README.txt",
+        "evidence/adr107-license-adoption.txt",
+        "evidence/gov-cn-records.json"
+      ]
+    },
+    {
+      "sourceId": "cg-zhou-holiday-calendar",
+      "version": "78443c03bf9339f085c44fbcc9257bbf4a17f8da",
+      "knowledgeAsOf": "2026-11-02T03:29:24Z",
+      "knowledgeBasis": "Repository immutable tree at this commit, full CN 2000–2026 declared index captured",
+      "url": "https://github.com/cg-zhou/holiday-calendar/tree/78443c03bf9339f085c44fbcc9257bbf4a17f8da",
+      "license": "MIT",
+      "evidence": [
+        "evidence/cg-commits.json",
+        "evidence/cg-README.txt",
+        "evidence/cg-LICENSE"
+      ]
+    },
+    {
+      "sourceId": "cao-syukujitsu-csv",
+      "knowledgeAsOf": "2026-02-02T00:30:17.000Z",
+      "knowledgeBasis": "HTTP Last-Modified from actual 2026-11-03 capture; raw CP932 preserved",
+      "url": "https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv",
+      "originalSha256": "cec37a743c96995cdb9cb52b685c9003634682a9b0e1a640a6b9b96881fe964a",
+      "license": "Cabinet Office PDL1.0, adopted 2025-03-25; processed into a calendar snapshot by this project, not created or endorsed by the Cabinet Office",
+      "evidence": [
+        "evidence/cao-terms.html",
+        "evidence/public-data-license.html"
+      ]
+    },
+    {
+      "sourceId": "vacanza-holidays-library",
+      "version": "0.108",
+      "knowledgeAsOf": "2026-11-02T22:32:10.311079Z",
+      "knowledgeBasis": "PyPI fixed wheel upload timestamp",
+      "url": "https://pypi.org/project/holidays/0.108/",
+      "wheelSha256": "5a08fdccd0b8737093d483ba0d0d9696560396d99d3fa6ef9264fd2ac48749c7",
+      "license": "MIT",
+      "construction": "Offline holidays.JP(years=year, language=ja), 1955–2027, PUBLIC default, observed enabled, 1067 dates; Python3.12.13 and holidays0.108/python-dateutil2.9.0.post0/six1.17.0 only at build time",
+      "evidence": [
+        "evidence/vacanza-LICENSE",
+        "evidence/vacanza-japan-source.txt",
+        "evidence/vacanza-distribution.json",
+        "evidence/vacanza-generation.json"
+      ]
+    },
+    {
+      "sourceId": "usc-6103-computed-rules",
+      "version": "USCODE-2023-title5 section6103 and embedded EO11582",
+      "knowledgeAsOf": "2025-06-16T14:15:56.000Z",
+      "knowledgeBasis": "HTTP Last-Modified of fixed government artifact; not current law completeness",
+      "license": "US government work, public domain",
+      "evidence": [
+        "evidence/usc-6103.html",
+        "evidence/usc-6103.headers"
+      ]
+    },
+    {
+      "sourceId": "opm-federal-holidays-ics",
+      "knowledgeAsOf": "2026-11-02T17:12:24.000Z",
+      "knowledgeBasis": "RFC5545 section3.8.7.2; no METHOD, all 112 DTSTAMP equal 20261102T171224Z; official component revision",
+      "license": "US government work, public domain",
+      "coverageEnd": "2030-12-25",
+      "limitation": "2030-12-26 through 2030-12-31 is outside this oracle coverage and outside the shipped US seed",
+      "evidence": [
+        "evidence/opm.headers",
+        "evidence/opm-knowledge-adoption.json"
+      ]
+    },
+    {
+      "sourceId": "federal-register-eo-feed",
+      "knowledgeAsOf": "2026-11-03T04:59:59.999Z",
+      "knowledgeBasis": "Complete official publication corpus through 2026-11-02 America/New_York end of day; not document revision or acquisition time",
+      "license": "US government work, public domain",
+      "fullScan": {
+        "count": 307,
+        "totalPages": 1,
+        "actual": 307,
+        "matchingBodies": [
+          "2025-23847",
+          "2024-31766"
+        ]
+      },
+      "evidence": [
+        "evidence/fr-bounded-evidence.json",
+        "evidence/fr-bounded.json",
+        "evidence/fr-bodies.json",
+        "evidence/fr-2025-23847.txt",
+        "evidence/fr-2024-31766.txt"
+      ]
+    }
+  ],
+  "independence": [
+    {
+      "id": "calendar-seed-lineage:cn:2026-11-03",
+      "truth": "lanceliao-china-holiday-calender",
+      "oracle": "cg-zhou-holiday-calendar",
+      "basis": "Adopted policy lineage plus distinct pinned maintained data artifacts and source-owned README statements. Both transcribe government notices independently; agreement alone is not evidence of descent. No claim to audit undisclosed maintainer practice.",
+      "evidence": [
+        "evidence/lanceliao-README.txt",
+        "evidence/cg-README.txt",
+        "evidence/lanceliao-commits.json",
+        "evidence/cg-commits.json"
+      ]
+    },
+    {
+      "id": "calendar-seed-lineage:jp:holidays-0.108",
+      "truth": "cao-syukujitsu-csv",
+      "oracle": "vacanza-holidays-library",
+      "basis": "Government original CSV compared with fixed-wheel Japan rules and static exceptions. The Japan implementation cites Wikipedia/Bank of Japan, imports date/rule classes, and contains no Cabinet Office CSV reader. Generated 73-year output is not derived from the CSV.",
+      "evidence": [
+        "evidence/vacanza-japan-source.txt",
+        "evidence/vacanza-distribution.json",
+        "evidence/vacanza-generation.json"
+      ]
+    },
+    {
+      "id": "calendar-seed-lineage:us:2026-11-03",
+      "truth": "usc-6103-computed-rules",
+      "oracle": "opm-federal-holidays-ics",
+      "basis": "Accepted fixed source policy: statutory rules encoded in the core with retained 5USC6103 and EO11582 government text; oracle is OPM own independently acquired official event artifact, not generated from our rules. Agreement is checked after retaining both original artifacts.",
+      "evidence": [
+        "evidence/usc-6103.html",
+        "evidence/usc-6103.headers",
+        "evidence/opm.headers"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "file": "evidence/adr107-license-adoption.txt",
+      "sha256": "61f48c775cb63d23db433233f6a745b60a0371a528eddeff08158bebfe5e2e1a"
+    },
+    {
+      "file": "evidence/cao-terms.html",
+      "sha256": "d331a62f2c196033c27cd11ca5f1501a9c0d4e6c711aba3dd15a4ab122c240a9"
+    },
+    {
+      "file": "evidence/cg-LICENSE",
+      "sha256": "6a9a8aaf5a575ecda677b31e8328f302fd917ae9cfd21fadb573489488ae174d"
+    },
+    {
+      "file": "evidence/cg-README.txt",
+      "sha256": "1d93acd74da675aba6428e7a76158302f9c8f2b40dd619bda620992b0e66cfb5"
+    },
+    {
+      "file": "evidence/cg-commits.json",
+      "sha256": "9b59eeba012bafb7dd0dd04b45e0cb8c0ef4fc11798692a06b560a8de5f21477"
+    },
+    {
+      "file": "evidence/fr-2024-31766.txt",
+      "sha256": "df569271ff016e293c9cf2844d0311e6edd6c90c3a6656370c01ea7014634aae"
+    },
+    {
+      "file": "evidence/fr-2025-23847.txt",
+      "sha256": "50e78139b51ae2493fcbae83381a2bce40dcee4ab895471acfdf7bf3bd67b9ed"
+    },
+    {
+      "file": "evidence/fr-bodies.json",
+      "sha256": "9c5eebed079f186373a67cd7a0a7a91f91a648f20daae93d7403ffcf268341bb"
+    },
+    {
+      "file": "evidence/fr-bounded-evidence.json",
+      "sha256": "42da2e85268f616377365daa892d37d5532690c2fe8543a6d26f7c9d298ddc8e"
+    },
+    {
+      "file": "evidence/fr-bounded.json",
+      "sha256": "078deaef453c5c0554746f09a1bd9e2cc9e30d890228fa61814616ec89824ddb"
+    },
+    {
+      "file": "evidence/gov-cn-2023.html",
+      "sha256": "a062b8d5ff42dc5d37bc92189eaaaebeaf873fbd7e0470b95dd5bb84ee959318"
+    },
+    {
+      "file": "evidence/gov-cn-2024.html",
+      "sha256": "07c413835443b958c5bf40b94dd47a027bc8b27707c7dd720e5a7d5903807c99"
+    },
+    {
+      "file": "evidence/gov-cn-2025.html",
+      "sha256": "0510bc1f09ef9b5719e01cf0fa33f618e2a61f05ee7912c549042fea1c31c6a4"
+    },
+    {
+      "file": "evidence/gov-cn-2026.html",
+      "sha256": "36fe1206ceb7685bc8827350d9552d60fff8393919f6afd0d1b0161c97628c0d"
+    },
+    {
+      "file": "evidence/gov-cn-records.json",
+      "sha256": "b8460ca0c3f364d3f06d4cd6b2f7e46cec442ecc1a4e3908cee4bff033fdf6b1"
+    },
+    {
+      "file": "evidence/lanceliao-README.txt",
+      "sha256": "983aeeb35f38445f951fb5e1e077e14d991ea96889344294af9924dfa7635615"
+    },
+    {
+      "file": "evidence/lanceliao-commits.json",
+      "sha256": "8f3a264aefa6645799c06547db95a5192e727c2a41e41c8656555375777773a0"
+    },
+    {
+      "file": "evidence/lanceliao-tree.json",
+      "sha256": "5447bd108c169d2d3f36dc2e8abe5a3b81edb2997055800432304457f913b5f7"
+    },
+    {
+      "file": "evidence/opm-knowledge-adoption.json",
+      "sha256": "c7a7fe4e5f144ac9e59870ac52fc182984dd8ebe7a1edcc2d7dbc032af72cedb"
+    },
+    {
+      "file": "evidence/opm.headers",
+      "sha256": "c68d9c8cf0dfa39479ee67f9498898f8c859433dec82b6a5f893ea7a10377c50"
+    },
+    {
+      "file": "evidence/public-data-license.html",
+      "sha256": "f3968054941fbd9d65e654f983b5a739a1d08b758e722065832d586b7d4d02cd"
+    },
+    {
+      "file": "evidence/usc-6103.headers",
+      "sha256": "00358ab1c18b39b73bfc3746207206ae174cc1bb1ae7a0b2a2dbc403819e5128"
+    },
+    {
+      "file": "evidence/usc-6103.html",
+      "sha256": "0c3ef0793a5a8106354d3d3f3d4dc0e9aa9de7803325d01ca95048ff9c4cd806"
+    },
+    {
+      "file": "evidence/vacanza-LICENSE",
+      "sha256": "a9a45b34c5338850f987329f35102934ec96d2b3a44563998bccc01bd9c9e3e9"
+    },
+    {
+      "file": "evidence/vacanza-distribution.json",
+      "sha256": "8c587c63028c5a703ce7946c7c605047cb3392478e74893e266765eb6c80891a"
+    },
+    {
+      "file": "evidence/vacanza-generation.json",
+      "sha256": "45207ac4b82b8b8e941f4e8812294a278bc5b6ab171b5f9913942e742cfd70b0"
+    },
+    {
+      "file": "evidence/vacanza-japan-source.txt",
+      "sha256": "bc567f2d7f61802299d9919e0180be5f43e72bcdd3c6b1af62fde1740a4eb7f9"
+    }
+  ]
+}

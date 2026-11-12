@@ -1,0 +1,1 @@
+{"sha256": "77955a5a67b666debe3cf1e56ab34239f809309b8b7164db3b436477bdb6e3ea", "version": "0.108", "years": 73, "days": 1067, "dependencies": {"holidays": "0.108", "python-dateutil": "2.9.0.post0", "six": "1.17.0"}}

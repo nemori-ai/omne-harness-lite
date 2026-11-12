@@ -26,7 +26,7 @@
 | [HITL](human-intervention/README.md)，交接能力 | 请求、呈现、答复及关联 | 原拥有者解释并决定继续，答复不扩大权限 |
 | [执行环境](execution-environments/README.md)，资源能力 | 落点、设施及供给/释放 | 逻辑工作区、准入及工具效果分别拥有 |
 | [日历](calendars/README.md)，业务能力 | 供应、版本、覆盖及计算 | 日程接受Job，Context/存储不解释日历语义 |
-| [日程与Job](schedules-and-jobs/README.md)，业务治理 | 描述、候选、接受、等待取消及整体结果 | 消费日历/执行/通知，不接管Run终态或送达 |
+| [日程与Job](schedules-and-jobs/README.md)，业务治理 | 描述、候选、接受、等待取消及整体结果 | 消费日历与本域执行、通知端口；外部适配承接程序或 agent 工作，不接管 Run 终态或送达 |
 | [通知](notifications/README.md)，业务交付 | 独立发送、目标送达及未完成责任 | 来源工作归发起方，执行完成不表示送达 |
 | [Slash Command](slash-commands/README.md)，专有类别 | 识别、绑定、参数及展开 | 交付面识别，受理复核，队列/日志及工作流原拥有者承担 |
 | [Skill](skills/README.md)，专有类别 | 方法、资源、发现及读取 | 治理拥有持有，消费者拥有采用，脚本另过Tool/环境 |
@@ -39,6 +39,8 @@
 消费者使用公开契约，提供者兑现相应承诺，装配入口选择实际实现。业务不深导入提供者或反向读取应用装配；双向消息不要求源码依赖成环。关系图、时序和部署分别表达。
 
 客户端通过 [SDK 与接入层](../architecture/layers-and-dependencies.md)使用完整 Harness。业务维护原语义，共同系统契约维护投影，SDK不携带服务端执行、存储或Cordis闭包；域内接口不自动公开。
+
+日程保存执行意图，不保存 Session 治理对象。程序调用和 agent 工作使用不同意图；后者携带指令与新会话或已有会话目标。执行适配器依赖 Job 公开端口与被调用领域的公开契约，日程核心不依赖 Session/Agent。入队、执行终态和通知送达分别由原拥有者提供证据，精确交接见[日程与 Job](schedules-and-jobs/architecture.md)。
 
 三runtime管理独立寿命，Session按业务逻辑治理。等待是数据和控制依赖，不授予执行寿命所有权。共同控制须显式发起并分别确认，取消、实际停止与效果撤回不同。
 
