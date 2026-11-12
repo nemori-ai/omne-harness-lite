@@ -181,7 +181,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 命中的成员不执行：运行时打印 `缓存命中，<n> 条用例，来源 <账本目录>`，摘要末尾一行写命中几个成员、来源哪些账本、这次写入了几个。一个成员都不跑时，打印 `<N> 个成员全部命中缓存，没有执行（<层>）`。成员测试的账本（`ledger.json`）因此有以下形状：
 
 - `meta.members`：这次覆盖的全部成员，跑了的加命中的。
-- `meta.cache`：`mode`（`read-write`、`write-only` 或 `unavailable`：这次读不读缓存）、`reason`（只写不读或不可用的原因）、`home`（缓存根）、`hits`（每项有 `member`、`key`、`source` 即来源账本目录、`tests` 即用例数）、`written`（这次写入的成员）、`write`（`on` 或 `off`：这次写不写缓存）、`skipped`（通过了、但因为没有构建记录、构建之后输入变了、构建之后 dist 被改过或运行期间输入变了而没写的成员数）、`uncacheable`（算不出键的成员与原因）、`problems`（写不进去的原因）。验收的账本没有这一栏。`mode` 与 `write` 互相独立，例如 `mode: read-write` 同时 `write: off`，表示这次读了缓存、但不写。
+- `meta.cache`：`mode`（`read-write`、`write-only` 或 `unavailable`：这次读不读缓存）、`reason`（只写不读或不可用的原因）、`trustedOnly`（读的时候是不是只认准入写的条目）、`home`（缓存根）、`hits`（每项有 `member`、`key`、`source` 即来源账本目录、`head` 与 `recordedAt` 即那次运行的提交与时刻、`tests` 即用例数）、`written`（这次写入的成员）、`write`（`on` 或 `off`：这次写不写缓存）、`skipped`（通过了、但因为没有构建记录、构建之后输入变了、构建之后 dist 被改过或运行期间输入变了而没写的成员数）、`uncacheable`（算不出键的成员与原因）、`problems`（写不进去的原因）。验收的账本没有这一栏。`mode` 与 `write` 互相独立，例如 `mode: read-write` 同时 `write: off`，表示这次读了缓存、但不写。
 - `members`、各成员的文件、`failures` 与 `nearTimeout`：只有这次跑了的成员。一层的成员全部命中时它们都是空的，这一层算通过。
 
 快层全部通过（含命中）才跑慢层的规则不变。`triage` 与失败归因只读 `failures`：命中的成员没有失败可重跑，跑了的失败照常单独重跑、归类。
@@ -195,12 +195,16 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 
 | 入口 | 不读缓存的条件 | 写缓存 |
 | --- | --- | --- |
-| `pnpm run check`、`pnpm run test:gate`（`step test`） | `FULL=1`、`OMNE_TEST_CACHE=0`、准入模式 `OMNE_ADMISSION=1`；`pnpm run check` 不认 `--full`、`--no-cache`，`cli.ts check` 与 `step` 另认 | 构建之后，满足上面两条时写 |
-| `pnpm run test:affected`（`run --base`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 | 缺省构建，满足上面两条时写；给 `--no-build` 不写 |
-| `pnpm run test:tier`、`pnpm run test`（`run --all --build`） | `FULL=1`、`OMNE_TEST_CACHE=0`、准入模式；不认 `--no-cache` | 带 `--build`，同一进程里有构建记录，满足上面两条时写。所以 `FULL=1 pnpm run test` 不读缓存，但会写 |
-| `cli.ts run --all`（不带 `--build`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 | 不写 |
+| `pnpm run check`、`pnpm run test:gate`（`step test`） | `FULL=1`、`OMNE_TEST_CACHE=0`；`pnpm run check` 不认 `--full`、`--no-cache`，`cli.ts check` 与 `step` 另认 | 构建之后，满足上面两条时写 |
+| `pnpm run test:affected`（`run --base`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0` | 缺省构建，满足上面两条时写；给 `--no-build` 不写 |
+| `pnpm run test:tier`、`pnpm run test`（`run --all --build`） | `FULL=1`、`OMNE_TEST_CACHE=0`；不认 `--no-cache` | 带 `--build`，同一进程里有构建记录，满足上面两条时写。所以 `FULL=1 pnpm run test` 不读缓存，但会写 |
+| `cli.ts run --all`（不带 `--build`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0` | 不写 |
 
-本次没有构建记录时同样不写，账本里 `write` 为 `off`。`run` 与 `check` 都认环境变量 `FULL=1`。准入不读待合并的改动能写入的缓存，与构建、类型检查的 turbo 缓存同一条规则。快照或依赖图取不到、条目坏了、写不进去，一律按未命中：既不让检查失败，也不让检查放行。
+本次没有构建记录时同样不写，账本里 `write` 为 `off`。`run` 与 `check` 都认环境变量 `FULL=1`。
+
+**准入模式只认准入写的条目。**准入模式（`OMNE_ADMISSION=1`）读缓存，但只认带 `admission` 的条目：它们是某一次准入模式的运行真跑出来的完整通过。平常的运行写的条目没有这一栏，准入不认（那次运行可能带了过滤，可能没有重新构建）。准入要防的是没有真跑过却显示通过；一条记录是一次准入真跑出来的，而且键盖住这个成员读的全部输入，认它不违反这条防线。同一个键下已有准入写的条目时，平常的运行不盖掉它。`FULL=1` 的准入不认任何条目，全部重跑；提升 main、进入 stable 的全量准入带它。命中的成员在输出里逐个写明取自哪个提交、哪个时刻的运行，账本的 `meta.cache.hits` 给出同样的出处。构建与类型检查的 turbo 缓存不在这一条里：准入模式下它们仍然只写不读。
+这一条帮得上的情形：准入失败后修一处再跑、同步轨道头之后再跑，输入没变的成员不重跑。帮不上的情形：计划选中的成员输入都变了（最常见的只改一个成员的准入就是这样），它们的键不命中，照跑。
+快照或依赖图取不到、条目坏了、写不进去，一律按未命中：既不让检查失败，也不让检查放行。
 做法借鉴 [ub-mode](https://github.com/unclebob/ub-mode/tree/57a8bdd) 的 mutator 与 crapper：结果仍有效就复用，只重跑输入变了的。
 命中意味着：同一台机器上，键完全相同（同样的输入文件内容、层、平台与架构、Node 版本、列出的环境变量）的一次完整通过曾经发生过。不意味着：这次再跑也会过——不稳定的用例、外部服务、时间与没列进键的环境变量都不在键里；也不证明那次运行的报告本身可靠。影响面规则漏掉的读取，缓存键同样漏掉：补读者规则，两边一起补上。自测：`tests/test-cache.spec.ts`（每类输入进谁的键、各类失效、只写完整通过、坏条目；慢层在临时仓库核对快照、在本仓库核对依赖图与每个成员都算得出键、真起 turbo 跑两遍看命中；另在临时仓库里分进程走 `step build --plan`、改源码、`step test --plan`，并起命令行 `run` 核对 `--build` 的接线）。
 
@@ -277,7 +281,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 | `admission`                  | 是不是准入运行（`--admission` 或 `OMNE_ADMISSION=1`）；只有准入运行能被接续或复用                                                                                                                                   |
 | `mode`、`base`、`resumeFrom` | `mode` 说范围：`full`（计划判全量，全部步骤对全部成员跑了：带了 `FULL=1`，或全局文件、未归类路径等让计划判了全量）、`affected`（按影响面，`base` 是本次基线与头的合并点，40 位）或 `resume`（接续，`base` 是 H1，`resumeFrom` 写 H1 的头、树、它失败的那一步、H1 那次的 `mode`（`full` 或 `affected`）与 H1 那次的 `fullRequested`） |
 | `fullRequested`              | 说要求：这次运行带没带 `FULL=1`。计划因全局文件判了全量、没带 `FULL=1` 的，`mode` 是 `full`，这一栏是 `false`。接续退化为整次重跑时照搬 H1 的这一栏（重跑的范围同 H1 那次）；接续运行本身不带 `FULL=1`，记 `false`，H1 的在 `resumeFrom` 里 |
-| `caches`                     | 这次运行时各缓存的状态：`test` 测试结果缓存（准入只写不读记 `off`，读缓存记 `on`）、`depGraph` 依赖图缓存（`OMNE_DEP_GRAPH_CACHE=0` 记 `off`，否则 `on`）。旧记录里多出的 `mutation` 字段读时忽略              |
+| `caches`                     | 这次运行时各缓存的状态：`test` 测试结果缓存（读缓存记 `on`，准入只认准入写的条目也记 `on`；`FULL=1`、`OMNE_TEST_CACHE=0` 记 `off`）、`depGraph` 依赖图缓存（`OMNE_DEP_GRAPH_CACHE=0` 记 `off`，否则 `on`）。旧记录里多出的 `mutation` 字段读时忽略              |
 | `steps`                      | 按步骤表的顺序，每步 `ran`、`exit`、`seconds`：跑完的记退出码，被终止的与没开始的记 `ran: false`、`exit: null`                                                                                                      |
 | `failedStep`                 | 快速失败的那一步（最早结束的失败步骤）；全部通过为 `null`                                                                                                                                                           |
 | `startedAt`、`finishedAt`    | 起止时刻                                                                                                                                                                                                            |
