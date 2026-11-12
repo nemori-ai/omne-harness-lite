@@ -184,6 +184,8 @@ const POLICY = {
   minimum: 2,
   memoryPerWorkerMiB: 512,
   sampleMs: 0,
+  reserveCores: 2,
+  concurrentRuns: 2,
 }
 
 describe('并行度', () => {

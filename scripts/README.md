@@ -47,7 +47,7 @@
 （算不出计划就在这里失败，不改判全量；`pnpm run check:plan` 只打印不跑）。然后按步骤图跑下面这些步骤。表在 [check-steps.ts](../tools/test-runner/src/testing/check-steps.ts)，运行器在 [check-graph.ts](../tools/test-runner/src/testing/check-graph.ts)；`node --experimental-strip-types tools/test-runner/src/testing/cli.ts check --list` 打印当前的表（`check.sh` 不接受这个开关）。调度规则：
 
 - 每一步只声明「先于我完成的步骤」，没有依赖的同时跑。
-- 重步骤（构建、类型检查、成员测试、验收）自己按[并行度](../tools/test-runner/README_ZH.md#测试运行)起多进程把机器占满，所以一次只跑一个：两个一起只会互相挤。工作进程预算在起任何步骤之前、机器安静时采一次，经 `OMNE_WORKER_BUDGET` 交给各重步骤；调用方已设它时原样交下去。
+- 重步骤（构建、类型检查、成员测试、验收）自己按[并行度](../tools/test-runner/README_ZH.md#测试运行)起多进程把这一次检查分到的预算用满，所以一次只跑一个：两个一起只会互相挤。工作进程预算在起任何步骤之前算一次，经 `OMNE_WORKER_BUDGET` 交给各重步骤；调用方已设它时原样交下去。
 - 轻步骤同时至多 `max(2, 核数 ÷ 3)` 个。pytest 算一个轻步骤，它自己用 xdist 起的进程数取预算的四分之一。轻步骤与重步骤同时跑、填它留下的空，优先级相同：把轻步骤降级量过，pytest 与 check:docs 这些关键路径上的轻步骤被挤慢 40% 到 100%，总墙钟反而变长。
 
 失败语义：
@@ -150,7 +150,7 @@ systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起。脚本在�
 
 | 环境变量 | 初值 | 含义 |
 |---|---|---|
-| `OMNE_TEST_SLOTS` | 1 | 同时允许几套在跑 |
+| `OMNE_TEST_SLOTS` | 2 | 同时允许几套在跑。它与 [test-runs.config.json](../tools/test-runner/test-runs.config.json) 的 `parallel.concurrentRuns` 是同一个数：每一套拿到的工作进程预算是（核数 − 2）÷ 2，两套同时跑不超订，见[并行度](../tools/test-runner/README_ZH.md#测试运行)。改一处要改另一处，测试运行器的 `tests/parallelism.spec.ts` 核对两处相等 |
 | `OMNE_TEST_SLOT_DIR` | Windows 为系统临时目录下的 `omne-test-slots-<用户名>`；WSL 解析到同一个目录（见上）；其余 POSIX 为 `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户且临时目录相同的全部检出共用。要跨用户或不同临时目录排队，把它指到一个共享可写的目录 |
 | `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没轮到时隔多久再看一次 |
 | `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久；超过即以 **75** 退出，命令**没有执行** |
@@ -242,7 +242,7 @@ systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起。脚本在�
 `main` 在 `<提交>/`，夜间在 `nightly/<日期>-<提交>/`。这个目录没有自动清理。
 
 runner 与别的任务共用主机，并行度过高时本来一两秒的用例会被挤过时限。
-测试并行度由运行器按 runner 主机的核数、空闲率与内存推出来（策略在 [test-runs.config.json](../tools/test-runner/test-runs.config.json)，本地与 CI 同用一份，见[并行度](../tools/test-runner/README_ZH.md#测试运行)）；
+测试并行度由运行器按 runner 主机的核数与内存推出来（策略在 [test-runs.config.json](../tools/test-runner/test-runs.config.json)，本地与 CI 同用一份，见[并行度](../tools/test-runner/README_ZH.md#测试运行)）；
 要钉死时设仓库变量 `OMNE_WORKER_BUDGET`（整份工作进程预算）、`OMNE_TEST_MEMBER_CONCURRENCY`（同时跑几个成员）与
 `OMNE_VITEST_MAX_WORKERS`（每个成员几个工作进程），留空即用推出的值。本地临时调整用环境变量
 `OMNE_WORKER_BUDGET`、`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS`。`pnpm run check` 自带运行名额，

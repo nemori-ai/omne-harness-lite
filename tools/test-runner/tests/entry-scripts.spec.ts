@@ -406,10 +406,13 @@ describe('package.json 的 test:python', () => {
     ])
   })
 
-  it('名额被占且最多等 0 秒：以 75 退出，不起 pytest', async () => {
+  it('只有一个名额、它被占着且最多等 0 秒：以 75 退出，不起 pytest', async () => {
     const { runLine, occupySlot } = fixture({ realSlot: true })
     occupySlot()
-    const refused = await runLine(line, { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
+    const refused = await runLine(line, {
+      OMNE_TEST_SLOTS: '1',
+      OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0',
+    })
     expect(refused.status).toBe(75)
     expect(refused.stderr).toContain('命令没有执行')
     expect(refused.lines).toEqual([])

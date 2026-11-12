@@ -3,8 +3,14 @@
 // 三种结论：两份等价（无影响）；差异能按 importer 映射到成员；判不准就全量，并写明为什么。
 // 映射规则（卡「准入增量化」T3）：`importers:` 下有变化的条目，对应成员受影响；`packages:`、`snapshots:` 下有变化的包，
 // 沿 snapshot 的 `dependencies`、`optionalDependencies` 反向走传递闭包，找到直接或间接依赖它的 importer。
-// 顶层 `lockfileVersion`、`settings`、`overrides`、`patchedDependencies`、`catalogs` 有变化，或任一份解析失败，判全量；
+// 顶层 `lockfileVersion`、`settings`、`overrides`、`patchedDependencies` 有变化，或任一份解析失败，判全量；
 // 其余顶层键（`packageExtensionsChecksum`、`pnpmfileChecksum` 等）这里不认识它们的影响范围，有变化同样判全量。
+// 顶层 `catalogs` 例外：它只是工作区清单里被用到的 catalog 条目的副本。一个条目解析到的版本变了，
+// 用它的每个 importer 的 `version` 跟着变，已经算在 `importers:` 的差异里；条目的写法变了而解析结果没变，
+// 没有成员的依赖变化。所以 `catalogs` 的差异不单独判，它的影响由 importer 的差异给出。
+//
+// 工作区清单 `pnpm-workspace.yaml` 另有一个判定（`workspaceImpact`）：只有 `catalog`、`catalogs` 两个键有变化时，
+// 影响面由锁文件的差异给出；别的键（`packages`、`overrides`、`patchedDependencies`、构建许可等）有变化判全量。
 // 根 importer（`.`）的依赖是全仓的工具，它变了判全量；importer 不在成员清单里、依赖引用的 snapshot 找不到、
 // 变化的包没有任何 importer 依赖它——这些都是这里解释不了的锁文件，判全量，不按猜的范围少跑。
 //
@@ -35,8 +41,10 @@ export type LockfileImpact =
     }
   | { readonly kind: 'full'; readonly reason: string }
 
-/** 顶层这些键变了判全量；其余顶层键（除三个映射段外）变了也判全量，原因里写出键名。 */
+/** 三个映射段按条目比较；其余顶层键变了判全量，原因里写出键名。 */
 const SECTION_KEYS = new Set(['importers', 'packages', 'snapshots'])
+/** 不单独判的顶层键：它的影响已经在 importer 的差异里（见文件头）。 */
+const DERIVED_KEYS = new Set(['catalogs'])
 
 /** 解析后的一份锁文件：三段映射与其余顶层键。 */
 interface Lockfile {
@@ -67,7 +75,9 @@ function sectionOf(root: YamlMap, name: string): ReadonlyMap<string, YamlNode> {
 function readLockfile(source: string): Lockfile {
   const root = parseLockfileYaml(source)
   return {
-    topLevel: new Map([...root].filter(([key]) => !SECTION_KEYS.has(key))),
+    topLevel: new Map(
+      [...root].filter(([key]) => !SECTION_KEYS.has(key) && !DERIVED_KEYS.has(key)),
+    ),
     importers: sectionOf(root, 'importers'),
     packages: sectionOf(root, 'packages'),
     snapshots: sectionOf(root, 'snapshots'),
@@ -305,4 +315,41 @@ export function lockfileImpact(
       return { kind: 'full', reason: `lockfile 改动解释不了（${error.detail}），判为全量` }
     throw error
   }
+}
+
+/** 工作区清单里这两个键的变化由锁文件的差异给出影响面；别的键变了判全量。 */
+const CATALOG_KEYS = new Set(['catalog', 'catalogs'])
+
+export type WorkspaceImpact =
+  | { readonly kind: 'unchanged' }
+  /** 只有 catalog 有变化：哪些成员受影响，看锁文件里 importer 的差异。 */
+  | { readonly kind: 'catalog-only'; readonly reason: string }
+  | { readonly kind: 'full'; readonly reason: string }
+
+function readWorkspace(side: string, source: string): YamlMap | string {
+  try {
+    return parseLockfileYaml(source)
+  } catch (error) {
+    if (error instanceof LockfileSyntaxError)
+      return `${side} pnpm-workspace.yaml 解析失败（${error.message}），判为全量`
+    throw error
+  }
+}
+
+/**
+ * 基线与 HEAD 两份 `pnpm-workspace.yaml` 文本的差异是不是只在 catalog 上。
+ * 解析失败、catalog 之外的任何顶层键有变化（含只在一边有）都判全量并写出键名。
+ */
+export function workspaceImpact(base: string, head: string): WorkspaceImpact {
+  if (base === head) return { kind: 'unchanged' }
+  const baseRoot = readWorkspace('基线的', base)
+  if (typeof baseRoot === 'string') return { kind: 'full', reason: baseRoot }
+  const headRoot = readWorkspace('HEAD 的', head)
+  if (typeof headRoot === 'string') return { kind: 'full', reason: headRoot }
+  const changed = changedKeys(baseRoot, headRoot)
+  if (changed.length === 0) return { kind: 'unchanged' }
+  const others = changed.filter(key => !CATALOG_KEYS.has(key))
+  if (others.length > 0)
+    return { kind: 'full', reason: `pnpm-workspace.yaml 的 ${list(others)} 有变化，判为全量` }
+  return { kind: 'catalog-only', reason: `pnpm-workspace.yaml 只有 ${list(changed)} 有变化` }
 }

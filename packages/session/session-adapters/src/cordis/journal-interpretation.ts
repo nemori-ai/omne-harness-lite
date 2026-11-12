@@ -12,18 +12,24 @@
 // covered by the next committed event; the operation identity is derived from the observation, so
 // the same read of the same event is the same operation. A lost reply is sent again under the same operation and
 // recalls the original receipt (C-STORAGE answers `conflict` to `queryOperation` for this form, so
-// it is not asked). A `changed` answer reads again once; a call of the event queue that still ends
-// in `changed` is made again once (R2-D157). Any refusal is logged and not retried. A control
+// it is not asked). A `changed` answer reads again once. A call of the event queue that ends in a
+// transient failure (`unavailable`, `changed`, or an outcome still unknown after its sends: a Session
+// participant rolled the commit back, KL-146) is made again at once and then after a backoff, until it commits, ends
+// in a determinate failure, or the plugin stops; each call reads the saved progress and the
+// execution again, so nothing of a failure is kept. A determinate refusal is logged and not retried. A control
 // event is a deferred fact: it is sent with the Agent evidence the Journal kept and no
 // consequences, and Session decides them in the commit. An event whose consequences were not
 // decided otherwise (an original the Journal did not keep) stops the call there: it is not
 // committed as anything else.
 //
 // The plugin keeps nothing but the current generation of its dependencies and one queue per
-// session, so the events of one session are interpreted one after the other. A call made while the
-// plugin is pending or stopped answers `unavailable` and commits nothing. It does not scan the
-// storage when it starts: an event it missed is interpreted by the next event of the same execution.
+// session, so the events of one session are interpreted one after the other; an event waiting for
+// to be called again does not hold the queue: it is queued again at once, or when the backoff ends. A call made while the plugin is pending or stopped answers
+// `unavailable` and commits nothing. It does not scan the storage when it starts: an event it missed
+// is interpreted by the next event of the same execution. The durable record of what is left is the
+// gap between the saved progress and the execution's events, so a later scan can make the same call.
 import { createHash } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -52,13 +58,33 @@ const OWNER = 'session-adapters/journal-interpretation'
 const ROUNDS = 2
 /** The sends of one observation whose outcome stays unknown, all under the same operation. */
 const SENDS = 3
+
 /**
- * The calls of one execution that the event queue makes again after a call ended in `changed`
- * with its rounds used up (R2-D157). This is a patch of this line: the real gap is the wake
- * contract, because the receivers write through their own Journal copy, which sends no
- * `agent-published`, so no later event may come. That gap is recorded for wave 3 and L-RUN owns it.
+ * The backoff of the event queue between calls that ended in a transient failure, after the first
+ * call again, which is queued at once: the first wait, the factor of each next one and the longest wait. There is no count limit: the event is
+ * interpreted until it commits or the answer is determinate (#1216 E1a).
  */
-const REQUEUES = 1
+export type JournalInterpretationRetry = Readonly<{
+  initialMs: number
+  multiplier: number
+  maxMs: number
+}>
+
+/** The default backoff: 50 ms, doubling, at most 5 s between calls. */
+export const DEFAULT_JOURNAL_INTERPRETATION_RETRY: JournalInterpretationRetry = Object.freeze({
+  initialMs: 50,
+  multiplier: 2,
+  maxMs: 5000,
+})
+
+/** A failure after which the same call may commit: a rollback, a moved head or an unknown outcome. */
+function transient(failure: SessionFailure): boolean {
+  return (
+    failure.kind === 'unavailable' ||
+    failure.kind === 'changed' ||
+    failure.kind === 'commit-unknown'
+  )
+}
 
 /** One call: the execution of one Session whose events are interpreted. */
 export type JournalInterpretationTarget = Readonly<{
@@ -86,6 +112,8 @@ export type SessionJournalInterpretationInput<P> = Readonly<{
   coordinator(
     input: Readonly<{ tenant: TenantId; session: SessionId }>,
   ): Promise<Outcome<P, SessionCoordinatorPrincipalFailure>>
+  /** The backoff after a transient failure; absent: `DEFAULT_JOURNAL_INTERPRETATION_RETRY`. */
+  retry?: JournalInterpretationRetry
 }>
 
 /** The dependencies of one generation of the plugin. */
@@ -224,6 +252,21 @@ function createJournalInterpretation<P>(
   }
 }
 
+/** The next wait of a retry (0: queued again at once) and how many calls of the target came before it. */
+type Retry = Readonly<{ wait: number; calls: number }>
+
+/** Writes what a call left behind when it will not be made again. */
+function reportEnd(
+  logger: ReturnType<Context['logger']>,
+  execution: string,
+  answer: Answer<JournalInterpreted>,
+): void {
+  if ('failure' in answer)
+    logger.warn(`the interpretation of ${execution} answered ${answer.failure.kind}`)
+  else if (answer.ok.waiting > 0)
+    logger.warn(`${answer.ok.waiting} events of ${execution} have no decided consequences`)
+}
+
 /**
  * The AD-02 plugin and the call that reaches it. The plugin provides no key: it needs `session`
  * with the `coordinator` caller class, `sessionTransactions` (with `commitLog`), `storage` and the
@@ -235,6 +278,16 @@ function createJournalInterpretation<P>(
 export function createSessionJournalInterpretationPlugin<P>(
   input: SessionJournalInterpretationInput<P>,
 ) {
+  const policy = input.retry ?? DEFAULT_JOURNAL_INTERPRETATION_RETRY
+  if (
+    !(policy.initialMs > 0) ||
+    !(policy.multiplier >= 1) ||
+    !(policy.maxMs >= policy.initialMs) ||
+    !Number.isFinite(policy.maxMs)
+  )
+    throw new RangeError(
+      'the journal interpretation retry needs 0 < initialMs <= maxMs and multiplier >= 1',
+    )
   let current: ((target: JournalInterpretationTarget) => Reply<JournalInterpreted>) | null = null
   return {
     plugin: {
@@ -247,6 +300,7 @@ export function createSessionJournalInterpretationPlugin<P>(
       },
       apply(ctx: Context) {
         let stopped = false
+        const stopping = new AbortController()
         const session = ctx[sessionKey]
         const transactions = ctx[sessionTransactionsKey]
         const storage = ctx[storageKey]
@@ -269,35 +323,57 @@ export function createSessionJournalInterpretationPlugin<P>(
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
-        // The interpretations of one session run one after the other.
-        subscribePublished(
+        // The interpretations of one session run one after the other. A call that ended in a
+        // transient failure does not hold the queue: the same target is queued again behind
+        // whatever came meanwhile, the first time at once and then after the backoff. The first one
+        // goes at once because a moved head is readable right after the write that moved it, and a
+        // wait lets another execution's write replace it with a placeholder head (KL-146: with a
+        // first wait CP3 lost 9 of 30 such events under load, against 2 of 30 for one requeue at
+        // once). One execution has at most one such retry pending;
+        // an event that fails while it waits leaves the retry to it. Every call reads from the saved
+        // progress, so nothing is committed twice.
+        const retrying = new Set<string>()
+        const attempt = async (target: JournalInterpretationTarget, retry: Retry | null) => {
+          const key = JSON.stringify([target.session, target.execution])
+          const answer = await guarded(target)
+          if ('ok' in answer || stopped || !transient(answer.failure)) {
+            if (retry !== null) retrying.delete(key)
+            reportEnd(logger, target.execution, answer)
+            return
+          }
+          if (retry === null && retrying.has(key)) return
+          retrying.add(key)
+          retryLater(target, retry ?? { wait: 0, calls: 0 }, answer.failure.kind)
+        }
+        const retryLater = (target: JournalInterpretationTarget, retry: Retry, kind: string) => {
+          const calls = retry.calls + 1
+          logger.warn(
+            `call ${calls} of the interpretation of ${target.execution} answered ${kind}; again in ${retry.wait} ms`,
+          )
+          const next = {
+            wait:
+              retry.wait === 0
+                ? policy.initialMs
+                : Math.min(retry.wait * policy.multiplier, policy.maxMs),
+            calls,
+          }
+          if (retry.wait === 0) return enqueue(target, () => attempt(target, next))
+          // A stop aborts the wait; the rejection is the end of the retry, not a failure.
+          void delay(retry.wait, undefined, { signal: stopping.signal }).then(
+            () => enqueue(target, () => attempt(target, next)),
+            () => undefined,
+          )
+        }
+        const enqueue = subscribePublished(
           ctx,
           () => stopped,
-          async target => {
-            let answer = await guarded(target)
-            // R2-D157: a call that ended in `changed` runs again in the same queue slot, so later
-            // events of the session still wait behind it, at most REQUEUES times. A later event of
-            // the same execution reads from the saved progress, so it commits nothing twice.
-            for (
-              let left = REQUEUES;
-              left > 0 && !stopped && 'failure' in answer && answer.failure.kind === 'changed';
-              left -= 1
-            )
-              answer = await guarded(target)
-            if ('failure' in answer)
-              logger.warn(
-                `the interpretation of ${target.execution} answered ${answer.failure.kind}`,
-              )
-            else if (answer.ok.waiting > 0)
-              logger.warn(
-                `${answer.ok.waiting} events of ${target.execution} have no decided consequences`,
-              )
-          },
+          target => attempt(target, null),
         )
         ctx.effect(() => {
           current = guarded
           return () => {
             stopped = true
+            stopping.abort()
             if (current === guarded) current = null
           }
         })

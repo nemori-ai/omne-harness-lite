@@ -3,6 +3,7 @@ import {
   canonicalDigest,
   checkToolResultBody,
   createIndependentToolScope,
+  laterRunDelayMs,
   createToolBodyScope,
   type ToolConfiguration,
   type ToolLedgerPorts,
@@ -92,14 +93,18 @@ export function createRuntimeAuthorExecution(
   const finals = new Map<string, FinalRequest>()
   let validating = 0
   const unencoded = new Map<AbortSignal, Parameters<RuntimeAuthorExecution['settle']>[0]>()
-  const retry = (signal = shutdown.signal) =>
+  /** Waits the `level`-th delay of the doubling backoff of the driver (Tool SPEC 23). */
+  const retry = (level: number, signal = shutdown.signal) =>
     new Promise<void>(resolve => {
       const done = () => {
         clearTimeout(timer)
         signal.removeEventListener('abort', done)
         resolve()
       }
-      const timer = setTimeout(done, input.configuration.driverRetryDelayMs ?? 1000)
+      const timer = setTimeout(
+        done,
+        laterRunDelayMs(input.configuration.driverRetryDelayMs ?? 1000, level),
+      )
       signal.addEventListener('abort', done, { once: true })
       if (signal.aborted) done()
     })
@@ -107,7 +112,7 @@ export function createRuntimeAuthorExecution(
   const planFinal = async (request: FinalRequest) => {
     const key = canonicalDigest([request.tenant, request.call, request.operation])
     finals.set(key, request)
-    while (!shutdown.signal.aborted) {
+    for (let level = 0; !shutdown.signal.aborted; level += 1) {
       try {
         const answer = await input.finalPlanner.planFinal(request)
         if ('ok' in answer) {
@@ -117,7 +122,7 @@ export function createRuntimeAuthorExecution(
         if (answer.failure.kind !== 'unavailable' && answer.failure.kind !== 'commit-unknown')
           return answer
       } catch {}
-      await retry()
+      await retry(level)
     }
     return fail({
       kind: 'unavailable' as const,
@@ -331,7 +336,7 @@ export function createRuntimeAuthorExecution(
       if (projected.terminal.kind === 'completed') {
         validating++
         try {
-          for (;;) {
+          for (let level = 0; ; level += 1) {
             if (shutdown.signal.aborted)
               return fail({
                 kind: 'unavailable',
@@ -350,7 +355,7 @@ export function createRuntimeAuthorExecution(
               break
             }
             if (shutdown.signal.aborted) return checked
-            await retry()
+            await retry(level)
           }
         } finally {
           validating--

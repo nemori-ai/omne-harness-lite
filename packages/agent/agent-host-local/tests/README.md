@@ -36,19 +36,17 @@
 
 `line-through/` 是一条真实 Cordis 4.0.4 根上的组合用例：真实 sqlite-provider、session-storage-sql、session-cordis、session-adapters 的生产插件（AD-14、`agentJournal` 插件）、Agent 宿主与 agent-context，加 Model 与 Tool 的替身。`world.ts` 是 CP3 的组合世界，`openLineWorld(options)` 的参数都可选，不传时装配与 CP3 一致。`w2-world.ts` 在其上加下列件：带取消安装的 Journal 插件、Tool 接收方与 Tool 替身、Tool 请求准备替身（R2-D36）、可选的 AD-04 前文来源、产品的 `measure` 观察者；`w2-measure.ts` 放每轮计数与测量事件记录器。Model、Tool、Runtime Context 交接、已采用请求事实与 Agent 的授权等是替身，各在构造处标注。世界装载真实的 AD-02（`createSessionJournalInterpretationPlugin`）、handoff 插件（`createSessionMessageHandoffPlugin`）、AD-05（`createSessionModelLogConsumptionPlugin`）与 AD-06（`createSessionToolLogConsumptionPlugin`）。取消意图路径是否经真实插件走通，以 `w2-control.spec.ts` 的现状为准，世界不替它造替身。`w2-handoff-restart.spec.ts` 启动子进程 `w2-handoff-child.ts`：它在给定的存储目录上打开同一组合世界，让 Agent 跑一轮并收集准入记录，然后等待被杀，由新进程按原身份读回准入记录。这些用例只证明本组合、替身与固定轮形下的行为，不证明真实 Model 与 Tool、跨线装配、`apps/harness-server` 的行接线或 E9 计时。
 
-CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` 的 `sessionOnlyRollbackExplained`（R2-D152）。可以接受的原因只有两种：一种是 `the input is not pending`；另一种是 `changed`，并且之后同一执行、同一 sequence 的 commitLog 已经提交，或者该执行的 `readThrough` 已经到达这个 sequence。第二种原因的依据是 session-contract SPEC「过期的同域根答 changed」，以及 session-adapters `tests/journal-interpretation.spec.ts` 中「AD-02: the execution head moves between the read and the commit」的两条用例。`line-through/cp3-rollbacks.spec.ts` 在快层用合成序列核对这个判定，其中包括负控。
+CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` 的 `sessionOnlyRollbackExplained`（R2-D152）。可以接受的原因只有两种：一种是 `the input is not pending`；另一种是暂时的失败（`changed` 或 `unavailable`），并且之后同一执行、同一 sequence 的 commitLog 已经提交，或者该执行的 `readThrough` 已经到达这个 sequence。第二种原因的依据是 session-contract SPEC「过期的同域根答 changed」，以及 AD-02 对暂时失败按退避再解释直到提交（线卡 #1216 的 E1a，session-adapters `tests/journal-interpretation.spec.ts` 的「AD-02: the execution head moves between the read and the commit」与「AD-02: a Session participant rollback that answers unavailable」）。暂时的回滚之后这项工作没有接着做成的，仍然判红。`line-through/cp3-rollbacks.spec.ts` 在快层用合成序列核对这个判定，其中包括负控。
 
-已知限制 KL-146（波 3）：AD-02 读到执行头之后、commitLog 落地之前，Agent 可能又写一次同一执行。这时只有 Session 参加的 commitLog 可能以 `unavailable` 回滚。AD-02 不重试 `unavailable`，这个事件要等下一次唤醒才继续解释。CP3 遇到这种回滚仍然判红。已看到两种签名：
+已知限制 KL-146（波 3；线卡 #1216 的 E1a 改写）：满载下 CP3 仍会偶发红。AD-02 在暂时失败之后放下的那一处已经修好：它按退避重新排进会话队列接着解释，直到提交或得到确定的结局。剩下一个原因，要改设计：
 
-- `history.executions.<execution>: required original material is missing`：执行头已经是占位回执（digest `unknown`，session-storage-sql K-5），所以 `boundaryOf` 不给边界。在 f2ba09e89 上加扰动时出现。
-- `history.prefix.<execution>.committedConsequences: required original material is missing`：在 5946efe4d 上出现，不加扰动时 12 次中出现 1 次。
+- 执行头是占位回执（digest `unknown`，session-storage-sql K-5）：结果接收方经自己的 Journal 副本写入，这次写入不带这个执行自己的回执，头就记成占位。AD-02 读到占位头答 `history.executions.<execution>` 或 `the head of the execution was written by another execution`，会话一侧的历史索引同样把它当作没有头；要等这个执行自己的下一次写入才能往下解释。Run 收尾之后不再写，CP3 就判那次 `changed` 回滚没有解释。同一负载下新旧 AD-02 交替各跑 30 次，CP3 都红 9 次，签名都是这一种（AD-02 暂时失败后第一次立刻再排，和原来的一次重排一样。第一次就等退避的版本在另一组对照里是新 9 次对旧 2 次：等待给了别的执行的写入换上占位头的时间）。
 
-2026-11-12 在 `a89d77662` 上加负载复现（同机另跑一份整包慢层，卡 #1218 H2），又看到两处：
+卡 #1218 H2 在 `a89d77662` 上加负载复现时看到同样两处：CP3 把判定的等待放到 120 秒，10 次里 3 次到期时仍有 2 到 5 条 `changed` 回滚没有解释，等待窗口不是原因，和上一条一致；J6 的一轮里 `receive(input-handover)` 以 `history.prefix` 签名回滚，这一轮的 Session 提交数少 1，见下一段。
 
-- CP3 以 `changed` 回滚，同一执行、同一序号的 commitLog 之后没有再提交，已保存的进度也没有到这个序号。CP3 把判定的等待放到 120 秒，10 次里 3 次到期时仍有 2 到 5 条没有解释。等待窗口不是原因：AD-02 遇到 `changed` 就结束这次调用，要等下一次唤醒；这一轮之后没有下一次唤醒。
-- J6 的一轮里 `receive(input-handover)` 以第二种签名回滚，同一操作整轮不再提交，这一轮的 Session 提交数少 1，J6 的窗口比较因此失败。5 次里 4 次出现。
+处置见线卡 #1216 的「退包（E1a，补充）」与「差异与标准：E1b 执行头总有真值」。
 
-两处都是同一个缺口：Session 只参加的提交回滚后，没有一方负责以同一操作再试。所以 CP3 与 J6 在负载下的失败不改用例，等这个缺口由拥有者修好。
+原来的第二个原因不再是限制：交入回执（SE35）与 Agent 取走首条输入的交错。会话写 SE35 的 `receive` 要等新事件解释完（session-contract `requireObservedTail`，签名 `history.prefix.<execution>.committedConsequences: required original material is missing`）；解释完时输入多半已被取走，归约答 `the input is not pending`，这一笔 SE35 不成立。这是契约允许的交错，session-contract SPEC 写明了续入不依赖它。J6 因此把会话参加者每轮的提交数归为随交错变的计数，见下节。
 
 一次性复现脚本 `cp3-repro-loop.sh`、`cp3-repro-delay.sh` 已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages/agent/agent-host-local/tests/line-through)。升级条件：在批次 D、E 的准入、C1 联调或 SC4 端到端中，不加扰动时只要出现一次 KL-146 的回滚，就升级为波 2 必修。
 
@@ -56,7 +54,7 @@ CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` �
 
 `line-through/w2-counts.spec.ts` 有两种长度，由环境变量 `OMNE_J6_ROUNDS` 选择（R2-D141）。
 
-- 默认（准入慢层）：跑 20 轮，两种形状的用例合计约 52 秒（机器上有其他任务时测得）。只比较两个窗口，即第 15 至 20 轮对第 5 至 10 轮，口径是 `stable()`：剔除轮号、字节、重试和 `execution-record.parts` 调用数，其余逐项相等。每轮接收数与 parts 调用上界的断言照常。增长判定不运行，因为它要求第 11 至 200 轮。证据写进 `tmp/line-session-run/w2/C-JOINT/short/`，不覆盖测量证据。
+- 默认（准入慢层）：跑 20 轮，两种形状的用例合计约 52 秒（机器上有其他任务时测得）。只比较两个窗口，即第 15 至 20 轮对第 5 至 10 轮，口径是 `stable()`：剔除轮号、字节、重试、`execution-record.parts` 调用数和会话参加者的提交数，其余逐项相等。会话参加者的提交数（`session`、`session-ordinary-basis` 与总数）随交入回执的交错变，归进定时计数，另有一个界：两个窗口里每一轮比最大值至多少一次（`sessionCommitsOffBound`，线卡 #1216）。每轮接收数与 parts 调用上界的断言照常。增长判定不运行，因为它要求第 11 至 200 轮。证据写进 `tmp/line-session-run/w2/C-JOINT/short/`，不覆盖测量证据。
 - 测量入口 `OMNE_J6_ROUNDS=200`：跑完整 200 轮，窗口是第 181 至 200 轮对第 11 至 30 轮，并对定时计数做增长判定（R2-D17、R2-D118）。证据写进 `tmp/line-session-run/w2/C-JOINT/`。其他取值会被拒绝。入口用环境变量而不用 `test:measure` 脚本，因为它不改 package.json，准入、独占名额和手工命令都用同一条命令行，且短轮与 200 轮跑的是同一份用例，不会各自走样。
 
 完整 200 轮在三个时点各跑一次，不进准入：C1 联调 B；每个波的波末；合入改动 Session 热路径（session-storage-sql 的提交、读取、工作缓存与历史索引，session-adapters 的 Journal 与证据读取）的 PR 之前和之后。命令在工作树根，用 Git Bash，独占运行名额：
