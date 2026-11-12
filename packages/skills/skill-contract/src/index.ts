@@ -1,6 +1,7 @@
 export { sameCapability } from './capability.ts'
 export { skillBodyContract } from './contract.ts'
 export { computeDigest, isPackageDigest } from './digest.ts'
+export { SKILL_PACKAGE_LIMITS } from './layout.ts'
 export { inferMediaType } from './media.ts'
 export {
   DECLARATION_PATH,

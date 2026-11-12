@@ -90,7 +90,11 @@ describe('evaluate: the cells of the totalized table', () => {
     const organization = candidate('org/review', { disabled: true })
     const tenant = candidate('tenant/review')
     const result = evaluate({
-      layers: [read('official', official), read('organization', organization), read('tenant', tenant)],
+      layers: [
+        read('official', official),
+        read('organization', organization),
+        read('tenant', tenant),
+      ],
       eligible: (_one, layer) => (layer === 'tenant' ? 'no' : 'yes'),
     })
     expect(result).toEqual({
@@ -107,7 +111,10 @@ describe('evaluate: the cells of the totalized table', () => {
     const lockedButIneligible = candidate('org/other', { replaceLocked: true })
     expect(
       evaluate({
-        layers: [read('organization', lockedButDisabled, lockedButIneligible), read('tenant', tenant)],
+        layers: [
+          read('organization', lockedButDisabled, lockedButIneligible),
+          read('tenant', tenant),
+        ],
         eligible: one => (one === lockedButIneligible ? 'no' : 'yes'),
       }),
     ).toMatchObject({ kind: 'winner', layer: 'tenant', candidate: tenant })
@@ -116,39 +123,36 @@ describe('evaluate: the cells of the totalized table', () => {
   it.each([
     ['不可替换', { immutable: true }],
     ['替换锁', { replaceLocked: true }],
-  ] as const)(
-    '上层的%s：下层同名的其他资产出局，原因 blocked，by 写上层的标签',
-    (_case, flag) => {
-      const official = candidate('official/review', flag)
-      const organization = candidate('org/review')
-      const sameAsset = candidate('official/review', { version: 'pinned-older' })
-      const result = evaluate({
-        layers: [
-          read('official', official),
-          read('organization', organization),
-          read('tenant', sameAsset),
-        ],
+  ] as const)('上层的%s：下层同名的其他资产出局，原因 blocked，by 写上层的标签', (_case, flag) => {
+    const official = candidate('official/review', flag)
+    const organization = candidate('org/review')
+    const sameAsset = candidate('official/review', { version: 'pinned-older' })
+    const result = evaluate({
+      layers: [
+        read('official', official),
+        read('organization', organization),
+        read('tenant', sameAsset),
+      ],
+      eligible: everyoneEligible,
+    })
+    // The same concrete asset held again in a lower layer is no replacement.
+    expect(result).toEqual({
+      kind: 'winner',
+      layer: 'tenant',
+      candidate: sameAsset,
+      filtered: [
+        { layer: 'organization', candidate: organization, reason: 'blocked', by: 'official' },
+      ],
+    })
+    // The constraint acts only downwards: a lower declaration does not bind an upper layer.
+    const lowerLocked = candidate('tenant/review', flag)
+    expect(
+      evaluate({
+        layers: [read('official', candidate('official/review')), read('tenant', lowerLocked)],
         eligible: everyoneEligible,
-      })
-      // The same concrete asset held again in a lower layer is no replacement.
-      expect(result).toEqual({
-        kind: 'winner',
-        layer: 'tenant',
-        candidate: sameAsset,
-        filtered: [
-          { layer: 'organization', candidate: organization, reason: 'blocked', by: 'official' },
-        ],
-      })
-      // The constraint acts only downwards: a lower declaration does not bind an upper layer.
-      const lowerLocked = candidate('tenant/review', flag)
-      expect(
-        evaluate({
-          layers: [read('official', candidate('official/review')), read('tenant', lowerLocked)],
-          eligible: everyoneEligible,
-        }),
-      ).toEqual({ kind: 'winner', layer: 'tenant', candidate: lowerLocked, filtered: [] })
-    },
-  )
+      }),
+    ).toEqual({ kind: 'winner', layer: 'tenant', candidate: lowerLocked, filtered: [] })
+  })
 
   it('某一层读不到，不论别的层有没有胜出者：答 unavailable，带那一层的标签', () => {
     const tenant = candidate('tenant/review')
@@ -170,7 +174,11 @@ describe('evaluate: the cells of the totalized table', () => {
     const official = candidate('official/review', { immutable: true })
     const tenant = candidate('tenant/review')
     const layers = [read('official', official), read('tenant', tenant)]
-    const withGap = [layers[0]!, { layer: 'organization', state: 'not-applicable' } as const, layers[1]!]
+    const withGap = [
+      layers[0]!,
+      { layer: 'organization', state: 'not-applicable' } as const,
+      layers[1]!,
+    ]
     expect(evaluate({ layers: withGap, eligible: everyoneEligible })).toEqual(
       evaluate({ layers, eligible: everyoneEligible }),
     )

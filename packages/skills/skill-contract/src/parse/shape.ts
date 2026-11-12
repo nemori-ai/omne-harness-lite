@@ -71,7 +71,6 @@ function textOf(value: JsonValue | undefined): string | undefined {
   return value !== undefined && value.kind === 'string' ? value.value : undefined
 }
 
-
 /** Reads a list; an absent part is the empty list. Items that do not read are left out. */
 function listOf<T>(
   value: JsonValue | undefined,

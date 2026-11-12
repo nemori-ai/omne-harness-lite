@@ -104,7 +104,6 @@ describe('the extended skill body', () => {
       rejected: 'incomplete-reference',
     })
   })
-
 })
 
 describe('the schema value of the port', () => {

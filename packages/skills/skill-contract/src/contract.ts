@@ -9,6 +9,7 @@ import {
   type Judgment,
 } from '@omne-harness/assets'
 import { isPackageDigest } from './digest.ts'
+import { skillLayout } from './layout.ts'
 import { isSkillName } from './names.ts'
 import {
   DESCRIPTION_LIMIT,
@@ -45,6 +46,7 @@ export function skillBodyContract(): BodyContract {
   return {
     category: 'skill',
     schema,
+    layout: skillLayout,
     judge,
     deriveDeclarations(body, context) {
       const decision = judge(body, context)

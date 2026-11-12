@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-本地 Skill 宿主。它提供 `createDirectorySource`：一个从本地目录读取 Skill 包当前内容的 `SkillPackageSource`。
+本地 Skill 宿主。它提供 `createDirectorySource`：一个从本地目录读取 Skill 包当前内容的 `SkillPackageSource`。它还提供 `createContentStoreSource`：经资产的读口读已发布的包的来源；以及 `createSkillDecisions`：把 `SkillResolution` 与 `SkillReadCheck` 绑定到资产的候选求值。示例 [examples/publish-demo.ts](examples/publish-demo.ts) 把一个目录发布成租户的 Skill 并读出它。
 
 ## 职责与状态
 

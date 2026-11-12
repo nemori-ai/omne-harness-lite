@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The local Skill host. It gives `createDirectorySource`, a `SkillPackageSource` that reads Skill packages from local directories as they are now.
+The local Skill host. It gives `createDirectorySource`, a `SkillPackageSource` that reads Skill packages from local directories as they are now. It also gives `createContentStoreSource`, a source for published packages over the read port of assets, and `createSkillDecisions`, which binds `SkillResolution` and `SkillReadCheck` to the candidate resolution of assets. The example [examples/publish-demo.ts](examples/publish-demo.ts) publishes a directory as a Skill of a tenant and reads it.
 
 ## Responsibility and status
 

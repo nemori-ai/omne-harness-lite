@@ -7,7 +7,7 @@
 // that `sealSnapshot` makes into a module private WeakSet, so `assertSealed` refuses a copy with
 // the same fields. The registration is a credential of this process and this module instance.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { computeDigest, digestOfSorted } from './digest.ts'
+import { computeDigest, digestOfEntries } from './digest.ts'
 import { encodingOf, inferMediaType } from './media.ts'
 import type {
   Bytes,
@@ -50,7 +50,9 @@ function byPath(left: { path: string }, right: { path: string }): number {
   return left.path < right.path ? -1 : left.path > right.path ? 1 : 0
 }
 
-function entryOf(path: PackagePath, bytes: Bytes): PackageEntry {
+/** The facts of one entry, computed from its bytes. A source that reads one file at a time
+ * computes each entry with it and seals the entries with `sealEntries`. */
+export function packageEntryOf(path: PackagePath, bytes: Bytes): PackageEntry {
   const mediaType = inferMediaType(path, bytes)
   return Object.freeze({
     path,
@@ -58,6 +60,17 @@ function entryOf(path: PackagePath, bytes: Bytes): PackageEntry {
     size: bytes.length,
     ...(mediaType === undefined ? {} : { mediaType }),
     digest: computeDigest(bytes),
+  })
+}
+
+/** A frozen copy with the fields of an entry only. */
+function copyOf(entry: PackageEntry): PackageEntry {
+  return Object.freeze({
+    path: entry.path,
+    encoding: entry.encoding,
+    size: entry.size,
+    ...(entry.mediaType === undefined ? {} : { mediaType: entry.mediaType }),
+    digest: entry.digest,
   })
 }
 
@@ -74,8 +87,36 @@ function prefixConflict(paths: ReadonlyMap<string, PackagePath>): SnapshotDefect
 }
 
 /**
- * Makes a snapshot from the files of one package. The root name comes from the source, must be
- * non-empty without `/`, and does not enter the digest. Sources must use this function.
+ * Makes a snapshot from the entries of a manifest, without bytes. The package digest is computed
+ * from the entries again, so a stored manifest is checked, not trusted. The root name comes from
+ * the source, must be non-empty without `/`, and does not enter the digest.
+ */
+export function sealEntries(
+  input: Readonly<{ rootName: string; entries: readonly PackageEntry[] }>,
+): Outcome<SkillPackageSnapshot, SnapshotDefect> {
+  if (input.rootName === '' || input.rootName.includes('/'))
+    return fail({ kind: 'invalid-root-name' })
+  const sorted = [...input.entries].sort(byPath)
+  const paths = new Map<string, PackagePath>()
+  for (const entry of sorted) {
+    if (paths.has(entry.path)) return fail({ kind: 'duplicate-path', path: entry.path })
+    paths.set(entry.path, entry.path)
+  }
+  const conflict = prefixConflict(paths)
+  if (conflict !== undefined) return fail(conflict)
+  const entries = Object.freeze(sorted.map(copyOf))
+  const snapshot: SnapshotShape = Object.freeze({
+    rootName: input.rootName,
+    entries,
+    digest: digestOfEntries(entries),
+  })
+  register(snapshot)
+  return succeed(snapshot)
+}
+
+/**
+ * Makes a snapshot from the files of one package: it computes the entries and seals them with
+ * `sealEntries`. Sources must use one of the two.
  */
 export function sealSnapshot(
   input: Readonly<{
@@ -83,22 +124,8 @@ export function sealSnapshot(
     files: readonly Readonly<{ path: PackagePath; bytes: Bytes }>[]
   }>,
 ): Outcome<SkillPackageSnapshot, SnapshotDefect> {
-  if (input.rootName === '' || input.rootName.includes('/'))
-    return fail({ kind: 'invalid-root-name' })
-  const files = [...input.files].sort(byPath)
-  const paths = new Map<string, PackagePath>()
-  for (const file of files) {
-    if (paths.has(file.path)) return fail({ kind: 'duplicate-path', path: file.path })
-    paths.set(file.path, file.path)
-  }
-  const conflict = prefixConflict(paths)
-  if (conflict !== undefined) return fail(conflict)
-  const entries = Object.freeze(files.map(file => entryOf(file.path, file.bytes)))
-  const snapshot: SnapshotShape = Object.freeze({
+  return sealEntries({
     rootName: input.rootName,
-    entries,
-    digest: digestOfSorted(entries),
+    entries: input.files.map(file => packageEntryOf(file.path, file.bytes)),
   })
-  register(snapshot)
-  return succeed(snapshot)
 }

@@ -10,7 +10,7 @@
 | `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方；核对来源答复的服务实现方 | [src/provider.ts](../src/provider.ts) |
 | `@omne-harness/skill-contract/testing` | 端口实现方与服务实现方的测试，不依赖测试框架 | [src/testing.ts](../src/testing.ts) |
 
-公开根不导出 `SkillRef`、`PackageLocator`、`PackageInspection`、`sealSnapshot` 与 `isSealedSnapshot`，见 [SPEC「入口」](../SPEC.md#入口)。
+公开根不导出 `SkillRef`、`PackageLocator`、`PackageInspection`、`sealSnapshot`、`sealEntries`、`packageEntryOf` 与 `isSealedSnapshot`，见 [SPEC「入口」](../SPEC.md#入口)。
 
 ## 定义索引
 
@@ -24,7 +24,8 @@
 | `DECLARATION_LIMITS` | [src/parse/declaration.ts](../src/parse/declaration.ts) | [`.omne/skill.json`](../SPEC.md#declaration)、[端口答复的统一处置](../SPEC.md#port-answer-closed) |
 | `computeDigest`、`isPackageDigest` | [src/digest.ts](../src/digest.ts) | [内容摘要](../SPEC.md#内容摘要) |
 | `inferMediaType` | [src/media.ts](../src/media.ts) | [媒体类型](../SPEC.md#媒体类型) |
-| `sealSnapshot`、`isSealedSnapshot`、`SnapshotDefect`（在 `./provider`） | [src/snapshot.ts](../src/snapshot.ts) | [快照](../SPEC.md#快照)、[端口答复的统一处置](../SPEC.md#port-answer-closed) |
+| `sealSnapshot`、`sealEntries`、`packageEntryOf`、`isSealedSnapshot`、`SnapshotDefect`（在 `./provider`） | [src/snapshot.ts](../src/snapshot.ts) | [快照](../SPEC.md#快照)、[端口答复的统一处置](../SPEC.md#port-answer-closed) |
+| `SKILL_PACKAGE_LIMITS`；`skillBodyContract().layout` | [src/layout.ts](../src/layout.ts) | [`skill` 类别端口](../SPEC.md#layout) |
 | `parseSkillPackage`、`ParseInput`、`ParseFailure` | [src/parse/package.ts](../src/parse/package.ts) | [检查 Skill 包](../SPEC.md#检查-skill-包) |
 | `projectAssetBody`、`skillBodyContract` | [src/project.ts](../src/project.ts)、[src/contract.ts](../src/contract.ts) | [`skill` 类别端口](../SPEC.md#skill-类别端口) |
 | 兼容提示：`CompatibilityHint` | [src/hints.ts](../src/hints.ts) | [兼容提示](../SPEC.md#compatibility-hints) |

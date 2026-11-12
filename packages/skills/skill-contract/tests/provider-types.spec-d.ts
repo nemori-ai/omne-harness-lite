@@ -46,6 +46,8 @@ test('the provider entry exports each port and answer type', () => {
   expectTypeOf<SkillRef>().toHaveProperty('locator').toEqualTypeOf<PackageLocator>()
 })
 
-test('the only runtime exports of the provider entry are sealSnapshot and isSealedSnapshot', () => {
-  expectTypeOf<keyof typeof provider>().toEqualTypeOf<'isSealedSnapshot' | 'sealSnapshot'>()
+test('the only runtime exports of the provider entry are the snapshot constructors and the guard', () => {
+  expectTypeOf<keyof typeof provider>().toEqualTypeOf<
+    'isSealedSnapshot' | 'packageEntryOf' | 'sealEntries' | 'sealSnapshot'
+  >()
 })

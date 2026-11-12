@@ -20,12 +20,12 @@
 
 | 入口 | 给谁 | 内容 |
 | --- | --- | --- |
-| `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract`、常量 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS` 与 `DESCRIPTION_LIMIT`，以及能力标识的判同 `sameCapability` |
-| `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方；核对来源答复的服务实现方 | 三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot`、`isSealedSnapshot`、`SnapshotDefect` |
+| `@omne-harness/skill-contract` | 调用方；端口实现方另读 `./provider` | 值、守卫、失败、`SkillCatalog` 与 `SkillAccess` 的接口及结果值、纯函数、`skillBodyContract`、常量 `MANIFEST_PATH`、`DECLARATION_PATH`、`PAGE_LIMIT`、`DECLARATION_LIMITS`、`DESCRIPTION_LIMIT` 与 `SKILL_PACKAGE_LIMITS`，以及能力标识的判同 `sameCapability` |
+| `@omne-harness/skill-contract/provider` | 来源、资产登记与端口的实现方；核对来源答复的服务实现方 | 三个需求端口及其答复类型、`PackageInspection` 接口、`SkillRef`、`PackageLocator`、`sealSnapshot`、`sealEntries`、`packageEntryOf`、`isSealedSnapshot`、`SnapshotDefect` |
 | `@omne-harness/skill-contract/testing` | 端口实现方的测试；`SkillAccess` 与 `SkillCatalog` 实现方的测试 | 三个端口的符合性套件、内存替身、`SkillAccess` 的符合性套件 `skillAccessConformance` 与它的夹具类型 `AccessFixture`、`SkillCatalog` 的符合性套件 `skillCatalogConformance` 与它的夹具类型 `CatalogFixture`、`ConformanceCase`、`NotApplicable`、`runConformanceCase`、`isNotApplicable` |
 
 - 公开根与 `./provider` 都不导入 `./testing`。三个入口都不导入测试框架。
-- 公开根不导出 `SkillRef`、`PackageLocator`、`PackageInspection`、`sealSnapshot` 与 `isSealedSnapshot`。调用方拿不到包定位。
+- 公开根不导出 `SkillRef`、`PackageLocator`、`PackageInspection`、`sealSnapshot`、`sealEntries`、`packageEntryOf` 与 `isSealedSnapshot`。调用方拿不到包定位。
 
 <a id="closed-items"></a>
 
@@ -98,24 +98,30 @@
   3. 对拼接结果取 SHA-256，写成 `sha256:` 加十六进制小写。
 - 包根目录名不进入内容摘要。条目的输入次序不影响内容摘要。
 - 包内路径不含 NUL，条目内容摘要的长度固定，所以拼接结果唯一对应一组条目。
+- 两个算法归资产（[正文是目录的类别](../../assets/assets/SPEC.md#directory-category)）：条目摘要是 `digestBytes`，快照的内容摘要是 `packageDigest`。本成员从 `@omne-harness/assets` 导入它们，只授予品牌，不另写一份。所以 Skill 包快照的内容摘要就是资产里这个包的摘要，也就是已发布的包的版本号。
 
 <a id="snapshot"></a>
 
 ### 快照
 
-`sealSnapshot({ rootName, files })` 是快照唯一的构造器。来源交出快照时必须用它。`files` 的每一项是一个包内路径与该条目的全部字节。`sealSnapshot` 按下列次序判断：
+快照有两个构造器，来源交出快照时必须用其中之一：
+
+- `sealEntries({ rootName, entries })` 从清单的条目封快照，不收字节。每一项是一个 `PackageEntry`：包内路径、`encoding`、大小、可选的媒体类型与内容摘要。快照的内容摘要由条目重算，所以存下来的清单只需核对，不必信任。
+- `sealSnapshot({ rootName, files })` 收每个文件的全部字节：它先用 `packageEntryOf(path, bytes)` 从字节算出每个条目的大小、内容摘要、媒体类型与 `encoding`，再调 `sealEntries`。一次读一个文件的来源可以自己调 `packageEntryOf`，再调 `sealEntries`，不必把整包放进内存。
+
+两个构造器按下列次序判断：
 
 1. `rootName` 为空或含 `/` 时，答 `invalid-root-name`。根名只用来与清单的 name 比较，所以只拦这两种不可能是目录名的写法，不另加词法。
-2. 两个文件的包内路径相同时，答 `duplicate-path`，带重复的路径。
-3. 一个文件的路径是另一个路径的祖先目录时，答 `prefix-conflict`，带两个路径。检查对每个路径逐级查它的每个祖先，不靠排序后相邻比较。所以 `a`、`a-b`、`a/b` 三个条目报 `a` 与 `a/b` 冲突。
-4. 否则，`sealSnapshot` 从字节算出每个条目的大小、内容摘要、媒体类型与 `encoding`，并算出快照的内容摘要。
+2. 两个条目的包内路径相同时，答 `duplicate-path`，带重复的路径。
+3. 一个条目的路径是另一个路径的祖先目录时，答 `prefix-conflict`，带两个路径。检查对每个路径逐级查它的每个祖先，不靠排序后相邻比较。所以 `a`、`a-b`、`a/b` 三个条目报 `a` 与 `a/b` 冲突。
+4. 否则，算出快照的内容摘要。同一组文件经两个构造器封出的快照逐字段相同。
 
 - 条目的 `encoding`：字节是严格 UTF-8（不允许无效序列）且不含 NUL 字节时为 `text`，否则为 `binary`。字节开头的 BOM 不改变这一判定。
 - 快照、条目集合与每个条目都冻结。条目按包内路径的 UTF-16 码元序排列。快照不保存字节。
 
 <a id="snapshot-credential"></a>
 
-`sealSnapshot` 把每个快照登记在本模块的私有 `WeakSet` 中。`parseSkillPackage` 只接受登记过的快照：字段相同的复制品不是快照，传入时抛出 `TypeError`。`isSealedSnapshot(value)` 查同一个登记，答真或假，不抛出：服务用它核对来源交来的快照，见[端口答复的统一处置](#port-answer-closed)。类型上，`SkillPackageSnapshot` 带一个模块私有的品牌，不经类型断言就写不出它。这一登记是进程内的凭证：
+两个构造器把每个快照登记在本模块的私有 `WeakSet` 中。`parseSkillPackage` 只接受登记过的快照：字段相同的复制品不是快照，传入时抛出 `TypeError`。`isSealedSnapshot(value)` 查同一个登记，答真或假，不抛出：服务用它核对来源交来的快照，见[端口答复的统一处置](#port-answer-closed)。类型上，`SkillPackageSnapshot` 带一个模块私有的品牌，不经类型断言就写不出它。这一登记是进程内的凭证：
 
 - 快照不能序列化后传到另一个进程再使用。另一个进程须自己调用 `sealSnapshot`。
 - 同一进程把本成员加载为两份模块实例时，一份实例造出的快照不被另一份承认。装配方必须保证本成员只加载一份。
@@ -385,6 +391,7 @@ no-readable-package
 - 扩展字段的拒绝原因是 `malformed`。
 - 正文的其他顶层字段不判断。
 - `deriveDeclarations` 不产出声明项：Skill 不向设置声明任何东西。
+- <a id="layout"></a>`skill` 的正文是一个目录，所以端口交出 `layout`（资产规格[正文是目录的类别](../../assets/assets/SPEC.md#directory-category)）：命名空间 `skills`；包的上限 `SKILL_PACKAGE_LIMITS`，即 200 个文件、单个文件 1 MiB（1048576 字节）、整包 8 MiB（8388608 字节）；`inspect` 经资产的读口取清单，按清单的路径与摘要读出每个文件并核对摘要，用 `sealSnapshot` 封快照，再用[检查 Skill 包](#parse)的规则检查，合法时投影出 `projectAssetBody` 的正文：名字、说明、依赖的工具与包摘要。清单里的路径不是包内路径时拒绝为 `invalid-package`（`bad-path`）；检查的拒绝原因原样放进 `invalid-package` 的 `reason`；读口的失败与摘要对不上答 `source-failed`。读口不给目录名，所以根名固定为 `package`，期望名字不在这里核对：资产发布时用 `judge` 核对名字与能力名一致。脚本是包里的普通文件，不是声明。
 - `deriveDeclarations` 与 `references` 在判断失败时抛出 `TypeError`，消息含 `failed judgment: <原因>`。
 
 `projectAssetBody(definition)` 从 `SkillDefinition` 派生资产正文，返回 JSON 树。字段依次是 `name`、`description`、`tools` 与 `package`。`package.digest` 取自快照的内容摘要。`tools` 为空时也写出。调用方用 `writeJsonText` 写成文本，再经 `readBodyText` 读取后交给类别端口判断。

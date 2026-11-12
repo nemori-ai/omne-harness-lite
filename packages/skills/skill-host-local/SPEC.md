@@ -1,6 +1,6 @@
 # @omne-harness/skill-host-local 行为规格
 
-本规格拥有 `@omne-harness/skill-host-local` 公开类型以外的行为：目录来源怎样取快照、怎样读条目字节、怎样判定链接是否在包根之内，文件系统接缝的错误怎样分类，以及 Cordis 插件 `skillPlugin` 怎样装载、怎样现取两个端口、端口缺席时答什么。数据形状的唯一来源是 `src/` 的公开类型。来源端口的公共要求归 `@omne-harness/skill-contract` 的[需求端口](../skill-contract/SPEC.md#ports)，本规格不重写它们，只写本来源自己承担的部分。失败映射表的唯一正文是 [README「Behavior」](README.md#behavior)（[中文](README_ZH.md#行为)）。
+本规格拥有 `@omne-harness/skill-host-local` 公开类型以外的行为：目录来源怎样取快照、怎样读条目字节、怎样判定链接是否在包根之内，文件系统接缝的错误怎样分类，内容库来源怎样经资产的读口读包，两个判定端口怎样绑定到资产的求值，以及 Cordis 插件 `skillPlugin` 怎样装载、怎样现取两个端口、端口缺席时答什么。数据形状的唯一来源是 `src/` 的公开类型。来源端口的公共要求归 `@omne-harness/skill-contract` 的[需求端口](../skill-contract/SPEC.md#ports)，本规格不重写它们，只写本来源自己承担的部分。失败映射表的唯一正文是 [README「Behavior」](README.md#behavior)（[中文](README_ZH.md#行为)）。
 
 ## 范围与依据
 
@@ -90,9 +90,35 @@
 - 换代粒度：每次端口调用都现取。同一操作中，换代之后发出的端口调用用新实例；已经交回的答复不重算。
 - 插件不登记撤除函数。fiber 卸载时三个服务随之撤除，之后三个键上 `ctx.get` 答 `undefined`。
 
+<a id="content-store"></a>
+
+### 内容库来源
+
+`createContentStoreSource({ readerOf })` 是 `{ kind: 'content-store', digest }` 定位的来源。`readerOf(digest)` 给出这个包摘要的读口，类型是资产契约的 `PackageReader`（[正文是目录的类别](../../assets/assets/SPEC.md#directory-category)）。本成员只认识资产的契约，不导入资产的本机成员：把 `@omne-harness/assets-local` 的 `packages.reader` 接给 `readerOf` 是装配的事，本程只在示例 `examples/publish-journey.ts` 与它的用例里接。目录来源 `createDirectorySource` 只留给读 agent 写的目录与官方的夹具目录。
+
+- `snapshot` 先取清单，再按清单逐个文件读出字节，用 `packageEntryOf` 算出条目，用 `sealEntries` 封快照，不把整包放在内存里。快照的内容摘要由条目重算，必须等于定位里的摘要，否则答 `bytes-mismatch`：存下来的清单只核对，不信任。
+- 包摘要只对应一份内容，所以一个摘要的快照不变。来源在第一次封好之后按摘要记住它；之后的 `snapshot` 不再读文件，`open` 只读它要的那一个文件。记住的只有快照，没有字节。
+- `open` 的 `digest` 不等于定位里的摘要时答 `package-not-found`（PS7）；快照里没有这个路径答 `entry-not-found`；然后按清单里的路径与摘要从读口读一个文件。
+- 读口的失败按下表映射：`package-not-found` → `package-not-found`；`entry-not-found` → `entry-not-found`；`material-unavailable`（字节与清单对不上）→ `bytes-mismatch`；`unavailable` → `unavailable`。清单里的路径不是包内路径时答 `entry-unreadable`。
+- `directory` 定位不是本来源的包：答 `package-not-found`。
+
+<a id="decisions"></a>
+
+### 判定端口的绑定
+
+`createSkillDecisions(inputs)` 交出 `SkillResolution` 与 `SkillReadCheck` 的一对实现。`inputs` 是装配的四个函数：`layers` 给出一个能力身份各层的同名候选（从最宽到最具体，例如官方层的候选清单、租户层按能力身份读到的持有），`eligible` 判断主体能不能用一个候选，`identities` 给出 `adopted` 要求值的身份，`readable` 回答读取判定。「主体能不能用这个能力」没有通用端口，它是装配的输入；示例与用例给的是「同租户的主体都能读」。
+
+- `resolve` 取 `layers`，对每一份候选问 `eligible`，调资产的 `evaluate`，按下列规则翻成 `Resolution`：`winner` 翻成 `adopted`，引用带胜出者的层、版本（合 `AssetVersion` 时）、定位与包摘要，声明投影是胜出者的；`none` 而且出局者里有被禁用的、主体对它的 `eligible` 答「是」，翻成 `known-unavailable`，名字与说明取最具体的那一份，原因是 `This Skill is disabled.`；那一份的 `eligible` 答「不知道」时翻成 `unknown`；`none` 的其余情形翻成 `none`；`unavailable` 翻成 `unknown`。
+- 带依据时，依据的层等于胜出者的层、依据带的资产版本等于胜出者的版本，才算合法，答 `adopted`，引用的包摘要是依据的；否则答 `basis-not-lawful`。
+- `adopted` 对 `identities` 给出的每个身份求一次 `resolve`，收下 `adopted` 与 `known-unavailable`；任一个答 `unknown`，整个答 `unknown`。
+- `check` 把调用原样转给 `readable`。
+- 四个输入任一个抛出，对应的答复是 `unknown`，不当成没有。
+- `publishedCandidate` 从已发布的 Skill 的版本记录正文读出候选：名字、说明、依赖的工具与 `package.digest`，定位是 `content-store`。正文不是已发布的 Skill 包的正文时答 `undefined`。
+
 ## 所有权、失败与生命周期
 
-- 来源没有状态：没有索引、没有缓存，两次调用之间不保留任何内容。所以进程重启不改变判定，同一实例两次快照之间的修改在第二次快照中可见。
+- 内容库来源按包摘要记住封好的快照，进程内有效；其余所述「没有状态」只指目录来源。
+- 目录来源没有状态：没有索引、没有缓存，两次调用之间不保留任何内容。所以进程重启不改变判定，同一实例两次快照之间的修改在第二次快照中可见。
 - 一次 `collect` 调用持有一份遍历状态（已读文件与访问计数），只在这次调用内可见。
 - 每次读文件时，默认接缝打开一个文件句柄，并在返回前关闭它。调用之间来源不持有文件句柄或其他资源，没有需要撤除的资源。
 - 来源只读文件系统，没有外部效果。
@@ -127,8 +153,16 @@
 | 失败类型封闭在六种来源失败；入口的运行时导出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 类型或导出改变时类型用例失败                                                                                                                                                                               | `tests/types.spec-d.ts`、`tests/public-entry.spec.ts`                                              |
 | 真实目录示例 `examples/directory-journey.ts`：两个合法包与一个读不了的包（没有 `SKILL.md`），`inspect` 两过一拒，拒绝原因是 `manifest-missing`；另一次运行再加一个目录名与 name 不同的包，它被接受，带兼容提示 `name-differs-from-root`；`summaries` 只列读取判定准许的那一个合法包，被检查拒绝的包不出现；`search` 按说明找到它；`read` 在 `describe` 钉下的材料上读正文第一页，与 `SKILL.md` 正文一致；`describe` 与 `read` 之间包被改动时 `read` 答 `basis-unavailable`。读取判定与对应端口由测试经 `standIns` 交给示例，是 `skill-contract/testing` 的内存替身；示例自己不造替身，也不是产品装配 | 示例不记下检查的拒绝，把被拒的包当作空目录跳过：「inspects two legal packages…」变红；读取不带 `describe` 钉下的依据：「answers basis-unavailable when the package changes between describe and read」变红 | `tests/examples.spec.ts`                                                                           |
 
+内容库来源、判定端口的绑定与发布示例：
+
+- [tests/content-store.spec.ts](tests/content-store.spec.ts)：内容库来源经一个内存读口读出快照与文件，快照与从全部字节封出的相同；字节或清单与摘要对不上答 `bytes-mismatch`，包不存在答 `package-not-found`；一个摘要只封一次；另跑 `skillPackageSourceConformance()`，PS8 不适用（内容库没有链接）。
+- [tests/decisions.spec.ts](tests/decisions.spec.ts)：翻译规则逐条一例；候选的来源读不到时答 `unknown`；依据、合法集合与读取判定。
+- [tests/publish-journey.spec.ts](tests/publish-journey.spec.ts) 运行 [examples/publish-journey.ts](examples/publish-journey.ts)：在真实 SQLite 存储与临时根目录上把 `examples/sample-skill/` 发布成租户的 Skill，记成持有，求值答出它，经 `SkillAccess` 读出正文、列出文件（脚本文件在里面），本机位置有这个版本的目录；同名的官方候选声明了不可替换时租户的出局。演示脚本 `node --experimental-strip-types examples/publish-demo.ts` 打印同样的两次运行。
+
 未覆盖：
 
+- 内容库来源没有接进 Cordis 插件：插件的来源仍是目录来源。官方包怎样随发行给出不在本成员。
+- 一个包摘要到它的能力身份的对应由装配给出（`readerOf`）；示例里装配只有一个身份。
 - 真实文件权限位造成的 `EACCES`。测试以 root 运行时 `chmod` 造不出它，所以权限类失败只经注入的接缝验证。
 - 并发写者。只有注入接缝在确定步骤上替换条目的用例，没有并发修改同一目录的压力测试。[残余窗口](#residual-window)没有用例。
 - 单个文件的大小与字节总量没有上限。

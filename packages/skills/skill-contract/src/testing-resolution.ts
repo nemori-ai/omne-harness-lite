@@ -4,7 +4,7 @@ import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
 import { succeed } from '@omne-harness/operation-result'
 import { sameCapability } from './capability.ts'
-import { digestOfSorted, isPackageDigest } from './digest.ts'
+import { digestOfEntries, isPackageDigest } from './digest.ts'
 import { isAssetVersion } from './names.ts'
 import type { CatalogResolution, Resolution, SkillResolution } from './ports.ts'
 import { conformanceCase, handle, type ConformanceCase } from './testing-case.ts'
@@ -143,7 +143,7 @@ function basisOf(ref: SkillRef): SkillMaterialBasis {
     capability: ref.capability,
     layer: ref.layer,
     ...(ref.assetVersion === undefined ? {} : { assetVersion: ref.assetVersion }),
-    digest: ref.digest ?? digestOfSorted([]),
+    digest: ref.digest ?? digestOfEntries([]),
   }
 }
 
