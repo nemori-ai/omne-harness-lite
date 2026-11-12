@@ -610,4 +610,80 @@
 
 ---
 
+### UL-public-observation · 公开观察 · Public Observation
+
+> **中**：**[公开协议](architecture-core-and-extension.md#ul-public-protocol--公开协议--public-protocol)里的一类成员，与操作并列。**
+> 客户端发一次调用建立它，之后服务端按顺序一帧一帧送出某项状态的进行中投影，直到带着原因结束。
+> 它不另存一份：断了就重新建立，内容从上游重新算出。客户端发给服务端的一切仍然走操作。
+>
+> **EN**: **One kind of member of a public protocol, beside operations.** The client establishes
+> it with one call. The server then sends, frame by frame and in order, the live projection of
+> some state, until the observation ends with a reason. It keeps no copy: after a disconnect the
+> client establishes it again, and the content is computed again from its source. Everything from
+> the client to the server still goes through operations.
+
+- **形态**：视图
+- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「观察中枢」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#观察中枢)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混 ①**：不是[工程遥测](record-and-context.md#ul-engineering-telemetry--工程遥测--engineering-telemetry)。
+  工程遥测是给工程诊断留的记录；公开观察是给客户端看的进行中状态。
+- **别混 ②**：观察者收到一帧，不表示业务已经消费了这一帧里的内容。
+- **别混 ③**：不是实时媒体的通道。观察送的是事实，每一帧都要有着落；通道送的是媒体，晚到就丢。
+
+---
+
+### UL-app-shell · 界面外壳 · App Shell
+
+> **中**：**一种应用形态自己的那部分界面代码**：窗口、导航，以及它声明的
+> [界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)。它是承载[界面模块](#ul-ui-module--界面模块--ui-module)的一方，
+> 不含任何领域的代码。去掉一个领域的界面模块，外壳照常运行。
+>
+> **EN**: **The part of the user interface code that belongs to one application form**: the
+> window, the navigation, and the UI slots that it declares. It is the host of UI modules and
+> contains no code of any domain. When the UI module of a domain is removed, the shell still runs.
+
+- **形态**：属性
+- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「外壳与界面模块」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混**：不是执行环境里的 shell，也不是名叫 Shell 的工具。英文正式名带 `App`。
+
+---
+
+### UL-ui-module · 界面模块 · UI Module
+
+> **中**：**一个领域在客户端的界面部分**，是客户端装配树上的一个 Cordis 插件。
+> 它声明自己依赖哪些[公开协议](architecture-core-and-extension.md#ul-public-protocol--公开协议--public-protocol)的客户端，
+> 并往[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)里放东西。它依赖的协议在
+> [协议可用性](reach-and-availability.md#ul-protocol-availability--协议可用性--protocol-availability)里出现时它加载，
+> 消失时它卸载，它放的东西随之撤掉。
+>
+> **EN**: **The user interface part of one domain on the client**, a Cordis plugin on the client
+> assembly tree. It declares which public protocol clients it depends on, and it puts content into
+> UI slots. It loads when the protocols it depends on appear in the protocol availability, and it
+> unloads when they disappear. What it put into the slots is removed with it.
+
+- **形态**：属性
+- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「外壳与界面模块」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混**：不是协议客户端。协议客户端是一个协议在客户端的一组方法；界面模块是用这些方法画界面的那部分。
+
+---
+
+### UL-ui-slot · 界面插入位置 · UI Slot
+
+> **中**：**[界面外壳](#ul-app-shell--界面外壳--app-shell)声明的、[界面模块](#ul-ui-module--界面模块--ui-module)可以往里放东西的一个具名位点。**
+> 它由外壳的契约在设计时列出，不在运行期创建。种类是「只放一个」或「放一列」。
+>
+> **EN**: **A named point that an app shell declares, where UI modules can put content.** The
+> shell contract lists the slots at design time; they are not created at run time. A slot holds
+> either one item or a list of items.
+
+- **形态**：位置
+- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「外壳与界面模块」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。
+  拓展点在 agent loop 的运行流程上；界面插入位置在客户端的界面上。
+
+---
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

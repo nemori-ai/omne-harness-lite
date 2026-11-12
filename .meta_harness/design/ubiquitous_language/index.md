@@ -21,6 +21,8 @@
 | [UL-cordis-service-consumer](terms/architecture-core-and-extension.md#ul-cordis-service-consumer--cordis-服务消费者--cordis-service-consumer) | Cordis 服务消费者 | Cordis Service Consumer | 接缝里按服务键取用能力的那个角色；直接 import 函数不经服务键的不算 |
 | [UL-cordis-plugin-tree](terms/architecture-core-and-extension.md#ul-cordis-plugin-tree--cordis-插件树--cordis-plugin-tree) | Cordis 插件树 | Cordis Plugin Tree | 一个进程启动时挂上的全部 Cordis 插件及配置，**由插件树层叠出，不随租户或会话变** |
 | [UL-plugin-tree-layer](terms/architecture-core-and-extension.md#ul-plugin-tree-layer--插件树层--plugin-tree-layer) | 插件树层 | Plugin Tree Layer | 叠成插件树的一级数据，**本版恰两格：发行层、运维者层**；不是作用域层 |
+| [UL-public-protocol](terms/architecture-core-and-extension.md#ul-public-protocol--公开协议--public-protocol) | 公开协议 | Public Protocol | 一个领域对外的一整套操作与公开观察，有名字和主版本；入口上可被指名的位点，**同名同主版本至多挂一份接入贡献**；弃用 ~~治理位置~~ 这一类「某某位置」的叫法 |
+| [UL-access-contribution](terms/architecture-core-and-extension.md#ul-access-contribution--接入贡献--access-contribution) | 接入贡献 | Access Contribution | 接入插件挂到入口登记表上的那一包：协议契约加处理函数与帧来源；随插件挂上与撤下，**有贡献不等于开放** |
 
 ## [主体与归属](terms/subjects-and-ownership.md)
 
@@ -300,6 +302,7 @@
 | [UL-session-asset-registry](terms/reach-and-availability.md#ul-session-asset-registry--会话资产注册表--session-asset-registry) | 会话资产注册表 | Session Asset Registry | 会话里一类资产此刻认得的那一批，**经它取**；reload 只重填对应那一张；权限收回不等 reload——**命令即时去掉，装进运行的资产自下一次运行起**；常驻工具的名字与参数形状在会话内不变 |
 | [UL-governance-center-health-check](terms/reach-and-availability.md#ul-governance-center-health-check--治理中心体检--governance-center-health-check) | 治理中心体检 | Governance Center Health Check | 中心「我在不在、能不能答」的自述；公开部分恰三样、登录前可读，**不含治理事实与秘密** |
 | [UL-governance-center-reachability](terms/reach-and-availability.md#ul-governance-center-reachability--治理中心可达性--governance-center-reachability) | 治理中心可达性 | Governance Center Reachability | 据点对所属中心**此刻在不在应答**的观察，答复说什么不影响它；**不作任何准入依据**，不可达时开着的会话照常干活 |
+| [UL-protocol-availability](terms/reach-and-availability.md#ul-protocol-availability--协议可用性--protocol-availability) | 协议可用性 | Protocol Availability | 一个部署此刻挂着哪些公开协议，加只增不减的修订号；**和调用者无关、不需要登录**；只说存在，不说允不允许；不是当下可用性 |
 
 ## [执行与收场](terms/execution-and-outcome.md)
 
@@ -386,6 +389,10 @@
 | [UL-delivery-surface](terms/interaction-and-dispatch.md#ul-delivery-surface--交付面--delivery-surface) | 交付面 | Delivery Surface | 把日志投影给人看、把人做的事送进受理的那一面，**不持有领域事实、没有自己的领域语义**；本版只有一种 |
 | [UL-presentation-form](terms/interaction-and-dispatch.md#ul-presentation-form--呈现形式--presentation-form) | 呈现形式 | Presentation Form | 同一份事实交给读者的形式，**恰两种**：人读 / 机读；**别混会话运行模式** |
 | [UL-look-and-feel-preference](terms/interaction-and-dispatch.md#ul-look-and-feel-preference--观感偏好--look-and-feel-preference) | 观感偏好 | Look-and-Feel Preference | 只影响好不好看、顺不顺手的那些选择，**loop 内三个角色都不消费它**；个人 context 的一部分，不是 agent 要感知的界面偏好 |
+| [UL-public-observation](terms/interaction-and-dispatch.md#ul-public-observation--公开观察--public-observation) | 公开观察 | Public Observation | 公开协议里与操作并列的一类成员：一次建立，服务端一帧一帧送出进行中的投影，带原因结束；**不另存，断了重建**；不是实时媒体的通道 |
+| [UL-app-shell](terms/interaction-and-dispatch.md#ul-app-shell--界面外壳--app-shell) | 界面外壳 | App Shell | 一种应用形态自己的界面代码：窗口、导航与它声明的界面插入位置；**不含任何领域的代码**；不是 Shell 工具 |
+| [UL-ui-module](terms/interaction-and-dispatch.md#ul-ui-module--界面模块--ui-module) | 界面模块 | UI Module | 一个领域在客户端的界面部分，客户端装配树上的插件；**随它依赖的协议在协议可用性里出现与消失而加载与卸载** |
+| [UL-ui-slot](terms/interaction-and-dispatch.md#ul-ui-slot--界面插入位置--ui-slot) | 界面插入位置 | UI Slot | 界面外壳声明的、界面模块可以往里放东西的具名位点；**设计时列出，不在运行期创建**；只放一个或放一列 |
 
 ## [记录与上下文](terms/record-and-context.md)
 
@@ -449,6 +456,7 @@
 | [UL-telemetry-record](terms/record-and-context.md#ul-telemetry-record--遥测记录--telemetry-record) | 遥测记录 | Telemetry Record | 交给工程遥测端口的一条事件、一个指标测量值或一个遥测段的开始或结束；**准入不是送达**，单条没有系统身份 |
 | [UL-telemetry-segment](terms/record-and-context.md#ul-telemetry-segment--遥测段--telemetry-segment) | 遥测段 | Telemetry Segment | 工程遥测里一段有起止的工作记录，可被因果链接引用；**结局不是业务终态**；形态未定 |
 | [UL-session-diagnostics-projection](terms/record-and-context.md#ul-session-diagnostics-projection--会话诊断投影--session-diagnostics-projection) | 会话诊断投影 | Session Diagnostics Projection | 一个会话的只读组合视图：以会话日志为骨架，读各拥有者的只读记录，读不到写缺口；**不是会话日志投影**，不是工程遥测 |
+| [UL-session-observation](terms/record-and-context.md#ul-session-observation--会话观察--session-observation) | 会话观察 | Session Observation | 一个会话的进行中视图，以公开观察送出：当前一轮、日志修订、模型调用阶段、模型输出的快照与增量；**历史是权威**，它不另存 |
 
 | [UL-model-adaptation-binding](terms/capabilities-and-composition.md#ul-model-adaptation-binding--模型适配绑定--model-adaptation-binding) | 模型适配绑定 | Model Adaptation Binding | 调用所持有的精确适配版本与配置属性，更新不改变旧绑定 |
 | [UL-model-prefix-cache-policy](terms/capabilities-and-composition.md#ul-model-prefix-cache-policy--模型前缀缓存策略--model-prefix-cache-policy) | 模型前缀缓存策略 | Model Prefix Cache Policy | 绑定内的缓存配置属性，不代表真实缓存命中 |

@@ -92,20 +92,28 @@ packages/<能力组>/<成员>/
 ```text
 packages/
 ├── access/
-│   ├── public-contract/        客户端与服务端共同的系统公开契约
-│   ├── sdk/                    公共Harness SDK
-│   └── server-entry/           系统协议接入与能力路由
+│   ├── public-contract/        公开契约的共同部分：信封、对外结果、协议契约的类型、内置协议
+│   ├── access-cordis-contract/ 接入贡献的类型、登记表的 Cordis 服务定义（未建）
+│   ├── sdk/                    客户端核心：由协议契约与传输得到带类型的方法，不依赖 Cordis
+│   ├── client-assembly/        客户端装配：连接与协议客户端的 Cordis 插件（未建）
+│   └── server-entry/           服务端入口：承载绑定、管道、登记表、观察中枢
 ├── identity/
 │   ├── identity/               主体、成员、登录与组织关系
 │   ├── authorization/          授权及共同动作准入
 │   ├── identity-sql/           身份契约的持久提供者：账号、成员与登录的 SQL 存储
-│   └── scrypt/                 有界 scrypt 派生与校验
+│   ├── scrypt/                 有界 scrypt 派生与校验
+│   ├── identity-protocol/      公开协议 identity/v1 的协议契约，纯数据（未建）
+│   ├── identity-access/        identity/v1 的接入插件（未建）
+│   └── identity-ui/            身份的界面模块（未建）
 ├── assets/
 │   ├── assets/                 共同定义、版本、持有与来源
 │   ├── assets-local/           单机固定发布与持有
 │   ├── settings/               设置配值与求值
 │   ├── settings-local/         单机设置持久化与资格协调
-│   └── permissions/            权限配值与求值
+│   ├── permissions/            权限配值与求值
+│   ├── assets-protocol/        公开协议 assets/v1 的协议契约，纯数据（未建）
+│   ├── assets-access/          assets/v1 的接入插件（未建）
+│   └── assets-ui/              设置的界面模块（未建）
 ├── workspace/workspace/        工作区身份与资源关联
 ├── session/
 │   ├── session-contract/       Session、Run 与逻辑治理纯契约
@@ -113,7 +121,13 @@ packages/
 │   ├── session/                无 Cordis 的治理实现
 │   ├── session-cordis/         长期服务的 Cordis 装配，不含存储后端
 │   ├── session-adapters/       与邻域契约的适配插件
-│   └── session-storage-sql/    会话日志与治理状态的 SQL 存储
+│   ├── session-storage-sql/    会话日志与治理状态的 SQL 存储
+│   ├── session-observation/    产出会话观察的集成成员，认识会话契约与模型契约（未建）
+│   ├── session-protocol/       公开协议 session/v1 的协议契约，纯数据（未建）
+│   ├── session-access/         session/v1 的接入插件（未建）
+│   ├── session-diagnostics-protocol/  公开协议 session-diagnostics/v1 的协议契约（未建）
+│   ├── session-diagnostics-access/    session-diagnostics/v1 的接入插件，读四个领域的只读记录（未建）
+│   └── session-ui/             会话列表与对话的界面模块（未建）
 ├── assembly/
 │   ├── assembly/               求值、采用和装配交接
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
@@ -147,7 +161,14 @@ packages/
 │   ├── request-context/                  不含 Cordis 的派生计算：索引、缓存、默认压缩与表示策略
 │   ├── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
 │   └── agent-context/                    Context 一侧的 Agent 适配集成：请求准备、Runtime Context 读取与账目出站；只有骨架，成员名待 #859 采用确认
-├── human-intervention/human-intervention/
+├── human-intervention/
+│   ├── human-intervention/           决策请求、卡片与有效答复
+│   ├── human-intervention-local/     单机提供者
+│   ├── human-intervention-protocol/  公开协议 human-intervention/v1 的协议契约，纯数据（未建）
+│   └── human-intervention-access/    human-intervention/v1 的接入插件（未建）
+├── frontend/
+│   ├── shell-contract/         界面插入位置的契约（未建）
+│   └── ui-kit/                 各领域界面共用的基础组件、主题、多语言装配（未建）
 ├── execution/
 │   ├── execution-environment-contract/         Execution Environment 纯契约：已有身份、设施、八参数与六结果 schema、契约套件
 │   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义：已有模板方法、钩子与机制测试
@@ -192,9 +213,12 @@ packages/
 └── schema/
     └── schema-provider/      形状校验、首次编译和有界缓存
 apps/<应用成员>/               客户端表现、个人设备daemon或云节点装配
+apps/desktop/                  桌面应用：界面外壳与主进程（未建）
 tools/<开发工具>/              检查与开发工具
 scripts/                       仓库自动化
 ```
+
+标「未建」的叶子是 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md) 接受的落点，成员还没有建。它们在交付时用包模板生成，建好之后去掉这个标记。`access` 组三个现有成员的职责按上面的写法改变，现有实现与它的差别见[系统分层的现行偏离](architecture/layers-and-dependencies.md#现行偏离)。`apps/m2-contract-skeleton` 按同一份提案退役，随接入插件那一程删除。
 
 telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，依据 [RFC-0013 revision 2](rfcs/RFC-0013-engineering-telemetry.md)，职责见[组入口](../packages/telemetry/README.md)。
 
@@ -256,6 +280,8 @@ telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contrac
 | [Skill](domains/skills/README.md)                          | skills             | 方法取用、正文及资源           |
 | [MCP](domains/mcp/README.md)                               | mcp                | 端点、连接、发现与桥接         |
 
+另有一项不属于任何业务领域的责任：界面外壳契约与共用界面件。它管界面外壳提供哪几种界面插入位置的契约，以及各领域界面共用的基础组件、主题和多语言装配。目标组是 `frontend`。它不放在 `access`，因为它不碰线上的契约；不放在某个应用里，因为下一种应用形态要复用它；不放在某个业务领域里，因为它是所有领域的界面模块共用的。依据是 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)。
+
 assets维护共同治理，具体类别维护专有定义与业务。共同治理不反向导入全部类别实现，Tool不接管被调用类别的业务状态。命令受理、Skill读取与脚本执行、MCP连接与实际调用的分责继续沿对应领域页。
 
 ## 包边界与公开入口
@@ -270,11 +296,31 @@ assets维护共同治理，具体类别维护专有定义与业务。共同治�
 
 ## SDK与系统接入
 
-access把完整Harness的接入知识就近组织。public-contract拥有系统公开操作、数据、事件及边界行为；SDK和server-entry共同消费它。业务含义仍由原能力维护，系统内部接口不自动成为公开操作。
+access把每个领域都要用的那部分接入知识就近组织。它不拥有任何领域的操作。
 
-SDK是客户端统一编程入口，承接调用、观察、订阅及明确属于客户端的资源责任。它可以依赖客户端平台和传输适配，管理由客户端拥有的连接与句柄。它不能导入服务端接入实现、服务端提供者、服务端业务存储、runtime实例或Cordis装配树。server-entry按共同契约调用能力公开接口，不能导入SDK或穿透业务私有实现。
+- public-contract 拥有公开契约的共同部分：逻辑消息的信封、对外结果、判断次序、协议契约的类型，以及内置协议。它是纯数据，没有 Cordis、存储与 Node 专有的依赖。
+- access-cordis-contract 拥有接入贡献的类型和登记表的 Cordis 服务定义。领域的接入插件在 access 组里只依赖它和 public-contract，不依赖 server-entry。
+- server-entry 是服务端入口：承载绑定、管道、登记表、观察中枢。它的依赖里没有任何领域的契约。
+- `sdk` 成员是客户端核心：给它一份协议契约和一个传输，得到带类型的方法。它只依赖 public-contract，不依赖 Cordis。
+- client-assembly 是客户端装配：一棵 Cordis 树上的连接与协议客户端。它只比 `sdk` 成员多依赖 Cordis。
 
-完整Harness客户端通过SDK使用系统；独立能力消费者可以直接使用所需能力及所选实现，不强制经过SDK。同组不要求共同安装或发布。首批SDK操作、传输、认证、兼容、缓存、订阅恢复及拥有式daemon启动沿[分层后续设计](architecture/layers-and-dependencies.md#待细化范围)明确，本页不补默认协议。
+`sdk` 与 client-assembly 两个成员合起来，是[系统分层](architecture/layers-and-dependencies.md#各层职责)说的客户端 SDK 那一层。
+
+一个领域对外交付的东西放在领域自己的能力组里，规则见[领域能力的公开位置](architecture/layers-and-dependencies.md#领域能力的公开位置)：
+
+| 成员 | 是什么 | 依赖 |
+| --- | --- | --- |
+| `<领域>-protocol` | 这个领域的公开协议的协议契约。纯数据 | public-contract；本领域的公开值 |
+| `<领域>-access` | 接入插件。服务端 Cordis 插件，把接入贡献挂到登记表上 | access-cordis-contract；本领域的协议契约与公开入口 |
+| `<领域>-ui` | 界面模块。客户端 Cordis 插件 | client-assembly；本领域的协议契约；`frontend` 组 |
+
+业务含义仍由原能力维护，系统内部接口不自动成为公开操作。领域核心不导入本领域的协议契约、接入插件和界面模块。
+
+这一层是客户端统一编程入口，承接调用、观察及明确属于客户端的资源责任。这两个成员可以依赖客户端平台和传输适配，管理由客户端拥有的连接与句柄。这两个成员不能导入服务端接入实现、服务端提供者、服务端业务存储、runtime实例或服务端的Cordis装配树。server-entry 不能导入 SDK，也不能导入任何领域的成员。
+
+界面用到的技术栈不写进顶层的[技术基础](architecture/technical-foundations.md)，由用它的成员在自己的文档里维护：各领域的界面模块和共用界面件都要用的写在 `packages/frontend/`，只有桌面外壳用的写在 `apps/desktop/`。版本仍然进仓库的依赖目录与锁文件。
+
+完整Harness客户端通过SDK使用系统；独立能力消费者可以直接使用所需能力及所选实现，不强制经过SDK。同组不要求共同安装或发布。传输路线和登录证明放在哪已经由[分层页的传输与兼容约定](architecture/layers-and-dependencies.md#传输与兼容约定)定下。远程接入方式、传输保护、兼容、缓存、观察的恢复及拥有式daemon启动沿[分层后续设计](architecture/layers-and-dependencies.md#待细化范围)明确，本页不补默认协议。
 
 ## 最小 CLI 的接入边界
 
@@ -333,7 +379,7 @@ Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Ag
 
 本表不改变各组内部成员分工。Session 组只有 session-adapters 导入邻域契约；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
 
-access 组的 server-entry 为会话观察另有两条成员级依赖边：`server-entry -> model-contract` 只调用 `ModelStreamReferences.current`，`server-entry -> stream-arrival` 只调用 `StreamObserver.observe`。两条边都不导入实现，public-contract 不依赖这两个成员。access 组依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)。
+下面这一段写的是会话观察按上一版设计要有的依赖边。入口的代码里现在没有它们：入口没有导入 `stream-arrival`，对 `model-contract` 只有会话诊断用的类型导入。按 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)，会话观察是会话一侧的集成成员，这两条边归它，不归入口；那个成员建成时改这一段和约束登记。上一版设计里，access 组的 server-entry 为会话观察另有两条成员级依赖边：`server-entry -> model-contract` 只调用 `ModelStreamReferences.current`，`server-entry -> stream-arrival` 只调用 `StreamObserver.observe`。两条边都不导入实现，public-contract 不依赖这两个成员。access 组依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)。
 
 同一能力的 Cordis 定义入口保持相同依赖方向，不能以服务键、Context/Events 增补或 `import type` 重新引入纯契约禁止的耦合。类型导入、重导出、跨成员相对路径和公开子路径分别核对。实际约束以所引用成员的身份与责任判断，不按名称含有 Session 或 Agent 一词作结论。
 
@@ -350,7 +396,8 @@ access 组的 server-entry 为会话观察另有两条成员级依赖边：`serv
 | 新资产类别         | 复用共同治理，专有知识由类别拥有者维护；不自动建包 |
 | 稳定新业务责任     | 确认责任和承诺后增加领域入口及能力组               |
 | 新应用或部署角色   | 装配和表现归apps，可复用业务归能力                 |
-| 新Harness公开操作  | 原能力维护业务，access维护系统投影、SDK及接入      |
+| 新Harness公开操作  | 原能力维护业务、协议契约与接入插件；access不改    |
+| 新的界面           | 界面模块归它所属的领域；外壳归应用；共用件归frontend |
 
 新组不必先修改固定类别白名单，也不必同时增加SDK操作。运行时注册、扩展API、角色声明和测量载体由实际拥有者另行设计。实施顺序沿[Feature场景](engineering/scenarios/feature.md)及[领域扩展指导](domains/extending-the-system.md)。
 

@@ -39,6 +39,34 @@
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []
+    },
+    {
+      "id": "verification-models-readme",
+      "path": "packages/access/server-entry/verification/models/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "registry",
+          "anchor": "登记表与在途工作模型"
+        },
+        {
+          "id": "availability",
+          "anchor": "可用性两端收敛模型"
+        },
+        {
+          "id": "contract-tests",
+          "anchor": "证明转契约测试"
+        }
+      ]
     }
   ]
 }

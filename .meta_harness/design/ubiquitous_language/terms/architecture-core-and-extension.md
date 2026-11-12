@@ -167,4 +167,45 @@
   发行层也不是「出厂默认」那一层。
 - **注意**：「本版恰两格」是产品负责人定的；要加一格，回到产品负责人。
 
+### UL-public-protocol · 公开协议 · Public Protocol
+
+> **中**：**一个领域对外公开的一整套操作与[公开观察](interaction-and-dispatch.md#ul-public-observation--公开观察--public-observation)，
+> 有一个名字和一个主版本**，例如 `session/v1`。它是服务端入口上一个可以被指名的位点：
+> 一个部署里，同名同主版本的协议上至多挂着一份[接入贡献](#ul-access-contribution--接入贡献--access-contribution)；
+> 没有挂着时，对它的调用得到「不存在」。它的形状由它的协议契约给出，协议契约是纯数据，归这个领域。
+>
+> **EN**: **The full set of operations and public observations that one domain exposes to clients,
+> under one name and one major version**, for example `session/v1`. It is a nameable point on the
+> server entry. In one deployment, at most one access contribution is mounted on a protocol of the
+> same name and major version. A call to a protocol with no mounted contribution gets "not found".
+> Its shape is given by its protocol contract, which is pure data and belongs to the domain.
+
+- **形态**：位置
+- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「协议怎样划分」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#7-协议怎样划分)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混 ①**：不是[能力接缝](#ul-capability-seam--能力接缝--capability-seam)。接缝是进程内按服务键接入一项能力的位点；
+  公开协议是客户端隔着网络、按名字与主版本调用的位点。
+- **别混 ②**：不是传输协议。字节怎样走（HTTP、SSE）由承载决定，公开协议不规定。
+- **弃用**：~~治理位置~~、~~会话位置~~、~~HITL 位置~~这一类「某某位置」的叫法，以及 ~~`<领域>-public/<n>`~~ 这种命名（上一版规则里的叫法）
+
+### UL-access-contribution · 接入贡献 · Access Contribution
+
+> **中**：**一个领域的接入插件挂到服务端入口登记表上的那一包**：一份协议契约，
+> 加契约里每个操作的处理函数和每个[公开观察](interaction-and-dispatch.md#ul-public-observation--公开观察--public-observation)的帧来源。
+> 它是领域在一个[公开协议](#ul-public-protocol--公开协议--public-protocol)上承接调用的那个角色。
+> 它随接入插件的 Cordis 作用域挂上与撤下；撤下时，它的每个在途调用和在途观察都有确定的结局。
+>
+> **EN**: **What the access plugin of a domain mounts on the registry of the server entry**: one
+> protocol contract, plus a handler for every operation and a frame source for every public
+> observation in that contract. It is the role that answers the calls on one public protocol. It
+> is mounted and unmounted with the Cordis scope of the access plugin. When it is unmounted, each
+> call in flight and each observation in flight gets a definite outcome.
+
+- **形态**：属性
+- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「登记表与贡献」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混**：不是[提示词贡献](record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution)。
+  裸写「贡献」在本系统不止一个所指，跨题目引用时写正式名。
+- **注意**：有贡献不等于开放。一个部署装不装某个领域的接入插件，由服务端应用的装配决定。
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

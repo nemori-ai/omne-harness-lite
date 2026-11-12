@@ -238,4 +238,22 @@
 - **注意 ②**：规格层（`capability.center-connection` v2，本能力在规格里叫「中心连接」）把它分成三态：
   多出的「尚未判定」是据点这一侧起来之后还没有任何一次往来有结果——**既不当可达，也不当不可达**
 
+### UL-protocol-availability · 协议可用性 · Protocol Availability
+
+> **中**：**一个部署此刻挂着哪些[公开协议](architecture-core-and-extension.md#ul-public-protocol--公开协议--public-protocol)的集合，
+> 加一个只增不减的修订号。**它是服务端入口登记表的投影，对每个订阅者都相同，和调用者是谁无关，
+> 不需要登录就能订阅。它只回答协议存在不存在，不回答某个调用者允不允许用。
+>
+> **EN**: **The set of public protocols that are mounted in one deployment at this moment, plus a
+> revision number that only increases.** It is a projection of the registry of the server entry.
+> It is the same for every subscriber, does not depend on the caller, and needs no login. It tells
+> only whether a protocol exists. It does not tell whether a caller is allowed to use it.
+
+- **形态**：视图
+- **出处**：[RFC-0015「内置协议与可用性」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#内置协议与可用性)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混 ①**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)。
+  当下可用性是一样能力在一次执行尝试开始前的依赖解析结果；协议可用性只说一个协议挂没挂着。
+- **别混 ②**：不是许可。允不允许用，由领域与授权在每次调用时回答。
+- **注意**：领域的提供者暂时不在，不改变协议可用性。协议仍然挂着，调用得到「依据不可用」。
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

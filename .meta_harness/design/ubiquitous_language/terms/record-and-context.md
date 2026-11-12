@@ -1068,4 +1068,25 @@
 - **别混 ②**：**不是[工程遥测](#ul-engineering-telemetry--工程遥测--engineering-telemetry)。**工程遥测是运行中留下、可以被丢弃的工程记录；本视图读的是拥有者保管的事实，读不到时写缺口
 - **注意**：读取按调用方的租户授权，每个来源各自核资格。一个来源的拒绝只成为缺口，不改变其他来源的结果
 
+### UL-session-observation · 会话观察 · Session Observation
+
+> **中**：**一个会话的进行中视图，以[公开观察](interaction-and-dispatch.md#ul-public-observation--公开观察--public-observation)的形式送给获准的观察者。**
+> 它给出四样：当前是哪一轮，[会话日志](#ul-session-log--会话日志--session-log)到了哪个修订，
+> 正在进行的模型调用处在什么阶段，以及这次模型输出的快照与增量。
+> 它从会话日志和模型的公共流现算，不另存。已经提交的内容不从它来，从读历史来。
+>
+> **EN**: **The live view of one session, delivered to a permitted observer as a public
+> observation.** It gives four things: which run is current, which revision the session log has
+> reached, which phase the model call in progress is in, and the snapshot and deltas of that model
+> output. It is computed from the session log and the public stream of the model, and it keeps no
+> copy. Committed content does not come from it. Committed content comes from reading the history.
+
+- **形态**：视图
+- **出处**：[RFC-0015「会话观察」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察)（revision 1，PanQiWei 2026-11-12 采用）
+- **别混 ①**：不是[会话日志投影](#ul-session-log-projection--会话日志投影--session-log-projection)。
+  会话日志投影只从会话日志算出；会话观察还读模型的公共流，送的是还没提交的那一段。
+- **别混 ②**：不是[会话诊断投影](#ul-session-diagnostics-projection--会话诊断投影--session-diagnostics-projection)。
+  诊断投影回答一次工作在哪里失败、用了多少；会话观察回答现在正在发生什么。
+- **注意**：历史是权威。观察断了重新建立，观察者按修订号判断要不要重新读历史。
+
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)
