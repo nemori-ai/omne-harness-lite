@@ -207,6 +207,18 @@ describe('answers by the contract', () => {
     expect(call.steps).toEqual(['respond succeeded', 'leave'])
   })
 
+  it('writes a fixed outcome the handler answers with an empty body', async () => {
+    const call = setup('read-note', { 'read-note': async () => ({ outcome: 'denied' }) })
+    expect(await call.settle()).toEqual({ outcome: 'denied', body: EMPTY })
+  })
+
+  it('stops listening for the abort once the call is answered', async () => {
+    const call = setup('read-note')
+    await call.settle()
+    void call.takeDown()
+    expect(call.clock.pending()).toBe(0)
+  })
+
   it('treats an outcome outside the result set as a failure', async () => {
     const save = setup('save-note', {
       'save-note': async () => ({ outcome: 'not-found' }) as never,
@@ -293,7 +305,7 @@ describe('answers by the contract', () => {
         clock: manualClock(),
         respond: () => undefined,
       }),
-    ).rejects.toThrow(TypeError)
+    ).rejects.toThrow(new TypeError('settleCall settles operations only'))
   })
 })
 
