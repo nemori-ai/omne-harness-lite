@@ -64,6 +64,17 @@ type Entry = {
 /** How many timer ticks pass before a finished recovery scan is armed again. */
 const RESCAN_TICKS = 60
 
+/**
+ * Whether the driver runs the call again on its own, after its backoff (Tool SPEC 23): the last
+ * run stopped blocked, without progress at the end of its step budget (or with progress, which it
+ * goes on from at once), or on a port that could not answer. The interval leaves these calls to it.
+ */
+function drivenLater(progress: string): boolean {
+  return (
+    progress === 'blocked' || progress === 'yielded' || progress.startsWith('failed/unavailable')
+  )
+}
+
 /** 启动扫描每次向账本要的一页调用数。 */
 const RECOVERY_PAGE = 100
 
@@ -341,7 +352,15 @@ export function createRuntimeExecutor(
       entry.running = true
       try {
         const before = await dependencies.commands.loadRecovery(step)
-        if ('failure' in before) return
+        if ('failure' in before) {
+          // The read before the run could not answer: the driver runs the call again after its
+          // backoff, and the interval leaves it to the driver (Tool SPEC 23).
+          if (before.failure.kind === 'unavailable') {
+            entry.progress = `failed/unavailable/${before.failure.dependency}`
+            driver.later(step)
+          }
+          return
+        }
         entry.started = true
         // A new executor cannot attach an old execution by resolving the latest providers. It
         // lets a call go only when the execution of the current segment can still run in an old
@@ -464,7 +483,7 @@ export function createRuntimeExecutor(
   let ticksSinceScan = 0
   const timer = setInterval(() => {
     for (const entry of calls.values()) {
-      if (entry.retiring || entry.complete || entry.dormant) continue
+      if (entry.retiring || entry.complete || entry.dormant || drivenLater(entry.progress)) continue
       void dependencies.instances.schedule(entry.wake).catch(() => undefined)
     }
     // The long fallback for a lost hint: a finished scan runs again every RESCAN_TICKS ticks.
