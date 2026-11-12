@@ -18,18 +18,16 @@ export const SESSION_ORDINARY_BASIS = 'session-ordinary-basis'
  * A rolled-back Session-only commit is explained in exactly two ways (R2-D152):
  *
  * - its reason is `the input is not pending`: it lost to the path that took the input;
- * - it answered `changed`, and its logical work went on: a later commitLog of the same execution
- *   and sequence committed, or the execution's saved progress (`readThrough`) reached the sequence.
+ * - it answered a transient failure (`changed` or `unavailable`), and its logical work went on: a
+ *   later commitLog of the same execution and sequence committed, or the execution's saved progress
+ *   (`readThrough`) reached the sequence.
  *
  * The second one is the optimistic concurrency of AD-02: the Agent can write the execution again
  * between the AD-02 read of the execution head and its commitLog. session-contract SPEC: an expired
- * same-root basis answers `changed` and the provider prepares again; session-adapters
- * tests/journal-interpretation.spec.ts, `AD-02: the execution head moves between the read and the
- * commit`, shows the two cases (the call reads the new head and commits; a head that keeps moving
- * stops the call with `changed`, and the next call commits).
- *
- * Every other reason is not explained. An `unavailable` rollback is the known limitation KL-146
- * (tests/README.md), and it stays red here.
+ * same-root basis answers `changed` and the provider prepares again. AD-02 makes the call again
+ * after a backoff when it ends in either kind, until it commits (#1216 E1a, which closed KL-146);
+ * session-adapters tests/journal-interpretation.spec.ts shows the cases. A transient rollback whose
+ * work did not go on stays red, and every other reason is not explained.
  */
 export function sessionOnlyRollbackExplained(
   commits: readonly SeenCommit[],
@@ -50,7 +48,7 @@ export function sessionOnlyRollbackExplained(
   const session = responses.filter(response => response.participant !== SESSION_ORDINARY_BASIS)
   if (session.length === 0) return false
   if (JSON.stringify(session).includes(INPUT_NOT_PENDING)) return true
-  if (!session.every(response => failureKindOf(response.reply) === 'changed')) return false
+  if (!session.every(response => TRANSIENT.has(failureKindOf(response.reply) ?? ''))) return false
   const log = seen.log
   if (log === null || log.sequence === null) return false
   const { execution, sequence } = log
@@ -66,6 +64,9 @@ export function sessionOnlyRollbackExplained(
   const readThrough = readThroughOf(execution)
   return readThrough !== null && BigInt(readThrough) >= BigInt(sequence)
 }
+
+/** The Session failures after which AD-02 makes the same call again (#1216 E1a). */
+const TRANSIENT = new Set(['changed', 'unavailable'])
 
 /** The kind of the Session failure a conflict reply carries in its basis; null for any other reply. */
 function failureKindOf(reply: unknown): string | null {
