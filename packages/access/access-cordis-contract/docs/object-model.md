@@ -1,17 +1,13 @@
 # 对象模型
 
-<!-- documentation:placeholder -->
-
-本文件描述本包内部对象的职责、身份、状态、关联、组合、继承与生命周期，配类图。它不强迫实现改成 class；纯函数或值包写实际模型与不适用项。
-
 ## 对象与关系
 
-<!-- documentation:placeholder -->
-
-待补：对象职责、身份、状态与关联，以及类图。
+- 一份**贡献**（`AccessContribution<P>`）= 一份协议契约 `P` + 每个操作一个处理函数 + 每个观察一个帧来源。
+- 一个**处理函数**（`OperationHandler<O>`）收一个调用上下文与消息体，返回一个答复（`AnswerOf<O>`）。
+- 一个**调用上下文**（`CallContext<O>`）= 主体（按 `identity` 一栏）+ `messageId` + 中止信号。
+- 一个**帧来源**（`FrameSource<O>`）决定建不建立观察，建立之后吐帧，结束时给出结束原因（`EndOf<O>`）。
+- **协议键**（`ProtocolKey`）= 名字 + 主版本；登记表按它存表项。
 
 ## 生命周期
 
-<!-- documentation:placeholder -->
-
-待补：对象的创建、变化与销毁责任。
+贡献本身是不可变的数据。它在登记表上的寿命（挂着、撤下中、撤下完成）由服务端接入的登记表拥有，见[服务端接入规格](../../server-entry/SPEC.md#登记表)。

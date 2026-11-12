@@ -30,6 +30,9 @@
 | `governance.ts`     | 治理位置：声明不提供的 14 个操作的常量；`register-and-activate` 与 `issue-login` 交 identity；18 个治理操作的第 4、6 步与到治理端口的映射；4 个设置操作的第 4、6 步、代租户行事主体与到 `settings` 的映射 |
 | `session.ts`        | 会话位置：读取分派、八个操作的判断次序第 2 到第 6 步、Session 结果到公开 `outcome` 的映射；`read-session-diagnostics` 的配置核对、游标开封与封印、公开正文的组装 |
 | `hitl.ts`           | HITL 位置：用 `readHitlRequest` 读取；部署声明不提供的操作常量（本阶段是 `submit-reply` 与 `query-submit-reply`）；第 2、3 步与入口主体的签发；`listPool` 与 `getCard` 的调用、结果映射与卡片视图（`origin` 只留种类与三个引用）；本位置的编码 |
+| `registry/registry.ts` | 登记表的纯状态：每次挂上是一「代」（表项、一个 `AbortController`、在途集合、排空的 Promise）；`mount` 的同名检查、`enter`、撤下的同步段、`leave` 触发的排空完成、`subscribe` 与修订号。不认识 Cordis，也不认识任何领域，见[规格的登记表](../SPEC.md#登记表) |
+| `registry/cordis.ts` | `AccessRegistryProvider`：继承 access-cordis-contract 的 `AccessRegistryService`，`attach` 委托纯状态；`enter`、`subscribe` 只给管道 |
+| `settle/settle.ts` | `settleCall`：判断次序第 10 到 14 步，处理函数与宽限计时赛跑，失败按 `effect` 答，先 `respond` 再 `leave`；`systemClock`。见[规格的收场与宽限](../SPEC.md#收场与宽限) |
 | `session-view/`     | 会话诊断投影。`project.ts` 是纯投影：条目到 Run 骨架，各来源的答复到一个 Run 的视图与缺口；`sources.ts` 是来源适配：端口类型、失败种类到缺口原因的映射、抛错到 `unavailable`；`cursor.ts` 用本实例随机密钥封印续页游标；`index.ts` 是编排：按页读 Session、收集 Run、向来源扇出、合成页。它不认识 HTTP、Cordis 或 CLI |
 | `identity-steps.ts` | 登录识别，账号关系核对，签发代租户行事主体，成功业务访问的报告。系统主体在首次需要时签发一次并保留                                               |
 | `derivation.ts`     | 会话标识、输入标识、三族操作身份与登录入口证据的派生                                                                                             |

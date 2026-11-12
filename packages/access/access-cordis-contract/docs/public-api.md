@@ -1,17 +1,20 @@
 # 公开接口导航
 
-<!-- documentation:placeholder -->
-
-本文件导航本包的公开边界：导出入口、调用者资格、接口定义索引，以及输入输出与失败行为的定位。精确类型与运行时校验归公开源码，非类型行为的唯一正文是 [SPEC.md](../SPEC.md)。不手写第二套签名。
-
 ## 导出入口
 
-<!-- documentation:placeholder -->
-
-待补：`package.json` 的每个导出入口、调用者资格与对应源码。
+| 入口 | 内容 |
+| --- | --- |
+| `@omne-harness/access-cordis-contract` | 类型与一个错误类，不导入 Cordis |
+| `@omne-harness/access-cordis-contract/cordis` | 登记表的 Cordis 服务定义 |
 
 ## 定义索引
 
-<!-- documentation:placeholder -->
+| 导出 | 种类 | 定义位置 |
+| --- | --- | --- |
+| `AccessContribution`、`OperationHandler`、`CallContext`、`BodyOf`、`AnswerOf` | 类型 | [src/contribution.ts](../src/contribution.ts) |
+| `FrameSource`、`ObservationContext`、`OpenOf`、`FrameOf`、`EndOf` | 类型 | [src/contribution.ts](../src/contribution.ts) |
+| `ProtocolKey`、`LoginIdentity`、`Principal`、`PrincipalFor` | 类型 | [src/contribution.ts](../src/contribution.ts) |
+| `AccessAssemblyError` | 类 | [src/contribution.ts](../src/contribution.ts) |
+| `AccessRegistryService`、`accessRegistryKey` | 抽象 `Service` 与服务名 | [src/cordis.ts](../src/cordis.ts) |
 
-待补：公开定义的链接，以及输入输出与失败行为在 SPEC 中的条款。
+行为见 [SPEC.md](../SPEC.md)。`api/` 下的快照由 `pnpm run contract:api --write` 从 `dist` 的声明生成。
