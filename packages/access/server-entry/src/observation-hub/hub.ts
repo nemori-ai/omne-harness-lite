@@ -138,27 +138,24 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     loginCheckIntervalMs: settings.loginCheckIntervalMs,
   })
 
-  /** Waits for the `ended` frame to be written out, or cuts the connection after the grace. */
-  const drained = (stream: SseStream, res: ServerResponse): Promise<void> =>
-    new Promise(resolve => {
-      const cancel = settings.clock.schedule(settings.graceMs, () => {
-        res.destroy()
-        resolve()
-      })
-      void stream.finished.then(() => {
-        cancel()
-        resolve()
-      })
-    })
+  /**
+   * Waits for the `ended` frame to be written out, or cuts the connection after the grace. A cut
+   * connection closes the stream, so both ways settle through `finished`.
+   */
+  const drained = async (stream: SseStream, res: ServerResponse): Promise<void> => {
+    const cancel = settings.clock.schedule(settings.graceMs, () => res.destroy())
+    await stream.finished
+    cancel()
+  }
 
   /**
    * Lets the frame source decide whether to open. A refusal, a fault or a take-down is answered
-   * here; a caller who went away gets nothing. Returns the frames when it opened.
+   * here; a caller who went away gets nothing. Returns the frames when it opened; otherwise the
+   * caller aborts `source` at once, which is the moment the wait was interrupted.
    */
   async function decide(input: HubOpen, source: AbortController): Promise<Frames | undefined> {
     const { entered, res, messageId, note } = input
     const watch = watchCall(entered.signal, res)
-    watch.halt.addEventListener('abort', () => source.abort())
     const decided = await watch.attend(() =>
       input.source(
         { principal: input.principal as never, messageId, signal: source.signal },

@@ -160,6 +160,7 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
     })
     expect(third.status).toBe(503)
     expect(third.json).toEqual({ outcome: 'basis-unavailable', body: {} })
+    expect(third.headers.connection).not.toBe('close')
     // Another login still has room.
     const other = open(fixture, 'watch-note', {
       headers: { authorization: `Bearer ${OTHER_PROOF}` },
@@ -305,6 +306,22 @@ describe('C3: the frame source', () => {
     expect(await endedEvents(client)).toEqual([{ kind: 'ended', reason: 'note-deleted' }])
   })
 
+  it('ends with denied or unavailable of its own, without a fault', async () => {
+    const fixture = await entry()
+    const denied = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
+    ;(await fixture.notes.opened(1)).finish('denied')
+    expect(await endedEvents(denied)).toEqual([{ kind: 'ended', reason: 'denied' }])
+    const unavailable = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-2' } })
+    ;(await fixture.notes.opened(2)).finish('unavailable')
+    expect(await endedEvents(unavailable)).toEqual([{ kind: 'ended', reason: 'unavailable' }])
+    expect(fixture.diagnostics.map(event => event.code)).not.toContain('access.frame-source-fault')
+    // A reason that is not even text is a fault.
+    const numeric = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-3' } })
+    ;(await fixture.notes.opened(3)).finish(42 as unknown as string)
+    expect(await endedEvents(numeric)).toEqual([{ kind: 'ended', reason: 'unavailable' }])
+    expect(fixture.diagnostics.map(event => event.code)).toEqual(['access.frame-source-fault'])
+  })
+
   it('ends with unavailable when it throws, gives a frame outside the contract, or ends with a reason outside its ends', async () => {
     const fixture = await entry()
     const thrown = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
@@ -347,8 +364,25 @@ describe('C3: the frame source', () => {
       fixture.notes.sources['watch-note'] = source
       const reply = await call(fixture.port, 'watch-note', { body: '{"noteId":"n-1"}' })
       expect([reply.status, reply.json]).toEqual([status, { outcome, body: {} }])
+      expect(reply.headers.connection === 'close').toBe(outcome === 'denied')
     }
     expect(fixture.log.leaveCounts).toEqual([1, 1, 1, 1])
+    expect(fixture.diagnostics.map(event => event.code)).toEqual(['access.frame-source-fault'])
+  })
+
+  it('aborts a frame source that is still deciding when the caller goes away', async () => {
+    const fixture = await entry()
+    let signal: AbortSignal | undefined
+    fixture.notes.sources['watch-note'] = async context => {
+      signal = context.signal
+      return new Promise(() => {})
+    }
+    const client = open(fixture)
+    await until(() => signal !== undefined)
+    client.close()
+    await until(() => signal?.aborted === true)
+    await until(() => fixture.log.entries[0]?.left === true)
+    expect(fixture.log.leaveCounts).toEqual([1])
   })
 })
 
@@ -423,7 +457,18 @@ describe('C5: a take-down ends every observation, and completes after their ende
     fixture.accessClock.advance(GRACE_MS)
     await done
     expect(fixture.log.leaveCounts).toEqual([1])
-    socket.destroy()
+    // The connection was cut: reading the rest ends without the `ended` frame.
+    let tail = ''
+    let closed = false
+    socket.on('data', (chunk: Buffer) => {
+      tail = (tail + chunk.toString('latin1')).slice(-256)
+    })
+    socket.once('close', () => {
+      closed = true
+    })
+    socket.resume()
+    await until(() => closed)
+    expect(tail).not.toContain('"kind":"ended"')
   })
 
   it('calls leave once on each way an observation ends', async () => {
@@ -456,7 +501,7 @@ describe('C5: a take-down ends every observation, and completes after their ende
     const stopped = open(fixture, 'watch-all', { body: '{}' })
     await fixture.notes.opened(5)
     await fixture.stop()
-    await stopped.ended
+    expect(await endedEvents(stopped)).toEqual([{ kind: 'ended', reason: 'unavailable' }])
     await until(() => fixture.log.entries.every(line => line.left))
     expect(fixture.log.leaveCounts.every(count => count === 1)).toBe(true)
     expect(fixture.log.leaveCounts).toHaveLength(6)
