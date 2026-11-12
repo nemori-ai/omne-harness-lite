@@ -21,11 +21,10 @@ VARIABLES
   state,     \* "active" or "terminal": the current Run
   owner,     \* owner[c]: the Run whose assistant message wrote call c; 0 when not written yet
   answers,   \* answers[c]: how many tool messages name call c
-  closed,    \* closed[c]: the tool message of c was written by the terminal commit
   requested, \* requested[r]: Run r issued a model request and waits for its assistant message
   refused    \* a model request read a history with an open call: the provider refuses it
 
-vars == <<run, state, owner, answers, closed, requested, refused>>
+vars == <<run, state, owner, answers, requested, refused>>
 
 Runs == 1..MaxRuns
 Open(c) == owner[c] # 0 /\ answers[c] = 0
@@ -35,7 +34,6 @@ TypeOK ==
   /\ state \in {"active", "terminal"}
   /\ owner \in [Calls -> 0..MaxRuns]
   /\ answers \in [Calls -> 0..2]
-  /\ closed \in [Calls -> BOOLEAN]
   /\ requested \in [Runs -> BOOLEAN]
   /\ refused \in BOOLEAN
 
@@ -43,7 +41,6 @@ Init ==
   /\ run = 1 /\ state = "active"
   /\ owner = [c \in Calls |-> 0]
   /\ answers = [c \in Calls |-> 0]
-  /\ closed = [c \in Calls |-> FALSE]
   /\ requested = [r \in Runs |-> FALSE]
   /\ refused = FALSE
 
@@ -54,23 +51,24 @@ Request ==
   /\ \A c \in Calls: owner[c] = run => ~Open(c)
   /\ requested' = [requested EXCEPT ![run] = TRUE]
   /\ refused' = (refused \/ \E c \in Calls: Open(c))
-  /\ UNCHANGED <<run, state, owner, answers, closed>>
+  /\ UNCHANGED <<run, state, owner, answers>>
 
 (* The assistant message of the active Run writes call c. *)
 Assistant(c) ==
   /\ state = "active" /\ requested[run] /\ owner[c] = 0
   /\ owner' = [owner EXCEPT ![c] = run]
   /\ requested' = [requested EXCEPT ![run] = FALSE]
-  /\ UNCHANGED <<run, state, answers, closed, refused>>
+  /\ UNCHANGED <<run, state, answers, refused>>
 
 (* The loop hands over the tool message of call c. Session takes it only while the Run that wrote
-   c is the active Run. *)
+   c is the active Run. The loop hands over one message per call (one slot per action); Session
+   does not check that the call is still open. *)
 Answer(c) ==
   /\ owner[c] # 0 /\ answers[c] < 2
   /\ \/ (state = "active" /\ owner[c] = run /\ Open(c))
      \/ (Bug = "late-accept" /\ ~(state = "active" /\ owner[c] = run))
   /\ answers' = [answers EXCEPT ![c] = @ + 1]
-  /\ UNCHANGED <<run, state, owner, closed, requested, refused>>
+  /\ UNCHANGED <<run, state, owner, requested, refused>>
 
 (* The commit that ends the active Run: cancel, archive, the finish of the execution, or the
    bounded failure. It answers every call that is still open, then writes the terminal. *)
@@ -78,15 +76,17 @@ Terminal ==
   /\ state = "active"
   /\ state' = "terminal"
   /\ IF Bug = "no-closure"
-       THEN UNCHANGED <<answers, closed>>
-       ELSE /\ answers' = [c \in Calls |-> IF Open(c) THEN 1 ELSE answers[c]]
-            /\ closed' = [c \in Calls |-> closed[c] \/ Open(c)]
+       THEN UNCHANGED answers
+       ELSE answers' = [c \in Calls |->
+              IF Open(c) THEN 1
+              ELSE IF Bug = "close-all" /\ owner[c] = run THEN answers[c] + 1
+              ELSE answers[c]]
   /\ UNCHANGED <<run, owner, requested, refused>>
 
 StartNext ==
   /\ state = "terminal" /\ run < MaxRuns
   /\ run' = run + 1 /\ state' = "active"
-  /\ UNCHANGED <<owner, answers, closed, requested, refused>>
+  /\ UNCHANGED <<owner, answers, requested, refused>>
 
 Next ==
   \/ Request \/ Terminal \/ StartNext
@@ -103,7 +103,4 @@ OneAnswer == \A c \in Calls: answers[c] <= 1
 
 (* The history that a model request reads has a tool message for every call. *)
 RequestReadsWholeHistory == ~refused
-
-(* The terminal commit answers a call only in place of an outcome that did not arrive. *)
-ClosedInPlaceOfOutcome == \A c \in Calls: closed[c] => answers[c] >= 1
 =============================================================================

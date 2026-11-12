@@ -9,6 +9,7 @@
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：两个入口的导出集合
 - [decide-reduce.spec.ts](decide-reduce.spec.ts)：首条路径的判定与归约
+- [run-closure.spec.ts](run-closure.spec.ts)：Run 的终态提交为未答的调用写工具消息，归约拒绝缺工具消息的终态，对照 RunClosure 模型
 - [run-advance-invariants.spec.ts](run-advance-invariants.spec.ts)：Run 与 attempt 层不变量的种子随机守卫与 Run 层 `expected` 用例，对照 RunAdvance 模型
 - [transactions-conformance.spec.ts](transactions-conformance.spec.ts)：事务端口套件的自证与违例变体
 - [delegated-conformance.spec.ts](delegated-conformance.spec.ts)：委派视图套件的自证与违例变体

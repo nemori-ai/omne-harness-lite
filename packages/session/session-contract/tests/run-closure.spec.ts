@@ -211,7 +211,7 @@ describe('the commit that ends a Run answers its open tool calls', () => {
         },
       },
     })
-    refused(late, 'late tool message')
+    expect(refused(late, 'late tool message')).toMatchObject({ kind: 'terminal' })
     expect(
       rows(s).filter(
         entry =>

@@ -7,7 +7,7 @@
 - [run-advance](run-advance/README.md)：Run 与 attempt 层的有限模型。
 - [wake-up](wake-up/README.md)：唤醒与推进失败的有限模型。
 - [run-closure](run-closure/README.md)：Run 结束时关上未答调用的有限模型。
-- [运行记录](formal-runs.md)：两个模型的 TLC 运行、守卫的变异负控与发现的缺陷。
-- [run-tlc.sh](run-tlc.sh)：两个模型的 WSL 运行入口。
+- [运行记录](formal-runs.md)：run-advance、wake-up 与 run-closure 三个模型的 TLC 运行、守卫的变异负控与发现的缺陷。
+- [run-tlc.sh](run-tlc.sh)：按模型目录运行全部配置的 WSL 入口。
 
 - [permission-current](permission-current/README.md)：会话权限配值修订、捕获当前性和重启保持的设计模型。
