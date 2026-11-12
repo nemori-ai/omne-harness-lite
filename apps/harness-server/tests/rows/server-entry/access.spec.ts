@@ -8,7 +8,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { afterEach, describe, expect, it } from 'vitest'
-import { accessDiagnostics } from '../../../src/rows/server-entry/access.ts'
+import { defineProtocol } from '@omne-harness/public-contract'
+import { accessDiagnostics, entryAccess } from '../../../src/rows/server-entry/access.ts'
 import {
   distributionPath,
   freePort,
@@ -97,7 +98,7 @@ describe('server-entry row: the new address', () => {
     sink({ code: 'access.identity-unavailable', path: '/api/notes/v1/read-note', operation: 'x' })
     sink({ code: 'access.listener-fault' })
     const records = capture.records()
-    expect(records.map(record => (record.kind === 'event' ? record.fields : null))).toEqual([
+    expect(records.map(record => (record.kind === 'event' ? record.fields : null))).toStrictEqual([
       { code: 'access.identity-unavailable', path: '/api/notes/v1/read-note', operation: 'x' },
       { code: 'access.listener-fault' },
     ])
@@ -105,6 +106,46 @@ describe('server-entry row: the new address', () => {
       binding: { scope: { kind: 'system' }, component: 'server-entry' },
       definition: { name: 'omne.access.diagnostic' },
     })
+  })
+})
+
+describe('server-entry row: the access it gives the entry', () => {
+  it('leaves out a reference the event refuses, and keeps the code', () => {
+    const capture = createCapturingTelemetry()
+    const sink = accessDiagnostics(capture.port)
+    sink({ code: 'access.path-rejected', path: `/${'p'.repeat(300)}`, operation: 'o'.repeat(200) })
+    sink({ code: 'access.not-mounted', path: `/${'p'.repeat(300)}`, operation: 'read-note' })
+    sink({
+      code: 'access.not-mounted',
+      path: '/api/notes/v1/read-note',
+      operation: 'o'.repeat(200),
+    })
+    expect(
+      capture.records().map(record => (record.kind === 'event' ? record.fields : null)),
+    ).toStrictEqual([
+      { code: 'access.path-rejected' },
+      { code: 'access.not-mounted', operation: 'read-note' },
+      { code: 'access.not-mounted', path: '/api/notes/v1/read-note' },
+    ])
+  })
+
+  it('answers basis-unavailable from every identity method that judges', async () => {
+    const { identity } = entryAccess(createCapturingTelemetry().port)
+    expect(await identity.identifyLogin({} as never)).toEqual({ outcome: 'basis-unavailable' })
+    expect(await identity.actFor({} as never, 't-1')).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('writes access.listener-fault when an availability listener throws', () => {
+    const capture = createCapturingTelemetry()
+    const { registry } = entryAccess(capture.port)
+    registry.subscribe(() => {
+      throw new Error('listener')
+    })
+    const protocol = defineProtocol({ name: 'empty', major: 1, operations: {}, observations: {} })
+    registry.mount({ protocol, operations: {}, observations: {} } as never)
+    expect(
+      capture.records().map(record => (record.kind === 'event' ? record.fields : null)),
+    ).toStrictEqual([{ code: 'access.listener-fault' }])
   })
 })
 
