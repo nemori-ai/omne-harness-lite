@@ -3,6 +3,7 @@ import { fail } from '@omne-harness/operation-result'
 import { type ToolFailure } from '@omne-harness/tool-contract'
 import { readToolInvocationRef } from '@omne-harness/tool-contract/provider'
 import {
+  adoption,
   admission,
   ok,
   operationRefFor,
@@ -18,6 +19,14 @@ const refused = () =>
     kind: 'unavailable',
     dependency: 'race-port',
     diagnostic: 'paused exclusion',
+  })
+
+/** A binding that refuses the start for good: the failure marker and the exclusion follow. */
+const definitelyRefused = () =>
+  fail<ToolFailure>({
+    kind: 'unsupported',
+    adoption: adoption('executor'),
+    reason: 'launch refused',
   })
 
 afterEach(auditQueues)
@@ -52,7 +61,7 @@ for (const pause of [
           ...base,
           start: async (input, environment) => {
             attempts += 1
-            if (attempts === 1) return refused()
+            if (attempts === 1) return definitelyRefused()
             if (pause === 'before-start') await stopHere()
             return base.start(input, environment)
           },
@@ -188,7 +197,9 @@ it('21 invoke: distinct consumer positions keep independent references and failu
     bindingPort: base => ({
       ...base,
       start: (input, environment) =>
-        input.call === firstCall ? Promise.resolve(refused()) : base.start(input, environment),
+        input.call === firstCall
+          ? Promise.resolve(definitelyRefused())
+          : base.start(input, environment),
     }),
   })
   const payload = request()
