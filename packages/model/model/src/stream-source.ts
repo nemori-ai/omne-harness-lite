@@ -684,6 +684,14 @@ export function createModelObservationSource<P>(
             const denied = authorize(access, parts.ok.call, 'facts')
             if (denied) return { failure: denied }
             if (closed || hostClosed) return { failure: unavailable() }
+            // A held, usable record of the same admission is the confirmed state: every confirmed
+            // run of the storage advances it, and an unconfirmed write makes it unusable. It answers
+            // without a read, so a reader does not queue on the storage that the call's own writes go
+            // through. Everything else (another tenant's call, an evicted or failed record, another
+            // admission) is read cold and answered as before, so the answer does not tell the two apart.
+            const held = records.get(identity(access.tenant, parts.ok.call))
+            if (held && !held.unavailable && held.record.admission === parts.ok.admission)
+              return confirmedCurrent(access.tenant, parts.ok)
             const refreshed = await refresh({
               access,
               reference: original.reference,

@@ -352,7 +352,7 @@ continuity 绑定原调用、admission、instance、operation 和证据采用，
 
 每次底层调用 work 都重建本轮 pass，只捕获 scope 的调用与 operation，不复制整个租户材料。`commit` 和 `publish` 暂存不发布。底层 `run` 最终返回后，先同步完成 initial 确认，再处理公共确认源，最后返回原 Outcome；CAS 前轮的暂存不生效。未知写不发布 staged 投影，并使该调用的观察源不可用。授权失败不污染别的观察者。initial 或 observation 回调失败只封闭对应侧口并报告安全种类，诊断不含正文或原异常，report 自身抛错也不覆盖原结果。底层抛错则不发布，并原样重新抛出。
 
-`current` 与 `observe` 消费同一确认记录，其 state 与 snapshot 内的 state 共用冻结值。冷读使用同一个装饰后存储，核观察者自己的 facts 或 observe 资格、原 consumer 与 admission，不依赖 `loadRecovery` 或宿主拼接状态。异步读返回后重新核当前资格和来源。无公共投影时可以返回已确认 state 与 `current: null`；真实来源不可用必须返回失败，不能伪装成功空值。
+`current` 与 `observe` 消费同一确认记录，其 state 与 snapshot 内的 state 共用冻结值。确认源持有该调用的可用记录且引用的 admission 与它相同时，`current` 直接以它作答，不读存储：这条记录由装饰后存储每一轮确认的提交推进，未确认的写入使它不可用，所以读者不在调用自己的写入所用的存储上排队（#1214）。其余情形（别的租户、被淘汰或不可用的记录、别的 admission）走冷读，答复与冷读相同，读者看不出记录冷热。冷读使用同一个装饰后存储，核观察者自己的 facts 或 observe 资格、原 consumer 与 admission，不依赖 `loadRecovery` 或宿主拼接状态。异步读返回后重新核当前资格和来源。无公共投影时可以返回已确认 state 与 `current: null`；真实来源不可用必须返回失败，不能伪装成功空值。
 
 记录忽略较旧 revision，同版本已识别的元数据冲突使本调用不可用。同一 admission/execution/dispatch/revision/OutputCursor 的重复确认不重新 diff、冻结或复制 blocks，也不分配公共 cursor。同流只有 state 前进时复用冻结 blocks，产生 `blocks: []` 的 state-only delta，同时推进公共 cursor。内容更新只复制确认后的窄投影，工作量允许随保留块 B 与差分 D 增长，不承诺整条 SQL 查询为常数成本。公共流位置使用独立的规范十进制位置，不复用 OutputCursor。
 

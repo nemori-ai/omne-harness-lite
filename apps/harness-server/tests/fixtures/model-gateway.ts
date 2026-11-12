@@ -23,8 +23,17 @@ export const GATEWAY_REFUSAL = JSON.stringify({
   error: { message: 'local test gateway: every request is refused', code: 400 },
 })
 
-/** One scripted answer: the status and the body (an SSE stream for 200). */
-export type GatewayAnswer = Readonly<{ status: number; contentType: string; body: string }>
+/**
+ * One scripted answer: the status and the body (an SSE stream for 200). With `rest` the gateway
+ * writes `body` and holds the response open until `rest.after` settles, then writes `rest.body` and
+ * ends it: a stream that is still running while a test looks at it (#1214).
+ */
+export type GatewayAnswer = Readonly<{
+  status: number
+  contentType: string
+  body: string
+  rest?: Readonly<{ after: Promise<void>; body: string }>
+}>
 
 /** Answers request `index` (0 for the first) with its JSON body text. */
 export type GatewayScript = (request: Readonly<{ index: number; body: string }>) => GatewayAnswer
@@ -96,7 +105,16 @@ export async function startModelGateway(answer: GatewayScript = refusal): Promis
     request.on('end', () => {
       const reply = answer({ index, body: Buffer.concat(chunks).toString('utf8') })
       response.writeHead(reply.status, { 'content-type': reply.contentType })
-      response.end(reply.body)
+      if (reply.rest === undefined) {
+        response.end(reply.body)
+        return
+      }
+      const rest = reply.rest
+      response.write(reply.body)
+      void rest.after.then(
+        () => response.end(rest.body),
+        () => response.end(rest.body),
+      )
     })
   })
   await new Promise<void>((resolve, reject) => {
