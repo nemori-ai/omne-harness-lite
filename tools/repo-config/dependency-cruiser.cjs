@@ -14,7 +14,7 @@ const ASSEMBLY = '^packages/assembly/assembly/'
 // The entry's positions that know no domain.
 const ENTRY_CORE = '(registry|settle|pipeline|observation-hub|availability)'
 // The client core and the files it imports from the rest of the SDK.
-const SDK_CORE = '^packages/access/sdk/src/(core/|limits\.ts$|never-written\.ts$)'
+const SDK_CORE = '^packages/access/sdk/src/(core/|limits\\.ts$|never-written\\.ts$)'
 const SHARED = '^packages/(common|util)/'
 const ORGANIZATION = 'docs/package-organization.md'
 const TOOLCHAIN = '^tools/repo-toolchain/src/'
