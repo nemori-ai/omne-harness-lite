@@ -105,19 +105,51 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       })
       dependencies[manifest.name] = `file:${archive}`
     }
+    // The install reads no pnpm state of the machine. Every third-party package comes from the
+    // directory where the workspace installed it, so pnpm asks no registry which version to take;
+    // the consumer names the pnpm of the workspace; the store and the cache are those of this run.
+    type Installed = { version: string; path?: string; dependencies?: Record<string, Installed> }
+    const thirdParty: Record<string, string> = {}
+    const listing = [
+      ...(JSON.parse(
+        run(
+          'pnpm',
+          ['list', '--prod', '--depth', 'Infinity', '--json'],
+          resolve(root, 'packages/access/public-contract'),
+        ),
+      ) as Installed[]),
+    ]
+    while (listing.length > 0)
+      for (const [name, tree] of Object.entries(listing.pop()?.dependencies ?? {})) {
+        if (!tree.version.startsWith('link:') && tree.path !== undefined)
+          thirdParty[name] = `file:${tree.path}`
+        listing.push(tree)
+      }
+    const { packageManager } = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
+      packageManager: string
+    }
     writeFileSync(
       join(consumer, 'package.json'),
       JSON.stringify({
         name: 'public-contract-independent-consumer',
         private: true,
         type: 'module',
+        packageManager,
         dependencies,
-        pnpm: { overrides: dependencies },
+        pnpm: { overrides: { ...thirdParty, ...dependencies } },
       }),
     )
     const installation = run(
       'pnpm',
-      ['install', '--ignore-scripts', '--ignore-workspace'],
+      [
+        'install',
+        '--ignore-scripts',
+        '--ignore-workspace',
+        '--offline',
+        '--store-dir',
+        join(scratch, 'pnpm-store'),
+        `--config.cache-dir=${join(scratch, 'pnpm-cache')}`,
+      ],
       consumer,
     )
     for (const name of ['client', 'server'])
