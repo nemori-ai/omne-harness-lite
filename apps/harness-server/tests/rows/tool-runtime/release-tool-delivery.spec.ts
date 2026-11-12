@@ -430,7 +430,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
       const shell =
         'awk \'BEGIN { printf "W3-BODY-BEGIN\\n"; for(i=0;i<10240;i++) printf "中🙂"; printf "\\nW3-BODY-END\\n" }\''
       const model = bodyReadingModel(shell, FINAL)
-      const { entries, modelRequests } = await turnOnRelease(model.script, 131_072, 'offloaded')
+      const { entries, modelRequests } = await turnOnRelease(model.script, undefined, 'offloaded')
       expect(model.errors).toEqual([])
       expect(model.ended()).toBe(true)
       expect(modelRequests).toBe(model.requests.length)
