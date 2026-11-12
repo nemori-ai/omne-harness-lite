@@ -273,6 +273,39 @@ describe('read: the read queue is full', () => {
     expect(ended).toEqual(['slow', 'other'])
   })
 
+  // Defect: a read that only its own domain blocks stops the scan, so a later read of another
+  // domain that fits waits behind it until the running read ends.
+  it('a read that only its own domain blocks does not hold up a read of another domain', async () => {
+    const { storage } = await ready({
+      readQueuePerDomain: 1,
+      readQueueGlobal: 2,
+      readQueueTimeoutMs: 10_000,
+    })
+    const other = await storage.registerCombination(
+      registration(built, { transactionDomain: 'domain-b' }),
+    )
+    expect(kindOf(other)).toBe('registered')
+    const ended: string[] = []
+    const track = (name: string, read: ReturnType<typeof storage.read>) =>
+      read.then(result => {
+        ended.push(name)
+        return summary(result)
+      })
+    const holder = track('slow', storage.read(readRequest('slow', { ms: 600 })))
+    await sleep(20)
+    const blocked = track('same-domain', storage.read(readRequest('page')))
+    await sleep(20)
+    const otherDomain = track(
+      'other-domain',
+      storage.read({
+        ...readRequest('page'),
+        domain: { scope: TENANT_A, transactionDomain: 'domain-b' },
+      }),
+    )
+    expect(await Promise.all([holder, blocked, otherDomain])).toEqual(['read', 'read', 'read'])
+    expect(ended[0]).toBe('other-domain')
+  })
+
   // Defect: after the wait for a reservation, the queue deadline starts again in full (or longer)
   // instead of from the call. A domain-serial read then waits behind a long write past
   // readQueueTimeoutMs measured from the call.
