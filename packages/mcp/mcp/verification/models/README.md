@@ -1,0 +1,97 @@
+# verification/models
+
+本目录承载两个 TLA+ 模型、它们的配置与运行脚本 [run.py](run.py)。[ConnectionTable.tla](ConnectionTable.tla) 是连接表的生命周期，描述 `src/internal/table.ts`、`build.ts`、`teardown.ts`、`late.ts`、`port.ts` 与 `entry.ts`。[Calls.tla](Calls.tla) 是调用口，描述 `src/calls.ts`、`src/tasks.ts`、`src/internal/in-flight.ts` 与 `src/internal/task-table.ts`，连接表在它里面只剩调用口读到的抽象。性质的定理陈述归 [SPEC.md「性质与证据」](../../SPEC.md#properties)。模型与实现、探索器之间的映射见 [../README.md](../README.md#动作映射)。
+
+## 边界
+
+TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的抽象之内成立。模型通过不表示任意规模下正确，也不表示实现符合模型。本页不写「已证明」。
+
+常量：
+
+- `Keys`：连接键，每个键一个租户与一个持有。
+- `Ensures`、`Releases`：每个键的 `ensure`、`release` 次数。`CloseAlls`：0 或 1。`Loses`：`lose` 的总次数。
+- `Deviations`：端口调用除按契约答复以外还可以做什么：`fail`、`reject`、`unconfirmed`、`throw`。`Budget`：一条行为里偏离的总次数。挂起与迟到不占预算。端口被调用时同步抛出，模型按 `ask` 写成立即答复的 reject。
+- `Bugs`：负控故意放进的缺陷。`{}` 是本包的代码。
+- `Observe`：`TRUE` 时 `ev` 字段记下每个外部动作与同步抛出，供轨迹阅读。安全配置用 `VIEW View` 把它排除在指纹之外。活性配置取 `FALSE`，令 `ev` 保持常量。没有动作读 `ev`，所以这样合并状态不改变检查结果。
+
+`Calls.tla` 的常量：
+
+- `Keys`：`{"A", "B", "C", "D"}` 的子集，租户、主体与账户由模块里的 `Tenant`、`Principal`、`Account` 给出：A 是（租户 home、主体 alice、账户 main），B 是（away、mallory、main），C 是（home、bob、other），D 是（away、alice、main）。所以 A 与 B 差在租户和主体，A 与 C 差在主体和对端账户，A 与 D 只差租户（主体文本相同，都是 alice）。四个键与探索器的 A–D 对应；探索器另有键 E（alice 在同一租户的另一个对端账户），只用于 `task-collision` 场景，模型的四个键里没有两个同租户同主体的键，所以模型不覆盖任务键碰撞。
+- `Callers`、`Invokes`、`Continues`：发 `invoke` 与 `continueWithInput` 的键，以及每个键的次数。每次调用都用关联键 `c`。`Cancellers`、`Cancels`：发 `cancel` 的键与次数。`Taskers`、`Tasks`：对任务 `t1` 发任务操作的键与次数。`Aborts`：调用方中止的总次数。`Drops`：丢失一条可用连接的总次数。`CloseAlls`：0 或 1。
+- `Peer`：对端对已发出的调用答什么：`"complete"` 或 `"task"`（登记任务 `t1`）。
+- `Deviations`：`fail`（关口拒绝、传输 `not-sent`、对端 `no-answer`、任务请求 `not-sent`）、`reject`、`throw`。`ensure` 的 `fail` 不占预算：它是建连失败或时限到期，不是端口偏离。挂起不占预算。
+- `Bugs`：负控的缺陷，见配置表。
+
+`Calls.tla` 的端口：`gate`（采用读取、资格核对、配值与清单读取合为一次）、`ensure`（连接表：`ok` 使键的连接可用，建连给下一个代际，复用保持代际；关停之后只答 `fail`）、`call`、`answer`（对端对已发出请求的应答）、`cancelReq`（在作用域里发出，无人等）、`task`（四个任务方法之一，受任务时限）。`gate`、`ensure` 与 `answer` 的等待受调用的停止信号：信号先到则调用答复，端口调用留着无人等。`closeAll` 之后开始的调用在占位之后、问关口之前就拒绝（S8，MC-16 第 3 步）；`gate` 与任务操作的 `task`（`gateW`、`tgateW`）在关口答 `ok` 之后读 `shut`，`closeAll` 落在等关口途中的调用与任务操作于是不再问 `ensure`。`closeAll` 把每个键的连接置为不可用。`call`、`task` 与 `cancelReq` 只在连接于该代际仍接受请求时发出（`Takes(k, gen)`，P16，MC-10）：`AfterEnsure` 与 `Abandon` 读它，不接受时调用答 `Refused`、放弃的调用不派 `cancelReq`。代码读 `shut` 的位置是每次等待之前（`under`）、任务操作的入口、`refresh` 的入口、读存储之前与发布边界之前，并在三个出口各读一次决定答复；发出、取页、任务请求与 `cancelRequest` 之前由 `Ensured.wire` 读连接是否仍接受请求（[../README.md](../README.md#关停与停止的判定点)）。两边对「关停之后不问端口」的可观察结果相同，对答复不相同：模型的 `Refused` 不带原因，答复一侧由探索器（P13 的答复断言）与服务层用例守住。模型里 `ensure` 的答复与发出在同一步，关闭落不到两者之间；代码里两者之间有几个微任务，由服务层的逐微任务扫描用例守住（见 [../README.md](../README.md#状态映射)「`Calls.tla` 的抽象与范围上限」）。`lose` 在模型里立即生效，实现里拆除交作用域。传输的 `call` 在停止信号触发之后最终答复是前提（WF5）：`P14_BoundedAfterStop` 不把等在 `callW` 的调用算作卡住。
+
+## 配置
+
+| 配置                       | 种类                 | 键   | `ensure` | `release` | `closeAll` | `lose` | 偏离与预算                                  | 检查                                                                                             |
+| -------------------------- | -------------------- | ---- | -------- | --------- | ---------- | ------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `valid-faults`             | 正控                 | A    | 1        | 1         | 1          | 1      | `fail`、`reject`、`unconfirmed`，1          | P1–P7、P8 T2 与 P16 的全部不变式                                                                 |
+| `valid-rebuild`            | 正控                 | A    | 2        | 0         | 1          | 0      | 无（端口可挂起、迟到）                      | 同上                                                                                             |
+| `valid-throws`             | 正控                 | A    | 1        | 0         | 1          | 0      | `throw`，1                                  | 同上                                                                                             |
+| `valid-two-keys`           | 正控                 | A、B | 各 1     | 0         | 1          | 0      | 无；不触发时限（`CONSTRAINT NoBoundFired`） | P1–P5、P7 与 P16，P5 为主；P1 的关停之后一句、P6、P8 T2 在这里会空成立，不列                     |
+| `live`                     | 正控（活性）         | A    | 1        | 1         | 1          | 0      | `fail`、`reject`、`unconfirmed`，1          | `LiveSpec` 下的 `P8_EveryCallerAnswers`                                                          |
+| `probe-a1`                 | 反定理的探针         | A    | 1        | 1         | 0          | 0      | 无                                          | `P8_BoundedClose`，须违反                                                                        |
+| `probe-live-hang`          | 反定理的探针（活性） | A    | 1        | 1         | 1          | 0      | 无                                          | `HangSpec` 下的 `P8_EveryCallerAnswers`，须有时序反例                                            |
+| `bad-no-absorb-close`      | 负控                 | A    | 1        | 1         | 0          | 0      | `reject`，1                                 | 拆除不吸收 `close()` 的 reject。`P2_NoneHoldsNothing` 须违反                                     |
+| `bad-forget-open-late`     | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 遗忘不要求已关闭，迟到答复让 `lost` 的条目离开表。`P6_LateInvisible` 须违反                      |
+| `bad-forget-building`      | 负控                 | A    | 2        | 1         | 0          | 0      | 无                                          | 遗忘不要求没有在途建连。`P2_ForgetHoldsNothing` 须违反                                           |
+| `bad-close-after-build`    | 负控                 | A    | 1        | 1         | 0          | 0      | 无                                          | 关闭等建连结束之后才拒绝请求。`P16_CloseRefusesAtOnce` 须违反                                    |
+| `bad-close-after-build-ok` | 负控                 | A    | 1        | 1         | 0          | 0      | 无                                          | 同一缺陷，建连核关停而不核连接已关闭，`ensure` 交出关闭已开始的连接。`P16_NoOkAfterClose` 须违反 |
+| `bad-no-shut`              | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 不置关停。`P4_NoConnectAfterShut` 须违反                                              |
+| `bad-ok-after-shut`        | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | 最后一步之后不核连接已关闭。`P4_NoOkAfterShut` 须违反                                            |
+| `bad-abandon-landed`       | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 也释放已交来进程的落点的句柄。`P1_ReleasedAfterStop` 须违反                           |
+| `bad-unbounded-wrap`       | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 失败的建连等收场与标记时不受时限。`P8_BoundedEnsure` 须违反                                      |
+
+`valid-two-keys` 不触发时限，迟到路径只在一个键的配置里检查：不加这个约束时，两个键的状态空间相乘，TLC 不能在合理时间内跑完。各配置的时限上界相同、先建先到期；`P8_BoundedEnsure` 是 P8 T2 的全局形式，逐个 `ensure` 的形式归探索器（[../README.md](../README.md#状态映射)「模型的抽象」）。模型负控与实现一侧负控的对应见 [../README.md](../README.md#负控)。
+
+`Forgettable` 有三个条件，各有一个负控：已关闭（`bad-forget-open-late`，P6：`lost` 的条目留在表里，状态视图仍报告它）、没有在途建连（`bad-forget-building`，P2：关闭在建连结束之前就拒请求，建连在途时条目已关闭，而且可能暂时什么都不持有）、什么都不持有（P2 的正控本身）。
+
+`P16_NoOkAfterClose` 在 `joinedW` 一步检查答复。外部动作只在 `Quiescent` 时发生，建连的 `ready` 与 `joinedW` 之间的内部步不会被关闭隔开，所以这条性质成立不依赖代码在答复兑现时的再核（`table.ts` `settledAnswer`）。代码里这两步之间有几个微任务，别的纤程的延续可以在其中开始关闭；那个窗口由 `ensure.spec.ts` 的逐微任务扫描检查，不由本模型检查。
+
+`Calls.tla` 的配置。列「操作」写每个键的操作与次数：
+
+| 配置                          | 种类         | 键      | 操作                                                      | `closeAll` | `drop` | 偏离与预算                   | 检查                                                                                                      |
+| ----------------------------- | ------------ | ------- | --------------------------------------------------------- | ---------- | ------ | ---------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `calls-valid`                 | 正控         | A       | `invoke` 1、`cancel` 1、中止 1                            | 1          | 1      | `fail`、`reject`、`throw`，1 | P9–P13、P16 与 `P14_BoundedAfterStop` 的全部不变式                                                        |
+| `calls-valid-twice`           | 正控         | A       | `invoke` 2、`cancel` 1                                    | 0          | 1      | 无                           | 同上，P11 为主                                                                                            |
+| `calls-valid-continue`        | 正控         | A       | `invoke` 1、`continueWithInput` 1                         | 0          | 1      | 无                           | 同上                                                                                                      |
+| `calls-valid-task`            | 正控         | A、C    | 各 `invoke` 1；A 的任务操作 1；对端答任务                 | 1          | 1      | 无                           | 同上，P12 的账户一句为主                                                                                  |
+| `calls-valid-isolation`       | 正控         | A、C、D | A `invoke` 1；C、D 各 `cancel` 1 与任务操作 1；对端答任务 | 0          | 0      | 无                           | 同上，P12 为主                                                                                            |
+| `calls-live`                  | 正控（活性） | A       | `invoke` 1、`cancel` 1、中止 1                            | 1          | 0      | `fail`、`reject`，1          | `LiveSpec` 下的 `P14_EveryCallAnswers`                                                                    |
+| `calls-bad-send-despite-stop` | 负控         | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | 发出前的等待不看停止信号，已取消的调用仍发出。`P9_NotSentNotSent` 须违反                                  |
+| `calls-bad-gate-unstopped`    | 负控         | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | 同一缺陷：已取消的调用等在挂起的关口后面。`P14_BoundedAfterStop` 须违反                                   |
+| `calls-bad-cancel-twice`      | 负控         | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | `cancelRequest` 调用两次。`P10_CancelOnce` 须违反                                                         |
+| `calls-bad-no-release`        | 负控         | A       | `invoke` 1                                                | 0          | 0      | `fail`，1                    | 拒绝路径不归还占位。`P11_ReservationEnded` 须违反                                                         |
+| `calls-bad-task-any-account`  | 负控         | A、C    | 各 `invoke` 1；A 的任务操作 1；对端答任务                 | 0          | 1      | 无                           | 任务操作复用另一账户的连接。`P12_Isolation` 须违反                                                        |
+| `calls-bad-key-blind`         | 负控         | A、C    | A `invoke` 1；C `cancel` 1                                | 0          | 0      | 无                           | 在途表的键只按租户。`P12_Isolation` 须违反                                                                |
+| `calls-bad-task-blind`        | 负控         | A、C    | A `invoke` 1；C 的任务操作 1；对端答任务                  | 0          | 0      | 无                           | 任务表的键只按租户。`P12_Isolation` 须违反                                                                |
+| `calls-bad-send-after-shut`   | 负控         | A       | `invoke` 1                                                | 1          | 0      | 无                           | 关停之后调用不先拒绝、`ensure` 仍交出连接。`P13_NoSendAfterShut` 须违反                                   |
+| `calls-bad-send-unguarded`    | 负控         | A       | `invoke` 1、中止 1                                        | 0          | 1      | 无                           | 发出与 `cancelReq` 不读连接是否仍接受请求；丢失之后中止的调用仍告知对端。`P16_NoRequestOnRefusing` 须违反 |
+| `calls-bad-wait-answer`       | 负控（活性） | A       | `invoke` 1、`cancel` 1                                    | 0          | 0      | 无                           | 等应答不看停止信号。`LiveSpec` 下的 `P14_EveryCallAnswers` 须有时序反例                                   |
+
+`LiveSpec` 的公平性是 WF1、WF2 与 WF4（SPEC P14 T1）：每个时限到期，每次端口调用最终按契约答复，停止信号已触发的请求的对端应答除外。所以负控 `calls-bad-wait-answer` 里对端不答那个应答，等它的调用永不答复；正控里调用不等它。 「答复与停止信号或关停落在同一轮」的交错（出口与途中各点的核对，见 [../README.md](../README.md#关停与停止的判定点)）在模型里没有负控：外部动作只在静止时到达，它们不会落在同一轮。
+
+## 运行与判读
+
+从仓库根经运行名额执行：
+
+```sh
+node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run.py [配置名 ...]
+```
+
+不带配置名时运行全部配置。`TLA2TOOLS_JAR` 指向 tla2tools（缺省 `/opt/tlaplus/tla2tools.jar`），`JAVA_BIN` 指定 java，`FORMAL_OUTPUT_DIR` 指定证据目录（缺省仓库 `tmp/formal/mcp-connection-table/runs/`），`FORMAL_WORKERS` 指定 TLC 的工作线程数（缺省 4）。脚本把每个配置的原始输出与 `summary.json`（jar、模型与配置的 SHA-256，状态数、深度、耗时、判读与反例的外部动作）写进证据目录。每个配置跑完后，脚本删除 TLC 的状态目录。
+
+判读规则：
+
+- 正控须退出 0，并输出 `Model checking completed. No error has been found.`。
+- 反定理的探针与负控须退出非零，TLC 报告的被违反不变式恰好是配置表所列的那一条，并给出反例轨迹。时序配置须报告 `Temporal properties were violated.`。
+- 退出码只在每个配置都符合判读时为 0。超时、解析失败、求值错误与未执行都不算通过。非零退出本身不算负控通过。
+
+## 本包事实
+
+- 当前内容：连接表生命周期的模型与 16 份配置，调用口的模型与 16 份配置，运行脚本。
+- 状态：见 [SPEC.md「性质与证据」](../../SPEC.md#properties)。每次运行的读数贴到任务卡的评论里，不进本目录。这不是证明，也不表示实现符合模型。
+- 负责人：本包的维护者。连接表或调用口的结构变化时，先改对应模型的动作，再重跑它的全部配置。

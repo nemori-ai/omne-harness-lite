@@ -1,6 +1,6 @@
 # 产品包的目标维护入口
 
-本树按[产品包组织](../docs/package-organization.md)维护目标能力组、具名成员的规格与设计文档。源码、成员 manifest 和运行支持尚未建立；文档目录不是 workspace 成员。领域责任从[领域设计](../docs/domains/README.md)进入，组与成员文档按[成员文档规范](../docs/member-documentation.md)维护。
+本树按[产品包组织](../docs/package-organization.md)维护目标能力组与具名成员。已建立的成员有源码、成员 manifest 与运行支持，是 workspace 成员；尚未建立的组只有规格与设计文档。文档目录不是 workspace 成员。领域责任从[领域设计](../docs/domains/README.md)进入，组与成员文档按[成员文档规范](../docs/member-documentation.md)维护。
 
 ## 目标能力组
 
@@ -22,8 +22,8 @@
 | [schedule](schedule/README.md) | 日程与Job | `schedule-contract`, `schedule-cordis-contract`, `schedule`, `schedule-local`, `schedule-tools` |
 | [notification](notification/README.md) | 通知 | `notification` |
 | [slash-command](slash-command/README.md) | Slash Command | 待具名 |
-| [skills](skills/README.md) | Skill | 待具名 |
-| [mcp](mcp/README.md) | MCP | 待具名 |
+| [skills](skills/README.md) | Skill | `skill-contract`, `skill`, `skill-host-local`, `skill-cordis-contract` |
+| [mcp](mcp/README.md) | MCP | `mcp-contract`, `mcp`, `mcp-host-local`, `mcp-cordis-contract` |
 | [storage](storage/README.md) | 存储 | 待具名 |
 | [time](time/README.md) | 时间 | 待具名 |
 | [telemetry](telemetry/README.md) | 遥测 | 待具名 |
@@ -35,7 +35,7 @@
 
 先按责任进入组入口，再定位目标成员。表中名称不授予建包或采用资格；普通新增包仍须具名消费者、已接受公开承诺及真实实施任务。SPEC完整表达持续行为，内部设计解释实现机制，二者不复制领域与系统正文。未来新增组与成员沿[扩展指导](../docs/domains/extending-the-system.md)及包组织规则。
 
-组登记维护必要文件与章节。已落位的规格和设计不再计缺文件；未写目标继续显示缺项。access 的三个目标和 assembly 的目标已有 README、SPEC 与内部设计入口，精确内容仍是占位；它们不是可安装成员。Skill、Slash Command、MCP 的正式成员与行为规格承接仍未确定，组入口保留这一缺项。inventory 只观察登记文件与章节，不能判断成员归属；承接状态另按具名拥有者核对。没有 package.json 的文档目标不算 workspace 成员。time 和 telemetry 是条件性位置，成员未定；预留目录不授予准入。common 已有 `json-text`、`legal-identity`、`utc-instant`、`content-block`、`message`、`stream-arrival`、`call-account` 和 `operation-result`。
+组登记维护必要文件与章节。已落位的规格和设计不再计缺文件；未写目标继续显示缺项。access 的三个目标和 assembly 的目标已有 README、SPEC 与内部设计入口，精确内容仍是占位；它们不是可安装成员。Slash Command 的正式成员与行为规格承接仍未确定，组入口保留这一缺项。Skill 与 MCP 的成员都已有实现（候选）；行为规格见各组入口。inventory 只观察登记文件与章节，不能判断成员归属；承接状态另按具名拥有者核对。没有 package.json 的文档目标不算 workspace 成员。time 和 telemetry 是条件性位置，成员未定；预留目录不授予准入。common 已有 `json-text`、`legal-identity`、`utc-instant`、`content-block`、`message`、`stream-arrival`、`call-account` 和 `operation-result`。
 
 ## 旧实现及工具依赖
 

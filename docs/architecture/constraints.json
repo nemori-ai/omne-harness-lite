@@ -60,6 +60,16 @@
       "id": "schedule",
       "label": "日程与 Job",
       "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "skills",
+      "label": "Skill 方法取用",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "mcp",
+      "label": "MCP 接入",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
     }
   ],
   "roles": [
@@ -510,6 +520,70 @@
       "domains": ["schedule"],
       "status": "adopted",
       "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "packages/skills/skill-contract",
+      "paths": ["packages/skills/skill-contract/src/**"],
+      "layer": "contract",
+      "domains": ["skills"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "packages/skills/skill-cordis-contract",
+      "paths": ["packages/skills/skill-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["skills"],
+      "status": "candidate",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "packages/skills/skill",
+      "paths": ["packages/skills/skill/src/**"],
+      "layer": "unknown",
+      "domains": ["skills"],
+      "status": "candidate",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "packages/skills/skill-host-local",
+      "paths": ["packages/skills/skill-host-local/src/**"],
+      "layer": "assembly",
+      "domains": ["skills"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "packages/mcp/mcp-contract",
+      "paths": ["packages/mcp/mcp-contract/src/**"],
+      "layer": "contract",
+      "domains": ["mcp"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "packages/mcp/mcp-cordis-contract",
+      "paths": ["packages/mcp/mcp-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "packages/mcp/mcp",
+      "paths": ["packages/mcp/mcp/src/**"],
+      "layer": "unknown",
+      "domains": ["mcp"],
+      "status": "candidate",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "packages/mcp/mcp-host-local",
+      "paths": ["packages/mcp/mcp-host-local/src/**"],
+      "layer": "assembly",
+      "domains": ["mcp"],
+      "status": "adopted",
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
     }
   ],
   "rules": [
@@ -672,6 +746,30 @@
       "from": ["packages/schedule/schedule-tools"],
       "to": ["packages/schedule/schedule", "packages/schedule/schedule-local"],
       "source": "docs/package-organization.md#日历与日程的安装和部署边界"
+    },
+    {
+      "id": "DIR-SKILL-PURE",
+      "from": ["packages/skills/skill-contract", "packages/skills/skill"],
+      "to": ["packages/skills/skill-cordis-contract", "packages/skills/skill-host-local"],
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "DIR-SKILL-DEFINITION",
+      "from": ["packages/skills/skill-cordis-contract"],
+      "to": ["packages/skills/skill", "packages/skills/skill-host-local"],
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "DIR-MCP-PURE",
+      "from": ["packages/mcp/mcp-contract", "packages/mcp/mcp"],
+      "to": ["packages/mcp/mcp-cordis-contract", "packages/mcp/mcp-host-local"],
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
+    },
+    {
+      "id": "DIR-MCP-DEFINITION",
+      "from": ["packages/mcp/mcp-cordis-contract"],
+      "to": ["packages/mcp/mcp", "packages/mcp/mcp-host-local"],
+      "source": "docs/package-organization.md#skill-与-mcp-的成员边界"
     }
   ],
   "groupCycleExceptions": [
