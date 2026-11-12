@@ -23,11 +23,14 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| [cross-domain.md](../.meta_harness/agents/skills/domain-mental-models/canonical/references/cross-domain.md) | 跨领域协调：调用是远程调用；Run 是边界；知道与决定；谁认识谁；一个完整的领域提供什么；动态性与 Cordis |
+| [cross-domain.md](../.meta_harness/agents/skills/domain-mental-models/canonical/references/cross-domain.md) | 跨领域协调：调用是远程调用；Run 是边界；知道与决定；谁认识谁；一类事实只有一个写入者；一个完整的领域提供什么；动态性与 Cordis；能力怎样到 agent 手上；能发现的和装进上下文的；工具是函数 |
 | [session.md](../.meta_harness/agents/skills/domain-mental-models/canonical/references/session.md) | Session 与会话日志 |
 | [agent.md](../.meta_harness/agents/skills/domain-mental-models/canonical/references/agent.md) | Agent |
 | [runtime-context.md](../.meta_harness/agents/skills/domain-mental-models/canonical/references/runtime-context.md) | Runtime Context |
 | [access.md](../.meta_harness/agents/skills/domain-mental-models/canonical/references/access.md) | 接入层：客户端和服务端 |
+| [assets.md](../.meta_harness/agents/skills/domain-mental-models/canonical/references/assets.md) | 资产与规则：能力标识、类别登记、分层持有与求值、内容的存放与读口 |
+| [skill.md](../.meta_harness/agents/skills/domain-mental-models/canonical/references/skill.md) | Skill：一个目录，三层披露 |
+| [mcp.md](../.meta_harness/agents/skills/domain-mental-models/canonical/references/mcp.md) | MCP：接入点、连接、动作清单，动作经工具入口到 agent 手上 |
 
 还没有写的领域列在 `domain-mental-models` 的 `SKILL.md` 里。
 

@@ -28,7 +28,11 @@ master 的出厂类目包括 general-purpose、coding、office、research 和 pe
 
 ### 额外能力的选择
 
-会话执行类型要求的 Skill、Tool 和 MCP，以及定义显式要求的这三类能力，均为必需项。自动继承的排除和会话对可选项的移除不能去掉必需项。
+能力进会话靠两处叠加：会话执行类型的必需身份集合，与 Agent 定义的引用。两处列出的 Skill、Tool 和 MCP 接入点均为必需项，类别都不限于工具。两处都可以标常驻，任一处标了常驻就常驻。会话对可选项的移除不能去掉必需项。
+
+这两处决定的是会话必须带什么、什么常驻，不决定 agent 能发现什么。`Tools` 与 `Skills` 能发现的是主体此刻合法可用的能力，按当下事实现算，规则见[元能力](../meta-capabilities/design.md#meta-tools)。现状：执行类型的必需身份集合带类别与常驻、两处叠加的常驻，是 2026-11-12 接受的目标，实现在 4 号线，代码还没有。
+
+自动继承在 `0.0.0 → 0.1.0` 阶段不承诺，依据是产品负责人 PanQiWei 2026-11-12 的裁定。本节下面关于自动继承与排除的规则保留为目标，现在没有实现，也不交付。
 
 自动继承声明属于定义本身，默认关闭。开启后可以开放到组织、租户或工作区，包含从该层到组织的相应来源。声明开放到组织只自动选入组织提供的能力身份；已选身份的具体实现仍在完整合法作用域内解析，不因此排斥合法的同标识租户实现。
 
@@ -148,7 +152,7 @@ J-AG 编号只用于定位文档，不是新的产品对象、运行状态或公
 <a id="j-ag01"></a>
 #### J-AG01 选定 Agent 并取得合法能力
 
-用户希望以一个适合目标的 Agent 开始协作，定义维护者希望限定该 Agent 必需和可选的能力。前提是调用方具有相应创建或派发资格，定义与能力来源合法。用户按会话用途选定义；定义维护者声明必需能力和是否继承额外能力。装配方先选身份再解析实现，Agent 解释定义类型与继承规则，把合法采用交给会话工作流程。
+用户希望以一个适合目标的 Agent 开始协作，定义维护者希望限定该 Agent 必需和可选的能力。前提是调用方具有相应创建或派发资格，定义与能力来源合法。用户按会话用途选定义；定义维护者声明必需能力及其是否常驻，它们与会话执行类型的必需身份集合叠加。继承额外能力不在 `0.0.0 → 0.1.0` 阶段。装配方先选身份再解析实现，Agent 解释定义类型与继承规则，把合法采用交给会话工作流程。
 
 结果是可解释的定义版本、必需与可选来路，以及当前可用或不可用的能力。禁止替换 official、越过锁定或删除必需项的请求被拒绝。首次装配、reload 或后续装配缺少必需合法定义，或者 Loop 必需入口不能建立时，候选失败；合法定义存在而执行实现暂不可用时，可保留已知身份和不可用应答。已有会话的后续装配只让同形实现接替常驻工具；原实现已确定不能装载且只剩不同形实现时，结论是会话冻结，由 Session 执行，见[会话冻结](../sessions-and-work/design.md#frozen)。装配中断不制造 Run 或执行，恢复先核对候选及当前资格。已有会话的取消与归档由 Session 治理处理；Agent 不借定义校验创建第二条控制路径。
 
@@ -224,7 +228,7 @@ L1、L2 提醒后可以继续，L3 以打转失败进入统一终态出口，L4 
 | 编号 | 可判定的能力及边界 | 需求旅程 | 成员与验证入口 | 实现支持及限制 | 验证与接受 |
 | --- | --- | --- | --- | --- | --- |
 | CAP-AG01 | 解释 AgentDefinition 身份、类型、合法来源与版本采用；会话标识固定，普通恢复不升级，合法 reload 可换同标识版本 | [J-AG01](#j-ag01)、[J-AG07](#j-ag07) | [定义专题](../../../../packages/agent/agent-contract/docs/public-api/definition.md#旅程与持续验证)；源码 [judge-definition.ts](../../../../packages/agent/agent-contract/src/judge-definition.ts)、[body-contract.ts](../../../../packages/agent/agent-contract/src/body-contract.ts)，[agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md) | 契约类型与声明判定已实现，推进与运行未实现 | 未核实，未运行、未接受 |
-| CAP-AG02 | 解释 Skill、Tool、MCP 必需来路、继承范围、排除及已知身份；区分身份选入与实现解析 | [J-AG01](#j-ag01)、[J-AG07](#j-ag07) | [定义专题](../../../../packages/agent/agent-contract/docs/public-api/definition.md#旅程与持续验证)；源码 [judge-definition.ts](../../../../packages/agent/agent-contract/src/judge-definition.ts)、[body-contract.ts](../../../../packages/agent/agent-contract/src/body-contract.ts)，[agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md) | 必需来路与已知身份的契约类型与声明判定已实现。继承范围与排除没有契约类型，也没有判定，规则只在[定义专题](../../../../packages/agent/agent-contract/docs/public-api/definition.md#必需身份与继承)，解析归 `AgentAdoptions.resolve`，它只有类型。推进与运行未实现 | 未核实，未运行、未接受 |
+| CAP-AG02 | 解释 Skill、Tool、MCP 必需来路（执行类型必需集合与定义引用两处叠加，任一处标常驻即常驻）、继承范围、排除及已知身份；区分身份选入与实现解析；继承范围与排除不在本阶段 | [J-AG01](#j-ag01)、[J-AG07](#j-ag07) | [定义专题](../../../../packages/agent/agent-contract/docs/public-api/definition.md#旅程与持续验证)；源码 [judge-definition.ts](../../../../packages/agent/agent-contract/src/judge-definition.ts)、[body-contract.ts](../../../../packages/agent/agent-contract/src/body-contract.ts)，[agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md) | 必需来路与已知身份的契约类型与声明判定已实现。继承范围与排除没有契约类型，也没有判定，规则只在[定义专题](../../../../packages/agent/agent-contract/docs/public-api/definition.md#必需身份与继承)，解析归 `AgentAdoptions.resolve`，它只有类型。推进与运行未实现 | 未核实，未运行、未接受 |
 | CAP-AG03 | 根据完整工作依据求值并在合法位置推进；接续优先、当前全部输入承接、同依据同结果 | [J-AG02](#j-ag02)、[J-AG06](#j-ag06)、[J-AG08](#j-ag08) | [Loop 专题](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
 | CAP-AG04 | 协调 Context 与模型请求，固定实际输入、消费完整收场；内部重试不另造调用，不执行未完整参数 | [J-AG02](#j-ag02)、[J-AG04](#j-ag04) | [Loop 专题](../../../../packages/agent/agent-contract/docs/flows/loop.md#旅程与持续验证)；契约类型源码 [index.ts](../../../../packages/agent/agent-contract/src/index.ts) | 契约类型已实现，推进与运行未实现 | 未核实，未运行、未接受 |
 | CAP-AG05 | 在九处位置组合扩展；保留原参数和生效参数，整批判断屏障、当前授权复核及合法故障兜底 | [J-AG02](#j-ag02)、[J-AG03](#j-ag03)、[J-AG07](#j-ag07) | [扩展专题](../../../../packages/agent/agent-contract/docs/public-api/extensions.md#旅程与持续验证)；源码 [extensions.ts](../../../../packages/agent/agent-contract/src/extensions.ts)、[judge-extensions.ts](../../../../packages/agent/agent-contract/src/judge-extensions.ts)、[judge-output.ts](../../../../packages/agent/agent-contract/src/judge-output.ts)，[agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md) | 契约类型与声明判定已实现，推进与运行未实现 | 未核实，未运行、未接受 |
@@ -238,9 +242,11 @@ L1、L2 提醒后可以继续，L3 以打转失败进入统一终态出口，L4 
 
 本文定义的全部产品能力 CAP-AG01 至 CAP-AG10 承诺在 `0.0.0 → 0.1.0` 完整交付。决定由产品负责人 PanQiWei 于 2026-10-20 作出，记录在实现任务线父卡 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) 的「已确认裁定」。承诺覆盖各能力对应的需求、用户旅程、正常与失败行为、恢复、数据保护、性能要求及跨领域协作，不限于能力名称或基础路径。Session 的支持目标不授予本域承诺，本域的承诺只由本表记录。
 
+产品负责人 PanQiWei 于 2026-11-12 确定：自动继承现在不承诺，CAP-AG02 中的继承范围与排除移出 `0.0.0 → 0.1.0` 阶段；能力进会话靠会话执行类型的必需身份集合与 Agent 定义的引用两处叠加，Agent 定义可以声明 MCP 接入点，两处都可以标常驻。
+
 | 阶段或版本 | 能力编号 | 支持程度 | 适用装配及前提 | 接受依据 |
 | --- | --- | --- | --- | --- |
-| 0.0.0 → 0.1.0 | CAP-AG01 至 CAP-AG10 全部能力 | 按本文完整行为交付 | 覆盖外部协调者路径与独立调用路径。Context、Model、Tool、授权、人在回路与 Session 的提供者前提由实际装配兑现；请求组装与压缩算法由 Context 领域交付，Agent 侧先以替代提供者实现推进节点 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)；各能力的实现证据随 #502 各阶段验收更新到上表「实现支持及限制」列 |
+| 0.0.0 → 0.1.0 | CAP-AG01 至 CAP-AG10 全部能力，CAP-AG02 的继承范围与排除除外 | 按本文完整行为交付 | 覆盖外部协调者路径与独立调用路径。Context、Model、Tool、授权、人在回路与 Session 的提供者前提由实际装配兑现；请求组装与压缩算法由 Context 领域交付，Agent 侧先以替代提供者实现推进节点 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)；各能力的实现证据随 #502 各阶段验收更新到上表「实现支持及限制」列 |
 
 技术未决、来源核对及尚缺验证是交付义务，不能据此缩减阶段范围。交付须完成相应契约、实现及行为验证，并取得交付接受。本文明确排除的非目标保持原范围。
 

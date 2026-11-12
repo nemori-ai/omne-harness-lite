@@ -654,6 +654,224 @@ describe('operation identity', () => {
     expect(sqlite.commits()).toBe(before)
   })
 
+  it('reads again when the storage recalls an earlier commit of the generation, and writes nothing twice', async () => {
+    const sqlite = sqliteStorage()
+    let first = true
+    // An earlier call of the same operation committed this generation after this call read: the
+    // commit is sent first through the storage itself, then the call's own commit arrives.
+    const racing: SqlStorage = {
+      ...sqlite.storage,
+      commit: async (request, options) => {
+        if (first && request.identity.operationKey.startsWith('mop_admit#')) {
+          first = false
+          await sqlite.storage.commit(request, options)
+          const answer = await sqlite.storage.commit(request, options)
+          expect(answer).toMatchObject({ kind: 'committed', recalled: true })
+          return answer
+        }
+        return sqlite.storage.commit(request, options)
+      },
+    }
+    const store = createSqlModelStorage(options(racing))
+    const call = callId('recalled')
+    expect(await write(store, call, opId('admit'), () => admitted(call, opId('admit')))).toEqual({
+      ok: 'recovered',
+    })
+    expect(sqlite.rows('domain-a', 'SELECT count(*) FROM md_call')).toEqual([[1n]])
+  })
+
+  it('passes a generation that an earlier run rolled back with another input', async () => {
+    const sqlite = sqliteStorage()
+    const keys: string[] = []
+    const answers: string[] = []
+    let race: (() => Promise<unknown>) | null = null
+    const watching: SqlStorage = {
+      ...sqlite.storage,
+      commit: async (request, options) => {
+        const racing = race
+        race = null
+        if (racing !== null && request.identity.operationKey === 'mop_edit#1') await racing()
+        const answer = await sqlite.storage.commit(request, options)
+        if (request.identity.operationKey.startsWith('mop_edit#')) {
+          keys.push(request.identity.operationKey)
+          answers.push(answer.kind)
+        }
+        return answer
+      },
+    }
+    const call = callId('conflict')
+    // Process A gives up after one round: generation #1 of `edit` rolls back on a newer version.
+    const a = createSqlModelStorage(options(watching, { attemptLimit: 1 }))
+    await write(a, call, opId('admit'), () => admitted(call, opId('admit')))
+    race = () =>
+      write(
+        a,
+        call,
+        opId('race'),
+        edit(doc => (doc.cleanupFailure = 'race')),
+      )
+    expect(
+      await write(
+        a,
+        call,
+        opId('edit'),
+        edit(doc => (doc.requestDigest = 'a')),
+      ),
+    ).toMatchObject({
+      failure: { kind: 'unavailable', dependency: 'model-records' },
+    })
+    // Process B reads the newer version, so its input to #1 differs: #1 is spent, #2 is written.
+    const b = createSqlModelStorage(options(watching))
+    expect(
+      await write(
+        b,
+        call,
+        opId('edit'),
+        edit(doc => (doc.requestDigest = 'b')),
+      ),
+    ).toEqual({
+      ok: 'written',
+    })
+    expect(keys).toEqual(['mop_edit#1', 'mop_edit#1', 'mop_edit#2'])
+    expect(answers).toEqual(['rolled_back', 'identity_conflict', 'committed'])
+    expect((await stored(b, call)).record?.document.requestDigest).toBe('b')
+  })
+
+  it('reads again on a conflict with an earlier committed generation, and does not try the next one', async () => {
+    const sqlite = sqliteStorage()
+    const keys: string[] = []
+    let race: (() => Promise<unknown>) | null = null
+    const watching: SqlStorage = {
+      ...sqlite.storage,
+      commit: async (request, options) => {
+        const racing = race
+        race = null
+        if (racing !== null) await racing()
+        if (request.identity.operationKey.startsWith('mop_edit#'))
+          keys.push(request.identity.operationKey)
+        return sqlite.storage.commit(request, options)
+      },
+    }
+    const call = callId('taken')
+    const store = createSqlModelStorage(options(watching))
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    // After this call read, another process committed generation #1 of `edit` with its own input.
+    const other = createSqlModelStorage(options(sqlite.storage))
+    let raced = false
+    const result = await write(store, call, opId('edit'), doc => {
+      if (!raced) {
+        raced = true
+        race = () =>
+          write(
+            other,
+            call,
+            opId('edit'),
+            edit(d => (d.requestDigest = 'other')),
+          )
+      }
+      return edit(d => (d.requestDigest = 'mine'))(doc)
+    })
+    expect(result).toEqual({ ok: 'recovered' })
+    expect(keys).toEqual(['mop_edit#1'])
+    expect((await stored(store, call)).record?.document.requestDigest).toBe('other')
+  })
+
+  it('remembers a generation spent on a conflict, so a later run asks from the next one', async () => {
+    const sqlite = sqliteStorage()
+    const queried: string[] = []
+    let race: (() => Promise<unknown>) | null = null
+    const watching: SqlStorage = {
+      ...sqlite.storage,
+      query: identity => {
+        queried.push(identity.operationKey)
+        return sqlite.storage.query(identity)
+      },
+      commit: async (request, options) => {
+        const racing = race
+        race = null
+        if (racing !== null && request.identity.operationKey === 'mop_edit#1') await racing()
+        const answer = await sqlite.storage.commit(request, options)
+        // The conflict on #1 spends it; the next generation stays undecided.
+        if (answer.kind === 'identity_conflict') sqlite.hooks.holdNextCommit = true
+        return answer
+      },
+    }
+    const call = callId('spent-then-held')
+    const a = createSqlModelStorage(options(watching, { attemptLimit: 1 }))
+    await write(a, call, opId('admit'), () => admitted(call, opId('admit')))
+    race = () =>
+      write(
+        a,
+        call,
+        opId('race'),
+        edit(doc => (doc.cleanupFailure = 'race')),
+      )
+    await write(
+      a,
+      call,
+      opId('edit'),
+      edit(doc => (doc.requestDigest = 'a')),
+    )
+    // A new process: #1 answers a conflict (spent), #2 stays undecided.
+    const b = createSqlModelStorage(options(watching))
+    expect(
+      await write(
+        b,
+        call,
+        opId('edit'),
+        edit(doc => (doc.requestDigest = 'b')),
+      ),
+    ).toEqual({
+      failure: { kind: 'commit-unknown', operation: opId('edit') },
+    })
+    queried.length = 0
+    await write(
+      b,
+      call,
+      opId('edit'),
+      edit(doc => (doc.requestDigest = 'b')),
+    )
+    expect(queried).toEqual(['mop_edit#2'])
+  })
+
+  it('takes a recalled read-progress commit as written, and publishes once', async () => {
+    const sqlite = sqliteStorage()
+    let resent = false
+    const resending: SqlStorage = {
+      ...sqlite.storage,
+      commit: async (request, options) => {
+        if (!resent && request.identity.operationKey.includes('#read@')) {
+          resent = true
+          await sqlite.storage.commit(request, options)
+        }
+        return sqlite.storage.commit(request, options)
+      },
+    }
+    const store = createSqlModelStorage(options(resending))
+    const call = callId('publish-again')
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    const read = decoded(decodeReadId('mread_q'))
+    const result = await store.run(
+      () => {
+        const original = store.documents(A).calls.get(call)
+        if (original === undefined) return { failure: { kind: 'not-settled' } }
+        const next = structuredClone(original)
+        next.reads.set(read, {
+          id: read,
+          lastProgress: 'now',
+          furthest: 2,
+          state: { kind: 'reading', offset: 2 },
+        })
+        store.publish(A, next)
+        return { failure: { kind: 'denied', action: 'content' } }
+      },
+      { tenant: A, call },
+    )
+    expect(result).toEqual({ failure: { kind: 'denied', action: 'content' } })
+    expect(resent).toBe(true)
+    expect((await stored(store, call)).record?.version).toBe(2)
+  })
+
   it('answers commit-unknown when the reply is lost, then shows the committed original', async () => {
     const sqlite = sqliteStorage()
     const store = createSqlModelStorage(options(sqlite.storage))
@@ -670,9 +888,59 @@ describe('operation identity', () => {
     expect(sqlite.rows('domain-a', 'SELECT count(*) FROM md_call')).toEqual([[1n]])
   })
 
+  it('does not send a write of an operation still undecided, even when the work stages it', async () => {
+    const sqlite = sqliteStorage()
+    const sentKeys: string[] = []
+    const counting: SqlStorage = {
+      ...sqlite.storage,
+      commit: (request, options) => {
+        sentKeys.push(request.identity.operationKey)
+        return sqlite.storage.commit(request, options)
+      },
+    }
+    const store = createSqlModelStorage(options(counting))
+    const call = callId('stubborn')
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    sqlite.hooks.holdNextCommit = true
+    expect(
+      await write(
+        store,
+        call,
+        opId('held'),
+        edit(doc => (doc.cleanupFailure = 'h')),
+      ),
+    ).toEqual({ failure: { kind: 'commit-unknown', operation: opId('held') } })
+    const sent = sentKeys.length
+    // This work stages the write whatever the binding says.
+    const result = await store.run(
+      () => {
+        const original = store.documents(A).calls.get(call)
+        if (original === undefined) return { failure: { kind: 'not-settled' } }
+        store.commit(A, {
+          operation: opId('held'),
+          expected: original,
+          call: edit(doc => (doc.cleanupFailure = 'again'))(structuredClone(original)),
+          binding: bindingOf(call, 'control'),
+        })
+        return { ok: 'staged' }
+      },
+      { tenant: A, call, operation: opId('held') },
+    )
+    expect(result).toEqual({ failure: { kind: 'commit-unknown', operation: opId('held') } })
+    expect(sentKeys.length).toBe(sent)
+  })
+
   it('keeps an operation with an undecided commit as unknown until the storage decides it', async () => {
     const sqlite = sqliteStorage()
-    const store = createSqlModelStorage(options(sqlite.storage))
+    const sentKeys: string[] = []
+    const counting: SqlStorage = {
+      ...sqlite.storage,
+      commit: (request, options) => {
+        sentKeys.push(request.identity.operationKey)
+        return sqlite.storage.commit(request, options)
+      },
+    }
+    const store = createSqlModelStorage(options(counting))
     const call = callId('held')
     await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
     sqlite.hooks.holdNextCommit = true
@@ -693,6 +961,7 @@ describe('operation identity', () => {
         operation: opId('probe'),
       })
     expect(await statusOf()).toEqual({ ok: 'unknown' })
+    const sent = sentKeys.length
     expect(
       await write(
         store,
@@ -703,6 +972,8 @@ describe('operation identity', () => {
     ).toEqual({
       failure: { kind: 'commit-unknown', operation: opId('held') },
     })
+    // Step 2 found it still undecided: the write is not sent again.
+    expect(sentKeys.length).toBe(sent)
     sqlite.release()
     expect(await statusOf()).toEqual({ ok: 'none' })
     expect((await stored(store, call)).record?.document.cleanupFailure).toBe('h')
@@ -858,11 +1129,16 @@ describe('attempt generations', () => {
   function heldShare() {
     const sqlite = sqliteStorage()
     const queried: string[] = []
+    const committed: string[] = []
     const counting: SqlStorage = {
       ...sqlite.storage,
       query: identity => {
         queried.push(identity.operationKey)
         return sqlite.storage.query(identity)
+      },
+      commit: (request, options) => {
+        committed.push(request.identity.operationKey)
+        return sqlite.storage.commit(request, options)
       },
     }
     const open = () => createSqlModelStorage(options(counting))
@@ -876,31 +1152,65 @@ describe('attempt generations', () => {
         opId('release'),
         edit(doc => (doc.request = null)),
       )
-    return { sqlite, store, open, queried, second, release }
+    return { sqlite, store, open, queried, committed, second, release }
   }
 
-  it('writes an operation after nine rolled-back generations, searching from the last one seen', async () => {
+  it('writes an operation after nine rolled-back generations, committing from the last one seen without a query', async () => {
     const f = heldShare()
     await write(f.store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1')))
     for (let refused = 0; refused < 9; refused += 1) expect(await f.second()).toMatchObject(full)
+    expect(f.queried).toEqual([])
     await f.release()
-    f.queried.length = 0
+    f.committed.length = 0
     expect(await f.second()).toEqual({ ok: 'written' })
-    expect(f.queried).toEqual(['mop_a2#10'])
+    expect(f.queried).toEqual([])
+    expect(f.committed.filter(key => key.startsWith('mop_a2#'))).toEqual(['mop_a2#10'])
     expect(f.sqlite.rows('domain-a', 'SELECT call FROM md_call ORDER BY call')).toEqual([
       ['mcall_c1'],
       ['mcall_c2'],
     ])
   })
 
-  it('finds the free generation from #1 in a new process', async () => {
+  it('commits from #1 in a new process, passing each recalled rollback without a query', async () => {
     const f = heldShare()
     await write(f.store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1')))
     for (let refused = 0; refused < 9; refused += 1) expect(await f.second()).toMatchObject(full)
     await f.release()
-    f.queried.length = 0
+    f.committed.length = 0
     expect(await f.second(f.open())).toEqual({ ok: 'written' })
-    expect(f.queried).toEqual(Array.from({ length: 10 }, (_, at) => `mop_a2#${at + 1}`))
+    expect(f.queried).toEqual([])
+    expect(f.committed.filter(key => key.startsWith('mop_a2#'))).toEqual(
+      Array.from({ length: 10 }, (_, at) => `mop_a2#${at + 1}`),
+    )
+    expect(f.sqlite.rows('domain-a', 'SELECT call FROM md_call ORDER BY call')).toEqual([
+      ['mcall_c1'],
+      ['mcall_c2'],
+    ])
+  })
+
+  it('passes a generation whose rollback the storage recalls for the same input', async () => {
+    const f = heldShare()
+    await write(f.store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1')))
+    const answers: string[] = []
+    let earlier = true
+    // An earlier call sent the same request to #1 and it rolled back on the full share.
+    const watching: SqlStorage = {
+      ...f.sqlite.storage,
+      commit: async (request, options) => {
+        if (earlier && request.identity.operationKey === 'mop_a2#1') {
+          earlier = false
+          await f.sqlite.storage.commit(request, options)
+        }
+        const answer = await f.sqlite.storage.commit(request, options)
+        if (request.identity.operationKey.startsWith('mop_a2#'))
+          answers.push(
+            `${request.identity.operationKey} ${answer.kind}${'recalled' in answer && answer.recalled ? ' recalled' : ''}`,
+          )
+        return answer
+      },
+    }
+    expect(await f.second(createSqlModelStorage(options(watching)))).toMatchObject(full)
+    expect(answers).toEqual(['mop_a2#1 rolled_back recalled', 'mop_a2#2 rolled_back'])
   })
 
   it('bounds the rounds of one run by attemptLimit, and the next run of the operation writes', async () => {
