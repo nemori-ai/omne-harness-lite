@@ -38,6 +38,13 @@
 
 CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` 的 `sessionOnlyRollbackExplained`（R2-D152）。可以接受的原因只有两种：一种是 `the input is not pending`；另一种是暂时的失败（`changed` 或 `unavailable`），并且之后同一执行、同一 sequence 的 commitLog 已经提交，或者该执行的 `readThrough` 已经到达这个 sequence。第二种原因的依据是 session-contract SPEC「过期的同域根答 changed」，以及 AD-02 对暂时失败按退避再解释直到提交（线卡 #1216 的 E1a，session-adapters `tests/journal-interpretation.spec.ts` 的「AD-02: the execution head moves between the read and the commit」与「AD-02: a Session participant rollback that answers unavailable」）。暂时的回滚之后这项工作没有接着做成的，仍然判红。`line-through/cp3-rollbacks.spec.ts` 在快层用合成序列核对这个判定，其中包括负控。
 
+已知限制 KL-146（波 3；线卡 #1216 的 E1a 改写）：满载下 CP3 与 J6 仍会偶发红。AD-02 在暂时失败之后放下的那一处已经修好：它按退避重新排进会话队列接着解释，直到提交或得到确定的结局。剩下两个原因，都要改设计：
+
+- 执行头是占位回执（digest `unknown`，session-storage-sql K-5）：结果接收方经自己的 Journal 副本写入，这次写入不带这个执行自己的回执，头就记成占位。AD-02 读到占位头答 `history.executions.<execution>` 或 `the head of the execution was written by another execution`，会话一侧的历史索引同样把它当作没有头；要等这个执行自己的下一次写入才能往下解释。Run 收尾之后不再写，CP3 就判那次 `changed` 回滚没有解释。满载下修后 20 次红 3 次，签名都是这一种。
+- 交入回执（SE35）与 Agent 取走首条输入的交错：会话写 SE35 的 `receive` 要等 AD-02 解释完新事件（session-contract `requireObservedTail`，签名 `history.prefix.<execution>.committedConsequences: required original material is missing`）；解释完时输入多半已被取走，SE35 按归约写不上。J6 两个窗口里每轮的会话提交数因此偶尔差一次。这是契约允许的交错。
+
+两条的处置见线卡 #1216 的「退包（E1a）」。
+
 ### J6 的两种轮数
 
 `line-through/w2-counts.spec.ts` 有两种长度，由环境变量 `OMNE_J6_ROUNDS` 选择（R2-D141）。

@@ -25,7 +25,7 @@ export const SESSION_ORDINARY_BASIS = 'session-ordinary-basis'
  * The second one is the optimistic concurrency of AD-02: the Agent can write the execution again
  * between the AD-02 read of the execution head and its commitLog. session-contract SPEC: an expired
  * same-root basis answers `changed` and the provider prepares again. AD-02 makes the call again
- * after a backoff when it ends in either kind, until it commits (#1216 E1a, which closed KL-146);
+ * after a backoff when it ends in either kind, until it commits (#1216 E1a, the AD-02 part of KL-146);
  * session-adapters tests/journal-interpretation.spec.ts shows the cases. A transient rollback whose
  * work did not go on stays red, and every other reason is not explained.
  */
