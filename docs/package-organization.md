@@ -189,8 +189,16 @@ packages/
 │   └── schedule-tools/          独立日程与 Job 工具贡献
 ├── notification/notification/  通知及送达
 ├── slash-command/<成员>/       命令定义、识别与展开
-├── skills/<成员>/              方法、资源、发现与读取
-├── mcp/<成员>/                 端点、连接、发现与动作桥接
+├── skills/
+│   ├── skill-contract/          Skill 的公共值、包校验规则、需求端口与服务接口
+│   ├── skill/                   无 Cordis 的包校验、目录、搜索与读取
+│   ├── skill-cordis-contract/   唯一 Cordis 服务定义
+│   └── skill-host-local/        本机目录来源与提供者装配
+├── mcp/
+│   ├── mcp-contract/            接入点正文、动作清单、调用结局、需求端口与传输端口
+│   ├── mcp/                     无 Cordis 的连接表、发现、调用与任务
+│   ├── mcp-cordis-contract/     唯一 Cordis 服务定义
+│   └── mcp-host-local/          单机传输与提供者装配
 ├── storage/
 │   ├── sql-contract/           SQL 存储契约：身份、结果、材料与清单摘要、关闭控制口、Cordis 服务定义、内存替身与符合性套件；已是 workspace 成员，提供者未建立
 │   └── <其他成员>/             存储机制与提供者
@@ -458,6 +466,27 @@ Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 wor
 ## Session 的安装边界
 
 Session 按纯契约、Cordis 定义、通用实现、具体装配、邻域适配和存储介质分为六个 workspace 成员。session-adapters 另取 session-storage-sql 的公开子路径 `./participants`，只读参加者模块与迁移片段的词汇，用于在同一个事务域登记会话日志的组合。该子路径不导出提供者实现，依赖方向仍从邻域适配指向存储介质，不反向。运行入口与 Service 尚未实现，技术接受范围沿各自 SPEC。工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口、出站端口接口与领域操作归纯契约。session-cordis 只装配长期 Session 服务，不引入 Session runtime、实例目录或固定数据库。session-adapters 承接与六个邻域相接的全部适配插件，是组内唯一导入邻域契约的成员，依赖纯契约、Cordis 定义与邻域契约。session-storage-sql 提供事务端口的 SQL 实现，依赖纯契约与存储契约，不承担治理判断。详细成员关系见 [Session 组](../packages/session/README.md)。
+
+## Skill 与 MCP 的成员边界
+
+Skill 与 MCP 各按纯契约、通用实现、Cordis 定义和单机宿主组织为四个 workspace 成员。八个成员均为 private 0.0.0。
+
+| 成员 | 职责 |
+| --- | --- |
+| `skill-contract`、`mcp-contract` | 公共值、校验规则、需求端口、服务接口与资产类别端口。不含 Cordis、存储或运行时对象 |
+| `skill`、`mcp` | 无 Cordis 的领域实现：Skill 的包校验、目录与搜索、读正文与资源；MCP 的连接表、发现、调用与任务 |
+| `skill-cordis-contract`、`mcp-cordis-contract` | 唯一的 Cordis 服务定义与键。不依赖通用实现 |
+| `skill-host-local`、`mcp-host-local` | 单机宿主：Skill 的本机目录来源，MCP 的传输；各带 Cordis 绑定 |
+
+纯契约和通用实现不依赖 Cordis 定义与单机宿主；Cordis 定义不依赖通用实现与单机宿主。两个领域向外声明的需求端口现在只有测试替身，还没有接进发行应用：没有 `Skills` 元工具，MCP 的动作还没有成为工具条目，也没有经过会话的用例。这些在后续各程交付，支持范围见 [Skill 组](../packages/skills/README.md)与 [MCP 组](../packages/mcp/README.md)。
+
+成员带入轨道时有五处对不上现行规则，登记为偏离。前三处由紧接着的一程消除，后两处在 MCP 的动作成为工具条目的那一程消除：
+
+- MCP 的契约、连接表、传输与模型里带着命令型（stdio）接入。现行规则是只按地址接入，命令型不在 0.0.0 至 0.1.0 阶段，也不为它留设施，见 [MCP 领域页](domains/mcp/README.md)。退出条件：这些代码、模型与成员正文里的命令型接入删掉。
+- Skill 的契约里带着脚本运行方式与落点、身份类设置的数据声明。现行规则是 `Skills` 没有执行命令，脚本由 Shell 执行，Skill 不向脚本供给设置，见 [Skill 领域页](domains/skills/README.md)。退出条件：这些声明从契约与 `.omne/skill.json` 的形状里删掉。
+- `skill`、`mcp`、`mcp-host-local` 三个成员的形式模型没有按[开发指南](development.md)「形式工具链」的办法登记成形式任务：前一个没有运行脚本，后两个用成员自带的运行脚本。其中两处模型含命令型接入。退出条件：删掉命令型接入之后，模型随之改写，并登记成形式任务。
+- MCP 的动作清单保留对端不再提供的动作，并逐个动作标不可用的原因。现行规则是这个动作从清单里消失，不可用在接入点这一级说明，见 [MCP 产品正文 J-MC02](../.meta_harness/design/product/mcp/design.md#j-mc02-发现合法动作并理解不可用)。退出条件：清单与可用性改成现行规则的样子。
+- MCP 按对端动作逐个声明调用权限项。现行规则是每个接入点一项调用权限，见 [MCP 领域页](domains/mcp/README.md)。退出条件：权限项改成每个接入点一项。
 
 ## 日历与日程的安装和部署边界
 
