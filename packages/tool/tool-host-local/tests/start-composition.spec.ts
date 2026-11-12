@@ -68,11 +68,18 @@ function assembly(
   options: Readonly<{
     beforeConsume?: () => Promise<void>
     store?: (memory: ToolLedgerStore) => ToolLedgerStore
+    /** Stands in for the coordinator's consume, given the real one. */
+    consume?: (
+      real: ReturnType<typeof coordinator>['consume'],
+    ) => ReturnType<typeof coordinator>['consume']
+    /** The store of an earlier assembly: this one is a new process over it. */
+    memory?: ToolLedgerStore
   }> = {},
 ) {
-  const memory = createMemoryToolLedgerStore()
+  const memory = options.memory ?? createMemoryToolLedgerStore()
   const store = options.store === undefined ? memory : options.store(memory)
   const authority = coordinator(store)
+  const consume = options.consume?.(authority.consume) ?? authority.consume
   const identities = createTestToolIdentities()
   const source = createTestInvocationSource<Principal>({
     snapshotPrincipal: principal => ({
@@ -99,7 +106,7 @@ function assembly(
     start: async input => {
       starts.push(input.call)
       await options.beforeConsume?.()
-      const consumed = await authority.consume({
+      const consumed = await consume({
         principal: input.principal,
         tenant: input.tenant,
         call: input.call,
@@ -107,13 +114,24 @@ function assembly(
         request: input.request,
         executorReceipt: evidence(`capsule-${input.call}`),
       })
+      // The answers of the execution binding (tool-host-local SPEC): a consume that does not answer
+      // `started` never enters the author.
       if ('failure' in consumed) return consumed
-      if (consumed.ok.kind !== 'started')
-        return fail({ kind: 'unavailable', dependency: 'executor', diagnostic: consumed.ok.kind })
+      if (consumed.ok.kind === 'unknown')
+        return fail({ kind: 'commit-unknown', operation: input.start.operation })
+      if (consumed.ok.kind !== 'started') return fail({ kind: 'denied', action: 'start-author' })
       executions.push(input.call)
       return succeed(liveExecution())
     },
-    inspectStart: () => Promise.reject(new Error('recovery')),
+    // A start that this binding did not run is what the coordinator decided.
+    inspectStart: async input => {
+      const decided = await authority.inspect(input)
+      if ('failure' in decided) return decided
+      const progress = decided.ok
+      return progress.kind === 'not-started' || progress.kind === 'rejected'
+        ? succeed({ kind: 'not-started', exclusion: progress.exclusion })
+        : succeed({ kind: 'unknown', diagnostic: progress.kind })
+    },
   }
   const ledger = createToolLedger<Principal, Block>(
     store,
@@ -241,7 +259,18 @@ function assembly(
               },
             }),
           ),
-        inspectPreparation: () => Promise.reject(new Error('the prepared value is kept')),
+        // A new process reconnects the environment that the first one prepared.
+        inspectPreparation: input =>
+          Promise.resolve(
+            succeed({
+              kind: 'prepared',
+              environment: {
+                value: null,
+                evidence: evidence('environment'),
+                preparation: input.preparation,
+              },
+            }),
+          ),
         release: () => Promise.reject(new Error('release')),
         inspectRelease: () => Promise.reject(new Error('release')),
       },
@@ -358,7 +387,22 @@ function assembly(
       operation: operationId('revoke-1'),
       guard: { ...permission, revision: '0', evidence: evidence('g'), scope: { kind: 'resource' } },
     })
-  return { admit, run, state, invalidate, starts, executions, authority, call }
+  const adopt = (from: ToolInvocationRef | undefined) => {
+    reference = from
+  }
+  return {
+    admit,
+    run,
+    state,
+    invalidate,
+    starts,
+    executions,
+    authority,
+    call,
+    memory,
+    adopt,
+    reference: () => reference,
+  }
 }
 
 describe('G5 under the runtime', () => {
@@ -429,6 +473,45 @@ describe('G5 under the runtime', () => {
     expect(harness.starts).toEqual([harness.call().call])
     expect(harness.executions).toEqual([harness.call().call])
     expect((await harness.state()).phase).toBe('running')
+  })
+})
+
+// The coordinator cannot answer a consume once (F1): the start was not accepted, so it is not a
+// failure of the call. The run ends unavailable and the next run, in this process or a new one,
+// starts the same start with a new permit (U1 to U4). Before, it was settled unavailable for good.
+describe('G5 under the runtime: a consume the coordinator cannot answer', () => {
+  const busyOnce = (real: ReturnType<typeof coordinator>['consume']) => {
+    let busy = true
+    return ((input: Parameters<typeof real>[0]) => {
+      if (!busy) return real(input)
+      busy = false
+      return Promise.resolve(
+        fail({ kind: 'unavailable' as const, dependency: 'start-ledger', diagnostic: 'busy' }),
+      )
+    }) as typeof real
+  }
+
+  it('G5 composition: the next run starts the call', async () => {
+    const harness = assembly({ consume: busyOnce })
+    await harness.admit()
+    await harness.run()
+    expect(harness.executions).toEqual([])
+    expect(await harness.state()).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    await harness.run()
+    expect(harness.executions).toEqual([harness.call().call])
+    expect(await harness.state()).toMatchObject({ phase: 'running', execution: { kind: 'live' } })
+  })
+
+  it('G5 composition: a new process over the same store starts the call', async () => {
+    const first = assembly({ consume: busyOnce })
+    await first.admit()
+    await first.run()
+    const next = assembly({ memory: first.memory })
+    next.adopt(first.reference())
+    await next.run()
+    expect(first.executions).toEqual([])
+    expect(next.executions).toEqual([next.call().call])
+    expect(await next.state()).toMatchObject({ phase: 'running', execution: { kind: 'live' } })
   })
 })
 

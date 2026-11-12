@@ -56,7 +56,21 @@ const setPhase = (value: number) => {
 /** A change of the operator configuration of one row, for a measurement that varies one setting. */
 export type Tuning = (row: string, config: Record<string, unknown>) => Record<string, unknown>
 
-export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, config) => config) {
+/** What a measurement other than the new-session call changes in the assembly. */
+export type AssemblyOptions = Readonly<{
+  /** The entry kinds `read-history` answers. Default: only `run.terminal`, which `call` reads. */
+  historyKinds?: readonly string[]
+  /** Every record the server writes to its stdout writer: row states and telemetry records. */
+  record?: (record: unknown) => void
+  /** The Shell script of each model call that executes. Default: print the payload file. */
+  script?: () => string
+}>
+
+export async function startAssembly(
+  kind: PayloadKind,
+  tune: Tuning = (_row, config) => config,
+  options: AssemblyOptions = {},
+) {
   // The state lives in a short temporary path (socket paths have a length limit) and is removed at
   // the end; the evidence goes to the output directory of the run.
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'history-cost-')))
@@ -67,10 +81,19 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
   const author = payload(kind)
   const model = createTraversal({
     body: author.body,
-    script: PAYLOAD_SCRIPT,
+    script: options.script ?? PAYLOAD_SCRIPT,
     pageBytes: PAGE_BYTES,
   })
-  const gateway = await startModelGateway(model.script)
+  // The time the scripted model spends forming its answers: the wait on the model of a call.
+  let modelMs = 0
+  const gateway = await startModelGateway(request => {
+    const started = performance.now()
+    try {
+      return model.script(request)
+    } finally {
+      modelMs += performance.now() - started
+    }
+  })
   gateway.trustInProcess()
   const release: unknown = JSON.parse(
     readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
@@ -83,7 +106,10 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
     ops: layer.ops.map(op => {
       const config = op.config ?? {}
       if (op.id === 'server-entry')
-        return { ...op, config: { ...config, historyKinds: ['run.terminal'] } }
+        return {
+          ...op,
+          config: { ...config, historyKinds: [...(options.historyKinds ?? ['run.terminal'])] },
+        }
       if (op.id === 'tool-bindings') {
         const tools = config['tools'] as Record<string, unknown>
         return {
@@ -145,7 +171,7 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
     stop: controller.signal,
     readinessTimeoutMs: 15_000,
     shutdownDeadlineMs: 10_000,
-    write: () => undefined,
+    write: record => options.record?.(record),
     stderr: line => {
       stderr.push(line)
       if (stderr.length > 100) stderr.shift()
@@ -199,6 +225,13 @@ export async function startAssembly(kind: PayloadKind, tune: Tuning = (_row, con
 
   return {
     base,
+    stateRoot,
+    storageRoot,
+    server,
+    cli,
+    model,
+    /** The milliseconds the scripted model has spent forming answers since the assembly started. */
+    modelMs: () => modelMs,
     author,
     stderr,
     ready: () => until(() => connectable('127.0.0.1', port), 'the server to listen', 20_000),

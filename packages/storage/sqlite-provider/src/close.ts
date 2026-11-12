@@ -69,6 +69,8 @@ export class InFlight {
 export type CloseDeps = Readonly<{
   config: SqliteStorageConfig
   lifecycle: Lifecycle
+  /** Its waiters end with closing when the close starts (sql-contract SPEC 准入等待 rule 6). */
+  admission: Readonly<{ close(): void }>
   domains: Domains
   inFlight: InFlight
   readers: ReaderPool
@@ -93,6 +95,7 @@ export function createControl(deps: CloseDeps): StorageControl {
         /* wall-clock: operation-timing -- The close deadline is a monotonic duration from the first close call (SPEC 13.1). */ performance.now() +
         deps.config.closeDeadlineMs
       deps.lifecycle.closing = true
+      deps.admission.close()
       drain = Promise.all([deps.domains.closeAll(), deps.readers.closeAll()]).then(
         () => void (drained = true),
         () => void (drained = true),

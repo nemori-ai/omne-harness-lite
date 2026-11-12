@@ -17,6 +17,7 @@ import {
   coordinator,
   evidence,
   failingNextCommit,
+  noPermitRequirements,
   operationId,
   permission,
   principalA,
@@ -868,5 +869,95 @@ describe('G5 tenants and qualification', () => {
     })
     expect(Date.now() - started).toBeLessThan(2_000)
     expect(await first).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+})
+
+// A turn that outlives its bound keeps running and may still commit (the serial section above).
+// The caller that stopped waiting cannot tell whether it did, so it gets the unknown answer of its
+// own operation, never `unavailable`, which would claim that nothing was decided.
+describe('G5 bound: what an expired turn may still commit is unknown, not unavailable', () => {
+  /** A store over memory whose commits wait until `release()`, then write as usual. */
+  const heldCommits = () => {
+    const memory = createMemoryToolLedgerStore()
+    let held: (() => void)[] = []
+    let holding = false
+    const store: ToolLedgerStore = {
+      durability: 'none',
+      scanPending: input => memory.scanPending(input),
+      readRecord: (domain, key) => memory.readRecord(domain, key),
+      due: (tenant, now, limit) => memory.due(tenant, now, limit),
+      read: domain => memory.read(domain),
+      commit: input =>
+        holding
+          ? new Promise(resolve => held.push(() => resolve(memory.commit(input))))
+          : memory.commit(input),
+    }
+    return {
+      store,
+      hold: () => {
+        holding = true
+      },
+      release: async () => {
+        holding = false
+        const waiting = held
+        held = []
+        for (const go of waiting) go()
+        await new Promise<void>(resolve => setTimeout(resolve, 20))
+      },
+    }
+  }
+  const bounded = (store: ToolLedgerStore) =>
+    createLocalStartCoordinator({
+      store,
+      access: access(),
+      permitRequirements: noPermitRequirements,
+      guardsOf: () => [permission],
+      commitAttempts: 4,
+      turnTimeoutMs: 60,
+    })
+
+  it('consume answers unknown, and the acceptance its turn committed later is recalled', async () => {
+    const held = heldCommits()
+    const authority = bounded(held.store)
+    const permit = await permitFor(authority, 'c1')
+    held.hold()
+    expect(ok(await authority.consume(consumeWith(permit)))).toEqual({
+      kind: 'unknown',
+      diagnostic: expect.stringContaining('did not settle within 60 ms'),
+    })
+    await held.release()
+    expect(ok(await authority.consume(consumeWith(permit)))).toMatchObject({ kind: 'started' })
+  })
+
+  it('inspect answers unknown while its exclusion marker may still land', async () => {
+    const held = heldCommits()
+    const authority = bounded(held.store)
+    await permitFor(authority, 'c1')
+    held.hold()
+    expect(ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))).toEqual({
+      kind: 'unknown',
+      diagnostic: expect.stringContaining('did not settle within 60 ms'),
+    })
+    await held.release()
+    expect(
+      ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') })),
+    ).toMatchObject({ kind: 'not-started' })
+  })
+
+  it('exclude and invalidate answer commit-unknown with their own operation', async () => {
+    const held = heldCommits()
+    const authority = bounded(held.store)
+    held.hold()
+    expect(
+      await authority.exclude({
+        ...callAccess('c1'),
+        operation: operationId('exclude-1'),
+        reason: 'withdrawn',
+      }),
+    ).toEqual({ failure: { kind: 'commit-unknown', operation: operationId('exclude-1') } })
+    expect(await authority.invalidate(invalidation('revoke-1'))).toEqual({
+      failure: { kind: 'commit-unknown', operation: operationId('revoke-1') },
+    })
+    await held.release()
   })
 })

@@ -695,6 +695,47 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return recordStart(step, recovery, start, { kind: 'rejected', reason, exclusion: excluded.ok })
   }
 
+  /**
+   * After the binding was asked to start: the fence tells what happened (P04). A refusal or a throw
+   * that the fence did not settle is marked for reconciliation; a binding that could not answer,
+   * for a start that the fence did not accept, ends the run unavailable, and the next run starts
+   * the same start with a new permit (U2, U4). Nothing of that failure is kept.
+   */
+  const reconcileInvocation = async (
+    step: Step<P>,
+    recovery: ToolRecovery,
+    start: ToolStartRecord,
+    invoked: Exclude<Awaited<ReturnType<typeof binding.invoke>>, { kind: 'port-failed' }>,
+    recordBindingFailureMarker: () => Promise<StepResult>,
+  ): Promise<StepResult> => {
+    const afterStart = await authority.inspect({
+      principal: step.principal,
+      tenant: step.tenant,
+      call: step.call,
+      start,
+    })
+    if (
+      'ok' in afterStart &&
+      (afterStart.ok.kind === 'started' || afterStart.ok.kind === 'rejected')
+    )
+      return recordStart(step, recovery, start, afterStart.ok)
+    if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
+      return recordBindingFailureMarker()
+    if ('failure' in afterStart) return { kind: 'failed', failure: afterStart.failure }
+    if (afterStart.ok.kind === 'unknown')
+      return unknownStart(step, recovery, start, afterStart.ok.diagnostic)
+    if (invoked.kind === 'binding-unanswered')
+      return {
+        kind: 'failed',
+        failure: {
+          kind: 'unavailable',
+          dependency: 'toolBindings',
+          diagnostic: `the start was not accepted: the binding answered ${invoked.failure.kind}`,
+        },
+      }
+    return blocked('the authority excludes a start with a known live execution')
+  }
+
   const fence = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -738,19 +779,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
     if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
       unconfirmedBindingFailures.add(callKey(step.tenant, step.call))
-    const afterStart = await authority.inspect({ ...access, start })
-    if (
-      'ok' in afterStart &&
-      (afterStart.ok.kind === 'started' || afterStart.ok.kind === 'rejected')
-    )
-      return recordStart(step, recovery, start, afterStart.ok)
-    if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw') {
-      return recordBindingFailureMarker()
-    }
-    if ('failure' in afterStart) return { kind: 'failed', failure: afterStart.failure }
-    return afterStart.ok.kind === 'unknown'
-      ? unknownStart(step, recovery, start, afterStart.ok.diagnostic)
-      : blocked('the authority excludes a start with a known live execution')
+    return reconcileInvocation(step, recovery, start, invoked, recordBindingFailureMarker)
   }
 
   /** A settled call with a `queue` task still owes the queue domain its release (crash repair). */

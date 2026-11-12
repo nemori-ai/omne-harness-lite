@@ -14,6 +14,7 @@
 | `AccessContribution`、`OperationHandler`、`CallContext`、`BodyOf`、`AnswerOf` | 类型 | [src/contribution.ts](../src/contribution.ts) |
 | `FrameSource`、`ObservationContext`、`OpenOf`、`FrameOf`、`EndOf` | 类型 | [src/contribution.ts](../src/contribution.ts) |
 | `ProtocolKey`、`LoginIdentity`、`Principal`、`PrincipalFor` | 类型 | [src/contribution.ts](../src/contribution.ts) |
+| `AccessIdentity`、`IdentityFailure`、`LoginResult`、`ActForResult` | 类型 | [src/identity.ts](../src/identity.ts) |
 | `AccessAssemblyError` | 类 | [src/contribution.ts](../src/contribution.ts) |
 | `AccessRegistryService`、`accessRegistryKey` | 抽象 `Service` 与服务名 | [src/cordis.ts](../src/cordis.ts) |
 

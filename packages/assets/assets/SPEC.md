@@ -193,6 +193,24 @@ AR-J05 的设置与权限主行为分别由 [settings](../settings/SPEC.md#journ
 
 Cordis 按组合挂载提供者。提供者向装配侧的注册表登记。注册表不导入提供者的实现包。理由见[内部设计](docs/internals.md#category-provider-seam)。
 
+### 正文是目录的类别
+
+<a id="directory-category"></a>
+
+本小节的接受依据是负责人 2026-11-12 的裁定，与上面的技术接受分开。它是已接受的目标，实现在 4 号线，尚未实现。
+
+类别向资产登记时，正文是一个目录的类别在上面的契约之外多交三样：
+
+1. 命名空间：这个类别在每一层的根下用的目录名。
+2. 目录的校验与大小上限：文件数、单文件大小和整包大小的上限，以及一个目录合不合法的判断。超过上限或校验不过的目录被拒绝，不进入发布。
+3. 从目录到类别声明的投影：从合法的目录得出类别的声明，例如名字、说明和依赖。
+
+正文不是目录的类别不交这三样。
+
+资产定一套内容的存放办法：每一层一个根，根下每个类别一个命名空间，命名空间下每个名字一个目录。类别领域按能力标识向资产要一个包的读口，不认路径，也不认目录布局。包的清单记一个包里每个文件的路径、大小和摘要，包的摘要由清单算出。读口只有两步：取清单，按清单里的路径与摘要读一个文件。读口读不出清单之外的东西。文件的字节与清单里的摘要对不上时，答材料不可用。
+
+治理的事实在记录里，内容在目录里，靠摘要对上。清单与投影出的声明是版本记录的正文，版本号是包的摘要。文件的字节放在资产定的目录里。已发布的包只由发布写入，写入后不变。发布不是跨记录与目录的事务，它是一个有次序的流程，并按操作标识幂等。宿主机文件系统是单机装配下的存储后端，其他部署可以换后端，上面的语义不变。
+
 ### Tool 样例
 
 成功。求值不带版本。该工具在来源层的层值是跟随当前版。提供者交出候选项。身份是 Tool 加 `read_file`。版本是当时的合法胜出者 `v3`。正文是该工具的参数声明和执行说明。装配侧决定这次采用。采用依据记下 `v3` 和当时交出的正文。同一次执行读取这份正文时，读取采用依据里的正文。后来发布的 `v4` 不改写这份依据。尚未发出的后续调用若遇到合法刷新，可以按架构页看到新的定义。已经发出的调用仍使用依据里的正文。
@@ -219,4 +237,4 @@ PanQiWei 于 2026-10-15 接受这组编程类型，记录见 [Issue 272](https:/
 
 能力身份是类别加 name。本卡不重新定义 `AccountId`、`OrganizationId`、`TenantId`、`LoginStateId` 或 `ScopeLayerIdentity`。这些值不是本卡的输入，所以本成员不依赖 `@omne-harness/legal-identity`。本成员不依赖装配、Tool 或 Skill 的实现包。Tool 绑定登记表的来源层（`official`、`organization`、`tenant`、`workspace`）与 `ScopeLayerIdentity` 的关系，待识别拥有者后协调，见 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)。
 
-`@omne-harness/tool-contract` 登记 `tool`。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用。`@omne-harness/skill` 登记 `skill`。`tools` 里每一条都必须是 `tool` 身份。读判断不执行正文里的函数。Skill 包不依赖 Tool 包。`@omne-harness/agent-contract` 的 `agentBodyContract` 登记 `AgentDefinition`，正文规则见 Agent 契约的[资产正文契约](../../agent/agent-contract/SPEC.md#资产正文契约)。
+`@omne-harness/tool-contract` 登记 `tool`。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用。`@omne-harness/skill-contract` 登记 `skill`。`tools` 里每一条都必须是 `tool` 身份。读判断不执行正文里的函数。Skill 包不依赖 Tool 包。`@omne-harness/agent-contract` 的 `agentBodyContract` 登记 `AgentDefinition`，正文规则见 Agent 契约的[资产正文契约](../../agent/agent-contract/SPEC.md#资产正文契约)。

@@ -1,0 +1,19 @@
+# schema
+
+本目录承载本包对外的 Schema、稳定身份与发布消费说明。
+
+## 允许的内容
+
+JSON Schema 文件与说明。
+
+## 边界
+
+占位不是已发布的 Schema。Schema 的身份不随目录搬迁而改变；发布范围由对应责任明确声明。
+
+## 维护
+
+Schema 变化时，同步消费者、示例与验证资源。
+
+## 本包事实
+
+本包没有对外 Schema。`.omne/skill.json` 的 Schema 归 `@omne-harness/skill-contract`。`documentation.json` 把本目录记为 `not-applicable`。

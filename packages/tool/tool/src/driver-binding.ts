@@ -15,6 +15,11 @@ import { digestOf as canonicalDigest } from './evidence.ts'
 type Invocation =
   | Readonly<{ kind: 'port-failed'; failure: ToolFailure }>
   | Readonly<{ kind: 'binding-failed' }>
+  /**
+   * The binding could not answer: `unavailable`, or `commit-unknown` of the consume. Whether the
+   * fence accepted the start is asked of the fence, not concluded from this answer (U1, U2).
+   */
+  | Readonly<{ kind: 'binding-unanswered'; failure: ToolFailure }>
   | Readonly<{ kind: 'binding-threw' }>
   | Readonly<{ kind: 'live' }>
 
@@ -33,6 +38,16 @@ function resumeInput(
   if (wait?.phase !== 'responding')
     return fail({ kind: 'invalid', field: 'checkpoint', reason: 'no-responding-wait' })
   return succeed({ state: kept.state, response: wait.response })
+}
+
+/** The answers of a binding that do not tell whether the start was accepted. */
+const UNANSWERED: ReadonlySet<ToolFailure['kind']> = new Set(['unavailable', 'commit-unknown'])
+
+/** A binding that failed the start: a refusal, or an answer that tells nothing (U1). */
+function failedStart(failure: ToolFailure): Invocation {
+  return UNANSWERED.has(failure.kind)
+    ? { kind: 'binding-unanswered', failure }
+    : { kind: 'binding-failed' }
 }
 
 export function createBindingInvoker<P, B extends ContentBlock, E>(
@@ -84,7 +99,8 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
           : bound.kind === 'checkpointed' && resumed !== null
             ? await bound.resume({ ...input, start, ...resumed.ok }, environment.ok)
             : null
-      if (live === null || 'failure' in live) return { kind: 'binding-failed' }
+      if (live === null) return { kind: 'binding-failed' }
+      if ('failure' in live) return failedStart(live.failure)
       lives.set(startKey(step, start), live.ok)
       return { kind: 'live' }
     } catch {

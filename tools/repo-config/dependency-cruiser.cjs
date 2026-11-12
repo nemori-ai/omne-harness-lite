@@ -81,12 +81,12 @@ module.exports = {
     },
     {
       name: 'entry-registry-knows-no-domain',
-      comment: `The registry and the settle step of the entry know no domain: no domain member, and none of the entry's existing domain positions. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-1`,
+      comment: `The registry, the settle step and the pipeline of the entry know no domain: no domain member, and none of the entry's existing domain positions. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-1`,
       severity: 'error',
-      from: { path: `${SERVER_ENTRY}src/(registry|settle)/` },
+      from: { path: `${SERVER_ENTRY}src/(registry|settle|pipeline)/` },
       to: {
         path: `${PACKAGES}|${SERVER_ENTRY}src/`,
-        pathNot: `${PUBLIC_CONTRACT}|${ACCESS_CORDIS_CONTRACT}|${SHARED}|${SERVER_ENTRY}src/(registry|settle)/`,
+        pathNot: `${PUBLIC_CONTRACT}|${ACCESS_CORDIS_CONTRACT}|${SHARED}|${SERVER_ENTRY}src/(registry|settle|pipeline)/`,
       },
     },
     {

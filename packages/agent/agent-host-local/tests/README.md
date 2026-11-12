@@ -40,11 +40,15 @@ CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` �
 
 已知限制 KL-146（波 3；线卡 #1216 的 E1a 改写）：满载下 CP3 仍会偶发红。AD-02 在暂时失败之后放下的那一处已经修好：它按退避重新排进会话队列接着解释，直到提交或得到确定的结局。剩下一个原因，要改设计：
 
-- 执行头是占位回执（digest `unknown`，session-storage-sql K-5）：结果接收方经自己的 Journal 副本写入，这次写入不带这个执行自己的回执，头就记成占位。AD-02 读到占位头答 `history.executions.<execution>` 或 `the head of the execution was written by another execution`，会话一侧的历史索引同样把它当作没有头；要等这个执行自己的下一次写入才能往下解释。Run 收尾之后不再写，CP3 就判那次 `changed` 回滚没有解释。满载下修后 20 次红 3 次，签名都是这一种。
+- 执行头是占位回执（digest `unknown`，session-storage-sql K-5）：结果接收方经自己的 Journal 副本写入，这次写入不带这个执行自己的回执，头就记成占位。AD-02 读到占位头答 `history.executions.<execution>` 或 `the head of the execution was written by another execution`，会话一侧的历史索引同样把它当作没有头；要等这个执行自己的下一次写入才能往下解释。Run 收尾之后不再写，CP3 就判那次 `changed` 回滚没有解释。同一负载下新旧 AD-02 交替各跑 30 次，CP3 都红 9 次，签名都是这一种（AD-02 暂时失败后第一次立刻再排，和原来的一次重排一样。第一次就等退避的版本在另一组对照里是新 9 次对旧 2 次：等待给了别的执行的写入换上占位头的时间）。
 
-处置见线卡 #1216 的「退包（E1a，补充）」。
+卡 #1218 H2 在 `a89d77662` 上加负载复现时看到同样两处：CP3 把判定的等待放到 120 秒，10 次里 3 次到期时仍有 2 到 5 条 `changed` 回滚没有解释，等待窗口不是原因，和上一条一致；J6 的一轮里 `receive(input-handover)` 以 `history.prefix` 签名回滚，这一轮的 Session 提交数少 1，见下一段。
+
+处置见线卡 #1216 的「退包（E1a，补充）」与「差异与标准：E1b 执行头总有真值」。
 
 原来的第二个原因不再是限制：交入回执（SE35）与 Agent 取走首条输入的交错。会话写 SE35 的 `receive` 要等新事件解释完（session-contract `requireObservedTail`，签名 `history.prefix.<execution>.committedConsequences: required original material is missing`）；解释完时输入多半已被取走，归约答 `the input is not pending`，这一笔 SE35 不成立。这是契约允许的交错，session-contract SPEC 写明了续入不依赖它。J6 因此把会话参加者每轮的提交数归为随交错变的计数，见下节。
+
+一次性复现脚本 `cp3-repro-loop.sh`、`cp3-repro-delay.sh` 已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages/agent/agent-host-local/tests/line-through)。升级条件：在批次 D、E 的准入、C1 联调或 SC4 端到端中，不加扰动时只要出现一次 KL-146 的回滚，就升级为波 2 必修。
 
 ### J6 的两种轮数
 

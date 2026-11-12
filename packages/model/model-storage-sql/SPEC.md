@@ -142,10 +142,10 @@ SQL 的 Attempt.commit 只表示本轮暂存，不能建立首次资格或公开
 2. 对本进程登记的、属于这个调用的未定 operation 查询存储。存储已有结论的，从登记里移除。
 3. scope 不带调用时返回 `unavailable`。
 4. 读 `model.call`，在这次读取上运行 `work`。`work` 没有暂存写入时，直接返回 `work` 的结果。
-5. 写入 operation 时，按存储身份 `<operation>#<n>` 找第一个未使用的代：已回滚的代跳过。找代不设上限，与 `attemptLimit` 无关：同一 operation 在多次 run 里被回滚的代会累积，有上限就会在若干次暂时失败之后永远找不到可用的代。本进程按 operation 记住已见到的最大代，下次从它往后找；进程重启后从 `#1` 往后找。已提交的代说明读取已过时，回到第 2 步。结论未定时返回 `commit-unknown`。读关系进度的写入使用身份 `<call>#read@<version>`。
+5. 写入 operation 时用存储身份 `<operation>#<n>`，直接提交本进程为这个 operation 记住的那一代，不先查询（sql-contract [认回标记](../../storage/sql-contract/SPEC.md#认回标记)）。本进程按 operation 记住已见到回滚的最大代，从它的下一代起；进程重启后从 `#1` 起。按答复换代：存储认回了这一代早先的回滚回执（`rolled_back` 且 `recalled`），或这一代已有别的输入的回滚回执（`identity_conflict`，早先回执是回滚），这一代就用掉了，记下它并提交下一代。存储认回了这一代早先的已提交回执（`committed` 且 `recalled`），或这一代已有别的输入的已提交回执（`identity_conflict`，早先回执是已提交），说明读取已过时，回到第 2 步。换代不设上限，与 `attemptLimit` 无关：同一 operation 在多次 run 里被回滚的代会累积，有上限就会在若干次暂时失败之后永远找不到可用的代。结论未定的 operation 只在第 2 步查询；第 2 步之后仍登记为未定的，返回 `commit-unknown`，不重发。读关系进度的写入使用身份 `<call>#read@<version>`，不分代。
 6. 把暂存的行作为一条事实命令提交给参加者 `model`，并按结果映射：
    - `committed`：返回 `work` 的结果（`work` 失败时也照样提交它暂存的写入，例如读关系的 `denied` 结束）。
-   - 参加者以 `version`、`operation-bound` 或 `call-exists` 停止，或 `identity_conflict`：回到第 2 步。
+   - 参加者以 `version`、`operation-bound` 或 `call-exists` 停止：回到第 2 步。`identity_conflict` 与认回的回执按第 5 步换代或回到第 2 步。
    - 参加者以 `share-full` 停止：租户份额此刻被占满，返回 `unavailable`，依赖名 `model-capacity`（与共享核心受理检查答的同名），诊断写明租户份额已满。调用方等待后以原身份再受理。
    - `unknown` 或 `writer_not_current`：登记该 operation 为结论未定，返回 `commit-unknown`。读关系进度的写入返回 `unavailable`。
    - 其余受理前拒绝：按 sql-contract 的[提交拒绝原因的定性](../../storage/sql-contract/SPEC.md#提交拒绝原因的定性)翻译。暂时的原因返回 `unavailable`，诊断写明存储的原因。确定的原因返回 `invalid`，`field` 为 `storage`，`reason` 为存储的原因名。

@@ -151,6 +151,6 @@ The cases call this package over real loopback HTTP. They use the `./testing` re
 
 ## Maintenance
 
-Change [SPEC.md](SPEC.md) first, then the code and the cases. When the public contract adds or changes a term, check the status code table in `src/status.ts` and the result mapping in `src/session.ts` first, and the type check will name the missing row. When a Session face or a public identity type changes, check the subset used by `src/faces.ts` and `src/identity-steps.ts`.
+Change [SPEC.md](SPEC.md) first, then the code and the cases. When the public contract adds or changes a term, check the status code table in `src/pipeline/status.ts` and the result mapping in `src/session.ts` first, and the type check will name the missing row. When a Session face or a public identity type changes, check the subset used by `src/faces.ts` and `src/identity-steps.ts`.
 
 Keep [README_ZH.md](README_ZH.md) in step with this file. Both files state the same promises.

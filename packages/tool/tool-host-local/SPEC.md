@@ -37,7 +37,7 @@ R2-D60（[#421 的采用决定](https://github.com/nemori-ai/omne-harness-lite/i
 
 `prepare` 与 `consume` 读本调用的域与 `start-guards`、做决定、按本调用域的修订号条件提交。`consume` 的受理提交另带读集断言：`start-guards` 的修订号仍等于本次读到的修订号，任一不符即 `conflict`、不写入。失效在受理读到守卫之后、受理提交之前落下时，受理提交冲突，重读看到守卫前进，回复永久拒绝（[start-coordinator.spec.ts](tests/start-coordinator.spec.ts) 在该窗口内注入失效）。两个域没有共同的修订顺序，受理与失效的先后由提交裁定：失效先提交则本次重读看到守卫前进、提交永久拒绝；受理先提交则失效落在它之后、启动在途。失效在提交之后才回复证据，所以已经回复的失效一定被之后的受理看到（P04）。这个栅栏由 [StartConsume 模型](verification/models/start-consume/README.md)检查。修订冲突时重读重判，最多 `commitAttempts` 次，用尽后回复 `unavailable`。
 
-同一进程内，写同一个域的操作还经过该域的串行区，它只减少同域操作的修订冲突，不是先后正确的前提，也不跨域排序。
+同一进程内，写同一个域的操作还经过该域的串行区，它只减少同域操作的修订冲突，不是先后正确的前提，也不跨域排序。一个调用方在串行区里的等待有上限 `turnTimeoutMs`（缺省为 `commitAttempts` 乘每轮的时长），从排队算起。到了上限，调用方不再等，那一轮的工作继续跑完、仍可能提交，所以调用方得到的是各操作自己的「未知」：`consume` 与 `inspect` 回复 `unknown`，`exclude` 与 `invalidate` 回复 `commit-unknown`。之后以同一许可重送 `consume`、以同一操作号重送 `exclude` 或 `invalidate`，认回那一轮实际提交的事实。`prepare` 回复 `unavailable`：它签发的许可只有调用方拿到时才能用，没拿到的许可之后被同一启动的新许可取代。
 
 本排序域只在一个进程内验证过。两个进程共用记录仓的装配没有验证，所以本协调器不声明跨进程的启动保证（P04）。
 
@@ -335,7 +335,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 `createLocalToolLoader` 先核来源及登记资格，再读取该来源层的合法设置。它调用实现模块、派生定义并运行 `judgeToolDefinition`，最后等待注入的 schema 检查。任一步失败都不发布装载句柄。合法设置、来源真实性与 schema 提供者由装配给出；本包不推导设置覆盖规则。
 
-`createLocalToolBindings` 在登记表内原子选择并 pin 装载句柄。首选请求记下的键，包括 draining；回退只选同形、可访问的 live 贡献，并取最早登记的一份。绑定按 tenant/call 固定请求，按 tenant/call/start 认回执行。它核原 executor 与 permit 身份，先完成 `authority.consume`，再调用作者。未知消费不进入作者，不重放消费或执行。
+`createLocalToolBindings` 在登记表内原子选择并 pin 装载句柄。首选请求记下的键，包括 draining；回退只选同形、可访问的 live 贡献，并取最早登记的一份。绑定按 tenant/call 固定请求，按 tenant/call/start 认回执行。它核原 executor 与 permit 身份，先完成 `authority.consume`，再调用作者。只有消费答 `started` 才进入作者，同一启动的作者在本进程里至多进入一次。绑定对一次尝试只记住它有没有进入作者；有没有被受理，问启动围栏，不问内存。消费答了别的（`unavailable`、`unknown`、确定的拒绝）或抛错时不进入作者，这次的答复也不保留：同一启动再来，绑定新开一次尝试、再消费一次，围栏对同一启动认回原受理，所以重新消费就是认回。没有进入作者的尝试保留的 pin 交给下一次尝试，不另取一个。`inspectStart` 遇到本进程没有进入作者的启动（包括进程重启后没有记录的），先等进行中的消费答复，再问 `authority.inspect`：围栏答 `not-started` 或 `rejected`，回复 `not-started` 并带围栏的排除证据；围栏答 `unknown`，回复 `unknown`；围栏答 `started` 而本进程有这次尝试，说明消费的答复丢了，受理之后只有原执行桥能推进（P04），绑定此时进入作者一次并回复 `live`；本进程没有这次尝试（例如重启之后），不知道上一个进程有没有进入作者，回复 `unknown`，不进入作者。
 
 同一绑定为其他调用取得 pin 时，登记表在同步步骤中核对原注册仍在且该租户可访问。原注册撤除后，同键后继不能替它提供 pin；即使后继复用了同一个装载句柄，也属于另一注册。已保留的原 start 仍认回原结果。参数解析、执行和结果转换使用同一次选定的命令操作，未知命令在消费许可前拒绝。多命令工具的参数是整次调用（D-94）：执行前与结果转换时，绑定都先用 `commandArguments` 按定义的编码切出固定请求所选命令的参数，再交给该命令的参数解析。调用点名别的命令、无法解码，或该命令的参数解析答 `invalid` 时，执行失败，不改用调用点名的命令。失败原因是 `describeCommandArgumentsRejection` 的文本：先写原因，后接所选命令的 guide，模型读到它（D-104）。参数解析答 `incomplete` 时只写原因。
 
