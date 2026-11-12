@@ -6,7 +6,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AccessIdentity, LoginIdentity } from '@omne-harness/access-cordis-contract'
 import { readJsonBytes, type JsonLimits } from '@omne-harness/json-text'
-import type { Codec, ObservationContract, OperationContract } from '@omne-harness/public-contract'
+import type { Codec, OperationContract } from '@omne-harness/public-contract'
 import {
   createObservationHub,
   type HubDiagnosticCode,
@@ -191,19 +191,18 @@ export type Pipeline = Readonly<{
   endObservations: () => Promise<void>
 }>
 
-/**
- * The key under which a new observation replaces an old one: the same login, the same observation,
- * the same message id. An observation that needs no login has no observer to recognise, so its
- * key is its own and nothing replaces it.
- */
-let unrecognised = 0
-function observationKey(address: Address, messageId: string, login: SignedIn | undefined): string {
-  if (login === undefined) return `unrecognised:${(unrecognised += 1)}`
-  return [login.proof, address.path, messageId].join('\n')
-}
-
 export function createPipeline(access: PipelineAccess, settings: PipelineSettings): Pipeline {
   const clock = access.clock ?? systemClock
+  /**
+   * The key under which a new observation replaces an old one: the same login, the same
+   * observation, the same message id. An observation that needs no login has no observer to
+   * recognise, so its key is its own and nothing replaces it.
+   */
+  let unrecognised = 0
+  const observationKey = (address: Address, messageId: string, login?: SignedIn): string =>
+    login === undefined
+      ? `unrecognised:${(unrecognised += 1)}`
+      : [login.proof, address.path, messageId].join('\n')
   const hub: ObservationHub = createObservationHub({
     limits: settings.observations,
     heartbeatMs: settings.heartbeatMs,

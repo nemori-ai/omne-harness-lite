@@ -1151,6 +1151,7 @@ export type OperationContract<Body = any, Results extends OutcomeBodies = Outcom
 };
 export type ObservationContract<Open = any, Frame = any, End extends string = string> = {
     readonly identity: Identity;
+    readonly limit?: 'small' | 'input';
     readonly open: Codec<Open>;
     readonly frame: Codec<Frame>;
     readonly ends: readonly End[];

@@ -14,7 +14,12 @@ test('steps 1 to 5 return no promise: looking up and entering cannot be split by
 test('access is all four or none', () => {
   const registry = createAccessRegistry()
   const identity = testIdentity().port
-  expectTypeOf({ registry, identity, graceMs: 5000, frameQueueBytes: 1 << 20 }).toExtend<ServerEntryAccess>()
+  expectTypeOf({
+    registry,
+    identity,
+    graceMs: 5000,
+    frameQueueBytes: 1 << 20,
+  }).toExtend<ServerEntryAccess>()
   // @ts-expect-error the frame queue bound is required (#1249 spec 已定 6)
   const noBound: ServerEntryAccess = { registry, identity, graceMs: 5000 }
   void noBound

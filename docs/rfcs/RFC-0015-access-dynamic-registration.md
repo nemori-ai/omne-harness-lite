@@ -2213,11 +2213,11 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | 三个形式化模型、负控、两条硬要求、证明转契约测试的清单。模型三随会话观察的成员建成搬到它那里 | [接入登记表与可用性的有限行为模型](../../packages/access/server-entry/verification/models/README.md) | 已写回。模型与代码的对应在「接入层」那一路补上 | PanQiWei 2026-11-12 |
 | 依赖方向的门禁：`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL` 跟着依赖边改；加 I-1、I-17、I-18、I-19 的规则 | [约束登记](../architecture/constraints.json) | 待写回，随「接入插件」那一程 | 未切换 |
 | 共同契约、对外结果 | [公开契约规格](../../packages/access/public-contract/SPEC.md#共同契约)「共同契约」 | 已写回（部分：本行只是原「共同契约、对外结果、判断次序、观察的结束原因、内置协议的契约」中写回了的那一部分） | 卡 #1213，PR #1222 合入；PanQiWei 2026-11-12 |
-| 判断次序、观察的结束原因、内置协议的契约 | [公开契约规格](../../packages/access/public-contract/SPEC.md)；[承载页](../../packages/access/public-contract/docs/http-binding.md) | 已写回（部分：承载页「新地址」写回了操作的线上形状与判断次序第 1 到 9 步各答什么；观察的结束原因与内置协议的契约待写回，随「接入层」那一路） | 卡 #1233；确认者随 PR 的接受 |
+| 判断次序、观察的结束原因、内置协议的契约 | [公开契约规格](../../packages/access/public-contract/SPEC.md)；[承载页](../../packages/access/public-contract/docs/http-binding.md) | 已写回（部分：承载页「新地址」写回了操作的线上形状与判断次序第 1 到 9 步各答什么；「新地址上的观察」写回了观察的事件流、结束帧与结束原因，公开契约规格写回了观察契约的 `limit` 一栏（卡 #1249）；内置协议的契约待写回，随「接入层」那一路） | 卡 #1233、#1249；确认者随 PR 的接受 |
 | 贡献的类型、登记表的服务定义 | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md) | 已写回（部分：本行只是原「贡献的类型、登记表的服务定义、`defineAccessPlugin`」中写回了的那一部分；身份端口 `AccessIdentity` 的类型也写在这里，卡 #1233） | 卡 #1223、#1233；确认者随 PR 的接受 |
 | `defineAccessPlugin` | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
 | 入口：登记表；判断次序第 10 到 14 步的收场与宽限 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#登记表)「登记表」「收场与宽限」 | 已写回（部分：本行只是原「入口：登记表、管道、观察中枢、承载绑定、可用性」中写回了的那一部分；登记表经管道接到新地址上，正式的服务端应用还没有接） | 卡 #1223、#1233；确认者随 PR 的接受 |
-| 入口：管道的第 1 到 9 步、观察中枢、承载绑定、可用性 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#管道)「管道」 | 已写回（部分：写回了管道第 1 到 9 步对操作的部分、身份规则、消息编号的格式、消息体上限、关连接的规则、`access` 这份输入；观察的地址暂时答 404。观察中枢、新地址的 SSE 承载与可用性待写回，随「接入层」那一路） | 卡 #1233；确认者随 PR 的接受 |
+| 入口：管道的第 1 到 9 步、观察中枢、承载绑定、可用性 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#管道)「管道」 | 已写回（部分：写回了管道第 1 到 9 步、身份规则、消息编号的格式、消息体上限、关连接的规则、`access` 这份输入；「观察中枢」写回了建立、线上的字节、结束与业务访问的报告（卡 #1249）。可用性待写回，随「接入层」那一路） | 卡 #1233、#1249；确认者随 PR 的接受 |
 | 客户端核心：`createClient`、传输、本地的两种结果 | [SDK 规格](../../packages/access/sdk/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
 | 客户端装配：连接、`defineProtocolClient` | `packages/access/client-assembly` 的规格（成员未建） | 待写回，随「接入层」那一路 | 未切换 |
 | 加一个操作改哪些成员；成员与依赖 | [接入组说明](../../packages/access/README.md) | 待写回，随「接入层」那一路 | 未切换 |

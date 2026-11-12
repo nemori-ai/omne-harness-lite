@@ -23,7 +23,10 @@ export type CancelState = 'ended' | 'not-found'
 export type EndReason<O extends string = never> = HubEndReason | O
 
 /** What the records report about an end; the caller maps it onto its own diagnostics. */
-export type RecordsEvent<O extends string = never> = Readonly<{ kind: 'ended' | 'cleanup-failed'; reason: EndReason<O> }>
+export type RecordsEvent<O extends string = never> = Readonly<{
+  kind: 'ended' | 'cleanup-failed'
+  reason: EndReason<O>
+}>
 
 export type RecordsInput<O extends string = never> = Readonly<{
   limits: Readonly<{ perLogin: number; perInstance: number; cancelRetentionMs: number }>

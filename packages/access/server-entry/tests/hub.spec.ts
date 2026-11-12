@@ -7,6 +7,7 @@ import { connect, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SseClient } from './support/harness.ts'
 import {
+  GRACE_MS,
   MESSAGE_ID,
   OTHER_PROOF,
   PROOF,
@@ -115,7 +116,10 @@ describe('C1: an observation goes through the whole pipeline', () => {
   it('answers the denied of an observation with the same bytes as the denied of an operation', async () => {
     const fixture = await entry()
     const bad = { authorization: `Bearer ${PROOF}-unknown` }
-    const watched = await call(fixture.port, 'watch-note', { headers: bad, body: '{"noteId":"n-1"}' })
+    const watched = await call(fixture.port, 'watch-note', {
+      headers: bad,
+      body: '{"noteId":"n-1"}',
+    })
     const read = await call(fixture.port, 'read-note', { headers: bad, body: '{"noteId":"n-1"}' })
     expect(watched.status).toBe(403)
     const strip = (headers: Record<string, unknown>) => ({ ...headers, date: undefined })
@@ -131,7 +135,9 @@ describe('C1: an observation goes through the whole pipeline', () => {
     expect(over.status).toBe(400)
     expect(over.json).toEqual({ outcome: 'protocol-rejected', body: {} })
     // `watch-tenant` takes the input limit: the same size opens.
-    const big = open(fixture, 'watch-tenant', { body: JSON.stringify({ noteId: 'x'.repeat(3000) }) })
+    const big = open(fixture, 'watch-tenant', {
+      body: JSON.stringify({ noteId: 'x'.repeat(3000) }),
+    })
     expect(await big.status).toBe(200)
     big.close()
     const outside = await call(fixture.port, 'watch-note', { body: '{"noteId":"n-1","extra":1}' })
@@ -142,7 +148,9 @@ describe('C1: an observation goes through the whole pipeline', () => {
 
 describe('C2: the hub keeps its behaviour at the new address', () => {
   it('bounds the observations of one login', async () => {
-    const fixture = await entry({ config: { observation: { perLogin: 2, perInstance: 8, cancelRetentionMs: 0 } } })
+    const fixture = await entry({
+      config: { observation: { perLogin: 2, perInstance: 8, cancelRetentionMs: 0 } },
+    })
     const first = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     const second = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-2' } })
     await fixture.notes.opened(2)
@@ -153,7 +161,9 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
     expect(third.status).toBe(503)
     expect(third.json).toEqual({ outcome: 'basis-unavailable', body: {} })
     // Another login still has room.
-    const other = open(fixture, 'watch-note', { headers: { authorization: `Bearer ${OTHER_PROOF}` } })
+    const other = open(fixture, 'watch-note', {
+      headers: { authorization: `Bearer ${OTHER_PROOF}` },
+    })
     expect(await other.status).toBe(200)
     fixture.notes.feeds[0]!.finish('note-deleted')
     await first.ended
@@ -163,7 +173,9 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
   })
 
   it('bounds the observations of the instance', async () => {
-    const fixture = await entry({ config: { observation: { perLogin: 8, perInstance: 2, cancelRetentionMs: 0 } } })
+    const fixture = await entry({
+      config: { observation: { perLogin: 8, perInstance: 2, cancelRetentionMs: 0 } },
+    })
     const a = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     const b = open(fixture, 'watch-note', { headers: { authorization: `Bearer ${OTHER_PROOF}` } })
     await fixture.notes.opened(2)
@@ -174,7 +186,9 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
   })
 
   it('takes the slot before the frame source has decided', async () => {
-    const fixture = await entry({ config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } } })
+    const fixture = await entry({
+      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+    })
     const deciding = held<never>()
     fixture.notes.sources['watch-note'] = () => deciding.promise
     const first = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
@@ -192,7 +206,9 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
     const fixture = await entry()
     const old = open(fixture)
     await fixture.notes.opened(1)
-    const otherLogin = open(fixture, 'watch-note', { headers: { authorization: `Bearer ${OTHER_PROOF}` } })
+    const otherLogin = open(fixture, 'watch-note', {
+      headers: { authorization: `Bearer ${OTHER_PROOF}` },
+    })
     await fixture.notes.opened(2)
     const renewed = open(fixture)
     await fixture.notes.opened(3)
@@ -200,8 +216,18 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
     fixture.notes.feeds[2]!.push(NOTE)
     expect(await renewed.waitForEvents(1)).toEqual([{ kind: 'frame', frame: NOTE }])
     expect(otherLogin.events()).toEqual([])
+    // The same login with another message id is another observation.
+    const another = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-other' } })
+    await fixture.notes.opened(4)
+    fixture.notes.feeds[2]!.push(NOTE)
+    expect(await renewed.waitForEvents(2)).toEqual([
+      { kind: 'frame', frame: NOTE },
+      { kind: 'frame', frame: NOTE },
+    ])
+    expect(another.events()).toEqual([])
     renewed.close()
     otherLogin.close()
+    another.close()
   })
 
   it('checks the login each round, by the same proof, and ends on a revoked or unjudgeable login', async () => {
@@ -212,7 +238,9 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
     // Two rounds later: only identifyLogin was asked again, by the same proof; actFor once, at the opening.
     await fixture.accessIdentity.called('identifyLogin', 3)
     const rounds = fixture.accessIdentity.calls.slice(opening)
-    expect(rounds.every(entry => entry.method === 'identifyLogin' && entry.proof === PROOF)).toBe(true)
+    expect(rounds.every(entry => entry.method === 'identifyLogin' && entry.proof === PROOF)).toBe(
+      true,
+    )
     expect(fixture.accessIdentity.calls.filter(entry => entry.method === 'actFor')).toHaveLength(1)
     fixture.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'denied' } }
     expect(await endedEvents(revoked)).toEqual([{ kind: 'ended', reason: 'denied' }])
@@ -220,7 +248,10 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
     delete fixture.accessIdentity.identifyLogin
     const unjudged = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-2' } })
     await fixture.notes.opened(2)
-    fixture.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'basis-unavailable' } }
+    fixture.accessIdentity.identifyLogin = {
+      kind: 'answer',
+      value: { outcome: 'basis-unavailable' },
+    }
     expect(await endedEvents(unjudged)).toEqual([{ kind: 'ended', reason: 'unavailable' }])
   })
 
@@ -230,7 +261,9 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
       open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } }),
       open(fixture, 'watch-tenant', { headers: { 'omne-message-id': 'm-2' } }),
     ]
-    const theirs = open(fixture, 'watch-note', { headers: { authorization: `Bearer ${OTHER_PROOF}` } })
+    const theirs = open(fixture, 'watch-note', {
+      headers: { authorization: `Bearer ${OTHER_PROOF}` },
+    })
     await fixture.notes.opened(3)
     // The login of PROOF is revoked: the identity no longer recognises it.
     ;(fixture.accessIdentity.logins as Map<string, unknown>).delete(PROOF)
@@ -371,12 +404,39 @@ describe('C5: a take-down ends every observation, and completes after their ende
     expect(fixture.log.leaveCounts).toEqual([1, 1])
   })
 
+  it('waits for an ended frame that cannot be written out until the grace runs out', async () => {
+    // The frame queue bound is far away, so the observer that reads nothing is not cut off.
+    const fixture = await entry({ frameQueueBytes: 1 << 30 })
+    const socket = pausedObserver(fixture, 'watch-note')
+    const feed = await fixture.notes.opened(1)
+    const title = 'x'.repeat(16 * 1024)
+    // 32 MiB more than any socket buffer takes: the rest waits in the writer.
+    for (let index = 0; index < 2048; index += 1) feed.push({ noteId: 'n-1', title })
+    await until(() => feed.taken === 2048)
+    let completed = false
+    const done = fixture.takeDown().then(() => {
+      completed = true
+    })
+    await new Promise(resolve => setTimeout(resolve, 100))
+    expect(completed).toBe(false)
+    expect(fixture.log.entries[0]?.left).toBe(false)
+    fixture.accessClock.advance(GRACE_MS)
+    await done
+    expect(fixture.log.leaveCounts).toEqual([1])
+    socket.destroy()
+  })
+
   it('calls leave once on each way an observation ends', async () => {
-    const fixture = await entry({ config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } } })
+    const fixture = await entry({
+      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+    })
     // Full: the second of one login.
     const holder = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     await fixture.notes.opened(1)
-    await call(fixture.port, 'watch-note', { headers: { 'omne-message-id': 'm-2' }, body: '{"noteId":"n-1"}' })
+    await call(fixture.port, 'watch-note', {
+      headers: { 'omne-message-id': 'm-2' },
+      body: '{"noteId":"n-1"}',
+    })
     // Replaced, then ended by its own reason.
     const replacing = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-1' } })
     await endedEvents(holder)
@@ -400,5 +460,109 @@ describe('C5: a take-down ends every observation, and completes after their ende
     await until(() => fixture.log.entries.every(line => line.left))
     expect(fixture.log.leaveCounts.every(count => count === 1)).toBe(true)
     expect(fixture.log.leaveCounts).toHaveLength(6)
+  })
+})
+
+describe('C6: the business access and what stays out of every output', () => {
+  it('reports a business access once, after the first frame, only for an observation that counts', async () => {
+    const fixture = await entry()
+    const reports = () =>
+      fixture.accessIdentity.calls.filter(line => line.method === 'reportAccess')
+    const counted = open(fixture, 'watch-tenant', { headers: { 'omne-message-id': 'm-1' } })
+    const feed = await fixture.notes.opened(1)
+    await turn()
+    expect(reports()).toEqual([])
+    feed.push(NOTE)
+    await counted.waitForEvents(1)
+    expect(reports()).toEqual([
+      { method: 'reportAccess', login: fixture.accessIdentity.logins.get(PROOF) },
+    ])
+    feed.push(NOTE)
+    await counted.waitForEvents(2)
+    expect(reports()).toHaveLength(1)
+    // Not marked, or no login: no report.
+    const plain = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-2' } })
+    ;(await fixture.notes.opened(2)).push(NOTE)
+    await plain.waitForEvents(1)
+    const anonymous = open(fixture, 'watch-all', { body: '{}' })
+    ;(await fixture.notes.opened(3)).push(NOTE)
+    await anonymous.waitForEvents(1)
+    expect(reports()).toHaveLength(1)
+    for (const client of [counted, plain, anonymous]) client.close()
+  })
+
+  it('keeps the frames going when the report fails, with one diagnostic', async () => {
+    const fixture = await entry()
+    fixture.accessIdentity.reportAccess = { kind: 'reject' }
+    const client = open(fixture, 'watch-tenant')
+    const feed = await fixture.notes.opened(1)
+    feed.push(NOTE)
+    await fixture.accessIdentity.returned('reportAccess')
+    feed.push(NOTE)
+    feed.finish('note-deleted')
+    expect(await endedEvents(client)).toEqual([
+      { kind: 'frame', frame: NOTE },
+      { kind: 'frame', frame: NOTE },
+      { kind: 'ended', reason: 'note-deleted' },
+    ])
+    expect(fixture.diagnostics.filter(event => event.code === 'access.report-fault')).toHaveLength(
+      1,
+    )
+  })
+
+  it('keeps the proof, the tenant text and the opening body out of every frame, answer and diagnostic', async () => {
+    const tenantText = 'TENANT-HEADER-41aa'
+    const bodyMarker = 'BODY-MARKER-77c0'
+    const fixture = await entry({
+      config: { observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 0 } },
+    })
+    const headers = (id: string) => ({ 'omne-acting-tenant': tenantText, 'omne-message-id': id })
+    const body = `{"noteId":"${bodyMarker}"}`
+    const outputs: string[] = []
+    const keep = async (client: SseClient) => {
+      await client.ended
+      outputs.push(
+        `${await client.status} ${JSON.stringify(await client.headers)} ${client.chunks.join('')}`,
+      )
+    }
+    // A frame source fault at the decision, and one while streaming.
+    fixture.notes.sources['watch-tenant'] = async () => {
+      throw new Error(`source fault ${PROOF} ${tenantText} ${bodyMarker}`)
+    }
+    const refused = open(fixture, 'watch-tenant', { headers: headers('m-1'), body })
+    await keep(refused)
+    delete fixture.notes.sources['watch-tenant']
+    const faulty = open(fixture, 'watch-tenant', { headers: headers('m-2'), body })
+    const feed = await fixture.notes.opened(1)
+    feed.push(NOTE)
+    // The slot of this login is taken: a second one is full.
+    const full = open(fixture, 'watch-tenant', { headers: headers('m-3'), body })
+    await keep(full)
+    feed.push({ noteId: 7 })
+    await keep(faulty)
+    // The queue bound, against an observer that reads nothing.
+    const socket = pausedObserver(fixture, 'watch-tenant', body)
+    const flooded = await fixture.notes.opened(2)
+    const title = 'x'.repeat(16 * 1024)
+    while (!flooded.context.signal.aborted) {
+      flooded.push({ noteId: 'n-1', title })
+      await new Promise(resolve => setTimeout(resolve, 1))
+    }
+    socket.destroy()
+
+    const hubCodes = [
+      'access.frame-source-fault',
+      'access.frame-rejected',
+      'access.observation-full',
+      'access.frame-queue-full',
+    ]
+    const events = fixture.diagnostics.filter(event => hubCodes.includes(event.code))
+    expect(new Set(events.map(event => event.code))).toEqual(new Set(hubCodes))
+    const allowed = new Set(['code', 'path', 'protocol', 'major', 'operation'])
+    for (const event of events)
+      expect(Object.keys(event).filter(key => !allowed.has(key))).toEqual([])
+    const haystack = [...outputs, JSON.stringify(fixture.diagnostics)].join('\n')
+    expect(haystack).toContain('"kind":"frame"')
+    for (const secret of [PROOF, tenantText, bodyMarker]) expect(haystack).not.toContain(secret)
   })
 })

@@ -81,7 +81,8 @@ export async function establish(
   const recognised = await ask(watch, () => port.identifyLogin(proof), identified)
   if (recognised.kind !== 'given') return recognised
   const { login } = recognised.value
-  if (identity === 'login') return { kind: 'caller', principal: login, login: { identity: login, proof } }
+  if (identity === 'login')
+    return { kind: 'caller', principal: login, login: { identity: login, proof } }
   const tenant = tenantOf(req)
   if (tenant === undefined) return { kind: 'refused' }
   const acting = await ask(watch, () => port.actFor(login, tenant), issued)

@@ -149,7 +149,10 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     const watch = watchCall(entered.signal, res)
     watch.halt.addEventListener('abort', () => source.abort())
     const decided = await watch.attend(() =>
-      input.source({ principal: input.principal as never, messageId, signal: source.signal }, input.open),
+      input.source(
+        { principal: input.principal as never, messageId, signal: source.signal },
+        input.open,
+      ),
     )
     watch.release()
     if (decided.kind !== 'done' || decided.value.outcome !== 'succeeded') {
@@ -177,7 +180,10 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     for (;;) {
       const step = await Promise.race<Step>([
         frames.next().then(
-          (result): Step => (result.done === true ? { kind: 'done', value: result.value } : { kind: 'frame', value: result.value }),
+          (result): Step =>
+            result.done === true
+              ? { kind: 'done', value: result.value }
+              : { kind: 'frame', value: result.value },
           (): Step => ({ kind: 'threw' }),
         ),
         ended,

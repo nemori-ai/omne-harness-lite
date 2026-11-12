@@ -321,11 +321,12 @@ type HitlIngressFaces<P> = Readonly<{
 | --- | --- |
 | `registry` | 登记表给管道的那一面 `RegistryForPipeline` |
 | `identity` | 身份端口 `AccessIdentity`，类型归 [access-cordis-contract](../access-cordis-contract/SPEC.md#身份端口) |
-| `graceMs` | 收场的宽限，毫秒，交给 `settleCall` |
+| `graceMs` | 收场的宽限，毫秒，交给 `settleCall`；观察中枢等结束帧写出也用它 |
+| `frameQueueBytes` | 一个观察的帧还没写出去的字节数的上界，见[观察中枢](#观察中枢)。成员里没有缺省值 |
 | `clock` | 可选。宽限用的时钟，缺省 `systemClock` |
-| `diagnostics` | 可选。管道的诊断出口，事件类型 `AccessDiagnostic`，见[诊断](#诊断) |
+| `diagnostics` | 可选。管道与观察中枢的诊断出口，事件类型 `AccessDiagnostic`，见[诊断](#诊断) |
 
-前三样必填，所以只给一部分编不过。不给 `access` 时，`/api/...` 和别的未知路径一样答空正文的 404。给了，路径不是现有三个位置之一的请求都交给管道。现有三个位置的判断次序与行为不变。
+前四样必填，所以只给一部分编不过。不给 `access` 时，`/api/...` 和别的未知路径一样答空正文的 404。给了，路径不是现有三个位置之一的请求都交给管道。现有三个位置的判断次序与行为不变。
 
 本成员不写 `access` 的值。正式的服务端应用还没有给它，所以那里的新地址仍然答 404。
 
@@ -339,26 +340,26 @@ type HitlIngressFaces<P> = Readonly<{
 | 2 | 方法是 POST | 405，带 `Allow: POST` |
 | 3 | `Host` 合规（[头的比较](../public-contract/docs/http-binding.md#头的比较)） | 421 |
 | 4 | `Content-Type` 合规（同上） | 415 |
-| 5 | `enter(协议名与主版本, 名字)` 返回一个操作 | 404。返回观察时先调 `leave` |
+| 5 | `enter(协议名与主版本, 名字)` 返回一个操作或观察 | 404 |
 | 6 | 在途请求的预算没满 | 调 `leave`，429，带 `x-omne-limit: in-flight-requests` |
 | 7 | 消息编号合规（见下） | `protocol-rejected`，不回写消息编号 |
 | 8 | 按身份规则确立调用者（见下） | `denied` 或 `basis-unavailable` |
-| 9 | 按操作的上限读消息体，严格读成 JSON，再用操作契约的编解码读成类型 | `protocol-rejected` |
+| 9 | 按契约的上限读消息体，严格读成 JSON，再用契约的编解码读成类型：操作用 `body`，观察用 `open` | `protocol-rejected` |
 
 - 第 1 到 5 步在同一个同步函数 `admit` 里，签名不是 Promise（`tests/pipeline.spec-d.ts`）。查表并登记成在途是一步，中间不让出执行权。
 - 第 1 到 6 步的答复只有状态码，正文为空，不带消息编号。第 5 步之前不读消息体。
 - 第 6 步的预算是 `maxInFlightRequests`，与现有三个位置共用一个计数。
-- 第 9 步之后，管道把主体、消息编号与读好的消息体交给 `settleCall`。
+- 第 9 步之后按种类分派：操作的主体、消息编号与消息体交给 `settleCall`，观察的交给[观察中枢](#观察中枢)。观察不经 `settleCall`（#1249 spec 已定 3）。
 
 路径的文法：恰好四段 `/api/<协议名>/v<主版本>/<名字>`。协议名与名字各是一个或多个小写字母、数字或连字符。主版本是不带前导零的正整数。末尾的斜杠、百分号编码、多出或缺少的段都不合文法。路径里出现 `?` 就不合文法，空的查询串也算。
 
 消息编号：请求恰好有一个 `Omne-Message-Id` 头，值是 1 到 128 个可见的 ASCII 字符（0x21 到 0x7E，不含空格）。第 7 步通过之后写出的每一个答复都回写这个值。
 
-消息体上限：名字取自操作契约的 `limit` 一栏，数值取自 `maxBodyBytes` 里同名的一项。声明的 `Content-Length` 超限时不读，其余按实际读到的字节数计。超限答 `protocol-rejected`，状态 400，不是 413。严格读取的结构上限是 `jsonBudgets` 加上这个字节上限。
+消息体上限：名字取自契约的 `limit` 一栏，数值取自 `maxBodyBytes` 里同名的一项。观察契约的这一栏可以不写，不写时取 `small`。声明的 `Content-Length` 超限时不读，其余按实际读到的字节数计。超限答 `protocol-rejected`，状态 400，不是 413。严格读取的结构上限是 `jsonBudgets` 加上这个字节上限。
 
 ### 身份规则
 
-第 8 步按操作契约的 `identity` 一栏：
+第 8 步按操作或观察契约的 `identity` 一栏，两者规则相同：
 
 | `identity` | 情形 | 管道做什么 |
 | --- | --- | --- |
@@ -402,24 +403,24 @@ type HitlIngressFaces<P> = Readonly<{
 
 答复是 `succeeded`、操作契约标了 `countsAsAccess`、而且这次调用认出了登录时，管道在 `settleCall` 写出答复并调 `leave` 之后调一次 `reportAccess(登录)`，不等它。它抛出或返回失败的 Promise 时，答复不变，只记一条诊断。`identity` 是 `none` 的操作没有登录，标了 `countsAsAccess` 也不报告。
 
-### 观察的地址：暂时答 404
-
-`enter` 返回观察时，管道立刻调 `leave`，答空正文的 404。这是观察中枢建成之前的中间状态，由观察中枢那一程换掉。
-
 ### 诊断
 
-管道的每个出错点记一条诊断，交给 `access.diagnostics`。事件类型是 `AccessDiagnostic`，代码以 `access.` 开头。它不进 `ServerEntryDiagnostic`：装配的遥测按代码逐项对应 `ServerEntryDiagnostic`，往里加代码就要同时改装配。出口抛出时答复不变。
+管道与观察中枢的每个出错点记一条诊断，交给 `access.diagnostics`。事件类型是 `AccessDiagnostic`，代码以 `access.` 开头。它不进 `ServerEntryDiagnostic`：装配的遥测按代码逐项对应 `ServerEntryDiagnostic`，往里加代码就要同时改装配。出口抛出时答复不变。
 
 | 代码 | 出错点 |
 | --- | --- |
 | `access.path-rejected`、`access.method-rejected`、`access.host-rejected`、`access.content-type-rejected` | 第 1 到 4 步 |
-| `access.not-mounted`、`access.observation-not-served` | 第 5 步 |
+| `access.not-mounted` | 第 5 步 |
 | `access.busy` | 第 6 步 |
 | `access.message-id-rejected` | 第 7 步 |
 | `access.identity-denied`、`access.identity-unavailable`、`access.identity-fault` | 第 8 步：拒绝、端口答依据不可用、端口抛出或返回失败的 Promise |
 | `access.body-over-limit`、`access.body-rejected` | 第 9 步 |
 | `access.aborted`、`access.caller-gone` | 第 8、9 步里的中止与断开 |
 | `access.report-fault` | 业务访问的报告失败 |
+| `access.observation-full` | 观察中枢：每登录或每实例的名额满了 |
+| `access.frame-source-fault` | 观察中枢：帧来源决定时抛出，迭代时抛出，或给出契约之外的结束原因 |
+| `access.frame-rejected` | 观察中枢：帧不合契约 |
+| `access.frame-queue-full` | 观察中枢：帧队列超了字节上限 |
 
 一条诊断只带代码、路径、协议名与主版本（`protocol`、`major`）、操作名。它不带任何请求头的值、消息体、答复体、主体或依赖的错误文本。路径不带查询串。
 
@@ -428,6 +429,64 @@ type HitlIngressFaces<P> = Readonly<{
 `src/pipeline/` 不导入任何领域的契约，也不导入 `src/` 根下的文件。它只导入公开契约、access-cordis-contract、`packages/common` 下的成员、`src/registry/` 与 `src/settle/`。依赖方向的门禁 `entry-registry-knows-no-domain` 守这一条。管道要用的配置值（本机地址、在途预算、两档消息体上限、结构上限）由 `http.ts` 在构造时传进来，诊断的出口在 `access` 里。
 
 现有三个位置与管道共用的只有几个与领域无关的函数（`src/pipeline/headers.ts` 的头比较与计数、`src/pipeline/body.ts` 的读消息体）、状态码对应表与在途预算。现有三个位置不调用管道，管道也不调用它们。
+
+## 观察中枢
+
+观察中枢是新地址上对每个观察都一样的那一段：名额、帧队列、心跳、复核登录、同编号替换、结束。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#观察中枢) 第 5 节「观察中枢」与第 14 节 I-4、I-10 到 I-14，交付卡 #1249。代码在 `src/observation-hub/`：
+
+| 文件 | 内容 |
+| --- | --- |
+| `records.ts` | 登记观察：先占名额后附着、每登录与每实例两个上限、同一个键替换、每轮复核登录、按登录结束、停止时全部结束。从现有会话位置搬来，结束帧的文本、键与要计数的登录改由调用方给 |
+| `sse.ts` | 写流：一个串行的写队列，事件与心跳都经它写出。从 `src/sse.ts` 搬来，多了三样：打开时可以不带第一条事件，响应头可以多带几个，`queuedFrameBytes` 给出已交给写队列、还没写出去的事件的字节数（心跳不计） |
+| `hub.ts` | 中枢：占名额、让帧来源决定建不建立、写帧、守字节上限、收场 |
+
+现有会话位置上的观察经 `src/observation.ts` 里的适配用 `records.ts` 与 `sse.ts`：键里带会话，结束帧是会话协议的 `observation-frame`，取消与取消保留照旧。它的行为不变。
+
+### 建立
+
+管道走完第 9 步之后把这些交给中枢：`entered`、观察契约与帧来源、主体、消息编号、读好的建立值、登录。
+
+1. 占名额。每实例的上限对所有观察都算。`identity` 不是 `none` 的观察还计入它那个登录的上限，按请求头里登录证明的原文认「同一个登录」（#1249 spec 已定 27）。这段原文只在内存里，不进帧、日志与诊断。名额满了答 `basis-unavailable`。
+2. 同一个键已有观察时，旧的以 `observer-replaced` 结束，新的占它的名额。键是登录证明、地址与消息编号三样。`identity` 是 `none` 的观察认不出观察者是谁，每个都有自己的键，不被替换。
+3. 调帧来源，给它主体、消息编号与一个中止信号。等它的同时等撤下的中止与调用者断开，做法同管道的第 8、9 步。帧来源答 `denied`、`invalid`、`basis-unavailable` 时按这个结果答复，`denied` 带 `Connection: close`；抛出时答 `basis-unavailable`；撤下时答 `basis-unavailable`；调用者断开时不答。这些都不建立观察，名额还回去。
+4. 帧来源答 `succeeded`：写出响应头，开始写帧。
+
+名额的上限与心跳间隔取自部署配置的 `observation.perLogin`、`observation.perInstance` 与 `heartbeatIntervalMs`，帧队列的字节上限取自 `access.frameQueueBytes`。
+
+### 线上的字节
+
+建立成功的响应：状态 200，`Content-Type: text/event-stream; charset=utf-8`，`Cache-Control: no-store`，回写 `Omne-Message-Id`。之后每个 SSE 事件只有一行 `data`：
+
+- 一帧：`{"kind":"frame","frame":<帧>}`，帧由观察契约的 `frame` 编解码写出。
+- 结束：`{"kind":"ended","reason":"<原因>"}`。写完结束帧就结束响应。
+- 连续 `heartbeatIntervalMs` 毫秒没有写出任何字节时，写一行注释 `: heartbeat`。
+
+### 结束
+
+`leave` 只在一个地方调用，每个观察恰好一次：结束帧写出之后，或者等了宽限 `graceMs` 还写不出去、断开连接之后。所以协议撤下要等它的每个观察都写出结束帧（I-4），一个不读的观察者拖住撤下不会超过宽限。每一种结束都同时中止给帧来源的信号，并调一次帧来源迭代器的 `return()`，不等它。
+
+| 情形 | 结束帧的原因 | 诊断 |
+| --- | --- | --- |
+| 帧来源走完，给出契约 `ends` 里的原因，或 `denied`、`unavailable` | 那个原因 | 无 |
+| 帧来源走完，给出别的原因；或迭代时抛出 | `unavailable` | `access.frame-source-fault` |
+| 帧不合契约 | `unavailable` | `access.frame-rejected` |
+| 帧队列超了字节上限：观察者没在读，帧写不出去 | `capacity`，写不出去，连接随即断开 | `access.frame-queue-full` |
+| 协议撤下 | `unavailable` | 无 |
+| 入口停止 | `unavailable` | 无 |
+| 复核登录：身份答登录无效 | `denied` | 无 |
+| 复核登录：身份答依据不可用或抛出 | `unavailable` | 无 |
+| 同一个键又建立了一个观察 | `observer-replaced` | 无 |
+| 观察者断开 | 不写（中枢里记作 `observer-cancelled`） | 无 |
+
+复核登录：一轮是一个心跳间隔。每轮只调 `identifyLogin(登录证明)`，不再调 `actFor`（#1249 spec 已定 28）。租户这一层许不许，由领域在帧来源里拿着主体判断（I-12）。`identity` 是 `none` 的观察不复核。
+
+### 业务访问的报告
+
+观察契约标了 `countsAsAccess`、这次建立认出了登录时，中枢在第一帧交给写队列之后调一次 `reportAccess(登录)`，不等它。它失败只记一条 `access.report-fault`，已写出的帧不变。
+
+### 依赖方向
+
+`src/observation-hub/` 和 `src/pipeline/` 一样，不导入任何领域的契约，也不导入 `src/` 根下的文件。它只导入公开契约、access-cordis-contract、`packages/common` 下的成员、`src/pipeline/` 里写答复与等待的两个函数、`src/registry/` 与 `src/settle/` 的类型。它要用的值由管道在构造时传入。
 
 ## 收场与宽限
 

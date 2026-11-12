@@ -1096,7 +1096,7 @@ const encoded = encodeGovernanceRequest({
 | `carriesCredential` | 可选 `true`：结果里带登录证明 |
 | `countsAsAccess` | 可选 `true`：答成功时算一次成功的业务访问 |
 
-观察契约 `ObservationContract` 有 `identity`、`open` 与 `frame` 两个 `Codec`、`ends` 与可选的 `countsAsAccess`。`ends` 只列这个观察自己的结束原因。观察中枢对每个观察都一样的结束原因不在这里列。
+观察契约 `ObservationContract` 有 `identity`、可选的 `limit`、`open` 与 `frame` 两个 `Codec`、`ends` 与可选的 `countsAsAccess`。`limit` 是建立时消息体上限的名字，与操作契约的 `limit` 同名、同两档（`'small' | 'input'`），没写时取 `'small'`（交付卡 #1249）。`ends` 只列这个观察自己的结束原因。观察中枢对每个观察都一样的结束原因不在这里列。
 
 `carriesCredential` 与 `countsAsAccess` 只定义在类型里，管道怎样处理它们不归本节。
 

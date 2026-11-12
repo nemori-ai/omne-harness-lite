@@ -396,7 +396,11 @@ export type AccessFixture = Omit<Fixture, 'diagnostics'> & {
 }
 
 /** An entry given `access`, with the scripted notes protocol mounted. */
-export async function startAccessFixture(options: FixtureOptions = {}): Promise<AccessFixture> {
+export type AccessFixtureOptions = FixtureOptions & Readonly<{ frameQueueBytes?: number }>
+
+export async function startAccessFixture(
+  options: AccessFixtureOptions = {},
+): Promise<AccessFixture> {
   const registry = createAccessRegistry()
   const log = recordingRegistry(registry)
   const identity = testIdentity()
@@ -411,7 +415,7 @@ export async function startAccessFixture(options: FixtureOptions = {}): Promise<
       registry: log.registry,
       identity: identity.port,
       graceMs: GRACE_MS,
-      frameQueueBytes: FRAME_QUEUE_BYTES,
+      frameQueueBytes: options.frameQueueBytes ?? FRAME_QUEUE_BYTES,
       clock: accessClock,
       diagnostics: event => diagnostics.push(event),
     },
