@@ -1,7 +1,14 @@
 // Published packages: one case for each cell of the totalized table of the publish flow
 // (publish, read and the recovery scan against none, published, staging only, recorded but not
 // swapped in), the two crash points, two publishes at once, and the rejections.
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -113,7 +120,7 @@ class Crash extends Error {}
 type Step = 'staged' | 'recorded'
 
 async function world(options: { afterPackageStep?: (step: Step) => void | Promise<void> } = {}) {
-  const packageRoot = mkdtempSync(join(tmpdir(), 'assets-packages-'))
+  const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-packages-')))
   const opened = await openWorld({ categories: bundles(), packageRoot, ...options })
   worlds.push(opened)
   return { ...opened, packageRoot }
