@@ -112,4 +112,26 @@ describe('the registry on real Cordis', () => {
     ).toEqual({ outcome: 'succeeded', body: { noteId: 'n-1', title: 'first' } })
     entered.leave()
   })
+
+  it('lets the pipeline follow the registry through the provider', async () => {
+    const root = new Context()
+    await root.plugin(AccessRegistryProvider)
+    const registry = root.accessRegistry as unknown as AccessRegistryProvider
+    const changes: string[] = []
+    const subscription = registry.subscribe(change =>
+      changes.push(`${change.revision} ${change.change} ${change.protocol.name}`),
+    )
+    expect(subscription).toMatchObject({ revision: 0, protocols: [] })
+    let plugin: Fiber | undefined
+    await root.plugin({
+      name: 'notes-access',
+      inject: ['accessRegistry'],
+      apply(ctx: Context) {
+        plugin = ctx.fiber
+        ctx.accessRegistry.mount(notesContribution('first'))
+      },
+    })
+    await plugin?.dispose()
+    expect(changes).toEqual(['1 mounted notes', '2 unmounted notes'])
+  })
 })

@@ -40,6 +40,13 @@ describe('enter', () => {
     expect(registry.enter({ name: 'other', major: 1 }, 'read-note')).toBeUndefined()
   })
 
+  it('does not find names that only the object prototype has', () => {
+    const registry = createAccessRegistry()
+    registry.mount(notesContribution('first'))
+    for (const name of ['toString', 'constructor', '__proto__', 'hasOwnProperty'])
+      expect(registry.enter(NOTES, name)).toBeUndefined()
+  })
+
   it('does not count a name outside the contract as in flight', async () => {
     const registry = createAccessRegistry()
     const takeDown = registry.mount(notesContribution('first'))
@@ -98,6 +105,19 @@ describe('take-down', () => {
     expect(done).toBe(true)
   })
 
+  it('takes down once when the take-down is called twice', async () => {
+    const registry = createAccessRegistry()
+    const changes: string[] = []
+    registry.subscribe(change => changes.push(`${change.revision} ${change.change}`))
+    const takeDown = registry.mount(notesContribution('first'))
+    const first = takeDown()
+    registry.mount(notesContribution('again'))
+    expect(takeDown()).toBe(first)
+    await first
+    expect(registry.enter(NOTES, 'read-note')).toBeDefined()
+    expect(changes).toEqual(['1 mounted', '2 unmounted', '3 mounted'])
+  })
+
   it('completes at once when nothing is in flight, and a second leave has no effect', async () => {
     const registry = createAccessRegistry()
     const takeDown = registry.mount(notesContribution('first'))
@@ -146,6 +166,15 @@ describe('subscribe', () => {
     unsubscribe()
     registry.mount(notesContribution('v1 again'))
     expect(view.revision).toBe(3)
+  })
+
+  it('keeps the registry when a subscriber throws and no diagnostic sink is given', () => {
+    const registry = createAccessRegistry()
+    registry.subscribe(() => {
+      throw new Error('listener failed')
+    })
+    expect(() => registry.mount(notesContribution('first'))).not.toThrow()
+    expect(registry.enter(NOTES, 'read-note')).toBeDefined()
   })
 
   it('keeps the registry and the other subscribers when a subscriber throws', () => {

@@ -91,14 +91,21 @@ function memberOf(
   contribution: AccessContribution<ProtocolContract>,
   name: string,
 ): Entered['member'] | undefined {
-  const operation = contribution.protocol.operations[name]
-  const handler = contribution.operations[name]
-  if (operation !== undefined && handler !== undefined)
-    return { kind: 'operation', contract: operation, handler }
-  const observation = contribution.protocol.observations[name]
-  const source = contribution.observations[name]
-  if (observation !== undefined && source !== undefined)
-    return { kind: 'observation', contract: observation, source }
+  const { operations, observations } = contribution.protocol
+  // Own names only: a name taken from a request must not reach the object prototype. The
+  // contribution has a member for every name of its contract; its type guarantees that.
+  if (Object.hasOwn(operations, name))
+    return {
+      kind: 'operation',
+      contract: operations[name] as OperationContract,
+      handler: contribution.operations[name] as OperationHandler<any>,
+    }
+  if (Object.hasOwn(observations, name))
+    return {
+      kind: 'observation',
+      contract: observations[name] as ObservationContract,
+      source: contribution.observations[name] as FrameSource<any>,
+    }
   return undefined
 }
 
