@@ -12,6 +12,7 @@ import {
   kindOf,
   makeWorkspace,
   registration,
+  TENANT_A,
   type Built,
   type Provider,
   type Workspace,
@@ -113,6 +114,26 @@ describe('commit: the write reservations are full', () => {
     await holder
   })
 
+  // Defect: the send does not look at the signal once more after the grant. A signal that aborts
+  // between the grant (which removes the wait's abort listener) and the send is then missed, and
+  // the commit runs although its caller stopped observing it.
+  it('an abort between the grant and the send settles unknown with observer_detached', async () => {
+    const { storage } = await ready({ ...ONE_WRITE, admissionWaitMs: 10_000 })
+    const holder = storage.commit(spinning('hold', 300))
+    let aborted = false
+    const signal = {
+      get aborted() {
+        return aborted
+      },
+      addEventListener: () => undefined,
+      // The grant removes the abort listener of the wait: the caller aborts at that moment.
+      removeEventListener: () => void (aborted = true),
+    } as unknown as AbortSignal
+    const waiter = await storage.commit(plain('wait'), { signal })
+    expect(waiter).toMatchObject({ kind: 'unknown', diagnostic: 'observer_detached' })
+    await holder
+  })
+
   it('a close while it waits answers closing', async () => {
     const provider = await ready({ ...ONE_WRITE, admissionWaitMs: 10_000 })
     const holder = provider.storage.commit(spinning('hold', 800))
@@ -126,6 +147,38 @@ describe('commit: the write reservations are full', () => {
 })
 
 describe('query and registration: their queues are full', () => {
+  it('a query that waits for a place is answered closing when the close starts', async () => {
+    const provider = await ready({
+      queryQueuePerDomain: 1,
+      queryQueueGlobal: 1,
+      admissionWaitMs: 10_000,
+    })
+    const holder = provider.storage.commit(spinning('hold', 600))
+    await sleep(50)
+    const first = provider.storage.query(keyOf('q1'))
+    const second = provider.storage.query(keyOf('q2'))
+    await sleep(50)
+    const closed = provider.control.close({ initiator: 'disposal' })
+    expect(await second).toMatchObject({ kind: 'unknown', diagnostic: 'closing' })
+    await Promise.allSettled([first, holder, closed])
+  })
+
+  it('a registration that waits for a place is answered closing when the close starts', async () => {
+    const provider = await ready({
+      controlQueuePerDomain: 1,
+      controlQueueGlobal: 1,
+      admissionWaitMs: 10_000,
+    })
+    const holder = provider.storage.commit(spinning('hold', 600))
+    await sleep(50)
+    const first = provider.storage.registerCombination(registration(built))
+    const second = provider.storage.registerCombination(registration(built))
+    await sleep(50)
+    const closed = provider.control.close({ initiator: 'disposal' })
+    expect(kindOf(await second)).toBe('rejected_before_accept/closing')
+    await Promise.allSettled([first, holder, closed])
+  })
+
   it('a query waits for a place behind a query the busy Worker holds', async () => {
     const { storage } = await ready({
       queryQueuePerDomain: 1,
@@ -166,6 +219,77 @@ describe('read: the read queue is full', () => {
     await sleep(20)
     expect(summary(await storage.read(readRequest('page')))).toBe('read')
     expect(summary(await holder)).toBe('read')
+  })
+
+  it('an abort while it waits answers cancelled', async () => {
+    const { storage } = await ready({ ...ONE_READ, readQueueTimeoutMs: 10_000 })
+    const holder = storage.read(readRequest('slow', { ms: 400 }))
+    await sleep(20)
+    const abort = new AbortController()
+    const waiting = storage.read(readRequest('page'), { signal: abort.signal })
+    await sleep(20)
+    abort.abort()
+    expect((await waiting).kind).toBe('cancelled')
+    expect(summary(await holder)).toBe('read')
+  })
+
+  // Defect: the close does not reach the waiting list of the reads: the waiter stays until the
+  // running read gives its reservation back, and only then meets the close.
+  it('a close while it waits answers closing at once, not when the running read ends', async () => {
+    const provider = await ready({ ...ONE_READ, readQueueTimeoutMs: 10_000 })
+    const holder = provider.storage.read(readRequest('slow', { ms: 1500 }))
+    await sleep(20)
+    const waiting = provider.storage.read(readRequest('page'))
+    await sleep(20)
+    const start = performance.now()
+    const closed = provider.control.close({ initiator: 'disposal' })
+    expect(summary(await waiting)).toBe('unavailable/closing')
+    expect(performance.now() - start).toBeLessThan(700)
+    await Promise.allSettled([holder, closed])
+  })
+
+  // Defect: the global read count is not checked. readQueuePerDomain <= readQueueGlobal (SPEC
+  // 12.1), so only a read of another domain meets the global bound first: it then runs at once and
+  // ends before the slow one.
+  it('holds at most readQueueGlobal reads in all: a read of another domain waits for one to end', async () => {
+    const { storage } = await ready({ ...ONE_READ, readQueueTimeoutMs: 10_000 })
+    const other = await storage.registerCombination(
+      registration(built, { transactionDomain: 'domain-b' }),
+    )
+    expect(kindOf(other)).toBe('registered')
+    const ended: string[] = []
+    const holder = storage.read(readRequest('slow', { ms: 300 })).then(result => {
+      ended.push('slow')
+      return summary(result)
+    })
+    await sleep(20)
+    const next = await storage.read({
+      ...readRequest('page'),
+      domain: { scope: TENANT_A, transactionDomain: 'domain-b' },
+    })
+    ended.push('other')
+    expect(summary(next)).toBe('read')
+    expect(await holder).toBe('read')
+    expect(ended).toEqual(['slow', 'other'])
+  })
+
+  // Defect: after the wait for a reservation, the queue deadline starts again in full (or longer)
+  // instead of from the call. A domain-serial read then waits behind a long write past
+  // readQueueTimeoutMs measured from the call.
+  it('the deadline runs from the call: the wait for a reservation and the wait in the queue add up', async () => {
+    const { storage } = await ready({
+      ...ONE_READ,
+      maxReadWorkersPerDomain: 2,
+      readQueueTimeoutMs: 500,
+    })
+    const holder = storage.read(readRequest('slow', { ms: 400 }))
+    const write = storage.commit(spinning('long', 2000))
+    await sleep(20)
+    const start = performance.now()
+    const serial = await storage.read(readRequest('serial'))
+    expect(summary(serial)).toBe('unavailable/queue_timeout')
+    expect(performance.now() - start).toBeLessThan(900)
+    await Promise.allSettled([holder, write])
   })
 
   it('the wait counts towards readQueueTimeoutMs: past it the read is queue_timeout', async () => {

@@ -7,10 +7,12 @@
 /** Whether a need fits what is held now, is blocked by its own domain only, or by a global bound. */
 export type Fit = 'fits' | 'domain' | 'global'
 
+/**
+ * The configuration relations make every need that reaches the point fit once enough is returned
+ * (sql-contract SPEC 准入等待 rule 1), so there is no need that waits for room that cannot come.
+ */
 export type Resource<N> = Readonly<{
   fit(need: N): Fit
-  /** A need that cannot fit however much is returned is refused at once. */
-  never(need: N): boolean
   /** Takes what the need holds; returns the function that gives it back. */
   take(need: N): () => void
 }>
@@ -29,7 +31,7 @@ export type WaitLimits = Readonly<{ perDomain: number; global: number }>
 type Waiter<N> = {
   readonly need: N
   resolve: (acquired: Acquired) => void
-  timer: NodeJS.Timeout | null
+  timer: NodeJS.Timeout | undefined
   readonly signal: AbortSignal | undefined
   readonly onAbort: () => void
 }
@@ -54,12 +56,12 @@ export class WaitingQueue<N extends Readonly<{ domain: string }>> {
   acquire(need: N, waitMs: number, signal?: AbortSignal): Acquired | Promise<Acquired> {
     if (this.closed) return { kind: 'closing' }
     if (signal?.aborted === true) return { kind: 'aborted' }
-    if (this.resource.never(need) || this.listFull(need.domain)) return { kind: 'full' }
+    if (this.listFull(need.domain)) return { kind: 'full' }
     let answer: Acquired | null = null
     const waiter: Waiter<N> = {
       need,
       resolve: acquired => void (answer = acquired),
-      timer: null,
+      timer: undefined,
       signal,
       onAbort: () => this.leave(waiter, { kind: 'aborted' }),
     }
@@ -67,13 +69,14 @@ export class WaitingQueue<N extends Readonly<{ domain: string }>> {
     this.scan()
     if (answer !== null) return answer
     if (waitMs === 0) {
-      this.leave(waiter, { kind: 'expired' })
-      return answer ?? { kind: 'expired' }
+      const expired: Acquired = { kind: 'expired' }
+      this.leave(waiter, expired)
+      return expired
     }
     return new Promise<Acquired>(resolve => {
       waiter.resolve = resolve
       waiter.timer = setTimeout(() => this.leave(waiter, { kind: 'expired' }), waitMs)
-      signal?.addEventListener('abort', waiter.onAbort, { once: true })
+      signal?.addEventListener('abort', waiter.onAbort)
     })
   }
 
@@ -96,13 +99,11 @@ export class WaitingQueue<N extends Readonly<{ domain: string }>> {
     while (index < this.waiters.length) {
       const waiter = this.waiters[index]!
       const fit = this.resource.fit(waiter.need)
-      if (fit === 'global') return
-      if (fit === 'domain') {
-        index += 1
-        continue
-      }
-      this.waiters.splice(index, 1)
-      this.settle(waiter, { kind: 'granted', release: this.grant(waiter.need) })
+      if (fit === 'fits') {
+        this.waiters.splice(index, 1)
+        this.settle(waiter, { kind: 'granted', release: this.grant(waiter.need) })
+      } else if (fit === 'domain') index += 1
+      else return
     }
   }
 
@@ -119,6 +120,7 @@ export class WaitingQueue<N extends Readonly<{ domain: string }>> {
 
   private leave(waiter: Waiter<N>, acquired: Acquired): void {
     const index = this.waiters.indexOf(waiter)
+    // Only a waiter leaves: settle clears its timer and its abort listener when it is granted.
     if (index < 0) return
     this.waiters.splice(index, 1)
     this.settle(waiter, acquired)
@@ -126,7 +128,7 @@ export class WaitingQueue<N extends Readonly<{ domain: string }>> {
   }
 
   private settle(waiter: Waiter<N>, acquired: Acquired): void {
-    if (waiter.timer !== null) clearTimeout(waiter.timer)
+    clearTimeout(waiter.timer)
     waiter.signal?.removeEventListener('abort', waiter.onAbort)
     waiter.resolve(acquired)
   }

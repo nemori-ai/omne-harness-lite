@@ -55,6 +55,9 @@ describe('config validation', () => {
     for (const zero of ['groupCollectMs', 'admissionWaitMs']) {
       expect(validateConfig({ ...base(), [zero]: 0 }).kind, `${zero}=0`).toBe('valid')
       expect(fieldsOf({ ...base(), [zero]: -1 }), `${zero}=-1`).toEqual([zero])
+      expect(problemsOf({ ...base(), [zero]: -1 }), `${zero}=-1 rule`).toEqual([
+        { field: zero, rule: 'must be a finite integer, 0 or more' },
+      ])
       expect(fieldsOf({ ...base(), [zero]: 1.5 }), `${zero}=1.5`).toEqual([zero])
     }
     for (const field of Object.keys(base()).filter(name => name !== 'storageRoot')) {

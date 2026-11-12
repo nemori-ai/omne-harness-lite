@@ -44,7 +44,6 @@ type Write = Readonly<{ domain: string; requestBytes: number }>
 function countedQueue(pool: Pool): WaitingQueue<Slot> {
   const resource: Resource<Slot> = {
     fit: need => pool.fit(need.domain),
-    never: () => false,
     take: need => pool.take(need.domain),
   }
   return new WaitingQueue(resource, { perDomain: pool.limitPerDomain, global: pool.limitGlobal })
@@ -62,6 +61,8 @@ export class Admission {
     this.config = config
     const writes = new Pool(config.admissionQueueLimit, config.globalAdmissionLimit)
     const { globalInFlightWriteBytes, maxOperationResponseBytes, globalWriteResponseBytes } = config
+    // A request is at most maxRequestBytes (step 7) and maxRequestBytes <= globalInFlightWriteBytes,
+    // maxOperationResponseBytes <= globalWriteResponseBytes (SPEC 12.1): every write fits an empty point.
     const write: Resource<Write> = {
       fit: need => {
         const counted = writes.fit(need.domain)
@@ -71,9 +72,6 @@ export class Admission {
           ? 'fits'
           : 'global'
       },
-      never: need =>
-        need.requestBytes > globalInFlightWriteBytes ||
-        maxOperationResponseBytes > globalWriteResponseBytes,
       take: need => {
         const giveCount = writes.take(need.domain)
         this.inFlightBytes += need.requestBytes

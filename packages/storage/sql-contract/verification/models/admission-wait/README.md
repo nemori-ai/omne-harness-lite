@@ -45,13 +45,13 @@ TLA2TOOLS_JAR=<TLC 1.7.4 的 jar> python3 check.py --out <输出目录>
 
 ## 5. 模型到代码
 
-| 模型                     | 代码（`packages/storage/sqlite-provider/src/waiting.ts`） |
-| ------------------------ | --------------------------------------------------------- |
-| `Arrive` 的立即拒绝      | 等待列表已满，或请求永远放不下                            |
-| `Arrive` 入队再 `Settle` | `acquire`：先入队，再 `scan`                              |
-| `Release`                | 预留的 `release` 之后 `scan`                              |
-| `Leave`                  | 期限计时器到期或 `signal` 中止：移出等待列表，再 `scan`   |
-| `Scan`                   | `scan`：放得下给预留，被本域挡住跳过，被全局挡住停止      |
+| 模型                     | 代码（`packages/storage/sqlite-provider/src/waiting.ts`）           |
+| ------------------------ | ------------------------------------------------------------------- |
+| `Arrive` 的立即拒绝      | 等待列表已满。请求永远放不下的情形由配置关系排除，模型里是 `ASSUME` |
+| `Arrive` 入队再 `Settle` | `acquire`：先入队，再 `scan`                                        |
+| `Release`                | 预留的 `release` 之后 `scan`                                        |
+| `Leave`                  | 期限计时器到期或 `signal` 中止：移出等待列表，再 `scan`             |
+| `Scan`                   | `scan`：放得下给预留，被本域挡住跳过，被全局挡住停止                |
 
 ## 6. 不覆盖
 

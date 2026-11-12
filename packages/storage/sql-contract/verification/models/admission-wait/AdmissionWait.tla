@@ -29,6 +29,9 @@ MCReq == {"a", "b", "c", "d"}
 MCDom == [r \in MCReq |-> CASE r \in {"a", "b"} -> "d1" [] r = "c" -> "d2" [] OTHER -> "d3"]
 MCWeight == [r \in MCReq |-> IF r = "c" THEN 2 ELSE 1]
 
+(* The configuration relations make every request fit an empty point (SPEC 准入等待 rule 1). *)
+ASSUME \A r \in Req : Weight[r] <= Bytes
+
 Held == {r \in Req : phase[r] = "held"}
 DomCount(d, h) == Cardinality({x \in h : Dom[x] = d})
 RECURSIVE SumW(_)
@@ -68,10 +71,8 @@ Init == /\ phase = [r \in Req |-> "idle"]
 Arrive(r) ==
   /\ phase[r] = "idle"
   /\ age' = age
-  /\ IF Weight[r] > Bytes
-          \/ WaitingIn(Dom[r], queue) >= PerDomain
-          \/ Len(queue) >= Global
-     THEN \* never fits, or the waiting list is full: refused at once
+  /\ IF WaitingIn(Dom[r], queue) >= PerDomain \/ Len(queue) >= Global
+     THEN \* the waiting list is full: refused at once
           /\ phase' = [phase EXCEPT ![r] = "left"]
           /\ queue' = queue
           /\ overtaken' = overtaken

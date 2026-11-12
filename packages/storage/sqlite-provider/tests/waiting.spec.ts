@@ -2,7 +2,7 @@
 // property of the model sql-contract verification/models/admission-wait, and names the rule whose
 // removal turns it red: the model's negative controls are `jump` (NoOvertake), `no-rescan`
 // (NoIdleFit) and `wake-all` (WithinCapacity).
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { WaitingQueue, type Acquired, type Fit, type Resource } from '../src/waiting.ts'
 
 type Need = Readonly<{ domain: string; bytes: number }>
@@ -18,7 +18,6 @@ function world(limits = { perDomain: 2, global: 2 }) {
       if ((held.get(need.domain) ?? 0) >= 1) return 'domain'
       return count < 2 && bytes + need.bytes <= 2 ? 'fits' : 'global'
     },
-    never: need => need.bytes > 2,
     take: need => {
       held.set(need.domain, (held.get(need.domain) ?? 0) + 1)
       count += 1
@@ -154,8 +153,27 @@ describe('WaitingQueue', () => {
     expect([w.outcomes.get('c'), w.outcomes.get('f')]).toEqual([undefined, undefined])
   })
 
-  it('a need that can never fit is refused at once', async () => {
-    expect((await world().arrive('big', 'd1', 3)).kind).toBe('full')
+  // A granted waiter leaves nothing behind: its deadline timer and its listener on the caller's
+  // signal are gone, so neither keeps the process alive or fires later.
+  it('a waiter that is granted leaves no timer and no abort listener behind', async () => {
+    vi.useFakeTimers()
+    try {
+      const w = world()
+      await w.arrive('a', 'd1')
+      await w.arrive('b', 'd2')
+      const abort = new AbortController()
+      const removed = vi.spyOn(abort.signal, 'removeEventListener')
+      void w.arrive('c', 'd3', 1, 10_000, abort.signal)
+      await Promise.resolve()
+      expect(vi.getTimerCount()).toBe(1)
+      w.release('a')
+      await Promise.resolve()
+      expect(w.outcomes.get('c')).toBe('granted')
+      expect(vi.getTimerCount()).toBe(0)
+      expect(removed).toHaveBeenCalledWith('abort', expect.any(Function))
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('an abort before the call is aborted, nothing taken', async () => {

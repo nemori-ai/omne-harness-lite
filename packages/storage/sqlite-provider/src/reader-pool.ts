@@ -52,6 +52,14 @@ const unavailable = (
   diagnostic: string = reason,
 ): ReadOutcome => ({ kind: 'unavailable', reason, diagnostic })
 
+/** The answer of a read whose wait for a reservation ended without one (准入等待 rule 6). */
+const READ_REFUSAL = {
+  full: unavailable('queue_full'),
+  expired: unavailable('queue_timeout'),
+  aborted: { kind: 'cancelled' },
+  closing: unavailable('closing'),
+} as const satisfies Record<Exclude<Acquired['kind'], 'granted'>, ReadOutcome>
+
 type Phase = 'queued' | 'assigned' | 'dispatched'
 
 /** One read request from its reservation to the release of that reservation. */
@@ -167,8 +175,9 @@ export class ReaderPool {
     this.config = config
     this.waiting = new WaitingQueue(
       {
+        // A handler's maxOutputBytes <= maxReadResultBytes <= globalReadResultBytes (provider
+        // construction, SPEC 12.1): every read fits an empty point.
         fit: need => this.fit(need.domain, need.bytes),
-        never: need => need.bytes > config.globalReadResultBytes,
         take: need => this.reserve(need.domain, need.bytes),
       },
       { perDomain: config.readQueuePerDomain, global: config.readQueueGlobal },
@@ -191,18 +200,7 @@ export class ReaderPool {
       job.signal,
     )
     const answer = (acquired: Acquired): ReadOutcome | Promise<ReadOutcome> => {
-      switch (acquired.kind) {
-        case 'full':
-          return unavailable('queue_full')
-        case 'expired':
-          return unavailable('queue_timeout')
-        case 'aborted':
-          return { kind: 'cancelled' } as const
-        case 'closing':
-          return unavailable('closing')
-        case 'granted':
-          break
-      }
+      if (acquired.kind !== 'granted') return READ_REFUSAL[acquired.kind]
       return new Promise<ReadOutcome>(resolve => {
         const task: Task = new Task(job, resolve, acquired.release, () => this.aborted(task))
         const left = Math.max(0, readQueueTimeoutMs - (performance.now() - started))
