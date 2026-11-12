@@ -190,7 +190,11 @@ async function readHistory(
       protocolVersion: 'session-public/1',
       messageId: randomUUID(),
       operation: 'read-history',
-      body: { tenant: savedTenant(home), session, cursor, direction, pageBytes: String(pageBytes) },
+      // A continued read names its cursor only; the cursor carries the direction and the page size.
+      body:
+        cursor === null
+          ? { tenant: savedTenant(home), session, cursor, direction, pageBytes: String(pageBytes) }
+          : { tenant: savedTenant(home), session, cursor },
       loginProof: savedLoginProof(home),
     }),
   })

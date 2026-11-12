@@ -19,7 +19,7 @@ export type PhaseCounts = {
   queries: number
   /** The JSON bytes of every `execution-record` command committed in the phase. */
   journalOwnBytes: number
-  /** The same bytes by the `kind` of the command, when it has one. */
+  /** The same bytes by the part of the command that holds them (see `attribute`). */
   journalOwnBytesByKind: Record<string, number>
 }
 
@@ -63,6 +63,32 @@ function jsonBytes(value: unknown): number {
   }
 }
 
+/**
+ * The JSON bytes of a command split by what holds them: an element of an array that has a string
+ * `kind` counts under `<path>[<kind>]`; any other value under its path, down to four levels. The
+ * parts add up to the bytes of the command less the punctuation between them.
+ */
+function attribute(value: unknown, path = '', depth = 0, into: Record<string, number> = {}) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const kind: unknown =
+        typeof item === 'object' && item !== null ? Reflect.get(item, 'kind') : undefined
+      if (typeof kind === 'string') {
+        const key = `${path}[${kind}]`
+        into[key] = (into[key] ?? 0) + jsonBytes(item)
+      } else attribute(item, `${path}[]`, depth + 1, into)
+    }
+    return into
+  }
+  if (typeof value === 'object' && value !== null && depth < 4) {
+    for (const [key, inner] of Object.entries(value))
+      attribute(inner, path === '' ? key : `${path}.${key}`, depth + 1, into)
+    return into
+  }
+  into[path] = (into[path] ?? 0) + jsonBytes(value)
+  return into
+}
+
 /** Installs the count once per process; `phase` sets the phase that later messages count in. */
 export function installWorkerCount() {
   const phases = new Map<number, PhaseCounts>()
@@ -103,11 +129,9 @@ export function installWorkerCount() {
         const participant = String(Reflect.get(command as object, 'participant'))
         participants.add(participant.split('.')[0] ?? participant)
         if (participant === JOURNAL_PARTICIPANT) {
-          const bytes = jsonBytes(command)
-          counts.journalOwnBytes += bytes
-          const commandKind = String(find(command, 'kind') ?? 'unknown')
-          counts.journalOwnBytesByKind[commandKind] =
-            (counts.journalOwnBytesByKind[commandKind] ?? 0) + bytes
+          counts.journalOwnBytes += jsonBytes(command)
+          for (const [part, bytes] of Object.entries(attribute(command)))
+            counts.journalOwnBytesByKind[part] = (counts.journalOwnBytesByKind[part] ?? 0) + bytes
         }
       }
       for (const participant of participants)
