@@ -238,6 +238,27 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 「路径 A」「路径 B」指提供者的 DO-1 打开路径（提供者规格 §5.3）。域打开期间到达的操作排队，等待打开结果；打开失败时为 `domain_unavailable`。`writer_not_current` 只用于旧 Worker 退出尚未被观察的 `recovering`【提案 P-08】。它是暂时结果。提供者不发通知，调用方按有界策略重试。Context r3 把这项重试归会话存储组合。
 
+### 准入等待
+
+`registerCombination`、`commit`、`query` 与 `read` 在发送之前各要一份预留。四个准入点用同一个规则：拿不到预留时，请求不立即被拒绝，而是进入这个准入点的等待列表，按到达顺序，在期限内等待归还出来的容量。短暂排满在存储边界被吸收，漏到调用方的只剩真正的过载与超期。模型与负控见 [AdmissionWait](verification/models/admission-wait/README.md)。
+
+| 准入点                | 要的预留                                                | 期限                                                  | 期限到了的答复                        |
+| --------------------- | ------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------- |
+| `registerCombination` | 控制队列：每域一份、全局一份                            | `admissionWaitMs`，从调用起算                         | `rejected_before_accept`/`queue_full` |
+| `commit`              | 写预留：每域一份、全局一份、请求字节、响应额度          | `admissionWaitMs`，从调用起算                         | `rejected_before_accept`/`queue_full` |
+| `query`               | 查询队列：每域一份、全局一份                            | `admissionWaitMs`，从调用起算                         | `unknown`（诊断 `queue_full`）        |
+| `read`                | 读队列：每域一份、全局一份、handler 的 `maxOutputBytes` | 计入 `readQueueTimeoutMs`，从调用起算（§9.2 第 9 步） | `unavailable`/`queue_timeout`         |
+
+规则：
+
+1. **过载立即拒绝。** 等待列表也有上限：每域的等待者数不超过该准入点的每域预留数，全局的等待者数不超过全局预留数。超过时立即返回上表最后一列的拒绝（读为 `unavailable`/`queue_full`）。请求的字节本身超过全局字节额度、永远放不下时，同样立即拒绝。
+2. **按到达顺序。** 新到的请求先进等待列表，再参与发放，不直接取用空出来的容量。
+3. **发放。** 每次有预留归还、有等待者到期或被中止，提供者从等待列表头部扫一遍：放得下的给预留；只因本域的每域上限放不下的跳过，它在本域有归还时再被扫到；因全局的个数或字节放不下的，这一遍到此为止，后到的请求不越过它。
+4. **恢复不放大。** 只按归还出来的容量发放。准入层不重试、不轮询，归还就是唤醒的来源。
+5. **等待时什么都没有发出。** 等待者没有预留，没有消息发给 Worker，所以它被拒绝或取消都是确定没做（U2），可以用同一身份再调用。等待中的 `commit` 计入待决索引（§8 第 2 步）。
+6. **中止与关闭。** 等待时 `signal` 中止：移出等待列表，`commit` 返回 `rejected_before_accept`/`cancelled`，`read` 返回 `cancelled`。关闭开始：全部等待者按各自操作的关闭结果结算（`closing`，`query` 为 `unknown`）。
+7. **`admissionWaitMs` 为 0** 时不等待，拿不到预留立即拒绝，与没有等待列表的行为相同。
+
 ### §6 registerCombination
 
 #### §6.1 输入与比较
@@ -261,7 +282,7 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 5. `material_unavailable`：某参加者不在目录中。
 6. `combination_invalid`：组合不满足 §4.3。
 7. `manifest_mismatch`：请求的清单摘要不等于提供者的计算值。
-8. `queue_full`：控制队列已满。
+8. `queue_full`：控制队列已满，并且按[准入等待](#准入等待)在 `admissionWaitMs` 内没有等到位置，或等待列表已满。
 9. 下列判断在写 Worker 上完成。域为 `absent` 时走路径 B，域为 `unopened` 时先走路径 A。
    1. `writer_not_current`：域为 `recovering`。
    2. `domain_unavailable`：域为 `quarantined` 或 `write-stopped`，打开或创建失败，或新增版本的迁移失败。
@@ -281,8 +302,9 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 【提案 P-02】
 
 1. 调用时 `signal` 已经中止：返回 `cancelled`，不预留。
-2. 预留之后中止：调用方的 Promise 立即以 `unknown`（诊断 `observer_detached`）结算。预留不因此归还。
-3. 提供者随即尝试撤下。消息还没有发给写 Worker 时（例如域正在打开，或操作在等待 `domain-serial` 屏障），控制侧移出操作并归还预留。消息已经发出时，控制侧请 Worker 撤下，Worker 确认操作尚未开始才撤下，并归还预留。已开始的操作按在途操作收场，不因取消被移出组。撤下不写 `rolled_back`。
+2. 等待预留时中止（[准入等待](#准入等待)）：返回 `rejected_before_accept`/`cancelled`，不预留，什么都没有发出。
+3. 预留之后中止：调用方的 Promise 立即以 `unknown`（诊断 `observer_detached`）结算。预留不因此归还。
+4. 提供者随即尝试撤下。消息还没有发给写 Worker 时（例如域正在打开，或操作在等待 `domain-serial` 屏障），控制侧移出操作并归还预留。消息已经发出时，控制侧请 Worker 撤下，Worker 确认操作尚未开始才撤下，并归还预留。已开始的操作按在途操作收场，不因取消被移出组。撤下不写 `rolled_back`。
 
 断开、超时、Worker 退出或取消观察时，调用方用同一身份调用 `query`（§8）。调用方在 `commit` 返回前失去响应时，也用同一身份调用 `query`。
 
@@ -290,7 +312,7 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 【提案 P-02】多个条件同时成立时，返回下列顺序中的第一个原因。拒绝不写回执，不执行命令。
 
-控制侧（第 1 至 8 步，不预留，不发送）：
+控制侧（第 1 至 8 步，不预留，不发送；第 8 步可能在准入等待中等待）：
 
 1. `closing`：提供者关闭已经开始。
 2. `cancelled`：调用时 `signal` 已经中止。
@@ -300,7 +322,7 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 5. `participant_repeated`：两条命令的参加者相同。
 6. `facts_not_json`：某条命令的 `facts` 含非 JSON 值。
 7. `command_limit`：命令条数超过 `maxCommandsPerCommit`，单条超过 `maxCommandBytes`，整个请求超过 `maxRequestBytes`，嵌套深度超过 `maxJsonDepth`，或容器成员总数超过 `maxJsonMembers`。提供者先做有界遍历，再规范写出。
-8. `queue_full`：该域的预留数等于 `admissionQueueLimit`，全局预留数等于 `globalAdmissionLimit`，或全局在途写字节、全局写响应预留不足。
+8. `queue_full`：该域的预留数等于 `admissionQueueLimit`，全局预留数等于 `globalAdmissionLimit`，或全局在途写字节、全局写响应预留不足，并且按[准入等待](#准入等待)在 `admissionWaitMs` 内没有等到预留，或等待列表已满。
 
 第 1 至 8 步都通过后，控制侧预留（个数、字节与响应预留各一份）并发送。域还没有到 `ready` 时，操作留在该域的等待列表中，打开成功后按到达顺序发送。
 
@@ -325,7 +347,7 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 | 原因                             | 定性 | 理由                                                                                               |
 | -------------------------------- | ---- | -------------------------------------------------------------------------------------------------- |
 | `closing`                        | 暂时 | 关闭的是这一个提供者代际。下一个代际可以受理同一请求                                               |
-| `queue_full`                     | 暂时 | 在途操作结算后，预留归还                                                                           |
+| `queue_full`                     | 暂时 | 在途操作结算后，预留归还。提供者已按准入等待等过 `admissionWaitMs`，调用方再等也按暂时处理         |
 | `writer_not_current`             | 暂时 | 旧 Worker 的退出被观察之后，域回到可写（§5.5）                                                     |
 | `domain_unavailable`             | 暂时 | 域的故障是存储的状态，不是请求的性质。`quarantined` 保持到插件重跑或进程重启，之后同一请求可以受理 |
 | `field_missing`                  | 确定 | 请求缺字段或违反 §3.1 的字段规则                                                                   |
@@ -446,14 +468,14 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 
 `query(identity)` 在写路径上按完整身份取得权威结果。它是排序屏障，不进入正在执行的外层事务，不读暂存回执，不使用读池。它有独立的队列 `queryQueuePerDomain` 与 `queryQueueGlobal`。同一身份的并发查询可以共用一次读取。回执记录提交结果，`query` 不新建 Run，也不发送通知。
 
-下列情形返回 `unknown`：提供者关闭已经开始；字段违规，或协议版本不是 `'2'`；队列已满；域为 `absent` 或绑定另一作用域；打开失败；域为 `quarantined` 或 `recovering`。这些结果不透露另一作用域是否有相同操作键的回执【提案 P-01】。域为 `unopened` 时，`query` 触发域打开。
+下列情形返回 `unknown`：提供者关闭已经开始；字段违规，或协议版本不是 `'2'`；查询队列已满，并且按[准入等待](#准入等待)在 `admissionWaitMs` 内没有等到位置，或等待列表已满；域为 `absent` 或绑定另一作用域；打开失败；域为 `quarantined` 或 `recovering`。这些结果不透露另一作用域是否有相同操作键的回执【提案 P-01】。域为 `unopened` 时，`query` 触发域打开。
 
 身份带 `recall: 'never'` 时，`query` 返回 `not_recallable`，不读域，也不打开域。提供者关闭与字段违规仍先返回 `unknown`。提供者不保存这样的操作的任何记录，所以 `not_committed` 对它不成立。
 
 域为 `ready` 时：
 
 1. 持久回执存在：返回该回执与原响应证据。
-2. 原身份在待决索引中：返回 `unknown`。待决索引覆盖排队、已封组、执行中、已暂存、第二个短事务中、结果已发出而预留未归还、等待者与旧代际未结算的全部状态。
+2. 原身份在待决索引中：返回 `unknown`。待决索引覆盖等待预留、排队、已封组、执行中、已暂存、第二个短事务中、结果已发出而预留未归还、等待者与旧代际未结算的全部状态。
 3. 否则，五项证明全部成立才返回 `not_committed`，缺任何一项返回 `unknown`。
 
 域为 `ready` 时还有一条 `unknown` 路径：已发送的 `query` 在提供者的观察上界内没有答复，例如写 Worker 正在执行一个耗时超过该上界的写，`query` 返回 `unknown`（诊断 `reply_wait_expired`），即使它要认的回执已经持久。它的队列位置保持到 Worker 答复或退出。调用方之后重新 `query`。上界的取值归提供者规格（SQLite 提供者规格 §8、§9.3：2 × `lockWaitMs`）。
@@ -486,13 +508,13 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 3. `unavailable`/`invalid`：请求不能解码，或违反 §3.1 的字段规则。`requestKey` 无效时，结果中的 `requestKey` 为 `null`。诊断只写字段名。
 4. `unavailable`/`read_limit`：输入超过 `maxReadInputBytes`，或嵌套深度、容器成员数超限。
 5. `unavailable`/`handler_unavailable`：目录中没有该 `(handler, protocol)`。
-6. `unavailable`/`queue_full`：读队列已满，或全局读结果预留不足 handler 的 `maxOutputBytes`。
+6. `unavailable`/`queue_full`：读的等待列表已满，或 handler 的 `maxOutputBytes` 超过全局读结果预留、永远放不下。读队列已满或全局读结果预留一时不足时，请求按[准入等待](#准入等待)等待，等待的时间计入第 9 步的期限。
 
 第 1 至 6 步都通过后，控制侧预留结果字节，把请求放入域读队列。派发与执行（第 7 至 13 步）：
 
 7. `unavailable`/`domain_unavailable`：域为 `absent`、绑定另一作用域、`quarantined` 或 `recovering`，或打开失败。
 8. `unavailable`/`schema_unavailable`：该域缺少 handler 需要的迁移标记，或 handler 依赖的索引正在重建。
-9. `unavailable`/`queue_timeout`：入队后 `readQueueTimeoutMs` 内没有派发。等待打开、`read-paused`、名额与串行屏障的时间都计入。
+9. `unavailable`/`queue_timeout`：从调用起 `readQueueTimeoutMs` 内没有派发。等待预留、等待打开、`read-paused`、名额与串行屏障的时间都计入。
 10. `unavailable`/`read_timeout`：运行超过 `readObservationMs`。提供者停止观察，SQL 继续执行，连接在清理完成之前不复用。
 11. `unavailable`/`read_limit`：输出超过 `maxOutputBytes`，或读出的行数超过 `maxRowsRead`。提供者不交付截断的结果。
 12. `unavailable`/`worker_exited`：交付之前读 Worker 退出，已读到的部分丢弃。
@@ -509,7 +531,7 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 | 原因                  | 定性 | 理由                                                                                                             |
 | --------------------- | ---- | ---------------------------------------------------------------------------------------------------------------- |
 | `closing`             | 暂时 | 关闭的是这一个提供者代际                                                                                         |
-| `queue_full`          | 暂时 | 在途读取结算后，队列位置与结果预留归还                                                                           |
+| `queue_full`          | 暂时 | 读的等待列表已满：在途读取结算后，队列位置与结果预留归还                                                         |
 | `domain_unavailable`  | 暂时 | 域的故障是存储的状态，不是请求的性质                                                                             |
 | `queue_timeout`       | 暂时 | 排队时间由同时在途的读取、域打开与屏障决定                                                                       |
 | `read_timeout`        | 暂时 | 运行时间受同时在途的读写与机器负载影响。空载时也超时的读是配置问题，不在「上限只影响完成的早晚」这一性质的前提内 |
