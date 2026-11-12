@@ -181,23 +181,24 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       settings.diagnostics(eventOf(code, address.path, address))
     const messageId = messageIdOf(req)
     if (messageId === undefined) {
-      entered.leave()
       note('access.message-id-rejected')
       writeAnswer(res, { outcome: 'protocol-rejected', body: EMPTY_BODY, close: true })
+      entered.leave()
       return
     }
     // Before the body is read in full, an answer closes the connection: otherwise Node would read
     // the rest of the body off the wire to reuse it (#1233 spec 已定 11).
+    // Each answer is written before `leave`, so a take-down completes after every answer is out.
     const early = (outcome: 'denied' | 'basis-unavailable' | 'protocol-rejected'): void => {
-      entered.leave()
       writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: true })
+      entered.leave()
     }
     const interrupted = (by: Interruption): void => {
       note(by === 'aborted' ? 'access.aborted' : 'access.caller-gone')
       if (by === 'aborted') early('basis-unavailable')
       else {
-        entered.leave()
         res.destroy()
+        entered.leave()
       }
     }
 
@@ -224,13 +225,13 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       }
       if (read.kind === 'rejected') {
         note('access.body-rejected')
-        entered.leave()
         writeAnswer(res, {
           outcome: 'protocol-rejected',
           body: EMPTY_BODY,
           messageId,
           close: false,
         })
+        entered.leave()
         return
       }
       body = read.value
@@ -274,9 +275,9 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       }
       const release = settings.slots.take(res)
       if (release === undefined) {
-        admission.entered.leave()
         settings.diagnostics(eventOf('access.busy', admission.address.path, admission.address))
         writeBare(res, 429, { 'x-omne-limit': 'in-flight-requests' })
+        admission.entered.leave()
         return
       }
       try {
