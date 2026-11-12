@@ -77,45 +77,48 @@ async function harness(
   const authority = createMemoryToolStartAuthority<string>()
   const settlements: Settlement[] = []
   const closes: string[] = []
-  const bindings = createLocalToolBindings({
-    registry,
-    catalog: { inspect: async () => succeed(fixed.availability) },
-    authority: {
-      ...authority,
-      consume: input => {
-        consumed += 1
-        return (consumeWith ?? authority.consume)(input)
-      },
-    },
-    scope: input => {
-      const real = unbox(
-        createIndependentToolScope({
-          signal: input.execution.signal,
-          limits: {
-            authorBufferBytes: 10000,
-            authorBufferItems: 100,
-            authorWaitHistoryBytes: 10000,
-            authorWaitHistoryItems: 100,
-          },
-          process: null,
-          waits: null,
-        }),
-      )
-      return {
-        ...real,
-        finish: (kind: 'returned' | 'failed') => {
-          closes.push(kind)
-          return real.finish(kind)
+  // A rebuild over the same registry and authority stands for a new process: it holds no attempt.
+  const make = () =>
+    createLocalToolBindings({
+      registry,
+      catalog: { inspect: async () => succeed(fixed.availability) },
+      authority: {
+        ...authority,
+        consume: input => {
+          consumed += 1
+          return (consumeWith ?? authority.consume)(input)
         },
-      }
-    },
-    settle: async input => {
-      settlements.push(input)
-      return settleWith === undefined ? succeed(completedFinal()) : settleWith(input)
-    },
-  })
-  const resolve = async (fixedRequest = fixed, call = 'first') =>
-    unbox(await bindings.resolve({ ...authorAccess, call: callId(call), request: fixedRequest }))
+      },
+      scope: input => {
+        const real = unbox(
+          createIndependentToolScope({
+            signal: input.execution.signal,
+            limits: {
+              authorBufferBytes: 10000,
+              authorBufferItems: 100,
+              authorWaitHistoryBytes: 10000,
+              authorWaitHistoryItems: 100,
+            },
+            process: null,
+            waits: null,
+          }),
+        )
+        return {
+          ...real,
+          finish: (kind: 'returned' | 'failed') => {
+            closes.push(kind)
+            return real.finish(kind)
+          },
+        }
+      },
+      settle: async input => {
+        settlements.push(input)
+        return settleWith === undefined ? succeed(completedFinal()) : settleWith(input)
+      },
+    })
+  const bindings = make()
+  const resolve = async (fixedRequest = fixed, call = 'first', over = bindings) =>
+    unbox(await over.resolve({ ...authorAccess, call: callId(call), request: fixedRequest }))
   const input = async (fixedRequest = fixed, call = 'first', executor = loaded.executor) => {
     const start: Start = {
       kind: 'start',
@@ -143,6 +146,8 @@ async function harness(
     settlements,
     closes,
     consumed: () => consumed,
+    authority,
+    rebuild: make,
   }
 }
 
@@ -378,6 +383,106 @@ describe('author binding start identity and consume outcomes', () => {
       failure: { kind: 'commit-unknown', operation: input.start.operation },
     })
     expect(unbox(fixture.registry.pins(fixture.loaded.key))).toBe('1')
+  })
+})
+
+// A consume that did not answer `started` never entered the author, so the binding keeps no answer
+// of it: the same start asks the fence again, and an inspection asks the fence what it decided
+// (U2, U3). The author still runs at most once.
+describe('author binding of a start whose consume did not answer started', () => {
+  const counted = () => {
+    let entered = 0
+    return {
+      module: authorModule(async () => {
+        entered += 1
+        return 'done'
+      }),
+      entered: () => entered,
+    }
+  }
+  const settled = () => new Promise<void>(resolve => setImmediate(resolve))
+  const unavailableOnce = (fixture: () => Fixture) => {
+    let first = true
+    return (input: Parameters<ToolStartAuthority<string>['consume']>[0]) => {
+      if (!first) return fixture().authority.consume(input)
+      first = false
+      return Promise.resolve(
+        fail({ kind: 'unavailable' as const, dependency: 'start-ledger', diagnostic: 'busy' }),
+      )
+    }
+  }
+
+  it.each(['unavailable', 'throws'] as const)(
+    'after a consume that %s, the same start consumes again and runs the author once',
+    async answer => {
+      const author = counted()
+      let fixture: Fixture
+      const once = unavailableOnce(() => fixture)
+      let thrown = false
+      fixture = await harness(author.module, input => {
+        if (answer === 'throws' && !thrown) {
+          thrown = true
+          return Promise.reject(new Error('lost'))
+        }
+        return answer === 'throws' ? fixture.authority.consume(input) : once(input)
+      })
+      const binding = await fixture.resolve()
+      const input = await fixture.input()
+      expect(await binding.start(input, {})).toMatchObject({ failure: {} })
+      unbox(await binding.start(input, {}))
+      await settled()
+      expect(fixture.consumed()).toBe(2)
+      expect(author.entered()).toBe(1)
+      expect(fixture.settlements).toHaveLength(1)
+      // The start that ran is not run again.
+      unbox(await binding.start(input, {}))
+      expect(fixture.consumed()).toBe(2)
+    },
+  )
+
+  it('an inspection of a start the fence did not accept answers not-started, and a new permit runs it', async () => {
+    const author = counted()
+    let fixture: Fixture
+    const once = unavailableOnce(() => fixture)
+    fixture = await harness(author.module, input => once(input))
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    expect(await binding.start(input, {})).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(unbox(await binding.inspectStart(input))).toMatchObject({
+      kind: 'not-started',
+      exclusion: expect.anything(),
+    })
+    unbox(await binding.start(await fixture.input(), {}))
+    await settled()
+    expect(author.entered()).toBe(1)
+  })
+
+  it('an inspection of a start the fence accepted, whose answer was lost, runs the author once', async () => {
+    const author = counted()
+    let fixture: Fixture
+    fixture = await harness(author.module, async input => {
+      unbox(await fixture.authority.consume(input))
+      return succeed({ kind: 'unknown' as const, diagnostic: 'the answer was lost' })
+    })
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    expect(await binding.start(input, {})).toMatchObject({ failure: { kind: 'commit-unknown' } })
+    expect(author.entered()).toBe(0)
+    const [one, two] = await Promise.all([binding.inspectStart(input), binding.inspectStart(input)])
+    expect([unbox(one).kind, unbox(two).kind]).toEqual(['live', 'live'])
+    await settled()
+    expect(author.entered()).toBe(1)
+    expect(fixture.settlements).toHaveLength(1)
+  })
+
+  it('a rebuilt binding (a new process) answers not-started for a start the fence did not accept', async () => {
+    let fixture: Fixture
+    const once = unavailableOnce(() => fixture)
+    fixture = await harness(counted().module, input => once(input))
+    const input = await fixture.input()
+    expect(await (await fixture.resolve()).start(input, {})).toMatchObject({ failure: {} })
+    const rebuilt = await fixture.resolve(fixture.fixed, 'first', fixture.rebuild())
+    expect(unbox(await rebuilt.inspectStart(input))).toMatchObject({ kind: 'not-started' })
   })
 })
 
