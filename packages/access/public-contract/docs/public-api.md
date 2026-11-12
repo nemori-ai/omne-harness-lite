@@ -6,7 +6,7 @@
 
 `package.json` 的 `exports` 只有入口 `.`。`source` 条件指向 [src/index.ts](../src/index.ts)，供工作区开发使用。独立消费者使用 `types` 与 `import` 条件，它们指向 `dist`。
 
-调用者不需要资格。客户端 SDK 与服务端接入都按包名 `@omne-harness/public-contract` 导入。运行时导出恰为二十个函数：治理一组四个，会话一组四个，HITL 一组四个，身份文本八个。[tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查这个清单。其余导出都是类型。本包不导出 `./testing`，也不导出业务提供者。
+调用者不需要资格。客户端 SDK 与服务端接入都按包名 `@omne-harness/public-contract` 导入。运行时导出恰为二十二个函数与一个常量：治理一组四个，会话一组四个，HITL 一组四个，身份文本八个，共同契约两个函数 `ruleCodec`、`defineProtocol` 与常量 `OUTCOMES`。[tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查这个清单。其余导出都是类型。本包不导出 `./testing`，也不导出业务提供者。
 
 ## 定义索引
 
@@ -29,6 +29,13 @@
 | `SessionDiagnosticsPage`、`SessionRunDiagnostic`、`SessionRunAttempts`、`SessionRunTerminal`、`SessionRunCause`、`SessionRunControl`、`SessionModelCallDiagnostic`、`SessionModelAttemptDiagnostic`、`SessionToolCallDiagnostic`、`SessionToolDiagnosticEntry`、`SessionFactCount`、`SessionCallAccountView` | 类型 | [src/session-messages.ts](../src/session-messages.ts)，`read-session-diagnostics` 的成功正文 |
 | `SessionDiagnosticGap`、`SessionDiagnosticGapSource`、`SessionDiagnosticGapReason`、`SessionDiagnosticUnknown`、`SessionDiagnosticInstant`、`SessionDiagnosticMilliseconds`、`SessionAdoptionRef` | 类型 | [src/session-messages.ts](../src/session-messages.ts)，诊断页的缺口与未知值 |
 | `SessionCodecLimits`、`SessionDiagnostic`、`SessionRequestRead`、`SessionResponseRead`、`SessionEncodeResult`、`SessionResponseEncodeInput` | 类型 | [src/session-messages.ts](../src/session-messages.ts) |
+| `OUTCOMES` | 常量 | [src/outcome.ts](../src/outcome.ts)，共同契约的对外结果表 |
+| `Outcome`、`FixedOutcome` | 类型 | [src/outcome.ts](../src/outcome.ts) |
+| `ruleCodec` | 函数 | [src/rule-codec.ts](../src/rule-codec.ts)，由一份规则得到编解码 |
+| `Codec`、`CodecResult`、`RuleValue` | 类型 | [src/rule-codec.ts](../src/rule-codec.ts) |
+| `Rule`、`LeafKind` | 类型 | [src/operation-rules.ts](../src/operation-rules.ts)，现有引擎读写用的规则数据 |
+| `defineProtocol` | 函数 | [src/protocol.ts](../src/protocol.ts)，检查协议契约并加进管道结果 |
+| `OperationContract`、`OutcomeBodies`、`ObservationContract`、`ProtocolContract`、`DefinedProtocol` | 类型 | [src/protocol.ts](../src/protocol.ts) |
 
 `SessionCodecLimits`、`SessionDiagnostic` 与 `SessionEncodeResult` 分别是治理一组同名类型的别名。`HitlCodecLimits`、`HitlDiagnostic` 与 `HitlEncodeResult` 也是。三组共用 `ProofInput`。
 
@@ -47,9 +54,10 @@
 | 本地值与线上表示、输入反射与诊断 | [SPEC.md 本地值与线上表示](../SPEC.md#本地值与线上表示) |
 | 身份值与文本互转 | [SPEC.md 身份值的文本](../SPEC.md#身份值的文本) |
 | 响应 body 闭合、`messageId` 关联与重复键补扫 | [SPEC.md 结果闭合与关联](../SPEC.md#结果闭合与关联) |
+| 对外结果表、从规则得到的编解码、协议契约的写法与 `defineProtocol` | [SPEC.md 共同契约](../SPEC.md#共同契约) |
 | 内部模块、规则表与关联读取的实现 | [内部设计](internals.md) |
 
-协议十二个函数与身份文本八个函数都同步执行，没有外部副作用。下面是非规范的摘要，规则以 [治理函数表](../SPEC.md#操作集合与函数)与[会话函数表](../SPEC.md#会话编解码函数)为准：
+协议十二个函数、身份文本八个函数与共同契约两个函数都同步执行，没有外部副作用。下面是非规范的摘要，规则以 [治理函数表](../SPEC.md#操作集合与函数)与[会话函数表](../SPEC.md#会话编解码函数)为准：
 
 - 编程错误抛出固定 `TypeError`，错误不含输入值。
 - 本地模型无效时，编码函数返回 `invalid` 和有限诊断 code。

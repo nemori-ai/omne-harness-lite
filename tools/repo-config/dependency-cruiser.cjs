@@ -17,6 +17,11 @@ const TOOLCHAIN_ENTRY = 'cli\\.ts$'
 const UNPUBLISHED_TOOLS = '^tools/(dev-flow|product-checks|test-runner)/'
 const WORKSPACE = 'docs/workspace.md'
 const LAYERS = 'docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向'
+const ACCESS_RFC = 'docs/rfcs/RFC-0015-access-dynamic-registration.md'
+// dependency-cruiser resolves `node:crypto` to `crypto`, so a Node built-in is matched by its bare name.
+const NODE_BUILTIN = `^(node:)?(${require('node:module')
+  .builtinModules.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join('|')})$`
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
@@ -63,6 +68,15 @@ module.exports = {
       severity: 'error',
       from: { path: PUBLIC_CONTRACT },
       to: { path: `^apps/|${SDK}|${SERVER_ENTRY}|${ASSEMBLY}` },
+    },
+    {
+      name: 'contract-stays-pure',
+      comment: `The public contract source is pure data and pure functions that both ends share: no Cordis, assembly, storage member or Node built-in. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-18`,
+      severity: 'error',
+      from: { path: `${PUBLIC_CONTRACT}src/` },
+      to: {
+        path: `(^|/)node_modules/@deepseek-ai/cordis/|^packages/[^/]+/[^/]*cordis[^/]*/|^packages/(assembly|storage)/|^packages/[^/]+/[^/]*-storage-[^/]*/|${NODE_BUILTIN}`,
+      },
     },
     {
       name: 'capability-not-sdk',

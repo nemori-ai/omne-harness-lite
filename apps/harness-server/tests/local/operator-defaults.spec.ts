@@ -1,7 +1,8 @@
 // The operator layer of the local single-user profile, built over the release distribution that
 // ships with the application. The process test (`setup-serve-process.spec.ts`) proves that the
 // whole tree loads with it. These cases pin what the layer holds and what it never holds.
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -25,6 +26,7 @@ import {
   storageCloseDeadlineMs,
   type LocalOperatorInput,
 } from '../../src/local/operator-defaults.ts'
+import { toolRowsOperatorConfig } from '../r9/support.ts'
 
 const memberDir = fileURLToPath(new URL('../..', import.meta.url))
 const distribution = JSON.parse(
@@ -208,6 +210,49 @@ describe('localOperatorLayer over the bundled distribution', () => {
         'message.system_reminder',
       ]),
     )
+  })
+
+  const resultBounds = z.record(z.string(), z.object({ resultMaxBytes: z.number() }))
+  const localBounds = () =>
+    resultBounds.parse(
+      z.object({ construction: z.unknown() }).parse(configOf(layer, 'tool-host')).construction,
+    )
+
+  // A result above the inline threshold is offloaded and read back by pages; a result bound at or
+  // under it cuts every large result to a head and tail before offloading can see it. A Tools
+  // reply is itself a page read back, and it stays inline (Tool SPEC 第 28 条, `checkToolsReplyBudget`).
+  it('bounds every tool result above the inline threshold, and the Tools reply within it', () => {
+    const inline = z
+      .object({
+        configuration: z.object({ offloading: z.object({ maxInlineUtf8Bytes: z.number() }) }),
+      })
+      .parse(configOf(layer, 'tool-records')).configuration.offloading.maxInlineUtf8Bytes
+    const bounds = localBounds()
+    expect(Object.keys(bounds).sort()).toEqual([
+      'Ask',
+      'Files',
+      'Shell',
+      'TodoItems',
+      'Tools',
+      'Web',
+    ])
+    for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask'])
+      expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
+    expect(bounds['Tools']?.resultMaxBytes).toBeLessThanOrEqual(inline)
+  })
+
+  // The test operator layer builds the same tool host, so a test on its defaults takes the path
+  // the local profile takes.
+  it('gives the test operator layer the tool result bounds of the local profile', () => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'omne-result-bounds-')))
+    try {
+      const { construction } = toolRowsOperatorConfig({ storageRoot: join(base, 'storage') })
+      const tests = resultBounds.parse(construction)
+      for (const [tool, bound] of Object.entries(localBounds()))
+        expect(tests[tool]?.resultMaxBytes, tool).toBe(bound.resultMaxBytes)
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
   })
 
   it('puts the workspace under both tools and the execution host', () => {
