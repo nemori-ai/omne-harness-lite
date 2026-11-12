@@ -7,7 +7,8 @@
 // 命令不经 shell 执行。Windows 上 `pnpm` 与 `.sh` 脚本另有起法，见 `launch`。
 //
 // 策略都可用环境变量覆盖，下面是初值：
-//   OMNE_TEST_SLOTS                  名额数（1）
+//   OMNE_TEST_SLOTS                  名额数（2：同一台机器按两次检查同时跑来分核，
+//                                    与 tools/test-runner/test-runs.config.json 的 parallel.concurrentRuns 一致）
 //   OMNE_TEST_SLOT_DIR               锁文件目录（见下面「一个锁目录」；同一用户的全部检出共用）
 //   OMNE_TEST_SLOT_POLL_SECONDS      没轮到时隔多久再看一次（5）
 //   OMNE_TEST_SLOT_MAX_WAIT_SECONDS  最多等多久，超过即以 75 退出、命令不执行（7200）
@@ -71,7 +72,7 @@ const integer = name => {
   }
   return Number(value)
 }
-const slots = integer({ env: 'OMNE_TEST_SLOTS', initial: '1', label: 'slots' })
+const slots = integer({ env: 'OMNE_TEST_SLOTS', initial: '2', label: 'slots' })
 const pollSeconds = integer({
   env: 'OMNE_TEST_SLOT_POLL_SECONDS',
   initial: '5',

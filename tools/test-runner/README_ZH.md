@@ -57,7 +57,8 @@ node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-e
 展开的部分还排除嵌套归档目录（`**/*.legacy/**`），并在设了 `OMNE_TEST_REPORT_DIR` 时挂上 JSON 报告与计时报告。这个变量在测试进程里置空，测试起的夹具 vitest 不往运行目录写报告。
 成员有三个测试脚本：`test:fast` 是 `vitest run --mode fast`，`test:slow` 是 `vitest run --mode slow --typecheck.enabled=false`（`*.spec-d.ts` 都归快层），`test` 是 `vitest run`。
 脚本不先构建，构建由 turbo 的 `dependsOn` 或运行器的构建一步负责。一个测试归慢层：整个文件在开头注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，
-并写一句为什么慢。时限的先后：用例自己写的（选项里的 `timeout` 或 `test(名字, 函数, 毫秒)`）＞ 慢层标签的 ＞ 成员配置的 `testTimeout` ＞ vitest 默认 5 秒。
+并写一句为什么慢。时限的先后：用例自己写的（选项里的 `timeout` 或 `test(名字, 函数, 毫秒)`）＞ 慢层标签的 ＞ 成员配置的 `testTimeout` ＞ `testTiers` 给的快层时限 15 秒（`vitest.tiers.mts` 的 `FAST_TEST_TIMEOUT_MS`）。
+快层时限比 vitest 默认的 5 秒宽，为的是机器上同时有别的检查时，起子进程、读写文件的用例不因为被挤慢而失败。它只是失败线。快层的承诺没有变：单条用例不到 5 秒的 `ledger.nearTimeoutRatio`，超过的由账本的归层漂移点名。
 运行器的 `--tier fast|slow|all` 选 turbo 任务 `test:fast`、`test:slow` 或 `test`。层只经脚本里的 mode 传递，外面环境里的变量改不了层。
 `--base` 缺省 `fast`，`--all` 缺省 `all`，验收不分层、不接受 `--tier`。层记在账本的 `meta.tier`，
 慢层与快层运行的目录名带 `-slow`／`-fast` 后缀。被滤掉的用例在报告里是跳过，账本把它们计进「没跑」，不计进「用例」。
@@ -86,13 +87,18 @@ vitest 升级后新增或改动布尔选项，表没跟上，这两条就失败�
 1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh` 与入口脚本 `check-design.sh`、`metrics.sh`、`slot-unless-plan-only.sh`、`test-tier.sh`、本配置文件、
    测试运行器与影响面引擎自身的源码（`src/` 下从入口 `src/testing/cli.ts` 与 `src/testing/check.ts` 沿静态导入能到的 `.ts` 文件，加上按路径加载的过滤守卫，列在 `tests/engine-closure.spec.ts` 的 `PATH_LOADED` 里；清单由该文件守住，新增引擎模块时测试会提示加进 `globalPaths`），以及任何位置的 `turbo.json`）：整份计划判全量——
    引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围。
-   引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改 `pnpm-workspace.yaml`（全量）与锁文件（按下一条判）。
-   **锁文件例外**（`pnpm-lock.yaml`，`src/testing/lockfile-impact.ts`，`src/testing/pnpm-lockfile.ts` 读它）：只用于普通的影响面计划，增量准入（`check --resume-from`）里锁文件按全局文件处理，见下面「准入」一节。
-   它是唯一命中的全局文件时不直接全量，而是把基线与工作树两份锁文件的差异按 importer 映射到成员——
-   `importers:` 下有变化的条目对应的成员，加上直接或间接依赖了有变化的 `packages:`／`snapshots:` 条目的成员（沿 snapshot 的 `dependencies`、`optionalDependencies` 反向求传递闭包，去掉的包按基线图、新加的按工作树图）；
-   映射到的成员作为种子，与代码改动的成员一样按 turbo 的依赖图带上下游。下面任一情形仍判全量并写明原因：顶层 `lockfileVersion`、`settings`、`overrides`、`patchedDependencies`、`catalogs` 或别的顶层键有变化；
+   引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改两份依赖清单，按下一条判：根 importer 依赖它们，所以判全量。
+   只被常驻检查读的登记数据不在这一类：`docs/engineering/integration-policy.json`（读者是收工钩子）与 `docs/architecture/constraints.json`（读者是 `lint:deps`）归「只需常驻检查」。
+   **依赖清单例外**（`pnpm-lock.yaml` 与 `pnpm-workspace.yaml`，`src/testing/lockfile-impact.ts`，`src/testing/pnpm-lockfile.ts` 读锁文件）：只用于普通的影响面计划，增量准入（`check --resume-from`）里两份都按全局文件处理，见下面「准入」一节。
+   它们是仅有的全局改动时不直接全量，按下面的次序判：
+   - 先比基线与工作树两份 `pnpm-workspace.yaml`。`catalog`、`catalogs` 之外的键有变化（成员清单、`overrides`、`patchedDependencies`、构建白名单等）判全量。只有这两个键有变化时接着看锁文件：目录里的版本落到哪些成员，锁文件的 importer 记着。
+   - 再把两份锁文件的差异按 importer 映射到成员：`importers:` 下有变化的条目对应的成员，加上直接或间接依赖了有变化的 `packages:`／`snapshots:` 条目的成员（沿 snapshot 的 `dependencies`、`optionalDependencies` 反向求传递闭包，去掉的包按基线图、新加的按工作树图）。锁文件顶层的 `catalogs` 是从 `pnpm-workspace.yaml` 抄来的，不单独算变化。
+   - 映射到的成员作为种子，与代码改动的成员一样按依赖图带上下游。
+
+   下面任一情形仍判全量并写明原因：锁文件顶层 `lockfileVersion`、`settings`、`overrides`、`patchedDependencies` 或别的顶层键有变化；
    根 importer（`.`，全仓的工具）的依赖直接或间接变了；任一份解析失败，或锁文件里有解释不了的引用（importer 不在成员清单里、依赖指向不存在的 snapshot、变化的包没有任何 importer 依赖它）；
-   `tools/test-runner` 自己在映射到的成员或其下游里（引擎自己的依赖变了）；与别的全局文件一起改（这时不问映射）。两份解析后等价时不因锁文件选成员。
+   `tools/test-runner` 自己在映射到的成员或其下游里（引擎自己的依赖变了）；与别的全局文件一起改（这时不问映射）。两份解析后等价时不因依赖清单选成员。
+   `pnpm-workspace.yaml` 在 turbo 的 `globalDependencies` 里，它一改 `--affected` 就选中全部成员，那份名单不再说明谁受影响。这时计划不用它，从种子（代码改动的成员与依赖清单映射到的成员）按 turbo 的依赖图算闭包。
    计划输出的「锁文件：」一行原样写出映射模块的结论，被选中成员的原因写明锁文件里它哪些依赖变了；`check:plan --json` 的 `plan.lockfile` 是同一句话。
    测试结果缓存的键不按这条收窄：锁文件仍进每个成员的键，锁文件一变全部条目失效，比计划保守（只多重跑、不少跑），见「结果缓存」。
    `tools/dev-flow/src/integration/**` 不是全局路径，按 dev-flow 的成员文件算，改它跑 dev-flow 的测试：
@@ -111,7 +117,8 @@ vitest 升级后新增或改动布尔选项，表没跟上，这两条就失败�
    - 计划用 turbo 的依赖图（`turbo ls --filter=...<包>`）求出只改了文档的成员及其下游，从 `--affected` 里拿掉其中不是代码改动成员下游的那些。
    - 同一成员既改文档又改代码，照旧选中它与下游。只改了文档的成员是别的代码改动成员的下游时，照旧作为下游选中。
    - 拿掉之前核对：turbo 选中的每个成员都要在代码改动成员或只改了文档的成员的下游里（含它们自己）。
-     有解释不了的成员，说明 turbo 的种子里有规则没认出的改动，计划判全量，理由点名这些成员。
+     有解释不了的成员，说明 turbo 的种子里有这里没认出的改动。这时计划不拿掉任何成员，照 turbo 的名单原样跑，理由点名这些成员。
+     turbo 的名单按包依赖图算，只会多不会少；成员目录以外的读取由读者规则另算；没有规则认得的文件在前面已经判了全量。所以照它跑不会漏选。
    - 被测试读的成员根目录文档由上面的读者规则点名，只选规则点名的成员，不带下游。
    - 计划说明把没有选中的这类成员列在「只改了文档、不选的成员」下；`check:plan --json` 的 `plan.documentsOnly` 给出同一份清单。
 
@@ -129,7 +136,7 @@ vitest 升级后新增或改动布尔选项，表没跟上，这两条就失败�
 另加 `residentBuild` 列的成员，纯文档改动也构建它；它们的上游由 `turbo run build` 按依赖先构建。
 `residentBuild` 现在是 legal-identity（`lint:rules` 导入它的 `dist`）、repo-toolchain（工具 CLI 经包入口导入它）与 `packages/agent/agent`
 （`lint:deps` 解析它的验收夹具 `acceptance/fixtures/executor.mjs` 对 `dist/index.js` 的导入，没有构建产物的检出上「只需常驻检查」的计划会在 `lint:deps` 失败）。
-类型检查由 `turbo run typecheck` 对被选中的成员运行它们自己的 `typecheck` 脚本：不先构建，同时 4 个成员。任务按输入缓存：根 `turbo.json` 让它依赖上游成员的 `typecheck`，上游源码一改，下游的任务哈希随之改变；成员目录以外、又不经 `workspace:` 依赖读到的文件列在 `globalDependencies` 里：仓库根的 `vitest.tiers.mts`（tools 成员的 vitest 配置），以及 `tools/repo-toolchain/src/**` 与 `tools/repo-toolchain/tests/fixtures/**`（`tools/dev-flow`、`tools/test-runner` 的测试经相对路径导入）。单独运行读写本地缓存，准入模式只写不读，与构建相同。
+类型检查由 `turbo run typecheck` 对被选中的成员运行它们自己的 `typecheck` 脚本：不先构建，同时跑的成员数取工作进程预算。任务按输入缓存：根 `turbo.json` 让它依赖上游成员的 `typecheck`，上游源码一改，下游的任务哈希随之改变；成员目录以外、又不经 `workspace:` 依赖读到的文件列在 `globalDependencies` 里：仓库根的 `vitest.tiers.mts`（tools 成员的 vitest 配置），以及 `tools/repo-toolchain/src/**` 与 `tools/repo-toolchain/tests/fixtures/**`（`tools/dev-flow`、`tools/test-runner` 的测试经相对路径导入）。单独运行读写本地缓存，准入模式只写不读，与构建相同。
 嵌套归档目录（名字以 `.legacy` 结尾）的排除写在成员的 `tsconfig.test.json`（模板给 `"exclude": ["**/*.legacy/**"]`）。
 运行前 `src/testing/typecheck-scope.ts` 只解析配置、不跑 tsc，核对编译根里没有归档文件：成员自己的 `exclude` 盖掉了模板那条，
 或者 `include` 指到成员目录外的归档目录，或者 `typecheck` 不是 `tsc -p <配置>` 形式而成员里有归档目录，就点名报错，不运行类型检查。
@@ -174,7 +181,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 命中的成员不执行：运行时打印 `缓存命中，<n> 条用例，来源 <账本目录>`，摘要末尾一行写命中几个成员、来源哪些账本、这次写入了几个。一个成员都不跑时，打印 `<N> 个成员全部命中缓存，没有执行（<层>）`。成员测试的账本（`ledger.json`）因此有以下形状：
 
 - `meta.members`：这次覆盖的全部成员，跑了的加命中的。
-- `meta.cache`：`mode`（`read-write`、`write-only` 或 `unavailable`：这次读不读缓存）、`reason`（只写不读或不可用的原因）、`home`（缓存根）、`hits`（每项有 `member`、`key`、`source` 即来源账本目录、`tests` 即用例数）、`written`（这次写入的成员）、`write`（`on` 或 `off`：这次写不写缓存）、`skipped`（通过了、但因为没有构建记录、构建之后输入变了、构建之后 dist 被改过或运行期间输入变了而没写的成员数）、`uncacheable`（算不出键的成员与原因）、`problems`（写不进去的原因）。验收的账本没有这一栏。`mode` 与 `write` 互相独立，例如 `mode: read-write` 同时 `write: off`，表示这次读了缓存、但不写。
+- `meta.cache`：`mode`（`read-write`、`write-only` 或 `unavailable`：这次读不读缓存）、`reason`（只写不读或不可用的原因）、`trustedOnly`（读的时候是不是只认准入写的条目）、`home`（缓存根）、`hits`（每项有 `member`、`key`、`source` 即来源账本目录、`head` 与 `recordedAt` 即那次运行的提交与时刻、`tests` 即用例数）、`written`（这次写入的成员）、`write`（`on` 或 `off`：这次写不写缓存）、`skipped`（通过了、但因为没有构建记录、构建之后输入变了、构建之后 dist 被改过或运行期间输入变了而没写的成员数）、`uncacheable`（算不出键的成员与原因）、`problems`（写不进去的原因）。验收的账本没有这一栏。`mode` 与 `write` 互相独立，例如 `mode: read-write` 同时 `write: off`，表示这次读了缓存、但不写。
 - `members`、各成员的文件、`failures` 与 `nearTimeout`：只有这次跑了的成员。一层的成员全部命中时它们都是空的，这一层算通过。
 
 快层全部通过（含命中）才跑慢层的规则不变。`triage` 与失败归因只读 `failures`：命中的成员没有失败可重跑，跑了的失败照常单独重跑、归类。
@@ -188,32 +195,38 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 
 | 入口 | 不读缓存的条件 | 写缓存 |
 | --- | --- | --- |
-| `pnpm run check`、`pnpm run test:gate`（`step test`） | `FULL=1`、`OMNE_TEST_CACHE=0`、准入模式 `OMNE_ADMISSION=1`；`pnpm run check` 不认 `--full`、`--no-cache`，`cli.ts check` 与 `step` 另认 | 构建之后，满足上面两条时写 |
-| `pnpm run test:affected`（`run --base`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 | 缺省构建，满足上面两条时写；给 `--no-build` 不写 |
-| `pnpm run test:tier`、`pnpm run test`（`run --all --build`） | `FULL=1`、`OMNE_TEST_CACHE=0`、准入模式；不认 `--no-cache` | 带 `--build`，同一进程里有构建记录，满足上面两条时写。所以 `FULL=1 pnpm run test` 不读缓存，但会写 |
-| `cli.ts run --all`（不带 `--build`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 | 不写 |
+| `pnpm run check`、`pnpm run test:gate`（`step test`） | `FULL=1`、`OMNE_TEST_CACHE=0`；`pnpm run check` 不认 `--full`、`--no-cache`，`cli.ts check` 与 `step` 另认 | 构建之后，满足上面两条时写 |
+| `pnpm run test:affected`（`run --base`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0` | 缺省构建，满足上面两条时写；给 `--no-build` 不写 |
+| `pnpm run test:tier`、`pnpm run test`（`run --all --build`） | `FULL=1`、`OMNE_TEST_CACHE=0`；不认 `--no-cache` | 带 `--build`，同一进程里有构建记录，满足上面两条时写。所以 `FULL=1 pnpm run test` 不读缓存，但会写 |
+| `cli.ts run --all`（不带 `--build`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0` | 不写 |
 
-本次没有构建记录时同样不写，账本里 `write` 为 `off`。`run` 与 `check` 都认环境变量 `FULL=1`。准入不读待合并的改动能写入的缓存，与构建、类型检查的 turbo 缓存同一条规则。快照或依赖图取不到、条目坏了、写不进去，一律按未命中：既不让检查失败，也不让检查放行。
+本次没有构建记录时同样不写，账本里 `write` 为 `off`。`run` 与 `check` 都认环境变量 `FULL=1`。
+
+**准入模式只认准入写的条目。**准入模式（`OMNE_ADMISSION=1`）读缓存，但只认带 `admission` 的条目：它们是某一次准入模式的运行真跑出来的完整通过。平常的运行写的条目没有这一栏，准入不认（那次运行可能带了过滤，可能没有重新构建）。准入要防的是没有真跑过却显示通过；一条记录是一次准入真跑出来的，而且键盖住这个成员读的全部输入，认它不违反这条防线。同一个键下已有准入写的条目时，平常的运行不盖掉它。`FULL=1` 的准入不认任何条目，全部重跑；提升 main、进入 stable 的全量准入带它。命中的成员在输出里逐个写明取自哪个提交、哪个时刻的运行，账本的 `meta.cache.hits` 给出同样的出处。构建与类型检查的 turbo 缓存不在这一条里：准入模式下它们仍然只写不读。
+这一条帮得上的情形：准入失败后修一处再跑、同步轨道头之后再跑，输入没变的成员不重跑。帮不上的情形：计划选中的成员输入都变了（最常见的只改一个成员的准入就是这样），它们的键不命中，照跑。
+快照或依赖图取不到、条目坏了、写不进去，一律按未命中：既不让检查失败，也不让检查放行。
 做法借鉴 [ub-mode](https://github.com/unclebob/ub-mode/tree/57a8bdd) 的 mutator 与 crapper：结果仍有效就复用，只重跑输入变了的。
 命中意味着：同一台机器上，键完全相同（同样的输入文件内容、层、平台与架构、Node 版本、列出的环境变量）的一次完整通过曾经发生过。不意味着：这次再跑也会过——不稳定的用例、外部服务、时间与没列进键的环境变量都不在键里；也不证明那次运行的报告本身可靠。影响面规则漏掉的读取，缓存键同样漏掉：补读者规则，两边一起补上。自测：`tests/test-cache.spec.ts`（每类输入进谁的键、各类失效、只写完整通过、坏条目；慢层在临时仓库核对快照、在本仓库核对依赖图与每个成员都算得出键、真起 turbo 跑两遍看命中；另在临时仓库里分进程走 `step build --plan`、改源码、`step test --plan`，并起命令行 `run` 核对 `--build` 的接线）。
 
-**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。`pnpm run check` 在起任何步骤之前、机器安静时采样一次，经环境变量 `OMNE_WORKER_BUDGET` 交给各重步骤（重步骤开始时跑着的轻步骤是本图自己的，那时再采会把它们当成别的负载而缩预算，所以只在起步骤之前采一次）；单独运行一步时该步自己采（成员测试的快层与慢层各采一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟进程过了启动尖峰再量）。采的是核数（`availableParallelism()`）、
-`parallel.sampleMs` 毫秒内实测的 CPU 空闲率与空闲内存，得到**工作进程预算** = 核数 × 空闲率，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1、至多核数。
-空闲率让已经忙着的机器（同时跑着的别的检查步骤、后台程序）少被挤；运行名额挡的是整套检查，挡不住别的负载。
+**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。一台机器的核是一个池子：核数（`availableParallelism()`）减去留给别的活的 `parallel.reserveCores` 个核，按这台机器同时跑 `parallel.concurrentRuns` 次检查平分。
+一次检查拿到的**工作进程预算** = floor((核数 − `reserveCores`) ÷ `concurrentRuns`)，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1。初值是留 2 个核、按 2 次检查分（负责人 2026-11-12 定）：24 核的机器每次检查预算 11，8 核的机器预算 3。
+`concurrentRuns` 与[运行名额](../../scripts/README.md#运行名额)的缺省个数是同一个数，`tests/parallelism.spec.ts` 核对两处相等：名额放进来几次检查，池子就按几次分。
+预算不看 CPU 空闲率。两次检查同时跑时，各自采样会把对方算成别的负载：先起的那一次占满，后起的那一次缩到很小。按固定的份数分，哪一次先起都拿到同样多。空闲率仍然采（`parallel.sampleMs` 毫秒），只记进账本。
+`pnpm run check` 在起任何步骤之前算一次预算，经环境变量 `OMNE_WORKER_BUDGET` 交给各重步骤；单独运行一步时该步自己算。
 预算按 `test-runs.config.json` 的 `parallel` 策略分：同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。
 构建与类型检查的 turbo 并发、vitest 的工作进程数直接取预算（tsc 的进程占一个核）。
-策略只含比例与上下限，不含任何一台机器的核数。初值 3、4、8、2 的依据（`docs/verification.md` 要求写明负载、平台与超限行为）：负载是全量 73 个成员，平台是一台 24 核 Windows 宿主（空闲 0.8，预算 19），扫描的结论：
+策略只含比例与上下限，不含任何一台机器的核数。初值 3、4、8、2 的依据（`docs/verification.md` 要求写明负载、平台与超限行为）：负载是全量 73 个成员，平台是一台 24 核 Windows 宿主，当时预算按核数乘空闲率算，是 19。扫描的结论：
 快层的墙钟 ≈ 各成员 vitest 启动与收集之和 ÷ 同时成员数，到 6 至 8 个成员时碰到 CPU 平台期（91 秒降到 39 至 41 秒），再多只让起子进程的用例贴线；
 慢层的下限是起子进程最多的成员（repo-toolchain，28 个慢文件）：它的文件互相挤，每成员 8 个进程比 5 个只快十几秒而文件耗时总和翻倍，所以每成员进程数的除数取 4。
-同一策略在 8 核上推出 3 × 2，这只是预测，没有在 8 核上复测；之前 8 核上量到的固定配置 2 × 4 与 4 × 2 只差约 1 分钟。超限的表现是起子进程的用例贴近时限，账本的 `nearTimeout` 列出它们。
+这组比例是在预算 19 上扫出来的，按份数分池子之后没有重扫：24 核上现在推出 4 × 3，8 核上推出 2 × 2（预算 3，两个数都落在下限上）。之前 8 核上量到的固定配置 2 × 4 与 4 × 2 只差约 1 分钟。超限的表现是起子进程的用例贴近时限，账本的 `nearTimeout` 列出它们。
 `memoryPerWorkerMiB` 是安全上限的估计，不是测量：空闲内存少于它乘预算时才起作用。
-预算可用 `OMNE_WORKER_BUDGET`（正整数，超过核数按核数）钉死，不再采样；两个并行度可用环境变量 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时盖过——后者是 vitest 自己认的变量，
+预算可用 `OMNE_WORKER_BUDGET`（正整数，超过核数按核数）钉死：确知这台机器只跑这一次检查时，用它把整个池子交给这一次。两个并行度可用环境变量 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时盖过——后者是 vitest 自己认的变量，
 会盖过成员配置里的 `maxWorkers`。账本的 `meta` 记下并行度、核数与预算的来历（`budget`：进程数、空闲率、空闲内存，以及是自己采的还是环境变量给的）。
 
 **覆盖率的并发度。**`node --experimental-strip-types tools/test-runner/src/testing/cli.ts coverage-parallel` 打印 `<同时成员数>x<每成员工作进程数>` 一行，说明写到标准错误（`src/testing/coverage-parallel.ts`）。
 `pnpm run metrics --coverage` 经 `scripts/metrics.sh` 在占到运行名额后调用它，把结果经环境变量 `OMNE_METRICS_COVERAGE_PARALLEL` 交给 repo-toolchain 的 omne-metrics（repo-toolchain 不依赖本包，预算只在这里推）。
 预算与成员测试相同（`OMNE_WORKER_BUDGET` 可钉死）。每成员工作进程数按上面的策略取，不超过预算。同时成员数 = floor(预算 ÷ 每成员工作进程数)，至少 1。
-两数之积不超过预算：与成员测试不同，覆盖率这一趟不按名义进程数超订。24 核宿主上预算 19 时是 3x5。
+两数之积不超过预算：与成员测试不同，覆盖率这一趟不按名义进程数超订。预算 19 时是 3x5，24 核宿主按份数分到的预算 11 时是 3x3。
 
 **耗时账本。**每次运行在**主检出**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`（`OMNE_TEST_LEDGER_HOME` 可改根目录，
 `--out` 可直接指定）留下：
@@ -268,7 +281,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 | `admission`                  | 是不是准入运行（`--admission` 或 `OMNE_ADMISSION=1`）；只有准入运行能被接续或复用                                                                                                                                   |
 | `mode`、`base`、`resumeFrom` | `mode` 说范围：`full`（计划判全量，全部步骤对全部成员跑了：带了 `FULL=1`，或全局文件、未归类路径等让计划判了全量）、`affected`（按影响面，`base` 是本次基线与头的合并点，40 位）或 `resume`（接续，`base` 是 H1，`resumeFrom` 写 H1 的头、树、它失败的那一步、H1 那次的 `mode`（`full` 或 `affected`）与 H1 那次的 `fullRequested`） |
 | `fullRequested`              | 说要求：这次运行带没带 `FULL=1`。计划因全局文件判了全量、没带 `FULL=1` 的，`mode` 是 `full`，这一栏是 `false`。接续退化为整次重跑时照搬 H1 的这一栏（重跑的范围同 H1 那次）；接续运行本身不带 `FULL=1`，记 `false`，H1 的在 `resumeFrom` 里 |
-| `caches`                     | 这次运行时各缓存的状态：`test` 测试结果缓存（准入只写不读记 `off`，读缓存记 `on`）、`depGraph` 依赖图缓存（`OMNE_DEP_GRAPH_CACHE=0` 记 `off`，否则 `on`）。旧记录里多出的 `mutation` 字段读时忽略              |
+| `caches`                     | 这次运行时各缓存的状态：`test` 测试结果缓存（读缓存记 `on`，准入只认准入写的条目也记 `on`；`FULL=1`、`OMNE_TEST_CACHE=0` 记 `off`）、`depGraph` 依赖图缓存（`OMNE_DEP_GRAPH_CACHE=0` 记 `off`，否则 `on`）。旧记录里多出的 `mutation` 字段读时忽略              |
 | `steps`                      | 按步骤表的顺序，每步 `ran`、`exit`、`seconds`：跑完的记退出码，被终止的与没开始的记 `ran: false`、`exit: null`                                                                                                      |
 | `failedStep`                 | 快速失败的那一步（最早结束的失败步骤）；全部通过为 `null`                                                                                                                                                           |
 | `startedAt`、`finishedAt`    | 起止时刻                                                                                                                                                                                                            |

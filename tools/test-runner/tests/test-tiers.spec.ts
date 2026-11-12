@@ -20,6 +20,7 @@ import { configDefaults } from 'vitest/config'
 import { parseCLI } from 'vitest/node'
 import {
   ARCHIVE_EXCLUDE,
+  FAST_TEST_TIMEOUT_MS,
   SLOW_TEST_TIMEOUT_MS,
   TEST_REPORT_DIR_ENV as ROOT_REPORT_DIR_ENV,
   TEST_TIERS,
@@ -189,8 +190,10 @@ describe('根上的分层定义', () => {
     expect(tiers).toEqual({
       tags: [expect.objectContaining({ name: 'slow', timeout: SLOW_TEST_TIMEOUT_MS })],
       exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE],
+      testTimeout: FAST_TEST_TIMEOUT_MS,
       typecheck: { exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE] },
     })
+    expect(FAST_TEST_TIMEOUT_MS).toBe(15_000)
     expect(testTiers('test', {}, REPOSITORY, PLAIN)).toEqual(tiers)
   })
 
@@ -731,6 +734,8 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
     'packages/common/message',
     'packages/model/pi-ai-transport',
     'apps/m2-contract-skeleton',
+    'apps/harness-server',
+    'packages/agent/agent-host-local',
     'tools/repo-toolchain',
     'tools/dev-flow',
     'tools/product-checks',

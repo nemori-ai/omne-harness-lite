@@ -84,6 +84,7 @@ const MEMBERS = [
   member('packages.archive.legacy/frontend/governance-client-operations-local'),
   member('packages/tenancy/governance-center-entry-node'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),
+  member('apps/harness-server'),
   member('tools/core-verification'),
   member('tools/repo-toolchain'),
   member('tools/dev-flow', ['@x/repo-toolchain']),
@@ -267,9 +268,9 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('根清单：全量，理由说出文件与命中的模式', () => {
-    const result = plan(['docs/a.md', 'pnpm-workspace.yaml'])
+    const result = plan(['docs/a.md', 'tsconfig.base.json'])
     expect(result.mode).toBe('full')
-    expect(result.reason).toBe('全局文件 pnpm-workspace.yaml 有改动（命中 pnpm-workspace.yaml）')
+    expect(result.reason).toBe('全局文件 tsconfig.base.json 有改动（命中 tsconfig*.json）')
     expect(result.test).toEqual(
       MEMBERS.filter(member => !member.path.includes('.legacy/')).map(member => member.path),
     )
@@ -293,22 +294,41 @@ describe('影响面计划（真实规则）', () => {
     }
   })
 
-  it('锁文件单独一类；没有锁文件判定时判全量，理由写明', () => {
+  it('依赖清单单独一类：锁文件与工作区清单；没有判定时判全量，理由写明', () => {
     const result = plan(['pnpm-lock.yaml'])
     expect(result.mode).toBe('full')
     expect(result.files[0]?.category).toBe('lockfile')
-    expect(result.reason).toBe('pnpm-lock.yaml 有改动，没有锁文件判定，判为全量')
-    expect(describe_(result)).toContain('锁文件 1 个：pnpm-lock.yaml')
+    expect(result.reason).toBe('pnpm-lock.yaml 有改动，没有依赖清单判定，判为全量')
+    expect(describe_(result)).toContain('依赖清单 1 个：pnpm-lock.yaml')
+    const both = plan(['pnpm-lock.yaml', 'pnpm-workspace.yaml'])
+    expect(both.files.map(file => file.category)).toEqual(['lockfile', 'lockfile'])
+    expect(both.reason).toBe(
+      'pnpm-lock.yaml、pnpm-workspace.yaml 有改动，没有依赖清单判定，判为全量',
+    )
   })
 
-  it('选择配置和依赖规则：全量，理由指向全局文件', () => {
-    for (const path of ['turbo.json', 'docs/architecture/constraints.json']) {
-      const result = plan([path])
-      expect(result.mode).toBe('full')
-      expect(result.files[0]?.category).toBe('global')
-      expect(result.reason).toContain(path)
-    }
+  it('选择配置：全量，理由指向全局文件', () => {
+    const result = plan(['turbo.json'])
+    expect(result.mode).toBe('full')
+    expect(result.files[0]?.category).toBe('global')
+    expect(result.reason).toContain('turbo.json')
   })
+
+  // 这两份登记数据只被常驻检查读（依赖方向检查读约束登记，收工钩子读集成策略），没有成员的构建或测试读它们。
+  it.each(['docs/architecture/constraints.json', 'docs/engineering/integration-policy.json'])(
+    '登记数据 %s：只需常驻检查，不选任何成员，不判全量',
+    path => {
+      expect(classify(path, MEMBERS, RULES)).toMatchObject({
+        category: 'resident',
+        rule: 'docs/**',
+      })
+      const result = plan([path])
+      expect(result.mode).toBe('scoped')
+      expect(result.members).toEqual([])
+      expect(result.test).toEqual([])
+      expect(result.python.run).toBe(false)
+    },
+  )
 
   it('没有规则认得的路径：全量，理由点名前几个并给总数', () => {
     const paths = ['a/1.txt', 'a/2.txt', 'a/3.txt', 'a/4.txt', 'a/5.txt', '.gitignore', 'docs/x.md']
@@ -454,7 +474,7 @@ describe('锁文件按 importer 映射到成员（W2-C1）', () => {
     expect(result.lockfile).toContain('lockfile 改动按 importer 映射到 1 个成员：packages/c')
     expect(result.reason).toContain('锁文件里依赖变了 1 个、依赖方 1 个')
     const text = describe_(result)
-    expect(text).toContain('锁文件 1 个：pnpm-lock.yaml')
+    expect(text).toContain('依赖清单 1 个：pnpm-lock.yaml')
     expect(text).toContain('  锁文件：lockfile 改动按 importer 映射到 1 个成员：packages/c')
     expect(text).toContain('packages/c：锁文件里它依赖的 extra@1.0.0 变了（importer 条目也变了）')
     expect(text).toContain('packages/d：依赖了改动过代码的成员（turbo --affected）')
@@ -499,9 +519,88 @@ describe('锁文件按 importer 映射到成员（W2-C1）', () => {
     })
     expect(asked).toBe(false)
     expect(result.mode).toBe('full')
+    expect(result.reason).toBe('全局文件 package.json 有改动（命中 package.json），另有依赖清单')
+  })
+
+  it('工作区清单与锁文件一起改：一起交给判定，映射到的成员与下游进来，不判全量', () => {
+    const result = planLock(['pnpm-lock.yaml', 'pnpm-workspace.yaml'], ONE_MEMBER_DEPENDENCY)
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual(['packages/c', 'packages/d'])
+    expect(describe_(result)).toContain('依赖清单 2 个：pnpm-lock.yaml、pnpm-workspace.yaml')
+  })
+
+  it('只改了工作区清单、判定说两份等价：不选任何成员', () => {
+    const result = planLock(['pnpm-workspace.yaml'], EQUIVALENT)
+    expect(result.mode).toBe('scoped')
+    expect(result.members).toEqual([])
+  })
+
+  it('工作区清单的判定判全量：全量，原因带上两份清单的名字', () => {
+    const result = planLock(['pnpm-lock.yaml', 'pnpm-workspace.yaml'], () => ({
+      kind: 'full',
+      reason: 'pnpm-workspace.yaml 的 packages 有变化，判为全量',
+    }))
+    expect(result.mode).toBe('full')
     expect(result.reason).toBe(
-      '全局文件 package.json 有改动（命中 package.json），另有 pnpm-lock.yaml',
+      'pnpm-lock.yaml、pnpm-workspace.yaml 有改动：pnpm-workspace.yaml 的 packages 有变化，判为全量',
     )
+  })
+
+  // turbo 把 pnpm-workspace.yaml 当全局依赖：它一改，`--affected` 选中全部成员。那份名单这时不带信息。
+  const withTurboSelectingAll = (paths: string[]): CheckPlan =>
+    planCheck(
+      paths,
+      LOCK_MEMBERS,
+      RULES,
+      new Set(ACTIVE_LOCK_MEMBERS),
+      false,
+      seeds => dependentsLike(seeds, LOCK_MEMBERS),
+      () => lockfileImpact(LOCK_BASE, ONE_MEMBER_DEPENDENCY, LOCK_MEMBERS),
+    )
+
+  it('工作区清单改了而 turbo 选中全部成员：不拿 turbo 的名单，按依赖图从种子算闭包', () => {
+    const result = withTurboSelectingAll([
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+      'packages/a/src/index.ts',
+    ])
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual(['packages/a', 'packages/c', 'packages/d'])
+  })
+
+  it('工作区清单没改：照旧用 turbo 的名单，它选中的不相干成员也进来', () => {
+    const result = withTurboSelectingAll(['pnpm-lock.yaml', 'packages/a/src/index.ts'])
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toContain('packages/b')
+  })
+
+  it('工作区清单改了、有种子却没给依赖图：报错，不照猜的范围少跑', () => {
+    expect(() =>
+      planCheck(
+        ['pnpm-workspace.yaml', 'packages/a/src/index.ts'],
+        LOCK_MEMBERS,
+        RULES,
+        new Set(ACTIVE_LOCK_MEMBERS),
+        false,
+        undefined,
+        () => ({ kind: 'unchanged', reason: '两份等价' }),
+      ),
+    ).toThrow('没有给出 turbo 的依赖图')
+  })
+
+  // 加新成员的那一类改动：登记数据、两份依赖清单与新成员自己的文件一起改。
+  it('登记数据、依赖清单与一个成员的代码一起改：选改了代码的成员、锁文件映射到的成员与它们的下游，不判全量', () => {
+    const result = planLock(
+      [
+        'docs/architecture/constraints.json',
+        'pnpm-lock.yaml',
+        'pnpm-workspace.yaml',
+        'packages/a/src/index.ts',
+      ],
+      ONE_MEMBER_DEPENDENCY,
+    )
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual(['packages/a', 'packages/c', 'packages/d'])
   })
 
   // 引擎改了，这次的计划就是用改过的引擎算的：锁文件判定、接续与运行记录的模块都不能给自己划范围。
@@ -727,7 +826,7 @@ describe('按测量收窄的规则（#793）', () => {
     )
   })
 
-  it('N2：turbo 选中了改动解释不了的成员时不拿文档种子的下游，判全量：多改一份文档不会让计划变小', () => {
+  it('N2：turbo 选中了改动解释不了的成员时不拿文档种子的下游，照 turbo 的名单跑：多改一份文档不会让计划变小', () => {
     // 模拟 turbo 的种子里有这里没认出的改动（例如根 turbo.json 的 globalDependencies 多了一个成员目录外的文件）：
     // turbo 选中全部在役成员，而改动只有一份常驻文档。
     const all = new Set(
@@ -745,10 +844,9 @@ describe('按测量收窄的规则（#793）', () => {
       false,
       graph,
     )
-    expect(withDocument.mode).toBe('full')
-    expect(withDocument.reason).toContain(
-      '不在代码改动成员与只改了文档的成员的下游里，影响面未知：packages/common/legal-identity',
-    )
+    expect(withDocument.mode).toBe('scoped')
+    expect(withDocument.reason).toContain('这里解释不了（packages/common/legal-identity')
+    expect(withDocument.reason).toContain('照 turbo 的名单跑，没有拿掉文档带出的下游')
     expect(withDocument.test).toEqual(alone.test)
     // 改动能解释 turbo 的选择时照常拿掉：同一份文档单独改，只需常驻检查。
     expect(plan(['packages/core/base/SPEC.md']).test).toEqual([])
@@ -874,7 +972,7 @@ describe('真实仓库', () => {
     })
     expect(lockfileImpactBetween(ROOT, 'no-such-ref-for-affected-spec', 'HEAD', members)).toEqual({
       kind: 'full',
-      reason: '基线 no-such-r 上没有 pnpm-lock.yaml，判为全量',
+      reason: '基线 no-such-r 上没有 pnpm-workspace.yaml，判为全量',
     })
   })
 })

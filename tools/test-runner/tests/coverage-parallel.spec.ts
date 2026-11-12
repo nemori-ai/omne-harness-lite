@@ -10,6 +10,8 @@ const POLICY: ParallelPolicy = {
   minimum: 2,
   memoryPerWorkerMiB: 512,
   sampleMs: 0,
+  reserveCores: 2,
+  concurrentRuns: 2,
 }
 
 const budget = (workers: number, cores = 24): Budget => ({

@@ -245,7 +245,7 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
 })
 
 describe('23 retrigger: when a failed run is run again', () => {
-  it('23 retrigger: a run that ended because a port was unavailable is run again after driverRetryDelayMs, again and again', async () => {
+  it('23 retrigger: a run that ended because a port was unavailable is run again after driverRetryDelayMs, then after twice that', async () => {
     const harness = startHarness({
       environment: new Map([['c1', 'unavailable']]),
       driverRetryDelayMs: 250,
@@ -257,10 +257,12 @@ describe('23 retrigger: when a failed run is run again', () => {
     expect(harness.host.scheduled).toEqual([])
     await vi.advanceTimersByTimeAsync(1)
     expect(harness.host.scheduled).toEqual([wake('c1')])
-    // The next run meets the same port and waits the delay again.
+    // The next run meets the same port: the delay doubles (backoff, F7 of #1218).
     await harness.host.runScheduled()
     expect(harness.host.scheduled).toEqual([])
-    await vi.advanceTimersByTimeAsync(250)
+    await vi.advanceTimersByTimeAsync(499)
+    expect(harness.host.scheduled).toEqual([])
+    await vi.advanceTimersByTimeAsync(1)
     expect(harness.host.scheduled).toEqual([wake('c1')])
   })
 
@@ -399,11 +401,13 @@ describe('23 retrigger: when a failed run is run again', () => {
       expect(harness.host.scheduled).toEqual([])
       await vi.advanceTimersByTimeAsync(1)
       expect(harness.host.scheduled).toEqual([wake('c1')])
-      // Still undecided: the provider's record is read, and the next delay starts.
+      // Still undecided: the provider's record is read, and the next delay, twice the first, starts.
       await harness.host.runScheduled()
       expect(harness.environments.inspected).toEqual(['c1'])
       expect(harness.host.scheduled).toEqual([])
-      await vi.advanceTimersByTimeAsync(400)
+      await vi.advanceTimersByTimeAsync(799)
+      expect(harness.host.scheduled).toEqual([])
+      await vi.advanceTimersByTimeAsync(1)
       expect(harness.host.scheduled).toEqual([wake('c1')])
       // The provider has decided: the call goes on to its start without a second request.
       harness.environments.answer('c1', 'prepared')

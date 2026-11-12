@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 import { readTestRunsConfig } from '../src/testing/config.ts'
-import { lockfileImpact } from '../src/testing/lockfile-impact.ts'
+import { lockfileImpact, workspaceImpact } from '../src/testing/lockfile-impact.ts'
 import { parseLockfileYaml } from '../src/testing/pnpm-lockfile.ts'
 import {
   ALIAS_DEPENDENCY,
@@ -23,6 +23,13 @@ import {
 } from './fixtures/lockfiles.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
+
+/** 在锁文件顶层的 `catalogs.default` 里加一项没有 importer 用到的条目。 */
+const withCatalogEntry = (lockfile: string): string =>
+  lockfile.replace(
+    'catalogs:\n  default:\n',
+    'catalogs:\n  default:\n    extra:\n      specifier: 1.0.0\n      version: 1.0.0\n',
+  )
 
 describe('lockfileImpact', () => {
   it('只改一个成员的依赖：只命中那个成员，并记下它新依赖的包', () => {
@@ -64,6 +71,19 @@ describe('lockfileImpact', () => {
       kind: 'full',
       reason: 'lockfile 顶层 overrides 有变化，判为全量',
     })
+  })
+
+  it('只有顶层 catalogs 有变化：不单独判，importer 没变就是没有影响', () => {
+    const head = withCatalogEntry(BASE)
+    expect(head).not.toBe(BASE)
+    expect(lockfileImpact(BASE, head, MEMBERS)).toMatchObject({ kind: 'unchanged' })
+  })
+
+  it('catalogs 与一个成员的依赖一起变：只命中那个成员，catalogs 不把它抬成全量', () => {
+    const result = lockfileImpact(BASE, withCatalogEntry(ONE_MEMBER_DEPENDENCY), MEMBERS)
+    expect(result.kind).toBe('members')
+    if (result.kind === 'members')
+      expect(result.members.map(member => member.path)).toEqual(['packages/c'])
   })
 
   it('lockfileVersion 有变化：全量', () => {
@@ -184,6 +204,83 @@ snapshots:`,
       reason:
         'lockfile 改动解释不了（变化的 orphan@1.0.0 没有任何 importer 直接或间接依赖它），判为全量',
     })
+  })
+})
+
+describe('workspaceImpact', () => {
+  const WORKSPACE = [
+    'packages:',
+    "  - 'packages/*/*'",
+    "  - 'tools/*'",
+    '',
+    '# 版本只在这里写一次',
+    'catalog:',
+    '  zod: 4.6.5',
+    "  '@vitest/coverage-v8': 4.1.11",
+    '',
+    'onlyBuiltDependencies:',
+    '  - esbuild',
+    '',
+  ].join('\n')
+
+  it('两份相同：没有变化', () => {
+    expect(workspaceImpact(WORKSPACE, WORKSPACE)).toEqual({ kind: 'unchanged' })
+  })
+
+  it('只改了注释与空行：没有变化', () => {
+    const head = WORKSPACE.replace('# 版本只在这里写一次', '# 版本只写一次\n')
+    expect(workspaceImpact(WORKSPACE, head)).toEqual({ kind: 'unchanged' })
+  })
+
+  it('catalog 加一项：只有 catalog 有变化，影响面交给锁文件', () => {
+    const head = WORKSPACE.replace('  zod: 4.6.5', '  zod: 4.6.5\n  yaml: 2.9.1')
+    expect(workspaceImpact(WORKSPACE, head)).toEqual({
+      kind: 'catalog-only',
+      reason: 'pnpm-workspace.yaml 只有 catalog 有变化',
+    })
+  })
+
+  it('catalog 改一项的版本：同样只有 catalog 有变化', () => {
+    const head = WORKSPACE.replace('zod: 4.6.5', 'zod: 4.7.0')
+    expect(workspaceImpact(WORKSPACE, head)).toMatchObject({ kind: 'catalog-only' })
+  })
+
+  it('成员的目录模式有变化：全量，原因写出键名', () => {
+    const head = WORKSPACE.replace("  - 'tools/*'", "  - 'tools/*'\n  - 'apps/*'")
+    expect(workspaceImpact(WORKSPACE, head)).toEqual({
+      kind: 'full',
+      reason: 'pnpm-workspace.yaml 的 packages 有变化，判为全量',
+    })
+  })
+
+  it('catalog 与构建许可一起变：全量，原因只写 catalog 之外的键', () => {
+    const head = WORKSPACE.replace('zod: 4.6.5', 'zod: 4.7.0').replace('  - esbuild', '  - sharp')
+    expect(workspaceImpact(WORKSPACE, head)).toEqual({
+      kind: 'full',
+      reason: 'pnpm-workspace.yaml 的 onlyBuiltDependencies 有变化，判为全量',
+    })
+  })
+
+  it('多出一个顶层键：全量', () => {
+    const head = `${WORKSPACE}overrides:\n  left-pad: 1.3.0\n`
+    expect(workspaceImpact(WORKSPACE, head)).toMatchObject({
+      kind: 'full',
+      reason: expect.stringContaining('overrides'),
+    })
+  })
+
+  it('解析失败：全量，原因写明哪一份', () => {
+    expect(workspaceImpact(WORKSPACE, 'catalog:\n\tzod: 1\n')).toMatchObject({
+      kind: 'full',
+      reason: expect.stringMatching(/^HEAD 的 pnpm-workspace\.yaml 解析失败/u),
+    })
+  })
+
+  it('仓库真实的 pnpm-workspace.yaml：解析器认得它的写法；改一项 catalog 的版本只算 catalog 的变化', () => {
+    const text = readFileSync(resolve(ROOT, 'pnpm-workspace.yaml'), 'utf8')
+    const bumped = text.replace(/^  zod: .+$/mu, '  zod: 0.0.0-probe')
+    expect(bumped).not.toBe(text)
+    expect(workspaceImpact(text, bumped)).toMatchObject({ kind: 'catalog-only' })
   })
 })
 

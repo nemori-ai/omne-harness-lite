@@ -5,7 +5,9 @@
     "maxWorkersPerMember": 8,
     "minimum": 2,
     "memoryPerWorkerMiB": 512,
-    "sampleMs": 500
+    "sampleMs": 500,
+    "reserveCores": 2,
+    "concurrentRuns": 2
   },
   "affected": {
     "excludeRoots": ["examples"],
@@ -49,8 +51,6 @@
       "tools/test-runner/src/testing/environment.ts",
       "tools/test-runner/src/testing/preflight.ts",
       "tools/test-runner/src/testing/test-retry.ts",
-      "docs/engineering/integration-policy.json",
-      "docs/architecture/constraints.json",
       "**/turbo.json"
     ],
     "readers": [
@@ -131,6 +131,11 @@
         "why": "m2-contract-skeleton 的 tests/path-report.spec.ts 读本成员的 README.md、README_ZH.md 与 SPEC.md，核对缺口表与残余缺口；成员根目录文档不算成员改动，没有这条就漏选"
       },
       {
+        "paths": ["tools/e9/metrics.mjs"],
+        "members": ["apps/harness-server", "packages/agent/agent-host-local"],
+        "why": "harness-server 的 tests/long-session/judge.ts 导入 tools/e9/metrics.mjs 的 evaluateSeries；agent-host-local 的 tests/line-through/growth.spec.ts 读它，核对 METHOD.growth 的常量。tools/e9 不是工作区成员，没有这条就没有规则认得它"
+      },
+      {
         "paths": ["packages/model/docs/architecture.md"],
         "members": ["packages/model/pi-ai-transport"],
         "why": "pi-ai-transport 的 tests/public-entry.spec.ts 读模型组的 packages/model/docs/architecture.md，核对其中接受的代码块与 src/family.ts 一致；这份文档在成员目录外，归常驻路径，没有这条就漏选"
@@ -181,7 +186,10 @@
       "packages/**/*.md",
       "apps/**/*.md",
       "tools/*.md",
-      "tools/model-probe/**"
+      "tools/model-probe/**",
+      "tools/e9/**",
+      "tools/joint-a/**",
+      "tools/joint-b/**"
     ],
     "residentBuild": [
       {

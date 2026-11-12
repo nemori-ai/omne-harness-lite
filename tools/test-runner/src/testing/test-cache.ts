@@ -59,14 +59,18 @@ export interface CachePolicy {
   readonly read: boolean
   /** 不读时的原因；读时为空串。 */
   readonly reason: string
+  /** 读的时候只认准入模式下真跑出来的条目（`CacheEntry.admission`）。准入模式为真，其余为假。 */
+  readonly trustedOnly: boolean
   readonly write: boolean
   /** 不写时的原因；写时为空串。 */
   readonly writeReason: string
 }
 
 /**
- * `FULL=1`（或 `--full`）、`--no-cache`、`OMNE_TEST_CACHE=0` 不读；准入模式也不读——准入不读待合并的改动能写入的缓存
- * （与构建、类型检查的 turbo 缓存同一条规则）。
+ * `FULL=1`（或 `--full`）、`--no-cache`、`OMNE_TEST_CACHE=0` 不读。
+ * 准入模式读，但只认准入模式下真跑出来的条目（RFC-0002「只读取受信运行写入的缓存」）：准入要防的是「没有真跑过却显示通过」。
+ * 一条记录是一次准入真跑出来的完整通过，而且它的键盖住这个成员读的全部输入，认它不违反这条防线；
+ * 平常的运行（可能没构建、可能带过滤、可能跑的是旧 dist）写的条目，准入不认。
  * 本次调用没有为被选中的成员构建（`build` 为假）时不写：测试可能跑的是旧 dist。
  */
 export function cachePolicy(
@@ -88,12 +92,11 @@ export function cachePolicy(
         write: false,
         writeReason: options.unbuiltReason ?? '本次没有构建，测试可能跑的是旧 dist',
       }
-  if (options.full) return { read: false, reason: 'FULL=1 要求全量', ...write }
-  if (options.noCache) return { read: false, reason: '--no-cache', ...write }
-  if (value === '0') return { read: false, reason: `${TEST_CACHE_ENV}=0`, ...write }
-  if (admissionRequested(env))
-    return { read: false, reason: '准入模式不读待合并的改动能写入的缓存', ...write }
-  return { read: true, reason: '', ...write }
+  const unread = { read: false, trustedOnly: false, ...write }
+  if (options.full) return { ...unread, reason: 'FULL=1 要求全量' }
+  if (options.noCache) return { ...unread, reason: '--no-cache' }
+  if (value === '0') return { ...unread, reason: `${TEST_CACHE_ENV}=0` }
+  return { read: true, reason: '', trustedOnly: admissionRequested(env), ...write }
 }
 
 /** 工作树快照：影响面里能出现的每个文件（已跟踪的，加未跟踪、未忽略的）的内容 id。 */
@@ -417,6 +420,8 @@ export interface CacheEntry {
   readonly files: number
   readonly wallSeconds: number
   readonly inputs: { readonly files: number; readonly node: string; readonly platform: string }
+  /** 这一条是准入模式下真跑出来的。准入模式只认带它的条目；平常的运行写的条目没有这一栏。 */
+  readonly admission?: true
 }
 
 export function entryPath(home: string, member: string, tier: RunTier, key: string): string {
@@ -440,6 +445,7 @@ export function isEntry(value: unknown): value is CacheEntry {
     typeof entry['tests'] === 'number' &&
     typeof entry['files'] === 'number' &&
     typeof entry['wallSeconds'] === 'number' &&
+    (entry['admission'] === undefined || entry['admission'] === true) &&
     typeof inputs === 'object' &&
     inputs !== null &&
     typeof (inputs as Record<string, unknown>)['files'] === 'number' &&
@@ -590,7 +596,7 @@ export function currentDigests(options: {
       ...options,
       mainRoot: options.root,
       tier: 'fast',
-      policy: { read: false, reason: '', write: false, writeReason: '' },
+      policy: { read: false, reason: '', trustedOnly: false, write: false, writeReason: '' },
     },
     members,
     packageGraph(options.root),
@@ -615,7 +621,8 @@ export function lookupCache(options: LookupOptions): CacheLookup {
     if (policy.read)
       for (const [member, { key }] of keys) {
         const entry = readEntry(home, member, options.tier, key)
-        if (entry !== undefined) hits.set(member, entry)
+        if (entry !== undefined && (!policy.trustedOnly || entry.admission === true))
+          hits.set(member, entry)
       }
     return {
       home,
@@ -649,7 +656,13 @@ export function recordCache(
   lookup: CacheLookup,
   runs: readonly MemberRun[],
   tier: RunTier,
-  source: { readonly ledger: string; readonly head: string; readonly dirty: boolean },
+  source: {
+    readonly ledger: string
+    readonly head: string
+    readonly dirty: boolean
+    /** 这次运行是不是准入模式：是，写出的条目带 `admission`。 */
+    readonly admission: boolean
+  },
 ): { readonly written: string[]; readonly problems: string[]; readonly skipped: string[] } {
   const written: string[] = []
   const problems: string[] = []
@@ -709,6 +722,14 @@ export function recordCache(
         continue
       }
     }
+    // 同一个键下已有准入写的条目时，平常的运行不盖掉它：两条说的是同一份输入的完整通过，准入写的那条准入还要认。
+    if (
+      !source.admission &&
+      readEntry(lookup.home, run.member, tier, found.key)?.admission === true
+    ) {
+      written.push(run.member)
+      continue
+    }
     const problem = writeEntry(lookup.home, {
       version: KEY_VERSION,
       member: run.member,
@@ -726,6 +747,7 @@ export function recordCache(
         node: process.version,
         platform: `${process.platform}-${process.arch}`,
       },
+      ...(source.admission ? { admission: true as const } : {}),
     })
     if (problem === undefined) written.push(run.member)
     else problems.push(problem)
@@ -737,11 +759,16 @@ export function recordCache(
 export interface CacheMeta {
   readonly mode: 'read-write' | 'write-only' | 'unavailable'
   readonly reason: string
+  /** 读的时候是不是只认准入写的条目。 */
+  readonly trustedOnly: boolean
   readonly home: string
   readonly hits: readonly {
     readonly member: string
     readonly key: string
     readonly source: string
+    /** 那次运行的头与时刻：证据里说得清这一项取自哪一次。 */
+    readonly head: string
+    readonly recordedAt: string
     readonly tests: number
   }[]
   readonly written: readonly string[]
@@ -769,11 +796,14 @@ export function cacheMeta(
           ? 'read-write'
           : 'write-only',
     reason: lookup.unavailable ?? lookup.policy.reason,
+    trustedOnly: lookup.policy.trustedOnly,
     home: lookup.home,
     hits: [...lookup.hits].map(([member, entry]) => ({
       member,
       key: entry.key,
       source: entry.ledger,
+      head: entry.head,
+      recordedAt: entry.recordedAt,
       tests: entry.tests,
     })),
     written: recorded.written,

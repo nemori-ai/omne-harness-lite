@@ -808,7 +808,9 @@ describe('the local binding of a checkpointed author: when the end of a segment 
     call = 'c1',
   ) => binding.binding.inspectStart({ ...authorAccess, call: callId(call), start: binding.start })
 
-  it('reports the execution as unobservable when the settlement answers a failure, and publishes nothing', async () => {
+  // F3 of #1218: a settlement that does not land leaves the execution live with no final; it is not
+  // marked unobservable for good.
+  it('keeps the execution live when the settlement answers a failure, and publishes nothing', async () => {
     const { start } = await harness(
       () => Promise.resolve(succeed({ kind: 'completed', value: 1 })),
       {
@@ -818,17 +820,14 @@ describe('the local binding of a checkpointed author: when the end of a segment 
     )
     const started = await start()
     await tick()
-    expect(unbox(await lookup(started))).toEqual({
-      kind: 'unknown',
-      diagnostic: 'execution observation unavailable',
-    })
+    expect(unbox(await lookup(started))).toMatchObject({ kind: 'live' })
     const seen: FactBatch[] = []
     for await (const batch of started.live.facts({ after: null, signal: AbortSignal.timeout(50) }))
       seen.push(batch)
     expect(seen).toEqual([])
   })
 
-  it('reports the execution as unobservable when the settlement itself fails', async () => {
+  it('keeps the execution live when the settlement itself fails', async () => {
     const { start } = await harness(
       () => Promise.resolve(succeed({ kind: 'completed', value: 1 })),
       {
@@ -839,10 +838,7 @@ describe('the local binding of a checkpointed author: when the end of a segment 
     )
     const started = await start()
     await tick()
-    expect(unbox(await lookup(started))).toEqual({
-      kind: 'unknown',
-      diagnostic: 'execution observation unavailable',
-    })
+    expect(unbox(await lookup(started))).toMatchObject({ kind: 'live' })
   })
 
   it('answers commit-unknown, and runs no segment, when consuming the permit throws', async () => {

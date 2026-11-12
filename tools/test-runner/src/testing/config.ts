@@ -154,6 +154,8 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
       minimum?: unknown
       memoryPerWorkerMiB?: unknown
       sampleMs?: unknown
+      reserveCores?: unknown
+      concurrentRuns?: unknown
     }
     affected?: Record<string, unknown>
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
@@ -170,6 +172,8 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
     minimum: positiveInteger(raw.parallel?.minimum, 'parallel.minimum'),
     memoryPerWorkerMiB: positive(raw.parallel?.memoryPerWorkerMiB, 'parallel.memoryPerWorkerMiB'),
     sampleMs: nonNegativeInteger(raw.parallel?.sampleMs, 'parallel.sampleMs'),
+    reserveCores: nonNegativeInteger(raw.parallel?.reserveCores, 'parallel.reserveCores'),
+    concurrentRuns: positiveInteger(raw.parallel?.concurrentRuns, 'parallel.concurrentRuns'),
   }
   if (parallel.minimum > parallel.maxWorkersPerMember)
     throw new Error('parallel.minimum 不能大于 parallel.maxWorkersPerMember')

@@ -15,9 +15,10 @@
 // turbo 不认成员目录以外的读取（2026-10-15 在 turbo 2.11.7 上验证：`--affected` 默认不看任务 inputs），
 // 读者规则仍在这里。
 //
-// 锁文件单独一类：`pnpm-lock.yaml` 是唯一命中的全局文件时，交锁文件判定（lockfile-impact.ts）按 importer 映射到成员，
-// 映射到的成员作为种子，与代码改动的成员一样按 turbo 的依赖图带上下游；判不准、没有判定、引擎自己在里面，仍判全量。
-// 它与别的全局文件一起改时不问判定，直接全量。
+// 依赖清单单独一类：锁文件 `pnpm-lock.yaml` 与工作区清单 `pnpm-workspace.yaml`。它们改了而没有别的全局文件改时，
+// 交依赖清单判定（lockfile-impact.ts）：工作区清单只有 catalog 有变化时，按锁文件里 importer 的差异映射到成员，
+// 映射到的成员作为种子，与代码改动的成员一样按 turbo 的依赖图带上下游；工作区清单别的键有变化、判不准、没有判定、
+// 引擎自己在里面，仍判全量。它们与别的全局文件一起改时不问判定，直接全量。
 import { isLegacyDirectory, isLegacyFile } from '@omne-harness/repo-toolchain/core/check-scope'
 import type { AffectedRules } from './config.ts'
 import type { FailedFile } from './test-retry.ts'
@@ -25,10 +26,13 @@ import type { LockfileAffectedMember, LockfileImpact } from './lockfile-impact.t
 import { ownerOf, type WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 
 export const LOCKFILE_PATH = 'pnpm-lock.yaml'
+export const WORKSPACE_PATH = 'pnpm-workspace.yaml'
+/** 依赖清单：改了哪些依赖，由两份文件的差异算，不按「全局文件动了」直接判全量。 */
+const DEPENDENCY_MANIFESTS: ReadonlySet<string> = new Set([LOCKFILE_PATH, WORKSPACE_PATH])
 /** 影响面引擎自己所在的成员：它的依赖变了，这次的计划就是用变了依赖的引擎算的，不能拿它给自己划范围。 */
 export const ENGINE_MEMBER = 'tools/test-runner'
 
-/** 锁文件判定：只在 `pnpm-lock.yaml` 是唯一命中的全局文件时才问它；基线与 HEAD 两份锁文件由调用方取。 */
+/** 依赖清单判定：只在依赖清单是唯一命中的全局文件时才问它；基线与 HEAD 的锁文件与工作区清单由调用方取。 */
 export type LockfileJudge = () => LockfileImpact
 
 /** `*` 不跨目录；`**` 跨目录，`**\/` 也匹配零层目录。 */
@@ -83,7 +87,7 @@ export function classify(
   if (global !== undefined)
     return {
       path,
-      category: path === LOCKFILE_PATH ? 'lockfile' : 'global',
+      category: DEPENDENCY_MANIFESTS.has(path) ? 'lockfile' : 'global',
       rule: global,
       reads: [],
     }
@@ -383,10 +387,12 @@ function lockfileSeeds(
   active: readonly WorkspaceMember[],
   judge: LockfileJudge | undefined,
 ): LockfileSeeds | undefined {
-  if (!files.some(file => file.category === 'lockfile')) return undefined
-  if (judge === undefined) return { full: `${LOCKFILE_PATH} 有改动，没有锁文件判定，判为全量` }
+  const manifests = files.filter(file => file.category === 'lockfile').map(file => file.path)
+  if (manifests.length === 0) return undefined
+  const changed = manifests.join('、')
+  if (judge === undefined) return { full: `${changed} 有改动，没有依赖清单判定，判为全量` }
   const impact = judge()
-  if (impact.kind === 'full') return { full: `${LOCKFILE_PATH} 有改动：${impact.reason}` }
+  if (impact.kind === 'full') return { full: `${changed} 有改动：${impact.reason}` }
   if (impact.kind === 'unchanged') return { members: new Map(), reason: impact.reason }
   const known = new Set(active.map(member => member.path))
   return {
@@ -400,9 +406,10 @@ function lockfileSeeds(
 /**
  * 由改动过的文件、成员清单、规则、turbo 判为受影响的成员（`--affected`）与 turbo 的依赖图算出执行计划；
  * 除 `dependents` 与 `judgeLockfile` 外不读外部状态。`full` 为真（`FULL=1`）直接给全量计划。规则里点名了不存在的成员就抛错；
- * 有只改了文档的成员或锁文件映射到了成员而没给 `dependents` 也抛错。turbo 选中了改动解释不了的成员时，不拿文档种子的下游，判全量。
- * `pnpm-lock.yaml` 是唯一命中的全局文件时问 `judgeLockfile`：映射到的成员作为种子带上下游；判全量、没给判定、
- * 引擎自己（`tools/test-runner`）在种子或其下游里，都判全量。锁文件与别的全局文件一起改时不问，直接全量。
+ * 有只改了文档的成员或依赖清单映射到了成员而没给 `dependents` 也抛错。turbo 选中了改动解释不了的成员时，不拿掉文档种子的下游，照 turbo 的名单跑。
+ * 两份依赖清单（`pnpm-lock.yaml`、`pnpm-workspace.yaml`）是仅有的全局改动时问 `judgeLockfile`：映射到的成员作为种子带上下游；判全量、没给判定、
+ * 引擎自己（`tools/test-runner`）在种子或其下游里，都判全量。依赖清单与别的全局文件一起改时不问，直接全量。
+ * `pnpm-workspace.yaml` 改了时 turbo 选中全部成员，这时不用它的名单，从种子按依赖图算闭包。
  */
 export function planCheck(
   changedPaths: readonly string[],
@@ -424,7 +431,7 @@ export function planCheck(
       files,
       `全局文件 ${first.path} 有改动（命中 ${first.rule ?? ''}）` +
         (globals.length > 1 ? `，另有 ${globals.length - 1} 个全局文件` : '') +
-        (files.some(file => file.category === 'lockfile') ? `，另有 ${LOCKFILE_PATH}` : ''),
+        (files.some(file => file.category === 'lockfile') ? '，另有依赖清单' : ''),
       rules,
     )
   const active = members.filter(member => !isLegacyDirectory(member.path))
@@ -460,27 +467,38 @@ export function planCheck(
   const owners = new Set(files.flatMap(file => (file.owner === undefined ? [] : [file.owner])))
   const seeds = new Set([...owners, ...viaLockfile.keys()])
   const documents = documentsOnlyMembers(files, active, seeds)
-  const narrowed = withoutDocumentSeeds(
-    new Set([...affected, ...lockfileClosure]),
-    seeds,
-    documents,
-    dependents,
-  )
-  if ('unexplained' in narrowed)
-    return fullPlan(
-      members,
-      files,
-      `turbo 判为受影响的成员里有 ${narrowed.unexplained.length} 个不在代码改动成员与只改了文档的成员的下游里，` +
-        `影响面未知：${sample(narrowed.unexplained)}`,
-      rules,
+  // turbo 把 `pnpm-workspace.yaml` 当全局依赖：它一改，`--affected` 就选中全部成员，那份名单不再说明谁受影响。
+  // 走到这里时依赖清单判定已经给出了受影响的成员，每个改动文件也都有规则认得，所以改用种子按依赖图算出的闭包。
+  const turboSelectsAll = files.some(file => file.path === WORKSPACE_PATH)
+  if (turboSelectsAll && seeds.size > 0 && dependents === undefined)
+    throw new Error(
+      `${WORKSPACE_PATH} 有改动，要从 ${sample([...seeds])} 按依赖图算下游，但没有给出 turbo 的依赖图`,
     )
-  const planned = selectMembers(files, active, narrowed.affected, viaLockfile)
+  const selectedByGraph =
+    turboSelectsAll && dependents !== undefined ? dependents([...seeds]) : new Set(seeds)
+  const candidates = turboSelectsAll ? selectedByGraph : new Set([...affected, ...lockfileClosure])
+  const narrowed = withoutDocumentSeeds(candidates, seeds, documents, dependents)
+  // turbo 选中了这里解释不了的成员：它的种子里有这里没认出的改动。这时不拿掉文档带出的下游，照 turbo 的名单原样跑。
+  // 那份名单是按包依赖图算的，只会多不会少；成员目录以外的读取由读者规则另算；没有规则认得的文件在前面已经判了全量。
+  // 所以照它跑不会漏，多改一份文档也不会让计划变小。
+  const unexplained = 'unexplained' in narrowed ? narrowed.unexplained : []
+  const planned = selectMembers(
+    files,
+    active,
+    'unexplained' in narrowed ? candidates : narrowed.affected,
+    viaLockfile,
+  )
   const selected = new Set(planned.map(member => member.path))
   const unselected = documents.filter(member => !selected.has(member.path))
   const pythonHits = files.filter(file => file.python !== undefined)
   return {
     mode: 'scoped',
-    reason: scopedReason(files, planned, unselected.length, pythonHits.length > 0),
+    reason:
+      scopedReason(files, planned, unselected.length, pythonHits.length > 0) +
+      (unexplained.length === 0
+        ? ''
+        : `；turbo 选中的成员里有 ${unexplained.length} 个这里解释不了（${sample(unexplained)}），` +
+          '照 turbo 的名单跑，没有拿掉文档带出的下游'),
     files,
     members: planned,
     build: buildList(selected, members, rules),
@@ -506,7 +524,7 @@ export function planCheck(
 const CATEGORY_NAMES: Readonly<Record<FileCategory, string>> = {
   excluded: '退役目录，排除',
   global: '全局',
-  lockfile: '锁文件',
+  lockfile: '依赖清单',
   unclassified: '未归类',
   reader: '读者',
   member: '成员文件',

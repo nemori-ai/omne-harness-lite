@@ -13,8 +13,14 @@ import {
   fileAt,
   type Coordinates,
 } from '@omne-harness/repo-toolchain/core/git'
-import { lockfileImpact, type LockfileImpact } from './lockfile-impact.ts'
-import { describeCheckPlan, LOCKFILE_PATH, planCheck, type CheckPlan } from './scope.ts'
+import { lockfileImpact, workspaceImpact, type LockfileImpact } from './lockfile-impact.ts'
+import {
+  describeCheckPlan,
+  LOCKFILE_PATH,
+  planCheck,
+  WORKSPACE_PATH,
+  type CheckPlan,
+} from './scope.ts'
 import {
   admissionRequested,
   affectedMembers,
@@ -106,8 +112,9 @@ export interface PlanFile {
 }
 
 /**
- * 基线提交与 HEAD（`head` 为 undefined 时取工作树）两份 `pnpm-lock.yaml` 的影响面（lockfile-impact.ts）。
- * 哪一边没有锁文件就判全量并写明：没有可比的两份，不猜。
+ * 基线提交与 HEAD（`head` 为 undefined 时取工作树）之间依赖清单的影响面（lockfile-impact.ts）：
+ * 先看两份 `pnpm-workspace.yaml`，catalog 之外有变化就判全量；再看两份 `pnpm-lock.yaml` 的差异落到哪些成员上。
+ * 哪一边没有这两份文件之一就判全量并写明：没有可比的两份，不猜。
  */
 export function lockfileImpactBetween(
   root: string,
@@ -115,21 +122,29 @@ export function lockfileImpactBetween(
   head: string | undefined,
   members: readonly { readonly path: string }[],
 ): LockfileImpact {
-  const baseText = fileAt(root, base, LOCKFILE_PATH)
-  if (baseText === undefined)
-    return { kind: 'full', reason: `基线 ${base.slice(0, 9)} 上没有 ${LOCKFILE_PATH}，判为全量` }
-  const headText = head === undefined ? worktreeLockfile(root) : fileAt(root, head, LOCKFILE_PATH)
-  if (headText === undefined)
-    return {
-      kind: 'full',
-      reason: `${head === undefined ? '工作树' : `HEAD ${head.slice(0, 9)}`} 里没有 ${LOCKFILE_PATH}，判为全量`,
-    }
-  return lockfileImpact(baseText, headText, members)
+  const sides = (path: string): [string, string] | string => {
+    const baseText = fileAt(root, base, path)
+    if (baseText === undefined) return `基线 ${base.slice(0, 9)} 上没有 ${path}，判为全量`
+    const headText = head === undefined ? worktreeFile(root, path) : fileAt(root, head, path)
+    if (headText === undefined)
+      return `${head === undefined ? '工作树' : `HEAD ${head.slice(0, 9)}`} 里没有 ${path}，判为全量`
+    return [baseText, headText]
+  }
+  const workspace = sides(WORKSPACE_PATH)
+  if (typeof workspace === 'string') return { kind: 'full', reason: workspace }
+  const workspaceChange = workspaceImpact(...workspace)
+  if (workspaceChange.kind === 'full') return workspaceChange
+  const lockfile = sides(LOCKFILE_PATH)
+  if (typeof lockfile === 'string') return { kind: 'full', reason: lockfile }
+  const impact = lockfileImpact(...lockfile, members)
+  return workspaceChange.kind === 'catalog-only' && impact.kind !== 'full'
+    ? { ...impact, reason: `${workspaceChange.reason}；${impact.reason}` }
+    : impact
 }
 
-function worktreeLockfile(root: string): string | undefined {
+function worktreeFile(root: string, path: string): string | undefined {
   try {
-    return readFileSync(join(root, LOCKFILE_PATH), 'utf8')
+    return readFileSync(join(root, path), 'utf8')
   } catch {
     return undefined
   }
@@ -494,7 +509,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   for (const [member, entry] of hits) {
     finishedBefore += 1
     console.log(
-      `[${finishedBefore}/${targets.length}] ✓ ${member} 缓存命中，${entry.tests} 条用例，来源 ${entry.ledger}`,
+      `[${finishedBefore}/${targets.length}] ✓ ${member} 缓存命中，${entry.tests} 条用例，取自 ${entry.head.slice(0, 9)} 在 ${entry.recordedAt} 的运行，来源 ${entry.ledger}`,
     )
   }
   const report = (done: MemberRun, finished: number) => {
@@ -525,7 +540,12 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   const recorded =
     lookup === undefined
       ? undefined
-      : recordCache(lookup, runs, tier, { ledger: runDir, head: run.at.head, dirty: run.at.dirty })
+      : recordCache(lookup, runs, tier, {
+          ledger: runDir,
+          head: run.at.head,
+          dirty: run.at.dirty,
+          admission: admissionRequested(process.env),
+        })
   for (const line of recorded?.skipped ?? []) console.log(`测试缓存：${line}`)
   const cache =
     lookup === undefined || recorded === undefined ? {} : { cache: cacheMeta(lookup, recorded) }
@@ -573,6 +593,7 @@ function describeLookup(lookup: CacheLookup, total: number): string[] {
     ]
   return [
     `测试缓存：命中 ${lookup.hits.size} 个成员、跑 ${total - lookup.hits.size} 个` +
+      (lookup.policy.trustedOnly ? '（准入模式：只认准入模式下真跑出来的记录）' : '') +
       `（键与影响面规则同源：成员自己、上游、读者规则点名与全局文件的内容摘要；${lookup.home}）${skipped}${noWrite}`,
   ]
 }

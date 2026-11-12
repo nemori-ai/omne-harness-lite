@@ -358,11 +358,12 @@ describe('缓存键', () => {
 })
 
 describe('读不读', () => {
-  it('缺省读；FULL=1、--full、--no-cache、OMNE_TEST_CACHE=0、准入模式都只写不读，并说明原因', () => {
+  it('缺省读；FULL=1、--full、--no-cache、OMNE_TEST_CACHE=0 只写不读，并说明原因', () => {
     const none = { noCache: false, full: false, build: true }
     expect(cachePolicy({}, none)).toEqual({
       read: true,
       reason: '',
+      trustedOnly: false,
       write: true,
       writeReason: '',
     })
@@ -380,9 +381,24 @@ describe('读不读', () => {
       read: false,
       reason: expect.stringContaining('OMNE_TEST_CACHE=0'),
     })
-    expect(cachePolicy({ OMNE_ADMISSION: '1' }, none)).toMatchObject({
+  })
+
+  it('准入模式读，但只认准入写的条目；FULL=1 仍然不读', () => {
+    const none = { noCache: false, full: false, build: true }
+    expect(cachePolicy({ OMNE_ADMISSION: '1' }, none)).toEqual({
+      read: true,
+      reason: '',
+      trustedOnly: true,
+      write: true,
+      writeReason: '',
+    })
+    expect(cachePolicy({ OMNE_ADMISSION: '1' }, { ...none, full: true })).toMatchObject({
       read: false,
-      reason: expect.stringContaining('准入'),
+      trustedOnly: false,
+      reason: expect.stringContaining('FULL=1'),
+    })
+    expect(cachePolicy({ OMNE_ADMISSION: '1', [TEST_CACHE_ENV]: '0' }, none)).toMatchObject({
+      read: false,
     })
   })
 
@@ -554,7 +570,7 @@ describe('条目', () => {
 
 // 归慢层：起 git 子进程。
 describe('写缓存：策略与跑完后的键复核', () => {
-  const SOURCE = { ledger: '/runs/1', head: 'abc', dirty: false }
+  const SOURCE = { ledger: '/runs/1', head: 'abc', dirty: false, admission: false }
   /** 一个只有成员 mid 的查询结果；`rekey` 是可注入的钩子：模拟「跑完后重算键」得到什么。 */
   const lookupFor = (
     home: string,
@@ -563,7 +579,13 @@ describe('写缓存：策略与跑完后的键复核', () => {
     built: ReadonlyMap<string, BuiltMember> | null = BUILT,
   ): CacheLookup => ({
     home,
-    policy: { read: true, reason: '', write, writeReason: write ? '' : '没有构建' },
+    policy: {
+      read: true,
+      reason: '',
+      trustedOnly: false,
+      write,
+      writeReason: write ? '' : '没有构建',
+    },
     keys: new Map([['packages/core/mid', { key: 'k-before', digest: 'd-built', inputs: 3 }]]),
     ...(built === null ? {} : { built }),
     uncacheable: new Map(),
@@ -581,6 +603,26 @@ describe('写缓存：策略与跑完后的键复核', () => {
     const recorded = recordCache(lookupFor(home, true, same), [RUN], 'fast', SOURCE)
     expect(recorded).toEqual({ written: [RUN.member], problems: [], skipped: [] })
     expect(existsSync(entryFile(home, 'k-before'))).toBe(true)
+  })
+
+  it('准入模式的运行写出的条目带 admission；平常的运行写出的不带', () => {
+    const home = temporary('test-cache-record-')
+    recordCache(lookupFor(home, true, same), [RUN], 'fast', SOURCE)
+    expect(readEntry(home, RUN.member, 'fast', 'k-before')).not.toHaveProperty('admission')
+    recordCache(lookupFor(home, true, same), [RUN], 'fast', { ...SOURCE, admission: true })
+    expect(readEntry(home, RUN.member, 'fast', 'k-before')).toMatchObject({ admission: true })
+  })
+
+  it('同一个键下已有准入写的条目：平常的运行不盖掉它', () => {
+    const home = temporary('test-cache-record-')
+    const trusted = { ...SOURCE, ledger: '/runs/admission', admission: true }
+    recordCache(lookupFor(home, true, same), [RUN], 'fast', trusted)
+    const later = recordCache(lookupFor(home, true, same), [RUN], 'fast', SOURCE)
+    expect(later).toEqual({ written: [RUN.member], problems: [], skipped: [] })
+    expect(readEntry(home, RUN.member, 'fast', 'k-before')).toMatchObject({
+      admission: true,
+      ledger: '/runs/admission',
+    })
   })
 
   it('策略不许写（本次没有构建）：通过的成员也不写，缓存目录里没有条目', () => {
@@ -835,7 +877,7 @@ describe('本仓库', () => {
         mainRoot: ROOT,
         targets: members.map(entry => entry.path),
         tier: 'fast',
-        policy: { read: true, reason: '', write: true, writeReason: '' },
+        policy: { read: true, reason: '', trustedOnly: false, write: true, writeReason: '' },
         config: CONFIG,
         env: {},
       },
@@ -927,6 +969,7 @@ interface LedgerCache {
     readonly members: string[]
     readonly cache: {
       readonly mode: string
+      readonly trustedOnly: boolean
       readonly hits: { member: string; source: string }[]
       readonly written: string[]
       readonly write: string
@@ -950,10 +993,13 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
       delete process.env['OMNE_ADMISSION']
       delete process.env[TEST_CACHE_ENV]
       let count = 0
-      const run = async (tier: RunTier, read = true) => {
+      const run = async (tier: RunTier, read = true, admission = false) => {
         count += 1
         const out = join(root, `run-${count}`)
         writeFileSync(join(root, 'ran.txt'), '')
+        // 准入模式由环境变量认：写出的条目带 admission，读的时候只认带它的。
+        if (admission) process.env['OMNE_ADMISSION'] = '1'
+        else delete process.env['OMNE_ADMISSION']
         const { exitCode } = await recordedRun(root, {
           script: 'test',
           tier,
@@ -965,8 +1011,15 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
           plan: null,
           budget: BUDGET,
           builtFrom: builtNow(root, targets),
-          cache: { read, reason: read ? '' : '测试要求不读', write: true, writeReason: '' },
+          cache: {
+            read,
+            reason: read ? '' : '测试要求不读',
+            trustedOnly: admission,
+            write: true,
+            writeReason: '',
+          },
         })
+        delete process.env['OMNE_ADMISSION']
         const ledger = JSON.parse(readFileSync(join(out, 'ledger.json'), 'utf8')) as LedgerCache
         const ran = readFileSync(join(root, 'ran.txt'), 'utf8').split('\n').filter(Boolean).sort()
         return {
@@ -1018,6 +1071,18 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         expect(writeOnly.ledger.meta.cache.mode).toBe('write-only')
         expect(writeOnly.summary).toContain('只写不读：测试要求不读')
 
+        // 准入模式只认准入写的条目：good 现有的条目是平常的运行写的，准入照跑它；这次准入写下的，下一次准入才认。
+        const admitted = await run('fast', true, true)
+        expect(admitted.ran).toEqual(['members__bad', 'members__good'])
+        expect(admitted.ledger.meta.cache).toMatchObject({ trustedOnly: true, hits: [] })
+        const readmitted = await run('fast', true, true)
+        expect(readmitted.ran).toEqual(['members__bad'])
+        expect(readmitted.ledger.meta.cache.hits).toEqual([
+          expect.objectContaining({ member: 'members/good', source: admitted.out }),
+        ])
+        // 平常的运行也认准入写的条目。
+        expect((await run('fast')).ran).toEqual(['members__bad'])
+
         // 坏条目：按未命中，重跑后被完整通过的新条目覆盖。
         const entries = readdirSync(join(home, 'members__good')).filter(name =>
           name.startsWith('fast-'),
@@ -1051,7 +1116,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         plan: null,
         budget: BUDGET,
         builtFrom: builtNow(root, targets),
-        cache: { read: true, reason: '', write: true, writeReason: '' },
+        cache: { read: true, reason: '', trustedOnly: false, write: true, writeReason: '' },
       })
       const ledger = JSON.parse(readFileSync(join(out, 'ledger.json'), 'utf8')) as LedgerCache
       const ran = readFileSync(join(root, 'ran.txt'), 'utf8').split('\n').filter(Boolean).sort()
@@ -1118,7 +1183,13 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
             plan: null,
             budget: BUDGET,
             builtFrom: builtNow(root, targets),
-            cache: { read: true, reason: '', write, writeReason: write ? '' : '没有构建' },
+            cache: {
+              read: true,
+              reason: '',
+              trustedOnly: false,
+              write,
+              writeReason: write ? '' : '没有构建',
+            },
           })
           const ledger = JSON.parse(readFileSync(join(out, 'ledger.json'), 'utf8')) as LedgerCache
           return { exitCode, ledger }
@@ -1159,7 +1230,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
           mainRoot: root,
           targets: targets.map(entry => entry.path),
           tier: 'fast',
-          policy: { read: true, reason: '', write: true, writeReason: '' },
+          policy: { read: true, reason: '', trustedOnly: false, write: true, writeReason: '' },
           config: CONFIG,
           env: process.env,
         })
@@ -1168,6 +1239,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         writeFileSync(join(root, 'members/alpha/src/index.ts'), 'export const value = 2\n')
         const run: MemberRun = { ...RUN, member: 'members/alpha' }
         const recorded = recordCache({ ...lookup, built }, [run], 'fast', {
+          admission: false,
           ledger: '/runs/1',
           head: 'abc',
           dirty: false,
