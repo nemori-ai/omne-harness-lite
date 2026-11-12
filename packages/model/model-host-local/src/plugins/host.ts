@@ -92,7 +92,16 @@ function keyOf(tenant: TenantId, call: ModelCallId): string | undefined {
  * `ModelCommands`; nothing here marks it done. A drive that ended without ending the call, on a
  * call that this process can still drive, is woken again after `scanIntervalMs`.
  */
-function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
+/**
+ * The local driver host and its one addition: `retireRoute` retires the route and publication of a
+ * call whose result body the push released. A settled call keeps its route until then, so it stays
+ * observable while its result is held; after that the routes and the source's publications hold
+ * no call whose result is gone, and their size is bounded by the calls in flight and the results
+ * not yet released, not by the life of the process.
+ */
+type LocalDriverHost = ModelDriverHost<unknown> & Readonly<{ retireRoute(target: Wake): void }>
+
+function createLocalDriverHost(input: HostInput): LocalDriverHost {
   const { settings, authority, clock, report } = input
   const wakes = new Map<string, Wake>()
   /** The calls that wait for their next wake after a drive that can be driven again. */
@@ -192,6 +201,13 @@ function createLocalDriverHost(input: HostInput): ModelDriverHost<unknown> {
   }
 
   return {
+    retireRoute(target) {
+      const key = keyOf(target.tenant, target.call)
+      const held = key === undefined ? undefined : routes.get(key)
+      if (key === undefined || held === undefined) return
+      input.observation?.retire(held.publication)
+      routes.delete(key)
+    },
     async bind(driver) {
       if (phase === 'closing' || phase === 'closed')
         return {
@@ -340,6 +356,7 @@ export type ModelHostPluginOptions = Readonly<{
       clock: ModelClock
     }>,
   ): Pick<ModelRuntimeProvider<unknown>, 'driver' | 'quiesce'> &
+    Partial<Pick<ModelRuntimeProvider<unknown>, 'released'>> &
     Readonly<{ runtime?: ModelRuntime<unknown> }>
   /** The ledger and bounds of the result push. Required with a runtime, refused without one. */
   results?: ResultPushOptions
@@ -496,6 +513,11 @@ export function createModelRuntimeLocalPlugin(
           authority: ctx.modelHostAuthority,
           scanBatchSize: settings.scanBatchSize,
           report: event => reportRuntimeEvent(ctx, event),
+          // The route and the provider's activity of a call leave together, once its body is released.
+          released: target => {
+            host.retireRoute(target)
+            provider.released?.(target)
+          },
         },
         options.results,
       )

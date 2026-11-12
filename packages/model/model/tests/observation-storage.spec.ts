@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 import {
   createModelCommandsCore,
@@ -88,5 +88,19 @@ it('refuses current while a write of the call is unknown and recovers once the c
   })
   t.memory.control.reveal({ ...control, result: 'rolled-back' })
   expect(unbox(await t.current()).state).toMatchObject({ phase: 'accepted' })
+  t.close()
+})
+
+it('answers current of a held record without a storage read, and reads another admission cold (#1214; defect: every current queues on the storage of the call)', async () => {
+  const t = observed()
+  unbox(await t.commands.admit(t.f.admit))
+  const runs = vi.spyOn(t.memory, 'run')
+  expect(unbox(await t.current()).state).toMatchObject({ call: t.f.admit.call, phase: 'accepted' })
+  expect(unbox(await t.current()).state).toMatchObject({ call: t.f.admit.call, phase: 'accepted' })
+  expect(runs).not.toHaveBeenCalled()
+  expect(await t.current(t.referenceOf(t.f.admit.call, op('other')))).toEqual({
+    failure: { kind: 'invalid', field: 'reference', reason: 'binding' },
+  })
+  expect(runs).toHaveBeenCalledTimes(1)
   t.close()
 })

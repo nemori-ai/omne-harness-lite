@@ -14,10 +14,11 @@
 // - the routes of the release providers, with the operator's endpoints;
 // - the combination: the configured `combinationVersion` and the digest of the same catalog the
 //   `session-storage` row registers.
-// At activation the row attaches `initial` and the registry to the composition (one channel is
-// opened there), then the member creates the send child; the child captures its fiber into the
-// composition so the host can release it before the channel. A missing credential leaves the child
-// `PENDING` and the commands `ACTIVE`.
+// At activation the row attaches `initial`, the observation pair of the same activation (#1214: the
+// public Model stream; its bounds are the operator's `observation`, its timing the monotonic clock)
+// and the registry to the composition (one channel is opened there), then the member creates the
+// send child; the child captures its fiber into the composition so the host can release it before
+// the channel. A missing credential leaves the child `PENDING` and the commands `ACTIVE`.
 //
 // The row also provides `modelDiagnostics` (#1140 A5, RFC-0013 A line): model-storage-sql's
 // `createSqlModelDiagnostics` over the same storage, the same tenant domains and the same
@@ -57,6 +58,7 @@ import { qualifyingDiagnostics } from './diagnostics.ts'
 import { toolResultDisclosureOf } from '../../model/tool-result-disclosure.ts'
 import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
+import { observationTiming } from '../../model/observation.ts'
 import { createModelQualification } from '../../model/qualification.ts'
 import { officialSendSources } from '../../model/sources.ts'
 import { defineRow } from '../../row.ts'
@@ -156,12 +158,20 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         current: qualification.sourceCurrent,
       }),
       initialRun,
+      observation: { timing: observationTiming },
     }),
     sendStage: (coordinator, activation) => {
       if (activation?.initial === null || activation === undefined)
         throw new Error('model-records: the records activation gave no first-execution record')
+      const observationLimits = config.member.observation
+      if (activation.observation === null || observationLimits === undefined)
+        throw new Error('model-records: the records activation gave no observation pair')
       live.initial = activation.initial
-      const attached = port.attach(ctx, { initial: activation.initial, qualification })
+      const attached = port.attach(ctx, {
+        initial: activation.initial,
+        observation: { ...activation.observation, recheckMs: observationLimits.checkIntervalMs },
+        qualification,
+      })
       if ('failure' in attached)
         throw new Error(
           `model-records: the run composition refused the attachment (${attached.failure.kind})`,

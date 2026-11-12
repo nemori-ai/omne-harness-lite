@@ -6,13 +6,13 @@ The normal model explores one result key and two interleaved result keys. Each k
 
 The scripts have separate responsibilities.
 
-| Script | Responsibility |
-| --- | --- |
-| model.mjs | State, transitions, safety properties, and breadth-first exploration |
-| self-test.mjs | Seven directed recovery, custody, ACK, cleanup, and late-account scenarios |
-| knowledge-test.mjs | Seventy-eight queries and knowledge-change regressions |
-| boundary-test.mjs | Direct and aggregate rejection of three incomplete or defective runs |
-| run.mjs | Complete execution and per-run evidence manifest |
+| Script             | Responsibility                                                             |
+| ------------------ | -------------------------------------------------------------------------- |
+| model.mjs          | State, transitions, safety properties, and breadth-first exploration       |
+| self-test.mjs      | Seven directed recovery, custody, ACK, cleanup, and late-account scenarios |
+| knowledge-test.mjs | Seventy-eight queries and knowledge-change regressions                     |
+| boundary-test.mjs  | Direct and aggregate rejection of three incomplete or defective runs       |
+| run.mjs            | Complete execution and per-run evidence manifest                           |
 
 ## Run the complete model
 

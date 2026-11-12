@@ -554,6 +554,16 @@ function world(
         await raw.dispatches({ principal: PRINCIPAL, tenant: TENANT, call: callOf(name) }),
       )
     },
+    /** What the host's directory answers for the call: a live route or none. */
+    async route(name: string) {
+      return unbox(
+        await ctx.modelInstanceHost.directory.connect({
+          principal: PRINCIPAL,
+          tenant: TENANT,
+          call: callOf(name),
+        }),
+      ).kind
+    },
     /** A late account from the trusted supplier source, through the provider's commands. */
     async late(name: string, revision: string, operation = `late-${name}-${revision}`) {
       const target = provided.commands
@@ -604,6 +614,20 @@ it('pushes the frozen result to the registered receiver and then acknowledges it
   expect(w.handoffs[0]?.evidence).toMatchObject({ kind: 'retained', custody: { owner: CONSUMER } })
   const custody = await w.custody('one')
   expect(custody).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+})
+
+// #1214: a settled call keeps its route while its result is held, and the route goes once the
+// result body is released, so the routes of the host are bounded by the calls in flight and the
+// results not yet released, not by the life of the process.
+it('retires the route of a call once its result body is released (defect: every call keeps a route for the life of the host)', async () => {
+  const w = world()
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.cleanup === 'released', 'the push, ACK and cleanup')
+  expect(await w.route('one')).toBe('no-live-route')
 })
 
 // R2-D256: every call holds one place of the tenant share. The place comes back only when the

@@ -93,7 +93,7 @@ packages/<能力组>/<成员>/
 packages/
 ├── access/
 │   ├── public-contract/        公开契约的共同部分：信封、对外结果、协议契约的类型、内置协议
-│   ├── access-cordis-contract/ 接入贡献的类型、登记表的 Cordis 服务定义（未建）
+│   ├── access-cordis-contract/ 接入贡献的类型、登记表的 Cordis 服务定义
 │   ├── sdk/                    客户端核心：由协议契约与传输得到带类型的方法，不依赖 Cordis
 │   ├── client-assembly/        客户端装配：连接与协议客户端的 Cordis 插件（未建）
 │   └── server-entry/           服务端入口：承载绑定、管道、登记表、观察中枢
@@ -299,8 +299,8 @@ assets维护共同治理，具体类别维护专有定义与业务。共同治�
 access把每个领域都要用的那部分接入知识就近组织。它不拥有任何领域的操作。
 
 - public-contract 拥有公开契约的共同部分：逻辑消息的信封、对外结果、判断次序、协议契约的类型，以及内置协议。它是纯数据，没有 Cordis、存储与 Node 专有的依赖。
-- access-cordis-contract 拥有接入贡献的类型和登记表的 Cordis 服务定义。领域的接入插件在 access 组里只依赖它和 public-contract，不依赖 server-entry。
-- server-entry 是服务端入口：承载绑定、管道、登记表、观察中枢。它的依赖里没有任何领域的契约。
+- access-cordis-contract 拥有接入贡献的类型和登记表的 Cordis 服务定义。领域的接入插件在 access 组里只依赖它和 public-contract，不依赖 server-entry。它自己只依赖 public-contract 与 Cordis，依赖方向的门禁 `access-cordis-contract-only-contract-and-cordis` 守这一条。`defineAccessPlugin` 还没有建。
+- server-entry 是服务端入口：承载绑定、管道、登记表、观察中枢。它的依赖里没有任何领域的契约。目前已建的是登记表与收场（`src/registry/`、`src/settle/`），还没有接到地址上；这两个目录不导入任何领域的成员，也不导入入口现有三个位置的文件，门禁 `entry-registry-knows-no-domain` 守这一条。入口现有的三个位置仍依赖各领域的契约，见[系统分层](architecture/layers-and-dependencies.md#现行偏离)「现行偏离」。
 - `sdk` 成员是客户端核心：给它一份协议契约和一个传输，得到带类型的方法。它只依赖 public-contract，不依赖 Cordis。
 - client-assembly 是客户端装配：一棵 Cordis 树上的连接与协议客户端。它只比 `sdk` 成员多依赖 Cordis。
 

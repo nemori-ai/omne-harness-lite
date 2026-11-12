@@ -241,9 +241,11 @@ type Outcome =
 // 前四种管道自己会替领域答；后两种为了拒绝一致也固定为空。
 type FixedOutcome = 'denied' | 'protocol-rejected' | 'basis-unavailable' | 'unknown' | 'uniform-auth-failure' | 'stage-not-provided'
 
+// 两个函数都带调用方给的结构上限；契约里只写上限的名字。读写都返回结果，不合规时给 ok: false，不抛出。
+// 现行形状归公开契约规格「共同契约」。
 type Codec<T> = {
-  readonly read: (value: JsonValue) => { readonly ok: true; readonly value: T } | { readonly ok: false }
-  readonly write: (value: T) => JsonValue
+  readonly read: (value: JsonValue, limits: JsonLimits) => { readonly ok: true; readonly value: T } | { readonly ok: false }
+  readonly write: (value: T, limits: JsonLimits) => { readonly ok: true; readonly value: JsonValue } | { readonly ok: false }
 }
 
 type OperationContract<Body, Results extends OutcomeBodies> = {
@@ -2193,9 +2195,12 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | 词条：公开协议、接入贡献、公开观察、协议可用性、会话观察、界面外壳、界面模块、界面插入位置 | [统一语言](../../.meta_harness/design/ubiquitous_language/index.md) | 已写回 | PanQiWei 2026-11-12 |
 | 三个形式化模型、负控、两条硬要求、证明转契约测试的清单。模型三随会话观察的成员建成搬到它那里 | [接入登记表与可用性的有限行为模型](../../packages/access/server-entry/verification/models/README.md) | 已写回。模型与代码的对应在「接入层」那一路补上 | PanQiWei 2026-11-12 |
 | 依赖方向的门禁：`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL` 跟着依赖边改；加 I-1、I-17、I-18、I-19 的规则 | [约束登记](../architecture/constraints.json) | 待写回，随「接入插件」那一程 | 未切换 |
-| 共同契约、对外结果、判断次序、观察的结束原因、内置协议的契约 | [公开契约规格](../../packages/access/public-contract/SPEC.md)；[承载页](../../packages/access/public-contract/docs/http-binding.md) | 待写回，随「接入层」那一路 | 未切换 |
-| 贡献的类型、登记表的服务定义、`defineAccessPlugin` | `packages/access/access-cordis-contract` 的规格（成员未建） | 待写回，随「接入层」那一路 | 未切换 |
-| 入口：登记表、管道、观察中枢、承载绑定、可用性 | [服务端接入规格](../../packages/access/server-entry/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
+| 共同契约、对外结果 | [公开契约规格](../../packages/access/public-contract/SPEC.md#共同契约)「共同契约」 | 已写回（部分：本行只是原「共同契约、对外结果、判断次序、观察的结束原因、内置协议的契约」中写回了的那一部分） | 卡 #1213，PR #1222 合入；PanQiWei 2026-11-12 |
+| 判断次序、观察的结束原因、内置协议的契约 | [公开契约规格](../../packages/access/public-contract/SPEC.md)；[承载页](../../packages/access/public-contract/docs/http-binding.md) | 待写回，随「接入层」那一路 | 未切换 |
+| 贡献的类型、登记表的服务定义 | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md) | 已写回（部分：本行只是原「贡献的类型、登记表的服务定义、`defineAccessPlugin`」中写回了的那一部分） | 卡 #1223；确认者随 PR 的接受 |
+| `defineAccessPlugin` | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
+| 入口：登记表；判断次序第 10 到 14 步的收场与宽限 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#登记表)「登记表」「收场与宽限」 | 已写回（部分：本行只是原「入口：登记表、管道、观察中枢、承载绑定、可用性」中写回了的那一部分；登记表还没有接到地址上） | 卡 #1223；确认者随 PR 的接受 |
+| 入口：管道的第 1 到 9 步、观察中枢、承载绑定、可用性 | [服务端接入规格](../../packages/access/server-entry/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
 | 客户端核心：`createClient`、传输、本地的两种结果 | [SDK 规格](../../packages/access/sdk/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
 | 客户端装配：连接、`defineProtocolClient` | `packages/access/client-assembly` 的规格（成员未建） | 待写回，随「接入层」那一路 | 未切换 |
 | 加一个操作改哪些成员；成员与依赖 | [接入组说明](../../packages/access/README.md) | 待写回，随「接入层」那一路 | 未切换 |

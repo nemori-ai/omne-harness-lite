@@ -218,7 +218,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['agentPublicationAuthority', 'agentAccessCheck'],
   },
   'model-host': {
-    provides: ['modelRuntime', 'modelInstanceHost'],
+    provides: [
+      'modelRuntime',
+      'modelInstanceHost',
+      'modelStreamReferences',
+      'modelStreamObservation',
+    ],
     injects: ['modelCommands', 'modelClock', 'modelHostAuthority'],
     phase: 'business',
   },

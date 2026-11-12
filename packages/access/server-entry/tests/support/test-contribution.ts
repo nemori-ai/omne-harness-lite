@@ -1,0 +1,58 @@
+// A contribution that is not in any release: the registry and settle tests mount it instead of a
+// domain's. Its handlers answer with what the test hands them.
+import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
+import type { AccessContribution } from '@omne-harness/access-cordis-contract'
+
+const empty = ruleCodec({ kind: 'object', fields: {} })
+const noteRef = ruleCodec({ kind: 'object', fields: { noteId: { rule: { kind: 'text' } } } })
+const note = ruleCodec({
+  kind: 'object',
+  fields: { noteId: { rule: { kind: 'text' } }, title: { rule: { kind: 'text' } } },
+})
+
+export function notesProtocol(major = 1) {
+  return defineProtocol({
+    name: 'notes',
+    major,
+    operations: {
+      'read-note': {
+        identity: 'login',
+        effect: 'read',
+        limit: 'small',
+        body: noteRef,
+        outcomes: { succeeded: note, 'not-found': empty },
+      },
+      'save-note': {
+        identity: 'acting-tenant',
+        effect: 'commit',
+        limit: 'input',
+        body: note,
+        outcomes: { succeeded: empty, conflict: empty },
+        countsAsAccess: true,
+      },
+    },
+    observations: {
+      'watch-note': { identity: 'login', open: noteRef, frame: note, ends: ['note-deleted'] },
+    },
+  })
+}
+export type NotesProtocol = ReturnType<typeof notesProtocol>
+
+/** A contribution whose handlers answer a fixed title, so two mounts can be told apart. */
+export function notesContribution(title: string, major = 1): AccessContribution<NotesProtocol> {
+  return {
+    protocol: notesProtocol(major),
+    operations: {
+      'read-note': async (_call, body) => ({
+        outcome: 'succeeded',
+        body: { noteId: body.noteId, title },
+      }),
+      'save-note': async () => ({ outcome: 'succeeded', body: {} }),
+    },
+    observations: {
+      'watch-note': async () => ({ outcome: 'basis-unavailable' }),
+    },
+  }
+}
+
+export const NOTES = { name: 'notes', major: 1 } as const

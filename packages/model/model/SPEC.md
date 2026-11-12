@@ -76,7 +76,7 @@ outputBatchBytes 按事实 JSON 的 UTF-8 逻辑字节数触发持久输出批�
 
 ## 构造与关闭的可观察行为
 
-本实现的三个独立能力工厂只组合算法，不启动运行。createModelRuntime 返回带driver的 ModelRuntimeProvider，普通runtime不暴露driver。装配者须完成显式host绑定，才能公开受理；绑定失败不得返回“可用runtime”。既有替代提供者无需复制这些工厂，但必须符合领域协议。
+本实现的三个独立能力工厂只组合算法，不启动运行。createModelRuntime 返回带driver与 `released` 的 ModelRuntimeProvider，普通runtime不暴露二者。装配者须完成显式host绑定，才能公开受理；绑定失败不得返回“可用runtime”。既有替代提供者无需复制这些工厂，但必须符合领域协议。
 
 调用已经持久受理而schedule失败时，返回原受理事实，不伪装未受理。提供者记录唤醒失败并由恢复扫描续排。query和recover不得为了返回可用状态创建第二次逻辑调用。quiesce停止新的业务受理，仍允许已受理工作调度，不撤销原责任；现有查询、控制、结果保管及清理按可用依赖继续。
 
@@ -207,6 +207,8 @@ Activity 持有唯一的固定 settle 输入。首次写前读取当前资格、
 release 与业务收场分别记录。receiver 只启动一次 iterator.return 并缓存结果。driver 固定终止阶段后先发起 release，同时独立推进 settle，不先等待 release。原 drive 锁一直覆盖真实释放等待，防止第二消费者。释放挂起时 inspect 仍可读取已确认 Settlement。释放失败在收场确认后由 drive 返回，后续 drive 不重做 return 或 close。若同轮收场和释放都失败，先返回收场操作的失败，释放失败仍缓存，收场确认后再次可见。
 
 业务收场确认且资源释放成功后，活动退出 finish，丢弃 receiver 及其发送材料引用。活动仅保留 done，或保留原接收失败的 failed。公开观察继续使用已有确认快照。收场未知或释放未成功时，不执行此转换。
+
+已收场调用的活动保留到宿主告知结果正文已释放为止：其间重复驱动交回原终局。宿主在推送把结果清理释放之后调用 provider 的 `released(tenant, call)`，driver 忘掉这次调用的活动及其观察视图；此时仍在进行的一次驱动保留它已取得的活动，只有之后的驱动见不到它。没有活动的已收场调用再被驱动时不新建发布，直接答成功：它没有活执行可以路由。由此驱动的活动与宿主的路由都以在途调用与仍持有份额的结果为界，不随进程寿命增长（#1214）。
 
 settle 确认后先固定内部阶段，再安排附带状态刷新。刷新失败不重做业务写。后续取消、可信 recordLateFact 和事件重放不能改变原 Settlement 的 termination、version 或 source。未知事实不先展示。此实现仅在当前进程持有原确认依据时接续，不证明生产耐久、跨进程恢复或真实厂商停止。
 
@@ -350,7 +352,7 @@ continuity 绑定原调用、admission、instance、operation 和证据采用，
 
 每次底层调用 work 都重建本轮 pass，只捕获 scope 的调用与 operation，不复制整个租户材料。`commit` 和 `publish` 暂存不发布。底层 `run` 最终返回后，先同步完成 initial 确认，再处理公共确认源，最后返回原 Outcome；CAS 前轮的暂存不生效。未知写不发布 staged 投影，并使该调用的观察源不可用。授权失败不污染别的观察者。initial 或 observation 回调失败只封闭对应侧口并报告安全种类，诊断不含正文或原异常，report 自身抛错也不覆盖原结果。底层抛错则不发布，并原样重新抛出。
 
-`current` 与 `observe` 消费同一确认记录，其 state 与 snapshot 内的 state 共用冻结值。冷读使用同一个装饰后存储，核观察者自己的 facts 或 observe 资格、原 consumer 与 admission，不依赖 `loadRecovery` 或宿主拼接状态。异步读返回后重新核当前资格和来源。无公共投影时可以返回已确认 state 与 `current: null`；真实来源不可用必须返回失败，不能伪装成功空值。
+`current` 与 `observe` 消费同一确认记录，其 state 与 snapshot 内的 state 共用冻结值。确认源持有该调用的可用记录且引用的 admission 与它相同时，`current` 直接以它作答，不读存储：这条记录由装饰后存储每一轮确认的提交推进，未确认的写入使它不可用，所以读者不在调用自己的写入所用的存储上排队（#1214）。其余情形（别的租户、被淘汰或不可用的记录、别的 admission）走冷读，答复与冷读相同，读者看不出记录冷热。冷读使用同一个装饰后存储，核观察者自己的 facts 或 observe 资格、原 consumer 与 admission，不依赖 `loadRecovery` 或宿主拼接状态。异步读返回后重新核当前资格和来源。无公共投影时可以返回已确认 state 与 `current: null`；真实来源不可用必须返回失败，不能伪装成功空值。
 
 记录忽略较旧 revision，同版本已识别的元数据冲突使本调用不可用。同一 admission/execution/dispatch/revision/OutputCursor 的重复确认不重新 diff、冻结或复制 blocks，也不分配公共 cursor。同流只有 state 前进时复用冻结 blocks，产生 `blocks: []` 的 state-only delta，同时推进公共 cursor。内容更新只复制确认后的窄投影，工作量允许随保留块 B 与差分 D 增长，不承诺整条 SQL 查询为常数成本。公共流位置使用独立的规范十进制位置，不复用 OutputCursor。
 

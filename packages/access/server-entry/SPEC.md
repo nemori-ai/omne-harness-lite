@@ -287,11 +287,53 @@ type HitlIngressFaces<P> = Readonly<{
 
 响应体为空的状态 500 表示接入没有可信答复。它只用于接入自身的故障和上面治理位置的两种情况。接入写出它之后关闭连接。接入不把这类情况写成 `denied`、`succeeded` 或 `basis-unavailable`。`unknown` 的状态 500 带响应体，不属于这一条。
 
+## 登记表
+
+登记表记着「现在挂着哪些协议」。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献) 第 5 节与第 13 节「登记表里的一个协议」；领域看到的形状（贡献、`mount`）归 [access-cordis-contract](../access-cordis-contract/SPEC.md)。本节的代码在 `src/registry/`：`registry.ts` 是不认识 Cordis 的纯状态，`cordis.ts` 是 Cordis 提供者 `AccessRegistryProvider`。登记表还没有接到任何地址上：读 HTTP 请求的判断次序第 1 到 9 步、观察中枢、内置协议都还不存在，现有三个位置不经过它。
+
+登记表不认识任何领域。表项按协议名与主版本存，处理函数只当函数调用。`src/registry/` 与 `src/settle/` 不导入任何领域的成员，也不导入本成员现有三个位置的文件，依赖方向的门禁 `entry-registry-knows-no-domain` 守这一条。
+
+| 操作 | 协议未挂上 | 协议已挂上 |
+| --- | --- | --- |
+| `mount`，同名同主版本 | 加表项，修订号加一，同步回调订阅者 | 抛 `AccessAssemblyError`，已挂的那份不动 |
+| `mount`，同名、主版本不同 | 是另一个协议，按左栏 | 是另一个协议，按左栏 |
+| 撤下 | 不可达：撤下只随成功挂上的那一次发生。再调一次撤下函数，返回同一个 Promise | 一个同步段：移除表项，触发这份贡献的中止信号，修订号加一，同步回调订阅者。返回排空的 Promise |
+| `enter(key, name)`，名字是契约里的操作或观察 | 返回 `undefined` | 同步登记成在途，返回 `Entered`：成员、这份贡献的中止信号、`leave` |
+| `enter(key, name)`，名字不在契约里 | 返回 `undefined` | 返回 `undefined`，不登记 |
+| `leave` | 不可达 | 从在途集合移除；第二次没有效果。撤下之后在途集合空了，排空完成 |
+| `subscribe(listener)` | 同步返回快照（修订号与挂着的协议）并登记订阅者 | 同左 |
+
+- **两个同步段。** `enter` 与 `subscribe` 是同步方法，签名里就不是 Promise（`RegistryForPipeline`）。「查表并登记成在途」「读快照并登记订阅者」各是一步，中间不让出执行权（RFC-0015 §15「两条硬要求」）。
+- **撤下完成。** 「撤下完成」是登记表自己的状态，由这份贡献最后一个 `leave` 触发：调用与观察都算。`AccessRegistryService.mount` 把撤下函数作为调用者 Cordis 作用域上效应的收回函数，Cordis 4.0.4 的卸载等它返回的 Promise，所以插件的卸载在最后一个在途工作结束之后才完成。
+- **订阅者。** 订阅者回调在挂上或撤下的同步段里被调用，看到的修订号是变化之后的修订号。订阅者回调抛出时，登记表与别的订阅者照常，错误交给构造时注入的 `onListenerError`。退订第二次没有效果。
+- **管道看得到、领域看不到。** `enter`、`subscribe` 只在提供者与 `createAccessRegistry` 的返回值上，不在 `AccessRegistryService` 上。
+
+## 收场与宽限
+
+收场是判断次序的第 10 到 14 步（RFC-0015 §5「管道与判断次序」），代码在 `src/settle/settle.ts` 的 `settleCall`。它不碰 HTTP：管道把 `Entered`、主体、读好的消息体交给它，并给一个 `respond` 写出答复。它只收操作；观察由观察中枢收场，给了观察是编程错误，抛 `TypeError`。
+
+| 情形 | 答复 |
+| --- | --- |
+| 收场开始时已经中止（第 10 步） | 不调用处理函数，答 `basis-unavailable` |
+| 处理函数返回结果集里的结果，编解码写得出 | 用契约的编解码写出，原样答复。中止之后、宽限之内返回的也一样 |
+| 处理函数返回结果集之外的结果，或编解码写不出 | 读取类答 `basis-unavailable`，提交类答 `unknown` |
+| 处理函数抛出 | 同上 |
+| 中止之后过了宽限还没返回 | 同上。之后它再返回的结果丢弃，不写第二次答复 |
+
+- 失败时的答复只由操作契约的 `effect` 决定：处理函数开始之后，提交可能已经发生，所以提交类答 `unknown`，不答 `basis-unavailable`（RFC-0015 I-8）。
+- 每种情形都是先 `respond`，再调一次 `leave`。`respond` 抛出时也调 `leave`，错误交还调用者。
+- 答复是 `succeeded` 且契约标了 `countsAsAccess` 时，`leave` 之后调注入的 `reportAccess`，不等它，它出错不改答复。本程不传它，向身份报告成功的业务访问由接上身份的那一程做。
+- 宽限只在中止之后计时。没有中止时，收场等处理函数返回。
+
+**宽限的配置。** 宽限是 `SettleConfig.graceMs`（毫秒），必填，由装配在构造时给出；本成员不写初值，这是[入口配置](src/config.ts)的现行约定。时钟由调用者注入（`Clock`），装配用 `systemClock`。给装配的推荐值是 5000 毫秒。理由：领域的处理函数收到中止后应当在一次存储提交的时间内返回，5 秒覆盖一次本机 SQLite 提交的长尾，又远小于客户端会放弃一次请求的时间；宽限越长，插件卸载被一个不理会中止的处理函数拖住的时间越长。这个值随接进装配的那一程写进服务端应用的配置。
+
 ## 依赖
 
 服务端接入的依赖边以公开契约的[三个成员](../public-contract/SPEC.md#三个成员)为唯一来源。
 
 公开契约不依赖服务端接入。SDK 不依赖服务端接入。
+
+[登记表](#登记表)与[收场](#收场与宽限)另依赖 [access-cordis-contract](../access-cordis-contract/SPEC.md) 的贡献类型与服务定义。access-cordis-contract 不依赖本成员。
 
 [会话诊断投影](#会话诊断投影)让本成员以只读方式消费 agent-contract、model-contract 与 tool-contract 的类型与读口。`DIR-ACCESS-MODEL` 与 `DIR-ACCESS-TOOL` 只约束公开契约、SDK 与 stream-arrival，不约束本成员。公开契约仍不依赖这三个成员：诊断页的形状在公开契约里以自己的词声明。
 

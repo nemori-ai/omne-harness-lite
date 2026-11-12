@@ -25,10 +25,16 @@ export const ACTOR_OWNER = tenantStandingKey
 
 const QUALIFICATION = 'model-access-qualification'
 
-/** The allowed purposes of each verified principal class. */
+/**
+ * The allowed purposes of each verified principal class. The login principal reads the facts of the
+ * calls of its tenant: their state (`inspect`), the current stream (`facts`) and the stream itself
+ * (`observe`), as it reads the history of its sessions (#1214, RFC-0015 §8). `facts` also covers the
+ * query of an operation and the replay of an accepted admission; none of them creates a call, and
+ * `admit` stays with the work principal.
+ */
 const ACTIONS: Readonly<Record<CommandAction, readonly PrincipalClass[]>> = Object.freeze({
   admit: ['work'],
-  facts: ['work', 'host'],
+  facts: ['login', 'work', 'host'],
   inspect: ['login', 'work', 'host'],
   'read-account': ['login', 'work', 'host'],
   content: ['work', 'host'],
@@ -36,7 +42,7 @@ const ACTIONS: Readonly<Record<CommandAction, readonly PrincipalClass[]>> = Obje
   handoff: ['work', 'host'],
   account: ['work', 'host'],
   recovery: ['host'],
-  observe: ['work', 'host'],
+  observe: ['login', 'work', 'host'],
   send: ['host'],
 })
 
