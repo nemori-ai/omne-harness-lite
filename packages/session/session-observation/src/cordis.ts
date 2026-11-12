@@ -42,7 +42,11 @@ declare module '@deepseek-ai/cordis' {
 export type SessionObservationPluginInput = Readonly<{
   /** The entry kinds that reading history gives in this assembly. */
   historyKinds: readonly string[]
-  policy?: ObservationRefreshPolicy
+}>
+
+/** The row configuration: values left out take the defaults of this member. */
+export type SessionObservationConfig = Readonly<{
+  policy?: Partial<ObservationRefreshPolicy>
   locatePages?: number
 }>
 
@@ -70,7 +74,11 @@ function wait(milliseconds: number, signal: AbortSignal): Promise<'elapsed' | 'c
 class SessionObservationProvider<P> extends SessionObservationService<P> {
   readonly open: SessionObservation<P>['open']
 
-  constructor(ctx: Context, input: SessionObservationPluginInput) {
+  constructor(
+    ctx: Context,
+    input: SessionObservationPluginInput,
+    config: SessionObservationConfig,
+  ) {
     super(ctx)
     const listeners = new Set<Listener>()
     ctx.on('session-cordis-contract/committed', (tenant, session, _revision, _source, kinds) => {
@@ -91,8 +99,8 @@ class SessionObservationProvider<P> extends SessionObservationService<P> {
         }
       },
       wait,
-      policy: input.policy ?? DEFAULT_OBSERVATION_REFRESH_POLICY,
-      locatePages: input.locatePages ?? DEFAULT_LOCATE_PAGES,
+      policy: { ...DEFAULT_OBSERVATION_REFRESH_POLICY, ...config.policy },
+      locatePages: config.locatePages ?? DEFAULT_LOCATE_PAGES,
       historyKinds: input.historyKinds,
       diagnose: diagnostic => {
         logger.warn(`${diagnostic.code}: ${diagnostic.detail}`)
@@ -111,8 +119,8 @@ export function createSessionObservationPlugin<P>(input: SessionObservationPlugi
       [modelStreamReferencesKey]: null,
       [modelStreamObservationKey]: null,
     },
-    apply(ctx: Context) {
-      new SessionObservationProvider<P>(ctx, input)
+    apply(ctx: Context, config: SessionObservationConfig | undefined) {
+      new SessionObservationProvider<P>(ctx, input, config ?? {})
     },
   }
 }

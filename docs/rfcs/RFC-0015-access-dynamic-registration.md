@@ -2204,7 +2204,7 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | 客户端核心：`createClient`、传输、本地的两种结果 | [SDK 规格](../../packages/access/sdk/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
 | 客户端装配：连接、`defineProtocolClient` | `packages/access/client-assembly` 的规格（成员未建） | 待写回，随「接入层」那一路 | 未切换 |
 | 加一个操作改哪些成员；成员与依赖 | [接入组说明](../../packages/access/README.md) | 待写回，随「接入层」那一路 | 未切换 |
-| 列出会话的读取面 `SessionDirectory` 与它的访问操作；调用登记的读取函数与两种存法；「有没有一轮在进行」的判法 | [会话契约规格](../../packages/session/session-contract/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |
+| 列出会话的读取面 `SessionDirectory` 与它的访问操作；调用登记的读取函数与两种存法；「有没有一轮在进行」的判法 | [会话契约规格](../../packages/session/session-contract/SPEC.md#稳定调用引用的读取) | 部分写回：调用登记的读取函数 `readCallRegistration`、两种存法与一轮在进行的判法已写回，会话观察用它（#1248）；会话诊断共用它、`SessionDirectory` 待写回，随「领域一侧」那一路 | 未切换 |
 | 每次提交都发通知：会话日志的每一批新写出由会话存储一侧的唯一落点报给按库登记的通知接口，认回不报；会话核心不发；会话的 Cordis 成员导出造通知接口的函数，提供者只监听；服务端应用的会话存储行登记通知接口 | [会话契约规格](../../packages/session/session-contract/SPEC.md#ec-11)「EC-11」「SessionNotifier」；[会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md#本批与提交通知)「本批与提交通知」；[会话的 Cordis 成员规格](../../packages/session/session-cordis/SPEC.md#唤醒调用方与扫描者)；[会话的 Cordis 契约说明](../../packages/session/session-cordis-contract/docs/cordis.md#事件)；[服务端应用规格](../../apps/harness-server/SPEC.md#会话的提交通知) | 已写回 | 卡 #1230；确认者随 PR 的接受 |
 | 公共流的两个读取面装进正式装配，消费者是会话观察；投影函数给出值 | [模型契约规格](../../packages/model/model-contract/SPEC.md)；[模型的 Cordis 契约说明](../../packages/model/model-cordis-contract/docs/cordis.md)；[应用装配](../architecture/runtime/application-assembly.md#插件树) | 待写回，随「领域一侧」那一路 | 未切换 |
 | 每次提交的时刻；会话列表项的派生表、迁移与回填；会话列表项的写入路径、查询路径与索引 | [会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |

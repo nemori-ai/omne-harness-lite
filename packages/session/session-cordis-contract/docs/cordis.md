@@ -96,6 +96,7 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 | 发出点 | 会话日志唯一写入者的唯一落点（session-storage-sql 的[本批与提交通知](../../session-storage-sql/SPEC.md#本批与提交通知)）在每一批新写出之后，调用按库登记的通知接口一次；session-cordis 的 `createSessionCommitNotifier` 造的通知接口派发本事件。认回、回滚与没写条目的提交不派发。Session 的服务提供者只监听 |
 | 监听者 | 派发方在提交之后、提交的事务之外派发，不等待监听者完成。监听者失败只记录诊断，不改变已提交的结果（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)） |
 | 过滤 | 监听者按载荷里的租户与会话身份自行过滤，数据动作再按调用资格核权 |
+| 已知的监听者 | Session 的服务提供者（调度）；session-adapters 的模式与上下文适配；[session-observation](../../session-observation/docs/cordis.md)（一棵树一个监听者，按租户与会话分发给各次会话观察，只作重新定位的唤醒，漏掉的由按间隔的刷新补上） |
 | 丢失 | 不影响正确性。调度器按权威扫描补查 |
 
 ## 依赖分类

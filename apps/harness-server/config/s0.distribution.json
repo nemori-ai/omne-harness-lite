@@ -271,6 +271,11 @@
       "config": {}
     },
     {
+      "id": "session-observation",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "server-entry",
       "plugin": "stubPlugin",
       "config": {}

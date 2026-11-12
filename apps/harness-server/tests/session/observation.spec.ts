@@ -1,0 +1,94 @@
+// @module-tag slow
+// Session observation on the release tree (#1248, RFC-0015 §8). Slow: each case starts the release
+// tree in this process and runs the `omne` CLI as child processes; the Model supplier is the local
+// gateway of the release-tree scenarios. The interval of the refresh policy is a minute here, so a
+// state frame that comes within the case came from a commit notice, not from the interval.
+import { describe, expect, it } from 'vitest'
+import type { SessionId } from '@omne-harness/session-contract'
+import type { SessionObservationFrame } from '@omne-harness/session-observation'
+import {
+  sessionObservationKey,
+  type SessionObservationService,
+} from '@omne-harness/session-observation/cordis'
+import { onReleaseTree, pollUntil, type ReleaseTree } from '../support/release-tree.ts'
+import {
+  anotherPerson,
+  heldAnswer,
+  loginAccess,
+  type LoginAccess,
+} from '../model/public-stream-support.ts'
+
+const MINUTE = { interval: 60_000 }
+
+function observation(tree: ReleaseTree): SessionObservationService<unknown> {
+  const service = tree.scope.get(sessionObservationKey) as
+    | SessionObservationService<unknown>
+    | undefined
+  if (service === undefined) throw new Error('sessionObservation is not on the tree')
+  return service
+}
+
+function open(tree: ReleaseTree, access: LoginAccess, session: string, signal: AbortSignal) {
+  return observation(tree).open({
+    access: { ...access, session: session as SessionId },
+    signal,
+  })
+}
+
+describe('session observation on the release tree', () => {
+  it('provides sessionObservation (defect: the row is not in the release)', async () => {
+    const held = heldAnswer('one', ' two')
+    await onReleaseTree({ script: held.script }, async tree => {
+      expect(typeof observation(tree).open).toBe('function')
+    })
+  })
+
+  it('state frames follow the run: its number while it runs, a larger revision on each commit, null after it ends', async () => {
+    const held = heldAnswer('one', ' two')
+    await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
+      const access = await loginAccess(tree)
+      const session = await tree.startSession('say hello')
+      await pollUntil(
+        'the held answer',
+        () => Promise.resolve(held.held()),
+        n => n > 0,
+      )
+      const controller = new AbortController()
+      const opened = await open(tree, access, session, controller.signal)
+      if (opened.kind !== 'opened') throw new Error(`open answered ${opened.kind}`)
+      const frames: SessionObservationFrame[] = []
+      const first = await opened.frames.next()
+      if (first.done === true) throw new Error('no first frame')
+      frames.push(first.value)
+      expect(first.value).toMatchObject({ kind: 'state', phase: null, target: null })
+      expect(first.value.kind === 'state' && first.value.run).toMatch(/^run_/u)
+      held.release()
+      for (;;) {
+        const step = await opened.frames.next()
+        if (step.done === true) throw new Error(`ended: ${String(step.value)}`)
+        frames.push(step.value)
+        if (step.value.kind === 'state' && step.value.run === null) break
+      }
+      controller.abort()
+      expect(await opened.frames.next()).toEqual({ done: true, value: undefined })
+      expect(frames.every(frame => frame.kind === 'state')).toBe(true)
+      const revisions = frames.map(frame => (frame.kind === 'state' ? Number(frame.revision) : 0))
+      expect(revisions).toEqual([...revisions].sort((a, b) => a - b))
+      expect(new Set(revisions).size).toBe(revisions.length)
+    })
+  })
+
+  it('another tenant gets denied for a real session, the same as for an absent one', async () => {
+    const held = heldAnswer('one', ' two')
+    await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
+      const session = await tree.startSession('say hello')
+      const other = await loginAccess(tree, await anotherPerson(tree, 'frank'))
+      const signal = new AbortController().signal
+      const forReal = await open(tree, other, session, signal)
+      const forAbsent = await open(tree, other, 'sess_absent', signal)
+      expect(forReal).toEqual({ kind: 'denied' })
+      expect(forAbsent).toEqual(forReal)
+      held.release()
+    })
+  })
+})

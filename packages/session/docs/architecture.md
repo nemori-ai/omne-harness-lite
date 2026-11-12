@@ -21,6 +21,9 @@ flowchart LR
   Adapters[session-adapters] --> Definitions
   Adapters --> Contract
   Adapters --> Neighbors[六个邻域以及身份、空闲来源的契约与服务定义]
+  Observation[session-observation] --> Contract
+  Observation --> Definitions
+  Observation --> ModelContracts[Model 契约与 Model 的 Cordis 定义]
   Storage[session-storage-sql] --> Contract
   Storage -->|./cordis 入口| Definitions
   Storage --> StorageContract[存储契约成员]
@@ -32,7 +35,8 @@ flowchart LR
 - `session-contract` 不依赖任何邻域契约，也不依赖 Cordis。出站端口的接口在这里声明：本域只说自己要什么。
 - `session` 只依赖 `session-contract`，经本域端口与出站端口接口呼出，根入口不加载 Cordis。
 - `session-cordis` 依赖前三者，不依赖邻域契约与存储后端。
-- `session-adapters` 是唯一导入邻域契约的成员。它与 `session-cordis` 没有编译期依赖，出站端口的服务键由装配接上。
+- `session-adapters` 导入六个邻域的契约。它与 `session-cordis` 没有编译期依赖，出站端口的服务键由装配接上。
+- `session-observation` 只导入 Model 契约与 Model 的 Cordis 定义，只读会话的日志读取面与 Model 的公共流，不导入接入组。
 - `session-storage-sql` 依赖 `session-contract`、`session-cordis-contract` 的 `./cordis` 入口（提供事务端口的键）与存储契约成员。存储契约没有可依赖的成员时，它的 SPEC 写期望端口并标出依赖。
 
 出站端口的形状与 Agent 契约把模型、上下文等端口交给外域提供者的做法相同：接口在契约成员，服务键在服务定义成员，实现在适配成员。服务实现按调用经 `ctx.get` 现取出站端口，不把它们写进 `inject`。
@@ -46,7 +50,8 @@ flowchart LR
 | 只用类型、值、身份与纯判断，不调用任何东西 | `session-contract` |
 | 用替身就能跑完整个状态机 | `session` |
 | 要从 Cordis 现取时钟、通知总线或装配端口（真实时钟由应用装配提供，计时逻辑在 `session` 的调度器） | `session-cordis` |
-| 要导入任何邻域契约 | `session-adapters` |
+| 读会话日志与 Model 的公共流，产出会话观察的帧 | `session-observation` |
+| 要导入任何其他邻域契约 | `session-adapters` |
 | 与存储介质相关 | `session-storage-sql` |
 
 ## Cordis 落位
@@ -58,6 +63,7 @@ flowchart LR
 | `session` | module | 无 Cordis | 纯工厂与 `SchedulingPolicy` 等配置 | 无；依赖经工厂参数传入 |
 | `session-cordis` | service-provider | 按模板 | `session` 服务实现、时钟与端口的现取代理、通知订阅、扫描者 | 五个键：访问检查 `sessionAccessCheck`、受信委派事务 `sessionDelegatedTransactions`、内部主体 `sessionPrincipals`、受信会话工作主体 `sessionWorkPrincipals` 与装配生命周期 `assemblyLifecycle`（[session-cordis 性质 2](../session-cordis/SPEC.md#服务与依赖)）。公开事务端口 `sessionTransactions` 只为三项目录读取现取。身份与证据桥、时钟、空闲与 Context 输入、通知者与出站端口按调用经 `ctx.get` 现取（[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)） |
 | `session-adapters` | cordis-module | 按模板 | 入站适配插件提供的邻域端口与登记；出站端口的实现 | `session` 服务（按调用方类）与各邻域的服务 |
+| `session-observation` | cordis-module | 领域面与端口，无 Cordis | 服务键 `sessionObservation`；一棵树一个提交通知监听者 | `session`（`reader`）、`modelStreamReferences`、`modelStreamObservation` |
 | `session-storage-sql` | cordis-module | 按模板 | 事务端口、存储参加者模块与迁移片段 | 存储契约的服务 |
 
 装配规则沿 [Cordis 集成约定](../../../docs/architecture/cordis-integration-conventions.md)：一个接缝一个服务定义，键写一次；只有缺席时整个服务不能成立的依赖用 `inject`，缺席只影响部分操作的端口按调用现取，数据不用 `inject`；租户是操作参数，不用 isolate 表达租户或会话；可调参数是配置字段，用 Standard Schema 校验；提交参加者的登记随插件生命周期，撤除插件不撤销已经提交的业务事实。每个租户一个扫描者，这一条第一版靠装配单实例兑现，见 [IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)。

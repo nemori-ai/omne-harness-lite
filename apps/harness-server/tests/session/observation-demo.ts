@@ -1,0 +1,89 @@
+// The demonstration of session observation on the release tree (#1248). Not in the release.
+// Usage, from apps/harness-server after `pnpm run build` of the members and of apps/cli:
+//   node tests/session/observation-demo.ts --state     state frames (block 1)
+// It starts the release tree in this process (real SQLite, real identity, the local HTTPS Model
+// gateway of the release-tree scenarios), registers and logs in one person through the `omne` CLI,
+// takes `sessionObservation` from the tree and calls `open` as that person. Every frame is printed
+// with the milliseconds since the frame before it. The refresh policy is a short one, passed in
+// here: interval 1000 ms, backoff 2, at most 4 attempts.
+import type { SessionId } from '@omne-harness/session-contract'
+import type { SessionObservationFrame } from '@omne-harness/session-observation'
+import {
+  sessionObservationKey,
+  type SessionObservationService,
+} from '@omne-harness/session-observation/cordis'
+import { onReleaseTree, pollUntil, type ReleaseTree } from '../support/release-tree.ts'
+import {
+  anotherPerson,
+  heldAnswer,
+  loginAccess,
+  type LoginAccess,
+} from '../model/public-stream-support.ts'
+
+const POLICY = { interval: 1000, backoff: 2, maxAttempts: 4 }
+const print = (line: string) => process.stdout.write(`${line}\n`)
+
+function show(frame: SessionObservationFrame): string {
+  switch (frame.kind) {
+    case 'state':
+      return `state run=${String(frame.run)} revision=${frame.revision} phase=${String(frame.phase)} target=${frame.target === null ? 'null' : frame.target.projection}`
+    case 'gap':
+      return `gap ${frame.reason}`
+    default:
+      return frame.kind
+  }
+}
+
+function open(tree: ReleaseTree, access: LoginAccess, session: string, signal: AbortSignal) {
+  const service = tree.scope.get(sessionObservationKey) as
+    | SessionObservationService<unknown>
+    | undefined
+  if (service === undefined) throw new Error('sessionObservation is not on the tree')
+  return service.open({ access: { ...access, session: session as SessionId }, signal })
+}
+
+/** Block 1: the run number, revisions that follow the commits, the backoff and its end, denial. */
+async function stateFrames(): Promise<void> {
+  const held = heldAnswer('Hello', ', there.')
+  await onReleaseTree({ script: held.script, observationPolicy: POLICY }, async tree => {
+    const access = await loginAccess(tree)
+    print(`policy: ${JSON.stringify(POLICY)}`)
+    const session = await tree.startSession('say hello')
+    print(`session ${session}: input sent; the gateway holds the answer after its first piece`)
+    await pollUntil(
+      'the held answer',
+      () => Promise.resolve(held.held()),
+      n => n > 0,
+    )
+    const opened = await open(tree, access, session, new AbortController().signal)
+    print(`open -> ${opened.kind}`)
+    if (opened.kind !== 'opened') return
+    let last = performance.now()
+    let released = false
+    for (;;) {
+      const step = await opened.frames.next()
+      const now = performance.now()
+      const gap = Math.round(now - last)
+      last = now
+      if (step.done === true) {
+        print(`+${String(gap)} ms  end: ${String(step.value)}`)
+        break
+      }
+      print(`+${String(gap)} ms  ${show(step.value)}`)
+      if (!released) {
+        released = true
+        print('(the gateway lets the rest of the answer go)')
+        held.release()
+      }
+    }
+    const other = await loginAccess(tree, await anotherPerson(tree, 'frank'))
+    const signal = new AbortController().signal
+    print(`another tenant opens this session -> ${(await open(tree, other, session, signal)).kind}`)
+    print(
+      `another tenant opens an absent one -> ${(await open(tree, other, 'sess_absent', signal)).kind}`,
+    )
+  })
+}
+
+if (process.argv.includes('--state')) await stateFrames()
+else print('usage: node tests/session/observation-demo.ts --state')
