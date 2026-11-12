@@ -393,10 +393,7 @@ export function createModelDriver<P>(
     if ('failure' in recovery) return recovery
     // A settled call without an activity (its body released, or another process drove it) has no
     // live execution to route to: it gets no new publication.
-    if (!active && recovery.ok.state.phase === 'settled') {
-      ended(input)
-      return { ok: null }
-    }
+    if (!active && recovery.ok.state.phase === 'settled') return { ok: null }
     const records = await commands.dispatches(input)
     if ('failure' in records) return records
     if (!active || active.view.handle.instance !== input.instance) {
@@ -662,12 +659,12 @@ export function createModelDriver<P>(
   /**
    * The host tells the driver that the result body of a settled call is released: the call is
    * driven no more and its activity, with the view of its output, is forgotten. Until then a
-   * repeated drive still hands back the original terminal outcome. A drive that runs keeps its
-   * activity; it is forgotten at the next release.
+   * repeated drive still hands back the original terminal outcome. A drive still running on the
+   * call keeps the activity it holds; only later drives miss it.
    */
   function released(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>): void {
     const key = keyOf(input)
-    if (key && !running.has(key)) activities.delete(key)
+    if (key) activities.delete(key)
   }
   const driver: ModelDriver<P> = {
     async drive(original, signal) {

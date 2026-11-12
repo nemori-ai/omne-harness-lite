@@ -7,7 +7,11 @@ import { describe, expect, it } from 'vitest'
 import type { ModelObservationSource } from '@omne-harness/model/commands'
 import type { ModelStreamObservation } from '@omne-harness/model-contract'
 import { fixtureTenant } from '../entry/support.ts'
-import { qualifyingObservation, type ObservationQualify } from '../../src/model/observation.ts'
+import {
+  observationTiming,
+  qualifyingObservation,
+  type ObservationQualify,
+} from '../../src/model/observation.ts'
 
 const TENANT = fixtureTenant('a')
 const ACCESS = { principal: { login: 'one' }, tenant: TENANT }
@@ -199,5 +203,86 @@ describe('a recheck that fails', () => {
     await second
     expect(seen.frames[1]).toEqual([])
     await iterator.return?.()
+  })
+})
+
+describe('the timing of the source', () => {
+  it('answers cancelled at once for an aborted signal, and when the signal aborts while it waits (defect: an abort waits out the deadline)', async () => {
+    const aborted = new AbortController()
+    aborted.abort()
+    expect(
+      await observationTiming.waitUntil(observationTiming.nowMs() + 60_000, aborted.signal),
+    ).toBe('cancelled')
+    const later = new AbortController()
+    const waiting = observationTiming.waitUntil(observationTiming.nowMs() + 60_000, later.signal)
+    later.abort()
+    expect(await waiting).toBe('cancelled')
+    expect(
+      await observationTiming.waitUntil(
+        observationTiming.nowMs() + 5,
+        new AbortController().signal,
+      ),
+    ).toBe('elapsed')
+  })
+})
+
+describe('what the admission point passes through', () => {
+  it('forwards attach, retire and close to the host lease and close to the source (defect: a lease that never retires)', () => {
+    const calls: string[] = []
+    const source: ModelObservationSource<unknown> = {
+      close: () => calls.push('source.close'),
+      openHost: () => ({
+        ok: {
+          attach: publication => calls.push(`attach ${String(publication.registration)}`),
+          retire: publication => calls.push(`retire ${String(publication.registration)}`),
+          close: () => calls.push('host.close'),
+          references: {
+            current: () => Promise.resolve({ failure: { kind: 'denied', action: 'current' } }),
+          },
+          observation: {
+            observe: () => ({
+              [Symbol.asyncIterator]: () => ({
+                next: () => Promise.resolve({ done: true as const, value: undefined }),
+              }),
+            }),
+          },
+        },
+      }),
+    }
+    const wrapped = qualifyingObservation(source, async () => () => {}, 1000)
+    const host = hostOf(wrapped)
+    const publication = { registration: 'r1', execution: {} } as never
+    host.attach(publication)
+    host.retire(publication)
+    host.close()
+    wrapped.close()
+    expect(calls).toEqual(['attach r1', 'retire r1', 'host.close', 'source.close'])
+  })
+
+  it('releases every capture exactly once over many rechecks (defect: a replaced capture is released again, or kept)', async () => {
+    let taken = 0
+    const releases = new Map<number, number>()
+    const qualify: ObservationQualify = async () => {
+      taken += 1
+      const id = taken
+      releases.set(id, 0)
+      return () => {
+        releases.set(id, (releases.get(id) ?? 0) + 1)
+      }
+    }
+    const seen: { current?: readonly number[]; frames: (readonly number[])[] } = { frames: [] }
+    const { source, step } = inner([SNAPSHOT], seen, () => [])
+    const host = hostOf(qualifyingObservation(source, qualify, 5))
+    const iterator = host.observation
+      .observe({ ref: 'ref' as never, access: ACCESS, signal: new AbortController().signal })
+      [Symbol.asyncIterator]()
+    const first = iterator.next()
+    await sleep(60)
+    step()
+    await first
+    await iterator.return?.()
+    await sleep(20)
+    expect(taken).toBeGreaterThanOrEqual(4)
+    expect([...releases.values()].every(count => count === 1)).toBe(true)
   })
 })
