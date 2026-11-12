@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
-import { encodeModelOutputV1, projectModelOutputV1 } from '@omne-harness/model-contract'
+import { encodeModelOutputV1, projectModelOutputV1 } from '../src/model-output-v1.ts'
 
 type Recorded = Readonly<{
   input: never

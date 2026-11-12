@@ -1,6 +1,7 @@
 // The demonstration of session observation on the release tree (#1248). Not in the release.
 // Usage, from apps/harness-server after `pnpm run build` of the members and of apps/cli:
 //   node tests/session/observation-demo.ts --state     state frames (block 1)
+//   node tests/session/observation-demo.ts --content   content frames through a turn with a tool (block 2)
 // It starts the release tree in this process (real SQLite, real identity, the local HTTPS Model
 // gateway of the release-tree scenarios), registers and logs in one person through the `omne` CLI,
 // takes `sessionObservation` from the tree and calls `open` as that person. Every frame is printed
@@ -14,6 +15,7 @@ import {
   type SessionObservationService,
 } from '@omne-harness/session-observation/cordis'
 import { onReleaseTree, pollUntil, type ReleaseTree } from '../support/release-tree.ts'
+import { emptySession, heldToolTurn, openObservation, sendInput } from './observation-support.ts'
 import {
   anotherPerson,
   heldAnswer,
@@ -91,5 +93,56 @@ async function stateFrames(): Promise<void> {
   })
 }
 
+/**
+ * Block 2: a turn with one tool call. Both Model calls hold their answer after the first piece; the
+ * script lets each go once its snapshot is printed. The interval is a minute, so every state frame
+ * after the first comes from a commit notice.
+ */
+async function contentFrames(): Promise<void> {
+  const turn = heldToolTurn()
+  const options = {
+    script: turn.script,
+    permission: 'bypass-permissions',
+    observationPolicy: { interval: 60_000 },
+  }
+  await onReleaseTree(options, async tree => {
+    const access = await loginAccess(tree)
+    const session = await emptySession(tree)
+    const controller = new AbortController()
+    const opened = await openObservation(tree, access, session, controller.signal)
+    print(`session ${session}: open -> ${opened.kind}; refresh interval 60000 ms`)
+    if (opened.kind !== 'opened') return
+    let last = performance.now()
+    let snapshots = 0
+    let sent = false
+    for (;;) {
+      const step = await opened.frames.next()
+      const now = performance.now()
+      const gap = Math.round(now - last)
+      last = now
+      if (step.done === true) {
+        print(`+${String(gap)} ms  end: ${String(step.value)}`)
+        break
+      }
+      print(`+${String(gap)} ms  ${show(step.value)}`)
+      if (!sent) {
+        sent = true
+        print('(input sent: "call a tool, then answer")')
+        await sendInput(tree, session, 'call a tool, then answer')
+      }
+      if (step.value.kind === 'snapshot') {
+        snapshots += 1
+        print(`(the gateway lets Model call ${String(snapshots)} go)`)
+        turn.release()
+      }
+      if (step.value.kind === 'state' && step.value.run === null && snapshots > 0) {
+        controller.abort()
+        print('(the observer stops)')
+      }
+    }
+  })
+}
+
 if (process.argv.includes('--state')) await stateFrames()
-else print('usage: node tests/session/observation-demo.ts --state')
+else if (process.argv.includes('--content')) await contentFrames()
+else print('usage: node tests/session/observation-demo.ts --state | --content')

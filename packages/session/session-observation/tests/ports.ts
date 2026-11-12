@@ -15,7 +15,7 @@ import {
   type ObservationDiagnostic,
   type ObservationRefreshPolicy,
   type SessionObservationPorts,
-} from '@omne-harness/session-observation'
+} from '../src/index.ts'
 
 type Outcome<T> = Readonly<{ ok: T }> | Readonly<{ failure: SessionFailure }>
 

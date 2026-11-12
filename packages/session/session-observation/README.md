@@ -14,8 +14,8 @@ Consumers: the `session-observation` row of the server application publishes the
 
 Status: `draft`. [SPEC](SPEC.md) is a candidate specification.
 
-- Implemented: the domain face `open`; the locate (reads the log, finds the revision, the current run and the newest main call); the refresh budget; wake-up by commit notices; teardown on abort; the Cordis binding in `./cordis`.
-- Not implemented (block 2): asking the Model for the current stream, the stream subscription, and the `snapshot`, `delta` and `gap` frames. Current limit: the locate does not ask the Model, so `phase` and `target` stay `null`.
+- Implemented: the domain face `open`; the locate (reads the log, finds the revision, the current run and the newest main call); asking the Model for the current stream, the stream subscription, and the `snapshot`, `delta` and `gap` frames; the refresh budget; wake-up by commit notices; teardown on abort; the Cordis binding in `./cordis`.
+- Current limits: formal model 3 is still in the access group and waits to move. In the short time between the call registration and the Model call, the stream of that call is not visible. The SPEC lists all limits in its current limits section.
 - Not verified: formal model 3 is still in the access group and was not rerun here. Delivery of commit notices across rows was tested on one local tree only.
 
 ## Usage
@@ -47,7 +47,7 @@ Cordis integration: load `createSessionObservationPlugin({ historyKinds })` from
 
 ## Design
 
-Five objects each have one reason to change: the observation (the exit of frames), the locate (reads the log), the refresh budget (policy), the frame translation (outward form) and the stream subscription (block 2, not implemented). The logic works only against the port type `SessionObservationPorts`. The Cordis subscription and filter are in the thin adapter in `./cordis`. For the full design, see [docs/architecture.md](docs/architecture.md), [docs/flows.md](docs/flows.md) and [docs/object-model.md](docs/object-model.md).
+Five objects each have one reason to change: the observation (the exit of frames), the locate (reads the log), the refresh budget (policy), the frame translation (outward form) and the stream subscription (one subscription per target; late frames of an old target are dropped). The logic works only against the port type `SessionObservationPorts`. The Cordis subscription and filter are in the thin adapter in `./cordis`. For the full design, see [docs/architecture.md](docs/architecture.md), [docs/flows.md](docs/flows.md) and [docs/object-model.md](docs/object-model.md).
 
 ## Configuration and operation
 
@@ -67,15 +67,15 @@ Run this command in the member directory:
 pnpm exec vitest run --mode fast
 ```
 
-The tests use fake ports and a fake `wait`. They cover the domain face, the locate axis, no lost wake-up, abort, the refresh budget and the exports of both entries. Formal model 3 is in [packages/access/server-entry/verification/models](../../access/server-entry/verification/models/SessionObservation.tla). It stays there until it moves.
+The tests use fake ports and a fake `wait`. They cover the domain face, the locate axis, the stream axis, no lost wake-up, no frame of an old target, abort, the refresh budget and the exports of both entries. Formal model 3 is in [packages/access/server-entry/verification/models](../../access/server-entry/verification/models/SessionObservation.tla). It stays there until it moves.
 
-Not covered: all stream behavior (block 2, not implemented). The link between code and model rests on contract tests and the refinement mapping only. The composition and verification section of the SPEC lists the claims that this package cannot make.
+Not covered: formal model 3 was not rerun in this package. The link between code and model rests on contract tests and the refinement mapping only. The composition and verification section of the SPEC lists the claims that this package cannot make.
 
 ## Maintenance
 
 - To change a port, the policy or a frame shape: update the public definitions in `src/`, the SPEC, `docs/public-api.md`, `tests/`, and the consumers (the `session-observation` row of the server application and its demo script).
 - To change how the log or a call registration is read: the Session contract owns `readCallRegistration` and the test for a run in progress. Change its SPEC first.
-- When the stream side is added: remove the current limit from the SPEC, complete the cells marked "block 2, not implemented" and their test cases, and move formal model 3 here.
+- To change the stream subscription or the frame translation: update the result table and the stream table in the SPEC, the case-name prefixes from `tests/stream.spec.ts`, and formal model 3 (it waits to move to `verification/models/`).
 
 ## Directory structure and documentation roles
 

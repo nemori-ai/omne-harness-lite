@@ -24,7 +24,7 @@
 ```mermaid
 flowchart LR
   session["会话：日志读取面、提交通知"] --> obs["会话观察"]
-  model["模型：公共流读取面（第 2 块才用）"] --> obs
+  model["模型：公共流读取面 current 与 observe"] --> obs
   obs --> row["服务端应用的 session-observation 行"]
   row -.-> access["接入插件的 observe-session（以后）"]
 ```

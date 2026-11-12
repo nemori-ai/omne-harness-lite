@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-本目录现有六个固定专题，都已写出，没有按需专题。流的订阅接入后，[architecture.md](architecture.md)、[flows.md](flows.md)、[object-model.md](object-model.md) 要补对应内容，见各文件里标「第 2 块，未实现」之处。
+本目录现有六个固定专题，都已写出，没有按需专题。改流的订阅或帧的翻译时，要同步 [architecture.md](architecture.md)、[flows.md](flows.md)、[object-model.md](object-model.md)。

@@ -7,7 +7,7 @@ import {
   createSessionObservation,
   type SessionObservationEnd,
   type SessionObservationFrame,
-} from '@omne-harness/session-observation'
+} from '../src/index.ts'
 import {
   ACCESS,
   FakeLog,
@@ -325,6 +325,24 @@ describe('the stream axis (C9b)', () => {
     const frames = await observing(w)
     w.model.stream('s1').push({ kind: 'ended', reason: 'capacity' })
     expect(kinds(await drain(frames, 3))).toEqual(['refreshing', 'end:refresh-exhausted'])
+  })
+
+  it('stream, observing, observer-closed from the producer: as a stream that ended (its own abort delivers nothing)', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.model.stream('s1').push({ kind: 'ended', reason: 'observer-closed' })
+    expect(kinds(await drain(frames, 3))).toEqual(['state', 'refreshing'])
+    stop()
+  })
+
+  it('stream, observing, a Model value with no model-output-v1 projection: ends with unavailable', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    const unreadable = delta('s1', 2)
+    unreadable.value.outputCursor = '02'
+    w.model.stream('s1').push(unreadable)
+    expect(kinds(await drain(frames, 2))).toEqual(['end:unavailable'])
+    expect([w.model.open, w.notices.active]).toEqual([0, 0])
   })
 
   it('stream, observing, the Model withdrew the observer: ends with denied', async () => {

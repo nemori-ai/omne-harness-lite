@@ -19,4 +19,4 @@
 | `DEFAULT_OBSERVATION_REFRESH_POLICY`、`DEFAULT_LOCATE_PAGES`、`INTERVAL_FLOOR` | [src/ports.ts](../src/ports.ts) | [刷新的预算](../SPEC.md#刷新的预算) |
 | `SessionObservationPluginInput`、`SessionObservationConfig` | [src/cordis.ts](../src/cordis.ts) | [cordis.md](cordis.md) |
 
-输入输出与失败行为：`open` 的三种结果与帧序列的结束原因见 SPEC 的[领域面](../SPEC.md#领域面)与[失败](../SPEC.md#失败)。帧里的 `snapshot`、`delta`、`gap` 已在类型里，现行不会发出，见 SPEC 的[现行限制](../SPEC.md#现行限制)。
+输入输出与失败行为：`open` 的三种结果与帧序列的结束原因见 SPEC 的[领域面](../SPEC.md#领域面)与[失败](../SPEC.md#失败)。`snapshot`、`delta`、`gap` 帧的发出条件见 SPEC 的[全化表与用例的对照](../SPEC.md#全化表与用例的对照)。诊断码共四个，见 SPEC 的[刷新的预算](../SPEC.md#刷新的预算)。

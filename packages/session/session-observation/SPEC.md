@@ -12,10 +12,10 @@
 
 - 提案 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 的[会话观察](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察)与[会话观察的定位与流](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察的定位与流)两节，以及模型三的精化对照。
 - 会话契约 [SPEC](../session-contract/SPEC.md#稳定调用引用的读取) 的读者日志读取面、调用登记的读法（`readCallRegistration`）和「一轮在进行」的判法。
-- 模型契约 [SPEC](../../model/model-contract/SPEC.md) 的公共流两个读取面。本包的端口里已有这两个面，流这一侧尚未接入，见[现行限制](#现行限制)。
+- 模型契约 [SPEC](../../model/model-contract/SPEC.md) 的公共流两个读取面。本包以观察者的主体调用它们：`current` 取当前的流，`observe` 订阅。
 - 刷新的数值与原状态图沿用[服务端接入规格的刷新策略](../../access/server-entry/SPEC.md#刷新策略)。本包的策略对象承接它。
 
-采用范围：定位轴与刷新已按本文件实现。流的订阅、快照与增量、缺口帧在本文件里标为「第 2 块，未实现」，不属于现行保证。
+采用范围：定位轴、流轴与刷新都已按本文件实现。
 
 与提案正文有两处不同，以本文件和代码为准：
 
@@ -39,11 +39,13 @@
 - 帧序列的第一帧是 `state`，或者一帧不发就结束。只有「帧的翻译」和「一次观察」能发帧，所以次序只有一处要守。
 - 领域面没有结束帧。帧序列走完时，原因是生成器的返回值：`refresh-exhausted`、`denied`、`unavailable`。被中止时生成器直接结束，返回 `undefined`，不给原因。
 - `open` 的 `access` 是观察者自己的主体，读日志都用它。会话观察不用自己的身份替他读。
-- 建立过程中被中止：收掉通知的订阅，`open` 答 `unavailable`。
+- 建立过程中被中止：读得到日志时照样答 `opened`，帧序列一开始就结束，返回 `undefined`，不发帧也不问模型；中止是观察者自己的事，不报成日志不可得。
 
 ### 状态帧
 
-状态帧有四个字段：`run`（当前这一轮的编号，没有进行中的一轮时是 `null`）、`revision`（日志的修订号）、`phase`、`target`。只有四个字段里有变化才发新的状态帧，第一帧一定发。`target` 只比较有没有。
+状态帧有四个字段：`run`（当前这一轮的编号，没有进行中的一轮时是 `null`）、`revision`（日志的修订号）、`phase`、`target`。只有四个字段里有变化才发新的状态帧，第一帧一定发。`target` 只比较有没有。有目标时，包括「等着重新观察」时，`target` 是 `{ projection: 'model-output-v1' }`。`phase` 是主调用最近一次知道的阶段，来源有三个：`current` 的答复、快照、增量。
+
+`snapshot` 与 `delta` 帧的值是 `projectModelOutputV1` 给出的 JSON 树；增量的基线阶段取上一次知道的阶段。
 
 ### 五个对象
 
@@ -54,10 +56,8 @@
 | 一次观察 | 帧的出口与次序；「第一帧是状态」；中止时的收场 | 只有它发帧，帧的次序只有一处要守 | `src/observation.ts` |
 | 定位 | 日志读到哪了；当前这一轮；最近一次主调用的引用；日志的修订号；标记「有新提交待看」。纯读 | 「看哪一次调用」只由日志决定，和流无关 | `src/locate.ts` |
 | 刷新的预算 | 当前一档间隔、连续没有新内容的次数、累计的等待时长 | 它是策略，换部署就换值，不该散在状态机里 | `src/refresh-budget.ts` |
-| 帧的翻译 | 上一次发出的状态字段；状态帧只在四个字段有变化时发 | 对外表示的对应关系只有一处实现 | `src/frames.ts` |
-| 流的订阅 | 对一个目标的订阅和它的中止信号；换目标之后丢掉迟到的旧帧 | 「那次调用的流现在怎样」只由模型决定，和日志无关 | 第 2 块，未实现 |
-
-「帧的翻译」里模型的快照、增量、缺口到帧的部分，同样是第 2 块，未实现。
+| 帧的翻译 | 上一次发出的状态字段；状态帧只在四个字段有变化时发；模型的快照与增量到帧的值（`projectModelOutputV1`） | 对外表示的对应关系只有一处实现 | `src/frames.ts` |
+| 流的订阅 | 对一个目标的订阅和它的中止信号；换目标之后丢掉迟到的旧帧 | 「那次调用的流现在怎样」只由模型决定，和日志无关 | `src/stream-subscription.ts` |
 
 ### 全化表与用例的对照
 
@@ -77,28 +77,41 @@
 | 这次定位有了结果，空闲 | 不可达 | 不可达，不写 |
 | 这次定位有了结果，进行中 | 按结果表处理，回到空闲；标记立着就放下并立刻再定位，优先于等间隔 | `notice-busy`（同一条用例覆盖标记与立即再定位，即「不丢唤醒」） |
 
-定位的结果。现行只有「流：没有目标」一列里靠日志能定的格；定位不问模型，见[现行限制](#现行限制)。
+定位的结果。表按两列读：「流：没有目标」与「流：观察中，或等着重新观察」。一次定位里，只在两种情况下以观察者的主体调 `streams.current`：现在没有目标，或日志里的主调用与目标的调用不是同一个。有目标而且主调用没换，不问模型，流不动。
 
-| 结果 | 流：没有目标 | 用例名前缀 |
-| --- | --- | --- |
-| 主调用是新的一次，模型给了流 | 第 2 块，未实现 | 第 2 块，未实现 |
-| 主调用是新的一次，模型没给流 | 第 2 块，未实现 | 第 2 块，未实现 |
-| 主调用没换，模型给了新的流 | 第 2 块，未实现 | 第 2 块，未实现 |
-| 日志里有主调用（临时做法，按没有目标处理） | 四个字段有变化就发 `state`；`phase`、`target` 为 `null` | `result, no target, main call in the log` |
-| 没有新内容 | 不发 `state`。间隔引起的发 `refreshing`、计一次尝试；通知引起的不发、不计，按现在这一档重新等 | `result, no target, nothing new` |
-| 读日志暂时不可得 | 当作没有新内容 | `result, log not available` |
-| 翻页读满还没找到 | 已读到的成立，其余当作没找到 | `result, pages full before finding` |
-| 取流超时 | 第 2 块，未实现 | 第 2 块，未实现 |
-| 自己的游标不合法 | 丢掉游标，当作没有新内容，下一次从头反向读 | `result, own cursor invalid` |
-| 别的不合法 | 结束，原因 `unavailable` | `result, another invalid answer` |
-| 读日志被拒 | 结束，原因 `denied` | `result, log read denied` |
-| 模型拒绝，或答复引用无效 | 第 2 块，未实现 | 第 2 块，未实现 |
+| 结果 | 流：没有目标 | 流：观察中，或等着重新观察 | 用例名前缀 |
+| --- | --- | --- | --- |
+| 主调用是新的一次，模型给了流 | 发 `state`，订阅；预算归零 | 收掉旧订阅，之后到的旧帧丢掉并记诊断 `observation.late-discarded`；发 `state`，订阅新流；预算归零 | `result, new main call, stream given, no target`；`result, new main call, stream given, has target (不发旧帧, C10b)` |
+| 主调用是新的一次，模型没给流 | 发 `state` 与 `refreshing`，计一次尝试，开始等间隔。第一次定位除外：只在字段有变化时发 `state`，不发 `refreshing`，不计尝试。不论间隔还是通知引起都一样 | 先收掉旧目标，再同左（目标变成没有） | `result, new main call, no stream, no target`；`result, new main call, no stream, has target (不停在旧的调用上, C10b)` |
+| 主调用没换，模型给了新的流 | 发 `state`，订阅；预算归零 | 不可达：有目标而且主调用没换时不问模型 | `result, same main call, new stream, no target` |
+| 主调用没换，模型没给流；或日志里还没有主调用 | 字段有变化就发 `state`。间隔引起的再发 `refreshing`、计一次尝试、按退避等下一档；通知引起的不发、不计，按现在这一档重新等 | 流不动；字段有变化就发 `state` | `result, no target, nothing new`；`result, has target, nothing new`；`result, same main call, the same closed stream` |
+| 读日志暂时不可得 | 当作没有新内容，同上一行 | 流不动，记诊断 `observation.locate-transient` | `result, log not available`；`result, has target, log not available` |
+| 翻页读满还没找到 | 已读到的成立，其余当作没找到 | 同左 | `result, pages full before finding` |
+| 取流超过 `currentTimeout` | 当作没有新内容，记诊断 `observation.current-timeout` | 不可达：有目标而且主调用没换时不问；主调用换了时按「没给流」行 | `result, current timeout` |
+| 自己的游标不合法 | 丢掉游标，当作没有新内容，下一次从头反向读 | 同左 | `result, own cursor invalid` |
+| 别的不合法 | 结束，原因 `unavailable` | 同左 | `result, another invalid answer` |
+| 读日志被拒 | 结束，原因 `denied` | 同左 | `result, log read denied` |
+| 模型拒绝 | 结束，原因 `denied` | 同左 | `result, Model denied` |
+| 模型答引用无效 | 原因是 `not-accepted`（调用已登记、尚未受理）：当作没给流；其他原因：结束，原因 `unavailable` | 同左 | `result, Model answers the reference invalid`；`result, Model has the call registered but not accepted` |
 
-「流：观察中，或等着重新观察」一列整列是第 2 块，未实现。
+模型的其余答复：`unavailable` 当作没给流；`current` 为 null 当作没给流；给出的是已经结束的那条流的引用，也当作没给流（观察记下它）。对应关系出自公共契约「来源与对外表示」那张表。
 
-流这条轴整张表是第 2 块，未实现：定位给出新目标、快照、增量、目标的流结束、订阅中断、模型撤资格、间隔到期、次数用完各格都还没有实现与用例。
+流这条轴。
 
-另有收场、预算与领域面的用例，不对应提案的格子：`an abort ...` 与 `an observer that stops reading ...`（[中止](#中止)）；`interval-driven locates back off ...`、`maxAttempts ...`、`the accumulated waiting ...`、`an interval below the floor ...`、`without notices ...`（[刷新的预算](#刷新的预算)）；`open: ...`（[领域面](#领域面)）；`a run that started ...`、`a terminal of another run ...`、`reading backward, a run ...`（「一轮在进行」）。
+| 事件 | 没有目标 | 观察中 | 等着重新观察同一个目标 | 用例名前缀 |
+| --- | --- | --- | --- | --- |
+| 定位给出新目标 | 落在上表前几行 | 落在上表前几行 | 落在上表前几行 | 见上表 |
+| 模型交来快照 | 迟到的旧帧，丢掉并记 `observation.late-discarded` | 发 `snapshot`；预算归零 | 迟到的旧帧，丢掉 | 迟到的旧帧在 `result, new main call, stream given, has target (不发旧帧, C10b)` 里；`stream, waiting to observe again, a snapshot resets the budget` |
+| 模型交来增量 | 同上，丢掉 | 阶段变了先发 `state` 再发 `delta`；阶段没变只发 `delta`；预算归零 | 丢掉 | `stream, observing, delta with a new phase` |
+| 目标的流结束了：`source-closed`、`stale-stream`、`producer-ended`、以后新增的原因、`buffer` 以外的 `gap`、迭代器抛出或没交来 `ended` 就停 | 不可达，不写 | 有 `gap` 的先转发 `gap`；再发 `state`（`target` 变成 `null`）与 `refreshing`；回到没有目标，计一次尝试，开始等间隔；记下这条流 | 不可达，不写 | `stream, observing, the stream ended`；`stream, observing, a gap that is not the buffer`；`stream, observing, the iterator stops without ended` |
+| 订阅中断但目标还在：`capacity`、`unavailable`、`buffer` 的 `gap` | 不可达，不写 | 有 `gap` 的先转发 `gap`；发 `refreshing`；不发 `state`，因为目标没变；进入等着重新观察，计一次尝试 | 不可达，不写 | `stream, observing, the subscription broke (capacity)`；`stream, observing, a buffer gap` |
+| 模型撤了观察者的资格（`ended` 为 `denied`） | 不可达，不写 | 结束，原因 `denied` | 不可达，不写 | `stream, observing, the Model withdrew the observer` |
+| `ended` 为 `observer-closed` | 不可达，不写 | 自己中止之后订阅不再交帧，所以现在这一份交来的只能是生产者关的：按目标的流结束了处理 | 不可达，不写 | `stream, observing, observer-closed from the producer` |
+| 模型的值投影失败 | 不可达，不写 | 结束，原因 `unavailable`：不把读不了的值当成没有内容 | 不可达，不写 | `stream, observing, a Model value with no model-output-v1 projection` |
+| 刷新的间隔到期 | 归定位那条轴 | 不可达，不写：观察中不计时 | 重新订阅同一个目标，不重新定位 | `stream, observing, the subscription broke (capacity)` |
+| 次数或累计时长用完 | 结束，原因 `refresh-exhausted` | 不可达，不写 | 结束，原因 `refresh-exhausted` | `stream, waiting to observe again, attempts used up` |
+
+另有收场、预算与领域面的用例，不对应提案的格子：`an abort ...`、`an observer that stops reading ...`（[中止](#中止)），以及 `tests/stream.spec.ts` 里的 `an abort while the observer holds a frame ...` 两条和 `drops the subscription, the notice and the waits ...`（流这一半的中止）；`interval-driven locates back off ...`、`maxAttempts ...`、`the accumulated waiting ...`、`an interval below the floor ...`、`without notices ...`（[刷新的预算](#刷新的预算)）；`open: ...`（[领域面](#领域面)）；`a run that started ...`、`a terminal of another run ...`、`reading backward, a run ...`（「一轮在进行」）。
 
 ### 定位的读法
 
@@ -139,7 +152,8 @@
 - 第一次定位不发 `refreshing`，也不计尝试，之后按第一档开始等。
 - 间隔到期引起的定位：先在四个字段有变化时发 `state`，再发 `refreshing`，计一次尝试，进下一档。
 - 通知引起的定位：不发 `refreshing`，不计尝试，按现在这一档重新等。
-- 预算在取得新目标、或重新观察后收到新的快照或增量时归零。这两件事属于流的订阅，第 2 块，未实现。
+- 预算在取得新目标、或重新观察后收到新的快照或增量时归零。
+- 诊断码共四个：`observation.policy-clamped`、`observation.current-timeout`、`observation.late-discarded`、`observation.locate-transient`。
 - 计时用端口 `wait`，成员的逻辑不直接调 `setTimeout`。
 
 ### 通知
@@ -152,7 +166,9 @@
 
 ### 现行限制
 
-定位不问模型。日志里有主调用也当作没有目标，`phase` 和 `target` 恒为 `null`，不发 `snapshot`、`delta`、`gap`。端口里的 `streams`、`observer` 和策略里的 `currentTimeout` 已声明，尚未使用。这是第 1 块的临时做法，在第 2 块去掉。
+- 模型三的文件仍在接入组，待搬；本规格链接到它现在的位置，见[组合与验证](#组合与验证)。
+- 调用登记比模型调用晚出现的那段时间里，观察者看不到这次调用的流。
+- 提交通知跨行送达只在本机一棵树上测过。
 
 ## 所有权、失败与生命周期
 
@@ -170,14 +186,16 @@
 | 建立时读被拒、会话不存在、标识不合法 | `open` 答 `denied`，三种逐字段相同 |
 | 建立时日志暂时不可得 | `open` 答 `unavailable` |
 | 之后读被拒 | 帧序列结束，原因 `denied` |
-| 之后读日志暂时不可得、翻页读满 | 当作没有新内容，按刷新的规则继续，不编造帧，不结束 |
+| 之后读日志暂时不可得、翻页读满、取流超时 | 当作没有新内容，按刷新的规则继续，不编造帧，不结束 |
+| 模型拒绝，或观察中模型撤了资格 | 帧序列结束，原因 `denied` |
+| 模型答引用无效（`not-accepted` 除外），或值投影失败 | 帧序列结束，原因 `unavailable` |
 | 刷新的预算用完 | 帧序列结束，原因 `refresh-exhausted` |
 
 结果不知道就是不知道：暂时不可得不写成成功，也不写成失败。
 
 ### 中止
 
-任何一格遇到中止，都收掉通知的订阅和正在进行的等待，不再发起读取，帧序列结束且不给原因。正在进行的定位的结果在返回后丢掉。观察者不再读帧时（对生成器调 `return`），同样收掉订阅。会话观察不取消模型调用，也不写任何东西。取消、替换、撤销登录、连接断开、协议撤下、帧队列超限，都由观察中枢判断，对会话观察来说只是中止。
+任何一格遇到中止，都收掉通知的订阅和正在进行的等待，不再发起读取，帧序列结束且不给原因。正在进行的定位的结果在返回后丢掉。观察者正拿着一帧时中止，下一次读帧直接结束，不再起等待或订阅；一步里有多帧时，每发一帧之前检查一次中止。中止时收掉流的订阅（它自己的中止信号）、通知的订阅和全部计时。观察者不再读帧时（对生成器调 `return`），同样收掉。会话观察不取消模型调用，也不写任何东西。取消、替换、撤销登录、连接断开、协议撤下、帧队列超限，都由观察中枢判断，对会话观察来说只是中止。
 
 ### 并发
 
@@ -188,7 +206,7 @@
 消费的承诺：
 
 - 会话契约：读者的日志读取面（`begin`、`next`、`since`）与 `readCallRegistration`，见[稳定调用引用的读取](../session-contract/SPEC.md#稳定调用引用的读取)。
-- 模型契约：公共流的两个读取面（`ModelStreamReferences`、`ModelStreamObservation`）。第 2 块才用。
+- 模型契约：公共流的两个读取面（`ModelStreamReferences` 的 `current`、`ModelStreamObservation` 的 `observe`），以及投影函数 `projectModelOutputV1`。
 - 会话的 Cordis 契约：事件 `session-cordis-contract/committed` 与会话服务键；模型的 Cordis 契约里两个读取面的服务键。
 
 持续验证：
@@ -196,7 +214,7 @@
 - 在成员目录跑 `pnpm exec vitest run --mode fast`。用例对着 `SessionObservationPorts` 的假实现，时间用假的 `wait`。
 - 形式模型三 `SessionObservation.tla` 与四份 `obs-*.cfg` 在 [packages/access/server-entry/verification/models](../../access/server-entry/verification/models/SessionObservation.tla)。它暂时留在原地，待搬到本包的 `verification/models/`。
 
-对应关系：不丢唤醒由 `notice-busy` 用例与模型三的 `obs-dropWhileBusy` 配置对照。旧目标的帧不出现在新目标之后、不停在旧的调用上，由模型三的 `obs-noDiscard`、`obs-keepOldTarget` 配置检查；对应的代码与用例是第 2 块，未实现。
+对应关系：不丢唤醒由 `notice-busy` 用例与模型三的 `obs-dropWhileBusy` 配置对照。旧目标的帧不出现在新目标之后、不停在旧的调用上，由模型三的 `obs-noDiscard`、`obs-keepOldTarget` 配置检查；对应的用例是 `result, new main call, stream given, has target (不发旧帧, C10b)` 与 `result, new main call, no stream, has target (不停在旧的调用上, C10b)`。
 
 不能声称的事：
 

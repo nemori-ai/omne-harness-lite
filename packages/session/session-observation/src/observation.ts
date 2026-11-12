@@ -119,9 +119,9 @@ export function createSessionObservation<P>(
       }
       signal.addEventListener('abort', teardown)
       const first = await locator.open()
-      if (first.kind !== 'located' || signal.aborted) {
+      if (first.kind !== 'located') {
         teardown()
-        return first.kind === 'located' ? { kind: 'unavailable' } : first
+        return first
       }
       const budget = new RefreshBudget(ports.policy, ports.diagnose)
       const translator = new FrameTranslator()
@@ -271,9 +271,9 @@ export function createSessionObservation<P>(
           case 'capacity':
           case 'unavailable':
             return interrupted([])
-          case 'observer-closed':
-            return { frames: [] }
           default:
+            // observer-closed included: after its own abort the subscription delivers nothing, so
+            // from the current one it can only mean the producer closed it; that is the stream ending.
             return lost([])
         }
       }
@@ -325,6 +325,7 @@ export function createSessionObservation<P>(
         SessionObservationEnd | undefined
       > {
         try {
+          if (signal.aborted) return undefined
           let step: Step | null = await located(first, 'open')
           for (;;) {
             if (signal.aborted) return undefined

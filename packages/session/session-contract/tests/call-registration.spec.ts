@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import { readCallRegistration } from '@omne-harness/session-contract'
+import { readCallRegistration } from '../src/call-registration.ts'
 import { encodeEntry, toJsonValue } from '../src/entries.ts'
 import type { SessionEntry } from '../src/entries.ts'
 import type { HistoryEntry } from '../src/faces.ts'

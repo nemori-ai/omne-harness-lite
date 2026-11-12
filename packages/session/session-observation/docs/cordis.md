@@ -16,7 +16,7 @@
 插件名 `session-observation`。它注入三个服务：
 
 - `session`，以 `reader` 调用方类注入，用它的 `history` 读日志。
-- `modelStreamReferences` 与 `modelStreamObservation`，模型的两个公共流读取面。现行定位不问模型，所以这两个还没有被调用，见 SPEC 的[现行限制](../SPEC.md#现行限制)。
+- `modelStreamReferences` 与 `modelStreamObservation`，模型的两个公共流读取面。观察以观察者的主体调用它们：`current` 取当前的流，`observe` 订阅。
 
 插件提供一个服务 `sessionObservation`，它的 `open` 就是领域面的 `open`。
 

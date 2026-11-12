@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-本目录有七个源文件：`index.ts`、`cordis.ts`、`observation.ts`、`locate.ts`、`refresh-budget.ts`、`frames.ts`、`ports.ts`。各文件对应的对象见 [index.md](index.md)。流的订阅尚无源文件（第 2 块，未实现）。
+本目录有八个源文件：`index.ts`、`cordis.ts`、`observation.ts`、`locate.ts`、`stream-subscription.ts`、`refresh-budget.ts`、`frames.ts`、`ports.ts`。各文件对应的对象见 [index.md](index.md)。

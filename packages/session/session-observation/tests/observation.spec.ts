@@ -6,7 +6,7 @@ import {
   createSessionObservation,
   type SessionObservationEnd,
   type SessionObservationFrame,
-} from '@omne-harness/session-observation'
+} from '../src/index.ts'
 import {
   ACCESS,
   FakeLog,
@@ -285,6 +285,24 @@ describe('abort (C11a)', () => {
     gate.release()
     expect(await step).toEqual({ done: true, value: undefined })
     expect([w.notices.active, w.clock.pending]).toEqual([0, 0])
+  })
+
+  it('an abort while open reads the log: it opens, and the frames end at once without a reason', async () => {
+    const controller = new AbortController()
+    const log = new FakeLog(started('run_1'))
+    const w = world(log)
+    const gate = log.hold()
+    const opening = createSessionObservation(w.ports).open({
+      access: ACCESS,
+      signal: controller.signal,
+    })
+    await settle()
+    controller.abort()
+    gate.release()
+    const opened = await opening
+    if (opened.kind !== 'opened') throw new Error(`open answered ${opened.kind}`)
+    expect(await opened.frames.next()).toEqual({ done: true, value: undefined })
+    expect([w.notices.active, w.clock.pending, w.log.reads()]).toEqual([0, 0, 1])
   })
 
   it('an observer that stops reading the frames leaves no notice behind', async () => {

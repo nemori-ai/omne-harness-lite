@@ -14,8 +14,8 @@
 
 状态：`draft`，[SPEC](SPEC.md) 是候选规格。
 
-- 已实现：领域面 `open`；定位（读日志，得到修订号、当前这一轮、最近一次主调用）；刷新的预算；提交通知唤醒；中止时收场；`./cordis` 里的 Cordis 绑定。
-- 未实现（第 2 块）：向模型取当前的流、流的订阅，以及 `snapshot`、`delta`、`gap` 帧。现行限制：定位不问模型，`phase` 与 `target` 恒为 `null`。
+- 已实现：领域面 `open`；定位（读日志，得到修订号、当前这一轮、最近一次主调用）；向模型取当前的流、流的订阅，以及 `snapshot`、`delta`、`gap` 帧；刷新的预算；提交通知唤醒；中止时收场；`./cordis` 里的 Cordis 绑定。
+- 现行限制：模型三的文件还在接入组，待搬；调用登记比模型调用晚出现的那段时间里，看不到这次调用的流。完整列表见 SPEC 的[现行限制](SPEC.md#现行限制)。
 - 未验证：形式模型三还在接入组，没有在本包重跑；提交通知跨行送达只在本机一棵树上测过。
 
 ## 使用
@@ -47,7 +47,7 @@ Cordis 集成：从 `@omne-harness/session-observation/cordis` 装载 `createSes
 
 ## 设计
 
-五个对象各有一个变化的理由：一次观察（帧的出口）、定位（读日志）、刷新的预算（策略）、帧的翻译（对外表示）、流的订阅（第 2 块，未实现）。业务逻辑只对着端口 `SessionObservationPorts`；Cordis 的订阅与过滤在 `./cordis` 的薄适配里。完整设计见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md)、[docs/object-model.md](docs/object-model.md)。
+五个对象各有一个变化的理由：一次观察（帧的出口）、定位（读日志）、刷新的预算（策略）、帧的翻译（对外表示）、流的订阅（对一个目标的订阅，换目标后丢掉迟到的旧帧）。业务逻辑只对着端口 `SessionObservationPorts`；Cordis 的订阅与过滤在 `./cordis` 的薄适配里。完整设计见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md)、[docs/object-model.md](docs/object-model.md)。
 
 ## 配置与运行
 
@@ -67,15 +67,15 @@ Cordis 集成：从 `@omne-harness/session-observation/cordis` 装载 `createSes
 pnpm exec vitest run --mode fast
 ```
 
-用例对着端口的假实现，时间用假的 `wait`，覆盖领域面、定位轴、不丢唤醒、中止、刷新的预算和两个入口的导出。形式模型三在 [packages/access/server-entry/verification/models](../../access/server-entry/verification/models/SessionObservation.tla)，暂留原地，待搬。
+用例对着端口的假实现，时间用假的 `wait`，覆盖领域面、定位轴、流轴、不丢唤醒、不发旧帧、中止、刷新的预算和两个入口的导出。形式模型三在 [packages/access/server-entry/verification/models](../../access/server-entry/verification/models/SessionObservation.tla)，暂留原地，待搬。
 
-未覆盖：流这一侧的全部行为（第 2 块，未实现）；代码与模型的对应只靠契约测试和精化对照。SPEC 的「组合与验证」列出不能声称的事。
+未覆盖：形式模型三还没有在本包重跑；代码与模型的对应只靠契约测试和精化对照。SPEC 的「组合与验证」列出不能声称的事。
 
 ## 维护
 
 - 改端口、策略或帧的形状：同步 `src/` 的公开定义、SPEC、`docs/public-api.md`、`tests/`，以及消费者（服务端应用的 `session-observation` 行与演示脚本）。
 - 改读日志或调用登记的读法：会话契约的 `readCallRegistration` 与「一轮在进行」的判法是源，先改它的 SPEC。
-- 接入流这一侧时，去掉 SPEC 的「现行限制」，补全化表里标「第 2 块，未实现」的格与用例，并同步形式模型三的搬迁。
+- 改流的订阅或帧的翻译：同步 SPEC 的结果表与流轴表、`tests/stream.spec.ts` 的用例名前缀，以及形式模型三（待搬到 `verification/models/`）。
 
 ## 目录结构与文档职责
 
