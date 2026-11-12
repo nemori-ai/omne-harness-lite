@@ -1108,7 +1108,8 @@ describe('author binding of a live author that ends badly', () => {
     ])
   })
 
-  it('reports the execution as unobservable and publishes nothing when the settlement answers a failure', async () => {
+  // F3 of #1218: the execution stays live, with no final; it is not marked unobservable for good.
+  it('keeps the execution live and publishes nothing when the settlement answers a failure', async () => {
     const fixture = await harness(
       authorModule(async () => 'done'),
       undefined,
@@ -1118,12 +1119,12 @@ describe('author binding of a live author that ends badly', () => {
     const live = unbox(await (await fixture.resolve()).start(input, {}))
     await tick()
     const binding = await fixture.resolve()
-    // A call whose end was not settled has no final to give: its start is looked up as unknown.
+    // A call whose end was not settled has no final to give yet: its execution is still live.
     expect(
       unbox(
         await binding.inspectStart({ ...authorAccess, call: callId('first'), start: input.start }),
       ),
-    ).toEqual({ kind: 'unknown', diagnostic: 'execution observation unavailable' })
+    ).toMatchObject({ kind: 'live' })
     const seen: unknown[] = []
     for await (const batch of live.facts({ after: null, signal: AbortSignal.timeout(50) }))
       seen.push(batch)

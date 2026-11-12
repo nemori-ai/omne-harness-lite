@@ -302,8 +302,10 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       closing,
       execution,
     })
+    // A settlement that does not land leaves the execution as it is: the author returned and its
+    // final is not published yet. The settlement retries its transient dependencies itself; what is
+    // left is reported, not turned into an unreadable execution (F3).
     if ('ok' in settled) execution.publish(settled.ok)
-    else execution.observationAvailable(false)
   }
 
   /**
@@ -433,8 +435,10 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       closing: closing ?? Promise.resolve(succeed(undefined)),
       execution,
     })
+    // A settlement that does not land leaves the execution as it is: the author returned and its
+    // final is not published yet. The settlement retries its transient dependencies itself; what is
+    // left is reported, not turned into an unreadable execution (F3).
     if ('ok' in settled) execution.publish(settled.ok)
-    else execution.observationAvailable(false)
   }
 
   /** What the binding proves about the suspension of a segment it ran (P07 suspend). */
@@ -569,9 +573,8 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
             operation.segments === null
               ? launch(input, environment, operation, execution)
               : launchSegment(input, environment, operation, execution, attempt, enter)
-          void launched.catch(() => {
-            execution.observationAvailable(false)
-          })
+          // A settlement that throws leaves the execution live and unsettled, as above.
+          void launched.catch(() => undefined)
         },
         segment: null,
         consumed: consumedResponses,
