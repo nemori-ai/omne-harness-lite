@@ -28,7 +28,8 @@ export type Located = Readonly<{
 }>
 
 export type LocateResult =
-  | Readonly<{ kind: 'located'; view: Located }>
+  /** `transient`: the log could not be read this time; the view is the one before. */
+  | Readonly<{ kind: 'located'; view: Located; transient?: true }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable' }>
 
@@ -60,6 +61,32 @@ function mainCallOf(entry: HistoryEntry): string | undefined {
   return found?.kind === 'model' && found.purpose === 'main' && found.reference !== null
     ? found.reference
     : undefined
+}
+
+/** What a backward read found so far, newest entry first. */
+class BackwardScan {
+  newest: EntryId | null = null
+  /** The newest run.started; undefined until one is seen. */
+  run: string | undefined
+  open = false
+  mainCall: string | undefined
+  readonly #ended = new Set<string>()
+
+  add(entry: HistoryEntry): void {
+    this.newest ??= entry.id
+    this.mainCall ??= mainCallOf(entry)
+    if (this.run !== undefined) return
+    const terminal = terminalRun(entry)
+    if (terminal !== undefined) this.#ended.add(terminal)
+    const started = startedRun(entry)
+    if (started === undefined) return
+    this.run = started
+    this.open = !this.#ended.has(started)
+  }
+
+  complete(): boolean {
+    return this.run !== undefined && this.mainCall !== undefined
+  }
 }
 
 export class Locator<P> {
@@ -115,9 +142,9 @@ export class Locator<P> {
       case 'invalid':
         if (this.#after === null) return { kind: 'unavailable' }
         this.#after = null
-        return { kind: 'located', view }
+        return { kind: 'located', view, transient: true }
       case 'unavailable':
-        return { kind: 'located', view }
+        return { kind: 'located', view, transient: true }
       default:
         return { kind: 'unavailable' }
     }
@@ -134,37 +161,17 @@ export class Locator<P> {
     })
     if ('failure' in read) return read
     const revision = read.ok.upper
-    let newest: EntryId | null = null
-    let run: string | null | undefined
-    let open = false
-    let mainCall: string | undefined
-    const ended = new Set<string>()
+    const scan = new BackwardScan()
     for (let pages = 1; ; pages++) {
-      for (const entry of read.ok.entries) {
-        newest ??= entry.id
-        mainCall ??= mainCallOf(entry)
-        if (run !== undefined) continue
-        const terminal = terminalRun(entry)
-        if (terminal !== undefined) ended.add(terminal)
-        const started = startedRun(entry)
-        if (started !== undefined) {
-          run = started
-          open = !ended.has(started)
-        }
-      }
-      if (
-        (run !== undefined && mainCall !== undefined) ||
-        this.#done(read.ok) ||
-        pages >= this.#ports.locatePages
-      )
-        break
+      for (const entry of read.ok.entries) scan.add(entry)
+      if (scan.complete() || this.#done(read.ok) || pages >= this.#ports.locatePages) break
       read = await this.#ports.history.next({ ...at, cursor: read.ok.next as string })
       if ('failure' in read) return read
     }
-    this.#after = newest
-    this.#run = run ?? null
-    this.#open = open
-    return { ok: this.#settle(revision, mainCall ?? null) }
+    this.#after = scan.newest
+    this.#run = scan.run ?? null
+    this.#open = scan.open
+    return { ok: this.#settle(revision, scan.mainCall ?? null) }
   }
 
   async #forward(

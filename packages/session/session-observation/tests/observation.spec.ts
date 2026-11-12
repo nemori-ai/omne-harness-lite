@@ -189,11 +189,6 @@ describe('the locate axis (C9a)', () => {
     await step
   })
 
-  it('result, no target, main call in the log: block 1 does not ask the Model; phase and target stay null', async () => {
-    const w = world(new FakeLog(started('run_1'), mainCall('m-1')))
-    expect(await frame(await open(w))).toMatchObject({ phase: null, target: null })
-  })
-
   it('result, no target, nothing new: no state frame, only refreshing', async () => {
     const w = world(new FakeLog(started('run_1')))
     const frames = await open(w)

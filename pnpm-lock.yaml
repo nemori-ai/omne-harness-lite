@@ -2991,6 +2991,9 @@ importers:
       '@omne-harness/session-cordis-contract':
         specifier: workspace:*
         version: link:../session-cordis-contract
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

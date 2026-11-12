@@ -6,6 +6,7 @@
 // takes `sessionObservation` from the tree and calls `open` as that person. Every frame is printed
 // with the milliseconds since the frame before it. The refresh policy is a short one, passed in
 // here: interval 1000 ms, backoff 2, at most 4 attempts.
+import { writeJsonText } from '@omne-harness/json-text'
 import type { SessionId } from '@omne-harness/session-contract'
 import type { SessionObservationFrame } from '@omne-harness/session-observation'
 import {
@@ -20,7 +21,9 @@ import {
   type LoginAccess,
 } from '../model/public-stream-support.ts'
 
-const POLICY = { interval: 1000, backoff: 2, maxAttempts: 4 }
+const POLICY = process.env['DEMO_INTERVAL']
+  ? { interval: Number(process.env['DEMO_INTERVAL']) }
+  : { interval: 1000, backoff: 2, maxAttempts: 4 }
 const print = (line: string) => process.stdout.write(`${line}\n`)
 
 function show(frame: SessionObservationFrame): string {
@@ -29,6 +32,9 @@ function show(frame: SessionObservationFrame): string {
       return `state run=${String(frame.run)} revision=${frame.revision} phase=${String(frame.phase)} target=${frame.target === null ? 'null' : frame.target.projection}`
     case 'gap':
       return `gap ${frame.reason}`
+    case 'snapshot':
+    case 'delta':
+      return `${frame.kind} ${writeJsonText(frame.value).slice(0, 160)}`
     default:
       return frame.kind
   }

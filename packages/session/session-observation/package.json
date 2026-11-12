@@ -36,7 +36,8 @@
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/model-cordis-contract": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
-    "@omne-harness/session-cordis-contract": "workspace:*"
+    "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/stream-arrival": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

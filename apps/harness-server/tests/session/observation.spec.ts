@@ -4,7 +4,9 @@
 // gateway of the release-tree scenarios. The interval of the refresh policy is a minute here, so a
 // state frame that comes within the case came from a commit notice, not from the interval.
 import { describe, expect, it } from 'vitest'
+import { writeJsonText } from '@omne-harness/json-text'
 import type { SessionId } from '@omne-harness/session-contract'
+import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionObservationFrame } from '@omne-harness/session-observation'
 import {
   sessionObservationKey,
@@ -26,6 +28,28 @@ function observation(tree: ReleaseTree): SessionObservationService<unknown> {
     | undefined
   if (service === undefined) throw new Error('sessionObservation is not on the tree')
   return service
+}
+
+/** The assistant messages of `session`, read as `access` through the reader history face. */
+async function assistantMessages(
+  tree: ReleaseTree,
+  access: LoginAccess,
+  session: string,
+): Promise<string[]> {
+  const service = tree.scope.intercept(sessionKey, { caller: 'reader' }).get(sessionKey) as
+    | SessionService
+    | undefined
+  if (service === undefined) throw new Error('no Session service')
+  const page = await service.history.begin({
+    ...access,
+    session: session as SessionId,
+    kinds: ['message.assistant'],
+    from: null,
+    direction: 'forward',
+    pageBytes: 65_536,
+  })
+  if (!('ok' in page)) throw new Error(JSON.stringify(page))
+  return page.ok.entries.map(entry => writeJsonText(entry.payload))
 }
 
 function open(tree: ReleaseTree, access: LoginAccess, session: string, signal: AbortSignal) {
@@ -60,7 +84,10 @@ describe('session observation on the release tree', () => {
       const first = await opened.frames.next()
       if (first.done === true) throw new Error('no first frame')
       frames.push(first.value)
-      expect(first.value).toMatchObject({ kind: 'state', phase: null, target: null })
+      expect(first.value).toMatchObject({
+        kind: 'state',
+        target: { projection: 'model-output-v1' },
+      })
       expect(first.value.kind === 'state' && first.value.run).toMatch(/^run_/u)
       held.release()
       for (;;) {
@@ -71,10 +98,88 @@ describe('session observation on the release tree', () => {
       }
       controller.abort()
       expect(await opened.frames.next()).toEqual({ done: true, value: undefined })
-      expect(frames.every(frame => frame.kind === 'state')).toBe(true)
-      const revisions = frames.map(frame => (frame.kind === 'state' ? Number(frame.revision) : 0))
+      const states = frames.filter(frame => frame.kind === 'state')
+      const revisions = states.map(frame => Number(frame.revision))
       expect(revisions).toEqual([...revisions].sort((a, b) => a - b))
-      expect(new Set(revisions).size).toBe(revisions.length)
+      expect(revisions.at(-1)).toBeGreaterThan(revisions[0] ?? 0)
+    })
+  })
+
+  it('content frames: the snapshot of the running main call, then its deltas (C9b on the release tree)', async () => {
+    const held = heldAnswer('one', ' two')
+    await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
+      const access = await loginAccess(tree)
+      const session = await tree.startSession('say hello')
+      await pollUntil(
+        'the held answer',
+        () => Promise.resolve(held.held()),
+        n => n > 0,
+      )
+      const controller = new AbortController()
+      const opened = await open(tree, access, session, controller.signal)
+      if (opened.kind !== 'opened') throw new Error(`open answered ${opened.kind}`)
+      const seen: SessionObservationFrame[] = []
+      for (;;) {
+        const step = await opened.frames.next()
+        if (step.done === true) throw new Error(`ended: ${String(step.value)}`)
+        seen.push(step.value)
+        if (step.value.kind === 'snapshot') break
+      }
+      held.release()
+      for (;;) {
+        const step = await opened.frames.next()
+        if (step.done === true) throw new Error(`ended: ${String(step.value)}`)
+        seen.push(step.value)
+        if (step.value.kind === 'state' && step.value.run === null) break
+      }
+      controller.abort()
+      const kinds = seen.map(frame => frame.kind)
+      expect(kinds[0]).toBe('state')
+      expect(kinds.indexOf('snapshot')).toBeGreaterThan(0)
+      expect(kinds).toContain('delta')
+      const content = seen
+        .filter(frame => frame.kind === 'snapshot' || frame.kind === 'delta')
+        .map(frame => writeJsonText((frame as unknown as { value: never }).value))
+        .join('')
+      expect(content).toContain('one')
+      expect(content).toContain(' two')
+    })
+  })
+
+  it('an observation stopped midway leaves the Model call to settle and commit (C11b)', async () => {
+    const held = heldAnswer('one', ' two')
+    await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
+      const access = await loginAccess(tree)
+      const session = await tree.startSession('say hello')
+      await pollUntil(
+        'the held answer',
+        () => Promise.resolve(held.held()),
+        n => n > 0,
+      )
+      const controller = new AbortController()
+      const opened = await open(tree, access, session, controller.signal)
+      if (opened.kind !== 'opened') throw new Error(`open answered ${opened.kind}`)
+      for (;;) {
+        const step = await opened.frames.next()
+        if (step.done === true || step.value.kind === 'snapshot') break
+      }
+      controller.abort()
+      expect(await opened.frames.next()).toEqual({ done: true, value: undefined })
+      held.release()
+      const reader = await open(tree, access, session, new AbortController().signal)
+      if (reader.kind !== 'opened') throw new Error(`open answered ${reader.kind}`)
+      for (;;) {
+        const step = await reader.frames.next()
+        if (step.done === true) throw new Error(`ended: ${String(step.value)}`)
+        if (step.value.kind === 'state' && step.value.run === null) break
+      }
+      await reader.frames.return(undefined)
+      const terminal = await pollUntil(
+        'the assistant message of the run',
+        () => assistantMessages(tree, access, session),
+        found => found.length > 0,
+      )
+      expect(terminal.join('')).toContain('one two')
     })
   })
 

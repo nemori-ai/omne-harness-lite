@@ -1,7 +1,13 @@
 // The frames of session observation and 帧的翻译 (RFC-0015 §8): the one place that turns what the
 // locate and the stream found into frames. A state frame goes out only when one of its four fields
-// changed; the first one always goes out.
+// changed; the first one always goes out. Snapshots and deltas carry the model-output-v1 value.
 import type { JsonValue } from '@omne-harness/json-text'
+import {
+  projectModelOutputV1,
+  type CallState,
+  type ModelStreamDelta,
+  type ModelStreamSnapshot,
+} from '@omne-harness/model-contract'
 import type { RunId, SessionRevision } from '@omne-harness/session-contract'
 
 export type StateFrame = Readonly<{
@@ -24,6 +30,9 @@ export type SessionObservationEnd = 'refresh-exhausted' | 'denied' | 'unavailabl
 
 export type StateFields = Omit<StateFrame, 'kind'>
 
+/** A content frame, or null when the Model value has no model-output-v1 projection. */
+type Content = Extract<SessionObservationFrame, { kind: 'snapshot' | 'delta' }> | null
+
 export class FrameTranslator {
   #last: StateFields | undefined
 
@@ -40,5 +49,19 @@ export class FrameTranslator {
       return null
     this.#last = fields
     return { kind: 'state', ...fields }
+  }
+
+  snapshot(value: ModelStreamSnapshot): Content {
+    const projected = projectModelOutputV1(value)
+    return 'ok' in projected
+      ? { kind: 'snapshot', projection: 'model-output-v1', value: projected.ok }
+      : null
+  }
+
+  delta(value: ModelStreamDelta, basePhase: CallState['phase']): Content {
+    const projected = projectModelOutputV1(value, basePhase)
+    return 'ok' in projected
+      ? { kind: 'delta', projection: 'model-output-v1', value: projected.ok }
+      : null
   }
 }

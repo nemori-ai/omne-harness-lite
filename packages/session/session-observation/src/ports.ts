@@ -32,7 +32,11 @@ export const DEFAULT_LOCATE_PAGES = 4
 export const INTERVAL_FLOOR = 100
 
 export type ObservationDiagnostic = Readonly<{
-  code: 'observation.policy-clamped'
+  code:
+    | 'observation.policy-clamped'
+    | 'observation.current-timeout'
+    | 'observation.late-discarded'
+    | 'observation.locate-transient'
   detail: string
 }>
 

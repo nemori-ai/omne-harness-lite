@@ -237,10 +237,153 @@ export class FakeNotices {
   }
 }
 
+type ModelAnswer =
+  | Readonly<{
+      ok: Readonly<{
+        state: Readonly<{ phase: string }>
+        current: Readonly<{ ref: string }> | null
+      }>
+    }>
+  | Readonly<{ failure: Readonly<{ kind: string; reason?: string }> }>
+  | 'hang'
+
+/** One subscription the fake Model handed out: the case pushes frames and ends it. */
+export class FakeStream {
+  readonly ref: string
+  readonly signal: AbortSignal
+  readonly #queue: unknown[] = []
+  #wake: (() => void) | undefined
+  #done = false
+
+  constructor(ref: string, signal: AbortSignal) {
+    this.ref = ref
+    this.signal = signal
+    signal.addEventListener('abort', () => this.#poke())
+  }
+
+  push(...frames: unknown[]): void {
+    this.#queue.push(...frames)
+    this.#poke()
+  }
+
+  /** The iterator returns without an `ended` frame. */
+  stop(): void {
+    this.#done = true
+    this.#poke()
+  }
+
+  #poke(): void {
+    const wake = this.#wake
+    this.#wake = undefined
+    wake?.()
+  }
+
+  async *frames(): AsyncGenerator<never> {
+    for (;;) {
+      if (this.signal.aborted) return
+      const frame = this.#queue.shift()
+      if (frame !== undefined) {
+        yield frame as never
+        continue
+      }
+      if (this.#done) return
+      await new Promise<void>(resolve => {
+        this.#wake = resolve
+      })
+    }
+  }
+}
+
+/** The public Model stream: `current` answers per reference, `observe` hands out FakeStreams. */
+export class FakeModel {
+  readonly answers = new Map<string, ModelAnswer[]>()
+  readonly asked: string[] = []
+  readonly streams: FakeStream[] = []
+  fallback: ModelAnswer = { ok: { state: { phase: 'accepted' }, current: null } }
+
+  answer(reference: string, ...answers: ModelAnswer[]): void {
+    this.answers.set(reference, [...(this.answers.get(reference) ?? []), ...answers])
+  }
+
+  /** The newest subscription to `ref`. */
+  stream(ref: string): FakeStream {
+    const found = this.streams.filter(stream => stream.ref === ref).at(-1)
+    if (found === undefined) throw new Error(`no subscription to ${ref}`)
+    return found
+  }
+
+  get open(): number {
+    return this.streams.filter(stream => !stream.signal.aborted).length
+  }
+
+  ports(): Pick<SessionObservationPorts<string>, 'streams' | 'observer'> {
+    return {
+      streams: {
+        current: input => {
+          const reference = String(input.reference)
+          this.asked.push(reference)
+          const answer = this.answers.get(reference)?.shift() ?? this.fallback
+          if (answer === 'hang') return new Promise(() => undefined)
+          return Promise.resolve(answer as never)
+        },
+      },
+      observer: {
+        observe: input => {
+          const stream = new FakeStream(String(input.ref), input.signal)
+          this.streams.push(stream)
+          return stream.frames()
+        },
+      },
+    }
+  }
+}
+
+const cursor = (n: number) => String(n)
+
+/** A Model snapshot value of `phase` at output cursor `n`. */
+export function snapshot(ref: string, n: number, phase = 'running') {
+  return {
+    kind: 'snapshot',
+    cursor: `c${String(n)}`,
+    value: {
+      ref,
+      dispatch: 'mdisp_a',
+      value: {
+        call: 'mcall_a',
+        cursor: cursor(n),
+        blocks: [],
+        state: { phase, revision: cursor(n) },
+      },
+    },
+  }
+}
+
+/** A Model delta value from cursor `n - 1` to `n`, now in `phase`. */
+export function delta(ref: string, n: number, phase = 'running') {
+  return {
+    kind: 'delta',
+    from: `c${String(n - 1)}`,
+    cursor: `c${String(n)}`,
+    value: {
+      ref,
+      dispatch: 'mdisp_a',
+      from: { outputCursor: cursor(n - 1), revision: cursor(n - 1) },
+      outputCursor: cursor(n),
+      state: { phase, revision: cursor(n) },
+      blocks: [],
+    },
+  }
+}
+
+export const stream = (ref: string, phase = 'running') => ({
+  ok: { state: { phase }, current: { ref } },
+})
+
 export type World = Readonly<{
   log: FakeLog
   clock: FakeClock
   notices: FakeNotices
+  model: FakeModel
   diagnostics: ObservationDiagnostic[]
   ports: SessionObservationPorts<string>
 }>
@@ -252,15 +395,11 @@ export function world(
 ): World {
   const clock = new FakeClock()
   const notices = new FakeNotices()
+  const model = new FakeModel()
   const diagnostics: ObservationDiagnostic[] = []
   const ports: SessionObservationPorts<string> = {
     history: log.history(),
-    streams: { current: () => Promise.reject(new Error('block 1 does not ask the Model')) },
-    observer: {
-      observe: () => {
-        throw new Error('block 1 does not ask the Model')
-      },
-    } as never,
+    ...model.ports(),
     notices: notices.port,
     wait: clock.wait,
     policy: { ...DEFAULT_OBSERVATION_REFRESH_POLICY, ...policy },
@@ -270,10 +409,10 @@ export function world(
       diagnostics.push(diagnostic)
     },
   }
-  return { log, clock, notices, diagnostics, ports }
+  return { log, clock, notices, model, diagnostics, ports }
 }
 
 /** Lets every queued promise job run. */
 export async function settle(): Promise<void> {
-  for (let i = 0; i < 20; i++) await Promise.resolve()
+  for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve))
 }
