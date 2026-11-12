@@ -32,6 +32,7 @@ type Row = Readonly<{
   commits: number
   reads: number
   queries: number
+  queriesByOperation?: Record<string, number>
   commitsByParticipant: Record<string, number>
   readsByHandler: Record<string, number>
   journalOwnBytes: number
@@ -214,6 +215,11 @@ function summarize(dir: string) {
     commitsMedian: median(rows.map(row => row.commits)),
     readsMedian: median(rows.map(row => row.reads)),
     queriesMedian: median(rows.map(row => row.queries)),
+    queriesByOperationMedian: Object.fromEntries(
+      [...new Set(rows.flatMap(row => Object.keys(row.queriesByOperation ?? {})))]
+        .sort()
+        .map(key => [key, median(rows.map(row => row.queriesByOperation?.[key] ?? 0))]),
+    ),
     endToEndMedianMs: median(rows.map(row => row.endToEndMs)),
     commitsByParticipantMedian: Object.fromEntries(
       [...new Set(rows.flatMap(row => Object.keys(row.commitsByParticipant)))]
@@ -270,7 +276,11 @@ function markdown(s: Summary): string {
     `| 进程常驻内存 | ${mib(s.memory.rss.first)} → ${mib(s.memory.rss.last)} | ${gateText(s.memory.rss.gates)} | ${topText(s.memory.top)} |`,
     `| 进程堆 | ${mib(s.memory.heapUsed.first)} → ${mib(s.memory.heapUsed.last)} | ${gateText(s.memory.heapUsed.gates)} | |`,
     `| 磁盘 | 数据目录 ${mib(s.disk.dataBytes)}，可见历史 ${mib(s.disk.visibleHistoryBytes)}，${s.disk.timesVisible === null ? '—' : s.disk.timesVisible.toFixed(0)} 倍；每轮新增中位 ${(s.disk.newBytesPerRoundMedian / 1024).toFixed(1)} KiB | 每轮新增：${gateText(s.disk.gates)} | ${topText(s.disk.top)} |`,
-    `| 一次工具调用 | 提交 ${String(s.toolCall.commitsMedian)}，读往返 ${String(s.toolCall.readsMedian)}，提交前查询 ${String(s.toolCall.queriesMedian)}，中位 ${ms(s.toolCall.endToEndMedianMs)} | 只报告 | 提交：${topText(s.toolCall.topCommits)}；读：${topText(s.toolCall.topReads)} |`,
+    `| 一次工具调用 | 提交 ${String(s.toolCall.commitsMedian)}，读往返 ${String(s.toolCall.readsMedian)}，提交前查询 ${String(s.toolCall.queriesMedian)}（${
+      Object.entries(s.toolCall.queriesByOperationMedian)
+        .map(([key, value]) => `${key} ${String(value)}`)
+        .join('，') || '未分'
+    }），中位 ${ms(s.toolCall.endToEndMedianMs)} | 只报告 | 提交：${topText(s.toolCall.topCommits)}；读：${topText(s.toolCall.topReads)} |`,
     `| 每轮提交与读的走向 | ${Object.entries(s.trend.at)
       .map(([round, value]) => `第 ${round} 轮 ${String(value.commits)}／${String(value.reads)}`)
       .join('，')} | 提交：${gateText(s.trend.commits)}；读：${gateText(s.trend.reads)} | |`,

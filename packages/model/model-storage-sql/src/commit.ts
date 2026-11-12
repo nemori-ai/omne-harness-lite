@@ -506,7 +506,30 @@ const RETRIED: readonly string[] = ['version', 'operation-bound', 'call-exists']
 type Step = Readonly<{ kind: 'done'; failure: ModelFailure | null }> | Readonly<{ kind: 'again' }>
 
 /** The storage identity of one commit; an operation write also notes the outcome of its generation. */
-type Target = Readonly<{ identity: SqlIdentity; saw?: (outcome: CommitResultV2['kind']) => void }>
+/**
+ * Where a staged write goes. A write of an operation goes to one attempt generation: `saw` records
+ * what became of it and `next` is the following generation, taken when this one is spent.
+ */
+type Target = Readonly<{
+  identity: SqlIdentity
+  saw?: (outcome: CommitResultV2['kind']) => void
+  next?: () => Target
+}>
+
+/**
+ * A generation that an earlier call already used and rolled back: the storage recalled its rollback
+ * receipt, or holds it for another input of the same identity (sql-contract 认回标记). The write
+ * goes to the next generation.
+ */
+function spent(result: CommitResultV2): boolean {
+  if (result.kind === 'rolled_back') return result.recalled
+  return result.kind === 'identity_conflict' && result.existing.kind === 'rolled_back'
+}
+
+/** What became of the generation, for the record of rolled-back generations. */
+function generationOutcome(result: CommitResultV2): CommitResultV2['kind'] {
+  return result.kind === 'identity_conflict' ? result.existing.kind : result.kind
+}
 
 function isFactRecord(
   value: JsonValue | undefined,
@@ -666,8 +689,11 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     ])
 
   /**
-   * The first generation not yet used, or what an earlier generation already decided. The search
-   * has no bound: the rolled-back generations of an operation add up over its runs.
+   * The first generation not yet used, or what an earlier generation already decided, by asking the
+   * storage generation after generation. Only step 2 asks, and only for an operation whose last
+   * answer was unknown (sql-contract 认回标记: ask before sending again); a write commits its
+   * generation directly. The search has no bound: the rolled-back generations of an operation add
+   * up over its runs.
    */
   async function freeGeneration(
     domain: DomainRef,
@@ -719,11 +745,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     return { kind: 'done', failure: { kind: 'commit-unknown', operation } }
   }
 
-  async function identityFor(
-    domain: DomainRef,
-    tenant: string,
-    staged: Staged,
-  ): Promise<Target | Step> {
+  function identityFor(domain: DomainRef, tenant: string, staged: Staged): Target | Step {
     if (staged.kind === 'publish') {
       const operation = `${staged.call.state.call}#read`
       return { identity: identityOf(domain, operation, `${operation}@${staged.expected}`) }
@@ -731,20 +753,39 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     const { operation } = staged.write
     if (unresolved.full(tenant, operation))
       return { kind: 'done', failure: unavailable('too many operations with an unknown outcome') }
-    const at = await freeGeneration(domain, operation)
-    if (at === 'committed') return { kind: 'again' }
-    if (at === 'unknown') return unknownStep(tenant, staged)
     const key = generationsKey(domain, operation)
+    // Step 2 asked the storage about every unknown operation of this call at the start of this
+    // attempt: one still registered is still undecided, and is not sent again (sql-contract 认回标记).
+    if (unresolved.of(tenant).has(operation)) return unknownStep(tenant, staged)
+    return generationTarget(domain, operation, key, generations.first(key))
+  }
+
+  function generationTarget(
+    domain: DomainRef,
+    operation: ModelOperationId,
+    key: string,
+    at: number,
+  ): Target {
     return {
       identity: generation(domain, operation, at),
       saw: outcome => generations.saw(key, at, outcome),
+      next: () => generationTarget(domain, operation, key, at + 1),
     }
   }
 
-  function afterCommit(result: CommitResultV2, tenant: string, staged: Staged): Step {
+  /**
+   * What an answer means for the run. `generational` is true for a write of an operation: a commit
+   * the storage recalls was written by an earlier call, so the read the work ran on is stale.
+   */
+  function afterCommit(
+    result: CommitResultV2,
+    tenant: string,
+    staged: Staged,
+    generational: boolean,
+  ): Step {
     switch (result.kind) {
       case 'committed':
-        return { kind: 'done', failure: null }
+        return generational && result.recalled ? { kind: 'again' } : { kind: 'done', failure: null }
       case 'rolled_back':
         return afterRollback(result)
       case 'identity_conflict':
@@ -804,15 +845,21 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   ): Promise<Step> {
     const facts = encodedFacts(tenant, staged, read, limits.tenantResults, body)
     if ('failure' in facts) return { kind: 'done', failure: facts.failure }
-    const target = await identityFor(domain, tenant, staged)
-    if ('kind' in target) return target
-    const result = await storage.commit({
-      identity: target.identity,
-      ...combination,
-      commands: [{ participant: MODEL_PARTICIPANT, facts: facts.ok }],
-    })
-    target.saw?.(result.kind)
-    return afterCommit(result, tenant, staged)
+    const first = identityFor(domain, tenant, staged)
+    if ('kind' in first) return first
+    // The generation is committed without asking first; the answer tells this call's write from an
+    // earlier one (sql-contract 认回标记, model RecallAtCommit).
+    for (let target = first; ;) {
+      const result = await storage.commit({
+        identity: target.identity,
+        ...combination,
+        commands: [{ participant: MODEL_PARTICIPANT, facts: facts.ok }],
+      })
+      target.saw?.(generationOutcome(result))
+      if (target.next === undefined || !spent(result))
+        return afterCommit(result, tenant, staged, target.next !== undefined)
+      target = target.next()
+    }
   }
 
   // --- The request body: chunk commits before the admission, and their cleanup.

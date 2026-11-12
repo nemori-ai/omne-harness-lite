@@ -371,6 +371,7 @@ try {
       reads: Object.values(readsByHandler).reduce((sum, value) => sum + value, 0),
       readsCounted: counts.reads,
       queries: counts.queries,
+      queriesByOperation: counts.queriesByOperation,
       commitsByParticipant: counts.commitsByParticipant,
       readsByHandler,
       journalOwnBytes: counts.journalOwnBytes,
