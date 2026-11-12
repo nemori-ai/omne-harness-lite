@@ -51,7 +51,7 @@ type Stage =
       kind: 'materialization'
       write: Write<Materialization, MaterializationResult>
     }
-  | { kind: 'window'; write: Write<Window, Window['expected']>; next: { kind: 'start' } | Refusal }
+  | { kind: 'window'; write: Write<Window, Window['expected']>; next: Refusal }
   | { kind: 'start'; revision: Window['expected'] }
   | { kind: 'record'; write: Write<RecordSend, RecordSend['expected']>; result: SendStart }
   | { kind: 'terminal'; write: Write<Preserve, unknown>; failure: ModelFailure }
@@ -297,6 +297,7 @@ export function createAttemptRunner<P>(
           expected: current.ok.state.revision,
           dispatch: input.dispatch,
           receipt,
+          window: attempt.window,
         },
         confirmation: 'new',
         run: entry => commands.recordMaterialization(entry),
@@ -333,27 +334,13 @@ export function createAttemptRunner<P>(
     attempt: SendAttempt<P>,
     entry: Extract<Stage, { kind: 'materialization' }>,
   ): Promise<Progress> {
-    const input = attempt.input
     const result = await write(attempt, entry.write)
     if (result.kind === 'unconfirmed')
       return { kind: 'complete', result: unknown(attempt, 'materialization-commit-unknown') }
     if (result.kind === 'rejected')
       return { kind: 'complete', result: stop(id, attempt, result.failure) }
-    attempt.stage = {
-      kind: 'window',
-      next: { kind: 'start' },
-      write: {
-        input: {
-          ...input.execution,
-          operation: operation(),
-          expected: result.value.revision,
-          dispatch: input.dispatch,
-          window: attempt.window,
-        },
-        confirmation: 'new',
-        run: entry => commands.openReceiveWindow(entry),
-      },
-    }
+    // The materialization write opened the receive window too: the send comes next.
+    attempt.stage = { kind: 'start', revision: result.value.revision }
     return { kind: 'continue' }
   }
   async function recordWindow(
@@ -366,12 +353,8 @@ export function createAttemptRunner<P>(
       return { kind: 'complete', result: unknown(attempt, 'receive-window-commit-unknown') }
     if (result.kind === 'rejected')
       return { kind: 'complete', result: stop(id, attempt, result.failure) }
-    if (entry.next.kind === 'refused')
-      return recordStarted(id, attempt, buildRecord(attempt, result.value, operation(), entry.next))
-    const starting: Extract<Stage, { kind: 'start' }> = { kind: 'start', revision: result.value }
-    attempt.stage = starting
-    const recording = startAndBuildRecord(attempt, starting)
-    return recordStarted(id, attempt, recording)
+    // Only a refusal opens a window on its own: a materialization opens it in its own write.
+    return recordStarted(id, attempt, buildRecord(attempt, result.value, operation(), entry.next))
   }
   function startQualified(attempt: SendAttempt<P>, receipt: MaterializationReceipt): SendStart {
     const input = attempt.input

@@ -246,7 +246,7 @@ export async function collect(facts: AsyncIterable<TransportFact>) {
   for await (const fact of facts) all.push(fact)
   return all
 }
-export type SendWriteMethod = 'recordMaterialization' | 'openReceiveWindow' | 'recordSend'
+export type SendWriteMethod = 'recordMaterialization' | 'recordSend'
 export function faultCommands(
   f: Awaited<ReturnType<typeof sendFixture>>,
   method: SendWriteMethod,
@@ -276,7 +276,6 @@ export function faultCommands(
     }
   if (method === 'recordMaterialization')
     commands.recordMaterialization = wrap(commands.recordMaterialization)
-  if (method === 'openReceiveWindow') commands.openReceiveWindow = wrap(commands.openReceiveWindow)
   if (method === 'recordSend') commands.recordSend = wrap(commands.recordSend)
   return {
     commands,

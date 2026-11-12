@@ -326,10 +326,10 @@ async function settleCall(
         representation: request.representation,
         payloadDigest: 'a'.repeat(64),
       },
+      window: 'w',
     }),
   )
   unbox(await commands.recordSend({ ...(await write()), dispatch, state: 'started' }))
-  unbox(await commands.openReceiveWindow({ ...(await write()), dispatch, window: 'w' }))
   // A sealed block of the contract's own shape: the first block of a judged request message.
   const sealed = requestWith([user('reply', 'answer')]).messages[0]?.blocks[0]
   if (sealed?.kind !== 'text') throw new Error('fixture block')

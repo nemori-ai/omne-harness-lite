@@ -539,6 +539,26 @@ export function dispatchCommands<P>(
       }),
     )
   }
+  /** Opens `window` on `dispatch`, or says why it cannot be opened; nothing changes then. */
+  function openWindow(
+    call: CallDocument,
+    dispatch: DispatchDocument,
+    window: string,
+  ): ModelFailure | null {
+    if (
+      !window ||
+      encodedBytes(window) > 256 ||
+      dispatch.windows.has(window) ||
+      dispatch.logicalTerminal
+    )
+      return invalid('window', 'duplicate-or-terminal')
+    dispatch.windows.set(window, 'open')
+    if (dispatch.record.firstContent !== 'observed')
+      dispatch.record = { ...dispatch.record, firstContent: 'uncertain' }
+    if (call.state.phase === 'running')
+      call.state = { ...call.state, firstContent: dispatch.record.firstContent }
+    return null
+  }
   function materializationProof(
     call: CallDocument,
     dispatch: DispatchDocument,
@@ -701,12 +721,16 @@ export function dispatchCommands<P>(
             expected: input.expected,
             dispatch: input.dispatch,
             receipt: input.receipt,
+            window: input.window,
           },
           check: call => core.execution(input, call, bound),
           apply: draft =>
             atDispatch(draft, input, (call, dispatch) => {
               const proof = materializationProof(call, dispatch, input)
               if ('failure' in proof) return proof
+              // The receive window opens in the same write: nothing is sent before both are durable.
+              const opened = openWindow(call, dispatch, input.window)
+              if (opened) return { failure: opened }
               dispatch.record = {
                 ...dispatch.record,
                 materialization: {
@@ -766,19 +790,7 @@ export function dispatchCommands<P>(
         call => {
           const dispatch = dispatchOf(call, input.dispatch)
           if ('kind' in dispatch) return dispatch
-          if (
-            !input.window ||
-            encodedBytes(input.window) > 256 ||
-            dispatch.windows.has(input.window) ||
-            dispatch.logicalTerminal
-          )
-            return invalid('window', 'duplicate-or-terminal')
-          dispatch.windows.set(input.window, 'open')
-          if (dispatch.record.firstContent !== 'observed')
-            dispatch.record = { ...dispatch.record, firstContent: 'uncertain' }
-          if (call.state.phase === 'running')
-            call.state = { ...call.state, firstContent: dispatch.record.firstContent }
-          return null
+          return openWindow(call, dispatch, input.window)
         },
       ),
     preserve: input =>

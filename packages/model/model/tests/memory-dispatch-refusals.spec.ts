@@ -153,20 +153,51 @@ describe('the receipt of a dispatch', () => {
     async (_name, receipt) => {
       const f = await prepared()
       expect(
-        await f.commands.recordMaterialization({ ...(await f.write()), dispatch, receipt }),
+        await f.commands.recordMaterialization({
+          ...(await f.write()),
+          dispatch,
+          receipt,
+          window: 'w',
+        }),
       ).toEqual({ failure: { kind: 'invalid', field: 'receipt', reason: 'binding' } })
       const [record] = unbox(await f.commands.dispatches(f.admit))
       expect(record?.materialization).toBeNull()
+      // The window of the refused write did not open either: it can still be opened.
+      unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w' }))
     },
   )
 
   it('is recorded when it names the dispatch supplier, the request representation and a digest', async () => {
     const f = await prepared()
     unbox(
-      await f.commands.recordMaterialization({ ...(await f.write()), dispatch, receipt: bound }),
+      await f.commands.recordMaterialization({
+        ...(await f.write()),
+        dispatch,
+        receipt: bound,
+        window: 'w',
+      }),
     )
     const [record] = unbox(await f.commands.dispatches(f.admit))
     expect(record?.materialization?.receipt).toEqual(bound)
+    // The same write opened the window.
+    expect(
+      await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w' }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
+  })
+
+  it('records nothing when the window cannot open: the receipt does not stand alone', async () => {
+    const f = await prepared()
+    unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'taken' }))
+    expect(
+      await f.commands.recordMaterialization({
+        ...(await f.write()),
+        dispatch,
+        receipt: bound,
+        window: 'taken',
+      }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
+    const [record] = unbox(await f.commands.dispatches(f.admit))
+    expect(record?.materialization).toBeNull()
   })
 })
 

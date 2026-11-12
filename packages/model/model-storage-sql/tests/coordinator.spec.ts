@@ -388,7 +388,8 @@ type Actor = Readonly<{ principal: Principal; tenant: TenantId }>
 const OWNER: Actor = { principal, tenant: TENANT }
 const access = (call: ModelCallId, actor: Actor = OWNER) => ({ ...actor, call })
 
-type Stage = 'admitted' | 'prepared' | 'materialized' | 'window'
+/** `window`: materialized, with the receive window that the same write opened. */
+type Stage = 'admitted' | 'prepared' | 'window'
 type Driven = Readonly<{
   demand: SendDemand<Principal>
   /** The `recordMaterialization` input, once the call reached that stage. */
@@ -445,18 +446,9 @@ async function drive(
         expected: revision,
         dispatch: dispatchId,
         receipt,
+        window: WINDOW,
       }
-      const recorded = unbox(await commands.recordMaterialization(materialization))
-      if (stage === 'window')
-        unbox(
-          await commands.openReceiveWindow({
-            ...execution,
-            operation: op(`window-${call}`),
-            expected: recorded.revision,
-            dispatch: dispatchId,
-            window: WINDOW,
-          }),
-        )
+      unbox(await commands.recordMaterialization(materialization))
     }
   }
   const recovery = unbox(await commands.loadRecovery(access(call, actor)))
@@ -595,6 +587,7 @@ describe('a cold mirror', () => {
         expected: recovery.state.revision,
         dispatch: dispatchId,
         receipt,
+        window: WINDOW,
       }),
     ).toEqual({ failure: { kind: 'commit-unknown', operation: op('material-lost') } })
     expect(subject.coordinator.check(demand, 'prepare')).toEqual(COLD)

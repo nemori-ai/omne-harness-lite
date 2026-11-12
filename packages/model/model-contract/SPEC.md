@@ -380,9 +380,9 @@ schedule 按原 call 去重，不能自行取得执行代次。recover 核实原
 | claim                                | 原调用与后继实例绑定、旧执行者排除证据、当前资格及新代次。首内容与原控制保留                                                                                |
 | scanPending/loadRecovery/loadRequest | 当前恢复主体及显式租户授权、原耐久任务和固定采用。查无活体不删除任务                                                                                        |
 | prepareDispatch                      | 当前代次、未取消、未收场、首内容界、合法政策和唯一 dispatch 意图。它不记录供应商已收到                                                                      |
-| recordMaterialization                | 当前代次、原未发出 dispatch、供应商和固定输入一致，回执（供应商、表示采用与 payload 摘要）先持久提交；未知不得 start，详见[物化提交](#物化回执的提交与发送) |
+| recordMaterialization                | 当前代次、原未发出 dispatch、供应商和固定输入一致，回执（供应商、表示采用与 payload 摘要）与这次发出的接收窗口在同一次提交里持久；窗口不能打开时整次不成立，回执也不落；未知不得 start，详见[物化提交](#物化回执的提交与发送) |
 | recordSend                           | 原 dispatch 的传输发起观察或未知；后到的真实结果可以补充 unknown，不能把 started 改 not-sent                                                                |
-| openReceiveWindow                    | 有效实例/原 dispatch、唯一窗口、尚未首内容时的 uncertain 标记；提交后才允许该窗口的实际接收                                                                 |
+| openReceiveWindow                    | 有效实例/原 dispatch、唯一窗口、尚未首内容时的 uncertain 标记；提交后才允许该窗口的实际接收。用于没有物化的拒绝路径与接收侧之后的窗口；一次发出的首个窗口随 recordMaterialization 打开 |
 | preserve                             | 有效实例/原 dispatch/窗口、顺序与去重、可恢复内容及附件引用、首内容标记、账目事件和游标，同时关闭窗口。该事务之后才发布快照                                 |
 | recordLateFact                       | 当前补录资格、原 dispatch 归属、可核验来源、供应商事件去重及修订。它不 claim，也不授予新发出或业务推进                                                      |
 | decideRetry                          | 原失败发出、尚未首内容、原政策资格与唯一决定；重复决定认回，冲突拒绝                                                                                        |
@@ -541,7 +541,7 @@ prepareRetry 为该 dispatch 保存唯一策略 operation、固定 retryPolicy �
 
 策略协调者的寿命归 Model 宿主或其独立依赖，发起者离开不卸载它。策略需要系统托管数据时仍以当前受信主体和显式 tenant 核权，内部效果有自己的可恢复调用身份；它不能借策略位置发与原判断无关的工作。目标调用受到控制（包括 Model 因原工作资格失效记录的控制，见[资格、共同提交与实际发送](#342-资格共同提交与实际发送)）、原调用终局或当前准入撤销后，不再进行新的策略业务效果；已开始的原内部调用可收场保管。采用缺失或确证策略不可用才按不再试收束，纯查询故障保持未知。已决定但提交未知先查认，不让替换的策略覆盖旧结论。后继实际 send 仍独立核当前围栏，不以决定为永久许可。
 
-为覆盖首片已接收而未保存的窗口，提供者在任何可能观察内容的接收动作前调用 openReceiveWindow。其提交把尚无首内容的状态从 none-proven 改为 uncertain。传输不得在窗口开始之前后台预读；无法禁用预读时，须在 start 前打开覆盖整个预读期间的窗口。仅打开网络连接但未接收模型内容，不自行算首内容。
+为覆盖首片已接收而未保存的窗口，提供者在任何可能观察内容的接收动作前打开接收窗口：一次发出的首个窗口由 recordMaterialization 在同一次提交里打开，之后的窗口与拒绝路径的窗口调用 openReceiveWindow。其提交把尚无首内容的状态从 none-proven 改为 uncertain。传输不得在窗口开始之前后台预读；无法禁用预读时，须在 start 前打开覆盖整个预读期间的窗口。仅打开网络连接但未接收模型内容，不自行算首内容。
 
 ModelSendBoundary 的 started 结果必须同时交出已确认打开的原 window 和唯一 facts 流。消费者直接使用结果中的 window 调用 preserve，不从测试计划或隐藏共享状态推导窗口。window 只标识原接收范围，不授予访问权；Commands 仍核 tenant、call、execution、dispatch 与 window 绑定。start 已取得流而 recordSend 未确认时，发送器保留原窗口、原流、资源与写参数。认回原写后只交出一次原窗口与原流，不再次 start。此行为不提供跨进程恢复保证。
 
@@ -1200,12 +1200,13 @@ signal 已取消或执行中取消时返回 ConversionFailure.cancelled，不抛
 
 MaterializationReceipt 只记录本次供应商、实际表示采用和无秘密 payload 的摘要，不含预算。适配器产出推理续接状态时，回执还带 `replayFormat`：这次发出产出的部件的回放 `format`，按适配器采用给出，满足 message 成员对 `replay.format` 的要求。回执没有这一项，表示旧记录，或适配器不产出推理续接状态。回执随发出记录保存，所以收场与晚到事实两条路径都按它给出 `format`。物化对象及其租约持有该实际内容，start 必须发送与回执匹配的内容。生成回执不授发出权，也不意味着已向供应商发送。
 
-托管 ModelSendBoundary 注入 ModelCommands，以原 execution、当前 revision、独立 operation 和 dispatch 调用 recordMaterialization。Commands 在条件持久提交前核对以下各项：
+托管 ModelSendBoundary 注入 ModelCommands，以原 execution、当前 revision、独立 operation、dispatch 和这次发出的接收窗口调用 recordMaterialization。发出之前只有这一次提交：物化回执与接收窗口一起成立或一起不成立。Commands 在条件持久提交前核对以下各项：
 
 - 执行代次。
 - 原 dispatch 尚未发出。
 - 供应商与固定请求摘要。
 - 回执带 `replayFormat` 时，它是合格的回放标签，即满足 message 成员对 `replay.format` 的要求。不合格时 Commands 返回 `invalid`，`field` 为 `receipt`，`reason` 为 `binding`，不提交回执。
+- 接收窗口的条件与 openReceiveWindow 相同（非空、不超过 256 字节、这个 dispatch 上没有用过、dispatch 没有逻辑终止）。不满足时返回 `invalid`，`field` 为 `window`，`reason` 为 `duplicate-or-terminal`，回执也不提交。
 
 回执来源由可信 adapter 核验，不接受普通调用者自报的内容。成功返回新 revision 与 DurableEvidence，DispatchRecord.materialization 可恢复地返回原回执及依据。
 

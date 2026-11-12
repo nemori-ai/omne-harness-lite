@@ -69,6 +69,7 @@ it('records materialization once, preserves original revisions and rejects stale
       representation: f.admit.request.representation,
       payloadDigest: 'a'.repeat(64),
     },
+    window: 'w',
   }
   const receipt = unbox(await f.commands.recordMaterialization(input))
   expect(unbox(await f.commands.recordMaterialization(input))).toEqual(receipt)

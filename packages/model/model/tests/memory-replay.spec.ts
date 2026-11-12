@@ -90,13 +90,15 @@ async function sent(replayFormat: string | undefined) {
     ...(replayFormat === undefined ? {} : { replayFormat }),
   }
   unbox(
-    await f.commands.recordMaterialization({ ...(await f.write()), dispatch: f.dispatch, receipt }),
+    await f.commands.recordMaterialization({
+      ...(await f.write()),
+      dispatch: f.dispatch,
+      receipt,
+      window: 'w',
+    }),
   )
   unbox(
     await f.commands.recordSend({ ...(await f.write()), dispatch: f.dispatch, state: 'started' }),
-  )
-  unbox(
-    await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window: 'w' }),
   )
   async function preserve(facts: readonly TransportFact[]) {
     f.completeWindows.add(`${f.admit.call}/w/${digest(facts)}`)
@@ -170,6 +172,7 @@ describe('the finish of a reply that holds reasoning state', () => {
           payloadDigest: 'a'.repeat(64),
           replayFormat: '',
         },
+        window: 'w',
       }),
     ).toEqual({ failure: { kind: 'invalid', field: 'receipt', reason: 'binding' } })
   })
