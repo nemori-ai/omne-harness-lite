@@ -73,7 +73,7 @@
 | [主体按身份一栏](#主体按身份一栏) | `tests/contribution.spec-d.ts` |
 | [身份端口](#身份端口) | `tests/identity.spec-d.ts`；端口在管道里的用法由服务端接入的 `tests/pipeline-identity.spec.ts` 验证 |
 | [mount 是调用者作用域上的效应](#mount-是调用者作用域上的效应) | `tests/mount.spec.ts` 与服务端接入的 `tests/registry-cordis.spec.ts`，真实的 Cordis 4.0.4，不用替身 |
-| [defineAccessPlugin](#defineaccessplugin) | 服务端接入的 `tests/registry-cordis.spec.ts`「defineAccessPlugin on real Cordis (C11)」，真实的 Cordis 4.0.4：加载后协议挂着、服务不在时答 `basis-unavailable` 且协议仍在、服务回来后恢复、卸载后撤下 |
+| [defineAccessPlugin](#defineaccessplugin) | `tests/define-access-plugin.spec.ts`（最小的提供者）；服务端接入的 `tests/registry-cordis.spec.ts`「defineAccessPlugin on real Cordis (C11)」，真实的 Cordis 4.0.4：加载后协议挂着、服务不在时答 `basis-unavailable` 且协议仍在、服务回来后恢复、卸载后撤下 |
 | [装配错误](#装配错误) | `tests/public-entry.spec.ts`；服务端接入的 `tests/registry.spec.ts` 与 `tests/registry-cordis.spec.ts` |
 
 依赖方向：本包源码只依赖公开契约与 `@deepseek-ai/cordis`，门禁 `access-cordis-contract-only-contract-and-cordis`（`tools/repo-config/dependency-cruiser.cjs`）守这一条。
