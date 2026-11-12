@@ -31,6 +31,7 @@ export {
 export { createSessionContextHolder } from './cordis/context-holder.ts'
 export {
   createSessionJournalInterpretationPlugin,
+  type JournalInterpretationRetry,
   type JournalInterpretationTarget,
   type JournalInterpreted,
   type SessionJournalInterpretationInput,
