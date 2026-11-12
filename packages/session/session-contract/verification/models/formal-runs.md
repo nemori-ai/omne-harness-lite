@@ -90,3 +90,18 @@ F1 至 F5 按 R2-D327 处理，下表写处置。
 - S3 没有每会话退避：Agent 一直不可用时，每个扫描周期重放一轮重试序列，并记一条 `retries-exhausted`。
 - 扫描找回丢失的通知由 `advance.spec.ts` 的启动扫描用例覆盖；周期扫描的定时路径没有新用例。
 - 延后控制事实（FR-05）不在模型内。
+
+<a id="run-closure"></a>
+
+## Run 闭合模型的运行
+
+2026-11-12，arm64 macOS，TLC 1.7.4，在本目录逐份配置运行。
+
+| 配置 | 预期 | 结果 | 生成状态 | 不同状态 |
+| --- | --- | --- | --- | --- |
+| `positive.cfg` | 通过 | 没有发现错误 | 753 | 620 |
+| `negative-no-closure.cfg` | 违反 `TerminalClosed` | 命中 | 15 | 14 |
+| `negative-no-closure-request.cfg` | 违反 `RequestReadsWholeHistory` | 命中 | 35 | 32 |
+| `negative-late-accept.cfg` | 违反 `OneAnswer` | 命中 | 28 | 26 |
+
+发现的缺陷：`negative-no-closure` 就是加入本模型之前的实现。发行应用上的表现是 Run 在工具调用进行中被叫停后，同一会话的下一个 Run 不能请求模型。处置：终态提交补写工具消息，归约拒绝还有未答调用的终态。

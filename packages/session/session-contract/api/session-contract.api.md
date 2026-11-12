@@ -2852,8 +2852,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:8eb3dca62c703271e1050af2424634461dc7ac404a700e54605d444deaedf36d";
-export declare const SESSION_RELEASE_DIGEST = "sha256:8eb3dca62c703271e1050af2424634461dc7ac404a700e54605d444deaedf36d";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:ac812c66e076c8175a151d30e5ee31c160ee84aef57e3074b8ad1c3a35e33b8e";
+export declare const SESSION_RELEASE_DIGEST = "sha256:ac812c66e076c8175a151d30e5ee31c160ee84aef57e3074b8ad1c3a35e33b8e";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2875,6 +2875,24 @@ type Draft = {
 export declare function bindingRun(snapshot: WorkSnapshot, binding: CallBinding): RunId | null;
 export declare function resultParticipationError(snapshot: WorkSnapshot, binding: CallBinding, participation: Participation): string | null;
 export declare function applyParticipation(draft: Draft, participation: Participation): string | null;
+export {};
+```
+
+## 声明文件 `run-closure.d.ts`
+
+```ts
+import type { Message } from '@omne-harness/message';
+import type { DurableEvidence } from './identity.ts';
+import type { RunTerminal, WorkSnapshot } from './values.ts';
+import type { EncodedEntry } from './judgments.ts';
+import type { HistoryEntry } from './faces.ts';
+type MessageBlock = Message['blocks'][number];
+type CallBlock = Extract<MessageBlock, {
+    kind: 'tool_call' | 'tool_call_unparsed';
+}>;
+export declare function writesCall(block: MessageBlock): block is CallBlock;
+export declare function unansweredAfter(open: readonly string[], message: Message): readonly string[];
+export declare function closingEntries(snapshot: WorkSnapshot, terminal: RunTerminal, source: DurableEvidence, origin: HistoryEntry['origin']): EncodedEntry[];
 export {};
 ```
 
@@ -3364,6 +3382,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         historyIndex?: import("./history-values.ts").SessionHistoryIndex;
         callRegistrations?: readonly import("./call-values.ts").SessionCallRecord[];
         callWaits?: readonly import("./call-values.ts").SessionCallWait[];
+        unansweredCalls?: readonly string[];
         entriesProgress?: readonly import("./interpretation-values.ts").SessionEntriesProgress[];
     }>>;
     openRun: () => Promise<string>;
@@ -3946,6 +3965,7 @@ export type WorkSnapshot = Readonly<{
     historyIndex?: SessionHistoryIndex;
     callRegistrations?: readonly SessionCallRecord[];
     callWaits?: readonly SessionCallWait[];
+    unansweredCalls?: readonly string[];
     entriesProgress?: readonly SessionEntriesProgress[];
 }>;
 export type ResidentAdoption = Readonly<{

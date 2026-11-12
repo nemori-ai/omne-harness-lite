@@ -4,6 +4,7 @@ import type { HistoryEntry, SessionFailure } from './faces.ts'
 import { encodeEntry } from './entries.ts'
 import { digestOf } from './operations.ts'
 import type { Decision, EncodedEntry } from './judgments.ts'
+import { closingEntries } from './run-closure.ts'
 
 export const rejected = (failure: SessionFailure): Decision => ({ kind: 'rejected', failure })
 export const invalid = (field: string, reason: string): Decision =>
@@ -96,7 +97,7 @@ export function terminalEntries(
     disposition: DurableEvidence
   }>,
 ): EncodedEntry[] {
-  const out: EncodedEntry[] = []
+  const out: EncodedEntry[] = closingEntries(snapshot, terminal, source, originOf(source))
   if (snapshot.run.kind === 'active' && snapshot.run.advance !== null)
     out.push(
       encodeEntry(

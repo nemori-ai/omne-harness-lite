@@ -422,6 +422,11 @@ export type WorkSnapshot = Readonly<{
   callRegistrations?: readonly SessionCallRecord[]
   callWaits?: readonly SessionCallWait[]
   /**
+   * The tool calls of the active Run that the model sees and that have no tool message yet, by
+   * `callId`, in the order the assistant messages wrote them. The terminal of the Run answers them.
+   */
+  unansweredCalls?: readonly string[]
+  /**
    * The saved progress of the same-log entries interpretation, one item per (run, execution,
    * channel). `reduce` derives it from the `entries.interpreted` rows; the log stays the authority.
    */
