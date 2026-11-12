@@ -27,6 +27,7 @@ import {
   type ServerEntry,
   type ServerEntryConfig,
   type ServerEntryDependencies,
+  type ServerEntryAccess,
   type ServerEntryDiagnostic,
 } from '../../src/index.ts'
 import { createSessionDouble, type SessionDouble } from './session-double.ts'
@@ -104,6 +105,8 @@ export type FixtureOptions = Readonly<{
   governance?: (base: IdentityGovernance) => IdentityGovernance
   issuer?: (base: PrincipalIssuer) => PrincipalIssuer
   dependencies?: Partial<ServerEntryDependencies>
+  /** The new address's registry, identity port and grace (#1233). Absent: `/api/...` answers 404. */
+  access?: ServerEntryAccess
 }>
 
 export const IDLE_PERIOD = 'PT600S'
@@ -164,6 +167,7 @@ export async function startFixture(options: FixtureOptions = {}): Promise<Fixtur
       diagnostics: event => diagnostics.push(event),
       ...options.dependencies,
     },
+    ...(options.access === undefined ? {} : { access: options.access }),
   })
   const listening = await entry.start()
   return {
