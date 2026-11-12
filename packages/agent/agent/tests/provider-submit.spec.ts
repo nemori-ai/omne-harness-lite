@@ -376,6 +376,33 @@ describe('the request and the failure paths of input.submit', () => {
     expect((await snapshotOf(assembly)).revision).toBe(before.revision)
   })
 
+  it('refuses a principal whose access check denies submit, before it reads or saves anything', async () => {
+    let loads = 0
+    const assembly = await loopAssembly([execution()], dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        load: input => {
+          loads += 1
+          return dependencies.journal.load(input)
+        },
+      },
+    }))
+    const handle = ok(await invoke(assembly))
+    const before = await waitingOnModel(assembly)
+    await turns(20)
+    assembly.controls.access.check.always(input =>
+      input.operation === 'submit'
+        ? { kind: 'denied' }
+        : { kind: 'allowed', evidence: evidence('access') },
+    )
+    const read = loads
+
+    expect(failure(await submit(handle, 'submit-2')).kind).toBe('denied')
+    expect(loads).toBe(read)
+    expect((await snapshotOf(assembly)).revision).toBe(before.revision)
+  })
+
   it('hands on a failure of message admission and of the read, and saves nothing', async () => {
     let failRead = false
     const assembly = await loopAssembly([execution()], dependencies => ({
