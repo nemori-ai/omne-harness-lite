@@ -8,6 +8,8 @@ import { join } from 'node:path'
 export type Manifest = Readonly<{
   name: string
   version?: string
+  /** Only the workspace root has it: the pnpm that the workspace pins. */
+  packageManager?: string
   exports?: Readonly<Record<string, unknown>>
   dependencies?: Readonly<Record<string, string>>
   optionalDependencies?: Readonly<Record<string, string>>
