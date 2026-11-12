@@ -395,7 +395,9 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(kindAt(observed, 'H09')).toBe('refused')
     expect(evidenceAt(observed, 'H09')[0]).toBe('session-contract:1 of 3 rounds replied')
     expect(evidenceAt(observed, 'H09')).toContain('round 2: session-startRun:run-active')
-    expect(evidenceAt(observed, 'H09')).toContain('round 2: agent:input.submit unavailable')
+    // The first execution ended at F3, so the submit to it answers terminal (agent-contract SPEC
+    // "判定次序与失败映射").
+    expect(evidenceAt(observed, 'H09')).toContain('round 2: agent:input.submit terminal')
     // The second input was accepted by Session before the Run start was refused.
     expect(evidenceAt(observed, 'H08')[1]).toContain('message.user,')
   })
@@ -620,12 +622,19 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
   })
 
   // R2-D173, R2-D185: quiesce has a body now and answers without a diagnostic; the resume after it
-  // meets a draining runtime. Submit and detach stay not implemented by #502.
-  it('answers the submit and the detach as not implemented by #502 and the resume after quiesce as draining, not as an access refusal', async () => {
+  // meets a draining runtime. Detach stays not implemented by #502. Submit has a body (#1216 A1):
+  // the first execution ended at F3, so a new input to it answers terminal.
+  it('answers the submit to the ended execution as terminal, the detach as not implemented by #502 and the resume after quiesce as draining, not as an access refusal', async () => {
     const diagnostics: string[] = []
     const note = <T extends { ok: unknown } | { failure: unknown }>(reply: T): T => {
       if ('failure' in reply && typeof reply.failure === 'object' && reply.failure !== null)
-        diagnostics.push('diagnostic' in reply.failure ? String(reply.failure.diagnostic) : '')
+        diagnostics.push(
+          'diagnostic' in reply.failure
+            ? String(reply.failure.diagnostic)
+            : 'kind' in reply.failure
+              ? String(reply.failure.kind)
+              : '',
+        )
       return reply
     }
     const original = agentDouble()
@@ -664,7 +673,7 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
       }),
     )
     expect(diagnostics).toEqual([
-      'submit is not implemented yet; #502 assigns it no stage',
+      'terminal',
       'detach is not implemented until #502 stage 5',
       'the runtime is draining after quiesce; a new resume is not accepted',
     ])
