@@ -2,11 +2,13 @@
 // Usage, from apps/harness-server after `pnpm run build` of the members and of apps/cli:
 //   node tests/session/observation-demo.ts --state     state frames (block 1)
 //   node tests/session/observation-demo.ts --content   content frames through a turn with a tool (block 2)
+//   node tests/session/observation-demo.ts --abort     Ctrl-C midway; the process ends by itself (block 3)
 // It starts the release tree in this process (real SQLite, real identity, the local HTTPS Model
 // gateway of the release-tree scenarios), registers and logs in one person through the `omne` CLI,
 // takes `sessionObservation` from the tree and calls `open` as that person. Every frame is printed
-// with the milliseconds since the frame before it. The refresh policy is a short one, passed in
-// here: interval 1000 ms, backoff 2, at most 4 attempts.
+// with the milliseconds since the frame before it. The refresh policy is passed in here: for
+// `--state` interval 1000 ms, backoff 2, at most 4 attempts; for `--content` interval 4000 ms,
+// backoff 1; for `--abort` the default.
 import { writeJsonText } from '@omne-harness/json-text'
 import type { SessionId } from '@omne-harness/session-contract'
 import type { SessionObservationFrame } from '@omne-harness/session-observation'
@@ -95,22 +97,25 @@ async function stateFrames(): Promise<void> {
 
 /**
  * Block 2: a turn with one tool call. Both Model calls hold their answer after the first piece; the
- * script lets each go once its snapshot is printed. The interval is a minute, so every state frame
- * after the first comes from a commit notice.
+ * script lets each go once its snapshot is printed. A Model call that is accepted but has no stream
+ * yet makes no session commit, so its stream is found at the next interval; the other state frames
+ * come from commit notices, well inside the interval.
  */
+const CONTENT_POLICY = { interval: 4000, backoff: 1 }
+
 async function contentFrames(): Promise<void> {
   const turn = heldToolTurn()
   const options = {
     script: turn.script,
     permission: 'bypass-permissions',
-    observationPolicy: { interval: 60_000 },
+    observationPolicy: CONTENT_POLICY,
   }
   await onReleaseTree(options, async tree => {
     const access = await loginAccess(tree)
     const session = await emptySession(tree)
     const controller = new AbortController()
     const opened = await openObservation(tree, access, session, controller.signal)
-    print(`session ${session}: open -> ${opened.kind}; refresh interval 60000 ms`)
+    print(`session ${session}: open -> ${opened.kind}; policy ${JSON.stringify(CONTENT_POLICY)}`)
     if (opened.kind !== 'opened') return
     let last = performance.now()
     let snapshots = 0
@@ -132,6 +137,11 @@ async function contentFrames(): Promise<void> {
       }
       if (step.value.kind === 'snapshot') {
         snapshots += 1
+        await pollUntil(
+          `Model call ${String(snapshots)} held`,
+          () => Promise.resolve(turn.held()),
+          n => n > 0,
+        )
         print(`(the gateway lets Model call ${String(snapshots)} go)`)
         turn.release()
       }
@@ -143,6 +153,61 @@ async function contentFrames(): Promise<void> {
   })
 }
 
+/**
+ * Block 3: Ctrl-C stops an observation midway. The handler only aborts the observer's signal; the
+ * script never calls `process.exit`. When nothing of the observation is left (no wait, no
+ * subscription, no notice listener), the process ends by itself, and on its way out prints how long
+ * after the abort that was. With `DEMO_CTRL_C_AFTER=<ms>` the script sends itself the same event,
+ * for a run without a keyboard.
+ */
+async function abortMidway(): Promise<void> {
+  const turn = heldToolTurn()
+  const options = { script: turn.script, permission: 'bypass-permissions' }
+  await onReleaseTree(options, async tree => {
+    const access = await loginAccess(tree)
+    const session = await emptySession(tree)
+    const controller = new AbortController()
+    const opened = await openObservation(tree, access, session, controller.signal)
+    if (opened.kind !== 'opened') return
+    await sendInput(tree, session, 'call a tool, then answer')
+    let abortedAt = 0
+    const onCtrlC = (): void => {
+      process.off('SIGINT', onCtrlC)
+      abortedAt = performance.now()
+      print('(Ctrl-C: the observer aborts its signal; the script does not call process.exit)')
+      controller.abort()
+    }
+    process.on('SIGINT', onCtrlC)
+    process.on('exit', () => {
+      print(
+        `the process ends by itself ${String(Math.round(performance.now() - abortedAt))} ms after the abort`,
+      )
+    })
+    const after = Number(process.env['DEMO_CTRL_C_AFTER'] ?? 0)
+    for (;;) {
+      const step = await opened.frames.next()
+      if (step.done === true) {
+        print(`frames end: ${String(step.value)}`)
+        break
+      }
+      print(`frame ${show(step.value)}`)
+      if (step.value.kind === 'snapshot' && abortedAt === 0) {
+        print('(the Model call is held; press Ctrl-C to stop the observation)')
+        if (after > 0) setTimeout(() => process.emit('SIGINT'), after).unref()
+      }
+    }
+    // The observation is gone; let the held Model call go so the turn can end and the tree close.
+    turn.release()
+    await pollUntil(
+      'the turn ends',
+      () => Promise.resolve(turn.held()),
+      n => n > 0,
+    ).catch(() => undefined)
+    turn.release()
+  })
+}
+
 if (process.argv.includes('--state')) await stateFrames()
 else if (process.argv.includes('--content')) await contentFrames()
-else print('usage: node tests/session/observation-demo.ts --state | --content')
+else if (process.argv.includes('--abort')) await abortMidway()
+else print('usage: node tests/session/observation-demo.ts --state | --content | --abort')

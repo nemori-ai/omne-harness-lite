@@ -49,12 +49,15 @@ type Selection =
 /** Frames to send, then, when the observation ends, the reason. */
 type Step = Readonly<{ frames: SessionObservationFrame[]; end?: SessionObservationEnd }>
 
-/** Wakes the loop: stream events are kept in order; a notice only wakes. */
+/** What the loop takes in arrival order: a stream event, or a commit notice. */
+type Entry = StreamEvent | 'notice'
+
+/** Wakes the loop and keeps stream events and notices in the order they came. */
 class Inbox {
-  readonly #events: StreamEvent[] = []
+  readonly #events: Entry[] = []
   #wake: (() => void) | undefined
 
-  push(event: StreamEvent): void {
+  push(event: Entry): void {
     this.#events.push(event)
     this.poke()
   }
@@ -65,7 +68,7 @@ class Inbox {
     wake?.()
   }
 
-  shift(): StreamEvent | undefined {
+  shift(): Entry | undefined {
     return this.#events.shift()
   }
 
@@ -104,7 +107,7 @@ export function createSessionObservation<P>(
         kinds => {
           if (!kinds.some(kind => wakers.has(kind))) return
           locator.note()
-          inbox.poke()
+          inbox.push('notice')
         },
       )
       let closed = false
@@ -299,9 +302,10 @@ export function createSessionObservation<P>(
 
       /** The next step of the loop, or null to look again. */
       async function advance(): Promise<Step | null> {
-        if (locator.take()) return located(await locator.locate(), 'notice')
-        const event = inbox.shift()
-        if (event !== undefined) return streamed(event)
+        const entry = inbox.shift()
+        if (entry === 'notice')
+          return locator.take() ? located(await locator.locate(), 'notice') : null
+        if (entry !== undefined) return streamed(entry)
         if (stream.kind === 'observing') {
           await inbox.idle()
           return null

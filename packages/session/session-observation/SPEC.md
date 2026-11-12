@@ -81,7 +81,7 @@
 
 | 结果 | 流：没有目标 | 流：观察中，或等着重新观察 | 用例名前缀 |
 | --- | --- | --- | --- |
-| 主调用是新的一次，模型给了流 | 发 `state`，订阅；预算归零 | 收掉旧订阅，之后到的旧帧丢掉并记诊断 `observation.late-discarded`；发 `state`，订阅新流；预算归零 | `result, new main call, stream given, no target`；`result, new main call, stream given, has target (不发旧帧, C10b)` |
+| 主调用是新的一次，模型给了流 | 发 `state`，订阅；预算归零 | 通知之前已到的旧流事件先发；收掉旧订阅，之后到的旧帧丢掉并记诊断 `observation.late-discarded`；发 `state`，订阅新流；预算归零 | `result, new main call, stream given, no target`；`result, new main call, stream given, has target (不发旧帧, C10b)`；`result, new main call, stream given, has target: a frame of the old stream that came before the notice is still sent, in order` |
 | 主调用是新的一次，模型没给流 | 发 `state` 与 `refreshing`，计一次尝试，开始等间隔。第一次定位除外：只在字段有变化时发 `state`，不发 `refreshing`，不计尝试。不论间隔还是通知引起都一样 | 先收掉旧目标，再同左（目标变成没有） | `result, new main call, no stream, no target`；`result, new main call, no stream, has target (不停在旧的调用上, C10b)` |
 | 主调用没换，模型给了新的流 | 发 `state`，订阅；预算归零 | 不可达：有目标而且主调用没换时不问模型 | `result, same main call, new stream, no target` |
 | 主调用没换，模型没给流；或日志里还没有主调用 | 字段有变化就发 `state`。间隔引起的再发 `refreshing`、计一次尝试、按退避等下一档；通知引起的不发、不计，按现在这一档重新等 | 流不动；字段有变化就发 `state` | `result, no target, nothing new`；`result, has target, nothing new`；`result, same main call, the same closed stream` |
@@ -161,7 +161,7 @@
 - 判断依据是种类集合：固定的三种 `call.bound`、`run.started`、`run.terminal`，加上端口 `historyKinds`。通知里的种类和这个集合没有交集的，不理会。
 - `historyKinds` 由装配传入，和读历史用的是同一个来源，这样「读历史给什么」和「什么通知算有新内容」只有一个来源。服务端应用用 `apps/harness-server/src/local/operator-defaults.ts` 的 `LOCAL_HISTORY_KINDS` 填它。提案正文写的「八种」与代码不一致，以代码为准。
 - 通知只是叫醒，不是事实的来源。漏掉、重复、合并都不改变结果，漏掉的由按间隔的刷新补上。
-- 通知随时立起标记，并取消正在进行的等待。每次定位结束后先看标记；标记立着就放下它并立刻再定位一次。这保证不丢唤醒：一条种类有交集的通知到达之后，总有一次在它之后才开始的定位。
+- 通知随时立起标记，在收件箱里排一项，并取消正在进行的等待。收件箱按到达的次序处理；轮到通知那一项时，标记立着就放下它并定位一次，不等间隔。通知之前已经到达的流事件先处理，所以它们不会因为这次定位换了目标而被当成迟到帧丢掉（用例 `result, new main call, stream given, has target: a frame of the old stream that came before the notice is still sent, in order`）。这保证不丢唤醒：一条种类有交集的通知到达之后，总有一次在它之后才开始的定位。
 - 薄适配在 `./cordis`：一棵树只挂一个 `session-cordis-contract/committed` 监听者，按租户和会话过滤后分发给各次观察。见 [docs/cordis.md](docs/cordis.md)。
 
 ### 现行限制

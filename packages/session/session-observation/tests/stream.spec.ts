@@ -125,6 +125,20 @@ describe('the result table with the Model (C9b)', () => {
     stop()
   })
 
+  it('result, new main call, stream given, has target: a frame of the old stream that came before the notice is still sent, in order', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.model.stream('s1').push(delta('s1', 2))
+    await settle()
+    w.log.append(mainCall('m-2'))
+    w.model.answer('m-2', stream('s2'))
+    w.notices.commit('call.bound')
+    await settle()
+    expect(kinds(await drain(frames, 3))).toEqual(['delta', 'state'])
+    expect(w.model.stream('s1').signal.aborted).toBe(true)
+    stop()
+  })
+
   it('result, new main call, no stream, has target (不停在旧的调用上, C10b): the old target goes; state and refreshing', async () => {
     const w = world(new FakeLog())
     const frames = await observing(w)
