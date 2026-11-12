@@ -1,6 +1,6 @@
 # 接入登记表与可用性的有限行为模型
 
-本页维护两个 TLA+ 模型的范围、性质、负控、前提与运行命令。设计依据是 [RFC-0015](../../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md)。模型先于实现：下面「模型与设计步骤的对应」的右栏写的是设计里的步骤，成员实现这些步骤之后，右栏改成文件与函数。
+本页维护三个 TLA+ 模型的范围、性质、负控、前提与运行命令。前两个是接入层的。第三个是会话观察的：会话观察的成员还没有建，它的刷新策略现在写在本成员的规格里，所以模型先放在这里，成员建成时随刷新策略一起搬过去。设计依据是 [RFC-0015](../../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md)。模型先于实现：下面「模型与设计步骤的对应」的右栏写的是设计里的步骤，成员实现这些步骤之后，右栏改成文件与函数。
 
 模型通过只说明下面的有界实例和前提之内没有这一类缺陷。它不证明实现符合，也不证明更大的规模下成立。实现符合由[契约测试](#证明转契约测试)在真实的登记表、管道与观察中枢上验证。
 
@@ -68,9 +68,48 @@
 | 积压满了丢最旧的一帧，不改发快照 | [avail-dropOldest.cfg](avail-dropOldest.cfg)：`DeltaBaseMatches`。[avail-dropOldest-nodelta.cfg](avail-dropOldest-nodelta.cfg)：`ViewIsTruePast` |
 | 重连时不发快照 | [avail-staleOnReconnect.cfg](avail-staleOnReconnect.cfg)：`DeltaBaseMatches`。[avail-staleOnReconnect-nodelta.cfg](avail-staleOnReconnect-nodelta.cfg)：`ViewIsTruePast` |
 
+## 会话观察的定位与流模型
+
+[SessionObservation.tla](SessionObservation.tla) 检查会话观察的两条轴：定位（看哪一次主调用）和流（那次调用的流现在怎样）。它问的是：提交、通知送达、按间隔刷新、一次定位、模型发布或撤回流、帧送达、流结束或中断以任何顺序交错时，观察者会不会漏掉一次提交、会不会把旧目标的帧发出去、会不会停在旧的调用上。
+
+有界范围：最多 3 次提交，每次提交可以带来一次新的主调用；最多订阅 3 次。
+
+| 模型里的东西 | 含义 |
+| --- | --- |
+| `logRev`、`logMain` | 会话日志的修订号；日志里最近一次主调用 |
+| `notices` | 已经发出、还没送达的通知数。通知在提交的同一步发出 |
+| `loc`：`idle`、`busy`；`flag` | 定位这条轴；「有新提交待看」的标记 |
+| `readRev`、`readMain` | 进行中的这次定位读到的日志。它是定位开始时的日志 |
+| `knownRev` | 观察者已经看到的修订号，也就是状态帧里的修订号 |
+| `str`：`none`、`observing`、`rewait`；`target`；`sub` | 流这条轴；现在观察的主调用；现在这份订阅的编号 |
+| `published` | 模型现在给出流的调用。发布和撤回是模型自己的事，随时可以发生 |
+| `inFlight`、`stale` | 已产出还没送达的帧属于哪份订阅；发出过不属于现在这份订阅的帧 |
+
+| 性质 | 说的是什么 |
+| --- | --- |
+| `QuiescentIsCurrent` | 不丢唤醒。定位空闲、没有在途的通知、标记没立着时，观察者看到的修订号就是日志的修订号 |
+| `TargetIsLatest` | 不停在旧的调用上。同样安静下来时，目标要么没有，要么是日志里最近的主调用 |
+| `NoStaleFrame` | 旧目标或旧订阅的帧不发出去 |
+| `AxesAgree` | 两条轴对得上：没有目标当且仅当流那条轴在 `none` |
+| `EventuallyCurrent` | 提交停下之后，观察者最终看到最新的修订号，并一直保持 |
+
+安全配置 [obs-correct.cfg](obs-correct.cfg)：53,162 个不同的状态，没有发现错误。
+
+| 改坏了什么 | 负控与它必须失败的性质 |
+| --- | --- |
+| 定位进行中来的通知不记下 | [obs-dropWhileBusy.cfg](obs-dropWhileBusy.cfg)：`QuiescentIsCurrent` |
+| 迟到的旧帧不丢掉 | [obs-noDiscard.cfg](obs-noDiscard.cfg)：`NoStaleFrame` |
+| 主调用换了、模型没给新的流时，留着旧目标 | [obs-keepOldTarget.cfg](obs-keepOldTarget.cfg)：`TargetIsLatest` |
+
+这个模型的前提与没有建模的：
+
+- 通知不丢。通知丢了由按间隔的刷新补上；流还在的时候不按间隔刷新，所以丢了的那次提交要等到流结束后的那次定位才看到。这是设计接受的：通知只是叫醒，已提交的内容由读历史给。
+- 一次定位用的是它开始时的日志。实现里读日志发生在定位当中，只会读到更新的，不会更旧。
+- 没有建模：次数与累计时长的上界、时钟、取消与撤权。取消与撤权对会话观察只是中止。
+
 ## 模型给实现的两条硬要求
 
-两个模型里各有一处必须是一步。分成两步，对应的负控就命中：
+前两个模型里各有一处必须是一步。分成两步，对应的负控就命中：
 
 1. 查登记表和把调用登记成在途，中间不能让出执行权。分成两步，撤下的中止可能漏掉一个刚查完表的调用。
 2. 读登记表得到快照和把订阅者登记上，中间不能让出执行权。分成两步，中间那次变化的帧就丢了。
@@ -97,6 +136,10 @@
 | 可用性模型：写一帧、应用一帧 | 观察中枢给一个订阅者写可用性的帧；客户端的连接核对基础修订号之后应用 |
 | 可用性模型：断线、重连 | 连接断开；客户端重新建立可用性观察，第一帧是快照 |
 | 可用性模型：丢积压 | 观察中枢里这个订阅者的帧队列满了，清空队列，改发一帧快照 |
+| 会话观察模型：通知送达 | 会话观察收到「这个会话有新的提交」。定位空闲就开始定位，进行中就立起标记 |
+| 会话观察模型：一次定位结束 | 读日志得到修订号与最近的主调用；没有目标或主调用换了才向模型取流；标记立着就立刻再定位一次 |
+| 会话观察模型：帧送达 | 流的订阅收到一帧。不属于现在这份订阅的丢掉 |
+| 会话观察模型：流结束、中断、重新订阅 | 刷新策略的第 3 种与第 4 种触发 |
 
 ## 证明转契约测试
 
@@ -114,6 +157,9 @@
 | I-6 积压满了改发快照 | 订阅者不读，登记表连续变化超过积压上限，订阅者恢复读取后得到一帧快照，集合等于登记表 | 积压满了丢最旧的一帧 |
 | I-6 重连得到快照 | 断线期间登记表变化，重连后第一帧是快照，集合等于登记表 | 重连后只发后续的变化帧 |
 | I-6 帧不错位 | 客户端收到基础对不上的变化帧时不应用，改为重新订阅 | 客户端不核对修订号就应用 |
+| 会话观察不丢唤醒 | 一次定位读完日志、还没结束时，提交一次并送达通知。不等间隔，观察者发出带新修订号的状态帧 | 定位进行中来的通知不记下 |
+| 会话观察不发旧帧 | 换目标之后让旧订阅再交来一帧，这一帧不出现在帧序列里 | 换目标时不收掉旧订阅，或不核对帧属于哪份订阅 |
+| 会话观察不停在旧的调用上 | 观察中出现新的主调用登记而模型还没给它的流，观察者收掉旧目标，发状态帧与 `refreshing` | 主调用换了仍留着旧目标 |
 
 最后一行是模型之外加的一道防线：模型说明服务端不会发出错位的帧，客户端仍然核对一次。
 
@@ -129,6 +175,9 @@ done
 for c in avail-correct avail-nonAtomicSubscribe avail-nonAtomicSubscribe-nodelta avail-nonAtomicSubscribe-liveonly avail-dropOldest avail-dropOldest-nodelta avail-staleOnReconnect avail-staleOnReconnect-nodelta; do
   java -cp "$TLA2TOOLS_JAR" tlc2.TLC -workers 4 -metadir "tmp/tlc-$c" -config "$M/$c.cfg" "$M/Availability.tla"
 done
+for c in obs-correct obs-dropWhileBusy obs-noDiscard obs-keepOldTarget; do
+  java -cp "$TLA2TOOLS_JAR" tlc2.TLC -workers 4 -metadir "tmp/tlc-$c" -config "$M/$c.cfg" "$M/SessionObservation.tla"
+done
 ```
 
-两份安全配置必须无错误退出。负控必须命中上表写的那条性质：命中不变量时退出码是 12，命中进展性质时退出码是 13。配置里关闭了死锁检查，因为全部调用答复之后没有后续动作，这是预期的终态。
+三份安全配置（`reg-correct`、`avail-correct`、`obs-correct`）必须无错误退出。负控必须命中上表写的那条性质：命中不变量时退出码是 12，命中进展性质时退出码是 13。配置里关闭了死锁检查，因为全部调用答复之后没有后续动作，这是预期的终态。
