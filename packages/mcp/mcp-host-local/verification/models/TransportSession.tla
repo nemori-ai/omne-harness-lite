@@ -25,8 +25,8 @@
 (* when the line's `close` answers (`LineClosed`).                          *)
 (*                                                                          *)
 (* The line can go away under the session (the session is then dead):      *)
-(* `LineGone` is a broken stream, an exited process or the end of the      *)
-(* shared stream of the old HTTP+SSE mode; `SessionEnded(r)` is the peer's  *)
+(* `LineGone` is a broken stream or the end of the shared stream of the    *)
+(* old HTTP+SSE mode; `SessionEnded(r)` is the peer's                       *)
 (* 404 to a request that carries an old session (T8 S07). Both settle, by  *)
 (* the phase rule of the signal and close(), only the entries whose fate    *)
 (* depends on the line: authorizing -> notSent; handed to the line ->       *)
@@ -80,7 +80,7 @@ VARIABLES
   credAtClose, \* the value of `cred` when close() was called
   closed,      \* close() was called
   closeDone,   \* close() returned
-  gone,        \* the line went away: broken stream, exited process, end of the SSE stream
+  gone,        \* the line went away: broken stream, end of the SSE stream
   ended,       \* the peer ended the old session (T8 S07)
   deadAt,      \* [Reqs -> cut]: the phase the last disconnect found the entry in flight at
   deadBy,      \* [Reqs -> cause]: which disconnect that was: none, gone, ended
@@ -343,8 +343,8 @@ DeadSettles(own, cut, cause, sentAnswer) ==
   /\ sendsAtDead' = IF Dead THEN sendsAtDead ELSE sends
   /\ authAtDead' = IF Dead THEN authAtDead ELSE cred.auth
 
-(* The line went away: a broken stream, an exited process, or the end of the    *)
-(* shared stream of the old HTTP+SSE mode (T8 S01-S04, the SSE mode). In the   *)
+(* The line went away: a broken stream, or the end of the shared stream of the  *)
+(* old HTTP+SSE mode (T8 S01-S04, the SSE mode). In the                        *)
 (* same step, authorizing -> notSent and handed to the line -> broken (no-answer *)
 (* with the cause, never sent again). A discovering entry is not touched. The    *)
 (* handle may hang on.                                                           *)
