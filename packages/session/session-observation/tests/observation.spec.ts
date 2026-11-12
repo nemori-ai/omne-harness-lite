@@ -384,6 +384,15 @@ describe('the locate axis (C9a)', () => {
     expect(w.notices.active).toBe(0)
   })
 
+  it('result, any other failure of the log, a quarantined session: ends with unavailable', async () => {
+    const log = new FakeLog(started('run_1'))
+    log.failures.since = [{ kind: 'quarantined', diagnostic: 'held' }]
+    const w = world(log)
+    const frames = await open(w)
+    await frame(frames)
+    expect(await afterInterval(w, frames)).toEqual({ done: true, value: 'unavailable' })
+  })
+
   it('result, another invalid answer: ends with unavailable', async () => {
     const log = new FakeLog(started('run_1'))
     log.failures.since = [{ kind: 'invalid', field: 'from', reason: 'expired' }]
