@@ -7,7 +7,7 @@
 // judges them. The probes live in this directory and in the assembly; no member source changes.
 //
 //   node apps/harness-server/tests/long-session/run.ts --out <new directory> [--rounds 200]
-//     [--control growth]
+//     [--control growth] [--heap-snapshots 10,30]
 //
 // Build the workspace first (`pnpm run build`). `--control growth` is the negative control: every
 // round the Shell sleeps 2 ms longer, the process keeps 1 MiB more, and the data directory gets a
@@ -15,7 +15,8 @@
 // line per round), `storage-<round>.json`, `visible-<round>.json` and `polling-<round>.json` every
 // ten rounds, `run.json`, then `summary.json` and `summary.md` from `judge.ts`. Exits 0 when the
 // run completed, whatever the gates say, and 1 when it failed: most gates have no line yet, so
-// they are reported, not enforced.
+// they are reported, not enforced. `--heap-snapshots` writes `heap-<round>.heapsnapshot` after the
+// listed rounds; a snapshot pauses the process, so a run with snapshots is not a baseline.
 //
 // Counting: a round's phase lasts from its input until `SETTLE_MS` after its terminal, so the work
 // that ends after the terminal (releases, settlements) counts in the round that caused it. The run
@@ -37,6 +38,7 @@ import { arch, cpus, freemem, loadavg, platform, release, totalmem } from 'node:
 import { join, resolve } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
+import { writeHeapSnapshot } from 'node:v8'
 import {
   createHttpTransport,
   createSessionClient,
@@ -67,6 +69,7 @@ const { values: args } = parseArgs({
     out: { type: 'string' },
     rounds: { type: 'string', default: '200' },
     control: { type: 'string' },
+    'heap-snapshots': { type: 'string' },
   },
 })
 if (args.out === undefined) throw new Error('give --out <new directory>')
@@ -77,6 +80,13 @@ const rounds = Number(args.rounds)
 if (!Number.isSafeInteger(rounds) || rounds < 1)
   throw new Error('--rounds must be a positive integer')
 const control = args.control ?? null
+/** Rounds after which to write a V8 heap snapshot, to tell which objects hold the growing heap. */
+const heapSnapshotRounds = new Set(
+  (args['heap-snapshots'] ?? '')
+    .split(',')
+    .filter(value => value !== '')
+    .map(Number),
+)
 if (control !== null && control !== 'growth') throw new Error('--control takes only growth')
 
 type Segment = Readonly<{ owner: string; name: string; endMs: number; durationMs: number }>
@@ -387,6 +397,8 @@ try {
     if (round % 10 === 0 || round === rounds) perPoll = await calibrateAndSnapshot(round)
     count.setPhase(BETWEEN)
     writeRound(row, perPoll)
+    if (heapSnapshotRounds.has(round))
+      writeHeapSnapshot(join(out, `heap-${String(round)}.heapsnapshot`))
   }
   outcome = { ok: true }
 } catch (error) {
