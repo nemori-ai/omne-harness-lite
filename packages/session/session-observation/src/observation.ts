@@ -313,10 +313,6 @@ export function createSessionObservation<P>(
         if (budget.exhausted()) return { frames: [], end: 'refresh-exhausted' }
         if ((await timed(budget.delay(), inbox.idle())) !== 'elapsed') return null
         budget.waited()
-        if (locator.take()) {
-          locator.note()
-          return null
-        }
         if (stream.kind === 'reobserve') {
           subscribe(stream.target)
           return null

@@ -100,6 +100,8 @@ describe('the result table with the Model (C9b)', () => {
     await observing(w)
     expect(w.model.asked).toEqual(['m-1'])
     expect(w.model.open).toBe(1)
+    const viewer = { principal: 'person', tenant: 'tenant-a' }
+    expect(w.model.accesses).toEqual([viewer, viewer])
     stop()
   })
 
@@ -203,6 +205,7 @@ describe('the result table with the Model (C9b)', () => {
     expect(await take(frames)).toMatchObject({ value: { kind: 'state', revision: '3' } })
     expect(w.model.open).toBe(1)
     expect(w.model.asked).toEqual(['m-1'])
+    expect(w.diagnostics).toEqual([])
     stop()
   })
 
@@ -214,6 +217,40 @@ describe('the result table with the Model (C9b)', () => {
     expect(await drain(frames, 2)).toEqual([])
     expect(w.model.open).toBe(1)
     expect(w.diagnostics).toContainEqual({ code: 'observation.locate-transient', detail: 'm-1' })
+    stop()
+  })
+
+  it('result, has target, its own cursor invalid: the stream stays; a diagnostic', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.log.failures.since = [{ kind: 'invalid', field: 'from', reason: 'expired' }]
+    w.notices.commit('message.user')
+    expect(await drain(frames, 2)).toEqual([])
+    expect(w.model.open).toBe(1)
+    expect(w.diagnostics).toContainEqual({ code: 'observation.locate-transient', detail: 'm-1' })
+    stop()
+  })
+
+  it('result, new main call, stream given, no target, after refreshes: the budget starts over', async () => {
+    const log = new FakeLog(started('run_1'), mainCall('m-1'))
+    const w = world(log, { interval: 1000, backoff: 2 })
+    const frames = await open(w)
+    await take(frames)
+    for (let i = 0; i < 2; i++) {
+      const step = take(frames)
+      await settle()
+      w.clock.elapse()
+      expect(await step).toMatchObject({ value: { kind: 'refreshing' } })
+    }
+    w.model.answer('m-1', stream('s1'))
+    const subscribed = take(frames)
+    await settle()
+    w.clock.elapse()
+    expect(await subscribed).toMatchObject({ value: { kind: 'state' } })
+    w.model.stream('s1').push({ kind: 'ended', reason: 'producer-ended', value: null })
+    await drain(frames, 3)
+    // The waits of the refresh budget, without the `currentTimeout` of each question to the Model.
+    expect(w.clock.waits.filter(ms => ms !== 5000)).toEqual([1000, 2000, 4000, 2000])
     stop()
   })
 
@@ -318,6 +355,20 @@ describe('the stream axis (C9b)', () => {
     w.clock.elapse()
     await settle()
     expect(w.model.streams.map(s => s.ref)).toEqual(['s1', 's1'])
+    stop()
+  })
+
+  it('stream, waiting to observe again, a notice with nothing new: the target stays, the Model is not asked', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.model.stream('s1').push({ kind: 'ended', reason: 'capacity' })
+    expect(kinds(await drain(frames, 2))).toEqual(['refreshing'])
+    w.log.append(message('hi'))
+    w.notices.commit('message.user')
+    expect(await take(frames)).toMatchObject({
+      value: { kind: 'state', target: { projection: 'model-output-v1' } },
+    })
+    expect(w.model.asked).toEqual(['m-1'])
     stop()
   })
 

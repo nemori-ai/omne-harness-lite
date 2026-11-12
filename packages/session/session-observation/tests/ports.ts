@@ -60,6 +60,20 @@ export const mainCall = (reference: string) => ({
   },
 })
 export const message = (text: string) => ({ kind: 'message.user', payload: { text } })
+/** A call registration that is not the main call: a tool call, or a Model call for another purpose. */
+export const otherCall = (kind: 'model' | 'tool', reference: string | null, purpose: string) => ({
+  kind: 'call.bound',
+  payload: {
+    kind,
+    consumption: 'c',
+    registration: {
+      kind: reference === null ? 'unassociated' : 'associated',
+      binding: { producer: { kind, call: reference } },
+      purpose,
+    },
+    association: null,
+  },
+})
 
 type Planned = Readonly<{ kind: string; payload: unknown }>
 type Call = Readonly<{ face: 'begin' | 'next' | 'since'; input: Readonly<Record<string, unknown>> }>
@@ -219,9 +233,12 @@ export class FakeClock {
 export class FakeNotices {
   readonly #listeners = new Set<(kinds: readonly string[]) => void>()
   subscriptions = 0
+  /** The tenant and session of each subscription. */
+  readonly targets: unknown[] = []
 
-  port: SessionObservationPorts<string>['notices'] = (_target, onCommit) => {
+  port: SessionObservationPorts<string>['notices'] = (target, onCommit) => {
     this.subscriptions += 1
+    this.targets.push(target)
     this.#listeners.add(onCommit)
     return () => {
       this.#listeners.delete(onCommit)
@@ -298,6 +315,8 @@ export class FakeStream {
 export class FakeModel {
   readonly answers = new Map<string, ModelAnswer[]>()
   readonly asked: string[] = []
+  /** The access of each call to `current` and `observe`, in order. */
+  readonly accesses: unknown[] = []
   readonly streams: FakeStream[] = []
   fallback: ModelAnswer = { ok: { state: { phase: 'accepted' }, current: null } }
 
@@ -322,6 +341,7 @@ export class FakeModel {
         current: input => {
           const reference = String(input.reference)
           this.asked.push(reference)
+          this.accesses.push(input.access)
           const answer = this.answers.get(reference)?.shift() ?? this.fallback
           if (answer === 'hang') return new Promise(() => undefined)
           return Promise.resolve(answer as never)
@@ -329,6 +349,7 @@ export class FakeModel {
       },
       observer: {
         observe: input => {
+          this.accesses.push(input.access)
           const stream = new FakeStream(String(input.ref), input.signal)
           this.streams.push(stream)
           return stream.frames()

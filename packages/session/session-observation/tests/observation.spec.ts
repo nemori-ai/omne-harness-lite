@@ -13,6 +13,7 @@ import {
   ended,
   mainCall,
   message,
+  otherCall,
   settle,
   started,
   world,
@@ -42,6 +43,12 @@ async function afterInterval(w: World, frames: Frames) {
 }
 
 describe('the domain face (C8)', () => {
+  it('open subscribes to the commit notices of this tenant and this session only', async () => {
+    const w = world(new FakeLog(started('run_1')))
+    await frame(await open(w))
+    expect(w.notices.targets).toEqual([{ tenant: 'tenant-a', session: 'session-1' }])
+  })
+
   it('open: a readable log opens, and the first frame is state', async () => {
     const w = world(new FakeLog(started('run_1'), message('hi')))
     const frames = await open(w)
@@ -113,6 +120,17 @@ describe('the run in progress (C6)', () => {
     const w = world(new FakeLog(started('run_1'), message('a'), ended('run_1')))
     expect(await frame(await open(w))).toMatchObject({ run: null })
   })
+
+  it('reading forward, a run that starts after the first locate is in progress', async () => {
+    const log = new FakeLog(started('run_0'), ended('run_0'))
+    const w = world(log)
+    const frames = await open(w)
+    expect(await frame(frames)).toMatchObject({ run: null })
+    log.append(started('run_1'))
+    w.notices.commit('run.started')
+    expect(await frame(frames)).toMatchObject({ run: 'run_1' })
+    expect(log.calls.map(call => call.face)).toEqual(['begin', 'since'])
+  })
 })
 
 describe('the locate axis (C9a)', () => {
@@ -150,6 +168,7 @@ describe('the locate axis (C9a)', () => {
     const after = frames.next()
     await settle()
     expect(w.clock.waits).toEqual([1000, 1000])
+    expect(w.clock.pending).toBe(1)
     w.clock.elapse()
     expect((await after).value).toEqual({ kind: 'refreshing' })
   })
@@ -205,6 +224,77 @@ describe('the locate axis (C9a)', () => {
     expect((await afterInterval(w, frames)).value).toEqual({ kind: 'refreshing' })
     log.append(ended('run_1'))
     expect((await afterInterval(w, frames)).value).toMatchObject({ kind: 'state', run: null })
+  })
+
+  it('locate, the main call is the Model call for main: a tool call, a compaction call and an unassociated tool after it leave it', async () => {
+    const log = new FakeLog(started('run_1'), mainCall('m-1'), otherCall('tool', 't-0', 'action'))
+    const w = world(log)
+    const frames = await open(w)
+    await frame(frames)
+    log.append(
+      otherCall('tool', 't-1', 'action'),
+      otherCall('model', 'm-c', 'compaction'),
+      otherCall('tool', null, 'action'),
+    )
+    w.notices.commit('call.bound')
+    expect(await frame(frames)).toMatchObject({ kind: 'state', revision: '6' })
+    expect(w.model.asked).toEqual(['m-1', 'm-1'])
+    expect(await Promise.race([frames.next(), settle().then(() => 'nothing more')])).toBe(
+      'nothing more',
+    )
+  })
+
+  it('notice-idle, kinds mixed: a notice with one kind of the set among others locates', async () => {
+    const log = new FakeLog(started('run_1'))
+    const w = world(log)
+    const frames = await open(w)
+    await frame(frames)
+    log.append(message('hi'))
+    w.notices.commit('session.todo', 'message.user')
+    expect(await frame(frames)).toMatchObject({ kind: 'state', revision: '2' })
+  })
+
+  it('locate, reading backward goes on to the next page until it has the run and the main call, then stops', async () => {
+    const log = new FakeLog(
+      started('run_0'),
+      ended('run_0'),
+      started('run_1'),
+      mainCall('m-1'),
+      otherCall('tool', 't-1', 'action'),
+      otherCall('tool', 't-2', 'action'),
+    )
+    const w = world(log)
+    expect(await frame(await open(w))).toMatchObject({ run: 'run_1' })
+    expect(w.model.asked).toEqual(['m-1'])
+    expect(log.calls.map(call => call.face)).toEqual(['begin', 'next'])
+  })
+
+  it('locate, reading backward stops at the page limit', async () => {
+    const log = new FakeLog(
+      started('run_1'),
+      otherCall('tool', 't-1', 'action'),
+      otherCall('tool', 't-2', 'action'),
+      otherCall('tool', 't-3', 'action'),
+    )
+    log.pageSize = 1
+    const w = world(log, {}, 2)
+    expect(await frame(await open(w))).toMatchObject({ run: null })
+    expect(log.calls.map(call => call.face)).toEqual(['begin', 'next'])
+  })
+
+  it('locate, reading forward goes on to the next page until the log is done', async () => {
+    const log = new FakeLog(started('run_1'))
+    const w = world(log)
+    const frames = await open(w)
+    expect(await frame(frames)).toMatchObject({ run: 'run_1' })
+    log.append(
+      otherCall('tool', 't-1', 'action'),
+      otherCall('tool', 't-2', 'action'),
+      ended('run_1'),
+    )
+    w.notices.commit('run.terminal')
+    expect(await frame(frames)).toMatchObject({ run: null })
+    expect(log.calls.map(call => call.face)).toEqual(['begin', 'since', 'next'])
   })
 
   it('result, pages full before finding: what was read stands, the rest counts as not found', async () => {

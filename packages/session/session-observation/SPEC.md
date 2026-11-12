@@ -84,8 +84,8 @@
 | 主调用是新的一次，模型给了流 | 发 `state`，订阅；预算归零 | 通知之前已到的旧流事件先发；收掉旧订阅，之后到的旧帧丢掉并记诊断 `observation.late-discarded`；发 `state`，订阅新流；预算归零 | `result, new main call, stream given, no target`；`result, new main call, stream given, has target (不发旧帧, C10b)`；`result, new main call, stream given, has target: a frame of the old stream that came before the notice is still sent, in order` |
 | 主调用是新的一次，模型没给流 | 发 `state` 与 `refreshing`，计一次尝试，开始等间隔。第一次定位除外：只在字段有变化时发 `state`，不发 `refreshing`，不计尝试。不论间隔还是通知引起都一样 | 先收掉旧目标，再同左（目标变成没有） | `result, new main call, no stream, no target`；`result, new main call, no stream, has target (不停在旧的调用上, C10b)` |
 | 主调用没换，模型给了新的流 | 发 `state`，订阅；预算归零 | 不可达：有目标而且主调用没换时不问模型 | `result, same main call, new stream, no target` |
-| 主调用没换，模型没给流；或日志里还没有主调用 | 字段有变化就发 `state`。间隔引起的再发 `refreshing`、计一次尝试、按退避等下一档；通知引起的不发、不计，按现在这一档重新等 | 流不动；字段有变化就发 `state` | `result, no target, nothing new`；`result, has target, nothing new`；`result, same main call, the same closed stream` |
-| 读日志暂时不可得 | 当作没有新内容，同上一行 | 流不动，记诊断 `observation.locate-transient` | `result, log not available`；`result, has target, log not available` |
+| 主调用没换，模型没给流；或日志里还没有主调用 | 字段有变化就发 `state`。间隔引起的再发 `refreshing`、计一次尝试、按退避等下一档；通知引起的不发、不计，按现在这一档重新等 | 流不动；字段有变化就发 `state` | `result, no target, nothing new`；`result, has target, nothing new`；`result, same main call, the same closed stream`；`stream, waiting to observe again, a notice with nothing new`；`locate, the main call is the Model call for main` |
+| 读日志暂时不可得 | 当作没有新内容，同上一行 | 流不动，记诊断 `observation.locate-transient` | `result, log not available`；`result, has target, log not available`；`result, has target, its own cursor invalid` |
 | 翻页读满还没找到 | 已读到的成立，其余当作没找到 | 同左 | `result, pages full before finding` |
 | 取流超过 `currentTimeout` | 当作没有新内容，记诊断 `observation.current-timeout` | 不可达：有目标而且主调用没换时不问；主调用换了时按「没给流」行 | `result, current timeout` |
 | 自己的游标不合法 | 丢掉游标，当作没有新内容，下一次从头反向读 | 同左 | `result, own cursor invalid` |
@@ -111,7 +111,7 @@
 | 刷新的间隔到期 | 归定位那条轴 | 不可达，不写：观察中不计时 | 重新订阅同一个目标，不重新定位 | `stream, observing, the subscription broke (capacity)` |
 | 次数或累计时长用完 | 结束，原因 `refresh-exhausted` | 不可达，不写 | 结束，原因 `refresh-exhausted` | `stream, waiting to observe again, attempts used up` |
 
-另有收场、预算与领域面的用例，不对应提案的格子：`an abort ...`、`an observer that stops reading ...`（[中止](#中止)），以及 `tests/stream.spec.ts` 里的 `an abort while the observer holds a frame ...` 两条和 `drops the subscription, the notice and the waits ...`（流这一半的中止）；`interval-driven locates back off ...`、`maxAttempts ...`、`the accumulated waiting ...`、`an interval below the floor ...`、`without notices ...`（[刷新的预算](#刷新的预算)）；`open: ...`（[领域面](#领域面)）；`a run that started ...`、`a terminal of another run ...`、`reading backward, a run ...`（「一轮在进行」）。
+另有收场、预算与领域面的用例，不对应提案的格子：`an abort ...`、`an observer that stops reading ...`（[中止](#中止)），以及 `tests/stream.spec.ts` 里的 `an abort while the observer holds a frame ...` 两条和 `drops the subscription, the notice and the waits ...`（流这一半的中止）；`interval-driven locates back off ...`、`maxAttempts ...`、`the accumulated waiting ...`、`an interval below the floor ...`、`without notices ...`（[刷新的预算](#刷新的预算)）；`open: ...`、`open subscribes to the commit notices ...`（[领域面](#领域面)）；`a run that started ...`、`a terminal of another run ...`、`reading backward, a run ...`、`reading forward, a run ...`（「一轮在进行」）；`locate, reading backward ...` 两条、`locate, reading forward ...`（[定位的读法](#定位的读法)）；`notice-idle, kinds mixed ...`（通知的种类）；`result, new main call, stream given, no target, after refreshes ...`（取得新目标时预算归零）。
 
 ### 定位的读法
 
