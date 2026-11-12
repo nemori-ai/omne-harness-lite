@@ -403,16 +403,16 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
             id: 'call_old_inline',
             arguments: JSON.stringify({
               command: 'execute',
-              params: { script: 'awk \'BEGIN { for(i=0;i<1536;i++) printf "x" }\'' },
+              params: { script: 'awk \'BEGIN { for(i=0;i<24576;i++) printf "x" }\'' },
             }),
           },
         ]),
         undefined,
         'inline',
-        512,
+        8192,
       )
       expect(resultText(result.entries.find(entry => entry.kind === 'message.tool'))).toContain(
-        'x'.repeat(1536),
+        'x'.repeat(24_576),
       )
       expect(result.entries.at(-1)?.payload['terminal']).toMatchObject({ outcome: 'completed' })
       expect(result.reopenedEntries?.at(-1)?.payload['terminal']).toMatchObject({
