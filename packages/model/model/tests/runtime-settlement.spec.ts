@@ -904,3 +904,21 @@ it('keeps the content barrier through repeated confirmation failures and recover
     await f.dispose()
   }
 })
+
+it('forgets a settled call once the host releases it: the cached outcome goes and no route is published again (#1214)', async () => {
+  const f = runtimeFixture(batching)
+  f.channel(f.admit.call).releaseFails = true
+  try {
+    const first = await finish(f, answer)
+    expect(first).toMatchObject({ failure: { diagnostic: 'resource-release-failed' } })
+    // Until the release a repeated drive hands back the original outcome.
+    expect(await f.drive()).toEqual(first)
+    const publication = f.publications.get(f.admit.call)
+    f.provider.released({ tenant: f.tenant, call: f.admit.call })
+    expect(await f.drive()).toEqual({ ok: undefined })
+    expect(f.publications.get(f.admit.call)).toBe(publication)
+    expect(f.channel(f.admit.call)).toMatchObject({ returns: 1, closes: 1 })
+  } finally {
+    await f.dispose()
+  }
+})

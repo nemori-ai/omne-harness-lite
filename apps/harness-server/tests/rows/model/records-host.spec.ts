@@ -223,7 +223,15 @@ describe('the model-records and model-host rows', () => {
     expect(rowDeclarationOf(modelHostRow)).toMatchObject({
       row: 'model-host',
       implementation: 'real',
-      manifest: { provides: ['modelRuntime', 'modelInstanceHost'], phase: 'business' },
+      manifest: {
+        provides: [
+          'modelRuntime',
+          'modelInstanceHost',
+          'modelStreamReferences',
+          'modelStreamObservation',
+        ],
+        phase: 'business',
+      },
       lifecycle: { kind: 'body', phase: 'business' },
     })
   })

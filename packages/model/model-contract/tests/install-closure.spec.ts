@@ -160,14 +160,9 @@ describe('install-closure CLI guards the work directory', () => {
 
 describe('install-closure CLI does not fall back to the network by itself', () => {
   it('fails the run when --offline fails and --allow-network is absent', () => {
-    // An empty store holds no tarball and no metadata, so `pnpm install --offline` cannot succeed.
-    const store = mkdtempSync(join(temporary, 'empty-store-'))
-    const { status, report } = runCli(builtMember(), [
-      '--work-dir',
-      offlineDirectory,
-      '--store-dir',
-      store,
-    ])
+    // The member declares a package that the workspace did not install. No file pins it, and the
+    // run has no registry metadata of its own, so `pnpm install --offline` cannot resolve it.
+    const { status, report } = runCli(builtMember(), ['--work-dir', offlineDirectory])
     const parsed = report()
     expect(status).toBe(1)
     expect(parsed.ok).toBe(false)

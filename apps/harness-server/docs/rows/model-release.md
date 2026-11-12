@@ -11,8 +11,8 @@
 
 | 行 | 成员工厂 | 行给的对象 | 配置（只放数据，全部由运维者层给，发行层不写数值） |
 | --- | --- | --- | --- |
-| `model-records` | `createSqlModelRecordsPlugin`；行体以子 fiber 装 `createModelSendStagePlugin`，`coordinator` 只经闭包交给它；同一插件体以 `ModelDiagnosticsService` 包装 `createSqlModelDiagnostics`，逐次核资格后提供 `modelDiagnostics` | `authority`、`evidence`、`send.sources`、`initialRun`、`manifestDigest`（本页下文）；发送子插件的路由由发行供应商正文推出（`src/assets/model-providers.ts`），运维者只可按供应商替换端点（`sendStage.endpoints`）；诊断插件取同一个 `storage`、`domains` 与 `authority` | 成员部分 `owners`（`work` 取 `exempt`）、`limits`、`combinationVersion`、`send`；应用部分 `initial`（首次执行记录的三项上限）与 `sendStage`（`maxRetainedAttempts`、`materialization.maxRecords`、`profiles`、`preparation`、`network`、`endpoints`、`transportLimits`）；诊断部分 `diagnostics`（`diagnosticsRead` 只取 `tenant-self`，`retention` 是保留采用，缺席时 `list` 答 `unavailable`） |
-| `model-host` | `createModelRuntimeLocalPlugin` 加 `createModelRuntime` | `executionChannel`、`releaseExecution`、`qualifyObservation`、`send`（按调用现取 `modelSendBoundary`）、`retry`（恒 `unavailable`）、推送账本 | `host` 四项、`runtime` 八项、`results` 五项，行体自校验 |
+| `model-records` | `createSqlModelRecordsPlugin`；行体以子 fiber 装 `createModelSendStagePlugin`，`coordinator` 只经闭包交给它；同一插件体以 `ModelDiagnosticsService` 包装 `createSqlModelDiagnostics`，逐次核资格后提供 `modelDiagnostics` | `authority`、`evidence`、`send.sources`、`initialRun`、`manifestDigest`（本页下文）；发送子插件的路由由发行供应商正文推出（`src/assets/model-providers.ts`），运维者只可按供应商替换端点（`sendStage.endpoints`）；诊断插件取同一个 `storage`、`domains` 与 `authority` | 成员部分 `owners`（`work` 取 `exempt`）、`limits`、`combinationVersion`、`send`；应用部分 `initial`（首次执行记录的三项上限）与 `sendStage`（`maxRetainedAttempts`、`materialization.maxRecords`、`profiles`、`preparation`、`network`、`endpoints`、`transportLimits`）；诊断部分 `diagnostics`（`diagnosticsRead` 只取 `tenant-self`，`retention` 是保留采用，缺席时 `list` 答 `unavailable`）；成员部分 `observation`（确认源的十二个上限，发行要求它在，#1214） |
+| `model-host` | `createModelRuntimeLocalPlugin` 加 `createModelRuntime` | `executionChannel`、`releaseExecution`、`qualifyObservation`、`observation`（同次 `model-records` 激活的观察配对，确认源套着应用准入点，#1214）、`send`（按调用现取 `modelSendBoundary`）、`retry`（恒 `unavailable`）、推送账本 | `host` 四项、`runtime` 八项、`results` 五项，行体自校验 |
 | `model-request-preparation` | `createModelRequestPreparationPlugin` | OpenAI 家族 | `maxCitedCalls`、`openai.limits`、`openai.margin` |
 
 `combinationVersion` 与 `session-storage` 行相等，发行值是 `session-composite/4`（R2-D65 换到 `/2`；Tool B 段并入 `tool` 参加者后换到 `/3`；Agent Journal 事实族加入状态分块与执行事实迁移后换到 `/4`，R2-D342）；两行都用 `compositeManifestDigest(storageCatalog())` 的同一摘要。
@@ -31,7 +31,7 @@
 
 ## 诊断读面 `modelDiagnostics`
 
-`model-records` 行发布 `modelDiagnostics`，读取同一租户域里的调用与派发记录。`modelCommands`、`modelSendBoundary` 与它属于同一提供者组。`diagnosticsRead: tenant-self` 显式采用本租户诊断读取：每次调用先核验主体与当前成员资格，使用 `inspect` 只读动作，返回前再次核验，再释放资格租约；不依赖另一个并发调用留在共享表里的资格。登录主体 L 只得到 `inspect` 和 `read-account`，分别供调用身份/状态与派发账目读取，不能使用旧 `facts`、`account` 写路径。采用依据为 [RFC-0013 revision 2](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#决定范围)。配置 `retention` 缺席时每次 list 答 `unavailable`；阶段计时尚未记录，`timing` 三项为 `unknown`。唯一消费者仍是服务端会话诊断投影。
+`model-records` 行发布 `modelDiagnostics`，读取同一租户域里的调用与派发记录。`modelCommands`、`modelSendBoundary` 与它属于同一提供者组。`diagnosticsRead: tenant-self` 显式采用本租户诊断读取：每次调用先核验主体与当前成员资格，使用 `inspect` 只读动作，返回前再次核验，再释放资格租约；不依赖另一个并发调用留在共享表里的资格。登录主体 L 在诊断这条路上只用 `inspect` 和 `read-account`，分别供调用身份/状态与派发账目读取。采用依据为 [RFC-0013 revision 2](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#决定范围)。配置 `retention` 缺席时每次 list 答 `unavailable`；阶段计时尚未记录，`timing` 三项为 `unknown`。唯一消费者仍是服务端会话诊断投影。
 
 ## 主体类别与 ActorRef
 
@@ -65,12 +65,20 @@
 
 - L 与 W 的受理点是 `model-host` 行交给 runtime 的命令包装（`src/model/commands-qualifying.ts`）：每个方法先核验主体、读 standing、把结果登记在表里，调用真件，finally 释放。捕获只活在这一次调用里。`recall` 与 `dispatches` 另持独立读租约，读前和读后都直接使用本次异步核验结果；共享表只供同步 authority 消费。`qualifyObservation` 保持原路径。
 - M 的受理点是 `resolve`。登记项随 `model-host` 行的 fiber 退役失效（`currentForReader` 的代次闭包）。
-- `authorize` 查表：未捕获资格答 `unavailable`；核验拒绝、非成员、租户不符或装配退役答 `denied`，核验或 standing 不可用答 `unavailable`。原九动作矩阵保持：`admit`、`control` 只 W；`facts`、`content`、`handoff`、`account`、`observe` 为 W/M；`recovery`、`send` 只 M。新只读动作 `inspect`、`read-account` 为 L/W/M；M 仍限原绑定调用，租户级 recovery 不支持。
+- `authorize` 查表：未捕获资格答 `unavailable`；核验拒绝、非成员、租户不符或装配退役答 `denied`，核验或 standing 不可用答 `unavailable`。矩阵：`admit`、`control` 只 W；`content`、`handoff`、`account` 为 W/M；`recovery`、`send` 只 M；只读动作 `inspect`、`read-account`、`facts`、`observe` 为 L/W/M。L 的 `facts` 与 `observe` 由 #1214 放行（RFC-0015 §8：登录的人读自己租户里调用的流）：`facts` 管取当前的流、按操作认回与重放已受理的准入，三者都只读已有调用，不能新建调用；`observe` 管订阅。与此前相比只差这两格，`tests/model/qualification.spec.ts` 把整张表与期望值比较。M 仍限原绑定调用，租户级 recovery 不支持。
 - `current(demand)`：`demand.principal` 是登记过的 M、租户与调用相等、宿主 fiber 未退役时 `authorized: true`。发送来源都是官方来源（`official: true`），所以准备选定的官方层可以发送；层本身由准备选定，见[模型凭据](#模型凭据)。
 
+
+### 模型的公共流（#1214）
+
+正式装配发布 `modelStreamReferences` 与 `modelStreamObservation`。确认源由 `model-records` 行从同次激活取得（`observation` 限额来自运维者层，计时用进程的单调时钟），经组合交给 `model-host` 行，宿主插件在 bind 之后发布这两个服务。
+
+- **准入点。** 确认源每次检查都同步问 `authorize`，而它只认已捕获的主体。所以组合把确认源包一层（`src/model/observation.ts`）：`current` 在一次捕获里运行；一段观察握着捕获，并按确认源的检查间隔（`observation.checkIntervalMs`）重新准入，新捕获成立后才放旧的；重新准入失败时放掉全部捕获，确认源下一次检查答 `unavailable`、结束观察。观察结束、`return` 或中止只放本次观察自己的捕获，模型调用不受影响。`commands` 不包，宿主拿它与注入的 `modelCommands` 原体比较。
+- **上限。** 一次调用的发布从首次派发起保留到它的结果正文释放（见 model-host-local 规格「宿主插件」），所以确认源的发布数不超过在途调用数加仍持有份额的结果数。本机单用户档的 `maxRetainedCalls` 取两者之和（`2 × LOCAL_CONCURRENT_MODEL_CALLS`）；超过时该调用的发布失败。
+- **不能声称。** 首帧与登记滞后的数只在一台机器、本地网关上量过（卡 #1214 评论）。
 ## 运行级组合与释放次序
 
-入口对象 `modelHostAuthority` 在自己的闭包里持有本运行的 Model 组合（`src/model/composition.ts`）。组合不挂在任何服务实例上：`ctx.get('modelHostAuthority')` 只拿到 `resolve`。两行各经 `src/model/ports.ts` 按运行的根上下文取自己的窄口：`model-records` 拿 `checkOriginRead` 与 `attach`（附着句柄给出本次附着的通道、发送子 fiber 的登记与 `detach`），`model-host` 拿 `bindHost`（绑定给出 `executionChannel`、`releaseExecution`、`qualify`、`qualifyObservation` 与推送账本）。`grantOriginRead`、`attached`、宿主退役闭包与通道的直接读口只有入口的 `resolve` 读得到。组合持有 origin 读许可、一次记录激活的附着（`initial` 与资格表；第二次附着被拒）、唯一的执行通道（附着时以随机 `minst_` 打开，宿主与发送子插件的 `executionChannel` 都返回它）、宿主绑定与推送账本。无关插件经 `ctx.get` 拿不到签发者、standing 读口、登记表的写口（`captureHost`、`recordHostBinding`）、`initial`，也拿不到通道；`tests/entry/model-authorities.spec.ts` 有这条反例。
+入口对象 `modelHostAuthority` 在自己的闭包里持有本运行的 Model 组合（`src/model/composition.ts`）。组合不挂在任何服务实例上：`ctx.get('modelHostAuthority')` 只拿到 `resolve`。两行各经 `src/model/ports.ts` 按运行的根上下文取自己的窄口：`model-records` 拿 `checkOriginRead` 与 `attach`（附着句柄给出本次附着的通道、发送子 fiber 的登记与 `detach`），`model-host` 拿 `bindHost`（绑定给出 `executionChannel`、`releaseExecution`、`qualify`、`qualifyObservation`、`observation` 与推送账本）。`grantOriginRead`、`attached`、宿主退役闭包与通道的直接读口只有入口的 `resolve` 读得到。组合持有 origin 读许可、一次记录激活的附着（`initial`、观察配对与资格表；第二次附着被拒）、唯一的执行通道（附着时以随机 `minst_` 打开，宿主与发送子插件的 `executionChannel` 都返回它）、宿主绑定与推送账本。无关插件经 `ctx.get` 拿不到签发者、standing 读口、登记表的写口（`captureHost`、`recordHostBinding`）、`initial`，也拿不到通道；`tests/entry/model-authorities.spec.ts` 有这条反例。
 
 `model-host` 是 `business` 阶段的行体承载：宿主插件跑在行的子 fiber 里，业务停止 dispose 该子 fiber，这就是成员的有序关闭（关观察、quiesce、停派发等 drive 交还、停推送、`releaseExecution`）。`releaseExecution` 由入口组合兑现：先 dispose 记录行的发送子 fiber，等发送资源关闭，再关 channel 并结束附着，之后任何一方取 `executionChannel` 都答 `unavailable`（`records-not-attached`），不交出已关闭的通道；宿主 finally 与记录行的 effect 再关一次都是幂等的。期间 `model-records` 父 fiber 存活。期限内未完成答 `incomplete`。
 

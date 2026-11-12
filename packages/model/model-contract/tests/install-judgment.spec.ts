@@ -211,7 +211,11 @@ describe('installDependencies', () => {
 
   it('fails after a failed --offline install when the network is not allowed', () => {
     const calls: string[][] = []
-    const result = installDependencies('/p', { allowNetwork: false }, failing(calls))
+    const result = installDependencies(
+      '/p',
+      { allowNetwork: false, storeDirectory: '/c/pnpm-store', cacheDirectory: '/c/pnpm-cache' },
+      failing(calls),
+    )
     expect(result).toMatchObject({ ok: false, mode: 'offline' })
     expect(result.detail).toContain('ERR_PNPM_NO_OFFLINE_META')
     expect(calls).toHaveLength(1)
@@ -226,25 +230,40 @@ describe('installDependencies', () => {
         ? failing([])(command, args, cwd)
         : { status: 0, stdout: '', stderr: '' }
     }
-    const result = installDependencies('/p', { allowNetwork: true }, runner)
+    const result = installDependencies(
+      '/p',
+      { allowNetwork: true, storeDirectory: '/c/pnpm-store', cacheDirectory: '/c/pnpm-cache' },
+      runner,
+    )
     expect(result).toMatchObject({ ok: true, mode: 'network' })
     expect(calls.map(args => args.at(-1))).toEqual(['--offline', '--prefer-offline'])
   })
 
   it('reports mode offline when the offline install works, and never retries', () => {
     const calls: string[][] = []
-    const result = installDependencies('/p', { allowNetwork: true }, (_c, args) => {
-      calls.push([...args])
-      return { status: 0, stdout: '', stderr: '' }
-    })
+    const result = installDependencies(
+      '/p',
+      { allowNetwork: true, storeDirectory: '/c/pnpm-store', cacheDirectory: '/c/pnpm-cache' },
+      (_c, args) => {
+        calls.push([...args])
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    )
     expect(result).toMatchObject({ ok: true, mode: 'offline' })
     expect(calls).toHaveLength(1)
   })
 
-  it('passes a store directory to every attempt', () => {
+  it('points every attempt at the store and the cache of the run, never at those of the machine', () => {
     const calls: string[][] = []
-    installDependencies('/p', { allowNetwork: true, storeDirectory: '/s' }, failing(calls))
+    installDependencies(
+      '/p',
+      { allowNetwork: true, storeDirectory: '/c/pnpm-store', cacheDirectory: '/c/pnpm-cache' },
+      failing(calls),
+    )
     expect(calls).toHaveLength(2)
-    for (const args of calls) expect(args.join(' ')).toContain('--store-dir /s')
+    for (const args of calls) {
+      expect(args.join(' ')).toContain('--store-dir /c/pnpm-store')
+      expect(args).toContain('--config.cache-dir=/c/pnpm-cache')
+    }
   })
 })
