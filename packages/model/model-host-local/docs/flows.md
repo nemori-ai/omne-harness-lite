@@ -42,7 +42,7 @@ sequenceDiagram
   Runtime->>Boundary: send(demand)
   Boundary->>Resource: acquire（新建 pi 传输与私有槽）
   Boundary->>Pi: prepare、materialize
-  Boundary->>Commands: recordMaterialization、openReceiveWindow
+  Boundary->>Commands: recordMaterialization（同一次提交打开接收窗口）
   Boundary->>Port: resolve（发送围栏内，同步，固定的供应商与层）
   Boundary->>Resource: startWithCredential(materialized, secrets)
   Resource->>Pi: 填槽，start，清槽

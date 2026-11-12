@@ -463,7 +463,8 @@ it('ModelCommands writes with the generation and the expected revision, and read
   expectTypeOf<ModelCommands<string>['recordMaterialization']>()
     .parameter(0)
     .toEqualTypeOf<
-      WriteContext & Readonly<{ dispatch: typeof dispatch; receipt: MaterializationReceipt }>
+      WriteContext &
+        Readonly<{ dispatch: typeof dispatch; receipt: MaterializationReceipt; window: string }>
     >()
   expectTypeOf<ModelCommands<string>['acquireRead']>()
     .parameter(0)

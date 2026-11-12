@@ -204,6 +204,7 @@ async function startedDispatch<P>(subject: CommandsAccountsSubject<P>): Promise<
     }),
     'prepareDispatch',
   )
+  const first = `accounts-${suffix()}`
   succeeded(
     await commands.recordMaterialization({
       ...(await write()),
@@ -213,13 +214,9 @@ async function startedDispatch<P>(subject: CommandsAccountsSubject<P>): Promise<
         representation: subject.admit.request.representation,
         payloadDigest: 'a'.repeat(64),
       },
+      window: first,
     }),
     'recordMaterialization',
-  )
-  const first = `accounts-${suffix()}`
-  succeeded(
-    await commands.openReceiveWindow({ ...(await write()), dispatch, window: first }),
-    'openReceiveWindow',
   )
   succeeded(
     await commands.recordSend({ ...(await write()), dispatch, state: 'started' }),

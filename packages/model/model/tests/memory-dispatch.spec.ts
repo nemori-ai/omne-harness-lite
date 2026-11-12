@@ -69,9 +69,14 @@ it('records materialization once, preserves original revisions and rejects stale
       representation: f.admit.request.representation,
       payloadDigest: 'a'.repeat(64),
     },
+    window: 'w',
   }
   const receipt = unbox(await f.commands.recordMaterialization(input))
   expect(unbox(await f.commands.recordMaterialization(input))).toEqual(receipt)
+  // The window belongs to the write: the same operation with another window is not a replay.
+  expect(await f.commands.recordMaterialization({ ...input, window: 'other' })).toMatchObject({
+    failure: { kind: 'conflict' },
+  })
   const sent = { ...(await f.write()), dispatch: f.dispatch, state: 'started' as const }
   unbox(await f.commands.recordSend(sent))
   expect(unbox(await f.commands.recordMaterialization(input))).toEqual(receipt)

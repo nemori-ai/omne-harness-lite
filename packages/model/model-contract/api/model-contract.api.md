@@ -2139,6 +2139,7 @@ export interface ModelCommands<P> {
     recordMaterialization(input: WriteContext & Readonly<{
         dispatch: DispatchId;
         receipt: MaterializationReceipt;
+        window: string;
     }>): Reply<Readonly<{
         revision: Revision;
         source: DurableEvidence;

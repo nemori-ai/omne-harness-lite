@@ -80,6 +80,7 @@ function everyMethod(f: ReturnType<typeof fixture>) {
         ...write('recordMaterialization'),
         dispatch,
         receipt: { supplier: adoption, representation: adoption, payloadDigest: '0'.repeat(64) },
+        window: 'materialized',
       }),
     recordSend: c => c.recordSend({ ...write('recordSend'), dispatch, state: 'started' }),
     openReceiveWindow: c =>
