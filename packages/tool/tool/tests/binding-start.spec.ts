@@ -6,6 +6,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import type { ToolFailure } from '@omne-harness/tool-contract'
 import { completedFinalEnvelope as completedFinal } from '@omne-harness/tool-contract/testing'
 import {
+  adoption,
   admission,
   callId,
   evidence,
@@ -26,6 +27,13 @@ import {
 
 const refused = () =>
   fail<ToolFailure>({ kind: 'unavailable', dependency: 'executor', diagnostic: 'launch refused' })
+/** A binding that refuses the start for good: the failure marker and the exclusion follow. */
+const definitelyRefused = () =>
+  fail<ToolFailure>({
+    kind: 'unsupported',
+    adoption: adoption('executor'),
+    reason: 'launch refused',
+  })
 
 afterEach(auditQueues)
 
@@ -37,7 +45,9 @@ describe('21 binding start outcomes', () => {
         ...base,
         start: (input, environment) => {
           calls += 1
-          return input.call === 'c1' ? Promise.resolve(refused()) : base.start(input, environment)
+          return input.call === 'c1'
+            ? Promise.resolve(definitelyRefused())
+            : base.start(input, environment)
         },
       }),
     })
@@ -69,6 +79,137 @@ describe('21 binding start outcomes', () => {
     expect(harness.binding.inspected.map(start => start.operation)).toEqual(['op-c1/start'])
     expect(harness.binding.controls.launches()).toBe(0)
     expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  })
+})
+
+// A binding that answers `unavailable`, or `commit-unknown` for a start the fence did not accept,
+// did not start it (U2). The run ends `unavailable` and the next run starts the same start: no
+// failure marker, no exclusion, no unavailable terminal (U1, U3). Before, it was settled unavailable.
+describe('21 a binding that cannot answer (F1)', () => {
+  const answering = (answer: 'unavailable' | 'commit-unknown') => {
+    let failing = true
+    return {
+      bindingPort: (base: Parameters<NonNullable<StartOptions['bindingPort']>>[0]) => ({
+        ...base,
+        start: (
+          input: Parameters<typeof base.start>[0],
+          environment: Parameters<typeof base.start>[1],
+        ) => {
+          if (!failing) return base.start(input, environment)
+          failing = false
+          return Promise.resolve(
+            answer === 'unavailable'
+              ? fail<ToolFailure>({
+                  kind: 'unavailable',
+                  dependency: 'start-ledger',
+                  diagnostic: 'busy',
+                })
+              : fail<ToolFailure>({ kind: 'commit-unknown', operation: input.start.operation }),
+          )
+        },
+      }),
+    }
+  }
+
+  it.each(['unavailable', 'commit-unknown'] as const)(
+    '21 transient: after a binding %s the call stays starting, and the next run starts it',
+    async answer => {
+      const harness = startHarness(answering(answer))
+      await admitCall(harness, 'c1')
+      await harness.runOnce('c1')
+      expect(harness.authority.excluded).toEqual([])
+      expect(await harness.state('c1')).toMatchObject({
+        phase: 'starting',
+        queue: { kind: 'held' },
+      })
+      await harness.runOnce('c1')
+      expect(harness.binding.controls.launches()).toBe(1)
+      expect(harness.authority.excluded).toEqual([])
+      expect(await harness.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+    },
+  )
+
+  // The run that a binding could not answer ends unavailable, so the driver itself runs the call
+  // again after the retry delay (U4): no one has to run it by hand. A run that ended blocked would
+  // be left, and the call would wait for a wake-up that never comes.
+  it('21 transient: the driver runs the call again on its own after a binding that could not answer', async () => {
+    const harness = startHarness({ ...answering('unavailable'), driverRetryDelayMs: 5 })
+    await admitCall(harness, 'c1')
+    await harness.runOnce('c1')
+    expect(harness.binding.controls.launches()).toBe(0)
+    for (let round = 0; round < 200 && harness.binding.controls.launches() === 0; round += 1) {
+      await new Promise(resolve => setTimeout(resolve, 2))
+      await harness.host.runScheduled()
+    }
+    expect(harness.binding.controls.launches()).toBe(1)
+    expect(await harness.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+  })
+
+  // The run ends unavailable, so the driver runs the call again itself after the retry delay.
+  it('21 transient: a fence that cannot answer after the binding ends the run, and keeps nothing', async () => {
+    let inspections = 0
+    const harness = startHarness({
+      ...answering('unavailable'),
+      driverRetryDelayMs: 5,
+      authorityPort: base => ({
+        ...base,
+        inspect: input => {
+          inspections += 1
+          return inspections === 2
+            ? Promise.resolve(
+                fail<ToolFailure>({ kind: 'unavailable', dependency: 'fence', diagnostic: 'busy' }),
+              )
+            : base.inspect(input)
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    await harness.runOnce('c1')
+    expect(inspections).toBe(2)
+    expect(harness.authority.excluded).toEqual([])
+    expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    for (let round = 0; round < 200 && harness.binding.controls.launches() === 0; round += 1) {
+      await new Promise(resolve => setTimeout(resolve, 2))
+      await harness.host.runScheduled()
+    }
+    expect(harness.binding.controls.launches()).toBe(1)
+  })
+
+  // A binding that threw is not a binding that could not answer: its failure marker is written in
+  // the same run, before any later run asks the binding again.
+  it('21 throw: a binding that throws has its failure marker written in the same run', async () => {
+    const markers: string[] = []
+    const harness = startHarness({
+      bindingPort: base => ({
+        ...base,
+        start: () => Promise.reject(new Error('the binding threw')),
+      }),
+      commands: base => ({
+        ...base,
+        recordStart: input => {
+          if (input.operation === 'op-c1/start-failed') markers.push(input.operation)
+          return base.recordStart(input)
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    await harness.runOnce('c1')
+    expect(markers).toEqual(['op-c1/start-failed'])
+  })
+
+  it('21 transient: a new driver after a binding that could not answer starts the original start', async () => {
+    const first = startHarness(answering('unavailable'))
+    await admitCall(first, 'c1')
+    await first.runOnce('c1')
+    const next = startHarness({
+      memory: first.memory,
+      authority: first.authority,
+      binding: first.binding,
+    })
+    await next.runOnce('c1')
+    expect(first.binding.controls.launches()).toBe(1)
+    expect(first.authority.excluded).toEqual([])
+    expect(await next.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
   })
 })
 
@@ -246,7 +387,7 @@ for (const fault of ['unavailable', 'conflict', 'throw', 'lost-receipt'] as cons
         ...base,
         start: () => {
           attempts += 1
-          return Promise.resolve(refused())
+          return Promise.resolve(definitelyRefused())
         },
       }),
     })
@@ -320,7 +461,7 @@ for (const fault of ['unavailable', 'stale-revision', 'commit-unknown'] as const
         ...base,
         start: () => {
           attempts += 1
-          return Promise.resolve(refused())
+          return Promise.resolve(definitelyRefused())
         },
       }),
       commands: base => ({
@@ -361,7 +502,7 @@ it('21 marker: a negative receipt read excludes an in-flight marker, whose origi
       ...base,
       start: () => {
         attempts += 1
-        return Promise.resolve(refused())
+        return Promise.resolve(definitelyRefused())
       },
     }),
     store: memory => ({
@@ -558,7 +699,9 @@ it('21 crash window: without a committed failure marker, a new driver can obtain
       start: (input, environment) => {
         permits.push(input.permit.request.revision)
         starts.push(input.start.operation)
-        return permits.length === 1 ? Promise.resolve(refused()) : base.start(input, environment)
+        return permits.length === 1
+          ? Promise.resolve(definitelyRefused())
+          : base.start(input, environment)
       },
     }),
     commands: base => ({
@@ -726,7 +869,7 @@ it('21 marker: a new driver recalls a committed failure marker whose commit rece
       ...base,
       start: () => {
         attempts += 1
-        return Promise.resolve(refused())
+        return Promise.resolve(definitelyRefused())
       },
     }),
     commands: base => ({

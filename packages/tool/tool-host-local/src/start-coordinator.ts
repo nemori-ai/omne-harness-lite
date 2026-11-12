@@ -823,8 +823,9 @@ export function createLocalStartCoordinator<P>(
         }
         return unavailable(`${commitAttempts} revision or condition conflicts in a row`)
       },
+      // The expired turn keeps running and may still commit, so its caller is told it does not know.
       () =>
-        unavailable(
+        unknown(
           `The turn did not settle within ${turnTimeoutMs} ms; earlier work of this tenant may still be running`,
         ),
     )

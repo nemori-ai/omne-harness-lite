@@ -461,7 +461,8 @@ Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/r
 - 启动守卫拒绝：`prepareStart` 回复 `unsupported` 时，协程先取得 `authority.exclude`，再 `rejectPending`。
 - 启动围栏：协程查询原 `/start-failed` 操作回执，再问 `authority.inspect`。`started` 或 `rejected` 直接按原 invocation 记录，不调用绑定。只有合规 `not-started`、没有已确认的失败标记或本协程尚待确认的绑定失败、也没有已知 live 句柄时，才取得新许可、绑定与环境，调用 `live-only` 绑定的 `start`。绑定负责暂存待发胶囊并调用 `authority.consume`。协程随后核实实际围栏，不能以绑定失败或抛错推定未启动。
 - 启动未知：`authority` 答 `unknown` 时，协程解析固定请求采用的原绑定并调用 `inspectStart`，保留查到的 live 句柄。live、settled、lost、not-started 与 unknown 查询结果都不代替 authority 的 acceptance，也不在本增量保存执行事实或释放名额。查询失败保留启动待办和责任。已知 live 与 authority 的排除矛盾时停下，不重发。
-- 启动失败：绑定返回失败或抛错，围栏若已受理则记录 `started`，若已永久拒绝则记录 `rejected`。未确定时用独立 `/start-failed` 操作记录固定诊断的 `unknown`，保留原启动记录、待办与名额。该标记确认后重读调用，再向原绑定与 authority 对账。确认没有启动后，以原 `/exclude` 永久排除整次调用，成功后才用 `/started` 记录 `rejected`，建立结果、交付待办并释放名额。排除失败或回执未知不终局。下一次可从 authority 认回已提交的永久拒绝。
+- 启动一时答不了：绑定答 `unavailable`，或答 `commit-unknown`（消费的答复不明），都不说明围栏受理了没有。协调程随后问 `authority.inspect`：已受理记录 `started`，已永久拒绝记录 `rejected`，答 `unknown` 按「启动未知」。围栏答 `not-started` 时，它已收回这次的许可，这次启动确定没有发生：协调程不写失败标记、不排除，本次运行以 `unavailable`（`dependency` 为 `toolBindings`）结束，按重试延迟再来，下一次运行以同一启动身份取新许可再启动。这次失败不留在进程里，换一个驱动或重启之后照样如此。
+- 启动失败：绑定返回确定的拒绝（`invalid`、`denied`、`conflict`、`unsupported`）或抛错，围栏若已受理则记录 `started`，若已永久拒绝则记录 `rejected`。未确定时用独立 `/start-failed` 操作记录固定诊断的 `unknown`，保留原启动记录、待办与名额。该标记确认后重读调用，再向原绑定与 authority 对账。确认没有启动后，以原 `/exclude` 永久排除整次调用，成功后才用 `/started` 记录 `rejected`，建立结果、交付待办并释放名额。排除失败或回执未知不终局。下一次可从 authority 认回已提交的永久拒绝。
 - 失败标记认回：`reads.operation` 的 committed 才证明本驱动失败标记存在，不能从 `execution: unknown` 推断。unknown 或不可读不授权启动。not-committed 与 rolled-back 沿 P01 的否定答案排除机制处理，可能排除在途旧提交。同一协程记住尚未确认的失败，按原标记身份重试，不再调用绑定。`/started` 仅写最终的 started 或 rejected，不先写 unknown 后更换 outcome。绑定解析、许可准备与环境重连在进入 start 前失败时，仍保留原可重试语义。
 
 失败观察在标记真正提交前随进程丢失时，新协程不能从空标记区分「从未尝试」与「尝试失败」。此时仅当合规 authority 的 not-started 已排除原 ticket 及延迟请求、且没有永久拒绝时，才允许同逻辑调用、原 start 身份重新核权并取得新 permit，形成首次受理。它不重放已受理的执行效果。已读到 committed 标记的推进不再调用 start，当前协程已观察但尚未确认的失败也不再调用 start。另一协程持旧否定读时，即使标记随后提交，它仍可能进入绑定方法。标记是调用域的失败观察，不是 authority 的派发资格。consume 先于永久 exclude 成立时，继续认回原 acceptance 与 running，不能写 unavailable 或释放名额；exclude 先成立时，旧 permit 不能形成新的 acceptance 或实际执行。正常首次启动的 acceptance 与实际 launch 各恰好一次，重复推进不增加二者。内存标记不是跨重启围栏，实际唯一受理仍依赖合规 P04 提供者。
@@ -702,7 +703,7 @@ release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送
    这笔提交删除计划的 `suspend` 待办与 `facts` 待办。绑定答 `unknown` 时协程稍后再问，不销毁唯一活体。
 4. 停泊：协程经 `queues.park` 处理停泊待办。账本先读调用域。调用已 suspended，且其等待仍是 `opening` 或 `open` 时，队列域把 `held` 条目改为 `parked`，然后调用域删除停泊待办。等待已进入 `responding`，或调用已不再 suspended 时，只删除待办，条目保持原阶段，调用保留原名额恢复。停泊后协程唤醒同一范围里等名额的调用。
 5. 登记：协程以 `<wait>/ensure` 调用 `ToolDecisionBridge.ensure`，并传入等待的请求证据。决策方从调用的恢复读取取请求原文（`loadRecovery` 的 `waitRequest`）。等待身份由 start 派生，所以外部操作身份由调用和等待决定。同一调用的下一个段有新的 start，因而有新的等待身份与新的登记操作。成功时协程以 `<wait>/ensure/attach` 调用 `attachRegistration`。账本把等待改为 `open`，把同一 Ask 等待状态写入调用，并删除登记待办。
-6. 回包未知（`commit-unknown` 或 `unavailable`）时，协程以同一操作调用 `inspectOperation`，不换身份重做。`committed` 的回执就是登记，协程据此提交 `attachRegistration`。`excluded` 时，下一次运行以同一身份再登记。`pending` 或 `unknown` 时稍后再问。本进程记着回包未知的登记，下一次运行先查询原操作。
+6. 回包未知（`commit-unknown`）时，协程以同一操作调用 `inspectOperation`，不换身份重做。`committed` 的回执就是登记，协程据此提交 `attachRegistration`。`excluded` 时，下一次运行以同一身份再登记。`pending` 或 `unknown` 时稍后再问。本进程记着回包未知的登记，下一次运行先查询原操作。决策方答 `unavailable` 时不先查询：决策方以同一操作身份认回原登记（P06），同身份再登记就是认回，所以本次运行以 `unavailable` 结束，下一次运行以同一身份再登记，本进程不记下这次失败。
 7. 决策方明确拒绝时，协程以 `<wait>/ensure/refused` 调用 `recordTask`，把登记待办标为阻塞并记下拒绝原因。拒绝不是人的答复。调用保持 suspended，等待保持 `opening`，以后的运行不再自动登记。叫停可以让这样的调用收场（第 32 条）。
 
 本条的边界：
@@ -795,7 +796,7 @@ release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送
 协程见调用已收场、有 `pending` 的失效待办时，以待办的操作调用 `ToolDecisionBridge.invalidate`，传入等待与终局证据。操作只由等待派生，与登记同法，所以调用与等待决定外部操作身份。
 
 - 决策方回答回执时，协程以 `<wait>/invalidate/done` 调用 `recordTask`，处置为 `done`，证据是该回执。账本核对待办仍在、调用已收场、回执的形状，再在同一笔提交里删除待办并保存回执。
-- 回包未知（`commit-unknown` 或 `unavailable`）时，协程以同一操作调用 `decisions.inspectOperation`，不换身份重发。`committed` 的回执完成待办。`excluded` 时以同一身份再发。`pending` 或 `unknown` 时稍后再问。本进程记着回包未知的失效，下一次运行先查询原操作。
+- 回包未知（`commit-unknown`）时，协程以同一操作调用 `decisions.inspectOperation`，不换身份重发。`committed` 的回执完成待办。`excluded` 时以同一身份再发。`pending` 或 `unknown` 时稍后再问。本进程记着回包未知的失效，下一次运行先查询原操作。决策方答 `unavailable` 时同登记一样：本次运行以 `unavailable` 结束，下一次运行以同一身份再发，不先查询。
 - 决策方明确拒绝时，协程以 `<wait>/invalidate/refused` 调用 `recordTask`，把待办记为阻塞并记下拒绝原因。拒绝不改调用的终局，也不填答案。
 
 ### 恢复前位置的 stop

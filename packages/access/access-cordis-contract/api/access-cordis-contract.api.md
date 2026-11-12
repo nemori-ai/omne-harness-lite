@@ -8,13 +8,17 @@
 
 - `AccessAssemblyError` · `contribution.d.ts`
 - `AccessContribution` · `contribution.d.ts`
+- `AccessIdentity` · `identity.d.ts`
+- `ActForResult` · `identity.d.ts`
 - `AnswerOf` · `contribution.d.ts`
 - `BodyOf` · `contribution.d.ts`
 - `CallContext` · `contribution.d.ts`
 - `EndOf` · `contribution.d.ts`
 - `FrameOf` · `contribution.d.ts`
 - `FrameSource` · `contribution.d.ts`
+- `IdentityFailure` · `identity.d.ts`
 - `LoginIdentity` · `contribution.d.ts`
+- `LoginResult` · `identity.d.ts`
 - `ObservationContext` · `contribution.d.ts`
 - `OpenOf` · `contribution.d.ts`
 - `OperationHandler` · `contribution.d.ts`
@@ -110,9 +114,32 @@ declare module '@deepseek-ai/cordis' {
 }
 ```
 
+## 声明文件 `identity.d.ts`
+
+```ts
+import type { LoginIdentity, Principal } from './contribution.ts';
+export type IdentityFailure = {
+    readonly outcome: 'denied' | 'basis-unavailable';
+};
+export type LoginResult = {
+    readonly outcome: 'identified';
+    readonly login: LoginIdentity;
+} | IdentityFailure;
+export type ActForResult = {
+    readonly outcome: 'issued';
+    readonly principal: Principal;
+} | IdentityFailure;
+export type AccessIdentity = {
+    readonly identifyLogin: (proof: string) => Promise<LoginResult>;
+    readonly actFor: (login: LoginIdentity, tenant: string) => Promise<ActForResult>;
+    readonly reportAccess: (login: LoginIdentity) => Promise<void>;
+};
+```
+
 ## 声明文件 `index.d.ts`
 
 ```ts
 export { AccessAssemblyError } from './contribution.ts';
 export type { AccessContribution, AnswerOf, BodyOf, CallContext, EndOf, FrameOf, FrameSource, LoginIdentity, ObservationContext, OpenOf, OperationHandler, Principal, PrincipalFor, ProtocolKey, } from './contribution.ts';
+export type { AccessIdentity, ActForResult, IdentityFailure, LoginResult } from './identity.ts';
 ```

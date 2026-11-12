@@ -50,7 +50,7 @@
 > resident, it is resident.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24） · [工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 9） · [Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 3） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
+- **出处**：[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24） · [工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 9） · [Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 4） · [MCP 产品需求描述](../../product/mcp/design.md#产品需求描述)（rev 3）
 - **别混**：**它是那份 Agent Definition 或 Plugin 上、或会话执行类型必需身份集合那一项上的一项设置**（引用条目长在那里），
   归[偏好类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)，由持有它的各层配值——**不是工具或技能自己的设置**
 - **注意**：**上下文预算是装配方的问题，工具作者根本不知道**——这就是标记挂在引用上而非资产上的理由
@@ -131,7 +131,7 @@
 > **EN**: The evaluated usability of a tool, skill or MCP capability: current selection and governance must permit it, and required implementations and dependencies must hold. It is evaluated from the facts at the moment on each discovery and at each attempt start, and subsequent use respects effective changes. An unavailable resident entry keeps its identity.
 
 - **形态**：视图
-- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 3） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 7） · [PF-006 §4 可用性](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
+- **出处**：[Skill 产品 J-SK02](../../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 4） · [元能力 Tools()](../../product/meta-capabilities/design.md#meta-tools)（rev 7） · [PF-006 §4 可用性](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
 - **别混**：禁用是治理输入，当下可用性是求值结果；禁用可使已知条目不可用，不能使主体此刻没有使用资格的条目凭空可见。执行权限准入仍单独适用。
 - **注意**：封存的 PF-006 把它限定为「已纳入会话的」能力。现行产品里发现不经纳入，见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。
 
@@ -298,5 +298,74 @@
   当下可用性是一样能力在一次执行尝试开始前的依赖解析结果；协议可用性只说一个协议挂没挂着。
 - **别混 ②**：不是许可。允不允许用，由领域与授权在每次调用时回答。
 - **注意**：领域的提供者暂时不在，不改变协议可用性。协议仍然挂着，调用得到「依据不可用」。
+
+## MCP 对端够不够得着
+
+### UL-mcp-connection · MCP 连接 · MCP Connection
+
+> **中**：**一个 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp) 接入点为一个[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)、以一个对端账号与对端建立起来的接通。**
+> 对端账号是这个租户那份持有上的 [MCP 凭据](capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)让对端认出的账号。
+> 建立时核验对端身份，并与对端协商协议版本与能力。
+> MCP 连接按租户、对端账号与接入点分开：两个租户、两个对端账号不共用同一条 MCP 连接。
+> MCP 连接是与对端协商得到的一组结果，不带进程。
+> 它供给发现与调用的条件，不拥有任何一次调用的结果。
+>
+> **EN**: **The link that one MCP access point establishes with its far side for one tenant, under
+> one far-side account.** The far-side account is the account that the far side recognises from
+> the MCP credential on that tenant's holding. Establishing the link verifies the far side's
+> identity and negotiates the protocol version and capabilities with the far side. MCP connections
+> are separate per tenant, far-side account and access point: two tenants or two far-side accounts
+> never share one MCP connection. An MCP connection is a set of results negotiated with the far
+> side and includes no process. It supplies the conditions for discovery and calls. It does not
+> own the result of any call.
+
+- **形态**：对象
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC01](../../product/mcp/design.md#j-mc01-采用接入点并取得合法连接条件) · [J-MC06](../../product/mcp/design.md#j-mc06-断线后恢复连接和原工作)（rev 3）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)
+- **⚠️ 别混 ①**：**不是[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)**。连接件把外部消息送进来，方向相反
+- **别混 ②**：**不是[连接目标](capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)**。连接目标是接入点上的一项设置，说连到对端的哪里；MCP 连接是按这项设置实际接通的结果
+- **别混 ③**：**不是接入点本身**。接入点是资产，身份是它的 name；同一个接入点可以同时有几条 MCP 连接，分属不同租户或不同对端账号
+- **注意 ①**：连接时限与调用时限各自独立。MCP 连接恢复不说明原调用没有发生，也不重发原调用
+- **注意 ②**：MCP 产品页与领域页在 MCP 语境里裸写「连接」指它；跨 topic 引用写全称
+
+### UL-mcp-action-catalog · MCP 动作清单 · MCP Action Catalog
+
+> **中**：**一个 MCP 接入点的一份[持有](circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)在一个租户、一个对端账号之下最近一次合法取得并采用的对端动作集合。**
+> 它按租户、对端账号与接入点持有分开保存：一个租户看不到按另一个对端账号取得的清单。
+> 只有合法发现取得的结果才能把新动作加进来。对端不再提供某个动作时，这个动作从清单里消失。
+> 清单整份更新，不出现一半新一半旧的清单。
+>
+> **EN**: **The set of far-side actions that one holding of an MCP access point most recently obtained
+> lawfully and adopted for one tenant under one far-side account.** It is kept separate per tenant,
+> far-side account and access point holding: one tenant cannot see a catalog obtained under another
+> far-side account. Only a result obtained by lawful discovery can add a new action. When the far
+> side no longer offers an action, that action leaves the catalog. The catalog is updated as a
+> whole. A catalog that is part new and part old never occurs.
+
+- **形态**：对象
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用) · [J-MC03](../../product/mcp/design.md#j-mc03-刷新后续采用且保护原调用)（rev 3）；按租户与凭据账号分开见已接受的 [MCP 领域页 模块角色与事实归属](../../../../docs/domains/mcp/README.md#模块角色与事实归属)。键里的「接入点持有」来自 Skill 与 MCP 领域的候选技术设计，产品正文与已接受的领域页未述
+- **⚠️ 别混 ①**：**不是[动作空间](capabilities-and-composition.md#ul-action-space--动作空间--action-space)**。动作空间属于一个会话；MCP 动作清单属于租户、对端账号与接入点持有，不随会话结束
+- **别混 ②**：**不是[装配清单](agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest)**，与一次装配无关
+- **注意**：发现或刷新失败时保持原清单并说明原因，不当成空清单。产品正文称它「合法清单」「最近合法清单」时，指的就是它
+
+### UL-mcp-known-action · MCP 已知动作 · MCP Known Action
+
+> **中**：**[MCP 动作清单](#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog)里由合法发现取得的一个对端动作。**
+> 它带着自己的身份，以及最近一次合法发现取得的定义形状。
+> 从未由合法发现取得的动作不是 MCP 已知动作，也不凭猜测为它生成定义。
+> 断线、撤权、禁用或必需依赖缺席时，不可用在接入点这一级说明，不逐个动作说明。
+> 它在工具入口里是一个[工具条目](#ul-tool-entry--工具条目--tool-entry)。
+>
+> **EN**: **One far-side action in an MCP action catalog that a lawful discovery obtained.** It
+> carries its identity and the definition shape from its latest lawful discovery. An action that no
+> lawful discovery obtained is not an MCP known action, and no definition is generated for it by
+> guess. When the connection is down, or on revocation, disablement or a missing required
+> dependency, unavailability is stated at the level of the access point, not per action. In the
+> tool entry point it is one tool entry.
+
+- **形态**：对象
+- **出处**：[MCP 产品页 产品需求描述](../../product/mcp/design.md#产品需求描述) · [J-MC02](../../product/mcp/design.md#j-mc02-发现合法动作并理解不可用)（rev 3）
+- **别混 ①**：**不是[替换件](#ul-stand-in--替换件--stand-in)**。常驻接入点的动作不可用时，按[常驻工具](#ul-resident-tool-set--常驻工具集合--resident-tool-set)的规则有同形替换件占在原位；不常驻接入点的动作没有替换件。MCP 已知动作是清单里的那一项
+- **别混 ②**：**不是资产**。对端动作随接入点一起被持有、授权与治理，见 [MCP](capabilities-and-composition.md#ul-mcp--mcp--mcp)
+- **注意**：裸写「已知动作」不作术语，跨 topic 写全称
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

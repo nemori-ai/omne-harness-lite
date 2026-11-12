@@ -122,6 +122,6 @@ NO_COLOR=1 pnpm exec vitest run
 
 ## 维护
 
-改行为先改[行为规格](SPEC.md)，再改代码与用例。公开契约新增或改动词汇时，先核对 `src/status.ts` 的状态码表与 `src/session.ts` 的结果映射。Session 的面或 identity 的公开类型变化时，核对 `src/faces.ts` 与 `src/identity-steps.ts` 用的子集。
+改行为先改[行为规格](SPEC.md)，再改代码与用例。公开契约新增或改动词汇时，先核对 `src/pipeline/status.ts` 的状态码表与 `src/session.ts` 的结果映射。Session 的面或 identity 的公开类型变化时，核对 `src/faces.ts` 与 `src/identity-steps.ts` 用的子集。
 
 本页与 [README.md](README.md) 保持同步，两者表达同一份承诺。

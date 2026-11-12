@@ -532,3 +532,21 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **差别**：按旧说法，Skill 持有一条执行通道和一份按 Skill 判的执行许可，还要管脚本的运行设施与设置供给。按现行说法，`Skills` 有五个命令：`search`、`read`、`read_file`、`list` 只读，`submit` 是提交，没有执行命令。脚本是第三层的文件，用 `read_file` 读。运行归 Shell：资产先加载到本地，单机装配下 agent 从 `Skills` 的读取结果知道目录在本机的位置，用 Shell 直接运行，这是一次普通的 Shell 工具调用。Skill 不持有执行权，不向 Shell 里的进程注入任何值。必需依赖缺席不挡读取，正文照常返回并写明缺项。防护与隔离不在这一阶段。
 - **处置**：以现行说法为准，依据是产品负责人 PanQiWei 2026-11-12 的裁定。依赖声明的那条注意改成「技能的依赖声明不管脚本的运行设施」。[包的读口](terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader)加一条注意：它不给路径这一条不变，目录加载到本机之后在哪是另一件事。产品正文、领域页、成员说明与心智模型里的旧说法已一并改掉，Q-SK04 退出，Q-SK08 已裁定。
 - **状态**：已裁，词条已改。
+
+### C-82：「摘要」的两种意思
+
+- **类型**：同名不同义。2026-11-03 为 Skill 与 MCP 立词条时发现。
+- **来源**：[Skill 包快照](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)要用「内容摘要」指按内容算出的散列值（digest）。[同形](terms/reach-and-availability.md#ul-same-shape--同形--same-shape)里的「词汇表的拥有者、名称与摘要」也是这个意思。[包的清单](terms/capabilities-and-composition.md#ul-package-manifest--包的清单--package-manifest)与[包的读口](terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader)里的「摘要」同样指散列值。[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)、[摘要步](terms/record-and-context.md#ul-summary-step--摘要步--summary-step)与同形里的「命令摘要」用「摘要」指文字摘要（summary）。
+- **差别**：一个是用来判断内容是否相同的散列值，一个是给人或模型读的缩写文字。下游读到「按摘要取内容」时，可能把它读成按一段文字去找内容。
+- **处置**：新词条把散列值写成「内容摘要」，并注明它不是文字摘要。已有词条与正文暂不回改。MCP 已知动作定义的散列值写成「定义的内容摘要」，不另立「定义摘要」词条，也不裸写「定义摘要」。
+- **负责与闭合条件**：统一语言维护者。散列值的用法统一写成「内容摘要」或另定一个说法，并回改同形、包的清单与包的读口的词条后闭合。
+- **状态**：待收敛。
+
+### C-83：工作区目录技能的 Skill 材料依据中的资产版本
+
+- **类型**：定义打架。2026-11-03 立 [Skill 材料依据](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis)词条时发现。
+- **来源**：[Skill 材料依据](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis)只含能力标识、资产版本与 Skill 包快照的内容摘要三项。[Skill 包快照](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「别混 ①」说工作区目录中的技能没有发布。[资产版本](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version)是一次发布定下的内容。
+- **差别**：照字面读，工作区目录中的技能没有资产版本，它的 Skill 材料依据凑不齐三项。下游可能为它补造一个版本号，也可能让这一项缺席，两种做法对「三项都相同指同一份材料」给出不同的结果。
+- **处置**：词条按三项写，并在「待裁决」指向本条。工作区目录技能的 Skill 材料依据怎样标版本，词表不补。
+- **负责与闭合条件**：Skill 的技术拥有者，涉及产品含义时上交产品负责人。Skill 组设计或 Skill 产品页写明工作区目录技能的 Skill 材料依据中这一项取什么，词条按结论改写后闭合。
+- **状态**：已闭合（2026-11-03）。负责人裁定：Skill 材料依据含能力标识、来源层、资产版本与内容摘要四项。工作区来源的资产版本可以缺省。能力标识、来源层与内容摘要都相同的两个 Skill 材料依据，指同一份材料。[Skill 组设计](../../../docs/domains/skills/architecture.md)按四项写定。词条与索引行已按裁定改写，「待裁决」已去掉。上列来源、差别与处置保留发现时的写法，现行含义以词条为准。

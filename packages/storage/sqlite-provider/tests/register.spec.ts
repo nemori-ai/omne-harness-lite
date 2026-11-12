@@ -180,7 +180,13 @@ describe('rejection order (SPEC 6.2, adjacent steps)', () => {
   })
 
   it('step 7 manifest_mismatch before step 8 queue_full', async () => {
-    const { storage } = await provide({ controlQueuePerDomain: 1, controlQueueGlobal: 1 })
+    // admissionWaitMs 0: a full point refuses at once (sql-contract 准入等待 rule 7), so the order of
+    // the steps is observable.
+    const { storage } = await provide({
+      controlQueuePerDomain: 1,
+      controlQueueGlobal: 1,
+      admissionWaitMs: 0,
+    })
     const holding = storage.registerCombination(registration(built))
     const mismatch = await storage.registerCombination(
       registration(built, { manifestDigest: 'f'.repeat(64) }),

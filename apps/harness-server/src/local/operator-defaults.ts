@@ -238,6 +238,9 @@ function storage(storageRoot: string, shutdownDeadlineMs: number) {
     storageRoot,
     admissionQueueLimit: 64,
     globalAdmissionLimit: 256,
+    // A commit, registration or query waits this long for a reservation before it is refused
+    // (sql-contract 准入等待): the same bound as a read waits in its queue (readQueueTimeoutMs).
+    admissionWaitMs: 1000,
     lockWaitMs: 5000,
     maxCommandsPerCommit: 16,
     maxCommandBytes: MAX_COMMAND_BYTES,

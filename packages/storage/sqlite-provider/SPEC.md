@@ -321,13 +321,14 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 
 ### §12.1 配置
 
-`storage` 行的配置只含可序列化的数据（IC-16）。字段都必填。除 `storageRoot` 外，字段都是有限正整数，只有 `groupCollectMs` 可以为 0。初值是待实测的工程建议，不是吞吐或延迟承诺。装配填写采用值，工厂在构造期核对。缺值或违反规则时构造被拒绝（`config_invalid`，带字段名与规则），fiber 进入 `FAILED`（IC-14）。S1 的四项配置（`admissionQueueLimit`、`lockWaitMs`、`maxCommandsPerCommit`、`maxCommandBytes`）保持 S1 的含义，其余字段是 S1 允许提供者补充的配置。
+`storage` 行的配置只含可序列化的数据（IC-16）。字段都必填。除 `storageRoot` 外，字段都是有限正整数，只有 `groupCollectMs` 与 `admissionWaitMs` 可以为 0。初值是待实测的工程建议，不是吞吐或延迟承诺。装配填写采用值，工厂在构造期核对。缺值或违反规则时构造被拒绝（`config_invalid`，带字段名与规则），fiber 进入 `FAILED`（IC-14）。S1 的四项配置（`admissionQueueLimit`、`lockWaitMs`、`maxCommandsPerCommit`、`maxCommandBytes`）保持 S1 的含义，其余字段是 S1 允许提供者补充的配置。
 
 | 字段 | 候选初值 | 限制什么 |
 | --- | --- | --- |
 | `storageRoot` | 装配给出 | 绝对路径（§5.1） |
 | `admissionQueueLimit` | 64 | S1：每域已预留、尚未确认结束的 `commit` 数 |
 | `globalAdmissionLimit` | 256 | 全局的同一计数 |
+| `admissionWaitMs` | 1000 | `commit`、`registerCombination`、`query` 拿不到预留时在等待列表里等待的上界（sql-contract 规格[准入等待](../sql-contract/SPEC.md#准入等待)）；0 为不等。读的等待计入 `readQueueTimeoutMs` |
 | `lockWaitMs` | 5000 | S1：写锁等待，到期为 `unknown`。也是写在 `domain-serial` 屏障前的等待上界（到期撤下，`barrier_wait_expired`）；它的两倍是已发送的 `commit`、`query`、`registerCombination` 的调用方观察上界（到期 `reply_wait_expired`，预留保持到 Worker 答复或退出），见 §9.3 |
 | `maxCommandsPerCommit` | 16 | S1：命令条数 |
 | `maxCommandBytes` | 1048576 | S1：单条命令 |
@@ -344,7 +345,7 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 | `maxReadWorkersPerDomain` | 2 | 每域读 Worker，惰性创建 |
 | `readQueuePerDomain` | 32 | 每域读等待项 |
 | `readQueueGlobal` | 256 | 全局读等待项 |
-| `readQueueTimeoutMs` | 1000 | 读请求等待派发，含等待 `domain-serial` 屏障的时间；到期从次序中撤下 |
+| `readQueueTimeoutMs` | 1000 | 读请求从调用起等待派发，含等待预留与 `domain-serial` 屏障的时间；到期从次序中撤下 |
 | `maxReadInputBytes` | 262144 | 一个读请求的输入 |
 | `maxReadResultBytes` | 20971520 | 一个读结果；每个 handler 的 `maxOutputBytes` 不得超过它。20 MiB 是 Session 日志读所需的上限（R2-D81） |
 | `globalReadResultBytes` | 134217728 | 全局在途读结果预留。每次读按 handler 的 `maxOutputBytes` 预留，所以它至少容纳数个 20 MiB 预留（R2-D81） |

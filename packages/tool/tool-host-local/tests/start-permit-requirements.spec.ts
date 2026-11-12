@@ -597,7 +597,9 @@ describe('R2-D60 start permit requirements', () => {
     await f.finish()
   })
 
-  it('recognizes a committed acceptance after its reply is lost without replaying the author', async () => {
+  // An acceptance whose answer was lost is the original bridge's to run (P04): the same start
+  // recalls it and enters the author once, and a later attempt does not run it again.
+  it('recognizes a committed acceptance after its reply is lost, and runs the author once', async () => {
     let lose = false
     const f = await fixture({
       wrap: memory => ({
@@ -622,8 +624,12 @@ describe('R2-D60 start permit requirements', () => {
     expect(await f.acceptances()).toHaveLength(1)
     f.rebuild(true)
     expect(unbox(await f.consume(permit)).kind).toBe('started')
-    expect(await f.execute(permit)).toHaveProperty('failure.kind', 'commit-unknown')
     expect(f.launches()).toBe(0)
+    expect(await f.execute(permit)).toHaveProperty('ok')
+    expect(f.launches()).toBe(1)
+    expect(await f.execute(permit)).toHaveProperty('ok')
+    expect(f.launches()).toBe(1)
+    expect(await f.acceptances()).toHaveLength(1)
   })
 
   it('does not report a permanent rejection when its commit outcome is unknown', async () => {

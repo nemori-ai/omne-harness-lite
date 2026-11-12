@@ -228,25 +228,37 @@ describe('an invalidation the decision owner answers', () => {
 })
 
 describe('an invalidation whose answer is not certain', () => {
-  it.each([
-    ['commit-unknown', lost()],
-    ['unavailable', unavailable],
-  ])(
-    'asks the owner about the original operation after %s, and records the duty done on its receipt',
-    async (_name, answer) => {
-      const { run, invalidated, inspected, recorded } = stepOf({
-        invalidate: () => answer as never,
-      })
-      expect(await run()).toEqual(CONTINUE)
-      expect(invalidated).toHaveLength(1)
-      expect(inspected).toEqual([
-        { principal: principalA, tenant: tenantA, call: callId('c1'), operation: INVALIDATION },
-      ])
-      expect(recorded).toMatchObject([
-        { operation: `${INVALIDATION}/done`, resolution: { kind: 'done', evidence: RECEIPT } },
-      ])
-    },
-  )
+  it('asks the owner about the original operation after commit-unknown, and records the duty done on its receipt', async () => {
+    const { run, invalidated, inspected, recorded } = stepOf({
+      invalidate: () => lost(),
+    })
+    expect(await run()).toEqual(CONTINUE)
+    expect(invalidated).toHaveLength(1)
+    expect(inspected).toEqual([
+      { principal: principalA, tenant: tenantA, call: callId('c1'), operation: INVALIDATION },
+    ])
+    expect(recorded).toMatchObject([
+      { operation: `${INVALIDATION}/done`, resolution: { kind: 'done', evidence: RECEIPT } },
+    ])
+  })
+
+  // Unavailable is not an answer that is not certain: the owner recalls the original by the same
+  // identity (P06), so the next run invalidates again with it, without asking first (U3, F2).
+  it('after unavailable, ends the run and invalidates again under the same identity in the next one', async () => {
+    const { run, invalidated, inspected, recorded } = stepOf({
+      invalidate: n => (n === 1 ? unavailable : succeed(RECEIPT)),
+    })
+    expect(await run()).toMatchObject({ kind: 'failed', failure: { kind: 'unavailable' } })
+    expect(inspected).toEqual([])
+    expect(recorded).toEqual([])
+    expect(await run()).toEqual(CONTINUE)
+    expect(inspected).toEqual([])
+    expect(invalidated.map(input => (input as { operation: string }).operation)).toEqual([
+      INVALIDATION,
+      INVALIDATION,
+    ])
+    expect(recorded).toMatchObject([{ resolution: { kind: 'done', evidence: RECEIPT } }])
+  })
 
   it('asks again under the same identity when the owner excluded the original, and not before the next run', async () => {
     const { run, invalidated, inspected, recorded } = stepOf({

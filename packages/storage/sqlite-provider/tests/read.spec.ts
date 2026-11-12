@@ -173,18 +173,27 @@ describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
     expect(result.kind).toBe('cancelled')
   })
 
-  it('returns queue_full when the result reservation of the handler does not fit', async () => {
+  it('waits while the result reservation of the handler does not fit, and reads once it does', async () => {
+    // Defect: the reservation ignores the bytes: the second read Worker would run the read at once
+    // and end it before the slow one.
     const { storage } = await readyProvider(workspace, built, {
       maxReadResultBytes: 4096,
       globalReadResultBytes: 4096,
     })
-    const first = storage.read(readRequest('slow', { ms: 300 }))
+    const ended: string[] = []
+    const first = storage.read(readRequest('slow', { ms: 300 })).then(result => {
+      ended.push('first')
+      return summary(result)
+    })
     await delay(50)
-    expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
-    expect(summary(await first)).toBe('read')
+    const second = await storage.read(readRequest('page'))
+    ended.push('second')
+    expect(summary(second)).toBe('read')
+    expect(await first).toBe('read')
+    expect(ended).toEqual(['first', 'second'])
   })
 
-  it('returns queue_full when the read queue of the domain is full', async () => {
+  it('returns queue_full when the read queue of the domain and its waiting list are full', async () => {
     const { storage } = await readyProvider(workspace, built, {
       readQueuePerDomain: 2,
       readQueueGlobal: 4,
@@ -195,8 +204,17 @@ describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
       storage.read(readRequest('slow', { ms: 10 })),
     ]
     await delay(50)
+    // Two more wait (sql-contract 准入等待); the waiting list of the domain holds two, so the next
+    // is refused at once. Had the per-domain count been ignored, the first two would have been
+    // admitted and the next would wait on the global count instead.
+    const waiting = [storage.read(readRequest('page')), storage.read(readRequest('page'))]
     expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
-    expect((await Promise.all(held)).map(summary)).toEqual(['read', 'read'])
+    expect((await Promise.all([...held, ...waiting])).map(summary)).toEqual([
+      'read',
+      'read',
+      'read',
+      'read',
+    ])
   })
 })
 

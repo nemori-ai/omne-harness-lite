@@ -1,0 +1,29 @@
+# tests 索引
+
+本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
+
+## 内容
+
+- [README.md](README.md)：测试范围、真实依赖与替身
+- [access-world.ts](access-world.ts)：三端口替身的世界、控制项与套件夹具
+- [catalog-world.ts](catalog-world.ts)：目录两端口替身的世界、控制项（集合 `unknown`、核验 `unknown`、重复、移除、扣住答复）与套件夹具
+- [public-entry.spec.ts](public-entry.spec.ts)、[types.spec-d.ts](types.spec-d.ts)：导出集合与每段的失败类型
+- [mapping.spec.ts](mapping.spec.ts)：映射表逐行
+- [inspection.spec.ts](inspection.spec.ts)：`inspect` 的合法包与每种来源失败
+- [gate.spec.ts](gate.spec.ts)：第 1–3 步每个分支
+- [describe.spec.ts](describe.spec.ts)：`describe` 两态、无披露三路径、不读字节
+- [pin.spec.ts](pin.spec.ts)：第 5、7 步每个分支与中止
+- [bytes.spec.ts](bytes.spec.ts)：第 9、10 步每个分支与中止
+- [range.spec.ts](range.spec.ts)：字节范围六条规则与正文起点
+- [read.spec.ts](read.spec.ts)：`read` 与 `list` 的组合、路径校验、不缓存、没有合法头部的正文
+- [export.spec.ts](export.spec.ts)：`export` 整包或失败
+- [no-package.spec.ts](no-package.spec.ts)：没有可读包的材料带依据时（PR3）：`describe` 交回依据，`read`、`list`、`export` 答 `basis-unavailable`，坏路径答 `bad-path`
+- [conformance.spec.ts](conformance.spec.ts)：`skillAccessConformance()` 与进程内的变红证明
+- [catalog.spec.ts](catalog.spec.ts)：`skillCatalogConformance()`、两个违约目录的变红证明、核验完成次序、空请求不调用端口、重复身份保留第一条
+- [match.spec.ts](match.spec.ts)：`matches` 的穷举
+- [answer-parse.spec.ts](answer-parse.spec.ts)：三个解析函数逐字段的畸形答复表，JSON 树的重新构造、深度上限与数字词法
+- [port-answers.spec.ts](port-answers.spec.ts)：三类端口的集合外答复、残缺载荷、reject、同步抛出与读取时抛出的统一处置
+- [compat.spec.ts](compat.spec.ts)：说明超过 1024 个字符的包能检查、描述、读正文、进目录；超过 `DESCRIPTION_LIMIT` 拒绝
+- [ref-identity.spec.ts](ref-identity.spec.ts)：引用身份一致（S7）：指向别的身份或别的材料的答复答 `unknown`，以及「对应端口答别的身份的引用时交出别的身份的材料」这一缺陷的复现
+- [model/](model/index.md)：性质 S1–S7 对真实服务的有界穷举探索器（慢层）
+- [fixtures/](fixtures/index.md)：测试固定输入（本包没有文件夹具）
