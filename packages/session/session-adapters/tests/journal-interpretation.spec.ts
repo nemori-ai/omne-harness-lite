@@ -6,7 +6,8 @@
 // answers unavailable without the plugin); a lost reply is sent again under the same operation and
 // recalls; the same event twice commits once; a head that another writer moved after the read
 // answers changed and the call reads again once, then commits; a call of the event queue that still
-// ends in changed is made again once and no more (R2-D157); a stopped plugin and a plugin without
+// ends in changed, or in a rollback that answers unavailable (KL-146), is made again after a backoff
+// until it commits, and a plugin that stops ends the backoff (#1216 E1a); a stopped plugin and a plugin without
 // `sessionTransactions` commit nothing; another tenant's event and a refusing view commit nothing;
 // the R2-D28 counterexample passes once the plugin committed the non-observed tail; the commits of
 // one round do not grow with the rounds before it. The storage is the node:sqlite double of the
@@ -100,12 +101,17 @@ async function interpreted(
   disposers.push(() => c.dispose())
   const interpretation = createSessionJournalInterpretationPlugin<string>({
     coordinator: async () => succeed(s.access.principal),
+    // A short backoff keeps the tests fast; the defaults are checked by the policy test below.
+    retry: QUICK_RETRY,
   })
   const mountPlugin = () => c.mount(interpretation.plugin)
   const fiber = options.plugin === 'later' ? null : await mountPlugin()
   const target = { tenant: s.access.tenant, session: s.access.session, execution: s.execution }
   return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads, bytes }
 }
+
+/** The backoff of the tests: 1, 2, 4, 4, ... milliseconds. */
+const QUICK_RETRY = { initialMs: 1, multiplier: 2, maxMs: 4 } as const
 
 const BATCHES_HANDLER = EXECUTION_RECORD_HANDLERS.facts
 const EVENTS_HANDLER = EXECUTION_RECORD_HANDLERS.events
@@ -388,11 +394,10 @@ describe('AD-02: the execution head moves between the read and the commit', () =
     expect(ok(await f.interpretation.interpret(f.target))).toMatchObject({ readThrough: '1' })
   })
 
-  // R2-D157, a patch of this line: the head moves twice and no later event comes, because the
-  // receivers write through their own Journal copy, which sends no `agent-published`. The event
-  // queue calls the same execution again once. The real gap is that wake contract, recorded for
-  // wave 3 and owned by L-RUN.
-  it('a call of the event queue that ends in changed is made again once, and the event commits', async () => {
+  // The head moves twice and no later event comes, because the receivers write through their own
+  // Journal copy, which sends no `agent-published`. The event queue calls the same execution again
+  // after the backoff, from the saved progress (#1216 E1a; it replaced the one requeue of R2-D157).
+  it('a call of the event queue that ends in changed is made again after the backoff, and the event commits', async () => {
     const f = await interpreted('ad02-requeued')
     for (const label of ['requeued-1', 'requeued-2'])
       f.script.push(async (inner, input) => {
@@ -407,7 +412,7 @@ describe('AD-02: the execution head moves between the read and the commit', () =
     expect(logOperations(f.s)).toEqual([f.sent[2]?.observation.operation])
   })
 
-  it('the call is made again at most once: a head that keeps moving stops after 2 x 2 sends', async () => {
+  it('a head that moves more often than 2 x 2 sends still commits once it stands still, from the saved progress', async () => {
     const f = await interpreted('ad02-requeue-bound')
     for (const label of ['bound-1', 'bound-2', 'bound-3', 'bound-4', 'bound-5'])
       f.script.push(async (inner, input) => {
@@ -415,12 +420,10 @@ describe('AD-02: the execution head moves between the read and the commit', () =
         return inner(input)
       })
     await started(f.s, f.c.journal())
-    await vi.waitFor(() => expect(f.sent).toHaveLength(4), { timeout: 5000 })
-    await settle()
-    // ROUNDS (2) sends per call, for the call and the one call made again (REQUEUES = 1).
-    expect(f.sent).toHaveLength(4)
-    expect(await readThrough(f.s)).toBe('0')
-    expect(logOperations(f.s)).toEqual([])
+    await reaches(f.s, '1')
+    // Five sends answered changed; the call after the backoff sent once more and committed.
+    expect(f.sent).toHaveLength(6)
+    expect(logOperations(f.s)).toEqual([f.sent[5]?.observation.operation])
   })
 })
 
@@ -507,6 +510,49 @@ describe('AD-02: a step that took no input', () => {
     const snapshot = ok(await m.backend.transactions.readWork(m.access))
     const own = snapshot.run.kind === 'active' ? snapshot.run.execution : undefined
     expect(own?.readThrough).toBe('3')
+  })
+})
+
+describe('AD-02: a Session participant rollback that answers unavailable (KL-146, #1216 E1a)', () => {
+  const rollback = async () =>
+    fail<SessionFailure>({
+      kind: 'unavailable',
+      owner: 'session-storage-sql',
+      diagnostic: 'rolled back',
+    })
+
+  it('the event is interpreted again after a backoff, with no later event, and commits once', async () => {
+    const f = await interpreted('ad02-rollback')
+    f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(2)
+    expect(f.sent[1]?.observation).toEqual(f.sent[0]?.observation)
+    expect(logOperations(f.s)).toEqual([f.sent[1]?.observation.operation])
+  })
+
+  it('rollbacks one after the other are tried again until the commit goes through', async () => {
+    const f = await interpreted('ad02-rollbacks')
+    for (let n = 0; n < 6; n += 1) f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(7)
+    expect(logOperations(f.s)).toHaveLength(1)
+  })
+
+  it('a plugin that stops during the backoff sends no more', async () => {
+    const f = await interpreted('ad02-rollback-stop')
+    for (let n = 0; n < 1000; n += 1) f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.sent.length).toBeGreaterThan(2), { timeout: 5000 })
+    await f.fiber?.dispose()
+    const sent = f.sent.length
+    await settle()
+    expect(f.sent.length).toBeLessThanOrEqual(sent + 1)
+    const after = f.sent.length
+    await settle()
+    expect(f.sent).toHaveLength(after)
+    expect(await readThrough(f.s)).toBe('0')
   })
 })
 
