@@ -5,6 +5,12 @@
 // state frame that comes within the case came from a commit notice, not from the interval.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
+import {
+  decodeModelCallId,
+  decodeModelOperationId,
+  decodeProviderName,
+  type FixedModelRequest,
+} from '@omne-harness/model-contract'
 import type { SessionId } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionObservationFrame } from '@omne-harness/session-observation'
@@ -17,8 +23,14 @@ import {
   anotherPerson,
   heldAnswer,
   loginAccess,
+  modelRuntime,
   type LoginAccess,
 } from '../model/public-stream-support.ts'
+
+const must = <T>(outcome: { ok: T } | { failure: unknown }): T => {
+  if ('failure' in outcome) throw new Error(JSON.stringify(outcome.failure))
+  return outcome.ok
+}
 
 const MINUTE = { interval: 60_000 }
 
@@ -193,6 +205,56 @@ describe('session observation on the release tree', () => {
       const forAbsent = await open(tree, other, 'sess_absent', signal)
       expect(forReal).toEqual({ kind: 'denied' })
       expect(forAbsent).toEqual(forReal)
+      held.release()
+    })
+  })
+
+  it('the login principal an observation uses cannot admit a Model call (C18)', async () => {
+    const held = heldAnswer('one', ' two')
+    await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
+      const access = await loginAccess(tree)
+      const adoption = { owner: 'o', name: 'observer-admit', revision: '1', digest: '0'.repeat(64) }
+      const request: FixedModelRequest = {
+        profile: adoption,
+        suppliers: [
+          {
+            adoption,
+            provider: must(decodeProviderName('test.invalid')),
+            model: 'test',
+            credential: { layer: 'official' },
+          },
+        ],
+        fallback: false,
+        retryPolicy: adoption,
+        parameters: [],
+        system: [],
+        messages: [],
+        tools: [],
+        toolChoice: 'none',
+        declarations: [
+          {
+            produces: 'test.invalid/test',
+            accepts: ['test.invalid/test'],
+            foreignThinking: 'omit',
+          },
+        ],
+        representation: adoption,
+        parameterAdoptions: [],
+        source: adoption,
+      }
+      const admitted = await modelRuntime(tree.scope).calls.admit({
+        ...access,
+        call: must(decodeModelCallId('mcall_observer')),
+        operation: must(decodeModelOperationId('mop_observer')),
+        request,
+        consumer: {
+          owner: '@omne-harness/agent',
+          work: 'w/step-1',
+          position: 'I3',
+          purpose: 'main',
+        },
+      })
+      expect(admitted).toEqual({ failure: { kind: 'denied', action: 'admit' } })
       held.release()
     })
   })
