@@ -76,7 +76,7 @@ outputBatchBytes 按事实 JSON 的 UTF-8 逻辑字节数触发持久输出批�
 
 ## 构造与关闭的可观察行为
 
-本实现的三个独立能力工厂只组合算法，不启动运行。createModelRuntime 返回带driver的 ModelRuntimeProvider，普通runtime不暴露driver。装配者须完成显式host绑定，才能公开受理；绑定失败不得返回“可用runtime”。既有替代提供者无需复制这些工厂，但必须符合领域协议。
+本实现的三个独立能力工厂只组合算法，不启动运行。createModelRuntime 返回带driver与 `released` 的 ModelRuntimeProvider，普通runtime不暴露二者。装配者须完成显式host绑定，才能公开受理；绑定失败不得返回“可用runtime”。既有替代提供者无需复制这些工厂，但必须符合领域协议。
 
 调用已经持久受理而schedule失败时，返回原受理事实，不伪装未受理。提供者记录唤醒失败并由恢复扫描续排。query和recover不得为了返回可用状态创建第二次逻辑调用。quiesce停止新的业务受理，仍允许已受理工作调度，不撤销原责任；现有查询、控制、结果保管及清理按可用依赖继续。
 
@@ -207,6 +207,8 @@ Activity 持有唯一的固定 settle 输入。首次写前读取当前资格、
 release 与业务收场分别记录。receiver 只启动一次 iterator.return 并缓存结果。driver 固定终止阶段后先发起 release，同时独立推进 settle，不先等待 release。原 drive 锁一直覆盖真实释放等待，防止第二消费者。释放挂起时 inspect 仍可读取已确认 Settlement。释放失败在收场确认后由 drive 返回，后续 drive 不重做 return 或 close。若同轮收场和释放都失败，先返回收场操作的失败，释放失败仍缓存，收场确认后再次可见。
 
 业务收场确认且资源释放成功后，活动退出 finish，丢弃 receiver 及其发送材料引用。活动仅保留 done，或保留原接收失败的 failed。公开观察继续使用已有确认快照。收场未知或释放未成功时，不执行此转换。
+
+已收场调用的活动保留到宿主告知结果正文已释放为止：其间重复驱动交回原终局。宿主在推送把结果清理释放之后调用 provider 的 `released(tenant, call)`，driver 忘掉这次调用的活动及其观察视图；正在驱动的调用不忘，留到下一次释放。没有活动的已收场调用再被驱动时不新建发布，直接答成功：它没有活执行可以路由。由此驱动的活动与宿主的路由都以在途调用与仍持有份额的结果为界，不随进程寿命增长（#1214）。
 
 settle 确认后先固定内部阶段，再安排附带状态刷新。刷新失败不重做业务写。后续取消、可信 recordLateFact 和事件重放不能改变原 Settlement 的 termination、version 或 source。未知事实不先展示。此实现仅在当前进程持有原确认依据时接续，不证明生产耐久、跨进程恢复或真实厂商停止。
 

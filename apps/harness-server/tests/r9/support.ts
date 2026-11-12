@@ -184,6 +184,23 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       diagnosticsRead: 'tenant-self',
       retention: { ...MODEL_TEST_ADOPTION, name: 'model-diagnostics-retention' },
     },
+    // The public Model stream (#1214): the bounds of the confirming observation source. A call keeps
+    // its publication until its result body is released: at most the 4 calls in flight and the 1
+    // unacknowledged result, within `maxRetainedCalls`.
+    observation: {
+      maxSnapshotBytes: 1_048_576,
+      maxDeltaBytes: 262_144,
+      maxQueuedFrames: 64,
+      maxQueuedBytes: 2_097_152,
+      maxObserversPerTenant: 4,
+      maxObservers: 8,
+      maxPendingSourceOperations: 4,
+      maxRetainedCalls: 8,
+      maxRetainedBytes: 4_194_304,
+      maxTotalBytes: 8_388_608,
+      maxQueueResidenceMs: 10_000,
+      checkIntervalMs: 100,
+    },
     initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
     sendStage: {
       maxRetainedAttempts: 16,
