@@ -16,7 +16,7 @@ main 保存完整集成结果。`integration/mainline` 是唯一的轨道。stab
 
 | 轨道                                | 责任与适用任务                                                                                                                           |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `integration/mainline`              | 联调轨道：唯一的轨道，上游是 main，承接卡、跨线集成、联合验收与破坏性契约改动。在它上面完成联调测试与验收后直接提升到 main。依据 [#973](https://github.com/nemori-ai/omne-harness-lite/issues/973) |
+| `integration/mainline`              | 联调轨道：唯一的轨道，上游是 main，承接卡、跨成员集成、联合验收与破坏性契约改动。在它上面完成联调测试与验收后直接提升到 main。依据 [#973](https://github.com/nemori-ai/omne-harness-lite/issues/973) |
 
 轨道的起点记在 registry 的 `initialBase`，后续合并不改写起点。不再新建轨道或子轨道。
 

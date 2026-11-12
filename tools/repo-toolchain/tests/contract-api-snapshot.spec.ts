@@ -316,7 +316,7 @@ describe('contract API snapshots', { timeout: 60_000 }, () => {
     })
   })
 
-  it('reads the member list from every line and rejects malformed configuration', () => {
+  it('reads the member list from every group and rejects malformed configuration', () => {
     expect(
       parseContractMembers(
         JSON.stringify({

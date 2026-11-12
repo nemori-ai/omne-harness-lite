@@ -26,7 +26,7 @@ export function write(root: string, path: string, text: string): void {
 }
 
 /**
- * Writes the members, `tsconfig.base.json` and the `contractApi` configuration. The line table
+ * Writes the members, `tsconfig.base.json` and the `contractApi` configuration. The contract member table
  * at `config.members` is written only when `lines` is given. The members resolve each other
  * through `node_modules` links, which the checkout must ignore.
  */

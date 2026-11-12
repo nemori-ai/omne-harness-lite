@@ -444,7 +444,7 @@ sequenceDiagram
 - 成员插件在插件体内自登记的行要等正式 `assemblyLifecycle` 被接受后再定承载（N-r2-3）。现在带阶段的行只经 `defineRow` 的两种承载进入。
 - 遥测（RFC-0013 revision 2 本地范围）第一版只有一代输出，按 `telemetry` 行配置在启动时固定，改出口或预算要重启进程（D09）。进程实例引用在模块装入时生成一次，同一进程里多次 `runServe` 共用。报告里的 `afterClose` 不计撤根期间的消息。其余见 [telemetry 行](docs/rows/telemetry.md#已知限制)。
 - `storage` 句柄的结果受提供者自己的 `closeDeadlineMs` 约束。它大于 D 时，句柄在 D 答 `incomplete`，提供者仍在关闭。
-- 行清单的四跳同步靠人工：装配页到 `aa-rows.json` 由脚本再生，装配页到 `stubs.ts` 由线负责人手工同步，`stubs.ts` 到真实行声明由 `real-manifests-sync` 检查，等待装配页补丁的差额写在该测试的具名清单里。
+- 行清单的四跳同步靠人工：装配页到 `aa-rows.json` 由脚本再生，装配页到 `stubs.ts` 由改装配页的那张卡手工同步，`stubs.ts` 到真实行声明由 `real-manifests-sync` 检查，等待装配页补丁的差额写在该测试的具名清单里。
 - `defineRow` 声明的清单与插件实际取用的服务可能不一致。装载器只核声明，真实行的成员测试负责核对。
 - R2-D25 的 Runtime/Execution `current()` 只桥接读取方 fiber 的进程代次。撤权、工作失效和 Request Context 换代尚未同步，不闭合 #677。R2-D29 的 reader 只接受 scope 所属 Session 的工作主体，producer 拒绝；缺 AD-03 归属或 AD-15 恢复授权生产来源时默认 `unavailable`。
 - Model 三行真件的已知限制（撤权只随宿主 fiber 退役、直接命令口的 W 没有受理点、ActorRef 是租户级记录、四种证据恒 `unavailable`、数值无测量依据）归 [Model 生产接线](docs/rows/model-release.md#已知限制)。
