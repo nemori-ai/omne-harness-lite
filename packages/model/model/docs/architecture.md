@@ -398,7 +398,7 @@ classDiagram
 | `query` | 调用与终局 | 查询 | 当前资格与原 operation 的权威提交结论 | Model 保留原身份；Storage 构造完整排除证明，revision 仅用于重查业务状态 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[Storage 查询](../../../storage/sql-contract/SPEC.md#8-query) |
 | `dispatches` | 调用与终局 | 查询 | 当前账目及发出事实读取资格，按原发出顺序返回脱敏事实 | Model 的 dispatch 身份、费用 revision 及披露边界 | [逐操作行为](../../model-contract/SPEC.md#342-逐操作行为) |
 | `prepareDispatch` | 发出尝试与重试 | 状态变更 | 当前代次、尚未控制且尚未收场、首内容界、合法政策和唯一 dispatch 意图 | Model 的 operation、expected/revision、generation 与 dispatch；意图不证明已发送 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作) |
-| `recordMaterialization` | 发出尝试与重试 | 状态变更 | 当前代次、原未发出 dispatch、供应商、固定输入与物化回执 | Model 固定 supplier/representation/payload 摘要；Storage 耐久确认后才形成 source | [物化提交](../../model-contract/SPEC.md#物化回执的提交与发送) |
+| `recordMaterialization` | 发出尝试与重试 | 状态变更 | 当前代次、原未发出 dispatch、供应商、固定输入、物化回执与这次发出的接收窗口 | Model 固定 supplier/representation/payload 摘要，同一次写打开接收窗口；Storage 耐久确认后才形成 source | [物化提交](../../model-contract/SPEC.md#物化回执的提交与发送) |
 | `recordSend` | 发出尝试与重试 | 状态变更 | 原 dispatch 的真实启动观察或发送未知，started 不倒退 not-sent | Model 的 operation、expected/revision 与 generation；本地记录不能推断网络未发送 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[恢复](../../model-contract/SPEC.md#342-重试失联与恢复) |
 | `recordLateFact` | 发出尝试与重试 | 状态变更 | 当前补录资格、原 dispatch 归属、可信 source、事件去重和账目修订（账目报告补上 receipt late）或实际终结事实 | Model 的 operation、dispatch/event 与 DurableEvidence；无须新 claim，不取得执行权，不改逻辑终局、结果版本、ACK 或 cleanup | [恢复与晚到补录](../../model-contract/SPEC.md#342-重试失联与恢复) |
 | `prepareRetry` | 发出尝试与重试 | 状态变更 | 原失败 dispatch、尚未首内容、当前策略资格、唯一策略 operation 和固定策略消费位置 | Model 固定 RetryPosition；策略拥有者保存自身经过，调用前先提交位置 | [重试协议](../../model-contract/SPEC.md#342-重试失联与恢复)、[资格提交](../../model-contract/SPEC.md#342-资格共同提交与实际发送) |
