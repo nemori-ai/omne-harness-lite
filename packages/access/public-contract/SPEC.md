@@ -4,6 +4,8 @@
 
 SDK 和服务端接入使用本页的结果表。它们不另写一套结果含义。
 
+本页还拥有与领域无关的[共同契约](#共同契约)：对外结果表、协议契约的写法与从规则得到的编解码。它是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#3-共同契约) 第 3 节在本成员的落点。现有三组消息不经过它，仍按下面各节读写。
+
 ## 共同消息
 
 本节与[重复的 protocolVersion](#重复的-protocolversion)按治理位置书写。会话位置与 HITL 位置适用同样规则，其中的 `governance-public/1` 分别读作 `session-public/1` 与 `hitl-public/1`，见[会话公开操作](#会话公开操作)与[HITL 公开操作](#hitl-公开操作)。
@@ -1010,6 +1012,7 @@ public-contract does not import message or session-contract
 public-contract does not import human-intervention
 public-contract does not import model-contract or stream-arrival
 public-contract does not import sdk or server-entry
+public-contract src does not import Cordis, assembly, storage members or Node built-ins
 sdk does not import server-entry
 ```
 
@@ -1043,6 +1046,95 @@ const encoded = encodeGovernanceRequest({
 - 成功业务访问如何报告。identity ID-11 继续拥有该公开形状。这些治理操作不代替那份报告。
 - 传输保护协议、登录证明的密码学形式、存储和治理名单的页大小。[会话观察](#会话观察)只固定 SSE 承载下确认与帧的先后，HTTP 承载格式见[承载绑定](docs/http-binding.md)。
 - 资产确认时刻。它归资产读面，不是这些治理消息。
+
+## 共同契约
+
+共同契约让一个领域只写一份字段规则，就同时得到一个操作的 TypeScript 类型与它的读写。它是两端共用的纯数据与纯函数：源码不依赖 Cordis、装配、存储成员与 Node 内建模块（RFC-0015 I-18）。公开类型与签名由 [src/outcome.ts](src/outcome.ts)、[src/rule-codec.ts](src/rule-codec.ts) 与 [src/protocol.ts](src/protocol.ts) 拥有，本节只写行为与保证。
+
+### 对外结果表
+
+`OUTCOMES` 是接入拥有的封闭结果集，共 20 种。名字与[承载页](docs/http-binding.md)的结果到状态码表逐个相同，也等于治理、会话、HITL 三组现有结果并上 `protocol-rejected` 与 `stage-not-provided`。`Outcome` 是它的名字类型。`OUTCOMES` 是冻结的数组。
+
+`FixedOutcome` 是响应体永远为空对象的六种：`denied`、`protocol-rejected`、`basis-unavailable`、`unknown`、`uniform-auth-failure`、`stage-not-provided`。前四种由管道替领域回答，后两种为了拒绝一致也固定为空。领域在类型上不能给它们字段（RFC-0015 I-13）。
+
+### 从规则得到的编解码
+
+规则 `Rule` 是现有引擎读写用的普通数据：叶子、`literal`、`object`、`array` 与 `one-of`。`ruleCodec(rule)` 由一份规则得到 `Codec`，`RuleValue<R>` 从同一份规则推出本地值的类型。两者只有这一个来源，规则与使用它的类型不一致时编译失败。
+
+推出的类型按下面的规则对应：
+
+- 叶子对应引擎实际产出的本地值。`text`、`string`、`session`、`page-bytes`、`revision` 是 `string`。`boolean` 是 `boolean`，`null` 是 `null`。`account`、`organization`、`login`、`tenant` 是 legal-identity 的品牌类型。`instant` 是 utc-instant 的 `Instant`。`positive-integer` 与 `page-limit` 是 `number`。`json` 是 `JsonValue`，`parameters` 与 `user-message` 是对象形的 `JsonValue`。
+- `literal` 是它各个值的并集。
+- `object` 的字段是只读属性。带 `optional: true` 的字段是可选属性。
+- `array` 是只读数组。
+- `one-of` 是各选项的并集。
+
+规则必须保留字面类型才能推出精确的类型。直接写在 `ruleCodec` 或 `defineProtocol` 参数里的规则会保留。先写成 `const x: Rule = …` 的规则失去字面类型，推不出精确的类型。现有三组规则表的共用片段多数是这种写法。
+
+`Codec<T>` 有两个函数，调用方都要传入 `JsonLimits`。契约里只写上限的名字（`small`、`input`），数值归部署配置：
+
+| 函数 | 输入 | 结果 |
+| --- | --- | --- |
+| `read(value, limits)` | 一棵 `JsonValue` | 规则接受时 `{ ok: true, value }`；否则 `{ ok: false }`，不给出部分读到的值 |
+| `write(value, limits)` | 本地值 | 规则接受时 `{ ok: true, value }`，值是一棵 `JsonValue`；否则 `{ ok: false }` |
+
+两个函数都不因输入不合规而抛出。读取是严格的。它先用 json-text 的 `judgeJsonValue` 判定值树，访问上限是 `limits.maxItems`。重复的键、环和畸形的节点在任何字段转换之前就被拒。之后规则外的字段、缺少的必选字段与不在 `literal` 里的值都被拒。写出拒绝规则不接受的值，例如空的 `text`、不大于 0 的 `positive-integer`、不是身份包签发的身份值，以及超出 `limits.maxItems` 的数组。
+
+### 协议契约的写法
+
+一份协议契约 `ProtocolContract` 写明名字、主版本、一组操作契约与一组观察契约。
+
+操作契约 `OperationContract` 的栏：
+
+| 栏 | 含义 |
+| --- | --- |
+| `identity` | `none`、`login` 或 `acting-tenant`：管道在处理函数之前走到哪一步 |
+| `effect` | `read` 或 `commit`：提交类操作的结果可能未知 |
+| `limit` | 消息体上限的名字：`small` 或 `input` |
+| `body` | 消息体的 `Codec` |
+| `outcomes` | 每种可能的结果对应它的响应体：`succeeded` 必有，值是 `Codec`；`FixedOutcome` 的值只能是 `true` |
+| `carriesCredential` | 可选 `true`：结果里带登录证明 |
+| `countsAsAccess` | 可选 `true`：答成功时算一次成功的业务访问 |
+
+观察契约 `ObservationContract` 有 `identity`、`open` 与 `frame` 两个 `Codec`、`ends` 与可选的 `countsAsAccess`。`ends` 只列这个观察自己的结束原因。观察中枢对每个观察都一样的结束原因不在这里列。
+
+`carriesCredential` 与 `countsAsAccess` 只定义在类型里，管道怎样处理它们不归本节。
+
+### defineProtocol
+
+`defineProtocol(protocol)` 的签名是 `defineProtocol<const P extends ProtocolContract>(protocol: P & Closed<P>): DefinedProtocol<P>`。`Closed<P>` 是不导出的封闭检查类型。它做两件事：
+
+1. 封闭检查。结果表之外的结果名、操作或观察上契约之外的栏、缺少 `succeeded`、给 `FixedOutcome` 写编解码，都编译失败。
+2. 加进管道会替领域答的结果。返回值里每个操作的结果集按下表补上 `true` 项，拥有者已列的结果与它们的编解码保留。
+
+| `identity` | `effect` | 补上的结果 |
+| --- | --- | --- |
+| `none` | `read` | `protocol-rejected`、`basis-unavailable` |
+| `none` | `commit` | `protocol-rejected`、`basis-unavailable`、`unknown` |
+| `login` 或 `acting-tenant` | `read` | `protocol-rejected`、`basis-unavailable`、`denied` |
+| `login` 或 `acting-tenant` | `commit` | `protocol-rejected`、`basis-unavailable`、`denied`、`unknown` |
+
+`DefinedProtocol<P>` 在类型上做同样的补充。`effect` 的类型可能是 `commit` 时，类型上就有 `unknown`，所以「结果未知」不会被写成成功或失败（RFC-0015 I-8 在契约这一层）。观察原样保留。`defineProtocol` 返回新值，不改入参。
+
+### 浏览器夹具
+
+[tests/fixtures/browser/](tests/fixtures/browser/main.ts) 是一个浏览器消费者。它只从根入口导入，按 `source` 条件把本成员与它依赖的 json-text、legal-identity、utc-instant 的源码一起编译。类型库是 ES2024 加 DOM，不带 Node 类型。这次编译是慢层成员测试 [tests/browser-fixture.spec.ts](tests/browser-fixture.spec.ts) 的一条。夹具里的[示例协议](tests/fixtures/browser/example-protocol.ts)证明协议契约的写法成立，它不是任何领域的协议，也不随发行导出。
+
+在无界面浏览器里跑它是一次性的证据，不进常驻检查。在仓库根打包：
+
+```sh
+node_modules/.pnpm/esbuild@0.28.2/node_modules/esbuild/bin/esbuild \
+  packages/access/public-contract/tests/fixtures/browser/main.ts \
+  --bundle --platform=browser --format=esm --conditions=source --outfile=<目录>/main.js
+```
+
+再用一个导入 `main.js` 的页面在浏览器里打开。它打印两行：`write: ok`，以及读回的示例消息体。
+
+演示命令打印示例协议里读取类与提交类操作的完整结果集，再把一个消息体写出、读回，并演示重复键与规则外字段被拒。在本成员目录运行：
+
+```sh
+node --conditions=source tests/fixtures/browser/demo.ts
+```
 
 ## 公开编解码入口与实现细化
 

@@ -7,7 +7,7 @@
 // coding agent tutorial, which ran a real model with 15 tool calls on the WIRE head `1a34bcba6`.
 // Where the two differ, the tutorial value is taken: Files with a working directory (R2-D295) and a
 // `tool-records` reconciliation delay of 1000 ms. The result bound of Shell, Files and Web is not
-// from those sources: see `TOOL_RESULT_BYTES`.
+// from those sources: see `LOCAL_TOOL_RESULT_BYTES`.
 // No measurement backs these numbers, and the adoption references are placeholders with a zero
 // digest. SPEC.md lists this as a known limitation.
 //
@@ -355,7 +355,7 @@ export function shellEnvironment(
  * screen and read back by pages. A bound under the threshold cuts every large result to a head and
  * tail window before offloading can see it, and the cut bytes are lost.
  */
-const TOOL_RESULT_BYTES = 1_048_576
+export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
 
 function toolRecords(workspace: string, combinationVersion: string) {
   return {
@@ -522,18 +522,18 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       {
         construction: {
           Shell: {
-            resultMaxBytes: TOOL_RESULT_BYTES,
+            resultMaxBytes: LOCAL_TOOL_RESULT_BYTES,
             executable: settings.shell,
             argsPrefix: shellArguments(platform, settings.shell),
             cwd: settings.workspace,
             env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
           },
           // Files resolves a relative path against its own working directory (R2-D295).
-          Files: { resultMaxBytes: TOOL_RESULT_BYTES, cwd: settings.workspace },
+          Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, cwd: settings.workspace },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
           Ask: { resultMaxBytes: 1_048_576 },
-          Web: { resultMaxBytes: TOOL_RESULT_BYTES, maxSearchResults: 10 },
+          Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
         },
       },
     ],

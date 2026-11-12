@@ -130,8 +130,8 @@ export async function startAssembly(
       if (construction?.['Shell'] !== undefined) {
         const shell = construction['Shell'] as Record<string, unknown>
         writeFileSync(join(String(shell['cwd']), PAYLOAD_FILE), author.body)
-        // The operator layer of the tests bounds a Shell result at 32 KiB; the payload and its
-        // frame need more.
+        // The run pins its own Shell bound, apart from the operator layer of the tests, so the
+        // payload and its frame fit whatever that layer gives.
         return {
           ...op,
           config: {

@@ -20,7 +20,7 @@ import { createSecretVault } from '@omne-harness/settings-local/secrets'
 import { providerCredentialKey, releaseProvider } from '../../src/assets/model-providers.ts'
 import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
-import { LOCAL_TOKENIZERS } from '../../src/local/operator-defaults.ts'
+import { LOCAL_TOKENIZERS, LOCAL_TOOL_RESULT_BYTES } from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 
 export const memberDir = fileURLToPath(new URL('../..', import.meta.url))
@@ -309,12 +309,12 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
   return {
     filesRoot,
     construction: {
-      Shell: { resultMaxBytes: 32768, ...shell, cwd: filesRoot, env },
-      Files: { resultMaxBytes: 32768 },
+      Shell: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, ...shell, cwd: filesRoot, env },
+      Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
       Ask: { resultMaxBytes: 1_048_576 },
-      Web: { resultMaxBytes: 32768, maxSearchResults: 10 },
+      Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
     },
     // The Web provider values of the test operator layer: the local Exa stand-in when a test gives
     // one (`tests/fixtures/exa-stub.ts`), else a loopback port that nothing listens on; short time
