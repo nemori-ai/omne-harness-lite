@@ -43,6 +43,13 @@ CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` �
 - `history.executions.<execution>: required original material is missing`：执行头已经是占位回执（digest `unknown`，session-storage-sql K-5），所以 `boundaryOf` 不给边界。在 f2ba09e89 上加扰动时出现。
 - `history.prefix.<execution>.committedConsequences: required original material is missing`：在 5946efe4d 上出现，不加扰动时 12 次中出现 1 次。
 
+2026-11-12 在 `a89d77662` 上加负载复现（同机另跑一份整包慢层，卡 #1218 H2），又看到两处：
+
+- CP3 以 `changed` 回滚，同一执行、同一序号的 commitLog 之后没有再提交，已保存的进度也没有到这个序号。CP3 把判定的等待放到 120 秒，10 次里 3 次到期时仍有 2 到 5 条没有解释。等待窗口不是原因：AD-02 遇到 `changed` 就结束这次调用，要等下一次唤醒；这一轮之后没有下一次唤醒。
+- J6 的一轮里 `receive(input-handover)` 以第二种签名回滚，同一操作整轮不再提交，这一轮的 Session 提交数少 1，J6 的窗口比较因此失败。5 次里 4 次出现。
+
+两处都是同一个缺口：Session 只参加的提交回滚后，没有一方负责以同一操作再试。所以 CP3 与 J6 在负载下的失败不改用例，等这个缺口由拥有者修好。
+
 一次性复现脚本 `cp3-repro-loop.sh`、`cp3-repro-delay.sh` 已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages/agent/agent-host-local/tests/line-through)。升级条件：在批次 D、E 的准入、C1 联调或 SC4 端到端中，不加扰动时只要出现一次 KL-146 的回滚，就升级为波 2 必修。
 
 ### J6 的两种轮数

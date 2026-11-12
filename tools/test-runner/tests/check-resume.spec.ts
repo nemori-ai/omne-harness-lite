@@ -30,7 +30,7 @@ import {
   type AdmissionRun,
 } from '../src/testing/admission-run.ts'
 import type { CheckStep, Command } from '../src/testing/check-graph.ts'
-import { runCheck } from '../src/testing/check.ts'
+import { ADMISSION_NEXT_STEP, runCheck } from '../src/testing/check.ts'
 import { readTestRunsConfig } from '../src/testing/config.ts'
 
 const CLI = fileURLToPath(new URL('../src/testing/cli.ts', import.meta.url))
@@ -365,6 +365,8 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
       'utf8',
     )
     expect(log).toContain('运行记录：tmp/admission/')
+    // 没通过的准入告诉人下一步是归类补证，并指到正文。
+    expect(log).toContain(ADMISSION_NEXT_STEP)
     expect(log.trimEnd().endsWith('exit=1')).toBe(true)
   })
 

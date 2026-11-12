@@ -1,6 +1,6 @@
 ---
 name: domain-mental-models
-description: "本项目各领域的心智模型与跨领域协调的模型：每个领域是什么、不是什么、拿它怎样量一个设计。在 Session、Agent、Model、Tool、Context、接入层等任何一个领域里做设计或实现时加载；改动会波及别的领域、要判断一件事归谁、两个领域之间该怎样来往、生命周期与卸载怎样处理、要新增一个领域时也加载，任务里没有出现「心智模型」这个词也一样。只查一个已知事实、纯工具链或纯文档排版的改动不加载。"
+description: "本项目各领域的心智模型与跨领域协调的模型：每个领域是什么、不是什么、拿它怎样量一个设计。在 Session、Agent、Model、Tool、Context、接入层、资产、Skill、MCP 等任何一个领域里做设计或实现时加载；判断一个能力怎样到 agent 手上、一次变化要不要重新装配时加载；改动会波及别的领域、要判断一件事归谁、两个领域之间该怎样来往、生命周期与卸载怎样处理、要新增一个领域时也加载，任务里没有出现「心智模型」这个词也一样。只查一个已知事实、纯工具链或纯文档排版的改动不加载。"
 ---
 
 # 各领域的心智模型
@@ -23,14 +23,21 @@ description: "本项目各领域的心智模型与跨领域协调的模型：每
 | 一件事该归 Session 还是归 Agent | [references/cross-domain.md](references/cross-domain.md)「Run 是边界」 |
 | 一个领域要知道另一个领域的事实，或要问许不许 | [references/cross-domain.md](references/cross-domain.md)「知道与决定」，再读 [references/runtime-context.md](references/runtime-context.md) |
 | 谁可以认识谁；端口归谁；要不要一个适配成员 | [references/cross-domain.md](references/cross-domain.md)「谁认识谁」 |
+| 谁可以写一类事实；另一个领域要留下事实怎么办；「每次写入之后都要做的事」挂在哪 | [references/cross-domain.md](references/cross-domain.md)「一类事实只有一个写入者」 |
 | 新增一个领域，或判断一个领域还缺什么 | [references/cross-domain.md](references/cross-domain.md)「一个完整的领域提供什么」 |
 | 装上、卸下、替换；在途的工作怎样处置；Cordis 该做什么 | [references/cross-domain.md](references/cross-domain.md)「动态性与 Cordis」 |
 | 在会话这个领域里：输入、Run、生命周期、会话日志 | [references/session.md](references/session.md) |
 | 在 Agent 这个领域里：循环、拓展点、对 Model 和 Tool 的调用 | [references/agent.md](references/agent.md) |
 | 发布或读取运行数据 | [references/runtime-context.md](references/runtime-context.md) |
 | 领域怎样对客户端开放；入口、协议、接入插件、界面模块 | [references/access.md](references/access.md) |
+| 一个工具、Skill 或 MCP 动作从登记到被 agent 用上，经过哪几个拥有者；哪些互不决定 | [references/cross-domain.md](references/cross-domain.md)「能力怎样到 agent 手上」 |
+| 新装、撤销、改动一个能力，已有的会话什么时候看得到；要不要重新装配；常驻意味着什么 | [references/cross-domain.md](references/cross-domain.md)「能发现的和装进上下文的」 |
+| 工具的定义、参数与结果；程序调用工具 | [references/cross-domain.md](references/cross-domain.md)「工具是函数」 |
+| 谁持有一份能力、选哪一版；类别怎样登记；内容存在哪、怎样读、怎样发布 | [references/assets.md](references/assets.md) |
+| 在 Skill 这个领域里：目录、三层披露、`Skills` 入口、脚本由谁运行、提交 | [references/skill.md](references/skill.md) |
+| 在 MCP 这个领域里：接入点、连接、动作清单、动作怎样成为工具条目、认证 | [references/mcp.md](references/mcp.md) |
 
-还没有写的领域：身份、授权、权限；Model 与 Tool 作为被调用的一方；Request Context；执行环境；人工介入；资产；工作区。碰到它们时读根 `AGENTS.md` 的两张图和跨领域那一份，再读那个领域的正文（`docs/domains/` 下它的目录）。
+还没有写的领域：身份、授权；设置与权限的配值和求值；Model 与 Tool 作为被调用的一方；Request Context；执行环境；人工介入；工作区。碰到它们时读根 `AGENTS.md` 的两张图和跨领域那一份，再读那个领域的正文（`docs/domains/` 下它的目录）。
 
 ## 这些文字的地位
 
