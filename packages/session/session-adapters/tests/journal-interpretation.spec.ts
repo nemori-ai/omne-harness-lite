@@ -632,7 +632,9 @@ describe('AD-02: the backoff of the event queue and its one retry per execution 
       { initialMs: 10, multiplier: 2, maxMs: 9 },
       { initialMs: 1, multiplier: 2, maxMs: Number.POSITIVE_INFINITY },
     ])
-      expect(made(retry), JSON.stringify(retry)).toThrow(RangeError)
+      expect(made(retry), JSON.stringify(retry)).toThrow(
+        new RangeError('the journal interpretation retry needs 0 < initialMs <= maxMs and multiplier >= 1'),
+      )
     // The edges are accepted: a constant backoff, and one wait only.
     expect(made({ initialMs: 1, multiplier: 1, maxMs: 1 })).not.toThrow()
     expect(made({ initialMs: 0.5, multiplier: 3, maxMs: 0.5 })).not.toThrow()
