@@ -1,5 +1,5 @@
 // 契约 API 快照测试的临时检出：真实的根编译选项、成员 package.json、手写的 dist 声明、
-// 按包名的 node_modules 链接、线归属表与带 contractApi 一节的配置。
+// 按包名的 node_modules 链接、契约成员表与带 contractApi 一节的配置。
 import { copyFileSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -98,7 +98,7 @@ export function committedCheckout(): { root: string; base: string } {
   return { root, base: commit(root, 'snapshots') }
 }
 
-/** Rewrites the line table with one line whose contracts are `contracts`. */
+/** Rewrites the contract member table with one group whose contracts are `contracts`. */
 export function setContracts(root: string, contracts: readonly string[]): void {
   write(
     root,

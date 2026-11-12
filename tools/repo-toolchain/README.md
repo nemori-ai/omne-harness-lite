@@ -108,7 +108,7 @@ The class is a whitelist gate. Differences fall into two buckets. Any difference
 
 The tool does not use API Extractor, because API Extractor does not analyze ambient declarations. It drops every `declare module` and `declare global` augmentation, and the public surface of 8 of the 27 contract members contains such augmentations.
 
-The `contractApi` configuration section has two keys. `members` is the path of the line table. `snapshot` is the snapshot path template. It ends with `.md` and contains `{member}` or `{package}`. Any other key, a missing key or a bad value is an error.
+The `contractApi` configuration section has two keys. `members` is the path of the contract member table. `snapshot` is the snapshot path template. It ends with `.md` and contains `{member}` or `{package}`. Any other key, a missing key or a bad value is an error.
 
 `review` means that a person must decide. It includes changes that break the writer, the reader or both. It also includes changes that the additive-change table allows but that are outside the whitelist. Examples are a new member of a union that the contract declares open, and a new default for a type parameter. `review` is not a level for the "契约变化" section of a PR. A person decides that level (none, additive or breaking) from the additive-change table in `docs/engineering/integration.md`.
 

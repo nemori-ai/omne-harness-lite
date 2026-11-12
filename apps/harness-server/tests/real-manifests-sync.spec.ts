@@ -1,5 +1,5 @@
 // `real-manifests-sync`（R1-1，DP1-C5、DP1-C8）：真实行的声明与 `stubs.ts` 的同一行（去掉前缀）逐项相同。
-// 等待装配页补丁的差额写在 `KNOWN_GAPS`，每条带补丁编号；补丁落地、线负责人同步 `stubs.ts` 后删掉对应条目。
+// 等待装配页补丁的差额写在 `KNOWN_GAPS`，每条带补丁编号；补丁落地、`stubs.ts` 同步之后删掉对应条目。
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
