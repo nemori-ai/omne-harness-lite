@@ -34,6 +34,7 @@ import { handleSession } from './session.ts'
 import { sessionProtocolRejected } from './session-codec.ts'
 import { createDiagnosticsCursors, type DiagnosticPorts } from './session-view/index.ts'
 import { SseStream } from './observation-hub/sse.ts'
+import { accessContribution } from './availability/availability.ts'
 import { pathOf } from './pipeline/address.ts'
 import { readBody } from './pipeline/body.ts'
 import { contentTypeAccepted, hostAccepted } from './pipeline/headers.ts'
@@ -83,8 +84,10 @@ export type ServerEntryDependencies = Readonly<{
 export type Listening = Readonly<{ address: string; port: number }>
 
 /**
- * What turns the new address `/api/<protocol>/v<major>/<name>` on: the registry's pipeline side,
- * the identity port and the grace, all three or none (SPEC「管道」). Absent, `/api/...` answers 404.
+ * What turns the new address `/api/<protocol>/v<major>/<name>` on: the registry, the identity port,
+ * the grace and the two backlog bounds, all or none (SPEC「管道」). Given, the entry mounts the
+ * built-in `access/v1` on the registry at start and takes it down last at stop. Absent, `/api/...`
+ * answers 404.
  */
 export type ServerEntryAccess = PipelineAccess
 
@@ -346,6 +349,7 @@ export function createServerEntry(input: {
       })
   }
 
+  let takeDownAccess: (() => Promise<void>) | undefined
   return {
     start() {
       if (listening !== undefined) return Promise.resolve(listening)
@@ -356,6 +360,15 @@ export function createServerEntry(input: {
           ),
         )
       stopping = false
+      // `access/v1` is on before the first call can arrive and off only after the last one left.
+      const access = input.access
+      try {
+        takeDownAccess = access?.registry.mount(
+          accessContribution(access.registry, access.availabilityBacklog),
+        )
+      } catch (error) {
+        return Promise.reject(error)
+      }
       const created = createServer(
         // Step 3 of the binding page judges Host itself, so the host's own Host check is off.
         { requireHostHeader: false, requestTimeout: 0, headersTimeout: 60_000 },
@@ -363,12 +376,17 @@ export function createServerEntry(input: {
       )
       server = created
       return new Promise<Listening>((resolve, reject) => {
-        created.once('error', reject)
+        const failed = (error: Error): void => {
+          void takeDownAccess?.()
+          takeDownAccess = undefined
+          reject(error)
+        }
+        created.once('error', failed)
         created.listen(config.listenPort, LOOPBACK_ADDRESS, () => {
-          created.off('error', reject)
+          created.off('error', failed)
           const address = created.address()
           if (address === null || typeof address === 'string') {
-            reject(new ServerEntryConfigError('server-entry: the listener has no address'))
+            failed(new ServerEntryConfigError('server-entry: the listener has no address'))
             return
           }
           listening = { address: address.address, port: address.port }
@@ -387,6 +405,9 @@ export function createServerEntry(input: {
       })
       await Promise.all([registry.endAll('unavailable'), pipeline?.endObservations()])
       if (inFlight > 0) await new Promise<void>(resolve => drained.push(resolve))
+      const takeDown = takeDownAccess
+      takeDownAccess = undefined
+      await takeDown?.()
       current.closeAllConnections()
       await closed
     },

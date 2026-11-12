@@ -15,6 +15,7 @@ export class SseStream {
   readonly #heartbeatMs: number
   readonly #queue: Chunk[] = []
   readonly #closeListeners: (() => void)[] = []
+  readonly #writtenWaiters: (() => void)[] = []
   #writing = false
   #opened = false
   #ending = false
@@ -44,6 +45,12 @@ export class SseStream {
   /** The bytes of the events handed to the writer and not yet written out. Heartbeats do not count. */
   get queuedFrameBytes(): number {
     return this.#queuedFrameBytes
+  }
+
+  /** Settles once every event queued so far is written out, or the response closed. */
+  written(): Promise<void> {
+    if (this.#closed || this.#queuedFrameBytes === 0) return Promise.resolve()
+    return new Promise(resolve => this.#writtenWaiters.push(resolve))
   }
 
   /**
@@ -111,6 +118,7 @@ export class SseStream {
       this.#writing = false
       if (this.#closed) return
       this.#queuedFrameBytes -= next.frameBytes
+      if (this.#queuedFrameBytes === 0) this.#settleWritten()
       this.#armHeartbeat()
       this.#pump()
     })
@@ -131,12 +139,17 @@ export class SseStream {
     this.#heartbeat = undefined
   }
 
+  #settleWritten(): void {
+    for (const resolve of this.#writtenWaiters.splice(0)) resolve()
+  }
+
   #onClosed(): void {
     if (this.#closed) return
     this.#closed = true
     this.#clearHeartbeat()
     this.#queue.length = 0
     this.#queuedFrameBytes = 0
+    this.#settleWritten()
     this.#resolveFinished()
     const listeners = this.#closeListeners.splice(0)
     for (const listener of listeners) listener()

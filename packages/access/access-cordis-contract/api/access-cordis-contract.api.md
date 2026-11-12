@@ -28,8 +28,12 @@
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
+- `AccessPluginDefinition` · `cordis.d.ts`
 - `AccessRegistryService` · `cordis.d.ts`
+- `Provide` · `cordis.d.ts`
+- `ServiceKey` · `cordis.d.ts`
 - `accessRegistryKey` · `cordis.d.ts`
+- `defineAccessPlugin` · `cordis.d.ts`
 
 ## 声明文件 `contribution.d.ts`
 
@@ -97,7 +101,7 @@ export {};
 ## 声明文件 `cordis.d.ts`
 
 ```ts
-import { Service, type Context } from '@deepseek-ai/cordis';
+import { Service, type Context, type Plugin } from '@deepseek-ai/cordis';
 import type { ProtocolContract } from '@omne-harness/public-contract';
 import type { AccessContribution } from './contribution.ts';
 export declare abstract class AccessRegistryService extends Service {
@@ -112,6 +116,14 @@ declare module '@deepseek-ai/cordis' {
         accessRegistry: AccessRegistryService;
     }
 }
+export type ServiceKey = string & keyof Context;
+export type Provide = <K extends ServiceKey>(key: K) => Context[K] | undefined;
+export type AccessPluginDefinition<P extends ProtocolContract> = Readonly<{
+    name: string;
+    protocol: P;
+    handlers: (provide: Provide) => Omit<AccessContribution<P>, 'protocol'>;
+}>;
+export declare function defineAccessPlugin<P extends ProtocolContract>(definition: AccessPluginDefinition<P>): Plugin.Object;
 ```
 
 ## 声明文件 `identity.d.ts`

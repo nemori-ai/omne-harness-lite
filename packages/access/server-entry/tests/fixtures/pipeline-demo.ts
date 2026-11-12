@@ -26,7 +26,13 @@ let takeDown = registry.mount(notes.contribution)
 const fixture = await startFixture({
   // Served for a person, the heartbeat is the deployment's 15 seconds, not the tests' 40 ms.
   ...(serve ? { config: { heartbeatIntervalMs: 15_000 } } : {}),
-  access: { registry, identity: identity.port, graceMs: 5000, frameQueueBytes: 1 << 20 },
+  access: {
+    registry,
+    identity: identity.port,
+    graceMs: 5000,
+    frameQueueBytes: 1 << 20,
+    availabilityBacklog: 64,
+  },
 })
 
 type Request = Readonly<{

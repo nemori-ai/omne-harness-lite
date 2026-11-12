@@ -6,7 +6,7 @@
 
 `package.json` 的 `exports` 只有入口 `.`。`source` 条件指向 [src/index.ts](../src/index.ts)，供工作区开发使用。独立消费者使用 `types` 与 `import` 条件，它们指向 `dist`。
 
-调用者不需要资格。客户端 SDK 与服务端接入都按包名 `@omne-harness/public-contract` 导入。运行时导出恰为二十二个函数与一个常量：治理一组四个，会话一组四个，HITL 一组四个，身份文本八个，共同契约两个函数 `ruleCodec`、`defineProtocol` 与常量 `OUTCOMES`。[tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查这个清单。其余导出都是类型。本包不导出 `./testing`，也不导出业务提供者。
+调用者不需要资格。客户端 SDK 与服务端接入都按包名 `@omne-harness/public-contract` 导入。运行时导出恰为二十二个函数与两个常量：治理一组四个，会话一组四个，HITL 一组四个，身份文本八个，共同契约两个函数 `ruleCodec`、`defineProtocol` 与常量 `OUTCOMES`，以及内置协议的常量 `accessProtocol`。[tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查这个清单。其余导出都是类型。本包不导出 `./testing`，也不导出业务提供者。
 
 ## 定义索引
 
@@ -35,6 +35,7 @@
 | `Codec`、`CodecResult`、`RuleValue` | 类型 | [src/rule-codec.ts](../src/rule-codec.ts) |
 | `Rule`、`LeafKind` | 类型 | [src/operation-rules.ts](../src/operation-rules.ts)，现有引擎读写用的规则数据 |
 | `defineProtocol` | 函数 | [src/protocol.ts](../src/protocol.ts)，检查协议契约并加进管道结果 |
+| `accessProtocol`、`AccessProtocol`、`AvailabilityFrame` | 常量与类型 | [src/access-protocol.ts](../src/access-protocol.ts)，内置协议 `access/v1`，见 [SPEC](../SPEC.md#内置协议-accessv1) |
 | `OperationContract`、`OutcomeBodies`、`ObservationContract`、`ProtocolContract`、`DefinedProtocol` | 类型 | [src/protocol.ts](../src/protocol.ts) |
 
 `SessionCodecLimits`、`SessionDiagnostic` 与 `SessionEncodeResult` 分别是治理一组同名类型的别名。`HitlCodecLimits`、`HitlDiagnostic` 与 `HitlEncodeResult` 也是。三组共用 `ProofInput`。

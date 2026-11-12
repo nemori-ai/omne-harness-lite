@@ -290,7 +290,7 @@ type HitlIngressFaces<P> = Readonly<{
 
 ## 登记表
 
-登记表记着「现在挂着哪些协议」。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献) 第 5 节与第 13 节「登记表里的一个协议」；领域看到的形状（贡献、`mount`）归 [access-cordis-contract](../access-cordis-contract/SPEC.md)。本节的代码在 `src/registry/`：`registry.ts` 是不认识 Cordis 的纯状态，`cordis.ts` 是 Cordis 提供者 `AccessRegistryProvider`。登记表经[管道](#管道)接到新地址上，只对操作。前提是构造入口时给了 `access`；正式的服务端应用还没有给。观察中枢与内置协议还不存在，现有三个位置不经过登记表。
+登记表记着「现在挂着哪些协议」。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献) 第 5 节与第 13 节「登记表里的一个协议」；领域看到的形状（贡献、`mount`）归 [access-cordis-contract](../access-cordis-contract/SPEC.md)。本节的代码在 `src/registry/`：`registry.ts` 是不认识 Cordis 的纯状态，`cordis.ts` 是 Cordis 提供者 `AccessRegistryProvider`。登记表经[管道](#管道)接到新地址上，操作交给[收场与宽限](#收场与宽限)，观察交给[观察中枢](#观察中枢)。前提是构造入口时给了 `access`。入口启动时自己在这份登记表上挂上[内置协议](#内置协议与可用性) `access/v1`，停止时最后撤下。现有三个位置不经过登记表。
 
 登记表不认识任何领域。表项按协议名与主版本存，处理函数只当函数调用。`src/registry/` 与 `src/settle/` 不导入任何领域的成员，也不导入本成员现有三个位置的文件，依赖方向的门禁 `entry-registry-knows-no-domain` 守这一条。
 
@@ -306,7 +306,8 @@ type HitlIngressFaces<P> = Readonly<{
 
 - **两个同步段。** `enter` 与 `subscribe` 是同步方法，签名里就不是 Promise（`RegistryForPipeline`）。「查表并登记成在途」「读快照并登记订阅者」各是一步，中间不让出执行权（RFC-0015 §15「两条硬要求」）。
 - **撤下完成。** 「撤下完成」是登记表自己的状态，由这份贡献最后一个 `leave` 触发：调用与观察都算。`AccessRegistryService.mount` 把撤下函数作为调用者 Cordis 作用域上效应的收回函数，Cordis 4.0.4 的卸载等它返回的 Promise，所以插件的卸载在最后一个在途工作结束之后才完成。
-- **订阅者。** 订阅者回调在挂上或撤下的同步段里被调用，看到的修订号是变化之后的修订号。订阅者回调抛出时，登记表与别的订阅者照常，错误交给构造时注入的 `onListenerError`。退订第二次没有效果。
+- **订阅者。** 订阅者回调在挂上或撤下的同步段里被调用，看到的修订号是变化之后的修订号。订阅者回调抛出时，登记表与别的订阅者照常，错误交给构造时注入的 `onListenerError`。Cordis 提供者总是注入它：每次抛出记一条 `access.listener-fault`，交给提供者配置里的 `diagnostics`（与 `access.diagnostics` 同一种事件）。退订第二次没有效果。
+- **提供者给出登记表本身。** `AccessRegistryProvider` 的 `registry` 是它里面那份完整的登记表（`AccessRegistry`，带 `mount`）。装配把它作为 `access.registry` 交给入口，入口才能在上面挂内置协议。
 - **管道看得到、领域看不到。** `enter`、`subscribe` 只在提供者与 `createAccessRegistry` 的返回值上，不在 `AccessRegistryService` 上。
 
 ## 管道
@@ -319,16 +320,17 @@ type HitlIngressFaces<P> = Readonly<{
 
 | 字段 | 含义 |
 | --- | --- |
-| `registry` | 登记表给管道的那一面 `RegistryForPipeline` |
+| `registry` | 完整的登记表 `AccessRegistry`：管道用 `enter` 与 `subscribe`，入口用 `mount` 挂内置协议 |
 | `identity` | 身份端口 `AccessIdentity`，类型归 [access-cordis-contract](../access-cordis-contract/SPEC.md#身份端口) |
 | `graceMs` | 收场的宽限，毫秒，交给 `settleCall`；观察中枢等结束帧写出也用它 |
 | `frameQueueBytes` | 一个观察的帧还没写出去的字节数的上界，见[观察中枢](#观察中枢)。成员里没有缺省值 |
+| `availabilityBacklog` | 一个可用性订阅者最多积压几帧变化，按帧数计，见[内置协议与可用性](#内置协议与可用性)。成员里没有缺省值 |
 | `clock` | 可选。宽限用的时钟，缺省 `systemClock` |
 | `diagnostics` | 可选。管道与观察中枢的诊断出口，事件类型 `AccessDiagnostic`，见[诊断](#诊断) |
 
-前四样必填，所以只给一部分编不过。不给 `access` 时，`/api/...` 和别的未知路径一样答空正文的 404。给了，路径不是现有三个位置之一的请求都交给管道。现有三个位置的判断次序与行为不变。
+前五样必填，所以只给一部分编不过。不给 `access` 时，`/api/...` 和别的未知路径一样答空正文的 404。给了，路径不是现有三个位置之一的请求都交给管道。现有三个位置的判断次序与行为不变。
 
-本成员不写 `access` 的值。正式的服务端应用还没有给它，所以那里的新地址仍然答 404。
+本成员不写 `access` 的值。正式的服务端应用在入口那一行给它，那里的新地址只有内置协议，见 [`apps/harness-server` 的入口行](../../../apps/harness-server/docs/rows/server-entry.md)。
 
 ### 判断次序第 1 到 9 步
 
@@ -417,12 +419,13 @@ type HitlIngressFaces<P> = Readonly<{
 | `access.body-over-limit`、`access.body-rejected` | 第 9 步 |
 | `access.aborted`、`access.caller-gone` | 第 8、9 步里的中止与断开 |
 | `access.report-fault` | 业务访问的报告失败 |
+| `access.listener-fault` | 登记表的订阅者回调抛出。由 Cordis 提供者记，不对应请求，没有路径 |
 | `access.observation-full` | 观察中枢：每登录或每实例的名额满了 |
 | `access.frame-source-fault` | 观察中枢：帧来源决定时抛出，迭代时抛出，或给出契约之外的结束原因 |
 | `access.frame-rejected` | 观察中枢：帧不合契约 |
 | `access.frame-queue-full` | 观察中枢：帧队列超了字节上限 |
 
-一条诊断只带代码、路径、协议名与主版本（`protocol`、`major`）、操作名。它不带任何请求头的值、消息体、答复体、主体或依赖的错误文本。路径不带查询串。
+一条诊断只带代码、路径、协议名与主版本（`protocol`、`major`）、操作名；路径只在出错点对应一个请求时才有。它不带任何请求头的值、消息体、答复体、主体或依赖的错误文本。路径不带查询串。
 
 ### 依赖方向
 
@@ -487,6 +490,26 @@ type HitlIngressFaces<P> = Readonly<{
 ### 依赖方向
 
 `src/observation-hub/` 和 `src/pipeline/` 一样，不导入任何领域的契约，也不导入 `src/` 根下的文件。它只导入公开契约、access-cordis-contract、`packages/common` 下的成员、`src/pipeline/` 里写答复与等待的两个函数、`src/registry/` 与 `src/settle/` 的类型。它要用的值由管道在构造时传入。
+
+## 内置协议与可用性
+
+入口自己提供一个协议 `access/v1`，用来回答「现在挂着哪些协议」。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#内置协议与可用性) 第 5 节「内置协议与可用性」、第 13 节「可用性」与第 14 节 I-6、I-15，交付卡 #1249。协议的定义（名字、观察、帧的形状）在共同契约 [`accessProtocol`](../public-contract/SPEC.md#内置协议-accessv1)，两端共用；实现在 `src/availability/`。
+
+- **挂上与撤下。** 给了 `access` 时，`start` 在开始监听之前把它挂到 `access.registry` 上，`stop` 在结束全部观察、等完在途请求之后最后撤下它。所以入口在监听的整段时间里都挂着它，订阅者看到的修订号至少是 1。装配已经挂了一个 `access/v1` 时，`start` 以 `AccessAssemblyError` 拒绝。监听失败时撤下。
+- **不要登录。** 它唯一的观察 `availability` 的契约写 `identity: 'none'`。管道按这一栏走身份规则，不问身份端口，不按协议名或路径放行；它不计入每登录的名额，只计入每实例的名额。对所有调用者给出同样的字节。
+
+可用性的帧来源是登记表的投影：
+
+| 事件 | 帧来源做什么 |
+| --- | --- |
+| 有人订阅（帧来源被调用） | 在同一个同步段里调 `subscribe`，拿到修订号与挂着的协议，登记回调；第一帧是快照 |
+| 挂上或撤下一个协议 | 回调更新这个订阅者知道的集合与修订号，排一帧变化：`added` 或 `removed` 各一项，修订号是变化后的修订号，基础是修订号减一 |
+| 第一帧还没被取走时登记表又变了 | 不排变化帧：取走时的快照已经包含它 |
+| 排着的变化帧多于 `access.availabilityBacklog` | 丢掉这个订阅者排着的全部变化帧，下一帧改发它知道的完整快照 |
+| 断线后重新订阅 | 是一次新的调用，第一帧是当时的快照 |
+| 观察结束（中止或 `return`） | 退订，不再排帧 |
+
+每个订阅者各有自己的队，没有全局锁。积压收在帧来源这一层：中枢对这个帧来源按写出的节奏取帧，上一帧没写出去之前不取下一帧，变化留在帧来源的队里，超了积压预算就并成快照，所以走不到中枢的字节上限。这个节奏只对入口自己的帧来源生效：中枢认一个不从包入口导出的标记，领域拿不到它，领域的观察仍是有帧就取，积压由字节上限收住。
 
 ## 收场与宽限
 

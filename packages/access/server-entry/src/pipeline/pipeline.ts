@@ -13,7 +13,7 @@ import {
   type ObservationHub,
 } from '../observation-hub/hub.ts'
 import type { LoginCheck } from '../observation-hub/records.ts'
-import type { Entered, RegistryForPipeline } from '../registry/registry.ts'
+import type { AccessRegistry, Entered, RegistryForPipeline } from '../registry/registry.ts'
 import { settleCall, systemClock, type Clock } from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
 import { EMPTY_BODY, writeAnswer, writeBare } from './answer.ts'
@@ -24,12 +24,18 @@ import { watchCall, type CallWatch, type Interruption } from './watch.ts'
 
 /** What turns the new address on. The three come together; without them `/api/...` answers 404. */
 export type PipelineAccess = Readonly<{
-  registry: RegistryForPipeline
+  /** The pipeline enters and subscribes; the entry mounts `access/v1` on it at start (spec 已定 8). */
+  registry: AccessRegistry
   identity: AccessIdentity
   /** How long a handler may run after the abort before the entry answers for it (`SettleConfig`). */
   graceMs: number
   /** The upper bound of the bytes of one observation's frames not yet written out (spec 已定 6). */
   frameQueueBytes: number
+  /**
+   * The most change frames one availability subscriber may have waiting; one more and they collapse
+   * into a snapshot (spec 已定 9). Counted in frames.
+   */
+  availabilityBacklog: number
   /** The clock of the grace. Absent: the system clock. */
   clock?: Clock
   /**
@@ -61,16 +67,18 @@ export type PipelineDiagnosticCode =
   | 'access.body-rejected'
   | 'access.aborted'
   | 'access.caller-gone'
+  | 'access.listener-fault'
   | 'access.report-fault'
   | HubDiagnosticCode
 
 /**
  * One event at an error point of the pipeline: its code, the path, and the protocol and operation
  * when they are known. Never a header value, a body, an answer, a principal or an error text.
+ * `access.listener-fault` comes from the registry's provider, not from a request, and has no path.
  */
 export type PipelineDiagnostic = Readonly<{
   code: PipelineDiagnosticCode
-  path: string
+  path?: string
   protocol?: string
   major?: number
   operation?: string

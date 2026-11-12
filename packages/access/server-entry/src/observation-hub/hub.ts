@@ -69,6 +69,18 @@ export type ObservationHub = Readonly<{
 
 type Reason = EndReason<string>
 
+/**
+ * Marks frames the hub takes at the pace they are written out: the next frame is pulled only once
+ * the last one left the write queue, so the backlog stays with the frame source. Only the entry's
+ * own availability source carries it; the package entry does not export it, so a domain's
+ * observation is always pulled as soon as a frame is there and its backlog meets the byte bound.
+ */
+export const PACED = Symbol('server-entry: paced frames')
+
+function isPaced(frames: object): boolean {
+  return (frames as { readonly [PACED]?: unknown })[PACED] === true
+}
+
 function text(fields: readonly (readonly [string, JsonValue])[]): string {
   return writeJsonText({ kind: 'object', entries: fields.map(([key, value]) => ({ key, value })) })
 }
@@ -181,6 +193,7 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     ended: Promise<Step>,
   ): Promise<void> {
     const { contract, note } = input
+    const paced = isPaced(frames)
     let reported = false
     for (;;) {
       const step = await nextStep(frames, ended)
@@ -208,6 +221,7 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
         input.res.destroy()
         return
       }
+      if (paced) await Promise.race([stream.written(), ended])
     }
   }
 

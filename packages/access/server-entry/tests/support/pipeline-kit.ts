@@ -16,7 +16,7 @@ import {
   createAccessRegistry,
   type AccessDiagnostic,
   type Entered,
-  type RegistryForPipeline,
+  type AccessRegistry,
   type ServerEntryDiagnostic,
 } from '../../src/index.ts'
 import {
@@ -40,6 +40,7 @@ export const MESSAGE_ID = 'msg-0001'
 export const GRACE_MS = 60_000
 /** The frame queue bound of the fixture: a few frames of a few kilobytes fit, a flood does not. */
 export const FRAME_QUEUE_BYTES = 64 * 1024
+export const AVAILABILITY_BACKLOG = 4
 
 /** A deferred value the case settles by hand. */
 export type Held<T> = {
@@ -190,7 +191,7 @@ export function testIdentity(): TestIdentity {
 }
 
 export type RegistryLog = {
-  readonly registry: RegistryForPipeline
+  readonly registry: AccessRegistry
   /** One line per `enter` that returned a member, and whether its `leave` has been called. */
   readonly entries: { readonly name: string; left: boolean }[]
   /** How many times `leave` was called for each line of `entries`, same order (#1249 C5). */
@@ -200,7 +201,7 @@ export type RegistryLog = {
 }
 
 /** Wraps a registry so a case can see each `enter` and `leave` the pipeline makes. */
-export function recordingRegistry(inner: RegistryForPipeline): RegistryLog {
+export function recordingRegistry(inner: AccessRegistry): RegistryLog {
   const entries: { name: string; left: boolean }[] = []
   const leaveCounts: number[] = []
   const signals = new Set<AbortSignal>()
@@ -209,6 +210,7 @@ export function recordingRegistry(inner: RegistryForPipeline): RegistryLog {
     leaveCounts,
     signals,
     registry: {
+      mount: contribution => inner.mount(contribution),
       subscribe: listener => inner.subscribe(listener),
       enter: (key, name) => {
         const entered = inner.enter(key, name)
@@ -396,7 +398,8 @@ export type AccessFixture = Omit<Fixture, 'diagnostics'> & {
 }
 
 /** An entry given `access`, with the scripted notes protocol mounted. */
-export type AccessFixtureOptions = FixtureOptions & Readonly<{ frameQueueBytes?: number }>
+export type AccessFixtureOptions = FixtureOptions &
+  Readonly<{ frameQueueBytes?: number; availabilityBacklog?: number }>
 
 export async function startAccessFixture(
   options: AccessFixtureOptions = {},
@@ -416,6 +419,7 @@ export async function startAccessFixture(
       identity: identity.port,
       graceMs: GRACE_MS,
       frameQueueBytes: options.frameQueueBytes ?? FRAME_QUEUE_BYTES,
+      availabilityBacklog: options.availabilityBacklog ?? AVAILABILITY_BACKLOG,
       clock: accessClock,
       diagnostics: event => diagnostics.push(event),
     },

@@ -8,7 +8,7 @@
 
 本成员实现 38 项治理请求操作（其中 4 项管理行事租户的设置项）与 8 项会话操作，含会话中断的 `cancel-run` 与 `stop-call`，以及只读的会话诊断投影 `read-session-diagnostics`。它还实现 4 项 HITL 操作：`list-cards`、`read-card`、`submit-reply` 与 `query-submit-reply`。它还识别 4 项本阶段不提供的治理操作。[行为规格](SPEC.md) 拥有规则。[主入口](src/index.ts) 导出十二个协议函数及其输入、结果类型，三种协议各四个，另导出租户、组织、账号、登录状态的[身份文本函数](SPEC.md#身份值的文本)八个。[治理消息类型](src/messages.ts)、[会话消息类型](src/session-messages.ts) 与 [HITL 消息类型](src/hitl-messages.ts) 把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md) 索引全部导出。
 
-本成员还有一组与领域无关的[共同契约](SPEC.md#共同契约)：封闭的对外结果表 `OUTCOMES`，由一份规则得到编解码与类型的 `ruleCodec`，以及检查协议契约并加进管道结果的 `defineProtocol`。它是 RFC-0015 第 3 节的落点。现有三组消息还不经过它。不带 Node 类型、带浏览器类型库的消费者夹具编译它，这次编译是慢层测试的一条。
+本成员还有一组与领域无关的[共同契约](SPEC.md#共同契约)：封闭的对外结果表 `OUTCOMES`，由一份规则得到编解码与类型的 `ruleCodec`，以及检查协议契约并加进管道结果的 `defineProtocol`。内置协议 `access/v1` 的定义 `accessProtocol` 也在这里：它唯一的观察 `availability` 不要登录，告诉客户端现在挂着哪些协议。它是 RFC-0015 第 3 节的落点。现有三组消息还不经过它。不带 Node 类型、带浏览器类型库的消费者夹具编译它，这次编译是慢层测试的一条。
 
 本成员不核验身份、不判断授权、不执行业务，也不选择传输保护协议。[承载绑定](docs/http-binding.md) 写三个位置的 HTTP 与 SSE 承载。identity 与 authorization 继续拥有身份、授权与业务操作的责任。Session 继续拥有会话业务规则。HITL 继续拥有卡片、答复与资格的规则。SDK 和 server-entry 是独立消费者，各自承担后续交付义务。
 

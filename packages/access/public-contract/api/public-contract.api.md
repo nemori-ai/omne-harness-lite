@@ -6,7 +6,9 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `AccessProtocol` · `access-protocol.d.ts`
 - `AccountId` · 包 `@omne-harness/legal-identity`
+- `AvailabilityFrame` · `access-protocol.d.ts`
 - `Codec` · `rule-codec.d.ts`
 - `CodecResult` · `rule-codec.d.ts`
 - `DefinedProtocol` · `protocol.d.ts`
@@ -112,6 +114,7 @@
 - `SettingLayers` · `messages.d.ts`
 - `SettingState` · `messages.d.ts`
 - `TenantId` · 包 `@omne-harness/legal-identity`
+- `accessProtocol` · `access-protocol.d.ts`
 - `defineProtocol` · `protocol.d.ts`
 - `encodeAccountIdText` · `identity-text.d.ts`
 - `encodeGovernanceRequest` · `codec.d.ts`
@@ -134,6 +137,148 @@
 - `readSessionResponse` · `session-codec.d.ts`
 - `readTenantText` · `identity-text.d.ts`
 - `ruleCodec` · `rule-codec.d.ts`
+
+## 声明文件 `access-protocol.d.ts`
+
+```ts
+import { type RuleValue } from './rule-codec.ts';
+declare const availabilityFrame: {
+    readonly kind: 'one-of';
+    readonly rules: readonly [
+        {
+            readonly kind: 'object';
+            readonly fields: {
+                readonly kind: {
+                    readonly rule: {
+                        readonly kind: 'literal';
+                        readonly values: readonly [
+                            'snapshot'
+                        ];
+                    };
+                };
+                readonly revision: {
+                    readonly rule: {
+                        readonly kind: 'positive-integer';
+                    };
+                };
+                readonly protocols: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        },
+        {
+            readonly kind: 'object';
+            readonly fields: {
+                readonly kind: {
+                    readonly rule: {
+                        readonly kind: 'literal';
+                        readonly values: readonly [
+                            'change'
+                        ];
+                    };
+                };
+                readonly revision: {
+                    readonly rule: {
+                        readonly kind: 'positive-integer';
+                    };
+                };
+                readonly added: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+                readonly removed: {
+                    readonly rule: {
+                        readonly kind: 'array';
+                        readonly item: {
+                            readonly kind: 'object';
+                            readonly fields: {
+                                readonly name: {
+                                    readonly rule: {
+                                        readonly kind: 'text';
+                                    };
+                                };
+                                readonly major: {
+                                    readonly rule: {
+                                        readonly kind: 'positive-integer';
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        }
+    ];
+};
+export type AvailabilityFrame = RuleValue<typeof availabilityFrame>;
+export declare const accessProtocol: {
+    readonly operations: {};
+    readonly name: "access";
+    readonly major: 1;
+    readonly observations: {
+        readonly availability: {
+            readonly identity: "none";
+            readonly open: import("./rule-codec.ts").Codec<{}>;
+            readonly frame: import("./rule-codec.ts").Codec<{
+                readonly kind: "snapshot";
+                readonly protocols: readonly {
+                    readonly major: number;
+                    readonly name: string;
+                }[];
+                readonly revision: number;
+            } | {
+                readonly added: readonly {
+                    readonly major: number;
+                    readonly name: string;
+                }[];
+                readonly kind: "change";
+                readonly removed: readonly {
+                    readonly major: number;
+                    readonly name: string;
+                }[];
+                readonly revision: number;
+            }>;
+            readonly ends: readonly [
+            ];
+        };
+    };
+};
+export type AccessProtocol = typeof accessProtocol;
+export {};
+```
 
 ## 声明文件 `codec.d.ts`
 
@@ -543,6 +688,8 @@ export { ruleCodec } from './rule-codec.ts';
 export type { Codec, CodecResult, RuleValue } from './rule-codec.ts';
 export type { LeafKind, Rule } from './operation-rules.ts';
 export { defineProtocol } from './protocol.ts';
+export { accessProtocol } from './access-protocol.ts';
+export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts';
 export type { DefinedProtocol, ObservationContract, OperationContract, OutcomeBodies, ProtocolContract, } from './protocol.ts';
 ```
 
