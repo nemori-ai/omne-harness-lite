@@ -99,6 +99,39 @@ type Step =
   | Readonly<{ kind: 'threw' }>
   | Readonly<{ kind: 'ended' }>
 
+/** How the frame source's step ends the observation; `undefined` when it already ended elsewhere. */
+function endOf(
+  step: Exclude<Step, { kind: 'frame' }>,
+  contract: ObservationContract,
+): Readonly<{ reason: Reason; code?: HubDiagnosticCode }> | undefined {
+  switch (step.kind) {
+    case 'ended':
+      return undefined
+    case 'threw':
+      return { reason: 'unavailable', code: 'access.frame-source-fault' }
+    case 'done':
+      return endsWithin(contract, step.value)
+        ? { reason: step.value }
+        : { reason: 'unavailable', code: 'access.frame-source-fault' }
+  }
+}
+
+type Frames = AsyncGenerator<unknown, unknown>
+
+/** The next step of the frame source, or the end that came first. */
+function nextStep(frames: Frames, ended: Promise<Step>): Promise<Step> {
+  return Promise.race<Step>([
+    frames.next().then(
+      (result): Step =>
+        result.done === true
+          ? { kind: 'done', value: result.value }
+          : { kind: 'frame', value: result.value },
+      (): Step => ({ kind: 'threw' }),
+    ),
+    ended,
+  ])
+}
+
 export function createObservationHub(settings: HubSettings): ObservationHub {
   const records = createObservationRecords<string>({
     limits: { ...settings.limits, cancelRetentionMs: 0 },
@@ -118,34 +151,12 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
       })
     })
 
-  async function open(input: HubOpen): Promise<void> {
-    const { entered, contract, res, messageId, note } = input
-    let left = false
-    const leave = (): void => {
-      if (left) return
-      left = true
-      entered.leave()
-    }
-    let markEnded: () => void = () => {}
-    const ended = new Promise<Step>(resolve => {
-      markEnded = () => resolve({ kind: 'ended' })
-    })
-    const claim: ObservationClaim<string> | undefined = records.claim({
-      key: input.key,
-      ...(input.loginKey === undefined ? {} : { loginKey: input.loginKey }),
-      ...(input.checkLogin === undefined ? {} : { checkLogin: input.checkLogin }),
-      endFrame: endedText,
-      onEnded: (_ended: Ended<string>) => markEnded(),
-    })
-    if (claim === undefined) {
-      note('access.observation-full')
-      writeAnswer(res, { outcome: 'basis-unavailable', body: EMPTY_BODY, messageId, close: false })
-      leave()
-      return
-    }
-
-    // The frame source sees one signal: the take-down, the caller going away, or the end.
-    const source = new AbortController()
+  /**
+   * Lets the frame source decide whether to open. A refusal, a fault or a take-down is answered
+   * here; a caller who went away gets nothing. Returns the frames when it opened.
+   */
+  async function decide(input: HubOpen, source: AbortController): Promise<Frames | undefined> {
+    const { entered, res, messageId, note } = input
     const watch = watchCall(entered.signal, res)
     watch.halt.addEventListener('abort', () => source.abort())
     const decided = await watch.attend(() =>
@@ -155,58 +166,38 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
       ),
     )
     watch.release()
-    if (decided.kind !== 'done' || decided.value.outcome !== 'succeeded') {
-      claim.discard()
-      source.abort()
-      if (decided.kind === 'interrupted' && decided.by === 'gone') return leave()
-      if (decided.kind === 'threw') note('access.frame-source-fault')
-      const outcome =
-        decided.kind === 'done' && decided.value.outcome !== 'succeeded'
-          ? decided.value.outcome
-          : 'basis-unavailable'
-      writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: outcome === 'denied' })
-      return leave()
-    }
+    if (decided.kind === 'done' && decided.value.outcome === 'succeeded')
+      return decided.value.frames
+    if (decided.kind === 'interrupted' && decided.by === 'gone') return undefined
+    if (decided.kind === 'threw') note('access.frame-source-fault')
+    const outcome = decided.kind === 'done' ? decided.value.outcome : 'basis-unavailable'
+    writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: outcome === 'denied' })
+    return undefined
+  }
 
-    const frames = decided.value.frames
-    const stream = new SseStream(res, settings.heartbeatMs)
-    stream.open(200, undefined, { 'omne-message-id': messageId })
-    claim.attach(stream)
-    const onAbort = (): void => claim.end('unavailable')
-    entered.signal.addEventListener('abort', onAbort)
-    if (entered.signal.aborted) onAbort()
-
+  /** Writes frames until the observation ends, by its source, its observer or anything else. */
+  async function pump(
+    input: HubOpen,
+    claim: ObservationClaim<string>,
+    stream: SseStream,
+    frames: Frames,
+    ended: Promise<Step>,
+  ): Promise<void> {
+    const { contract, note } = input
     let reported = false
     for (;;) {
-      const step = await Promise.race<Step>([
-        frames.next().then(
-          (result): Step =>
-            result.done === true
-              ? { kind: 'done', value: result.value }
-              : { kind: 'frame', value: result.value },
-          (): Step => ({ kind: 'threw' }),
-        ),
-        ended,
-      ])
-      if (step.kind === 'ended') break
-      if (step.kind === 'threw') {
-        note('access.frame-source-fault')
-        claim.end('unavailable')
-        break
-      }
-      if (step.kind === 'done') {
-        if (endsWithin(contract, step.value)) claim.end(step.value as Reason)
-        else {
-          note('access.frame-source-fault')
-          claim.end('unavailable')
-        }
-        break
+      const step = await nextStep(frames, ended)
+      if (step.kind !== 'frame') {
+        const end = endOf(step, contract)
+        if (end?.code !== undefined) note(end.code)
+        if (end !== undefined) claim.end(end.reason)
+        return
       }
       const written = contract.frame.write(step.value, settings.writeLimits)
       if (!written.ok) {
         note('access.frame-rejected')
         claim.end('unavailable')
-        break
+        return
       }
       stream.event(frameText(written.value))
       if (!reported) {
@@ -217,18 +208,51 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
         // The observer is not reading: no frame can reach it, so the connection goes too.
         note('access.frame-queue-full')
         claim.end('capacity')
-        res.destroy()
-        break
+        input.res.destroy()
+        return
       }
     }
+  }
 
+  async function open(input: HubOpen): Promise<void> {
+    const { entered, res, messageId } = input
+    let markEnded: () => void = () => {}
+    const ended = new Promise<Step>(resolve => {
+      markEnded = () => resolve({ kind: 'ended' })
+    })
+    const claim = records.claim({
+      key: input.key,
+      ...(input.loginKey === undefined ? {} : { loginKey: input.loginKey }),
+      ...(input.checkLogin === undefined ? {} : { checkLogin: input.checkLogin }),
+      endFrame: endedText,
+      onEnded: (_ended: Ended<string>) => markEnded(),
+    })
+    if (claim === undefined) {
+      input.note('access.observation-full')
+      writeAnswer(res, { outcome: 'basis-unavailable', body: EMPTY_BODY, messageId, close: false })
+      return entered.leave()
+    }
+    // The frame source sees one signal: the take-down, the caller going away, or the end.
+    const source = new AbortController()
+    const frames = await decide(input, source)
+    if (frames === undefined) {
+      claim.discard()
+      source.abort()
+      return entered.leave()
+    }
+    const stream = new SseStream(res, settings.heartbeatMs)
+    stream.open(200, undefined, { 'omne-message-id': messageId })
+    claim.attach(stream)
+    const onAbort = (): void => claim.end('unavailable')
+    entered.signal.addEventListener('abort', onAbort)
+    if (entered.signal.aborted) onAbort()
+    await pump(input, claim, stream, frames, ended)
     entered.signal.removeEventListener('abort', onAbort)
     source.abort()
-    // The frame source winds down in its own time; nothing waits for it.
-    // The value is never read: the source's own end reason no longer matters.
-    void frames.return(undefined as never).catch(() => {})
+    // The frame source winds down in its own time; its end reason no longer matters.
+    void frames.return(undefined).catch(() => {})
     await drained(stream, res)
-    leave()
+    entered.leave()
   }
 
   return {
