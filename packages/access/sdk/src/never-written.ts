@@ -25,9 +25,13 @@ function codeOf(error: unknown): string | undefined {
 export function neverWritten(error: unknown): boolean {
   const cause = error instanceof Error ? error.cause : undefined
   const codes: (string | undefined)[] = [codeOf(cause)]
-  const nested =
-    typeof cause === 'object' && cause !== null && 'errors' in cause ? cause.errors : []
-  if (Array.isArray(nested)) codes.push(...nested.map(codeOf))
+  if (
+    typeof cause === 'object' &&
+    cause !== null &&
+    'errors' in cause &&
+    Array.isArray(cause.errors)
+  )
+    codes.push(...cause.errors.map(codeOf))
   const known = codes.filter((code): code is string => code !== undefined)
   return known.length > 0 && known.every(code => beforeFirstByte.has(code))
 }
