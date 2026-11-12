@@ -508,7 +508,7 @@ Worker 在操作途中退出时，已发送、尚未结算的 `commit` 调用方
 3. `unavailable`/`invalid`：请求不能解码，或违反 §3.1 的字段规则。`requestKey` 无效时，结果中的 `requestKey` 为 `null`。诊断只写字段名。
 4. `unavailable`/`read_limit`：输入超过 `maxReadInputBytes`，或嵌套深度、容器成员数超限。
 5. `unavailable`/`handler_unavailable`：目录中没有该 `(handler, protocol)`。
-6. `unavailable`/`queue_full`：读的等待列表已满，或 handler 的 `maxOutputBytes` 超过全局读结果预留、永远放不下。读队列已满或全局读结果预留一时不足时，请求按[准入等待](#准入等待)等待，等待的时间计入第 9 步的期限。
+6. `unavailable`/`queue_full`：读的等待列表已满。handler 的 `maxOutputBytes` 不会超过全局读结果预留（[准入等待](#准入等待)第 1 条的配置关系），所以没有永远放不下的读。读队列已满或全局读结果预留一时不足时，请求按[准入等待](#准入等待)等待，等待的时间计入第 9 步的期限。
 
 第 1 至 6 步都通过后，控制侧预留结果字节，把请求放入域读队列。派发与执行（第 7 至 13 步）：
 
