@@ -308,6 +308,33 @@ it('requires the same-transaction authority fact and preserves bound denial but 
   })
 })
 
+it('answers unknown and commits nothing when the original operation cannot be recalled', async () => {
+  let commits = 0
+  let notRecallable = false
+  const w = await world(storage => ({
+    ...storage,
+    commit(input, options) {
+      commits += 1
+      return storage.commit(input, options)
+    },
+    query(identity) {
+      return notRecallable
+        ? Promise.resolve({ kind: 'not_recallable', identity })
+        : storage.query(identity)
+    },
+  }))
+  const before = commits
+  notRecallable = true
+  const original = command()
+  expect(await w.persistence.commitDisposition(original)).toMatchObject({ kind: 'unknown' })
+  expect(commits).toBe(before)
+  notRecallable = false
+  expect(await w.repository.getCalendar({ calendarId: original.address.calendarId })).toEqual({
+    kind: 'ok',
+    value: null,
+  })
+})
+
 it('rolls every Calendar write back when a later participant fails', async () => {
   const w = await world(storage => ({
     ...storage,

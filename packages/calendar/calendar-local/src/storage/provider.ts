@@ -68,7 +68,7 @@ async function commitDisposition(
   const identity = dispositionIdentity(command.address)
   try {
     const original = await options.storage.query(identity)
-    if (original.kind === 'unknown')
+    if (original.kind === 'unknown' || original.kind === 'not_recallable')
       return { kind: 'unknown', operationRef: operationRef(command.address) }
     if (original.kind === 'committed' || original.kind === 'rolled_back')
       return receiptResult(original, command, digest(command), true)

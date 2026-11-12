@@ -18,7 +18,7 @@
 
 详情只读取已产生的 invocation 和精确 result version 的 full 投影。每次读取先观察当前披露资格，核对完整结果摘要、owner、全部相关 Schedule ID 及页元信息，返回前确认观察仍有效。禁止回退 latest，禁止因本次无权限而返回旧缓存。
 
-通用 Tool 的 read-result、read-content、read-raw、read-raw-content 也必须经过返回的 guard。宿主必须把 guard 接入真实读取链路；仅提供详情端点不能封住旁路。没有 original 的结果保留 Tool 的 no-raw-output；有原始元信息但缺少字节读取器时由通用内容协议返回 unsupported。本包不增加原始字节方法或附件协议。
+通用 Tool 的 read-result 与 read-content 也必须经过返回的 guard。结果的内容字节与卸载后的正文字节都由 read-content 读取。宿主必须把 guard 接入真实读取链路；仅提供详情端点不能封住旁路。本包不增加字节读取方法或附件协议。
 
 续页绑定固定版本、披露观察、已读页和累计字节预算，并使用宿主注入的至少 32 字节 cursorKey 校验。相同配置重建可续读；不同密钥不能沿用旧 cursor。密钥配置和保管归宿主，不在本包建立密钥平台。
 
