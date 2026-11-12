@@ -17,6 +17,8 @@ export type PhaseCounts = {
   commits: number
   reads: number
   queries: number
+  /** Queries by the prefix of their operation key (`mop_` for a Model operation, and so on). */
+  queriesByOperation: Record<string, number>
   /** The JSON bytes of every `execution-record` command committed in the phase. */
   journalOwnBytes: number
   /** The same bytes by the part of the command that holds them (see `attribute`). */
@@ -29,6 +31,7 @@ const empty = (): PhaseCounts => ({
   commits: 0,
   reads: 0,
   queries: 0,
+  queriesByOperation: {},
   journalOwnBytes: 0,
   journalOwnBytesByKind: {},
 })
@@ -89,6 +92,26 @@ function attribute(value: unknown, path = '', depth = 0, into: Record<string, nu
   return into
 }
 
+/**
+ * The owner prefix of a storage operation key: `mop_` for a Model operation, `sop_` for a Session
+ * operation (whose key is a JSON array `[session, operation, attempt]`), `other` otherwise.
+ */
+function operationPrefix(key: string): string {
+  const direct = /^([a-z]+_)/u.exec(key)?.[1]
+  if (direct !== undefined) return direct
+  try {
+    const parts: unknown = JSON.parse(key.replace(/#\d+$/u, ''))
+    if (Array.isArray(parts))
+      for (const part of parts) {
+        const found = typeof part === 'string' ? /^([a-z]+_)/u.exec(part)?.[1] : undefined
+        if (found !== undefined) return found
+      }
+  } catch {
+    // Not a JSON key: counted as other.
+  }
+  return 'other'
+}
+
 /** Installs the count once per process; `phase` sets the phase that later messages count in. */
 export function installWorkerCount() {
   const phases = new Map<number, PhaseCounts>()
@@ -138,7 +161,11 @@ export function installWorkerCount() {
         counts.commitsByParticipant[participant] =
           (counts.commitsByParticipant[participant] ?? 0) + 1
       kind = `commit:${[...participants].sort().join('+') || '?'}`
-    } else if (kind === 'query') counts.queries += 1
+    } else if (kind === 'query') {
+      counts.queries += 1
+      const prefix = operationPrefix(String(find(message, 'operationKey') ?? ''))
+      counts.queriesByOperation[prefix] = (counts.queriesByOperation[prefix] ?? 0) + 1
+    }
     counts.messages[kind] = (counts.messages[kind] ?? 0) + 1
     return post.call(this, message, ...rest)
   } as typeof post

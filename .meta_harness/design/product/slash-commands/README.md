@@ -2,7 +2,7 @@
 id: PD-slash-commands
 title: Slash Command
 status: draft
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on: []

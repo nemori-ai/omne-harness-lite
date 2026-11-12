@@ -148,6 +148,7 @@ describe('operations whose outcome stays unknown', () => {
     })
     const refused = await commands.admit(core.admitOf(A, callId('next'), opId('a2')))
     expect('failure' in refused && refused.failure.kind).toBe('unavailable')
+    expect(JSON.stringify(refused)).toContain('too many operations with an unknown outcome')
     expect('ok' in (await commands.admit(core.admitOf(B, callId('other'), opId('b1'))))).toBe(true)
   })
 
