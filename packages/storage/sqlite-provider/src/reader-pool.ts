@@ -203,7 +203,10 @@ export class ReaderPool {
       if (acquired.kind !== 'granted') return READ_REFUSAL[acquired.kind]
       return new Promise<ReadOutcome>(resolve => {
         const task: Task = new Task(job, resolve, acquired.release, () => this.aborted(task))
-        const left = Math.max(0, readQueueTimeoutMs - (performance.now() - started))
+        const elapsed =
+          /* wall-clock: operation-timing -- What is left of the read deadline after the wait for a reservation (SPEC 9.2 step 9). */ performance.now() -
+          started
+        const left = Math.max(0, readQueueTimeoutMs - elapsed)
         task.startTimer(left, () => this.queueExpired(task))
         void this.enqueue(task)
       })
