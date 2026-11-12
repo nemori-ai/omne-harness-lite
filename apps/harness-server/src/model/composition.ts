@@ -8,7 +8,9 @@
 // - the one execution channel both the host and the send stage capture;
 // - the host binding: the host fiber's retirement closure and the ordered release of the send child
 //   and the channel (the release ends the attachment; no closed channel is handed out afterwards);
-// - the result push ledger the host keeps across its own reloads.
+// - the result push ledger the host keeps across its own reloads;
+// - the observation pair of the same records activation (commands and confirming source), handed to
+//   the host with the application's admission point on the source (`src/model/observation.ts`).
 // It hands out no issuer, no standing port and no write access to the registry.
 import { randomBytes } from 'node:crypto'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
@@ -24,6 +26,7 @@ import type {
 } from '@omne-harness/model/commands'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { currentForReader } from '../entry/runtime-context-trust.ts'
+import { qualifyingObservation, type ModelObservationPair } from './observation.ts'
 import type { ModelQualification } from './qualification.ts'
 import { callKey } from './tenant-call.ts'
 
@@ -37,6 +40,8 @@ const unavailable = (diagnostic: string): ModelFailure => ({
 
 export type ModelRecordsAttachment = Readonly<{
   initial: ModelInitialExecution<unknown>
+  /** The observation pair of the same activation, and the interval the source checks at. */
+  observation: ModelObservationPair & Readonly<{ recheckMs: number }>
   qualification: ModelQualification
 }>
 
@@ -78,6 +83,8 @@ export type ModelHostBinding = Readonly<{
   qualifyObservation(
     access: Parameters<ModelQualification['qualifyObservation']>[0],
   ): ReturnType<ModelQualification['qualifyObservation']>
+  /** The observation pair of the current attachment, its source behind the admission point. */
+  observation(): Outcome<ModelObservationPair, ModelFailure>
   ledger: ResultPushLedger
 }>
 
@@ -207,6 +214,21 @@ export function createModelRunComposition(): ModelRunComposition {
         return live === undefined
           ? Promise.resolve(fail(unavailable('records-not-attached')))
           : live.qualification.qualifyObservation(access, current)
+      },
+      observation: () => {
+        const live = attached
+        if (live === undefined) return fail(unavailable('records-not-attached'))
+        const { commands, source, recheckMs } = live.observation
+        return succeed(
+          Object.freeze({
+            commands,
+            source: qualifyingObservation(
+              source,
+              access => live.qualification.qualify(access, current),
+              recheckMs,
+            ),
+          }),
+        )
       },
     })
   }

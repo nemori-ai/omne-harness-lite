@@ -83,7 +83,7 @@ public-api 有 25 个二级章节。清单列出其中 15 章：根入口 13 章
 1. 从 `package.json` 读出生产依赖闭包（`dependencies`、`optionalDependencies`、`peerDependencies`），沿工作区成员递归，不用 pnpm，不联网。
 2. 用 `tests/fixtures/install-policy.json` 检查禁止清单。命中就在打包之前失败，报告点名包、类别和依赖链。
 3. 用 `pnpm pack` 打包闭包内每个工作区成员，检查制品：没有 `src/`、`tsconfig*`、非声明的 `.ts`，生产依赖里没有 `workspace:`、`catalog:`、`link:`、`file:`。
-4. 在 `tmp/install-closure/<成员名>/project/` 写独立消费工程，只依赖本成员制品。其他闭包成员和第三方包用 `pnpm.overrides` 钉到制品路径和工作区锁定的精确版本。用 `pnpm install --ignore-workspace --ignore-scripts --offline` 安装。`--offline` 失败时整次运行失败，`install` 检查为不通过。只有调用者明示 `--allow-network`（或环境变量 `OMNE_INSTALL_ALLOW_NETWORK=1`）时，才会再用 `--prefer-offline` 重试，该次可能访问 registry。报告字段 `install.mode` 是 `offline` 或 `network`，`install.allowNetwork` 记录是否允许。
+4. 在 `tmp/install-closure/<成员名>/project/` 写独立消费工程，只依赖本成员制品。其他闭包成员用 `pnpm.overrides` 钉到制品路径；第三方包钉到工作区已安装的那个目录（`file:`），pnpm 不向 registry 或本机的 registry 元数据缓存解析版本。消费工程的 `packageManager` 取工作区根的值。用 `pnpm install --ignore-workspace --ignore-scripts --offline` 安装，pnpm 存储与缓存都放在消费目录里（`pnpm-store/`、`pnpm-cache/`），不读本机的。`--offline` 失败时整次运行失败，`install` 检查为不通过。只有调用者明示 `--allow-network`（或环境变量 `OMNE_INSTALL_ALLOW_NETWORK=1`）时，才会再用 `--prefer-offline` 重试，该次可能访问 registry。报告字段 `install.mode` 是 `offline` 或 `network`，`install.allowNetwork` 记录是否允许。
 5. 安装后再列出实际安装的全部包，重新检查禁止清单，覆盖只有安装后才可见的传递依赖。
 6. 在消费目录里用 Node 的同步解析钩子（`module.registerHooks`）记录每一次模块解析，ESM `import` 与 CommonJS `require` 都在内，逐个导入 `exports` 里带 `import` 条件的入口。每个解析结果的真实路径必须在消费目录内，不得落在 `src/` 或 `.ts` 文件。
 7. 用 TypeScript 6 编译一个只导入全部入口类型的文件，`types` 与 `typeRoots` 为空，`skipLibCheck` 关闭。`--listFiles` 列出的文件必须在消费目录内，或属于编译器自带库。
@@ -92,7 +92,7 @@ public-api 有 25 个二级章节。清单列出其中 15 章：根入口 13 章
 
 可选参数 `--scenario <file.mjs>`：探针通过后，把脚本复制进消费目录，以消费目录为工作目录、用与探针相同的干净环境运行。非零退出使报告失败，检查编号 `scenario-run`，报告记录脚本路径与输出尾部；给出该参数时，必需检查项清单含 `scenario-run`。场景要导入的包不限于目标成员，所以给出 `--scenario` 时，消费工程把闭包里的每个工作区成员都声明为直接的 `file:` 依赖（pnpm 只链接直接依赖）。未给出时，消费工程只依赖目标成员，与此前逐字节相同。禁止依赖检查在两种情况下都覆盖完整闭包。编译器取自设施自己的 `@typescript/typescript6`，成员不必声明它。
 
-`--work-dir` 受护栏约束：目录必须在成员的 `tmp/` 或仓库的 `tmp/install-closure/` 之下，不得是符号链接；目录已存在且非空时，必须带设施写入的标记文件 `.install-closure-consumer`。不满足时拒绝运行，退出码 2，不删除任何内容。`--store-dir` 指定另一个 pnpm 存储。
+`--work-dir` 受护栏约束：目录必须在成员的 `tmp/` 或仓库的 `tmp/install-closure/` 之下，不得是符号链接；目录已存在且非空时，必须带设施写入的标记文件 `.install-closure-consumer`。不满足时拒绝运行，退出码 2，不删除任何内容。`--store-dir` 指定消费目录之外的另一个 pnpm 存储。
 
 实测结论：
 
@@ -106,7 +106,7 @@ public-api 有 25 个二级章节。清单列出其中 15 章：根入口 13 章
 
 负例都在慢层（起子进程）：
 
-- `tests/install-closure.spec.ts` 在成员清单的临时副本里注入 Cordis、`@omne-harness/model-host-local`、pi、厂商 SDK、分词引擎、存储引擎各一个，断言退出码为 1，报告点名被注入的包，且没有打包。真实的 `package.json` 不被修改。同一文件另证：`--work-dir` 指向成员目录、允许范围之外的目录或无标记的非空目录时退出码为 2 且内容保留，这几条都对测试自己在临时目录里造的成员运行，不指向任何仓库路径；用空的 pnpm 存储让 `--offline` 失败时，退出码为 1、`ok` 为 false、`install.mode` 为 `offline`。
+- `tests/install-closure.spec.ts` 在成员清单的临时副本里注入 Cordis、`@omne-harness/model-host-local`、pi、厂商 SDK、分词引擎、存储引擎各一个，断言退出码为 1，报告点名被注入的包，且没有打包。真实的 `package.json` 不被修改。同一文件另证：`--work-dir` 指向成员目录、允许范围之外的目录或无标记的非空目录时退出码为 2 且内容保留，这几条都对测试自己在临时目录里造的成员运行，不指向任何仓库路径；成员声明一个工作区没有安装的第三方包、`--offline` 因此失败时，退出码为 1、`ok` 为 false、`install.mode` 为 `offline`。
 - `tests/install-probe.spec.ts` 在手工搭的消费目录里证明：CJS 与 ESM 依赖只在祖先 `node_modules`、入口解析到 `src/`、声明依赖祖先里的类型，三种情况各自使对应检查失败；依赖放进消费目录的对照组通过。
 - `tests/install-scenario.spec.ts` 在手搭的消费目录里证明场景脚本在消费目录里运行、退出码非零使 `scenario-run` 失败并保留输出尾部、导入消费目录没有的包失败，并对本成员做一次真实运行：场景导入目标成员以外的闭包成员（`@omne-harness/legal-identity`），消费工程的依赖恰为闭包里的全部工作区成员。
 - `tests/install-consumer.spec.ts` 对未修改的成员做真实打包与安装，断言报告的检查项 id 与预期的完整集合相等、消费工程只依赖目标成员、`typeCheck.files` 大于 0、探针入口列表与 `exports` 一致，并在 `afterAll` 里删除它创建的 `tmp/install-closure/` 目录。
@@ -231,7 +231,7 @@ public-api 有 25 个二级章节。清单列出其中 15 章：根入口 13 章
 - 类型探针以赋值为主：探针不拦多出的可选成员、变宽的联合和丢失的 `readonly`，这些现在没有机器检查。覆盖下限只要求每个已落地类型在某个探针里被使用，不要求使用得充分。
 - 类型断言检查只扫描 `src/` 与 `tests/fixtures/`，探针 `tests/*.spec-d.ts` 不在其中，探针靠 `tests/values.ts` 只声明不构造品牌值。
 - 安装闭包只证明依赖与解析，不证明运行行为。
-- 离线安装依赖本机 pnpm 存储里已有的精确版本。存储里没有时，运行失败并在 `install` 检查里说明；设施不会自行联网。`--allow-network` 路径只由替身运行器的单元测试覆盖，没有真实联网的运行。
+- 离线安装只用工作区里的文件：闭包成员的制品，和工作区依赖目录里已安装的第三方包。它不依赖本机的 pnpm 版本、存储和 registry 元数据缓存。第三方包在成员的生产闭包里有不止一个版本、或工作区没有安装时，没有文件可钉，运行失败并在 `install` 检查里说明；设施不会自行联网。`--allow-network` 路径只由替身运行器的单元测试覆盖，没有真实联网的运行。
 - 联网回退之后的检查（解析、类型）与离线路径相同，但回退本身访问的 registry 内容不被设施校验。
 - 检查项是否接进报告由对真实成员的正例核对（完整 id 集合与 `finish()` 的必需项判定）。但判断函数收到的输入是否真实不在其内：`tarball-no-source` 与 `consumer-lock-no-workspace` 的判断函数有负例，若流程把空文件列表或空锁文件传给它们，检查项仍会出现并通过，正例不会变红。
 

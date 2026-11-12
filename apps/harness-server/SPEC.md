@@ -421,6 +421,10 @@ sequenceDiagram
   Note over C: 步骤 9 撤除 Cordis 根，结果只进诊断
 ```
 
+## 模型的公共流
+
+正式装配里有模型的公共流：`modelStreamReferences`（按调用引用取当前的流）与 `modelStreamObservation`（订阅它），由 `model-host` 行发布。登录主体用自己的身份取流与订阅，允不允许由应用的模型授权表回答：#1214 给登录主体放行了 `facts` 与 `observe` 两格，其余格不变；登录主体仍不能准入调用。别的租户的调用引用与不存在的引用答复相同。订阅的中止只收订阅，不取消模型调用。接线、准入点与上限见 [Model 生产接线](docs/rows/model-release.md#模型的公共流1214)。
+
 ## 已知限制
 
 - 正式服务定义（`definitionMappings`、`tenantDomainLookup`、`sessionWorkPrincipals`、`sessionPrincipalBindings`、`assemblyLifecycle`）未接受。S0 只用私有键。

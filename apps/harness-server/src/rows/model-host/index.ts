@@ -6,6 +6,9 @@
 // - `executionChannel`: the one channel of the current records activation, shared with the send stage.
 // - `releaseExecution`: disposes the send child, then closes the channel (host-local SPEC release order).
 // - `qualifyObservation`: the `observe` row of the authority, after qualifying the observer.
+// - `observation`: the observation pair of the current records activation, its source behind the
+//   application's admission point (`src/model/observation.ts`). The host publishes
+//   `modelStreamReferences` and `modelStreamObservation` from it (#1214, RFC-0015 §8).
 // - `send`: `modelSendBoundary`, read per call (the records row's send child provides it; absent
 //   means `not-started` with `unavailable`, never another source).
 // - `retry`: the always-unavailable policy of M2 (no retry policy; a stall before the first content
@@ -28,6 +31,8 @@ import {
   modelInstanceHostKey,
   modelRuntimeKey,
   modelSendBoundaryKey,
+  modelStreamObservationKey,
+  modelStreamReferencesKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { createModelRuntimeLocalPlugin } from '@omne-harness/model-host-local/cordis'
 import { qualifyingCommands } from '../../model/commands-qualifying.ts'
@@ -80,11 +85,17 @@ function hostPlugin(config: ModelHostConfig): Plugin.Object {
           'model-host: the modelHostAuthority entry object of this release is not installed',
         )
       const binding = port.bindHost(ctx)
+      const observation = binding.observation()
+      if ('failure' in observation)
+        throw new Error(
+          `model-host: the observation pair is unavailable (${observation.failure.kind})`,
+        )
       const send = lateBoundSendBoundary(ctx)
       const Plugin = createModelRuntimeLocalPlugin({
         executionChannel: binding.executionChannel,
         releaseExecution: binding.releaseExecution,
         qualifyObservation: access => binding.qualifyObservation(access),
+        observation: observation.ok,
         results: { ledger: binding.ledger, limits: config.results },
         provider: ({ host, commands, clock }) =>
           createModelRuntime(
@@ -142,7 +153,12 @@ export const modelHostRow = defineRow({
   row: 'model-host',
   implementation: 'real',
   manifest: {
-    provides: [modelRuntimeKey, modelInstanceHostKey],
+    provides: [
+      modelRuntimeKey,
+      modelInstanceHostKey,
+      modelStreamReferencesKey,
+      modelStreamObservationKey,
+    ],
     injects: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
     sameProviderGroup: null,
   },

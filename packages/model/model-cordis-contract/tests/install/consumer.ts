@@ -70,7 +70,7 @@ export type Options = Readonly<{
   consumerDirectory: string
   /** Lets the install step fall back from `--offline` to a run that may reach the registry. */
   allowNetwork?: boolean
-  /** A pnpm store other than the default one. */
+  /** A pnpm store other than the one inside the consumer directory. */
   storeDirectory?: string
   /** A script that runs inside the consumer directory after the probe; a non-zero exit fails the run. */
   scenarioScript?: string
@@ -83,7 +83,17 @@ export type Options = Readonly<{
 
 type Tree = Readonly<{
   version: string
+  /** Where pnpm installed this package. */
+  path?: string
   dependencies?: Readonly<Record<string, Tree>>
+}>
+
+/** What `pnpm ls --prod` finds below a directory. */
+type Listing = Readonly<{
+  /** The resolved versions of every package. */
+  versions: Map<string, Set<string>>
+  /** The installed directory of every `name@version`. */
+  directories: Map<string, string>
 }>
 
 type CheckFn = (id: string, ok: boolean, detail: string) => boolean
@@ -99,8 +109,8 @@ function exists(path: string): boolean {
   }
 }
 
-/** Every package that `pnpm ls --prod` finds below a directory, with its resolved versions. */
-function listed(directory: string, standalone = false): Map<string, Set<string>> {
+/** Every package that `pnpm ls --prod` finds below a directory, with its versions and directories. */
+function listed(directory: string, standalone = false): Listing {
   // The consumer lives below the repository, so pnpm would otherwise adopt the workspace root.
   const flags = standalone ? ['--ignore-workspace'] : []
   const result = exec(
@@ -109,12 +119,13 @@ function listed(directory: string, standalone = false): Map<string, Set<string>>
     directory,
   )
   if (result.status !== 0) throw new Error(`pnpm ls failed in ${directory}: ${tail(result.stderr)}`)
-  const found = new Map<string, Set<string>>()
+  const found: Listing = { versions: new Map(), directories: new Map() }
   const visit = (dependencies: Readonly<Record<string, Tree>> | undefined): void => {
     for (const [name, tree] of Object.entries(dependencies ?? {})) {
-      const versions = found.get(name) ?? new Set<string>()
+      const versions = found.versions.get(name) ?? new Set<string>()
       versions.add(tree.version)
-      found.set(name, versions)
+      found.versions.set(name, versions)
+      if (tree.path !== undefined) found.directories.set(`${name}@${tree.version}`, tree.path)
       visit(tree.dependencies)
     }
   }
@@ -135,21 +146,24 @@ export type InstallResult = Readonly<{
 }>
 
 /**
- * Installs the tarballs and the pinned third-party versions. The pnpm store already holds those
- * exact tarballs, so the install runs with `--offline`. When that fails the run fails too, unless
- * the caller allowed the network: then a second attempt (`--prefer-offline`) may reach the
- * registry, and the result says `network`.
+ * Installs the tarballs and the pinned third-party packages. Every one of them is a file of the
+ * workspace, so the install runs with `--offline`, and it reads no pnpm state of the machine: the
+ * store and the cache are those of the run. When the install fails the run fails too, unless the
+ * caller allowed the network: then a second attempt (`--prefer-offline`) may reach the registry,
+ * and the result says `network`.
  */
 export function installDependencies(
   project: string,
-  options: Readonly<{ allowNetwork: boolean; storeDirectory?: string }>,
+  options: Readonly<{ allowNetwork: boolean; storeDirectory: string; cacheDirectory: string }>,
   run: Runner = exec,
 ): InstallResult {
   const flags = [
     'install',
     '--ignore-workspace',
     '--ignore-scripts',
-    ...(options.storeDirectory === undefined ? [] : ['--store-dir', options.storeDirectory]),
+    '--store-dir',
+    options.storeDirectory,
+    `--config.cache-dir=${options.cacheDirectory}`,
   ]
   const offline = run('pnpm', [...flags, '--offline'], project)
   if (offline.status === 0) return { ok: true, mode: 'offline', detail: 'installed with --offline' }
@@ -244,7 +258,7 @@ function declare(run: Run): Declared | null {
 type Packed = Readonly<{
   project: string
   tarballs: ReadonlyMap<string, string>
-  pins: ReadonlyMap<string, ReadonlySet<string>>
+  pins: Listing
 }>
 
 /** Packs one closure member and judges the tarball; false when it could not be packed. */
@@ -293,16 +307,21 @@ function pack(run: Run, closure: DeclaredClosure): Packed | null {
   return report.checks.some(item => !item.ok) ? null : { project, tarballs, pins }
 }
 
-/** Pins every third-party package of the workspace that has one version, and every member to its tarball. */
+/**
+ * Pins every member to its tarball, and every third-party package of the workspace that has one
+ * version to the directory where the workspace installed it. pnpm then resolves each of them from
+ * a file, and asks no registry and no registry metadata which version to take.
+ */
 function overridesOf(run: Run, closure: DeclaredClosure, packed: Packed): Record<string, string> {
   const overrides: Record<string, string> = {}
   for (const member of closure.workspace)
     if (member.name !== run.manifest.name)
       overrides[member.name] = `file:${packed.tarballs.get(member.name)}`
-  for (const [name, versions] of packed.pins) {
+  for (const [name, versions] of packed.pins.versions) {
     const version = [...versions][0] as string
-    if (!packed.tarballs.has(name) && versions.size === 1 && !version.startsWith('link:'))
-      overrides[name] = version
+    const directory = packed.pins.directories.get(`${name}@${version}`)
+    if (!packed.tarballs.has(name) && versions.size === 1 && directory !== undefined)
+      if (!version.startsWith('link:')) overrides[name] = `file:${directory}`
   }
   return overrides
 }
@@ -317,7 +336,7 @@ function directOf(run: Run, declared: Declared, packed: Packed): Record<string, 
   const { options, manifest, check } = run
   const { plan, closure } = declared
   if (plan.fixture !== null) {
-    const chosen = directDependencies(plan.fixture, packed.tarballs, packed.pins)
+    const chosen = directDependencies(plan.fixture, packed.tarballs, packed.pins.versions)
     const unpinned = chosen.kind === 'unpinned' ? chosen.names.join(', ') : ''
     check(
       'fixture-pins',
@@ -347,6 +366,8 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
         version: '0.0.0',
         private: true,
         type: 'module',
+        // pnpm runs here without the workspace, so the consumer names the pnpm of the workspace.
+        packageManager: readManifest(options.workspaceRoot).packageManager,
         dependencies,
         pnpm: { overrides: overridesOf(run, closure, packed) },
       },
@@ -354,9 +375,12 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
       2,
     )}\n`,
   )
+  const cacheDirectory = join(options.consumerDirectory, 'pnpm-cache')
+  mkdirSync(cacheDirectory, { recursive: true })
   const result = installDependencies(packed.project, {
     allowNetwork: report.install.allowNetwork,
-    ...(options.storeDirectory === undefined ? {} : { storeDirectory: options.storeDirectory }),
+    storeDirectory: options.storeDirectory ?? join(options.consumerDirectory, 'pnpm-store'),
+    cacheDirectory,
   })
   report.install.mode = result.mode
   if (!check('install', result.ok, result.detail)) return false
@@ -367,7 +391,7 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
     residue.join(' | ') || 'consumer lockfile has no workspace or link specifier',
   )
 
-  report.installed = [...listed(packed.project, true).keys()].sort()
+  report.installed = [...listed(packed.project, true).versions.keys()].sort()
   const wanted = plan.fixture?.dependencies ?? [
     manifest.name,
     ...closure.external.map(item => item.name),

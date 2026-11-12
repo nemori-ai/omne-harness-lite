@@ -178,6 +178,26 @@ function modelRecords(combinationVersion: string) {
       diagnosticsRead: 'tenant-self',
       retention: { ...ADOPTION, name: 'local-single-user/model-diagnostics-retention' },
     },
+    // The public Model stream (#1214): the bounds of the confirming observation source. A call
+    // keeps its publication from its first dispatch until its result body is released, so the
+    // publications are at most the calls in flight plus the results whose share is still held:
+    // `concurrencyLimit` + `unacknowledgedResults` for the one tenant of this profile (the share is
+    // per tenant). A publication beyond `maxRetainedCalls` fails that call's publish, so the bound
+    // is their sum.
+    observation: {
+      maxSnapshotBytes: 4_194_304,
+      maxDeltaBytes: 1_048_576,
+      maxQueuedFrames: 256,
+      maxQueuedBytes: 8_388_608,
+      maxObserversPerTenant: 16,
+      maxObservers: 64,
+      maxPendingSourceOperations: 16,
+      maxRetainedCalls: 2 * LOCAL_CONCURRENT_MODEL_CALLS,
+      maxRetainedBytes: 33_554_432,
+      maxTotalBytes: 67_108_864,
+      maxQueueResidenceMs: 30_000,
+      checkIntervalMs: 1000,
+    },
     initial: { maxRecords: 1024, maxBindings: 4, maxCallsPerBinding: 1024 },
     sendStage: {
       maxRetainedAttempts: 16,
