@@ -345,6 +345,44 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
       expect(exit).toBe(0)
     },
   )
+
+  it(
+    'cancel-run answers the open Ask in the history, and the next input of the session is answered',
+    { timeout: 300_000 },
+    async () => {
+      const exit = await onReleaseTree(options, async world => {
+        const session = await world.startSession('start: ask')
+        await suspended(world, session)
+        await cancelRun(world, session)
+        await closed(world)
+        await ended(world, session)
+
+        // The commit that ended the Run wrote the tool message of the Ask before the terminal.
+        const cancelled = await historyOf(world, session)
+        expect(toolResults(cancelled)).toEqual([
+          'No result of this call is in the conversation: the run was cancelled before the call returned. The tool was asked to stop. It may have had effects before it stopped. Do not assume that the call completed or was approved.',
+        ])
+        const kinds = cancelled.map(entry => entry.kind)
+        expect(kinds.indexOf('message.tool')).toBeLessThan(kinds.indexOf('run.terminal'))
+
+        // The history is whole, so the model request of the next Run is taken.
+        const sent = await world.cli(['send-input', '--session', session, '--text', 'go on'])
+        expect(sent.status, sent.stderr).toBe(0)
+        const after = await pollUntil(
+          'the next Run to end',
+          () => historyOf(world, session),
+          entries => entries.filter(entry => entry.kind === 'run.terminal').length === 2,
+        )
+        expect(
+          after
+            .filter(entry => entry.kind === 'run.terminal')
+            .map(entry => (entry.payload['terminal'] as { outcome: string }).outcome),
+        ).toEqual(['cancelled', 'completed'])
+        expect(after.at(-2)).toMatchObject({ kind: 'message.assistant' })
+      })
+      expect(exit).toBe(0)
+    },
+  )
 })
 
 describe('a lost answer of HITL on the release tree is recalled by the original operation (C6)', () => {
