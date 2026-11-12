@@ -8,7 +8,7 @@
 
 | 文件 | 唯一责任 |
 | --- | --- |
-| src/index.ts | 治理、会话与 HITL 三组共十二个纯函数、身份文本八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
+| src/index.ts | 治理、会话与 HITL 三组共十二个纯函数、身份文本八个纯函数、共同契约的两个函数与一个常量和公共类型的主exports，不加correlation或业务provider出口 |
 | src/messages.ts | 治理的正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
 | src/session-messages.ts | 会话的7个操作、请求、按操作/结果关联响应、历史页、中断成功正文与codec结果类型 |
 | src/operation-rules.ts | 规则种类、协议族描述，以及完整38正常/4阶段封闭规则、信封/body字段和outcome映射 |
@@ -16,10 +16,13 @@
 | src/hitl-messages.ts | HITL 的 4 个操作、请求、按操作/结果关联响应、卡片视图、答复结果与codec结果类型 |
 | src/hitl-rules.ts | HITL 协议族：4 个操作的封闭规则、信封/body字段、outcome映射与卡片视图；卡片、`reply` 与答复结果用`kind`字面量区分互斥分支 |
 | src/identity-text.ts | 租户、组织、账号、登录状态的文本读写：直接委托legal-identity的铸造与输出函数，租户另加严格JSON与小预算门 |
-| src/codec.ts | 按协议族参数化的核心与治理四函数：公开参数防护、模型与wire转换、响应验证后匹配 |
+| src/codec.ts | 按协议族参数化的核心与治理四函数：公开参数防护、模型与wire转换、响应验证后匹配；`convert` 另供 rule-codec.ts 使用 |
 | src/session-codec.ts | 会话四函数，各是核心对会话协议族的一次实例化 |
 | src/hitl-codec.ts | HITL 四函数，各是核心对 HITL 协议族的一次实例化 |
 | src/correlation.ts | readRequestDocument和recoverCorrelation，私有严格读取门与迭代metadata自动机 |
+| src/outcome.ts | 共同契约的对外结果表 `OUTCOMES` 与 `Outcome`、`FixedOutcome` |
+| src/rule-codec.ts | 共同契约的 `ruleCodec`：读取先用 `judgeJsonValue` 判值树，再经 `convert` 转换；`RuleValue` 从规则推出本地值类型 |
+| src/protocol.ts | 共同契约的操作、观察与协议契约类型，`defineProtocol` 的封闭检查与管道结果补项 |
 
 直接依赖仅实际使用的json-text、legal-identity、utc-instant及jsonc-parser。jsonc-parser使用现行catalog 3.3.1。静态Schema仅作为已核输入，不引入provider、引擎或异步生命周期。SDK、server-entry、identity、authorization、Cordis和数据库不进入依赖闭包。
 
