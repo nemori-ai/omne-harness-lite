@@ -274,7 +274,8 @@ type HitlIngressFaces<P> = Readonly<{
 - 槽位覆盖 body 读取与该请求处理，成功、拒绝、断连与异常都释放，断连与处理完成竞争时只释放一次。断连不撤销已受理的业务调用；这些调用继续受既有关闭排空和原操作认回规则约束。SSE 建立后释放请求槽位，长期连接继续使用独立 observation 预算。普通输入队列满时，Session 的查询、控制与恢复仍可用。
 - Session 的 `limited` 保留 `resource` 与 `limit`，映射为带公开响应正文的 429。单体 body 超限仍为 413。
 - 接入不发 CORS 头。`OPTIONS` 请求按承载页[请求与响应规则](../public-contract/docs/http-binding.md#请求与响应规则)的第 2 步得到 405。
-- 接入的日志和诊断不记录请求体和响应体。登录证明、凭据和签发者不出现在任何输出里。
+- 接入的日志和诊断不记录请求体和响应体。登录证明、凭据和签发者不出现在任何输出里。诊断里的路径不带查询串。
+- 新地址的判断次序、预算的时机、超限的答复与关连接的规则见[管道](#管道)。本节其余条款说的是现有三个位置。
 - M2 不提供 TLS，见承载页的[已知限制](../public-contract/docs/http-binding.md#已知限制)。
 
 依赖抛出异常或不可达时，对外结果按调用的类别决定。接入不把它们写成接入自身的故障。
@@ -289,7 +290,7 @@ type HitlIngressFaces<P> = Readonly<{
 
 ## 登记表
 
-登记表记着「现在挂着哪些协议」。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献) 第 5 节与第 13 节「登记表里的一个协议」；领域看到的形状（贡献、`mount`）归 [access-cordis-contract](../access-cordis-contract/SPEC.md)。本节的代码在 `src/registry/`：`registry.ts` 是不认识 Cordis 的纯状态，`cordis.ts` 是 Cordis 提供者 `AccessRegistryProvider`。登记表还没有接到任何地址上：读 HTTP 请求的判断次序第 1 到 9 步、观察中枢、内置协议都还不存在，现有三个位置不经过它。
+登记表记着「现在挂着哪些协议」。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献) 第 5 节与第 13 节「登记表里的一个协议」；领域看到的形状（贡献、`mount`）归 [access-cordis-contract](../access-cordis-contract/SPEC.md)。本节的代码在 `src/registry/`：`registry.ts` 是不认识 Cordis 的纯状态，`cordis.ts` 是 Cordis 提供者 `AccessRegistryProvider`。登记表经[管道](#管道)接到新地址上，只对操作。前提是构造入口时给了 `access`；正式的服务端应用还没有给。观察中枢与内置协议还不存在，现有三个位置不经过登记表。
 
 登记表不认识任何领域。表项按协议名与主版本存，处理函数只当函数调用。`src/registry/` 与 `src/settle/` 不导入任何领域的成员，也不导入本成员现有三个位置的文件，依赖方向的门禁 `entry-registry-knows-no-domain` 守这一条。
 
@@ -308,6 +309,125 @@ type HitlIngressFaces<P> = Readonly<{
 - **订阅者。** 订阅者回调在挂上或撤下的同步段里被调用，看到的修订号是变化之后的修订号。订阅者回调抛出时，登记表与别的订阅者照常，错误交给构造时注入的 `onListenerError`。退订第二次没有效果。
 - **管道看得到、领域看不到。** `enter`、`subscribe` 只在提供者与 `createAccessRegistry` 的返回值上，不在 `AccessRegistryService` 上。
 
+## 管道
+
+管道是新地址 `/api/<协议名>/v<主版本>/<名字>` 上的判断次序第 1 到 9 步。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#管道与判断次序) 第 4 节、第 5 节「管道与判断次序」与第 14 节 I-10 到 I-14，交付卡 #1233。线上的形状归[承载页的新地址](../public-contract/docs/http-binding.md#新地址)。第 10 到 14 步归[收场与宽限](#收场与宽限)。代码在 `src/pipeline/`。
+
+### 开关：`access`
+
+`createServerEntry` 的入参在 `config`、`dependencies` 旁边有一份可选的 `access`（类型 `ServerEntryAccess`）：
+
+| 字段 | 含义 |
+| --- | --- |
+| `registry` | 登记表给管道的那一面 `RegistryForPipeline` |
+| `identity` | 身份端口 `AccessIdentity`，类型归 [access-cordis-contract](../access-cordis-contract/SPEC.md#身份端口) |
+| `graceMs` | 收场的宽限，毫秒，交给 `settleCall` |
+| `clock` | 可选。宽限用的时钟，缺省 `systemClock` |
+
+前三样必填，所以只给一部分编不过。不给 `access` 时，`/api/...` 和别的未知路径一样答空正文的 404。给了，路径不是现有三个位置之一的请求都交给管道。现有三个位置的判断次序与行为不变。
+
+本成员不写 `access` 的值。正式的服务端应用还没有给它，所以那里的新地址仍然答 404。
+
+### 判断次序第 1 到 9 步
+
+前一步给出答复时，不做后面的步骤。
+
+| 步 | 判断 | 不成立时的答复 |
+| --- | --- | --- |
+| 1 | 路径合文法（见下） | 404 |
+| 2 | 方法是 POST | 405，带 `Allow: POST` |
+| 3 | `Host` 合规（[头的比较](../public-contract/docs/http-binding.md#头的比较)） | 421 |
+| 4 | `Content-Type` 合规（同上） | 415 |
+| 5 | `enter(协议名与主版本, 名字)` 返回一个操作 | 404。返回观察时先调 `leave` |
+| 6 | 在途请求的预算没满 | 调 `leave`，429，带 `x-omne-limit: in-flight-requests` |
+| 7 | 消息编号合规（见下） | `protocol-rejected`，不回写消息编号 |
+| 8 | 按身份规则确立调用者（见下） | `denied` 或 `basis-unavailable` |
+| 9 | 按操作的上限读消息体，严格读成 JSON，再用操作契约的编解码读成类型 | `protocol-rejected` |
+
+- 第 1 到 5 步在同一个同步函数 `admit` 里，签名不是 Promise（`tests/pipeline.spec-d.ts`）。查表并登记成在途是一步，中间不让出执行权。
+- 第 1 到 6 步的答复只有状态码，正文为空，不带消息编号。第 5 步之前不读消息体。
+- 第 6 步的预算是 `maxInFlightRequests`，与现有三个位置共用一个计数。
+- 第 9 步之后，管道把主体、消息编号与读好的消息体交给 `settleCall`。
+
+路径的文法：恰好四段 `/api/<协议名>/v<主版本>/<名字>`。协议名与名字各是一个或多个小写字母、数字或连字符。主版本是不带前导零的正整数。末尾的斜杠、百分号编码、多出或缺少的段都不合文法。路径里出现 `?` 就不合文法，空的查询串也算。
+
+消息编号：请求恰好有一个 `Omne-Message-Id` 头，值是 1 到 128 个可见的 ASCII 字符（0x21 到 0x7E，不含空格）。第 7 步通过之后写出的每一个答复都回写这个值。
+
+消息体上限：名字取自操作契约的 `limit` 一栏，数值取自 `maxBodyBytes` 里同名的一项。声明的 `Content-Length` 超限时不读，其余按实际读到的字节数计。超限答 `protocol-rejected`，状态 400，不是 413。严格读取的结构上限是 `jsonBudgets` 加上这个字节上限。
+
+### 身份规则
+
+第 8 步按操作契约的 `identity` 一栏：
+
+| `identity` | 情形 | 管道做什么 |
+| --- | --- | --- |
+| `none` | 任何 | 不读 `Authorization` 与 `Omne-Acting-Tenant`，不调身份端口。主体是 `undefined` |
+| `login`、`acting-tenant` | `Authorization` 头不是恰好一个，或值不是 `Bearer`、一个空格、再加一段非空而且不含空白的登录证明 | `denied`。不调身份端口 |
+| `login`、`acting-tenant` | 头合规 | 调 `identifyLogin(登录证明)`。它答 `denied` 就答 `denied`。它答 `basis-unavailable`、抛出或返回失败的 Promise，就答 `basis-unavailable` |
+| `login` | 认出了登录 | 主体是这个登录。不读 `Omne-Acting-Tenant` |
+| `acting-tenant` | 认出了登录，`Omne-Acting-Tenant` 头不是恰好一个，或值为空 | `denied`。不调 `actFor` |
+| `acting-tenant` | 认出了登录，头合规 | 调 `actFor(登录, 头的原文)`。它给出主体就用这个主体，失败同 `identifyLogin` |
+
+- `Bearer` 不分大小写。「恰好一个」按原始请求头计数。
+- 登录证明与行事租户的原文都原样交给身份端口。这段文本是不是合规的租户、这个登录能不能代它，由身份端口的实现判断。
+- 管道不读登录与主体里的任何字段，原样交给处理函数。它也不看消息体里的租户（RFC-0015 I-12）。
+- 身份的结果不缓存，每次调用都重新识别（I-11）。
+- 凡是没能确立调用者是谁的，都答 `denied`。调用者分不出是哪一种原因（I-13）。
+
+### 答复
+
+从第 7 步起，答复的字节是 `{"outcome":"<结果>","body":<答复体>}`，由 `writeJsonText` 写出。固定结果的答复体是 `{}`。头是 `Content-Type: application/json; charset=utf-8`、`Cache-Control: no-store`、`Content-Length` 与 `Omne-Message-Id`。状态码取自[状态码映射](../public-contract/docs/http-binding.md#状态码映射)，代码里只有一份表（`src/pipeline/status.ts`），现有三个位置经 `src/status.ts` 读它。处理函数的答复体用不设限的结构上限写出（`OUTPUT_LIMITS`）。
+
+下面两类答复带 `Connection: close`：
+
+- 消息体还没读完就写出的答复：第 1 到 8 步的全部答复，第 9 步的超限，以及第 8、9 步里因为中止答的 `basis-unavailable`。不关连接的话，Node 会为了复用连接把没读的消息体读完再丢掉，没有身份的调用者就能让服务端读入任意多的数据（I-14）。
+- 每一个 `denied`，不论它出自身份规则还是处理函数，所以两者的头也相同（I-13）。
+
+消息体读完之后写出的其余答复不关连接：第 9 步因为不是合规的 JSON、编解码不收而答的 `protocol-rejected`，以及第 10 步之后的答复。所以同一种结果的头只在 `Connection` 与 `Omne-Message-Id` 两个上可能不同：前者看消息体读没读完，后者看消息编号认没认出。
+
+### 中止与断开
+
+第 8、9 步等的每一件事（身份端口的两个方法、读消息体）都同时等两样：`enter` 给的中止信号与响应对象的 `close` 事件（调用者断开）。
+
+| 情形 | 管道做什么 |
+| --- | --- |
+| 第 8、9 步里收到中止 | 不再等，答 `basis-unavailable`，调 `leave`，不调处理函数 |
+| 第 8、9 步里调用者断开 | 不再等，不答，调 `leave`，不调处理函数 |
+| 处理函数开始之后调用者断开 | 不给处理函数发中止。处理函数照常跑完，答复写不出就丢弃，`leave` 照常调用 |
+
+中止与某一步自己的结果同时到达时，答哪一个都符合规定。这段竞争在管道里，因为 `settleCall` 只在开始时查一次中止。新地址上在途的调用计入入口的在途计数，所以 `stop()` 等它们结束。
+
+### 业务访问的报告
+
+答复是 `succeeded`、操作契约标了 `countsAsAccess`、而且这次调用认出了登录时，管道在 `settleCall` 写出答复并调 `leave` 之后调一次 `reportAccess(登录)`，不等它。它抛出或返回失败的 Promise 时，答复不变，只记一条诊断。`identity` 是 `none` 的操作没有登录，标了 `countsAsAccess` 也不报告。
+
+### 观察的地址：暂时答 404
+
+`enter` 返回观察时，管道立刻调 `leave`，答空正文的 404。这是观察中枢建成之前的中间状态，由观察中枢那一程换掉。
+
+### 诊断
+
+管道的每个出错点记一条诊断，代码以 `access.` 开头：
+
+| 代码 | 出错点 |
+| --- | --- |
+| `access.path-rejected`、`access.method-rejected`、`access.host-rejected`、`access.content-type-rejected` | 第 1 到 4 步 |
+| `access.not-mounted`、`access.observation-not-served` | 第 5 步 |
+| `access.busy` | 第 6 步 |
+| `access.message-id-rejected` | 第 7 步 |
+| `access.identity-denied`、`access.identity-unavailable`、`access.identity-fault` | 第 8 步：拒绝、端口答依据不可用、端口抛出或返回失败的 Promise |
+| `access.body-over-limit`、`access.body-rejected` | 第 9 步 |
+| `access.aborted`、`access.caller-gone` | 第 8、9 步里的中止与断开 |
+| `access.report-fault` | 业务访问的报告失败 |
+
+一条诊断只带代码、路径、协议名与主版本（`protocol`、`major`）、操作名。它不带任何请求头的值、消息体、答复体、主体或依赖的错误文本。路径不带查询串。
+
+### 依赖方向
+
+`src/pipeline/` 不导入任何领域的契约，也不导入 `src/` 根下的文件。它只导入公开契约、access-cordis-contract、`packages/common` 下的成员、`src/registry/` 与 `src/settle/`。依赖方向的门禁 `entry-registry-knows-no-domain` 守这一条。管道要用的配置值（本机地址、在途预算、两档消息体上限、结构上限）与诊断的出口由 `http.ts` 在构造时传进来。
+
+现有三个位置与管道共用的只有几个与领域无关的函数（`src/pipeline/headers.ts` 的头比较与计数、`src/pipeline/body.ts` 的读消息体）、状态码对应表与在途预算。现有三个位置不调用管道，管道也不调用它们。
+
 ## 收场与宽限
 
 收场是判断次序的第 10 到 14 步（RFC-0015 §5「管道与判断次序」），代码在 `src/settle/settle.ts` 的 `settleCall`。它不碰 HTTP：管道把 `Entered`、主体、读好的消息体交给它，并给一个 `respond` 写出答复。它只收操作；观察由观察中枢收场，给了观察是编程错误，抛 `TypeError`。
@@ -322,7 +442,7 @@ type HitlIngressFaces<P> = Readonly<{
 
 - 失败时的答复只由操作契约的 `effect` 决定：处理函数开始之后，提交可能已经发生，所以提交类答 `unknown`，不答 `basis-unavailable`（RFC-0015 I-8）。
 - 每种情形都是先 `respond`，再调一次 `leave`。`respond` 抛出时也调 `leave`，错误交还调用者。
-- 答复是 `succeeded` 且契约标了 `countsAsAccess` 时，`leave` 之后调注入的 `reportAccess`，不等它，它出错不改答复。本程不传它，向身份报告成功的业务访问由接上身份的那一程做。
+- 答复是 `succeeded` 且契约标了 `countsAsAccess` 时，`leave` 之后调注入的 `reportAccess`，不等它，它出错不改答复。管道只在认出了登录时传它，见[业务访问的报告](#业务访问的报告)。
 - 宽限只在中止之后计时。没有中止时，收场等处理函数返回。
 
 **宽限的配置。** 宽限是 `SettleConfig.graceMs`（毫秒），必填，由装配在构造时给出；本成员不写初值，这是[入口配置](src/config.ts)的现行约定。时钟由调用者注入（`Clock`），装配用 `systemClock`。给装配的推荐值是 5000 毫秒。理由：领域的处理函数收到中止后应当在一次存储提交的时间内返回，5 秒覆盖一次本机 SQLite 提交的长尾，又远小于客户端会放弃一次请求的时间；宽限越长，插件卸载被一个不理会中止的处理函数拖住的时间越长。这个值随接进装配的那一程写进服务端应用的配置。
@@ -333,7 +453,7 @@ type HitlIngressFaces<P> = Readonly<{
 
 公开契约不依赖服务端接入。SDK 不依赖服务端接入。
 
-[登记表](#登记表)与[收场](#收场与宽限)另依赖 [access-cordis-contract](../access-cordis-contract/SPEC.md) 的贡献类型与服务定义。access-cordis-contract 不依赖本成员。
+[登记表](#登记表)、[管道](#管道)与[收场](#收场与宽限)另依赖 [access-cordis-contract](../access-cordis-contract/SPEC.md) 的贡献类型、身份端口与服务定义。access-cordis-contract 不依赖本成员。
 
 [会话诊断投影](#会话诊断投影)让本成员以只读方式消费 agent-contract、model-contract 与 tool-contract 的类型与读口。`DIR-ACCESS-MODEL` 与 `DIR-ACCESS-TOOL` 只约束公开契约、SDK 与 stream-arrival，不约束本成员。公开契约仍不依赖这三个成员：诊断页的形状在公开契约里以自己的词声明。
 
@@ -405,6 +525,16 @@ HITL 位置另有下列验证义务。
 - 卡片视图的 `origin` 不含原等待的路由字段。
 - 负控：让 `listPool` 抛出异常，响应是状态 503 和 `basis-unavailable`。让 `submitReply` 在调用开始后抛出异常，响应是状态 500 和带响应体的 `unknown`。
 - 提交身份的碰撞测试：只改 `tenant` 或 `replyId`，`operationId` 就变。只换 `messageId` 或登录，它不变。
+
+新地址的管道另有下列验证义务（`tests/pipeline-*.spec.ts`、`tests/pipeline.spec-d.ts`、`tests/secrets.spec.ts`），都从真实的 HTTP 请求测，用不在发行里的测试协议与测试里的身份实现。
+
+- 第 1 到 6 步各自的答复，路径文法的每一条反例，相邻两步同时违反时答前一步。协议没挂着时不读消息体就答 404。
+- 身份规则的表逐行，反面用例在内。同一个登录连调两次，身份端口被调两次。
+- 没有登录的调用声明了 10 MB 消息体而一个字节都不发，照样得到 `denied` 并关闭连接。
+- 消息体上限按操作取，声明的长度超限时不读。
+- 身份端口不返回、消息体只发了一半时撤下协议，调用马上得到 `basis-unavailable`，撤下完成。这两条在不同时等中止的缺陷下变红。
+- 管道因为登录无效答的 `denied` 与处理函数返回的 `denied` 逐字节相同（日期除外）。
+- 管道每个出错点的答复与全部诊断里搜不到登录证明、行事租户头的原文与消息体。
 
 会话诊断投影另有下列验证义务。纯投影用各来源的替身验证；操作层用 HTTP 层替身验证。
 

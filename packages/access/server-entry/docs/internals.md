@@ -39,7 +39,8 @@
 | `observation.ts`    | 观察消息的手写读写、本实例的观察记录、取消与替换、连接关闭即取消、每轮的登录重核与按登录结束                                                     |
 | `sse.ts`            | 一个 SSE 响应的串行写入者：确认事件、帧与心跳经同一个队列写出                                                                                    |
 | `session-codec.ts`  | 会话位置的编码：公开契约的编码函数写出每一条响应，编码失败是本成员故障                                                                           |
-| `status.ts`         | `outcome` 到状态码的表。键类型是公开契约能编码的全部 `outcome`，少一行类型检查就变红                                                             |
+| `status.ts`         | 现有三个位置读状态码表的入口：表本身在 `pipeline/status.ts`，这里按三个位置能编码的 `outcome` 收窄键类型 |
+| `pipeline/`         | 新地址的管道，判断次序第 1 到 9 步，见[规格的管道](../SPEC.md#管道)。`pipeline.ts` 是 `admit`（第 1 到 5 步，同步）与 `createPipeline`；`address.ts` 是路径文法；`identity-rule.ts` 是身份规则；`watch.ts` 让第 8、9 步的等待同时等中止与断开；`answer.ts` 写答复；`status.ts` 是全仓唯一的状态码表，键是共同契约的 `Outcome`；`headers.ts`、`body.ts` 是与现有三个位置共用的头比较与读消息体 |
 | `config.ts`         | 配置形状与检查。初值归装配，本成员不写死                                                                                                         |
 
 ## 答复的三种形状
