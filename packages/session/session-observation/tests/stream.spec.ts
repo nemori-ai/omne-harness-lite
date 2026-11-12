@@ -152,6 +152,9 @@ describe('the result table with the Model (C9b)', () => {
       expect.objectContaining({ kind: 'state', target: null, phase: 'accepted' }),
       { kind: 'refreshing' },
     ])
+    w.model.stream('s1').stop()
+    await settle()
+    expect(w.diagnostics).toEqual([])
     stop()
   })
 

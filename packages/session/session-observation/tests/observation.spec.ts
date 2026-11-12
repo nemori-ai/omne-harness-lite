@@ -443,6 +443,15 @@ describe('the refresh budget (C12)', () => {
     ])
   })
 
+  it('an interval at the floor stands, with no diagnostic', async () => {
+    const w = world(new FakeLog(started('run_1')), { interval: 100 })
+    const frames = await open(w)
+    await frame(frames)
+    await afterInterval(w, frames)
+    expect(w.clock.waits[0]).toBe(100)
+    expect(w.diagnostics).toEqual([])
+  })
+
   it('without notices, a new commit is seen within one interval', async () => {
     const log = new FakeLog(started('run_1'))
     const w = world(log)
