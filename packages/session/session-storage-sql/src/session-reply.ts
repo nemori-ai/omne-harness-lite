@@ -114,24 +114,33 @@ function batchReplyOf(value: JsonValue | undefined): SessionCommittedBatch | und
   }
 }
 
+/** The work and the batch of a reply, each only when present and well formed. */
+function freshOf(
+  response: Readonly<{ readonly [key: string]: JsonValue }>,
+): Readonly<{ work?: SessionWorkReply; batch?: SessionCommittedBatch }> {
+  const work = workReplyOf(response['work'])
+  const batch = batchReplyOf(response['batch'])
+  return { ...(work === undefined ? {} : { work }), ...(batch === undefined ? {} : { batch }) }
+}
+
+function participationOf(response: JsonValue): SessionParticipation {
+  const record = recordOf(response)
+  const digest = record?.['digest']
+  if (record === null || typeof digest !== 'string')
+    return { kind: 'failed', diagnostic: 'a session reply without a digest' }
+  return {
+    kind: 'participated',
+    result: decodeValue(record['result'] ?? null),
+    recovered: record['recovered'] === true,
+    digest,
+    ...freshOf(record),
+  }
+}
+
 export function decodeSessionReply(reply: RecordedReply): SessionParticipation {
   switch (reply.kind) {
-    case 'participated': {
-      const response = recordOf(reply.response)
-      const digest = response?.['digest']
-      if (response === null || typeof digest !== 'string')
-        return { kind: 'failed', diagnostic: 'a session reply without a digest' }
-      const work = workReplyOf(response['work'])
-      const batch = batchReplyOf(response['batch'])
-      return {
-        kind: 'participated',
-        result: decodeValue(response['result'] ?? null),
-        recovered: response['recovered'] === true,
-        digest,
-        ...(work === undefined ? {} : { work }),
-        ...(batch === undefined ? {} : { batch }),
-      }
-    }
+    case 'participated':
+      return participationOf(reply.response)
     case 'conflict': {
       const failure = recordOf(reply.basis)?.['failure']
       return failure === undefined
@@ -160,7 +169,5 @@ export function writtenOf(
   const response = recordOf(reply.response)
   if (response === null || typeof response['digest'] !== 'string') return null
   if (response['recovered'] === true) return null
-  const work = workReplyOf(response['work'])
-  const batch = batchReplyOf(response['batch'])
-  return { ...(work === undefined ? {} : { work }), ...(batch === undefined ? {} : { batch }) }
+  return freshOf(response)
 }

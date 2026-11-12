@@ -71,28 +71,38 @@ export type SessionCommitLanding = Readonly<{
   bounds?: WorkCacheBounds
 }>
 
+type Written = NonNullable<ReturnType<typeof writtenOf>>
+
+/** What the Session participant of a fresh commit wrote; empty when it took no part or recalled. */
+function writtenIn(receipt: ReceiptV2): Written {
+  const entry = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
+  return (entry === undefined ? null : writtenOf(entry.reply)) ?? {}
+}
+
+/**
+ * The work cache after a fresh commit (SPEC RT-04). A commit of the Session participant alone folds
+ * its batch at the same publication count. A Journal commit that knows its count folds the batch of
+ * its Session participation one count up, or else replaces the index of the held snapshot.
+ */
+function fold(input: SessionCommitLanding, work: Written['work']): Promise<void> {
+  const { storage, domain, tenant, session, journal, bounds } = input
+  const reach = { storage, domain, tenant, session, ...(bounds === undefined ? {} : { bounds }) }
+  if (journal === undefined)
+    return work === undefined ? Promise.resolve() : foldCommitted(reach, work)
+  if (journal.published === null) return Promise.resolve()
+  return work === undefined
+    ? refreshWorkIndex(reach, journal.published)
+    : foldCommitted(reach, work, 'next')
+}
+
 /** The one landing of a commit: fresh or not, the work cache, then the notice. It never throws. */
 export async function afterSessionCommit(input: SessionCommitLanding): Promise<void> {
-  const { storage, domain, tenant, session, answer, journal } = input
+  const { answer } = input
   if (answer === null || answer.recalled) return
   try {
-    const entry = answer.receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
-    const written = entry === undefined ? null : writtenOf(entry.reply)
-    const reach = {
-      storage,
-      domain,
-      tenant,
-      session,
-      ...(input.bounds === undefined ? {} : { bounds: input.bounds }),
-    }
-    if (journal === undefined) {
-      if (written?.work !== undefined) await foldCommitted(reach, written.work)
-    } else if (journal.published !== null) {
-      await (written?.work === undefined
-        ? refreshWorkIndex(reach, journal.published)
-        : foldCommitted(reach, written.work, 'next'))
-    }
-    if (written?.batch !== undefined) tell(storage, written.batch)
+    const written = writtenIn(answer.receipt)
+    await fold(input, written.work)
+    if (written.batch !== undefined) tell(input.storage, written.batch)
   } catch {
     // The fold and the notice never change an answer; neither throws, this is the last guard.
   }

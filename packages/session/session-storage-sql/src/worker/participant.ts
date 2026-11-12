@@ -189,18 +189,23 @@ const isControl = (command: SessionCommand): boolean =>
   command.kind === 'cancelRun' || command.kind === 'stopCall'
 
 /**
- * What a batch written in this commit adds to the reply: its fold for the work cache (SPEC RT-04)
- * and the batch itself (SPEC「本批与提交通知」). A reply without a written batch adds neither.
+ * The reply of the participant. A batch written in this commit adds its fold for the work cache
+ * (`work`, SPEC RT-04, absent when the batch has none) and the batch itself (`batch`, SPEC
+ * 「本批与提交通知」); a reply without a written batch adds neither.
  */
-type Fresh = Readonly<{ work?: JsonValue; batch?: JsonValue }>
-
 const participated = (
   result: unknown,
   recovered: boolean,
-  fresh: Fresh = {},
+  work?: JsonValue,
+  batch?: JsonValue,
 ): ParticipantReply => ({
   kind: 'participated',
-  response: { result: encodeValue(result), recovered, ...fresh },
+  response: {
+    result: encodeValue(result),
+    recovered,
+    ...(work === undefined ? {} : { work }),
+    ...(batch === undefined ? {} : { batch }),
+  },
 })
 
 /** The JSON text the decision of a work reply may take (C-TOPOLOGY §2.9). */
@@ -1144,7 +1149,7 @@ function publishCommand(
           entries,
           decided: { scope: batch.history.reads.scope, focus: NO_FOCUS },
         })
-  return participated(result, false, { ...(work === undefined ? {} : { work }), batch: committed })
+  return participated(result, false, work, committed)
 }
 
 /** The revision, commit sequence and entry positions of the batch, after the journal of `start`. */
@@ -1295,10 +1300,12 @@ function publishSameLog(
   })
   if (moved !== null) return moved
   const decided = 'decision' in batch ? batch.decision : 'none'
-  return participated(batch.answer, false, {
-    work: workOf(port, { tenant, session, revision, bytes, entries, decided }),
-    batch: committed,
-  })
+  return participated(
+    batch.answer,
+    false,
+    workOf(port, { tenant, session, revision, bytes, entries, decided }),
+    committed,
+  )
 }
 
 /** The answer of a same-log commit carries the digest of its observation (SL07). */
