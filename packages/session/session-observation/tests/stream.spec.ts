@@ -97,7 +97,7 @@ async function observing(w: World, signal?: AbortSignal): Promise<Frames> {
 describe('the result table with the Model (C9b)', () => {
   it('result, new main call, stream given, no target: state, then subscribe and snapshot; the budget resets', async () => {
     const w = world(new FakeLog())
-    const frames = await observing(w)
+    await observing(w)
     expect(w.model.asked).toEqual(['m-1'])
     expect(w.model.open).toBe(1)
     stop()
