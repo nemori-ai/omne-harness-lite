@@ -16,6 +16,7 @@ import { type Core, identityKey, sameScope } from './core.ts'
 import { decodeIdentity, isDigest, isName } from './fields.ts'
 import { canonicalJson, isStrictJson, jsonShape, utf8Length } from './json.ts'
 import type { CommitReply } from './worker/protocol.ts'
+import type { Acquired, Granted } from './waiting.ts'
 import { observeReply, WorkerExited } from './writer-client.ts'
 
 /** The diagnostic of a write that was withdrawn while it waited for the barrier (SPEC 9.3). */
@@ -100,121 +101,140 @@ export function createCommit(core: Core): SqlStorage['commit'] {
     if (judged.kind === 'rejected')
       return Promise.resolve(rejection(judged.reason, decoded.identity))
     const { identity, requestBytes, inputDigest } = judged
-    const grant = core.admission.reserveWrite(identity.transactionDomain, requestBytes)
-    if (grant === null) return Promise.resolve(rejection('queue_full', identity))
-
     const key = identityKey(identity)
+    // A commit that waits for its reservation is in the pending index already: a query of its
+    // identity answers unknown (SPEC 8 item 2). Nothing is sent while it waits (准入等待).
     core.pending.add(key)
-    const unknown = (text: string): CommitResultV2 => ({
-      kind: 'unknown',
-      identity,
-      diagnostic: core.diagnostic(text),
-    })
-    const reject = (reason: CommitRejectReason): CommitResultV2 => rejection(reason, identity)
+    const answer = (acquired: Acquired): Promise<CommitResultV2> => {
+      if (acquired.kind === 'granted') return admitted(acquired)
+      core.pending.remove(key)
+      return Promise.resolve(rejection(WAIT_REFUSAL[acquired.kind], identity))
+    }
+    const acquired = core.admission.reserveWrite(identity.transactionDomain, requestBytes, signal)
+    return acquired instanceof Promise ? acquired.then(answer) : answer(acquired)
 
-    return new Promise<CommitResultV2>(resolve => {
-      let settled = false
-      let detached = false
-      // Withdraws the write while it waits for the barrier (SPEC 7.1 item 3): nothing was sent.
-      const withdraw = new AbortController()
-      const settle = (result: CommitResultV2): void => {
-        if (settled) return
-        settled = true
-        signal?.removeEventListener('abort', onAbort)
-        resolve(result)
-      }
-      // Abort releases the observer only. The reservation stays until the owner has the result.
-      const onAbort = (): void => {
-        detached = true
-        withdraw.abort()
-        settle(unknown('observer_detached'))
-      }
-      signal?.addEventListener('abort', onAbort, { once: true })
-      // At the close deadline the caller gets `unknown`. The reservation stays until the Worker ends.
-      const leave = core.inFlight.add({
-        domain: identity.transactionDomain,
+    function admitted(grant: Granted): Promise<CommitResultV2> {
+      const unknown = (text: string): CommitResultV2 => ({
+        kind: 'unknown',
         identity,
-        expire: () => settle(unknown('close_deadline')),
+        diagnostic: core.diagnostic(text),
       })
+      const reject = (reason: CommitRejectReason): CommitResultV2 => rejection(reason, identity)
 
-      const dispatch = async (): Promise<CommitResultV2> => {
-        let ready = core.domains.peekReady(identity.transactionDomain)
-        if (ready === null) {
-          const outcome = await core.domains.ensure(identity.transactionDomain, null)
-          // Not sent yet, so the operation can be withdrawn without a trace (SPEC 7.1 item 3).
-          if (outcome.kind === 'closing' || core.lifecycle.closing || detached)
-            return unknown('withdrawn_before_start')
-          if (outcome.kind === 'absent') return reject('combination_unregistered')
-          if (outcome.kind === 'quarantined' || outcome.kind === 'failed')
-            return reject('domain_unavailable')
-          if (outcome.kind === 'unknown') return unknown(outcome.diagnostic)
-          ready = outcome.entry
+      return new Promise<CommitResultV2>(resolve => {
+        let settled = false
+        let detached = false
+        // Withdraws the write while it waits for the barrier (SPEC 7.1 item 3): nothing was sent.
+        const withdraw = new AbortController()
+        const settle = (result: CommitResultV2): void => {
+          if (settled) return
+          settled = true
+          signal?.removeEventListener('abort', onAbort)
+          resolve(result)
         }
-        // A domain of another scope looks like an absent one (SPEC 5.5).
-        if (!sameScope(ready.scope, identity.scope)) return reject('combination_unregistered')
-        if (ready.wal.state === 'write-stopped') return reject('domain_unavailable')
-        let reply: CommitReply
-        // Writes and domain-serial barriers share one arrival order (SPEC 9.3). The wait is bounded
-        // by lockWaitMs; a write that expires or is aborted while it waits is withdrawn: nothing
-        // was sent, so the caller can query and retry.
-        const admission = await core.barrier.enterWrite(identity.transactionDomain, {
-          signal: withdraw.signal,
-          timeoutMs: core.config.lockWaitMs,
+        // Abort releases the observer only. The reservation stays until the owner has the result.
+        const onAbort = (): void => {
+          detached = true
+          withdraw.abort()
+          settle(unknown('observer_detached'))
+        }
+        signal?.addEventListener('abort', onAbort, { once: true })
+        // Granted after a wait: the signal may have aborted between the grant and here (SPEC 7.1 item 3).
+        if (signal?.aborted === true) onAbort()
+        // At the close deadline the caller gets `unknown`. The reservation stays until the Worker ends.
+        const leave = core.inFlight.add({
+          domain: identity.transactionDomain,
+          identity,
+          expire: () => settle(unknown('close_deadline')),
         })
-        if (admission.kind === 'withdrawn') return unknown(WITHDRAWN_DIAGNOSTIC[admission.cause])
-        // Nothing was sent while the barrier made this write wait: it is withdrawn (SPEC 13.3 step 2).
-        if (core.lifecycle.closing) {
-          admission.release()
-          return unknown('withdrawn_before_start')
-        }
-        // The caller observes the reply for a bounded time. What the write holds (reservation,
-        // pending entry, its place in the order) stays with the Worker until the reply or the exit.
-        try {
-          reply = await observeReply(
-            () =>
-              ready.client.request<CommitReply>({ kind: 'commit', request: input, inputDigest }),
-            core.replyObservationMs,
-            () => settle(unknown('reply_wait_expired')),
-          )
-        } catch (error) {
-          return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
-        } finally {
-          admission.release()
-        }
-        switch (reply.kind) {
-          case 'receipt':
-            return { ...reply.receipt, recalled: reply.recalled }
-          case 'conflict':
-            return { kind: 'identity_conflict', identity, existing: reply.existing }
-          case 'rejected':
-            return reject(reply.reason)
-          case 'unknown':
-            return unknown(reply.diagnostic)
-          case 'quarantine':
-            core.domains.quarantine(ready, reply.diagnostic)
-            return reject('domain_unavailable')
-          case 'withdrawn':
-            return unknown('withdrawn_before_start')
-          default:
-            return unknown('provider_error')
-        }
-      }
 
-      const finish = (): void => {
-        leave()
-        grant.release()
-        core.pending.remove(key)
-      }
-      dispatch().then(
-        result => {
-          finish()
-          settle(result)
-        },
-        () => {
-          finish()
-          settle(unknown('provider_error'))
-        },
-      )
-    })
+        const dispatch = async (): Promise<CommitResultV2> => {
+          let ready = core.domains.peekReady(identity.transactionDomain)
+          if (ready === null) {
+            const outcome = await core.domains.ensure(identity.transactionDomain, null)
+            // Not sent yet, so the operation can be withdrawn without a trace (SPEC 7.1 item 3).
+            if (outcome.kind === 'closing' || core.lifecycle.closing || detached)
+              return unknown('withdrawn_before_start')
+            if (outcome.kind === 'absent') return reject('combination_unregistered')
+            if (outcome.kind === 'quarantined' || outcome.kind === 'failed')
+              return reject('domain_unavailable')
+            if (outcome.kind === 'unknown') return unknown(outcome.diagnostic)
+            ready = outcome.entry
+          }
+          // A domain of another scope looks like an absent one (SPEC 5.5).
+          if (!sameScope(ready.scope, identity.scope)) return reject('combination_unregistered')
+          if (ready.wal.state === 'write-stopped') return reject('domain_unavailable')
+          let reply: CommitReply
+          // Writes and domain-serial barriers share one arrival order (SPEC 9.3). The wait is bounded
+          // by lockWaitMs; a write that expires or is aborted while it waits is withdrawn: nothing
+          // was sent, so the caller can query and retry.
+          const admission = await core.barrier.enterWrite(identity.transactionDomain, {
+            signal: withdraw.signal,
+            timeoutMs: core.config.lockWaitMs,
+          })
+          if (admission.kind === 'withdrawn') return unknown(WITHDRAWN_DIAGNOSTIC[admission.cause])
+          // Nothing was sent while the barrier made this write wait: it is withdrawn (SPEC 13.3 step 2).
+          if (core.lifecycle.closing) {
+            admission.release()
+            return unknown('withdrawn_before_start')
+          }
+          // The caller observes the reply for a bounded time. What the write holds (reservation,
+          // pending entry, its place in the order) stays with the Worker until the reply or the exit.
+          try {
+            reply = await observeReply(
+              () =>
+                ready.client.request<CommitReply>({ kind: 'commit', request: input, inputDigest }),
+              core.replyObservationMs,
+              () => settle(unknown('reply_wait_expired')),
+            )
+          } catch (error) {
+            return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
+          } finally {
+            admission.release()
+          }
+          switch (reply.kind) {
+            case 'receipt':
+              return { ...reply.receipt, recalled: reply.recalled }
+            case 'conflict':
+              return { kind: 'identity_conflict', identity, existing: reply.existing }
+            case 'rejected':
+              return reject(reply.reason)
+            case 'unknown':
+              return unknown(reply.diagnostic)
+            case 'quarantine':
+              core.domains.quarantine(ready, reply.diagnostic)
+              return reject('domain_unavailable')
+            case 'withdrawn':
+              return unknown('withdrawn_before_start')
+            default:
+              return unknown('provider_error')
+          }
+        }
+
+        const finish = (): void => {
+          leave()
+          grant.release()
+          core.pending.remove(key)
+        }
+        dispatch().then(
+          result => {
+            finish()
+            settle(result)
+          },
+          () => {
+            finish()
+            settle(unknown('provider_error'))
+          },
+        )
+      })
+    }
   }
 }
+
+/** The answer of a commit whose wait for a reservation ended without one (准入等待 rule 6). */
+const WAIT_REFUSAL = {
+  full: 'queue_full',
+  expired: 'queue_full',
+  aborted: 'cancelled',
+  closing: 'closing',
+} as const satisfies Record<Exclude<Acquired['kind'], 'granted'>, CommitRejectReason>

@@ -30,8 +30,10 @@ export function createQuery(core: Core): SqlStorage['query'] {
     if (decoded.identity === null) return unknown('invalid_identity')
     const valid = decoded.identity
     if (valid.recall === 'never') return { kind: 'not_recallable', identity: valid }
-    const grant = core.admission.reserveQuery(valid.transactionDomain)
-    if (grant === null) return unknown('queue_full')
+    // A full query queue makes the query wait (sql-contract SPEC 准入等待): nothing is sent yet.
+    const grant = await core.admission.reserveQuery(valid.transactionDomain)
+    if (grant.kind === 'closing') return unknown('closing')
+    if (grant.kind !== 'granted') return unknown('queue_full')
     // The caller observes a sent query for a bounded time. The queue place goes back with the reply.
     let expire: () => void = () => undefined
     const expired = new Promise<QueryResultV2>(resolve => {

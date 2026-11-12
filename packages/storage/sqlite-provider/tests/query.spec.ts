@@ -111,7 +111,12 @@ describe('query answers unknown', () => {
   })
 
   it('when the queue is full, without an answer about the receipt', async () => {
-    const { storage } = await ready({ queryQueuePerDomain: 1, queryQueueGlobal: 1 })
+    // admissionWaitMs 0: a full queue refuses at once (sql-contract 准入等待 rule 7).
+    const { storage } = await ready({
+      queryQueuePerDomain: 1,
+      queryQueueGlobal: 1,
+      admissionWaitMs: 0,
+    })
     const first = storage.query(identity())
     const second = await storage.query(identity({ operationKey: 'k2' }))
     expect(second.kind).toBe('unknown')

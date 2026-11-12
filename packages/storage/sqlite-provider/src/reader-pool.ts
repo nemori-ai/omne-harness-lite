@@ -18,6 +18,7 @@ import { decodeScope, scopeKey } from './fields.ts'
 import { ReaderClient } from './reader-client.ts'
 import type { WriteBarrier } from './write-barrier.ts'
 import type { HandlerSpec, ReaderReply } from './worker/reader-protocol.ts'
+import { WaitingQueue, type Acquired, type Fit } from './waiting.ts'
 import { WorkerExited } from './writer-client.ts'
 
 export type ReadOutcome =
@@ -146,6 +147,8 @@ export class ReaderPool {
   private readonly lifecycle: Lifecycle
   private readonly barrier: WriteBarrier
   private readonly byDomain = new Map<string, DomainReaders>()
+  /** Reads that wait for a reservation, bounded like the read queue itself (准入等待). */
+  private readonly waiting: WaitingQueue<Readonly<{ domain: string; bytes: number }>>
   private readonly perDomainReserved = new Map<string, number>()
   private reserved = 0
   private reservedBytes = 0
@@ -162,6 +165,14 @@ export class ReaderPool {
   ) {
     this.barrier = barrier
     this.config = config
+    this.waiting = new WaitingQueue(
+      {
+        fit: need => this.fit(need.domain, need.bytes),
+        never: need => need.bytes > config.globalReadResultBytes,
+        take: need => this.reserve(need.domain, need.bytes),
+      },
+      { perDomain: config.readQueuePerDomain, global: config.readQueueGlobal },
+    )
     this.domains = domains
     this.lifecycle = lifecycle
   }
@@ -169,18 +180,44 @@ export class ReaderPool {
   /** Reads of one request: reserve, wait for the domain, queue, run. Resolves exactly once. */
   read(job: ReadJob): Promise<ReadOutcome> {
     if (this.closing || this.lifecycle.closing) return Promise.resolve(unavailable('closing'))
-    const give = this.reserve(job.domain, job.handler.maxOutputBytes)
-    if (give === null) return Promise.resolve(unavailable('queue_full'))
-    return new Promise<ReadOutcome>(resolve => {
-      const task: Task = new Task(job, resolve, give, () => this.aborted(task))
-      task.startTimer(this.config.readQueueTimeoutMs, () => this.queueExpired(task))
-      void this.enqueue(task)
-    })
+    // The wait for a reservation counts towards readQueueTimeoutMs, from the call on (SPEC 9.2
+    // step 9; 准入等待). Nothing is sent while the read waits.
+    const started =
+      /* wall-clock: operation-timing -- The read deadline is a monotonic duration from the call (SPEC 9.2 step 9). */ performance.now()
+    const { readQueueTimeoutMs } = this.config
+    const acquired = this.waiting.acquire(
+      { domain: job.domain, bytes: job.handler.maxOutputBytes },
+      readQueueTimeoutMs,
+      job.signal,
+    )
+    const answer = (acquired: Acquired): ReadOutcome | Promise<ReadOutcome> => {
+      switch (acquired.kind) {
+        case 'full':
+          return unavailable('queue_full')
+        case 'expired':
+          return unavailable('queue_timeout')
+        case 'aborted':
+          return { kind: 'cancelled' } as const
+        case 'closing':
+          return unavailable('closing')
+        case 'granted':
+          break
+      }
+      return new Promise<ReadOutcome>(resolve => {
+        const task: Task = new Task(job, resolve, acquired.release, () => this.aborted(task))
+        const left = Math.max(0, readQueueTimeoutMs - (performance.now() - started))
+        task.startTimer(left, () => this.queueExpired(task))
+        void this.enqueue(task)
+      })
+    }
+    if (acquired instanceof Promise) return acquired.then(answer)
+    return Promise.resolve(answer(acquired))
   }
 
   /** Stops the pool and closes every reader. Queued reads end as `closing`. */
   async closeAll(): Promise<void> {
     this.closing = true
+    this.waiting.close()
     const closing: Promise<void>[] = []
     for (const d of this.byDomain.values()) {
       this.drain(d, unavailable('closing'))
@@ -241,14 +278,16 @@ export class ReaderPool {
 
   // --- reservations (SPEC 9.2 step 6) -------------------------------------------------------
 
-  private reserve(domain: string, bytes: number): (() => void) | null {
+  /** The domain bound first, then the global count and bytes (准入等待 rule 3). */
+  private fit(domain: string, bytes: number): Fit {
     const { readQueuePerDomain, readQueueGlobal, globalReadResultBytes } = this.config
-    if (
-      (this.perDomainReserved.get(domain) ?? 0) >= readQueuePerDomain ||
-      this.reserved >= readQueueGlobal ||
-      this.reservedBytes + bytes > globalReadResultBytes
-    )
-      return null
+    if ((this.perDomainReserved.get(domain) ?? 0) >= readQueuePerDomain) return 'domain'
+    return this.reserved < readQueueGlobal && this.reservedBytes + bytes <= globalReadResultBytes
+      ? 'fits'
+      : 'global'
+  }
+
+  private reserve(domain: string, bytes: number): () => void {
     this.perDomainReserved.set(domain, (this.perDomainReserved.get(domain) ?? 0) + 1)
     this.reserved += 1
     this.reservedBytes += bytes
