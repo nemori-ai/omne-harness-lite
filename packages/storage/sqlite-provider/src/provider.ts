@@ -95,6 +95,7 @@ export async function createSqliteStorage(
     control: createControl({
       config: core.config,
       lifecycle: core.lifecycle,
+      admission: core.admission,
       domains: core.domains,
       inFlight: core.inFlight,
       readers: core.readers,

@@ -16,6 +16,7 @@ import { type Core, identityKey, sameScope } from './core.ts'
 import { decodeIdentity, isDigest, isName } from './fields.ts'
 import { canonicalJson, isStrictJson, jsonShape, utf8Length } from './json.ts'
 import type { CommitReply } from './worker/protocol.ts'
+import type { Acquired, Granted } from './waiting.ts'
 import { observeReply, WorkerExited } from './writer-client.ts'
 
 /** The diagnostic of a write that was withdrawn while it waited for the barrier (SPEC 9.3). */
@@ -100,11 +101,23 @@ export function createCommit(core: Core): SqlStorage['commit'] {
     if (judged.kind === 'rejected')
       return Promise.resolve(rejection(judged.reason, decoded.identity))
     const { identity, requestBytes, inputDigest } = judged
-    const grant = core.admission.reserveWrite(identity.transactionDomain, requestBytes)
-    if (grant === null) return Promise.resolve(rejection('queue_full', identity))
-
     const key = identityKey(identity)
+    // A commit that waits for its reservation is in the pending index already: a query of its
+    // identity answers unknown (SPEC 8 item 2). Nothing is sent while it waits (准入等待).
     core.pending.add(key)
+    const answer = (acquired: Acquired): Promise<CommitResultV2> => {
+      if (acquired.kind === 'granted')
+        return admitted(acquired, { input, identity, inputDigest, key, signal, rejection })
+      core.pending.remove(key)
+      return Promise.resolve(rejection(WAIT_REFUSAL[acquired.kind], identity))
+    }
+    const acquired = core.admission.reserveWrite(identity.transactionDomain, requestBytes, signal)
+    return acquired instanceof Promise ? acquired.then(answer) : answer(acquired)
+  }
+
+  /** The send of an admitted commit: what follows the reservation (SPEC 7.1 to 7.7). */
+  function admitted(grant: Granted, sent: Sent): Promise<CommitResultV2> {
+    const { input, identity, inputDigest, key, signal, rejection } = sent
     const unknown = (text: string): CommitResultV2 => ({
       kind: 'unknown',
       identity,
@@ -130,6 +143,8 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         settle(unknown('observer_detached'))
       }
       signal?.addEventListener('abort', onAbort, { once: true })
+      // Granted after a wait: the signal may have aborted between the grant and here (SPEC 7.1 item 3).
+      if (signal?.aborted === true) onAbort()
       // At the close deadline the caller gets `unknown`. The reservation stays until the Worker ends.
       const leave = core.inFlight.add({
         domain: identity.transactionDomain,
@@ -218,3 +233,21 @@ export function createCommit(core: Core): SqlStorage['commit'] {
     })
   }
 }
+
+/** What a commit carries from its admission to its send. */
+type Sent = Readonly<{
+  input: CommitRequestV2
+  identity: SqlIdentity
+  inputDigest: string
+  key: string
+  signal: AbortSignal | undefined
+  rejection: (reason: CommitRejectReason, identity: SqlIdentity | null) => CommitResultV2
+}>
+
+/** The answer of a commit whose wait for a reservation ended without one (准入等待 rule 6). */
+const WAIT_REFUSAL = {
+  full: 'queue_full',
+  expired: 'queue_full',
+  aborted: 'cancelled',
+  closing: 'closing',
+} as const satisfies Record<Exclude<Acquired['kind'], 'granted'>, CommitRejectReason>

@@ -62,7 +62,13 @@ describe('cancellation (C12)', () => {
     await delay(100)
     abort.abort()
     expect((await running).kind).toBe('cancelled')
+    // The reservation is still held, so the next read waits for it (sql-contract 准入等待). The
+    // waiting list holds one per domain: a third read finds it full and is refused at once. Had
+    // the cancel returned the reservation, the waiter would have been granted and the third would
+    // wait instead.
+    const waiting = storage.read(readRequest('page'))
     expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
+    expect(summary(await waiting)).toBe('read')
     await delay(500)
     expect(summary(await storage.read(readRequest('page')))).toBe('read')
   })
@@ -128,20 +134,28 @@ describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
 })
 
 describe('result byte budget (SPEC 9.2 step 6)', () => {
-  it('admits as many reads as the global budget holds, answers queue_full to the next, and admits again after one ends', async () => {
-    // Defect: the reservation ignores the byte budget (only the counts are checked): the third
-    // read would queue and come back `read`.
+  it('admits as many reads as the global budget holds; the next waits until one ends, then reads', async () => {
+    // Defect: the reservation ignores the byte budget (only the counts are checked): with a third
+    // read Worker free, the third read would run at once and end before the slow two.
     const { storage } = await readyProvider(
       workspace,
       built,
-      { maxReadResultBytes: 4096, globalReadResultBytes: 8192 },
+      { maxReadResultBytes: 4096, globalReadResultBytes: 8192, maxReadWorkersPerDomain: 3 },
       0,
     )
-    const first = storage.read(readRequest('slow', { ms: 400 }))
-    const second = storage.read(readRequest('slow', { ms: 400 }))
-    expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
-    expect((await Promise.all([first, second])).map(summary)).toEqual(['read', 'read'])
-    expect(summary(await storage.read(readRequest('page')))).toBe('read')
+    const ended: string[] = []
+    const track = (name: string, read: Promise<Parameters<typeof summary>[0]>) =>
+      read.then(result => {
+        ended.push(name)
+        return summary(result)
+      })
+    const first = track('first', storage.read(readRequest('slow', { ms: 400 })))
+    const second = track('second', storage.read(readRequest('slow', { ms: 400 })))
+    const third = track('third', storage.read(readRequest('page')))
+    expect(await Promise.all([first, second, third])).toEqual(['read', 'read', 'read'])
+    expect(ended.indexOf('third')).toBeGreaterThan(
+      Math.min(ended.indexOf('first'), ended.indexOf('second')),
+    )
   })
 })
 

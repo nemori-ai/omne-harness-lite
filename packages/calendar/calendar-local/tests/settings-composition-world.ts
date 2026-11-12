@@ -60,6 +60,7 @@ function config(storageRoot: string): SqliteStorageConfig {
     storageRoot,
     admissionQueueLimit: 100,
     globalAdmissionLimit: 100,
+    admissionWaitMs: 1000,
     lockWaitMs: 1000,
     maxCommandsPerCommit: 8,
     maxCommandBytes: 16 << 20,

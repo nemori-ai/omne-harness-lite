@@ -334,11 +334,14 @@ describe('rejection order (SPEC 7.2, adjacent steps)', () => {
   })
 
   it('step 7 command_limit before step 8 queue_full', async () => {
+    // admissionWaitMs 0: a full point refuses at once (sql-contract 准入等待 rule 7), so the order of
+    // the steps is observable.
     const { storage } = await ready({
       admissionQueueLimit: 1,
       globalAdmissionLimit: 1,
       groupMaxOperations: 1,
       maxCommandsPerCommit: 2,
+      admissionWaitMs: 0,
     })
     const holding = storage.commit(commitRequest(built))
     const tooMany = await storage.commit(

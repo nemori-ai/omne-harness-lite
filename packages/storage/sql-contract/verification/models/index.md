@@ -9,4 +9,5 @@
 <!-- documentation:placeholder -->
 
 - [README.md](README.md)：模型清单与前提
+- [admission-wait/](admission-wait/README.md)：准入点的有界等待模型（AdmissionWait）
 - [recall-at-commit/](recall-at-commit/README.md)：提交时认回、不先查询的模型（RecallAtCommit）
