@@ -168,7 +168,10 @@ export type FixedToolRequest = Readonly<{
   batchDecision: DurableEvidence | null
   mode: 'foreground' | 'background'
   limits: Readonly<{
+    /** The most held slots of this tool in its scope (P02); null is no limit. */
     concurrency: number | null
+    /** The most held slots of all tools in the scope (P02); null is no limit. */
+    scopeBudget: number | null
     foregroundMs: number | null
     backgroundAfterMs: number | null
   }>

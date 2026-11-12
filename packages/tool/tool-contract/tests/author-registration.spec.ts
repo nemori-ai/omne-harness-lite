@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
+import { succeed } from '@omne-harness/operation-result'
 import {
+  CHECKPOINT_STATE_MAX_BYTES,
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
   defineCommandTool,
   defineFunctionTool,
   defineToolOperation,
@@ -299,6 +303,12 @@ describe('author registration', () => {
     expect(reads).toBe(0)
   })
 
+  it('author registration: a spec that is no object is rejected at the root, named input', () => {
+    expect(defineToolOperation(null as never)).toEqual({
+      failure: { field: 'input', reason: 'type' },
+    })
+  })
+
   it('author registration: rejects a command table whose Proxy traps throw, without throwing', () => {
     const hostile = new Proxy(
       { shell: { summary: 'Run a command.', operation: shellOperation() } },
@@ -411,5 +421,149 @@ describe('wait contract', () => {
     expect(withWait([protocol('ask', 'forbidden')])).toEqual({
       failure: { field: 'author.waits[0]', reason: 'type' },
     })
+  })
+})
+
+describe('checkpointed author', () => {
+  const ask = defineToolWaitContract({
+    kind: 'ask',
+    adoption: adoption('ask-protocol'),
+    request: valueSchema('request'),
+    response: valueSchema('response'),
+    expiry: 'forbidden',
+  })
+  if (!('ok' in ask)) throw new Error(ask.failure.reason)
+  const segments = () => ({
+    checkpoint: {
+      schema: { id: 'state', revision: '1', digest: 'sha256:state' },
+      codec: adoption('state-codec'),
+      maxBytes: 4_096,
+    },
+    initial: () => Promise.resolve(succeed({ kind: 'completed' as const, value: { count: 1 } })),
+    resume: () => Promise.resolve(succeed({ kind: 'completed' as const, value: { count: 2 } })),
+  })
+  const define = (executor: unknown, waits: readonly unknown[] = [ask.ok]) =>
+    defineToolOperation({
+      parameters: { kind: 'declared', value: parameters() },
+      returns: ordinaryReturns,
+      author: { ...ordinaryAuthor(), waits: waits as never, executor: executor as never },
+    })
+
+  it('checkpointed author: the handle keeps the segments apart, and its live executor only refuses', async () => {
+    const executor = segments()
+    const defined = define(executor)
+    if (!('ok' in defined)) throw new Error(defined.failure.field)
+    const slot = readToolOperation(defined.ok)
+    expect(slot?.segments).toBe(executor)
+    await expect(slot?.author.executor.execute(null, null, null as never)).rejects.toThrow(
+      'runs in segments',
+    )
+    const live = ordinaryAuthor()
+    const plain = defineToolOperation({
+      parameters: { kind: 'declared', value: parameters() },
+      returns: ordinaryReturns,
+      author: live,
+    })
+    if (!('ok' in plain)) throw new Error(plain.failure.field)
+    expect(readToolOperation(plain.ok)?.segments).toBe(null)
+    expect(readToolOperation(plain.ok)?.author.executor).toBe(live.executor)
+  })
+
+  it('checkpointed author: a segmented executor needs both segment functions and a closed checkpoint', () => {
+    const { resume: _resume, ...noResume } = segments()
+    expect(define(noResume)).toEqual({
+      failure: { field: 'author.executor.resume', reason: 'type' },
+    })
+    expect(
+      define({ ...segments(), checkpoint: { ...segments().checkpoint, maxBytes: 0 } }),
+    ).toEqual({ failure: { field: 'author.executor.checkpoint.maxBytes', reason: 'range' } })
+    // The ledger keeps the state in one record of the call: a declaration over the bound is refused.
+    const bounded = (maxBytes: number) =>
+      define({ ...segments(), checkpoint: { ...segments().checkpoint, maxBytes } })
+    expect(bounded(CHECKPOINT_STATE_MAX_BYTES)).toHaveProperty('ok')
+    expect(bounded(CHECKPOINT_STATE_MAX_BYTES + 1)).toEqual({
+      failure: { field: 'author.executor.checkpoint.maxBytes', reason: 'range' },
+    })
+    expect(
+      define({ ...segments(), checkpoint: { ...segments().checkpoint, extra: true } }),
+    ).toMatchObject({ failure: { field: 'author.executor.checkpoint.extra' } })
+  })
+
+  it('checkpointed author: a segmented author must declare the Ask it may wait for', () => {
+    expect(define(segments(), [])).toEqual({
+      failure: { field: 'input.author.waits', reason: 'checkpointed-without-ask' },
+    })
+  })
+
+  it('checkpointed author: the Ask of a segmented author declares sizes within the system bounds', () => {
+    // The ledger keeps the request and the response of that Ask in records of the call.
+    const sized = (
+      side: 'request' | 'response',
+      maxBytes: number,
+      kind: 'ask' | 'resource' = 'ask',
+    ) => {
+      const wait = defineToolWaitContract({
+        kind,
+        adoption: adoption('ask-protocol'),
+        request: valueSchema('request'),
+        response: valueSchema('response'),
+        expiry: 'forbidden',
+        [side]: { ...valueSchema(side), maxBytes },
+      })
+      if (!('ok' in wait)) throw new Error(wait.failure.reason)
+      return wait.ok
+    }
+    const over = { failure: { field: 'input.author.waits', reason: 'checkpointed-ask-over-bound' } }
+    expect(define(segments(), [sized('request', WAIT_REQUEST_MAX_BYTES)])).toHaveProperty('ok')
+    expect(define(segments(), [sized('request', WAIT_REQUEST_MAX_BYTES + 1)])).toEqual(over)
+    expect(define(segments(), [sized('response', WAIT_RESPONSE_MAX_BYTES)])).toHaveProperty('ok')
+    expect(define(segments(), [sized('response', WAIT_RESPONSE_MAX_BYTES + 1)])).toEqual(over)
+    // The bound is on the Ask, wherever it stands among the waits; a resource wait keeps its own.
+    const resourceOver = sized('request', WAIT_REQUEST_MAX_BYTES + 1, 'resource')
+    expect(
+      define(segments(), [resourceOver, sized('request', WAIT_REQUEST_MAX_BYTES + 1)]),
+    ).toEqual(over)
+    expect(define(segments(), [ask.ok, resourceOver])).toHaveProperty('ok')
+    // An author that runs in one execution keeps the limits of its own protocol.
+    const plain = defineToolOperation({
+      parameters: { kind: 'declared', value: parameters() },
+      returns: ordinaryReturns,
+      author: {
+        ...ordinaryAuthor(),
+        waits: [sized('request', WAIT_REQUEST_MAX_BYTES + 1)] as never,
+      },
+    })
+    expect(plain).toHaveProperty('ok')
+  })
+
+  it('checkpointed author: a resource wait does not stand in for the Ask a segment waits by', () => {
+    const resource = defineToolWaitContract({
+      kind: 'resource',
+      adoption: adoption('resource-protocol'),
+      request: valueSchema('resource-request'),
+      response: valueSchema('resource-response'),
+      expiry: 'forbidden',
+    })
+    if (!('ok' in resource)) throw new Error(resource.failure.reason)
+    expect(define(segments(), [resource.ok])).toEqual({
+      failure: { field: 'input.author.waits', reason: 'checkpointed-without-ask' },
+    })
+    expect('ok' in define(segments(), [resource.ok, ask.ok])).toBe(true)
+  })
+
+  it('checkpointed author: an executor that is no object, or whose checkpoint is an accessor, is rejected unread', () => {
+    for (const executor of [null, 'segments', 7, () => undefined])
+      expect(define(executor)).toEqual({ failure: { field: 'author.executor', reason: 'type' } })
+    let reads = 0
+    const accessor = Object.defineProperty({ ...segments() }, 'checkpoint', {
+      get: () => {
+        reads += 1
+        return segments().checkpoint
+      },
+    })
+    expect(define(accessor)).toEqual({
+      failure: { field: 'author.executor.checkpoint', reason: 'accessor' },
+    })
+    expect(reads).toBe(0)
   })
 })

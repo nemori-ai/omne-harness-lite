@@ -1,8 +1,8 @@
 # 客户端 SDK 行为规格
 
-本页拥有治理协议和会话协议的客户端职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、SSE 格式和两端共用的[客户端规则](../public-contract/docs/http-binding.md#客户端规则)只归[承载绑定页](../public-contract/docs/http-binding.md)。SDK 引用那一页，不复制它。
+本页拥有治理协议、会话协议与 HITL 协议的客户端职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、SSE 格式和两端共用的[客户端规则](../public-contract/docs/http-binding.md#客户端规则)只归[承载绑定页](../public-contract/docs/http-binding.md)。SDK 引用那一页，不复制它。
 
-下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话协议和承载页的引用、「[会话客户端](#会话客户端)」与「[HTTP 传输适配](#http-传输适配)」两节、「[自动再送与缓存](#自动再送与缓存)」中把规则扩到会话操作的两句、「[验证](#验证)」一节中会话客户端与 HTTP 适配的验证义务、「[已知限制](#已知限制)」整节。其余条款保持原有的采用状态。
+下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话协议和承载页的引用、「[会话客户端](#会话客户端)」与「[HTTP 传输适配](#http-传输适配)」两节、「[自动再送与缓存](#自动再送与缓存)」中把规则扩到会话操作的两句、「[验证](#验证)」一节中会话客户端与 HTTP 适配的验证义务、「[已知限制](#已知限制)」整节。其余条款保持原有的采用状态。「[HITL 客户端](#hitl-客户端)」一节、HTTP 传输适配的 `hitl` 位置，以及「[验证](#验证)」中 HITL 客户端的验证义务，按系统架构的[领域能力的公开位置](../../../docs/architecture/layers-and-dependencies.md#领域能力的公开位置)写定。
 
 ## 客户端职责
 
@@ -32,9 +32,32 @@ type SessionClient = {
 
 `SessionClient` 与 `GovernanceClient` 对称，由同一个传输适配构造。上面是设计形状，本包现在不导出它。
 
+## HITL 客户端
+
+HITL 客户端由 `createHitlClient` 构造。它使用公开契约的 HITL 一组编解码函数，发送 `hitl-public/1` 的消息，覆盖公开契约的四个 [HITL 公开操作](../public-contract/SPEC.md#hitl-公开操作)：`list-cards`、`read-card`、`submit-reply` 与 `query-submit-reply`。一个位置对应一个客户端，交付面只经这个客户端读卡和答复。
+
+- HITL 客户端只把带有相同 `messageId` 的响应交给该次调用，规则同治理客户端。
+- HITL 客户端把 `loginProof` 放进消息体。它不把登录证明写进 HTTP 头、日志或错误文本。
+- 调用者在首次发送前生成 `replyId`，并在重试同一次提交时保持不变。人的新一次处理用新的 `replyId`。SDK 不替调用者换这个标识。
+- 调用者不填写提交身份、操作者或位置引用。SDK 不提供这样的参数。
+- `submit-reply` 得到 `unknown`，或没有收到可信答复时，SDK 把它交给调用者。再送和认回由调用者发起：用同一 `replyId` 原样再送，或用同样的内容发 `query-submit-reply`。
+- 会话入口与待办池是同一个 `list-cards`。调用者用 `filter` 的 `sessionRef` 区分，SDK 不另设方法。
+- SDK 重新导出调用者构造 HITL 请求和读取卡片视图所需的公开契约类型。CLI 因此只依赖 SDK，不直接导入公开契约。SDK 只在公开契约读过响应之后才交出 `body`，所以 `body` 已经有契约的形状。
+- SDK 不缓存卡片视图，也不据本地状态判断一张卡能否答复。卡片能否答复以服务端这一次的结果为准。
+
+```ts
+type HitlClient = {
+  submit(request: HitlRequest): Promise<CallerResult>
+}
+
+function createHitlClient(options: ClientOptions): HitlClient
+```
+
+`HitlClient` 与 `SessionClient` 对称，由同一种传输适配构造。`HitlRequest` 是公开契约的 HITL 请求类型。上面是设计形状。
+
 ## HTTP 传输适配
 
-SDK 提供一个基于 `fetch` 的 HTTP 传输适配，实现 `GovernanceTransport` 的形状。该形状对两个位置通用。CLI 通过它发请求，不自己写 HTTP。调用者仍然可以交入自己的传输适配。
+SDK 提供一个基于 `fetch` 的 HTTP 传输适配，实现 `GovernanceTransport` 的形状。该形状对三个位置通用。CLI 通过它发请求，不自己写 HTTP。调用者仍然可以交入自己的传输适配。
 
 适配按[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)工作。
 
@@ -47,7 +70,7 @@ SDK 提供一个基于 `fetch` 的 HTTP 传输适配，实现 `GovernanceTranspo
 ```ts
 type HttpTransportOptions = {
   origin: string
-  location: 'governance' | 'session'
+  location: 'governance' | 'session' | 'hitl'
 }
 
 function createHttpTransport(options: HttpTransportOptions): GovernanceTransport
@@ -57,11 +80,11 @@ function createHttpTransport(options: HttpTransportOptions): GovernanceTransport
 
 ## 自动再送与缓存
 
-本页每一个治理操作和会话操作都使用这一条再送规则。传输适配报告请求字节没有发出时，SDK 自动再送一次。字节已经发出，或适配不能证明没有发出时，SDK 不自动再送。未知效果不能靠这次再送重做。调用者自己发起的下一次调用是一次新调用，并遵守该操作自己的重复规则。
+本页每一个治理操作、会话操作和 HITL 操作都使用这一条再送规则。传输适配报告请求字节没有发出时，SDK 自动再送一次。字节已经发出，或适配不能证明没有发出时，SDK 不自动再送。未知效果不能靠这次再送重做。调用者自己发起的下一次调用是一次新调用，并遵守该操作自己的重复规则。
 
 SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`。客户端应用可以保存屏幕投影。投影失败不改变已经返回的 `succeeded`。清掉投影不把 `unknown` 变成成功或没有发生。
 
-这些治理调用和会话调用不刷新登录的空闲计时。`public-health` 不带登录证明，也不带行事租户。
+这些治理调用、会话调用和 HITL 调用不刷新登录的空闲计时。`public-health` 不带登录证明，也不带行事租户。
 
 ## 安装闭包
 
@@ -170,6 +193,13 @@ SDK 不另写结果含义。必须遵守的客户端规则是自动再送条件�
 - 重定向响应不被跟随，结果是 `uncertain`。
 - 状态 500 且响应体是匹配的 `unknown` 消息时，调用者得到 `response`，`outcome` 是 `unknown`。响应体为空的 500 得到 `uncertain`。
 - 任何输出、日志和错误文本都不含登录证明与凭据。
+
+HITL 客户端另有下列验证义务。
+
+- 四个 HITL 操作的往返用环回服务端替身通过，响应按 `messageId` 关联。
+- `location` 为 `hitl` 的适配向 `/hitl-public/1` 发 POST。
+- 部署声明不提供的 HITL 操作，答复是空 `body` 的 `stage-not-provided`。客户端把它交成这次调用的 `response`，不再送。
+- `submit-reply` 的状态 500 且响应体是匹配的 `unknown` 消息时，调用者得到 `response`，`outcome` 是 `unknown`。SDK 不自动换 `replyId` 重发。
 
 ## 已知限制
 

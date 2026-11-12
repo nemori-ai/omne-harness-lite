@@ -1,6 +1,6 @@
 // The HTTP layer of the entry (binding page「请求与响应规则」, SPEC「服务端的 HTTP 层责任」): the
 // loopback listener, the five steps before the message, the body limit per path, the dispatch to
-// the two locations, the answer writing, and stop. A failure of this layer or of the entry itself
+// the three locations, the answer writing, and stop. A failure of this layer or of the entry itself
 // is the empty status 500 and a closed connection.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type {
@@ -18,8 +18,14 @@ import {
   type ServerEntryConfig,
 } from './config.ts'
 import { emit, type DiagnosticSink } from './diagnostics.ts'
-import type { DefinitionResolver, SessionIngressFaces } from './faces.ts'
+import type {
+  DefinitionResolver,
+  HitlEntryPrincipals,
+  HitlIngressFaces,
+  SessionIngressFaces,
+} from './faces.ts'
 import { governanceProtocolRejected, handleGovernance } from './governance.ts'
+import { HITL_PATH, handleHitl, hitlProtocolRejected, type HitlInstallation } from './hitl.ts'
 import { createIdentitySteps } from './identity-steps.ts'
 import type { SettingsGovernance } from './settings.ts'
 import { createObservationRegistry } from './observation.ts'
@@ -44,6 +50,13 @@ export type ServerEntryDependencies = Readonly<{
   session: SessionIngressFaces<ActingForTenantPrincipal>
   resolveDefinition: DefinitionResolver
   /**
+   * HITL 入口面（SPEC「HITL 位置」）。缺席时 HITL 位置的四个操作都答 `stage-not-provided`。
+   * 给了它，配置就必须有 `hitlLocationRef`。
+   */
+  hitl?: HitlIngressFaces<ActingForTenantPrincipal>
+  /** 入口主体持有者 `hitlEntryPrincipals`。缺席时 HITL 位置在第 3 步答 `basis-unavailable`。 */
+  hitlEntryPrincipals?: HitlEntryPrincipals
+  /**
    * The settings of the acting tenant (SPEC「设置项」). Absent: the four setting operations answer
    * `stage-not-provided`.
    */
@@ -67,7 +80,7 @@ export interface ServerEntry {
 }
 
 type Location = Readonly<{
-  path: typeof GOVERNANCE_PATH | typeof SESSION_PATH
+  path: typeof GOVERNANCE_PATH | typeof SESSION_PATH | typeof HITL_PATH
   maxBytes: number
   protocolRejected: () => JsonAnswer
 }>
@@ -161,12 +174,26 @@ function writeNoAnswer(res: ServerResponse): void {
   writeEmpty(res, 500, { connection: 'close' })
 }
 
+/** HITL 入口面与位置引用一起出现：给了入口面却没有位置引用，是配置错误。 */
+function hitlInstallation(
+  config: ServerEntryConfig,
+  dependencies: ServerEntryDependencies,
+): HitlInstallation | undefined {
+  if (dependencies.hitl === undefined) return undefined
+  if (config.hitlLocationRef === undefined)
+    throw new ServerEntryConfigError(
+      'server-entry: hitlLocationRef is required when the HITL faces are given',
+    )
+  return { faces: dependencies.hitl, locationRef: config.hitlLocationRef }
+}
+
 export function createServerEntry(input: {
   readonly config: ServerEntryConfig
   readonly dependencies: ServerEntryDependencies
 }): ServerEntry {
   const config = checkConfig(input.config)
   const { dependencies } = input
+  const hitl = hitlInstallation(config, dependencies)
   const diagnostics = dependencies.diagnostics
   const steps = createIdentitySteps({
     identity: dependencies.identity,
@@ -194,6 +221,11 @@ export function createServerEntry(input: {
       maxBytes: config.maxBodyBytes.input,
       protocolRejected: () => sessionProtocolRejected(),
     },
+    {
+      path: HITL_PATH,
+      maxBytes: config.maxBodyBytes.input,
+      protocolRejected: () => hitlProtocolRejected(),
+    },
   ]
 
   let server: Server | undefined
@@ -208,9 +240,10 @@ export function createServerEntry(input: {
     if (inFlight === 0) for (const resolve of drained.splice(0)) resolve()
   }
 
-  const answerOf = async (location: Location, bytes: Uint8Array): Promise<Answer> =>
-    location.path === GOVERNANCE_PATH
-      ? handleGovernance(bytes, {
+  const answerOf = async (location: Location, bytes: Uint8Array): Promise<Answer> => {
+    switch (location.path) {
+      case GOVERNANCE_PATH:
+        return handleGovernance(bytes, {
           identity: dependencies.identity,
           governance: dependencies.governance,
           steps,
@@ -219,7 +252,8 @@ export function createServerEntry(input: {
           readLimits: readLimits(config, location.maxBytes),
           diagnostics,
         })
-      : handleSession(bytes, {
+      case SESSION_PATH:
+        return handleSession(bytes, {
           config,
           faces: dependencies.session,
           steps,
@@ -230,6 +264,16 @@ export function createServerEntry(input: {
           ports,
           cursors,
         })
+      case HITL_PATH:
+        return handleHitl(bytes, {
+          installation: hitl,
+          entryPrincipals: dependencies.hitlEntryPrincipals,
+          steps,
+          readLimits: readLimits(config, location.maxBytes),
+          diagnostics,
+        })
+    }
+  }
 
   const write = (res: ServerResponse, answer: Answer): void => {
     switch (answer.kind) {

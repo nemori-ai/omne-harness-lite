@@ -19,10 +19,12 @@ import { storageCatalog } from '../storage/catalog.ts'
  * their migrations to the catalog, adopting combination /6.
  * The Session writer no longer publishes `session.commit-result`, so its material and the manifest
  * digest changed, adopting combination /7.
- * W3 immutable Tool materials add a migration on top of the governance catalog, adopting
- * combination /8.
+ * W3 immutable Tool materials add a migration on top of the governance catalog. The HITL
+ * participants and the Session guard `session.run-live` joined for the Ask waits of Tool
+ * (`rows/tool-hitl`), and the Tool ledger gained the pending-call marker table
+ * (`tool/r6-002-tool-pending`) for the recovery scan, adopting combination /9.
  */
-export const COMBINATION_VERSION = 'session-composite/8'
+export const COMBINATION_VERSION = 'session-composite/9'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string

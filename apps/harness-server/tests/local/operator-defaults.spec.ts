@@ -6,6 +6,11 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import {
+  CHECKPOINT_STATE_MAX_BYTES,
+  WAIT_REQUEST_MAX_BYTES,
+  WAIT_RESPONSE_MAX_BYTES,
+} from '@omne-harness/tool-contract/provider'
 import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
@@ -103,6 +108,19 @@ describe('localOperatorLayer over the bundled distribution', () => {
     // A JSON string escapes to at most six bytes for one, so the two texts take at most twelve
     // times the argument bound inside the command; the rest of the request is far below the rest.
     expect(argumentBytes * 12).toBeLessThan(commandBytes)
+  })
+
+  // Tool keeps the request original, the checkpoint state and the response of a suspended call in
+  // records of the call, and writes each in one commit (Tool SPEC 30 and 31). The contract bounds
+  // the three; with these relations the storage never refuses one of those commits for its size.
+  it('bounds the suspension content of a tool call so that each of its commits fits one storage command', () => {
+    const config = layer.ops.find(item => item.id === 'storage')?.config
+    const commandBytes = z.object({ maxCommandBytes: z.number() }).parse(config).maxCommandBytes
+    // The request original is canonical JSON text: as a string of the record it takes at most
+    // twice its size. The state is base64 text. Half of the command is left for the other records.
+    expect(WAIT_REQUEST_MAX_BYTES * 2).toBeLessThanOrEqual(commandBytes / 2)
+    expect(Math.ceil(CHECKPOINT_STATE_MAX_BYTES / 3) * 4).toBeLessThanOrEqual(commandBytes / 2)
+    expect(WAIT_RESPONSE_MAX_BYTES).toBeLessThanOrEqual(commandBytes / 2)
   })
 
   it('names only the vault path for the secret custody, and no secret anywhere', () => {

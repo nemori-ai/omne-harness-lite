@@ -81,6 +81,44 @@ TodoItems 采用 [Session Todo 契约](../../session/session-contract/SPEC.md)�
 
 [Todo 作者测试](tests/todo-items.spec.ts)通过真实 commandArguments、参数解码、executeTool、输出校验和 codec 检查业务映射。Tools 组合使用真实 attachToolsCapability。绑定业务方法使用定向替身，未覆盖完整应用、SQL、真实 Agent 或自动 Runtime Context 投影。
 
+## Ask 作者
+
+Ask 是检查点作者，按 [Tool 契约](../tool-contract/SPEC.md)「恢复型执行者按段执行」分段执行。产品含义归 [Meta Capability 的 Ask](../../../.meta_harness/design/product/meta-capabilities/design.md)。卡片字段归 [HITL 协议](../../human-intervention/human-intervention/docs/protocol.md)的 Question 行，答复的解释归同一协议的「入口、来源与答复的解释」。命令表、参数校验、卡片、等待协议与检查点状态归 [ask-protocol.ts](src/ask-protocol.ts)。执行者归 [ask.ts](src/ask.ts)。
+
+### 命令与参数
+
+两条命令都用 declared 参数。未知字段、错误类型与不合规的文本都由参数编解码器拒绝，原因形如 `invalid-field:questions[0].title`。文本必须是合法的 Unicode，不能全是空白。长度按 Unicode 码点计数，文本上界与 HITL 的 Question 相同。问题数与选项数是 Ask 自己的界，比 HITL 的通用上界窄：一次打断问得太多，人答不过来；只有一个选项不算选择，自由作答与跳过由 HITL 保证。
+
+- ask 一次带 1 到 7 个问题，每个问题成为一张 question 卡。问题有标题（至多 256）、描述（至多 4096）和 2 到 4 个文本选项。选项有 `label`（至多 256，同一问题内不能重复）与 `description`（至多 4096），可另带 `diagram`。
+- 图解只辅助比较，不替代选项文本。HITL 的卡片没有图解字段，所以图解接在选项说明之后，中间空一行。两者合计至多 4096。
+- request_approval 只请示一个动作，成为一张 approval 卡。参数是 `action`（动作及其对象，至多 256，作为卡片标题）、`reason`、`impact`、`reversibility` 与 `fallback`（各至多 1000）。卡片说明按这个顺序列出后四项。选项固定为 `approve`「同意」与 `reject`「不同意」，模型不能给选项。
+- 卡片身份由位置决定。question 卡依次是 `q1`、`q2`……，选项依次是 `o1`、`o2`……。approval 卡是 `approval`。
+- 每张卡带固定的 `declineConsequence`。question 卡是「跳过此题，不作答」。approval 卡是「不作准驳，这个动作不会执行」。
+- 整批请求的 JSON 至多 192 KiB。HITL 登记命令的上界是 256 KiB，余量留给来源、显示上下文与信封。超过时原因是 `request-too-large`。
+
+### 段
+
+- initial 段再核一次参数，因为执行者不能假定调用方用了同一个编解码器。不合规时返回 `invalid`，不产生等待。
+- 参数合规时，initial 段返回 suspended。`state` 是 UTF-8 JSON，记下命令与题目：卡片身份、标题、选项身份与标签。`wait` 是 Ask 等待，`key` 是命令名，`contract` 是 `askWaitContract`，`request` 是 `{questions: [卡片]}`，按出卡顺序排列。`closedResult` 是等待被控制关闭时的结果文字：ask 为 `No selection was made: the question was closed before the person answered.`，request_approval 为 `No approval was obtained: the request was closed before the person decided. Do not perform the action.`。叫停、归档、中断与插队在人作答之前解除等待时，模型读到的是这一句。
+- initial 段不输出过程，也不等人。段上下文只有过程输出与取消信号。
+- 等待协议的种类是 ask，`expiry` 是 `forbidden`。答复值是 `{answers}`，按卡片顺序，每项是 `selection`（`optionId`）、`text`（至多 8192）或 `no-answer`。全部跳过时 Tool 的决定是 no-answer，不带答复值。Tool 的决定协议另有 declined，同样不带答复值，本发行没有产出它的决策方。打断不产生决定，调用给出的是 `closedResult`。
+- resume 段的输入是已提交的检查点与该等待的 ToolDecision。它不再等人：读回题目，把决定投影成结果文字，调用随之完成。检查点读不出时返回 `invalid`（`ask-state-unreadable`）；答复与题目对不上（卡片数、顺序、身份不同，或选中的选项不属于该题）时返回 `invalid`（`ask-response-mismatch`），不猜。投影归 [ask-result.ts](src/ask-result.ts)。
+- 结果按卡片顺序每题一行，文本一律用 JSON 字符串字面量加引号：选中为 `Q1 <标题>: selected "<label>"`，自由作答为 `Q2 <标题>: the person wrote: "<文本>"`，跳过为 `Q3 <标题>: no answer (the person skipped this question)`。全部跳过为 `The person did not answer any question.`，declined 为 `The person declined to reply.`。request_approval 的结果是 `Approved: <action>`、`Not approved: <action>`、`No decision. The person wrote: "<文本>". This is not permission.` 或 `No decision: the person did not approve or reject. This is not permission.`。
+
+### 给模型的文字
+
+工具说明、命令摘要、用法指南与参数说明归 [ask.ts](src/ask.ts) 与 [ask-protocol.ts](src/ask-protocol.ts)。它们按产品正文 meta-ask 的「问题与请示的内容」「减少无效打断」写，要点是：只在被卡住、并且确属人来决定时才问；问题自包含并点名所问的对象；推荐项放第一位并在 label 末尾加 `(Recommended)`；不让模型加「其他」选项；跳过不是许可，只有明确的同意才许可动作。不提供多选与短标题，因为 HITL 的答复一次只选一个选项，卡片已有标题。
+
+### 命令工具
+
+`askToolModule` 的 `createAuthor` 给出 wrapped 编码的命令工具，命令只有 ask 与 request_approval。两条命令共用 `askExecutor`，都声明 `askWaitContract`，所以宿主按段运行它们。工具没有执行环境、附件与设置。运维者构造值只有必填的 `resultMaxBytes`：resume 段投影出的结果文本超过这个 UTF-8 字节数时，结果检查拒绝它。未知字段与缺字段都拒绝构造。
+
+### 尚未完成
+
+- help 命令尚未实现。
+
+[Ask 作者测试](tests/ask.spec.ts)经公开入口运行参数编解码器、initial 段与命令工具的登记。请求与答复的形状用真实的 schema-provider 按等待协议声明的 JSON Schema 核对。测试不经过 Tool 账本、宿主或 HITL。
+
 ## W3 操作返回声明
 
 具体作者行为保持各节责任。每条操作从其现有声明表生成返回结构、程序协议与正文格式，help/inspect 和注册定义共用该源。Tools 及各多命令工具保持 wrapped 编码，常驻/非常驻边界不变。

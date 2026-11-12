@@ -47,6 +47,11 @@
 - [ledger-environment-release.ts](ledger-environment-release.ts)：历史保管闭包、canonical 计划与释放观察。
 - [cleanup-boundary.ts](cleanup-boundary.ts)：清理 Mutation 的封闭复制。
 - [driver-settlement.ts](driver-settlement.ts)：按原 task 恢复 final 和 preserveResult。
+- [ledger-suspension.ts](ledger-suspension.ts)：暂停计划、suspend 提交、登记接入、停泊待办与拒绝登记的阻塞。
+- [suspension-boundary.ts](suspension-boundary.ts)：暂停记录与检查点的封闭检查。
+- [driver-suspension.ts](driver-suspension.ts)：段在等待处结束后的计划、检查点提交、停泊与登记。
+- [ledger-resumption.ts](ledger-resumption.ts)：决定的接受、恢复记录与在 `continued` 事实处关闭等待。
+- [driver-resumption.ts](driver-resumption.ts)：向决策方读决定并接受、重新取得名额与关闭等待。
 
 
 - [事实指纹与批次身份](fact-values.ts)。

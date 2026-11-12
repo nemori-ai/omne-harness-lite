@@ -59,11 +59,12 @@ export function okOf<T, F>(outcome: { ok: T } | { failure: F }, what: string): T
   return outcome.ok
 }
 
-export function fixtureTenant(label: 'a' | 'b' | 'c'): TenantId {
+export function fixtureTenant(label: 'a' | 'b' | 'c' | 'd'): TenantId {
   const suffix = {
     a: 'abcdefghjkmnpqrstvwxyz2345',
     b: 'bcdefghjkmnpqrstvwxyz23456',
     c: 'cdefghjkmnpqrstvwxyz234567',
+    d: 'defghjkmnpqrstvwxyz2345678',
   }[label]
   return tenant(
     parsed(organizationCodec.parse(`org_${suffix}`), 'organization'),

@@ -290,7 +290,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
     consumer,
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
   }
   let driver: ToolDriver<string> | null = null
   const scheduled: Parameters<ToolInstanceHost<string>['schedule']>[0][] = []

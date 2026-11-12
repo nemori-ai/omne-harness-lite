@@ -4,6 +4,7 @@ import { invalid } from './boundary.ts'
 import { nextRevision } from './evidence.ts'
 import { snapshotOf, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import { excluded, excludedSince, withExclusionsRemoved } from './ledger-exclusion.ts'
+import { pendingAfter } from './ledger-pending.ts'
 import type {
   LedgerAssertion,
   LedgerCommit,
@@ -81,9 +82,18 @@ export function createLedgerTransactions(
     revision: Snapshot['revision'],
     writes: readonly LedgerWrite[],
     asserts: readonly LedgerAssertion[] = [],
+    // 调用域的待办标记：这笔提交生效后这个调用是否还有待推进的工作。缺省不动标记。
+    pending?: boolean,
   ): Promise<Awaited<ReturnType<typeof store.commit>>> => {
     try {
-      return await store.commit({ domain, expected, revision, writes, asserts })
+      return await store.commit({
+        domain,
+        expected,
+        revision,
+        writes,
+        asserts,
+        ...(pending === undefined ? {} : { pending }),
+      })
     } catch {
       return { kind: 'unknown', diagnostic: thrown('ledger-store') }
     }
@@ -98,8 +108,9 @@ export function createLedgerTransactions(
   ): Reply<T> => {
     let firstRead = since
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const snapshot = await read(domain)
-      if ('failure' in snapshot) return snapshot
+      const raw = await readDomain(domain)
+      if ('failure' in raw) return raw
+      const snapshot = { ok: snapshotOf(domain, raw.ok) }
       firstRead ??= snapshot.ok.revision
       if (operation !== null && excludedSince(snapshot.ok, operation, firstRead))
         return excluded(operation)
@@ -115,7 +126,9 @@ export function createLedgerTransactions(
         if (excludedSince(snapshot.ok, identity, firstRead)) return excluded(identity)
       }
       const writes = withExclusionsRemoved(decision.writes, operations)
-      const committed = await commit(domain, snapshot.ok.revision, revision, writes)
+      // 调用域的每笔提交都带上提交生效后的待办标记，由这里按读到的记录与写入算出，决策器不写标记。
+      const pending = domain.kind === 'call' ? pendingAfter(raw.ok.records, writes) : undefined
+      const committed = await commit(domain, snapshot.ok.revision, revision, writes, [], pending)
       const answer = answerOf(committed, decision.value, unknown)
       if (answer !== null) return answer
     }

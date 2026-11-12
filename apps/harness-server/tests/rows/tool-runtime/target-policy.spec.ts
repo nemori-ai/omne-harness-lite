@@ -23,6 +23,7 @@ it('applies target policy to new admissions while retaining custody of an exactl
       checks = 0
     const store: ToolLedgerStore = {
       durability: 'none',
+      scanPending: () => Promise.resolve({ kind: 'page', calls: [], more: false }),
       due: async () => ({ kind: 'complete', entries: [] }),
       readRecord: async () => {
         throw new Error('source policy requires a complete call snapshot')

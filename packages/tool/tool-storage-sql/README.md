@@ -10,9 +10,9 @@ This package keeps the durable records of the Tool ledger, the due index and the
 
 | Part                                                 | State                                                                                                                          |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `createSqlToolLedgerStore`                           | Implemented. `durability: 'durable'`. One `domain-serial` read or one revision-conditioned SQL commit per call; `due` reads the due index |
+| `createSqlToolLedgerStore`                           | Implemented. `durability: 'durable'`. One `domain-serial` read or one revision-conditioned SQL commit per call; `due` reads the due index and `scanPending` pages the pending markers (SPEC TS-18) |
 | `createSqlToolBodyStore`                             | Implemented. `durability: 'durable'`. It writes immutable chunks under a write permit, writes the sealing manifest after it checks the chunks, reads by range, and deletes idempotently |
-| `toolStorageMaterials()`                             | Implemented. One participant `tool`, one migration `tool/r6-001-tool-ledger-body-due`, three read handlers, all on `tl_` tables |
+| `toolStorageMaterials()`                             | Implemented. One participant `tool`, two migrations (the baseline `tool/r6-001-tool-ledger-body-due` and `tool/r6-002-tool-pending`), four read handlers, all on `tl_` tables |
 | `./cordis` plugin, `tool-records` row, catalog merge | Not in this package. They belong to the application                                                                            |
 | Two processes on one database, a kill, power loss    | Not verified                                                                                                                   |
 
@@ -44,7 +44,7 @@ The port shapes belong to [`@omne-harness/tool`](../tool/src/ledger-store.ts) (`
 
 ## Design
 
-`src/ledger-store.ts` and `src/body-store.ts` are the two adapters. `src/tenant.ts` resolves the transaction domain of a tenant through the directory. The Worker modules in `src/worker/` are the `tool` participant (ledger writes in `participant.ts`, body commands in `participant-body.ts`), the migration and three read handlers. They share one facts protocol in `src/worker/facts.ts`. [docs/architecture.md](docs/architecture.md) describes the tables and the mechanisms, and [docs/flows.md](docs/flows.md) the commit and body flows.
+`src/ledger-store.ts` and `src/body-store.ts` are the two adapters. `src/tenant.ts` resolves the transaction domain of a tenant through the directory. The Worker modules in `src/worker/` are the `tool` participant (ledger writes in `participant.ts`, body commands in `participant-body.ts`), the two migrations and four read handlers. They share one facts protocol in `src/worker/facts.ts`. [docs/architecture.md](docs/architecture.md) describes the tables and the mechanisms, and [docs/flows.md](docs/flows.md) the commit and body flows.
 
 ## Configuration and operation
 
@@ -52,10 +52,11 @@ The port shapes belong to [`@omne-harness/tool`](../tool/src/ledger-store.ts) (`
 | -------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `storage`, `domains` | Application assembly | The trusted `storage` and `tenantDomainLookup` rows. A tenant that the directory does not hold is not written |
 | `combination`        | Application assembly | The combination that lists the `tool` participant for the tenant scope                                        |
-| `permitKey`          | Application assembly | Body store only. It must be the key the ledger signs permits with, or every write answers `permit-invalid`    |
-| `clock`              | Application assembly | Body store only. The store reads it to decide whether a permit is past its deadline                           |
+| `tenants` (optional) | Application assembly | The snapshot of the published tenant directory. Without it, a scan across tenants answers `unsupported` |
+| `permitKey` | Application assembly | Body store only. It must be the key the ledger signs permits with, or every write answers `permit-invalid` |
+| `clock` | Application assembly | Body store only. The store reads it to decide whether a permit is past its deadline |
 
-No option has a default. The package never registers a tenant or a combination.
+No option has a default. `tenants` may be absent. The package never registers a tenant or a combination.
 
 ## Verification
 

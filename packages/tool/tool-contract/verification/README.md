@@ -17,7 +17,7 @@
 | CAP-TL01 定义呈现取用 | ToolDefinition、ToolGovernance、ToolImplementationFacts、ToolCatalog、ParameterCodec、ToolPresentation | [P02](../SPEC.md#p02-定义准入与队列) | 参数缺说明、重复命令、help与采用不同、未声明programmable、包装来源不可洗白、资产 name 与定义 name 不一致须拒绝装载 |
 | CAP-TL02 动态可用及dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability、ToolBindingRegistry、换代协调者 | P02、[常驻持有者规则](../SPEC.md#会话常驻规则r1r5) | 两端模态各不满足、合法转换（含 conversion 为 null）、附件不可读；dummy不解析参数、不分配环境、不启动；Run 中途加入或前进、不同形候选替换常驻项、暂时缺席判冻结，见[动态性的验证义务](#动态性的验证义务) |
 | CAP-TL03 当前准入固定发起 | FixedToolRequest、ToolStartRecord、StartPermit | [P01](../SPEC.md#p01-操作事实与资格)、[P04](../SPEC.md#p04-实际发起围栏) | 同身份异输入、排队撤权、批决定不齐、失效与consume两种先后、延迟旧请求不能再发 |
-| CAP-TL04 设置限额队列 | QueueReservation、QueuePosition、ResourceScope | P02、[P03](../SPEC.md#p03-环境准备和释放) | 两调用争同名额、同工具换实现、scope的grant缺失或属于他方、不同租户同owner同key不共队列、较早准备未完、取消队首、后台/等待不放名额 |
+| CAP-TL04 设置限额队列 | QueueReservation、QueuePosition、ResourceScope | P02、[P03](../SPEC.md#p03-环境准备和释放) | 两调用争同名额、同工具换实现、scope的grant缺失或属于他方、不同租户同owner同key不共队列、较早准备未完、取消队首、工具上限与范围预算同时生效、后台与存活协程等待不放名额、检查点作者暂停后停泊释放名额且仍计入 queueCapacity |
 | CAP-TL05 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | [P07](../SPEC.md#p07-计时控制与检查点) | 未许可、Ask和resource转换拒绝、完成与后台化竞争、重复只一个占位、不回前台 |
 | CAP-TL06 等待答复 | WaitIntent/WaitRecord、ResponseRecord、DecisionBridge/ResourceResponses | [P06](../SPEC.md#p06-内部等待与答复) | 登记确认丢失、取消后登记迟到、answer确认丢失、答复与取消、资源超时不能用于Ask、普通消息不答原请求 |
 | CAP-TL07 结果及采用 | ToolAuthor、OutputCodec、ResultPolicy、RawOutput、ToolResult | [P05](../SPEC.md#p05-执行事实与原输出) | 普通对象content字段不改变分支、renderer抛错原件仍在、codec失败不假报耐久、policy拒绝不重跑；内容 ref 无需附件登记，附件仅文本且零媒体读取 |
@@ -90,6 +90,7 @@ ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭�
 | E11–E13 | CAP-TL11 | TL-V07 | release 去重，inspectRelease 认回且不冒充已释放 |
 | E14、E15 | CAP-TL11 | TL-V07 | 同一操作号用于另一个输入，是 conflict 且没有效果（准备与释放各一条，P01） |
 | E16–E19 | CAP-TL11 | TL-V07 | 另一租户读不到准备与释放，拿不到资源，释放不了资源 |
+| E20 | CAP-TL11 | TL-V07 | 重启前准备好的环境对新进程答 `lost`，不再分配；违约变体「重启后环境仍然活着」让它失败 |
 | B1–B6 | CAP-TL11 | TL-V07 | 同 start 不再启动，并发的 start 也只启动一次；另一调用、另一启动、另一租户的 permit 被拒 |
 | B7–B13 | CAP-TL07、CAP-TL11 | [TL-V05](#tl-v05)、TL-V07 | inspectStart 的各分支（live、settled、lost、unknown，不查询时不重放）；事实流的开始、来源与游标，从已保存游标重连不跳不重 |
 | B14–B16 | CAP-TL07、CAP-TL11 | TL-V05、TL-V07 | ACK 去重并解除源的责任一次，流关闭不是 final |
@@ -280,7 +281,7 @@ MODEL-E01 的共享 ref、消息校验和发送阶段读取仍待实现验证；
 <a id="tl-v03"></a>
 #### TL-V03 等待关系与名额
 
-验证未声明后台许可时阈值、上限和控制请求均不放宽；允许时只向后台转换一次，输入、身份、效果和名额不变。前台实际计时不计内部等待，转后台后停止累计；没有合法值不加限制。前后台与内部等待合计并发，超额顺序排队，转后台不漏计仍运行执行。后台终局只交完成、失败或中断，恢复认回原关系，不启动新工具。
+验证未声明后台许可时阈值、上限和控制请求均不放宽；允许时只向后台转换一次，输入、身份、效果和名额不变。前台实际计时不计内部等待，转后台后停止累计；没有合法值不加限制。前后台与存活协程的内部等待合计并发，检查点作者可靠暂停后停泊并释放名额，仍计入 `queueCapacity`。超额调用在所属并发范围内按序号取得名额，同时受工具上限与范围预算限制，转后台不漏计仍运行执行。后台终局只交完成、失败或中断，恢复认回原关系，不启动新工具。
 
 <a id="tl-v04"></a>
 #### TL-V04 原等待与决定

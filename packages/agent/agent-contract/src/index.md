@@ -26,5 +26,5 @@
 - [扩展声明判断](judge-extensions.ts)
 - [消息准入输入的结构判定：HandoffPrepare 与 InputOrigin](judge-handoff.ts)
 - [结构判定的共享机制](structure.ts)
-- [扩展输出判断与位置输出表](judge-output.ts)
+- [扩展输出判断、位置输出表与卡片请求的形状](judge-output.ts)
 - [内部校验机制](check.ts)

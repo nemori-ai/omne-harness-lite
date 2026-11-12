@@ -28,6 +28,7 @@ import {
   type ToolLedgerQueues,
   type ToolLedgerRejections,
   type ToolLedgerFacts,
+  type ToolLedgerRecovery,
   type ToolLedgerStore,
   type ResultRecord,
   type ToolLedgerPorts,
@@ -90,6 +91,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
       queues: ToolLedgerQueues<P>
       rejections: ToolLedgerRejections<P>
       facts: ToolLedgerFacts<P, ContentBlock>
+      recovery: ToolLedgerRecovery
     }>
   >()
   // The runtime configuration fits where the ledger configuration is asked for.

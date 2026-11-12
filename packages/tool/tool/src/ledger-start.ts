@@ -55,6 +55,8 @@ import {
   type ReleaseBasis,
   type StartRejection,
   type TenantId,
+  CHECKPOINT_STATE_KEY,
+  WAIT_REQUEST_KEY,
 } from './ledger-store.ts'
 
 // ---------------------------------------------------------------------------------------------
@@ -62,12 +64,13 @@ import {
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The FIFO key of a request within its tenant (P02): the scope owner, the scope key and the tool's
- * asset name. The tenant is part of the queue domain identity, so it is not in the key.
+ * The queue key of a request within its tenant (P02): its concurrency scope, the scope owner and
+ * the scope key. The calls of every tool in the scope share one queue; the tool's name is in each
+ * entry. The tenant is part of the queue domain identity, so it is not in the key.
  */
 export function queueKeyOf(request: FixedToolRequest): string {
   const { scope } = request
-  return JSON.stringify([scope.owner, scope.key, request.availability.definition.name])
+  return JSON.stringify([scope.owner, scope.key])
 }
 
 export type QueueSnapshot = Readonly<{
@@ -137,7 +140,13 @@ function recalledBy<T>(
  */
 export function decideQueueOrder(
   snapshot: QueueSnapshot,
-  command: Readonly<{ call: ToolCallId; operation: ToolOperationId; limit: number | null }>,
+  command: Readonly<{
+    call: ToolCallId
+    operation: ToolOperationId
+    tool: string
+    limit: number | null
+    scopeBudget: number | null
+  }>,
 ): Decision<QueueEntryRecord> {
   const existing = snapshot.entries.get(command.call)
   if (existing !== undefined)
@@ -151,7 +160,9 @@ export function decideQueueOrder(
     ordinal: snapshot.next,
     stage: 'preparing',
     operation: command.operation,
+    tool: command.tool,
     limit: command.limit,
+    scopeBudget: command.scopeBudget,
   }
   return {
     kind: 'commit',
@@ -188,40 +199,149 @@ export type HoldOutcome =
   | Readonly<{
       kind: 'waiting'
       entry: QueueEntryRecord
-      /** How many entries that do not hold a slot yet come before this one. */
+      /** How many entries of the scope that do not hold a slot yet come before this one. */
       ahead: number
-      /** How many entries hold a slot. */
+      /** How many entries of the same tool hold a slot. */
+      toolHeld: number
+      /** How many entries of the scope hold a slot. */
       held: number
     }>
 
 /**
- * Decides head and slot in one queue transaction (P02 prepareStart): the entry must be `ready`,
- * no earlier entry may still be `preparing` or `ready` (an earlier call that has not reached a
- * slot is not overtaken; an earlier call that holds one is not in the way), and the held entries
- * must be fewer than the concurrency the call fixed, null being no limit. A held entry is
- * recalled. Nothing is written when the call waits.
+ * How many entries of the scope come before `entry` and have not reached a slot yet: the earlier
+ * entries that are still `preparing` or `ready`, of any tool. A call does not overtake them. An
+ * entry that holds a slot or is parked waits for nothing of the queue, so it is not in the way.
+ */
+function aheadOf(snapshot: QueueSnapshot, entry: QueueEntryRecord): number {
+  let ahead = 0
+  for (const other of snapshot.entries.values())
+    if (
+      (other.stage === 'preparing' || other.stage === 'ready') &&
+      isEarlier(other.ordinal, entry.ordinal)
+    )
+      ahead += 1
+  return ahead
+}
+
+/** How many entries hold a slot, of the whole scope or of one tool. A parked entry holds none. */
+function heldCount(snapshot: QueueSnapshot, tool: string | null): number {
+  let held = 0
+  for (const other of snapshot.entries.values())
+    if (other.stage === 'held' && (tool === null || other.tool === tool)) held += 1
+  return held
+}
+
+/** Whether a count leaves room under a limit; null is no limit. */
+function belowLimit(count: number, limit: number | null): boolean {
+  return limit === null || count < limit
+}
+
+/**
+ * Decides head and slot in one queue transaction of the scope (P02 prepareStart, prepareResume:
+ * the model's `Hold`): the entry must be `ready`, no earlier entry of the scope may still wait for
+ * a slot (`aheadOf`), the held entries of the same tool must be fewer than `limit`, and the held
+ * entries of the scope fewer than `scopeBudget`. A held entry is recalled by the operation that
+ * held it. A resume (`keep`) also takes a slot that its call still holds from the segment before:
+ * a decision accepted before the park keeps the slot (P02), and the entry is stamped with the
+ * resume operation, so a park that read the call before the decision was accepted no longer
+ * matches the entry. Nothing is written when the call waits.
  */
 export function decideQueueHold(
   snapshot: QueueSnapshot,
-  command: Readonly<{ call: ToolCallId; operation: ToolOperationId }>,
+  command: Readonly<{ call: ToolCallId; operation: ToolOperationId; keep?: boolean }>,
 ): Decision<HoldOutcome> {
   const existing = snapshot.entries.get(command.call)
   if (existing === undefined)
     return reply(queueUnavailable(`call ${command.call} has no entry in this queue`))
+  if (
+    existing.stage === 'held' &&
+    existing.operation !== command.operation &&
+    command.keep === true
+  ) {
+    const entry: QueueEntryRecord = { ...existing, operation: command.operation }
+    return { kind: 'commit', writes: [entryWrite(entry)], value: { kind: 'held', entry } }
+  }
   if (existing.stage === 'held')
     return reply(recalledBy(existing, command.operation, { kind: 'held', entry: existing }))
   if (existing.stage === 'preparing')
     return reply(queueUnavailable(`call ${command.call} was not enqueued`))
-  let ahead = 0
-  let held = 0
-  for (const other of snapshot.entries.values()) {
-    if (other.stage === 'held') held += 1
-    else if (isEarlier(other.ordinal, existing.ordinal)) ahead += 1
-  }
-  if (ahead > 0 || (existing.limit !== null && held >= existing.limit))
-    return reply(succeed({ kind: 'waiting', entry: existing, ahead, held }))
+  if (existing.stage === 'parked')
+    return reply(queueUnavailable(`call ${command.call} is parked until its decision is accepted`))
+  const ahead = aheadOf(snapshot, existing)
+  const toolHeld = heldCount(snapshot, existing.tool)
+  const held = heldCount(snapshot, null)
+  if (ahead > 0 || !belowLimit(toolHeld, existing.limit) || !belowLimit(held, existing.scopeBudget))
+    return reply(succeed({ kind: 'waiting', entry: existing, ahead, toolHeld, held }))
   const entry: QueueEntryRecord = { ...existing, stage: 'held', operation: command.operation }
   return { kind: 'commit', writes: [entryWrite(entry)], value: { kind: 'held', entry } }
+}
+
+/** What the queue answers a park: the parked entry, or why the entry was not parked. */
+export type ParkOutcome =
+  | Readonly<{ kind: 'parked'; entry: QueueEntryRecord }>
+  | Readonly<{ kind: 'not-parked'; reason: 'no-entry' | 'not-held' }>
+
+/**
+ * Parks a held entry (P02, the model's `Park`): the call committed `suspended`, and the caller read
+ * that its wait had not reached `responding`. The entry gives up its slot and stays in the scope,
+ * so it still counts toward `queueCapacity`. An entry this operation parked is recalled. Only the
+ * slot that `holder`, the start of the segment that suspended, took is parked: an entry that is not
+ * held, or that a later resume holds, is left as it is. The caller read the call domain before
+ * this step, so a resume may have taken the slot since; parking it would free a running call's slot.
+ */
+export function decideQueuePark(
+  snapshot: QueueSnapshot,
+  command: Readonly<{ call: ToolCallId; operation: ToolOperationId; holder: ToolOperationId }>,
+): Decision<ParkOutcome> {
+  const existing = snapshot.entries.get(command.call)
+  if (existing === undefined) return reply(succeed({ kind: 'not-parked', reason: 'no-entry' }))
+  if (existing.stage === 'parked' && existing.operation === command.operation)
+    return reply(succeed({ kind: 'parked', entry: existing }))
+  if (existing.stage !== 'held' || existing.operation !== command.holder)
+    return reply(succeed({ kind: 'not-parked', reason: 'not-held' }))
+  const entry: QueueEntryRecord = { ...existing, stage: 'parked', operation: command.operation }
+  return { kind: 'commit', writes: [entryWrite(entry)], value: { kind: 'parked', entry } }
+}
+
+/** What the queue answers a requeue: the entry that is ready again, or the slot the call kept. */
+export type RequeueOutcome =
+  | Readonly<{ kind: 'requeued'; entry: QueueEntryRecord }>
+  | Readonly<{ kind: 'kept'; entry: QueueEntryRecord }>
+
+/**
+ * Puts a parked entry back in the order (P02 requeue, the model's `Requeue`): the call's decision
+ * was accepted, so the entry becomes `ready` at the next ordinal of the scope and takes a slot again
+ * through `decideQueueHold`. A parked entry is requeued whenever it was parked, also when the park
+ * landed after the decision was accepted. An entry this operation requeued is recalled. A held
+ * entry was never parked: the call keeps its slot (`kept`). Any other entry is not a suspended
+ * call's, and the step answers `tool-queue` unavailable without a write.
+ */
+export function decideQueueRequeue(
+  snapshot: QueueSnapshot,
+  command: Readonly<{ call: ToolCallId; operation: ToolOperationId }>,
+): Decision<RequeueOutcome> {
+  const existing = snapshot.entries.get(command.call)
+  if (existing === undefined)
+    return reply(queueUnavailable(`call ${command.call} has no entry in this queue`))
+  if (existing.stage === 'held') return reply(succeed({ kind: 'kept', entry: existing }))
+  if (existing.stage === 'ready' && existing.operation === command.operation)
+    return reply(succeed({ kind: 'requeued', entry: existing }))
+  if (existing.stage !== 'parked')
+    return reply(queueUnavailable(`call ${command.call} is ${existing.stage}, not parked`))
+  const entry: QueueEntryRecord = {
+    ...existing,
+    stage: 'ready',
+    ordinal: snapshot.next,
+    operation: command.operation,
+  }
+  return {
+    kind: 'commit',
+    writes: [
+      entryWrite(entry),
+      put({ kind: 'queue-counter', counter: { next: nextOrdinal(snapshot.next) } }),
+    ],
+    value: { kind: 'requeued', entry },
+  }
 }
 
 /**
@@ -238,6 +358,8 @@ export function releaseBasisOf(snapshot: Snapshot): ReleaseBasis | null {
     return { kind: 'pre-start-rejection', exclusion: record.startRejection.exclusion }
   const rejected = ledgerRejectedResult(snapshot)
   if (rejected !== null) return { kind: 'ledger-rejected', result: rejected }
+  if (record.state.phase === 'settled' && record.state.execution.kind === 'suspended')
+    return suspendedExclusionOf(snapshot, record.state.execution.checkpoint)
   if (
     record.state.phase !== 'settled' ||
     record.state.execution.kind !== 'ended' ||
@@ -279,6 +401,22 @@ function ledgerRejectedResult(snapshot: Snapshot): DurableEvidence | null {
 }
 
 /**
+ * The basis of a call that settled while it was suspended (P02 `suspended-exclusion`): the
+ * checkpoint that the settled state names is the one a `suspend` of this call committed, and that
+ * commit carried the exclusion of the execution that suspended. Without that commit there is no
+ * basis.
+ */
+function suspendedExclusionOf(
+  snapshot: Snapshot,
+  checkpoint: DurableEvidence,
+): ReleaseBasis | null {
+  for (const { checkpoint: committed } of snapshot.suspensions.values())
+    if (committed !== null && digestOf(committed.payload) === digestOf(checkpoint))
+      return { kind: 'suspended-exclusion', checkpoint, exclusion: committed.exclusion }
+  return null
+}
+
+/**
  * Releases the places of the calls the caller names, in one commit: each entry is deleted and
  * nothing else is written, so the queue domain holds nothing for a released call. The caller
  * names only calls whose call domain holds a release basis (`releaseBasisOf`). A call without an
@@ -317,7 +455,7 @@ export type WriteCommand = Readonly<{
  * revision must be the expected one. The gate comes after the recall, so a resend of a
  * committed operation answers its receipt whatever revision it names.
  */
-function gate(snapshot: Snapshot, command: WriteCommand): Outcome<CallRecord, ToolFailure> {
+export function gate(snapshot: Snapshot, command: WriteCommand): Outcome<CallRecord, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
   if (stateRevision(snapshot) !== command.expected)
     return fail({ kind: 'stale-revision', current: stateRevision(snapshot) })
@@ -330,14 +468,26 @@ export function wrongPhase(phase: ToolState['phase']): Outcome<never, ToolFailur
 }
 
 /** The pending tasks of the kinds that a step of the way to a start replaces. */
-function deleteTasks(snapshot: Snapshot, kinds: readonly ToolTask['kind'][]): LedgerWrite[] {
+export function deleteTasks(snapshot: Snapshot, kinds: readonly ToolTask['kind'][]): LedgerWrite[] {
   return snapshot.tasks
     .filter(task => kinds.includes(task.kind))
     .map(task => ({ kind: 'delete', key: taskKey(task) }))
 }
 
+/**
+ * Deletes what the call keeps for a suspension: the request original of its last wait and the
+ * state of its last checkpoint. Every commit that settles a call that may have suspended carries
+ * these writes, so a settled call holds neither.
+ */
+export function dropSuspensionContent(snapshot: Snapshot): LedgerWrite[] {
+  const writes: LedgerWrite[] = []
+  if (snapshot.waitRequest !== null) writes.push({ kind: 'delete', key: WAIT_REQUEST_KEY })
+  if (snapshot.checkpointState !== null) writes.push({ kind: 'delete', key: CHECKPOINT_STATE_KEY })
+  return writes
+}
+
 /** The fields every variant of ToolState shares; a transition changes some of them. */
-type CommonState = Pick<
+export type CommonState = Pick<
   ToolState,
   | 'call'
   | 'revision'
@@ -352,14 +502,14 @@ type CommonState = Pick<
 >
 
 /** The body of a state before its evidence: one variant of ToolState without `source`. */
-type StateBody = ToolState extends infer S
+export type StateBody = ToolState extends infer S
   ? S extends ToolState
     ? Omit<S, 'source'>
     : never
   : never
 
 /** The common fields of the current state, which every transition starts from. */
-function commonOf(state: ToolState): CommonState {
+export function commonOf(state: ToolState): CommonState {
   const { call, revision, foreground, effect, execution, timing, queue, controls, delivery } = state
   return {
     call,
@@ -376,7 +526,7 @@ function commonOf(state: ToolState): CommonState {
 }
 
 /** The next state: the body with the new revision and a fresh state evidence. */
-function nextState(record: CallRecord, body: StateBody, revision: ToolRevision): ToolState {
+export function nextState(record: CallRecord, body: StateBody, revision: ToolRevision): ToolState {
   const place = { tenant: record.tenant, call: record.call }
   const next: StateBody = { ...body, revision }
   return { ...next, source: mintEvidence('state', place, revision, next) }
@@ -405,7 +555,6 @@ export type PlanPreparationCommand = WriteCommand &
   Readonly<{
     request: FixedToolRequest
     environmentAdoption: Adoption
-    purpose: 'initial' | 'resume'
     /** The entry the queue domain gave the call before this decision. */
     entry: QueueEntryRecord
     key: string
@@ -418,24 +567,18 @@ export type PlanPreparationCommand = WriteCommand &
  */
 export function refusePlan(
   record: CallRecord,
-  command: Pick<PlanPreparationCommand, 'request' | 'purpose'>,
+  command: Pick<PlanPreparationCommand, 'request'>,
   requestDigest: (request: FixedToolRequest) => string,
 ): Outcome<void, ToolFailure> {
   if (record.state.phase !== 'accepted') return wrongPhase(record.state.phase)
-  if (command.purpose === 'resume')
-    return fail({
-      kind: 'unsupported',
-      adoption: record.request.availability.definition.adoption,
-      reason: 'a resume preparation needs a checkpointed executor (later increment)',
-    })
   if (requestDigest(command.request) !== requestDigest(record.request))
     return invalid('request', 'not-the-fixed-request')
   return succeed(undefined)
 }
 
 /**
- * Plans the initial preparation (P03): the fixed request must be the admitted one, the call must
- * be `accepted`, and the resume purpose waits for checkpointed executors. One commit saves the
+ * Plans the initial preparation (P03): the fixed request must be the admitted one and the call must
+ * be `accepted` (a resume preparation is `decideResumePlan`'s). One commit saves the
  * preparation record, the `prepare` task, the state `preparing` with the call's queue position,
  * and removes the task that carried the call to the queue.
  */
@@ -515,8 +658,6 @@ export function decidePrepared(
   const gated = gate(snapshot, command)
   if ('failure' in gated) return reply(gated)
   const record = gated.ok
-  if (record.state.phase !== 'preparing') return reply(wrongPhase(record.state.phase))
-  if (record.environment !== null) return reply(invalid('call', 'already-prepared'))
   const planned = record.preparations.find(
     candidate => candidate.operation === command.preparation.operation,
   )
@@ -525,6 +666,9 @@ export function decidePrepared(
     preparationDigest(planned) !== preparationDigest(command.preparation)
   )
     return reply(invalid('preparation', 'not-planned-for-this-call'))
+  if (planned.purpose === 'resume') return decideResumePrepared(snapshot, command, record, mint)
+  if (record.state.phase !== 'preparing') return reply(wrongPhase(record.state.phase))
+  if (record.environment !== null) return reply(invalid('call', 'already-prepared'))
   const state = pendingState(record, 'preparing', {}, mint.revision)
   const environment = { preparation: planned.operation, resources: command.resources }
   return {
@@ -534,6 +678,41 @@ export function decidePrepared(
       put(operationRecord(command, { kind: 'prepared', state }, mint)),
       ...deleteTasks(snapshot, ['prepare']),
       put({ kind: 'task', task: queueTask(command.operation, state.source) }),
+    ],
+    value: state,
+  }
+}
+
+/**
+ * Confirms the environment of a resume segment (P03 prepared, P07): the call is still suspended
+ * with the preparation planned at the acceptance. One commit makes it the call's environment and
+ * removes the `prepare` task; the `queue` task of the acceptance still owes the requeue and hold.
+ */
+function decideResumePrepared(
+  snapshot: Snapshot,
+  command: PreparedCommand,
+  record: CallRecord,
+  mint: Mint,
+): Decision<ToolState> {
+  const current = record.state
+  if (current.phase !== 'suspended') return reply(wrongPhase(current.phase))
+  if (record.preparations.at(-1)?.operation !== command.preparation.operation)
+    return reply(invalid('preparation', 'not-the-current-preparation'))
+  const body: StateBody = {
+    ...commonOf(current),
+    phase: 'suspended',
+    checkpoint: current.checkpoint,
+    relation: 'foreground',
+    wait: current.wait,
+  }
+  const state = nextState(record, body, mint.revision)
+  const environment = { preparation: command.preparation.operation, resources: command.resources }
+  return {
+    kind: 'commit',
+    writes: [
+      put({ kind: 'call', call: { ...record, state, environment } }),
+      put(operationRecord(command, { kind: 'prepared', state }, mint)),
+      ...deleteTasks(snapshot, ['prepare']),
     ],
     value: state,
   }
@@ -602,12 +781,14 @@ export type StartIntent = Readonly<{
 
 /** The answer of a start intent while the call waits for the head or a slot (P02). */
 export function waitingInQueue(hold: Extract<HoldOutcome, { kind: 'waiting' }>): ToolFailure {
-  const { entry, ahead, held } = hold
-  const limit = entry.limit === null ? 'no limit' : `limit ${entry.limit}`
+  const { entry, ahead, toolHeld, held } = hold
+  const limit = entry.limit === null ? 'no tool limit' : `tool limit ${entry.limit}`
+  const budget =
+    entry.scopeBudget === null ? 'no scope budget' : `scope budget ${entry.scopeBudget}`
   return {
     kind: 'unavailable',
     dependency: 'tool-queue',
-    diagnostic: `call ${entry.call} waits at ordinal ${entry.ordinal}: ${ahead} ahead, ${held} held, ${limit}`,
+    diagnostic: `call ${entry.call} waits at ordinal ${entry.ordinal}: ${ahead} ahead, ${toolHeld} held of this tool (${limit}), ${held} held in the scope (${budget})`,
   }
 }
 
@@ -667,9 +848,14 @@ function intentOf(receipt: OperationReceipt): StartIntent {
   return { state: receipt.state, start: receipt.start }
 }
 
-/** The text factory of a terminal the ledger forms itself (dummy, first-start rejection). */
+/** 账本自己形成的终局的文本工厂：dummy 与首次启动被拒。 */
 export type TerminalText<B extends ContentBlock> = (
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
+) => Outcome<ToolRenderedResult<B>, ToolFailure>
+
+/** 暂停中被叫停的调用的结果工厂：文字是作者为「等待被关闭」预写的那一份。 */
+export type ClosedWaitText<B extends ContentBlock> = (
+  closedResult: string,
 ) => Outcome<ToolRenderedResult<B>, ToolFailure>
 
 /**
@@ -776,6 +962,7 @@ function unstartedWrites(
       put({ kind: 'call', call: { ...record, state, startRejection } }),
       ...settled.writes,
       ...deleteTasks(snapshot, ['queue', 'prepare', 'start']),
+      ...dropSuspensionContent(snapshot),
       ...queue,
     ],
     value: state,

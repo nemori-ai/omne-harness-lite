@@ -37,7 +37,12 @@ it('a settled call with an offloaded body adds no SQL receipt to the tenant data
           return opened.storage.commit(...args)
         },
       }
-      const options = { storage, domains: opened.domains, combination: opened.combination }
+      const options = {
+        storage,
+        domains: opened.domains,
+        tenants: opened.tenants,
+        combination: opened.combination,
+      }
       const before = receipts(root, domain)
       const live = await settledOffloaded(
         { store: createSqlToolLedgerStore(options), options },

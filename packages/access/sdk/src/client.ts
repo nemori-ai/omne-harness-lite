@@ -1,10 +1,13 @@
 import {
   encodeGovernanceRequest,
+  encodeHitlRequest,
   encodeSessionRequest,
   readGovernanceResponse,
+  readHitlResponse,
   readSessionResponse,
   type GovernanceCodecLimits,
   type GovernanceRequest,
+  type HitlRequest,
   type SessionRequest,
 } from '@omne-harness/public-contract'
 import { defaultLimits } from './limits.ts'
@@ -34,6 +37,14 @@ export interface SessionClient {
 
 export interface GovernanceClient {
   submit(request: GovernanceRequest): Promise<CallerResult>
+}
+
+/**
+ * HITL 位置的客户端（SPEC「HITL 客户端」）。会话入口与待办池都是 `list-cards`，以过滤条件的
+ * `sessionRef` 区分。客户端不缓存卡片视图，也不替调用者换 `replyId`。
+ */
+export interface HitlClient {
+  submit(request: HitlRequest): Promise<CallerResult>
 }
 
 /** The local request model is not valid for the public contract. Nothing was sent. */
@@ -99,6 +110,25 @@ export function createGovernanceClient(options: ClientOptions): GovernanceClient
       if (encoded.kind !== 'encoded') throw new RequestInvalidError()
       return deliver(options.transport, encoded.bytes, bytes => {
         const read = readGovernanceResponse({
+          bytes,
+          operation: request.operation,
+          expectedMessageId: request.messageId,
+          limits,
+        })
+        return read.kind === 'response' ? wireOf(bytes) : undefined
+      })
+    },
+  }
+}
+
+export function createHitlClient(options: ClientOptions): HitlClient {
+  const limits = options.limits ?? defaultLimits
+  return {
+    async submit(request) {
+      const encoded = encodeHitlRequest({ request, limits })
+      if (encoded.kind !== 'encoded') throw new RequestInvalidError()
+      return deliver(options.transport, encoded.bytes, bytes => {
+        const read = readHitlResponse({
           bytes,
           operation: request.operation,
           expectedMessageId: request.messageId,

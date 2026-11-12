@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { fail } from '@omne-harness/operation-result'
 import { createToolLedger, type ToolLedger, type ToolLedgerPorts } from '@omne-harness/tool'
 import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import {
@@ -42,6 +43,18 @@ export function createRuntimeRecords(
     ...(input.bodySchemas === undefined ? {} : { bodySchemas: input.bodySchemas }),
     bodies: input.bodies,
     releaseInspection: stages.environments,
+    // acceptDecision resolves the decision through the decision owner read at each call.
+    decisions: {
+      resolve: request =>
+        input.decisions?.()?.resolve(request) ??
+        Promise.resolve(
+          fail({
+            kind: 'unavailable' as const,
+            dependency: 'toolDecisions',
+            diagnostic: 'toolDecisions.resolve is not provided by this host',
+          }),
+        ),
+    },
   }
   const ledger = createToolLedger(input.store, guards, input.clock, input.configuration, ports)
   return { ledger, authority }

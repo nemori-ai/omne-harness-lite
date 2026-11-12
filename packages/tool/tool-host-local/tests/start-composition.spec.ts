@@ -401,6 +401,7 @@ describe('G5 under the runtime', () => {
     const harness = assembly({
       store: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),

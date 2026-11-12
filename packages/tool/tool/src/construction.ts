@@ -16,6 +16,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { CallAccess, WriteContext } from '@omne-harness/tool-contract/provider'
 import type { AccessVerdict } from './ledger-guards.ts'
+import type { PendingCall } from './ledger-store.ts'
 import type {
   Mutation,
   ResultPolicy,
@@ -70,9 +71,9 @@ export type ToolConfiguration = ToolAuthorLimits &
     /** How many times a ledger command re-reads and re-decides after a revision conflict. */
     ledgerCommitAttempts: number
     /**
-     * The most unreleased calls one FIFO key may hold (P02: a queue has a capacity, and a new
-     * admission may be refused before it is committed). Distinct from the concurrency limit a
-     * request fixes, which counts running executions.
+     * The most unreleased calls one concurrency scope may hold (P02: a queue has a capacity, and a
+     * new admission may be refused before it is committed). Distinct from the tool limit and the
+     * scope budget a request fixes, which count held slots.
      */
     queueCapacity: number
     /**
@@ -128,7 +129,7 @@ export type QueueReconciliation = Readonly<{
 
 /**
  * The queue maintenance entry of this ledger (SPEC 22). `reconcile` is asked for a call that
- * waits for its place; it answers for that call's FIFO key and never changes another call's
+ * waits for its place; it answers for that call's queue key and never changes another call's
  * stage, and it writes no exclusion fence. Its replies: `denied` or `invalid` from the boundary
  * and the qualification of the action `recover` for the call; `invalid` (`call: unknown-call`)
  * when the waiter's own call is not admitted; an empty answer when its request is not available,
@@ -137,6 +138,25 @@ export type QueueReconciliation = Readonly<{
  */
 export type ToolLedgerQueues<P> = Readonly<{
   reconcile(input: CallAccess<P>): Reply<QueueReconciliation>
+  /**
+   * Does the park duty `operation` of a suspended call (P02): the held entry gives up its slot
+   * while the wait has not reached `responding`, and the duty closes. A call whose decision came
+   * first keeps its slot; a duty that is already closed answers `parked: false`. Its replies:
+   * `denied` or `invalid` from the boundary and the qualification of `recover`; `commit-unknown`
+   * with the duty's operation when a commit has an unknown outcome (the duty stays and is asked
+   * again); `unavailable` when a read fails.
+   */
+  park(
+    input: CallAccess<P> & Readonly<{ operation: ToolOperationId }>,
+  ): Reply<Readonly<{ parked: boolean }>>
+  /**
+   * 完成已收场调用的释放待办 `operation`（P02，Tool SPEC 第 22、32 条）：先读调用域的释放依据，
+   * 队列域同一笔提交删除条目并写墓碑，调用域再删除该待办。没有依据时回复 `invalid`
+   * （`call: no-release-basis`），待办保留；待办已关闭时回复 `released: false`。其余回复同 `park`。
+   */
+  release(
+    input: CallAccess<P> & Readonly<{ operation: ToolOperationId }>,
+  ): Reply<Readonly<{ released: boolean }>>
 }>
 
 /**
@@ -175,6 +195,18 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   sourceIssuer: ToolInvocationSourceIssuer<P>
 }>
 
+/**
+ * 账本的受信恢复扫描（契约 P09 recover，P01 scanPending）：跨租户、按键集分页列出有待推进工作的
+ * 调用，`next` 是下一页的起点，`null` 表示扫完。它只给出调用身份，不读调用记录，也不判断资格，
+ * 所以只有宿主在构造时取得它，不经契约服务发布。恢复者对每个调用仍以 `recover` 资格读原事实。
+ * `limit` 是 1 到 1000 的整数。记录仓不能扫描时答复 `unsupported`，读不到时答复 `unavailable`。
+ */
+export type ToolLedgerRecovery = Readonly<{
+  scan(
+    input: Readonly<{ after: PendingCall | null; limit: number }>,
+  ): Reply<Readonly<{ calls: readonly PendingCall[]; next: PendingCall | null }>>
+}>
+
 /** Reads pending original facts or settled final receipts by their exact evidence. */
 export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
   read(
@@ -200,6 +232,11 @@ export type ToolLedgerPorts<P> = Readonly<{
   controlSubjects?: ToolControlSubjects<P>
   content: Pick<ToolContentReader<P>, 'read'> | null
   releaseInspection: Pick<ToolEnvironment<P, unknown>, 'adoption' | 'inspectRelease'>
+  /**
+   * The decision owner of Ask waits (P06): `acceptDecision` resolves the reported decision through
+   * it before the commit. Absent, `acceptDecision` answers `unavailable` (`tool-decisions`).
+   */
+  decisions?: Pick<ToolDecisionBridge<P>, 'resolve'>
 }>
 
 /** Durable controller references, issued and resolved by the trusted identity owner. */

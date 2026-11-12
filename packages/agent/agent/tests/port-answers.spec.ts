@@ -37,6 +37,38 @@ describe('notingPorts', () => {
     expect(Object.getOwnPropertyDescriptor(noted, 'missing')).toBe(undefined)
   })
 
+  it('reaches and notes a method under a callable namespace, as the stage port of the host gives it', async () => {
+    // The host hands the loop a port whose every member is a callable proxy: it reads its provider
+    // at each call and cannot tell a namespace from a method. `commands` is callable here too.
+    const provider = {
+      commands: {
+        control: (reason: string) => Promise.resolve(fail({ ...down, diagnostic: reason })),
+      },
+    }
+    const at = (path: readonly string[]): unknown =>
+      new Proxy(function member() {}, {
+        get: (_target, key) => (typeof key === 'string' ? at([...path, key]) : undefined),
+        apply: (_target, _receiver, args: unknown[]) => {
+          const member = path.reduce<unknown>(
+            (owner, step) => Reflect.get(Object(owner), step),
+            provider,
+          )
+          return Reflect.apply(member as (...given: unknown[]) => unknown, undefined, args)
+        },
+      })
+    const noted = notingPorts(at([]) as typeof provider)
+    const answer = await noted.commands.control('stopped')
+    expect(answer).toEqual(fail({ ...down, diagnostic: 'stopped' }))
+    expect('failure' in answer && answeredByPort(answer.failure)).toBe(true)
+  })
+
+  it('notes the answer of a method that the caller bound or applied', async () => {
+    const port = Object.freeze({ admit: () => Promise.resolve(fail(down)) })
+    const noted = notingPorts(port)
+    for (const answer of [await noted.admit.bind(noted)(), await noted.admit.call(noted)])
+      expect('failure' in answer && answeredByPort(answer.failure)).toBe(true)
+  })
+
   it('does not note a failure that no port answered', () => {
     expect(answeredByPort({ kind: 'unavailable', owner: 'evaluator', diagnostic: 'stop' })).toBe(
       false,

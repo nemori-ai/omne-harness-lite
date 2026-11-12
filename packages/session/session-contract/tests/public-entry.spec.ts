@@ -43,6 +43,7 @@ it('exports exactly the declared root runtime surface', () => {
     'resolveControlScope',
     'resolveOperation',
     'routeInput',
+    'runCancelledBy',
     'sessionInputBytes',
     'sessionIntakeLimits',
     'sessionModesBlock',

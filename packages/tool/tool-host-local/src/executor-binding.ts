@@ -1,20 +1,33 @@
 import type { ContentBlock } from '@omne-harness/content-block'
+import { judgeJsonValue, writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import type {
+  DurableEvidence,
   FixedToolRequest,
   Reply,
   ToolCatalog,
+  ToolOperationId,
   ToolStartRecord,
+  WaitIntent,
 } from '@omne-harness/tool-contract'
+import type { Outcome } from '@omne-harness/operation-result'
 import {
+  authorDecision,
+  CLOSED_RESULT_MAX_BYTES,
   commandArguments,
   describeCommandArgumentsRejection,
+  type AuthorWait,
+  type AuthorSegment,
   type CallAccess,
+  type ToolPrimitiveFailure,
+  type SuspensionProgress,
+  type SuspensionRecord,
   type ToolBindings,
   type ToolExecutionFact,
   type ToolExecutionScope,
   type ToolExecutorBinding,
+  type ToolSegmentContext,
   type ToolStartAuthority,
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration, type ToolOperationSlot } from '@omne-harness/tool-contract/binding'
@@ -24,9 +37,13 @@ import {
   localAuthorEvidence,
   type LocalAuthorExecution,
 } from './live-author-execution.ts'
+import { segmentWait } from './segment-operations.ts'
 
-type Start = Extract<ToolStartRecord, { kind: 'start' }>
-type StartInput<P, E> = Parameters<ToolExecutorBinding<P, E>['start']>[0]
+type Start = ToolStartRecord
+/** The input of a start or a resume: the call, its start record, the permit and the request. */
+type StartInput<P, E> = Omit<Parameters<ToolExecutorBinding<P, E>['start']>[0], 'start'> &
+  Readonly<{ start: Start }>
+type Segment = Outcome<AuthorSegment<Uint8Array, unknown>, ToolPrimitiveFailure>
 type Final = Extract<ToolExecutionFact, { kind: 'final' }>
 
 function closeScope(
@@ -54,8 +71,13 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
     input: CallAccess<P> &
       Readonly<{ start: Start; request: FixedToolRequest; execution: LocalAuthorExecution }>,
   ): ToolExecutionScope
+  /**
+   * Attaches a capability to the scope of a first start. A resume is not given one: a segment's
+   * context carries `emit` and `signal` only.
+   */
   capability?(
-    input: CallAccess<P> & Readonly<{ start: Start; request: FixedToolRequest }>,
+    input: CallAccess<P> &
+      Readonly<{ start: Extract<ToolStartRecord, { kind: 'start' }>; request: FixedToolRequest }>,
     scope: ToolExecutionScope,
   ): ToolExecutionScope
   settle(
@@ -74,27 +96,105 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
   ): Reply<Final>
 }>
 
+/**
+ * The end of a segment that suspended: the wait it published and the parts of its checkpoint.
+ * `state` is the encoded state as base64 text and `payload` the evidence that binds its digest;
+ * the ledger keeps the state from the suspension commit on.
+ */
+type SuspendedSegment = Readonly<{
+  payload: DurableEvidence
+  state: string
+  closedResult: string
+  boundary: DurableEvidence
+  exclusion: DurableEvidence
+  intent: WaitIntent
+}>
+
+/** A segment entry that never runs: an attempt that `begin` recalls does not enter again. */
+function never(): Promise<Segment> {
+  return Promise.reject(new Error('a recalled attempt does not enter its segment again'))
+}
+
+/** The operation of a call's request in the author's registration, or undefined. */
+function operationOf(
+  registration: ReturnType<typeof readToolRegistration>,
+  command: string | null,
+): ToolOperationSlot | undefined {
+  if (registration?.kind === 'function')
+    return command === null ? registration.operation : undefined
+  return registration?.operations.find(([name]) => name === command)?.[1]
+}
+
+/**
+ * The arguments of the call as the operation's codec reads them (D-94: a multi-command tool's
+ * codec reads the parameters of its command). It throws the reason and the command guide (D-104).
+ */
+function argumentsOf<P, E>(input: StartInput<P, E>, operation: ToolOperationSlot): unknown {
+  const { request } = input
+  const { definition } = request.availability
+  const invalid = (reason: string) =>
+    definition.kind === 'commands' && request.command !== null
+      ? describeCommandArgumentsRejection(definition, request.command, reason)
+      : reason
+  const cut = commandArguments(definition, request.command, request.arguments)
+  if ('failure' in cut) throw new Error(invalid(cut.failure.reason))
+  const argumentsValue = operation.author.parameters.parse(cut.ok)
+  if ('failure' in argumentsValue)
+    throw new Error(
+      argumentsValue.failure.kind === 'invalid'
+        ? invalid(argumentsValue.failure.reason)
+        : argumentsValue.failure.reason,
+    )
+  return argumentsValue.ok
+}
+
+/** Whether the segment's wait is one of the Ask contracts that the author declared (P12). */
+function declaredWait(operation: ToolOperationSlot, wait: AuthorWait): boolean {
+  return (
+    wait.kind === 'ask' &&
+    operation.author.waits.some(
+      declared =>
+        declared.kind === 'ask' &&
+        canonicalDigest(declared.adoption) === canonicalDigest(wait.contract.adoption),
+    )
+  )
+}
+
 export function createLocalToolBindings<P, E, B extends ContentBlock>(
   dependencies: LocalToolBindingsInput<P, E, B>,
 ): ToolBindings<P, E> {
   type Bound = ToolBindingSelection<P, E, B> & {
     requestDigest: string
     accessKey: string
-    binding: Extract<ToolExecutorBinding<P, E>, { kind: 'live-only' }>
+    operation: ToolOperationSlot | undefined
+    binding: ToolExecutorBinding<P, E>
   }
   type Attempt = {
     digest: string
     start: Start
     execution: LocalAuthorExecution
     answer: ReturnType<ToolExecutorBinding<P, E>['start']>
+    /** How a segment ended: null while it runs or for a live coroutine. */
+    segment: SuspendedSegment | Readonly<{ kind: 'completed' }> | null
+    /** The responses this segment consumed: the response of the wait a resume continues. */
+    consumed: readonly ToolOperationId[]
   }
   const bindings = new Map<string, Bound>()
   const attempts = new Map<string, Attempt>()
-  const callKey = (access: CallAccess<P>) => canonicalDigest([access.tenant, access.call])
-  const startKey = (access: CallAccess<P>, start: ToolStartRecord) =>
+  type Place = Pick<CallAccess<P>, 'tenant' | 'call'>
+  const callKey = (access: Place) => canonicalDigest([access.tenant, access.call])
+  const startKey = (access: Place, start: ToolStartRecord) =>
     canonicalDigest([access.tenant, access.call, start.operation])
   const unavailable = (diagnostic: string) =>
     fail({ kind: 'unavailable' as const, dependency: 'toolBindings', diagnostic })
+
+  /** The scope with the assembly's capability, for a first start only. */
+  const withCapability = (input: StartInput<P, E>, scope: ToolExecutionScope) => {
+    const { start } = input
+    return start.kind === 'start'
+      ? (dependencies.capability?.({ ...input, start }, scope) ?? scope)
+      : scope
+  }
 
   const launch = async (
     input: StartInput<P, E>,
@@ -107,27 +207,9 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     let scope: ToolExecutionScope | undefined
     let closing: ReturnType<ToolExecutionScope['finish']> = Promise.resolve(succeed(undefined))
     try {
-      // The arguments of a multi-command tool are the whole call; its command codec parses the
-      // parameters only (D-94). Arguments that the command does not take fail with the reason
-      // and the guide of the command, so the next call can be right (D-104).
-      const { request } = input
-      const { definition } = request.availability
-      const invalid = (reason: string) =>
-        definition.kind === 'commands' && request.command !== null
-          ? describeCommandArgumentsRejection(definition, request.command, reason)
-          : reason
-      const cut = commandArguments(definition, request.command, request.arguments)
-      if ('failure' in cut) throw new Error(invalid(cut.failure.reason))
-      const argumentsValue = operation.author.parameters.parse(cut.ok)
-      if ('failure' in argumentsValue)
-        throw new Error(
-          argumentsValue.failure.kind === 'invalid'
-            ? invalid(argumentsValue.failure.reason)
-            : argumentsValue.failure.reason,
-        )
-      parsed = argumentsValue.ok
+      parsed = argumentsOf(input, operation)
       scope = dependencies.scope({ ...input, execution })
-      scope = dependencies.capability?.(input, scope) ?? scope
+      scope = withCapability(input, scope)
       const value = await operation.author.executor.execute(parsed, environment, scope.context)
       outcome = { kind: 'returned', value }
       closing = closeScope(scope, 'returned')
@@ -147,85 +229,287 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     else execution.observationAvailable(false)
   }
 
+  /**
+   * Ends a suspended segment at its Ask wait (P06, P07): it publishes the wait as the last fact of
+   * the stream, with the request original beside it, and retains the state for the suspension
+   * that the ledger asks next. The evidence of the request and of the state binds the digest of
+   * each text, as the ledger checks it. A wait the author did not declare, or a state or a request
+   * over the declared size, is a failure of the author, settled like any other.
+   */
+  const suspendSegment = (
+    input: StartInput<P, E>,
+    operation: ToolOperationSlot,
+    execution: LocalAuthorExecution,
+    attempt: Attempt,
+    suspended: Extract<AuthorSegment<Uint8Array, unknown>, { kind: 'suspended' }>,
+  ): string | null => {
+    const segments = operation.segments
+    if (segments === null) return 'the author does not run in segments'
+    const { state, wait, closedResult } = suspended
+    if (!declaredWait(operation, wait)) return 'the segment waits for an Ask it did not declare'
+    if (
+      typeof closedResult !== 'string' ||
+      closedResult.length === 0 ||
+      new TextEncoder().encode(closedResult).byteLength > CLOSED_RESULT_MAX_BYTES
+    )
+      return 'the segment gives no result for a closed wait within the bound'
+    if (!(state instanceof Uint8Array) || state.byteLength > segments.checkpoint.maxBytes)
+      return 'the segment state exceeds the declared checkpoint size'
+    const { contract } = wait
+    // The request original is the JSON text of the author's request.
+    const judged = judgeJsonValue(wait.request)
+    if (!('ok' in judged)) return 'the request of the segment wait is no JSON value'
+    const request = writeJsonText(judged.ok)
+    if (Buffer.byteLength(request) > contract.request.maxBytes)
+      return 'the request of the segment wait exceeds the declared size'
+    const key = startKey(input, input.start)
+    const schemas = {
+      contract: contract.adoption,
+      request: contract.request.identity,
+      response: contract.response.identity,
+      requestMaxBytes: contract.request.maxBytes,
+      responseMaxBytes: contract.response.maxBytes,
+      expiry: 'forbidden' as const,
+    }
+    const waitId = segmentWait(input.start.operation)
+    if ('failure' in waitId) return 'the start cannot name the wait of its segment'
+    const kept = Buffer.from(state).toString('base64')
+    const payload = localAuthorEvidence(`checkpoint-state/${key}`, kept)
+    const intent: WaitIntent = {
+      kind: 'ask',
+      // A start runs one segment, and a segment ends at one wait, so the start names the wait.
+      wait: waitId.ok,
+      resume: payload,
+      request: localAuthorEvidence(`wait-request/${key}`, request),
+      schemas: { ...schemas, source: localAuthorEvidence(`wait-schemas/${key}`, schemas) },
+    }
+    attempt.segment = {
+      payload,
+      state: kept,
+      closedResult,
+      intent,
+      boundary: localAuthorEvidence(`segment-boundary/${key}`, [input.start, intent]),
+      exclusion: localAuthorEvidence(`segment-returned/${key}`, [input.start, payload]),
+    }
+    execution.publish({ kind: 'wait', value: intent, request })
+    return null
+  }
+
+  /**
+   * Runs one segment of a checkpointed author with a context of `emit` and `signal` only: `enter`
+   * starts the initial or the resume segment. A completed segment settles like a live return; a
+   * suspended one ends at its wait; a failed or throwing one settles as a failure of the author.
+   */
+  const launchSegment = async (
+    input: StartInput<P, E>,
+    environment: E,
+    operation: ToolOperationSlot,
+    execution: LocalAuthorExecution,
+    attempt: Attempt,
+    enter: (
+      segments: NonNullable<ToolOperationSlot['segments']>,
+      parsed: unknown,
+      context: ToolSegmentContext,
+    ) => Promise<Segment>,
+  ): Promise<void> => {
+    let parsed: unknown
+    let outcome: Parameters<typeof dependencies.settle>[0]['outcome']
+    let scope: ToolExecutionScope | undefined
+    let closing: ReturnType<ToolExecutionScope['finish']> | null = null
+    try {
+      const segments = operation.segments
+      if (segments === null) throw new Error('the author does not run in segments')
+      parsed = argumentsOf(input, operation)
+      scope = dependencies.scope({ ...input, execution })
+      scope = withCapability(input, scope)
+      const { context: full } = scope
+      const context: ToolSegmentContext = {
+        emit: update => full.emit(update),
+        signal: full.signal,
+      }
+      const segment = await enter(segments, parsed, context)
+      // The scope closes once, as failed for a failure that the segment returned.
+      closing = closeScope(scope, 'failure' in segment ? 'failed' : 'returned')
+      if ('failure' in segment) throw new Error(segment.failure.reason)
+      if (segment.ok.kind === 'suspended') {
+        // A segment suspends only after its scope confirmed that nothing of it still runs.
+        const closed = await closing
+        if ('failure' in closed) throw new Error(closed.failure.reason)
+        const refused = suspendSegment(input, operation, execution, attempt, segment.ok)
+        if (refused === null) return
+        throw new Error(refused)
+      }
+      outcome = { kind: 'returned', value: segment.ok.value }
+    } catch (error) {
+      if (scope !== undefined) closing ??= closeScope(scope, 'failed')
+      outcome = {
+        kind: 'failed',
+        reason: error instanceof Error ? error.message : 'author failed',
+      }
+    }
+    attempt.segment = { kind: 'completed' }
+    const settled = await dependencies.settle({
+      ...input,
+      operation,
+      arguments: parsed,
+      outcome,
+      closing: closing ?? Promise.resolve(succeed(undefined)),
+      execution,
+    })
+    if ('ok' in settled) execution.publish(settled.ok)
+    else execution.observationAvailable(false)
+  }
+
+  /** What the binding proves about the suspension of a segment it ran (P07 suspend). */
+  const suspensionOf = (
+    bound: Omit<Bound, 'binding'>,
+    suspension: SuspensionRecord,
+  ): SuspensionProgress | 'denied' => {
+    const access = { tenant: suspension.tenant, call: suspension.call }
+    if (
+      suspension.call !== suspension.start.execution.call ||
+      canonicalDigest(suspension.tenant) !== canonicalDigest(suspension.start.execution.tenant) ||
+      callKey(access) !== bound.accessKey
+    )
+      return 'denied'
+    const attempt = attempts.get(startKey(access, suspension.start))
+    if (
+      attempt === undefined ||
+      canonicalDigest(attempt.start) !== canonicalDigest(suspension.start)
+    )
+      return { kind: 'unknown', diagnostic: 'no retained segment of this start' }
+    if (
+      canonicalDigest(suspension.schema) !==
+      canonicalDigest(bound.operation?.segments?.checkpoint.codec)
+    )
+      return { kind: 'rejected', diagnostic: 'the suspension names another checkpoint schema' }
+    const ended = attempt.segment
+    if (ended === null) return { kind: 'unknown', diagnostic: 'the segment has not returned' }
+    if (!('intent' in ended))
+      return {
+        kind: 'not-suspended',
+        evidence: localAuthorEvidence(
+          `segment-completed/${startKey(access, suspension.start)}`,
+          suspension.start,
+        ),
+      }
+    return {
+      kind: 'suspended',
+      state: ended.state,
+      checkpoint: {
+        schema: suspension.schema,
+        payload: ended.payload,
+        closedResult: ended.closedResult,
+        start: attempt.start,
+        consumedResponses: attempt.consumed,
+        effectBoundary: ended.boundary,
+        exclusion: ended.exclusion,
+      },
+    }
+  }
+
   const makeBinding = (bound: Omit<Bound, 'binding'>): Bound['binding'] => {
     let assigned = false
-    return {
-      kind: 'live-only',
-      start(input, environment) {
-        const invalid = (field: string, reason: string) => {
-          if (!assigned && callKey(input) === bound.accessKey) {
-            bound.pin.release()
-            assigned = true
-          }
-          return Promise.resolve(fail({ kind: 'invalid' as const, field, reason }))
+    type Enter = Parameters<typeof launchSegment>[5]
+    /**
+     * Checks the input, recalls an attempt of the same start, takes the pin, consumes the permit
+     * and runs the author once: a live coroutine, or the segment that `enter` starts. A start and a
+     * resume of the same call are attempts of their own, each under its own start record.
+     */
+    const begin = (
+      input: StartInput<P, E>,
+      environment: E,
+      enter: Enter,
+      consumedResponses: readonly ToolOperationId[],
+    ): ReturnType<ToolExecutorBinding<P, E>['start']> => {
+      const invalid = (field: string, reason: string) => {
+        if (!assigned && callKey(input) === bound.accessKey) {
+          bound.pin.release()
+          assigned = true
         }
-        if (canonicalDigest(input.request) !== bound.requestDigest)
-          return invalid('request', 'resolved request mismatch')
-        if (canonicalDigest(input.start.executor) !== canonicalDigest(bound.loaded.executor))
-          return invalid('executor', 'original executor mismatch')
-        if (
-          canonicalDigest(input.tenant) !== canonicalDigest(input.start.execution.tenant) ||
-          input.call !== input.start.execution.call ||
-          input.permit.call !== input.call ||
-          canonicalDigest(input.permit.tenant) !== canonicalDigest(input.tenant) ||
-          canonicalDigest(input.permit.start) !== canonicalDigest(input.start)
-        )
-          return invalid('permit', 'start identity mismatch')
-        const key = startKey(input, input.start)
-        const digest = canonicalDigest([input.start, input.request])
-        const old = attempts.get(key)
-        if (old !== undefined)
-          return old.digest === digest
-            ? old.answer
-            : Promise.resolve(fail({ kind: 'conflict', operation: input.start.operation }))
-        const registration = readToolRegistration(bound.loaded.implementation)
-        const operation =
-          registration?.kind === 'function'
-            ? input.request.command === null
-              ? registration.operation
-              : undefined
-            : registration?.operations.find(([name]) => name === input.request.command)?.[1]
-        if (operation === undefined) return invalid('command', 'original author has no operation')
-        let pin = bound.pin
-        if (assigned || callKey(input) !== bound.accessKey) {
-          const retained = bound.repin(input, input.call)
-          if ('failure' in retained)
-            return Promise.resolve(unavailable(retained.failure.diagnostic))
-          pin = retained.ok
-        } else assigned = true
-        const execution = createLiveAuthorExecution({
-          start: input.start,
-          release: pin.release,
-        })
-        const answer = Promise.resolve().then(async () => {
-          try {
-            const consumed = await dependencies.authority.consume({
-              ...input,
-              executorReceipt: localAuthorEvidence(`start/${key}`, [input.start, input.request]),
-            })
-            if ('failure' in consumed) {
-              if (['denied', 'invalid', 'conflict', 'unsupported'].includes(consumed.failure.kind))
-                pin.release()
-              return consumed
-            }
-            if (consumed.ok.kind !== 'started') {
-              if (consumed.ok.kind !== 'unknown') pin.release()
-              return consumed.ok.kind === 'unknown'
-                ? fail({ kind: 'commit-unknown' as const, operation: input.start.operation })
-                : fail({ kind: 'denied' as const, action: 'start-author' })
-            }
-            void launch(input, environment, operation, execution).catch(() => {
-              execution.observationAvailable(false)
-            })
-            return succeed(execution.live)
-          } catch {
-            execution.observationAvailable(false)
-            return fail({ kind: 'commit-unknown' as const, operation: input.start.operation })
+        return Promise.resolve(fail({ kind: 'invalid' as const, field, reason }))
+      }
+      if (canonicalDigest(input.request) !== bound.requestDigest)
+        return invalid('request', 'resolved request mismatch')
+      if (canonicalDigest(input.start.executor) !== canonicalDigest(bound.loaded.executor))
+        return invalid('executor', 'original executor mismatch')
+      if (
+        canonicalDigest(input.tenant) !== canonicalDigest(input.start.execution.tenant) ||
+        input.call !== input.start.execution.call ||
+        input.permit.call !== input.call ||
+        canonicalDigest(input.permit.tenant) !== canonicalDigest(input.tenant) ||
+        canonicalDigest(input.permit.start) !== canonicalDigest(input.start)
+      )
+        return invalid('permit', 'start identity mismatch')
+      const key = startKey(input, input.start)
+      const digest = canonicalDigest([input.start, input.request])
+      const old = attempts.get(key)
+      if (old !== undefined)
+        return old.digest === digest
+          ? old.answer
+          : Promise.resolve(fail({ kind: 'conflict', operation: input.start.operation }))
+      const operation = bound.operation
+      if (operation === undefined) return invalid('command', 'original author has no operation')
+      let pin = bound.pin
+      if (assigned || callKey(input) !== bound.accessKey) {
+        const retained = bound.repin(input, input.call)
+        if ('failure' in retained) return Promise.resolve(unavailable(retained.failure.diagnostic))
+        pin = retained.ok
+      } else assigned = true
+      const execution = createLiveAuthorExecution({
+        start: input.start,
+        release: pin.release,
+      })
+      const answer = Promise.resolve().then(async () => {
+        try {
+          const consumed = await dependencies.authority.consume({
+            ...input,
+            executorReceipt: localAuthorEvidence(`start/${key}`, [input.start, input.request]),
+          })
+          if ('failure' in consumed) {
+            if (['denied', 'invalid', 'conflict', 'unsupported'].includes(consumed.failure.kind))
+              pin.release()
+            return consumed
           }
-        })
-        attempts.set(key, { digest, start: input.start, execution, answer })
-        return answer
-      },
+          if (consumed.ok.kind !== 'started') {
+            if (consumed.ok.kind !== 'unknown') pin.release()
+            return consumed.ok.kind === 'unknown'
+              ? fail({ kind: 'commit-unknown' as const, operation: input.start.operation })
+              : fail({ kind: 'denied' as const, action: 'start-author' })
+          }
+          const launched =
+            operation.segments === null
+              ? launch(input, environment, operation, execution)
+              : launchSegment(input, environment, operation, execution, attempt, enter)
+          void launched.catch(() => {
+            execution.observationAvailable(false)
+          })
+          return succeed(execution.live)
+        } catch {
+          execution.observationAvailable(false)
+          return fail({ kind: 'commit-unknown' as const, operation: input.start.operation })
+        }
+      })
+      const attempt: Attempt = {
+        digest,
+        start: input.start,
+        execution,
+        answer,
+        segment: null,
+        consumed: consumedResponses,
+      }
+      attempts.set(key, attempt)
+      return answer
+    }
+    const live: Extract<ToolExecutorBinding<P, E>, { kind: 'live-only' }> = {
+      kind: 'live-only',
+      start: (input, environment) =>
+        begin(
+          input,
+          environment,
+          (segments, parsed, context) => segments.initial(parsed, environment, context),
+          [],
+        ),
       async inspectStart(input) {
         if (
           input.call !== input.start.execution.call ||
@@ -243,6 +527,59 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
           : succeed({ kind: 'unknown', diagnostic: 'start has no confirmed executor receipt' })
       },
     }
+    const segments = bound.operation?.segments ?? null
+    if (segments === null) return live
+    const prove = (suspension: SuspensionRecord) => {
+      const progress = suspensionOf(bound, suspension)
+      return Promise.resolve(
+        progress === 'denied'
+          ? fail({ kind: 'denied' as const, action: 'suspend-author' })
+          : succeed(progress),
+      )
+    }
+    return {
+      ...live,
+      kind: 'checkpointed',
+      checkpointSchema: segments.checkpoint.codec,
+      // The segment has returned before its suspension is asked: proving it stops nothing.
+      suspend: prove,
+      inspectSuspension: prove,
+      // The ledger gives the state of the checkpoint and the response of its wait with the start.
+      resume: ({ state, response, ...input }, environment) => {
+        if (attempts.has(startKey(input, input.start)))
+          return begin(input, environment, () => never(), [])
+        if (
+          response.response.kind !== 'decision' ||
+          response.call !== input.call ||
+          canonicalDigest(response.tenant) !== canonicalDigest(input.tenant)
+        )
+          return Promise.resolve(
+            fail({ kind: 'invalid', field: 'response', reason: 'not-a-decision-of-this-call' }),
+          )
+        const decision = authorDecision(response.response.value)
+        const checkpoint = new Uint8Array(Buffer.from(state, 'base64'))
+        const key = startKey(input, input.start)
+        return begin(
+          input,
+          environment,
+          (segments, _parsed, context) => {
+            // The author's continuation is released here, so the real resume point is fixed here.
+            const execution = attempts.get(key)?.execution
+            execution?.publish({
+              kind: 'continued',
+              wait: response.wait,
+              response: response.operation,
+              timing: localAuthorEvidence(`segment-continued/${key}`, [
+                input.start,
+                response.operation,
+              ]),
+            })
+            return segments.resume({ checkpoint, response: decision }, environment, context)
+          },
+          [response.operation],
+        )
+      },
+    }
   }
   return {
     inspect: input => dependencies.catalog.inspect(input),
@@ -255,10 +592,16 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
           : fail({ kind: 'invalid', field: 'request', reason: 'call already has a fixed request' })
       const selected = dependencies.registry.selectAndPin(input, input.request, input.call)
       if ('failure' in selected) return unavailable(selected.failure.diagnostic)
+      const operation = operationOf(
+        readToolRegistration(selected.ok.loaded.implementation),
+        input.request.command,
+      )
+      // A start of a command the author does not have fails at the start: it releases the pin there.
       const fixed = {
         ...selected.ok,
         requestDigest: canonicalDigest(input.request),
         accessKey: key,
+        operation,
       }
       const bound = { ...fixed, binding: makeBinding(fixed) }
       bindings.set(key, bound)
@@ -272,7 +615,11 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       return succeed({
         acknowledge: attempt.execution.live.acknowledge,
         inspectStart: start => bound.binding.inspectStart({ ...input, start }),
-        inspectSuspension: async () => unavailable('live-only author has no checkpoint'),
+        inspectSuspension: async suspension => {
+          if (bound.binding.kind !== 'checkpointed')
+            return unavailable('live-only author has no checkpoint')
+          return bound.binding.inspectSuspension(suspension)
+        },
         stop: attempt.execution.live.stop,
         inspectControl: attempt.execution.live.inspectControl,
       })

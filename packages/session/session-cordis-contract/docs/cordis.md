@@ -54,6 +54,7 @@ export const inject = {
 | `sessionNotifier` | `SessionNotifier` | 应用装配或 session-cordis | 每次提交后现取。缺席或失败不回滚提交 |
 | `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 按调用现取。缺席时推进、续入、恢复、控制传播与迟到结果记录的出站调用不发出，任务保留，由调度器重放；预热在 Agent 入口定义前不调用 |
 | `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 按调用现取。缺席时释放任务保留，按策略重试 |
+| `sessionTenants` | `SessionTenantSource`：部署里的租户列表 | 应用装配 | 提供者启动时取一次，给每个租户绑定扫描者。缺席或不答时只按提交通知绑定 |
 
 访问检查、内部主体与两个受信键 `sessionDelegatedTransactions`、`sessionWorkPrincipals` 进 Session 服务提供者的 `inject`。访问检查按每次实际操作核当前主体、操作与目标，不缓存 allowed，unavailable 不放行。访问检查类型与 Service 定义已交付，实际执行处检查和系统授权生产提供者尚未交付。内部主体由装配维护者签发，经 `sessionPrincipals` 交入，不放配置。其他端口按调用现取，缺席表现以[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)为准。
 
@@ -70,6 +71,7 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 | `sessionDelegatedTransactions` | `SessionDelegatedTransactions` | 会话存储组合（`session-storage` 行） | `session-provider` 行，进 `inject` |
 | `sessionWorkPrincipals` | `SessionWorkPrincipals` | 装配入口 | `session-provider` 行，进 `inject` |
 | `sessionPrincipalBindings` | `SessionPrincipalBindingSource` | 会话存储组合（`session-storage` 行） | 只由装配入口按调用读取，没有行 `inject` |
+| `sessionScopeOwners` | `SessionScopeOwnerSource` | 会话存储组合（`session-storage` 行） | 只由装配入口按调用读取，没有行 `inject`；入口在 `sessionScopeLookup` 没答出时读它 |
 | `sessionReplayFacts` | `SessionReplayFacts` | AD-03 持有者的装配行（`session-ad03`，由其事实插件回答） | Runtime Context 的装配入口按调用读取，没有行 `inject` |
 | `sessionScopeLookup` | `SessionScopeLookup` | AD-03 持有者的装配行（`session-ad03`，由其事实插件回答） | 装配入口按调用读取，没有行 `inject` |
 | `sessionAdoptedRequests` | `SessionAdoptedRequests` | 会话日志 Journal 提供者（`agent-journal` 行，与 `agentJournal` 同一插件体） | AD-04 的历史源子插件（`session-ad04` 行）按调用读取，没有行 `inject`；缺席时窄采用来源答 `unavailable` |

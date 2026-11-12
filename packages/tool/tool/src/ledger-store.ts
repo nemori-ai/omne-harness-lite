@@ -23,14 +23,19 @@ import type {
   ToolRevision,
   ToolStartRecord,
   ToolState,
+  ToolWaitId,
   ToolTerminal,
+  WaitRecord,
+  WaitState,
 } from '@omne-harness/tool-contract'
 import type {
+  Checkpoint,
   ToolInstant,
   ReleaseRecord,
   ReleaseProgress,
   FactReceipt,
   FactProgress,
+  SuspensionRecord,
   ToolExecutionFact,
   PreparationRecord,
   ToolCommands,
@@ -72,7 +77,9 @@ export type ConfirmedEnvironment = Readonly<{
  * The original call: its admission, the fixed request, who initiated it, the current
  * authoritative state, and the facts of its way to a start: the preparations it planned, the
  * environment it confirmed, the start record it holds, the rejection that closed it, and the
- * execution reference of the instance that recorded its start.
+ * execution reference of the instance that recorded its start. `start` is the current start
+ * record: the first start, or the resume of the segment after the latest committed checkpoint
+ * (P07). The records before it are found through the suspensions, each of which keeps its start.
  */
 export type CallRecord = Readonly<{
   tenant: TenantId
@@ -83,7 +90,7 @@ export type CallRecord = Readonly<{
   state: ToolState
   preparations: readonly PreparationRecord[]
   environment: ConfirmedEnvironment | null
-  start: Extract<ToolStartRecord, { kind: 'start' }> | null
+  start: ToolStartRecord | null
   startRejection: StartRejection | null
   execution: ToolExecutionRef | null
 }>
@@ -110,6 +117,16 @@ export type OperationReceipt =
   | Readonly<{ kind: 'plan-release'; release: ReleaseRecord }>
   | Readonly<{ kind: 'record-release' | 'record-task'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'fact-acknowledgement'; progress: FactProgress }>
+  | Readonly<{ kind: 'plan-suspension'; suspension: SuspensionRecord }>
+  | Readonly<{ kind: 'suspend'; state: ToolState }>
+  | Readonly<{ kind: 'attach-registration'; wait: WaitRecord }>
+  | Readonly<{ kind: 'accept-decision'; wait: WaitState }>
+  | Readonly<{
+      kind: 'prepare-resume'
+      state: ToolState
+      start: Extract<ToolStartRecord, { kind: 'resume' }>
+    }>
+  | Readonly<{ kind: 'close-wait'; state: ToolState }>
 
 export type OperationRecord = Readonly<{
   tenant: TenantId
@@ -180,9 +197,18 @@ export type SavedFact<B extends ContentBlock> = Readonly<{
   start: ToolStartRecord
   source: DurableEvidence
   event: string
-  fact: Exclude<ToolExecutionFact, { kind: 'final' }> | ToolFinalEnvelope<B> | SettledFinal
+  fact:
+    | Exclude<ToolExecutionFact, { kind: 'final' | 'wait' }>
+    | StoredWaitFact
+    | ToolFinalEnvelope<B>
+    | SettledFinal
   evidence: DurableEvidence
 }>
+/**
+ * The wait fact as the record keeps it: the intent, whose `request` evidence binds the request
+ * original. The original itself is the one `wait-request` record of the call.
+ */
+export type StoredWaitFact = Omit<Extract<ToolExecutionFact, { kind: 'wait' }>, 'request'>
 /** The planned final stays in the record; its payload says whether a result committed it. */
 export type StoredFinalFact = ToolPlannedFinal &
   Readonly<{
@@ -190,7 +216,10 @@ export type StoredFinalFact = ToolPlannedFinal &
       | Readonly<{ kind: 'pending' }>
       | Readonly<{ kind: 'settled'; result: ToolResultVersion; settlement: DurableEvidence }>
   }>
-export type StoredExecutionFact = Exclude<ToolExecutionFact, { kind: 'final' }> | StoredFinalFact
+export type StoredExecutionFact =
+  | Exclude<ToolExecutionFact, { kind: 'final' | 'wait' }>
+  | StoredWaitFact
+  | StoredFinalFact
 
 export type FactEventRecord = Omit<SavedFact<ContentBlock>, 'fact'> &
   Readonly<{
@@ -245,20 +274,61 @@ export function factKey(start: ToolStartRecord, owner: string, identity?: string
 export type ExclusionRecord = Readonly<{ operation: ToolOperationId; revision: ToolRevision }>
 
 /**
- * One call inside a queue domain (P02). `ordinal` is its persistent place in the FIFO, assigned
- * before the admit reply, or by `planPreparation` when that step failed at admission; `stage` is `preparing` until the environment is confirmed
- * and the call enqueued, `ready` while it waits for the head and a slot, `held` from the start
- * intent until the release; a released entry is deleted. `operation` is the operation that last
- * moved the entry, so a repeated step after a crash recognises its own transition, and a step of
- * another operation on an entry that is past it answers `conflict`. `limit` is
- * the concurrency the call fixed at admission, or null for no limit.
+ * The suspension of one segment of a checkpointed call (P07): planned with its start and checkpoint
+ * schema, then committed with the checkpoint the binding proved. `checkpoint` is null until
+ * `suspend` committed.
+ */
+export type SuspensionLedgerRecord = Readonly<{
+  suspension: SuspensionRecord
+  checkpoint: Checkpoint | null
+}>
+
+/**
+ * The request original of the last Ask wait that the call accepted, as JSON text (P06). A call
+ * holds one: the wait fact of a later segment replaces it, and the commit that settles the call
+ * deletes it.
+ */
+export type WaitRequestRecord = Readonly<{ wait: ToolWaitId; request: string }>
+
+/**
+ * The state of the last committed checkpoint of the call as base64 text (P07). `payload` is the
+ * `Checkpoint.payload` that binds its digest. A call holds one: the next checkpoint commit
+ * replaces it, and the commit that settles the call deletes it. A resume does not delete it, so a
+ * resume segment that is lost runs again from the same state.
+ */
+export type CheckpointStateRecord = Readonly<{ payload: DurableEvidence; state: string }>
+
+/**
+ * One wait of a call (P06), keyed by its wait identity, which a call never uses twice. `fact` is
+ * the saved wait fact that the segment ended with, and `suspension` the suspension that opened it.
+ */
+export type WaitLedgerRecord = Readonly<{
+  record: WaitRecord
+  fact: DurableEvidence
+  suspension: ToolOperationId
+}>
+
+/**
+ * One call inside the queue domain of its concurrency scope (P02). `ordinal` is its persistent
+ * place in the FIFO of the scope, assigned before the admit reply, or by `planPreparation` when
+ * that step failed at admission; `stage` is `preparing` until the environment is confirmed and the
+ * call enqueued, `ready` while it waits for the head and a slot, `held` from the start intent
+ * until the release or the park; `parked` while a checkpointed call waits for a decision: it holds
+ * no slot, and it still counts toward `queueCapacity`. A released entry is deleted. `operation` is
+ * the operation that last moved the entry, so a repeated step after a crash recognises its own transition, and a step of another
+ * operation on an entry that is past it answers `conflict`. The other fields are fixed at
+ * admission: `tool` is the tool's asset name, without the implementation version; `limit` is the
+ * most held slots of that tool in the scope (`limits.concurrency`), and `scopeBudget` the most held
+ * slots of all tools in the scope (`limits.scopeBudget`); null is no limit.
  */
 export type QueueEntryRecord = Readonly<{
   call: ToolCallId
   ordinal: string
-  stage: 'preparing' | 'ready' | 'held'
+  stage: 'preparing' | 'ready' | 'held' | 'parked'
   operation: ToolOperationId
+  tool: string
   limit: number | null
+  scopeBudget: number | null
 }>
 
 /** The next ordinal of a queue domain. */
@@ -283,6 +353,15 @@ export type ReleaseBasis =
    * exists, so no execution can take the place.
    */
   | Readonly<{ kind: 'ledger-rejected'; result: DurableEvidence }>
+  /**
+   * The call settled while it was suspended: the committed checkpoint holds, and its exclusion
+   * proves that the execution which suspended does not go on.
+   */
+  | Readonly<{
+      kind: 'suspended-exclusion'
+      checkpoint: DurableEvidence
+      exclusion: DurableEvidence
+    }>
 
 /** A record of a host provider. The ledger stores it by key and never reads its value. */
 export type HostRecord = Readonly<{ key: string; value: unknown }>
@@ -301,6 +380,10 @@ export type LedgerRecord =
   | Readonly<{ kind: 'fact-batch'; batch: FactBatchRecord }>
   | Readonly<{ kind: 'fact-stream'; stream: FactStreamRecord }>
   | Readonly<{ kind: 'process'; process: ProcessRecord }>
+  | Readonly<{ kind: 'suspension'; suspension: SuspensionLedgerRecord }>
+  | Readonly<{ kind: 'wait'; wait: WaitLedgerRecord }>
+  | Readonly<{ kind: 'wait-request'; waitRequest: WaitRequestRecord }>
+  | Readonly<{ kind: 'checkpoint-state'; checkpointState: CheckpointStateRecord }>
   | Readonly<{ kind: 'exclusion'; exclusion: ExclusionRecord }>
   | Readonly<{ kind: 'queue-entry'; entry: QueueEntryRecord }>
   | Readonly<{ kind: 'queue-counter'; counter: QueueCounterRecord }>
@@ -336,6 +419,14 @@ export function recordKey(record: LedgerRecord): string {
       return `fact-stream:${factKey(record.stream.start, record.stream.source.owner)}`
     case 'process':
       return `process:${JSON.stringify([record.process.start.operation, record.process.block.index])}`
+    case 'suspension':
+      return `suspension:${record.suspension.suspension.operation}`
+    case 'wait':
+      return `wait:${record.wait.record.intent.wait}`
+    case 'wait-request':
+      return WAIT_REQUEST_KEY
+    case 'checkpoint-state':
+      return CHECKPOINT_STATE_KEY
     case 'exclusion':
       return exclusionKey(record.exclusion.operation)
     case 'host':
@@ -383,6 +474,12 @@ export const QUEUE_COUNTER_KEY = 'counter'
 
 /** The key of the one `call` record of a call domain, for a read of the call alone. */
 export const CALL_RECORD_KEY = 'call'
+
+/** The key of the one request original a call domain holds: a later wait fact replaces it. */
+export const WAIT_REQUEST_KEY = 'wait-request'
+
+/** The key of the one checkpoint state a call domain holds: a later checkpoint replaces it. */
+export const CHECKPOINT_STATE_KEY = 'checkpoint-state'
 
 /**
  * The key of the due entry of a call domain itself: the instant after which the sweep may drop
@@ -464,7 +561,38 @@ export type LedgerCommitInput = Readonly<{
    * attempts nothing. The written domain itself is conditioned by `expected`, not listed here.
    */
   asserts?: readonly LedgerAssertion[]
+  /**
+   * 调用域的待办标记：这笔提交生效后，这个调用是否还有待推进的工作。只用于 `call` 域。
+   * 记录仓把标记与 `writes` 放进同一笔原子提交：`true` 写标记，`false` 删标记，缺省不动标记。
+   * 没有生效的提交（`conflict`、`unavailable`，或没有落地的 `unknown`）也不改变标记。
+   * 本包的账本在每笔调用域提交里都给出这个值。
+   */
+  pending?: boolean
 }>
+
+/** 一个有待推进工作的调用：它的租户与调用身份。 */
+export type PendingCall = Readonly<{ tenant: TenantId; call: ToolCallId }>
+
+/**
+ * 待办标记的一次按键集分页扫描。`tenant` 为 `null` 时跨租户扫描，否则只扫这个租户。
+ * `after` 是上一页的最后一个调用，本页从它之后开始；`null` 从头开始。`limit` 是正整数。
+ */
+export type LedgerPendingScanInput = Readonly<{
+  tenant: TenantId | null
+  after: PendingCall | null
+  limit: number
+}>
+
+/**
+ * 扫描的答复。`page` 按记录仓自己的全序（先租户，再调用）列出最多 `limit` 个带标记的调用。
+ * `more` 为 `true` 表示最后一个调用之后可能还有标记。扫描只读标记，不读调用记录。
+ * `unsupported` 表示这个记录仓不能做这种扫描（例如没有租户目录，不能跨租户列出），
+ * 重试不会改变答复。`unavailable` 表示这次没有读到，可以重试。
+ */
+export type LedgerPendingScan =
+  | Readonly<{ kind: 'page'; calls: readonly PendingCall[]; more: boolean }>
+  | Readonly<{ kind: 'unsupported'; reason: string }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /**
  * The answer of a commit. `conflict` means the domain revision was not `expected`, or one of the
@@ -501,4 +629,10 @@ export interface ToolLedgerStore {
   commit(input: LedgerCommitInput): Promise<LedgerCommit>
   /** The due index of one tenant: the only schedule of reclaim (model `due`). */
   due(tenant: TenantId, now: ToolInstant, limit: number): Promise<LedgerDueRead>
+  /**
+   * 按待办标记分页列出有待推进工作的调用（契约 P01：通知丢失由 scanPending 补偿）。
+   * 记录仓按索引读标记，不做全表扫描，也不读调用记录正文。提交返回 `committed`
+   * 之后开始的扫描能看到这笔提交写下或删掉的标记。
+   */
+  scanPending(input: LedgerPendingScanInput): Promise<LedgerPendingScan>
 }

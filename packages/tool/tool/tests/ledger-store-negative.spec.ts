@@ -15,9 +15,12 @@ import {
   aliasOutput,
   collapseDomains,
   ignoreCas,
+  firstPageOnly,
   lateWithoutCas,
+  neverUnmark,
   oldPartialApply,
   readMap,
+  separateMarker,
   shallowOutput,
   stateUsesDomainRevision,
   withoutOperations,
@@ -170,6 +173,41 @@ const negatives = [
     name: 'store.rejected-copy',
     fixture: oldPartialApply,
     message: 'rejected batch must preserve every record and the revision',
+  },
+  {
+    name: 'store.pending-marker',
+    fixture: neverUnmark,
+    message: 'pending: false must delete it',
+  },
+  {
+    name: 'store.pending-conflict',
+    fixture: () => separateMarker('before'),
+    message: 'a conflict must keep the marker',
+  },
+  {
+    name: 'store.pending-commitUnavailable',
+    fixture: () => separateMarker('before'),
+    message: 'the marker must land exactly when the records land',
+  },
+  {
+    name: 'store.pending-unknownDropped',
+    fixture: () => separateMarker('before'),
+    message: 'the marker must land exactly when the records land',
+  },
+  {
+    name: 'store.pending-unknownApplied',
+    fixture: () => separateMarker('answered'),
+    message: 'the marker must land exactly when the records land',
+  },
+  {
+    name: 'store.pending-delayed',
+    fixture: () => separateMarker('before'),
+    message: 'a held delete must stay invisible',
+  },
+  {
+    name: 'store.pending-pages',
+    fixture: firstPageOnly,
+    message: 'every marked call once',
   },
   {
     // A store that refuses every commit with an assertion, as one that never read them would.

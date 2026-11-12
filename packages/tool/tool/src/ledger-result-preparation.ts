@@ -14,16 +14,27 @@ import type { CallInput, MutationInput } from './boundary.ts'
 import { digestOf, mintEvidence } from './evidence.ts'
 import { put, reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 import type { LedgerDomain } from './ledger-store.ts'
-import type { TerminalText } from './ledger-start.ts'
+import type { ClosedWaitText, TerminalText } from './ledger-start.ts'
 import type { BodyPolicy, ResultDelivery } from './result-offloading.ts'
 import type { BodyWriting } from './ledger-body-writer.ts'
 import type { ResultReference } from './tools-protocol.ts'
 import { prepareResult, type PreparedResult, type ResultValue } from './ledger-result-material.ts'
 
-export type SyntheticNeed = Readonly<{
-  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>
-  consumer: ConsumerRef
-}>
+/**
+ * What a result the ledger forms itself is made from. A terminal of a call that no tool ended
+ * describes itself. A call that a control settled while it was suspended carries the words its
+ * author wrote for a closed wait (P06, SPEC 32); the ledger does not word that result.
+ */
+export type SyntheticNeed =
+  | Readonly<{
+      terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>
+      consumer: ConsumerRef
+    }>
+  | Readonly<{
+      terminal: Extract<ToolTerminal, { kind: 'interrupted' }>
+      consumer: ConsumerRef
+      closedResult: string
+    }>
 export type ResultPreparationRecord = Readonly<{
   id: ToolOperationId
   operation: ToolOperationId
@@ -59,6 +70,7 @@ export function createResultPreparation<P, B extends ContentBlock>(
     writeBody: BodyWriting<P>['writeBody']
     transact: PreparationTransaction
     text: TerminalText<B>
+    closedText: ClosedWaitText<B>
     policy: BodyPolicy
     target: ResultReference
     delivery: ResultDelivery
@@ -141,7 +153,8 @@ export function createResultPreparation<P, B extends ContentBlock>(
     if ('failure' in intent) return intent
     if (intent.ok.state.kind === 'prepared')
       return succeed({ ...intent.ok, state: intent.ok.state })
-    const made = ports.text(need.terminal)
+    const made =
+      'closedResult' in need ? ports.closedText(need.closedResult) : ports.text(need.terminal)
     if ('failure' in made) return made
     const prepared = await prepareResult(
       { ...input, operation: id, source: intent.ok.basis },

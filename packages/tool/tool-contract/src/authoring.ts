@@ -19,6 +19,7 @@ import type {
   ToolReturnDeclaration,
   ToolValueSchema,
 } from './definitions.ts'
+import type { CheckpointedToolExecutor } from './checkpointed-author.ts'
 import type { TextRenderer, ToolExecutor } from './execution.ts'
 import type { Access, Adoption, DurableEvidence, ToolCallId } from './identity.ts'
 import type { Reply, ToolRenderedResult } from './results.ts'
@@ -150,6 +151,14 @@ export type ToolOperation<
   returns: ToolReturnDeclaration
   [toolOperation]: Readonly<{ environment: (value: E) => E; block: (value: B) => B }>
 }>
+/**
+ * The executor an author gives to `defineToolOperation`: one that runs as a live coroutine, or one
+ * that runs in segments and waits only by returning `suspended`.
+ */
+export type ToolAuthorExecutor<A, R, E> = ToolExecutor<A, R, E> | CheckpointedToolExecutor<A, R, E>
+/** An author of one return mode whose executor may also be a checkpointed one. */
+type SpecAuthor<T extends Readonly<{ executor: unknown }>, X> = Omit<T, 'executor'> &
+  Readonly<{ executor: X }>
 export type ToolOperationSpec<
   A,
   R,
@@ -162,11 +171,17 @@ export type ToolOperationSpec<
   (
     | Readonly<{
         returns: ToolReturnDeclaration & Readonly<{ kind: 'ordinary' }>
-        author: Extract<ToolAuthor<A, R, E, B>, { kind: 'ordinary' }>
+        author: SpecAuthor<
+          Extract<ToolAuthor<A, R, E, B>, { kind: 'ordinary' }>,
+          ToolAuthorExecutor<A, R, E>
+        >
       }>
     | Readonly<{
         returns: ToolReturnDeclaration & Readonly<{ kind: 'structured' }>
-        author: Extract<ToolAuthor<A, R, E, B>, { kind: 'structured' }>
+        author: SpecAuthor<
+          Extract<ToolAuthor<A, R, E, B>, { kind: 'structured' }>,
+          ToolAuthorExecutor<A, ToolRenderedResult<B>, E>
+        >
       }>
   )
 /**

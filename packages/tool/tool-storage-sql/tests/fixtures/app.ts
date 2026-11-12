@@ -5,9 +5,9 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { TenantDomainLookup } from '@omne-harness/sql-contract'
+import type { TenantDomainListing, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
-import { createSqlToolLedgerStore, type SqlToolStorageOptions } from '../../src/index.ts'
+import { createSqlToolLedgerStore, type SqlToolLedgerStoreOptions } from '../../src/index.ts'
 import { createFaultyStorage, type FaultyStorage } from './faults.ts'
 import {
   createSqliteStorage,
@@ -52,7 +52,7 @@ export type App = Readonly<{
   directory: string
   sqlite: SqliteStorage
   faults: FaultyStorage
-  options: SqlToolStorageOptions
+  options: SqlToolLedgerStoreOptions
   store: ReturnType<typeof createSqlToolLedgerStore>
   /** Closes the databases and removes the directory. */
   close(): void
@@ -70,6 +70,15 @@ function lookupOf(tenants: readonly TenantId[]): TenantDomainLookup {
       )
     },
   }
+}
+
+/** 部署已登记的租户：全部套件租户与各自的事务域，供跨租户的待办扫描。 */
+function listingOf(tenants: readonly TenantId[]): () => Promise<TenantDomainListing> {
+  const entries = tenants.map(tenant => ({
+    tenant: textOf(tenant),
+    domain: domainRef(textOf(tenant), domainNameOf(tenant)),
+  }))
+  return () => Promise.resolve({ kind: 'ready', revision: '1', entries })
 }
 
 /**
@@ -101,9 +110,10 @@ export async function openApp(
     })
   }
   const faults = createFaultyStorage(sqlite.storage)
-  const options: SqlToolStorageOptions = {
+  const options: SqlToolLedgerStoreOptions = {
     storage: faults.storage,
     domains: lookupOf(SUITE_TENANTS),
+    tenants: listingOf(SUITE_TENANTS),
     combination: COMBINATION,
   }
   return {

@@ -101,3 +101,33 @@ MSYS_NO_PATHCONV=1 wsl.exe -d Ubuntu-24.04 --exec bash -l -c \
 - 释放发生在 worker 观察到离开的时刻，不是转移的瞬间，见 [Q7 的范围外](proofs/README.md#q7-退避表项的生命期)。
 - 确定失败不退避，所以每次再推写一条 warn，数量随 driver 重试间隔（缺省 1 秒）增长。SPEC 明确确定失败不退避；是否对 warn 本身限流，由拥有者另行判断。
 - 模型是有限范围：`DeliveryBackoff-table` 只有两个交付，Horizon=5。
+
+## DormantCalls
+
+2026-11-11，TLC 2.19（tla2tools 1.7.4），单 worker，带 `-deadlock`（负控 `no-rescan` 的坏状态是停住不动，关闭死锁检查后由时序性质报告）。性质与对应见 [formal-mapping.md](formal-mapping.md#dormantcalls-与源码)。
+
+```bash
+M=packages/tool/tool-host-local/verification/models
+for c in DormantCalls DormantCalls-unsafe-no-rescan DormantCalls-unsafe-no-reentry DormantCalls-unsafe-no-dormant DormantCalls-unsafe-leave-after-run; do
+  java -cp "$TLA2TOOLS_JAR" tlc2.TLC -deadlock -workers 1 -metadir "tmp/<task>/tlc/$c" -config "$M/$c.cfg" "$M/DormantCalls.tla"
+done
+```
+
+| 文件 | SHA-256 |
+| --- | --- |
+| `DormantCalls.tla` | `3b22844424b07a7eaf5651c1d1012fb3c62e7d723a7af54bf10a39fbd7182ce5` |
+| `DormantCalls.cfg` | `b0f9cd5cab03de023e8133a63c1aa725970433df255699f88477ed83a4773ffb` |
+| `DormantCalls-unsafe-no-rescan.cfg` | `cda5ca3342c08e1223d7e33b9c3f47f8412f4ba41c9b410a4ec225fb7ce01e14` |
+| `DormantCalls-unsafe-no-reentry.cfg` | `69c6fcecf484393b2e1d13da0a6f6bbe4cc8af97d5af7679a5258eaaae0f6a19` |
+| `DormantCalls-unsafe-no-dormant.cfg` | `20e44aba96d2c4a83bc62a3ea161e497a792567b8b48798e7285d30830895281` |
+| `DormantCalls-unsafe-leave-after-run.cfg` | `b339c5cdc560784a73b056a8dcf7e5285d4745c640ce258f3e40f6cf75207d5a` |
+
+| 配置 | 预期 | 结果 | 退出码 | 状态（生成 / 不同） |
+| --- | --- | --- | --- | --- |
+| `DormantCalls` | 无反例 | No error has been found | 0 | 25 / 13 |
+| `DormantCalls-unsafe-no-rescan` | `DecisionTaken` | 时序性质违反 | 13 | 15 / 10 |
+| `DormantCalls-unsafe-no-reentry` | `HintIsEnough` | 同名动作性质违反 | 13 | 24 / 13 |
+| `DormantCalls-unsafe-no-dormant` | `WaitingLeavesTable` | 时序性质违反 | 13 | 20 / 10 |
+| `DormantCalls-unsafe-leave-after-run` | `HintIsEnough` | 同名动作性质违反 | 13 | 25 / 15 |
+
+一个调用、一个执行器，状态空间很小；它检查的是三条找回途径之间的关系，不是规模。

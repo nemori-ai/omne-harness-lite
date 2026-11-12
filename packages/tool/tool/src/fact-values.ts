@@ -15,6 +15,8 @@ export type StoredFactBatch = Omit<FactBatch, 'events'> &
       event: string
       fact: StoredExecutionFact
       value: ToolCanonicalFingerprint
+      /** The request original of a wait event, which the stored fact does not keep; else null. */
+      request: string | null
     }>[]
   }>
 

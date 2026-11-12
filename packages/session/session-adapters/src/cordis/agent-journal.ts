@@ -1063,10 +1063,25 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   /**
    * The Session snapshot the `advances` check of this call reads, through the work cache of the
    * storage (session-storage-sql RT-04): a version read, and a whole read only after a commit.
+   * A read the storage does not answer now, or a state that does not cover the tail yet, is
+   * `unavailable`, as the Session read face answers it: the check judges no Authority on a
+   * snapshot it does not have. A session the tenant does not have gives null.
    */
-  async function snapshotOf(book: Book<P>, domain: DomainRef): Promise<WorkSnapshot | null> {
+  async function snapshotOf(
+    book: Book<P>,
+    domain: DomainRef,
+  ): Promise<Outcome<WorkSnapshot | null, Failure>> {
     const work = await readCachedSessionWork(options.storage, domain, book.tenantText, book.session)
-    return work.kind === 'state' ? work.snapshot : null
+    switch (work.kind) {
+      case 'state':
+        return succeed(work.snapshot)
+      case 'absent':
+        return succeed(null)
+      case 'behind':
+        return fail(unavailable('session.work: the state does not cover the tail yet'))
+      case 'unavailable':
+        return fail(unavailable(work.diagnostic))
+    }
   }
 
   function participation(
@@ -2302,11 +2317,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           synced = await loadExecution(book, domain.ok, named)
         if ('failure' in synced) return synced
         const copy = synced.ok
-        const scratch: Scratch = {
-          checks: [],
-          commands: [],
-          snapshot: READS.has(method) ? null : await snapshotOf(book, domain.ok),
-        }
+        const snapshot = READS.has(method) ? succeed(null) : await snapshotOf(book, domain.ok)
+        if ('failure' in snapshot) return snapshot
+        const scratch: Scratch = { checks: [], commands: [], snapshot: snapshot.ok }
         book.scratch = scratch
         // The Session's attempt records of this call's snapshot, with the grant each was issued
         // for (R2-D349): the core resolves an Authority's attempt through them (`history.ts`).

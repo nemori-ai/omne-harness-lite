@@ -375,7 +375,7 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 8. 报告确定之后，调用 `storage` 句柄的 `assemblyReportSettled()`。不得早于第 7 步。
 9. 撤除 Cordis 根。disposer 的结果只进诊断。
 
-**阶段规则。**一个阶段的全部句柄结束或到达 D 之后，才开始下一阶段。到达 D 时未结束的句柄记为 `incomplete`，协调者继续下一阶段，不等它。句柄抛出时记为 `failed`，继续下一阶段。报告确定后才结束的句柄只写诊断，不改变报告。协调者不关闭任何业务连接，不回滚提交；SQL 连接与 Worker 只由 SQL 提供者在第 6 步关闭。
+**阶段规则。**一个阶段的全部句柄结束或到达 D 之后，才开始下一阶段。同一阶段内按依赖逆序：一行提供的服务被同阶段的另一行注入时（直接注入，或经别的行间接注入），提供方的句柄在注入方的句柄结束或到达 D 之后才被调用；互相依赖的两行不分先后，没有依赖关系的行同时调用。次序由行清单的 `provides` 与 `injects` 推出（`stopPredecessors`）。原因是一行的 `stop` 可以卸载它提供的服务，Cordis 随即让注入该服务的行失活，注入方的收尾会被打断。到达 D 时未结束的句柄记为 `incomplete`，协调者继续下一阶段，不等它。句柄抛出时记为 `failed`，继续下一阶段。报告确定后才结束的句柄只写诊断，不改变报告。协调者不关闭任何业务连接，不回滚提交；SQL 连接与 Worker 只由 SQL 提供者在第 6 步关闭。
 
 **遥测关闭。**`storage` 阶段之后、第 7 步报告确定之前，协调者写一条动作为 `telemetry-close` 的 `shutdown-step`，调用入口交来的遥测关闭步骤：先把日志桥切到关闭后态，再以 `runtime.close(剩余期限)` 排空队列到本地出口。所以期限耗尽时，关闭期间与撤根期间的 Cordis 消息也走关闭后路径。步骤受同一个 D 约束，只为了报告：抛出记诊断并写 `unavailable` 与 `close-failed`，到达 D 写 `unavailable` 与 `deadline`，迟到的完成只写诊断。关闭报告附 `telemetry`：`closed` 带提供者的 `CloseReport` 与桥的四个计数；`telemetry` 行没有创建运行时时为 `not-registered`，只带桥的计数。附录不参与 `overall` 或退出码计算。撤根期间 disposer 写的 Cordis 消息经桥的关闭后态直接写出，在 `shutdown-result` 之前。报告确定后才结束的句柄的 `late-result` 若在 `shutdown-result` 之后到达，写到 stderr，见「进程输出与退出码」的 stdout 封口。规则归 [telemetry 行说明](docs/rows/telemetry.md#关闭步骤与报告)。
 

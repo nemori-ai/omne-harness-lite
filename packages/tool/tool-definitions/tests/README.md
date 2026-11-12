@@ -4,6 +4,8 @@
 
 public-entry 检查命令声明、help 和精确字节编辑。files-behavior 检查预检零写、重叠、批次未知、分页及操作映射。shell 检查明确配置、终端路由、cwd、后台零启动与中文字节上界。shell-control 检查单句柄停止、未确认及输出丢弃。contract-doubles 另外消费 Execution 已有内存文件与脚本进程。
 
+ask 经公开入口核对两条命令的参数校验、整批卡片与固定的跳过后果。它用真实的 schema-provider 按等待协议声明的 JSON Schema 核对请求与答复的形状，不经过 Tool 账本、宿主或 HITL。
+
 text-bounds 用单字节及多字节输入检查完整截断标记也计入预算，并核对首尾字节与所报区间。它同时覆盖一次返回和分段观察窗口。
 
 files-paths 用仿宿主的替身核对相对路径按工作区根解析：`.`、子路径、`..` 越界、绝对路径、Windows 风格根、move 与 patch 的第二路径，以及没有工作区根时的诊断。替身只模仿拒绝原因，不证明真实守卫。

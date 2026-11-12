@@ -268,6 +268,7 @@ describe('system principals against the release action matrix (验收 2)', () =>
       'sessionPrincipals.coordinator',
       'sessionPrincipals.maintainer',
       'sessionWorkPrincipals',
+      'toolDecisions',
     ])
     const verifier = verifierOf(fixture.env)
     await expect(verifier.verify(principals.coordinator)).resolves.toMatchObject({

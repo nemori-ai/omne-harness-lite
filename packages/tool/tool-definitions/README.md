@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-Files and Shell authors execute through authorized facilities. The root entry supports independent Tool execution. Production Cordis binding and real backend verification remain with the parent delivery.
+Files and Shell authors execute through authorized facilities. The package also gives the Ask checkpointed executor and its wait contract. The Ask command tool is not assembled yet. The root entry supports independent Tool execution. Production Cordis binding and real backend verification remain with the parent delivery.
 
 ## Usage
 

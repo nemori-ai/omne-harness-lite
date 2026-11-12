@@ -6,7 +6,16 @@ export type {
   SessionModesPublicationResult,
 } from './mode-publication.ts'
 export { SESSION_MODES_PUBLICATION } from './mode-publication-schema.ts'
-export type { SessionModesPublication, SessionInquiryView } from './mode-publication-schema.ts'
+export type {
+  SessionModesPublication,
+  SessionInquiryView,
+  SessionInteractionView,
+} from './mode-publication-schema.ts'
+export {
+  projectSessionCollaborationMode,
+  SESSION_COLLABORATION_MODE_TRANSLATION,
+} from './collaboration-mode.ts'
+export type { SessionInteraction } from './collaboration-mode.ts'
 export {
   projectSessionPermissionMode,
   SESSION_PERMISSION_MODE_TRANSLATION,

@@ -59,6 +59,7 @@ import {
   type AccountRecord,
   type CallAccount,
   type CallRecord,
+  type CheckpointStateRecord,
   type ExclusionRecord,
   type LedgerDomain,
   type LedgerRead,
@@ -68,7 +69,10 @@ import {
   type OperationRecord,
   type ResultRecord,
   type ResultCustody,
+  type SuspensionLedgerRecord,
   type TenantId,
+  type WaitLedgerRecord,
+  type WaitRequestRecord,
 } from './ledger-store.ts'
 
 /** The records of one domain, indexed for the deciders and the read projections. */
@@ -89,6 +93,14 @@ export type Snapshot = Readonly<{
   process: readonly ProcessRecord[]
   accounts: readonly AccountRecord[]
   tasks: readonly ToolTask[]
+  /** The suspensions by the operation that planned them. */
+  suspensions: ReadonlyMap<string, SuspensionLedgerRecord>
+  /** The waits by wait identity. */
+  waits: ReadonlyMap<string, WaitLedgerRecord>
+  /** The request original of the last accepted Ask wait, or null. */
+  waitRequest: WaitRequestRecord | null
+  /** The state of the last committed checkpoint, or null. */
+  checkpointState: CheckpointStateRecord | null
   /** The exclusion fences by operation; the ledger reads them, the deciders do not. */
   exclusions: ReadonlyMap<string, ExclusionRecord>
 }>
@@ -112,6 +124,10 @@ export function snapshotOf(
   const accounts: AccountRecord[] = []
   const tasks: ToolTask[] = []
   const exclusions = new Map<string, ExclusionRecord>()
+  const suspensions = new Map<string, SuspensionLedgerRecord>()
+  const waits = new Map<string, WaitLedgerRecord>()
+  let waitRequest: WaitRequestRecord | null = null
+  let checkpointState: CheckpointStateRecord | null = null
   for (const record of read.records) {
     switch (record.kind) {
       case 'body-entry':
@@ -159,6 +175,18 @@ export function snapshotOf(
       case 'exclusion':
         exclusions.set(record.exclusion.operation, record.exclusion)
         break
+      case 'suspension':
+        suspensions.set(record.suspension.suspension.operation, record.suspension)
+        break
+      case 'wait':
+        waits.set(record.wait.record.intent.wait, record.wait)
+        break
+      case 'wait-request':
+        waitRequest = record.waitRequest
+        break
+      case 'checkpoint-state':
+        checkpointState = record.checkpointState
+        break
       default:
         throw new Error(`a ${record.kind} record does not belong to a call domain`)
     }
@@ -179,6 +207,10 @@ export function snapshotOf(
     results,
     accounts,
     tasks,
+    suspensions,
+    waits,
+    waitRequest,
+    checkpointState,
     exclusions,
   }
 }
@@ -228,8 +260,8 @@ export type AdmitCommand = Readonly<{
   request: FixedToolRequest
   inputDigest: string
   /**
-   * The queue of the request's FIFO key as read before this decision: how many unreleased calls
-   * it holds and the configured capacity. Null when the ledger did not read it (a dummy).
+   * The queue of the request's concurrency scope as read before this decision: how many unreleased
+   * calls it holds and the configured capacity. Null when the ledger did not read it (a dummy).
    */
   queue: Readonly<{ load: number; capacity: number }> | null
 }>
@@ -300,7 +332,7 @@ function acceptWithinCapacity(command: AdmitCommand, mint: Mint): Decision<Admit
     fail({
       kind: 'unavailable',
       dependency: 'tool-queue',
-      diagnostic: `the queue of this scope and tool holds ${queue.load} unreleased calls, its capacity`,
+      diagnostic: `the queue of this scope holds ${queue.load} unreleased calls, its capacity`,
     }),
   )
 }
@@ -462,7 +494,15 @@ export function terminalText<B extends ContentBlock>(
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
   text: AdmitTools<B>['text'],
 ): Outcome<ToolRenderedResult<B>, ToolFailure> {
-  const made = text(describeTerminal(terminal))
+  return ledgerText(describeTerminal(terminal), text)
+}
+
+/** A text the ledger gives as the result of a call: the trusted factory makes and judges it. */
+export function ledgerText<B extends ContentBlock>(
+  words: string,
+  text: AdmitTools<B>['text'],
+): Outcome<ToolRenderedResult<B>, ToolFailure> {
+  const made = text(words)
   if ('ok' in made) return made
   return fail({
     kind: 'unavailable',
@@ -524,20 +564,25 @@ export function firstResultWrites(
   }
 }
 
-/** Synthetic settlement additionally records the work of producing a replacement result. */
+/**
+ * Synthetic settlement additionally records the work of producing a replacement result. `effect` is
+ * what the call did before the ledger settled it: nothing for a call that never started, unknown
+ * for a call whose segments ran before a control closed its wait.
+ */
 export function settlementWrites(
   snapshot: Snapshot,
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
-  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
+  terminal: SyntheticNeed['terminal'],
   value: ResultValue,
   mint: Mint,
+  effect: Effect = { kind: 'not-started' },
 ): Outcome<Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }>, ToolFailure> {
   const first = firstResultWrites(
     place,
     consumer,
     terminal,
-    { kind: 'not-started' },
+    effect,
     value,
     { kind: 'synthetic' },
     mint,

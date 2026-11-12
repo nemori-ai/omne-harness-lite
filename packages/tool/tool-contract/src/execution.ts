@@ -93,7 +93,19 @@ export type ToolRecovery = Readonly<{
   unresolved: readonly ToolOperationId[]
   preparations: readonly PreparationRecord[]
   waits: readonly WaitRecord[]
+  /**
+   * The request original of the last Ask wait that the call accepted, as JSON text, or null. The
+   * wait fact gives it, `WaitIntent.request` binds its digest, and the ledger keeps one for the
+   * call until the call settles.
+   */
+  waitRequest: Readonly<{ wait: ToolWaitId; request: string }> | null
   suspensions: readonly SuspensionRecord[]
+  /**
+   * The state of the last committed checkpoint as base64 text, or null. `payload` is the
+   * `Checkpoint.payload` that binds its digest, and a resume start names it as its checkpoint. The
+   * ledger keeps one for the call until the call settles.
+   */
+  checkpointState: Readonly<{ payload: DurableEvidence; state: string }> | null
   tasks: readonly ToolTask[]
   program: ProgramClosure | null
   scheduling: ProgramScheduling | null
@@ -163,7 +175,8 @@ export interface ToolCommands<P, B extends ContentBlock> {
     input: WriteContext & Readonly<{ start: ToolStartRecord; schema: Adoption }>,
   ): Reply<SuspensionRecord>
   suspend(
-    input: WriteContext & Readonly<{ suspension: SuspensionRecord; checkpoint: Checkpoint }>,
+    input: WriteContext &
+      Readonly<{ suspension: SuspensionRecord; checkpoint: Checkpoint; state: string }>,
   ): Reply<ToolState>
   preserveResult(input: WriteContext & Readonly<{ basis: DurableEvidence }>): Reply<ToolState>
   recordResponse(

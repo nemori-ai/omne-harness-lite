@@ -371,6 +371,26 @@ export interface SessionPrincipalBindingSource {
   >
 }
 /**
+ * The session that minted a Context scope, read from the record that Session writes in the commit
+ * that mints the scope (creation mints generation 1, each unarchiving the next). Like
+ * `SessionPrincipalBindingSource` it is a trusted read of an ownership fact: it does not ask
+ * `SessionAccessCheck`, and only the trusted closure of the assembly reads it. The scope text is a
+ * one-way digest, so the source looks in the domain of every registered tenant. A scope that no
+ * session minted is `unknown`; a read that could not look in every domain is a failure, never
+ * `unknown`. An ended scope still has its owner.
+ */
+export interface SessionScopeOwnerSource {
+  lookup(
+    input: Readonly<{ scope: string }>,
+  ): Promise<
+    Outcome<
+      | Readonly<{ kind: 'owned'; tenant: TenantId; session: SessionId; generation: string }>
+      | Readonly<{ kind: 'unknown' }>,
+      Extract<SessionFailure, { kind: 'unavailable' }>
+    >
+  >
+}
+/**
  * The per-session principal of a coordinator or maintainer (D-AUTH r4 4.1). The assembly entry
  * issues it after it read `SessionPrincipalBindingSource`: `not-bound` answers `denied`; a `bound`
  * answer for another tenant or session answers `quarantined`; a failed or throwing read passes its

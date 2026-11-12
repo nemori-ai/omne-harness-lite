@@ -8,26 +8,33 @@
 
 | 文件 | 唯一责任 |
 | --- | --- |
-| src/index.ts | 治理与会话两组共八个纯函数、身份文本八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
+| src/index.ts | 治理、会话与 HITL 三组共十二个纯函数、身份文本八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
 | src/messages.ts | 治理的正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
 | src/session-messages.ts | 会话的7个操作、请求、按操作/结果关联响应、历史页、中断成功正文与codec结果类型 |
 | src/operation-rules.ts | 规则种类、协议族描述，以及完整38正常/4阶段封闭规则、信封/body字段和outcome映射 |
 | src/session-rules.ts | 会话协议族：7个操作的封闭规则、信封/body字段和outcome映射；中断成功正文用`kind`字面量区分互斥分支 |
+| src/hitl-messages.ts | HITL 的 4 个操作、请求、按操作/结果关联响应、卡片视图、答复结果与codec结果类型 |
+| src/hitl-rules.ts | HITL 协议族：4 个操作的封闭规则、信封/body字段、outcome映射与卡片视图；卡片、`reply` 与答复结果用`kind`字面量区分互斥分支 |
 | src/identity-text.ts | 租户、组织、账号、登录状态的文本读写：直接委托legal-identity的铸造与输出函数，租户另加严格JSON与小预算门 |
 | src/codec.ts | 按协议族参数化的核心与治理四函数：公开参数防护、模型与wire转换、响应验证后匹配 |
 | src/session-codec.ts | 会话四函数，各是核心对会话协议族的一次实例化 |
+| src/hitl-codec.ts | HITL 四函数，各是核心对 HITL 协议族的一次实例化 |
 | src/correlation.ts | readRequestDocument和recoverCorrelation，私有严格读取门与迭代metadata自动机 |
 
 直接依赖仅实际使用的json-text、legal-identity、utc-instant及jsonc-parser。jsonc-parser使用现行catalog 3.3.1。静态Schema仅作为已核输入，不引入provider、引擎或异步生命周期。SDK、server-entry、identity、authorization、Cordis和数据库不进入依赖闭包。
 
-核心不写死版本或操作表。协议族描述给出版本文本、编程错误文本、封闭操作表和阶段操作清单。共同拒绝集合由阶段操作清单推出：每个协议族都有 `protocol-rejected`，只有阶段操作清单非空的协议族才有 `stage-not-provided`。治理协议族有4项阶段操作。响应一侧，`stage-not-provided` 对该协议族的每个操作都合法，因为部署可以声明一个正常操作不提供。请求一侧只有这4项阶段操作读作 `stage-not-provided`，部署的声明不在本成员。会话协议族的清单为空，所以会话一组既不读出也不编码 `stage-not-provided`，读取结果的类型里也没有这一项。
+核心不写死版本或操作表。协议族描述给出版本文本、编程错误文本、封闭操作表、阶段操作清单，以及部署能否声明不提供操作。共同拒绝集合由这两项推出：每个协议族都有 `protocol-rejected`。阶段操作清单非空，或部署能声明不提供操作时，协议族另有 `stage-not-provided`。治理协议族有4项阶段操作，部署也能声明。响应一侧，`stage-not-provided` 对该协议族的每个操作都合法，因为部署可以声明一个正常操作不提供。请求一侧只有这4项阶段操作读作 `stage-not-provided`，部署的声明不在本成员。会话协议族的清单为空，部署也不能声明，所以会话一组既不读出也不编码 `stage-not-provided`，读取结果的类型里也没有这一项。
+
+HITL 协议族是参数化核心的第三次实例化。它的阶段操作清单为空，部署能声明不提供操作。所以 HITL 一组的请求读取不读出 `stage-not-provided`，响应读取与编码对四个操作都接受空 `body` 的 `stage-not-provided`。HITL 的卡片视图、`reply` 与成功正文都是以 `kind` 字面量互斥的联合，用 one-of 规则表达，不需要新的叶子种类。本成员不导入 HITL 的包，HITL 的形状在本成员的规则表里用本成员的词重写。协议族描述用 `declarable` 表示部署能否声明不提供操作：治理与 HITL 为真，会话为假。HITL 另用两个叶子种类与一项数组上界：`revision` 读写十进制修订文本，`page-limit` 读写 1 至 100 的 JSON 整数（读取时数字文本只能是十进制整数），数组规则的 `max` 把 `filter.states` 限为至多 3 项。
 
 ```mermaid
 flowchart LR
   G[治理协议族<br/>阶段操作 4 项<br/>共同拒绝 2 种] --> C[参数化核心<br/>codec.ts]
   S[会话协议族<br/>阶段操作 0 项<br/>共同拒绝 1 种] --> C
+  H[HITL 协议族<br/>阶段操作 0 项<br/>部署可声明不提供<br/>共同拒绝 2 种] --> C
   C --> GF[治理四函数<br/>codec.ts]
   C --> SF[会话四函数<br/>session-codec.ts]
+  C --> HF[HITL 四函数]
 ```
 
 规则表的叶子种类各对应一个转换函数，转换器按表分派，其余四种规则（literal、object、array、one-of）走穷尽分支。`read-history` 的 `cursor` 出现规则用 one-of 规则表达：两种封闭对象形状，`cursor` 为 null 的形状必带 `direction` 与 `pageBytes`。`read-session-diagnostics` 同样：`cursor` 为 null 的形状必带 `run` 与 `pageBytes`。one-of 的选项必须互斥，第一个转换成功的选项生效，本地值不记录命中的是哪一项。会话诊断页的各个联合（结构化原因、调用解析、账目视图、派发结局）也用 one-of 表达，每个选项以字面量 `kind` 互斥。闭合枚举或 `unknown`（`model-refused` 的 `failure`、`cannot-fit` 的 `reason`）与 Tool 诊断条目数组或 `unknown`，选项以 JSON 类型互斥：字面量与对象，数组与对象。规则表在 `session-rules.ts` 里按页的层次组织，没有叶子种类之外的新转换器。
@@ -42,7 +49,7 @@ recoverCorrelation使用jsonc-parser扫描token与显式对象/数组frame栈，
 
 两个pass使用同一冻结预算。补扫再次检查完整输入，不因第一处duplicate提前停止而遗漏后缀错误。maxMembers按出现次数可比严格读取更早发现拒绝，不能将补扫更宽松地变成允许。整输入字节上限限制token分配，但不是进程RSS保证。没有隐藏第七深度上限，不捕获RangeError后把有效输入悄悄降成无关联。意外内部编程故障不转换成成功、可信关联或预期拒绝。
 
-响应读取从不补扫被拒绝的响应。它按原operation完整验证版本、outcome/body和关联字段，之后才比较expectedMessageId。治理一组的共同拒绝重载在没有operation时只允许两种共同outcome，带operation的重载仍受41项映射约束。会话一组的共同拒绝重载只允许 `protocol-rejected`，带operation的重载受7项映射约束。
+响应读取从不补扫被拒绝的响应。它按原operation完整验证版本、outcome/body和关联字段，之后才比较expectedMessageId。治理一组的共同拒绝重载在没有operation时只允许两种共同outcome，带operation的重载仍受41项映射约束。会话一组的共同拒绝重载只允许 `protocol-rejected`，带operation的重载受7项映射约束。HITL 一组的共同拒绝重载允许 `protocol-rejected` 与 `stage-not-provided`，带operation的重载受4项映射约束。
 
 ## 字段和对象检查
 
@@ -52,7 +59,7 @@ proof的missing/empty/present是本地协议表示，业务身份由后续拥有
 
 ## 持续验证与责任
 
-测试从主exports消费。tests/protocol.spec.ts核共同边界，tests/correlation.spec.ts核完整补扫和预算，tests/operations.spec.ts与tests/responses.spec.ts核完整矩阵，tests/public-consumption.spec-d.ts核关联类型，tests/model-credential.spec.ts核三个模型凭据操作，tests/session-protocol.spec.ts、tests/session-responses.spec.ts与tests/session-consumption.spec-d.ts核会话一组，tests/session-control-protocol.spec.ts、tests/session-control-responses.spec.ts与tests/session-control-consumption.spec-d.ts核两个中断操作，tests/install-closure.spec.ts核干净安装。tests/fixtures/client.ts与server.ts为纯协议两端fixture，profile.mjs为有界资源观测。它们不实现真实业务provider。本成员没有 `./testing` 导出。
+测试从主exports消费。tests/protocol.spec.ts核共同边界，tests/correlation.spec.ts核完整补扫和预算，tests/operations.spec.ts与tests/responses.spec.ts核完整矩阵，tests/public-consumption.spec-d.ts核关联类型，tests/model-credential.spec.ts核三个模型凭据操作，tests/session-protocol.spec.ts、tests/session-responses.spec.ts与tests/session-consumption.spec-d.ts核会话一组，tests/session-control-protocol.spec.ts、tests/session-control-responses.spec.ts与tests/session-control-consumption.spec-d.ts核两个中断操作，tests/hitl-protocol.spec.ts与tests/hitl-responses.spec.ts核HITL一组，tests/install-closure.spec.ts核干净安装。tests/fixtures/client.ts与server.ts为纯协议两端fixture，profile.mjs为有界资源观测。它们不实现真实业务provider。本成员没有 `./testing` 导出。
 
 关联向量必须包括ID在duplicate前后、转义等值ID重复、嵌套键、坏后缀、字符串/数字scanner边角、六预算等界/越界，以及超过原生递归容量但在显式预算内的深度。差分向量比较严格成功与补扫语法的适用一致性，duplicate输入永远仍为拒绝。测试只能证明覆盖范围，不能声称真实权限或持久业务验证。
 

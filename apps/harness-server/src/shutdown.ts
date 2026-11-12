@@ -1,6 +1,8 @@
 // 关闭协调器（s0-spec-r2 §9「步骤」「阶段规则」）。全部阶段共用截止时间 D；句柄超时记 incomplete，
 // 抛出记 failed，协调者继续下一阶段。四个阶段之后是入口交来的遥测关闭步骤，报告确定后才调用
 // `assemblyReportSettled()`，之后才撤除根。
+// 同一阶段内按依赖逆序：一行的 stop 可以卸载它提供的服务，Cordis 随即让注入该服务的行失活，
+// 所以提供方的句柄等注入它的各行的句柄结束或到达 D 之后才被调用（`stopPredecessors`）。
 import type { LifecycleEntry, LifecycleRegistry } from './lifecycle.ts'
 import { PHASE_ORDER } from './lifecycle.ts'
 import type {
@@ -8,6 +10,7 @@ import type {
   HostFilesReport,
   LifecyclePhase,
   RowId,
+  RowManifest,
   ShutdownReport,
   StopResult,
   TelemetryShutdownReport,
@@ -55,6 +58,12 @@ export type ShutdownRecord = Readonly<{
 
 export type ShutdownOptions = Readonly<{
   log?: (record: ShutdownRecord) => void
+  /**
+   * For a row, the rows of its phase whose stop is over (or at the deadline) before its own stop
+   * is called. `stopPredecessors` derives it from the row manifests. Rows it does not name stop
+   * together.
+   */
+  stopsFirst?: ReadonlyMap<RowId, readonly RowId[]>
   /** Entry-owned host retirement and final maintenance, bounded only for report collection. */
   afterBusiness?: () => Promise<HostFilesReport>
   /** Entry-owned telemetry close after the storage phase, with the deadline D; bounded only for the report. */
@@ -64,6 +73,53 @@ export type ShutdownOptions = Readonly<{
 }>
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+/**
+ * The stop order inside a phase, from the row manifests: for each row with a shutdown phase, the
+ * rows of the same phase that inject, directly or through other rows, a service it provides. Their
+ * stops come first, because the stop of a provider may unload its service. Two rows that depend
+ * on each other have no order between them.
+ */
+export function stopPredecessors(
+  rows: readonly Readonly<{ row: Readonly<{ id: RowId }>; manifest: RowManifest }>[],
+): Map<RowId, RowId[]> {
+  const providers = new Map<string, RowId[]>()
+  for (const { row, manifest } of rows)
+    for (const name of manifest.provides)
+      providers.set(name, [...(providers.get(name) ?? []), row.id])
+  const direct = new Map<RowId, RowId[]>(
+    rows.map(({ row, manifest }) => [
+      row.id,
+      manifest.injects.flatMap(name => providers.get(name) ?? []).filter(id => id !== row.id),
+    ]),
+  )
+  /** Every row that `from` depends on, directly or through other rows. */
+  const reach = (from: RowId): Set<RowId> => {
+    const seen = new Set<RowId>()
+    const pending = [...(direct.get(from) ?? [])]
+    for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+      if (seen.has(next) || next === from) continue
+      seen.add(next)
+      pending.push(...(direct.get(next) ?? []))
+    }
+    return seen
+  }
+  const phased = rows.filter(({ manifest }) => manifest.phase !== null)
+  const needs = new Map(phased.map(({ row }) => [row.id, reach(row.id)]))
+  return new Map(
+    phased.map(({ row: provider, manifest }) => [
+      provider.id,
+      phased
+        .filter(
+          ({ row: consumer, manifest: other }) =>
+            other.phase === manifest.phase &&
+            needs.get(consumer.id)?.has(provider.id) === true &&
+            needs.get(provider.id)?.has(consumer.id) !== true,
+        )
+        .map(({ row: consumer }) => consumer.id),
+    ]),
+  )
+}
 
 export function runShutdown(
   registry: LifecycleRegistry,
@@ -252,9 +308,22 @@ async function execute(
   let hostFiles: HostFilesReport | undefined
   for (const phase of PHASE_ORDER) {
     const rows = [...expected].filter(([, expectedPhase]) => expectedPhase === phase)
-    const phaseOutcomes = await Promise.all(
-      rows.map(([row]) => outcomeOfRow(registry, frozen, phase, row, budget)),
-    )
+    // A provider waits for the rows that depend on it. Every outcome is there by the deadline, and
+    // the relation has no cycle, so each stop of the phase is called.
+    const settling = new Map<RowId, Promise<HandleOutcome>>()
+    const outcomeAfterDependents = (row: RowId): Promise<HandleOutcome> => {
+      const known = settling.get(row)
+      if (known !== undefined) return known
+      const first = (options.stopsFirst?.get(row) ?? []).filter(
+        other => other !== row && expected.get(other) === phase,
+      )
+      const outcome = Promise.all(first.map(outcomeAfterDependents)).then(() =>
+        outcomeOfRow(registry, frozen, phase, row, budget),
+      )
+      settling.set(row, outcome)
+      return outcome
+    }
+    const phaseOutcomes = await Promise.all(rows.map(([row]) => outcomeAfterDependents(row)))
     outcomes.push(...phaseOutcomes)
     if (phase === 'business' && options.afterBusiness !== undefined) {
       hostFiles = await collectHostFiles(options.afterBusiness, phase, budget)

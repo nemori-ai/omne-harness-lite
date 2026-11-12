@@ -783,7 +783,7 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
         },
         batchDecision: null,
         mode: 'foreground',
-        limits: { concurrency: 8, foregroundMs: null, backgroundAfterMs: null },
+        limits: { concurrency: 8, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
       }
       const outcome = await api.invoke({ ...access, request })
       await record('invoke', {

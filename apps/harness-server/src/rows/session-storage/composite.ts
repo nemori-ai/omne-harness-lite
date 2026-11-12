@@ -3,9 +3,17 @@
 // 同在一个组合里，否则提供者按目录核对参加者（sql-contract §6.2 第 5 步）会报 `read_table_unowned`；Model 的耐久记录仓
 // 与会话日志同一事务域（装配页「租户到事务域的目录」、R2-D6），所以 `model` 参加者并入同一组合，`model-records` 行以
 // 同一个 `combinationVersion` 与本函数算出的同一摘要提交。Tool 的耐久记录仓（`tool` 参加者）在 B 段同样并入，`tool-records`
-// 行以同一版本与摘要提交。清单按名字排序（摘要不依赖顺序，排序只为可读）。
+// 行以同一版本与摘要提交。Tool 的 Ask 等待由 HITL 保管（`rows/tool-hitl`）：HITL 的参加者与 Session 的只读守卫
+// `session.run-live` 也并入，守卫与 HITL 的登记和答复在同一笔提交里成立。清单按名字排序（摘要不依赖顺序，排序只为可读）。
+import {
+  hitlSqlMaterials,
+  independentWaitSqlMaterials,
+} from '@omne-harness/human-intervention-local'
 import { MODEL_PARTICIPANT } from '@omne-harness/model-storage-sql'
-import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
+import {
+  SESSION_LOG_PARTICIPANTS,
+  SESSION_RUN_LIVE_GUARD,
+} from '@omne-harness/session-storage-sql/participants'
 import { TOOL_PARTICIPANT } from '@omne-harness/tool-storage-sql'
 import {
   combinationManifest,
@@ -13,10 +21,18 @@ import {
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
 
+/** HITL 的全部参加者：终态、请求与等待的规划者和写者。 */
+const HITL_PARTICIPANTS = [
+  ...hitlSqlMaterials().participants,
+  ...independentWaitSqlMaterials().participants,
+].map(participant => participant.participant)
+
 export const SESSION_COMPOSITE_PARTICIPANTS: readonly string[] = [
   ...SESSION_LOG_PARTICIPANTS,
   MODEL_PARTICIPANT,
   TOOL_PARTICIPANT,
+  ...HITL_PARTICIPANTS,
+  SESSION_RUN_LIVE_GUARD,
 ].toSorted()
 
 export type CompositeManifest =

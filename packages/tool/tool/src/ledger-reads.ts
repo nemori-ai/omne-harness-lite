@@ -12,13 +12,14 @@ import type {
   ToolLookup,
   ToolOperationId,
   ToolResultVersion,
+  ToolStartRecord,
   ToolResult,
 } from '@omne-harness/tool-contract'
 import type { ToolRecovery } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import { pageToolResult } from './result-page.ts'
 import { factProgress } from './ledger-facts.ts'
-import { mintEvidence } from './evidence.ts'
+import { digestOf, mintEvidence } from './evidence.ts'
 import type { Snapshot } from './ledger-decider.ts'
 import type { CallAccount, ResultRecord } from './ledger-store.ts'
 
@@ -97,9 +98,10 @@ export function readResultPage<B extends ContentBlock>(
 
 /**
  * The complete recovery read of a call (P01 loadRecovery): what the call domain holds of its
- * way to a start, its tasks and its first result. Waits, controls, suspensions, raw outputs,
- * program closure and scheduling are empty until their increments record them. Fact streams
- * project the saved cursor and the original receipts whose source confirmation is pending.
+ * way to a start, its suspensions and waits, its tasks and its first result. The checkpoint is the
+ * one a suspended call holds. Program closure and scheduling are empty until their increments
+ * record them. Fact streams project the saved cursor and the original receipts whose source
+ * confirmation is pending.
  */
 export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFailure> {
   const call = snapshot.call
@@ -112,21 +114,44 @@ export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFail
     admission: call.admission,
     initiator: call.initiator,
     execution: call.execution,
-    checkpoint: null,
+    checkpoint: call.state.phase === 'suspended' ? call.state.checkpoint : null,
     start: call.start,
     startRejection: call.startRejection,
-    invocations: call.start === null ? [] : [call.start],
+    invocations: invocationChain(snapshot),
     controls: call.state.controls,
     result: original === undefined ? null : { version: original.result, source: original.source },
     unresolved: [],
     preparations: call.preparations,
-    waits: [],
-    suspensions: [],
+    waits: [...snapshot.waits.values()].map(wait => wait.record),
+    waitRequest: snapshot.waitRequest,
+    suspensions: [...snapshot.suspensions.values()].map(entry => entry.suspension),
+    checkpointState: snapshot.checkpointState,
     tasks: snapshot.tasks,
     program: null,
     scheduling: null,
     streams: factProgress(snapshot),
   })
+}
+
+/**
+ * The start and resume records of the call, first to current (P07: recovery keeps the whole
+ * chain). Each resume names the checkpoint it continues, and the suspension that committed that
+ * checkpoint keeps the start of the segment before it.
+ */
+function invocationChain(snapshot: Snapshot): ToolStartRecord[] {
+  const chain: ToolStartRecord[] = []
+  let current = snapshot.call?.start ?? null
+  while (current !== null && chain.length <= snapshot.suspensions.size) {
+    chain.unshift(current)
+    if (current.kind !== 'resume') break
+    const { checkpoint } = current
+    const before = [...snapshot.suspensions.values()].find(
+      entry =>
+        entry.checkpoint !== null && digestOf(entry.checkpoint.payload) === digestOf(checkpoint),
+    )
+    current = before?.suspension.start ?? null
+  }
+  return chain
 }
 
 /** The current account of the call: the latest revision of the one recorded source. */

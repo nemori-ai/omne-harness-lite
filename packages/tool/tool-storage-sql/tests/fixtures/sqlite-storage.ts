@@ -33,13 +33,17 @@ import type {
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
 import migration from '../../src/worker/migration.ts'
+import pendingMigration from '../../src/worker/migration-pending.ts'
 import participant from '../../src/worker/participant.ts'
 import readLedger from '../../src/worker/read-ledger.ts'
 import readBody from '../../src/worker/read-body.ts'
 import readDue from '../../src/worker/read-due.ts'
+import readPending from '../../src/worker/read-pending.ts'
 import { READ_OUTPUT_BYTES } from '../../src/worker/schema.ts'
 
-const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readBody, readDue]
+const HANDLERS: readonly ReadHandlerModule[] = [readLedger, readPending, readBody, readDue]
+/** 按 `requires` 的拓扑序：基线的 Tool 表，然后待办标记表。 */
+const MIGRATIONS = [migration, pendingMigration] as const
 
 export type SqliteStorageOptions = Readonly<{
   /** The directory that holds one database file per transaction domain. */
@@ -106,7 +110,7 @@ const identityText = (identity: SqlIdentity): string =>
 function execute(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
   const statement = db.prepare(sql)
   statement.setReadBigInts(true)
-  if (/^\s*(SELECT|WITH)/iu.test(sql)) {
+  if (/^\s*(SELECT|WITH|EXPLAIN)/iu.test(sql)) {
     const rows = statement.all(...(params as never[])) as Record<string, SqlCell>[]
     const columns = rows[0] === undefined ? [] : Object.keys(rows[0])
     return {
@@ -175,7 +179,7 @@ export function createSqliteStorage(options: SqliteStorageOptions): SqliteStorag
         }
         rowsOf(db, 'INSERT INTO _sql_binding (scope) VALUES (?)', [scopeText(scope)])
       }
-      for (const step of [migration]) {
+      for (const step of MIGRATIONS) {
         const done = rowsOf(db, 'SELECT 1 AS done FROM _sql_migration WHERE owner = ? AND id = ?', [
           step.owner,
           step.id,
@@ -407,6 +411,6 @@ export function migratedPort(): Readonly<{
     requireFact: () => null,
     provideFact: () => undefined,
   }
-  migration.up(port)
+  for (const step of MIGRATIONS) step.up(port)
   return { port, rows: (sql, params = []) => rowsOf(db, sql, params) }
 }

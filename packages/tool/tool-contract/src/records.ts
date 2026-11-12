@@ -67,6 +67,12 @@ export type PreparationProgress<E> =
   | Readonly<{ kind: 'prepared'; environment: PreparedEnvironment<E> }>
   | Readonly<{ kind: 'excluded'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'rejected'; reason: string; evidence: DurableEvidence }>
+  /**
+   * The environment of this preparation is live in no process: it was acquired by a process that is
+   * gone (cold recovery). The original record keeps its cleanup responsibility; the caller may plan
+   * another preparation for the segment, never adopt this one.
+   */
+  | Readonly<{ kind: 'lost'; evidence: DurableEvidence; diagnostic: string }>
   | Readonly<{ kind: 'pending' | 'unknown'; diagnostic: string }>
 export type ReleaseRecord = ProtocolIdentity &
   Readonly<{
@@ -253,13 +259,19 @@ export type SuspensionRecord = ProtocolIdentity &
 export type Checkpoint = Readonly<{
   schema: Adoption
   payload: DurableEvidence
+  /** The text the call answers with when a control closes the wait of this checkpoint. */
+  closedResult: string
   start: ToolStartRecord
   consumedResponses: readonly ToolOperationId[]
   effectBoundary: DurableEvidence
   exclusion: DurableEvidence
 }>
 export type SuspensionProgress =
-  | Readonly<{ kind: 'suspended'; checkpoint: Checkpoint }>
+  /**
+   * `state` is the state of the suspended segment, encoded by the declared codec, as base64 text.
+   * `checkpoint.payload` binds its digest. The ledger keeps the state under the suspension's own key.
+   */
+  | Readonly<{ kind: 'suspended'; checkpoint: Checkpoint; state: string }>
   | Readonly<{ kind: 'not-suspended'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unknown' | 'rejected'; diagnostic: string }>
 export interface ToolRecoveryBinding {

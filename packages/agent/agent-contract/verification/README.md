@@ -10,4 +10,4 @@
 
 ## 未覆盖
 
-运行契约、跨域围栏、持久化、实例换代及 Cordis 动态装配不由本包的验证单独证明。形式模型目录有 Journal 收尾协议的有界模型。它的规模上限、映射与未覆盖范围见 [formal-mapping.md](formal-mapping.md)，运行记录见 [formal-runs.md](formal-runs.md)。有限模型检查不是证明。[局部证明](proofs/README.md)只覆盖输入读取和节点失败输入保管，不授予整个 Agent 的活性或组合接受。
+运行契约、跨域围栏、持久化、实例换代及 Cordis 动态装配不由本包的验证单独证明。形式模型目录有两个有界模型：Journal 收尾协议，以及 Agent 循环等人状态点（卡片轮次、整批屏障与交回）。它们的规模上限、映射与未覆盖范围见 [formal-mapping.md](formal-mapping.md)，运行记录见 [formal-runs.md](formal-runs.md)。等人状态点的模型先于实现，没有轨迹回放。有限模型检查不是证明。[局部证明](proofs/README.md)只覆盖输入读取和节点失败输入保管，不授予整个 Agent 的活性或组合接受。

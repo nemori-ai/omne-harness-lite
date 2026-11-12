@@ -72,6 +72,7 @@ const NAMES = {
   E17: 'another tenant does not receive the resource of a tenant',
   E18: 'another tenant cannot release the resource of a tenant',
   E19: 'another tenant learns nothing of a release by inspectRelease',
+  E20: 'an environment prepared before a restart is lost to the new process and not allocated again',
 } as const
 
 type Fixture = ToolEnvironmentFixture<string, MemoryEnvironment>
@@ -90,7 +91,13 @@ function variant(
   return () => {
     const base = memoryToolEnvironmentFixture()
     const laid = build(base.environment, base)
-    return { ...base, ...laid.handles, environment: { ...base.environment, ...laid.port } }
+    const environment = { ...base.environment, ...laid.port }
+    // A restart keeps the variant's port: only the registrations of the double are gone.
+    const restart = async () => {
+      await base.restart?.()
+      return environment
+    }
+    return { ...base, restart, ...laid.handles, environment }
   }
 }
 
@@ -128,6 +135,12 @@ const isForeign = (tenant: typeof own.tenant): boolean =>
 
 const variants: readonly Variant<Fixture>[] = [
   {
+    // A restart leaves every environment live: the new process reconnects the old one.
+    name: 'a restart keeps the environments live',
+    fails: [NAMES.E20],
+    fixture: variant(real => ({ handles: { restart: () => Promise.resolve(real) } })),
+  },
+  {
     // The second prepared answer of one operation is another resource.
     name: 'a resent preparation answers another resource',
     fails: [NAMES.E1, NAMES.E17],
@@ -148,7 +161,7 @@ const variants: readonly Variant<Fixture>[] = [
   {
     // The resend allocates a second resource and hides it behind the first answer.
     name: 'a resent preparation allocates again',
-    fails: [NAMES.E2, NAMES.E3, NAMES.E14],
+    fails: [NAMES.E2, NAMES.E3, NAMES.E14, NAMES.E20],
     fixture: variant(real => {
       let calls = 0
       return {
@@ -179,7 +192,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'inspectPreparation fabricates prepared for what is not prepared',
-    fails: [NAMES.E5, NAMES.E7, NAMES.E8, NAMES.E9, NAMES.E10],
+    fails: [NAMES.E5, NAMES.E7, NAMES.E8, NAMES.E9, NAMES.E10, NAMES.E20],
     fixture: variant(real => ({
       port: {
         inspectPreparation: async input => {
@@ -1044,6 +1057,7 @@ const variants: readonly Variant<Fixture>[] = [
       NAMES.E17,
       NAMES.E18,
       NAMES.E19,
+      NAMES.E20,
     ],
     fixture: variant(real => ({
       port: {
@@ -1176,6 +1190,7 @@ const NEEDS_SETTLE: Readonly<Record<string, string>> = Object.fromEntries(
     NAMES.E17,
     NAMES.E18,
     NAMES.E19,
+    NAMES.E20,
   ].map(name => [name, 'settle']),
 )
 
@@ -1258,6 +1273,7 @@ const LATE_FAILS = [
   NAMES.E17,
   NAMES.E18,
   NAMES.E19,
+  NAMES.E20,
 ]
 const LATE_FAILS_REJECTION = [
   NAMES.E1,
@@ -1273,6 +1289,7 @@ const LATE_FAILS_REJECTION = [
   NAMES.E17,
   NAMES.E18,
   NAMES.E19,
+  NAMES.E20,
 ]
 const lateHandles: readonly Variant<Fixture>[] = [
   {
@@ -1348,6 +1365,7 @@ describe('ToolEnvironment conformance suite', () => {
       [NAMES.E17]: 'otherAccess',
       [NAMES.E18]: 'otherAccess',
       [NAMES.E19]: 'otherAccess',
+      [NAMES.E20]: 'restart',
     })
   })
 

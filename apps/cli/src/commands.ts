@@ -28,6 +28,7 @@ import {
 } from './command-support.ts'
 import { runReadSessionDiagnostics } from './diagnostics-command.ts'
 import { governanceCommands } from './governance-commands.ts'
+import { hitlCommands } from './hitl-commands.ts'
 import { runReadHistory } from './history-command.ts'
 import { writeLoginState, type LoginState } from './login-state.ts'
 import { readOptions } from './options.ts'
@@ -404,6 +405,7 @@ export const productionCommands: readonly CommandSpec[] = [
     summary: 'Stop a model or tool call.',
     run: (args, output, environment) => runSession(stopCall, args, output, environment),
   },
+  ...hitlCommands,
   ...governanceCommands,
   settingCommand,
 ]

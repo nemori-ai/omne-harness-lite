@@ -29,7 +29,7 @@ function request(): FixedToolRequest {
     consumer: { owner: 'consumer', work: 'work-1', position: 'position-1', purpose: 'tool-result' },
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: 0, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: 0, backgroundAfterMs: null },
   }
 }
 
@@ -178,6 +178,28 @@ describe('request judgment', () => {
     expect(rejection({ ...request(), limits: { ...limits, backgroundAfterMs: 1.5 } })).toEqual({
       field: 'limits.backgroundAfterMs',
       reason: 'range',
+    })
+  })
+
+  it('request judgment: the scope budget is a positive integer or null, under the same rule as the tool limit', () => {
+    const limits = request().limits
+    for (const scopeBudget of [null, 1, 3])
+      expect(judgeFixedToolRequest({ ...request(), limits: { ...limits, scopeBudget } })).toEqual({
+        ok: { ...request(), limits: { ...limits, scopeBudget } },
+      })
+    for (const scopeBudget of [0, -1, 1.5])
+      expect(rejection({ ...request(), limits: { ...limits, scopeBudget } })).toEqual({
+        field: 'limits.scopeBudget',
+        reason: 'range',
+      })
+    expect(rejection({ ...request(), limits: { ...limits, scopeBudget: '1' } })).toEqual({
+      field: 'limits.scopeBudget',
+      reason: 'type',
+    })
+    const { scopeBudget: _absent, ...withoutBudget } = limits
+    expect(rejection({ ...request(), limits: withoutBudget })).toEqual({
+      field: 'limits.scopeBudget',
+      reason: 'missing',
     })
   })
 

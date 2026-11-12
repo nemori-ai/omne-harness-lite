@@ -1,6 +1,6 @@
 # verification/models
 
-本目录承载本包的形式模型。当前内容有两部分：Journal 收尾协议的有界模型 [Finishing.tla](Finishing.tla) 及其配置、运行脚本与回放轨迹；五个旧状态空间模型的登记。旧模型的脚本与结果文件尚未迁入本目录，也没有重跑。
+本目录承载本包的形式模型。当前内容有三部分：Journal 收尾协议的有界模型 [Finishing.tla](Finishing.tla) 及其配置、运行脚本与回放轨迹；Agent 循环等人状态点的有界模型 [CardRounds.tla](CardRounds.tla) 及其配置；五个旧状态空间模型的登记。旧模型的脚本与结果文件尚未迁入本目录，也没有重跑。
 
 ## 允许的内容
 
@@ -57,6 +57,37 @@ node scripts/with-test-slot.mjs python packages/agent/agent-contract/verificatio
 - 超时、解析失败、求值错误与未执行都不算通过。非零退出本身不算负控通过。
 - 探针不判通过或失败。探针的配置也只有一条 PROPERTY，`run.py` 按同样的读法记录它成立、被违反或没有完成。
 
+### 等人状态点模型
+
+[CardRounds.tla](CardRounds.tla) 检查 Agent 循环收到一个需要等人的结论之后的原生等待：先保存后呈现，present 结果未知时只用 lookup，整批屏障，一轮全部答复齐备之后才交回，交回至多一次，取消、全拒与终结之后作废尚无答复的卡片并不再采纳，崩溃恢复不回退、不重复。判断来自准入还是扩展不在模型内。现有模型已覆盖的部分、状态与代码落点、环境假定、规模上限与未覆盖见 [formal-mapping.md](../formal-mapping.md#等人状态点模型)。运行记录见 [formal-runs.md](../formal-runs.md#等人状态点模型)。
+
+| 文件 | 用途 |
+| --- | --- |
+| `cardrounds-safety.cfg`、`cardrounds-safety-wide.cfg` | 安全性质的正控。每份检查十条不变量、`TypeOK` 与动作性质 `RecoveryMonotone`。wide 把崩溃与丢回执的上限各提高到 2 |
+| `cardrounds-progress.cfg` | 活性 `Progress` 的正控：没有取消与全拒，人最终答复每张卡片 |
+| `cardrounds-settle.cfg` | 活性 `StopSettles` 的正控：取消与全拒都允许，不假定人答复 |
+| `cardrounds-reach-<路径>.cfg` | 可达性见证。每份写一条“从不发生”的路径（`Never...`），TLC 必须给出反例。它说明正控不是因为该路径不可达才通过 |
+| `cardrounds-bad-<错误>.cfg` | 负控。每份打开一个故意的错误，只检查它应命中的那一条性质 |
+
+性质与负控的对应：
+
+| 性质 | 负控配置 | 故意的错误 |
+| --- | --- | --- |
+| `BarrierBeforePresent` | `cardrounds-bad-nobarrier` | present 不等整批屏障 |
+| `OncePresent` | `cardrounds-bad-newround` | present 结果未知时开新 round 重发同一请求 |
+| `ClosedLeavesNoLiveCard` | `cardrounds-bad-noinvalidate` | 终结之后已呈现的一轮不作废就关闭 |
+| `ClosedLeavesNoLiveCard` | `cardrounds-bad-asnone` | 终结之后 present 结果未知的一轮不 lookup，按“无卡片”关闭 |
+| `OnceHandBack` | `cardrounds-bad-rehandback` | 崩溃后恢复把已有结果的一轮再交回一次 |
+| `AllAnsweredBeforeHandBack` | `cardrounds-bad-partial` | 一张卡片有答复就记为已答复 |
+| `NoAdoptAfterStop` | `cardrounds-bad-late` | 交回不看取消与全拒 |
+| `NoAnswerAfterInvalidate` | `cardrounds-bad-invalidasanswer` | read 把作废读作人的答复 |
+| `NoFabricatedAnswer` | `cardrounds-bad-timeout` | 尚无答复的卡片读作答复（默认批准） |
+| `WaitHoldsNoSlot` | `cardrounds-bad-holdslot` | ask 之后不释放执行名额 |
+| `RecoveryMonotone` | `cardrounds-bad-rewind` | 恢复把已呈现的一轮重建为已请求 |
+| `Progress` | `cardrounds-bad-noresume` | 崩溃后恢复把已答复的一轮当作仍在等人 |
+
+运行方法：从仓库根经运行名额执行 `node scripts/with-test-slot.mjs python3 packages/agent/agent-contract/verification/models/run.py cardrounds`。参数 `cardrounds` 只运行本模型的配置，也可以列出单个配置名。`run.py` 对本模型的配置加 `-deadlock`，因为本批已采纳、卡片已关闭这类终止状态不是死锁。判读规则与上一节相同。可达性见证按安全负控判读：TLC 须报告配置指定的那一条 `Never...` 不变量被违反，并给出反例。
+
 ### 旧模型的登记
 
 下表登记五个旧模型。性质列写模型检查的不变量，前提列写模型的抽象，未覆盖列写模型没有建模的状态空间。每个模型另有一个负控变体，负控变体违反该性质并给出反例轨迹，用于确认检查器能检出违反。
@@ -77,8 +108,9 @@ node scripts/with-test-slot.mjs python packages/agent/agent-contract/verificatio
 
 ## 本包事实
 
-- 当前内容：收尾协议模型的源文件、配置、运行脚本与导出轨迹；五个旧模型的登记。
+- 当前内容：收尾协议模型的源文件、配置、运行脚本与导出轨迹；等人状态点模型的源文件与配置；五个旧模型的登记。
 - 收尾协议模型的状态：在 [formal-runs.md](../formal-runs.md) 所列规模上限内，安全正控通过，每条性质的负控命中该性质。活性正控只在 `SupersedeStaleCancelled = TRUE`（读法甲）前提下通过。在内存 Journal 的读法（FALSE）下，探针给出 `CancelSettles` 的反例。Reduce 已定的读法乙尚未建模，是进波 2 的已知限制，见 [formal-mapping.md](../formal-mapping.md)“取消收束”。这不是证明，也不表示实现符合模型。两份内存 Journal 的回放结果见同一页。
+- 等人状态点模型的状态：在 [formal-runs.md](../formal-runs.md#等人状态点模型) 所列规模上限内，安全与活性正控通过，每个可达性见证给出反例，每条性质的负控命中该性质。Agent 循环已实现官方准入的卡片轮次里出卡、等待与交回的部分（落点见 [formal-mapping.md](../formal-mapping.md)），轮次的关闭尚未实现。没有轨迹回放，模型不表示任何实现符合它。模型取的三项读法见 [formal-mapping.md](../formal-mapping.md#模型取的读法与契约缺口)。
 - 旧模型的来源与状态：源文件与结果文件不在本包，迁入前只是登记。已登记，未重跑，未验证，不能作为验证证据。
 - 证据缺口：作者协议的回放协议，即唯一提交点加幂等认回，尚无行为模型。扩展调用先提交已请求、调用后提交结论、结果未知时以 `replay` 重调、能力按经过身份加操作序号认回原操作，这条链的“已有最终结论的调用不再调用”“认回不重复计费”与“比对不一致后锁存”都只由 SPEC 与作者协议页陈述，场景推演见[持续验证场景](../scenarios.md#扩展调用的接续)。本页不宣称它已验证。补模型时按上表的格式登记性质、前提、未覆盖和负控变体。
 - 负责人：本包的维护者。迁入前的缺口是源文件、运行结果与检查器版本三项。

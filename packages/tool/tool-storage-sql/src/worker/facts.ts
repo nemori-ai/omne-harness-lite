@@ -26,7 +26,10 @@ export type LedgerWriteFact =
 /** A domain of the same tenant whose revision must still hold when the commit is applied. */
 export type LedgerAssertionFact = Readonly<{ kind: DomainKind; name: string; revision: string }>
 
-/** One revision-conditioned commit of one ledger domain, with its read-set assertions. */
+/**
+ * One revision-conditioned commit of one ledger domain, with its read-set assertions. `pending`
+ * 只出现在调用域的提交里：`true` 在同一事务里写这个调用的待办标记，`false` 删掉它，缺省不动它。
+ */
 export type LedgerFacts = DomainAddress &
   Readonly<{
     intent: 'ledger'
@@ -34,6 +37,7 @@ export type LedgerFacts = DomainAddress &
     revision: string
     writes: readonly LedgerWriteFact[]
     asserts: readonly LedgerAssertionFact[]
+    pending?: boolean
   }>
 
 /** The address of one body of the body store. */
@@ -78,6 +82,15 @@ export type LedgerReadOutput = Readonly<{
   revision: string | null
   records: readonly StoredRecord[]
 }>
+
+/** 一个租户的待办标记的一页：调用身份大于 `after` 的，最多 `limit` 个。 */
+export type PendingReadInput = Readonly<{ tenant: string; after: string | null; limit: number }>
+
+/** 这一页的调用，按调用身份升序；`more` 表示最后一个之后还有标记。 */
+export type PendingReadOutput = Readonly<{ calls: readonly string[]; more: boolean }>
+
+/** 一页最多读的标记数，与账本的一页上限相同。 */
+export const PENDING_READ_LIMIT = 1000
 
 export type BodyReadInput = BodyAddress & Readonly<{ first: number; count: number }>
 
@@ -200,7 +213,11 @@ function ledgerOf(value: JsonObject): LedgerFacts | null {
   if (!parsed.every((write): write is LedgerWriteFact => write !== null)) return null
   const assertions = asserts.map(assertionOf)
   if (!assertions.every((item): item is LedgerAssertionFact => item !== null)) return null
-  return { ...domain, intent: 'ledger', expected, revision, writes: parsed, asserts: assertions }
+  const facts = { ...domain, intent: 'ledger', expected, revision, writes: parsed } as const
+  const pending = value['pending']
+  if (pending === undefined) return { ...facts, asserts: assertions }
+  if (typeof pending !== 'boolean' || domain.kind !== 'call') return null
+  return { ...facts, asserts: assertions, pending }
 }
 
 /** The facts of one `tool` command, or null when they are not a command of this protocol. */
@@ -219,6 +236,15 @@ export function parseFacts(facts: JsonObject): ToolFacts | null {
 
 export function parseDomainAddress(value: JsonValue): DomainAddress | null {
   return isObject(value) ? domainOf(value) : null
+}
+
+export function parsePendingInput(value: JsonValue): PendingReadInput | null {
+  if (!isObject(value)) return null
+  const tenant = textOf(value, 'tenant')
+  const after = value['after'] === null ? null : textOf(value, 'after')
+  const limit = countOf(value, 'limit')
+  if (tenant === null || (after === null && value['after'] !== null) || limit === null) return null
+  return limit < 1 || limit > PENDING_READ_LIMIT ? null : { tenant, after, limit }
 }
 
 export function parseBodyReadInput(value: JsonValue): BodyReadInput | null {

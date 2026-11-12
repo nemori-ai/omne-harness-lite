@@ -90,6 +90,17 @@ function toolMessages(bodies: readonly AgentEventBody[]) {
   )
 }
 
+/**
+ * True once the action is denied. The denied slot is in the batch only until the round goes on to
+ * the next Model call; after that the denial is the tool message in the history.
+ */
+async function denied(assembly: Assembly): Promise<boolean> {
+  const slots = (await snapshot(assembly)).checkpoint.batch?.slots ?? []
+  return (
+    slots.some(slot => slot.kind === 'denied') || toolMessages(await events(assembly)).length > 0
+  )
+}
+
 async function secondModelCall(assembly: Assembly) {
   await eventually(async () =>
     (await snapshot(assembly)).checkpoint.calls.some(
@@ -232,21 +243,62 @@ describe('tool result round', () => {
     ])
   })
 
-  it('waits for a free place of toolConcurrency before sending the next call', async () => {
+  it('sends every allowed action in the original order, with toolConcurrency as the scope budget', async () => {
     const assembly = await toolAssembly({ toolConcurrency: 1 })
     acceptEach(assembly)
     ok(await invoke(assembly))
-    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
-    const [first] = await associatedTools(assembly, 1)
-    if (first === undefined) throw new Error('first call not associated')
-    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+    await deliverToolSuggestion(assembly, [
+      toolCall('call-a'),
+      toolCall('call-b'),
+      toolCall('call-c'),
+    ])
+    // 还没有结果，三个动作都已发起：Agent 不计数在途调用。
+    const sent = await associatedTools(assembly, 3)
+    const requests = assembly.controls.tools.invoke.calls.map(call => call.request)
+    expect(requests.map(request => request.consumer)).toEqual(sent.map(call => call.position))
+    // 预算由 Tool 在受信请求来源给出的范围内执行。
+    for (const request of requests) {
+      expect(request.limits.scopeBudget).toBe(1)
+      expect(request.scope).toEqual({
+        owner: 'test-scope',
+        key: 'one',
+        grant: evidence('scope-grant'),
+      })
+    }
     const receiver = toolReceiver(assembly)
-    ok(await pushToolResult(receiver, toolDelivery(first, { name: 'a' })))
-    const [, second] = await associatedTools(assembly, 2)
-    if (second === undefined) throw new Error('second call not associated')
-    expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
-    ok(await pushToolResult(receiver, toolDelivery(second, { name: 'b' })))
+    for (const [index, call] of sent.entries())
+      ok(await pushToolResult(receiver, toolDelivery(call, { name: `r${index}` })))
     await secondModelCall(assembly)
+    expect(toolMessages(await events(assembly)).map(message => message.blocks[0])).toEqual([
+      expect.objectContaining({ callId: 'call-a' }),
+      expect.objectContaining({ callId: 'call-b' }),
+      expect.objectContaining({ callId: 'call-c' }),
+    ])
+  })
+
+  it('commits nothing when a wake finds the Tool calls still open (D-104)', async () => {
+    // 复查间隔为 0，与发行树相同：每次等待立刻唤醒。
+    const assembly = await toolAssembly({ toolConcurrency: 1, reconciliationDelayMs: 0 })
+    let attempts = 0
+    assembly.controls.tools.invoke.always(async () => {
+      attempts += 1
+      return attempts === 1 ? accepted('a') : { kind: 'association-unknown' }
+    })
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    // 每次唤醒都回到 A2，A2 以保存的原请求重发 call-b。
+    await eventually(async () => assembly.controls.tools.invoke.calls.length >= 3)
+    const before = await snapshot(assembly)
+    expect(before.state.kind).toBe('waiting')
+    const seen = assembly.controls.tools.invoke.calls.length
+    // 再唤醒两次：第二次重发之前，第一次唤醒的推进已经结束。
+    await eventually(async () => assembly.controls.tools.invoke.calls.length >= seen + 2)
+    const after = await snapshot(assembly)
+    expect(after.revision).toBe(before.revision)
+    expect(after.checkpoint).toEqual(before.checkpoint)
+    const [, first, again] = assembly.controls.tools.invoke.calls.map(call => call.request)
+    expect(again).toEqual(first)
+    expect(again?.limits.scopeBudget).toBe(1)
   })
 
   it('keeps an association-unknown call as an intent and sends the same request again', async () => {
@@ -330,11 +382,7 @@ describe('tool result round', () => {
     }))
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly)
-    await eventually(async () =>
-      ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
-        slot => slot.kind === 'denied',
-      ),
-    )
+    await eventually(async () => await denied(assembly))
     expect((await snapshot(assembly)).state).not.toMatchObject({
       waits: [{ kind: 'dependency', owner: 'toolRuntime' }],
     })
@@ -367,11 +415,7 @@ describe('tool result round', () => {
     })
     const now = ok(await assembly.dependencies.clock.now())
     ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
-    await eventually(async () =>
-      ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
-        slot => slot.kind === 'denied',
-      ),
-    )
+    await eventually(async () => await denied(assembly))
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
   })
 
@@ -429,9 +473,7 @@ describe('tool result round', () => {
             new Date(Date.parse(now) + 2000).toISOString() as never,
           ),
         )
-        return ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
-          slot => slot.kind === 'denied',
-        )
+        return await denied(assembly)
       })
       expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
     })
@@ -477,9 +519,7 @@ describe('tool result round', () => {
       if (refused === 0) return false
       const now = ok(await assembly.dependencies.clock.now())
       ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
-      return ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
-        slot => slot.kind === 'denied',
-      )
+      return await denied(assembly)
     })
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
   })
@@ -521,9 +561,7 @@ describe('tool result round', () => {
       if (unknown === 0) return false
       const now = ok(await assembly.dependencies.clock.now())
       ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
-      return ((await snapshot(assembly)).checkpoint.batch?.slots ?? []).some(
-        slot => slot.kind === 'denied',
-      )
+      return await denied(assembly)
     })
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
   })
@@ -713,6 +751,25 @@ describe('tool result round', () => {
     await deliverToolSuggestion(assembly, [toolCall('call-a')])
     await secondModelCall(assembly)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toHaveLength(1)
+  })
+
+  it('closes the intent of a first attempt that Tool rejected, and the denied action reaches the next Model call', async () => {
+    const assembly = await toolAssembly()
+    assembly.controls.tools.invoke.always(async () => ({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+    }))
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'allow', evidence: evidence('allowed') },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+    expect(
+      (await snapshot(assembly)).checkpoint.calls.filter(call => call.kind === 'tool'),
+    ).toEqual([])
     expect(toolMessages(await events(assembly))).toHaveLength(1)
   })
 

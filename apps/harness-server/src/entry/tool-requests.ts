@@ -16,8 +16,11 @@
 //   已结束答 unavailable。
 // - 作用域归属：经执行环境的可信作用域绑定（入口对象 `executionScopeBinding`）核对作用域绑定在这个租户；
 //   绑定缺席或不明答 unavailable，绑定到别的租户或未绑定答 denied。
-// - 设置采用：发行清单里这个作者的固定设置采用。并发作用域：发行唯一的作用域（`rows/tool-runtime/scope.ts`）。
-// - workspace 为 null（本发行没有工作区身份，不猜）；resources 为空；前台执行；不加请求级的并发与时限。
+// - 设置采用：发行清单里这个作者的固定设置采用。并发范围：按 run 划分，由 consumer 算出（`rows/tool-runtime/scope.ts`）。
+// - 元能力命令的可用性：Ask 的 ask 与 request_approval 要会话允许与人交互，由 `meta-capabilities.ts` 按 Session
+//   翻译好的值在 describe 与 prepare 两处现判；不允许时调用不运行，答复是原因；读不到答 unavailable。
+// - workspace 为 null（本发行没有工作区身份，不猜）；resources 为空；前台执行；不加请求级的并发与时限。范围预算
+//   `limits.scopeBudget` 在这里为 null，由 Agent 在保存获准请求时写入它的 `toolConcurrency`。
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolCallAnswer } from '@omne-harness/agent'
 import type { Failure } from '@omne-harness/agent-contract'
@@ -38,6 +41,10 @@ import type {
   SessionId,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
+import {
+  sessionInquiryBinding,
+  sessionInteractionBinding,
+} from '@omne-harness/session-adapters/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
@@ -50,8 +57,14 @@ import {
 } from '@omne-harness/tool-contract'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
-import { RELEASE_REQUEST_CONTEXT, RELEASE_TOOL_SCOPE } from '../rows/tool-runtime/scope.ts'
+import { RELEASE_REQUEST_CONTEXT, runToolScope } from '../rows/tool-runtime/scope.ts'
 import { verifySessionWork } from '../rows/tool-runtime/session-work.ts'
+import { publishedViewPortsOf, readPublishedView } from '../rows/session-ad03/published-view.ts'
+import {
+  judgeMetaCommand,
+  type SessionInquiryRead,
+  type SessionInteractionRead,
+} from './meta-capabilities.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
 
 /** `createAgentHostRow({ toolRequestsOf })` 期望的来源形状（Agent `AgentDependencies['toolRequests']`）。 */
@@ -62,7 +75,7 @@ type PrepareInput = Parameters<ReleaseToolRequests['prepare']>[0]
 /** 来源的拥有者名，写在 unavailable 里。 */
 export const TOOL_REQUESTS_OWNER = 'agentToolRequests'
 
-/** 供给者读的五个来源，每次调用现取；返回 undefined 表示缺席。 */
+/** 供给者读的六个来源，每次调用现取；返回 undefined 表示缺席，人机交互读不到时答原因。 */
 export type ToolRequestPorts = Readonly<{
   verifier(): PrincipalVerifier | undefined
   catalog(): ToolCatalog<unknown> | undefined
@@ -72,6 +85,10 @@ export type ToolRequestPorts = Readonly<{
   ): Promise<Outcome<WorkSnapshot, SessionFailure>> | undefined
   scopeBinding(): ScopeBindingSource | undefined
   release(): ToolRelease
+  /** 会话当前允许的人机交互（元能力命令的可用性）。 */
+  interaction: SessionInteractionRead
+  /** 会话当前的询问处理（权限一侧）：`deny` 时 request_approval 不可用。 */
+  inquiry: SessionInquiryRead
 }>
 
 const unavailable = (diagnostic: string) =>
@@ -122,11 +139,12 @@ function consumerOf(release: Trusted): ToolConsumerProfile {
   return { capabilities, conversion, attachmentAccess }
 }
 
-/** 目录里这个名字的当前可用定义：必须是发行清单里的官方工具。 */
+/** 目录里这个名字的当前可用定义：必须是发行清单里的官方工具，选出的命令经元能力宿主判定此刻能运行。 */
 async function availabilityOf(
   ports: ToolRequestPorts,
   release: Trusted,
   input: DescribeInput,
+  session: SessionId,
 ): Promise<
   Outcome<
     | (Extract<ToolAvailability, { kind: 'available' }> & { command: string | null })
@@ -159,11 +177,31 @@ async function availabilityOf(
   if (availability.kind !== 'available' || availability.layer.kind !== 'official')
     return unavailable(`${name} is not available`)
   const selected = commandOf(availability.definition, input.effectiveArguments)
-  return succeed(
-    'answer' in selected
-      ? { kind: 'answered', text: selected.answer }
-      : { ...availability, command: selected.command },
-  )
+  if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
+  const closed = await closedBySession(ports, input, session, selected.command)
+  if ('failure' in closed) return closed
+  return succeed(closed.ok ?? { ...availability, command: selected.command })
+}
+
+/**
+ * 元能力宿主对这条命令的判定：会话此刻不让它运行时给出答复，让它运行时为 null；读不到答 unavailable。
+ */
+async function closedBySession(
+  ports: ToolRequestPorts,
+  input: DescribeInput,
+  session: SessionId,
+  command: string | null,
+): Promise<Outcome<ToolCallAnswer | null, Failure>> {
+  const access = { principal: input.principal, tenant: input.tenant, session }
+  const verdict = await judgeMetaCommand(ports, access, input.original.name, command)
+  switch (verdict.kind) {
+    case 'unreadable':
+      return unavailable(verdict.diagnostic)
+    case 'closed':
+      return succeed({ kind: 'answered', text: verdict.answer })
+    default:
+      return succeed(null)
+  }
 }
 
 /** 会话快照里当前（最后一个、未结束的）Context 作用域。 */
@@ -239,7 +277,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     if ('failure' in release) return release
     const session = await sessionOf(ports, input.principal, input.tenant)
     if ('failure' in session) return session
-    const availability = await availabilityOf(ports, release.ok, input)
+    const availability = await availabilityOf(ports, release.ok, input, session.ok)
     if ('failure' in availability) return availability
     return succeed(
       availability.ok.kind === 'answered'
@@ -253,10 +291,10 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     if ('failure' in release) return release
     const session = await sessionOf(ports, input.principal, input.tenant)
     if ('failure' in session) return session
-    const found = await availabilityOf(ports, release.ok, input)
+    const found = await availabilityOf(ports, release.ok, input, session.ok)
     if ('failure' in found) return found
-    // An answered call is never prepared: describe answered it already.
-    if (found.ok.kind === 'answered') return unavailable('the call names no command of the tool')
+    // 已作答的调用不进准备：describe 已经答过它，或者会话在那之后关了人机交互，现在会答它。
+    if (found.ok.kind === 'answered') return unavailable('the call is answered, not run')
     const { command, ...availability } = found.ok
     if (canonicalDigest(availability.definition.adoption) !== canonicalDigest(input.definition))
       return unavailable('the current definition differs from the described one')
@@ -282,11 +320,11 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
       environment: availability.definition.declarations.environment,
       requesterScope: scope.ok,
       resources: [],
-      scope: RELEASE_TOOL_SCOPE,
+      scope: runToolScope(input.tenant, input.consumer),
       consumer: input.consumer,
       batchDecision: null,
       mode: 'foreground',
-      limits: { concurrency: null, foregroundMs: null, backgroundAfterMs: null },
+      limits: { concurrency: null, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     }
     return succeed(request)
   }
@@ -314,5 +352,17 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
     readWork: sessionWorkReaderOf(ctx),
     scopeBinding: () => ctx.get(executionScopeBindingKey),
     release: () => releaseOf(ctx),
+    interaction: async access => {
+      const ports = publishedViewPortsOf(ctx)
+      if (ports === null) return fail('the Session or Runtime Context services are absent')
+      const view = await readPublishedView(ports, access, sessionInteractionBinding)
+      return 'failure' in view ? view : succeed(view.ok.interaction)
+    },
+    inquiry: async access => {
+      const ports = publishedViewPortsOf(ctx)
+      if (ports === null) return fail('the Session or Runtime Context services are absent')
+      const view = await readPublishedView(ports, access, sessionInquiryBinding)
+      return 'failure' in view ? view : succeed(view.ok.inquiry.policy.onAsk)
+    },
   })
 }

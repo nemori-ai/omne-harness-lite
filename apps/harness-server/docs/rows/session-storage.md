@@ -32,7 +32,7 @@ session-storage-sql 对目录缺项答 `unavailable`（[SPEC 失败表](../../..
 
 ## 会话归属读口
 
-本行用 session-storage-sql 的 `createSessionPrincipalBindings` 构造受信 `sessionPrincipalBindings`，所用的存储与目录和公开端口相同。这个名字只在受信作用域里可见，根上取不到（R2-D192）。没有登记的租户答 unavailable。
+本行用 session-storage-sql 的 `createSessionPrincipalBindings` 构造受信 `sessionPrincipalBindings`，用 `createSessionScopeOwners` 构造受信 `sessionScopeOwners`（作用域由哪个会话铸造，见该成员 SPEC 的 SO-01），所用的存储与目录和公开端口相同。这个名字只在受信作用域里可见，根上取不到（R2-D192）。没有登记的租户答 unavailable。
 
 ## 部署枚举
 

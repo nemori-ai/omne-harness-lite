@@ -55,14 +55,23 @@ import type { Reply } from './results.ts'
 export type DecisionValue = ToolDecision<JsonValue>
 export interface ToolDecisionBridge<P> {
   inspectOperation(input: Mutation<P>): Reply<ExternalOperationResolution>
+  /**
+   * Registers the wait with the decision owner. `request` is the evidence that binds the request
+   * original; the owner reads the original from the recovery of the call (`waitRequest`).
+   */
   ensure(
     input: Mutation<P> & Readonly<{ wait: ToolWaitId; request: DurableEvidence }>,
   ): Reply<DurableEvidence>
   inspect(
     input: CallAccess<P> & Readonly<{ wait: ToolWaitId }>,
   ): Reply<Readonly<{ registration: DurableEvidence; decision: DurableEvidence | null }>>
+  /**
+   * `cause` is how the wait closed: `cancelled` when a control closed it, `terminal` when the
+   * original execution ended on its own. The owner keeps it as the reason of the invalidation.
+   */
   invalidate(
-    input: Mutation<P> & Readonly<{ wait: ToolWaitId; terminal: DurableEvidence }>,
+    input: Mutation<P> &
+      Readonly<{ wait: ToolWaitId; terminal: DurableEvidence; cause: 'cancelled' | 'terminal' }>,
   ): Reply<DurableEvidence>
   resolve(
     input: CallAccess<P> &
@@ -74,7 +83,13 @@ export interface ToolDecisionBridge<P> {
 }
 export type ToolExecutionFact =
   | Readonly<{ kind: 'process'; blocks: readonly ProcessBlock[] }>
-  | Readonly<{ kind: 'wait'; value: WaitIntent }>
+  /**
+   * The wait a segment suspends on. `request` is the request original of the wait: the JSON text
+   * that the author encoded, within `value.schemas.requestMaxBytes` UTF-8 bytes. The digest of the
+   * evidence `value.request` is the canonical digest of that text. The ledger keeps the text for
+   * the call without reading it, and the recovery of the call gives it to the decision owner.
+   */
+  | Readonly<{ kind: 'wait'; value: WaitIntent; request: string }>
   | Readonly<{
       kind: 'continued'
       wait: ToolWaitId
@@ -142,12 +157,19 @@ export type ToolExecutorBinding<P, E> =
       ): Reply<ToolStartLookup>
       suspend(input: SuspensionRecord): Reply<SuspensionProgress>
       inspectSuspension(input: SuspensionRecord): Reply<SuspensionProgress>
+      /**
+       * Runs the segment after the checkpoint that `start.checkpoint` names. `state` is the
+       * committed state of that checkpoint as base64 text, and `response` the committed response
+       * of the wait that resumes there. The ledger gives both, so the binding reads no record.
+       */
       resume(
         input: CallAccess<P> &
           Readonly<{
             start: Extract<ToolStartRecord, { kind: 'resume' }>
             permit: StartPermit
             request: FixedToolRequest
+            state: string
+            response: ResponseRecord
           }>,
         environment: E,
       ): Reply<ToolLiveExecution>

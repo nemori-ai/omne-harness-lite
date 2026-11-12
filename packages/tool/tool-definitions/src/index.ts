@@ -17,3 +17,20 @@ export type {
   TodoAuthorPage,
   TodoAuthorReply,
 } from './todo-items-port.ts'
+export {
+  askCommands,
+  askDescription,
+  askExecutor,
+  askGuide,
+  askToolModule,
+  createAskAuthor,
+} from './ask.ts'
+export { askWaitContract } from './ask-protocol.ts'
+export type {
+  AskArguments,
+  AskCard,
+  AskCommand,
+  AskCommandEntry,
+  AskResponse,
+  AskWaitRequest,
+} from './ask-protocol.ts'

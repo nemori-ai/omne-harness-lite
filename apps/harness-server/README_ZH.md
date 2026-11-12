@@ -49,6 +49,8 @@ node apps/harness-server/dist/bin.js serve            # Ctrl+C 停止
 
 规则全文见 [SPEC.md](SPEC.md#本机单用户档)。
 
+服务跑起来之后，想亲手走一遍人工介入（Agent 提问、你答复、叫停、停服再重启），照 [docs/guides/hitl-walkthrough.md](docs/guides/hitl-walkthrough.md) 的步骤做。
+
 ### 两个模式与全部参数
 
 `s0` 与 `serve` 两个位置参数选择模式：

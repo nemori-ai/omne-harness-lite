@@ -33,6 +33,8 @@ import { TenantGovernanceHost } from './tenant-host.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
 import { CurrentPermissionService, currentToolPermissionKey } from './current-permission-service.ts'
+import { isHitlReservation } from '../tool-hitl/host.ts'
+import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
 const configSchema = z.strictObject({
   deploymentId: GovernanceIdSchema,
@@ -68,7 +70,12 @@ class StandingDestination extends StandingDestinationResolverService {
   readonly seal: StandingDestinationResolverService['seal']
   constructor(ctx: Context, host: TenantGovernanceHost) {
     super(ctx)
-    this.seal = host.destination.seal
+    // HITL's reservations seal at HITL's own destination (`rows/tool-hitl`); the rest at governance.
+    this.seal = reservation =>
+      isHitlReservation(reservation)
+        ? (toolHitlHolder(ctx).host?.destination.seal(reservation) ??
+          Promise.resolve({ kind: 'unavailable', diagnostic: 'the HITL host is not installed' }))
+        : host.destination.seal(reservation)
   }
 }
 

@@ -126,7 +126,7 @@ describe('public persistent intent recovery over shared non-durable source and l
     const queue = await assembly.store.read({
       kind: 'queue',
       tenant: tenantA,
-      key: JSON.stringify(['scope-owner', 'scope-1', 'read_file']),
+      key: JSON.stringify(['scope-owner', 'scope-1']),
     })
     expect(
       queue.kind === 'complete' && queue.records.filter(record => record.kind === 'queue-entry'),
@@ -545,7 +545,7 @@ describe('public persistent intent recovery over shared non-durable source and l
     expect(a.source.bindings()[0]?.principal).toEqual(principalA)
     const different = { ...principalA, subject: 'another-subject' }
     const conflict = dummyRequest({
-      limits: { concurrency: 2, foregroundMs: null, backgroundAfterMs: null },
+      limits: { concurrency: 2, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     })
     for (const attempt of [
       input(conflict, different),
@@ -589,7 +589,7 @@ describe('public persistent intent recovery over shared non-durable source and l
       const admissions = vi.spyOn(a.dependencies.admissions, 'admit')
       failing = true
       const conflicting = dummyRequest({
-        limits: { concurrency: 2, foregroundMs: null, backgroundAfterMs: null },
+        limits: { concurrency: 2, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
       })
       for (const payload of [dummyRequest(), conflicting]) {
         samePrincipal.mockClear()

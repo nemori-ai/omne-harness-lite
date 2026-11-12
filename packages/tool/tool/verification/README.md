@@ -17,3 +17,5 @@
 [收场账本](../tests/ledger-settlement.spec.ts)、[环境释放账本](../tests/ledger-environment-release.spec.ts)、[排除交错](../tests/exclusion-interleavings.spec.ts)和 [driver 收场组合](../tests/driver-settlement.spec.ts)覆盖独立保管、三域未知、原结果单赢家、canonical 清理计划、原环境核验、ACK 离线、异常 late process、持久 blocked facts 与成功后 queue 任务复核。driver 组合使用真实 runtime、内存 ledger/custody/executor 与受控宿主；原作者执行计数、原任务和下一同 slot 调用分别观察。宿主真实构造接线由 tool-host-local 的 start-composition 测试覆盖，不代表生产环境释放或生产宿主完整交付。
 
 [SettlementRelease 模型](models/README.md#原结果与队列释放模型)分别检查 custody、call、queue 的已应用未知和未应用未知、结果单赢家、queue duty，以及创建条目的提交对调用域修订号的断言：释放后没有条目，队列域只有活条目。四个负控分别放宽保管确认、queue 责任屏障、创建断言和释放顺序，要求命中指定不变量。有限安全性不代替真实实现符合性、进展或最终接受。
+
+[SuspendedSlots 模型](models/README.md#暂停与执行名额模型)检查检查点调用在暂停、答复与恢复期间，调用域和队列域分两笔提交时的名额性质：持有名额数不超过上限，运行的调用持有名额，停泊条目对应已暂停的调用，停泊条目仍计入未终局容量，收场调用的条目最终删除，暂停调用最终释放名额，就绪调用最终恢复或收场，条目只凭释放依据删除，删除的条目不再出现。停泊与重新排队各拆成读调用域与提交队列域两步。六个负控各要求命中一条具名性质。模型只覆盖一个有界实例，不建模 FIFO 次序，释放依据只分执行结束与暂停中被控制收场两种，不证明实现符合。实现符合性由契约测试在真实账本上验证。

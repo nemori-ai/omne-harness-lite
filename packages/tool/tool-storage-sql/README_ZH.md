@@ -10,9 +10,9 @@ Tool 记录仓与正文存储的 SQL 提供者。根入口导出 `createSqlToolL
 
 | 部分                                         | 状态                                                                                                                       |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `createSqlToolLedgerStore`                   | 已实现。`durability: 'durable'`。每次调用是一次 `domain-serial` 读，或一次按修订号条件的 SQL 提交；`due` 读到期索引         |
+| `createSqlToolLedgerStore`                   | 已实现。`durability: 'durable'`。每次调用是一次 `domain-serial` 读，或一次按修订号条件的 SQL 提交；`due` 读到期索引，`scanPending` 读待办标记         |
 | `createSqlToolBodyStore`                     | 已实现。`durability: 'durable'`。按写入许可写不可变分块，校验分块后写封存清单，按范围读取，幂等删除                          |
-| `toolStorageMaterials()`                     | 已实现。一个参加者 `tool`、一条迁移 `tool/r6-001-tool-ledger-body-due`、三个读 handler，全部在 `tl_` 表上                   |
+| `toolStorageMaterials()`                     | 已实现。一个参加者 `tool`、两条迁移（基线 `tool/r6-001-tool-ledger-body-due` 与 `tool/r6-002-tool-pending`）、四个读 handler，全部在 `tl_` 表上                   |
 | `./cordis` 插件、`tool-records` 行、目录合并 | 不在本包，归应用侧                                                                                                         |
 | 两个进程共用一个库、强杀、断电               | 未验证                                                                                                                     |
 
@@ -44,16 +44,17 @@ const bodyStore = createSqlToolBodyStore({
 
 ## 设计
 
-`src/ledger-store.ts` 与 `src/body-store.ts` 是两个适配器。`src/tenant.ts` 经目录解析租户的事务域。`src/worker/` 里的 Worker 模块是 `tool` 参加者（账本写入在 `participant.ts`，正文命令在 `participant-body.ts`）、迁移与三个读 handler，它们共用 `src/worker/facts.ts` 的事实协议。[docs/architecture.md](docs/architecture.md) 写表与机制，[docs/flows.md](docs/flows.md) 写提交与正文的流程。
+`src/ledger-store.ts` 与 `src/body-store.ts` 是两个适配器。`src/tenant.ts` 经目录解析租户的事务域。`src/worker/` 里的 Worker 模块是 `tool` 参加者（账本写入在 `participant.ts`，正文命令在 `participant-body.ts`）、两条迁移与四个读 handler，它们共用 `src/worker/facts.ts` 的事实协议。[docs/architecture.md](docs/architecture.md) 写表与机制，[docs/flows.md](docs/flows.md) 写提交与正文的流程。
 
 ## 配置与运行
 
-| 选项                 | 拥有者   | 规则                                                                   |
-| -------------------- | -------- | ---------------------------------------------------------------------- |
-| `storage`、`domains` | 应用装配 | 受信的 `storage` 与 `tenantDomainLookup` 行。目录不含的租户不写入      |
-| `combination`        | 应用装配 | 为租户作用域列出 `tool` 参加者的组合                                   |
-| `permitKey`          | 应用装配 | 仅正文存储需要。与账本签发许可的密钥相同，否则每次写入答 `permit-invalid` |
-| `clock`              | 应用装配 | 仅正文存储需要。存储读它判断许可是否已过截止时间                       |
+| 选项 | 拥有者 | 规则 |
+| --- | --- | --- |
+| `storage`、`domains` | 应用装配 | 受信的 `storage` 与 `tenantDomainLookup` 行。目录不含的租户不写入 |
+| `tenants`（可选） | 应用装配 | 已发布租户目录的快照。没有它时，跨租户的待办扫描答 `unsupported` |
+| `combination` | 应用装配 | 为租户作用域列出 `tool` 参加者的组合 |
+| `permitKey` | 应用装配 | 仅正文存储需要。与账本签发许可的密钥相同，否则每次写入答 `permit-invalid` |
+| `clock` | 应用装配 | 仅正文存储需要。存储读它判断许可是否已过截止时间 |
 
 选项都没有缺省值。本包从不登记租户或组合。
 

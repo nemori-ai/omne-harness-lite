@@ -12,6 +12,7 @@
 - [返回与执行事实](results.ts)。
 - [普通操作与实例目录](operations.ts)。
 - [作者执行上下文](author-context.ts)。
+- [检查点作者：按段执行的执行者](checkpointed-author.ts)。
 - [执行者与账本命令端口](execution.ts)。
 - [提供者端口与 runtime 工厂输入](ports.ts)。
 - [凭据端口](credentials.ts)与[实际绑定一致性套件](testing-credentials.ts)。

@@ -109,6 +109,7 @@ describe('G5 the start ordering domain', () => {
       let block = false
       const store: ToolLedgerStore = {
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: memory.readRecord,
         due: memory.due,
         read: async domain => {
@@ -166,6 +167,7 @@ describe('G5 the start ordering domain', () => {
     let invalidateInWindow: (() => Promise<void>) | null = null
     const store: ToolLedgerStore = {
       durability: 'none',
+      scanPending: input => memory.scanPending(input),
       read: domain => memory.read(domain),
       readRecord: (domain, key) => memory.readRecord(domain, key),
       due: (tenant, now, limit) => memory.due(tenant, now, limit),
@@ -533,6 +535,7 @@ describe('G5 the start ordering domain', () => {
     const guardReads = { count: 0 }
     const store: ToolLedgerStore = {
       durability: 'none',
+      scanPending: input => memory.scanPending(input),
       readRecord: (domain, key) => memory.readRecord(domain, key),
       due: (tenant, now, limit) => memory.due(tenant, now, limit),
       read: domain => {
@@ -804,6 +807,7 @@ describe('G5 tenants and qualification', () => {
   // arrives is a silent failure, whatever holds the store.
   const neverSettles = (): ToolLedgerStore => ({
     durability: 'none',
+    scanPending: () => new Promise(() => {}),
     readRecord: () => new Promise(() => {}),
     due: () => new Promise(() => {}),
     read: () => new Promise(() => {}),

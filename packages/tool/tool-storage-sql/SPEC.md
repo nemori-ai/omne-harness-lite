@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包是 Tool 记录仓与正文存储的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore`（含同租户读集断言的条件提交 TS-11、到期索引 TS-14 与整域删除 TS-15）与 `ToolBodyStore`（TS-13），并导出静态材料 `toolStorageMaterials()`。`createSqlToolConditionalCommit` 提供带启动条件的账本提交（TS-12），供启动协调器写 acceptance。
+本包是 Tool 记录仓与正文存储的 SQL 提供者。它在 `sql-contract` 之上实现耐久的 `ToolLedgerStore`（含同租户读集断言的条件提交 TS-11、到期索引 TS-14、整域删除 TS-15 与待办标记及其扫描 TS-18）与 `ToolBodyStore`（TS-13），并导出静态材料 `toolStorageMaterials()`。`createSqlToolConditionalCommit` 提供带启动条件的账本提交（TS-12），供启动协调器写 acceptance。
 
 依据：
 
@@ -37,6 +37,7 @@
 3. 按输入顺序执行写入：`put` 按键替换，`delete` 删除该键，键不存在时什么也不做。
 4. 把账本域修订号设为 `revision`。写入集为空或只删除不存在的键时，修订号同样推进。
 5. 写入集中的 `schedule` 与 `unschedule` 在同一写事务内更新 `tl_due`（TS-14）。索引写入失败使整个事务回滚。
+6. 调用域的提交带 `pending` 时，在同一事务里维护这个调用的待办标记（TS-18）：`true` 写一行 `tl_pending`，已有时不变；`false` 删掉它。缺省不动标记。别的账本域不带 `pending`：适配器不发出它，参加者收到时按协议不符答 `unsupported`。
 
 结果对应如下：
 
@@ -71,7 +72,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 ### TS-10 材料
 
-`toolStorageMaterials()` 返回一个参加者 `tool`、一条迁移 `tool/r6-001-tool-ledger-body-due`（账本、正文存储与到期索引的表）和三个读 handler。模块以文件 URL 与 SHA-256 命名；应用把它们并入组合目录，本包不建目录。
+`toolStorageMaterials()` 返回一个参加者 `tool`、两条迁移和四个读 handler。迁移 `tool/r6-001-tool-ledger-body-due` 建账本、正文存储与到期索引的表。迁移 `tool/r6-002-tool-pending` 依赖它，建待办标记表 `tl_pending`；读 handler `tool.ledger.pending` 依赖这条迁移。模块以文件 URL 与 SHA-256 命名；应用把它们并入组合目录，本包不建目录。
 
 ### TS-11 带同租户读集断言的提交
 
@@ -139,6 +140,20 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 
 工厂不自动重试，不新建表或迁移，`tool` 参加者的代码不变。
 
+### TS-18 待办标记与扫描
+
+待办标记是 `tl_pending` 的一行，主键 `(tenant, call)`。它按 TS-02 第 6 步与调用域的记录同一事务写下或删掉，所以记录回滚时标记也不落地，标记语句失败时记录也回滚。调用域整域删除（TS-15）时，同一事务删掉它的标记。标记不是 `LedgerRecord`，整域读不返回它，它也不单独推进修订号。标记不经保管者（TS-16），每一页直接读 SQL 存储。
+
+`scanPending(input)` 只读标记，不读调用记录：
+
+- 单个租户（`tenant` 不为 `null`）：租户按 TS-03 解析，在它的事务域里用读 handler `tool.ledger.pending`（`domain-serial`）按主键范围取调用身份大于游标的最多 `limit` 行。游标的租户不是该租户时答 `unavailable`。
+- 跨租户（`tenant` 为 `null`）：按记录仓的必需构造选项 `tenants` 列出部署已登记的租户事务域（sql-contract §2.4 `TenantDomains.enumerate` 的结果）。装配用获准枚举的主体绑定它，记录仓不持有主体。列举答 `denied`、`unavailable` 或抛出时整页答 `unavailable`。列举成功时按租户文本的顺序逐个读其中的事务域，从游标的租户开始。每个域各自读一次，整个扫描不是同一时刻的快照。目录在扫描期间登记的、排在游标之前的租户，本次扫描不列出。
+- 一个域读不到、目录不可读、目录项不是该租户的作用域，或一行不是调用身份时，答 `unavailable`，不答更短的页。
+- 返回的租户由 legal-identity 从目录文本解析而来，是签发的租户身份。
+- `more` 为 `true` 时，最后一项之后可能还有标记。正好在一个租户末尾填满一页、后面还有租户时也答 `true`，下一页可能为空。
+
+一页最多 1000 行（读 handler 的 `maxRowsRead` 为 1001）。
+
 ## 所有权、失败与生命周期
 
 - 本包不持有连接、Worker、计时器或其他需要释放的资源。连接、Worker、事务与清理归 SQL 提供者。工厂返回的对象可以随时丢弃。
@@ -156,6 +171,8 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 4. 两个进程同时共用一个库、强杀与断电耐久未验证。
 5. 封存在一个写事务内重读全部分块并计算 SHA-256，代价与正文大小成正比。
 6. 值为 `undefined` 的记录成员按 JSON 省略。读回的记录没有这些成员。
+7. 迁移 `tool/r6-002-tool-pending` 不回填待办标记。在它之前写入、之后没有再提交的调用域不在扫描里。本阶段不做数据迁移。
+8. 跨租户扫描逐个打开目录里的租户事务域。租户多时启动扫描的代价随租户数增长。
 
 ## 组合与验证
 
@@ -163,6 +180,7 @@ SQL 提供者违反 sql-contract §2.5、以 reject 报告结果时，本包不�
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | TS-01、TS-02、TS-11、TS-15 | `tests/ledger-store-conformance.spec.ts` 运行 `toolLedgerStoreConformance()`（含 `store.asserts-*` 与整域删除用例）与 `toolLedgerStoreCompositionConformance()`，七个故障手柄都有来源，没有不适用项；`tests/atomic-commit.spec.ts`；`tests/ledger-asserts.spec.ts`：排队中的提交在执行时才评估断言，两个连接之间被断言域的写入使断言在执行时失败                                                                                                                                                         | SQLite 测试提供者（`tests/fixtures/sqlite-storage.ts`），不是 sqlite-provider；提供者的 4 MiB 读出上限由该测试双身按 `READ_OUTPUT_BYTES` 复现 |
 | TS-03                      | `tests/tenant-isolation.spec.ts`：同键两租户、他租户行混入同一库、目录外的租户；`tests/tenant-isolation-live.spec.ts`：正文表与到期索引上的同一性质——A 的正文对 B 不到期、不被 B 的清扫回收、B 的账本与正文仓读不到、B 的删除不动它；混入 A 库的 B 行不进入 A 的到期读、清扫、正文读与删除                                                                                                                                                                                                               | 同上                                                                                                                                          |
+| TS-18                      | `tests/ledger-store-conformance.spec.ts` 的 `store.pending-*` 用例；`tests/pending-marker.spec.ts`：同事务回滚、非调用域、重开、在第二条迁移之前迁移的域、主键范围的查询计划、没有目录与他租户游标 | 同上。查询计划用例在测试里复写了 handler 的语句形状 |
 | TS-06                      | `tests/body-revision-live.spec.ts`：真实 sqlite-provider 上写入三块正文并封存清单，前后 `tl_domain` 的全部行不变，调用域与宿主域经 `read` 读到的修订号不变，按写入前修订号的账本提交仍然落盘                                                                                                                                                                                                                                                                                                             | 慢层；只覆盖写入与封存，删除正文不在本用例                                                                                                    |
 | 不写回执（C10）            | `tests/receipts-live.spec.ts`：真实 sqlite-provider 上一次带卸载正文的完整调用（受理、准备、启动、正文块与封存、最终事实、收场，≥ 8 次提交）后 `_sql_receipt` 行数不变                                                                                                                                                                                                                                                                                                                                   |
 | 重开                       | `tests/reopen.spec.ts`：关闭再打开同一组数据库文件                                                                                                                                                                                                                                                                                                                                                                                                                                                       | 进程内关闭与重开，不是进程终止或断电                                                                                                          |

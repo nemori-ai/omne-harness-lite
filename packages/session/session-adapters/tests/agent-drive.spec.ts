@@ -1034,6 +1034,15 @@ describe('detach hands back the loaded attachment', () => {
     })
   })
 
+  it('recognizes an attachment that was handed back already: it answers that handover and does not detach', async () => {
+    const f = await assembled()
+    f.script.load.push(
+      succeed(snapshot({ kind: 'suspended', handoff: evidence('handover') }, null)),
+    )
+    expect(await f.drive().detach(detachInput)).toEqual({ ok: evidence('handover') })
+    expect(f.methods()).toEqual(['load'])
+  })
+
   it('without an attachment it answers unavailable and does not detach', async () => {
     const f = await assembled()
     f.script.load.push(succeed(snapshot({ kind: 'advancing' }, null)))
@@ -1069,9 +1078,9 @@ describe('inspect maps the snapshot and never says missing', () => {
       },
     ],
     [
-      'a suspended execution',
+      'a suspended execution, whose attachment was handed back',
       { kind: 'suspended', handoff: evidence('h') },
-      authority,
+      null,
       {
         ok: {
           revision: 'revision-7',

@@ -41,6 +41,7 @@ export const ENTRY_COMPONENTS = Object.freeze({
   governanceDirectory: 'governanceDirectoryPrincipals',
   governanceInstallation: 'governanceInstallationPrincipals',
   sessionModes: 'sessionModesPrincipals',
+  toolDecisions: 'toolDecisions',
 })
 
 type EntryPrincipals = Readonly<{
@@ -53,6 +54,8 @@ type EntryPrincipals = Readonly<{
   governanceDirectoryActor: SystemPrincipal
   governanceInstallationActor: SystemPrincipal
   sessionModesActor: SystemPrincipal
+  /** Tool 决策方（`rows/tool-hitl`）向 HITL 登记 Ask 等待时用的系统主体。 */
+  toolDecisionsActor: SystemPrincipal
 }>
 
 function issueSystem(issuer: PrincipalIssuer, component: string): SystemPrincipal {
@@ -76,6 +79,7 @@ function createEntryPrincipals(): EntryPrincipals {
     governanceDirectoryActor: issueSystem(issuer, ENTRY_COMPONENTS.governanceDirectory),
     governanceInstallationActor: issueSystem(issuer, ENTRY_COMPONENTS.governanceInstallation),
     sessionModesActor: issueSystem(issuer, ENTRY_COMPONENTS.sessionModes),
+    toolDecisionsActor: issueSystem(issuer, ENTRY_COMPONENTS.toolDecisions),
   })
 }
 
@@ -124,6 +128,22 @@ export function sessionModesIssuerOf(env: EntryEnv) {
       actor: sessionModesActor,
       tenant,
       work: SESSION_MODES_WORK,
+    })
+    return 'ok' in result ? result.ok : undefined
+  }
+}
+
+/** Tool 决策方为租户登记 Ask 等待的工作（`rows/tool-hitl`）。 */
+export const TOOL_DECISIONS_WORK = Object.freeze({ owner: 'harness.tool-decisions', work: 'ask' })
+
+/** 只签 Tool 决策方主体的窄视图：`actor` 与 `work` 固定，调用方只给租户。 */
+export function toolDecisionsIssuerOf(env: EntryEnv) {
+  const { issuer, toolDecisionsActor } = principalsOf(env)
+  return (tenant: TenantId): ActingForTenantPrincipal | undefined => {
+    const result = issuer.issueActingForTenant({
+      actor: toolDecisionsActor,
+      tenant,
+      work: TOOL_DECISIONS_WORK,
     })
     return 'ok' in result ? result.ok : undefined
   }

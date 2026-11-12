@@ -23,6 +23,7 @@ import {
   type StartProgress,
   type ToolBindings,
   type ToolClock,
+  type ToolDecisionBridge,
   type ToolEnvironment,
   type ToolExecutorBinding,
   type ToolFinalEnvelope,
@@ -91,6 +92,8 @@ export type StartOptions = HarnessOptions &
     bindingsPort?: (
       base: ToolBindings<Principal, TestEnvironment>,
     ) => ToolBindings<Principal, TestEnvironment>
+    /** The decision owner of the waits; every method refuses when absent. */
+    decisions?: ToolDecisionBridge<Principal>
     /** Builds over this memory instead of a new one: a second runtime over the same records. */
     memory?: MemoryToolLedgerStore
     /** Wraps the memory store, to make one commit or read of the start path misbehave. */
@@ -121,7 +124,7 @@ export type TestAuthority = ToolStartAuthority<Principal> &
     readonly excluded: string[]
   }>
 
-function testAuthority(): TestAuthority {
+export function testAuthority(): TestAuthority {
   const accepted = new Map<string, DurableEvidence>()
   const rejected = new Map<string, Readonly<{ reason: string; exclusion: DurableEvidence }>>()
   const permits = new Map<string, number>()
@@ -131,8 +134,9 @@ function testAuthority(): TestAuthority {
   const acceptedCalls: string[] = []
   const excluded: string[] = []
   let issued = 0
-  const progress = (call: string): StartProgress | null => {
-    const acceptance = accepted.get(call)
+  // An acceptance belongs to one start record: a resume of the same call is a start of its own.
+  const progress = (call: string, start: string): StartProgress | null => {
+    const acceptance = accepted.get(`${call}\u0000${start}`)
     if (acceptance !== undefined) return { kind: 'started', acceptance }
     const rejection = rejected.get(call)
     return rejection === undefined ? null : { kind: 'rejected', ...rejection }
@@ -161,7 +165,7 @@ function testAuthority(): TestAuthority {
     },
     consume: input => {
       consumed.push(input.call)
-      const known = progress(input.call)
+      const known = progress(input.call, input.permit.start.operation)
       if (known !== null) return Promise.resolve(succeed(known))
       if (permits.get(input.call) !== Number(input.permit.request.revision))
         return Promise.resolve(
@@ -177,14 +181,14 @@ function testAuthority(): TestAuthority {
         return Promise.resolve(succeed({ kind: 'rejected', ...rejection }))
       }
       const acceptance = evidence(`accepted-${input.call}`)
-      accepted.set(input.call, acceptance)
+      accepted.set(`${input.call}\u0000${input.permit.start.operation}`, acceptance)
       acceptedCalls.push(input.call)
       return Promise.resolve(succeed({ kind: 'started', acceptance }))
     },
     inspect: input => {
       if (uncertain.has(input.call))
         return Promise.resolve(succeed({ kind: 'unknown', diagnostic: 'the ledger is behind' }))
-      const known = progress(input.call)
+      const known = progress(input.call, input.start.operation)
       if (known !== null) return Promise.resolve(succeed(known))
       permits.delete(input.call)
       return Promise.resolve(
@@ -192,7 +196,7 @@ function testAuthority(): TestAuthority {
       )
     },
     exclude: input => {
-      if (accepted.has(input.call))
+      if ([...accepted.keys()].some(key => key.startsWith(`${input.call}\u0000`)))
         return Promise.resolve(fail({ kind: 'conflict', operation: input.operation }))
       excluded.push(input.call)
       const exclusion = evidence(`call-excluded-${input.call}`)
@@ -375,7 +379,11 @@ function testClock(): TestClock {
         }),
       )
     },
-    elapsed: () => Promise.reject(new Error('elapsed belongs to timing')),
+    // Every committed segment measured 25 ms; only a suspension reads it.
+    elapsed: marker =>
+      Promise.resolve(
+        succeed({ milliseconds: '25', evidence: evidence(`elapsed-${marker.record}`) }),
+      ),
     waitUntil: () => Promise.reject(new Error('waitUntil belongs to timing')),
   }
 }
@@ -391,6 +399,8 @@ function refusing<T extends object>(name: string, methods: readonly string[]): T
 export type StartHarness = Readonly<{
   memory: MemoryToolLedgerStore
   runtime: ReturnType<typeof createToolRuntime<Principal, Block, TestEnvironment>>['runtime']
+  /** 提供者的恢复入口：按租户扫描有待推进工作的调用，并请宿主运行它们。 */
+  recover: ReturnType<typeof createToolRuntime<Principal, Block, TestEnvironment>>['recover']
   rebuildRuntime(): ReturnType<
     typeof createToolRuntime<Principal, Block, TestEnvironment>
   >['runtime']
@@ -418,7 +428,7 @@ export type StartHarness = Readonly<{
   released(call: string): Promise<boolean>
   /** The current state of a call admitted with `op-<call>`. */
   state(call: string): Promise<ToolState>
-  /** The queue entries of the default request's FIFO key, as the queue domain holds them. */
+  /** The queue entries of the default request's scope, as the queue domain holds them. */
   queue(): Promise<readonly Readonly<{ call: string; ordinal: string; stage: string }>[]>
 }>
 
@@ -466,6 +476,8 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     releaseInspection: environments,
     content: null,
     ...(controlSubjects === null ? {} : { controlSubjects }),
+    // acceptDecision resolves the decision through the same owner the driver asks.
+    ...(options.decisions === undefined ? {} : { decisions: options.decisions }),
   }
   const ledger = createToolLedger(
     store,
@@ -490,13 +502,9 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
     bindings,
     environments: options.environmentsPort?.(environments) ?? environments,
-    decisions: refusing('decisions', [
-      'inspectOperation',
-      'ensure',
-      'inspect',
-      'invalidate',
-      'resolve',
-    ]),
+    decisions:
+      options.decisions ??
+      refusing('decisions', ['inspectOperation', 'ensure', 'inspect', 'invalidate', 'resolve']),
     instances: host,
     clock,
     resultPolicy: guards().policy,
@@ -567,6 +575,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     internalRequests: new Map(),
     memory,
     runtime: provider.runtime,
+    recover: input => provider.recover(input),
     rebuildRuntime: () => createToolRuntime(dependencies, config).runtime,
     commands: ledger.commands,
     // Internal admission recall tests carry source facts from the previous harness.
@@ -639,7 +648,8 @@ async function unaccounted(
     candidate =>
       candidate.kind === 'operation' && candidate.operation.operation === entry.operation,
   )
-  if (entry.stage === 'held' && committed) return null
+  // A held entry was held, and a parked one parked, by an operation its call committed.
+  if ((entry.stage === 'held' || entry.stage === 'parked') && committed) return null
   return `entry ${entry.stage} (op ${entry.operation}) of a call in ${state.phase} with no queue task`
 }
 
@@ -673,10 +683,10 @@ export async function auditQueues(): Promise<void> {
     throw new Error(`queue entries nothing accounts for: ${problems.join('; ')}`)
 }
 
-/** The FIFO key of the default request (P02: scope owner, scope key, tool name). */
+/** The queue key of the default request (P02: the concurrency scope, scope owner and key). */
 export function queueKey(): string {
   const { scope } = request()
-  return JSON.stringify([scope.owner, scope.key, 'read_file'])
+  return JSON.stringify([scope.owner, scope.key])
 }
 
 export async function admitCall(
@@ -751,6 +761,7 @@ export function losingCommits(
   let left = times
   return {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     readRecord: memory.readRecord,
     due: memory.due,
     read: domain => memory.read(domain),
@@ -783,6 +794,7 @@ export function landingAfterRead(
     },
     store: {
       durability: 'none',
+      scanPending: input => memory.scanPending(input),
       readRecord: memory.readRecord,
       due: memory.due,
       read: async domain => {

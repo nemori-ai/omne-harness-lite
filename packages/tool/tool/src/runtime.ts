@@ -19,6 +19,7 @@ import {
   type ToolOperationId,
   type ToolOperationRef,
   type ToolRuntime,
+  type Reply,
 } from '@omne-harness/tool-contract'
 import {
   describedAdoption,
@@ -86,6 +87,58 @@ const IDENTITIES = 'toolIdentities'
 
 function redactedPortExceptionDiagnostic(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
+}
+
+/** 恢复扫描每次向账本要的一页调用数。 */
+const RECOVER_PAGE = 100
+
+/**
+ * 契约 P09 的 recover：按租户分页读 `scanPending`，把每个有待推进工作的调用交给宿主运行
+ * （`instances.schedule`），答复调度了多少个调用。驱动按调用当前的阶段与待办推进它，所以已启动
+ * 而失联的执行不会被重新启动。扫描或调度失败时答复那个失败，已经调度的调用仍然有效；再次调用
+ * recover 从头扫描，重复的调度是同一个提示。
+ */
+async function recoverPending<P, B extends ContentBlock, E>(
+  dependencies: ToolDependencies<P, B, E>,
+  input: Parameters<ToolProvider<P, B>['recover']>[0],
+): Reply<Readonly<{ scheduled: string }>> {
+  const { commands, instances } = dependencies
+  let after: string | null = null
+  let scheduled = 0n
+  for (;;) {
+    let page: Awaited<ReturnType<typeof commands.scanPending>>
+    try {
+      page = await commands.scanPending({
+        principal: input.principal,
+        tenant: input.tenant,
+        after,
+        limit: RECOVER_PAGE,
+      })
+    } catch {
+      return fail({
+        kind: 'unavailable',
+        dependency: 'commands',
+        diagnostic: redactedPortExceptionDiagnostic('commands'),
+      })
+    }
+    if ('failure' in page) return page
+    for (const call of page.ok.calls) {
+      let queued: Awaited<ReturnType<typeof instances.schedule>>
+      try {
+        queued = await instances.schedule({ tenant: input.tenant, call })
+      } catch {
+        return fail({
+          kind: 'unavailable',
+          dependency: 'instances',
+          diagnostic: redactedPortExceptionDiagnostic('instances'),
+        })
+      }
+      if ('failure' in queued) return queued
+      scheduled += 1n
+    }
+    if (page.ok.next === null) return succeed({ scheduled: String(scheduled) })
+    after = page.ok.next
+  }
 }
 
 function rejected(failure: ToolDefiniteFailure): ToolInvokeOutcome {
@@ -188,13 +241,14 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
     retryDelayMs: driverRetryDelayMs(configuration),
   })
   dependencies.instances.install(driver)
-  return Object.freeze({
+  const provider: ToolProvider<P, B> = {
     runtime,
-    recover: () => unsupported('recover', 'recovery scan'),
+    recover: input => recoverPending(dependencies, input),
     quiesce: () => unsupported('quiesce', 'drain and handover'),
     inspectDrain: () => unsupported('inspectDrain', 'drain and handover'),
     handover: () => unsupported('handover', 'drain and handover'),
-  })
+  }
+  return Object.freeze(provider)
 }
 
 /** Builds the ordinary API without taking ownership of an executor installation. */

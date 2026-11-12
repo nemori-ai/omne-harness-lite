@@ -89,6 +89,7 @@ function peerOf<P>(fixture: ToolDecisionBridgeFixture<P>, access: Access<P>): Ex
         ...mutation(operation),
         wait: waitId(wait),
         terminal: TERMINAL,
+        cause: 'cancelled',
       }),
     inspectOperation: operation => bridge.inspectOperation(mutation(operation)),
     completion: completionOf(fixture, 'settle'),

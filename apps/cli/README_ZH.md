@@ -2,16 +2,16 @@
 
 [English](README.md)
 
-`omne` 是 Harness Server 的命令行客户端。它打印帮助或构建版本，并经 SDK 向服务器发送操作：`register`、`login`、`create-session`、`send-input`、`read-history`、`read-session-diagnostics`、`cancel-run`、`stop-call`，以及 18 个治理操作，每个操作一个命令（例如 `create-organization`、`switch-current-tenant` 和 `revoke-login`），另有管理设置项的 `setting list|set|show|unset`。用它从 shell、脚本或 CI 里驱动一个 Harness Server，不必自己写 TypeScript 调用 SDK。
+`omne` 是 Harness Server 的命令行客户端。它打印帮助或构建版本，并经 SDK 向服务器发送操作：`register`、`login`、`create-session`、`send-input`、`read-history`、`read-session-diagnostics`、`cancel-run`、`stop-call`，三个 HITL 操作 `list-cards`、`read-card` 与 `submit-reply`，以及 18 个治理操作，每个操作一个命令（例如 `create-organization`、`switch-current-tenant` 和 `revoke-login`），另有管理设置项的 `setting list|set|show|unset`。用它从 shell、脚本或 CI 里驱动一个 Harness Server，不必自己写 TypeScript 调用 SDK。
 
 ## 职责与状态
 
-本应用拥有进程入口 `omne`、参数解析、27 个命令、凭据读取、登录状态文件、构建身份，以及解析和创建状态目录的两个公开函数。接入边界见[包组织](../../docs/package-organization.md#最小-cli-的接入边界)。帮助、版本、用法错误与默认状态目录的规则已接受，写在 [SPEC.md](SPEC.md)。
+本应用拥有进程入口 `omne`、参数解析、30 个命令、凭据读取、登录状态文件、构建身份，以及解析和创建状态目录的两个公开函数。接入边界见[包组织](../../docs/package-organization.md#最小-cli-的接入边界)。帮助、版本、用法错误与默认状态目录的规则已接受，写在 [SPEC.md](SPEC.md)。
 
 已经实现：
 
 - `omne --help` 和 `omne --version`。
-- 27 个命令。每个命令经 SDK 发送一个公开操作，并打印一个 JSON 对象。`read-history` 读完一个会话的全部历史页，缺省打印给人读的文本，加 `--json` 打印一个 JSON 对象。`read-session-diagnostics` 以同样的两种形式读完一个会话各 Run 的诊断页。18 个治理命令以操作名为名，以 `login.json` 里的租户行事。[SPEC.md](SPEC.md#治理命令)列出它们。`setting list|set|show|unset` 列出这个租户的设置项，或写入、查看、清除一个秘密设置项。资产写成 `[<category>:]<name>`。`set` 从标准输入或隐藏提示读秘密，命令不打印秘密。`show` 打印这个租户自己这一层与部署默认两层，见 [SPEC.md](SPEC.md#设置命令)。
+- 30 个命令。每个命令经 SDK 发送一个公开操作，并打印一个 JSON 对象。`read-history` 读完一个会话的全部历史页，缺省打印给人读的文本，加 `--json` 打印一个 JSON 对象。`read-session-diagnostics` 以同样的两种形式读完一个会话各 Run 的诊断页。18 个治理命令以操作名为名，以 `login.json` 里的租户行事。[SPEC.md](SPEC.md#治理命令)列出它们。`setting list|set|show|unset` 列出这个租户的设置项，或写入、查看、清除一个秘密设置项。资产写成 `[<category>:]<name>`。`set` 从标准输入或隐藏提示读秘密，命令不打印秘密。`show` 打印这个租户自己这一层与部署默认两层，见 [SPEC.md](SPEC.md#设置命令)。三个 HITL 命令列出等人处理的卡片、读一张卡，并以选项、原话或跳过答复它，见 [SPEC.md](SPEC.md#hitl-命令)。
 - `login.json` 随治理结果变化：`login` 保存响应里的 `loginId`，`switch-current-tenant` 更新租户，`revoke-login` 撤销本登录时删除该文件。
 - 终端上不回显的凭据输入，以及从管道读取凭据。
 - 状态目录里的 `login.json`，经临时文件加改名写入。

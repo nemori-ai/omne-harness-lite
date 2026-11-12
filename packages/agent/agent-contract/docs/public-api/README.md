@@ -1,6 +1,6 @@
 # Agent 公开入口与定义
 
-根入口 `@omne-harness/agent-contract` 导出全部契约类型、五个常量（`ATTRIBUTE_ITEMS`、`POSITIONS`、`POWERS`、`POSITION_OUTPUTS`、`AGENT_IDENTITY_MAX_LENGTH`）、三个判定函数（`judgeAgentDefinition`、`judgeLoopExtensions`、`judgeExtensionOutput`）、资产正文端口 `agentBodyContract`、十四个品牌身份的解码函数、六个结构判定（其中 `judgeHandoffPrepare` 与 `judgeInputOrigin` 属于消息准入）与 `obligationCategoryOf`。包根不导出推进、纯求值、托管协调、Journal 或实例的实现。这些接口在包里只有类型，由[后继的通用实现与提供者](../../../agent/README.md)实现。
+根入口 `@omne-harness/agent-contract` 导出全部契约类型、九个常量（`ATTRIBUTE_ITEMS`、`INSTRUCTION_LIMITS`、`POSITIONS`、`POWERS`、`POSITION_OUTPUTS`、`DECISION_CARD_DRAFT_SCHEMA`、`ACTION_ADMISSION_DECLARATION`、`ACTION_ADMISSION_IMPLEMENTATION`、`AGENT_IDENTITY_MAX_LENGTH`）、三个判定函数（`judgeAgentDefinition`、`judgeLoopExtensions`、`judgeExtensionOutput`）、资产正文端口 `agentBodyContract`、十四个品牌身份的解码函数、准入链 Passage 身份的一对函数（`admissionPassageOf` 由动作给出它的官方准入链身份，`admissionActionOf` 判一个 Passage 是不是某个动作的准入链）、六个结构判定（其中 `judgeHandoffPrepare` 与 `judgeInputOrigin` 属于消息准入）、卡片请求的一对函数 `cardRequestOf` 与 `cardDraftOf`，以及 `obligationCategoryOf`。包根不导出推进、纯求值、托管协调、Journal 或实例的实现。这些接口在包里只有类型，由[后继的通用实现与提供者](../../../agent/README.md)实现。
 
 公开类型的唯一定义在 [src/index.ts](../../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。这些类型的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。类型存在不表示任何提供者或运行实现已经兑现它们。
 
@@ -118,7 +118,7 @@ PreparedContextTransition 是 Agent 消费 Request Context 的窄视图。commit
 
 - [extensions.ts](../../src/extensions.ts)：上表的作者接口类型，常量 `POSITIONS` 与 `POWERS`。
 - [passages.ts](../../src/passages.ts)：扩展调用台账与人工卡片，有 `CapturedRead`、`NamedCapturedRead`、`CardRequest`、`CardAnswer`、`CardRemark`、`CardReply`、`PassageCard`、`PassageOperationProgress`、`CardRoundProgress`、`CardRound`、`PassageOperation`、`PassageProgress` 与 `Passage`。还有按位置的 `Subject`，端口 `ExtensionImplementations`、`DecisionCards`、`ActionAdmission`、`MessageHandoff`、`AgentMaterials` 与 `RegisteredReads`，以及 `AdmissionDecision`、`MessageSource`、`Material`，和消息准入的 `InputEntry`、`InvokeRuntimeContext`、`SubmitDelivery`、`InputOrigin`、`HandoffPosition`、`HandoffReference`、`PendingHandoff`、`InputHandoff`、`HandoffRequest`、`HandoffPrepare`、`HandoffDecision`、`HandoffOutcome`、`HandoffResolution`、`HandoffLookup`。
-- [judge-output.ts](../../src/judge-output.ts)：按位置输出表判断作者返回值的 `judgeExtensionOutput`，位置输出表的机读形式 `POSITION_OUTPUTS`，以及类型 `ExtensionOutputJudgeInput`、`PositionOutputKey` 与 `PositionOutputs`。规则见[位置输出表](extensions.md#位置输出表)与 [SPEC 的声明判断](../../SPEC.md#声明判断)。
+- [judge-output.ts](../../src/judge-output.ts)：按位置输出表判断作者返回值的 `judgeExtensionOutput`，位置输出表的机读形式 `POSITION_OUTPUTS`，以及类型 `ExtensionOutputJudgeInput`、`PositionOutputKey` 与 `PositionOutputs`。规则见[位置输出表](extensions.md#位置输出表)与 [SPEC 的声明判断](../../SPEC.md#声明判断)。同一文件拥有卡片草稿的形状，所以也给出一张卡片请求的形状：`DECISION_CARD_DRAFT_SCHEMA` 是请求值的具名形状，`cardRequestOf` 把草稿放进请求，`cardDraftOf` 从请求读回草稿，形状不符或值不是草稿时返回 null。循环与卡片提供者都用这一对函数，不各自解析请求值。
 
 Passage 是一次扩展调用的台账，不是一次经过的台账。一次经过是 Loop 到达一个位置的一次，同一次经过里每个扩展各有一个 Passage。两个词的定义见[扩展作者协议](extensions.md)页首。
 
@@ -134,7 +134,7 @@ Agent 对扩展调用的行为保证只写在 SPEC 的“[扩展、卡片与材�
 
 RegisteredReads 只承接已登记只读协议。read 在返回 captured 前耐久保管实际 schema/value/source；lookup 按原 action/passage/original 认回同一内容，并核当前读取资格。未知不能重新读取当前值冒充原值。excluded 必须排除原捕获及迟到写入；仅当原读取协议仍能按固定输入取得原值时才可重试，无法重建原输入则明确 unavailable，保留该扩展调用。read 所需资格不等于旧执行挂接的推进资格，取得事实也不授权后继效果。
 
-CardRound 保存整轮有序请求。present/lookup 必须携原 round 和完整请求身份集合；同 round 异集合冲突，部分已创建时保持 unknown。返回卡片与请求逐项对应。answered 不等于 processed，processed 以原扩展的 `replay` 调用得到最终 Conclusion 为准，行为见 SPEC 同节。
+CardRound 保存整轮有序请求。present/lookup 必须携原 round 和完整有序请求（lookup 另带 execution，不带 advance）；同 round 异集合冲突，部分已创建时保持 unknown。返回卡片与请求逐项对应。answered 不等于 processed，processed 以原扩展的 `replay` 调用得到最终 Conclusion 为准，行为见 SPEC 同节。
 
 DecisionCards 是 Agent 定义的卡片端口，由人在回路领域的适配器实现。人在回路领域的公开契约尚未定义，这个端口写的是 Agent 所需的保证。`read` 返回一张卡片的唯一有效答复，五类结果是：chosen（明确选择一个选项）、declined（明确拒答）、remark（附言：人有话说，没有给出准驳，`text` 是非空的原话）、pending（尚无答复）、invalidated（卡片已作废）。Agent 不把 declined、remark 与 pending 读成批准，也不读成人不同意。chosen 与 declined 的后果：卡片来自作者扩展时，由原扩展决定；卡片来自官方准入时，由授权领域按 AU-05 判定。remark 的处置见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”第 11 条。`CardAnswer` 是 chosen 与 declined 两类，`CardRemark` 是 remark。回放绑定的 `response.answer` 与 `ActionAdmission.admit` 的 `decision.answer` 都携带 `CardAnswer | CardRemark`，即该卡片唯一有效的人的处理。`invalidate` 只作废尚无答复的卡片，已有答复的卡片在返回值中保留原答复。幂等身份是 passage 加 round 加完整请求身份集合，`invalidate` 另带操作身份。逐操作的要素见 SPEC 的“[卡片与准入端口的逐操作要素](../../SPEC.md#卡片与准入端口的逐操作要素)”。
 

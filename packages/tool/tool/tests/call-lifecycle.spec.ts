@@ -335,6 +335,7 @@ it('Sweep: a domain the store cannot read stops the sweep', async () => {
     readRecord: memory.readRecord.bind(memory),
     commit: memory.commit.bind(memory),
     due: memory.due.bind(memory),
+    scanPending: memory.scanPending.bind(memory),
   }
   const sweep = createToolSweep(store, f.bodies, 4, {
     graceMs: G,

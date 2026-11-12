@@ -39,7 +39,8 @@ import {
 import { loadTree, type ResolvedTree } from './plugin-tree.ts'
 import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts'
 import type { LoadedRow } from './readiness.ts'
-import { monotonicClock, runShutdown } from './shutdown.ts'
+import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-bound.ts'
+import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
 import { prepareStartupDirectory } from './startup-directory.ts'
 import { createTrust, type Trust } from './trust.ts'
 import type {
@@ -342,6 +343,7 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
       monotonicClock,
       {
         log: write,
+        stopsFirst: stopPredecessors(rows),
         disposeRoot: () => disposeTree(root, loaded),
       },
     ))
@@ -763,6 +765,7 @@ async function runServeWithHostFiles(
     checkModelRowConsistency(tree.rows)
     disclosure = compileToolResultDisclosure(tree.rows)
     checkToolsReplyBudget(tree.rows)
+    checkSuspensionCommandBound(tree.rows)
     parseFactoryConfigs(tree.rows, { executionHost, telemetry })
     rows = tree.rows.map(row => rowSpecOf(row, profile, manifests, probes))
   } catch (error) {
@@ -808,6 +811,7 @@ async function runServeWithHostFiles(
       monotonicClock,
       {
         log: write,
+        stopsFirst: stopPredecessors(rows),
         ...(finishHostFiles === undefined ? {} : { afterBusiness: finishHostFiles }),
         // After storage, before the report is fixed: the tree writes no diagnostic any more.
         afterStorage: deadline => telemetry.close(Math.max(0, deadline - monotonicClock.now())),

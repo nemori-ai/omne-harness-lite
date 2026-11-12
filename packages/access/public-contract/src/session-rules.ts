@@ -467,6 +467,7 @@ export const sessionFamily: Family<'session-public/1', SessionOperation, never> 
   version: 'session-public/1',
   error: 'Invalid session codec arguments',
   stages: [],
+  declarable: false,
   isProvided: isSessionOperation,
   requestRule: operation => ({
     body: requests[operation],

@@ -14,6 +14,7 @@ import { runtimeContextTrustKey } from '@omne-harness/runtime-context-cordis-con
 import {
   sessionPrincipalBindingsKey,
   sessionScopeLookupKey,
+  sessionScopeOwnersKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import { entryObjects } from '../../src/entry/index.ts'
 import {
@@ -95,6 +96,7 @@ async function wired() {
     executionRecoveryAuthorityKey,
     sessionPrincipalBindingsKey,
     sessionScopeLookupKey,
+    sessionScopeOwnersKey,
   ])
   fixture.scopeOf(sessionPrincipalBindingsKey).provide(sessionPrincipalBindingsKey, {
     read: async (input: { tenant: typeof tenant; session: string }) => ({
@@ -138,5 +140,28 @@ it('does not read a same-name sessionScopeLookup on the root: a scope of tenant 
   expect(await trust.bindings.lookup(scope)).toEqual({ kind: 'unavailable' })
   // With the trusted provider present, the root one still does not replace it.
   fixture.scopeOf(sessionScopeLookupKey).provide(sessionScopeLookupKey, lookupAs(tenant, 'ses-a'))
+  expect(await bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
+})
+
+/** The durable scope owners of Session, answering every scope as session `session` of `owner`. */
+const ownersAs = (owner: typeof tenant, session: string) => ({
+  lookup: async () => ({ ok: { kind: 'owned', tenant: owner, session, generation: '1' } }),
+})
+const unknownLookup = { lookup: async () => ({ kind: 'unknown' }) }
+
+it('reads the durable owner when the in-process index has not seen the scope, as after a restart', async () => {
+  const { fixture, bindings, trust } = await wired()
+  fixture.scopeOf(sessionScopeLookupKey).provide(sessionScopeLookupKey, unknownLookup)
+  expect(await bindings.lookup(scope)).toEqual({ kind: 'unknown' })
+  fixture.scopeOf(sessionScopeOwnersKey).provide(sessionScopeOwnersKey, ownersAs(tenant, 'ses-a'))
+  expect(await bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
+  expect(await trust.bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
+})
+
+it('reads the durable owner when the index is absent, and never a same-name owner source on the root', async () => {
+  const { fixture, bindings } = await wired()
+  fixture.root.provide(sessionScopeOwnersKey, ownersAs(tenantB, 'ses-b'))
+  expect(await bindings.lookup(scope)).toEqual({ kind: 'unavailable' })
+  fixture.scopeOf(sessionScopeOwnersKey).provide(sessionScopeOwnersKey, ownersAs(tenant, 'ses-a'))
   expect(await bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
 })

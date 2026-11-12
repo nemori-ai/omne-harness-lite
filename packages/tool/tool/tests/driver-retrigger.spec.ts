@@ -173,6 +173,7 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
     const harness: StartHarness = startHarness({
       store: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: memory.readRecord,
         due: memory.due,
         read: async domain => {
@@ -299,6 +300,7 @@ describe('23 retrigger: when a failed run is run again', () => {
       driverRetryDelayMs: 60_000,
       store: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: memory.readRecord,
         due: memory.due,
         // A reader that gives a negative answer about the start of c1 between the reads of
@@ -360,6 +362,7 @@ describe('23 retrigger: when a failed run is run again', () => {
     const harness = startHarness({
       store: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: memory.readRecord,
         due: memory.due,
         read: domain => memory.read(domain),

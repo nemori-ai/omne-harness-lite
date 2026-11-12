@@ -611,6 +611,66 @@ describe('tool call control', () => {
       expect(account).toMatchObject({ usage: [{ state: 'known', lexeme: '3' }] })
   })
 
+  it('waits when the advance is revoked before the cancellation is in the Journal, then winds down through F0', async () => {
+    const assembly = await toolAssembly({ toolConcurrency: 2 })
+    const { handle, first, second } = await twoCalls(assembly)
+    assembly.controls.tools.commands.control.always(input =>
+      acceptedStop(
+        toolOperation(input.reference === first.reference ? first : second, 'stop'),
+        'stop',
+      ),
+    )
+    const input = { ...alice, execution: handle.execution }
+    // Session ended the Run in the commit that accepted its cancel: from now on its conditions
+    // answer that the advance is gone. The cancel control reaches the Agent only later.
+    const { conditions } = assembly.dependencies
+    let staleReads = 0
+    conditions.read = async () => {
+      staleReads += 1
+      return { failure: { kind: 'stale-advance' as const } }
+    }
+    // The loop wakes before the control is there and reads the conditions.
+    await eventually(async () => assembly.controls.clock.pending().length === 1)
+    const [check] = assembly.controls.clock.pending()
+    if (check === undefined) throw new Error('the driver is not sleeping on a check time')
+    ok(assembly.controls.clock.advanceTo(check))
+    await eventually(async () => staleReads > 0)
+    // It is not a failure of the node: no call is stopped yet and the execution is not over.
+    expect(assembly.controls.tools.commands.control.calls).toHaveLength(0)
+    expect((await loadWithEntries(assembly.dependencies, input)).state.kind).not.toBe('ended')
+    ok(
+      await handle.control.control({
+        ...input,
+        operation: operation('cancel-late'),
+        command: { kind: 'cancel', reason: evidence('cancel-late') },
+      }),
+    )
+    // The established cancellation wakes the waiting loop: F0 stops each foreground call.
+    await eventually(async () => assembly.controls.tools.commands.control.calls.length === 2)
+    const receiver = toolReceiver(assembly)
+    for (const [pending, name] of [
+      [first, 'a'],
+      [second, 'b'],
+    ] as const)
+      ok(
+        await pushToolResult(
+          receiver,
+          toolDelivery(pending, {
+            name,
+            terminal: interrupted('stop'),
+            account: toolAccount(pending, '3'),
+          }),
+        ),
+      )
+    await eventually(
+      async () => (await loadWithEntries(assembly.dependencies, input)).state.kind === 'ended',
+    )
+    expect((await loadWithEntries(assembly.dependencies, input)).state).toMatchObject({
+      kind: 'ended',
+      conclusion: { kind: 'cancelled' },
+    })
+  })
+
   it('saves the reference of an accepted Tool call when a cancellation lands before the association', async () => {
     let cancel: (() => Promise<unknown>) | null = null
     const assembly = await toolAssembly()

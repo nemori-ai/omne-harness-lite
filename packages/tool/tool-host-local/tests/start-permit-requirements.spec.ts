@@ -246,6 +246,7 @@ describe('R2-D60 start permit requirements', () => {
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
@@ -284,6 +285,7 @@ describe('R2-D60 start permit requirements', () => {
         },
         wrap: memory => ({
           durability: 'none',
+          scanPending: input => memory.scanPending(input),
           readRecord: (domain, key) => memory.readRecord(domain, key),
           due: (tenant, now, limit) => memory.due(tenant, now, limit),
           read: domain => memory.read(domain),
@@ -341,6 +343,7 @@ describe('R2-D60 start permit requirements', () => {
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: async domain => {
@@ -515,6 +518,7 @@ describe('R2-D60 start permit requirements', () => {
       const f = await fixture({
         wrap: memory => ({
           durability: 'none',
+          scanPending: input => memory.scanPending(input),
           readRecord: (domain, key) => memory.readRecord(domain, key),
           due: (tenant, now, limit) => memory.due(tenant, now, limit),
           commit: input => memory.commit(input),
@@ -557,6 +561,7 @@ describe('R2-D60 start permit requirements', () => {
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         commit: input => memory.commit(input),
@@ -597,6 +602,7 @@ describe('R2-D60 start permit requirements', () => {
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),
@@ -625,6 +631,7 @@ describe('R2-D60 start permit requirements', () => {
     const f = await fixture({
       wrap: memory => ({
         durability: 'none',
+        scanPending: input => memory.scanPending(input),
         readRecord: (domain, key) => memory.readRecord(domain, key),
         due: (tenant, now, limit) => memory.due(tenant, now, limit),
         read: domain => memory.read(domain),

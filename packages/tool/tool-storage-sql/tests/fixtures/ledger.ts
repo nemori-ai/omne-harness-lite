@@ -118,7 +118,7 @@ function invokeRequest(body?: ToolBodyDeclaration, argumentsText = '{}'): ToolIn
     },
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
   }
 }
 

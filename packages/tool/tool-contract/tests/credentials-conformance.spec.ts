@@ -53,7 +53,7 @@ function fixture(breach: Breach): ToolCredentialsFixture<string, 'selected-secre
       consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'result' },
       batchDecision: null,
       mode: 'foreground' as const,
-      limits: { concurrency: 1, foregroundMs: 0, backgroundAfterMs: null },
+      limits: { concurrency: 1, scopeBudget: null, foregroundMs: 0, backgroundAfterMs: null },
     },
     usage: { adoption: functionDefinition().adoption, purpose: 'send', target: 'service' },
   }

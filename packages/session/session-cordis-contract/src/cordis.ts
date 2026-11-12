@@ -14,6 +14,7 @@ import type {
   SessionProductionSource,
   SessionDelegatedTransactions,
   SessionPrincipalBindingSource,
+  SessionScopeOwnerSource,
   SessionWorkPrincipals,
   DurableEvidence,
   ScopeReleasePort,
@@ -157,6 +158,22 @@ export abstract class SessionPrincipalBindingsService
 }
 export const sessionPrincipalBindingsKey = SessionPrincipalBindingsService.provide
 
+/**
+ * The durable owner of a Context scope: the session that minted it, read from the record Session
+ * writes in the minting commit. Trusted: the `session-storage` row provides it, and only the
+ * assembly entry reads it, per call, where the holder's in-process index has not seen the scope.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionScopeOwnersService extends Service implements SessionScopeOwnerSource {
+  static readonly provide = 'sessionScopeOwners'
+  constructor(ctx: Context) {
+    super(ctx, SessionScopeOwnersService.provide)
+  }
+  abstract readonly lookup: SessionScopeOwnerSource['lookup']
+}
+export const sessionScopeOwnersKey = SessionScopeOwnersService.provide
+
 /** @owner packages/session/session-contract */
 export abstract class SessionIdentityBridgeService<P = unknown>
   extends Service
@@ -258,6 +275,28 @@ export abstract class ScopeReleasePortService extends Service implements ScopeRe
   abstract readonly release: ScopeReleasePort['release']
 }
 export const sessionScopeReleaseKey = ScopeReleasePortService.provide
+
+/**
+ * The tenants of the deployment, for the startup scan of the Session provider. The application
+ * assembly provides it over its tenant directory and asks the directory as the scanner of the
+ * deployment; the Session provider holds no principal for it.
+ */
+export type SessionTenantSource = Readonly<{
+  enumerate(): Promise<
+    | Readonly<{ ok: readonly TenantId[] }>
+    | Readonly<{ failure: Readonly<{ kind: 'unavailable' | 'denied'; diagnostic: string }> }>
+  >
+}>
+
+/** @owner packages/session/session-cordis-contract */
+export abstract class SessionTenantSourceService extends Service implements SessionTenantSource {
+  static readonly provide = 'sessionTenants'
+  constructor(ctx: Context) {
+    super(ctx, SessionTenantSourceService.provide)
+  }
+  abstract readonly enumerate: SessionTenantSource['enumerate']
+}
+export const sessionTenantsKey = SessionTenantSourceService.provide
 
 /** @owner packages/session/session-contract */
 export abstract class SessionAdoptionSourceService<P = unknown>
@@ -376,6 +415,7 @@ declare module '@deepseek-ai/cordis' {
     sessionDelegatedTransactions: SessionDelegatedTransactionsService<unknown>
     sessionWorkPrincipals: SessionWorkPrincipalsService<unknown>
     sessionPrincipalBindings: SessionPrincipalBindingsService
+    sessionScopeOwners: SessionScopeOwnersService
     sessionIdentity: SessionIdentityBridgeService<unknown>
     sessionEvidence: SessionEvidenceBridgeService<unknown>
     sessionClock: SessionClockService
@@ -384,6 +424,7 @@ declare module '@deepseek-ai/cordis' {
     sessionNotifier: SessionNotifierService
     sessionAgentDrive: AgentDrivePortService
     sessionScopeRelease: ScopeReleasePortService
+    sessionTenants: SessionTenantSourceService
     sessionAdoptionSource: SessionAdoptionSourceService<unknown>
     sessionProductionSource: SessionProductionSourceService
     sessionCustodySource: SessionCustodySourceService

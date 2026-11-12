@@ -404,7 +404,7 @@ stateDiagram-v2
 | ActionSlot | dispatched | 真实结果到达并按原动作身份保管，含启动围栏拒绝后 Tool 的 unavailable 终局 | result | 保管依据已保存 |
 | ActionSlot | dispatched | Tool 确认转后台并给出耐久占位 | background | 占位已保管，只释放占位的前台交付。最终结果到达时占位不改写 |
 | ActionSlot | 缺槽位或 dispatched、result、background | 较早尝试未决或已知受理，后来 invoke 返回 rejected | 保留原状态、pending、完整请求、consumer 与 effect intent | 原 open 屏障不变。缺槽位是未决，认回原受理后沿原槽位恢复，不产生竞争 denied |
-| ActionBatch | 槽位逐个建立 | 本批每个动作都已有槽位，且全部槽位为 denied、result 或 background | 整批经过可以运行（若至少一个槽位曾为 dispatched） | 等待并发名额的获准动作尚无槽位时不成立 |
+| ActionBatch | 槽位逐个建立 | 本批每个动作都已有槽位，且全部槽位为 denied、result 或 background | 整批经过可以运行（若至少一个槽位曾为 dispatched） | 无 |
 | ActionSlot | denied、result 或 background | 单结果经过结束（后台槽位不经过），候选消息形成，再经消息准入：P 固定候选并记 `handoff` 为 H 的引用，prepare 取得结果，Ja 把结果与真实历史同次提交 | 同一状态，`each`、`candidate`、`handoff` 依次记入 | 进度随 checkpoint 提交，恢复时不重复调用与提交；完整结果由 `ExecutionSnapshot.handoffs` 解析 |
 
 ### AdvancementFact 与状态的对应

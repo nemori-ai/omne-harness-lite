@@ -23,7 +23,7 @@ import {
   decodeToolResultVersion,
   judgeToolInvokeRequest,
 } from '@omne-harness/tool-contract/provider'
-import { adoption, evidence, execution, ok } from '../journal-support.ts'
+import { adoption, evidence, execution, instance, ok } from '../journal-support.ts'
 import { alice, eventually } from '../loop-support.ts'
 import { controlAssembly } from './control-assembly.ts'
 
@@ -88,7 +88,7 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
       consumer,
       batchDecision: null,
       mode: 'foreground',
-      limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+      limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     }),
   )
 }
@@ -241,10 +241,16 @@ export function toolReceiver(assembly: Assembly): AgentToolReceiver<string> {
       (call): call is AssociatedTool =>
         call.kind === 'tool' && call.association === 'associated' && match(call),
     )
-    const instance = snapshot.executionAttachment?.instance
-    return pending === undefined || instance === undefined
+    // The binding keeps the instance the call was saved under, as the Journal provider does: it
+    // resolves while no attachment is active (an execution that was handed over).
+    return pending === undefined
       ? null
-      : { execution: execution(), instance, definition: snapshot.checkpoint.definition, pending }
+      : {
+          execution: execution(),
+          instance: instance(),
+          definition: snapshot.checkpoint.definition,
+          pending,
+        }
   }
   const made = createAgentToolReceiver<string>(
     {

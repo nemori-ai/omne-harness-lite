@@ -30,6 +30,7 @@ it('lets tenant B commit while A is blocked in its read, and decides A by commit
   let block = false
   const store: ToolLedgerStore = {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     readRecord: (domain, key) => memory.readRecord(domain, key),
     due: (tenant, now, limit) => memory.due(tenant, now, limit),
     read: async domain => {
@@ -94,6 +95,7 @@ it('an earlier completed tail does not remove its blocked successor from the que
   let reads = 0
   const store: ToolLedgerStore = {
     durability: 'none',
+    scanPending: input => memory.scanPending(input),
     readRecord: (domain, key) => memory.readRecord(domain, key),
     due: (tenant, now, limit) => memory.due(tenant, now, limit),
     read: async domain => {

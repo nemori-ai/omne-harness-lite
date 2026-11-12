@@ -164,12 +164,16 @@ export async function openStorage(
       },
     }
     const options = { storage: created.storage, domains, combination }
+    const listing = [...entries].map(([tenant, domain]) => ({ tenant, domain }))
+    const listed = async () => ({ kind: 'ready', revision: '1', entries: listing }) as const
     return {
       /** The raw storage, for the read-budget case that must not depend on the whole assembly. */
       storage: created.storage,
       combination,
       domains,
-      store: createSqlToolLedgerStore(options),
+      /** The registered tenant domains, as the cross-tenant scan of the store reads them. */
+      tenants: listed,
+      store: createSqlToolLedgerStore({ ...options, tenants: listed }),
       materials: catalog,
       close,
     }

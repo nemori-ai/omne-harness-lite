@@ -121,6 +121,11 @@
       "config": {}
     },
     {
+      "id": "agent-cards",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "agent-host",
       "plugin": "stubPlugin",
       "config": {}

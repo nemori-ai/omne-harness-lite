@@ -30,6 +30,9 @@ export type ExecutionAuthorityOptions = Readonly<{
 
 type Target = Readonly<{ tenant: TenantId; scope?: ScopeRef }>
 
+/** The scopes whose binding answer was last logged, so that a retried request does not repeat it. */
+const LOGGED_SCOPES = 256
+
 async function scopeFailure(
   options: ExecutionAuthorityOptions,
   scope: ScopeRef | undefined,
@@ -73,9 +76,32 @@ function targetOf(
 export class EntryExecutionEnvironmentAuthority extends ExecutionEnvironmentAuthorityService<unknown> {
   readonly readers = new WeakMap<Context, () => boolean>()
   readonly options: ExecutionAuthorityOptions
+  readonly logged = new Map<string, string>()
   constructor(ctx: Context, options: ExecutionAuthorityOptions) {
     super(ctx)
     this.options = options
+  }
+
+  /** A scope whose binding the authority cannot read is no refusal: say so once per scope and answer. */
+  noteScope(scope: ScopeRef | undefined, failure: AuthorityDecision<unknown> | undefined): void {
+    if (scope === undefined) return
+    const kind = failure?.kind
+    if (kind !== 'unknown' && kind !== 'unavailable') {
+      this.logged.delete(scope.ref)
+      return
+    }
+    if (this.logged.get(scope.ref) === kind) return
+    if (this.logged.size >= LOGGED_SCOPES) this.logged.clear()
+    this.logged.set(scope.ref, kind)
+    try {
+      this.ctx
+        .logger('execution-authority')
+        .warn(
+          `the binding of scope ${scope.ref} answers ${kind}; environment access there is not granted`,
+        )
+    } catch {
+      // The context has ended; there is nobody to tell.
+    }
   }
 
   async authorize(
@@ -100,6 +126,7 @@ export class EntryExecutionEnvironmentAuthority extends ExecutionEnvironmentAuth
       )
         return { kind: 'refused' }
       const failure = await scopeFailure(this.options, target.scope, tenant)
+      this.noteScope(target.scope, failure)
       if (failure !== undefined) return failure
       return { kind: 'authorized', principal: verified, current }
     } catch {

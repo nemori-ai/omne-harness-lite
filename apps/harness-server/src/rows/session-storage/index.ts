@@ -30,15 +30,18 @@ import type { SessionCursorSigning } from '@omne-harness/session-cordis-contract
 import {
   SessionDelegatedTransactionsService,
   SessionPrincipalBindingsService,
+  SessionScopeOwnersService,
   SessionTransactionPortService,
   sessionAccessCheckKey,
   sessionCursorSigningKey,
   sessionDelegatedTransactionsKey,
   sessionPrincipalBindingsKey,
+  sessionScopeOwnersKey,
   sessionTransactionsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import {
   createSessionPrincipalBindings,
+  createSessionScopeOwners,
   createSessionStorage,
   type SessionStorageOptions,
 } from '@omne-harness/session-storage-sql'
@@ -334,6 +337,18 @@ class TenantDomainLookupImpl extends TenantDomainLookupService {
  * 目录没有该租户（未登记）或存储读失败答 `unavailable`，行停止后一律答 `unavailable`（诊断含 `closing`），
  * 未知会话与别的租户的会话都答 `not-bound`。读不登记租户。
  */
+/**
+ * 作用域归属读口（受信）：session-storage-sql 的 `createSessionScopeOwners`，读铸造作用域的那笔提交写下的归属，
+ * 与公开端口同一存储、同一目录。它不问访问裁定，只交给装配入口；入口在 AD-03 的进程内索引没见过该作用域时读它。
+ */
+class ScopeOwnersImpl extends SessionScopeOwnersService {
+  readonly lookup: SessionScopeOwnersService['lookup']
+  constructor(ctx: Context, source: SessionScopeOwnersService['lookup']) {
+    super(ctx)
+    this.lookup = input => source(input)
+  }
+}
+
 class PrincipalBindingsImpl extends SessionPrincipalBindingsService {
   readonly read: SessionPrincipalBindingSource['read']
   constructor(ctx: Context, source: SessionPrincipalBindingSource) {
@@ -413,11 +428,14 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   new TenantDomainLookupImpl(ctx, directory.lookup)
   const bindings = createSessionPrincipalBindings({ storage, domains: directory.access })
   new PrincipalBindingsImpl(ctx, bindings)
+  const scopeOwners = createSessionScopeOwners({ storage, domains: directory.access })
+  new ScopeOwnersImpl(ctx, input => scopeOwners.lookup(input))
   return {
     stop: deadline => {
       active = false
-      // 读口记住了已成立的归属，不再读存储，所以关闭要显式告诉它：此后一律答 `unavailable`。
+      // 两个读口记住了已成立的归属，不再读存储，所以关闭要显式告诉它们：此后一律答 `unavailable`。
       bindings.stop()
+      scopeOwners.stop()
       return directory.close(deadline)
     },
   }
@@ -433,6 +451,7 @@ export const sessionStorageRow = defineRow({
       tenantDomainsKey,
       tenantDomainLookupKey,
       sessionPrincipalBindingsKey,
+      sessionScopeOwnersKey,
     ],
     injects: [storageKey, sessionAccessCheckKey],
     sameProviderGroup: null,

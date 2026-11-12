@@ -122,7 +122,7 @@ function invokeRequest(): ToolInvokeRequest {
     },
     batchDecision: null,
     mode: 'foreground',
-    limits: { concurrency: 1, foregroundMs: null, backgroundAfterMs: null },
+    limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
   }
 }
 
@@ -226,6 +226,7 @@ export async function ledgerAssembly(
   let commits = 0
   const store: Parameters<Factory>[0] = {
     durability: fixture.store.durability,
+    scanPending: input => fixture.store.scanPending(input),
     read: domain => {
       reads += 1
       return fixture.store.read(domain)

@@ -1,4 +1,4 @@
-import type { DurableEvidence, SessionOperationId } from './identity.ts'
+import type { DurableEvidence, RunId, SessionOperationId } from './identity.ts'
 import type { WorkSnapshot, ResidentAdoption, RunTerminal } from './values.ts'
 import type { HistoryEntry, SessionFailure } from './faces.ts'
 import { encodeEntry } from './entries.ts'
@@ -18,6 +18,27 @@ export const sourceOf = (operation: SessionOperationId, what: string): DurableEv
   revision: '1',
   digest: `sha256:${digestOf({ operation, what })}`,
 })
+/**
+ * The Run that the control `operation` ended as cancelled in its own commit: a cancel of the Run,
+ * or an archive of a session whose Run was active. Null when the control ended no Run, or when the
+ * session has started a later Run since.
+ */
+export function runCancelledBy(
+  snapshot: WorkSnapshot,
+  operation: SessionOperationId,
+): RunId | null {
+  if (snapshot.run.kind !== 'terminal') return null
+  const { terminal } = snapshot.run
+  const source = sourceOf(operation, 'control')
+  return terminal.outcome === 'cancelled' &&
+    terminal.evidence.owner === source.owner &&
+    terminal.evidence.record === source.record &&
+    terminal.evidence.revision === source.revision &&
+    terminal.evidence.digest === source.digest
+    ? terminal.run
+    : null
+}
+
 export const originOf = (source: DurableEvidence): HistoryEntry['origin'] => ({
   owner: 'session',
   via: 'direct',

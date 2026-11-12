@@ -17,7 +17,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 - 「[安装闭包](#安装闭包)」中命令面实现后的一段。
 - 「[适用平台](#适用平台)」中登录状态文件的一句。
 
-「[治理命令](#治理命令)」、登录状态文件的 `loginId` 键、`switch-current-tenant` 与 `revoke-login` 对登录状态文件的改写和删除，以及帮助文本里的 18 个治理命令，属于 M2 身份租户收口（波 2）的候选，依据是 R2-D203 至 R2-D206 与规格 4.7 节 G 组。`read-history` 命令是波 3 的候选，依据是 R2-D279：端到端用例发现 CLI 没有读历史的入口。`read-session-diagnostics` 命令按 RFC-0013 revision 2 的本地范围采用，依据是 [RFC-0013 的 A 线](../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。命令名按该提案的 DA5 采用。「[设置命令](#设置命令)」与帮助文本里的 `setting` 是 Web 元工具一程切片 03 的候选，承接公开契约新增的四个设置操作。
+「[治理命令](#治理命令)」、登录状态文件的 `loginId` 键、`switch-current-tenant` 与 `revoke-login` 对登录状态文件的改写和删除，以及帮助文本里的 18 个治理命令，属于 M2 身份租户收口（波 2）的候选，依据是 R2-D203 至 R2-D206 与规格 4.7 节 G 组。`read-history` 命令是波 3 的候选，依据是 R2-D279：端到端用例发现 CLI 没有读历史的入口。`read-session-diagnostics` 命令按 RFC-0013 revision 2 的本地范围采用，依据是 [RFC-0013 的 A 线](../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。命令名按该提案的 DA5 采用。「[设置命令](#设置命令)」与帮助文本里的 `setting` 是 Web 元工具一程切片 03 的候选，承接公开契约新增的四个设置操作。[HITL 命令](#hitl-命令)是候选，依据是 HITL 公开位置的设计（用户已确认）：最小 CLI 的列卡、读卡与答复三个命令经 SDK 实现，随答复操作交付。
 
 本页其余条款保持上面的接受状态。批复后，需要的话本页再改采用状态。候选依据是包组织页「最小 CLI 的接入边界」：CLI 通过 SDK 使用系统能力，不导入 server-entry。本卡验证环境接受本机 Node v26.0.0。`package.json` 的 engines 是 `>=24`。Node 24 没有另跑。
 
@@ -34,7 +34,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 
 候选的命令面由下面的责任组成。
 
-- 八个会话与账号命令、18 个治理命令和设置命令 `setting`，见[命令](#命令)。
+- 八个会话与账号命令、三个 HITL 命令、18 个治理命令和设置命令 `setting`，见[命令](#命令)与 [HITL 命令](#hitl-命令)。
 - 凭据读取与登录状态文件，见[凭据与登录状态](#凭据与登录状态)。
 - 命令结果的输出与退出码，见[命令结果与退出码](#命令结果与退出码)。
 
@@ -90,7 +90,7 @@ The default state directory is $HOME/.omne.
 --help and --version do not open or create a state directory.
 ```
 
-登记[命令](#命令)的 25 个命令与[读诊断投影](#读诊断投影)的 `read-session-diagnostics` 之后（八个会话与账号命令，后接 18 个治理命令，最后是 `setting`，共 27 个），生成结果是下面的原文。第三行改为 `Show help or version, or run a command.`，`This build has no other commands.` 不再出现。目录另登记 `--server` 与 `OMNE_SERVER` 两个选项。帮助文本只列每个命令的必需选项，可选选项见[命令](#命令)的命令表。每个选项在帮助里的取值名按取值的内容定：标识写 `<id>`，租户文本写 `<tenant>`，角色写 `<role>`，其余写 `<name>`。最后一行之后有一个换行：
+登记[命令](#命令)的 25 个命令、[读诊断投影](#读诊断投影)的 `read-session-diagnostics` 与 [HITL 命令](#hitl-命令)的三个命令之后（八个会话与账号命令，后接三个 HITL 命令与 18 个治理命令，最后是 `setting`，共 30 个），生成结果是下面的原文。第三行改为 `Show help or version, or run a command.`，`This build has no other commands.` 不再出现。目录另登记 `--server` 与 `OMNE_SERVER` 两个选项。帮助文本只列每个命令的必需选项，可选选项见[命令](#命令)的命令表。每个选项在帮助里的取值名按取值的内容定：标识写 `<id>`，租户文本写 `<tenant>`，角色写 `<role>`，其余写 `<name>`。最后一行之后有一个换行：
 
 ```text
 omne
@@ -110,6 +110,9 @@ Commands
   omne read-session-diagnostics --session <id>                                                                    Read the diagnostics of the runs of a session.
   omne cancel-run --session <id> --run <id>                                                                       Cancel a run.
   omne stop-call --session <id> --producer-kind <kind> --call <id>                                                Stop a model or tool call.
+  omne list-cards                                                                                                 List the cards that wait for a person.
+  omne read-card --request <id> --card <id>                                                                       Read one card.
+  omne submit-reply --request <id> --card <id> --revision <name>                                                  Reply to a card with an option, a text or a decline.
   omne create-organization --name <name> --governance-model-id <id>                                               Create an organization.
   omne query-create-organization --target-create-call-id <id> --name <name> --governance-model-id <id>            Ask what an earlier create-organization call did.
   omne issue-member-invitation --invited-login-identifier <id>                                                    Invite an account to the organization of the acting tenant.
@@ -194,7 +197,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 ## 命令
 
-下列八个命令和[治理命令](#治理命令)是候选。每个命令对应公开契约的一个操作。命令名与操作名一致。操作的字段、`outcome` 和判断次序归[公开契约](../../packages/access/public-contract/SPEC.md)。路径、方法和状态码归[承载绑定表](../../packages/access/public-contract/docs/http-binding.md#承载绑定表)。CLI 经 SDK 发出请求。
+下列八个命令、[HITL 命令](#hitl-命令)和[治理命令](#治理命令)是候选。每个命令对应公开契约的一个操作。命令名与操作名一致。操作的字段、`outcome` 和判断次序归[公开契约](../../packages/access/public-contract/SPEC.md)。路径、方法和状态码归[承载绑定表](../../packages/access/public-contract/docs/http-binding.md#承载绑定表)。CLI 经 SDK 发出请求。
 
 所有选项都写成 `--名字 值`。不支持 `--名字=值`。选项可以出现在命令名之后的任意位置。`--home` 的规则同[参数解析](#参数解析)。
 
@@ -259,6 +262,25 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
   全部 Run 之后，有缺口时写 `gaps: <n>`，然后每个缺口一行，缩进两个空格：`<source> <subject>: <reason>`。没有 Run 也没有缺口时不输出。人读输出不是 JSON 对象。它不含供应商错误原文、消息正文或工具参数，因为诊断页不带它们。
 
 - `--json` 输出一个 JSON 对象加换行，键同[命令结果与退出码](#命令结果与退出码)。`body` 是 `{ runs, gaps, complete }`：`runs` 是各页的 Run 原样拼接，`gaps` 是各页的缺口原样拼接，`complete` 说明是否读完。停在某页时 `outcome` 是该页的 `outcome`，`result` 为 `uncertain` 时没有 `outcome`。`request` 有 `messageId`（首页）和 `tenant`。
+
+### HITL 命令
+
+三个 HITL 命令各对应公开契约 [HITL 公开操作](../../packages/access/public-contract/SPEC.md#hitl-公开操作)的一个操作，命令名与操作名一致。它们以 `login.json` 里的登录发出请求，经 SDK 的 `createHitlClient` 送到 HITL 位置。
+
+| 命令           | 公开操作       | 必需选项                                | 可选选项                                                                      |
+| -------------- | -------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
+| `list-cards`   | `list-cards`   | 无                                      | `--session`、`--state`、`--limit`、`--cursor`、`--tenant`、`--server`         |
+| `read-card`    | `read-card`    | `--request`、`--card`                   | `--tenant`、`--server`                                                        |
+| `submit-reply` | `submit-reply` | `--request`、`--card`、`--revision`     | `--option`、`--text`、`--decline`、`--reply-id`、`--tenant`、`--server`       |
+
+补充规则如下。
+
+- body 的 `tenant` 取 `--tenant` 的值，没有时取登录状态里的租户。`--tenant` 不是租户文本时是用法错误。
+- `list-cards` 带 `--session` 时是会话入口，过滤条件带这个会话的 `sessionRef`；不带时是待办池。`--state` 取 `pending`、`decided` 或 `invalidated`，缺省 `pending`。`--limit` 是 1 至 100 的不带前导零的整数文本，缺省 `100`。`--cursor` 缺省时读首页，给出时原样作为 `cursor`。命令只读一页；要读下一页，把结果里的 `next` 交给 `--cursor`。
+- `read-card` 与 `submit-reply` 的卡片引用由三个值组成：`request.tenantRef` 是请求的 `tenant` 的租户文本，`request.requestId` 取 `--request`，`cardId` 取 `--card`。两个值都取自 `list-cards` 结果里卡片的 `ref`。
+- `submit-reply` 的 `--revision` 是人作答时看到的卡片 `revision`，不是十进制文本时是用法错误。`--option <选项>`、`--text <原话>` 与开关 `--decline` 恰好出现一个，分别是选择一个选项、自由作答与跳过；一个也没有或多于一个是用法错误。
+- `--reply-id` 缺省时命令用 `crypto.randomUUID()` 生成一个新值。同一次答复的重试必须用 `--reply-id` 传入原来的值，服务端按它认回原提交；新值是一次新的答复。命令不提供 `query-submit-reply`。
+- 结果对象与退出码按[命令结果与退出码](#命令结果与退出码)。`submit-reply` 的三种成功（`decided`、`already-decided`、`invalidated`）都是 `succeeded`，退出 `0`，以 `body.kind` 区分。
 
 ### 治理命令
 
@@ -399,6 +421,8 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 | `cancel-run`、`stop-call`                  | `messageId`、`controlId`、`tenant`                                                    |
 | 有行事租户的治理命令                       | `messageId`、`tenant`（取 `actingTenant`）。`create-organization` 另有 `createCallId` |
 | 无行事租户的治理命令                       | `messageId`。`revoke-login` 另有 `targetLoginId`                                      |
+| `list-cards`、`read-card`                  | `messageId`、`tenant`                                                                 |
+| `submit-reply`                             | `messageId`、`replyId`、`tenant`                                                      |
 | `setting` 的子命令                         | `messageId`、`tenant`（取 `actingTenant`）                                            |
 
 `result` 的含义如下。`response` 表示收到可信答复。`uncertain` 表示调用者没有可信答复，结果不确定。请求字节可能已经发出，也可能两次都没有发出，例如服务没有启动。SDK 只给出 `uncertain`，所以 CLI 不区分这两种情况。`uncertain` 不是成功，也不是没有发生。`request` 让用户可以用原标识重试同一意图。`messageId` 不必沿用。

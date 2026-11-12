@@ -64,6 +64,7 @@ SPEC 设计的内联阈值、大对象去向、`pageBytes` 上限、`maxScanPerP
 
 ## 当前权限读取
 
+会话与 Run 的同事务核回由 `SESSION_RUN_LIVE_GUARD`、`SESSION_RUN_LIVE_FACT`、`runLiveGuardFacts`、`RunLiveSchema` 和 `RunLive` 提供，均从 `./participants` 导出。形状归 [run-live.ts](../src/run-live.ts)，行为归 [Run 进行中核回](../SPEC.md#同事务-run-进行中核回)。
 
 `./participants` 导出 `SESSION_PERMISSION_CURRENT_HANDLER`、`decodeSessionPermissionCurrent` 及其输入输出类型。精确形状归 [permission-current.ts](../src/permission-current.ts)，语义归 [当前权限关系](../SPEC.md#当前权限关系)。调用者是已经取得原访问资格的受信 SQL 组合方；该读口不是独立的身份授权服务。解码器区分 current、not-ready 与 malformed。
 

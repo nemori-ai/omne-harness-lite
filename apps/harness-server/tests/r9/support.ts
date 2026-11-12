@@ -313,6 +313,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Files: { resultMaxBytes: 32768 },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
+      Ask: { resultMaxBytes: 1_048_576 },
       Web: { resultMaxBytes: 32768, maxSearchResults: 10 },
     },
     // The Web provider values of the test operator layer: the local Exa stand-in when a test gives

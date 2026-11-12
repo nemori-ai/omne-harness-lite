@@ -3,6 +3,7 @@
 - [命令与覆盖](README.md)
 - [公开行为](public-entry.spec.ts)
 - [扩展输出判断](judge-output.spec.ts)
+- [卡片请求：草稿放进请求再读回，形状不符或值不是草稿时读不出](card-request.spec.ts)
 - [身份解码与结构判定](identity.spec.ts)
 - [消息准入输入的结构判定](judge-handoff.spec.ts)
 - [声明限额与输出限额的边界](limits.spec.ts)

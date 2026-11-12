@@ -87,12 +87,14 @@ function boundOf(
 }
 
 /** The answers kept by key; the oldest one goes first when `limit` is passed. */
-export function createBindingMemo(limit: number): {
-  get(key: string): Bound | undefined
-  set(key: string, value: Bound): void
+export function createBindingMemo<T = Bound>(
+  limit: number,
+): {
+  get(key: string): T | undefined
+  set(key: string, value: T): void
   readonly size: number
 } {
-  const kept = new Map<string, Bound>()
+  const kept = new Map<string, T>()
   return {
     get: key => kept.get(key),
     set(key, value) {

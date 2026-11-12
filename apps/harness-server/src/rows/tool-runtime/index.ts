@@ -1,7 +1,8 @@
 // Tool 运行时组的五行（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：一次 `createLocalToolRuntimePlugins` 返回的
 // 六个插件分装到五行，每行一个 fiber，全部共用一份记录仓、账本、启动协调器和 driver：
 // - `tool-records`：records 插件，提供 `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者
-//   组 `tool-start`）。本行在受信存储子树内建 SQL 记录仓与输出保管，交给共享状态；整组的运维者配置也只在
+//   组 `tool-start`）。本行在受信存储子树内建 SQL 记录仓与正文存储，以及 Ask 等待的决策方（HITL 宿主，
+//   `rows/tool-hitl`），交给共享状态；整组的运维者配置也只在
 //   本行（bundle 建一次就要全部数值）。会话工作主体（受信）不经本行：入口对象 `toolClock` 安装时把入口自己的
 //   受信读口交给共享状态（`entry/tool-runtime-objects.ts`），本行的可见集合不变。
 // - `tool-runtime`：门面插件，提供 `toolRuntime`。
@@ -14,11 +15,17 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { observeToolLedgerCommit } from '@omne-harness/tool'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
+import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
 import { processInstance } from '../telemetry/instance.ts'
 import { createToolLifecycleTelemetry } from './telemetry.ts'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
-import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
-import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
+import type { SystemPrincipal } from '@omne-harness/identity'
+import type { SqlStorage, TenantDomainLookup, TenantDomains } from '@omne-harness/sql-contract'
+import {
+  storageKey,
+  tenantDomainLookupKey,
+  tenantDomainsKey,
+} from '@omne-harness/sql-contract/cordis'
 
 import {
   toolClockKey,
@@ -46,6 +53,7 @@ import { monotonicClock } from '../../shutdown.ts'
 import { createReleaseBodySchemas } from '../../entry/tool-body-schemas.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
+import { mountToolHitl } from '../tool-hitl/mount.ts'
 import { ensureToolRuntimeBundle } from './bundle.ts'
 import { toolRuntimeConfigSchema, type ToolRuntimeConfig } from './config.ts'
 import { awaitBundle, toolRuntimeHolder } from './holder.ts'
@@ -63,15 +71,21 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
     throw new Error(
       `tool-records: the session composite is not registrable: ${manifest.diagnostic}`,
     )
-  // The row's static inject guarantees both names are ACTIVE when the body runs.
+  // The row's static inject guarantees these names are ACTIVE when the body runs.
   const storage = ctx.get(storageKey) as SqlStorage
   const domains = ctx.get(tenantDomainLookupKey) as TenantDomainLookup
+  const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
+  // The pending scan of the ledger lists the deployment's tenants with the scanner principal only.
+  const scanner = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY) as SystemPrincipal
   const options = {
     storage,
     domains,
     combination: { combinationVersion: config.combinationVersion, manifestDigest: manifest.digest },
   }
-  const store = createSqlToolLedgerStore(options)
+  const store = createSqlToolLedgerStore({
+    ...options,
+    tenants: () => directory.enumerate({ principal: scanner }),
+  })
   const holder = toolRuntimeHolder(ctx)
   const { bodyPermitKey: permitKey, bodyClock: clock } = holder
   const sql = Object.freeze({
@@ -86,6 +100,8 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
     conditional: createSqlToolConditionalCommit(options),
   })
   holder.sql = sql
+  // The Ask waits of the Tool calls are kept by HITL in the same domain and combination.
+  mountToolHitl(ctx, options)
   ctx.effect(
     () => () => {
       if (holder.sql === sql) holder.sql = null
@@ -96,7 +112,13 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
 
 const recordsPlugin: Plugin.Object = {
   name: 'tool-records',
-  inject: [storageKey, tenantDomainLookupKey, telemetryKey],
+  inject: [
+    storageKey,
+    tenantDomainLookupKey,
+    tenantDomainsKey,
+    TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+    telemetryKey,
+  ],
   Config: toolRuntimeConfigSchema,
   async apply(ctx: Context, value: unknown) {
     const config = toolRuntimeConfigSchema.parse(value)
@@ -128,7 +150,13 @@ export const toolRecordsRow = defineRow({
       toolStartFenceKey,
       toolInvocationQualificationKey,
     ],
-    injects: [storageKey, tenantDomainLookupKey, telemetryKey],
+    injects: [
+      storageKey,
+      tenantDomainLookupKey,
+      tenantDomainsKey,
+      TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+      telemetryKey,
+    ],
     sameProviderGroup: 'tool-start',
   },
   lifecycle: { kind: 'none' },

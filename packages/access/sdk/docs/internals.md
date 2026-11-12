@@ -14,14 +14,14 @@ SDK 持有传输适配和登录证明。它不解释 `outcome`。自动再送只
 | ----------------------- | --------------------------------------------------------------------------------- |
 | `src/transport.ts`      | `GovernanceTransport` 与 `TransportReport` 的形状。传输适配只见字节，不见消息。   |
 | `src/http-transport.ts` | `createHttpTransport`。地址校验、`fetch` 调用、`not-sent` 与 `uncertain` 的分类。 |
-| `src/client.ts`         | 两个客户端。编码、发送、再送、读响应、核对 `messageId`。                          |
+| `src/client.ts`         | 三个客户端。编码、发送、再送、读响应、核对 `messageId`。                          |
 | `src/tenant.ts`         | `parseTenantText` 与 `tenantText`，调用公开契约的租户文本函数。                   |
 | `src/user-message.ts`   | `userTextMessage`。                                                               |
 | `src/limits.ts`         | 客户端缺省的 json-text 预算。                                                     |
 
 ## 客户端怎样关联响应
 
-`deliver` 持有再送规则，两个客户端共用它。客户端把请求交给公开契约编码，再把响应字节交给公开契约的 `readSessionResponse` 或 `readGovernanceResponse`，并传入本次的 `messageId`。读取函数返回 `response` 才交出结果。返回 `unmatched` 或 `unreadable` 时，结果是 `uncertain`，不再送。公开契约已经证明字节是严格 JSON，所以交给调用者的 `message` 是对同一份字节再做一次 `JSON.parse` 的结果。它是线上形状，租户标识和时刻是文本。
+`deliver` 持有再送规则，三个客户端共用它。客户端把请求交给公开契约编码，再把响应字节交给公开契约的 `readSessionResponse`、`readGovernanceResponse` 或 `readHitlResponse`，并传入本次的 `messageId`。读取函数返回 `response` 才交出结果。返回 `unmatched` 或 `unreadable` 时，结果是 `uncertain`，不再送。公开契约已经证明字节是严格 JSON，所以交给调用者的 `message` 是对同一份字节再做一次 `JSON.parse` 的结果。它是线上形状，租户标识和时刻是文本。
 
 没有 `messageId` 的 `protocol-rejected` 读成 `unmatched`，不记到任何一次调用上。
 

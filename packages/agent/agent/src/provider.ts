@@ -4,9 +4,12 @@
 // leaves the Loop to run on until the runtime is idle again. `observe` shows the state of the
 // instance as it changes. Execution control saves its command, advances a Model or Tool
 // interruption and establishes cancellation stages. A failed step goes back to the caller, who
-// retries with the same control operation. `quiesce` drains an instance whose slot is free; an
-// execution in flight stays in its slot and the answer is `unresolved` (its detach and handover are
-// #502 stage 5). The remaining bodies answer a named stage-temporary `unavailable` after `allowed`.
+// retries with the same control operation. `quiesce` drains the instance: an execution whose drive
+// sleeps on a wait saved in the Journal is handed over by that drive (`Journal.detach`), and the slot
+// is free; an execution whose drive runs a node stays in its slot and the answer is `unresolved`.
+// `resume` takes an execution that was handed over: it reserves the slot, `Journal.attach` grants a
+// new attachment, and a new coordinator goes on from the saved position. The remaining bodies answer
+// a named stage-temporary `unavailable` after `allowed`.
 //
 // The slot and the observed state never disagree: `observe` shows the state that `stateOf` derives
 // from the slot, and every slot change goes through `occupy`. A run that stopped keeps the slot
@@ -50,8 +53,11 @@ import { canonical } from './canonical.ts'
 import { maxRunStepsOf } from './configuration.ts'
 import {
   createExecutionCoordinator,
+  createResumedCoordinator,
   type ExecutionCoordinator,
+  type ExecutionDrive,
   type Halted,
+  type ResumeEntry,
 } from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
 import { createControlWriter } from './control.ts'
@@ -172,6 +178,21 @@ type Quiescing = {
   step: Promise<Outcome<QuiesceResult, Failure>> | null
 }
 
+/**
+ * The drive of the execution in the slot, as quiesce reaches it. `asked` is the handover quiesce
+ * asked for: the drive is the only writer of its execution, so it makes the handover itself, when
+ * its current pass is over and before it sleeps, and settles the request. `wait` is set while the
+ * drive sleeps in `waitForWake`; aborting it wakes the drive for the request.
+ */
+type Driving = {
+  wait: AbortController | null
+  asked: Readonly<{
+    operation: AgentOperationId
+    reason: DurableEvidence
+    settle(handed: boolean): void
+  }> | null
+}
+
 /** The answer of an invoke or resume that reaches a draining runtime (SPEC "四种控制", 停用). */
 function drainingRefusal(operation: 'invoke' | 'resume'): Failure {
   return {
@@ -220,6 +241,8 @@ export function createProvider<P, B extends ContentBlock>(
 
   const writeControl = createControlWriter(dependencies)
   let slot: Slot = { kind: 'free' }
+  // The drive of the `running` slot, null while no drive works.
+  let driving: Driving | null = null
   let current: AgentState = { kind: 'idle', instance }
   const listeners = new Set<() => void>()
 
@@ -428,35 +451,120 @@ export function createProvider<P, B extends ContentBlock>(
     const release = () => occupy({ kind: 'free' })
     const giveBack = () => occupy(back)
     const access: Access<P> = { principal: input.principal, tenant: input.tenant }
+    const adopted = await coordinatorEntry(access, execution, release)
+    if ('failure' in adopted) {
+      giveBack()
+      return adopted
+    }
+    const coordinator = createExecutionCoordinator({
+      ...adopted.ok,
+      operation,
+      initial: input.initial,
+      grant: input.grant,
+    })
+    return acceptOriginal(input, back, coordinator)
+  }
+
+  /**
+   * What the coordinator of an execution in the slot is built with, for an invoke and for a resume:
+   * the evaluator of the bound definition and the limits of the configuration.
+   */
+  async function coordinatorEntry(
+    access: Access<P>,
+    execution: AgentExecutionId,
+    idle: () => void,
+  ): Promise<Outcome<ResumeEntry<P>, Failure>> {
     const resolved = await dependencies.adoptions.resolve({
       ...access,
       adoption: binding.definition,
     })
-    if ('failure' in resolved) {
-      giveBack()
-      return resolved
-    }
+    if ('failure' in resolved) return resolved
     // E3, P0, M4 and F2 pass through without extensions; running one is #502 stage 3.
-    if (resolved.ok.extensions.length > 0) {
-      giveBack()
+    if (resolved.ok.extensions.length > 0)
       return fail(notImplemented('an adopted loop extension', 'stage 3'))
-    }
-    const coordinator = createExecutionCoordinator({
+    return succeed({
       ports: dependencies,
       binding,
       jointCommits: entry.configuration.jointCommits,
       evaluator: resolved.ok.evaluator,
       access,
       execution,
-      operation,
-      initial: input.initial,
-      grant: input.grant,
-      idle: release,
+      idle,
       ended: (state, candidate) => endedRun(execution, state, candidate),
       toolConcurrency: entry.configuration.toolConcurrency,
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })
-    return acceptOriginal(input, back, coordinator)
+  }
+
+  /**
+   * The background drive of the execution in the `running` slot. It answers the failure it stopped
+   * on, or null for a stop without one (E9 freed the slot, or the execution was handed over). A
+   * failed pass is not a stop yet: a commit-unknown keeps the drive waiting and running.
+   */
+  function startDrive(
+    execution: AgentExecutionId,
+    attachment: ExecutionAttachmentId,
+    coordinator: ExecutionDrive,
+  ): void {
+    const own: Driving = { wait: null, asked: null }
+    driving = own
+    /** The handover quiesce asked for, made between a pass and a wait. True: the slot is free. */
+    const handOver = async (): Promise<boolean> => {
+      const asked = own.asked
+      if (asked === null) return false
+      own.asked = null
+      const handed = await coordinator.handOver(asked)
+      const done = 'ok' in handed && handed.ok !== null
+      if (done && slot.kind === 'running' && slot.execution === execution) occupy({ kind: 'free' })
+      asked.settle(done)
+      return done
+    }
+    const drive = async (): Promise<Halted | null> => {
+      try {
+        for (;;) {
+          const ran = await measurer.segment(
+            'run',
+            execution,
+            () => coordinator.runExecution(),
+            answer => 'failure' in answer,
+          )
+          for (;;) {
+            if (await handOver()) return null
+            const controller = new AbortController()
+            own.wait = controller
+            const wake = await coordinator
+              .waitForWake({
+                reconciliationDelayMs: entry.configuration.reconciliationDelayMs,
+                signal: controller.signal,
+              })
+              .finally(() => {
+                own.wait = null
+                controller.abort()
+              })
+            if ('failure' in wake) return wake.failure
+            if (wake.ok === 'stopped') return 'failure' in ran ? ran.failure : null
+            if (wake.ok === 'ready') break
+            // Only quiesce cancels the wait: the request is answered before the drive sleeps again.
+          }
+        }
+      } finally {
+        // The drive ends: E9 freed the slot, or the run failed. Nothing is left to hand over here.
+        own.asked?.settle(false)
+        own.asked = null
+        if (driving === own) driving = null
+      }
+    }
+    const stopped = (halted: Halted | null) => {
+      if (halted !== null) failRun(execution, attachment, halted.node, halted.failure)
+    }
+    void drive().then(stopped, (error: unknown) =>
+      // Node 24 ends the process on an unhandled rejection; the throw becomes the failure instead.
+      failRun(execution, attachment, null, {
+        kind: 'unavailable',
+        owner: OWNER,
+        diagnostic: `the drive threw: ${thrownText(error)}`,
+      }),
+    )
   }
 
   async function acceptOriginal(
@@ -494,40 +602,7 @@ export function createProvider<P, B extends ContentBlock>(
     accepted = { operation, execution, input: inputText(input) }
     const attachment = opened.ok.executionAttachment
     occupy({ kind: 'running', execution, attachment })
-    // The drive answers the failure it stopped on, or null for a stop without one (E9 freed the
-    // slot). A failed pass is not a stop yet: a commit-unknown keeps the drive waiting and running.
-    const drive = async (): Promise<Halted | null> => {
-      const controller = new AbortController()
-      try {
-        for (;;) {
-          const ran = await measurer.segment(
-            'run',
-            execution,
-            () => coordinator.runExecution(),
-            answer => 'failure' in answer,
-          )
-          const wake = await coordinator.waitForWake({
-            reconciliationDelayMs: entry.configuration.reconciliationDelayMs,
-            signal: controller.signal,
-          })
-          if ('failure' in wake) return wake.failure
-          if (wake.ok !== 'ready') return 'failure' in ran ? ran.failure : null
-        }
-      } finally {
-        controller.abort()
-      }
-    }
-    const stopped = (halted: Halted | null) => {
-      if (halted !== null) failRun(execution, attachment, halted.node, halted.failure)
-    }
-    void drive().then(stopped, (error: unknown) =>
-      // Node 24 ends the process on an unhandled rejection; the throw becomes the failure instead.
-      failRun(execution, attachment, null, {
-        kind: 'unavailable',
-        owner: OWNER,
-        diagnostic: `the drive threw: ${thrownText(error)}`,
-      }),
-    )
+    startDrive(execution, attachment, coordinator)
     return succeed(handleOf(execution))
   }
 
@@ -670,10 +745,56 @@ export function createProvider<P, B extends ContentBlock>(
     return admit(input, { kind: 'free' })
   }
 
+  /**
+   * SPEC "创建、登记与复用": resume reserves the slot, then `Journal.attach` recognizes the original
+   * record and grants a new attachment. Only the recovery path is here: the execution was handed
+   * over and is `suspended`. An attachment that is still active needs a takeover, which this runtime
+   * does not ask for, so `attach` answers `changed`. Every failure gives the slot back; a retry with
+   * the same operation is recognized by the Journal.
+   */
   const resume: AgentProvider<P>['runtime']['resume'] = async input => {
     const passed = await guard(input, 'resume', onExecution(input.execution))
     if ('failure' in passed) return passed
-    return fail(draining() ? drainingRefusal('resume') : notImplemented('resume', 'stage 5'))
+    if (draining()) return fail(drainingRefusal('resume'))
+    if (slot.kind !== 'free') return fail({ kind: 'busy' })
+    const { execution } = input
+    occupy({ kind: 'reserved', execution, acceptance: null })
+    const release = () => occupy({ kind: 'free' })
+    const access: Access<P> = { principal: input.principal, tenant: input.tenant }
+    const adopted = await coordinatorEntry(access, execution, release)
+    if ('failure' in adopted) {
+      release()
+      return adopted
+    }
+    const coordinator = createResumedCoordinator(adopted.ok)
+    const resumed = await coordinator.resume({
+      operation: input.operation,
+      recovery: input.recovery,
+      grant: input.grant,
+    })
+    if ('failure' in resumed) {
+      release()
+      return fail(resumed.failure.failure)
+    }
+    const attachment = resumed.ok.executionAttachment
+    occupy({ kind: 'running', execution, attachment })
+    startDrive(execution, attachment, coordinator)
+    return succeed(handleOf(execution))
+  }
+
+  /**
+   * Asks the drive of the execution in the slot to hand it over, and waits for its answer. The
+   * drive answers when its current pass is over: a pass that only reads the saved wait again is
+   * short, and a pass that runs a node ends at the next wait. False: no drive works (the run
+   * failed), or the drive did not hand over.
+   */
+  function askHandover(held: Quiescing): Promise<boolean> {
+    const own = driving
+    if (own === null || own.asked !== null) return Promise.resolve(false)
+    return new Promise(settle => {
+      own.asked = { operation: held.operation, reason: held.reason, settle }
+      own.wait?.abort()
+    })
   }
 
   function quiesceResult(
@@ -719,16 +840,19 @@ export function createProvider<P, B extends ContentBlock>(
   }
 
   /**
-   * One drain step. An execution in the slot stays there: its detach and handover are #502 stage
-   * 5, so the answer is `unresolved` with that execution and never `drained`. A `failed` slot is
-   * the same (R2-D285): no drive works on it, but nothing handed it over. A free slot withdraws
-   * the registration, ends every observation and answers `drained` for good. The slot cannot be
-   * taken while this step waits: the runtime is draining and refuses every new invoke.
+   * One drain step. The drive of an execution is asked to hand it over, and does so when its pass
+   * ends on a wait that is saved in the Journal; its slot is then free (SPEC "交接与停用"). Any other
+   * execution stays in the slot and the answer is `unresolved` with it, never `drained`: a wait in
+   * memory, an operation whose outcome is unknown, a handover the Journal did not confirm, and a
+   * `failed` slot (R2-D285: no drive works on it, but nothing handed it over). A free slot withdraws the registration, ends
+   * every observation and answers `drained` for good. The slot cannot be taken while this step
+   * waits: the runtime is draining and refuses every new invoke and resume.
    */
   async function drainStep(
     held: Quiescing,
     access: Access<P>,
   ): Promise<Outcome<QuiesceResult, Failure>> {
+    if (slot.kind === 'running') await askHandover(held)
     if (slot.kind !== 'free') return succeed(quiesceResult(held, 'unresolved', [slot.execution]))
     const withdrawn = await withdrawRegistration(held, access)
     if ('failure' in withdrawn) return withdrawn

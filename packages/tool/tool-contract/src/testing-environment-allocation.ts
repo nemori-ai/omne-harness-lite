@@ -74,16 +74,19 @@ export function toolEnvironmentAllocationConformance<P, E>(): readonly Conforman
       assert.deepStrictEqual(left, right)
       assert.deepStrictEqual(s.counts(), { allocations: 1, leases: 1 })
     }),
-    named('lost local registration cannot adopt the original allocation', async fixture => {
-      const s = scene(fixture)
-      fixture.allocateBeforeAdoption()
-      await s.prepare()
-      fixture.forgetRegistration(s.preparation)
-      expectKind(await s.inspect(), 'unknown', 'cold query')
-      expectKind(await s.prepare(), 'unknown', 'cold prepare')
-      assert.equal(fixture.outstanding(), 1)
-      assert.deepStrictEqual(s.counts(), { allocations: 1, leases: 0 })
-    }),
+    named(
+      'lost local registration answers lost and cannot adopt the original allocation',
+      async fixture => {
+        const s = scene(fixture)
+        fixture.allocateBeforeAdoption()
+        await s.prepare()
+        fixture.forgetRegistration(s.preparation)
+        expectKind(await s.inspect(), 'lost', 'cold query')
+        expectKind(await s.prepare(), 'lost', 'cold prepare')
+        assert.equal(fixture.outstanding(), 1)
+        assert.deepStrictEqual(s.counts(), { allocations: 1, leases: 0 })
+      },
+    ),
     named('failed original adoption remains failed with cleanup outstanding', async fixture => {
       const s = scene(fixture)
       fixture.allocateBeforeAdoption()

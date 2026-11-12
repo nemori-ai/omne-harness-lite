@@ -10,17 +10,20 @@ import {
   decodeActionBatchId,
   decodeAgentExecutionId,
   decodeAgentOperationId,
+  decodeCardRoundId,
   decodeConsumptionId,
   decodeStepId,
   type ActionId,
   type ActionBatchId,
   type AgentExecutionId,
   type AgentOperationId,
+  type CardRoundId,
   type ConsumerRef,
   type ConsumptionId,
   type DurableEvidence,
   type ExecutionRevision,
   type LoopFacts,
+  type PassageId,
   type StepId,
 } from '@omne-harness/agent-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -142,6 +145,20 @@ function attemptSuffix(attempt: number, separator: string): string {
 export function mainAction(step: StepId, attempt = 0): ActionId {
   const text = `${step}/main${attemptSuffix(attempt, '-')}`
   return minted(decodeActionId(text), text)
+}
+
+/**
+ * The card round a passage of this coordinator opens with its `ordinal`-th ask, counted from 1.
+ * The passage is one this coordinator minted from an action, so the text stays inside the lexicon.
+ */
+export function cardRound(passage: PassageId, ordinal: number): CardRoundId {
+  const text = `${passage}/round/${ordinal}`
+  return minted(decodeCardRoundId(text), text)
+}
+
+/** The identity of the `ordinal`-th card request of a round, counted from 1. */
+export function cardRequestIdentity(round: CardRoundId, ordinal: number): string {
+  return `${round}/card/${ordinal}`
 }
 
 /** The complete action batch formed from the admitted main reply of one step. */

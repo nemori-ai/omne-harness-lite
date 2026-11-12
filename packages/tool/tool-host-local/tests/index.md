@@ -13,6 +13,8 @@
 - [宿主时钟的契约一致性](clock-conformance.spec.ts)、[时钟规则](clock.spec.ts)与[手动时间源](clock-values.ts)。
 - [登记表的契约一致性与登记规则](bindings-conformance.spec.ts)。
 - [作者绑定的注册化身、命令分派及拒绝清理](author-binding-regressions.spec.ts)。
+- [检查点作者的 initial 段、resume 段与检查点证明](checkpointed-binding.spec.ts)。
+- [检查点作者在整机本地组合中的暂停、恢复与叫停](runtime-composition/checkpoint.spec.ts)。
 - [Catalog 测试](catalog.spec.ts)。
 - [缺席端口测试](absent-ports.spec.ts)。
 - [部件对 createToolRuntime 的组合测试](runtime-composition.spec.ts)。
@@ -24,7 +26,7 @@
 - [登记表与 Catalog 的测试构造器](binding-values.ts)。
 - [测试构造器](coordinator-values.ts)。
 - [导入图遍历工具](module-graph.ts)。
-- [R2-D164 完成调用的退役与重排](executor-retirement.spec.ts)。
+- [R2-D164 完成调用的退役与重排](executor-retirement.spec.ts)。等人的调用休眠、被提示认回、决定在空转的 run 结束时到达、提示丢失时由周期扫描找回、账本无工作的调用不记入，在 [runtime-composition/checkpoint.spec.ts](runtime-composition/checkpoint.spec.ts)。「账本上有没有这次调用的工作」与「是不是只有人能推动」两条判定的逐格用例在 [call-dormancy.spec.ts](call-dormancy.spec.ts)。
 - [R2-D327 接收方确定失败的 warn 与结局，退避表项随交付释放](delivery/receiver-failure.spec.ts)。
 - [R2-D164 同租户投递的轮次](delivery/turns.spec.ts)。
 - [R2-D273 接收方缺席或查找答 unavailable 时的待推、具名 warn 与退避](delivery/absent-receiver.spec.ts)。

@@ -23,6 +23,7 @@ const CODES = [
   'session.read-fault',
   'session.commit-fault',
   'session.definition-incomplete',
+  'hitl.read-fault',
   'encode.fault',
   'observation.ended',
   'observation.cleanup-failed',

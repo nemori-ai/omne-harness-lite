@@ -111,6 +111,7 @@ describe('14 queries (P01)', () => {
     const plain = ok(await assembly.runtime.queries.queryOperation({ ...access, operation }))
     const reordering: ToolLedgerStore = {
       durability: 'none',
+      scanPending: input => assembly.store.scanPending(input),
       due: assembly.store.due,
       readRecord: async (domain, key) => {
         const read = await assembly.store.readRecord(domain, key)

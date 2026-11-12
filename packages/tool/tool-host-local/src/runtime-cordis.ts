@@ -202,6 +202,8 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
       apply(ctx: Context) {
         if (executor !== null || retired)
           throw new Error('This Tool executor generation has retired.')
+        const recovery = records?.ledger.recovery
+        if (recovery === undefined) throw new Error('Tool records are not ready.')
         executor = createRuntimeExecutor({
           ctx,
           settings: input,
@@ -213,6 +215,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
                 : records.ledger.delivery.read(request),
           },
           receiver: consumer => receivers.current(consumer),
+          recovery,
         })
         ctx.effect(() => close)
       },

@@ -7,6 +7,8 @@
 // `sessionContextInput`: the provider fills in no Context input, and the entry turns that into
 // `basis-unavailable`. The composition over the real storage rows is the assembly's to prove.
 // Slow: it loads a Cordis tree per case.
+import type { TenantDomains } from '@omne-harness/sql-contract'
+import { TenantDomainsService, tenantDomainsKey } from '@omne-harness/sql-contract/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { succeed } from '@omne-harness/operation-result'
@@ -59,13 +61,17 @@ import { TENANT_A, accessPolicyRow, allowAll } from '../storage/fixtures/tree.ts
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
 
-/** A contract-double row that provides one key from a `session-contract/testing` double. */
-function doubleRow(row: string, key: string, make: (ctx: Context) => object): RowSpec {
+/** A contract-double row that provides its keys from `session-contract/testing` doubles. */
+function doubleRow(
+  row: string,
+  key: string | readonly string[],
+  make: (ctx: Context) => unknown,
+): RowSpec {
   return declared(
     defineRow({
       row,
       implementation: 'contract-double',
-      manifest: { provides: [key], injects: [], sameProviderGroup: null },
+      manifest: { provides: [key].flat(), injects: [], sameProviderGroup: null },
       lifecycle: { kind: 'none' },
       plugin: {
         name: `${row}-double`,
@@ -89,13 +95,23 @@ function doubles(): readonly RowSpec[] {
     initialization,
     accessCheck: access.check,
   })
-  const delegatedRow = doubleRow('session-storage', sessionDelegatedTransactionsKey, ctx => {
-    class Delegated extends SessionDelegatedTransactionsService<unknown> {
-      readonly bind: SessionDelegatedTransactions<unknown>['bind'] = checked =>
-        pair.delegated.bind(checked)
-    }
-    return new Delegated(ctx)
-  })
+  // The real `session-storage` row also gives the tenant directory, which the real provider
+  // row asks for its startup scan. This deployment of doubles has no registered tenant.
+  const delegatedRow = doubleRow(
+    'session-storage',
+    [sessionDelegatedTransactionsKey, tenantDomainsKey],
+    ctx => {
+      class Delegated extends SessionDelegatedTransactionsService<unknown> {
+        readonly bind: SessionDelegatedTransactions<unknown>['bind'] = checked =>
+          pair.delegated.bind(checked)
+      }
+      class Tenants extends TenantDomainsService<unknown> {
+        readonly enumerate: TenantDomains<unknown>['enumerate'] = () =>
+          Promise.resolve({ kind: 'ready', revision: '0', entries: [] })
+      }
+      return [new Delegated(ctx), new Tenants(ctx)]
+    },
+  )
   const identityRow = doubleRow('session-ad09', sessionIdentityKey, ctx => {
     const scripted = createScriptedSessionIdentityBridge<unknown>('allow')
     class Identity extends SessionIdentityBridgeService<unknown> {

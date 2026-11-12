@@ -210,7 +210,6 @@ function controlOf(
 
 function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
   const { state } = snapshot
-  const attached = snapshot.executionAttachment !== null
   if (state.kind === 'ended') {
     const { conclusion } = state
     return {
@@ -225,11 +224,21 @@ function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
       evidence: snapshot.history,
     }
   }
-  const suspended = state.kind === 'suspended'
+  // `suspended` is the state of an execution whose attachment was handed back: the detach that
+  // revokes the attachment is the commit that suspends the execution, so the snapshot carries no
+  // attachment then.
+  if (state.kind === 'suspended')
+    return {
+      revision: snapshot.revision,
+      state: 'suspended',
+      attachment: 'detached',
+      conclusion: null,
+      evidence: snapshot.history,
+    }
   return {
     revision: snapshot.revision,
-    state: suspended ? 'suspended' : 'open',
-    attachment: attached ? (suspended ? 'detached' : 'active') : null,
+    state: 'open',
+    attachment: snapshot.executionAttachment === null ? null : 'active',
     conclusion: null,
     evidence: snapshot.history,
   }
@@ -345,6 +354,9 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
         execution: mutation.execution,
       })
       if ('failure' in loaded) return this.agentFailure('detach', loaded.failure)
+      // An attachment that was handed back already is recognized: the answer is its handover
+      // evidence (contract PM-04; Agent SPEC "交接与停用": 已 detached 只认回既有交接).
+      if (loaded.ok.state.kind === 'suspended') return succeed(loaded.ok.state.handoff)
       const authority = loaded.ok.executionAttachment
       if (authority === null) return unavailable('the execution has no attachment to hand back')
       const answer = await recovery.detach({

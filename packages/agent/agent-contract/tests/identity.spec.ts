@@ -7,6 +7,8 @@ import {
 } from '@omne-harness/legal-identity'
 import {
   AGENT_IDENTITY_MAX_LENGTH,
+  admissionActionOf,
+  admissionPassageOf,
   decodeActionBatchId,
   decodeActionId,
   decodeAgentExecutionId,
@@ -550,5 +552,29 @@ describe('an own member named __proto__', () => {
     expect(judgeAuthority({ ...AUTHORITY, source: withOwnProto(EVIDENCE) })).toEqual({
       failure: { field: 'source.__proto__', reason: 'unknown-field' },
     })
+  })
+})
+
+describe('the Passage of the official admission of an action', () => {
+  const minted = <T>(decoded: { ok: T } | { failure: unknown }): T => {
+    if ('failure' in decoded) throw new Error(JSON.stringify(decoded.failure))
+    return decoded.ok
+  }
+  const action = minted(decodeActionId('step-1/tool/0'))
+
+  it('is named from the action, and names its action back', () => {
+    const passage = minted(admissionPassageOf(action))
+    expect(passage).toBe('step-1/tool/0/admission')
+    expect(admissionActionOf(passage)).toBe(action)
+  })
+
+  it('names no action for a Passage that is not an admission', () => {
+    for (const text of ['step-1/tool/0', 'step-1/tool/0/admission/x', '/admission', 'admission'])
+      expect(admissionActionOf(minted(decodePassageId(text)))).toBeNull()
+  })
+
+  it('fails as the Passage decoder does when the name passes the identity limit', () => {
+    const long = minted(decodeActionId('a'.repeat(AGENT_IDENTITY_MAX_LENGTH)))
+    expect(admissionPassageOf(long)).toEqual({ failure: { field: 'PassageId', reason: 'length' } })
   })
 })

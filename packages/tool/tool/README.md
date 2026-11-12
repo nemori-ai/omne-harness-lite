@@ -45,12 +45,11 @@ Operations that are not delivered answer a named `unsupported` failure. The `rea
 | Increment | Operations of the runtime facade and the provider | Ledger commands of the same increment |
 | --- | --- | --- |
 | `controls` | `control` facade delegates with a fresh operation; the real ledger returns unsupported | `control`, `recordControl` |
-| `waits, decisions and resources` | `queries.readWait`; trusted responses stay internal | `openWait`, `attachRegistration`, `attachResource`, `recordResponse`, `closeWait` |
+| `waits, decisions and resources` | `queries.readWait`; trusted responses stay internal | `openWait`, `attachResource`, `acceptResource`, `recordResponse` |
 | `process observation and diagnostics` | `readProcess`, `readDiagnostics` | `preserveProcess`, `recordLateFact`, `recordLateResult` |
 | `execution facts and release` | None | `recordAccount`; `recordTask` except the supported abnormal settled facts/blocking branch |
-| `recovery scan` | `recover` | `scanPending`, `claim`, `settleLost` |
+| `recovery scan` | None: `recover` scans and schedules (SPEC 33) | `claim`, `settleLost`; `scanPending` is implemented (SPEC 33) |
 | `drain and handover` | `quiesce`, `inspectDrain`, `handover` | None |
-| `checkpointed executors` | None | `prepareResume`, `planSuspension`, `suspend` |
 | `program executors` | None | `recordScheduling` |
 
 ### Ledger fact custody
@@ -61,7 +60,7 @@ Batch and event identities include the original start operation and source owner
 
 Process sequence values are non-negative decimal integers. Append supports cumulative text and thinking text with a fixed block identity and visibility. Other content kinds require replace. Mode is fixed after opening, and closed blocks reject new updates. Historical equal updates remain recognisable. Trim keeps its count and reason and does not remove the original events. Process observation is not implemented.
 
-A batch that contains wait, continued, account or program-scheduling returns `unsupported` without saving any part. The source retains responsibility. A final creates one settle task without settling the call or releasing its slot. Trusted recovery consumers use `ledger.facts.read({ principal, tenant, call, basis })` with that task's exact evidence to recover a `SavedFact`: the planned final with its result, terminal and effect, or the `settled-final` receipt after settlement. Reads require current recover qualification and return a detached value.
+A batch that contains a resource wait, an account or a program-scheduling fact returns `unsupported` without saving any part. An Ask wait ends a checkpointed segment, and a `continued` fact is accepted only from the resume of a checkpoint (SPEC 30 and 31). The source retains responsibility. A final creates one settle task without settling the call or releasing its slot. Trusted recovery consumers use `ledger.facts.read({ principal, tenant, call, basis })` with that task's exact evidence to recover a `SavedFact`: the planned final with its result, terminal and effect, or the `settled-final` receipt after settlement. Reads require current recover qualification and return a detached value.
 
 The assembly must restrict the `write` action to trusted Tool producers. Source text and evidence shape do not authenticate an external producer. `ToolLedgerGuards.factAcknowledgements` is required. Construct it with `createToolFactAcknowledgementGuard(bindings)` using the same bindings object as the runtime. The guard resends the original receipt through `bindings.recover.acknowledge` and compares the complete confirmation. The source and confirmation owners may differ.
 

@@ -1,0 +1,309 @@
+# HITL 合同与行为守护
+
+## 目录捕获的资格与终态
+
+[GovernanceCatalogCapture](models/GovernanceCatalogCapture.tla) 补充一个内部捕获、一次 epoch 更换、成员撤权、资格保留和原操作封口的有限交错。请求身份、来源真实性、SQL同域原子提交及真实Identity保留协议仍是外部前提。本模型不产生这些证明，也不保证任意外部故障下恢复必然结束。
+
+Observe 表示查询或拒绝响应不改变持久状态。它允许受理前撤权及已终结操作保持静止，不作为恢复进展证据；本模型只检查下述安全性质。
+
+QualifiedCapture检查捕获时真实成员与held同时成立；CurrentCapture检查捕获时仍是原epoch。两项使用保存的提交时事实，之后合法结算、撤权或重装不改写原结果。NoRevival禁止已经封口的原操作变为成功。SettledDisclosure要求返回页面前已经结算。只有Capture建立成功记录，守卫及同动作取值建立前两项；Seal使正常Capture失去前置状态；Deliver必须经过Settle。其他动作保留上述关系，可以逐动作归纳。
+
+一个正例检查四项性质。四个负控分别移除held、epoch、sealed及结算门槛，每个只检查对应具名不变量。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceCatalogCapture`。实现映射为 governance-local 的 catalog-capture.ts、catalog-snapshot.ts、capture-operation.ts 及原有 Standing/SQL coordinator。错回执、完整绑定、重开、分页和未知结果必须另由真实组合验证。
+
+## 事务内权限解释
+
+[GovernanceEnforcementExecution](models/GovernanceEnforcementExecution.tla) 区分两个租户、三个动作、精确实现替换、贡献退出、解释器可执行性及历史回执重放。Judge 是一次原子的当前观察和判断。loaded 只抽象本次解释代码可执行，不表示在线 Tool 实例，也不引入 SQL active 表。固定发行映射、身份资格、完整来源及真实事务原子性是外部前提。
+
+ExactImplementation 要求成功判断仍对应请求的精确实现。ActualInterpreter 要求本次实际执行解释器。CurrentContribution 要求排序点贡献有效。ReceiptIsNotCurrent 禁止将历史回执用于新动作。TenantIsolation 要求观察域等于原动作租户。初态 history 为空。正确 Judge 的守卫及同动作保存建立这五项性质；Read、Replace、Withdraw 和 Unload 不改已有成功记录。正确协议没有 Replay 转移，因此可按转移归纳。模型不声称任意故障下的恢复活性。
+
+一个正例同时检查五项性质。五个负控分别取消精确实现检查、用清单代替实际执行、使用事务前快照、复用旧回执和改读另一租户。每个配置只检查对应具名不变量。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceEnforcementExecution`。
+
+应用协议归[事务内权限解释](../../../../apps/harness-server/docs/rows/permission-interpretation.md)。当前源码已实现解释映射验证、纯权限求值的应用解释及 SQL 支持/判断参与者。原发行和 current 的生产者、ActionAdmission 接线、撤除与实际消费的两种顺序仍需真实组合验收。模型及替身来源测试不能替代这些证据。
+
+## 当前发布与执行装载
+
+[GovernanceTargetPublication](models/GovernanceTargetPublication.tla) 保留两个具有相同Settings正文、不同原发布身份的版本。目标可切版，执行实现可卸载。Read是事务前普通观察，Apply必须重新读取当前发布与装载状态，并在同一动作保存提交时观察。原发行材料固定、当前SQL事务串行是模型前提，不由此模型证明。
+
+ExactPublication要求成功动作对应请求指定的原发布；CurrentAtCommit比较本次消费的修订与提交时修订；ImplementationPresent要求实际提交时实现仍装载。三项都比较保存的提交时事实，后续合法切版或卸载不改写历史成功。逐动作归纳中，只有Apply创建成功记录，其守卫与同动作读取建立三项性质；其他动作不改已有成功记录。
+
+一个正例检查三项性质。三个负控分别以同形正文替代发布身份、使用事务前快照、只核不可变关口声明，各检查其具名不变量。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceTargetPublication`。真实发行命名空间、目标字段、数据库排序、预算和卸载围栏仍需生产组合验证；此模型不等于这些实现已通过。
+
+## 贡献命令的结果与当前状态
+
+[GovernanceRegistrar](models/GovernanceRegistrar.tla) 抽象一个贡献原操作、一份不可变发布证明、一条租约及原提交结果。Prepare 仅在来源可验证时保存 proven；后续来源离线不撤销该历史证明。Apply 仅从 prepared 前进，Seal 使该操作不能再次 Apply。声明的版本不变性及真实来源核验是外部前提，模型不发行来源权限。
+
+OriginalStable 要求原成功只保留 active，不随 Release 改写。RecognizeOffline 要求已经提交的操作不会仅因来源离线而报告 unavailable。NoStaleReply 比较一次 Retry 返回值与同次观察的租约状态，不要求已经返回给调用者的旧值随未来退出而自动改变。PreparedProof 要求每份 prepared 都有其首次形成时的来源证明。初始化满足这些性质；Prepare、Apply、Seal、Release 和 Retry 的赋值分别保留对应关系，可以逐动作归纳。
+
+一个正例同时检查四项性质；四个负控分别取消首次来源检查、随退出改写原成功、在认回原成功前要求来源在线、用原成功状态代替当前租约状态。每个负控只检查具名不变量。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceRegistrar`，Java/JAR 采用本页运行约定。
+
+实现映射为 governance-local 的 registrar-execution.ts 首次来源消费及保管恢复，registrar.ts 原结果优先与 seal/settle 组合，registrar-results.ts 原结果解码，以及 contribution-read.ts 当前状态投影。跨 Identity 的持续资格依赖 Standing 既有模型，精确信封依赖 GovernanceSqlCustody。这个有限模型不证明完整生产发行路径、目录、Cordis 卸载或任意失败下的进展。
+
+## 治理准入交集
+
+[GovernanceAdmission](models/GovernanceAdmission.tla) 将一个请求抽象为主体、scope、action、owner 和完整执行关口五元组。每一维有两个值；固定政策只允许同一主体、scope、action 下的两组 owner 与关口配对。issued、member 和 qualified 各有两种取值。调用方可在捕获后任意修改原请求及原政策对象。
+
+安全性质为 admitted 蕴含原捕获请求属于受信政策关系，且已发行、当前成员和资格都成立。初始化没有 admitted。Capture 固定原输入；ClientMutation 不改捕获值和内部政策；Decide 只有全部条件满足才设置 admitted。因此每个动作保持该安全性质。TLC 枚举上述有限状态，不是对任意主体发行机制的证明。
+
+六个负控分别取消发行、成员和资格检查，改读可变请求、改读可变政策，或将 owner 与关口拆开组合。它们必须分别破坏 AuthorizedOriginal。运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceAdmission`，需要本页约定的 Java/JAR 环境。
+
+源码映射为 governance-local 的 admission.ts 中的 verify、current、grantsByKey、permits 和 check。输入结构及 action 变体由 admission-schema.ts 限定。模型中的关口是完整五字段绑定的抽象值；实现测试逐字段修改，另用真实 Identity SQL 检查撤权后的再次准入。模型不表示准入后资格仍保持；后续写入必须使用 Standing 保留及目的 SQL 围栏，也不证明公共服务、发行来源或 Cordis 已集成。
+
+## 动态贡献与持久治理
+
+GovernanceLifecycle 增加两个贡献槽、两代提供者的有界交错。正例检查目录当前性、独立租约、旧代围栏、持久保管、scope、当前提交、来源及定义相容、不可变声明与单次消费。16 个负控分别破坏这些承诺或在 Ready 后停止消费，必须命中具名不变量或具名恢复进展性质。
+
+恢复活性只承诺当前贡献/资格/许可持续合法且消费弱公平时前进。登记恢复本身没有无条件公平承诺。原子提交、声明校验与可靠存储是抽象前提，C3/C6/C8 必须补源码映射和真实卸载重装配验证。模型中的作用域代表 own、foreign-tenant、other-service 三个等价分区，会话/单次/租户业务范围继续由 PermissionScope 检查。
+
+GovernancePublication 另含一个正例及四个具名负控，检查整份发布、冲突拒绝、删声明不删禁止、缺项不绕禁止。check-contributions.py 检查 8768 个租约释放分区与三个负控，命令为 `python3 packages/human-intervention/human-intervention/verification/check-contributions.py`。有限谓词与 TLC 状态模型共同守护合同，不能替代生产注册表/SQL/多租户验证。
+
+唯一协议来源是[动态治理贡献](../../../assets/docs/governance-contributions.md)。模型位于本波 HITL 验证目录只是组合测试的组织方式，不改变 Assets、Settings、Authorization 或装配的所有权。
+
+这些资源验证HJ0候选协议和抽象行为，不提供生产HITL服务。模型是行为权威表达，含义与前提见[数学说明](../docs/formal-model.md)，接口见[公共协议](../docs/protocol.md)及[权限组合](../docs/permission-composition.md)。后续实现必须填写抽象动作到真实源码/事务的映射，不能拿模型绿灯替代实现接受。
+
+## 运行
+
+从仓库根运行。TLC工具沿项目已有安装和版本核验，不下载未知工具。`TLA2TOOLS_JAR`指向项目已采用JAR，`JAVA_BIN`可指定Java。缺工具退出2，不能当负控通过。
+
+```sh
+python3 packages/human-intervention/human-intervention/verification/check.py --self-test
+python3 packages/human-intervention/human-intervention/verification/check.py
+python3 packages/human-intervention/human-intervention/verification/check-contract.py
+uv run --locked --no-sync python packages/human-intervention/human-intervention/verification/check-semantics.py
+```
+
+形状检查使用成熟jsonschema工具，验证环境版本固定于requirements.txt，不进入产品运行依赖。reply.schema.json仅守护答复提交wire形状。生产边界另由 [commands.ts](../src/commands.ts)、[queries.ts](../src/queries.ts) 和 [recovery.ts](../src/recovery.ts) 的严格 Schema 及 decoder 解析；方法行为归 [protocol.md](../docs/protocol.md)。输入形状通过不证明操作者可信或具有资格。
+
+## 检查范围
+
+| 模型 | 有限范围 | 正例与具名负控 |
+| --- | --- | --- |
+| RegistrationProtocol | 一个操作、两种潜在重复请求身份、登记/封口/回执丢失/恢复 | 共同登记、原身份唯一、封口不可晚交、查询原结果、不假not-committed |
+| ContinuationComposition | 两轮两项；Ask全题及扩展allow/ask/deny混合判断，一次换代/终局/撤权 | 判断和答复屏障、继续当前性、一次推进、不重跑已记录判断；弱公平下条件进展 |
+| IntakeControl | 三输入、两pending容量、一会话两代推进者 | 准入/归档/取消竞争、输入归属、容量、开始与完成的旧代/错目标保护 |
+| ExecutionSlots | 三调用、一active名额、一次人工等待 | park释放、ready排队、重新取得、不超容量、兄弟及已答调用条件进展 |
+| HumanDecision | 两卡、两竞争答复、成员撤权、短期reservation、失效、消费、服务退出/恢复 | 唯一决定、共同保管、无终局复活、当前资格、租户、一次接手 |
+| WaitIsolation | A已准入后park；同会话独立工具B、另一会话C；不依赖人回答 | 工具独立、会话独立、不持执行槽；弱公平下B/C最终推进 |
+| ConcurrentIntake | 两会话四个请求，含不同 acceptId、跨会话相同 acceptId，以及换登录重用同一 acceptId；入列、消费、重试 | 唯一输入、已受理不丢、受理序消费、跨会话幂等作用域、同键不得改绑 |
+| RecoveryRouting | 一个逻辑等待、两代接收者、一次退出/重装配、离线答复 | 未答保持、答复保管、稳定目的地、旧代围栏、一次接手；弱公平下最终交接 |
+| AuthorityComposition | 七类独立资格来源各一次失效、准备与目的提交 | 当前保护组合；分别移除每一来源guard的七个负控 |
+| PermissionScope | 单动作、三个授权范围、一次修订/撤回、会话终局、两次消费 | 主动禁止不可绕过、范围、参数绑定、当前依据、单次消费 |
+
+安全负控逐个只检查其具名不变量，要求TLC退出12并输出该不变量被违反；活性负控配置只允许一个具名PROPERTY，要求TLC退出13及Temporal properties were violated，并记录完整配置哈希；语法错误、不同不变量、超时、工具失败均拒绝。正例要求退出0且模型检查完成。模型与配置、运行器、Java和JAR哈希连同原始日志写入tmp/formal/hitl，不手抄成功结论。
+
+ConcurrentIntake抽象原子持久提交，不建模HTTP调度、SQL锁或archive丢弃处理。PermissionScope只验证许可应用边界，不声称实现完整权限配值算法、自然语言解释或Settings事务。HumanDecision从已确认登记开始；RegistrationProtocol补齐初态之前的准备/提交/封口/结果认回。原子提交是抽象动作，C2仍须真实事务故障验收。RecoveryRouting在有限一次重启与相容恢复、持久数据可读、弱公平调度前提下检查交接活性，不要求人必答；等待无答时可无限保持。AuthorityComposition只抽象来源失效与提交同序，真实guard映射见protocol.md提交保护清单。PermissionScope的tenant分支抽象后续配值采用，不建立第二套持久授权权威。HumanDecision假定Identity已兑现reservation协议；本波必须运行复用的StandingCommit模型并核对采用映射，不能声称新模型重新证明Identity实现。
+
+## HJ0接受与后续实现映射
+
+| 抽象动作 | 必须兑现的真实边界 | 实现接受闭包 |
+| --- | --- | --- |
+| Reserve/Seal/Revoke | Identity reservations与HITL目标操作终态，所有相关撤权写者 | C2/C6 |
+| Commit | HITL决定+原等待inbox+操作终态共同提交 | C2/C4/C5 |
+| Crash/Recover/Rebind/Deliver | 原逻辑等待持久化、receiverGeneration围栏、inbox拉取及原操作认回 | C2/C4/C5/C9 |
+| Withdraw/Commit | 全部适用来源guard与目的端共同提交；Session权威控制直接检查 | C1/C2/C3/C6 |
+| Consume/Invalidate | 原消费者幂等接手、终局与继续围栏 | C4/C5 |
+| Park/Advance | 调用active/parked分账、会话分键调度、资源释放与公平性 | C1/C4/C5 |
+| Enqueue/Take | Session操作scope、日志/输入/回执共同提交、单推进者 | C1 |
+| Permission Execute | Permissions当前约束+Authorization许可消费+目的端提交 | C3/C6/C8 |
+
+这些是待落实的实现义务，不是已完成映射。真正的源文件/函数/事务点、测试命令和证据在各闭包交付时补入。C9不得在任何必要行仍未落实时称运行时闭环完整。
+
+物理断电、OS崩溃、多进程写者排除、未来跨服务阶段协议、生产调度公平及外部效果恰好一次均不由本套有限检查证明。进程重启实验不能替代物理断电。未验证项在交回报告保留实际边界。
+
+
+## 纯函数和结果代数边界
+
+command-algebra.json列出4个HITL命令、5查询、5原等待恢复端口及4提交协调端口。check-semantics.py对权限的数学关系与独立参考求值做有限分区枚举，并对每个方法检查结果闭包、可信读取先于回执、提交unknown与原结果认回。纯读失败不制造提交unknown；查询原操作可以返回原写操作的unknown。负控必须被对应关系或约束拒绝。
+
+这份表不替代每个服务完整wire Schema。本验证目录只有reply.schema.json这一份独立JSON Schema文件；公共生产源码的命令、查询和恢复解析器见上文。解析器的存在不代替状态转换、持久提供者及组合验收。有限观察分区检查不等于任意输入字节的全化实现证明。
+
+单推进者是IntakeControl采用的一个active结构，模型检查错误开始和晚到完成不能绕过身份/代次。真实分布式租约或多进程互斥不在本次提供者范围。ContinuationComposition记录“已完成并持久的判断”不重复；模型不能解决外部调用已发生但结果尚未保存的未知窗口，该窗口沿原调用协议认回。
+
+## C2 源码映射的当前边界
+
+公共源码的边界验证与纯模型分别保留。下表的后端义务由 [local验证入口](../../human-intervention-local/verification/README.md) 提供实现映射及相应证据，不能由本表的纯函数用例代替。
+
+| 源码与测试 | 已兑现部分 | 仍需后端兑现 |
+| --- | --- | --- |
+| src/commands.ts 与 tests/commands.spec.ts | 四类写命令严格解析，字节预算、独立来源和合法选项形状 | 身份真实性、资格保护、原操作去重与封口 |
+| src/card.ts 与 tests/card.spec.ts | 当前快照下的修订、状态和选项判断；终局不抹已答历史 | 两个并发 ready 计划只能提交一个；决定与原等待共同提交 |
+| src/queries.ts 与 tests/queries.spec.ts | 查询形状、有限页预算和默认待答过滤 | 当前可披露池、稳定快照与游标绑定、原结果读回 |
+| src/services.ts 与 tests/contracts.spec-d.ts | 命令、查询及提交端口隔离，按方法关联命令结果 | 真实应用服务、SQL、Identity与原等待适配 |
+
+源码通过纯函数用例不关闭C2，也不建立跨进程或断电保证。完整事务与恢复映射仍由上表之前列出的闭包负责。
+
+ConcurrentIntake 的操作身份是固定租户内的 `(session, acceptId)`，登录来源属于原输入绑定内容，不参与 accept 族操作键。不同客户端须为不同请求提供不同 acceptId；换登录重发同一 acceptId 不是独立请求，依公开入口合同冲突，查询仍受当前资格检查。模型中两个输入可竞争同键，但至多一个被受理；`NoOperationRebinding` 及 rebind 负控守住这一点。`NoClientSourceConflict` 只承诺尚未绑定的独立操作不因客户端来源被错误合并。该模型不证明 HTTP 错误形状或身份鉴别，真实映射由 C1 用例证明。
+
+## 按租约保留目标支持
+
+`GovernanceTargetSupport` 补充同一声明下两个租约、两个目标的采用和撤除。采用准备可以与任一撤除交错。当前修订不相等时不能发布旧候选；撤除只删除该租约的支持边，再从剩余支持计算可见目标。
+
+令支持关系为 `S ⊆ Lease × Target`，可见目标为 `range(S)`。撤除租约 `l` 后令 `S' = { (r,t) ∈ S | r ≠ l }`，再取 `range(S')`。于是每个仍有支持的目标保留，无支持的目标消失，其他租约的支持不变。这是集合定义的推论，对任意有限关系成立。SQL 实现仍须在一个事务中兑现该关系更新，数据库外键本身不能证明投影与支持集合相等。
+
+| 不变量 | 负控 |
+| --- | --- |
+| NoUnsupportedTarget | 只要还有同声明的兄弟租约，就错误保留所有旧目标 |
+| AllSupportedTargetsVisible | 撤一个租约时错误删除所有可见目标 |
+| MembersCurrent | 支持只能来自仍有效的租约，由正模型检查 |
+| PublicationCurrent | 忽略修订，发布撤除前准备的旧候选 |
+
+该模型不新增资格、来源权威或 epoch 保证。它把一个声明内的目标支持单独建模，原有 GovernanceLifecycle / GovernancePublication 继续承担各自性质。有限检查不证明真实事务、查询索引或多租户隔离。提供者的 `gc_member_target` 与选中目标关系必须用真实 SQL 反例建立符合性。
+
+## 治理原操作保管
+
+`GovernanceOperation` 枚举一个原操作、两种请求内容、两种执行信封和提交/封口交错。accepted 表示输入已保管；submitted 表示固定执行内容已保管；committed 与业务效果、原结果共同成立；aborted 阻止迟到效果。
+
+| 不变量 | 实现映射 | 负控 |
+| --- | --- | --- |
+| RequestImmutable | governance-local 的 acceptOperation 比较原身份和完整请求摘要 | 重试替换原请求 |
+| EnvelopeImmutable | submitOperation 不允许替换已经保存的执行内容 | 重传替换原信封 |
+| NoRevival | sealOperation / applyOperation 先认回精确终态 | 被封口后仍执行效果 |
+| EffectHasReceipt | applyOperation 的业务效果和 finishOperation 在同一物理事务 | 只保存效果不保存结果 |
+
+模型将存储事务视作原子动作，不证明 SQLite 实现，也不认证 principal、发布来源或 execution 中的 authority。它不检查活性、公平性、物理断电和多个原操作之间的作用域隔离。真实 Worker 的回滚、重开、封口和重试反例见 governance-local 的 [操作测试](../../../governance/governance-local/tests/operations.spec.ts)。该测试的资格及来源仍是具名夹具，生产来源适配不能由模型或此测试代替。
+
+## 完整采用与竞争
+
+`GovernanceAdoption` 枚举两个租约、两个采用者、任意候选子集，以及准备、发布和撤除的交错。采用必须覆盖当时全部有效租约，使用当前修订和合法绑定事实，并同时发布整份Settings/Permissions。
+
+| 不变量 | 具名负控 | 实现映射 |
+| --- | --- | --- |
+| CompletePublication | 允许不完整候选 | adoption-plan.ts 的精确租约集合比较 |
+| CurrentPublication | 忽略采用准备的修订 | adoption.ts 的双修订与epoch检查 |
+| BoundEvidence | 接受无效事实 | adoption.ts 的操作绑定及 adoption-plan.ts 的目标/关口核对 |
+| AtomicBundle | 只发布Settings | 完整bundle选入与同事务关系替换 |
+
+模型将声明内容及目标/关口真实性抽象为具名条件，不证明这些事实的实际生产。它没有建模SQL索引、租户身份或分布式进程。真实回滚、并发赢家、重开、目标支持和错误事实测试见 [adoption.spec.ts](../../../governance/governance-local/tests/adoption.spec.ts)。这些测试的目标/current输入仍是夹具，不能代替生产桥接和完整C3b验收。
+
+## SQL 请求保管守护
+
+GovernanceSqlCustody 把完整原操作及阶段抽象为两个互异的键，把完整 CommitRequestV2 抽象为两个互异的值。检查命令为 `python3 packages/human-intervention/human-intervention/verification/check.py --models GovernanceSqlCustody`。需要现有 Java 及 TLA2TOOLS_JAR 环境。
+
+单赋值不变量要求 saved 等于首次保存的 first。发送不变量要求每个非空 sent 都等于同键的 saved。封口不变量要求 closed 后无业务效果。初始化满足三者；Store 仅写空槽，Send 仅复制同键持久值，Commit 仅作用于未终结原操作，Seal 不修改已提交结果。逐个动作保持不变量可给出归纳安全论证。TLC 在上述有限域枚举交错；五个负控分别允许替换、无保管发送、重建、串用其他键及封口后提交，必须破坏各自具名不变量。
+
+源码映射归 governance-local。gc_sql_stage 的完整主键、外键和完整正文比较落实单赋值；sql-stage-binding 核对租户、原操作、事务域、阶段身份、命令及执行绑定；生产 activation 在业务前检查已有保管，并先认回终态。真实 Worker 测试补充持久化、重开、并发保存及原回执查询。
+
+模型假定原子持久存储、可信协调器原样发送以及完整请求值可区分。Restart 是持久状态不变的动作，只表达丢失进程内状态，不验证文件系统断电恢复。模型不证明散列无碰撞、任意规模 SQL 性能、存储可用性或恢复活性。公共协调器的原样发送路径尚未实现，不能把该抽象前提计为已验收实现。
+
+
+## 恢复阶段的失败身份占用
+
+`GovernanceRecoveryPhase`区分 SQL 的持久阶段回执与治理阶段行。错误请求进入固定 SQL 身份后，即使回滚且没有阶段行，也会占住该身份。模型固定一个不可变原请求、两个候选输入和一个阶段身份。正确输入为1，错误输入为2。NoPoison要求错误输入不能占用该固定身份，ExactStored要求保存的阶段匹配原请求。弱公平的正确重试与封口、稳定材料及可用存储是Completion前提。
+
+负控移除固定写阶段前的完整绑定核对，分别违反NoPoison和Completion。治理事务内的最终核对仍然必要，但它不能撤回SqlStorage对失败提交的持久记录。生产目的适配器必须先读取不可变请求并逐字段匹配，再进入固定阶段；原事务继续复核。此模型只刻画这一缺口，不证明整个SQL提供者或任意恶意调用的可用性。
+
+## 精确退出与修订额度
+
+GovernanceExitCapacity 检查新增登记、采用、退出及换代的计数变化。源码最多128个在线租约，模型使用2个租约、最大修订6，枚举阈值附近的交错。三项负控分别移除预留、把严格阈值改为包含端点、以及退出时不减少在线数量；每项必须破坏 ExitCapacity。
+
+一般论证不依赖小模型的数值。令最大修订为 M，在线上限为 C，阈值为 T=M−C。新增发布要求两个修订严格低于 T，因此最后一次成功递增至多到 T。之后不能新增登记或采用，至多 C 个在线租约各退出一次，修订至多达到 M。重复退出不递增。源码的 revision-budget.ts 固定 C=128，apply-operation.ts 守住发布阈值，contribution.ts 在已退出检查之后才核对真正递增的余量。测试 exit-capacity.spec.ts 在真实 SQLite 上验证阈值、128次退出及最大值上的重复退出。旧实现已经耗尽额度的状态不属于此归纳前提。
+
+GovernanceContributionLifetime 检查一次原调用、迟到的受理、调用方关闭和精确撤除。ClosedIsQuiescent 要求 closed 时没有原调用、迟到受理或活动租约。PreservedReceipt 要求已经 committed 的原回执不改写。SiblingPreserved 要求另一个租约不被清理。四项负控分别跳过排空、允许关闭后迟发、改写原回执和宽范围撤除。
+
+该模型假定可信的未提交且无排队证明、不可变原操作身份和原子 SQL。它不证明存储永久失败后的清理活性、进程重启或 Cordis 运行时行为。生产 contribution-retirement.ts 落实精确 SQL 撤除；caller fiber、提供者重试驱动及其实际装配验证仍须另行完成。Identity 结算继续由原 Standing 协调及其独立守护承担，不能用本模型替代。
+
+## 重启后的接续
+
+[RestartContinuation](models/RestartContinuation.tla) 检查一个暂停在 Ask 等待上的 Tool 调用，跨至多两次服务重启，能否恢复并把结果交给它的 Run。重启是一个显式转移：清掉全部只在进程内的状态，保留全部耐久事实。
+
+| 类别 | 模型里的状态 | 源码 |
+| --- | --- | --- |
+| 耐久 | 人的决定、调用账本的阶段、账本保存的检查点状态、提供者的准备记录、Agent 收下的结果 | HITL 答复提交；tool 的 `ledger-resumption.ts` 与 `ledger-suspension.ts`（`checkpoint-state` 记录）；`execution-environment.ts` 的环境状态；agent 的 `tool-receiving.ts` |
+| 仅进程内 | 执行器的调用表、Session 的作用域索引、内存里的检查点副本、驱动「问过提供者」的记忆、提供者持有的活环境、正在运行的恢复段、按 owner 登记的结果接收方、Run 的驱动循环 | tool-host-local 的 `runtime-executor.ts`；session-adapters 的 `context-holder.ts`；tool 的 `driver.ts`（`environmentsAsked`）；`execution-environment.ts`（`live`）；tool-cordis-contract 的接收方登记；agent 的 `provider.ts` |
+
+每个负控把一项输入放回进程内，即实现曾经的样子：
+
+| 配置 | 放回进程内的输入 | 预期 |
+| --- | --- | --- |
+| `volatile-scope` | 作用域归属只靠进程内索引，索引只在会话有新提交时学习 | `ResultReceived` 被违反 |
+| `memory-checkpoint` | 检查点只在内存 | 同上 |
+| `asked-on-failure` | 提供者没作答也记为问过，之后只读记录 | 同上 |
+| `no-scan` | 重启后不扫描待办 | 同上 |
+| `reconnect-env` | 已准备、未启动时重启，只尝试重连原进程的环境 | 同上 |
+| `abandon-possibly-live` | 恢复段运行中重启，执行器对原执行「可能仍在旧实例里运行」的调用放手 | `ResultReceived` 被违反 |
+| `rerun-segment` | 恢复段运行中重启，新进程把这一段重新启动 | `ResumeOnce` 被违反 |
+| `no-run-recovery` | Agent 宿主不在重启后接续 Run | `RunEnds` 被违反 |
+
+两个正例都检查 `ResumeOnce`：`none` 另检查 `ResultReceived` 与 `RunEnds`；`agent-today` 去掉 Run 的接续，只另检查 `ResultReceived`。正例里，恢复段运行中重启后按记录收场为被中断（`Reconcile`），不重跑。`ResultReceived` 是验收 C7 要求的部分：调用恢复并收场，Agent 收下结果。`RunEnds` 还要求 Agent 宿主在重启后接续 Run，它归 Agent 的 #502 第 5 阶段，当前实现没有。
+
+前提：除重启与提供者失败外，每一步都弱公平；重启有上限。结果至多收下一次由 Agent Journal 的认回守，本模型把它写成一步，不检查。
+
+今天的实现与模型的对照：前五个负控对应的缺口已修（检查点读回、扫描的租户来源、驱动只在作答后记下问过、环境 `lost` 与恢复段重新计划），`volatile-scope` 由 Session 作用域归属的耐久反查补。`abandon-possibly-live` 与 `no-run-recovery` 仍是今天的行为：前者要执行宿主对本进程从没运行过的启动答确定的 `lost`，并按效果未知收场，还没有做；后者归 Agent 的 #502 第 5 阶段。模型不证明 SQL、进程或真实调度，也不证明实现符合。实现符合性由发行树的重启场景（harness-server `tests/rows/tool-hitl/release-restart.spec.ts`）验证。
+
+运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models RestartContinuation`。
+
+## 打断的级联
+
+[InterruptCascade](models/InterruptCascade.tla) 检查一个 Run 的执行等在一次 Ask 调用上时被打断，四个拥有者怎样把这次调用与它的卡片收场。打断有四种入口：叫停这个 Run、归档会话、中断单个调用、加急输入。它们共用一条级联，入口只决定级联之后做什么。模型里有发行已有的三种：`cancel` 与 `archive` 结束 Run，`stop` 只结束这次调用。加急输入用的是 `stop` 那一段。
+
+| 拥有者 | 模型里的状态 | 排序点 |
+| --- | --- | --- |
+| Session | Run 与控制请求 | 受理控制的那一笔提交同时结束 Run（PM-13）；Agent 稍后才得知 |
+| Agent | 执行循环的位置与执行槽 | 取消在 Journal 里记为成立之后，循环才转去收场并请求中断调用 |
+| Tool | 调用记录、调用的结果、关闭卡片的待办 | 控制与接受决定都写调用记录，由它定先后 |
+| HITL | 卡片 | 答复与失效都写卡片；答复的提交同时核 Run 仍在进行 |
+
+级联是：记下打断；Agent 请求 Tool 中断前台调用；等人的调用以作者为「等待被关闭」预写的结果收场并释放名额；卡片随后关闭并写明原因；之后执行才结束，下一个输入才被取走。
+
+| 性质 | 含义 |
+| --- | --- |
+| `RecordedBeforeStop` | Tool 被请求中断时，控制已在 Agent 的 Journal 里成立 |
+| `ClosedStaysClosed` | 被控制收场的调用不再接受决定，结果保持为预写的那一份 |
+| `AnswerIsThePersons` | 调用给出答案时，卡片一定是人答的 |
+| `EndsAfterSettle`、`NextAfterCascade` | 调用收场、结果到达执行之后，执行才结束，下一个 Run 才取得执行槽 |
+| `CancelEnds` | 结束 Run 的打断一定让执行走到结束，循环不死在半路 |
+| `CallSettles` | 每一次打断都让调用收场 |
+| `CardCloses` | 被控制收场的调用不留下仍在等待的卡片 |
+
+每个负控是把级联做坏的一种方式：
+
+| 配置 | 做坏的地方 | 预期 |
+| --- | --- | --- |
+| `dies` | 循环醒来时取消还没记成立，Session 答推进资格已失，循环把它当成节点失败停下 | `CancelEnds` 被违反 |
+| `no-archive` | 归档的控制不发给 Agent | `CancelEnds` 被违反 |
+| `stop-unrecorded` | 循环一见推进资格已失就去中断调用，不等取消记成立 | `RecordedBeforeStop` 被违反 |
+| `accept-after-settle` | 已被控制收场的调用仍接受决定 | `ClosedStaysClosed` 被违反 |
+| `no-close` | 关闭卡片的待办不执行 | `CardCloses` 被违反 |
+| `end-early` | 取消的执行不等调用确认收场就结束 | `EndsAfterSettle` 被违反 |
+
+前提：除人的答复与打断本身外，每一步都弱公平。Run 被取消之后，人的答复被 Session 的 `session.run-live` 守卫拒绝。只中断单个调用时 Run 仍在进行，答复可以先于关闭成立：卡片保持已答，调用没有采用它，随后的失效把这份决定记为未被接手。模型只有一个调用与一张卡；一批多个调用各自独立地走同一条级联。Agent 自己出的卡（官方准入的卡片轮次）在取消与全拒时的收场由 agent-contract 的 `CardRounds` 检查，不在本模型里。停服不是打断：停服时等待与卡片保留，见「重启后的接续」。
+
+今天的实现与模型的对照：`dies` 与 `no-archive` 是修之前的行为。模型不证明 SQL、进程或真实调度，也不证明实现符合；实现符合性由发行树的叫停、归档与中断场景验证。
+
+运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models InterruptCascade`。
+
+## 停服的交接与恢复
+
+[ShutdownHandoff](models/ShutdownHandoff.tla) 检查一个 Run 的执行等在一次 Ask 调用上时，服务有序停下再启动，四个拥有者怎样把「谁在推进这次执行」交出去再接上。停服不是打断：等待与卡片原样保留。
+
+| 拥有者 | 模型里的状态 | 排序点 |
+| --- | --- | --- |
+| Session | 持有推进资格的 attempt | `claim` 授予新的 attempt。一次交接只认领一次，重复的认回原结果 |
+| Journal | 执行状态、唯一的 active 挂接、挂接所带 grant 对应的 attempt | `detach` 与 `attach` 是条件提交。`attach` 在同一次提交里向 Session 核对 grant 是当前 attempt |
+| Agent | 本进程运行时的执行槽 | 驱动循环是这次执行唯一的写者，交接由它自己在安全点做 |
+| Tool | 调用 | 调用自己耐久。结果经 Agent 宿主的接收方写进 Journal，不要求有活的执行 |
+
+有序停服分三步：运行时开始停用，不再接受新的 invoke 与 resume；睡在已保存等待上的驱动交接，Journal 撤销它的挂接，执行进入 `suspended`；执行槽里不再有挂着的执行，进程结束。重启后，Session 的恢复读到执行已交接，认领新的 attempt；运行时在新 attempt 的 grant 下取得新挂接，执行进入 `reconciling`；新的协调器读回已保存的位置，回到等这次调用的节点，再保存等待。人答复后调用完成，结果进 Journal，驱动取走结果，Run 走完。
+
+| 性质 | 含义 |
+| --- | --- |
+| `CleanStop` | 有序停服不留下「只是在等待、却没有交接」的执行 |
+| `WaitSurvives` | 停服不中断等人的调用 |
+| `AdvanceUnderAttempt` | 在推进的挂接所带的 grant，属于持有推进资格的 attempt |
+| `StaleWriterRejected` | 已交接的挂接的提交不生效 |
+| `RunEnds` | 有序停服之后服务再起来、人给出答复，Run 一定走完 |
+
+每个负控是把交接做坏的一种方式：
+
+| 配置 | 做坏的地方 | 预期 |
+| --- | --- | --- |
+| `no-detach` | 停用时不交接，执行槽被占就结束进程 | `CleanStop` 被违反 |
+| `stop-cancels` | 把停服当成打断，交接时中断等人的调用 | `WaitSurvives` 被违反 |
+| `stale-grant` | 认领之后仍带旧 attempt 的 grant 取得挂接，Journal 不核对 | `AdvanceUnderAttempt` 被违反 |
+| `stale-write` | 交接之后旧驱动的提交仍被接受 | `StaleWriterRejected` 被违反 |
+| `no-recovery` | 重启后没有人发现已交接的执行 | `RunEnds` 被违反 |
+
+前提：除人的答复、停服与进程丢失外，每一步都弱公平。服务至多启动三次。模型只有一个 Run、一次调用。进程丢失，或驱动正在跑节点时停服，挂接留在 active：继续推进要接管，本发行没有，Session 按 PM-14 等待。模型保留这两种运行只用来检查安全性质，`RunEnds` 不对它们声称。Session 一侧两个恢复者同时认领的排序由 session-contract 的 `RunAdvance` 检查，不在本模型里。
+
+今天的实现与模型的对照：`no-detach` 与 `no-recovery` 是修之前的行为。模型不证明 SQL、进程或真实调度，也不证明实现符合；实现符合性由发行树的停服与重启场景验证。
+
+运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models ShutdownHandoff`。

@@ -60,6 +60,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'tenantDomains',
       'tenantDomainLookup',
       'sessionPrincipalBindings',
+      'sessionScopeOwners',
     ],
     injects: ['storage', 'sessionAccessCheck'],
     phase: 'composition',
@@ -72,6 +73,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'sessionPrincipals',
       'sessionWorkPrincipals',
       'telemetry',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
     ],
     phase: 'business',
   },
@@ -181,6 +184,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['definitionMappings', 'sessionWorkPrincipals'],
   },
   'agent-model-selection': { provides: ['agentModelSelection'], injects: ['modelProfiles'] },
+  'agent-cards': { provides: ['agentDecisionCards'], injects: ['session'] },
   'agent-host': {
     provides: [
       'agentPublicationAuthority',
@@ -242,7 +246,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'toolStartFence',
       'toolInvocationQualification',
     ],
-    injects: ['storage', 'tenantDomainLookup', 'telemetry'],
+    injects: [
+      'storage',
+      'tenantDomainLookup',
+      'tenantDomains',
+      'tenantDomainScannerPrincipal',
+      'telemetry',
+    ],
     group: 'tool-start',
   },
   'tool-bindings': {

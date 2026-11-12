@@ -1,6 +1,6 @@
-# 收尾协议形式模型的规模上限与映射
+# 形式模型的规模上限与映射
 
-本页说明 [Finishing.tla](models/Finishing.tla) 怎样对应本包 [SPEC](../SPEC.md) 的 Journal 收尾协议，模型在什么规模上限内检查，以及哪些实现由轨迹回放支持。运行记录见 [formal-runs.md](formal-runs.md)，配置与判读规则见 [models/README.md](models/README.md)。
+本页说明本包的两个形式模型怎样对应本包 [SPEC](../SPEC.md)，模型在什么规模上限内检查，以及哪些实现由轨迹回放支持。[Finishing.tla](models/Finishing.tla) 是 Journal 收尾协议的模型，见本页从“结论的边界”到“待 Agent 契约拥有者裁定”的各节。[CardRounds.tla](models/CardRounds.tla) 是 Agent 循环等人状态点的模型，见末节“[等人状态点模型](#等人状态点模型)”。运行记录见 [formal-runs.md](formal-runs.md)，配置与判读规则见 [models/README.md](models/README.md)。
 
 ## 结论的边界
 
@@ -270,3 +270,125 @@ Reduce 已定读法乙（[#502 评论](https://github.com/nemori-ai/omne-harness
 | 5 | failed 或 cancelled 终结时，提供者尚无结论、也没有 exclude 的内部 H 能否记 held | held | handoff 责任段写明 H unknown 时不能只填 held。若这一情形应为 unknown，S2 检查不到它 |
 
 编号沿用 AG-23 表达评审“范围外待裁决”的编号。第 1 项（取消收束）已由 Reduce 裁定，见“取消收束”。
+
+## 等人状态点模型
+
+[CardRounds.tla](models/CardRounds.tla) 检查 Agent 循环收到一个需要等人的结论之后的原生等待：Loop 算法页的 X1 至 X4 与一个动作批的屏障 A1。判断来自谁不在模型内。官方准入的 `need-decision` 与扩展的 `ask` 都抽象为一个返回 ask 的扩展调用（Passage）。交回（HandBack）抽象为带答复的 `replay`：官方准入是带 `decision` 再次 `admit`，作者扩展是带 `replay{binding}` 再次调用。扩展运行时、注入能力的操作认回与输出校验也不在模型内。
+
+本节的结论只在下文的规模上限与抽象内成立。它不是证明，也不表示实现符合模型。Agent 循环当前没有卡片轮次的实现，所以本模型也没有轨迹回放。
+
+### 现有模型已覆盖的部分
+
+本模型只补现有模型没有的部分。下表记录比较的结果。
+
+| 性质 | 现有模型 | 本模型 |
+| --- | --- | --- |
+| 判断与答复都齐备之后才推进一次，崩溃不重跑已记录的判断，推进的活性 | HITL [ContinuationComposition.tla](../../../human-intervention/human-intervention/verification/models/ContinuationComposition.tla) 的 `SafeAdvance`、`OnceAdvance`、`RecordedJudgmentNotRepeated`、`ReadyProgress` | 引用，不重复。本模型在 Agent 的台账状态上检查同一屏障的 `BarrierBeforeApply` 与 `Progress`，因为 HITL 模型没有卡片轮次的状态 |
+| 一张卡片只有一个有效答复，作废后不复活，答复保管，租户隔离 | HITL [HumanDecision.tla](../../../human-intervention/human-intervention/verification/models/HumanDecision.tla) 的 `UniqueDecision`、`NoRevival`、`Custody`、`TenantIsolation` | 作为提供者前提：`Answer` 只作用于 pending 的卡片。不重复检查 |
+| 等人的调用不占执行名额，同会话与其他会话照常推进 | HITL [ExecutionSlots.tla](../../../human-intervention/human-intervention/verification/models/ExecutionSlots.tla) 与 [WaitIsolation.tla](../../../human-intervention/human-intervention/verification/models/WaitIsolation.tla) | 只检查到“没有本 run 的执行占用”这一层：`WaitHoldsNoSlot` |
+| 卡片轮在终结责任清单中的处置与对账合入 | [Finishing.tla](models/Finishing.tla) 的 `CardAsk` 与 `RecordCardReconciliation`（一轮，只有 unknown 与 held 两态） | 引用。本模型把终结抽象为一步 `End`，检查终结之后 reconcile 对每一轮的处置 |
+| 先保存后呈现，present 结果未知只用 lookup，同一请求不在第二个 round 下重发 | 无 | `OncePresent` |
+| 同批全部链到达最终结论或合法等待之后才呈现 | 无 | `BarrierBeforePresent` |
+| 一轮的全部卡片都有人的答复之后才交回 | 无 | `AllAnsweredBeforeHandBack` |
+| 同一份答复至多交回一次，崩溃恢复不重复交回 | 无（ContinuationComposition 只在 HITL 的推进上检查） | `OnceHandBack` |
+| 取消、全拒与终结之后不呈现、不交回、不采纳 | 无 | `NoAdoptAfterStop` |
+| 作废的卡片不记为答复，不伪造人的答案 | 无 | `NoAnswerAfterInvalidate`、`NoFabricatedAnswer` |
+| 终结或全拒之后，关闭的卡片责任不留活的卡片 | 无 | `ClosedLeavesNoLiveCard`、`StopSettles` |
+| 恢复不回退持久进度 | 无 | `RecoveryMonotone` |
+
+### 规模上限
+
+| 配置 | 链（Passage）数 | 每轮卡片数 | 每链轮数 | 崩溃 | 丢回执 | 取消 | 全拒 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `cardrounds-safety`、`cardrounds-settle`、全部 `reach` 与安全负控 | 2 | 2 | 2 | 1 | 1 | 允许 | 允许 |
+| `cardrounds-safety-wide` | 2 | 2 | 2 | 2 | 2 | 允许 | 允许 |
+| `cardrounds-progress`、`cardrounds-bad-noresume` | 2 | 2 | 2 | 1 | 1 | 不允许 | 不允许 |
+
+一个执行只有一个动作批。每条链只有一个出卡的扩展调用：后继扩展的出卡与原扩展回放后的再出卡都表达为同一 Passage 的下一轮。“丢回执”是 present 或 invalidate 的回执丢失，两者共用一个上限。回执丢失时，提供者可能已创建卡片，可能还有一个在途的请求，也可能什么都没有。上限之外的行为没有被检查，例如三条链、三轮、一轮三张卡片。
+
+### 状态对应
+
+| 模型变量 | 对应的事实 |
+| --- | --- |
+| `ps` | `PassageProgress`：requested、asked、resolved、applied。idle 表示该链的扩展调用尚未开始 |
+| `rs` | 每轮的 `CardRoundProgress`：requested、presented、answered、processed、present-failed（模型记作 failed） |
+| `askOf` | 一轮呈现的是哪一个 ask 结论。正确的 Agent 每个 ask 开一轮 |
+| `jr` | `PassageCard.response`：Agent 已保存的答复，或 invalidated |
+| `closed` | 终结或全拒之后，这一轮的卡片责任已关闭（作废已记录、not-presented 已排除，或全部卡片已有答复） |
+| `created`、`wire`、`pr` | DecisionCards 一侧：本轮卡片已创建；一个在途的 present 请求仍可能迟到创建卡片；每张卡片的 pending、answered、invalidated |
+| `online`、`inflight`、`known`、`slot` | 协调进程的内存状态：进程在运行；进行中的扩展调用（fresh，或交回第 r 轮的 replay）；本进程是否知道本轮没有发出过 present（fresh）、结果未知（unknown）或已被 lookup 排除（excluded）；本执行是否占用执行名额。崩溃清除它们 |
+| `cancelled`、`denied`、`ended` | 取消已生效；本批为全拒；执行已终结 |
+| `handbacks`、`found` | 幽灵变量：消费过第 r 轮答复的已提交结果数；崩溃后 lookup 找到了未记录的卡片。动作只为限定状态空间读 `handbacks` |
+| `barrierOk`、`handOk`、`adoptOk` | 步骤监视器。违反发生的那一步变为 FALSE，之后保持 |
+
+### 动作、条款与代码落点
+
+官方准入的卡片轮次已实现：链的状态推进在 `packages/agent/agent/src/loop/passages.ts`（一个模型动作一个函数，定义域以外不改任何东西），准入一侧的映射在 `packages/agent/agent/src/loop/admission-chain.ts`，节点在 `packages/agent/agent/src/loop/coordinator.ts` 的 A0 与 A1。扩展位置的 X 子图没有实现，那里的链将来用同一组函数。关闭卡片轮次（取消、终结、全拒时作废）没有实现，表中标明。提供者在 `apps/harness-server/src/rows/agent-cards/`。
+
+| 模型动作 | 条款 | 代码落点 |
+| --- | --- | --- |
+| `StartInvoke`、`FinishInvoke`、`Abort` | “扩展、卡片与材料”前三条；作者协议“调用协议”的处置表与采纳优先级第一条；Loop 算法页 X1 至 X3 | 官方准入：A0 调 `admit`（`packages/agent/agent/src/loop/tools.ts` 的 `admitToolAction`），回答经 `admission-chain.ts` 的 `afterAdmission` 落账：要人决定时 `openRound`，最终结论时 `resolve`。准入是可重入的查询，链只在第一次要人决定时入台账，不先存 requested 的 Passage。扩展位置的 X 子图未实现 |
+| `PresentOk`、`PresentLost`、`PresentFailed` | “扩展、卡片与材料”的 round 一段；“整批判断屏障与动作准入”第 3、11 条；Loop 算法页 X4 与 A1 | A1 的 `presentRounds` 与 `roundCards`（`coordinator.ts`）：本进程存下的轮直接 `present`，结果不明转 `lookup`；确定失败经 `afterPresentRefused` 记 present-failed 并拒绝该动作。提供者在 `apps/harness-server/src/rows/agent-cards/provider.ts` |
+| `LookupPresented`、`LookupNotPresented` | “扩展、卡片与材料”的 lookup 一段；作者协议“结构换代与未完成判断”第 4 行；终态后卡片规则第 1、2 条 | `roundCards`（`coordinator.ts`）：不是本进程存下的 requested 轮一律先 `lookup`；not-presented 之后才按同一请求再呈现；不明或不可用时按依赖等待。终态后的 `card-lookup` 续接未实现 |
+| `NewRoundForUnknown` | 只在负控 `newround` 中启用 | 无，这是被禁止的做法 |
+| `Deliver`、`Answer` | 提供者与人的行动，提供者按原卡请求去重 | 不在 Agent 内。人的答复归 HITL |
+| `ReadCard` | “扩展、卡片与材料”的 read 五类结果；第 6、11 条 | A1 的 `readCards`（`coordinator.ts`）与 `passages.ts` 的 `recordReply`：答复只存一次，pending 不落账，invalidated 记为 invalidated 不算答复 |
+| `StartHandBack`、`FinishHandBack` | “扩展、卡片与材料”的 replay 与多轮一段；第 2、5、6 条；作者协议“结构换代与未完成判断”第 3 行 | A0：`handBackOf` 取答齐一轮的答复，`withChosenRewrite` 处理卡片绑定的改写，再调 `admit`；再要一轮时 `openRound`，重复已答的卡时以拒绝结论 `resolve`（`admission-chain.ts`）。准入一侧对 `decision` 的解释在 `apps/harness-server/src/rows/authorization/action-admission.ts`，现在对 `decision !== null` 答 unavailable，不归 Agent |
+| `BarrierOpen` | 第 4 条 | A1（`coordinator.ts`）：先让需要判断的链回 A0，再呈现、读卡；每个动作都有最终判断后才写 open 或 all-denied，并把这批的链记为 applied。判别在 `passages.ts` 的 `needOf` 与 `mayPresent` |
+| `Cancel`、`End` | 第 10 条；“取消判断与路线”；系统页“循环守卫与终态扩展” | `End` 抽象 tryFinish，由 [Finishing.tla](models/Finishing.tla) 检查。终结责任 `card-round` 在 `src/finishing.ts` |
+| `InvalidateRound`、`CloseRound` | 第 2 条（全拒时作废已呈现、尚无答复的卡片）；终态后卡片规则第 3 至 5 条 | 未实现。全拒时还有已出未答的轮次、读到被作废的卡，A0 与 A1 答 unsupported-path；终结时还有未关闭的轮次，R0 同样答 unsupported-path。关闭一轮要契约里有轮次的关闭状态，还要有终结后的对账，随扩展件阶段（#502 第 3 阶段）。本发行的官方准入不要人决定，生产上走不到。Tool 的 Ask 卡在打断时的收场是另一条路径，已实现，模型见 human-intervention 的 `InterruptCascade` |
+| `Crash`、`Recover` | “恢复与接管”；作者协议“结构换代与未完成判断” | `recoveryRoute`（`coordinator.ts`）：屏障为 closed 的批回 A1，由台账里已保存的进度决定下一步；准入链不走 X 节点。新协调器接手已存位置的公开入口尚未交付，整段重启没有端到端用例 |
+
+每个模型动作是一个原子步骤。实现中一个步骤内部的读取、核验与提交之间的交错没有被建模。
+
+### 被假定的环境行为
+
+- AgentJournal 的每次写入是一次原子提交。`FinishInvoke` 的 ask 把非最终 Conclusion 与新一轮 requested 一次提交。`FinishHandBack` 的最终结论把全部已答复的轮次一次记为 processed。
+- 提供者按原卡请求去重。同一 round 的重复 present 返回原卡片。present 的确定失败（denied、conflict）也关闭该请求的在途副本，所以失败之后不会迟到创建卡片。这一条由 SPEC“卡片端口按原卡请求去重”推出，模型不检查它。
+- lookup 的 not-presented 带排除证据，排除原创建与迟到创建。unknown 与 unavailable 不改变任何事实，模型不把它们表达为步骤。
+- 人的答复与作废在提供者一侧同一排序。已成立的答复保留，作废之后不接受答复（HITL 的 `NoRevival`）。
+- 扩展的回放是确定的：同一回放绑定得到同一输出。所以一次未知的回放重新调用之后，提交的仍是同一结果。注入能力的认回与 `replayInconsistent` 的锁存不在模型内。
+- `End` 要求本进程没有进行中的扩展调用（signal 已中止它们）。`End` 只在取消之后发生。
+- 活性配置假定弱公平：持续可用的 Agent 步骤与提供者步骤最终会执行。`Progress` 另外假定每张已呈现的卡片最终得到人的答复（`HumanFair`）。崩溃与丢回执有上限，所以最终不再发生。
+
+### 性质与负控
+
+| 性质 | 种类 | 检查的内容 | 负控（故意的错误） |
+| --- | --- | --- | --- |
+| `OncePresent` | 不变量 | 同一 Passage 的两个 round 不呈现同一个 ask 结论 | `bad-newround`：present 结果未知时开新 round 重发 |
+| `BarrierBeforePresent` | 不变量（监视器） | 每次 present 调用时，同批每条链都有最终 Conclusion，或最后一轮为 requested 或 presented | `bad-nobarrier`：present 不等屏障 |
+| `AllAnsweredBeforeHandBack` | 不变量（监视器） | 每次交回时，该轮每张卡片都已保存人的答复 | `bad-partial`：一张卡片有答复就记为 answered |
+| `OnceHandBack` | 不变量 | 一轮的答复至多被一个已提交结果消费 | `bad-rehandback`：崩溃后恢复把已有结果的一轮再交回一次 |
+| `NoAdoptAfterStop` | 不变量（监视器） | 取消、全拒或终结之后，没有 present、交回或采纳 | `bad-late`：交回不看取消与全拒 |
+| `NoAnswerAfterInvalidate` | 不变量 | 提供者已作废的卡片不记为人的答复 | `bad-invalidasanswer`：read 把 invalidated 读作答复 |
+| `NoFabricatedAnswer` | 不变量 | 保存的每个答复都是人给出的 | `bad-timeout`：尚无答复的卡片读作答复（默认批准） |
+| `ClosedLeavesNoLiveCard` | 不变量 | 关闭的卡片责任不留 pending 的卡片，也不留在途的 present 请求 | `bad-noinvalidate`：终结之后已呈现的一轮不作废就关闭。`bad-asnone`：终结之后 requested 的一轮不 lookup，按“无卡片”关闭 |
+| `BarrierBeforeApply` | 不变量 | Loop 采纳本批时，每条链都有最终结论，每轮都是 processed 或 present-failed | 无单独负控，等同 HITL 的 `SafeAdvance` |
+| `WaitHoldsNoSlot` | 不变量 | 执行名额只由进行中的调用占用 | `bad-holdslot`：ask 之后不释放名额 |
+| `RecoveryMonotone` | 动作性质 | 持久进度（Passage、每轮、已保存的答复与关闭）不回退 | `bad-rewind`：恢复把 presented 的一轮重建为 requested |
+| `Progress` | 活性 | 没有取消与全拒、人都答复时，每个 Passage 最终 applied | `bad-noresume`：崩溃后恢复把已答复的一轮当作仍在等人 |
+| `StopSettles` | 活性 | 取消之后执行终结且全部卡片责任关闭；全拒之后全部卡片责任关闭 | 无单独负控。`ClosedLeavesNoLiveCard` 的两个负控说明“关闭”不能由错误的处置取得 |
+| `TypeOK` | 不变量 | 模型自身的取值范围 | 无 |
+
+七个 `reach` 配置是可达性见证，不是性质。每个见证写一条“从不发生”的路径，TLC 必须给出反例：第二轮之后本批被采纳；lookup 排除后同一请求再次呈现；崩溃后 lookup 找到未记录的卡片且本批被采纳；终结后一轮保留答复并作废其余卡片；先答复一轮，后一轮呈现失败；全拒在没有取消时作废卡片；在途请求迟到创建卡片，终结后被作废。它们说明安全正控不是因为这些路径不存在才通过。
+
+### 未覆盖
+
+- 判断的来源：准入的规则、扩展的输出校验、位置输出表、`replayInconsistent` 与 `controlUnavailable` 的锁存、新草稿与上一轮相同时不开新一轮的规则。
+- 注入能力的操作认回与计费，扩展运行时与宿主的 `invocationUnresolved`。
+- 参数改写与旧批准失效（第 7 条），附言的解释（第 11 条第一项），屏障打开之后的工具发起（第 8、9 条）。
+- 一条链上多个扩展调用、多个动作批、多个执行与多租户。
+- 部分创建：一轮内只创建了部分卡片时保持 unknown 的规则。模型中一轮的卡片一起创建。
+- invalidate 的操作身份。模型只表达“丢回执后以同一操作重试，提供者认回”，不检查身份的派生。
+- 执行挂接被取代与实例停用。模型只有崩溃与重启。
+- 实现与模型的符合性。没有轨迹回放。
+
+### 模型取的读法与契约缺口
+
+下列各项的 SPEC 文字没有直接写明。模型取了其中一种读法，不自定为正确。裁决者是 Agent 契约拥有者。
+
+| 编号 | 问题 | 模型现状 | 影响 |
+| --- | --- | --- | --- |
+| CR-1 | 第 3 条的“合法等待”是否包括“最后一轮已答复、回放尚未返回”的链 | 不包括。这样的链要等回放返回，其他链的新一轮才呈现 | 决定 `BarrierBeforePresent` 的含义。若包括，回放进行中也能呈现别的链的卡片 |
+| CR-2 | 全拒（第 2 条）时，requested 且 present 结果未知的一轮怎样处置。第 2 条只写“尚未呈现的不再呈现”与“已呈现的作废” | 借用终态后卡片规则第 1、2 条：先 lookup，presented 则作废，not-presented 则关闭 | 不 lookup 就当作“尚未呈现”时，迟到创建或回执丢失的卡片一直是活的，见负控 `bad-asnone` 的同类反例 |
+| CR-3 | 取消生效之后、执行终结之前，人对仍然有效的卡片给出的答复 | 保存为事实，不交回，不采纳 | 第 10 条与系统页“已有的答复保留”一致。人在终结之前仍能看到并回答这张卡片，这是产品可见的行为 |

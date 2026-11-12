@@ -1,6 +1,6 @@
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { Outcome } from '@omne-harness/operation-result'
-import type { ToolFailure, ToolStartRecord } from '@omne-harness/tool-contract'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { ResponseRecord, ToolFailure, ToolStartRecord } from '@omne-harness/tool-contract'
 import type { CallAccess } from '@omne-harness/tool-contract/provider'
 import type {
   PreparationRecord,
@@ -10,12 +10,30 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import type { ToolDependencies } from './construction.ts'
 import { tenantKey } from './boundary.ts'
+import { digestOf as canonicalDigest } from './evidence.ts'
 
 type Invocation =
   | Readonly<{ kind: 'port-failed'; failure: ToolFailure }>
   | Readonly<{ kind: 'binding-failed' }>
   | Readonly<{ kind: 'binding-threw' }>
   | Readonly<{ kind: 'live' }>
+
+/** What a resume segment continues: the kept state of its checkpoint and the response of its wait. */
+function resumeInput(
+  recovery: ToolRecovery,
+  start: Extract<ToolStartRecord, { kind: 'resume' }>,
+): Outcome<Readonly<{ state: string; response: ResponseRecord }>, ToolFailure> {
+  const checkpoint = canonicalDigest(start.checkpoint)
+  const kept = recovery.checkpointState
+  if (kept === null || canonicalDigest(kept.payload) !== checkpoint)
+    return fail({ kind: 'invalid', field: 'checkpoint', reason: 'no-kept-state' })
+  const wait = recovery.waits.find(
+    record => record.phase === 'responding' && canonicalDigest(record.intent.resume) === checkpoint,
+  )
+  if (wait?.phase !== 'responding')
+    return fail({ kind: 'invalid', field: 'checkpoint', reason: 'no-responding-wait' })
+  return succeed({ state: kept.state, response: wait.response })
+}
 
 export function createBindingInvoker<P, B extends ContentBlock, E>(
   { authority, bindings }: Pick<ToolDependencies<P, B, E>, 'authority' | 'bindings'>,
@@ -31,22 +49,13 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
   const invoke = async (
     step: CallAccess<P>,
     recovery: ToolRecovery,
-    start: Extract<ToolStartRecord, { kind: 'start' }>,
+    start: ToolStartRecord,
   ): Promise<Invocation> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
     const permit = await authority.prepare({ ...access, start, request: recovery.request })
     if ('failure' in permit) return { kind: 'port-failed', failure: permit.failure }
     const binding = await bindings.resolve({ ...access, request: recovery.request })
     if ('failure' in binding) return { kind: 'port-failed', failure: binding.failure }
-    if (binding.ok.kind !== 'live-only')
-      return {
-        kind: 'port-failed',
-        failure: {
-          kind: 'unsupported',
-          adoption: start.executor,
-          reason: 'a checkpointed binding needs a later increment',
-        },
-      }
     const preparation = recovery.preparations.at(-1)
     if (preparation === undefined)
       return {
@@ -55,12 +64,27 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
       }
     const environment = await environmentOf(step, recovery, preparation)
     if ('failure' in environment) return { kind: 'port-failed', failure: environment.failure }
+    const bound = binding.ok
+    // A resume runs the next segment of a checkpointed author (P07); a live-only binding has none.
+    if (start.kind === 'resume' && bound.kind !== 'checkpointed')
+      return {
+        kind: 'port-failed',
+        failure: { kind: 'invalid', field: 'binding', reason: 'not-checkpointed' },
+      }
+    // A resume continues the state that the ledger keeps for the checkpoint the start names, with
+    // the response of the wait that resumes there.
+    const resumed = start.kind === 'resume' ? resumeInput(recovery, start) : null
+    if (resumed !== null && 'failure' in resumed)
+      return { kind: 'port-failed', failure: resumed.failure }
     try {
-      const live = await binding.ok.start(
-        { ...access, start, permit: permit.ok, request: recovery.request },
-        environment.ok,
-      )
-      if ('failure' in live) return { kind: 'binding-failed' }
+      const input = { ...access, permit: permit.ok, request: recovery.request }
+      const live =
+        start.kind === 'start'
+          ? await bound.start({ ...input, start }, environment.ok)
+          : bound.kind === 'checkpointed' && resumed !== null
+            ? await bound.resume({ ...input, start, ...resumed.ok }, environment.ok)
+            : null
+      if (live === null || 'failure' in live) return { kind: 'binding-failed' }
       lives.set(startKey(step, start), live.ok)
       return { kind: 'live' }
     } catch {

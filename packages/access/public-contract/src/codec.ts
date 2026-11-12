@@ -190,14 +190,17 @@ function isStage<V extends string, P extends string, S extends string>(
   return family.stages.some(stage => stage === value)
 }
 
-/** `protocol-rejected` belongs to every family, `stage-not-provided` only to one with stages. */
+/**
+ * `protocol-rejected` belongs to every family. `stage-not-provided` belongs to a family with stages
+ * or one whose deployment may declare an operation unprovided.
+ */
 function isRefusal<V extends string, P extends string, S extends string>(
   family: Family<V, P, S>,
   outcome: string,
 ): boolean {
   return (
     outcome === 'protocol-rejected' ||
-    (outcome === 'stage-not-provided' && family.stages.length > 0)
+    (outcome === 'stage-not-provided' && (family.stages.length > 0 || family.declarable))
   )
 }
 
@@ -389,19 +392,43 @@ function nullLeaf(input: unknown, direction: Direction): Converted | undefined {
   return isNull ? { local: null, wire: { kind: 'null' } } : undefined
 }
 
-const leaves: { readonly [K in LeafKind]: Leaf } = {
-  'positive-integer': (input, direction) => {
+/** A positive safe integer no greater than `max`. */
+function boundedInteger(max: number): Leaf {
+  return (input, direction) => {
     const node = direction === 'decode' ? nodeOf(input) : undefined
     const value =
       direction === 'decode' ? (node?.kind === 'number' ? Number(node.lexeme) : undefined) : input
-    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 && value <= max
       ? { local: value, wire: { kind: 'number', lexeme: String(value) } }
       : undefined
-  },
+  }
+}
+
+/** HITL `list-cards` 的 `limit` 上界，由公开契约固定（SPEC「HITL body 字段」）。 */
+const HITL_PAGE_LIMIT = 100
+const withinPageLimit = boundedInteger(HITL_PAGE_LIMIT)
+
+/** `limit` 是 JSON 整数：读取时数字文本只能是十进制整数，不收 `1.0` 或 `1e1`。 */
+function pageLimit(
+  input: unknown,
+  direction: Direction,
+  limits: JsonLimits,
+): Converted | undefined {
+  if (direction === 'decode') {
+    const node = nodeOf(input)
+    if (node?.kind !== 'number' || !/^[1-9][0-9]*$/.test(node.lexeme)) return undefined
+  }
+  return withinPageLimit(input, direction, limits)
+}
+
+const leaves: { readonly [K in LeafKind]: Leaf } = {
+  'positive-integer': boundedInteger(Number.MAX_SAFE_INTEGER),
+  'page-limit': pageLimit,
   text: textLeaf(value => value !== ''),
   string: textLeaf(() => true),
   session: textLeaf(value => /^[0-9a-f]{64}$/.test(value)),
   'page-bytes': textLeaf(value => /^[1-9][0-9]*$/.test(value)),
+  revision: textLeaf(value => /^(0|[1-9][0-9]*)$/.test(value)),
   boolean: onPrimitive(value =>
     typeof value === 'boolean' ? { local: value, wire: { kind: 'boolean', value } } : undefined,
   ),
@@ -454,7 +481,12 @@ function convertList(
   direction: Direction,
   limits: JsonLimits,
 ): Converted | undefined {
-  if (data === undefined || data.length > limits.maxItems || (rule.nonempty && data.length === 0))
+  if (
+    data === undefined ||
+    data.length > limits.maxItems ||
+    (rule.nonempty && data.length === 0) ||
+    (rule.max !== undefined && data.length > rule.max)
+  )
     return undefined
   const values: Converted[] = []
   for (const item of data) {

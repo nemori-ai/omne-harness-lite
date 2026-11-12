@@ -63,7 +63,12 @@ export const toolBodySweepRow = defineRow({
       },
     }
     const holder = toolRuntimeHolder(ctx)
-    const store = createSqlToolLedgerStore(options)
+    const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
+    const scanner: unknown = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY)
+    const store = createSqlToolLedgerStore({
+      ...options,
+      tenants: () => directory.enumerate({ principal: scanner }),
+    })
     const { bodyPermitKey: permitKey, bodyClock: clock } = holder
     const sweep = createToolSweep(
       {
@@ -78,8 +83,8 @@ export const toolBodySweepRow = defineRow({
       { graceMs: config.orphanGraceMs, hostRecords: createLocalCallRecords(store) },
     )
     const schedule = createBodySweep({
-      domains: ctx.get(tenantDomainsKey) as TenantDomains<unknown>,
-      scanner: ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY),
+      domains: directory,
+      scanner,
       clock,
       sweep: sweep.sweep,
       limit: config.limit,

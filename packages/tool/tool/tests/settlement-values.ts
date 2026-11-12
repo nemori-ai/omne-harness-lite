@@ -204,6 +204,7 @@ export async function settlementFixture(
   let intercept: ToolLedgerStore['commit'] | null = null
   const store: ToolLedgerStore = {
     durability: 'none',
+    scanPending: input => harness.memory.scanPending(input),
     readRecord: harness.memory.readRecord,
     due: harness.memory.due,
     read: domain => harness.memory.read(domain),

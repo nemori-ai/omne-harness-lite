@@ -18,8 +18,9 @@
 | 定义                              | 入口       | 用途                                                                                          | 行为                                |
 | --------------------------------- | ---------- | --------------------------------------------------------------------------------------------- | ----------------------------------- |
 | `projectSessionPermissionMode`、`SESSION_PERMISSION_MODE_TRANSLATION` | 根入口 | 把原采用或覆盖投影为 Authorization 的询问处理值，保留来源和翻译版本 | [模式翻译表](../SPEC.md#模式翻译表) |
-| `createSessionModesPublication`、`SESSION_MODES_PUBLICATION` | 根入口 | 核对工作快照和模式依据的范围/权限修订，生成三轴值、询问投影及同份依据的不可变载体 | [模式翻译表](../SPEC.md#模式翻译表) |
-| `sessionModesDescriptor`、`sessionModesProducer`、`sessionInquiryBinding` | `./cordis` | 声明实际载体与发布它的生产者身份；coordinator 只选择已计算投影和其依据，不重新解释模式 | [模式翻译表](../SPEC.md#模式翻译表) |
+| `projectSessionCollaborationMode`、`SESSION_COLLABORATION_MODE_TRANSLATION` | 根入口 | 把协作模式投影为元能力宿主的两个布尔值，保留来源和翻译版本 | [模式翻译表](../SPEC.md#模式翻译表) |
+| `createSessionModesPublication`、`SESSION_MODES_PUBLICATION` | 根入口 | 核对工作快照和模式依据的范围/权限修订，生成三轴值、询问投影、交互投影及同份依据的不可变载体 | [模式翻译表](../SPEC.md#模式翻译表) |
+| `sessionModesDescriptor`、`sessionModesProducer`、`sessionInquiryBinding`、`sessionInteractionBinding`、`sessionModesBindings` | `./cordis` | 声明实际载体与发布它的生产者身份；coordinator 只选择已计算投影和其依据，不重新解释模式；`sessionModesBindings` 是登记这个块时要绑定的全部需要 | [模式翻译表](../SPEC.md#模式翻译表) |
 | `createSessionModesPlugin` | `./cordis` | 每租户一生产者纤程，沿原来源发布/恢复模式；可信装配持有其 refresh 入口来补首次供值或漏通知 | [AD-03](../SPEC.md#ad-03) |
 | 身份编码函数                      | 根入口     | 把 Session 的操作身份确定地编码为邻域的操作身份                                               | [AD-00](../SPEC.md#ad-00)           |
 | 结果对应函数                      | 根入口     | 把邻域结果对应为 Session 结果或参加者响应                                                     | 各插件的对应表                      |

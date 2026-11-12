@@ -9,3 +9,4 @@
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：Cordis 绑定入口的测试
 - [text-bounds.spec.ts](text-bounds.spec.ts)：截断标记计入总字节预算，保留准确的 UTF-8 首尾与区间
 - [fixtures/](fixtures/index.md)：测试固定输入
+- [ask.spec.ts](ask.spec.ts)：Ask 两条命令的参数校验、整批卡片、固定的跳过后果与等待协议

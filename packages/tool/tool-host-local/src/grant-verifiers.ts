@@ -3,7 +3,7 @@
 // request. The verifier holds no recipe. It accepts the request whose scope is that value, so no
 // rule has to be copied to two sides.
 //
-// Known limitation: an assembly has one scope in M2, so every call shares one FIFO key prefix
+// Known limitation: an assembly has one scope in M2, so every call shares one queue key (one concurrency scope)
 // (the key is made of the owner, the key and the tool name), whatever its tenant or caller.
 import type { ToolGrantVerifier } from '@omne-harness/tool'
 import type { DurableEvidence, ResourceScope } from '@omne-harness/tool-contract'

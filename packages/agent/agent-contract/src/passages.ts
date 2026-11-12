@@ -198,13 +198,19 @@ export interface DecisionCards<P> {
         requests: readonly CardRequest[]
       }>,
   ): Reply<readonly DurableEvidence[]>
+  /**
+   * Finds the original presentation of a round. It names the original operation in full: the same
+   * execution, passage, round, original and ordered requests that `present` got, without the
+   * advance. A provider that recalls an operation by its identity and its input needs all of them.
+   */
   lookup(
     input: Access<P> &
       Readonly<{
+        execution: AgentExecutionId
         passage: PassageId
         round: CardRoundId
         original: DurableEvidence
-        requests: readonly string[]
+        requests: readonly CardRequest[]
       }>,
   ): Reply<
     | Readonly<{ kind: 'presented'; cards: readonly DurableEvidence[] }>

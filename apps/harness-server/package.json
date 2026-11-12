@@ -52,6 +52,8 @@
     "@omne-harness/execution-environment-host-local": "workspace:*",
     "@omne-harness/governance-contract": "workspace:*",
     "@omne-harness/governance-local": "workspace:*",
+    "@omne-harness/human-intervention": "workspace:*",
+    "@omne-harness/human-intervention-local": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/identity-sql": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
@@ -98,14 +100,12 @@
     "@omne-harness/tool-host-local": "workspace:*",
     "@omne-harness/tool-storage-sql": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",
-    "zod": "catalog:",
-    "@omne-harness/tokenizer-tiktoken": "workspace:*",
-    "@omne-harness/settings": "workspace:*",
-    "@omne-harness/settings-local": "workspace:*"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@omne-harness/cli": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/sdk": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

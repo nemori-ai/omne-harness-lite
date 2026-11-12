@@ -21,7 +21,7 @@ type StoredSavedFact = Pick<FactEventRecord, 'start' | 'source' | 'event' | 'fac
 
 /**
  * The batch as the ledger stores it: each event with its fingerprint, a planned final as a pending
- * fact. The first final of a call may name only a body this call sealed; a final the call already
+ * fact, and a wait as its intent with the request original beside it. The first final of a call may name only a body this call sealed; a final the call already
  * knows is adopted as that known final (`planEvents` fixes the value and refuses a conflicting one).
  */
 export function adoptFinalFact(
@@ -40,10 +40,15 @@ export function adoptFinalFact(
     const saved = snapshot.facts.get(factKey(batch.start, batch.source.owner, event.event))
     if (saved !== undefined && !sameFactValue(saved.value, value))
       return invalid('batch.events', 'event-conflict')
+    if (event.fact.kind === 'wait') {
+      const { request, ...intent } = event.fact
+      events.push({ event: event.event, fact: intent, value, request })
+      continue
+    }
     const fact =
       event.fact.kind === 'final' ? adoptedFinal(snapshot, event.fact, known) : succeed(event.fact)
     if ('failure' in fact) return fact
-    events.push({ event: event.event, fact: fact.ok, value })
+    events.push({ event: event.event, fact: fact.ok, value, request: null })
   }
   return succeed({ ...batch, value: values.batch, events })
 }

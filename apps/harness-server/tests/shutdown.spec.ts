@@ -12,7 +12,12 @@ import {
   S0AssemblyLifecycleService,
   S0_ASSEMBLY_LIFECYCLE_KEY,
 } from '../src/lifecycle.ts'
-import { runShutdown, type ShutdownClock, type ShutdownRecord } from '../src/shutdown.ts'
+import {
+  runShutdown,
+  stopPredecessors,
+  type ShutdownClock,
+  type ShutdownRecord,
+} from '../src/shutdown.ts'
 import type { LifecycleHandle, LifecyclePhase, RowId, StopResult } from '../src/types.ts'
 
 const row = (id: string) => id as RowId
@@ -134,7 +139,7 @@ describe('X-1 关闭次序', () => {
     ])
   })
 
-  it('同一阶段的句柄并发调用，阶段内全部结束才进入下一阶段', async () => {
+  it('没有依赖关系的同阶段句柄并发调用，阶段内全部结束才进入下一阶段', async () => {
     const calls: Calls = []
     const releases: (() => void)[] = []
     const slow = (id: string) =>
@@ -165,6 +170,64 @@ describe('X-1 关闭次序', () => {
     expect(calls).toEqual(['stop:a', 'stop:b', 'stop:c'])
   })
 
+  it('同一阶段内，提供方等注入它的行的句柄结束之后才被调用 stop', async () => {
+    const calls: Calls = []
+    let release = () => {}
+    const expected = new Map<RowId, LifecyclePhase>([
+      [row('consumer'), 'business'],
+      [row('provider'), 'business'],
+      [row('other'), 'business'],
+    ])
+    const clock = fakeClock()
+    const registry = new LifecycleRegistry({ expected, clock, requestStop: () => {} })
+    registry.add(
+      handle(
+        calls,
+        'consumer',
+        'business',
+        () => new Promise<StopResult>(r => (release = () => r({ kind: 'settled' }))),
+      ),
+    )
+    registry.add(handle(calls, 'provider', 'business'))
+    registry.add(handle(calls, 'other', 'business'))
+    const done = runShutdown(registry, expected, DEADLINE_MS, clock, {
+      stopsFirst: new Map([[row('provider'), [row('consumer')]]]),
+    })
+    await flush()
+    // The row without a relation stops at once; the provider waits for its consumer.
+    expect(calls).toEqual(['stop:consumer', 'stop:other'])
+    release()
+    const report = await done
+    expect(calls).toEqual(['stop:consumer', 'stop:other', 'stop:provider'])
+    expect(report.overall).toBe('settled')
+    // The report keeps the order of the expected rows.
+    expect(report.outcomes.map(outcome => outcome.row)).toEqual(['consumer', 'provider', 'other'])
+  })
+
+  it('注入方到达 D 仍未结束时，提供方的 stop 照样被调用', async () => {
+    const calls: Calls = []
+    const expected = new Map<RowId, LifecyclePhase>([
+      [row('consumer'), 'business'],
+      [row('provider'), 'business'],
+    ])
+    const clock = fakeClock()
+    const registry = new LifecycleRegistry({ expected, clock, requestStop: () => {} })
+    registry.add(handle(calls, 'consumer', 'business', () => new Promise<StopResult>(() => {})))
+    registry.add(handle(calls, 'provider', 'business'))
+    const done = runShutdown(registry, expected, DEADLINE_MS, clock, {
+      stopsFirst: new Map([[row('provider'), [row('consumer')]]]),
+    })
+    await flush()
+    expect(calls).toEqual(['stop:consumer'])
+    clock.advance(DEADLINE_MS)
+    const report = await done
+    expect(calls).toEqual(['stop:consumer', 'stop:provider'])
+    expect(report.outcomes.map(outcome => [outcome.row, outcome.result.kind])).toEqual([
+      ['consumer', 'incomplete'],
+      ['provider', 'settled'],
+    ])
+  })
+
   it('所有句柄都收到同一个截止时间 D', async () => {
     const calls: Calls = []
     const seen: number[] = []
@@ -185,6 +248,58 @@ describe('X-1 关闭次序', () => {
     )
     await run()
     expect(seen).toEqual([500 + DEADLINE_MS, 500 + DEADLINE_MS])
+  })
+})
+
+describe('X-1b 同一阶段内的停止次序由行清单推出', () => {
+  const spec = (
+    id: string,
+    phase: LifecyclePhase | null,
+    provides: readonly string[],
+    injects: readonly string[],
+  ) => ({
+    row: { id: row(id) },
+    manifest: {
+      provides: provides as never,
+      injects: injects as never,
+      phase,
+      sameProviderGroup: null,
+    },
+  })
+  const pairs = (order: ReadonlyMap<RowId, readonly RowId[]>) =>
+    [...order].filter(([, first]) => first.length > 0).map(([id, first]) => [id, [...first]])
+
+  it('直接注入：提供方排在注入方之后', () => {
+    const order = stopPredecessors([
+      spec('consumer', 'business', [], ['s']),
+      spec('provider', 'business', ['s'], []),
+    ])
+    expect(pairs(order)).toEqual([['provider', ['consumer']]])
+  })
+
+  it('经过没有关闭阶段的行间接注入，也算依赖', () => {
+    const order = stopPredecessors([
+      spec('consumer', 'business', [], ['adapted']),
+      spec('adapter', null, ['adapted'], ['s']),
+      spec('provider', 'business', ['s'], []),
+    ])
+    expect(pairs(order)).toEqual([['provider', ['consumer']]])
+  })
+
+  it('互相依赖的两行不分先后', () => {
+    const order = stopPredecessors([
+      spec('a', 'business', ['x'], ['y']),
+      spec('b', 'business', ['y'], ['x']),
+    ])
+    expect(pairs(order)).toEqual([])
+  })
+
+  it('不同阶段的两行不在这里排序：阶段次序已经定了', () => {
+    const order = stopPredecessors([
+      spec('consumer', 'business', [], ['s']),
+      spec('provider', 'composition', ['s'], []),
+    ])
+    expect(pairs(order)).toEqual([])
   })
 })
 

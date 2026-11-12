@@ -2,7 +2,7 @@
 
 状态：已采用。依据是 #978 的 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）。
 
-本页是两端共用的承载页，由 public-contract 拥有。它写公开契约两个位置的 HTTP 承载：路径、方法、内容类型、状态码与 `outcome` 的对应、请求体上限、观察消息的读写、SSE 事件格式与心跳，以及客户端规则。字段、`outcome` 的含义、判断次序和帧的含义归[公开契约](../SPEC.md)。传输路线沿[技术基础](../../../../docs/architecture/technical-foundations.md#共同技术选择)：HTTP JSON 控制与查询，fetch SSE 单向观察。
+本页是两端共用的承载页，由 public-contract 拥有。它写公开契约三个位置的 HTTP 承载：路径、方法、内容类型、状态码与 `outcome` 的对应、请求体上限、观察消息的读写、SSE 事件格式与心跳，以及客户端规则。字段、`outcome` 的含义、判断次序和帧的含义归[公开契约](../SPEC.md)。传输路线沿[技术基础](../../../../docs/architecture/technical-foundations.md#共同技术选择)：HTTP JSON 控制与查询，fetch SSE 单向观察。
 
 服务端接入的[行为规格](../../server-entry/SPEC.md)、[SDK 规格](../../sdk/SPEC.md)和 [CLI 规格](../../../../apps/cli/SPEC.md)都引用本页的[承载绑定表](#承载绑定表)。它们不复制这张表，也不复述本页的规则。
 
@@ -26,13 +26,13 @@
 
 本页的承载是 HTTP/1.1。M2 不提供 TLS，服务只在本机回环地址上提供，见[已知限制](#已知限制)。
 
-- 公开契约有两个位置。治理位置读写 `governance-public/1`，会话位置读写 `session-public/1`。会话观察的两个操作属于会话位置。
+- 公开契约有三个位置。治理位置读写 `governance-public/1`，会话位置读写 `session-public/1`，HITL 位置读写 `hitl-public/1`。会话观察的两个操作属于会话位置。HITL 位置没有观察操作。
 - 每个位置对应一个固定路径。服务端按路径选择读取方式，不按消息里的版本文本分派。
 - 登录证明在消息体里，不在 HTTP 头里。服务端不读 `Authorization` 头，也不设置 Cookie。
 
 ## 承载绑定表
 
-本表是两个位置全部操作的承载映射。每个操作名与公开契约一致。每一行的方法都是 POST，请求内容类型都是 `application/json`。状态码见[状态码映射](#状态码映射)。请求体上限按路径取值，见[请求体上限](#请求体上限)。
+本表是三个位置全部操作的承载映射。每个操作名与公开契约一致。每一行的方法都是 POST，请求内容类型都是 `application/json`。状态码见[状态码映射](#状态码映射)。请求体上限按路径取值，见[请求体上限](#请求体上限)。
 
 | 位置 | 操作 | 路径 | 方法 | 请求内容类型 | 响应内容类型 | 请求体上限 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -46,6 +46,7 @@
 | 治理 | `list-settings`、`set-setting`、`describe-setting`、`clear-setting` | `/governance-public/1` | POST | `application/json` | `application/json; charset=utf-8` | small |
 | 会话 | `create-session`、`query-create-session`、`send-input`、`query-send-input`、`read-history`、`cancel-run`、`stop-call`、`read-session-diagnostics`、`cancel-observation` | `/session-public/1` | POST | `application/json` | `application/json; charset=utf-8` | input |
 | 会话 | `observe-session` | `/session-public/1` | POST | `application/json` | `text/event-stream; charset=utf-8`，见[SSE 观察](#sse-观察) | input |
+| HITL | `list-cards`、`read-card`、`submit-reply`、`query-submit-reply` | `/hitl-public/1` | POST | `application/json` | `application/json; charset=utf-8` | input |
 
 本表给每个操作同样的承载，与部署是否提供该操作无关。
 
@@ -53,12 +54,12 @@
 
 服务端按下面的次序处理一个 HTTP 请求。前一步给出终结时，不做后面的步骤。
 
-1. 路径不是两个固定路径之一，或带有非空查询串：状态 404，响应体为空，不处理消息。
+1. 路径不是三个固定路径之一，或带有非空查询串：状态 404，响应体为空，不处理消息。
 2. 方法不是 POST：状态 405，带 `Allow: POST`，响应体为空，不处理消息。`OPTIONS` 也在这一步得到 405。
 3. `Host` 头不合规：状态 421，响应体为空，不处理消息。这一步防止 DNS 重绑定页面借用本机服务。比较规则见[头的比较](#头的比较)。
 4. `Content-Type` 头不合规：状态 415，响应是该位置的 `protocol-rejected`。比较规则见[头的比较](#头的比较)。
 5. 请求体超过该路径的[请求体上限](#请求体上限)：状态 413，响应是该位置的 `protocol-rejected`，并关闭连接。
-6. 读取消息。治理路径把字节交给 `readGovernanceRequest`。会话路径按[会话路径的读取分派](#会话路径的读取分派)选择读取方式。然后进入公开契约的判断次序。
+6. 读取消息。治理路径把字节交给 `readGovernanceRequest`。会话路径按[会话路径的读取分派](#会话路径的读取分派)选择读取方式。HITL 路径把字节交给 `readHitlRequest`。然后进入公开契约的判断次序。
 
 第 1 步到第 5 步在读消息之前发生，状态码由这几步决定。第 6 步之后，状态码只由 `outcome` 决定，见[状态码映射](#状态码映射)。
 
@@ -118,6 +119,8 @@
 
 `stop-call` 的 Tool 目标在访问裁定之后得到 501 和 `unsupported`。无论会话是否存在，无论该 `controlId` 是否用过，结果都相同。
 
+下面这些情况在 HITL 位置都得到 `denied`，状态 403，响应体除 `messageId` 外逐字节相同：登录缺失、空、无效或不是本部署签发、目标租户的账号不是识别出的账号、主体在该租户下没有读取或答复资格、卡片不存在、卡片属于其他租户。撤权之后再送原提交或查询原提交，得到的也是这一份 `denied`。规则与会话位置相同。
+
 ## 请求体上限
 
 每个路径有一个请求体上限。数值是部署配置，名字与约束见[名字与约束](#名字与约束)。
@@ -126,8 +129,10 @@
 | --- | --- |
 | 治理路径 | `maxBodyBytes.small` |
 | 会话路径 | `maxBodyBytes.input` |
+| HITL 路径 | `maxBodyBytes.input` |
 
 - 服务端在第 5 步按请求路径选择上限。这时服务端还没有读消息，所以不按操作选择上限。会话路径上的全部操作都用 input 上限。读出 `operation` 之后，服务端不再按操作收紧上限。
+- HITL 路径用 input 上限，因为 `submit-reply` 的自由作答文本可以超过治理路径的 small 上限。
 - 第 6 步的 json-text `maxBytes` 取该路径的上限。json-text 的其余五项预算由接入配置给出。
 - 服务端按实际读到的字节计数。它不信任 `Content-Length`。`Content-Length` 已经大于上限时，服务端不读请求体，直接拒绝。
 - 超限时，服务端停止读取，返回状态 413 和该位置的 `protocol-rejected`，然后关闭连接。没有业务效果，也没有其他成员被调用。
@@ -229,6 +234,7 @@
 | --- | --- | --- |
 | 治理路径 | 治理位置的路径 | 固定为 `/governance-public/1` |
 | 会话路径 | 会话位置的路径 | 固定为 `/session-public/1` |
+| HITL 路径 | HITL 位置的路径 | 固定为 `/hitl-public/1` |
 | `maxBodyBytes.small` | 治理路径的请求体上限 | 正整数字节 |
 | `maxBodyBytes.input` | 会话路径的请求体上限 | 正整数字节 |
 | `heartbeatIntervalMs` | 心跳间隔 | 正整数毫秒 |

@@ -17,7 +17,9 @@ export type LeafKind =
   | 'instant'
   | 'session'
   | 'page-bytes'
+  | 'revision'
   | 'positive-integer'
+  | 'page-limit'
   | 'parameters'
   | 'json'
   | 'user-message'
@@ -28,7 +30,13 @@ export type Rule =
       readonly kind: 'object'
       readonly fields: Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
     }
-  | { readonly kind: 'array'; readonly item: Rule; readonly nonempty?: true }
+  | {
+      readonly kind: 'array'
+      readonly item: Rule
+      readonly nonempty?: true
+      /** 至多的项数。缺席时只受调用者的 `maxItems` 约束。 */
+      readonly max?: number
+    }
   /**
    * The options must be disjoint: the first option that converts wins, and the local value does
    * not record which option matched.
@@ -37,12 +45,15 @@ export type Rule =
 export type RequestRule = { readonly body: Rule; readonly proof: boolean; readonly tenant: boolean }
 /**
  * One protocol version with its closed operation table, read and written by the shared codec core.
- * A family without stage operations has no `stage-not-provided` outcome.
+ * A family has `stage-not-provided` when it has stage operations or a deployment may declare an
+ * operation unprovided; otherwise it has no such outcome.
  */
 export type Family<V extends string, P extends string, S extends string> = {
   readonly version: V
   readonly error: string
   readonly stages: readonly S[]
+  /** 部署能否声明不提供某个正常操作。能声明时，每个操作的响应都接受空正文的 `stage-not-provided`。 */
+  readonly declarable: boolean
   readonly isProvided: (value: unknown) => value is P
   readonly requestRule: (operation: P) => RequestRule
   readonly responseRule: (operation: P, outcome: string) => Rule | undefined
@@ -799,6 +810,7 @@ export const governanceFamily: Family<
   version: 'governance-public/1',
   error: 'Invalid governance codec arguments',
   stages,
+  declarable: true,
   isProvided,
   requestRule,
   responseRule,

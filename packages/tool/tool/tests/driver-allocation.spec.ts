@@ -229,15 +229,20 @@ describe('driver first adoption from an original allocation fact', () => {
     },
   )
 
-  it('does not claim a lease after the adapter loses its local registration', async () => {
+  it('settles a call that never started as not started when the adapter lost its registration, claiming no lease and keeping the cleanup', async () => {
     const f = fixture()
     await pending(f)
     const [original] = f.requests
     if (original === undefined) throw new Error('missing original registration')
     f.backing.controls.forgetRegistration(original)
-    await f.h.runOnce('allocated')
+    await f.h.drive('allocated')
     expect(f.requests).toHaveLength(1)
-    await retained(f)
+    const recovery = ok(await f.h.commands.loadRecovery(admission('allocated', 'op-allocated')))
+    expect(recovery.state).toMatchObject({ phase: 'settled', execution: { kind: 'not-started' } })
+    expect(recovery.tasks.some(task => task.kind === 'prepare')).toBe(false)
+    expect(f.h.binding.executions).toEqual([])
+    expect(f.backing.controls.leases()).toBe(0)
+    expect(f.backing.controls.outstanding()).toBe(1)
   })
 
   it('rejects a cold original-query allocation with no local registration and adoption null', async () => {

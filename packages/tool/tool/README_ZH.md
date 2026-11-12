@@ -43,12 +43,11 @@
 | 增量名 | runtime 门面与提供者的操作 | 同一增量的账本命令 |
 | --- | --- | --- |
 | `controls` | `control` 门面已按新 operation 委托；真实 ledger 仍 unsupported | `control`、`recordControl` |
-| `waits, decisions and resources` | `queries.readWait`；回应保留在受信内部端口 | `openWait`、`attachRegistration`、`attachResource`、`recordResponse`、`closeWait` |
+| `waits, decisions and resources` | `queries.readWait`；回应保留在受信内部端口 | `openWait`、`attachResource`、`acceptResource`、`recordResponse` |
 | `process observation and diagnostics` | `readProcess`、`readDiagnostics` | `preserveProcess`、`recordLateFact`、`recordLateResult` |
 | `execution facts and release` | 无 | `recordAccount`，以及异常 settled facts 的 blocked 分支以外的 `recordTask` |
-| `recovery scan` | `recover` | `scanPending`、`claim`、`settleLost` |
+| `recovery scan` | 无：`recover` 扫描并调度（SPEC 第 33 条） | `claim`、`settleLost`；`scanPending` 已实现（SPEC 第 33 条） |
 | `drain and handover` | `quiesce`、`inspectDrain`、`handover` | 无 |
-| `checkpointed executors` | 无 | `prepareResume`、`planSuspension`、`suspend` |
 | `program executors` | 无 | `recordScheduling` |
 
 ### 账本事实保管
@@ -59,7 +58,7 @@
 
 process 的 sequence 是非负十进制数。append 支持文本及思考文本的累计完整值，块身份、kind 与可见性固定。其他合法块使用 replace。开块后 mode 固定，封块后拒绝新更新，历史同值更新仍可认回。trim 保存数量与原因，不删除原事件。过程观察尚未实现。
 
-含 wait、continued、account 或 program-scheduling 的批次整体返回 `unsupported`，零保存，由源继续保管。final 只形成唯一 settle 待办，不写逻辑终局或释放名额。受信恢复消费者凭该待办的精确 evidence 调用 `ledger.facts.read({ principal, tenant, call, basis })`，得到 `SavedFact`：计划后的 final 及其 result、terminal 与 effect，结算后为 `settled-final` 回执。读取逐次核 recover 资格，返回值不引用可变存储。
+含 resource 等待、account 或 program-scheduling 的批次整体返回 `unsupported`，零保存，由源继续保管。Ask 的 wait 结束一个检查点段，`continued` 只接受来自检查点 resume 的事实（SPEC 第 30、31 条）。final 只形成唯一 settle 待办，不写逻辑终局或释放名额。受信恢复消费者凭该待办的精确 evidence 调用 `ledger.facts.read({ principal, tenant, call, basis })`，得到 `SavedFact`：计划后的 final 及其 result、terminal 与 effect，结算后为 `settled-final` 回执。读取逐次核 recover 资格，返回值不引用可变存储。
 
 装配必须把 `write` 资格限制给受信 Tool 推进方。source 文本与 evidence 形状不能认证外部生产者。`ToolLedgerGuards.factAcknowledgements` 是必填依赖。装配用与 runtime 相同的 bindings 构造 `createToolFactAcknowledgementGuard(bindings)`。守卫经原 `bindings.recover.acknowledge` 重送完整保管回执，并比较完整确认。来源与确认的 owner 可以不同。
 

@@ -68,6 +68,8 @@ import readWorkVersion from '../../src/worker/read-work-version.ts'
 import readWork from '../../src/worker/read-work.ts'
 import stateItemMigration from '../../src/worker/state-item-migration.ts'
 import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
+import scopeIndexMigration from '../../src/worker/scope-index-migration.ts'
+import readScopeOwner from '../../src/worker/read-scope-owner.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
@@ -85,6 +87,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readPending,
   readReferences,
   readReleasedScopes,
+  readScopeOwner,
   readHistoryRoot,
   readExecutionBatches,
   readExecutionOpen,
@@ -109,6 +112,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   stateItemMigration,
   attemptGrantMigration,
   permissionMigration,
+  scopeIndexMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,

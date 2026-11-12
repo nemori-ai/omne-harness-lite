@@ -15,5 +15,14 @@
 - [保管已应用但未确认的负控](SettlementRelease-unsafe-custody.cfg)。
 - [提前关闭 queue 责任的负控](SettlementRelease-unsafe-queue.cfg)。
 
+- [暂停与执行名额模型](SuspendedSlots.tla)。
+- [名额与进展配置](SuspendedSlots.cfg)。
+- [暂停提交前停泊的负控](SuspendedSlots-unsafe-early.cfg)。
+- [不持名额就启动的负控](SuspendedSlots-unsafe-skiphold.cfg)。
+- [停泊条目不计入容量的负控](SuspendedSlots-unsafe-parkfree.cfg)。
+- [只从 held 删除条目的负控](SuspendedSlots-unsafe-norelease.cfg)。
+- [停泊时删除条目的负控](SuspendedSlots-unsafe-parkdelete.cfg)。
+- [停泊不核对持有者的负控](SuspendedSlots-unsafe-parkanyholder.cfg)。
+
 - [调用域生命周期模型](call-lifecycle/README.md)。
 - [调用域生命周期的 TLA+ 规格](call-lifecycle/CallLifecycle.tla)。

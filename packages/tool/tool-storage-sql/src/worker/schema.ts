@@ -41,11 +41,24 @@ export const PARTICIPANT = 'tool'
  * holds a marker this catalog does not list, so the provider quarantines it instead of migrating.
  */
 export const MIGRATION = Object.freeze({ owner: 'tool', id: 'r6-001-tool-ledger-body-due' })
+
+// 调用域的待办标记（契约 P01「通知丢失由 scanPending 补偿」）：有待推进工作的调用一行，与调用域的
+// 记录在同一事务里写下或删掉。主键就是扫描的索引：按租户、再按调用身份的键集分页，不读调用记录。
+// 这张表由基线之后的一份迁移建立，基线的模块字节不变。
+export const PENDING_STATEMENTS: readonly string[] = [
+  `CREATE TABLE tl_pending (
+    tenant TEXT NOT NULL, call TEXT NOT NULL, PRIMARY KEY (tenant, call)) STRICT, WITHOUT ROWID`,
+]
+
+export const PENDING_TABLES: readonly string[] = ['tl_pending']
+
+export const PENDING_MIGRATION = Object.freeze({ owner: 'tool', id: 'r6-002-tool-pending' })
 export const PROTOCOL = '1'
 
 export const LEDGER_READ_HANDLER = 'tool.ledger.read'
 export const BODY_READ_HANDLER = 'tool.body.read'
 export const DUE_READ_HANDLER = 'tool.due.read'
+export const PENDING_READ_HANDLER = 'tool.ledger.pending'
 
 /** The most chunks one body read returns; the adapter reads a longer range in several reads. */
 export const BODY_READ_CHUNKS = 64
