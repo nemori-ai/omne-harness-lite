@@ -34,6 +34,7 @@
 - [projection.ts](projection.ts)：同日志的纯 Session 解释接缝
 - [reduce-extended.ts](reduce-extended.ts)：管理与调用登记归约
 - [model-view.ts](model-view.ts)：提交时维护的模型视图与压缩核对窗口
+- [run-closure.ts](run-closure.ts)：活动 Run 的未答调用，与终态提交为它们写的工具消息
 - [testing-providers.ts](testing-providers.ts)：空闲、通知、推进与作用域释放替身
 - [testing-provider-conformance.ts](testing-provider-conformance.ts)：有效提供者端口一致性套件
 

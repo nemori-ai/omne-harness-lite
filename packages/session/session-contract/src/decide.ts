@@ -48,6 +48,7 @@ import { closeControlFailure, decideCancelRun, decideStopCall } from './decide-c
 import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
+import { closingEntries } from './run-closure.ts'
 import { digestOf } from './operations.ts'
 import { canonicalInitializationValue, creationInput, tenantText } from './initialization-plan.ts'
 import { InitializationInvalid } from './initialization-parse.ts'
@@ -436,6 +437,8 @@ function decideFinishRun(
         rejects.origin,
       ),
     )
+  const terminal: RunTerminal = { run, outcome: 'failed', evidence: basis.evidence }
+  out.push(...closingEntries(snapshot, terminal, source, sessionOrigin(source)))
   if (active.advance !== null)
     out.push(
       encodeEntry(
@@ -443,7 +446,6 @@ function decideFinishRun(
         sessionOrigin(source),
       ),
     )
-  const terminal: RunTerminal = { run, outcome: 'failed', evidence: basis.evidence }
   out.push(
     encodeEntry(
       {
