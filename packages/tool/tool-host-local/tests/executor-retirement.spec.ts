@@ -295,7 +295,7 @@ it('the interval does not reschedule a call whose last run the driver owns', asy
 })
 
 it('a read before the run that cannot answer is handed to the driver, not to every tick', async () => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
   try {
     const busy = fail({
       kind: 'unavailable' as const,
@@ -306,8 +306,11 @@ it('a read before the run that cannot answer is handed to the driver, not to eve
     expect(w.executor.remember(w.f.access)).toBe(true)
     await w.controlled.run(w.step)
     expect(w.executor.diagnostics().progress).toEqual(['failed/unavailable/tool-ledger'])
-    vi.advanceTimersByTime(RETRY_MS * 5)
+    // Not the interval: the driver runs it again once, after its first delay.
+    await vi.advanceTimersByTimeAsync(RETRY_MS - 1)
     expect(w.controlled.scheduled).toEqual([])
+    await vi.advanceTimersByTimeAsync(1)
+    expect(w.controlled.scheduled).toEqual([w.f.access.call])
     await w.executor.close()
   } finally {
     vi.useRealTimers()

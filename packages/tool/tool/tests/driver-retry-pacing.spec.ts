@@ -87,17 +87,32 @@ describe('the delay of a later run doubles, up to its cap', () => {
 
   it('a run that makes progress clears the delay: the next failure waits the first delay again', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    const busy = busyEnvironment({ driverRetryDelayMs: 100 })
+    let bindingFails = true
+    const busy = busyEnvironment({
+      driverRetryDelayMs: 100,
+      bindingPort: base => ({
+        ...base,
+        start: (input, environment) => {
+          if (!bindingFails) return base.start(input, environment)
+          bindingFails = false
+          return Promise.resolve(
+            fail<ToolFailure>({ kind: 'unavailable', dependency: 'binding', diagnostic: 'busy' }),
+          )
+        },
+      }),
+    })
     const { harness } = busy
     await admitCall(harness, 'c1')
     await harness.runOnce('c1')
     await nextLaterRunAfter(harness, 100)
     await nextLaterRunAfter(harness, 200)
-    // The provider answers again: the call moves on, and its delay is cleared.
+    // The provider answers again: the next run prepares the environment (progress), then meets a
+    // binding that cannot answer. The progress clears the delay: it waits the first delay, not 400.
     busy.recover()
     await vi.advanceTimersByTimeAsync(400)
     await runScheduled(harness)
-    expect((await harness.state('c1')).phase).not.toBe('preparing')
+    expect((await harness.state('c1')).phase).toBe('starting')
+    await nextLaterRunAfter(harness, 100)
     expect(await harness.state('c1')).toMatchObject({ phase: 'running' })
   })
 })
