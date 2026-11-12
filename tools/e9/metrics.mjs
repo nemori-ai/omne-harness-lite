@@ -92,9 +92,21 @@ function stageGrowth(rounds, stage) {
   const clocks = samples.map(row => clockKey(row.stageClocks?.[stage]))
   if (!clocks[0] || clocks.some(clock => clock !== clocks[0]))
     return { state: 'blocked', reason: 'stage clock scope changed or missing' }
+  const growth = blockGrowth(samples.map(row => row.stages[stage].value))
+  return growth.state === 'blocked' ? growth : { ...growth, clock: samples[0].stageClocks[stage] }
+}
+
+/**
+ * DP2 B on the 190 values of rounds 11 to 200 of one series: 19 blocks of ten rounds, the median of
+ * each block against its middle round, an OLS line through the blocks. The series grows when the
+ * slope is positive, R² is at least 0.95 and the growth over 180 rounds exceeds three residual MADs.
+ */
+export function blockGrowth(values) {
+  if (values.length !== 190 || values.some(value => !Number.isFinite(value)))
+    return { state: 'blocked', reason: 'requires 190 finite values of rounds 11-200' }
   const blocks = Array.from({ length: 19 }, (_, index) => ({
     x: 15.5 + index * 10,
-    y: median(samples.slice(index * 10, index * 10 + 10).map(row => row.stages[stage].value)),
+    y: median(values.slice(index * 10, index * 10 + 10)),
   }))
   // Scaling preserves OLS shape and avoids overflow for large finite durations.
   const scale = Math.max(...blocks.map(block => block.y)) || 1
@@ -122,7 +134,6 @@ function stageGrowth(rounds, stage) {
     r2,
     residualMAD: mad * scale,
     predictedGrowth,
-    clock: samples[0].stageClocks[stage],
   }
 }
 
@@ -152,6 +163,28 @@ export function evaluateMedian(rounds, threshold = 1.5) {
     unit: 'ms',
     threshold,
   }
+}
+
+/**
+ * The two gates on any series of 200 per-round values (`docs/engineering/perf-baseline.md` uses
+ * them for own overhead, memory and new disk bytes): the median of rounds 181-200 over the median of
+ * rounds 11-30 against `threshold`, and `blockGrowth` on rounds 11-200.
+ */
+export function evaluateSeries(values, threshold = 1.5) {
+  thresholdValue(threshold)
+  if (values.length !== 200 || values.some(value => !Number.isFinite(value)))
+    return {
+      median: { state: 'blocked', reason: 'requires 200 finite values' },
+      growth: { state: 'blocked', reason: 'requires 200 finite values' },
+    }
+  const earlyMedian = median(values.slice(10, 30))
+  const lateMedian = median(values.slice(180, 200))
+  const ratio = lateMedian / earlyMedian
+  const medianGate =
+    earlyMedian <= 0 || !Number.isFinite(ratio)
+      ? { state: 'blocked', reason: 'early median is not positive', earlyMedian, lateMedian }
+      : { state: ratio <= threshold ? 'pass' : 'fail', ratio, earlyMedian, lateMedian, threshold }
+  return { median: medianGate, growth: blockGrowth(values.slice(10, 200)) }
 }
 
 export function syntheticRounds(kind) {
