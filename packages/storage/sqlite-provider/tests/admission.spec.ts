@@ -113,10 +113,13 @@ describe('the control and query points', () => {
       queryQueuePerDomain: 1,
       queryQueueGlobal: 4,
     })
-    granted(a.reserveControl('d1'))
-    granted(a.reserveControl('d2'))
-    granted(a.reserveQuery('d1'))
-    granted(a.reserveQuery('d2'))
+    expect(now(a.reserveControl('d1')).kind).toBe('granted')
+    // d1 is full: a second one of d1 waits, while d2 is admitted at the call.
+    expect(a.reserveControl('d1')).toBeInstanceOf(Promise)
+    expect(now(a.reserveControl('d2')).kind).toBe('granted')
+    expect(now(a.reserveQuery('d1')).kind).toBe('granted')
+    expect(a.reserveQuery('d1')).toBeInstanceOf(Promise)
+    expect(now(a.reserveQuery('d2')).kind).toBe('granted')
   })
 
   // Defect: the waiting list of a point is not bounded.
