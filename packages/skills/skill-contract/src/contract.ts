@@ -15,13 +15,9 @@ import {
   fieldsOf,
   firstFinding,
   isSkillDescription,
-  readScripts,
-  readSettings,
   unknownKeys,
   type Finding,
-  type Read,
 } from './parse/shape.ts'
-import type { SettingDeclaration } from './values.ts'
 
 const schemaRead = readBodyText(
   JSON.stringify({
@@ -30,8 +26,6 @@ const schemaRead = readBodyText(
       name: 'string',
       description: 'string',
       tools: { category: 'tool', name: 'string' },
-      scripts: { entry: 'string', runKind: 'string', facilities: 'string[]', parameters: 'json' },
-      settings: { name: 'string', category: 'preference|binding|placement-identity|governance' },
       package: { digest: 'string' },
     },
   }),
@@ -55,11 +49,7 @@ export function skillBodyContract(): BodyContract {
     deriveDeclarations(body, context) {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError(`skill body failed judgment: ${decision.rejected}`)
-      return {
-        entries: extensionOf(body).value.map(
-          setting => `setting:${setting.category}:${setting.name}`,
-        ),
-      }
+      return { entries: [] }
     },
     references(body, context) {
       const decision = judge(body, context)
@@ -84,16 +74,12 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
     return refusal('name-mismatch')
   if (!isSkillName(name)) return refusal('name-invalid')
   if (toolRefs(body) === undefined) return refusal('incomplete-reference')
-  const first = firstFinding(extensionOf(body).findings)
+  const first = firstFinding(extensionFindings(body))
   return first === undefined ? { ok: true } : refusal(first.code)
 }
 
-/**
- * Reads the additive fields: `description`, `scripts`, `settings` and `package.digest`. Each one
- * may be absent. They follow the shape rules of `.omne/skill.json`, and script entries must be
- * normalized already.
- */
-function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
+/** Checks the additive fields `description` and `package.digest`. Each one may be absent. */
+function extensionFindings(body: unknown): readonly Finding[] {
   const findings: Finding[] = []
   const description = field(body, 'description')
   if (
@@ -104,9 +90,6 @@ function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
       code: 'malformed',
       detail: `description is not text of 1 to ${DESCRIPTION_LIMIT} characters`,
     })
-  const scripts = readScripts(field(body, 'scripts'), { normalized: true })
-  const settings = readSettings(field(body, 'settings'))
-  findings.push(...scripts.findings, ...settings.findings)
   const pack = field(body, 'package')
   if (pack !== undefined) {
     const fields = fieldsOf(pack)
@@ -115,7 +98,7 @@ function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
     if (digest?.kind !== 'string' || !isPackageDigest(digest.value))
       findings.push({ code: 'malformed', detail: 'package.digest is not a package digest' })
   }
-  return { value: settings.value, findings }
+  return findings
 }
 
 function toolRefs(body: unknown): readonly { category: string; name: string }[] | undefined {

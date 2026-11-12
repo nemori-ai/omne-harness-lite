@@ -17,7 +17,6 @@ const manifest = '---\nname: demo\ndescription: A demo.\n---\nBody.\n'
 const declaration = JSON.stringify({
   formatVersion: 1,
   dependencies: [{ category: 'tool', name: 'read_file' }],
-  settings: [{ name: 'tone', category: 'preference' }],
 })
 
 function demoSource(files: Readonly<Record<string, string>>): SkillPackageSource {
@@ -43,7 +42,6 @@ describe('a legal package', () => {
     expect(result.ok.declaration.dependencies).toStrictEqual([
       { category: 'tool', name: 'read_file' },
     ])
-    expect(result.ok.declaration.settings).toStrictEqual([{ name: 'tone', category: 'preference' }])
     expect(result.ok.snapshot.entries.map(entry => entry.path)).toStrictEqual([
       '.omne/skill.json',
       'SKILL.md',
@@ -55,7 +53,7 @@ describe('a legal package', () => {
     const inspection = createPackageInspection(demoSource({ 'SKILL.md': manifest }))
     const result = await inspection.inspect(locator)
     if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
-    expect(result.ok.declaration).toStrictEqual({ dependencies: [], scripts: [], settings: [] })
+    expect(result.ok.declaration).toStrictEqual({ dependencies: [] })
   })
 
   it('passes the expected name to the package rules', async () => {

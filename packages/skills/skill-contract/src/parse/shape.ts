@@ -1,16 +1,9 @@
-// The shapes of dependency, script and setting declarations over a read JSON tree. Both
-// `.omne/skill.json` and the asset body use them, so one rule has one place. Each reader returns
-// what it read together with its findings; reading goes on after a finding, so that the caller
-// can give the first code by order.
+// The shapes of declarations over a read JSON tree. Both `.omne/skill.json` and the asset body use
+// them, so one rule has one place. Each reader returns what it read together with its findings;
+// reading goes on after a finding, so that the caller can give the first code by order.
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import { INSPECT_REJECTIONS, type InspectRejectionCode } from '../failures.ts'
-import { isBoundedText, isControlFile, toPackagePath } from '../names.ts'
-import type {
-  PackagePath,
-  ScriptDeclaration,
-  SettingCategory,
-  SettingDeclaration,
-} from '../values.ts'
+import { isBoundedText } from '../names.ts'
 
 export type Finding = Readonly<{ code: InspectRejectionCode; detail: string }>
 
@@ -78,17 +71,6 @@ function textOf(value: JsonValue | undefined): string | undefined {
   return value !== undefined && value.kind === 'string' ? value.value : undefined
 }
 
-const WORD = /^[a-z][a-z0-9-]{0,31}$/
-const SETTING_CATEGORIES: readonly SettingCategory[] = [
-  'preference',
-  'binding',
-  'placement-identity',
-  'governance',
-]
-
-function isSettingCategory(text: string): text is SettingCategory {
-  return SETTING_CATEGORIES.some(category => category === text)
-}
 
 /** Reads a list; an absent part is the empty list. Items that do not read are left out. */
 function listOf<T>(
@@ -135,91 +117,4 @@ export function readDependencies(value: JsonValue | undefined): Read<CapabilityI
     return { value: id.id, findings }
   })
   return noRepeats(list, id => id.name, 'dependencies')
-}
-
-/**
- * The entry of a script. An absolute entry points outside the package. Any other entry that is not
- * a package path, a `..` segment included, is malformed. With `normalized`, as in an asset body,
- * the entry must already be in the form that `toPackagePath` gives and must not be a control file.
- */
-function entryOf(raw: string, at: string, normalized: boolean): Read<PackagePath | undefined> {
-  if (raw.startsWith('/')) {
-    const outside: Finding = { code: 'outside-package', detail: `${at}.entry is absolute` }
-    return { value: undefined, findings: [outside] }
-  }
-  const path = toPackagePath(raw)
-  if (!('ok' in path) || (normalized && path.ok !== raw))
-    return { value: undefined, findings: [malformed(`${at}.entry is not a package path`)] }
-  if (normalized && isControlFile(path.ok))
-    return { value: undefined, findings: [malformed(`${at}.entry is a control file`)] }
-  return { value: path.ok, findings: [] }
-}
-
-function wordsOf(value: JsonValue | undefined): string[] | undefined {
-  const items = itemsOf(value)
-  if (items === undefined) return undefined
-  const words: string[] = []
-  for (const item of items) {
-    const word = textOf(item)
-    if (word === undefined || !WORD.test(word)) return undefined
-    words.push(word)
-  }
-  return new Set(words).size === words.length ? words : undefined
-}
-
-/**
- * Reads script declarations. `normalized` asks for entries that are already normalized, as in an
- * asset body; `.omne/skill.json` may write `./` and other `.` segments.
- */
-export function readScripts(
-  value: JsonValue | undefined,
-  options: Readonly<{ normalized: boolean }>,
-): Read<ScriptDeclaration[]> {
-  const list = listOf<ScriptDeclaration>(value, 'scripts', (item, at) => {
-    const fields = fieldsOf(item)
-    const findings = unknownKeys(fields, ['entry', 'runKind', 'facilities', 'parameters'], at)
-    const rawEntry = textOf(fields?.get('entry'))
-    const runKind = textOf(fields?.get('runKind'))
-    const facilities = wordsOf(fields?.get('facilities'))
-    const entry =
-      rawEntry === undefined
-        ? { value: undefined, findings: [] }
-        : entryOf(rawEntry, at, options.normalized)
-    findings.push(...entry.findings)
-    if (
-      fields === undefined ||
-      rawEntry === undefined ||
-      runKind === undefined ||
-      !WORD.test(runKind) ||
-      !facilities
-    )
-      return { value: undefined, findings: [...findings, malformed(`${at} is not a script`)] }
-    if (entry.value === undefined) return { value: undefined, findings }
-    const parameters = fields.get('parameters')
-    const script: ScriptDeclaration = Object.freeze({
-      entry: entry.value,
-      runKind,
-      facilities: Object.freeze(facilities),
-      ...(parameters === undefined ? {} : { parameters }),
-    })
-    return { value: script, findings }
-  })
-  return noRepeats(list, script => script.entry, 'scripts')
-}
-
-export function readSettings(value: JsonValue | undefined): Read<SettingDeclaration[]> {
-  const list = listOf<SettingDeclaration>(value, 'settings', (item, at) => {
-    const fields = fieldsOf(item)
-    const findings = unknownKeys(fields, ['name', 'category'], at)
-    const name = textOf(fields?.get('name'))
-    const category = textOf(fields?.get('category'))
-    if (name === undefined || name === '' || category === undefined)
-      return { value: undefined, findings: [...findings, malformed(`${at} is not a setting`)] }
-    if (!isSettingCategory(category)) {
-      const unknown: Finding = { code: 'setting-category-unknown', detail: `${at}.category` }
-      return { value: undefined, findings: [...findings, unknown] }
-    }
-    return { value: Object.freeze({ name, category }), findings }
-  })
-  return noRepeats(list, setting => setting.name, 'settings')
 }

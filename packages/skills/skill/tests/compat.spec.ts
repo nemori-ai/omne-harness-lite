@@ -56,8 +56,6 @@ describe('a description longer than 1024 characters', () => {
                 name: definition.manifest.name,
                 description: definition.manifest.description,
                 tools: [],
-                scripts: [],
-                settings: [],
               },
             },
           },

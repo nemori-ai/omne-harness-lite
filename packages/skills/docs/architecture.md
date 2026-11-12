@@ -42,7 +42,7 @@
 - 本组不知道端口由谁实现。端口只用本组的词提出问题。
 - 本组不解释主体、作用域与来源层。主体是 `Access<P>` 的类型参数 `P`。作用域是类型参数 `S`，由调用方给出。来源层由 `SkillResolution` 交来。本组把三者原样交给端口或交回调用方。
 - 本组不知道脚本怎样执行。准入、执行环境、进程、结果与控制都不在本组。
-- 本组不判定依赖在不在场，也不判定一份 Skill 此刻能不能用、脚本有没有所需的设施。这些归调用方。本组只交依赖声明与脚本声明。
+- 本组不判定依赖在不在场，也不判定一份 Skill 此刻能不能用、脚本有没有所需的设施。这些归调用方。本组只交依赖声明。脚本是包里的普通文件。
 - 本组不知道常驻、排序、集合修订与呈现规则。
 
 ### 需求端口
@@ -57,7 +57,7 @@
 
 ### 对外提供
 
-本组对外只用本领域的词：能力标识、name、说明、Skill 材料依据、包内路径、媒体类型、字节范围、替换件原因、依赖声明、脚本声明、设置声明与脚本身份。
+本组对外只用本领域的词：能力标识、name、说明、Skill 材料依据、包内路径、媒体类型、字节范围、替换件原因与依赖声明。
 
 - 值：见[模型](#模型)。
 - 纯函数：见[应用服务](#应用服务)末尾。
@@ -81,8 +81,7 @@ Skill 领域没有有状态的聚合。Skill 包快照算出后不变。读出�
 | `PackageDigest`        | Skill 包快照的内容摘要。它是散列值，不是文字摘要。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「注意 ①」                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `PackageLocator`       | 包定位：一个包在某种来源里的位置。它与来源相关，对 Skill 不透明。判别联合候选是目录 `{ kind: 'directory', root }` 与内容存储 `{ kind: 'content-store', digest }`。                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 统一语言 [Skill 包来源](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `SkillManifest`        | `SKILL.md` 头部字段的解释：name、description、license、compatibility、metadata 与 `allowed-tools`。description 长 1 到 16384 个字符（`DESCRIPTION_LIMIT`，见成员规格[值与守卫](../skill-contract/SPEC.md#values)）。官方规格写 1024，这是有意的偏离：超过 1024 个字符时检查带兼容提示。`metadata` 是映射但有非文本值时只保留文本值，不是映射时不保留，两种都带兼容提示。不认识的字段原样保留，不解释。                                                                                                                                                                                                                     | 官方规格 [Frontmatter](https://agentskills.io/specification#frontmatter)、[`description` field](https://agentskills.io/specification#description-field)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `SkillDeclaration`     | `.omne/skill.json` 中本系统认的声明，分三部分。依赖声明：必需的名字。脚本声明：每个脚本的入口（包内路径）、运行种类、设施需要（环境设施的名字）与参数形状。设置声明：每项设置的名字与类别。声明不含设置值。                                                                                                                                                                                                                                                                                                                                                                                                                | 统一语言 [Skill 包](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package)、[依赖声明](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)、[环境设施](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-environment-facility--环境设施--environment-facility)；产品 [J-SK04](../../../.meta_harness/design/product/skills/design.md#j-sk04-让配置到达正确的消费者)、[J-SK05](../../../.meta_harness/design/product/skills/design.md#j-sk05-运行方法携带的脚本) |
-| `ScriptIdentity`       | 脚本身份：能力标识加脚本入口的包内路径。Skill 不持有执行权。这项数据是现行偏离，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 产品 [J-SK05](../../../.meta_harness/design/product/skills/design.md#j-sk05-运行方法携带的脚本)；G1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `SkillDeclaration`     | `.omne/skill.json` 中本系统认的声明：依赖声明，即必需的工具名字。脚本不是声明，是包里的普通文件，由 Shell 运行。                                                                                                                                                                                                                                                                                                                                                                                                                | 统一语言 [Skill 包](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package)、[依赖声明](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)、[环境设施](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-environment-facility--环境设施--environment-facility)；产品 [J-SK04](../../../.meta_harness/design/product/skills/design.md#j-sk04-让配置到达正确的消费者)、[J-SK05](../../../.meta_harness/design/product/skills/design.md#j-sk05-运行方法携带的脚本) |
 | `SkillDefinition`      | 一次检查的结果：清单 `SkillManifest`、声明 `SkillDeclaration` 与Skill 包快照 `SkillPackageSnapshot`（条目与内容摘要）。包有被接受的软偏离时，另带兼容提示 `compatibilityHints`，见[包格式规则](#包格式规则)。它不含正文。正文只经 `SkillAccess.read` 取得。                                                                                                                                                                                                                                                                                                                                                                | 产品 [J-SK01](../../../.meta_harness/design/product/skills/design.md#j-sk01-将合法方法来源交给消费者)；产品 J-SK03「恢复重新核验当前读取权」                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `SkillRef`             | 一份具体材料的内部引用：能力标识、来源层、资产版本引用、包定位 `locator`，以及Skill 包快照的内容摘要 `digest`。`locator` 与 `digest` 由 `SkillResolution.resolve` 给出。`SkillRef` 只在 Skill 与 `SkillResolution` 之间传递，不交给调用方。`SkillRef` 不带作用域。工作区来源没有发布版本，这时资产版本引用缺席。不带依据时，旧资产正文没有 `package.digest`，`digest` 缺席。带依据时，引用总带依据的内容摘要，没有可读包的材料也一样。                                                                                                                                                                                     | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「注意 ②」；产品 J-SK01「来源、能力身份与具体实现版本分别显示」                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `SkillMaterialBasis`   | Skill 材料依据：对外交出的、指明一份具体材料的值。它含能力标识、来源层、资产版本与Skill 包快照的内容摘要，不含包定位。资产版本可以缺省：工作区目录中的 Skill 没有发布版本，所以工作区来源的Skill 材料依据不带资产版本。这时能力标识、来源层与内容摘要确定材料，内容摘要已经钉住字节。`describe`、`read`、`list` 与 `export` 的结果带它。不带依据、且资产正文缺 `package.digest` 时，`describe` 的结果不带它，见[资产正文与 Skill 包](#资产正文与-skill-包)。调用方可以在后续操作中带回它，见[读取](#读取)。它不授予访问。                                                                                                  | 产品 [J-SK03](../../../.meta_harness/design/product/skills/design.md#j-sk03-按需读取正文或指定资源)「历史可见性不授予新的访问」；要求 [SYS-TENANT](../../../docs/requirements.md#从第一天支持隔离sys-tenant)；统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「内容摘要相同的两个快照指同一份内容」                                                                                                                                                                                                                                             |
@@ -98,16 +97,6 @@ classDiagram
   class SkillDefinition
   class SkillManifest
   class SkillDeclaration
-  class ScriptDeclaration {
-    entry: PackagePath
-    runKind
-    facilities
-    parameters
-  }
-  class SettingDeclaration {
-    name
-    category
-  }
   class SkillPackageSnapshot {
     rootName
     digest: PackageDigest
@@ -130,21 +119,14 @@ classDiagram
     assetVersion?
     digest: PackageDigest
   }
-  class ScriptIdentity {
-    capability
-    entry: PackagePath
-  }
   class PackageLocator
   SkillDefinition *-- SkillManifest
   SkillDefinition *-- SkillDeclaration
   SkillDefinition *-- SkillPackageSnapshot
-  SkillDeclaration *-- "many" ScriptDeclaration
-  SkillDeclaration *-- "many" SettingDeclaration
   SkillPackageSnapshot *-- "many" PackageEntry
   SkillRef --> PackageLocator
   SkillRef ..> SkillPackageSnapshot : 按内容摘要指向
   SkillMaterialBasis ..> SkillPackageSnapshot : 按内容摘要指向，不含包定位
-  ScriptIdentity ..> ScriptDeclaration : 按入口指向
 ```
 
 `SkillRef` 是 Skill 内部用来找字节的引用。`SkillMaterialBasis` 是交给调用方的依据。两者分开，所以调用方不能借依据指定包的位置：位置总是由 `SkillResolution.resolve` 当场给出。
@@ -154,20 +136,20 @@ classDiagram
 资产正文仍是 JSON 文本，由 `skill` 类别端口 `skillBodyContract` 判断。它是 Skill 包的声明投影：
 
 ```text
-资产正文 = { name, description?, tools: [{ category: "tool", name }], scripts?: [...], settings?: [...], package?: { digest } }
+资产正文 = { name, description?, tools: [{ category: "tool", name }], package?: { digest } }
 ```
 
-1. 纯函数 `projectAssetBody` 从 `SkillDefinition` 派生 name、description、tools、scripts、settings 与 `package.digest`。`scripts` 是脚本声明，`settings` 是设置声明，形状同 `SkillDeclaration`。
+1. 纯函数 `projectAssetBody` 从 `SkillDefinition` 派生 name、description、tools 与 `package.digest`。
 2. `package.digest` 是Skill 包快照的内容摘要，它指向包字节。`projectAssetBody` 从 `SkillDefinition` 中Skill 包快照的内容摘要取得它。
 3. 云端来源按内容摘要存放包字节。
 4. 工作区来源的包字节就是工作区目录本身。它没有发布版本，材料由能力标识、来源层与内容摘要确定。
 
-`skillBodyContract` 只做可加的扩展：增加 `description`、`scripts`、`settings` 与 `package.digest`，它们都可以缺省。没有这些字段的旧正文仍然合法。正文缺 `package.digest` 时，`describe` 照常交出声明。不带依据时，结果不带Skill 材料依据，并标明「没有可读的包」。带依据时，`describe` 交出依据所指的材料，不标「没有可读的包」，因为端口对带依据的引用总带依据的内容摘要。不带依据时，`read` 与 `list` 返回 `unsupported`，因为没有内容摘要就无法固定包字节。带依据时（`export` 总带依据）不答 `unsupported`，见[读取](#读取)第 5 步。设置声明经 `deriveDeclarations` 交给资产的设置求值。
+`skillBodyContract` 只做可加的扩展：增加 `description` 与 `package.digest`，它们都可以缺省。没有这些字段的旧正文仍然合法。正文缺 `package.digest` 时，`describe` 照常交出声明。不带依据时，结果不带Skill 材料依据，并标明「没有可读的包」。带依据时，`describe` 交出依据所指的材料，不标「没有可读的包」，因为端口对带依据的引用总带依据的内容摘要。不带依据时，`read` 与 `list` 返回 `unsupported`，因为没有内容摘要就无法固定包字节。带依据时（`export` 总带依据）不答 `unsupported`，见[读取](#读取)第 5 步。Skill 不向资产的设置声明任何东西：`deriveDeclarations` 不产出声明项。
 
 类别端口另有两条规则：
 
 - `name` 必须合 `SkillName` 的词法，否则拒绝为 `name-invalid`。这收紧了资产规格中 `skill` 一段，同步是 [Q-SK02](#q-sk02-方法资源寻址与来源版本公开契约) 的剩余义务。
-- `description`、`scripts`、`settings` 与 `package` 是 `skill` 资产正文的保留字段。它们在场时必须合规则，否则拒绝。
+- `description` 与 `package` 是 `skill` 资产正文的保留字段。它们在场时必须合规则，否则拒绝。
 
 各字段的规则与判断次序见成员规格[`skill` 类别端口](../skill-contract/SPEC.md#category-port)。
 
@@ -176,7 +158,7 @@ classDiagram
 | 决定                                                                                                                                                                                                         | 守则   | 依据层                                                                                                                                                                                                           |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 资产正文是 Skill 包的声明投影，包字节按内容摘要另存                                                                                                                                                          | G1、G4 | 领域 [范围与边界](../../../docs/domains/skills/README.md#范围与边界)；资产规格 [类别提供方](../../assets/assets/SPEC.md#category-provider)                                                                       |
-| 声明投影带依赖、脚本与设置声明，所以 `describe` 不读包字节                                                                                                                                                   | G4、G6 | 资产规格 [已接受的公开类型](../../assets/assets/SPEC.md#accepted-public-types)「`deriveDeclarations`」；产品 J-SK04、J-SK05                                                                                      |
+| 声明投影带依赖声明，所以 `describe` 不读包字节                                                                                                                                                   | G4、G6 | 资产规格 [已接受的公开类型](../../assets/assets/SPEC.md#accepted-public-types)「`deriveDeclarations`」；产品 J-SK04、J-SK05                                                                                      |
 | `skillBodyContract` 只做可加扩展。新字段可以缺省，旧正文仍然合法                                                                                                                                             | G6     | 资产规格 [已接受的公开类型](../../assets/assets/SPEC.md#accepted-public-types)；工程 [可加改动](../../../docs/engineering/delivery.md#可加改动)                                                                  |
 | 类别端口要求 `name` 合 `SkillName` 的词法，否则拒绝为 `name-invalid`。四个扩展字段名是保留字段                                                                                                               | G5     | 成员规格 [`skill` 类别端口](../skill-contract/SPEC.md#category-port)                                                                                                                                             |
 | `projectAssetBody` 写入 `package.digest`，取自Skill 包快照的内容摘要。正文与包字节由同一份快照对上                                                                                                           | G1、G5 | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「内容摘要相同的两个快照指同一份内容」 |
@@ -236,8 +218,6 @@ type DeclaredProjection = {
   name: SkillName
   description?: string
   tools: readonly CapabilityId[]
-  scripts: readonly ScriptDeclaration[]
-  settings: readonly SettingDeclaration[]
 }
 
 // 这个主体此刻能不能读这个能力标识。对无权主体，答复不得随该身份是否存在而变。
@@ -310,7 +290,7 @@ Skill 自己的核对也映射到同一组失败种类，见[读取](#读取)的
 
 纯函数没有端口，可以穷举测试：`parseSkillPackage`、`toPackagePath`、`computeDigest`、`sealSnapshot`、`inferMediaType`、`projectAssetBody`、`bodyOffsetOf`。`sealSnapshot` 在 `./provider` 入口，其余在公开根，见成员规格[入口](../skill-contract/SPEC.md#entries)。`projectAssetBody` 从 `SkillDefinition` 派生资产正文的声明投影，包括 `package.digest`，见[资产正文与 Skill 包](#资产正文与-skill-包)。
 
-Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 交出包字节，脚本身份是能力标识加入口的包内路径。本组没有执行脚本的服务，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。
+脚本是包里的普通文件：`read` 与 `list` 读得到、列得到它，`export` 交出包字节。本组没有执行脚本的服务，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。
 
 ### 检查与发现
 
@@ -347,15 +327,14 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 | 控制文件                | `SKILL.md` 与 `.omne/skill.json` 是控制文件，不是资源。正文经正文目标读取。`.omne/skill.json` 只经解析进入 `SkillDeclaration`。按资源路径请求控制文件时返回 `bad-path`。Skill 包快照的内容摘要仍覆盖控制文件。`export` 交出全部条目，包括控制文件。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | G4；产品 J-SK03「错误资源地址」                                                                                                                                                                                                                                                                                                    |
 | 资源路径                | 资源是规范化的包内相对路径。同一快照中路径不重复，也不出现文件与目录的前缀冲突（`a` 是文件时不能有 `a/b`）。媒体类型缺席不表示文本。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 统一语言 [Skill 包快照](../../../.meta_harness/design/ubiquitous_language/terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)；产品 J-SK03「错误资源地址」                                                                                                                            |
 | 链接与非常规文件        | 包内链接读取所指文件的原字节。链接解析后落在包根之外时，来源在快照阶段答 `outside-package`，`inspect` 拒绝为 `outside-package`。有这种链接的包整包不可读，这是包的缺陷。无法解析或成环的链接，以及设备、管道、套接字等非常规文件，使来源在快照阶段答 `entry-unreadable`，`inspect` 拒绝为 `malformed`。这两种情形下没有快照可判，检查以对应的原因结束，不按拒绝次序判其余原因。包根范围由持有目录的来源在实际读取时判定，只判断路径字符串不能代替实际读取。                                                                                                                                                                                                                                                                                                                 | 产品 J-SK03「包外目标」；架构 [隔离语义，不隐藏责任](../../../docs/architecture/layers-and-dependencies.md#隔离语义不隐藏责任)                                                                                                                                                                                                     |
-| 内容不授予运行属性      | 包内容不决定常驻、调用面开关、模型选择或预先批准。设置声明不产生权限项。`allowed-tools` 只作元数据，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。文件执行位不进入定义的含义。列为脚本不等于执行许可。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 资产产品 [在项目工作区协作，保留每个租户的私有边界](../../../.meta_harness/design/product/assets-and-rules/design.md#在项目工作区协作保留每个租户的私有边界)「不能贡献授权或权限配值」；G1                                                                                                                                         |
+| 内容不授予运行属性      | 包内容不决定常驻、调用面开关、模型选择或预先批准。`allowed-tools` 只作元数据，见 [Q-SK04](#q-sk04-脚本桥接的发起控制和原结果协议)。文件执行位不进入定义的含义。列为脚本不等于执行许可。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 资产产品 [在项目工作区协作，保留每个租户的私有边界](../../../.meta_harness/design/product/assets-and-rules/design.md#在项目工作区协作保留每个租户的私有边界)「不能贡献授权或权限配值」；G1                                                                                                                                         |
 | 拒绝次序                | `inspect` 按下列次序给出第一个拒绝原因：`manifest-missing`（缺 `SKILL.md`）、`name-mismatch`（只在给出 `expectedName` 且 name 不等于它时）、`declaration-format-unsupported`（`.omne/skill.json` 的格式版本不受支持）、`outside-package`、`tool-ref-invalid`、`setting-category-unknown`、`malformed`。声明格式版本不受支持时，停止其余内部判断。`outside-package` 指脚本入口不是包内相对路径（绝对路径），或包内链接解析后落在包根之外。含 `..` 段的入口判为 `malformed`。次序有一个例外：来源在快照阶段答 `entry-unreadable` 或 `outside-package` 时，检查以对应的原因结束。头部的 YAML 与逐行读取都读不出 name 时，`name-mismatch` 不适用，判为 `malformed`。拒绝的包不折成不可用替换件。各原因何时出现见成员规格[拒绝次序](../skill-contract/SPEC.md#rejection-order)。 | 产品 [J-SK01](../../../.meta_harness/design/product/skills/design.md#j-sk01-将合法方法来源交给消费者)「来源不可读……不能当作空方法」；G5                                                                                                                                                                                            |
 
 下列旧规则不采用：
 
 - 旧材料丢弃未知头部字段并报告。现行决定是原样保留、不解释，依据见 [Q-SK05](#q-sk05-原生及兼容来源格式支持与成员归属)。
-- 旧材料的固定环境要求与 `binding_layer_unknown` 拒绝。现行模型没有这一声明。现行脚本声明带设施需要，设施是否齐备不由 Skill 判定。
-- 旧材料把脚本定为 `scripts/` 目录下的资源。现行的 `SkillDeclaration` 带脚本声明。脚本声明的规则见成员规格 [`.omne/skill.json`](../skill-contract/SPEC.md#declaration)。
-- 旧材料说设置声明不产生治理项或保留项。设置类别的集合归资产设置拥有者，本组不另定。
+- 旧材料的固定环境要求与 `binding_layer_unknown` 拒绝。现行模型没有这一声明，设施是否齐备不由 Skill 判定。
+- 旧材料说设置声明不产生治理项或保留项。现行声明没有设置一栏，Skill 不向设置声明任何东西。
 - 旧材料 `/v2` 正文端口的 Schema 编译复用。现行缓存规则归[缓存机制](../../../docs/architecture/data-and-state.md#缓存懒加载与预热)。
 
 ### 读取
@@ -380,7 +359,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 
 一次分页读取是一次独立的操作，重走上面全部步骤。带同一Skill 材料依据的各页都对同一Skill 包快照的内容摘要核对，所以各页不会拼成两个版本。不带Skill 材料依据的各页可能读到不同的合法版本。每页结果的Skill 材料依据如实标出它读的版本。
 
-`describe` 返回能力标识、来源层、Skill 材料依据、依赖声明、脚本声明（入口、运行种类、设施需要、参数形状）、设置声明（名字、类别），以及资源寻址规则。这些声明都来自资产正文的声明投影，所以 `describe` 不读包字节，也不报 `source-unavailable`。不带依据且资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。`describe` 带Skill 材料依据时，交出依据所指材料的声明，不标「没有可读的包」。`describe` 只交设置声明，不交设置值，也不收「用途」参数。设置值的求值与交付、依赖在不在场、脚本的执行资格都不归本组。
+`describe` 返回能力标识、来源层、Skill 材料依据、依赖声明，以及资源寻址规则。依赖声明来自资产正文的声明投影，所以 `describe` 不读包字节，也不报 `source-unavailable`。不带依据且资产正文缺 `package.digest` 时，`describe` 照常交出声明，结果不带Skill 材料依据，并标明「没有可读的包」。`describe` 带Skill 材料依据时，交出依据所指材料的声明，不标「没有可读的包」。`describe` 不交设置，也不收「用途」参数。设置值的求值与交付、依赖在不在场、脚本的执行资格都不归本组。
 
 `read` 的 `target` 指明能力标识，以及正文或一个资源的包内路径。`read` 返回内容、Skill 材料依据、包内路径、媒体类型、实际字节范围、总长与 `complete` 标记。正文与资源分开读取。
 
@@ -411,7 +390,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 | 带Skill 材料依据时，由 `SkillResolution.resolve` 核对依据所指的材料是否是该主体在此作用域可读的该能力的合法材料，并当场给出包定位。不合法时答 `basis-not-lawful`，Skill 报 `basis-unavailable`         | G1、G5 | 产品 J-SK03「历史可见性不授予新的访问」；要求 SYS-TENANT；独立消费者的需求 SK-D04                                                                                                                                                                                                                      |
 | `resolve` 先判 `known-unavailable`，再判 `adopted`。替换件与是否带依据无关。只有身份 `adopted` 且所带依据的版本不合法时，才答 `basis-not-lawful`                                                       | G5     | 产品 J-SK03「对合法已知身份返回替换件及安全原因」「历史可见性不授予新的访问」                                                                                                                                                                                                                          |
 | 已记录的正文由接收方保管。Skill 重读取不到旧材料时报 `basis-unavailable`                                                                                                                               | G1     | 架构 [工作区与能力变化](../../../docs/architecture/runtime/assembly-and-change.md#工作区与能力变化)「Skill 已记录的正文保持不变」；领域 [协作与依赖](../../../docs/domains/skills/README.md#协作与依赖)「Context或消息消费者按各自规则保存/组装」                                                                |
-| `describe` 只交设置声明，不交设置值，也不收用途参数                                                                                                                                                    | G1     | 领域 [范围与边界](../../../docs/domains/skills/README.md#范围与边界)「定义持有及求值复用资产」                                                                                                                                                                                                         |
+| `describe` 不交设置，也不收用途参数                                                                                                                                                    | G1     | 领域 [范围与边界](../../../docs/domains/skills/README.md#范围与边界)「定义持有及求值复用资产」                                                                                                                                                                                                         |
 | `export` 按Skill 材料依据交出全部条目，逐条核对，不交部分包                                                                                                                                            | G5     | 产品 J-SK03「不能将旧正文与新资源拼成成功」                                                                                                                                                                                                                                                            |
 | `SkillResolution` 一个端口承接所有调用方。Skill 不区分调用方                                                                                                                                           | G2、G3 | 产品 [J-SK02](../../../.meta_harness/design/product/skills/design.md#j-sk02-找到方法并理解当下能否使用)「独立读取方法时，每次核验当前访问资格，无须先有会话」                                                                                                                                          |
 | 每次操作现场核验，不缓存读取权。先 `SkillReadCheck`，再 `SkillResolution`                                                                                                                              | G5     | 产品 J-SK03「恢复重新核验当前读取权，历史可见性不授予新的访问」                                                                                                                                                                                                                                        |
@@ -458,7 +437,7 @@ Skill 与脚本的关系只有数据：`describe` 交出脚本声明，`export` 
 
 | 需求   | 服务含义                                                                                                                                                                                                                                                                                   | 失败种类                                                                                   | 交接边界                                                                                                          |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| SK-D01 | `describe` 返回能力标识、来源层、Skill 材料依据、依赖声明、脚本声明、设置声明、资源寻址规则，不加载正文，不读包字节。不带依据且资产正文缺 `package.digest` 时，结果不带Skill 材料依据，并标明「没有可读的包」                                                                              | `not-available-to-you`、`unavailable-stand-in`、`unknown`                                  | 描述是当前事实的一次读取，不授予后续读取                                                                          |
+| SK-D01 | `describe` 返回能力标识、来源层、Skill 材料依据、依赖声明、资源寻址规则，不加载正文，不读包字节。不带依据且资产正文缺 `package.digest` 时，结果不带Skill 材料依据，并标明「没有可读的包」                                                                              | `not-available-to-you`、`unavailable-stand-in`、`unknown`                                  | 描述是当前事实的一次读取，不授予后续读取                                                                          |
 | SK-D02 | `read` 返回Skill 材料依据、包内路径、媒体类型、实际字节范围、总长与 `complete`。正文与资源分开读。不带依据且资产正文缺 `package.digest` 时返回 `unsupported`                                                                                                                               | `bad-path`、`outside-package`、`resource-missing`、`unsupported`                           | 只交请求的内容，不自动读全部资源，不执行脚本                                                                      |
 | SK-D03 | 调用方带上此前结果给出的Skill 材料依据时，`read` 与 `list` 固定该版本。每次读取先比较Skill 包快照的内容摘要，再按条目内容摘要核对字节                                                                                                                                                      | `basis-unavailable`、`adopted-material-changed`、`version-changed`、`not-available-to-you` | 能保留旧材料的来源交出旧材料，保留不了的报失败，不用新材料冒充                                                    |
 | SK-D04 | 每个操作都经 `SkillReadCheck` 与 `SkillResolution` 现场判定。调用方带回的Skill 材料依据也由 `SkillResolution` 核对，包定位由它当场给出                                                                                                                                                     | `not-available-to-you`、`unavailable-stand-in`、`basis-unavailable`、`unknown`             | 读取权不缓存，历史依据不代替判定，也不授予访问                                                                    |
@@ -546,7 +525,7 @@ P1 各项来自独立消费者的需求。版本变化观察的首版范围是�
 | 运行脚本是一次普通的 Shell 工具调用，按 Shell 自己的权限判断。Skill 不持有执行权，也不向 Shell 里的进程供给任何值 | 产品 J-SK05                                                                                                                                                                                                                                                                                        |
 | `allowed-tools` 与 `compatibility` 只作元数据，不授予任何许可                                                     | 资产产品 [在项目工作区协作，保留每个租户的私有边界](../../../.meta_harness/design/product/assets-and-rules/design.md#在项目工作区协作保留每个租户的私有边界)「不能贡献授权或权限配值」；官方规格 [`allowed-tools` field](https://agentskills.io/specification#allowed-tools-field)「Experimental」 |
 
-现行偏离：成员契约里还带着脚本声明（入口、运行种类、设施需要、参数形状）、脚本身份，以及「落点与身份」这一类的设置声明。字段规则在成员规格 [`.omne/skill.json`](../skill-contract/SPEC.md#declaration)。现行规则不需要这些数据。它们登记在[包组织](../../../docs/package-organization.md#skill-与-mcp-的成员边界)的偏离里，由紧接着的一程删除。
+成员契约里没有脚本声明、脚本身份与设置声明。声明的规则见成员规格 [`.omne/skill.json`](../skill-contract/SPEC.md#declaration)。
 
 ### Q-SK05 原生及兼容来源格式支持与成员归属
 

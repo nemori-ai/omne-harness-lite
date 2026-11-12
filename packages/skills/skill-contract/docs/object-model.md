@@ -24,8 +24,6 @@ classDiagram
   SkillDefinition *-- SkillDeclaration
   SkillDefinition *-- SkillPackageSnapshot
   SkillPackageSnapshot *-- "many" PackageEntry
-  SkillDeclaration *-- "many" ScriptDeclaration
-  SkillDeclaration *-- "many" SettingDeclaration
 ```
 
 - `SkillPackageSnapshot` 的身份是它的内容摘要。内容摘要相同的两个快照指同一份内容。

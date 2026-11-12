@@ -299,24 +299,12 @@ describe('projectAssetBody', () => {
     return JSON.parse(writeJsonText(body))
   }
 
-  it('projects name, description, tools, scripts, settings and the package digest', () => {
+  it('projects name, description, tools and the package digest', () => {
     const definition = definitionOf('full-skill')
     expect(textOf(projectAssetBody(definition))).toEqual({
       name: 'full-skill',
       description: 'Shows every interpreted field and one field that Skill keeps as it is.',
       tools: [{ category: 'tool', name: 'read_file' }],
-      scripts: [
-        {
-          entry: 'scripts/run.sh',
-          runKind: 'shell',
-          facilities: ['network'],
-          parameters: { type: 'object', required: ['target'] },
-        },
-      ],
-      settings: [
-        { name: 'api-endpoint', category: 'binding' },
-        { name: 'tone', category: 'preference' },
-      ],
       package: { digest: definition.snapshot.digest },
     })
   })
@@ -327,8 +315,6 @@ describe('projectAssetBody', () => {
       name: 'plain-skill',
       description: 'Shows the smallest legal package.',
       tools: [],
-      scripts: [],
-      settings: [],
       package: { digest: definition.snapshot.digest },
     })
   })
@@ -347,8 +333,6 @@ describe('projectAssetBody', () => {
     const port = skillBodyContract()
     expect(port.judge(read.value, { capabilityName: 'full-skill' })).toEqual({ ok: true })
     expect(port.references(read.value)).toEqual([{ category: 'tool', name: 'read_file' }])
-    expect(port.deriveDeclarations(read.value)).toEqual({
-      entries: ['setting:binding:api-endpoint', 'setting:preference:tone'],
-    })
+    expect(port.deriveDeclarations(read.value)).toEqual({ entries: [] })
   })
 })

@@ -1,6 +1,6 @@
 // The values of the Skill context. All of them are immutable. Skill has no stateful aggregate:
 // holding, selection and adoption belong to other owners.
-import type { CapabilityId, JsonValue } from '@omne-harness/assets'
+import type { CapabilityId } from '@omne-harness/assets'
 import type { CompatibilityHint } from './hints.ts'
 
 declare const brand: unique symbol
@@ -28,9 +28,6 @@ export type Bytes = Uint8Array
 
 /** The four source layers. Skill carries the layer and does not interpret it. */
 export type SourceLayer = 'official' | 'organization' | 'tenant' | 'workspace'
-
-/** The four setting categories of the ubiquitous language. */
-export type SettingCategory = 'preference' | 'binding' | 'placement-identity' | 'governance'
 
 export type PackageEntry = Readonly<{
   path: PackagePath
@@ -81,24 +78,10 @@ export type SkillManifest = Readonly<{
   extra: Readonly<Record<string, ManifestValue>>
 }>
 
-export type ScriptDeclaration = Readonly<{
-  entry: PackagePath
-  /** Matches `^[a-z][a-z0-9-]{0,31}$`. Skill does not interpret it. */
-  runKind: string
-  /** Facility names, each matching the run kind lexicon. Skill does not check them. */
-  facilities: readonly string[]
-  /** The parameter shape, kept as it was read. */
-  parameters?: JsonValue
-}>
-
-export type SettingDeclaration = Readonly<{ name: string; category: SettingCategory }>
-
-/** The declarations of `.omne/skill.json`. Names and shapes only, no setting values. */
+/** The declarations of `.omne/skill.json`. A script is a file of the package, not a declaration. */
 export type SkillDeclaration = Readonly<{
   /** Required tools: capability identities of the category `tool`. */
   dependencies: readonly CapabilityId[]
-  scripts: readonly ScriptDeclaration[]
-  settings: readonly SettingDeclaration[]
 }>
 
 /** The result of one inspection. It holds no body: the body is read only through `read`. */
@@ -116,12 +99,7 @@ export type DeclaredProjection = Readonly<{
   description?: string
   /** Capability identities of the category `tool`. */
   tools: readonly CapabilityId[]
-  scripts: readonly ScriptDeclaration[]
-  settings: readonly SettingDeclaration[]
 }>
-
-/** A capability identity plus the entry path of a script. Execution is not decided by Skill. */
-export type ScriptIdentity = Readonly<{ capability: CapabilityId; entry: PackagePath }>
 
 /**
  * The Skill material basis given to callers. It holds no package locator, so a caller cannot use

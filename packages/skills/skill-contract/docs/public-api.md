@@ -16,7 +16,7 @@
 
 | 定义 | 源码 | 行为条款 |
 | --- | --- | --- |
-| 值：`SkillName`、`PackagePath`、`EntryDigest`、`PackageDigest`、`AssetVersion`、`SafeReason`、`MediaType`、`PackageEntry`、`SkillPackageSnapshot`、`PackageLocator`、`SkillManifest`、`ManifestValue`、`ScriptDeclaration`、`SettingDeclaration`、`SettingCategory`、`SkillDeclaration`、`SkillDefinition`、`DeclaredProjection`、`ScriptIdentity`、`SkillMaterialBasis`、`SkillRef`、`StandIn`、`SourceLayer`、`Bytes` | [src/values.ts](../src/values.ts) | [值与守卫](../SPEC.md#values) |
+| 值：`SkillName`、`PackagePath`、`EntryDigest`、`PackageDigest`、`AssetVersion`、`SafeReason`、`MediaType`、`PackageEntry`、`SkillPackageSnapshot`、`PackageLocator`、`SkillManifest`、`ManifestValue`、`SkillDeclaration`、`SkillDefinition`、`DeclaredProjection`、`SkillMaterialBasis`、`SkillRef`、`StandIn`、`SourceLayer`、`Bytes` | [src/values.ts](../src/values.ts) | [值与守卫](../SPEC.md#values) |
 | 守卫与规范化：`isSkillName`、`isPackagePath`、`toPackagePath`、`isSafeReason`、`isAssetVersion`、`isControlFile`；常量 `MANIFEST_PATH`、`DECLARATION_PATH` | [src/names.ts](../src/names.ts) | [值与守卫](../SPEC.md#values) |
 | `isSkillDescription`、`DESCRIPTION_LIMIT` | [src/parse/shape.ts](../src/parse/shape.ts) | [值与守卫](../SPEC.md#values) |
 | `sameCapability` | [src/capability.ts](../src/capability.ts) | [值与守卫](../SPEC.md#values) |

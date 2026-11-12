@@ -17,7 +17,7 @@
 | `parse/by-line.ts` | 严格 YAML 读不出时，逐行读顶层 `name` 与 `description` |
 | `hints.ts` | 兼容提示的封闭集合与次序 |
 | `parse/declaration.ts` | `.omne/skill.json` 的严格读取 |
-| `parse/shape.ts` | 依赖、脚本与设置声明的形状规则，声明文件与资产正文共用；说明的长度上限与 `isSkillDescription` |
+| `parse/shape.ts` | 依赖声明的形状规则，声明文件与资产正文共用；说明的长度上限与 `isSkillDescription` |
 | `parse/package.ts` | `parseSkillPackage`：前提核对与拒绝次序 |
 | `project.ts` | `projectAssetBody` |
 | `contract.ts` | `skillBodyContract` |

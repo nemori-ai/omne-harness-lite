@@ -113,7 +113,7 @@ describe('the order and the shape of the entries', () => {
     return {
       kind: 'adopted',
       ref: { capability, layer: 'tenant', locator: reviewLocator },
-      declared: { name: granted(isSkillName, name), tools: [], scripts: [], settings: [] },
+      declared: { name: granted(isSkillName, name), tools: [] },
     }
   }
 

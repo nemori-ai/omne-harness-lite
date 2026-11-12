@@ -49,7 +49,7 @@ function belongs(entry: PackageEntry | undefined, bytes: Bytes | undefined): boo
 
 /**
  * The rejection order is: manifest-missing, name-mismatch, declaration-format-unsupported,
- * outside-package, tool-ref-invalid, setting-category-unknown, malformed. An unsupported
+ * outside-package, tool-ref-invalid, malformed. An unsupported
  * declaration format stops the other checks. Control bytes that do not belong to the snapshot give
  * `version-changed`. It throws a TypeError when the snapshot was not made by `sealSnapshot`.
  *
@@ -78,9 +78,8 @@ export function parseSkillPackage(input: ParseInput): Outcome<SkillDefinition, P
   let declaration = EMPTY_DECLARATION
   let findings: readonly Finding[] = []
   if (control.declaration !== undefined) {
-    const paths = new Set<string>(snapshot.entries.map(item => item.path))
     const limits = input.declarationLimits ?? DECLARATION_LIMITS
-    const read = readDeclaration(control.declaration, limits, path => paths.has(path))
+    const read = readDeclaration(control.declaration, limits)
     if (read.kind === 'unsupported')
       return reject('declaration-format-unsupported', 'formatVersion is not 1')
     declaration = read.declaration

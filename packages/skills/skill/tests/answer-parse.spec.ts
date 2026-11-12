@@ -11,25 +11,6 @@ import { parseLawfulSet, parseResolution, parseVerdict } from '../src/port-answe
 
 const DIGEST = `sha256:${'a'.repeat(64)}`
 
-/** A JSON tree with every kind of node. */
-const PARAMETERS = {
-  kind: 'object',
-  entries: [
-    { key: 'none', value: { kind: 'null' } },
-    { key: 'flag', value: { kind: 'boolean', value: true } },
-    { key: 'text', value: { kind: 'string', value: 'x' } },
-    { key: 'count', value: { kind: 'number', lexeme: '-1.5e3' } },
-    { key: 'list', value: { kind: 'array', items: [{ kind: 'null' }] } },
-  ],
-}
-
-const SCRIPT = {
-  entry: 'scripts/run.sh',
-  runKind: 'shell',
-  facilities: ['network'],
-  parameters: PARAMETERS,
-}
-
 const ADOPTED = {
   kind: 'adopted',
   ref: {
@@ -43,8 +24,6 @@ const ADOPTED = {
     name: 'review',
     description: 'Reviews a change.',
     tools: [{ category: 'tool', name: 'read-file' }],
-    scripts: [SCRIPT],
-    settings: [{ name: 'tone', category: 'preference' }],
   },
 }
 
@@ -97,21 +76,6 @@ function deeplyFrozen(value: unknown): boolean {
 /** A function that carries a `kind`: an object, but not one that a port type allows. */
 function withKind(kind: string): unknown {
   return Object.assign(() => undefined, { kind })
-}
-
-/** A JSON tree of `depth` nested arrays around a null node. */
-function nested(depth: number): unknown {
-  let node: unknown = { kind: 'null' }
-  for (let level = 0; level < depth; level += 1) node = { kind: 'array', items: [node] }
-  return node
-}
-
-/** A JSON tree of `depth` nested objects, each with one entry, around a null node. */
-function nestedObjects(depth: number): unknown {
-  let node: unknown = { kind: 'null' }
-  for (let level = 0; level < depth; level += 1)
-    node = { kind: 'object', entries: [{ key: 'inner', value: node }] }
-  return node
 }
 
 type Row = readonly [label: string, path: readonly (string | number)[], field: unknown]
@@ -168,13 +132,6 @@ describe('parseResolution: adopted', () => {
     ['each source layer: organization', ['ref', 'layer'], 'organization'],
     ['each source layer: workspace', ['ref', 'layer'], 'workspace'],
     ['a content-store locator', ['ref', 'locator'], { kind: 'content-store', digest: DIGEST }],
-    ['each setting category: binding', ['declared', 'settings', 0, 'category'], 'binding'],
-    [
-      'each setting category: placement-identity',
-      ['declared', 'settings', 0, 'category'],
-      'placement-identity',
-    ],
-    ['each setting category: governance', ['declared', 'settings', 0, 'category'], 'governance'],
   ])('takes %s', (_case, path, field) => {
     const answer = withField(ADOPTED, path, field)
     expect(aboutReview(answer)).toStrictEqual(answer)
@@ -184,7 +141,6 @@ describe('parseResolution: adopted', () => {
     ['no asset version', ['ref', 'assetVersion'], MISSING],
     ['no digest', ['ref', 'digest'], MISSING],
     ['no description', ['declared', 'description'], MISSING],
-    ['no script parameters', ['declared', 'scripts', 0, 'parameters'], MISSING],
   ])('takes an answer with %s and gives no such field back', (_case, path) => {
     const answer = withField(ADOPTED, path, MISSING)
     expect(aboutReview(answer)).toStrictEqual(answer)
@@ -202,7 +158,7 @@ describe('parseResolution: adopted', () => {
       ...ADOPTED,
       extra: 1,
       ref: { ...ADOPTED.ref, extra: 1, capability: { ...ADOPTED.ref.capability, extra: 1 } },
-      declared: { ...ADOPTED.declared, extra: 1, scripts: [{ ...SCRIPT, extra: 1 }] },
+      declared: { ...ADOPTED.declared, extra: 1 },
     }
     expect(aboutReview(answer)).toStrictEqual(ADOPTED)
   })
@@ -248,26 +204,6 @@ describe('parseResolution: adopted', () => {
     ['a tool that is no object', ['declared', 'tools', 0], 'read-file'],
     ['a tool without a name', ['declared', 'tools', 0, 'name'], MISSING],
     ['a tool with an empty name', ['declared', 'tools', 0, 'name'], ''],
-    ['no scripts', ['declared', 'scripts'], MISSING],
-    ['scripts that are an empty text', ['declared', 'scripts'], ''],
-    ['a script that is no object', ['declared', 'scripts', 0], 'run.sh'],
-    ['a script without an entry', ['declared', 'scripts', 0, 'entry'], MISSING],
-    ['a script entry that is no text', ['declared', 'scripts', 0, 'entry'], 5],
-    ['a script entry that is no package path', ['declared', 'scripts', 0, 'entry'], '../run.sh'],
-    ['a script without a run kind', ['declared', 'scripts', 0, 'runKind'], MISSING],
-    ['a run kind that is no text', ['declared', 'scripts', 0, 'runKind'], 5],
-    ['a script without facilities', ['declared', 'scripts', 0, 'facilities'], MISSING],
-    ['facilities that are an empty text', ['declared', 'scripts', 0, 'facilities'], ''],
-    ['a facility that is no text', ['declared', 'scripts', 0, 'facilities', 0], 5],
-    ['parameters that are no JSON tree', ['declared', 'scripts', 0, 'parameters'], 5],
-    ['no settings', ['declared', 'settings'], MISSING],
-    ['settings that are an empty text', ['declared', 'settings'], ''],
-    ['a setting that is no object', ['declared', 'settings', 0], 'tone'],
-    ['a setting without a name', ['declared', 'settings', 0, 'name'], MISSING],
-    ['a setting name that is no text', ['declared', 'settings', 0, 'name'], 5],
-    ['a setting without a category', ['declared', 'settings', 0, 'category'], MISSING],
-    ['a setting category that is no text', ['declared', 'settings', 0, 'category'], 5],
-    ['a setting category outside the set', ['declared', 'settings', 0, 'category'], 'mood'],
   ])('gives no answer for %s', (_case, path, field) => {
     expect(aboutReview(withField(ADOPTED, path, field))).toBeUndefined()
   })
@@ -354,112 +290,6 @@ describe('parseResolution: the answer names the requested material (S7)', () => 
     const { assetVersion: _dropped, ...unversioned } = BASIS
     const about = parseResolution({ capability: identity('skill', 'review'), basis: unversioned })
     expect(about(ADOPTED)).toStrictEqual(ADOPTED)
-  })
-})
-
-describe('parseResolution: the JSON tree of script parameters', () => {
-  /** The parameters that come back for a script with `parameters`, or `undefined` when none. */
-  function parametersOf(parameters: unknown): unknown {
-    const parsed = aboutReview(
-      withField(ADOPTED, ['declared', 'scripts', 0, 'parameters'], parameters),
-    )
-    return parsed?.kind === 'adopted' ? parsed.declared.scripts[0]?.parameters : undefined
-  }
-
-  it('builds every node anew and freezes it', () => {
-    const parameters = parametersOf(PARAMETERS)
-    expect(parameters).toStrictEqual(PARAMETERS)
-    expect(deeplyFrozen(parameters)).toBe(true)
-  })
-
-  it('keeps what it gave when the port changes its object afterwards', () => {
-    const parameters = structuredClone(PARAMETERS)
-    const given = parametersOf(parameters)
-    parameters.entries.push({ key: 'late', value: { kind: 'null' } })
-    parameters.entries[0] = { key: 'none', value: { kind: 'string', value: 'changed' } }
-    expect(given).toStrictEqual(PARAMETERS)
-  })
-
-  it('leaves out the fields that a node or an entry does not list, at every depth', () => {
-    const leaky = {
-      kind: 'object',
-      extra: 1,
-      entries: [
-        { key: 'a', extra: 1, value: { kind: 'null', leak: 'secret-token' } },
-        {
-          key: 'b',
-          value: { kind: 'array', extra: 1, items: [{ kind: 'string', value: 'x', extra: 1 }] },
-        },
-      ],
-    }
-    expect(parametersOf(leaky)).toStrictEqual({
-      kind: 'object',
-      entries: [
-        { key: 'a', value: { kind: 'null' } },
-        { key: 'b', value: { kind: 'array', items: [{ kind: 'string', value: 'x' }] } },
-      ],
-    })
-  })
-
-  it.each([
-    ['an integer', '0'],
-    ['a fraction with several digits', '3.14159'],
-    ['a negative fraction with an exponent', '-0.5e-10'],
-    ['an exponent with a capital E and a plus sign', '12E+3'],
-  ])('takes a number lexeme that is %s', (_case, lexeme) => {
-    expect(parametersOf({ kind: 'number', lexeme })).toStrictEqual({ kind: 'number', lexeme })
-  })
-
-  it.each([
-    ['a lexeme that is no number', { kind: 'number', lexeme: 'not a number' }],
-    ['a lexeme with a leading zero', { kind: 'number', lexeme: '01' }],
-    ['a lexeme with a trailing point', { kind: 'number', lexeme: '1.' }],
-    ['a lexeme with a plus sign', { kind: 'number', lexeme: '+1' }],
-    ['a lexeme with white space', { kind: 'number', lexeme: ' 1' }],
-    ['a lexeme that is no text', { kind: 'number', lexeme: 1 }],
-    ['a number without a lexeme', { kind: 'number' }],
-    ['a boolean value that is no boolean', { kind: 'boolean', value: 'true' }],
-    ['a string value that is no text', { kind: 'string', value: 1 }],
-    ['array items that are no list', { kind: 'array', items: 'x' }],
-    ['an array item that is no node', { kind: 'array', items: [5] }],
-    ['object entries that are no list', { kind: 'object', entries: {} }],
-    [
-      'an entry key that is no text',
-      { kind: 'object', entries: [{ key: 1, value: { kind: 'null' } }] },
-    ],
-    ['an entry without a value', { kind: 'object', entries: [{ key: 'a' }] }],
-    ['an entry value that is no node', { kind: 'object', entries: [{ key: 'a', value: 5 }] }],
-    ['a node of a kind outside the set', { kind: 'set', items: [] }],
-    ['a node without a kind', {}],
-    ['a node whose kind is on the prototype only', Object.create({ kind: 'null' })],
-  ])('gives no answer for %s', (_case, parameters) => {
-    expect(parametersOf(parameters)).toBeUndefined()
-    expect(
-      aboutReview(withField(ADOPTED, ['declared', 'scripts', 0, 'parameters'], parameters)),
-    ).toBeUndefined()
-  })
-
-  it.each([
-    ['arrays', nested],
-    ['objects', nestedObjects],
-  ])('takes a tree of 16 nested %s and refuses one of 17', (_case, tree) => {
-    expect(parametersOf(tree(16))).toStrictEqual(tree(16))
-    expect(parametersOf(tree(17))).toBeUndefined()
-  })
-
-  it('gives no answer for a tree of 5000 nested containers, without a stack overflow', () => {
-    expect(() => parametersOf(nested(5000))).not.toThrow()
-    expect(parametersOf(nested(5000))).toBeUndefined()
-  })
-
-  it('gives no answer for a tree that contains itself', () => {
-    const cyclic: { kind: string; items: unknown[] } = { kind: 'array', items: [] }
-    cyclic.items.push(cyclic)
-    expect(parametersOf(cyclic)).toBeUndefined()
-    const entries: unknown[] = []
-    const cyclicObject = { kind: 'object', entries }
-    entries.push({ key: 'self', value: cyclicObject })
-    expect(parametersOf(cyclicObject)).toBeUndefined()
   })
 })
 

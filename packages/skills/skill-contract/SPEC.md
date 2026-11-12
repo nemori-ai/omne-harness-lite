@@ -189,7 +189,6 @@ name-mismatch
 declaration-format-unsupported
 outside-package
 tool-ref-invalid
-setting-category-unknown
 malformed
 ```
 
@@ -198,10 +197,9 @@ malformed
 1. `manifest-missing`：快照没有 `SKILL.md`。
 2. `name-mismatch`：带期望名字，头部能读出 name，且 name 不逐字等于期望名字。name 与包根目录名不同不是拒绝原因：包以头部的 name 为准，带兼容提示 `name-differs-from-root`。
 3. `declaration-format-unsupported`：`.omne/skill.json` 是 JSON 对象，但 `formatVersion` 不是词形为 `1` 的数。这时不做声明的其余判断。
-4. `outside-package`：脚本入口是绝对路径；或者来源在快照阶段答 `outside-package`（由调用方映射）。
+4. `outside-package`：来源在快照阶段答 `outside-package`（由调用方映射）。解析字节不产生它。
 5. `tool-ref-invalid`：依赖声明的类别不是 `tool`，或名字为空。
-6. `setting-category-unknown`：设置声明的类别不是四个设置项类别之一。
-7. `malformed`：其余格式错误；或者来源在快照阶段答 `entry-unreadable`（由调用方映射）。
+6. `malformed`：其余格式错误；或者来源在快照阶段答 `entry-unreadable`（由调用方映射）。
 
 - 次序的例外：来源在快照阶段答 `entry-unreadable` 或 `outside-package` 时，检查没有快照可判，以对应的原因结束，不再按次序判其余原因。
 - 「头部能读出 name」指下面两种情形之一。否则不判 `name-mismatch`，头部的问题判为 `malformed`。
@@ -253,27 +251,9 @@ malformed
 - 根不是对象为 `malformed`。
 - `formatVersion` 缺席，或者不是词形为 `1` 的数（例如 `"1"`、`1.0`、`1e0`、`2`），为 `declaration-format-unsupported`。
 - 根与每个声明项都不允许其他字段。多出的字段为 `malformed`。校验不填缺省值，也不删字段。
-- `dependencies`、`scripts` 与 `settings` 都可以缺省。缺省按空数组处理，这是形状规则。在场但不是数组为 `malformed`。
-- 「词」指 `^[a-z][a-z0-9-]{0,31}$`。运行种类与设施名都是词。Skill 不解释它们，也不判定设施是否齐备。
+- `dependencies` 可以缺省。缺省按空数组处理，这是形状规则。在场但不是数组为 `malformed`。
 - 依赖声明：类别与名字都是文本，否则为 `malformed`。类别不是 `tool` 或名字为空为 `tool-ref-invalid`。同名的依赖重复为 `malformed`。
-- 脚本声明：
-  - 入口必需。绝对路径为 `outside-package`。其他不合 `PackagePath` 的入口为 `malformed`，含 `..` 段的入口（例如 `scripts/../run.sh`）也是。入口按 `toPackagePath` 规范化，所以可以写 `./run.sh`。
-  - 入口必须是快照中的条目，且不是控制文件，否则为 `malformed`。
-  - 规范化后入口重复为 `malformed`。
-  - 运行种类必需，是词。设施需要必需，是不重复的词组成的数组。
-  - 参数形状可选，原样保存为 JSON 树，Skill 不解释。
-- 设置声明：名字是非空文本。类别是四个设置项类别之一，其他文本为 `setting-category-unknown`。同名的设置重复为 `malformed`。声明不含设置值。
-
-设置项类别的集合：
-
-<a id="set-setting-categories"></a>
-
-```text
-preference
-binding
-placement-identity
-governance
-```
+- 脚本不是声明，是包里的普通文件：它和别的资源一样读得到、列得到，由 Shell 运行。声明里没有脚本与设置两栏；写了 `scripts` 或 `settings` 的声明按多出的字段处理，为 `malformed`。
 
 <a id="dialects"></a>
 
@@ -395,20 +375,19 @@ no-readable-package
 
 ### `skill` 类别端口
 
-`skillBodyContract()` 交出 `skill` 类别的 `BodyContract`。资产正文是 Skill 包的声明投影：名字、说明、必需的工具、脚本声明、设置声明与包的内容摘要。
+`skillBodyContract()` 交出 `skill` 类别的 `BodyContract`。资产正文是 Skill 包的声明投影：名字、说明、必需的工具与包的内容摘要。
 
 - 原有规则不变：正文必须经 `readBodyText` 读取；名字为空、工具引用不是 Tool 身份时拒绝为 `incomplete-reference`；名字不等于能力名时拒绝为 `name-mismatch`。
 - 名字必须合 `SkillName` 的词法，否则拒绝为 `name-invalid`。这收紧了资产规格中 `skill` 一段：那一段只要求名字非空。判断次序是：正文与名字为空（`incomplete-reference`）、`name-mismatch`、`name-invalid`、工具引用（`incomplete-reference`），然后是扩展字段。
-- 扩展字段 `description`、`scripts`、`settings` 与 `package` 都可以缺省，所以没有它们的旧正文仍然合法。这四个字段名从此是 `skill` 资产正文的保留字段：它们在场时必须合下列规则，否则拒绝。
+- 扩展字段 `description` 与 `package` 都可以缺省，所以没有它们的旧正文仍然合法。这两个字段名是 `skill` 资产正文的保留字段：它们在场时必须合下列规则，否则拒绝。
 - `description` 是长 1 到 `DESCRIPTION_LIMIT`（16384）个字符（按码点计）的文本。读取资产正文的一方给 `@omne-harness/json-text` 的 `maxStringLength`（按解码后字符串的 UTF-16 码元计）不能小于 `2 × DESCRIPTION_LIMIT`：一个码点最多占两个码元。预算更小时，合法的长说明在读取正文时就被拒绝，见[不在本成员](#not-in-member)。
-- `scripts` 与 `settings` 的每一项与 `.omne/skill.json` 的规则相同，跨项规则也相同：重复为 `malformed`。脚本入口不核对是否在包中，但必须已经规范化，也不得是控制文件：`./run.sh` 这类未规范化的写法与 `SKILL.md` 都为 `malformed`。
 - `package` 是只有 `digest` 一个字段的对象，`digest` 合 `PackageDigest` 的形式。
-- 扩展字段的拒绝原因是 `outside-package`、`setting-category-unknown` 与 `malformed`，按此次序取第一个。
+- 扩展字段的拒绝原因是 `malformed`。
 - 正文的其他顶层字段不判断。
-- `deriveDeclarations` 对每项设置声明按出现次序产出一个条目 `setting:<类别>:<名字>`。依赖与脚本不产出声明项。
+- `deriveDeclarations` 不产出声明项：Skill 不向设置声明任何东西。
 - `deriveDeclarations` 与 `references` 在判断失败时抛出 `TypeError`，消息含 `failed judgment: <原因>`。
 
-`projectAssetBody(definition)` 从 `SkillDefinition` 派生资产正文，返回 JSON 树。字段依次是 `name`、`description`、`tools`、`scripts`、`settings` 与 `package`。`package.digest` 取自快照的内容摘要。三个数组为空时也写出。调用方用 `writeJsonText` 写成文本，再经 `readBodyText` 读取后交给类别端口判断。
+`projectAssetBody(definition)` 从 `SkillDefinition` 派生资产正文，返回 JSON 树。字段依次是 `name`、`description`、`tools` 与 `package`。`package.digest` 取自快照的内容摘要。`tools` 为空时也写出。调用方用 `writeJsonText` 写成文本，再经 `readBodyText` 读取后交给类别端口判断。
 
 ## 所有权、失败与生命周期
 
@@ -474,7 +453,7 @@ no-readable-package
 
 - 能力标识：`category` 与 `name` 都是文本，并经资产的 `capabilityId` 重新构造。`capabilityId` 拒绝时不合。`declared.tools` 的每一项同样核对。
 - `ref`：能力标识；`layer` 是四个来源层之一；`locator` 是 `directory`（`root` 是文本）或 `content-store`（`digest` 合 `isPackageDigest`）；可带 `assetVersion`（合 `isAssetVersion`）与 `digest`（合 `isPackageDigest`）。
-- `declared`：`name` 合 `isSkillName`；可带 `description`（合 `isSkillDescription`）；`tools`、`scripts`、`settings` 都是数组。脚本的 `entry` 合 `isPackagePath`，`runKind` 是文本，`facilities` 是文本的数组，可带的 `parameters` 是 `JsonValue` 的 JSON 树：逐个节点核对并重新构造、冻结，每个节点只取它那一种的字段（`kind` 加 `value`、`lexeme`、`items` 或 `entries`），对象的条目只取 `key` 与 `value`；`number` 的 `lexeme` 合 RFC 8259 的数字词法；容器的嵌套不超过 `DECLARATION_LIMITS.maxDepth`（16）层，超出即不合，成环的树也因此不合。设置的 `name` 是文本，`category` 是四个设置类别之一。
+- `declared`：`name` 合 `isSkillName`；可带 `description`（合 `isSkillDescription`）；`tools` 是数组。
 - `known-unavailable`：`name` 合 `isSkillName`，`reason` 合 `isSafeReason`，可带的 `description` 合 `isSkillDescription`。
 - 引用身份一致（性质 S7）：`resolve` 的答复必须是关于所请求的身份与依据的。
   - `adopted` 的 `ref.capability` 与请求的身份按 `sameCapability` 相同。

@@ -1,5 +1,5 @@
-// .omne/skill.json: declaration-format-unsupported, outside-package, tool-ref-invalid,
-// setting-category-unknown and every malformed case of the declaration.
+// .omne/skill.json: declaration-format-unsupported, tool-ref-invalid and every malformed case of
+// the declaration.
 import { describe, expect, it } from 'vitest'
 import { parseSkillPackage } from '@omne-harness/skill-contract'
 import { buildPackage } from './package-builder.ts'
@@ -15,7 +15,7 @@ describe('malformed .omne/skill.json', () => {
       'a string over the budget',
       declaration({
         formatVersion: 1,
-        settings: [{ name: 'n'.repeat(4097), category: 'binding' }],
+        dependencies: [{ category: 'tool', name: 'n'.repeat(4097) }],
       }),
     ],
     ['a root that is not an object', '[1]'],
@@ -40,101 +40,10 @@ describe('malformed .omne/skill.json', () => {
       }),
     ],
     [
-      'a script without an entry',
-      declaration({ formatVersion: 1, scripts: [{ runKind: 'shell', facilities: [] }] }),
+      'a scripts field: a script is a file of the package, not a declaration',
+      declaration({ formatVersion: 1, scripts: [] }),
     ],
-    [
-      'a script without facilities',
-      declaration({ formatVersion: 1, scripts: [{ entry: 'run.sh', runKind: 'shell' }] }),
-    ],
-    [
-      'a script entry that is not in the package',
-      declaration({
-        formatVersion: 1,
-        scripts: [{ entry: 'missing.sh', runKind: 'shell', facilities: [] }],
-      }),
-    ],
-    [
-      'a script entry that is a control file',
-      declaration({
-        formatVersion: 1,
-        scripts: [{ entry: 'SKILL.md', runKind: 'shell', facilities: [] }],
-      }),
-    ],
-    [
-      'a script entry with a backslash',
-      declaration({
-        formatVersion: 1,
-        scripts: [{ entry: 'a\\run.sh', runKind: 'shell', facilities: [] }],
-      }),
-    ],
-    [
-      'a run kind with an uppercase letter',
-      declaration({
-        formatVersion: 1,
-        scripts: [{ entry: 'run.sh', runKind: 'Shell', facilities: [] }],
-      }),
-    ],
-    [
-      'a run kind of 33 characters',
-      declaration({
-        formatVersion: 1,
-        scripts: [{ entry: 'run.sh', runKind: `a${'b'.repeat(32)}`, facilities: [] }],
-      }),
-    ],
-    [
-      'a run kind that starts with a digit',
-      declaration({
-        formatVersion: 1,
-        scripts: [{ entry: 'run.sh', runKind: '1shell', facilities: [] }],
-      }),
-    ],
-    [
-      'a facility outside the lexicon',
-      declaration({
-        formatVersion: 1,
-        scripts: [{ entry: 'run.sh', runKind: 'shell', facilities: ['Net'] }],
-      }),
-    ],
-    [
-      'a repeated facility',
-      declaration({
-        formatVersion: 1,
-        scripts: [{ entry: 'run.sh', runKind: 'shell', facilities: ['net', 'net'] }],
-      }),
-    ],
-    [
-      'a repeated script entry',
-      declaration({
-        formatVersion: 1,
-        scripts: [
-          { entry: 'run.sh', runKind: 'shell', facilities: [] },
-          { entry: './run.sh', runKind: 'node', facilities: [] },
-        ],
-      }),
-    ],
-    [
-      'a setting without a name',
-      declaration({ formatVersion: 1, settings: [{ category: 'binding' }] }),
-    ],
-    [
-      'a setting with an empty name',
-      declaration({ formatVersion: 1, settings: [{ name: '', category: 'binding' }] }),
-    ],
-    [
-      'a setting category that is not text',
-      declaration({ formatVersion: 1, settings: [{ name: 'a', category: 1 }] }),
-    ],
-    [
-      'a repeated setting name',
-      declaration({
-        formatVersion: 1,
-        settings: [
-          { name: 'a', category: 'binding' },
-          { name: 'a', category: 'preference' },
-        ],
-      }),
-    ],
+    ['a settings field', declaration({ formatVersion: 1, settings: [] })],
   ])('rejects %s', (_case, text) => {
     const files = { 'SKILL.md': demo(), 'run.sh': 'echo', '.omne/skill.json': text }
     expect(codeOf(parse('demo', files))).toBe('malformed')
@@ -142,7 +51,7 @@ describe('malformed .omne/skill.json', () => {
 
   it.each([
     ['a format version 2', declaration({ formatVersion: 2 })],
-    ['no format version', declaration({ scripts: [] })],
+    ['no format version', declaration({ dependencies: [] })],
     ['a format version given as text', declaration({ formatVersion: '1' })],
     ['a format version that is null', declaration({ formatVersion: null })],
     ['a format version that is a boolean', declaration({ formatVersion: true })],
@@ -152,33 +61,6 @@ describe('malformed .omne/skill.json', () => {
     expect(codeOf(parse('demo', { 'SKILL.md': demo(), '.omne/skill.json': text }))).toBe(
       'declaration-format-unsupported',
     )
-  })
-
-  it.each([['an absolute entry', '/run.sh']])(
-    'rejects %s as outside the package',
-    (_case, entry) => {
-      const text = declaration({
-        formatVersion: 1,
-        scripts: [{ entry, runKind: 'shell', facilities: [] }],
-      })
-      expect(codeOf(parse('demo', { 'SKILL.md': demo(), '.omne/skill.json': text }))).toBe(
-        'outside-package',
-      )
-    },
-  )
-
-  it.each([
-    ['a .. segment that stays inside', 'scripts/../run.sh'],
-    ['a leading .. segment', '../run.sh'],
-    ['a .. segment that leaves the package', 'a/../../run.sh'],
-  ])('rejects an entry with %s as malformed, not as outside the package', (_case, entry) => {
-    const text = declaration({
-      formatVersion: 1,
-      scripts: [{ entry, runKind: 'shell', facilities: [] }],
-    })
-    expect(
-      codeOf(parse('demo', { 'SKILL.md': demo(), 'run.sh': 'echo', '.omne/skill.json': text })),
-    ).toBe('malformed')
   })
 
   it.each([

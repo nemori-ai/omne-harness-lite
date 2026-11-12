@@ -11,6 +11,14 @@ export {
   type JsonValue,
   type Judgment,
 } from './identity.ts'
+export {
+  evaluate,
+  type Candidate,
+  type Eligibility,
+  type Evaluation,
+  type Filtered,
+  type LayerInput,
+} from './evaluate.ts'
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export { createCategoryRegistry, unknownCategory } from './registry.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'
