@@ -2852,8 +2852,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:ac812c66e076c8175a151d30e5ee31c160ee84aef57e3074b8ad1c3a35e33b8e";
-export declare const SESSION_RELEASE_DIGEST = "sha256:ac812c66e076c8175a151d30e5ee31c160ee84aef57e3074b8ad1c3a35e33b8e";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:a4c742ae26fdcf45dd630c7359673bd9925219747f865cc623cef24683153ea4";
+export declare const SESSION_RELEASE_DIGEST = "sha256:a4c742ae26fdcf45dd630c7359673bd9925219747f865cc623cef24683153ea4";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2892,6 +2892,12 @@ type CallBlock = Extract<MessageBlock, {
 }>;
 export declare function writesCall(block: MessageBlock): block is CallBlock;
 export declare function unansweredAfter(open: readonly string[], message: Message): readonly string[];
+export declare function trackCalls(draft: {
+    unansweredCalls?: readonly string[];
+}, message: Message): void;
+export declare function hasUnansweredCalls(snapshot: {
+    unansweredCalls?: readonly string[];
+}): boolean;
 export declare function closingEntries(snapshot: WorkSnapshot, terminal: RunTerminal, source: DurableEvidence, origin: HistoryEntry['origin']): EncodedEntry[];
 export {};
 ```

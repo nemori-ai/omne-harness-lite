@@ -41,6 +41,18 @@ export function unansweredAfter(open: readonly string[], message: Message): read
   return open.filter(callId => callId !== marker.callId)
 }
 
+/** Applies `message` to the unanswered calls of the snapshot under reduction. */
+export function trackCalls(draft: { unansweredCalls?: readonly string[] }, message: Message): void {
+  const open = draft.unansweredCalls ?? []
+  const next = unansweredAfter(open, message)
+  if (next !== open) draft.unansweredCalls = next
+}
+
+/** A snapshot whose active Run still has a call without a tool message cannot take a terminal. */
+export function hasUnansweredCalls(snapshot: { unansweredCalls?: readonly string[] }): boolean {
+  return (snapshot.unansweredCalls ?? []).length > 0
+}
+
 const REASON: Readonly<Record<RunTerminal['outcome'], string>> = {
   cancelled:
     'the run was cancelled before the call returned. The tool was asked to stop. It may have had effects before it stopped.',

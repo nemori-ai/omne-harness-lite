@@ -3,7 +3,15 @@
 // none, so a terminal Run has no open call and the next model request reads a whole history.
 import { describe, expect, it } from 'vitest'
 import { judgeMessage, type Message } from '@omne-harness/message'
-import type { BoundedClose, RunId } from '@omne-harness/session-contract'
+import {
+  decide,
+  reduce,
+  type BoundedClose,
+  type HistoryEntry,
+  type RunId,
+  type SessionLogConsequence,
+  type WorkSnapshot,
+} from '@omne-harness/session-contract'
 import { evidence, operationId, refused, succeeded } from '@omne-harness/session-contract/testing'
 import { decodeEntry } from '../src/entries.ts'
 import { open, scene } from './scene.ts'
@@ -213,5 +221,112 @@ describe('the commit that ends a Run answers its open tool calls', () => {
           ),
       ),
     ).toHaveLength(1)
+  })
+
+  it('a call that the model does not see is not an open call', async () => {
+    const s = await open()
+    const { run } = await s.active()
+    const hidden = assistant('hidden', ['call-a'])
+    const message = {
+      ...hidden,
+      blocks: hidden.blocks.map(block => ({
+        ...block,
+        visibility: { toHuman: true, toModel: false },
+      })),
+    } as unknown as Message
+    succeeded(await record(s, 'hidden', message, '2'), 'assistant message')
+    expect((await s.read()).unansweredCalls ?? []).toEqual([])
+    const before = rows(s).length
+    succeeded(await cancel(s, run.run), 'cancelRun')
+    expect(closings(s, before)).toEqual([])
+  })
+
+  it('an internal tool message does not answer a call: the model never reads it', async () => {
+    const { s, run } = await running(['call-a'])
+    const internal = { ...answer('call-a'), role: 'tool_internal' } as unknown as Message
+    succeeded(await record(s, 'internal', internal, '3'), 'internal tool message')
+    expect((await s.read()).unansweredCalls).toEqual(['call-a'])
+    const before = rows(s).length
+    succeeded(await cancel(s, run), 'cancelRun')
+    expect(closings(s, before).map(closing => closing.callId)).toEqual(['call-a'])
+  })
+
+  it('a call that two assistant messages name is one open call', async () => {
+    const { s, run } = await running(['call-a'])
+    succeeded(await record(s, 'again', assistant('again', ['call-a']), '3'), 'assistant message')
+    expect((await s.read()).unansweredCalls).toEqual(['call-a'])
+    const before = rows(s).length
+    succeeded(await cancel(s, run), 'cancelRun')
+    expect(closings(s, before).map(closing => closing.callId)).toEqual(['call-a'])
+  })
+
+  it('a Run that the execution ended answers its open call with the same commit', async () => {
+    const { s } = await running(['call-a'])
+    const { run } = await s.active()
+    const before = rows(s).length
+    succeeded(
+      await s.project(
+        {
+          ...s.base,
+          run: run.run,
+          execution: run.execution.execution,
+          revision: '5',
+          source: evidence('ended'),
+          sequence: '1',
+          consequences: [
+            { kind: 'ended', outcome: 'completed', cause: null, disposition: evidence('complete') },
+          ] satisfies readonly SessionLogConsequence[],
+        },
+        operationId('interpret-end'),
+      ),
+      'project',
+    )
+    const [closing, ...rest] = closings(s, before)
+    expect(rest).toEqual([])
+    expect(closing?.callId).toBe('call-a')
+    expect(closing?.text).toBe(
+      'No result of this call is in the conversation: the run ended before the call returned. It may have had effects. Do not assume that the call completed or was approved.',
+    )
+    expect((await s.read()).run).toMatchObject({ kind: 'terminal' })
+  })
+
+  it('the history refuses a terminal while a call of the Run has no tool message', async () => {
+    const { s } = await running(['call-a'])
+    const snapshot = await s.read()
+    if (snapshot.run.kind !== 'active') throw new Error('no active Run')
+    const decision = decide(
+      snapshot,
+      {
+        kind: 'finishRun',
+        input: {
+          ...s.base,
+          operation: operationId('finish'),
+          run: snapshot.run.run,
+          expected: snapshot.run.revision,
+          bounded: { kind: 'uninterpretable', evidence: evidence('agent/uninterpretable') },
+        },
+      },
+      [],
+      null,
+      { compaction: null },
+    )
+    if (decision.kind !== 'entries') throw new Error('finishRun did not decide entries')
+    const revision = String(Number(snapshot.revision) + 1) as WorkSnapshot['revision']
+    const batch = (kept: typeof decision.entries) => ({
+      revision,
+      entries: kept.map((entry, index): HistoryEntry => ({
+        ...entry,
+        id: String(1000 + index) as HistoryEntry['id'],
+        revision,
+      })),
+    })
+    expect(reduce(snapshot, batch(decision.entries))).toMatchObject({ kind: 'reduced' })
+    const withoutClosing = decision.entries.filter(entry => entry.kind !== 'message.tool')
+    expect(withoutClosing).toHaveLength(decision.entries.length - 1)
+    const refused = reduce(snapshot, batch(withoutClosing))
+    expect(refused.kind).not.toBe('reduced')
+    expect(JSON.stringify(refused)).toContain(
+      'a terminal while a tool call of the Run has no tool message',
+    )
   })
 })
