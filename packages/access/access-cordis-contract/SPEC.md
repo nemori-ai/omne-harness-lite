@@ -43,7 +43,7 @@
 | --- | --- |
 | [贡献覆盖契约](#贡献覆盖契约) | `tests/contribution.spec-d.ts` |
 | [主体按身份一栏](#主体按身份一栏) | `tests/contribution.spec-d.ts` |
-| [mount 是调用者作用域上的效应](#mount-是调用者作用域上的效应) | 服务端接入的 `tests/registry-cordis.spec.ts`，真实的 Cordis 4.0.4，不用替身 |
+| [mount 是调用者作用域上的效应](#mount-是调用者作用域上的效应) | `tests/mount.spec.ts` 与服务端接入的 `tests/registry-cordis.spec.ts`，真实的 Cordis 4.0.4，不用替身 |
 | [装配错误](#装配错误) | `tests/public-entry.spec.ts`；服务端接入的 `tests/registry.spec.ts` 与 `tests/registry-cordis.spec.ts` |
 
 依赖方向：本包源码只依赖公开契约与 `@deepseek-ai/cordis`，门禁 `access-cordis-contract-only-contract-and-cordis`（`tools/repo-config/dependency-cruiser.cjs`）守这一条。

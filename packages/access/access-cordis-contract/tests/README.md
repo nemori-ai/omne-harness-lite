@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-`contribution.spec-d.ts` 是类型断言：正确的贡献编得过，漏操作、处理函数的消息体或答复与契约不一致、结果集外的结果、契约外的操作都编不过。`public-entry.spec.ts`、`cordis-entry.spec.ts` 从包名核对两个入口的运行时导出。`mount` 在真实 Cordis 上的行为由服务端接入的 `tests/registry-cordis.spec.ts` 验证，因为提供者在那里。没有替身。
+`contribution.spec-d.ts` 是类型断言：正确的贡献编得过，漏操作、处理函数的消息体或答复与契约不一致、结果集外的结果、契约外的操作都编不过。`public-entry.spec.ts`、`cordis-entry.spec.ts` 从包名核对两个入口的运行时导出。`mount.spec.ts` 在真实的 Cordis 4.0.4 上用一个最小的提供者验证 `mount` 的效应绑定；服务端接入的 `tests/registry-cordis.spec.ts` 用真实的提供者再验证一遍。没有替身。
