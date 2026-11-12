@@ -462,6 +462,29 @@ describe('publishing a directory', () => {
 })
 
 describe('reading by asset reference, and the directory names', () => {
+  it('位置读口在版本记录读不到时答 unavailable，不答 absent，也不抛出', async () => {
+    let failing = false
+    const w = await world({
+      ownerWrap: storage => ({
+        ...storage,
+        read(request, options) {
+          if (failing && JSON.stringify(request.input).includes('"kind":"version"'))
+            throw new Error('the storage does not answer')
+          return storage.read(request, options)
+        },
+      }),
+    })
+    await publish(w, FIRST, 'publish-1')
+    failing = true
+    expect(
+      await w.owner.packages.locate({ assetRef: 'tenant/report', version: versionOf(FIRST) }),
+    ).toEqual({ kind: 'unavailable' })
+    failing = false
+    expect(
+      await w.owner.packages.locate({ assetRef: 'tenant/report', version: versionOf(FIRST) }),
+    ).toMatchObject({ kind: 'local-directory' })
+  })
+
   it('一个读口对象里版本记录读一次：manifest 与几次 open 只读一次版本记录', async () => {
     let versionReads = 0
     const w = await world({

@@ -62,9 +62,10 @@ export interface PublishedPackages {
 export type PackageLocation =
   | Readonly<{ kind: 'local-directory'; path: string }>
   | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'unavailable' }>
 
 export interface LocalPackages extends PublishedPackages {
-  /** Reads the version record, so it answers later; a storage failure rejects, never `absent`. */
+  /** Reads the version record, so it answers later; a record that cannot be read is `unavailable`, never `absent`. */
   locate(input: { assetRef: string; version: string }): Promise<PackageLocation>
 }
 
@@ -497,15 +498,18 @@ export function createPublishedPackages(input: {
     reader,
     recover,
     async locate({ assetRef, version }) {
-      const placed = await placeOf(assetRef, version)
-      if (!('ok' in placed)) {
-        if (placed.failure === 'unavailable' && root !== undefined)
-          throw new Error('the version record cannot be read')
-        return { kind: 'absent' }
+      // Without a root this assembly keeps no local directory at all: that is `absent`, not unknown.
+      if (root === undefined) return { kind: 'absent' }
+      try {
+        const placed = await placeOf(assetRef, version)
+        if (!('ok' in placed))
+          return placed.failure === 'unavailable' ? { kind: 'unavailable' } : { kind: 'absent' }
+        return (await isDirectory(placed.ok.final))
+          ? { kind: 'local-directory', path: placed.ok.final }
+          : { kind: 'absent' }
+      } catch {
+        return { kind: 'unavailable' }
       }
-      return (await isDirectory(placed.ok.final))
-        ? { kind: 'local-directory', path: placed.ok.final }
-        : { kind: 'absent' }
     },
   }
 }
