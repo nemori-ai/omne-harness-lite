@@ -172,7 +172,7 @@ import {
   sessionId,
   type SessionAccessScript,
 } from '@omne-harness/session-contract/testing'
-import { SessionProvider } from '@omne-harness/session-cordis/cordis'
+import { createSessionCommitNotifier, SessionProvider } from '@omne-harness/session-cordis/cordis'
 import {
   ScopeReleasePortService,
   SessionAccessCheckService,
@@ -194,6 +194,7 @@ import {
 } from '@omne-harness/session-cordis-contract/testing'
 import {
   createSessionStoragePair,
+  registerSessionNotifier,
   sessionStorageMaterials,
 } from '@omne-harness/session-storage-sql'
 import {
@@ -634,6 +635,9 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   // W2: a joint world may count what goes through the shared storage; by default there is no wrapper.
   const wrapped = options.wrapStorage?.(seeing)
   const storage: SqlStorage = wrapped ?? seeing
+  // As the session storage row of the application: every fresh batch of the session log is told
+  // through the notifier of session-cordis on this root (#1230). The wrapper keeps the database.
+  const unregisterNotices = registerSessionNotifier(storage, createSessionCommitNotifier(ctx))
   const lookup: TenantDomainLookup = {
     lookup: input => {
       const domain = domains[input.tenant]
@@ -1260,6 +1264,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
           // A fiber that already ended has nothing left to remove.
         }
       }
+      unregisterNotices()
       await created.control.close({ initiator: 'disposal' }).catch(() => undefined)
       // A directory the caller handed in belongs to the caller: another process may still use it.
       if (options.root === undefined) await rm(root, { recursive: true, force: true })
