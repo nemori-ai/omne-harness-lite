@@ -185,19 +185,41 @@ describe('the receipt of a dispatch', () => {
     ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
   })
 
-  it('records nothing when the window cannot open: the receipt does not stand alone', async () => {
+  it.each([
+    ['is already open', 'taken'],
+    ['is empty', ''],
+    // The bound is on the canonical encoding, the quotes included: 255 characters take 257 bytes.
+    ['is one byte over 256 bytes encoded', 'x'.repeat(255)],
+  ])(
+    'records nothing when the window %s: the receipt does not stand alone',
+    async (_name, window) => {
+      const f = await prepared()
+      unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'taken' }))
+      expect(
+        await f.commands.recordMaterialization({
+          ...(await f.write()),
+          dispatch,
+          receipt: bound,
+          window,
+        }),
+      ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
+      const [record] = unbox(await f.commands.dispatches(f.admit))
+      expect(record?.materialization).toBeNull()
+    },
+  )
+
+  it('is recorded with a window of exactly 256 bytes encoded', async () => {
     const f = await prepared()
-    unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'taken' }))
-    expect(
+    unbox(
       await f.commands.recordMaterialization({
         ...(await f.write()),
         dispatch,
         receipt: bound,
-        window: 'taken',
+        window: 'x'.repeat(254),
       }),
-    ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
+    )
     const [record] = unbox(await f.commands.dispatches(f.admit))
-    expect(record?.materialization).toBeNull()
+    expect(record?.materialization?.receipt).toEqual(bound)
   })
 })
 
@@ -276,6 +298,10 @@ describe('a completed terminal that forms no message', () => {
       ]),
     )
     expect(snapshot.blocks).toEqual([{ kind: 'sealed', index: '0', block }])
+    // The dispatch ended logically: no further window opens on it.
+    expect(
+      await f.commands.openReceiveWindow({ ...(await f.write()), dispatch, window: 'w2' }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'window', reason: 'duplicate-or-terminal' } })
   })
 
   it('a reply cut at the output limit ends without forming a message, even when it holds no block', async () => {

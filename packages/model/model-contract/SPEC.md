@@ -1206,7 +1206,7 @@ MaterializationReceipt 只记录本次供应商、实际表示采用和无秘密
 - 原 dispatch 尚未发出。
 - 供应商与固定请求摘要。
 - 回执带 `replayFormat` 时，它是合格的回放标签，即满足 message 成员对 `replay.format` 的要求。不合格时 Commands 返回 `invalid`，`field` 为 `receipt`，`reason` 为 `binding`，不提交回执。
-- 接收窗口的条件与 openReceiveWindow 相同（非空、不超过 256 字节、这个 dispatch 上没有用过、dispatch 没有逻辑终止）。不满足时返回 `invalid`，`field` 为 `window`，`reason` 为 `duplicate-or-terminal`，回执也不提交。
+- 接收窗口的条件与 openReceiveWindow 相同（非空；规范 JSON 编码连同两侧引号不超过 256 个 UTF-8 字节；这个 dispatch 上没有用过；dispatch 没有逻辑终止）。不满足时返回 `invalid`，`field` 为 `window`，`reason` 为 `duplicate-or-terminal`，回执也不提交。
 
 回执来源由可信 adapter 核验，不接受普通调用者自报的内容。成功返回新 revision 与 DurableEvidence，DispatchRecord.materialization 可恢复地返回原回执及依据。
 
