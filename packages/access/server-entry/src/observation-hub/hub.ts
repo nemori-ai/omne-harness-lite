@@ -180,7 +180,8 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     if (decided.kind === 'interrupted' && decided.by === 'gone') return undefined
     if (decided.kind === 'threw') note('access.frame-source-fault')
     const outcome = decided.kind === 'done' ? decided.value.outcome : 'basis-unavailable'
-    writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: outcome === 'denied' })
+    // writeAnswer closes the connection of every denied answer.
+    writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: false })
     return undefined
   }
 

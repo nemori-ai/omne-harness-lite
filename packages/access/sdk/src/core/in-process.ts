@@ -19,18 +19,15 @@ export function createInProcessTransport(peer: Transport): Transport {
     },
     async *observe(request): AsyncGenerator<JsonValue, ObserveEnd> {
       const stream = peer.observe({ ...request, open: copy(request.open) })
-      let finished = false
       try {
         for (;;) {
           const next = await stream.next()
-          if (next.done === true) {
-            finished = true
-            return next.value
-          }
+          if (next.done === true) return next.value
           yield copy(next.value)
         }
       } finally {
-        if (!finished) await stream.return({ kind: 'aborted' })
+        // The caller stopped early: close the peer's stream. Closing one that ended does nothing.
+        await stream.return({ kind: 'aborted' })
       }
     },
   }

@@ -360,13 +360,23 @@ describe('C3: the frame source', () => {
       [async () => ({ outcome: 'basis-unavailable' as const }), 503, 'basis-unavailable'],
       [async () => Promise.reject(new Error(`fault ${PROOF}`)), 503, 'basis-unavailable'],
     ] as const
+    const body = '{"noteId":"n-1"}'
     for (const [source, status, outcome] of cases) {
       fixture.notes.sources['watch-note'] = source
-      const reply = await call(fixture.port, 'watch-note', { body: '{"noteId":"n-1"}' })
+      const reply = await call(fixture.port, 'watch-note', { body })
       expect([reply.status, reply.json]).toEqual([status, { outcome, body: {} }])
       expect(reply.headers.connection === 'close').toBe(outcome === 'denied')
     }
-    expect(fixture.log.leaveCounts).toEqual([1, 1, 1, 1])
+    // A denied answer closes the connection: the raw reply ends, and says so.
+    fixture.notes.sources['watch-note'] = cases[0][0]
+    const head = await rawCall(
+      fixture.port,
+      '/api/notes/v1/watch-note',
+      rawHeaders(Buffer.byteLength(body)),
+      body,
+    )
+    expect(head).toMatch(/\r\nconnection: close\r\n/i)
+    expect(fixture.log.leaveCounts).toEqual([1, 1, 1, 1, 1])
     expect(fixture.diagnostics.map(event => event.code)).toEqual(['access.frame-source-fault'])
   })
 

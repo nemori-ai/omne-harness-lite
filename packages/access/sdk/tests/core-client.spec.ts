@@ -123,6 +123,69 @@ describe('C13: the three results of a transport', () => {
 })
 
 describe('the in-process transport', () => {
+  it('gives the peer and the caller copies: the request, the opening and the answer', async () => {
+    const body = object({ noteId: 'n-1', title: 'first' })
+    const seen: { body?: JsonValue; open?: JsonValue; messageId?: string } = {}
+    const peer: Transport = {
+      call: async request => {
+        seen.body = request.body
+        return { kind: 'answered', outcome: 'succeeded', body }
+      },
+      // eslint-disable-next-line require-yield
+      async *observe(request): AsyncGenerator<JsonValue, ObserveEnd> {
+        seen.open = request.open
+        seen.messageId = request.messageId
+        return { kind: 'ended', reason: 'note-deleted' }
+      },
+    }
+    const transport = createInProcessTransport(peer)
+    const request = object({ noteId: 'n-1' })
+    const report = await transport.call({
+      protocol: { name: 'notes', major: 1 },
+      operation: 'read-note',
+      messageId: 'm-1',
+      body: request,
+    })
+    expect(report).toEqual({ kind: 'answered', outcome: 'succeeded', body })
+    expect((report as { body: JsonValue }).body).not.toBe(body)
+    expect(seen.body).toEqual(request)
+    expect(seen.body).not.toBe(request)
+    const open = object({ noteId: 'n-1' })
+    const stream = transport.observe({
+      protocol: { name: 'notes', major: 1 },
+      observation: 'watch-note',
+      messageId: 'o-1',
+      open,
+      signal: new AbortController().signal,
+    })
+    expect(await stream.next()).toEqual({
+      done: true,
+      value: { kind: 'ended', reason: 'note-deleted' },
+    })
+    expect([seen.open, seen.messageId]).toEqual([open, 'o-1'])
+    expect(seen.open).not.toBe(open)
+  })
+
+  it('refuses a value that cannot cross as JSON text within the budgets', async () => {
+    let deep: JsonValue = { kind: 'null' }
+    for (let depth = 0; depth < 100; depth += 1) deep = { kind: 'array', items: [deep] }
+    const transport = createInProcessTransport({
+      call: async () => ({ kind: 'uncertain' }),
+      // eslint-disable-next-line require-yield
+      async *observe(): AsyncGenerator<JsonValue, ObserveEnd> {
+        return { kind: 'uncertain' }
+      },
+    })
+    await expect(
+      transport.call({
+        protocol: { name: 'notes', major: 1 },
+        operation: 'read-note',
+        messageId: 'm-1',
+        body: deep,
+      }),
+    ).rejects.toThrow(new TypeError('in-process transport: a value did not cross as JSON'))
+  })
+
   it('passes frames and the end through as copies, and closes the peer stream on return', async () => {
     let closed = false
     const frame = object({ noteId: 'n-1', title: 'first' })
