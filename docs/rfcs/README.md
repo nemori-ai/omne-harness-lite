@@ -46,3 +46,4 @@
 - [RFC-0012：工具的动态性：运行时加载、卸载与替换实现](RFC-0012-tool-dynamics.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
 - [RFC-0013：可替换的工程遥测](RFC-0013-engineering-telemetry.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
 - [RFC-0014：单卡单会话与 gate 减负](RFC-0014-single-card-session-and-gate-relief.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
+- [RFC-0015：接入层动态注册与最小桌面应用](RFC-0015-access-dynamic-registration.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
