@@ -13,8 +13,14 @@ import {
   fileAt,
   type Coordinates,
 } from '@omne-harness/repo-toolchain/core/git'
-import { lockfileImpact, type LockfileImpact } from './lockfile-impact.ts'
-import { describeCheckPlan, LOCKFILE_PATH, planCheck, type CheckPlan } from './scope.ts'
+import { lockfileImpact, workspaceImpact, type LockfileImpact } from './lockfile-impact.ts'
+import {
+  describeCheckPlan,
+  LOCKFILE_PATH,
+  planCheck,
+  WORKSPACE_PATH,
+  type CheckPlan,
+} from './scope.ts'
 import {
   admissionRequested,
   affectedMembers,
@@ -106,8 +112,9 @@ export interface PlanFile {
 }
 
 /**
- * 基线提交与 HEAD（`head` 为 undefined 时取工作树）两份 `pnpm-lock.yaml` 的影响面（lockfile-impact.ts）。
- * 哪一边没有锁文件就判全量并写明：没有可比的两份，不猜。
+ * 基线提交与 HEAD（`head` 为 undefined 时取工作树）之间依赖清单的影响面（lockfile-impact.ts）：
+ * 先看两份 `pnpm-workspace.yaml`，catalog 之外有变化就判全量；再看两份 `pnpm-lock.yaml` 的差异落到哪些成员上。
+ * 哪一边没有这两份文件之一就判全量并写明：没有可比的两份，不猜。
  */
 export function lockfileImpactBetween(
   root: string,
@@ -115,21 +122,29 @@ export function lockfileImpactBetween(
   head: string | undefined,
   members: readonly { readonly path: string }[],
 ): LockfileImpact {
-  const baseText = fileAt(root, base, LOCKFILE_PATH)
-  if (baseText === undefined)
-    return { kind: 'full', reason: `基线 ${base.slice(0, 9)} 上没有 ${LOCKFILE_PATH}，判为全量` }
-  const headText = head === undefined ? worktreeLockfile(root) : fileAt(root, head, LOCKFILE_PATH)
-  if (headText === undefined)
-    return {
-      kind: 'full',
-      reason: `${head === undefined ? '工作树' : `HEAD ${head.slice(0, 9)}`} 里没有 ${LOCKFILE_PATH}，判为全量`,
-    }
-  return lockfileImpact(baseText, headText, members)
+  const sides = (path: string): [string, string] | string => {
+    const baseText = fileAt(root, base, path)
+    if (baseText === undefined) return `基线 ${base.slice(0, 9)} 上没有 ${path}，判为全量`
+    const headText = head === undefined ? worktreeFile(root, path) : fileAt(root, head, path)
+    if (headText === undefined)
+      return `${head === undefined ? '工作树' : `HEAD ${head.slice(0, 9)}`} 里没有 ${path}，判为全量`
+    return [baseText, headText]
+  }
+  const workspace = sides(WORKSPACE_PATH)
+  if (typeof workspace === 'string') return { kind: 'full', reason: workspace }
+  const workspaceChange = workspaceImpact(...workspace)
+  if (workspaceChange.kind === 'full') return workspaceChange
+  const lockfile = sides(LOCKFILE_PATH)
+  if (typeof lockfile === 'string') return { kind: 'full', reason: lockfile }
+  const impact = lockfileImpact(...lockfile, members)
+  return workspaceChange.kind === 'catalog-only' && impact.kind !== 'full'
+    ? { ...impact, reason: `${workspaceChange.reason}；${impact.reason}` }
+    : impact
 }
 
-function worktreeLockfile(root: string): string | undefined {
+function worktreeFile(root: string, path: string): string | undefined {
   try {
-    return readFileSync(join(root, LOCKFILE_PATH), 'utf8')
+    return readFileSync(join(root, path), 'utf8')
   } catch {
     return undefined
   }

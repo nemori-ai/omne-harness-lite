@@ -97,9 +97,10 @@ function slotEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const cleared: NodeJS.ProcessEnv = { ...process.env }
   // 这份测试自己可能就跑在名额里；清掉标记才测得到排队。
   delete cleared['OMNE_TEST_SLOT_HELD']
-  // 账本也指到临时目录，测试的运行不混进真实账本。
+  // 账本也指到临时目录，测试的运行不混进真实账本。排队的用例按一个名额写；名额的缺省个数另有用例核对。
   return {
     ...cleared,
+    OMNE_TEST_SLOTS: '1',
     OMNE_TEST_SLOT_DIR: join(dir, 'locks'),
     OMNE_TEST_SLOT_LEDGER: join(dir, 'ledger.jsonl'),
     ...env,
@@ -1040,6 +1041,22 @@ const timer = setInterval(() => {
       expect(result.status).toBe(0)
       expect(result.stdout.trim()).toBe(join(dir, 'locks', 'slot-2.lock'))
       expect(result.stderr).toBe('')
+    } finally {
+      await holder.release()
+    }
+  })
+
+  it('不设 OMNE_TEST_SLOTS：缺省两个名额，一个被占时直接拿到第二个', async () => {
+    const holder = await hold()
+    try {
+      const env = slotEnv({})
+      delete env['OMNE_TEST_SLOTS']
+      const result = spawnSync(...launch(['bash', '-c', 'echo "$OMNE_TEST_SLOT_HELD"']), {
+        encoding: 'utf8',
+        env,
+      })
+      expect(result.status).toBe(0)
+      expect(result.stdout.trim()).toBe(join(dir, 'locks', 'slot-2.lock'))
     } finally {
       await holder.release()
     }

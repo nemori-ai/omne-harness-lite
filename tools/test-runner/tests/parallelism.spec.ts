@@ -1,5 +1,8 @@
-// 并行度从机器推的规则：预算怎么来、怎么分。两个校验点是量过的机器：24 核（空闲 0.8）与 8 核。
+// 并行度从机器推的规则：预算怎么来、怎么分。池子是核数减去留给别的活的核，按同一台机器同时跑几次检查平分。
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { readTestRunsConfig } from '../src/testing/config.ts'
 import {
   budgetFor,
   deriveParallelism,
@@ -16,6 +19,8 @@ const POLICY: ParallelPolicy = {
   minimum: 2,
   memoryPerWorkerMiB: 512,
   sampleMs: 0,
+  reserveCores: 2,
+  concurrentRuns: 2,
 }
 
 const machine = (cores: number, idleFraction = 1, freeMemoryMiB = 64 * 1024) => ({
@@ -25,36 +30,48 @@ const machine = (cores: number, idleFraction = 1, freeMemoryMiB = 64 * 1024) => 
 })
 
 describe('工作进程预算', () => {
-  it('核数乘空闲率，向下取整', () => {
-    expect(workerBudget(machine(24, 0.82), POLICY).workers).toBe(19)
-    expect(workerBudget(machine(8, 1), POLICY).workers).toBe(8)
+  it('池子是核数减去留下的核，按同时跑的次数平分，向下取整', () => {
+    expect(workerBudget(machine(24), POLICY).workers).toBe(11)
+    expect(workerBudget(machine(8), POLICY).workers).toBe(3)
+    expect(workerBudget(machine(9), POLICY).workers).toBe(3)
+  })
+
+  it('不看空闲率：另一次检查在跑时，这一次拿到的预算不变', () => {
+    expect(workerBudget(machine(8, 0.01), POLICY).workers).toBe(3)
+    expect(workerBudget(machine(24, 0.5), POLICY).workers).toBe(11)
+  })
+
+  it('只按一次检查分、不留核时，预算就是核数', () => {
+    const whole = { ...POLICY, reserveCores: 0, concurrentRuns: 1 }
+    expect(workerBudget(machine(8), whole).workers).toBe(8)
   })
 
   it('空闲内存不够时按每进程内存封顶', () => {
     expect(workerBudget(machine(24, 1, 6 * 512), POLICY).workers).toBe(6)
   })
 
-  it('至少 1、至多核数，机器再忙也不为 0', () => {
-    expect(workerBudget(machine(8, 0.01), POLICY).workers).toBe(1)
-    expect(workerBudget(machine(4, 1, 1024 * 1024), POLICY).workers).toBe(4)
+  it('至少 1：核数不比留下的多时也不为 0', () => {
+    expect(workerBudget(machine(2), POLICY).workers).toBe(1)
+    expect(workerBudget(machine(1), POLICY).workers).toBe(1)
+    expect(workerBudget(machine(4, 1, 1024 * 1024), POLICY).workers).toBe(1)
   })
 
   it('空闲内存读不到（0）时不按内存封顶', () => {
-    expect(workerBudget(machine(8, 1, 0), POLICY).workers).toBe(8)
+    expect(workerBudget(machine(8, 1, 0), POLICY).workers).toBe(3)
   })
 })
 
 describe('预算怎么分', () => {
-  it('24 核空闲 0.8 的机器：7 个成员并行、每个至多 5 个进程（扫描过的平台期）', () => {
-    expect(deriveParallelism(workerBudget(machine(24, 0.82), POLICY), POLICY)).toEqual({
-      memberConcurrency: 7,
-      vitestMaxWorkers: 5,
+  it('24 核机器：预算 11，4 个成员并行、每个至多 3 个进程', () => {
+    expect(deriveParallelism(workerBudget(machine(24), POLICY), POLICY)).toEqual({
+      memberConcurrency: 4,
+      vitestMaxWorkers: 3,
     })
   })
 
-  it('8 核机器：3 × 2，与在 8 核上量到 2 × 4 与 4 × 2 相当一致', () => {
+  it('8 核机器：预算 3，按下限 2 × 2', () => {
     expect(deriveParallelism(workerBudget(machine(8), POLICY), POLICY)).toEqual({
-      memberConcurrency: 3,
+      memberConcurrency: 2,
       vitestMaxWorkers: 2,
     })
   })
@@ -65,7 +82,7 @@ describe('预算怎么分', () => {
       vitestMaxWorkers: 2,
     })
     expect(deriveParallelism(workerBudget(machine(64), POLICY), POLICY)).toEqual({
-      memberConcurrency: 22,
+      memberConcurrency: 11,
       vitestMaxWorkers: 8,
     })
   })
@@ -97,6 +114,17 @@ describe('调用方交下来的预算', () => {
       'OMNE_WORKER_BUDGET',
     )
     expect((await budgetFor({ ...POLICY, sampleMs: 0 }, {})).source).toBe('sampled')
+  })
+})
+
+describe('名额数与池子的分法是同一个数', () => {
+  it('运行名额的缺省个数等于配置里按几次检查同时跑来分池子', () => {
+    const script = readFileSync(
+      fileURLToPath(new URL('../../../scripts/with-test-slot.mjs', import.meta.url)),
+      'utf8',
+    )
+    const initial = /env: 'OMNE_TEST_SLOTS', initial: '(\d+)'/u.exec(script)?.[1]
+    expect(initial).toBe(String(readTestRunsConfig().parallel.concurrentRuns))
   })
 })
 

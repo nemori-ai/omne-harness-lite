@@ -1,6 +1,8 @@
-// 并行度从机器推，不写死：核数、启动时实测的空闲率与空闲内存给出「工作进程预算」，
-// 策略（test-runs.config.json 的 `parallel`）只说预算怎样分给同时运行的成员与成员内的工作进程。
-// 比例在 24 核（空闲率 0.8，预算 19）主机上扫描后定；8 核上推出的 3 × 2 是预测，没有复测。见 README_ZH.md「并行度」。
+// 并行度从机器推，不写死。一台机器的核是一个池子：核数减去留给别的活的核（`reserveCores`），
+// 按这台机器同时跑几次检查（`concurrentRuns`）平分，每一次检查拿到的就是它的「工作进程预算」，再按空闲内存封顶。
+// 预算不看空闲率：两次检查同时跑时，各自采样会把对方算成别的负载，先起的那一次占满、后起的那一次缩到很小。
+// 策略（test-runs.config.json 的 `parallel`）另说预算怎样分给同时运行的成员与成员内的工作进程，
+// 那组比例是在 24 核主机上扫描后定的。见 README_ZH.md「并行度」。
 import { availableParallelism, cpus, freemem } from 'node:os'
 import type { Parallelism } from '@omne-harness/repo-toolchain/core/test-ledger'
 
@@ -16,8 +18,12 @@ export interface ParallelPolicy {
   readonly minimum: number
   /** 按空闲内存封顶预算时，每个工作进程按多少 MiB 算。 */
   readonly memoryPerWorkerMiB: number
-  /** 实测空闲率的采样时长（毫秒）。 */
+  /** 实测空闲率的采样时长（毫秒）。空闲率只记进账本，不进预算。 */
   readonly sampleMs: number
+  /** 不分给检查的核数：留给编辑器、会话与别的进程。 */
+  readonly reserveCores: number
+  /** 同一台机器按几次检查同时跑来分池子；运行名额的缺省个数与它一致（scripts/with-test-slot.mjs）。 */
+  readonly concurrentRuns: number
 }
 
 /** 推预算用的机器观察。 */
@@ -85,13 +91,14 @@ export async function observeMachineSettled(sampleMs: number): Promise<Machine> 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high)
 
 /**
- * 预算 = 核数 × 空闲率，再按空闲内存封顶，至少 1、至多核数。空闲内存读不到（0 或负数）时不封顶。
- * 空闲率让已经忙着的机器（别的检查、后台程序）少被挤；名额脚本挡的是整套检查，挡不住别的负载。
+ * 预算 =（核数 − 留下的核）÷ 同时跑的次数，向下取整，再按空闲内存封顶，至少 1、至多核数。
+ * 空闲内存读不到（0 或负数）时不封顶。几次检查同时跑，各自的预算加起来不超过池子。
  * 预算只是「同时占多少个 CPU」的目标：成员测试的名义进程数（成员数 × 每成员进程）可以高于它，
  * vitest 按文件数惰性起进程，大成员才用满；超限的表现是起子进程的用例贴近时限，账本的 nearTimeout 列出它们。
  */
 export function workerBudget(machine: Machine, policy: ParallelPolicy): Budget {
-  const byCpu = Math.floor(machine.cores * machine.idleFraction)
+  const pool = Math.max(1, machine.cores - policy.reserveCores)
+  const byCpu = Math.floor(pool / policy.concurrentRuns)
   const byMemory =
     machine.freeMemoryMiB > 0
       ? Math.floor(machine.freeMemoryMiB / policy.memoryPerWorkerMiB)
@@ -135,7 +142,8 @@ export function describeBudget(budget: Budget): string {
   if (budget.source === 'env')
     return `预算 ${workers} 个进程：由 ${WORKER_BUDGET_ENV} 给定；本机 ${machine.cores} 核`
   return (
-    `预算 ${workers} 个进程：本机 ${machine.cores} 核、空闲 ${Math.round(machine.idleFraction * 100)}%` +
+    `预算 ${workers} 个进程：本机 ${machine.cores} 核，池子按同机几次检查平分` +
+    `（当时空闲 ${Math.round(machine.idleFraction * 100)}%，不进预算）` +
     `、空闲内存 ${Math.round(machine.freeMemoryMiB / 1024)} GiB`
   )
 }

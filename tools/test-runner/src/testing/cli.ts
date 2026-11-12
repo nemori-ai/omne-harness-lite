@@ -124,7 +124,7 @@ async function step(argv: readonly string[]): Promise<number> {
     throw new Error(`--plan 与 --base、--full 不能同时给\n${USAGE}`)
   const file = planPath === undefined ? planFromFlags(flags) : readPlanFile(ROOT, resolve(planPath))
   if (planPath === undefined) for (const line of describePlanFile(ROOT, file)) console.log(line)
-  // 预算在用到它的那一步开始时采样一次机器：并行跑着的别的检查会降低空闲率，这一步就少占一些。
+  // 预算在用到它的那一步开始时算一次：按核数与配置的份数分，不看当时的空闲率。
   const budget = () => budgetFor(readTestRunsConfig().parallel)
   const steps: Record<Step, () => number | Promise<number>> = {
     python: () => pythonStep(ROOT, file),
