@@ -6,8 +6,10 @@ import type {
   AccessIdentity,
   ActForResult,
   CallContext,
+  FrameSource,
   LoginIdentity,
   LoginResult,
+  ObservationContext,
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import {
@@ -17,7 +19,16 @@ import {
   type RegistryForPipeline,
   type ServerEntryDiagnostic,
 } from '../../src/index.ts'
-import { encoder, raw, send, startFixture, type Fixture, type FixtureOptions } from './harness.ts'
+import {
+  encoder,
+  openSse,
+  raw,
+  send,
+  startFixture,
+  type Fixture,
+  type FixtureOptions,
+  type SseClient,
+} from './harness.ts'
 import { manualClock, type ManualClock } from './manual-clock.ts'
 import { pipelineNotesProtocol, type PipelineNotesProtocol } from './test-contribution.ts'
 
@@ -27,6 +38,8 @@ export const TENANT = 'tenant-acme'
 export const MESSAGE_ID = 'msg-0001'
 /** Long enough that only the case's own clock can end it. */
 export const GRACE_MS = 60_000
+/** The frame queue bound of the fixture: a few frames of a few kilobytes fit, a flood does not. */
+export const FRAME_QUEUE_BYTES = 64 * 1024
 
 /** A deferred value the case settles by hand. */
 export type Held<T> = {
@@ -180,6 +193,8 @@ export type RegistryLog = {
   readonly registry: RegistryForPipeline
   /** One line per `enter` that returned a member, and whether its `leave` has been called. */
   readonly entries: { readonly name: string; left: boolean }[]
+  /** How many times `leave` was called for each line of `entries`, same order (#1249 C5). */
+  readonly leaveCounts: number[]
   /** The abort signals `enter` handed out, one per mount. */
   readonly signals: Set<AbortSignal>
 }
@@ -187,9 +202,11 @@ export type RegistryLog = {
 /** Wraps a registry so a case can see each `enter` and `leave` the pipeline makes. */
 export function recordingRegistry(inner: RegistryForPipeline): RegistryLog {
   const entries: { name: string; left: boolean }[] = []
+  const leaveCounts: number[] = []
   const signals = new Set<AbortSignal>()
   return {
     entries,
+    leaveCounts,
     signals,
     registry: {
       subscribe: listener => inner.subscribe(listener),
@@ -197,12 +214,14 @@ export function recordingRegistry(inner: RegistryForPipeline): RegistryLog {
         const entered = inner.enter(key, name)
         if (entered === undefined) return undefined
         const line = { name, left: false }
-        entries.push(line)
+        const index = entries.push(line) - 1
+        leaveCounts.push(0)
         signals.add(entered.signal)
         const wrapped: Entered = {
           ...entered,
           leave: () => {
             line.left = true
+            leaveCounts[index] = (leaveCounts[index] ?? 0) + 1
             entered.leave()
           },
         }
@@ -213,6 +232,70 @@ export function recordingRegistry(inner: RegistryForPipeline): RegistryLog {
 }
 
 type Operations = PipelineNotesProtocol['operations']
+type Observations = PipelineNotesProtocol['observations']
+type ObservationName = keyof Observations & string
+
+/**
+ * One opened observation of a case: a frame source the case drives. It ends when the case says,
+ * or with `unavailable` once the hub aborts it (the source listens to its signal, as a real one must).
+ */
+export type Feed = {
+  readonly name: ObservationName
+  readonly context: ObservationContext<any>
+  readonly open: unknown
+  readonly push: (frame: unknown) => void
+  readonly finish: (reason: string) => void
+  readonly fail: () => void
+  /** Settles when the generator ran its `finally`: it wound down. */
+  readonly returned: Promise<void>
+  /** How many frames the hub has taken from it. */
+  taken: number
+}
+
+type FeedItem =
+  | Readonly<{ kind: 'frame'; value: unknown }>
+  | Readonly<{ kind: 'end'; reason: string }>
+  | Readonly<{ kind: 'fail' }>
+
+function frameFeed(name: ObservationName, context: ObservationContext<any>, open: unknown) {
+  const queue: FeedItem[] = []
+  let wake: (() => void) | undefined
+  let wound: () => void = () => {}
+  const returned = new Promise<void>(resolve => {
+    wound = resolve
+  })
+  const put = (item: FeedItem): void => {
+    queue.push(item)
+    wake?.()
+    wake = undefined
+  }
+  context.signal.addEventListener('abort', () => put({ kind: 'end', reason: 'unavailable' }))
+  const feed: Feed = {
+    name,
+    context,
+    open,
+    push: value => put({ kind: 'frame', value }),
+    finish: reason => put({ kind: 'end', reason }),
+    fail: () => put({ kind: 'fail' }),
+    returned,
+    taken: 0,
+  }
+  async function* frames(): AsyncGenerator<unknown, any> {
+    try {
+      for (;;) {
+        while (queue.length === 0) await new Promise<void>(resolve => (wake = resolve))
+        const item = queue.shift()!
+        if (item.kind === 'fail') throw new Error(`frame source fault carrying ${PROOF}`)
+        if (item.kind === 'end') return item.reason
+        feed.taken += 1
+        yield item.value
+      }
+    } finally {
+      wound()
+    }
+  }
+  return { feed, frames: frames() }
+}
 type Script = (call: CallContext<any>, body: any) => Promise<any>
 
 export type HandlerCall = {
@@ -224,6 +307,12 @@ export type HandlerCall = {
 export type ScriptedNotes = {
   readonly contribution: AccessContribution<PipelineNotesProtocol>
   readonly calls: HandlerCall[]
+  /** Every frame source the hub opened, in order. */
+  readonly feeds: Feed[]
+  /** What an observation's frame source does on its next openings; absent, it opens a feed. */
+  readonly sources: Partial<Record<ObservationName, FrameSource<any>>>
+  /** Settles once frame sources have opened `count` feeds in all. */
+  readonly opened: (count?: number) => Promise<Feed>
   /** What an operation does on its next calls; absent, it answers `succeeded`. */
   readonly scripts: Partial<Record<keyof Operations & string, Script>>
   /** Settles once handlers have been called `count` times in all. */
@@ -234,6 +323,23 @@ export function scriptedNotes(): ScriptedNotes {
   const calls: HandlerCall[] = []
   const scripts: ScriptedNotes['scripts'] = {}
   const watchers: { count: number; done: () => void }[] = []
+  const feeds: Feed[] = []
+  const sources: ScriptedNotes['sources'] = {}
+  const feedWatchers: { count: number; done: (feed: Feed) => void }[] = []
+  const source =
+    (name: ObservationName): FrameSource<any> =>
+    async (context, open) => {
+      const scripted = sources[name]
+      if (scripted !== undefined) return scripted(context, open)
+      const { feed, frames } = frameFeed(name, context, open)
+      feeds.push(feed)
+      for (const watcher of feedWatchers.slice())
+        if (feeds.length >= watcher.count) {
+          feedWatchers.splice(feedWatchers.indexOf(watcher), 1)
+          watcher.done(feeds[watcher.count - 1]!)
+        }
+      return { outcome: 'succeeded', frames }
+    }
   const handler =
     (operation: keyof Operations & string, fallback: Script) =>
     (call: CallContext<any>, body: any): Promise<any> => {
@@ -248,6 +354,12 @@ export function scriptedNotes(): ScriptedNotes {
   return {
     calls,
     scripts,
+    feeds,
+    sources,
+    opened: (count = feeds.length + 1) =>
+      feeds.length >= count
+        ? Promise.resolve(feeds[count - 1]!)
+        : new Promise(done => feedWatchers.push({ count, done })),
     called: (count = 1) =>
       calls.length >= count
         ? Promise.resolve()
@@ -264,7 +376,9 @@ export function scriptedNotes(): ScriptedNotes {
         'tag-note': handler('tag-note', async () => ({ outcome: 'succeeded', body: {} })),
       },
       observations: {
-        'watch-note': async () => ({ outcome: 'basis-unavailable' }),
+        'watch-note': source('watch-note'),
+        'watch-all': source('watch-all'),
+        'watch-tenant': source('watch-tenant'),
       },
     },
   }
@@ -297,6 +411,7 @@ export async function startAccessFixture(options: FixtureOptions = {}): Promise<
       registry: log.registry,
       identity: identity.port,
       graceMs: GRACE_MS,
+      frameQueueBytes: FRAME_QUEUE_BYTES,
       clock: accessClock,
       diagnostics: event => diagnostics.push(event),
     },
@@ -330,6 +445,18 @@ export function call(port: number, name: string, options: ApiOptions = {}) {
     ...(options.method === undefined ? {} : { method: options.method }),
     headers,
     body: options.body ?? '{}',
+  })
+}
+
+/** Opens an observation at `/api/notes/v1/<name>` with legal headers unless the case changes them. */
+export function observe(port: number, name: string, options: ApiOptions = {}): SseClient {
+  const headers: Record<string, string> = {}
+  for (const [key, value] of Object.entries({ ...callHeaders(), ...options.headers }))
+    if (value !== undefined && key !== 'content-type') headers[key] = value
+  const body = options.body ?? '{"noteId":"n-1"}'
+  return openSse(port, typeof body === 'string' ? body : new TextDecoder().decode(body), {
+    path: `/api/notes/v1/${name}`,
+    headers,
   })
 }
 

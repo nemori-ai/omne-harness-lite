@@ -1,11 +1,14 @@
 // One SSE response with one serial writer. Events and heartbeats go through the same queue, so a
 // heartbeat never lands inside an event and the first event is always the one `open` was given
-// (binding page「SSE 观察」「心跳」).
+// (binding page「SSE 观察」「心跳」). The new address opens without a first event, adds its own
+// headers, and bounds the events not yet written (#1249 spec 已定 6).
 import type { ServerResponse } from 'node:http'
 
 const HEARTBEAT = ': heartbeat\n\n'
 const END = Symbol('end')
-type Chunk = string | typeof END
+/** A queued text, and how many of its bytes count against the frame queue (a heartbeat: none). */
+type Chunk = Readonly<{ text: string; frameBytes: number }> | typeof END
+const encoder = new TextEncoder()
 
 export class SseStream {
   readonly #res: ServerResponse
@@ -17,6 +20,7 @@ export class SseStream {
   #ending = false
   #closed = false
   #heartbeat: NodeJS.Timeout | undefined
+  #queuedFrameBytes = 0
   readonly finished: Promise<void>
   #resolveFinished: () => void = () => {}
 
@@ -37,22 +41,36 @@ export class SseStream {
     return this.#closed
   }
 
-  /** Writes the head and the first event. Nothing else can be queued before it. */
-  open(status: number, firstEvent: string): void {
+  /** The bytes of the events handed to the writer and not yet written out. Heartbeats do not count. */
+  get queuedFrameBytes(): number {
+    return this.#queuedFrameBytes
+  }
+
+  /**
+   * Writes the head and, when given, the first event. Nothing else can be queued before it.
+   * Without a first event the head goes out at once and the heartbeat starts.
+   */
+  open(status: number, firstEvent?: string, headers: Readonly<Record<string, string>> = {}): void {
     if (this.#opened) throw new TypeError('server-entry: SSE stream opened twice')
     this.#opened = true
     if (this.#closed) return
     this.#res.writeHead(status, {
       'content-type': 'text/event-stream; charset=utf-8',
       'cache-control': 'no-store',
+      ...headers,
     })
-    this.#enqueue(`data: ${firstEvent}\n\n`)
+    if (firstEvent !== undefined) {
+      this.#event(firstEvent)
+      return
+    }
+    this.#res.flushHeaders()
+    this.#armHeartbeat()
   }
 
   /** Queues one event after everything already queued. */
   event(text: string): void {
     if (!this.#opened) throw new TypeError('server-entry: SSE event before the first event')
-    this.#enqueue(`data: ${text}\n\n`)
+    this.#event(text)
   }
 
   /** Ends the response after everything already queued. */
@@ -67,8 +85,14 @@ export class SseStream {
     else this.#closeListeners.push(listener)
   }
 
+  #event(text: string): void {
+    const chunk = `data: ${text}\n\n`
+    this.#enqueue({ text: chunk, frameBytes: encoder.encode(chunk).byteLength })
+  }
+
   #enqueue(chunk: Chunk): void {
     if (this.#closed) return
+    if (chunk !== END) this.#queuedFrameBytes += chunk.frameBytes
     this.#queue.push(chunk)
     this.#pump()
   }
@@ -83,9 +107,10 @@ export class SseStream {
       this.#res.end(() => this.#onClosed())
       return
     }
-    this.#res.write(next, () => {
+    this.#res.write(next.text, () => {
       this.#writing = false
       if (this.#closed) return
+      this.#queuedFrameBytes -= next.frameBytes
       this.#armHeartbeat()
       this.#pump()
     })
@@ -96,7 +121,7 @@ export class SseStream {
     if (this.#queue.length > 0 || this.#ending) return
     this.#heartbeat = setTimeout(() => {
       this.#heartbeat = undefined
-      this.#enqueue(HEARTBEAT)
+      this.#enqueue({ text: HEARTBEAT, frameBytes: 0 })
     }, this.#heartbeatMs)
   }
 
@@ -111,6 +136,7 @@ export class SseStream {
     this.#closed = true
     this.#clearHeartbeat()
     this.#queue.length = 0
+    this.#queuedFrameBytes = 0
     this.#resolveFinished()
     const listeners = this.#closeListeners.splice(0)
     for (const listener of listeners) listener()

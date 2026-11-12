@@ -214,6 +214,8 @@ export function createServerEntry(input: {
           readLimits: maxBytes => readLimits(config, maxBytes),
           writeLimits: OUTPUT_LIMITS,
           slots,
+          observations: config.observation,
+          heartbeatMs: config.heartbeatIntervalMs,
         })
 
   const settle = (): void => {
@@ -383,7 +385,7 @@ export function createServerEntry(input: {
       const closed = new Promise<void>(resolve => {
         current.close(() => resolve())
       })
-      await registry.endAll('unavailable')
+      await Promise.all([registry.endAll('unavailable'), pipeline?.endObservations()])
       if (inFlight > 0) await new Promise<void>(resolve => drained.push(resolve))
       current.closeAllConnections()
       await closed

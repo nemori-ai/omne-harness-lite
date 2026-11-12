@@ -1,0 +1,232 @@
+// The observation hub (RFC-0015 §5「观察中枢」, #1249 spec 已定 2 to 7): what is the same for every
+// observation at the new address. It takes the slot, lets the frame source decide whether to open,
+// writes the frames as SSE events, bounds the bytes not yet written, checks the login each round,
+// and ends the observation on every way it can end. `leave` is called in one place, once, after
+// the `ended` frame is written out or the grace ran out: a take-down completes only then.
+import type { ServerResponse } from 'node:http'
+import type { FrameSource } from '@omne-harness/access-cordis-contract'
+import { writeJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
+import type { ObservationContract } from '@omne-harness/public-contract'
+import { EMPTY_BODY, writeAnswer } from '../pipeline/answer.ts'
+import { watchCall } from '../pipeline/watch.ts'
+import type { Entered } from '../registry/registry.ts'
+import type { Clock } from '../settle/settle.ts'
+import {
+  createObservationRecords,
+  type Ended,
+  type EndReason,
+  type LoginCheck,
+  type ObservationClaim,
+} from './records.ts'
+import { SseStream } from './sse.ts'
+
+/** The error points of the hub, reported through the pipeline's `access.diagnostics`. */
+export type HubDiagnosticCode =
+  | 'access.observation-full'
+  | 'access.frame-source-fault'
+  | 'access.frame-rejected'
+  | 'access.frame-queue-full'
+
+/** The values the hub needs, given by `http.ts` at construction. */
+export type HubSettings = Readonly<{
+  limits: Readonly<{ perLogin: number; perInstance: number }>
+  heartbeatMs: number
+  /** The length of one round: the wait between two login checks of one observation. */
+  loginCheckIntervalMs: number
+  /** The upper bound of the bytes of one observation's events not yet written out. */
+  frameQueueBytes: number
+  /** How long an `ended` frame may take to be written out before the connection is cut. */
+  graceMs: number
+  clock: Clock
+  writeLimits: JsonLimits
+}>
+
+/** One observation the pipeline hands over after step 9. */
+export type HubOpen = Readonly<{
+  entered: Entered
+  contract: ObservationContract
+  source: FrameSource<ObservationContract>
+  principal: unknown
+  messageId: string
+  open: unknown
+  /** Same key, same observation: a new one replaces the old one. */
+  key: string
+  /** The login the per-login bound counts and the round checks. Absent for `identity: 'none'`. */
+  loginKey?: string
+  checkLogin?: () => Promise<LoginCheck>
+  /** Reports one successful business access; called once, after the first frame is queued. */
+  reportAccess?: () => void
+  note: (code: HubDiagnosticCode) => void
+  res: ServerResponse
+}>
+
+export type ObservationHub = Readonly<{
+  /** Serves one observation; settles after it ended and `leave` was called. */
+  open: (input: HubOpen) => Promise<void>
+  /** Ends every observation with `unavailable` (the entry stops). */
+  endAll: () => Promise<void>
+}>
+
+type Reason = EndReason<string>
+
+function text(fields: readonly (readonly [string, JsonValue])[]): string {
+  return writeJsonText({ kind: 'object', entries: fields.map(([key, value]) => ({ key, value })) })
+}
+
+const endedText = (reason: string): string =>
+  text([
+    ['kind', { kind: 'string', value: 'ended' }],
+    ['reason', { kind: 'string', value: reason }],
+  ])
+
+const frameText = (frame: JsonValue): string =>
+  text([
+    ['kind', { kind: 'string', value: 'frame' }],
+    ['frame', frame],
+  ])
+
+/** A frame source may end with its own reasons or the two of the hub it meets itself. */
+function endsWithin(contract: ObservationContract, reason: unknown): reason is string {
+  return (
+    typeof reason === 'string' &&
+    (reason === 'denied' || reason === 'unavailable' || contract.ends.includes(reason))
+  )
+}
+
+type Step =
+  | Readonly<{ kind: 'frame'; value: unknown }>
+  | Readonly<{ kind: 'done'; value: unknown }>
+  | Readonly<{ kind: 'threw' }>
+  | Readonly<{ kind: 'ended' }>
+
+export function createObservationHub(settings: HubSettings): ObservationHub {
+  const records = createObservationRecords<string>({
+    limits: { ...settings.limits, cancelRetentionMs: 0 },
+    loginCheckIntervalMs: settings.loginCheckIntervalMs,
+  })
+
+  /** Waits for the `ended` frame to be written out, or cuts the connection after the grace. */
+  const drained = (stream: SseStream, res: ServerResponse): Promise<void> =>
+    new Promise(resolve => {
+      const cancel = settings.clock.schedule(settings.graceMs, () => {
+        res.destroy()
+        resolve()
+      })
+      void stream.finished.then(() => {
+        cancel()
+        resolve()
+      })
+    })
+
+  async function open(input: HubOpen): Promise<void> {
+    const { entered, contract, res, messageId, note } = input
+    let left = false
+    const leave = (): void => {
+      if (left) return
+      left = true
+      entered.leave()
+    }
+    let markEnded: () => void = () => {}
+    const ended = new Promise<Step>(resolve => {
+      markEnded = () => resolve({ kind: 'ended' })
+    })
+    const claim: ObservationClaim<string> | undefined = records.claim({
+      key: input.key,
+      ...(input.loginKey === undefined ? {} : { loginKey: input.loginKey }),
+      ...(input.checkLogin === undefined ? {} : { checkLogin: input.checkLogin }),
+      endFrame: endedText,
+      onEnded: (_ended: Ended<string>) => markEnded(),
+    })
+    if (claim === undefined) {
+      note('access.observation-full')
+      writeAnswer(res, { outcome: 'basis-unavailable', body: EMPTY_BODY, messageId, close: false })
+      leave()
+      return
+    }
+
+    // The frame source sees one signal: the take-down, the caller going away, or the end.
+    const source = new AbortController()
+    const watch = watchCall(entered.signal, res)
+    watch.halt.addEventListener('abort', () => source.abort())
+    const decided = await watch.attend(() =>
+      input.source({ principal: input.principal as never, messageId, signal: source.signal }, input.open),
+    )
+    watch.release()
+    if (decided.kind !== 'done' || decided.value.outcome !== 'succeeded') {
+      claim.discard()
+      source.abort()
+      if (decided.kind === 'interrupted' && decided.by === 'gone') return leave()
+      if (decided.kind === 'threw') note('access.frame-source-fault')
+      const outcome =
+        decided.kind === 'done' && decided.value.outcome !== 'succeeded'
+          ? decided.value.outcome
+          : 'basis-unavailable'
+      writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: outcome === 'denied' })
+      return leave()
+    }
+
+    const frames = decided.value.frames
+    const stream = new SseStream(res, settings.heartbeatMs)
+    stream.open(200, undefined, { 'omne-message-id': messageId })
+    claim.attach(stream)
+    const onAbort = (): void => claim.end('unavailable')
+    entered.signal.addEventListener('abort', onAbort)
+    if (entered.signal.aborted) onAbort()
+
+    let reported = false
+    for (;;) {
+      const step = await Promise.race<Step>([
+        frames.next().then(
+          (result): Step => (result.done === true ? { kind: 'done', value: result.value } : { kind: 'frame', value: result.value }),
+          (): Step => ({ kind: 'threw' }),
+        ),
+        ended,
+      ])
+      if (step.kind === 'ended') break
+      if (step.kind === 'threw') {
+        note('access.frame-source-fault')
+        claim.end('unavailable')
+        break
+      }
+      if (step.kind === 'done') {
+        if (endsWithin(contract, step.value)) claim.end(step.value as Reason)
+        else {
+          note('access.frame-source-fault')
+          claim.end('unavailable')
+        }
+        break
+      }
+      const written = contract.frame.write(step.value, settings.writeLimits)
+      if (!written.ok) {
+        note('access.frame-rejected')
+        claim.end('unavailable')
+        break
+      }
+      stream.event(frameText(written.value))
+      if (!reported) {
+        reported = true
+        input.reportAccess?.()
+      }
+      if (stream.queuedFrameBytes > settings.frameQueueBytes) {
+        // The observer is not reading: no frame can reach it, so the connection goes too.
+        note('access.frame-queue-full')
+        claim.end('capacity')
+        res.destroy()
+        break
+      }
+    }
+
+    entered.signal.removeEventListener('abort', onAbort)
+    source.abort()
+    // The frame source winds down in its own time; nothing waits for it.
+    // The value is never read: the source's own end reason no longer matters.
+    void frames.return(undefined as never).catch(() => {})
+    await drained(stream, res)
+    leave()
+  }
+
+  return {
+    open,
+    endAll: () => records.endAll('unavailable'),
+  }
+}

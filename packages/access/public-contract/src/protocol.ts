@@ -31,6 +31,8 @@ export type OperationContract<Body = any, Results extends OutcomeBodies = Outcom
 /** One observation of a protocol contract. */
 export type ObservationContract<Open = any, Frame = any, End extends string = string> = {
   readonly identity: Identity
+  /** The name of the opening body's size limit, as for an operation. Absent: `small`. */
+  readonly limit?: 'small' | 'input'
   readonly open: Codec<Open>
   readonly frame: Codec<Frame>
   /** This observation's own end reasons. The hub's end reasons are the same for every observation and are not listed. */

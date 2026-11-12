@@ -16,7 +16,7 @@ const identity = testIdentity()
 let notes = scriptedNotes()
 let takeDown = registry.mount(notes.contribution)
 const fixture = await startFixture({
-  access: { registry, identity: identity.port, graceMs: 5000 },
+  access: { registry, identity: identity.port, graceMs: 5000, frameQueueBytes: 1 << 20 },
 })
 
 type Request = Readonly<{
