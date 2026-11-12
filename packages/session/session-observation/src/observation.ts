@@ -217,7 +217,9 @@ export function createSessionObservation<P>(
           budget.reset()
           return { frames: state() }
         }
-        if (target === null && (cause === 'open' || !callChanged)) return quiet(cause)
+        // A target always has the main call of the view before this locate, so with no new main
+        // call there is no target here: nothing new.
+        if (!callChanged) return quiet(cause)
         dropTarget()
         budget.tick()
         return { frames: [...state(), { kind: 'refreshing' }] }

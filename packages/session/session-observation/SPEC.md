@@ -92,7 +92,7 @@
 | 别的不合法 | 结束，原因 `unavailable` | 同左 | `result, another invalid answer` |
 | 读日志被拒 | 结束，原因 `denied` | 同左 | `result, log read denied` |
 | 模型拒绝 | 结束，原因 `denied` | 同左 | `result, Model denied` |
-| 模型答引用无效 | 原因是 `not-accepted`（调用已登记、尚未受理）：当作没给流；其他原因：结束，原因 `unavailable` | 同左 | `result, Model answers the reference invalid`；`result, Model has the call registered but not accepted` |
+| 模型答引用无效 | 原因是 `not-accepted`（调用已登记、尚未受理）：当作没给流；其他原因：结束，原因 `unavailable` | 同左 | `result, Model answers the reference invalid`；`result, Model has the call registered but not accepted`；`result, Model unavailable` |
 
 模型的其余答复：`unavailable` 当作没给流；`current` 为 null 当作没给流；给出的是已经结束的那条流的引用，也当作没给流（观察记下它）。对应关系出自公共契约「来源与对外表示」那张表。
 
@@ -111,7 +111,7 @@
 | 刷新的间隔到期 | 归定位那条轴 | 不可达，不写：观察中不计时 | 重新订阅同一个目标，不重新定位 | `stream, observing, the subscription broke (capacity)` |
 | 次数或累计时长用完 | 结束，原因 `refresh-exhausted` | 不可达，不写 | 结束，原因 `refresh-exhausted` | `stream, waiting to observe again, attempts used up` |
 
-另有收场、预算与领域面的用例，不对应提案的格子：`an abort ...`、`an observer that stops reading ...`（[中止](#中止)），以及 `tests/stream.spec.ts` 里的 `an abort while the observer holds a frame ...` 两条和 `drops the subscription, the notice and the waits ...`（流这一半的中止）；`interval-driven locates back off ...`、`maxAttempts ...`、`the accumulated waiting ...`、`an interval below the floor ...`、`without notices ...`（[刷新的预算](#刷新的预算)）；`open: ...`、`open subscribes to the commit notices ...`（[领域面](#领域面)）；`a run that started ...`、`a terminal of another run ...`、`reading backward, a run ...`、`reading forward, a run ...`（「一轮在进行」）；`locate, reading backward ...` 两条、`locate, reading forward ...`（[定位的读法](#定位的读法)）；`notice-idle, kinds mixed ...`（通知的种类）；`result, new main call, stream given, no target, after refreshes ...`（取得新目标时预算归零）。
+另有收场、预算与领域面的用例，不对应提案的格子：`an abort ...`、`an observer that stops reading ...`（[中止](#中止)），以及 `tests/stream.spec.ts` 里的 `an abort while the observer holds a frame ...` 两条和 `drops the subscription, the notice and the waits ...`（流这一半的中止）；`interval-driven locates back off ...`、`maxAttempts ...`、`the accumulated waiting ...`、`an interval below the floor ...`、`without notices ...`（[刷新的预算](#刷新的预算)）；`open: ...`、`open subscribes to the commit notices ...`（[领域面](#领域面)）；`a run that started ...`、`a terminal of another run ...`、`reading backward, a run ...`、`reading forward, a run ...`（「一轮在进行」）；`locate, reading backward ...` 四条、`locate, reading forward ...`（[定位的读法](#定位的读法)）；`notice-idle, kinds mixed ...`、`notice-idle, two notices before the loop looks ...`（通知的种类与合并）；`an interval at the floor ...`（[刷新的预算](#刷新的预算)）；`result, new main call, stream given, no target, after refreshes ...`（取得新目标时预算归零）。
 
 ### 定位的读法
 

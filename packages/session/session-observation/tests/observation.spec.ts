@@ -269,6 +269,58 @@ describe('the locate axis (C9a)', () => {
     expect(log.calls.map(call => call.face)).toEqual(['begin', 'next'])
   })
 
+  it('locate, reading backward needs both the run and the main call, whichever comes first', async () => {
+    const runFirst = new FakeLog(
+      mainCall('m-1'),
+      otherCall('tool', 't-1', 'action'),
+      started('run_1'),
+      otherCall('tool', 't-2', 'action'),
+    )
+    const w1 = world(runFirst)
+    expect(await frame(await open(w1))).toMatchObject({ run: 'run_1' })
+    expect(w1.model.asked).toEqual(['m-1'])
+    const callFirst = new FakeLog(
+      started('run_1'),
+      otherCall('tool', 't-1', 'action'),
+      mainCall('m-1'),
+      otherCall('tool', 't-2', 'action'),
+    )
+    const w2 = world(callFirst)
+    expect(await frame(await open(w2))).toMatchObject({ run: 'run_1' })
+    expect(w2.model.asked).toEqual(['m-1'])
+  })
+
+  it('locate, reading backward, the next page not available: open answers unavailable', async () => {
+    const log = new FakeLog(
+      started('run_1'),
+      mainCall('m-1'),
+      otherCall('tool', 't-1', 'action'),
+      otherCall('tool', 't-2', 'action'),
+    )
+    log.failures.next = [{ kind: 'unavailable', owner: 'session', diagnostic: 'busy' }]
+    const w = world(log)
+    expect(
+      await createSessionObservation(w.ports).open({
+        access: ACCESS,
+        signal: new AbortController().signal,
+      }),
+    ).toEqual({ kind: 'unavailable' })
+  })
+
+  it('notice-idle, two notices before the loop looks: one locate', async () => {
+    const log = new FakeLog(started('run_1'))
+    const w = world(log)
+    const frames = await open(w)
+    await frame(frames)
+    log.append(message('a'), message('b'))
+    w.notices.commit('message.user')
+    w.notices.commit('message.user')
+    expect(await frame(frames)).toMatchObject({ kind: 'state', revision: '3' })
+    void frames.next()
+    await settle()
+    expect(log.reads('since')).toBe(1)
+  })
+
   it('locate, reading backward stops at the page limit', async () => {
     const log = new FakeLog(
       started('run_1'),
@@ -379,7 +431,7 @@ describe('abort (C11a)', () => {
 
   it('an abort while open reads the log: it opens, and the frames end at once without a reason', async () => {
     const controller = new AbortController()
-    const log = new FakeLog(started('run_1'))
+    const log = new FakeLog(started('run_1'), mainCall('m-1'))
     const w = world(log)
     const gate = log.hold()
     const opening = createSessionObservation(w.ports).open({
@@ -392,6 +444,7 @@ describe('abort (C11a)', () => {
     const opened = await opening
     if (opened.kind !== 'opened') throw new Error(`open answered ${opened.kind}`)
     expect(await opened.frames.next()).toEqual({ done: true, value: undefined })
+    expect(w.model.asked).toEqual([])
     expect([w.notices.active, w.clock.pending, w.log.reads()]).toEqual([0, 0, 1])
   })
 

@@ -167,6 +167,18 @@ describe('the result table with the Model (C9b)', () => {
     w.notices.commit('call.bound')
     const steps = await drain(frames, 3)
     expect(kinds(steps)).toEqual(['state', 'refreshing'])
+    // One attempt: the next wait is one step of the backoff up.
+    expect(w.clock.waits.filter(ms => ms !== 5000)).toEqual([1500])
+    stop()
+  })
+
+  it('result, Model unavailable: no stream yet, the observation goes on', async () => {
+    const w = world(new FakeLog(started('run_1'), mainCall('m-1')))
+    w.model.answer('m-1', {
+      failure: { kind: 'unavailable', dependency: 'model', diagnostic: 'busy' },
+    } as never)
+    const frames = await open(w)
+    expect(await take(frames)).toMatchObject({ value: { kind: 'state', target: null } })
     stop()
   })
 
@@ -266,7 +278,7 @@ describe('the result table with the Model (C9b)', () => {
     await settle()
     expect(w.clock.waits).toEqual([5000])
     w.clock.elapse()
-    expect(await first).toMatchObject({ value: { kind: 'state', target: null } })
+    expect(await first).toMatchObject({ value: { kind: 'state', target: null, phase: null } })
     expect(w.diagnostics).toContainEqual({ code: 'observation.current-timeout', detail: 'm-1' })
     stop()
   })
@@ -288,7 +300,9 @@ describe('the result table with the Model (C9b)', () => {
     const w = world(new FakeLog(started('run_1'), mainCall('m-1')))
     w.model.answer('m-1', { failure: { kind: 'invalid', reason: 'not-accepted' } })
     const frames = await open(w)
-    expect(await take(frames)).toMatchObject({ value: { kind: 'state', target: null } })
+    expect(await take(frames)).toMatchObject({
+      value: { kind: 'state', target: null, phase: null },
+    })
     stop()
   })
 })
@@ -304,6 +318,9 @@ describe('the stream axis (C9b)', () => {
       expect.objectContaining({ kind: 'state', phase: 'settled' }),
       expect.objectContaining({ kind: 'delta' }),
     ])
+    // A delta carries its phase only when it changed against the phase before it.
+    expect(text(steps[0])).not.toContain('"phase"')
+    expect(text(steps[2])).toContain('"phase":"settled"')
     stop()
   })
 
@@ -354,7 +371,12 @@ describe('the stream axis (C9b)', () => {
     const w = world(new FakeLog())
     const frames = await observing(w)
     w.model.stream('s1').push({ kind: 'gap', after: null, reason: 'buffer' })
-    expect(kinds(await drain(frames, 3))).toEqual(['gap', 'refreshing'])
+    const steps = await drain(frames, 3)
+    expect(steps.map(step => step.value)).toEqual([
+      { kind: 'gap', reason: 'buffer' },
+      { kind: 'refreshing' },
+    ])
+    expect(w.model.streams[0]?.signal.aborted).toBe(true)
     w.clock.elapse()
     await settle()
     expect(w.model.streams.map(s => s.ref)).toEqual(['s1', 's1'])
