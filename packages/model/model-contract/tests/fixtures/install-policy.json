@@ -52,15 +52,7 @@
     },
     {
       "category": "storage-engine",
-      "names": [
-        "kysely",
-        "pg",
-        "better-sqlite3",
-        "sqlite3",
-        "redis",
-        "ioredis",
-        "proper-lockfile"
-      ]
+      "names": ["kysely", "pg", "better-sqlite3", "sqlite3", "redis", "ioredis", "proper-lockfile"]
     }
   ]
 }

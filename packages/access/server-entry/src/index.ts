@@ -30,3 +30,14 @@ export type {
   SettingsListOutcome,
   SettingsSetOutcome,
 } from './settings.ts'
+export { createAccessRegistry } from './registry/registry.ts'
+export type {
+  AccessRegistry,
+  AccessRegistryOptions,
+  AvailabilityChange,
+  AvailabilitySubscription,
+  Entered,
+  RegistryForPipeline,
+} from './registry/registry.ts'
+export { settleCall, systemClock } from './settle/settle.ts'
+export type { Clock, SettleConfig, SettledAnswer, SettleInput } from './settle/settle.ts'

@@ -44,6 +44,7 @@
       "title": "治理",
       "contracts": [
         "packages/access/public-contract",
+        "packages/access/access-cordis-contract",
         "packages/common/legal-identity",
         "packages/governance/governance-contract",
         "packages/identity/identity",

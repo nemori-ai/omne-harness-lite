@@ -27,7 +27,7 @@ function check(condition: boolean, message: string): asserts condition {
 }
 
 export function createTraversal(
-  input: Readonly<{ body: string; script: string; pageBytes: number }>,
+  input: Readonly<{ body: string; script: string | (() => string); pageBytes: number }>,
 ) {
   const original = Buffer.from(input.body)
   const digest = createHash('sha256').update(original).digest('hex')
@@ -141,7 +141,13 @@ export function createTraversal(
       args = undefined
     }
     const call = shell
-      ? { name: 'Shell', arguments: { command: 'execute', params: { script: input.script } } }
+      ? {
+          name: 'Shell',
+          arguments: {
+            command: 'execute',
+            params: { script: typeof input.script === 'string' ? input.script : input.script() },
+          },
+        }
       : args === undefined
         ? undefined
         : { name: 'Tools', arguments: args }
