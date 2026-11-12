@@ -519,7 +519,8 @@ function itemsOf(input: unknown, direction: Direction): readonly unknown[] | und
   return node?.kind === 'array' ? node.items : undefined
 }
 
-function convert(
+/** Converts one value by `rule` in either direction; `undefined` when the rule does not accept it. */
+export function convert(
   rule: Rule,
   input: unknown,
   direction: Direction,
