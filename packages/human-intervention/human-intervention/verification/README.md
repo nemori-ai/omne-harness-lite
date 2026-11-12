@@ -227,7 +227,7 @@ GovernanceContributionLifetime 检查一次原调用、迟到的受理、调用�
 
 前提：除重启与提供者失败外，每一步都弱公平；重启有上限。结果至多收下一次由 Agent Journal 的认回守，本模型把它写成一步，不检查。
 
-今天的实现与模型的对照：前五个负控对应的缺口已修（检查点读回、扫描的租户来源、驱动只在作答后记下问过、环境 `lost` 与恢复段重新计划），`volatile-scope` 由 Session 作用域归属的耐久反查补。`abandon-possibly-live` 与 `no-run-recovery` 仍是今天的行为：前者要执行宿主对本进程从没运行过的启动答确定的 `lost`，并按效果未知收场，归切片 13 的故障矩阵；后者归 Agent 的 #502 第 5 阶段。模型不证明 SQL、进程或真实调度，也不证明实现符合。实现符合性由发行树的重启场景（harness-server `tests/rows/tool-hitl/release-restart.spec.ts`）验证。
+今天的实现与模型的对照：前五个负控对应的缺口已修（检查点读回、扫描的租户来源、驱动只在作答后记下问过、环境 `lost` 与恢复段重新计划），`volatile-scope` 由 Session 作用域归属的耐久反查补。`abandon-possibly-live` 与 `no-run-recovery` 仍是今天的行为：前者要执行宿主对本进程从没运行过的启动答确定的 `lost`，并按效果未知收场，还没有做；后者归 Agent 的 #502 第 5 阶段。模型不证明 SQL、进程或真实调度，也不证明实现符合。实现符合性由发行树的重启场景（harness-server `tests/rows/tool-hitl/release-restart.spec.ts`）验证。
 
 运行 `python3 packages/human-intervention/human-intervention/verification/check.py --models RestartContinuation`。
 

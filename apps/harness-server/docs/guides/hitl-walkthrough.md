@@ -2,11 +2,11 @@
 
 本页给出步骤：一个人在自己的宿主上，用发行的 `serve` 和 `omne` 命令行，把 Ask 的出卡、答复、叫停和重启各走一遍。每一步写明应当看到什么。
 
-规则不在本页。卡片与答复的规则归 [HITL 公共协议](../../../packages/human-intervention/human-intervention/docs/protocol.md)，命令行的三个 HITL 命令归 [CLI 规格](../../cli/SPEC.md#hitl-命令)，应用怎样把 Tool 的等待接到 HITL 归 [Tool 运行时行](rows/tool-runtime.md)。
+规则不在本页。卡片与答复的规则归 [HITL 公共协议](../../../../packages/human-intervention/human-intervention/docs/protocol.md)，命令行的三个 HITL 命令归 [CLI 规格](../../../cli/SPEC.md#hitl-命令)，应用怎样把 Tool 的等待接到 HITL 归 [Tool 运行时行](../rows/tool-runtime.md)。
 
 ## 准备
 
-1. 按 [README「在本机运行服务」](../README_ZH.md#在本机运行服务)构建、运行一次 `setup`，再运行 `serve`。`setup` 需要真实的模型凭据。
+1. 按 [README「在本机运行服务」](../../README_ZH.md#在本机运行服务)构建、运行一次 `setup`，再运行 `serve`。`setup` 需要真实的模型凭据。
 2. 另开一个终端，在仓库根目录注册并登录一个账号。凭据从标准输入读取，不回显。
 
    ```sh
@@ -17,7 +17,7 @@
 
 发行的会话定义 `coding` 与 `assistant` 缺省是协作模式（`co-work`），Agent 可以调用 Ask。权限模式缺省是 `bypass-permissions`，Agent 的其他工具不会先问权限。
 
-每个命令在标准输出写一个 JSON 对象（`read-history` 与 `read-session-diagnostics` 缺省写人读的文本）。下面只写要看的键。本页第一、二、三、五节的命令由用例 [release-walkthrough.spec.ts](../tests/rows/tool-hitl/release-walkthrough.spec.ts) 在发行树上照次序走一遍；第六节由 [release-restart.spec.ts](../tests/rows/tool-hitl/release-restart.spec.ts) 守。
+每个命令在标准输出写一个 JSON 对象（`read-history` 与 `read-session-diagnostics` 缺省写人读的文本）。下面只写要看的键。本页第一、二、三、五节的命令由用例 [release-walkthrough.spec.ts](../../tests/rows/tool-hitl/release-walkthrough.spec.ts) 在发行树上照次序走一遍；第六节由 [release-restart.spec.ts](../../tests/rows/tool-hitl/release-restart.spec.ts) 守。
 
 ## 一、出卡
 
@@ -85,7 +85,7 @@ omne submit-reply --request <requestId> --card <cardId> --revision <revision> --
 1. 在卡片还没答的时候，另建一个会话并发一条普通消息。应当看到它照常得到回答。
 2. 在等人的那个会话里再发一条普通消息。应当看到这条消息被受理，卡片仍是待处理；它不会被当成卡片的答案。
 
-第 2 步有一条已知限制，走之前先读：这条消息之后，这个会话当前的 Run 不会结束。答复卡片后 Ask 照常恢复，Agent 也会再回答一次，但 `read-session-diagnostics` 一直显示 `not ended`，这时在 `serve` 的终端按 Ctrl+C，退出码是 5。原因是 Session 还没有实现把 Run 进行中受理的输入交给这个 Run，见 [Tool 运行时行的已知限制](rows/tool-runtime.md#具名缺件与已知限制)。所以第 2 步请用一个单独的会话走，不要接着用它走第五、第六节。
+第 2 步有一条已知限制，走之前先读：这条消息之后，这个会话当前的 Run 不会结束。答复卡片后 Ask 照常恢复，Agent 也会再回答一次，但 `read-session-diagnostics` 一直显示 `not ended`，这时在 `serve` 的终端按 Ctrl+C，退出码是 5。原因是把 Run 进行中受理的输入交给这个 Run 的那条链还没有建成（[#1197](https://github.com/nemori-ai/omne-harness-lite/issues/1197)），见 [Tool 运行时行的已知限制](../rows/tool-runtime.md#具名缺件与已知限制)。所以第 2 步请用一个单独的会话走，不要接着用它走第五、第六节。
 
 ## 五、叫停
 
@@ -121,5 +121,5 @@ omne submit-reply --request <requestId> --card <cardId> --revision <revision> --
 - 只结束一次工具调用：`stop-call --producer-kind tool` 答 `unsupported`。
 - 插队（加急输入）：还没有实现。
 - 通知收件箱：还没有实现；卡片只能靠列卡看到。
-- 等人时发进同一会话的消息被这个 Run 处理：还没有实现；消息被受理，但这个 Run 不会结束（见第四节）。
+- 等人时发进同一会话的消息被这个 Run 处理：还没有实现（[#1197](https://github.com/nemori-ai/omne-harness-lite/issues/1197)）；消息被受理，但这个 Run 不会结束（见第四节）。
 - 进程被强行杀死之后的接手：不在本页，停服要用 Ctrl+C。

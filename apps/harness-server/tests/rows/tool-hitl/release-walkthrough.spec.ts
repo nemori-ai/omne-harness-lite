@@ -1,7 +1,7 @@
 // @module-tag slow
 // 慢：本进程装发行树（真实 SQLite、真实 Tool 与 Agent 宿主、真实 Identity），每条命令起一个 `omne` 子进程，模型走
 // 本进程的脚本网关。先构建 `apps/cli`。
-// 手测说明 docs/hitl-walkthrough.md 里的命令，照说明的次序用 `omne` 走一遍：
+// 手测说明 docs/guides/hitl-walkthrough.md 里的命令，照说明的次序用 `omne` 走一遍：
 // - 出卡：`list-cards --session` 与 `list-cards`（待办池）看到同一张卡，`read-card` 读到它。
 // - 答复：`submit-reply --option`、`--decline`；同一张卡再提交一次得到 `already-decided`。
 // - 叫停：`read-session-diagnostics` 给出 Run 的标识，`cancel-run --urgency force` 之后卡片在
