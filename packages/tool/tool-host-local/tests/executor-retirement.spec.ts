@@ -271,6 +271,49 @@ it('R2-D186 a failed cleanup keeps the call, the interval wakes it, and it retir
   }
 })
 
+// F7 of #1218: a run that a port could not answer is the driver's to run again, after its own
+// backoff. The interval does not reschedule it on every tick as well: one owner of a later run.
+it('the interval does not reschedule a call whose last run the driver owns', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  try {
+    const busy = fail({
+      kind: 'unavailable' as const,
+      dependency: 'tool-ledger',
+      diagnostic: 'busy',
+    })
+    // The executor's own read passes; the driver's read and every later one cannot answer.
+    const w = await world({ recoveryFault: count => (count >= 2 ? busy : undefined) })
+    expect(w.executor.remember(w.f.access)).toBe(true)
+    await w.controlled.run(w.step)
+    expect(w.executor.diagnostics().progress).toEqual(['failed/unavailable/tool-ledger'])
+    vi.advanceTimersByTime(RETRY_MS * 5)
+    expect(w.controlled.scheduled).toEqual([])
+    await w.executor.close()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('a read before the run that cannot answer is handed to the driver, not to every tick', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  try {
+    const busy = fail({
+      kind: 'unavailable' as const,
+      dependency: 'tool-ledger',
+      diagnostic: 'busy',
+    })
+    const w = await world({ recoveryFault: () => busy })
+    expect(w.executor.remember(w.f.access)).toBe(true)
+    await w.controlled.run(w.step)
+    expect(w.executor.diagnostics().progress).toEqual(['failed/unavailable/tool-ledger'])
+    vi.advanceTimersByTime(RETRY_MS * 5)
+    expect(w.controlled.scheduled).toEqual([])
+    await w.executor.close()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
 it('R2-D327 the executor lets a call go and its pacing entries go with it', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   try {

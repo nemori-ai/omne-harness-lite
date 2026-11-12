@@ -56,6 +56,31 @@ export type DriverStop =
 /** The policy of a driver: how many steps one run takes, and how long a failed run waits. */
 export type DriverPolicy = Readonly<{ stepsPerRun: number; retryDelayMs: number }>
 
+/** The cap of the delay of a later run: the same pair of numbers as the delivery pacing. */
+const MAX_RETRY_DELAY_MS = 60_000
+
+/**
+ * The delay of the `level`-th later run in a row without progress: `retryDelayMs`, doubled each
+ * time, at most max(retryDelayMs, 60000) ms (SPEC 23).
+ */
+export function laterRunDelayMs(retryDelayMs: number, level: number): number {
+  const cap = Math.max(retryDelayMs, MAX_RETRY_DELAY_MS)
+  return Math.min(retryDelayMs * 2 ** Math.min(level, 32), cap)
+}
+
+/**
+ * Which stops the driver runs again later: no progress, a port that cannot answer, or a fact that
+ * no wake-up announces. A run with progress goes on at once; idle and waiting are woken; a verdict
+ * is not run again.
+ */
+function runsAgainLater(stop: DriverStop): boolean {
+  return (
+    stop.kind === 'blocked' ||
+    (stop.kind === 'yielded' && !stop.progressed) ||
+    (stop.kind === 'failed' && transient(stop.failure))
+  )
+}
+
 type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: AbortSignal }>
 /**
  * The run goes on. `progressed` is true when the step committed, or recalled a commit of its own
@@ -129,6 +154,11 @@ export type ToolDriverHandle<P> = ToolDriver<P> &
   Readonly<{
     /** Runs the call and tells where it stopped. `run` is this, without the answer. */
     advance(input: Step<P>): Promise<DriverStop>
+    /**
+     * Runs the call again after its backoff, as after a run that a port could not answer. For a
+     * host whose own read before a run could not answer: the later run stays the driver's.
+     */
+    later(input: Step<P>): void
   }>
 
 export function createToolDriver<P, B extends ContentBlock, E>(
@@ -145,6 +175,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   const unconfirmedBindingFailures = new Set<string>()
   const waiting = new Map<string, Map<string, Readonly<{ tenant: TenantId; call: ToolCallId }>>>()
   const runs = new Map<string, Promise<unknown>>()
+  // How many later runs in a row a call had without progress: the level of its next delay.
+  const backoff = new Map<string, number>()
   // One unreferenced retry per call. An aborted signal cannot initiate another wake.
   const retrying = new Map<
     string,
@@ -215,27 +247,30 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       clearTimeout(old.timer)
       retrying.delete(key)
     }
-    const timer = setTimeout(() => {
-      retrying.delete(key)
-      if (signals.some(signal => signal.aborted)) return
-      void scheduleNow(tenant, call).then(accepted => {
-        if (!accepted) scheduleLater(tenant, call, signals)
-      })
-    }, policy.retryDelayMs)
+    const level = backoff.get(key) ?? 0
+    backoff.set(key, level + 1)
+    const timer = setTimeout(
+      () => {
+        retrying.delete(key)
+        if (signals.some(signal => signal.aborted)) return
+        void scheduleNow(tenant, call).then(accepted => {
+          if (!accepted) scheduleLater(tenant, call, signals)
+        })
+      },
+      laterRunDelayMs(policy.retryDelayMs, level),
+    )
     timer.unref()
     retrying.set(key, { timer, signals })
   }
 
   /**
-   * What follows a run (SPEC 23): nothing else runs a call that a stop left with work, so the
-   * driver does. A run that used its whole step budget goes on at once, if at least one of its
-   * steps committed or recalled a commit. A run that used its budget with no such step (every
-   * answer was excluded, stale or an unknown commit), one that ended because the store or a
-   * port could not answer, and one whose environment the provider answered `pending` or
-   * `unknown` (mapped to `unavailable`), go on after the retry delay, so a store that never answers, or a
-   * reader that keeps excluding the step, is not spun on. A run that ends waiting, idle or
-   * aborted, or on a verdict, is left: the wake-up of a released slot, the waiter's reconcile
-   * and, after a restart, the host's recovery scan (`scanPending`, SPEC 33) own those.
+   * What follows a run (SPEC 23): the driver is the one owner of a later run of a call. A run with
+   * progress goes on at once and clears the delay. A run without progress, one that a port could
+   * not answer, and one blocked on a fact that no wake-up announces, go on after the delay of the
+   * call, which doubles each time up to its cap, so a store that keeps not answering is asked less
+   * and less often. A run that ends waiting, idle or aborted, or on a verdict, clears the delay and
+   * is left: the wake-up of a released slot, the waiter's reconcile and, after a restart, the
+   * host's recovery scan (`scanPending`, SPEC 33) own those.
    */
   const retrigger = async (
     step: Step<P>,
@@ -243,12 +278,11 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     signals: readonly AbortSignal[],
   ): Promise<void> => {
     if (signals.some(signal => signal.aborted)) return
+    if (!runsAgainLater(stop)) backoff.delete(callKey(step.tenant, step.call))
     if (stop.kind === 'yielded' && stop.progressed) {
       if (!(await scheduleNow(step.tenant, step.call)))
         scheduleLater(step.tenant, step.call, signals)
-    } else if (stop.kind === 'yielded' || (stop.kind === 'failed' && transient(stop.failure))) {
-      scheduleLater(step.tenant, step.call, signals)
-    }
+    } else if (runsAgainLater(stop)) scheduleLater(step.tenant, step.call, signals)
   }
 
   const wake = async (tenant: TenantId, request: FixedToolRequest): Promise<void> => {
@@ -1049,6 +1083,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const handle: ToolDriverHandle<P> = {
     advance: serialized,
+    later: step => scheduleLater(step.tenant, step.call, [step.signal]),
     run: async step => {
       await serialized(step)
     },

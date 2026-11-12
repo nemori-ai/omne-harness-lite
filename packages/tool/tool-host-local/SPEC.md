@@ -267,7 +267,9 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - 内存表满时，扫描停在当前游标。重试 interval 的下一拍接着读，所以有调用退场之后扫描继续。
 - 扫描读不到（`unavailable`）或抛出时，写一条 warn，下一拍从同一游标接着读。
 - 扫描回复 `unsupported` 时（记录仓不能扫描），写一条 warn，不再重试。旧调用不被接手。
-- 读完最后一页后扫描结束。重试 interval 每过 60 拍把结束的扫描从头再开一次：休眠的调用（见下）不在内存表里，唤醒提示丢失时靠这一轮按待办标记找回。内存表里的调用仍由重试 interval 每拍重排。
+- 读完最后一页后扫描结束。重试 interval 每过 60 拍把结束的扫描从头再开一次：休眠的调用（见下）不在内存表里，唤醒提示丢失时靠这一轮按待办标记找回。
+- 内存表里的调用，上一次运行停在驱动接管的停止上（blocked、步数用尽、`unavailable` 失败）的，由驱动按它的退避重跑（Tool 规格第 23 条），重试 interval 不重排它们。执行器自己在运行前的那次读取答 `unavailable` 时，同样交给驱动（`later`），记成 `failed/unavailable/<依赖>`。其余在内存表里的调用（停在 idle、waiting 或判定上，或执行器自己还有未尽的职责，例如收场失败后再退场）由重试 interval 每拍兜底一次。
+- 再问的总速率因此有上界：驱动接管的调用，每个的再运行间隔从 `driverRetryDelayMs` 翻倍到 `max(driverRetryDelayMs, 60000)` 毫秒；其余调用每拍至多一次；内存表里的调用数不超过 `capacity`。存储忙时运行停在 `unavailable`，落进驱动的退避，不随拍子放大。
 
 ### 等人的调用休眠
 
@@ -372,7 +374,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 [检查点绑定测试](tests/checkpointed-binding.spec.ts)验证段上下文、最后事实与请求原文、检查点证明与等待身份。[整机组合测试](tests/runtime-composition/checkpoint.spec.ts)在本地运行时插件、启动协调器、本地绑定与真实账本下验证停泊与登记、账本保存的请求原文与状态同各自证据的摘要相符，决定之后从检查点恢复一次并收场，以及暂停中被叫停时调用收场、原登记失效一次、队列域不留条目。两者的决策方与记录仓是测试提供者，不证明耐久。
 
-作者返回值与 Scope 收场结论分别保存。绑定在作者返回后同步调用 `finish` 关闭新受理，把原 outcome 与完整 `closing` Promise 交给受信 `settle`。`settle` 须先在内存中编码原 R，再等待收场确认，不能因收场失败改写原 outcome。绑定的原 attempt 持有待结算输入；只有 final 确认并发布后才解除这份本地持有，回调抛错或保管拒绝不解除。该本地持有不是耐久回执，也不提供跨进程重跑作者的许可。
+作者返回值与 Scope 收场结论分别保存。绑定在作者返回后同步调用 `finish` 关闭新受理，把原 outcome 与完整 `closing` Promise 交给受信 `settle`。`settle` 须先在内存中编码原 R，再等待收场确认，不能因收场失败改写原 outcome。绑定的原 attempt 持有待结算输入；只有 final 确认并发布后才解除这份本地持有，回调抛错或保管拒绝不解除。该本地持有不是耐久回执，也不提供跨进程重跑作者的许可。结算答失败或抛错时，绑定不把执行标成不可观察：执行照实答 `live`（作者已返回，最终事实还没发布），不留下一个只置不回的失败标志。结算自己对一时的依赖重试：账本计划最终事实答 `unavailable` 或 `commit-unknown`、正文校验答不可用时，按推进的退避（Tool 规格第 23 条：`driverRetryDelayMs` 起翻倍，上限 `max(driverRetryDelayMs, 60000)`）等了再试，直到宿主退役；其余失败照下文报告。
 
 生产结算在内存里用原作者 codec 编码并解码返回，渲染后交账本计划最终事实（`finalPlanner.planFinal`）；收场仍 pending 时不发布 final，unknown/unavailable 时保留原件并报告未结责任。已确认的收场失败可以产生失败终局，不能产生 completed。控制身份在收场确认时核原 tenant/call/start/operation，原 stop/withdraw 若在该确认前导致取消，保留其身份；确认后的控制不能改写这次收场事实。`finish` 同步抛错或异步拒绝全化为收场 unknown，原 R 保持不变。定制 `settle` 也须履行上述顺序与屏障义务；本地 Promise 不进入数据契约或持久证据。
 
