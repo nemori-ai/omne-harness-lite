@@ -17,6 +17,7 @@
 - `parseTenantText`、`tenantText`、组织、账号与登录的身份文本函数，以及 `userTextMessage`。
 - 自动再送：只有传输适配证明请求字节没有发出时才再送一次。
 - `read-session-diagnostics` 页的类型（`SessionDiagnosticsPage`、`SessionRunDiagnostic`、`SessionDiagnosticGap` 及其各部分），从公开契约透传。会话客户端用 `submit` 发这个操作，与其他七个操作一样。调用者按这些类型读成功的 `body`。
+- 子路径 `@omne-harness/sdk/core` 的客户端核心：`createClient` 从一份协议契约和一个传输得到新地址 `/api/<协议名>/v<主版本>/<名字>` 上有类型的客户端，含操作与观察；本地多出 `unavailable` 与 `uncertain` 两种结果；带 HTTP 传输与进程内传输。它不导入 Node 专有的模块，能为浏览器编译。见[行为规格](SPEC.md#客户端核心)。
 - HITL 请求与卡片视图的类型（`HitlRequest`、`HitlCardFilter`、`HitlCardPage`、`HitlCardItem` 及其各部分），从公开契约透传。会话入口与待办池都是 `list-cards`，调用者用 `filter` 的 `sessionRef` 区分。SDK 不缓存卡片视图。
 
 未实现：

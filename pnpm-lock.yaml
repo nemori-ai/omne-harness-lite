@@ -506,9 +506,15 @@ importers:
 
   packages/access/sdk:
     dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../public-contract
+      eventsource-parser:
+        specifier: 'catalog:'
+        version: 3.1.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

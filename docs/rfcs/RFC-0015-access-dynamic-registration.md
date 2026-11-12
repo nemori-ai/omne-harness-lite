@@ -2218,7 +2218,7 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | `defineAccessPlugin` | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md#defineaccessplugin) | 已写回 | 卡 #1249；确认者随 PR 的接受 |
 | 入口：登记表；判断次序第 10 到 14 步的收场与宽限 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#登记表)「登记表」「收场与宽限」 | 已写回（部分：本行只是原「入口：登记表、管道、观察中枢、承载绑定、可用性」中写回了的那一部分；登记表经管道接到新地址上；正式的服务端应用在入口那一行接上，新地址上只有内置协议（卡 #1249）） | 卡 #1223、#1233、#1249；确认者随 PR 的接受 |
 | 入口：管道的第 1 到 9 步、观察中枢、承载绑定、可用性 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#管道)「管道」 | 已写回（部分：写回了管道第 1 到 9 步、身份规则、消息编号的格式、消息体上限、关连接的规则、`access` 这份输入；「观察中枢」写回了建立、线上的字节、结束与业务访问的报告；「内置协议与可用性」写回了可用性（卡 #1249）） | 卡 #1233、#1249；确认者随 PR 的接受 |
-| 客户端核心：`createClient`、传输、本地的两种结果 | [SDK 规格](../../packages/access/sdk/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
+| 客户端核心：`createClient`、传输、本地的两种结果 | [SDK 规格](../../packages/access/sdk/SPEC.md#客户端核心)「客户端核心」 | 已写回（HTTP 传输与进程内传输；进程间传输不在本程） | 卡 #1249；确认者随 PR 的接受 |
 | 客户端装配：连接、`defineProtocolClient` | `packages/access/client-assembly` 的规格（成员未建） | 待写回，随「接入层」那一路 | 未切换 |
 | 加一个操作改哪些成员；成员与依赖 | [接入组说明](../../packages/access/README.md) | 待写回，随「接入层」那一路 | 未切换 |
 | 列出会话的读取面 `SessionDirectory` 与它的访问操作；调用登记的读取函数与两种存法；「有没有一轮在进行」的判法；每次提交都发通知 | [会话契约规格](../../packages/session/session-contract/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |
