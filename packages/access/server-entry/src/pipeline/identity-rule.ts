@@ -14,7 +14,8 @@ export type Established =
       /** The login to report a business access for; absent when the operation needs no login. */
       login?: LoginIdentity
     }>
-  | Readonly<{ kind: 'refused'; outcome: 'denied' }>
+  /** The caller is not established; the answer is `denied` whatever the reason. */
+  | Readonly<{ kind: 'refused' }>
   | Readonly<{ kind: 'unavailable'; thrown: boolean }>
   | Readonly<{ kind: 'interrupted'; by: Interruption }>
 
@@ -41,21 +42,21 @@ export async function establish(
 ): Promise<Established> {
   if (identity === 'none') return { kind: 'caller', principal: undefined }
   const proof = proofOf(req)
-  if (proof === undefined) return { kind: 'refused', outcome: 'denied' }
+  if (proof === undefined) return { kind: 'refused' }
   const recognised = await watch.attend(() => port.identifyLogin(proof))
   if (recognised.kind === 'interrupted') return recognised
   if (recognised.kind === 'threw') return { kind: 'unavailable', thrown: true }
   const result = recognised.value
-  if (result.outcome === 'denied') return { kind: 'refused', outcome: 'denied' }
+  if (result.outcome === 'denied') return { kind: 'refused' }
   if (result.outcome !== 'identified') return { kind: 'unavailable', thrown: false }
   const { login } = result
   if (identity === 'login') return { kind: 'caller', principal: login, login }
   const tenant = tenantOf(req)
-  if (tenant === undefined) return { kind: 'refused', outcome: 'denied' }
+  if (tenant === undefined) return { kind: 'refused' }
   const issued = await watch.attend(() => port.actFor(login, tenant))
   if (issued.kind === 'interrupted') return issued
   if (issued.kind === 'threw') return { kind: 'unavailable', thrown: true }
-  if (issued.value.outcome === 'denied') return { kind: 'refused', outcome: 'denied' }
+  if (issued.value.outcome === 'denied') return { kind: 'refused' }
   if (issued.value.outcome !== 'issued') return { kind: 'unavailable', thrown: false }
   return { kind: 'caller', principal: issued.value.principal, login }
 }

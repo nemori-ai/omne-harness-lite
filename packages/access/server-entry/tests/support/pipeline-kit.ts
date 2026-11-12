@@ -173,13 +173,17 @@ export type RegistryLog = {
   readonly registry: RegistryForPipeline
   /** One line per `enter` that returned a member, and whether its `leave` has been called. */
   readonly entries: { readonly name: string; left: boolean }[]
+  /** The abort signals `enter` handed out, one per mount. */
+  readonly signals: Set<AbortSignal>
 }
 
 /** Wraps a registry so a case can see each `enter` and `leave` the pipeline makes. */
 export function recordingRegistry(inner: RegistryForPipeline): RegistryLog {
   const entries: { name: string; left: boolean }[] = []
+  const signals = new Set<AbortSignal>()
   return {
     entries,
+    signals,
     registry: {
       subscribe: listener => inner.subscribe(listener),
       enter: (key, name) => {
@@ -187,6 +191,7 @@ export function recordingRegistry(inner: RegistryForPipeline): RegistryLog {
         if (entered === undefined) return undefined
         const line = { name, left: false }
         entries.push(line)
+        signals.add(entered.signal)
         const wrapped: Entered = {
           ...entered,
           leave: () => {

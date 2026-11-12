@@ -31,12 +31,11 @@ export function watchCall(signal: AbortSignal, res: ServerResponse): CallWatch {
   }
   const onAbort = (): void => halt.abort()
   res.once('close', onClose)
-  signal.addEventListener('abort', onAbort, { once: true })
+  signal.addEventListener('abort', onAbort)
   const interruption = (): Interruption | undefined =>
     gone ? 'gone' : signal.aborted ? 'aborted' : undefined
   const halted = new Promise<void>(resolve => {
-    if (halt.signal.aborted) resolve()
-    else halt.signal.addEventListener('abort', () => resolve(), { once: true })
+    halt.signal.addEventListener('abort', () => resolve())
   })
 
   return {

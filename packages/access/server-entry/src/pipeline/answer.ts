@@ -8,18 +8,12 @@ import { STATUS_BY_OUTCOME } from './status.ts'
 
 export const EMPTY_BODY: JsonValue = { kind: 'object', entries: [] }
 
-/** A response the caller is no longer there to read is dropped. */
-function writable(res: ServerResponse): boolean {
-  return !res.destroyed && !res.writableEnded && !res.headersSent
-}
-
 /** Steps 1 to 6: the status, no body, the connection closed. */
 export function writeBare(
   res: ServerResponse,
   status: number,
   headers: Readonly<Record<string, string>> = {},
 ): void {
-  if (!writable(res)) return
   res.writeHead(status, {
     'cache-control': 'no-store',
     'content-length': '0',
@@ -37,8 +31,8 @@ export type WrittenAnswer = Readonly<{
   close: boolean
 }>
 
+/** Each response is written once. When the caller has gone, Node drops what is written. */
 export function writeAnswer(res: ServerResponse, answer: WrittenAnswer): void {
-  if (!writable(res)) return
   const bytes = Buffer.from(
     writeJsonText({
       kind: 'object',

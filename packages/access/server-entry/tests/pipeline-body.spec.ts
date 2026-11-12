@@ -49,6 +49,29 @@ describe('the limit is the operation’s', () => {
     expect(taken.status).toBe(200)
   })
 
+  it('a body of exactly the limit is taken', async () => {
+    const exact = padded('{"noteId":', 2048)
+    expect(Buffer.byteLength(exact)).toBe(2048)
+    const reply = await call(fixture.port, 'read-note', { body: exact })
+    expect(reply.status).toBe(200)
+  })
+
+  it('a body with no declared length is counted as it arrives', async () => {
+    const body = padded('{"noteId":', SIZE)
+    const chunk = `${body.length.toString(16)}\r\n${body}\r\n0\r\n\r\n`
+    const headers = rawHeaders(0).filter(line => !line.startsWith('Content-Length'))
+    const reply = await rawCall(
+      fixture.port,
+      '/api/notes/v1/read-note',
+      [...headers, 'Transfer-Encoding: chunked'],
+      chunk,
+    )
+    expect(reply).toMatch(/^HTTP\/1\.1 400 /)
+    expect(reply).toMatch(/\r\nconnection: close\r\n/i)
+    expect(reply.endsWith(REJECTED)).toBe(true)
+    expect(fixture.notes.calls).toEqual([])
+  })
+
   it('a declared length over the limit is answered without reading', async () => {
     const reply = await rawCall(fixture.port, '/api/notes/v1/read-note', rawHeaders(SIZE))
     expect(reply).toMatch(/^HTTP\/1\.1 400 /)

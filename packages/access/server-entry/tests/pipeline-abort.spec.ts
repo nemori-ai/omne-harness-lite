@@ -2,10 +2,12 @@
 // port or on its body at once; a caller who goes away gets no handler call before the handler
 // starts and does not stop it after; stopping the entry waits for the calls in flight. The moments
 // come from the test identity's and the handlers' own records, never from a timed wait.
+import { getEventListeners } from 'node:events'
 import { connect, type Socket } from 'node:net'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { LoginResult } from '@omne-harness/access-cordis-contract'
+import type { ActForResult, LoginResult } from '@omne-harness/access-cordis-contract'
 import {
+  GRACE_MS,
   MESSAGE_ID,
   PROOF,
   call,
@@ -74,6 +76,34 @@ describe('C8: a take-down answers a waiting call at once', () => {
     expect(fixture.notes.calls).toEqual([])
   })
 
+  it('while actFor has not returned', async () => {
+    fixture.accessIdentity.actFor = { kind: 'hold', held: held<ActForResult>() }
+    const reply = call(fixture.port, 'save-note', { body: '{"noteId":"n-1","title":"t"}' })
+    await fixture.accessIdentity.called('actFor')
+
+    const takenDown = fixture.takeDown()
+    expect((await reply).text).toBe(UNAVAILABLE)
+    await takenDown
+    expect(fixture.notes.calls).toEqual([])
+  })
+
+  it('a handler that ignores the abort is answered by its effect once the grace has passed', async () => {
+    fixture.notes.scripts['read-note'] = () => new Promise(() => {})
+    fixture.notes.scripts['save-note'] = () => new Promise(() => {})
+    const read = call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' })
+    const commit = call(fixture.port, 'save-note', { body: '{"noteId":"n-1","title":"t"}' })
+    await fixture.notes.called(2)
+
+    const takenDown = fixture.takeDown()
+    fixture.accessClock.advance(GRACE_MS - 1)
+    await turn()
+    expect(fixture.log.entries.every(line => !line.left)).toBe(true)
+    fixture.accessClock.advance(1)
+    expect((await read).text).toBe(UNAVAILABLE)
+    expect((await commit).text).toBe('{"outcome":"unknown","body":{}}')
+    await takenDown
+  })
+
   it('while half of the body has arrived and the identity port has returned', async () => {
     const body = '{"noteId":"n-1"}'
     const open = await openCall('read-note', body, 8)
@@ -129,6 +159,28 @@ describe('C8: the caller goes away', () => {
     await until(() => fixture.log.entries[0]?.left === true)
     expect(abortedAtEnd).toBe(false)
     await fixture.takeDown()
+  })
+})
+
+describe('the abort signal keeps no listener of a finished call', () => {
+  it('after calls that succeed, are refused, are rejected and are cut short', async () => {
+    await call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' })
+    await call(fixture.port, 'save-note', { body: '{"noteId":"n-1","title":"t"}' })
+    await call(fixture.port, 'read-note', {
+      headers: { authorization: 'Bearer unknown-proof' },
+      body: '{"noteId":"n-1"}',
+    })
+    await call(fixture.port, 'read-note', { body: '{' })
+    const recognised = held<LoginResult>()
+    fixture.accessIdentity.identifyLogin = { kind: 'hold', held: recognised }
+    const body = '{"noteId":"n-1"}'
+    const open = await openCall('read-note', body, body.length)
+    await fixture.accessIdentity.called('identifyLogin', 5)
+    open.socket.destroy()
+    await until(() => fixture.diagnostics.some(event => event.code === 'access.caller-gone'))
+
+    expect(fixture.log.signals.size).toBe(1)
+    for (const signal of fixture.log.signals) expect(getEventListeners(signal, 'abort')).toEqual([])
   })
 })
 

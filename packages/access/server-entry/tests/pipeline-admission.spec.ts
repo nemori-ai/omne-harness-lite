@@ -25,6 +25,7 @@ function expectBare(reply: HttpReply, status: number): void {
   expect(reply.headers.connection).toBe('close')
   expect(reply.headers['cache-control']).toBe('no-store')
   expect(reply.headers['omne-message-id']).toBeUndefined()
+  if (status !== 405) expect(reply.headers.allow).toBeUndefined()
 }
 
 describe('one answer per step', () => {
@@ -32,8 +33,16 @@ describe('one answer per step', () => {
     fixture = await startAccessFixture()
   })
 
-  it('step 1: a path off the grammar is 404', async () => {
+  it('step 1: a path off the grammar is 404, and the diagnostic names the path', async () => {
     expectBare(await send(fixture.port, '/api/notes/v1/read-note/', { body: '{}' }), 404)
+    expect(fixture.diagnostics).toEqual([
+      { code: 'access.path-rejected', path: '/api/notes/v1/read-note/' },
+    ])
+  })
+
+  it('a major version of several digits is on the grammar: not mounted, not off the grammar', async () => {
+    expectBare(await send(fixture.port, '/api/notes/v12/read-note', { body: '{}' }), 404)
+    expect(fixture.diagnostics.map(event => event.code)).toEqual(['access.not-mounted'])
   })
 
   it('step 2: a method other than POST is 405 with Allow: POST', async () => {
@@ -85,6 +94,7 @@ describe('the path grammar', () => {
 
   it.each([
     ['not under /api', '/apx/notes/v1/read-note'],
+    ['/api not at the start', '/x/api/notes/v1/read-note'],
     ['a missing segment', '/api/notes/v1'],
     ['an extra segment', '/api/notes/v1/read-note/more'],
     ['a trailing slash', '/api/notes/v1/read-note/'],

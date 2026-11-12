@@ -12,7 +12,7 @@ import { parseAddress, pathOf, type Address } from './address.ts'
 import { EMPTY_BODY, writeAnswer, writeBare } from './answer.ts'
 import { readBody } from './body.ts'
 import { contentTypeAccepted, countHeader, hostAccepted } from './headers.ts'
-import { establish } from './identity-rule.ts'
+import { establish, type Established } from './identity-rule.ts'
 import { watchCall, type CallWatch, type Interruption } from './watch.ts'
 
 /** What turns the new address on. The three come together; without them `/api/...` answers 404. */
@@ -193,48 +193,57 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: true })
       entered.leave()
     }
+    // An aborted call answers; a call whose caller has gone has nobody to answer.
     const interrupted = (by: Interruption): void => {
-      note(by === 'aborted' ? 'access.aborted' : 'access.caller-gone')
-      if (by === 'aborted') early('basis-unavailable')
-      else {
-        res.destroy()
-        entered.leave()
+      if (by === 'aborted') {
+        note('access.aborted')
+        early('basis-unavailable')
+        return
       }
+      note('access.caller-gone')
+      entered.leave()
     }
 
     const watch = watchCall(entered.signal, res)
-    let caller: Extract<Awaited<ReturnType<typeof establish>>, { kind: 'caller' }>
+    let caller: Extract<Established, { kind: 'caller' }>
     let body: unknown
     try {
       const established = await establish(contract.identity, req, access.identity, watch)
-      if (established.kind === 'interrupted') return interrupted(established.by)
-      if (established.kind === 'refused') {
-        note('access.identity-denied')
-        return early('denied')
+      switch (established.kind) {
+        case 'interrupted':
+          return interrupted(established.by)
+        case 'refused':
+          note('access.identity-denied')
+          return early('denied')
+        case 'unavailable':
+          note(established.thrown ? 'access.identity-fault' : 'access.identity-unavailable')
+          return early('basis-unavailable')
+        case 'caller':
+          caller = established
+          break
       }
-      if (established.kind === 'unavailable') {
-        note(established.thrown ? 'access.identity-fault' : 'access.identity-unavailable')
-        return early('basis-unavailable')
-      }
-      caller = established
       const read = await readOperationBody(req, contract, settings, watch)
-      if (read.kind === 'interrupted') return interrupted(read.by)
-      if (read.kind === 'over') {
-        note('access.body-over-limit')
-        return early('protocol-rejected')
+      switch (read.kind) {
+        case 'interrupted':
+          return interrupted(read.by)
+        case 'over':
+          note('access.body-over-limit')
+          return early('protocol-rejected')
+        case 'rejected':
+          // The body was read in full, so the connection stays open.
+          note('access.body-rejected')
+          writeAnswer(res, {
+            outcome: 'protocol-rejected',
+            body: EMPTY_BODY,
+            messageId,
+            close: false,
+          })
+          entered.leave()
+          return
+        case 'read':
+          body = read.value
+          break
       }
-      if (read.kind === 'rejected') {
-        note('access.body-rejected')
-        writeAnswer(res, {
-          outcome: 'protocol-rejected',
-          body: EMPTY_BODY,
-          messageId,
-          close: false,
-        })
-        entered.leave()
-        return
-      }
-      body = read.value
     } finally {
       watch.release()
     }
@@ -282,10 +291,11 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       }
       try {
         await serve(req, res, admission)
-      } finally {
-        // Every path of `serve` has left already; this only covers a fault in it. A second
-        // `leave` has no effect.
+      } catch (fault) {
+        // Every path of `serve` leaves itself; a fault in it must not keep a take-down waiting.
         admission.entered.leave()
+        throw fault
+      } finally {
         release()
       }
     },

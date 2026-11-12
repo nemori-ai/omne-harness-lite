@@ -122,6 +122,9 @@ describe('login and acting-tenant: identifyLogin', () => {
     fixture.accessIdentity.identifyLogin = behaviour
     expectUnavailable(await call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' }))
     expect(fixture.notes.calls).toEqual([])
+    expect(fixture.diagnostics.map(event => event.code)).toEqual([
+      behaviour.kind === 'answer' ? 'access.identity-unavailable' : 'access.identity-fault',
+    ])
   })
 
   it('identifies again on every call: no result is cached', async () => {
@@ -188,6 +191,9 @@ describe('acting-tenant: the Omne-Acting-Tenant header', () => {
     fixture.accessIdentity.actFor = behaviour
     expectUnavailable(await call(fixture.port, 'save-note', { body }))
     expect(fixture.notes.calls).toEqual([])
+    expect(fixture.diagnostics.map(event => event.code)).toEqual([
+      behaviour.kind === 'answer' ? 'access.identity-unavailable' : 'access.identity-fault',
+    ])
   })
 
   it('the header text goes to actFor as given', async () => {
