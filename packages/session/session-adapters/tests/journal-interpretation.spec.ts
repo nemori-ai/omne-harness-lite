@@ -7,8 +7,8 @@
 // recalls; the same event twice commits once; a head that another writer moved after the read
 // answers changed and the call reads again once, then commits; a call of the event queue that still
 // ends in changed, or in a rollback that answers unavailable (KL-146), is made again after a backoff
-// until it commits, and a plugin that stops ends the backoff and its timer (#1216 E1a); the waits
-// grow by the multiplier up to maxMs, a policy outside its bounds is refused, an outcome still
+// until it commits, and a plugin that stops ends the backoff and its timer (#1216 E1a); the first
+// call again goes at once and the waits then grow by the multiplier up to maxMs, a policy outside its bounds is refused, an outcome still
 // unknown after its sends is retried too, one execution has one retry waiting, and a call that
 // ends without a retry logs what it left; a stopped plugin and a plugin without
 // `sessionTransactions` commit nothing; another tenant's event and a refusing view commit nothing;
@@ -574,9 +574,10 @@ describe('AD-02: a Session participant rollback that answers unavailable (KL-146
     const f = await interpreted('ad02-rollback-queue', {
       retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
     })
-    f.script.push(rollback)
+    // The first call again goes at once and rolls back too; the next one waits a minute.
+    f.script.push(rollback, rollback)
     await started(f.s, f.c.journal())
-    await vi.waitFor(() => expect(f.sent).toHaveLength(1), { timeout: 5000 })
+    await vi.waitFor(() => expect(f.sent).toHaveLength(2), { timeout: 5000 })
     // The retry waits a minute; a later event of the same session is interpreted at once.
     await f.c.ctx.serial(
       'session-adapters/agent-published',
@@ -585,8 +586,8 @@ describe('AD-02: a Session participant rollback that answers unavailable (KL-146
       f.target.execution,
     )
     await reaches(f.s, '1')
-    expect(f.sent).toHaveLength(2)
-    expect(logOperations(f.s)).toEqual([f.sent[1]?.observation.operation])
+    expect(f.sent).toHaveLength(3)
+    expect(logOperations(f.s)).toEqual([f.sent[2]?.observation.operation])
   })
 
   it('a plugin that stops during the backoff sends no more', async () => {
@@ -644,15 +645,15 @@ describe('AD-02: the backoff of the event queue and its one retry per execution 
     expect(DEFAULT_JOURNAL_INTERPRETATION_RETRY).toEqual({ initialMs: 50, multiplier: 2, maxMs: 5000 })
   })
 
-  it('the waits grow by the multiplier up to maxMs, and the calls are counted', async () => {
+  it('the first call again goes at once; then the waits grow by the multiplier up to maxMs, and the calls are counted', async () => {
     const f = await interpreted('ad02-backoff', { retry: { initialMs: 1, multiplier: 3, maxMs: 5 } })
     for (let n = 0; n < 4; n += 1) f.script.push(rollback)
     await started(f.s, f.c.journal())
     await reaches(f.s, '1')
     expect(retries(f.logged)).toEqual([
-      [1, 'unavailable', '1'],
-      [2, 'unavailable', '3'],
-      [3, 'unavailable', '5'],
+      [1, 'unavailable', '0'],
+      [2, 'unavailable', '1'],
+      [3, 'unavailable', '3'],
       [4, 'unavailable', '5'],
     ])
   })
@@ -668,7 +669,7 @@ describe('AD-02: the backoff of the event queue and its one retry per execution 
     // Three sends of the first call under one operation, then the call made again recalls it.
     expect(f.sent).toHaveLength(4)
     expect(new Set(f.sent.map(item => item.observation.operation)).size).toBe(1)
-    expect(retries(f.logged)).toEqual([[1, 'commit-unknown', '1']])
+    expect(retries(f.logged)).toEqual([[1, 'commit-unknown', '0']])
     expect(logOperations(f.s)).toHaveLength(1)
   })
 
@@ -683,21 +684,22 @@ describe('AD-02: the backoff of the event queue and its one retry per execution 
         f.target.session,
         f.target.execution,
       )
-    f.script.push(rollback)
+    // The first call again goes at once and rolls back too; then the retry waits a minute.
+    f.script.push(rollback, rollback)
     await started(f.s, f.c.journal())
-    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(1), { timeout: 5000 })
+    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(2), { timeout: 5000 })
     // A second failure of the same execution while the retry waits schedules none.
     f.script.push(rollback)
     await publish()
-    await vi.waitFor(() => expect(f.sent).toHaveLength(2), { timeout: 5000 })
+    await vi.waitFor(() => expect(f.sent).toHaveLength(3), { timeout: 5000 })
     // A call that commits does not end the retry that waits; the next failure still leaves it to it.
     await publish()
     await reaches(f.s, '1')
     f.script.push(rollback)
     await round(f.s, f.c.journal(), 1)
-    await vi.waitFor(() => expect(f.sent).toHaveLength(4), { timeout: 5000 })
+    await vi.waitFor(() => expect(f.sent).toHaveLength(5), { timeout: 5000 })
     await settle()
-    expect(retries(f.logged)).toHaveLength(1)
+    expect(retries(f.logged)).toHaveLength(2)
     expect(await readThrough(f.s)).toBe('1')
   })
 
@@ -717,9 +719,9 @@ describe('AD-02: the backoff of the event queue and its one retry per execution 
     const f = await interpreted('ad02-stop-timer', {
       retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
     })
-    f.script.push(rollback)
+    f.script.push(rollback, rollback)
     await started(f.s, f.c.journal())
-    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(1), { timeout: 5000 })
+    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(2), { timeout: 5000 })
     const timers = () => process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length
     const waiting = timers()
     await f.fiber?.dispose()

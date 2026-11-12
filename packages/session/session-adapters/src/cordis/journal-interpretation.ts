@@ -14,7 +14,7 @@
 // recalls the original receipt (C-STORAGE answers `conflict` to `queryOperation` for this form, so
 // it is not asked). A `changed` answer reads again once. A call of the event queue that ends in a
 // transient failure (`unavailable`, `changed`, or an outcome still unknown after its sends: a Session
-// participant rolled the commit back, KL-146) is made again after a backoff, until it commits, ends
+// participant rolled the commit back, KL-146) is made again at once and then after a backoff, until it commits, ends
 // in a determinate failure, or the plugin stops; each call reads the saved progress and the
 // execution again, so nothing of a failure is kept. A determinate refusal is logged and not retried. A control
 // event is a deferred fact: it is sent with the Agent evidence the Journal kept and no
@@ -24,7 +24,7 @@
 //
 // The plugin keeps nothing but the current generation of its dependencies and one queue per
 // session, so the events of one session are interpreted one after the other; an event waiting for
-// its backoff does not hold the queue: it is queued again when the backoff ends. A call made while the plugin is pending or stopped answers
+// to be called again does not hold the queue: it is queued again at once, or when the backoff ends. A call made while the plugin is pending or stopped answers
 // `unavailable` and commits nothing. It does not scan the storage when it starts: an event it missed
 // is interpreted by the next event of the same execution. The durable record of what is left is the
 // gap between the saved progress and the execution's events, so a later scan can make the same call.
@@ -60,8 +60,8 @@ const ROUNDS = 2
 const SENDS = 3
 
 /**
- * The backoff of the event queue between calls that ended in a transient failure: the first wait,
- * the factor of each next one and the longest wait. There is no count limit: the event is
+ * The backoff of the event queue between calls that ended in a transient failure, after the first
+ * call again, which is queued at once: the first wait, the factor of each next one and the longest wait. There is no count limit: the event is
  * interpreted until it commits or the answer is determinate (#1216 E1a).
  */
 export type JournalInterpretationRetry = Readonly<{
@@ -252,7 +252,7 @@ function createJournalInterpretation<P>(
   }
 }
 
-/** The next wait of a retry and how many calls of the target came before it. */
+/** The next wait of a retry (0: queued again at once) and how many calls of the target came before it. */
 type Retry = Readonly<{ wait: number; calls: number }>
 
 /** Writes what a call left behind when it will not be made again. */
@@ -324,8 +324,12 @@ export function createSessionJournalInterpretationPlugin<P>(
           }
         }
         // The interpretations of one session run one after the other. A call that ended in a
-        // transient failure does not hold the queue: after the backoff the same target is queued
-        // again behind whatever came meanwhile. One execution has at most one such retry waiting;
+        // transient failure does not hold the queue: the same target is queued again behind
+        // whatever came meanwhile, the first time at once and then after the backoff. The first one
+        // goes at once because a moved head is readable right after the write that moved it, and a
+        // wait lets another execution's write replace it with a placeholder head (KL-146: with a
+        // first wait CP3 lost 9 of 30 such events under load, against 2 of 30 for one requeue at
+        // once). One execution has at most one such retry pending;
         // an event that fails while it waits leaves the retry to it. Every call reads from the saved
         // progress, so nothing is committed twice.
         const retrying = new Set<string>()
@@ -339,14 +343,21 @@ export function createSessionJournalInterpretationPlugin<P>(
           }
           if (retry === null && retrying.has(key)) return
           retrying.add(key)
-          retryLater(target, retry ?? { wait: policy.initialMs, calls: 0 }, answer.failure.kind)
+          retryLater(target, retry ?? { wait: 0, calls: 0 }, answer.failure.kind)
         }
         const retryLater = (target: JournalInterpretationTarget, retry: Retry, kind: string) => {
           const calls = retry.calls + 1
           logger.warn(
             `call ${calls} of the interpretation of ${target.execution} answered ${kind}; again in ${retry.wait} ms`,
           )
-          const next = { wait: Math.min(retry.wait * policy.multiplier, policy.maxMs), calls }
+          const next = {
+            wait:
+              retry.wait === 0
+                ? policy.initialMs
+                : Math.min(retry.wait * policy.multiplier, policy.maxMs),
+            calls,
+          }
+          if (retry.wait === 0) return enqueue(target, () => attempt(target, next))
           // A stop aborts the wait; the rejection is the end of the retry, not a failure.
           void delay(retry.wait, undefined, { signal: stopping.signal }).then(
             () => enqueue(target, () => attempt(target, next)),
