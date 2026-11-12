@@ -3,7 +3,8 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { referenceFailure } from './reference.ts'
 import { createModelDriver } from './driver.ts'
 import { createSendInterruption } from './send/interruption.ts'
-import type { Reply } from '@omne-harness/model-contract'
+import type { ModelCallId, Reply } from '@omne-harness/model-contract'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   ModelCommands,
   ModelSendBoundary,
@@ -31,7 +32,12 @@ export type ModelDependencies<P> = Readonly<{
   instances: ModelInstanceHost<P>
   clock: ModelClock
 }>
-export type ModelRuntimeProvider<P> = ModelProvider<P> & Readonly<{ driver: ModelDriver<P> }>
+export type ModelRuntimeProvider<P> = ModelProvider<P> &
+  Readonly<{
+    driver: ModelDriver<P>
+    /** The host releases the route of a call whose result body is released; see `driver.ts`. */
+    released(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
+  }>
 const METHODS = {
   commands: [
     'admit',
@@ -272,5 +278,6 @@ export function createModelRuntime<P>(
       return { ok: { pending: String(pending), running: String(running) } }
     },
     driver: activity.driver,
+    released: activity.released,
   }
 }

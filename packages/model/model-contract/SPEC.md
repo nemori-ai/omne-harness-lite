@@ -832,7 +832,7 @@ current 使用原 Reply，保持原宽 ModelFailure 联合兼容。该只读方�
 
 1. 使用原 Model invocation codec 核 tenant 与 reference。未铸造 tenant 返回 denied(action=tenant)。引用不含租户（R2-D357），另一租户的引用在第 3 步按未受理回复，与不存在的调用相同。malformed 返回 invalid(field=reference, reason=reference- 加原 codec rejection.reason)。这些检查不查目标。
 2. 核本主体当前 facts/read 资格。失权返回 denied(action=current)，资格依赖不可用返回 unavailable(dependency=stream-references, diagnostic 为安全诊断标识)。不据此推断对象存在或不存在。
-3. 在同一权威边界读取原 call/admission、CallState、发布目标和有效代次。权威未受理返回 invalid(reference, not-accepted)。已有 call 的错误 admission 返回 invalid(admission, not-original)。不能确认受理或来源不可用返回 unavailable，dependency 为 stream-references。
+3. 在同一权威边界读取原 call/admission、CallState、发布目标和有效代次。提供者持有由该边界逐次确认推进的确认记录，且记录可用、admission 相同时，可以直接以它作答而不再读存储；其余情形在边界上重读，答复与重读相同，调用方看不出两者的区别（#1214）。权威未受理返回 invalid(reference, not-accepted)。已有 call 的错误 admission 返回 invalid(admission, not-original)。不能确认受理或来源不可用返回 unavailable，dependency 为 stream-references。
 4. 准备发生等待时，在实际受保护输出前重核当前资格，并重读同边界 state 与目标。旧 allowed 不是持续许可。
 5. 返回同一确认记录的 selection。首次未发布或退役无后继可为 null。settled 本身不清空仍有效的投影。
 
