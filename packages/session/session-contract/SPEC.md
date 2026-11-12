@@ -688,9 +688,20 @@ Session 命令：
 - `reference` 在 Model 分支是稳定 `ModelInvocationRef` 文本。在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。
 - `purpose` 在 Model 分支是 `main`、`compaction` 或 `extension`，在 Tool 分支是 `action`。
 
-Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用同一组字段。Session 写 Run 外登记时把 `CallBinding` 映射为这组字段：载荷的 `kind` 取 `producer.kind`，`reference` 取 `producer.call`。Model 分支的 `purpose` 为 `main`，`producer.call` 必须是 `ModelInvocationRef` 文本，不能是其他调用标识。Tool 分支的 `purpose` 为 `action`，`producer.call` 必须是 `ToolInvocationRef` 文本。`initiatingAttempt` 为 null 表示 Run 外登记。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
+Run 外登记（`bindExternalCall`）与 Run 内登记同种类，三个字段的含义相同，在载荷里的位置不同。两种存法的顶层都有编码时加上的 `kind`：
 
-`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，按载荷的 `kind` 与 `purpose` 跳过读者不需要的分支，取第一条符合的 `reference`。
+| 存法 | 谁写 | `reference` 在哪 | `purpose` 在哪 |
+| --- | --- | --- | --- |
+| Run 内登记 | 同日志解释 Agent 事件 | `registration.binding.producer.call`。`registration.kind` 为 `tool-intent` 的未关联 Tool 登记没有它 | `registration.purpose` |
+| Run 外登记 | `bindExternalCall` | 顶层 `reference` | 顶层 `purpose` |
+
+Session 写 Run 外登记时把 `CallBinding` 映射为这组字段：载荷的 `kind` 取 `producer.kind`，`reference` 取 `producer.call`。Model 分支的 `purpose` 为 `main`，`producer.call` 必须是 `ModelInvocationRef` 文本，不能是其他调用标识。Tool 分支的 `purpose` 为 `action`，`producer.call` 必须是 `ToolInvocationRef` 文本。`initiatingAttempt` 为 null 表示 Run 外登记。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
+
+纯函数 `readCallRegistration(payload)` 是这两种存法的唯一读法。它给出 `CallRegistrationView`，即 `{ kind, reference, purpose }`；`reference` 为 null 表示未关联的 Tool 登记。载荷不是调用登记，或者 `kind` 与 `purpose` 不配套（Model 配 `main`、`compaction`、`extension`，Tool 配 `action`）时，它给出 null。
+
+`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，用 `readCallRegistration` 读每条载荷，按 `kind` 与 `purpose` 跳过读者不需要的分支，取第一条符合的 `reference`。
+
+「现在有没有一轮在进行」由日志判：最近一条一轮开始（SE13，种类 `run.started`，编号在载荷的 `run`）之后，没有同编号的一轮结束（SE26，种类 `run.terminal`，编号在载荷的 `terminal.run`），这一轮就在进行。只有别的编号的一轮结束时，仍然在进行。外部读者按这一条从日志读出当前这一轮，不读工作快照。
 
 这是外部读者取得稳定调用引用的唯一公开路径。它不新增操作。本版不提供「最新调用」的派生索引。
 
