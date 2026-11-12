@@ -80,4 +80,4 @@ Context 以 unknown 表达边界输入，可信身份适配器在进入领域操
 - 声明：[`src/cordis.ts`](../src/cordis.ts)。
 - 定义与撤除验证：[`tests/service-definitions.spec.ts`](../tests/service-definitions.spec.ts)。类型验证：[`tests/cordis-entry.spec-d.ts`](../tests/cordis-entry.spec-d.ts)。
 
-`current` 与 `observe` 的签名分别取自纯契约的 `ModelStreamReferences<P>` 与 `ModelStreamObservation<P>`。Context 的两个成员可选，主体默认为 `unknown`。服务缺席不能当成没有当前目标。每次调用携带观察者自己的 `Access`，由提供者逐次核验。两服务属于当前消费者安装规则的具名例外，实际提供与安装在联调 D 完成，见 [SPEC](../SPEC.md#结果推送与公共观察的装配边界)。
+`current` 与 `observe` 的签名分别取自纯契约的 `ModelStreamReferences<P>` 与 `ModelStreamObservation<P>`。Context 的两个成员可选，主体默认为 `unknown`。服务缺席不能当成没有当前目标。每次调用携带观察者自己的 `Access`，由提供者逐次核验。两个服务已在正式装配里安装（服务端应用的 `model-host` 行，#1214）；消费者是会话观察，这个成员还没有建，在它建成之前只有测试与演示脚本使用。见 [SPEC](../SPEC.md#结果推送与公共观察的装配边界)。
