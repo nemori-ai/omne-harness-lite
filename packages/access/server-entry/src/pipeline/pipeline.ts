@@ -204,28 +204,24 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       entered.leave()
     }
 
-    const watch = watchCall(entered.signal, res)
-    let caller: Extract<Established, { kind: 'caller' }>
-    let body: unknown
-    try {
-      const established = await establish(contract.identity, req, access.identity, watch)
-      switch (established.kind) {
+    /** Step 8 did not establish the caller. */
+    const unestablished = (failure: Exclude<Established, { kind: 'caller' }>): void => {
+      switch (failure.kind) {
         case 'interrupted':
-          return interrupted(established.by)
+          return interrupted(failure.by)
         case 'refused':
           note('access.identity-denied')
           return early('denied')
         case 'unavailable':
-          note(established.thrown ? 'access.identity-fault' : 'access.identity-unavailable')
+          note(failure.thrown ? 'access.identity-fault' : 'access.identity-unavailable')
           return early('basis-unavailable')
-        case 'caller':
-          caller = established
-          break
       }
-      const read = await readOperationBody(req, contract, settings, watch)
-      switch (read.kind) {
+    }
+    /** Step 9 did not read a body. */
+    const unread = (failure: Exclude<BodyOutcome, { kind: 'read' }>): void => {
+      switch (failure.kind) {
         case 'interrupted':
-          return interrupted(read.by)
+          return interrupted(failure.by)
         case 'over':
           note('access.body-over-limit')
           return early('protocol-rejected')
@@ -239,11 +235,19 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
             close: false,
           })
           entered.leave()
-          return
-        case 'read':
-          body = read.value
-          break
       }
+    }
+
+    const watch = watchCall(entered.signal, res)
+    let caller: Extract<Established, { kind: 'caller' }>
+    let body: unknown
+    try {
+      const established = await establish(contract.identity, req, access.identity, watch)
+      if (established.kind !== 'caller') return unestablished(established)
+      caller = established
+      const read = await readOperationBody(req, contract, settings, watch)
+      if (read.kind !== 'read') return unread(read)
+      body = read.value
     } finally {
       watch.release()
     }

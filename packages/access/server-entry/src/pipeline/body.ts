@@ -10,6 +10,16 @@ export type BodyRead =
   /** `stop` fired before the body was complete. Only when a `stop` signal is given. */
   | Readonly<{ kind: 'stopped' }>
 
+/** Without a stop signal the read never ends as `stopped`. */
+export function readBody(
+  req: IncomingMessage,
+  maxBytes: number,
+): Promise<Exclude<BodyRead, { kind: 'stopped' }>>
+export function readBody(
+  req: IncomingMessage,
+  maxBytes: number,
+  stop: AbortSignal,
+): Promise<BodyRead>
 export function readBody(
   req: IncomingMessage,
   maxBytes: number,

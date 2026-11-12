@@ -19,7 +19,8 @@ export const PROOF = 'proof-alice-7f3c'
 export const OTHER_PROOF = 'proof-bob-91aa'
 export const TENANT = 'tenant-acme'
 export const MESSAGE_ID = 'msg-0001'
-export const GRACE_MS = 500
+/** Long enough that only the case's own clock can end it. */
+export const GRACE_MS = 60_000
 
 /** A deferred value the case settles by hand. */
 export type Held<T> = {

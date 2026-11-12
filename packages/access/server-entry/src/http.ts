@@ -283,10 +283,6 @@ export function createServerEntry(input: {
     const query = url.indexOf('?')
     const path = query === -1 ? url : url.slice(0, query)
     const location = locations.find(known => known.path === path)
-    if (location === undefined && pipeline !== undefined) {
-      await pipeline.handle(req, res)
-      return
-    }
     if (location === undefined || (query !== -1 && url.length > query + 1)) {
       writeEmpty(res, 404)
       return
@@ -310,8 +306,7 @@ export function createServerEntry(input: {
     }
     try {
       const body = await readBody(req, location.maxBytes)
-      // `stopped` needs a stop signal, which this path does not give.
-      if (body.kind === 'aborted' || body.kind === 'stopped') {
+      if (body.kind === 'aborted') {
         res.destroy()
         return
       }
@@ -325,6 +320,9 @@ export function createServerEntry(input: {
     }
   }
 
+  const isLocation = (target: string): boolean =>
+    locations.some(known => known.path === pathOf(target))
+
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
     if (stopping) {
       res.destroy()
@@ -334,7 +332,9 @@ export function createServerEntry(input: {
     const finished = new Promise<void>(resolve => {
       res.once('close', resolve)
     })
-    handle(req, res)
+    // A path that is none of the three locations goes to the pipeline when it is given (SPEC「管道」).
+    const route = pipeline === undefined || isLocation(req.url ?? '') ? handle : pipeline.handle
+    route(req, res)
       .catch(() => {
         emit(diagnostics, { code: 'request.fault', path: pathOf(req.url ?? '') })
         if (!res.headersSent) writeNoAnswer(res)

@@ -53,6 +53,7 @@ describe('login and acting-tenant: the Authorization header', () => {
   it.each([
     ['missing', undefined],
     ['not Bearer', 'Basic cHJvb2Y='],
+    ['a scheme that only ends in Bearer', `xBearer ${PROOF}`],
     ['an empty proof', 'Bearer '],
     ['a proof with a space', 'Bearer abc def'],
     ['no space after Bearer', `Bearer${PROOF}`],
