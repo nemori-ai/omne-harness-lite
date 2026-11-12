@@ -108,47 +108,6 @@ export const HTTP_BARE: Scenario = {
 }
 
 /**
- * stdio: one `discover`, `close()`; the probe timer may fire; the peer may `ping`; the shared
- * stream may end, with or without the exit, or break; a write may fail or reject.
- */
-export const STDIO_DISCOVER: Scenario = {
-  name: 'stdio-discover',
-  material: 'stdio',
-  discovers: 1,
-  calls: 0,
-  lists: 0,
-  close: true,
-  pings: 1,
-  lineEnds: ['ended', 'exited', 'broken'],
-  answers: {
-    'line.send': ['sent', 'unsent', 'reject'],
-  },
-  breaches: 1,
-  wireFaults: 1,
-}
-
-/**
- * stdio: one `call` with its signal and one `cancelRequest`, `close()`; the shared stream may
- * end, with or without the exit, or break; a write may fail or reject.
- */
-export const STDIO_CALL: Scenario = {
-  name: 'stdio-call',
-  material: 'stdio',
-  discovers: 0,
-  calls: 1,
-  lists: 0,
-  cancels: 1,
-  close: true,
-  signals: true,
-  lineEnds: ['ended', 'exited', 'broken'],
-  answers: {
-    'line.send': ['sent', 'unsent', 'reject'],
-  },
-  breaches: 1,
-  wireFaults: 1,
-}
-
-/**
  * The legacy HTTP+SSE fallback: `discover` on a peer that answers the probe and `initialize`
  * with 4xx+plain, so the session tries the GET; the GET may enter the SSE mode, be refused with
  * 401, or fail; in the SSE mode the stream may break; `close()` at any point.

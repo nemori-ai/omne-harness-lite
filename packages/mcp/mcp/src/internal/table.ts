@@ -25,28 +25,25 @@ import {
   type ReleaseReport,
 } from '@omne-harness/mcp-contract'
 import { createBuilder, type Losing } from './build.ts'
-import { Connection, type GenerationPolicy } from './connection.ts'
+import { Connection } from './connection.ts'
 import {
   CONNECTION_UNAVAILABLE,
-  adoptLingering,
   ensuredOf,
   forgettable,
   isSettled,
-  residualOf,
   viewOf,
   type ConnectionView,
   type Ensured,
   type EnsureFailure,
   type EnsureRefusal,
   type Entry,
-  type StopRange,
   type UnavailableMark,
 } from './entry.ts'
 import { admitWithoutEligibility, assertAdmitted, type AdmittedEndpoint } from './gate.ts'
 import { startTimeout, waitAtMost, within, type StartBound } from './port.ts'
 import { createTaskScope, type Spawn } from './scope.ts'
 import { prepareSettings, type PreparedSettings } from './settings.ts'
-import { abandonLandings, narrowest, teardown } from './teardown.ts'
+import { teardown } from './teardown.ts'
 import { connectionKeyTextOf, tenantTextOf } from './text.ts'
 import { createTurns } from './turns.ts'
 
@@ -81,7 +78,7 @@ export type TableRuntime = Readonly<{
  */
 export type SharedRuntime = Readonly<{ scope: Spawn; startBound: StartBound }>
 
-export type ClosedEndpoint = Readonly<{ ref: EndpointRef; process: StopRange }>
+export type ClosedEndpoint = Readonly<{ ref: EndpointRef }>
 
 export interface ConnectionTable<P> {
   /**
@@ -119,7 +116,7 @@ export interface ConnectionTable<P> {
   stateOf(tenant: TenantId, holding: EndpointHolding): ConnectionState
   /**
    * The close order of every connection of the holding: refuse requests, wait for the build,
-   * close the transport, stop the process, release the handle. Every connection of the holding
+   * close the transport, release the handle. Every connection of the holding
    * refuses requests before this first yields, so a request read after the call sees the refusal
    * (MC-10, P16). It waits for every close, and rejects with an `AggregateError` when closing
    * raised errors of this package (P7).
@@ -172,10 +169,6 @@ function settledAnswer(answer: Outcome<Ensured, EnsureFailure>): Outcome<Ensured
 
 const UNKNOWN: EnsureRefusal = { kind: 'unknown' }
 
-function policyOf(prepared: PreparedSettings): GenerationPolicy {
-  return prepared.transport.kind === 'stdio' ? 'on-attempt' : 'on-negotiation'
-}
-
 function holdingTextOf(tenantText: string, holding: EndpointHolding): string {
   return JSON.stringify([tenantText, holding])
 }
@@ -218,7 +211,7 @@ export function createConnectionTable<P, S>(
   const turns = createTurns()
   // Set by `closeAll`: from then on nothing connects (MC-5).
   let shut = false
-  const builder = createBuilder(ports, config, { afterLanding: forget, scope, startBound })
+  const builder = createBuilder(ports, config, { scope, startBound })
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
@@ -245,14 +238,13 @@ export function createConnectionTable<P, S>(
    * check and answers within its bound, tearing nothing down; then this close tears the entry
    * down, the only teardown since it began, and forgets it.
    */
-  function closeEntry(entry: Entry): Promise<StopRange> {
+  function closeEntry(entry: Entry): Promise<void> {
     if (entry.closing !== undefined) return entry.closing
     if (!entry.connection.closed) entry.connection.close()
     const closing = (async () => {
       while (entry.pending !== undefined) await entry.pending.catch(() => undefined)
-      const range = await teardown(entry)
+      await teardown(entry)
       forget(entry)
-      return range
     })()
     entry.closing = closing
     return closing.finally(() => {
@@ -269,9 +261,8 @@ export function createConnectionTable<P, S>(
     key: ConnectionKey,
     keyText: string,
   ): Entry {
-    const policy = policyOf(prepared)
     if (existing === undefined) {
-      const connection = new Connection(key, policy, lastGeneration.get(keyText))
+      const connection = new Connection(key, lastGeneration.get(keyText))
       return {
         ref: admitted.ref,
         tenantText: tenantTextOf(access.tenant),
@@ -282,10 +273,7 @@ export function createConnectionTable<P, S>(
         connection,
         view: viewOf(connection),
         transport: undefined,
-        process: undefined,
         credential: undefined,
-        lingering: [],
-        landings: [],
         pending: undefined,
         tearing: undefined,
         closing: undefined,
@@ -293,7 +281,7 @@ export function createConnectionTable<P, S>(
     }
     if (existing.connection.closed) {
       const from = later(existing.connection.generation, lastGeneration.get(keyText))
-      existing.connection = new Connection(key, policy, from)
+      existing.connection = new Connection(key, from)
       existing.view = viewOf(existing.connection)
     }
     return existing
@@ -317,17 +305,6 @@ export function createConnectionTable<P, S>(
   }
 
   /**
-   * The settled entries of the holding's other revisions hand what still lingers to `entry`,
-   * which stops it at its next teardown, and leave the table when they hold nothing else.
-   */
-  function inheritLingering(entry: Entry, settled: readonly Entry[]): void {
-    for (const other of settled) {
-      adoptLingering(entry, other)
-      forget(other)
-    }
-  }
-
-  /**
    * What the critical section waits for before it decides, and whose it is: the close of a
    * connection of the holding's other revisions (invariant 6), which this call starts and owns,
    * else the close or teardown already in flight on the key, which belongs to the call that
@@ -338,7 +315,7 @@ export function createConnectionTable<P, S>(
     holding: EndpointHolding,
     keyText: string,
     ofOtherRevision: (entry: Entry) => boolean,
-  ): Readonly<{ work: Promise<StopRange>; owned: boolean }> | undefined {
+  ): Readonly<{ work: Promise<void>; owned: boolean }> | undefined {
     const other = entriesOf(tenantText, holding).find(
       entry => ofOtherRevision(entry) && !isSettled(entry),
     )
@@ -389,7 +366,6 @@ export function createConnectionTable<P, S>(
       if (reused !== undefined) return reused
       // From here to the start of the build nothing yields: the entry of the holding is this one.
       const entry = entryOf(existing, admitted, access, prepared, key, keyText)
-      inheritLingering(entry, entriesOf(tenantText, holding).filter(ofOtherRevision))
       entries.set(keyText, entry)
       byView.set(entry.view, entry)
       const pending = builder.build(entry, access, prepared)
@@ -486,16 +462,7 @@ export function createConnectionTable<P, S>(
     const live = found.find(entry => !entry.connection.closed) ?? found[0]
     if (live === undefined) return { kind: 'none' }
     const state = live.connection.state
-    const residual = residualOf(found)
-    if (state.kind === 'closed')
-      return residual === undefined
-        ? { kind: 'none' }
-        : { kind: 'lost', reason: 'close-unconfirmed', residual }
-    if (state.kind === 'lost')
-      return residual === undefined
-        ? { kind: 'lost', reason: state.reason }
-        : { kind: 'lost', reason: state.reason, residual }
-    return state
+    return state.kind === 'closed' ? { kind: 'none' } : state
   }
 
   async function close(tenant: TenantId, holding: EndpointHolding): Promise<ReleaseReport> {
@@ -503,29 +470,28 @@ export function createConnectionTable<P, S>(
     if (found.length === 0) return { kind: 'no-connection' }
     // Every connection of the holding refuses requests before the first wait (MC-10); every close
     // is waited for, whatever the others answer, so no error is left without a destination (P7).
-    const { values: ranges, defects } = sortOut(await Promise.allSettled(found.map(closeEntry)))
+    const { defects } = sortOut(await Promise.allSettled(found.map(closeEntry)))
     if (defects.length > 0)
       throw new AggregateError(defects, 'the MCP connections of the holding did not close cleanly')
-    return { kind: 'released', process: ranges.reduce<StopRange>(narrowest, 'no-process') }
+    return { kind: 'released' }
   }
 
   /**
-   * The shutdown: nothing connects after it; the handles of the landings in flight are released
-   * first, all at once (MC-14); then every entry is closed, all at once. It waits for both,
-   * then hands over the errors the table's background work raised.
+   * The shutdown: nothing connects after it; every entry is closed, all at once. It waits for
+   * every close, then hands over the errors the table's background work raised.
    */
   async function closeAll(): Promise<readonly ClosedEndpoint[]> {
     shut = true
     const all = [...entries.values()]
-    // Every entry is closed before the answer, even when closing another one fails (SPEC P3).
-    const [abandoned, closing] = await Promise.all([
-      Promise.allSettled(all.map(abandonLandings)),
-      Promise.allSettled(
-        all.map(async entry => ({ ref: entry.ref, process: await closeEntry(entry) })),
-      ),
-    ])
+    // Every entry is closed before the answer, even when closing another one fails (SPEC MC-10).
+    const closing = await Promise.allSettled(
+      all.map(async entry => {
+        await closeEntry(entry)
+        return { ref: entry.ref }
+      }),
+    )
     const closed = sortOut(closing)
-    const defects = [...sortOut(abandoned).defects, ...closed.defects, ...scope.exit()]
+    const defects = [...closed.defects, ...scope.exit()]
     if (defects.length > 0)
       throw new AggregateError(defects, 'the MCP connection table did not close cleanly')
     return closed.values

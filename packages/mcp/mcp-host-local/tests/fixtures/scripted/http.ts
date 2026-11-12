@@ -448,7 +448,6 @@ class Peer {
         return
       case 'silent':
       case 'unsent':
-      case 'process-exits':
         // The answer never comes: the stream stays open until the client ends it. With
         // `holdHeads` not even the answer head goes out.
         if (this.options.holdHeads === true) return
@@ -724,8 +723,9 @@ export type HttpPeerOptions = Readonly<{
   sseNoise?: boolean
   /**
    * Called with the method of each request the peer takes, after the body is read and before the
-   * peer records it; the record and the answer wait for it. Only the fixture's own cases use it,
-   * to record a request late, as a peer under load may.
+   * peer records it; the record and the answer wait for it. The fixture's own cases use it to
+   * record a request late, as a peer under load may; `cordis-journey.spec.ts` uses it to see that
+   * the peer took a call.
    */
   beforeRecord?: (method: string) => Promise<void>
 }>

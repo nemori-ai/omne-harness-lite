@@ -9,14 +9,7 @@ import {
   type Generation,
   type LostReason,
   type PeerIdentity,
-  type Residual,
 } from '@omne-harness/mcp-contract'
-
-/**
- * When the generation grows. `on-attempt` is stdio: every launch attempt, failed ones included.
- * `on-negotiation` is Streamable HTTP: every successful negotiation.
- */
-export type GenerationPolicy = 'on-attempt' | 'on-negotiation'
 
 /** The five reported states of SPEC S7, and `closed`, which the status view never shows. */
 export type AggregateState = ConnectionState | Readonly<{ kind: 'closed' }>
@@ -32,24 +25,18 @@ const ZERO = generationOf(0)
 
 export class Connection {
   readonly #key: ConnectionKey
-  readonly #policy: GenerationPolicy
   #generation: Generation
   #state: AggregateState = { kind: 'none' }
   #peer: PeerIdentity | undefined
 
   /** `generation` continues a count that an earlier, closed connection of the same key left. */
-  constructor(key: ConnectionKey, policy: GenerationPolicy, generation: Generation = ZERO) {
+  constructor(key: ConnectionKey, generation: Generation = ZERO) {
     this.#key = key
-    this.#policy = policy
     this.#generation = generation
   }
 
   get key(): ConnectionKey {
     return this.#key
-  }
-
-  get policy(): GenerationPolicy {
-    return this.#policy
   }
 
   get state(): AggregateState {
@@ -77,14 +64,12 @@ export class Connection {
   }
 
   /**
-   * A launch or negotiation attempt begins. Answers the generation this attempt has once it is
-   * ready: under `on-attempt` it is committed now, failed attempts included; under
-   * `on-negotiation` it is committed by `ready`.
+   * A negotiation attempt begins. Answers the generation this attempt has once it is ready:
+   * `ready` commits it (SPEC MC-6); a failed attempt leaves the generation as it was.
    */
   attempt(): Generation {
     this.#expect('attempt', ['none', 'lost'])
     const next = generationOf(this.#generation + 1)
-    if (this.#policy === 'on-attempt') this.#generation = next
     this.#state = { kind: 'preparing' }
     return next
   }
@@ -92,8 +77,7 @@ export class Connection {
   /** Negotiation done, or the next non-call request succeeded after `degraded`. */
   ready(peer: PeerIdentity): Generation {
     const from = this.#expect('ready', ['preparing', 'degraded'])
-    if (from === 'preparing' && this.#policy === 'on-negotiation')
-      this.#generation = generationOf(this.#generation + 1)
+    if (from === 'preparing') this.#generation = generationOf(this.#generation + 1)
     this.#peer = peer
     this.#state = { kind: 'ready' }
     return this.#generation
@@ -105,14 +89,13 @@ export class Connection {
     this.#state = { kind: 'degraded', reason }
   }
 
-  /** The connection no longer holds. `residual` is what a failed preparation left behind. */
-  lose(reason: LostReason, residual?: readonly Residual[]): void {
+  /** The connection no longer holds. */
+  lose(reason: LostReason): void {
     this.#expect('lose', ['preparing', 'ready', 'degraded'])
-    this.#state =
-      residual === undefined ? { kind: 'lost', reason } : { kind: 'lost', reason, residual }
+    this.#state = { kind: 'lost', reason }
   }
 
-  /** Refuses new requests. The transport and the process are closed by the holder. */
+  /** Refuses new requests. The transport is closed by the holder. */
   close(): void {
     this.#expect('close', ['none', 'preparing', 'ready', 'degraded', 'lost'])
     this.#state = { kind: 'closed' }

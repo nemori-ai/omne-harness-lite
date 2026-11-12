@@ -31,10 +31,10 @@ export type SseConfig =
 
 /**
  * How the line answers one message. `message` answers with a JSON-RPC message that gets the
- * request's id (a stdio line, or a 2xx body on HTTP). `status` is an HTTP error status. `empty`
- * is a 2xx with no message. `silent` never answers (on HTTP: a stream that stays open). `unsent`
- * fails before the message leaves. `aborted` fails before the HTTP answer head. `ended` and
- * `broken` answer `sent` and then push that event on the shared stream. `hang` is a write that
+ * request's id (a 2xx body, or a message on the shared stream of the SSE mode). `status` is an HTTP
+ * error status. `empty` is a 2xx with no message. `silent` never answers (a stream that stays
+ * open). `unsent` fails before the message leaves. `aborted` fails before the HTTP answer head.
+ * `broken` answers in the SSE mode and then pushes that event on the shared stream. `hang` is a write that
  * does not return until its signal fires, then reports `aborted`; `late-stream` is the same wait
  * ending in a 2xx answer stream, as when the wire answered while the signal was firing. `deaf` is
  * a 2xx answer stream that stays open and never looks at the signal: only `abort()` ends it.
@@ -57,7 +57,6 @@ export type Reply =
   | Readonly<{ kind: 'silent' }>
   | Readonly<{ kind: 'unsent' }>
   | Readonly<{ kind: 'aborted' }>
-  | Readonly<{ kind: 'ended'; stdoutEndedAt?: number; exitedAt?: number }>
   | Readonly<{ kind: 'broken' }>
   | Readonly<{ kind: 'hang' }>
   | Readonly<{ kind: 'late-stream' }>
@@ -77,7 +76,7 @@ function isRecord(value: unknown): value is PlainRecord {
 }
 
 export class MemoryLine implements Line {
-  readonly kind: 'stdio' | 'streamable-http'
+  readonly kind = 'streamable-http'
   readonly sent: Sent[] = []
   readonly aborted: string[] = []
   /** The methods of the writes that waited for their signal and were ended by it (`hang`). */
@@ -98,16 +97,11 @@ export class MemoryLine implements Line {
   private readonly consumed = new Map<string, number>()
   private readonly sseConfig: SseConfig | undefined
 
-  constructor(
-    kind: 'stdio' | 'streamable-http',
-    script: Script,
-    sse?: Readonly<{ entry: SseConfig }>,
-  ) {
-    this.kind = kind
+  constructor(script: Script, sse?: Readonly<{ entry: SseConfig }>) {
     this.script = script
     this.events = this.queue
     this.sseConfig = sse?.entry
-    if (kind === 'streamable-http' && sse !== undefined) this.openGet = this.getStream.bind(this)
+    if (sse !== undefined) this.openGet = this.getStream.bind(this)
   }
 
   openGet: ((headers: Headers, signal: AbortSignal) => Promise<GetOpened>) | undefined
@@ -160,7 +154,7 @@ export class MemoryLine implements Line {
     }
   }
 
-  /** Pushes a message of the peer on the shared stream (stdio, or the SSE mode). */
+  /** Pushes a message of the peer on the shared stream of the SSE mode. */
   push(message: PlainJson): void {
     this.queue.push({ kind: 'line', text: JSON.stringify(message) })
   }
@@ -197,8 +191,8 @@ export class MemoryLine implements Line {
     this.sent.push({ message: parsed, headers, text: outbound.text })
     if (reply?.kind === 'hang' || reply?.kind === 'late-stream')
       return this.hold(reply.kind, typeof method === 'string' ? method : '', signal)
-    if (reply === undefined) return this.kind === 'stdio' ? { kind: 'sent' } : ended({})
-    if (this.kind === 'stdio' || this.sse) return this.onStream(reply, id)
+    if (reply === undefined) return ended({})
+    if (this.sse) return this.onStream(reply, id)
     return this.onHttp(reply, id, signal)
   }
 
@@ -237,15 +231,12 @@ export class MemoryLine implements Line {
     })
   }
 
-  /** stdio and the SSE mode: the message is written; the answer comes on the shared stream. */
+  /** The SSE mode: the message is posted; the answer comes on the shared stream. */
   private onStream(reply: Reply, id: PlainJson | undefined): Exchange {
-    const sent: Exchange = this.kind === 'stdio' ? { kind: 'sent' } : ended({})
+    const sent: Exchange = ended({})
     switch (reply.kind) {
       case 'message':
         queueMicrotask(() => this.push(answerOf(reply, id)))
-        return sent
-      case 'ended':
-        queueMicrotask(() => this.queue.push({ ...reply }))
         return sent
       case 'broken':
         queueMicrotask(() => this.queue.push({ kind: 'broken' }))
@@ -253,7 +244,6 @@ export class MemoryLine implements Line {
       case 'silent':
         return sent
       case 'status':
-        if (this.kind === 'stdio') throw new TypeError('an HTTP status on stdio')
         return {
           kind: 'status',
           status: reply.status,
@@ -263,7 +253,6 @@ export class MemoryLine implements Line {
       case 'empty':
         return sent
       case 'aborted':
-        if (this.kind === 'stdio') throw new TypeError('an aborted exchange on stdio')
         return { kind: 'aborted' }
       case 'unsent':
         return { kind: 'unsent' }
@@ -314,7 +303,6 @@ export class MemoryLine implements Line {
             this.streamAborted.push(typeof id === 'string' ? id : '')
           },
         }
-      case 'ended':
       case 'broken':
       case 'hang':
       case 'late-stream':

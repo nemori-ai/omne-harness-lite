@@ -103,6 +103,7 @@ export type AnswerClass =
  *   handshake).
  * - `nothing`: the transport stopped waiting with nothing for the request: `close()` ran, or the
  *   call's signal fired.
+ * - `line`: one message of the shared stream of the legacy HTTP+SSE mode (the data of one event).
  * - `http-aborted`: the HTTP exchange failed after the request started to go out: before the
  *   answer head came (reset, timeout), or while a 2xx body was being read and before it ended.
  *   In the legacy HTTP+SSE mode the end of the shared stream is this event for every request in
@@ -115,6 +116,7 @@ export type AnswerClass =
 export type WireEvent =
   | Readonly<{ kind: 'unsent' }>
   | Readonly<{ kind: 'nothing' }>
+  | Readonly<{ kind: 'line'; text: string }>
   | Readonly<{ kind: 'http-aborted' }>
   | Readonly<{
       kind: 'http-status'
@@ -143,11 +145,13 @@ export type WireContext = Readonly<{
  * The classification of an event. `answer`: the event is this answer class for the request;
  * `message` is the parsed message the class was read from, when the class has one: the answer
  * to the request (a result or error class), or the JSON-RPC error body of an HTTP error status.
- * `waiting`: a 2xx stream that is still open without an answer to the request; it is no class
- * yet.
+ * `other`: a line of the shared stream that is not about this request (the answer to another
+ * request, a request or notification of the peer, other JSON). `waiting`: a 2xx stream that is
+ * still open without an answer to the request; it is no class yet.
  */
 export type WireClassification =
   | Readonly<{ kind: 'answer'; answer: AnswerClass; message?: JsonObject }>
+  | Readonly<{ kind: 'other' }>
   | Readonly<{ kind: 'waiting' }>
 
 /**
@@ -202,7 +206,7 @@ function progressTokenOf(params: JsonValue | undefined): string | undefined {
 }
 
 /**
- * Reads one stream message as a request or notification of the peer (T3), with the
+ * Reads one line or stream message as a request or notification of the peer (T3), with the
  * limits of `classifyWireEvent`. Undefined for anything else: an answer, or text that is not a
  * JSON object with a text `method`.
  */
@@ -363,6 +367,17 @@ function httpStatusOf(
   return answer(`http:${statusClassOf(status)}+${read.body}`, read.message)
 }
 
+/** A line of the shared stream: the answer when it carries the request's id and no method; `other` for the rest. */
+function lineOf(
+  event: Extract<WireEvent, { kind: 'line' }>,
+  context: WireContext,
+): WireClassification {
+  const message = parse(event.text)
+  return message !== undefined && answers(message, context)
+    ? answer(messageClassOf(message, context), message)
+    : { kind: 'other' }
+}
+
 /**
  * A 2xx answer: the first message that answers the request; else `http:2xx` once the body ended,
  * or `waiting` while it is open, and in the legacy HTTP+SSE mode even when it ended.
@@ -380,7 +395,8 @@ function httpStreamOf(
 
 /**
  * Puts one wire event into its T8 answer class for one request (SPEC T2, T8), one function per
- * event kind. A 2xx message that carries the request's id and no method is the answer; its
+ * event kind. A line of the shared stream that is not JSON is dropped (`other`); the stream goes
+ * on. A line or a 2xx message that carries the request's id and no method is the answer; its
  * envelope and content decide the class. In the legacy HTTP+SSE mode
  * a 2xx body that ended with no answer is still `waiting`: the answer comes on the shared stream.
  */
@@ -390,6 +406,8 @@ export function classifyWireEvent(event: WireEvent, context: WireContext): WireC
       return answer('unsent')
     case 'nothing':
       return answer('silent')
+    case 'line':
+      return lineOf(event, context)
     case 'http-aborted':
       return answer('stream-broken')
     case 'http-status':

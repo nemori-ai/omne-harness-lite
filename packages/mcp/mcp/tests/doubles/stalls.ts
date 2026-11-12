@@ -7,7 +7,7 @@ import type {
   AdoptionView,
   CatalogStore,
   CredentialUse,
-  ProcessLanding,
+  McpTransportFactory,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 import { from, only, picker, type Which } from './calls.ts'
@@ -95,22 +95,22 @@ export function armedStore<T extends CatalogStore>(
 }
 
 /**
- * The landing whose `start` calls picked by `which` (every call unless given) wait on `gate`
- * before they start the process; `calls` counts the asks.
+ * The transport factory whose `open` calls picked by `which` (every call unless given) wait on
+ * `gate` before they open the transport; `calls` counts the asks.
  */
-export function stallingLanding(
-  port: ProcessLanding<Principal>,
+export function stallingOpens(
+  factory: McpTransportFactory,
   which: Which = from(1),
-): Readonly<{ port: ProcessLanding<Principal>; gate: Deferred<void>; calls: () => number }> {
+): Readonly<{ port: McpTransportFactory; gate: Deferred<void>; calls: () => number }> {
   const gate = deferred<void>()
   const asked = picker(which)
   return {
     gate,
     calls: asked.calls,
     port: {
-      async start(access, launch, env) {
+      async open(material, signal) {
         if (asked.next()) await gate.promise
-        return port.start(access, launch, env)
+        return factory.open(material, signal)
       },
     },
   }
@@ -140,38 +140,6 @@ export function stallingCredentials(
       handle => counted(shape(handle)),
       () => gate.promise,
     ),
-  }
-}
-
-/**
- * The landing whose processes picked by `which` (in the order they landed; the first is 1) wait
- * on `gate` in `stop()` before they are stopped.
- */
-export function stallingStops(
-  port: ProcessLanding<Principal>,
-  which: Which,
-): Readonly<{ port: ProcessLanding<Principal>; gate: Deferred<void> }> {
-  const gate = deferred<void>()
-  const landed = picker(which)
-  return {
-    gate,
-    port: {
-      async start(access, launch, env) {
-        const answer = await port.start(access, launch, env)
-        if ('failure' in answer) return answer
-        const stalls = landed.next()
-        const process = answer.ok
-        return {
-          ok: {
-            ...process,
-            async stop() {
-              if (stalls) await gate.promise
-              return process.stop()
-            },
-          },
-        }
-      },
-    },
   }
 }
 

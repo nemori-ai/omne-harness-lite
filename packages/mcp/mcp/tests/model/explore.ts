@@ -52,6 +52,7 @@ import { createTasks } from '../../src/tasks.ts'
 import { CONFIG, VALUE, settingsOf } from '../doubles/world.ts'
 import {
   actionNameOf,
+  connectionTargetOf,
   correlationKeyOf,
   credentialBindingOf,
   generationOf,
@@ -89,7 +90,6 @@ import {
   stoppedForeignCall,
   taskAnsweredForeign,
   unhandledRejection,
-  unstoppedAtShutdown,
   type Found,
   type KeyObservation,
   type OpKind,
@@ -268,7 +268,10 @@ function catalogRecord(): ActionCatalogRecord {
   return merged.ok
 }
 
-/** One stdio endpoint with a process credential per key, adopted and admitted. */
+/**
+ * One Streamable HTTP endpoint with a credential per key, adopted and admitted. Each key has its
+ * own address, so the transport port tells the keys apart by it (SPEC P5).
+ */
 export async function modelKeys(
   names: readonly KeyName[],
 ): Promise<Readonly<{ keys: readonly ModelKey[]; catalog: ActionCatalogRecord }>> {
@@ -286,17 +289,9 @@ export async function modelKeys(
       tenant: owner.tenant,
       scope: 'ws',
       ref: endpoint,
-      body: jsonOf({
-        name: endpoint.name,
-        transport: 'stdio',
-        auth: 'static',
-        launch: {
-          command: 'mcp-files',
-          env: [{ name: 'TOKEN', source: 'credential' }],
-          facilities: [],
-        },
-      }),
+      body: jsonOf({ name: endpoint.name, transport: 'streamable-http', auth: 'static' }),
       settings: settingsOf({
+        target: VALUE(connectionTargetOf(`https://${name.toLowerCase()}.example.test/mcp`)),
         credential: VALUE(credentialBindingOf(owner.credential)),
         connectTimeout: VALUE(BOUND),
       }),
@@ -379,14 +374,9 @@ function generationText(key: string, generation: number): string {
   return `${key}@${generation}`
 }
 
-/**
- * The state without the residual: what P6 compares across a late answer. A closed entry that
- * keeps only processes whose stop was not confirmed reports `lost` (`close-unconfirmed`) to carry
- * its residual (SPEC MC-9); without the residual it is `none`.
- */
+/** The state as a consumer sees it: what P6 compares across a late answer. */
 function coreOf(state: ConnectionState): string {
-  if (state.kind === 'lost' && state.reason === 'close-unconfirmed') return '{"kind":"none"}'
-  return JSON.stringify(state, (name, value: unknown) => (name === 'residual' ? undefined : value))
+  return JSON.stringify(state)
 }
 
 /** The text of an `invoke` or `continue` answer: the kind, its reason, and a cause if any. */
@@ -646,7 +636,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
    * what the properties read at its answer; counts keep only what the properties distinguish.
    */
   projection(): string {
-    const { handles, processes, transports, requests } = this.ledger
+    const { handles, transports, requests } = this.ledger
     return JSON.stringify({
       ops: this.ops.map(op =>
         [
@@ -679,7 +669,6 @@ class Run implements RunView, CallDesk, ReservationDesk {
         .sort(),
       timers: this.timers.map(timer => timer.name),
       handles: handles.map(item => `${item.name}:${Math.min(item.releases, 2)}`),
-      processes: processes.map(item => `${item.name}:${Math.min(item.stops, 1)}:${item.lastStop}`),
       transports: transports.map(
         item => `${item.name}:${Math.min(item.closes, 1)}:${this.refuses(item.name) ? 'r' : ''}`,
       ),
@@ -1059,7 +1048,6 @@ class Run implements RunView, CallDesk, ReservationDesk {
       value => {
         op.status = 'answered'
         op.result = summary(value)
-        this.report(unstoppedAtShutdown(this, op))
       },
       (error: unknown) => {
         op.status = 'rejected'
@@ -1155,7 +1143,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
       this.newOp('closeAll', undefined),
       this.keys,
       () => this.table.closeAll(),
-      (closed: readonly ClosedEndpoint[]) => JSON.stringify(closed.map(item => item.process)),
+      (closed: readonly ClosedEndpoint[]) => JSON.stringify(closed.map(item => item.ref.name)),
     )
   }
 

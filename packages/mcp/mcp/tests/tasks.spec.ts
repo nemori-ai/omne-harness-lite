@@ -23,9 +23,9 @@ import { only } from './doubles/calls.ts'
 import { settled } from './doubles/deferred.ts'
 import { alice, aliceAway, bob, mallory, type Principal } from './doubles/identities.ts'
 import { listing, peer, services, taskHandle, taskStatus, text, type Peer } from './doubles/peer.ts'
-import { adoptionBefore, armedEligibility, stallingLanding } from './doubles/stalls.ts'
+import { adoptionBefore, armedEligibility, stallingOpens } from './doubles/stalls.ts'
 import { never, reshapedTransports } from './doubles/transports.ts'
-import { MAIN, adoptHttp, adoptStdio, storedRecord } from './doubles/world.ts'
+import { MAIN, TARGET, adoptHttp, storedRecord } from './doubles/world.ts'
 
 /** What a case replaces in the peer's ports, and the table runtime it runs on. */
 type Shape = Readonly<{ ports?: Partial<McpPorts<Principal, string>>; runtime?: TableRuntime }>
@@ -44,7 +44,7 @@ const WORKING = taskStatus('t1', 'working')
 
 /**
  * A peer whose `read` answers with the task `t1`, which answers `tasks/get` as scripted; `files`
- * adopted for alice as stdio, the catalog stored, and the task started by alice.
+ * adopted for alice without authentication, the catalog stored, and the task started by alice.
  */
 async function started(
   t1: TaskScript = { get: WORKING },
@@ -60,7 +60,7 @@ async function started(
     tasks: { t1 },
     ...script,
   })
-  adoptStdio(p, files)
+  adoptHttp(p, files, { auth: 'none' })
   const shaped = shape(p)
   const { services: s, table } = services(
     { ...p, ports: { ...p.ports, ...shaped.ports } },
@@ -218,14 +218,9 @@ describe('the connection of a task operation (SPEC S2)', () => {
     const c = await started()
     await c.connections.release(alice, files)
     c.p.adoption.update(alice.tenant, files, {
-      body: jsonOf({
-        name: 'files',
-        transport: 'stdio',
-        auth: 'static',
-        launch: { command: 'mcp' },
-      }),
+      body: jsonOf({ name: 'files', transport: 'streamable-http', auth: 'static' }),
       settings: {
-        target: { kind: 'absent' },
+        target: { kind: 'value', value: TARGET },
         credential: { kind: 'value', value: MAIN },
         connectTimeout: { kind: 'value', value: millisOf(30_000) },
       },
@@ -244,14 +239,9 @@ describe('the connection of a task operation (SPEC S2)', () => {
   it('a connection on another peer account is not reused either', async () => {
     const c = await started()
     c.p.adoption.update(alice.tenant, files, {
-      body: jsonOf({
-        name: 'files',
-        transport: 'stdio',
-        auth: 'static',
-        launch: { command: 'mcp' },
-      }),
+      body: jsonOf({ name: 'files', transport: 'streamable-http', auth: 'static' }),
       settings: {
-        target: { kind: 'absent' },
+        target: { kind: 'value', value: TARGET },
         credential: { kind: 'value', value: MAIN },
         connectTimeout: { kind: 'value', value: millisOf(30_000) },
       },
@@ -273,15 +263,13 @@ describe('the connection of a task operation (SPEC S2)', () => {
 })
 
 describe('the answers of the task operations (SPEC S2, T6)', () => {
-  it('no answer is effect-unknown with the same cause, and the connection is lost', async () => {
+  it('no answer is effect-unknown with the same cause', async () => {
     const c = await started({ get: { kind: 'stream-breaks' } })
     expect(await c.invoker.queryTask(alice, task)).toEqual({
       failure: { kind: 'effect-unknown', cause: 'stream-broken' },
     })
-    expect(await c.status.inspect(alice, files)).toMatchObject({
-      ok: { connection: { kind: 'lost', reason: 'stream-broken' } },
-    })
-    expect(c.p.requests('tasks/get')).toHaveLength(1)
+    // A read request is sent once more after a broken stream (contract T8 O05).
+    expect(c.p.requests('tasks/get')).toHaveLength(2)
   })
 
   it.each([
@@ -326,7 +314,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
       calls: { read: taskHandle('t1') },
       tasks: { t1: { get: { kind: 'silent' } } },
     })
-    adoptStdio(p, files)
+    adoptHttp(p, files, { auth: 'none' })
     const bounds = manualBounds()
     const { services: s } = services(p, bounds.runtime)
     expect(await s.discovery.refresh(alice, { ref: files })).toMatchObject({
@@ -536,10 +524,10 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
 
   it('a build bound that fires first is connection-unavailable', async () => {
     const bounds = manualBounds()
-    let stalled: ReturnType<typeof stallingLanding> | undefined
+    let stalled: ReturnType<typeof stallingOpens> | undefined
     const c = await started(undefined, {}, undefined, p => {
-      stalled = stallingLanding(p.landing, only(2))
-      return { ports: { landing: stalled.port }, runtime: bounds.runtime }
+      stalled = stallingOpens(p.ports.transports, only(2))
+      return { ports: { transports: stalled.port }, runtime: bounds.runtime }
     })
     if (stalled === undefined) throw new Error('not shaped')
     await c.connections.release(alice, files)
@@ -582,10 +570,10 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
   })
 
   it('a shutdown under way while the connection is built is effect-unknown (no-connection), the same as after closeAll (S8)', async () => {
-    let stalled: ReturnType<typeof stallingLanding> | undefined
+    let stalled: ReturnType<typeof stallingOpens> | undefined
     const c = await started(undefined, {}, undefined, p => {
-      stalled = stallingLanding(p.landing, only(2))
-      return { ports: { landing: stalled.port } }
+      stalled = stallingOpens(p.ports.transports, only(2))
+      return { ports: { transports: stalled.port } }
     })
     if (stalled === undefined) throw new Error('not shaped')
     await c.connections.release(alice, files)
@@ -634,12 +622,9 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
     },
   )
 
-  it('a task request the transport could not send is the connection failure, and the connection is lost (S7)', async () => {
+  it('a task request the transport could not send is the connection failure', async () => {
     const c = await started({ get: { kind: 'unsent' } })
     expect(await c.invoker.queryTask(alice, task)).toEqual(CONNECTION_UNAVAILABLE)
-    expect(await c.status.inspect(alice, files)).toMatchObject({
-      ok: { connection: { kind: 'lost', reason: 'stream-broken' } },
-    })
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
 
@@ -691,14 +676,9 @@ describe('the task table keys by tenant, principal, holding and task id; the pee
   /** The adoption of `files` changed to a credential account, with the credential stored and the catalog published. */
   async function movedToCredentialAccount(c: Awaited<ReturnType<typeof started>>) {
     c.p.adoption.update(alice.tenant, files, {
-      body: jsonOf({
-        name: 'files',
-        transport: 'stdio',
-        auth: 'static',
-        launch: { command: 'mcp' },
-      }),
+      body: jsonOf({ name: 'files', transport: 'streamable-http', auth: 'static' }),
       settings: {
-        target: { kind: 'absent' },
+        target: { kind: 'value', value: TARGET },
         credential: { kind: 'value', value: MAIN },
         connectTimeout: { kind: 'value', value: millisOf(30_000) },
       },

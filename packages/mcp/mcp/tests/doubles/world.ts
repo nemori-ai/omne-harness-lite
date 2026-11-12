@@ -1,4 +1,4 @@
-// Test helper: the five ports as in-memory doubles plus the scripted transport factory, with the
+// Test helper: the four ports as in-memory doubles plus the scripted transport factory, with the
 // adoptions and credentials that most cases start from.
 import type {
   ActionCatalogRecord,
@@ -12,10 +12,9 @@ import type {
   McpPorts,
   Millis,
   SettingValue,
-  StopScope,
 } from '@omne-harness/mcp-contract'
 import { completeListing, mergeListing } from '@omne-harness/mcp-contract'
-import type { AdoptedEndpoint, ProcessSetting } from '@omne-harness/mcp-contract/provider'
+import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
 import {
   createMemoryCatalogStore,
   type MemoryCatalogStore,
@@ -25,11 +24,9 @@ import {
   countedCredentials,
   countedEligibility,
   countedOutputCheck,
-  scriptedLanding,
   type Counted,
   type CountedCredentials,
   type CountedOutputCheck,
-  type ScriptedLanding,
 } from './ports.ts'
 import { scriptedTransports, type ScriptedTransports, type Step } from './scripted-transport.ts'
 import type { MemoryAdoptionView, MemoryUseEligibility } from '@omne-harness/mcp-contract/testing'
@@ -50,12 +47,11 @@ export type World = Readonly<{
   adoption: Counted<MemoryAdoptionView<Principal, string>>
   eligibility: Counted<MemoryUseEligibility<Principal>>
   credentials: CountedCredentials
-  landing: ScriptedLanding
   store: MemoryCatalogStore
   transports: ScriptedTransports
   /** The output validator and its call count. */
   checks: CountedOutputCheck
-  /** The close-order events of transports, processes and credential handles, in order. */
+  /** The close-order events of transports and credential handles, in order. */
   trace: readonly string[]
 }>
 
@@ -73,8 +69,6 @@ export const CONFIG: McpConfig<Principal> = {
 export function world(
   options: Readonly<{
     script?: readonly Step[]
-    stop?: StopScope
-    facilities?: readonly string[]
     config?: Partial<McpConfig<Principal>>
   }> = {},
 ): World {
@@ -85,11 +79,6 @@ export function world(
   const adoption = countedAdoption()
   const eligibility = countedEligibility()
   const credentials = countedCredentials(record)
-  const landing = scriptedLanding({
-    facilities: options.facilities ?? [],
-    trace: record,
-    ...(options.stop === undefined ? {} : { stop: options.stop }),
-  })
   const store = createMemoryCatalogStore()
   const transports = scriptedTransports(options.script ?? [], record)
   const checks = countedOutputCheck()
@@ -98,7 +87,6 @@ export function world(
       adoption,
       eligibility,
       credentials,
-      landing,
       store,
       transports,
       checkOutput: checks.check,
@@ -108,7 +96,6 @@ export function world(
     adoption,
     eligibility,
     credentials,
-    landing,
     store,
     transports,
     checks,
@@ -133,47 +120,6 @@ export const INVALID: SettingValue<never> = { kind: 'invalid', text: 'nonsense' 
 
 /** The ports a case adopts into: the world's, or the peer world's of `peer.ts`. */
 export type Adopting = Pick<World, 'adoption' | 'eligibility' | 'credentials'>
-
-/** A ready-to-use stdio adoption for alice: `files`, `auth` none unless given, granted. */
-export function adoptStdio(
-  w: Adopting,
-  ref: EndpointRef,
-  options: Readonly<{
-    auth?: 'none' | 'static'
-    env?: readonly Readonly<{ name: string; source: 'setting' | 'credential' }>[]
-    processEnv?: readonly ProcessSetting[]
-    settings?: Settings
-    facilities?: readonly string[]
-    scope?: string
-  }> = {},
-): AdoptedEndpoint {
-  const auth = options.auth ?? 'none'
-  const adopted = w.adoption.adopt({
-    tenant: home,
-    scope: options.scope ?? 'ws',
-    ref,
-    body: jsonOf({
-      name: ref.name,
-      transport: 'stdio',
-      auth,
-      launch: {
-        command: 'mcp-files',
-        env: options.env ?? [],
-        facilities: options.facilities ?? [],
-      },
-    }),
-    settings: settingsOf({
-      connectTimeout: VALUE(TIMEOUT),
-      ...(auth === 'none' ? {} : { credential: VALUE(MAIN) }),
-      ...options.settings,
-    }),
-    processEnv: options.processEnv ?? [],
-  })
-  w.eligibility.grant(alice, ref)
-  if (auth !== 'none')
-    w.credentials.store({ tenant: home, holding: ref.holding, binding: MAIN, secret: 'hunter2' })
-  return adopted
-}
 
 /** A ready-to-use Streamable HTTP adoption for alice, `auth` static unless given, granted. */
 export function adoptHttp(

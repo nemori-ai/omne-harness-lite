@@ -473,7 +473,7 @@ describe('concludeAnswer holds every cell of T8', () => {
     const bad = JSON.stringify({ id: 'r1', error: { code: -32000, message: 'boom' } })
     const wireOf = (text: string) => {
       const conclusion = concludeAnswer(
-        classifyWireEvent({ kind: 'http-stream', messages: [text], ended: true }, ctx),
+        classifyWireEvent({ kind: 'line', text }, ctx),
         ctx,
         'streamable-http',
       )
@@ -509,6 +509,7 @@ describe('concludeAnswer holds every cell of T8', () => {
 
   it('an event that is no answer is wait', () => {
     const ctx = context('tools/list')
+    expect(concludeAnswer({ kind: 'other' }, ctx, 'streamable-http')).toEqual({ kind: 'wait' })
     expect(concludeAnswer({ kind: 'waiting' }, ctx, 'streamable-http')).toEqual({ kind: 'wait' })
   })
 })

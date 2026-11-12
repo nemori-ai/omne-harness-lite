@@ -231,7 +231,7 @@ describe('the result class of each request class (T2, T6)', () => {
   })
   const classOf = (request: RequestClass, result: unknown): string => {
     const text = JSON.stringify({ jsonrpc: '2.0', id: 'r1', result })
-    const classified = classifyWireEvent(delivered(text), context(request))
+    const classified = classifyWireEvent({ kind: 'line', text }, context(request))
     return classified.kind === 'answer' ? classified.answer : classified.kind
   }
 
@@ -267,8 +267,8 @@ describe('the result class of each request class (T2, T6)', () => {
 describe('the envelope of an answer (T2)', () => {
   const discover = context('discover')
 
-  it('reads a message with the id of the request, jsonrpc "2.0" and exactly one of result and error', () => {
-    const line = (text: string) => classify(delivered(text), discover)
+  it('reads a line with the id of the request, jsonrpc "2.0" and exactly one of result and error', () => {
+    const line = (text: string) => classify({ kind: 'line', text }, discover)
     expect(
       line(answer({ result: { supportedVersions: ['2026-07-28'], capabilities: {} } })),
     ).toEqual({
@@ -284,7 +284,7 @@ describe('the envelope of an answer (T2)', () => {
       expect(line(bad), bad).toEqual({ kind: 'answer', answer: 'error:unreadable' })
   })
 
-  it('leaves other messages to the transport: another id, a request or notification of the peer', () => {
+  it('leaves other lines to the transport: another id, a request or notification of the peer', () => {
     for (const other of [
       JSON.stringify({ jsonrpc: '2.0', id: 8, result: {} }),
       JSON.stringify({ jsonrpc: '2.0', id: '7', result: {} }),
@@ -292,10 +292,22 @@ describe('the envelope of an answer (T2)', () => {
       JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress', params: {} }),
       '[1]',
     ])
-      expect(
-        classify({ kind: 'http-stream', messages: [other], ended: false }, discover),
-        other,
-      ).toEqual({ kind: 'waiting' })
+      expect(classify({ kind: 'line', text: other }, discover), other).toEqual({
+        kind: 'other',
+      })
+  })
+
+  it('drops a line that is not JSON and keeps the stream (F4: not stricter than the SDK)', () => {
+    for (const text of [
+      'Listening on 8080',
+      '',
+      '﻿{"jsonrpc":"2.0","id":7,"result":{}}',
+      '{"jsonrpc":"2.0","id":7,"result":{},"result":{}}',
+      '{"jsonrpc":"2.0","id":7,"result":{}',
+    ])
+      expect(classify({ kind: 'line', text }, discover), JSON.stringify(text)).toEqual({
+        kind: 'other',
+      })
   })
 
   it('in the legacy HTTP+SSE mode a 2xx body that ended with no answer is still waiting', () => {
@@ -323,13 +335,13 @@ describe('the envelope of an answer (T2)', () => {
       [{ code: '-32602', message: 'x' }, 'error:unreadable'],
       ['x', 'error:unreadable'],
     ] as const)
-      expect(classify(delivered(answer({ error })), context('tools/list'))).toEqual({
+      expect(classify({ kind: 'line', text: answer({ error }) }, context('tools/list'))).toEqual({
         kind: 'answer',
         answer: expected,
       })
     expect(
       classify(
-        delivered(`{"jsonrpc":"2.0","id":7,"error":{"code":-32602.5,"message":"x"}}`),
+        { kind: 'line', text: `{"jsonrpc":"2.0","id":7,"error":{"code":-32602.5,"message":"x"}}` },
         context('tools/list'),
       ),
     ).toEqual({ kind: 'answer', answer: 'error:unreadable' })
@@ -403,7 +415,7 @@ describe('the message a classification carries', () => {
   it('carries the message of a result or error class, the error body of an HTTP error status, and none for the rest', () => {
     const list = context('tools/list')
     const result = answer({ result: { tools: [] } })
-    expect(classifyWireEvent(delivered(result), list)).toEqual({
+    expect(classifyWireEvent({ kind: 'line', text: result }, list)).toEqual({
       kind: 'answer',
       answer: 'result',
       message: jsonTextOf(result),

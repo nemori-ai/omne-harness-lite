@@ -7,7 +7,7 @@ import type { McpServices } from '@omne-harness/mcp-contract'
 import { createInMemoryCatalogStore, createMcp } from '../src/index.ts'
 import { jsonOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
 import { alice, type Principal } from './doubles/identities.ts'
-import { CONFIG, adoptStdio, usualScript, world } from './doubles/world.ts'
+import { CONFIG, adoptHttp, usualScript, world } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
 
@@ -24,7 +24,7 @@ describe('createMcp', () => {
 
   it('gives the services, which share one connection table', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const mcp = createMcp(w.ports, CONFIG)
     expect(Object.keys(mcp).sort()).toEqual([
       'connections',
@@ -39,9 +39,7 @@ describe('createMcp', () => {
     expect(await mcp.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'ready' } },
     })
-    expect(await mcp.connections.release(alice, files)).toEqual({
-      ok: { kind: 'released', process: 'tree-confirmed' },
-    })
+    expect(await mcp.connections.release(alice, files)).toEqual({ ok: { kind: 'released' } })
     expect(await mcp.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'none' } },
     })
@@ -49,7 +47,7 @@ describe('createMcp', () => {
 
   it('stamps the acquisition time from the clock of the ports (SPEC S3)', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const clock = { now: () => new Date('2026-11-03T08:00:00Z') }
     const mcp = createMcp({ ...w.ports, clock }, CONFIG)
     await mcp.discovery.refresh(alice, { ref: files })
@@ -78,29 +76,25 @@ describe('inspection', () => {
     maxStringLength: 1_000,
     maxNumberLength: 20,
   } as const
-  const stdio = { name: 'files', transport: 'stdio', auth: 'none', launch: { command: 'mcp' } }
-  const http = { name: 'files', transport: 'streamable-http', auth: 'oauth' }
+  const http = { name: 'files', transport: 'streamable-http', auth: 'none' }
 
-  it('is the category port mcp with inspect and launchesLocalCommand', () => {
+  it('is the category port mcp with inspect', () => {
     const { inspection } = createMcp(world().ports, CONFIG)
     expect(inspection.category).toBe('mcp')
-    expect(inspection.inspect(jsonOf(stdio))).toMatchObject({
-      ok: { name: 'files', auth: 'none', transport: { kind: 'stdio' } },
+    expect(inspection.inspect(jsonOf(http))).toMatchObject({
+      ok: { name: 'files', auth: 'none', transport: { kind: 'streamable-http' } },
     })
-    expect(inspection.launchesLocalCommand(jsonOf(stdio))).toEqual({ ok: true })
-    expect(inspection.launchesLocalCommand(jsonOf(http))).toEqual({ ok: false })
     expect(inspection.inspect(jsonOf({ name: 'files' }))).toEqual({ failure: 'malformed' })
-    expect(inspection.launchesLocalCommand('nonsense')).toEqual({ failure: 'malformed' })
   })
 
   it('judges a read body like the contract and refuses other input', () => {
     const { inspection } = createMcp(world().ports, CONFIG)
-    const read = readBodyText(JSON.stringify(stdio), LIMITS)
+    const read = readBodyText(JSON.stringify(http), LIMITS)
     if (read.kind !== 'ok') throw new Error('body did not read')
     expect(inspection.judge(read.value, { capabilityName: 'files' })).toEqual({ ok: true })
-    expect(inspection.judge(jsonOf(stdio))).toMatchObject({ ok: false })
+    expect(inspection.judge(jsonOf(http))).toMatchObject({ ok: false })
     expect(inspection.deriveDeclarations(read.value)).toEqual({
-      entries: ['setting:preference:connect-timeout'],
+      entries: ['setting:placement-identity:target', 'setting:preference:connect-timeout'],
     })
   })
 })

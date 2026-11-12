@@ -1,4 +1,4 @@
-// The public root of @omne-harness/mcp: the services of the contract on the five requirement
+// The public root of @omne-harness/mcp: the services of the contract on the four requirement
 // ports, and the production in-memory catalog store. The aggregates, the gate, the tables and
 // the assembly are internal.
 import type { McpConfig, McpPorts, McpServices } from '@omne-harness/mcp-contract'

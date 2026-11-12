@@ -12,7 +12,6 @@ import { PortFault, TASK_PORTS, TEARDOWN_PORTS, USABLE_FAILURE } from './ports.t
 export type Property =
   | 'P1'
   | 'P2'
-  | 'P3'
   | 'P4'
   | 'P5'
   | 'P6'
@@ -76,7 +75,7 @@ export type ReservationView = Readonly<{
   endings: number
 }>
 
-/** What one key looks like to a consumer: `stateOf` with and without the residual, and `current`. */
+/** What one key looks like to a consumer: `stateOf`, its core that P6 compares, and `current`. */
 export type KeyObservation = Readonly<{ key: string; state: string; core: string; current: string }>
 
 /** What the properties read from a run. */
@@ -103,7 +102,6 @@ export interface RunView {
 }
 
 const NONE = '{"kind":"none"}'
-const LOST_UNCONFIRMED_WITH_RESIDUAL = '{"kind":"lost","reason":"close-unconfirmed","residual":['
 
 /** The result text of a call the caller abandoned (MC-16 step 12, T9). */
 export const ABANDONED_RESULT = 'sent unknown abandoned'
@@ -140,10 +138,9 @@ export function internalError(op: OpView, reason: unknown): Found[] {
   ]
 }
 
-/** P4: after `closeAll` began, no process is started and no transport is opened. */
+/** P4: after `closeAll` began, no transport is opened. */
 export function connectsAfterShutdown(view: RunView, call: ScriptedPortCall): Found[] {
-  if (!view.shutAsked || (call.port !== 'landing.start' && call.port !== 'transports.open'))
-    return []
+  if (!view.shutAsked || call.port !== 'transports.open') return []
   return [
     {
       property: 'P4',
@@ -195,19 +192,7 @@ export function foreignTransport(op: OpView, transportKey: string | undefined): 
   ]
 }
 
-/** P3: when `closeAll` answers, every process the landing handed over was asked to stop. */
-export function unstoppedAtShutdown(view: RunView, op: OpView): Found[] {
-  if (op.kind !== 'closeAll') return []
-  return view.ledger.processes
-    .filter(process => process.stops === 0)
-    .map(process => ({
-      property: 'P3',
-      signature: 'P3-not-asked',
-      detail: `${op.name} answered while ${process.name} was never asked to stop`,
-    }))
-}
-
-/** P6: a late answer changes no consumer-visible state but the residual it reports. */
+/** P6: a late answer changes no consumer-visible state. */
 export function lateChanged(
   call: ScriptedPortCall,
   before: readonly KeyObservation[],
@@ -514,8 +499,8 @@ function lossPort(port: PortName): boolean {
  * key's state is not `lost`, and the step made no call that a loss makes first: no teardown port
  * and no store call for the catalog mark of that key. `call` is the answered port call, `made`
  * the port calls the step made. The rule's other exception, `not-sent` (`authorization-required`),
- * loses the connection; the model's stdio transport never answers it, so the check needs no case
- * for it.
+ * loses the connection; the model's transport never answers it, so the check needs no case for
+ * it.
  */
 export function lostOnUsableFailure(
   call: ScriptedPortCall,
@@ -579,25 +564,16 @@ function releasedTwice(view: RunView): Found[] {
     }))
 }
 
-/** P1 with S9: a handle is released only after every process that carries it answered `stop()`. */
-function releasedBeforeStop(view: RunView): Found[] {
-  return view.ledger.earlyReleases.splice(0).map(detail => ({
-    property: 'P1',
-    signature: 'P1-released-before-stop',
-    detail,
-  }))
-}
-
 /**
  * P2 (`P2_NoneHoldsNothing`): a key the status view reports as `none`, with nothing of it in
  * flight (no operation, no port call), holds nothing: every handle released, every transport
- * closed, every process confirmed stopped. Otherwise an entry left the table while it held a
+ * closed. Otherwise an entry left the table while it held a
  * resource, or the resource belongs to nobody. The model also checks the entries that left the
  * table directly (`P2_ForgetHoldsNothing`).
  */
 function heldWithoutEntry(view: RunView): Found[] {
   const found: Found[] = []
-  const { handles, processes, transports } = view.ledger
+  const { handles, transports } = view.ledger
   for (const { key, state } of view.observe()) {
     if (state !== NONE) continue
     const busy =
@@ -607,9 +583,6 @@ function heldWithoutEntry(view: RunView): Found[] {
     const held = [
       ...handles.filter(item => item.key === key && item.releases === 0).map(item => item.name),
       ...transports.filter(item => item.key === key && item.closes === 0).map(item => item.name),
-      ...processes
-        .filter(item => item.key === key && item.lastStop !== 'tree-confirmed')
-        .map(item => item.name),
     ]
     if (held.length > 0)
       found.push({
@@ -738,14 +711,13 @@ function taskUnbounded(view: RunView): Found[] {
 }
 
 /**
- * P1, P2, P3 at rest after the shutdown answered (`P1_ShutdownReleasesAll`,
- * `P3_EveryProcessAsked`): every handle released exactly once, every transport closed, every
- * process asked to stop, every key `none`.
+ * P1, P2 at rest after the shutdown answered (`P1_ShutdownReleasesAll`): every handle released
+ * exactly once, every transport closed, every key `none`.
  */
 function leftAfterShutdown(view: RunView): Found[] {
   const shutdown = view.ops.some(op => op.kind === 'closeAll' && op.status !== 'waiting')
   if (!shutdown || !atRest(view)) return []
-  const { handles, processes, transports } = view.ledger
+  const { handles, transports } = view.ledger
   const found: Found[] = [
     ...handles
       .filter(item => item.releases === 0)
@@ -753,13 +725,6 @@ function leftAfterShutdown(view: RunView): Found[] {
         property: 'P1' as const,
         signature: 'P1-never-released',
         detail: `${item.name} never released after the shutdown`,
-      })),
-    ...processes
-      .filter(item => item.stops === 0)
-      .map(item => ({
-        property: 'P3' as const,
-        signature: 'P3-not-asked',
-        detail: `${item.name} never asked to stop after the shutdown`,
       })),
     ...transports
       .filter(item => item.closes === 0)
@@ -769,9 +734,8 @@ function leftAfterShutdown(view: RunView): Found[] {
         detail: `${item.name} never closed after the shutdown`,
       })),
   ]
-  // An entry may stay after the shutdown only to keep a process whose stop was not confirmed (S7).
   for (const { key, state } of view.observe())
-    if (state !== NONE && !state.startsWith(LOST_UNCONFIRMED_WITH_RESIDUAL))
+    if (state !== NONE)
       found.push({
         property: 'P2',
         signature: 'P2-entry-left',
@@ -784,7 +748,6 @@ function leftAfterShutdown(view: RunView): Found[] {
 export function stateViolations(view: RunView): Found[] {
   return [
     ...releasedTwice(view),
-    ...releasedBeforeStop(view),
     ...heldWithoutEntry(view),
     ...ensureUnbounded(view),
     ...callerUnanswered(view),

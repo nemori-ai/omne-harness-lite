@@ -1,23 +1,17 @@
-// The MCP plugin on a real Cordis `Context`, without a process. The adoption, eligibility and
+// The MCP plugin on a real Cordis `Context`, without a peer. The adoption, eligibility and
 // credential ports are the memory doubles of `@omne-harness/mcp-contract/testing`, each provided as
-// a Service subclass. The landing records each launch it is asked for and answers
-// `facility-missing`, so no transport is opened: a refresh that reaches it answers
-// `landing-unavailable` (mcp-contract R6). The cases that start a scripted peer are in
+// a Service subclass. The `fetch` of the plugin parts records each request and fails it before the
+// connection is made, so no transport is opened: a refresh that reaches it answers
+// `connection-unavailable` (mcp-contract R6). The cases that start a scripted peer are in
 // `cordis-journey.spec.ts`.
 import { Context, ValidationError, type Fiber, type Message } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
-import { digestDefinition, type StdioLaunch } from '@omne-harness/mcp-contract'
+import { digestDefinition } from '@omne-harness/mcp-contract'
 import type {
   AdoptionView,
-  CredentialFailure,
-  CredentialPurpose,
   CredentialUse,
-  HttpCredentialHandle,
   HttpPurpose,
-  ProcessCredentialHandle,
-  ProcessLanding,
-  ProcessPurpose,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 import {
@@ -38,14 +32,12 @@ import {
 import {
   AdoptionViewService,
   CredentialUseService,
-  ProcessLandingService,
   UseEligibilityService,
   mcpActionDiscoveryKey,
   mcpActionInvokerKey,
   mcpEndpointStatusKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import { createMcpPlugin, type McpPluginConfig } from '@omne-harness/mcp-host-local/cordis'
-import { fail, type Outcome } from '@omne-harness/operation-result'
 
 const organization = organizationCodec.parse('org_0123456789abcdefghjkmnpqrs')
 const account = accountCodec.parse('acc_0123456789abcdefghjkmnpqrs')
@@ -61,7 +53,6 @@ const CONFIG: McpPluginConfig = {
   maxListingPages: 5,
   maxActions: 100,
   instructionsByteLimit: 4096,
-  probeTimeoutMs: 10_000,
   clientInfo: { name: 'omne-harness-cordis-entry', version: '0' },
 }
 
@@ -109,55 +100,15 @@ function credentialService(port: CredentialUse<unknown>) {
   }
 }
 
-function landingService(port: ProcessLanding<unknown>) {
-  return class extends ProcessLandingService<unknown> {
-    start(...args: Parameters<ProcessLanding<unknown>['start']>) {
-      return port.start(...args)
-    }
-  }
-}
-
-/** A landing that records each launch it is asked for and starts nothing. */
-function recordingLanding() {
-  const launches: StdioLaunch[] = []
-  const port: ProcessLanding<unknown> = {
-    async start(_access, launch) {
-      launches.push(launch)
-      return fail('facility-missing')
-    },
-  }
-  return { port, launches }
-}
-
 /** The memory credential use, with the purpose of each `acquire` recorded. */
 function recordingPurposes(inner: CredentialUse<unknown>) {
-  const purposes: CredentialPurpose[] = []
-  type Access = Parameters<CredentialUse<unknown>['acquire']>[0]
-  type Holding = Parameters<CredentialUse<unknown>['acquire']>[1]
-  type Binding = Parameters<CredentialUse<unknown>['acquire']>[3]
-  function acquire(
-    access: Access,
-    holding: Holding,
-    purpose: ProcessPurpose,
-    binding: Binding,
-  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
-  function acquire(
-    access: Access,
-    holding: Holding,
-    purpose: HttpPurpose,
-    binding: Binding,
-  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
-  async function acquire(
-    access: Access,
-    holding: Holding,
-    purpose: CredentialPurpose,
-    binding: Binding,
-  ): Promise<Outcome<ProcessCredentialHandle | HttpCredentialHandle, CredentialFailure>> {
-    purposes.push(purpose)
-    if (purpose.kind === 'process-env') return inner.acquire(access, holding, purpose, binding)
-    return inner.acquire(access, holding, purpose, binding)
+  const purposes: HttpPurpose[] = []
+  const port: CredentialUse<unknown> = {
+    acquire(access, holding, purpose, binding) {
+      purposes.push(purpose)
+      return inner.acquire(access, holding, purpose, binding)
+    },
   }
-  const port: CredentialUse<unknown> = { acquire }
   return { port, purposes }
 }
 
@@ -174,9 +125,9 @@ function refusingFetch() {
   return { refused, requests }
 }
 
-type Endpoint = Readonly<{ args: readonly string[]; credential?: boolean }>
+type Endpoint = Readonly<{ target: string; credential?: boolean }>
 
-/** Adopts `FILES` for alice in `SCOPE`: a stdio endpoint whose launch has `args`. */
+/** Adopts `FILES` for alice in `SCOPE`: a Streamable HTTP endpoint at `target`. */
 function adoptFiles(adoption: MemoryAdoptionView<unknown, unknown>, endpoint: Endpoint): void {
   const credential = endpoint.credential === true
   adoption.adopt({
@@ -185,29 +136,22 @@ function adoptFiles(adoption: MemoryAdoptionView<unknown, unknown>, endpoint: En
     ref: FILES,
     body: jsonOf({
       name: FILES.name,
-      transport: 'stdio',
+      transport: 'streamable-http',
       auth: credential ? 'static' : 'none',
-      launch: {
-        command: process.execPath,
-        args: endpoint.args,
-        env: credential ? [{ name: 'TOKEN', source: 'credential' }] : [],
-        facilities: [],
-      },
     }),
     settings: {
-      target: { kind: 'absent' },
+      target: { kind: 'value', value: connectionTargetOf(endpoint.target) },
       credential: credential ? { kind: 'value', value: MAIN } : { kind: 'absent' },
       connectTimeout: { kind: 'value', value: millisOf(10_000) },
     },
   })
 }
 
-/** The four ports as Service classes, with `FILES` adopted and alice granted its use. */
+/** The three ports as Service classes, with `FILES` adopted and alice granted its use. */
 function ports(endpoint: Endpoint) {
   const adoption = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
   const eligibility = createMemoryUseEligibility<unknown>({ principalKey })
   const credentials = createMemoryCredentialUse<unknown>()
-  const landing = recordingLanding()
   adoptFiles(adoption, endpoint)
   eligibility.grant(ALICE, FILES)
   if (endpoint.credential === true)
@@ -216,22 +160,29 @@ function ports(endpoint: Endpoint) {
     adoption: adoptionService(adoption),
     eligibility: eligibilityService(eligibility),
     credentials: credentialService(credentials),
-    landing: landingService(landing.port),
-    launches: landing.launches,
   }
 }
 
-type PortName = 'adoption' | 'eligibility' | 'credentials' | 'landing'
-const PORT_NAMES: readonly PortName[] = ['adoption', 'eligibility', 'credentials', 'landing']
-const ARGS = ['peer'] as const
+type PortName = 'adoption' | 'eligibility' | 'credentials'
+const PORT_NAMES: readonly PortName[] = ['adoption', 'eligibility', 'credentials']
+const TARGET = 'https://files.example.test/mcp'
+const REPLACEMENT = 'https://replacement.example.test/mcp'
 
-/** Loads the ports except `absent`, then the plugin. */
+/**
+ * Loads the ports except `absent`, then the plugin on a `fetch` that records each request and
+ * refuses it.
+ */
 async function assembled(endpoint: Endpoint, absent?: PortName) {
   const ctx = new Context()
   const provided = ports(endpoint)
   for (const name of PORT_NAMES) if (name !== absent) await load(ctx, provided[name], undefined)
-  const fiber = await load(ctx, plugin, CONFIG)
-  return { ctx, fiber, provided }
+  const { refused, requests } = refusingFetch()
+  const fiber = await load(
+    ctx,
+    createMcpPlugin({ principalKey, checkOutput: () => ({ kind: 'conforms' }), fetch: refused }),
+    CONFIG,
+  )
+  return { ctx, fiber, provided, requests }
 }
 
 type ServiceKey =
@@ -249,7 +200,7 @@ async function refreshed(ctx: Context) {
   return service(ctx, mcpActionDiscoveryKey).refresh(ALICE, { ref: FILES })
 }
 
-const LANDING_UNAVAILABLE = { failure: { kind: 'landing-unavailable' } }
+const CONNECTION_UNAVAILABLE = { failure: { kind: 'connection-unavailable' } }
 const UNKNOWN = { failure: { kind: 'unknown' } }
 const NOT_SENT = { kind: 'not-sent', reason: { kind: 'action-unavailable' } }
 
@@ -270,7 +221,7 @@ async function loadUntyped(ctx: Context, config: unknown) {
   return Promise.resolve(loading)
 }
 
-describe('the MCP plugin on a Cordis context, without a process', () => {
+describe('the MCP plugin on a Cordis context, without a peer', () => {
   it('is named mcp', () => {
     expect(plugin.name).toBe('mcp')
   })
@@ -294,14 +245,12 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
     const memory = createMemoryCredentialUse<unknown>()
     memory.store({ tenant: ALICE.tenant, holding: FILES.holding, binding: MAIN, secret: 's' })
     const credentials = recordingPurposes(memory)
-    const landing = recordingLanding()
     const { refused, requests } = refusingFetch()
 
     const ctx = new Context()
     await load(ctx, adoptionService(adoption), undefined)
     await load(ctx, eligibilityService(eligibility), undefined)
     await load(ctx, credentialService(credentials.port), undefined)
-    await load(ctx, landingService(landing.port), undefined)
     await load(
       ctx,
       createMcpPlugin({ principalKey, checkOutput: () => ({ kind: 'conforms' }), fetch: refused }),
@@ -312,11 +261,10 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'connection-unavailable' } })
     expect(credentials.purposes).toEqual([{ kind: 'http-authorization', target }])
     expect(requests).toEqual([{ url: target, authorization: 'Bearer s' }])
-    expect(landing.launches).toHaveLength(0)
   })
 
   it('provides the three services on load with a complete lawful configuration and removes them when the plugin unloads', async () => {
-    const { ctx, fiber } = await assembled({ args: ARGS })
+    const { ctx, fiber } = await assembled({ target: TARGET })
     expect(ctx.get(mcpActionDiscoveryKey)).toBeDefined()
     expect(ctx.get(mcpActionInvokerKey)).toBeDefined()
     expect(ctx.get(mcpEndpointStatusKey)).toBeDefined()
@@ -327,7 +275,7 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
   })
 
   it('answers each operation of the three services while there is no connection', async () => {
-    const { ctx, provided } = await assembled({ args: ARGS })
+    const { ctx, requests } = await assembled({ target: TARGET })
     const discovery = service(ctx, mcpActionDiscoveryKey)
     const invoker = service(ctx, mcpActionInvokerKey)
     const status = service(ctx, mcpEndpointStatusKey)
@@ -337,7 +285,7 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
 
     expect(await discovery.current(ALICE, FILES)).toEqual({ ok: { kind: 'not-acquired' } })
     expect(await discovery.peer(ALICE, FILES)).toEqual({ failure: { kind: 'not-connected' } })
-    expect(await discovery.refresh(ALICE, { ref: FILES })).toEqual(LANDING_UNAVAILABLE)
+    expect(await discovery.refresh(ALICE, { ref: FILES })).toEqual(CONNECTION_UNAVAILABLE)
     expect(
       await invoker.invoke(ALICE, {
         ...call,
@@ -371,63 +319,57 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
     expect(await status.list(ALICE, SCOPE)).toMatchObject({
       ok: [{ ref: FILES, connection: { kind: 'lost', reason: 'preparation-failed' } }],
     })
-    expect(provided.launches).toHaveLength(1)
+    expect(requests).toHaveLength(1)
   })
 
-  it('answers unknown, and asks no landing, while the adoption view is absent, and reads the view once it is provided', async () => {
-    const { ctx, provided } = await assembled({ args: ARGS }, 'adoption')
+  it('answers unknown, and sends no request, while the adoption view is absent, and reads the view once it is provided', async () => {
+    const { ctx, provided, requests } = await assembled({ target: TARGET }, 'adoption')
     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'unknown' } })
     expect(await service(ctx, mcpEndpointStatusKey).list(ALICE, SCOPE)).toEqual({
       failure: 'unknown',
     })
-    expect(provided.launches).toHaveLength(0)
+    expect(requests).toHaveLength(0)
     await load(ctx, provided.adoption, undefined)
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(provided.launches).toHaveLength(1)
+    expect(await refreshed(ctx)).toEqual(CONNECTION_UNAVAILABLE)
+    expect(requests).toHaveLength(1)
   })
 
-  it('answers unknown, and asks no landing, while the use eligibility is absent, and checks it once it is provided', async () => {
-    const { ctx, provided } = await assembled({ args: ARGS }, 'eligibility')
+  it('answers unknown, and sends no request, while the use eligibility is absent, and checks it once it is provided', async () => {
+    const { ctx, provided, requests } = await assembled({ target: TARGET }, 'eligibility')
     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'unknown' } })
     expect(await service(ctx, mcpEndpointStatusKey).inspect(ALICE, FILES)).toEqual({
       failure: { kind: 'unknown' },
     })
-    expect(provided.launches).toHaveLength(0)
+    expect(requests).toHaveLength(0)
     await load(ctx, provided.eligibility, undefined)
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(provided.launches).toHaveLength(1)
+    expect(await refreshed(ctx)).toEqual(CONNECTION_UNAVAILABLE)
+    expect(requests).toHaveLength(1)
   })
 
-  it('answers an unknown credential, and asks no landing, while the credential use is absent, and acquires once it is provided', async () => {
-    const { ctx, provided } = await assembled({ args: ARGS, credential: true }, 'credentials')
+  it('answers an unknown credential, and sends no request, while the credential use is absent, and acquires once it is provided', async () => {
+    const { ctx, provided, requests } = await assembled(
+      { target: TARGET, credential: true },
+      'credentials',
+    )
     expect(await refreshed(ctx)).toEqual({
       failure: { kind: 'credential-unavailable', cause: 'unknown' },
     })
-    expect(provided.launches).toHaveLength(0)
+    expect(requests).toHaveLength(0)
     await load(ctx, provided.credentials, undefined)
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(provided.launches).toHaveLength(1)
-  })
-
-  it('answers landing-unavailable while the process landing is absent, and asks the landing once it is provided', async () => {
-    const { ctx, provided } = await assembled({ args: ARGS }, 'landing')
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(provided.launches).toHaveLength(0)
-    await load(ctx, provided.landing, undefined)
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(provided.launches).toHaveLength(1)
+    expect(await refreshed(ctx)).toEqual(CONNECTION_UNAVAILABLE)
+    expect(requests).toHaveLength(1)
   })
 
   it('uses the replacement eligibility at the next port call after a swap', async () => {
-    const { ctx, provided } = await assembled({ args: ARGS }, 'eligibility')
+    const { ctx, requests } = await assembled({ target: TARGET }, 'eligibility')
     const granting = createMemoryUseEligibility<unknown>({ principalKey })
     granting.grant(ALICE, FILES)
     const first = await load(ctx, eligibilityService(granting), undefined)
     expect(await service(ctx, mcpEndpointStatusKey).inspect(ALICE, FILES)).toMatchObject({
       ok: { use: { kind: 'usable' } },
     })
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(provided.launches).toHaveLength(1)
+    expect(await refreshed(ctx)).toEqual(CONNECTION_UNAVAILABLE)
+    expect(requests).toHaveLength(1)
 
     await first.dispose()
     const refusing = createMemoryUseEligibility<unknown>({ principalKey })
@@ -436,27 +378,30 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
       failure: { kind: 'not-available-to-you' },
     })
     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'not-available-to-you' } })
-    expect(provided.launches).toHaveLength(1)
+    expect(requests).toHaveLength(1)
   })
 
   it('reads the replacement adoption view at the next refresh after a swap', async () => {
-    const { ctx, provided } = await assembled({ args: ARGS }, 'adoption')
+    const { ctx, provided, requests } = await assembled({ target: TARGET }, 'adoption')
     const first = await load(ctx, provided.adoption, undefined)
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
+    expect(await refreshed(ctx)).toEqual(CONNECTION_UNAVAILABLE)
 
     await first.dispose()
     const replacement = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
-    adoptFiles(replacement, { args: ['replacement'] })
+    adoptFiles(replacement, { target: REPLACEMENT })
     await load(ctx, adoptionService(replacement), undefined)
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(provided.launches.map(launch => launch.args)).toEqual([ARGS, ['replacement']])
+    expect(await refreshed(ctx)).toEqual(CONNECTION_UNAVAILABLE)
+    expect(requests.map(request => request.url)).toEqual([TARGET, REPLACEMENT])
   })
 
   it('uses the replacement credential use at the next port call after a swap', async () => {
-    const { ctx, provided } = await assembled({ args: ARGS, credential: true }, 'credentials')
+    const { ctx, provided, requests } = await assembled(
+      { target: TARGET, credential: true },
+      'credentials',
+    )
     const first = await load(ctx, provided.credentials, undefined)
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(provided.launches).toHaveLength(1)
+    expect(await refreshed(ctx)).toEqual(CONNECTION_UNAVAILABLE)
+    expect(requests).toHaveLength(1)
 
     await first.dispose()
     const empty = createMemoryCredentialUse<unknown>()
@@ -464,22 +409,7 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
     expect(await refreshed(ctx)).toEqual({
       failure: { kind: 'credential-unavailable', cause: 'missing' },
     })
-    expect(provided.launches).toHaveLength(1)
-  })
-
-  it('uses the replacement process landing at the next port call after a swap', async () => {
-    const { ctx } = await assembled({ args: ARGS }, 'landing')
-    const first = recordingLanding()
-    const firstFiber = await load(ctx, landingService(first.port), undefined)
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(first.launches).toHaveLength(1)
-
-    await firstFiber.dispose()
-    const replacement = recordingLanding()
-    await load(ctx, landingService(replacement.port), undefined)
-    expect(await refreshed(ctx)).toEqual(LANDING_UNAVAILABLE)
-    expect(first.launches).toHaveLength(1)
-    expect(replacement.launches).toHaveLength(1)
+    expect(requests).toHaveLength(1)
   })
 
   it('Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes', async () => {
@@ -593,12 +523,6 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
         'yes: RangeError of createMcp',
       ],
       [
-        'whose probeTimeoutMs is not a number',
-        { ...CONFIG, probeTimeoutMs: '5' },
-        'probeTimeoutMs must be a number',
-        'yes: RangeError of the transport factory',
-      ],
-      [
         'whose clientInfo is not an object',
         { ...CONFIG, clientInfo: 'n' },
         'clientInfo must be an object',
@@ -646,12 +570,6 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
     it('fails to load when maxActions is 0, with the RangeError of createMcp', async () => {
       const ctx = new Context()
       await expect(ctx.plugin(plugin, { ...CONFIG, maxActions: 0 })).rejects.toThrow(RangeError)
-      expect(ctx.get(mcpActionDiscoveryKey)).toBeUndefined()
-    })
-
-    it('fails to load when probeTimeoutMs is 0, with the RangeError of the transport factory', async () => {
-      const ctx = new Context()
-      await expect(ctx.plugin(plugin, { ...CONFIG, probeTimeoutMs: 0 })).rejects.toThrow(RangeError)
       expect(ctx.get(mcpActionDiscoveryKey)).toBeUndefined()
     })
   })

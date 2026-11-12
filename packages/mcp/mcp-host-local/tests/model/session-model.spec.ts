@@ -6,16 +6,7 @@
 // mutation testing runs only the cases that reach a mutant instead of every case for each one.
 import { describe, expect, it } from 'vitest'
 import { explore, type Exploration, type Scenario } from './explore.ts'
-import {
-  HTTP_BARE,
-  HTTP_CALL,
-  HTTP_PEER,
-  HTTP_RESEND,
-  MINIMAL,
-  SSE_FALLBACK,
-  STDIO_CALL,
-  STDIO_DISCOVER,
-} from './scenarios.ts'
+import { HTTP_BARE, HTTP_CALL, HTTP_PEER, HTTP_RESEND, MINIMAL, SSE_FALLBACK } from './scenarios.ts'
 
 function violations(result: Exploration): readonly string[] {
   return result.violations.map(
@@ -86,18 +77,6 @@ describe('http-bare: HTTP without a handle, one call, one listActions, close(); 
 describe('http-peer: one call whose answer stream carries a peer ping, close(); the response is authorized', () => {
   it('V1–V6 hold', { timeout: EXPLORE_MS }, async () => {
     expect(violations(await explore(HTTP_PEER))).toEqual([])
-  })
-})
-
-describe('stdio-call: one call with its signal, cancelRequest, close(); the shared stream may end or break', () => {
-  it('V1–V6 hold', { timeout: EXPLORE_MS }, async () => {
-    expect(violations(await explore(STDIO_CALL))).toEqual([])
-  })
-})
-
-describe('stdio-discover: discover with the probe timer, a peer ping, close(); the shared stream may end or break', () => {
-  it('V1–V6 hold', { timeout: EXPLORE_MS }, async () => {
-    expect(violations(await explore(STDIO_DISCOVER))).toEqual([])
   })
 })
 

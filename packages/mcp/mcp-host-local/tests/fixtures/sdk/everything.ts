@@ -1,12 +1,10 @@
-// The reference server `@modelcontextprotocol/server-everything` (2.1.0) in its three modes:
-// `stdio` as a process handle, `sse` (the legacy HTTP+SSE transport) and `streamableHttp` on a
-// port of this test's choosing. The B layer: a real SDK peer, not a script.
+// The reference server `@modelcontextprotocol/server-everything` (2.1.0) in its two HTTP modes:
+// `sse` (the legacy HTTP+SSE transport) and `streamableHttp` on a port of this test's choosing.
+// The B layer: a real SDK peer, not a script.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { connect } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { isConnectionTarget, type ConnectionTarget } from '@omne-harness/mcp-contract'
-import type { ProcessHandle } from '@omne-harness/mcp-contract/provider'
-import { spawnHandle } from '../process.ts'
 import { track } from '../scripted/children.ts'
 
 const BIN = fileURLToPath(
@@ -15,17 +13,6 @@ const BIN = fileURLToPath(
     import.meta.url,
   ),
 )
-
-/** The reference server on stdio. Its log lines go to the handle's stderr. */
-export function everythingStdio(): Readonly<{ handle: ProcessHandle; close(): Promise<void> }> {
-  const spawned = spawnHandle([BIN, 'stdio'])
-  return {
-    handle: spawned.handle,
-    async close() {
-      await spawned.handle.stop()
-    },
-  }
-}
 
 /** A port that is free now, above `fetch`'s bad ports and away from 3311 and 3312. */
 async function freePort(): Promise<number> {

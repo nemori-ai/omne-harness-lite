@@ -1,21 +1,17 @@
-// Test helper: the contract's in-memory port doubles wrapped with call counts, handle counts and
-// a scripted stop range. Tests assert on these counts; the doubles keep their contract behavior.
+// Test helper: the contract's in-memory port doubles wrapped with call counts and handle counts.
+// Tests assert on these counts; the doubles keep their contract behavior.
 import type {
   AdoptionView,
   CatalogStore,
-  ProcessHandle,
-  ProcessLanding,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
-import type { OutputCheck, OutputValidator, StopScope } from '@omne-harness/mcp-contract'
+import type { OutputCheck, OutputValidator } from '@omne-harness/mcp-contract'
 import {
   createMemoryAdoptionView,
   createMemoryCredentialUse,
-  createMemoryProcessLanding,
   createMemoryUseEligibility,
   type MemoryAdoptionView,
   type MemoryCredentialUse,
-  type MemoryProcessLanding,
   type MemoryUseEligibility,
 } from '@omne-harness/mcp-contract/testing'
 import { releasing, reshapedCredentials } from './handles.ts'
@@ -92,50 +88,6 @@ export function countedCredentials(trace: Trace = () => undefined): CountedCrede
     acquire: counted.acquire,
     handles: () => handles.map(count => ({ ...count })),
   }
-}
-
-export type ScriptedLanding = MemoryProcessLanding<Principal> &
-  Readonly<{
-    /** Every process handed out, with its stop calls. */
-    processes: () => readonly Readonly<{ stops: number }>[]
-  }>
-
-/**
- * The memory landing whose processes answer `stop()` with the scripted range. The memory double
- * answers `tree-confirmed`; the script overrides the answer and counts the calls.
- */
-export function scriptedLanding(
-  options: Readonly<{
-    facilities?: readonly string[]
-    stop?: StopScope
-    trace?: (event: string) => void
-  }> = {},
-): ScriptedLanding {
-  const memory = createMemoryProcessLanding<Principal>({ facilities: options.facilities ?? [] })
-  const processes: { stops: number }[] = []
-  const port: ProcessLanding<Principal> = {
-    async start(access, launch, env) {
-      const answer = await memory.start(access, launch, env)
-      if ('failure' in answer) return answer
-      const record = { stops: 0 }
-      processes.push(record)
-      const inner = answer.ok
-      const handle: ProcessHandle = {
-        stdin: inner.stdin,
-        stdout: inner.stdout,
-        stderr: inner.stderr,
-        exited: inner.exited,
-        async stop() {
-          record.stops += 1
-          options.trace?.('process.stop')
-          const confirmed = await inner.stop()
-          return options.stop ?? confirmed
-        },
-      }
-      return { ok: handle }
-    },
-  }
-  return { ...memory, ...port, processes: () => processes.map(record => ({ ...record })) }
 }
 
 /** The output validator the tests inject, with its calls recorded: the pairs it was given. */

@@ -1,5 +1,5 @@
 // The setting values an operation needs (SPEC S4), checked in the order target, credential,
-// connect-timeout, env; only the first defect is reported. A missing credential is reported as
+// connect-timeout; only the first defect is reported. A missing credential is reported as
 // K1 says: `credential-unavailable` for an operation that connects, `config-missing` for one
 // that does not. The body comes parsed from the gate.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -12,9 +12,7 @@ import {
   type Millis,
   type PeerAccount,
   type Refusal,
-  type StdioLaunch,
 } from '@omne-harness/mcp-contract'
-import type { ProcessSetting } from '@omne-harness/mcp-contract/provider'
 import type { AdoptedOnly } from './gate.ts'
 
 export type ConfigRefusal = Extract<Refusal, { kind: 'config-missing' | 'config-invalid' }>
@@ -24,17 +22,8 @@ export type PreparedCredential =
   | Readonly<{ auth: 'none' }>
   | Readonly<{ auth: 'static' | 'oauth'; binding: CredentialBinding }>
 
-/** What the transport is opened on, by kind. */
-export type PreparedTransport =
-  | Readonly<{
-      kind: 'stdio'
-      launch: StdioLaunch
-      /** The non-secret values of the `setting` variables, in body order. */
-      values: readonly ProcessSetting[]
-      /** The names of the `credential` variables, in body order. */
-      credentialVariables: readonly string[]
-    }>
-  | Readonly<{ kind: 'streamable-http'; target: ConnectionTarget }>
+/** What the transport is opened on: the address of the endpoint. */
+export type PreparedTransport = Readonly<{ kind: 'streamable-http'; target: ConnectionTarget }>
 
 export type PreparedSettings = Readonly<{
   definition: EndpointDefinition
@@ -63,25 +52,10 @@ function credentialOf(
 }
 
 function transportOf(adopted: AdoptedOnly): Outcome<PreparedTransport, ConfigRefusal> {
-  const { transport } = adopted.definition
-  if (transport.kind === 'streamable-http') {
-    const { target } = adopted.settings
-    if (target.kind === 'absent') return fail({ kind: 'config-missing', item: 'target' })
-    if (target.kind === 'invalid') return fail({ kind: 'config-invalid', item: 'target' })
-    return succeed({ kind: 'streamable-http', target: target.value })
-  }
-  const values: ProcessSetting[] = []
-  const credentialVariables: string[] = []
-  for (const variable of transport.launch.env) {
-    if (variable.source === 'credential') {
-      credentialVariables.push(variable.name)
-      continue
-    }
-    const value = adopted.processEnv.find(setting => setting.name === variable.name)
-    if (value === undefined) return fail({ kind: 'config-missing', item: `env.${variable.name}` })
-    values.push(value)
-  }
-  return succeed({ kind: 'stdio', launch: transport.launch, values, credentialVariables })
+  const { target } = adopted.settings
+  if (target.kind === 'absent') return fail({ kind: 'config-missing', item: 'target' })
+  if (target.kind === 'invalid') return fail({ kind: 'config-invalid', item: 'target' })
+  return succeed({ kind: 'streamable-http', target: target.value })
 }
 
 function boundOf(
@@ -102,10 +76,7 @@ export function prepareSettings(
   connectBound: Millis | undefined,
 ): Outcome<PreparedSettings, SettingsFailure> {
   const transport = transportOf(adopted)
-  if ('failure' in transport) {
-    // The target comes first in S4's order; a stdio env defect comes last.
-    if (transport.failure.item === 'target') return transport
-  }
+  if ('failure' in transport) return transport
   const credential = credentialOf(adopted)
   if ('failure' in credential)
     return credential.failure === 'missing'
@@ -118,7 +89,6 @@ export function prepareSettings(
   if ('failure' in account) return fail({ kind: 'credential-unavailable', cause: 'missing' })
   const bound = boundOf(adopted, connectBound)
   if ('failure' in bound) return bound
-  if ('failure' in transport) return transport
   return succeed({
     definition: adopted.definition,
     credential: credential.ok,

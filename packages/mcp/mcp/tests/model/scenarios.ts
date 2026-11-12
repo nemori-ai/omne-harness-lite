@@ -20,7 +20,7 @@ export const REBUILD: Scenario = {
  */
 export const BOUNDS: Scenario = { ...REBUILD, name: 'bounds', anyBound: true }
 
-/** One key; `ensure`, `release`, `lose`, `closeAll`; one port call fails, rejects or answers `unconfirmed`. */
+/** One key; `ensure`, `release`, `lose`, `closeAll`; one port call fails or rejects. */
 export const FAULTS: Scenario = {
   name: 'faults',
   keys: ['A'],
@@ -28,7 +28,7 @@ export const FAULTS: Scenario = {
   releases: 1,
   closeAll: true,
   loses: 1,
-  deviations: ['fail', 'reject', 'unconfirmed'],
+  deviations: ['fail', 'reject'],
   budget: 1,
 }
 
@@ -238,8 +238,7 @@ const C_CONNECTED: readonly string[] = [
   'ensure C',
   'answer adoption.endpoint:C ok',
   'answer credentials.acquire:C ok',
-  'answer landing.start:C ok',
-  'answer transports.open:pC1 ok',
+  'answer transports.open:hC1 ok',
   'answer transport.discover:tC1 ok',
 ]
 
@@ -271,8 +270,7 @@ const A_STARTED_TASK: readonly string[] = [
   'answer store.read:A ok',
   'answer adoption.endpoint:A ok',
   'answer credentials.acquire:A ok',
-  'answer landing.start:A ok',
-  'answer transports.open:pA1 ok',
+  'answer transports.open:hA1 ok',
   'answer transport.discover:tA1 ok',
   'answer transport.call:tA1 ok',
   'answer transport.answer:r1 ok',

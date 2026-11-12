@@ -1,8 +1,7 @@
 // The protocol session: one `McpTransport` over one line. It composes the requests of contract
 // T3 with the contract's functions, turns what the line reports into contract wire events,
 // classifies them with `classifyWireEvent`, and draws the conclusion of the decision layer
-// (`concludeAnswer`, `discoverWith`). It owns the in-flight requests, the stdio probe time, the
-// re-send of a read request, cancellation and closing (T5), the credential handle (T4, T9), and
+// (`concludeAnswer`, `discoverWith`). It owns the in-flight requests, the re-send of a read request, cancellation and closing (T5), the credential handle (T4, T9), and
 // the legacy HTTP+SSE fallback (T3). The line does not classify; the session does not touch a wire.
 //
 // A caller waits on a settlement, never on a workflow. Every request is registered as a pending
@@ -17,14 +16,13 @@
 // its entry by the same rule and goes to the defect outlet of the options.
 //
 // Every effect of the session goes through an injected port: the line, the credential handle of
-// the material, the metadata fetch, and the scheduler. It reads no global clock and arms no global
-// timer itself, so a test can drive it and order every line reply, credential call and timer fire.
+// the material, and the metadata fetch. It reads no global clock and arms no timer itself, so a
+// test can drive it and order every line reply and credential call.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   NOT_SENT_FAILURE,
   OFFERED_LEGACY_VERSION,
-  PROBE_REQUESTS,
   authorizationChallengeOf,
   authorizationRequiredAnswerOf,
   callAnswerOf,
@@ -35,7 +33,6 @@ import {
   clientEnvelopeOf,
   concludeAnswer,
   discoverWith,
-  endedCauseOf,
   fallbackGetConclusionOf,
   getTaskRequest,
   getTaskResultRequest,
@@ -94,22 +91,12 @@ import type {
 } from '@omne-harness/mcp-contract/provider'
 import type { AnswerHeaders, Exchange, GetOpened, Line, LineEvent, Outbound } from './line.ts'
 
-/**
- * Arms a one-shot timer; the returned function cancels it and does not throw. The factory gives
- * the default.
- */
-export type Scheduler = (delayMs: number, fire: () => void) => () => void
-
 export type SessionOptions = Readonly<{
   clientInfo: ClientInfo
   /** The modern versions the transport speaks on `server/discover`, highest first: at least one. */
   versions: ProtocolVersions
-  /** stdio: how long a `server/discover` waits for its answer (contract T3). */
-  probeTimeoutMs: number
   /** Fetches the protected resource metadata at one address (R4); undefined when it cannot. */
   fetchMetadata: MetadataFetch
-  /** Arms the stdio probe time. Injected so a test drives when it fires. */
-  schedule: Scheduler
   /**
    * Where a defect of the session's own work goes: a reject nobody expected, a throw on the way
    * an event is read, or events of the line that reject (read as a broken stream). The entry it
@@ -125,8 +112,8 @@ type Answered = Readonly<{ wire: WireAnswer; headers?: AnswerHeaders }>
 /**
  * The connection mode (contract T3): what `discover` negotiated, and how messages go out.
  * - `modern`: the modern path; `version` once `server/discover` was read.
- * - `legacy`: a legacy revision on stdio, or on Streamable HTTP with the `Mcp-Session-Id` the
- *   peer gave on `initialize`, when it gave one.
+ * - `legacy`: a legacy revision, with the `Mcp-Session-Id` the peer gave on `initialize`, when it
+ *   gave one.
  * - `legacy-sse`: the legacy HTTP+SSE mode: requests post to the endpoint, answers come on the
  *   shared stream; `version` once `initialize` was read there.
  */
@@ -162,12 +149,9 @@ type Refusal = Readonly<{ soFar(): AuthorizationDiscovery; done: Promise<Authori
 
 /**
  * What a sent request holds of its exchange: nothing yet, or once the line answered, the 2xx
- * answer stream being read (a stop aborts it), or the stdio probe time (a settlement cancels it).
+ * answer stream being read (a stop aborts it).
  */
-type SentExchange =
-  | Readonly<{ kind: 'line' }>
-  | Readonly<{ kind: 'stream'; abort(): void }>
-  | Readonly<{ kind: 'probe'; cancel(): void }>
+type SentExchange = Readonly<{ kind: 'line' }> | Readonly<{ kind: 'stream'; abort(): void }>
 
 /**
  * The phase of a request in flight: the contract's `InFlightPhase` (T5, T8) with what each phase
@@ -186,7 +170,7 @@ const SENT: Phase = { kind: 'sent', exchange: { kind: 'line' } }
 
 /**
  * One request in flight. `answered` is its settlement, what every caller waits on; `departed`
- * resolves once the line took the request (a stdio write completed, an HTTP answer stream began):
+ * resolves once the line took the request (an HTTP answer stream began, or the SSE mode posted it):
  * what `call` waits on, with the settlement, whichever comes first. Both are one-shot; the
  * in-flight table says whether the entry is still open.
  */
@@ -248,15 +232,11 @@ export class Session implements McpTransport {
   }
 
   private get credential(): HttpCredentialHandle | undefined {
-    return this.material.kind === 'streamable-http' ? this.material.credential : undefined
+    return this.material.credential
   }
 
-  private get stdio(): boolean {
-    return this.line.kind === 'stdio'
-  }
-
-  private get target(): string | undefined {
-    return this.material.kind === 'streamable-http' ? this.material.target : undefined
+  private get target(): string {
+    return this.material.target
   }
 
   private get bound(): IdentityBound {
@@ -269,7 +249,6 @@ export class Session implements McpTransport {
   /** The connection as the contract's T2 and T5 rules see it. */
   private get view(): ConnectionView {
     const version = this.connection.version
-    if (this.line.kind === 'stdio') return { kind: 'stdio', version }
     return {
       kind: 'streamable-http',
       version,
@@ -335,8 +314,6 @@ export class Session implements McpTransport {
 
   private settle(entry: Pending, answered: Answered): void {
     if (!this.pending.delete(entry.id)) return
-    const phase = entry.phase
-    if (phase.kind === 'sent' && phase.exchange.kind === 'probe') phase.exchange.cancel()
     entry.settle(this.handedOver(answered))
   }
 
@@ -407,8 +384,6 @@ export class Session implements McpTransport {
           if (this.classify(entry, { kind: 'line', text: event.text }, {})) return
         return
       }
-      case 'ended':
-        return this.die(endedCauseOf(event))
       case 'broken':
         return this.die('stream-broken')
       default: {
@@ -659,9 +634,6 @@ export class Session implements McpTransport {
     switch (exchange.kind) {
       case 'unsent':
         return void this.classify(entry, { kind: 'unsent' }, {})
-      case 'sent':
-        entry.depart()
-        return this.armProbe(entry)
       case 'aborted':
         // The exchange ended before the answer head and the entry is still open: an HTTP reset.
         return void this.classify(entry, { kind: 'http-aborted' }, {})
@@ -685,15 +657,6 @@ export class Session implements McpTransport {
         return exhaustive
       }
     }
-  }
-
-  /** stdio: a probe waits for its answer no longer than the probe time (T3, T8 D13). */
-  private armProbe(entry: Pending): void {
-    if (!this.stdio || !PROBE_REQUESTS.includes(entry.context.request)) return
-    const cancel = this.options.schedule(this.options.probeTimeoutMs, () =>
-      this.classify(entry, { kind: 'nothing' }, {}),
-    )
-    entry.phase = { kind: 'sent', exchange: { kind: 'probe', cancel } }
   }
 
   /**
@@ -766,10 +729,8 @@ export class Session implements McpTransport {
    * `authorization-required` when the flow ends, or with what was fetched when it is stopped first.
    */
   private enterDiscovery(entry: Pending, headers: AnswerHeaders): void {
-    const target = this.target
-    if (target === undefined) return this.settle(entry, { ...NOT_SENT, headers })
     const refusal = this.refusalOf(
-      target,
+      this.target,
       headers,
       AbortSignal.any([this.teardown.signal, entry.controller.signal]),
     )
@@ -938,11 +899,9 @@ export class Session implements McpTransport {
    * flow until the session closes; the rest is I07's `not-sent`.
    */
   private async refusedGet(opened: Extract<GetOpened, { kind: 'status' }>): Promise<Answered> {
-    const target = this.target
     const conclusion = fallbackGetConclusionOf(opened, this.options.versions)
     if (conclusion.kind === 'settle') return { wire: conclusion.wire }
-    if (target === undefined) return NOT_SENT
-    const refusal = this.refusalOf(target, opened.headers, this.teardown.signal)
+    const refusal = this.refusalOf(this.target, opened.headers, this.teardown.signal)
     const discovery = (await this.untilClosed(refusal.done)) ?? refusal.soFar()
     return { wire: authorizationRequiredAnswerOf(discovery) }
   }
@@ -951,8 +910,7 @@ export class Session implements McpTransport {
   private heldEndpoint(opened: Extract<GetOpened, { kind: 'stream' }>): string | undefined {
     const target = this.target
     const type = (opened.headers['content-type'] ?? '').split(';')[0]?.trim().toLowerCase()
-    if (opened.status !== 200 || type !== 'text/event-stream' || target === undefined)
-      return undefined
+    if (opened.status !== 200 || type !== 'text/event-stream') return undefined
     const first = opened.first
     if (first?.event !== 'endpoint') return undefined
     try {

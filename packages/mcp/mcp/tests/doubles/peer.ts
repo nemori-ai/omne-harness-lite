@@ -26,11 +26,9 @@ import {
   countedCredentials,
   countedEligibility,
   countedOutputCheck,
-  scriptedLanding,
   type Counted,
   type CountedCredentials,
   type CountedOutputCheck,
-  type ScriptedLanding,
 } from './ports.ts'
 import { reshapedTransports } from './transports.ts'
 import { CONFIG } from './world.ts'
@@ -43,7 +41,6 @@ export type Peer = Readonly<{
   adoption: Counted<MemoryAdoptionView<Principal, string>>
   eligibility: Counted<MemoryUseEligibility<Principal>>
   credentials: CountedCredentials
-  landing: ScriptedLanding
   store: MemoryCatalogStore
   checks: CountedOutputCheck
   /** The scripted transport factory, with what the peer received. */
@@ -52,7 +49,7 @@ export type Peer = Readonly<{
   opens: () => number
   /** The requests of `method` the peer received, in order. */
   requests: (method: string) => readonly Request[]
-  /** How many `notifications/cancelled` the peer received (stdio material). */
+  /** How many times this package told the transport to cancel a sent request (`cancelRequest`, T5). */
   cancels: () => number
 }>
 
@@ -86,26 +83,33 @@ export function peer(
     transport?: ScriptedTransportOptions
     /** Where every `call` waits on the case. */
     callGate?: CallGate
-    facilities?: readonly string[]
     config?: Partial<McpConfig<Principal>>
   }> = {},
 ): Peer {
   const adoption = countedAdoption()
   const eligibility = countedEligibility()
   const credentials = countedCredentials()
-  const landing = scriptedLanding({ facilities: options.facilities ?? [] })
   const store = createMemoryCatalogStore()
   const checks = countedOutputCheck()
   const transports = createScriptedTransportFactory(script, options.transport ?? {})
   let opens = 0
+  let cancels = 0
   const inner =
     options.callGate === undefined ? transports : gatedCalls(transports, options.callGate)
-  const counted: McpTransportFactory = {
-    open(material, signal) {
-      opens += 1
-      return inner.open(material, signal)
+  const counted = reshapedTransports(
+    {
+      open(material, signal) {
+        opens += 1
+        return inner.open(material, signal)
+      },
     },
-  }
+    transport => ({
+      cancelRequest(requestId) {
+        cancels += 1
+        return transport.cancelRequest(requestId)
+      },
+    }),
+  )
   const requests = (method: string): readonly Request[] =>
     transports
       .received()
@@ -115,7 +119,6 @@ export function peer(
       adoption,
       eligibility,
       credentials,
-      landing,
       store,
       transports: counted,
       checkOutput: checks.check,
@@ -125,17 +128,12 @@ export function peer(
     adoption,
     eligibility,
     credentials,
-    landing,
     store,
     checks,
     transports,
     opens: () => opens,
     requests,
-    cancels: () =>
-      transports
-        .received()
-        .filter(item => item.kind === 'notification' && item.method === 'notifications/cancelled')
-        .length,
+    cancels: () => cancels,
   }
 }
 

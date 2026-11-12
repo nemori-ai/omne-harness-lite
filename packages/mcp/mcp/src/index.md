@@ -30,9 +30,9 @@
 - [internal/scope.ts](internal/scope.ts)：连接表的任务作用域：时限之后继续的工作与其中的编程错误；对外只有 `Spawn` 视图
 - [internal/assembly.ts](internal/assembly.ts)：唯一的装配：建表与各服务，`createMcp` 与测试都经它
 - [internal/table.ts](internal/table.ts)：连接表，只编排
-- [internal/entry.ts](internal/entry.ts)：条目的资源与视图；谓词 `holdsNothing`、`forgettable`；资源的搬移 `recordStop`、`adoptLingering`、`handOverToLanding`、`landingAnswered`
-- [internal/teardown.ts](internal/teardown.ts)：唯一的关闭次序 `teardown`；每一步经 `ask` 问端口（`closeTransport`、`stopOne`、`releaseHeld`）；在途落点的句柄 `releaseLanding`、`abandonLandings`
-- [internal/late.ts](internal/late.ts)：时限后交来的传输、句柄与进程，作为 `within` 的收口函数
+- [internal/entry.ts](internal/entry.ts)：条目的资源与视图；谓词 `holdsNothing`、`forgettable`
+- [internal/teardown.ts](internal/teardown.ts)：唯一的关闭次序 `teardown`；每一步经 `ask` 问端口（`closeTransport`、`releaseHeld`）
+- [internal/late.ts](internal/late.ts)：时限后交来的传输与句柄，作为 `within` 的收口函数
 - [internal/build.ts](internal/build.ts)：时限下的建连，含失败与关停之后的收场
 - [internal/turns.ts](internal/turns.ts)：每个持有一次只跑一个
 - [internal/settings.ts](internal/settings.ts)：S4 配值检查

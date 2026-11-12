@@ -21,9 +21,9 @@ import {
 import { deferred, settled } from './doubles/deferred.ts'
 import { alice, aliceAway, bob, mallory } from './doubles/identities.ts'
 import { completed, listing, peer, services, text, type Peer } from './doubles/peer.ts'
-import { stallingEligibility, stallingLanding } from './doubles/stalls.ts'
+import { stallingEligibility, stallingOpens } from './doubles/stalls.ts'
 import { never, reshapedTransports } from './doubles/transports.ts'
-import { adoptStdio, storedRecord } from './doubles/world.ts'
+import { adoptHttp, storedRecord } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
 const READ = actionNameOf('read')
@@ -37,7 +37,7 @@ const anonymousKey = {
 /** A peer that lists `read` and answers it as scripted, adopted for alice, with the catalog stored. */
 async function arranged(read: Replies, options: Parameters<typeof peer>[1] = {}) {
   const p = peer({ listing: { '': listing([{ name: 'read' }]) }, calls: { read } }, options)
-  adoptStdio(p, files)
+  adoptHttp(p, files, { auth: 'none' })
   const stored = await storedRecord(p, anonymousKey, ['read'])
   const digest = stored.actions[0]?.definitionDigest
   if (digest === undefined) throw new Error('no digest')
@@ -328,7 +328,7 @@ describe('one stop signal from the reservation on (SPEC S2, MC-16 step 2)', () =
         listing: { '': listing([{ name: 'read' }]) },
         calls: { read: completed([]) },
       })
-      adoptStdio(p, files, { settings: { connectTimeout: { kind: 'absent' } } })
+      adoptHttp(p, files, { auth: 'none', settings: { connectTimeout: { kind: 'absent' } } })
       await storedRecord(p, anonymousKey, ['read'])
       const { services: s } = services(p)
       const digest = digestDefinition({ name: READ, definition: jsonOf({ name: 'read' }) })
@@ -371,8 +371,8 @@ describe('one stop signal from the reservation on (SPEC S2, MC-16 step 2)', () =
     'while the build is under way, a %s answers the call cancelled at once; the build goes on for the key and nothing is sent',
     async how => {
       const { p, digest } = await arranged(completed([text('hi')]))
-      const stalled = stallingLanding(p.landing)
-      const { services: s } = services({ ...p, ports: { ...p.ports, landing: stalled.port } })
+      const stalled = stallingOpens(p.ports.transports)
+      const { services: s } = services({ ...p, ports: { ...p.ports, transports: stalled.port } })
       const controller = new AbortController()
       const call = tracked(s.invoker.invoke(alice, request(digest, controller.signal)))
       await settled()

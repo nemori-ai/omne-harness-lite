@@ -1,5 +1,5 @@
-// The ports of the explorer: the line, the credential handle, the metadata fetch and the
-// scheduler that `Session` is driven on. Every call the session makes on a port is a
+// The ports of the explorer: the line, the credential handle and the metadata fetch that
+// `Session` is driven on. Every call the session makes on a port is a
 // `PortCall` that stays pending until the explorer settles it with one of the port's answers.
 // The credential handle and the metadata fetch may also be answered `hang`: the call never
 // settles, not even when the run is driven to rest; the session must not make a caller wait for
@@ -14,7 +14,6 @@ import type { MetadataFetch } from '@omne-harness/mcp-contract'
 import type { HttpCredentialHandle } from '@omne-harness/mcp-contract/provider'
 import type { Exchange, GetOpened, Line, LineEvent, Outbound } from '../../src/line.ts'
 import { AsyncQueue } from '../../src/queue.ts'
-import type { Scheduler } from '../../src/session.ts'
 
 /** The answers of each port, the lawful one first. A run driven to rest answers with the first. */
 export const PORT_ANSWERS = {
@@ -55,7 +54,7 @@ export const BREACHES: ReadonlySet<Answer> = new Set<Answer>(['reject', 'fail', 
 export const HANG: Answer = 'hang'
 
 /**
- * A wire answer other than the lawful one: what the peer, the network or the process may do.
+ * A wire answer other than the lawful one: what the peer or the network may do.
  * Each of them spends the wire budget of the scenario.
  */
 export const WIRE_FAULTS: ReadonlySet<Answer> = new Set<Answer>([
@@ -271,7 +270,7 @@ class ExplorerStream implements AsyncIterable<string> {
 }
 
 export class ExplorerLine implements Line {
-  readonly kind: 'stdio' | 'streamable-http'
+  readonly kind = 'streamable-http'
   readonly events: AsyncIterable<LineEvent>
   readonly queue = new AsyncQueue<LineEvent>()
   readonly openGet: ((headers: Headers, signal: AbortSignal) => Promise<GetOpened>) | undefined
@@ -281,18 +280,17 @@ export class ExplorerLine implements Line {
   private sse = false
   private closed = false
 
-  constructor(kind: 'stdio' | 'streamable-http', desk: CallDesk, withGet: boolean) {
-    this.kind = kind
+  constructor(desk: CallDesk, withGet: boolean) {
     this.desk = desk
     this.events = this.queue
-    this.openGet = kind === 'streamable-http' && withGet ? this.getStream.bind(this) : undefined
+    this.openGet = withGet ? this.getStream.bind(this) : undefined
   }
 
   get inSseMode(): boolean {
     return this.sse
   }
 
-  /** Pushes one event of the shared stream: a line of the peer, `ended`, or `broken`. */
+  /** Pushes one event of the shared stream: a line of the peer, or `broken`. */
   push(event: LineEvent): void {
     this.desk.ledger.events.push(
       event.kind === 'line' ? `line:${event.text.length > 40 ? 'ping' : event.text}` : event.kind,
@@ -341,16 +339,15 @@ export class ExplorerLine implements Line {
   }
 
   private exchangeOf(answer: Answer, id: string, method: string): Exchange {
-    const shared = this.kind === 'stdio' || this.sse
     switch (answer) {
       case 'answer':
-        if (shared) {
+        if (this.sse) {
           queueMicrotask(() => this.pushAnswerText(id, method))
-          return { kind: 'sent' }
+          return endedStream([])
         }
         return endedStream([resultTextOf(id, method)])
       case 'sent':
-        return { kind: 'sent' }
+        return endedStream([])
       case 'stream': {
         const stream = new ExplorerStream(this.desk, id, method)
         this.streams.set(id, stream)
@@ -481,20 +478,4 @@ export function explorerMetadataFetch(desk: CallDesk): MetadataFetch {
       signal,
       value: answer => (answer === 'ok' ? METADATA : undefined),
     })
-}
-
-/** A timer the explorer fires: named by the request it was armed for. */
-export type Timer = Readonly<{ name: string; fire: () => void; context: Context | undefined }>
-
-/** The scheduler of the session: every probe time is a timer of the explorer. */
-export function explorerScheduler(timers: Timer[]): Scheduler {
-  return (_delayMs, fire) => {
-    const context = contexts.getStore()
-    const timer: Timer = { name: `T(${context?.request ?? '?'})`, fire, context }
-    timers.push(timer)
-    return () => {
-      const index = timers.indexOf(timer)
-      if (index >= 0) timers.splice(index, 1)
-    }
-  }
 }

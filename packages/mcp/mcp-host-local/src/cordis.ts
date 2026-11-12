@@ -1,6 +1,6 @@
 // The MCP plugin: it builds the MCP services once, over the in-memory catalog store and the local
-// transports, and provides the three MCP services on the loading fiber. The four demand ports
-// (adoption, eligibility, credentials, landing) belong to other domains. The plugin reads each of
+// transports, and provides the three MCP services on the loading fiber. The three demand ports
+// (adoption, eligibility, credentials) belong to other domains. The plugin reads each of
 // them from its own load context on every call, and without one the answer is the port's
 // `unknown`, never a pass. When the fiber unloads, one removal closes every connection.
 import type { Context } from '@deepseek-ai/cordis'
@@ -15,13 +15,9 @@ import type {
 import type {
   AdoptionView,
   CredentialFailure,
-  CredentialPurpose,
   CredentialUse,
   HttpCredentialHandle,
   HttpPurpose,
-  ProcessCredentialHandle,
-  ProcessLanding,
-  ProcessPurpose,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 import {
@@ -30,7 +26,6 @@ import {
   EndpointStatusService,
   mcpAdoptionViewKey,
   mcpCredentialUseKey,
-  mcpProcessLandingKey,
   mcpUseEligibilityKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import {
@@ -57,8 +52,8 @@ export type McpPluginParts = Readonly<
 >
 
 /**
- * The configuration of the plugin: the three bounds of `McpConfig`, and `clientInfo` and
- * `probeTimeoutMs` of `LocalTransportOptions`. Every field is required and has no default. The
+ * The configuration of the plugin: the three bounds of `McpConfig`, and `clientInfo` of
+ * `LocalTransportOptions`. Every field is required and has no default. The
  * ranges are checked by `createMcp` and `createLocalTransportFactory`, not by the schema.
  */
 export type McpPluginConfig = Readonly<
@@ -75,7 +70,6 @@ const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
   maxListingPages: true,
   maxActions: true,
   instructionsByteLimit: true,
-  probeTimeoutMs: true,
   clientInfo: true,
 }
 const CLIENT_INFO_FIELDS: Readonly<Record<keyof ClientInfo, true>> = { name: true, version: true }
@@ -105,14 +99,13 @@ function fieldsIssue(
   return undefined
 }
 
-/** The four bounds read by name, or the name of the first one that is not a number. */
+/** The three bounds read by name, or the name of the first one that is not a number. */
 function boundsOf(record: Readonly<Record<PropertyKey, unknown>>): Bounds | keyof Bounds {
-  const { maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs } = record
+  const { maxListingPages, maxActions, instructionsByteLimit } = record
   if (typeof maxListingPages !== 'number') return 'maxListingPages'
   if (typeof maxActions !== 'number') return 'maxActions'
   if (typeof instructionsByteLimit !== 'number') return 'instructionsByteLimit'
-  if (typeof probeTimeoutMs !== 'number') return 'probeTimeoutMs'
-  return { maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs }
+  return { maxListingPages, maxActions, instructionsByteLimit }
 }
 
 /** A new `clientInfo` of two texts, or the issue of the value. */
@@ -131,7 +124,7 @@ function issue(message: string): ConfigResult {
 }
 
 /**
- * Checks the shape only: a plain object with exactly the five own fields, the four bounds
+ * Checks the shape only: a plain object with exactly the four own fields, the three bounds
  * numbers, and `clientInfo` a plain object with exactly two own texts. It answers a new object,
  * so a later change to the input does not reach the plugin.
  */
@@ -184,42 +177,17 @@ function credentialsOf(ctx: Context): CredentialUse<unknown> {
   type Access = Parameters<CredentialUse<unknown>['acquire']>[0]
   type Holding = Parameters<CredentialUse<unknown>['acquire']>[1]
   type Binding = Parameters<CredentialUse<unknown>['acquire']>[3]
-  function acquire(
-    access: Access,
-    holding: Holding,
-    purpose: ProcessPurpose,
-    binding: Binding,
-  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
-  function acquire(
+  async function acquire(
     access: Access,
     holding: Holding,
     purpose: HttpPurpose,
     binding: Binding,
-  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
-  async function acquire(
-    access: Access,
-    holding: Holding,
-    purpose: CredentialPurpose,
-    binding: Binding,
-  ): Promise<Outcome<ProcessCredentialHandle | HttpCredentialHandle, CredentialFailure>> {
+  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>> {
     const port = ctx.get(mcpCredentialUseKey)
     if (port === undefined) return fail('unknown')
-    // Each branch calls the overload of its purpose.
-    if (purpose.kind === 'process-env') return port.acquire(access, holding, purpose, binding)
     return port.acquire(access, holding, purpose, binding)
   }
   return { acquire }
-}
-
-/** The process landing that asks the `mcpProcessLanding` service on each call (IC-9). */
-function landingOf(ctx: Context): ProcessLanding<unknown> {
-  return {
-    async start(...args) {
-      const port = ctx.get(mcpProcessLandingKey)
-      if (port === undefined) return fail('unknown')
-      return port.start(...args)
-    },
-  }
 }
 
 class HostActionDiscovery extends ActionDiscoveryService<unknown> {
@@ -288,9 +256,8 @@ class HostEndpointStatus extends EndpointStatusService<unknown, unknown> {
  * share one connection table, one in-flight table and one task table. A configuration that is not
  * of the shape fails the load; a value out of range fails it with the `RangeError` of
  * `createLocalTransportFactory` or `createMcp`. When the fiber unloads, one removal awaits
- * `connections.closeAll()` and warns of each endpoint whose process stop was `root-only` or
- * `unconfirmed`; an `AggregateError` from `closeAll` is not caught, and Cordis writes it to
- * `ctx.logger`.
+ * `connections.closeAll()`; an `AggregateError` from `closeAll` is not caught, and Cordis writes
+ * it to `ctx.logger`.
  */
 export function createMcpPlugin(parts: McpPluginParts) {
   return definePlugin<McpPluginConfig>({
@@ -301,11 +268,9 @@ export function createMcpPlugin(parts: McpPluginParts) {
         adoption: adoptionOf(ctx),
         eligibility: eligibilityOf(ctx),
         credentials: credentialsOf(ctx),
-        landing: landingOf(ctx),
         store: createInMemoryCatalogStore(),
         transports: createLocalTransportFactory({
           clientInfo: config.clientInfo,
-          probeTimeoutMs: config.probeTimeoutMs,
           ...(parts.fetch === undefined ? {} : { fetch: parts.fetch }),
         }),
         checkOutput: parts.checkOutput,
@@ -317,13 +282,9 @@ export function createMcpPlugin(parts: McpPluginParts) {
         maxActions: config.maxActions,
         instructionsByteLimit: config.instructionsByteLimit,
       })
-      const logger = ctx.logger('mcp')
       ctx.effect(
         () => async () => {
-          const report = await services.connections.closeAll()
-          for (const closed of report)
-            if (closed.process === 'root-only' || closed.process === 'unconfirmed')
-              logger.warn('the stop of the process was not confirmed', closed.ref, closed.process)
+          await services.connections.closeAll()
         },
         'mcp.closeAll',
       )

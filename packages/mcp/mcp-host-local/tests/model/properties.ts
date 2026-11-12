@@ -1,7 +1,7 @@
 // The observable projections of V1–V6 (SPEC「性质与证据」) on one run of the explorer. Each check
 // reads only what a caller or a port can see: the answers of the client operations, the ledger
-// of the port doubles, the pending port calls with their context, and the timers. None reads
-// the session's fields. Each check names the invariant of `verification/models/TransportSession.tla`
+// of the port doubles, and the pending port calls with their context. None reads the session's
+// fields. Each check names the invariant of `verification/models/TransportSession.tla`
 // it projects.
 import type { Context, Ledger, PortCall, PortName } from './ports.ts'
 
@@ -31,8 +31,8 @@ export type OpView = Readonly<{
 /** The phase of a request in flight, as inferred from the pending port calls (SPEC V6). */
 export type Phase = 'authorizing' | 'sent' | 'discovery' | 'none'
 
-/** Why the shared stream went away: what the session reads from the line's `ended` or `broken` event. */
-export type LineEndCause = 'stream-broken' | 'process-exited'
+/** Why the shared stream went away: what the session reads from the line's `broken` event. */
+export type LineEndCause = 'stream-broken'
 
 /** What the properties read from a run. */
 export interface RunView {
@@ -40,7 +40,6 @@ export interface RunView {
   readonly ops: readonly OpView[]
   /** The port calls not answered yet, the hung ones included. */
   readonly pending: readonly PortCall[]
-  readonly timers: number
   /** `close()` was called. */
   readonly closeCalled: boolean
   /** `close()` resolved. */
@@ -267,7 +266,7 @@ function stopAnswerOf(phase: Exclude<Phase, 'none'>): string {
 }
 
 /**
- * What the line going away answers a request in each phase (contract T8 S01–S04, the SSE mode):
+ * What the line going away answers a request in each phase (the SSE mode):
  * only the phases that depend on the line settle by the cause; a discovery goes on to its own
  * conclusion.
  */
