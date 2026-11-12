@@ -87,6 +87,7 @@ export { encodeToolCanonical, type EncodedToolCanonical } from './canonical-code
 export { createToolRuntime, createToolRuntimeFacade, toolRuntimeAdoption } from './runtime.ts'
 export {
   createToolDriver,
+  laterRunDelayMs,
   type DriverPolicy,
   type DriverStop,
   type ToolDriverHandle,

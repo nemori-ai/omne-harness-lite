@@ -56,6 +56,31 @@ export type DriverStop =
 /** The policy of a driver: how many steps one run takes, and how long a failed run waits. */
 export type DriverPolicy = Readonly<{ stepsPerRun: number; retryDelayMs: number }>
 
+/** The cap of the delay of a later run: the same pair of numbers as the delivery pacing. */
+const MAX_RETRY_DELAY_MS = 60_000
+
+/**
+ * The delay of the `level`-th later run in a row without progress: `retryDelayMs`, doubled each
+ * time, at most max(retryDelayMs, 60000) ms (SPEC 23).
+ */
+export function laterRunDelayMs(retryDelayMs: number, level: number): number {
+  const cap = Math.max(retryDelayMs, MAX_RETRY_DELAY_MS)
+  return Math.min(retryDelayMs * 2 ** Math.min(level, 32), cap)
+}
+
+/**
+ * Which stops the driver runs again later: no progress, a port that cannot answer, or a fact that
+ * no wake-up announces. A run with progress goes on at once; idle and waiting are woken; a verdict
+ * is not run again.
+ */
+function runsAgainLater(stop: DriverStop): boolean {
+  return (
+    stop.kind === 'blocked' ||
+    (stop.kind === 'yielded' && !stop.progressed) ||
+    (stop.kind === 'failed' && transient(stop.failure))
+  )
+}
+
 type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: AbortSignal }>
 /**
  * The run goes on. `progressed` is true when the step committed, or recalled a commit of its own
@@ -65,7 +90,14 @@ type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: Abor
  */
 type Continue = Readonly<{ kind: 'continue'; progressed: boolean }>
 type StepResult = Continue | DriverStop
-type RunFailures = { skipped: Set<string>; first: DriverStop | null; retry: boolean }
+/** What a run met: duties skipped on a failure, the first such failure, and whether it moved. */
+type RunFailures = {
+  skipped: Set<string>
+  first: DriverStop | null
+  retry: boolean
+  /** A step of the run committed or recalled a commit, whatever the run stopped on. */
+  progressed: boolean
+}
 /** The phases of a call that holds no start record; nothing of it ever ran. */
 const UNSTARTED: readonly ToolRecovery['state']['phase'][] = ['accepted', 'preparing', 'queued']
 const CONTINUE: Continue = { kind: 'continue', progressed: true }
@@ -129,6 +161,11 @@ export type ToolDriverHandle<P> = ToolDriver<P> &
   Readonly<{
     /** Runs the call and tells where it stopped. `run` is this, without the answer. */
     advance(input: Step<P>): Promise<DriverStop>
+    /**
+     * Runs the call again after its backoff, as after a run that a port could not answer. For a
+     * host whose own read before a run could not answer: the later run stays the driver's.
+     */
+    later(input: Step<P>): void
   }>
 
 export function createToolDriver<P, B extends ContentBlock, E>(
@@ -145,6 +182,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   const unconfirmedBindingFailures = new Set<string>()
   const waiting = new Map<string, Map<string, Readonly<{ tenant: TenantId; call: ToolCallId }>>>()
   const runs = new Map<string, Promise<unknown>>()
+  // How many later runs in a row a call had without progress: the level of its next delay.
+  const backoff = new Map<string, number>()
   // One unreferenced retry per call. An aborted signal cannot initiate another wake.
   const retrying = new Map<
     string,
@@ -215,40 +254,44 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       clearTimeout(old.timer)
       retrying.delete(key)
     }
-    const timer = setTimeout(() => {
-      retrying.delete(key)
-      if (signals.some(signal => signal.aborted)) return
-      void scheduleNow(tenant, call).then(accepted => {
-        if (!accepted) scheduleLater(tenant, call, signals)
-      })
-    }, policy.retryDelayMs)
+    const level = backoff.get(key) ?? 0
+    backoff.set(key, level + 1)
+    const timer = setTimeout(
+      () => {
+        retrying.delete(key)
+        if (signals.some(signal => signal.aborted)) return
+        void scheduleNow(tenant, call).then(accepted => {
+          if (!accepted) scheduleLater(tenant, call, signals)
+        })
+      },
+      laterRunDelayMs(policy.retryDelayMs, level),
+    )
     timer.unref()
     retrying.set(key, { timer, signals })
   }
 
   /**
-   * What follows a run (SPEC 23): nothing else runs a call that a stop left with work, so the
-   * driver does. A run that used its whole step budget goes on at once, if at least one of its
-   * steps committed or recalled a commit. A run that used its budget with no such step (every
-   * answer was excluded, stale or an unknown commit), one that ended because the store or a
-   * port could not answer, and one whose environment the provider answered `pending` or
-   * `unknown` (mapped to `unavailable`), go on after the retry delay, so a store that never answers, or a
-   * reader that keeps excluding the step, is not spun on. A run that ends waiting, idle or
-   * aborted, or on a verdict, is left: the wake-up of a released slot, the waiter's reconcile
-   * and, after a restart, the host's recovery scan (`scanPending`, SPEC 33) own those.
+   * What follows a run (SPEC 23): the driver is the one owner of a later run of a call. A run any
+   * of whose steps made progress clears the delay; one that used its budget with progress goes on
+   * at once. A run without progress, one that a port could
+   * not answer, and one blocked on a fact that no wake-up announces, go on after the delay of the
+   * call, which doubles each time up to its cap, so a store that keeps not answering is asked less
+   * and less often. A run that ends waiting, idle or aborted, or on a verdict, clears the delay and
+   * is left: the wake-up of a released slot, the waiter's reconcile and, after a restart, the
+   * host's recovery scan (`scanPending`, SPEC 33) own those.
    */
   const retrigger = async (
     step: Step<P>,
     stop: DriverStop,
     signals: readonly AbortSignal[],
+    progressed: boolean,
   ): Promise<void> => {
     if (signals.some(signal => signal.aborted)) return
+    if (progressed || !runsAgainLater(stop)) backoff.delete(callKey(step.tenant, step.call))
     if (stop.kind === 'yielded' && stop.progressed) {
       if (!(await scheduleNow(step.tenant, step.call)))
         scheduleLater(step.tenant, step.call, signals)
-    } else if (stop.kind === 'yielded' || (stop.kind === 'failed' && transient(stop.failure))) {
-      scheduleLater(step.tenant, step.call, signals)
-    }
+    } else if (runsAgainLater(stop)) scheduleLater(step.tenant, step.call, signals)
   }
 
   const wake = async (tenant: TenantId, request: FixedToolRequest): Promise<void> => {
@@ -695,6 +738,47 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return recordStart(step, recovery, start, { kind: 'rejected', reason, exclusion: excluded.ok })
   }
 
+  /**
+   * After the binding was asked to start: the fence tells what happened (P04). A refusal or a throw
+   * that the fence did not settle is marked for reconciliation; a binding that could not answer,
+   * for a start that the fence did not accept, ends the run unavailable, and the next run starts
+   * the same start with a new permit (U2, U4). Nothing of that failure is kept.
+   */
+  const reconcileInvocation = async (
+    step: Step<P>,
+    recovery: ToolRecovery,
+    start: ToolStartRecord,
+    invoked: Exclude<Awaited<ReturnType<typeof binding.invoke>>, { kind: 'port-failed' }>,
+    recordBindingFailureMarker: () => Promise<StepResult>,
+  ): Promise<StepResult> => {
+    const afterStart = await authority.inspect({
+      principal: step.principal,
+      tenant: step.tenant,
+      call: step.call,
+      start,
+    })
+    if (
+      'ok' in afterStart &&
+      (afterStart.ok.kind === 'started' || afterStart.ok.kind === 'rejected')
+    )
+      return recordStart(step, recovery, start, afterStart.ok)
+    if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
+      return recordBindingFailureMarker()
+    if ('failure' in afterStart) return { kind: 'failed', failure: afterStart.failure }
+    if (afterStart.ok.kind === 'unknown')
+      return unknownStart(step, recovery, start, afterStart.ok.diagnostic)
+    if (invoked.kind === 'binding-unanswered')
+      return {
+        kind: 'failed',
+        failure: {
+          kind: 'unavailable',
+          dependency: 'toolBindings',
+          diagnostic: `the start was not accepted: the binding answered ${invoked.failure.kind}`,
+        },
+      }
+    return blocked('the authority excludes a start with a known live execution')
+  }
+
   const fence = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -738,19 +822,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
     if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
       unconfirmedBindingFailures.add(callKey(step.tenant, step.call))
-    const afterStart = await authority.inspect({ ...access, start })
-    if (
-      'ok' in afterStart &&
-      (afterStart.ok.kind === 'started' || afterStart.ok.kind === 'rejected')
-    )
-      return recordStart(step, recovery, start, afterStart.ok)
-    if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw') {
-      return recordBindingFailureMarker()
-    }
-    if ('failure' in afterStart) return { kind: 'failed', failure: afterStart.failure }
-    return afterStart.ok.kind === 'unknown'
-      ? unknownStart(step, recovery, start, afterStart.ok.diagnostic)
-      : blocked('the authority excludes a start with a known live execution')
+    return reconcileInvocation(step, recovery, start, invoked, recordBindingFailureMarker)
   }
 
   /** A settled call with a `queue` task still owes the queue domain its release (crash repair). */
@@ -971,7 +1043,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     cancelled: () => boolean,
     failures: RunFailures,
   ): Promise<DriverStop> => {
-    let progressed = false
     for (let steps = 0; steps < policy.stepsPerRun; steps += 1) {
       if (cancelled()) return blocked('the run was aborted')
       const recovery = await commands.loadRecovery({
@@ -986,18 +1057,23 @@ export function createToolDriver<P, B extends ContentBlock, E>(
         await stepOf(step, recovery.ok, cancelled, failures),
       )
       if (result.kind !== 'continue') return result
-      progressed ||= result.progressed
+      failures.progressed ||= result.progressed
     }
-    return { kind: 'yielded', progressed }
+    return { kind: 'yielded', progressed: failures.progressed }
   }
 
   /** One run, then what its stop asks for. */
   const runOnce = async (step: Step<P>): Promise<DriverStop> => {
     const signals = facts.signalsForRun(step)
     const cancelled = () => signals.some(signal => signal.aborted)
-    const failures: RunFailures = { skipped: new Set(), first: null, retry: false }
+    const failures: RunFailures = {
+      skipped: new Set(),
+      first: null,
+      retry: false,
+      progressed: false,
+    }
     const stop = await advance(step, cancelled, failures)
-    await retrigger(step, stop, signals)
+    await retrigger(step, stop, signals, failures.progressed)
     if (failures.retry) scheduleLater(step.tenant, step.call, signals)
     return stop
   }
@@ -1020,6 +1096,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   const handle: ToolDriverHandle<P> = {
     advance: serialized,
+    later: step => scheduleLater(step.tenant, step.call, [step.signal]),
     run: async step => {
       await serialized(step)
     },

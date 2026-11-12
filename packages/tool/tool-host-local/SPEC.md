@@ -37,7 +37,7 @@ R2-D60（[#421 的采用决定](https://github.com/nemori-ai/omne-harness-lite/i
 
 `prepare` 与 `consume` 读本调用的域与 `start-guards`、做决定、按本调用域的修订号条件提交。`consume` 的受理提交另带读集断言：`start-guards` 的修订号仍等于本次读到的修订号，任一不符即 `conflict`、不写入。失效在受理读到守卫之后、受理提交之前落下时，受理提交冲突，重读看到守卫前进，回复永久拒绝（[start-coordinator.spec.ts](tests/start-coordinator.spec.ts) 在该窗口内注入失效）。两个域没有共同的修订顺序，受理与失效的先后由提交裁定：失效先提交则本次重读看到守卫前进、提交永久拒绝；受理先提交则失效落在它之后、启动在途。失效在提交之后才回复证据，所以已经回复的失效一定被之后的受理看到（P04）。这个栅栏由 [StartConsume 模型](verification/models/start-consume/README.md)检查。修订冲突时重读重判，最多 `commitAttempts` 次，用尽后回复 `unavailable`。
 
-同一进程内，写同一个域的操作还经过该域的串行区，它只减少同域操作的修订冲突，不是先后正确的前提，也不跨域排序。
+同一进程内，写同一个域的操作还经过该域的串行区，它只减少同域操作的修订冲突，不是先后正确的前提，也不跨域排序。一个调用方在串行区里的等待有上限 `turnTimeoutMs`（缺省为 `commitAttempts` 乘每轮的时长），从排队算起。到了上限，调用方不再等，那一轮的工作继续跑完、仍可能提交，所以调用方得到的是各操作自己的「未知」：`consume` 与 `inspect` 回复 `unknown`，`exclude` 与 `invalidate` 回复 `commit-unknown`。之后以同一许可重送 `consume`、以同一操作号重送 `exclude` 或 `invalidate`，认回那一轮实际提交的事实。`prepare` 回复 `unavailable`：它签发的许可只有调用方拿到时才能用，没拿到的许可之后被同一启动的新许可取代。
 
 本排序域只在一个进程内验证过。两个进程共用记录仓的装配没有验证，所以本协调器不声明跨进程的启动保证（P04）。
 
@@ -267,7 +267,9 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 - 内存表满时，扫描停在当前游标。重试 interval 的下一拍接着读，所以有调用退场之后扫描继续。
 - 扫描读不到（`unavailable`）或抛出时，写一条 warn，下一拍从同一游标接着读。
 - 扫描回复 `unsupported` 时（记录仓不能扫描），写一条 warn，不再重试。旧调用不被接手。
-- 读完最后一页后扫描结束。重试 interval 每过 60 拍把结束的扫描从头再开一次：休眠的调用（见下）不在内存表里，唤醒提示丢失时靠这一轮按待办标记找回。内存表里的调用仍由重试 interval 每拍重排。
+- 读完最后一页后扫描结束。重试 interval 每过 60 拍把结束的扫描从头再开一次：休眠的调用（见下）不在内存表里，唤醒提示丢失时靠这一轮按待办标记找回。
+- 内存表里的调用，上一次运行停在驱动接管的停止上（blocked、步数用尽、`unavailable` 失败）的，由驱动按它的退避重跑（Tool 规格第 23 条），重试 interval 不重排它们。执行器自己在运行前的那次读取答 `unavailable` 时，同样交给驱动（`later`），记成 `failed/unavailable/<依赖>`。其余在内存表里的调用（停在 idle、waiting 或判定上，或执行器自己还有未尽的职责，例如收场失败后再退场）由重试 interval 每拍兜底一次。
+- 再问的总速率因此有上界：驱动接管的调用，每个的再运行间隔从 `driverRetryDelayMs` 翻倍到 `max(driverRetryDelayMs, 60000)` 毫秒；其余调用每拍至多一次；内存表里的调用数不超过 `capacity`。存储忙时运行停在 `unavailable`，落进驱动的退避，不随拍子放大。
 
 ### 等人的调用休眠
 
@@ -335,7 +337,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 `createLocalToolLoader` 先核来源及登记资格，再读取该来源层的合法设置。它调用实现模块、派生定义并运行 `judgeToolDefinition`，最后等待注入的 schema 检查。任一步失败都不发布装载句柄。合法设置、来源真实性与 schema 提供者由装配给出；本包不推导设置覆盖规则。
 
-`createLocalToolBindings` 在登记表内原子选择并 pin 装载句柄。首选请求记下的键，包括 draining；回退只选同形、可访问的 live 贡献，并取最早登记的一份。绑定按 tenant/call 固定请求，按 tenant/call/start 认回执行。它核原 executor 与 permit 身份，先完成 `authority.consume`，再调用作者。未知消费不进入作者，不重放消费或执行。
+`createLocalToolBindings` 在登记表内原子选择并 pin 装载句柄。首选请求记下的键，包括 draining；回退只选同形、可访问的 live 贡献，并取最早登记的一份。绑定按 tenant/call 固定请求，按 tenant/call/start 认回执行。它核原 executor 与 permit 身份，先完成 `authority.consume`，再调用作者。只有消费答 `started` 才进入作者，同一启动的作者在本进程里至多进入一次。绑定对一次尝试只记住它有没有进入作者；有没有被受理，问启动围栏，不问内存。消费答了别的（`unavailable`、`unknown`、确定的拒绝）或抛错时不进入作者，这次的答复也不保留：同一启动再来，绑定新开一次尝试、再消费一次，围栏对同一启动认回原受理，所以重新消费就是认回。没有进入作者的尝试保留的 pin 交给下一次尝试，不另取一个。`inspectStart` 遇到本进程没有进入作者的启动（包括进程重启后没有记录的），先等进行中的消费答复，再问 `authority.inspect`：围栏答 `not-started` 或 `rejected`，回复 `not-started` 并带围栏的排除证据；围栏答 `unknown`，回复 `unknown`；围栏答 `started` 而本进程有这次尝试，说明消费的答复丢了，受理之后只有原执行桥能推进（P04），绑定此时进入作者一次并回复 `live`；本进程没有这次尝试（例如重启之后），不知道上一个进程有没有进入作者，回复 `unknown`，不进入作者。
 
 同一绑定为其他调用取得 pin 时，登记表在同步步骤中核对原注册仍在且该租户可访问。原注册撤除后，同键后继不能替它提供 pin；即使后继复用了同一个装载句柄，也属于另一注册。已保留的原 start 仍认回原结果。参数解析、执行和结果转换使用同一次选定的命令操作，未知命令在消费许可前拒绝。多命令工具的参数是整次调用（D-94）：执行前与结果转换时，绑定都先用 `commandArguments` 按定义的编码切出固定请求所选命令的参数，再交给该命令的参数解析。调用点名别的命令、无法解码，或该命令的参数解析答 `invalid` 时，执行失败，不改用调用点名的命令。失败原因是 `describeCommandArgumentsRejection` 的文本：先写原因，后接所选命令的 guide，模型读到它（D-104）。参数解析答 `incomplete` 时只写原因。
 
@@ -372,7 +374,7 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 [检查点绑定测试](tests/checkpointed-binding.spec.ts)验证段上下文、最后事实与请求原文、检查点证明与等待身份。[整机组合测试](tests/runtime-composition/checkpoint.spec.ts)在本地运行时插件、启动协调器、本地绑定与真实账本下验证停泊与登记、账本保存的请求原文与状态同各自证据的摘要相符，决定之后从检查点恢复一次并收场，以及暂停中被叫停时调用收场、原登记失效一次、队列域不留条目。两者的决策方与记录仓是测试提供者，不证明耐久。
 
-作者返回值与 Scope 收场结论分别保存。绑定在作者返回后同步调用 `finish` 关闭新受理，把原 outcome 与完整 `closing` Promise 交给受信 `settle`。`settle` 须先在内存中编码原 R，再等待收场确认，不能因收场失败改写原 outcome。绑定的原 attempt 持有待结算输入；只有 final 确认并发布后才解除这份本地持有，回调抛错或保管拒绝不解除。该本地持有不是耐久回执，也不提供跨进程重跑作者的许可。
+作者返回值与 Scope 收场结论分别保存。绑定在作者返回后同步调用 `finish` 关闭新受理，把原 outcome 与完整 `closing` Promise 交给受信 `settle`。`settle` 须先在内存中编码原 R，再等待收场确认，不能因收场失败改写原 outcome。绑定的原 attempt 持有待结算输入；只有 final 确认并发布后才解除这份本地持有，回调抛错或保管拒绝不解除。该本地持有不是耐久回执，也不提供跨进程重跑作者的许可。结算答失败或抛错时，绑定不把执行标成不可观察：执行照实答 `live`（作者已返回，最终事实还没发布），不留下一个只置不回的失败标志。结算自己对一时的依赖重试：账本计划最终事实答 `unavailable` 或 `commit-unknown`、正文校验答不可用时，按推进的退避（Tool 规格第 23 条：`driverRetryDelayMs` 起翻倍，上限 `max(driverRetryDelayMs, 60000)`）等了再试，直到宿主退役；其余失败照下文报告。
 
 生产结算在内存里用原作者 codec 编码并解码返回，渲染后交账本计划最终事实（`finalPlanner.planFinal`）；收场仍 pending 时不发布 final，unknown/unavailable 时保留原件并报告未结责任。已确认的收场失败可以产生失败终局，不能产生 completed。控制身份在收场确认时核原 tenant/call/start/operation，原 stop/withdraw 若在该确认前导致取消，保留其身份；确认后的控制不能改写这次收场事实。`finish` 同步抛错或异步拒绝全化为收场 unknown，原 R 保持不变。定制 `settle` 也须履行上述顺序与屏障义务；本地 Promise 不进入数据契约或持久证据。
 

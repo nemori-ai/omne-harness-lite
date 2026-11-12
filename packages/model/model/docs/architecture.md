@@ -398,7 +398,7 @@ classDiagram
 | `query` | 调用与终局 | 查询 | 当前资格与原 operation 的权威提交结论 | Model 保留原身份；Storage 构造完整排除证明，revision 仅用于重查业务状态 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[Storage 查询](../../../storage/sql-contract/SPEC.md#8-query) |
 | `dispatches` | 调用与终局 | 查询 | 当前账目及发出事实读取资格，按原发出顺序返回脱敏事实 | Model 的 dispatch 身份、费用 revision 及披露边界 | [逐操作行为](../../model-contract/SPEC.md#342-逐操作行为) |
 | `prepareDispatch` | 发出尝试与重试 | 状态变更 | 当前代次、尚未控制且尚未收场、首内容界、合法政策和唯一 dispatch 意图 | Model 的 operation、expected/revision、generation 与 dispatch；意图不证明已发送 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作) |
-| `recordMaterialization` | 发出尝试与重试 | 状态变更 | 当前代次、原未发出 dispatch、供应商、固定输入与物化回执 | Model 固定 supplier/representation/payload 摘要；Storage 耐久确认后才形成 source | [物化提交](../../model-contract/SPEC.md#物化回执的提交与发送) |
+| `recordMaterialization` | 发出尝试与重试 | 状态变更 | 当前代次、原未发出 dispatch、供应商、固定输入、物化回执与这次发出的接收窗口 | Model 固定 supplier/representation/payload 摘要，同一次写打开接收窗口；Storage 耐久确认后才形成 source | [物化提交](../../model-contract/SPEC.md#物化回执的提交与发送) |
 | `recordSend` | 发出尝试与重试 | 状态变更 | 原 dispatch 的真实启动观察或发送未知，started 不倒退 not-sent | Model 的 operation、expected/revision 与 generation；本地记录不能推断网络未发送 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[恢复](../../model-contract/SPEC.md#342-重试失联与恢复) |
 | `recordLateFact` | 发出尝试与重试 | 状态变更 | 当前补录资格、原 dispatch 归属、可信 source、事件去重和账目修订（账目报告补上 receipt late）或实际终结事实 | Model 的 operation、dispatch/event 与 DurableEvidence；无须新 claim，不取得执行权，不改逻辑终局、结果版本、ACK 或 cleanup | [恢复与晚到补录](../../model-contract/SPEC.md#342-重试失联与恢复) |
 | `prepareRetry` | 发出尝试与重试 | 状态变更 | 原失败 dispatch、尚未首内容、当前策略资格、唯一策略 operation 和固定策略消费位置 | Model 固定 RetryPosition；策略拥有者保存自身经过，调用前先提交位置 | [重试协议](../../model-contract/SPEC.md#342-重试失联与恢复)、[资格提交](../../model-contract/SPEC.md#342-资格共同提交与实际发送) |
@@ -430,7 +430,7 @@ Model 决定调用事实、不变量及领域结果，ModelCommands 隐藏仓储
 
 | 跨组用例 | 必须强一致的本地事实 | 数据库事务外的效果 | 未知与恢复 | 协调位置候选，未选定 |
 | --- | --- | --- | --- | --- |
-| 分派与发送 | 每步分别固定 dispatch、物化回执和接收窗口；最终资格与同步 start 由共同围栏排序 | 媒体读取、编码及真实网络发送；网络效果不能 SQL 回滚 | 回执提交未知不 start；任何可能同步收到内容的 start 前先提交 uncertain 窗口。recordSend 缺失不证明未发送，查询原 operation，保留原 dispatch 与可能费用 | 既有 driver/send boundary 职责的应用装配。内部执行拥有者已定，不因本表重新选择 |
+| 分派与发送 | 分步固定 dispatch，物化回执与首个接收窗口在同一次写里固定；最终资格与同步 start 由共同围栏排序 | 媒体读取、编码及真实网络发送；网络效果不能 SQL 回滚 | 回执提交未知不 start；任何可能同步收到内容的 start 前先提交 uncertain 窗口。recordSend 缺失不证明未发送，查询原 operation，保留原 dispatch 与可能费用 | 既有 driver/send boundary 职责的应用装配。内部执行拥有者已定，不因本表重新选择 |
 | ACK 与消费方 | 可靠消费或副本证据、Model ACK 及清理责任满足现行可靠交接条件。同事务域可登记组合共同提交各方事实 | 复制字节、外部内容读取及事务域外消费效果 | 同事务参加能力不足时，沿已接受的两条证据路径保留责任。跨域组合尚须明确协议，不能以“最终一致”代替不丢结果；ACK 未知查原 operation，未认回前不能释放最后可靠副本 | 消费应用或集成协调者，由应用层具名；本节不选具体成员 |
 | 恢复认领 | 旧执行排除、原调用、当前资格、后继 instance 与新 generation 一次条件提交 | 扫描唤醒与通知可重扫，不把通知送达放进认领事务 | 查询失败保持原身份和游标；不能排除旧执行者则保留未知。recover 仅核实和唤醒，不直接 claim；driver 仍是代次唯一取得者 | 应用恢复协调与既有 driver 的组合；driver 的已定职责继续有效 |
 

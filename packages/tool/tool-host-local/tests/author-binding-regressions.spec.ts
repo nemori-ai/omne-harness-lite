@@ -56,6 +56,7 @@ async function harness(
   module: ToolImplementationModule<unknown, ContentBlock>,
   consumeWith?: ToolStartAuthority<string>['consume'],
   settleWith?: LocalToolBindingsInput<string, unknown, ContentBlock>['settle'],
+  inspectWith?: ToolStartAuthority<string>['inspect'],
 ) {
   const loaded = unbox(await loadAuthor(module))
   const { registry, asFiber } = fiberedRegistry(
@@ -77,45 +78,49 @@ async function harness(
   const authority = createMemoryToolStartAuthority<string>()
   const settlements: Settlement[] = []
   const closes: string[] = []
-  const bindings = createLocalToolBindings({
-    registry,
-    catalog: { inspect: async () => succeed(fixed.availability) },
-    authority: {
-      ...authority,
-      consume: input => {
-        consumed += 1
-        return (consumeWith ?? authority.consume)(input)
-      },
-    },
-    scope: input => {
-      const real = unbox(
-        createIndependentToolScope({
-          signal: input.execution.signal,
-          limits: {
-            authorBufferBytes: 10000,
-            authorBufferItems: 100,
-            authorWaitHistoryBytes: 10000,
-            authorWaitHistoryItems: 100,
-          },
-          process: null,
-          waits: null,
-        }),
-      )
-      return {
-        ...real,
-        finish: (kind: 'returned' | 'failed') => {
-          closes.push(kind)
-          return real.finish(kind)
+  // A rebuild over the same registry and authority stands for a new process: it holds no attempt.
+  const make = () =>
+    createLocalToolBindings({
+      registry,
+      catalog: { inspect: async () => succeed(fixed.availability) },
+      authority: {
+        ...authority,
+        consume: input => {
+          consumed += 1
+          return (consumeWith ?? authority.consume)(input)
         },
-      }
-    },
-    settle: async input => {
-      settlements.push(input)
-      return settleWith === undefined ? succeed(completedFinal()) : settleWith(input)
-    },
-  })
-  const resolve = async (fixedRequest = fixed, call = 'first') =>
-    unbox(await bindings.resolve({ ...authorAccess, call: callId(call), request: fixedRequest }))
+        inspect: input => (inspectWith ?? authority.inspect)(input),
+      },
+      scope: input => {
+        const real = unbox(
+          createIndependentToolScope({
+            signal: input.execution.signal,
+            limits: {
+              authorBufferBytes: 10000,
+              authorBufferItems: 100,
+              authorWaitHistoryBytes: 10000,
+              authorWaitHistoryItems: 100,
+            },
+            process: null,
+            waits: null,
+          }),
+        )
+        return {
+          ...real,
+          finish: (kind: 'returned' | 'failed') => {
+            closes.push(kind)
+            return real.finish(kind)
+          },
+        }
+      },
+      settle: async input => {
+        settlements.push(input)
+        return settleWith === undefined ? succeed(completedFinal()) : settleWith(input)
+      },
+    })
+  const bindings = make()
+  const resolve = async (fixedRequest = fixed, call = 'first', over = bindings) =>
+    unbox(await over.resolve({ ...authorAccess, call: callId(call), request: fixedRequest }))
   const input = async (fixedRequest = fixed, call = 'first', executor = loaded.executor) => {
     const start: Start = {
       kind: 'start',
@@ -143,6 +148,8 @@ async function harness(
     settlements,
     closes,
     consumed: () => consumed,
+    authority,
+    rebuild: make,
   }
 }
 
@@ -378,6 +385,217 @@ describe('author binding start identity and consume outcomes', () => {
       failure: { kind: 'commit-unknown', operation: input.start.operation },
     })
     expect(unbox(fixture.registry.pins(fixture.loaded.key))).toBe('1')
+  })
+})
+
+// A consume that did not answer `started` never entered the author, so the binding keeps no answer
+// of it: the same start asks the fence again, and an inspection asks the fence what it decided
+// (U2, U3). The author still runs at most once.
+describe('author binding of a start whose consume did not answer started', () => {
+  const counted = () => {
+    let entered = 0
+    return {
+      module: authorModule(async () => {
+        entered += 1
+        return 'done'
+      }),
+      entered: () => entered,
+    }
+  }
+  const settled = () => new Promise<void>(resolve => setImmediate(resolve))
+  const unavailableOnce = (fixture: () => Fixture) => {
+    let first = true
+    return (input: Parameters<ToolStartAuthority<string>['consume']>[0]) => {
+      if (!first) return fixture().authority.consume(input)
+      first = false
+      return Promise.resolve(
+        fail({ kind: 'unavailable' as const, dependency: 'start-ledger', diagnostic: 'busy' }),
+      )
+    }
+  }
+
+  it.each(['unavailable', 'throws'] as const)(
+    'after a consume that %s, the same start consumes again and runs the author once',
+    async answer => {
+      const author = counted()
+      let fixture: Fixture
+      const once = unavailableOnce(() => fixture)
+      let thrown = false
+      fixture = await harness(author.module, input => {
+        if (answer === 'throws' && !thrown) {
+          thrown = true
+          return Promise.reject(new Error('lost'))
+        }
+        return answer === 'throws' ? fixture.authority.consume(input) : once(input)
+      })
+      const binding = await fixture.resolve()
+      const input = await fixture.input()
+      expect(await binding.start(input, {})).toMatchObject({ failure: {} })
+      unbox(await binding.start(input, {}))
+      await settled()
+      expect(fixture.consumed()).toBe(2)
+      expect(author.entered()).toBe(1)
+      expect(fixture.settlements).toHaveLength(1)
+      // The start that ran is not run again.
+      unbox(await binding.start(input, {}))
+      expect(fixture.consumed()).toBe(2)
+    },
+  )
+
+  it('an inspection of a start the fence did not accept answers not-started, and a new permit runs it', async () => {
+    const author = counted()
+    let fixture: Fixture
+    const once = unavailableOnce(() => fixture)
+    fixture = await harness(author.module, input => once(input))
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    expect(await binding.start(input, {})).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(unbox(await binding.inspectStart(input))).toMatchObject({
+      kind: 'not-started',
+      exclusion: expect.anything(),
+    })
+    unbox(await binding.start(await fixture.input(), {}))
+    await settled()
+    expect(author.entered()).toBe(1)
+  })
+
+  it('an inspection of a start the fence accepted, whose answer was lost, runs the author once', async () => {
+    const author = counted()
+    let fixture: Fixture
+    fixture = await harness(author.module, async input => {
+      unbox(await fixture.authority.consume(input))
+      return succeed({ kind: 'unknown' as const, diagnostic: 'the answer was lost' })
+    })
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    expect(await binding.start(input, {})).toMatchObject({ failure: { kind: 'commit-unknown' } })
+    expect(author.entered()).toBe(0)
+    const [one, two] = await Promise.all([binding.inspectStart(input), binding.inspectStart(input)])
+    expect([unbox(one).kind, unbox(two).kind]).toEqual(['live', 'live'])
+    await settled()
+    expect(author.entered()).toBe(1)
+    expect(fixture.settlements).toHaveLength(1)
+  })
+
+  /** A binding whose first consume answers unavailable, and whose fence answers `inspect`. */
+  const askingFence = async (inspect: ToolStartAuthority<string>['inspect']) => {
+    const author = counted()
+    let fixture: Fixture
+    const once = unavailableOnce(() => fixture)
+    fixture = await harness(author.module, input => once(input), undefined, inspect)
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    expect(await binding.start(input, {})).toMatchObject({ failure: { kind: 'unavailable' } })
+    return { binding, input, author }
+  }
+
+  it('an inspection that the fence answers rejected answers not-started, and never enters the author', async () => {
+    const exclusion = (await import('./coordinator-values.ts')).evidence('rejected')
+    const { binding, input, author } = await askingFence(() =>
+      Promise.resolve(succeed({ kind: 'rejected' as const, reason: 'revoked', exclusion })),
+    )
+    expect(unbox(await binding.inspectStart(input))).toEqual({ kind: 'not-started', exclusion })
+    await settled()
+    expect(author.entered()).toBe(0)
+  })
+
+  it('an inspection that the fence answers unknown answers unknown, and never enters the author', async () => {
+    const { binding, input, author } = await askingFence(() =>
+      Promise.resolve(succeed({ kind: 'unknown' as const, diagnostic: 'the ledger is behind' })),
+    )
+    expect(unbox(await binding.inspectStart(input))).toEqual({
+      kind: 'unknown',
+      diagnostic: 'the ledger is behind',
+    })
+    await settled()
+    expect(author.entered()).toBe(0)
+  })
+
+  it('an inspection whose fence cannot answer gives that failure, and never enters the author', async () => {
+    const down = fail({
+      kind: 'unavailable' as const,
+      dependency: 'start-ledger',
+      diagnostic: 'down',
+    })
+    const { binding, input, author } = await askingFence(() => Promise.resolve(down))
+    expect(await binding.inspectStart(input)).toEqual(down)
+    await settled()
+    expect(author.entered()).toBe(0)
+  })
+
+  it('an inspection of a start that entered the author answers from the execution, not the fence', async () => {
+    let fenceDown = false
+    let fixture: Fixture
+    fixture = await harness(counted().module, undefined, undefined, input =>
+      fenceDown
+        ? Promise.resolve(
+            fail({ kind: 'unavailable' as const, dependency: 'start-ledger', diagnostic: 'down' }),
+          )
+        : fixture.authority.inspect(input),
+    )
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    unbox(await binding.start(input, {}))
+    fenceDown = true
+    expect(unbox(await binding.inspectStart(input)).kind).not.toBe('unknown')
+  })
+
+  it('an inspection that arrives while the consume is still out waits for its answer', async () => {
+    const author = counted()
+    const held = Promise.withResolvers<void>()
+    let fixture: Fixture
+    fixture = await harness(author.module, async input => {
+      await held.promise
+      return fixture.authority.consume(input)
+    })
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    const started = binding.start(input, {})
+    const inspected = binding.inspectStart(input)
+    held.resolve()
+    expect(await started).toHaveProperty('ok')
+    // The answer comes from the execution (it may have settled by now), not from the fence.
+    expect(['live', 'settled']).toContain(unbox(await inspected).kind)
+    await settled()
+    expect(author.entered()).toBe(1)
+  })
+
+  it('an inspection of another start record under the same start operation is a conflict', async () => {
+    const fixture = await harness(counted().module)
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    unbox(await binding.start(input, {}))
+    const moved = { ...input.start, execution: { ...input.start.execution, generation: '2' } }
+    expect(await binding.inspectStart({ ...input, start: moved })).toEqual({
+      failure: { kind: 'conflict', operation: input.start.operation },
+    })
+  })
+
+  it('a rebuilt binding (a new process) does not enter the author for a start the fence accepted', async () => {
+    const author = counted()
+    let fixture: Fixture
+    fixture = await harness(author.module, async input => {
+      unbox(await fixture.authority.consume(input))
+      return succeed({ kind: 'unknown' as const, diagnostic: 'the answer was lost' })
+    })
+    const input = await fixture.input()
+    expect(await (await fixture.resolve()).start(input, {})).toMatchObject({
+      failure: { kind: 'commit-unknown' },
+    })
+    const rebuilt = await fixture.resolve(fixture.fixed, 'first', fixture.rebuild())
+    expect(unbox(await rebuilt.inspectStart(input))).toMatchObject({ kind: 'unknown' })
+    await settled()
+    expect(author.entered()).toBe(0)
+  })
+
+  it('a rebuilt binding (a new process) answers not-started for a start the fence did not accept', async () => {
+    let fixture: Fixture
+    const once = unavailableOnce(() => fixture)
+    fixture = await harness(counted().module, input => once(input))
+    const input = await fixture.input()
+    expect(await (await fixture.resolve()).start(input, {})).toMatchObject({ failure: {} })
+    const rebuilt = await fixture.resolve(fixture.fixed, 'first', fixture.rebuild())
+    expect(unbox(await rebuilt.inspectStart(input))).toMatchObject({ kind: 'not-started' })
   })
 })
 
@@ -890,7 +1108,8 @@ describe('author binding of a live author that ends badly', () => {
     ])
   })
 
-  it('reports the execution as unobservable and publishes nothing when the settlement answers a failure', async () => {
+  // F3 of #1218: the execution stays live, with no final; it is not marked unobservable for good.
+  it('keeps the execution live and publishes nothing when the settlement answers a failure', async () => {
     const fixture = await harness(
       authorModule(async () => 'done'),
       undefined,
@@ -900,12 +1119,12 @@ describe('author binding of a live author that ends badly', () => {
     const live = unbox(await (await fixture.resolve()).start(input, {}))
     await tick()
     const binding = await fixture.resolve()
-    // A call whose end was not settled has no final to give: its start is looked up as unknown.
+    // A call whose end was not settled has no final to give yet: its execution is still live.
     expect(
       unbox(
         await binding.inspectStart({ ...authorAccess, call: callId('first'), start: input.start }),
       ),
-    ).toEqual({ kind: 'unknown', diagnostic: 'execution observation unavailable' })
+    ).toMatchObject({ kind: 'live' })
     const seen: unknown[] = []
     for await (const batch of live.facts({ after: null, signal: AbortSignal.timeout(50) }))
       seen.push(batch)

@@ -161,6 +161,11 @@ export function runtimeFixture(
       openInputs.push(input)
       return commands.openReceiveWindow(input)
     },
+    // The materialization write opens the sender's receive window: it is the first open.
+    async recordMaterialization(input: Parameters<typeof commands.recordMaterialization>[0]) {
+      openInputs.push(input)
+      return commands.recordMaterialization(input)
+    },
   }
   const resources: SendResources<typeof f.principal> = {
     async acquire(demand) {

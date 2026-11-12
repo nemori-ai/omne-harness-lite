@@ -316,7 +316,7 @@ declare function defineProtocol<const P extends ProtocolContract>(protocol: P): 
 
 - 协议没挂着，或协议里没有这个名字，答 404，空正文，不读消息体。
 - 所有操作和观察都用 POST。
-- 业务结果只认响应体里的 `outcome`。同一种 `outcome` 总是同一个状态码、同样的头、同样形状的响应体。调用者不用状态码判断业务含义。
+- 业务结果只认响应体里的 `outcome`。同一种 `outcome` 总是同一个状态码、同样的头、同样形状的响应体。调用者不用状态码判断业务含义。这里的头不含 `Connection` 与 `Omne-Message-Id`：前者看消息体读没读完，后者看消息编号认没认出（交付卡 #1233 定）。
 - 拒绝的响应一致。不论原因是登录无效、租户不符还是对象不存在，`denied` 的响应体逐字节相同，调用者推不出对象存不存在。
 - 严格读取。多余的字段、重复的键一律拒绝。
 - 读取类失败答 `basis-unavailable`，提交类失败答 `unknown`。结果未知不写成成功或失败。
@@ -468,9 +468,12 @@ type FrameSource<O> = (context: ObservationContext<O>, open: OpenOf<O>) => Promi
 接入向身份与授权要的端口。接口归接入，实现归身份的适配：
 
 ```ts
+// 失败只有两种。登录与主体是不透明的类型，所以结果用 outcome 区分（交付卡 #1233 定）。
+type IdentityFailure = { readonly outcome: 'denied' | 'basis-unavailable' }
+
 interface AccessIdentity {
-  identifyLogin(proof: string): Promise<LoginIdentity | IdentityFailure>
-  actFor(login: LoginIdentity, tenant: string): Promise<Principal | IdentityFailure>
+  identifyLogin(proof: string): Promise<{ readonly outcome: 'identified'; readonly login: LoginIdentity } | IdentityFailure>
+  actFor(login: LoginIdentity, tenant: string): Promise<{ readonly outcome: 'issued'; readonly principal: Principal } | IdentityFailure>
   // 一次成功的业务访问。管道不等它结束；它失败只记诊断，不改答复。
   reportAccess(login: LoginIdentity): Promise<void>
 }
@@ -506,14 +509,28 @@ declare function defineAccessPlugin<P extends ProtocolContract>(definition: {
 4. `Content-Type` 头不合规：415。
 5. 调 `enter`。返回空就是协议没挂着，或协议里没有这个名字：404，空正文。返回了就已经登记成在途。第 1 到 5 步之间不让出执行权。
 6. 在途请求的预算超了：429，空正文。
-7. 读 `Omne-Message-Id`。没有或格式不对：`protocol-rejected`。
-8. 按 `identity` 一栏识别登录、核对行事租户、签发主体。失败按身份规则答。
-9. 按这个操作的上限读消息体，严格解析，用契约的编解码读成类型。不合规：`protocol-rejected`。
+7. 读 `Omne-Message-Id`。没有或格式不对：`protocol-rejected`。格式：请求恰好有一个这个头，值是 1 到 128 个可见的 ASCII 字符（0x21 到 0x7E）。这一步通过之后的每个答复都回写它。
+8. 按 `identity` 一栏识别登录、核对行事租户、签发主体。失败按身份规则答（见下）。
+9. 按这个操作的上限读消息体，严格解析，用契约的编解码读成类型。不合规：`protocol-rejected`。超过上限也答 `protocol-rejected`，状态 400，不是 413：同一种结果总是同一个状态码。
 10. 第 6 到 9 步之间收到了中止：答 `basis-unavailable`。处理函数还没开始，没有任何效果。
 11. 把主体和消息体交给处理函数。
 12. 处理函数返回了答复：核对结果在契约的结果集里，用契约的编解码写回。
 13. 处理函数抛出，或在中止之后失败，或在中止之后过了宽限还没返回：读取类答 `basis-unavailable`，提交类答 `unknown`。
 14. 写出答复之后调 `leave`。答复是成功、契约标了 `countsAsAccess` 的，随后向身份报告一次成功的业务访问，不等它结束。
+
+身份规则（交付卡 #1233 定）。凡是没能确立调用者是谁的，都答 `denied`，调用者分不出是哪一种原因：
+
+| `identity` | 情形 | 答复 |
+| --- | --- | --- |
+| `none` | 任何 | 不读两个身份头，不调身份端口，主体没有 |
+| `login`、`acting-tenant` | `Authorization` 不是恰好一个 `Bearer <登录证明>` | `denied`，不调身份端口 |
+| `login`、`acting-tenant` | `identifyLogin` 答 `denied` | `denied` |
+| `login`、`acting-tenant` | `identifyLogin` 答 `basis-unavailable` 或抛出 | `basis-unavailable` |
+| `login` | 认出了登录 | 主体是这个登录，不读行事租户 |
+| `acting-tenant` | `Omne-Acting-Tenant` 不是恰好一个，或为空 | `denied`，不调 `actFor` |
+| `acting-tenant` | `actFor` 的结果 | 给出主体就用它；失败同 `identifyLogin` |
+
+行事租户的原文交给身份端口，它是不是这个登录能代的租户由身份判断。身份的结果不缓存。第 8、9 步等待的每一件事都同时等中止信号，信号一到就答 `basis-unavailable`。消息体还没读完就写出的答复和每一个 `denied` 都关闭连接。精确的规则归[服务端接入规格的管道](../../packages/access/server-entry/SPEC.md#管道)。
 
 处理函数自己知道「什么都没提交」的时候，直接返回 `basis-unavailable`，不要抛出。抛出的失败按第 13 步处理，因为管道不知道效果有没有发生。
 
@@ -2196,11 +2213,11 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | 三个形式化模型、负控、两条硬要求、证明转契约测试的清单。模型三随会话观察的成员建成搬到它那里 | [接入登记表与可用性的有限行为模型](../../packages/access/server-entry/verification/models/README.md) | 已写回。模型与代码的对应在「接入层」那一路补上 | PanQiWei 2026-11-12 |
 | 依赖方向的门禁：`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL` 跟着依赖边改；加 I-1、I-17、I-18、I-19 的规则 | [约束登记](../architecture/constraints.json) | 待写回，随「接入插件」那一程 | 未切换 |
 | 共同契约、对外结果 | [公开契约规格](../../packages/access/public-contract/SPEC.md#共同契约)「共同契约」 | 已写回（部分：本行只是原「共同契约、对外结果、判断次序、观察的结束原因、内置协议的契约」中写回了的那一部分） | 卡 #1213，PR #1222 合入；PanQiWei 2026-11-12 |
-| 判断次序、观察的结束原因、内置协议的契约 | [公开契约规格](../../packages/access/public-contract/SPEC.md)；[承载页](../../packages/access/public-contract/docs/http-binding.md) | 待写回，随「接入层」那一路 | 未切换 |
-| 贡献的类型、登记表的服务定义 | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md) | 已写回（部分：本行只是原「贡献的类型、登记表的服务定义、`defineAccessPlugin`」中写回了的那一部分） | 卡 #1223；确认者随 PR 的接受 |
+| 判断次序、观察的结束原因、内置协议的契约 | [公开契约规格](../../packages/access/public-contract/SPEC.md)；[承载页](../../packages/access/public-contract/docs/http-binding.md) | 已写回（部分：承载页「新地址」写回了操作的线上形状与判断次序第 1 到 9 步各答什么；观察的结束原因与内置协议的契约待写回，随「接入层」那一路） | 卡 #1233；确认者随 PR 的接受 |
+| 贡献的类型、登记表的服务定义 | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md) | 已写回（部分：本行只是原「贡献的类型、登记表的服务定义、`defineAccessPlugin`」中写回了的那一部分；身份端口 `AccessIdentity` 的类型也写在这里，卡 #1233） | 卡 #1223、#1233；确认者随 PR 的接受 |
 | `defineAccessPlugin` | [access-cordis-contract 的规格](../../packages/access/access-cordis-contract/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
-| 入口：登记表；判断次序第 10 到 14 步的收场与宽限 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#登记表)「登记表」「收场与宽限」 | 已写回（部分：本行只是原「入口：登记表、管道、观察中枢、承载绑定、可用性」中写回了的那一部分；登记表还没有接到地址上） | 卡 #1223；确认者随 PR 的接受 |
-| 入口：管道的第 1 到 9 步、观察中枢、承载绑定、可用性 | [服务端接入规格](../../packages/access/server-entry/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
+| 入口：登记表；判断次序第 10 到 14 步的收场与宽限 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#登记表)「登记表」「收场与宽限」 | 已写回（部分：本行只是原「入口：登记表、管道、观察中枢、承载绑定、可用性」中写回了的那一部分；登记表经管道接到新地址上，正式的服务端应用还没有接） | 卡 #1223、#1233；确认者随 PR 的接受 |
+| 入口：管道的第 1 到 9 步、观察中枢、承载绑定、可用性 | [服务端接入规格](../../packages/access/server-entry/SPEC.md#管道)「管道」 | 已写回（部分：写回了管道第 1 到 9 步对操作的部分、身份规则、消息编号的格式、消息体上限、关连接的规则、`access` 这份输入；观察的地址暂时答 404。观察中枢、新地址的 SSE 承载与可用性待写回，随「接入层」那一路） | 卡 #1233；确认者随 PR 的接受 |
 | 客户端核心：`createClient`、传输、本地的两种结果 | [SDK 规格](../../packages/access/sdk/SPEC.md) | 待写回，随「接入层」那一路 | 未切换 |
 | 客户端装配：连接、`defineProtocolClient` | `packages/access/client-assembly` 的规格（成员未建） | 待写回，随「接入层」那一路 | 未切换 |
 | 加一个操作改哪些成员；成员与依赖 | [接入组说明](../../packages/access/README.md) | 待写回，随「接入层」那一路 | 未切换 |

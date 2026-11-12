@@ -212,11 +212,11 @@ for (const effect of ['applied', 'not-applied'] as const)
   it(`hands back the confirmed original window and untouched stream after recordSend ${effect}`, async () => {
     const f = await sendFixture()
     const fault = faultCommands(f, 'recordSend', effect)
-    const open = fault.commands.openReceiveWindow
+    const materialize = fault.commands.recordMaterialization
     const opened: string[] = []
-    fault.commands.openReceiveWindow = input => {
+    fault.commands.recordMaterialization = input => {
       opened.push(input.window)
-      return open(input)
+      return materialize(input)
     }
     const sender = f.makeSender({ commands: fault.commands })
     expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
@@ -245,7 +245,34 @@ for (const effect of ['applied', 'not-applied'] as const)
     expect(fault.inputs[1]).toEqual(fault.inputs[0])
   })
 
-for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'] as const)
+it('commits once before sending: the materialization write opens the receive window', async () => {
+  const f = await sendFixture({ max: 1 })
+  const writes: string[] = []
+  const base = f.dependencies.commands
+  const sender = f.makeSender({
+    commands: {
+      ...base,
+      recordMaterialization(input) {
+        writes.push('recordMaterialization')
+        return base.recordMaterialization(input)
+      },
+      openReceiveWindow(input) {
+        writes.push('openReceiveWindow')
+        return base.openReceiveWindow(input)
+      },
+      recordSend(input) {
+        writes.push(`recordSend after ${String(f.counts().starts)} start`)
+        return base.recordSend(input)
+      },
+    },
+  })
+  const sent = await sender.send(f.demand, signal())
+  expect(sent.kind).toBe('started')
+  if (sent.kind === 'started') await collect(sent.facts)
+  expect(writes).toEqual(['recordMaterialization', 'recordSend after 1 start'])
+})
+
+for (const method of ['recordMaterialization', 'recordSend'] as const)
   for (const effect of ['applied', 'not-applied'] as const)
     for (const queryFailure of ['denied', 'throw', 'unknown'] as const)
       it(`retains ${method} ${effect} through query ${queryFailure} and resumes the original write`, async () => {
@@ -296,7 +323,7 @@ for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'
         if (next.kind === 'started') await collect(next.facts)
       })
 
-for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'] as const)
+for (const method of ['recordMaterialization', 'recordSend'] as const)
   it(`retains committed ${method} when replay cannot yet return its original receipt`, async () => {
     const f = await sendFixture({ max: 1 })
     const fault = faultCommands(f, method, 'applied')
@@ -304,12 +331,6 @@ for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'
     if (method === 'recordMaterialization') {
       const run = fault.commands.recordMaterialization
       fault.commands.recordMaterialization = input =>
-        denyReplay
-          ? Promise.resolve({ failure: { kind: 'denied', action: 'receipt' } })
-          : run(input)
-    } else if (method === 'openReceiveWindow') {
-      const run = fault.commands.openReceiveWindow
-      fault.commands.openReceiveWindow = input =>
         denyReplay
           ? Promise.resolve({ failure: { kind: 'denied', action: 'receipt' } })
           : run(input)
@@ -395,7 +416,7 @@ for (const boundary of ['resolve', 'start'] as const)
     expect(f.counts().starts).toBe(1)
   })
 
-for (const method of ['recordMaterialization', 'openReceiveWindow'] as const)
+for (const method of ['recordMaterialization'] as const)
   it(`releases ${method} after authoritative not-committed and a definite write rejection`, async () => {
     const f = await sendFixture({ max: 1 })
     const other = await f.additionalDemand()
@@ -589,7 +610,7 @@ it('normalizes credential exceptions without storing their secret text', async (
   )
   expect(f.counts().starts).toBe(0)
 })
-for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'] as const)
+for (const method of ['recordMaterialization', 'recordSend'] as const)
   for (const effect of ['applied', 'not-applied'] as const) {
     it(`recovers ${method} ${effect} with exactly the original write and original facts`, async () => {
       const f = await sendFixture()
@@ -683,11 +704,11 @@ it('a backend dispatch claim survives a thrown start and blocks another coordina
 it('final revocation, control, stale generation and source denial each prevent start', async () => {
   for (const action of ['revoke', 'cancel', 'generation', 'source'] as const) {
     const f = await sendFixture()
-    const open = f.dependencies.commands.openReceiveWindow
+    const materialize = f.dependencies.commands.recordMaterialization
     const commands: ModelCommands<typeof f.principal> = {
       ...f.dependencies.commands,
-      async openReceiveWindow(input) {
-        const result = await open(input)
+      async recordMaterialization(input) {
+        const result = await materialize(input)
         if (action === 'revoke') f.denied.add('send')
         if (action === 'source') f.setSourceAuthorized(false)
         if (action === 'cancel')
@@ -721,8 +742,8 @@ for (const mismatch of ['receipt', 'window', 'supplier', 'model'] as const)
     const coordinator = f.controls.send.coordinator
     let committed:
       | {
-          input: Parameters<typeof commands.openReceiveWindow>[0]
-          revision: Parameters<typeof commands.openReceiveWindow>[0]['expected']
+          input: Parameters<typeof commands.recordMaterialization>[0]
+          receipt: Awaited<ReturnType<typeof commands.recordMaterialization>>
           dispatches: Awaited<ReturnType<typeof commands.dispatches>>
         }
       | undefined
@@ -731,13 +752,9 @@ for (const mismatch of ['receipt', 'window', 'supplier', 'model'] as const)
     const sender = f.makeSender({
       commands: {
         ...commands,
-        async openReceiveWindow(input) {
-          const result = await commands.openReceiveWindow(input)
-          committed = {
-            input,
-            revision: unbox(result),
-            dispatches: await commands.dispatches(f.admit),
-          }
+        async recordMaterialization(input) {
+          const result = await commands.recordMaterialization(input)
+          committed = { input, receipt: result, dispatches: await commands.dispatches(f.admit) }
           return result
         },
       },
@@ -783,7 +800,7 @@ for (const mismatch of ['receipt', 'window', 'supplier', 'model'] as const)
     expect(unbox(await commands.dispatches(f.admit))).toEqual(
       before.map(dispatch => ({ ...dispatch, send: 'not-sent' })),
     )
-    expect(await commands.openReceiveWindow(committed.input)).toEqual({ ok: committed.revision })
+    expect(await commands.recordMaterialization(committed.input)).toEqual(committed.receipt)
     expect(
       await commands.query({ ...f.admit, operation: committed.input.operation }),
     ).toMatchObject({
@@ -1016,8 +1033,8 @@ it('the backend claim itself prevents a second start while no send record has co
   const f = await sendFixture()
   let window = ''
   const fault = faultCommands(f, 'recordSend', 'not-applied')
-  const original = fault.commands.openReceiveWindow
-  fault.commands.openReceiveWindow = input => {
+  const original = fault.commands.recordMaterialization
+  fault.commands.recordMaterialization = input => {
     window = input.window
     return original(input)
   }

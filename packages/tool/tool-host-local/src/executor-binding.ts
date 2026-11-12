@@ -110,11 +110,6 @@ type SuspendedSegment = Readonly<{
   intent: WaitIntent
 }>
 
-/** A segment entry that never runs: an attempt that `begin` recalls does not enter again. */
-function never(): Promise<Segment> {
-  return Promise.reject(new Error('a recalled attempt does not enter its segment again'))
-}
-
 /** The operation of a call's request in the author's registration, or undefined. */
 function operationOf(
   registration: ReturnType<typeof readToolRegistration>,
@@ -169,18 +164,100 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
     operation: ToolOperationSlot | undefined
     binding: ToolExecutorBinding<P, E>
   }
+  /**
+   * One attempt of a start in this process. Whether it entered the author is the one fact the
+   * binding knows of it; whether the fence accepted it is asked of the fence. An attempt that was
+   * answered without entering the author is not replayed: the same start makes a new attempt.
+   */
   type Attempt = {
     digest: string
     start: Start
     execution: LocalAuthorExecution
     answer: ReturnType<ToolExecutorBinding<P, E>['start']>
+    /** The consume has answered. */
+    answered: boolean
+    /** The author was entered: only once the fence answered `started`, and once. */
+    entered: boolean
+    /** Enters the author, once; a later call does nothing. */
+    enter(): void
+    /** The pin the attempt still holds while it has not entered the author. */
+    pin: Pin | null
     /** How a segment ended: null while it runs or for a live coroutine. */
     segment: SuspendedSegment | Readonly<{ kind: 'completed' }> | null
     /** The responses this segment consumed: the response of the wait a resume continues. */
     consumed: readonly ToolOperationId[]
   }
+  type Pin = Bound['pin']
   const bindings = new Map<string, Bound>()
   const attempts = new Map<string, Attempt>()
+  /** An attempt that is still consuming, or that entered the author, answers the same start. */
+  const replays = (attempt: Attempt) => attempt.entered || !attempt.answered
+  const releasePin = (attempt: Attempt) => {
+    attempt.pin?.release()
+    attempt.pin = null
+  }
+  type Started = ReturnType<ToolExecutorBinding<P, E>['start']>
+  type Lookup = ReturnType<ToolExecutorBinding<P, E>['inspectStart']>
+  /** Refusals that end the attempt for good: the pin goes back. */
+  const DEFINITE = new Set(['denied', 'invalid', 'conflict', 'unsupported'])
+
+  /**
+   * Consumes the permit of an attempt and enters the author once the fence answers `started`. Any
+   * other answer leaves the author untouched; a definite refusal gives the pin back.
+   */
+  const consumeFor = async (input: StartInput<P, E>, key: string, attempt: Attempt): Started => {
+    const operation = input.start.operation
+    try {
+      const consumed = await dependencies.authority.consume({
+        ...input,
+        executorReceipt: localAuthorEvidence(`start/${key}`, [input.start, input.request]),
+      })
+      if ('failure' in consumed) {
+        if (DEFINITE.has(consumed.failure.kind)) releasePin(attempt)
+        return consumed
+      }
+      if (consumed.ok.kind === 'started') {
+        attempt.enter()
+        return succeed(attempt.execution.live)
+      }
+      if (consumed.ok.kind === 'unknown') return fail({ kind: 'commit-unknown', operation })
+      releasePin(attempt)
+      return fail({ kind: 'denied', action: 'start-author' })
+    } catch {
+      return fail({ kind: 'commit-unknown', operation })
+    } finally {
+      attempt.answered = true
+    }
+  }
+
+  /**
+   * What the fence decided about a start that no attempt here entered the author for (P05). An
+   * acceptance whose answer was lost is run here, once: only the original bridge may run it (P04).
+   */
+  const askFence = async (
+    input: CallAccess<P> & Readonly<{ start: Start }>,
+    attempt: Attempt | undefined,
+  ): Lookup => {
+    const decided = await dependencies.authority.inspect({
+      principal: input.principal,
+      tenant: input.tenant,
+      call: input.call,
+      start: input.start,
+    })
+    if ('failure' in decided) return decided
+    const progress = decided.ok
+    if (progress.kind === 'not-started' || progress.kind === 'rejected')
+      return succeed({ kind: 'not-started', exclusion: progress.exclusion })
+    if (progress.kind === 'unknown')
+      return succeed({ kind: 'unknown', diagnostic: progress.diagnostic })
+    if (attempt === undefined)
+      return succeed({
+        kind: 'unknown',
+        diagnostic: 'the fence accepted the start, and this process holds no attempt of it',
+      })
+    attempt.enter()
+    return succeed(attempt.execution.inspect())
+  }
   type Place = Pick<CallAccess<P>, 'tenant' | 'call'>
   const callKey = (access: Place) => canonicalDigest([access.tenant, access.call])
   const startKey = (access: Place, start: ToolStartRecord) =>
@@ -225,8 +302,10 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       closing,
       execution,
     })
+    // A settlement that does not land leaves the execution as it is: the author returned and its
+    // final is not published yet. The settlement retries its transient dependencies itself; what is
+    // left is reported, not turned into an unreadable execution (F3).
     if ('ok' in settled) execution.publish(settled.ok)
-    else execution.observationAvailable(false)
   }
 
   /**
@@ -356,8 +435,10 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       closing: closing ?? Promise.resolve(succeed(undefined)),
       execution,
     })
+    // A settlement that does not land leaves the execution as it is: the author returned and its
+    // final is not published yet. The settlement retries its transient dependencies itself; what is
+    // left is reported, not turned into an unreadable execution (F3).
     if ('ok' in settled) execution.publish(settled.ok)
-    else execution.observationAvailable(false)
   }
 
   /** What the binding proves about the suspension of a segment it ran (P07 suspend). */
@@ -411,6 +492,22 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
   const makeBinding = (bound: Omit<Bound, 'binding'>): Bound['binding'] => {
     let assigned = false
     type Enter = Parameters<typeof launchSegment>[5]
+    /** The pin of a new attempt: the one an earlier attempt of the start kept, or a new one. */
+    const takePin = (input: StartInput<P, E>, old: Attempt | undefined) => {
+      if (old?.pin != null) {
+        const kept = old.pin
+        old.pin = null
+        return succeed(kept)
+      }
+      if (assigned || callKey(input) !== bound.accessKey) {
+        const retained = bound.repin(input, input.call)
+        return 'failure' in retained
+          ? unavailable(retained.failure.diagnostic)
+          : succeed(retained.ok)
+      }
+      assigned = true
+      return succeed(bound.pin)
+    }
     /**
      * Checks the input, recalls an attempt of the same start, takes the pin, consumes the permit
      * and runs the author once: a live coroutine, or the segment that `enter` starts. A start and a
@@ -444,57 +541,41 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       const key = startKey(input, input.start)
       const digest = canonicalDigest([input.start, input.request])
       const old = attempts.get(key)
-      if (old !== undefined)
-        return old.digest === digest
-          ? old.answer
-          : Promise.resolve(fail({ kind: 'conflict', operation: input.start.operation }))
+      if (old !== undefined) {
+        if (old.digest !== digest)
+          return Promise.resolve(fail({ kind: 'conflict', operation: input.start.operation }))
+        if (replays(old)) return old.answer
+      }
       const operation = bound.operation
       if (operation === undefined) return invalid('command', 'original author has no operation')
-      let pin = bound.pin
-      if (assigned || callKey(input) !== bound.accessKey) {
-        const retained = bound.repin(input, input.call)
-        if ('failure' in retained) return Promise.resolve(unavailable(retained.failure.diagnostic))
-        pin = retained.ok
-      } else assigned = true
+      const taken = takePin(input, old)
+      if ('failure' in taken) return Promise.resolve(taken)
+      const pin = taken.ok
       const execution = createLiveAuthorExecution({
         start: input.start,
         release: pin.release,
       })
-      const answer = Promise.resolve().then(async () => {
-        try {
-          const consumed = await dependencies.authority.consume({
-            ...input,
-            executorReceipt: localAuthorEvidence(`start/${key}`, [input.start, input.request]),
-          })
-          if ('failure' in consumed) {
-            if (['denied', 'invalid', 'conflict', 'unsupported'].includes(consumed.failure.kind))
-              pin.release()
-            return consumed
-          }
-          if (consumed.ok.kind !== 'started') {
-            if (consumed.ok.kind !== 'unknown') pin.release()
-            return consumed.ok.kind === 'unknown'
-              ? fail({ kind: 'commit-unknown' as const, operation: input.start.operation })
-              : fail({ kind: 'denied' as const, action: 'start-author' })
-          }
-          const launched =
-            operation.segments === null
-              ? launch(input, environment, operation, execution)
-              : launchSegment(input, environment, operation, execution, attempt, enter)
-          void launched.catch(() => {
-            execution.observationAvailable(false)
-          })
-          return succeed(execution.live)
-        } catch {
-          execution.observationAvailable(false)
-          return fail({ kind: 'commit-unknown' as const, operation: input.start.operation })
-        }
-      })
+      const answer = Promise.resolve().then(() => consumeFor(input, key, attempt))
       const attempt: Attempt = {
         digest,
         start: input.start,
         execution,
         answer,
+        answered: false,
+        entered: false,
+        pin,
+        enter: () => {
+          if (attempt.entered) return
+          attempt.entered = true
+          attempt.pin = null
+          attempt.answer = Promise.resolve(succeed(execution.live))
+          const launched =
+            operation.segments === null
+              ? launch(input, environment, operation, execution)
+              : launchSegment(input, environment, operation, execution, attempt, enter)
+          // A settlement that throws leaves the execution live and unsettled, as above.
+          void launched.catch(() => undefined)
+        },
         segment: null,
         consumed: consumedResponses,
       }
@@ -516,15 +597,15 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
           canonicalDigest(input.tenant) !== canonicalDigest(input.start.execution.tenant)
         )
           return fail({ kind: 'denied', action: 'inspect-author-start' })
-        const attempt = attempts.get(startKey(input, input.start))
-        if (attempt === undefined)
-          return succeed({ kind: 'unknown', diagnostic: 'no retained start record' })
-        if (canonicalDigest(attempt.start) !== canonicalDigest(input.start))
+        const key = startKey(input, input.start)
+        const known = attempts.get(key)
+        if (known !== undefined && canonicalDigest(known.start) !== canonicalDigest(input.start))
           return fail({ kind: 'conflict', operation: input.start.operation })
-        const answer = await attempt.answer
-        return 'ok' in answer
+        if (known !== undefined && !known.answered) await known.answer
+        const attempt = attempts.get(key)
+        return attempt?.entered === true
           ? succeed(attempt.execution.inspect())
-          : succeed({ kind: 'unknown', diagnostic: 'start has no confirmed executor receipt' })
+          : askFence(input, attempt)
       },
     }
     const segments = bound.operation?.segments ?? null
@@ -546,8 +627,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       inspectSuspension: prove,
       // The ledger gives the state of the checkpoint and the response of its wait with the start.
       resume: ({ state, response, ...input }, environment) => {
-        if (attempts.has(startKey(input, input.start)))
-          return begin(input, environment, () => never(), [])
         if (
           response.response.kind !== 'decision' ||
           response.call !== input.call ||

@@ -79,8 +79,10 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
   executionOf: (step: Step<P>) => ToolExecutionRef,
   wake: (tenant: TenantId, request: FixedToolRequest) => Promise<void>,
 ) {
-  // The registrations whose answer was not certain in this process. Their next step asks the
-  // decision owner about the original operation before it asks for the registration again.
+  // The registrations whose answer was not certain in this process (`commit-unknown`). Their next
+  // step asks the decision owner about the original operation before it asks again. An owner that
+  // answers `unavailable` is not among them: it recalls the original by the same identity (P06), so
+  // the next run asks again with it, and nothing of that failure is kept here (U3).
   const uncertain = new Set<string>()
   const uncertainKey = (step: CallAccess<P>, operation: ToolOperationId) =>
     JSON.stringify([tenantKey(step.tenant), step.call, operation])
@@ -285,8 +287,8 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     })
     if ('ok' in ensured) return attach(step, recovery, task, ensured.ok)
     const { failure } = ensured
-    if (failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable')
-      return refuse(step, task, failure)
+    if (failure.kind === 'unavailable') return failed(failure)
+    if (failure.kind !== 'commit-unknown') return refuse(step, task, failure)
     uncertain.add(key)
     const recalled = await recall(step, recovery, task)
     return recalled === 'ensure'
@@ -340,8 +342,8 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     })
     if ('ok' in answered) return invalidated(step, task, answered.ok)
     const { failure } = answered
-    if (failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable')
-      return refuse(step, task, failure)
+    if (failure.kind === 'unavailable') return failed(failure)
+    if (failure.kind !== 'commit-unknown') return refuse(step, task, failure)
     uncertain.add(key)
     const recalled = await recallInvalidation(step, task)
     return recalled === 'invalidate'

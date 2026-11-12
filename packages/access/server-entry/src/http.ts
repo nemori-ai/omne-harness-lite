@@ -12,6 +12,7 @@ import type {
 import type { Answer, JsonAnswer } from './answers.ts'
 import {
   LOOPBACK_ADDRESS,
+  OUTPUT_LIMITS,
   ServerEntryConfigError,
   checkConfig,
   readLimits,
@@ -33,6 +34,15 @@ import { handleSession } from './session.ts'
 import { sessionProtocolRejected } from './session-codec.ts'
 import { createDiagnosticsCursors, type DiagnosticPorts } from './session-view/index.ts'
 import { SseStream } from './sse.ts'
+import { pathOf } from './pipeline/address.ts'
+import { readBody } from './pipeline/body.ts'
+import { contentTypeAccepted, hostAccepted } from './pipeline/headers.ts'
+import {
+  createPipeline,
+  type PipelineAccess,
+  type Pipeline,
+  type RequestSlots,
+} from './pipeline/pipeline.ts'
 
 export const GOVERNANCE_PATH = '/governance-public/1'
 export const SESSION_PATH = '/session-public/1'
@@ -72,6 +82,12 @@ export type ServerEntryDependencies = Readonly<{
 
 export type Listening = Readonly<{ address: string; port: number }>
 
+/**
+ * What turns the new address `/api/<protocol>/v<major>/<name>` on: the registry's pipeline side,
+ * the identity port and the grace, all three or none (SPEC「管道」). Absent, `/api/...` answers 404.
+ */
+export type ServerEntryAccess = PipelineAccess
+
 export interface ServerEntry {
   /** Listens on the loopback address. Rejects with `ServerEntryConfigError` for another address. Idempotent while listening. */
   start(): Promise<Listening>
@@ -86,69 +102,6 @@ type Location = Readonly<{
 }>
 
 const JSON_CONTENT_TYPE = 'application/json; charset=utf-8'
-
-function countHeader(req: IncomingMessage, name: string): number {
-  let count = 0
-  for (let index = 0; index < req.rawHeaders.length; index += 2)
-    if (req.rawHeaders[index]?.toLowerCase() === name) count += 1
-  return count
-}
-
-/** Step 3: exactly one Host whose host name, port removed, is 127.0.0.1 or localhost. */
-function hostAccepted(req: IncomingMessage): boolean {
-  if (countHeader(req, 'host') !== 1) return false
-  const value = req.headers.host
-  if (value === undefined) return false
-  const host = value.replace(/:\d*$/, '').toLowerCase()
-  return host === LOOPBACK_ADDRESS || host === 'localhost'
-}
-
-/** Step 4: exactly one Content-Type of application/json, with at most a utf-8 charset parameter. */
-function contentTypeAccepted(req: IncomingMessage): boolean {
-  if (countHeader(req, 'content-type') !== 1) return false
-  const value = req.headers['content-type']
-  if (value === undefined) return false
-  const [media, ...parameters] = value.split(';').map(part => part.trim())
-  if (media?.toLowerCase() !== 'application/json') return false
-  if (parameters.length === 0) return true
-  if (parameters.length !== 1) return false
-  return /^charset=(?:utf-8|"utf-8")$/i.test(parameters[0] ?? '')
-}
-
-type BodyRead =
-  | Readonly<{ kind: 'ok'; bytes: Uint8Array }>
-  | Readonly<{ kind: 'over' }>
-  | Readonly<{ kind: 'aborted' }>
-
-/** Step 5: counts the bytes actually read; a Content-Length over the limit is refused unread. */
-function readBody(req: IncomingMessage, maxBytes: number): Promise<BodyRead> {
-  const declared = req.headers['content-length']
-  if (declared !== undefined && /^\d+$/.test(declared) && Number(declared) > maxBytes)
-    return Promise.resolve({ kind: 'over' })
-  return new Promise(resolve => {
-    const chunks: Uint8Array[] = []
-    let total = 0
-    let done = false
-    const finish = (result: BodyRead): void => {
-      if (done) return
-      done = true
-      req.removeAllListeners('data')
-      req.pause()
-      resolve(result)
-    }
-    req.on('data', (chunk: Uint8Array) => {
-      total += chunk.byteLength
-      if (total > maxBytes) {
-        finish({ kind: 'over' })
-        return
-      }
-      chunks.push(chunk)
-    })
-    req.on('end', () => finish({ kind: 'ok', bytes: Buffer.concat(chunks) }))
-    req.on('error', () => finish({ kind: 'aborted' }))
-    req.on('aborted', () => finish({ kind: 'aborted' }))
-  })
-}
 
 function writeEmpty(
   res: ServerResponse,
@@ -190,6 +143,7 @@ function hitlInstallation(
 export function createServerEntry(input: {
   readonly config: ServerEntryConfig
   readonly dependencies: ServerEntryDependencies
+  readonly access?: ServerEntryAccess
 }): ServerEntry {
   const config = checkConfig(input.config)
   const { dependencies } = input
@@ -234,6 +188,33 @@ export function createServerEntry(input: {
   let inFlight = 0
   let activeRequests = 0
   const drained: (() => void)[] = []
+
+  /** The in-flight budget of every path: taken before the body is read, released once. */
+  const slots: RequestSlots = {
+    take: res => {
+      if (activeRequests >= config.maxInFlightRequests) return undefined
+      activeRequests += 1
+      let held = true
+      const release = (): void => {
+        if (!held) return
+        held = false
+        activeRequests -= 1
+        res.off('close', release)
+      }
+      res.once('close', release)
+      return release
+    },
+  }
+  const pipeline: Pipeline | undefined =
+    input.access === undefined
+      ? undefined
+      : createPipeline(input.access, {
+          loopback: LOOPBACK_ADDRESS,
+          bodyLimits: config.maxBodyBytes,
+          readLimits: maxBytes => readLimits(config, maxBytes),
+          writeLimits: OUTPUT_LIMITS,
+          slots,
+        })
 
   const settle = (): void => {
     inFlight -= 1
@@ -309,7 +290,7 @@ export function createServerEntry(input: {
       writeEmpty(res, 405, { allow: 'POST' })
       return
     }
-    if (!hostAccepted(req)) {
+    if (!hostAccepted(req, LOOPBACK_ADDRESS)) {
       writeEmpty(res, 421)
       return
     }
@@ -317,19 +298,11 @@ export function createServerEntry(input: {
       writeJson(res, { ...location.protocolRejected(), status: 415 }, false)
       return
     }
-    if (activeRequests >= config.maxInFlightRequests) {
+    const releaseSlot = slots.take(res)
+    if (releaseSlot === undefined) {
       writeEmpty(res, 429, { connection: 'close', 'x-omne-limit': 'in-flight-requests' })
       return
     }
-    activeRequests += 1
-    let slotHeld = true
-    const releaseSlot = (): void => {
-      if (!slotHeld) return
-      slotHeld = false
-      activeRequests -= 1
-      res.off('close', releaseSlot)
-    }
-    res.once('close', releaseSlot)
     try {
       const body = await readBody(req, location.maxBytes)
       if (body.kind === 'aborted') {
@@ -346,6 +319,9 @@ export function createServerEntry(input: {
     }
   }
 
+  const isLocation = (target: string): boolean =>
+    locations.some(known => known.path === pathOf(target))
+
   const onRequest = (req: IncomingMessage, res: ServerResponse): void => {
     if (stopping) {
       res.destroy()
@@ -355,9 +331,11 @@ export function createServerEntry(input: {
     const finished = new Promise<void>(resolve => {
       res.once('close', resolve)
     })
-    handle(req, res)
+    // A path that is none of the three locations goes to the pipeline when it is given (SPEC「管道」).
+    const route = pipeline === undefined || isLocation(req.url ?? '') ? handle : pipeline.handle
+    route(req, res)
       .catch(() => {
-        emit(diagnostics, { code: 'request.fault', path: req.url ?? '' })
+        emit(diagnostics, { code: 'request.fault', path: pathOf(req.url ?? '') })
         if (!res.headersSent) writeNoAnswer(res)
         else res.destroy()
       })
