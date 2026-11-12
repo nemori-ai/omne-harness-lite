@@ -1,3 +1,6 @@
+// @module-tag slow
+// Why slow: every case drives the real Tool host, the Tool ledger and SQL, which is heavy CPU. One
+// case alone takes about 7 s on an 8-core x86 server, over the fast tier's time limit.
 import { readFile } from 'node:fs/promises'
 import { expect, it } from 'vitest'
 import { calendarResolveSchema, calendarResolveResultSchema } from '@omne-harness/calendar-contract'

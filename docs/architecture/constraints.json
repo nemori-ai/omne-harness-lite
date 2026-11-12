@@ -400,6 +400,14 @@
       "source": "packages/common/stream-arrival/README.md"
     },
     {
+      "id": "packages/access/access-cordis-contract",
+      "paths": ["packages/access/access-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/access/access-cordis-contract/SPEC.md"
+    },
+    {
       "id": "packages/access/public-contract",
       "paths": ["packages/access/public-contract/src/**"],
       "layer": "contract",
