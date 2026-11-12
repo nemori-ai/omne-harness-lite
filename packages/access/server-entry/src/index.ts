@@ -30,3 +30,12 @@ export type {
   SettingsListOutcome,
   SettingsSetOutcome,
 } from './settings.ts'
+export { createAccessRegistry } from './registry/registry.ts'
+export type {
+  AccessRegistry,
+  AccessRegistryOptions,
+  AvailabilityChange,
+  AvailabilitySubscription,
+  Entered,
+  RegistryForPipeline,
+} from './registry/registry.ts'
