@@ -184,6 +184,35 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     return undefined
   }
 
+  /** Ends the observation by the frame source's last step, unless it already ended elsewhere. */
+  function endBy(
+    input: HubOpen,
+    claim: ObservationClaim<string>,
+    step: Exclude<Step, { kind: 'frame' }>,
+  ): void {
+    const end = endOf(step, input.contract)
+    if (end === undefined) return
+    if (end.code !== undefined) input.note(end.code)
+    claim.end(end.reason)
+  }
+
+  /** Queues one frame as an event. A frame outside the contract ends the observation instead. */
+  function put(
+    input: HubOpen,
+    claim: ObservationClaim<string>,
+    stream: SseStream,
+    frame: unknown,
+  ): boolean {
+    const written = input.contract.frame.write(frame, settings.writeLimits)
+    if (!written.ok) {
+      input.note('access.frame-rejected')
+      claim.end('unavailable')
+      return false
+    }
+    stream.event(frameText(written.value))
+    return true
+  }
+
   /** Writes frames until the observation ends, by its source, its observer or anything else. */
   async function pump(
     input: HubOpen,
@@ -192,31 +221,18 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     frames: Frames,
     ended: Promise<Step>,
   ): Promise<void> {
-    const { contract, note } = input
     const paced = isPaced(frames)
-    let reported = false
+    // Reported once, after the first frame is queued.
+    let report = input.reportAccess
     for (;;) {
       const step = await nextStep(frames, ended)
-      if (step.kind !== 'frame') {
-        const end = endOf(step, contract)
-        if (end?.code !== undefined) note(end.code)
-        if (end !== undefined) claim.end(end.reason)
-        return
-      }
-      const written = contract.frame.write(step.value, settings.writeLimits)
-      if (!written.ok) {
-        note('access.frame-rejected')
-        claim.end('unavailable')
-        return
-      }
-      stream.event(frameText(written.value))
-      if (!reported) {
-        reported = true
-        input.reportAccess?.()
-      }
+      if (step.kind !== 'frame') return endBy(input, claim, step)
+      if (!put(input, claim, stream, step.value)) return
+      report?.()
+      report = undefined
       if (stream.queuedFrameBytes > settings.frameQueueBytes) {
         // The observer is not reading: no frame can reach it, so the connection goes too.
-        note('access.frame-queue-full')
+        input.note('access.frame-queue-full')
         claim.end('capacity')
         input.res.destroy()
         return
