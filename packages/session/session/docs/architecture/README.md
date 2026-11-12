@@ -37,14 +37,13 @@ flowchart TB
   CP --> Pure[session-contract 的 decide 与领域服务]
   CP --> Tx[SessionTransactionPort]
   CP --> Bridges[身份桥、证据桥、Context 输入、空闲输入]
-  CP -. 提交后现取 .-> Notify[SessionNotifier]
   Cache --> Tx
   Policy[SchedulingPolicy] -.-> Sched
   Policy -.-> Coord
   Policy -.-> CP
 ```
 
-图中箭头表示调用关系，不表示线程、进程或存储事务的边界。虚线表示读取配置或提交后的可选调用。
+图中箭头表示调用关系，不表示线程、进程或存储事务的边界。虚线表示读取配置。
 
 ### 状态归属
 

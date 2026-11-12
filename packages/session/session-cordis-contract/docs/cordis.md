@@ -51,7 +51,7 @@ export const inject = {
 | `sessionClock` | `SessionClock` | 应用装配 | 按调用现取。缺席时空闲取证与等待返回 `unavailable` |
 | `sessionIdleInput` | `SessionIdleInput` | session-adapters | 按调用现取。缺席时空闲维护与裁定返回 `unavailable`，不阻断读取与控制 |
 | `sessionContextInput` | `SessionContextInput` | session-adapters | 按调用现取。缺席时创建、声明修改与推进采用返回 `unavailable` |
-| `sessionNotifier` | `SessionNotifier` | 应用装配或 session-cordis | 每次提交后现取。缺席或失败不回滚提交 |
+| `sessionNotifier` | `SessionNotifier` | 应用装配 | 可选。session-cordis 造的通知接口每被调用一次就现取它，存在时转交同一份载荷。缺席或失败不回滚提交，不改提交的答复 |
 | `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 按调用现取。缺席时推进、续入、恢复、控制传播与迟到结果记录的出站调用不发出，任务保留，由调度器重放；预热在 Agent 入口定义前不调用 |
 | `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 按调用现取。缺席时释放任务保留，按策略重试 |
 | `sessionTenants` | `SessionTenantSource`：部署里的租户列表 | 应用装配 | 提供者启动时取一次，给每个租户绑定扫描者。缺席或不答时只按提交通知绑定 |
@@ -92,8 +92,9 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 | 项 | 内容 |
 | --- | --- |
 | 载荷 | 租户、会话身份、会话修订、原提交证据、本次提交的事件种类集合。不带消息正文、凭据或附件地址 |
-| 含义 | 只是唤醒提示，不是事实源。修订与原提交证据取自该次提交的原回执，重试保持原值；先提交的通知晚到时仍带它自己的修订，不拼接最新快照 |
-| 监听者 | 派发方在提交之后派发，不等待监听者完成。监听者失败只记录诊断，不改变已提交的结果（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)） |
+| 含义 | 只是唤醒提示，不是事实源。修订与原提交证据取自这一批的批回执，由写入者在写这一批时给出，重试保持原值；先提交的通知晚到时仍带它自己的修订，不拼接最新快照 |
+| 发出点 | 会话日志唯一写入者的唯一落点（session-storage-sql 的[本批与提交通知](../../session-storage-sql/SPEC.md#本批与提交通知)）在每一批新写出之后，调用按库登记的通知接口一次；session-cordis 的 `createSessionCommitNotifier` 造的通知接口派发本事件。认回、回滚与没写条目的提交不派发。Session 的服务提供者只监听 |
+| 监听者 | 派发方在提交之后、提交的事务之外派发，不等待监听者完成。监听者失败只记录诊断，不改变已提交的结果（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)） |
 | 过滤 | 监听者按载荷里的租户与会话身份自行过滤，数据动作再按调用资格核权 |
 | 丢失 | 不影响正确性。调度器按权威扫描补查 |
 
