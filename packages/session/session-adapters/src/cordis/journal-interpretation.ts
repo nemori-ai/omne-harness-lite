@@ -266,6 +266,21 @@ function createJournalInterpretation<P>(
   }
 }
 
+/** The next wait of a retry and how many calls of the target came before it. */
+type Retry = Readonly<{ wait: number; calls: number }>
+
+/** Writes what a call left behind when it will not be made again. */
+function reportEnd(
+  logger: ReturnType<Context['logger']>,
+  execution: string,
+  answer: Answer<JournalInterpreted>,
+): void {
+  if ('failure' in answer)
+    logger.warn(`the interpretation of ${execution} answered ${answer.failure.kind}`)
+  else if (answer.ok.waiting > 0)
+    logger.warn(`${answer.ok.waiting} events of ${execution} have no decided consequences`)
+}
+
 /**
  * The AD-02 plugin and the call that reaches it. The plugin provides no key: it needs `session`
  * with the `coordinator` caller class, `sessionTransactions` (with `commitLog`), `storage` and the
@@ -328,39 +343,26 @@ export function createSessionJournalInterpretationPlugin<P>(
         // an event that fails while it waits leaves the retry to it. Every call reads from the saved
         // progress, so nothing is committed twice.
         const retrying = new Set<string>()
-        const attempt = async (
-          target: JournalInterpretationTarget,
-          retry: Readonly<{ wait: number; calls: number }> | null,
-        ): Promise<void> => {
+        const attempt = async (target: JournalInterpretationTarget, retry: Retry | null) => {
           const key = JSON.stringify([target.session, target.execution])
           const answer = await guarded(target)
           if ('ok' in answer || stopped || !transient(answer.failure)) {
             if (retry !== null) retrying.delete(key)
-            if ('failure' in answer)
-              logger.warn(
-                `the interpretation of ${target.execution} answered ${answer.failure.kind}`,
-              )
-            else if (answer.ok.waiting > 0)
-              logger.warn(
-                `${answer.ok.waiting} events of ${target.execution} have no decided consequences`,
-              )
+            reportEnd(logger, target.execution, answer)
             return
           }
           if (retry === null && retrying.has(key)) return
           retrying.add(key)
-          const wait = retry?.wait ?? policy.initialMs
-          const calls = (retry?.calls ?? 0) + 1
+          retryLater(target, retry ?? { wait: policy.initialMs, calls: 0 }, answer.failure.kind)
+        }
+        const retryLater = (target: JournalInterpretationTarget, retry: Retry, kind: string) => {
+          const calls = retry.calls + 1
           logger.warn(
-            `call ${calls} of the interpretation of ${target.execution} answered ${answer.failure.kind}; again in ${wait} ms`,
+            `call ${calls} of the interpretation of ${target.execution} answered ${kind}; again in ${retry.wait} ms`,
           )
-          void pause(wait, stopping.signal).then(passed => {
-            if (!passed) return
-            enqueue(target, () =>
-              attempt(target, {
-                wait: Math.min(wait * policy.multiplier, policy.maxMs),
-                calls,
-              }),
-            )
+          const next = { wait: Math.min(retry.wait * policy.multiplier, policy.maxMs), calls }
+          void pause(retry.wait, stopping.signal).then(passed => {
+            if (passed) enqueue(target, () => attempt(target, next))
           })
         }
         const enqueue = subscribePublished(
