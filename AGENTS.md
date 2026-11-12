@@ -98,7 +98,7 @@ flowchart LR
 
 下面是每个 agent 始终要懂的。全文在技能 `domain-mental-models`：每个领域一份，跨领域协调一份，都答「它是什么、不是什么、拿它怎样量一个设计」。在一个领域里做设计或实现，或改动波及别的领域时加载它；入口见[心智模型](docs/mental-models.md)。
 
-- **会话日志是一个会话的唯一事实源。** 运行着的对象不存别处没有的事实；它丢了，从日志接着来。
+- **会话日志是一个会话的唯一事实源，而且只有一个写入者。** 运行着的对象不存别处没有的事实；它丢了，从日志接着来。别的领域要留下事实，把一条会话命令交给这个写入者，由它在同一次提交里写。每次提交之后要做的事挂在写入者上，不挂在各个提交方上。
 - **Session 管一个会话的业务流程，Agent 管一轮 Run 怎样往前推。** Run 是边界。Session 不发模型请求，不运行工具，也不直接控制它们的调用：会话路径上这些由 Agent 发起，控制经 Agent 送达。
 - **逻辑收口和物理收场分开。** 取消、归档只改变资格与责任。模型发没发出、工具停没停，由各自的拥有者报告，Session 只对账。
 - **对 Session 和 Agent，Model 和 Tool 是被远程调用的服务。** 两端各管各的生命周期。不让一方等另一方收场，不让一方替另一方取消，不让一方要求另一方为它多留。
@@ -107,6 +107,8 @@ flowchart LR
 - **「知道」走 Runtime Context，「决定」走直连的窄端口。** Runtime Context 只供数据，值归生产者，读不到不变成空。
 - **「挂没挂着」和「许不许用」是两件事。** 入口放行不等于允许。身份每次调用显式带上。
 - **服务端是事实的权威。** 客户端只有投影和缓存。
+- **元工具能发现的，和装进上下文的，是两个集合。** 前者是按当下事实现算的视图，事实一变就变；后者是采用点上定下的记录。判一次变化要不要重新装配，只问它改不改已定的上下文，不看能力多一个少一个。撤销永远立刻生效。
+- **工具的本体是函数。** 模型消息里的调用与结果是它的投影；规则落在函数这一面，模型调用和程序调用走同一个东西。
 
 ### 一个完整的领域提供什么
 
@@ -171,7 +173,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 槽位 | omne 的值 |
 | --- | --- |
 | 类型检查与 lint 命令 | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint`；`pnpm run lint:deps` |
-| 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance` |
+| 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入排在这些之后，在最终的头上只跑一次；没通过就把失败归类后补证，不重排整跑，见[准入证据怎样取得](docs/engineering/integration.md#准入证据怎样取得) |
 | 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。用法见 [pqw-adapter](tools/pqw-adapter/README_ZH.md) |
 | 差分变异的范围与点名文件 | `pnpm run closeout:mutation -- --base <起点> --scope <关键位置>...`：先 `--plan-only` 看范围，超过上限要给 `--scope` 或 `--files`；按改动成员各调一次 pqw `mutation.mjs`。[风险级别](docs/engineering/quality.md#按风险选择接受实现的看法)的路径下限：`pnpm run risk -- --base <起点>` |
 | 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |
