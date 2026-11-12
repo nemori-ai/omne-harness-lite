@@ -1,7 +1,6 @@
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import {
   belongs,
-  decode,
   readAsset,
   readDomain,
   readHolding,
