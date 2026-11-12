@@ -1,6 +1,7 @@
 // Structured diagnostics of the entry. An event names what happened and where; it never carries a
 // request body, a response body, a login proof, a credential, a principal or a dependency's error
-// text (SPEC「服务端的 HTTP 层责任」).
+// text (SPEC「服务端的 HTTP 层责任」). `path` never carries the query. The new address reports
+// through its own sink, `access.diagnostics` (SPEC「管道」).
 export type ServerEntryDiagnostic = Readonly<{
   code:
     | 'request.fault'

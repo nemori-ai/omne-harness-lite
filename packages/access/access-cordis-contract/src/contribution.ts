@@ -14,13 +14,13 @@ export type ProtocolKey = { readonly name: string; readonly major: number }
 declare const loginIdentityBrand: unique symbol
 declare const principalBrand: unique symbol
 /**
- * The login identity the pipeline recognised. Opaque until access is joined to identity; only the
- * pipeline creates one.
+ * The login identity the pipeline recognised. Opaque until access is joined to identity; only an
+ * implementation of the identity port (`AccessIdentity`) creates one.
  */
 export type LoginIdentity = { readonly [loginIdentityBrand]: 'LoginIdentity' }
 /**
- * The subject acting for a tenant that the pipeline issued. Opaque until access is joined to
- * identity; only the pipeline creates one.
+ * The subject acting for a tenant that the pipeline obtained. Opaque until access is joined to
+ * identity; only an implementation of the identity port (`AccessIdentity`) creates one.
  */
 export type Principal = { readonly [principalBrand]: 'Principal' }
 

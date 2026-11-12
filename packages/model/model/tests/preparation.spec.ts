@@ -450,10 +450,10 @@ async function settledCall(
         representation: fixed.representation,
         payloadDigest: 'a'.repeat(64),
       },
+      window: 'w',
     }),
   )
   unbox(await commands.recordSend({ ...(await write()), dispatch, state: 'started' }))
-  unbox(await commands.openReceiveWindow({ ...(await write()), dispatch, window: 'w' }))
   const facts: TransportFact[] = [
     { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
     { kind: 'block-delta', index: '0', delta: 'answer' },

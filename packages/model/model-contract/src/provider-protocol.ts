@@ -226,13 +226,23 @@ export interface ModelCommands<P> {
       }>,
   ): Reply<ExecutionRef>
   prepareDispatch(input: WriteContext & DispatchPlan): Reply<Revision>
+  /**
+   * Records the materialization receipt and opens the receive window `window` in one write: both
+   * hold or neither does, so nothing is sent before both are durable.
+   */
   recordMaterialization(
-    input: WriteContext & Readonly<{ dispatch: DispatchId; receipt: MaterializationReceipt }>,
+    input: WriteContext &
+      Readonly<{ dispatch: DispatchId; receipt: MaterializationReceipt; window: string }>,
   ): Reply<Readonly<{ revision: Revision; source: DurableEvidence }>>
   recordSend(
     input: WriteContext &
       Readonly<{ dispatch: DispatchId; state: 'started' | 'unknown' | 'not-sent' }>,
   ): Reply<Revision>
+  /**
+   * Opens a further receive window: on a dispatch the transport refused before materializing, or a
+   * later window of the receiving side. The first window of a sent dispatch opens with its
+   * materialization.
+   */
   openReceiveWindow(
     input: WriteContext & Readonly<{ dispatch: DispatchId; window: string }>,
   ): Reply<Revision>

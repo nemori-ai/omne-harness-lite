@@ -15,3 +15,4 @@ export type {
   PrincipalFor,
   ProtocolKey,
 } from './contribution.ts'
+export type { AccessIdentity, ActForResult, IdentityFailure, LoginResult } from './identity.ts'

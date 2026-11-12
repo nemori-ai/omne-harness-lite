@@ -287,7 +287,8 @@ for (const method of ['preserve', 'openReceiveWindow'] as const) {
           }
         else
           overrides.openReceiveWindow = async input => {
-            // The first open belongs to sender; the second is receiver's successor window.
+            // The materialization opens the sender's window; the second open is the receiver's
+            // successor window.
             if (!original && f.openInputs.length === 2) {
               original = input
               f.controls.commands.injectUnknown({ ...input, method, effect })

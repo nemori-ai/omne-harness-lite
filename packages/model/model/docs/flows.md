@@ -148,7 +148,7 @@ sequenceDiagram
   else 发前条件满足
     loop 原调用未收场且当前发出符合有限策略和控制
       M->>M: 保持原输入，核对当前资格和真实接收方
-      M->>B: start前openReceiveWindow并持久确认
+      M->>B: start前recordMaterialization同时开窗并持久确认
       M->>P: 物化与最终围栏通过后单次真实发出
       P-->>M: 头、心跳或空开块
       Note over M,P: 以上不算首内容
@@ -194,7 +194,7 @@ sequenceDiagram
   end
 ```
 
-图中先开接收窗口再 start，以覆盖 transport 可能预读的情形；窗口未确认则不能读取或发出。能证明 start 不接收或预读内容的 adapter，才可按 SPEC 在 start 后、首次读取前开窗。
+图中先开接收窗口再 start（一次发出的首个窗口随物化回执在同一次提交里打开），以覆盖 transport 可能预读的情形；窗口未确认则不能读取或发出。能证明 start 不接收或预读内容的 adapter，才可按 SPEC 在 start 后、首次读取前开窗。
 
 失败分支只有在 preserve 已保存该窗口全部已接收事实并闭合窗口、可证明未交首内容后才进入 prepareRetry。无法证明完整闭合时保持 uncertain，先核实原操作，不用空快照放行重试。
 
