@@ -102,6 +102,28 @@ function answerOf(source: string, limits: JsonLimits): CallReport {
   return { kind: 'answered', outcome, body }
 }
 
+type EventReader = ReadableStreamDefaultReader<string>
+
+const ABORTED: ObserveEnd = Object.freeze({ kind: 'aborted' })
+/** The stream stopped, or said something outside the binding: no trustworthy end. */
+const STOPPED: ObserveEnd = Object.freeze({ kind: 'uncertain' })
+
+/** One SSE event of the binding: a frame, or the end of the observation. */
+function eventOf(
+  data: string,
+  limits: JsonLimits,
+): { readonly frame: JsonValue } | { readonly end: ObserveEnd } {
+  const read = readJsonText(data, limits)
+  if (read.kind !== 'ok') return { end: STOPPED }
+  const kind = text(member(read.value, 'kind'))
+  if (kind === 'ended') {
+    const reason = text(member(read.value, 'reason'))
+    return { end: reason === undefined ? STOPPED : { kind: 'ended', reason } }
+  }
+  const frame = member(read.value, 'frame')
+  return kind === 'frame' && frame !== undefined ? { frame } : { end: STOPPED }
+}
+
 export function createHttpProtocolTransport(options: HttpProtocolTransportOptions): Transport {
   const origin = originOf(options.origin)
   const limits = options.limits ?? defaultLimits
@@ -157,51 +179,44 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
     }
   }
 
-  async function* observe(request: ObserveRequest): AsyncGenerator<JsonValue, ObserveEnd> {
+  /** What an opening came to: a stream to read, or how the observation ended at once. */
+  async function opening(request: ObserveRequest): Promise<EventReader | ObserveEnd> {
     const { signal } = request
     const url = urlOf(request.protocol, request.observation)
     const response = await send(url, request.messageId, request.open, signal)
-    if (response === 'not-sent') return signal.aborted ? { kind: 'aborted' } : { kind: 'not-sent' }
-    if (response === 'uncertain')
-      return signal.aborted ? { kind: 'aborted' } : { kind: 'uncertain' }
+    if (typeof response === 'string') return signal.aborted ? ABORTED : { kind: response }
     if (mediaType(response) === 'application/json') {
       const refused = answerOf(await response.text(), limits)
-      return refused.kind === 'answered'
-        ? { kind: 'refused', outcome: refused.outcome }
-        : { kind: 'uncertain' }
+      return refused.kind === 'answered' ? { kind: 'refused', outcome: refused.outcome } : STOPPED
     }
     const body = response.body
     if (response.status !== 200 || mediaType(response) !== 'text/event-stream' || body === null) {
       await body?.cancel()
-      return { kind: 'uncertain' }
+      return STOPPED
     }
-    const reader = body.pipeThrough(new TextDecoderStream()).getReader()
-    const events: string[] = []
-    const parser = createParser({ onEvent: event => events.push(event.data) })
+    return body.pipeThrough(new TextDecoderStream()).getReader()
+  }
+
+  /** Yields the frames of an open stream until its `ended` frame, a fault, or the caller stops. */
+  async function* events(
+    reader: EventReader,
+    signal: AbortSignal,
+  ): AsyncGenerator<JsonValue, ObserveEnd> {
+    const queue: string[] = []
+    const parser = createParser({ onEvent: event => queue.push(event.data) })
     let done = false
     try {
       for (;;) {
-        for (let data = events.shift(); data !== undefined; data = events.shift()) {
-          const read = readJsonText(data, limits)
-          if (read.kind !== 'ok') return { kind: 'uncertain' }
-          const kind = text(member(read.value, 'kind'))
-          if (kind === 'ended') {
-            const reason = text(member(read.value, 'reason'))
-            return reason === undefined ? { kind: 'uncertain' } : { kind: 'ended', reason }
-          }
-          const frame = member(read.value, 'frame')
-          if (kind !== 'frame' || frame === undefined) return { kind: 'uncertain' }
-          yield frame
+        for (let data = queue.shift(); data !== undefined; data = queue.shift()) {
+          const event = eventOf(data, limits)
+          if ('end' in event) return event.end
+          yield event.frame
         }
-        let chunk: Awaited<ReturnType<typeof reader.read>>
-        try {
-          chunk = await reader.read()
-        } catch {
-          return signal.aborted ? { kind: 'aborted' } : { kind: 'uncertain' }
-        }
+        const chunk = await reader.read().catch(() => undefined)
+        if (chunk === undefined) return signal.aborted ? ABORTED : STOPPED
         if (chunk.done) {
           done = true
-          return { kind: 'uncertain' }
+          return STOPPED
         }
         parser.feed(chunk.value)
       }
@@ -209,6 +224,12 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
       // Stopping early closes the connection; the entry sees the observer go away.
       if (!done) await reader.cancel().catch(() => {})
     }
+  }
+
+  async function* observe(request: ObserveRequest): AsyncGenerator<JsonValue, ObserveEnd> {
+    const opened = await opening(request)
+    if ('kind' in opened) return opened
+    return yield* events(opened, request.signal)
   }
 
   return { call, observe }

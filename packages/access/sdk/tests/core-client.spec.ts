@@ -117,3 +117,36 @@ describe('C13: the three results of a transport', () => {
     }
   })
 })
+
+describe('the in-process transport', () => {
+  it('passes frames and the end through as copies, and closes the peer stream on return', async () => {
+    let closed = false
+    const frame = object({ noteId: 'n-1', title: 'first' })
+    const peer: Transport = {
+      call: async () => ({ kind: 'uncertain' }),
+      async *observe(): AsyncGenerator<JsonValue, ObserveEnd> {
+        try {
+          yield frame
+          yield frame
+          return { kind: 'ended', reason: 'note-deleted' }
+        } finally {
+          closed = true
+        }
+      },
+    }
+    const notes = createClient(notesProtocol, createInProcessTransport(peer))
+    const signal = new AbortController().signal
+    const all = notes.observe['watch-note']({ noteId: 'n-1' }, { signal })
+    expect(await all.next()).toEqual({ done: false, value: { noteId: 'n-1', title: 'first' } })
+    expect(await all.next()).toMatchObject({ done: false })
+    expect(await all.next()).toEqual({
+      done: true,
+      value: { kind: 'ended', reason: 'note-deleted' },
+    })
+    closed = false
+    const early = notes.observe['watch-note']({ noteId: 'n-1' }, { signal })
+    await early.next()
+    await early.return({ kind: 'aborted' })
+    expect(closed).toBe(true)
+  })
+})
