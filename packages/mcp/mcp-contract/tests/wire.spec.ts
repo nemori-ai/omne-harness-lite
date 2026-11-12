@@ -1,9 +1,8 @@
 // classifyWireEvent: every answer class of the decision table has an event that falls into it,
-// and every classification is a class of the table's domain for that request and material.
+// and every classification is a class of the table's domain for that request.
 import { describe, expect, it } from 'vitest'
 import {
   LEGACY_PROTOCOL_VERSIONS,
-  PROCESS_EXIT_WINDOW_MS,
   classifyWireEvent,
   type AnswerClass,
   type RequestClass,
@@ -26,18 +25,16 @@ const answer = (message: Readonly<Record<string, unknown>>) =>
   JSON.stringify({ jsonrpc: '2.0', id: 7, ...message })
 
 type Sample = Readonly<{
-  kind: 'stdio' | 'streamable-http'
+  kind: 'streamable-http'
   request: RequestClass
   event: WireEvent
   session?: boolean
   expected: AnswerClass
 }>
 
-/** One answer delivered on a material: a stdio line or a 2xx JSON body. */
-function delivered(kind: Sample['kind'], text: string): WireEvent {
-  return kind === 'stdio'
-    ? { kind: 'line', text }
-    : { kind: 'http-stream', messages: [text], ended: true }
+/** One answer delivered in a 2xx JSON body. */
+function delivered(text: string): WireEvent {
+  return { kind: 'http-stream', messages: [text], ended: true }
 }
 
 const ERRORS: readonly Readonly<[string, Readonly<Record<string, unknown>> | string]>[] = [
@@ -110,102 +107,86 @@ const STATUSES: Readonly<Record<string, number>> = {
 
 /** Samples built from their class: one or more events for every class of every cell. */
 function samples(): readonly Sample[] {
-  const kinds = ['stdio', 'streamable-http'] as const
+  const kind = 'streamable-http'
   const list: Sample[] = []
-  for (const kind of kinds)
-    for (const request of REQUESTS) {
-      const http = kind === 'streamable-http'
+  for (const request of REQUESTS) {
+    list.push(
+      { kind, request, event: { kind: 'unsent' }, expected: 'unsent' },
+      { kind, request, event: { kind: 'nothing' }, expected: 'silent' },
+    )
+    {
       list.push(
-        { kind, request, event: { kind: 'unsent' }, expected: 'unsent' },
-        { kind, request, event: { kind: 'nothing' }, expected: 'silent' },
+        { kind, request, event: { kind: 'http-aborted' }, expected: 'stream-broken' },
+        {
+          kind,
+          request,
+          event: { kind: 'http-stream', messages: [], ended: true },
+          expected: 'http:2xx',
+        },
+        {
+          kind,
+          request,
+          event: { kind: 'http-status', status: 401, headers: {}, body: '' },
+          expected: 'http:401',
+        },
+        {
+          kind,
+          request,
+          event: {
+            kind: 'http-status',
+            status: 403,
+            headers: { 'www-authenticate': 'Bearer error="insufficient_scope"' },
+            body: '',
+          },
+          expected: 'http:403+scope',
+        },
+        {
+          kind,
+          request,
+          event: { kind: 'http-status', status: 403, headers: {}, body: 'no' },
+          expected: 'http:403',
+        },
       )
-      if (http) {
-        list.push(
-          { kind, request, event: { kind: 'http-aborted' }, expected: 'stream-broken' },
-          {
-            kind,
-            request,
-            event: { kind: 'http-stream', messages: [], ended: true },
-            expected: 'http:2xx',
-          },
-          {
-            kind,
-            request,
-            event: { kind: 'http-status', status: 401, headers: {}, body: '' },
-            expected: 'http:401',
-          },
-          {
+      if (!['discover', 'discover-retry', 'initialize'].includes(request))
+        list.push({
+          kind,
+          request,
+          session: true,
+          event: { kind: 'http-status', status: 404, headers: {}, body: '' },
+          expected: 'http:404+session',
+        })
+      for (const [statusClass, status] of Object.entries(STATUSES)) {
+        list.push({
+          kind,
+          request,
+          event: { kind: 'http-status', status, headers: {}, body: 'Not Found' },
+          expected: `http:${statusClass}+plain` as AnswerClass,
+        })
+        for (const [code, error] of ERRORS)
+          list.push({
             kind,
             request,
             event: {
               kind: 'http-status',
-              status: 403,
-              headers: { 'www-authenticate': 'Bearer error="insufficient_scope"' },
-              body: '',
+              status,
+              headers: {},
+              body: JSON.stringify({ jsonrpc: '2.0', id: null, error }),
             },
-            expected: 'http:403+scope',
-          },
-          {
-            kind,
-            request,
-            event: { kind: 'http-status', status: 403, headers: {}, body: 'no' },
-            expected: 'http:403',
-          },
-        )
-        if (!['discover', 'discover-retry', 'initialize'].includes(request))
-          list.push({
-            kind,
-            request,
-            session: true,
-            event: { kind: 'http-status', status: 404, headers: {}, body: '' },
-            expected: 'http:404+session',
+            expected: `http:${statusClass}+${code}` as AnswerClass,
           })
-        for (const [statusClass, status] of Object.entries(STATUSES)) {
-          list.push({
-            kind,
-            request,
-            event: { kind: 'http-status', status, headers: {}, body: 'Not Found' },
-            expected: `http:${statusClass}+plain` as AnswerClass,
-          })
-          for (const [code, error] of ERRORS)
-            list.push({
-              kind,
-              request,
-              event: {
-                kind: 'http-status',
-                status,
-                headers: {},
-                body: JSON.stringify({ jsonrpc: '2.0', id: null, error }),
-              },
-              expected: `http:${statusClass}+${code}` as AnswerClass,
-            })
-        }
-      } else
-        list.push(
-          {
-            kind,
-            request,
-            event: { kind: 'stdio-ended', stdoutEndedAt: 0 },
-            expected: 'stream-broken',
-          },
-          {
-            kind,
-            request,
-            event: { kind: 'stdio-ended', stdoutEndedAt: 0, exitedAt: 5 },
-            expected: 'process-exited',
-          },
-        )
-      if (request === 'notification') continue
-      for (const [code, error] of ERRORS)
-        list.push({
-          kind,
-          request,
-          event: delivered(kind, answer({ error })),
-          expected: `error:${code}` as AnswerClass,
-        })
-      for (const [expected, result] of RESULTS[request])
-        list.push({ kind, request, event: delivered(kind, answer({ result })), expected })
+      }
     }
+    if (request === 'notification') continue
+    for (const [code, error] of ERRORS)
+      list.push({
+        kind,
+        request,
+        event: delivered(answer({ error })),
+        expected: `error:${code}` as AnswerClass,
+      })
+    for (const [expected, result] of RESULTS[request])
+      list.push({ kind, request, event: delivered(answer({ result })), expected })
+  }
   return list
 }
 
@@ -250,7 +231,7 @@ describe('the result class of each request class (T2, T6)', () => {
   })
   const classOf = (request: RequestClass, result: unknown): string => {
     const text = JSON.stringify({ jsonrpc: '2.0', id: 'r1', result })
-    const classified = classifyWireEvent({ kind: 'line', text }, context(request))
+    const classified = classifyWireEvent(delivered(text), context(request))
     return classified.kind === 'answer' ? classified.answer : classified.kind
   }
 
@@ -286,8 +267,8 @@ describe('the result class of each request class (T2, T6)', () => {
 describe('the envelope of an answer (T2)', () => {
   const discover = context('discover')
 
-  it('reads a line with the id of the request, jsonrpc "2.0" and exactly one of result and error', () => {
-    const line = (text: string) => classify({ kind: 'line', text }, discover)
+  it('reads a message with the id of the request, jsonrpc "2.0" and exactly one of result and error', () => {
+    const line = (text: string) => classify(delivered(text), discover)
     expect(
       line(answer({ result: { supportedVersions: ['2026-07-28'], capabilities: {} } })),
     ).toEqual({
@@ -303,7 +284,7 @@ describe('the envelope of an answer (T2)', () => {
       expect(line(bad), bad).toEqual({ kind: 'answer', answer: 'error:unreadable' })
   })
 
-  it('leaves other lines to the transport: another id, a request or notification of the peer', () => {
+  it('leaves other messages to the transport: another id, a request or notification of the peer', () => {
     for (const other of [
       JSON.stringify({ jsonrpc: '2.0', id: 8, result: {} }),
       JSON.stringify({ jsonrpc: '2.0', id: '7', result: {} }),
@@ -311,22 +292,10 @@ describe('the envelope of an answer (T2)', () => {
       JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress', params: {} }),
       '[1]',
     ])
-      expect(classify({ kind: 'line', text: other }, discover), other).toEqual({
-        kind: 'other',
-      })
-  })
-
-  it('drops a stdio line that is not JSON and keeps the stream (F4: not stricter than the SDK)', () => {
-    for (const text of [
-      'Listening on stdio',
-      '',
-      '﻿{"jsonrpc":"2.0","id":7,"result":{}}',
-      '{"jsonrpc":"2.0","id":7,"result":{},"result":{}}',
-      '{"jsonrpc":"2.0","id":7,"result":{}',
-    ])
-      expect(classify({ kind: 'line', text }, discover), JSON.stringify(text)).toEqual({
-        kind: 'other',
-      })
+      expect(
+        classify({ kind: 'http-stream', messages: [other], ended: false }, discover),
+        other,
+      ).toEqual({ kind: 'waiting' })
   })
 
   it('in the legacy HTTP+SSE mode a 2xx body that ended with no answer is still waiting', () => {
@@ -354,13 +323,13 @@ describe('the envelope of an answer (T2)', () => {
       [{ code: '-32602', message: 'x' }, 'error:unreadable'],
       ['x', 'error:unreadable'],
     ] as const)
-      expect(classify({ kind: 'line', text: answer({ error }) }, context('tools/list'))).toEqual({
+      expect(classify(delivered(answer({ error })), context('tools/list'))).toEqual({
         kind: 'answer',
         answer: expected,
       })
     expect(
       classify(
-        { kind: 'line', text: `{"jsonrpc":"2.0","id":7,"error":{"code":-32602.5,"message":"x"}}` },
+        delivered(`{"jsonrpc":"2.0","id":7,"error":{"code":-32602.5,"message":"x"}}`),
         context('tools/list'),
       ),
     ).toEqual({ kind: 'answer', answer: 'error:unreadable' })
@@ -386,34 +355,6 @@ describe('the envelope of an answer (T2)', () => {
       '',
     ])
       expect(status(plain), plain).toEqual({ kind: 'answer', answer: 'http:400+plain' })
-  })
-})
-
-describe('the end of a stdio process (T8)', () => {
-  const stdio = context('tools/list')
-  const ended = (stdoutEndedAt?: number, exitedAt?: number) =>
-    classify(
-      {
-        kind: 'stdio-ended',
-        ...(stdoutEndedAt === undefined ? {} : { stdoutEndedAt }),
-        ...(exitedAt === undefined ? {} : { exitedAt }),
-      },
-      stdio,
-    )
-
-  it(`counts the exit as the cause within ${PROCESS_EXIT_WINDOW_MS} ms after stdout ended`, () => {
-    expect(PROCESS_EXIT_WINDOW_MS).toBe(100)
-    expect(ended(1000, 1000 + PROCESS_EXIT_WINDOW_MS)).toEqual({
-      kind: 'answer',
-      answer: 'process-exited',
-    })
-    expect(ended(1000, 1000 + PROCESS_EXIT_WINDOW_MS + 1)).toEqual({
-      kind: 'answer',
-      answer: 'stream-broken',
-    })
-    expect(ended(1000, 900)).toEqual({ kind: 'answer', answer: 'process-exited' })
-    expect(ended(undefined, 5)).toEqual({ kind: 'answer', answer: 'process-exited' })
-    expect(ended(5)).toEqual({ kind: 'answer', answer: 'stream-broken' })
   })
 })
 
@@ -462,7 +403,7 @@ describe('the message a classification carries', () => {
   it('carries the message of a result or error class, the error body of an HTTP error status, and none for the rest', () => {
     const list = context('tools/list')
     const result = answer({ result: { tools: [] } })
-    expect(classifyWireEvent({ kind: 'line', text: result }, list)).toEqual({
+    expect(classifyWireEvent(delivered(result), list)).toEqual({
       kind: 'answer',
       answer: 'result',
       message: jsonTextOf(result),

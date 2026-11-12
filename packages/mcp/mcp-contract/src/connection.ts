@@ -5,12 +5,14 @@ import { isModernProtocolVersion } from './revisions.ts'
 
 /**
  * The connection as the T2 and T5 rules see it: the material, the revision the connection
- * negotiated (undefined before `discover` read an answer), and on Streamable HTTP the mode: each
- * request on its own exchange (`streamable`), or the legacy HTTP+SSE mode (`sse`, T3).
+ * negotiated (undefined before `discover` read an answer), and the mode: each request on its own
+ * exchange (`streamable`), or the legacy HTTP+SSE mode (`sse`, T3).
  */
-export type ConnectionView =
-  | Readonly<{ kind: 'stdio'; version: string | undefined }>
-  | Readonly<{ kind: 'streamable-http'; version: string | undefined; mode: 'streamable' | 'sse' }>
+export type ConnectionView = Readonly<{
+  kind: 'streamable-http'
+  version: string | undefined
+  mode: 'streamable' | 'sse'
+}>
 
 /** A connection speaks a legacy revision once it negotiated one that is not modern (T3). */
 export function isLegacyConnection(connection: ConnectionView): boolean {
@@ -18,21 +20,17 @@ export function isLegacyConnection(connection: ConnectionView): boolean {
 }
 
 /**
- * T2: the `x-mcp-header` declarations of a listing are checked on Streamable HTTP on the modern
- * revision only; stdio, a legacy revision and the legacy HTTP+SSE mode are not checked.
+ * T2: the `x-mcp-header` declarations of a listing are checked on the modern revision only; a
+ * legacy revision and the legacy HTTP+SSE mode are not checked.
  */
 export function checksListingHeaders(connection: ConnectionView): boolean {
-  return (
-    connection.kind === 'streamable-http' &&
-    connection.mode !== 'sse' &&
-    !isLegacyConnection(connection)
-  )
+  return connection.mode !== 'sse' && !isLegacyConnection(connection)
 }
 
 /**
- * T5: stdio, Streamable HTTP on a legacy revision and the legacy HTTP+SSE mode cancel a request
- * with `notifications/cancelled`; Streamable HTTP on the modern revision ends its answer stream.
+ * T5: a legacy revision and the legacy HTTP+SSE mode cancel a request with
+ * `notifications/cancelled`; the modern revision ends its answer stream.
  */
 export function cancelsByNotification(connection: ConnectionView): boolean {
-  return connection.kind === 'stdio' || connection.mode === 'sse' || isLegacyConnection(connection)
+  return connection.mode === 'sse' || isLegacyConnection(connection)
 }

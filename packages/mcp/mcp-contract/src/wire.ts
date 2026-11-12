@@ -79,8 +79,8 @@ export type ResultClass = (typeof RESULT_CLASSES)[RequestClass][number]
 
 /**
  * One answer class (SPEC T8). `unsent`: the request failed before it left. `stream-broken`: the
- * answer stream (on stdio: the pipe) ended with no answer. `silent`: nothing came by the time the
- * transport stopped waiting. `process-exited`: the stdio process ended. `http:2xx`: a 2xx answer
+ * answer stream ended with no answer. `silent`: nothing came by the time the transport stopped
+ * waiting. `http:2xx`: a 2xx answer
  * whose body ended with no answer to the request. `http:404+session`: a 404 to a request that
  * carried a legacy session id. `http:<status class>+<body>`: an HTTP error status with its body.
  */
@@ -90,7 +90,6 @@ export type AnswerClass =
   | 'unsent'
   | 'stream-broken'
   | 'silent'
-  | 'process-exited'
   | 'http:401'
   | 'http:403+scope'
   | 'http:403'
@@ -99,21 +98,11 @@ export type AnswerClass =
   | `http:${HttpStatusClass}+${BodyClass}`
 
 /**
- * When stdout ends and the root process exits both, the exit counts as the cause when it comes no
- * later than this many milliseconds after the end of stdout (SPEC T8).
- */
-export const PROCESS_EXIT_WINDOW_MS = 100
-
-/**
  * One wire event, as a transport sees it, for one request.
- * - `unsent`: the request failed before it left: on Streamable HTTP the connection failed (DNS,
- *   refused, TLS handshake); on stdio the pipe was broken or the process had exited when the
- *   transport wrote the request.
- * - `nothing`: the transport stopped waiting with nothing for the request: the stdio probe time
- *   ran out, `close()` ran, or the call's signal fired.
- * - `line`: one line that stdio delivered.
- * - `stdio-ended`: stdout ended, the root process exited, or both; the times are milliseconds on
- *   one clock, and at least one is present.
+ * - `unsent`: the request failed before it left: the connection failed (DNS, refused, TLS
+ *   handshake).
+ * - `nothing`: the transport stopped waiting with nothing for the request: `close()` ran, or the
+ *   call's signal fired.
  * - `http-aborted`: the HTTP exchange failed after the request started to go out: before the
  *   answer head came (reset, timeout), or while a 2xx body was being read and before it ended.
  *   In the legacy HTTP+SSE mode the end of the shared stream is this event for every request in
@@ -126,8 +115,6 @@ export const PROCESS_EXIT_WINDOW_MS = 100
 export type WireEvent =
   | Readonly<{ kind: 'unsent' }>
   | Readonly<{ kind: 'nothing' }>
-  | Readonly<{ kind: 'line'; text: string }>
-  | Readonly<{ kind: 'stdio-ended'; stdoutEndedAt?: number; exitedAt?: number }>
   | Readonly<{ kind: 'http-aborted' }>
   | Readonly<{
       kind: 'http-status'
@@ -156,13 +143,11 @@ export type WireContext = Readonly<{
  * The classification of an event. `answer`: the event is this answer class for the request;
  * `message` is the parsed message the class was read from, when the class has one: the answer
  * to the request (a result or error class), or the JSON-RPC error body of an HTTP error status.
- * `other`: a stdio line that is not about this request (the answer to another request, a
- * request or notification of the peer, other JSON). `waiting`: a 2xx stream that is still open
- * without an answer to the request; it is no class yet.
+ * `waiting`: a 2xx stream that is still open without an answer to the request; it is no class
+ * yet.
  */
 export type WireClassification =
   | Readonly<{ kind: 'answer'; answer: AnswerClass; message?: JsonObject }>
-  | Readonly<{ kind: 'other' }>
   | Readonly<{ kind: 'waiting' }>
 
 /**
@@ -176,8 +161,8 @@ export type PeerMessage =
   | Readonly<{ kind: 'notification'; method: string; params?: JsonValue; progressToken?: string }>
 
 /**
- * The limits of what a transport reads from the wire (SPEC T2): the byte bound of one stdio line,
- * one HTTP body or one SSE event (16 MiB), and the JSON limits a message is parsed with. A
+ * The limits of what a transport reads from the wire (SPEC T2): the byte bound of one HTTP body
+ * or one SSE event (16 MiB), and the JSON limits a message is parsed with. A
  * transport reads with these and parses nothing with others.
  */
 export const WIRE_LIMITS = {
@@ -217,7 +202,7 @@ function progressTokenOf(params: JsonValue | undefined): string | undefined {
 }
 
 /**
- * Reads one line or stream message as a request or notification of the peer (T3), with the
+ * Reads one stream message as a request or notification of the peer (T3), with the
  * limits of `classifyWireEvent`. Undefined for anything else: an answer, or text that is not a
  * JSON object with a text `method`.
  */
@@ -379,32 +364,6 @@ function httpStatusOf(
 }
 
 /**
- * The cause the end of a stdio shared stream stands for (SPEC T8): stdout ended, the root process
- * exited, or both. The exit is the cause when it came, and came no later than
- * `PROCESS_EXIT_WINDOW_MS` after stdout ended; otherwise the stream broke.
- */
-export function endedCauseOf(
-  event: Readonly<{ stdoutEndedAt?: number; exitedAt?: number }>,
-): 'process-exited' | 'stream-broken' {
-  const { stdoutEndedAt, exitedAt } = event
-  if (exitedAt === undefined) return 'stream-broken'
-  const exitFirst =
-    stdoutEndedAt === undefined || exitedAt - stdoutEndedAt <= PROCESS_EXIT_WINDOW_MS
-  return exitFirst ? 'process-exited' : 'stream-broken'
-}
-
-/** A stdio line: the answer when it carries the request's id and no method; `other` for the rest. */
-function lineOf(
-  event: Extract<WireEvent, { kind: 'line' }>,
-  context: WireContext,
-): WireClassification {
-  const message = parse(event.text)
-  return message !== undefined && answers(message, context)
-    ? answer(messageClassOf(message, context), message)
-    : { kind: 'other' }
-}
-
-/**
  * A 2xx answer: the first message that answers the request; else `http:2xx` once the body ended,
  * or `waiting` while it is open, and in the legacy HTTP+SSE mode even when it ended.
  */
@@ -421,10 +380,8 @@ function httpStreamOf(
 
 /**
  * Puts one wire event into its T8 answer class for one request (SPEC T2, T8), one function per
- * event kind. A stdio line that is not JSON is dropped (`other`); the stream goes on. A line or a
- * 2xx message that carries the request's id and no method is the answer; its envelope and content
- * decide the class. When stdout ended and the process exited, the exit is the cause when it came
- * within `PROCESS_EXIT_WINDOW_MS` after stdout ended (`endedCauseOf`). In the legacy HTTP+SSE mode
+ * event kind. A 2xx message that carries the request's id and no method is the answer; its
+ * envelope and content decide the class. In the legacy HTTP+SSE mode
  * a 2xx body that ended with no answer is still `waiting`: the answer comes on the shared stream.
  */
 export function classifyWireEvent(event: WireEvent, context: WireContext): WireClassification {
@@ -433,10 +390,6 @@ export function classifyWireEvent(event: WireEvent, context: WireContext): WireC
       return answer('unsent')
     case 'nothing':
       return answer('silent')
-    case 'line':
-      return lineOf(event, context)
-    case 'stdio-ended':
-      return answer(endedCauseOf(event))
     case 'http-aborted':
       return answer('stream-broken')
     case 'http-status':

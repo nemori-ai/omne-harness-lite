@@ -1,4 +1,4 @@
-// The `./testing` entry: conformance suites of the five requirement ports, in-memory doubles
+// The `./testing` entry: conformance suites of the four requirement ports, in-memory doubles
 // that pass them, and the exhaustive sample tables of `classifyOutcome` and `mergeListing`.
 // Product code does not import it. A double keeps nothing durable; do not assemble it into a
 // product.
@@ -28,12 +28,6 @@ export {
   type CredentialUseFixture,
   type MemoryCredentialUse,
 } from './testing-credentials.ts'
-export {
-  createMemoryProcessLanding,
-  mcpProcessLandingConformance,
-  type MemoryProcessLanding,
-  type ProcessLandingFixture,
-} from './testing-landing.ts'
 export {
   createMemoryCatalogStore,
   mcpCatalogStoreConformance,

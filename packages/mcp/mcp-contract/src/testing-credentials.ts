@@ -6,12 +6,9 @@ import type { ConnectionTarget, CredentialBinding, EndpointHolding } from './bra
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   CredentialFailure,
-  CredentialPurpose,
   CredentialUse,
   HttpCredentialHandle,
   HttpPurpose,
-  ProcessCredentialHandle,
-  ProcessPurpose,
 } from './ports.ts'
 import { conformanceCase, handle, tenantText, type ConformanceCase } from './testing-case.ts'
 
@@ -35,6 +32,10 @@ export type CredentialUseFixture<P> = Readonly<{
   unreadable?: CredentialBinding
 }>
 
+function purposeOf<P>(fixture: CredentialUseFixture<P>): HttpPurpose {
+  return { kind: 'http-authorization', target: fixture.target }
+}
+
 function revealsNothing(value: unknown, secret: string): void {
   const views = [JSON.stringify(value) ?? '', String(value), inspect(value, { depth: 8 })]
   for (const view of views) assert.ok(!view.includes(secret), 'an answer reveals the secret value')
@@ -46,17 +47,7 @@ export function mcpCredentialUseConformance<P>(): readonly ConformanceCase<
   return [
     conformanceCase('CU1', 'gives a handle of the asked purpose and releases it', async fixture => {
       const { access, holding, binding } = fixture
-      const forProcess = await fixture.port.acquire(
-        access,
-        holding,
-        { kind: 'process-env' },
-        binding,
-      )
-      assert.ok('ok' in forProcess, 'no handle for process-env')
-      assert.strictEqual(forProcess.ok.purpose, 'process-env')
-      await forProcess.ok.release()
-      const http = { kind: 'http-authorization', target: fixture.target } as const
-      const forHttp = await fixture.port.acquire(access, holding, http, binding)
+      const forHttp = await fixture.port.acquire(access, holding, purposeOf(fixture), binding)
       assert.ok('ok' in forHttp, 'no handle for http-authorization')
       assert.strictEqual(forHttp.ok.purpose, 'http-authorization')
       await forHttp.ok.release()
@@ -65,7 +56,7 @@ export function mcpCredentialUseConformance<P>(): readonly ConformanceCase<
       const answer = await fixture.port.acquire(
         fixture.access,
         fixture.holding,
-        { kind: 'process-env' },
+        purposeOf(fixture),
         fixture.missing,
       )
       assert.deepStrictEqual(answer, { failure: 'missing' })
@@ -77,7 +68,7 @@ export function mcpCredentialUseConformance<P>(): readonly ConformanceCase<
         const answer = await fixture.port.acquire(
           fixture.otherTenant,
           fixture.holding,
-          { kind: 'process-env' },
+          purposeOf(fixture),
           fixture.binding,
         )
         assert.deepStrictEqual(answer, { failure: 'missing' })
@@ -87,11 +78,10 @@ export function mcpCredentialUseConformance<P>(): readonly ConformanceCase<
       'CU4',
       'authorizes an HTTP request and reveals no secret in the handle',
       async fixture => {
-        const purpose = { kind: 'http-authorization', target: fixture.target } as const
         const answer = await fixture.port.acquire(
           fixture.access,
           fixture.holding,
-          purpose,
+          purposeOf(fixture),
           fixture.binding,
         )
         assert.ok('ok' in answer, 'no handle')
@@ -108,7 +98,7 @@ export function mcpCredentialUseConformance<P>(): readonly ConformanceCase<
       const answer = await fixture.port.acquire(
         fixture.access,
         fixture.holding,
-        { kind: 'process-env' },
+        purposeOf(fixture),
         binding,
       )
       assert.deepStrictEqual(answer, { failure: 'rejected' })
@@ -118,7 +108,7 @@ export function mcpCredentialUseConformance<P>(): readonly ConformanceCase<
       const answer = await fixture.port.acquire(
         fixture.access,
         fixture.holding,
-        { kind: 'process-env' },
+        purposeOf(fixture),
         binding,
       )
       assert.deepStrictEqual(answer, { failure: 'unknown' })
@@ -131,23 +121,13 @@ export function mcpCredentialUseConformance<P>(): readonly ConformanceCase<
         const answer = await fixture.port.acquire(
           fixture.access,
           holding,
-          { kind: 'process-env' },
+          purposeOf(fixture),
           fixture.binding,
         )
         assert.deepStrictEqual(answer, { failure: 'missing' })
       },
     ),
   ]
-}
-
-// The secret behind each process handle of the memory double, kept off the handle itself. The
-// memory process landing reads it to fill the environment. This is the in-memory form of the
-// agreement between a credential provider and a process landing: MCP never reads it.
-const secrets = new WeakMap<ProcessCredentialHandle, string>()
-
-/** The secret behind a process handle of the memory double. Not exported from `./testing`. */
-export function memorySecretOf(credential: ProcessCredentialHandle): string | undefined {
-  return secrets.get(credential)
 }
 
 type Entry = { holding: EndpointHolding; secret: string; rejected: boolean; unreadable: boolean }
@@ -182,15 +162,6 @@ function httpHandle(secret: string): HttpCredentialHandle {
   })
 }
 
-function processHandle(secret: string): ProcessCredentialHandle {
-  const credential: ProcessCredentialHandle = Object.freeze({
-    purpose: 'process-env',
-    async release() {},
-  })
-  secrets.set(credential, secret)
-  return credential
-}
-
 /** Credentials by tenant and binding, each bound to one holding. It keeps nothing durable. */
 export function createMemoryCredentialUse<P>(): MemoryCredentialUse<P> {
   const entries = new Map<string, Entry>()
@@ -212,27 +183,15 @@ export function createMemoryCredentialUse<P>(): MemoryCredentialUse<P> {
     if (entry.rejected) return { failure: 'rejected' }
     return { ok: entry.secret }
   }
-  function acquire(
-    access: Access<P>,
-    holding: EndpointHolding,
-    purpose: ProcessPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
-  function acquire(
-    access: Access<P>,
-    holding: EndpointHolding,
-    purpose: HttpPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
   async function acquire(
     access: Access<P>,
     holding: EndpointHolding,
-    purpose: CredentialPurpose,
+    _purpose: HttpPurpose,
     binding: CredentialBinding,
-  ): Promise<Outcome<ProcessCredentialHandle | HttpCredentialHandle, CredentialFailure>> {
+  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>> {
     const secret = found(access, holding, binding)
     if ('failure' in secret) return secret
-    return { ok: purpose.kind === 'process-env' ? processHandle(secret.ok) : httpHandle(secret.ok) }
+    return { ok: httpHandle(secret.ok) }
   }
   return {
     acquire,

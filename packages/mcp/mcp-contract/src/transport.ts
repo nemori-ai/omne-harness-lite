@@ -12,7 +12,7 @@ import type {
   TaskReport,
   UnusableCause,
 } from './outcomes.ts'
-import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
+import type { HttpCredentialHandle } from './ports.ts'
 import type { PeerIdentity, Untrusted } from './values.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 
@@ -113,28 +113,22 @@ export interface McpTransport {
   getTaskResult(taskId: TaskId): Promise<Outcome<TaskAnswer, TransportFailure>>
   /** `tasks/cancel`: an acknowledgement only. A terminal state is learned through `getTask`. */
   cancelTask(taskId: TaskId): Promise<Outcome<'requested', TransportFailure>>
-  /** Closes the transport. It does not stop a process; the holder of the process handle does. */
+  /** Closes the transport. */
   close(): Promise<void>
 }
 
 /**
- * The material that one transport opens on. Both kinds carry the connection generation and the
- * byte bound of the peer instructions, which `discover` applies with `boundInstructions`.
+ * The material that one transport opens on: the address of the peer, the credential handle when
+ * the endpoint authenticates, the connection generation, and the byte bound of the peer
+ * instructions, which `discover` applies with `boundInstructions`.
  */
-export type TransportMaterial =
-  | Readonly<{
-      kind: 'stdio'
-      process: ProcessHandle
-      generation: Generation
-      instructionsByteLimit: number
-    }>
-  | Readonly<{
-      kind: 'streamable-http'
-      target: ConnectionTarget
-      credential?: HttpCredentialHandle
-      generation: Generation
-      instructionsByteLimit: number
-    }>
+export type TransportMaterial = Readonly<{
+  kind: 'streamable-http'
+  target: ConnectionTarget
+  credential?: HttpCredentialHandle
+  generation: Generation
+  instructionsByteLimit: number
+}>
 
 export interface McpTransportFactory {
   open(

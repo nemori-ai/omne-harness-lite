@@ -203,20 +203,13 @@ function exchangeConclusionOf(
 ): AnswerConclusion | undefined {
   switch (answer) {
     case 'unsent':
-      return settle(NOT_SENT, kind === 'stdio' ? 'stream-broken' : undefined)
+      return settle(NOT_SENT)
     case 'silent':
-      // D13: on stdio the probe time ran out; a close or signal settles without a class (T5).
-      return settle(
-        kind === 'stdio' && PROBE_REQUESTS.includes(context.request) ? LEGACY_PEER : ABANDONED,
-      )
+      // A close or signal settles without a class (T5).
+      return settle(ABANDONED)
     case 'stream-broken':
     case 'http:2xx':
-      return settle(
-        brokenStream(resends(context, kind)),
-        kind === 'stdio' ? 'stream-broken' : undefined,
-      )
-    case 'process-exited':
-      return settle({ kind: 'no-answer', cause: 'process-exited', resend: false }, 'process-exited')
+      return settle(brokenStream(resends(context, kind)))
     default:
       return httpStatusConclusionOf(answer)
   }
@@ -461,7 +454,7 @@ export function concludeProbe(
 
 /**
  * T8 S01–S04 and the SSE mode: what every request handed to a shared stream settles with when the
- * stream is gone (`stream-broken`, `process-exited`): `no-answer` with the cause, never sent again,
+ * stream is gone (`stream-broken`): `no-answer` with the cause, never sent again,
  * and the transport not usable any more for the same cause (T1).
  */
 export function streamGoneAnswerOf(cause: Exclude<UnusableCause, 'session-ended'>): WireAnswer {

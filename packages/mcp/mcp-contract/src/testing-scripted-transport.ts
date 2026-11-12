@@ -80,8 +80,6 @@ export type ScriptedTransportOptions = Readonly<{
    */
   protocolVersions?: readonly string[]
   clientInfo?: Readonly<{ name: string; version: string }>
-  /** How long a stdio `server/discover` waits before the peer counts as legacy. Default: 0. */
-  probeTimeoutMs?: number
   /** Awaited before the peer answers each request: a test orders answers with it. */
   pace?: (received: PeerReceived) => Promise<void> | void
 }>
@@ -108,8 +106,6 @@ function plainRecordOf(text: string): PlainRecord {
 function isList(value: Replies): value is readonly PeerReply[] {
   return Array.isArray(value)
 }
-
-const SILENT: PeerReply = { kind: 'silent' }
 
 /** The peer: picks the scripted reply for each request, in order, and records what it saw. */
 class ScriptedPeer {
@@ -183,12 +179,6 @@ class ScriptedPeer {
   peerRequests(at: 'initialize' | 'initialized'): readonly Readonly<{ method: string }>[] {
     return (this.script.peerRequests ?? []).filter(request => (request.at ?? 'initialized') === at)
   }
-
-  /** How the peer answers a notification of the client. */
-  notificationReply(method: string): PeerReply | undefined {
-    const replies = this.script.notifications
-    return replies === undefined ? undefined : this.pick(`notification:${method}`, replies, SILENT)
-  }
 }
 
 /** What one request settled with: the wire answer, and the headers of an HTTP answer. */
@@ -197,12 +187,12 @@ type Answered = Readonly<{ wire: WireAnswer; headers?: Headers }>
 const NOT_SENT: Answered = { wire: { kind: 'not-sent', failure: NOT_SENT_FAILURE } }
 
 /**
- * The phase of a request in flight (T5), with what each phase holds: the stdio probe time once
- * sent, and the headers of the refusal with the abort of its discovery once discovering.
+ * The phase of a request in flight (T5), with what each phase holds: the headers of the refusal
+ * with the abort of its discovery once discovering.
  */
 type Phase =
   | Readonly<{ kind: 'authorizing' }>
-  | Readonly<{ kind: 'sent'; cancelProbe(): void }>
+  | Readonly<{ kind: 'sent' }>
   | Readonly<{
       kind: 'discovery'
       headers: Headers
@@ -211,6 +201,7 @@ type Phase =
     }>
 
 const AUTHORIZING: Phase = { kind: 'authorizing' }
+const SENT: Phase = { kind: 'sent' }
 
 /**
  * One request in flight: registered before anything is awaited, with its own settlement (what a
@@ -230,12 +221,11 @@ type Pending = {
   phase: Phase
 }
 
-/** How one request is sent: the observer of a call, the `_meta` version, the probe time. */
+/** How one request is sent: the observer of a call, the `_meta` version. */
 type Dispatch = Readonly<{
   observe?: (notification: PeerNotification) => void
   version?: string
   request?: RequestClass
-  probeTimeoutMs?: number
   /** Params the caller wrote as value trees, written as they are (RFC-0010). */
   values?: Readonly<{ [key: string]: JsonValue }>
 }>
@@ -247,11 +237,11 @@ function lowerCased(headers: Headers | undefined): Headers {
   )
 }
 
-/** The wire event a reply makes for the request `id` on the material (T8). */
-function eventOf(reply: PeerReply, id: string, stdio: boolean): WireEvent | undefined {
+/** The wire event a reply makes for the request `id` (T8). */
+function eventOf(reply: PeerReply, id: string): WireEvent | undefined {
   const message = (member: Readonly<{ [key: string]: PlainJson }>): WireEvent => {
     const text = JSON.stringify({ jsonrpc: '2.0', id, ...member })
-    return stdio ? { kind: 'line', text } : { kind: 'http-stream', messages: [text], ended: true }
+    return { kind: 'http-stream', messages: [text], ended: true }
   }
   switch (reply.kind) {
     case 'result':
@@ -259,9 +249,7 @@ function eventOf(reply: PeerReply, id: string, stdio: boolean): WireEvent | unde
     case 'error':
       return message({ error: reply.error })
     case 'stream-breaks':
-      return stdio ? { kind: 'stdio-ended', stdoutEndedAt: 0 } : { kind: 'http-aborted' }
-    case 'process-exits':
-      return { kind: 'stdio-ended', stdoutEndedAt: 0, exitedAt: 0 }
+      return { kind: 'http-aborted' }
     case 'http':
       return httpEventOf(reply)
     case 'silent':
@@ -334,10 +322,6 @@ class ScriptedTransport implements McpTransport {
     this.generation = material.generation
   }
 
-  private get stdio(): boolean {
-    return this.material.kind === 'stdio'
-  }
-
   private get clientInfo(): ClientInfo {
     return this.options.clientInfo ?? DEFAULT_CLIENT_INFO
   }
@@ -360,14 +344,12 @@ class ScriptedTransport implements McpTransport {
   }
 
   private get credential(): HttpCredentialHandle | undefined {
-    return this.material.kind === 'streamable-http' ? this.material.credential : undefined
+    return this.material.credential
   }
 
   /** The connection as the T2 and T5 rules see it. */
   private get connection(): ConnectionView {
-    return this.material.kind === 'stdio'
-      ? { kind: 'stdio', version: this.version }
-      : { kind: 'streamable-http', version: this.version, mode: 'streamable' }
+    return { kind: 'streamable-http', version: this.version, mode: 'streamable' }
   }
 
   private reserveId(): string {
@@ -376,9 +358,7 @@ class ScriptedTransport implements McpTransport {
   }
 
   private headersOf(method: string, params: PlainRecord, version: string) {
-    return this.material.kind === 'streamable-http'
-      ? { headers: mcpRequestHeadersOf(method, params, version, this.session) }
-      : {}
+    return { headers: mcpRequestHeadersOf(method, params, version, this.session) }
   }
 
   // ---- The requests in flight: registration, the phases, and what settles them ----
@@ -401,7 +381,6 @@ class ScriptedTransport implements McpTransport {
 
   private settle(entry: Pending, answered: Answered): void {
     if (!this.pending.delete(entry.id)) return
-    if (entry.phase.kind === 'sent') entry.phase.cancelProbe()
     entry.resolve(this.handedOver(answered))
   }
 
@@ -516,10 +495,9 @@ class ScriptedTransport implements McpTransport {
       ...this.headersOf(method, params, version),
     }
     const reply = this.peer.reply(method, sent)
-    this.validate(reply, method)
-    entry.phase = { kind: 'sent', cancelProbe: () => undefined }
+    entry.phase = SENT
     if (reply.kind === 'unsent') {
-      // The request fails before it leaves; the peer does not see it (T8 X01, X02).
+      // The request fails before it leaves; the peer does not see it (T8 X01).
       return this.apply(
         entry,
         concludeAnswer(
@@ -532,47 +510,17 @@ class ScriptedTransport implements McpTransport {
     }
     this.peer.log.push(request)
     if (departs(reply)) entry.depart()
-    void this.deliver(request, reply, entry, how.probeTimeoutMs)
+    void this.deliver(request, reply, entry)
   }
 
-  /** A reply the material cannot carry is a defect of the script, reported at once. */
-  private validate(reply: PeerReply, method: string): void {
-    if (reply.kind === 'http' && this.stdio)
-      throw new TypeError(`script: an http reply to ${method} on stdio material`)
-    if (reply.kind === 'process-exits' && !this.stdio)
-      throw new TypeError(`script: a process-exits reply to ${method} on streamable-http material`)
-  }
-
-  /** D13: starts the stdio probe time of `server/discover`; an answer before it ends clears it. */
-  private startProbe(entry: Pending, milliseconds: number): void {
-    const probe = setTimeout(() => {
-      const conclusion = concludeAnswer(
-        classifyWireEvent({ kind: 'nothing' }, entry.context),
-        entry.context,
-        this.material.kind,
-      )
-      this.apply(entry, conclusion, {})
-    }, milliseconds)
-    entry.phase = { kind: 'sent', cancelProbe: () => clearTimeout(probe) }
-  }
-
-  /**
-   * Answers after the pace hook. The probe time starts only then, so a test that holds the answer
-   * does not turn a modern peer into a legacy one. A defect of the script fails the settlement.
-   */
-  private async deliver(
-    request: Request,
-    reply: PeerReply,
-    entry: Pending,
-    probeTimeoutMs: number | undefined,
-  ): Promise<void> {
+  /** Answers after the pace hook. A defect of the script fails the settlement. */
+  private async deliver(request: Request, reply: PeerReply, entry: Pending): Promise<void> {
     try {
       await this.options.pace?.(request)
       if (!this.pending.has(request.id)) return
-      if (probeTimeoutMs !== undefined) this.startProbe(entry, probeTimeoutMs)
       if (reply.kind === 'result')
         for (const notification of reply.notifications ?? []) this.notify(notification, entry)
-      const event = eventOf(reply, request.id, this.stdio)
+      const event = eventOf(reply, request.id)
       if (event === undefined) return
       const headers = lowerCased(
         reply.kind === 'http' || reply.kind === 'result' ? reply.headers : undefined,
@@ -634,9 +582,7 @@ class ScriptedTransport implements McpTransport {
    * when it is stopped first (T5).
    */
   private enterDiscovery(entry: Pending, headers: Headers): void {
-    const target = this.material.kind === 'streamable-http' ? this.material.target : undefined
-    if (target === undefined)
-      throw new TypeError('script: a refused authorization on stdio material')
+    const { target } = this.material
     const credential = this.credential
     // A handle whose reportRejection rejects or throws is ignored (T9).
     const reported =
@@ -692,11 +638,7 @@ class ScriptedTransport implements McpTransport {
 
   /** Registers one request and waits on its settlement only: never on its sending. */
   private once(method: RequestMethod, params: PlainRecord, how: Dispatch): Promise<Answered> {
-    const probe = method === 'server/discover' && this.stdio
-    const entry = this.begin(method, params, {
-      ...how,
-      ...(probe ? { probeTimeoutMs: this.options.probeTimeoutMs ?? 0 } : {}),
-    })
+    const entry = this.begin(method, params, how)
     return entry === undefined
       ? Promise.resolve({ wire: { kind: 'not-sent', failure: this.refused } })
       : entry.answered
@@ -714,10 +656,6 @@ class ScriptedTransport implements McpTransport {
       params: written['params'] ?? {},
       ...this.headersOf(method, params, version),
     })
-    const reply = this.peer.notificationReply(method)
-    if (reply === undefined || !this.stdio) return
-    if (reply.kind === 'stream-breaks') this.unusable('stream-broken')
-    if (reply.kind === 'process-exits') this.unusable('process-exited')
   }
 
   async discover(): Promise<Outcome<PeerIdentity, TransportFailure>> {
@@ -765,8 +703,7 @@ class ScriptedTransport implements McpTransport {
     const read = legacyIdentityOf(answered.wire, this.bound)
     if ('failure' in read) return read
     this.version = read.ok.protocolVersion
-    if (this.material.kind === 'streamable-http')
-      this.session = answered.headers?.['mcp-session-id']
+    this.session = answered.headers?.['mcp-session-id']
     this.sendNotification('notifications/initialized', {})
     this.answerPeerRequests('initialized')
     return read
@@ -845,10 +782,6 @@ class ScriptedTransport implements McpTransport {
     if (this.closed) return
     this.closed = true
     for (const entry of this.pending.values()) this.stop(entry)
-    if (this.material.kind !== 'stdio') return
-    const { stdin, stdout } = this.material.process
-    await stdin.close().catch(() => undefined)
-    await stdout.cancel().catch(() => undefined)
   }
 }
 

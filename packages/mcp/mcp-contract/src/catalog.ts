@@ -20,7 +20,6 @@ export type UnavailableReason =
   | 'connection-unavailable'
   | 'authorization-required'
   | 'credential-unavailable'
-  | 'landing-unavailable'
 
 export type Availability =
   | Readonly<{ kind: 'available' }>
@@ -113,9 +112,9 @@ export function mergeListing(
 }
 
 /**
- * Marks every known action unavailable for a connection, credential, authorization or landing
- * reason. An action that the peer no longer offers keeps that reason. Definitions stay; the
- * revision is one higher.
+ * Marks every known action unavailable for a connection, credential or authorization reason.
+ * An action that the peer no longer offers keeps that reason. Definitions stay; the revision is
+ * one higher.
  */
 export function markUnavailable(
   record: ActionCatalogRecord,

@@ -16,7 +16,7 @@ import {
 import { boundInstructions } from './instructions.ts'
 import type { UnusableCause } from './outcomes.ts'
 import type { PlainJson } from './plain.ts'
-import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
+import type { HttpCredentialHandle } from './ports.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
 import {
   TRANSPORT_TABLE,
@@ -53,13 +53,12 @@ export type { PlainJson } from './plain.ts'
 export type PeerNotificationScript = Readonly<{ method: string; params?: PlainJson }>
 
 /**
- * How the peer answers one request. `result` and `error` are JSON-RPC answers as written; on
- * Streamable HTTP a result may carry response headers, for example `mcp-session-id` on a legacy
- * `initialize`. `silent` never answers. `stream-breaks` breaks the answer stream (on stdio: the
- * pipe) before an answer. `process-exits` ends the stdio process before an answer. `http` answers
- * at the HTTP level, on Streamable HTTP only: a 2xx without a JSON-RPC answer, or an error status
- * with its headers and body. `unsent` fails the request before it leaves: the connection fails on
- * Streamable HTTP, the pipe is broken on stdio; the peer does not see the request.
+ * How the peer answers one request. `result` and `error` are JSON-RPC answers as written; a
+ * result may carry response headers, for example `mcp-session-id` on a legacy `initialize`.
+ * `silent` never answers. `stream-breaks` breaks the answer stream before an answer. `http`
+ * answers at the HTTP level: a 2xx without a JSON-RPC answer, or an error status with its headers
+ * and body. `unsent` fails the request before it leaves: the connection fails; the peer does not
+ * see the request.
  */
 export type PeerReply =
   | Readonly<{
@@ -72,7 +71,6 @@ export type PeerReply =
   | Readonly<{ kind: 'unsent' }>
   | Readonly<{ kind: 'silent' }>
   | Readonly<{ kind: 'stream-breaks' }>
-  | Readonly<{ kind: 'process-exits' }>
   | Readonly<{
       kind: 'http'
       status: number
@@ -128,7 +126,7 @@ export type PeerRequestHeaders = Readonly<{
 
 /**
  * What the peer saw: each request and notification as sent, and what the client did to it. A
- * request on Streamable HTTP carries `headers`; a request on stdio does not.
+ * request carries `headers`.
  */
 export type PeerReceived =
   | Readonly<{
@@ -237,7 +235,6 @@ function httpError(status: number, code: number, message: string, data?: PlainJs
 
 const SILENT: PeerReply = { kind: 'silent' }
 const STREAM_BREAKS: PeerReply = { kind: 'stream-breaks' }
-const PROCESS_EXITS: PeerReply = { kind: 'process-exits' }
 const METHOD_NOT_FOUND = error(-32601, 'Method not found')
 
 const TOOL = { name: 'echo', inputSchema: { type: 'object' } }
@@ -483,50 +480,6 @@ function targetOf(peer: ScriptedPeer): string {
   return peer.material.target
 }
 
-/**
- * A process handle that hands every byte to and from the process unchanged and records when the
- * transport closes stdin, cancels stdout or stops the process. When the process ends its stdout
- * by itself, for example at the end of stdin, the wrapped stdout stays open until the transport
- * cancels it, so that the cancel is still observed.
- */
-function observedProcess(process: ProcessHandle, events: string[]): ProcessHandle {
-  const writer = process.stdin.getWriter()
-  const reader = process.stdout.getReader()
-  let cancelled = false
-  return {
-    stdin: new WritableStream<Uint8Array>({
-      write: chunk => writer.write(chunk),
-      // Closing or aborting the write end both end the peer's input: either is "stdin closed".
-      async close() {
-        events.push('stdin-closed')
-        await writer.close()
-      },
-      async abort(reason) {
-        events.push('stdin-closed')
-        await writer.abort(reason)
-      },
-    }),
-    stdout: new ReadableStream<Uint8Array>({
-      async pull(controller) {
-        const next = await reader.read()
-        if (cancelled || next.done) return
-        controller.enqueue(next.value)
-      },
-      async cancel(reason) {
-        cancelled = true
-        events.push('stdout-cancelled')
-        await reader.cancel(reason)
-      },
-    }),
-    stderr: process.stderr,
-    exited: process.exited,
-    stop: async () => {
-      events.push('stop')
-      return process.stop()
-    },
-  }
-}
-
 // ---- The cases of the decision table (T8), one per row, generated from `TRANSPORT_TABLE` ----
 
 /** The JSON-RPC error objects of an error class: the samples a peer answers with. */
@@ -683,7 +636,6 @@ function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerRep
   if (answer === 'unsent') return [{ kind: 'unsent' }]
   if (answer === 'stream-broken') return [STREAM_BREAKS]
   if (answer === 'silent') return [SILENT]
-  if (answer === 'process-exited') return [PROCESS_EXITS]
   if (answer === 'http:401')
     return [{ kind: 'http', status: 401, headers: { 'www-authenticate': bearer('scope="a"') } }]
   if (answer === 'http:403+scope') {
@@ -739,12 +691,11 @@ function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerRep
   return resultValues(request, answer, fixture).map(value => result(value))
 }
 
-/** The wire event a reply makes for request `x` (T8): a line, a stream, a status, an end. */
-function eventOf(reply: PeerReply, cell: TableCell): WireEvent {
-  const stdio = cell.kind === 'stdio'
+/** The wire event a reply makes for request `x` (T8): a stream, a status, an end. */
+function eventOf(reply: PeerReply): WireEvent {
   const message = (member: Readonly<{ [key: string]: PlainJson }>): WireEvent => {
     const text = JSON.stringify({ jsonrpc: '2.0', id: 'x', ...member })
-    return stdio ? { kind: 'line', text } : { kind: 'http-stream', messages: [text], ended: true }
+    return { kind: 'http-stream', messages: [text], ended: true }
   }
   switch (reply.kind) {
     case 'result':
@@ -756,9 +707,7 @@ function eventOf(reply: PeerReply, cell: TableCell): WireEvent {
     case 'silent':
       return { kind: 'nothing' }
     case 'stream-breaks':
-      return stdio ? { kind: 'stdio-ended', stdoutEndedAt: 0 } : { kind: 'http-aborted' }
-    case 'process-exits':
-      return { kind: 'stdio-ended', stdoutEndedAt: 0, exitedAt: 20 }
+      return { kind: 'http-aborted' }
     case 'http': {
       if (reply.status >= 200 && reply.status < 300)
         return {
@@ -830,9 +779,9 @@ function lineEndOf(conclusion: TableConclusion): UnusableCause | undefined {
   }
 }
 
-/** A `no-answer` cause that is a line end: a broken stream or an exited process. */
+/** A `no-answer` cause that is a line end: a broken stream. */
 function gone(cause: string): UnusableCause | undefined {
-  return cause === 'stream-broken' || cause === 'process-exited' ? cause : undefined
+  return cause === 'stream-broken' ? cause : undefined
 }
 
 /** The `not-sent` (`connection-unavailable`) of a request after the row, marked as the row says. */
@@ -1165,7 +1114,7 @@ async function checkInitialize(
       unusableCauseOf(conclusion),
     )
     assert.deepStrictEqual(initialized, [])
-    assert.ok(cell.kind === 'stdio' || conclusion.unusable !== true)
+    assert.ok(conclusion.unusable !== true)
     await afterwards(transport)
   })
 }
@@ -1347,7 +1296,7 @@ function tableCases(): readonly Case[] {
         for (const cell of cells)
           for (const reply of repliesOf(cell, fixture))
             try {
-              const classified = classifyWireEvent(eventOf(reply, cell), {
+              const classified = classifyWireEvent(eventOf(reply), {
                 id: 'x',
                 request: cell.request,
                 session: cell.answer === 'http:404+session',
@@ -1455,26 +1404,6 @@ const t1Cases = (): readonly Case[] => [
             unusable: 'session-ended',
           })
           await transport.close()
-        },
-      ),
-  ),
-  conformanceCase(
-    'T1',
-    'stdio: close() after the process exited (S02): a later request carries no unusable',
-    async fixture =>
-      withPeer(
-        fixture,
-        { listing: { '': { kind: 'process-exits' } } },
-        { kind: 'stdio' },
-        async (_peer, transport) => {
-          ok(await transport.discover(), 'discover')
-          assert.deepStrictEqual(await transport.listActions(), {
-            failure: { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' },
-          })
-          await transport.close()
-          assert.deepStrictEqual(await transport.getTask(taskId('t')), {
-            failure: { kind: 'not-sent', cause: 'connection-unavailable' },
-          })
         },
       ),
   ),
@@ -1610,23 +1539,6 @@ const t2Cases = (): readonly Case[] => [
         { kind: 'streamable-http' },
         async (_peer, transport) => {
           ok(await transport.discover(), 'discover')
-          const page = ok(await transport.listActions(), 'listActions')
-          assert.deepStrictEqual(page.tools, [jsonOf(bad)])
-          assert.strictEqual(page.withheld, undefined)
-        },
-      )
-    },
-  ),
-  conformanceCase(
-    'T2',
-    'stdio: x-mcp-header is not checked and the page is handed over as written (item 8)',
-    async fixture => {
-      const bad = { name: 'bad', inputSchema: { type: 'object', 'x-mcp-header': 'root' } }
-      await withPeer(
-        fixture,
-        { listing: { '': result({ tools: [bad] }) } },
-        { kind: 'stdio' },
-        async (_peer, transport) => {
           const page = ok(await transport.listActions(), 'listActions')
           assert.deepStrictEqual(page.tools, [jsonOf(bad)])
           assert.strictEqual(page.withheld, undefined)
@@ -1871,33 +1783,6 @@ const t3Cases = (): readonly Case[] => [
             ['tasks/get', lowest],
           ])
           assertEnvelopes(peer, received)
-        },
-      )
-    },
-  ),
-  conformanceCase(
-    'T3, T5',
-    'stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7)',
-    async fixture => {
-      const lowest = fixture.protocolVersions.at(-1)
-      assert.ok(lowest !== undefined)
-      await withPeer(
-        fixture,
-        {
-          discover: [
-            error(-32022, 'unsupported', { supported: [lowest] }),
-            result({ supportedVersions: [lowest], capabilities: {} }),
-          ],
-          calls: { echo: SILENT },
-        },
-        { kind: 'stdio' },
-        async (peer, transport) => {
-          ok(await transport.discover(), 'discover')
-          const sent = ok(await transport.call(echo, never), 'call')
-          await transport.cancelRequest(sent.requestId)
-          const [cancelled] = notifications(await peer.received(), 'notifications/cancelled')
-          assert.ok(cancelled !== undefined, 'notifications/cancelled was not sent')
-          assert.strictEqual(at(cancelled.params, '_meta', PROTOCOL_VERSION_KEY), lowest)
         },
       )
     },
@@ -2301,24 +2186,6 @@ const t9Cases = (): readonly Case[] => [
 const t5Cases = (): readonly Case[] => [
   conformanceCase(
     'T5',
-    'stdio: cancelRequest sends notifications/cancelled with the request id and the envelope (item 9)',
-    async fixture =>
-      withPeer(fixture, { calls: { echo: SILENT } }, { kind: 'stdio' }, async (peer, transport) => {
-        const sent = ok(await transport.call(echo, never), 'call')
-        await transport.cancelRequest(sent.requestId)
-        const received = await peer.received()
-        const [cancelled] = notifications(received, 'notifications/cancelled')
-        assert.ok(cancelled !== undefined, 'notifications/cancelled was not sent')
-        assert.strictEqual(at(cancelled.params, 'requestId'), sent.requestId)
-        assertEnvelopes(peer, received)
-        assert.deepStrictEqual(
-          received.filter(entry => entry.kind === 'stream-aborted'),
-          [],
-        )
-      }),
-  ),
-  conformanceCase(
-    'T5',
     'streamable-http: cancelRequest ends the answer stream, answer settles no-answer (abandoned), and no notification is sent (item 9)',
     async fixture =>
       withPeer(
@@ -2361,33 +2228,6 @@ const t5Cases = (): readonly Case[] => [
           assertEnvelopes(peer, received)
         },
       ),
-  ),
-  conformanceCase(
-    'T5',
-    'stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9)',
-    async fixture => {
-      const kind = 'stdio'
-      if (!fixture.kinds.includes(kind)) throw new NotApplicable('stdio material')
-      const events: string[] = []
-      const peer = await fixture.peer(
-        { discover: modern(fixture) },
-        { kind, instructionsByteLimit: 4096 },
-      )
-      try {
-        assert.strictEqual(peer.material.kind, kind)
-        const material: TransportMaterial =
-          peer.material.kind === kind
-            ? { ...peer.material, process: observedProcess(peer.material.process, events) }
-            : peer.material
-        const transport = ok(await peer.factory.open(material, never), 'open')
-        ok(await transport.discover(), 'discover')
-        await transport.close()
-        assert.deepStrictEqual(events, ['stdin-closed', 'stdout-cancelled'])
-        await transport.close()
-      } finally {
-        await peer.close()
-      }
-    },
   ),
   conformanceCase(
     'T5',

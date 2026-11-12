@@ -28,8 +28,6 @@ export const ENDPOINT_BODY_REJECTIONS = [
   'name-mismatch',
   'transport-unknown',
   'auth-unknown',
-  'launch-missing',
-  'launch-unexpected',
 ] as const satisfies readonly EndpointBodyRejection[]
 
 export const LISTING_DEFECTS = [
@@ -46,7 +44,6 @@ export const UNAVAILABLE_REASONS = [
   'connection-unavailable',
   'authorization-required',
   'credential-unavailable',
-  'landing-unavailable',
 ] as const satisfies readonly UnavailableReason[]
 
 export const CONTENT_DEFECTS = [
@@ -71,7 +68,6 @@ export const PROTOCOL_FAULT_KINDS = [
 
 export const NO_ANSWER_CAUSES = [
   'stream-broken',
-  'process-exited',
   'abandoned',
 ] as const satisfies readonly NoAnswerCause[]
 
@@ -91,7 +87,6 @@ export const NOT_SENT_REASON_KINDS = [
   'action-unavailable',
   'credential-unavailable',
   'authorization-required',
-  'landing-unavailable',
   'connection-unavailable',
 ] as const satisfies readonly NotSentReason['kind'][]
 
@@ -105,7 +100,6 @@ export const OPERATION_FAILURE_KINDS = [
   ...REFUSAL_KINDS,
   'credential-unavailable',
   'authorization-required',
-  'landing-unavailable',
   'connection-unavailable',
   'effect-unknown',
   'error-answer',
@@ -125,7 +119,6 @@ export const ANSWER_MALFORMED_WHAT = [
 
 export const EFFECT_UNKNOWN_CAUSES = [
   'stream-broken',
-  'process-exited',
   'abandoned',
   'no-connection',
 ] as const satisfies readonly EffectUnknown['cause'][]
@@ -145,9 +138,7 @@ export const DEGRADED_REASONS = [
 export const LOST_REASONS = [
   'preparation-failed',
   'discover-failed',
-  'close-unconfirmed',
   'authorization-required',
-  'process-exited',
   'stream-broken',
   'negotiation-invalid',
   'session-ended',
@@ -155,7 +146,6 @@ export const LOST_REASONS = [
 
 export const ELIGIBILITY_REFUSALS = [
   'not-eligible',
-  'local-command-not-enabled',
   'disabled',
 ] as const satisfies readonly Extract<EligibilityVerdict, { kind: 'refused' }>['reason'][]
 

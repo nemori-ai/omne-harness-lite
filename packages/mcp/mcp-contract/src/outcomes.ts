@@ -60,13 +60,13 @@ export const OUTPUT_CHECK_FAILED = 'output-check-failed'
 export type OutputValidator = (structured: JsonValue, outputSchema: JsonValue) => OutputCheck
 
 /** Why a sent call has no answer. */
-export type NoAnswerCause = 'stream-broken' | 'process-exited' | 'abandoned'
+export type NoAnswerCause = 'stream-broken' | 'abandoned'
 
 /**
- * Why a transport is not usable any more (T1): the shared stream is gone (`stream-broken`), the
- * process exited (`process-exited`), or the peer ended the legacy session (`session-ended`, S07).
+ * Why a transport is not usable any more (T1): the shared stream is gone (`stream-broken`), or
+ * the peer ended the legacy session (`session-ended`, S07).
  */
-export type UnusableCause = 'stream-broken' | 'process-exited' | 'session-ended'
+export type UnusableCause = 'stream-broken' | 'session-ended'
 
 /**
  * What the peer answered to a sent request, or that no answer came. A `no-answer` carries
@@ -122,7 +122,7 @@ export type TaskReport = Readonly<{ status: TaskStatus; inputRequests?: Untruste
   TaskHints
 
 /** A refusal reason that a use-eligibility answer gives only to a principal with eligibility. */
-export type BlockedReason = 'local-command-not-enabled' | 'disabled'
+export type BlockedReason = 'disabled'
 
 /**
  * What the peer said when it required authorization. `metadata` tells whether the protected
@@ -137,8 +137,8 @@ export type AuthorizationDiscovery = Readonly<{
   scopes: readonly string[]
 }>
 
-/** A setting or a process variable that an operation needs. */
-export type ConfigItem = 'connect-timeout' | 'target' | 'credential' | `env.${string}`
+/** A setting that an operation needs. */
+export type ConfigItem = 'connect-timeout' | 'target' | 'credential'
 
 /**
  * The refusal of a read, control or call operation before any connection is used. Not adopted,
@@ -149,13 +149,12 @@ export type Refusal =
   | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'config-missing'; item: ConfigItem }>
-  | Readonly<{ kind: 'config-invalid'; item: Exclude<ConfigItem, `env.${string}`> }>
+  | Readonly<{ kind: 'config-invalid'; item: ConfigItem }>
 
 /** A connection condition that kept an operation from reaching the peer. */
 export type ConnectionFailure =
   | Readonly<{ kind: 'credential-unavailable'; cause: 'missing' | 'rejected' | 'unknown' }>
   | Readonly<{ kind: 'authorization-required'; discovery: AuthorizationDiscovery }>
-  | Readonly<{ kind: 'landing-unavailable' }>
   | Readonly<{ kind: 'connection-unavailable' }>
 
 /** A request that left and was answered with a JSON-RPC error. */

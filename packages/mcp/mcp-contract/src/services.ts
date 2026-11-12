@@ -34,17 +34,14 @@ import type {
   CatalogStore,
   CredentialUse,
   McpClock,
-  ProcessLanding,
-  StopScope,
   UseEligibility,
 } from './ports.ts'
 import type { McpTransportFactory, PeerNotification } from './transport.ts'
 import type { EndpointDefinition, EndpointRef, PeerIdentity } from './values.ts'
 
-/** The category port, with the parse and the local-command judgment on a body. No access. */
+/** The category port, with the parse of a body. No access. */
 export interface EndpointInspection extends BodyContract {
   inspect(body: unknown): Outcome<EndpointDefinition, EndpointBodyRejection>
-  launchesLocalCommand(body: unknown): Outcome<boolean, EndpointBodyRejection>
 }
 
 /** The catalog view. `basisCurrent` tells whether the basis still fits the current connection. */
@@ -172,24 +169,19 @@ export type DegradedReason = 'discover-failed' | 'list-failed'
 export type LostReason =
   | 'preparation-failed'
   | 'discover-failed'
-  | 'close-unconfirmed'
   | 'authorization-required'
-  | 'process-exited'
   | 'stream-broken'
   | 'negotiation-invalid'
   | 'session-ended'
 
-/** A process that a closed or failed preparation left, and the stop range that was confirmed. */
-export type Residual = Readonly<{ kind: 'process'; confirmed: StopScope }>
-
 export type ConnectionState =
   | Readonly<{ kind: 'none' | 'preparing' | 'ready' }>
   | Readonly<{ kind: 'degraded'; reason: DegradedReason }>
-  | Readonly<{ kind: 'lost'; reason: LostReason; residual?: readonly Residual[] }>
+  | Readonly<{ kind: 'lost'; reason: LostReason }>
 
 /**
  * The status of one endpoint. The credential is reported only as present, absent, invalid or not
- * required; no value is shown. Processes left behind appear on the `lost` connection state.
+ * required; no value is shown.
  */
 export type EndpointStatusView = Readonly<{
   ref: EndpointRef
@@ -209,10 +201,8 @@ export interface EndpointStatus<P, S> {
   list(access: Access<P>, scope: S): Promise<Outcome<readonly EndpointStatusView[], 'unknown'>>
 }
 
-/** What a release confirmed. A connection without a process has no process to stop. */
-export type ReleaseReport =
-  | Readonly<{ kind: 'released'; process: StopScope | 'no-process' }>
-  | Readonly<{ kind: 'no-connection' }>
+/** What a release did: the connections of the holding were closed, or there was none. */
+export type ReleaseReport = Readonly<{ kind: 'released' }> | Readonly<{ kind: 'no-connection' }>
 
 export interface Connections<P> {
   release(
@@ -224,15 +214,14 @@ export interface Connections<P> {
       Extract<Refusal, { kind: 'not-available-to-you' | 'blocked' | 'unknown' }>
     >
   >
-  /** For the host that holds this instance, at exit. It reports only what was confirmed. */
-  closeAll(): Promise<readonly Readonly<{ ref: EndpointRef; process: StopScope | 'no-process' }>[]>
+  /** For the host that holds this instance, at exit. It reports the endpoints it closed. */
+  closeAll(): Promise<readonly Readonly<{ ref: EndpointRef }>[]>
 }
 
 export type McpPorts<P, S> = Readonly<{
   adoption: AdoptionView<P, S>
   eligibility: UseEligibility<P>
   credentials: CredentialUse<P>
-  landing: ProcessLanding<P>
   store: CatalogStore
   transports: McpTransportFactory
   /**

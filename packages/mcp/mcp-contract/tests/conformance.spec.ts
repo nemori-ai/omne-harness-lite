@@ -22,19 +22,16 @@ import {
 import type {
   AdoptionView,
   CatalogStore,
-  ProcessLanding,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 import {
   createMemoryAdoptionView,
   createMemoryCatalogStore,
   createMemoryCredentialUse,
-  createMemoryProcessLanding,
   createMemoryUseEligibility,
   mcpAdoptionViewConformance,
   mcpCatalogStoreConformance,
   mcpCredentialUseConformance,
-  mcpProcessLandingConformance,
   mcpUseEligibilityConformance,
   mergeListingCases,
   runConformanceCase,
@@ -42,7 +39,6 @@ import {
   type CatalogStoreFixture,
   type ConformanceCase,
   type CredentialUseFixture,
-  type ProcessLandingFixture,
   type UseEligibilityFixture,
 } from '@omne-harness/mcp-contract/testing'
 import { json } from './json.ts'
@@ -105,14 +101,14 @@ function eligibilityFixture(
 ): UseEligibilityFixture<Principal> {
   const memory = createMemoryUseEligibility<Principal>({ principalKey })
   memory.grant(alice, ref('files'))
-  memory.block(alice, ref('shell'), 'local-command-not-enabled')
+  memory.block(alice, ref('shell'), 'disabled')
   memory.grant(alice, ref('unclear'))
   memory.setUnreadable(alice, ref('unclear'), true)
   return {
     port: wrap(memory),
     eligible: { access: alice, endpoint: ref('files') },
     ineligible: { access: bob, existing: ref('files'), missing: ref('nowhere') },
-    blocked: { access: alice, endpoint: ref('shell'), reason: 'local-command-not-enabled' },
+    blocked: { access: alice, endpoint: ref('shell'), reason: 'disabled' },
     revoke: async () => memory.revoke(alice, ref('files')),
     unreadable: { access: alice, endpoint: ref('unclear') },
   }
@@ -195,45 +191,6 @@ function credentialFixture(): CredentialUseFixture<Principal> {
   }
 }
 
-function landingFixture(
-  wrap: (port: ProcessLanding<Principal>) => ProcessLanding<Principal> = port => port,
-): ProcessLandingFixture<Principal> {
-  const credentials = createMemoryCredentialUse<Principal>()
-  credentials.store({
-    tenant: home,
-    holding: ref('files').holding,
-    binding: binding('main'),
-    secret: 'tok-123',
-  })
-  const landing = createMemoryProcessLanding<Principal>({
-    facilities: ['network'],
-    refusedCommands: ['/not/here'],
-  })
-  return {
-    port: wrap(landing),
-    access: alice,
-    launch: {
-      command: '/usr/bin/files-server',
-      args: [],
-      env: [{ name: 'FILES_TOKEN', source: 'credential' }],
-      facilities: ['network'],
-    },
-    credential: async () => {
-      const acquired = await credentials.acquire(
-        alice,
-        ref('files').holding,
-        { kind: 'process-env' },
-        binding('main'),
-      )
-      if ('failure' in acquired) throw new Error(acquired.failure)
-      return acquired.ok
-    },
-    secret: 'tok-123',
-    missingFacility: { command: '/usr/bin/files-server', args: [], env: [], facilities: ['gpu'] },
-    invalidLanding: { command: '/not/here', args: [], env: [], facilities: [] },
-  }
-}
-
 function key(tenantId: TenantId, holding: string): CatalogKey {
   return {
     tenant: tenantId,
@@ -266,42 +223,11 @@ describe('CredentialUse conformance on the memory double', () => {
   register(mcpCredentialUseConformance<Principal>(), credentialFixture)
 })
 
-describe('ProcessLanding conformance on the memory double', () => {
-  register(mcpProcessLandingConformance<Principal>(), () => landingFixture())
-})
-
 describe('CatalogStore conformance on the memory double', () => {
   register(mcpCatalogStoreConformance(), () => storeFixture())
 })
 
 describe('the suites fail a port that breaks the contract', () => {
-  it('ProcessLanding: a second stop that confirms less than the first', async () => {
-    const forgetful = (port: ProcessLanding<Principal>): ProcessLanding<Principal> => ({
-      start: async (who, launch, env) => {
-        const started = await port.start(who, launch, env)
-        if ('failure' in started) return started
-        let stops = 0
-        const process = started.ok
-        return {
-          ok: {
-            stdin: process.stdin,
-            stdout: process.stdout,
-            stderr: process.stderr,
-            exited: process.exited,
-            stop: async () => {
-              stops += 1
-              const scope = await process.stop()
-              return stops > 1 ? 'unconfirmed' : scope
-            },
-          },
-        }
-      },
-    })
-    expect(
-      await failing(mcpProcessLandingConformance<Principal>(), () => landingFixture(forgetful)),
-    ).toEqual(['answers a repeated stop without a smaller range'])
-  })
-
   it('UseEligibility: an answer that differs for a missing endpoint discloses existence', async () => {
     const leaky = (port: UseEligibility<Principal>): UseEligibility<Principal> => ({
       check: async (who, endpoint) =>

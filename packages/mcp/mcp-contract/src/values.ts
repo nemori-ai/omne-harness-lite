@@ -25,25 +25,8 @@ export type EndpointRef = Readonly<{ name: EndpointName; holding: EndpointHoldin
 
 export type AuthKind = 'none' | 'static' | 'oauth'
 
-/**
- * One variable of the process environment. `setting` takes the non-secret setting value of the
- * same name from the adoption; `credential` is filled from a credential handle when the process
- * starts. The body never carries a value.
- */
-export type EnvironmentBinding = Readonly<{ name: string; source: 'setting' | 'credential' }>
-
-/** The launch declaration of a stdio endpoint. The command is one program; no shell reads it. */
-export type StdioLaunch = Readonly<{
-  command: string
-  args: readonly string[]
-  cwd?: string
-  env: readonly EnvironmentBinding[]
-  facilities: readonly string[]
-}>
-
-export type TransportDeclaration =
-  | Readonly<{ kind: 'stdio'; launch: StdioLaunch }>
-  | Readonly<{ kind: 'streamable-http' }>
+/** How an endpoint is reached: by its address, over Streamable HTTP. */
+export type TransportDeclaration = Readonly<{ kind: 'streamable-http' }>
 
 export type EndpointDefinition = Readonly<{
   name: EndpointName

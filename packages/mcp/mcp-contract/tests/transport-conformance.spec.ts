@@ -1,12 +1,11 @@
-// The transport conformance suite on the scripted transport: every case passes on both material
-// kinds, and scripted transports that break a clause make the suite fail.
+// The transport conformance suite on the scripted transport: every case passes, and scripted
+// transports that break a clause make the suite fail.
 import { AssertionError } from 'node:assert'
 import { readFileSync } from 'node:fs'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   isConnectionTarget,
   isGeneration,
-  isProtocolVersion,
   type Generation,
   type PeerAnswer,
   type UnusableCause,
@@ -15,7 +14,6 @@ import type {
   HttpCredentialHandle,
   McpTransport,
   McpTransportFactory,
-  ProcessHandle,
   TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
@@ -53,21 +51,8 @@ const target = (() => {
   return text
 })()
 
-/** A process whose streams carry nothing: the scripted transport answers in memory. */
-function idleProcess(): ProcessHandle {
-  return {
-    stdin: new WritableStream<Uint8Array>(),
-    stdout: new ReadableStream<Uint8Array>(),
-    stderr: new ReadableStream<string>(),
-    exited: new Promise<void>(() => undefined),
-    stop: async () => 'tree-confirmed',
-  }
-}
-
 function materialOf(needs: PeerNeeds): TransportMaterial {
   const limit = needs.instructionsByteLimit ?? 4096
-  if (needs.kind === 'stdio')
-    return { kind: 'stdio', process: idleProcess(), generation, instructionsByteLimit: limit }
   return {
     kind: 'streamable-http',
     target,
@@ -130,11 +115,8 @@ async function failing(fixture: () => TransportFixture): Promise<readonly string
 }
 
 describe('McpTransport conformance on the scripted transport', () => {
-  describe('stdio material first', () => {
-    register(mcpTransportConformance(), () => fixtureOf(['stdio', 'streamable-http']))
-  })
   describe('streamable-http material first', () => {
-    register(mcpTransportConformance(), () => fixtureOf(['streamable-http', 'stdio']))
+    register(mcpTransportConformance(), () => fixtureOf(['streamable-http']))
   })
 })
 
@@ -143,7 +125,7 @@ describe('the suite refuses a fixture that lists a legacy version', () => {
     const [first] = mcpTransportConformance()
     if (first === undefined) throw new Error('the suite is empty')
     const fixture: TransportFixture = {
-      ...fixtureOf(['stdio', 'streamable-http']),
+      ...fixtureOf(['streamable-http']),
       protocolVersions: ['2026-07-28', '2025-11-25'],
     }
     await expect(runConformanceCase(first, fixture)).rejects.toThrow(
@@ -344,23 +326,15 @@ describe('the suite fails a transport that breaks the contract', () => {
   )
 
   it('a transport that drops the mark of a row that ends the transport (T1, T8)', async () => {
-    expect(await failing(() => fixtureOf(['streamable-http', 'stdio'], droppingMarks))).toEqual([
-      '[S01] discover, discover-retry, initialize … (7) × stream-broken → no-answer (stream-broken), unusable',
-      '[S02] discover, discover-retry, initialize … (7) × process-exited → no-answer (process-exited), unusable',
-      '[S03] tools/call × stream-broken → sent, answer stream-broken, unusable',
-      '[S04] tools/call × process-exited → sent, answer process-exited, unusable',
+    expect(await failing(() => fixtureOf(['streamable-http'], droppingMarks))).toEqual([
       '[S07] tools/list, tasks/get, tasks/update … (5) × http:404+session → not-sent (session-ended), unusable',
-      '[X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable',
       'Streamable HTTP: close() after the session ended (S07): the call still in flight and a later request carry no unusable',
       'Streamable HTTP: a call stopped after the session ended (S07), before close(): abandoned, carrying session-ended',
-      'stdio: close() after the process exited (S02): a later request carries no unusable',
     ])
   })
 
   it('a transport that marks a broken stream on Streamable HTTP, which leaves it usable (T1, T8)', async () => {
-    expect(
-      await failing(() => fixtureOf(['streamable-http', 'stdio'], markingUsableBreaks)),
-    ).toEqual([
+    expect(await failing(() => fixtureOf(['streamable-http'], markingUsableBreaks))).toEqual([
       '[D15] discover, discover-retry × stream-broken, http:2xx → resend',
       '[D16] discover, discover-retry × http:5xx+-32020, http:5xx+-32021, http:5xx+-32022+common … (10) → no-answer (stream-broken)',
       '[I06] initialize × stream-broken, http:2xx, http:5xx+plain → no-answer (stream-broken)',
@@ -372,15 +346,13 @@ describe('the suite fails a transport that breaks the contract', () => {
   })
 
   it('a transport that re-sends tools/call after a broken stream', async () => {
-    expect(await failing(() => fixtureOf(['streamable-http', 'stdio'], resendingCalls))).toEqual([
+    expect(await failing(() => fixtureOf(['streamable-http'], resendingCalls))).toEqual([
       '[C04] tools/call × stream-broken, http:2xx, http:5xx+plain → sent, answer stream-broken',
     ])
   })
 
   it('a transport that does not report a refused authorization to the handle', async () => {
-    expect(
-      await failing(() => fixtureOf(['streamable-http', 'stdio'], forgettingRejections)),
-    ).toEqual([
+    expect(await failing(() => fixtureOf(['streamable-http'], forgettingRejections))).toEqual([
       '[S05] discover, discover-retry, initialize … (8) × http:401, http:403+scope → not-sent (authorization-required), reportRejection once',
       '401: not-sent authorization-required from WWW-Authenticate and the named metadata; reportRejection once (item 11)',
       '401 on listActions without resource_metadata: the well-known URL with the path is tried before the root; reportRejection once (item 11)',
@@ -391,147 +363,6 @@ describe('the suite fails a transport that breaks the contract', () => {
       'a call still being authorized when its signal fires is not-sent and never reaches the peer; call() does not wait for the handle',
       'a credential handle whose authorize rejects or throws: not-sent (connection-unavailable), nothing reaches the peer',
     ])
-  })
-})
-
-describe('the suite on a transport that reads and writes the process pipes', () => {
-  const encoder = new TextEncoder()
-  const decoder = new TextDecoder()
-  const line = (message: unknown) => encoder.encode(`${JSON.stringify(message)}\n`)
-
-  /** A member of a parsed JSON-RPC message, or undefined. */
-  function field(message: unknown, key: string): unknown {
-    if (typeof message !== 'object' || message === null || !(key in message)) return undefined
-    return new Map<string, unknown>(Object.entries(message)).get(key)
-  }
-
-  /**
-   * A process whose stdin and stdout are pipes to an in-memory peer. The peer reads one JSON-RPC
-   * message per line, records each request, and answers `server/discover` on stdout. At the end
-   * of stdin it ends stdout, as a stdio server that exits does.
-   */
-  function pipedProcess(log: PeerReceived[]): ProcessHandle {
-    let answers: ReadableStreamDefaultController<Uint8Array> | undefined
-    return {
-      stdin: new WritableStream<Uint8Array>({
-        write(chunk) {
-          for (const text of decoder.decode(chunk).split('\n')) {
-            if (text === '') continue
-            const message: unknown = JSON.parse(text)
-            const id = field(message, 'id')
-            const method = field(message, 'method')
-            if (typeof id !== 'string' || typeof method !== 'string') continue
-            log.push({ kind: 'request', id, method })
-            if (method === 'server/discover')
-              answers?.enqueue(
-                line({
-                  jsonrpc: '2.0',
-                  id,
-                  result: { supportedVersions: ['2026-07-28'], capabilities: {} },
-                }),
-              )
-          }
-        },
-        close() {
-          answers?.close()
-        },
-      }),
-      stdout: new ReadableStream<Uint8Array>({
-        start(controller) {
-          answers = controller
-        },
-      }),
-      stderr: new ReadableStream<string>(),
-      exited: new Promise<void>(() => undefined),
-      stop: async () => 'tree-confirmed',
-    }
-  }
-
-  /** Speaks `server/discover` over the pipes and closes them; every other request is not sent. */
-  class PipeTransport implements McpTransport {
-    readonly generation: Generation
-    private readonly writer: WritableStreamDefaultWriter<Uint8Array>
-    private readonly reader: ReadableStreamDefaultReader<Uint8Array>
-    private sent = 0
-
-    constructor(process: ProcessHandle, at: Generation) {
-      this.generation = at
-      this.writer = process.stdin.getWriter()
-      this.reader = process.stdout.getReader()
-    }
-
-    async discover() {
-      this.sent += 1
-      const id = `r${this.sent}`
-      await this.writer.write(line({ jsonrpc: '2.0', id, method: 'server/discover', params: {} }))
-      const read = await this.reader.read()
-      if (read.done) return { failure: { kind: 'no-answer', cause: 'stream-broken' } } as const
-      const versions = field(
-        field(JSON.parse(decoder.decode(read.value)), 'result'),
-        'supportedVersions',
-      )
-      const version = Array.isArray(versions) ? versions[0] : undefined
-      if (!isProtocolVersion(version))
-        return { failure: { kind: 'answer-malformed', what: 'discover-shape' } } as const
-      return { ok: { protocolVersion: version, capabilities: json({}) } }
-    }
-
-    async listActions() {
-      return { failure: { kind: 'not-sent', cause: 'connection-unavailable' } } as const
-    }
-    async call() {
-      return { failure: { kind: 'not-sent', cause: 'connection-unavailable' } } as const
-    }
-    async cancelRequest() {}
-    async getTask() {
-      return { failure: { kind: 'not-sent', cause: 'connection-unavailable' } } as const
-    }
-    async getTaskResult() {
-      return { failure: { kind: 'not-sent', cause: 'connection-unavailable' } } as const
-    }
-    async updateTask() {
-      return { failure: { kind: 'not-sent', cause: 'connection-unavailable' } } as const
-    }
-    async cancelTask() {
-      return { failure: { kind: 'not-sent', cause: 'connection-unavailable' } } as const
-    }
-
-    async close() {
-      await this.writer.close().catch(() => undefined)
-      await this.reader.cancel().catch(() => undefined)
-    }
-  }
-
-  const pipeFixture = (): TransportFixture => ({
-    kinds: ['stdio'],
-    protocolVersions: ['2026-07-28'],
-    async peer(_source, needs) {
-      const log: PeerReceived[] = []
-      return {
-        factory: {
-          open: async material =>
-            material.kind === 'stdio'
-              ? { ok: new PipeTransport(material.process, material.generation) }
-              : { failure: { kind: 'not-sent', cause: 'connection-unavailable' } },
-        },
-        material: {
-          kind: 'stdio',
-          process: pipedProcess(log),
-          generation,
-          instructionsByteLimit: needs.instructionsByteLimit ?? 4096,
-        },
-        received: async () => [...log],
-        close: async () => undefined,
-      }
-    },
-  })
-
-  it('T5 stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9)', async () => {
-    const [conformance] = mcpTransportConformance().filter(
-      candidate => candidate.clause === 'T5' && candidate.name.startsWith('stdio: close()'),
-    )
-    if (conformance === undefined) throw new Error('the suite has no T5 close-order case')
-    expect(await runConformanceCase(conformance, pipeFixture())).toEqual({ kind: 'passed' })
   })
 })
 
@@ -551,36 +382,9 @@ describe('the scripted transport factory', () => {
     return { factory, transport: opened.ok }
   }
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('counts the stdio probe time from when the pace hook lets the peer answer', async () => {
-    const { factory, transport } = await open(
-      { initialize: { kind: 'error', error: { code: -32601, message: 'Method not found' } } },
-      'stdio',
-      () => new Promise<void>(resolve => setTimeout(resolve, 5)),
-    )
-    const identity = await transport.discover()
-    expect('ok' in identity && identity.ok.protocolVersion).toBe('2026-07-28')
-    expect(
-      factory.received().flatMap(entry => (entry.kind === 'request' ? [entry.method] : [])),
-    ).toEqual(['server/discover'])
-    await transport.close()
-  })
-
-  it('clears the stdio probe timer when the modern answer comes first', async () => {
-    vi.useFakeTimers()
-    const { transport } = await open({}, 'stdio', undefined, { probeTimeoutMs: 60_000 })
-    const identity = await transport.discover()
-    expect('ok' in identity).toBe(true)
-    expect(vi.getTimerCount()).toBe(0)
-    await transport.close()
-  })
-
-  it('records the MCP request headers of a Streamable HTTP request, and none on stdio', async () => {
+  it('records the MCP request headers of a Streamable HTTP request', async () => {
     const script: PeerScript = { calls: { echo: { kind: 'result', result: { content: [] } } } }
-    for (const kind of ['streamable-http', 'stdio'] as const) {
+    for (const kind of ['streamable-http'] as const) {
       const { factory, transport } = await open(script, kind)
       const sent = await transport.call(
         { action: actionNameOf('echo'), args: json({}) },
@@ -589,21 +393,20 @@ describe('the scripted transport factory', () => {
       if ('failure' in sent) throw new Error('not sent')
       await sent.ok.answer
       const [call] = factory.received()
-      expect(call?.kind === 'request' ? call.headers : 'not a request').toEqual(
-        kind === 'stdio'
-          ? undefined
-          : {
-              'mcp-protocol-version': '2026-07-28',
-              'mcp-method': 'tools/call',
-              'mcp-name': 'echo',
-            },
-      )
+      expect(call?.kind === 'request' ? call.headers : 'not a request').toEqual({
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'tools/call',
+        'mcp-name': 'echo',
+      })
       await transport.close()
     }
   })
 
   it('records each request with its method, params, _meta and progress token, and the cancel', async () => {
-    const { factory, transport } = await open({ calls: { echo: { kind: 'silent' } } }, 'stdio')
+    const { factory, transport } = await open(
+      { calls: { echo: { kind: 'silent' } } },
+      'streamable-http',
+    )
     const sent = await transport.call(
       { action: actionNameOf('echo'), args: json({ city: 'Paris' }) },
       new AbortController().signal,
@@ -625,15 +428,11 @@ describe('the scripted transport factory', () => {
         progressToken: sent.ok.requestId,
       },
     })
-    expect(cancel).toEqual({
-      kind: 'notification',
-      method: 'notifications/cancelled',
-      params: expect.objectContaining({ requestId: sent.ok.requestId }),
-    })
+    expect(cancel).toEqual({ kind: 'stream-aborted', id: sent.ok.requestId })
     await transport.close()
   })
 
-  it('delivers arguments of every JSON type to the peer as written, on both material kinds', async () => {
+  it('delivers arguments of every JSON type to the peer as written', async () => {
     const args = {
       text: 'Paris',
       count: 3,
@@ -646,7 +445,7 @@ describe('the scripted transport factory', () => {
       mixed: [1, 'two', null, false, [], {}, { deep: [{ deeper: null }] }],
       nested: { a: { b: { c: [true] } } },
     }
-    for (const kind of ['streamable-http', 'stdio'] as const) {
+    for (const kind of ['streamable-http'] as const) {
       const { factory, transport } = await open(
         { calls: { echo: { kind: 'result', result: { content: [] } } } },
         kind,
@@ -697,19 +496,9 @@ describe('the scripted transport factory', () => {
     const factory = createScriptedTransportFactory({})
     const controller = new AbortController()
     controller.abort()
-    expect(await factory.open(materialOf({ kind: 'stdio' }), controller.signal)).toEqual({
+    expect(await factory.open(materialOf({ kind: 'streamable-http' }), controller.signal)).toEqual({
       failure: { kind: 'not-sent', cause: 'connection-unavailable' },
     })
-  })
-
-  it('throws for a script that gives an http reply on stdio material', async () => {
-    const { transport } = await open({ calls: { echo: { kind: 'http', status: 401 } } }, 'stdio')
-    await expect(
-      transport.call(
-        { action: actionNameOf('echo'), args: json({}) },
-        new AbortController().signal,
-      ),
-    ).rejects.toThrow(TypeError)
   })
 })
 

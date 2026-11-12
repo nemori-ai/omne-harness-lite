@@ -72,8 +72,6 @@ export type TableRow = Readonly<{
 
 export type TableCell = Readonly<{ kind: TableKind; request: RequestClass; answer: AnswerClass }>
 
-const BOTH: readonly TableKind[] = ['stdio', 'streamable-http']
-const STDIO: readonly TableKind[] = ['stdio']
 const HTTP: readonly TableKind[] = ['streamable-http']
 const STATUS_4XX: readonly HttpStatusClass[] = ['400', '404', '405', '406', '415', '429', '4xx']
 const STATUS_5XX: readonly HttpStatusClass[] = ['5xx']
@@ -127,73 +125,73 @@ const AFTER_SESSION: readonly RequestClass[] = [...OPERATIONS, 'tools/call', 'no
 /** SPEC T8, row by row. */
 export const TRANSPORT_TABLE: readonly TableRow[] = [
   // server/discover (T3)
-  { id: 'D01', kinds: BOTH, requests: PROBES, answers: ['result'], conclusion: { kind: 'read' } },
+  { id: 'D01', kinds: HTTP, requests: PROBES, answers: ['result'], conclusion: { kind: 'read' } },
   {
     id: 'D02',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: PROBES,
     answers: ['result:no-common'],
     conclusion: { kind: 'fallback', report: 'legacy' },
   },
   {
     id: 'D03',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: PROBES,
     answers: ['result:unreadable'],
     conclusion: { kind: 'fallback', report: { kind: 'answer-malformed', what: 'discover-shape' } },
   },
   {
     id: 'D04',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['discover'],
     answers: below500(['-32022+common']),
     conclusion: { kind: 'retry' },
   },
   {
     id: 'D05',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['discover'],
     answers: below500(['-32022+modern']),
     conclusion: malformed('discover-shape'),
   },
   {
     id: 'D06',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['discover'],
     answers: below500(['-32022+legacy']),
     conclusion: { kind: 'fallback', report: 'legacy' },
   },
   {
     id: 'D07',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['discover-retry'],
     answers: below500(MINUS_32022),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'D08',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: PROBES,
     answers: below500(['-32020', '-32021']),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'D09',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: PROBES,
     answers: ['error:-32601'],
     conclusion: { kind: 'fallback', report: 'legacy' },
   },
   {
     id: 'D10',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: PROBES,
     answers: errors(['-32602', 'other']),
     conclusion: { kind: 'fallback', report: { kind: 'error-answer' } },
   },
   {
     id: 'D11',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: PROBES,
     answers: ['error:unreadable'],
     conclusion: { kind: 'fallback', report: { kind: 'answer-malformed', what: 'error-shape' } },
@@ -203,13 +201,6 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     kinds: HTTP,
     requests: PROBES,
     answers: bodies(STATUS_4XX, ['-32601', '-32602', 'other', 'unreadable', 'plain']),
-    conclusion: { kind: 'fallback', report: 'legacy' },
-  },
-  {
-    id: 'D13',
-    kinds: STDIO,
-    requests: PROBES,
-    answers: ['silent'],
     conclusion: { kind: 'fallback', report: 'legacy' },
   },
   {
@@ -236,35 +227,35 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   // initialize, the legacy path (T3)
   {
     id: 'I01',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['initialize'],
     answers: ['result'],
     conclusion: { kind: 'read' },
   },
   {
     id: 'I02',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['initialize'],
     answers: ['result:unreadable'],
     conclusion: malformed('discover-shape'),
   },
   {
     id: 'I03',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['initialize'],
     answers: anywhere(CODES),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'I04',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['initialize'],
     answers: anywhere(['unreadable']),
     conclusion: malformed('error-shape'),
   },
   {
     id: 'I05',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['initialize'],
     answers: ['silent'],
     conclusion: ABANDONED,
@@ -289,90 +280,90 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   // tools/list and the task operations (T2, T6)
   {
     id: 'L01',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tools/list'],
     answers: ['result'],
     conclusion: { kind: 'read' },
   },
   {
     id: 'L02',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tools/list'],
     answers: ['result:tools-missing'],
     conclusion: malformed('tools-missing'),
   },
   {
     id: 'L03',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tools/list'],
     answers: ['result:cursor-invalid'],
     conclusion: malformed('cursor-invalid'),
   },
   {
     id: 'G01',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result'],
     conclusion: { kind: 'read' },
   },
   {
     id: 'G02',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result:status-unknown'],
     conclusion: malformed('status-unknown'),
   },
   {
     id: 'G03',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result:input-requests-missing'],
     conclusion: malformed('input-requests-missing'),
   },
   {
     id: 'G04',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result:result-missing'],
     conclusion: malformed('result-missing'),
   },
   {
     id: 'G05',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tasks/get'],
     answers: ['result:error-missing'],
     conclusion: malformed('error-missing'),
   },
   {
     id: 'G06',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tasks/get'],
     answers: anywhere(['-32602']),
     conclusion: { kind: 'expired' },
   },
-  { id: 'W01', kinds: BOTH, requests: WRITES, answers: ['result'], conclusion: { kind: 'read' } },
+  { id: 'W01', kinds: HTTP, requests: WRITES, answers: ['result'], conclusion: { kind: 'read' } },
   {
     id: 'O01',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tools/list', ...WRITES],
     answers: anywhere(CODES),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'O02',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tasks/get'],
     answers: anywhere(CODES.filter(code => code !== '-32602')),
     conclusion: ERROR_ANSWER,
   },
   {
     id: 'O03',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: OPERATIONS,
     answers: anywhere(['unreadable']),
     conclusion: malformed('error-shape'),
   },
-  { id: 'O04', kinds: BOTH, requests: OPERATIONS, answers: ['silent'], conclusion: ABANDONED },
+  { id: 'O04', kinds: HTTP, requests: OPERATIONS, answers: ['silent'], conclusion: ABANDONED },
   {
     id: 'O05',
     kinds: HTTP,
@@ -404,21 +395,21 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
   // tools/call (T1, T2)
   {
     id: 'C01',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tools/call'],
     answers: ['result'],
     conclusion: { kind: 'answer', answer: 'result' },
   },
   {
     id: 'C02',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tools/call'],
     answers: anywhere(ERROR_CLASSES),
     conclusion: { kind: 'answer', answer: 'error' },
   },
   {
     id: 'C03',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['tools/call'],
     answers: ['silent'],
     conclusion: { kind: 'answer', answer: 'abandoned' },
@@ -438,34 +429,6 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     conclusion: NOT_SENT,
   },
   // what every request class shares
-  {
-    id: 'S01',
-    kinds: STDIO,
-    requests: [...PROBES, 'initialize', ...OPERATIONS],
-    answers: ['stream-broken'],
-    conclusion: { ...BROKEN, unusable: true },
-  },
-  {
-    id: 'S02',
-    kinds: STDIO,
-    requests: [...PROBES, 'initialize', ...OPERATIONS],
-    answers: ['process-exited'],
-    conclusion: { ...fail({ kind: 'no-answer', cause: 'process-exited' }), unusable: true },
-  },
-  {
-    id: 'S03',
-    kinds: STDIO,
-    requests: ['tools/call'],
-    answers: ['stream-broken'],
-    conclusion: { kind: 'answer', answer: 'stream-broken', unusable: true },
-  },
-  {
-    id: 'S04',
-    kinds: STDIO,
-    requests: ['tools/call'],
-    answers: ['process-exited'],
-    conclusion: { kind: 'answer', answer: 'process-exited', unusable: true },
-  },
   {
     id: 'S05',
     kinds: HTTP,
@@ -494,23 +457,15 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
     answers: ['unsent'],
     conclusion: NOT_SENT,
   },
-  {
-    id: 'X02',
-    kinds: STDIO,
-    requests: [...PROBES, 'initialize', ...OPERATIONS, 'tools/call'],
-    answers: ['unsent'],
-    conclusion: { ...NOT_SENT, unusable: true },
-  },
   // notifications of the client
   {
     id: 'N01',
-    kinds: BOTH,
+    kinds: HTTP,
     requests: ['notification'],
     answers: [
       'unsent',
       'silent',
       'stream-broken',
-      'process-exited',
       'http:2xx',
       'http:401',
       'http:403+scope',
@@ -523,29 +478,23 @@ export const TRANSPORT_TABLE: readonly TableRow[] = [
 ]
 
 /** The answers that a request class can get on a material kind. */
-export function answersOf(kind: TableKind, request: RequestClass): readonly AnswerClass[] {
-  const http = kind === 'streamable-http'
-  const transport: readonly AnswerClass[] = http
-    ? ['unsent', 'stream-broken', 'silent']
-    : ['unsent', 'stream-broken', 'silent', 'process-exited']
+export function answersOf(_kind: TableKind, request: RequestClass): readonly AnswerClass[] {
+  const transport: readonly AnswerClass[] = ['unsent', 'stream-broken', 'silent']
   if (request === 'notification')
-    return http
-      ? [
-          ...transport,
-          'http:2xx',
-          'http:401',
-          'http:403+scope',
-          'http:403',
-          'http:404+session',
-          ...bodies(HTTP_STATUS_CLASSES, [...ERROR_CLASSES, 'plain']),
-        ]
-      : transport
+    return [
+      ...transport,
+      'http:2xx',
+      'http:401',
+      'http:403+scope',
+      'http:403',
+      'http:404+session',
+      ...bodies(HTTP_STATUS_CLASSES, [...ERROR_CLASSES, 'plain']),
+    ]
   const answers: AnswerClass[] = [
     ...RESULT_CLASSES[request],
     ...errors(ERROR_CLASSES),
     ...transport,
   ]
-  if (!http) return answers
   answers.push('http:2xx', 'http:401', 'http:403+scope', 'http:403')
   if (AFTER_SESSION.includes(request)) answers.push('http:404+session')
   answers.push(...bodies(HTTP_STATUS_CLASSES, [...ERROR_CLASSES, 'plain']))
@@ -554,8 +503,7 @@ export function answersOf(kind: TableKind, request: RequestClass): readonly Answ
 
 /** Every cell of the domain. */
 export function transportCells(): readonly TableCell[] {
-  const kinds: readonly TableKind[] = ['stdio', 'streamable-http']
-  return kinds.flatMap(kind =>
+  return HTTP.flatMap(kind =>
     REQUEST_CLASSES.flatMap(request =>
       answersOf(kind, request).map(answer => ({ kind, request, answer })),
     ),
