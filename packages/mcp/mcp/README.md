@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The general MCP implementation: the core services of the MCP group on the five requirement ports of `@omne-harness/mcp-contract`, and the production in-memory catalog store.
+The general MCP implementation: the core services of the MCP group on the four requirement ports of `@omne-harness/mcp-contract`, and the production in-memory catalog store.
 
 ## Responsibility and status
 

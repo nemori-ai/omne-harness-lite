@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-MCP 的通用实现：在 `@omne-harness/mcp-contract` 的五个需求端口上实现 MCP 组的核心服务，以及生产用的内存清单存储。
+MCP 的通用实现：在 `@omne-harness/mcp-contract` 的四个需求端口上实现 MCP 组的核心服务，以及生产用的内存清单存储。
 
 ## 职责与状态
 

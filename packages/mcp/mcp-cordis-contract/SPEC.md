@@ -48,7 +48,7 @@ Cordis 采用发布包 `@deepseek-ai/cordis@4.0.4`。
 | `mcpActionDiscovery`、`mcpActionInvoker`、`mcpEndpointStatus` 的实例                   | 装载提供者的插件的 fiber                   | 该 fiber 卸载。之后 `ctx.get` 答 `undefined`             |
 | `mcpAdoptionView`、`mcpUseEligibility`、`mcpCredentialUse` 的实例 | 装载它们的插件的 fiber，由端口的实现方装配 | 该 fiber 卸载。之后使用方现取不到，按性质 9 由使用方答复 |
 
-本成员没有状态、资源与外部效果，没有需要撤除的东西，也没有本成员自己的失败。服务换代时，使用方下一次调用现取到新的实例，旧引用不被持有。换代时在途的端口调用怎样处置由使用方规定，`mcp-host-local` 的规则见其 [SPEC「Cordis 插件」](../mcp-host-local/SPEC.md#cordis-plugin)。连接、进程与凭据句柄的收口归提供三个服务的插件与 [mcp 的 MC-10](../mcp/SPEC.md#mc-10)。
+本成员没有状态、资源与外部效果，没有需要撤除的东西，也没有本成员自己的失败。服务换代时，使用方下一次调用现取到新的实例，旧引用不被持有。换代时在途的端口调用怎样处置由使用方规定，`mcp-host-local` 的规则见其 [SPEC「Cordis 插件」](../mcp-host-local/SPEC.md#cordis-plugin)。连接与凭据句柄的收口归提供三个服务的插件与 [mcp 的 MC-10](../mcp/SPEC.md#mc-10)。
 
 ## 组合与验证
 
