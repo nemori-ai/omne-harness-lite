@@ -17,7 +17,7 @@
 
 发行的会话定义 `coding` 与 `assistant` 缺省是协作模式（`co-work`），Agent 可以调用 Ask。权限模式缺省是 `bypass-permissions`，Agent 的其他工具不会先问权限。
 
-每个命令在标准输出写一个 JSON 对象（`read-history` 与 `read-session-diagnostics` 缺省写人读的文本）。下面只写要看的键。本页第一、二、三、五节的命令由用例 [release-walkthrough.spec.ts](../../tests/rows/tool-hitl/release-walkthrough.spec.ts) 在发行树上照次序走一遍；第六节由 [release-restart.spec.ts](../../tests/rows/tool-hitl/release-restart.spec.ts) 守。
+每个命令在标准输出写一个 JSON 对象（`read-history` 与 `read-session-diagnostics` 缺省写人读的文本）。下面只写要看的键。本页第一、二、三、五节的命令由用例 [release-walkthrough.spec.ts](../../tests/rows/tool-hitl/release-walkthrough.spec.ts) 在发行树上照次序走一遍；第五节第 4 步由 [release-cancel.spec.ts](../../tests/rows/tool-hitl/release-cancel.spec.ts) 守；第六节由 [release-restart.spec.ts](../../tests/rows/tool-hitl/release-restart.spec.ts) 守。
 
 ## 一、出卡
 
@@ -104,7 +104,15 @@ omne submit-reply --request <requestId> --card <cardId> --revision <revision> --
    omne submit-reply --request <requestId> --card <cardId> --revision <revision> --text '太晚了'
    ```
 
-应当看到：卡片在失效列表里，原因是被控制关闭；迟到的答复 `body.kind` 是 `invalidated`；会话历史里 Ask 的结果是出卡时预先写好的那句话，这次 Run 已结束。
+应当看到：卡片在失效列表里，原因是被控制关闭；迟到的答复 `body.kind` 是 `invalidated`；这次 Run 已结束。会话历史里这次 Ask 有一条工具消息，排在 Run 的终态之前，文字是 `No result of this call is in the conversation: the run was cancelled before the call returned. …`。它由 Session 在结束 Run 的那一笔提交里写下，说的是发起方知道的事，不是 Ask 的答复。
+
+4. 在这个会话里再发一条消息。
+
+   ```sh
+   omne send-input --session <会话> --text '继续。刚才那个问题不用问了。'
+   ```
+
+应当看到：新的一轮照常完成，Agent 的回答在历史末尾。上一轮没有结果的调用不会挡住它。
 
 ## 六、等人的时候停服，再重启
 

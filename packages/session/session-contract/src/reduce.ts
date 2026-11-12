@@ -18,6 +18,7 @@ import type { RecoveryTask, WorkSnapshot } from './values.ts'
 import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
+import { hasUnansweredCalls, trackCalls } from './run-closure.ts'
 import { scopeBinding } from './decide-management.ts'
 import { digestOf } from './operations.ts'
 import { applyParticipation } from './result-state.ts'
@@ -107,6 +108,7 @@ function apply(
     case 'message.tool_internal':
     case 'message.system_reminder':
     case 'message.compaction': {
+      trackCalls(draft, entry.message)
       return entry.participation === null ? null : applyParticipation(draft, entry.participation)
     }
     case 'intake.routed':
@@ -178,6 +180,8 @@ function apply(
       if (draft.run.kind !== 'active' || draft.run.run !== entry.terminal.run)
         return 'a terminal outside the active Run'
       if (draft.run.advance !== null) return 'a terminal while an attempt still holds the advance'
+      if (hasUnansweredCalls(draft))
+        return 'a terminal while a tool call of the Run has no tool message'
       // The hand-over state belongs to the execution of the Run: a successor Run re-hands every
       // input that kept its eligibility (PA-08 item 2), so the terminal releases `handed`.
       draft.executions = (draft.executions ?? []).map(item =>

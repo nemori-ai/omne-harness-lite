@@ -185,8 +185,8 @@ assistant 消息里的推理续接状态部件与其他块一样进入历史投�
 每一份完整候选按下面的顺序计量，Model 侧的接口都是已有的 [档案与请求准备协议](../../model/model-contract/SPEC.md#档案与请求准备协议)，本成员不新增 Model 字段或公共辅助函数：
 
 1. 以本次访问身份、选定档案和本候选的来源声明 `lineage` 调用来源集合里的 `ModelPreparationResources.acquire`。一个租约只服务本次访问身份和它取得时的完整档案与来源声明。除下述同次压缩规划外，每份候选独立取得租约。
-2. 对租约里每个供应商的绑定调用 `rules.plan({ profile, supplier, assembled })`，保留它返回的参数采用与表示。`rules.plan` 失败时返回不可用，`owner` 为 Model 准备。
-3. 把该供应商自己的表示、参数采用、档案的上下文与限制及完整组装输入交给同一个绑定的 `meter.measure`，等待完整异步结果。没有一份表示交所有供应商的路径。`meter.measure` 失败时返回不可用，`owner` 为计量。
+2. 对租约里每个供应商的绑定调用 `rules.plan({ profile, supplier, assembled })`，保留它返回的参数采用与表示。`rules.plan` 失败时按失败的种类返回：无资格返回无权；无效或不支持返回无效输入，`field` 以 `preparation.` 开头；不可用返回不可用，`owner` 为 Model 准备。同一份输入重试结果不变的失败不返回不可用，因为调用方会等待不可用。
+3. 把该供应商自己的表示、参数采用、档案的上下文与限制及完整组装输入交给同一个绑定的 `meter.measure`，等待完整异步结果。没有一份表示交所有供应商的路径。`meter.measure` 失败时按同一规则返回，`field` 以 `meter.` 开头，不可用的 `owner` 为计量。
 4. 按每份计量结果检查各自的限制。请求字节只取 `rules.plan` 返回的物化表示的 `requestBytes`；待加载媒体保留为 `pending-media`，不编造完整字节。
 5. 交还租约，再交回候选或原失败。同次压缩规划可以按下述规则保留租约，但必须在规划结果发布前交还。
 

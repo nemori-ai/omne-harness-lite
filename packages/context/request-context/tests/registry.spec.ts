@@ -582,3 +582,47 @@ describe('a hot cache keeps the borrow, publication and lease rules (CX-14)', ()
     await expect(registry.close()).resolves.toEqual({ kind: 'unavailable', outstanding: [owner] })
   })
 })
+
+describe('a failure of the rules or the meter of a supplier keeps its kind (RQ-05)', () => {
+  const assemble = async (preparation: object) => {
+    const f = createAssemblyFixture({ preparation: preparation as never })
+    const registry = registryFor(f)
+    await registered(registry, f)
+    return registry.assembly(f.target).assemble(f.call)
+  }
+  const failures = {
+    invalid: { kind: 'invalid', field: '/messages/1/blocks/0', reason: 'orphan-tool-call' },
+    unsupported: { kind: 'unsupported', field: 'image', adapter: owner },
+    denied: { kind: 'denied', action: 'plan' },
+    unavailable: { kind: 'unavailable', dependency: 'supplier', diagnostic: 'down' },
+  } as const
+  const answers = (step: 'preparation' | 'meter') => ({
+    invalid: {
+      kind: 'invalid',
+      field: `${step}./messages/1/blocks/0`,
+      reason: 'unsupported-format',
+    },
+    unsupported: { kind: 'invalid', field: `${step}.image`, reason: 'unsupported-format' },
+    denied: { kind: 'denied', action: 'assemble' },
+    unavailable: { kind: 'unavailable', owner: step },
+  })
+
+  // The same input gives `invalid` and `unsupported` again, so the assembly must not answer
+  // unavailable: a caller waits on unavailable.
+  it.each(['invalid', 'unsupported', 'denied', 'unavailable'] as const)(
+    'the rules answer %s',
+    async kind => {
+      const result = await assemble({ plan: () => ({ failure: failures[kind] }) })
+      expect(result).toMatchObject(answers('preparation')[kind])
+    },
+  )
+  it.each(['invalid', 'unsupported', 'denied', 'unavailable'] as const)(
+    'the meter answers %s',
+    async kind => {
+      const result = await assemble({
+        meter: { measure: async () => ({ failure: failures[kind] }) },
+      })
+      expect(result).toMatchObject(answers('meter')[kind])
+    },
+  )
+})

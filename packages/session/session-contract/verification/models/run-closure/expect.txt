@@ -1,0 +1,5 @@
+positive.cfg pass
+negative-no-closure.cfg TerminalClosed
+negative-late-accept.cfg OneAnswer
+negative-no-closure-request.cfg RequestReadsWholeHistory
+negative-close-all.cfg OneAnswer

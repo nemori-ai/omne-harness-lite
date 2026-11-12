@@ -30,6 +30,26 @@ export function leaseFailure(failure: M.ModelFailure): Failure {
       return { kind: 'unavailable', owner: 'preparation', diagnostic: canonical(failure) }
   }
 }
+/**
+ * The failure of the rules or the meter of one supplier, as an answer of the measurement. A
+ * failure that the same input gives again (`invalid`, `unsupported`) is an invalid request: the
+ * caller must not wait for it. Only `unavailable` is a dependency that can come back.
+ */
+function supplierFailure(failure: M.TransportFailure, owner: 'preparation' | 'meter'): Failure {
+  switch (failure.kind) {
+    case 'denied':
+      return {
+        kind: 'denied',
+        action: 'assemble',
+        diagnostic: `Model ${owner} refused ${failure.action}`,
+      }
+    case 'invalid':
+    case 'unsupported':
+      return { kind: 'invalid', field: `${owner}.${failure.field}`, reason: 'unsupported-format' }
+    case 'unavailable':
+      return { kind: 'unavailable', owner, diagnostic: canonical(failure) }
+  }
+}
 function sameSupplier(left: M.Supplier, right: M.ProfileSupplier): boolean {
   return (
     canonical(left.adoption) === canonical(right.adoption) &&
@@ -93,8 +113,7 @@ export async function measureWithLease(
         diagnostic: 'Lease supplier is not in the profile',
       }
     const plan = binding.rules.plan({ profile, supplier: binding.supplier, assembled })
-    if ('failure' in plan)
-      return { kind: 'unavailable', owner: 'preparation', diagnostic: canonical(plan.failure) }
+    if ('failure' in plan) return supplierFailure(plan.failure, 'preparation')
     const result = await binding.meter.measure({
       profile: profile.adoption,
       supplier,
@@ -104,8 +123,7 @@ export async function measureWithLease(
       parameters: plan.ok.parameters,
       representation: plan.ok.representation,
     })
-    if ('failure' in result)
-      return { kind: 'unavailable', owner: 'meter', diagnostic: canonical(result.failure) }
+    if ('failure' in result) return supplierFailure(result.failure, 'meter')
     reports.push(result.ok)
   }
   return mergeReports(reports)
