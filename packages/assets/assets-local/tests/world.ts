@@ -108,6 +108,8 @@ export async function openWorld(
     config?: Partial<import('@omne-harness/sqlite-provider').SqliteStorageConfig>
     root?: string
     ownerWrap?: (storage: SqlStorage) => SqlStorage
+    packageRoot?: string
+    afterPackageStep?: Parameters<typeof createAssetsLocal>[0]['afterPackageStep']
   } = {},
 ) {
   const parent = fileURLToPath(
@@ -154,6 +156,10 @@ export async function openWorld(
     domain,
     storage: options.ownerWrap?.(storage) ?? storage,
     categories: options.categories ?? categories,
+    ...(options.packageRoot === undefined ? {} : { packageRoot: options.packageRoot }),
+    ...(options.afterPackageStep === undefined
+      ? {}
+      : { afterPackageStep: options.afterPackageStep }),
   })
   async function setup() {
     const published = await owner.publish({

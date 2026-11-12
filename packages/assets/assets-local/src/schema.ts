@@ -209,10 +209,39 @@ export const versionResultSchema = z.union([
   z.strictObject({ kind: z.literal('absent') }),
   failureSchema,
 ])
+export const heldCapabilityLookupSchema = z.strictObject({
+  category: SettingsIdSchema,
+  name: SettingsIdSchema,
+})
+/** The most assets that one listing gives; a domain with more answers the listing unavailable. */
+export const ASSET_LIST_LIMIT = 1024
+export const assetListResultSchema = z.union([
+  z.strictObject({
+    kind: z.literal('assets'),
+    assets: z.array(
+      z.strictObject({
+        assetRef: SettingsReferenceSchema,
+        category: SettingsIdSchema,
+        name: SettingsIdSchema,
+      }),
+    ),
+  }),
+  failureSchema,
+])
 export const readRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('asset'), domain: domainSchema, lookup: assetLookupSchema }),
   z.strictObject({ kind: z.literal('holding'), domain: domainSchema, lookup: holdingLookupSchema }),
   z.strictObject({ kind: z.literal('version'), domain: domainSchema, lookup: versionLookupSchema }),
+  z.strictObject({
+    kind: z.literal('heldCapability'),
+    domain: domainSchema,
+    lookup: heldCapabilityLookupSchema,
+  }),
+  z.strictObject({
+    kind: z.literal('assetList'),
+    domain: domainSchema,
+    lookup: z.strictObject({}),
+  }),
 ])
 export type Mutation = z.infer<typeof mutationSchema>
 export type MutationBinding = z.infer<typeof mutationBindingSchema>

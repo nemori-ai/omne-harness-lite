@@ -1,5 +1,6 @@
 import type { z } from 'zod'
-import type { CategoryRegistry, PinnedBody } from '@omne-harness/assets'
+import type { CapabilityId, CategoryRegistry, PinnedBody } from '@omne-harness/assets'
+import type { LocalPackages, PackageStep } from './packages.ts'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type {
   assetLookupSchema,
@@ -20,6 +21,11 @@ export type AssetsLocalOptions = Readonly<{
   combinationVersion: string
   manifestDigest: string
   categories: CategoryRegistry
+  /** The root directory of published packages, one per domain. Without it the published
+   * packages are not available. */
+  packageRoot?: string
+  /** A test seam: runs after a publish step. A throw here stands for a crash at that point. */
+  afterPackageStep?: (step: PackageStep) => void | Promise<void>
 }>
 export type AssetsPublish = Readonly<z.infer<typeof publishMetadataSchema> & { pinned: PinnedBody }>
 export type AssetsHold = z.infer<typeof holdSchema>
@@ -39,6 +45,10 @@ export interface AssetsLocal {
   changeHolding(input: AssetsHoldingChange): Promise<AssetsMutationResult>
   readHolding(input: z.infer<typeof holdingLookupSchema>): Promise<AssetsHoldingResult>
   readVersion(input: z.infer<typeof versionLookupSchema>): Promise<AssetsVersionResult>
+  /** The held holding of one capability identity in this domain, read like `readHolding`. */
+  readHeldCapability(input: { capability: CapabilityId }): Promise<AssetsHoldingResult>
+  /** Published packages under `packageRoot`. */
+  readonly packages: LocalPackages
   getOperation(operationId: string): Promise<AssetsOperationResult>
   close(): Promise<void>
 }

@@ -1,5 +1,6 @@
 import type { SettingDefinitions } from '@omne-harness/settings'
 import type { JsonValue } from '@omne-harness/json-text'
+import type { PackageLayout } from './package.ts'
 
 export type { JsonLimits, JsonRead, JsonValue } from '@omne-harness/json-text'
 
@@ -28,6 +29,8 @@ export type BodyContract = {
   readonly deriveDeclarations: (body: JsonValue, context?: JudgeContext) => Declarations
   readonly settings?: (body: JsonValue, context?: JudgeContext) => SettingDefinitions | null
   readonly references: (body: JsonValue, context?: JudgeContext) => readonly CapabilityId[]
+  /** Only a category whose body is a directory gives it. */
+  readonly layout?: PackageLayout
 }
 
 export type CategoryRegistry = {

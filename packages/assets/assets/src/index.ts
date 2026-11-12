@@ -19,6 +19,16 @@ export {
   type Filtered,
   type LayerInput,
 } from './evaluate.ts'
+export {
+  digestBytes,
+  packageDigest,
+  type PackageLayout,
+  type PackageManifest,
+  type PackageManifestEntry,
+  type PackageReader,
+  type PackageRejection,
+  type PackageSourceFailure,
+} from './package.ts'
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export { createCategoryRegistry, unknownCategory } from './registry.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'

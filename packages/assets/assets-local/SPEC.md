@@ -56,6 +56,35 @@ The owner capability decides which holdings callers may manage. This provider do
 
 For the local lifecycle, let H mean held and E mean enabled. Management visibility requires H. Runtime eligibility requires H and E. `setEnabled` preserves H and Settings values; remove makes H false irreversibly. Each mutation requires the current revision. Induction over these transitions preserves values across enablement changes and prevents reactivation after removal. SQL transaction ordering gives concurrent changes one order; this argument does not prove a later external action rechecks eligibility. The runtime integration owns that obligation.
 
+## Held capability read
+
+`readHeldCapability({ capability })` reads the held holding of one capability identity, category plus name, in the configured domain. The unique held-capability index allows at most one. The answer has the same shape and the same rules as `readHolding`: the holding with its selected version, explicit absence, or a rejection. A domain without any record yet answers absence. A storage failure is a rejection, never absence.
+
+## Published packages
+
+This section implements [正文是目录的类别](../assets/SPEC.md#directory-category) on one machine. `createAssetsLocal` takes an optional `packageRoot`: the directory of the package files of this domain. One domain has one root; the caller guarantees it, and the root has no tenant subdirectory. Without a root, `packages.publish` answers `rejected` with `not-configured`, a reader answers `unavailable`, `locate` answers `absent`, and `recover` finds nothing. `readHeldCapability` does not use the root.
+
+`packages` gives four operations:
+
+- `publish({ capability, assetRef, from, operationId })` publishes the package that the reader `from` gives. The category must be registered and must give a `layout`. The manifest must keep the three limits of the layout, and its paths must stay below the package root without repeats or a file that is the parent of another path. The layout's `inspect` must accept the package, and the category's `judge` must accept the body. The version is the package digest of the manifest. The body of the version record is the declaration that `inspect` projected, an object, plus the field `manifest` with every entry: path, size and digest. It goes through the existing `publish`, with the asset's current revision as the expected revision.
+- `reader({ capability, version })` gives the read port: `manifest` gives the manifest of the version record; `open(path, expected)` gives the bytes of the entry with that path and that digest, after it checks the digest of the bytes in place. A path or digest outside the manifest answers `entry-not-found`. Bytes in place that differ from the manifest answer `material-unavailable`; no byte is given.
+- `recover()` is the recovery scan at start: see the table.
+- `locate({ capability, version })` gives the local directory of a version in place, or `absent`. It is on this member only, not in the asset contract.
+
+Files are at `<root>/<namespace>/<name>/<version>/`. A publish stages them at `<root>/.staging/<digest of the operation identifier>/`, with a meta file written last. Publishing is ordered: stage, record the version, swap the staging in with one directory rename. The two writes share no transaction. The flow is idempotent by operation identifier: the receipt of a committed operation gives the same answer again, after it completes a pending swap, and writes nothing.
+
+The publish flow for one version of one capability identity:
+
+| Operation | None | Published | Staging only | Recorded, not swapped in |
+| --- | --- | --- | --- | --- |
+| Publish | A package that does not pass is rejected, and nothing changes. A package that passes is staged, recorded and swapped in | The same version writes nothing and answers `changed: false`. A new version goes as in «None» | The staging of this operation is removed; then as in «None» | The pending swap completes first; then this publish goes on |
+| Read | `package-not-found` | The content; bytes that differ answer `material-unavailable` | The staging is not visible: `package-not-found` | `material-unavailable` |
+| Recovery scan | Nothing changes | Nothing changes; a version in place whose files differ from its record is reported in `mismatched` and stays | The staging is removed (`discarded`) | The staging is swapped in (`completed`) |
+
+Two publishes of the same asset at the same time: the record step checks the revision, so the later one answers `conflict` and removes its own staging. The files in place are those of the first. A failure that the flow knows (a rejection or a conflict) removes the staging of this operation. Any other failure answers `unknown` with the operation identifier and leaves the staging; the caller asks again with the same identifier, and the recovery scan handles a crash. Recording the published package as a holding of the tenant is the caller's step, with `hold`.
+
+A reader and a recovery scan find the record of a version through a listing of every asset of the domain, at most 1024; a domain with more answers the listing unavailable. The files are not written with `fsync`. A swap does not remove an older version: its directory stays. The option `afterPackageStep` is a test seam: it runs after the staging step and after the record step, and a throw there stands for a crash at that point.
+
 ## Results and lifetime
 
 Mutation operation IDs identify the original request across restarts. A duplicate identical operation returns its original result. Reusing the ID for different command content returns `operation_conflict`. A revision conflict is a durable original rejection. A lost response returns `unknown`; callers recover with the original operation ID rather than inventing a new request.

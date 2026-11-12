@@ -844,6 +844,9 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../settings
@@ -866,6 +869,9 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../settings

@@ -9,8 +9,10 @@ import {
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import { digest, equal, identity, json, withinBudget } from './encoding.ts'
 import {
+  assetListResultSchema,
   assetLookupSchema,
   assetResultSchema,
+  heldCapabilityLookupSchema,
   changeHoldingSchema,
   domainSchema,
   HANDLER,
@@ -26,6 +28,7 @@ import {
   type Failure,
   type Mutation,
 } from './schema.ts'
+import { createPublishedPackages } from './packages.ts'
 import { receiptResult } from './results.ts'
 import type {
   AssetsLocal,
@@ -134,7 +137,10 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     const parsed = mutationSchema.safeParse(value)
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
-  async function read(kind: 'asset' | 'holding' | 'version', lookup: unknown) {
+  async function read(
+    kind: 'asset' | 'holding' | 'version' | 'heldCapability' | 'assetList',
+    lookup: unknown,
+  ) {
     const result = await options.storage.read({
       domain: options.domain,
       handler: HANDLER,
@@ -148,7 +154,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
           result.kind === 'unavailable' && result.reason === 'closing' ? 'closing' : 'unavailable',
         )
   }
-  return {
+  const local: Omit<AssetsLocal, 'packages'> = {
     readAsset: input =>
       run(async () => {
         const parsed = assetLookupSchema.safeParse(input)
@@ -195,6 +201,16 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
           ? versionResultSchema.parse(await read('version', parsed.data))
           : fail('invalid_input')
       }),
+    readHeldCapability: input =>
+      run(async () => {
+        const parsed = heldCapabilityLookupSchema.safeParse({
+          category: input.capability.category,
+          name: input.capability.name,
+        })
+        return parsed.success
+          ? holdingResultSchema.parse(await read('heldCapability', parsed.data))
+          : fail('invalid_input')
+      }),
     getOperation: operationId =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
@@ -212,4 +228,33 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
       return (closed ??= Promise.allSettled(active).then(() => undefined))
     },
   }
+  const packages = createPublishedPackages({
+    root: options.packageRoot,
+    categories: options.categories,
+    afterStep: options.afterPackageStep,
+    records: {
+      publish: local.publish,
+      getOperation: local.getOperation,
+      async readAssetRevision(assetRef) {
+        const result = await local.readAsset({ assetRef })
+        if (result.kind === 'rejected') return { failure: result.reason }
+        return { ok: result.kind === 'asset' ? result.asset.revision : 0 }
+      },
+      async readVersionBody(assetRef, version) {
+        // No version without its asset; reading the asset first also answers a domain that has
+        // no record yet, which the version read answers `forbidden`.
+        const asset = await local.readAsset({ assetRef })
+        if (asset.kind === 'rejected') return { failure: asset.reason }
+        if (asset.kind === 'absent') return { ok: undefined }
+        const result = await local.readVersion({ assetRef, version })
+        if (result.kind === 'rejected') return { failure: result.reason }
+        return { ok: result.kind === 'version' ? result.version.body : undefined }
+      },
+      listAssets: () =>
+        run(async () => assetListResultSchema.parse(await read('assetList', {}))).then(result =>
+          result.kind === 'assets' ? { ok: result.assets } : { failure: result.reason },
+        ),
+    },
+  })
+  return { ...local, packages }
 }
