@@ -469,6 +469,53 @@ it('pages a durable inbox and destination without consuming and fences old recei
   ).toMatchObject({ kind: 'invalid-input' })
 })
 
+it('lets a reader that does not own the wait read it, and denies it the receiver, the decisions and the inbox', async () => {
+  const w = await open(undefined, 1, { sharedWithReader: true })
+  const registered = await register(w)
+  const reply = SubmitReplySchema.parse({
+    protocol: 'hitl/1',
+    operation: w.operation('reply'),
+    cardRef: registered.cards[0],
+    expectedRevision: registered.revision,
+    reply: { kind: 'selection', optionId: 'yes' },
+  })
+  const decided = await w.app.submitReply(w.principal, reply)
+  if (decided.kind !== 'decided') throw new Error(JSON.stringify(decided))
+  const waitRef = w.request.origin.wait
+  const mine = (operationId: string) => ({ ...w.operation(operationId), actorRef: w.readerRef })
+
+  // The reader is in the audience of the wait: it reads the wait itself.
+  expect(
+    await w.app.getWait(w.reader, GetWaitSchema.parse({ protocol: 'hitl/1', waitRef })),
+  ).toMatchObject({ kind: 'found', wait: { state: 'replied' } })
+
+  // Only the owner of the wait binds its receiver, consumes its decisions and reads its inbox.
+  const denied = { kind: 'denied', reason: 'wait-owner-required' }
+  const binding = BindReceiverSchema.parse({
+    ...bind(w, 'reader-bind'),
+    operation: mine('reader-bind'),
+  })
+  expect(await w.app.bindReceiver(w.reader, binding)).toMatchObject(denied)
+  expect(await w.app.bindReceiver(w.principal, bind(w))).toMatchObject({ kind: 'bound' })
+  const consume = ConsumeDecisionSchema.parse({
+    protocol: 'hitl/1',
+    operation: mine('reader-consume'),
+    waitRef,
+    receiverGeneration: '1',
+    decisionRef: decided.decisionRef,
+    consumeOperationId: 'reader-consume',
+  })
+  expect(await w.app.consumeDecision(w.reader, consume)).toMatchObject(denied)
+  const inbox = ReadInboxSchema.parse({
+    protocol: 'hitl/1',
+    waitRef,
+    receiverGeneration: '1',
+    limit: 1,
+  })
+  expect(await w.app.readInbox(w.reader, inbox)).toEqual({ kind: 'denied', reason: 'wait-access' })
+  expect(await w.app.readInbox(w.principal, inbox)).toMatchObject({ kind: 'page' })
+})
+
 it('restricts original wait and destination reads to their current audience and consumer', async () => {
   const w = await open(),
     registered = await register(w)

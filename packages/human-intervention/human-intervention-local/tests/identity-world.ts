@@ -44,6 +44,8 @@ export async function openIdentityWorld(
       request: ReturnType<typeof RegisterRequestSchema.parse>,
     ) => ReturnType<typeof RegisterRequestSchema.parse>
     wrapHitl?: (storage: SqlStorage) => SqlStorage
+    /** The wait is also readable by `reader`, a second principal of the tenant that does not own it. */
+    sharedWithReader?: boolean
   } = {},
 ) {
   const ids = randomIdentifiers(),
@@ -67,6 +69,14 @@ export async function openIdentityWorld(
   if (!('ok' in issued)) throw new Error('fixture principal')
   const principal = issued.ok,
     principalRef = standingPrincipalRef(principal)
+  const second = authority.issuer.issueActingForTenant({
+    actor: actor.ok,
+    tenant: subject,
+    work: { owner: 'human-intervention', work: 'independent-reader' },
+  })
+  if (!('ok' in second)) throw new Error('fixture reader')
+  const reader = second.ok,
+    readerRef = standingPrincipalRef(reader)
   const world = await openWorld({ tenantRef: scopeRef, extraMaterials: identitySqlMaterials() })
   const registration = await world.storage.registerCombination(identitySqlRegistration())
   if (registration.kind !== 'registered') throw new Error(JSON.stringify(registration))
@@ -230,7 +240,7 @@ export async function openIdentityWorld(
     operation: operation('prepare'),
     preparation: {
       registration: request,
-      readers: [principalRef],
+      readers: options.sharedWithReader ? [principalRef, readerRef] : [principalRef],
       responders: [principalRef],
       compatibleImplementations: ['v1'],
     },
@@ -262,6 +272,8 @@ export async function openIdentityWorld(
     identity,
     backend,
     principal,
+    reader,
+    readerRef,
     command,
     operation,
     request,

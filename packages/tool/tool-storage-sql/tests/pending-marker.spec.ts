@@ -80,6 +80,22 @@ describe('the pending marker of a call domain', () => {
     expect(markers(a)).toEqual([])
   })
 
+  it('goes with the call domain when the domain is dropped, and leaves the marker of another call', async () => {
+    const a = await app()
+    for (const text of ['c1', 'c2']) await a.store.commit(commitOf(domainOf(text), '0', true))
+    expect(
+      await a.store.commit({
+        domain: domainOf('c1'),
+        expected: decoded(decodeToolRevision('1')),
+        revision: decoded(decodeToolRevision('0')),
+        writes: [{ kind: 'drop' }],
+      }),
+    ).toEqual({ kind: 'committed' })
+    // A dropped call owes no work: a marker left behind would be listed by every later scan.
+    expect(markers(a)).toEqual([{ call: 'c2' }])
+    expect(records(a)).toHaveLength(1)
+  })
+
   it('rolls back with the records when its own statement fails, and the records roll it back', async () => {
     const a = await app()
     // Statement 1 reads the revision, 2 writes the record, 3 sets the revision, 4 writes the marker.
