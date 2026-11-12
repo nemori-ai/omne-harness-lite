@@ -150,3 +150,85 @@ describe('the in-process transport', () => {
     expect(closed).toBe(true)
   })
 })
+
+/** A peer whose observation gives `frames` and then ends with `end`. */
+function observing(frames: JsonValue[], end: ObserveEnd) {
+  const seen: { signal?: AbortSignal; messageId: string }[] = []
+  let closed = false
+  const peer: Transport = {
+    call: async request => {
+      seen.push({
+        messageId: request.messageId,
+        ...(request.signal ? { signal: request.signal } : {}),
+      })
+      return { kind: 'answered', outcome: 'succeeded', body: object({ noteId: 'n', title: 't' }) }
+    },
+    async *observe(request): AsyncGenerator<JsonValue, ObserveEnd> {
+      seen.push({ messageId: request.messageId, signal: request.signal })
+      try {
+        for (const frame of frames) yield frame
+        return end
+      } finally {
+        closed = true
+      }
+    },
+  }
+  return { seen, closed: () => closed, notes: createClient(notesProtocol, peer) }
+}
+
+async function endOf(frames: JsonValue[], end: ObserveEnd): Promise<unknown> {
+  const { notes } = observing(frames, end)
+  const stream = notes.observe['watch-note'](
+    { noteId: 'n-1' },
+    { signal: new AbortController().signal },
+  )
+  for (;;) {
+    const next = await stream.next()
+    if (next.done === true) return next.value
+  }
+}
+
+describe('C14: how an observation ends', () => {
+  it('passes the reasons the contract allows, and the two of the hub', async () => {
+    for (const reason of ['note-deleted', 'denied', 'unavailable'])
+      expect(await endOf([], { kind: 'ended', reason })).toEqual({ kind: 'ended', reason })
+  })
+
+  it('reads another reason as uncertain, and a stream that did not leave as unavailable', async () => {
+    expect(await endOf([], { kind: 'ended', reason: 'note-archived' })).toEqual({
+      kind: 'uncertain',
+    })
+    expect(await endOf([], { kind: 'not-sent' })).toEqual({ kind: 'unavailable' })
+    expect(await endOf([], { kind: 'refused', outcome: 'denied' })).toEqual({
+      kind: 'refused',
+      outcome: 'denied',
+    })
+  })
+
+  it('ends as uncertain on a frame outside the contract, and closes the stream', async () => {
+    const { notes, closed } = observing([object({ noteId: 'n-1' })], { kind: 'ended', reason: 'x' })
+    const stream = notes.observe['watch-note'](
+      { noteId: 'n-1' },
+      { signal: new AbortController().signal },
+    )
+    expect(await stream.next()).toEqual({ done: true, value: { kind: 'uncertain' } })
+    expect(closed()).toBe(true)
+  })
+
+  it('gives the caller signal and message id to the transport, and refuses an opening outside the contract', async () => {
+    const { notes, seen } = observing([], { kind: 'ended', reason: 'note-deleted' })
+    const controller = new AbortController()
+    await notes.observe['watch-note'](
+      { noteId: 'n-1' },
+      { signal: controller.signal, messageId: 'o-1' },
+    ).next()
+    await notes['read-note']({ noteId: 'n-1' }, { signal: controller.signal })
+    expect(seen[0]).toEqual({ messageId: 'o-1', signal: controller.signal })
+    expect(seen[1]!.signal).toBe(controller.signal)
+    const refused = notes.observe['watch-note'](
+      { noteId: 7 as unknown as string },
+      { signal: controller.signal },
+    )
+    await expect(refused.next()).rejects.toThrow('notes/v1/watch-note')
+  })
+})

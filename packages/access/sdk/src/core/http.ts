@@ -18,6 +18,7 @@ import type {
   ProtocolKey,
   Transport,
 } from './transport.ts'
+import { neverWritten } from '../never-written.ts'
 
 /** What the transport puts on a request: the login proof and the tenant to act for. */
 export type Credentials = { readonly proof?: string; readonly tenant?: string }
@@ -33,36 +34,6 @@ export type HttpProtocolTransportOptions = {
 
 const NOT_SENT: CallReport = Object.freeze({ kind: 'not-sent' })
 const UNCERTAIN: CallReport = Object.freeze({ kind: 'uncertain' })
-
-/** Connection errors that can only happen before the first request byte is written. */
-const beforeFirstByte: ReadonlySet<string> = new Set([
-  'ECONNREFUSED',
-  'ENOTFOUND',
-  'EAI_AGAIN',
-  'EHOSTUNREACH',
-  'ENETUNREACH',
-  'EADDRNOTAVAIL',
-  'UND_ERR_CONNECT_TIMEOUT',
-])
-
-function codeOf(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
-  return typeof error.code === 'string' ? error.code : undefined
-}
-
-/**
- * True only when the failure proves that no request byte was written. A browser's `fetch` gives
- * no such proof, so there every failure is `uncertain`.
- */
-function neverWritten(error: unknown): boolean {
-  const cause = error instanceof Error ? error.cause : undefined
-  const codes: (string | undefined)[] = [codeOf(cause)]
-  const nested =
-    typeof cause === 'object' && cause !== null && 'errors' in cause ? cause.errors : []
-  if (Array.isArray(nested)) codes.push(...nested.map(codeOf))
-  const known = codes.filter((code): code is string => code !== undefined)
-  return known.length > 0 && known.every(code => beforeFirstByte.has(code))
-}
 
 function originOf(text: string): URL {
   const refusal = new TypeError('origin must be an http or https origin')
