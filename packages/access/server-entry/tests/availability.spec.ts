@@ -2,17 +2,18 @@
 // first three cases carry the names of RFC-0015 §15「精化对照」I-6; each was first seen red against
 // the defect of that table. The frame source is driven directly where the case is about its queue,
 // and through the whole entry where it is about the wire.
-import { connect } from 'node:net'
+import { connect, createServer, type AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AvailabilityFrame } from '@omne-harness/public-contract'
 import { accessContribution, availabilitySource } from '../src/availability/availability.ts'
 import { createAccessRegistry, type AccessRegistry } from '../src/registry/registry.ts'
 import type { SseClient } from './support/harness.ts'
-import { openSse } from './support/harness.ts'
+import { openSse, startFixture } from './support/harness.ts'
 import {
   PROOF,
   observe,
   startAccessFixture,
+  testIdentity,
   turn,
   type AccessFixture,
 } from './support/pipeline-kit.ts'
@@ -116,14 +117,23 @@ describe('C7: availability is a projection of the registry', () => {
     for (let major = 1; major <= 5; major += 1) registry.mount(notesContribution('n', major))
     expect(await a.read()).toEqual(registryView(registry))
     expect(a.frames.map(frame => frame.kind)).toEqual(['snapshot', 'snapshot'])
-    // Within the backlog, the changes come one by one.
-    registry.mount(notesContribution('n', 6))
+    // Exactly the backlog, the changes come one by one; a take-down is a removal.
+    const takeDowns = [6, 7, 8].map(major => registry.mount(notesContribution('n', major)))
+    void takeDowns[0]!()
     expect(await a.read()).toEqual(registryView(registry))
+    expect(a.frames.map(frame => frame.kind)).toEqual([
+      'snapshot',
+      'snapshot',
+      'change',
+      'change',
+      'change',
+      'change',
+    ])
     expect(a.frames.at(-1)).toEqual({
       kind: 'change',
       revision: registryView(registry).revision,
-      added: [{ name: 'notes', major: 6 }],
-      removed: [],
+      added: [],
+      removed: [{ name: 'notes', major: 6 }],
     })
     await a.close()
   })
@@ -150,6 +160,47 @@ describe('C7: availability is a projection of the registry', () => {
       ],
     })
     await again.close()
+  })
+
+  it('wakes only a subscriber that waits: a change while a frame is held leaves no listener fault', async () => {
+    const faults: unknown[] = []
+    const registry = createAccessRegistry({ onListenerError: error => faults.push(error) })
+    registry.mount(accessContribution(registry, 4))
+    const controller = new AbortController()
+    const opened = await availabilitySource(registry, 4)(
+      { principal: undefined as never, messageId: 'm-1', signal: controller.signal },
+      {},
+    )
+    if (opened.outcome !== 'succeeded') throw new Error('not opened')
+    // The first frame is taken and the generator is held at its yield: nobody waits.
+    await opened.frames.next()
+    registry.mount(notesContribution('first'))
+    controller.abort()
+    expect(faults).toEqual([])
+    expect(await opened.frames.next()).toEqual({ done: true, value: 'unavailable' })
+  })
+
+  it('unsubscribes from the registry when the observation ends', async () => {
+    const registry = entryRegistry(4)
+    let unsubscribed = 0
+    const counting: AccessRegistry = {
+      ...registry,
+      subscribe: listener => {
+        const subscription = registry.subscribe(listener)
+        return {
+          ...subscription,
+          unsubscribe: () => {
+            unsubscribed += 1
+            subscription.unsubscribe()
+          },
+        }
+      },
+    }
+    const opening = open(counting, 4)
+    const a = await subscriber(opening)
+    await a.read()
+    await a.close()
+    expect(unsubscribed).toBe(1)
   })
 
   it('stops listening to the registry when the observation ends', async () => {
@@ -204,6 +255,30 @@ describe('C7 and C8: availability at the entry', () => {
     expect(registryView(fixture.log.registry).protocols).toEqual(new Set(['notes/v1', 'access/v1']))
     await fixture.stop()
     expect(registryView(fixture.log.registry).protocols).toEqual(new Set(['notes/v1']))
+  })
+
+  it('takes access/v1 down again when the entry cannot listen', async () => {
+    const busy = createServer()
+    await new Promise<void>(resolve => busy.listen(0, '127.0.0.1', resolve))
+    const port = (busy.address() as AddressInfo).port
+    const registry = createAccessRegistry()
+    try {
+      await expect(
+        startFixture({
+          config: { listenPort: port },
+          access: {
+            registry,
+            identity: testIdentity().port,
+            graceMs: 5000,
+            frameQueueBytes: 1 << 20,
+            availabilityBacklog: 4,
+          },
+        }),
+      ).rejects.toThrow()
+    } finally {
+      await new Promise(resolve => busy.close(resolve))
+    }
+    expect(registryView(registry).protocols).toEqual(new Set())
   })
 
   it('gives every caller the same bytes: without a login, with a valid one and with an invalid one', async () => {
