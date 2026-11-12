@@ -38,18 +38,19 @@
 
 CP3 判定只有 Session 参加的回滚时用 `line-through/cp3-rollbacks.ts` 的 `sessionOnlyRollbackExplained`（R2-D152）。可以接受的原因只有两种：一种是 `the input is not pending`；另一种是暂时的失败（`changed` 或 `unavailable`），并且之后同一执行、同一 sequence 的 commitLog 已经提交，或者该执行的 `readThrough` 已经到达这个 sequence。第二种原因的依据是 session-contract SPEC「过期的同域根答 changed」，以及 AD-02 对暂时失败按退避再解释直到提交（线卡 #1216 的 E1a，session-adapters `tests/journal-interpretation.spec.ts` 的「AD-02: the execution head moves between the read and the commit」与「AD-02: a Session participant rollback that answers unavailable」）。暂时的回滚之后这项工作没有接着做成的，仍然判红。`line-through/cp3-rollbacks.spec.ts` 在快层用合成序列核对这个判定，其中包括负控。
 
-已知限制 KL-146（波 3；线卡 #1216 的 E1a 改写）：满载下 CP3 与 J6 仍会偶发红。AD-02 在暂时失败之后放下的那一处已经修好：它按退避重新排进会话队列接着解释，直到提交或得到确定的结局。剩下两个原因，都要改设计：
+已知限制 KL-146（波 3；线卡 #1216 的 E1a 改写）：满载下 CP3 仍会偶发红。AD-02 在暂时失败之后放下的那一处已经修好：它按退避重新排进会话队列接着解释，直到提交或得到确定的结局。剩下一个原因，要改设计：
 
 - 执行头是占位回执（digest `unknown`，session-storage-sql K-5）：结果接收方经自己的 Journal 副本写入，这次写入不带这个执行自己的回执，头就记成占位。AD-02 读到占位头答 `history.executions.<execution>` 或 `the head of the execution was written by another execution`，会话一侧的历史索引同样把它当作没有头；要等这个执行自己的下一次写入才能往下解释。Run 收尾之后不再写，CP3 就判那次 `changed` 回滚没有解释。满载下修后 20 次红 3 次，签名都是这一种。
-- 交入回执（SE35）与 Agent 取走首条输入的交错：会话写 SE35 的 `receive` 要等 AD-02 解释完新事件（session-contract `requireObservedTail`，签名 `history.prefix.<execution>.committedConsequences: required original material is missing`）；解释完时输入多半已被取走，SE35 按归约写不上。J6 两个窗口里每轮的会话提交数因此偶尔差一次。这是契约允许的交错。
 
-两条的处置见线卡 #1216 的「退包（E1a）」。
+处置见线卡 #1216 的「退包（E1a，补充）」。
+
+原来的第二个原因不再是限制：交入回执（SE35）与 Agent 取走首条输入的交错。会话写 SE35 的 `receive` 要等新事件解释完（session-contract `requireObservedTail`，签名 `history.prefix.<execution>.committedConsequences: required original material is missing`）；解释完时输入多半已被取走，归约答 `the input is not pending`，这一笔 SE35 不成立。这是契约允许的交错，session-contract SPEC 写明了续入不依赖它。J6 因此把会话参加者每轮的提交数归为随交错变的计数，见下节。
 
 ### J6 的两种轮数
 
 `line-through/w2-counts.spec.ts` 有两种长度，由环境变量 `OMNE_J6_ROUNDS` 选择（R2-D141）。
 
-- 默认（准入慢层）：跑 20 轮，两种形状的用例合计约 52 秒（机器上有其他任务时测得）。只比较两个窗口，即第 15 至 20 轮对第 5 至 10 轮，口径是 `stable()`：剔除轮号、字节、重试和 `execution-record.parts` 调用数，其余逐项相等。每轮接收数与 parts 调用上界的断言照常。增长判定不运行，因为它要求第 11 至 200 轮。证据写进 `tmp/line-session-run/w2/C-JOINT/short/`，不覆盖测量证据。
+- 默认（准入慢层）：跑 20 轮，两种形状的用例合计约 52 秒（机器上有其他任务时测得）。只比较两个窗口，即第 15 至 20 轮对第 5 至 10 轮，口径是 `stable()`：剔除轮号、字节、重试、`execution-record.parts` 调用数和会话参加者的提交数，其余逐项相等。会话参加者的提交数（`session`、`session-ordinary-basis` 与总数）随交入回执的交错变，归进定时计数，另有一个界：两个窗口里每一轮比最大值至多少一次（`sessionCommitsOffBound`，线卡 #1216）。每轮接收数与 parts 调用上界的断言照常。增长判定不运行，因为它要求第 11 至 200 轮。证据写进 `tmp/line-session-run/w2/C-JOINT/short/`，不覆盖测量证据。
 - 测量入口 `OMNE_J6_ROUNDS=200`：跑完整 200 轮，窗口是第 181 至 200 轮对第 11 至 30 轮，并对定时计数做增长判定（R2-D17、R2-D118）。证据写进 `tmp/line-session-run/w2/C-JOINT/`。其他取值会被拒绝。入口用环境变量而不用 `test:measure` 脚本，因为它不改 package.json，准入、独占名额和手工命令都用同一条命令行，且短轮与 200 轮跑的是同一份用例，不会各自走样。
 
 完整 200 轮在三个时点各跑一次，不进准入：C1 联调 B；每个波的波末；合入改动 Session 热路径（session-storage-sql 的提交、读取、工作缓存与历史索引，session-adapters 的 Journal 与证据读取）的 PR 之前和之后。命令在工作树根，用 Git Bash，独占运行名额：

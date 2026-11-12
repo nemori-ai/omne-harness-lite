@@ -14,6 +14,9 @@
 // receive and parts-bound assertions. The growth rule needs rounds 11 to 200, so the short run does not
 // judge it. When the 200 rounds run: the member `tests/README.md`, "J6 的两种轮数".
 //
+// The Session commits of a round are timed too (#1216): the handover receipt of the round's input is
+// not written when the Agent took the input first, so they are bounded, not equal.
+//
 // The calls of `execution-record.parts` are a named deviation (R2-D85): they are bounded per round, not
 // equal, because a catch-up of the copy of the Agent records takes one page more when the text of its
 // parts passes the page budget. The rows of those reads stay equal per round. The bytes grow with the
@@ -77,8 +80,9 @@ const GROWTH_TITLE = MEASURED ? 'the timed counts do not grow with the rounds an
 const timedGrowthOf = (shape: Shape, completed: readonly RoundCount[]) =>
   MEASURED ? timedGrowth(shape, completed) : { growing: [], controlMissed: [] }
 /**
- * The items every round must show alike: all but the number of the round, the retries, the bytes and
- * the number of `execution-record.parts` calls, which `partsOverBound` bounds instead (R2-D85).
+ * The items every round must show alike: all but the number of the round, the retries, the bytes,
+ * the number of `execution-record.parts` calls, which `partsOverBound` bounds instead (R2-D85), and
+ * the Session commits, which `sessionCommitsOffBound` bounds instead (#1216).
  */
 const stable = ({
   round: _round,
@@ -88,14 +92,54 @@ const stable = ({
   maxReadBytes: _maxRead,
   storageCommitBytes: _commitBytes,
   ad02Commits: _ad02Commits,
+  storageCommitTotal: _commitTotal,
+  storageCommits,
   storageReads: { [PARTS_HANDLER]: _partsCalls, ...reads },
   storageReadRows,
   ...rest
 }: RoundCount) => ({
   ...rest,
+  storageCommits: Object.fromEntries(
+    Object.entries(storageCommits).filter(([participant]) => !SESSION_COMMITS.includes(participant)),
+  ),
   storageReads: untimed(reads),
   storageReadRows: untimed(storageReadRows),
 })
+
+/**
+ * The commits of the Session participants also depend on the interleaving. The handover receipt
+ * (SE35) of the round's input is written only when it comes before the Agent took the input and
+ * Session interpreted the take; after that the reduction refuses it, and the round has one Session
+ * commit fewer (session-contract SPEC, the participation check of the Agent commands: "输入已被取走时").
+ * These counts, and the total that holds them, are timed: judged by the growth rule, not round by
+ * round. They are also bounded: in the two windows every round is at most `SESSION_COMMIT_SPREAD`
+ * below the largest, so a real commit more or two fewer still shows.
+ */
+const SESSION_COMMITS: readonly string[] = ['session', 'session-ordinary-basis']
+const SESSION_COMMIT_SPREAD = 1
+const SESSION_COMMIT_NAMES = [
+  'storageCommitTotal',
+  ...SESSION_COMMITS.map(participant => `storageCommits.${participant}`),
+]
+
+/** The rounds whose Session commit counts are more than `SESSION_COMMIT_SPREAD` below the largest. */
+function sessionCommitsOffBound(rounds: readonly RoundCount[]): string[] {
+  return SESSION_COMMIT_NAMES.flatMap(name => {
+    const values = rounds.map(count => timedOf(count)[name]!)
+    const largest = Math.max(...values)
+    return rounds.flatMap((count, at) =>
+      largest - values[at]! > SESSION_COMMIT_SPREAD
+        ? [`round ${String(count.round)}: ${name} ${String(values[at])}, largest ${String(largest)}`]
+        : [],
+    )
+  })
+}
+
+/** The rounds of the two windows: rounds `EARLY_FROM + 1` on, and the last `WINDOW`. */
+const windowsOf = (completed: readonly RoundCount[]) => [
+  ...completed.slice(EARLY_FROM, EARLY_FROM + WINDOW),
+  ...completed.slice(-WINDOW),
+]
 
 /**
  * The reads whose counts depend on how the Agent publications and the Session commits interleave:
@@ -128,7 +172,12 @@ const untimed = (counts: Readonly<Record<string, number>>): Record<string, numbe
 
 /** The timed counts of one round, by name. */
 function timedOf(count: RoundCount): Record<string, number> {
-  const timed: Record<string, number> = { ad02Commits: count.ad02Commits ?? 0 }
+  const timed: Record<string, number> = {
+    ad02Commits: count.ad02Commits ?? 0,
+    storageCommitTotal: count.storageCommitTotal,
+  }
+  for (const participant of SESSION_COMMITS)
+    timed[`storageCommits.${participant}`] = count.storageCommits[participant] ?? 0
   for (const handler of TIMED_HANDLERS) {
     timed[`storageReads.${handler}`] = count.storageReads[handler] ?? 0
     timed[`storageReadRows.${handler}`] = count.storageReadRows[handler] ?? 0
@@ -369,6 +418,8 @@ describe('J6: fixed round counts', () => {
       // The timed counts do not grow with the number of rounds, and the negative control does (R2-D118);
       // judged in the measured run only.
       expect(timedGrowthOf('plain', completed)).toEqual({ growing: [], controlMissed: [] })
+      // The Session commits of a round differ by the handover receipt at most (#1216).
+      expect(sessionCommitsOffBound(windowsOf(completed))).toEqual([])
       // The windows: no other item may differ between the early and the late rounds.
       const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
       const late = completed.slice(-WINDOW).map(stable)
@@ -397,6 +448,7 @@ describe('J6: fixed round counts', () => {
         })
       expect(partsOverBound('tool', completed, w.counters.partsRounds)).toEqual([])
       expect(timedGrowthOf('tool', completed)).toEqual({ growing: [], controlMissed: [] })
+      expect(sessionCommitsOffBound(windowsOf(completed))).toEqual([])
       const early = completed.slice(EARLY_FROM, EARLY_FROM + WINDOW).map(stable)
       const late = completed.slice(-WINDOW).map(stable)
       expect(late).toEqual(early)
