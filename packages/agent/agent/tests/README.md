@@ -27,7 +27,7 @@
 
 各文件核对以下行为：
 
-- `loop-reply-close.spec.ts` 核对 NA-I3-1/2、NA-I4-1 与 NA-I8-1/2/3：准入与接续同 revision、原交接回执未知后同候选认回、message 事件、真实空批、最终失败 no-reply、完成候选与终态区分、在途 Journal.submit 到 step-2、终态释放后新 invoke，以及未处理结果等待。ordinary limit 保留真实 trim，部分与中断不准入消息或工具动作。测试仅用脚本化 Model、内存 Journal 与材料，不证明公开 submit、控制请求、耐久性或完整恢复。
+- `loop-reply-close.spec.ts` 核对 NA-I3-1/2、NA-I4-1 与 NA-I8-1/2/3：准入与接续同 revision、原交接回执未知后同候选认回、message 事件、真实空批、最终失败 no-reply、完成候选与终态区分、在途 Journal.submit 到 step-2、终态释放后新 invoke，以及未处理结果等待。ordinary limit 保留真实 trim，部分与中断不准入消息或工具动作。测试仅用脚本化 Model、内存 Journal 与材料，不证明控制请求、耐久性或完整恢复；公开 submit 见 `provider-submit.spec.ts`。
 
 - `measure.spec.ts` 核对 SPEC「测量事件」：一次 invoke 发出受理通过与至少一次驱动通过，起止成对并带 execution；传入与不传观察者时同一执行到同一终结；观察者抛出不改变结果。驱动通过的 `end` 在 ended 事件可读之后才出现，所以用例等待它而不是读完事件就断言。
 - `public-entry.spec.ts` 核对两个入口的导出名、源码与构建产物的导入图、清单依赖，以及生产安装闭包不到达 Cordis。它读 `package.json` 与 `dist`，所以先构建再运行。
@@ -39,7 +39,7 @@
 - `loop-invoke.spec.ts`（C2）对脚本化 Model 与内存 Journal 走一条输入：`invoke` 在受理后、主调用收场之前返回句柄；经句柄读到 input-taken、producer、message、ended，序号 1 至 4；runtime 从 occupied 回 idle；Journal 中 execution 为 ended，结果经 received 共同保存后由 loop 采用，ACK 由 Model pusher 完成；`handoff` 依次准入外部输入与助手回复；同一 runtime 能接着跑第二个 execution。脚本化 Model 在测试打开闸门之后才收场被受理的调用。同文件另核对句柄的 `output.read` 与 `output.events`：守卫的 denied 与 unavailable、跨租户与读另一个 execution 的身份都被拒绝；pusher 取得的完整结果按原次序进入同一条回复；调用、操作与回复消息的身份由 execution 的摘要与 step 序号派生。另核对主调用的 `ModelInvocationRef` 随 M0 的提交在首次 admit 之前保存，且 admit 返回同一引用、指向所受理的调用。
 - `loop-main-call.spec.ts` 核对原 received 的 reply/partial/no-reply 解释、未知 schema/缺材料拒绝、M3 producer 后的窄恢复与真实撤权。材料不可读时保留原调用和待办，恢复不生成第二条 producer，不从 Model 查询拼出业务结果。
 - 依据 R2-D268：已封的 reasoning_state 与已封的 thinking 不进入回复，回复只含其余块，Run 正常结束，已接收材料仍含原部件。只有推理块的失败结果按 no-reply 结束；未封 thinking 按普通 partial 处理。reasoning_state 的合法 envelope 直接送入真实 receiver；Model scripted producer 的旧 sealed 校验不支持该类型，因此这一场景不声明真实 producer 或 pusher ACK 已通过。其余正常结果仍经公开 pusher。退回修复后这四条用例变红。
-- `loop-intake-prepare.spec.ts` 核对 NA-I0-1/2 与 NA-I1-1/2/3：完整输入批、batch/step/event 同次提交、下一 step 清旧准备、两次 invoke 无重叠、条件与选择及上下文和准备的顺序、首次 assembled 与 P1 ready、条件来源、初次 adopted 为空与 M0 采用 coverage、四端口不可用各保存一次 W0。另核对非法首次 ready 不调用 Model、真实 cannot-fit 保留原因并经 F1 保存完整候选、I1/F1 未知提交的 committed/excluded 接续、F1 候选与时刻不因重试变化。候选时刻来自注入的 AgentClock.now，同一候选只取一次；取时 unavailable 时零 F1 写入，准备与续点保留，后续取时成功才形成候选。revision 2 的 needs-compaction 保存原准备并答 unsupported，不进入 F1 或压缩调用。输入测试直接调用内存 Journal.submit，不证明公开 submit。真实在途输入保持已固定请求，M3 在 changed 后重读当前挂接并完成原回复准入，用例在 I8 停止。完整 SC-AG-157 的迭代与终结交错仍归后续卡。另一用例在回复保管前受理新输入，单独核对下一 step 只承接新增输入。
+- `loop-intake-prepare.spec.ts` 核对 NA-I0-1/2 与 NA-I1-1/2/3：完整输入批、batch/step/event 同次提交、下一 step 清旧准备、两次 invoke 无重叠、条件与选择及上下文和准备的顺序、首次 assembled 与 P1 ready、条件来源、初次 adopted 为空与 M0 采用 coverage、四端口不可用各保存一次 W0。另核对非法首次 ready 不调用 Model、真实 cannot-fit 保留原因并经 F1 保存完整候选、I1/F1 未知提交的 committed/excluded 接续、F1 候选与时刻不因重试变化。候选时刻来自注入的 AgentClock.now，同一候选只取一次；取时 unavailable 时零 F1 写入，准备与续点保留，后续取时成功才形成候选。revision 2 的 needs-compaction 保存原准备并答 unsupported，不进入 F1 或压缩调用。输入测试直接调用内存 Journal.submit；公开 submit 见 `provider-submit.spec.ts`。真实在途输入保持已固定请求，M3 在 changed 后重读当前挂接并完成原回复准入，用例在 I8 停止。完整 SC-AG-157 的迭代与终结交错仍归后续卡。另一用例在回复保管前受理新输入，单独核对下一 step 只承接新增输入。
 - `loop-admission.spec.ts` 的用例名以节点验收表行号开头。U0 交出的内容经 `Journal.inputs` 读回。外部输入在 Q1 不写 P；模型回复在 Q1 先写 P 再 `prepare`。Q2 的 Ja 带 `handoff.resolve`、模型回复的准入事实与 message 事件，并清除 `currentHandoff`；外部输入不写 Ja。Q4 按来源返回 U0 或 I3。E0 在预约槽后保存输入与初始 checkpoint。
 - 同文件核对 C1：最近受理的操作在运行中、停止后与 ended 后均认回原句柄。重复调用不再次 open。事件序号保持为 1 至 4。
 - 同文件核对另一 execution 占槽时的原记录查找。更早操作经 query 与幂等受理认回，当前槽不变，原执行不再推进。定义解析失败原样返回。prepare 回执未知时，返回值使用本次 invoke 的操作身份。
@@ -82,7 +82,9 @@
 
 `fact 10` 固定 `tryFinish` 的五类 blocked（inputs、controls、operations、passages、custody）及其次序、有效取消对普通终结的优先（有效取消下带 complete 或 failed 候选的 F1 为 changed）、取消授权只能结束取消候选、未定写入为清单的 unknown 项而 tryFinish 为 unavailable、判断 unknown 为 unavailable、无安装时候选变体为 unavailable。ended 之后的迟到阶段事实只记录、不投影事件是 SPEC 六个阶段的正式条款。`journal-support.ts` 的 `finishInput` 先提交 F1 与 F2 再 `prepareFinish`，以读到的投影组成 tryFinish 输入；`finish` 先经 `takeInputs` 取走受理输入；`finishCancelled` 以 establish、judge、prepareFinish 结束取消候选。
 
-`provider-access.spec.ts` 中名称以「stage-temporary (#502)」开头的用例固定阶段性临时做法：放行之后，`invoke`、`observe` 与 `quiesce` 之外的操作本体返回具名的 `unavailable`。`invoke` 放行之后先经 `adoptions.resolve` 取评估器，没有采用时返回其 `unavailable`、不 open。`loop-invoke.spec.ts` 的同名用例固定句柄的 `submit`、`control`、`acknowledge`。实现对应阶段的卡改写这些用例。
+`provider-access.spec.ts` 中名称以「stage-temporary (#502)」开头的用例固定阶段性临时做法：放行之后，`invoke`、`observe` 与 `quiesce` 之外的操作本体返回具名的 `unavailable`。`invoke` 放行之后先经 `adoptions.resolve` 取评估器，没有采用时返回其 `unavailable`、不 open。`loop-invoke.spec.ts` 的同名用例固定句柄 `control` 的 `suspend` 与 `acknowledge`。实现对应阶段的卡改写这些用例。
+
+`provider-submit.spec.ts` 核对句柄的 `input.submit`（线卡 #1216 的 A1、A2）：Run 进行中受理一条新输入，同一次提交保存输入与水位线，执行槽、挂接与 checkpoint 不变，不发 `input-taken`；同操作重试与新操作同输入认回，同输入异内容答 `conflict`；结束后新输入答 `terminal`，结束前已成功的操作仍认回；静默排空之后照常受理，不恢复执行；准入拒收答 `invalid(value)`，重试答同一结果；在已保存的等待上受理时驱动被提示叫醒，重读后不写任何东西；等待结束后下一步的输入批里有这条输入。
 
 ### 终态出口（#516）
 
