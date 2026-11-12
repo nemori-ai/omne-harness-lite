@@ -1,7 +1,7 @@
 // The CP3 judgment of a rolled-back Session-only commit (R2-D152) on synthetic commit sequences.
-// It goes red when the judgment accepts a `changed` that nothing committed again, an `unavailable`
-// (KL-146), or a rollback that had another participant, or when it refuses one of the two
-// explained reasons.
+// It goes red when the judgment accepts a transient rollback (`changed` or `unavailable`) that
+// nothing committed again, or a rollback that had another participant, or when it refuses one of the
+// two explained reasons.
 import { describe, expect, it } from 'vitest'
 import type { CommitResultV2 } from '@omne-harness/sql-contract'
 import {
@@ -91,16 +91,17 @@ describe('CP3: a rolled-back Session-only commit is explained only in the two R2
     ).toBe(false)
   })
 
-  it('KL-146: an unavailable rollback stays red even when the event committed later', () => {
-    const commits = [
-      rolledBack({
-        kind: 'unavailable',
-        owner: 'session-history',
-        diagnostic: `history.executions.${EXECUTION}: required original material is missing`,
-      }),
-      committed({ execution: EXECUTION, sequence: '1' }),
-    ]
-    expect(sessionOnlyRollbackExplained(commits, 0, () => '1')).toBe(false)
+  it('an unavailable rollback is explained once its event committed later; without that it stays red (#1216 E1a)', () => {
+    const unavailable = rolledBack({
+      kind: 'unavailable',
+      owner: 'session-history',
+      diagnostic: `history.executions.${EXECUTION}: required original material is missing`,
+    })
+    const commits = [unavailable, committed({ execution: EXECUTION, sequence: '1' })]
+    expect(sessionOnlyRollbackExplained(commits, 0, nothingRead)).toBe(true)
+    expect(sessionOnlyRollbackExplained([unavailable], 0, () => '1')).toBe(true)
+    // Negative control: nothing committed the event afterwards and the progress stayed behind it.
+    expect(sessionOnlyRollbackExplained([unavailable], 0, () => '0')).toBe(false)
   })
 
   it('judges the Session reply when the ordinary basis took part beside it', () => {
@@ -115,13 +116,14 @@ describe('CP3: a rolled-back Session-only commit is explained only in the two R2
         nothingRead,
       ),
     ).toBe(true)
-    // KL-146 stays red with the basis beside it.
+    // An unavailable rollback with the basis beside it is explained the same way.
     const unavailable = rolledBackWithBasis({
       kind: 'unavailable',
       owner: 'session-history',
       diagnostic: `history.prefix.${EXECUTION}.committedConsequences: required original material is missing`,
     })
-    expect(sessionOnlyRollbackExplained([unavailable, later], 0, () => '1')).toBe(false)
+    expect(sessionOnlyRollbackExplained([unavailable, later], 0, () => '1')).toBe(true)
+    expect(sessionOnlyRollbackExplained([unavailable], 0, () => '0')).toBe(false)
     // A basis that did not participate is not an explained rollback.
     const refused = rolledBackWithBasis(changed, {
       kind: 'unsupported',

@@ -6,7 +6,11 @@
 // answers unavailable without the plugin); a lost reply is sent again under the same operation and
 // recalls; the same event twice commits once; a head that another writer moved after the read
 // answers changed and the call reads again once, then commits; a call of the event queue that still
-// ends in changed is made again once and no more (R2-D157); a stopped plugin and a plugin without
+// ends in changed, or in a rollback that answers unavailable (KL-146), is made again after a backoff
+// until it commits, and a plugin that stops ends the backoff and its timer (#1216 E1a); the first
+// call again goes at once and the waits then grow by the multiplier up to maxMs, a policy outside its bounds is refused, an outcome still
+// unknown after its sends is retried too, one execution has one retry waiting, and a call that
+// ends without a retry logs what it left; a stopped plugin and a plugin without
 // `sessionTransactions` commit nothing; another tenant's event and a refusing view commit nothing;
 // the R2-D28 counterexample passes once the plugin committed the non-observed tail; the commits of
 // one round do not grow with the rounds before it. The storage is the node:sqlite double of the
@@ -37,7 +41,10 @@ import {
 } from '@omne-harness/session-contract/testing'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { EXECUTION_RECORD_HANDLERS } from '@omne-harness/session-storage-sql/participants'
-import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
+import {
+  createSessionJournalInterpretationPlugin,
+  DEFAULT_JOURNAL_INTERPRETATION_RETRY,
+} from '../src/cordis/journal-interpretation.ts'
 import { ok, operation, scene, submitInput } from './fixtures/common-journal.ts'
 import { cordisScene, handed, nextRun, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
@@ -57,13 +64,17 @@ afterEach(async () => {
  */
 async function interpreted(
   name: string,
-  options: Readonly<{ transactions?: 'absent'; plugin?: 'later' }> = {},
+  options: Readonly<{
+    transactions?: 'absent'
+    plugin?: 'later'
+    retry?: Readonly<{ initialMs: number; multiplier: number; maxMs: number }>
+  }> = {},
 ) {
   const s = await sqlScene(name)
   scenes.push(s)
   // `heads.unwritten` makes the Agent records read as if another execution's call had changed the
   // execution (SPEC K-5): the head receipt the boundary row names is then not the execution's own.
-  const heads = { unwritten: false }
+  const heads = { unwritten: false, undecided: false }
   // The JSON size of every execution-record command committed and of every Agent records read.
   const bytes = { written: [] as number[], read: [] as number[] }
   const base = s.storage
@@ -80,11 +91,13 @@ async function interpreted(
       const result = await base.read(request, readOptions)
       if (result.kind === 'read' && request.handler.startsWith('execution-record.'))
         bytes.read.push(JSON.stringify(result.output).length)
-      if (!heads.unwritten || result.kind !== 'read') return result
+      if (result.kind !== 'read' || request.handler !== EVENTS_HANDLER) return result
+      let output = result.output
       // The head row as another execution's call leaves it: its receipt is the placeholder.
-      if (request.handler === EVENTS_HANDLER)
-        return { ...result, output: withPlaceholderHead(result.output) }
-      return result
+      if (heads.unwritten) output = withPlaceholderHead(output)
+      // Event rows whose consequences the Journal did not decide (an original it did not keep).
+      if (heads.undecided) output = withUndecidedEvents(output)
+      return { ...result, output }
     },
   }
   const sent: Sent[] = []
@@ -100,12 +113,26 @@ async function interpreted(
   disposers.push(() => c.dispose())
   const interpretation = createSessionJournalInterpretationPlugin<string>({
     coordinator: async () => succeed(s.access.principal),
+    // A short backoff keeps the tests fast; the defaults are checked by the policy test below.
+    retry: options.retry ?? QUICK_RETRY,
+  })
+  // The warnings and errors of the plugin's logger.
+  const logged: string[] = []
+  c.ctx.logger.exporter({
+    levels: { default: 2 },
+    export: message => {
+      if (message.name === 'session-adapters/journal-interpretation' && message.type !== 'info')
+        logged.push(message.args.map(String).join(' '))
+    },
   })
   const mountPlugin = () => c.mount(interpretation.plugin)
   const fiber = options.plugin === 'later' ? null : await mountPlugin()
   const target = { tenant: s.access.tenant, session: s.access.session, execution: s.execution }
-  return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads, bytes }
+  return { s, c, sent, script, interpretation, fiber, mountPlugin, target, heads, bytes, logged }
 }
+
+/** The backoff of the tests: 1, 2, 4, 4, ... milliseconds. */
+const QUICK_RETRY = { initialMs: 1, multiplier: 2, maxMs: 4 } as const
 
 const BATCHES_HANDLER = EXECUTION_RECORD_HANDLERS.facts
 const EVENTS_HANDLER = EXECUTION_RECORD_HANDLERS.events
@@ -113,6 +140,15 @@ const EVENTS_HANDLER = EXECUTION_RECORD_HANDLERS.events
 function withPlaceholderHead(output: JsonValue): JsonValue {
   const copy = structuredClone(output) as { receipt?: { digest: string } | null }
   if (copy.receipt !== undefined && copy.receipt !== null) copy.receipt.digest = 'unknown'
+  return copy as JsonValue
+}
+
+function withUndecidedEvents(output: JsonValue): JsonValue {
+  const copy = structuredClone(output) as { events?: { consequences: unknown; control: unknown }[] }
+  for (const event of copy.events ?? []) {
+    event.consequences = null
+    event.control = null
+  }
   return copy as JsonValue
 }
 
@@ -388,11 +424,10 @@ describe('AD-02: the execution head moves between the read and the commit', () =
     expect(ok(await f.interpretation.interpret(f.target))).toMatchObject({ readThrough: '1' })
   })
 
-  // R2-D157, a patch of this line: the head moves twice and no later event comes, because the
-  // receivers write through their own Journal copy, which sends no `agent-published`. The event
-  // queue calls the same execution again once. The real gap is that wake contract, recorded for
-  // wave 3 and owned by L-RUN.
-  it('a call of the event queue that ends in changed is made again once, and the event commits', async () => {
+  // The head moves twice and no later event comes, because the receivers write through their own
+  // Journal copy, which sends no `agent-published`. The event queue calls the same execution again
+  // after the backoff, from the saved progress (#1216 E1a; it replaced the one requeue of R2-D157).
+  it('a call of the event queue that ends in changed is made again after the backoff, and the event commits', async () => {
     const f = await interpreted('ad02-requeued')
     for (const label of ['requeued-1', 'requeued-2'])
       f.script.push(async (inner, input) => {
@@ -407,7 +442,7 @@ describe('AD-02: the execution head moves between the read and the commit', () =
     expect(logOperations(f.s)).toEqual([f.sent[2]?.observation.operation])
   })
 
-  it('the call is made again at most once: a head that keeps moving stops after 2 x 2 sends', async () => {
+  it('a head that moves more often than 2 x 2 sends still commits once it stands still, from the saved progress', async () => {
     const f = await interpreted('ad02-requeue-bound')
     for (const label of ['bound-1', 'bound-2', 'bound-3', 'bound-4', 'bound-5'])
       f.script.push(async (inner, input) => {
@@ -415,12 +450,10 @@ describe('AD-02: the execution head moves between the read and the commit', () =
         return inner(input)
       })
     await started(f.s, f.c.journal())
-    await vi.waitFor(() => expect(f.sent).toHaveLength(4), { timeout: 5000 })
-    await settle()
-    // ROUNDS (2) sends per call, for the call and the one call made again (REQUEUES = 1).
-    expect(f.sent).toHaveLength(4)
-    expect(await readThrough(f.s)).toBe('0')
-    expect(logOperations(f.s)).toEqual([])
+    await reaches(f.s, '1')
+    // Five sends answered changed; the call after the backoff sent once more and committed.
+    expect(f.sent).toHaveLength(6)
+    expect(logOperations(f.s)).toEqual([f.sent[5]?.observation.operation])
   })
 })
 
@@ -507,6 +540,227 @@ describe('AD-02: a step that took no input', () => {
     const snapshot = ok(await m.backend.transactions.readWork(m.access))
     const own = snapshot.run.kind === 'active' ? snapshot.run.execution : undefined
     expect(own?.readThrough).toBe('3')
+  })
+})
+
+describe('AD-02: a Session participant rollback that answers unavailable (KL-146, #1216 E1a)', () => {
+  const rollback = async () =>
+    fail<SessionFailure>({
+      kind: 'unavailable',
+      owner: 'session-storage-sql',
+      diagnostic: 'rolled back',
+    })
+
+  it('the event is interpreted again after a backoff, with no later event, and commits once', async () => {
+    const f = await interpreted('ad02-rollback')
+    f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(2)
+    expect(f.sent[1]?.observation).toEqual(f.sent[0]?.observation)
+    expect(logOperations(f.s)).toEqual([f.sent[1]?.observation.operation])
+  })
+
+  it('rollbacks one after the other are tried again until the commit goes through', async () => {
+    const f = await interpreted('ad02-rollbacks')
+    for (let n = 0; n < 6; n += 1) f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(7)
+    expect(logOperations(f.s)).toHaveLength(1)
+  })
+
+  it('an event that comes during the backoff is not held behind it: the queue goes on and commits', async () => {
+    const f = await interpreted('ad02-rollback-queue', {
+      retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
+    })
+    // The first call again goes at once and rolls back too; the next one waits a minute.
+    f.script.push(rollback, rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.sent).toHaveLength(2), { timeout: 5000 })
+    // The retry waits a minute; a later event of the same session is interpreted at once.
+    await f.c.ctx.serial(
+      'session-adapters/agent-published',
+      f.target.tenant,
+      f.target.session,
+      f.target.execution,
+    )
+    await reaches(f.s, '1')
+    expect(f.sent).toHaveLength(3)
+    expect(logOperations(f.s)).toEqual([f.sent[2]?.observation.operation])
+  })
+
+  it('a plugin that stops during the backoff sends no more', async () => {
+    const f = await interpreted('ad02-rollback-stop')
+    for (let n = 0; n < 1000; n += 1) f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.sent.length).toBeGreaterThan(2), { timeout: 5000 })
+    await f.fiber?.dispose()
+    const sent = f.sent.length
+    await settle()
+    expect(f.sent.length).toBeLessThanOrEqual(sent + 1)
+    const after = f.sent.length
+    await settle()
+    expect(f.sent).toHaveLength(after)
+    expect(await readThrough(f.s)).toBe('0')
+  })
+})
+
+describe('AD-02: the backoff of the event queue and its one retry per execution (#1216 E1a)', () => {
+  const rollback = async () =>
+    fail<SessionFailure>({
+      kind: 'unavailable',
+      owner: 'session-storage-sql',
+      diagnostic: 'rolled back',
+    })
+  /** The calls and waits that the retries logged, in order. */
+  const retries = (logged: readonly string[]) =>
+    logged.flatMap(line => {
+      const found =
+        /^call (\d+) of the interpretation of .* answered (\S+); again in (\S+) ms$/.exec(line)
+      return found === null ? [] : [[Number(found[1]), found[2], found[3]]]
+    })
+
+  it('a backoff outside 0 < initialMs <= maxMs < infinity with multiplier >= 1 is refused when the plugin is made', () => {
+    const made = (retry: { initialMs: number; multiplier: number; maxMs: number }) => () =>
+      createSessionJournalInterpretationPlugin<string>({
+        coordinator: async () => succeed('coordinator'),
+        retry,
+      })
+    for (const retry of [
+      { initialMs: 0, multiplier: 2, maxMs: 10 },
+      { initialMs: Number.NaN, multiplier: 2, maxMs: 10 },
+      { initialMs: 1, multiplier: 0.99, maxMs: 10 },
+      { initialMs: 10, multiplier: 2, maxMs: 9 },
+      { initialMs: 1, multiplier: 2, maxMs: Number.POSITIVE_INFINITY },
+    ])
+      expect(made(retry), JSON.stringify(retry)).toThrow(
+        new RangeError(
+          'the journal interpretation retry needs 0 < initialMs <= maxMs and multiplier >= 1',
+        ),
+      )
+    // The edges are accepted: a constant backoff, and one wait only.
+    expect(made({ initialMs: 1, multiplier: 1, maxMs: 1 })).not.toThrow()
+    expect(made({ initialMs: 0.5, multiplier: 3, maxMs: 0.5 })).not.toThrow()
+    expect(() =>
+      createSessionJournalInterpretationPlugin<string>({ coordinator: async () => succeed('c') }),
+    ).not.toThrow()
+    expect(DEFAULT_JOURNAL_INTERPRETATION_RETRY).toEqual({
+      initialMs: 50,
+      multiplier: 2,
+      maxMs: 5000,
+    })
+  })
+
+  it('the first call again goes at once; then the waits grow by the multiplier up to maxMs, and the calls are counted', async () => {
+    const f = await interpreted('ad02-backoff', {
+      retry: { initialMs: 1, multiplier: 3, maxMs: 5 },
+    })
+    for (let n = 0; n < 4; n += 1) f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    expect(retries(f.logged)).toEqual([
+      [1, 'unavailable', '0'],
+      [2, 'unavailable', '1'],
+      [3, 'unavailable', '3'],
+      [4, 'unavailable', '5'],
+    ])
+  })
+
+  it('a call whose outcome stays unknown after its sends is made again, and the event commits once', async () => {
+    const f = await interpreted('ad02-unknown')
+    const lost = async () => {
+      throw new Error('the reply was lost')
+    }
+    for (let n = 0; n < 3; n += 1) f.script.push(lost)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    // Three sends of the first call under one operation, then the call made again recalls it.
+    expect(f.sent).toHaveLength(4)
+    expect(new Set(f.sent.map(item => item.observation.operation)).size).toBe(1)
+    expect(retries(f.logged)).toEqual([[1, 'commit-unknown', '0']])
+    expect(logOperations(f.s)).toHaveLength(1)
+  })
+
+  it('an execution has one retry waiting: a failure while it waits leaves the retry to it, even after a commit in between', async () => {
+    const f = await interpreted('ad02-one-retry', {
+      retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
+    })
+    const publish = () =>
+      f.c.ctx.serial(
+        'session-adapters/agent-published',
+        f.target.tenant,
+        f.target.session,
+        f.target.execution,
+      )
+    // The first call again goes at once and rolls back too; then the retry waits a minute.
+    f.script.push(rollback, rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(2), { timeout: 5000 })
+    // A second failure of the same execution while the retry waits schedules none.
+    f.script.push(rollback)
+    await publish()
+    await vi.waitFor(() => expect(f.sent).toHaveLength(3), { timeout: 5000 })
+    // A call that commits does not end the retry that waits; the next failure still leaves it to it.
+    await publish()
+    await reaches(f.s, '1')
+    f.script.push(rollback)
+    await round(f.s, f.c.journal(), 1)
+    await vi.waitFor(() => expect(f.sent).toHaveLength(5), { timeout: 5000 })
+    await settle()
+    expect(retries(f.logged)).toHaveLength(2)
+    expect(await readThrough(f.s)).toBe('1')
+  })
+
+  it('once a retry committed, a later failure of the execution gets a retry of its own', async () => {
+    const f = await interpreted('ad02-retry-again')
+    f.script.push(rollback)
+    await started(f.s, f.c.journal())
+    await reaches(f.s, '1')
+    // No event comes after the round: only a retry commits its waiting event.
+    f.script.push(rollback)
+    await round(f.s, f.c.journal(), 1)
+    await reaches(f.s, '3')
+    expect(retries(f.logged).map(([calls]) => calls)).toEqual([1, 1])
+  })
+
+  it('a stop ends the timer of the backoff at once', async () => {
+    const f = await interpreted('ad02-stop-timer', {
+      retry: { initialMs: 60_000, multiplier: 2, maxMs: 60_000 },
+    })
+    f.script.push(rollback, rollback)
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(retries(f.logged)).toHaveLength(2), { timeout: 5000 })
+    const timers = () => process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length
+    const waiting = timers()
+    await f.fiber?.dispose()
+    expect(timers()).toBeLessThan(waiting)
+  })
+
+  it('a call that ends without a retry logs what it left: a refusal, or events with no decided consequences', async () => {
+    const f = await interpreted('ad02-ends')
+    f.script.push(async () => fail<SessionFailure>({ kind: 'denied', action: 'commitLog' }))
+    await started(f.s, f.c.journal())
+    await vi.waitFor(() => expect(f.logged).toHaveLength(1), { timeout: 5000 })
+    expect(f.logged[0]).toBe(`the interpretation of ${f.s.execution} answered denied`)
+    // A call that commits logs nothing.
+    await f.c.ctx.serial(
+      'session-adapters/agent-published',
+      f.target.tenant,
+      f.target.session,
+      f.target.execution,
+    )
+    await reaches(f.s, '1')
+    expect(f.logged).toHaveLength(1)
+    f.heads.undecided = true
+    await round(f.s, f.c.journal(), 1)
+    // The round's two commits publish twice: the first call reads one such event, the second two.
+    await vi.waitFor(() => expect(f.logged).toHaveLength(3), { timeout: 5000 })
+    expect(f.logged.slice(1)).toEqual([
+      `1 events of ${f.s.execution} have no decided consequences`,
+      `2 events of ${f.s.execution} have no decided consequences`,
+    ])
+    expect(await readThrough(f.s)).toBe('1')
   })
 })
 

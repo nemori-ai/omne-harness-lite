@@ -19,25 +19,27 @@ export type PublishedTarget = Readonly<{
 /**
  * Runs `work` for every published event, one session at a time and in the order the events came.
  * An event after `stopped()` turned true, and one whose tenant has no text, start nothing. `work`
- * answers its own failures; it must not reject.
+ * answers its own failures; it must not reject. The answer puts more work for a target at the end
+ * of the same session's queue: `run` defaults to `work`, so a caller can come back to a target
+ * later without holding the queue in the meantime.
  */
 export function subscribePublished(
   ctx: Context,
   stopped: () => boolean,
   work: (target: PublishedTarget) => Promise<void>,
-): void {
+): (target: PublishedTarget, run?: () => Promise<void>) => void {
   const queues = new Map<string, Promise<void>>()
-  ctx.on(PUBLISHED, (tenant, session, execution) => {
+  const enqueue = (target: PublishedTarget, run = () => work(target)): void => {
     if (stopped()) return
-    const text = tenantCodec.encode(tenant)
+    const text = tenantCodec.encode(target.tenant)
     if (!text.ok) return
-    const key = JSON.stringify([text.value, session])
-    const next = (queues.get(key) ?? Promise.resolve()).then(() =>
-      work({ tenant, session, execution }),
-    )
+    const key = JSON.stringify([text.value, target.session])
+    const next = (queues.get(key) ?? Promise.resolve()).then(() => (stopped() ? undefined : run()))
     queues.set(key, next)
     void next.finally(() => {
       if (queues.get(key) === next) queues.delete(key)
     })
-  })
+  }
+  ctx.on(PUBLISHED, (tenant, session, execution) => enqueue({ tenant, session, execution }))
+  return enqueue
 }
