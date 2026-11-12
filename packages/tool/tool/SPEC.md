@@ -703,7 +703,7 @@ release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送
    这笔提交删除计划的 `suspend` 待办与 `facts` 待办。绑定答 `unknown` 时协程稍后再问，不销毁唯一活体。
 4. 停泊：协程经 `queues.park` 处理停泊待办。账本先读调用域。调用已 suspended，且其等待仍是 `opening` 或 `open` 时，队列域把 `held` 条目改为 `parked`，然后调用域删除停泊待办。等待已进入 `responding`，或调用已不再 suspended 时，只删除待办，条目保持原阶段，调用保留原名额恢复。停泊后协程唤醒同一范围里等名额的调用。
 5. 登记：协程以 `<wait>/ensure` 调用 `ToolDecisionBridge.ensure`，并传入等待的请求证据。决策方从调用的恢复读取取请求原文（`loadRecovery` 的 `waitRequest`）。等待身份由 start 派生，所以外部操作身份由调用和等待决定。同一调用的下一个段有新的 start，因而有新的等待身份与新的登记操作。成功时协程以 `<wait>/ensure/attach` 调用 `attachRegistration`。账本把等待改为 `open`，把同一 Ask 等待状态写入调用，并删除登记待办。
-6. 回包未知（`commit-unknown` 或 `unavailable`）时，协程以同一操作调用 `inspectOperation`，不换身份重做。`committed` 的回执就是登记，协程据此提交 `attachRegistration`。`excluded` 时，下一次运行以同一身份再登记。`pending` 或 `unknown` 时稍后再问。本进程记着回包未知的登记，下一次运行先查询原操作。
+6. 回包未知（`commit-unknown`）时，协程以同一操作调用 `inspectOperation`，不换身份重做。`committed` 的回执就是登记，协程据此提交 `attachRegistration`。`excluded` 时，下一次运行以同一身份再登记。`pending` 或 `unknown` 时稍后再问。本进程记着回包未知的登记，下一次运行先查询原操作。决策方答 `unavailable` 时不先查询：决策方以同一操作身份认回原登记（P06），同身份再登记就是认回，所以本次运行以 `unavailable` 结束，下一次运行以同一身份再登记，本进程不记下这次失败。
 7. 决策方明确拒绝时，协程以 `<wait>/ensure/refused` 调用 `recordTask`，把登记待办标为阻塞并记下拒绝原因。拒绝不是人的答复。调用保持 suspended，等待保持 `opening`，以后的运行不再自动登记。叫停可以让这样的调用收场（第 32 条）。
 
 本条的边界：
@@ -796,7 +796,7 @@ release 待办先查询原 `ReleaseRecord`，pending 时向环境提供者发送
 协程见调用已收场、有 `pending` 的失效待办时，以待办的操作调用 `ToolDecisionBridge.invalidate`，传入等待与终局证据。操作只由等待派生，与登记同法，所以调用与等待决定外部操作身份。
 
 - 决策方回答回执时，协程以 `<wait>/invalidate/done` 调用 `recordTask`，处置为 `done`，证据是该回执。账本核对待办仍在、调用已收场、回执的形状，再在同一笔提交里删除待办并保存回执。
-- 回包未知（`commit-unknown` 或 `unavailable`）时，协程以同一操作调用 `decisions.inspectOperation`，不换身份重发。`committed` 的回执完成待办。`excluded` 时以同一身份再发。`pending` 或 `unknown` 时稍后再问。本进程记着回包未知的失效，下一次运行先查询原操作。
+- 回包未知（`commit-unknown`）时，协程以同一操作调用 `decisions.inspectOperation`，不换身份重发。`committed` 的回执完成待办。`excluded` 时以同一身份再发。`pending` 或 `unknown` 时稍后再问。本进程记着回包未知的失效，下一次运行先查询原操作。决策方答 `unavailable` 时同登记一样：本次运行以 `unavailable` 结束，下一次运行以同一身份再发，不先查询。
 - 决策方明确拒绝时，协程以 `<wait>/invalidate/refused` 调用 `recordTask`，把待办记为阻塞并记下拒绝原因。拒绝不改调用的终局，也不填答案。
 
 ### 恢复前位置的 stop

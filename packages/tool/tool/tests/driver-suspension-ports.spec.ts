@@ -167,6 +167,16 @@ describe('the decision owner that registers the wait', () => {
     },
   )
 
+  // An owner that cannot answer yet recalls the original by the same identity (P06), so asking
+  // again is a recall: no inspection first, and nothing of the failure is kept (U3, F2).
+  it('asks again under the same identity after an unavailable ensure, without asking about the original', async () => {
+    const run = await suspendedWith({ ensure: once(unavailable('decisions')) })
+    reachedItsWait(run)
+    expect(run.ensured).toHaveLength(2)
+    expect(new Set(run.ensured).size).toBe(1)
+    expect(run.counts.inspect).toBe(0)
+  })
+
   it('does not take a refused inspection for an answer: the registration is asked again', async () => {
     const run = await suspendedWith({ answerLost: true, inspect: once(unavailable('decisions')) })
     reachedItsWait(run)
