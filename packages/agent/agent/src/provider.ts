@@ -180,12 +180,11 @@ type Quiescing = {
  * The drive of the execution in the slot, as quiesce and submit reach it. `asked` is the handover
  * quiesce asked for: the drive is the only writer of its execution, so it makes the handover
  * itself, when its current pass is over and before it sleeps, and settles the request. `wait` is set
- * while the drive sleeps in `waitForWake`; aborting it wakes the drive for the request. `hinted`: an
- * accepted submit woke the sleeping drive, which reads the execution again (SPEC "输入内容与水位线").
+ * while the drive sleeps in `waitForWake`; aborting it wakes the drive for the request, or for the
+ * hint of an accepted submit.
  */
 type Driving = {
   wait: AbortController | null
-  hinted: boolean
   asked: Readonly<{
     operation: AgentOperationId
     reason: DurableEvidence
@@ -386,16 +385,14 @@ export function createProvider<P, B extends ContentBlock>(
   let accepted: Accepted | null = null
 
   /**
-   * The wake hint of an accepted submit (SPEC "输入内容与水位线"): only a drive that sleeps on its
-   * wait needs it, because a wait that starts later reads the execution first. Without a live drive
-   * there is nobody to tell; the next legal advance reads the same input boundary.
+   * The wake hint of an accepted submit (SPEC "输入内容与水位线"): it cancels the wait the drive
+   * sleeps on. With no handover asked, the drive waits again, and a wait reads the execution before
+   * it sleeps: the new revision wakes it. A drive that runs a pass needs no hint for the same reason.
+   * Without a live drive there is nobody to tell; the next legal advance reads the same input
+   * boundary.
    */
   function hint(execution: AgentExecutionId): void {
-    const own = driving
-    if (own === null || slot.kind !== 'running' || slot.execution !== execution) return
-    if (own.wait === null) return
-    own.hinted = true
-    own.wait.abort()
+    if (slot.kind === 'running' && slot.execution === execution) driving?.wait?.abort()
   }
 
   /**
@@ -526,7 +523,7 @@ export function createProvider<P, B extends ContentBlock>(
     attachment: ExecutionAttachmentId,
     coordinator: ExecutionDrive,
   ): void {
-    const own: Driving = { wait: null, hinted: false, asked: null }
+    const own: Driving = { wait: null, asked: null }
     driving = own
     /** The handover quiesce asked for, made between a pass and a wait. True: the slot is free. */
     const handOver = async (): Promise<boolean> => {
@@ -552,7 +549,6 @@ export function createProvider<P, B extends ContentBlock>(
             if (await handOver()) return null
             const controller = new AbortController()
             own.wait = controller
-            own.hinted = false
             const wake = await coordinator
               .waitForWake({
                 reconciliationDelayMs: entry.configuration.reconciliationDelayMs,
@@ -564,8 +560,9 @@ export function createProvider<P, B extends ContentBlock>(
               })
             if ('failure' in wake) return wake.failure
             if (wake.ok === 'stopped') return 'failure' in ran ? ran.failure : null
-            if (wake.ok === 'ready' || own.hinted) break
-            // Otherwise quiesce cancelled the wait: the request is answered before the drive sleeps again.
+            if (wake.ok === 'ready') break
+            // Quiesce or a submit's hint cancelled the wait: a request is answered, then the drive
+            // waits again and reads the execution first.
           }
         }
       } finally {
