@@ -56,3 +56,55 @@ export function notesContribution(title: string, major = 1): AccessContribution<
 }
 
 export const NOTES = { name: 'notes', major: 1 } as const
+
+const taggedNote = ruleCodec({
+  kind: 'object',
+  fields: { noteId: { rule: { kind: 'text' } }, tenant: { rule: { kind: 'text' } } },
+})
+
+/**
+ * The notes protocol with two more operations for the pipeline (#1233): `ping` needs no login, and
+ * `tag-note` carries a tenant in its body that the pipeline hands on unjudged. The operations above
+ * are the same, so the registry and settle cases keep using `notesProtocol`.
+ */
+export function pipelineNotesProtocol(major = 1) {
+  const base = notesProtocol(major)
+  return defineProtocol({
+    name: 'notes',
+    major,
+    operations: {
+      'read-note': {
+        identity: 'login',
+        effect: 'read',
+        limit: 'small',
+        body: noteRef,
+        outcomes: { succeeded: note, 'not-found': empty },
+      },
+      'save-note': {
+        identity: 'acting-tenant',
+        effect: 'commit',
+        limit: 'input',
+        body: note,
+        outcomes: { succeeded: empty, conflict: empty },
+        countsAsAccess: true,
+      },
+      ping: {
+        identity: 'none',
+        effect: 'read',
+        limit: 'small',
+        body: empty,
+        outcomes: { succeeded: empty },
+        countsAsAccess: true,
+      },
+      'tag-note': {
+        identity: 'acting-tenant',
+        effect: 'commit',
+        limit: 'small',
+        body: taggedNote,
+        outcomes: { succeeded: empty },
+      },
+    },
+    observations: base.observations,
+  })
+}
+export type PipelineNotesProtocol = ReturnType<typeof pipelineNotesProtocol>

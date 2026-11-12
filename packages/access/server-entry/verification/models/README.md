@@ -127,7 +127,7 @@
 
 | 模型动作 | 设计里的步骤 |
 | --- | --- |
-| 登记表模型：查表并登记成在途 | `src/registry/registry.ts` 的 `enter`：同步方法，查表项、登记在途令牌、返回 `Entered` 在同一段里完成。签名由 `RegistryForPipeline` 钉住（`tests/registry.spec-d.ts`） |
+| 登记表模型：查表并登记成在途 | 管道第 5 步，`src/pipeline/pipeline.ts` 的 `admit`：第 1 到 5 步在这一个同步函数里，它调 `src/registry/registry.ts` 的 `enter`，查表项、登记在途令牌、返回 `Entered` 在同一段里完成。两个签名都不是 Promise：`RegistryForPipeline`（`tests/registry.spec-d.ts`）与 `admit`（`tests/pipeline.spec-d.ts`） |
 | 登记表模型：处理函数开始、完成、失败 | `src/settle/settle.ts` 的 `settleCall`：第 10 步已中止则不调用处理函数（`started` 为假）；否则 `handled` 调用处理函数，`written` 核对结果集并用编解码写出，失败由 `failureOf` 按 `effect` 答；`graceExpiry` 在中止之后计宽限 |
 | 登记表模型：撤下 | `AccessRegistryService.mount`（access-cordis-contract `src/cordis.ts`）把挂上包进调用者作用域的效应；卸载时调用 `src/registry/registry.ts` 的 `takeDown`：同步移除表项、`controller.abort()`、修订号加一并回调订阅者；返回的排空 Promise 在最后一个 `leave` 时由 `settleIfDrained` 完成。观察的结束帧归观察中枢，本程只验证排空等观察的 `leave` |
 | 登记表模型：重新挂上 | `src/registry/registry.ts` 的 `mount`：同名同主版本已有表项时抛 `AccessAssemblyError`；旧的那一代排空中、表项已移除时可以再挂 |
@@ -150,7 +150,7 @@
 | I-3 同名至多一份 | 挂上同名同版本的协议第二次，报装配错误，第一份照常答复。`tests/registry.spec.ts`「挂上同名协议第二次报错，第一份照常答复」；真实 Cordis 上 `tests/registry-cordis.spec.ts` 第二条 | 去掉挂上时的同名检查 |
 | I-4 中止送达每个在途的 | 调用登记成在途之后撤下协议，这个调用的中止信号被触发。`tests/registry.spec.ts`「调用登记成在途之后撤下协议，中止信号被触发」 | 撤下时不遍历在途集合；或查表与登记之间插入等待 |
 | I-4 撤下完成时都已结束 | 撤下协议并等它完成，此时它的每个在途调用都已答复，每个观察都收到了结束帧。`tests/registry.spec.ts`「撤下并等它完成，此时每个在途调用都已答复」与「waits for an observation to leave as it waits for a call」；真实 Cordis 上 `tests/registry-cordis.spec.ts` 第一条。本程只验证排空等观察的 `leave`，写结束帧的那一半留给观察中枢那一程 | 撤下不等在途的结束 |
-| I-4 进展 | 调用收到中止之后，在有界的步数内得到答复。`tests/settle.spec.ts`「处理函数不理会中止，过了宽限调用仍得到答复，撤下完成」 | 收到中止的调用不被处理 |
+| I-4 进展 | 调用收到中止之后，在有界的步数内得到答复。`tests/settle.spec.ts`「处理函数不理会中止，过了宽限调用仍得到答复，撤下完成」；管道第 8、9 步：`tests/pipeline-abort.spec.ts`「while the identity port has not returned」与「while half of the body has arrived and the identity port has returned」 | 收到中止的调用不被处理；管道等身份端口或消息体时不同时等中止 |
 | I-8 提交类答「未知」 | 提交类操作的处理函数开始之后撤下协议并让处理函数失败，答复是 `unknown`。`tests/settle.spec.ts`「提交类操作的处理函数开始之后撤下并失败，答 unknown」 | 把这种情形答成 `basis-unavailable` |
 | I-8 读取类与未开始的 | 读取类操作在中止后失败，答复是 `basis-unavailable`。处理函数还没开始就收到中止，答复是 `basis-unavailable`。`tests/settle.spec.ts`「answers basis-unavailable for a read operation that fails after the take-down」与「处理函数还没开始就收到中止，答 basis-unavailable」 | 交换这两种答复 |
 | I-6 订阅不漏帧 | 订阅的同时挂上一个协议，订阅者最终的集合里有它。`tests/registry.spec.ts`「订阅的同时挂上一个协议，订阅者最终的集合里有它」（登记表这一侧） | 读表与登记订阅者之间插入等待 |
