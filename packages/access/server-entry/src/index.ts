@@ -39,3 +39,5 @@ export type {
   Entered,
   RegistryForPipeline,
 } from './registry/registry.ts'
+export { settleCall, systemClock } from './settle/settle.ts'
+export type { Clock, SettleConfig, SettledAnswer, SettleInput } from './settle/settle.ts'

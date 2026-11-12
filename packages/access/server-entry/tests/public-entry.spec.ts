@@ -6,6 +6,8 @@ it('the public entry exports the constructor and nothing that the SPEC keeps int
     'ServerEntryConfigError',
     'createAccessRegistry',
     'createServerEntry',
+    'settleCall',
+    'systemClock',
   ])
   expect(typeof root.createServerEntry).toBe('function')
 })
