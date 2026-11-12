@@ -1,0 +1,3 @@
+positive.cfg pass
+negative-hint-only.cfg Delivered
+negative-submit-reserves.cfg DrainedHonest

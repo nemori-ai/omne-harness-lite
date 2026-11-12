@@ -10,7 +10,8 @@
 - [runtime.ts](runtime.ts)：`createAgentRuntime` 与创建校验的次序
 - [configuration.ts](configuration.ts)：配置项与绑定字段的校验，以及执行步数上限的缺省值
 - [access.ts](access.ts)：公开操作前的租户核对与 `access.check`
-- [provider.ts](provider.ts)：四个面、单执行槽与状态投影；`invoke` 与 `observe` 之外的操作本体是阶段性临时做法
+- [provider.ts](provider.ts)：四个面、单执行槽与状态投影；受理后给在跑的驱动唤醒提示；其余未交付的操作本体是阶段性临时做法
+- [submit.ts](submit.ts)：句柄的 `input.submit`：按输入身份认回、新输入经消息准入的 submit 分支、以对应谱系调 `Journal.submit`
 - [loop/nodes.ts](loop/nodes.ts)：节点词汇与转移表（正常路径），每行来自该节点在节点表中的行
 - [loop/evaluator.ts](loop/evaluator.ts)：纯评估器 `agentEvaluator` 与 `agentCheckpointSchema`，在 E4 与 I8 决定去向
 - [loop/wait.ts](loop/wait.ts)：W0 的原来源重读、观察窗口与注入时钟等待

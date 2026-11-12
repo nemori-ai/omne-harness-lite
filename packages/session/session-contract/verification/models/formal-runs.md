@@ -106,3 +106,25 @@ F1 至 F5 按 R2-D327 处理，下表写处置。
 | `negative-close-all.cfg` | 违反 `OneAnswer` | 命中 | 36 | 33 |
 
 发现的缺陷：`negative-no-closure` 就是加入本模型之前的实现。发行应用上的表现是 Run 在工具调用进行中被叫停后，同一会话的下一个 Run 不能请求模型。处置：终态提交补写工具消息，归约拒绝还有未答调用的终态。
+
+<a id="input-handover"></a>
+
+## 续入三个模型的运行
+
+[交入与收场](input-handover-finish/README.md)、[交入与停服交接](input-handover-quiesce/README.md)与[重复触发](input-submit-once/README.md)是线卡 #1216 第一件要求在写代码之前建的三个模型。2026-11-12，arm64 macOS，OpenJDK 21.0.13，TLC 2.19（tla2tools 1.7.4，JAR SHA-256 `936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`），`-workers 4`，在各目录逐份配置运行。
+
+输入摘要：`InputHandoverFinish.tla` SHA-256 `3fb88d0b2bb67a3756b59957eb93eed4de2a19c0d4a93724f756fb63adb6975b`；`InputHandoverQuiesce.tla` `d4acb90c67bd1bdb1f22727ce16cb9e28add13c0c7641490fb1b7073d1558b42`；`InputSubmitOnce.tla` `362ccc104fa4511597154da911abbff388a0f5c2143638ee4609558d50198e62`。负控命中时的状态数随并行调度略有出入。
+
+| 模型 | 配置 | 预期 | 结果 | 生成状态 | 不同状态 |
+| --- | --- | --- | --- | --- | --- |
+| 交入与收场 | `positive.cfg` | 通过 | 没有发现错误 | 256 | 153 |
+| 交入与收场 | `negative-no-participant.cfg` | 违反 `EndedClean` | 命中 | 43 | 34 |
+| 交入与收场 | `negative-no-agent-check.cfg` | 违反 `EndedClean` | 命中 | 104 | 69 |
+| 交入与停服交接 | `positive.cfg` | 通过（含活性 `Delivered`、`Drains`） | 没有发现错误 | 358 | 180 |
+| 交入与停服交接 | `negative-hint-only.cfg` | 违反 `Delivered` | 命中（活性） | 335 | 187 |
+| 交入与停服交接 | `negative-submit-reserves.cfg` | 违反 `DrainedHonest` | 命中 | 178 | 100 |
+| 重复触发 | `positive.cfg` | 通过 | 没有发现错误 | 59 | 35 |
+| 重复触发 | `negative-fresh-identity.cfg` | 违反 `AcceptOnce` | 命中 | 35 | 29 |
+| 重复触发 | `negative-blind-receipt.cfg` | 违反 `OneReceipt` | 命中 | 54 | 32 |
+
+发现的缺陷：没有新缺陷。三份负控对应实现必须守的三条规则：交入不碰执行槽；接回来的驱动从执行记录读输入边界，不靠唤醒提示；续入用输入自己的身份交入，SE35 只在输入仍待处理且没有 SE35 时写。线卡 #1216 的 A1、A2（输入提交与唤醒提示）与 A5（续入）按这三条实现。

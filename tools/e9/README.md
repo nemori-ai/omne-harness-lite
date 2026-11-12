@@ -229,6 +229,8 @@ MAD 是残差相对残差中位数的绝对偏差中位数。常量方差为 0 �
 
 总判定汇总中位数门和四段门。任何已证实失败优先。缺轮、缺测或缺 fsync 不能通过。`selftest` 提供完整合法四段和合成 fsync，分别断言平稳通过、整体增长失败、单段增长失败、缺测及缺窗等件。单段增长负控的总中位数比值为 1，仍因逐段门失败。所有合成结果明确标记 `synthetic`，不构成产品 E9 结果。
 
+`evaluateSeries(values, threshold)` 对任意一条 200 个每轮值的序列判同样的两道门：第 181 至 200 轮中位数除以第 11 至 30 轮中位数不超过阈值，以及 `blockGrowth` 对第 11 至 200 轮的 DP2 B 门，常数与上面相同。前窗中位数不为正、序列不足 200 个或含非有限值时记等件。长会话测量（[`apps/harness-server/tests/long-session`](../../apps/harness-server/tests/long-session/run.ts)）用它判每轮自身开销、进程内存与每轮新增磁盘，判法见[性能基线](../../docs/engineering/perf-baseline.md)。
+
 ## 归档与比较
 
 归档有 `summary.json`、`rounds.jsonl`、`curves.svg` 和 `curves.html`。适配运行另有原始事件、进度、适配器诊断及进程记录。曲线无需网络，悬浮文本显示段名、轮次和绝对毫秒值。缺测不画点，原因保留在 JSONL。
