@@ -718,23 +718,3 @@ export async function refreshWorkIndex(reach: WorkReach, published: string): Pro
     if (cache !== undefined) cache.counts.stale += 1
   }
 }
-
-/**
- * For a writer that already holds the domain of the tenant (the Journal provider), after its
- * publication committed with the count `published`. With the work of a Session participation in
- * the same fresh commit, the batch is folded (`foldCommitted`, the count one past the held one);
- * without it, the index of the held snapshot is replaced (`refreshWorkIndex`).
- */
-export function registerSessionWorkIndex(
-  storage: SqlStorage,
-  domain: DomainRef,
-  tenantText: string,
-  session: string,
-  published: string,
-  work?: WorkFold,
-): Promise<void> {
-  const reach = { storage, domain, tenant: tenantText, session }
-  return work === undefined
-    ? refreshWorkIndex(reach, published)
-    : foldCommitted(reach, work, 'next')
-}
