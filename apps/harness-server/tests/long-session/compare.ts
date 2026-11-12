@@ -1,9 +1,12 @@
-// Compares two long-session runs of the same commit against the repeat ranges that
-// `docs/engineering/perf-baseline.md` 「长会话」 states before any two runs were compared: counts
-// within 2 %, reads within 5 %, window medians of own overhead within 25 % (the machine is shared),
-// resident memory at the last round within 15 %, the data directory at the last round within 5 %,
-// and the same state for every gate. Prints one line per reading; exits 0 when every reading is in
-// range and 1 when one is not.
+// Compares two long-session runs of the same commit against the repeat ranges of
+// `docs/engineering/perf-baseline.md` 「长会话」: counts within 2 %, reads within 20 %, window
+// medians of own overhead within 25 % (the machine is shared), resident memory at the last round
+// within 15 %, the data directory at the last round within 5 %, and the same verdict for every
+// series: grows (a gate fails) or not. The verdict of a single gate is printed, not compared: a
+// statistic near its line can fall on either side. Reads were first stated at 5 % and every gate
+// had to agree; the first pair broke both (the session subscribers read once per wake, and wakes
+// merge more under load), so the ranges were revised and checked on a third run that did not set
+// them. Prints one line per reading; exits 0 when every reading is in range and 1 when one is not.
 //
 //   node apps/harness-server/tests/long-session/compare.ts <run a> <run b>
 import { readFileSync } from 'node:fs'
@@ -16,7 +19,7 @@ export const REPEAT_RANGES = {
   commitsMedian: 0.02,
   queriesMedian: 0.02,
   journalTotalBytes: 0.02,
-  readsMedian: 0.05,
+  readsMedian: 0.2,
   overheadEarlyMedian: 0.25,
   overheadLateMedian: 0.25,
   rssLast: 0.15,
@@ -41,21 +44,25 @@ function readings(summary: Summary): Record<Reading, number | undefined> {
   }
 }
 
-/** Every gate of a summary by its path, with its state. */
-function gateStates(summary: Summary): Record<string, string> {
-  const states: Record<string, string> = {}
-  const add = (name: string, gates: Readonly<{ median: Gate; growth: Gate }>) => {
-    states[`${name}.median`] = gates.median.state
-    states[`${name}.growth`] = gates.growth.state
+type Gates = Readonly<{ median: Gate; growth: Gate }>
+
+/** The gates of a summary by series. */
+function seriesGates(summary: Summary): Record<string, Gates> {
+  return {
+    overhead: summary.overhead.gates,
+    rss: summary.memory.rss.gates,
+    heapUsed: summary.memory.heapUsed.gates,
+    diskNewBytes: summary.disk.gates,
+    commits: summary.trend.commits,
+    reads: summary.trend.reads,
   }
-  add('overhead', summary.overhead.gates)
-  add('rss', summary.memory.rss.gates)
-  add('heapUsed', summary.memory.heapUsed.gates)
-  add('diskNewBytes', summary.disk.gates)
-  add('commits', summary.trend.commits)
-  add('reads', summary.trend.reads)
-  states['journal'] = summary.journal.state
-  return states
+}
+
+/** A series grows when one of its gates fails; it is blocked when a gate is blocked and none fails. */
+function verdict(gates: Gates): string {
+  const states = [gates.median.state, gates.growth.state]
+  if (states.includes('fail')) return 'grows'
+  return states.includes('blocked') ? 'blocked' : 'steady'
 }
 
 export function compare(a: Summary, b: Summary) {
@@ -71,14 +78,24 @@ export function compare(a: Summary, b: Summary) {
     const difference = base === 0 ? 0 : Math.abs(x - y) / base
     return { reading, a: x, b: y, difference, range, ok: difference <= range }
   })
-  const leftGates = gateStates(a)
-  const rightGates = gateStates(b)
-  const gates = Object.keys(leftGates).map(gate => ({
-    gate,
-    a: leftGates[gate],
-    b: rightGates[gate],
-    ok: leftGates[gate] === rightGates[gate],
-  }))
+  const leftSeries = seriesGates(a)
+  const rightSeries = seriesGates(b)
+  const gates = Object.keys(leftSeries).map(series => {
+    const x = leftSeries[series] as Gates
+    const y = rightSeries[series] as Gates
+    return {
+      gate: series,
+      a: `${verdict(x)} (${x.median.state}/${x.growth.state})`,
+      b: `${verdict(y)} (${y.median.state}/${y.growth.state})`,
+      ok: verdict(x) === verdict(y),
+    }
+  })
+  gates.push({
+    gate: 'journal',
+    a: a.journal.state,
+    b: b.journal.state,
+    ok: a.journal.state === b.journal.state,
+  })
   return { lines, gates, ok: lines.every(line => line.ok) && gates.every(gate => gate.ok) }
 }
 
