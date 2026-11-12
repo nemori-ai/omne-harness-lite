@@ -102,9 +102,10 @@ describe('the commit notifier', () => {
     expect(diagnostics().some(text => text.includes('relay is down'))).toBe(true)
   })
 
-  it('goes on without sessionNotifier', async () => {
-    const { ctx, events } = root()
+  it('goes on without sessionNotifier, and records nothing for its absence', async () => {
+    const { ctx, events, diagnostics } = root()
     await expect(createSessionCommitNotifier(ctx).committed(notice)).resolves.toBeUndefined()
     await expect.poll(() => events.length).toBe(1)
+    expect(diagnostics()).toEqual([])
   })
 })

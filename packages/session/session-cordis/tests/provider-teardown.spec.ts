@@ -142,13 +142,21 @@ describe('what a removal in progress does', () => {
     expect(await service.history.next({ ...a.access(), cursor: '' as never })).toMatchObject({
       failure: { kind: 'unavailable', owner: 'session' },
     })
-    // A notice of another dispatcher neither wakes the instance nor binds a scanner.
+    // A notice neither wakes the instance nor binds a scanner: not for another tenant, and not for
+    // the bound session of this instance, whose input is now accepted and would start a Run.
     a.emitCommitted(
       a.other().tenant,
       a.sessionId('x'),
       '1',
       { owner: 'o', record: 'r', revision: '1', digest: 'd' },
       ['intake.routed'],
+    )
+    a.emitCommitted(
+      a.tenant,
+      a.sessionId('session-1'),
+      '3',
+      { owner: 'o', record: 'r', revision: '3', digest: 'd' },
+      ['message.user', 'intake.routed'],
     )
     await delay(100)
     expect(a.hooks.pendingTenants.length).toBe(scanners)
