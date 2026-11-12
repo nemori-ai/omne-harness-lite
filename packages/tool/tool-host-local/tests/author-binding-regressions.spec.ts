@@ -56,6 +56,7 @@ async function harness(
   module: ToolImplementationModule<unknown, ContentBlock>,
   consumeWith?: ToolStartAuthority<string>['consume'],
   settleWith?: LocalToolBindingsInput<string, unknown, ContentBlock>['settle'],
+  inspectWith?: ToolStartAuthority<string>['inspect'],
 ) {
   const loaded = unbox(await loadAuthor(module))
   const { registry, asFiber } = fiberedRegistry(
@@ -88,6 +89,7 @@ async function harness(
           consumed += 1
           return (consumeWith ?? authority.consume)(input)
         },
+        inspect: input => (inspectWith ?? authority.inspect)(input),
       },
       scope: input => {
         const real = unbox(
@@ -473,6 +475,117 @@ describe('author binding of a start whose consume did not answer started', () =>
     await settled()
     expect(author.entered()).toBe(1)
     expect(fixture.settlements).toHaveLength(1)
+  })
+
+  /** A binding whose first consume answers unavailable, and whose fence answers `inspect`. */
+  const askingFence = async (inspect: ToolStartAuthority<string>['inspect']) => {
+    const author = counted()
+    let fixture: Fixture
+    const once = unavailableOnce(() => fixture)
+    fixture = await harness(author.module, input => once(input), undefined, inspect)
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    expect(await binding.start(input, {})).toMatchObject({ failure: { kind: 'unavailable' } })
+    return { binding, input, author }
+  }
+
+  it('an inspection that the fence answers rejected answers not-started, and never enters the author', async () => {
+    const exclusion = (await import('./coordinator-values.ts')).evidence('rejected')
+    const { binding, input, author } = await askingFence(() =>
+      Promise.resolve(succeed({ kind: 'rejected' as const, reason: 'revoked', exclusion })),
+    )
+    expect(unbox(await binding.inspectStart(input))).toEqual({ kind: 'not-started', exclusion })
+    await settled()
+    expect(author.entered()).toBe(0)
+  })
+
+  it('an inspection that the fence answers unknown answers unknown, and never enters the author', async () => {
+    const { binding, input, author } = await askingFence(() =>
+      Promise.resolve(succeed({ kind: 'unknown' as const, diagnostic: 'the ledger is behind' })),
+    )
+    expect(unbox(await binding.inspectStart(input))).toEqual({
+      kind: 'unknown',
+      diagnostic: 'the ledger is behind',
+    })
+    await settled()
+    expect(author.entered()).toBe(0)
+  })
+
+  it('an inspection whose fence cannot answer gives that failure, and never enters the author', async () => {
+    const down = fail({
+      kind: 'unavailable' as const,
+      dependency: 'start-ledger',
+      diagnostic: 'down',
+    })
+    const { binding, input, author } = await askingFence(() => Promise.resolve(down))
+    expect(await binding.inspectStart(input)).toEqual(down)
+    await settled()
+    expect(author.entered()).toBe(0)
+  })
+
+  it('an inspection of a start that entered the author answers from the execution, not the fence', async () => {
+    let fenceDown = false
+    let fixture: Fixture
+    fixture = await harness(counted().module, undefined, undefined, input =>
+      fenceDown
+        ? Promise.resolve(
+            fail({ kind: 'unavailable' as const, dependency: 'start-ledger', diagnostic: 'down' }),
+          )
+        : fixture.authority.inspect(input),
+    )
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    unbox(await binding.start(input, {}))
+    fenceDown = true
+    expect(unbox(await binding.inspectStart(input)).kind).not.toBe('unknown')
+  })
+
+  it('an inspection that arrives while the consume is still out waits for its answer', async () => {
+    const author = counted()
+    const held = Promise.withResolvers<void>()
+    let fixture: Fixture
+    fixture = await harness(author.module, async input => {
+      await held.promise
+      return fixture.authority.consume(input)
+    })
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    const started = binding.start(input, {})
+    const inspected = binding.inspectStart(input)
+    held.resolve()
+    expect(await started).toHaveProperty('ok')
+    // The answer comes from the execution (it may have settled by now), not from the fence.
+    expect(['live', 'settled']).toContain(unbox(await inspected).kind)
+    await settled()
+    expect(author.entered()).toBe(1)
+  })
+
+  it('an inspection of another start record under the same start operation is a conflict', async () => {
+    const fixture = await harness(counted().module)
+    const binding = await fixture.resolve()
+    const input = await fixture.input()
+    unbox(await binding.start(input, {}))
+    const moved = { ...input.start, execution: { ...input.start.execution, generation: '2' } }
+    expect(await binding.inspectStart({ ...input, start: moved })).toEqual({
+      failure: { kind: 'conflict', operation: input.start.operation },
+    })
+  })
+
+  it('a rebuilt binding (a new process) does not enter the author for a start the fence accepted', async () => {
+    const author = counted()
+    let fixture: Fixture
+    fixture = await harness(author.module, async input => {
+      unbox(await fixture.authority.consume(input))
+      return succeed({ kind: 'unknown' as const, diagnostic: 'the answer was lost' })
+    })
+    const input = await fixture.input()
+    expect(await (await fixture.resolve()).start(input, {})).toMatchObject({
+      failure: { kind: 'commit-unknown' },
+    })
+    const rebuilt = await fixture.resolve(fixture.fixed, 'first', fixture.rebuild())
+    expect(unbox(await rebuilt.inspectStart(input))).toMatchObject({ kind: 'unknown' })
+    await settled()
+    expect(author.entered()).toBe(0)
   })
 
   it('a rebuilt binding (a new process) answers not-started for a start the fence did not accept', async () => {

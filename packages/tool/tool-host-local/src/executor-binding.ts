@@ -110,11 +110,6 @@ type SuspendedSegment = Readonly<{
   intent: WaitIntent
 }>
 
-/** A segment entry that never runs: an attempt that `begin` recalls does not enter again. */
-function never(): Promise<Segment> {
-  return Promise.reject(new Error('a recalled attempt does not enter its segment again'))
-}
-
 /** The operation of a call's request in the author's registration, or undefined. */
 function operationOf(
   registration: ReturnType<typeof readToolRegistration>,
@@ -629,8 +624,6 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
       inspectSuspension: prove,
       // The ledger gives the state of the checkpoint and the response of its wait with the start.
       resume: ({ state, response, ...input }, environment) => {
-        const old = attempts.get(startKey(input, input.start))
-        if (old !== undefined && replays(old)) return begin(input, environment, () => never(), [])
         if (
           response.response.kind !== 'decision' ||
           response.call !== input.call ||

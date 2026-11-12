@@ -129,6 +129,74 @@ describe('21 a binding that cannot answer (F1)', () => {
     },
   )
 
+  // The run that a binding could not answer ends unavailable, so the driver itself runs the call
+  // again after the retry delay (U4): no one has to run it by hand. A run that ended blocked would
+  // be left, and the call would wait for a wake-up that never comes.
+  it('21 transient: the driver runs the call again on its own after a binding that could not answer', async () => {
+    const harness = startHarness({ ...answering('unavailable'), driverRetryDelayMs: 5 })
+    await admitCall(harness, 'c1')
+    await harness.runOnce('c1')
+    expect(harness.binding.controls.launches()).toBe(0)
+    for (let round = 0; round < 200 && harness.binding.controls.launches() === 0; round += 1) {
+      await new Promise(resolve => setTimeout(resolve, 2))
+      await harness.host.runScheduled()
+    }
+    expect(harness.binding.controls.launches()).toBe(1)
+    expect(await harness.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+  })
+
+  // The run ends unavailable, so the driver runs the call again itself after the retry delay.
+  it('21 transient: a fence that cannot answer after the binding ends the run, and keeps nothing', async () => {
+    let inspections = 0
+    const harness = startHarness({
+      ...answering('unavailable'),
+      driverRetryDelayMs: 5,
+      authorityPort: base => ({
+        ...base,
+        inspect: input => {
+          inspections += 1
+          return inspections === 2
+            ? Promise.resolve(
+                fail<ToolFailure>({ kind: 'unavailable', dependency: 'fence', diagnostic: 'busy' }),
+              )
+            : base.inspect(input)
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    await harness.runOnce('c1')
+    expect(inspections).toBe(2)
+    expect(harness.authority.excluded).toEqual([])
+    expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    for (let round = 0; round < 200 && harness.binding.controls.launches() === 0; round += 1) {
+      await new Promise(resolve => setTimeout(resolve, 2))
+      await harness.host.runScheduled()
+    }
+    expect(harness.binding.controls.launches()).toBe(1)
+  })
+
+  // A binding that threw is not a binding that could not answer: its failure marker is written in
+  // the same run, before any later run asks the binding again.
+  it('21 throw: a binding that throws has its failure marker written in the same run', async () => {
+    const markers: string[] = []
+    const harness = startHarness({
+      bindingPort: base => ({
+        ...base,
+        start: () => Promise.reject(new Error('the binding threw')),
+      }),
+      commands: base => ({
+        ...base,
+        recordStart: input => {
+          if (input.operation === 'op-c1/start-failed') markers.push(input.operation)
+          return base.recordStart(input)
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    await harness.runOnce('c1')
+    expect(markers).toEqual(['op-c1/start-failed'])
+  })
+
   it('21 transient: a new driver after a binding that could not answer starts the original start', async () => {
     const first = startHarness(answering('unavailable'))
     await admitCall(first, 'c1')
