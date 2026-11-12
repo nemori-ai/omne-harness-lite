@@ -105,7 +105,17 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 ## 进轨道
 
 1. 同步轨道头：先 `git fetch`，在工作分支上用普通的 `git merge` 合并 `origin/integration/mainline`，解决冲突并提交；轨道头有破坏性改动时先读它的 PR。
-2. 先跑改动成员的合入检查（接入节那一格），再 `pnpm run preflight`，最后在最终 head 上 `pnpm run admission`。准入独占机器、不读缓存，不是第一道检测器；失败后用 `--resume-from` 接续。
+2. 先跑改动成员的合入检查（接入节那一格），再 `pnpm run preflight`，最后在最终 head 上跑一次 `pnpm run admission`。准入独占机器、不读缓存，不是第一道检测器。整跑没有通过时不重排整跑，先把每处失败归类，再按类补证：
+
+   | 失败是哪一类 | 怎样判 | 怎样补证 |
+   | --- | --- | --- |
+   | 本次改动带来的 | 基线上单独跑同一个用例文件是通过的，或它测的就是这次改的东西 | 修。修好后用 `--resume-from` 接续 |
+   | 起点上本来就失败 | 基线上单独跑同样失败 | 不在这次修。确认说明里列出，附基线上的命令与输出 |
+   | 负载或时序 | 超时、等待没等到，或一批用例同时失败；机器上同时有别的重任务 | 把失败的用例文件逐个单独跑，稳定通过就是证据 |
+   | 环境 | 缺工具、缺离线缓存、版本不对 | 修环境，只重跑受影响的那一步 |
+   | 说不清 | 单独跑时过时不过 | 当成本次带来的去查，查清之前不合入 |
+
+   没验到的写「没验」与原因，不写成通过。完整规则（证据要盖住什么、轨道头前进了怎么办、确认说明怎样写、哪些情形必须整跑）在 `docs/engineering/integration.md`「准入证据怎样取得」。
 3. 推送个人工作分支，开 PR 进 `integration/mainline`，用 PR 模板 `.github/pull_request_template.md`，写「所含的卡」（只列本卡）与「契约变化」两节。标题与正文按 `CONTRIBUTING.md` 写，标题用具体的 `type(scope)`。PR 标题和正文不加 `Generated with <agent>` 一类的工具署名页脚，宿主自动附加的也删掉。每次上下文压缩之后，重新对照 `CONTRIBUTING.md` 核对这些格式。
 4. gate：派发 `gh workflow run gate-publish.yml --ref github-gate -f pr=<号> -f head=<完整 head>`，参数见 `github-gate` 分支的 `gate/README.md`。
 5. 确认：只有 admin 能确认 `publish`。说明写明本地运行的检查及结果、已核对的卡上条件，按 UTF-8 字节不超过 1024。没有该 admin 对本次动作的授权时，停在等待确认，把运行链接交回。负责人在卡上授权代为确认时，说明中注明代为确认的人，后台运行下面的命令，等完成通知，不手工轮询 `pending_deployments`：

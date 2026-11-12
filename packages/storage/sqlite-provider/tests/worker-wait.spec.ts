@@ -65,7 +65,13 @@ describe('a sent commit with no reply within twice lockWaitMs', () => {
   it('settles unknown (reply_wait_expired) in time, keeps its reservation, and is recognized once the Worker answers', async () => {
     // Defect: the caller waits for the reply without a bound (the old code): the first commit
     // would come back `committed` after the spin instead of `unknown` within the observation.
-    const { storage } = await ready({ ...LOCK_WAIT, admissionQueueLimit: 1, groupMaxOperations: 1 })
+    // admissionWaitMs 0: the held reservation shows as an immediate queue_full (准入等待 rule 7).
+    const { storage } = await ready({
+      ...LOCK_WAIT,
+      admissionQueueLimit: 1,
+      groupMaxOperations: 1,
+      admissionWaitMs: 0,
+    })
     const start = Date.now()
     const result = await storage.commit(spinning('slow', SPIN))
     expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'reply_wait_expired' })
@@ -82,7 +88,13 @@ describe('a sent query with no reply within twice lockWaitMs', () => {
   it('settles unknown (reply_wait_expired) in time; its queue place goes back with the reply', async () => {
     // Defect: the query waits for the reply without a bound: it would come back `committed`
     // after the spin instead of `unknown` within the observation.
-    const { storage } = await ready({ ...LOCK_WAIT, queryQueuePerDomain: 1, queryQueueGlobal: 1 })
+    // admissionWaitMs 0: the held queue place shows as an immediate queue_full (准入等待 rule 7).
+    const { storage } = await ready({
+      ...LOCK_WAIT,
+      queryQueuePerDomain: 1,
+      queryQueueGlobal: 1,
+      admissionWaitMs: 0,
+    })
     const busy = storage.commit(spinning('busy', SPIN))
     await sleep(100)
     const start = Date.now()

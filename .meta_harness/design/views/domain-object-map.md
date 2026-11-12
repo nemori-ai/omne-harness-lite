@@ -7,7 +7,7 @@
 - 生成时间：2026-11-12
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **70** 个，变体 **32** 个，形态未定的词条 **2** 个，待裁 **12** 项。
+对象 **73** 个，变体 **33** 个，形态未定的词条 **2** 个，待裁 **12** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -29,7 +29,7 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [资产](../domain_objects/objects.md#ul-asset--资产) | [UL-asset](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset--资产--asset) | — | 技能、工具、MCP、连接件、拓展件、模态转换件、斜杠命令、插件、Agent 定义、模型供应商、官方件、自定义件 | PF-002（sealed provenance） | 001（sealed provenance） |
+| [资产](../domain_objects/objects.md#ul-asset--资产) | [UL-asset](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset--资产--asset) | — | 技能、元技能、工具、MCP、连接件、拓展件、模态转换件、斜杠命令、插件、Agent 定义、模型供应商、官方件、自定义件 | PF-002（sealed provenance） | 001（sealed provenance） |
 | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) | [UL-asset-version](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | [资产](../domain_objects/objects.md#ul-asset--资产)——每一份资产有自己独立的一条版本线 | — | PF-002（sealed provenance） | 003（sealed provenance） |
 | [meta 能力](../domain_objects/objects.md#ul-meta-capability--meta-能力) | [UL-meta-capability](../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | 正文未述。已采用并提供的元入口在 Agent 装配后各占一个常驻槽位 | — | PD-meta-capabilities | — |
 | [模型档案](../domain_objects/objects.md#ul-model-profile--模型档案) | [UL-model-profile](../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | —。建在出厂默认、组织或租户自己那一层；它不是资产，「用哪个模型」那项设置记的是路由名，同名的几条在范围链上按层取最具体一格的那一条（租户 > 组织 > 官方） | 官方档案、自建档案 | PF-013（sealed provenance） | — |
@@ -87,6 +87,14 @@
 | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [UL-session-authorization-context](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | [会话](../domain_objects/objects.md#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在） | — | PD-meta-capabilities | 015（sealed provenance） |
 | [授权表达](../domain_objects/objects.md#ul-authorization-expression--授权表达) | [UL-authorization-expression](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文)——作用域为「这一次」「本会话」的那些落在它里面；**作用域为「全局」的那一笔不落在这里**，由具备资格的主体[按规则写入租户层权限设置](../product/meta-capabilities/design.md#会话授权上下文)，表达不等于设置已生效 | — | PD-meta-capabilities | — |
 | [入站到达](../domain_objects/objects.md#ul-inbound-arrival--入站到达) | [UL-inbound-arrival](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | [会话](../domain_objects/objects.md#ul-session--会话)（恰好一个；没有「飘着的到达」） | 控制指令、插队 | PD-agent-progression | 014（sealed provenance） |
+
+## 取用与可用性
+
+| 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
+|---|---|---|---|---|---|
+| [MCP 连接](../domain_objects/objects.md#ul-mcp-connection--mcp-连接) | [UL-mcp-connection](../ubiquitous_language/terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection) | 产品正文未述它的寿命跟着谁。[J-MC01](../product/mcp/design.md#j-mc01-采用接入点并取得合法连接条件) 只写部分建立的连接由取得者收口 | — | PD-mcp（草稿） | — |
+| [MCP 动作清单](../domain_objects/objects.md#ul-mcp-action-catalog--mcp-动作清单) | [UL-mcp-action-catalog](../ubiquitous_language/terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | 产品正文未述 | — | PD-mcp（草稿） | — |
+| [MCP 已知动作](../domain_objects/objects.md#ul-mcp-known-action--mcp-已知动作) | [UL-mcp-known-action](../ubiquitous_language/terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | [MCP 动作清单](../domain_objects/objects.md#ul-mcp-action-catalog--mcp-动作清单) | — | PD-mcp（草稿） | — |
 
 ## 记录与上下文
 
@@ -148,6 +156,7 @@
 | [租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱) | [沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) |
 | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境) | [终端会话](../domain_objects/objects.md#ul-terminal-session--终端会话) |
 | [获取](../domain_objects/objects.md#ul-environment-acquisition--获取) | [租约](../domain_objects/objects.md#ul-environment-lease--租约) |
+| [MCP 动作清单](../domain_objects/objects.md#ul-mcp-action-catalog--mcp-动作清单) | [MCP 已知动作](../domain_objects/objects.md#ul-mcp-known-action--mcp-已知动作) |
 | [记录条目](../domain_objects/objects.md#ul-record-entry--记录条目) | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体) |
 | [正文条目](../domain_objects/objects.md#ul-body-entry--正文条目) | [正文字节](../domain_objects/objects.md#ul-body-bytes--正文字节) |
 | [运行](../domain_objects/objects.md#ul-run--运行) | [决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) |
@@ -185,4 +194,4 @@
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、系统日程定义、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、正文条目、正文字节、日程、作业、日程订阅、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、设施声明、获取、租约、受管资源、环境提供者、文件批次、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、请求候选、提示词贡献、压缩计划、业务日历、业务日历版本、工作区、工作区实例、运行时 context 注册、runtime context 块、块声明、生产者句柄、绑定读者、步提交、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。
+会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、系统日程定义、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、正文条目、正文字节、日程、作业、日程订阅、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、设施声明、获取、租约、受管资源、环境提供者、文件批次、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、MCP 连接、MCP 动作清单、MCP 已知动作、记录条目、会话日志、消息、内容块、待办条目、请求候选、提示词贡献、压缩计划、业务日历、业务日历版本、工作区、工作区实例、运行时 context 注册、runtime context 块、块声明、生产者句柄、绑定读者、步提交、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。

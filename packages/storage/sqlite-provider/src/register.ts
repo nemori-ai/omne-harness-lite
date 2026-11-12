@@ -64,8 +64,10 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
     const judged = judge(core, input)
     if (judged.kind === 'rejected') return rejection(judged.reason)
     const { spec, transactionDomain } = judged
-    const grant = core.admission.reserveControl(transactionDomain)
-    if (grant === null) return rejection('queue_full')
+    // A full control queue makes the registration wait (sql-contract SPEC 准入等待): nothing is sent yet.
+    const grant = await core.admission.reserveControl(transactionDomain)
+    if (grant.kind === 'closing') return rejection('closing')
+    if (grant.kind !== 'granted') return rejection('queue_full')
     const registered = (scope: StorageScope): RegisterResultV2 => ({
       kind: 'registered',
       registration: {

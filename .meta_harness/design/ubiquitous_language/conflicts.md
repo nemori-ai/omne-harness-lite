@@ -500,3 +500,53 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **差别**：人和 agent 可以直接创建 Job。Scheduled Job 是有日程时隙的 Job 变体，不另立身份或生命周期。agent 来源会话不自动承担执行或成果整理。
 - **处置**：新增 UL-job 对象词条，UL-scheduled-job 改为其变体，原对象条目归入 UL-job。成果发布允许显式 provider 方式，masterInternal 仍要求返回目标。
 - **状态**：产品、公开形状与领域投影已同步，运行支持待实现验证。
+
+### C-78：「端点」与「接入点」
+
+- **类型**：同义不同名。2026-11-12 修订 MCP 产品时发现。
+- **来源**：[MCP 产品](../product/mcp/design.md)在 rev 2 里通篇把接入点写作「端点」，同一页也写「接入点」；[UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) 把 MCP 定义为「一个外部工具来源的接入点」，[MCP 凭据](terms/capabilities-and-composition.md#ul-mcp-credential--mcp-凭据--mcp-credential)与[连接目标](terms/capabilities-and-composition.md#ul-connection-target--连接目标--connection-target)也写「接入点」。
+- **差别**：两个说法指同一份资产，不是两个概念。另立「MCP 接入点」词条会成为第二个名字。
+- **处置**：正式名沿用 UL-mcp，正文里的「接入点」「MCP 接入点」指的就是它；「端点」与英文 Endpoint 记进 UL-mcp 的弃用。MCP 产品在 rev 3 已统一成「接入点」。指对端地址或对端本身的「端点」不是术语，不在此列。`docs/domains/mcp`、`packages/mcp` 的说明与另外三处领域页、架构页里的同类说法已一并改成「接入点」。
+- **状态**：已选正式名。
+
+### C-79：能发现的范围与会话已知能力
+
+- **类型**：定义打架。2026-11-12 修订元能力、Skill、MCP 与工具执行产品时发现。
+- **来源**：[元能力 Tools()](../product/meta-capabilities/design.md#meta-tools)（rev 7）、[Skill J-SK02](../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 3）与[工具执行 定义、已知能力与一次执行](../product/tool-execution/design.md#定义已知能力与一次执行)（rev 9）按产品负责人 PanQiWei 2026-11-12 的裁定写明：`Tools` 与 `Skills` 能发现的是主体此刻合法可用的条目，按当下事实现算，不是采用点上记下的集合；新装的不常驻能力，已有会话的下一次搜索就能看到，这不是重新装配。现有三条词条按封存 PF 写成：[动作空间](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space)「由合法纳入会话的能力条目投影得到……在同一 Session 内单调增加」（PF-004 rev 20）；[当下可用性](terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability)「一个已纳入会话的工具、技能或 MCP 能力……每次尝试开始核对」（PF-006 rev 24）；[增量装载](terms/agent-runtime-loop.md#ul-incremental-loading--增量装载--incremental-loading)「运行中将一个当前规则允许的新能力纳入会话……追加采用记录与会话已知身份」（PF-004 rev 20）。
+- **差别**：按旧词条，一个新能力要先「纳入会话」才能被发现，增量装载是让它当场可用的那一步。按现行产品，发现不经纳入，新能力在下一次搜索就出现，采用记录只管装进上下文的那一部分。按旧词条实现，会为每个会话维护一份已知集合并要求一次装载动作。
+- **处置**：以现行产品为准，它有产品负责人 2026-11-12 的裁定。新增的[工具条目](terms/reach-and-availability.md#ul-tool-entry--工具条目--tool-entry)按现行产品写成视图。动作空间改写为两个来路：常驻的是采用点上的记录、只增不减，能发现的按当下事实现算。当下可用性去掉「已纳入会话的」这一限定，每次发现也求值。增量装载的条目保留，注明现行产品里没有这一步、新正文不再用这个词。
+- **状态**：已裁，三条词条已改。
+
+### C-80：撤权何时对会话生效
+
+- **类型**：定义打架。2026-11-12 修订 Skill 与工具执行产品时发现。
+- **来源**：[Skill J-SK02](../product/skills/design.md#j-sk02-找到方法并理解当下能否使用)（rev 3）与[工具执行 定义、已知能力与一次执行](../product/tool-execution/design.md#resident-tools)（rev 9）按 PanQiWei 2026-11-12 的裁定写明「撤销资格不等装配，立刻生效」。[谁可以使用它](terms/circulation-and-entitlement.md#ul-usable-by--谁可以使用它--usable-by)的注意 ② 写「会话进行中被收回，默认下一 Run 采用撤权结果，显式 reload 可提前采用」，依据是封存 PF-002 rev 32。
+- **差别**：按旧说法，Run 进行中被收回的资格要到下一 Run 才生效；按现行产品，下一次使用就拒绝。常驻声明可以留到下一次装配，可用与否不等。
+- **处置**：以现行产品为准。注意 ② 改成：收回立刻生效，下一次使用就被拒绝；已经装进上下文的常驻声明留到下一个采用点才变。
+- **状态**：已裁，词条已改。
+
+### C-81：Skill 的脚本由谁执行
+
+- **类型**：定义打架。2026-11-12 产品负责人裁定 Skill 的脚本由 Shell 执行之后发现。
+- **来源**：旧说法在 [Skill 产品](../product/skills/design.md)、[元能力 Skills()](../product/meta-capabilities/design.md#meta-skills)、Skill 领域页与成员说明里：`Skills` 有六个命令，其中 `exec_script` 经脚本桥接运行 Skill 自带的脚本；脚本执行权按这个 Skill 判，只能运行包内脚本；落点、身份、秘密类设置只交给脚本；依赖或脚本设施不足时正文读不读得到待 Q-SK08 裁定。[依赖声明](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)的注意按封存 PF-006 rev 24 写「带脚本的技能同样要声明它需要什么设施」。现行说法在 [Skill J-SK05](../product/skills/design.md#j-sk05-运行方法携带的脚本)、[J-SK03](../product/skills/design.md#j-sk03-按需读取正文或指定资源)、[J-SK04](../product/skills/design.md#j-sk04-让配置到达正确的消费者)（rev 3）与[元能力 Skills()](../product/meta-capabilities/design.md#meta-skills)（rev 7）。
+- **差别**：按旧说法，Skill 持有一条执行通道和一份按 Skill 判的执行许可，还要管脚本的运行设施与设置供给。按现行说法，`Skills` 有五个命令：`search`、`read`、`read_file`、`list` 只读，`submit` 是提交，没有执行命令。脚本是第三层的文件，用 `read_file` 读。运行归 Shell：资产先加载到本地，单机装配下 agent 从 `Skills` 的读取结果知道目录在本机的位置，用 Shell 直接运行，这是一次普通的 Shell 工具调用。Skill 不持有执行权，不向 Shell 里的进程注入任何值。必需依赖缺席不挡读取，正文照常返回并写明缺项。防护与隔离不在这一阶段。
+- **处置**：以现行说法为准，依据是产品负责人 PanQiWei 2026-11-12 的裁定。依赖声明的那条注意改成「技能的依赖声明不管脚本的运行设施」。[包的读口](terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader)加一条注意：它不给路径这一条不变，目录加载到本机之后在哪是另一件事。产品正文、领域页、成员说明与心智模型里的旧说法已一并改掉，Q-SK04 退出，Q-SK08 已裁定。
+- **状态**：已裁，词条已改。
+
+### C-82：「摘要」的两种意思
+
+- **类型**：同名不同义。2026-11-03 为 Skill 与 MCP 立词条时发现。
+- **来源**：[Skill 包快照](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)要用「内容摘要」指按内容算出的散列值（digest）。[同形](terms/reach-and-availability.md#ul-same-shape--同形--same-shape)里的「词汇表的拥有者、名称与摘要」也是这个意思。[包的清单](terms/capabilities-and-composition.md#ul-package-manifest--包的清单--package-manifest)与[包的读口](terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader)里的「摘要」同样指散列值。[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)、[摘要步](terms/record-and-context.md#ul-summary-step--摘要步--summary-step)与同形里的「命令摘要」用「摘要」指文字摘要（summary）。
+- **差别**：一个是用来判断内容是否相同的散列值，一个是给人或模型读的缩写文字。下游读到「按摘要取内容」时，可能把它读成按一段文字去找内容。
+- **处置**：新词条把散列值写成「内容摘要」，并注明它不是文字摘要。已有词条与正文暂不回改。MCP 已知动作定义的散列值写成「定义的内容摘要」，不另立「定义摘要」词条，也不裸写「定义摘要」。
+- **负责与闭合条件**：统一语言维护者。散列值的用法统一写成「内容摘要」或另定一个说法，并回改同形、包的清单与包的读口的词条后闭合。
+- **状态**：待收敛。
+
+### C-83：工作区目录技能的 Skill 材料依据中的资产版本
+
+- **类型**：定义打架。2026-11-03 立 [Skill 材料依据](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis)词条时发现。
+- **来源**：[Skill 材料依据](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis)只含能力标识、资产版本与 Skill 包快照的内容摘要三项。[Skill 包快照](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot)「别混 ①」说工作区目录中的技能没有发布。[资产版本](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version)是一次发布定下的内容。
+- **差别**：照字面读，工作区目录中的技能没有资产版本，它的 Skill 材料依据凑不齐三项。下游可能为它补造一个版本号，也可能让这一项缺席，两种做法对「三项都相同指同一份材料」给出不同的结果。
+- **处置**：词条按三项写，并在「待裁决」指向本条。工作区目录技能的 Skill 材料依据怎样标版本，词表不补。
+- **负责与闭合条件**：Skill 的技术拥有者，涉及产品含义时上交产品负责人。Skill 组设计或 Skill 产品页写明工作区目录技能的 Skill 材料依据中这一项取什么，词条按结论改写后闭合。
+- **状态**：已闭合（2026-11-03）。负责人裁定：Skill 材料依据含能力标识、来源层、资产版本与内容摘要四项。工作区来源的资产版本可以缺省。能力标识、来源层与内容摘要都相同的两个 Skill 材料依据，指同一份材料。[Skill 组设计](../../../docs/domains/skills/architecture.md)按四项写定。词条与索引行已按裁定改写，「待裁决」已去掉。上列来源、差别与处置保留发现时的写法，现行含义以词条为准。

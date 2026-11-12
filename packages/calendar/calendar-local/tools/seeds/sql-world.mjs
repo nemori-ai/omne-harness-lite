@@ -124,6 +124,7 @@ function configuration(storageRoot) {
     storageRoot,
     admissionQueueLimit: 100,
     globalAdmissionLimit: 100,
+    admissionWaitMs: 1000,
     lockWaitMs: 1000,
     maxCommandsPerCommit: 5,
     maxCommandBytes: 128 << 20,

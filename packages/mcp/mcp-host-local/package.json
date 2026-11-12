@@ -1,0 +1,54 @@
+{
+  "name": "@omne-harness/mcp-host-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local MCP host: the stdio and Streamable HTTP McpTransport implementations with authorization discovery, and the MCP Cordis plugin that provides the three MCP services",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/kernel-basis": "workspace:*",
+    "@omne-harness/mcp": "workspace:*",
+    "@omne-harness/mcp-contract": "workspace:*",
+    "@omne-harness/mcp-cordis-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "eventsource-parser": "catalog:"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "catalog:",
+    "@modelcontextprotocol/node": "catalog:",
+    "@modelcontextprotocol/server": "catalog:",
+    "@modelcontextprotocol/server-everything": "catalog:",
+    "@modelcontextprotocol/server-filesystem": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "zod": "catalog:"
+  }
+}

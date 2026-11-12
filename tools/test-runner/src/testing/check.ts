@@ -60,6 +60,11 @@ import { budgetFor, describeBudget, WORKER_BUDGET_ENV } from './parallelism.ts'
 
 /** `tmp/check-run/` 下按头分目录，只留最近这么多个头的目录（当前头不计）。 */
 export const KEEP_RUN_DIRS = 5
+
+/** 准入没通过时打印的一行：下一步是把失败归类后补证，不是再排一次整跑。 */
+export const ADMISSION_NEXT_STEP =
+  '下一步：先把每处失败归类（本次改动带来的、起点上本来就失败、负载或时序、环境），再按类补证，不重排整跑。' +
+  '做法见 docs/engineering/integration.md「准入证据怎样取得」。'
 /** repo-toolchain 依赖图缓存的开关（`deps/graph.ts` 的 `WORKING_CACHE_SWITCH`）：`0` 关掉；记录里据它写 depGraph 缓存状态。 */
 const DEP_GRAPH_CACHE_ENV = 'OMNE_DEP_GRAPH_CACHE'
 
@@ -455,6 +460,7 @@ export async function runCheck(
       )
       say(`--- ${first.name} 的日志末尾（${relative(root, first.logPath)}）---`)
       for (const line of tail(first.logPath, 40)) say(line)
+      if (admission) say(ADMISSION_NEXT_STEP)
     }
   }
   if (admissionLog !== undefined) say(`exit=${exitCode}`)

@@ -123,8 +123,9 @@
 | [UL-setting-category](terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category) | 设置项类别 | Setting Category | 每项设置必标的四类之一：偏好 / 绑定 / 落点与身份 / 治理（管别的设置与权限怎么起作用）；决定值能从哪些层来 |
 | [UL-permission](terms/capabilities-and-composition.md#ul-permission--权限--permission) | 权限 | Permission | 资产的一种属性，管「能做什么」 |
 | [UL-skill](terms/capabilities-and-composition.md#ul-skill--技能--skill) | 技能 | Skill | 一段可复用的工作方法 |
+| [UL-meta-skill](terms/capabilities-and-composition.md#ul-meta-skill--元技能--meta-skill) | 元技能 | Meta Skill | 官方层发行、常驻、声明不可替换的那份教 agent 写 Skill 的普通 Skill；**不是 meta 能力** |
 | [UL-tool](terms/capabilities-and-composition.md#ul-tool--工具--tool) | 工具 | Tool | 一个可被调用的动作，**身份是这一类里的那个 name**；资产只带身份、治理声明与实现引用，形状由实现提供 |
-| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点；对端每个动作是一个工具条目，一次执行尝试之内不变 |
+| [UL-mcp](terms/capabilities-and-composition.md#ul-mcp--mcp--mcp) | MCP | MCP | 一个外部工具来源的接入点，只按地址接入；对端每个动作是一个工具条目，按当下事实现算；标了常驻的接入点，动作在采用点成为常驻工具；弃用 ~~端点~~ |
 | [UL-connection-target](terms/capabilities-and-composition.md#ul-connection-target--连接目标--connection-target) | 连接目标 | Connection Target | MCP 接入点连到对端哪里，**落点与身份类**，工作区配不了；**不是身份** |
 | [UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) | 连接件 | Connector | 一个外部消息来源的接入件，**方向相反**；声明事件目录、持有上配事件订阅；两种投递方式（已有会话开口接收 / 事件开新会话，后者必配触发会话的默认运行模式）；带身份鉴权，接哪个账号是持有上的落点与身份类设置 |
 | [UL-connector-event-type](terms/capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type) | 连接件事件类型 | Connector Event Type | 连接件正文里声明的一种会送进来的外部事件：类型名 + 说明 + 消息包形状；每条外部消息恰属一种 |
@@ -139,6 +140,11 @@
 | [UL-agent-type](terms/capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type) | agent 类型 | Agent Type | 这份定义**具不具备 master 的那一整套机制**：`master` / `non-master`；**不是「子 agent」那个意思** |
 | [UL-master-category](terms/capabilities-and-composition.md#ul-master-category--master-类目--master-category) | master 类目 | Master Category | master 主要干什么的，五类；**只出厂加**，**不是会话类型** |
 | [UL-asset-version](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | 资产版本 | Asset Version | 一个资产某一次发布定下的那份内容，已发布即不可变；已有会话的常驻工具只在采用点跟随同形的新版 |
+| [UL-package-manifest](terms/capabilities-and-composition.md#ul-package-manifest--包的清单--package-manifest) | 包的清单 | Package Manifest | 正文是目录的资产版本所带的文件清单：每个文件的路径、大小、摘要；**不是装配清单** |
+| [UL-package-reader](terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader) | 包的读口 | Package Reader | 资产按层、能力标识、版本交出的读取入口：给清单，按路径与摘要读文件；**不给宿主机路径** |
+| [UL-skill-package](terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package) | Skill 包 | Skill Package | 技能一份完整内容的形式：以 `SKILL.md` 为根的目录树；**不是身份，不是插件，也不是代码成员包** |
+| [UL-package-snapshot](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot) | Skill 包快照 | Skill Package Snapshot | Skill 包某一时刻全部条目的不可变清单及其内容摘要；**内容摘要是散列值，不是文字摘要**；读已发布版本时由包的清单封出 |
+| [UL-material-basis](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis) | Skill 材料依据 | Skill Material Basis | 调用方手里指明此前读到哪一份 Skill 材料的值：能力标识、来源层、资产版本（工作区来源可缺省）与 Skill 包快照的内容摘要四项，凭能力标识、来源层与内容摘要确定同一份材料；**不含包的位置，不授予访问，不是采用依据** |
 | [UL-asset-composition](terms/capabilities-and-composition.md#ul-asset-composition--资产组合--asset-composition) | 资产组合 | Asset Composition | 资产之间、资产与 agent 之间的同一种关系 |
 | [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
 | [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 会话已知能力的动作视图；身份单调保留，可用性与准入另判 |
@@ -285,6 +291,7 @@
 | [UL-deployment-parameter](terms/grounding-and-isolation.md#ul-deployment-parameter--部署参数--deployment-parameter) | 部署参数 | Deployment Parameter | 「按部署配置」那些值的统称，运维者给值、缺一不可、改了只影响此后；**不是范围化对象** |
 | [UL-subprocess-environment-allowlist](terms/grounding-and-isolation.md#ul-subprocess-environment-allowlist--子进程环境变量名单--subprocess-environment-allowlist) | 子进程环境变量名单 | Subprocess Environment Allowlist | 只从父进程复制名单内且存在的变量，不自动继承其余变量 |
 | [UL-credential-custodian](terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian) | 凭据保管方 | Credential Custodian | 拿着凭据本体的那一方，**只按条件交出、不拿别的顶上**，落地只以密文；**只保管，不决定配哪一把**；本版只在据点 |
+| [UL-package-source](terms/grounding-and-isolation.md#ul-package-source--skill-包来源--skill-package-source) | Skill 包来源 | Skill Package Source | 按内容摘要交出 Skill 包字节的那一方；**不是资产来源，也不是来源层**，不判定用哪一份、谁能读；已发布版本由包的读口经适配担任 |
 
 ## [取用与可用性](terms/reach-and-availability.md)
 
@@ -292,9 +299,11 @@
 
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
-| [UL-residency](terms/reach-and-availability.md#ul-residency--常驻--residency) | 常驻 | Residency | 能力身份始终对 agent 可见；**是引用上的一项偏好类设置，不是资产的属性**；可见时展示什么归装配策略；会话里的常驻工具组成常驻工具集合 |
+| [UL-residency](terms/reach-and-availability.md#ul-residency--常驻--residency) | 常驻 | Residency | 能力身份始终对 agent 可见；**是引用上的一项偏好类设置，不是资产的属性**；可见时展示什么归装配策略；可以是工具、Skill 简介或常驻 MCP 接入点的动作；会话里的常驻工具组成常驻工具集合 |
 | [UL-residency-holder](terms/reach-and-availability.md#ul-residency-holder--常驻持有者--residency-holder) | 常驻持有者 | Residency Holder | 保存首次 shape 并在采用点供给它的角色，会话是一种；不另建身份或生命周期 |
 | [UL-resident-tool-set](terms/reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set) | 常驻工具集合 | Resident Tool Set | 常驻持有者的全部常驻工具及各自首次 shape；**只增不减，名字与参数形状在持有者存续期间不变**；不是主会话的「常驻」 |
+| [UL-tool-entry](terms/reach-and-availability.md#ul-tool-entry--工具条目--tool-entry) | 工具条目 | Tool Entry | 工具入口里可发现、可调用的一项；**是视图**，按主体此刻的事实现算 |
+| [UL-tool-entry-source](terms/reach-and-availability.md#ul-tool-entry-source--工具条目来源--tool-entry-source) | 工具条目来源 | Tool Entry Source | 另一个领域向工具入口登记、按需交出工具条目的那个角色；MCP 是一个；**不登记工具** |
 | [UL-current-availability](terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability) | 当下可用性 | Current Availability | **依赖解析的结果，不是开关**；每一次执行尝试开始前重算。**可见但用了一定失败**，与禁用不同 |
 | [UL-stand-in](terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) | 替换件 | Stand-in | 不可用时占在原位的**同形呈现**：只换说明，调用必得「不可用」；常驻工具的形状取首次定义 |
 | [UL-same-shape](terms/reach-and-availability.md#ul-same-shape--同形--same-shape) | 同形 | Same Shape | 两份工具定义的名字、种类、参数契约与命令表都相等；说明、返回、声明、版本与执行者不参与 |
@@ -303,6 +312,9 @@
 | [UL-governance-center-health-check](terms/reach-and-availability.md#ul-governance-center-health-check--治理中心体检--governance-center-health-check) | 治理中心体检 | Governance Center Health Check | 中心「我在不在、能不能答」的自述；公开部分恰三样、登录前可读，**不含治理事实与秘密** |
 | [UL-governance-center-reachability](terms/reach-and-availability.md#ul-governance-center-reachability--治理中心可达性--governance-center-reachability) | 治理中心可达性 | Governance Center Reachability | 据点对所属中心**此刻在不在应答**的观察，答复说什么不影响它；**不作任何准入依据**，不可达时开着的会话照常干活 |
 | [UL-protocol-availability](terms/reach-and-availability.md#ul-protocol-availability--协议可用性--protocol-availability) | 协议可用性 | Protocol Availability | 一个部署此刻挂着哪些公开协议，加只增不减的修订号；**和调用者无关、不需要登录**；只说存在，不说允不允许；不是当下可用性 |
+| [UL-mcp-connection](terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection) | MCP 连接 | MCP Connection | 接入点为一个租户、以一个对端账号与对端的接通，是协商得到的一组结果，不带进程；**按租户与账号分开，不是连接件** |
+| [UL-mcp-action-catalog](terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog) | MCP 动作清单 | MCP Action Catalog | 按租户、对端账号与接入点持有保存的最近合法动作集合；对端不再提供的动作从中消失；**整份更新，不是动作空间** |
+| [UL-mcp-known-action](terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action) | MCP 已知动作 | MCP Known Action | 动作清单里由合法发现取得的一个对端动作，在工具入口里是一个工具条目；**不可用在接入点这一级说明**，只有常驻接入点的动作有同形替换件 |
 
 ## [执行与收场](terms/execution-and-outcome.md)
 
