@@ -42,7 +42,7 @@ model-cordis-contract 的根只导出纯类型，Cordis 值和增补仅在 ./cor
 
 ## 结果接收登记
 
-`ModelRuntimeService` 的具体方法 `registerResultReceiver(owner, receiver)` 让结果的消费者（Agent 宿主）在插件体内登记接收方。方法经 `this.ctx.effect` 登记，所以和目录的 `register` 一样是实例上的普通函数，登记落在调用方 fiber。撤除函数同步删除表项。登记表在构造函数的闭包里，由提供者用 `createModelResultReceiverTable` 建表并传给构造函数，推送阶段用表的 `resolve` 取接收方。登记表归为装配给的保证，不加服务键，不改根接口 `ModelRuntime`。规则见 [SPEC](../SPEC.md#结果接收登记)。
+`ModelRuntimeService` 的具体方法 `registerResultReceiver(owner, receiver)` 让结果消费者一侧的宿主在插件体内登记接收方；会话路径上是 Agent 宿主。方法经 `this.ctx.effect` 登记，所以和目录的 `register` 一样是实例上的普通函数，登记落在调用方 fiber。撤除函数同步删除表项。登记表在构造函数的闭包里，由提供者用 `createModelResultReceiverTable` 建表并传给构造函数，推送阶段用表的 `resolve` 取接收方。登记表归为装配给的保证，不加服务键，不改根接口 `ModelRuntime`。规则见 [SPEC](../SPEC.md#结果接收登记)。
 
 在途推送的中止（登记撤除时收到 `signal`）与重投、`no-receiver` 诊断归推送阶段的实现，不在本包。
 

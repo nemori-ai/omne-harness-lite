@@ -47,7 +47,7 @@ Tool 通过公开能力访问被调用领域，不修改其私有状态或接管
 flowchart TD
     Initiator[Agent或独立协调者] --> Tool[Tool调用与持久责任]
     Identity[身份授权与推进资格] --> Fence[共同启动排序]
-    Session[Session业务状态] --> Fence
+    StartFence[Agent 日志的 start-fence 条目] --> Fence
     Tool --> Fence
     Fence --> Execution[真实执行提供者]
     Environment[环境供应与隔离] --> Execution
@@ -96,7 +96,7 @@ flowchart TD
 Tool 不读取 Session 的私有状态。消费方用自己的证据完成交接，Tool 用自己的账本判定释放。
 
 1. Agent 发起调用，并采用 Tool 已提交的交付。结果卸载是 Tool 运行时的原生机制，不是 Agent 的扩展位置：是否卸载、首屏内容和期限由 Tool 在结果提交时确定。Agent 不另存正文，交付或读回失败时不能伪造已卸载。
-2. Session 耐久保存交付中的首屏、读回引用和期限，然后交回 retained 或 processed 证据。Tool 凭证据释放普通副本。Session 不另存卸载正文，也不为正文续期。
+2. 消费方耐久保存交付中的首屏、读回引用和期限，然后交回 retained 或 processed 证据。Tool 凭证据、按自己的账本释放普通副本。会话路径上，消费方是受理时登记的消费位置：Agent 一侧的结果接收方把交付写进会话日志，Session 从同一份日志读到它并提交本域后果。Session 不另存卸载正文，也不为正文续期。证据怎样进入日志仍有具名偏离，见[会话与 Run](../../architecture/runtime/session-and-run.md)。
 3. 程序消费方是独立的消费方。它有自己的交付和证据。Tool 在结果提交时，按固定请求中的发起方建立程序交付，不依赖程序事后登记。模型交付的释放不释放程序值。某个通道的值只在需要它的全部交付都释放后才被替换为摘要。
 4. 模型通过读回工具按页读取正文。每次读回都是新的工具调用，不改原首屏，不重计原调用费用，不重做原效果。每页都重新核对当前授权、租户和结果版本。
 5. 正文到期后，读回答复找不到，不重新执行原工具。历史保留首屏、原引用和期限。
@@ -104,8 +104,8 @@ Tool 不读取 Session 的私有状态。消费方用自己的证据完成交接
 ```mermaid
 flowchart LR
     Agent[Agent] -->|发起调用并采用交付| Tool[Tool 结果管线]
-    Tool -->|有界首屏 引用 期限| Session[Session 历史]
-    Session -->|retained 或 processed 证据| Tool
+    Tool -->|有界首屏 引用 期限| Consumer[登记的消费位置<br/>会话路径上：Agent 一侧的结果接收方写进会话日志]
+    Consumer -->|retained 或 processed 证据| Tool
     Program[程序消费方] -->|独立交付的证据| Tool
     Reader[模型读回调用] -->|按页读取| Tool
     Tool -->|每页核对当前授权| Guard[访问守卫]

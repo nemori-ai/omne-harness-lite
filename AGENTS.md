@@ -12,6 +12,129 @@
 
 当前处于0.0.0至0.1.0研发阶段。演进沿[当前政策](docs/engineering/publication.md#当前演进与消费者)同步真实消费者并删除替代实现，进入0.1.0重新评估。历史字节不构成兼容承诺。
 
+## 系统的最简模型
+
+下面两张图是全系统最简的模型。一个框是一组责任，不是一个包、一个服务或一个进程。正文里任何一张架构图，化简之后都应当是它们；对不上时报告，并按[心智模型](docs/mental-models.md#维护)的维护规则定哪一边改。
+
+核心领域怎样协调：
+
+```mermaid
+flowchart TB
+  subgraph gov["治理：谁，能用什么，许不许"]
+    identity["身份与授权"]
+    rules["资产与规则：设置、权限"]
+  end
+  rc[("Runtime Context<br/>运行数据的供给中介")]
+  subgraph core["核心链路"]
+    session["Session<br/>一个会话的业务流程，拥有会话日志"]
+    agent["Agent<br/>一轮 Run 怎样往前推"]
+    reqctx["Request Context<br/>一次模型请求的输入怎样算出来"]
+    model["Model<br/>模型调用"]
+    tool["Tool<br/>工具执行"]
+  end
+  env["执行环境：动作在哪里跑"]
+  hitl["人工介入：交给人决定"]
+
+  session -->|"交出工作和推进资格"| agent
+  agent -->|"调用"| model
+  agent -->|"调用"| tool
+  agent -->|"要一次请求的输入，经适配"| reqctx
+  tool -->|"要落点和设施"| env
+  agent -->|"需要人决定"| hitl
+  tool -->|"需要人决定"| hitl
+  core -->|"问许不许：直连的窄端口"| gov
+
+  model -.->|"结果"| agent
+  tool -.->|"结果"| agent
+  agent -.->|"执行记录写进会话日志"| session
+
+  gov ==>|"发布自己的数据"| rc
+  rc ==>|"读快照，收变化"| core
+  session ==>|"持有这个会话的作用域"| rc
+```
+
+实线是调用：Session 到 Agent、Agent 到 Model 和 Tool 这几条也是源码依赖的方向，外层认识内层公开的契约，内层不认识外层。Session 是最外层：它经自己的适配成员认识全部邻域，用来对账和承接结果；邻域的契约只用通用角色，都不认识 Session。虚线是运行时结果往回流，交给受理时登记的消费者引用，不是源码依赖。粗线是「知道」：数据经 Runtime Context 供给，两边互不认识。
+
+客户端和服务端怎样接：
+
+```mermaid
+flowchart LR
+  subgraph client["客户端：一棵 Cordis 树"]
+    shell["界面外壳<br/>不认识任何领域"]
+    uimod["某领域的界面模块"]
+    pclient["某领域的协议客户端"]
+    conn["连接"]
+  end
+  subgraph shared["两端共用：纯数据"]
+    common["共同契约：消息的外层、对外结果"]
+    proto["某领域的协议契约：有哪些操作和观察"]
+  end
+  subgraph server["服务端：一棵 Cordis 树"]
+    entry["入口：管道、登记表、观察中枢<br/>不认识任何领域"]
+    aplugin["某领域的接入插件"]
+    domain["领域核心<br/>不认识接入层"]
+  end
+
+  shell --- uimod
+  uimod -->|"调方法，订阅"| pclient
+  pclient --> conn
+  conn ==>|"调用：一问一答。观察：一条事件流"| entry
+  entry -->|"交给处理函数"| aplugin
+  aplugin -->|"调公开入口"| domain
+
+  aplugin -.->|"把协议挂上登记表"| entry
+  entry -.->|"现在挂着哪些协议"| conn
+  conn -.->|"协议开了就长出来，撤了就收回"| pclient
+
+  proto -.- pclient
+  proto -.- aplugin
+  common -.- conn
+  common -.- entry
+```
+
+第二张图是已接受的目标。现有实现和它的差别见[系统分层](docs/architecture/layers-and-dependencies.md#现行偏离)「现行偏离」。
+
+## 心智模型要点
+
+下面是每个 agent 始终要懂的。全文在技能 `domain-mental-models`：每个领域一份，跨领域协调一份，都答「它是什么、不是什么、拿它怎样量一个设计」。在一个领域里做设计或实现，或改动波及别的领域时加载它；入口见[心智模型](docs/mental-models.md)。
+
+- **会话日志是一个会话的唯一事实源。** 运行着的对象不存别处没有的事实；它丢了，从日志接着来。
+- **Session 管一个会话的业务流程，Agent 管一轮 Run 怎样往前推。** Run 是边界。Session 不发模型请求，不运行工具，也不直接控制它们的调用：会话路径上这些由 Agent 发起，控制经 Agent 送达。
+- **逻辑收口和物理收场分开。** 取消、归档只改变资格与责任。模型发没发出、工具停没停，由各自的拥有者报告，Session 只对账。
+- **对 Session 和 Agent，Model 和 Tool 是被远程调用的服务。** 两端各管各的生命周期。不让一方等另一方收场，不让一方替另一方取消，不让一方要求另一方为它多留。
+- **结果不知道就是不知道。** 按原来的那次操作认回。不重新发一次，不写成成功或失败。
+- **领域不认识调用它的是谁。** 源码依赖只朝内；提出需要的一方声明端口，另一方来适配。
+- **「知道」走 Runtime Context，「决定」走直连的窄端口。** Runtime Context 只供数据，值归生产者，读不到不变成空。
+- **「挂没挂着」和「许不许用」是两件事。** 入口放行不等于允许。身份每次调用显式带上。
+- **服务端是事实的权威。** 客户端只有投影和缓存。
+
+### 一个完整的领域提供什么
+
+判据只有一条：每一样回答一个独立的问题，有这个问题才要这一样。先有责任和事实，再有成员，不先开空包。
+
+| 档 | 提供什么 |
+| --- | --- |
+| 必须有 | 领域正文与词条；纯契约，不依赖 Cordis 和存储；领域实现，离开这套系统也能单独用、单独测；失败、未知、取消、恢复的语义；规格与验证 |
+| 要在这套系统里运行，还必须有 | Cordis 服务定义；提供者，把实现和后端组合起来绑到 Cordis 上 |
+| 有这个需要才提供 | Runtime Context 的块，别的领域要知道它的事实时；给 agent 用的工具；设置项与权限项的声明；对客户端开放的三样：协议契约、接入插件、协议客户端与界面模块；给别的领域用的端口适配 |
+
+后一档里的每一样都是领域带来的，不是谁替它写的：入口、界面外壳、Runtime Context、工具运行时都不认识具体的领域。有贡献不等于开放，开不开放由应用的装配决定。
+
+### 动态性从哪来，Cordis 做什么
+
+动态的意思是：运行当中，能力可以装上、卸下、替换，系统不停，在途的工作有确定的结局。它不是一个机制给的，是八条性质合起来的结果：
+
+- **定义、装配、活体分开。** 定义是数据，只引用能力的名字。装配是某一刻把名字绑到当时可用的实现上。活体可以回收，可以重建。
+- **只在采用点采用。** 新的组合只在新的一轮开始、或租户明确要求重新加载时被采用。正在跑的不半路换。
+- **入口稳定，实现靠登记。** 实现作为一份份贡献登记到入口上，撤回只撤自己那一份。
+- **每次调用现取。** 提供者暂时不在，明确答「依据不可用」，不是空，不是异常。
+- **装上有效用，卸下有逆效用。** 卸下是一个过程：先不接新的，在途的各有结局，然后才算卸完。
+- **调用是远程调用，寿命分开。** 调用方换代不丢工作。
+- **事实在日志里，活体不存事实。** 任何活体都可以丢。
+- **变化可以订阅。** 别人能跟上。
+
+Cordis 提供机制：一棵插件树；依赖齐了才启动，依赖没了就卸载；副作用绑在作用域上，作用域卸载时自动收回。Cordis 不提供语义：业务含义、在途的工作怎样处置、有先后次序的撤除、撤除失败的报告、隔离与权限，都由领域和装配自己组织。卸载停的是线，不是业务。
+
 <!-- BEGIN:pqw-skills-resident-card -->
 
 ## 做事方式
@@ -115,14 +238,3 @@ Cloud Agent 的镜像源、安装脚本和版本钉扎归[开发指南](docs/dev
 这里的每一份文档、每一行代码都是你的。我们在共同建设一个让 agents 可靠运行、协作、积累经验和演进的环境。这个项目做得好，你在里面运行时就更可靠，协作更顺，积累的经验留得住。
 
 在这里，问题查清了，后面的每一步都站得住。有依据的异议和别人的发现，都让成果更好。未知与缺陷如实留下，后来者接手时看到的就是真实的样子。交付之后，运行和维护它的还是你，以及后来的你。
-
-<!-- BEGIN:turborepo-agent-rules -->
-
-# This is NOT the Turborepo you know
-
-Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
-
-Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
-
-This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
-<!-- END:turborepo-agent-rules -->

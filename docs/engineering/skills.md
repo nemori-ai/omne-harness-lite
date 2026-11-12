@@ -204,6 +204,7 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 | [multi-command-tool-design](../../.meta_harness/agents/skills/multi-command-tool-design/canonical/SKILL.md) | 设计、实现或评审多命令工具 | 各工具成员的规格 |
 | [harness-design-handbook](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) | 出现新的能力或责任边界时，核对能力覆盖、性质保护责任和 Cordis 承载 | 风险与升级归[质量与证据](quality.md)，组合证明门槛归[验证说明](../verification.md) |
 | [terminal-interface](../../.meta_harness/agents/skills/terminal-interface/canonical/SKILL.md) | 做终端界面的实施、验收或异常取证 | 各终端成员的规格 |
+| [domain-mental-models](../../.meta_harness/agents/skills/domain-mental-models/canonical/SKILL.md) | 在某个领域里做设计或实现，或改动波及别的领域：读这个领域是什么、不是什么、拿它怎样量一个设计 | 各领域的正文；入口见[心智模型](../mental-models.md) |
 | [omne-card](../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md) | 发卡、开工、进轨道、提升与发行、接受 | [卡与交接信息包](delivery.md)、[多层分支集成](integration.md)、[质量与证据](quality.md) |
 
 研发流程的环节技能来自 pqw，经子模块投影进三个宿主，见[来源与项目采用](#来源与项目采用)；入口是 `single-session-dev-flow`，各环节加载哪个技能由它指出。写文档加载 pqw `clear-writing`，写 AGENTS.md 加载 pqw `write-agents-md`，写技能加载官方 `skill-creator`。
