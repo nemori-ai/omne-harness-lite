@@ -519,9 +519,13 @@ function itemsOf(input: unknown, direction: Direction): readonly unknown[] | und
   return node?.kind === 'array' ? node.items : undefined
 }
 
-/** Converts one value by `rule` in either direction; `undefined` when the rule does not accept it. */
+/**
+ * Converts one value by `rule` in either direction; `undefined` when the rule does not accept it.
+ * The rule type is an inline import so that exporting the engine adds declarations to this file's
+ * contract snapshot and changes none of its existing lines.
+ */
 export function convert(
-  rule: Rule,
+  rule: import('./operation-rules.ts').Rule,
   input: unknown,
   direction: Direction,
   limits: JsonLimits,

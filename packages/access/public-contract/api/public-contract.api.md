@@ -7,6 +7,10 @@
 ## 入口 `.` · `index.d.ts`
 
 - `AccountId` · 包 `@omne-harness/legal-identity`
+- `Codec` · `rule-codec.d.ts`
+- `CodecResult` · `rule-codec.d.ts`
+- `DefinedProtocol` · `protocol.d.ts`
+- `FixedOutcome` · `outcome.d.ts`
 - `GovernanceCodecLimits` · `messages.d.ts`
 - `GovernanceDiagnostic` · `messages.d.ts`
 - `GovernanceEncodeResult` · `messages.d.ts`
@@ -54,9 +58,18 @@
 - `HitlStageNotProvided` · `hitl-messages.d.ts`
 - `HitlSubmissionRef` · `hitl-messages.d.ts`
 - `HitlSuccessBodies` · `hitl-messages.d.ts`
+- `LeafKind` · `operation-rules.d.ts`
 - `LoginStateId` · 包 `@omne-harness/legal-identity`
+- `OUTCOMES` · `outcome.d.ts`
+- `ObservationContract` · `protocol.d.ts`
+- `OperationContract` · `protocol.d.ts`
 - `OrganizationId` · 包 `@omne-harness/legal-identity`
+- `Outcome` · `outcome.d.ts`
+- `OutcomeBodies` · `protocol.d.ts`
 - `ProofInput` · `messages.d.ts`
+- `ProtocolContract` · `protocol.d.ts`
+- `Rule` · `operation-rules.d.ts`
+- `RuleValue` · `rule-codec.d.ts`
 - `SessionAdoptionRef` · `session-messages.d.ts`
 - `SessionCallAccountView` · `session-messages.d.ts`
 - `SessionCodecLimits` · `session-messages.d.ts`
@@ -99,6 +112,7 @@
 - `SettingLayers` · `messages.d.ts`
 - `SettingState` · `messages.d.ts`
 - `TenantId` · 包 `@omne-harness/legal-identity`
+- `defineProtocol` · `protocol.d.ts`
 - `encodeAccountIdText` · `identity-text.d.ts`
 - `encodeGovernanceRequest` · `codec.d.ts`
 - `encodeGovernanceResponse` · `codec.d.ts`
@@ -119,12 +133,19 @@
 - `readSessionRequest` · `session-codec.d.ts`
 - `readSessionResponse` · `session-codec.d.ts`
 - `readTenantText` · `identity-text.d.ts`
+- `ruleCodec` · `rule-codec.d.ts`
 
 ## 声明文件 `codec.d.ts`
 
 ```ts
+import { type JsonLimits, type JsonValue } from '@omne-harness/json-text';
 import { type Family } from './operation-rules.ts';
 import type { EmptyBody, GovernanceCodecLimits, GovernanceDiagnostic, GovernanceEncodeResult, GovernanceOperation, GovernanceProtocolResult, GovernanceRequest, GovernanceRequestRead, GovernanceResponseEncodeInput, GovernanceResponseRead } from './messages.ts';
+type Converted = {
+    readonly local: unknown;
+    readonly wire: JsonValue;
+};
+type Direction = 'encode' | 'decode';
 type RefusalOutcome = 'protocol-rejected' | 'stage-not-provided';
 type Refusal<V extends string, K extends RefusalOutcome> = {
     readonly protocolVersion: V;
@@ -157,6 +178,7 @@ export type ResponseRead = {
     readonly kind: 'unreadable';
     readonly diagnostic: GovernanceDiagnostic;
 };
+export declare function convert(rule: import('./operation-rules.ts').Rule, input: unknown, direction: Direction, limits: JsonLimits): Converted | undefined;
 export declare function readRequest<V extends string, P extends string, S extends string>(family: Family<V, P, S>, input: unknown): RequestRead<V, S>;
 export declare function readGovernanceRequest(input: {
     readonly bytes: Uint8Array;
@@ -515,6 +537,13 @@ export { readHitlRequest, readHitlResponse, encodeHitlRequest, encodeHitlRespons
 export type { HitlOperation, HitlRequestBodies, HitlRequest, HitlCardRef, HitlReply, HitlCardState, HitlOriginKind, HitlCardFilter, HitlReplySubmission, HitlOption, HitlQuestion, HitlSubmissionRef, HitlDecisionRef, HitlDecision, HitlCardDelivery, HitlCard, HitlCardOrigin, HitlCardItem, HitlCardPage, HitlReplyResult, HitlOutcomes, HitlSuccessBodies, HitlLimitedBody, HitlResponse, HitlProtocolRejected, HitlStageNotProvided, HitlProtocolResult, HitlCodecLimits, HitlDiagnostic, HitlRequestRead, HitlResponseRead, HitlEncodeResult, HitlResponseEncodeInput, } from './hitl-messages.ts';
 export { readTenantText, encodeTenantText, readOrganizationIdText, encodeOrganizationIdText, readAccountIdText, encodeAccountIdText, readLoginStateIdText, encodeLoginStateIdText, } from './identity-text.ts';
 export type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
+export { OUTCOMES } from './outcome.ts';
+export type { FixedOutcome, Outcome } from './outcome.ts';
+export { ruleCodec } from './rule-codec.ts';
+export type { Codec, CodecResult, RuleValue } from './rule-codec.ts';
+export type { LeafKind, Rule } from './operation-rules.ts';
+export { defineProtocol } from './protocol.ts';
+export type { DefinedProtocol, ObservationContract, OperationContract, OutcomeBodies, ProtocolContract, } from './protocol.ts';
 ```
 
 ## 声明文件 `messages.d.ts`
@@ -1069,6 +1098,180 @@ export declare function isProvided(value: unknown): value is GovernanceProvidedO
 export declare function requestRule(operation: GovernanceProvidedOperation): RequestRule;
 export declare function responseRule(operation: GovernanceProvidedOperation, outcome: string): Rule | undefined;
 export declare const governanceFamily: Family<'governance-public/1', GovernanceProvidedOperation, GovernanceStageOperation>;
+```
+
+## 声明文件 `outcome.d.ts`
+
+```ts
+export declare const OUTCOMES: readonly [
+    "succeeded",
+    "no-change",
+    "not-committed",
+    "need-decision",
+    "protocol-rejected",
+    "invalid",
+    "uniform-auth-failure",
+    "denied",
+    "not-loginable",
+    "not-visible",
+    "not-found",
+    "conflict",
+    "archived",
+    "frozen",
+    "limited",
+    "unsupported",
+    "not-writable",
+    "stage-not-provided",
+    "basis-unavailable",
+    "unknown"
+];
+export type Outcome = (typeof OUTCOMES)[number];
+export type FixedOutcome = 'denied' | 'protocol-rejected' | 'basis-unavailable' | 'unknown' | 'uniform-auth-failure' | 'stage-not-provided';
+```
+
+## 声明文件 `protocol.d.ts`
+
+```ts
+import type { FixedOutcome, Outcome } from './outcome.ts';
+import type { Codec } from './rule-codec.ts';
+type Identity = 'none' | 'login' | 'acting-tenant';
+export type OutcomeBodies = {
+    readonly succeeded: Codec<any>;
+} & {
+    readonly [K in Exclude<Outcome, 'succeeded'>]?: K extends FixedOutcome ? true : Codec<any>;
+};
+export type OperationContract<Body = any, Results extends OutcomeBodies = OutcomeBodies> = {
+    readonly identity: Identity;
+    readonly effect: 'read' | 'commit';
+    readonly limit: 'small' | 'input';
+    readonly body: Codec<Body>;
+    readonly outcomes: Results;
+    readonly carriesCredential?: true;
+    readonly countsAsAccess?: true;
+};
+export type ObservationContract<Open = any, Frame = any, End extends string = string> = {
+    readonly identity: Identity;
+    readonly open: Codec<Open>;
+    readonly frame: Codec<Frame>;
+    readonly ends: readonly End[];
+    readonly countsAsAccess?: true;
+};
+export type ProtocolContract = {
+    readonly name: string;
+    readonly major: number;
+    readonly operations: Readonly<Record<string, OperationContract>>;
+    readonly observations: Readonly<Record<string, ObservationContract>>;
+};
+type PipelineOutcome<O extends OperationContract> = 'protocol-rejected' | 'basis-unavailable' | ([
+    Exclude<O['identity'], 'none'>
+] extends [
+    never
+] ? never : 'denied') | ('commit' extends O['effect'] ? 'unknown' : never);
+type Flatten<T> = {
+    [K in keyof T]: T[K];
+} & {};
+type WithPipeline<O extends OperationContract> = Flatten<Omit<O, 'outcomes'> & {
+    readonly outcomes: Flatten<O['outcomes'] & {
+        readonly [K in PipelineOutcome<O>]: true;
+    }>;
+}>;
+export type DefinedProtocol<P extends ProtocolContract> = Flatten<Omit<P, 'operations'> & {
+    readonly operations: {
+        readonly [N in keyof P['operations']]: WithPipeline<P['operations'][N]>;
+    };
+}>;
+type Only<T, Allowed extends PropertyKey> = {
+    readonly [K in keyof T]: K extends Allowed ? T[K] : never;
+};
+type ClosedOperation<O> = O extends {
+    readonly outcomes: infer R;
+} ? Only<O, keyof OperationContract> & {
+    readonly outcomes: Only<R, Outcome>;
+} : O;
+type Closed<P extends ProtocolContract> = Only<P, keyof ProtocolContract> & {
+    readonly operations: {
+        readonly [N in keyof P['operations']]: ClosedOperation<P['operations'][N]>;
+    };
+    readonly observations: {
+        readonly [N in keyof P['observations']]: Only<P['observations'][N], keyof ObservationContract>;
+    };
+};
+export declare function defineProtocol<const P extends ProtocolContract>(protocol: P & Closed<P>): DefinedProtocol<P>;
+export {};
+```
+
+## 声明文件 `rule-codec.d.ts`
+
+```ts
+import { type JsonLimits, type JsonValue } from '@omne-harness/json-text';
+import type { Instant } from '@omne-harness/utc-instant';
+import type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts';
+import type { LeafKind, Rule } from './operation-rules.ts';
+export type CodecResult<T> = {
+    readonly ok: true;
+    readonly value: T;
+} | {
+    readonly ok: false;
+};
+export type Codec<T> = {
+    readonly read: (value: JsonValue, limits: JsonLimits) => CodecResult<T>;
+    readonly write: (value: T, limits: JsonLimits) => CodecResult<JsonValue>;
+};
+type JsonObject = Extract<JsonValue, {
+    readonly kind: 'object';
+}>;
+type LeafValues = {
+    readonly text: string;
+    readonly string: string;
+    readonly session: string;
+    readonly 'page-bytes': string;
+    readonly revision: string;
+    readonly boolean: boolean;
+    readonly null: null;
+    readonly account: AccountId;
+    readonly organization: OrganizationId;
+    readonly login: LoginStateId;
+    readonly tenant: TenantId;
+    readonly instant: Instant;
+    readonly 'positive-integer': number;
+    readonly 'page-limit': number;
+    readonly parameters: JsonObject;
+    readonly json: JsonValue;
+    readonly 'user-message': JsonObject;
+};
+type Fields = Extract<Rule, {
+    readonly kind: 'object';
+}>['fields'];
+type RequiredKeys<F extends Fields> = {
+    [K in keyof F]: F[K] extends {
+        readonly optional: true;
+    } ? never : K;
+}[keyof F];
+type Flatten<T> = {
+    [K in keyof T]: T[K];
+} & {};
+type ObjectValue<F extends Fields> = Flatten<{
+    readonly [K in RequiredKeys<F>]: RuleValue<F[K]['rule']>;
+} & {
+    readonly [K in Exclude<keyof F, RequiredKeys<F>>]?: RuleValue<F[K]['rule']>;
+}>;
+export type RuleValue<R extends Rule> = R extends {
+    readonly kind: infer K extends LeafKind;
+} ? LeafValues[K] : R extends {
+    readonly kind: 'literal';
+    readonly values: readonly (infer V)[];
+} ? V : R extends {
+    readonly kind: 'object';
+    readonly fields: infer F extends Fields;
+} ? ObjectValue<F> : R extends {
+    readonly kind: 'array';
+    readonly item: infer I extends Rule;
+} ? readonly RuleValue<I>[] : R extends {
+    readonly kind: 'one-of';
+    readonly rules: readonly (infer O extends Rule)[];
+} ? RuleValue<O> : never;
+export declare function ruleCodec<const R extends Rule>(rule: R): Codec<RuleValue<R>>;
+export {};
 ```
 
 ## 声明文件 `session-codec.d.ts`
