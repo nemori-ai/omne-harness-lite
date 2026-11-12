@@ -105,9 +105,16 @@ function createTelemetryTap() {
       durationMs: Number(Reflect.get(value, 'durationMs')),
     })
   }
-  /** The segments that ended in `[from, to]` (wall milliseconds): union by owner, totals by name. */
+  /**
+   * The segments that ended in `[from, to]` (wall milliseconds): union by owner, totals by name.
+   * Every segment that ended by `to` is dropped, so the tap holds one round at most and the
+   * measurement does not grow the memory it measures.
+   */
   const between = (from: number, to: number) => {
     const mine = segments.filter(item => item.endMs >= from && item.endMs <= to)
+    const later = segments.filter(item => item.endMs > to)
+    segments.length = 0
+    segments.push(...later)
     const byOwner = new Map<string, (readonly [number, number])[]>()
     const byName: Record<string, { count: number; ms: number }> = {}
     for (const item of mine) {
