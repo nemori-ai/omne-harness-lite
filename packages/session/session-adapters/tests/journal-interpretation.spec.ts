@@ -616,7 +616,8 @@ describe('AD-02: the backoff of the event queue and its one retry per execution 
   /** The calls and waits that the retries logged, in order. */
   const retries = (logged: readonly string[]) =>
     logged.flatMap(line => {
-      const found = /^call (\d+) of the interpretation of .* answered (\S+); again in (\S+) ms$/.exec(line)
+      const found =
+        /^call (\d+) of the interpretation of .* answered (\S+); again in (\S+) ms$/.exec(line)
       return found === null ? [] : [[Number(found[1]), found[2], found[3]]]
     })
 
@@ -634,7 +635,9 @@ describe('AD-02: the backoff of the event queue and its one retry per execution 
       { initialMs: 1, multiplier: 2, maxMs: Number.POSITIVE_INFINITY },
     ])
       expect(made(retry), JSON.stringify(retry)).toThrow(
-        new RangeError('the journal interpretation retry needs 0 < initialMs <= maxMs and multiplier >= 1'),
+        new RangeError(
+          'the journal interpretation retry needs 0 < initialMs <= maxMs and multiplier >= 1',
+        ),
       )
     // The edges are accepted: a constant backoff, and one wait only.
     expect(made({ initialMs: 1, multiplier: 1, maxMs: 1 })).not.toThrow()
@@ -642,11 +645,17 @@ describe('AD-02: the backoff of the event queue and its one retry per execution 
     expect(() =>
       createSessionJournalInterpretationPlugin<string>({ coordinator: async () => succeed('c') }),
     ).not.toThrow()
-    expect(DEFAULT_JOURNAL_INTERPRETATION_RETRY).toEqual({ initialMs: 50, multiplier: 2, maxMs: 5000 })
+    expect(DEFAULT_JOURNAL_INTERPRETATION_RETRY).toEqual({
+      initialMs: 50,
+      multiplier: 2,
+      maxMs: 5000,
+    })
   })
 
   it('the first call again goes at once; then the waits grow by the multiplier up to maxMs, and the calls are counted', async () => {
-    const f = await interpreted('ad02-backoff', { retry: { initialMs: 1, multiplier: 3, maxMs: 5 } })
+    const f = await interpreted('ad02-backoff', {
+      retry: { initialMs: 1, multiplier: 3, maxMs: 5 },
+    })
     for (let n = 0; n < 4; n += 1) f.script.push(rollback)
     await started(f.s, f.c.journal())
     await reaches(f.s, '1')

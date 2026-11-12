@@ -100,7 +100,9 @@ const stable = ({
 }: RoundCount) => ({
   ...rest,
   storageCommits: Object.fromEntries(
-    Object.entries(storageCommits).filter(([participant]) => !SESSION_COMMITS.includes(participant)),
+    Object.entries(storageCommits).filter(
+      ([participant]) => !SESSION_COMMITS.includes(participant),
+    ),
   ),
   storageReads: untimed(reads),
   storageReadRows: untimed(storageReadRows),
@@ -129,7 +131,9 @@ function sessionCommitsOffBound(rounds: readonly RoundCount[]): string[] {
     const largest = Math.max(...values)
     return rounds.flatMap((count, at) =>
       largest - values[at]! > SESSION_COMMIT_SPREAD
-        ? [`round ${String(count.round)}: ${name} ${String(values[at])}, largest ${String(largest)}`]
+        ? [
+            `round ${String(count.round)}: ${name} ${String(values[at])}, largest ${String(largest)}`,
+          ]
         : [],
     )
   })
