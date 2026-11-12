@@ -302,6 +302,8 @@ turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全�
 RFC-0002 的四条约束这样落实：
 - 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；`packages/*`、`tools/*` 等成员目录下出现 `turbo.json` 直接报错，`apps/*` 下的由检查器按下面的成员配置规则核对合成后的任务定义；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`。`pnpm-workspace.yaml` 是全局文件。锁文件是唯一命中的全局文件时按 importer 映射到成员：根 importer（`.`，全仓的工具）的依赖变了、`tools/test-runner` 在映射到的成员或其下游里、或顶层设置变了，都判全量，见[测试运行器的影响面规则](../tools/test-runner/README_ZH.md#测试运行)「影响面怎么算」第 1 条。
 - 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
+- 改 turbo 的配置或命令之前，先读已安装版本自带的文档：turbo 的配置、任务行为与命令随版本变化。用 `node -p "require.resolve('turbo/package.json')"` 找到包，先读它的 `docs/README.md`，再读 `docs/` 下相关的页。
+- 根 `turbo.json` 里 `"agentGuidance": false` 不要去掉。去掉之后，turbo 检测到 AI agent 时会往根 `AGENTS.md` 写一段它自己的英文指引，每次运行都重新加上。上一条就是那段指引的内容。
 - 未识别文件按全量处理：由上面的规则判。
 - 准入检查不读缓存：各缓存在准入下的读写条件归 [test-runner 说明](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)，什么时候跑准入归[现行准入](engineering/integration.md#现行准入)。
 

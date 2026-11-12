@@ -180,47 +180,59 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结�
 ```mermaid
 flowchart LR
   subgraph clientSide["客户端"]
-    app["客户端应用<br/>apps/cli"]
-    sdk["客户端 SDK<br/>access/sdk"]
+    app["客户端应用的外壳<br/>apps/cli · apps/desktop"]
+    uimod["领域的界面模块<br/>#lt;领域#gt;-ui"]
+    casm["客户端装配<br/>access/client-assembly"]
+    ccore["客户端核心<br/>access/sdk"]
   end
   subgraph shared["两端共用"]
-    pub["公开契约<br/>access/public-contract"]
+    proto["领域的协议契约<br/>#lt;领域#gt;-protocol"]
+    pub["公开契约的共同部分<br/>access/public-contract"]
   end
   subgraph serverSide["服务端"]
-    edge["服务端接入适配<br/>access/server-entry"]
+    edge["服务端入口<br/>access/server-entry"]
+    aplugin["领域的接入插件<br/>#lt;领域#gt;-access"]
     core["服务端能力的公开接口<br/>*-contract · *-cordis-contract"]
     adapter["基础设施与 Cordis 适配<br/>*-host-local · 存储提供者 · *-adapters"]
     asm["应用装配<br/>apps/#lt;应用成员#gt;"]
   end
 
-  app --> sdk
-  sdk --> pub
+  app --> casm
+  uimod --> casm
+  uimod --> proto
+  casm --> ccore
+  ccore --> pub
+  proto --> pub
   edge --> pub
-  edge --> core
+  aplugin --> proto
+  aplugin --> core
   adapter --> core
   asm --> core
   asm -->|"选择实现"| adapter
   asm --> edge
-  sdk --x|"SDK 不导入服务端"| edge
+  asm -->|"列出开放哪些协议"| aplugin
+  ccore --x|"客户端不导入服务端"| edge
+  edge --x|"入口不导入任何领域"| core
 
-  linkStyle 8 stroke:#c62828,stroke-dasharray:4 3
+  linkStyle 14,15 stroke:#c62828,stroke-dasharray:4 3
 ```
 
-SDK 只依赖公开契约，不带服务端存储、runtime 实例或 Cordis 装配树。服务端能力不反向读取装配入口，由装配选择实现。框里第二行是目标能力组里承担这个角色的成员，不是一一对应。
+客户端核心只依赖公开契约的共同部分，不带服务端存储、runtime 实例或服务端的装配树。入口不认识任何领域：领域的协议契约和接入插件放在领域自己的包组里，由应用装配列出开放哪些。服务端能力不反向读取装配入口，由装配选择实现。框里第二行是目标能力组里承担这个角色的成员，不是一一对应。这张图化简之后是根 [AGENTS.md](../AGENTS.md#系统的最简模型)「系统的最简模型」的第二张图。
 
 | 状态 | 元素 |
 | --- | --- |
 | 已接受正文 | 图中全部元素与关系 |
+| 已接受正文，成员未建 | 客户端装配、领域的界面模块、领域的协议契约、领域的接入插件。现有实现里，各领域的线上形状在公开契约、处理代码在服务端入口、SDK 为每个位置手写一个客户端，差别见[系统分层](architecture/layers-and-dependencies.md#现行偏离)「现行偏离」 |
 | 首条路径已装载 | 图中不标。插件树装载的成员包括：服务端接入适配中的 `server-entry`；基础设施与 Cordis 适配中由 `agent-host`、`model-host`、`tool-runtime`、`tool-executor`、`tool-host`、`execution-environment`、`execution-files`、`execution-host-files`、`storage`、`session-storage` 与 `session-ad*` 各行装载的成员；服务端能力的公开接口中这些行所依赖的各契约成员。全部装载行见[插件树](architecture/runtime/application-assembly.md#插件树) |
 | 已知冲突待裁 | 无 |
 | 已裁定待写回 | 无 |
 
 出处如下。
 
-- 分层与约束表：[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)「依赖关系与禁止方向」。
+- 分层与约束表：[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)「依赖关系与禁止方向」「[领域能力的公开位置](architecture/layers-and-dependencies.md#领域能力的公开位置)」。
 - 成员标注与禁止边：[产品包组织](package-organization.md#sdk与系统接入)「SDK与系统接入」「[最小 CLI 的接入边界](package-organization.md#最小-cli-的接入边界)」。
 - 已装载的成员：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
-- 核对于 `f36d8f8eb`（#943 的正文头，随 PR #963 合入）。
+- 核对于 `4d32efb84`（RFC-0015 落盘，随 PR #1203 合入）。
 
 ### 单机进程
 

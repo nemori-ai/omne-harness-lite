@@ -34,9 +34,9 @@ flowchart TD
     G --> E[Agent 执行]
     E --> M[独立Model执行]
     E --> T[独立Tool执行]
-    M --> R[原消费位置与可靠保管]
+    M --> R[原消费位置与可靠保管<br/>Agent 一侧的结果接收方写进会话日志]
     T --> R
-    R --> G
+    R -->|Session 读同一份日志| G
     C --> G
     G --> S
     S -. 作用域释放 .-> X[执行环境]

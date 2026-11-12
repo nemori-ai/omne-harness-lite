@@ -321,7 +321,7 @@ flowchart LR
     Signal[提交通知 · 时钟 · 变化通知] --> Sched[调度器]
     Sched --> Coord[协调器]
     Coord --> Cmd[命令处理与日志提交]
-    Coord --> Out[出站调用<br/>Agent · Model · Tool · 执行环境 · 子会话]
+    Coord --> Out[出站调用<br/>Agent · 执行环境 · 子会话]
     Out -->|回执作为新事实| Cmd
     Cmd -->|提交通知只唤醒| Sched
 ```

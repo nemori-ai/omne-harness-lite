@@ -230,7 +230,7 @@ G3 的行事主体有两种来源，按领域在什么时刻核对资格选择�
 | 本节的规则 | 现有实现 |
 | --- | --- |
 | G1 的名字与地址 | 三个位置：`governance-public/1`、`session-public/1`、`hitl-public/1`。一个位置一个地址，操作名在消息体里。治理位置里装着身份与设置两类操作 |
-| G2 | 三个位置的线上形状都在[系统公开契约](../../packages/access/public-contract/SPEC.md)里。[服务端接入](../../packages/access/server-entry/SPEC.md)里有治理、会话、会话诊断与 HITL 的处理代码 |
+| G2 | 三个位置的线上形状都在[系统公开契约](../../packages/access/public-contract/SPEC.md)里。[服务端接入](../../packages/access/server-entry/SPEC.md)里有治理、会话、会话诊断与 HITL 的处理代码。入口成员因此直接依赖身份、会话与人工介入的契约；会话诊断在入口里，所以它还依赖 Agent、Model、Tool 三份契约，入口行也注入这三个领域的读口 |
 | G3 的登录证明与行事租户在请求头 | 都在消息体里 |
 | G7 | [SDK](../../packages/access/sdk/SPEC.md) 为每个位置手写一个客户端 |
 | G8、G9、G10 | 没有登记表和可用性。入口的依赖是固定的 |
