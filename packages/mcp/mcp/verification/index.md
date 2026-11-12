@@ -5,6 +5,7 @@
 ## 内容
 
 - [README.md](README.md)：两种证据与各自范围、模型与探索器与实现的映射、运行命令、证据状态、负控与变异、未覆盖。
-- [models/](models/index.md)：连接表生命周期的 TLA+ 模型、配置与运行脚本。
+- [models/](models/index.md)：连接表生命周期与调用口的 TLA+ 模型与配置。
+- [models.json](models.json) 与 [check.py](check.py)：形式任务的清单与运行脚本，经 `pnpm run verify:formal` 运行。
 - [proofs/](proofs/index.md)：论证与证明（目前没有内容）。
 - 性质的定理陈述在 [../SPEC.md「性质与证据」](../SPEC.md#properties)，对真实实现的有界穷举探索器在 [../tests/model/](../tests/model/lifecycle.spec.ts)。

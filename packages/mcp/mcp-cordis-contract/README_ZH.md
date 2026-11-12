@@ -6,14 +6,14 @@ MCP 的 Cordis 定义成员，`service-contract` 变体。
 
 ## 职责与状态
 
-本成员只拥有 MCP 各接缝的 Cordis 定义：七个抽象 `Service` 与它们的键。三个是 MCP 的服务：`ActionDiscoveryService<P>`（`mcpActionDiscovery`）、`ActionInvokerService<P>`（`mcpActionInvoker`）、`EndpointStatusService<P, S>`（`mcpEndpointStatus`）。四个是需求端口：`AdoptionViewService<P, S>`（`mcpAdoptionView`）、`UseEligibilityService<P>`（`mcpUseEligibility`）、`CredentialUseService<P>`（`mcpCredentialUse`）、`ProcessLandingService<P>`（`mcpProcessLanding`）。每个类对应一个导出的键常量（`mcpActionDiscoveryKey`、`mcpActionInvokerKey`、`mcpEndpointStatusKey`、`mcpAdoptionViewKey`、`mcpUseEligibilityKey`、`mcpCredentialUseKey`、`mcpProcessLandingKey`）。本成员还声明这七个键的 `Context` 增补。
+本成员只拥有 MCP 各接缝的 Cordis 定义：六个抽象 `Service` 与它们的键。三个是 MCP 的服务：`ActionDiscoveryService<P>`（`mcpActionDiscovery`）、`ActionInvokerService<P>`（`mcpActionInvoker`）、`EndpointStatusService<P, S>`（`mcpEndpointStatus`）。三个是需求端口：`AdoptionViewService<P, S>`（`mcpAdoptionView`）、`UseEligibilityService<P>`（`mcpUseEligibility`）、`CredentialUseService<P>`（`mcpCredentialUse`）。每个类对应一个导出的键常量（`mcpActionDiscoveryKey`、`mcpActionInvokerKey`、`mcpEndpointStatusKey`、`mcpAdoptionViewKey`、`mcpUseEligibilityKey`、`mcpCredentialUseKey`）。本成员还声明这六个键的 `Context` 增补。
 
-本成员不拥有任何行为。七个接口归 [mcp-contract](../mcp-contract/README_ZH.md)，三个服务的实现归 [mcp](../mcp/README_ZH.md)，提供三个服务的插件归 [mcp-host-local](../mcp-host-local/README_ZH.md)。四个端口服务由别的领域提供。`EndpointInspection` 与 `Connections` 没有键。本成员只认通用角色：服务的消费者与端口的提供者。
+本成员不拥有任何行为。六个接口归 [mcp-contract](../mcp-contract/README_ZH.md)，三个服务的实现归 [mcp](../mcp/README_ZH.md)，提供三个服务的插件归 [mcp-host-local](../mcp-host-local/README_ZH.md)。三个端口服务由别的领域提供。`EndpointInspection` 与 `Connections` 没有键。本成员只认通用角色：服务的消费者与端口的提供者。
 
 状态：Cordis 定义成员，行为已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/1119#issuecomment-6704668621) 接受。采用依据是[组页](../README.md#成员与依赖)的成员分工与 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。现在的实现情况如下：
 
-- 已实现：`./cordis` 导出七个抽象类与七个键常量（各取自对应类的 `provide`），并声明 `Context` 增补。根入口没有导出。
-- 已测试：七个键、导出集合、子类在真实 Cordis 4.0.4 `Context` 上的装载与卸载，以及根入口的导入边界。
+- 已实现：`./cordis` 导出六个抽象类与六个键常量（各取自对应类的 `provide`），并声明 `Context` 增补。根入口没有导出。
+- 已测试：六个键、导出集合、子类在真实 Cordis 4.0.4 `Context` 上的装载与卸载，以及根入口的导入边界。
 - 未实现：事件（没有声明）与 `./testing` 入口（没有计划；端口替身在 `@omne-harness/mcp-contract/testing`）。
 
 ## 使用
@@ -53,7 +53,7 @@ const eligibility = ctx.get(mcpUseEligibilityKey) // 实例，或 undefined
 - [SPEC](SPEC.md) 拥有类型以外的行为，见性质 1 至 9。
 - [Cordis 说明](docs/cordis.md)拥有依赖分类与 IC 符合性映射。
 - [公开接口页](docs/public-api.md)索引导出。
-- 七个接口的输入、结果与失败归 [mcp-contract 的 SPEC](../mcp-contract/SPEC.md)。
+- 六个接口的输入、结果与失败归 [mcp-contract 的 SPEC](../mcp-contract/SPEC.md)。
 
 本成员不持有资源。服务的寿命归装载子类的那个插件的 fiber。
 
@@ -77,7 +77,7 @@ pnpm --filter @omne-harness/mcp-cordis-contract test
 
 ## 维护
 
-- mcp-contract 的七个接口之一增删方法时，同步抽象类、[公开接口页](docs/public-api.md)与导出测试。
+- mcp-contract 的六个接口之一增删方法时，同步抽象类、[公开接口页](docs/public-api.md)与导出测试。
 - 键改变时，同步 [Cordis 说明](docs/cordis.md)与 mcp-host-local 的插件。
 - Cordis 升版前，运行本成员与 mcp-host-local 的测试。
 - 成员关系与依赖方向归[组页](../README.md)。具名维护者由负责人指定。
@@ -92,7 +92,7 @@ documentation.json        文档登记
 docs/                     内部设计、公开使用与集成说明
 ├── architecture.md       两个入口、依赖、关键机制与理由
 ├── flows.md              服务的装载与撤除流程
-├── object-model.md       七个技术对象与 Context 增补
+├── object-model.md       六个技术对象与 Context 增补
 ├── public-api.md         公开边界与定义索引
 ├── context.md            各类依赖方的用法与定位
 └── cordis.md             服务定义、依赖分类与 IC 符合性映射

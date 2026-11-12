@@ -6,7 +6,7 @@ The general MCP implementation: the core services of the MCP group on the five r
 
 ## Responsibility and status
 
-This package implements the five application services of the contract: the category port `inspection`, the read port `discovery`, the call port `invoker`, and the two status port services `status` and `connections`. They share one connection table, one in-flight table and one task table. The table builds a connection from the ports (credential handle, process landing, transport factory), keeps its state in the `Connection` aggregate, and closes it in the order of the group design.
+This package implements the five application services of the contract: the category port `inspection`, the read port `discovery`, the call port `invoker`, and the two status port services `status` and `connections`. They share one connection table, one in-flight table and one task table. The table builds a connection from the ports (credential handle, transport factory), keeps its state in the `Connection` aggregate, and closes it in the order of the group design.
 
 Status: the connection table, refresh, the read ports and the call port are implemented, on the accepted contract. The behavior is in [SPEC.md](SPEC.md), which cites the contract clauses and adds the decisions this package makes. The group design is [the group engineering design](../docs/architecture.md).
 
@@ -16,7 +16,7 @@ Status: the connection table, refresh, the read ports and the call port are impl
 | `createInMemoryCatalogStore`                                                   | Implemented. Passes the contract's `CatalogStore` suite; CS8 does not apply                  |
 | `Connection` and `InFlightCalls` aggregates, the gate, the tables              | Implemented as internal modules                                                              |
 | Listing tolerance (one invalid tool dropped and reported)                      | None. Contract C1 rejects the whole page when one item is invalid                            |
-| Real transports, the official SDK, real peers, real processes, durable storage | Not here. `@omne-harness/mcp-host-local` provides them; nothing here is verified on them     |
+| Real transports, the official SDK, real peers, durable storage                 | Not here. `@omne-harness/mcp-host-local` provides them; nothing here is verified on them     |
 | `list_changed` subscriptions, reconnection in the background                   | Not implemented. `changedNotified` stays false; a lost connection is rebuilt at the next use |
 
 ## Usage
@@ -31,7 +31,6 @@ const mcp = createMcp(
     adoption,
     eligibility,
     credentials,
-    landing,
     store: createInMemoryCatalogStore(),
     transports,
     checkOutput, // the host's JSON Schema validator, as an OutputValidator
@@ -57,7 +56,7 @@ const result = await mcp.invoker.invoke(access, {
 })
 if (result.kind === 'sent') consume(result.outcome)
 
-// At exit. It reports only the stop ranges that were confirmed.
+// At exit.
 const closed = await mcp.connections.closeAll()
 ```
 
@@ -67,7 +66,7 @@ Nothing connects until a `refresh`, an `invoke` or a task operation needs a conn
 
 - Public types and runtime checks: [src/](src/README.md), indexed in [docs/public-api.md](docs/public-api.md).
 - Behavior beyond the types: [SPEC.md](SPEC.md). It cites the clauses of the [contract SPEC](../mcp-contract/SPEC.md) that this package fulfils (its basis table lists them) and lists the decisions of its own.
-- Errors, lifecycle and resources: a refusal or a connection failure is an `Outcome` failure. A broken precondition is a thrown `TypeError` or `RangeError`. The connection table owns the transport, the process handle and the credential handle of each connection. The rules for errors, shutdown and resource release are in the clauses [MC-10](SPEC.md#mc-10) and [MC-14](SPEC.md#mc-14), and in the SPEC section [Ownership, failure and lifecycle](SPEC.md#所有权失败与生命周期).
+- Errors, lifecycle and resources: a refusal or a connection failure is an `Outcome` failure. A broken precondition is a thrown `TypeError` or `RangeError`. The connection table owns the transport and the credential handle of each connection. The rules for errors, shutdown and resource release are in the clauses [MC-10](SPEC.md#mc-10) and [MC-14](SPEC.md#mc-14), and in the SPEC section [Ownership, failure and lifecycle](SPEC.md#所有权失败与生命周期).
 
 ## Design
 
@@ -83,7 +82,7 @@ The call port is in `src/calls.ts` and `src/tasks.ts`, on the gate, the connecti
 
 ## Verification
 
-Run `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`. The tests run on the contract's in-memory doubles and on two scripted transports (`tests/doubles/`). They use no real transport, process, peer or durable store. What the tests cover, the properties, the models and the mutations are in [SPEC.md](SPEC.md#properties) and [verification/README.md](verification/README.md).
+Run `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`. The tests run on the contract's in-memory doubles and on two scripted transports (`tests/doubles/`). They use no real transport, peer or durable store. What the tests cover, the properties, the models and the mutations are in [SPEC.md](SPEC.md#properties) and [verification/README.md](verification/README.md).
 
 ## Maintenance
 

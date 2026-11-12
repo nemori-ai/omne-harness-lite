@@ -12,23 +12,22 @@
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`     | `mcp`                                                                                                                                                                                                               |
 | 工厂参数   | `McpPluginParts`：`principalKey`、`checkOutput` 必填；`clock`、`fetch` 可选。函数与本地对象不进配置（[IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16)）                               |
-| 配置       | `McpPluginConfig`：四个上界 `maxListingPages`、`maxActions`、`instructionsByteLimit`、`probeTimeoutMs` 与 `clientInfo`（`name`、`version`）。全部必填，没有缺省值。Schema 的判据见 [SPEC](../SPEC.md#cordis-plugin) |
-| 依赖       | 没有 `inject`。四个端口是可选依赖，调用时现取（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）                                                                                       |
+| 配置       | `McpPluginConfig`：三个上界 `maxListingPages`、`maxActions`、`instructionsByteLimit` 与 `clientInfo`（`name`、`version`）。全部必填，没有缺省值。Schema 的判据见 [SPEC](../SPEC.md#cordis-plugin) |
+| 依赖       | 没有 `inject`。三个端口是可选依赖，调用时现取（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）                                                                                       |
 | 提供的服务 | `mcpActionDiscovery`、`mcpActionInvoker`、`mcpEndpointStatus`，登记在装载它的 fiber 上，共一条 fiber（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）                                |
 | 事件       | 没有                                                                                                                                                                                                                |
 
-插件在 [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 的插件树里由包名与导出名 `@omne-harness/mcp-host-local/cordis` 的 `createMcpPlugin` 标识。工厂参数由装配入口交给工厂，配置的五个字段是插件树行的数据。
+插件在 [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 的插件树里由包名与导出名 `@omne-harness/mcp-host-local/cordis` 的 `createMcpPlugin` 标识。工厂参数由装配入口交给工厂，配置的四个字段是插件树行的数据。
 
 装配要做的事：
 
-- 由四个端口的实现方各装载一个 Service 子类（`mcpAdoptionView`、`mcpUseEligibility`、`mcpCredentialUse`、`mcpProcessLanding`）。没有装载的端口，插件按 [SPEC「端口缺席」](../SPEC.md#port-absent)答复。
+- 由三个端口的实现方各装载一个 Service 子类（`mcpAdoptionView`、`mcpUseEligibility`、`mcpCredentialUse`）。没有装载的端口，插件按 [SPEC「端口缺席」](../SPEC.md#port-absent)答复。
 - 只装载本插件一次。同一 isolate 装载两次的处置未定，见下文 IC-6。
-- 要看到撤除时停止范围未确认的警告，日志导出器对 `mcp` 的级别要设为 2 或更高。Cordis 4.0.4 的导出器没有设级别时只导出 `error` 与 `info`。
-- 落点或凭据句柄可能挂起时，卸载插件的宿主自己给 `fiber.dispose()` 一个期限。插件不设期限，见 [SPEC 的已知限制](../SPEC.md#cordis-plugin)。
+- 传输或凭据句柄可能挂起时，卸载插件的宿主自己给 `fiber.dispose()` 一个期限。插件不设期限，见 [SPEC 的已知限制](../SPEC.md#cordis-plugin)。
 
 ## 生命周期与清理
 
-撤除函数、警告、在途调用的答复与已知限制见 [SPEC「Cordis 插件」](../SPEC.md#cordis-plugin)的「撤除」与「已知限制」两项。本节只写依赖的 Cordis 机制：
+撤除函数、在途调用的答复与已知限制见 [SPEC「Cordis 插件」](../SPEC.md#cordis-plugin)的「撤除」与「已知限制」两项。本节只写依赖的 Cordis 机制：
 
 - Cordis 4.0.4 的卸载对全部撤除函数做 `Promise.all`，逐个等待，所以 `dispose()` 在撤除函数结算之后才返回。
 - 撤除函数的拒绝由卸载捕获并交 `ctx.logger.error`，卸载照常完成。`Logger` 收到 `AggregateError` 时逐个写出它装着的错误，不写 `AggregateError` 本身。
@@ -38,7 +37,7 @@
 
 | 依赖方                                                                                     | 怎样依赖                                                                                         | 换代或缺席时                                            |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| 本插件对四个端口                                                                           | 可选依赖，不 `inject`，每次端口调用 `ctx.get`                                                    | 见 [SPEC「端口缺席」](../SPEC.md#port-absent)与「换代」 |
+| 本插件对三个端口                                                                           | 可选依赖，不 `inject`，每次端口调用 `ctx.get`                                                    | 见 [SPEC「端口缺席」](../SPEC.md#port-absent)与「换代」 |
 | 使用三个服务的插件                                                                         | 按键取用，见 [mcp-cordis-contract 的依赖分类](../../mcp-cordis-contract/docs/cordis.md#依赖分类) | 插件卸载后键上没有服务                                  |
 | 本包对 `@omne-harness/mcp`、`mcp-cordis-contract`、`kernel-basis` 与 `@deepseek-ai/cordis` | `package.json` 的生产依赖，引用它们的公开入口                                                    | 不适用                                                  |
 
@@ -54,8 +53,8 @@
 | [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6)   | 同一 isolate 重复装载的处置未定、未验证。只装一次的前提由装配承担                                                                                     | 没有                                                                                                                                                                                                                                                                                                   |
 | [IC-7](../../../../docs/architecture/cordis-integration-conventions.md#ic-7)   | 提供者成员的限定名是 `mcp-host-local`：组名 `mcp` 加落点 `host-local`；插件名 `mcp` 是组名。键名归 mcp-cordis-contract                                | 源码；`package.json` 的 `name`                                                                                                                                                                                                                                                                         |
 | [IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)   | 没有 `inject`：插件没有必需依赖                                                                                                                       | 源码                                                                                                                                                                                                                                                                                                   |
-| [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)   | 四个端口调用时现取，接受 `undefined`，不缓存；换代见 [SPEC](../SPEC.md#cordis-plugin)                                                                 | 快层缺席与换代用例；快层 `opens a Streamable HTTP endpoint …`（凭据端口按 `http-authorization` 用途被问到）；慢层「补上端口后发布」与采用换代用例                                                                                                                                                      |
-| [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) | 经 `definePlugin` 定义，配置 Schema 查形状；范围由 `createMcp` 与 `createLocalTransportFactory` 在 `apply` 里查；配置错误使加载失败                   | 快层配置用例：接受一份完整合法配置；逐行拒绝（含 `clientInfo` 内多余字段、`Date`、从原型继承字段与符号键），断言 `ValidationError` 与消息；`maxActions` 与 `probeTimeoutMs` 为 0 时的 `RangeError`                                                                                                     |
+| [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)   | 三个端口调用时现取，接受 `undefined`，不缓存；换代见 [SPEC](../SPEC.md#cordis-plugin)                                                                 | 快层缺席与换代用例；快层 `opens a Streamable HTTP endpoint …`（凭据端口按 `http-authorization` 用途被问到）；慢层「补上端口后发布」与采用换代用例                                                                                                                                                      |
+| [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) | 经 `definePlugin` 定义，配置 Schema 查形状；范围由 `createMcp` 与 `createLocalTransportFactory` 在 `apply` 里查；配置错误使加载失败                   | 快层配置用例：接受一份完整合法配置；逐行拒绝（含 `clientInfo` 内多余字段、`Date`、从原型继承字段与符号键），断言 `ValidationError` 与消息；`maxActions` 为 0 时的 `RangeError`                                                                                                     |
 | [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) | 插件由包名与导出名标识；函数与本地对象经工厂参数，配置只有可序列化的数据                                                                              | 源码；`McpPluginParts` 与 `McpPluginConfig` 由 `Pick` 与 `Omit` 从 `McpConfig`、`McpPorts`、`LocalTransportOptions` 推出；快层 `opens a Streamable HTTP endpoint through the fetch …`（`fetch` 部件）、慢层 `stamps the published catalog …`（`clock` 部件）                                           |
 
 ## 机制读数
@@ -67,9 +66,8 @@
 | Schema 答 `issues` 时 `ctx.plugin()` 以 `ValidationError` 拒绝                    | Cordis 4.0.4 `lib/index.js` 的 `resolveConfig`；本包配置用例                                                                      |
 | `dispose()` 等异步撤除函数结算；撤除函数的拒绝交 `ctx.logger.error`，卸载照常完成 | Cordis 4.0.4 `lib/index.js` 的 `_unload`；本包撤除用例与机制探针                                                                  |
 | `Logger` 逐个写出 `AggregateError` 装着的错误                                     | Cordis 4.0.4 `lib/index.js` 的 `Logger._method`；本包机制探针                                                                     |
-| 导出器没有设级别时不导出 `warn`（级别 2）                                         | Cordis 4.0.4 `lib/index.js` 的 `Logger._method`；本包警告用例的导出器设 `levels: { default: 2 }`                                  |
 
-后四项还没有进入 basis，跨版本适用是待核验假设。Cordis 升版时重跑本包的 `tests/cordis-entry.spec.ts` 与 `tests/cordis-journey.spec.ts`。
+后三项还没有进入 basis，跨版本适用是待核验假设。Cordis 升版时重跑本包的 `tests/cordis-entry.spec.ts` 与 `tests/cordis-journey.spec.ts`。
 
 ## 验证义务
 

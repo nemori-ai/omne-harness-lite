@@ -7,7 +7,7 @@
 最小用法见 [README](../README_ZH.md#使用)。各类依赖方的做法如下，规则见 [Cordis 说明](cordis.md#依赖分类)。
 
 - 提供三个服务的插件：继承 `ActionDiscoveryService`、`ActionInvokerService`、`EndpointStatusService`，在 `apply` 里逐个 `new`。不另写键，不自己 `ctx.provide`；引用键常量。
-- 端口的实现方：继承 `AdoptionViewService`、`UseEligibilityService`、`CredentialUseService` 或 `ProcessLandingService`，作为插件装载。`CredentialUseService` 的子类以属性提供 `acquire`。
+- 端口的实现方：继承 `AdoptionViewService`、`UseEligibilityService` 或 `CredentialUseService`，作为插件装载。`CredentialUseService` 的子类以属性提供 `acquire`。
 - 使用服务的插件：把需要它的那段工作写成 `ctx.inject([mcpActionInvokerKey], cb)`，或在调用时 `ctx.get(mcpActionInvokerKey)` 并接受 `undefined`。
 - 只需要类型的一方：`import type {} from '@omne-harness/mcp-cordis-contract/cordis'`。
 
@@ -17,8 +17,8 @@
 
 | 消费者                                                                          | 怎样用                                               |
 | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| [mcp-host-local](../../mcp-host-local/docs/cordis.md) 的 `createMcpPlugin` 插件 | 继承三个服务的抽象类并提供它们；对四个端口按调用现取 |
-| 四个端口的实现方（别的领域的装配）                                              | 继承四个端口的抽象类                                 |
+| [mcp-host-local](../../mcp-host-local/docs/cordis.md) 的 `createMcpPlugin` 插件 | 继承三个服务的抽象类并提供它们；对三个端口按调用现取 |
+| 三个端口的实现方（别的领域的装配）                                              | 继承三个端口的抽象类                                 |
 | 使用三个服务的上层插件                                                          | 按键取用                                             |
 
 ```mermaid

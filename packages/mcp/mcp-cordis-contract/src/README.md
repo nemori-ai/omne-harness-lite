@@ -1,6 +1,6 @@
 # src
 
-本目录承载本包的公开定义：七个抽象 Service、七个键常量与 `Context` 增补。本包没有运行时校验与运行逻辑。`index.ts` 与 `cordis.ts` 是代码入口，本文件与 `index.md` 只是文档导航。
+本目录承载本包的公开定义：六个抽象 Service、六个键常量与 `Context` 增补。本包没有运行时校验与运行逻辑。`index.ts` 与 `cordis.ts` 是代码入口，本文件与 `index.md` 只是文档导航。
 
 ## 允许的内容
 
@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-`index.ts` 是空导出。`cordis.ts` 导出七个抽象类，`ActionDiscoveryService`、`ActionInvokerService`、`EndpointStatusService`、`AdoptionViewService`、`UseEligibilityService`、`CredentialUseService`、`ProcessLandingService`，另导出七个键常量（`mcpActionDiscoveryKey`、`mcpActionInvokerKey`、`mcpEndpointStatusKey`、`mcpAdoptionViewKey`、`mcpUseEligibilityKey`、`mcpCredentialUseKey`、`mcpProcessLandingKey`），并声明七个键的 `Context` 增补。键只写在各类的 `provide`，常量取自它。具名维护者由负责人指定。
+`index.ts` 是空导出。`cordis.ts` 导出六个抽象类，`ActionDiscoveryService`、`ActionInvokerService`、`EndpointStatusService`、`AdoptionViewService`、`UseEligibilityService`、`CredentialUseService`，另导出六个键常量（`mcpActionDiscoveryKey`、`mcpActionInvokerKey`、`mcpEndpointStatusKey`、`mcpAdoptionViewKey`、`mcpUseEligibilityKey`、`mcpCredentialUseKey`），并声明六个键的 `Context` 增补。键只写在各类的 `provide`，常量取自它。具名维护者由负责人指定。

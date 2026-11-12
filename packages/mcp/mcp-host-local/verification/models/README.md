@@ -1,6 +1,6 @@
 # verification/models
 
-本目录承载会话请求生命周期的 TLA+ 模型 [TransportSession.tla](TransportSession.tla)、它的配置与运行脚本 [run.py](run.py)。模型描述 `src/session.ts` 的请求生命周期：登记、授权、交给线路、等应答、结算，以及 `signal`、`close()` 与两种断开。性质的定理陈述归 [SPEC.md「性质与证据」](../../SPEC.md#properties)。模型、实现与探索器之间的映射见 [../README.md](../README.md#动作映射)。
+本目录承载会话请求生命周期的 TLA+ 模型 [TransportSession.tla](TransportSession.tla) 与它的配置。模型描述 `src/session.ts` 的请求生命周期：登记、授权、交给线路、等应答、结算，以及 `signal`、`close()` 与两种断开。性质的定理陈述归 [SPEC.md「性质与证据」](../../SPEC.md#properties)。模型、实现与探索器之间的映射见 [../README.md](../README.md#动作映射)。
 
 ## 边界
 
@@ -28,7 +28,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 两种断开也按相当场结算，但只结算命运取决于线路的两相。`auth` 的去向与 `signal`、`close()` 相同。`disc` 不被断开结算：它的答复已由先到的拒绝定为 `authReq`，发现不经线路，断开不是这个请求上的事件。发现做完照常结算它，`signal` 或 `close()` 也可以当场结算它（调用方放弃）：
 
-- `LineGone`：流断开、进程退出、旧 HTTP+SSE 的共用流结束或断开，三者在模型里是同一个动作。`auth` → `notSent`，`sent` → `broken`，`disc` 不动。
+- `LineGone`：旧 HTTP+SSE 的共用流结束或断开。`auth` → `notSent`，`sent` → `broken`，`disc` 不动。
 - `SessionEnded(r)`：对端对带旧会话的请求 `r` 答 404（契约 T8 S07）。`r` 答 `ended`。其余项：`auth` → `notSent`，`sent` 与 `disc` 不结算，由各自的应答或发现决定。在途项已结算时，迟到的 404 被丢弃，会话不转为不可用。
 - 会话不可用之后，`Begin` 当场答 `notSent`，不调用句柄。读类的再发与新请求相同：流断开之后，读类当场答 `notSent`，不调用句柄，不交给线路（`Broken(r)`）。这一支只在 `SessionEnded` 之后可达：那时其余已交给线路的项还在途。
 - 两种断开都不等凭据句柄。它可以一直挂着。
@@ -67,7 +67,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 ## 有效动作的变异
 
-缺陷注入（`Bugs`）之外，每条不变式至少有一个有效动作的变异让正控变红。变异写在 `run.py` 的 `MUTATIONS`：把模块里一段有效动作的原文换成缺陷，在模块的副本上运行 TLC，只查目标不变式，用基础配置的常量。原文须在模块里恰好出现一次，否则该变异判为未执行。本目录的模块不被改动。
+缺陷注入（`Bugs`）之外，每条不变式至少有一个有效动作的变异让正控变红。变异写在 [../models.json](../models.json) 的 `mutations`：把模块里一段有效动作的原文换成缺陷，在模块的副本上运行 TLC，只查目标不变式，用基础配置的常量。原文须在模块里恰好出现一次，否则该变异判为未执行。本目录的模块不被改动。
 
 | 变异                          | 改了什么                                                               | 基础配置          | 须变红的不变式              |
 | ----------------------------- | ---------------------------------------------------------------------- | ----------------- | --------------------------- |
@@ -96,14 +96,13 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 ## 运行与判读
 
-从仓库根经运行名额执行：
+从仓库根执行：
 
 ```sh
-node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification/models/run.py [配置名 ...]
-node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification/models/run.py --mutations [变异名 ...]
+pnpm --filter @omne-harness/mcp-host-local verify:formal
 ```
 
-不带名字时运行全部配置或全部变异。`TLA2TOOLS_JAR` 指向 tla2tools（缺省 `/opt/tlaplus/tla2tools.jar`），`JAVA_BIN` 指定 java，`FORMAL_OUTPUT_DIR` 指定证据目录（缺省仓库 `tmp/formal/mcp-host-local/runs/`），`FORMAL_WORKERS` 指定 TLC 的工作线程数（缺省 4）。脚本把每个配置的原始输出与 `summary.json`（jar、模型与配置的 SHA-256，状态数、深度、耗时、判读）写进证据目录；变异运行写 `mutations.json`，每个变异的模块副本与配置留在证据目录的 `mutant-<名字>/`。跑完后删除 TLC 的状态目录。
+它运行 [../check.py](../check.py)，按清单 [../models.json](../models.json) 运行全部配置与全部变异：`cases` 是正控，`controls` 是负控，`mutations` 是有效动作的变异。`TLA2TOOLS_JAR` 须指向 tla2tools 的 JAR 文件，`JAVA_BIN` 指定 java。工作线程数与每次运行的时限写在清单里。脚本把每次运行的原始输出与 `results.json`（输入文件与 jar 的 SHA-256、命令、退出码与判读）写进仓库的 `tmp/formal/mcp-host-local/<时刻>/`。每次运行之后，脚本删除 TLC 的状态目录。`python3 verification/check.py --self-test` 只运行判读的自检。
 
 判读规则：
 
@@ -111,10 +110,8 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp-host-local/verification
 - 负控与变异须退出非零，TLC 报告的被违反不变式恰好是表里所列的那一条，并给出反例轨迹。
 - 退出码只在每个配置（或变异）都符合判读时为 0。超时、解析失败、求值错误、原文不唯一与未执行都不算通过。非零退出本身不算负控通过。
 
-`summary.json` 的读法：深度是 TLC 状态图的深度，含内部步。正控的状态数是完整穷举，两次运行相同。负控与变异的状态数是 TLC 找到第一条反例时的计数，随工作线程的调度在两次运行之间略有不同。
-
 ## 本包事实
 
-- 当前内容：会话请求生命周期的模型、13 份配置、22 个有效动作的变异与运行脚本。
+- 当前内容：会话请求生命周期的模型、13 份配置与 22 个有效动作的变异。
 - 状态：见 [SPEC.md「性质与证据」](../../SPEC.md#properties)。这不是证明，也不表示实现符合模型。
 - 负责人：本包的维护者。会话的结算次序或等待点变化时，先改模型的对应动作，再重跑全部配置与变异。

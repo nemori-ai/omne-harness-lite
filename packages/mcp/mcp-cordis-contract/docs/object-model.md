@@ -14,8 +14,7 @@
 | `AdoptionViewService<P, S>` 抽象类   | 键 `mcpAdoptionView`    | 本成员 | 静态           | `implements` `AdoptionView<P, S>`                                |
 | `UseEligibilityService<P>` 抽象类    | 键 `mcpUseEligibility`  | 本成员 | 静态           | `implements` `UseEligibility<P>`                                 |
 | `CredentialUseService<P>` 抽象类     | 键 `mcpCredentialUse`   | 本成员 | 静态           | `implements` `CredentialUse<P>`                                  |
-| `ProcessLandingService<P>` 抽象类    | 键 `mcpProcessLanding`  | 本成员 | 静态           | `implements` `ProcessLanding<P>`                                 |
-| `Context` 增补                       | 七个属性，名同键        | 本成员 | 静态           | 泛型类取 `unknown`                                               |
+| `Context` 增补                       | 六个属性，名同键        | 本成员 | 静态           | 泛型类取 `unknown`                                               |
 
 ```mermaid
 classDiagram
@@ -26,17 +25,15 @@ classDiagram
   class AdoptionViewService { <<abstract>> provide = mcpAdoptionView }
   class UseEligibilityService { <<abstract>> provide = mcpUseEligibility }
   class CredentialUseService { <<abstract>> provide = mcpCredentialUse }
-  class ProcessLandingService { <<abstract>> provide = mcpProcessLanding }
   Service <|-- ActionDiscoveryService
   Service <|-- ActionInvokerService
   Service <|-- EndpointStatusService
   Service <|-- AdoptionViewService
   Service <|-- UseEligibilityService
   Service <|-- CredentialUseService
-  Service <|-- ProcessLandingService
 ```
 
-七个类各自 `implements` mcp-contract 的接口，图中不画。
+六个类各自 `implements` mcp-contract 的接口，图中不画。
 
 ## 生命周期
 

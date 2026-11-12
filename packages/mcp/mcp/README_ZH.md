@@ -6,7 +6,7 @@ MCP 的通用实现：在 `@omne-harness/mcp-contract` 的五个需求端口上�
 
 ## 职责与状态
 
-本包实现契约的五个应用服务：类别端口 `inspection`、读口 `discovery`、调用口 `invoker`、状态口的两个服务 `status` 与 `connections`。它们共享一张连接表、一个在途表与一个任务表。连接表经端口（凭据句柄、进程落点、传输工厂）建立连接，把状态交给 `Connection` 聚合保存，并按组设计的次序关闭连接。
+本包实现契约的五个应用服务：类别端口 `inspection`、读口 `discovery`、调用口 `invoker`、状态口的两个服务 `status` 与 `connections`。它们共享一张连接表、一个在途表与一个任务表。连接表经端口（凭据句柄、传输工厂）建立连接，把状态交给 `Connection` 聚合保存，并按组设计的次序关闭连接。
 
 状态：连接表、刷新、读口与调用口已实现，建立在已接受的契约上。行为正文是 [SPEC.md](SPEC.md)，它引用契约条款号并写明本包自己的决定。组设计是[组工程设计](../docs/architecture.md)。
 
@@ -16,7 +16,7 @@ MCP 的通用实现：在 `@omne-harness/mcp-contract` 的五个需求端口上�
 | `createInMemoryCatalogStore`                                               | 已实现。通过契约的 `CatalogStore` 套件；CS8 不适用                      |
 | `Connection` 与 `InFlightCalls` 聚合、关口、各张表                         | 已实现为内部模块                                                        |
 | 清单容错（单个不合法工具剔除并报告）                                       | 没有。契约 C1 规定页里一项不合法时整份拒绝                              |
-| 真实传输、官方 SDK、真实对端、真实进程、耐久存储                           | 不在本包。`@omne-harness/mcp-host-local` 提供它们；本包没有在它们上验证 |
+| 真实传输、官方 SDK、真实对端、耐久存储                                     | 不在本包。`@omne-harness/mcp-host-local` 提供它们；本包没有在它们上验证 |
 | `list_changed` 订阅、后台重连                                              | 未实现。`changedNotified` 保持为假；失联的连接在下一次使用时重建        |
 
 ## 使用
@@ -31,7 +31,6 @@ const mcp = createMcp(
     adoption,
     eligibility,
     credentials,
-    landing,
     store: createInMemoryCatalogStore(),
     transports,
     checkOutput, // 宿主的 JSON Schema 校验器，形状是 OutputValidator
@@ -57,7 +56,7 @@ const result = await mcp.invoker.invoke(access, {
 })
 if (result.kind === 'sent') consume(result.outcome)
 
-// 退出时。它只报告已确认的停止范围。
+// 退出时。
 const closed = await mcp.connections.closeAll()
 ```
 
@@ -67,7 +66,7 @@ const closed = await mcp.connections.closeAll()
 
 - 公开类型与运行时校验：[src/](src/README.md)，导航在 [docs/public-api.md](docs/public-api.md)。
 - 类型以外的行为：[SPEC.md](SPEC.md)。它引用本包兑现的[契约 SPEC](../mcp-contract/SPEC.md) 条款（列在它开头的依据表里），并列出本包自己的决定。
-- 错误、生命周期与资源：拒绝与连接失败是 `Outcome` 的失败。前提违反抛出 `TypeError` 或 `RangeError`。连接表拥有每条连接的传输、进程句柄与凭据句柄。错误、关停与资源释放的规则见条款 [MC-10](SPEC.md#mc-10) 与 [MC-14](SPEC.md#mc-14)，以及 SPEC 的「[所有权、失败与生命周期](SPEC.md#所有权失败与生命周期)」一节。
+- 错误、生命周期与资源：拒绝与连接失败是 `Outcome` 的失败。前提违反抛出 `TypeError` 或 `RangeError`。连接表拥有每条连接的传输与凭据句柄。错误、关停与资源释放的规则见条款 [MC-10](SPEC.md#mc-10) 与 [MC-14](SPEC.md#mc-14)，以及 SPEC 的「[所有权、失败与生命周期](SPEC.md#所有权失败与生命周期)」一节。
 
 ## 设计
 
@@ -83,7 +82,7 @@ const closed = await mcp.connections.closeAll()
 
 ## 验证
 
-运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`。测试运行在契约的内存替身与两个脚本化传输（`tests/doubles/`）上，不用真实传输、进程、对端与耐久存储。测试覆盖的范围、性质、模型与变异见 [SPEC.md](SPEC.md#properties) 与 [verification/README.md](verification/README.md)。
+运行 `pnpm turbo run build typecheck test --filter=@omne-harness/mcp`。测试运行在契约的内存替身与两个脚本化传输（`tests/doubles/`）上，不用真实传输、对端与耐久存储。测试覆盖的范围、性质、模型与变异见 [SPEC.md](SPEC.md#properties) 与 [verification/README.md](verification/README.md)。
 
 ## 维护
 

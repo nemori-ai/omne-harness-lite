@@ -6,14 +6,14 @@ The Cordis definition member of MCP. Variant: `service-contract`.
 
 ## Responsibility and status
 
-This package owns only the Cordis definition of the MCP seams. It has seven abstract `Service` classes and their keys. Three are the MCP services: `ActionDiscoveryService<P>` (`mcpActionDiscovery`), `ActionInvokerService<P>` (`mcpActionInvoker`) and `EndpointStatusService<P, S>` (`mcpEndpointStatus`). Four are the demand ports: `AdoptionViewService<P, S>` (`mcpAdoptionView`), `UseEligibilityService<P>` (`mcpUseEligibility`), `CredentialUseService<P>` (`mcpCredentialUse`) and `ProcessLandingService<P>` (`mcpProcessLanding`). It exports one key constant for each class (`mcpActionDiscoveryKey`, `mcpActionInvokerKey`, `mcpEndpointStatusKey`, `mcpAdoptionViewKey`, `mcpUseEligibilityKey`, `mcpCredentialUseKey`, `mcpProcessLandingKey`). It also has the `Context` augmentation for the seven keys.
+This package owns only the Cordis definition of the MCP seams. It has six abstract `Service` classes and their keys. Three are the MCP services: `ActionDiscoveryService<P>` (`mcpActionDiscovery`), `ActionInvokerService<P>` (`mcpActionInvoker`) and `EndpointStatusService<P, S>` (`mcpEndpointStatus`). Three are the demand ports: `AdoptionViewService<P, S>` (`mcpAdoptionView`), `UseEligibilityService<P>` (`mcpUseEligibility`) and `CredentialUseService<P>` (`mcpCredentialUse`). It exports one key constant for each class (`mcpActionDiscoveryKey`, `mcpActionInvokerKey`, `mcpEndpointStatusKey`, `mcpAdoptionViewKey`, `mcpUseEligibilityKey`, `mcpCredentialUseKey`). It also has the `Context` augmentation for the six keys.
 
-The package owns no behavior. [mcp-contract](../mcp-contract/README.md) owns the seven interfaces. [mcp](../mcp/README.md) owns the three services. [mcp-host-local](../mcp-host-local/README.md) owns the plugin that provides the three services. The four port services are provided by other domains. `EndpointInspection` and `Connections` have no key. The package knows only generic roles: the consumer of a service and the provider of a port.
+The package owns no behavior. [mcp-contract](../mcp-contract/README.md) owns the six interfaces. [mcp](../mcp/README.md) owns the three services. [mcp-host-local](../mcp-host-local/README.md) owns the plugin that provides the three services. The three port services are provided by other domains. `EndpointInspection` and `Connections` have no key. The package knows only generic roles: the consumer of a service and the provider of a port.
 
 Status: Cordis definition member. The behavior is a candidate and has no technical acceptance yet. The adoption basis is the member split on the [group page](../README.md#成员与依赖) and the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
 
-- Implemented: `./cordis` exports the seven abstract classes and seven key constants (each taken from the `provide` of its class), and declares the `Context` augmentation. The root entry exports nothing.
-- Tested: the seven keys, the export set, loading and unloading of a subclass on a real Cordis 4.0.4 `Context`, and the root entry import boundary.
+- Implemented: `./cordis` exports the six abstract classes and six key constants (each taken from the `provide` of its class), and declares the `Context` augmentation. The root entry exports nothing.
+- Tested: the six keys, the export set, loading and unloading of a subclass on a real Cordis 4.0.4 `Context`, and the root entry import boundary.
 - Not implemented: events (none are declared) and a `./testing` entry (none is planned; the port doubles are in `@omne-harness/mcp-contract/testing`).
 
 ## Usage
@@ -53,7 +53,7 @@ Independent use does not need this package. A caller without Cordis uses the roo
 - The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 9.
 - The [Cordis page](docs/cordis.md) owns the dependency classes and the IC conformance map.
 - The [API page](docs/public-api.md) indexes the exports.
-- The [mcp-contract SPEC](../mcp-contract/SPEC.md) owns the inputs, results and failures of the seven interfaces.
+- The [mcp-contract SPEC](../mcp-contract/SPEC.md) owns the inputs, results and failures of the six interfaces.
 
 The package holds no resources. The fiber of the plugin that loads a subclass owns the life of the service.
 
@@ -77,7 +77,7 @@ Run `pnpm typecheck` here for type checking. Tests run on real Cordis 4.0.4. The
 
 ## Maintenance
 
-- When one of the seven interfaces in mcp-contract gains or loses a method, update the abstract class, the [API page](docs/public-api.md) and the export test.
+- When one of the six interfaces in mcp-contract gains or loses a method, update the abstract class, the [API page](docs/public-api.md) and the export test.
 - When a key changes, update the [Cordis page](docs/cordis.md) and the plugin in mcp-host-local.
 - Before a Cordis upgrade, run the tests of this package and of mcp-host-local.
 - The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.
@@ -92,7 +92,7 @@ documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Two entries, dependencies, mechanisms and reasons
 ├── flows.md              Load and unload flows of a service
-├── object-model.md       Seven technical objects and the Context augmentation
+├── object-model.md       Six technical objects and the Context augmentation
 ├── public-api.md         Export entries and definition index
 ├── context.md            Use by each dependent, position
 └── cordis.md             Service definitions, dependency classes, IC map

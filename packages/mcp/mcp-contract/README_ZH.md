@@ -17,8 +17,8 @@ MCP 组的纯契约：值、结局、失败、五个应用服务的接口、纯�
 | 清单函数 `completeListing`、`mergeListing`、`markUnavailable`、`actionPermissionItems` | 已实现并测试                                                                                                                            |
 | `classifyOutcome`、`toContentBlocks`、`boundInstructions`                              | 已实现并测试                                                                                                                            |
 | 五个服务接口                                                                           | 只有接口，由 `@omne-harness/mcp` 实现                                                                                                   |
-| 五个需求端口与传输端口                                                                 | 只有接口；`./testing` 有符合性套件与内存替身，传输套件 `mcpTransportConformance()` 在脚本化传输 `createScriptedTransportFactory` 上运行 |
-| 真实对端、凭据、进程落点、耐久存储                                                     | 本包不验证                                                                                                                              |
+| 四个需求端口与传输端口                                                                 | 只有接口；`./testing` 有符合性套件与内存替身，传输套件 `mcpTransportConformance()` 在脚本化传输 `createScriptedTransportFactory` 上运行 |
+| 真实对端、凭据、耐久存储                                                     | 本包不验证                                                                                                                              |
 
 ## 使用
 

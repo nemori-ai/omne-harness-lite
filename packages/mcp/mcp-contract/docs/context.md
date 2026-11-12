@@ -8,4 +8,4 @@
 
 ## 消费者与定位
 
-本包不点名调用方。它在组内的消费者是 `@omne-harness/mcp` 与 `@omne-harness/mcp-host-local`；四个组外需求端口的实现方见[领域交接设计](../../../../docs/domains/mcp/architecture.md)。
+本包不点名调用方。它在组内的消费者是 `@omne-harness/mcp` 与 `@omne-harness/mcp-host-local`；三个组外需求端口的实现方见[领域交接设计](../../../../docs/domains/mcp/architecture.md)。

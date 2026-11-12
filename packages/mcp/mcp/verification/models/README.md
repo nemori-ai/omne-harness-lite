@@ -1,6 +1,6 @@
 # verification/models
 
-本目录承载两个 TLA+ 模型、它们的配置与运行脚本 [run.py](run.py)。[ConnectionTable.tla](ConnectionTable.tla) 是连接表的生命周期，描述 `src/internal/table.ts`、`build.ts`、`teardown.ts`、`late.ts`、`port.ts` 与 `entry.ts`。[Calls.tla](Calls.tla) 是调用口，描述 `src/calls.ts`、`src/tasks.ts`、`src/internal/in-flight.ts` 与 `src/internal/task-table.ts`，连接表在它里面只剩调用口读到的抽象。性质的定理陈述归 [SPEC.md「性质与证据」](../../SPEC.md#properties)。模型与实现、探索器之间的映射见 [../README.md](../README.md#动作映射)。
+本目录承载两个 TLA+ 模型与它们的配置。[ConnectionTable.tla](ConnectionTable.tla) 是连接表的生命周期，描述 `src/internal/table.ts`、`build.ts`、`teardown.ts`、`late.ts`、`port.ts` 与 `entry.ts`。[Calls.tla](Calls.tla) 是调用口，描述 `src/calls.ts`、`src/tasks.ts`、`src/internal/in-flight.ts` 与 `src/internal/task-table.ts`，连接表在它里面只剩调用口读到的抽象。性质的定理陈述归 [SPEC.md「性质与证据」](../../SPEC.md#properties)。模型与实现、探索器之间的映射见 [../README.md](../README.md#动作映射)。
 
 ## 边界
 
@@ -10,7 +10,7 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 - `Keys`：连接键，每个键一个租户与一个持有。
 - `Ensures`、`Releases`：每个键的 `ensure`、`release` 次数。`CloseAlls`：0 或 1。`Loses`：`lose` 的总次数。
-- `Deviations`：端口调用除按契约答复以外还可以做什么：`fail`、`reject`、`unconfirmed`、`throw`。`Budget`：一条行为里偏离的总次数。挂起与迟到不占预算。端口被调用时同步抛出，模型按 `ask` 写成立即答复的 reject。
+- `Deviations`：端口调用除按契约答复以外还可以做什么：`fail`、`reject`、`throw`。`Budget`：一条行为里偏离的总次数。挂起与迟到不占预算。端口被调用时同步抛出，模型按 `ask` 写成立即答复的 reject。
 - `Bugs`：负控故意放进的缺陷。`{}` 是本包的代码。
 - `Observe`：`TRUE` 时 `ev` 字段记下每个外部动作与同步抛出，供轨迹阅读。安全配置用 `VIEW View` 把它排除在指纹之外。活性配置取 `FALSE`，令 `ev` 保持常量。没有动作读 `ev`，所以这样合并状态不改变检查结果。
 
@@ -28,26 +28,23 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 | 配置                       | 种类                 | 键   | `ensure` | `release` | `closeAll` | `lose` | 偏离与预算                                  | 检查                                                                                             |
 | -------------------------- | -------------------- | ---- | -------- | --------- | ---------- | ------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `valid-faults`             | 正控                 | A    | 1        | 1         | 1          | 1      | `fail`、`reject`、`unconfirmed`，1          | P1–P7、P8 T2 与 P16 的全部不变式                                                                 |
+| `valid-faults`             | 正控                 | A    | 1        | 1         | 1          | 1      | `fail`、`reject`，1                         | P1、P2、P4–P7、P8 T2 与 P16 的全部不变式                                                         |
 | `valid-rebuild`            | 正控                 | A    | 2        | 0         | 1          | 0      | 无（端口可挂起、迟到）                      | 同上                                                                                             |
 | `valid-throws`             | 正控                 | A    | 1        | 0         | 1          | 0      | `throw`，1                                  | 同上                                                                                             |
-| `valid-two-keys`           | 正控                 | A、B | 各 1     | 0         | 1          | 0      | 无；不触发时限（`CONSTRAINT NoBoundFired`） | P1–P5、P7 与 P16，P5 为主；P1 的关停之后一句、P6、P8 T2 在这里会空成立，不列                     |
-| `live`                     | 正控（活性）         | A    | 1        | 1         | 1          | 0      | `fail`、`reject`、`unconfirmed`，1          | `LiveSpec` 下的 `P8_EveryCallerAnswers`                                                          |
+| `valid-two-keys`           | 正控                 | A、B | 各 1     | 0         | 1          | 0      | 无；不触发时限（`CONSTRAINT NoBoundFired`） | P1、P2、P4、P5、P7 与 P16，P5 为主；P1 的关停之后一句、P6、P8 T2 在这里会空成立，不列                     |
+| `live`                     | 正控（活性）         | A    | 1        | 1         | 1          | 0      | `fail`、`reject`，1                         | `LiveSpec` 下的 `P8_EveryCallerAnswers`                                                          |
 | `probe-a1`                 | 反定理的探针         | A    | 1        | 1         | 0          | 0      | 无                                          | `P8_BoundedClose`，须违反                                                                        |
 | `probe-live-hang`          | 反定理的探针（活性） | A    | 1        | 1         | 1          | 0      | 无                                          | `HangSpec` 下的 `P8_EveryCallerAnswers`，须有时序反例                                            |
 | `bad-no-absorb-close`      | 负控                 | A    | 1        | 1         | 0          | 0      | `reject`，1                                 | 拆除不吸收 `close()` 的 reject。`P2_NoneHoldsNothing` 须违反                                     |
-| `bad-forget-open-late`     | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 遗忘不要求已关闭，迟到答复让 `lost` 的条目离开表。`P6_LateInvisible` 须违反                      |
-| `bad-forget-building`      | 负控                 | A    | 2        | 1         | 0          | 0      | 无                                          | 遗忘不要求没有在途建连。`P2_ForgetHoldsNothing` 须违反                                           |
 | `bad-close-after-build`    | 负控                 | A    | 1        | 1         | 0          | 0      | 无                                          | 关闭等建连结束之后才拒绝请求。`P16_CloseRefusesAtOnce` 须违反                                    |
 | `bad-close-after-build-ok` | 负控                 | A    | 1        | 1         | 0          | 0      | 无                                          | 同一缺陷，建连核关停而不核连接已关闭，`ensure` 交出关闭已开始的连接。`P16_NoOkAfterClose` 须违反 |
 | `bad-no-shut`              | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 不置关停。`P4_NoConnectAfterShut` 须违反                                              |
 | `bad-ok-after-shut`        | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | 最后一步之后不核连接已关闭。`P4_NoOkAfterShut` 须违反                                            |
-| `bad-abandon-landed`       | 负控                 | A    | 1        | 0         | 1          | 0      | 无                                          | `closeAll` 也释放已交来进程的落点的句柄。`P1_ReleasedAfterStop` 须违反                           |
 | `bad-unbounded-wrap`       | 负控                 | A    | 1        | 0         | 0          | 0      | 无                                          | 失败的建连等收场与标记时不受时限。`P8_BoundedEnsure` 须违反                                      |
 
 `valid-two-keys` 不触发时限，迟到路径只在一个键的配置里检查：不加这个约束时，两个键的状态空间相乘，TLC 不能在合理时间内跑完。各配置的时限上界相同、先建先到期；`P8_BoundedEnsure` 是 P8 T2 的全局形式，逐个 `ensure` 的形式归探索器（[../README.md](../README.md#状态映射)「模型的抽象」）。模型负控与实现一侧负控的对应见 [../README.md](../README.md#负控)。
 
-`Forgettable` 有三个条件，各有一个负控：已关闭（`bad-forget-open-late`，P6：`lost` 的条目留在表里，状态视图仍报告它）、没有在途建连（`bad-forget-building`，P2：关闭在建连结束之前就拒请求，建连在途时条目已关闭，而且可能暂时什么都不持有）、什么都不持有（P2 的正控本身）。
+`Forgettable` 有三个条件。模型里遗忘只经关闭一路，去掉其中一个条件也不再违反任何不变式，所以「已关闭」与「没有在途建连」在模型上没有负控，由用例守住（[../README.md](../README.md#负控)）；「什么都不持有」由 P2 的正控本身守住。
 
 `P16_NoOkAfterClose` 在 `joinedW` 一步检查答复。外部动作只在 `Quiescent` 时发生，建连的 `ready` 与 `joinedW` 之间的内部步不会被关闭隔开，所以这条性质成立不依赖代码在答复兑现时的再核（`table.ts` `settledAnswer`）。代码里这两步之间有几个微任务，别的纤程的延续可以在其中开始关闭；那个窗口由 `ensure.spec.ts` 的逐微任务扫描检查，不由本模型检查。
 
@@ -76,13 +73,13 @@ TLC 对有限状态做穷举。本页的结论只在下表的上限与模型的�
 
 ## 运行与判读
 
-从仓库根经运行名额执行：
+从仓库根执行：
 
 ```sh
-node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run.py [配置名 ...]
+pnpm --filter @omne-harness/mcp verify:formal
 ```
 
-不带配置名时运行全部配置。`TLA2TOOLS_JAR` 指向 tla2tools（缺省 `/opt/tlaplus/tla2tools.jar`），`JAVA_BIN` 指定 java，`FORMAL_OUTPUT_DIR` 指定证据目录（缺省仓库 `tmp/formal/mcp-connection-table/runs/`），`FORMAL_WORKERS` 指定 TLC 的工作线程数（缺省 4）。脚本把每个配置的原始输出与 `summary.json`（jar、模型与配置的 SHA-256，状态数、深度、耗时、判读与反例的外部动作）写进证据目录。每个配置跑完后，脚本删除 TLC 的状态目录。
+它运行 [../check.py](../check.py)，按清单 [../models.json](../models.json) 运行全部配置：`cases` 是正控，`controls` 是负控与反定理的探针。`TLA2TOOLS_JAR` 须指向 tla2tools 的 JAR 文件，`JAVA_BIN` 指定 java。工作线程数与每个配置的时限写在清单里。脚本把每个配置的原始输出与 `results.json`（输入文件与 jar 的 SHA-256、命令、退出码与判读）写进仓库的 `tmp/formal/mcp/<时刻>/`。每个配置跑完后，脚本删除 TLC 的状态目录。`python3 verification/check.py --self-test` 只运行判读的自检。
 
 判读规则：
 
@@ -92,6 +89,6 @@ node scripts/with-test-slot.mjs python3 packages/mcp/mcp/verification/models/run
 
 ## 本包事实
 
-- 当前内容：连接表生命周期的模型与 16 份配置，调用口的模型与 16 份配置，运行脚本。
+- 当前内容：连接表生命周期的模型与 13 份配置，调用口的模型与 16 份配置。
 - 状态：见 [SPEC.md「性质与证据」](../../SPEC.md#properties)。每次运行的读数贴到任务卡的评论里，不进本目录。这不是证明，也不表示实现符合模型。
 - 负责人：本包的维护者。连接表或调用口的结构变化时，先改对应模型的动作，再重跑它的全部配置。

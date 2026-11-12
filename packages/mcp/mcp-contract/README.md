@@ -17,8 +17,8 @@ Status: candidate contract, without technical acceptance. The behavior is in [SP
 | Catalog functions `completeListing`, `mergeListing`, `markUnavailable`, `actionPermissionItems` | Implemented and tested                                                                                                                                                                    |
 | `classifyOutcome`, `toContentBlocks`, `boundInstructions`                                       | Implemented and tested                                                                                                                                                                    |
 | Five service interfaces                                                                         | Interfaces only. `@omne-harness/mcp` implements them                                                                                                                                      |
-| Five requirement ports and the transport port                                                   | Interfaces only. Conformance suites and in-memory doubles in `./testing`; the transport suite `mcpTransportConformance()` runs on the scripted transport `createScriptedTransportFactory` |
-| Real peers, credentials, process landings, durable storage                                      | Not verified here                                                                                                                                                                         |
+| Four requirement ports and the transport port                                                   | Interfaces only. Conformance suites and in-memory doubles in `./testing`; the transport suite `mcpTransportConformance()` runs on the scripted transport `createScriptedTransportFactory` |
+| Real peers, credentials, durable storage                                                        | Not verified here                                                                                                                                                                         |
 
 ## Usage
 

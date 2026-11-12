@@ -23,7 +23,7 @@
 | [cordis.md](cordis.md)             | 服务定义、依赖分类、IC 符合性映射、机制读数 |
 | [architecture.md](architecture.md) | 两个入口、包外依赖、关键机制的理由          |
 | [flows.md](flows.md)               | 服务的装载与撤除、端口现取                  |
-| [object-model.md](object-model.md) | 七个技术对象与一项类型增补                  |
+| [object-model.md](object-model.md) | 六个技术对象与一项类型增补                  |
 | [public-api.md](public-api.md)     | 两个入口与 `./cordis` 的导出                |
 | [context.md](context.md)           | 各类依赖方的用法与定位                      |
 
