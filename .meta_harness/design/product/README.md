@@ -28,7 +28,7 @@
 | [人在回路产品设计](human-intervention/design.md) | [未决](human-intervention/design.md#未决问题与待定事项) | [领域](../../../docs/domains/human-intervention/README.md) | [工程与规格](../../../packages/human-intervention/README.md) |
 | [日历产品设计](calendars/design.md) | [未决](calendars/design.md#未决问题与待定事项) | [领域](../../../docs/domains/calendars/README.md) | [工程与规格](../../../packages/calendar/README.md) |
 | [通知产品候选](notifications/design.md) | [未决](notifications/design.md#未决问题与待定事项) | [领域](../../../docs/domains/notifications/README.md) | [工程与规格](../../../packages/notification/README.md) |
-| [日程与作业产品候选](schedules-and-jobs/design.md) | [未决](schedules-and-jobs/design.md#未决问题与待定事项) | [领域](../../../docs/domains/schedules-and-jobs/README.md) | [工程与规格](../../../packages/schedule/README.md) |
+| [日程与作业产品设计](schedules-and-jobs/design.md) | [未决](schedules-and-jobs/design.md#未决问题与待定事项) | [领域](../../../docs/domains/schedules-and-jobs/README.md) | [工程与规格](../../../packages/schedule/README.md) |
 
 Skill、Slash Command、MCP 的工程分解已维护在对应能力组，完整行为候选尚未分配正式成员。其产品末块与组入口继续显示承接缺项，不以组根 SPEC 或空包替代。
 

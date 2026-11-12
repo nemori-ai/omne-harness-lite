@@ -1,0 +1,84 @@
+[
+  {
+    "sha": "78443c03bf9339f085c44fbcc9257bbf4a17f8da",
+    "node_id": "C_kwDONrDJ9doAKDc4NDQzYzAzYmY5MzM5ZjA4NWM0NGZiY2M5MjU3YmJmNGExN2Y4ZGE",
+    "commit": {
+      "author": {
+        "name": "cg-zhou",
+        "email": "z_cg@foxmail.com",
+        "date": "2026-11-02T03:29:24Z"
+      },
+      "committer": {
+        "name": "cg-zhou",
+        "email": "z_cg@foxmail.com",
+        "date": "2026-11-02T03:29:24Z"
+      },
+      "message": "feat: add Japan 2027 holidays and release 1.4.0",
+      "tree": {
+        "sha": "1ac9c7b0d84dc3e44460a8ee62d81e69d86c62ca",
+        "url": "https://api.github.com/repos/cg-zhou/holiday-calendar/git/trees/1ac9c7b0d84dc3e44460a8ee62d81e69d86c62ca"
+      },
+      "url": "https://api.github.com/repos/cg-zhou/holiday-calendar/git/commits/78443c03bf9339f085c44fbcc9257bbf4a17f8da",
+      "comment_count": 0,
+      "verification": {
+        "verified": false,
+        "reason": "unsigned",
+        "signature": null,
+        "payload": null,
+        "verified_at": null
+      }
+    },
+    "url": "https://api.github.com/repos/cg-zhou/holiday-calendar/commits/78443c03bf9339f085c44fbcc9257bbf4a17f8da",
+    "html_url": "https://github.com/cg-zhou/holiday-calendar/commit/78443c03bf9339f085c44fbcc9257bbf4a17f8da",
+    "comments_url": "https://api.github.com/repos/cg-zhou/holiday-calendar/commits/78443c03bf9339f085c44fbcc9257bbf4a17f8da/comments",
+    "author": {
+      "login": "cg-zhou",
+      "id": 9943470,
+      "node_id": "MDQ6VXNlcjk5NDM0NzA=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9943470?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/cg-zhou",
+      "html_url": "https://github.com/cg-zhou",
+      "followers_url": "https://api.github.com/users/cg-zhou/followers",
+      "following_url": "https://api.github.com/users/cg-zhou/following{/other_user}",
+      "gists_url": "https://api.github.com/users/cg-zhou/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/cg-zhou/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/cg-zhou/subscriptions",
+      "organizations_url": "https://api.github.com/users/cg-zhou/orgs",
+      "repos_url": "https://api.github.com/users/cg-zhou/repos",
+      "events_url": "https://api.github.com/users/cg-zhou/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/cg-zhou/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "cg-zhou",
+      "id": 9943470,
+      "node_id": "MDQ6VXNlcjk5NDM0NzA=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9943470?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/cg-zhou",
+      "html_url": "https://github.com/cg-zhou",
+      "followers_url": "https://api.github.com/users/cg-zhou/followers",
+      "following_url": "https://api.github.com/users/cg-zhou/following{/other_user}",
+      "gists_url": "https://api.github.com/users/cg-zhou/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/cg-zhou/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/cg-zhou/subscriptions",
+      "organizations_url": "https://api.github.com/users/cg-zhou/orgs",
+      "repos_url": "https://api.github.com/users/cg-zhou/repos",
+      "events_url": "https://api.github.com/users/cg-zhou/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/cg-zhou/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "2d443b1760d1d5831d3d4582c832a39ec862e0a0",
+        "url": "https://api.github.com/repos/cg-zhou/holiday-calendar/commits/2d443b1760d1d5831d3d4582c832a39ec862e0a0",
+        "html_url": "https://github.com/cg-zhou/holiday-calendar/commit/2d443b1760d1d5831d3d4582c832a39ec862e0a0"
+      }
+    ]
+  }
+]

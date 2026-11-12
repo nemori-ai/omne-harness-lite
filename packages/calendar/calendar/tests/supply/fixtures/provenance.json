@@ -1,0 +1,112 @@
+[
+  {
+    "file": "holiday_api_sample.json",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/lanceliao_china_holiday_calender/holiday_api_sample.json",
+    "originalSha256": "e020581ab123cc650efe4ab4b18cd21efefcc7a6d002f924a48215920c8be241",
+    "fixtureSha256": "e020581ab123cc650efe4ab4b18cd21efefcc7a6d002f924a48215920c8be241",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "reconstructed format sample from source dossier; not authoritative data",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "holiday_api_capture_20260821.json",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/lanceliao_china_holiday_calender/holiday_api_capture_20260821.json",
+    "originalSha256": "d3309f77cf4a71508ffac1b9cbd7fab03d38df619ed090b63999631d5022dfa8",
+    "fixtureSha256": "d3309f77cf4a71508ffac1b9cbd7fab03d38df619ed090b63999631d5022dfa8",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "captured artifact; FR document list is a published-source excerpt",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "cn_2026.json",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/cg_zhou_holiday_calendar/cn_2026.json",
+    "originalSha256": "5293761984a3702ecf9766057d56ab77b5b1de02699c1cde3c93a765c4886903",
+    "fixtureSha256": "5293761984a3702ecf9766057d56ab77b5b1de02699c1cde3c93a765c4886903",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "captured artifact; FR document list is a published-source excerpt",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "index.json",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/cg_zhou_index_endyear/index.json",
+    "originalSha256": "b5984f17a99403aa0146eb5c9d4a68d906d86a7128258df76ec4de76c99215e9",
+    "fixtureSha256": "b5984f17a99403aa0146eb5c9d4a68d906d86a7128258df76ec4de76c99215e9",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "reconstructed format sample from source dossier; not authoritative data",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "current_shape_excerpt.csv",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/cao_syukujitsu_csv/current_shape_excerpt.csv",
+    "originalSha256": "808cdcb9d7c2456fa6e3fd2464b031f97f14ca692eb3d229d1c2e77eca3a3622",
+    "fixtureSha256": "cba3f77831773063e796e0394d53f61b8b9c33e9a998419941dddf83255d2a88",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "reconstructed format sample from source dossier; not authoritative data",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "current_shape_excerpt_utf8.csv",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/cao_syukujitsu_csv/current_shape_excerpt_utf8.csv",
+    "originalSha256": "cd432333d13f023c5437810feb246deece5ae0b2bc98837c5cbc27853b43e061",
+    "fixtureSha256": "1d97611d3d1a7a0c285d6baf5c34a7189ebbd2b189c62b1d2bdd06ba466ebbd9",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "reconstructed format sample from source dossier; not authoritative data",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "holidays_dossier_shapes.ics",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/opm_holidays_ics/holidays_dossier_shapes.ics",
+    "originalSha256": "5fbe6a6ebda1a13cad5ce374c7ba2d9507b27a13aeb2cf8c6af74d62c720b434",
+    "fixtureSha256": "898d77f81c9092d16357b53e804ae6728ea4f22fed94ccf3673a64333528b412",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "reconstructed format sample from source dossier; not authoritative data",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "holidays_capture_20260821.ics",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/opm_holidays_ics/holidays_capture_20260821.ics",
+    "originalSha256": "e9ce6805978a41e28df36132dba0dcb4cd6a5bf5ed0b8c3e9a122d07018f8cc6",
+    "fixtureSha256": "55b7d1a740bcb1e85b223eb4a8b6552af5eac186040efba6bb409cd64fd73ac4",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "captured artifact; FR document list is a published-source excerpt",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "documents_bounded_capture_20260821.json",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/federal_register_eo_api/documents_bounded_capture_20260821.json",
+    "originalSha256": "ed181f6aa73c91d012a9ac5ac78f3ebcc3184766b9d72f1f8ba2a66ebb57c002",
+    "fixtureSha256": "ed181f6aa73c91d012a9ac5ac78f3ebcc3184766b9d72f1f8ba2a66ebb57c002",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "captured artifact; FR document list is a published-source excerpt",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "body_capture_2025-23847_20260821.txt",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/federal_register_eo_api/body_capture_2025-23847_20260821.txt",
+    "originalSha256": "50e78139b51ae2493fcbae83381a2bce40dcee4ab895471acfdf7bf3bd67b9ed",
+    "fixtureSha256": "50e78139b51ae2493fcbae83381a2bce40dcee4ab895471acfdf7bf3bd67b9ed",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "captured artifact; FR document list is a published-source excerpt",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  },
+  {
+    "file": "body_capture_2024-31766_20260821.txt",
+    "fixedSourceCommit": "a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0",
+    "sourcePath": "omne_harness/libs/omne_harness_state/tests/fixtures/calendar_source_samples/federal_register_eo_api/body_capture_2024-31766_20260821.txt",
+    "originalSha256": "df569271ff016e293c9cf2844d0311e6edd6c90c3a6656370c01ea7014634aae",
+    "fixtureSha256": "df569271ff016e293c9cf2844d0311e6edd6c90c3a6656370c01ea7014634aae",
+    "transformation": "CRLF to LF only; JSON and CP932 byte content otherwise preserved",
+    "evidenceKind": "captured artifact; FR document list is a published-source excerpt",
+    "assumption": "Fixed source README documents original acquisition or constructed fields. Runtime is offline. These fixtures are not production seeds."
+  }
+]

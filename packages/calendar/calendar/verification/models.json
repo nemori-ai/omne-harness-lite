@@ -1,0 +1,27 @@
+{
+  "member": "calendar",
+  "model": "models/CalendarTotalization.tla",
+  "scope": "finite nth-working-day evaluator; weak fairness of Decide; no service deadline or source refinement proof",
+  "cases": [
+    {
+      "name": "total-positive",
+      "config": "models/total-positive.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "total-negative-coverage",
+      "config": "models/total-negative-coverage.cfg",
+      "expected": "AbsenceSound"
+    },
+    {
+      "name": "total-negative-limit",
+      "config": "models/total-negative-limit.cfg",
+      "expected": "AbsenceSound"
+    },
+    {
+      "name": "total-negative-spin",
+      "config": "models/total-negative-spin.cfg",
+      "expected": "temporal"
+    }
+  ]
+}

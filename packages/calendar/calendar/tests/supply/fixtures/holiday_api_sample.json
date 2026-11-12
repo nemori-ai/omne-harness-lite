@@ -1,0 +1,37 @@
+{
+  "Version": "1.0",
+  "Generated": "20251104T235904Z",
+  "Years": {
+    "2023": [
+      {
+        "Name": "元旦",
+        "StartDate": "2022-12-31",
+        "EndDate": "2023-01-02",
+        "Duration": 3,
+        "CompDays": [],
+        "URL": "https://www.gov.cn/zhengce/content/2022-12/08/content_2023_new_year_notice.htm",
+        "Memo": "一、元旦：2022年12月31日至2023年1月2日放假调休，共3天。"
+      }
+    ],
+    "2026": [
+      {
+        "Name": "劳动节",
+        "StartDate": "2026-05-01",
+        "EndDate": "2026-05-05",
+        "Duration": 5,
+        "CompDays": ["2026-05-09"],
+        "URL": "https://www.gov.cn/zhengce/content/202511/content_7047090.htm",
+        "Memo": "五、劳动节：5月1日至5日放假调休，共5天。5月9日（周六）上班。"
+      },
+      {
+        "Name": "国庆节、中秋节",
+        "StartDate": "2026-10-01",
+        "EndDate": "2026-10-07",
+        "Duration": 7,
+        "CompDays": ["2026-09-20", "2026-10-10"],
+        "URL": "https://www.gov.cn/zhengce/content/202511/content_7047090.htm",
+        "Memo": "七、国庆节、中秋节：10月1日至7日放假调休，共7天。9月20日（周日）、10月10日（周六）上班。"
+      }
+    ]
+  }
+}

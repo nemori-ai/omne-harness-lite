@@ -123,6 +123,24 @@ flowchart TB
 
 评审同时检查概念、类型、行为与装配。导入无环、契约分包和类型通过，均不能单独证明语义边界正确。遗漏必要依赖与引入无关治理都是设计问题；发现后修改原拥有者和真实消费者，不在适配器中静默补造规则。
 
+### 日历与日程的边界实例
+
+Calendar 的职责是日期知识，Schedule 的职责是未来安排，Job 的职责是一次冻结工作。Schedule 与 Job 仍属于同一责任域。Clock 是时间来源与等待机制的横向能力，不拥有到期规则、补跑或工作次数。
+
+| 概念与消费方                                         | 进入方式                                                | 原拥有者保留的责任                                           |
+| ---------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| Schedule 所需的日期、版本和覆盖                      | Calendar 公开查询与不可变依据                           | Calendar 供应、发布和日期计算语义                            |
+| Schedule 所需的有效环境、资格和配额                  | 治理拥有者的窄读取契约与具名提交守卫                    | 原身份、撤权、环境设置及配额政策                             |
+| Job 的 program/agent、instruction、new/existing 要求 | Job 自有冻结工作值；目标只保存不透明引用                | Session 消息、Run、Agent Loop 与实际推进                     |
+| JobExecutor 的受理、查询、停止及结果                 | Job 声明消费协议，外部执行适配器实现                    | 程序或 Session 保存原执行事实，适配器保留原关联              |
+| 日历、日程和 Job tools                               | 独立工具作者插件消费应用服务定义，经 Cordis inject 调用 | 应用服务负责规则、权限与可靠接受，工具不访问私有表或实现调度 |
+
+因此，核心不导入 Session/Agent 的类型或服务，也不通过通用 JSON 保存其完整快照。执行适配器可以消费它们的公开协议，核心只处理自身的意图、稳定关联和类型化回执。Session intake/inbound 负责将 instruction 转为合法输入与消息；Job 不指定消息 role。程序和纯通知调用无需模拟会话，替换执行后端也不得改变次数、日历或候选接受规则。
+
+此实例按 SOLID 核对变化边界。单一职责分开日期、安排、工作和协议翻译；依赖倒置把 JobExecutor 留给消费方；接口隔离让查询方不依赖供应写入或执行控制。替换实现须保留原身份、幂等、unknown 和真实停止含义；不支持 existing 却创建新会话，或把入队标为成功，均违反替换约束。新增业务执行语义须同步契约，不能借自由参数掩盖领域变化。
+
+完整消费图与反例归[日程协作](../domains/schedules-and-jobs/architecture.md)，日历事实与供应边界归[日历协作](../domains/calendars/architecture.md)。上述是已确认目标设计，尚不表示存在公开导出或完成装配验证。
+
 ### 方法依据与采用范围
 
 DDD 的限界上下文限定模型适用范围，防腐层用于在边界翻译模型，Published Language 支持公开语义交换。这里采用这些方法判断概念归属与转换，不把每个治理领域预设为独立部署服务，也不把公共类型包自动视为 Shared Kernel。[Eric Evans，DDD Reference，Bounded Context、Anticorruption Layer、Published Language](https://www.domainlanguage.com/wp-content/uploads/2016/05/DDD_Reference_2015-03.pdf)。

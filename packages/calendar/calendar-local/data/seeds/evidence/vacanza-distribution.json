@@ -1,0 +1,59 @@
+{
+  "name": "holidays",
+  "version": "0.108",
+  "project_urls": {
+    "Changelog": "https://github.com/vacanza/holidays/releases/",
+    "Documentation": "https://holidays.readthedocs.io/en/latest/",
+    "Repository": "https://github.com/vacanza/holidays/"
+  },
+  "requires_python": ">=3.11",
+  "license_expression": "MIT",
+  "urls": [
+    {
+      "comment_text": null,
+      "core-metadata": {
+        "sha256": "cd9e3c05fae13bda311a34f792d3a0b46c7229d41dbbf7a2d0f008a1a6879543"
+      },
+      "digests": {
+        "blake2b_256": "d7afcc7abdb463668cf581780fff8636254892139f81fad95977e594cb217bfb",
+        "md5": "97bb2ad6a6cd9cf4c1287130da71cff8",
+        "sha256": "5a08fdccd0b8737093d483ba0d0d9696560396d99d3fa6ef9264fd2ac48749c7"
+      },
+      "downloads": -1,
+      "filename": "holidays-0.108-py3-none-any.whl",
+      "has_sig": false,
+      "md5_digest": "97bb2ad6a6cd9cf4c1287130da71cff8",
+      "packagetype": "bdist_wheel",
+      "python_version": "py3",
+      "requires_python": ">=3.11",
+      "size": 1712876,
+      "upload_time": "2026-11-02T22:32:10",
+      "upload_time_iso_8601": "2026-11-02T22:32:10.311079Z",
+      "url": "https://files.pythonhosted.org/packages/d7/af/cc7abdb463668cf581780fff8636254892139f81fad95977e594cb217bfb/holidays-0.108-py3-none-any.whl",
+      "yanked": false,
+      "yanked_reason": null
+    },
+    {
+      "comment_text": null,
+      "core-metadata": false,
+      "digests": {
+        "blake2b_256": "a7d0f41f3c821961325324a39afe2865a62b9e789c3064c4ef48114ef29e4cf5",
+        "md5": "43397f5aa240c4e6da28738fe6372f12",
+        "sha256": "b6daaa1f630512427fb0889700efaf9fa2eb4209f777ef4ce9ee216a4f0d0691"
+      },
+      "downloads": -1,
+      "filename": "holidays-0.108.tar.gz",
+      "has_sig": false,
+      "md5_digest": "43397f5aa240c4e6da28738fe6372f12",
+      "packagetype": "sdist",
+      "python_version": "source",
+      "requires_python": ">=3.11",
+      "size": 1090853,
+      "upload_time": "2026-11-02T22:32:12",
+      "upload_time_iso_8601": "2026-11-02T22:32:12.492786Z",
+      "url": "https://files.pythonhosted.org/packages/a7/d0/f41f3c821961325324a39afe2865a62b9e789c3064c4ef48114ef29e4cf5/holidays-0.108.tar.gz",
+      "yanked": false,
+      "yanked_reason": null
+    }
+  ]
+}
