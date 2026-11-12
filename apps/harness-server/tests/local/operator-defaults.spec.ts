@@ -1,7 +1,7 @@
 // The operator layer of the local single-user profile, built over the release distribution that
 // ships with the application. The process test (`setup-serve-process.spec.ts`) proves that the
 // whole tree loads with it. These cases pin what the layer holds and what it never holds.
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -244,7 +244,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
   // The test operator layer builds the same tool host, so a test on its defaults takes the path
   // the local profile takes.
   it('gives the test operator layer the tool result bounds of the local profile', () => {
-    const base = mkdtempSync(join(tmpdir(), 'omne-result-bounds-'))
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'omne-result-bounds-')))
     try {
       const { construction } = toolRowsOperatorConfig({ storageRoot: join(base, 'storage') })
       const tests = resultBounds.parse(construction)
