@@ -159,21 +159,18 @@ export function createClient<P extends ProtocolContract>(
       open: written.value,
       signal: options.signal,
     })
-    let finished = false
     try {
       for (;;) {
         const next = await stream.next()
-        if (next.done === true) {
-          finished = true
-          return endOf(contract, next.value)
-        }
+        if (next.done === true) return endOf(contract, next.value)
         const frame = contract.frame.read(next.value, limits)
         if (!frame.ok) return { kind: 'uncertain' }
         yield frame.value
       }
     } finally {
-      // The caller stopped reading, or a frame was outside the contract: close the stream.
-      if (!finished) await stream.return({ kind: 'aborted' })
+      // The caller stopped reading, or a frame was outside the contract: close the stream. Closing
+      // a stream that already ended does nothing.
+      await stream.return({ kind: 'aborted' })
     }
   }
 

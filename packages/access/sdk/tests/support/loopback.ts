@@ -12,6 +12,8 @@ export interface Reply {
   readonly status: number
   readonly headers?: Readonly<Record<string, string>>
   readonly body?: string | Buffer
+  /** Close the connection after the request arrived, without any answer. */
+  readonly hangUp?: true
 }
 
 export interface LoopbackServer {
@@ -46,6 +48,10 @@ export async function startLoopback(
       }
       received.push(item)
       void Promise.resolve(handler(item)).then(reply => {
+        if (reply.hangUp === true) {
+          request.socket.destroy()
+          return
+        }
         response.writeHead(reply.status, reply.headers)
         response.end(reply.body)
       })

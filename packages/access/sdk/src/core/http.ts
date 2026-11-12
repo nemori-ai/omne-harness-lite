@@ -32,7 +32,6 @@ export type HttpProtocolTransportOptions = {
   readonly limits?: JsonLimits
 }
 
-const NOT_SENT: CallReport = Object.freeze({ kind: 'not-sent' })
 const UNCERTAIN: CallReport = Object.freeze({ kind: 'uncertain' })
 
 function originOf(text: string): URL {
@@ -137,8 +136,7 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
   async function call(request: CallRequest): Promise<CallReport> {
     const url = urlOf(request.protocol, request.operation)
     const response = await send(url, request.messageId, request.body, request.signal)
-    if (response === 'not-sent') return NOT_SENT
-    if (response === 'uncertain') return UNCERTAIN
+    if (typeof response === 'string') return { kind: response }
     try {
       if (mediaType(response) !== 'application/json') {
         await response.body?.cancel()
@@ -175,7 +173,6 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
   ): AsyncGenerator<JsonValue, ObserveEnd> {
     const queue: string[] = []
     const parser = createParser({ onEvent: event => queue.push(event.data) })
-    let done = false
     try {
       for (;;) {
         for (let data = queue.shift(); data !== undefined; data = queue.shift()) {
@@ -185,15 +182,13 @@ export function createHttpProtocolTransport(options: HttpProtocolTransportOption
         }
         const chunk = await reader.read().catch(() => undefined)
         if (chunk === undefined) return signal.aborted ? ABORTED : STOPPED
-        if (chunk.done) {
-          done = true
-          return STOPPED
-        }
+        if (chunk.done) return STOPPED
         parser.feed(chunk.value)
       }
     } finally {
-      // Stopping early closes the connection; the entry sees the observer go away.
-      if (!done) await reader.cancel().catch(() => {})
+      // Stopping early closes the connection; the entry sees the observer go away. Cancelling a
+      // stream that already ended does nothing.
+      await reader.cancel().catch(() => {})
     }
   }
 

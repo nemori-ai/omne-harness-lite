@@ -52,6 +52,7 @@ describe('C12: a client from one protocol contract', () => {
     expect(requests[0]!.operation).toBe('read-note')
     expect(requests[0]!.messageId).toBe('m-1')
     expect(writeJsonText(requests[0]!.body)).toBe('{"noteId":"n-1"}')
+    expect(Object.hasOwn(requests[0]!, 'signal')).toBe(false)
   })
 
   it('reads an outcome the pipeline adds, and gives a fresh message id when none is given', async () => {
@@ -67,9 +68,11 @@ describe('C12: a client from one protocol contract', () => {
 
   it('refuses a body the contract cannot write, before anything is sent', async () => {
     const { requests, client } = scripted([])
-    await expect(client['read-note']({ noteId: 7 as unknown as string })).rejects.toBeInstanceOf(
-      ClientRequestError,
+    const refusal = await client['read-note']({ noteId: 7 as unknown as string }).catch(
+      (error: unknown) => error,
     )
+    expect(refusal).toBeInstanceOf(ClientRequestError)
+    expect((refusal as Error).name).toBe('ClientRequestError')
     expect(requests).toEqual([])
   })
 })
@@ -109,6 +112,7 @@ describe('C13: the three results of a transport', () => {
       { kind: 'answered', outcome: 'exploded', body: object({}) },
       { kind: 'answered', outcome: 'succeeded', body: object({ noteId: 'n-1' }) },
       { kind: 'answered', outcome: 'denied', body: object({ reason: 'x' }) },
+      { kind: 'answered', outcome: 'denied', body: { kind: 'array', items: [] } },
     ]
     for (const report of cases) {
       const { requests, client } = scripted([report])
