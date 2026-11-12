@@ -37,7 +37,7 @@ R2-D60（[#421 的采用决定](https://github.com/nemori-ai/omne-harness-lite/i
 
 `prepare` 与 `consume` 读本调用的域与 `start-guards`、做决定、按本调用域的修订号条件提交。`consume` 的受理提交另带读集断言：`start-guards` 的修订号仍等于本次读到的修订号，任一不符即 `conflict`、不写入。失效在受理读到守卫之后、受理提交之前落下时，受理提交冲突，重读看到守卫前进，回复永久拒绝（[start-coordinator.spec.ts](tests/start-coordinator.spec.ts) 在该窗口内注入失效）。两个域没有共同的修订顺序，受理与失效的先后由提交裁定：失效先提交则本次重读看到守卫前进、提交永久拒绝；受理先提交则失效落在它之后、启动在途。失效在提交之后才回复证据，所以已经回复的失效一定被之后的受理看到（P04）。这个栅栏由 [StartConsume 模型](verification/models/start-consume/README.md)检查。修订冲突时重读重判，最多 `commitAttempts` 次，用尽后回复 `unavailable`。
 
-同一进程内，写同一个域的操作还经过该域的串行区，它只减少同域操作的修订冲突，不是先后正确的前提，也不跨域排序。
+同一进程内，写同一个域的操作还经过该域的串行区，它只减少同域操作的修订冲突，不是先后正确的前提，也不跨域排序。一个调用方在串行区里的等待有上限 `turnTimeoutMs`（缺省为 `commitAttempts` 乘每轮的时长），从排队算起。到了上限，调用方不再等，那一轮的工作继续跑完、仍可能提交，所以调用方得到的是各操作自己的「未知」：`consume` 与 `inspect` 回复 `unknown`，`exclude` 与 `invalidate` 回复 `commit-unknown`。之后以同一许可重送 `consume`、以同一操作号重送 `exclude` 或 `invalidate`，认回那一轮实际提交的事实。`prepare` 回复 `unavailable`：它签发的许可只有调用方拿到时才能用，没拿到的许可之后被同一启动的新许可取代。
 
 本排序域只在一个进程内验证过。两个进程共用记录仓的装配没有验证，所以本协调器不声明跨进程的启动保证（P04）。
 
