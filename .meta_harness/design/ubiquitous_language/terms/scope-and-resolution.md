@@ -323,8 +323,8 @@ specific.
 > that evaluation have not changed.
 
 - **形态**：属性
-- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 8） ·
-  [资产与规则：变更后的生效范围](../../product/assets-and-rules/design.md#changes-and-failures)（rev 8） ·
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 9） ·
+  [资产与规则：变更后的生效范围](../../product/assets-and-rules/design.md#changes-and-failures)（rev 9） ·
   [工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 5）
 - **别混**：不是全局版本号。每类来源、每个作用域各有自己的计数，彼此不比较大小
 - **注意**：计数变化只说明来源变了，不构成采用。采用仍只在新 Run 开始或显式 reload 时发生
@@ -341,7 +341,7 @@ specific.
 > invalidates it.
 
 - **形态**：视图
-- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 8）
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 9）
 - **别混**：与「保存的选择」不是一回事。保存的选择是用户的意图；已校验装配候选是系统按当时来源算好的结果。两者都不是采用依据
 - **注意**：丢了可以按同样的计数重新求值，所以它不是一份另存的事实
 
