@@ -3020,6 +3020,12 @@ importers:
         specifier: workspace:*
         version: link:../../access/public-contract
     devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

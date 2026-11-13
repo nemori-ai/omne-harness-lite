@@ -28,6 +28,8 @@
     "@omne-harness/public-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
