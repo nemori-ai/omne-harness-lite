@@ -1,0 +1,48 @@
+{
+  "name": "@omne-harness/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The desktop app: the page (shell, login, client tree) and its local host process that holds the login",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "omne-desktop-host": "./dist/web-host/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && vite build",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/client-assembly": "workspace:*",
+    "@omne-harness/identity-protocol": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/public-contract": "workspace:*",
+    "@omne-harness/sdk": "workspace:*",
+    "@omne-harness/session-protocol": "workspace:*",
+    "eventsource-parser": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "happy-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}
