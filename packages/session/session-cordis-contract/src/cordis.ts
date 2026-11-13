@@ -91,6 +91,8 @@ export abstract class SessionTransactionPortService<P = unknown>
   declare readonly commitLog?: NonNullable<SessionTransactionPort<P>['commitLog']>
   abstract readonly history: SessionTransactionPort<P>['history']
   abstract readonly pending: SessionTransactionPort<P>['pending']
+  /** Optional like the port member: a provider without it omits it. */
+  declare readonly directory?: NonNullable<SessionTransactionPort<P>['directory']>
   abstract readonly references: SessionTransactionPort<P>['references']
   abstract readonly releasedScopes: SessionTransactionPort<P>['releasedScopes']
 }
