@@ -55,6 +55,35 @@ const limited = ruleCodec(
   }),
 )
 
+// RFC-0015「列出会话」. `cursor` is the `next` of the page before, or null for the first page. Without
+// `limit` the deployment's default applies; without `includeArchived` archived sessions are left out.
+const listSessions = object({
+  tenant: { rule: tenant },
+  cursor: { rule: nullable(text) },
+  limit: { rule: { kind: 'positive-integer' }, optional: true },
+  includeArchived: { rule: boolean, optional: true },
+})
+
+// A session list is a projection, most recent activity first. The two instants are null for a
+// session that was created before commit times were recorded; `title` is null until the session has
+// a user message with text. `partial` means the page reached the row bound of one read.
+const sessionList = object({
+  sessions: {
+    rule: {
+      kind: 'array',
+      item: object({
+        session: { rule: session },
+        createdAt: { rule: nullable({ kind: 'instant' }) },
+        lastActivityAt: { rule: nullable({ kind: 'instant' }) },
+        lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
+        title: { rule: nullable(anyText) },
+      }),
+    },
+  },
+  next: { rule: nullable(text) },
+  completeness: { rule: literal('complete', 'partial') },
+})
+
 // The first page has a null `cursor` with `direction` and `pageBytes`; a later page has only the cursor.
 const readHistory = {
   kind: 'one-of',
@@ -191,6 +220,14 @@ export const sessionProtocol = defineProtocol({
       limit: 'small',
       body: ruleCodec(readHistory),
       outcomes: { succeeded: ruleCodec(historyPage), invalid: empty },
+      countsAsAccess: true,
+    },
+    'list-sessions': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(listSessions),
+      outcomes: { succeeded: ruleCodec(sessionList), invalid: empty },
       countsAsAccess: true,
     },
     'cancel-run': {
