@@ -71,7 +71,7 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
   const domain = structuredClone(options.domain)
   const combinations = governanceStorageCombinations(options.materials)
   const writerRef = standingPrincipalRef(options.writer)
-  /** The epoch of the open runtime, as the last plan read it; one runtime keeps one epoch. */
+  /** The epoch of the open runtime, as the last write or plan read it; one runtime keeps one epoch. */
   let planned: string | undefined
 
   function entryOf(target: SettingsTarget): ToolReleaseEntry | undefined {
@@ -195,6 +195,9 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
 
   const writer: TenantSettingsWriter = {
     async write({ command, beforeWrite }) {
+      // A pending operation of an earlier process commits without a new plan; its phases read
+      // the epoch of the runtime that is open now.
+      planned = (await options.epoch()) ?? planned
       const service = prepared.service
       const operation = { target: command.target, operationId: command.operationId }
       const known = await service.getOperation(options.writer, operation)
