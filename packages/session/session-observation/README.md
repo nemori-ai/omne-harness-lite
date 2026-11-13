@@ -74,7 +74,7 @@ Not covered: formal model 3 was not rerun in this package. The link between code
 ## Maintenance
 
 - To change a port, the policy or a frame shape: update the public definitions in `src/`, the SPEC, `docs/public-api.md`, `tests/`, and the consumers (the `session-observation` row of the server application and its demo script).
-- To change how the log or a call registration is read: the Session contract owns `readCallRegistration` and the test for a run in progress. Change its SPEC first.
+- To change how the log or a call registration is read: the Session contract owns `readCallRegistration`, `readRunBoundary` and the test for a run in progress. Change its SPEC first.
 - To change the stream subscription or the frame translation: update the result table and the stream table in the SPEC, the case-name prefixes from `tests/stream.spec.ts`, and formal model 3 (it waits to move to `verification/models/`).
 
 ## Directory structure and documentation roles

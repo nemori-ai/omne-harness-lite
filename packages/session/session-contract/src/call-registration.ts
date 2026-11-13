@@ -2,6 +2,7 @@
 // an in-run registration keeps the reference and the purpose inside `registration`, an out-of-run
 // one (`bindExternalCall`) keeps them at the top. The encoder adds the top-level `kind` to both.
 import type { JsonValue } from '@omne-harness/json-text'
+import { member, text } from './payload-members.ts'
 
 export type CallRegistrationView = Readonly<{
   kind: 'model' | 'tool'
@@ -14,16 +15,6 @@ const PURPOSES = {
   model: new Set(['main', 'compaction', 'extension']),
   tool: new Set(['action']),
 } as const
-
-function member(value: JsonValue | undefined, key: string): JsonValue | undefined {
-  return value?.kind === 'object'
-    ? value.entries.find(entry => entry.key === key)?.value
-    : undefined
-}
-
-function text(value: JsonValue | undefined): string | undefined {
-  return value?.kind === 'string' ? value.value : undefined
-}
 
 /** Kind, reference and purpose of a `call.bound` payload in either stored shape; null when it is none. */
 export function readCallRegistration(payload: JsonValue): CallRegistrationView | null {

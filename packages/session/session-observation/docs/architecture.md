@@ -7,7 +7,7 @@
 | 模块 | 持有的状态与资源 | 依赖 |
 | --- | --- | --- |
 | `src/observation.ts`（一次观察） | 帧的生成器、正在等的间隔的取消器、通知的退订函数 | 定位、流的订阅、刷新的预算、帧的翻译、端口 |
-| `src/locate.ts`（定位） | 读到哪了、当前这一轮、最近一次主调用、修订号、标记「有新提交待看」 | 端口里的日志读取面、会话契约的 `readCallRegistration` |
+| `src/locate.ts`（定位） | 读到哪了、当前这一轮、最近一次主调用、修订号、标记「有新提交待看」 | 端口里的日志读取面、会话契约的 `readCallRegistration` 与 `readRunBoundary`、模型契约的 `decodeModelInvocationRef` |
 | `src/refresh-budget.ts`（刷新的预算） | 当前一档间隔、连续没有新内容的次数、累计等待 | 端口里的策略与诊断 |
 | `src/stream-subscription.ts`（流的订阅） | 对一个目标的订阅与它自己的中止信号 | 端口里的模型观察面 |
 | `src/frames.ts`（帧的翻译） | 上一次发出的状态字段 | 模型契约的 `projectModelOutputV1` |

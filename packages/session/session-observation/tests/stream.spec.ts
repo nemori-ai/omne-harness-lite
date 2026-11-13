@@ -415,6 +415,36 @@ describe('the stream axis (C9b)', () => {
     stop()
   })
 
+  it('stream, no target, a notice brings a stream while the wait runs: once it ends, the next look waits a full new interval', async () => {
+    const log = new FakeLog(started('run_1'))
+    const w = world(log, { interval: 1000, backoff: 2 })
+    const frames = await open(w)
+    await take(frames)
+    expect(await drain(frames, 1)).toEqual([])
+    // No target: the wait before the next look has begun.
+    expect([w.clock.waits, w.clock.pending]).toEqual([[1000], 1])
+    log.append(mainCall('m-1'))
+    w.model.answer('m-1', stream('s1'))
+    w.notices.commit('call.bound')
+    expect(await take(frames)).toMatchObject({
+      value: { kind: 'state', target: { projection: 'model-output-v1' } },
+    })
+    await settle()
+    w.model.stream('s1').push({ kind: 'ended', reason: 'producer-ended', value: null })
+    expect(kinds(await drain(frames, 3))).toEqual(['state', 'refreshing'])
+    // The wait that ran before the subscription is gone; a new one began when the stream ended.
+    expect(w.clock.waits.filter(ms => ms !== 5000)).toEqual([1000, 2000])
+    expect(w.clock.pending).toBe(1)
+    const reads = log.reads()
+    const look = take(frames)
+    await settle()
+    expect(log.reads()).toBe(reads)
+    w.clock.elapse()
+    expect(kinds([await look, ...(await drain(frames, 2))])).toEqual(['state', 'refreshing'])
+    expect(log.reads()).toBe(reads + 1)
+    stop()
+  })
+
   it('stream, waiting to observe again, a snapshot resets the budget', async () => {
     const w = world(new FakeLog(), { interval: 1000, backoff: 2 })
     const frames = await observing(w)

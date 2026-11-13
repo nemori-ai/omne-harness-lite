@@ -74,7 +74,7 @@ pnpm exec vitest run --mode fast
 ## 维护
 
 - 改端口、策略或帧的形状：同步 `src/` 的公开定义、SPEC、`docs/public-api.md`、`tests/`，以及消费者（服务端应用的 `session-observation` 行与演示脚本）。
-- 改读日志或调用登记的读法：会话契约的 `readCallRegistration` 与「一轮在进行」的判法是源，先改它的 SPEC。
+- 改读日志或调用登记的读法：会话契约的 `readCallRegistration`、`readRunBoundary` 与「一轮在进行」的判法是源，先改它的 SPEC。
 - 改流的订阅或帧的翻译：同步 SPEC 的结果表与流轴表、`tests/stream.spec.ts` 的用例名前缀，以及形式模型三（待搬到 `verification/models/`）。
 
 ## 目录结构与文档职责
