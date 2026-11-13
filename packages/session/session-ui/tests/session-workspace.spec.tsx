@@ -2,6 +2,7 @@
 // The main scene through the component and a fake protocol client: create a session, send one
 // sentence, see the reply stream in, see it replaced by the committed message, cancel the run.
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { SessionWorkspace } from '../src/index.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
@@ -145,6 +146,24 @@ it('W2 发送结果未知：显示未知，用同一个受理编号认回，不�
   query.answer({ outcome: 'unknown' })
   await settle()
   expect(screen.getByText('发送的结果仍然未知。可以再确认一次。')).toBeTruthy()
+})
+
+it('W4 StrictMode 下挂上、收掉、再挂上之后仍能用，只发一次建会话', async () => {
+  const fake = createFakeClient()
+  render(
+    <StrictMode>
+      <SessionWorkspace client={fake.client} tenant={TENANT} />
+    </StrictMode>,
+  )
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
+  ;(await fake.next('create-session')).answer({
+    outcome: 'succeeded',
+    body: { session: SESSION, recovered: false },
+  })
+  await settle()
+  expect(fake.calls.filter(call => call.operation === 'create-session')).toHaveLength(1)
+  expect(screen.getByRole('textbox', { name: '输入消息' })).toBeTruthy()
 })
 
 it('W3 外壳给的租户读不懂：如实说出来', () => {

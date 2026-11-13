@@ -35,6 +35,10 @@ export function SessionWorkspace(props: SessionWorkspaceProps): JSX.Element {
   return <Workspace client={props.client} tenant={tenant} />
 }
 
+/**
+ * The driver lives exactly as long as the effect: React may run an effect, clean it up and run it
+ * again (StrictMode), and a new client or tenant is a new driver. Its cleanup aborts what it opened.
+ */
 function Workspace({
   client,
   tenant,
@@ -42,8 +46,16 @@ function Workspace({
   readonly client: ClientOf<SessionProtocol>
   readonly tenant: TenantId
 }) {
-  const [driver] = useState(() => new SessionDriver({ client, tenant }))
-  useEffect(() => () => driver.dispose(), [driver])
+  const [driver, setDriver] = useState<SessionDriver | null>(null)
+  useEffect(() => {
+    const created = new SessionDriver({ client, tenant })
+    setDriver(created)
+    return () => created.dispose()
+  }, [client, tenant])
+  return driver === null ? <div className="omne-session" /> : <Session driver={driver} />
+}
+
+function Session({ driver }: { readonly driver: SessionDriver }) {
   const state = useSyncExternalStore(driver.subscribe, driver.getState)
   return (
     <div className="omne-session">

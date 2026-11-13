@@ -47,10 +47,6 @@ export class SessionDriver {
     }
   }
 
-  get state(): State {
-    return this.#state
-  }
-
   subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener)
     return () => this.#listeners.delete(listener)
