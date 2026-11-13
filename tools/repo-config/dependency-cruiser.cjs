@@ -17,7 +17,7 @@ const ENTRY_CORE = '(registry|settle|pipeline|observation-hub|availability)'
 const SDK_CORE = '^packages/access/sdk/src/(core/|limits\\.ts$|never-written\\.ts$)'
 // The members on the client's side of the access layer. They sit above the SDK. A protocol client
 // or a view module of a domain joins this set when it is built.
-const CLIENT_SIDE = '^packages/access/client-assembly/'
+const CLIENT_SIDE = '^packages/(access/client-assembly|assets/assets-ui|session/session-ui)/'
 const SHARED = '^packages/(common|util)/'
 const ORGANIZATION = 'docs/package-organization.md'
 const TOOLCHAIN = '^tools/repo-toolchain/src/'
