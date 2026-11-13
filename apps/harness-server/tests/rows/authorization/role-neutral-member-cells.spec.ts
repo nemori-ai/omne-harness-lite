@@ -156,7 +156,7 @@ function extraFor(
 function sessionRun(operation: string, column: 'login' | 'work', extra: object): Run {
   return (ports, principals) => {
     const target =
-      operation === 'pending'
+      operation === 'pending' || operation === 'directory.list'
         ? { kind: 'tenant', tenant: TENANT }
         : MUTATING.has(operation)
           ? {

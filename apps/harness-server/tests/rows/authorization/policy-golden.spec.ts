@@ -77,6 +77,7 @@ const SESSION_GOLDEN = {
   'history.since': BOTH,
   'history.readModelView': WORK_ONLY,
   pending: [D, M, 'matrix pending-sessions'],
+  'directory.list': [M, D, D],
   references: [D, D, 'matrix resident-references'],
   releasedScopes: [D, D, 'matrix released-scopes'],
 } as const satisfies Readonly<Record<SessionAccessOperation, Golden>>
@@ -152,8 +153,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 43 Session rows and 26 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(43)
+  it('has the 44 Session rows and 26 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(44)
     expect(Object.keys(AGENT_GOLDEN)).toHaveLength(26)
   })
 })
