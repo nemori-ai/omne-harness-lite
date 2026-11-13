@@ -26,7 +26,16 @@ import {
   type Termination,
 } from '@omne-harness/model-contract'
 import { afterEach, describe, expect, it } from 'vitest'
-import { caller, definitions, ok, openWorld, slotOf, turns, type World } from './host-support.ts'
+import {
+  caller,
+  definitions,
+  hostConfig,
+  ok,
+  openWorld,
+  slotOf,
+  turns,
+  type World,
+} from './host-support.ts'
 
 const opened: World[] = []
 afterEach(async () => {
@@ -93,8 +102,12 @@ const endedFailed = (host: World) =>
   host.warnings.filter(text => text.startsWith('agent run ended with a failure'))
 
 /** A host whose main Model call settles with `termination` and no content. */
-async function ending(termination: Termination) {
+async function ending(
+  termination: Termination,
+  change: Readonly<{ config?: unknown; until?: (host: World) => boolean }> = {},
+) {
   const host = await openWorld({
+    ...(change.config === undefined ? {} : { config: change.config }),
     stages: true,
     dependencies: {
       journal: {
@@ -146,7 +159,8 @@ async function ending(termination: Termination) {
   })
   if (host.controls.pusher === null) throw new Error('the Model pusher is missing')
   await host.controls.pusher.settled({ ...caller('a'), call })
-  await until(async () => (await load()).state.kind === 'ended')
+  const done = change.until
+  await until(async () => (done === undefined ? (await load()).state.kind === 'ended' : done(host)))
   await turns(20)
   return { host, instance }
 }
@@ -169,6 +183,32 @@ describe('a run that ends with a failure', () => {
     )
     // A run that ended is not a run that stopped on a node failure.
     expect(host.warnings.filter(text => text.startsWith('agent run stopped'))).toEqual([])
+  })
+
+  it('a transient failure within the retry budget: one warn names the step, attempt, fault and time', async () => {
+    const retrying = (host: World) =>
+      host.warnings.filter(text => text.startsWith('agent run retries the model'))
+    const { host, instance } = await ending(
+      {
+        kind: 'failed',
+        fault: { cause: 'stream-lost', diagnostic: 'response-body-lost', upstreamStatus: null },
+      },
+      {
+        config: {
+          ...hostConfig,
+          modelRetry: { maxAttempts: 2, maxElapsedMs: 60_000, delaysMs: [5_000], jitter: 0 },
+        },
+        until: host => retrying(host).length > 0 || endedFailed(host).length > 0,
+      },
+    )
+    const [record, ...more] = retrying(host)
+    expect(more).toEqual([])
+    expect(record).toContain(`instance=${instance} execution=${EXECUTION} `)
+    expect(record).toContain(
+      'step=step-1 attempt=2 fault=stream-lost diagnostic=response-body-lost ' +
+        'notBefore=1970-01-01T00:00:05.000Z',
+    )
+    expect(endedFailed(host)).toEqual([])
   })
 
   it('negative control: a call that completed without content warns with no-reply', async () => {

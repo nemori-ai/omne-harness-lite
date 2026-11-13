@@ -73,6 +73,7 @@ export const hostConfig = {
   jointCommits: ['message', 'context-transition', 'custody', 'processed'] as string[],
   coordination: 'coordinated',
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
+  modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: 60_000,
 }
 
