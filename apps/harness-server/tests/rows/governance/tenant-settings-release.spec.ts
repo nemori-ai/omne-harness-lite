@@ -2,32 +2,38 @@
 // 慢：本进程装发行树（真实 SQLite、真实 Identity、真实治理与设置），每条命令起一个 `omne` 子进程。
 // 租户层设置的读写面在正式装配上（#1265 C1）：登录的人经树上的 `tenantSettings` 把 Shell 的调用权限挑成「拒绝」，
 // 答 `written` 带新的修订号；随后「查看」读到本层的挑选是「拒绝」。停服再起，同一份存储上仍读到它（S-7）。
-// 租户的事务域在它的第一个会话时登记，治理的租户运行时只在登记之后打开，所以先建一个会话。
+// 租户的事务域要在目录里发布之后，治理的租户运行时才打开，所以每次起服先跑完一个会话。
 import { expect, it } from 'vitest'
-import type { TenantSettings } from '@omne-harness/settings'
 import { loginAccess } from '../../model/public-stream-support.ts'
-import {
-  onReleaseTreeRuns,
-  toolCallsThenText,
-  type ReleaseTree,
-} from '../../support/release-tree.ts'
-
-const SHELL = { category: 'tool', name: 'Shell' } as const
-
-function faceOf(tree: ReleaseTree): TenantSettings<unknown> {
-  const face = tree.scope.get('tenantSettings') as TenantSettings<unknown> | undefined
-  if (face === undefined) throw new Error('no tenantSettings on the release tree')
-  return face
-}
+import { onReleaseTreeRuns, toolCallsThenText } from '../../support/release-tree.ts'
+import { SHELL, faceOf, settledSession } from '../../governance/tenant-settings-support.ts'
 
 it('a login principal sets the Shell invoke permission to deny on the release tree and reads it back after a restart', async () => {
   const seen: unknown[] = []
   const exits = await onReleaseTreeRuns({ script: toolCallsThenText(() => []) }, [
     async tree => {
       const face = faceOf(tree)
-      await tree.startSession('hello')
+      await settledSession(tree, 'hello')
       const { principal, tenant } = await loginAccess(tree)
       const item = { principal, tenant, asset: SHELL, item: 'invoke' }
+      // C9: the six tools of the release, each with its invoke permission and every view field.
+      const listed = await face.list({ principal, tenant, after: null, limit: 100 })
+      if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
+      expect(listed.completeness).toBe('complete')
+      expect(listed.items.map(value => `${value.asset.name}/${value.item}`).sort()).toEqual(
+        ['Ask', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'].map(name => `${name}/invoke`),
+      )
+      for (const value of listed.items)
+        expect(value).toMatchObject({
+          kind: 'permission',
+          revision: '0',
+          declaration: { title: expect.any(String), appliesAt: expect.any(String) },
+          own: null,
+          default: 'ask',
+          effective: { kind: 'value', value: 'ask', source: 'default' },
+          bound: null,
+          editable: { kind: 'yes' },
+        })
       const before = await face.describe(item)
       expect(before).toMatchObject({ kind: 'described', item: { kind: 'permission', own: null } })
       if (before.kind !== 'described') throw new Error(JSON.stringify(before))
@@ -54,7 +60,7 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
     },
     async tree => {
       const face = faceOf(tree)
-      await tree.startSession('again')
+      await settledSession(tree, 'again')
       const { principal, tenant } = await loginAccess(tree)
       const reread = await face.describe({ principal, tenant, asset: SHELL, item: 'invoke' })
       expect(reread).toEqual(seen[0])

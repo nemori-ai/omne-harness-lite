@@ -22,6 +22,9 @@ it('a deny pick of the tenant layer stops the next Shell call at its start, and 
     const item = { principal, tenant, asset: SHELL, item: 'invoke' }
     const read = await face.describe(item)
     if (read.kind !== 'described') throw new Error(JSON.stringify(read))
+    // C11: the shown effective value is the tier the call met. `ask` is let through by the
+    // release permission mode `bypass-permissions`, as the baseline call shows.
+    expect(read.item).toMatchObject({ effective: { kind: 'value', value: 'ask' } })
     const denied = await face.set({
       ...item,
       operation: 'deny-shell',
@@ -30,6 +33,9 @@ it('a deny pick of the tenant layer stops the next Shell call at its start, and 
     })
     expect(denied).toMatchObject({ kind: 'written' })
     if (denied.kind !== 'written') throw new Error(JSON.stringify(denied))
+    expect(await face.describe(item)).toMatchObject({
+      item: { effective: { kind: 'prohibited', by: 'tenant' } },
+    })
 
     const stopped = await shellRound(tree, 'stopped')
     expect(stopped).toMatchObject({
@@ -45,6 +51,9 @@ it('a deny pick of the tenant layer stops the next Shell call at its start, and 
     })
     expect(cleared).toEqual({ kind: 'written', revision: String(Number(denied.revision) + 1) })
 
+    expect(await face.describe(item)).toMatchObject({
+      item: { own: null, effective: { kind: 'value', value: 'ask', source: 'default' } },
+    })
     const resumed = await shellRound(tree, 'resumed')
     expect(resumed.started).toBe(true)
   })
