@@ -369,3 +369,26 @@ it('W3 外壳给的租户读不懂：如实说出来', () => {
   render(<SessionWorkspace client={fake.client} tenant="not-a-tenant" />)
   expect(screen.getByRole('alert').textContent).toContain('租户读不懂')
 })
+
+it('W10 外壳重新渲染而租户没变：不重读列表，开着的会话还在', async () => {
+  const fake = createFakeClient()
+  const view = render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  ;(await fake.next('list-sessions')).answer(listPage([]))
+  fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
+  ;(await fake.next('create-session')).answer({
+    outcome: 'succeeded',
+    body: { session: SESSION, recovered: false },
+  })
+  await settle()
+  ;(await fake.next('read-history')).answer({ outcome: 'succeeded', body: page([], '1') })
+  await settle()
+  expect(screen.getByRole('textbox', { name: '输入消息' })).toBeTruthy()
+  const creates = () => fake.calls.filter(call => call.operation === 'create-session').length
+  const before = fake.observations.length
+
+  view.rerender(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await settle()
+  expect(screen.getByRole('textbox', { name: '输入消息' })).toBeTruthy()
+  expect(fake.observations.length).toBe(before)
+  expect(creates()).toBe(1)
+})

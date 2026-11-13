@@ -178,3 +178,18 @@ it('P7 租户读不懂时不发任何调用', () => {
   expect(screen.getByRole('alert').textContent).toContain('租户读不懂')
   expect(fake.calls).toHaveLength(0)
 })
+
+it('P9 外壳重新渲染而租户没变：不重读整张列表', async () => {
+  const fake = createFakeClient()
+  const view = render(<SettingsPanel client={fake.client} tenant={TENANT} />)
+  await answer(fake, 'list-settings', {
+    outcome: 'succeeded',
+    body: { items: [permissionView()], next: null, completeness: 'complete' },
+  })
+  const reads = () => fake.calls.filter(call => call.operation === 'list-settings').length
+  expect(reads()).toBe(1)
+
+  view.rerender(<SettingsPanel client={fake.client} tenant={TENANT} />)
+  await settle()
+  expect(reads()).toBe(1)
+})

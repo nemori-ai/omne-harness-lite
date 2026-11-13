@@ -33,7 +33,9 @@ export type SessionWorkspaceProps = Readonly<{
 }>
 
 export function SessionWorkspace(props: SessionWorkspaceProps): JSX.Element {
-  const tenant = readTenantText(props.tenant)
+  // The same tenant text is the same tenant: a parent that renders again must not look like a
+  // change of tenant, which would end the driver and the session it has open.
+  const tenant = useMemo(() => readTenantText(props.tenant), [props.tenant])
   if (tenant === undefined)
     return (
       <div className="omne-session">

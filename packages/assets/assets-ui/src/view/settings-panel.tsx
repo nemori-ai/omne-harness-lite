@@ -2,7 +2,7 @@ import type { AssetsProtocol, SettingView } from '@omne-harness/assets-protocol'
 import { writeJsonText } from '@omne-harness/json-text'
 import { readTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { useEffect, useId, useState, useSyncExternalStore, type JSX } from 'react'
+import { useEffect, useId, useMemo, useState, useSyncExternalStore, type JSX } from 'react'
 import { SettingsDriver } from '../model/settings-driver.ts'
 import type { Notice, Row, State } from '../model/settings-machine.ts'
 
@@ -14,7 +14,9 @@ export type SettingsPanelProps = Readonly<{
 }>
 
 export function SettingsPanel(props: SettingsPanelProps): JSX.Element {
-  const tenant = readTenantText(props.tenant)
+  // The same tenant text is the same tenant: a parent that renders again must not look like a
+  // change of tenant, which would end the driver and read the whole list again.
+  const tenant = useMemo(() => readTenantText(props.tenant), [props.tenant])
   if (tenant === undefined)
     return (
       <div className="omne-settings">
