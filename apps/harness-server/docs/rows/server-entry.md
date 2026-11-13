@@ -10,7 +10,7 @@
 | ---------------- | ------------------------------------------------------------------------------------------------------------ |
 | 行 id 与实现     | `server-entry`，`real`                                                                                       |
 | 导出名           | `serverEntryRow`（`src/rows/server-entry/index.ts`）                                                         |
-| 提供             | 无                                                                                                           |
+| 提供             | `accessRegistry`（成员的 `AccessRegistryProvider`，见[新地址](#新地址)）                                    |
 | 必需（`inject`） | `session`、`principalIssuer`（受信）、`definitionMappings`（受信）、`telemetry`、`agentJournal`、`modelDiagnostics`、`modelRuntime`、`s0.assemblyLifecycle`（`defineRow` 加） |
 | 按调用现取       | `identityOperations`；`identityGovernance`（受信）；`settingsSecretItems`（受信）；`toolRuntime`。行不为 `principalVerifier` 取值，因为成员不核验主体 |
 | 阶段             | `entry`，行体承载                                                                                            |
@@ -34,11 +34,11 @@
 
 ### 新地址
 
-行给成员一份 `access`（`src/rows/server-entry/access.ts`），新地址因此打开。发行里不挂任何领域的贡献，所以新地址上只有入口自己的内置协议 `access/v1`：它唯一的观察 `availability` 不要登录，答「现在挂着哪些协议」（RFC-0015 I-15：有贡献不等于开放）。
+行给成员一份 `access`（`src/rows/server-entry/access.ts`），新地址因此打开。行在自己的作用域里装上成员的 `AccessRegistryProvider`，所以树上有 `accessRegistry`：一个领域的接入插件依赖它，把自己的协议挂上去，入口在同一个登记表上立刻看得到；插件卸载，它挂的那一份就撤下。发行里不挂任何领域的贡献，所以新地址上只有入口自己的内置协议 `access/v1`：它唯一的观察 `availability` 不要登录，答「现在挂着哪些协议」（RFC-0015 I-15：有贡献不等于开放）。
 
 | `access` 的字段 | 值 | 说明 |
 | --- | --- | --- |
-| `registry` | 行体里用成员的 `createAccessRegistry` 建的一份登记表 | 只有本行的入口用它。行不装 Cordis 提供者：那会把 `accessRegistry` 放进树里，而装配页没有给本行列这项提供；发行里也还没有接入插件要挂到它上面。订阅者抛出时记 `access.listener-fault` |
+| `registry` | 本行装上的 `AccessRegistryProvider` 的 `registry` | 入口用的和插件经 `accessRegistry` 挂的是同一个登记表。行的 fiber 卸载时服务随之撤下。订阅者抛出时记 `access.listener-fault` |
 | `identity` | 每个方法都答 `basis-unavailable` 的端口 | identity 还没有这个端口的适配。发行里没有要登录的协议，可用性不问它；要登录的调用会被拒绝，并留一条 `access.identity-unavailable` |
 | `graceMs` | 5000 | 撤下后处理函数还能跑多久，和演示夹具相同 |
 | `frameQueueBytes` | 1048576 | 一个观察还没写出去的帧的字节上界 |
@@ -104,12 +104,13 @@
 | `composition.spec.ts` | 注册、签发登录、会话操作到达 Session 面的主体由 `principalIssuer` 签发并被 `principalVerifier` 核验、调用方类、输出不含登录证明与凭据、缺 identity 行时的答复 |
 | `shutdown.spec.ts`    | `entry` 阶段最先停、停止后拒绝新连接、在途请求写完、下一阶段在其后                                                                                            |
 | `access.spec.ts`      | 新地址：不带登录订阅可用性得到只有 `access/v1` 的快照，没有 `omne.access.diagnostic`；诊断的门面；慢层用真实的 `serve` 进程与发行树做同一件事（#1249 C9） |
+| `registry-provider.spec.ts` | 慢层，发行树：树上取得到 `accessRegistry`；一个接入插件经它挂上测试协议，可用性立刻出现它，不要登录的操作答 `succeeded`；卸载插件后可用性收到撤下，同一地址答 404 |
 | `../session-diagnostics/flow.spec.ts` | 真实 `serve` 进程与真实 CLI：同租户并发两个会话时第二个 Run `model-refused capacity`；上游 504 时 `no-reply` 带 `cause` 与 `upstreamStatus`；同一调用的 Model 派发显示失败原因和状态码，账目缺失时明确未知；他租户读 `denied` 退出 3；`shutdown-result` 仍是最后一行；本机单用户档 `serve` 不带参数可读诊断 |
 
 ## 已知限制
 
 - 只监听 `127.0.0.1`，明文。TLS 与非回环监听不在本波。
-- 新地址的身份端口还没有 identity 的适配，只答 `basis-unavailable`；发行里也没有接入插件，新地址上只有 `access/v1`。
+- 新地址的身份端口还没有 identity 的适配，只答 `basis-unavailable`；发行里也没有接入插件挂到 `accessRegistry` 上，新地址上只有 `access/v1`。
 - `listenPort` 不接受 0。行不报告实际端口。
 - 诊断事件只有在 `telemetry` 行以 `node` 实现就绪时写出。`disabled` 实现计数不写出，桥的引导态不接事件。
 - Session 与 identity 是契约替身。真实 Session 提供者按 `intake` 与 `reader` 核对调用方类的行为，要等真实提供者接入后验证。
