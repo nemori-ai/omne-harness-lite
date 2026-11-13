@@ -70,6 +70,9 @@ catalog:
   '@testing-library/dom': 10.4.2
   happy-dom: 21.0.4
   '@xyflow/react': 12.12.0
+  # 桌面应用页面的构建与界面测试（apps/desktop）。vite 取 vitest 已经装着的同一个版本，不另起一份。
+  vite: 8.3.0
+  '@vitejs/plugin-react': 6.3.0
   antd: 6.6.5
   esbuild: 0.28.2
   '@eslint-community/regexpp': 4.12.2
