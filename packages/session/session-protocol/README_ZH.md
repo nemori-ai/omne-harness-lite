@@ -1,73 +1,57 @@
 # @omne-harness/session-protocol
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
-module 变体草稿。
+公开协议 `session/v1` 的协议契约：会话向客户端开放的七个操作和一个观察。服务端的接入插件和客户端核心用同一个值，一边得到处理函数的类型，一边得到每个操作一个方法。设计源是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#协议怎样划分)。
+
 ## 职责与状态
 
-<!-- documentation:placeholder -->
+本包拥有 `session/v1` 的操作清单、每个操作的身份要求、效果、体上限、消息体与结果体的规则，以及观察 `observe-session` 的建立点、帧与结束原因。操作的业务含义归会话领域；消息外层、固定结果和规则叶子的转换归共同契约。
 
-填写实际消费者、平台、职责和采用依据。区分已实现、未实现与未验证。
+已实现：契约值 `sessionProtocol` 与类型。还没有真实消费者：接入插件 `session-access`、客户端核心对它的使用、会话观察的帧来源都在后面的程里做。状态：候选。
 
 ## 使用
 
-<!-- documentation:placeholder -->
+```ts
+import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
 
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+const { body } = sessionProtocol.operations['send-input']
+const read = body.read(tree, limits) // { ok: true, value } 或 { ok: false }
+```
+
+接入插件把 `sessionProtocol` 交给 `AccessContribution<SessionProtocol>`，每个操作写一个处理函数，`observe-session` 写一个帧来源。客户端把它交给 `createClient`。本包只有根入口，没有初始化与释放责任，不导入 Cordis。
 
 ## 契约
 
-<!-- documentation:placeholder -->
-
-链接公开类型、必要校验及唯一行为正文。类型外行为由 SPEC.md 拥有，公开定义的导航在 docs/public-api.md。说明错误、生命周期与资源责任的拥有者，不复制签名或状态机。
+七个操作的三栏、和旧家族 `session-public/1` 的四处差别、结果的体与观察的帧见 [SPEC.md](SPEC.md)。精确类型由 [src/session-protocol.ts](src/session-protocol.ts) 推出，导航在 [docs/public-api.md](docs/public-api.md)。
 
 ## 设计
 
-<!-- documentation:placeholder -->
-
-概述内部模块和关键不变量的拥有者。完整设计写在 docs/architecture.md、docs/flows.md 与 docs/object-model.md。
+一个文件声明全部规则，再用 `defineProtocol` 组装。规则写成 `as const` 字面量，类型由共同契约的 `RuleValue` 推出，不另写手工类型。规则文本从共同契约的 `session-rules.ts` 复制而来，见 [SPEC.md](SPEC.md#rule-texts)。
 
 ## 配置与运行
 
-<!-- documentation:placeholder -->
-
-填写配置拥有者、默认行为、环境前提和显式依赖。说明调用者与包各自的运行责任。
+没有配置。体上限只写名字（`small`、`input`），数值是部署配置。
 
 ## 验证
 
-<!-- documentation:placeholder -->
-
-填写可复跑命令、性质、前提和未覆盖。提供有实际断言的测试。结构通过不表示业务行为已验证。
+`pnpm exec vitest run --mode fast`：操作表、类型断言、新旧读写等价、观察的帧。`--mode slow` 另跑浏览器夹具。每个用例对应的条款见 [SPEC.md](SPEC.md#组合与验证)。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-说明公开契约、资源或依赖变化时必须同步的消费者和验证入口。信息不适用时写明理由，未知时登记具名缺口。
+会话一个操作的形状变了，同步规则、`tests/wire.spec.ts` 的样本与 `tests/shapes.spec-d.ts` 的断言。共同契约里旧家族的规则删除之后，`tests/wire.spec.ts` 与 `tests/shapes.spec-d.ts` 的对照改成对照本包自己的样本。加操作在同一个主版本里加；改既有操作的形状要升主版本。
 
 ## 目录结构与文档职责
 
 ```text
-README.md、README_ZH.md   入口：用途、状态与本结构图
-index.md                  全包的阅读路径
-SPEC.md                   公开类型以外的行为
+README.md、README_ZH.md   入口：用途、状态与本图
+index.md                  包内阅读路径
+SPEC.md                   类型以外的约定
 documentation.json        文档登记
-docs/                     内部设计、公开使用与集成说明
-├── architecture.md       模块、状态与资源归属、关键机制
-├── flows.md              关键业务流程与数据流
-├── object-model.md       内部对象模型
-├── public-api.md         公开边界与定义索引
-├── context.md            消费侧使用与系统定位
-└── cordis.md             Cordis 适用性与集成
-src/                      公开定义、运行时校验与内部实现
-tests/                    持续测试；fixtures/ 存放测试输入
-schema/                   对外 Schema
-verification/             models/ 与 proofs/
-adr/                      有持续消费者的实现取舍
-examples/                 面向公开入口的示例
-resources/                运行所需的非源码资源
-acceptance/               独立验收；fixtures/ 存放验收输入
+docs/                     内部设计、公开使用与集成
+src/                      契约值与推出的类型
+tests/                    持续测试；fixtures/browser 是浏览器夹具
+schema/、verification/、adr/、examples/、resources/、acceptance/   模板目录，现无内容
 ```
 
-每个目录的 README.md 说明职责，index.md 负责导航。阅读路径见 [index.md](index.md)。docs 专题可以升级为同名目录，目录内须有 README.md 与 index.md；专题移动时同步本结构图。
+每个目录有说明职责的 README.md 与导航用的 index.md，阅读路径见 [index.md](index.md)。
