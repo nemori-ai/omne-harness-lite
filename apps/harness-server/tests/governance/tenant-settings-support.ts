@@ -37,6 +37,21 @@ export const shellScript = toolCallsThenText(body => {
       ]
 })
 
+/**
+ * Creates a session and waits until its Run has ended. The first session registers the transaction
+ * domain of the tenant; the Governance runtime of the tenant, and so its Settings, opens only after
+ * the directory publishes that domain. Before it, `tenantSettings` answers `unavailable`.
+ */
+export async function settledSession(tree: ReleaseTree, text: string): Promise<string> {
+  const session = await tree.startSession(text)
+  await pollUntil(
+    `the Run of ${text} to end`,
+    () => historyOf(tree, session),
+    value => value.some(entry => entry.kind === 'run.terminal'),
+  )
+  return session
+}
+
 export type ShellRound = Readonly<{
   session: string
   /** The result text of the tool message of the round. */
