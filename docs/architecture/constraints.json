@@ -410,6 +410,14 @@
       "source": "packages/session/session-observation/SPEC.md"
     },
     {
+      "id": "packages/session/session-access",
+      "paths": ["packages/session/session-access/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/session-access/SPEC.md"
+    },
+    {
       "id": "packages/common/stream-arrival",
       "paths": ["packages/common/stream-arrival/src/**"],
       "layer": "contract",

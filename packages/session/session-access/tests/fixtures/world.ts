@@ -111,6 +111,8 @@ export type World = Readonly<{
   remove(port: 'faces' | 'observation' | 'definitions'): void
   script(script: ObservationScript): void
   opens(): readonly SessionAccess<Principal>[]
+  /** Whether the frames of the last opened observation were closed. */
+  closed(): boolean
   contribution: ReturnType<typeof createSessionContribution>
 }>
 
@@ -124,6 +126,7 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
   const removed = new Set<string>()
   let scripted: ObservationScript = { kind: 'opened', frames: [], end: 'refresh-exhausted' }
   const opens: SessionAccess<Principal>[] = []
+  let closed = false
 
   const issue = (login: FixtureLogin, target: TenantId = login.tenant): Principal => {
     const key = memberKey(target)
@@ -167,13 +170,17 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
         SessionObservationFrame,
         SessionObservationEnd | undefined
       > {
-        for (const frame of script.frames) yield frame
-        if (script.end !== undefined) return script.end
-        await new Promise<void>(resolve => {
-          if (signal.aborted) return resolve()
-          signal.addEventListener('abort', () => resolve(), { once: true })
-        })
-        return undefined
+        try {
+          for (const frame of script.frames) yield frame
+          if (script.end !== undefined) return script.end
+          await new Promise<void>(resolve => {
+            if (signal.aborted) return resolve()
+            signal.addEventListener('abort', () => resolve(), { once: true })
+          })
+          return undefined
+        } finally {
+          closed = true
+        }
       }
       return { kind: 'opened', frames: frames() }
     },
@@ -205,6 +212,7 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
       scripted = next
     },
     opens: () => [...opens],
+    closed: () => closed,
     contribution,
   }
 }

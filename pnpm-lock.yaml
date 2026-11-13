@@ -319,6 +319,9 @@ importers:
       '@omne-harness/session':
         specifier: workspace:*
         version: link:../../packages/session/session
+      '@omne-harness/session-access':
+        specifier: workspace:*
+        version: link:../../packages/session/session-access
       '@omne-harness/session-adapters':
         specifier: workspace:*
         version: link:../../packages/session/session-adapters

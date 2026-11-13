@@ -26,7 +26,11 @@ import type {
   SessionFailure,
   SessionId,
 } from '@omne-harness/session-contract'
-import type { SessionObservation } from '@omne-harness/session-observation'
+import type {
+  SessionObservation,
+  SessionObservationEnd,
+  SessionObservationFrame,
+} from '@omne-harness/session-observation'
 import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
 import {
   acceptOperation,
@@ -190,17 +194,51 @@ function pageOf(page: HistoryPage) {
 }
 
 /**
- * The frames of an opened observation, sent as they are. Session observation ends without a reason
- * only after the signal was aborted, which happens when the hub has already ended the observation
- * and no longer reads the reason (seam three: a cancelled generator ends without a reason).
+ * The frames of an opened observation, each written as a frame of the contract, and its end reason.
+ * Closing these frames closes the observation's own.
  */
-function framesOf(
-  frames: Extract<
-    Awaited<ReturnType<SessionObservation<Principal>['open']>>,
-    { kind: 'opened' }
-  >['frames'],
+async function* framesOf(
+  frames: AsyncGenerator<SessionObservationFrame, SessionObservationEnd | undefined>,
 ): AsyncGenerator<FrameOf<ObserveSession>, EndOf<ObserveSession>> {
-  return frames as AsyncGenerator<FrameOf<ObserveSession>, EndOf<ObserveSession>>
+  try {
+    for (;;) {
+      const step = await frames.next()
+      if (step.done !== true) {
+        yield frameOf(step.value)
+        continue
+      }
+      // `undefined` comes only after the signal was aborted. The hub aborts it after it has
+      // already ended the observation, and it no longer reads the reason (`observation-hub/hub.ts`
+      // `open`), so the reason given here is never written out.
+      return step.value ?? 'unavailable'
+    }
+  } finally {
+    await frames.return(undefined)
+  }
+}
+
+/**
+ * One frame of session observation as a frame of `observe-session`, field by field. A kind that
+ * session observation adds and the contract lacks does not compile here.
+ */
+function frameOf(frame: SessionObservationFrame): FrameOf<ObserveSession> {
+  switch (frame.kind) {
+    case 'state':
+      return {
+        kind: 'state',
+        run: frame.run,
+        revision: frame.revision,
+        phase: frame.phase,
+        target: frame.target === null ? null : { projection: frame.target.projection },
+      }
+    case 'snapshot':
+    case 'delta':
+      return { kind: frame.kind, projection: frame.projection, value: frame.value }
+    case 'gap':
+      return { kind: 'gap', reason: frame.reason }
+    case 'refreshing':
+      return { kind: 'refreshing' }
+  }
 }
 
 export function createSessionContribution(

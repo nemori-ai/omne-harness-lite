@@ -1,6 +1,6 @@
 // The frame source of `observe-session` over a session observation stand-in (seam three): the three
 // results of `open` become `succeeded`, `denied` and `basis-unavailable`; frames pass as they are;
-// `refresh-exhausted` ends as it is; a cancelled observation ends without a reason.
+// `refresh-exhausted` ends as it is; a cancelled observation ends without a reason of its own.
 import { describe, expect, it } from 'vitest'
 import type { SessionObservationFrame } from '@omne-harness/session-observation'
 import type { RunId, SessionRevision } from '@omne-harness/session-contract'
@@ -70,7 +70,7 @@ describe('observe-session', () => {
     expect(await drain(opened.frames)).toEqual({ frames: [], end: 'refresh-exhausted' })
   })
 
-  it('ends without a reason when the observer cancels', async () => {
+  it('ends when the observer cancels, with no reason of the observation itself', async () => {
     const world = createWorld()
     world.script({ kind: 'opened', frames: FRAMES.slice(0, 1) })
     const controller = new AbortController()
@@ -79,8 +79,33 @@ describe('observe-session', () => {
     expect(await opened.frames.next()).toEqual({ done: false, value: FRAMES[0] })
     const pending = opened.frames.next()
     controller.abort()
-    expect(await pending).toEqual({ done: true, value: undefined })
+    // The hub aborted the signal itself and no longer reads this reason.
+    expect(await pending).toEqual({ done: true, value: 'unavailable' })
+    expect(await opened.frames.next()).toEqual({ done: true, value: undefined })
   })
+
+  it('closes the observation frames when the hub closes the frames it was given', async () => {
+    const world = createWorld()
+    world.script({ kind: 'opened', frames: FRAMES })
+    const opened = await source(world)(context(), open)
+    if (opened.outcome !== 'succeeded') throw new Error(`opened ${opened.outcome}`)
+    await opened.frames.next()
+    await opened.frames.return('unavailable')
+    expect(world.closed()).toBe(true)
+  })
+
+  it.each(FRAMES.map(frame => [frame.kind, frame] as const))(
+    'writes a %s frame field by field',
+    async (_kind, frame) => {
+      const world = createWorld()
+      world.script({ kind: 'opened', frames: [frame], end: 'refresh-exhausted' })
+      const opened = await source(world)(context(), open)
+      if (opened.outcome !== 'succeeded') throw new Error(`opened ${opened.outcome}`)
+      const [sent] = (await drain(opened.frames)).frames
+      expect(sent).toStrictEqual(frame)
+      expect(sent).not.toBe(frame)
+    },
+  )
 
   it('answers denied when the observation refuses the log read', async () => {
     const world = createWorld()

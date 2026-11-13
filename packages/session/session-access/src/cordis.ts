@@ -9,7 +9,7 @@
 // intercept contexts of its own scope rather than through a plain `provide`.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/access-cordis-contract'
-import { defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
+import { accessRegistryKey, defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
 import type { SessionManagement } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionObservation } from '@omne-harness/session-observation'
@@ -69,6 +69,7 @@ function facesOf(
 export function createSessionAccessPlugin(input: SessionAccessPluginInput): Plugin.Object {
   return {
     name: SESSION_ACCESS_PLUGIN,
+    inject: [accessRegistryKey],
     apply(ctx: Context, settings: SessionAccessSettings) {
       ctx.plugin(
         defineAccessPlugin({

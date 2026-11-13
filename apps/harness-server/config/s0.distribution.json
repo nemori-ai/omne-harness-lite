@@ -279,6 +279,11 @@
       "id": "server-entry",
       "plugin": "stubPlugin",
       "config": {}
+    },
+    {
+      "id": "session-access",
+      "plugin": "stubPlugin",
+      "config": {}
     }
   ]
 }

@@ -542,6 +542,13 @@
       "id": "server-entry",
       "plugin": "serverEntryRow",
       "config": {}
+    },
+    {
+      "id": "session-access",
+      "plugin": "sessionAccessRow",
+      "config": {
+        "defaultDefinition": "coding"
+      }
     }
   ]
 }
