@@ -40,7 +40,7 @@ const DENIED = Object.freeze({ outcome: 'denied' as const })
 
 type Admitted = Readonly<{ principal: Principal; tenant: TenantId; face: TenantSettingsPort }>
 
-/** A value tree of the wire as a plain value. Keys are defined, never assigned. */
+/** A value tree of the wire as a plain value. Keys are defined, never assigned, so `__proto__` stays a key. */
 function plainOf(value: JsonValue): SettingJson {
   switch (value.kind) {
     case 'null':
@@ -196,8 +196,9 @@ export function createAssetsContribution(
     login: LoginIdentity,
     tenant: TenantId,
   ): Promise<Admitted | typeof DENIED | typeof UNAVAILABLE> {
+    // The pipeline read `tenant` with the contract's tenant rule, so it encodes.
     const tenantText = tenantCodec.encode(tenant)
-    if (!tenantText.ok) return DENIED
+    if (!tenantText.ok) throw new TypeError('assets-access: tenant is not a minted TenantId')
     let issued: Awaited<ReturnType<TargetTenantPrincipals['actingFor']>>
     try {
       issued = await principals.actingFor(login, tenantText.value)

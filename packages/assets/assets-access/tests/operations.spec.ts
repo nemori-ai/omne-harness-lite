@@ -209,6 +209,24 @@ describe('set-setting', () => {
     expect(world.calls()[0]?.input).toMatchObject({ value: { kind: 'ordinary', value } })
   })
 
+  it('keeps a key named __proto__ as an own key of the value', async () => {
+    const world = createWorld()
+    const value = JSON.parse('{"__proto__":{"polluted":true}}') as Record<string, unknown>
+    await world.contribution.operations['set-setting'](
+      as(ALICE),
+      body('set-setting', {
+        tenant: ALICE.tenantText,
+        ...WRITE,
+        value: { kind: 'ordinary', value },
+      }),
+    )
+    const [handedCall] = world.calls()
+    if (handedCall === undefined) throw new Error('the face was not called')
+    const handed = (handedCall.input as { value: { value: object } }).value.value
+    expect(Object.hasOwn(handed, '__proto__')).toBe(true)
+    expect(Object.getPrototypeOf(handed)).toBe(Object.prototype)
+  })
+
   it('hands over a secret as it came: the face answers for it', async () => {
     const world = createWorld()
     await world.contribution.operations['set-setting'](
