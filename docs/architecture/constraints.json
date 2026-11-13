@@ -490,6 +490,46 @@
       "source": "packages/identity/identity-protocol/SPEC.md"
     },
     {
+      "id": "packages/identity/authorization",
+      "paths": ["packages/identity/authorization/src/**"],
+      "layer": "unknown",
+      "domains": ["identity"],
+      "status": "adopted",
+      "source": "packages/identity/authorization/SPEC.md"
+    },
+    {
+      "id": "packages/identity/identity",
+      "paths": ["packages/identity/identity/src/**"],
+      "layer": "unknown",
+      "domains": ["identity"],
+      "status": "adopted",
+      "source": "packages/identity/identity/SPEC.md"
+    },
+    {
+      "id": "packages/identity/identity-sql",
+      "paths": ["packages/identity/identity-sql/src/**"],
+      "layer": "unknown",
+      "domains": ["identity"],
+      "status": "adopted",
+      "source": "packages/identity/identity-sql/SPEC.md"
+    },
+    {
+      "id": "packages/session/session",
+      "paths": ["packages/session/session/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/session/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-storage-sql",
+      "paths": ["packages/session/session-storage-sql/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/session-storage-sql/SPEC.md"
+    },
+    {
       "id": "packages/access/sdk",
       "paths": ["packages/access/sdk/src/**"],
       "layer": "interaction",
