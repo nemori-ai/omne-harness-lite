@@ -95,7 +95,7 @@ runtime 继续占用执行槽。公开 observe 不呈现这一内部停止原因
 
 I2 建立原 PendingCall，M0 在受理之前共同提交固定请求与效果意图。M6 正常直接 admit；受理未知或协调者恢复时才 inspect 原 reference 对账，不从查询生成结果。
 
-M1 等待同一 Journal 已提交的 received result。M3 读取完整 facts 材料，核对 schema、原租户、reference、consumer 和 consumption，解释回复、部分结果或无回复，再条件提交 producer 事件。I3 及恢复后的协调者继续读取这份材料。loop 不连接 Model observer、不分页读 Model 结果、不调用 Model consumption，也不以 recordResult 保存 Model 责任。只有接收方推进 revision 时，仍有效的 attachment 重新 load 并继续条件提交；真实撤权仍停止推进。
+M1 等待同一 Journal 已提交的 received result。M3 读取完整 facts 材料，核对 schema、原租户、reference、consumer 和 consumption，解释它，再条件提交 producer 事件。I3 及恢复后的协调者继续读取这份材料。loop 不连接 Model observer、不分页读 Model 结果、不调用 Model consumption，也不以 recordResult 保存 Model 责任。只有接收方推进 revision 时，仍有效的 attachment 重新 load 并继续条件提交；真实撤权仍停止推进。
 
 独立的 `createAgentModelReceiver` 显式消费同一 `AgentReceivedProvider`、主体资格核验、原目标查询、Model inspect/dispatches、账目出口、租户容量与宿主持有状态。每次 push 在首次 await 前复制冻结完整 typed delivery，核当前资格与原 Model 事实，再共同提交条目、材料和 saved。未知只查原 operation，排除不换身份复活。材料采用 `agentModelDeliverySchema`，`readModelDeliveryMaterial` 核验编码与原绑定；读取器本身不证明耐久保存。`createAgentCustodyEvidence` 是本 consumer owner 对 Model ACK 的证据适配器：经 `AgentReceivedRecords` 读接收方提交的接收记录，saved 证据等完全一致才确认；与已提交记录不一致的证据按伪证据答 `handoff-invalid`，记录不存在或读不到答 `unavailable`。
 
@@ -117,7 +117,7 @@ I8 在原挂接下重读快照、revision、输入边界、准入投影与当前
 I8 选择下一 step 或候选时清除已消费的空批。
 
 ordinary completed/limit 的合法全 sealed 内容可以准入为回复。原 trims 与 settlement 保存在 received 材料中，不合成 trim 或提醒。
-部分内容与 interrupted 结果无回复准入、无可执行动作，回 I8 按事实分流，不直接决定完成。
+interrupted 结果无回复准入、无可执行动作，回 I8。
 interrupted 保留原控制身份。控制请求协议与阶段记录仍由后续卡交付。
 
 测试通过在途 Journal.submit 证明同一 execution 的 step-2。
