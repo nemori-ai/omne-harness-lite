@@ -544,6 +544,8 @@ export function createSessionContribution(
       'read-history': (call, body) => readHistory(call.principal, body),
       'cancel-run': (call, body) => cancelRun(call.principal, body),
       'stop-call': (call, body) => stopCall(call.principal, body),
+      // The session directory is not wired in yet: its basis is not there.
+      'list-sessions': () => Promise.resolve(UNAVAILABLE),
     },
     observations: {
       'observe-session': async (context, open) => {
