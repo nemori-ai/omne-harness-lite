@@ -3,7 +3,6 @@ import { succeed } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
   createToolDriver,
-  type PendingCall,
   type ToolDependencies,
   type ToolLedger,
   type ToolLedgerRecovery,
@@ -15,6 +14,7 @@ import type {
   ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { owesWork, waitsForPerson } from './call-dormancy.ts'
+import { createRecoveryScans } from './recovery-scans.ts'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
 import { createRunStopLog } from './run-stop-log.ts'
@@ -61,9 +61,6 @@ type Entry = {
   progress: string
 }
 
-/** How many timer ticks pass before a finished recovery scan is armed again. */
-const RESCAN_TICKS = 60
-
 /**
  * Whether the driver runs the call again on its own, after its backoff (Tool SPEC 23): the last
  * run stopped blocked, without progress at the end of its step budget (or with progress, which it
@@ -75,25 +72,11 @@ function drivenLater(progress: string): boolean {
   )
 }
 
-/** 启动扫描每次向账本要的一页调用数。 */
-const RECOVERY_PAGE = 100
-
 /** 原执行可能仍在旧实例里运行的阶段：新实例不接上它，也不重新启动它。 */
 const POSSIBLY_LIVE: ReadonlySet<string> = new Set(['starting', 'live', 'unknown'])
 
-/**
- * 启动扫描的进度。`waiting` 还有页没读完（上次读不到，或内存表已满），定时器下一拍从 `after` 接着读；
- * `done` 已读完；`unsupported` 账本或记录仓不能扫描，不再重试。
- */
-type RecoveryScan = {
-  state: 'waiting' | 'running' | 'done' | 'unsupported'
-  after: PendingCall | null
-  recovered: number
-  /** 上一次扫描以读不到或抛出结束：连续失败只写一条 warn。 */
-  failing: boolean
-  /** 上一次扫描停在内存表已满上：一直满着只写一条 warn。 */
-  full: boolean
-}
+/** The rescan period when the input does not give one (SPEC「周期」). */
+const RESCAN_MS = 60_000
 
 function logTo(ctx: Context): (level: 'warn' | 'info', message: string) => void {
   return (level, message) => {
@@ -158,10 +141,21 @@ export function createRuntimeExecutor(
     retryDelayMs: settings.configuration.driverRetryDelayMs ?? 1000,
   })
   const keyOf = (wake: Wake) => canonicalDigest([wake.tenant, wake.call])
+  const warn = (message: string) => executorLog('warn', message)
+  const scans = createRecoveryScans({
+    startup: input.recovery.scan,
+    pending: scan => settings.store.scanPending(scan),
+    rescanMs: settings.recoveryRescanMs ?? RESCAN_MS,
+    remember: call => remember(call),
+    schedule: call => void dependencies.instances.schedule(call).catch(() => undefined),
+    warn,
+    signal: abort.signal,
+  })
   const remember = (wake: Wake, purpose: RuntimeCallPurpose = 'execute'): boolean => {
     const key = keyOf(wake)
     if (calls.has(key)) return !abort.signal.aborted
     if (abort.signal.aborted || calls.size >= settings.capacity) return false
+    scans.registered(wake)
     calls.set(key, {
       wake,
       purpose,
@@ -290,6 +284,9 @@ export function createRuntimeExecutor(
       calls.delete(key)
       stops.forget(key)
       delivery.release(wake)
+      // A complete call has settled: its terminal state takes it out of the owed set.
+      if (entry.complete) scans.ended(wake)
+      scans.roomMade()
     }
     if (entry.complete) completed += 1
     else dormantExits += 1
@@ -297,7 +294,8 @@ export function createRuntimeExecutor(
   /**
    * The entry of a run. A call the table holds runs under its entry. A call it does not hold is a
    * dormant call that a hint or a late run woke: it comes back when the ledger shows work of it
-   * and the table has room. With no room the recovery scan is armed again and finds it later.
+   * and the table has room. With no room it is owed, and the rescan of its tenant finds it once a
+   * call retires. A call the run reads as settled with no work has reached its terminal state.
    */
   const entryOf = async (
     step: Parameters<ToolDriver<unknown>['run']>[0],
@@ -305,12 +303,16 @@ export function createRuntimeExecutor(
     const known = calls.get(keyOf(step))
     if (known !== undefined) return known
     const recovery = await dependencies.commands.loadRecovery(step)
-    if ('failure' in recovery || !owesWork(recovery.ok)) return null
+    if ('failure' in recovery) return null
+    if (!owesWork(recovery.ok)) {
+      if (recovery.ok.state.phase === 'settled') scans.ended(step)
+      return null
+    }
     if (remember(step)) {
       reentries += 1
       return calls.get(keyOf(step)) ?? null
     }
-    rearmScan()
+    scans.wanted(step)
     return null
   }
   /**
@@ -376,6 +378,7 @@ export function createRuntimeExecutor(
           if (calls.get(keyOf(step)) === entry) {
             calls.delete(keyOf(step))
             delivery.release(step)
+            scans.roomMade()
           }
           return
         }
@@ -411,95 +414,28 @@ export function createRuntimeExecutor(
       await waitRuntime(() => advancing.run(step), abort.signal)
     },
   })
-  const warn = (message: string) => executorLog('warn', message)
-  const scan: RecoveryScan = {
-    state: 'waiting',
-    after: null,
-    recovered: 0,
-    failing: false,
-    full: false,
-  }
-  const scanFailed = (message: string) => {
-    if (!scan.failing) warn(message)
-    scan.failing = true
-  }
-  /**
-   * Arms a finished scan again, from the start: a dormant call whose hint was lost, or that found
-   * no room when its hint came, is found by its pending marker.
-   */
-  function rearmScan(): void {
-    if (scan.state !== 'done') return
-    scan.state = 'waiting'
-    scan.after = null
-  }
-  /**
-   * 启动扫描（契约 P09 recover）：按待办标记分页找回有待推进工作的调用，记入内存表并调度，驱动按
-   * 调用当前的阶段推进。内存表满时停在当前游标，等有调用退场后的下一拍接着读；读不到时同样等下一拍。
-   * 扫描只给出调用身份，每次运行仍由实例宿主按 `recover` 资格解析访问。
-   */
-  const sweep = async (): Promise<void> => {
-    if (scan.state !== 'waiting' || abort.signal.aborted) return
-    scan.state = 'running'
-    try {
-      for (;;) {
-        const page = await input.recovery.scan({ after: scan.after, limit: RECOVERY_PAGE })
-        if (abort.signal.aborted) return
-        if ('failure' in page) {
-          if (page.failure.kind === 'unsupported') {
-            scan.state = 'unsupported'
-            warn('The recovery scan is unsupported; old calls are not taken over.')
-          } else scanFailed('The recovery scan is unavailable; it goes on at the next retry.')
-          return
-        }
-        scan.failing = false
-        for (const call of page.ok.calls) {
-          if (!remember(call)) {
-            if (!scan.full)
-              warn('The executor is full; the recovery scan goes on when a call retires.')
-            scan.full = true
-            return
-          }
-          scan.full = false
-          scan.after = call
-          scan.recovered += 1
-          void dependencies.instances.schedule(call).catch(() => undefined)
-        }
-        // 下一页从本页最后一个调用之后开始，游标已在上面记下。
-        if (page.ok.next === null) {
-          scan.state = 'done'
-          return
-        }
-      }
-    } catch {
-      scanFailed(
-        'The recovery scan failed; its error text is withheld. It goes on at the next retry.',
-      )
-    } finally {
-      if (scan.state === 'running') scan.state = 'waiting'
-    }
-  }
   const retryMs = settings.configuration.driverRetryDelayMs ?? 1000
-  // Live calls only: a complete call has nothing left to drive and retires on its own.
-  let ticksSinceScan = 0
+  // Live calls only: a complete call has nothing left to drive and retires on its own. The
+  // interval reads no store; the recovery scans keep their own period (SPEC「周期」).
   const timer = setInterval(() => {
     for (const entry of calls.values()) {
       if (entry.retiring || entry.complete || entry.dormant || drivenLater(entry.progress)) continue
       void dependencies.instances.schedule(entry.wake).catch(() => undefined)
     }
-    // The long fallback for a lost hint: a finished scan runs again every RESCAN_TICKS ticks.
-    ticksSinceScan = scan.state === 'done' ? ticksSinceScan + 1 : 0
-    if (ticksSinceScan >= RESCAN_TICKS) rearmScan()
-    void sweep()
   }, retryMs)
   timer.unref()
-  void sweep()
+  scans.start()
   let closing: Promise<void> | null = null
   return {
     remember,
     knows: (wake: Wake) => calls.has(keyOf(wake)),
     rejectAdmission(wake: Wake) {
       const entry = calls.get(keyOf(wake))
-      if (entry !== undefined && !entry.started) calls.delete(keyOf(wake))
+      if (entry === undefined || entry.started) return
+      // The admission was refused: the call never was, so it owes nothing.
+      calls.delete(keyOf(wake))
+      scans.ended(wake)
+      scans.roomMade()
     },
     live: () => !abort.signal.aborted,
     diagnostics: () => ({
@@ -510,8 +446,9 @@ export function createRuntimeExecutor(
       reentries,
       foreignExecutionRuns,
       unownedRuns,
-      recoveryScan: scan.state,
-      recoveredCalls: scan.recovered,
+      recoveryScan: scans.diagnostics().startup,
+      recoveredCalls: scans.diagnostics().recovered,
+      owedTenants: scans.diagnostics().owedTenants,
       progress: [...new Set([...calls.values()].map(entry => entry.progress))],
       retired: abort.signal.aborted,
     }),
@@ -519,6 +456,7 @@ export function createRuntimeExecutor(
       if (closing !== null) return closing
       abort.abort()
       clearInterval(timer)
+      scans.close()
       for (const entry of calls.values()) entry.publication?.close('stale-instance')
       closing = Promise.all([
         installed.release(),
