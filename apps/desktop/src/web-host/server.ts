@@ -56,7 +56,9 @@ const TYPES: Readonly<Record<string, string>> = {
   '.woff2': 'font/woff2',
 }
 
-const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '[::1]']
+// A loopback name with any port. The name is what stops a rebinding page (its own name is in
+// `Host`); the port says nothing more, and a forwarded port shows the browser another number.
+const LOOPBACK_HOST = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d{1,5})?$/
 
 class TooLarge extends Error {}
 
@@ -107,13 +109,12 @@ function pageGone(response: ServerResponse): AbortSignal {
 export function createWebHost(options: WebHostOptions): WebHost {
   const { session } = options
   const log = options.log ?? (() => {})
-  let port = 0
   const streams = new Set<ServerResponse>()
 
-  /** Same-origin checks: a loopback `Host` with our port; a JSON body; any `Origin` is ours. */
+  /** Same-origin checks: a loopback `Host`; a JSON body; any `Origin` is ours. */
   function trusted(request: IncomingMessage, post: boolean): boolean {
     const host = request.headers.host ?? ''
-    if (!LOOPBACK_HOSTS.some(name => host === `${name}:${port}`)) return false
+    if (!LOOPBACK_HOST.test(host)) return false
     const origin = request.headers.origin
     if (origin !== undefined && origin !== `http://${host}`) return false
     if (!post) return true
@@ -204,7 +205,13 @@ export function createWebHost(options: WebHostOptions): WebHost {
   async function route(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const path = new URL(request.url ?? '/', 'http://host').pathname
     const post = request.method === 'POST'
-    if (!trusted(request, post)) return send(response, 403, 'text/plain', 'forbidden')
+    if (!trusted(request, post)) {
+      // Header values only (no body, no proof): enough to see which check refused a browser.
+      log(
+        `refused ${request.method ?? ''} ${path}: host=${request.headers.host ?? ''} origin=${request.headers.origin ?? ''}`,
+      )
+      return send(response, 403, 'text/plain', 'forbidden')
+    }
     if (post && path === BRIDGE.call) return call(request, response)
     if (post && path === BRIDGE.observe) return observe(request, response)
     if (post && path === BRIDGE.login) return login(request, response)
@@ -232,8 +239,7 @@ export function createWebHost(options: WebHostOptions): WebHost {
       return new Promise((resolve, reject) => {
         server.once('error', reject)
         server.listen(wanted, '127.0.0.1', () => {
-          port = (server.address() as AddressInfo).port
-          resolve(port)
+          resolve((server.address() as AddressInfo).port)
         })
       })
     },

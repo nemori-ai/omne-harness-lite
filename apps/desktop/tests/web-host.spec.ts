@@ -1,6 +1,7 @@
 // The web host's channels (SPEC.md「宿主给页面的通道」), against a fake server entry in this
 // process. Every answer the page could read is kept, and the last case scans all of them for the
 // login proof sentinel.
+import { request } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
@@ -215,6 +216,30 @@ describe('宿主的通道', () => {
       body: '{}',
     })
     expect(foreign.status).toBe(403)
+  })
+
+  it('Host 只看是不是回环地址：转发过的端口照收，别的名字拒绝', async () => {
+    const { base } = await start()
+    const port = Number(new URL(base).port)
+    const statusWith = (host: string) =>
+      new Promise<number>((resolve, reject) => {
+        const req = request({ host: '127.0.0.1', port, path: '/', headers: { host } }, res => {
+          res.resume()
+          resolve(res.statusCode ?? 0)
+        })
+        req.on('error', reject)
+        req.end()
+      })
+    // The browser behind a forwarded port sends its own local port. Past the check, the answer is
+    // the page file's (this suite has no built page, so 404), never the refusal.
+    const own = await statusWith(`127.0.0.1:${port}`)
+    expect(own).not.toBe(403)
+    expect(await statusWith('localhost:54321')).toBe(own)
+    expect(await statusWith('127.0.0.1:54321')).toBe(own)
+    expect(await statusWith('[::1]:54321')).toBe(own)
+    // A rebinding page reaches this socket with its own name in `Host`.
+    expect(await statusWith(`evil.example:${port}`)).toBe(403)
+    expect(await statusWith(`127.0.0.1.evil.example:${port}`)).toBe(403)
   })
 
   it('登录证明不出现在宿主给页面的任何答复里', async () => {

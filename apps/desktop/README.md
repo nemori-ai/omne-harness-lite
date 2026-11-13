@@ -11,7 +11,7 @@ pnpm --filter @omne-harness/desktop... run build
 node apps/desktop/dist/web-host/bin.js --server http://127.0.0.1:8787 --port 8790
 ```
 
-Then open `http://127.0.0.1:8790/` in a browser. Use `127.0.0.1` or `localhost`; the host answers only requests whose `Host` is a loopback address with its own port.
+Then open `http://127.0.0.1:8790/` in a browser. Use `127.0.0.1` or `localhost`; the host answers only requests whose `Host` is a loopback address. The port in `Host` is not checked, so the page also works behind a forwarded port.
 
 | Setting                          | Flag       | Environment variable | Default                 |
 | -------------------------------- | ---------- | -------------------- | ----------------------- |
