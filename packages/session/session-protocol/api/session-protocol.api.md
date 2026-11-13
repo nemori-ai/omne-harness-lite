@@ -309,6 +309,7 @@ export declare const sessionProtocol: {
                     readonly exhausted: boolean;
                     readonly next: string | null;
                     readonly scannedThrough: string;
+                    readonly upper: string;
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
                 readonly "basis-unavailable": true;

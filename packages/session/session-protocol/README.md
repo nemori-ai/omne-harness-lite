@@ -23,7 +23,7 @@ An access plugin gives `sessionProtocol` to `AccessContribution<SessionProtocol>
 
 ## Contracts
 
-[SPEC.md](SPEC.md) gives the three columns of the seven operations, the four differences from the old family `session-public/1`, the outcome bodies, and the frames of the observation. The exact types come from [src/session-protocol.ts](src/session-protocol.ts). [docs/public-api.md](docs/public-api.md) indexes them.
+[SPEC.md](SPEC.md) gives the three columns of the seven operations, the five differences from the old family `session-public/1`, the outcome bodies, and the frames of the observation. The exact types come from [src/session-protocol.ts](src/session-protocol.ts). [docs/public-api.md](docs/public-api.md) indexes them.
 
 ## Design
 

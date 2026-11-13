@@ -69,8 +69,12 @@ const readHistory = {
   ],
 } as const
 
-// entryId is a non-empty RecordEntryRef. A session revision is opaque text, as in `scannedThrough`.
+// entryId is a non-empty RecordEntryRef. Two axes appear here as opaque decimal text and never
+// compare with each other (SPEC.md「会话修订号与读历史」): a session revision (an entry's
+// `revision`, the page's `upper`, a state frame's `revision`) and a scan position (`scannedThrough`).
 const historyPage = object({
+  // The session revision this traversal is pinned to: the same on every page of one cursor chain.
+  upper: { rule: anyText },
   entries: {
     rule: {
       kind: 'array',

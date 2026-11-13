@@ -1,6 +1,7 @@
 // Read and write equivalence with the `session-public/1` family (card #1266 C6). A body the old
 // family accepts reads, through the new contract, to the same value; a body it rejects, the new
-// contract rejects too. The one allowed difference: `create-session` may leave `definition` out.
+// contract rejects too. Two allowed differences: `create-session` may leave `definition` out, and
+// the `read-history` page also carries the pinned revision `upper`.
 import { describe, expect, it } from 'vitest'
 import {
   readSessionRequest,
@@ -70,8 +71,9 @@ const successBodies: Samples = {
       next: null,
       exhausted: true,
       scannedThrough: '3',
+      upper: '7',
     },
-    { entries: [], next: 'next-cursor', exhausted: false, scannedThrough: '' },
+    { entries: [], next: 'next-cursor', exhausted: false, scannedThrough: '', upper: '7' },
   ],
   'cancel-run': [
     { kind: 'requested', controlId: 'control', run: 'run-1' },
@@ -150,12 +152,28 @@ describe('request bodies', () => {
 })
 
 describe('outcome bodies', () => {
-  it.each(cases(successBodies))('%s: a succeeded body reads to the old value', (name, sample) => {
+  // `read-history` differs from the old family in one field, `upper`; the case after this one.
+  const sameAsOld = cases(successBodies).filter(([name]) => name !== 'read-history')
+  it.each(sameAsOld)('%s: a succeeded body reads to the old value', (name, sample) => {
     const old = readOldOutcome(name, 'succeeded', sample)
     expect(old.ok).toBe(true)
     const value = expectRoundTrip(sessionProtocol.operations[name].outcomes.succeeded, sample)
     expect(value).toEqual(old.value)
   })
+
+  it.each(successBodies['read-history'])(
+    'read-history: the page is the old page plus the pinned revision `upper`',
+    sample => {
+      const { upper, ...oldPage } = sample
+      const old = readOldOutcome('read-history', 'succeeded', oldPage)
+      expect(old.ok).toBe(true)
+      const codec = sessionProtocol.operations['read-history'].outcomes.succeeded
+      expect(expectRoundTrip(codec, sample)).toEqual({ ...(old.value as object), upper })
+      // A page without it cannot be matched against a state frame: the contract refuses it.
+      expect(readNew(codec, oldPage)).toEqual({ ok: false })
+      expect(readNew(codec, { ...oldPage, upper: 7 })).toEqual({ ok: false })
+    },
+  )
 
   it.each(['create-session', 'send-input'] as const)(
     '%s: limited carries resource and limit',

@@ -78,8 +78,9 @@ test('each succeeded body is the old success body', () => {
   expectTypeOf<ResultBody<'send-input', 'succeeded'>>().toEqualTypeOf<
     SessionSuccessBodies['send-input']
   >()
+  // The one success body that differs: the page also carries the pinned revision `upper`.
   expectTypeOf<ResultBody<'read-history', 'succeeded'>>().toEqualTypeOf<
-    SessionSuccessBodies['read-history']
+    Flat<SessionSuccessBodies['read-history'] & { readonly upper: string }>
   >()
   expectTypeOf<ResultBody<'cancel-run', 'succeeded'>>().toEqualTypeOf<
     SessionSuccessBodies['cancel-run']

@@ -12,24 +12,40 @@
 
 <a id="operations"></a>**七个操作。** `create-session`、`query-create-session`、`send-input`、`query-send-input`、`read-history`、`cancel-run`、`stop-call`。三栏按 RFC-0015 第 7 节的规则机械地得到：
 
-| 操作 | 身份要求 | 效果 | 体上限 |
-| --- | --- | --- | --- |
-| `create-session` | `acting-tenant` | `commit` | `small` |
-| `query-create-session` | `login` | `read` | `small` |
-| `send-input` | `login` | `commit` | `input` |
-| `query-send-input` | `login` | `read` | `small` |
-| `read-history` | `login` | `read` | `small` |
-| `cancel-run` | `login` | `commit` | `small` |
-| `stop-call` | `login` | `commit` | `small` |
+| 操作                   | 身份要求        | 效果     | 体上限  |
+| ---------------------- | --------------- | -------- | ------- |
+| `create-session`       | `acting-tenant` | `commit` | `small` |
+| `query-create-session` | `login`         | `read`   | `small` |
+| `send-input`           | `login`         | `commit` | `input` |
+| `query-send-input`     | `login`         | `read`   | `small` |
+| `read-history`         | `login`         | `read`   | `small` |
+| `cancel-run`           | `login`         | `commit` | `small` |
+| `stop-call`            | `login`         | `commit` | `small` |
 
 七个操作与观察都标 `countsAsAccess`：答 `succeeded`（观察：建立成功）算一次业务访问。没有操作标 `carriesCredential`。
 
-<a id="differences"></a>**和旧家族的四处差别。** 其余的消息体、成功体、结果集逐字段相同：
+<a id="differences"></a>**和旧家族的五处差别。** 其余的消息体、成功体、结果集逐字段相同：
 
 1. `create-session` 的 `definition` 可以不给。不给时取哪个定义是接入插件的行为，不在本契约里。
 2. `defineProtocol` 给每个操作并进 `protocol-rejected`、`basis-unavailable`、`denied`，给提交类并进 `unknown`。旧家族的结果集本来就有后三个，所以实际多出来的只有 `protocol-rejected`。
 3. 信封不在契约里：协议版本、消息编号、操作名、登录证明、行事租户归共同契约的外层。消息体里原有的目标租户（除 `create-session` 外的六个操作的 `tenant`）照旧在消息体里。
 4. `query-create-session`、`query-send-input` 的效果是 `read`，但结果里手写了 `unknown`：查询本身可能答不出那次提交的结局，这是旧家族就有的结果。
+5. `read-history` 的成功体多一个字段 `upper`：这一轮读取固定的会话修订号。旧家族没有带出它，读者就没有办法把历史页和状态帧对上，见[会话修订号与读历史](#revisions)。
+
+<a id="revisions"></a>**会话修订号与读历史。** 本契约里有两条轴，都写成不透明的十进制文本，按数值比较，两条轴之间不比较。
+
+| 轴         | 出现在哪                  | 含义                                                                                                                            |
+| ---------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 会话修订号 | 历史条目的 `revision`     | 写下这一条的那次提交                                                                                                            |
+| 会话修订号 | 历史页的 `upper`          | 这一轮读取固定的上界。一轮从 `cursor: null` 开始，沿 `next` 往下读；同一轮的每一页 `upper` 相同，这一轮只给修订号不超过它的条目 |
+| 会话修订号 | 状态帧的 `revision`       | 会话观察自己读日志时固定的同一个上界                                                                                            |
+| 扫描位置   | 历史页的 `scannedThrough` | 存储这一页实际扫到的位置。空页不表示读完，翻页只用 `next`                                                                       |
+
+同一个会话里修订号只增不减。读者据此判断手里的历史新不新：
+
+- 最近一轮从末尾开始的读取，`upper` 不小于某个状态帧的 `revision`：那一帧说到的提交，读者都已经读到。
+- 小于：日志里有读者没读到的提交。读者从末尾反向再读一轮，读到已经持有的条目就可以停，更早的它已经有了。
+- 读者在收到某个状态帧之后才发出的读取，答复的 `upper` 不小于那一帧的 `revision`：两者读的是同一份日志，日志只增不减。
 
 <a id="outcome-bodies"></a>**结果的体。** `succeeded` 的体是旧家族的成功体；`limited` 的体是 `{ resource: 'pending-inputs' | 'input-bytes', limit }`；其余有体的结果（`invalid`、`conflict`、`archived`、`frozen`、`not-committed`、`not-found`、`unsupported`）体为空对象。固定结果（`denied`、`basis-unavailable`、`unknown`、`protocol-rejected`）只写 `true`，响应体恒为空，领域不能给它们加字段（RFC-0015 I-13）。会话家族没有阶段操作，部署也不能声明不提供，所以没有操作答 `stage-not-provided`。
 
@@ -39,6 +55,18 @@
 - `snapshot`、`delta`：`projection: 'model-output-v1'` 与一棵 JSON 值 `value`。
 - `gap`：`reason` 为 `buffer` 或 `source-history`。
 - `refreshing`：没有别的字段。
+
+帧的含义归会话观察（[RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 8 节与[会话观察的规格](../session-observation/SPEC.md)），读者按下表读，不另作推断：
+
+| 帧           | 它说的是                                                                   | 读者据此                                                                                                                                               |
+| ------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `state`      | 会话这一刻的四个字段。观察建立后的第一帧是它，之后只在字段有变化时发       | `run` 为 `null` 是没有进行中的一轮；`revision` 按[会话修订号与读历史](#revisions)和历史对上                                                            |
+| `snapshot`   | 当前这次模型调用的回复到这一刻的全部内容                                   | 换掉手里正在生成的内容                                                                                                                                 |
+| `delta`      | 接在上一帧之后的增量                                                       | 接得上就接上；接不上就不用它，等下一个 `snapshot`                                                                                                      |
+| `gap`        | 回复的流丢了一段：`buffer` 是缓冲放不下，`source-history` 是来源的历史不够 | 手里正在生成的内容可能不全。观察会重新取，之后给新的 `snapshot`                                                                                        |
+| `refreshing` | 观察这一刻没有可以转发的回复流，按间隔又找了一次，记一次尝试               | 它不是错误，也不表示流断过。一轮刚开始而模型还没给出流时、一轮结束之后、没有进行中的一轮时，间隔到期都会发它。至多在有进行中的一轮时显示「正在等内容」 |
+
+连续的尝试用尽时，观察以 `refresh-exhausted` 结束。
 
 这个观察自己的结束原因只有 `refresh-exhausted`。`denied`、`unavailable` 以及中枢的结束原因不在这里列。
 

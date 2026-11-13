@@ -23,7 +23,7 @@ const read = body.read(tree, limits) // { ok: true, value } 或 { ok: false }
 
 ## 契约
 
-七个操作的三栏、和旧家族 `session-public/1` 的四处差别、结果的体与观察的帧见 [SPEC.md](SPEC.md)。精确类型由 [src/session-protocol.ts](src/session-protocol.ts) 推出，导航在 [docs/public-api.md](docs/public-api.md)。
+七个操作的三栏、和旧家族 `session-public/1` 的五处差别、结果的体与观察的帧见 [SPEC.md](SPEC.md)。精确类型由 [src/session-protocol.ts](src/session-protocol.ts) 推出，导航在 [docs/public-api.md](docs/public-api.md)。
 
 ## 设计
 
