@@ -293,6 +293,7 @@ function agentHostOperatorConfig(): Record<string, unknown> {
     denialBackoffMs: 0,
     toolConcurrency: 1,
     loopGuardPolicy: { ...MODEL_TEST_ADOPTION, name: 'loop-guard' },
+    modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
     instanceIdleMs: 60_000,
   }
 }

@@ -67,6 +67,11 @@ describe('loading', () => {
     ['a loop guard policy without a digest', { ...hostConfig, loopGuardPolicy: { owner: 'a' } }],
     ['a step limit of zero', { ...hostConfig, maxRunSteps: 0 }],
     ['a step limit that is not a whole number', { ...hostConfig, maxRunSteps: 2.5 }],
+    ['no model retry policy', { ...hostConfig, modelRetry: undefined }],
+    [
+      'a model retry policy without delays',
+      { ...hostConfig, modelRetry: { ...hostConfig.modelRetry, delaysMs: [] } },
+    ],
     ['an unknown field', { ...hostConfig, tenant: 'org' }],
     ['no configuration', undefined],
   ])('fails the fiber and provides nothing for %s', async (_name, config) => {

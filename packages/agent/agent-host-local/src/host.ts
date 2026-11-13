@@ -29,12 +29,13 @@
 //   names why in its record (R2-D285).
 // The runtime's own duties (quiesce drains, detaches and withdraws through the handle) belong to
 // the factory. The host never takes the end of a fiber for a detach or for a stopped execution.
-import { randomUUID } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import {
   advanceControl,
   type AgentConfiguration,
   type AgentDependencies,
+  type AgentModelRetrying,
   type AgentProvider,
   type AgentRunEndedFailed,
   type AgentRunWaiting,
@@ -103,7 +104,7 @@ export type RuntimeFactory = (
 
 /** What the host gives every runtime it builds besides dependencies and options. */
 export type HostRuntimeExtras = Required<
-  Pick<AgentRuntimeExtras, 'failed' | 'endedFailed' | 'waiting'>
+  Pick<AgentRuntimeExtras, 'failed' | 'endedFailed' | 'waiting' | 'modelRetrying'>
 >
 
 /** The statically injected services that the factory takes as they are. */
@@ -341,6 +342,21 @@ function runWaitingRecord(event: AgentRunWaiting): string {
     `agent run waits for a dependency: tenant=${tenant} instance=${event.instance} ` +
     `execution=${event.execution} step=${event.step ?? 'none'} node=${event.node} ` +
     `owner=${event.owner} diagnostic=${event.diagnostic}`
+  )
+}
+
+const RANDOM_SPAN = 2 ** 47
+
+function cryptoRandom(): number {
+  return randomInt(RANDOM_SPAN) / RANDOM_SPAN
+}
+
+function modelRetryingRecord(event: AgentModelRetrying): string {
+  const tenant = tenantTextOf(event.tenant) ?? 'unknown'
+  return (
+    `agent run retries the model: tenant=${tenant} instance=${event.instance} ` +
+    `execution=${event.execution} step=${event.step} attempt=${event.attempt} ` +
+    `fault=${event.fault.cause} diagnostic=${event.fault.diagnostic} notBefore=${event.notBefore}`
   )
 }
 
@@ -873,6 +889,7 @@ export function createHost(input: HostInput): Host {
       materials: stagePort(ctx, agentMaterialsKey),
       reads: stagePort(ctx, agentReadsKey),
       registration: entry.handle,
+      random: cryptoRandom,
     }
   }
 
@@ -908,6 +925,7 @@ export function createHost(input: HostInput): Host {
           },
           endedFailed: event => record('warn', runEndedFailedRecord(event)),
           waiting: event => record('warn', runWaitingRecord(event)),
+          modelRetrying: event => record('warn', modelRetryingRecord(event)),
         },
       )
       if ('failure' in created) {

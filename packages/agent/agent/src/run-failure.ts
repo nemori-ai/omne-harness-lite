@@ -5,6 +5,7 @@
 import type {
   AgentExecutionId,
   AgentInstanceId,
+  AgentInstant,
   DurableEvidence,
   Failure,
   FailureCandidate,
@@ -75,3 +76,16 @@ export type AgentRunWaiting = Readonly<{
 
 /** Receives each report synchronously. It must not call back into the runtime. */
 export type AgentRunWaitingReceiver = (event: AgentRunWaiting) => void
+
+export type AgentModelRetrying = Readonly<{
+  kind: 'model-retrying'
+  tenant: TenantId
+  instance: AgentInstanceId
+  execution: AgentExecutionId
+  step: StepId
+  attempt: number
+  fault: ModelFault
+  notBefore: AgentInstant
+}>
+
+export type AgentModelRetryingReceiver = (event: AgentModelRetrying) => void

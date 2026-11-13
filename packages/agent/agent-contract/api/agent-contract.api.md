@@ -206,6 +206,7 @@
 - `ModelReceptionTargets` · `receiving.d.ts`
 - `ModelRecipient` · `request.d.ts`
 - `ModelReplyAdmission` · `evaluation.d.ts`
+- `ModelRetryState` · `evaluation.d.ts`
 - `ModelSelection` · `request.d.ts`
 - `NamedCapturedRead` · `passages.d.ts`
 - `NeedDeclaration` · `extensions.d.ts`
@@ -791,6 +792,11 @@ export type VoidedIntent = Readonly<{
     reference: M.ModelInvocationRef;
     basis: DurableEvidence;
 }>;
+export type ModelRetryState = Readonly<{
+    failures: number;
+    since: AgentInstant;
+    notBefore: AgentInstant;
+}>;
 export type AgentCheckpoint = Readonly<{
     schema: Adoption;
     definition: Adoption;
@@ -804,6 +810,7 @@ export type AgentCheckpoint = Readonly<{
     compaction: CompactionState | null;
     adoptedContext: DurableEvidence | null;
     adoptedRequest?: AdoptedRequest | null;
+    modelRetry?: ModelRetryState | null;
     guard: GuardFact | null;
     completedPassages: readonly PassageId[];
     priorConditions: DurableEvidence | null;

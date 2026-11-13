@@ -64,6 +64,7 @@ import { agentEvidence } from './loop/identities.ts'
 import { createControlWriter } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type {
+  AgentModelRetryingReceiver,
   AgentRunEndedFailedReceiver,
   AgentRunFailedReceiver,
   AgentRunWaitingReceiver,
@@ -219,7 +220,7 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
   configuration: Pick<
     AgentConfiguration,
-    'reconciliationDelayMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps'
+    'reconciliationDelayMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps' | 'modelRetry'
   >
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
@@ -230,6 +231,7 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   endedFailed: AgentRunEndedFailedReceiver | undefined
   /** The receiver of the report of a run that began to wait for a dependency; undefined: nobody is told. */
   waiting: AgentRunWaitingReceiver | undefined
+  modelRetrying: AgentModelRetryingReceiver | undefined
 }>
 
 export function createProvider<P, B extends ContentBlock>(
@@ -529,6 +531,19 @@ export function createProvider<P, B extends ContentBlock>(
         } catch {
           // The report observes the runtime and never decides an answer of it.
         }
+      },
+      modelRetry: { policy: entry.configuration.modelRetry, random: dependencies.random },
+      modelRetrying: (step, retry) => {
+        try {
+          entry.modelRetrying?.({
+            kind: 'model-retrying',
+            tenant: binding.tenant,
+            instance,
+            execution,
+            step,
+            ...retry,
+          })
+        } catch {}
       },
       toolConcurrency: entry.configuration.toolConcurrency,
       maxRunSteps: maxRunStepsOf(entry.configuration),

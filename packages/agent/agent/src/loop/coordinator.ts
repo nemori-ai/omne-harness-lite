@@ -125,7 +125,13 @@ import { attemptWrite, originalJournal, type OriginalWrite } from './original-wr
 import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
 import { readBatchToolCalls } from './action-source.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
-import { consumeModelResult, noReplyReason, type ModelOutcome } from './model-result.ts'
+import {
+  consumeModelResult,
+  noReplyReason,
+  type ModelOutcome,
+  type ModelResult,
+} from './model-result.ts'
+import { decideRetry, type RetryPolicy } from '@omne-harness/retry'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
   advanceAcceptedControl,
@@ -227,6 +233,11 @@ export type ExecutionEntry<P> = Readonly<{
    * the runtime always passes the configured or default value.
    */
   maxRunSteps?: number
+  modelRetry?: Readonly<{ policy: RetryPolicy; random: () => number }>
+  modelRetrying?(
+    step: StepId,
+    retry: Readonly<{ attempt: number; fault: M.ModelFault; notBefore: AgentInstant }>,
+  ): void
   /**
    * Receives the report of a cold read of the reply admission facts (D5 5.1, 治疗). Optional; the
    * runtime assembly gives none yet, so the report then goes nowhere.
@@ -405,7 +416,7 @@ type Iteration = {
   ready: ReadyPreparation | null // P1
   pending: ModelPendingCall | null // I2
   settlement: M.Settlement | null // M1
-  result: ModelOutcome | null // restored from the Journal-bound completion, not a Model cache
+  result: ModelResult | null // restored from the Journal-bound completion, not a Model cache
   admission: 'new' | 'unknown' | 'accepted'
 }
 
@@ -1320,6 +1331,44 @@ function coordinate<P>(
     return succeed({ kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure })
   }
 
+  async function retryLater(
+    of: StepId,
+    result: Extract<ModelResult, { kind: 'unusable' }>,
+  ): Promise<Outcome<Step, Failure> | null> {
+    const terminal = result.settlement.termination
+    const retry = entry.modelRetry
+    if (retry === undefined || result.nature !== 'transient' || terminal.kind !== 'failed')
+      return null
+    const instant = await ports.clock.now()
+    if ('failure' in instant) return instant
+    const saved = required(checkpoint, 'checkpoint').modelRetry ?? null
+    const failures = (saved?.failures ?? 0) + 1
+    const since = saved?.since ?? instant.ok
+    const elapsedMs = Math.max(0, Date.parse(instant.ok) - Date.parse(since))
+    const decision = decideRetry(retry.policy, { failures, elapsedMs }, retry.random)
+    if (decision.kind === 'exhausted') return null
+    const notBefore = new Date(Date.parse(instant.ok) + decision.delayMs).toISOString()
+    entry.modelRetrying?.(of, { attempt: decision.attempt, fault: terminal.fault, notBefore })
+    return step('retry', { checkpoint: { calls: [], modelRetry: { failures, since, notBefore } } })
+  }
+
+  async function retryNotDue(): Promise<Outcome<Step, Failure> | null> {
+    const retry = required(checkpoint, 'checkpoint').modelRetry ?? null
+    if (retry === null) return null
+    const instant = await ports.clock.now()
+    if ('failure' in instant) return instant
+    if (Date.parse(instant.ok) >= Date.parse(retry.notBefore)) return null
+    return waitFor(
+      'I8',
+      {
+        kind: 'unavailable',
+        owner: 'modelRetry',
+        diagnostic: `the next main model call is not before ${retry.notBefore}`,
+      },
+      null,
+    )
+  }
+
   // ------------------------------------------------------------------------------------------
   // admitMessage: U0, Q1, Q2, Q4, Q5 (SPEC "消息准入"; the Q5 of H0, T5, C3 and X5 comes with them)
 
@@ -1914,7 +1963,10 @@ function coordinate<P>(
       if ('failure' in restored) return restored
       const result = restored.ok.result
       current.result = result
-      if (result.kind === 'no-reply') {
+      if (result.kind === 'interrupted') return step('partial', { checkpoint: { calls: [] } })
+      if (result.kind === 'unusable') {
+        const retried = await retryLater(current.step, result)
+        if (retried !== null) return retried
         if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
           const instant = await ports.clock.now()
           if ('failure' in instant) return instant
@@ -1938,7 +1990,7 @@ function coordinate<P>(
             conclusion: {
               kind: 'fail',
               cause: agentEvidence(
-                `${execution}/${current.step}/${noReplyReason(result.settlement)}`,
+                `${execution}/${current.step}/${noReplyReason(result)}`,
                 failure,
               ),
             },
@@ -1947,7 +1999,6 @@ function coordinate<P>(
         }
         return step('try-finish', null)
       }
-      if (result.kind === 'partial') return step('partial', { checkpoint: { calls: [] } })
       const pending = required(current.pending, 'pending call')
       const call = invocationParts(pending.reference, access.tenant).call
       if (outcome === null) {
@@ -1980,7 +2031,11 @@ function coordinate<P>(
       pendingHandoff = null
       // Keep the admitted reply until this conditional commit is known to hold. An excluded
       // I3 commit must re-evaluate the same admission rather than admit the reply a second time.
-      return step(decision === 'prepared' ? 'admitted' : 'rejected', { checkpoint: { calls: [] } })
+      if (decision !== 'prepared') return step('rejected', { checkpoint: { calls: [] } })
+      const retrying = (required(checkpoint, 'checkpoint').modelRetry ?? null) !== null
+      return step('admitted', {
+        checkpoint: { calls: [], ...(retrying ? { modelRetry: null } : {}) },
+      })
     },
     /** I4: the tool call parts of the admitted reply. Actions are #502 stage 2. */
     async I4() {
@@ -2022,6 +2077,8 @@ function coordinate<P>(
       const current = await readFacts(read.ok)
       if ('failure' in current) return current
       facts = current.ok
+      const waiting = await retryNotDue()
+      if (waiting !== null) return waiting
       const evaluated = await evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
       if (
@@ -3411,7 +3468,7 @@ function coordinate<P>(
 
   async function readCompletion(
     current: Iteration,
-  ): Promise<Outcome<{ result: ModelOutcome; completion: DurableEvidence }, Failure>> {
+  ): Promise<Outcome<{ result: ModelResult; completion: DurableEvidence }, Failure>> {
     const pending = required(current.pending, 'pending call')
     const received = await receivedOf(pending)
     if ('failure' in received) return received
@@ -3447,7 +3504,7 @@ function coordinate<P>(
 
   function callsAfterConsumedNoReply(read: ExecutionSnapshot): readonly PendingCall[] {
     const current = iteration
-    if (current?.result?.kind !== 'no-reply' || current.pending === null)
+    if (current?.result?.kind !== 'unusable' || current.pending === null)
       return read.checkpoint.calls
     const pending = current.pending
     return read.checkpoint.calls.filter(

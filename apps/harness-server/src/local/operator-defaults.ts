@@ -454,6 +454,12 @@ const AGENT_HOST = {
   denialBackoffMs: 1000,
   toolConcurrency: 1,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
+  modelRetry: {
+    maxAttempts: 4,
+    maxElapsedMs: 120_000,
+    delaysMs: [1_000, 5_000, 30_000],
+    jitter: 0.2,
+  },
   instanceIdleMs: 60_000,
 } as const
 

@@ -5,6 +5,7 @@
 // the factory judges them again when it creates an instance.
 import type { AgentConfiguration } from '@omne-harness/agent'
 import { judgeAdoption } from '@omne-harness/agent-contract'
+import { parseRetryPolicy } from '@omne-harness/retry'
 
 /**
  * The reception items: the tenant capacity of the Model result receiver and the waits of its
@@ -50,9 +51,19 @@ const FIELDS: ReadonlySet<string> = new Set([
   'jointCommits',
   'coordination',
   'loopGuardPolicy',
+  'modelRetry',
   'maxRunSteps',
   'reception',
 ])
+
+function modelRetryIssues(value: unknown): readonly string[] {
+  try {
+    parseRetryPolicy(value)
+    return []
+  } catch (error) {
+    return [`modelRetry: ${error instanceof Error ? error.message : 'not a retry policy'}`]
+  }
+}
 
 const RECEPTION_FIELDS = [
   'records',
@@ -128,6 +139,7 @@ function issuesOf(value: unknown): readonly Issue[] {
     if (!isPositive(read(field))) issues.push(`${field}: not a positive safe integer`)
   for (const field of NON_NEGATIVE)
     if (!isNonNegative(read(field))) issues.push(`${field}: not a non-negative safe integer`)
+  issues.push(...modelRetryIssues(read('modelRetry')))
   issues.push(...stepLimitIssues(read('maxRunSteps')))
   issues.push(...receptionIssues(read('reception')))
   if (!COORDINATION.includes(read('coordination'))) issues.push('coordination: unknown mode')

@@ -428,6 +428,7 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
         // memory Journal of the test dependencies is standalone. Declared apart from the binding.
         coordination: sessionLog ? 'coordinated' : 'standalone',
         loopGuardPolicy: testAdoption('loop-guard'),
+        modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
       },
     }
     const provider = ok(

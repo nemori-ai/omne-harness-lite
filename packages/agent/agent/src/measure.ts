@@ -6,6 +6,7 @@
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
+  AgentModelRetryingReceiver,
   AgentRunEndedFailedReceiver,
   AgentRunFailedReceiver,
   AgentRunWaitingReceiver,
@@ -69,6 +70,7 @@ export type AgentRuntimeExtras = Readonly<{
    * Absent: the run waits the same, and the reason of the wait is kept nowhere.
    */
   waiting?: AgentRunWaitingReceiver
+  modelRetrying?: AgentModelRetryingReceiver
 }>
 
 export type AgentMeasurer = Readonly<{
