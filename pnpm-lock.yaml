@@ -3125,6 +3125,9 @@ importers:
         specifier: workspace:*
         version: link:../../access/public-contract
     devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

@@ -7,6 +7,7 @@
       "contracts": [
         "packages/session/session-contract",
         "packages/session/session-cordis-contract",
+        "packages/session/session-protocol",
         "packages/agent/agent-contract",
         "packages/agent/agent-cordis-contract",
         "packages/context/runtime-context-contract",

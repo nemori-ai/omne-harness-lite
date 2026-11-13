@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft session-protocol package; complete the accepted public contract before delivery",
+  "description": "Protocol contract of the public protocol session/v1: Session's operations and observation",
   "engines": {
     "node": ">=24"
   },
@@ -28,8 +28,16 @@
     "@omne-harness/public-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/json-text": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "3.0.0",
+      "variant": "module"
+    }
   }
 }
