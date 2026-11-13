@@ -405,7 +405,11 @@ describe('why a scan is unavailable', () => {
           ? Promise.resolve(answer as never)
           : inner.read(request),
     })
-    return createSqlToolLedgerStore({ ...a.options, storage })
+    return createSqlToolLedgerStore({
+      ...a.options,
+      storage,
+      tenants: async () => ({ kind: 'ready', revision: '1', entries: [entryOf(TENANT_A)] }),
+    })
   }
 
   it.each([
@@ -429,15 +433,18 @@ describe('why a scan is unavailable', () => {
       'pending read: a row holds no call identity',
     ],
   ])(
-    'answers unavailable, not a shorter page, when the storage answers %j',
+    'answers unavailable, not a shorter page, when the storage answers %j; across tenants it names the tenant',
     async (answer, diagnostic) => {
       const a = await app()
       const store = answering(a, answer)
-      const unavailable = { kind: 'unavailable', diagnostic }
-      expect(await store.scanPending({ tenant: TENANT_A, after: null, limit: 10 })).toEqual(
-        unavailable,
-      )
-      expect(await store.scanPending({ tenant: null, after: null, limit: 10 })).toEqual(unavailable)
+      expect(await store.scanPending({ tenant: TENANT_A, after: null, limit: 10 })).toEqual({
+        kind: 'unavailable',
+        diagnostic,
+      })
+      expect(await store.scanPending({ tenant: null, after: null, limit: 10 })).toEqual({
+        kind: 'unavailable',
+        diagnostic: `tenant ${textOf(TENANT_A)}: ${diagnostic}`,
+      })
     },
   )
 })
