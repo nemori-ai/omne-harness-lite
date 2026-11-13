@@ -15,6 +15,8 @@ import { decodePassageId, type Passage } from '@omne-harness/agent-contract'
 import { succeed } from '@omne-harness/operation-result'
 import type { FinishCandidateContent, JournalCommit } from '@omne-harness/agent-contract'
 import { memoryAccess } from '@omne-harness/session-contract/testing'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
+import { m0Checkpoint } from './fixtures/adopted-request.ts'
 import { evidence, ok, operation } from './fixtures/common-journal.ts'
 import { admitted, applied, load, prepared } from './fixtures/main-reply.ts'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
@@ -332,6 +334,55 @@ describe('tryFinish on the production session-log Journal with the PA-02 finish 
       await s.close()
     }
   })
+})
+
+it('a provider that starts from the durable records reads an execution that went on after a candidate: the member blocks only the candidate cursor names are fetched', async () => {
+  const s = await sqlScene('finish-then-on')
+  try {
+    const open = ok(await s.view.journal.open(s.openInput))
+    const authority = open.authority
+    await take(s, authority)
+    const request = await prepared(s, authority, 'model-reply')
+    ok(await s.view.journal.commit(await applied(s, authority, request, admitted(request))))
+    const target = { tenant: s.access.tenant, scope: ok(decodeScopeRef({ ref: 'scope:finish' })) }
+    /** One main-purpose M0: the cursor names the request this step adopted. */
+    const adopt = async (tag: string) => {
+      const loaded = await load(s)
+      const { adoptedRequest, adoptedContext } = m0Checkpoint(target, tag)
+      ok(
+        await s.view.journal.commit({
+          ...s.access,
+          execution: s.execution,
+          operation: operation(`m0-${tag}`),
+          authority,
+          expected: loaded.revision,
+          checkpoint: { ...loaded.checkpoint, adoptedRequest, adoptedContext },
+          state: { kind: 'advancing' },
+          events: [],
+          effects: [],
+          caller: { kind: 'none' },
+          replyAdmission: null,
+          handoff: null,
+          finish: null,
+        }),
+      )
+    }
+    await adopt('before-the-candidate')
+    // The candidate keeps the cursor of this step in its cursor block.
+    await prepareEnd(s, authority)
+    // New input interrupted the finish, and the execution goes on: the next step adopts another
+    // request, so only the cursor block of the candidate still names the request of the old step.
+    await adopt('after-the-candidate')
+    const warm = await load(s)
+
+    // The process restarted: nothing is in memory, and the records are read from the storage.
+    const cold = ok(await s.fresh().journal.load({ ...s.access, execution: s.execution }))
+    expect(cold.revision).toBe(warm.revision)
+    expect(cold.checkpoint).toEqual(warm.checkpoint)
+    expect(cold.settlement).toEqual(warm.settlement)
+  } finally {
+    await s.close()
+  }
 })
 
 it('reclaims terminal working records while retaining the original observation and receipt in SQL', async () => {

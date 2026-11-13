@@ -799,17 +799,29 @@ async function fetchNamed(
 ): Promise<string | null> {
   const named = new Set<string>()
   const lists: string[] = []
+  const cursors: string[] = []
   for (const execution of executions) {
     for (const ref of refsIn(execution)) named.add(blobRowDigest(ref))
     for (const list of execution.finish.lists.values()) lists.push(list.issued.listed.digest)
+    for (const candidate of execution.finish.candidates) cursors.push(candidate.cursor.digest)
   }
   const missing = await fetchBlobClosure(read, tenant, named, into)
   if (missing !== null) return missing
+  // The blocks that only another block names. The view names the list block and the cursor block
+  // of a candidate; their members are references inside those blocks.
   const items = new Set<string>()
   for (const digest of lists) {
     const payload = into.get(blobRowDigest(digest))
     if (payload === undefined) continue
     for (const item of listedDigests(payload)) items.add(blobRowDigest(item))
+  }
+  // A candidate keeps the cursor of the step it was established on. When the execution went on
+  // after it (a finish that new input interrupted), the view's own cursor names later blocks, and
+  // only the cursor block of the candidate still names the member blocks of that step.
+  for (const digest of cursors) {
+    const payload = into.get(blobRowDigest(digest))
+    if (payload === undefined) continue
+    for (const ref of refsIn(JSON.parse(payload) as unknown)) items.add(blobRowDigest(ref))
   }
   return fetchBlobClosure(read, tenant, items, into)
 }
