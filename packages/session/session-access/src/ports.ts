@@ -1,7 +1,7 @@
 // The ports this member asks for, in its own words. The application assembly adapts them: identity
 // answers the two principal ports, the Session provider the faces, the deployment mapping the
 // definitions. The handlers take each port at every call.
-import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
+import type { AnswerOf, LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
@@ -10,6 +10,7 @@ import type {
   SessionManagement,
   SessionWork,
 } from '@omne-harness/session-contract'
+import type { SessionProtocol } from '@omne-harness/session-protocol'
 
 /**
  * Issues the principal of this login for this target tenant. The rule belongs to identity: the
@@ -38,6 +39,40 @@ export type PrincipalFact = Readonly<{
  */
 export interface PrincipalFacts {
   describe(principal: Principal): PrincipalFact | undefined
+}
+
+/** One row of a session list, as `list-sessions` writes it: the times are already instants. */
+export type SessionListEntry = Extract<
+  AnswerOf<SessionProtocol['operations']['list-sessions']>,
+  { outcome: 'succeeded' }
+>['body']['sessions'][number]
+
+/** One page of a session list. */
+export type SessionListPage = Readonly<{
+  items: readonly SessionListEntry[]
+  /** The cursor of the next page; `null` when the list is read through. */
+  next: string | null
+  completeness: 'complete' | 'partial'
+}>
+
+/**
+ * Lists the sessions of a tenant for a principal acting for it. `invalid` is a cursor it does not
+ * recognise; `denied` is a principal that may not list this tenant, and it does not tell a tenant
+ * with no sessions apart from one the principal may not see.
+ */
+export interface SessionListing {
+  list(
+    input: Readonly<{
+      principal: Principal
+      tenant: TenantId
+      after: string | null
+      limit: number
+      includeArchived: boolean
+    }>,
+  ): Promise<
+    | { readonly ok: SessionListPage }
+    | { readonly refused: 'invalid' | 'denied' | 'basis-unavailable' }
+  >
 }
 
 /** The Session faces the seven operations reach. The real Session service satisfies it structurally. */
@@ -71,4 +106,8 @@ export type SessionAccessSettings = Readonly<{
   maxPageBytes: number
   /** The entry kinds `read-history` gives. */
   historyKinds: readonly string[]
+  /** The rows of a `list-sessions` page when the message gives no `limit`. */
+  defaultListLimit: number
+  /** The bound of `limit` on `list-sessions`. A larger `limit` is `invalid`. */
+  maxListLimit: number
 }>

@@ -4,13 +4,13 @@
 // makes the calls of that moment answer `basis-unavailable` and does not take the protocol down.
 //
 // Session tells its callers apart by the caller class of the intercept configuration: the
-// management and work faces are read as `intake`, the history as `reader`, as the server entry's
-// session location did. The class is a fact of this caller, so the plugin reads Session through two
+// management and work faces are read as `intake`, the history and the session list as `reader`
+// (the history as the server entry's session location did). The class is a fact of this caller, so the plugin reads Session through two
 // intercept contexts of its own scope rather than through a plain `provide`.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import { accessRegistryKey, defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
-import type { SessionManagement } from '@omne-harness/session-contract'
+import type { SessionDirectory, SessionManagement } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionObservation } from '@omne-harness/session-observation'
 import { sessionObservationKey } from '@omne-harness/session-observation/cordis'
@@ -21,6 +21,7 @@ import type {
   PrincipalFacts,
   SessionAccessFaces,
   SessionAccessSettings,
+  SessionListing,
   TargetTenantPrincipals,
 } from './ports.ts'
 
@@ -34,6 +35,8 @@ export type SessionAccessPluginInput = Readonly<{
   facts: PrincipalFacts
   /** The deployment's definition mapping, read from the tree at every call. */
   definitions: (ctx: Context) => DefinitionResolver | undefined
+  /** Adapts the session list face of Session to the port the handler asks for. */
+  listing: (directory: SessionDirectory<Principal>) => SessionListing
   /** What the assembly adds to a creation before Session sees it. Absent: the creation as built. */
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
@@ -82,6 +85,10 @@ export function createSessionAccessPlugin(input: SessionAccessPluginInput): Plug
               observation: () =>
                 provide(sessionObservationKey) as SessionObservation<Principal> | undefined,
               definitions: () => input.definitions(ctx),
+              listing: () => {
+                const directory = sessionOf(ctx, 'reader')?.directory
+                return directory === undefined ? undefined : input.listing(directory)
+              },
               principals: input.principals(ctx),
               facts: input.facts,
               settings,

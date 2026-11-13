@@ -415,6 +415,35 @@ export interface SessionHistory<P> {
       Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
   ): Reply<ModelViewRead>
 }
+/**
+ * One row of the session list: a projection from the session log and the commit times (SPEC
+ * 「会话列表」). A time is UTC text, or null when the commit carries no time.
+ */
+export type SessionListItem = Readonly<{
+  session: SessionId
+  createdAt: string | null
+  lastActivityAt: string | null
+  lifecycle: WorkSnapshot['lifecycle']
+  title: string | null
+}>
+/** The read face over the sessions of one tenant. Eligibility: a principal of the target tenant. */
+export interface SessionDirectory<P> {
+  list(
+    input: Readonly<{
+      principal: P
+      tenant: TenantId
+      after: string | null
+      limit: number
+      includeArchived: boolean
+    }>,
+  ): Reply<
+    Readonly<{
+      items: readonly SessionListItem[]
+      next: string | null
+      completeness: 'complete' | 'partial'
+    }>
+  >
+}
 /** The four faces as one value. The Cordis abstract class SessionService in session-cordis-contract exposes them under the key `session`. */
 export type SessionFaces<P> = Readonly<{
   work: SessionWork<P>

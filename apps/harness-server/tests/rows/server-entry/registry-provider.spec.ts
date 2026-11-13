@@ -1,7 +1,8 @@
 // The `server-entry` row provides `accessRegistry` (#1249 spec 已定 13): an access plugin loaded on
 // the release tree mounts its protocol on that service, and the entry's new address serves it at
 // once, because the entry uses the same registry. Unloading the plugin takes the protocol down.
-// The release tree also mounts `identity/v1` (the `identity-access` row), so the snapshot names it.
+// The release tree also mounts `identity/v1` (the `identity-access` row) and `session/v1` (the
+// `session-access` row), so the snapshot names them.
 // The probe operation needs no login; the call still carries the release's own login proof and
 // tenant.
 import { request } from 'node:http'
@@ -144,6 +145,7 @@ describe('server-entry row: the registry provider on the release tree', () => {
               protocols: expect.arrayContaining([
                 { name: 'access', major: 1 },
                 { name: 'identity', major: 1 },
+                { name: 'session', major: 1 },
               ]),
             })
 

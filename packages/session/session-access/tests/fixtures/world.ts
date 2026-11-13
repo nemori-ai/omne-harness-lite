@@ -25,6 +25,8 @@ import type {
   PrincipalFacts,
   ResolvedDefinition,
   SessionAccessSettings,
+  SessionListing,
+  SessionListPage,
   TargetTenantPrincipals,
 } from '../../src/ports.ts'
 import { createSessionDouble, type SessionDouble } from './session-double.ts'
@@ -92,6 +94,14 @@ export function memberKey(target: TenantId): string {
   return `${target.organization.text}/${target.account.text}`
 }
 
+/** What the stand-in `SessionListing` answers from now on. */
+export type ListingScript =
+  | Readonly<{ ok: SessionListPage }>
+  | Readonly<{ refused: 'invalid' | 'denied' | 'basis-unavailable' }>
+  | 'throw'
+
+export type ListingCall = Parameters<SessionListing['list']>[0]
+
 export type ObservationScript =
   | Readonly<{
       kind: 'opened'
@@ -107,8 +117,13 @@ export type World = Readonly<{
   issue(login: FixtureLogin, target?: TenantId): Principal
   /** The principal-port refusal to answer from now on; `undefined` answers by the account rule. */
   refuseTargets(refusal: 'denied' | 'basis-unavailable' | 'throw' | undefined): void
-  /** Takes Session, the observation or the mapping off the tree. */
-  remove(port: 'faces' | 'observation' | 'definitions'): void
+  /** Takes Session, the observation, the mapping or the session list off the tree. */
+  remove(port: 'faces' | 'observation' | 'definitions' | 'listing'): void
+  /** The calls the stand-in session list has had, and the answer it gives from now on. */
+  listing: Readonly<{
+    calls(): readonly ListingCall[]
+    answer(script: ListingScript): void
+  }>
   script(script: ObservationScript): void
   opens(): readonly SessionAccess<Principal>[]
   /** Whether the frames of the last opened observation were closed. */
@@ -127,6 +142,8 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
   let scripted: ObservationScript = { kind: 'opened', frames: [], end: 'refresh-exhausted' }
   const opens: SessionAccess<Principal>[] = []
   let closed = false
+  const listingCalls: ListingCall[] = []
+  let listed: ListingScript = { ok: { items: [], next: null, completeness: 'complete' } }
 
   const issue = (login: FixtureLogin, target: TenantId = login.tenant): Principal => {
     const key = memberKey(target)
@@ -186,15 +203,26 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
     },
   }
 
+  const listing: SessionListing = {
+    async list(call) {
+      listingCalls.push(call)
+      if (listed === 'throw') throw new Error('directory fault')
+      return listed
+    },
+  }
+
   const contribution = createSessionContribution({
     faces: () => (removed.has('faces') ? undefined : session.faces),
     observation: () => (removed.has('observation') ? undefined : observation),
     definitions: () => (removed.has('definitions') ? undefined : resolveDefinition),
+    listing: () => (removed.has('listing') ? undefined : listing),
     principals,
     facts,
     settings: {
       maxPageBytes: 65536,
       historyKinds: ['message.user', 'message.assistant'],
+      defaultListLimit: 50,
+      maxListLimit: 50,
       ...settings,
     },
   })
@@ -207,6 +235,12 @@ export function createWorld(settings: Partial<SessionAccessSettings> = {}): Worl
     },
     remove: port => {
       removed.add(port)
+    },
+    listing: {
+      calls: () => [...listingCalls],
+      answer: next => {
+        listed = next
+      },
     },
     script: next => {
       scripted = next

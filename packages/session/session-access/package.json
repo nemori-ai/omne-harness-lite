@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The access plugin of session/v1: the handlers of the seven session operations and the frame source of observe-session",
+  "description": "The access plugin of session/v1: the handlers of the eight session operations and the frame source of observe-session",
   "engines": {
     "node": ">=24"
   },

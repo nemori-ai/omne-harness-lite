@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The protocol contract of the public protocol `session/v1`: the seven operations and the one observation that Session opens to clients. The server access plugin and the client core use the same value. The server gets the handler types. The client gets one method for each operation. The design source is [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#7-协议怎样划分).
+The protocol contract of the public protocol `session/v1`: the eight operations and the one observation that Session opens to clients. The server access plugin and the client core use the same value. The server gets the handler types. The client gets one method for each operation. The design source is [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#7-协议怎样划分).
 
 ## Responsibility and status
 
@@ -23,7 +23,7 @@ An access plugin gives `sessionProtocol` to `AccessContribution<SessionProtocol>
 
 ## Contracts
 
-[SPEC.md](SPEC.md) gives the three columns of the seven operations, the five differences from the old family `session-public/1`, the outcome bodies, and the frames of the observation. The exact types come from [src/session-protocol.ts](src/session-protocol.ts). [docs/public-api.md](docs/public-api.md) indexes them.
+[SPEC.md](SPEC.md) gives the three columns of the eight operations, the six differences from the old family `session-public/1`, the outcome bodies, and the frames of the observation. The exact types come from [src/session-protocol.ts](src/session-protocol.ts). [docs/public-api.md](docs/public-api.md) indexes them.
 
 ## Design
 
