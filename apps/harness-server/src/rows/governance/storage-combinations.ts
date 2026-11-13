@@ -95,6 +95,9 @@ const definitionProjection = [
   'governance.metadata-plan',
 ]
 
+/** The characters of the manifest digest a combination version carries: 64 bits of it. */
+const VERSION_DIGEST_LENGTH = 16
+
 /** Each combination has one writer per table and one provider per required fact. */
 export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
   const definitions = {
@@ -138,10 +141,16 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     const result = combinationManifest({ catalog, participants })
     if (result.kind !== 'manifest')
       throw new Error(`Invalid governance combination ${name}: ${JSON.stringify(result)}`)
+    // The version follows the manifest: storage keeps one manifest per version and refuses the same
+    // version with another one (sql-contract `registration_conflict`). These manifests hold
+    // participants of other owners (the Session writer, the execution record), so they change
+    // when those change. A version written by hand stayed `/1` through such a change, and every
+    // tenant registered before it could no longer open its governance.
+    const digest = manifestDigest(result.manifest)
     return {
       participants,
-      combinationVersion: `harness-governance-${name}/1`,
-      manifestDigest: manifestDigest(result.manifest),
+      combinationVersion: `harness-governance-${name}/${digest.slice(0, VERSION_DIGEST_LENGTH)}`,
+      manifestDigest: digest,
     }
   }
   return {
