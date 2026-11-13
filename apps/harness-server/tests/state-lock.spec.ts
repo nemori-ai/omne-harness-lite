@@ -2,7 +2,7 @@
 // proof a run gives from it. The lock is an operating-system lock, so the other holder here is a
 // real second process.
 import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -16,7 +16,7 @@ import {
 const roots: string[] = []
 const locks: StateLock[] = []
 function stateRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'omne-state-lock-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-state-lock-')))
   roots.push(root)
   return root
 }

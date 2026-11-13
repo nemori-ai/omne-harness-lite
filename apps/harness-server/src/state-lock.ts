@@ -35,7 +35,7 @@ export type StateLock = Readonly<{
 export function acquireStateLock(
   stateRoot: string,
   now: () => string = () =>
-    /* wall-clock: evidence-instant -- names one holding of the lock, compared with nothing */ new Date().toISOString(),
+    /* wall-clock: observation-time -- names one holding of the lock, compared with nothing */ new Date().toISOString(),
 ): Readonly<{ kind: 'held'; lock: StateLock }> | Readonly<{ kind: 'in-use' }> {
   const database = new DatabaseSync(join(stateRoot, STATE_LOCK_FILE), { timeout: 0 })
   try {

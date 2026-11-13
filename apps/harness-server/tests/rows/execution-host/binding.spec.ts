@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, expect, it, vi } from 'vitest'
@@ -8,7 +8,7 @@ import { runServe, type S0Record } from '../../../src/run.ts'
 
 const root = process.platform === 'win32' ? 'C:/host-files' : '/host-files'
 const config = { filesRoot: root, stateDirectory: `${root}/state` }
-const stateRoot = mkdtempSync(join(tmpdir(), 'app-host-binding-'))
+const stateRoot = realpathSync(mkdtempSync(join(tmpdir(), 'app-host-binding-')))
 afterAll(() => rmSync(stateRoot, { recursive: true, force: true }))
 const probe = vi.fn()
 const sentinel = defineRow({
