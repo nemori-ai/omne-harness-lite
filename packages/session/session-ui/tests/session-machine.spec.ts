@@ -509,6 +509,29 @@ describe('R20–R22 观察的帧', () => {
       { kind: 'read-history', session: S, token: 3, request: { cursor: null } },
     ])
   })
+  it('R20 历史新不新只看这一轮读取的 upper：读到了就不再读，不看扫描位置', () => {
+    // The page's scan position (the fixture's 900) is on another axis and decides nothing.
+    const read = step(open(), {
+      kind: 'history-read',
+      session: S,
+      token: 1,
+      answer: { outcome: 'succeeded', body: page([], '5') },
+    }).state
+    expect(asOpen(read).content.readThrough).toBe('5')
+    for (const revision of ['4', '5'])
+      expect(
+        step(read, {
+          kind: 'frame',
+          session: S,
+          generation: 1,
+          frame: stateFrame('run_1', revision),
+        }).effects,
+      ).toEqual([])
+    expect(
+      step(read, { kind: 'frame', session: S, generation: 1, frame: stateFrame('run_1', '6') })
+        .effects,
+    ).toEqual([{ kind: 'read-history', session: S, token: 2, request: { cursor: null } }])
+  })
   it('R21 snapshot 与 delta：进行中的回复按块更新', () => {
     const live = run(
       running(),
@@ -555,7 +578,32 @@ describe('R20–R22 观察的帧', () => {
       { kind: 'observe', session: S, generation: 2 },
     ])
   })
-  it('R22 gap 与 refreshing：标在进行中的回复上，下一个快照清掉', () => {
+  const refreshingFrame: Event = {
+    kind: 'frame',
+    session: S,
+    generation: 1,
+    frame: { kind: 'refreshing' },
+  }
+  it('R22 refreshing：这一轮进行中标成「在等内容」；没有进行中的一轮时不标', () => {
+    expect(asOpen(step(running(), refreshingFrame).state).content.liveStatus).toEqual({
+      kind: 'refreshing',
+    })
+    // The observation sends it on every idle interval too: it says nothing about a reply then.
+    const idle = step(open(), refreshingFrame).state
+    expect(asOpen(idle).content.liveStatus).toBeNull()
+  })
+  it('R22 这一轮结束、没有进行中的回复：「在等内容」的标记收掉', () => {
+    const waiting = step(running(), refreshingFrame).state
+    const ended = step(waiting, {
+      kind: 'frame',
+      session: S,
+      generation: 1,
+      frame: stateFrame(null, '6'),
+    }).state
+    expect(asOpen(ended).run).toEqual({ kind: 'idle' })
+    expect(asOpen(ended).content.liveStatus).toBeNull()
+  })
+  it('R22 gap：标在进行中的回复上，跟着来的 refreshing 不改它，下一个快照清掉', () => {
     const gap = step(running(), {
       kind: 'frame',
       session: S,
@@ -563,13 +611,8 @@ describe('R20–R22 观察的帧', () => {
       frame: { kind: 'gap', reason: 'buffer' },
     }).state
     expect(asOpen(gap).content.liveStatus).toEqual({ kind: 'gap', reason: 'buffer' })
-    const refreshing = step(gap, {
-      kind: 'frame',
-      session: S,
-      generation: 1,
-      frame: { kind: 'refreshing' },
-    }).state
-    expect(asOpen(refreshing).content.liveStatus).toEqual({ kind: 'refreshing' })
+    const refreshing = step(gap, refreshingFrame).state
+    expect(asOpen(refreshing).content.liveStatus).toEqual({ kind: 'gap', reason: 'buffer' })
     const fresh = step(refreshing, {
       kind: 'frame',
       session: S,
@@ -696,6 +739,8 @@ describe('R27–R29 读历史', () => {
     expect(next.effects).toEqual([
       { kind: 'read-history', session: S, token: 1, request: { cursor: 'cur-2' } },
     ])
+    // The traversal is not finished: history is not yet read through its pinned revision.
+    expect(asOpen(next.state).content.readThrough).toBeNull()
   })
   it('R27 读完：条目合并；已提交的输入不再挂着', () => {
     const sent = step(open(), send).state

@@ -180,7 +180,8 @@ void serve('read-history', () => ({
     entries: [...log].reverse().map(entry => ({ ...entry, payload: toTree(entry.payload) })),
     next: null,
     exhausted: true,
-    scannedThrough: String(revision),
+    scannedThrough: String(log.length),
+    upper: String(revision),
   },
 }))
 void serve(
