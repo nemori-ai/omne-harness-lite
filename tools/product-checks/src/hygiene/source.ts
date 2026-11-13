@@ -130,12 +130,27 @@ function functionBand(syntax: ts.SourceFile, functionLines: number): SourceMeasu
   return { count, longest, longestLine }
 }
 
+const COMMENT_RUN = /(?:^[ \t]*(?:\/\/|\/\*|\*)[^\n]*\n){5}|\/\*(?:(?:(?!\*\/)[^\n])*\n){4}/mu
+
+function mayHaveForbiddenComment(text: string): boolean {
+  if (!text.includes('//') && !text.includes('/*')) return false
+  return FORBIDDEN_COMMENT.some(pattern => pattern.test(text)) || COMMENT_RUN.test(text)
+}
+
 export function measureSource(path: string, text: string, functionLines: number): SourceMeasure {
-  const syntax = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, scriptKind(path))
-  const mayHaveComments = text.includes('//') || text.includes('/*')
+  const lines = lineCount(text)
+  const parse = () =>
+    ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, scriptKind(path))
+  const noComments = { count: 0, firstLine: 0 }
+  const noFunctions = { count: 0, longest: 0, longestLine: 0 }
+  const needsFunctions = lines > functionLines
+  const needsComments = mayHaveForbiddenComment(text)
+  if (!needsFunctions && !needsComments)
+    return { lines, comments: noComments, functions: noFunctions }
+  const syntax = parse()
   return {
-    lines: lineCount(text),
-    comments: mayHaveComments ? commentViolations(syntax) : { count: 0, firstLine: 0 },
-    functions: functionBand(syntax, functionLines),
+    lines,
+    comments: needsComments ? commentViolations(syntax) : noComments,
+    functions: needsFunctions ? functionBand(syntax, functionLines) : noFunctions,
   }
 }
