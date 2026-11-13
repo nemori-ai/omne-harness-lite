@@ -69,6 +69,7 @@ export type ProviderStub = Readonly<{
   url: string
   certPath: string
   push(...steps: ScriptStep[]): void
+  clear(): void
   pending(): number
   arrivals(): readonly Arrival[]
   unscripted(): number
@@ -339,6 +340,9 @@ export async function startProviderStub(): Promise<ProviderStub> {
     certPath,
     push: (...steps) => {
       script.push(...steps)
+    },
+    clear: () => {
+      script.length = 0
     },
     pending: () => script.length,
     arrivals: () => [...arrivals],

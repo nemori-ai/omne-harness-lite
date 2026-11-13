@@ -48,6 +48,21 @@ function causeInServerLog(tools: CellTools, mark: number): void {
   )
 }
 
+const OUTAGE_MS = 120_000
+
+function retryInServerLog(tools: CellTools, mark: number): void {
+  const lines = tools.env
+    .records()
+    .slice(mark)
+    .map(record => JSON.stringify(record))
+    .filter(line => line.includes('agent run retries the model'))
+  tools.check(
+    'the retry and its cause are in the server log',
+    lines.length > 0,
+    lines.slice(0, 1).join('').slice(0, 300),
+  )
+}
+
 async function retryWorks(
   tools: CellTools,
   client: ProtocolDriver,
@@ -80,30 +95,55 @@ export const dCells: readonly Cell[] = [
     run: async tools => {
       const client = await signedIn(tools)
       const by = await bystander(tools, client)
-      const session = await client.createSession()
-      const mark = tools.env.mark()
+
+      const brief = await client.createSession()
+      const briefMark = tools.env.mark()
       tools.stub.push({ kind: 'refuse' }, { kind: 'refuse' }, { kind: 'refuse' })
-      tools.check('input accepted', (await client.send(session, 'd1 hello')) === 'succeeded')
-      const log = await tools.waitLog(
-        session,
-        'run terminal while the provider refuses',
+      tools.stub.push({ kind: 'reply', text: 'd1-after-retry' })
+      tools.check('input accepted', (await client.send(brief, 'd1 hello')) === 'succeeded')
+      const recovered = await tools.waitLog(
+        brief,
+        'run terminal after a short outage',
         entry => entry.terminals.length === 1,
         TURN_MS,
       )
       tools.check(
-        'the run has a definite end while the provider is down',
-        log?.terminals.length === 1,
-        JSON.stringify(log?.terminals),
+        'a short outage: the run completes by itself',
+        recovered?.terminals[0] === 'completed',
+        JSON.stringify(recovered?.terminals),
       )
       tools.check(
-        'the run is not written as completed',
-        log?.terminals[0] !== 'completed',
-        JSON.stringify(log?.terminals),
+        'a short outage: the reply arrives without a new input',
+        recovered?.assistants.includes('d1-after-retry') === true && recovered.users.length === 1,
+        `${JSON.stringify(recovered?.assistants)}, ${String(recovered?.users.length)} user messages`,
       )
-      await causeInHistory(tools, client, session)
-      causeInServerLog(tools, mark)
+      retryInServerLog(tools, briefMark)
+
+      const long = await client.createSession()
+      const longMark = tools.env.mark()
+      tools.stub.push(...Array.from({ length: 40 }, () => ({ kind: 'refuse' as const })))
+      tools.check('input accepted', (await client.send(long, 'd1 hello again')) === 'succeeded')
+      const failed = await tools.waitLog(
+        long,
+        'run terminal after an outage longer than the budget',
+        entry => entry.terminals.length === 1,
+        OUTAGE_MS,
+      )
+      tools.stub.clear()
+      tools.check(
+        'a long outage: the run ends as failed once the budget is used up',
+        failed?.terminals.length === 1 && failed.terminals[0] === 'failed',
+        JSON.stringify(failed?.terminals),
+      )
+      tools.check(
+        'a long outage: no reply is invented',
+        failed?.assistants.length === 0,
+        JSON.stringify(failed?.assistants),
+      )
+      await causeInHistory(tools, client, long)
+      causeInServerLog(tools, longMark)
       bystanderUnchanged(tools, by)
-      await retryWorks(tools, client, session, 1)
+      await retryWorks(tools, client, long, 1)
     },
   },
   {
@@ -116,6 +156,7 @@ export const dCells: readonly Cell[] = [
       const session = await client.createSession()
       const mark = tools.env.mark()
       tools.stub.push({ kind: 'cut', text: ESSAY, afterChars: 135, chunkGapMs: 20 })
+      tools.stub.push({ kind: 'reply', text: 'd2-whole-reply' })
       tools.check(
         'input accepted',
         (await client.send(session, 'd2 write an essay')) === 'succeeded',
@@ -127,21 +168,21 @@ export const dCells: readonly Cell[] = [
         TURN_MS,
       )
       tools.check(
-        'the run has a definite end',
-        log?.terminals.length === 1,
+        'the run completes by itself after the cut',
+        log?.terminals.length === 1 && log.terminals[0] === 'completed',
         JSON.stringify(log?.terminals),
       )
       tools.check(
-        'the run is not written as completed',
-        log !== null && log.terminals[0] !== 'completed',
-        JSON.stringify(log?.terminals),
+        'the reply is the whole second answer and the half reply is dropped',
+        log?.assistants.length === 1 && log.assistants[0] === 'd2-whole-reply',
+        JSON.stringify(log?.assistants.map(text => text.slice(0, 40))),
       )
       tools.check(
-        'what was already streamed is accounted for (a reply or a stated failure)',
-        log !== null && (log.assistants.length > 0 || log.terminals[0] !== 'completed'),
-        `${String(log?.assistants.length)} replies, ${JSON.stringify(log?.terminals)}`,
+        'the reply arrives without a new input',
+        log?.users.length === 1,
+        `${String(log?.users.length)} user messages`,
       )
-      causeInServerLog(tools, mark)
+      retryInServerLog(tools, mark)
       bystanderUnchanged(tools, by)
       await retryWorks(tools, client, session, 1)
     },

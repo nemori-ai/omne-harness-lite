@@ -64,10 +64,7 @@ export const expectations: Readonly<Record<string, Expectation>> = {
   'R-2/t2': { expected: 'untestable' },
   'R-2/t1': { expected: 'untestable' },
   'D-1': { expected: 'pass' },
-  'D-2': {
-    expected: 'fail',
-    failsBecause: 'o3: a stream cut mid-reply ends the run as completed with no assistant message',
-  },
+  'D-2': { expected: 'pass' },
   'X-1': { expected: 'fail', failsBecause: AFTER_RESTART_NO_END },
   'X-2': {
     expected: 'fail',
