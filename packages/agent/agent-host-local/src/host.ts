@@ -29,7 +29,7 @@
 //   names why in its record (R2-D285).
 // The runtime's own duties (quiesce drains, detaches and withdraws through the handle) belong to
 // the factory. The host never takes the end of a fiber for a detach or for a stopped execution.
-import { randomUUID } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import {
   advanceControl,
@@ -342,6 +342,12 @@ function runWaitingRecord(event: AgentRunWaiting): string {
     `execution=${event.execution} step=${event.step ?? 'none'} node=${event.node} ` +
     `owner=${event.owner} diagnostic=${event.diagnostic}`
   )
+}
+
+const RANDOM_SPAN = 2 ** 47
+
+function cryptoRandom(): number {
+  return randomInt(RANDOM_SPAN) / RANDOM_SPAN
 }
 
 /**
@@ -873,6 +879,7 @@ export function createHost(input: HostInput): Host {
       materials: stagePort(ctx, agentMaterialsKey),
       reads: stagePort(ctx, agentReadsKey),
       registration: entry.handle,
+      random: cryptoRandom,
     }
   }
 

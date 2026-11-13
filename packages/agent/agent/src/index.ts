@@ -25,6 +25,8 @@ export {
   type AgentTelemetryBase,
 } from './telemetry.ts'
 export type {
+  AgentModelRetrying,
+  AgentModelRetryingReceiver,
   AgentRunEndedFailed,
   AgentRunEndedFailedReceiver,
   AgentRunFailed,

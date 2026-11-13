@@ -417,12 +417,12 @@ describe('received Model result adoption', () => {
 
   it.each([
     ['failed', [], 'fail'],
-    ['partial-text', [{ kind: 'partial', content: 'text', value: 'half', trims: [] }], 'complete'],
+    ['partial-text', [{ kind: 'partial', content: 'text', value: 'half', trims: [] }], 'fail'],
     // R2-D268: an unsealed thinking part is a partial part as any other.
     [
       'partial-thinking',
       [{ kind: 'partial', content: 'thinking', value: 'reason', trims: [] }],
-      'complete',
+      'fail',
     ],
     // R2-D268: sealed reasoning is not content; a failed call that produced only it has no reply.
     [
@@ -444,7 +444,7 @@ describe('received Model result adoption', () => {
     [
       'partial-tool',
       [{ kind: 'partial', content: 'tool-arguments', value: '{', trims: [] }],
-      'complete',
+      'fail',
     ],
   ] as const)(
     'adopts %s from received material and retains the original bytes',
@@ -527,7 +527,7 @@ describe('received Model result adoption', () => {
       expect((await eventKinds(assembly)).filter(kind => kind === 'producer')).toHaveLength(1)
       expect((await load(assembly)).state).toMatchObject({
         kind: 'ended',
-        conclusion: { kind: kind === 'no-reply' ? 'fail' : 'complete' },
+        conclusion: { kind: kind === 'reply' ? 'complete' : 'fail' },
       })
       const replies = assembly.controls.handoff.prepare.calls.filter(
         item => item.request.source.kind === 'model-reply',

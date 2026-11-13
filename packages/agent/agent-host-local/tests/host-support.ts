@@ -119,6 +119,7 @@ export const hostConfig: AgentHostConfig = {
   jointCommits: [],
   coordination: 'standalone',
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
+  modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: IDLE_MS,
 }
 

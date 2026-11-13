@@ -103,6 +103,7 @@ describe('implementation has no Cordis', () => {
       '@omne-harness/legal-identity': 'workspace:*',
       '@omne-harness/model-contract': 'workspace:*',
       '@omne-harness/operation-result': 'workspace:*',
+      '@omne-harness/retry': 'workspace:*',
       '@omne-harness/telemetry-contract': 'workspace:*',
       '@omne-harness/tool-contract': 'workspace:*',
     })
