@@ -15,6 +15,7 @@ export {
   type ObservationEnd,
   type ObserveOptions,
   type OpenOf,
+  type ReadRetry,
 } from './client.ts'
 export {
   createHttpProtocolTransport,
