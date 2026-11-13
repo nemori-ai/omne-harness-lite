@@ -16,14 +16,14 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 
 请求字段：
 
-| 字段 | 要求 |
-| --- | --- |
-| `protocolVersion` | 字符串。唯一合法值是 `governance-public/1`。 |
-| `messageId` | 调用者生成的字符串。只用于把响应对应到这次发送。它不是去重键。`create-organization` 的调用身份是 `body` 里的 `createCallId`，不是这个字段。 |
-| `operation` | 下文字段「操作」中的名字。 |
-| `loginProof` | 下表为「必填」时必须是服务端能核验的不透明字符串。诊断输出不能包含它。密码学形式归登录提供者。下表为「禁止」时不能出现。 |
-| `actingTenant` | 下表为「必填」时必须是已解析的租户标识，并且等于该登录的当前选择。下表为「禁止」时不能出现。它不是目标组织。 |
-| `body` | 该操作的对象。没有额外输入时是空对象。可省略的 `body` 字段只在下表列出。 |
+| 字段              | 要求                                                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `protocolVersion` | 字符串。唯一合法值是 `governance-public/1`。                                                                                                |
+| `messageId`       | 调用者生成的字符串。只用于把响应对应到这次发送。它不是去重键。`create-organization` 的调用身份是 `body` 里的 `createCallId`，不是这个字段。 |
+| `operation`       | 下文字段「操作」中的名字。                                                                                                                  |
+| `loginProof`      | 下表为「必填」时必须是服务端能核验的不透明字符串。诊断输出不能包含它。密码学形式归登录提供者。下表为「禁止」时不能出现。                    |
+| `actingTenant`    | 下表为「必填」时必须是已解析的租户标识，并且等于该登录的当前选择。下表为「禁止」时不能出现。它不是目标组织。                                |
+| `body`            | 该操作的对象。没有额外输入时是空对象。可省略的 `body` 字段只在下表列出。                                                                    |
 
 请求的 `protocolVersion` 恰好是一个字符串，并且该字符串是 `governance-public/1` 时，这个版本才可信。可靠读出的其他版本字符串不可信。`messageId` 恰好是一个字符串时，这个 `messageId` 可信。请求同时给出可信版本和可信 `messageId` 时，响应使用这两个值。`outcome` 取下节的对外结果。`body` 只放该结果允许公开的字段。
 
@@ -49,15 +49,15 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 
 信封字段按操作闭合。
 
-| 操作 | `loginProof` | `actingTenant` | 可省略的 `body` 字段 |
-| --- | --- | --- | --- |
-| `public-health`、`register-and-activate`、`issue-login` | 禁止 | 禁止 | 无 |
-| `revoke-login`、`replace-credential`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-create-organization` | 必填 | 禁止 | 无 |
-| `issue-member-invitation`、`open-affiliation-request` | 必填 | 必填 | `duration` |
-| `query-organization-members` | 必填 | 必填 | `includeRemoved` |
-| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | 必填 | 必填 | 无 |
-| `list-settings` | 必填 | 必填 | `asset`，以及 `asset` 里的 `category` |
-| `set-setting`、`describe-setting`、`clear-setting` | 必填 | 必填 | `asset` 里的 `category` |
+| 操作                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `loginProof` | `actingTenant` | 可省略的 `body` 字段                  |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | -------------- | ------------------------------------- |
+| `public-health`、`register-and-activate`、`issue-login`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 禁止         | 禁止           | 无                                    |
+| `revoke-login`、`replace-credential`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-create-organization`                                                                                                                                                                                                                                                                                                                                                                                                                     | 必填         | 禁止           | 无                                    |
+| `issue-member-invitation`、`open-affiliation-request`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 必填         | 必填           | `duration`                            |
+| `query-organization-members`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 必填         | 必填           | `includeRemoved`                      |
+| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | 必填         | 必填           | 无                                    |
+| `list-settings`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 必填         | 必填           | `asset`，以及 `asset` 里的 `category` |
+| `set-setting`、`describe-setting`、`clear-setting`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 必填         | 必填           | `asset` 里的 `category`               |
 
 `disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 不进入这张表。
 
@@ -80,21 +80,21 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 
 调用者只能依赖 `outcome` 和该结果列出的 `body`。内部诊断可以更细，但不能从 SDK 或普通错误文本读到。
 
-| outcome | 调用者可以知道的 | 不能从该结果推出的 |
-| --- | --- | --- |
-| `succeeded` | 该操作的成功条件已经成立 | 其他登录、其他成员或后续动作已经获准 |
-| `no-change` | 核验通过，目标状态没有新的变化 | 调用者因此获得新资格 |
-| `denied` | 本次不获准 | 是明确禁止、无权、登录失效，还是跨租户未授予 |
-| `not-visible` | 与目标不存在使用同一表现 | 目标是否存在，或属于哪个账号 |
-| `uniform-auth-failure` | 登录未签发 | 账号不存在、未激活，还是凭据错误 |
-| `not-loginable` | 这次没有报告账号可登录 | 标识是否占用，或开通条件哪一条失败 |
-| `basis-unavailable` | 现在不能得出允许 | 把它当成已知无权或已知冲突 |
-| `need-decision` | 要等待原决定请求的一次答复 | 等待已经批准、拒绝，或将会超时批准 |
-| `unknown` | 提交结果尚未认回 | 效果没有发生，或可以安全地自动再做一次 |
-| `conflict` | 调用者有权看见的预期状态已经变了 | 调用者看不见的对象因此被确认存在 |
-| `not-writable` | 目标是本部署不提供写入的设置项 | 该项不存在，或别的部署也不能写入 |
-| `protocol-rejected` | 消息不被接受 | 任何业务事实 |
-| `stage-not-provided` | 本阶段，或本部署不提供该操作 | 主体是否存在，或删除、创建已经代替该操作，以及登录是否有效 |
+| outcome                | 调用者可以知道的                 | 不能从该结果推出的                                         |
+| ---------------------- | -------------------------------- | ---------------------------------------------------------- |
+| `succeeded`            | 该操作的成功条件已经成立         | 其他登录、其他成员或后续动作已经获准                       |
+| `no-change`            | 核验通过，目标状态没有新的变化   | 调用者因此获得新资格                                       |
+| `denied`               | 本次不获准                       | 是明确禁止、无权、登录失效，还是跨租户未授予               |
+| `not-visible`          | 与目标不存在使用同一表现         | 目标是否存在，或属于哪个账号                               |
+| `uniform-auth-failure` | 登录未签发                       | 账号不存在、未激活，还是凭据错误                           |
+| `not-loginable`        | 这次没有报告账号可登录           | 标识是否占用，或开通条件哪一条失败                         |
+| `basis-unavailable`    | 现在不能得出允许                 | 把它当成已知无权或已知冲突                                 |
+| `need-decision`        | 要等待原决定请求的一次答复       | 等待已经批准、拒绝，或将会超时批准                         |
+| `unknown`              | 提交结果尚未认回                 | 效果没有发生，或可以安全地自动再做一次                     |
+| `conflict`             | 调用者有权看见的预期状态已经变了 | 调用者看不见的对象因此被确认存在                           |
+| `not-writable`         | 目标是本部署不提供写入的设置项   | 该项不存在，或别的部署也不能写入                           |
+| `protocol-rejected`    | 消息不被接受                     | 任何业务事实                                               |
+| `stage-not-provided`   | 本阶段，或本部署不提供该操作     | 主体是否存在，或删除、创建已经代替该操作，以及登录是否有效 |
 
 `need-decision` 的 `body` 只含原决定请求的标识。等待超时、连接断开和实例丢失不产生人的答复，也不写成批准或拒绝。这个结果只传引用，不带卡片内容，也不受理答复。调用者在 HITL 位置读卡和答复，见[HITL 公开操作](#hitl-公开操作)。卡片与答复的业务事实仍归 HITL。
 
@@ -112,17 +112,16 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 下表每一份治理名单都适用同一条完整性规则。成功时 `completeness` 在 `body` 里，紧挨名单数组，值为 `complete`，数组给出全部当前项。不可用时 `outcome` 是 `basis-unavailable`，`body` 没有该数组，也没有 `completeness`。任一项的状态无法在读取时判定时，整份名单不可用。不丢项，不把不可用改成空名单，也不把待处理改成过期。治理协议不按页返回名单。历史登录不在「查询本人有效登录」里。
 
-| 名单 | 数组名 | 每一项 |
-| --- | --- | --- |
-| 有效登录 | `logins` | `loginId`、`issuedAt`、`maxDeadline`（签发时确定，不再变）与 `idleDeadline`（读取时该登录当前的空闲截止时刻） |
-| 本人成员资格 | `memberships` | `organizationId`、`tenantId`、`role` |
-| 组织成员 | `members` | `accountId`、`role`。`includeRemoved` 为 false 时只有当前有效成员。为 true 时只有已解除成员 |
-| 成员邀请 | `invitations` | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId` |
-| 隶属请求 | `affiliationRequests` | `requestId`、`state`、`expiresAt`、`superiorOrganizationId`、`subordinateOrganizationId` |
-| 设置项 | `items` | `asset`、`item`、`title`、`sensitivity`、`state`，见[设置项](#设置项) |
+| 名单         | 数组名                | 每一项                                                                                                        |
+| ------------ | --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 有效登录     | `logins`              | `loginId`、`issuedAt`、`maxDeadline`（签发时确定，不再变）与 `idleDeadline`（读取时该登录当前的空闲截止时刻） |
+| 本人成员资格 | `memberships`         | `organizationId`、`tenantId`、`role`                                                                          |
+| 组织成员     | `members`             | `accountId`、`role`。`includeRemoved` 为 false 时只有当前有效成员。为 true 时只有已解除成员                   |
+| 成员邀请     | `invitations`         | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId`                                    |
+| 隶属请求     | `affiliationRequests` | `requestId`、`state`、`expiresAt`、`superiorOrganizationId`、`subordinateOrganizationId`                      |
+| 设置项       | `items`               | `asset`、`item`、`title`、`sensitivity`、`state`，见[设置项](#设置项)                                         |
 
 治理操作的并发控制核对调用者有权看见的预期状态。本协议不另造整数版本号。预期状态在提交时核对。调用者无权看见目标时返回 `not-visible`，不返回 `conflict`。
-
 
 ## body 字段
 
@@ -130,32 +129,32 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 空字符串的必填字符串与缺键相同，是 `protocol-rejected`。必填 `loginProof` 仍按第 4 步，不在第 3 步拒绝。
 
-| 操作 | 必填 body 键 | 可省略 | 禁止 |
-| --- | --- | --- | --- |
-| `public-health`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-issued-invitations`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`leave-organization` | 无。`body` 是空对象 | 无 | 任何键。`leave-organization` 还禁止 `accountId` |
-| `register-and-activate`、`issue-login` | `loginIdentifier`、`credential` | 无 | 任何其他键 |
-| `revoke-login` | `targetLoginId` | 无 | 任何其他键 |
-| `replace-credential` | `currentCredential`、`newCredential` | 无 | 任何其他键 |
-| `create-organization` | `createCallId`、`name`、`governanceModelId` | 无 | 任何其他键 |
-| `query-create-organization` | `targetCreateCallId`、`name`、`governanceModelId` | 无 | 任何其他键 |
-| `issue-member-invitation` | `invitedLoginIdentifier` | `duration` | `role` 及其他键 |
-| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation` | `invitationId`、`expectedState` | 无 | 任何其他键。`expectedState` 只能是 `open` |
-| `query-invitation` | `invitationId` | 无 | 任何其他键 |
-| `remove-member` | `organizationId`、`accountId`、`expectedRole` | 无 | 任何其他键 |
-| `change-member-role` | `organizationId`、`accountId`、`expectedRole`、`targetRole` | 无 | 任何其他键 |
-| `switch-current-tenant` | `tenantId` | 无 | 任何其他键 |
-| `query-organization` | `organizationId` | 无 | 任何其他键 |
-| `query-organization-members` | `organizationId` | `includeRemoved` | 任何其他键。省略时 `includeRemoved` 为 false |
-| `release-affiliation` | `affiliationId`、`expectedState` | 无 | 任何其他键。`expectedState` 只能是 `effective` |
-| `open-affiliation-request` | `superiorOrganizationId`、`subordinateOrganizationId` | `duration` | 任何其他键 |
-| `accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request` | `requestId`、`expectedState` | 无 | 任何其他键。`expectedState` 只能是 `pending` |
-| `query-affiliation-request` | `requestId` | 无 | 任何其他键 |
-| `judge-admission` | `resource`、`action`、`parameters`、`scopeId` | 无 | `subject`、`admitted` 及其他键 |
-| `submit-authorization-expression` | `expression`、`action`、`object`、`parameters` | 无 | 任何其他键 |
-| `withdraw-authorization-expression` | `expressionId` | 无 | 任何其他键 |
-| `list-settings` | 无 | `asset` | 任何其他键 |
-| `set-setting` | `asset`、`item`、`secret` | 无 | 任何其他键 |
-| `describe-setting`、`clear-setting` | `asset`、`item` | 无 | 任何其他键 |
+| 操作                                                                                                                                                                                                                                                   | 必填 body 键                                                | 可省略           | 禁止                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- | ---------------- | ----------------------------------------------- |
+| `public-health`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-issued-invitations`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`leave-organization` | 无。`body` 是空对象                                         | 无               | 任何键。`leave-organization` 还禁止 `accountId` |
+| `register-and-activate`、`issue-login`                                                                                                                                                                                                                 | `loginIdentifier`、`credential`                             | 无               | 任何其他键                                      |
+| `revoke-login`                                                                                                                                                                                                                                         | `targetLoginId`                                             | 无               | 任何其他键                                      |
+| `replace-credential`                                                                                                                                                                                                                                   | `currentCredential`、`newCredential`                        | 无               | 任何其他键                                      |
+| `create-organization`                                                                                                                                                                                                                                  | `createCallId`、`name`、`governanceModelId`                 | 无               | 任何其他键                                      |
+| `query-create-organization`                                                                                                                                                                                                                            | `targetCreateCallId`、`name`、`governanceModelId`           | 无               | 任何其他键                                      |
+| `issue-member-invitation`                                                                                                                                                                                                                              | `invitedLoginIdentifier`                                    | `duration`       | `role` 及其他键                                 |
+| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`                                                                                                                                                                   | `invitationId`、`expectedState`                             | 无               | 任何其他键。`expectedState` 只能是 `open`       |
+| `query-invitation`                                                                                                                                                                                                                                     | `invitationId`                                              | 无               | 任何其他键                                      |
+| `remove-member`                                                                                                                                                                                                                                        | `organizationId`、`accountId`、`expectedRole`               | 无               | 任何其他键                                      |
+| `change-member-role`                                                                                                                                                                                                                                   | `organizationId`、`accountId`、`expectedRole`、`targetRole` | 无               | 任何其他键                                      |
+| `switch-current-tenant`                                                                                                                                                                                                                                | `tenantId`                                                  | 无               | 任何其他键                                      |
+| `query-organization`                                                                                                                                                                                                                                   | `organizationId`                                            | 无               | 任何其他键                                      |
+| `query-organization-members`                                                                                                                                                                                                                           | `organizationId`                                            | `includeRemoved` | 任何其他键。省略时 `includeRemoved` 为 false    |
+| `release-affiliation`                                                                                                                                                                                                                                  | `affiliationId`、`expectedState`                            | 无               | 任何其他键。`expectedState` 只能是 `effective`  |
+| `open-affiliation-request`                                                                                                                                                                                                                             | `superiorOrganizationId`、`subordinateOrganizationId`       | `duration`       | 任何其他键                                      |
+| `accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`                                                                                                                                                             | `requestId`、`expectedState`                                | 无               | 任何其他键。`expectedState` 只能是 `pending`    |
+| `query-affiliation-request`                                                                                                                                                                                                                            | `requestId`                                                 | 无               | 任何其他键                                      |
+| `judge-admission`                                                                                                                                                                                                                                      | `resource`、`action`、`parameters`、`scopeId`               | 无               | `subject`、`admitted` 及其他键                  |
+| `submit-authorization-expression`                                                                                                                                                                                                                      | `expression`、`action`、`object`、`parameters`              | 无               | 任何其他键                                      |
+| `withdraw-authorization-expression`                                                                                                                                                                                                                    | `expressionId`                                              | 无               | 任何其他键                                      |
+| `list-settings`                                                                                                                                                                                                                                        | 无                                                          | `asset`          | 任何其他键                                      |
+| `set-setting`                                                                                                                                                                                                                                          | `asset`、`item`、`secret`                                   | 无               | 任何其他键                                      |
+| `describe-setting`、`clear-setting`                                                                                                                                                                                                                    | `asset`、`item`                                             | 无               | 任何其他键                                      |
 
 `asset` 是一个对象，必填 `name`，可省略 `category`，禁止其他键。两者都是非空字符串。
 
@@ -167,36 +166,35 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 没有另行列出的 `denied`、`not-visible`、`basis-unavailable`、`conflict`、`not-writable`、`protocol-rejected` 和 `stage-not-provided`，`body` 都是空对象。
 
-| 结果 | body |
-| --- | --- |
-| `register-and-activate` 的 `succeeded` | `accountId`、`organizationId`、`tenantId`。不含 `loginProof` |
-| `issue-login` 的 `succeeded` | `loginIdentifier`、`issuedAt`、`tenantId`、`loginProof`，以及可选的 `loginId`。`loginProof` 只在这一次响应出现 |
-| `create-organization` 的 `succeeded`，以及该回执查询得到的 `succeeded` | `organizationId`、`tenantId` |
-| `issue-member-invitation` 的 `succeeded` | `invitationId`、`state` 为 `open`、`expiresAt` |
-| 邀请处置的 `succeeded` 或有权看见的 `no-change` | `invitationId`、`state`。`state` 是已经形成的那一个终结 |
-| `query-invitation` 的 `succeeded` | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId` |
-| 邀请名单的 `succeeded` | `invitations`、`completeness` 为 `complete` |
-| `open-affiliation-request` 的 `succeeded` | `requestId`、`state` 为 `pending`、`expiresAt` |
-| 隶属请求处置的 `succeeded` | 接受时含 `affiliationId` 和 `state` 为 `effective`。拒绝或撤回时含 `requestId` 和对应的 `state` |
-| 隶属请求处置的有权看见的 `no-change` | `requestId`，以及已经形成的请求 `state` |
-| `release-affiliation` 的有权看见的 `no-change` | `affiliationId`，`state` 为 `released` |
-| `query-affiliation-request` 和隶属名单的 `succeeded` | 单条含 `requestId`、`state`、`expiresAt`、`superiorOrganizationId`、`subordinateOrganizationId`。名单用 `affiliationRequests` 和 `completeness` |
-| `switch-current-tenant` 的 `succeeded`、`query-current-tenant` 的 `succeeded` | `tenantId`。`no-change`、`denied` 和 `basis-unavailable` 不含 `tenantId` |
-| `query-own-valid-logins` 的 `succeeded` | `logins`、`completeness` |
-| `query-own-memberships` 的 `succeeded` | `memberships`、`completeness` |
-| `query-organization` 的 `succeeded` | `organizationId`、`name`、`kind`。有上级时才有 `superiorOrganizationId` |
-| `query-organization-members` 的 `succeeded` | `members`、`completeness` |
-| `public-health` 的 `succeeded` | `protocolVersion` 为 `governance-public/1` |
-| `judge-admission` 的 `succeeded` | `admitted` 为 true。不含许可秘密 |
-| `judge-admission` 的 `need-decision` | `decisionRequestId` |
-| 表达已记录、持久设置尚未发生且这次写入没有失败的 `succeeded` | `expressionId`，`persistentSettingsUpdated` 为 false |
-| 已有 `expressionId` 的同一决定再次提交的 `no-change` | `expressionId` |
-| `revoke-login`、`replace-credential`、`leave-organization`、`remove-member`、`change-member-role` 的 `succeeded` | 空对象 |
-| `list-settings` 的 `succeeded` | `items`、`completeness` 为 `complete`。每一项见[设置项](#设置项) |
-| `set-setting` 的 `succeeded` | `configuredAt`。不含秘密 |
-| `describe-setting` 的 `succeeded` | `own` 与 `official`，见[设置项](#设置项)。不含秘密 |
-| `clear-setting` 的 `succeeded` 与 `no-change` | 空对象 |
-
+| 结果                                                                                                             | body                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `register-and-activate` 的 `succeeded`                                                                           | `accountId`、`organizationId`、`tenantId`。不含 `loginProof`                                                                                    |
+| `issue-login` 的 `succeeded`                                                                                     | `loginIdentifier`、`issuedAt`、`tenantId`、`loginProof`，以及可选的 `loginId`。`loginProof` 只在这一次响应出现                                  |
+| `create-organization` 的 `succeeded`，以及该回执查询得到的 `succeeded`                                           | `organizationId`、`tenantId`                                                                                                                    |
+| `issue-member-invitation` 的 `succeeded`                                                                         | `invitationId`、`state` 为 `open`、`expiresAt`                                                                                                  |
+| 邀请处置的 `succeeded` 或有权看见的 `no-change`                                                                  | `invitationId`、`state`。`state` 是已经形成的那一个终结                                                                                         |
+| `query-invitation` 的 `succeeded`                                                                                | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId`                                                                      |
+| 邀请名单的 `succeeded`                                                                                           | `invitations`、`completeness` 为 `complete`                                                                                                     |
+| `open-affiliation-request` 的 `succeeded`                                                                        | `requestId`、`state` 为 `pending`、`expiresAt`                                                                                                  |
+| 隶属请求处置的 `succeeded`                                                                                       | 接受时含 `affiliationId` 和 `state` 为 `effective`。拒绝或撤回时含 `requestId` 和对应的 `state`                                                 |
+| 隶属请求处置的有权看见的 `no-change`                                                                             | `requestId`，以及已经形成的请求 `state`                                                                                                         |
+| `release-affiliation` 的有权看见的 `no-change`                                                                   | `affiliationId`，`state` 为 `released`                                                                                                          |
+| `query-affiliation-request` 和隶属名单的 `succeeded`                                                             | 单条含 `requestId`、`state`、`expiresAt`、`superiorOrganizationId`、`subordinateOrganizationId`。名单用 `affiliationRequests` 和 `completeness` |
+| `switch-current-tenant` 的 `succeeded`、`query-current-tenant` 的 `succeeded`                                    | `tenantId`。`no-change`、`denied` 和 `basis-unavailable` 不含 `tenantId`                                                                        |
+| `query-own-valid-logins` 的 `succeeded`                                                                          | `logins`、`completeness`                                                                                                                        |
+| `query-own-memberships` 的 `succeeded`                                                                           | `memberships`、`completeness`                                                                                                                   |
+| `query-organization` 的 `succeeded`                                                                              | `organizationId`、`name`、`kind`。有上级时才有 `superiorOrganizationId`                                                                         |
+| `query-organization-members` 的 `succeeded`                                                                      | `members`、`completeness`                                                                                                                       |
+| `public-health` 的 `succeeded`                                                                                   | `protocolVersion` 为 `governance-public/1`                                                                                                      |
+| `judge-admission` 的 `succeeded`                                                                                 | `admitted` 为 true。不含许可秘密                                                                                                                |
+| `judge-admission` 的 `need-decision`                                                                             | `decisionRequestId`                                                                                                                             |
+| 表达已记录、持久设置尚未发生且这次写入没有失败的 `succeeded`                                                     | `expressionId`，`persistentSettingsUpdated` 为 false                                                                                            |
+| 已有 `expressionId` 的同一决定再次提交的 `no-change`                                                             | `expressionId`                                                                                                                                  |
+| `revoke-login`、`replace-credential`、`leave-organization`、`remove-member`、`change-member-role` 的 `succeeded` | 空对象                                                                                                                                          |
+| `list-settings` 的 `succeeded`                                                                                   | `items`、`completeness` 为 `complete`。每一项见[设置项](#设置项)                                                                                |
+| `set-setting` 的 `succeeded`                                                                                     | `configuredAt`。不含秘密                                                                                                                        |
+| `describe-setting` 的 `succeeded`                                                                                | `own` 与 `official`，见[设置项](#设置项)。不含秘密                                                                                              |
+| `clear-setting` 的 `succeeded` 与 `no-change`                                                                    | 空对象                                                                                                                                          |
 
 ## 操作
 
@@ -209,8 +207,6 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 留存期内，同一登录标识和同一凭据接续原来的未激活注册。激活完成时，账号、唯一个人组织和个人租户共同成立，返回 `succeeded`。`body` 含三个标识。不含登录证明。成功不表示已经登录。不同凭据不能认领该记录。账号已经激活时返回 `not-loginable`，不覆盖原账号。已判定到期的未激活记录不复活。此后同一标识的注册是新的一次。
 
 其他条件不足或依据不可得也是 `not-loginable`。回执丢失是 `unknown`。认回用一次新的 `issue-login`。那里的 `succeeded` 表示账号已经可以登录。`uniform-auth-failure` 不证明激活没有发生。重复注册失败也不能证明此前没有激活。
-
-
 
 ### `issue-login`
 
@@ -338,12 +334,12 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 成功的对外结果不是单一的 `succeeded`。它是下面四个之一。
 
-| 业务结果 | outcome | body |
-| --- | --- | --- |
-| 允许 | `succeeded` | 本次动作准入通过。不含可复用的许可秘密。 |
-| 拒绝 | `denied` | 空对象 |
-| 需要决定 | `need-decision` | 原决定请求标识 |
-| 依据不可得 | `basis-unavailable` | 空对象 |
+| 业务结果   | outcome             | body                                     |
+| ---------- | ------------------- | ---------------------------------------- |
+| 允许       | `succeeded`         | 本次动作准入通过。不含可复用的许可秘密。 |
+| 拒绝       | `denied`            | 空对象                                   |
+| 需要决定   | `need-decision`     | 原决定请求标识                           |
+| 依据不可得 | `basis-unavailable` | 空对象                                   |
 
 本操作的可信主体就是登录证明上的账号。请求里再写一个主体是封闭字段之外的字段，返回 `protocol-rejected`。不从 `body` 读取行动者，也不伪造登录。
 
@@ -375,12 +371,12 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 - `clear-setting` 清除行事租户这一层的一个秘密项。成功时 `body` 为空。没有配置时是 `no-change`。`not-writable`、`basis-unavailable` 与 `unknown` 的含义同 `set-setting`。
 - 四个操作都不写部署层。部署层由运维者在本机写入，本协议不提供写它的路径。
 
-| `state` | 含义 | 其他键 |
-| --- | --- | --- |
-| `unbound` | 该租户没有配置这个秘密 | 无 |
-| `usable` | 已配置，秘密可以读出 | `tenantId`（归属）；`configuredAt`（保管没有记录时刻时缺席） |
-| `revoked` | 已配置，绑定已撤销 | 同上 |
-| `unreadable` | 已配置，秘密读不出 | 同上 |
+| `state`      | 含义                   | 其他键                                                       |
+| ------------ | ---------------------- | ------------------------------------------------------------ |
+| `unbound`    | 该租户没有配置这个秘密 | 无                                                           |
+| `usable`     | 已配置，秘密可以读出   | `tenantId`（归属）；`configuredAt`（保管没有记录时刻时缺席） |
+| `revoked`    | 已配置，绑定已撤销     | 同上                                                         |
+| `unreadable` | 已配置，秘密读不出     | 同上                                                         |
 
 `items` 的每一项含 `asset`（`category` 与 `name` 都在）、`item`、`title`（给人读的项名）、`sensitivity`（`secret` 或 `ordinary`）和 `state`。秘密项的 `state` 是行事租户这一层，同上表，另含 `official`，是部署层的状态，同 `describe-setting` 的 `official`；任何一层读不出时整次是 `basis-unavailable`。普通项的 `state` 是 `not-writable`，没有 `official`。
 
@@ -460,11 +456,11 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 下列名字在版本已经是 `governance-public/1` 之后，先于封闭字段和登录核验。服务端立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录证明。不查询主体是否存在。版本不是 `governance-public/1` 时，第 2 步已经是 `protocol-rejected`，不到这里。
 
-| operation | 对外结果 |
-| --- | --- |
-| `disable-subject` | `stage-not-provided` |
-| `restore-subject` | `stage-not-provided` |
-| `end-subject` | `stage-not-provided` |
+| operation                 | 对外结果             |
+| ------------------------- | -------------------- |
+| `disable-subject`         | `stage-not-provided` |
+| `restore-subject`         | `stage-not-provided` |
+| `end-subject`             | `stage-not-provided` |
 | `reopen-after-media-loss` | `stage-not-provided` |
 
 旧备份中的角色不授予访问。坏的 `body` 和坏的登录证明都不改变 `stage-not-provided`。
@@ -492,38 +488,38 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 `loginProof` 与 `actingTenant` 的字段要求同共同消息。信封按操作闭合：
 
-| 操作 | `loginProof` | `actingTenant` | body 字段（全部必填，除非另写） |
-| --- | --- | --- | --- |
-| `create-session` | 必填 | 必填 | `createCallId`、`definition`、`purpose` |
-| `query-create-session` | 必填 | 禁止 | `tenant`、`createCallId` |
-| `send-input` | 必填 | 禁止 | `tenant`、`session`、`acceptId`、`inputId`、`message` |
-| `query-send-input` | 必填 | 禁止 | `tenant`、`session`、`acceptId` |
-| `read-history` | 必填 | 禁止 | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `direction`、`pageBytes` |
-| `cancel-run` | 必填 | 禁止 | `tenant`、`session`、`controlId`、`run`、`urgency` |
-| `stop-call` | 必填 | 禁止 | `tenant`、`session`、`controlId`、`producer` |
-| `read-session-diagnostics` | 必填 | 禁止 | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `run`、`pageBytes` |
+| 操作                       | `loginProof` | `actingTenant` | body 字段（全部必填，除非另写）                                                 |
+| -------------------------- | ------------ | -------------- | ------------------------------------------------------------------------------- |
+| `create-session`           | 必填         | 必填           | `createCallId`、`definition`、`purpose`                                         |
+| `query-create-session`     | 必填         | 禁止           | `tenant`、`createCallId`                                                        |
+| `send-input`               | 必填         | 禁止           | `tenant`、`session`、`acceptId`、`inputId`、`message`                           |
+| `query-send-input`         | 必填         | 禁止           | `tenant`、`session`、`acceptId`                                                 |
+| `read-history`             | 必填         | 禁止           | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `direction`、`pageBytes` |
+| `cancel-run`               | 必填         | 禁止           | `tenant`、`session`、`controlId`、`run`、`urgency`                              |
+| `stop-call`                | 必填         | 禁止           | `tenant`、`session`、`controlId`、`producer`                                    |
+| `read-session-diagnostics` | 必填         | 禁止           | `tenant`、`session`、`cursor`；`cursor` 为 null 时另有 `run`、`pageBytes`       |
 
 [会话观察](#会话观察)另有 `observe-session` 与 `cancel-observation` 两个请求操作名。除本表与这两个操作外，任何其他操作名在会话位置都是 `protocol-rejected`，`observation-frame` 也是。
 
 ### 会话 body 字段
 
-| 字段 | 要求 |
-| --- | --- |
-| `createCallId` | 非空字符串，调用者在首次发送前生成。唯一范围是同一租户的 `create-session` 调用。同一次创建的重试保持同值。 |
-| `definition` | 非空字符串，部署提供的会话定义名。定义名集合归部署装配。 |
-| `purpose` | 字符串，可以为空。 |
-| `tenant` | 租户文本，读取规则与 `tenantId` 相同（见[本地值与线上表示](#本地值与线上表示)）。它是目标会话的租户，不是行事租户。 |
-| `session` | `create-session` 成功时返回的会话标识文本：64 个小写十六进制字符（`^[0-9a-f]{64}$`），即[派生身份](../../../docs/architecture/runtime/runtime-contract-handoff.md#派生身份)中的会话标识摘要。 |
-| `acceptId` | 非空字符串，调用者在首次发送前生成的受理标识。唯一范围是同一会话。重试保持同值。 |
-| `inputId` | 非空字符串，调用者在首次发送前生成的输入标识。唯一范围是同一会话。重试保持同值。 |
-| `message` | 一条 `role` 为 `user` 的消息，形状归 [message 包](../../common/message/SPEC.md)。本成员的读取范围见[会话编解码函数](#会话编解码函数)。 |
-| `cursor` | 键必须出现。null 表示读首页；否则是非空字符串，即上一页回复里 `next` 的原文。`read-history` 与 `read-session-diagnostics` 的游标各自独立，不能互换。 |
-| `direction` | `forward` 或 `backward`。只在 `read-history` 的 `cursor` 为 null 时出现。 |
-| `pageBytes` | 匹配 `^[1-9][0-9]*$` 的文本，一页的字节上界。只在 `cursor` 为 null 时出现。 |
-| `controlId` | 非空字符串，调用者在首次发送前生成的控制标识。唯一范围见[会话中断操作](#会话中断操作)。 |
-| `run` | `cancel-run`：非空字符串，要取消的 Run 的标识文本。`read-session-diagnostics`：null 表示全部 Run，从最新开始；否则是一个 Run 的标识文本，非空字符串。只在 `cursor` 为 null 时出现。 |
-| `urgency` | `graceful` 或 `force`。 |
-| `producer` | 恰含 `kind` 与 `call` 两个字段的对象。`kind` 为 `model` 或 `tool`，`call` 为非空字符串，即要停止的那次调用。 |
+| 字段           | 要求                                                                                                                                                                                          |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createCallId` | 非空字符串，调用者在首次发送前生成。唯一范围是同一租户的 `create-session` 调用。同一次创建的重试保持同值。                                                                                    |
+| `definition`   | 非空字符串，部署提供的会话定义名。定义名集合归部署装配。                                                                                                                                      |
+| `purpose`      | 字符串，可以为空。                                                                                                                                                                            |
+| `tenant`       | 租户文本，读取规则与 `tenantId` 相同（见[本地值与线上表示](#本地值与线上表示)）。它是目标会话的租户，不是行事租户。                                                                           |
+| `session`      | `create-session` 成功时返回的会话标识文本：64 个小写十六进制字符（`^[0-9a-f]{64}$`），即[派生身份](../../../docs/architecture/runtime/runtime-contract-handoff.md#派生身份)中的会话标识摘要。 |
+| `acceptId`     | 非空字符串，调用者在首次发送前生成的受理标识。唯一范围是同一会话。重试保持同值。                                                                                                              |
+| `inputId`      | 非空字符串，调用者在首次发送前生成的输入标识。唯一范围是同一会话。重试保持同值。                                                                                                              |
+| `message`      | 一条 `role` 为 `user` 的消息，形状归 [message 包](../../common/message/SPEC.md)。本成员的读取范围见[会话编解码函数](#会话编解码函数)。                                                        |
+| `cursor`       | 键必须出现。null 表示读首页；否则是非空字符串，即上一页回复里 `next` 的原文。`read-history` 与 `read-session-diagnostics` 的游标各自独立，不能互换。                                          |
+| `direction`    | `forward` 或 `backward`。只在 `read-history` 的 `cursor` 为 null 时出现。                                                                                                                     |
+| `pageBytes`    | 匹配 `^[1-9][0-9]*$` 的文本，一页的字节上界。只在 `cursor` 为 null 时出现。                                                                                                                   |
+| `controlId`    | 非空字符串，调用者在首次发送前生成的控制标识。唯一范围见[会话中断操作](#会话中断操作)。                                                                                                       |
+| `run`          | `cancel-run`：非空字符串，要取消的 Run 的标识文本。`read-session-diagnostics`：null 表示全部 Run，从最新开始；否则是一个 Run 的标识文本，非空字符串。只在 `cursor` 为 null 时出现。           |
+| `urgency`      | `graceful` 或 `force`。                                                                                                                                                                       |
+| `producer`     | 恰含 `kind` 与 `call` 两个字段的对象。`kind` 为 `model` 或 `tool`，`call` 为非空字符串，即要停止的那次调用。                                                                                  |
 
 ### 会话判断次序
 
@@ -542,41 +538,41 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 下列对外结果用于 `session-public/1`，补充[对外结果](#对外结果)的表。HITL 位置也使用其中的 `invalid`、`limited` 与 `not-committed`，它们在该位置的含义见[HITL 结果](#hitl-结果)：
 
-| outcome | 调用者可以知道的 | 不能从该结果推出的 |
-| --- | --- | --- |
-| `invalid` | 消息合乎协议，但这份内容不被接受 | 会话或调用者的资格状态 |
-| `archived` | 会话已归档，不再受理输入 | 归档何时发生，或能否撤销归档 |
-| `limited` | 普通输入超过部署的字节或待交数量预算，尚未受理 | 释放容量的时间或未来请求会成功 |
-| `frozen` | 会话已冻结且没有进行中的工作，普通输入不受理 | 冻结的原因或何时解除 |
-| `not-committed` | 原操作已确定没有提交，调用者可以用原标识重新发起 | 重新发起一定成功 |
-| `not-found` | 在已授权的会话里，这个 Run 或这次调用不属于该会话 | 目标是否属于别的会话，或会话是否存在（会话不存在与跨租户是 `denied`） |
-| `unsupported` | 当前契约版本不受理这个请求，原样再送也不会成功 | 调用是否存在，或目标是否仍在运行 |
+| outcome         | 调用者可以知道的                                  | 不能从该结果推出的                                                    |
+| --------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
+| `invalid`       | 消息合乎协议，但这份内容不被接受                  | 会话或调用者的资格状态                                                |
+| `archived`      | 会话已归档，不再受理输入                          | 归档何时发生，或能否撤销归档                                          |
+| `limited`       | 普通输入超过部署的字节或待交数量预算，尚未受理    | 释放容量的时间或未来请求会成功                                        |
+| `frozen`        | 会话已冻结且没有进行中的工作，普通输入不受理      | 冻结的原因或何时解除                                                  |
+| `not-committed` | 原操作已确定没有提交，调用者可以用原标识重新发起  | 重新发起一定成功                                                      |
+| `not-found`     | 在已授权的会话里，这个 Run 或这次调用不属于该会话 | 目标是否属于别的会话，或会话是否存在（会话不存在与跨租户是 `denied`） |
+| `unsupported`   | 当前契约版本不受理这个请求，原样再送也不会成功    | 调用是否存在，或目标是否仍在运行                                      |
 
 会话操作的 `denied` 不能推出会话是否存在。会话操作的 `conflict` 表示同一调用标识对应的内容与已提交的不同，不同于治理操作的「预期状态已经变了」。
 
-| operation | 线上业务 outcome | Session 结果的映射 |
-| --- | --- | --- |
-| `create-session` | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`、`unknown` | `create`：`conflict` 为同 `createCallId` 异创建输入 |
-| `query-create-session` | `succeeded`、`denied`、`basis-unavailable`、`unknown` | `queryOperation`：`committed` 为 `succeeded`；`not-committed` 为 `denied`；`attempt-rejected` 与 `unknown` 为 `unknown`。创建从未提交时会话不存在，结果是 `denied` |
-| `send-input` | `succeeded`、`denied`、`invalid`、`limited`、`archived`、`frozen`、`conflict`、`basis-unavailable`、`unknown` | `accept`：`conflict` 为同 `acceptId` 异内容 |
-| `query-send-input` | `succeeded`、`not-committed`、`denied`、`basis-unavailable`、`unknown` | `queryOperation`：`committed` 为 `succeeded`；`not-committed` 为 `not-committed`；`attempt-rejected` 与 `unknown` 为 `unknown` |
-| `read-history` | `succeeded`、`denied`、`invalid`、`basis-unavailable` | `cursor` 为 null 时以 `from` 为 null 调 `begin`，否则调 `next`：`invalid` 含游标错域、失效或被篡改；不返回空页代替 `basis-unavailable` |
-| `cancel-run` | `succeeded`、`denied`、`invalid`、`conflict`、`not-found`、`basis-unavailable`、`unknown` | `cancelRun`，映射见[会话中断操作](#会话中断操作) |
-| `stop-call` | 同 `cancel-run`，另有 `unsupported` | `stopCall`，映射见[会话中断操作](#会话中断操作) |
-| `read-session-diagnostics` | `succeeded`、`denied`、`invalid`、`basis-unavailable` | `history.begin`，反向，种类取部署披露清单；`cursor` 非 null 时从游标固定的位置之前继续。`invalid` 含游标错域、失效或被篡改。Session 之后的来源读取不改变 `outcome`，见[会话诊断页](#会话诊断页) |
+| operation                  | 线上业务 outcome                                                                                              | Session 结果的映射                                                                                                                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `create-session`           | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`、`unknown`                       | `create`：`conflict` 为同 `createCallId` 异创建输入                                                                                                                                             |
+| `query-create-session`     | `succeeded`、`denied`、`basis-unavailable`、`unknown`                                                         | `queryOperation`：`committed` 为 `succeeded`；`not-committed` 为 `denied`；`attempt-rejected` 与 `unknown` 为 `unknown`。创建从未提交时会话不存在，结果是 `denied`                              |
+| `send-input`               | `succeeded`、`denied`、`invalid`、`limited`、`archived`、`frozen`、`conflict`、`basis-unavailable`、`unknown` | `accept`：`conflict` 为同 `acceptId` 异内容                                                                                                                                                     |
+| `query-send-input`         | `succeeded`、`not-committed`、`denied`、`basis-unavailable`、`unknown`                                        | `queryOperation`：`committed` 为 `succeeded`；`not-committed` 为 `not-committed`；`attempt-rejected` 与 `unknown` 为 `unknown`                                                                  |
+| `read-history`             | `succeeded`、`denied`、`invalid`、`basis-unavailable`                                                         | `cursor` 为 null 时以 `from` 为 null 调 `begin`，否则调 `next`：`invalid` 含游标错域、失效或被篡改；不返回空页代替 `basis-unavailable`                                                          |
+| `cancel-run`               | `succeeded`、`denied`、`invalid`、`conflict`、`not-found`、`basis-unavailable`、`unknown`                     | `cancelRun`，映射见[会话中断操作](#会话中断操作)                                                                                                                                                |
+| `stop-call`                | 同 `cancel-run`，另有 `unsupported`                                                                           | `stopCall`，映射见[会话中断操作](#会话中断操作)                                                                                                                                                 |
+| `read-session-diagnostics` | `succeeded`、`denied`、`invalid`、`basis-unavailable`                                                         | `history.begin`，反向，种类取部署披露清单；`cursor` 非 null 时从游标固定的位置之前继续。`invalid` 含游标错域、失效或被篡改。Session 之后的来源读取不改变 `outcome`，见[会话诊断页](#会话诊断页) |
 
 表中没有另写的 Session 结果按同一规则映射：`denied` 为 `denied`，`invalid` 为 `invalid`，`archived` 为 `archived`，`frozen` 为 `frozen`，`limited` 为 `limited`，`unavailable` 为 `basis-unavailable`，`commit-unknown` 为 `unknown`。每个操作另有第 1 步的 `protocol-rejected`。
 
 两种情况下，调用者原样再送仍得到 `conflict`。同一 `createCallId` 的两次请求之间部署的定义映射变了，`create-session` 是 `conflict`。`send-input` 的内容含服务端写入的登录来源，换了登录之后原样再送是 `conflict`；原受理可能已提交，用 `query-send-input` 认回。
 
-| 结果 | body |
-| --- | --- |
-| `create-session` 与 `query-create-session` 的 `succeeded` | `session`；`create-session` 另有 `recovered`（布尔，认回此前已提交的同一次创建时为真） |
-| `send-input` 的 `succeeded` | `recovered`（布尔，认回此前已提交的同一受理时为真） |
-| `query-send-input` 的 `succeeded` | 空对象。它表示原受理已提交；前提见[尚未提供](../../../docs/architecture/runtime/runtime-contract-handoff.md#尚未提供) |
-| `read-history` 的 `succeeded` | `entries`、`next`、`exhausted`、`scannedThrough`，见[历史页](#历史页) |
-| `cancel-run` 与 `stop-call` 的 `succeeded` | `kind` 为 `requested` 或 `ended` 的联合，见[会话中断操作](#会话中断操作) |
-| `create-session` 与 `send-input` 的 `limited` | `resource` 为 `pending-inputs` 或 `input-bytes`，`limit` 为正安全整数。没有其他字段 |
+| 结果                                                      | body                                                                                                                  |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `create-session` 与 `query-create-session` 的 `succeeded` | `session`；`create-session` 另有 `recovered`（布尔，认回此前已提交的同一次创建时为真）                                |
+| `send-input` 的 `succeeded`                               | `recovered`（布尔，认回此前已提交的同一受理时为真）                                                                   |
+| `query-send-input` 的 `succeeded`                         | 空对象。它表示原受理已提交；前提见[尚未提供](../../../docs/architecture/runtime/runtime-contract-handoff.md#尚未提供) |
+| `read-history` 的 `succeeded`                             | `entries`、`next`、`exhausted`、`scannedThrough`，见[历史页](#历史页)                                                 |
+| `cancel-run` 与 `stop-call` 的 `succeeded`                | `kind` 为 `requested` 或 `ended` 的联合，见[会话中断操作](#会话中断操作)                                              |
+| `create-session` 与 `send-input` 的 `limited`             | `resource` 为 `pending-inputs` 或 `input-bytes`，`limit` 为正安全整数。没有其他字段                                   |
 
 | `read-session-diagnostics` 的 `succeeded` | `runs`、`next`、`exhausted`、`scannedThrough`、`basis`、`gaps`，见[会话诊断页](#会话诊断页) |
 | 其他结果 | 空对象 |
@@ -598,16 +594,16 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 `cancelRun` 的 Session 失败只有 `denied`、`invalid`、`conflict`、`commit-unknown`、`unavailable`、`quarantined`。`stopCall` 另有 `unsupported`。其余 Session 失败种类这两个操作都不产生。
 
-| outcome | Session 来源 | 重试含义 |
-| --- | --- | --- |
-| `succeeded` | 已保存的 `requested` 或 `ended` 原答案 | 返回同一原答案 |
-| `denied` | `denied` | 每次重试都重新核验，撤权在下一次核验生效 |
-| `invalid` | `invalid` | 同一请求重试仍为 `invalid` |
-| `conflict` | `conflict` | 同标识不同内容重试仍为 `conflict` |
-| `not-found` | 已保存的 `answer.kind` 为 `not-found` | 重试返回同一原答案，不因后来出现同名目标而改变 |
-| `basis-unavailable` | `unavailable`、`quarantined`，诊断留在服务端 | 依赖恢复后重试可成功 |
-| `unknown` | `commit-unknown`、`unknown`，以及原答案为 `unknown` 的 `attempt-rejected` | 以同一 `controlId` 重试，服务先查询原尝试，不发第二份意图 |
-| `unsupported`（仅 `stop-call`） | `unsupported` | 契约修订之前重试也不会成功。不写任何记录 |
+| outcome                         | Session 来源                                                              | 重试含义                                                  |
+| ------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `succeeded`                     | 已保存的 `requested` 或 `ended` 原答案                                    | 返回同一原答案                                            |
+| `denied`                        | `denied`                                                                  | 每次重试都重新核验，撤权在下一次核验生效                  |
+| `invalid`                       | `invalid`                                                                 | 同一请求重试仍为 `invalid`                                |
+| `conflict`                      | `conflict`                                                                | 同标识不同内容重试仍为 `conflict`                         |
+| `not-found`                     | 已保存的 `answer.kind` 为 `not-found`                                     | 重试返回同一原答案，不因后来出现同名目标而改变            |
+| `basis-unavailable`             | `unavailable`、`quarantined`，诊断留在服务端                              | 依赖恢复后重试可成功                                      |
+| `unknown`                       | `commit-unknown`、`unknown`，以及原答案为 `unknown` 的 `attempt-rejected` | 以同一 `controlId` 重试，服务先查询原尝试，不发第二份意图 |
+| `unsupported`（仅 `stop-call`） | `unsupported`                                                             | 契约修订之前重试也不会成功。不写任何记录                  |
 
 `quarantined` 映射为 `basis-unavailable`，不映射为 `denied` 或 `unknown`。`unsupported` 不是可重试的成功：在 Tool 收场材料的 schema 采用之前，`producer.kind` 为 `tool` 的 `stop-call` 都得到它，重新开放属于 Session 的契约修订，不是部署配置。已终态由 `succeeded` 的 `ended` 表达，新操作不产生 `archived` 或 `frozen` 去掩盖已结束的对象。取消请求仍活跃而首次传播失败时，已耐久的 `requested` 不改成 `basis-unavailable`；只有存储提交之前来源不可读才是 `basis-unavailable`。
 
@@ -615,10 +611,10 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 `succeeded` 的 body 是以 `kind` 区分的两个互斥分支。`kind` 是字面量，`requested` 不带 `terminal`，`ended` 必带 `terminal`。
 
-| kind | `cancel-run` | `stop-call` |
-| --- | --- | --- |
-| `requested` | `controlId`、`run` | `controlId`、`producer` |
-| `ended` | `controlId`、`run`、`terminal`（`outcome`、`source`） | `controlId`、`producer`、`terminal`（`version`、`outcome`、`source`） |
+| kind        | `cancel-run`                                          | `stop-call`                                                           |
+| ----------- | ----------------------------------------------------- | --------------------------------------------------------------------- |
+| `requested` | `controlId`、`run`                                    | `controlId`、`producer`                                               |
+| `ended`     | `controlId`、`run`、`terminal`（`outcome`、`source`） | `controlId`、`producer`、`terminal`（`version`、`outcome`、`source`） |
 
 - `requested` 表示意图与原传播责任已保存。它不表示模型流、进程或工具效果已经停止，也不删除已交付的内容、结果或费用。
 - `ended` 携带目标原有的结局。`cancel-run` 的 `terminal.outcome` 取 `completed`、`failed`、`cancelled`。`stop-call` 的 `terminal.outcome` 取 `completed`、`failed`、`interrupted`、`unavailable`、`no-response`，`version` 是非空文本。`no-response` 不证明外部效果没有发生。
@@ -646,12 +642,12 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 `read-session-diagnostics` 的 `succeeded` body 是一个会话的只读组合视图：Session 历史给出 Run 的骨架与调用登记，Agent 给出 Run 怎样结束，Model 与 Tool 给出每次调用实际发生了什么。本节采用范围见 RFC-0013 revision 2；设计依据是 [RFC-0013 的 A 线](../../../docs/rfcs/RFC-0013-engineering-telemetry.md#a-线会话日志诊断投影)。本节只拥有线上形状与它的闭合规则；来源怎样组合、每个来源读什么归[服务端接入](../server-entry/SPEC.md#会话诊断投影)。精确类型在 [src/session-messages.ts](src/session-messages.ts) 的 `SessionDiagnosticsPage`。
 
-| 成员 | 内容 |
-| --- | --- |
-| `runs` | `SessionRunDiagnostic` 的数组，按日志位置从新到旧。 |
-| `next`、`exhausted`、`scannedThrough` | 规则同[历史页](#历史页)：`next` 原样作为下一次的 `cursor`；空页不表示读完。 |
-| `basis` | `upper`：本页依据的 Session 修订文本。 |
-| `gaps` | `SessionDiagnosticGap` 的数组：`source` 取 `session`、`agent`、`model`、`tool`；`subject` 是被问的对象（Run、调用引用、执行或条目种类）；`reason` 取 `unsupported`、`unavailable`、`denied`、`not-disclosed`、`not-accepted`、`not-found`、`not-recorded`、`retention-expired`、`truncated`。 |
+| 成员                                  | 内容                                                                                                                                                                                                                                                                                          |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runs`                                | `SessionRunDiagnostic` 的数组，按日志位置从新到旧。                                                                                                                                                                                                                                           |
+| `next`、`exhausted`、`scannedThrough` | 规则同[历史页](#历史页)：`next` 原样作为下一次的 `cursor`；空页不表示读完。                                                                                                                                                                                                                   |
+| `basis`                               | `upper`：本页依据的 Session 修订文本。                                                                                                                                                                                                                                                        |
+| `gaps`                                | `SessionDiagnosticGap` 的数组：`source` 取 `session`、`agent`、`model`、`tool`；`subject` 是被问的对象（Run、调用引用、执行或条目种类）；`reason` 取 `unsupported`、`unavailable`、`denied`、`not-disclosed`、`not-accepted`、`not-found`、`not-recorded`、`retention-expired`、`truncated`。 |
 
 每个 Run 有：`run`、`entry`（`interactive` 或 `dispatch`）、`execution`、`started`（`position` 是 `run.started` 的条目标识；`at` 是 `known` 加时刻文本，或 `unknown`）、`attempts`、`controls`（`control.requested` 与 `control.progress` 的闭合字段：`position`、`kind`、`target`、`intent`、`state`，条目不带的字段为 null）、`terminal`、`calls`（`registered` 计全部 `call.bound`，`projected` 计进入扇出的那些）、`modelCalls`、`toolCalls`、`messages`（按种类计数）、`facts`。
 
@@ -697,10 +693,10 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 两个操作使用 `session-public/1`，与[会话公开操作](#会话公开操作)使用同一承载位置。`loginProof` 与 `actingTenant` 的字段要求同[共同消息](#共同消息)。`tenant` 与 `session` 的要求同[会话 body 字段](#会话-body-字段)。
 
-| 操作 | `loginProof` | `actingTenant` | body 字段（全部必填） |
-| --- | --- | --- | --- |
-| `observe-session` | 必填 | 禁止 | `tenant`、`session`、`observationId` |
-| `cancel-observation` | 必填 | 禁止 | `tenant`、`session`、`observationId` |
+| 操作                 | `loginProof` | `actingTenant` | body 字段（全部必填）                |
+| -------------------- | ------------ | -------------- | ------------------------------------ |
+| `observe-session`    | 必填         | 禁止           | `tenant`、`session`、`observationId` |
+| `cancel-observation` | 必填         | 禁止           | `tenant`、`session`、`observationId` |
 
 - `observationId` 是非空字符串，调用者在首次发送前生成。唯一范围是同一登录下的同一会话。观察记录绑定建立它的登录。`cancel-observation` 只能取消同一登录建立的观察。其他登录的同一 `observationId` 视为不存在。
 - 观察请求不带调用引用，接入按[观察对象](#观察对象)定位。公开契约不引入 Model 的身份文本规则。
@@ -730,29 +726,29 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 帧消息是服务端发给调用者的消息。它的字段恰为下面四个，没有 `outcome`、`loginProof` 与 `actingTenant`。
 
-| 字段 | 要求 |
-| --- | --- |
-| `protocolVersion` | `session-public/1` |
-| `messageId` | 原 `observe-session` 请求的 `messageId` |
-| `operation` | 固定为 `observation-frame` |
-| `body` | 下表 |
+| 字段              | 要求                                    |
+| ----------------- | --------------------------------------- |
+| `protocolVersion` | `session-public/1`                      |
+| `messageId`       | 原 `observe-session` 请求的 `messageId` |
+| `operation`       | 固定为 `observation-frame`              |
+| `body`            | 下表                                    |
 
 帧消息的 body：
 
-| 字段 | 要求 |
-| --- | --- |
-| `observationId` | 原值 |
-| `seq` | 匹配 `^[1-9][0-9]*$` 的文本。本次观察内从 `1` 起单调递增。同一 `observationId` 再次建立时从 `1` 重新计数 |
-| `frame` | 下表之一 |
+| 字段            | 要求                                                                                                     |
+| --------------- | -------------------------------------------------------------------------------------------------------- |
+| `observationId` | 原值                                                                                                     |
+| `seq`           | 匹配 `^[1-9][0-9]*$` 的文本。本次观察内从 `1` 起单调递增。同一 `observationId` 再次建立时从 `1` 重新计数 |
+| `frame`         | 下表之一                                                                                                 |
 
-| `frame.kind` | 其余字段 | 含义 |
-| --- | --- | --- |
-| `state` | `phase` 是 null 或调用阶段名文本，值集归 Model 的 `CallState.phase`。`target` 是 null 或 `{ projection: 'model-output-v1' }` | 接入查到的权威调用阶段，以及是否有可观察目标。还没有可观察的登记时，两者都是 null。它不披露调用身份、消费者或保管字段。`target` 为 null 不表示未执行或终局 |
-| `snapshot` | `projection: 'model-output-v1'`。`value` 是 json-text 值树 | `value` 的形状由 Model 契约的 `model-output-v1` JSON 投影定义。该定义由 Model 契约卡（待立）拥有，是接入实现卡发出 `snapshot` 与 `delta` 的前置条件。该投影只含可见块、输出游标与阶段，不含调用身份、消费者、保管与流引用信封。每个新目标与每次重新同步各发一个 |
-| `delta` | `projection: 'model-output-v1'`。`value` 是 json-text 值树 | `value` 是同一投影的增量，披露范围同 `snapshot` 行。它只跟在同一目标的 `snapshot` 之后 |
-| `gap` | `reason` 是 `buffer` 或 `source-history` | 生产者报告的缺口，沿 stream-arrival 的 `gap` 原义。生产者给出不认识的新原因时，对外是 `source-history` |
-| `refreshing` | 无 | 接入正在按刷新策略重新定位、重新查询 `current` 或重新观察同一目标。触发条件归接入的[刷新策略](../server-entry/SPEC.md#刷新策略) |
-| `ended` | `reason` 是 `observer-cancelled`、`observer-replaced`、`refresh-exhausted`、`denied`、`unavailable`、`capacity` 之一 | 本次观察结束，之后没有帧。`observer-replaced` 表示同一登录在同一会话中用同一 `observationId` 重新建立。撤权与登录失效都是 `denied`，沿公开契约统一的 `denied` 政策。`unavailable` 表示接入或依据暂时不可得，重新建立观察可能恢复。`capacity` 表示接入的本地帧队列超出上界 |
+| `frame.kind` | 其余字段                                                                                                                     | 含义                                                                                                                                                                                                                                                                      |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state`      | `phase` 是 null 或调用阶段名文本，值集归 Model 的 `CallState.phase`。`target` 是 null 或 `{ projection: 'model-output-v1' }` | 接入查到的权威调用阶段，以及是否有可观察目标。还没有可观察的登记时，两者都是 null。它不披露调用身份、消费者或保管字段。`target` 为 null 不表示未执行或终局                                                                                                                |
+| `snapshot`   | `projection: 'model-output-v1'`。`value` 是 json-text 值树                                                                   | `value` 的形状由 Model 契约的 `model-output-v1` JSON 投影定义。该定义由 Model 契约卡（待立）拥有，是接入实现卡发出 `snapshot` 与 `delta` 的前置条件。该投影只含可见块、输出游标与阶段，不含调用身份、消费者、保管与流引用信封。每个新目标与每次重新同步各发一个           |
+| `delta`      | `projection: 'model-output-v1'`。`value` 是 json-text 值树                                                                   | `value` 是同一投影的增量，披露范围同 `snapshot` 行。它只跟在同一目标的 `snapshot` 之后                                                                                                                                                                                    |
+| `gap`        | `reason` 是 `buffer` 或 `source-history`                                                                                     | 生产者报告的缺口，沿 stream-arrival 的 `gap` 原义。生产者给出不认识的新原因时，对外是 `source-history`                                                                                                                                                                    |
+| `refreshing` | 无                                                                                                                           | 接入正在按刷新策略重新定位、重新查询 `current` 或重新观察同一目标。触发条件归接入的[刷新策略](../server-entry/SPEC.md#刷新策略)                                                                                                                                           |
+| `ended`      | `reason` 是 `observer-cancelled`、`observer-replaced`、`refresh-exhausted`、`denied`、`unavailable`、`capacity` 之一         | 本次观察结束，之后没有帧。`observer-replaced` 表示同一登录在同一会话中用同一 `observationId` 重新建立。撤权与登录失效都是 `denied`，沿公开契约统一的 `denied` 政策。`unavailable` 表示接入或依据暂时不可得，重新建立观察可能恢复。`capacity` 表示接入的本地帧队列超出上界 |
 
 公开契约只固定信封、`frame.kind` 与字段名。`value` 在本地保留为 json-text 值树，不解码。编解码把 `phase` 当作开放文本核对：它是 null 或非空字符串，不按封闭集合核对。所以公开契约不依赖 model-contract。这与 `read-history` 的 `payload` 处理一致。`model-output-v1` 的 JSON 投影定义入轨之前，接入不发 `snapshot` 与 `delta`，只发 `state`、`gap`、`refreshing`、`ended`。`phase` 的含义见 Model 的[current 的权威含义](../../model/model-contract/SPEC.md#current-的权威含义)。
 
@@ -760,35 +756,35 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 下表固定接入从各来源得到的结果怎样对外表示。「建立时」指判断次序第 3 步，「建立后」指刷新与观察期间。`state` 帧另在调用阶段或目标有无变化时发出。
 
-| 来源 | 结果 | 对外表示 |
-| --- | --- | --- |
-| Session 日志读取，建立时 | `denied` | 终端 `denied` |
-| Session 日志读取，建立时 | `unavailable`，或因接入自己的游标或 `pageBytes` 而 `invalid` | 终端 `basis-unavailable` |
-| Session 日志读取，建立后 | `denied` | `ended(denied)` |
-| Session 日志读取，建立后 | `unavailable`，或因接入自己的游标而 `invalid` | `refreshing` |
-| Session 日志读取，建立后 | 因接入自己的 `pageBytes` 而 `invalid` | `ended(unavailable)` |
-| Session 日志读取，建立后 | 没有用途为 `main` 的 Model 登记 | `refreshing` |
-| Model `current` | `denied` | `ended(denied)` |
-| Model `current` | `invalid(reference, not-accepted)`，表示调用已登记、尚未受理 | `refreshing` |
-| Model `current` | 其他 `invalid` | `ended(unavailable)` |
-| Model `current` | `unavailable` | `refreshing` |
-| Model `current` | 目标为 null，或是同一个已关闭的流引用 | `refreshing` |
-| Model `current` | 本地等待超过 `currentTimeout` | 不发帧。这次读取计为一次空结果，接入留在刷新循环里 |
-| 生产者观察 | `snapshot`、`delta` | 同名帧 |
-| 生产者观察 | `gap(buffer)` | 转发 `gap`，再 `refreshing`，重新观察同一目标并发新的 `snapshot` |
-| 生产者观察 | 其他 `gap` | 转发 `gap`，再 `refreshing` |
-| 生产者观察 | `ended(denied)` | `ended(denied)` |
-| 生产者观察 | `ended(capacity)` 或 `ended(unavailable)` | `refreshing`，重新观察同一目标并发新的 `snapshot` |
-| 生产者观察 | `ended(source-closed)`、`ended(stale-stream)` 或 `ended(producer-ended)` | `refreshing`，重新定位 |
-| 生产者观察 | `ended(observer-closed)` | 不发帧。它是接入自己中止观察的结果 |
-| 生产者观察 | stream-arrival 以后新增的 `ended` 原因 | `refreshing`，重新定位 |
-| 生产者观察 | 迭代器抛出，或没有交来 `ended` 就结束 | 视为目标不可用，按[刷新策略](../server-entry/SPEC.md#刷新策略)第 1 种触发重新定位，发 `refreshing` |
-| 每帧发出前的资格重核 | 拒绝 | `ended(denied)` |
-| 每帧发出前的资格重核 | 依据不可得 | `ended(unavailable)` |
-| 刷新策略 | 上界耗尽 | `ended(refresh-exhausted)` |
-| 接入的本地帧队列 | 超出上界 | `ended(capacity)` |
-| `cancel-observation` | `succeeded`，`state` 为 `ended` | 原帧流 `ended(observer-cancelled)` |
-| 同一登录在同一会话中以同一 `observationId` 再次建立 | `succeeded` | 旧帧流 `ended(observer-replaced)` |
+| 来源                                                | 结果                                                                     | 对外表示                                                                                           |
+| --------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Session 日志读取，建立时                            | `denied`                                                                 | 终端 `denied`                                                                                      |
+| Session 日志读取，建立时                            | `unavailable`，或因接入自己的游标或 `pageBytes` 而 `invalid`             | 终端 `basis-unavailable`                                                                           |
+| Session 日志读取，建立后                            | `denied`                                                                 | `ended(denied)`                                                                                    |
+| Session 日志读取，建立后                            | `unavailable`，或因接入自己的游标而 `invalid`                            | `refreshing`                                                                                       |
+| Session 日志读取，建立后                            | 因接入自己的 `pageBytes` 而 `invalid`                                    | `ended(unavailable)`                                                                               |
+| Session 日志读取，建立后                            | 没有用途为 `main` 的 Model 登记                                          | `refreshing`                                                                                       |
+| Model `current`                                     | `denied`                                                                 | `ended(denied)`                                                                                    |
+| Model `current`                                     | `invalid(reference, not-accepted)`，表示调用已登记、尚未受理             | `refreshing`                                                                                       |
+| Model `current`                                     | 其他 `invalid`                                                           | `ended(unavailable)`                                                                               |
+| Model `current`                                     | `unavailable`                                                            | `refreshing`                                                                                       |
+| Model `current`                                     | 目标为 null，或是同一个已关闭的流引用                                    | `refreshing`                                                                                       |
+| Model `current`                                     | 本地等待超过 `currentTimeout`                                            | 不发帧。这次读取计为一次空结果，接入留在刷新循环里                                                 |
+| 生产者观察                                          | `snapshot`、`delta`                                                      | 同名帧                                                                                             |
+| 生产者观察                                          | `gap(buffer)`                                                            | 转发 `gap`，再 `refreshing`，重新观察同一目标并发新的 `snapshot`                                   |
+| 生产者观察                                          | 其他 `gap`                                                               | 转发 `gap`，再 `refreshing`                                                                        |
+| 生产者观察                                          | `ended(denied)`                                                          | `ended(denied)`                                                                                    |
+| 生产者观察                                          | `ended(capacity)` 或 `ended(unavailable)`                                | `refreshing`，重新观察同一目标并发新的 `snapshot`                                                  |
+| 生产者观察                                          | `ended(source-closed)`、`ended(stale-stream)` 或 `ended(producer-ended)` | `refreshing`，重新定位                                                                             |
+| 生产者观察                                          | `ended(observer-closed)`                                                 | 不发帧。它是接入自己中止观察的结果                                                                 |
+| 生产者观察                                          | stream-arrival 以后新增的 `ended` 原因                                   | `refreshing`，重新定位                                                                             |
+| 生产者观察                                          | 迭代器抛出，或没有交来 `ended` 就结束                                    | 视为目标不可用，按[刷新策略](../server-entry/SPEC.md#刷新策略)第 1 种触发重新定位，发 `refreshing` |
+| 每帧发出前的资格重核                                | 拒绝                                                                     | `ended(denied)`                                                                                    |
+| 每帧发出前的资格重核                                | 依据不可得                                                               | `ended(unavailable)`                                                                               |
+| 刷新策略                                            | 上界耗尽                                                                 | `ended(refresh-exhausted)`                                                                         |
+| 接入的本地帧队列                                    | 超出上界                                                                 | `ended(capacity)`                                                                                  |
+| `cancel-observation`                                | `succeeded`，`state` 为 `ended`                                          | 原帧流 `ended(observer-cancelled)`                                                                 |
+| 同一登录在同一会话中以同一 `observationId` 再次建立 | `succeeded`                                                              | 旧帧流 `ended(observer-replaced)`                                                                  |
 
 #### 帧的先后
 
@@ -866,12 +862,12 @@ sequenceDiagram
 
 四个操作各对应 HITL 已有的一个查询或命令，不增加业务含义：
 
-| 操作 | HITL 的查询或命令 | 用途 |
-| --- | --- | --- |
-| `list-cards` | `listPool` | 列出卡片。`filter` 带 `sessionRef` 时是会话入口，不带时是待办池。两个入口是同一个操作，读同一份数据 |
-| `read-card` | `getCard` | 按卡片引用读一张卡 |
-| `submit-reply` | `submitReply` | 提交人对一张卡的一次处理 |
-| `query-submit-reply` | `getOperation` | 回包未知时，按原提交认回结果 |
+| 操作                 | HITL 的查询或命令 | 用途                                                                                                |
+| -------------------- | ----------------- | --------------------------------------------------------------------------------------------------- |
+| `list-cards`         | `listPool`        | 列出卡片。`filter` 带 `sessionRef` 时是会话入口，不带时是待办池。两个入口是同一个操作，读同一份数据 |
+| `read-card`          | `getCard`         | 按卡片引用读一张卡                                                                                  |
+| `submit-reply`       | `submitReply`     | 提交人对一张卡的一次处理                                                                            |
+| `query-submit-reply` | `getOperation`    | 回包未知时，按原提交认回结果                                                                        |
 
 本位置不提供观察操作。新卡的在线提示和离线收件箱归通知能力。
 
@@ -881,27 +877,27 @@ HITL 消息的协议版本是 `hitl-public/1`，与另外两个位置分开计�
 
 `loginProof` 与 `actingTenant` 的字段要求同共同消息。信封按操作闭合：
 
-| 操作 | `loginProof` | `actingTenant` | body 字段（全部必填） |
-| --- | --- | --- | --- |
-| `list-cards` | 必填 | 禁止 | `tenant`、`filter`、`cursor`、`limit` |
-| `read-card` | 必填 | 禁止 | `tenant`、`card` |
-| `submit-reply` | 必填 | 禁止 | `tenant`、`card`、`expectedRevision`、`reply`、`replyId` |
-| `query-submit-reply` | 必填 | 禁止 | `tenant`、`card`、`expectedRevision`、`reply`、`replyId` |
+| 操作                 | `loginProof` | `actingTenant` | body 字段（全部必填）                                    |
+| -------------------- | ------------ | -------------- | -------------------------------------------------------- |
+| `list-cards`         | 必填         | 禁止           | `tenant`、`filter`、`cursor`、`limit`                    |
+| `read-card`          | 必填         | 禁止           | `tenant`、`card`                                         |
+| `submit-reply`       | 必填         | 禁止           | `tenant`、`card`、`expectedRevision`、`reply`、`replyId` |
+| `query-submit-reply` | 必填         | 禁止           | `tenant`、`card`、`expectedRevision`、`reply`、`replyId` |
 
 HITL 按原提交身份和原内容的摘要认回一次提交，所以 `query-submit-reply` 带原提交的全部内容。除本表四个操作外，任何其他操作名在 HITL 位置都是 `protocol-rejected`。
 
 ### HITL body 字段
 
-| 字段 | 要求 |
-| --- | --- |
-| `tenant` | 租户文本，读取规则与 `tenantId` 相同（见[本地值与线上表示](#本地值与线上表示)）。它是目标租户，不是行事租户。 |
-| `filter` | 对象。`states` 必填，是 1 至 3 项的数组，每项取 `pending`、`decided`、`invalidated` 之一。下列三个键可以省略：`originKind` 取 `tool`、`agent-extension`、`admission`、`independent` 之一；`sessionRef` 是会话标识文本，与会话位置的 `session` 字段同一编码（64 个小写十六进制字符），按卡片来源的 `sessionRef` 原文比较；`delivery` 取 `pending`、`accepted`、`superseded` 之一。其他键都被拒绝。 |
-| `cursor` | 键必须出现。null 表示读首页。否则是非空字符串，即上一页回复里 `next` 的原文。续页时 `tenant` 与 `filter` 必须与首页相同。 |
-| `limit` | JSON 整数，1 至 100，一页至多的卡片数。续页时可以改变。 |
-| `card` | 卡片引用，恰含 `request` 与 `cardId` 两个键。`request` 恰含 `tenantRef` 与 `requestId` 两个键。三个值都是非空字符串。调用者原样使用 `list-cards` 或 `read-card` 返回的卡片 `ref`。 |
-| `expectedRevision` | 匹配 `^(0\|[1-9][0-9]*)$` 的文本，即人作答时看到的卡片 `revision`。 |
-| `reply` | 恰为三种形状之一：`{ kind: 'selection', optionId }`、`{ kind: 'text', text }` 或 `{ kind: 'decline' }`。`optionId` 与 `text` 是非空字符串。一次提交只含一种。 |
-| `replyId` | 非空字符串，调用者在首次发送前生成的提交标识。唯一范围是同一租户。同一次提交的重试保持同值。人的新一次处理使用新值，即使内容与上一次相同。 |
+| 字段               | 要求                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tenant`           | 租户文本，读取规则与 `tenantId` 相同（见[本地值与线上表示](#本地值与线上表示)）。它是目标租户，不是行事租户。                                                                                                                                                                                                                                                                                     |
+| `filter`           | 对象。`states` 必填，是 1 至 3 项的数组，每项取 `pending`、`decided`、`invalidated` 之一。下列三个键可以省略：`originKind` 取 `tool`、`agent-extension`、`admission`、`independent` 之一；`sessionRef` 是会话标识文本，与会话位置的 `session` 字段同一编码（64 个小写十六进制字符），按卡片来源的 `sessionRef` 原文比较；`delivery` 取 `pending`、`accepted`、`superseded` 之一。其他键都被拒绝。 |
+| `cursor`           | 键必须出现。null 表示读首页。否则是非空字符串，即上一页回复里 `next` 的原文。续页时 `tenant` 与 `filter` 必须与首页相同。                                                                                                                                                                                                                                                                         |
+| `limit`            | JSON 整数，1 至 100，一页至多的卡片数。续页时可以改变。                                                                                                                                                                                                                                                                                                                                           |
+| `card`             | 卡片引用，恰含 `request` 与 `cardId` 两个键。`request` 恰含 `tenantRef` 与 `requestId` 两个键。三个值都是非空字符串。调用者原样使用 `list-cards` 或 `read-card` 返回的卡片 `ref`。                                                                                                                                                                                                                |
+| `expectedRevision` | 匹配 `^(0\|[1-9][0-9]*)$` 的文本，即人作答时看到的卡片 `revision`。                                                                                                                                                                                                                                                                                                                               |
+| `reply`            | 恰为三种形状之一：`{ kind: 'selection', optionId }`、`{ kind: 'text', text }` 或 `{ kind: 'decline' }`。`optionId` 与 `text` 是非空字符串。一次提交只含一种。                                                                                                                                                                                                                                     |
+| `replyId`          | 非空字符串，调用者在首次发送前生成的提交标识。唯一范围是同一租户。同一次提交的重试保持同值。人的新一次处理使用新值，即使内容与上一次相同。                                                                                                                                                                                                                                                        |
 
 客户端不填写操作身份、操作者或位置引用。body 出现这类字段时，按封闭字段是 `protocol-rejected`。字符串的长度预算归 HITL：超出 HITL 预算的内容在第 4 步得到 `invalid`。
 
@@ -920,47 +916,47 @@ HITL 位置没有行事租户步骤，也没有部署范围步骤。`limit` 的�
 
 HITL 位置使用下列结果。`succeeded`、`denied`、`basis-unavailable`、`unknown`、`protocol-rejected` 与 `stage-not-provided` 的含义同[对外结果](#对外结果)。其余结果在本位置的含义如下：
 
-| outcome | 调用者可以知道的 | 不能从该结果推出的 |
-| --- | --- | --- |
-| `invalid` | 消息合乎协议，但 HITL 不接受这份内容。例如所选项不在卡片的选项里，或游标失效、被篡改、与过滤条件不符 | 卡片是否存在，或调用者的资格状态 |
-| `limited` | 一项结果或一次提交超出 HITL 的预算，这次没有结果 | 原样再送会成功 |
-| `conflict` | `list-cards`：续页时快照已变，调用者从首页重读。`submit-reply` 与 `query-submit-reply`：卡片修订已变，或同一 `replyId` 对应了不同内容 | 卡片当前是否已有有效处理 |
-| `not-committed` | 原提交已确定没有成立，调用者可以用原 `replyId` 重新发起 | 重新发起一定成功 |
+| outcome         | 调用者可以知道的                                                                                                                      | 不能从该结果推出的               |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `invalid`       | 消息合乎协议，但 HITL 不接受这份内容。例如所选项不在卡片的选项里，或游标失效、被篡改、与过滤条件不符                                  | 卡片是否存在，或调用者的资格状态 |
+| `limited`       | 一项结果或一次提交超出 HITL 的预算，这次没有结果                                                                                      | 原样再送会成功                   |
+| `conflict`      | `list-cards`：续页时快照已变，调用者从首页重读。`submit-reply` 与 `query-submit-reply`：卡片修订已变，或同一 `replyId` 对应了不同内容 | 卡片当前是否已有有效处理         |
+| `not-committed` | 原提交已确定没有成立，调用者可以用原 `replyId` 重新发起                                                                               | 重新发起一定成功                 |
 
-| operation | 线上业务 outcome | HITL 结果的映射 |
-| --- | --- | --- |
-| `list-cards` | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable` | `listPool`：`page` 为 `succeeded` |
-| `read-card` | `succeeded`、`denied`、`invalid`、`limited`、`basis-unavailable` | `getCard`：`found` 为 `succeeded` |
-| `submit-reply` | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`、`unknown` | `submitReply`：`decided`、`already-decided` 与 `invalidated` 为 `succeeded`，以 `kind` 区分 |
+| operation            | 线上业务 outcome                                                                                         | HITL 结果的映射                                                                                                                                             |
+| -------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list-cards`         | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`                             | `listPool`：`page` 为 `succeeded`                                                                                                                           |
+| `read-card`          | `succeeded`、`denied`、`invalid`、`limited`、`basis-unavailable`                                         | `getCard`：`found` 为 `succeeded`                                                                                                                           |
+| `submit-reply`       | `succeeded`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`、`unknown`                  | `submitReply`：`decided`、`already-decided` 与 `invalidated` 为 `succeeded`，以 `kind` 区分                                                                 |
 | `query-submit-reply` | `succeeded`、`not-committed`、`denied`、`invalid`、`limited`、`conflict`、`basis-unavailable`、`unknown` | `getOperation`：`committed` 按原提交的结果映射，规则同 `submit-reply`；`not-committed` 为 `not-committed`；`unknown` 为 `unknown`；`conflict` 为 `conflict` |
 
 表中没有另写的 HITL 结果按同一规则映射：`denied` 为 `denied`，`invalid-input` 为 `invalid`，`limited` 为 `limited`，`conflict` 为 `conflict`，`unavailable` 为 `basis-unavailable`，`unknown` 为 `unknown`。每个操作另有第 1 步的 `protocol-rejected`，以及部署声明不提供时的 `stage-not-provided`。
 
 HITL 位置的 `denied` 不能推出卡片是否存在。HITL 先核资格，再查原提交的回执。所以撤权之后，原样再送和 `query-submit-reply` 都得到 `denied`，不披露原结果。
 
-| 结果 | body |
-| --- | --- |
-| `list-cards` 的 `succeeded` | `items`、`next`、`snapshotRef`、`completeness`，见[卡片视图](#卡片视图) |
-| `read-card` 的 `succeeded` | `item`，形状同 `items` 的一项 |
-| `submit-reply` 与 `query-submit-reply` 的 `succeeded` | 以 `kind` 区分的三个分支，见[答复的提交与认回](#答复的提交与认回) |
-| `limited` | `resource` 为非空字符串，`limit` 为正安全整数。两者照 HITL 原样给出 |
-| 其他结果 | 空对象 |
+| 结果                                                  | body                                                                    |
+| ----------------------------------------------------- | ----------------------------------------------------------------------- |
+| `list-cards` 的 `succeeded`                           | `items`、`next`、`snapshotRef`、`completeness`，见[卡片视图](#卡片视图) |
+| `read-card` 的 `succeeded`                            | `item`，形状同 `items` 的一项                                           |
+| `submit-reply` 与 `query-submit-reply` 的 `succeeded` | 以 `kind` 区分的三个分支，见[答复的提交与认回](#答复的提交与认回)       |
+| `limited`                                             | `resource` 为非空字符串，`limit` 为正安全整数。两者照 HITL 原样给出     |
+| 其他结果                                              | 空对象                                                                  |
 
 ### 卡片视图
 
 `list-cards` 与 `read-card` 的结果是 HITL 的查询投影，不是第二份决定权威。`items` 的每一项有 `card`、`origin` 与 `displayContext` 三个成员。
 
-| 成员 | 内容 |
-| --- | --- |
-| `card.ref` | 卡片引用，形状同 body 的 `card` |
-| `card.revision` | 十进制文本，这次读取依据的卡片修订 |
-| `card.question` | `kind` 取 `question`、`approval`、`admission`、`extension` 之一；另有 `cardId`、`title`、`description`、`declineConsequence` 与 `options`。每个选项有 `id`、`label` 与 `description`。`approval` 与 `admission` 的选项可以另有 `effectRef` |
-| `card.kind` | `pending`、`decided` 或 `invalidated` |
-| `card.decision` | 只在 `decided` 时出现：`ref`（`card`、`decisionId` 与 `submission`；`submission` 恰含 `tenantRef`、`actorRef`、`operationId`）、`reply`（形状同 body 的 `reply`）、`basisRef` 与 `commitReceipt` |
-| `card.delivery` | 只在 `decided` 时出现：`kind` 为 `pending`，或为 `accepted`、`superseded` 并带 `receiptRef` |
+| 成员                                      | 内容                                                                                                                                                                                                                                                                        |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `card.ref`                                | 卡片引用，形状同 body 的 `card`                                                                                                                                                                                                                                             |
+| `card.revision`                           | 十进制文本，这次读取依据的卡片修订                                                                                                                                                                                                                                          |
+| `card.question`                           | `kind` 取 `question`、`approval`、`admission`、`extension` 之一；另有 `cardId`、`title`、`description`、`declineConsequence` 与 `options`。每个选项有 `id`、`label` 与 `description`。`approval` 与 `admission` 的选项可以另有 `effectRef`                                  |
+| `card.kind`                               | `pending`、`decided` 或 `invalidated`                                                                                                                                                                                                                                       |
+| `card.decision`                           | 只在 `decided` 时出现：`ref`（`card`、`decisionId` 与 `submission`；`submission` 恰含 `tenantRef`、`actorRef`、`operationId`）、`reply`（形状同 body 的 `reply`）、`basisRef` 与 `commitReceipt`                                                                            |
+| `card.delivery`                           | 只在 `decided` 时出现：`kind` 为 `pending`，或为 `accepted`、`superseded` 并带 `receiptRef`                                                                                                                                                                                 |
 | `card.reason`、`card.terminalEvidenceRef` | 只在 `invalidated` 时出现。`reason` 取 `cancelled`、`archived`、`origin-terminal`、`continuity-lost` 之一。`cancelled` 表示等待在人作答之前被控制关闭（叫停、归档、中断或插队）：原工作按出卡方预写的默认结果收场，这张卡不能再答。`origin-terminal` 表示原工作自己已经终局 |
-| `origin` | 卡片的来源：`kind` 取 `tool`、`agent-extension`、`admission`、`independent` 之一；可以另有 `sessionRef`、`runRef` 与 `toolCallRef` |
-| `displayContext` | 非空字符串，出卡方给出的展示上下文 |
+| `origin`                                  | 卡片的来源：`kind` 取 `tool`、`agent-extension`、`admission`、`independent` 之一；可以另有 `sessionRef`、`runRef` 与 `toolCallRef`                                                                                                                                          |
+| `displayContext`                          | 非空字符串，出卡方给出的展示上下文                                                                                                                                                                                                                                          |
 
 - 标识与名称是非空字符串，修订是十进制文本。没有列出的字段都被拒绝。
 - HITL 已按当前资格裁剪卡片内容。本页不另增内容。
@@ -974,11 +970,11 @@ HITL 位置的 `denied` 不能推出卡片是否存在。HITL 先核资格，再
 
 `submit-reply` 与 `query-submit-reply` 的 `succeeded` body 是以 `kind` 区分的三个互斥分支：
 
-| kind | 其余成员 | 含义 |
-| --- | --- | --- |
-| `decided` | `decisionRef`（形状同 `card.decision.ref`）、`revision`、`delivery`（`pending` 或 `accepted`） | 人的处理与原等待的关联已经共同成立。它不表示权限或动作已经生效 |
-| `already-decided` | `decision`（形状同 `card.decision`） | 这张卡已经有一个有效处理，这次提交没有成为第二个 |
-| `invalidated` | `reason`，非空字符串 | 卡片已经失效，这次提交没有成为有效处理 |
+| kind              | 其余成员                                                                                       | 含义                                                           |
+| ----------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `decided`         | `decisionRef`（形状同 `card.decision.ref`）、`revision`、`delivery`（`pending` 或 `accepted`） | 人的处理与原等待的关联已经共同成立。它不表示权限或动作已经生效 |
+| `already-decided` | `decision`（形状同 `card.decision`）                                                           | 这张卡已经有一个有效处理，这次提交没有成为第二个               |
+| `invalidated`     | `reason`，非空字符串                                                                           | 卡片已经失效，这次提交没有成为有效处理                         |
 
 - 一张卡只有一个有效处理。会话入口和待办池读同一张卡，经同一个操作提交。两个入口或两次并发提交只有一个成立。
 - 服务端接入从 `tenant` 与 `replyId` 确定性地派生提交身份，规则归服务端接入的[HITL 提交身份的派生规则](../server-entry/SPEC.md#hitl-提交身份的派生规则)。入口主体对同一租户稳定，所以换一份登录原样再送，仍认回同一次提交。
@@ -1073,10 +1069,10 @@ const encoded = encodeGovernanceRequest({
 
 `Codec<T>` 有两个函数，调用方都要传入 `JsonLimits`。契约里只写上限的名字（`small`、`input`），数值归部署配置：
 
-| 函数 | 输入 | 结果 |
-| --- | --- | --- |
-| `read(value, limits)` | 一棵 `JsonValue` | 规则接受时 `{ ok: true, value }`；否则 `{ ok: false }`，不给出部分读到的值 |
-| `write(value, limits)` | 本地值 | 规则接受时 `{ ok: true, value }`，值是一棵 `JsonValue`；否则 `{ ok: false }` |
+| 函数                   | 输入             | 结果                                                                         |
+| ---------------------- | ---------------- | ---------------------------------------------------------------------------- |
+| `read(value, limits)`  | 一棵 `JsonValue` | 规则接受时 `{ ok: true, value }`；否则 `{ ok: false }`，不给出部分读到的值   |
+| `write(value, limits)` | 本地值           | 规则接受时 `{ ok: true, value }`，值是一棵 `JsonValue`；否则 `{ ok: false }` |
 
 两个函数都不因输入不合规而抛出。读取是严格的。它先用 json-text 的 `judgeJsonValue` 判定值树，访问上限是 `limits.maxItems`。重复的键、环和畸形的节点在任何字段转换之前就被拒。之后规则外的字段、缺少的必选字段与不在 `literal` 里的值都被拒。写出拒绝规则不接受的值，例如空的 `text`、不大于 0 的 `positive-integer`、不是身份包签发的身份值，以及超出 `limits.maxItems` 的数组。
 
@@ -1086,15 +1082,15 @@ const encoded = encodeGovernanceRequest({
 
 操作契约 `OperationContract` 的栏：
 
-| 栏 | 含义 |
-| --- | --- |
-| `identity` | `none`、`login` 或 `acting-tenant`：管道在处理函数之前走到哪一步 |
-| `effect` | `read` 或 `commit`：提交类操作的结果可能未知 |
-| `limit` | 消息体上限的名字：`small` 或 `input` |
-| `body` | 消息体的 `Codec` |
-| `outcomes` | 每种可能的结果对应它的响应体：`succeeded` 必有，值是 `Codec`；`FixedOutcome` 的值只能是 `true` |
-| `carriesCredential` | 可选 `true`：结果里带登录证明 |
-| `countsAsAccess` | 可选 `true`：答成功时算一次成功的业务访问 |
+| 栏                  | 含义                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `identity`          | `none`、`login` 或 `acting-tenant`：管道在处理函数之前走到哪一步                               |
+| `effect`            | `read` 或 `commit`：提交类操作的结果可能未知                                                   |
+| `limit`             | 消息体上限的名字：`small` 或 `input`                                                           |
+| `body`              | 消息体的 `Codec`                                                                               |
+| `outcomes`          | 每种可能的结果对应它的响应体：`succeeded` 必有，值是 `Codec`；`FixedOutcome` 的值只能是 `true` |
+| `carriesCredential` | 可选 `true`：结果里带登录证明                                                                  |
+| `countsAsAccess`    | 可选 `true`：答成功时算一次成功的业务访问                                                      |
 
 观察契约 `ObservationContract` 有 `identity`、可选的 `limit`、`open` 与 `frame` 两个 `Codec`、`ends` 与可选的 `countsAsAccess`。`limit` 是建立时消息体上限的名字，与操作契约的 `limit` 同名、同两档（`'small' | 'input'`），没写时取 `'small'`（交付卡 #1249）。`ends` 只列这个观察自己的结束原因。观察中枢对每个观察都一样的结束原因不在这里列。
 
@@ -1104,18 +1100,17 @@ const encoded = encodeGovernanceRequest({
 
 `defineProtocol(protocol)` 的签名是 `defineProtocol<const P extends ProtocolContract>(protocol: P & Closed<P>): DefinedProtocol<P>`。`Closed<P>` 是不导出的封闭检查类型。它做两件事：
 
-1. 封闭检查。结果表之外的结果名、操作或观察上契约之外的栏、缺少 `succeeded`、给 `FixedOutcome` 写编解码，都编译失败。
+1. 封闭检查。结果表之外的结果名、操作或观察上契约之外的栏、缺少 `succeeded`、给 `FixedOutcome` 写编解码，都编译失败。操作不能叫 `observe`：由契约得到的客户端每个操作一个成员，观察放在 `observe` 下面，同名的操作会被它盖住。字面量写的契约编译失败；用别的办法拼出来的契约在调用时抛 `TypeError`。
 2. 加进管道会替领域答的结果。返回值里每个操作的结果集按下表补上 `true` 项，拥有者已列的结果与它们的编解码保留。
 
-| `identity` | `effect` | 补上的结果 |
-| --- | --- | --- |
-| `none` | `read` | `protocol-rejected`、`basis-unavailable` |
-| `none` | `commit` | `protocol-rejected`、`basis-unavailable`、`unknown` |
-| `login` 或 `acting-tenant` | `read` | `protocol-rejected`、`basis-unavailable`、`denied` |
+| `identity`                 | `effect` | 补上的结果                                                    |
+| -------------------------- | -------- | ------------------------------------------------------------- |
+| `none`                     | `read`   | `protocol-rejected`、`basis-unavailable`                      |
+| `none`                     | `commit` | `protocol-rejected`、`basis-unavailable`、`unknown`           |
+| `login` 或 `acting-tenant` | `read`   | `protocol-rejected`、`basis-unavailable`、`denied`            |
 | `login` 或 `acting-tenant` | `commit` | `protocol-rejected`、`basis-unavailable`、`denied`、`unknown` |
 
 `DefinedProtocol<P>` 在类型上做同样的补充。`effect` 的类型可能是 `commit` 时，类型上就有 `unknown`，所以「结果未知」不会被写成成功或失败（RFC-0015 I-8 在契约这一层）。观察原样保留。`defineProtocol` 返回新值，不改入参。
-
 
 ### 内置协议 `access/v1`
 
@@ -1126,6 +1121,7 @@ const encoded = encodeGovernanceRequest({
 - 帧（`AvailabilityFrame`）是两种之一。快照 `{ kind: 'snapshot', revision, protocols: [{ name, major }] }` 给出整个集合；变化 `{ kind: 'change', revision, added: [{ name, major }], removed: [{ name, major }] }` 给出一次变化。`revision` 是正整数，变化帧的基础是 `revision - 1`。客户端收到基础对不上的变化帧时不应用，改为重新订阅。
 
 帧怎样从登记表得来、读得慢的订阅者怎样改收快照，归入口规格的[内置协议与可用性](../server-entry/SPEC.md#内置协议与可用性)。
+
 ### 浏览器夹具
 
 [tests/fixtures/browser/](tests/fixtures/browser/main.ts) 是一个浏览器消费者。它只从根入口导入，按 `source` 条件把本成员与它依赖的 json-text、legal-identity、utc-instant 的源码一起编译。类型库是 ES2024 加 DOM，不带 Node 类型。这次编译是慢层成员测试 [tests/browser-fixture.spec.ts](tests/browser-fixture.spec.ts) 的一条。夹具里的[示例协议](tests/fixtures/browser/example-protocol.ts)证明协议契约的写法成立，它不是任何领域的协议，也不随发行导出。
@@ -1156,11 +1152,11 @@ node --conditions=source tests/fixtures/browser/demo.ts
 
 主入口导出治理、会话与 HITL 三组纯函数，每组四个，及其公开输入结果类型。另有[身份值的文本](#身份值的文本)的八个函数。本表是治理一组。会话一组见[会话编解码函数](#会话编解码函数)，HITL 一组见[HITL 编解码函数](#hitl-编解码函数)。
 
-| 函数 | 输入与可见结果 |
-| --- | --- |
-| `readGovernanceRequest` | 参数对象包含 `bytes`、`limits`。成功读取正常消息得到 `request`；协议不合规得到 `protocol-rejected` 共同响应和结构诊断；合法版本下的4个阶段操作得到 `stage-not-provided` 共同响应。读取不知道部署的声明：合法的正常请求，包括部署声明不提供的操作，都得到 `request`，由服务端接入按声明应答。 |
-| `readGovernanceResponse` | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`；合法但不同关联值或无关联值的协议/阶段响应得到 `unmatched`；其他坏消息得到 `unreadable`。任何治理操作的 `stage-not-provided` 响应只要 `body` 是空对象就读得出。 |
-| `encodeGovernanceRequest` | 参数对象包含本地 `request`、`limits`。合法模型得到 `encoded` 字节，模型字段或值不符得到 `invalid` 和结构诊断。只编码正常操作。 |
+| 函数                       | 输入与可见结果                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `readGovernanceRequest`    | 参数对象包含 `bytes`、`limits`。成功读取正常消息得到 `request`；协议不合规得到 `protocol-rejected` 共同响应和结构诊断；合法版本下的4个阶段操作得到 `stage-not-provided` 共同响应。读取不知道部署的声明：合法的正常请求，包括部署声明不提供的操作，都得到 `request`，由服务端接入按声明应答。                                                                                       |
+| `readGovernanceResponse`   | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`；合法但不同关联值或无关联值的协议/阶段响应得到 `unmatched`；其他坏消息得到 `unreadable`。任何治理操作的 `stage-not-provided` 响应只要 `body` 是空对象就读得出。                                                                               |
+| `encodeGovernanceRequest`  | 参数对象包含本地 `request`、`limits`。合法模型得到 `encoded` 字节，模型字段或值不符得到 `invalid` 和结构诊断。只编码正常操作。                                                                                                                                                                                                                                                     |
 | `encodeGovernanceResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。正常操作的 `stage-not-provided` 响应合法，`body` 为空对象。本地 `operation` 不写入线上响应。另有共同拒绝重载，只需 response 与 limits，即可编码 protocol-rejected 或 stage-not-provided。无 operation 时只允许这两种共同响应，不能借缺上下文编码任意业务结果。 |
 
 `GovernanceCodecLimits` 直接别名引用 json-text 的 `JsonLimits`，不添加字段或默认数值。六项预算必须是1至最大安全整数的整数。无效参数容器、非 `Uint8Array` 字节、无效预算、非法本地操作上下文，以及非字符串的 `expectedMessageId` 属于编程错误，抛出固定 `TypeError`，错误不含输入值。参数中的请求或响应模型无效属于 `invalid`，不抛模型内容。messageId只要求字符串，不要求UUID或非空；operation仍必须属于封闭集合。
@@ -1169,12 +1165,12 @@ node --conditions=source tests/fixtures/browser/demo.ts
 
 会话一组读写 `session-public/1` 的消息。下表与治理表逐行对应。
 
-| 函数 | 输入与可见结果 |
-| --- | --- |
-| `readSessionRequest` | 参数对象包含 `bytes`、`limits`。成功读取得到 `request`。协议不合规得到 `protocol-rejected` 共同响应和结构诊断。会话一组没有阶段操作，所以没有 `stage-not-provided`。 |
-| `readSessionResponse` | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`。合法响应的关联值不同，或 `protocol-rejected` 响应没有关联值时，得到 `unmatched`。其他坏消息得到 `unreadable`。 |
-| `encodeSessionRequest` | 参数对象包含本地 `request`、`limits`。合法模型得到 `encoded` 字节。模型字段或值不符得到 `invalid` 和结构诊断。 |
-| `encodeSessionResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。本地 `operation` 不写入线上响应。共同拒绝重载只需 `response` 与 `limits`，只能编码 `protocol-rejected`。 |
+| 函数                    | 输入与可见结果                                                                                                                                                                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `readSessionRequest`    | 参数对象包含 `bytes`、`limits`。成功读取得到 `request`。协议不合规得到 `protocol-rejected` 共同响应和结构诊断。会话一组没有阶段操作，所以没有 `stage-not-provided`。                                                                                 |
+| `readSessionResponse`   | 参数对象包含 `bytes`、本地原 `operation`、`expectedMessageId`、`limits`。先完整核验该操作允许的响应，再匹配关联。匹配得到 `response`。合法响应的关联值不同，或 `protocol-rejected` 响应没有关联值时，得到 `unmatched`。其他坏消息得到 `unreadable`。 |
+| `encodeSessionRequest`  | 参数对象包含本地 `request`、`limits`。合法模型得到 `encoded` 字节。模型字段或值不符得到 `invalid` 和结构诊断。                                                                                                                                       |
+| `encodeSessionResponse` | 参数对象包含本地 `operation`、与该操作关联的 `response`、`limits`。合法模型得到 `encoded` 字节，否则得到 `invalid`。本地 `operation` 不写入线上响应。共同拒绝重载只需 `response` 与 `limits`，只能编码 `protocol-rejected`。                         |
 
 会话一组沿用治理一组的下列规则：
 
@@ -1252,12 +1248,12 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 
 身份值在线上是字符串。这些字符串的序列化表示由本成员拥有，调用者不自己拼文本，也不借别的消息的编解码铸造值。本成员导出四种身份的文本函数，每种一对：
 
-| 身份 | 读：文本得值 | 写：值得文本 |
-| --- | --- | --- |
-| 租户 `TenantId` | `readTenantText` | `encodeTenantText` |
-| 组织 `OrganizationId` | `readOrganizationIdText` | `encodeOrganizationIdText` |
-| 账号 `AccountId` | `readAccountIdText` | `encodeAccountIdText` |
-| 登录状态 `LoginStateId` | `readLoginStateIdText` | `encodeLoginStateIdText` |
+| 身份                    | 读：文本得值             | 写：值得文本               |
+| ----------------------- | ------------------------ | -------------------------- |
+| 租户 `TenantId`         | `readTenantText`         | `encodeTenantText`         |
+| 组织 `OrganizationId`   | `readOrganizationIdText` | `encodeOrganizationIdText` |
+| 账号 `AccountId`        | `readAccountIdText`      | `encodeAccountIdText`      |
+| 登录状态 `LoginStateId` | `readLoginStateIdText`   | `encodeLoginStateIdText`   |
 
 - 读函数同步执行，没有外部副作用。文本不合法，或不是字符串，读出 `undefined`，不抛异常。读出的值是 legal-identity 铸造的值，可直接放进请求模型。
 - 写函数对 legal-identity 没有铸造的值抛固定 `TypeError`，错误不含输入值。
@@ -1274,46 +1270,46 @@ wire 的 `loginProof` 仍是字符串。需要证明的正常请求在本地将�
 
 下面每个正常操作行另外允许公共 `protocol-rejected` 和 `stage-not-provided`，其body为空。表内 `unknown` 才是可编码的线上unknown，body为空。超时、失联和回执丢失产生的调用者本地未知不自动增加一项线上outcome。每行的成功body沿上文body表，所有未列字段拒绝。
 
-| operation | 线上业务 outcome | 依据与协议细化 |
-| --- | --- | --- |
-| public-health | succeeded | body结果表；健康没有登录或目标 |
-| register-and-activate | succeeded, not-loginable | 操作注册节，其他条件不足含依据不可得统一not-loginable；丢回执仅调用者本地未知 |
-| issue-login | succeeded, uniform-auth-failure, basis-unavailable | 签发节，丢回执仅调用者本地未知 |
-| revoke-login | succeeded, no-change, denied, not-visible, basis-unavailable | 撤销节，回执丢失仅调用者本地未知 |
-| replace-credential | succeeded, denied, basis-unavailable | 更换节、共同登录步骤及协议细化；当前凭据错误统一denied，崩溃仅调用者本地未知 |
-| create-organization | succeeded, denied, basis-unavailable, conflict, unknown | 创建节含无法排序unknown及保存拒绝回执 |
-| query-create-organization | succeeded, denied, basis-unavailable, conflict, unknown | 原回执查询节明确 |
-| issue-member-invitation | succeeded, denied, not-visible, basis-unavailable | 邀请节+共同登录步骤 |
-| accept-member-invitation | succeeded, no-change, denied, not-visible, basis-unavailable | 邀请处置顺序1–5 |
-| reject-member-invitation | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
-| withdraw-member-invitation | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
-| query-invitation | succeeded, denied, not-visible, basis-unavailable | 当前读面+共同登录步骤 |
-| query-received-invitations | succeeded, denied, basis-unavailable | 本人名单+完整性与登录步骤 |
-| query-issued-invitations | succeeded, denied, basis-unavailable | 发出组织名单+完整性与登录步骤 |
-| query-own-valid-logins | succeeded, denied, basis-unavailable | 有效登录节，succeeded logins必须非空 |
-| query-current-tenant | succeeded, denied, basis-unavailable | 切换节及当前读面 |
-| query-own-memberships | succeeded, denied, basis-unavailable | 当前读面、名单完整性 |
-| leave-organization | succeeded, denied, basis-unavailable | 退出节及共同登录步骤，不提供no-change |
-| remove-member | succeeded, denied, not-visible, basis-unavailable, conflict | 移除节+共同登录步骤 |
-| change-member-role | succeeded, denied, not-visible, basis-unavailable, conflict | 调整角色节+共同登录步骤 |
-| switch-current-tenant | succeeded, no-change, denied, basis-unavailable | 切换节 |
-| query-organization | succeeded, denied, not-visible, basis-unavailable | 当前读面+共同登录步骤 |
-| query-organization-members | succeeded, denied, not-visible, basis-unavailable | 当前读面，includeRemoved权限拒绝不改筛选 |
-| open-affiliation-request | succeeded, denied, not-visible, basis-unavailable | 隶属请求节及入口披露；目标不存在或不可见统一not-visible |
-| accept-affiliation-request | succeeded, no-change, denied, not-visible, basis-unavailable | 隶属请求节+共同步骤 |
-| reject-affiliation-request | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
-| withdraw-affiliation-request | succeeded, no-change, denied, not-visible, basis-unavailable | 同上 |
-| release-affiliation | succeeded, no-change, denied, not-visible, basis-unavailable, conflict | 解除节及协议细化；succeeded空body |
-| query-received-affiliation-requests | succeeded, denied, basis-unavailable | 组织名单+完整性与登录步骤 |
-| query-issued-affiliation-requests | succeeded, denied, basis-unavailable | 组织名单+完整性与登录步骤 |
-| query-affiliation-request | succeeded, denied, not-visible, basis-unavailable | 当前读面+共同登录步骤 |
-| judge-admission | succeeded, denied, not-visible, basis-unavailable, need-decision | 准入节四结果及隐藏对象优先 |
-| submit-authorization-expression | succeeded, no-change, denied, basis-unavailable, unknown | 表达节+共同登录步骤 |
-| withdraw-authorization-expression | succeeded, denied, basis-unavailable, unknown | 撤回节及协议细化；succeeded空body |
-| disable-subject | stage-not-provided | 有效版本后跳过其余字段，非法版本为protocol-rejected |
-| restore-subject | stage-not-provided | 同上 |
-| end-subject | stage-not-provided | 同上 |
-| reopen-after-media-loss | stage-not-provided | 同上 |
+| operation                           | 线上业务 outcome                                                       | 依据与协议细化                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| public-health                       | succeeded                                                              | body结果表；健康没有登录或目标                                                |
+| register-and-activate               | succeeded, not-loginable                                               | 操作注册节，其他条件不足含依据不可得统一not-loginable；丢回执仅调用者本地未知 |
+| issue-login                         | succeeded, uniform-auth-failure, basis-unavailable                     | 签发节，丢回执仅调用者本地未知                                                |
+| revoke-login                        | succeeded, no-change, denied, not-visible, basis-unavailable           | 撤销节，回执丢失仅调用者本地未知                                              |
+| replace-credential                  | succeeded, denied, basis-unavailable                                   | 更换节、共同登录步骤及协议细化；当前凭据错误统一denied，崩溃仅调用者本地未知  |
+| create-organization                 | succeeded, denied, basis-unavailable, conflict, unknown                | 创建节含无法排序unknown及保存拒绝回执                                         |
+| query-create-organization           | succeeded, denied, basis-unavailable, conflict, unknown                | 原回执查询节明确                                                              |
+| issue-member-invitation             | succeeded, denied, not-visible, basis-unavailable                      | 邀请节+共同登录步骤                                                           |
+| accept-member-invitation            | succeeded, no-change, denied, not-visible, basis-unavailable           | 邀请处置顺序1–5                                                               |
+| reject-member-invitation            | succeeded, no-change, denied, not-visible, basis-unavailable           | 同上                                                                          |
+| withdraw-member-invitation          | succeeded, no-change, denied, not-visible, basis-unavailable           | 同上                                                                          |
+| query-invitation                    | succeeded, denied, not-visible, basis-unavailable                      | 当前读面+共同登录步骤                                                         |
+| query-received-invitations          | succeeded, denied, basis-unavailable                                   | 本人名单+完整性与登录步骤                                                     |
+| query-issued-invitations            | succeeded, denied, basis-unavailable                                   | 发出组织名单+完整性与登录步骤                                                 |
+| query-own-valid-logins              | succeeded, denied, basis-unavailable                                   | 有效登录节，succeeded logins必须非空                                          |
+| query-current-tenant                | succeeded, denied, basis-unavailable                                   | 切换节及当前读面                                                              |
+| query-own-memberships               | succeeded, denied, basis-unavailable                                   | 当前读面、名单完整性                                                          |
+| leave-organization                  | succeeded, denied, basis-unavailable                                   | 退出节及共同登录步骤，不提供no-change                                         |
+| remove-member                       | succeeded, denied, not-visible, basis-unavailable, conflict            | 移除节+共同登录步骤                                                           |
+| change-member-role                  | succeeded, denied, not-visible, basis-unavailable, conflict            | 调整角色节+共同登录步骤                                                       |
+| switch-current-tenant               | succeeded, no-change, denied, basis-unavailable                        | 切换节                                                                        |
+| query-organization                  | succeeded, denied, not-visible, basis-unavailable                      | 当前读面+共同登录步骤                                                         |
+| query-organization-members          | succeeded, denied, not-visible, basis-unavailable                      | 当前读面，includeRemoved权限拒绝不改筛选                                      |
+| open-affiliation-request            | succeeded, denied, not-visible, basis-unavailable                      | 隶属请求节及入口披露；目标不存在或不可见统一not-visible                       |
+| accept-affiliation-request          | succeeded, no-change, denied, not-visible, basis-unavailable           | 隶属请求节+共同步骤                                                           |
+| reject-affiliation-request          | succeeded, no-change, denied, not-visible, basis-unavailable           | 同上                                                                          |
+| withdraw-affiliation-request        | succeeded, no-change, denied, not-visible, basis-unavailable           | 同上                                                                          |
+| release-affiliation                 | succeeded, no-change, denied, not-visible, basis-unavailable, conflict | 解除节及协议细化；succeeded空body                                             |
+| query-received-affiliation-requests | succeeded, denied, basis-unavailable                                   | 组织名单+完整性与登录步骤                                                     |
+| query-issued-affiliation-requests   | succeeded, denied, basis-unavailable                                   | 组织名单+完整性与登录步骤                                                     |
+| query-affiliation-request           | succeeded, denied, not-visible, basis-unavailable                      | 当前读面+共同登录步骤                                                         |
+| judge-admission                     | succeeded, denied, not-visible, basis-unavailable, need-decision       | 准入节四结果及隐藏对象优先                                                    |
+| submit-authorization-expression     | succeeded, no-change, denied, basis-unavailable, unknown               | 表达节+共同登录步骤                                                           |
+| withdraw-authorization-expression   | succeeded, denied, basis-unavailable, unknown                          | 撤回节及协议细化；succeeded空body                                             |
+| disable-subject                     | stage-not-provided                                                     | 有效版本后跳过其余字段，非法版本为protocol-rejected                           |
+| restore-subject                     | stage-not-provided                                                     | 同上                                                                          |
+| end-subject                         | stage-not-provided                                                     | 同上                                                                          |
+| reopen-after-media-loss             | stage-not-provided                                                     | 同上                                                                          |
 
 `release-affiliation/succeeded`、`withdraw-authorization-expression/succeeded`、`revoke-login/no-change`、`switch-current-tenant/no-change` 的 body 都为空对象。所有 `unknown`、`not-loginable` 和 `uniform-auth-failure` 的 body 也为空对象。更换凭据时，有效登录但当前凭据错误统一 `denied`，不披露凭据细节。
 

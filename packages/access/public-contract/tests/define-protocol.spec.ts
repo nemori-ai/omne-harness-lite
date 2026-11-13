@@ -81,6 +81,18 @@ describe('the definition', () => {
     expect(protocol.major).toBe(1)
   })
 
+  it('refuses an operation named observe, the name a client keeps its observations under', () => {
+    const contract = {
+      name: 'example',
+      major: 1,
+      operations: { observe: operation('login', 'read') },
+      observations: {},
+    }
+    expect(() => defineProtocol(contract as never)).toThrow(
+      'example/v1: no operation may be named "observe"',
+    )
+  })
+
   it('keeps an observation as written, with only its own end reasons', () => {
     const observation = {
       identity: 'login',

@@ -15,6 +15,9 @@ const ASSEMBLY = '^packages/assembly/assembly/'
 const ENTRY_CORE = '(registry|settle|pipeline|observation-hub|availability)'
 // The client core and the files it imports from the rest of the SDK.
 const SDK_CORE = '^packages/access/sdk/src/(core/|limits\\.ts$|never-written\\.ts$)'
+// The members on the client's side of the access layer. They sit above the SDK. A protocol client
+// or a view module of a domain joins this set when it is built.
+const CLIENT_SIDE = '^packages/access/client-assembly/'
 const SHARED = '^packages/(common|util)/'
 const ORGANIZATION = 'docs/package-organization.md'
 const TOOLCHAIN = '^tools/repo-toolchain/src/'
@@ -115,10 +118,24 @@ module.exports = {
     },
     {
       name: 'capability-not-sdk',
-      comment: `Business capabilities and runtime do not depend on the SDK. ${LAYERS}「业务含义不受协议支配」`,
+      comment: `Server-side capabilities and runtime do not depend on the SDK. A client-side member is above the SDK and is held by the two rules after this one instead. ${LAYERS}「业务含义不受协议支配」`,
       severity: 'error',
-      from: { path: PACKAGES, pathNot: SDK },
+      from: { path: PACKAGES, pathNot: `${SDK}|${CLIENT_SIDE}` },
       to: { path: SDK },
+    },
+    {
+      name: 'client-side-only-sdk-core',
+      comment: `A client-side member reaches the SDK only through its client core. ${ORGANIZATION}「client-assembly 是客户端装配」; ${ACCESS_RFC}「16. 成员怎么放，依赖方向」`,
+      severity: 'error',
+      from: { path: CLIENT_SIDE },
+      to: { path: SDK, pathNot: SDK_CORE },
+    },
+    {
+      name: 'client-side-is-above',
+      comment: `No other member depends on a client-side member: not the SDK, not the server side, not a capability. Applications assemble it. ${LAYERS}「依赖关系与禁止方向」`,
+      severity: 'error',
+      from: { path: PACKAGES, pathNot: CLIENT_SIDE },
+      to: { path: CLIENT_SIDE },
     },
     {
       name: 'capability-not-assembly',

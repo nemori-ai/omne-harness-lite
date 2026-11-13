@@ -66,6 +66,18 @@ describe('C12: a client from one protocol contract', () => {
     expect(requests[0]!.messageId).toMatch(/^[\x21-\x7e]{1,128}$/)
   })
 
+  it('refuses a contract with an operation named observe: the observations would hide it', () => {
+    const [name, operation] = Object.entries(notesProtocol.operations)[0]!
+    const clashing = {
+      ...notesProtocol,
+      operations: { ...notesProtocol.operations, observe: operation },
+    }
+    expect(name).not.toBe('observe')
+    expect(() => createClient(clashing, scripted([]).requests as never)).toThrow(
+      'notes/v1/observe: an operation cannot take the name of the observations',
+    )
+  })
+
   it('refuses a body the contract cannot write, before anything is sent', async () => {
     const { requests, client } = scripted([])
     const refusal = await client['read-note']({ noteId: 7 as unknown as string }).catch(
