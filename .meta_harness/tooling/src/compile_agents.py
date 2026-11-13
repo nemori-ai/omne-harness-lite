@@ -17,7 +17,15 @@ from pathlib import Path
 import yaml
 
 from host_layout import HOSTS, RETIRED
-from projection import Artifact, compile_sources, file_mode, no_symlinks
+from projection import Artifact, compile_sources, no_symlinks, readable_mode
+
+
+def mode_differs(target: Path, expected: int) -> bool:
+    """Whether the output has another mode than the one the sources give. An output whose mode
+    cannot be read (a generated file on a file system without permission bits) does not differ:
+    there the bytes are all a check can compare."""
+    mode = readable_mode(target)
+    return mode is not None and mode != expected
 
 
 def stale_paths(root: Path, outputs, directories, retired) -> list[Path]:
@@ -73,7 +81,7 @@ def deliver(outputs: dict[Path, Artifact], output: Path, check=False, directorie
             raise ValueError(f"output escapes staging root: {relative}")
         existed = target.exists()
         drifted = existed and (not target.is_file() or target.read_bytes() != artifact.content
-                               or file_mode(target) != artifact.mode)
+                               or mode_differs(target, artifact.mode))
         if drifted and check:
             problems.append(f"output differs; regenerate: {relative}")
         elif drifted and not target.is_file():
