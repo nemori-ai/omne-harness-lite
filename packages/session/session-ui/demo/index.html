@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>session-ui 演示</title>
+    <link rel="stylesheet" href="/out/main.css" />
+    <style>
+      html,
+      body,
+      #root {
+        height: 100%;
+        margin: 0;
+      }
+      .demo-bar {
+        position: fixed;
+        top: 70px;
+        right: 12px;
+        font: 12px system-ui;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div class="demo-bar">
+      演示：假的协议客户端按时间表送帧。消息里带「问」出问题卡，带「断」演示断线重连。
+      <button
+        onclick="
+          document.documentElement.dataset.theme =
+            document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'
+        "
+      >
+        深浅色
+      </button>
+    </div>
+    <script type="module" src="/out/main.js"></script>
+  </body>
+</html>

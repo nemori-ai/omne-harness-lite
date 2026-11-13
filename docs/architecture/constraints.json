@@ -410,6 +410,14 @@
       "source": "packages/session/session-observation/SPEC.md"
     },
     {
+      "id": "packages/session/session-ui",
+      "paths": ["packages/session/session-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/session-ui/SPEC.md"
+    },
+    {
       "id": "packages/common/stream-arrival",
       "paths": ["packages/common/stream-arrival/src/**"],
       "layer": "contract",
@@ -701,6 +709,21 @@
         "packages/access/server-entry"
       ],
       "source": "docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察"
+    },
+    {
+      "id": "DIR-SESSION-UI-SERVER",
+      "from": ["packages/session/session-ui"],
+      "to": [
+        "packages/access/access-cordis-contract",
+        "packages/access/server-entry",
+        "packages/identity/authorization",
+        "packages/identity/identity",
+        "packages/identity/identity-sql",
+        "packages/session/session",
+        "packages/session/session-cordis",
+        "packages/session/session-storage-sql"
+      ],
+      "source": "docs/rfcs/RFC-0015-access-dynamic-registration.md#四部分界面"
     },
     {
       "id": "DIR-ACCESS-MODEL",

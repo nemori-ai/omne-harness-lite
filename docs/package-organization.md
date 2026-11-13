@@ -127,7 +127,7 @@ packages/
 │   ├── session-access/         session/v1 的接入插件（未建）
 │   ├── session-diagnostics-protocol/  公开协议 session-diagnostics/v1 的协议契约（未建）
 │   ├── session-diagnostics-access/    session-diagnostics/v1 的接入插件，读四个领域的只读记录（未建）
-│   └── session-ui/             会话列表与对话的界面模块（未建）
+│   └── session-ui/             对话的界面模块：React 组件 SessionWorkspace，只经 session/v1 的协议客户端做事
 ├── assembly/
 │   ├── assembly/               求值、采用和装配交接
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
