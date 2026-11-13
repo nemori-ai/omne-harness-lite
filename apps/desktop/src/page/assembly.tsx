@@ -3,6 +3,9 @@
 // compiles and runs.
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { assetsProtocol, type AssetsProtocol } from '@omne-harness/assets-protocol'
+import { SettingsPanel } from '@omne-harness/assets-ui'
+import '@omne-harness/assets-ui/assets-ui.css'
 import { identityProtocol, type IdentityProtocol } from '@omne-harness/identity-protocol'
 import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
 import { SessionWorkspace } from '@omne-harness/session-ui'
@@ -13,10 +16,15 @@ import { LoginScreen } from './identity/login-screen.tsx'
 import type { Region } from './shell/shell.tsx'
 import { serviceOf } from './tree.ts'
 
-export const protocols: readonly ProtocolContract[] = [identityProtocol, sessionProtocol]
+export const protocols: readonly ProtocolContract[] = [
+  identityProtocol,
+  sessionProtocol,
+  assetsProtocol,
+]
 
 const IDENTITY = serviceOf(identityProtocol)
 const SESSION = serviceOf(sessionProtocol)
+const ASSETS = serviceOf(assetsProtocol)
 
 export function assemble(bridge: HostBridge): {
   readonly gate: Region
@@ -30,17 +38,38 @@ export function assemble(bridge: HostBridge): {
       ),
     },
     workspace: {
-      services: [IDENTITY, SESSION],
-      render: ([identity, session], chrome) => (
+      services: [IDENTITY],
+      render: ([identity], chrome) => (
         <CurrentTenant identity={identity as ClientOf<IdentityProtocol>} chrome={chrome}>
-          {tenant => (
-            // The workspace reads its tenant once, on mount: another tenant is another workspace.
-            <SessionWorkspace
-              key={tenant}
-              client={session as ClientOf<SessionProtocol>}
-              tenant={tenant}
-            />
-          )}
+          {tenant =>
+            // Each view reads its tenant once, on mount: another tenant is another view.
+            chrome.views([
+              {
+                id: 'conversation',
+                title: '对话',
+                services: [SESSION],
+                render: ([session]) => (
+                  <SessionWorkspace
+                    key={tenant}
+                    client={session as ClientOf<SessionProtocol>}
+                    tenant={tenant}
+                  />
+                ),
+              },
+              {
+                id: 'settings',
+                title: '设置',
+                services: [ASSETS],
+                render: ([assets]) => (
+                  <SettingsPanel
+                    key={tenant}
+                    client={assets as ClientOf<AssetsProtocol>}
+                    tenant={tenant}
+                  />
+                ),
+              },
+            ])
+          }
         </CurrentTenant>
       ),
     },

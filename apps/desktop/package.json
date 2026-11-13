@@ -22,6 +22,8 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/assets-protocol": "workspace:*",
+    "@omne-harness/assets-ui": "workspace:*",
     "@omne-harness/client-assembly": "workspace:*",
     "@omne-harness/identity-protocol": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
