@@ -10,6 +10,7 @@ import type {
   SessionAccessCheck,
   SessionAccessDecision,
   SessionAccessRequest,
+  SessionClock,
   SessionFailure,
 } from '@omne-harness/session-contract'
 import type { SessionCursorSigning } from '@omne-harness/session-cordis-contract'
@@ -47,6 +48,11 @@ export type SessionStorageOptions<P> = Readonly<{
    * `WORK_CACHE_SESSIONS` and `WORK_CACHE_BYTES`; 0 keeps nothing.
    */
   workCache?: WorkCacheBounds
+  /**
+   * The Session clock: the time of each commit (SPEC「提交的时刻与会话列表」). Absent, or answering
+   * a failure, the commit has no time. It is not `now`, which only dates cursors.
+   */
+  clock?: Pick<SessionClock, 'sample'>
   now?: () => number
 }>
 

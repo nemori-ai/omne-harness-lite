@@ -59,6 +59,8 @@ export async function app(
     /** The bounds of the work cache of the storage (SPEC RT-04); the member's defaults when absent. */
     workCache?: SessionStorageOptions<string>['workCache']
     intakeLimits?: SessionStorageOptions<string>['intakeLimits']
+    /** The Session clock that dates commits; absent, commits have no time. */
+    clock?: SessionStorageOptions<string>['clock']
   } = {},
 ) {
   const provider: SqliteStorage = createSqliteStorage()
@@ -117,6 +119,7 @@ export async function app(
     combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
     now: options.now ?? (() => clock),
     ...(options.workCache === undefined ? {} : { workCache: options.workCache }),
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
   }
   const port = createSessionStorage<string>(storageOptions)
   // The pair over the same options and storage: its public port and its delegated entry.

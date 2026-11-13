@@ -217,6 +217,14 @@ function pending(principal: unknown, tenant: TenantId = A) {
   })
 }
 
+function list(principal: unknown, tenant: TenantId = A, target: TenantId = tenant) {
+  return sessionRequest({
+    access: { principal, tenant },
+    operation: 'directory.list',
+    target: { kind: 'tenant', tenant: target },
+  })
+}
+
 function references(principal: unknown) {
   return sessionRequest({
     access: { principal, scope: 'system' },
@@ -324,6 +332,17 @@ describe('sessionAccessCheck: the steps before the dependencies (policy draft §
     expect(await w.session.check(read(w.work(OWN, B), 'readWork'))).toEqual({ kind: 'denied' })
     expect(await w.session.check(read(w.login(B), 'history.begin'))).toEqual({ kind: 'denied' })
     expect(w.reached()).toBe(0)
+  })
+
+  it('lets the login principal of the tenant list its sessions, and denies a work principal and another tenant', async () => {
+    const w = world()
+    expect((await w.session.check(list(w.login()))).kind).toBe('allowed')
+    expect(w.seen.admissions.at(-1)?.target).toMatchObject({ owner: 'session', kind: 'tenant' })
+    const reached = w.reached()
+    expect(await w.session.check(list(w.work()))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(list(w.login(B), B, A))).toEqual({ kind: 'denied' })
+    expect(await w.session.check(list(w.login(B), A))).toEqual({ kind: 'denied' })
+    expect(w.reached()).toBe(reached)
   })
 
   it('checks only the tenant of a work principal on `pending`, whatever session its work names', async () => {

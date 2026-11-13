@@ -46,6 +46,7 @@ import type {
   ReleasedScope,
   Reply,
   ResidentReference,
+  SessionDirectory,
   SessionHistory,
   SessionManagement,
   SessionReconciliation,
@@ -335,6 +336,12 @@ export interface SessionTransactionPort<P> {
       reason?: PendingReason
     }>,
   ): Reply<Readonly<{ sessions: readonly SessionId[]; next: string | null }>>
+  /**
+   * The session list of one tenant (SPEC「会话列表」). It asks the access check once, with the
+   * tenant as the target. A provider that does not offer it omits it, and a reader answers
+   * unavailable. A delegated view answers `denied`: it names no session.
+   */
+  readonly directory?: SessionDirectory<P>
   references(
     input: Readonly<{
       principal: P

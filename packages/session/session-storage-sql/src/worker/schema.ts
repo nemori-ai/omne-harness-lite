@@ -135,6 +135,31 @@ export const SCOPE_INDEX_TABLES: readonly string[] = ['sl_scope_idx']
 
 export const SCOPE_INDEX_MIGRATION = Object.freeze({ owner: 'session', id: '007-scope-index' })
 
+// The time of each commit and the session list (SPEC「提交的时刻与会话列表」).
+// - `sl_commit_time` is authoritative: one row per commit, its commit sequence and the time the
+//   storage read from the Session clock when it submitted the commit. A null time is a commit
+//   whose clock answered unavailable; commits before this migration have no row.
+// - `sl_session_list` is derived, one row per session, written in the commit that changes it. The
+//   index serves the one query: one tenant, latest activity first, the session as the second key.
+export const SESSION_LIST_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_commit_time (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, commit_seq INTEGER NOT NULL, at TEXT,
+    PRIMARY KEY (tenant, session, commit_seq)) STRICT`,
+  `CREATE TABLE sl_session_list (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, created_at TEXT, last_activity_at TEXT,
+    lifecycle TEXT NOT NULL, title TEXT, version INTEGER NOT NULL,
+    PRIMARY KEY (tenant, session)) STRICT`,
+  `CREATE INDEX sl_session_list_activity_idx
+    ON sl_session_list (tenant, last_activity_at DESC, session)`,
+]
+
+export const SESSION_LIST_TABLES: readonly string[] = ['sl_commit_time', 'sl_session_list']
+
+export const SESSION_LIST_MIGRATION = Object.freeze({ owner: 'session', id: '008-session-list' })
+
+/** The rows one page of `session.list` may scan before it answers `partial`. */
+export const SESSION_LIST_SCAN_ROWS = 1000
+
 export const ATTEMPT_GRANT_MIGRATION = Object.freeze({
   owner: 'session',
   id: '005-attempt-grant',

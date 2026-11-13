@@ -80,7 +80,7 @@
 
 租户内操作使用 legal-identity 的 `Access<P>`。单会话目标绑定该租户和 `SessionId`；变更还携带原 `SessionCommand`，使授权适配器可以判断实际控制、设置和模式变更。`pending` 的目标是显式租户。`references` 与 `releasedScopes` 使用现有系统作用域主体和目录目标，不制造空租户或任意租户的 `Access`。系统读取遵循 IC-18 的限定资格，不因新增此端口获得权限。
 
-操作集合由四个面的真实操作组成：23 种变更、`readWork`、`readInput`、`queryOperation`、`loadRecovery`、`inspectIdle`、`history.begin`、`history.next`、`history.since`、`history.readModelView`、`pending`、`references`、`releasedScopes`。操作之间不共享一次允许裁定。变更的目标、租户与命令必须一致。
+操作集合由四个面的真实操作组成：23 种变更、`readWork`、`readInput`、`queryOperation`、`loadRecovery`、`inspectIdle`、`history.begin`、`history.next`、`history.since`、`history.readModelView`、`pending`、`directory.list`、`references`、`releasedScopes`。`directory.list` 与 `pending` 一样以显式租户为目标。操作之间不共享一次允许裁定。变更的目标、租户与命令必须一致。
 
 每次公开读写在实际执行处调用一次 `check`，包括重复变更、原操作查询、每一页历史、恢复读与目录页。先取得本次裁定，再返回已有答案或披露正文。`allowed` 不缓存、不写进游标当作以后访问的凭据。`denied` 返回同名失败；`unavailable` 或核验抛错返回 `unavailable`，不继续读写，不推进修订、游标或操作答案。其他既有守卫仍执行，`allowed` 不证明推进权、来源或共同提交成立。
 
@@ -655,6 +655,26 @@ Session 命令：
 | `pending`        | `denied`；`invalid`（游标错域）；`unavailable`（不返回空完成）                                                                                                                      | 只读，没有未知   | 不适用                                             | 待办只在相应操作成功后由归约解除。读取不删除待办                                       |
 | `references`     | `denied`；`invalid`（游标错域，或键不可解析）；`unavailable`（不返回空页）                                                                                                          | 只读，没有未知   | 不适用                                             | 引用从会话事实派生（[常驻工具与会话冻结](#常驻工具与会话冻结)）；键的含义归 Tool       |
 | `releasedScopes` | `denied`；`invalid`（游标错域）；`unavailable`（不返回空页）                                                                                                                        | 只读，没有未知   | 不适用                                             | 账本是会话日志的 SE25；存储提供者维护派生索引，读取不扫描日志                          |
+
+#### SessionDirectory
+
+<a id="会话列表"></a>
+
+依据：RFC-0015 第 8 节「列出会话」。它不是四个面之一：它不指名会话，所以和 `pending` 一样经公开端口读。`SessionTransactionPort.directory` 是可选成员，提供者没有时省略；Cordis 的 `SessionService.directory` 默认缺席。
+
+| 操作             | 调用方类与资格                         | 身份 | 固定输入                                              | 成功                                                                                     |
+| ---------------- | -------------------------------------- | ---- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `directory.list` | `reader`；目标租户的主体，目标是租户 | 只读 | 租户、游标 `after`、`limit`、`includeArchived`        | `SessionListItem` 页、下一游标 `next`（`null` 表示读完）与完整度 `complete` 或 `partial` |
+
+| 操作             | 拒绝的原因                                                                                       | 未知           | 认回   | 责任                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------ | -------------- | ------ | -------------------------------------------------------------------- |
+| `directory.list` | `denied`；`invalid`（游标错域、`limit` 越界）；`unavailable`（端口没有这一项，或存储读不出，不返回空页） | 只读，没有未知 | 不适用 | 列表项是投影，归会话存储；它不是权威，按标识打开会话不依赖它 |
+
+- `SessionListItem`：`session`、`createdAt`、`lastActivityAt`（UTC 时刻文本，或 `null`）、`lifecycle`（快照的五个值之一）、`title`（文本或 `null`）。
+- 时刻来自每次提交的时刻。时刻取自 `SessionClock`；时钟答不可用时提交照常成立，时刻为空，不用本机墙钟顶替。这一程之前的提交没有时刻。
+- 次序：最近活动的在前，会话标识作第二键，没有时刻的排在后面。「活动」只算建会话、受理一条输入、一轮结束三种提交。
+- 标题取最早一条带文字的用户消息里第一段文字的开头，至多 80 个字符，空白压成一个空格，只写一次。
+- 委派视图对它答 `denied`：它不指名会话。
 
 `PendingReason` 的取值只由快照决定，不读时间，所以提交时就能准确维护：`initialization` 指 `tasks` 中有初始化项（pending、unknown 或 failed）；`unresolved` 指 `unresolved` 非空；`controls` 指有停在 propagating 的控制；`tasks` 指 `tasks` 非空；`inputs` 指待处理输入非空；`run` 指有未终结的 Run；`idle-armed` 指自动归档已启用、未豁免且没有未终结 Run，是否到期由扫描时的 `judgeIdle` 裁定；`release` 指有已保管或已处理、交付责任解除仍为 pending 的结果版本（[EC-04](#ec-04)）。Model 结果在 MODEL-ACK-ARRIVAL 悬置期间保持 `release`，恢复扫描对它只报告，不执行动作（[JC-Release](#jc-release)）。
 

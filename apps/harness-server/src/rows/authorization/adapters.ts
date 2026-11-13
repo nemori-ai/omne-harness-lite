@@ -207,6 +207,7 @@ type SessionTargetKind = SessionAccessRequest<unknown>['target']['kind']
 function targetKindOf(operation: SessionAccessRequest<unknown>['operation']): SessionTargetKind {
   switch (operation) {
     case 'pending':
+    case 'directory.list':
       return 'tenant'
     case 'references':
       return 'resident-references'

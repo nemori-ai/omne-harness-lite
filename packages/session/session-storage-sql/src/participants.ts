@@ -97,11 +97,16 @@ export const EXECUTION_RECORD_HANDLERS = {
 // ---------------------------------------------------------------------------------------------
 // The `session` participant
 
-/** Trusted integration facts, never caller-controlled budgets. Production storage fixes limits at construction. */
+/**
+ * Trusted integration facts, never caller-controlled budgets. Production storage fixes limits at
+ * construction. `at` is the time of the commit from the Session clock (SPEC「提交的时刻与会话列表」);
+ * absent or null, the commit has no time.
+ */
 export function sessionCommandFacts(
   command: SessionCommand,
   guards: readonly GuardCommand[],
   intakeLimits?: SessionIntakeLimits,
+  at: string | null = null,
 ): FactCommandV2 {
   return {
     participant: SESSION_PARTICIPANT,
@@ -110,6 +115,7 @@ export function sessionCommandFacts(
       command: encodeValue(command),
       guards: encodeValue(guards),
       intakeLimits: encodeValue(sessionIntakeLimits(intakeLimits)),
+      ...(at === null ? {} : { at }),
     },
   }
 }
