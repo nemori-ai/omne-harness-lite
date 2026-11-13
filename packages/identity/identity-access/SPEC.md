@@ -19,7 +19,7 @@
 
 <a id="report-access"></a>**报告业务访问。** `reportAccess(login)` 调 `reportBusinessAccess`。身份答 `basis-unavailable` 或抛出时 Promise 拒绝；管道把它记成一次诊断，不改答复。
 
-<a id="operations"></a>**处理函数。** 每个操作调身份同名的公开入口，结果按旧治理位置映射。领域服务每次调用现取，取不到答 `basis-unavailable`，协议不撤（RFC-0015 I-5）。处理函数不吞抛出，由管道按效果规则答。`issue-login` 的成功体总带 `loginId`。行事租户类操作的登录与行事租户取自主体，当前选择由治理端口在提交时核对。
+<a id="operations"></a>**处理函数。** 贡献覆盖契约的 33 个操作。旧治理位置有实现的 20 个调同一个公开入口（无登录的两个调 `IdentityOperations`，其余调 `IdentityGovernance`），结果按旧位置映射；旧部署声明不提供的 13 个答 `stage-not-provided`，不取任何服务。领域服务每次调用现取，取不到答 `basis-unavailable`，协议不撤（RFC-0015 I-5）。处理函数不吞抛出，由管道按效果规则答。`issue-login` 的成功体总带 `loginId`。行事租户类操作的登录与行事租户取自主体，当前选择由治理端口在提交时核对。邀请处置答 `succeeded` 而终态不是本操作的终态时抛出（身份的类型允许、契约不收）。
 
 ## 所有权、失败与生命周期
 
@@ -28,6 +28,7 @@
 ## 组合与验证
 
 - `tests/access-identity.spec.ts`：识别、签发、拒绝与不可用。
-- `tests/identity-operations.spec.ts`：每个处理函数的成功、各拒绝结果与服务缺席。
+- `tests/identity-operations.spec.ts`：第一版六个操作的成功、各拒绝结果与服务缺席，用身份的参考替身。
+- `tests/governance-operations.spec.ts`：其余 14 个有实现的操作逐个核端口收到的输入与每个结果的映射、服务缺席；13 个不提供的答 `stage-not-provided`。
 - `tests/cordis-entry.spec.ts`：插件挂上完整的贡献，服务缺席时答 `basis-unavailable`。
 - 正式装配上的端到端用例在服务端应用：`apps/harness-server/tests/rows/identity-access/release.spec.ts`。
