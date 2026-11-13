@@ -65,7 +65,9 @@ const taggedNote = ruleCodec({
 /**
  * The notes protocol with two more operations for the pipeline (#1233): `ping` needs no login, and
  * `tag-note` carries a tenant in its body that the pipeline hands on unjudged. The operations above
- * are the same, so the registry and settle cases keep using `notesProtocol`.
+ * are the same, so the registry and settle cases keep using `notesProtocol`. For the observation
+ * hub (#1249) it has two more observations: `watch-all` needs no login, and `watch-tenant` acts
+ * for a tenant, takes the larger body limit and counts as a business access.
  */
 export function pipelineNotesProtocol(major = 1) {
   const base = notesProtocol(major)
@@ -104,7 +106,18 @@ export function pipelineNotesProtocol(major = 1) {
         outcomes: { succeeded: empty },
       },
     },
-    observations: base.observations,
+    observations: {
+      ...base.observations,
+      'watch-all': { identity: 'none', open: empty, frame: note, ends: [] },
+      'watch-tenant': {
+        identity: 'acting-tenant',
+        limit: 'input',
+        open: noteRef,
+        frame: note,
+        ends: ['note-deleted'],
+        countsAsAccess: true,
+      },
+    },
   })
 }
 export type PipelineNotesProtocol = ReturnType<typeof pipelineNotesProtocol>

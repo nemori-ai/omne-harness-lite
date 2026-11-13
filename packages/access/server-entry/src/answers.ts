@@ -1,5 +1,5 @@
 // What a location handler gives the HTTP layer to write.
-import type { SseStream } from './sse.ts'
+import type { SseStream } from './observation-hub/sse.ts'
 
 /**
  * A JSON answer. `close` asks the HTTP layer to close the connection after the answer.

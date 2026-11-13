@@ -4,7 +4,7 @@
 
 ## 这一行做什么
 
-行在回环地址上启动治理位置与会话位置的接入。行不实现接入。它从 Cordis 树取出依赖，调用成员的 `createServerEntry`，再把开始与停止交给装配入口。
+行在回环地址上启动治理位置与会话位置的接入，以及新地址 `/api/<协议名>/v<主版本>/<名字>`。行不实现接入。它从 Cordis 树取出依赖，调用成员的 `createServerEntry`，再把开始与停止交给装配入口。
 
 | 项               | 内容                                                                                                         |
 | ---------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -31,6 +31,21 @@
 | `modelDiagnostics`  | `ctx.modelDiagnostics`                         | 会话诊断投影的派发读口。`model-records` 行提供 |
 | `toolQueries`       | 每次调用时 `ctx.get('toolRuntime')` 的 `queries`，只包 `lookup`、`account` 与 `readDiagnostics` | 局部依赖。提供者不在树里时，三个方法答 `unavailable`，成员记缺口；入口照常接收其他操作 |
 | `diagnostics`       | `entryDiagnostics(ctx.telemetry)`              | 成员的每个 `ServerEntryDiagnostic` 成为事件 `omne.entry.diagnostic`（owner `server-entry`，version 1，级别 `warn`），`system` 作用域，部件 `server-entry`，经 `telemetry` 行的出口写出。记录里只有 `code` 与诊断带的 `path` 或 `operation`，没有租户、请求正文、凭据或错误原文。`path` 只取请求 URL 的路径部分，不带查询串与片段。见 [telemetry 行](telemetry.md#发射行怎样接入) |
+
+### 新地址
+
+行给成员一份 `access`（`src/rows/server-entry/access.ts`），新地址因此打开。发行里不挂任何领域的贡献，所以新地址上只有入口自己的内置协议 `access/v1`：它唯一的观察 `availability` 不要登录，答「现在挂着哪些协议」（RFC-0015 I-15：有贡献不等于开放）。
+
+| `access` 的字段 | 值 | 说明 |
+| --- | --- | --- |
+| `registry` | 行体里用成员的 `createAccessRegistry` 建的一份登记表 | 只有本行的入口用它。行不装 Cordis 提供者：那会把 `accessRegistry` 放进树里，而装配页没有给本行列这项提供；发行里也还没有接入插件要挂到它上面。订阅者抛出时记 `access.listener-fault` |
+| `identity` | 每个方法都答 `basis-unavailable` 的端口 | identity 还没有这个端口的适配。发行里没有要登录的协议，可用性不问它；要登录的调用会被拒绝，并留一条 `access.identity-unavailable` |
+| `graceMs` | 5000 | 撤下后处理函数还能跑多久，和演示夹具相同 |
+| `frameQueueBytes` | 1048576 | 一个观察还没写出去的帧的字节上界 |
+| `availabilityBacklog` | 64 | 一个可用性订阅者最多积压几帧变化，再多就改收快照 |
+| `diagnostics` | `accessDiagnostics(ctx.telemetry)` | 成员的每个 `AccessDiagnostic` 成为事件 `omne.access.diagnostic`（owner `server-entry`，version 1，级别 `warn`），`system` 作用域，部件 `server-entry`。记录里只有 `code` 与诊断带的 `path` 或 `operation`。`omne.entry.diagnostic` 那一支不变 |
+
+这五个值写在行里，不是运维配置。
 
 ### Session 的两个调用方类
 
@@ -88,11 +103,13 @@
 | `serve.spec.ts`       | 全部 ACTIVE 后监听、有行 PENDING 时不监听、缺 Session 行时 PENDING、只绑回环、畸形配置与初值                                                                  |
 | `composition.spec.ts` | 注册、签发登录、会话操作到达 Session 面的主体由 `principalIssuer` 签发并被 `principalVerifier` 核验、调用方类、输出不含登录证明与凭据、缺 identity 行时的答复 |
 | `shutdown.spec.ts`    | `entry` 阶段最先停、停止后拒绝新连接、在途请求写完、下一阶段在其后                                                                                            |
+| `access.spec.ts`      | 新地址：不带登录订阅可用性得到只有 `access/v1` 的快照，没有 `omne.access.diagnostic`；诊断的门面；慢层用真实的 `serve` 进程与发行树做同一件事（#1249 C9） |
 | `../session-diagnostics/flow.spec.ts` | 真实 `serve` 进程与真实 CLI：同租户并发两个会话时第二个 Run `model-refused capacity`；上游 504 时 `no-reply` 带 `cause` 与 `upstreamStatus`；同一调用的 Model 派发显示失败原因和状态码，账目缺失时明确未知；他租户读 `denied` 退出 3；`shutdown-result` 仍是最后一行；本机单用户档 `serve` 不带参数可读诊断 |
 
 ## 已知限制
 
 - 只监听 `127.0.0.1`，明文。TLS 与非回环监听不在本波。
+- 新地址的身份端口还没有 identity 的适配，只答 `basis-unavailable`；发行里也没有接入插件，新地址上只有 `access/v1`。
 - `listenPort` 不接受 0。行不报告实际端口。
 - 诊断事件只有在 `telemetry` 行以 `node` 实现就绪时写出。`disabled` 实现计数不写出，桥的引导态不接事件。
 - Session 与 identity 是契约替身。真实 Session 提供者按 `intake` 与 `reader` 核对调用方类的行为，要等真实提供者接入后验证。

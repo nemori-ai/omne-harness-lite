@@ -153,9 +153,9 @@
 | I-4 进展 | 调用收到中止之后，在有界的步数内得到答复。`tests/settle.spec.ts`「处理函数不理会中止，过了宽限调用仍得到答复，撤下完成」；管道第 8、9 步：`tests/pipeline-abort.spec.ts`「while the identity port has not returned」与「while half of the body has arrived and the identity port has returned」 | 收到中止的调用不被处理；管道等身份端口或消息体时不同时等中止 |
 | I-8 提交类答「未知」 | 提交类操作的处理函数开始之后撤下协议并让处理函数失败，答复是 `unknown`。`tests/settle.spec.ts`「提交类操作的处理函数开始之后撤下并失败，答 unknown」 | 把这种情形答成 `basis-unavailable` |
 | I-8 读取类与未开始的 | 读取类操作在中止后失败，答复是 `basis-unavailable`。处理函数还没开始就收到中止，答复是 `basis-unavailable`。`tests/settle.spec.ts`「answers basis-unavailable for a read operation that fails after the take-down」与「处理函数还没开始就收到中止，答 basis-unavailable」 | 交换这两种答复 |
-| I-6 订阅不漏帧 | 订阅的同时挂上一个协议，订阅者最终的集合里有它。`tests/registry.spec.ts`「订阅的同时挂上一个协议，订阅者最终的集合里有它」（登记表这一侧） | 读表与登记订阅者之间插入等待 |
-| I-6 积压满了改发快照 | 订阅者不读，登记表连续变化超过积压上限，订阅者恢复读取后得到一帧快照，集合等于登记表 | 积压满了丢最旧的一帧 |
-| I-6 重连得到快照 | 断线期间登记表变化，重连后第一帧是快照，集合等于登记表 | 重连后只发后续的变化帧 |
+| I-6 订阅不漏帧 | 订阅的同时挂上一个协议，订阅者最终的集合里有它。`tests/registry.spec.ts`「订阅的同时挂上一个协议，订阅者最终的集合里有它」（登记表这一侧）；`tests/availability.spec.ts` 同名用例（可用性的帧来源这一侧，#1249） | 读表与登记订阅者之间插入等待 |
+| I-6 积压满了改发快照 | 订阅者不读，登记表连续变化超过积压上限，订阅者恢复读取后得到一帧快照，集合等于登记表。`tests/availability.spec.ts`「订阅者不读、登记表连续变化超过积压上限，恢复读取后得到一帧快照，集合等于登记表」；在线上：「collapses what a subscriber that reads nothing missed into a snapshot, and never meets the byte bound」（#1249） | 积压满了丢最旧的一帧 |
+| I-6 重连得到快照 | 断线期间登记表变化，重连后第一帧是快照，集合等于登记表。`tests/availability.spec.ts`「断线期间登记表变化，重新订阅后第一帧是快照，集合等于登记表」（#1249） | 重连后只发后续的变化帧 |
 | I-6 帧不错位 | 客户端收到基础对不上的变化帧时不应用，改为重新订阅 | 客户端不核对修订号就应用 |
 | 会话观察不丢唤醒 | 一次定位读完日志、还没结束时，提交一次并送达通知。不等间隔，观察者发出带新修订号的状态帧 | 定位进行中来的通知不记下 |
 | 会话观察不发旧帧 | 换目标之后让旧订阅再交来一帧，这一帧不出现在帧序列里 | 换目标时不收掉旧订阅，或不核对帧属于哪份订阅 |

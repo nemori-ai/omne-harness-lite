@@ -168,15 +168,8 @@ describe('subscribe', () => {
     expect(view.revision).toBe(3)
   })
 
-  it('keeps the registry when a subscriber throws and no diagnostic sink is given', () => {
-    const registry = createAccessRegistry()
-    registry.subscribe(() => {
-      throw new Error('listener failed')
-    })
-    expect(() => registry.mount(notesContribution('first'))).not.toThrow()
-    expect(registry.enter(NOTES, 'read-note')).toBeDefined()
-  })
-
+  // A subscriber that throws leaves a diagnostic: the Cordis provider gives the sink and its case
+  // is in registry-cordis.spec.ts (#1249 spec 已定 11).
   it('keeps the registry and the other subscribers when a subscriber throws', () => {
     const diagnostics: unknown[] = []
     const registry = createAccessRegistry({ onListenerError: error => diagnostics.push(error) })

@@ -31,13 +31,14 @@
 | `session.ts`        | 会话位置：读取分派、八个操作的判断次序第 2 到第 6 步、Session 结果到公开 `outcome` 的映射；`read-session-diagnostics` 的配置核对、游标开封与封印、公开正文的组装 |
 | `hitl.ts`           | HITL 位置：用 `readHitlRequest` 读取；部署声明不提供的操作常量（本阶段是 `submit-reply` 与 `query-submit-reply`）；第 2、3 步与入口主体的签发；`listPool` 与 `getCard` 的调用、结果映射与卡片视图（`origin` 只留种类与三个引用）；本位置的编码 |
 | `registry/registry.ts` | 登记表的纯状态：每次挂上是一「代」（表项、一个 `AbortController`、在途集合、排空的 Promise）；`mount` 的同名检查、`enter`、撤下的同步段、`leave` 触发的排空完成、`subscribe` 与修订号。不认识 Cordis，也不认识任何领域，见[规格的登记表](../SPEC.md#登记表) |
-| `registry/cordis.ts` | `AccessRegistryProvider`：继承 access-cordis-contract 的 `AccessRegistryService`，`attach` 委托纯状态；`enter`、`subscribe` 只给管道 |
+| `registry/cordis.ts` | `AccessRegistryProvider`：继承 access-cordis-contract 的 `AccessRegistryService`，`attach` 委托纯状态；`enter`、`subscribe` 只给管道；`registry` 给出里面那份完整的登记表；订阅者抛出时记 `access.listener-fault` |
+| `availability/availability.ts` | 内置协议 `access/v1` 的实现：可用性的帧来源（每个订阅者一个队、积压预算、并成快照）与入口挂上的那份贡献，见[规格的内置协议与可用性](../SPEC.md#内置协议与可用性) |
 | `settle/settle.ts` | `settleCall`：判断次序第 10 到 14 步，处理函数与宽限计时赛跑，失败按 `effect` 答，先 `respond` 再 `leave`；`systemClock`。见[规格的收场与宽限](../SPEC.md#收场与宽限) |
 | `session-view/`     | 会话诊断投影。`project.ts` 是纯投影：条目到 Run 骨架，各来源的答复到一个 Run 的视图与缺口；`sources.ts` 是来源适配：端口类型、失败种类到缺口原因的映射、抛错到 `unavailable`；`cursor.ts` 用本实例随机密钥封印续页游标；`index.ts` 是编排：按页读 Session、收集 Run、向来源扇出、合成页。它不认识 HTTP、Cordis 或 CLI |
 | `identity-steps.ts` | 登录识别，账号关系核对，签发代租户行事主体，成功业务访问的报告。系统主体在首次需要时签发一次并保留                                               |
 | `derivation.ts`     | 会话标识、输入标识、三族操作身份与登录入口证据的派生                                                                                             |
-| `observation.ts`    | 观察消息的手写读写、本实例的观察记录、取消与替换、连接关闭即取消、每轮的登录重核与按登录结束                                                     |
-| `sse.ts`            | 一个 SSE 响应的串行写入者：确认事件、帧与心跳经同一个队列写出                                                                                    |
+| `observation.ts`    | 会话位置上观察的适配：键里带会话，结束帧是会话协议的 `observation-frame`，取消与取消保留；记录与写流用 `observation-hub/` 的两份 |
+| `observation-hub/` | 观察中枢，见[规格的观察中枢](../SPEC.md#观察中枢)。`records.ts` 是观察记录（名额、替换、每轮复核、按登录结束）；`sse.ts` 是一个 SSE 响应的串行写入者（事件与心跳同一个队列，未写出的帧字节数，`written()` 等写完）；`hub.ts` 是新地址上的中枢（决定、写帧、字节上限、按写出节奏取帧的标记、收场） |
 | `session-codec.ts`  | 会话位置的编码：公开契约的编码函数写出每一条响应，编码失败是本成员故障                                                                           |
 | `status.ts`         | 现有三个位置读状态码表的入口：表本身在 `pipeline/status.ts`，这里按三个位置能编码的 `outcome` 收窄键类型 |
 | `pipeline/`         | 新地址的管道，判断次序第 1 到 9 步，见[规格的管道](../SPEC.md#管道)。`pipeline.ts` 是 `admit`（第 1 到 5 步，同步）与 `createPipeline`；`address.ts` 是路径文法；`identity-rule.ts` 是身份规则；`watch.ts` 让第 8、9 步的等待同时等中止与断开；`answer.ts` 写答复；`status.ts` 是全仓唯一的状态码表，键是共同契约的 `Outcome`；`headers.ts`、`body.ts` 是与现有三个位置共用的头比较与读消息体 |

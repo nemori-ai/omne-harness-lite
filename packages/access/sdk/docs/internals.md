@@ -18,6 +18,7 @@ SDK 持有传输适配和登录证明。它不解释 `outcome`。自动再送只
 | `src/tenant.ts`         | `parseTenantText` 与 `tenantText`，调用公开契约的租户文本函数。                   |
 | `src/user-message.ts`   | `userTextMessage`。                                                               |
 | `src/limits.ts`         | 客户端缺省的 json-text 预算。                                                     |
+| `src/core/` | 客户端核心（`@omne-harness/sdk/core`，见[规格](../SPEC.md#客户端核心)）。`transport.ts` 是 `Transport` 与它的请求、结果、结束；`client.ts` 是 `createClient`：按契约写读、`not-sent` 再送一次、本地的两种结果、观察的生成器与它的结束；`http.ts` 是 HTTP 传输：凭据来源、`not-sent` 的判定、用 `eventsource-parser` 读事件流；`in-process.ts` 是测试用的进程内传输。不导入 Node 专有的模块 |
 
 ## 客户端怎样关联响应
 

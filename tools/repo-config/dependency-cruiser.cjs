@@ -11,6 +11,10 @@ const SERVER_ENTRY = '^packages/access/server-entry/'
 const PUBLIC_CONTRACT = '^packages/access/public-contract/'
 const ACCESS_CORDIS_CONTRACT = '^packages/access/access-cordis-contract/'
 const ASSEMBLY = '^packages/assembly/assembly/'
+// The entry's positions that know no domain.
+const ENTRY_CORE = '(registry|settle|pipeline|observation-hub|availability)'
+// The client core and the files it imports from the rest of the SDK.
+const SDK_CORE = '^packages/access/sdk/src/(core/|limits\\.ts$|never-written\\.ts$)'
 const SHARED = '^packages/(common|util)/'
 const ORGANIZATION = 'docs/package-organization.md'
 const TOOLCHAIN = '^tools/repo-toolchain/src/'
@@ -81,12 +85,22 @@ module.exports = {
     },
     {
       name: 'entry-registry-knows-no-domain',
-      comment: `The registry, the settle step and the pipeline of the entry know no domain: no domain member, and none of the entry's existing domain positions. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-1`,
+      comment: `The registry, the settle step, the pipeline, the observation hub and the availability source of the entry know no domain: no domain member, and none of the entry's existing domain positions. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-1`,
       severity: 'error',
-      from: { path: `${SERVER_ENTRY}src/(registry|settle|pipeline)/` },
+      from: { path: `${SERVER_ENTRY}src/${ENTRY_CORE}/` },
       to: {
         path: `${PACKAGES}|${SERVER_ENTRY}src/`,
-        pathNot: `${PUBLIC_CONTRACT}|${ACCESS_CORDIS_CONTRACT}|${SHARED}|${SERVER_ENTRY}src/(registry|settle|pipeline)/`,
+        pathNot: `${PUBLIC_CONTRACT}|${ACCESS_CORDIS_CONTRACT}|${SHARED}|${SERVER_ENTRY}src/${ENTRY_CORE}/`,
+      },
+    },
+    {
+      name: 'sdk-core-stays-portable',
+      comment: `The client core runs in a browser and knows no Cordis: it depends only on the public contract, the JSON text member, eventsource-parser and its own files, and imports no Node built-in. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」, I-18, I-19`,
+      severity: 'error',
+      from: { path: SDK_CORE },
+      to: {
+        path: `${PACKAGES}|(^|/)node_modules/|${NODE_BUILTIN}`,
+        pathNot: `${PUBLIC_CONTRACT}|^packages/common/json-text/|${SDK_CORE}|(^|/)node_modules/eventsource-parser/`,
       },
     },
     {

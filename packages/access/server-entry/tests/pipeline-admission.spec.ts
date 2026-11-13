@@ -70,8 +70,13 @@ describe('one answer per step', () => {
     expect(fixture.log.entries).toEqual([])
   })
 
-  it('step 5: an observation is 404 for now, and the call has left', async () => {
-    expectBare(await call(fixture.port, 'watch-note'), 404)
+  it('step 5: an observation enters like an operation and goes on to step 7 (#1249)', async () => {
+    const reply = await call(fixture.port, 'watch-note', {
+      headers: { 'omne-message-id': undefined },
+      body: '{"noteId":"n-1"}',
+    })
+    expect(reply.status).toBe(400)
+    expect(reply.json).toEqual({ outcome: 'protocol-rejected', body: {} })
     expect(fixture.log.entries).toEqual([{ name: 'watch-note', left: true }])
   })
 
