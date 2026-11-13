@@ -11,9 +11,8 @@ import type {
   MemberInvitation,
 } from '@omne-harness/identity'
 import type { IdentityProtocol } from '@omne-harness/identity-protocol'
-import type { LoginStateId, TenantId } from '@omne-harness/legal-identity'
 import { parseDuration } from '@omne-harness/utc-instant'
-import { actingOf, callerOf } from './caller.ts'
+import { actingOf, callerOf, type Acting } from './caller.ts'
 
 /** The domain services, taken at each call; `undefined` while a provider is not there. */
 export type IdentityServices = Readonly<{
@@ -40,13 +39,6 @@ function refuse<K extends Refusal>(kind: K): RefusalAnswer<K> {
       ? { outcome: kind, body: EMPTY }
       : { outcome: kind }
   ) as RefusalAnswer<K>
-}
-
-type Acting = Readonly<{ login: LoginStateId; actingTenant: TenantId }>
-
-function actingInput(principal: Principal): Acting {
-  const acting = actingOf(principal)
-  return { login: acting.login, actingTenant: acting.tenant }
 }
 
 function invitationItem(invitation: MemberInvitation) {
@@ -90,23 +82,21 @@ function disposition<S extends InvitationTerminal>(
     const governance = services.governance()
     if (governance === undefined) return UNAVAILABLE
     const outcome = await governance[method]({
-      ...actingInput(call.principal),
+      ...actingOf(call.principal),
       invitation: body.invitationId,
       expectedState: body.expectedState,
     })
     switch (outcome.kind) {
       case 'succeeded':
-      case 'no-change': {
-        // The port reaches the state of the operation; any other is identity breaking its contract.
-        if (outcome.kind === 'succeeded' && outcome.state !== state)
+        // Identity's type allows any terminal state; the contract takes only this operation's one.
+        if (outcome.state !== state)
           throw new TypeError(`identity-access: ${method} answered state ${outcome.state}`)
-        return outcome.kind === 'succeeded'
-          ? { outcome: 'succeeded' as const, body: { invitationId: outcome.invitation, state } }
-          : {
-              outcome: 'no-change' as const,
-              body: { invitationId: outcome.invitation, state: outcome.state },
-            }
-      }
+        return { outcome: 'succeeded' as const, body: { invitationId: outcome.invitation, state } }
+      case 'no-change':
+        return {
+          outcome: 'no-change' as const,
+          body: { invitationId: outcome.invitation, state: outcome.state },
+        }
       default:
         return refuse(outcome.kind)
     }
@@ -114,19 +104,17 @@ function disposition<S extends InvitationTerminal>(
 }
 
 export function createIdentityOperations(services: IdentityServices): IdentityOperationHandlers {
-  /** Runs `work` with the governance port, or answers `basis-unavailable` without it. */
   const governed = async <A>(
     work: (governance: IdentityGovernance) => Promise<A>,
   ): Promise<A | typeof UNAVAILABLE> => {
     const governance = services.governance()
     return governance === undefined ? UNAVAILABLE : work(governance)
   }
-  /** As `governed`, for an `acting-tenant` call: the login and acting tenant come from its principal. */
   const actingGoverned = async <A>(
     principal: Principal,
     work: (governance: IdentityGovernance, acting: Acting) => Promise<A>,
   ): Promise<A | typeof UNAVAILABLE> =>
-    governed(governance => work(governance, actingInput(principal)))
+    governed(governance => work(governance, actingOf(principal)))
 
   return {
     // --- the two operations without a login ---------------------------------------------------
