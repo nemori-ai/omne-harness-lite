@@ -120,6 +120,12 @@ export function createClient<P extends ProtocolContract>(
   const limits = settings.limits ?? defaultLimits
   const key: ProtocolKey = { name: protocol.name, major: protocol.major }
   const target = (name: string): string => `${key.name}/v${key.major}/${name}`
+  // `defineProtocol` refuses the name; a contract that did not come from it stops here, before
+  // the observations could hide one of its operations.
+  if (Object.hasOwn(protocol.operations, 'observe'))
+    throw new TypeError(
+      `${target('observe')}: an operation cannot take the name of the observations`,
+    )
 
   async function call(
     name: string,
