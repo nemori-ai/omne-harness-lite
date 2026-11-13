@@ -35,9 +35,9 @@ export class RefreshBudget {
     return this.#tier
   }
 
-  /** A wait of the current tier ran out. */
-  waited(): void {
-    this.#waited += this.#tier
+  /** A wait of `milliseconds` ran out. */
+  waited(milliseconds: number): void {
+    this.#waited += milliseconds
   }
 
   /** An interval-driven locate found nothing new: one attempt, and the next tier. */

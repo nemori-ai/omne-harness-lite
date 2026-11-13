@@ -397,6 +397,24 @@ describe('the stream axis (C9b)', () => {
     stop()
   })
 
+  it('stream, waiting to observe again, a notice does not push the wait back: the same wait runs out and the target is observed again', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.model.stream('s1').push({ kind: 'ended', reason: 'capacity' })
+    expect(kinds(await drain(frames, 2))).toEqual(['refreshing'])
+    const waits = w.clock.waits.length
+    w.log.append(message('hi'))
+    w.notices.commit('message.user')
+    expect(await take(frames)).toMatchObject({ value: { kind: 'state' } })
+    expect(await drain(frames, 1)).toEqual([])
+    // The wait that began when the subscription broke is still the one pending.
+    expect([w.clock.waits.length, w.clock.pending]).toEqual([waits, 1])
+    w.clock.elapse()
+    await settle()
+    expect(w.model.streams.map(s => s.ref)).toEqual(['s1', 's1'])
+    stop()
+  })
+
   it('stream, waiting to observe again, a snapshot resets the budget', async () => {
     const w = world(new FakeLog(), { interval: 1000, backoff: 2 })
     const frames = await observing(w)

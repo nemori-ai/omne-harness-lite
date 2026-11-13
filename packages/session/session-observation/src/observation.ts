@@ -133,8 +133,10 @@ export function createSessionObservation<P>(
       let phase: CallState['phase'] | null = null
       let closedRef: StreamRef | null = null
 
-      /** `other`, unless a wait of `milliseconds` under a timer that teardown aborts runs out first. */
-      async function timed<T>(milliseconds: number, other: Promise<T>): Promise<T | 'elapsed'> {
+      /** A wait of `milliseconds` under a timer that teardown aborts; it settles only when it runs out. */
+      function startWait(
+        milliseconds: number,
+      ): Readonly<{ timer: AbortController; elapsed: Promise<'elapsed'> }> {
         const timer = new AbortController()
         timers.add(timer)
         const elapsed = ports
@@ -142,10 +144,45 @@ export function createSessionObservation<P>(
           .then(answer =>
             answer === 'elapsed' ? ('elapsed' as const) : new Promise<never>(() => undefined),
           )
-        const answer = await Promise.race([elapsed, other])
+        return { timer, elapsed }
+      }
+
+      function endWait(timer: AbortController): void {
         timer.abort()
         timers.delete(timer)
+      }
+
+      /** `other`, unless a wait of `milliseconds` runs out first. */
+      async function timed<T>(milliseconds: number, other: Promise<T>): Promise<T | 'elapsed'> {
+        const { timer, elapsed } = startWait(milliseconds)
+        const answer = await Promise.race([elapsed, other])
+        endWait(timer)
         return answer
+      }
+
+      /**
+       * The wait before the observation looks again while it has no subscription. It begins once
+       * and goes on across wake-ups. While a target waits to be observed again, a notice is
+       * handled and the same wait is still the one that runs out, so commits cannot push the next
+       * subscription back. With no target, a notice is itself a look, and `advance` begins the
+       * wait anew after it.
+       */
+      let due:
+        | Readonly<{ timer: AbortController; delay: number; elapsed: Promise<'elapsed'> }>
+        | undefined
+
+      function dueWait(): NonNullable<typeof due> {
+        if (due === undefined) {
+          const delay = budget.delay()
+          due = { ...startWait(delay), delay }
+        }
+        return due
+      }
+
+      function clearDue(): void {
+        if (due === undefined) return
+        endWait(due.timer)
+        due = undefined
       }
 
       function state(): SessionObservationFrame[] {
@@ -158,7 +195,10 @@ export function createSessionObservation<P>(
         return frame === null ? [] : [frame]
       }
 
+      /** The one place a subscription begins. After the teardown none does: a read that was under way may still come back. */
       function subscribe(target: Target): void {
+        if (closed) return
+        clearDue()
         stream = {
           kind: 'observing',
           subscription: new StreamSubscription(
@@ -200,6 +240,8 @@ export function createSessionObservation<P>(
 
       /** The result table of §13 for one locate. */
       async function located(result: LocateResult, cause: Cause): Promise<Step> {
+        // The observer left while the log was read: the result is dropped and the Model is not asked.
+        if (closed) return { frames: [] }
         if (result.kind !== 'located') return { frames: [], end: result.kind }
         const next = result.view
         const callChanged = next.mainCall !== view.mainCall
@@ -305,16 +347,24 @@ export function createSessionObservation<P>(
       /** The next step of the loop, or null to look again. */
       async function advance(): Promise<Step | null> {
         const entry = inbox.shift()
-        if (entry === 'notice')
-          return locator.take() ? located(await locator.locate(), 'notice') : null
+        if (entry === 'notice') {
+          if (!locator.take()) return null
+          const step = await located(await locator.locate(), 'notice')
+          // With no target the notice took the place of the wait: having just looked, the wait
+          // for the next look begins anew. The wait to observe a target again goes on.
+          if (stream.kind === 'none') clearDue()
+          return step
+        }
         if (entry !== undefined) return streamed(entry)
         if (stream.kind === 'observing') {
           await inbox.idle()
           return null
         }
         if (budget.exhausted()) return { frames: [], end: 'refresh-exhausted' }
-        if ((await timed(budget.delay(), inbox.idle())) !== 'elapsed') return null
-        budget.waited()
+        const wait = dueWait()
+        if ((await Promise.race([wait.elapsed, inbox.idle()])) !== 'elapsed') return null
+        clearDue()
+        budget.waited(wait.delay)
         if (stream.kind === 'reobserve') {
           subscribe(stream.target)
           return null

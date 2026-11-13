@@ -320,8 +320,20 @@ export class FakeModel {
   readonly streams: FakeStream[] = []
   fallback: ModelAnswer = { ok: { state: { phase: 'accepted' }, current: null } }
 
+  readonly #held = new Map<string, Readonly<{ gate: Promise<void>; answer: ModelAnswer }>>()
+
   answer(reference: string, ...answers: ModelAnswer[]): void {
     this.answers.set(reference, [...(this.answers.get(reference) ?? []), ...answers])
+  }
+
+  /** The next `current` of `reference` answers `answer` only once the case releases it. */
+  hold(reference: string, answer: ModelAnswer): Readonly<{ release: () => void }> {
+    let release = (): void => undefined
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    this.#held.set(reference, { gate, answer })
+    return { release }
   }
 
   /** The newest subscription to `ref`. */
@@ -342,6 +354,11 @@ export class FakeModel {
           const reference = String(input.reference)
           this.asked.push(reference)
           this.accesses.push(input.access)
+          const held = this.#held.get(reference)
+          if (held !== undefined) {
+            this.#held.delete(reference)
+            return held.gate.then(() => held.answer as never)
+          }
           const answer = this.answers.get(reference)?.shift() ?? this.fallback
           if (answer === 'hang') return new Promise(() => undefined)
           return Promise.resolve(answer as never)

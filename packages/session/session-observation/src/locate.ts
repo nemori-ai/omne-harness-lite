@@ -35,6 +35,10 @@ export type LocateResult =
 
 type Read = Awaited<ReturnType<SessionObservationPorts<unknown>['history']['begin']>>
 
+/** A read that failed, and the face that answered: `since` and `next` carry a cursor of this observation, `begin` carries none. */
+type Failed = Readonly<{ failure: SessionFailure; face: 'begin' | 'since' | 'next' }>
+type Scanned = Readonly<{ ok: Located }> | Failed
+
 function text(value: JsonValue | undefined): string | undefined {
   return value?.kind === 'string' ? value.value : undefined
 }
@@ -129,7 +133,8 @@ export class Locator<P> {
   /**
    * A later locate: only the entries after the last one read. Session `unavailable` and an invalid
    * cursor of its own count as nothing new (the cursor is dropped, so the next locate reads
-   * backward again); `denied` ends.
+   * backward again); `denied` ends. An `invalid` of `since` or `next` is the cursor of this
+   * observation; an `invalid` of `begin`, which carries no cursor, is another reason and ends.
    */
   async locate(): Promise<LocateResult> {
     const view = this.#view
@@ -140,7 +145,7 @@ export class Locator<P> {
       case 'denied':
         return { kind: 'denied' }
       case 'invalid':
-        if (this.#after === null) return { kind: 'unavailable' }
+        if (read.face === 'begin') return { kind: 'unavailable' }
         this.#after = null
         return { kind: 'located', view, transient: true }
       case 'unavailable':
@@ -150,7 +155,7 @@ export class Locator<P> {
     }
   }
 
-  async #backward(): Promise<Readonly<{ ok: Located }> | Readonly<{ failure: SessionFailure }>> {
+  async #backward(): Promise<Scanned> {
     const at = this.#access
     let read: Read = await this.#ports.history.begin({
       ...at,
@@ -159,14 +164,14 @@ export class Locator<P> {
       direction: 'backward',
       pageBytes: PAGE_BYTES,
     })
-    if ('failure' in read) return read
+    if ('failure' in read) return { failure: read.failure, face: 'begin' }
     const revision = read.ok.upper
     const scan = new BackwardScan()
     for (let pages = 1; ; pages++) {
       for (const entry of read.ok.entries) scan.add(entry)
       if (scan.complete() || this.#done(read.ok) || pages >= this.#ports.locatePages) break
       read = await this.#ports.history.next({ ...at, cursor: read.ok.next as string })
-      if ('failure' in read) return read
+      if ('failure' in read) return { failure: read.failure, face: 'next' }
     }
     this.#after = scan.newest
     this.#run = scan.run ?? null
@@ -174,9 +179,7 @@ export class Locator<P> {
     return { ok: this.#settle(revision, scan.mainCall ?? null) }
   }
 
-  async #forward(
-    after: EntryId,
-  ): Promise<Readonly<{ ok: Located }> | Readonly<{ failure: SessionFailure }>> {
+  async #forward(after: EntryId): Promise<Scanned> {
     const at = this.#access
     let read: Read = await this.#ports.history.since({
       ...at,
@@ -184,12 +187,13 @@ export class Locator<P> {
       kinds: LOCATE_KINDS,
       pageBytes: PAGE_BYTES,
     })
+    let face: Failed['face'] = 'since'
     let last = after
     let run = this.#run
     let open = this.#open
     let mainCall = this.#view?.mainCall ?? null
     for (;;) {
-      if ('failure' in read) return read
+      if ('failure' in read) return { failure: read.failure, face }
       for (const entry of read.ok.entries) {
         last = entry.id
         mainCall = mainCallOf(entry) ?? mainCall
@@ -202,6 +206,7 @@ export class Locator<P> {
       }
       if (this.#done(read.ok)) break
       read = await this.#ports.history.next({ ...at, cursor: read.ok.next as string })
+      face = 'next'
     }
     this.#after = last
     this.#run = run

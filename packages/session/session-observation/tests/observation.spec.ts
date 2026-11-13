@@ -16,6 +16,7 @@ import {
   otherCall,
   settle,
   started,
+  stream,
   world,
   type World,
 } from './ports.ts'
@@ -374,6 +375,35 @@ describe('the locate axis (C9a)', () => {
     expect(log.calls.map(call => call.face)).toEqual(['begin', 'since', 'begin'])
   })
 
+  it('result, own cursor invalid, then the paging cursor of the backward read invalid too: nothing new, the observation goes on', async () => {
+    const log = new FakeLog(started('run_1'), ended('run_1'), started('run_2'))
+    log.pageSize = 1
+    log.failures.since = [{ kind: 'invalid', field: 'from', reason: 'expired' }]
+    // The backward read of open takes two more pages; the third `next` is the one that fails.
+    log.failures.next = [
+      undefined as never,
+      undefined as never,
+      { kind: 'invalid', field: 'cursor', reason: 'expired' },
+    ]
+    const w = world(log)
+    const frames = await open(w)
+    await frame(frames)
+    expect((await afterInterval(w, frames)).value).toEqual({ kind: 'refreshing' })
+    expect(await afterInterval(w, frames)).toEqual({ done: false, value: { kind: 'refreshing' } })
+    expect((await afterInterval(w, frames)).done).toBe(false)
+    expect(log.calls.map(call => call.face)).toEqual([
+      'begin',
+      'next',
+      'next',
+      'since',
+      'begin',
+      'next',
+      'begin',
+      'next',
+      'next',
+    ])
+  })
+
   it('result, log read denied: ends with denied', async () => {
     const log = new FakeLog(started('run_1'))
     log.failures.since = [{ kind: 'denied', action: 'history.since' }]
@@ -436,6 +466,43 @@ describe('abort (C11a)', () => {
     gate.release()
     expect(await step).toEqual({ done: true, value: undefined })
     expect([w.notices.active, w.clock.pending]).toEqual([0, 0])
+  })
+
+  it('an abort while the locate reads a new main call: the Model is not asked and no stream is observed', async () => {
+    const controller = new AbortController()
+    const log = new FakeLog(started('run_1'))
+    const w = world(log)
+    w.model.answer('m-1', stream('s1'))
+    const frames = await open(w, controller.signal)
+    await frame(frames)
+    // The held read takes its answer when it is asked, so the new main call is in the log before.
+    log.append(mainCall('m-1'))
+    const gate = log.hold()
+    const step = afterInterval(w, frames)
+    await settle()
+    controller.abort()
+    gate.release()
+    expect(await step).toEqual({ done: true, value: undefined })
+    await settle()
+    expect(w.model.asked).toEqual([])
+    expect([w.model.open, w.notices.active, w.clock.pending]).toEqual([0, 0, 0])
+  })
+
+  it('an abort while the Model is asked for the current stream: no stream is observed', async () => {
+    const controller = new AbortController()
+    const log = new FakeLog(started('run_1'))
+    const w = world(log)
+    const asked = w.model.hold('m-1', stream('s1'))
+    const frames = await open(w, controller.signal)
+    await frame(frames)
+    log.append(mainCall('m-1'))
+    const step = afterInterval(w, frames)
+    await settle()
+    controller.abort()
+    asked.release()
+    expect(await step).toEqual({ done: true, value: undefined })
+    await settle()
+    expect([w.model.open, w.notices.active, w.clock.pending]).toEqual([0, 0, 0])
   })
 
   it('an abort while open reads the log: it opens, and the frames end at once without a reason', async () => {
