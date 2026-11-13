@@ -14,7 +14,13 @@ import { EMPTY_CONTENT } from '../model/content.ts'
 import { conversationItems } from '../model/conversation.ts'
 import { SessionDriver } from '../model/session-driver.ts'
 import { shownBy, type ListedSession, type SessionList } from '../model/session-list.ts'
-import type { Notice, Open, PendingInput, State } from '../model/session-machine.ts'
+import {
+  createInFlight,
+  type Notice,
+  type Open,
+  type PendingInput,
+  type State,
+} from '../model/session-machine.ts'
 import { ItemView } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
 
@@ -66,7 +72,7 @@ function Session({ driver }: { readonly driver: SessionDriver }) {
       <SessionListView
         list={list}
         current={state.kind === 'open' || state.kind === 'unavailable' ? state.session : null}
-        locked={state.kind === 'creating' && state.confirm !== 'unknown'}
+        locked={createInFlight(state)}
         onOpen={session => {
           setListOpen(false)
           driver.openSession(session)
@@ -119,7 +125,6 @@ function SessionListView({
 }: {
   readonly list: SessionList
   readonly current: string | null
-  /** A create call is in flight (R30): picking waits for its answer. */
   readonly locked: boolean
   readonly onOpen: (session: string) => void
   readonly driver: SessionDriver

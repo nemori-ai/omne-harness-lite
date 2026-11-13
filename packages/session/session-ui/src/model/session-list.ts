@@ -56,22 +56,27 @@ export function shownBy(list: SessionList): ListPage | null {
   }
 }
 
-function readFirst(list: SessionList): ListStep {
-  const token = list.issued + 1
+type Reading = Extract<SessionList, { kind: 'reading' }>
+
+function read(reading: Reading): ListStep {
   return {
-    list: { kind: 'reading', issued: token, cursor: null, shown: shownBy(list) },
-    effects: [{ kind: 'list-sessions', token, cursor: null }],
+    list: reading,
+    effects: [{ kind: 'list-sessions', token: reading.issued, cursor: reading.cursor }],
   }
+}
+
+function readFirst(list: SessionList): ListStep {
+  return read({ kind: 'reading', issued: list.issued + 1, cursor: null, shown: shownBy(list) })
 }
 
 function readMore(list: SessionList): ListStep {
   if (list.kind !== 'read' || list.page.next === null) return { list, effects: [] }
-  const token = list.issued + 1
-  const cursor = list.page.next
-  return {
-    list: { kind: 'reading', issued: token, cursor, shown: list.page },
-    effects: [{ kind: 'list-sessions', token, cursor }],
-  }
+  return read({
+    kind: 'reading',
+    issued: list.issued + 1,
+    cursor: list.page.next,
+    shown: list.page,
+  })
 }
 
 /** A later page goes after what is shown; a session already there keeps its place. */
@@ -97,8 +102,6 @@ export function stepList(list: SessionList, event: ListEvent): ListStep {
         : { list, effects: [] }
   }
 }
-
-type Reading = Extract<SessionList, { kind: 'reading' }>
 
 function answered(list: Reading, answer: ListAnswer): SessionList {
   switch (answer.outcome) {

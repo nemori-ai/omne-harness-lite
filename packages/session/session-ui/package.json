@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The session interface module: create a session, chat, watch the reply stream, cancel a run",
+  "description": "The session interface module: list, open or create a session, chat, watch the reply stream, cancel a run",
   "engines": {
     "node": ">=24"
   },

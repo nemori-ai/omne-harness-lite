@@ -240,11 +240,16 @@ export function step(state: State, event: Event): Step {
 }
 
 /**
- * The same way in as after a create succeeds. A create call in flight is waited for, as R1 does;
- * a create still unknown has nothing in flight, so leaving it drops no answer and claims nothing.
+ * A create or its confirmation is on its way: opening a session waits for the answer (R30). A create
+ * still unknown has nothing on its way, so leaving it drops no answer and claims nothing.
  */
+export function createInFlight(state: State): boolean {
+  return state.kind === 'creating' && state.confirm !== 'unknown'
+}
+
+/** The same way in as after a create succeeds. */
 function onOpenSession(state: State, session: string): Step {
-  if (state.kind === 'creating' && state.confirm !== 'unknown') return same(state)
+  if (createInFlight(state)) return same(state)
   if (state.kind === 'open' && state.session === session) return same(state)
   const next = opened(session)
   return { state: next.state, effects: [...leave(state), ...next.effects] }
