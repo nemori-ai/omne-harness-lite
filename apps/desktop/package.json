@@ -29,6 +29,7 @@
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/session-protocol": "workspace:*",
+    "@omne-harness/session-ui": "workspace:*",
     "eventsource-parser": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

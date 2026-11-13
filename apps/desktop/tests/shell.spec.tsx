@@ -161,8 +161,9 @@ describe('外壳', () => {
   it('登录之后取当前租户交给会话界面，顶栏显示租户，可以退出登录', async () => {
     const t = setup({ login: 'signed-in' })
     await act(async () => {})
-    const workspace = screen.getByTestId('session-workspace')
-    expect(workspace.getAttribute('data-tenant')).toBe(TENANT_TEXT)
+    // The session workspace took the tenant: it offers a new session, not its "tenant unreadable" line.
+    expect(screen.getByRole('button', { name: '新建会话' })).toBeTruthy()
+    expect(screen.queryByText(/租户读不懂/)).toBeNull()
     expect(screen.getByText(/^租户 /)).toBeTruthy()
     await act(async () => {
       fireEvent.click(screen.getByText('退出登录'))

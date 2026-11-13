@@ -27,7 +27,7 @@ Then open `http://127.0.0.1:8790/` in a browser. Use `127.0.0.1` or `localhost`;
 | `src/web-host/`  | The local Node process: `node:http`, the bridge addresses, the static page                    | main-core, shared                                                       |
 | `src/page/`      | The bridge over `fetch`, the client tree, the shell, the login screen, `assembly.tsx`         | shared, client core, client assembly; never main-core, web-host or Node |
 
-`src/page/assembly.tsx` is the only page file that names a domain. The session workspace is mounted there; until `@omne-harness/session-ui` is on the track, the assembly imports a placeholder with the same props (`src/page/session-workspace-placeholder.tsx`).
+`src/page/assembly.tsx` is the only page file that names a domain. The session workspace (`SessionWorkspace` of `@omne-harness/session-ui`) is mounted there, with the session protocol client from the tree and the current tenant.
 
 ## Technology
 
