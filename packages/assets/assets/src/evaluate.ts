@@ -99,27 +99,39 @@ function screen(
 function choose(layers: readonly ScreenedLayer[]): Evaluation {
   const filtered: Filtered[] = []
   let winner: { layer: string; candidate: Candidate } | undefined
-  let lock: { layer: string; asset: string } | undefined
+  let lock: Lock | undefined
   for (const { layer, candidates } of layers) {
-    let layerWinner: Candidate | undefined
-    let layerLock: { layer: string; asset: string } | undefined
+    const standing: Candidate[] = []
     for (const { candidate, out } of candidates) {
-      const blocked =
-        out === undefined && lock !== undefined && lock.asset !== candidate.asset
-          ? { layer, candidate, reason: 'blocked' as const, by: lock.layer }
-          : out
-      if (blocked !== undefined) {
-        filtered.push(blocked)
-        continue
-      }
-      layerWinner ??= candidate
-      if (lock === undefined && (candidate.immutable || candidate.replaceLocked))
-        layerLock ??= { layer, asset: candidate.asset }
+      const removed = out ?? blockedBy(lock, layer, candidate)
+      if (removed === undefined) standing.push(candidate)
+      else filtered.push(removed)
     }
-    if (layerWinner !== undefined) winner = { layer, candidate: layerWinner }
-    lock ??= layerLock
+    const first = standing[0]
+    if (first !== undefined) winner = { layer, candidate: first }
+    lock ??= lockOf(layer, standing)
   }
   return winner === undefined
     ? { kind: 'none', filtered }
     : { kind: 'winner', layer: winner.layer, candidate: winner.candidate, filtered }
+}
+
+/** A standing declaration or lock of a wider layer, and the asset that it keeps. */
+type Lock = { readonly layer: string; readonly asset: string }
+
+/** 截住: another asset below a declaration or a lock is blocked; the same asset is not. */
+function blockedBy(
+  lock: Lock | undefined,
+  layer: string,
+  candidate: Candidate,
+): Filtered | undefined {
+  return lock !== undefined && lock.asset !== candidate.asset
+    ? { layer, candidate, reason: 'blocked', by: lock.layer }
+    : undefined
+}
+
+/** The lock of a layer: its first standing candidate that declares immutable or holds a lock. */
+function lockOf(layer: string, standing: readonly Candidate[]): Lock | undefined {
+  const locking = standing.find(candidate => candidate.immutable || candidate.replaceLocked)
+  return locking === undefined ? undefined : { layer, asset: locking.asset }
 }
