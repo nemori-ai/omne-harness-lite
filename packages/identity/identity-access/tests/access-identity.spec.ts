@@ -89,7 +89,20 @@ describe('createAccessIdentity', () => {
       },
     })
 
+    const refusingIssuer = createAccessIdentity({
+      operations: f.operations,
+      governance: f.governance,
+      issuer: {
+        issueSystem: f.authority.issuer.issueSystem,
+        issueActingForTenant: () => ({ failure: { field: 'tenant', reason: 'unminted' } }),
+      },
+    })
+
     expect(await throwing.identifyLogin(alice.proof)).toEqual({ outcome: 'basis-unavailable' })
+    const refusedLogin = await loginOf(refusingIssuer, alice.proof)
+    expect(await refusingIssuer.actFor(refusedLogin, alice.tenantText)).toEqual({
+      outcome: 'basis-unavailable',
+    })
     expect(await unavailable.identifyLogin(alice.proof)).toEqual({ outcome: 'basis-unavailable' })
     const login = await loginOf(noIssuer, alice.proof)
     expect(await noIssuer.actFor(login, alice.tenantText)).toEqual({
