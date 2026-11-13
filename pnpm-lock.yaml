@@ -3379,6 +3379,9 @@ importers:
       '@omne-harness/session-protocol':
         specifier: workspace:*
         version: link:../session-protocol
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       react:
         specifier: 'catalog:'
         version: 19.3.0

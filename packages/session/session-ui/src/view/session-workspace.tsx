@@ -1,6 +1,7 @@
 import { readTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
+import { encodeInstant } from '@omne-harness/utc-instant'
 import {
   useEffect,
   useMemo,
@@ -146,6 +147,14 @@ function SessionListView({
                   onClick={() => onOpen(item.session)}
                 >
                   <span className="omne-session-item-title">{itemTitle(item)}</span>
+                  {item.lastActivityAt === null ? null : (
+                    <time
+                      className="omne-session-item-time"
+                      dateTime={encodeInstant(item.lastActivityAt)}
+                    >
+                      {new Date(encodeInstant(item.lastActivityAt)).toLocaleString()}
+                    </time>
+                  )}
                   {lifecycle === undefined ? null : <span className="omne-badge">{lifecycle}</span>}
                 </button>
               </li>

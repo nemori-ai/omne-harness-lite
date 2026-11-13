@@ -138,6 +138,13 @@
   white-space: nowrap;
 }
 
+.omne-session-item-time {
+  flex: none;
+  font-size: 12px;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
 .omne-sessions-note {
   margin: 8px 18px 0;
   color: var(--omne-text-muted);

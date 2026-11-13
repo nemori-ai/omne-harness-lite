@@ -31,6 +31,7 @@
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/session-protocol": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
     "streamdown": "catalog:"

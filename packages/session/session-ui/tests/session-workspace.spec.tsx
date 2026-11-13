@@ -2,6 +2,7 @@
 // The main scene through the component and a fake protocol client: create a session, send one
 // sentence, see the reply stream in, see it replaced by the committed message, cancel the run.
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { parseInstant } from '@omne-harness/utc-instant'
 import { StrictMode } from 'react'
 import { afterEach, expect, it } from 'vitest'
 import { SessionWorkspace } from '../src/index.ts'
@@ -225,6 +226,20 @@ it('W5 回复增长时，已提交的那几条在 DOM 里一点不变', async ()
   expect(screen.getByText(text)).toBeTruthy()
   expect(committed.isConnected).toBe(true)
   expect(mutations).toEqual([])
+})
+
+it('W6 列表项有最近活动时刻时显示它，机读的值是那个 UTC 时刻', async () => {
+  const fake = createFakeClient()
+  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  const at = parseInstant('2026-11-13T07:00:00Z')
+  if (!at.ok) throw new Error('fixture instant')
+  ;(await fake.next('list-sessions')).answer(
+    listPage([{ ...listed('ses_t', '有时刻的'), lastActivityAt: at.value }]),
+  )
+  await settle()
+  const time = screen.getByRole('navigation', { name: '会话列表' }).querySelector('time')
+  expect(time?.getAttribute('datetime')).toBe('2026-11-13T07:00:00Z')
+  expect(time?.textContent).toBe(new Date('2026-11-13T07:00:00Z').toLocaleString())
 })
 
 it('W6 列表项：无标题写「未命名的会话」与标识前 8 位，无时刻不显示，已冻结标出；更多接在后面', async () => {

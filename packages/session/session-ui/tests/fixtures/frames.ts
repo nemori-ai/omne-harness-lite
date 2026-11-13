@@ -1,5 +1,6 @@
 // Frames, pages and entries as the `session/v1` client hands them over: `json` values are trees.
 import type { ObserveSessionFrame } from '@omne-harness/session-protocol'
+import type { Instant } from '@omne-harness/utc-instant'
 import type { WireEntry } from '../../src/model/content.ts'
 import { toTree, type JsonTree, type Plain } from '../../src/model/plain.ts'
 
@@ -138,7 +139,7 @@ export function listed(
 ): {
   session: string
   createdAt: null
-  lastActivityAt: null
+  lastActivityAt: Instant | null
   lifecycle: Lifecycle
   title: string | null
 } {

@@ -9,7 +9,7 @@ Draft module package.
 
 The session interface module: one React component, `SessionWorkspace`. It lists your sessions, opens one or creates a new one, sends messages, shows the streamed reply, and cancels a run. It acts only through the `session/v1` protocol client. It does not know the host or identity, and it imports no server member. The consumer is the assembly file of the `apps/desktop` page. [SPEC.md](SPEC.md) owns the behavior.
 
-Implemented: the session list (a column on the left, a drop-down below 720px wide; archived sessions left out), conversation, streamed Markdown, reasoning and tool call cards, tool calls paired with results by call id, the Ask question card (shown only, not answered), confirmation of unknown results, reconnection after the observation ends. Not implemented: the times of a list item, answering cards, stopping one call.
+Implemented: the session list (a column on the left, a drop-down below 720px wide; archived sessions left out), conversation, streamed Markdown, reasoning and tool call cards, tool calls paired with results by call id, the Ask question card (shown only, not answered), confirmation of unknown results, reconnection after the observation ends. Not implemented: answering cards, stopping one call.
 
 ## Usage
 
