@@ -89,6 +89,8 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
     const expired = new Promise<RegisterResultV2>(resolve => {
       expire = diagnostic => resolve(unknown(diagnostic))
     })
+    // The registration holds its domain until its request has ended (SPEC 5.2).
+    const unhold = core.domains.hold(transactionDomain)
     const leave = core.inFlight.add({
       domain: transactionDomain,
       identity: null,
@@ -139,6 +141,7 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
       } catch {
         return unknown('provider_error')
       } finally {
+        unhold()
         leave()
         grant.release()
       }
