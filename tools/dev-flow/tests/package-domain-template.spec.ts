@@ -5,7 +5,10 @@ import { join } from 'node:path'
 import { createDomain, scanDomains } from '../src/package-template/domain.ts'
 import { createPackage } from '../src/package-template/create.ts'
 import { discoverProducts } from '../src/package-template/discovery.ts'
-import { DOMAIN_TEMPLATE_DIRECTORY, readDomainTemplate } from '../src/package-template/domain-template.ts'
+import {
+  DOMAIN_TEMPLATE_DIRECTORY,
+  readDomainTemplate,
+} from '../src/package-template/domain-template.ts'
 
 const fault = vi.hoisted(() => ({ write: false, descriptor: -1, path: '' }))
 vi.mock('node:fs', async importOriginal => {
@@ -217,16 +220,13 @@ describe('domain template versions', () => {
     fs.writeFileSync(join(root, 'packages/sample', file), '# Agents\n')
     expect(scanDomains(root)[0]?.structure).toBe('pass')
   })
-  it.each(['docs/x.md', 'README_ZH.md', 'notes.md'])(
-    'rejects %s in a 2.0.0 group',
-    file => {
-      const root = repository()
-      completed(root)
-      fs.mkdirSync(join(root, 'packages/sample', file, '..'), { recursive: true })
-      fs.writeFileSync(join(root, 'packages/sample', file), '# Note\n\nContent.\n')
-      expect(scanDomains(root)[0]?.structure).toBe('fail')
-    },
-  )
+  it.each(['docs/x.md', 'README_ZH.md', 'notes.md'])('rejects %s in a 2.0.0 group', file => {
+    const root = repository()
+    completed(root)
+    fs.mkdirSync(join(root, 'packages/sample', file, '..'), { recursive: true })
+    fs.writeFileSync(join(root, 'packages/sample', file), '# Note\n\nContent.\n')
+    expect(scanDomains(root)[0]?.structure).toBe('fail')
+  })
   it('keeps a 1.0.0 group passing and lets it hold a SPEC.md beside its documents', () => {
     const root = repository()
     legacy(root)

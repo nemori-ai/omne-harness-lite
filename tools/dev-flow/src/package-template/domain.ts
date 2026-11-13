@@ -80,7 +80,11 @@ export function scanDomains(root: string, groups?: readonly string[]): DomainSca
     const rules =
       registered && previous !== undefined
         ? { version: '1.0.0', requiredFiles: previous.requiredFiles, layout: previous.layout }
-        : { version: template.version, requiredFiles: template.requiredFiles, layout: template.layout }
+        : {
+            version: template.version,
+            requiredFiles: template.requiredFiles,
+            layout: template.layout,
+          }
     const result = checkLayout(root, path, {
       ...rules.layout,
       ignoredDirectories: members,
