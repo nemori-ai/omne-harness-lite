@@ -276,7 +276,11 @@ describe('登录会话全化表', () => {
     const login = t.session.login(CREDENTIALS)
     await settle()
     await call(t.session)
-    expect(t.server.seen[1]).toEqual({ target: 'session/v1 read-history', credentials: {}, body: {} })
+    expect(t.server.seen[1]).toEqual({
+      target: 'session/v1 read-history',
+      credentials: {},
+      body: {},
+    })
     held.open(answered('uniform-auth-failure'))
     await login
   })

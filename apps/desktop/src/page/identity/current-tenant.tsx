@@ -2,8 +2,8 @@
 // in the top bar, and hands its wire text to whatever renders the workspace.
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { IdentityProtocol } from '@omne-harness/identity-protocol'
-import { tenantCodec } from '@omne-harness/legal-identity'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { tenantText } from '../../shared/tenant.ts'
 import type { ShellChrome } from '../shell/shell.tsx'
 
 type Read =
@@ -28,12 +28,9 @@ export function CurrentTenant(props: CurrentTenantProps) {
     setRead({ kind: 'reading' })
     const answer = await identity['query-current-tenant']({})
     if (answer.outcome === 'succeeded') {
-      const text = tenantCodec.encode(answer.body.tenantId)
-      if (text.ok) {
-        const organization = answer.body.tenantId.organization.text
-        chrome.setScope({ short: shorten(organization), full: text.value })
-        return setRead({ kind: 'read', tenant: text.value })
-      }
+      const tenant = tenantText(answer.body.tenantId)
+      chrome.setScope({ short: shorten(answer.body.tenantId.organization.text), full: tenant })
+      return setRead({ kind: 'read', tenant })
     }
     setRead({
       kind: 'failed',

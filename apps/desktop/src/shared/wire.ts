@@ -132,7 +132,8 @@ export function readObserve(text: string): ObserveMessage | undefined {
   const observation = textOf(member(value, 'observation'))
   const messageId = textOf(member(value, 'messageId'))
   const open = member(value, 'open')
-  if (protocol === undefined || observation === undefined || messageId === undefined) return undefined
+  if (protocol === undefined || observation === undefined || messageId === undefined)
+    return undefined
   return open === undefined ? undefined : { protocol, observation, messageId, open }
 }
 

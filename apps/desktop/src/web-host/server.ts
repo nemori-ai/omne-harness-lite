@@ -33,7 +33,7 @@ export interface WebHost {
 }
 
 /** Only the page's own scripts and styles; only same-origin connections. */
-export const CONTENT_SECURITY_POLICY = [
+const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
   "script-src 'self'",
   "style-src 'self'",
@@ -194,7 +194,9 @@ export function createWebHost(options: WebHostOptions): WebHost {
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
       'referrer-policy': 'no-referrer',
-      ...(type.startsWith('text/html') ? { 'content-security-policy': CONTENT_SECURITY_POLICY } : {}),
+      ...(type.startsWith('text/html')
+        ? { 'content-security-policy': CONTENT_SECURITY_POLICY }
+        : {}),
     })
     response.end(content)
   }
@@ -216,8 +218,11 @@ export function createWebHost(options: WebHostOptions): WebHost {
     route(request, response).catch((error: unknown) => {
       const path = new URL(request.url ?? '/', 'http://host').pathname
       // The error's message may quote a body; only its kind is logged.
-      log(`request failed: ${request.method ?? '?'} ${path} (${error instanceof TooLarge ? 'too large' : 'error'})`)
-      if (!response.headersSent) send(response, error instanceof TooLarge ? 413 : 500, 'text/plain', 'failed')
+      log(
+        `request failed: ${request.method ?? '?'} ${path} (${error instanceof TooLarge ? 'too large' : 'error'})`,
+      )
+      if (!response.headersSent)
+        send(response, error instanceof TooLarge ? 413 : 500, 'text/plain', 'failed')
       else response.end()
     })
   })

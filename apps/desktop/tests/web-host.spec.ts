@@ -168,14 +168,20 @@ describe('宿主的通道', () => {
 
   it('登录成功：答复只有结果', async () => {
     const { base } = await start()
-    const text = await postText(base, '/bridge/login', { loginIdentifier: 'alice', credential: 'pw' })
+    const text = await postText(base, '/bridge/login', {
+      loginIdentifier: 'alice',
+      credential: 'pw',
+    })
     expect(JSON.parse(text)).toEqual({ result: 'signed-in' })
   })
 
   it('登录失败：答复只有结果', async () => {
     const { base, server } = await start()
     server.answer('identity/v1 issue-login', () => answered('uniform-auth-failure'))
-    const text = await postText(base, '/bridge/login', { loginIdentifier: 'alice', credential: 'pw' })
+    const text = await postText(base, '/bridge/login', {
+      loginIdentifier: 'alice',
+      credential: 'pw',
+    })
     expect(JSON.parse(text)).toEqual({ result: 'auth-failed' })
   })
 

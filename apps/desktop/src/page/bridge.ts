@@ -84,7 +84,8 @@ export function connectPageBridge(options: PageBridgeOptions): Promise<PageBridg
       try {
         for (;;) {
           const next = await events.next()
-          if (next.done === true) return signal.aborted ? { kind: 'aborted' } : { kind: 'uncertain' }
+          if (next.done === true)
+            return signal.aborted ? { kind: 'aborted' } : { kind: 'uncertain' }
           const event = readObserveEvent(next.value)
           if ('end' in event) return event.end
           yield event.frame
@@ -125,9 +126,7 @@ export function connectPageBridge(options: PageBridgeOptions): Promise<PageBridg
     }
   }
 
-  async function login(
-    credentials: Parameters<HostBridge['login']>[0],
-  ): Promise<LoginResult> {
+  async function login(credentials: Parameters<HostBridge['login']>[0]): Promise<LoginResult> {
     try {
       const response = await post(BRIDGE.login, writeCredentials(credentials))
       if (!response.ok) return refusedBeforeForwarding(response) ? 'unavailable' : 'unknown'

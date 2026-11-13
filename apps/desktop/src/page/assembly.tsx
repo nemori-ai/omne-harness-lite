@@ -20,7 +20,10 @@ export const protocols: readonly ProtocolContract[] = [identityProtocol, session
 const IDENTITY = serviceOf(identityProtocol)
 const SESSION = serviceOf(sessionProtocol)
 
-export function assemble(bridge: HostBridge): { readonly gate: Region; readonly workspace: Region } {
+export function assemble(bridge: HostBridge): {
+  readonly gate: Region
+  readonly workspace: Region
+} {
   return {
     gate: {
       services: [IDENTITY],

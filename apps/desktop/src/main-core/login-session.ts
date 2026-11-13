@@ -5,18 +5,19 @@
 // carried the login starts one probe of `query-current-tenant`.
 import type { LoginState, LoginStateSource } from '@omne-harness/client-assembly/cordis'
 import { identityProtocol } from '@omne-harness/identity-protocol'
-import { tenantCodec } from '@omne-harness/legal-identity'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import {
   ClientRequestError,
   createClient,
   type CallReport,
+  type ClientOf,
   type Credentials,
   type ObserveEnd,
   type ProtocolKey,
   type Transport,
 } from '@omne-harness/sdk/core'
 import type { LoginCredentials, LoginResult, LogoutResult } from '../shared/host-bridge.ts'
+import { tenantText } from '../shared/tenant.ts'
 import type { CredentialStore, StoredLogin } from './credential-store.ts'
 
 type SessionState =
@@ -31,7 +32,10 @@ export type ServerConnector = (credentials: Credentials) => Transport
 export type LoginSessionOptions = {
   readonly connect: ServerConnector
   readonly store: CredentialStore
-  /** The contracts whose `carriesCredential` operations the page may not call. */
+  /**
+   * The contracts the host knows: their `carriesCredential` operations are never forwarded, and
+   * each target gets only the credentials its identity requirement names.
+   */
   readonly contracts: readonly ProtocolContract[]
 }
 
@@ -43,6 +47,21 @@ export interface LoginSession extends LoginStateSource {
 }
 
 const NOT_SENT: CallReport = Object.freeze({ kind: 'not-sent' })
+
+type IssueLoginOutcome = Awaited<
+  ReturnType<ClientOf<typeof identityProtocol>['issue-login']>
+>['outcome']
+
+/** What the page is told for each `issue-login` outcome other than success (SPEC.md「实现的读法」). */
+const LOGIN_RESULTS: Readonly<Record<Exclude<IssueLoginOutcome, 'succeeded'>, LoginResult>> = {
+  'uniform-auth-failure': 'auth-failed',
+  unknown: 'unknown',
+  uncertain: 'unknown',
+  unavailable: 'unavailable',
+  'basis-unavailable': 'unavailable',
+  'stage-not-provided': 'unavailable',
+  'protocol-rejected': 'unavailable',
+}
 
 type Identity = ProtocolContract['operations'][string]['identity']
 /** What the contract says one operation or observation needs; a credential-carrying one is the page's to never call. */
@@ -70,7 +89,9 @@ function demandsOf(contracts: readonly ProtocolContract[]): ReadonlyMap<string, 
  */
 function credentialsFor(login: StoredLogin | undefined, identity: Identity): Credentials {
   if (login === undefined || identity === 'none') return {}
-  return identity === 'login' ? { proof: login.proof } : { proof: login.proof, tenant: login.tenant }
+  return identity === 'login'
+    ? { proof: login.proof }
+    : { proof: login.proof, tenant: login.tenant }
 }
 
 function endedDenied(end: ObserveEnd): boolean {
@@ -118,6 +139,7 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
     void identityFor(login)
       ['query-current-tenant']({})
       .then(answer => (answer.outcome === 'denied' ? invalidated(login) : undefined))
+      // A probe that did not come back `denied` is no event; the next `denied` probes again.
       .catch(() => undefined)
       .finally(() => {
         probing = false
@@ -143,7 +165,11 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
       const sending = route(targetOf(request.protocol, request.operation))
       if (sending === 'refuse') return NOT_SENT
       const report = await connect(sending.credentials).call(request)
-      if (sending.carried !== undefined && report.kind === 'answered' && report.outcome === 'denied')
+      if (
+        sending.carried !== undefined &&
+        report.kind === 'answered' &&
+        report.outcome === 'denied'
+      )
         probe(sending.carried)
       return report
     },
@@ -159,36 +185,28 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
   async function login(credentials: LoginCredentials): Promise<LoginResult> {
     if (state.kind !== 'signed-out') return 'unavailable'
     enter({ kind: 'signing-in' })
-    let answer: Awaited<ReturnType<ReturnType<typeof identityFor>['issue-login']>>
-    try {
-      answer = await identityFor(undefined)['issue-login']({
+    const answer = await identityFor(undefined)
+      ['issue-login']({
         loginIdentifier: credentials.loginIdentifier,
         credential: credentials.credential,
       })
-    } catch (error) {
-      // A body the contract cannot write was never sent. The error names no credential.
-      if (!(error instanceof ClientRequestError)) throw error
+      .catch((error: unknown) => {
+        // A body the contract cannot write: no byte left. The error names no credential.
+        if (error instanceof ClientRequestError) return { outcome: 'unavailable' as const }
+        throw error
+      })
+    if (answer.outcome !== 'succeeded') {
       enter({ kind: 'signed-out' })
-      return 'unavailable'
+      return LOGIN_RESULTS[answer.outcome]
     }
-    if (answer.outcome === 'succeeded') {
-      const tenant = tenantCodec.encode(answer.body.tenantId)
-      if (tenant.ok) {
-        const held: StoredLogin = {
-          proof: answer.body.loginProof,
-          tenant: tenant.value,
-          loginId: answer.body.loginId,
-        }
-        await store.write(held)
-        enter({ kind: 'signed-in', login: held })
-        return 'signed-in'
-      }
+    const login: StoredLogin = {
+      proof: answer.body.loginProof,
+      tenant: tenantText(answer.body.tenantId),
+      loginId: answer.body.loginId,
     }
-    enter({ kind: 'signed-out' })
-    if (answer.outcome === 'uniform-auth-failure') return 'auth-failed'
-    if (answer.outcome === 'unknown' || answer.outcome === 'uncertain') return 'unknown'
-    // A success whose tenant cannot be written back is not a usable login.
-    return answer.outcome === 'succeeded' ? 'unknown' : 'unavailable'
+    await store.write(login)
+    enter({ kind: 'signed-in', login })
+    return 'signed-in'
   }
 
   async function logout(): Promise<LogoutResult> {

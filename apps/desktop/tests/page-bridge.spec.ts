@@ -83,7 +83,10 @@ describe('页面的桥对着真的宿主', () => {
       yield value({
         kind: 'snapshot',
         revision: 1,
-        protocols: [{ name: 'access', major: 1 }, { name: 'identity', major: 1 }],
+        protocols: [
+          { name: 'access', major: 1 },
+          { name: 'identity', major: 1 },
+        ],
       })
       await new Promise(resolve => request.signal.addEventListener('abort', resolve))
       return { kind: 'aborted' }

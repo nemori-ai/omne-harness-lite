@@ -9,7 +9,11 @@ export {
   type LoginSessionOptions,
   type ServerConnector,
 } from './login-session.ts'
-export { memoryCredentialStore, type CredentialStore, type StoredLogin } from './credential-store.ts'
+export {
+  memoryCredentialStore,
+  type CredentialStore,
+  type StoredLogin,
+} from './credential-store.ts'
 
 /** The server entry at `origin` over HTTP, with the given credentials on every request. */
 export function httpServer(origin: string): ServerConnector {

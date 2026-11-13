@@ -81,7 +81,10 @@ function setup(options: { login?: LoginState; withIdentity?: boolean; loginResul
   const tenant = tenantCodec.parse(TENANT_TEXT)
   if (!tenant.ok) throw new Error('fixture')
   const identity = {
-    'query-current-tenant': async () => ({ outcome: 'succeeded', body: { tenantId: tenant.value } }),
+    'query-current-tenant': async () => ({
+      outcome: 'succeeded',
+      body: { tenantId: tenant.value },
+    }),
     'register-and-activate': async () => ({ outcome: 'not-loginable', body: {} }),
   }
   const services: Record<string, unknown> = { 'protocol:session/v1': {} }
@@ -101,8 +104,7 @@ function setup(options: { login?: LoginState; withIdentity?: boolean; loginResul
   return { login, connectivity, handedOver, tree, loggedOut: () => loggedOut }
 }
 
-const input = (name: string) =>
-  document.querySelector(`input[name="${name}"]`) as HTMLInputElement
+const input = (name: string) => document.querySelector(`input[name="${name}"]`) as HTMLInputElement
 
 async function fillAndSubmit(identifier: string, secret: string): Promise<void> {
   fireEvent.change(input('loginIdentifier'), { target: { value: identifier } })
