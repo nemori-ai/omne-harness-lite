@@ -5,7 +5,6 @@ import type {
   MutationName,
   Reply,
   SessionCallerClass,
-  SessionFaces,
   SessionId,
   SessionRevision,
   DurableEvidence,
