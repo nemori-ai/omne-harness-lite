@@ -3,14 +3,15 @@
 // retry interval must not reschedule a complete call. The host is scripted: it runs a call only
 // when the test says so and records every reschedule. The ledger is real over the memory store.
 import type { Context } from '@deepseek-ai/cordis'
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { LedgerPendingScan, ToolLedgerStore } from '@omne-harness/tool'
 import type { ToolExecutionRef } from '@omne-harness/tool-contract'
 import type { ToolDriver, ToolInstanceHost } from '@omne-harness/tool-contract/provider'
 import { createRuntimeExecutor } from '../src/runtime-executor.ts'
 import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
-import { evidence, instanceId } from './coordinator-values.ts'
+import { evidence, instanceId, tenantB } from './coordinator-values.ts'
 import { fixture } from './delivery/fixture.ts'
 
 type ExecutorInput = Parameters<typeof createRuntimeExecutor>[0]
@@ -77,6 +78,15 @@ async function world(
     recoveryFault?: (count: number) => RecoveryAnswer | undefined
     /** Replaces the logger of the context. */
     logger?: Context['logger']
+    /** Replaces the pending scan of the record store: the rescans read through it. */
+    pending?: ToolLedgerStore['scanPending']
+    /** The driver's retry interval; `RETRY_MS` by default. */
+    retryMs?: number
+    /**
+     * The rescan period. `'default'` leaves it to the executor; by default it is beyond every
+     * advance of the tests that are not about the rescan.
+     */
+    rescanMs?: number | 'default'
   }> = {},
 ) {
   const f = await fixture()
@@ -152,7 +162,7 @@ async function world(
       plugin: () => options.fiber ?? null,
     } as unknown as Context,
     settings: {
-      store: f.store,
+      store: options.pending === undefined ? f.store : { ...f.store, scanPending: options.pending },
       access: { guard: f.input.access },
       resolveAccess,
       sources: { releaseReceivedCopies: async () => 'released' as const },
@@ -162,9 +172,12 @@ async function world(
       observerResidenceMs: 1000,
       configuration: {
         observerBufferBytes: 4096,
-        driverRetryDelayMs: RETRY_MS,
+        driverRetryDelayMs: options.retryMs ?? RETRY_MS,
         driverStepsPerRun: 4,
       },
+      ...(options.rescanMs === 'default'
+        ? {}
+        : { recoveryRescanMs: options.rescanMs ?? RETRY_MS * 100 }),
     } as unknown as ExecutorInput['settings'],
     dependencies: {
       commands: { ...f.input.commands, loadRecovery },
@@ -193,6 +206,10 @@ async function world(
     /** The current segment as the recovery reports it from now on; another instance's live one by default. */
     foreignInstance: (as: Partial<Foreign> = {}) => {
       foreign = { phase: 'live', start: 'other', execution: 'other', ...as }
+    },
+    /** The recovery reports the call as it is again. */
+    ownInstance: () => {
+      foreign = null
     },
   }
 }
@@ -385,8 +402,20 @@ it('the startup scan remembers and schedules the old calls of every page, once',
   await w.executor.close()
 })
 
-it('an unavailable scan goes on from its cursor at the next retry, and an unsupported one stops', async () => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+/** Every timer the executor arms: the retry interval, the rescan period and the backoff waits. */
+const TIMERS = ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] as const
+
+/** Lets the work the fake clock started run to its next wait: a real turn of the event loop. */
+const settle = () => new Promise<void>(resolve => setImmediate(resolve))
+
+/** Moves the fake clock by `ms`, then lets what it started run. */
+async function advance(ms: number): Promise<void> {
+  await vi.advanceTimersByTimeAsync(ms)
+  await settle()
+}
+
+it('an unavailable scan goes on from its cursor after one second, and an unsupported one stops', async () => {
+  vi.useFakeTimers({ toFake: [...TIMERS] })
   try {
     const f = await fixture()
     const unavailable = fail({
@@ -396,11 +425,14 @@ it('an unavailable scan goes on from its cursor at the next retry, and an unsupp
     })
     const paged = pagedScan(f.access.tenant, ['c-a', 'c-b'], 1, [undefined, unavailable])
     const w = await world({ scan: paged.scan })
-    await vi.waitFor(() => expect(paged.seen).toEqual([null, 'c-a']))
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('waiting'))
+    await settle()
+    expect(paged.seen).toEqual([null, 'c-a'])
+    expect(w.executor.diagnostics().recoveryScan).toBe('waiting')
     expect(w.controlled.scheduled).toEqual(['c-a'])
-    vi.advanceTimersByTime(RETRY_MS)
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('done'))
+    await advance(999)
+    expect(paged.seen).toEqual([null, 'c-a'])
+    await advance(1)
+    expect(w.executor.diagnostics().recoveryScan).toBe('done')
     expect(paged.seen).toEqual([null, 'c-a', 'c-a'])
     expect(w.controlled.scheduled).toContain('c-b')
     await w.executor.close()
@@ -409,8 +441,9 @@ it('an unavailable scan goes on from its cursor at the next retry, and an unsupp
       fail({ kind: 'unsupported' as const, adoption: evidence('store') as never, reason: 'x' }),
     ])
     const v = await world({ scan: refused.scan })
-    await vi.waitFor(() => expect(v.executor.diagnostics().recoveryScan).toBe('unsupported'))
-    vi.advanceTimersByTime(RETRY_MS)
+    await settle()
+    expect(v.executor.diagnostics().recoveryScan).toBe('unsupported')
+    await advance(RETRY_MS)
     expect(refused.seen).toEqual([null])
     await v.executor.close()
   } finally {
@@ -493,33 +526,50 @@ it('logs where a run stopped once per reason, and once more when the call goes o
   }
 })
 
-it('logs a scan that cannot read once per streak of failures, and again after a page was read', async () => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+it('backs a scan that cannot read off by 1, 5 and 30 seconds, and logs the first failure and each one at the cap', async () => {
+  vi.useFakeTimers({ toFake: [...TIMERS] })
   try {
     const f = await fixture()
     const paged = pagedScan(f.access.tenant, ['c-a', 'c-b'], 1, [
+      SCAN_DOWN,
+      SCAN_DOWN,
       SCAN_DOWN,
       SCAN_DOWN,
       undefined,
       SCAN_DOWN,
     ])
     const w = await world({ scan: paged.scan })
-    const unavailable = ['warn', 'The recovery scan is unavailable; it goes on at the next retry.']
-    await vi.waitFor(() => expect(paged.seen).toHaveLength(1))
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('waiting'))
-    expect(linesOf(w, 'The recovery scan')).toEqual([unavailable])
-    vi.advanceTimersByTime(RETRY_MS)
-    await vi.waitFor(() => expect(paged.seen).toHaveLength(2))
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('waiting'))
-    expect(linesOf(w, 'The recovery scan')).toEqual([unavailable])
-    // The third scan reads a page, the fourth fails: a new streak, a new line.
-    vi.advanceTimersByTime(RETRY_MS)
-    await vi.waitFor(() => expect(paged.seen).toHaveLength(4))
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('waiting'))
-    expect(linesOf(w, 'The recovery scan')).toEqual([unavailable, unavailable])
-    vi.advanceTimersByTime(RETRY_MS)
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('done'))
-    expect(linesOf(w, 'The recovery scan')).toEqual([unavailable, unavailable])
+    const line = (ms: number) => [
+      'warn',
+      `The recovery scan is unavailable (injected); it goes on in ${ms} ms.`,
+    ]
+    await settle()
+    expect(paged.seen).toHaveLength(1)
+    expect(linesOf(w, 'The recovery scan')).toEqual([line(1000)])
+    // Each wait is the next step of the ladder: not one millisecond sooner.
+    for (const [wait, reads] of [
+      [1000, 2],
+      [5000, 3],
+      [30_000, 4],
+    ] as const) {
+      await advance(wait - 1)
+      expect(paged.seen).toHaveLength(reads - 1)
+      await advance(1)
+      expect(paged.seen).toHaveLength(reads)
+    }
+    // The second failure was silent; the third and the fourth wait at the cap and are logged.
+    expect(linesOf(w, 'The recovery scan')).toEqual([line(1000), line(30_000), line(30_000)])
+    // The fifth scan reads a page, the sixth fails: the ladder starts again from one second.
+    await advance(30_000)
+    expect(paged.seen).toHaveLength(6)
+    expect(linesOf(w, 'The recovery scan')).toEqual([
+      line(1000),
+      line(30_000),
+      line(30_000),
+      line(1000),
+    ])
+    await advance(1000)
+    expect(w.executor.diagnostics().recoveryScan).toBe('done')
     await w.executor.close()
   } finally {
     vi.useRealTimers()
@@ -527,14 +577,15 @@ it('logs a scan that cannot read once per streak of failures, and again after a 
 })
 
 it('logs an unsupported scan once, and a scan that throws without the text of its error', async () => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  vi.useFakeTimers({ toFake: [...TIMERS] })
   try {
     const f = await fixture()
     const refused = pagedScan(f.access.tenant, ['c-a'], 1, [
       fail({ kind: 'unsupported' as const, adoption: evidence('store') as never, reason: 'x' }),
     ])
     const w = await world({ scan: refused.scan })
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('unsupported'))
+    await settle()
+    expect(w.executor.diagnostics().recoveryScan).toBe('unsupported')
     expect(linesOf(w, 'The recovery scan')).toEqual([
       ['warn', 'The recovery scan is unsupported; old calls are not taken over.'],
     ])
@@ -549,16 +600,14 @@ it('logs an unsupported scan once, and a scan that throws without the text of it
         return paged.scan(input)
       },
     })
-    await vi.waitFor(() => expect(thrown).toBe(1))
-    await vi.waitFor(() => expect(v.executor.diagnostics().recoveryScan).toBe('waiting'))
+    await settle()
+    expect(thrown).toBe(1)
+    expect(v.executor.diagnostics().recoveryScan).toBe('waiting')
     expect(linesOf(v, 'The recovery scan')).toEqual([
-      [
-        'warn',
-        'The recovery scan failed; its error text is withheld. It goes on at the next retry.',
-      ],
+      ['warn', 'The recovery scan failed; its error text is withheld. It goes on in 1000 ms.'],
     ])
-    vi.advanceTimersByTime(RETRY_MS)
-    await vi.waitFor(() => expect(v.executor.diagnostics().recoveryScan).toBe('done'))
+    await advance(1000)
+    expect(v.executor.diagnostics().recoveryScan).toBe('done')
     expect(v.controlled.scheduled).toEqual(['c-a'])
     await v.executor.close()
   } finally {
@@ -566,21 +615,19 @@ it('logs an unsupported scan once, and a scan that throws without the text of it
   }
 })
 
-it('logs a full executor once while it stays full, however often the scan retries', async () => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+it('a full executor logs once and does not read again until a call retires', async () => {
+  vi.useFakeTimers({ toFake: [...TIMERS] })
   try {
     const f = await fixture()
     const paged = pagedScan(f.access.tenant, ['c-a', 'c-b', 'c-c'], 3)
     const w = await world({ scan: paged.scan, capacity: 2 })
     const full = ['warn', 'The executor is full; the recovery scan goes on when a call retires.']
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveredCalls).toBe(2))
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('waiting'))
+    await settle()
+    expect(w.executor.diagnostics().recoveredCalls).toBe(2)
+    expect(w.executor.diagnostics().recoveryScan).toBe('waiting')
     expect(linesOf(w, 'The executor is full')).toEqual([full])
-    for (const round of [2, 3]) {
-      vi.advanceTimersByTime(RETRY_MS)
-      await vi.waitFor(() => expect(paged.seen).toHaveLength(round))
-      await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('waiting'))
-    }
+    await advance(RETRY_MS * 3)
+    expect(paged.seen).toHaveLength(1)
     expect(linesOf(w, 'The executor is full')).toEqual([full])
     await w.executor.close()
   } finally {
@@ -589,7 +636,7 @@ it('logs a full executor once while it stays full, however often the scan retrie
 })
 
 it('goes on when the logger of an ended context throws', async () => {
-  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  vi.useFakeTimers({ toFake: [...TIMERS] })
   try {
     const f = await fixture()
     const paged = pagedScan(f.access.tenant, ['c-a'], 1, [SCAN_DOWN])
@@ -599,11 +646,175 @@ it('goes on when the logger of an ended context throws', async () => {
         throw new Error('the context has ended')
       }) as never,
     })
-    await vi.waitFor(() => expect(paged.seen).toHaveLength(1))
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('waiting'))
-    vi.advanceTimersByTime(RETRY_MS)
-    await vi.waitFor(() => expect(w.executor.diagnostics().recoveryScan).toBe('done'))
+    await settle()
+    expect(paged.seen).toHaveLength(1)
+    expect(w.executor.diagnostics().recoveryScan).toBe('waiting')
+    await advance(1000)
+    expect(w.executor.diagnostics().recoveryScan).toBe('done')
     expect(w.controlled.scheduled).toEqual(['c-a'])
+    await w.executor.close()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+const textOf = (tenant: TenantId) => {
+  const encoded = tenantCodec.encode(tenant)
+  if (!encoded.ok) throw new Error('fixture tenant')
+  return encoded.value
+}
+
+/**
+ * The pending scan of the record store as the rescans see it: it records the tenant of each read
+ * and answers `answer` for it (an empty page by default).
+ */
+function pendingReads(answer: (tenant: string) => LedgerPendingScan | undefined = () => undefined) {
+  const read: string[] = []
+  const pending: ToolLedgerStore['scanPending'] = async input => {
+    if (input.tenant === null) throw new Error('a rescan reads one tenant')
+    const tenant = textOf(input.tenant)
+    read.push(tenant)
+    return answer(tenant) ?? { kind: 'page', calls: [], more: false }
+  }
+  return { pending, read }
+}
+
+/** A startup scan that finds nothing, and counts how often it was asked. */
+function emptyStartup() {
+  let asked = 0
+  const scan: Scan = async () => {
+    asked += 1
+    return succeed({ calls: [], next: null })
+  }
+  return { scan, asked: () => asked }
+}
+
+it('the rescan keeps its own period: with a 50 ms retry interval it still comes once a minute', async () => {
+  vi.useFakeTimers({ toFake: [...TIMERS] })
+  try {
+    const reads = pendingReads()
+    const w = await world({ retryMs: 50, rescanMs: 'default', pending: reads.pending })
+    expect(w.executor.remember(w.f.access)).toBe(true)
+    await advance(59_999)
+    expect(reads.read).toEqual([])
+    await advance(1)
+    expect(reads.read).toEqual([textOf(w.f.access.tenant)])
+    await advance(60_000)
+    expect(reads.read).toHaveLength(2)
+    await w.executor.close()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('after the startup scan the rescan reads only a tenant with a call in flight, and not after it settled', async () => {
+  vi.useFakeTimers({ toFake: [...TIMERS] })
+  try {
+    const startup = emptyStartup()
+    const reads = pendingReads()
+    const w = await world({ scan: startup.scan, pending: reads.pending, rescanMs: 60_000 })
+    await settle()
+    expect(w.executor.diagnostics().recoveryScan).toBe('done')
+    // Nothing in flight: no tenant is read, and the cross-tenant scan does not run again.
+    await advance(60_000)
+    expect(reads.read).toEqual([])
+    expect(w.executor.diagnostics().owedTenants).toBe(0)
+    // A call in flight makes its tenant owed, and only that tenant is read.
+    expect(w.executor.remember(w.f.access)).toBe(true)
+    await advance(60_000)
+    expect(reads.read).toEqual([textOf(w.f.access.tenant)])
+    // The call completes and retires: its tenant is not read again.
+    await w.controlled.run(w.step)
+    await vi.waitFor(() => expect(w.executor.diagnostics().completed).toBe(1))
+    expect(w.executor.diagnostics().owedTenants).toBe(0)
+    await advance(120_000)
+    expect(reads.read).toEqual([textOf(w.f.access.tenant)])
+    expect(startup.asked()).toBe(1)
+    await w.executor.close()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('a call out of the table that a run reads as settled leaves the owed set', async () => {
+  vi.useFakeTimers({ toFake: [...TIMERS] })
+  try {
+    const reads = pendingReads()
+    const w = await world({ pending: reads.pending, rescanMs: 60_000 })
+    // The call runs to its end once, so the ledger holds it settled with no work.
+    expect(w.executor.remember(w.f.access)).toBe(true)
+    await w.controlled.run(w.step)
+    await vi.waitFor(() => expect(w.executor.diagnostics().completed).toBe(1))
+    // A late registration owes it again; another instance holds it, so the executor lets it go.
+    expect(w.executor.remember(w.f.access)).toBe(true)
+    w.foreignInstance()
+    await w.controlled.run(w.step)
+    expect(w.executor.knows(w.f.access)).toBe(false)
+    expect(w.executor.diagnostics().owedTenants).toBe(1)
+    // A later run reads the call as it is: settled, with no work.
+    w.ownInstance()
+    await w.controlled.run(w.step)
+    expect(w.executor.knows(w.f.access)).toBe(false)
+    expect(w.executor.diagnostics().owedTenants).toBe(0)
+    await advance(60_000)
+    expect(reads.read).toEqual([])
+    await w.executor.close()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('a tenant whose rescan cannot read backs off 1, 5 and 30 seconds and does not hold the other tenant', async () => {
+  vi.useFakeTimers({ toFake: [...TIMERS] })
+  try {
+    let down = true
+    const f = await fixture()
+    const a = textOf(f.access.tenant)
+    const b = textOf(tenantB)
+    const reads = pendingReads(tenant =>
+      tenant === a && down ? { kind: 'unavailable', diagnostic: 'queue_timeout' } : undefined,
+    )
+    const w = await world({ pending: reads.pending, rescanMs: 60_000 })
+    expect(w.executor.remember(w.f.access)).toBe(true)
+    expect(w.executor.remember({ tenant: tenantB, call: 'c-b' as never })).toBe(true)
+    const of = (tenant: string) => reads.read.filter(read => read === tenant).length
+    // The round reads both: the tenant that cannot answer does not stop the other.
+    await advance(60_000)
+    expect([of(a), of(b)]).toEqual([1, 1])
+    for (const [wait, count] of [
+      [1000, 2],
+      [5000, 3],
+      [30_000, 4],
+    ] as const) {
+      await advance(wait - 1)
+      expect(of(a)).toBe(count - 1)
+      await advance(1)
+      expect(of(a)).toBe(count)
+    }
+    const line = (ms: number) => [
+      'warn',
+      `The recovery scan of tenant ${a} is unavailable (queue_timeout); it goes on in ${ms} ms.`,
+    ]
+    expect(linesOf(w, 'The recovery scan of tenant')).toEqual([
+      line(1000),
+      line(30_000),
+      line(30_000),
+    ])
+    // The next round reads the other tenant on time; the failing one stays in its backoff.
+    expect(of(b)).toBe(1)
+    await advance(120_000 - 96_000)
+    expect([of(a), of(b)]).toEqual([4, 2])
+    // It reads again at the cap and succeeds: the ladder starts again from one second.
+    down = false
+    await advance(6000)
+    expect(of(a)).toBe(5)
+    down = true
+    await advance(54_000)
+    expect(of(a)).toBe(6)
+    await advance(999)
+    expect(of(a)).toBe(6)
+    await advance(1)
+    expect(of(a)).toBe(7)
     await w.executor.close()
   } finally {
     vi.useRealTimers()

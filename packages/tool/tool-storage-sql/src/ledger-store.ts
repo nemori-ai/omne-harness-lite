@@ -353,7 +353,7 @@ function pendingScanOver(
 
   /**
    * 跨租户：按租户文本的顺序逐个读已发布目录里的租户事务域。每个域各自读一次，整个扫描不声称是
-   * 同一时刻的快照。一个域读不到时整页答复 `unavailable`，不答复更短的页。
+   * 同一时刻的快照。一个域读不到时整页答复 `unavailable`，不答复更短的页；诊断文字写明是哪个租户。
    */
   const scanTenants = async (input: LedgerPendingScanInput): Promise<LedgerPendingScan> => {
     let listed: TenantDomainListing
@@ -386,9 +386,14 @@ function pendingScanOver(
         after: from !== null && from.tenant === entry.tenant ? from.call : null,
         limit: input.limit - calls.length,
       })
-      if ('kind' in page) return page
+      // The diagnostic names the tenant: the scan reads many, and the caller reports which one failed.
+      if ('kind' in page)
+        return page.kind === 'unavailable'
+          ? unavailable(`tenant ${entry.tenant}: ${page.diagnostic}`)
+          : page
       const found = callsOf(parsed.value, page)
-      if (found === null) return unavailable('pending read: a row holds no call identity')
+      if (found === null)
+        return unavailable(`tenant ${entry.tenant}: pending read: a row holds no call identity`)
       calls.push(...found)
       if (page.more) return { kind: 'page', calls, more: true }
       if (calls.length >= input.limit)

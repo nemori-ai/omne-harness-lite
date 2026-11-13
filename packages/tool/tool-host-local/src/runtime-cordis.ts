@@ -65,6 +65,12 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   }))
     if (!Number.isSafeInteger(value) || value < 1)
       throw new TypeError(`${key}: expected a positive safe integer`)
+  const rescan = input.recoveryRescanMs
+  if (
+    rescan !== undefined &&
+    (!Number.isSafeInteger(rescan) || rescan < 1 || rescan > 2_147_483_647)
+  )
+    throw new TypeError('recoveryRescanMs: expected an integer from 1 to 2147483647')
   let environment: RuntimeEnvironment | null = null
   let records: RuntimeRecords | null = null
   let host: ToolInstanceHost<unknown> | null = null
