@@ -9,6 +9,8 @@ import { createFakeClient } from './fixtures/fake-client.ts'
 import {
   assistantEntry,
   deltaTree,
+  listed,
+  listPage,
   page,
   snapshotTree,
   stateFrame,
@@ -223,6 +225,128 @@ it('W5 回复增长时，已提交的那几条在 DOM 里一点不变', async ()
   expect(screen.getByText(text)).toBeTruthy()
   expect(committed.isConnected).toBe(true)
   expect(mutations).toEqual([])
+})
+
+it('W6 列表项：无标题写「未命名的会话」与标识前 8 位，无时刻不显示，已冻结标出；更多接在后面', async () => {
+  const fake = createFakeClient()
+  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  const first = await fake.next('list-sessions')
+  expect(first.body).toEqual({ tenant: expect.anything(), cursor: null })
+  first.answer(
+    listPage(
+      [
+        listed('ses_12345678xyz', null),
+        listed('ses_b', '冻住的', 'frozen'),
+        listed('ses_c', '平常的'),
+      ],
+      'cur-2',
+      'partial',
+    ),
+  )
+  await settle()
+  const list = screen.getByRole('navigation', { name: '会话列表' })
+  expect(list.textContent).toContain('未命名的会话 ses_1234')
+  expect(list.textContent).not.toContain('ses_12345')
+  expect(screen.getByRole('button', { name: /冻住的/ }).textContent).toContain('已冻结')
+  expect(screen.getByRole('button', { name: /平常的/ }).textContent).toBe('平常的')
+  expect(list.querySelector('time')).toBeNull()
+  expect(list.textContent).toContain('列表可能不全')
+
+  fireEvent.click(screen.getByRole('button', { name: '更多' }))
+  const more = await fake.next('list-sessions')
+  expect(more.body).toEqual({ tenant: expect.anything(), cursor: 'cur-2' })
+  more.answer(listPage([listed('ses_c', '平常的'), listed('ses_d', '更早的')]))
+  await settle()
+  expect(
+    [...list.querySelectorAll('.omne-session-item-title')].map(node => node.textContent),
+  ).toEqual(['未命名的会话 ses_1234', '冻住的', '平常的', '更早的'])
+  expect(screen.queryByRole('button', { name: '更多' })).toBeNull()
+})
+
+it('W7 刷新之后：列表里点一个旧会话，看得到历史，能接着发消息，受理后列表重读', async () => {
+  const fake = createFakeClient()
+  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  ;(await fake.next('list-sessions')).answer(listPage([listed(SESSION, '旧会话')]))
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '旧会话' }))
+  await settle()
+  const read = await fake.next('read-history')
+  expect(read.body).toMatchObject({ session: SESSION, cursor: null, direction: 'backward' })
+  expect(fake.observations).toHaveLength(1)
+  read.answer({
+    outcome: 'succeeded',
+    body: page(
+      [userEntry('1', '1', '上次说的', 'msg_a'), assistantEntry('2', '2', '上次的回答')],
+      '2',
+    ),
+  })
+  await settle()
+  expect(screen.getByText('上次的回答')).toBeTruthy()
+  expect(screen.getByRole('button', { name: '旧会话' }).getAttribute('aria-current')).toBe('true')
+
+  const input = screen.getByRole('textbox', { name: '输入消息' })
+  fireEvent.change(input, { target: { value: '接着说' } })
+  fireEvent.keyDown(input, { key: 'Enter' })
+  await settle()
+  const send = await fake.next('send-input')
+  expect(send.body).toMatchObject({ session: SESSION })
+  send.answer({ outcome: 'succeeded', body: { recovered: false } })
+  await settle()
+  expect((await fake.next('list-sessions')).body).toMatchObject({ cursor: null })
+})
+
+it('W8 换会话：停掉原会话的观察，新会话从头开始', async () => {
+  const fake = createFakeClient()
+  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  ;(await fake.next('list-sessions')).answer(
+    listPage([listed('ses_one', '第一个'), listed('ses_two', '第二个')]),
+  )
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '第一个' }))
+  await settle()
+  ;(await fake.next('read-history')).answer({
+    outcome: 'succeeded',
+    body: page([assistantEntry('1', '1', '第一个的内容')], '1'),
+  })
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '第二个' }))
+  await settle()
+  expect(fake.observations[0]?.aborted).toBe(true)
+  expect(fake.observations[1]?.aborted).toBe(false)
+  expect(screen.queryByText('第一个的内容')).toBeNull()
+  expect((await fake.next('read-history')).body).toMatchObject({ session: 'ses_two' })
+})
+
+it('W9 列表读失败：如实写在列表区，已打开的会话照常；暂时读不到可以重试', async () => {
+  const fake = createFakeClient()
+  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  const mounted = await fake.next('list-sessions')
+  fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
+  ;(await fake.next('create-session')).answer({
+    outcome: 'succeeded',
+    body: { session: SESSION, recovered: false },
+  })
+  await settle()
+  ;(await fake.next('read-history')).answer({
+    outcome: 'succeeded',
+    body: page([assistantEntry('1', '1', '会话里的内容')], '1'),
+  })
+  const reload = await fake.next('list-sessions')
+  mounted.answer(listPage([listed('ses_stale', '作废的答复')]))
+  reload.answer({ outcome: 'basis-unavailable' })
+  await settle()
+  const list = screen.getByRole('navigation', { name: '会话列表' })
+  expect(list.textContent).toContain('会话列表暂时读不到。')
+  expect(list.textContent).not.toContain('作废的答复')
+  expect(screen.getByText('会话里的内容')).toBeTruthy()
+  expect(screen.getByRole('textbox', { name: '输入消息' })).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('button', { name: '重试' }))
+  ;(await fake.next('list-sessions')).answer({ outcome: 'denied' })
+  await settle()
+  expect(list.textContent).toContain('没有权限，或登录已失效。')
+  expect(screen.queryByRole('button', { name: '重试' })).toBeNull()
+  expect(screen.getByText('会话里的内容')).toBeTruthy()
 })
 
 it('W3 外壳给的租户读不懂：如实说出来', () => {

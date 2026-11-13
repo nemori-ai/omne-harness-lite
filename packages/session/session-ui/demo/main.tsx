@@ -1,5 +1,6 @@
 // Development only: the session interface against a fake `session/v1` client that plays a small
-// server. Each message starts a run that streams a reply word by word, calls a tool, and commits.
+// server with several sessions. Each message starts a run that streams a reply word by word, calls a
+// tool, and commits. One session is there from the start, as after reloading the page.
 import { createRoot } from 'react-dom/client'
 import '../src/view/session-ui.css'
 import { SessionWorkspace } from '../src/index.ts'
@@ -13,30 +14,76 @@ const fake = createFakeClient()
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 type Entry = { entryId: string; revision: string; kind: string; payload: Plain }
-const log: Entry[] = []
-let revision = 1
+type Held = {
+  log: Entry[]
+  revision: number
+  title: string | null
+  /** Order of the last activity: the list shows the highest first. */
+  active: number
+  current: { run: string; cancelled: boolean } | null
+}
+const sessions = new Map<string, Held>()
+let activity = 0
 let runs = 0
-let current: { run: string; cancelled: boolean } | null = null
 
-function commit(kind: string, payload: Plain): void {
-  revision += 1
-  log.push({ entryId: String(log.length + 1), revision: String(revision), kind, payload })
+function held(session: string): Held {
+  let found = sessions.get(session)
+  if (found === undefined) {
+    activity += 1
+    found = { log: [], revision: 1, title: null, active: activity, current: null }
+    sessions.set(session, found)
+  }
+  return found
 }
-function message(role: string, blocks: Plain[]): Plain {
-  return { kind: `message.${role}`, message: { id: `msg_${role}${log.length}`, role, blocks } }
+function touch(session: Held): void {
+  activity += 1
+  session.active = activity
 }
-function live(): FakeObservation | undefined {
-  return fake.observations.findLast(observation => !observation.aborted)
+function commit(session: Held, kind: string, payload: Plain): void {
+  session.revision += 1
+  session.log.push({
+    entryId: String(session.log.length + 1),
+    revision: String(session.revision),
+    kind,
+    payload,
+  })
 }
-function state(): void {
-  live()?.push({
+function message(session: Held, role: string, blocks: Plain[]): Plain {
+  return {
+    kind: `message.${role}`,
+    message: { id: `msg_${role}${session.log.length}`, role, blocks },
+  }
+}
+function live(session: string): FakeObservation | undefined {
+  return fake.observations.findLast(
+    observation =>
+      !observation.aborted && (observation.open as { session: string }).session === session,
+  )
+}
+function state(id: string): void {
+  const session = held(id)
+  const current = session.current
+  live(id)?.push({
     kind: 'state',
     run: current?.run ?? null,
-    revision: String(revision),
+    revision: String(session.revision),
     phase: current === null ? null : 'running',
     target: current === null ? null : { projection: 'model-output-v1' },
   })
 }
+
+const earlier = held('ses_demo0')
+earlier.title = '昨天的会话'
+commit(
+  earlier,
+  'message.user',
+  message(earlier, 'user', [{ kind: 'text', id: 'u', visibility, text: '昨天的会话' }]),
+)
+commit(
+  earlier,
+  'message.assistant',
+  message(earlier, 'assistant', [{ kind: 'text', id: 'a', visibility, text: '这是昨天的回答。' }]),
+)
 
 const REPLY = `好的。下面是一个**流式 Markdown** 的例子：
 
@@ -50,7 +97,11 @@ console.log(greeting)
 
 我先用工具看一下当前目录。`
 
-async function stream(run: { run: string; cancelled: boolean }, text: string): Promise<void> {
+async function stream(
+  id: string,
+  run: { run: string; cancelled: boolean },
+  text: string,
+): Promise<void> {
   let cursor = 1
   const projection = (value: string, base: boolean) =>
     toTree({
@@ -69,7 +120,7 @@ async function stream(run: { run: string; cancelled: boolean }, text: string): P
         { kind: 'growing', index: '1', mode: 'append', content: 'text', value },
       ],
     })
-  live()?.push({ kind: 'snapshot', projection: 'model-output-v1', value: projection('', false) })
+  live(id)?.push({ kind: 'snapshot', projection: 'model-output-v1', value: projection('', false) })
   const words = text.split(/(?<=\s)|(?=\s)/)
   let shown = ''
   for (const word of words) {
@@ -77,35 +128,42 @@ async function stream(run: { run: string; cancelled: boolean }, text: string): P
     await wait(45)
     shown += word
     cursor += 1
-    live()?.push({ kind: 'delta', projection: 'model-output-v1', value: projection(shown, true) })
+    live(id)?.push({
+      kind: 'delta',
+      projection: 'model-output-v1',
+      value: projection(shown, true),
+    })
   }
 }
 
-async function playRun(text: string): Promise<void> {
+async function playRun(id: string, text: string): Promise<void> {
+  const session = held(id)
   runs += 1
   const run = { run: `run_${runs}`, cancelled: false }
-  current = run
-  commit('run.started', {})
-  state()
+  session.current = run
+  commit(session, 'run.started', {})
+  state(id)
   await wait(200)
   if (text.includes('断')) {
-    live()?.end({ kind: 'uncertain' })
+    live(id)?.end({ kind: 'uncertain' })
     await wait(2500)
   }
-  await stream(run, REPLY)
+  await stream(id, run, REPLY)
   const finish = (outcome: string) => {
-    commit('run.terminal', { terminal: { outcome } })
-    current = null
-    state()
+    commit(session, 'run.terminal', { terminal: { outcome } })
+    session.current = null
+    touch(session)
+    state(id)
   }
   if (run.cancelled) return finish('cancelled')
+  const callId = `call_${run.run}`
   const ask = text.includes('问')
   const call = ask
     ? {
         kind: 'tool_call',
         id: 'c1',
         visibility,
-        callId: `call_${runs}`,
+        callId,
         name: 'Ask',
         arguments: {
           command: 'ask',
@@ -127,32 +185,35 @@ async function playRun(text: string): Promise<void> {
         kind: 'tool_call',
         id: 'c1',
         visibility,
-        callId: `call_${runs}`,
+        callId,
         name: 'Shell',
         arguments: { command: 'exec', params: { cmd: 'ls' } },
       }
   commit(
+    session,
     'message.assistant',
-    message('assistant', [{ kind: 'text', id: 'a', visibility, text: REPLY }, call]),
+    message(session, 'assistant', [{ kind: 'text', id: 'a', visibility, text: REPLY }, call]),
   )
-  state()
+  state(id)
   if (ask) {
     while (!run.cancelled) await wait(200)
     return finish('cancelled')
   }
   await wait(600)
   commit(
+    session,
     'message.tool',
-    message('tool', [
-      { kind: 'tool_result', id: 'r', visibility, callId: `call_${runs}` },
+    message(session, 'tool', [
+      { kind: 'tool_result', id: 'r', visibility, callId },
       { kind: 'text', id: 'rt', visibility, text: 'README.md\nsrc\ntests' },
     ]),
   )
-  state()
+  state(id)
   await wait(300)
   commit(
+    session,
     'message.assistant',
-    message('assistant', [
+    message(session, 'assistant', [
       { kind: 'text', id: 'b', visibility, text: '目录里有 `README.md`、`src` 与 `tests`。' },
     ]),
   )
@@ -170,23 +231,47 @@ async function serve(
   }
 }
 
-void serve('create-session', () => ({
-  outcome: 'succeeded',
-  body: { session: 'ses_demo', recovered: false },
-}))
-void serve('read-history', () => ({
+void serve('create-session', () => {
+  const id = `ses_demo${sessions.size}`
+  held(id)
+  return { outcome: 'succeeded', body: { session: id, recovered: false } }
+})
+void serve('list-sessions', () => ({
   outcome: 'succeeded',
   body: {
-    entries: [...log].reverse().map(entry => ({ ...entry, payload: toTree(entry.payload) })),
+    sessions: [...sessions.entries()]
+      .sort(([, a], [, b]) => b.active - a.active)
+      .map(([session, { title }]) => ({
+        session,
+        createdAt: null,
+        lastActivityAt: null,
+        lifecycle: 'dormant',
+        title,
+      })),
     next: null,
-    exhausted: true,
-    scannedThrough: String(log.length),
-    upper: String(revision),
+    completeness: 'complete',
   },
 }))
+void serve('read-history', (body: { session: string }) => {
+  const { log, revision } = held(body.session)
+  return {
+    outcome: 'succeeded',
+    body: {
+      entries: [...log].reverse().map(entry => ({ ...entry, payload: toTree(entry.payload) })),
+      next: null,
+      exhausted: true,
+      scannedThrough: String(log.length),
+      upper: String(revision),
+    },
+  }
+})
 void serve(
   'send-input',
-  (body: { message: { entries: { key: string; value: { value?: string } }[] } }) => {
+  (body: {
+    session: string
+    message: { entries: { key: string; value: { value?: string } }[] }
+  }) => {
+    const session = held(body.session)
     const id = body.message.entries.find(entry => entry.key === 'id')?.value.value ?? 'msg_x'
     const blocks = body.message.entries.find(entry => entry.key === 'blocks')?.value as unknown
     const text =
@@ -194,17 +279,20 @@ void serve(
         /"key":"text","value":\{"kind":"string","value":"((?:[^"\\]|\\.)*)"/,
       )?.[1] ?? ''
     const plain = JSON.parse(`"${text}"`) as string
-    commit('message.user', {
+    commit(session, 'message.user', {
       kind: 'message.user',
       message: { id, role: 'user', blocks: [{ kind: 'text', id: 'u', visibility, text: plain }] },
     })
-    if (current === null) void playRun(plain)
-    else state()
+    session.title ??= plain.replace(/\s+/g, ' ').slice(0, 80)
+    touch(session)
+    if (session.current === null) void playRun(body.session, plain)
+    else state(body.session)
     return { outcome: 'succeeded', body: { recovered: false } }
   },
 )
 void serve('query-send-input', () => ({ outcome: 'succeeded', body: {} }))
-void serve('cancel-run', (body: { controlId: string; run: string }) => {
+void serve('cancel-run', (body: { session: string; controlId: string; run: string }) => {
+  const current = held(body.session).current
   if (current !== null) current.cancelled = true
   return {
     outcome: 'succeeded',
@@ -212,15 +300,14 @@ void serve('cancel-run', (body: { controlId: string; run: string }) => {
   }
 })
 
-// A reopened observation starts with a state frame, as the server's does.
+// A newly opened observation starts with a state frame, as the server's does.
 void (async () => {
   let seen = 0
   for (;;) {
     await wait(100)
-    if (fake.observations.length > seen) {
-      seen = fake.observations.length
-      state()
-    }
+    for (const observation of fake.observations.slice(seen))
+      state((observation.open as { session: string }).session)
+    seen = fake.observations.length
   }
 })()
 
@@ -236,7 +323,9 @@ const play = params.get('play')
 if (play !== null)
   void (async () => {
     await wait(300)
-    document.querySelector<HTMLButtonElement>('.omne-session-bar button')?.click()
+    ;[...document.querySelectorAll<HTMLButtonElement>('.omne-session-bar button')]
+      .find(button => button.textContent === '新建会话')
+      ?.click()
     await wait(800)
     const input = document.querySelector<HTMLTextAreaElement>('.omne-input')
     if (input === null) return

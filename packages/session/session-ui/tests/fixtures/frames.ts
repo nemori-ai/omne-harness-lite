@@ -127,3 +127,28 @@ export function page(
 } {
   return { entries: [...entries], next, exhausted: next === null, scannedThrough: '900', upper }
 }
+
+type Lifecycle = 'initializing' | 'dormant' | 'active' | 'frozen' | 'archived'
+
+/** One `list-sessions` item. The two instants stay null: tests have no way to mint an `Instant`. */
+export function listed(
+  session: string,
+  title: string | null = null,
+  lifecycle: Lifecycle = 'dormant',
+): {
+  session: string
+  createdAt: null
+  lastActivityAt: null
+  lifecycle: Lifecycle
+  title: string | null
+} {
+  return { session, createdAt: null, lastActivityAt: null, lifecycle, title }
+}
+
+export function listPage(
+  sessions: readonly ReturnType<typeof listed>[],
+  next: string | null = null,
+  completeness: 'complete' | 'partial' = 'complete',
+) {
+  return { outcome: 'succeeded' as const, body: { sessions: [...sessions], next, completeness } }
+}
