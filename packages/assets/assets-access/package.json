@@ -37,9 +37,15 @@
     "@omne-harness/legal-identity": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness/public-contract": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "3.0.0",
+      "variant": "cordis-module"
+    }
   }
 }

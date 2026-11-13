@@ -1,17 +1,18 @@
 # Cordis 集成
 
-<!-- documentation:placeholder -->
+本包是 `cordis-module` 变体：`./cordis` 导出插件工厂 `createAssetsAccessPlugin`，根入口不导入 Cordis。
 
-本文件说明本包的 Cordis 集成：适用性、集成入口、依赖注入、服务与事件、启动、撤除与资源清理责任。绑定只从 `src/cordis.ts` 导出。共同集成规则引用仓库的 IC 约定，不在本文件复制。
+## 适用性
 
-## 集成入口
+适用。插件只 `inject` 接入的登记表 `accessRegistry`，在自己的作用域里用 `defineAccessPlugin` 挂上 `assets/v1` 的贡献。装上即开放协议，卸下即撤下（RFC-0015 I-4、I-5、I-15）。
 
-<!-- documentation:placeholder -->
+## 依赖与提供
 
-待补：`./cordis` 入口导出什么，依赖哪些服务，提供哪些服务或事件。
+- 注入：`accessRegistry`。
+- 提供：无。
+- 装配给的输入：`principals(ctx)` 在插件装上时构造一次主体端口；`settings(ctx)` 每次调用现取设置读写面，取不到时调用答 `basis-unavailable`，协议不撤下。读写面的服务键归应用，本包不认识。
+- 配置：无。
 
-## 生命周期与清理
+## 撤除
 
-<!-- documentation:placeholder -->
-
-待补：启动、撤除与资源清理的责任，以及外部副作用的处理。
+撤除随作用域：登记表的贡献撤回，在途调用的信号中止。本包没有别的副作用要收回。

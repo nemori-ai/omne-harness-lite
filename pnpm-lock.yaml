@@ -1007,9 +1007,6 @@ importers:
         specifier: workspace:*
         version: link:../../common/legal-identity
     devDependencies:
-      '@omne-harness/public-contract':
-        specifier: workspace:*
-        version: link:../../access/public-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
