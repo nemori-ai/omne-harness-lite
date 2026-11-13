@@ -207,6 +207,15 @@ export type ExecutionEntry<P> = Readonly<{
     candidate: FailureCandidate | null,
   ): void
   /**
+   * A node began to wait for a dependency that answered `failure`. Called once for each new
+   * combination of step, node, owner and diagnostic; absent, the reason of the wait is kept nowhere.
+   */
+  waiting?(
+    step: StepId | null,
+    node: LoopNode,
+    failure: Extract<Failure, { kind: 'unavailable' }>,
+  ): void
+  /**
    * 本 run 并发范围的范围预算。A0 把它写入每个获准请求的 `limits.scopeBudget`，由 Tool 执行。
    * 缺少它时，A0 对获准动作以 invariant 失败。
    */
@@ -589,8 +598,13 @@ function callRecovery(position: string, call: PendingCall): Recovery {
   if (call.purpose === 'extension') return recoveryTarget('X2')
   // A saved call survives request admission and result consumption. Its presence alone does
   // not mean that observation at M1 is still pending.
-  if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3', 'Q2', 'Q4'].includes(position))
-    return recoveryTarget(position)
+  if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3'].includes(position)) return recoveryTarget(position)
+  // The admission of the reply of a main call (Q1 to Q4) runs on a frame that I3 builds in memory:
+  // the candidate, the pending handoff and the place to return to. I3 builds it again from the
+  // Journal alone (the completion of the call, and the P or the Ja the handoff record holds), so
+  // I3 is where a saved Q2 or Q4 goes on. Q1 recognizes the saved P, and a committed Ja is not
+  // applied again.
+  if (position === 'Q2' || position === 'Q4') return recoveryTarget('I3')
   return recoveryTarget('M1')
 }
 
@@ -642,7 +656,11 @@ export function recoveryRoute(
   if (call !== undefined) return callRecovery(at.position, call)
   // The input batch remains a consumption watermark after I3 closes the call. It does not rewind
   // a later node to request preparation. Position records that these earlier facets are consumed.
-  if (['I3', 'I4', 'I8', 'F1', 'F2', 'F3', 'F4', 'O0', 'E9'].includes(at.position))
+  // F1 fixes the candidate that the decision segment before it formed in memory. Until F1 commits
+  // (the state is then `settling`, routed above), nothing of that decision is saved, and I8 forms
+  // it again from the same facts.
+  if (at.position === 'F1') return recoveryTarget('I8')
+  if (['I3', 'I4', 'I8', 'F2', 'F3', 'F4', 'O0', 'E9'].includes(at.position))
     return recoveryTarget(at.position)
   const preparation = preparationRecovery(at)
   if (preparation !== null) return preparation
@@ -741,6 +759,8 @@ function coordinate<P>(
   let finishWait = false
   // Whether F4 already told `entry.ended` of the terminal: one report per coordinator.
   let endReported = false
+  // The dependency wait that `entry.waiting` was told of last: step, node, owner and diagnostic.
+  let reportedWait: string | null = null
   // Whether the next F3 issues the obligations again, after a tryFinish answered `changed`.
   let reissueObligations = false
   let cancellationChanged = false
@@ -1230,6 +1250,13 @@ function coordinate<P>(
     waitingAt = node
     recheckDependency = recheck
     waits = [{ kind: 'dependency', owner: failure.owner, position: node }]
+    // The Journal keeps the owner and the node; the reason goes to the report, once per reason.
+    const at = checkpoint?.step ?? null
+    const reported = `${at}|${node}|${failure.owner}|${failure.diagnostic}`
+    if (reported !== reportedWait) {
+      reportedWait = reported
+      entry.waiting?.(at, node, failure)
+    }
     return step('wait', null)
   }
 
@@ -1320,6 +1347,38 @@ function coordinate<P>(
         record.request.source.call === call &&
         canonical(record.request.position) === canonical(replyPosition(step)),
     )
+  }
+
+  /**
+   * The reply that the current step admitted, for I4: its step, its message and the result it came
+   * from. The coordinator that ran I3 holds it in memory. I3 closes the main call in its commit, so
+   * a new coordinator has no iteration to hold it; it reads the same three from the handoff record
+   * whose Ja put the reply into the history.
+   */
+  function admittedReply(): Outcome<
+    Readonly<{
+      step: StepId
+      reply: Extract<ModelOutcome, { kind: 'reply' }>['reply']
+      produced: ModelOutcome['produced']
+    }>,
+    Failure
+  > {
+    const result = iteration?.result
+    if (iteration !== null && result?.kind === 'reply')
+      return succeed({ step: iteration.step, reply: result.reply, produced: result.produced })
+    const at = required(checkpoint, 'checkpoint').step
+    const record = required(snapshot, 'snapshot').handoffs.findLast(
+      item =>
+        item.request.kind === 'execution' &&
+        item.request.source.kind === 'model-reply' &&
+        item.history.kind === 'committed' &&
+        canonical(item.request.position) === canonical(replyPosition(at)),
+    )
+    if (record?.request.kind !== 'execution' || record.request.source.kind !== 'model-reply')
+      return fail(defect('I4 without the reply its step admitted'))
+    const reply = record.request.candidate
+    if (reply.role !== 'assistant') return fail(defect('I4: the admitted reply is not a reply'))
+    return succeed({ step: at, reply, produced: record.request.source.result })
   }
 
   /** The outcome of a resolution the Journal recorded, or `undefined` when it holds none. */
@@ -1925,17 +1984,17 @@ function coordinate<P>(
     },
     /** I4: the tool call parts of the admitted reply. Actions are #502 stage 2. */
     async I4() {
-      const result = required(required(iteration, 'iteration').result, 'model result')
-      if (result.kind !== 'reply') return fail(defect('I4 without a complete reply'))
-      const reply = result.reply
+      const admitted = admittedReply()
+      if ('failure' in admitted) return admitted
+      const { step: of, reply, produced } = admitted.ok
       const actions = reply.blocks
         .filter(block => block.kind === 'tool_call')
-        .map((block, index) => actionOf(required(iteration, 'iteration').step, block, index))
+        .map((block, index) => actionOf(of, block, index))
       return step(actions.length === 0 ? 'empty' : 'tools', {
         checkpoint: {
           batch: {
-            id: mainBatch(required(iteration, 'iteration').step),
-            source: result.produced,
+            id: mainBatch(of),
+            source: produced,
             actions,
             barrier: { kind: 'closed', judging: actions.map(action => action.id), asked: [] },
             slots: [],

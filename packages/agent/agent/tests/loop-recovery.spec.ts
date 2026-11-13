@@ -109,7 +109,8 @@ describe('E4 recovery routing', () => {
     ['I3', 'I3'],
     ['I4', 'I4'],
     ['I8', 'I8'],
-    ['F1', 'F1'],
+    // F1 fixes a decision that I8 formed in memory: before F1 commits, I8 forms it again.
+    ['F1', 'I8'],
     ['F2', 'F2'],
     ['F3', 'F3'],
     ['F4', 'F4'],
@@ -970,10 +971,10 @@ describe('the recovered input boundary', () => {
 })
 
 describe('a saved admission position in a new coordinator', () => {
-  // The recovery route names Q2 for a saved P, but no delivered path reaches that resume: a new
-  // coordinator with the same operation recognizes the original open and ends at E1 with
-  // found-existing, and the public resume is not delivered. The admission frame of Q2 is rebuilt
-  // only in memory by the coordinator that wrote the P (#502 stage 5 for a new one).
+  // A new coordinator with the same operation recognizes the original open and ends at E1 with
+  // found-existing: the replay of an invoke never continues the execution. The continuation of a
+  // saved P belongs to `resume`: the route names I3, which builds the admission frame again from
+  // the Journal (`loop-crash-matrix.spec.ts` runs it from every cut).
   it('NA-E4-1: a new coordinator over a saved Q2 position recognizes the original open and ends at E1; the P and currentHandoff stay as saved', async () => {
     let replies = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -988,14 +989,20 @@ describe('a saved admission position in a new coordinator', () => {
       },
     }))
     assembly.release.open()
-    const first = coordinator(assembly)
+    const waits: string[] = []
+    const first = coordinator(assembly, {
+      waiting: (step, node, failure) =>
+        waits.push(`${step} ${node} ${failure.owner}: ${failure.diagnostic}`),
+    })
     ok(await first.accept())
     // The admission is unavailable: the run waits at Q1 (Agent SPEC 依赖不可用时的等待).
     ok(await first.runExecution())
+    // The Journal keeps the owner and the node of the wait; the reason goes to the report, once.
+    expect(waits).toEqual(['step-1 Q1 test-handoff: injected'])
     const saved = await load(assembly)
     expect(saved.checkpoint.position).toBe('Q2')
     expect(saved.checkpoint.currentHandoff).not.toBeNull()
-    expect(ok(recoveryRoute({ ...saved, unresolved: [] }))).toBe('Q2')
+    expect(ok(recoveryRoute({ ...saved, unresolved: [] }))).toBe('I3')
     const again = coordinator(assembly)
     ok(await again.accept())
     ok(await again.runExecution())
@@ -1096,12 +1103,14 @@ describe('checkpoint positions saved by the current assembly', () => {
       I2: 'I1',
       M6: 'M6',
       M4: 'M4',
-      Q2: 'Q2',
-      Q4: 'Q4',
+      // The admission frame of Q2 and Q4 lives in memory; I3 builds it again from the Journal.
+      Q2: 'I3',
+      Q4: 'I3',
       I3: 'I3',
       I4: 'I4',
       I8: 'I8',
-      F1: 'F1',
+      // The decision F1 fixes lives in memory; I8 forms it again.
+      F1: 'I8',
       F2: 'F2',
       F3: 'F3',
     }
