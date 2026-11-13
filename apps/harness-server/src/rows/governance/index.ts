@@ -126,6 +126,14 @@ export const governanceRow = defineRow({
     ctx.effect(() => () => sources.close(), 'governance.settings-sources.close')
     const host = new TenantGovernanceHost({
       domains: ctx.tenantDomainLookup,
+      // A tenant whose governance did not open has every tool call without a permission basis and
+      // no Settings: say so each time, with the phase and when the host opens it again.
+      report: failure =>
+        ctx
+          .logger('governance')
+          .warn(
+            `tenant governance did not open: tenant=${failure.tenantRef} phase=${failure.phase} failures=${failure.failures}; again in ${failure.againInMs} ms`,
+          ),
       prepare(tenantRef, domain) {
         const tenant = tenantCodec.parse(tenantRef)
         const principal = tenant.ok
