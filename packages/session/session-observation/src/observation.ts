@@ -3,7 +3,7 @@
 // is no target or the main call changed) and the stream axis (a StreamSubscription per target). It
 // asks the refresh budget when to look again, and on abort tears down its own reads, notices,
 // subscription and waits. It never cancels a Model call and writes nothing.
-import type { CallState } from '@omne-harness/model-contract'
+import type { CallState, ModelInvocationRef } from '@omne-harness/model-contract'
 import type { SessionAccess } from '@omne-harness/session-contract'
 import type { StreamRef } from '@omne-harness/stream-arrival'
 import {
@@ -216,10 +216,10 @@ export function createSessionObservation<P>(
       }
 
       /** Asks the Model for the current stream of `reference`, waiting at most `currentTimeout`. */
-      async function select(reference: string): Promise<Selection> {
+      async function select(reference: ModelInvocationRef): Promise<Selection> {
         const answer = await timed(
           ports.policy.currentTimeout,
-          ports.streams.current({ access: viewer, reference: reference as never }),
+          ports.streams.current({ access: viewer, reference }),
         )
         if (answer === 'elapsed') {
           ports.diagnose({ code: 'observation.current-timeout', detail: reference })

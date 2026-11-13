@@ -2,7 +2,11 @@
 // own. Every frame it hands over carries the subscription, so the observation can tell a late frame
 // of an old target from a frame of the current one.
 import type { Access } from '@omne-harness/legal-identity'
-import type { ModelStreamDelta, ModelStreamSnapshot } from '@omne-harness/model-contract'
+import type {
+  ModelInvocationRef,
+  ModelStreamDelta,
+  ModelStreamSnapshot,
+} from '@omne-harness/model-contract'
 import type { StreamFrame, StreamRef } from '@omne-harness/stream-arrival'
 import type { SessionObservationPorts } from './ports.ts'
 
@@ -12,7 +16,7 @@ export type StreamEvent = Readonly<{
   frame: StreamFrame<ModelStreamSnapshot, ModelStreamDelta> | Readonly<{ kind: 'lost' }>
 }>
 
-export type Target = Readonly<{ reference: string; ref: StreamRef }>
+export type Target = Readonly<{ reference: ModelInvocationRef; ref: StreamRef }>
 
 export class StreamSubscription {
   readonly target: Target

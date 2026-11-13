@@ -1,9 +1,10 @@
 // 定位 (RFC-0015 §8, §13): reads the Session log as the observer and keeps where it read up to, the
 // run in progress, the newest main Model call and the log revision. Pure reading; it owns the flag
 // 「有新提交待看」 so that a notice during a locate is not lost.
-import type { JsonValue } from '@omne-harness/json-text'
+import { decodeModelInvocationRef, type ModelInvocationRef } from '@omne-harness/model-contract'
 import {
   readCallRegistration,
+  readRunBoundary,
   type EntryId,
   type HistoryEntry,
   type HistoryPage,
@@ -24,7 +25,7 @@ export type Located = Readonly<{
   /** The run in progress: the newest run.started with no run.terminal of the same run after it. */
   run: RunId | null
   /** The reference of the newest main Model call. */
-  mainCall: string | null
+  mainCall: ModelInvocationRef | null
 }>
 
 export type LocateResult =
@@ -39,53 +40,40 @@ type Read = Awaited<ReturnType<SessionObservationPorts<unknown>['history']['begi
 type Failed = Readonly<{ failure: SessionFailure; face: 'begin' | 'since' | 'next' }>
 type Scanned = Readonly<{ ok: Located }> | Failed
 
-function text(value: JsonValue | undefined): string | undefined {
-  return value?.kind === 'string' ? value.value : undefined
-}
-
-function member(value: JsonValue | undefined, key: string): JsonValue | undefined {
-  return value?.kind === 'object'
-    ? value.entries.find(entry => entry.key === key)?.value
-    : undefined
-}
-
-function startedRun(entry: HistoryEntry): string | undefined {
-  return entry.kind === 'run.started' ? text(member(entry.payload, 'run')) : undefined
-}
-
-function terminalRun(entry: HistoryEntry): string | undefined {
-  return entry.kind === 'run.terminal'
-    ? text(member(member(entry.payload, 'terminal'), 'run'))
-    : undefined
-}
-
-function mainCallOf(entry: HistoryEntry): string | undefined {
+/**
+ * The reference of a main Model call registration. The session contract keeps a
+ * `ModelInvocationRef` text there; a text that does not decode is no main call.
+ */
+function mainCallOf(entry: HistoryEntry): ModelInvocationRef | undefined {
   if (entry.kind !== 'call.bound') return undefined
   const found = readCallRegistration(entry.payload)
-  return found?.kind === 'model' && found.purpose === 'main' && found.reference !== null
-    ? found.reference
-    : undefined
+  if (found?.kind !== 'model' || found.purpose !== 'main' || found.reference === null)
+    return undefined
+  const decoded = decodeModelInvocationRef(found.reference)
+  return 'ok' in decoded ? decoded.ok : undefined
 }
 
 /** What a backward read found so far, newest entry first. */
 class BackwardScan {
   newest: EntryId | null = null
   /** The newest run.started; undefined until one is seen. */
-  run: string | undefined
+  run: RunId | undefined
   open = false
-  mainCall: string | undefined
-  readonly #ended = new Set<string>()
+  mainCall: ModelInvocationRef | undefined
+  readonly #ended = new Set<RunId>()
 
   add(entry: HistoryEntry): void {
     this.newest ??= entry.id
     this.mainCall ??= mainCallOf(entry)
     if (this.run !== undefined) return
-    const terminal = terminalRun(entry)
-    if (terminal !== undefined) this.#ended.add(terminal)
-    const started = startedRun(entry)
-    if (started === undefined) return
-    this.run = started
-    this.open = !this.#ended.has(started)
+    const boundary = readRunBoundary(entry)
+    if (boundary === null) return
+    if (boundary.kind === 'terminal') {
+      this.#ended.add(boundary.run)
+      return
+    }
+    this.run = boundary.run
+    this.open = !this.#ended.has(boundary.run)
   }
 
   complete(): boolean {
@@ -97,7 +85,7 @@ export class Locator<P> {
   readonly #access: SessionAccess<P>
   readonly #ports: SessionObservationPorts<P>
   #after: EntryId | null = null
-  #run: string | null = null
+  #run: RunId | null = null
   #open = false
   #view: Located | undefined
   #pending = false
@@ -197,12 +185,12 @@ export class Locator<P> {
       for (const entry of read.ok.entries) {
         last = entry.id
         mainCall = mainCallOf(entry) ?? mainCall
-        const started = startedRun(entry)
-        if (started !== undefined) {
-          run = started
+        const boundary = readRunBoundary(entry)
+        if (boundary?.kind === 'started') {
+          run = boundary.run
           open = true
         }
-        if (terminalRun(entry) === run) open = false
+        if (boundary?.kind === 'terminal' && boundary.run === run) open = false
       }
       if (this.#done(read.ok)) break
       read = await this.#ports.history.next({ ...at, cursor: read.ok.next as string })
@@ -218,8 +206,8 @@ export class Locator<P> {
     return page.exhausted || page.next === null
   }
 
-  #settle(revision: SessionRevision, mainCall: string | null): Located {
-    this.#view = { revision, run: this.#open ? (this.#run as RunId) : null, mainCall }
+  #settle(revision: SessionRevision, mainCall: ModelInvocationRef | null): Located {
+    this.#view = { revision, run: this.#open ? this.#run : null, mainCall }
     return this.#view
   }
 }

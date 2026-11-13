@@ -1,6 +1,7 @@
 // Fake ports for session observation: a Session log in memory behind the reader history face, a
 // notice hub, a wait that the case drives, and counters for what is still held.
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
+import { decodeModelInvocationRef, type ModelInvocationRef } from '@omne-harness/model-contract'
 import type {
   EntryId,
   HistoryEntry,
@@ -46,14 +47,35 @@ export const ended = (run: string) => ({
   kind: 'run.terminal',
   payload: { terminal: { run, outcome: 'completed' } },
 })
-export const mainCall = (reference: string) => ({
+/**
+ * Cases name a main Model call (`'m-1'`); the log and the Model ports carry the
+ * `ModelInvocationRef` text of that call, as the session contract stores it. The fakes translate
+ * at their edge: the Model is answered and asked by name, and a diagnostic names the call.
+ */
+const NAMES = new Map<string, string>()
+
+export function invocation(name: string): ModelInvocationRef {
+  const decoded = decodeModelInvocationRef(
+    JSON.stringify(['model-invocation', 2, `mcall_${name}`, `mop_${name}_admit`]),
+  )
+  if ('failure' in decoded) throw new Error(`invocation ${name}: ${decoded.failure.reason}`)
+  NAMES.set(decoded.ok, name)
+  return decoded.ok
+}
+
+/** The case's name of a reference the fakes saw; any other text as it is. */
+function nameOf(reference: string): string {
+  return NAMES.get(reference) ?? reference
+}
+
+export const mainCall = (name: string) => ({
   kind: 'call.bound',
   payload: {
     kind: 'model',
     consumption: 'c',
     registration: {
       kind: 'associated',
-      binding: { producer: { kind: 'model', call: reference } },
+      binding: { producer: { kind: 'model', call: invocation(name) } },
       purpose: 'main',
     },
     association: null,
@@ -351,7 +373,7 @@ export class FakeModel {
     return {
       streams: {
         current: input => {
-          const reference = String(input.reference)
+          const reference = nameOf(input.reference)
           this.asked.push(reference)
           this.accesses.push(input.access)
           const held = this.#held.get(reference)
@@ -444,7 +466,7 @@ export function world(
     locatePages,
     historyKinds: ['message.user', 'message.assistant', 'run.started', 'run.terminal'],
     diagnose: diagnostic => {
-      diagnostics.push(diagnostic)
+      diagnostics.push({ ...diagnostic, detail: nameOf(diagnostic.detail) })
     },
   }
   return { log, clock, notices, model, diagnostics, ports }
