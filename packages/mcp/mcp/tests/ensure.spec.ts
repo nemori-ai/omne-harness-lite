@@ -725,6 +725,59 @@ describe('ensure: the connection key (invariant 1)', () => {
     expect(opens[0]).toMatchObject({ kind: 'streamable-http', target: TARGET, generation: 1 })
     expect(opens[0]?.credential?.purpose).toBe('http-authorization')
   })
+
+  it('asks the credential port for an HTTP authorization of the target, with the holding and the binding', async () => {
+    const w = world({ script: [{ discover: peer }] })
+    adoptHttp(w, files, { auth: 'static' })
+    const asked: unknown[][] = []
+    const table = createConnectionTable(
+      {
+        ...w.ports,
+        credentials: {
+          acquire(access, holding, purpose, binding) {
+            asked.push([access, holding, purpose, binding])
+            return w.ports.credentials.acquire(access, holding, purpose, binding)
+          },
+        },
+      },
+      w.config,
+    )
+    await table.ensure(await admitted(w, files), alice)
+    expect(asked).toEqual([
+      [alice, files.holding, { kind: 'http-authorization', target: TARGET }, MAIN],
+    ])
+  })
+
+  it('carries no credential field in the material of a connection without a credential', async () => {
+    const w = world({ script: [{ discover: peer }] })
+    adoptHttp(w, files, { auth: 'none' })
+    const table = tableOf(w)
+    await table.ensure(await admitted(w, files), alice)
+    const opens = w.transports.calls.flatMap(call => (call.kind === 'open' ? [call.material] : []))
+    expect(opens[0]).toMatchObject({ kind: 'streamable-http', target: TARGET, generation: 1 })
+    expect(opens[0]).not.toHaveProperty('credential')
+    expect(w.credentials.handles()).toEqual([])
+  })
+
+  it('reads a credential port that throws as credential-unavailable (unknown)', async () => {
+    const w = world()
+    adoptHttp(w, files, { auth: 'static' })
+    const table = createConnectionTable(
+      {
+        ...w.ports,
+        credentials: {
+          acquire() {
+            throw new Error('the credential port is broken')
+          },
+        },
+      },
+      w.config,
+    )
+    const answer = await table.ensure(await admitted(w, files), alice)
+    expect(answer).toMatchObject({
+      failure: { stage: 'connect', reason: { kind: 'credential-unavailable', cause: 'unknown' } },
+    })
+  })
 })
 
 describe('ensure: the adoption is read again before a build (MC-5)', () => {
