@@ -1,209 +1,123 @@
-import { defineProtocol, ruleCodec, type RuleValue } from '@omne-harness/public-contract'
+import { defineProtocol, ruleCodec, type Rule, type RuleValue } from '@omne-harness/public-contract'
 
-// The rule texts are copied from the shared contract's `session-public/1` family
-// (`packages/access/public-contract/src/session-rules.ts`). Session owns them from here on.
+// The rule texts are copied from the `session-public/1` family of the public contract
+// (`session-rules.ts`), so that Session owns them. That copy goes with the run that removes the
+// old family. The rules stay literals: the value types come from them through `RuleValue`.
+
+type Fields = Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
 
 const text = { kind: 'text' } as const
 const anyText = { kind: 'string' } as const
 const tenant = { kind: 'tenant' } as const
 const session = { kind: 'session' } as const
 const boolean = { kind: 'boolean' } as const
+const json = { kind: 'json' } as const
 const nothing = { kind: 'null' } as const
 
-const producer = {
-  kind: 'object',
-  fields: {
-    kind: { rule: { kind: 'literal', values: ['model', 'tool'] } },
-    call: { rule: text },
-  },
-} as const
+const object = <const F extends Fields>(fields: F) => ({ kind: 'object', fields }) as const
+const literal = <const V extends readonly string[]>(...values: V) =>
+  ({ kind: 'literal', values }) as const
+const nullable = <const R extends Rule>(rule: R) =>
+  ({ kind: 'one-of', rules: [rule, nothing] }) as const
 
-const empty = ruleCodec({ kind: 'object', fields: {} })
+/** Every operation but `create-session` names its target tenant in the body, not in the envelope. */
+const target = { tenant: { rule: tenant }, session: { rule: session } } as const
 
-/** The body of `limited`: which resource ran out and its limit. */
-const limited = ruleCodec({
-  kind: 'object',
-  fields: {
-    resource: { rule: { kind: 'literal', values: ['pending-inputs', 'input-bytes'] } },
-    limit: { rule: { kind: 'positive-integer' } },
-  },
+const producer = object({ kind: { rule: literal('model', 'tool') }, call: { rule: text } })
+const terminalSource = object({
+  owner: { rule: text },
+  record: { rule: text },
+  revision: { rule: text },
+  digest: { rule: text },
 })
 
-// entryId follows message's RecordEntryRef, which is non-empty. revision and kind are plain text.
-const historyEntry = {
-  kind: 'object',
-  fields: {
-    entryId: { rule: text },
-    revision: { rule: anyText },
-    kind: { rule: anyText },
-    payload: { rule: { kind: 'json' } },
-  },
-} as const
+/** `requested` and `ended` differ in the literal `kind`, so the two options are disjoint. */
+function controlAnswer<const T extends Fields, const R extends Rule>(controlled: T, terminal: R) {
+  return {
+    kind: 'one-of',
+    rules: [
+      object({ kind: { rule: literal('requested') }, controlId: { rule: text }, ...controlled }),
+      object({
+        kind: { rule: literal('ended') },
+        controlId: { rule: text },
+        ...controlled,
+        terminal: { rule: terminal },
+      }),
+    ],
+  } as const
+}
 
-/** The wire form of a recorded origin. */
-const terminalSource = {
-  kind: 'object',
-  fields: {
-    owner: { rule: text },
-    record: { rule: text },
-    revision: { rule: text },
-    digest: { rule: text },
-  },
-} as const
+const empty = ruleCodec(object({}))
+const limited = ruleCodec(
+  object({
+    resource: { rule: literal('pending-inputs', 'input-bytes') },
+    limit: { rule: { kind: 'positive-integer' } },
+  }),
+)
 
-// `cursor` must be present. `direction` and `pageBytes` occur exactly when it is null.
+// The first page has a null `cursor` with `direction` and `pageBytes`; a later page has only the cursor.
 const readHistory = {
   kind: 'one-of',
   rules: [
-    {
-      kind: 'object',
-      fields: {
-        tenant: { rule: tenant },
-        session: { rule: session },
-        cursor: { rule: nothing },
-        direction: { rule: { kind: 'literal', values: ['forward', 'backward'] } },
-        pageBytes: { rule: { kind: 'page-bytes' } },
-      },
-    },
-    {
-      kind: 'object',
-      fields: { tenant: { rule: tenant }, session: { rule: session }, cursor: { rule: text } },
-    },
+    object({
+      ...target,
+      cursor: { rule: nothing },
+      direction: { rule: literal('forward', 'backward') },
+      pageBytes: { rule: { kind: 'page-bytes' } },
+    }),
+    object({ ...target, cursor: { rule: text } }),
   ],
 } as const
 
-/** `requested` and `ended` are told apart by the literal `kind`, so the options are disjoint. */
-const cancelRunAnswer = {
-  kind: 'one-of',
-  rules: [
-    {
-      kind: 'object',
-      fields: {
-        kind: { rule: { kind: 'literal', values: ['requested'] } },
-        controlId: { rule: text },
-        run: { rule: text },
-      },
+// entryId is a non-empty RecordEntryRef. A session revision is opaque text, as in `scannedThrough`.
+const historyPage = object({
+  entries: {
+    rule: {
+      kind: 'array',
+      item: object({
+        entryId: { rule: text },
+        revision: { rule: anyText },
+        kind: { rule: anyText },
+        payload: { rule: json },
+      }),
     },
-    {
-      kind: 'object',
-      fields: {
-        kind: { rule: { kind: 'literal', values: ['ended'] } },
-        controlId: { rule: text },
-        run: { rule: text },
-        terminal: {
-          rule: {
-            kind: 'object',
-            fields: {
-              outcome: { rule: { kind: 'literal', values: ['completed', 'failed', 'cancelled'] } },
-              source: { rule: terminalSource },
-            },
-          },
-        },
-      },
-    },
-  ],
-} as const
+  },
+  next: { rule: nullable(text) },
+  exhausted: { rule: boolean },
+  scannedThrough: { rule: anyText },
+})
 
-const stopCallAnswer = {
-  kind: 'one-of',
-  rules: [
-    {
-      kind: 'object',
-      fields: {
-        kind: { rule: { kind: 'literal', values: ['requested'] } },
-        controlId: { rule: text },
-        producer: { rule: producer },
-      },
-    },
-    {
-      kind: 'object',
-      fields: {
-        kind: { rule: { kind: 'literal', values: ['ended'] } },
-        controlId: { rule: text },
-        producer: { rule: producer },
-        terminal: {
-          rule: {
-            kind: 'object',
-            fields: {
-              version: { rule: text },
-              outcome: {
-                rule: {
-                  kind: 'literal',
-                  values: ['completed', 'failed', 'interrupted', 'unavailable', 'no-response'],
-                },
-              },
-              source: { rule: terminalSource },
-            },
-          },
-        },
-      },
-    },
-  ],
-} as const
+const modelOutput = { rule: literal('model-output-v1') } as const
+const projected = <const K extends string>(kind: K) =>
+  object({ kind: { rule: literal(kind) }, projection: modelOutput, value: { rule: json } })
 
-const modelOutput = { rule: { kind: 'literal', values: ['model-output-v1'] } } as const
-
-/** The frames of `observe-session` (RFC-0015 §8 `ObserveSessionFrame`), told apart by `kind`. */
+const observeSessionOpen = object(target)
 const observeSessionFrame = {
   kind: 'one-of',
   rules: [
-    {
-      kind: 'object',
-      fields: {
-        kind: { rule: { kind: 'literal', values: ['state'] } },
-        run: { rule: { kind: 'one-of', rules: [text, nothing] } },
-        revision: { rule: anyText },
-        phase: { rule: { kind: 'one-of', rules: [text, nothing] } },
-        target: {
-          rule: {
-            kind: 'one-of',
-            rules: [{ kind: 'object', fields: { projection: modelOutput } }, nothing],
-          },
-        },
-      },
-    },
-    {
-      kind: 'object',
-      fields: {
-        kind: { rule: { kind: 'literal', values: ['snapshot'] } },
-        projection: modelOutput,
-        value: { rule: { kind: 'json' } },
-      },
-    },
-    {
-      kind: 'object',
-      fields: {
-        kind: { rule: { kind: 'literal', values: ['delta'] } },
-        projection: modelOutput,
-        value: { rule: { kind: 'json' } },
-      },
-    },
-    {
-      kind: 'object',
-      fields: {
-        kind: { rule: { kind: 'literal', values: ['gap'] } },
-        reason: { rule: { kind: 'literal', values: ['buffer', 'source-history'] } },
-      },
-    },
-    { kind: 'object', fields: { kind: { rule: { kind: 'literal', values: ['refreshing'] } } } },
+    object({
+      kind: { rule: literal('state') },
+      run: { rule: nullable(text) },
+      revision: { rule: anyText },
+      phase: { rule: nullable(text) },
+      target: { rule: nullable(object({ projection: modelOutput })) },
+    }),
+    projected('snapshot'),
+    projected('delta'),
+    object({
+      kind: { rule: literal('gap') },
+      reason: { rule: literal('buffer', 'source-history') },
+    }),
+    object({ kind: { rule: literal('refreshing') } }),
   ],
 } as const
 
-const observeSessionOpen = {
-  kind: 'object',
-  fields: { tenant: { rule: tenant }, session: { rule: session } },
-} as const
-
-/** What a client sends to open `observe-session`. */
+/** The opening body of `observe-session` (RFC-0015 §8 `ObserveSessionOpen`). */
 export type ObserveSessionOpen = RuleValue<typeof observeSessionOpen>
-/** One frame of `observe-session`. */
+/** One frame of `observe-session` (RFC-0015 §8 `ObserveSessionFrame`). */
 export type ObserveSessionFrame = RuleValue<typeof observeSessionFrame>
 
-/**
- * `session/v1`: the operations and the observation Session opens to clients. Each body and each
- * outcome body is the one of the `session-public/1` family, except that `create-session` may leave
- * `definition` out. Every operation needs a login; only `create-session` also needs an acting tenant.
- */
+/** `session/v1`. SPEC.md gives the operation table and the four differences from `session-public/1`. */
 export const sessionProtocol = defineProtocol({
   name: 'session',
   major: 1,
@@ -212,19 +126,15 @@ export const sessionProtocol = defineProtocol({
       identity: 'acting-tenant',
       effect: 'commit',
       limit: 'small',
-      body: ruleCodec({
-        kind: 'object',
-        fields: {
+      body: ruleCodec(
+        object({
           createCallId: { rule: text },
           definition: { rule: text, optional: true },
           purpose: { rule: anyText },
-        },
-      }),
-      outcomes: {
-        succeeded: ruleCodec({
-          kind: 'object',
-          fields: { session: { rule: session }, recovered: { rule: boolean } },
         }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(object({ session: { rule: session }, recovered: { rule: boolean } })),
         limited,
         invalid: empty,
         conflict: empty,
@@ -235,32 +145,25 @@ export const sessionProtocol = defineProtocol({
       identity: 'login',
       effect: 'read',
       limit: 'small',
-      body: ruleCodec({
-        kind: 'object',
-        fields: { tenant: { rule: tenant }, createCallId: { rule: text } },
-      }),
-      outcomes: {
-        succeeded: ruleCodec({ kind: 'object', fields: { session: { rule: session } } }),
-        unknown: true,
-      },
+      body: ruleCodec(object({ tenant: { rule: tenant }, createCallId: { rule: text } })),
+      // A read, but it can find that the create it asks about has no known result.
+      outcomes: { succeeded: ruleCodec(object({ session: { rule: session } })), unknown: true },
       countsAsAccess: true,
     },
     'send-input': {
       identity: 'login',
       effect: 'commit',
       limit: 'input',
-      body: ruleCodec({
-        kind: 'object',
-        fields: {
-          tenant: { rule: tenant },
-          session: { rule: session },
+      body: ruleCodec(
+        object({
+          ...target,
           acceptId: { rule: text },
           inputId: { rule: text },
           message: { rule: { kind: 'user-message' } },
-        },
-      }),
+        }),
+      ),
       outcomes: {
-        succeeded: ruleCodec({ kind: 'object', fields: { recovered: { rule: boolean } } }),
+        succeeded: ruleCodec(object({ recovered: { rule: boolean } })),
         limited,
         invalid: empty,
         archived: empty,
@@ -273,10 +176,8 @@ export const sessionProtocol = defineProtocol({
       identity: 'login',
       effect: 'read',
       limit: 'small',
-      body: ruleCodec({
-        kind: 'object',
-        fields: { tenant: { rule: tenant }, session: { rule: session }, acceptId: { rule: text } },
-      }),
+      body: ruleCodec(object({ ...target, acceptId: { rule: text } })),
+      // A read, but it can find that the input it asks about has no known result.
       outcomes: { succeeded: empty, 'not-committed': empty, unknown: true },
       countsAsAccess: true,
     },
@@ -285,37 +186,31 @@ export const sessionProtocol = defineProtocol({
       effect: 'read',
       limit: 'small',
       body: ruleCodec(readHistory),
-      outcomes: {
-        succeeded: ruleCodec({
-          kind: 'object',
-          fields: {
-            entries: { rule: { kind: 'array', item: historyEntry } },
-            // next is sent back as cursor, which is null or non-empty.
-            next: { rule: { kind: 'one-of', rules: [text, nothing] } },
-            exhausted: { rule: boolean },
-            scannedThrough: { rule: anyText },
-          },
-        }),
-        invalid: empty,
-      },
+      outcomes: { succeeded: ruleCodec(historyPage), invalid: empty },
       countsAsAccess: true,
     },
     'cancel-run': {
       identity: 'login',
       effect: 'commit',
       limit: 'small',
-      body: ruleCodec({
-        kind: 'object',
-        fields: {
-          tenant: { rule: tenant },
-          session: { rule: session },
+      body: ruleCodec(
+        object({
+          ...target,
           controlId: { rule: text },
           run: { rule: text },
-          urgency: { rule: { kind: 'literal', values: ['graceful', 'force'] } },
-        },
-      }),
+          urgency: { rule: literal('graceful', 'force') },
+        }),
+      ),
       outcomes: {
-        succeeded: ruleCodec(cancelRunAnswer),
+        succeeded: ruleCodec(
+          controlAnswer(
+            { run: { rule: text } },
+            object({
+              outcome: { rule: literal('completed', 'failed', 'cancelled') },
+              source: { rule: terminalSource },
+            }),
+          ),
+        ),
         invalid: empty,
         conflict: empty,
         'not-found': empty,
@@ -326,17 +221,22 @@ export const sessionProtocol = defineProtocol({
       identity: 'login',
       effect: 'commit',
       limit: 'small',
-      body: ruleCodec({
-        kind: 'object',
-        fields: {
-          tenant: { rule: tenant },
-          session: { rule: session },
-          controlId: { rule: text },
-          producer: { rule: producer },
-        },
-      }),
+      body: ruleCodec(
+        object({ ...target, controlId: { rule: text }, producer: { rule: producer } }),
+      ),
       outcomes: {
-        succeeded: ruleCodec(stopCallAnswer),
+        succeeded: ruleCodec(
+          controlAnswer(
+            { producer: { rule: producer } },
+            object({
+              version: { rule: text },
+              outcome: {
+                rule: literal('completed', 'failed', 'interrupted', 'unavailable', 'no-response'),
+              },
+              source: { rule: terminalSource },
+            }),
+          ),
+        ),
         invalid: empty,
         conflict: empty,
         'not-found': empty,

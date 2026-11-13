@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-`browser/` 是手写的浏览器消费者工程，照共同契约成员的浏览器夹具写：`tsconfig.json` 带 DOM、`types` 为空、用 `source` 条件解析包入口；`main.ts` 用 `observe-session` 的帧读写器写一帧再读回。`tests/browser-fixture.spec.ts` 用它核 RFC-0015 I-18。负责人是 session 组。
+`samples.ts` 是 `wire.spec.ts` 与 `observe-session.spec.ts` 共用的样本与读写辅助。`browser/` 是手写的浏览器消费者工程，照共同契约成员的浏览器夹具写：`tsconfig.json` 带 DOM、`types` 为空、用 `source` 条件解析包入口；`main.ts` 用 `observe-session` 的帧读写器写一帧再读回。`tests/browser-fixture.spec.ts` 用它核 RFC-0015 I-18。负责人是 session 组。

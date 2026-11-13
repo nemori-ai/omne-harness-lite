@@ -2,28 +2,20 @@
 // family accepts reads, through the new contract, to the same value; a body it rejects, the new
 // contract rejects too. The one allowed difference: `create-session` may leave `definition` out.
 import { describe, expect, it } from 'vitest'
-import { readJsonText, writeJsonText, type JsonLimits } from '@omne-harness/json-text'
 import {
   readSessionRequest,
   readSessionResponse,
-  type Codec,
   type SessionOperation,
 } from '@omne-harness/public-contract'
 import { sessionProtocol } from '@omne-harness/session-protocol'
+import {
+  expectRoundTrip,
+  limits,
+  readSample as readNew,
+  session,
+  tenant,
+} from './fixtures/samples.ts'
 
-const limits: JsonLimits = {
-  maxBytes: 100_000,
-  maxDepth: 50,
-  maxItems: 10_000,
-  maxMembers: 100,
-  maxStringLength: 10_000,
-  maxNumberLength: 100,
-}
-const tenant = JSON.stringify({
-  organization: 'org_00000000000000000000000000',
-  account: 'acc_00000000000000000000000000',
-})
-const session = '0123456789abcdef'.repeat(4)
 const target = { tenant, session }
 const userMessage = { role: 'user', blocks: [{ type: 'text', text: 'hello' }], weight: 1 }
 const producer = { kind: 'model', call: 'call-1' }
@@ -101,19 +93,7 @@ const successBodies: Samples = {
   ],
 }
 
-const tree = (value: unknown) => {
-  const read = readJsonText(JSON.stringify(value), limits)
-  if (read.kind !== 'ok') throw new Error('sample is not JSON')
-  return read.value
-}
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-
-/** Any codec of the contract; the samples are untyped JSON, so the value type is not checked here. */
-type AnyCodec = Codec<any>
-
-function readNew(codec: AnyCodec, sample: unknown) {
-  return codec.read(tree(sample), limits)
-}
 
 function readOldBody(operation: SessionOperation, body: unknown) {
   const read = readSessionRequest({
@@ -138,16 +118,6 @@ function readOldOutcome(operation: SessionOperation, outcome: string, body: unkn
     limits,
   })
   return read.kind === 'response' ? { ok: true, value: read.response.body } : { ok: false }
-}
-
-/** Reads, writes back, and checks the written JSON is the sample. */
-function expectRoundTrip(codec: AnyCodec, sample: unknown) {
-  const read = readNew(codec, sample)
-  if (!read.ok) throw new Error('sample not accepted')
-  const written = codec.write(read.value, limits)
-  if (!written.ok) throw new Error('read value not written')
-  expect(JSON.parse(writeJsonText(written.value))).toEqual(sample)
-  return read.value
 }
 
 const operations = Object.keys(validBodies) as Name[]

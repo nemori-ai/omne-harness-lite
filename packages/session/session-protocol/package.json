@@ -29,9 +29,15 @@
   },
   "devDependencies": {
     "@omne-harness/json-text": "workspace:*",
-    "@omne-harness/legal-identity": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "3.0.0",
+      "variant": "module"
+    }
   }
 }
