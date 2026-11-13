@@ -62,6 +62,13 @@
 
 SessionCreation.initialization 是可选来源包，包含 sources 和 results。sources 的共同头为 item、owner、protocol，种类封闭为 context-registration、workspace-load、execution-adoption；注册分支的 input 复用原 need、binding、parameters 材料。类型的具体名称与导出以源码为准，行为形状由 SPEC 约束。requiredIdentities、InitializationResult、原方法签名与 SessionContextInput.prepare 的命令联合保持。省略语义、完整性、真实初始采用准入与重放范围见 [初始化来源与提交](../SPEC.md#初始化来源与提交)。
 
+外部读者读日志条目的载荷时，用下面两个纯函数，不按字段名自己取。两者都只读，读不出时给 null，见[稳定调用引用的读取](../SPEC.md#稳定调用引用的读取)。
+
+| 导出                                           | 源文件                                              | 读哪种条目                         |
+| ---------------------------------------------- | --------------------------------------------------- | ---------------------------------- |
+| `readCallRegistration`、`CallRegistrationView` | [call-registration.ts](../src/call-registration.ts) | `call.bound`，两种存法             |
+| `readRunBoundary`、`RunBoundaryView`           | [run-boundary.ts](../src/run-boundary.ts)           | `run.started` 与 `run.terminal`    |
+
 `ProducerFact` 没有 `agent-event` 与 `start-fence` 变体，`AgentEventFact` 不导出，见[被替代的协议](../SPEC.md#被替代的协议)。
 
 ## 领域服务与归约

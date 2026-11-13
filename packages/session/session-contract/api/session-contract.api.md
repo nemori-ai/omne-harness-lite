@@ -112,6 +112,7 @@
 - `ResultConsumption` · `values.d.ts`
 - `RouteJudgment` · `judgments.d.ts`
 - `RoutedInput` · `values.d.ts`
+- `RunBoundaryView` · `run-boundary.d.ts`
 - `RunExecution` · `values.d.ts`
 - `RunId` · `identity.d.ts`
 - `RunStartJudgment` · `judgments.d.ts`
@@ -252,6 +253,7 @@
 - `projectSessionLog` · `projection.d.ts`
 - `readAccessRequest` · `access.d.ts`
 - `readCallRegistration` · `call-registration.d.ts`
+- `readRunBoundary` · `run-boundary.d.ts`
 - `rebuildSessionPermissions` · `permission-history.d.ts`
 - `reduce` · `reduce.d.ts`
 - `resolveCascade` · `judgments.d.ts`
@@ -1761,6 +1763,8 @@ export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, Input
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
 export { readCallRegistration } from './call-registration.ts';
 export type { CallRegistrationView } from './call-registration.ts';
+export { readRunBoundary } from './run-boundary.ts';
+export type { RunBoundaryView } from './run-boundary.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
 export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, } from './intake.ts';
@@ -2336,6 +2340,14 @@ export type IngressFamily = (typeof INGRESS_FAMILIES)[keyof typeof INGRESS_FAMIL
 export declare function deriveIngressOperation(family: IngressFamily, fields: readonly string[]): SessionOperationId;
 ```
 
+## 声明文件 `payload-members.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+export declare function member(value: JsonValue | undefined, key: string): JsonValue | undefined;
+export declare function text(value: JsonValue | undefined): string | undefined;
+```
+
 ## 声明文件 `permission-history.d.ts`
 
 ```ts
@@ -2868,8 +2880,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:812ce4ec582eb4cdcb2fc376198161d39d6e97dab5378765a3ad017312c9cd06";
-export declare const SESSION_RELEASE_DIGEST = "sha256:812ce4ec582eb4cdcb2fc376198161d39d6e97dab5378765a3ad017312c9cd06";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:841bd4c0d938df89a04095415e0c6e4bb4a3154cb2b29e34ab9e44945657a344";
+export declare const SESSION_RELEASE_DIGEST = "sha256:841bd4c0d938df89a04095415e0c6e4bb4a3154cb2b29e34ab9e44945657a344";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2892,6 +2904,21 @@ export declare function bindingRun(snapshot: WorkSnapshot, binding: CallBinding)
 export declare function resultParticipationError(snapshot: WorkSnapshot, binding: CallBinding, participation: Participation): string | null;
 export declare function applyParticipation(draft: Draft, participation: Participation): string | null;
 export {};
+```
+
+## 声明文件 `run-boundary.d.ts`
+
+```ts
+import type { HistoryEntry } from './faces.ts';
+import type { RunId } from './identity.ts';
+export type RunBoundaryView = Readonly<{
+    kind: 'started';
+    run: RunId;
+}> | Readonly<{
+    kind: 'terminal';
+    run: RunId;
+}>;
+export declare function readRunBoundary(entry: Pick<HistoryEntry, 'kind' | 'payload'>): RunBoundaryView | null;
 ```
 
 ## 声明文件 `run-closure.d.ts`
