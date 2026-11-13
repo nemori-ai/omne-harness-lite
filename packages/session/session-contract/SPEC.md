@@ -701,7 +701,7 @@ Session 写 Run 外登记时把 `CallBinding` 映射为这组字段：载荷的 
 
 `reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，用 `readCallRegistration` 读每条载荷，按 `kind` 与 `purpose` 跳过读者不需要的分支，取第一条符合的 `reference`。
 
-「现在有没有一轮在进行」由日志判：最近一条一轮开始（SE13，种类 `run.started`，编号在载荷的 `run`）之后，没有同编号的一轮结束（SE26，种类 `run.terminal`，编号在载荷的 `terminal.run`），这一轮就在进行。只有别的编号的一轮结束时，仍然在进行。外部读者按这一条从日志读出当前这一轮，不读工作快照。
+「现在有没有一轮在进行」由日志判：最近一条一轮开始（SE13，种类 `run.started`，编号在载荷的 `run`）之后，没有同编号的一轮结束（SE26，种类 `run.terminal`，编号在载荷的 `terminal.run`），这一轮就在进行。只有别的编号的一轮结束时，仍然在进行。外部读者按这一条从日志读出当前这一轮，不读工作快照。纯函数 `readRunBoundary(entry)` 是这两种载荷的唯一读法。它给出 `RunBoundaryView`，即 `{ kind: 'started' | 'terminal', run }`；条目不是这两种之一，或者载荷没有文本的编号时，它给出 null。它不核对编号的格式，编号是 Session 自己写进日志的。
 
 这是外部读者取得稳定调用引用的唯一公开路径。它不新增操作。本版不提供「最新调用」的派生索引。
 

@@ -11,7 +11,7 @@
 依据：
 
 - 提案 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 的[会话观察](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察)与[会话观察的定位与流](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察的定位与流)两节，以及模型三的精化对照。
-- 会话契约 [SPEC](../session-contract/SPEC.md#稳定调用引用的读取) 的读者日志读取面、调用登记的读法（`readCallRegistration`）和「一轮在进行」的判法。
+- 会话契约 [SPEC](../session-contract/SPEC.md#稳定调用引用的读取) 的读者日志读取面、调用登记的读法（`readCallRegistration`）和「一轮在进行」的判法与读法（`readRunBoundary`）。
 - 模型契约 [SPEC](../../model/model-contract/SPEC.md) 的公共流两个读取面。本包以观察者的主体调用它们：`current` 取当前的流，`observe` 订阅。
 - 刷新的数值与原状态图沿用[服务端接入规格的刷新策略](../../access/server-entry/SPEC.md#刷新策略)。本包的策略对象承接它。
 
@@ -111,7 +111,7 @@
 | 刷新的间隔到期                                                                                                                            | 归定位那条轴                                      | 不可达，不写：观察中不计时                                                                                                     | 重新订阅同一个目标，不重新定位。这一次等待从订阅断开时起算，只起一次：中间到的通知照常处理，不把它往后推 | `stream, observing, the subscription broke (capacity)`；`stream, waiting to observe again, a notice does not push the wait back`                     |
 | 次数或累计时长用完                                                                                                                        | 结束，原因 `refresh-exhausted`                    | 不可达，不写                                                                                                                   | 结束，原因 `refresh-exhausted`                                                                           | `stream, waiting to observe again, attempts used up`                                                                                                 |
 
-另有收场、预算与领域面的用例，不对应提案的格子：`an abort ...`、`an observer that stops reading ...`（[中止](#中止)），以及 `tests/stream.spec.ts` 里的 `an abort while the observer holds a frame ...` 两条和 `drops the subscription, the notice and the waits ...`（流这一半的中止）；`interval-driven locates back off ...`、`maxAttempts ...`、`the accumulated waiting ...`、`an interval below the floor ...`、`without notices ...`（[刷新的预算](#刷新的预算)）；`open: ...`、`open subscribes to the commit notices ...`（[领域面](#领域面)）；`a run that started ...`、`a terminal of another run ...`、`reading backward, a run ...`、`reading forward, a run ...`（「一轮在进行」）；`locate, reading backward ...` 四条、`locate, reading forward ...`（[定位的读法](#定位的读法)）；`notice-idle, kinds mixed ...`、`notice-idle, two notices before the loop looks ...`（通知的种类与合并）；`an interval at the floor ...`（[刷新的预算](#刷新的预算)）；`result, new main call, stream given, no target, after refreshes ...`（取得新目标时预算归零）。
+另有收场、预算与领域面的用例，不对应提案的格子：`an abort ...`、`an observer that stops reading ...`（[中止](#中止)），以及 `tests/stream.spec.ts` 里的 `an abort while the observer holds a frame ...` 两条和 `drops the subscription, the notice and the waits ...`（流这一半的中止）；`interval-driven locates back off ...`、`maxAttempts ...`、`the accumulated waiting ...`、`an interval below the floor ...`、`without notices ...`（[刷新的预算](#刷新的预算)）；`open: ...`、`open subscribes to the commit notices ...`（[领域面](#领域面)）；`a run that started ...`、`a terminal of another run ...`、`reading backward, a run ...`、`reading forward, a run ...`（「一轮在进行」）；`locate, reading backward ...` 四条、`locate, reading forward ...`（[定位的读法](#定位的读法)）；`notice-idle, kinds mixed ...`、`notice-idle, two notices before the loop looks ...`（通知的种类与合并）；`an interval at the floor ...`（[刷新的预算](#刷新的预算)）；`result, new main call, stream given, no target, after refreshes ...`（取得新目标时预算归零）；`stream, no target, a notice brings a stream while the wait runs ...`（开始订阅时，没有目标那一段的等待作废，流结束后的下一次查看重新等满一段间隔）。
 
 ### 定位的读法
 
@@ -119,8 +119,8 @@
 - 之后的定位用 `since`，从上次读到的最后一条往后读，不重读整段日志。
 - 读的种类是 `call.bound`、`run.started`、`run.terminal` 三种。
 - 修订号取页的 `upper`。
-- 当前这一轮按会话契约的判法得出：最近一条 `run.started` 之后没有同编号的 `run.terminal`，这一轮就在进行。别的编号的结束不改变它。`run.started` 的编号在载荷的 `run`，`run.terminal` 的编号在 `terminal.run`。
-- 主调用用 `readCallRegistration` 读每条 `call.bound`，只认 `kind: 'model'`、`purpose: 'main'`，并且有引用的那一条。
+- 当前这一轮按会话契约的判法得出：最近一条 `run.started` 之后没有同编号的 `run.terminal`，这一轮就在进行。别的编号的结束不改变它。两种条目的编号都用会话契约的 `readRunBoundary` 读，本包不按字段名取载荷。
+- 主调用用 `readCallRegistration` 读每条 `call.bound`，只认 `kind: 'model'`、`purpose: 'main'`，并且有引用的那一条。引用在定位里用模型契约的 `decodeModelInvocationRef` 解析成 `ModelInvocationRef`，之后原样交给模型的读取面。解析不出的那一条不当作主调用，跳过：会话契约规定这里是 `ModelInvocationRef` 文本，解析失败是不变式排除的情形，不发诊断。
 
 ### 定位中各答复怎么处理
 
@@ -205,7 +205,7 @@
 
 消费的承诺：
 
-- 会话契约：读者的日志读取面（`begin`、`next`、`since`）与 `readCallRegistration`，见[稳定调用引用的读取](../session-contract/SPEC.md#稳定调用引用的读取)。
+- 会话契约：读者的日志读取面（`begin`、`next`、`since`）、`readCallRegistration` 与 `readRunBoundary`，见[稳定调用引用的读取](../session-contract/SPEC.md#稳定调用引用的读取)。
 - 模型契约：公共流的两个读取面（`ModelStreamReferences` 的 `current`、`ModelStreamObservation` 的 `observe`），以及投影函数 `projectModelOutputV1`。
 - 会话的 Cordis 契约：事件 `session-cordis-contract/committed` 与会话服务键；模型的 Cordis 契约里两个读取面的服务键。
 

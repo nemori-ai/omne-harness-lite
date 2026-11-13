@@ -6,6 +6,7 @@ import { request } from 'node:http'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { Context } from '@deepseek-ai/cordis'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineProtocol } from '@omne-harness/public-contract'
@@ -130,14 +131,14 @@ describe('server-entry row: the access it gives the entry', () => {
   })
 
   it('answers basis-unavailable from every identity method that judges', async () => {
-    const { identity } = entryAccess(createCapturingTelemetry().port)
+    const { identity } = entryAccess(new Context(), createCapturingTelemetry().port)
     expect(await identity.identifyLogin({} as never)).toEqual({ outcome: 'basis-unavailable' })
     expect(await identity.actFor({} as never, 't-1')).toEqual({ outcome: 'basis-unavailable' })
   })
 
   it('writes access.listener-fault when an availability listener throws', () => {
     const capture = createCapturingTelemetry()
-    const { registry } = entryAccess(capture.port)
+    const { registry } = entryAccess(new Context(), capture.port)
     registry.subscribe(() => {
       throw new Error('listener')
     })

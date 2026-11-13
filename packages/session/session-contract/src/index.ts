@@ -244,6 +244,8 @@ export type {
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
 export { readCallRegistration } from './call-registration.ts'
 export type { CallRegistrationView } from './call-registration.ts'
+export { readRunBoundary } from './run-boundary.ts'
+export type { RunBoundaryView } from './run-boundary.ts'
 
 export type {
   SessionWorkEntryIndex,

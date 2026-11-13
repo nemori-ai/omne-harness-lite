@@ -324,6 +324,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['session', 'modelStreamReferences', 'modelStreamObservation'],
   },
   'server-entry': {
+    provides: ['accessRegistry'],
     injects: [
       'session',
       'principalIssuer',

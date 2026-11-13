@@ -3,17 +3,18 @@
 // domain's contribution, so the only protocol at the new address is the entry's own `access/v1`,
 // whose one observation needs no login (RFC-0015 I-15: a contribution is not an opening).
 //
-// The registry is the member's plain `createAccessRegistry`, built in the row body. A Cordis
-// provider would put `accessRegistry` on the tree, a service the assembly page does not list for
-// this row; nothing in the release would mount on it yet.
+// The registry comes from the member's Cordis provider, installed in the row scope: the tree has
+// `accessRegistry`, a domain's access plugin mounts its protocol there, and the entry serves the
+// same registry. Unloading the row removes the service with it.
+import type { Context } from '@deepseek-ai/cordis'
 import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import { systemScope } from '@omne-harness/legal-identity'
-import {
-  createAccessRegistry,
-  type AccessDiagnostic,
-  type AccessDiagnosticCode,
-  type ServerEntryAccess,
+import type {
+  AccessDiagnostic,
+  AccessDiagnosticCode,
+  ServerEntryAccess,
 } from '@omne-harness/server-entry'
+import { AccessRegistryProvider } from '@omne-harness/server-entry/cordis'
 import {
   defineEvent,
   validateFields,
@@ -108,13 +109,14 @@ export function accessDiagnostics(telemetry: TelemetryPort): (event: AccessDiagn
   }
 }
 
-/** The `access` of `createServerEntry`: a fresh registry with only the entry's own protocol. */
-export function entryAccess(telemetry: TelemetryPort): ServerEntryAccess {
+/**
+ * The `access` of `createServerEntry`. Installs the registry provider in `ctx`, so `accessRegistry`
+ * is on the tree, and gives the entry that provider's registry.
+ */
+export function entryAccess(ctx: Context, telemetry: TelemetryPort): ServerEntryAccess {
   const diagnostics = accessDiagnostics(telemetry)
   return {
-    registry: createAccessRegistry({
-      onListenerError: () => diagnostics({ code: 'access.listener-fault' }),
-    }),
+    registry: new AccessRegistryProvider(ctx, { diagnostics }).registry,
     identity: IDENTITY_NOT_OFFERED,
     graceMs: GRACE_MS,
     frameQueueBytes: FRAME_QUEUE_BYTES,

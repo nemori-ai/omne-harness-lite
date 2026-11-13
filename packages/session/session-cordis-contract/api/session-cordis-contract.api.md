@@ -112,6 +112,7 @@
 - `ResultConsumption` · 包 `@omne-harness/session-contract`
 - `RouteJudgment` · 包 `@omne-harness/session-contract`
 - `RoutedInput` · 包 `@omne-harness/session-contract`
+- `RunBoundaryView` · 包 `@omne-harness/session-contract`
 - `RunExecution` · 包 `@omne-harness/session-contract`
 - `RunId` · 包 `@omne-harness/session-contract`
 - `RunStartJudgment` · 包 `@omne-harness/session-contract`
@@ -263,6 +264,7 @@
 - `projectSessionLog` · 包 `@omne-harness/session-contract`
 - `readAccessRequest` · 包 `@omne-harness/session-contract`
 - `readCallRegistration` · 包 `@omne-harness/session-contract`
+- `readRunBoundary` · 包 `@omne-harness/session-contract`
 - `rebuildSessionPermissions` · 包 `@omne-harness/session-contract`
 - `reduce` · 包 `@omne-harness/session-contract`
 - `resolveCascade` · 包 `@omne-harness/session-contract`
