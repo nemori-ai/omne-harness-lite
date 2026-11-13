@@ -54,10 +54,12 @@
 
 ## 页面
 
-- 客户端的 Cordis 树：`connectionPlugin`（传输与登录状态都是桥）、`identity/v1` 与 `session/v1` 的协议客户端。
+- 客户端的 Cordis 树：`connectionPlugin`（传输与登录状态都是桥）、`identity/v1`、`session/v1` 与 `assets/v1` 的协议客户端。
 - 装配文件 `src/page/assembly.tsx` 是唯一导入领域（协议契约与领域界面）的地方。外壳（`src/page/shell/`）不导入任何领域。
 - 外壳：顶栏（应用名、连接状态、当前租户、退出登录）；没登录只显示登录门；连不上服务时显示「连不上服务」，连接按退避重连；登录门或工作区需要的协议没挂着时显示「这项能力暂时不可用」。
-- 登录界面：注册（`register-and-activate`，经普通调用）与登录（经桥的 `login`）；交出凭据后表单清空；失败如实显示。登录之后用 `query-current-tenant` 取当前租户，交给会话界面。
+- 工作区的视图：装配文件给出视图的列表，每个视图有标识、标题、要的协议与怎样画。外壳给每个协议都挂着的视图一个标签，缺省选第一个；一个也没有时显示「这项能力暂时不可用」。选中的视图的协议撤了，回到第一个还在的视图。切换只藏起别的视图，不卸下：对话里正在进行的一轮不因为看一眼设置就断掉观察。协议撤了的视图随之卸下。
+- 现在的两个视图：「对话」（`session/v1`，会话界面）与「设置」（`assets/v1`，设置界面）。服务端没挂 `assets/v1` 时没有「设置」这个标签。
+- 登录界面：注册（`register-and-activate`，经普通调用）与登录（经桥的 `login`）；交出凭据后表单清空；失败如实显示。登录之后用 `query-current-tenant` 取当前租户，交给每个视图。
 
 ## 已知限制
 
@@ -74,5 +76,5 @@
 | 拒绝转发带凭据的操作；探测 | `tests/login-session.spec.ts`                                                                                                                        |
 | 宿主的通道                 | `tests/web-host.spec.ts`：对着测试里的假服务端入口跑调用、观察的帧与结束、页面断开即取消、登录成功与失败、登录状态流；登录证明哨兵不出现在任何答复里 |
 | 页面的桥                   | `tests/page-bridge.spec.ts`：桥对着真的宿主                                                                                                          |
-| 外壳                       | `tests/shell.spec.tsx`                                                                                                                               |
+| 外壳与工作区的视图         | `tests/shell.spec.tsx`                                                                                                                               |
 | 边界                       | `tests/boundaries.spec.ts`                                                                                                                           |

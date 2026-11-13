@@ -4,7 +4,7 @@ The desktop app. In this run it runs in a browser: a local Node process (the web
 
 ## Run it
 
-You need a Harness Server whose access entry serves `/api/<protocol>/v<major>/<name>` with `access/v1`, `identity/v1` and `session/v1` mounted.
+You need a Harness Server whose access entry serves `/api/<protocol>/v<major>/<name>` with `access/v1`, `identity/v1` and `session/v1` mounted. Mount `assets/v1` too to see the settings.
 
 ```sh
 pnpm --filter @omne-harness/desktop... run build
@@ -27,7 +27,7 @@ Then open `http://127.0.0.1:8790/` in a browser. Use `127.0.0.1` or `localhost`;
 | `src/web-host/`  | The local Node process: `node:http`, the bridge addresses, the static page                    | main-core, shared                                                       |
 | `src/page/`      | The bridge over `fetch`, the client tree, the shell, the login screen, `assembly.tsx`         | shared, client core, client assembly; never main-core, web-host or Node |
 
-`src/page/assembly.tsx` is the only page file that names a domain. The session workspace (`SessionWorkspace` of `@omne-harness/session-ui`) is mounted there, with the session protocol client from the tree and the current tenant.
+`src/page/assembly.tsx` is the only page file that names a domain. It gives the signed-in workspace two views, each with the protocol client from the tree and the current tenant: 「对话」 (`SessionWorkspace` of `@omne-harness/session-ui`) and 「设置」 (`SettingsPanel` of `@omne-harness/assets-ui`). The shell shows a tab for each view whose protocol the server has mounted, so without `assets/v1` there is no 「设置」 tab.
 
 ## Technology
 

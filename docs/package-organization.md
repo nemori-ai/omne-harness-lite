@@ -113,7 +113,7 @@ packages/
 │   ├── permissions/            权限配值与求值
 │   ├── assets-protocol/        公开协议 assets/v1 的协议契约，纯数据（未建）
 │   ├── assets-access/          assets/v1 的接入插件（未建）
-│   └── assets-ui/              设置的界面模块（未建）
+│   └── assets-ui/              设置的界面模块
 ├── workspace/workspace/        工作区身份与资源关联
 ├── session/
 │   ├── session-contract/       Session、Run 与逻辑治理纯契约

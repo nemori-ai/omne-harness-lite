@@ -279,3 +279,45 @@ body {
   color: var(--text-muted);
   font-size: 14px;
 }
+
+/* The workspace's views: a row of tabs, then the chosen view. Hidden views stay mounted. */
+.views {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.view-tab {
+  padding: 4px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.view-tab[aria-selected='true'] {
+  background: var(--surface-muted);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.view {
+  flex: 1;
+  min-height: 0;
+}
+
+.view[hidden] {
+  display: none;
+}

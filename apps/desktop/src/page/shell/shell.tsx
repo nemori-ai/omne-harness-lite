@@ -8,9 +8,23 @@ import type { Connectivity } from '../connectivity.ts'
 import type { ClientTree } from '../tree.ts'
 import { useServices, useSource, type Source } from './hooks.ts'
 
-/** What a region may tell the shell: a short label of the current tenant, for the top bar. */
-export type ShellChrome = Readonly<{ setScope(label: ScopeLabel | undefined): void }>
+/**
+ * What a region may ask of the shell: show a short label of the current tenant in the top bar, and
+ * lay out the workspace's views with a switch between them.
+ */
+export type ShellChrome = Readonly<{
+  setScope(label: ScopeLabel | undefined): void
+  views(views: readonly WorkspaceView[]): ReactNode
+}>
 export type ScopeLabel = Readonly<{ short: string; full: string }>
+
+/** One view of the workspace. Its tab shows only while all its services are on the tree. */
+export type WorkspaceView = Readonly<{
+  id: string
+  title: string
+  services: readonly string[]
+  render(services: readonly unknown[]): ReactNode
+}>
 
 export type Region = Readonly<{
   /** The tree services this region needs; it is shown only while all are there. */
@@ -35,16 +49,59 @@ const CONNECTIVITY_TEXT: Readonly<Record<Connectivity, string>> = {
   disconnected: '连不上服务',
 }
 
+function Unavailable() {
+  return (
+    <div className="notice" role="status">
+      <p className="notice-title">这项能力暂时不可用</p>
+      <p className="notice-detail">服务端现在没有开放它。开放之后这里会自动出现。</p>
+    </div>
+  )
+}
+
 function RegionView(props: { region: Region; tree: ClientTree; chrome: ShellChrome }) {
   const values = useServices(props.tree, props.region.services)
-  if (values.some(value => value === undefined))
-    return (
-      <div className="notice" role="status">
-        <p className="notice-title">这项能力暂时不可用</p>
-        <p className="notice-detail">服务端现在没有开放它。开放之后这里会自动出现。</p>
-      </div>
-    )
+  if (values.some(value => value === undefined)) return <Unavailable />
   return <>{props.region.render(values, props.chrome)}</>
+}
+
+/**
+ * The workspace's views, one tab each, the first one chosen at the start. Every open view stays
+ * mounted and the others are only hidden, so looking at one view does not stop the work of another.
+ */
+function ViewSwitch(props: { tree: ClientTree; views: readonly WorkspaceView[] }) {
+  const names = [...new Set(props.views.flatMap(view => view.services))]
+  const values = useServices(props.tree, names)
+  const [chosen, setChosen] = useState(props.views[0]?.id)
+  const open = props.views.flatMap(view => {
+    const services = view.services.map(name => values[names.indexOf(name)])
+    return services.every(value => value !== undefined) ? [{ view, services }] : []
+  })
+  const first = open[0]
+  if (first === undefined) return <Unavailable />
+  const shown = open.some(({ view }) => view.id === chosen) ? chosen : first.view.id
+  return (
+    <div className="views">
+      <nav className="view-tabs" role="tablist">
+        {open.map(({ view }) => (
+          <button
+            key={view.id}
+            type="button"
+            role="tab"
+            className="view-tab"
+            aria-selected={view.id === shown}
+            onClick={() => setChosen(view.id)}
+          >
+            {view.title}
+          </button>
+        ))}
+      </nav>
+      {open.map(({ view, services }) => (
+        <section key={view.id} className="view" role="tabpanel" hidden={view.id !== shown}>
+          {view.render(services)}
+        </section>
+      ))}
+    </div>
+  )
 }
 
 export function Shell(props: ShellProps) {
@@ -59,7 +116,10 @@ export function Shell(props: ShellProps) {
   const connectivity = useSource(props.connectivity)
   const [scope, setScope] = useState<ScopeLabel | undefined>(undefined)
   const [notice, setNotice] = useState<string | undefined>(undefined)
-  const chrome = useMemo<ShellChrome>(() => ({ setScope }), [])
+  const chrome = useMemo<ShellChrome>(
+    () => ({ setScope, views: views => <ViewSwitch tree={props.tree} views={views} /> }),
+    [props.tree],
+  )
 
   const signOut = useCallback(async () => {
     setNotice(undefined)

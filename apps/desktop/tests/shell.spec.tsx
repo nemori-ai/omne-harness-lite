@@ -55,7 +55,20 @@ function fakeTree(initial: Record<string, unknown>) {
   }
 }
 
-function setup(options: { login?: LoginState; withIdentity?: boolean; loginResult?: LoginResult }) {
+/** An `assets/v1` client whose list answers one empty page. */
+const assetsClient = {
+  'list-settings': async () => ({
+    outcome: 'succeeded',
+    body: { items: [], next: null, completeness: 'complete' },
+  }),
+}
+
+function setup(options: {
+  login?: LoginState
+  withIdentity?: boolean
+  withAssets?: boolean
+  loginResult?: LoginResult
+}) {
   const login = source<LoginState>(options.login ?? 'signed-out')
   const connectivity = source<Connectivity>('connected')
   const handedOver: LoginCredentials[] = []
@@ -91,6 +104,7 @@ function setup(options: { login?: LoginState; withIdentity?: boolean; loginResul
   }
   const services: Record<string, unknown> = { 'protocol:session/v1': {} }
   if (options.withIdentity !== false) services['protocol:identity/v1'] = identity
+  if (options.withAssets === true) services['protocol:assets/v1'] = assetsClient
   const tree = fakeTree(services)
   const regions = assemble(bridge)
   render(
@@ -170,5 +184,31 @@ describe('外壳', () => {
     })
     expect(t.loggedOut()).toBe(1)
     expect(screen.getByRole('heading', { name: '登录' })).toBeTruthy()
+  })
+
+  it('设置的协议没开时「设置」不出现，开了就出现；缺省是「对话」', async () => {
+    const t = setup({ login: 'signed-in' })
+    await act(async () => {})
+    expect(screen.getByRole('tab', { name: '对话' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.queryByRole('tab', { name: '设置' })).toBeNull()
+    await act(async () => t.tree.set('protocol:assets/v1', assetsClient))
+    expect(screen.getByRole('tab', { name: '设置' }).getAttribute('aria-selected')).toBe('false')
+    expect(screen.getByRole('button', { name: '新建会话' })).toBeTruthy()
+  })
+
+  it('切到「设置」时会话界面不卸下，切回来还是同一个', async () => {
+    setup({ login: 'signed-in', withAssets: true })
+    await act(async () => {})
+    const session = screen.getByRole('button', { name: '新建会话' })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: '设置' }))
+    })
+    expect(screen.getByRole('heading', { name: '设置' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '新建会话' })).toBeNull()
+    expect(document.body.contains(session)).toBe(true)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: '对话' }))
+    })
+    expect(screen.getByRole('button', { name: '新建会话' })).toBe(session)
   })
 })
