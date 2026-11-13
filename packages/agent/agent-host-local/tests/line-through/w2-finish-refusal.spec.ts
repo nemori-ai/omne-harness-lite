@@ -5,9 +5,16 @@ import { openW2World, replyText } from './w2-world.ts'
 
 it('waits on Session pending input without replacing the completion candidate', async () => {
   let injected = false
+  // The Model call of the recovering Run waits until the second input is in, so that input is
+  // pending while that Run settles, however soon Session starts the Run.
+  const recovering = Promise.withResolvers<void>()
   const w = await openW2World({
     receptionTargets: 'journal',
-    model: a => ({ parts: [replyText(`reply-${a.index}`, 'recovered answer')], reason: 'stop' }),
+    model: a => ({
+      parts: [replyText(`reply-${a.index}`, 'recovered answer')],
+      reason: 'stop',
+      ...(a.index === 0 ? { hold: recovering.promise } : {}),
+    }),
     wrapAgentDependencies: dependencies => ({
       ...dependencies,
       conditions: {
@@ -23,10 +30,20 @@ it('waits on Session pending input without replacing the completion candidate', 
   })
   try {
     await w.createSession('finish-refusal')
-    await w.runRound(1, 'recover this input', 10_000)
-    expect(await w.lastOutcome()).toBe('failed')
-    const failed = await w.execution()
+    // Not `runRound`: it waits for the latest Run of the snapshot to be a terminal, and the
+    // recovering Run starts at once and is held here. The failed Run by its identity instead: the
+    // commit notice of its end wakes Session, which grants the untaken input again at once (#1248).
+    await w.accept('in-1', 'recover this input')
+    await w.until(() => w.endedRuns().length > 0, 10_000)
+    const failedEnd = w.endedRuns()[0]
+    expect(failedEnd).toMatchObject({ outcome: 'failed' })
+    if (failedEnd === undefined) throw new Error('the first Run did not end')
+    const failed = failedEnd.execution
+    // The commit notice of the failed end wakes Session, which grants the untaken input again at
+    // once: the recovering Run is in its Model call before the second input goes in.
+    await w.until(() => w.modelCalls.length === 1, 10_000)
     await w.accept('in-2', 'another input while the first needs recovery')
+    recovering.resolve()
     await w.until(() => w.modelCalls.length === 1 && w.releases() === 3, 10_000)
     const active = await w.execution()
     expect(active).not.toBe(failed)
@@ -48,6 +65,7 @@ it('waits on Session pending input without replacing the completion candidate', 
       'ended',
     )
   } finally {
+    recovering.resolve()
     await w.close()
   }
 })

@@ -14,7 +14,6 @@ import type {
   SessionIdentityBridge,
   SessionIdleInput,
   SessionInternalPrincipals,
-  SessionNotifier,
   SessionTransactionPort,
   SessionWorkPrincipals,
   WorkSnapshot,
@@ -52,8 +51,6 @@ export type SessionDependencies<P> = Readonly<{
   clock: SessionClock
   idle: SessionIdleInput<P>
   context: SessionContextInput<P>
-  /** Resolved after each durable commit. */
-  notifier: Current<SessionNotifier>
   agentDrive: Current<AgentDrivePort>
   scopeRelease: Current<ScopeReleasePort>
   /** Principals for system maintenance only. The identity bridge verifies them. */

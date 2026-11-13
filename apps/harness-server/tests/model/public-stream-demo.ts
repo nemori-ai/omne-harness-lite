@@ -2,6 +2,12 @@
 // Usage, from apps/harness-server after `pnpm run build` of the member and of apps/cli:
 //   node tests/model/public-stream-demo.ts               the demonstration
 //   node tests/model/public-stream-demo.ts --measure 5   the demonstration and the two numbers, 5 times
+//   node tests/model/public-stream-demo.ts --notices     the demonstration with the commit notices
+// With `--notices` (#1230) every commit notice on the root of the tree is printed as it arrives,
+// `notice #<revision> <entry kinds>`, between the other lines. After the demonstration a second
+// session calls one tool and then answers, so the assistant and the tool messages are committed
+// too; at the end each session puts the number of its revisions in the log beside the number of
+// its notices.
 // It starts the release tree in this process (real SQLite, real identity, the local HTTPS Model
 // gateway of the release-tree scenarios), registers and logs in one person through the `omne` CLI,
 // sends one input, reads the reference of the main Model call from the session log, takes the
@@ -15,8 +21,13 @@
 //   the Model storage (`md_call`) read only; both sides are polled about every millisecond.
 // - first frame: from the `observe` call to its first frame.
 import { setTimeout as sleep } from 'node:timers/promises'
-import { onReleaseTree, type ReleaseTree } from '../support/release-tree.ts'
+import { onReleaseTree, toolCallsThenText, type ReleaseTree } from '../support/release-tree.ts'
 import { bodyOf } from '../r9/support.ts'
+import {
+  recordNotices,
+  settledLog,
+  type NoticeRecorder,
+} from '../session/commit-notices-support.ts'
 import {
   absentReference,
   anotherPerson,
@@ -36,6 +47,7 @@ const measure = (() => {
   if (!Number.isSafeInteger(count) || count < 1) throw new Error('--measure takes a positive count')
   return count
 })()
+const notices = process.argv.includes('--notices')
 
 const print = (line: string) => process.stdout.write(`${line}\n`)
 const now = () => performance.now()
@@ -110,7 +122,10 @@ async function currentOf(tree: ReleaseTree, access: LoginAccess, reference: neve
   return answer.ok
 }
 
-async function demonstrate(tree: ReleaseTree, gateway: ReturnType<typeof heldAnswer>) {
+async function demonstrate(
+  tree: ReleaseTree,
+  gateway: ReturnType<typeof heldAnswer>,
+): Promise<string> {
   const access = await loginAccess(tree)
   print(`logged in: tenant ${JSON.stringify(access.tenant)}`)
   const session = await createSession(tree)
@@ -164,6 +179,29 @@ async function demonstrate(tree: ReleaseTree, gateway: ReturnType<typeof heldAns
   print(`  the main call's reference: ${JSON.stringify(forReal)}`)
   print(`  a reference to no call:    ${JSON.stringify(forAbsent)}`)
   print(`  the same answer: ${String(JSON.stringify(forReal) === JSON.stringify(forAbsent))}`)
+  return session
+}
+
+/** The input of the session that calls one tool; the gateway answers it with the tool script. */
+const TOOL_INPUT = 'call a tool, then answer'
+const ECHO = JSON.stringify({ command: 'execute', params: { script: 'echo notices' } })
+const toolScript = toolCallsThenText(() => [{ id: 'call_echo', tool: 'Shell', arguments: ECHO }])
+
+/** Each session: its revisions in the log beside its notices, once its turn has ended. */
+async function noticeSummary(tree: ReleaseTree, recorder: NoticeRecorder, sessions: string[]) {
+  print('== commit notices against the session log')
+  for (const session of sessions) {
+    const revisions = (await settledLog(tree.storageRoot, session)).map(batch => batch.revision)
+    const told = recorder
+      .notices()
+      .filter(notice => notice.session === session)
+      .map(notice => notice.revision)
+    const once = revisions.every(revision => told.filter(item => item === revision).length === 1)
+    const matched = once && told.length === revisions.length
+    print(
+      `session ${session}: ${String(revisions.length)} revisions, ${String(told.length)} notices, one for each revision: ${String(matched)}`,
+    )
+  }
 }
 
 type Sample = Readonly<{ registrationLagMs: number; firstFrameMs: number }>
@@ -234,9 +272,24 @@ function summary(values: readonly number[]): string {
 }
 
 const gateway = heldAnswer('Hello', ' world')
-await onReleaseTree({ script: gateway.script }, async tree => {
+const script: typeof gateway.script = request =>
+  notices && request.body.includes(TOOL_INPUT) ? toolScript(request) : gateway.script(request)
+const permission = notices ? { permission: 'bypass-permissions' } : {}
+await onReleaseTree({ script, ...permission }, async tree => {
+  const recorder = notices
+    ? recordNotices(tree.scope, notice =>
+        print(`notice #${notice.revision} ${notice.kinds.join(',')}`),
+      )
+    : undefined
   print('== the public Model stream, as the logged-in person')
-  await demonstrate(tree, gateway)
+  const session = await demonstrate(tree, gateway)
+  if (recorder !== undefined) {
+    print('== a session that calls one tool, then answers')
+    const withTool = await tree.startSession(TOOL_INPUT)
+    print(`session ${withTool}: input sent`)
+    await noticeSummary(tree, recorder, [session, withTool])
+    recorder.stop()
+  }
   if (measure === 0) return
   print(`== the two numbers, ${String(measure)} sessions`)
   const access = await loginAccess(tree)

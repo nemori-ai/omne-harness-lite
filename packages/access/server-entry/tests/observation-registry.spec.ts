@@ -3,7 +3,7 @@
 // after the confirmation, and a stream that attaches already closed frees the slot at once.
 import { afterEach, describe, expect, it } from 'vitest'
 import { createObservationRegistry, observationKey } from '../src/observation.ts'
-import { SseStream } from '../src/sse.ts'
+import { SseStream } from '../src/observation-hub/sse.ts'
 import { sleep } from './support/harness.ts'
 import { holdResponse, type HeldResponse } from './support/held-response.ts'
 

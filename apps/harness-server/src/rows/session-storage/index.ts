@@ -9,6 +9,10 @@
 // session-storage-sql 的 `unavailable`（`unregisteredTenantIsAbsent`）。
 // 发布服务前确认持久目录中每个租户的本次组合登记；失败或撤除时不发布。
 // 游标签名按调用现取 `sessionCursorSigning`（IC-9），不在 inject 里；入口对象缺席时五种读答 `unavailable`。
+// 提交通知：会话日志只有一个写入者，它在 session-storage-sql 的落点把每一批新写出的条目报给登记在本库上的通知接口。
+// 本行发布服务之前用 session-cordis 的 `createSessionCommitNotifier` 在自己的存储上登记一个（在本行的 Context 上派发
+// `session-cordis-contract/committed`，现取可选的 `sessionNotifier` 转交），行卸载或停止时注销。`agent-journal` 行注入
+// 同一个 `storage`，所以 Agent 日志提交里的会话参加写出的批也报到这里。清单不变：不新增提供或依赖的键。
 // 部署枚举 `tenantDomains.enumerate` 每次调用都按调用现取受信键 `systemActionAuthorization`（`authorization` 行提供，
 // R2-D245），由它按发行授予表与运维者的收回、到期判断；本行不持有授予表。键缺席或答 `unavailable` 时枚举答
 // `unavailable`，不放行。
@@ -39,10 +43,12 @@ import {
   sessionScopeOwnersKey,
   sessionTransactionsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
+import { createSessionCommitNotifier } from '@omne-harness/session-cordis/cordis'
 import {
   createSessionPrincipalBindings,
   createSessionScopeOwners,
   createSessionStorage,
+  registerSessionNotifier,
   type SessionStorageOptions,
 } from '@omne-harness/session-storage-sql'
 import type {
@@ -397,6 +403,8 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
       throw new Error('session storage: current combination registration failed')
   }
   if (!isOpen()) throw new Error('session storage: stopped before publishing services')
+  const unregister = registerSessionNotifier(storage, createSessionCommitNotifier(ctx))
+  ctx.effect(() => unregister, 'session-storage.notices')
   const base: SessionStorageOptions<unknown> = {
     intakeLimits: config.intakeLimits,
     storage,
@@ -433,6 +441,7 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   return {
     stop: deadline => {
       active = false
+      unregister()
       // 两个读口记住了已成立的归属，不再读存储，所以关闭要显式告诉它们：此后一律答 `unavailable`。
       bindings.stop()
       scopeOwners.stop()

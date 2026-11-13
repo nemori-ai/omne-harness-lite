@@ -68,6 +68,7 @@ import {
 } from '../src/cordis/context-holder.ts'
 import type { RecordedCommit } from '../src/cordis/context-holder.ts'
 import { createSessionRuntimeContextTrust } from '../src/runtime-context-trust.ts'
+import { TOLD_BATCHES } from './fixtures/told-batches.ts'
 
 // --- values --------------------------------------------------------------------------------------
 
@@ -802,6 +803,18 @@ describe('the replay sub-plugin is the only caller of applyCommit', () => {
       { ...later, after: { commit: 's3' } },
       { ...next, after: { commit: 'r4' } },
     ])
+  })
+
+  it('the batches every committer now tells do no work: no record read, a seen session not indexed again', async () => {
+    const f = await assembled()
+    seedA(f)
+    await f.committed(A, ['message.user', 'intake.routed'])
+    expect(scopeReadsOf(f.factsHistoryCalls)).toBe(1)
+    const reads = f.factsHistoryCalls.length
+    for (const kinds of TOLD_BATCHES) await f.committed(A, kinds)
+    expect(f.methods()).toEqual([])
+    expect(f.replayCalls).toEqual([])
+    expect(f.factsHistoryCalls).toHaveLength(reads)
   })
 
   it('ignores a notice whose kinds hold no context record', async () => {

@@ -319,6 +319,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['requestContext', 'contextAccountingInbox'],
   },
   'runtime-context': { provides: ['runtimeContext'], injects: ['runtimeContextTrust'] },
+  'session-observation': {
+    provides: ['sessionObservation'],
+    injects: ['session', 'modelStreamReferences', 'modelStreamObservation'],
+  },
   'server-entry': {
     injects: [
       'session',

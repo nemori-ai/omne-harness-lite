@@ -204,7 +204,13 @@ describe('the new address keeps the proof, the tenant text and the body out of e
         body: note,
       }),
     )
+    // The observation hub (#1249): a frame source that throws at its decision, with the proof and
+    // the body in its error text.
+    entry.notes.sources['watch-note'] = async () => {
+      throw new Error(`frame source fault ${PROOF} ${bodyMarker}`)
+    }
     await ask('watch-note', { body: note })
+    delete entry.notes.sources['watch-note']
     // Steps 7 to 9.
     await ask('read-note', { headers: { 'omne-message-id': undefined }, body: note })
     await ask('save-note', { headers: { authorization: `Bearer ${PROOF}-revoked` }, body: both })
@@ -287,7 +293,7 @@ describe('the new address keeps the proof, the tenant text and the body out of e
         'access.host-rejected',
         'access.content-type-rejected',
         'access.not-mounted',
-        'access.observation-not-served',
+        'access.frame-source-fault',
         'access.message-id-rejected',
         'access.identity-denied',
         'access.identity-unavailable',

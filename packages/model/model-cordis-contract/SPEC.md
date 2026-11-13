@@ -8,7 +8,7 @@
 
 M-2 保持旧插件、现有 Runtime、凭据服务及观察消费的必需形状。只有已采用独立端口存在真实安装消费者时，才增加相应可选装配面；没有消费需求时不造空服务。含公共 Access 的声明与导入仍须满足[身份消费门槛](../model-contract/SPEC.md#推送与公共观察的交付边界)，不能在本包复制候选身份、用 Context 产生业务资格或提前要求宿主安装候选服务。
 
-具名例外：`ModelStreamReferencesService<P>` 与 `ModelStreamObservationService<P>` 现在提供抽象定义、唯一键和可选 Context 成员，只从 `./cordis` 导出。它们分别引用纯契约的 `current` 与 `observe`，不复制业务签名。两个服务已在正式装配里安装（服务端应用的 `model-host` 行，#1214）；消费者是会话观察，这个成员还没有建，在它建成之前只有测试与演示脚本使用。每次调用须带观察者自己的 `Access`，提供者逐次核验观察资格，沿纯契约的公共观察规则执行。
+具名例外：`ModelStreamReferencesService<P>` 与 `ModelStreamObservationService<P>` 现在提供抽象定义、唯一键和可选 Context 成员，只从 `./cordis` 导出。它们分别引用纯契约的 `current` 与 `observe`，不复制业务签名。两个服务已在正式装配里安装（服务端应用的 `model-host` 行，#1214）；消费者是会话观察：服务端应用的 `session-observation` 行注入这两个服务（[会话观察的 Cordis 页](../../session/session-observation/docs/cordis.md)）。每次调用须带观察者自己的 `Access`，提供者逐次核验观察资格，沿纯契约的公共观察规则执行。
 
 真实装配安装唯一选定的接收、证据或观察提供者，并显式传递主体、租户和冻结关联。目录命中、Service 注入及解析成功都不授予保存、观察、交接或发送权限。依赖撤除只能撤登记和停止相应新取得，原保存、未知提交、结果保管、晚账及清理责任继续由其拥有者接续，不能用 disposer 声称完成业务交接。
 

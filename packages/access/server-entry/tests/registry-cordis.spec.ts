@@ -1,12 +1,19 @@
 // On real Cordis 4.0.4, unloading the plugin that mounted a contribution is the take-down: the
 // protocol leaves the registry at once and the unload waits for the last in-flight call. No double.
-import { Context, type Fiber } from '@deepseek-ai/cordis'
+import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
+import { defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
+import type { AccessDiagnostic } from '../src/index.ts'
 import { AccessRegistryProvider } from '../src/registry/cordis.ts'
 import { settleCall } from '../src/settle/settle.ts'
 import { manualClock } from './support/manual-clock.ts'
-import { NOTES, notesContribution, type NotesProtocol } from './support/test-contribution.ts'
+import {
+  NOTES,
+  notesContribution,
+  notesProtocol,
+  type NotesProtocol,
+} from './support/test-contribution.ts'
 
 const limits = {
   maxBytes: 4096,
@@ -133,5 +140,113 @@ describe('the registry on real Cordis', () => {
     })
     await plugin?.dispose()
     expect(changes).toEqual(['1 mounted notes', '2 unmounted notes'])
+  })
+})
+
+/** A domain service the access plugin takes at each call; it comes and goes on its own. */
+class NoteStore extends Service {
+  readonly title = 'stored'
+  constructor(ctx: Context) {
+    super(ctx, 'noteStore')
+  }
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    noteStore: NoteStore
+  }
+}
+
+const notesAccess = defineAccessPlugin({
+  name: 'notes-access',
+  protocol: notesProtocol(),
+  handlers: provide => ({
+    ...notesContribution('unused'),
+    operations: {
+      ...notesContribution('unused').operations,
+      'read-note': async (_call, body) => {
+        const store = provide('noteStore')
+        if (store === undefined) return { outcome: 'basis-unavailable' }
+        return { outcome: 'succeeded', body: { noteId: body.noteId, title: store.title } }
+      },
+    },
+  }),
+})
+
+describe('defineAccessPlugin on real Cordis (C11)', () => {
+  async function readNote(registry: AccessRegistryProvider): Promise<unknown> {
+    const entered = registry.enter(NOTES, 'read-note')
+    if (entered?.member.kind !== 'operation') return 'not mounted'
+    const answer = await entered.member.handler(
+      { principal: undefined, messageId: 'm', signal: entered.signal },
+      { noteId: 'n-1' },
+    )
+    entered.leave()
+    return answer
+  }
+
+  it('mounts while loaded, takes the domain service at each call, and comes off when unloaded', async () => {
+    const root = new Context()
+    await root.plugin(AccessRegistryProvider)
+    const registry = (root.accessRegistry as unknown as AccessRegistryProvider).registry
+    const provider = root.accessRegistry as unknown as AccessRegistryProvider
+    const mounted = (): string[] =>
+      provider.subscribe(() => {}).protocols.map(key => `${key.name}/v${key.major}`)
+    let plugin: Fiber | undefined
+    await root.plugin({
+      name: 'notes-access-host',
+      apply(ctx: Context) {
+        plugin = ctx.fiber
+        ctx.plugin(notesAccess)
+      },
+    })
+    await flush()
+    expect(mounted()).toEqual(['notes/v1'])
+    // The domain service is not there: the call answers basis-unavailable, the protocol stays.
+    expect(await readNote(provider)).toEqual({ outcome: 'basis-unavailable' })
+    let store: Fiber | undefined
+    await root.plugin({
+      name: 'note-store-host',
+      apply(ctx: Context) {
+        store = ctx.fiber
+        ctx.plugin(NoteStore)
+      },
+    })
+    await flush()
+    expect(await readNote(provider)).toEqual({
+      outcome: 'succeeded',
+      body: { noteId: 'n-1', title: 'stored' },
+    })
+    await store?.dispose()
+    expect(await readNote(provider)).toEqual({ outcome: 'basis-unavailable' })
+    expect(mounted()).toEqual(['notes/v1'])
+    await plugin?.dispose()
+    expect(mounted()).toEqual([])
+    expect(registry.enter(NOTES, 'read-note')).toBeUndefined()
+  })
+
+  it('leaves one access.listener-fault diagnostic when a subscriber throws, and keeps the registry', async () => {
+    const root = new Context()
+    const diagnostics: AccessDiagnostic[] = []
+    await root.plugin(AccessRegistryProvider, { diagnostics: event => diagnostics.push(event) })
+    const provider = root.accessRegistry as unknown as AccessRegistryProvider
+    provider.subscribe(() => {
+      throw new Error('listener failed')
+    })
+    const changes: number[] = []
+    provider.subscribe(change => changes.push(change.revision))
+    await root.plugin({
+      name: 'notes-access',
+      inject: ['accessRegistry'],
+      apply(ctx: Context) {
+        ctx.accessRegistry.mount(notesContribution('first'))
+      },
+    })
+    expect(diagnostics).toEqual([{ code: 'access.listener-fault' }])
+    expect(changes).toEqual([1])
+    expect(await readNote(provider)).toEqual({
+      outcome: 'succeeded',
+      body: { noteId: 'n-1', title: 'first' },
+    })
   })
 })

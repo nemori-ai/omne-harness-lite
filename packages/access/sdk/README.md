@@ -15,6 +15,7 @@ Implemented:
 - `parseTenantText`, `tenantText`, the identity text functions for organization, account, and login, and `userTextMessage`.
 - Automatic resend, once, only when the transport proves that no request byte was sent.
 - The types of the `read-session-diagnostics` page (`SessionDiagnosticsPage`, `SessionRunDiagnostic`, `SessionDiagnosticGap` and their parts), passed through from the public contract. The session client sends the operation with `submit`, as it sends the other seven. A caller reads the `body` of a success in these types.
+- The client core at the subpath `@omne-harness/sdk/core`: `createClient` turns one protocol contract and one transport into a typed client for the new address `/api/<protocol>/v<major>/<name>`, with operations and observations. It adds two local outcomes, `unavailable` and `uncertain`, and has an HTTP transport and an in-process transport. It imports no Node module and compiles for a browser. See [SPEC.md](SPEC.md#客户端核心).
 - The HITL request and card view types (`HitlRequest`, `HitlCardFilter`, `HitlCardPage`, `HitlCardItem` and their parts), passed through from the public contract. The session entry and the to-do pool are both `list-cards`. A caller tells them apart with the `sessionRef` of `filter`. The SDK keeps no card view in a cache.
 
 Not implemented:

@@ -63,7 +63,7 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 
 | 阶段 | 本插件做什么 | 依据 |
 | --- | --- | --- |
-| 装载 | 静态 `Config` 校验配置；`inject` 的五项都在场后插件体运行；捕获本插件 Context；构造端口代理与组合通知者；调用工厂；用 `ctx.on` 监听提交通知 | 性质 2 至 5 |
+| 装载 | 静态 `Config` 校验配置；`inject` 的五项都在场后插件体运行；捕获本插件 Context；构造端口代理；调用工厂；用 `ctx.on` 监听提交通知 | 性质 2 至 5 |
 | 运行 | 面调用经调用方类核对后转给实例；每条提交通知交给实例，并为新见到的租户绑定扫描者 | 性质 5 至 7 |
 | 其他端口换代 | 插件体不重跑。下一次调用现取到新提供者 | 性质 10 |
 | `inject` 的任一项换代 | 插件体先卸载再重跑：旧实例按撤除顺序停止，新实例重新构造 | 性质 10 |
@@ -81,17 +81,18 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 
 ## 提交通知的派发与订阅
 
-本成员是事件 `session-cordis-contract/committed` 的派发方。事件的名称、模式 `parallel` 与载荷归定义成员（[事件](../../session-cordis-contract/docs/cordis.md#事件)）。
+事件 `session-cordis-contract/committed` 的名称、模式 `parallel` 与载荷归定义成员（[事件](../../session-cordis-contract/docs/cordis.md#事件)）。会话日志只有一个写入者，提交通知从它的唯一落点报出（session-storage-sql 的[本批与提交通知](../../session-storage-sql/SPEC.md#本批与提交通知)）：落点在每一批新写出之后，调用登记在该库上的每个 `SessionNotifier`。本插件不派发这个事件，只监听它。
 
-派发：工厂在每次提交确认耐久后，现取 `notifier` 并调用 `committed`（[CP-01](../../session/SPEC.md#cp-01) 第 6 步、[CP-02](../../session/SPEC.md#cp-02) 第 6 步）。本插件交给工厂的组合通知者做三件事：
+派发：本成员从 `./cordis` 导出 `createSessionCommitNotifier(ctx)`，它给一个 Context，返回一个 `SessionNotifier`。应用装配的 `session-storage` 行用它造一个通知接口，登记在自己的存储上，行卸载时注销。这个通知接口每被调用一次做两件事：
 
-1. 用本插件 Context 的 `parallel` 派发事件，载荷取自本次回执。不在提交路径上等待监听者。派发返回的 Promise 在 `await` 外捕获失败，包括 `AggregateError`，只记录诊断（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。
-2. 现取 `sessionNotifier`。存在时把同一载荷转发给它，例如由应用装配接上的跨进程转发。失败只记录诊断。
-3. 为载荷里的租户绑定扫描者，见[扫描者绑定](#扫描者绑定)。
+1. 用给定 Context 的 `parallel` 派发事件一次，五个参数按序取自载荷。不等待监听者。派发返回的 Promise 在 `await` 外捕获失败，包括 `AggregateError`，只记录 `session-notifier` 的诊断（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。
+2. 现取可选的 `sessionNotifier`。它存在时把同一份载荷转交给它，例如由应用装配接上的跨进程转发。失败只记录诊断。
 
-订阅：本插件用 `ctx.on` 监听同一事件，把载荷交给实例的 `committed`，并为载荷里的租户绑定扫描者。外来的通知来自别的进程经 `sessionNotifier` 一侧的转发重新派发，或来自同进程的其他派发方。本插件自己派发的通知可以按载荷对象的身份跳过，因为实例已在本地唤醒。跳过只是优化。通知可以丢失、重复或合并，都不改变事实，权威状态由扫描补查（[EC-11](../../session-contract/SPEC.md#ec-11)）。
+通知接口没有状态，不去重，不缓存，不重试，也不抛出。
 
-监听者同步执行，不返回 Promise。监听者内部捕获失败，只记录诊断。撤除开始后，监听者不再把通知交给实例。
+订阅：本插件用 `ctx.on` 监听同一事件。每收到一条通知，正在撤除就不理；否则把载荷交给实例的 `committed`，并为载荷里的租户绑定扫描者，见[扫描者绑定](#扫描者绑定)。绑定扫描者放在监听者里，所以无论哪个提交方写出的批，租户都在第一条通知到达时绑定。本实例自己的命令写出的批也经这条路径到达，实例在本地唤醒之外再被叫醒一次。叫醒只读，不提交日志没有要求的东西。通知可以丢失、重复或合并，都不改变事实，权威状态由扫描补查（[EC-11](../../session-contract/SPEC.md#ec-11)）。
+
+监听者同步执行，不返回 Promise。监听者内部捕获失败，只记录诊断。
 
 ## 扫描者绑定
 
@@ -120,12 +121,12 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 
 | 在途情形 | 结果 | 谁接着做 |
 | --- | --- | --- |
-| 提交在撤除期间确认 | 调用方得到回执。不发通知 | 下一个实例的扫描按待办找回后续工作 |
+| 提交在撤除期间确认 | 调用方得到回执。这一批的通知不再交给实例 | 下一个实例的扫描按待办找回后续工作 |
 | 提交未确认，或事务端口已离开 | 调用方得到 `commit-unknown` 或 `unavailable`，不改写为成功或失败 | 调用方以同一操作身份重试或调用 `queryOperation` |
 | 等待超过 `disposeWaitMs` | 本插件返回，记录诊断。命令仍以上两行之一结束 | 同上两行 |
 | 提交后、出站调用前 | 出站调用不发出 | 重启或换代后的 S3 找回并以同一身份重放 |
 
-撤除不回滚已提交的事实，不补发未发出的出站调用，不发通知，不取消任何 Model、Tool、Agent 执行或子会话。外部效果不因 disposer 运行而变得可撤回。
+撤除不回滚已提交的事实，不补发未发出的出站调用，不把通知交给实例，不取消任何 Model、Tool、Agent 执行或子会话。外部效果不因 disposer 运行而变得可撤回。
 
 ## 登记与撤除
 
@@ -138,12 +139,12 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 | 规则 | 本成员怎样符合 | 现在的证据 |
 | --- | --- | --- |
 | [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次 | 子类 `extends SessionService`，不写键，不自己 `ctx.provide` | [provider.ts](../src/provider.ts)；[provider-load.spec.ts](../tests/provider-load.spec.ts) 核验服务出现与消失 |
-| [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关 | 根入口不导出任何东西。独立宿主从 session 取工厂 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出；[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言 `./cordis` 只导出 `SessionProvider` |
+| [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关 | 根入口不导出任何东西。独立宿主从 session 取工厂 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出；[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言 `./cordis` 只导出 `SessionProvider`、`createSessionProviderPlugin` 与 `createSessionCommitNotifier` |
 | [IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5) 消费者不依赖提供者 | 调用方插件只依赖服务定义。本成员不被任何包导入 | 没有包导入本成员；测试里的调用方插件只读服务键 |
 | [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 重复装载在 `provide` 时失败 | [provider-load.spec.ts](../tests/provider-load.spec.ts)：第二份 `FAILED`，第一份继续服务 |
 | [IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)、[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 必需与可选依赖 | 只 `inject` 访问检查、委派事务入口、内部主体、会话工作主体与装配生命周期；其余端口用本插件 Context 现取；不跨调用持有端口引用 | [provider-load.spec.ts](../tests/provider-load.spec.ts)、[provider-ports.spec.ts](../tests/provider-ports.spec.ts)。私有键 `s0.assemblyLifecycle` 是偏离，见上 |
-| [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件 | 派发定义成员声明的 `committed`，本成员不增补 `Events` | [provider-notice.spec.ts](../tests/provider-notice.spec.ts) |
-| [IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12) 通知的失败处理 | `parallel` 的失败在 `await` 外捕获；监听者同步执行；失败只记录诊断 | [provider-notice.spec.ts](../tests/provider-notice.spec.ts)：监听者抛出与 `sessionNotifier` 失败都不改回执 |
+| [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件 | `createSessionCommitNotifier` 造的通知接口派发定义成员声明的 `committed`，本成员不增补 `Events`；插件只监听 | [commit-notifier.spec.ts](../tests/commit-notifier.spec.ts)、[provider-notice.spec.ts](../tests/provider-notice.spec.ts) |
+| [IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12) 通知的失败处理 | `parallel` 的失败在 `await` 外捕获；监听者同步执行；失败只记录诊断 | [commit-notifier.spec.ts](../tests/commit-notifier.spec.ts)：监听者抛出与 `sessionNotifier` 失败都只记录诊断，通知接口不抛出 |
 | [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 不定义登记。自己的效应落在本插件 fiber 上 | 不适用 |
 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) 配置校验 | 静态 `Config` 用 Standard Schema；间隔、上限、退避与撤除等待是配置字段，默认值只是初值 | [config.ts](../src/config.ts)；[provider-load.spec.ts](../tests/provider-load.spec.ts)：九种配置错误各自 `FAILED` |
 | [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 运行对象不进树 | 主体与受理槽经服务提供，不进配置 | 主体经服务键 `sessionPrincipals` 提供。受理槽的服务键未定义，见 SPEC 的明确缺项 |
@@ -173,8 +174,8 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 2. 其他端口逐个缺席只影响需要它的操作，到场后插件体不重跑。
 3. 端口抛出时返回 `unavailable`。
 4. 调用方类的两层核对。
-5. 提交通知的派发、载荷与失败隔离。
-6. 外来通知唤醒实例，每租户只绑定一个扫描者，失败后再试。
+5. 通知接口的派发、载荷与失败隔离；插件自己不派发。
+6. 通知唤醒实例，每租户只绑定一个扫描者，失败后再试。
 7. 配置错误 `FAILED`，重复装载失败。
 8. 撤除顺序与在途提交的收场。
 9. `inject` 的任一项换代后的接管与并存时的认回。

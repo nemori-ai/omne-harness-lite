@@ -408,7 +408,14 @@ export type SseClient = Readonly<{
   close(): void
 }>
 
-export function openSse(port: number, body: string): SseClient {
+export type SseOptions = Readonly<{
+  /** Absent: the session location. */
+  path?: string
+  /** Sent besides `content-type` and `content-length`. */
+  headers?: Readonly<Record<string, string>>
+}>
+
+export function openSse(port: number, body: string, options: SseOptions = {}): SseClient {
   const chunks: string[] = []
   let resolveStatus: (status: number) => void = () => {}
   let resolveHeaders: (headers: IncomingMessage['headers']) => void = () => {}
@@ -428,8 +435,12 @@ export function openSse(port: number, body: string): SseClient {
       host: '127.0.0.1',
       port,
       method: 'POST',
-      path: SESSION_PATH,
-      headers: { 'content-type': 'application/json', 'content-length': String(bytes.byteLength) },
+      path: options.path ?? SESSION_PATH,
+      headers: {
+        'content-type': 'application/json',
+        'content-length': String(bytes.byteLength),
+        ...options.headers,
+      },
     },
     res => {
       resolveStatus(res.statusCode ?? 0)

@@ -437,6 +437,12 @@ export async function openW2World(options: W2Options) {
   let roundsComplete = 0
   const answeredTerminals = new Set<string>()
   /**
+   * Every Run the Agent ended, in the order its end was committed, with the execution and the
+   * outcome: a case reads one Run by its identity, not the latest, since a commit notice can wake
+   * Session into the next Run before the case looks (#1248).
+   */
+  const endedRuns: { run: string; execution: AgentExecutionId; outcome: string }[] = []
+  /**
    * The receivers write through their own Journal copy, so the plugin's event stream does not wake the
    * Agent; it picks a saved result up at its reconciliation check (CP3). The doubles move the manual
    * Agent clock past one check right after each saved result: the trigger is the save, not a timer.
@@ -542,11 +548,17 @@ export async function openW2World(options: W2Options) {
         if (commit === undefined) throw new Error('the Session transactions offer no commitLog')
         const answer = await commit.call(port, value)
         counters.ad02Commit('ok' in answer)
-        if (
-          'ok' in answer &&
-          value.observation.consequences.some(consequence => consequence.kind === 'ended')
+        const ended = value.observation.consequences.find(
+          consequence => consequence.kind === 'ended',
         )
+        if ('ok' in answer && ended !== undefined) {
           answeredTerminals.add(String(value.observation.run))
+          endedRuns.push({
+            run: String(value.observation.run),
+            execution: executionOf(value.observation.execution),
+            outcome: ended.outcome,
+          })
+        }
         return answer
       },
     }),
@@ -979,6 +991,8 @@ export async function openW2World(options: W2Options) {
     roundCompletes: () => roundsComplete,
     lastTerminal,
     lastOutcome,
+    endedRuns: (): readonly { run: string; execution: AgentExecutionId; outcome: string }[] =>
+      endedRuns,
     progress,
     modelReferences,
     runRound,

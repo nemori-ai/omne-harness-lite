@@ -122,7 +122,7 @@ packages/
 │   ├── session-cordis/         长期服务的 Cordis 装配，不含存储后端
 │   ├── session-adapters/       与邻域契约的适配插件
 │   ├── session-storage-sql/    会话日志与治理状态的 SQL 存储
-│   ├── session-observation/    产出会话观察的集成成员，认识会话契约与模型契约（未建）
+│   ├── session-observation/    产出会话观察的集成成员，认识会话契约与模型契约
 │   ├── session-protocol/       公开协议 session/v1 的协议契约，纯数据（未建）
 │   ├── session-access/         session/v1 的接入插件（未建）
 │   ├── session-diagnostics-protocol/  公开协议 session-diagnostics/v1 的协议契约（未建）
@@ -307,9 +307,9 @@ assets维护共同治理，具体类别维护专有定义与业务。共同治�
 access把每个领域都要用的那部分接入知识就近组织。它不拥有任何领域的操作。
 
 - public-contract 拥有公开契约的共同部分：逻辑消息的信封、对外结果、判断次序、协议契约的类型，以及内置协议。它是纯数据，没有 Cordis、存储与 Node 专有的依赖。
-- access-cordis-contract 拥有接入贡献的类型和登记表的 Cordis 服务定义。领域的接入插件在 access 组里只依赖它和 public-contract，不依赖 server-entry。它自己只依赖 public-contract 与 Cordis，依赖方向的门禁 `access-cordis-contract-only-contract-and-cordis` 守这一条。`defineAccessPlugin` 还没有建。
-- server-entry 是服务端入口：承载绑定、管道、登记表、观察中枢。它的依赖里没有任何领域的契约。目前已建的是登记表、收场与管道（`src/registry/`、`src/settle/`、`src/pipeline/`）。管道把登记表接到新地址上，只对操作，前提是构造入口时给了登记表与身份端口；正式的服务端应用还没有给。这三个目录不导入任何领域的成员，也不导入入口现有三个位置的文件，门禁 `entry-registry-knows-no-domain` 守这一条。入口现有的三个位置仍依赖各领域的契约，见[系统分层](architecture/layers-and-dependencies.md#现行偏离)「现行偏离」。
-- `sdk` 成员是客户端核心：给它一份协议契约和一个传输，得到带类型的方法。它只依赖 public-contract，不依赖 Cordis。
+- access-cordis-contract 拥有接入贡献的类型和登记表的 Cordis 服务定义。领域的接入插件在 access 组里只依赖它和 public-contract，不依赖 server-entry。它自己只依赖 public-contract 与 Cordis，依赖方向的门禁 `access-cordis-contract-only-contract-and-cordis` 守这一条。它的 `./cordis` 入口提供 `defineAccessPlugin`：领域写一份接入贡献，得到一个 Cordis 插件，插件加载时把协议挂上登记表，卸载时撤下。
+- server-entry 是服务端入口：承载绑定、管道、登记表、观察中枢。它的依赖里没有任何领域的契约。目前已建的是登记表、收场、管道、观察中枢与可用性（`src/registry/`、`src/settle/`、`src/pipeline/`、`src/observation-hub/`、`src/availability/`）。管道把登记表接到新地址上，操作与观察都走它，前提是构造入口时给了登记表与身份端口；正式的服务端应用给了这两样，登记表上只挂着内置协议 `access/v1`。这五个目录不导入任何领域的成员，也不导入入口现有三个位置的文件，门禁 `entry-registry-knows-no-domain` 守这一条。入口现有的三个位置仍依赖各领域的契约，见[系统分层](architecture/layers-and-dependencies.md#现行偏离)「现行偏离」。
+- `sdk` 成员的子入口 `./core` 是客户端核心：给它一份协议契约和一个传输，得到带类型的方法。客户端核心只依赖 public-contract、json-text 与 eventsource-parser，不依赖 Cordis，也不导入 Node 专有的模块，能在浏览器里用；门禁 `sdk-core-stays-portable` 守这一条。`sdk` 的根入口仍是入口现有三个位置的适配。
 - client-assembly 是客户端装配：一棵 Cordis 树上的连接与协议客户端。它只比 `sdk` 成员多依赖 Cordis。
 
 `sdk` 与 client-assembly 两个成员合起来，是[系统分层](architecture/layers-and-dependencies.md#各层职责)说的客户端 SDK 那一层。
@@ -385,9 +385,9 @@ Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Ag
 | Model 契约               | 按职责需要的公共值与窄端口       | 不依赖 Session、Agent 领域职责                                                     |
 | Tool 契约                | 按职责需要的公共值与窄端口       | 不依赖 Session、Agent 领域职责                                                     |
 
-本表不改变各组内部成员分工。Session 组只有 session-adapters 导入邻域契约；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
+本表不改变各组内部成员分工。Session 组导入邻域契约的只有 session-adapters 与 session-observation，后者只导入 Model 契约与 Model 的 Cordis 定义；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
 
-下面这一段写的是会话观察按上一版设计要有的依赖边。入口的代码里现在没有它们：入口没有导入 `stream-arrival`，对 `model-contract` 只有会话诊断用的类型导入。按 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)，会话观察是会话一侧的集成成员，这两条边归它，不归入口；那个成员建成时改这一段和约束登记。上一版设计里，access 组的 server-entry 为会话观察另有两条成员级依赖边：`server-entry -> model-contract` 只调用 `ModelStreamReferences.current`，`server-entry -> stream-arrival` 只调用 `StreamObserver.observe`。两条边都不导入实现，public-contract 不依赖这两个成员。access 组依赖边的唯一来源是公开契约的[三个成员](../packages/access/public-contract/SPEC.md#三个成员)。
+会话观察的依赖边归 session 组的 session-observation，不归接入组（[RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)）。它有两条跨组的成员级边：`session-observation -> model-contract` 只用公共流的两个读取面 `ModelStreamReferences.current` 与 `ModelStreamObservation.observe` 的类型，`session-observation -> model-cordis-contract` 只用这两个面的服务键。两条边都不导入实现，也不导入接入组的任何成员；后一条由约束登记的方向行 `DIR-SESSION-OBSERVATION-ACCESS` 守。
 
 同一能力的 Cordis 定义入口保持相同依赖方向，不能以服务键、Context/Events 增补或 `import type` 重新引入纯契约禁止的耦合。类型导入、重导出、跨成员相对路径和公开子路径分别核对。实际约束以所引用成员的身份与责任判断，不按名称含有 Session 或 Agent 一词作结论。
 
@@ -465,7 +465,7 @@ Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 wor
 
 ## Session 的安装边界
 
-Session 按纯契约、Cordis 定义、通用实现、具体装配、邻域适配和存储介质分为六个 workspace 成员。session-adapters 另取 session-storage-sql 的公开子路径 `./participants`，只读参加者模块与迁移片段的词汇，用于在同一个事务域登记会话日志的组合。该子路径不导出提供者实现，依赖方向仍从邻域适配指向存储介质，不反向。运行入口与 Service 尚未实现，技术接受范围沿各自 SPEC。工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口、出站端口接口与领域操作归纯契约。session-cordis 只装配长期 Session 服务，不引入 Session runtime、实例目录或固定数据库。session-adapters 承接与六个邻域相接的全部适配插件，是组内唯一导入邻域契约的成员，依赖纯契约、Cordis 定义与邻域契约。session-storage-sql 提供事务端口的 SQL 实现，依赖纯契约与存储契约，不承担治理判断。详细成员关系见 [Session 组](../packages/session/README.md)。
+Session 按纯契约、Cordis 定义、通用实现、具体装配、邻域适配、会话观察和存储介质分为七个 workspace 成员。session-adapters 另取 session-storage-sql 的公开子路径 `./participants`，只读参加者模块与迁移片段的词汇，用于在同一个事务域登记会话日志的组合。该子路径不导出提供者实现，依赖方向仍从邻域适配指向存储介质，不反向。运行入口与 Service 尚未实现，技术接受范围沿各自 SPEC。工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口、出站端口接口与领域操作归纯契约。session-cordis 只装配长期 Session 服务，不引入 Session runtime、实例目录或固定数据库。session-adapters 承接与六个邻域相接的全部适配插件，依赖纯契约、Cordis 定义与邻域契约。session-observation 是产出会话观察的集成成员，只读会话的日志读取面与 Model 的公共流，除 session-adapters 外只有它导入邻域契约（Model）。session-storage-sql 提供事务端口的 SQL 实现，依赖纯契约与存储契约，不承担治理判断。详细成员关系见 [Session 组](../packages/session/README.md)。
 
 ## Skill 与 MCP 的成员边界
 

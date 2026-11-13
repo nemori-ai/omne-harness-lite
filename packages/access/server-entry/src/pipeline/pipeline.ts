@@ -1,26 +1,41 @@
 // The pipeline of the new address `/api/<protocol>/v<major>/<name>`: steps 1 to 9 of RFC-0015 §5
-// 判断次序, then `settleCall` for steps 10 to 14. It knows no domain and none of the three existing
+// 判断次序, then by kind: an operation goes to `settleCall` for steps 10 to 14, an observation to
+// the observation hub (#1249 spec 已定 3). It knows no domain and none of the three existing
 // locations: the registry, the identity port and the grace come in as `access`, and the values of
 // the deployment configuration come from `http.ts` as `PipelineSettings`.
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AccessIdentity, LoginIdentity } from '@omne-harness/access-cordis-contract'
 import { readJsonBytes, type JsonLimits } from '@omne-harness/json-text'
-import type { OperationContract } from '@omne-harness/public-contract'
-import type { Entered, RegistryForPipeline } from '../registry/registry.ts'
+import type { Codec, OperationContract } from '@omne-harness/public-contract'
+import {
+  createObservationHub,
+  type HubDiagnosticCode,
+  type ObservationHub,
+} from '../observation-hub/hub.ts'
+import type { LoginCheck } from '../observation-hub/records.ts'
+import type { AccessRegistry, Entered, RegistryForPipeline } from '../registry/registry.ts'
 import { settleCall, systemClock, type Clock } from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
 import { EMPTY_BODY, writeAnswer, writeBare } from './answer.ts'
 import { readBody } from './body.ts'
 import { contentTypeAccepted, countHeader, hostAccepted } from './headers.ts'
-import { establish, type Established } from './identity-rule.ts'
+import { establish, type Established, type SignedIn } from './identity-rule.ts'
 import { watchCall, type CallWatch, type Interruption } from './watch.ts'
 
 /** What turns the new address on. The three come together; without them `/api/...` answers 404. */
 export type PipelineAccess = Readonly<{
-  registry: RegistryForPipeline
+  /** The pipeline enters and subscribes; the entry mounts `access/v1` on it at start (spec 已定 8). */
+  registry: AccessRegistry
   identity: AccessIdentity
   /** How long a handler may run after the abort before the entry answers for it (`SettleConfig`). */
   graceMs: number
+  /** The upper bound of the bytes of one observation's frames not yet written out (spec 已定 6). */
+  frameQueueBytes: number
+  /**
+   * The most change frames one availability subscriber may have waiting; one more and they collapse
+   * into a snapshot (spec 已定 9). Counted in frames.
+   */
+  availabilityBacklog: number
   /** The clock of the grace. Absent: the system clock. */
   clock?: Clock
   /**
@@ -43,7 +58,6 @@ export type PipelineDiagnosticCode =
   | 'access.host-rejected'
   | 'access.content-type-rejected'
   | 'access.not-mounted'
-  | 'access.observation-not-served'
   | 'access.busy'
   | 'access.message-id-rejected'
   | 'access.identity-denied'
@@ -53,15 +67,18 @@ export type PipelineDiagnosticCode =
   | 'access.body-rejected'
   | 'access.aborted'
   | 'access.caller-gone'
+  | 'access.listener-fault'
   | 'access.report-fault'
+  | HubDiagnosticCode
 
 /**
  * One event at an error point of the pipeline: its code, the path, and the protocol and operation
  * when they are known. Never a header value, a body, an answer, a principal or an error text.
+ * `access.listener-fault` comes from the registry's provider, not from a request, and has no path.
  */
 export type PipelineDiagnostic = Readonly<{
   code: PipelineDiagnosticCode
-  path: string
+  path?: string
   protocol?: string
   major?: number
   operation?: string
@@ -78,6 +95,10 @@ export type PipelineSettings = Readonly<{
   /** The budgets for writing an answer. */
   writeLimits: JsonLimits
   slots: RequestSlots
+  /** The observation bounds of the deployment: per login and per instance. */
+  observations: Readonly<{ perLogin: number; perInstance: number }>
+  /** The SSE heartbeat interval; one login check of an observation per interval. */
+  heartbeatMs: number
 }>
 
 export type Admission =
@@ -88,7 +109,7 @@ export type Admission =
       path: string
       address?: Address
     }>
-  | Readonly<{ kind: 'entered'; address: Address; entered: Entered; contract: OperationContract }>
+  | Readonly<{ kind: 'entered'; address: Address; entered: Entered }>
 
 /**
  * Steps 1 to 5, one synchronous function: nothing between looking the protocol up and entering
@@ -115,12 +136,7 @@ export function admit(
   if (!contentTypeAccepted(req)) return refused(415, 'access.content-type-rejected')
   const entered = registry.enter({ name: address.protocol, major: address.major }, address.name)
   if (entered === undefined) return refused(404, 'access.not-mounted')
-  if (entered.member.kind !== 'operation') {
-    // Observations come with the observation hub; until then their address answers 404.
-    entered.leave()
-    return refused(404, 'access.observation-not-served')
-  }
-  return { kind: 'entered', address, entered, contract: entered.member.contract }
+  return { kind: 'entered', address, entered }
 }
 
 /** The event of one error point: the path, and the protocol and operation once the path names them. */
@@ -148,14 +164,23 @@ type BodyOutcome =
   | Readonly<{ kind: 'rejected' }>
   | Readonly<{ kind: 'interrupted'; by: Interruption }>
 
-/** Step 9: the operation's limit, the strict read, then the contract's codec. */
-async function readOperationBody(
+/** What step 9 reads: an operation's body, or an observation's opening value. */
+type BodyRule = Readonly<{ limit: OperationContract['limit']; codec: Codec<unknown> }>
+
+function bodyRuleOf(member: Entered['member']): BodyRule {
+  return member.kind === 'operation'
+    ? { limit: member.contract.limit, codec: member.contract.body }
+    : { limit: member.contract.limit ?? 'small', codec: member.contract.open }
+}
+
+/** Step 9: the limit, the strict read, then the contract's codec. */
+async function readBodyOf(
   req: IncomingMessage,
-  contract: OperationContract,
+  rule: BodyRule,
   settings: PipelineSettings,
   watch: CallWatch,
 ): Promise<BodyOutcome> {
-  const maxBytes = settings.bodyLimits[contract.limit]
+  const maxBytes = settings.bodyLimits[rule.limit]
   const read = await readBody(req, maxBytes, watch.halt)
   if (read.kind === 'over') return { kind: 'over' }
   if (read.kind === 'aborted') return { kind: 'interrupted', by: 'gone' }
@@ -163,17 +188,38 @@ async function readOperationBody(
   const limits = settings.readLimits(maxBytes)
   const json = readJsonBytes(read.bytes, limits)
   if (json.kind !== 'ok') return { kind: 'rejected' }
-  const decoded = contract.body.read(json.value, limits)
+  const decoded = rule.codec.read(json.value, limits)
   return decoded.ok ? { kind: 'read', value: decoded.value } : { kind: 'rejected' }
 }
 
 export type Pipeline = Readonly<{
   /** Answers one request whose path is none of the three existing locations. */
   handle: (req: IncomingMessage, res: ServerResponse) => Promise<void>
+  /** Ends every open observation with `unavailable`; settles once their streams finished. */
+  endObservations: () => Promise<void>
 }>
 
 export function createPipeline(access: PipelineAccess, settings: PipelineSettings): Pipeline {
   const clock = access.clock ?? systemClock
+  /**
+   * The key under which a new observation replaces an old one: the same login, the same
+   * observation, the same message id. An observation that needs no login has no observer to
+   * recognise, so its key is its own and nothing replaces it.
+   */
+  let unrecognised = 0
+  const observationKey = (address: Address, messageId: string, login?: SignedIn): string =>
+    login === undefined
+      ? `unrecognised:${(unrecognised += 1)}`
+      : [login.proof, address.path, messageId].join('\n')
+  const hub: ObservationHub = createObservationHub({
+    limits: settings.observations,
+    heartbeatMs: settings.heartbeatMs,
+    loginCheckIntervalMs: settings.heartbeatMs,
+    frameQueueBytes: access.frameQueueBytes,
+    graceMs: access.graceMs,
+    clock,
+    writeLimits: settings.writeLimits,
+  })
   const diagnose = (event: PipelineDiagnostic): void => {
     try {
       access.diagnostics?.(event)
@@ -188,7 +234,8 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     res: ServerResponse,
     admitted: Extract<Admission, { kind: 'entered' }>,
   ): Promise<void> {
-    const { address, entered, contract } = admitted
+    const { address, entered } = admitted
+    const { member } = entered
     const note = (code: PipelineDiagnosticCode): void =>
       diagnose(eventOf(code, address.path, address))
     const messageId = messageIdOf(req)
@@ -254,10 +301,10 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     let caller: Extract<Established, { kind: 'caller' }>
     let body: unknown
     try {
-      const established = await establish(contract.identity, req, access.identity, watch)
+      const established = await establish(member.contract.identity, req, access.identity, watch)
       if (established.kind !== 'caller') return unestablished(established)
       caller = established
-      const read = await readOperationBody(req, contract, settings, watch)
+      const read = await readBodyOf(req, bodyRuleOf(member), settings, watch)
       if (read.kind !== 'read') return unread(read)
       body = read.value
     } finally {
@@ -265,6 +312,26 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     }
 
     const { login } = caller
+    if (member.kind === 'observation') {
+      await hub.open({
+        entered,
+        contract: member.contract,
+        source: member.source,
+        principal: caller.principal,
+        messageId,
+        open: body,
+        key: observationKey(address, messageId, login),
+        ...(login === undefined
+          ? {}
+          : { loginKey: login.proof, checkLogin: () => checkLogin(login) }),
+        ...(login === undefined || member.contract.countsAsAccess !== true
+          ? {}
+          : { reportAccess: () => report(login.identity, note) }),
+        note,
+        res,
+      })
+      return
+    }
     await settleCall({
       entered,
       principal: caller.principal,
@@ -274,8 +341,15 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       config: { graceMs: access.graceMs },
       clock,
       respond: answer => writeAnswer(res, { ...answer, messageId, close: false }),
-      ...(login === undefined ? {} : { reportAccess: () => report(login, note) }),
+      ...(login === undefined ? {} : { reportAccess: () => report(login.identity, note) }),
     })
+  }
+
+  /** One round of an open observation: the login is asked again, by the same proof (spec 已定 28). */
+  async function checkLogin(login: SignedIn): Promise<LoginCheck> {
+    const result = await access.identity.identifyLogin(login.proof)
+    if (result.outcome === 'identified') return 'valid'
+    return result.outcome === 'denied' ? 'denied' : 'unavailable'
   }
 
   /** Step 14's report: not awaited, and a failure of it is one diagnostic, never a changed answer. */
@@ -291,6 +365,7 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
   }
 
   return {
+    endObservations: () => hub.endAll(),
     async handle(req, res) {
       const admission = admit(req, access.registry, settings.loopback)
       if (admission.kind === 'refused') {

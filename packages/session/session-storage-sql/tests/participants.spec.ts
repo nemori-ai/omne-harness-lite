@@ -96,6 +96,7 @@ describe('the ./participants entry', () => {
       'SESSION_RUN_LIVE_GUARD',
       'SESSION_WORK_HANDLER',
       'SessionCommitBasisSchema',
+      'afterSessionCommit',
       'blobDigest',
       'decodeExecutionBlobsReply',
       'decodeExecutionRecordBlob',
@@ -119,7 +120,7 @@ describe('the ./participants entry', () => {
       'preadmissionFacts',
       'publishedCountsOf',
       'readCachedSessionWork',
-      'registerSessionWorkIndex',
+      'registerSessionNotifier',
       'runLiveGuardFacts',
       'sessionCheckDigest',
       'sessionCheckFacts',
@@ -135,17 +136,29 @@ describe('the ./participants entry', () => {
     ])
   })
 
-  it('imports pure intake rules, the codec and the work cache: no port, context or commit module', () => {
-    const text = readFileSync(join(root, 'src', 'participants.ts'), 'utf8')
-    const values = [...text.matchAll(/^import (?!type )[\s\S]*?from '([^']+)'/gm)].map(
-      match => match[1],
-    )
-    expect(values).toEqual([
+  /** The modules a source file of this member imports values from, in order. */
+  const valuesOf = (file: string): (string | undefined)[] =>
+    [
+      ...readFileSync(join(root, 'src', file), 'utf8').matchAll(
+        /^import (?!type )[\s\S]*?from '([^']+)'/gm,
+      ),
+    ].map(match => match[1])
+
+  it('imports pure intake rules, the codec, the reply reader and the work cache: no port, context or commit module', () => {
+    expect(valuesOf('participants.ts')).toEqual([
       './commit-basis.ts',
       '@omne-harness/session-contract',
       './codec.ts',
       './work-cache.ts',
+      './session-reply.ts',
     ])
+  })
+
+  it('re-exports the one landing, which takes values only from the reply reader and the work cache', () => {
+    const text = readFileSync(join(root, 'src', 'participants.ts'), 'utf8')
+    expect(text).toContain("} from './committed.ts'")
+    expect(valuesOf('committed.ts')).toEqual(['./session-reply.ts', './work-cache.ts'])
+    expect(valuesOf('session-reply.ts')).toEqual(['@omne-harness/legal-identity', './codec.ts'])
   })
 })
 

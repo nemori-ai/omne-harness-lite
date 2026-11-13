@@ -1,6 +1,6 @@
 # @omne-harness/access-cordis-contract 行为规格
 
-本文件拥有本包在公开类型以外的必要行为。公开形状归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。本包几乎只有类型；类型以外的行为只有两条：`mount` 的效应绑定，和 `AccessAssemblyError` 的形状。
+本文件拥有本包在公开类型以外的必要行为。公开形状归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。本包几乎只有类型；类型以外的行为只有三条：`mount` 的效应绑定、`defineAccessPlugin` 定义的接入插件，和 `AccessAssemblyError` 的形状。
 
 ## 范围与依据
 
@@ -13,6 +13,12 @@
 ### 贡献覆盖契约
 
 `AccessContribution<P>` 为 `P` 的每个操作要一个处理函数，为每个观察要一个帧来源。少一个、多一个都编不过。处理函数的消息体类型取自操作的 `body` 编解码；答复只能是操作结果集里的结果：带编解码的结果带对应的消息体，固定结果不带消息体。
+
+### 帧来源怎样被消费
+
+帧来源 `FrameSource<O>` 收到观察上下文（主体、消息编号、中止信号）与建立值，先决定建不建立：答 `denied`、`invalid` 或 `basis-unavailable` 时不建立，入口按这个结果答复；答 `succeeded` 时给出一个异步生成器。入口的观察中枢（[服务端接入规格](../server-entry/SPEC.md#观察中枢)）向它一帧一帧地要，用观察契约的 `frame` 编解码写出。生成器走完时给出结束原因，只能是这个观察自己的 `ends`，或 `denied`、`unavailable` 两种；别的原因、抛出、不合契约的帧，入口都以 `unavailable` 结束这个观察。
+
+观察因为任何原因结束（观察者断开、被替换、登录失效、协议撤下、入口停止、帧队列超限）时，入口中止上下文里的信号，并调一次生成器的 `return()`，不等它。帧来源要听这个信号，在收场时退掉自己的订阅、停掉计时。帧来源拿到的是主体，不是「已允许」：这个主体能不能看这些帧，由领域在帧来源里判断（RFC-0015 I-12）。
 
 ### 主体按身份一栏
 
@@ -41,6 +47,14 @@
 
 接入插件不写撤下的代码。
 
+### defineAccessPlugin
+
+领域用 `defineAccessPlugin({ name, protocol, handlers })` 写自己的接入插件（RFC-0015 第 5 节「登记表与贡献」，交付卡 #1249）。它返回一个 Cordis 插件对象：
+
+1. 插件只依赖 `accessRegistry`。加载时调用一次 `handlers(provide)` 得到处理函数与帧来源，再用 `mount` 把它们和 `protocol` 一起挂在插件自己的作用域上。
+2. `provide(key)` 在每次调用时现取 Cordis 上的服务，取不到是 `undefined`。处理函数与帧来源在这时答 `basis-unavailable`。
+3. 领域服务暂时不在不等于撤下（RFC-0015 I-5）：协议仍挂着，仍在可用性里，服务回来之后的调用照常。卸载插件才撤下协议，撤下照上一节的效应走。
+
 ### 装配错误
 
 `AccessAssemblyError` 是 `Error`，`name` 是 `AccessAssemblyError`，`protocol` 是 `{ name, major }`，`message` 是 `protocol <name>/v<major> is already mounted`。
@@ -59,6 +73,7 @@
 | [主体按身份一栏](#主体按身份一栏) | `tests/contribution.spec-d.ts` |
 | [身份端口](#身份端口) | `tests/identity.spec-d.ts`；端口在管道里的用法由服务端接入的 `tests/pipeline-identity.spec.ts` 验证 |
 | [mount 是调用者作用域上的效应](#mount-是调用者作用域上的效应) | `tests/mount.spec.ts` 与服务端接入的 `tests/registry-cordis.spec.ts`，真实的 Cordis 4.0.4，不用替身 |
+| [defineAccessPlugin](#defineaccessplugin) | `tests/define-access-plugin.spec.ts`（最小的提供者）；服务端接入的 `tests/registry-cordis.spec.ts`「defineAccessPlugin on real Cordis (C11)」，真实的 Cordis 4.0.4：加载后协议挂着、服务不在时答 `basis-unavailable` 且协议仍在、服务回来后恢复、卸载后撤下 |
 | [装配错误](#装配错误) | `tests/public-entry.spec.ts`；服务端接入的 `tests/registry.spec.ts` 与 `tests/registry-cordis.spec.ts` |
 
 依赖方向：本包源码只依赖公开契约与 `@deepseek-ai/cordis`，门禁 `access-cordis-contract-only-contract-and-cordis`（`tools/repo-config/dependency-cruiser.cjs`）守这一条。

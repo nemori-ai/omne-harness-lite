@@ -45,7 +45,7 @@
 | --- | --- | --- | --- |
 | 启动条件 | `accessCheck`、`transactions`（委派入口）、`workPrincipals`、`principals` | 直接传入实现与主体 | 任一缺席时不构造实例。经 Cordis 时服务停在 `PENDING`，见 [session-cordis](../../session-cordis/README.md) |
 | 按命令必需 | `identity`、`evidence`、`clock`、`idle`、`context` | 传入完整接口。宿主在底层能力缺席时让方法返回 `unavailable`，`owner` 为该端口 | 只有需要它的操作返回 `unavailable`；不用系统时间或空材料补默认 |
-| 按调用现取 | `directory`、`notifier`、`agentDrive`、`scopeRelease`、`admission` | 传入现取函数，每次调用前取一次 | `directory` 缺席时 `pending`、`references` 与 `releasedScopes` 返回 `unavailable`；通知缺席只记诊断；出站端口缺席时调用不发出，任务保留，由调度器重放；`admission` 取不到时 `accept` 返回 `unavailable`；只有装配声明没有命令域与 hooks 时才是空列表，`accept` 不经槽 |
+| 按调用现取 | `directory`、`agentDrive`、`scopeRelease`、`admission` | 传入现取函数，每次调用前取一次 | `directory` 缺席时 `pending`、`references` 与 `releasedScopes` 返回 `unavailable`；出站端口缺席时调用不发出，任务保留，由调度器重放；`admission` 取不到时 `accept` 返回 `unavailable`；只有装配声明没有命令域与 hooks 时才是空列表，`accept` 不经槽 |
 
 公开面在面操作开头按 [当前操作访问裁定](../../session-contract/SPEC.md#当前操作的访问裁定) 检查一次，经委派视图读写，不缓存 allowed（[SPEC CP-01](../SPEC.md#cp-access)、[委派入口](../../session-contract/docs/access-check.md#委派入口)）。拒绝、不可用或抛错不继续执行。视图不再检查，存储只核租户键与绑定的裁定证据。`pending`、`references` 与 `releasedScopes` 不经视图，由公开事务端口检查一次。访问检查类型与独立脚本替身已由 [session-contract](../../session-contract/docs/access-check.md) 导出，Service 与键已由 [session-cordis-contract](../../session-cordis-contract/docs/public-api.md) 导出。事务 commit 的显式 access、工厂必需 accessCheck 与实际读写 check 已在 session-contract 与 session-adapters 的内存替身接入（见[访问检查](../../session-contract/docs/access-check.md)）。本成员在每次面操作开头调用一次 `check`，成员测试对内存替身对与真实 SQL 提供者对核对计次（[access.spec.ts](../tests/access.spec.ts)、[conformance-sql.spec.ts](../tests/conformance-sql.spec.ts)）。经 Cordis 的生产注入归 session-cordis，尚未接入。生产运行尚未验证。
 

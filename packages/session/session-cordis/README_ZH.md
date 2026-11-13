@@ -7,11 +7,11 @@ Session 的 Service 实现成员，`service-provider` 变体。
 
 ## 职责与状态
 
-本成员把 [session](../session/README_ZH.md) 的机制装进 [session-cordis-contract](../session-cordis-contract/README_ZH.md) 定义的服务 `session`。它承担端口的取得、配置校验、调用方类核对、提交通知的派发与订阅、每租户恢复扫描者的绑定，以及撤除与换代。领域行为归 [session-contract](../session-contract/README_ZH.md)，机制行为归 session，端口的实现归 [session-adapters](../session-adapters/README_ZH.md) 与存储提供者，都不在本成员。
+本成员把 [session](../session/README_ZH.md) 的机制装进 [session-cordis-contract](../session-cordis-contract/README_ZH.md) 定义的服务 `session`。它承担端口的取得、配置校验、调用方类核对、造提交通知接口与订阅提交通知、每租户恢复扫描者的绑定，以及撤除与换代。领域行为归 [session-contract](../session-contract/README_ZH.md)，机制行为归 session，端口的实现归 [session-adapters](../session-adapters/README_ZH.md) 与存储提供者，都不在本成员。
 
 状态：Service 实现成员，`draft`。采用依据是[组架构的 Cordis 落位](../docs/architecture.md#cordis-落位)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
-- 已实现：`./cordis` 导出插件 `SessionProvider`，它是 `SessionService` 的具体子类，有配置 Schema、端口接线、调用方类核对、组合通知者、扫描者绑定，以及撤除的两个触发。根入口保持为空。细节与限制见 SPEC 的[实现现状](SPEC.md#实现现状)。
+- 已实现：`./cordis` 导出插件 `SessionProvider`，它是 `SessionService` 的具体子类，有配置 Schema、端口接线、调用方类核对、通知监听者、扫描者绑定，以及撤除的两个触发。`./cordis` 另导出 `createSessionCommitNotifier`，给一个 Context 造提交通知接口。插件自己不派发通知。根入口保持为空。细节与限制见 SPEC 的[实现现状](SPEC.md#实现现状)。
 - 尚有缺口：受理槽、来源变化通知与租户集合还缺少通道，见 [SPEC 的明确缺项](SPEC.md#明确缺项)。装配生命周期没有正式定义，实现用装配入口的私有键，这是对 IC-8 的偏离。
 - 已验证：在真实 Cordis 4.0.4 上，SPEC 的九项验证义务都有测试；原先作为假设的四条机制（调用方类读取、重复装载失败、配置错误使 fiber `FAILED`、换代时新旧实例的先后）已由测试核验。线内贯通检查点 CP1 让本插件与 session-storage-sql 在真实 sqlite-provider 上运行。本成员不宣称跨进程的每租户单扫描者。
 

@@ -24,6 +24,12 @@
 
 部署必须保证该登记文件只有一个写者。多个进程同时改同一登记表不受支持。启动后外部改写或删除的实时检测不在保证内。Windows 不提供这里采用的目录刷盘操作，因此本实现不承诺目录项的断电耐久。文件数据仍执行 fsync。关闭停止新登记并等待在途登记，截止时尚未结束则报告 incomplete。
 
+## 提交通知
+
+会话日志只有一个写入者，它在 session-storage-sql 的唯一落点把每一批新写出报给登记在该库上的通知接口（[本批与提交通知](../../../../packages/session/session-storage-sql/SPEC.md#本批与提交通知)）。本行在确认组合登记之后、发布服务之前，用 session-cordis 的 `createSessionCommitNotifier` 在本行的 Context 上造一个通知接口，以 `registerSessionNotifier` 登记在自己的存储上。行停止或卸载时注销它。
+
+`agent-journal` 行注入同一个存储，所以四个提交方写出的批都报给这个通知接口。通知接口派发 `session-cordis-contract/committed`，并现取可选的 `sessionNotifier` 转交同一份载荷。本行的清单不变：不新增提供的键，也不新增依赖的键。
+
 ## 未登记租户的会话读与提交
 
 目录里没有的租户没有会话，因为登记只由放行的 create 触发。经委派视图的会话读与提交（`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、四个 `history` 读和非 create 的 `commit`）对这样的租户答 `denied`，与「会话不存在」是同一个结局（[public-contract 会话判断次序第 6 步](../../../../packages/access/public-contract/SPEC.md#会话判断次序)）。访问裁定仍在先：裁定的 `denied` 与 `unavailable` 不被覆盖。绑定是 create 时不包装，租户在视图第一次解析时登记。

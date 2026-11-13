@@ -18,7 +18,8 @@
 | 配置（[config.ts](../src/config.ts)） | 静态 `Config` 的 Standard Schema：`policy` 的逐字段覆盖、`disposeWaitMs` 与 `admission`；合成完整的 `SchedulingPolicy` | 性质 3 |
 | 端口接线（[ports.ts](../src/ports.ts)） | 用本插件 Context 现取端口：按命令必需的端口包成代理，按调用现取的端口包成 `Current`；缺席与抛出映射为 `unavailable` | 性质 2、[端口接线](../SPEC.md#端口接线) |
 | 服务子类（[provider.ts](../src/provider.ts)、[faces.ts](../src/faces.ts)） | 持有实例；四个面属性做调用方类的第一层核对后转给 `facesFor` | 性质 1、4、6 |
-| 通知（[runtime.ts](../src/runtime.ts)） | 组合通知者：派发 `committed`、转发 `sessionNotifier`；`ctx.on` 监听外来通知并交给实例 | 性质 5 |
+| 通知接口（[notifier.ts](../src/notifier.ts)） | `createSessionCommitNotifier`：在给定 Context 上派发 `committed`，转交 `sessionNotifier`；没有状态 | 性质 5 |
+| 通知监听（[runtime.ts](../src/runtime.ts)） | `ctx.on` 监听 `committed`，交给实例并绑定扫描者；正在撤除时不理 | 性质 5、7 |
 | 扫描者绑定（[scanners.ts](../src/scanners.ts)） | 租户到维护句柄的表；首次见到租户时 `maintain` | 性质 7 |
 | 撤除（[teardown.ts](../src/teardown.ts)、[assembly-lifecycle.ts](../src/assembly-lifecycle.ts)） | 一个函数按顺序完成标记、释放句柄、限时 `close`；`assemblyLifecycle` 的停止句柄与 effect 释放两条路径调用它 | 性质 9 |
 
@@ -60,9 +61,9 @@ flowchart LR
 
 session 的工厂要求身份、证据、时钟、空闲与 Context 输入是完整接口，并要求宿主在底层能力缺席时让方法返回 `unavailable`（[参数与依赖](../../session/docs/public-api.md#依赖)）。代理正好承担这件事。代理不补默认值：用系统时间代替时钟采样，或用空材料代替证据，会把依赖丢失变成看似成功的提交。
 
-### 本成员派发提交通知
+### 本成员造通知接口，插件只监听
 
-定义成员规定事件由派发方在提交之后派发，存储成员也不派发它。工厂的唯一出口是 `notifier`，所以本成员把派发放进交给工厂的组合通知者。应用装配另外提供的 `sessionNotifier` 只作转发，例如跨进程转发。这样在 Cordis 装配下事件总在场，而外部通知者仍然可选，缺席或失败都不影响提交。
+会话日志只有一个写入者，提交之后要做的事挂在它上面：session-storage-sql 的唯一落点在每一批新写出之后，调用按库登记的通知接口（[本批与提交通知](../../session-storage-sql/SPEC.md#本批与提交通知)）。四个提交方写出的批都经过这个落点，所以通知不漏掉任何一个提交方，认回也只在一处判断。本成员只提供造通知接口的函数 `createSessionCommitNotifier`，它在给定 Context 上派发事件，并转交可选的 `sessionNotifier`，例如跨进程转发。应用装配的 `session-storage` 行用它造一个，登记在自己的存储上。插件只监听事件：叫醒实例，绑定扫描者。通知接口与插件之间只隔着事件，插件不知道是谁派发的。
 
 ### 扫描者在首次见到租户时绑定
 
@@ -76,7 +77,7 @@ session 的工厂要求身份、证据、时钟、空闲与 Context 输入是完
 
 | 原则 | 本成员的具体选择 | 必须防止的反例 |
 | --- | --- | --- |
-| 单一职责 | 本成员只承担 Cordis 接线：配置校验、端口现取、调用方类的第一层核对、通知派发与订阅、扫描者绑定、撤除。允许与拒绝、流水线、协调器与调度器都在 session | 在子类或代理里判断一条命令可否提交、重算重试次数或自己调度扫描 |
+| 单一职责 | 本成员只承担 Cordis 接线：配置校验、端口现取、调用方类的第一层核对、造通知接口与订阅通知、扫描者绑定、撤除。允许与拒绝、流水线、协调器与调度器都在 session | 在子类或代理里判断一条命令可否提交、重算重试次数或自己调度扫描 |
 | 开闭 | 定义成员新增端口键时，在端口接线里加一行，按它的缺席表现选择代理、`Current` 或 `inject`。新增可调参数加到配置 Schema，不改机制 | 为某个邻域或某个端口加特例分支，或在本成员导入邻域契约来接线 |
 | 里氏替换 | 子类遵守抽象类的全部承诺：键只来自抽象类，四个面的结局集合与 session 的工厂一致，事件只做唤醒。经 Cordis 与不经 Cordis 时，同一命令的结局集合相同，只多出调用方类缺失时的 `denied` 与撤除后的 `unavailable` | 端口缺席时返回成功或空结果；把事件当作事实源；撤除时把在途命令报告为失败 |
 | 接口隔离 | 调用方只看到服务定义的四个面，按调用方类分别取得。端口提供者只看到自己的端口键 | 让调用方导入 `./cordis` 的子类，或让一个调用方类拿到全部操作 |

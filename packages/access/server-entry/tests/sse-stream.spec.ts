@@ -2,7 +2,7 @@
 // once, so a registration that happens after the disconnect releases immediately and no heartbeat
 // is ever armed against a destroyed response.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SseStream } from '../src/sse.ts'
+import { SseStream } from '../src/observation-hub/sse.ts'
 import { sleep } from './support/harness.ts'
 import { holdResponse, type HeldResponse } from './support/held-response.ts'
 

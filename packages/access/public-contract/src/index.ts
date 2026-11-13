@@ -128,6 +128,8 @@ export { ruleCodec } from './rule-codec.ts'
 export type { Codec, CodecResult, RuleValue } from './rule-codec.ts'
 export type { LeafKind, Rule } from './operation-rules.ts'
 export { defineProtocol } from './protocol.ts'
+export { accessProtocol } from './access-protocol.ts'
+export type { AccessProtocol, AvailabilityFrame } from './access-protocol.ts'
 export type {
   DefinedProtocol,
   ObservationContract,

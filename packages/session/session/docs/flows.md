@@ -19,7 +19,6 @@ sequenceDiagram
     participant DS as decide（契约导出的纯函数）
     participant Br as 身份桥、证据桥、Context 与空闲输入
     participant Tx as 委派视图与存储参加者
-    participant N as SessionNotifier
     Caller->>CP: 命令与 Access
     CP->>AC: check 一次；allowed 后 bind，取得本次面操作的委派视图
     Note over CP,AC: denied 返回 denied；unavailable 或抛错返回 unavailable。都不继续。之后各步都经视图，不再 check
@@ -44,7 +43,6 @@ sequenceDiagram
             else commit-unknown
                 CP-->>Caller: commit-unknown，不改写
             else 成功
-                CP->>N: committed(修订, 证据, 事件种类)
                 CP-->>Caller: CommitReceipt
             end
         end

@@ -421,6 +421,12 @@ sequenceDiagram
   Note over C: 步骤 9 撤除 Cordis 根，结果只进诊断
 ```
 
+## 会话的提交通知
+
+正式装配里，会话日志的每一批新写出恰有一条提交通知，认回不通知（#1230）。`session-storage` 行在发布服务之前，用 session-cordis 的 `createSessionCommitNotifier` 在本行的 Context 上造一个通知接口，经 session-storage-sql 的 `registerSessionNotifier` 登记在自己的存储上。行停止或卸载时注销它。`agent-journal` 行注入同一个存储，所以 Agent 日志提交里的会话参加写出的批也报到这里（[本批与提交通知](../../packages/session/session-storage-sql/SPEC.md#本批与提交通知)）。
+
+通知接口派发 `session-cordis-contract/committed`。`sessionNotifier` 是可选服务，不进任何行的清单：通知接口每次被调用时现取它，存在时转交同一份载荷。`session-provider` 行的插件只监听这个事件。这些都不改变行的清单：`session-storage` 行不新增提供或依赖的键。订阅者在正式装配的根上下文上监听这个事件。用例在 `tests/session/commit-notices.spec.ts`；演示脚本 `tests/model/public-stream-demo.ts --notices` 逐条打印通知，并与会话日志的修订数对账。行的说明见 [session-storage 行](docs/rows/session-storage.md#提交通知)。
+
 ## 模型的公共流
 
 正式装配里有模型的公共流：`modelStreamReferences`（按调用引用取当前的流）与 `modelStreamObservation`（订阅它），由 `model-host` 行发布。登录主体用自己的身份取流与订阅，允不允许由应用的模型授权表回答：#1214 给登录主体放行了 `facts` 与 `observe` 两格，其余格不变；登录主体仍不能准入调用。别的租户的调用引用与不存在的引用答复相同。订阅的中止只收订阅，不取消模型调用。接线、准入点与上限见 [Model 生产接线](docs/rows/model-release.md#模型的公共流1214)。

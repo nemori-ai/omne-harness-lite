@@ -48,6 +48,7 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
       'encodeModelInvocationRef',
       'encodeModelOutputV1',
       'judgeModelDelivery',
+      'projectModelOutputV1',
       'resolveModelInvocationRef',
     ].sort(),
   )
@@ -118,6 +119,7 @@ it('publishes the new projection, credential and stream names only from their de
       'decodeProviderName',
       'encodeModelOutputV1',
       'decodeModelOutputV1',
+      'projectModelOutputV1',
       'ModelOutputV1',
       'ModelOutputV1Snapshot',
       'ModelOutputV1Delta',

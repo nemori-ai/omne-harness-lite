@@ -145,7 +145,6 @@ describe(`SS-02: the counts of each face operation at ${String(SMALL)} and ${Str
           "commit": 1,
           "decisions": 1,
           "evidence": 0,
-          "history.begin": 1,
           "identity": 1,
           "queryOperation": 1,
           "readWork": 1,

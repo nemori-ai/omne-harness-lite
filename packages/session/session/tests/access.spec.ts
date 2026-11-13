@@ -238,11 +238,7 @@ describe('the failure branches of the decision (CP-01 第 1 步)', () => {
     const h = await service()
     h.view.reset()
     await h.create('fresh')
-    expect(h.view.calls().map(call => call.method)).toEqual([
-      'queryOperation',
-      'commit',
-      'history.begin',
-    ])
+    expect(h.view.calls().map(call => call.method)).toEqual(['queryOperation', 'commit'])
   })
 
   it('a caller class outside the operation is denied before any decision (VC-O05)', async () => {

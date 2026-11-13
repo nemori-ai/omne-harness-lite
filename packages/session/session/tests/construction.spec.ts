@@ -31,7 +31,6 @@ function countedDependencies(): { dependencies: SessionDependencies<string>; cal
     clock: port,
     idle: port,
     context: port,
-    notifier: current,
     agentDrive: current,
     scopeRelease: current,
     principals: { coordinator: 'system:coordinator', maintainer: 'system:maintainer' },

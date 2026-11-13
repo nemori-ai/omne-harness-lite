@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/access-cordis-contract": "workspace:*",
     "@omne-harness/agent": "workspace:*",
     "@omne-harness/agent-context": "workspace:*",
     "@omne-harness/agent-contract": "workspace:*",
@@ -84,6 +85,7 @@
     "@omne-harness/session-contract": "workspace:*",
     "@omne-harness/session-cordis": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/session-observation": "workspace:*",
     "@omne-harness/session-storage-sql": "workspace:*",
     "@omne-harness/settings": "workspace:*",
     "@omne-harness/settings-local": "workspace:*",

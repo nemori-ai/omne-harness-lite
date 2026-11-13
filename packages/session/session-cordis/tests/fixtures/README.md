@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-没有数据文件。夹具是代码：[assembly.ts](assembly.ts) 在真实 Cordis 根上装各端口的提供者，[backends.ts](backends.ts) 是内存事务对，[sql-backend.ts](sql-backend.ts) 是真实 SQL 对。后两个照 session 成员的 `tests/fixtures/backends.ts` 与 `sql.ts` 写成，因为包之间不能导入对方的测试目录；两边的夹具需要一起改。配置与通知载荷是小的类型化值，写在测试里。具名维护者由负责人指定。
+没有数据文件。夹具是代码：[assembly.ts](assembly.ts) 在真实 Cordis 根上装各端口的提供者，[backends.ts](backends.ts) 是内存事务对，[sql-backend.ts](sql-backend.ts) 是真实 SQL 对。后两个照 session 成员的 `tests/fixtures/backends.ts` 与 `sql.ts` 写成，因为包之间不能导入对方的测试目录；两边的夹具需要一起改。[assembly.ts](assembly.ts) 默认像应用的会话存储行一样，用 `createSessionCommitNotifier` 造通知接口并登记在事务对上（`notices: false` 时不登记）。内存对没有会写条目的写入者，它的替身把每次不是认回的提交报给登记的通知接口，条目种类为空；SQL 对经 session-storage-sql 的 `registerSessionNotifier` 登记。配置与通知载荷是小的类型化值，写在测试里。具名维护者由负责人指定。

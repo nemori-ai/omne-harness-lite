@@ -20,10 +20,10 @@
 
 | 专题 | 本成员里承载什么 |
 | --- | --- |
-| [cordis.md](cordis.md) | 插件与服务、`inject`、端口现取、配置、生命周期、调用方类核对、提交通知的派发与订阅、扫描者绑定、撤除顺序、登记与撤除、IC 符合性映射、机制读数与假设、验证义务 |
+| [cordis.md](cordis.md) | 插件与服务、`inject`、端口现取、配置、生命周期、调用方类核对、造提交通知接口与订阅通知、扫描者绑定、撤除顺序、登记与撤除、IC 符合性映射、机制读数与假设、验证义务 |
 | [architecture.md](architecture.md) | 两个入口、六个模块、包外依赖、六条关键机制的理由、SOLID 与扩展边界 |
 | [flows.md](flows.md) | FC-01 装载与启动、FC-02 端口换代、FC-03 撤除、FC-04 扫描者接管 |
-| [object-model.md](object-model.md) | 服务实例、插件配置、端口接线、组合通知者与租户维护表。领域对象与机制对象指向各自拥有者 |
+| [object-model.md](object-model.md) | 服务实例、插件配置、端口接线、通知监听者、提交通知接口与租户维护表。领域对象与机制对象指向各自拥有者 |
 | [public-api.md](public-api.md) | 两个入口。根入口为空，`./cordis` 导出 `SessionProvider`；经服务键可见的两种附加结果 |
 | [context.md](context.md) | 装配与独立使用两条路径，以及定位 |
 

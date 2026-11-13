@@ -1,17 +1,14 @@
 // What one load of the plugin builds: the dependencies of the factory over the plugin's own
-// Context, the instance, the combined notifier, the listener of foreign notices, the scanner table
-// and the removal with its two triggers. The class in `provider.ts` only exposes the faces of it.
+// Context, the instance, the listener of the commit notices, the scanner table and the removal with
+// its two triggers. The class in `provider.ts` only exposes the faces of it. The plugin dispatches
+// no notice: the one writer of the session log tells each batch (`createSessionCommitNotifier`).
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createSessionInstance,
   type SessionDependencies,
   type SessionInstanceOptions,
 } from '@omne-harness/session'
-import type {
-  SessionCallerClass,
-  SessionFaces,
-  SessionNotifier,
-} from '@omne-harness/session-contract'
+import type { SessionCallerClass, SessionFaces } from '@omne-harness/session-contract'
 import {
   assemblyLifecycleKey,
   sessionProviderRow,
@@ -44,49 +41,6 @@ export function startProvider(
   const diagnose = diagnoser(ctx)
   let removing = false
 
-  type Notice = Parameters<SessionNotifier['committed']>[0]
-  // The kinds array of a notice that this plugin dispatched itself, by identity: the instance
-  // already knows its own commit, so the listener skips it. Skipping is an optimization only.
-  const dispatched = new WeakSet<object>()
-
-  /** Hands the notice on to the sessionNotifier, when there is one. */
-  const forward = async (notice: Notice): Promise<void> => {
-    const target = ctx.get('sessionNotifier')
-    if (target === undefined) return
-    try {
-      await target.committed(notice)
-    } catch (error) {
-      diagnose(`sessionNotifier failed: ${describe(error)}`)
-    }
-  }
-
-  const notifier: SessionNotifier = {
-    committed: async notice => {
-      // A commit that completes during removal sends no notice. The next instance finds the work by scan.
-      if (removing) return
-      dispatched.add(notice.kinds)
-      try {
-        // Not awaited: the commit path does not wait for listeners. The failure is caught here.
-        ctx
-          .parallel(
-            COMMITTED,
-            notice.tenant,
-            notice.session,
-            notice.revision,
-            notice.source,
-            notice.kinds,
-          )
-          .catch((error: unknown) => {
-            diagnose(`a listener of ${COMMITTED} failed: ${describe(error)}`)
-          })
-      } catch (error) {
-        diagnose(`dispatching ${COMMITTED} failed: ${describe(error)}`)
-      }
-      await forward(notice)
-      scanners.bind(notice.tenant)
-    },
-  }
-
   const dependencies: SessionDependencies<unknown> = {
     ...createPorts(ctx, diagnose),
     // The four injected keys. A change of any of their providers reloads the plugin body.
@@ -94,7 +48,6 @@ export function startProvider(
     transactions: ctx.sessionDelegatedTransactions,
     principals: ctx.sessionPrincipals,
     workPrincipals: ctx.sessionWorkPrincipals,
-    notifier: { current: () => notifier },
     admission: {
       // Without the declaration the slots have no key yet, so admission is unavailable.
       current: () => (config.admission === 'none' ? [] : null),
@@ -121,14 +74,16 @@ export function startProvider(
     'session-provider.teardown',
   )
 
-  // A notice from another dispatcher wakes the instance. The listener runs synchronously.
+  // Every notice wakes the instance and binds the scanner of its tenant, whichever committer wrote
+  // the batch: a batch of a command of this instance too, which then wakes it once more. A wake
+  // only reads; it commits nothing that the log does not ask for. The listener runs synchronously.
   ctx.on(COMMITTED, (tenant, session, revision, source, kinds) => {
-    if (removing || dispatched.has(kinds)) return
+    if (removing) return
     try {
       instance.committed({ tenant, session, revision, source, kinds })
       scanners.bind(tenant)
     } catch (error) {
-      diagnose(`handling a foreign notice failed: ${describe(error)}`)
+      diagnose(`handling a commit notice failed: ${describe(error)}`)
     }
   })
 

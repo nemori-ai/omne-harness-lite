@@ -437,16 +437,24 @@ declare module '@deepseek-ai/cordis' {
     /**
      * A committed batch of one session. The payload has identities, the revision, the evidence of
      * the original commit and the entry kinds of the batch. It has no message text, credentials
-     * or attachment addresses. It is a wake-up only, not a source of fact: the sender dispatches
-     * after the commit, does not wait for listeners, and keeps the commit result when a listener
-     * fails. A missed notification is recovered by the authoritative scan.
+     * or attachment addresses. It is a wake-up only, not a source of fact.
+     *
+     * Where it is dispatched: the session log has one writer, and the one landing of its commits
+     * (session-storage-sql「本批与提交通知」) tells each fresh batch, once, to the notifiers
+     * registered on the database. The notifier that session-cordis makes
+     * (`createSessionCommitNotifier`) dispatches this event. A recall, a rollback and a commit that
+     * wrote no entry dispatch nothing. The dispatch comes after the commit, outside its
+     * transaction, does not wait for listeners, and keeps the commit result when a listener fails.
+     * The session provider only listens. A missed notification is recovered by the authoritative
+     * scan.
      *
      * @mode parallel
      * @param tenant - the tenant that owns the session.
      * @param session - the session that changed.
-     * @param revision - the session revision after the batch, as the original receipt gave it.
-     * @param source - the evidence of the original commit; a retry keeps the same value.
-     * @param kinds - the entry kinds that the batch wrote.
+     * @param revision - the revision of the batch, as the writer gave it; a retry keeps the same
+     *   value.
+     * @param source - the evidence of the batch receipt; a retry keeps the same value.
+     * @param kinds - the entry kinds that the batch wrote, without repeats.
      */
     'session-cordis-contract/committed'(
       tenant: TenantId,

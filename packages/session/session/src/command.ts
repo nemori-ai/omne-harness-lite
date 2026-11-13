@@ -17,7 +17,6 @@ import {
   type SessionCallerClass,
   type SessionCommand,
   type SessionFailure,
-  type SessionNotifier,
   type SessionTransactionPort,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -84,8 +83,8 @@ export const ADVANCE_KINDS: ReadonlySet<string> = new Set([
   'session.initialization-item',
 ])
 
-/** The page budget of the one history read that collects the event kinds of a notice. */
-const NOTICE_PAGE_BYTES = 1_048_576
+/** The page budget of the one history read that collects the entries of a round-complete event. */
+const ROUND_PAGE_BYTES = 1_048_576
 
 export type CommandAnswer = Outcome<unknown, SessionFailure>
 
@@ -320,7 +319,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
         kinds: [],
         from: null,
         direction: 'backward',
-        pageBytes: NOTICE_PAGE_BYTES,
+        pageBytes: ROUND_PAGE_BYTES,
       }),
     )
     const entries: HistoryEntry[] = []
@@ -337,9 +336,9 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
   }
 
   /**
-   * Step 6: the notice after a durable commit. Its absence or failure changes no answer. The same
-   * read of the committed entries serves the round-complete event, so an instance with an observer
-   * and no notifier reads them for that event alone.
+   * Step 6: the round-complete event of a durable commit, for an observer only: without one nothing
+   * is read. The commit notice is not sent here; the one writer of the session log tells each batch
+   * (session-storage-sql「本批与提交通知」).
    */
   const afterCommit = async (
     view: SessionTransactionPort<P>,
@@ -347,13 +346,7 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     command: SessionCommand,
     receipt: CommitReceipt,
   ): Promise<void> => {
-    let notifier: SessionNotifier | null = null
-    try {
-      notifier = dependencies.notifier.current()
-    } catch {
-      // A failing notifier gives no notice.
-    }
-    if (notifier === null && !measurer.active) return
+    if (!measurer.active) return
     const entries = await entriesOf(view, access, receipt)
     for (const entry of entries.filter(candidate => candidate.kind === 'run.terminal'))
       measurer.roundComplete({
@@ -364,18 +357,6 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
         entry: entry.id,
         operation: command.input.operation,
       })
-    if (notifier === null) return
-    const kinds = [...new Set(entries.map(entry => entry.kind))]
-    const target = notifier
-    lifecycle.spawn(() =>
-      target.committed({
-        tenant: access.tenant,
-        session: access.session,
-        revision: receipt.revision,
-        source: receipt.source,
-        kinds,
-      }),
-    )
   }
 
   /** A held operation: the original answer comes back from the record; nothing new is committed. */

@@ -32,6 +32,8 @@ export {
   type SessionStorageMaterialsOptions,
 } from './materials.ts'
 export { SESSION_PARTICIPANT } from './participants.ts'
+/** Registers a notifier of the batches every committer of this process writes to a database. */
+export { registerSessionNotifier } from './committed.ts'
 
 /** The public port. Every method asks the access check once. */
 export function createSessionStorage<P>(

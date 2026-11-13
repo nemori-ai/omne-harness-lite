@@ -1,6 +1,6 @@
 # session-cordis 的对象模型
 
-本成员没有自己的领域对象。会话、Run、执行尝试、命令、条目与回执归 [session-contract 的对象模型](../../session-contract/docs/object-model/README.md)。实例、协调器、调度器、租户扫描者与缓存归 [session 的对象模型](../../session/docs/object-model.md)。本成员只有几个技术对象：服务实例、插件配置、端口接线、组合通知者与租户维护表。它们不自动成为产品领域对象。
+本成员没有自己的领域对象。会话、Run、执行尝试、命令、条目与回执归 [session-contract 的对象模型](../../session-contract/docs/object-model/README.md)。实例、协调器、调度器、租户扫描者与缓存归 [session 的对象模型](../../session/docs/object-model.md)。本成员只有几个技术对象：服务实例、插件配置、端口接线、通知监听者、提交通知接口与租户维护表。它们不自动成为产品领域对象。
 
 本成员已实现，类名与字段名以 `src/` 为准：服务类 `SessionProvider`，状态在 [runtime.ts](../src/runtime.ts) 的闭包里。
 
@@ -8,10 +8,11 @@
 
 | 对象 | 身份 | 拥有者 | 可变性 | 关联 |
 | --- | --- | --- | --- | --- |
-| 服务实例 | 一个 isolate 标签下的服务键 `session` | 本插件的 fiber | 实例状态：开放、撤除中 | `extends` 定义成员的 `SessionService`。拥有一个 `SessionInstance`、一份端口接线、一个组合通知者与一张租户维护表 |
+| 服务实例 | 一个 isolate 标签下的服务键 `session` | 本插件的 fiber | 实例状态：开放、撤除中 | `extends` 定义成员的 `SessionService`。拥有一个 `SessionInstance`、一份端口接线、一个通知监听者与一张租户维护表 |
 | 插件配置 | 一次装载 | 装配者给出，静态 `Config` 校验 | 装载后不变。改配置即重新装载 | `policy` 合成后传给工厂；`disposeWaitMs` 留在服务实例，用于撤除；`admission` 决定受理槽缺席时 `admission.current()` 的结果 |
 | 端口接线 | 随服务实例 | 服务实例 | 不变。它不持有端口，只持有本插件 Context | 为按命令必需的端口提供代理，为按调用现取的端口提供 `Current`，交给工厂 |
-| 组合通知者 | 随服务实例 | 服务实例 | 不变 | 作为工厂的 `notifier`。派发 `committed`，转发 `sessionNotifier`，并把租户交给租户维护表 |
+| 通知监听者 | 随服务实例 | 服务实例 | 不变 | 经 `ctx.on` 监听 `committed`，把载荷交给 `SessionInstance`，并把租户交给租户维护表 |
+| 提交通知接口 | `createSessionCommitNotifier(ctx)` 的一次调用 | 调用它的装配，例如应用的 `session-storage` 行，登记在存储上 | 没有状态 | 派发 `committed`，转交 `sessionNotifier`。不归服务实例 |
 | 租户维护表 | 随服务实例 | 服务实例 | 首次见到租户时增加一项；撤除时清空 | 每项是租户到 `maintain` 返回的维护句柄。是可丢的派生物 |
 
 ```mermaid
@@ -38,8 +39,8 @@ classDiagram
   class PortWiring {
     pluginContext
   }
-  class CommitNotifier {
-    committed()
+  class NoticeListener {
+    onCommitted()
   }
   class TenantMaintenance {
     handles
@@ -51,9 +52,10 @@ classDiagram
   SessionProvider --> PluginConfig
   SessionProvider "1" *-- "1" SessionInstance
   SessionProvider "1" *-- "1" PortWiring
-  SessionProvider "1" *-- "1" CommitNotifier
+  SessionProvider "1" *-- "1" NoticeListener
   SessionProvider "1" *-- "1" TenantMaintenance
-  CommitNotifier --> TenantMaintenance
+  NoticeListener --> SessionInstance
+  NoticeListener --> TenantMaintenance
   TenantMaintenance --> SessionInstance
 ```
 
@@ -65,7 +67,7 @@ classDiagram
 | --- | --- | --- | --- |
 | 插件配置 | 装配者装载插件 | 不变 | 插件卸载 |
 | 服务实例 | 配置校验通过、inject 的五项都在场后构造子类，以键登记 | 开放 → 撤除中 | 撤除的四步完成，键上不再有服务 |
-| 端口接线与组合通知者 | 服务实例构造时，捕获本插件 Context 后建立 | 不变 | 随服务实例 |
+| 端口接线与通知监听者 | 服务实例构造时，捕获本插件 Context 后建立 | 不变 | 随服务实例 |
 | `SessionInstance` | 服务实例调用工厂 | 见 session | 撤除第 3 步的 `close` |
 | 租户维护表 | 服务实例构造时为空 | 首次见到租户时增加一项 | 撤除第 2 步释放全部句柄 |
 

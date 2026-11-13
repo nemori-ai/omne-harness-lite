@@ -1,6 +1,6 @@
 # 系统接入能力组
 
-本组维护完整 Harness 的公开接入工程关系。三个成员都在 workspace 内，都已实现并有持续的测试。依据为[系统分层](../../docs/architecture/layers-and-dependencies.md)和[目标包组织](../../docs/package-organization.md#sdk与系统接入)。
+本组维护完整 Harness 的公开接入工程关系。四个成员都在 workspace 内，都已实现并有持续的测试。依据为[系统分层](../../docs/architecture/layers-and-dependencies.md)和[目标包组织](../../docs/package-organization.md#sdk与系统接入)。
 
 ## 责任与范围
 
@@ -13,13 +13,15 @@
 | 成员 | 做什么 | 公开入口 |
 | --- | --- | --- |
 | [`public-contract`](public-contract/README.md) | `governance-public/1` 与 `session-public/1` 两个协议的纯编解码。定义请求、响应、`outcome` 与拒绝规则，把对象与字节互转。 | 八个同步编解码函数与它们的类型 |
-| [`sdk`](sdk/README.md) | 客户端入口。持有调用者的传输适配，编码请求，发送，只交出 `messageId` 相同的响应，零字节时自动再送一次。 | `createGovernanceClient`、`createSessionClient`、`createHttpTransport`，以及租户与用户消息的辅助函数 |
-| [`server-entry`](server-entry/README.md) | 服务端 HTTP 入口。在回环地址上监听，读取公开契约的消息，识别登录，调用 identity 与 Session，写出响应与 SSE 观察流。 | `createServerEntry({ config, dependencies })` |
+| [`access-cordis-contract`](access-cordis-contract/README.md) | 接入贡献的类型、登记表的 Cordis 服务定义，以及 `defineAccessPlugin`：领域写一份接入贡献，得到一个把协议挂上登记表的插件。 | 根入口的贡献类型；`./cordis` 的服务定义与 `defineAccessPlugin` |
+| [`sdk`](sdk/README.md) | 客户端入口。根入口是三个现有位置的客户端：持有调用者的传输适配，编码请求，发送，只交出 `messageId` 相同的响应，零字节时自动再送一次。子入口 `./core` 是客户端核心：从一份协议契约得到带类型的客户端，走新地址。 | 根入口的 `createGovernanceClient`、`createSessionClient`、`createHttpTransport` 与辅助函数；`./core` 的 `createClient`、`createHttpProtocolTransport`、`createInProcessTransport` |
+| [`server-entry`](server-entry/README.md) | 服务端 HTTP 入口。在回环地址上监听，读取公开契约的消息，识别登录，调用 identity 与 Session，写出响应与 SSE 观察流。新地址 `/api/<协议>/v<主版本>/<名字>` 上有登记表、管道与观察中枢，入口自己挂着内置协议 `access/v1`。 | `createServerEntry({ config, dependencies, access })`，`access` 可以不给 |
 
 依赖方向：
 
 - SDK 依赖公开契约。SDK 重新导出调用者需要的公开类型与编码入口。
-- 服务端接入依赖公开契约，并向 identity 与 Session 的公开入口发起调用。
+- 贡献成员只依赖公开契约与 Cordis。
+- 服务端接入依赖公开契约与贡献成员，并向 identity 与 Session 的公开入口发起调用。
 - 公开契约不依赖 SDK，也不依赖服务端接入。
 - SDK 不依赖服务端私有实现、存储或 Cordis 装配树。
 - 业务能力不反向依赖 SDK 或传输处理器。独立能力从自身公开入口消费。
@@ -34,7 +36,7 @@
 
 ## 组合验证
 
-三者的组合性质：两端用同一份契约编解码，同一份语义得到同一种线上表示；登录证明只出现在消息体里，任何错误文本和输出都不含它；未知结果不会被当成失败或成功。
+组合性质：两端用同一份契约编解码，同一份语义得到同一种线上表示；登录证明在三个现有位置上在消息体里，在新地址上在 `Authorization` 头里，任何错误文本和输出都不含它；未知结果不会被当成失败或成功。
 
 每个成员验证自己负责的性质：
 

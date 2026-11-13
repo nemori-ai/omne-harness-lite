@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./core": {
+      "source": "./src/core/index.ts",
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
     }
   },
   "files": [
@@ -25,7 +30,9 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
-    "@omne-harness/public-contract": "workspace:*"
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/public-contract": "workspace:*",
+    "eventsource-parser": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -1,9 +1,10 @@
 import { expect, it } from 'vitest'
 
-it('exports the protocol codecs, the identity text codecs and the common contract', async () => {
+it('exports the protocol codecs, the identity text codecs, the common contract and access/v1', async () => {
   const root = await import('@omne-harness/public-contract')
   expect(Object.keys(root).sort()).toEqual([
     'OUTCOMES',
+    'accessProtocol',
     'defineProtocol',
     'encodeAccountIdText',
     'encodeGovernanceRequest',

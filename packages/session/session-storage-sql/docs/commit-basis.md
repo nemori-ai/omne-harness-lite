@@ -66,6 +66,12 @@ producer 在事务里停下时，这一代次滚回。参加者报告的失败�
 
 普通 producer 与受保护 producer 是不同组合的依据来源。一个组合不能给同一 fact 声明两个 producer。
 
+## 答复里的这一批与交回答复
+
+Session 唯一写者写出一批条目时，在答复里给出这一批：租户、会话、修订、批回执的 `source` 与条目种类的集合，放在 `batch` 字段，与 `work` 并列。没写条目的答复不带它。答复随存储收据保存，`batch` 不进 `sl_operation`。
+
+提交方不自己读答复做后续的事。普通提交与受保护提交经 `commitFacts`，Journal 发布经 session-adapters 的 Journal 提供者，都把存储的答复交给 `afterSessionCommit`（交回答复）。它判断是不是新提交，折叠工作缓存，再把这一批交给按库登记的通知接口。登记函数是 `registerSessionNotifier`，按 `SqlStorage.database` 保存。规则归 [SPEC 本批与提交通知](../SPEC.md#本批与提交通知)。
+
 ## 验证与演进边界
 
 [实际 Worker 用例](../tests/commit-basis-real.spec.ts)覆盖缺依据、完整命令错绑及普通路径伪造权限写。[受保护提交用例](../tests/protected-basis-real.spec.ts)用一个具名的 producer 夹具覆盖提交与认回、来源失败不留痕、来源失败期间已提交的投递被认回、producer 停下后占用一个代次、缺写资格、计划夹带 Session 命令及来源抛出异常。[联合提交用例](../tests/real-joint.spec.ts)覆盖同提交可见性、回滚和进程重启认回。Journal 的真实消费者验证归 session-adapters。

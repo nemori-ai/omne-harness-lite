@@ -1,11 +1,10 @@
 // The commit notice and the scanner binding (SPEC properties 5 and 7; verification 5 and 6) on real
-// Cordis. The plugin dispatches `session-cordis-contract/committed` once for each commit, hands the
-// same payload to `sessionNotifier` when there is one, listens for notices of other dispatchers,
-// and binds one recovery scanner for each tenant it sees. The scanner is observed through the
-// `pending` reads of its startup scan on the public transaction port.
+// Cordis. The plugin dispatches no notice: it listens for `session-cordis-contract/committed`,
+// wakes its instance on each notice and binds one recovery scanner for each tenant it sees. The
+// scanner is observed through the `pending` reads of its startup scan on the public transaction
+// port.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  SessionNotifierService,
   SessionTenantSourceService,
   type SessionTenantSource,
 } from '@omne-harness/session-cordis-contract/cordis'
@@ -36,92 +35,50 @@ const COMMITTED = 'session-cordis-contract/committed'
 const diagnostics = (a: Assembly): string[] =>
   a.ctx.logger.buffer.filter(m => m.name === 'session-provider').map(m => String(m.args[0]))
 
-describe('the notice of a commit', () => {
-  it('is dispatched once for each commit, with identities, revision, evidence and kinds, and no text', async () => {
-    const a = await build()
-    await a.listen()
-    const intake = await a.caller('intake')
-    const created = await a.create(intake)
-    await expect.poll(() => a.events.length).toBe(1)
-    const [tenant, session, revision, source, kinds] = a.events[0]!
-    expect(tenant).toEqual(a.tenant)
-    expect(session).toBe('session-1')
-    expect(revision).toBe(created.revision)
-    expect(source).toEqual(created.source)
-    expect(Array.isArray(kinds) && kinds.length > 0).toBe(true)
-
-    const accepted = await a.accept(intake, 'one', 'session-1', 'secret-text-of-the-message')
-    await expect.poll(() => a.events.length).toBe(2)
-    expect(a.events[1]![2]).toBe(accepted.revision)
-    expect(
-      JSON.stringify(a.events, (_key, value: unknown) =>
-        typeof value === 'bigint' ? String(value) : value,
-      ),
-    ).not.toContain('secret-text-of-the-message')
-  })
-
-  it('a listener that throws changes neither the receipt nor the next commit, and the fault is recorded', async () => {
-    const a = await build()
-    await a.mount({
-      name: 'failing-listener',
-      apply: (inner: import('@deepseek-ai/cordis').Context) => {
-        inner.on(COMMITTED, () => {
-          throw new Error('listener exploded')
-        })
-      },
-    })
-    const intake = await a.caller('intake')
-    const created = await a.create(intake)
-    expect(created.revision).toBeDefined()
-    await expect
-      .poll(() => diagnostics(a).some(text => text.includes('listener exploded')))
-      .toBe(true)
-    // The commit path was not waiting: the next command is served as before.
-    expect((await a.accept(intake, 'next')).revision).toBeDefined()
-  })
-
-  it('is handed to sessionNotifier with the same payload', async () => {
-    const a = await build()
-    const intake = await a.caller('intake')
-    const created = await a.create(intake)
-    await expect.poll(() => a.notifier.controls.notifications().length).toBe(1)
-    const [notice] = a.notifier.controls.notifications()
-    expect(notice).toMatchObject({
-      tenant: a.tenant,
-      session: 'session-1',
-      revision: created.revision,
-      source: created.source,
-    })
-  })
-
-  it('goes on without sessionNotifier', async () => {
-    const a = await build({ omit: ['sessionNotifier'] })
+describe('the plugin sends no notice of its own', () => {
+  // The one writer of the session log tells each batch; the application registers the notifier of
+  // `createSessionCommitNotifier` on its storage (tests/commit-notifier.spec.ts). The store here
+  // registers none, so a commit through the plugin dispatches nothing and hands nothing on.
+  it('a commit through the plugin dispatches no event and hands nothing to sessionNotifier', async () => {
+    const a = await build({ notices: false })
     await a.listen()
     const intake = await a.caller('intake')
     expect((await a.create(intake)).revision).toBeDefined()
-    await expect.poll(() => a.events.length).toBe(1)
-  })
-
-  it('a sessionNotifier that fails changes no receipt, and the dispatch to listeners is not lost', async () => {
-    const a = await build({ omit: ['sessionNotifier'] })
-    await a.provide(
-      'sessionNotifier',
-      serviceOf(
-        SessionNotifierService,
-        { committed: () => Promise.reject(new Error('relay is down')) },
-        'FailingNotifier',
-      ),
-    )
-    await a.listen()
-    const intake = await a.caller('intake')
-    const created = await a.create(intake)
-    expect(created.revision).toBeDefined()
-    await expect.poll(() => a.events.length).toBe(1)
-    await expect.poll(() => diagnostics(a).some(text => text.includes('relay is down'))).toBe(true)
+    expect((await a.accept(intake, 'one')).revision).toBeDefined()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    expect(a.events).toEqual([])
+    expect(a.notifier.controls.notifications()).toEqual([])
   })
 })
 
-describe('a notice from another dispatcher', () => {
+describe('a notice wakes the instance, whoever dispatched it', () => {
+  it('a notice of a commit of this instance wakes it once more and commits nothing it does not ask for', async () => {
+    const a = await build()
+    const intake = await a.caller('intake')
+    a.bindings.controls.bind(a.tenant, a.sessionId('session-1'))
+    await a.create(intake)
+    const accepted = await a.accept(intake, 'wake-twice')
+    // The instance advances the session once: one Run starts and the Agent drive is invoked.
+    await expect.poll(() => a.hooks.invoked.length, { timeout: 5000 }).toBe(1)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    const commits = () => a.log.filter(step => step === 'commit-settled').length
+    const before = commits()
+    // The notice the writer gives for the accept batch reaches the plugin as well: it wakes again.
+    await a.ctx.parallel(
+      COMMITTED,
+      a.tenant,
+      a.sessionId('session-1'),
+      accepted.revision,
+      accepted.source,
+      ['message.user', 'intake.routed'],
+    )
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(commits()).toBe(before)
+    expect(a.hooks.invoked).toHaveLength(1)
+  })
+})
+
+describe('a notice from any dispatcher', () => {
   it('wakes the instance: a session whose principal was refused is advanced after the notice', async () => {
     const a = await build()
     const intake = await a.caller('intake')

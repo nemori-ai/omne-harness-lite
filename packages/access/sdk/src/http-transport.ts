@@ -1,4 +1,5 @@
 import type { GovernanceTransport, TransportReport } from './transport.ts'
+import { neverWritten } from './never-written.ts'
 
 export interface HttpTransportOptions {
   /** A loopback `http:` origin: `127.0.0.1` or `localhost`, with no credential, path, or query. */
@@ -16,17 +17,6 @@ const paths = {
 
 const loopbackHosts: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost'])
 
-/** Connection errors that can only happen before the first request byte is written. */
-const beforeFirstByte: ReadonlySet<string> = new Set([
-  'ECONNREFUSED',
-  'ENOTFOUND',
-  'EAI_AGAIN',
-  'EHOSTUNREACH',
-  'ENETUNREACH',
-  'EADDRNOTAVAIL',
-  'UND_ERR_CONNECT_TIMEOUT',
-])
-
 function loopbackUrl(origin: string, location: keyof typeof paths): URL {
   const refusal = new TypeError('origin must be a loopback http address')
   let parsed: URL
@@ -40,22 +30,6 @@ function loopbackUrl(origin: string, location: keyof typeof paths): URL {
   if (parsed.protocol !== 'http:' || !loopbackHosts.has(parsed.hostname) || !plain || !bare)
     throw refusal
   return new URL(paths[location], parsed)
-}
-
-function codeOf(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
-  return typeof error.code === 'string' ? error.code : undefined
-}
-
-/** True only when the failure proves that the connection never reached the write of the request. */
-function neverWritten(error: unknown): boolean {
-  const cause = error instanceof Error ? error.cause : undefined
-  const codes: (string | undefined)[] = [codeOf(cause)]
-  const nested =
-    typeof cause === 'object' && cause !== null && 'errors' in cause ? cause.errors : []
-  if (Array.isArray(nested)) codes.push(...nested.map(codeOf))
-  const known = codes.filter((code): code is string => code !== undefined)
-  return known.length > 0 && known.every(code => beforeFirstByte.has(code))
 }
 
 function isJson(contentType: string | null): boolean {

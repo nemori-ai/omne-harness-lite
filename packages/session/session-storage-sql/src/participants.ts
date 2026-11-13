@@ -31,17 +31,17 @@ import type {
   GuardCommand,
   RoutedInput,
   SessionCommand,
-  SessionFailure,
   SessionId,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { canonicalText, decodeValue, encodeValue, isCount, sha256 } from './codec.ts'
-import { readCachedSessionWork, registerSessionWorkIndex, type WorkFold } from './work-cache.ts'
+import { canonicalText, decodeValue, encodeValue, sha256 } from './codec.ts'
+import { readCachedSessionWork } from './work-cache.ts'
 
-/** The participant that executes the Session commands and the read-only checks. */
-export const SESSION_PARTICIPANT = 'session'
+import { recordOf, SESSION_PARTICIPANT } from './session-reply.ts'
+
+export { SESSION_PARTICIPANT }
 /** The participant that keeps the records of the execution record provider (the Agent Journal). */
 export const EXECUTION_RECORD_PARTICIPANT = 'execution-record'
 /**
@@ -173,95 +173,12 @@ export function sessionCheckDigest(check: SessionCheck): string {
   return `sha256:${sha256(canonicalText(encodeValue(check)))}`
 }
 
-/**
- * The reply of the `session` participant, decoded.
- *
- * - `participated`: the result of the command or check, whether it is the recall of a committed
- *   original, and the digest of the command or check it answers. A caller compares the digest
- *   with `commandDigest` (or `sessionCheckDigest`): equal is the same command, another digest is
- *   another command under the same identity.
- * - `stopped`: the Session failure the participant stopped on (a conflict reply).
- * - `failed`: the participant could not do its part (a dependency or storage failure).
- * - `unsupported`: the facts are not a command, a check, an entries commit or a query.
- */
-export type SessionParticipation =
-  | Readonly<{
-      kind: 'participated'
-      result: unknown
-      recovered: boolean
-      digest: string
-      /** What a fresh batch tells the work cache (SPEC RT-04); absent on a recall. */
-      work?: SessionWorkReply
-    }>
-  | Readonly<{ kind: 'stopped'; failure: SessionFailure }>
-  | Readonly<{ kind: 'failed'; diagnostic: string }>
-  | Readonly<{ kind: 'unsupported'; reason: string }>
-
-/**
- * What a published Session batch tells the work cache of the main thread (C-TOPOLOGY §2.9): the
- * fold of the work cache (`WorkFold`), under the name of this vocabulary.
- */
-export type SessionWorkReply = WorkFold
-
-function workReplyOf(value: JsonValue | undefined): SessionWorkReply | undefined {
-  const work = recordOf(value)
-  if (work === null) return undefined
-  const { tail, published, bytes, first, last, indexed, basis } = work
-  const counts = [tail, published, first, last].every(isCount)
-  if (!counts || typeof bytes !== 'number' || typeof indexed !== 'boolean') return undefined
-  return {
-    tail: tail as string,
-    published: published as string,
-    bytes,
-    first: first as string,
-    last: last as string,
-    indexed,
-    ...(basis === undefined ? {} : { basis }),
-  }
-}
-
-function isJsonRecord(
-  value: JsonValue | undefined,
-): value is Readonly<{ readonly [key: string]: JsonValue }> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function recordOf(
-  value: JsonValue | undefined,
-): Readonly<{ readonly [key: string]: JsonValue }> | null {
-  return isJsonRecord(value) ? value : null
-}
-
-export function decodeSessionReply(reply: RecordedReply): SessionParticipation {
-  switch (reply.kind) {
-    case 'participated': {
-      const response = recordOf(reply.response)
-      const digest = response?.['digest']
-      if (response === null || typeof digest !== 'string')
-        return { kind: 'failed', diagnostic: 'a session reply without a digest' }
-      const work = workReplyOf(response['work'])
-      return {
-        kind: 'participated',
-        result: decodeValue(response['result'] ?? null),
-        recovered: response['recovered'] === true,
-        digest,
-        ...(work === undefined ? {} : { work }),
-      }
-    }
-    case 'conflict': {
-      const failure = recordOf(reply.basis)?.['failure']
-      return failure === undefined
-        ? { kind: 'failed', diagnostic: 'a session conflict without a failure' }
-        : { kind: 'stopped', failure: decodeValue(failure) as SessionFailure }
-    }
-    case 'unsupported': {
-      const reason = recordOf(reply.basis)?.['reason']
-      return { kind: 'unsupported', reason: typeof reason === 'string' ? reason : 'unsupported' }
-    }
-    case 'failed':
-      return { kind: 'failed', diagnostic: `${reply.category}: ${reply.diagnostic}` }
-  }
-}
+export {
+  decodeSessionReply,
+  type SessionCommittedBatch,
+  type SessionParticipation,
+  type SessionWorkReply,
+} from './session-reply.ts'
 
 // ---------------------------------------------------------------------------------------------
 // The `execution-record` participant: the Agent fact family and the content blocks
@@ -1037,12 +954,16 @@ export type SessionWorkRead =
 export { readCachedSessionWork }
 
 /**
- * Replaces the index of the held `session.work` answer of one session after a publication of the
- * Agent records committed with the count `published` (SPEC RT-04): for the Journal provider, which
- * holds the domain of the tenant. It reads the index at the held tail and the new count, and
- * registers nothing when the store is at another version. It never throws.
+ * The one landing of a storage commit with a Session participation, for a committer outside this
+ * member (the Journal provider): fresh or not, the fold into the work cache, the notice to the
+ * notifiers registered on the database. It never throws (SPEC「本批与提交通知」).
  */
-export { registerSessionWorkIndex }
+export {
+  afterSessionCommit,
+  registerSessionNotifier,
+  type SessionCommitAnswer,
+  type SessionCommitLanding,
+} from './committed.ts'
 export {
   planPublishedCount,
   publishedCountsOf,

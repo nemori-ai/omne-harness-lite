@@ -184,6 +184,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/access/access-cordis-contract
       '@omne-harness/agent':
         specifier: workspace:*
         version: link:../../packages/agent/agent
@@ -325,6 +328,9 @@ importers:
       '@omne-harness/session-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/session/session-cordis-contract
+      '@omne-harness/session-observation':
+        specifier: workspace:*
+        version: link:../../packages/session/session-observation
       '@omne-harness/session-storage-sql':
         specifier: workspace:*
         version: link:../../packages/session/session-storage-sql
@@ -500,9 +506,15 @@ importers:
 
   packages/access/sdk:
     dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../public-contract
+      eventsource-parser:
+        specifier: 'catalog:'
+        version: 3.1.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -2948,6 +2960,43 @@ importers:
       '@omne-harness/session-contract':
         specifier: workspace:*
         version: link:../session-contract
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/session/session-observation:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/model-cordis-contract':
+        specifier: workspace:*
+        version: link:../../model/model-cordis-contract
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../session-contract
+      '@omne-harness/session-cordis-contract':
+        specifier: workspace:*
+        version: link:../session-cordis-contract
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

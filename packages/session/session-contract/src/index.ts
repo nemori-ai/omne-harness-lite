@@ -242,6 +242,8 @@ export type {
   SessionPrefixFact,
 } from './history-values.ts'
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
+export { readCallRegistration } from './call-registration.ts'
+export type { CallRegistrationView } from './call-registration.ts'
 
 export type {
   SessionWorkEntryIndex,

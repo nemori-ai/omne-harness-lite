@@ -67,7 +67,7 @@ import {
   planPublishedCount,
   publishedCountsOf,
   readCachedSessionWork,
-  registerSessionWorkIndex,
+  afterSessionCommit,
   sessionCheckFacts,
   sessionCommandFacts,
   type ExecutionAdmissionRecord,
@@ -85,7 +85,6 @@ import type {
 } from '@omne-harness/sql-contract'
 import {
   commitJournal,
-  jointSessionWork,
   refusalFailure,
   standingOf,
   type GenerationMemory,
@@ -2035,18 +2034,21 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       operation,
       outcome,
     )
-    // The publication moved the count of the Agent records: the work cache replaces the index of
-    // the Session snapshot it holds, or folds the batch of a Session participation of the same
-    // commit, instead of reading the snapshot whole (session-storage-sql RT-04).
-    if (outcome.kind === 'committed' && !outcome.recalled && book.published !== null)
-      await registerSessionWorkIndex(
-        options.storage,
-        domain,
-        book.tenantText,
-        book.session,
-        String(book.published),
-        jointSessionWork(outcome),
-      )
+    // What follows the commit hangs on the one writer of the session log: the landing of
+    // session-storage-sql judges a fresh commit, folds the batch of a Session participation of the
+    // same commit (or replaces the index after the publication) and tells the batch to the
+    // notifiers of the database (session-storage-sql「本批与提交通知」, RT-04).
+    await afterSessionCommit({
+      storage: options.storage,
+      domain,
+      tenant: book.tenantText,
+      session: book.session,
+      answer:
+        outcome.kind === 'committed'
+          ? { receipt: outcome.receipt, recalled: outcome.recalled }
+          : null,
+      journal: { published: book.published === null ? null : String(book.published) },
+    })
     return settled
   }
 

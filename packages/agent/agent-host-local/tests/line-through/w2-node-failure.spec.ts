@@ -153,14 +153,18 @@ it('retains a failed execution and lets Session regrant its untaken input on rea
   worlds.push(w)
   await w.createSession('node-failure')
   await w.runRound(1, 'retry this input after the failed execution', 10_000)
-  expect(await w.lastOutcome()).toBe('failed')
-  expect(w.modelCalls).toHaveLength(0)
-  const firstRun = await w.lastTerminal()
   const [execution] = failedExecutions
   if (execution === undefined) throw new Error('the conditions fault was not injected')
+  // The first Run by its identity. The commit notice of its end wakes Session, which grants the
+  // untaken input again at once: by now the next Run may have started or even ended, so nothing
+  // here reads "the latest" Run, outcome or Model call count.
+  const firstEnd = w.endedRuns().find(end => end.execution === execution)
+  expect(firstEnd).toMatchObject({ outcome: 'failed' })
+  const firstRun = firstEnd?.run
   const access = { ...w.agentAccess, execution }
   const first = ok(await w.fresh().load(access))
   expect(first.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
+  expect(first.checkpoint.calls.filter(call => call.kind === 'model')).toHaveLength(0)
   expect(first.settlement.candidate?.failure).toMatchObject({
     kind: 'node-failed',
     node: 'E2',
@@ -176,7 +180,8 @@ it('retains a failed execution and lets Session regrant its untaken input on rea
   expect(events.events.filter(event => event.body.kind === 'input-taken')).toHaveLength(0)
   expect(events.events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
 
-  w.sessionClock.controls.advance(30_000)
+  // No clock moves here: the commit notice of the failed end already woke Session, which granted
+  // the untaken input to the next Run at once (#1230). Wait for that Run to end.
   await w.until(async () => (await w.lastOutcome()) === 'completed', 10_000)
   expect(await w.lastOutcome()).toBe('completed')
   expect(await w.lastTerminal()).not.toBe(firstRun)
