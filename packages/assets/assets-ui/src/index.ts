@@ -1,2 +1,1 @@
-// PACKAGE_TEMPLATE_DRAFT: Export the accepted public functions/types here.
-export {}
+export { SettingsPanel, type SettingsPanelProps } from './view/settings-panel.tsx'

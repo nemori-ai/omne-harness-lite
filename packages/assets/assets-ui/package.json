@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft assets-ui package; complete the accepted public contract before delivery",
+  "description": "The settings interface module: see every setting of this layer, change it, clear it",
   "engines": {
     "node": ">=24"
   },
@@ -12,10 +12,12 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./assets-ui.css": "./src/view/assets-ui.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/view/assets-ui.css"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
@@ -24,9 +26,20 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/assets-protocol": "workspace:*",
+    "@omne-harness/public-contract": "workspace:*",
+    "@omne-harness/sdk": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
   "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
