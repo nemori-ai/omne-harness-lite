@@ -325,6 +325,11 @@ export type VoidedIntent = Readonly<{
   reference: M.ModelInvocationRef
   basis: DurableEvidence
 }>
+export type ModelRetryState = Readonly<{
+  failures: number
+  since: AgentInstant
+  notBefore: AgentInstant
+}>
 export type AgentCheckpoint = Readonly<{
   schema: Adoption
   definition: Adoption
@@ -351,6 +356,7 @@ export type AgentCheckpoint = Readonly<{
    * kept as given and never read by the Agent. Optional until Reduce makes it required (R2-D18).
    */
   adoptedRequest?: AdoptedRequest | null
+  modelRetry?: ModelRetryState | null
   guard: GuardFact | null
   completedPassages: readonly PassageId[]
   priorConditions: DurableEvidence | null

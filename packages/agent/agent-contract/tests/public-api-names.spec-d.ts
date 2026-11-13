@@ -74,6 +74,7 @@ import type {
   CompactionState,
   SavedPreparation,
   VoidedIntent,
+  ModelRetryState,
   ConsumerRef,
   ConsumptionId,
   ContextContent,
@@ -345,6 +346,7 @@ type Landed = {
   StructureFailure: StructureFailure
   Subject: Subject
   VoidedIntent: VoidedIntent
+  ModelRetryState: ModelRetryState
   Waiting: Waiting
   AcceptedInput: AcceptedInput
   AgentAccessCheck: AgentAccessCheck<string>
@@ -782,6 +784,16 @@ describe('the discriminants of the request chapter', () => {
     expectTypeOf<AgentCheckpoint['requestPreparation']>().toEqualTypeOf<SavedPreparation | null>()
     expectTypeOf<KindOf<SavedPreparation>>().toEqualTypeOf<'needs-compaction' | 'cannot-fit'>()
     expectTypeOf<AgentCheckpoint['voided']>().toEqualTypeOf<readonly VoidedIntent[]>()
+  })
+
+  it('a checkpoint may hold the retry state of the main model call of its step', () => {
+    expectTypeOf<AgentCheckpoint['modelRetry']>().toEqualTypeOf<
+      ModelRetryState | null | undefined
+    >()
+    expectTypeOf<keyof ModelRetryState>().toEqualTypeOf<'failures' | 'since' | 'notBefore'>()
+    expectTypeOf<ModelRetryState['since']>().toEqualTypeOf<AgentInstant>()
+    expectTypeOf<ModelRetryState['notBefore']>().toEqualTypeOf<AgentInstant>()
+    expectTypeOf<ModelRetryState['failures']>().toEqualTypeOf<number>()
   })
 
   it('prepare excludes the compaction purpose', () => {
