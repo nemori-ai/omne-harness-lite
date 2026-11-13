@@ -9,6 +9,8 @@ import {
   evaluate,
   type CapabilityId,
   type Candidate,
+  type Evaluation,
+  type Filtered,
   type JsonValue,
 } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
@@ -31,6 +33,7 @@ import type {
   ReadVerdict,
   Resolution,
   SkillReadCheck,
+  SkillRef,
   SkillResolution,
 } from '@omne-harness/skill-contract/provider'
 
@@ -81,11 +84,29 @@ const DISABLED: SafeReason = (() => {
   return reason
 })()
 
-type Found = Readonly<{ layer: SourceLayer; candidate: SkillCandidate }>
+/** One candidate with its layer and the eligibility that the assembly answered for it. */
+type Judged = Readonly<{ layer: SourceLayer; candidate: SkillCandidate; verdict: Eligibility }>
 
 export function createSkillDecisions<P, S>(
   inputs: SkillDecisionInputs<P, S>,
 ): Readonly<{ resolution: SkillResolution<P, S>; readCheck: SkillReadCheck<P, S> }> {
+  /** Asks the assembly for the eligibility of every candidate of every layer that was read. */
+  async function judge(
+    access: Access<P>,
+    scope: S,
+    layers: readonly SkillLayerInput[],
+  ): Promise<ReadonlyMap<Candidate, Judged>> {
+    const judged = new Map<Candidate, Judged>()
+    for (const layer of layers) {
+      if (layer.state !== 'read') continue
+      for (const candidate of layer.candidates) {
+        const verdict = await inputs.eligible(access, scope, candidate, layer.layer)
+        judged.set(candidate, { layer: layer.layer, candidate, verdict })
+      }
+    }
+    return judged
+  }
+
   async function resolve(
     access: Access<P>,
     scope: S,
@@ -93,49 +114,10 @@ export function createSkillDecisions<P, S>(
     basis?: SkillMaterialBasis,
   ): Promise<Resolution> {
     const layers = await inputs.layers(access, scope, capability)
-    const candidates = new Map<Candidate, Found>()
-    const verdicts = new Map<Candidate, Eligibility>()
-    for (const layer of layers) {
-      if (layer.state !== 'read') continue
-      for (const candidate of layer.candidates) {
-        candidates.set(candidate, { layer: layer.layer, candidate })
-        verdicts.set(candidate, await inputs.eligible(access, scope, candidate, layer.layer))
-      }
-    }
-    const result = evaluate({ layers, eligible: one => verdicts.get(one) ?? 'unknown' })
-    if (result.kind === 'unavailable') return UNKNOWN
-    if (result.kind === 'none') {
-      // A disabled candidate that the principal may know stands in for the identity.
-      const known = result.filtered.filter(out => out.reason === 'disabled')
-      const told = known.map(out => verdicts.get(out.candidate))
-      const shown = known.findLast(out => verdicts.get(out.candidate) === 'yes')
-      const found = shown === undefined ? undefined : candidates.get(shown.candidate)
-      if (found !== undefined) return standIn(capability, found.candidate.declared)
-      return told.includes('unknown') ? UNKNOWN : NONE
-    }
-    const found = candidates.get(result.candidate)
-    if (found === undefined) return UNKNOWN
-    const { candidate } = found
-    if (basis !== undefined) {
-      const lawful =
-        basis.layer === found.layer &&
-        (basis.assetVersion === undefined || basis.assetVersion === candidate.version)
-      if (!lawful) return BASIS_NOT_LAWFUL
-    }
-    const digest = basis?.digest ?? candidate.digest
-    return {
-      kind: 'adopted',
-      ref: {
-        capability,
-        layer: found.layer,
-        ...(isAssetVersion(candidate.version) ? { assetVersion: candidate.version } : {}),
-        locator: locatorOf(candidate),
-        ...(digest === undefined ? {} : { digest }),
-      },
-      declared: candidate.declared,
-    }
+    const judged = await judge(access, scope, layers)
+    const result = evaluate({ layers, eligible: one => judged.get(one)?.verdict ?? 'unknown' })
+    return translate(capability, result, judged, basis)
   }
-
   const resolution: SkillResolution<P, S> = {
     async resolve(access, scope, capability, options) {
       try {
@@ -174,6 +156,68 @@ export function createSkillDecisions<P, S>(
   return Object.freeze({ resolution, readCheck })
 }
 
+/** The answer of `evaluate` as one of the five answers of `Resolution`. */
+function translate(
+  capability: CapabilityId,
+  result: Evaluation,
+  judged: ReadonlyMap<Candidate, Judged>,
+  basis: SkillMaterialBasis | undefined,
+): Resolution {
+  switch (result.kind) {
+    case 'unavailable':
+      return UNKNOWN
+    case 'none':
+      return noWinner(capability, result.filtered, judged)
+    case 'winner': {
+      const winner = judged.get(result.candidate)
+      if (winner === undefined) throw new Error('unreachable: the winner is a judged candidate')
+      if (basis !== undefined && !isLawfulBasis(basis, winner)) return BASIS_NOT_LAWFUL
+      return {
+        kind: 'adopted',
+        ref: refOf(capability, winner, basis),
+        declared: winner.candidate.declared,
+      }
+    }
+  }
+}
+
+/** Without a winner: a disabled candidate that the principal may know stands in for the
+ * identity; one whose eligibility is unknown makes the answer unknown; otherwise none. */
+function noWinner(
+  capability: CapabilityId,
+  filtered: readonly Filtered[],
+  judged: ReadonlyMap<Candidate, Judged>,
+): Resolution {
+  const disabled = filtered.flatMap(out => {
+    const one = out.reason === 'disabled' ? judged.get(out.candidate) : undefined
+    return one === undefined ? [] : [one]
+  })
+  const shown = disabled.findLast(one => one.verdict === 'yes')
+  if (shown !== undefined) return standIn(capability, shown.candidate.declared)
+  return disabled.some(one => one.verdict === 'unknown') ? UNKNOWN : NONE
+}
+
+/** A basis is lawful when it names the winner's layer and, if it has one, the winner's version. */
+function isLawfulBasis(basis: SkillMaterialBasis, winner: Judged): boolean {
+  return (
+    basis.layer === winner.layer &&
+    (basis.assetVersion === undefined || basis.assetVersion === winner.candidate.version)
+  )
+}
+
+/** The internal reference of the winner; with a basis it carries the basis digest. */
+function refOf(capability: CapabilityId, winner: Judged, basis?: SkillMaterialBasis): SkillRef {
+  const { candidate } = winner
+  const digest = basis?.digest ?? candidate.digest
+  return {
+    capability,
+    layer: winner.layer,
+    ...(isAssetVersion(candidate.version) ? { assetVersion: candidate.version } : {}),
+    locator: locatorOf(candidate),
+    ...(digest === undefined ? {} : { digest }),
+  }
+}
+
 /** The locator of the reference: a content-store locator carries the candidate's asset reference
  * as the opaque `ref`, which the content store gets back. */
 function locatorOf(candidate: SkillCandidate): PackageLocator {
@@ -202,6 +246,31 @@ function textOf(value: JsonValue | undefined): string | undefined {
   return value?.kind === 'string' ? value.value : undefined
 }
 
+/** The tool identities of the body's `tools`, or `undefined` when one item is not one. */
+function toolsOf(tools: JsonValue | undefined): CapabilityId[] | undefined {
+  if (tools?.kind !== 'array') return undefined
+  const ids: CapabilityId[] = []
+  for (const tool of tools.items) {
+    const id = capabilityId(
+      textOf(field(tool, 'category')) ?? '',
+      textOf(field(tool, 'name')) ?? '',
+    )
+    if (!id.ok) return undefined
+    ids.push(id.id)
+  }
+  return ids
+}
+
+/** The declared projection of a body: name, description and tools. */
+function declaredOf(body: JsonValue): DeclaredProjection | undefined {
+  const name = textOf(field(body, 'name'))
+  const description = textOf(field(body, 'description'))
+  const tools = toolsOf(field(body, 'tools'))
+  if (!isSkillName(name) || tools === undefined) return undefined
+  if (description === undefined) return { name, tools }
+  return isSkillDescription(description) ? { name, description, tools } : undefined
+}
+
 /**
  * The candidate of a published Skill from the body of its version record: the declared name,
  * description and tools, and the package digest as a content-store locator. `undefined` when the
@@ -217,21 +286,9 @@ export function publishedCandidate(
     replaceLocked?: boolean
   }>,
 ): SkillCandidate | undefined {
-  const name = textOf(field(input.body, 'name'))
-  const description = textOf(field(input.body, 'description'))
+  const declared = declaredOf(input.body)
   const digest = textOf(field(field(input.body, 'package'), 'digest'))
-  const tools = field(input.body, 'tools')
-  if (!isSkillName(name) || !isPackageDigest(digest) || tools?.kind !== 'array') return undefined
-  if (description !== undefined && !isSkillDescription(description)) return undefined
-  const ids: CapabilityId[] = []
-  for (const tool of tools.items) {
-    const id = capabilityId(
-      textOf(field(tool, 'category')) ?? '',
-      textOf(field(tool, 'name')) ?? '',
-    )
-    if (!id.ok) return undefined
-    ids.push(id.id)
-  }
+  if (declared === undefined || !isPackageDigest(digest)) return undefined
   return {
     asset: input.asset,
     version: input.version,
@@ -240,6 +297,6 @@ export function publishedCandidate(
     replaceLocked: input.replaceLocked ?? false,
     locator: { kind: 'content-store', digest },
     digest,
-    declared: { name, ...(description === undefined ? {} : { description }), tools: ids },
+    declared,
   }
 }

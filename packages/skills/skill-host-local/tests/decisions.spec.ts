@@ -268,3 +268,117 @@ describe('publishedCandidate', () => {
     ).toBeUndefined()
   })
 })
+
+describe('publishedCandidate: bodies of another shape', () => {
+  const text = (value: string): JsonValue => ({ kind: 'string', value })
+  const tool = (category: string, name: string): JsonValue => ({
+    kind: 'object',
+    entries: [
+      { key: 'category', value: text(category) },
+      { key: 'name', value: text(name) },
+    ],
+  })
+  const fields: Record<string, JsonValue> = {
+    name: text('weekly-report'),
+    description: text('Writes the weekly report.'),
+    tools: { kind: 'array', items: [tool('tool', 'Shell')] },
+    package: { kind: 'object', entries: [{ key: 'digest', value: text(digest('d')) }] },
+  }
+  function bodyWith(changes: Record<string, JsonValue | undefined>): JsonValue {
+    const merged = { ...fields, ...changes }
+    return {
+      kind: 'object',
+      entries: Object.entries(merged).flatMap(([key, value]) =>
+        value === undefined ? [] : [{ key, value }],
+      ),
+    }
+  }
+  const candidateOf = (body: JsonValue) =>
+    publishedCandidate({
+      asset: 'tenant/weekly-report',
+      version: digest('d'),
+      body,
+      disabled: false,
+    })
+
+  it('takes the body of a published Skill, and one without a description', () => {
+    expect(candidateOf(bodyWith({}))).toMatchObject({
+      declared: { name: 'weekly-report', description: 'Writes the weekly report.' },
+    })
+    expect(candidateOf(bodyWith({ description: undefined }))?.declared).toEqual({
+      name: 'weekly-report',
+      tools: [{ category: 'tool', name: 'Shell' }],
+    })
+  })
+
+  it.each([
+    ['no name', { name: undefined }],
+    ['a name that is no Skill name', { name: text('Weekly Report') }],
+    ['a name that is no text', { name: { kind: 'number', lexeme: '1' } as JsonValue }],
+    ['tools that are no list', { tools: text('Shell') }],
+    ['no tools', { tools: undefined }],
+    [
+      'a tool with an empty category',
+      { tools: { kind: 'array', items: [tool('', 'Shell')] } as JsonValue },
+    ],
+    ['a tool that is no object', { tools: { kind: 'array', items: [text('Shell')] } as JsonValue }],
+    ['an empty description', { description: text('') }],
+    ['no package', { package: undefined }],
+    [
+      'a package digest of another form',
+      {
+        package: {
+          kind: 'object',
+          entries: [{ key: 'digest', value: text('sha1:00') }],
+        } as JsonValue,
+      },
+    ],
+  ])('gives nothing for a body with %s', (_case, changes) => {
+    expect(candidateOf(bodyWith(changes))).toBeUndefined()
+  })
+})
+
+describe('the translation: the branches of the winner and of no winner', () => {
+  it('a disabled candidate whose eligibility is unknown makes the answer unknown', async () => {
+    const off = candidate('tenant/weekly-report', { disabled: true })
+    const { resolution } = decisions([read('tenant', off)], () => 'unknown')
+    expect(await resolution.resolve(reader, scope, report)).toEqual({ kind: 'unknown' })
+  })
+
+  it('takes a basis without an asset version on the winner layer, and refuses another layer', async () => {
+    const mine = candidate('tenant/weekly-report')
+    const { resolution } = decisions([read('tenant', mine)])
+    const basis = { capability: report, layer: 'tenant' as const, digest: digest('c') }
+    expect(await resolution.resolve(reader, scope, report, { basis })).toMatchObject({
+      kind: 'adopted',
+      ref: { layer: 'tenant', digest: digest('c') },
+    })
+    expect(
+      await resolution.resolve(reader, scope, report, {
+        basis: { ...basis, layer: 'official' as const },
+      }),
+    ).toEqual({ kind: 'basis-not-lawful' })
+  })
+
+  it('a directory candidate without a digest and with a version that is no asset version', async () => {
+    const official: SkillCandidate = {
+      asset: 'official/weekly-report',
+      version: 'v\u0007',
+      disabled: false,
+      immutable: false,
+      replaceLocked: false,
+      locator: { kind: 'directory', root: '/skills/weekly-report' },
+      declared: { name: skillName('weekly-report'), tools: [] },
+    }
+    const { resolution } = decisions([read('official', official)])
+    expect(await resolution.resolve(reader, scope, report)).toEqual({
+      kind: 'adopted',
+      ref: {
+        capability: report,
+        layer: 'official',
+        locator: { kind: 'directory', root: '/skills/weekly-report' },
+      },
+      declared: official.declared,
+    })
+  })
+})

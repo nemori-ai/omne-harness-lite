@@ -17,6 +17,7 @@ import {
   type JsonValue,
   type PackageLayout,
   type PackageManifest,
+  type PackageManifestEntry,
   type PackageReader,
   type PackageRejection,
   type PackageSourceFailure,
@@ -116,10 +117,9 @@ function isSafePath(path: string): boolean {
   return path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
 }
 
-function checkManifest(
-  manifest: PackageManifest,
-  limits: PackageLayout['limits'],
-): PackageRejection | undefined {
+/** Paths that stay below the package root, without repeats and without a file that is the
+ * parent directory of another path. */
+function pathRejection(manifest: PackageManifest): PackageRejection | undefined {
   const paths = new Set<string>()
   for (const entry of manifest.entries) {
     if (!isSafePath(entry.path) || paths.has(entry.path))
@@ -132,6 +132,14 @@ function checkManifest(
       if (paths.has(segments.slice(0, depth).join('/')))
         return { kind: 'invalid-package', reason: 'manifest-path' }
   }
+  return undefined
+}
+
+/** The three limits of the layout: files, bytes of one file, bytes of the package. */
+function limitRejection(
+  manifest: PackageManifest,
+  limits: PackageLayout['limits'],
+): PackageRejection | undefined {
   if (manifest.entries.length > limits.files) return { kind: 'limit-exceeded', limit: 'files' }
   if (manifest.entries.some(entry => entry.bytes > limits.fileBytes))
     return { kind: 'limit-exceeded', limit: 'fileBytes' }
@@ -174,16 +182,18 @@ function field(value: JsonValue | undefined, key: string): JsonValue | undefined
 function manifestOf(body: JsonValue): PackageManifest | undefined {
   const items = field(field(body, 'manifest'), 'entries')
   if (items?.kind !== 'array') return undefined
-  const entries: { path: string; bytes: number; digest: string }[] = []
-  for (const item of items.items) {
-    const path = field(item, 'path')
-    const bytes = field(item, 'bytes')
-    const entryDigest = field(item, 'digest')
-    if (path?.kind !== 'string' || bytes?.kind !== 'number' || entryDigest?.kind !== 'string')
-      return undefined
-    entries.push({ path: path.value, bytes: Number(bytes.lexeme), digest: entryDigest.value })
-  }
-  return { entries }
+  const entries = items.items.map(entryOf)
+  return entries.every(entry => entry !== undefined) ? { entries } : undefined
+}
+
+/** One manifest entry of the body, or `undefined` when it is not one. */
+function entryOf(item: JsonValue): PackageManifestEntry | undefined {
+  const path = field(item, 'path')
+  const bytes = field(item, 'bytes')
+  const entryDigest = field(item, 'digest')
+  if (path?.kind !== 'string' || bytes?.kind !== 'number' || entryDigest?.kind !== 'string')
+    return undefined
+  return { path: path.value, bytes: Number(bytes.lexeme), digest: entryDigest.value }
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -202,6 +212,38 @@ async function isDirectory(path: string): Promise<boolean> {
 }
 
 type StagingMeta = Readonly<{ category: string; name: string; assetRef: string; version: string }>
+
+/** A package that passed the checks, with where its staging and its files go. */
+type Prepared = Readonly<{
+  root: string
+  staging: string
+  manifest: PackageManifest
+  version: string
+  /** The body of the version record, read back by `readBodyText`. */
+  body: JsonValue
+  meta: StagingMeta
+  final: string
+}>
+
+/** The body of the version record: the declaration that `inspect` projected, an object, plus the
+ * field `manifest`, read back within the 1 MiB budget of a record. */
+function recordBody(
+  declaration: JsonValue,
+  manifest: PackageManifest,
+): Outcome<JsonValue, PackageRejection> {
+  if (declaration.kind !== 'object' || field(declaration, 'manifest') !== undefined)
+    return fail({ kind: 'invalid-package', reason: 'declaration-shape' })
+  const body = readBodyText(
+    writeJsonText({
+      kind: 'object',
+      entries: [...declaration.entries, { key: 'manifest', value: manifestTree(manifest) }],
+    }),
+    BODY_LIMITS,
+  )
+  return body.kind === 'ok'
+    ? succeed(body.value)
+    : fail({ kind: 'record-rejected', reason: 'limit_exceeded' })
+}
 
 export function createPublishedPackages(input: {
   root: string | undefined
@@ -288,62 +330,71 @@ export function createPublishedPackages(input: {
     return undefined
   }
 
-  async function publish(
+  /** 校验: the category gives a layout, the manifest keeps its rules and limits, the category's
+   * `inspect` accepts the package and its `judge` accepts the body of the version record. */
+  async function validate(
     request: Parameters<PublishedPackages['publish']>[0],
-  ): Promise<PackagePublishResult> {
-    const { capability, assetRef, from, operationId } = request
-    if (root === undefined) return rejected({ kind: 'not-configured' })
+  ): Promise<Outcome<Prepared, PackageRejection>> {
+    const { capability, from } = request
+    if (root === undefined) return fail({ kind: 'not-configured' })
     const contract = categories.lookup(capability.category)
-    if (contract === undefined) return rejected({ kind: 'unknown-category' })
+    if (contract === undefined) return fail({ kind: 'unknown-category' })
     const layout = contract.layout
-    if (layout === undefined) return rejected({ kind: 'not-a-directory-category' })
+    if (layout === undefined) return fail({ kind: 'not-a-directory-category' })
     const listed = await from.manifest()
-    if (!('ok' in listed)) return rejected({ kind: 'source-failed', failure: listed.failure })
+    if (!('ok' in listed)) return fail({ kind: 'source-failed', failure: listed.failure })
     const manifest = listed.ok
-    const invalid = checkManifest(manifest, layout.limits)
-    if (invalid !== undefined) return rejected(invalid)
+    const invalid = pathRejection(manifest) ?? limitRejection(manifest, layout.limits)
+    if (invalid !== undefined) return fail(invalid)
     const inspected = await layout.inspect(from)
-    if (!('ok' in inspected)) return rejected(inspected.failure)
-    const declaration = inspected.ok
-    if (declaration.kind !== 'object' || field(declaration, 'manifest') !== undefined)
-      return rejected({ kind: 'invalid-package', reason: 'declaration-shape' })
+    if (!('ok' in inspected)) return inspected
+    const body = recordBody(inspected.ok, manifest)
+    if (!('ok' in body)) return body
     const version = packageDigest(manifest.entries)
-    const body = readBodyText(
-      writeJsonText({
-        kind: 'object',
-        entries: [...declaration.entries, { key: 'manifest', value: manifestTree(manifest) }],
-      }),
-      BODY_LIMITS,
-    )
-    if (body.kind !== 'ok') return rejected({ kind: 'record-rejected', reason: 'limit_exceeded' })
-    const judged = contract.judge(body.value, {
-      capabilityName: capability.name,
-      definition: version,
-    })
-    if (!judged.ok) return rejected({ kind: 'invalid-package', reason: judged.rejected })
-    const meta: StagingMeta = {
-      category: capability.category,
-      name: capability.name,
-      assetRef,
+    const judged = contract.judge(body.ok, { capabilityName: capability.name, definition: version })
+    if (!judged.ok) return fail({ kind: 'invalid-package', reason: judged.rejected })
+    const { name, category } = capability
+    return succeed({
+      root,
+      staging: join(root, STAGING, digest(request.operationId)),
+      manifest,
       version,
-    }
-    const final = finalOf(root, layout, capability.name, version)
+      body: body.ok,
+      meta: { category, name, assetRef: request.assetRef, version },
+      final: finalOf(root, layout, name, version),
+    })
+  }
 
+  /** What an earlier publish already settled: the receipt of this operation, or a record of
+   * this version, whose pending swap completes first. `undefined` when nothing did. */
+  async function settledBefore(
+    prepared: Prepared,
+    operationId: string,
+  ): Promise<PackagePublishResult | undefined> {
+    const { meta, final, version } = prepared
     const receipt = await records.getOperation(operationId)
     if (receipt.kind === 'committed') {
-      await completeSwap(root, meta, final)
+      await completeSwap(prepared.root, meta, final)
       return { kind: 'published', version, changed: receipt.changed }
     }
     if (receipt.kind === 'unknown') return { kind: 'unknown', operationId }
     if (receipt.kind === 'rejected') return recordRejected(receipt.reason)
-    const existing = await records.readVersionRecord(assetRef, version)
+    const existing = await records.readVersionRecord(meta.assetRef, version)
     if (!('ok' in existing)) return rejected({ kind: 'record-rejected', reason: existing.failure })
-    if (existing.ok !== undefined) {
-      await completeSwap(root, meta, final)
-      return { kind: 'published', version, changed: false }
-    }
+    if (existing.ok === undefined) return undefined
+    await completeSwap(prepared.root, meta, final)
+    return { kind: 'published', version, changed: false }
+  }
 
-    const staging = join(root, STAGING, digest(operationId))
+  /** 暂存, 记版本, 换入: in this order. A failure that the flow knows removes the staging;
+   * a throw leaves it, for the same operation or the recovery scan. */
+  async function stageRecordSwap(
+    prepared: Prepared,
+    request: Parameters<PublishedPackages['publish']>[0],
+  ): Promise<PackagePublishResult> {
+    const { capability, assetRef, from, operationId } = request
+    const { manifest, version, body, meta, final } = prepared
+    const { staging } = prepared
     await rm(staging, { recursive: true, force: true })
     const revision = await records.readAssetRevision(assetRef)
     if (!('ok' in revision)) return rejected({ kind: 'record-rejected', reason: revision.failure })
@@ -357,7 +408,7 @@ export function createPublishedPackages(input: {
       operationId,
       assetRef,
       expectedRevision: revision.ok,
-      pinned: pinBody({ identity: capability, version, source: SOURCE, body: body.value }),
+      pinned: pinBody({ identity: capability, version, source: SOURCE, body }),
     })
     if (recorded.kind === 'unknown') return { kind: 'unknown', operationId }
     if (recorded.kind === 'rejected') {
@@ -367,6 +418,17 @@ export function createPublishedPackages(input: {
     await input.afterStep?.('recorded')
     await swap(staging, final, capability.category)
     return { kind: 'published', version, changed: recorded.changed }
+  }
+
+  async function publish(
+    request: Parameters<PublishedPackages['publish']>[0],
+  ): Promise<PackagePublishResult> {
+    const prepared = await validate(request)
+    if (!('ok' in prepared)) return rejected(prepared.failure)
+    return (
+      (await settledBefore(prepared.ok, request.operationId)) ??
+      stageRecordSwap(prepared.ok, request)
+    )
   }
 
   function recordRejected(reason: string): PackagePublishResult {
@@ -433,31 +495,34 @@ export function createPublishedPackages(input: {
     }
   }
 
+  /** One staging at start: swapped in when its version is recorded and not in place yet;
+   * removed when it has no record (crashed before the record) or its version is in place. */
+  async function settle(
+    root: string,
+    staged: Readonly<{ dir: string; meta?: StagingMeta }>,
+  ): Promise<'completed' | 'discarded'> {
+    const { meta } = staged
+    const layout = meta === undefined ? undefined : layoutOf(meta.category)
+    if (meta !== undefined && layout !== undefined) {
+      const recorded = await records.readVersionRecord(meta.assetRef, meta.version)
+      if (!('ok' in recorded)) throw new Error(recorded.failure)
+      const final = finalOf(root, layout, meta.name, meta.version)
+      if (recorded.ok !== undefined && !(await isDirectory(final))) {
+        await swap(staged.dir, final, meta.category)
+        return 'completed'
+      }
+    }
+    await rm(staged.dir, { recursive: true, force: true })
+    return 'discarded'
+  }
+
   async function recover(): Promise<PackageRecovery> {
     if (root === undefined) return { completed: 0, discarded: 0, mismatched: [] }
     let completed = 0
     let discarded = 0
     for (const staged of await stagings(root)) {
-      const meta = staged.meta
-      const layout = meta === undefined ? undefined : layoutOf(meta.category)
-      const recorded =
-        meta === undefined
-          ? undefined
-          : await records.readVersionRecord(meta.assetRef, meta.version)
-      if (recorded !== undefined && !('ok' in recorded)) throw new Error(recorded.failure)
-      if (meta === undefined || layout === undefined || recorded?.ok === undefined) {
-        await rm(staged.dir, { recursive: true, force: true })
-        discarded += 1
-        continue
-      }
-      const final = finalOf(root, layout, meta.name, meta.version)
-      if (await isDirectory(final)) {
-        await rm(staged.dir, { recursive: true, force: true })
-        discarded += 1
-        continue
-      }
-      await swap(staged.dir, final, meta.category)
-      completed += 1
+      if ((await settle(root, staged)) === 'completed') completed += 1
+      else discarded += 1
     }
     return { completed, discarded, mismatched: await mismatched(root) }
   }

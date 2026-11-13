@@ -9,6 +9,8 @@ import {
 } from './records.ts'
 import { HANDLER, PROTOCOL, readRequestSchema } from './schema.ts'
 import { canonical, equal, json, scopeRef, withinBudget } from './encoding.ts'
+const FORBIDDEN = { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } } as const
+
 type ReadRequest = ReturnType<typeof readRequestSchema.parse>
 type Port = Parameters<ReadHandlerModule['read']>[1]
 
@@ -21,12 +23,19 @@ function holdingResult(
     return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
   return heldResult(readHolding(port, domain, lookup.holdingRef), port)
 }
-/** The held holding of one capability identity in this domain: at most one, by the unique index. */
+/**
+ * The held holding of one capability identity in this domain: at most one, by the unique index.
+ * A domain without any record yet has no holding; another domain is forbidden.
+ */
 function heldCapabilityResult(
   request: Extract<ReadRequest, { kind: 'heldCapability' }>,
   port: Port,
 ): ReturnType<ReadHandlerModule['read']> {
   const { lookup, domain } = request
+  const current = readDomain(port)
+  if (scopeRef(domain) === null || (current !== null && !equal(current.domain, domain)))
+    return FORBIDDEN
+  if (current === null) return { kind: 'read', output: { kind: 'absent' } }
   const row = port.execute(
     "SELECT holding_ref FROM al_holdings WHERE scope_key = ? AND capability_key = ? AND state = 'held' LIMIT 1",
     [canonical(domain), canonical([lookup.category, lookup.name])],
@@ -74,37 +83,33 @@ function assetResult(
   const asset = readAsset(port, domain, request.lookup.assetRef)
   return { kind: 'read', output: json(asset ? { kind: 'asset', asset } : { kind: 'absent' }) }
 }
+/** One version record of one asset. */
+function versionResult(
+  request: Extract<ReadRequest, { kind: 'version' }>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
+  const { domain, lookup } = request
+  const version = readVersion(port, domain, lookup.assetRef, lookup.version)
+  return { kind: 'read', output: json(version ? { kind: 'version', version } : { kind: 'absent' }) }
+}
+
 export default {
   handler: HANDLER,
   protocol: PROTOCOL,
   read(input, port) {
     if (!withinBudget(input)) return { kind: 'failed', diagnostic: 'assets_input_budget' }
-    const request = readRequestSchema.safeParse(input)
-    if (!request.success) return { kind: 'failed', diagnostic: 'assets_invalid_input' }
-    const { domain } = request.data
-    if (request.data.kind === 'asset') return assetResult(request.data, port)
-    if (request.data.kind === 'heldCapability') {
-      // A domain without any record yet has no holding.
-      const current = readDomain(port)
-      if (scopeRef(domain) === null || (current !== null && !equal(current.domain, domain)))
-        return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
-      if (current === null) return { kind: 'read', output: { kind: 'absent' } }
-      return heldCapabilityResult(request.data, port)
+    const parsed = readRequestSchema.safeParse(input)
+    if (!parsed.success) return { kind: 'failed', diagnostic: 'assets_invalid_input' }
+    const request = parsed.data
+    switch (request.kind) {
+      case 'asset':
+        return assetResult(request, port)
+      case 'heldCapability':
+        return heldCapabilityResult(request, port)
+      case 'version':
+        return belongs(port, request.domain) ? versionResult(request, port) : FORBIDDEN
+      case 'holding':
+        return belongs(port, request.domain) ? holdingResult(request, port) : FORBIDDEN
     }
-    if (!belongs(port, domain))
-      return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
-    if (request.data.kind === 'version') {
-      const version = readVersion(
-        port,
-        domain,
-        request.data.lookup.assetRef,
-        request.data.lookup.version,
-      )
-      return {
-        kind: 'read',
-        output: json(version ? { kind: 'version', version } : { kind: 'absent' }),
-      }
-    }
-    return holdingResult(request.data, port)
   },
 } satisfies ReadHandlerModule

@@ -42,6 +42,11 @@ export type Evaluation =
 
 export type Eligibility = (candidate: Candidate, layer: string) => 'yes' | 'no' | 'unknown'
 
+/** One candidate after the disabled and eligibility filters: `out` when it is filtered. */
+type Screened = { readonly candidate: Candidate; out?: Filtered }
+
+type ScreenedLayer = { readonly layer: string; readonly candidates: readonly Screened[] }
+
 /**
  * Collects, filters disabled, filters by eligibility, applies the declarations and locks of the
  * wider layers, and takes the most specific candidate that stands. A layer that cannot be read,
@@ -54,44 +59,67 @@ export function evaluate(input: {
 }): Evaluation {
   const unread = input.layers.find(layer => layer.state === 'unavailable')
   if (unread !== undefined) return { kind: 'unavailable', layer: unread.layer }
+  const screened = screen(input.layers, input.eligible)
+  return 'unknown' in screened ? { kind: 'unavailable', layer: screened.unknown } : choose(screened)
+}
+
+/** The disabled filter, then the eligibility filter, layer by layer. An eligibility that is
+ * unknown stops at its layer. */
+function screen(
+  layers: readonly LayerInput[],
+  eligible: Eligibility,
+): readonly ScreenedLayer[] | { readonly unknown: string } {
+  const screened: ScreenedLayer[] = []
+  for (const layer of layers) {
+    if (layer.state !== 'read') continue
+    const candidates: Screened[] = []
+    for (const candidate of layer.candidates) {
+      if (candidate.disabled) {
+        candidates.push({ candidate, out: { layer: layer.layer, candidate, reason: 'disabled' } })
+        continue
+      }
+      const verdict = eligible(candidate, layer.layer)
+      if (verdict === 'unknown') return { unknown: layer.layer }
+      candidates.push(
+        verdict === 'no'
+          ? { candidate, out: { layer: layer.layer, candidate, reason: 'ineligible' } }
+          : { candidate },
+      )
+    }
+    screened.push({ layer: layer.layer, candidates })
+  }
+  return screened
+}
+
+/**
+ * From the widest layer to the most specific: the first standing declaration or lock blocks the
+ * other assets below it, and the most specific standing candidate wins. Every later standing
+ * declaration or lock is of the same asset, so the first one is enough.
+ */
+function choose(layers: readonly ScreenedLayer[]): Evaluation {
   const filtered: Filtered[] = []
   let winner: { layer: string; candidate: Candidate } | undefined
-  /** The first standing declaration or lock. Every later standing one is of the same asset. */
   let lock: { layer: string; asset: string } | undefined
-  for (const layer of input.layers) {
-    if (layer.state !== 'read') continue
+  for (const { layer, candidates } of layers) {
     let layerWinner: Candidate | undefined
     let layerLock: { layer: string; asset: string } | undefined
-    for (const candidate of layer.candidates) {
-      const out = filterOf(candidate, layer.layer, input.eligible, lock)
-      if (out === 'unknown') return { kind: 'unavailable', layer: layer.layer }
-      if (out !== undefined) {
-        filtered.push(out)
+    for (const { candidate, out } of candidates) {
+      const blocked =
+        out === undefined && lock !== undefined && lock.asset !== candidate.asset
+          ? { layer, candidate, reason: 'blocked' as const, by: lock.layer }
+          : out
+      if (blocked !== undefined) {
+        filtered.push(blocked)
         continue
       }
       layerWinner ??= candidate
       if (lock === undefined && (candidate.immutable || candidate.replaceLocked))
-        layerLock ??= { layer: layer.layer, asset: candidate.asset }
+        layerLock ??= { layer, asset: candidate.asset }
     }
-    if (layerWinner !== undefined) winner = { layer: layer.layer, candidate: layerWinner }
+    if (layerWinner !== undefined) winner = { layer, candidate: layerWinner }
     lock ??= layerLock
   }
   return winner === undefined
     ? { kind: 'none', filtered }
     : { kind: 'winner', layer: winner.layer, candidate: winner.candidate, filtered }
-}
-
-function filterOf(
-  candidate: Candidate,
-  layer: string,
-  eligible: Eligibility,
-  lock: { layer: string; asset: string } | undefined,
-): Filtered | 'unknown' | undefined {
-  if (candidate.disabled) return { layer, candidate, reason: 'disabled' }
-  const verdict = eligible(candidate, layer)
-  if (verdict === 'unknown') return 'unknown'
-  if (verdict === 'no') return { layer, candidate, reason: 'ineligible' }
-  if (lock !== undefined && lock.asset !== candidate.asset)
-    return { layer, candidate, reason: 'blocked', by: lock.layer }
-  return undefined
 }

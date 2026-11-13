@@ -91,6 +91,46 @@ describe('C9 the layout of the skill category', () => {
   })
 })
 
+describe('C9 the other rejections of inspect', () => {
+  const plain = fixtureFiles('plain-skill')
+
+  it('gives the failure of the manifest as source-failed', async () => {
+    const broken: PackageReader = {
+      manifest: async () => ({ failure: 'package-not-found' }),
+      open: readerOf(plain).open,
+    }
+    expect(await layout?.inspect(broken)).toEqual({
+      failure: { kind: 'source-failed', failure: 'package-not-found' },
+    })
+  })
+
+  it('rejects a manifest path that is no package path as bad-path', async () => {
+    const reader = readerOf({ ...plain, '../outside.md': new TextEncoder().encode('x') })
+    expect(await layout?.inspect(reader)).toEqual({
+      failure: { kind: 'invalid-package', reason: 'bad-path' },
+    })
+  })
+
+  it('answers material-unavailable when the reader gives bytes of another digest', async () => {
+    const reader = readerOf(plain)
+    const lying: PackageReader = {
+      manifest: () => reader.manifest(),
+      open: async () => ({ ok: new TextEncoder().encode('other bytes') }),
+    }
+    expect(await layout?.inspect(lying)).toEqual({
+      failure: { kind: 'source-failed', failure: 'material-unavailable' },
+    })
+  })
+
+  it('rejects a file that is the parent directory of another path as prefix-conflict', async () => {
+    const bytes = new TextEncoder().encode('x')
+    const reader = readerOf({ ...plain, docs: bytes, 'docs/guide.md': bytes })
+    expect(await layout?.inspect(reader)).toEqual({
+      failure: { kind: 'invalid-package', reason: 'prefix-conflict' },
+    })
+  })
+})
+
 describe('C10 a snapshot sealed from manifest entries', () => {
   it('is the same, field by field, as the snapshot sealed from every byte', () => {
     const built = buildFixture('full-skill')

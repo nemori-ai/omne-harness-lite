@@ -26,10 +26,13 @@ export const SKILL_PACKAGE_LIMITS = Object.freeze({
  * of the package is the name of its manifest. */
 const READER_ROOT = 'package'
 
-async function inspect(pkg: PackageReader): Promise<Outcome<JsonValue, PackageRejection>> {
+type File = Readonly<{ path: PackagePath; bytes: Bytes }>
+
+/** Every file of the manifest, read through the reader by its path and digest. */
+async function readFiles(pkg: PackageReader): Promise<Outcome<File[], PackageRejection>> {
   const manifest = await pkg.manifest()
   if (!('ok' in manifest)) return fail({ kind: 'source-failed', failure: manifest.failure })
-  const files: { path: PackagePath; bytes: Bytes }[] = []
+  const files: File[] = []
   for (const entry of manifest.ok.entries) {
     if (!isPackagePath(entry.path)) return fail({ kind: 'invalid-package', reason: 'bad-path' })
     const opened = await pkg.open(entry.path, entry.digest)
@@ -38,25 +41,33 @@ async function inspect(pkg: PackageReader): Promise<Outcome<JsonValue, PackageRe
       return fail({ kind: 'source-failed', failure: 'material-unavailable' })
     files.push({ path: entry.path, bytes: opened.ok })
   }
+  return succeed(files)
+}
+
+/** The package rules of this contract over the files, and the asset body they project. */
+function checkFiles(files: readonly File[]): Outcome<JsonValue, PackageRejection> {
   const sealed = sealSnapshot({ rootName: READER_ROOT, files })
   if (!('ok' in sealed)) return fail({ kind: 'invalid-package', reason: sealed.failure.kind })
   const control = (path: string) => files.find(file => file.path === path)?.bytes
-  const manifestBytes = control(MANIFEST_PATH)
+  const manifest = control(MANIFEST_PATH)
   const declaration = control(DECLARATION_PATH)
   const parsed = parseSkillPackage({
     snapshot: sealed.ok,
     control: {
-      ...(manifestBytes === undefined ? {} : { manifest: manifestBytes }),
+      ...(manifest === undefined ? {} : { manifest }),
       ...(declaration === undefined ? {} : { declaration }),
     },
   })
-  if (!('ok' in parsed))
-    return fail(
-      parsed.failure.kind === 'rejected'
-        ? { kind: 'invalid-package', reason: parsed.failure.code }
-        : { kind: 'source-failed', failure: 'material-unavailable' },
-    )
-  return succeed(projectAssetBody(parsed.ok))
+  if ('ok' in parsed) return succeed(projectAssetBody(parsed.ok))
+  // The control bytes come from the files that the snapshot was sealed from.
+  if (parsed.failure.kind !== 'rejected')
+    throw new Error('unreachable: the control bytes belong to the snapshot')
+  return fail({ kind: 'invalid-package', reason: parsed.failure.code })
+}
+
+async function inspect(pkg: PackageReader): Promise<Outcome<JsonValue, PackageRejection>> {
+  const files = await readFiles(pkg)
+  return 'ok' in files ? checkFiles(files.ok) : files
 }
 
 export const skillLayout: PackageLayout = Object.freeze({
