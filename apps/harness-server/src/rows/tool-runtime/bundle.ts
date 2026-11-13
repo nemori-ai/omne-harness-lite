@@ -64,8 +64,15 @@ function releasePermitRequirements(
         availability.layer.kind === 'official' &&
         release.manifest.entries.some(entry => entry.asset.name === name)
       if (!inRelease) return { kind: 'unavailable', diagnostic: 'not a release built-in tool' }
-      const session = await identity.sessionOf(input.principal, input.tenant)
-      if (session === undefined)
+      // The three answers stay apart: a verifier that could not be read is not a principal that
+      // is not session work, and the diagnostic says which one it was.
+      const work = await identity.sessionWork(input.principal, input.tenant)
+      if (work.kind === 'unavailable')
+        return {
+          kind: 'unavailable',
+          diagnostic: `the session work principal could not be verified: ${work.diagnostic}`,
+        }
+      if (work.kind !== 'session')
         return { kind: 'unavailable', diagnostic: 'not a session work principal of the tenant' }
       return {
         kind: 'not-required',
@@ -107,6 +114,8 @@ function inputFor(root: Context, holder: ToolRuntimeHolder, config: ToolRuntimeC
     filesRoot: config.filesRoot,
     commitAttempts: config.configuration.ledgerCommitAttempts,
     schemaProvider: () => holder.schemaProvider,
+    // A principal check that could not be read is reported, not only answered.
+    warn: text => root.logger('tool-runtime').warn(text),
   })
   const input: LocalToolRuntimeInput = {
     store,
