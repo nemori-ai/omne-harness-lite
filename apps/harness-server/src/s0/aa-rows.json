@@ -58,7 +58,8 @@
     "session-observation",
     "server-entry",
     "identity-access",
-    "session-access"
+    "session-access",
+    "assets-access"
   ],
   "trusted": [
     {
@@ -325,6 +326,12 @@
       "names": [
         "principalIssuer",
         "definitionMappings"
+      ]
+    },
+    {
+      "row": "assets-access",
+      "names": [
+        "principalIssuer"
       ]
     }
   ]

@@ -554,6 +554,11 @@
       "config": {
         "defaultDefinition": "coding"
       }
+    },
+    {
+      "id": "assets-access",
+      "plugin": "assetsAccessRow",
+      "config": {}
     }
   ]
 }

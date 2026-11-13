@@ -1,73 +1,57 @@
 # @omne-harness/assets-protocol
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
-module 变体草稿。
+公开协议 `assets/v1` 的协议契约：资产与规则对客户端开放的四个设置操作（列出、查看、设置、清除）。服务端的接入插件与客户端核心用同一个值。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#9-设置) 第 7、9 节。
+
 ## 职责与状态
 
-<!-- documentation:placeholder -->
+本包拥有 `assets/v1` 的操作表：每个操作的身份要求、效果、体上限，消息体与各结果响应体的规则。操作的业务含义归 `@omne-harness/settings` 的租户层读写面。消息的外层、固定结果与规则叶子的读写归共同契约。
 
-填写实际消费者、平台、职责和采用依据。区分已实现、未实现与未验证。
+已实现：契约值 `assetsProtocol` 与类型 `SettingView`、`SettingInput`。消费者：接入插件 `@omne-harness/assets-access` 与设置的界面模块。状态：候选。
 
-## 使用
+## 用法
 
-<!-- documentation:placeholder -->
+```ts
+import { assetsProtocol, type AssetsProtocol } from '@omne-harness/assets-protocol'
 
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+const { body } = assetsProtocol.operations['set-setting']
+const read = body.read(tree, limits) // { ok: true, value } 或 { ok: false }
+```
+
+接入插件把 `assetsProtocol` 交给 `AccessContribution<AssetsProtocol>`，每个操作写一个处理函数。客户端把它交给 `createClient`。本包只有根入口，没有初始化与释放责任，不导入 Cordis。
 
 ## 契约
 
-<!-- documentation:placeholder -->
-
-链接公开类型、必要校验及唯一行为正文。类型外行为由 SPEC.md 拥有，公开定义的导航在 docs/public-api.md。说明错误、生命周期与资源责任的拥有者，不复制签名或状态机。
+[SPEC.md](SPEC.md) 给出四个操作的三栏、消息体、结果集与一项的视图。精确类型来自 [src/assets-protocol.ts](src/assets-protocol.ts)，[docs/public-api.md](docs/public-api.md) 是索引。
 
 ## 设计
 
-<!-- documentation:placeholder -->
-
-概述内部模块和关键不变量的拥有者。完整设计写在 docs/architecture.md、docs/flows.md 与 docs/object-model.md。
+一个文件声明全部规则，再用 `defineProtocol` 组装。规则是 `as const` 字面量，类型由共同契约的 `RuleValue` 推出，不手写。形状逐字段对着租户层读写面。
 
 ## 配置与运行
 
-<!-- documentation:placeholder -->
-
-填写配置拥有者、默认行为、环境前提和显式依赖。说明调用者与包各自的运行责任。
+没有配置。体上限只是名字（`small`），数字是部署配置。
 
 ## 验证
 
-<!-- documentation:placeholder -->
-
-填写可复跑命令、性质、前提和未覆盖。提供有实际断言的测试。结构通过不表示业务行为已验证。
+`pnpm exec vitest run --mode fast` 跑操作表、消息体与答复的往返和公开入口。用例经 `dist` 导入本包，改了 `src` 先 `pnpm run build`。[SPEC.md](SPEC.md#组合与验证) 把用例对到条款。
 
 ## 维护
 
-<!-- documentation:placeholder -->
+租户层读写面的字段变了，同步改规则、接入插件的映射与 `tests/operations.spec.ts`。在同一个主版本里只能加操作；改已有操作的形状要新的主版本。
 
-说明公开契约、资源或依赖变化时必须同步的消费者和验证入口。信息不适用时写明理由，未知时登记具名缺口。
-
-## 目录结构与文档职责
+## 目录与文档角色
 
 ```text
-README.md、README_ZH.md   入口：用途、状态与本结构图
-index.md                  全包的阅读路径
-SPEC.md                   公开类型以外的行为
+README.md, README_ZH.md   入口：用途、状态与这张地图
+index.md                  本包的阅读路径
+SPEC.md                   公开类型以外的约定
 documentation.json        文档登记
-docs/                     内部设计、公开使用与集成说明
-├── architecture.md       模块、状态与资源归属、关键机制
-├── flows.md              关键业务流程与数据流
-├── object-model.md       内部对象模型
-├── public-api.md         公开边界与定义索引
-├── context.md            消费侧使用与系统定位
-└── cordis.md             Cordis 适用性与集成
-src/                      公开定义、运行时校验与内部实现
-tests/                    持续测试；fixtures/ 存放测试输入
-schema/                   对外 Schema
-verification/             models/ 与 proofs/
-adr/                      有持续消费者的实现取舍
-examples/                 面向公开入口的示例
-resources/                运行所需的非源码资源
-acceptance/               独立验收；fixtures/ 存放验收输入
+docs/                     内部设计、公开用法与集成
+src/                      契约值与类型
+tests/                    持续用例
+schema/, verification/, adr/, examples/, resources/, acceptance/   模板目录，暂空
 ```
 
-每个目录的 README.md 说明职责，index.md 负责导航。阅读路径见 [index.md](index.md)。docs 专题可以升级为同名目录，目录内须有 README.md 与 index.md；专题移动时同步本结构图。
+每个目录有说明角色的 README.md 与导航用的 index.md。阅读路径见 [index.md](index.md)。
