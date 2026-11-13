@@ -4,17 +4,23 @@ PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 Draft module package.
+
 ## Responsibility and status
 
-<!-- documentation:placeholder -->
+The settings interface module: one React component, `SettingsPanel`. It lists every setting of the current tenant's layer. For each setting it shows the description, the effective value, the layer the value comes from, and whether this layer can change it (and why not). It changes a permission item's pick and clears an item. It acts only through the `assets/v1` protocol client. It does not know the host or identity, and it imports no server member. The consumer is the assembly file of the `apps/desktop` page. [SPEC.md](SPEC.md) owns the behavior.
 
-Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
+Implemented: the list with all its pages, the permission pick with one radio per choice, clear for every kind, rereading an item after a write or a revision conflict, confirmation of unknown write results with the same operation. Not implemented: input controls for ordinary values and secrets (RFC-0015 gives none; they are shown read-only).
 
 ## Usage
 
-<!-- documentation:placeholder -->
+```tsx
+import { SettingsPanel } from '@omne-harness/assets-ui'
+import '@omne-harness/assets-ui/assets-ui.css'
 
-Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
+;<SettingsPanel client={assetsClient} tenant={currentTenantText} />
+```
+
+`client` is a `ClientOf<AssetsProtocol>`. `tenant` is the tenant text that `query-current-tenant` of `identity/v1` gives. The component starts its own driver and reads the list when it mounts; after it unmounts, late answers change nothing. All styles apply under `.omne-settings`. Light and dark follow the system, or `data-theme="light" | "dark"` on an ancestor.
 
 ## Contracts
 

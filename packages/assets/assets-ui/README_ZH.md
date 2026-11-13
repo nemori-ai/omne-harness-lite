@@ -4,17 +4,23 @@ PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 module 变体草稿。
+
 ## 职责与状态
 
-<!-- documentation:placeholder -->
+设置的界面模块：一个 React 组件 `SettingsPanel`。它列出当前租户这一层的每一项设置，每项显示说明、生效的值、这个值来自哪一层、这一层能不能改（不能改时写出原因）。它改权限项的挑选，清除一项。它只经 `assets/v1` 的协议客户端做事，不认识宿主与身份，不导入服务端的成员。消费者是 `apps/desktop` 页面的装配文件。行为归 [SPEC.md](SPEC.md)。
 
-填写实际消费者、平台、职责和采用依据。区分已实现、未实现与未验证。
+已实现：读完列表的每一页；权限项每一档一个单选；三类项都能清除；写入之后与修订号不符时重读这一项；写入结果未知时用同一次操作认回。未实现：普通项的值与秘密项的输入控件（RFC-0015 没有规定，只读显示）。
 
 ## 使用
 
-<!-- documentation:placeholder -->
+```tsx
+import { SettingsPanel } from '@omne-harness/assets-ui'
+import '@omne-harness/assets-ui/assets-ui.css'
 
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+;<SettingsPanel client={assetsClient} tenant={currentTenantText} />
+```
+
+`client` 是 `ClientOf<AssetsProtocol>`。`tenant` 是 `identity/v1` 的 `query-current-tenant` 给的租户文本。组件挂上时建自己的驱动器并读列表；卸下之后，迟到的答复不再改变任何东西。样式都在 `.omne-settings` 之下，深浅色跟系统，或跟祖先上的 `data-theme="light" | "dark"`。
 
 ## 契约
 
