@@ -378,6 +378,7 @@ describe('登录失效的探测', () => {
   it('带登录的观察以 denied 被拒之后探测，被别的原因结束不探测', async () => {
     const t = await open({ signedIn: true })
     t.server.stream('session/v1 observe-session', async function* () {
+      yield* []
       return { kind: 'refused', outcome: 'denied' }
     })
     const observe = () =>
@@ -397,6 +398,7 @@ describe('登录失效的探测', () => {
       'identity/v1 query-current-tenant',
     ])
     t.server.stream('session/v1 observe-session', async function* () {
+      yield* []
       return { kind: 'ended', reason: 'refresh-exhausted' }
     })
     await observe()

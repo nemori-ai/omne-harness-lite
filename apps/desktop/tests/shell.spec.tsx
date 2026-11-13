@@ -64,6 +64,8 @@ function setup(options: { login?: LoginState; withIdentity?: boolean; loginResul
     transport: {
       call: async () => ({ kind: 'not-sent' }),
       async *observe() {
+        // No frame: the observation is not sent.
+        yield* []
         return { kind: 'not-sent' }
       },
     },

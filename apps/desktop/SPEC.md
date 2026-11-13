@@ -22,6 +22,7 @@
 
 实现的读法：
 
+- 「带上登录证明发出」按契约里这个操作或观察的身份要求带：`none` 什么都不带，`login` 只带登录证明，`acting-tenant` 带登录证明与行事租户。宿主不认识的协议两样都带。
 - 登录操作是 `identity/v1` 的 `issue-login`，注销是 `revoke-login`（目标是这次登录自己的 `loginId`）。行事租户取 `issue-login` 成功体的 `tenantId`。
 - 登录的结果对页面只有四种：`signed-in`；`uniform-auth-failure` 答 `auth-failed`；`unknown` 与本地的 `uncertain` 答 `unknown`；其余（字节没发出、`basis-unavailable`、`stage-not-provided`、`protocol-rejected`、契约写不出的消息体）答 `unavailable`。
 - 「拒绝」在接缝四的结果类型里没有自己的值：登录被拒答 `unavailable`，退出被拒答 `unknown`。页面只在未登录时给登录、已登录时给退出，所以正常使用碰不到。
