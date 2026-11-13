@@ -1,6 +1,6 @@
 # TypeScript 包模板
 
-本目录拥有 `typescript-package@3.0.0`，是开发资源，不是 workspace 产品成员。公开接口、行为与接受继续归原拥有者。完整目录与版本说明见[英文说明](README.md)。成员的必选形状见[包组织](../../../../docs/package-organization.md#成员的必选结构)。本生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及只发布 `dist` 的 `files`。源码条件名是 `source`，写在 `types` 前面。发布时去掉它。生成器写出 `tests/public-entry.spec.ts`，从包名核对当前公开导出。生成的 `package.json` 有 `test`、`test:fast` 与 `test:slow` 三个测试脚本，层由 vitest 的 mode 选择。它们不构建：在仓库根运行 `pnpm turbo run test --filter=<包名>`，turbo 先构建本成员及其依赖。单元、契约、集成和端到端按[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)选择。只有实现具体存储或应用服务的包增加集成测试。只有关键旅程的拥有者增加端到端测试。
+本目录拥有 `typescript-package@4.0.0`，是开发资源，不是 workspace 产品成员。公开接口、行为与接受继续归原拥有者。成员的必选形状见[包组织](../../../../docs/package-organization.md#成员的必选结构)。英文说明见 [README.md](README.md)。
 
 ## 创建与完整结构核对
 
@@ -16,37 +16,56 @@ pnpm package:template scan --member packages/identity/authorization --json
 
 默认预览，`--write` 拒绝已有目标及软链接。先校验模板再写入；失败时清理自己创建的未完成包。不安装依赖、不运行包代码，用于没有并发目录替换的可信检出。
 
-生成结果报告来源模板的 id/version/variant，**草稿不写采用标识**。代码与包根 README 的占位带 PACKAGE_TEMPLATE_DRAFT，真实接口、已接受行为和有效验证完成后才可删除。其余 Markdown 带文档占位标记，见下文“完整骨架”。不生成假 Service 或伪通过测试。
+生成结果报告来源模板的 id/version/variant，**草稿不写采用标识**。`src/index.ts` 与 `src/cordis.ts` 带 PACKAGE_TEMPLATE_DRAFT，真实接口、已接受行为和有效验证完成后才可删除。不生成假 Service 或伪通过测试。
 
-成员发现先按 workspace 模式核对真实包目录和 manifest，再与源码成员清单对账。缺失或异常 manifest、目录软链接或非目录节点使扫描退出 2，不能把漏掉成员的空清单报告成通过。组根允许 README.md、README_ZH.md、AGENTS.md、CLAUDE.md 和 documentation.json。组 docs 中允许 Markdown 及明列的静态图格式，不算成员。未知子目录仍需真实包 manifest。docs 是保留文档目录名，不能创建同名成员。
+## 生成的文件
 
-结构判定遍历源码包的全部文件、目录、空目录及节点种类。按变体、明确可选资源与重复源码槽实例化模板，再核对完整节点集合。不是只看几个入口文件。未声明路径、错位文件、空目录、软链接及其他节点均失败；Git ignore 不能隐藏源码文件。
+生成六个文件，绑定变体另有两个。不生成 Markdown，也不生成文档登记。
 
-只排除根下明确声明的真实 node_modules、dist、generated、coverage、tmp、.turbo 目录，并输出排除清单。同名文件或软链接不被跳过，嵌套目录没有这项豁免。构建/依赖/临时结果及任务日志不作为源码权威。
+```text
+packages/<group>/<name>/
+├── package.json
+├── tsconfig.build.json
+├── tsconfig.test.json
+├── vitest.config.ts
+├── src/index.ts                 绑定变体另有 src/cordis.ts
+└── tests/public-entry.spec.ts   绑定变体另有 tests/cordis-entry.spec.ts
+```
+
+生成的 `package.json` 有先删除 `dist` 的 build、写在 `types` 前面的 `source` 条件、只发布 `dist` 的 `files`，以及 `test`、`test:fast`、`test:slow` 三个测试脚本，层由 vitest 的 mode 选择。它们不构建：在仓库根运行 `pnpm turbo run test --filter=<包名>`，turbo 先构建本成员及其依赖。`tsconfig.build.json` 设 `erasableSyntaxOnly`。发布时去掉 `source`。
+`tests/public-entry.spec.ts` 从包名核对当前公开导出。单元、契约、集成和端到端按[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)选择。只有实现具体存储或应用服务的包增加集成测试，只有关键旅程的拥有者增加端到端测试。
 
 ## 归属与变体
 
-| 路径或变体       | 职责                                                                |
-| ---------------- | ------------------------------------------------------------------- |
-| manifest.json    | 唯一当前版本、完整文件槽、必需项、变体和精确历史规则                |
-| common/          | 包 manifest、共享构建/测试配置、双语 README、bindings v2 登记草稿，以及骨架中各变体相同的 Markdown |
-| variants/        | 各变体的源码入口与入口测试；`module/` 与 `binding/` 另存随变体不同的 `src/index.md`、`tests/index.md` 与 `docs/cordis.md` |
-| module           | 独立函数、类型和值的纯根，不增加 Cordis 包装                        |
-| cordis-module    | 纯根加集成 helper 或协调机制的绑定面                                |
-| service-contract | 纯公共定义与 ./cordis 的 Service、唯一键和类型化事件                |
-| service-provider | 独立工厂与 ./cordis 的具体绑定，消费公共承诺                        |
-| fragments/       | 写作指南与骨架以外的可选专题：行为规格、Schema、验证与 ADR 指南，以及 configuration、maintenance、guides 专题 |
+| 路径或变体       | 职责                                                 |
+| ---------------- | ---------------------------------------------------- |
+| manifest.json    | 唯一当前版本、完整文件槽、必需项、变体和精确历史规则 |
+| common/          | 包 manifest、共享构建/测试配置与入口测试             |
+| module           | 独立函数、类型和值的纯根，不增加 Cordis 包装         |
+| cordis-module    | 纯根加集成 helper 或协调机制的绑定面                 |
+| service-contract | 纯公共定义与 ./cordis 的 Service、唯一键和类型化事件 |
+| service-provider | 独立工厂与 ./cordis 的具体绑定，消费公共承诺         |
 
 变体由实际责任判断。私有 RowLifetime 之类的 helper 不自动使协调包变成公开 Service 提供者。不能凭目录名或一条 provide 抽取事实裁定。
 
 Service 定义的归属沿[产品包组织](../../../../docs/package-organization.md)。目录名 `core` 不授予创建或扫描许可。
-`scan --json` 的 `dependencies` 列出同一成员上已判断的边。一行包含 `rule`、`state`、`member`、`targetMember` 和 `sites`。
-规则包含既有 IC 行、分层行、`undeclared-dependency` 和 `member-cycle`。
-后两个名字不是 `RuleId`。它们不出现在 `constraints.json` 里。
-`unknown` 保持 `unknown`。
-`--check` 不把 `unknown` 当成通过。仅有 `unknown` 行时，退出码也不会变成 1。
 
-分组方向是另一项检查，由 `pnpm run lint:deps` 的 dependency-cruiser 规则判，见 [repo-toolchain](../../../repo-toolchain/README_ZH.md#依赖图与依赖规则)。同组的 `sdk` 导入 `server-entry` 直接违反 `sdk-not-server`。
+## 完整结构核对
+
+成员发现先按 workspace 模式核对真实包目录和 manifest，再与源码成员清单对账。缺失或异常 manifest、目录软链接或非目录节点使扫描退出 2，不能把漏掉成员的空清单报告成通过。组根在当前组模板下允许 SPEC.md、AGENTS.md 和 CLAUDE.md，旧规则下的组按旧规则。组 docs 不算成员。未知子目录仍需真实包 manifest。docs 是保留文档目录名，不能创建同名成员。
+
+结构判定遍历源码包的全部文件、目录、空目录及节点种类，与 manifest 声明的变体布局核对完整节点集合，不是只看几个入口文件。未声明路径、错位文件、空目录、软链接及其他节点均失败；Git ignore 不能隐藏源码文件。
+
+4.0.0 只允许这几份 Markdown：成员根的可选 `README.md`、`UPSTREAM.md` 与 `api/*.api.md`。不允许 `docs/`、`adr/`、`SPEC.md`、`AGENTS.md`、`CLAUDE.md`、`README_ZH.md`、`index.md`、`documentation.json`，也不允许任何子目录里的 `README.md` 与 `index.md`。
+源码模块名和数量可变，但只在模板声明的 TypeScript 槽内变化。Schema、运行资源、模型、证明与夹具必须在声明的位置和格式内。
+
+验收配置跟随可执行场景，不跟随目录。`acceptance/` 下（不含 `acceptance/fixtures/`）有 `*.acceptance.ts` 时，必须有 `vitest.acceptance.config.ts` 与 `package.json` 的 `acceptance` 脚本；有配置时必须有场景。违反时报 `acceptance`。只有入口文件时不要求配置，扫描结果的 `acceptance` 读作 `none`。
+
+契约成员由 `contract:api --write` 生成的 `api/*.api.md` 属于允许的可选槽。模板不预建空 `api/` 目录，也不接受该目录下的普通说明或源码。
+
+只排除根下明确声明的真实 node_modules、dist、generated、coverage、tmp、.turbo 目录，并输出排除清单。同名文件或软链接不被跳过，嵌套目录没有这项豁免。同时核对 ESM、导出源与条件、产物、发布、脚本及草稿占位。
+
+集成结果另列：deviation、unknown 或 static-pass。现有架构抽取器提供事实，覆盖限制保持明示。完整文件树不证明租户、事务、实际排空、恢复或形式性质。已知集成偏离禁止采用；unknown 须人工核对适用性与证据，不自动放行。
 
 ## 后续实施者
 
@@ -60,79 +79,43 @@ Service 定义的归属沿[产品包组织](../../../../docs/package-organizatio
 
 ## 依赖诊断
 
-`scan --json` 的一行至少包含 `rule`、`state`、`member`、`targetMember` 和 `sites`。
+`scan --json` 的 `dependencies` 列出同一成员上已判断的边。一行至少包含 `rule`、`state`、`member`、`targetMember` 和 `sites`。
+规则包含既有 IC 行、分层行、`undeclared-dependency` 和 `member-cycle`。后两个名字不是 `RuleId`，不出现在 `constraints.json` 里。
+`unknown` 保持 `unknown`。`--check` 不把 `unknown` 当成通过，仅有 `unknown` 行时退出码也不会变成 1。
 
 类型导入没有声明依赖时，`rule` 是 `undeclared-dependency`，`state` 是 `deviation`。`reason` 是「源码引用 workspace 包但未在 dependencies、peerDependencies 或 devDependencies 声明」。`tests/dependency-report.spec.ts` 断言这句。
-
 经 `./cordis` 子路径和相对导入形成的环，`rule` 是 `member-cycle`，`state` 是 `deviation`。`reason` 以「成员之间成环」起头。同一测试断言这条形状。
 
-`unknown` 保持 `unknown`。`--check` 退出 0 不表示全部依赖都已判断。
+分组方向是另一项检查，由 `pnpm run lint:deps` 的 dependency-cruiser 规则判，见 [repo-toolchain](../../../repo-toolchain/README_ZH.md#依赖图与依赖规则)。同组的 `sdk` 导入 `server-entry` 直接违反 `sdk-not-server`。
 
 保留定义唯一性和公开入口。不要用手写结构或伪造采用标识绕过检查。
 
-### 完整骨架
-
-3.0.0 按 [RFC-0007](../../../../docs/rfcs/RFC-0007-source-packages-and-templates.md) 一次生成完整骨架，节点清单见[包组织](../../../../docs/package-organization.md#完整生成树)，各文件职责见[成员文档](../../../../docs/member-documentation.md#固定骨架)。骨架中的每个节点都是必需节点，缺任何一个，扫描判失败：
-
-- 包根：package.json、双语 README、`index.md`、`SPEC.md`（四个变体都有）、documentation.json、构建/测试配置。
-- `docs/` 六个专题：architecture、flows、object-model、public-api、context、cordis。每个专题是 `docs/<topic>.md`，或带 `README.md` 与 `index.md` 的 `docs/<topic>/`，二者只能存在一个。缺失报 `topic-missing`，目录缺入口报 `topic-entry-missing`，二者并存报 `topic-duplicate`。
-- 13 个固定目录各有 `README.md` 与 `index.md`：docs、src、tests、tests/fixtures、schema、verification、verification/models、verification/proofs、adr、examples、resources、acceptance、acceptance/fixtures。
-- `src/index.ts`、`tests/public-entry.spec.ts`；绑定变体另有 `src/cordis.ts` 与 `tests/cordis-entry.spec.ts`。
-
-源码模块名和数量可变，但只在模板声明的 TypeScript 槽内变化。各目录里的真实资源随实际义务增加：
-
-- src/：实现、公开类型及实际校验；拆分 contract/types 模块仍由公开根导出，不另造一套 prose 权威。
-- SPEC.md：拥有者的非类型行为。多提供者消费公共承诺，自己的规格只补资源、配置、失败等实际责任。
-- schema/：对外 JSON Schema，保留身份，显式发布。
-- resources/：运行数据及带来源/许可证的第三方工件，如 tokenizer；不混在源码或测试输入里。
-- tests/fixtures/：测试输入，不能替代现行业务规格。
-- verification/models/：TLA+、Alloy 或算法模型与配置；verification/proofs/：论证或机器证明。verification/README.md 必须说明性质、前提、命令、范围与证据拥有者。
-- adr/：仍有消费者的实现取舍，使用小写目录。
-- acceptance/：独立验收拥有者的场景；examples/：真实使用示例。
-
-验收配置跟随可执行场景，不跟随目录。`acceptance/` 下（不含 `acceptance/fixtures/`）有 `*.acceptance.ts` 时，必须有 `vitest.acceptance.config.ts` 与 `package.json` 的 `acceptance` 脚本；有配置时必须有场景。违反时报 `acceptance`。只有入口文件时不要求配置，扫描结果的 `acceptance` 读作 `none`（文本输出为“no executable scenarios”）。
-
-完整允许格式和位置以 manifest 为准。资源迁移同步实际读取、导航、打包和验证；不改变业务语义、Schema 身份、输入字节或旧接受坐标。仍有效的未迁源在消费者与证据接续前继续约束原实现，不能借模板迁移删掉。
-
 ## 标识与人工采用门
 
-全部结构适配及适用集成责任核对完成后，才在 package.json 写 omneHarness.packageTemplate 的 id/version/variant。生成草稿、未完成资源、未核对提供者及已知偏离包不贴标。[1.0.0采用核对记录](adoption-review.md)只说明旧版采用范围，不授予2.0.0或3.0.0采用状态，也不是第二份契约或版本登记源。
+全部结构适配及适用集成责任核对完成后，才在 package.json 写 omneHarness.packageTemplate 的 id/version/variant。生成草稿、未完成资源、未核对提供者及已知偏离包不贴标。[1.0.0采用核对记录](adoption-review.md)只说明旧版采用范围，不授予后续版本的采用状态，也不是第二份契约或版本登记源。
 
-扫描分别报告标识 current/older/unmarked/invalid/unknown、完整结构 pass/fail/uncovered，以及集成 deviation/unknown/static-pass。静态 unknown 不自动判成偏离，也不能当符合证据；人工沿适用条款与原证据核对。目录全等不证明租户、事务、实际排空、恢复或形式性质。
+扫描分别报告标识 current/older/unmarked/invalid/unknown、完整结构 pass/fail/uncovered，以及集成 deviation/unknown/static-pass。静态 unknown 不自动判成偏离，也不能当符合证据；人工沿适用条款与原证据核对。
 
 普通盘点退出 0 只表示报告完成。--check 的 0 表示当前标识、完整结构通过且无已知静态集成偏离；缺标识、旧版、结构失败或偏离退出 1；无精确规则或输入错误退出 2。集成 unknown 仍显示，0 不代表全部集成或业务验收。扫描不写文件、不自动采用或升级。
 
-3.0.0新增完整骨架、docs 专题二选一与按场景判定的验收配置，当前规则集为 ruleSet 3。previousVersions 准确保留2.0.0与1.0.0的必需文件、变体与完整布局，二者继续使用 ruleSet 2：不检查专题，`acceptance/` 与 `vitest.acceptance.config.ts` 仍互相要求。2.0.0新增必需 documentation.json 和条件文档槽，1.0.0没有这两项。旧marker仍报告older，不自动增加登记义务。历史规则必须完整保留必需文件、变体要求、全量结构和固定 ruleSet 2 语义；缺规则报 uncovered，不能套当前规则认证。已撤回的早期有限检查不是发布过的历史模板。
+## 版本规则
 
-## 文档与能力组草稿
+manifest 是唯一当前版本源；已发布模板义务变化时才改版本。已有包保持已采用版本，直到完整迁移核对通过。未知身份与未来版本不能用当前规则认证。
 
-[两层文档要求](../../../../docs/member-documentation.md)拥有必需内容。双语包README分别覆盖七个必要栏目，每个栏目保留独立占位标记；另有“目录结构与文档职责”栏目，生成时即写明初始树。骨架中其余 Markdown 在首个二级标题前带文件级占位标记，待填章节下也带标记，并全部登记在 documentation.json。登记复用bindings v2，使用根相对路径和稳定章节ID。basis=adopted只表示结构要求已有依据，不表示草稿正文被接受。
+previousVersions 准确保留 3.0.0、2.0.0 与 1.0.0 的必需文件、变体与完整布局，标着旧版本的成员按它自己版本的规则扫描。
+3.0.0 的规则集是 ruleSet 3：完整文档骨架、docs 专题二选一（`docs/<topic>.md`，或带 `README.md` 与 `index.md` 的 `docs/<topic>/`，二者不并存），以及按场景判定的验收配置。
+2.0.0 与 1.0.0 是 ruleSet 2：不检查专题，`acceptance/` 与 `vitest.acceptance.config.ts` 互相要求。2.0.0 新增必需 documentation.json。
+4.0.0 是 ruleSet 4：去掉文档骨架、专题与登记，保留验收规则。
+旧 marker 仍报告 older，不自动增加新义务。历史规则必须完整保留必需文件、变体要求、全量结构和固定规则集语义；缺规则报 uncovered，不能套当前规则认证。
 
-[组模板](../domain/README.md)只生成README.md和documentation.json，不创建workspace成员、源码、空专题或采用标识。
+## 组模板
+
+[组模板](../domain/README.md)每个组只生成一份 `SPEC.md`，不创建 workspace 成员、源码、空专题或采用标识。
 
 ```sh
 pnpm package:template create-domain --group example
 pnpm package:template create-domain --group example --write
-pnpm package:template scan --group example --json --check
-uv run --locked omne-documentation inventory --root . --out tmp/documentation-inventory
+pnpm package:template scan --group example --check --json
 ```
 
-fragments/docs 只保留骨架以外的可选专题（configuration、maintenance、guides），按实际阅读任务取用，默认不复制。原 internals、api、usage 片段已并入 architecture、public-api、context 专题。专题承担必要内容时登记其文件和章节。docs只允许Markdown、SVG、PNG和WebP，空目录与其他格式失败。所有模板登记只存.json.tpl，避免被默认inventory发现为实例。
-
-契约成员由 `contract:api --write` 生成的 `api/*.api.md` 属于允许的可选槽。模板不预建空 `api/` 目录，也不接受该目录下的普通说明或源码。生成快照不替代公开源码和行为规格。
-
-TS核对布局、登记存在和草稿sentinel。Python核对bindings v2、依据、章节、占位和适用未知。文件级占位使整个文件读作`placeholder-only`；章节占位报告missing-section，reason为`section body: placeholder-only`。二者都计为缺项，但不阻止采用标识。inventory退出0只表示报告完成，必须读取具体状态。
-
-无选择器扫描同时列组的当前模板读数，仍沿包的既有退出策略。显式--group配合--check才断言组结构，不能同时使用--member。组结果列template身份、节点、委派成员、缺项及current-template-only范围，不认证历史采用。未整改旧组和旧版成员须单独说明新要求的覆盖范围。
-
-模板通过不证明正文充分、独立安装或业务行为，也不授予语义接受。局部登记缺失由模板检查报告，不能把inventory未发现当作完整。
-
-## 长期规格与单次交付输入
-
-[行为规格指南](fragments/specification/SPEC.md.tpl)覆盖本成员拥有的结果、不变量、失败、生命周期、组合及持续验证。生成的 `docs/architecture.md` 说明兑现承诺的机制、责任、失败结算及必要理由。公开形状仍归公开入口，共同保证不复制到每个提供者。规格不设“薄”或固定篇幅限制，按责任表达完整必要内容。
-
-单次交付规格组织一次任务的实施范围及验收输入，留任务过程材料；交付Issue引用当前规范和所核修订，不替代长期SPEC或技术设计。二者的关系和决定规则归[交付协议](../../../../docs/engineering/delivery.md)。
-
-真实技术提案进入[RFC区](../../../../docs/rfcs/README.md)。提案采用、规范写回、实现和交付接受分别判断；当前SPEC独立表达最终采用保证，不要求读者拼接RFC历史，不为首次正式规格补造提案。
-
-这些写作指南不增加必需文件、结构槽或历史采用义务；manifest版本与历史规则保持原身份。
+无选择器扫描同时列组的读数，仍沿包的既有退出策略。显式 --group 配合 --check 才断言组结构，不能同时使用 --member。组结果列 template 身份、节点、委派成员及缺项，不认证组的采用。

@@ -1,33 +1,42 @@
 {
   "format": 1,
   "id": "package-domain",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "common": [
     {
-      "source": "common/README.md.tpl",
-      "target": "README.md"
-    },
-    {
-      "source": "common/documentation.json.tpl",
-      "target": "documentation.json"
+      "source": "common/SPEC.md.tpl",
+      "target": "SPEC.md"
     }
   ],
-  "requiredFiles": ["README.md", "documentation.json"],
+  "requiredFiles": ["SPEC.md"],
   "layout": {
-    "files": [
-      "README.md",
-      "README_ZH.md",
-      "AGENTS.md",
-      "CLAUDE.md",
-      "documentation.json",
-      "docs/**/*.md",
-      "docs/**/*.svg",
-      "docs/**/*.png",
-      "docs/**/*.webp"
-    ],
+    "files": ["SPEC.md", "AGENTS.md", "CLAUDE.md"],
     "requiredDirectories": [],
     "ignoredDirectories": [],
     "companions": [],
     "requiredFileGroups": []
+  },
+  "previousVersions": {
+    "1.0.0": {
+      "requiredFiles": ["README.md", "documentation.json"],
+      "layout": {
+        "files": [
+          "README.md",
+          "README_ZH.md",
+          "AGENTS.md",
+          "CLAUDE.md",
+          "SPEC.md",
+          "documentation.json",
+          "docs/**/*.md",
+          "docs/**/*.svg",
+          "docs/**/*.png",
+          "docs/**/*.webp"
+        ],
+        "requiredDirectories": [],
+        "ignoredDirectories": [],
+        "companions": [],
+        "requiredFileGroups": []
+      }
+    }
   }
 }

@@ -16,11 +16,15 @@ function children(root: string, path: string, segment: string): string[] {
   return readdirSync(join(root, path), { withFileTypes: true }).flatMap(entry => {
     const child = `${path}/${entry.name}`
     if (path.split('/').length === 2 && entry.name === 'docs' && entry.isDirectory()) {
-      const layout = readDomainTemplate().layout
-      const result = checkLayout(root, child, {
-        ...layout,
-        files: layout.files.filter(file => file.startsWith('docs/')).map(file => file.slice(5)),
-      })
+      const template = readDomainTemplate()
+      const layout = template.layout
+      const documents = new Set(
+        [layout, ...Object.values(template.previousVersions).map(rules => rules.layout)]
+          .flatMap(rules => rules.files)
+          .filter(file => file.startsWith('docs/'))
+          .map(file => file.slice(5)),
+      )
+      const result = checkLayout(root, child, { ...layout, files: [...documents] })
       if (result.tree.length === 0 || result.findings.length > 0)
         throw new Error(`${child}: product discovery rejects invalid group documentation`)
       return []
@@ -31,7 +35,7 @@ function children(root: string, path: string, segment: string): string[] {
     if (
       entry.isFile() &&
       (['README.md', 'README_ZH.md', 'AGENTS.md', 'CLAUDE.md'].includes(entry.name) ||
-        (path.split('/').length === 2 && entry.name === 'documentation.json'))
+        (path.split('/').length === 2 && ['documentation.json', 'SPEC.md'].includes(entry.name)))
     )
       return []
     throw new Error(`${child}: product discovery rejects links and unexpected non-directory nodes`)

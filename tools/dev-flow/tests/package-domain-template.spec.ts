@@ -5,7 +5,10 @@ import { join } from 'node:path'
 import { createDomain, scanDomains } from '../src/package-template/domain.ts'
 import { createPackage } from '../src/package-template/create.ts'
 import { discoverProducts } from '../src/package-template/discovery.ts'
-import { DOMAIN_TEMPLATE_DIRECTORY } from '../src/package-template/domain-template.ts'
+import {
+  DOMAIN_TEMPLATE_DIRECTORY,
+  readDomainTemplate,
+} from '../src/package-template/domain-template.ts'
 
 const fault = vi.hoisted(() => ({ write: false, descriptor: -1, path: '' }))
 vi.mock('node:fs', async importOriginal => {
@@ -14,7 +17,7 @@ vi.mock('node:fs', async importOriginal => {
     ...real,
     openSync: (...args: Parameters<typeof real.openSync>) => {
       const descriptor = real.openSync(...args)
-      if (String(args[0]).endsWith('documentation.json')) {
+      if (String(args[0]).endsWith('SPEC.md')) {
         fault.descriptor = descriptor
         fault.path = String(args[0])
       }
@@ -44,43 +47,46 @@ function repository() {
   fs.writeFileSync(join(root, 'package.json'), JSON.stringify({ engines: { node: '>=24 <25' } }))
   return root
 }
+const SECTIONS = ['总体架构', '领域边界', '心智模型', '应然设计', '原则与约束', '不变式']
 function completed(root: string) {
   createDomain({ root, group: 'sample', write: true })
+  fs.writeFileSync(
+    join(root, 'packages/sample/SPEC.md'),
+    `# sample\n\n${SECTIONS.map(title => `## ${title}\n\nCompleted fixture content.\n`).join('\n')}`,
+  )
+}
+function legacy(root: string) {
+  fs.mkdirSync(join(root, 'packages/sample'))
   fs.writeFileSync(
     join(root, 'packages/sample/README.md'),
     '# Sample\n\nCompleted fixture documentation.\n',
   )
+  fs.writeFileSync(join(root, 'packages/sample/documentation.json'), '{}')
 }
 describe('domain creation', () => {
-  it('previews without writes and generates only two draft documents with root-relative bindings', () => {
+  it('previews without writes and generates only SPEC.md with the six sections in order', () => {
     const root = repository()
     expect(createDomain({ root, group: 'sample' })).toMatchObject({
       written: false,
       draft: true,
-      files: ['README.md', 'documentation.json'],
-      template: { id: 'package-domain', version: '1.0.0' },
+      files: ['SPEC.md'],
+      template: { id: 'package-domain', version: '2.0.0' },
     })
     expect(fs.readdirSync(join(root, 'packages'))).toEqual([])
     createDomain({ root, group: 'sample', write: true })
-    expect(fs.readdirSync(join(root, 'packages/sample')).sort()).toEqual([
-      'README.md',
-      'documentation.json',
-    ])
-    const binding = JSON.parse(
-      fs.readFileSync(join(root, 'packages/sample/documentation.json'), 'utf8'),
-    )
-    expect(binding.owner.id).toBe('package-domain:sample')
-    expect(binding.owner.source).toEqual({
-      path: 'docs/member-documentation.md',
-      anchor: '能力组文档要求',
-    })
-    expect(binding.documents[0].path).toBe('packages/sample/README.md')
-    expect(binding.documents[0].requiredSections).toHaveLength(5)
+    expect(fs.readdirSync(join(root, 'packages/sample'))).toEqual(['SPEC.md'])
+    const text = fs.readFileSync(join(root, 'packages/sample/SPEC.md'), 'utf8')
+    expect(text.startsWith('# sample\n')).toBe(true)
+    expect(text).toContain('DOMAIN_TEMPLATE_DRAFT')
+    expect(text).not.toContain('documentation:placeholder')
+    expect(text).not.toMatch(/\{\{/u)
+    expect([...text.matchAll(/^## (.+)$/gmu)].map(match => match[1])).toEqual(SECTIONS)
     expect(scanDomains(root)[0]).toMatchObject({
       structure: 'fail',
       coverage: 'current-template-only',
+      template: { id: 'package-domain', version: '2.0.0' },
     })
-    expect(scanDomains(root)[0]?.findings.some(item => item.code === 'draft')).toBe(true)
+    expect(scanDomains(root)[0]?.findings.map(item => item.code)).toEqual(['draft'])
   })
   it.each(['../escape', '/escape', 'two/groups', 'Upper', 'bad\u0000'])(
     'rejects unsafe group %j without writing',
@@ -93,9 +99,9 @@ describe('domain creation', () => {
   it('rejects existing targets, dangling targets and linked parents without altering their bytes', () => {
     const root = repository()
     completed(root)
-    const before = fs.readFileSync(join(root, 'packages/sample/README.md'))
+    const before = fs.readFileSync(join(root, 'packages/sample/SPEC.md'))
     expect(() => createDomain({ root, group: 'sample', write: true })).toThrow('already exists')
-    expect(fs.readFileSync(join(root, 'packages/sample/README.md'))).toEqual(before)
+    expect(fs.readFileSync(join(root, 'packages/sample/SPEC.md'))).toEqual(before)
     fs.symlinkSync(join(root, 'absent'), join(root, 'packages/dangling'))
     expect(() => createDomain({ root, group: 'dangling', write: true })).toThrow('already exists')
     fs.renameSync(join(root, 'packages'), join(root, 'outside'))
@@ -132,7 +138,7 @@ describe('domain creation', () => {
 describe('domain discovery and layout', () => {
   it('delegates real members and recognizes documented flows with supported images', () => {
     const root = repository()
-    completed(root)
+    legacy(root)
     createPackage({ root, group: 'sample', name: 'member', variant: 'module', write: true })
     fs.mkdirSync(join(root, 'packages/sample/docs/flows'), { recursive: true })
     fs.writeFileSync(
@@ -153,7 +159,7 @@ describe('domain discovery and layout', () => {
     'rejects undeclared or unsafe group node %s',
     path => {
       const root = repository()
-      completed(root)
+      legacy(root)
       fs.mkdirSync(join(root, 'packages/sample/docs'))
       fs.writeFileSync(join(root, 'packages/sample/docs/valid.md'), '# Valid\n\nContent.\n')
       const target = join(root, 'packages/sample', path)
@@ -167,7 +173,7 @@ describe('domain discovery and layout', () => {
   )
   it('reports missing registration and unknown member manifests instead of skipping them', () => {
     const root = repository()
-    completed(root)
+    legacy(root)
     fs.rmSync(join(root, 'packages/sample/documentation.json'))
     expect(scanDomains(root)[0]?.findings).toContainEqual(
       expect.objectContaining({ code: 'required', path: 'packages/sample/documentation.json' }),
@@ -179,7 +185,7 @@ describe('domain discovery and layout', () => {
 
   it('rejects planning documents in a member slot and accepts them under group docs', () => {
     const root = repository()
-    completed(root)
+    legacy(root)
     fs.mkdirSync(join(root, 'packages/sample/storage'))
     fs.writeFileSync(join(root, 'packages/sample/storage/README.md'), '# storage\n')
     expect(() => discoverProducts(root)).toThrow('real manifest')
@@ -192,5 +198,57 @@ describe('domain discovery and layout', () => {
     expect(discoverProducts(root)).toEqual([])
     expect(scanDomains(root)[0]).toMatchObject({ structure: 'pass', members: [] })
     expect(scanDomains(root)[0]).not.toHaveProperty('planned')
+  })
+})
+
+describe('domain template versions', () => {
+  it('passes a completed 2.0.0 group and reports a missing SPEC.md', () => {
+    const root = repository()
+    completed(root)
+    expect(scanDomains(root)[0]).toMatchObject({
+      structure: 'pass',
+      template: { id: 'package-domain', version: '2.0.0' },
+    })
+    fs.rmSync(join(root, 'packages/sample/SPEC.md'))
+    expect(scanDomains(root)[0]?.findings).toContainEqual(
+      expect.objectContaining({ code: 'required', path: 'packages/sample/SPEC.md' }),
+    )
+  })
+  it.each(['AGENTS.md', 'CLAUDE.md'])('allows %s beside SPEC.md in a 2.0.0 group', file => {
+    const root = repository()
+    completed(root)
+    fs.writeFileSync(join(root, 'packages/sample', file), '# Agents\n')
+    expect(scanDomains(root)[0]?.structure).toBe('pass')
+  })
+  it.each(['docs/x.md', 'README_ZH.md', 'notes.md'])('rejects %s in a 2.0.0 group', file => {
+    const root = repository()
+    completed(root)
+    fs.mkdirSync(join(root, 'packages/sample', file, '..'), { recursive: true })
+    fs.writeFileSync(join(root, 'packages/sample', file), '# Note\n\nContent.\n')
+    expect(scanDomains(root)[0]?.structure).toBe('fail')
+  })
+  it('keeps a 1.0.0 group passing and lets it hold a SPEC.md beside its documents', () => {
+    const root = repository()
+    legacy(root)
+    expect(scanDomains(root)[0]).toMatchObject({
+      structure: 'pass',
+      template: { id: 'package-domain', version: '1.0.0' },
+    })
+    fs.writeFileSync(join(root, 'packages/sample/SPEC.md'), '# sample\n\nCompleted.\n')
+    expect(scanDomains(root)[0]?.structure).toBe('pass')
+    fs.writeFileSync(join(root, 'packages/sample/SPEC.md'), '# sample\n\nDOMAIN_TEMPLATE_DRAFT\n')
+    expect(scanDomains(root)[0]?.findings.map(item => item.code)).toEqual(['draft'])
+  })
+  it('stores the 1.0.0 rules as an exact historical entry', () => {
+    const template = readDomainTemplate()
+    expect(template.version).toBe('2.0.0')
+    expect(template.requiredFiles).toEqual(['SPEC.md'])
+    expect(template.layout.files).toEqual(['SPEC.md', 'AGENTS.md', 'CLAUDE.md'])
+    expect(template.previousVersions['1.0.0']?.requiredFiles).toEqual([
+      'README.md',
+      'documentation.json',
+    ])
+    expect(template.previousVersions['1.0.0']?.layout.files).toContain('SPEC.md')
+    expect(template.previousVersions['1.0.0']?.layout.files).toContain('docs/**/*.md')
   })
 })
