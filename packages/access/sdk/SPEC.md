@@ -86,9 +86,45 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 这些治理调用、会话调用和 HITL 调用不刷新登录的空闲计时。`public-health` 不带登录证明，也不带行事租户。
 
+## 客户端核心
+
+子路径 `@omne-harness/sdk/core`（`src/core/`）是新地址 `/api/<协议名>/v<主版本>/<名字>` 的客户端核心。设计依据是 [RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#6-客户端) 第 6 节「客户端核心」，交付卡 #1249。上面三个手写的客户端与根入口不变。
+
+`createClient(protocol, transport, settings?)` 从一份协议契约得到客户端 `ClientOf<P>`：每个操作是一个方法，`observe.<名字>` 是每个观察。消息体与帧都按契约的编解码写出、读回，类型从契约推出。消息体按契约写不出时抛 `ClientRequestError`，什么都不发。消息编号取 `options.messageId`，不给时取 `crypto.randomUUID()`。
+
+一次调用的结果只有契约的结果，加上两种本地结果：
+
+| 传输的结果 | 客户端怎样处理 |
+| --- | --- |
+| 有答复，结果在契约的结果集里，正文合它的编解码 | 交出解码后的答复 |
+| 有答复，结果不认识或正文不合 | `uncertain` |
+| `uncertain`：字节可能已经发出 | `uncertain`，不再送 |
+| `not-sent`：可以证明一个字节也没发出 | 用同一个消息编号再送一次；仍是 `not-sent` 时答 `unavailable`，传输一共被调两次 |
+
+两种本地结果都不写成成功或失败。
+
+观察是一个异步生成器：每一帧按契约的帧编解码读出；生成器的返回值是怎样结束的。结束有五种：`ended`（带原因，原因要在契约的 `ends` 里，或是 `denied`、`unavailable`，否则算 `uncertain`）、`refused`（建立被拒，带结果）、`unavailable`（没发出）、`uncertain`（流在没有结束帧时断了，或帧不合契约）、`aborted`（调用方中止）。提案把观察写成只给帧的 `AsyncIterable`；这里把结束放进生成器的返回值，`for await` 只看帧。
+
+传输 `Transport` 有 `call` 与 `observe` 两个方法，负责带上身份，客户端核心看不到登录证明。本成员给两种：
+
+- HTTP 传输 `createHttpProtocolTransport({ origin, credentials?, limits? })`。每次请求前读一次凭据来源：有登录证明时带 `Authorization: Bearer`，有租户时带 `Omne-Acting-Tenant`。它向 `<origin>/api/<名字>/v<主版本>/<操作或观察>` 发 POST，不跟随重定向。`fetch` 失败时，只有错误代码全属于「首字节写出之前」那一组才算 `not-sent`；浏览器的 `fetch` 给不出这种证明，所以在浏览器里一律是 `uncertain`。观察读 `text/event-stream`，用 `eventsource-parser`（工作区目录钉的 3.1.1）切出事件；调用方中止或提前离开迭代时，取消读流，关掉连接。
+- 进程内传输 `createInProcessTransport(peer)`，测试用。每个消息体、开头与帧都写成 JSON 文本再读回，两边不共享值。
+
+客户端核心的源码不导入 Node 专有的模块，也不导入本成员里用了 `node:crypto` 的 `user-message.ts`。
+
+### 浏览器夹具
+
+[tests/fixtures/browser/](tests/fixtures/browser/main.ts) 是客户端核心的浏览器消费者。它只导入 `@omne-harness/sdk/core` 与公开契约，按 `source` 条件编译源码，类型库是 ES2024 加 DOM，不带 Node 类型。这次编译是慢层成员测试 [tests/browser-fixture.spec.ts](tests/browser-fixture.spec.ts) 的一条；核心里加一行 `node:crypto` 的导入时它变红。
+
+在无界面浏览器里跑它是一次性的证据，不进常驻检查。2026-11-13 在本机做过一次：在仓库根用 esbuild 0.28.2 打包（`--bundle --platform=browser --format=esm --conditions=source`），起服务端接入的测试入口 `packages/access/server-entry/tests/fixtures/entry-peer.ts`，用无界面 Chrome 打开导入打包结果的页面，页面参数是入口的地址。页面写出第一帧 `{"kind":"snapshot","revision":2,"protocols":[{"name":"notes","major":1},{"name":"access","major":1}]}`。入口不答 CORS 的预检，所以这次页面从 `file://` 打开，并加了 `--disable-web-security`，见[已知限制](#已知限制)。
+
+### 演示
+
+先 `pnpm run build`，再在本成员目录运行 `node tests/fixtures/core-demo.ts <一个在运行的服务端的地址>`。第一段订阅这个服务端的可用性，打印第一帧。第二段起测试入口，调一次 `read-note` 并打印答复，然后停掉入口，再调一次，打印 `{"outcome":"unavailable"}`。不带 `--conditions=source`：`eventsource-parser` 在这个条件下给出它自己的 TypeScript 源码，Node 不剥 `node_modules` 下文件的类型。
+
 ## 安装闭包
 
-SDK 依赖公开契约，以及调用者提供的传输适配接口。它不依赖服务端接入。它不依赖服务器存储类型。
+SDK 依赖公开契约，以及调用者提供的传输适配接口；客户端核心另依赖 json-text 与 `eventsource-parser`。它不依赖服务端接入。它不依赖服务器存储类型。
 
 安装闭包以 SDK 发布产物的依赖清单为准。源码能够编译不能代替该清单。
 
@@ -194,6 +230,12 @@ SDK 不另写结果含义。必须遵守的客户端规则是自动再送条件�
 - 状态 500 且响应体是匹配的 `unknown` 消息时，调用者得到 `response`，`outcome` 是 `unknown`。响应体为空的 500 得到 `uncertain`。
 - 任何输出、日志和错误文本都不含登录证明与凭据。
 
+客户端核心另有下列验证义务（交付卡 #1249）。
+
+- 消息体按契约写出、答复按契约读回；传错形状、不存在的操作在编译期失败（`tests/core.spec-d.ts`）。
+- 进程内传输注入三种结果：`not-sent` 后再送一次且编号不变，两次都 `not-sent` 答 `unavailable`；`uncertain` 不再送；契约之外的答复是 `uncertain`（`tests/core-client.spec.ts`）。
+- HTTP 传输对着真的入口：入口不在时两次 `not-sent`、答 `unavailable`；请求发出后入口死掉时一次 `uncertain`；不登录订阅可用性得到快照；测试协议的观察读出三帧与结束原因；中止或 `break` 关掉连接，入口那一侧的帧来源收到中止；建立被拒读成 `refused`（`tests/core-http.spec.ts`）。测试入口是服务端接入的 `tests/fixtures/entry-peer.ts`，以进程启动，因为本成员不导入服务端接入。
+
 HITL 客户端另有下列验证义务。
 
 - 四个 HITL 操作的往返用环回服务端替身通过，响应按 `messageId` 关联。
@@ -206,3 +248,4 @@ HITL 客户端另有下列验证义务。
 - M2 的适配只接受 `127.0.0.1` 或 `localhost` 上的 `http:` 地址。其他地址的构造失败，包括 `https:`。这是 M2 的范围限制，不是登录证明的保护规则。M2 的服务只在回环地址上提供明文，见承载页的[已知限制](../public-contract/docs/http-binding.md#已知限制)。远程访问或 TLS 进入范围时，适配的这条限制随之改。
 - 「[客户端职责](#客户端职责)」要求注册和签发登录之前选定对端信任材料。M2 的明文回环连接没有可以核验的信任材料。M2 用上一条的回环地址限制代替这项核验，适配不要求调用者给出信任材料。TLS 进入范围时，这项核验随之生效。
 - 会话观察客户端不在波 1。
+- 客户端核心在浏览器里只能对同源的入口用：入口不答 CORS 的预检，跨源的页面要等入口支持它。在浏览器里，`fetch` 的失败一律是 `uncertain`，不会自动再送。

@@ -10,16 +10,22 @@ import type {
   LoginResult,
   Principal,
 } from '@omne-harness/access-cordis-contract'
-import type { OperationContract } from '@omne-harness/public-contract'
+import type { ObservationContract } from '@omne-harness/public-contract'
 import { countHeader } from './headers.ts'
 import type { CallWatch, Interruption } from './watch.ts'
+
+/**
+ * A recognised login: the port's identity, and the proof it was recognised from. The proof stays in
+ * memory: an observation counts and re-checks its login by it (#1249 spec 已定 27, 28).
+ */
+export type SignedIn = Readonly<{ identity: LoginIdentity; proof: string }>
 
 export type Established =
   | Readonly<{
       kind: 'caller'
       principal: LoginIdentity | Principal | undefined
-      /** The login to report a business access for; absent when the operation needs no login. */
-      login?: LoginIdentity
+      /** The login to report a business access for; absent when the call needs no login. */
+      login?: SignedIn
     }>
   /** The caller is not established; the answer is `denied` whatever the reason. */
   | Readonly<{ kind: 'refused' }>
@@ -64,7 +70,7 @@ const issued = (result: ActForResult): result is Extract<ActForResult, { outcome
   result.outcome === 'issued'
 
 export async function establish(
-  identity: OperationContract['identity'],
+  identity: ObservationContract['identity'],
   req: IncomingMessage,
   port: AccessIdentity,
   watch: CallWatch,
@@ -75,10 +81,11 @@ export async function establish(
   const recognised = await ask(watch, () => port.identifyLogin(proof), identified)
   if (recognised.kind !== 'given') return recognised
   const { login } = recognised.value
-  if (identity === 'login') return { kind: 'caller', principal: login, login }
+  if (identity === 'login')
+    return { kind: 'caller', principal: login, login: { identity: login, proof } }
   const tenant = tenantOf(req)
   if (tenant === undefined) return { kind: 'refused' }
   const acting = await ask(watch, () => port.actFor(login, tenant), issued)
   if (acting.kind !== 'given') return acting
-  return { kind: 'caller', principal: acting.value.principal, login }
+  return { kind: 'caller', principal: acting.value.principal, login: { identity: login, proof } }
 }

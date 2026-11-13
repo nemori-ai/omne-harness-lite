@@ -187,6 +187,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/access/access-cordis-contract
       '@omne-harness/agent':
         specifier: workspace:*
         version: link:../../packages/agent/agent
@@ -506,9 +509,15 @@ importers:
 
   packages/access/sdk:
     dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../public-contract
+      eventsource-parser:
+        specifier: 'catalog:'
+        version: 3.1.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

@@ -1096,7 +1096,7 @@ const encoded = encodeGovernanceRequest({
 | `carriesCredential` | 可选 `true`：结果里带登录证明 |
 | `countsAsAccess` | 可选 `true`：答成功时算一次成功的业务访问 |
 
-观察契约 `ObservationContract` 有 `identity`、`open` 与 `frame` 两个 `Codec`、`ends` 与可选的 `countsAsAccess`。`ends` 只列这个观察自己的结束原因。观察中枢对每个观察都一样的结束原因不在这里列。
+观察契约 `ObservationContract` 有 `identity`、可选的 `limit`、`open` 与 `frame` 两个 `Codec`、`ends` 与可选的 `countsAsAccess`。`limit` 是建立时消息体上限的名字，与操作契约的 `limit` 同名、同两档（`'small' | 'input'`），没写时取 `'small'`（交付卡 #1249）。`ends` 只列这个观察自己的结束原因。观察中枢对每个观察都一样的结束原因不在这里列。
 
 `carriesCredential` 与 `countsAsAccess` 只定义在类型里，管道怎样处理它们不归本节。
 
@@ -1116,6 +1116,16 @@ const encoded = encodeGovernanceRequest({
 
 `DefinedProtocol<P>` 在类型上做同样的补充。`effect` 的类型可能是 `commit` 时，类型上就有 `unknown`，所以「结果未知」不会被写成成功或失败（RFC-0015 I-8 在契约这一层）。观察原样保留。`defineProtocol` 返回新值，不改入参。
 
+
+### 内置协议 `access/v1`
+
+`accessProtocol` 是入口自己提供的协议，两端共用这一份值：入口在启动时挂上它的实现，客户端在登录之前订阅它（RFC-0015 第 5 节「内置协议与可用性」，交付卡 #1249）。它没有操作，只有一个观察 `availability`，地址是 `/api/access/v1/availability`：
+
+- `identity` 是 `'none'`：哪些协议挂着不是秘密，而登录本身就是某个协议的操作。
+- 建立的消息体是空对象，`ends` 是空的：它只以中枢的 `denied` 或 `unavailable` 结束。
+- 帧（`AvailabilityFrame`）是两种之一。快照 `{ kind: 'snapshot', revision, protocols: [{ name, major }] }` 给出整个集合；变化 `{ kind: 'change', revision, added: [{ name, major }], removed: [{ name, major }] }` 给出一次变化。`revision` 是正整数，变化帧的基础是 `revision - 1`。客户端收到基础对不上的变化帧时不应用，改为重新订阅。
+
+帧怎样从登记表得来、读得慢的订阅者怎样改收快照，归入口规格的[内置协议与可用性](../server-entry/SPEC.md#内置协议与可用性)。
 ### 浏览器夹具
 
 [tests/fixtures/browser/](tests/fixtures/browser/main.ts) 是一个浏览器消费者。它只从根入口导入，按 `source` 条件把本成员与它依赖的 json-text、legal-identity、utc-instant 的源码一起编译。类型库是 ES2024 加 DOM，不带 Node 类型。这次编译是慢层成员测试 [tests/browser-fixture.spec.ts](tests/browser-fixture.spec.ts) 的一条。夹具里的[示例协议](tests/fixtures/browser/example-protocol.ts)证明协议契约的写法成立，它不是任何领域的协议，也不随发行导出。
