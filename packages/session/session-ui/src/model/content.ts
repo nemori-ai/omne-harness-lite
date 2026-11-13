@@ -233,7 +233,3 @@ export function applyDelta(content: Content, tree: JsonTree): LiveApplied {
     },
   }
 }
-
-export function markLive(content: Content, status: LiveStatus): Content {
-  return { ...content, liveStatus: status }
-}

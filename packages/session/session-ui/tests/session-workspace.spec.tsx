@@ -62,9 +62,10 @@ it('W1 主场景：新建会话、发一句话、流式回复、被历史替换�
   await settle()
   expect(screen.getByText('已受理，等待写入会话')).toBeTruthy()
 
-  const messageId = (
-    body.message.entries.find(entry => entry.key === 'id')?.value as { value: string }
-  ).value
+  const idNode = body.message.entries.find(entry => entry.key === 'id')?.value as
+    | { value: string }
+    | undefined
+  const messageId = idNode?.value ?? ''
   act(() => observation.push(stateFrame('run_1', '3')))
   await settle()
   const catchUp = await fake.next('read-history')
@@ -164,6 +165,64 @@ it('W4 StrictMode 下挂上、收掉、再挂上之后仍能用，只发一次�
   await settle()
   expect(fake.calls.filter(call => call.operation === 'create-session')).toHaveLength(1)
   expect(screen.getByRole('textbox', { name: '输入消息' })).toBeTruthy()
+})
+
+it('W5 回复增长时，已提交的那几条在 DOM 里一点不变', async () => {
+  const fake = createFakeClient()
+  render(<SessionWorkspace client={fake.client} tenant={TENANT} />)
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
+  ;(await fake.next('create-session')).answer({
+    outcome: 'succeeded',
+    body: { session: SESSION, recovered: false },
+  })
+  await settle()
+  ;(await fake.next('read-history')).answer({
+    outcome: 'succeeded',
+    body: page(
+      [userEntry('1', '1', '第一句', 'msg_a'), assistantEntry('2', '2', '第一个回答')],
+      '2',
+    ),
+  })
+  await settle()
+  const observation = fake.observations[0]
+  if (observation === undefined) throw new Error('no observation')
+  act(() => {
+    observation.push(stateFrame('run_1', '2'))
+    observation.push({
+      kind: 'snapshot',
+      projection: 'model-output-v1',
+      value: snapshotTree('1', '1', [['0', '一']]),
+    })
+  })
+  await settle()
+  const committed = screen.getByText('第一个回答').closest('article')
+  if (committed === null) throw new Error('no committed article')
+  const mutations: MutationRecord[] = []
+  const watcher = new MutationObserver(records => mutations.push(...records))
+  watcher.observe(committed, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+  })
+  let text = '一'
+  for (let at = 1; at < 20; at += 1) {
+    const base = { cursor: String(at), revision: String(at) }
+    text += '二'
+    act(() =>
+      observation.push({
+        kind: 'delta',
+        projection: 'model-output-v1',
+        value: deltaTree(base, String(at + 1), String(at + 1), [['0', text]]),
+      }),
+    )
+  }
+  await settle()
+  watcher.disconnect()
+  expect(screen.getByText(text)).toBeTruthy()
+  expect(committed.isConnected).toBe(true)
+  expect(mutations).toEqual([])
 })
 
 it('W3 外壳给的租户读不懂：如实说出来', () => {

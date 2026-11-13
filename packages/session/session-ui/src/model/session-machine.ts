@@ -7,7 +7,6 @@ import {
   applyDelta,
   applySnapshot,
   EMPTY_CONTENT,
-  markLive,
   mergeHistory,
   reachesKnown,
   settleLive,
@@ -121,7 +120,6 @@ export type Effect =
       session: string
       acceptId: string
       inputId: string
-      messageId: string
       text: string
     }>
   | Readonly<{ kind: 'query-send-input'; session: string; acceptId: string }>
@@ -211,19 +209,15 @@ export function step(state: State, event: Event): Step {
     case 'create-answered':
       return onCreateAnswered(state, event)
     case 'create-confirm':
-      return state.kind === 'creating' && state.confirm === 'unknown'
-        ? {
-            state: { ...state, confirm: 'asking', notice: UNKNOWN('建会话') },
-            effects: [{ kind: 'query-create-session', createCallId: state.createCallId }],
-          }
-        : same(state)
+      return onCreateConfirm(state)
     case 'create-confirmed':
       return onCreateConfirmed(state, event)
     case 'send':
       return onSend(state, event)
     case 'send-answered':
-    case 'send-confirmed':
       return onSendAnswered(state, event)
+    case 'send-confirmed':
+      return onSendConfirmed(state, event)
     case 'send-confirm':
       return onSendConfirm(state, event.acceptId)
     case 'cancel':
@@ -262,15 +256,26 @@ function onCreateAnswered(state: State, event: Extract<Event, { kind: 'create-an
       return opened(answer.body.session)
     case 'unknown':
     case 'uncertain':
-      return {
-        state: { ...state, confirm: 'asking', notice: UNKNOWN('建会话') },
-        effects: [{ kind: 'query-create-session', createCallId: state.createCallId }],
-      }
+      return askCreate(state)
     case 'unavailable':
       return same({ kind: 'none', notice: NOT_SENT('建会话的请求') })
     default:
       return same({ kind: 'none', notice: refused(answer.outcome, '没有建成会话：') })
   }
+}
+
+type Creating = Extract<State, { kind: 'creating' }>
+
+/** Confirm by the same create call id; the create itself is never sent again. */
+function askCreate(state: Creating): Step {
+  return {
+    state: { ...state, confirm: 'asking', notice: UNKNOWN('建会话') },
+    effects: [{ kind: 'query-create-session', createCallId: state.createCallId }],
+  }
+}
+
+function onCreateConfirm(state: State): Step {
+  return state.kind === 'creating' && state.confirm === 'unknown' ? askCreate(state) : same(state)
 }
 
 function onCreateConfirmed(
@@ -306,7 +311,6 @@ function onSend(state: State, event: Extract<Event, { kind: 'send' }>): Step {
         session: state.session,
         acceptId: event.acceptId,
         inputId: event.inputId,
-        messageId: event.messageId,
         text: event.text,
       },
     ],
@@ -326,54 +330,73 @@ function updateInput(
   }
 }
 
-function onSendAnswered(
+/** The open session holding this input in this status, or null: any other answer is stale. */
+function holding(
   state: State,
-  event: Extract<Event, { kind: 'send-answered' | 'send-confirmed' }>,
-): Step {
-  if (state.kind !== 'open' || state.session !== event.session) return same(state)
-  const input = state.inputs.find(held => held.acceptId === event.acceptId)
-  const expected = event.kind === 'send-answered' ? 'sending' : 'confirming'
-  if (input === undefined || input.status !== expected) return same(state)
-  const outcome = event.answer.outcome
-  if (outcome === 'succeeded')
-    return same(updateInput(state, event.acceptId, { status: 'accepted', notice: null }))
-  if (event.kind === 'send-confirmed') {
-    if (outcome === 'not-committed')
-      return same(
-        updateInput(state, event.acceptId, {
-          status: 'not-committed',
-          notice: { kind: 'refused', text: '已确认：这条消息没有被受理。可以重新发送。' },
-        }),
-      )
-    return same(
-      updateInput(state, event.acceptId, { status: 'unknown', notice: STILL_UNKNOWN('发送') }),
-    )
-  }
-  if (outcome === 'unknown' || outcome === 'uncertain')
-    return {
-      state: updateInput(state, event.acceptId, { status: 'confirming', notice: UNKNOWN('发送') }),
-      effects: [{ kind: 'query-send-input', session: state.session, acceptId: event.acceptId }],
-    }
-  if (outcome === 'unavailable')
-    return same(
-      updateInput(state, event.acceptId, { status: 'refused', notice: NOT_SENT('这条消息') }),
-    )
-  return same(
-    updateInput(state, event.acceptId, {
-      status: 'refused',
-      notice: refused(outcome, '没有发出：'),
-    }),
-  )
+  session: string | null,
+  acceptId: string,
+  status: InputStatus,
+): Open | null {
+  if (state.kind !== 'open' || (session !== null && state.session !== session)) return null
+  const input = state.inputs.find(held => held.acceptId === acceptId)
+  return input?.status === status ? state : null
 }
 
-function onSendConfirm(state: State, acceptId: string): Step {
-  if (state.kind !== 'open') return same(state)
-  const input = state.inputs.find(held => held.acceptId === acceptId)
-  if (input === undefined || input.status !== 'unknown') return same(state)
+/** Confirm by the same acceptance id; the input itself is never sent again. */
+function askSend(state: Open, acceptId: string): Step {
   return {
     state: updateInput(state, acceptId, { status: 'confirming', notice: UNKNOWN('发送') }),
     effects: [{ kind: 'query-send-input', session: state.session, acceptId }],
   }
+}
+
+function onSendAnswered(state: State, event: Extract<Event, { kind: 'send-answered' }>): Step {
+  const open = holding(state, event.session, event.acceptId, 'sending')
+  if (open === null) return same(state)
+  const outcome = event.answer.outcome
+  switch (outcome) {
+    case 'succeeded':
+      return same(updateInput(open, event.acceptId, { status: 'accepted', notice: null }))
+    case 'unknown':
+    case 'uncertain':
+      return askSend(open, event.acceptId)
+    case 'unavailable':
+      return same(
+        updateInput(open, event.acceptId, { status: 'refused', notice: NOT_SENT('这条消息') }),
+      )
+    default:
+      return same(
+        updateInput(open, event.acceptId, {
+          status: 'refused',
+          notice: refused(outcome, '没有发出：'),
+        }),
+      )
+  }
+}
+
+function onSendConfirmed(state: State, event: Extract<Event, { kind: 'send-confirmed' }>): Step {
+  const open = holding(state, event.session, event.acceptId, 'confirming')
+  if (open === null) return same(state)
+  switch (event.answer.outcome) {
+    case 'succeeded':
+      return same(updateInput(open, event.acceptId, { status: 'accepted', notice: null }))
+    case 'not-committed':
+      return same(
+        updateInput(open, event.acceptId, {
+          status: 'not-committed',
+          notice: { kind: 'refused', text: '已确认：这条消息没有被受理。可以重新发送。' },
+        }),
+      )
+    default:
+      return same(
+        updateInput(open, event.acceptId, { status: 'unknown', notice: STILL_UNKNOWN('发送') }),
+      )
+  }
+}
+
+function onSendConfirm(state: State, acceptId: string): Step {
+  const open = holding(state, null, acceptId, 'unknown')
+  return open === null ? same(state) : askSend(open, acceptId)
 }
 
 function onCancel(state: State, controlId: string): Step {
@@ -476,10 +499,10 @@ function onFrame(state: State, event: Extract<Event, { kind: 'frame' }>): Step {
     case 'gap':
       return same({
         ...live,
-        content: markLive(live.content, { kind: 'gap', reason: frame.reason }),
+        content: { ...live.content, liveStatus: { kind: 'gap', reason: frame.reason } },
       })
     case 'refreshing':
-      return same({ ...live, content: markLive(live.content, { kind: 'refreshing' }) })
+      return same({ ...live, content: { ...live.content, liveStatus: { kind: 'refreshing' } } })
   }
 }
 
@@ -536,7 +559,7 @@ function onObservationEnded(
     }
   if (end.kind === 'aborted') return same(state)
   const attempt = state.observation.kind === 'reconnecting' ? state.observation.attempt + 1 : 1
-  return reobserve({ ...state, content: markLive(state.content, null) }, attempt)
+  return reobserve({ ...state, content: { ...state.content, liveStatus: null } }, attempt)
 }
 
 function onReconnectDue(state: State, event: Extract<Event, { kind: 'reconnect-due' }>): Step {

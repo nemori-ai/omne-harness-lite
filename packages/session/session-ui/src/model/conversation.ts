@@ -200,10 +200,6 @@ function askQuestions(args: Plain): readonly AskQuestion[] | null {
   })
 }
 
-const MARKERS: Readonly<Record<string, string>> = {
-  'message.compaction': '前面的对话已压缩',
-}
-
 function terminalLabel(entry: HistoryEntry): string {
   const payload = isRecord(entry.payload) ? entry.payload : {}
   const terminal = isRecord(payload['terminal']) ? payload['terminal'] : {}
@@ -310,7 +306,7 @@ export function conversationItems(content: Content, runActive: boolean): readonl
         break
       }
       case 'message.compaction':
-        items.push({ kind: 'marker', key: entry.entryId, label: MARKERS[entry.kind] ?? entry.kind })
+        items.push({ kind: 'marker', key: entry.entryId, label: '前面的对话已压缩' })
         break
       case 'run.started':
         items.push({ kind: 'marker', key: entry.entryId, label: '新的一轮开始' })

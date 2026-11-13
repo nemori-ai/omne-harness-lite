@@ -243,7 +243,6 @@ describe('R9–R15 发消息与认回', () => {
           session: S,
           acceptId: 'a1',
           inputId: 'i1',
-          messageId: 'msg_x',
           text: '你好',
         },
       ])

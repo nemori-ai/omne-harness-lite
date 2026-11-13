@@ -92,7 +92,7 @@ export class SessionDriver {
     const changed = next.state !== this.#state
     this.#state = next.state
     for (const effect of next.effects) this.#run(effect)
-    if (changed) for (const listener of [...this.#listeners]) listener()
+    if (changed) for (const listener of this.#listeners) listener()
   }
 
   #run(effect: Effect): void {

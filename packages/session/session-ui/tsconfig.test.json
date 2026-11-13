@@ -7,6 +7,7 @@
     "sourceMap": false,
     "rewriteRelativeImportExtensions": true,
     "jsx": "react-jsx",
+    "customConditions": [],
     "lib": ["ES2024", "DOM", "DOM.Iterable"]
   },
   "include": ["tests/**/*.ts", "tests/**/*.tsx", "demo/**/*.ts", "demo/**/*.tsx"],
