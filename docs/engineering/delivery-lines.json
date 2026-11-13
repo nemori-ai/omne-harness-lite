@@ -48,6 +48,7 @@
         "packages/common/legal-identity",
         "packages/governance/governance-contract",
         "packages/identity/identity",
+        "packages/identity/identity-protocol",
         "packages/identity/authorization"
       ]
     },

@@ -1982,9 +1982,18 @@ importers:
 
   packages/identity/identity-protocol:
     dependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../access/public-contract
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

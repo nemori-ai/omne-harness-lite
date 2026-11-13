@@ -1,17 +1,16 @@
 # 公开接口导航
 
-<!-- documentation:placeholder -->
-
-本文件导航本包的公开边界：导出入口、调用者资格、接口定义索引，以及输入输出与失败行为的定位。精确类型与运行时校验归公开源码，非类型行为的唯一正文是 [SPEC.md](../SPEC.md)。不手写第二套签名。
+本文件导航本包的公开边界。精确类型归公开源码，非类型行为的唯一正文是 [SPEC.md](../SPEC.md)。
 
 ## 导出入口
 
-<!-- documentation:placeholder -->
-
-待补：`package.json` 的每个导出入口、调用者资格与对应源码。
+`package.json` 只有根入口 `.`，对应 [`src/index.ts`](../src/index.ts)。任何调用者都可以导入；它是纯数据，浏览器与 Node 都能用。
 
 ## 定义索引
 
-<!-- documentation:placeholder -->
+| 定义               | 源码                                                      | 行为                                                                                          |
+| ------------------ | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `identityProtocol` | [`src/identity-protocol.ts`](../src/identity-protocol.ts) | [协议与操作清单](../SPEC.md#协议与操作清单)、[三栏](../SPEC.md#三栏)、[结果](../SPEC.md#结果) |
+| `IdentityProtocol` | 同上，`typeof identityProtocol`                           | 处理函数与客户端方法的类型由它推出                                                            |
 
-待补：公开定义的链接，以及输入输出与失败行为在 SPEC 中的条款。
+读写失败由每个编解码答 `{ ok: false }`，不抛出。
