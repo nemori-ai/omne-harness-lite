@@ -22,6 +22,7 @@ import type {
   SessionCallerClass,
   SessionClock,
   SessionContextInput,
+  SessionDirectory,
   SessionEvidenceBridge,
   SessionFaces,
   SessionId,
@@ -49,6 +50,11 @@ export abstract class SessionService<P = unknown> extends Service<SessionInterce
   abstract readonly management: SessionFaces<P>['management']
   abstract readonly reconciliation: SessionFaces<P>['reconciliation']
   abstract readonly history: SessionFaces<P>['history']
+  /**
+   * The session list of a tenant. Optional like `commitLog`: a provider without a directory
+   * omits it, and a reader answers basis-unavailable.
+   */
+  declare readonly directory?: SessionDirectory<P>
 }
 export const sessionKey = SessionService.provide
 
