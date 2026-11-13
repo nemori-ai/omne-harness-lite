@@ -450,6 +450,14 @@
       "source": "packages/access/public-contract/SPEC.md"
     },
     {
+      "id": "packages/identity/identity-protocol",
+      "paths": ["packages/identity/identity-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["identity"],
+      "status": "adopted",
+      "source": "packages/identity/identity-protocol/SPEC.md"
+    },
+    {
       "id": "packages/access/sdk",
       "paths": ["packages/access/sdk/src/**"],
       "layer": "interaction",
