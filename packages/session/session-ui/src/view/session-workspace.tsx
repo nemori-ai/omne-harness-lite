@@ -13,6 +13,7 @@ import { stopFace, type StopFace } from '../model/composer.ts'
 import { EMPTY_CONTENT } from '../model/content.ts'
 import { conversationItems } from '../model/conversation.ts'
 import { SessionDriver } from '../model/session-driver.ts'
+import { shownBy, type ListedSession, type SessionList } from '../model/session-list.ts'
 import type { Notice, Open, PendingInput, State } from '../model/session-machine.ts'
 import { ItemView } from './parts.tsx'
 import { useFollowBottom } from './scroll.ts'
@@ -49,6 +50,7 @@ function Workspace({
   const [driver, setDriver] = useState<SessionDriver | null>(null)
   useEffect(() => {
     const created = new SessionDriver({ client, tenant })
+    created.loadList()
     setDriver(created)
     return () => created.dispose()
   }, [client, tenant])
@@ -56,23 +58,125 @@ function Workspace({
 }
 
 function Session({ driver }: { readonly driver: SessionDriver }) {
-  const state = useSyncExternalStore(driver.subscribe, driver.getState)
+  const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
+  // Only below 720px wide does the list fold away; there this opens it as a drop-down.
+  const [listOpen, setListOpen] = useState(false)
   return (
-    <div className="omne-session">
-      <header className="omne-session-bar">
-        <h2 className="omne-session-title">{titleOf(state)}</h2>
-        <ConnectionBadge state={state} />
+    <div className="omne-session" data-list-open={listOpen}>
+      <SessionListView
+        list={list}
+        current={state.kind === 'open' || state.kind === 'unavailable' ? state.session : null}
+        locked={state.kind === 'creating' && state.confirm !== 'unknown'}
+        onOpen={session => {
+          setListOpen(false)
+          driver.openSession(session)
+        }}
+        driver={driver}
+      />
+      <div className="omne-session-main">
+        <header className="omne-session-bar">
+          <button
+            type="button"
+            className="omne-button omne-sessions-toggle"
+            aria-expanded={listOpen}
+            onClick={() => setListOpen(open => !open)}
+          >
+            会话列表
+          </button>
+          <h2 className="omne-session-title">{titleOf(state)}</h2>
+          <ConnectionBadge state={state} />
+          <button
+            type="button"
+            className="omne-button"
+            disabled={state.kind === 'creating'}
+            onClick={() => driver.createSession()}
+          >
+            新建会话
+          </button>
+        </header>
+        <Body state={state} driver={driver} />
+      </div>
+    </div>
+  )
+}
+
+const LIFECYCLE: Readonly<Partial<Record<ListedSession['lifecycle'], string>>> = {
+  initializing: '正在初始化',
+  frozen: '已冻结',
+  archived: '已归档',
+}
+
+function itemTitle(item: ListedSession): string {
+  return item.title ?? `未命名的会话 ${item.session.slice(0, 8)}`
+}
+
+function SessionListView({
+  list,
+  current,
+  locked,
+  onOpen,
+  driver,
+}: {
+  readonly list: SessionList
+  readonly current: string | null
+  /** A create call is in flight (R30): picking waits for its answer. */
+  readonly locked: boolean
+  readonly onOpen: (session: string) => void
+  readonly driver: SessionDriver
+}) {
+  const shown = shownBy(list)
+  return (
+    <nav className="omne-sessions" aria-label="会话列表">
+      {shown === null ? null : (
+        <ul className="omne-session-items">
+          {shown.sessions.map(item => {
+            const lifecycle = LIFECYCLE[item.lifecycle]
+            return (
+              <li key={item.session}>
+                <button
+                  type="button"
+                  className="omne-session-item"
+                  aria-current={item.session === current ? 'true' : undefined}
+                  disabled={locked}
+                  onClick={() => onOpen(item.session)}
+                >
+                  <span className="omne-session-item-title">{itemTitle(item)}</span>
+                  {lifecycle === undefined ? null : <span className="omne-badge">{lifecycle}</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {list.kind === 'read' && list.page.sessions.length === 0 ? (
+        <p className="omne-sessions-note">还没有会话。</p>
+      ) : null}
+      {list.kind === 'reading' ? <p className="omne-sessions-note">正在读会话列表……</p> : null}
+      {list.kind === 'failed' ? (
+        <NoticeLine
+          notice={list.notice}
+          action={
+            list.retry ? (
+              <button type="button" className="omne-link" onClick={() => driver.loadList()}>
+                重试
+              </button>
+            ) : undefined
+          }
+        />
+      ) : null}
+      {list.kind === 'read' && list.page.next !== null ? (
         <button
           type="button"
-          className="omne-button"
-          disabled={state.kind === 'creating'}
-          onClick={() => driver.createSession()}
+          className="omne-button omne-sessions-more"
+          onClick={() => driver.loadMoreSessions()}
         >
-          新建会话
+          更多
         </button>
-      </header>
-      <Body state={state} driver={driver} />
-    </div>
+      ) : null}
+      {shown?.completeness === 'partial' ? (
+        <p className="omne-sessions-note">列表可能不全</p>
+      ) : null}
+    </nav>
   )
 }
 
@@ -164,7 +268,8 @@ function Body({ state, driver }: { readonly state: State; readonly driver: Sessi
         </>
       )
     case 'open':
-      return <OpenSession state={state} driver={driver} />
+      // Another session starts from scratch: its own scroll position and an empty input box.
+      return <OpenSession key={state.session} state={state} driver={driver} />
   }
 }
 

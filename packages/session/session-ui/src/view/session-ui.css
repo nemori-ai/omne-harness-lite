@@ -58,7 +58,6 @@
 
 .omne-session {
   display: flex;
-  flex-direction: column;
   height: 100%;
   min-height: 0;
   background: var(--omne-bg);
@@ -72,6 +71,107 @@
 .omne-session *::before,
 .omne-session *::after {
   box-sizing: border-box;
+}
+
+.omne-session-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The session list: a column on the left; below 720px it folds up and opens above the bar. */
+.omne-sessions {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 260px;
+  min-height: 0;
+  padding: 8px 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--omne-border);
+  background: var(--omne-surface);
+}
+
+.omne-session-items {
+  margin: 0;
+  padding: 0 8px;
+  list-style: none;
+}
+
+.omne-session-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--omne-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.omne-session-item:hover:not(:disabled) {
+  background: var(--omne-surface-strong);
+}
+
+.omne-session-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.omne-session-item[aria-current='true'] {
+  background: var(--omne-user);
+  font-weight: 600;
+}
+
+.omne-session-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omne-sessions-note {
+  margin: 8px 18px 0;
+  color: var(--omne-text-muted);
+  font-size: 13px;
+}
+
+.omne-sessions-more {
+  margin: 8px 18px 0;
+}
+
+.omne-sessions-toggle {
+  display: none;
+}
+
+@media (max-width: 719.98px) {
+  .omne-session {
+    flex-direction: column;
+  }
+
+  .omne-sessions {
+    display: none;
+    width: auto;
+    max-height: 50%;
+    border-right: 0;
+    border-bottom: 1px solid var(--omne-border);
+  }
+
+  .omne-session[data-list-open='true'] .omne-sessions {
+    display: flex;
+  }
+
+  .omne-sessions-toggle {
+    display: inline-block;
+  }
 }
 
 .omne-session-bar {

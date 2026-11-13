@@ -4,8 +4,14 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
-import { INITIAL, step, type Effect, type Event, type State } from './session-machine.ts'
 import { userMessageId, userTextMessage } from './user-message.ts'
+import {
+  INITIAL_WORKSPACE,
+  stepWorkspace,
+  type Workspace,
+  type WorkspaceEffect,
+  type WorkspaceEvent,
+} from './workspace.ts'
 
 export type SessionDriverDeps = Readonly<{
   client: ClientOf<SessionProtocol>
@@ -29,7 +35,7 @@ function notSent<T>(call: () => Promise<T>): Promise<T | { readonly outcome: 'un
 }
 
 export class SessionDriver {
-  #state: State = INITIAL
+  #state: Workspace = INITIAL_WORKSPACE
   readonly #listeners = new Set<() => void>()
   readonly #observations = new Map<number, AbortController>()
   readonly #timers = new Set<() => void>()
@@ -52,7 +58,20 @@ export class SessionDriver {
     return () => this.#listeners.delete(listener)
   }
 
-  getState = (): State => this.#state
+  getState = (): Workspace => this.#state
+
+  /** The first page of the session list: on mount, and for「重试」. */
+  loadList(): void {
+    this.dispatch({ kind: 'list-load' })
+  }
+
+  loadMoreSessions(): void {
+    this.dispatch({ kind: 'list-more' })
+  }
+
+  openSession(session: string): void {
+    this.dispatch({ kind: 'open-session', session })
+  }
 
   createSession(): void {
     this.dispatch({ kind: 'create', createCallId: this.#deps.newId() })
@@ -86,18 +105,26 @@ export class SessionDriver {
     this.#listeners.clear()
   }
 
-  dispatch(event: Event): void {
+  dispatch(event: WorkspaceEvent): void {
     if (this.#disposed) return
-    const next = step(this.#state, event)
-    const changed = next.state !== this.#state
-    this.#state = next.state
+    const next = stepWorkspace(this.#state, event)
+    const changed = next.workspace !== this.#state
+    this.#state = next.workspace
     for (const effect of next.effects) this.#run(effect)
     if (changed) for (const listener of this.#listeners) listener()
   }
 
-  #run(effect: Effect): void {
+  #run(effect: WorkspaceEffect): void {
     const { client, tenant } = this.#deps
     switch (effect.kind) {
+      case 'list-sessions': {
+        // Neither `limit` nor `includeArchived`: the deployment's page size, archived ones left out.
+        const { token, cursor } = effect
+        void notSent(() => client['list-sessions']({ tenant, cursor })).then(answer =>
+          this.dispatch({ kind: 'list-read', token, answer }),
+        )
+        return
+      }
       case 'create-session': {
         const { createCallId } = effect
         void notSent(() => client['create-session']({ createCallId, purpose: '' })).then(answer =>

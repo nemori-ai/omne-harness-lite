@@ -43,7 +43,8 @@ export type ListStep = Readonly<{ list: SessionList; effects: readonly ListEffec
 
 export const UNREAD: SessionList = { kind: 'unread', issued: 0 }
 
-function shownBy(list: SessionList): ListPage | null {
+/** What the list shows now: the last page read, kept while a newer read is on its way. */
+export function shownBy(list: SessionList): ListPage | null {
   switch (list.kind) {
     case 'unread':
       return null
