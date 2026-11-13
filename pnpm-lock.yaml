@@ -322,6 +322,9 @@ importers:
       '@omne-harness/session':
         specifier: workspace:*
         version: link:../../packages/session/session
+      '@omne-harness/session-access':
+        specifier: workspace:*
+        version: link:../../packages/session/session-access
       '@omne-harness/session-adapters':
         specifier: workspace:*
         version: link:../../packages/session/session-adapters
@@ -2861,6 +2864,58 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/session/session-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../session-contract
+      '@omne-harness/session-cordis-contract':
+        specifier: workspace:*
+        version: link:../session-cordis-contract
+      '@omne-harness/session-observation':
+        specifier: workspace:*
+        version: link:../session-observation
+      '@omne-harness/session-protocol':
+        specifier: workspace:*
+        version: link:../session-protocol
+    devDependencies:
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../../identity/identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+      '@omne-harness/server-entry':
+        specifier: workspace:*
+        version: link:../../access/server-entry
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

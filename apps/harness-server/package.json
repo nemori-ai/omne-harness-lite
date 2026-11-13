@@ -82,6 +82,7 @@
     "@omne-harness/schema-provider": "workspace:*",
     "@omne-harness/server-entry": "workspace:*",
     "@omne-harness/session": "workspace:*",
+    "@omne-harness/session-access": "workspace:*",
     "@omne-harness/session-adapters": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
     "@omne-harness/session-cordis": "workspace:*",

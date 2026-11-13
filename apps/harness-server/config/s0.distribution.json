@@ -284,6 +284,11 @@
       "id": "identity-access",
       "plugin": "stubPlugin",
       "config": {}
+    },
+    {
+      "id": "session-access",
+      "plugin": "stubPlugin",
+      "config": {}
     }
   ]
 }
