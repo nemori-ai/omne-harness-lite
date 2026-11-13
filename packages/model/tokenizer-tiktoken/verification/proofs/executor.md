@@ -63,7 +63,7 @@ Init使每份cache为空、phase为idle、lastHit为空。空和为零，`Bounde
 
 缓存淘汰在成功BeginStore后可终止。若LocalFull成立而目标cache为空，单片字节和正条数前提会使LocalFull为假，矛盾，所以必有可删成员。每次EvictLocal将有限条数减1。进入global后同理，GlobalFull时必有全局成员可删。每次EvictGlobal减1。假定这些启用的本地动作被调度，最终Commit可执行。LRU只决定删除哪个成员，不影响这个终止或安全论证。零容量使BeginStore不启用，对应直接返回未缓存的计数。
 
-executor.close的条件性终止依赖所有存活worker的实际Exit最终到达、宿主回调继续被调度。Close之后不再替换，所以对有限槽集合，最后一个Exit之后CloseDone可执行。普通release还依赖counted或Exit最终到达，以及clear ACK或Exit最终到达。`cancellationGraceMs`到期和clear超时只发起stop，不能代替Exit。模型把时间抽象为事件，不证明25ms、截止精准度或Node定时器公平性。
+executor.close的条件性终止依赖所有存活worker的实际Exit最终到达、宿主回调继续被调度。Close之后不再替换，所以对有限槽集合，最后一个Exit之后CloseDone可执行。普通release还依赖counted或Exit最终到达，以及clear ACK或Exit最终到达。`cancellationGraceMs`到期和clear超时只发起stop，不能代替Exit。模型把时间抽象为事件，不证明具体宽限值、退避时刻、截止精准度或Node定时器公平性。
 
 ## 多槽组合与界限
 

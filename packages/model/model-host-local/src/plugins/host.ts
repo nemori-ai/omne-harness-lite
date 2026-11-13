@@ -512,6 +512,7 @@ export function createModelRuntimeLocalPlugin(
           commands: channel?.commands ?? ctx.modelCommands,
           authority: ctx.modelHostAuthority,
           scanBatchSize: settings.scanBatchSize,
+          clock: ctx.modelClock,
           report: event => reportRuntimeEvent(ctx, event),
           // The route and the provider's activity of a call leave together, once its body is released.
           released: target => {

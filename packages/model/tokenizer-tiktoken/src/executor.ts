@@ -47,13 +47,21 @@ type Lease = {
   release: ReturnType<typeof Promise.withResolvers<Cleanup>>
   detach(): void
 }
+/** The pause before a slot whose replacement budget is spent starts again: 1 s, 5 s, then 30 s. */
+function restartPauseMs(backoffs: number): number {
+  if (backoffs === 0) return 1000
+  return backoffs === 1 ? 5000 : 30000
+}
 type SlotPhase =
   | { kind: 'starting'; timer: ReturnType<typeof setTimeout> }
   | { kind: 'idle' }
   | { kind: 'counting'; job: Job }
   | { kind: 'clearing'; lease: Lease; timer: ReturnType<typeof setTimeout> }
-  | { kind: 'stopping'; previous: Exclude<SlotPhase, { kind: 'stopping' } | { kind: 'dead' }> }
+  | { kind: 'stopping'; previous: Exclude<SlotPhase, { kind: 'stopping' } | Workerless> }
+  | { kind: 'backoff'; timer: ReturnType<typeof setTimeout> }
   | { kind: 'dead' }
+/** The phases without a worker: waiting to start again, or for good. */
+type Workerless = { kind: 'backoff' } | { kind: 'dead' }
 type Slot = {
   generation: number
   port: WorkerPort | undefined
@@ -61,8 +69,14 @@ type Slot = {
   ready: Lease[]
   stats: CacheStats
   replacements: number[]
+  /** The backoffs since the slot's worker last answered a count. */
+  backoffs: number
   initialized: ReturnType<typeof Promise.withResolvers<Cleanup>>
   exited: ReturnType<typeof Promise.withResolvers<void>>
+}
+
+function workerless(slot: Slot): boolean {
+  return slot.phase.kind === 'backoff' || slot.phase.kind === 'dead'
 }
 
 // A sliced string can otherwise retain its caller's entire backing text while queued.
@@ -110,6 +124,7 @@ class Executor implements TiktokenExecutor {
         ready: [],
         stats: emptyStats(),
         replacements: [],
+        backoffs: 0,
         initialized: Promise.withResolvers(),
         exited: Promise.withResolvers(),
       }
@@ -181,7 +196,7 @@ class Executor implements TiktokenExecutor {
 
   snapshot(): ReturnType<TiktokenExecutor['snapshot']> {
     return Object.freeze({
-      workers: this.slots.filter(slot => slot.phase.kind !== 'dead').length,
+      workers: this.slots.filter(slot => !workerless(slot)).length,
       leases: this.leases.size,
       queuedJobs: this.queuedJobs,
       queuedBytes: this.queuedBytes,
@@ -197,9 +212,7 @@ class Executor implements TiktokenExecutor {
   }
 
   private availableSlot(): Slot | undefined {
-    const eligible = this.slots.filter(
-      slot => slot.phase.kind !== 'dead' && slot.phase.kind !== 'stopping',
-    )
+    const eligible = this.slots.filter(slot => !workerless(slot) && slot.phase.kind !== 'stopping')
     const assigned = (slot: Slot) =>
       [...this.leases.values()].filter(lease => lease.slot === slot).length
     return eligible.reduce<Slot | undefined>(
@@ -226,7 +239,7 @@ class Executor implements TiktokenExecutor {
     }
     if (this.phase !== 'open' || lease.phase !== 'active')
       return reject('tokenizer lease is released')
-    if (lease.slot.phase.kind === 'dead') return reject('tokenizer worker is unavailable')
+    if (workerless(lease.slot)) return reject('tokenizer worker is unavailable')
     if (this.sequence >= Number.MAX_SAFE_INTEGER)
       return reject('tokenizer identity space exhausted')
     const bytes = retainedInputBytes(input)
@@ -365,7 +378,7 @@ class Executor implements TiktokenExecutor {
       this.answer(slot.phase.job, unavailable('tokenizer lease released'))
       this.cancelRunning(slot, slot.phase.job)
     }
-    if (slot.phase.kind === 'dead') this.finishRelease(lease)
+    if (workerless(slot)) this.finishRelease(lease)
     else {
       this.enqueue(lease)
       this.dispatch(slot)
@@ -435,7 +448,7 @@ class Executor implements TiktokenExecutor {
   }
 
   private receive(slot: Slot, value: unknown): void {
-    if (slot.phase.kind === 'stopping' || slot.phase.kind === 'dead') return
+    if (slot.phase.kind === 'stopping' || workerless(slot)) return
     try {
       const reply = parseReply(value)
       if (reply.generation !== slot.generation) return
@@ -475,6 +488,7 @@ class Executor implements TiktokenExecutor {
       throw new Error('tokenizer worker reply does not match the active task')
     const job = slot.phase.job
     clearTimeout(job.timer)
+    slot.backoffs = 0
     this.totals.serviceMs +=
       /* wall-clock: operation-timing -- Record physical count completion. */ performance.now() -
       job.startedAt
@@ -505,6 +519,12 @@ class Executor implements TiktokenExecutor {
   }
 
   private stop(slot: Slot, diagnostic: string): void {
+    if (slot.phase.kind === 'backoff') {
+      // Only `close` reaches a slot without a worker: the restart is cancelled.
+      clearTimeout(slot.phase.timer)
+      slot.phase = { kind: 'dead' }
+      return
+    }
     if (slot.phase.kind === 'stopping' || slot.phase.kind === 'dead') return
     const previous = slot.phase
     if (previous.kind === 'counting') {
@@ -532,32 +552,51 @@ class Executor implements TiktokenExecutor {
       if (lease.slot === slot && lease.phase === 'releasing') this.finishRelease(lease)
   }
 
-  private replace(slot: Slot, previous: SlotPhase): boolean {
-    if (this.phase !== 'open' || slot.generation >= Number.MAX_SAFE_INTEGER) return false
-    if (previous.kind === 'starting' && slot.generation === 1) return false
+  /**
+   * Gives a slot whose worker exited its next worker: at once while the rolling budget lasts, after
+   * a backoff once it is spent. A closing executor, a spent generation space and a first start that
+   * failed leave the slot dead.
+   */
+  private replace(slot: Slot, previous: SlotPhase): 'started' | 'backoff' | 'dead' {
+    if (this.phase !== 'open' || slot.generation >= Number.MAX_SAFE_INTEGER) return 'dead'
+    if (previous.kind === 'starting' && slot.generation === 1) return 'dead'
     const now =
       /* wall-clock: operation-timing -- Bound worker replacements in a rolling minute. */ performance.now()
     slot.replacements = slot.replacements.filter(time => time > now - 60000)
-    if (slot.replacements.length >= this.input.limits.maxReplacementsPerMinute) return false
-    slot.replacements.push(now)
-    this.totals.replacements++
-    this.start(slot)
-    return true
+    if (slot.replacements.length < this.input.limits.maxReplacementsPerMinute) {
+      slot.replacements.push(now)
+      this.totals.replacements++
+      this.start(slot)
+      return 'started'
+    }
+    const pause = restartPauseMs(slot.backoffs)
+    slot.backoffs++
+    slot.phase = {
+      kind: 'backoff',
+      timer: setTimeout(() => {
+        this.totals.replacements++
+        this.start(slot)
+      }, pause),
+    }
+    return 'backoff'
   }
 
   private exited(slot: Slot): void {
-    if (slot.phase.kind === 'dead') return
+    if (workerless(slot)) return
     const previous = slot.phase.kind === 'stopping' ? slot.phase.previous : slot.phase
     slot.phase = { kind: 'dead' }
     slot.port = undefined
     slot.stats = emptyStats()
     slot.exited.resolve()
     this.settleExitedWork(slot, previous)
-    if (this.replace(slot, previous)) return
-    for (const lease of this.leases.values()) {
-      if (lease.slot !== slot) continue
-      this.failQueued(lease, 'tokenizer worker unavailable and replacement budget exhausted')
-    }
+    const next = this.replace(slot, previous)
+    if (next === 'started') return
+    const diagnostic =
+      next === 'backoff'
+        ? 'tokenizer worker unavailable until its slot starts again'
+        : 'tokenizer worker unavailable'
+    for (const lease of this.leases.values())
+      if (lease.slot === slot) this.failQueued(lease, diagnostic)
     slot.ready = []
   }
 }
