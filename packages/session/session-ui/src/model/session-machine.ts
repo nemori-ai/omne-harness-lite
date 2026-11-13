@@ -9,6 +9,7 @@ import {
   EMPTY_CONTENT,
   mergeHistory,
   reachesKnown,
+  readThroughTo,
   settleLive,
   type Content,
 } from './content.ts'
@@ -459,8 +460,7 @@ function startHistoryRead(state: Open): Step {
 
 function behind(state: Open, revision: string): boolean {
   return (
-    state.content.scannedThrough === null ||
-    compareDecimal(state.content.scannedThrough, revision) < 0
+    state.content.readThrough === null || compareDecimal(state.content.readThrough, revision) < 0
   )
 }
 
@@ -502,7 +502,12 @@ function onFrame(state: State, event: Extract<Event, { kind: 'frame' }>): Step {
         content: { ...live.content, liveStatus: { kind: 'gap', reason: frame.reason } },
       })
     case 'refreshing':
-      return same({ ...live, content: { ...live.content, liveStatus: { kind: 'refreshing' } } })
+      // The observation has no reply stream to forward and looked again. With no run in progress
+      // that says nothing about a reply; during a run it means the reply's content is awaited. It
+      // follows every gap and does not take the gap back: only the next snapshot does.
+      return live.run.kind === 'idle' || live.content.liveStatus !== null
+        ? same(live)
+        : same({ ...live, content: { ...live.content, liveStatus: { kind: 'refreshing' } } })
   }
 }
 
@@ -594,7 +599,7 @@ function onHistoryRead(state: State, event: Extract<Event, { kind: 'history-read
   }
   const page = answer.body
   const known = reachesKnown(state.content, page.entries)
-  const content = mergeHistory(state.content, page.entries, page.scannedThrough)
+  const content = mergeHistory(state.content, page.entries)
   const merged: Open = { ...state, content, inputs: uncommittedInputs(content, state.inputs) }
   if (!known && !page.exhausted && page.next !== null)
     return {
@@ -608,13 +613,16 @@ function onHistoryRead(state: State, event: Extract<Event, { kind: 'history-read
         },
       ],
     }
+  // The traversal from the tail reached what was held (or the start of the log): everything the
+  // log had at the page's pinned revision is here.
+  const read = readThroughTo(merged.content, page.upper)
   const done: Open = {
     ...merged,
     history: { ...merged.history, reading: null, again: false, failure: null },
     content:
       merged.run.kind === 'idle' && merged.revision !== null
-        ? settleLive(merged.content, merged.revision)
-        : merged.content,
+        ? settleLive(read, merged.revision)
+        : read,
   }
   return state.history.again || (done.revision !== null && behind(done, done.revision))
     ? startHistoryRead(done)

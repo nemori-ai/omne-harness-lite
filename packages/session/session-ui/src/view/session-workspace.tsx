@@ -222,8 +222,8 @@ function Conversation({
       {content.liveStatus === null ? null : (
         <p className="omne-live-status">
           {content.liveStatus.kind === 'refreshing'
-            ? '回复的流断了，正在重新取……'
-            : `回复的流有缺口（${content.liveStatus.reason === 'buffer' ? '缓冲' : '来源历史'}），正在重新取……`}
+            ? '正在等回复的内容……'
+            : `回复的内容丢了一段（${content.liveStatus.reason === 'buffer' ? '缓冲放不下' : '来源的历史不够'}），正在重新取……`}
         </p>
       )}
     </div>

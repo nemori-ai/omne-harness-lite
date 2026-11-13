@@ -49,15 +49,19 @@ export type Content = Readonly<{
   entries: readonly HistoryEntry[]
   live: Live | null
   liveStatus: LiveStatus
-  /** The highest session revision history has been read through, or null before the first read. */
-  scannedThrough: string | null
+  /**
+   * The session revision history is read through: the pinned revision (`upper`) of the last
+   * traversal from the tail that reached what was held, or null before the first one. A state
+   * frame at or below it names no commit the entries lack (session-protocol SPEC「会话修订号与读历史」).
+   */
+  readThrough: string | null
 }>
 
 export const EMPTY_CONTENT: Content = {
   entries: [],
   live: null,
   liveStatus: null,
-  scannedThrough: null,
+  readThrough: null,
 }
 
 export type WireEntry = Readonly<{
@@ -88,11 +92,7 @@ export function reachesKnown(content: Content, page: readonly WireEntry[]): bool
  * Merges one history page. An entry already held is replaced by the page's copy. A committed
  * assistant message newer than the live reply's anchor means the reply was committed: it goes.
  */
-export function mergeHistory(
-  content: Content,
-  page: readonly WireEntry[],
-  scannedThrough: string,
-): Content {
+export function mergeHistory(content: Content, page: readonly WireEntry[]): Content {
   const byId = new Map(content.entries.map(entry => [entry.entryId, entry]))
   for (const entry of page)
     byId.set(entry.entryId, {
@@ -114,14 +114,23 @@ export function mergeHistory(
     entries,
     live: committed ? null : live,
     liveStatus: committed ? null : content.liveStatus,
-    scannedThrough: maxDecimal(content.scannedThrough, scannedThrough),
   }
 }
 
-/** When the run ended and history is read through its last revision, nothing is live any more. */
+/** A traversal from the tail reached what was held: history is read through its pinned revision. */
+export function readThroughTo(content: Content, upper: string): Content {
+  return { ...content, readThrough: maxDecimal(content.readThrough, upper) }
+}
+
+/**
+ * No run is in progress. Once history is read through the run's last revision, nothing is live any
+ * more; and with nothing live, a status about the live reply has nothing to describe.
+ */
 export function settleLive(content: Content, revision: string): Content {
-  if (content.live === null || content.scannedThrough === null) return content
-  return compareDecimal(content.scannedThrough, revision) >= 0
+  if (content.live === null)
+    return content.liveStatus === null ? content : { ...content, liveStatus: null }
+  if (content.readThrough === null) return content
+  return compareDecimal(content.readThrough, revision) >= 0
     ? { ...content, live: null, liveStatus: null }
     : content
 }

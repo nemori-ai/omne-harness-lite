@@ -5,6 +5,7 @@ import {
   applySnapshot,
   EMPTY_CONTENT,
   mergeHistory,
+  readThroughTo,
   settleLive,
   type Content,
 } from '../src/model/content.ts'
@@ -29,18 +30,17 @@ function withLive(blocks: readonly (readonly [string, string])[], anchor = '5'):
 
 describe('内容的合并', () => {
   it('C1 历史按日志次序合并，同一条目以新读到的为准', () => {
-    const first = mergeHistory(
-      EMPTY_CONTENT,
-      [userEntry('2', '2', 'b'), userEntry('1', '1', 'a')],
-      '2',
-    )
-    const second = mergeHistory(
-      first,
-      [userEntry('2', '2', 'b2'), userEntry('10', '10', 'c')],
-      '10',
-    )
+    const first = mergeHistory(EMPTY_CONTENT, [userEntry('2', '2', 'b'), userEntry('1', '1', 'a')])
+    const second = mergeHistory(first, [userEntry('2', '2', 'b2'), userEntry('10', '10', 'c')])
     expect(second.entries.map(entry => entry.entryId)).toEqual(['1', '2', '10'])
-    expect(second.scannedThrough).toBe('10')
+    // Merging a page does not move how far history is read: only a finished traversal does.
+    expect(second.readThrough).toBeNull()
+  })
+  it('历史读到哪个修订：取读完的那一轮固定的上界，只增不减', () => {
+    const read = readThroughTo(EMPTY_CONTENT, '9')
+    expect(read.readThrough).toBe('9')
+    expect(readThroughTo(read, '10').readThrough).toBe('10')
+    expect(readThroughTo(read, '8').readThrough).toBe('9')
   })
   it('C2 快照替换进行中的回复', () => {
     const content = withLive([['0', '旧']])
@@ -84,13 +84,18 @@ describe('内容的合并', () => {
   })
   it('C6 锚点之后提交的助手消息替换进行中的回复；之前的不替换', () => {
     const content = withLive([['0', '你好']], '5')
-    expect(mergeHistory(content, [assistantEntry('1', '5', '旧的')], '5').live).not.toBeNull()
-    expect(mergeHistory(content, [assistantEntry('2', '6', '你好')], '6').live).toBeNull()
+    expect(mergeHistory(content, [assistantEntry('1', '5', '旧的')]).live).not.toBeNull()
+    expect(mergeHistory(content, [assistantEntry('2', '6', '你好')]).live).toBeNull()
   })
   it('C7 这一轮结束且历史读到了最后的修订：进行中的回复收起', () => {
-    const content = { ...withLive([['0', 'x']]), scannedThrough: '8' }
+    const content = { ...withLive([['0', 'x']]), readThrough: '8' }
     expect(settleLive(content, '9').live).not.toBeNull()
     expect(settleLive(content, '8').live).toBeNull()
+  })
+  it('没有进行中的一轮、也没有进行中的回复：关于回复的标记不留', () => {
+    const waiting = { ...EMPTY_CONTENT, liveStatus: { kind: 'refreshing' } as const }
+    expect(settleLive(waiting, '3').liveStatus).toBeNull()
+    expect(settleLive(EMPTY_CONTENT, '3')).toBe(EMPTY_CONTENT)
   })
 })
 
@@ -100,18 +105,14 @@ function parts(content: Content, runActive = false): readonly Part[] {
 
 describe('对话的条目', () => {
   it('V1 工具调用与它的结果按调用编号配成一对，配上的工具消息不单独画', () => {
-    const content = mergeHistory(
-      EMPTY_CONTENT,
-      [
-        messageEntry('1', '1', 'assistant', [
-          toolCallBlock('call_b', 'Read', {}),
-          toolCallBlock('call_a', 'Shell', { command: 'ls' }),
-        ]),
-        toolResultEntry('2', '2', 'call_a', 'A 的结果'),
-        toolResultEntry('3', '3', 'call_b', 'B 的结果'),
-      ],
-      '3',
-    )
+    const content = mergeHistory(EMPTY_CONTENT, [
+      messageEntry('1', '1', 'assistant', [
+        toolCallBlock('call_b', 'Read', {}),
+        toolCallBlock('call_a', 'Shell', { command: 'ls' }),
+      ]),
+      toolResultEntry('2', '2', 'call_a', 'A 的结果'),
+      toolResultEntry('3', '3', 'call_b', 'B 的结果'),
+    ])
     const items = conversationItems(content, false)
     expect(items.map(item => item.kind === 'message' && item.role)).toEqual(['assistant'])
     const calls = parts(content).filter(part => part.kind === 'tool-call')
@@ -123,15 +124,11 @@ describe('对话的条目', () => {
     ])
   })
   it('V8 同一个调用的第二个结果不顶替第一个，单独画出来', () => {
-    const content = mergeHistory(
-      EMPTY_CONTENT,
-      [
-        messageEntry('1', '1', 'assistant', [toolCallBlock('call_a', 'Shell', {})]),
-        toolResultEntry('2', '2', 'call_a', '第一个'),
-        toolResultEntry('3', '3', 'call_a', '第二个'),
-      ],
-      '3',
-    )
+    const content = mergeHistory(EMPTY_CONTENT, [
+      messageEntry('1', '1', 'assistant', [toolCallBlock('call_a', 'Shell', {})]),
+      toolResultEntry('2', '2', 'call_a', '第一个'),
+      toolResultEntry('3', '3', 'call_a', '第二个'),
+    ])
     const items = conversationItems(content, false)
     expect(items[0]).toMatchObject({
       parts: [{ kind: 'tool-call', result: { parts: [{ text: '第一个' }] } }],
@@ -142,7 +139,7 @@ describe('对话的条目', () => {
     })
   })
   it('V2 没有对应调用的结果单独画成工具消息', () => {
-    const content = mergeHistory(EMPTY_CONTENT, [toolResultEntry('1', '1', 'nobody', '孤儿')], '1')
+    const content = mergeHistory(EMPTY_CONTENT, [toolResultEntry('1', '1', 'nobody', '孤儿')])
     const items = conversationItems(content, false)
     expect(items).toMatchObject([
       { kind: 'message', role: 'tool', parts: [{ kind: 'tool-result', callId: 'nobody' }] },
@@ -164,11 +161,9 @@ describe('对话的条目', () => {
         ],
       },
     }
-    const content = mergeHistory(
-      EMPTY_CONTENT,
-      [messageEntry('1', '1', 'assistant', [toolCallBlock('q1', 'Ask', ask)])],
-      '1',
-    )
+    const content = mergeHistory(EMPTY_CONTENT, [
+      messageEntry('1', '1', 'assistant', [toolCallBlock('q1', 'Ask', ask)]),
+    ])
     const card = parts(content, true).find(part => part.kind === 'tool-call')
     expect(card).toMatchObject({
       ask: {
@@ -191,52 +186,37 @@ describe('对话的条目', () => {
       params: { questions: [{ title: 'Q', description: 'd', options: [] }] },
     }
     const call = messageEntry('1', '1', 'assistant', [toolCallBlock('q1', 'Ask', ask)])
-    const answered = mergeHistory(
-      EMPTY_CONTENT,
-      [call, toolResultEntry('2', '2', 'q1', '选了 A')],
-      '2',
-    )
+    const answered = mergeHistory(EMPTY_CONTENT, [call, toolResultEntry('2', '2', 'q1', '选了 A')])
     expect(parts(answered, true).find(part => part.kind === 'tool-call')).toMatchObject({
       ask: { status: 'answered' },
     })
-    const ended = mergeHistory(
-      EMPTY_CONTENT,
-      [call, plainEntry('3', '3', 'run.terminal', { terminal: { outcome: 'cancelled' } })],
-      '3',
-    )
+    const ended = mergeHistory(EMPTY_CONTENT, [
+      call,
+      plainEntry('3', '3', 'run.terminal', { terminal: { outcome: 'cancelled' } }),
+    ])
     expect(parts(ended, true).find(part => part.kind === 'tool-call')).toMatchObject({
       ask: { status: 'expired' },
     })
     expect(
-      parts(mergeHistory(EMPTY_CONTENT, [call], '1'), false).find(
-        part => part.kind === 'tool-call',
-      ),
+      parts(mergeHistory(EMPTY_CONTENT, [call]), false).find(part => part.kind === 'tool-call'),
     ).toMatchObject({ ask: { status: 'expired' } })
   })
   it('V5 不认识的条目种类与部件种类：看得见的占位，写明种类名', () => {
-    const content = mergeHistory(
-      EMPTY_CONTENT,
-      [
-        plainEntry('1', '1', 'session.something-new', {}),
-        messageEntry('2', '2', 'assistant', [{ kind: 'hologram' }]),
-      ],
-      '2',
-    )
+    const content = mergeHistory(EMPTY_CONTENT, [
+      plainEntry('1', '1', 'session.something-new', {}),
+      messageEntry('2', '2', 'assistant', [{ kind: 'hologram' }]),
+    ])
     const items = conversationItems(content, false)
     expect(items[0]).toEqual({ kind: 'unknown', key: '1', entryKind: 'session.something-new' })
     expect(parts(content)).toEqual([{ kind: 'unknown', key: '2:0', partKind: 'hologram' }])
   })
   it('V6 一轮的边界与压缩画成标记，滤空的工具消息不画', () => {
-    const content = mergeHistory(
-      EMPTY_CONTENT,
-      [
-        plainEntry('1', '1', 'run.started', {}),
-        plainEntry('2', '2', 'message.compaction', {}),
-        messageEntry('3', '3', 'tool', []),
-        plainEntry('4', '4', 'run.terminal', { terminal: { outcome: 'completed' } }),
-      ],
-      '4',
-    )
+    const content = mergeHistory(EMPTY_CONTENT, [
+      plainEntry('1', '1', 'run.started', {}),
+      plainEntry('2', '2', 'message.compaction', {}),
+      messageEntry('3', '3', 'tool', []),
+      plainEntry('4', '4', 'run.terminal', { terminal: { outcome: 'completed' } }),
+    ])
     const items = conversationItems(content, false)
     expect(items.map(item => (item.kind === 'marker' ? item.label : item.kind))).toEqual([
       '新的一轮开始',

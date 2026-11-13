@@ -110,10 +110,20 @@ export function plainEntry(
   return { entryId, revision, kind, payload: toTree(payload) }
 }
 
+/**
+ * A history page whose traversal is pinned to the session revision `upper`. `scannedThrough` is a
+ * scan position on another axis: a value that would mislead any code comparing it with a revision.
+ */
 export function page(
   entries: readonly WireEntry[],
-  scannedThrough: string,
+  upper: string,
   next: string | null = null,
-): { entries: WireEntry[]; next: string | null; exhausted: boolean; scannedThrough: string } {
-  return { entries: [...entries], next, exhausted: next === null, scannedThrough }
+): {
+  entries: WireEntry[]
+  next: string | null
+  exhausted: boolean
+  scannedThrough: string
+  upper: string
+} {
+  return { entries: [...entries], next, exhausted: next === null, scannedThrough: '900', upper }
 }
