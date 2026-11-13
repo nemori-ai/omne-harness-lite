@@ -67,6 +67,9 @@ describe('内容的合并', () => {
   })
   it('C4 增量的基线对不上，或还没有快照：不应用', () => {
     expect(
+      applyDelta(withLive([]), deltaTree({ cursor: '1', revision: '0' }, '2', '2', [])).kind,
+    ).toBe('base-mismatch')
+    expect(
       applyDelta(withLive([]), deltaTree({ cursor: '0', revision: '1' }, '2', '2', [])).kind,
     ).toBe('base-mismatch')
     expect(
@@ -118,6 +121,25 @@ describe('对话的条目', () => {
       ['call_b', expect.objectContaining({ text: 'B 的结果' })],
       ['call_a', expect.objectContaining({ text: 'A 的结果' })],
     ])
+  })
+  it('V8 同一个调用的第二个结果不顶替第一个，单独画出来', () => {
+    const content = mergeHistory(
+      EMPTY_CONTENT,
+      [
+        messageEntry('1', '1', 'assistant', [toolCallBlock('call_a', 'Shell', {})]),
+        toolResultEntry('2', '2', 'call_a', '第一个'),
+        toolResultEntry('3', '3', 'call_a', '第二个'),
+      ],
+      '3',
+    )
+    const items = conversationItems(content, false)
+    expect(items[0]).toMatchObject({
+      parts: [{ kind: 'tool-call', result: { parts: [{ text: '第一个' }] } }],
+    })
+    expect(items[1]).toMatchObject({
+      role: 'tool',
+      parts: [{ kind: 'tool-result', callId: 'call_a' }],
+    })
   })
   it('V2 没有对应调用的结果单独画成工具消息', () => {
     const content = mergeHistory(EMPTY_CONTENT, [toolResultEntry('1', '1', 'nobody', '孤儿')], '1')
