@@ -164,8 +164,8 @@ async function takeAndFail(h: Harness, pair: () => Pair, history: MemorySessionH
   h.instance.committed({
     tenant: snapshot.tenant,
     session: h.access().session,
-    revision: finished.revision,
-    source: finished.source,
+    revision: finished.receipt.revision,
+    source: finished.receipt.source,
     kinds: ['run.terminal'],
   })
 }
