@@ -4,7 +4,12 @@
 import type { LoginState } from '@omne-harness/client-assembly/cordis'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CallReport, ObserveEnd, Transport } from '@omne-harness/sdk/core'
-import type { HostBridge, LoginResult, LogoutResult } from '../shared/host-bridge.ts'
+import type {
+  HostBridge,
+  LoginCredentials,
+  LoginResult,
+  LogoutResult,
+} from '../shared/host-bridge.ts'
 import {
   BRIDGE,
   readLoginState,
@@ -22,27 +27,25 @@ export type PageBridge = HostBridge & {
   close(): void
 }
 
-export type PageBridgeOptions = {
-  /** The host's origin; in the browser, `location.origin`. */
-  readonly origin: string
-  /** Waits before following the login state again after its stream broke. */
-  readonly retryDelayMs?: (attempt: number) => number
-}
-
 const NOT_SENT: CallReport = Object.freeze({ kind: 'not-sent' })
 const UNCERTAIN: CallReport = Object.freeze({ kind: 'uncertain' })
 const JSON_HEADERS = { 'content-type': 'application/json' }
+const LOGIN_RESULTS: readonly LoginResult[] = ['signed-in', 'auth-failed', 'unknown', 'unavailable']
+const LOGOUT_RESULTS: readonly LogoutResult[] = ['signed-out', 'unknown']
 
-const defaultRetry = (attempt: number): number => Math.min(200 * 2 ** attempt, 5_000)
+/** Waits before following the login state again after its stream broke. */
+const retryDelayMs = (attempt: number): number => Math.min(200 * 2 ** attempt, 5_000)
 
 /** A refusal before forwarding (4xx) proves nothing left for the server; anything else may have. */
 const refusedBeforeForwarding = (response: Response): boolean =>
   response.status >= 400 && response.status < 500
 
-/** Connects to the host; resolves once the first login state arrived. */
-export function connectPageBridge(options: PageBridgeOptions): Promise<PageBridge> {
+/**
+ * Connects to the host at `origin` (in the browser, `location.origin`); resolves once the first
+ * login state arrived.
+ */
+export function connectPageBridge(options: { readonly origin: string }): Promise<PageBridge> {
   const url = (path: string): string => new URL(path, options.origin).toString()
-  const retry = options.retryDelayMs ?? defaultRetry
   const closed = new AbortController()
   const listeners = new Set<(state: LoginState) => void>()
   let state: LoginState | undefined
@@ -122,16 +125,15 @@ export function connectPageBridge(options: PageBridgeOptions): Promise<PageBridg
         // The host is not there right now; try again below.
       }
       if (closed.signal.aborted) return
-      await new Promise(resolve => setTimeout(resolve, retry(attempt)))
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs(attempt)))
     }
   }
 
-  async function login(credentials: Parameters<HostBridge['login']>[0]): Promise<LoginResult> {
+  async function login(credentials: LoginCredentials): Promise<LoginResult> {
     try {
       const response = await post(BRIDGE.login, writeCredentials(credentials))
       if (!response.ok) return refusedBeforeForwarding(response) ? 'unavailable' : 'unknown'
-      const results: readonly LoginResult[] = ['signed-in', 'auth-failed', 'unknown', 'unavailable']
-      return readResult(await response.text(), results) ?? 'unknown'
+      return readResult(await response.text(), LOGIN_RESULTS) ?? 'unknown'
     } catch {
       return 'unknown'
     }
@@ -141,8 +143,7 @@ export function connectPageBridge(options: PageBridgeOptions): Promise<PageBridg
     try {
       const response = await post(BRIDGE.logout, '{}')
       if (!response.ok) return 'unknown'
-      const results: readonly LogoutResult[] = ['signed-out', 'unknown']
-      return readResult(await response.text(), results) ?? 'unknown'
+      return readResult(await response.text(), LOGOUT_RESULTS) ?? 'unknown'
     } catch {
       return 'unknown'
     }
@@ -151,6 +152,7 @@ export function connectPageBridge(options: PageBridgeOptions): Promise<PageBridg
   const bridge: PageBridge = {
     transport,
     loginState: {
+      // The bridge is handed out only after the first state arrived; `??` only narrows the type.
       state: () => state ?? 'signed-out',
       subscribe(listener) {
         listeners.add(listener)
