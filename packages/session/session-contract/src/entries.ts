@@ -56,6 +56,7 @@ import type {
   InitializationRegistration,
 } from './values.ts'
 import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
+import { member } from './payload-members.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type { SessionEntriesChannel } from './interpretation-values.ts'
 
@@ -689,20 +690,16 @@ export function expandHistoryEntries(
 /** Which targets a stored row names: none, only itself or its origin, or the SE01 of the session. */
 function storedReferences(row: HistoryEntry): 'none' | 'origin' | 'created' {
   if (row.kind === 'session.created') {
-    const residents = memberOf(memberOf(row.payload, 'initialAdoption'), 'newResidents')
+    const residents = member(member(row.payload, 'initialAdoption'), 'newResidents')
     return residents?.kind === 'array' && residents.items.length > 0 ? 'created' : 'origin'
   }
   if (row.kind === 'session.adoption')
-    return memberOf(memberOf(row.payload, 'initialization'), 'adoption')?.kind === 'string'
+    return member(member(row.payload, 'initialization'), 'adoption')?.kind === 'string'
       ? 'created'
       : 'none'
   if (FACT_KINDS.has(row.kind))
-    return memberOf(memberOf(row.payload, 'fact'), 'source')?.kind === 'string' ? 'origin' : 'none'
+    return member(member(row.payload, 'fact'), 'source')?.kind === 'string' ? 'origin' : 'none'
   return 'none'
-}
-
-function memberOf(tree: JsonValue | undefined, key: string): JsonValue | undefined {
-  return tree?.kind === 'object' ? tree.entries.find(entry => entry.key === key)?.value : undefined
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
