@@ -828,14 +828,8 @@
     {
       "id": "GCX-CONTEXT-TOOL",
       "edges": [
-        {
-          "from": "packages/context/request-context-contract",
-          "to": "packages/tool/tool-contract"
-        },
-        {
-          "from": "packages/tool/tool-contract",
-          "to": "packages/context/runtime-context-contract"
-        },
+        { "from": "packages/context/request-context-contract", "to": "packages/tool/tool-contract" },
+        { "from": "packages/tool/tool-contract", "to": "packages/context/runtime-context-contract" },
         { "from": "packages/tool/tool", "to": "packages/context/runtime-context-contract" }
       ],
       "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480475331",
