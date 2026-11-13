@@ -226,6 +226,9 @@ importers:
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
+      '@omne-harness/retry':
+        specifier: workspace:*
+        version: link:../../packages/common/retry
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
