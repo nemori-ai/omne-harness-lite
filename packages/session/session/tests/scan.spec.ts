@@ -205,17 +205,19 @@ describe('a read that fails', () => {
     await h.accept('input-1')
     pending.failNext(4)
     const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
-    await elapse(h, 999)
-    expect(pending.reads()).toEqual(['union'])
-    await elapse(h, 1)
-    expect(pending.reads()).toEqual(['union', 'union'])
-    await elapse(h, 5000)
-    expect(pending.reads()).toHaveLength(3)
-    await elapse(h, 30000)
-    expect(pending.reads()).toHaveLength(4)
-    // The last delay repeats; this read answers and lists the session.
-    await elapse(h, 30000)
-    expect(pending.reads()).toHaveLength(5)
+    // Each retry comes exactly at its delay: 1 s, 5 s, 30 s, and then 30 s again.
+    for (const [count, delay] of [
+      [2, 1000],
+      [3, 5000],
+      [4, 30000],
+      [5, 30000],
+    ] as const) {
+      await elapse(h, delay - 1)
+      expect(pending.reads()).toHaveLength(count - 1)
+      await elapse(h, 1)
+      expect(pending.reads()).toHaveLength(count)
+    }
+    // The fifth read answered and listed the session, so the scanner runs.
     await elapse(h, PERIOD)
     expect(pending.reads()).toEqual([...Array(5).fill('union'), ...PERIODIC])
     await handle.release()
@@ -238,6 +240,19 @@ describe('a read that fails', () => {
 })
 
 describe('the handle and the instance', () => {
+  it('a release during a periodic round hands over the page in hand and reads no further reason', async () => {
+    const h = await service()
+    const pending = watchPending(h)
+    const handle = await runningScanner(h, pending)
+    const release = pending.hold()
+    await elapse(h, PERIOD)
+    expect(pending.reads()).toEqual(['union', 'inputs'])
+    await handle.release()
+    release()
+    await settle()
+    expect(pending.reads()).toEqual(['union', 'inputs'])
+  })
+
   it('a released scanner reads no more, and a closed instance answers unavailable', async () => {
     const h = await service()
     const pending = watchPending(h)

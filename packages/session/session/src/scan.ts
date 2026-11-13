@@ -149,15 +149,16 @@ export function createScan<P>(
   const run = async (key: string, tenant: TenantId, scanner: Scanner): Promise<void> => {
     const { signal } = scanner.stop
     const { periodMs, startupRetryDelaysMs: delays } = policy.recoveryScan
+    /** Whether the scanner stops after a round: its tenant had no work and sent no notice. */
+    const idle = (outcome: Outcome): boolean => outcome === 'empty' && !scanner.demand
     try {
       // Starting, and backing off while the startup scan did not finish.
       for (let attempt = 0; ; attempt += 1) {
         scanner.demand = false
         const outcome = await read(tenant, new Set(), signal)
-        if (signal.aborted) return
-        if (outcome === 'empty' && !scanner.demand) return
+        if (signal.aborted || idle(outcome)) return
         if (outcome !== 'incomplete') break
-        const delay = delays[Math.min(attempt, delays.length - 1)] ?? delays[0]
+        const delay = delays[attempt] ?? delays.reduce((_, last) => last)
         if ((await scheduling.wait(delay, signal)) !== 'elapsed') return
       }
       // Running: a wait for the period, then a periodic round.
@@ -165,8 +166,7 @@ export function createScan<P>(
         if ((await scheduling.wait(periodMs, signal)) !== 'elapsed') return
         scanner.demand = false
         const outcome = await periodic(tenant, signal)
-        if (signal.aborted) return
-        if (outcome === 'empty' && !scanner.demand) return
+        if (signal.aborted || idle(outcome)) return
       }
     } finally {
       end(key, scanner)
