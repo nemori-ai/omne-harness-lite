@@ -21,6 +21,21 @@ export { sessionProtocol, type ObserveSessionFrame, type ObserveSessionOpen, typ
 
 ```ts
 import { type RuleValue } from '@omne-harness/public-contract';
+declare const observeSessionOpen: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly tenant: {
+            readonly rule: {
+                readonly kind: 'tenant';
+            };
+        };
+        readonly session: {
+            readonly rule: {
+                readonly kind: 'session';
+            };
+        };
+    };
+};
 declare const observeSessionFrame: {
     readonly kind: 'one-of';
     readonly rules: readonly [
@@ -28,15 +43,15 @@ declare const observeSessionFrame: {
             readonly kind: 'object';
             readonly fields: {
                 readonly kind: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'literal';
                         readonly values: readonly [
-                            'state'
+                            "state"
                         ];
                     };
                 };
                 readonly run: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'one-of';
                         readonly rules: readonly [
                             {
@@ -49,12 +64,12 @@ declare const observeSessionFrame: {
                     };
                 };
                 readonly revision: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'string';
                     };
                 };
                 readonly phase: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'one-of';
                         readonly rules: readonly [
                             {
@@ -67,7 +82,7 @@ declare const observeSessionFrame: {
                     };
                 };
                 readonly target: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'one-of';
                         readonly rules: readonly [
                             {
@@ -77,7 +92,7 @@ declare const observeSessionFrame: {
                                         readonly rule: {
                                             readonly kind: 'literal';
                                             readonly values: readonly [
-                                                'model-output-v1'
+                                                "model-output-v1"
                                             ];
                                         };
                                     };
@@ -98,7 +113,7 @@ declare const observeSessionFrame: {
                     readonly rule: {
                         readonly kind: 'literal';
                         readonly values: readonly [
-                            'snapshot'
+                            "snapshot"
                         ];
                     };
                 };
@@ -106,12 +121,12 @@ declare const observeSessionFrame: {
                     readonly rule: {
                         readonly kind: 'literal';
                         readonly values: readonly [
-                            'model-output-v1'
+                            "model-output-v1"
                         ];
                     };
                 };
                 readonly value: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'json';
                     };
                 };
@@ -124,7 +139,7 @@ declare const observeSessionFrame: {
                     readonly rule: {
                         readonly kind: 'literal';
                         readonly values: readonly [
-                            'delta'
+                            "delta"
                         ];
                     };
                 };
@@ -132,12 +147,12 @@ declare const observeSessionFrame: {
                     readonly rule: {
                         readonly kind: 'literal';
                         readonly values: readonly [
-                            'model-output-v1'
+                            "model-output-v1"
                         ];
                     };
                 };
                 readonly value: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'json';
                     };
                 };
@@ -147,19 +162,19 @@ declare const observeSessionFrame: {
             readonly kind: 'object';
             readonly fields: {
                 readonly kind: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'literal';
                         readonly values: readonly [
-                            'gap'
+                            "gap"
                         ];
                     };
                 };
                 readonly reason: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'literal';
                         readonly values: readonly [
-                            'buffer',
-                            'source-history'
+                            "buffer",
+                            "source-history"
                         ];
                     };
                 };
@@ -169,31 +184,16 @@ declare const observeSessionFrame: {
             readonly kind: 'object';
             readonly fields: {
                 readonly kind: {
-                    readonly rule: {
+                    rule: {
                         readonly kind: 'literal';
                         readonly values: readonly [
-                            'refreshing'
+                            "refreshing"
                         ];
                     };
                 };
             };
         }
     ];
-};
-declare const observeSessionOpen: {
-    readonly kind: 'object';
-    readonly fields: {
-        readonly tenant: {
-            readonly rule: {
-                readonly kind: 'tenant';
-            };
-        };
-        readonly session: {
-            readonly rule: {
-                readonly kind: 'session';
-            };
-        };
-    };
 };
 export type ObserveSessionOpen = RuleValue<typeof observeSessionOpen>;
 export type ObserveSessionFrame = RuleValue<typeof observeSessionFrame>;
@@ -432,6 +432,14 @@ export declare const sessionProtocol: {
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
             readonly frame: import("@omne-harness/public-contract").Codec<{
+                readonly kind: "delta";
+                readonly projection: "model-output-v1";
+                readonly value: import("@omne-harness/json-text").JsonValue;
+            } | {
+                readonly kind: "snapshot";
+                readonly projection: "model-output-v1";
+                readonly value: import("@omne-harness/json-text").JsonValue;
+            } | {
                 readonly kind: "state";
                 readonly phase: string | null;
                 readonly revision: string;
@@ -439,14 +447,6 @@ export declare const sessionProtocol: {
                 readonly target: {
                     readonly projection: "model-output-v1";
                 } | null;
-            } | {
-                readonly kind: "snapshot";
-                readonly projection: "model-output-v1";
-                readonly value: import("@omne-harness/json-text").JsonValue;
-            } | {
-                readonly kind: "delta";
-                readonly projection: "model-output-v1";
-                readonly value: import("@omne-harness/json-text").JsonValue;
             } | {
                 readonly kind: "gap";
                 readonly reason: "buffer" | "source-history";
