@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@omne-harness/assets-protocol": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "react": "catalog:",

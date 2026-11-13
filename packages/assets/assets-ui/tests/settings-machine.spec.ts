@@ -156,17 +156,18 @@ describe('整张表', () => {
   })
 
   it.each([
-    'denied',
-    'not-visible',
-    'conflict',
-    'basis-unavailable',
-    'unavailable',
-    'uncertain',
-  ] as const)('L5 列出答 %s：读失败，带一句话', outcome => {
+    { outcome: 'denied' },
+    { outcome: 'not-visible', body: {} },
+    { outcome: 'conflict', body: {} },
+    { outcome: 'basis-unavailable' },
+    { outcome: 'protocol-rejected' },
+    { outcome: 'unavailable' },
+    { outcome: 'uncertain' },
+  ] as const)('L5 列出答 $outcome：读失败，带一句话', answer => {
     const { state } = run(
       INITIAL,
       { kind: 'read-list' },
-      { kind: 'list-answered', token: 1, answer: { outcome } },
+      { kind: 'list-answered', token: 1, answer },
     )
     expect(state.list.kind).toBe('failed')
     if (state.list.kind !== 'failed') return
@@ -259,7 +260,7 @@ describe('一项', () => {
       kind: 'write-answered',
       key: KEY,
       operation: 'op-1',
-      answer: { outcome: 'no-change' },
+      answer: { outcome: 'no-change', body: {} },
     })
     expect(rowIn(state)).toMatchObject({
       read: { kind: 'read' },
@@ -273,7 +274,7 @@ describe('一项', () => {
       kind: 'write-answered',
       key: KEY,
       operation: 'op-1',
-      answer: { outcome: 'conflict' },
+      answer: { outcome: 'conflict', body: {} },
     })
     const row = rowIn(state)
     expect(row.write).toMatchObject({
@@ -308,7 +309,7 @@ describe('一项', () => {
       kind: 'write-answered',
       key: KEY,
       operation: 'op-1',
-      answer: { outcome },
+      answer: { outcome, body: {} },
     })
     expect(rowIn(state).write.kind).toBe('refused')
   })
@@ -382,7 +383,7 @@ describe('一项', () => {
         kind: 'write-answered',
         key: KEY,
         operation: 'op-1',
-        answer: { outcome: 'no-change' },
+        answer: { outcome: 'no-change', body: {} },
       }).state,
     ).toBe(state)
   })
@@ -431,7 +432,7 @@ describe('一项', () => {
       kind: 'write-answered',
       key: KEY,
       operation: 'op-1',
-      answer: { outcome: 'conflict' },
+      answer: { outcome: 'conflict', body: {} },
     }).state
     const late = step(rereading, {
       kind: 'describe-answered',
@@ -445,7 +446,12 @@ describe('一项', () => {
   it('R11 查看答别的：败，带一句话', () => {
     const { state } = run(
       submitting(),
-      { kind: 'write-answered', key: KEY, operation: 'op-1', answer: { outcome: 'conflict' } },
+      {
+        kind: 'write-answered',
+        key: KEY,
+        operation: 'op-1',
+        answer: { outcome: 'conflict', body: {} },
+      },
       { kind: 'describe-answered', key: KEY, token: 2, answer: { outcome: 'denied' } },
     )
     expect(rowIn(state).read).toEqual({
@@ -457,7 +463,12 @@ describe('一项', () => {
   it('R12 败时点这一项的「重试」：重，发查看', () => {
     const failed = run(
       submitting(),
-      { kind: 'write-answered', key: KEY, operation: 'op-1', answer: { outcome: 'conflict' } },
+      {
+        kind: 'write-answered',
+        key: KEY,
+        operation: 'op-1',
+        answer: { outcome: 'conflict', body: {} },
+      },
       { kind: 'describe-answered', key: KEY, token: 2, answer: { outcome: 'basis-unavailable' } },
     ).state
     const { state, effects } = run(failed, { kind: 'retry-row', key: KEY })

@@ -32,6 +32,8 @@ export function permissionView(overrides: Partial<Permission> = {}): Permission 
   }
 }
 
+const LIMIT = { kind: 'number', lexeme: '65536' } as const
+
 export function ordinaryView(): SettingView {
   return {
     kind: 'ordinary',
@@ -44,10 +46,13 @@ export function ordinaryView(): SettingView {
       appliesAt: '下一次读取起生效。',
       clearEffect: '这一层不再提供这个值。',
     },
-    valueSchema: { type: 'integer' },
-    default: { kind: 'set', value: 65536 },
+    valueSchema: {
+      kind: 'object',
+      entries: [{ key: 'type', value: { kind: 'string', value: 'integer' } }],
+    },
+    default: { kind: 'set', value: LIMIT },
     own: { kind: 'unset' },
-    effective: { value: { kind: 'set', value: 65536 }, source: 'default' },
+    effective: { value: { kind: 'set', value: LIMIT }, source: 'default' },
     lockedBy: null,
     editable: { kind: 'no', reason: 'locked' },
   }

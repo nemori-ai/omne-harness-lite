@@ -1,7 +1,8 @@
 import type { AssetsProtocol, SettingView } from '@omne-harness/assets-protocol'
+import { writeJsonText } from '@omne-harness/json-text'
 import { readTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { useEffect, useState, useSyncExternalStore, type JSX } from 'react'
+import { useEffect, useId, useState, useSyncExternalStore, type JSX } from 'react'
 import { SettingsDriver } from '../model/settings-driver.ts'
 import type { Notice, Row, State } from '../model/settings-machine.ts'
 
@@ -220,7 +221,7 @@ function Facts({ view }: { readonly view: SettingView }) {
           <dt>生效的值</dt>
           <dd>
             {view.effective.value.kind === 'set' ? (
-              <code>{JSON.stringify(view.effective.value.value)}</code>
+              <code>{writeJsonText(view.effective.value.value)}</code>
             ) : (
               '没有值'
             )}
@@ -231,7 +232,7 @@ function Facts({ view }: { readonly view: SettingView }) {
           </dd>
           <dt>这一层的值</dt>
           <dd>
-            {view.own.kind === 'set' ? <code>{JSON.stringify(view.own.value)}</code> : '未设置'}
+            {view.own.kind === 'set' ? <code>{writeJsonText(view.own.value)}</code> : '未设置'}
           </dd>
         </>
       )
@@ -262,6 +263,7 @@ function hasOwn(view: SettingView): boolean {
 function Controls({ row, driver }: { readonly row: Row; readonly driver: SettingsDriver }) {
   const view = row.view
   const [pick, setPick] = useState<string | null>(view.kind === 'permission' ? view.own : null)
+  const group = useId()
   if (view.editable.kind !== 'yes') return null
   const busy =
     row.read.kind !== 'read' || row.write.kind === 'submitting' || row.write.kind === 'unknown'
@@ -274,7 +276,7 @@ function Controls({ row, driver }: { readonly row: Row; readonly driver: Setting
             <label key={choice.value} className="omne-setting-choice">
               <input
                 type="radio"
-                name={row.key}
+                name={group}
                 value={choice.value}
                 checked={pick === choice.value}
                 onChange={() => setPick(choice.value)}

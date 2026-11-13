@@ -1053,6 +1053,9 @@ importers:
       '@omne-harness/assets-protocol':
         specifier: workspace:*
         version: link:../assets-protocol
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../access/public-contract
