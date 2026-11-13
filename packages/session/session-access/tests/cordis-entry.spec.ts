@@ -14,7 +14,7 @@ const ALICE = fixtureLogin('a')
 const SESSION = { name: 'session', major: 1 }
 const signal = new AbortController().signal
 
-function harness() {
+function harness(withDirectory: boolean) {
   const double = createSessionDouble({
     members: new Map([
       [`${ALICE.tenant.organization.text}/${ALICE.account.text}`, new Set([ALICE.account.text])],
@@ -42,11 +42,21 @@ function harness() {
       return {} as never
     }
   }
+  // `directory` is a plain optional property of the service, so the caller class is recorded by an
+  // accessor put on the prototype.
+  Object.defineProperty(FakeSession.prototype, 'directory', {
+    get(this: object) {
+      reads.push(`directory:${callerOf(this)}`)
+      return withDirectory
+        ? { list: async () => ({ ok: { items: [], next: null, completeness: 'complete' } }) }
+        : undefined
+    },
+  })
   return { double, reads, FakeSession }
 }
 
-async function assemble() {
-  const { double, reads, FakeSession } = harness()
+async function assemble({ directory = true } = {}) {
+  const { double, reads, FakeSession } = harness(directory)
   const world = createWorld()
   const root = new Context()
   await root.plugin(AccessRegistryProvider)
@@ -66,12 +76,24 @@ async function assemble() {
         }),
       },
       definitions: () => resolveDefinition,
+      // The fake directory answers in the shape of the port, so the adapter hands it through.
+      listing: directory => ({
+        list: async input => {
+          const answered = await directory.list({ ...input, principal: input.principal })
+          return 'ok' in answered ? { ok: answered.ok as never } : { refused: 'basis-unavailable' }
+        },
+      }),
       prepareCreation: input => {
         prepared.push(input.creation.purpose)
         return input
       },
     }),
-    { maxPageBytes: 65536, historyKinds: ['message.user'] },
+    {
+      maxPageBytes: 65536,
+      historyKinds: ['message.user'],
+      defaultListLimit: 50,
+      maxListLimit: 50,
+    },
   )
   const registry = root.accessRegistry as unknown as AccessRegistryProvider
   const call = async (name: string, principal: unknown, body: unknown) => {
@@ -91,7 +113,7 @@ async function assemble() {
 }
 
 describe('the session access plugin on real Cordis', () => {
-  it('mounts session/v1 with the seven operations and observe-session', async () => {
+  it('mounts session/v1 with the eight operations and observe-session', async () => {
     const { registry } = await assemble()
     for (const name of [
       'create-session',
@@ -99,11 +121,45 @@ describe('the session access plugin on real Cordis', () => {
       'send-input',
       'query-send-input',
       'read-history',
+      'list-sessions',
       'cancel-run',
       'stop-call',
     ])
       expect(registry.enter(SESSION, name)?.member.kind).toBe('operation')
     expect(registry.enter(SESSION, 'observe-session')?.member.kind).toBe('observation')
+  })
+
+  it('mounts list-sessions as a login read of the small limit', async () => {
+    const { registry } = await assemble()
+    const member = registry.enter(SESSION, 'list-sessions')?.member
+    if (member?.kind !== 'operation') throw new Error('list-sessions is not an operation')
+    expect([member.contract.identity, member.contract.effect, member.contract.limit]).toEqual([
+      'login',
+      'read',
+      'small',
+    ])
+  })
+
+  it('reads the session list as reader, and answers basis-unavailable when Session has none', async () => {
+    const withDirectory = await assemble()
+    const listed = await withDirectory.call('list-sessions', loginIdentity(ALICE), {
+      tenant: ALICE.tenant,
+      cursor: null,
+    })
+    expect(listed).toEqual({
+      outcome: 'succeeded',
+      body: { sessions: [], next: null, completeness: 'complete' },
+    })
+    expect(withDirectory.reads).toContain('directory:reader')
+    expect(withDirectory.reads).not.toContain('directory:none')
+
+    const without = await assemble({ directory: false })
+    expect(
+      await without.call('list-sessions', loginIdentity(ALICE), {
+        tenant: ALICE.tenant,
+        cursor: null,
+      }),
+    ).toEqual({ outcome: 'basis-unavailable' })
   })
 
   it('reads management as intake through the assembly preparation and history as reader', async () => {

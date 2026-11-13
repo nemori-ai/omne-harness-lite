@@ -1,9 +1,11 @@
-// The seven handlers of `session/v1` against the Session double: one success each, each refusal of
+// The eight handlers of `session/v1` against the Session double: one success each, each refusal of
 // the operation's contract, the target tenant refused by identity, and a service not on the tree.
 import { describe, expect, it } from 'vitest'
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { SessionFailure, SessionId } from '@omne-harness/session-contract'
+import { sessionProtocol } from '@omne-harness/session-protocol'
+import type { SessionListEntry } from '../src/ports.ts'
 import {
   acceptOperation,
   controlOperation,
@@ -726,6 +728,145 @@ describe('stop-call', () => {
     const session = await created(world)
     world.remove('faces')
     expect(await ops(world)['stop-call'](as(login()), bodyOf(session))).toEqual({
+      outcome: 'basis-unavailable',
+    })
+  })
+})
+
+describe('list-sessions', () => {
+  const body = { tenant: ALICE.tenant, cursor: null }
+  const entry = (session: string, over: Partial<SessionListEntry> = {}): SessionListEntry => ({
+    session,
+    // The stand-in list hands the rows through; the handler never reads the instants.
+    createdAt: '2026-11-13T01:00:00Z' as unknown as SessionListEntry['createdAt'],
+    lastActivityAt: '2026-11-13T02:00:00Z' as unknown as SessionListEntry['lastActivityAt'],
+    lifecycle: 'dormant',
+    title: 'hello',
+    ...over,
+  })
+
+  it('needs a login: the contract asks for one and reads without committing', () => {
+    const contract = sessionProtocol.operations['list-sessions']
+    expect([contract.identity, contract.effect, contract.limit]).toEqual(['login', 'read', 'small'])
+  })
+
+  it('lists the sessions of the target tenant for the principal issued for it, row by row', async () => {
+    const world = createWorld()
+    const rows = [
+      entry('a'.repeat(64)),
+      entry('b'.repeat(64), {
+        createdAt: null,
+        lastActivityAt: null,
+        lifecycle: 'archived',
+        title: null,
+      }),
+    ]
+    world.listing.answer({ ok: { items: rows, next: 'page-2', completeness: 'partial' } })
+    const answer = await ops(world)['list-sessions'](as(login()), {
+      ...body,
+      cursor: 'page-1',
+      limit: 2,
+      includeArchived: true,
+    })
+    expect(answer).toEqual({
+      outcome: 'succeeded',
+      body: { sessions: rows, next: 'page-2', completeness: 'partial' },
+    })
+    const [call, ...others] = world.listing.calls()
+    expect(others).toEqual([])
+    expect(call).toMatchObject({
+      tenant: ALICE.tenant,
+      after: 'page-1',
+      limit: 2,
+      includeArchived: true,
+    })
+    expect(call?.principal).toMatchObject({ kind: 'acting-for-tenant', tenant: ALICE.tenant })
+  })
+
+  it('leaves the list through with an empty page', async () => {
+    const world = createWorld()
+    expect(await ops(world)['list-sessions'](as(login()), body)).toEqual({
+      outcome: 'succeeded',
+      body: { sessions: [], next: null, completeness: 'complete' },
+    })
+  })
+
+  it('uses the deployment default limit and leaves archived sessions out when the message says nothing', async () => {
+    const world = createWorld({ defaultListLimit: 20, maxListLimit: 30 })
+    await ops(world)['list-sessions'](as(login()), body)
+    expect(world.listing.calls()[0]).toMatchObject({
+      after: null,
+      limit: 20,
+      includeArchived: false,
+    })
+  })
+
+  it('accepts a limit at the bound and answers invalid above it without asking the list', async () => {
+    const world = createWorld({ defaultListLimit: 10, maxListLimit: 30 })
+    expect((await ops(world)['list-sessions'](as(login()), { ...body, limit: 30 })).outcome).toBe(
+      'succeeded',
+    )
+    expect(await ops(world)['list-sessions'](as(login()), { ...body, limit: 31 })).toEqual({
+      outcome: 'invalid',
+      body: {},
+    })
+    expect(world.listing.calls()).toHaveLength(1)
+  })
+
+  it('answers invalid to a cursor the list does not recognise', async () => {
+    const world = createWorld()
+    world.listing.answer({ refused: 'invalid' })
+    expect(await ops(world)['list-sessions'](as(login()), { ...body, cursor: 'foreign' })).toEqual({
+      outcome: 'invalid',
+      body: {},
+    })
+  })
+
+  it.each(['denied', 'basis-unavailable'] as const)(
+    'answers %s when the list refuses with it',
+    async refused => {
+      const world = createWorld()
+      world.listing.answer({ refused })
+      expect(await ops(world)['list-sessions'](as(login()), body)).toEqual({ outcome: refused })
+    },
+  )
+
+  it('answers basis-unavailable when the list throws', async () => {
+    const world = createWorld()
+    world.listing.answer('throw')
+    expect(await ops(world)['list-sessions'](as(login()), body)).toEqual({
+      outcome: 'basis-unavailable',
+    })
+  })
+
+  it('answers denied to a target tenant of another account without asking the list', async () => {
+    const world = createWorld()
+    expect(await ops(world)['list-sessions'](as(login(BOB)), body)).toEqual({ outcome: 'denied' })
+    expect(world.listing.calls()).toEqual([])
+  })
+
+  it.each(['denied', 'basis-unavailable'] as const)(
+    'answers %s when identity refuses the target tenant',
+    async refusal => {
+      const world = createWorld()
+      world.refuseTargets(refusal)
+      expect(await ops(world)['list-sessions'](as(login()), body)).toEqual({ outcome: refusal })
+      expect(world.listing.calls()).toEqual([])
+    },
+  )
+
+  it('answers basis-unavailable when identity throws', async () => {
+    const world = createWorld()
+    world.refuseTargets('throw')
+    expect(await ops(world)['list-sessions'](as(login()), body)).toEqual({
+      outcome: 'basis-unavailable',
+    })
+  })
+
+  it('answers basis-unavailable while the session list is not on the tree', async () => {
+    const world = createWorld()
+    world.remove('listing')
+    expect(await ops(world)['list-sessions'](as(login()), body)).toEqual({
       outcome: 'basis-unavailable',
     })
   })

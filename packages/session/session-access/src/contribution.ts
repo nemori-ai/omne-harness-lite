@@ -1,6 +1,7 @@
-// The contribution of `session/v1`: one handler for each of the seven operations and the frame
+// The contribution of `session/v1`: one handler for each of the eight operations and the frame
 // source of `observe-session`. The handlers are moved from the server entry's session location
-// (`packages/access/server-entry/src/session.ts`); they reach Session through the same faces and
+// (`packages/access/server-entry/src/session.ts`), except `list-sessions`, which is new and reaches
+// the session list through the `SessionListing` port; they reach Session through the same faces and
 // derived identities, and map Session's results to the same outcomes. Only `create-session` acts
 // for the acting tenant the pipeline gave; the other operations carry a target tenant in the body,
 // and `TargetTenantPrincipals` turns the login into a principal for it. Every port is taken at the
@@ -48,6 +49,7 @@ import type {
   PrincipalFacts,
   SessionAccessFaces,
   SessionAccessSettings,
+  SessionListing,
   TargetTenantPrincipals,
 } from './ports.ts'
 
@@ -56,6 +58,7 @@ export type SessionContributionInput = Readonly<{
   faces: () => SessionAccessFaces | undefined
   observation: () => SessionObservation<Principal> | undefined
   definitions: () => DefinitionResolver | undefined
+  listing: () => SessionListing | undefined
   principals: TargetTenantPrincipals
   facts: PrincipalFacts
   settings: SessionAccessSettings
@@ -69,6 +72,9 @@ type ObserveSession = SessionProtocol['observations']['observe-session']
 
 type Refusal = Readonly<{ outcome: 'denied' | 'basis-unavailable' }>
 const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
+
+/** The principal for a target tenant, or the refusal identity gave. */
+type TenantPrincipal = Readonly<{ principal: Principal; tenantText: string }>
 
 /** The target of one call: the principal for the target tenant and the session it names. */
 type Target = Readonly<{ access: SessionAccess<Principal>; tenantText: string }>
@@ -247,11 +253,10 @@ export function createSessionContribution(
   const { principals, facts, settings } = input
 
   /** The principal for the target tenant of the body. */
-  async function target(
+  async function principalFor(
     login: LoginIdentity,
     tenant: TenantId,
-    session: string,
-  ): Promise<Target | Refusal> {
+  ): Promise<TenantPrincipal | Refusal> {
     const tenantText = tenantTextOf(tenant)
     let issued: Awaited<ReturnType<TargetTenantPrincipals['actingFor']>>
     try {
@@ -260,7 +265,19 @@ export function createSessionContribution(
       return UNAVAILABLE
     }
     if ('refused' in issued) return { outcome: issued.refused }
-    return { access: { principal: issued.ok, tenant, session: session as SessionId }, tenantText }
+    return { principal: issued.ok, tenantText }
+  }
+
+  /** The principal for the target tenant, and the session the body names. */
+  async function target(
+    login: LoginIdentity,
+    tenant: TenantId,
+    session: string,
+  ): Promise<Target | Refusal> {
+    const issued = await principalFor(login, tenant)
+    if ('outcome' in issued) return issued
+    const access = { principal: issued.principal, tenant, session: session as SessionId }
+    return { access, tenantText: issued.tenantText }
   }
 
   /** The target, then Session as it is on the tree now. */
@@ -441,6 +458,48 @@ export function createSessionContribution(
     return { outcome: 'succeeded', body: pageOf(result.ok) }
   }
 
+  async function listSessions(
+    login: LoginIdentity,
+    body: Body<'list-sessions'>,
+  ): Promise<Answer<'list-sessions'>> {
+    const issued = await principalFor(login, body.tenant)
+    if ('outcome' in issued) return issued
+    const listing = input.listing()
+    if (listing === undefined) return UNAVAILABLE
+    const limit = body.limit ?? settings.defaultListLimit
+    if (limit > settings.maxListLimit) return { outcome: 'invalid', body: {} }
+    const result = await readCall(() =>
+      listing.list({
+        principal: issued.principal,
+        tenant: body.tenant,
+        after: body.cursor,
+        limit,
+        includeArchived: body.includeArchived ?? false,
+      }),
+    )
+    if (result === 'basis-unavailable') return UNAVAILABLE
+    if ('refused' in result) {
+      return result.refused === 'invalid'
+        ? { outcome: 'invalid', body: {} }
+        : { outcome: result.refused }
+    }
+    const { items, next, completeness } = result.ok
+    return {
+      outcome: 'succeeded',
+      body: {
+        sessions: items.map(item => ({
+          session: item.session,
+          createdAt: item.createdAt,
+          lastActivityAt: item.lastActivityAt,
+          lifecycle: item.lifecycle,
+          title: item.title,
+        })),
+        next,
+        completeness,
+      },
+    }
+  }
+
   async function cancelRun(
     login: LoginIdentity,
     body: Body<'cancel-run'>,
@@ -544,8 +603,7 @@ export function createSessionContribution(
       'read-history': (call, body) => readHistory(call.principal, body),
       'cancel-run': (call, body) => cancelRun(call.principal, body),
       'stop-call': (call, body) => stopCall(call.principal, body),
-      // The session directory is not wired in yet: its basis is not there.
-      'list-sessions': () => Promise.resolve(UNAVAILABLE),
+      'list-sessions': (call, body) => listSessions(call.principal, body),
     },
     observations: {
       'observe-session': async (context, open) => {
