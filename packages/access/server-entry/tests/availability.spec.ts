@@ -203,6 +203,31 @@ describe('C7: availability is a projection of the registry', () => {
     expect(unsubscribed).toBe(1)
   })
 
+  it('unsubscribes when the opening is interrupted before any frame is taken', async () => {
+    const registry = entryRegistry(4)
+    let unsubscribed = 0
+    const counting: AccessRegistry = {
+      ...registry,
+      subscribe: listener => {
+        const subscription = registry.subscribe(listener)
+        return {
+          ...subscription,
+          unsubscribe: () => {
+            unsubscribed += 1
+            subscription.unsubscribe()
+          },
+        }
+      },
+    }
+    // The hub aborts the source and never calls `next`: a generator that never ran has no `finally`.
+    const { opened, controller } = open(counting, 4)
+    const result = await opened
+    if (result.outcome !== 'succeeded') throw new Error(`availability answered ${result.outcome}`)
+    controller.abort()
+    await result.frames.return('unavailable')
+    expect(unsubscribed).toBe(1)
+  })
+
   it('stops listening to the registry when the observation ends', async () => {
     const registry = entryRegistry(4)
     const opening = open(registry, 4)

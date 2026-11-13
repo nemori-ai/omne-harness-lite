@@ -58,8 +58,20 @@ export function availabilitySource(
     })
     revision = subscription.revision
     for (const key of subscription.protocols) known.set(keyText(key), key)
-    const awake = (): void => wake?.()
+    // The subscription began here, before any frame is taken, so it ends on the abort itself: the
+    // hub may abort an opening it never reads, and a generator that never ran has no `finally`.
+    let listening = true
+    const leave = (): void => {
+      if (!listening) return
+      listening = false
+      subscription.unsubscribe()
+    }
+    const awake = (): void => {
+      leave()
+      wake?.()
+    }
     signal.addEventListener('abort', awake)
+    if (signal.aborted) leave()
 
     const snapshot = (): AvailabilityFrame => ({
       kind: 'snapshot',
@@ -87,7 +99,7 @@ export function availabilitySource(
           wake = undefined
         }
       } finally {
-        subscription.unsubscribe()
+        leave()
         signal.removeEventListener('abort', awake)
       }
     }

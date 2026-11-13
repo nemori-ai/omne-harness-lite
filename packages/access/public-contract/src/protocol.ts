@@ -78,10 +78,19 @@ type Only<T, Allowed extends PropertyKey> = {
 type ClosedOperation<O> = O extends { readonly outcomes: infer R }
   ? Only<O, keyof OperationContract> & { readonly outcomes: Only<R, Outcome> }
   : O
-/** The closed shape check: no field outside the contract types and no outcome outside the table. */
+/**
+ * The operation name no protocol may use. A client made from a contract has one member per
+ * operation and keeps its observations under `observe`, so an operation of that name would be
+ * hidden by them.
+ */
+const RESERVED_OPERATION_NAME = 'observe'
+
+/** The closed shape check: no field outside the contract types, no outcome outside the table, no reserved operation name. */
 type Closed<P extends ProtocolContract> = Only<P, keyof ProtocolContract> & {
   readonly operations: {
-    readonly [N in keyof P['operations']]: ClosedOperation<P['operations'][N]>
+    readonly [N in keyof P['operations']]: N extends typeof RESERVED_OPERATION_NAME
+      ? never
+      : ClosedOperation<P['operations'][N]>
   }
   readonly observations: {
     readonly [N in keyof P['observations']]: Only<P['observations'][N], keyof ObservationContract>
@@ -106,6 +115,11 @@ function pipelineOutcomes(operation: OperationContract): Partial<Record<FixedOut
 export function defineProtocol<const P extends ProtocolContract>(
   protocol: P & Closed<P>,
 ): DefinedProtocol<P> {
+  // The type refuses it for a literal; a contract built another way reaches this check.
+  if (Object.hasOwn(protocol.operations, RESERVED_OPERATION_NAME))
+    throw new TypeError(
+      `${protocol.name}/v${protocol.major}: no operation may be named "${RESERVED_OPERATION_NAME}"`,
+    )
   const operations = Object.fromEntries(
     Object.entries(protocol.operations).map(([name, operation]) => [
       name,

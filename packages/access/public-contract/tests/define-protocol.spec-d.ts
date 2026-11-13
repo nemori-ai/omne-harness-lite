@@ -78,6 +78,17 @@ test('an operation whose effect may be commit gets unknown', () => {
   expectTypeOf<Defined>().toExtend<ProtocolContract>()
 })
 
+test('an operation named observe does not compile', () => {
+  const base = { identity: 'login', effect: 'read', limit: 'small', body: empty } as const
+  defineProtocol({
+    name: 'n',
+    major: 1,
+    // @ts-expect-error A client keeps its observations under `observe`; no operation may take the name.
+    operations: { observe: { ...base, outcomes: { succeeded: empty } } },
+    observations: {},
+  })
+})
+
 test('a contract that breaks the outcome table does not compile', () => {
   const base = { identity: 'login', effect: 'read', limit: 'small', body: empty } as const
   defineProtocol({
