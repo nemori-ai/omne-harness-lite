@@ -39,7 +39,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   governance: {
-    provides: ['sessionPermissionBackend', 'standingDestinationResolver', 'currentToolPermission'],
+    provides: [
+      'sessionPermissionBackend',
+      'standingDestinationResolver',
+      'currentToolPermission',
+      'tenantSettings',
+    ],
     injects: [
       'storage',
       'tenantDomainLookup',

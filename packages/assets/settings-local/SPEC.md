@@ -314,7 +314,16 @@ Public-service tests use the real Worker combinations. Separate tests connect ac
 
 ### Application current consumer
 
-No application consumes the public preparation SPI in this release. harness-server has no entry that writes Settings values, so it assembles no current participants. The package verifies the protocol with its own named fixture participants. An application that adds a Settings write entry must supply `plan` and `currentCommands` from its actual owner projections, and it must verify that composition on its real assembly.
+An application that adds a Settings write entry must supply `plan` and `currentCommands` from its actual owner projections, and it must verify that composition on its real assembly. The package itself verifies the protocol with its own named fixture participants.
+
+harness-server is the one application consumer. Its `governance` row writes the tenant layer of the tenant's own tool asset targets for the tenant-settings face of `@omne-harness/settings` ([Settings SPEC「租户层读写面」](../settings/SPEC.md#tenant-settings)):
+
+- The current facts of such a target join three owners: Assets holds the asset, Governance declares and adopts its definition, Settings keeps the values. They are not in the Settings tables alone, so the plan and the participants are in the application, not in this package. The plan takes the target snapshot of the row (`harness.governance-target-snapshot`) in its own transaction and states the current material from it. The ready and the commit participants (`harness.tenant-settings-current.ready`, `harness.tenant-settings-current.commit`) require the target snapshot of their own transaction and state the current material from it again. A change of the holding, the declaration, the grants or the value after the plan therefore stops the write in the commit decision of this package.
+- The write uses `createIdentityQualifiedSettingsPreparation` with an empty `required`. Its principal is the governance directory principal of the tenant, which depends on the tenant alone. The root of an operation therefore outlives one login: a caller that logs in again and sends the same operation recalls the same write. The face admits only the login principal of the tenant before it calls the write.
+- The target has no source in another domain: the plan names no source, and `sources.reserve` and `sources.settle` answer `unsupported`.
+- Known limit: the permission bound of a pick also depends on the organization layer, which is in the `system.settings` domain. The face reads it before the preparation, not inside the commit transaction. An organization change between that read and the commit is not seen by this write. The execution side reads every layer again for each tool call, so a stored pick outside a later bound does not take effect.
+
+The application tests this composition on its release tree. The fixture participants above stay test support only.
 
 
 ## Source observation read

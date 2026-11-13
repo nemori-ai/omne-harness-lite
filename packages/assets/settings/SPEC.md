@@ -154,6 +154,42 @@ Settings 可独立使用，也可由资产通过组合使用。独立目标通�
 - `items({ scope, asset? })` 列出已解析持有的登记定义里的全部项：秘密项带保管现读的有无，普通项不带有无；保管答 `denied` 或 `unavailable` 时整次列出答同样的值。列出的 `SecretItemView` 按 `sensitivity` 判别：`secret` 的项必带 `presence`，`ordinary` 的项没有 `presence` 成员。
 - 入口不经配值写入协议 `SettingsPreparationPort`，不写配值与求值来源；任何答复不含秘密值。调用者对范围的配值依据由装配在调用入口前核对。
 
+## 租户层读写面
+
+<a id="tenant-settings"></a>
+
+本节是长期行为。读写面 `createTenantSettings` 与它的类型、端口在公开入口的 [tenant-settings.ts](src/tenant-settings.ts)。设计依据是 [RFC-0015 第 9 节「设置」](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#9-设置)。
+
+读写面把租户这一层的四个动作做成领域的词：`list` 列出、`describe` 查看一项、`set` 设置一项、`clear` 清除一项。它只编排，不存配值，不实现权限的求值规则。调用者的主体类型是泛型 `P`，读写面不认识它，只交给端口核对。
+
+### 四个端口
+
+| 端口 | 回答什么 | 谁来适配 |
+| --- | --- | --- |
+| `principals.admit` | 主体是不是这个租户的登录主体，现在有没有这个动作的资格：`allowed`、`denied` 或 `unavailable` | 应用的准入 |
+| `catalog` | 本领域已有的读端口 `SettingsReadPort<TenantId>`，以管理视图读这个租户的全部目标；另加 `assetOf(view)`，答一个目标是哪一份资产 | 应用对这个租户的目录读取 |
+| `permissions` | 一项是不是权限项；权限项的生效值、上界与可不可改；把一个挑选写成本层的存储值并保留本层原有的允许集合；清除后本层留下什么；一个挑选在当前外层之下能不能写 | 应用用权限的 `evaluatePermission` 与 `judgePermissionAssignment` 回答 |
+| `writer.write` | 租户这一层的一次写入：准备加提交，对调用者是一个操作 | 应用的设置写入 |
+
+`writer.write` 先查这个操作有没有结果。没有结果时，它先调读写面给的 `beforeWrite`，后者答拒绝就不写；有结果时直接答原结果。读写面把权限项的上界核对放在 `beforeWrite` 里，所以认回不重做核对。
+
+### 规定
+
+1. 每个方法先核主体，再做别的。不是这个租户的登录主体，一律答 `denied`，不读目录、不问权限、不写。`denied` 不带原因，和「不存在」看不出区别。准入读不出时答 `unavailable`，同样不读别的。
+2. 一次 `list` 或 `describe` 只读一次目录。目录读不出、目录答部分而所要的项不在其中，或权限端口读不出时答 `unavailable`，不给一份残缺的当完整的。目录本身是部分时，`list` 的 `completeness` 是 `partial`。
+3. `set` 的输入在边界严格解析。`SettingInput` 的权限分支只有 `pick`，带多余字段的输入答 `invalid`。普通项的值按项的值模式核对，不合答 `invalid`。
+4. 权限项只收挑选。写入值由权限端口从挑选与本层原有的允许集合组成，本层的允许集合原样保留。清除只撤回本层的挑选：本层有允许集合时它留下，没有时整项清除。
+5. `operation` 是调用者给的原操作身份，原样作为设置写入的操作标识。同一个 `operation` 加同样的输入再送，答原来的结果；加不同的输入答 `conflict`。
+6. 修订号是目标的修订号，以十进制文本给出与带回。过期的修订号由写入的提交判断，答 `conflict`。
+7. 结果对应：提交成功且有变化答 `written` 加新修订号，没有变化答 `no-change`；修订号或声明对不上答 `conflict`；上层锁定答 `not-writable` 原因 `locked`；权限端口答越界时答 `not-writable` 原因 `out-of-bound`；确定没有写答 `unavailable`；写入抛出或答未知答 `unknown`。
+8. 读写面不缓存配值。每次调用都读当时的目录与外层。
+
+### 已知限制
+
+- 秘密项在类型上有一支，但这一版的读写面不接秘密项的入口：秘密项在 `list`、`describe` 里状态是 `unreadable` 且不可改，`set`、`clear` 答 `not-writable` 原因 `not-a-source`。秘密项的读写继续走[秘密设置项](#secret-items)的入口。
+- 一般普通项的 `appliesAt` 由项声明的 `adoption` 推出固定的英文文字；权限项的文字由权限端口给出。
+- 权限项的上界核对读的外层可能在另一个域里，在写入的提交事务之外读。核对之后、提交之前外层变了，这次写入看不到。执行一头每次调用都重读各层，所以越界的挑选即使写进去也不生效。应用里的计划与当前事实参与者，以及这个窗口，见 [settings-local 的应用消费方](../settings-local/SPEC.md#application-current-consumer)。
+
 ## 持续验证义务与表达缺项
 
 验证未锁覆盖与上层锁、清除与false、同标识替换不迁移秘密、移除与写值竞争、定义删项后的旧值失效、同层local覆盖和跨层禁用的区别、工作区落点过滤、本机命令无法由仓库自启、reload候选失败保留合法旧状态、确认丢失查询原结果。
