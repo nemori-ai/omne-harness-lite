@@ -53,6 +53,7 @@ export function spyOnSession(actual: typeof Session): typeof Session {
                 if (spies.releaseThrows) throw new Error('release crashed')
                 await started.ok.release()
               },
+              ended: started.ok.ended,
             },
           }
         },
