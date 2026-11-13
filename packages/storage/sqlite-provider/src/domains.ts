@@ -85,14 +85,26 @@ const hex = (text: string): string => Buffer.from(text, 'utf8').toString('hex')
 
 let providerCounter = 0
 
-async function exists(file: string): Promise<boolean> {
+/**
+ * Whether the domain file exists (SPEC 5.2). Only ENOENT says that it does not. Any other error of
+ * `stat` (EACCES, EMFILE, EIO, ...) says nothing about the file: its presence is unknown.
+ */
+type Presence = Readonly<{ kind: 'present' | 'missing' | 'unknown'; file: string }>
+
+/** A file that was seen missing before an open began. Only such a file may be removed again. */
+type SeenMissing = Presence & Readonly<{ kind: 'missing' }>
+
+async function presence(file: string): Promise<Presence> {
   try {
     await stat(file)
-    return true
-  } catch {
-    return false
+    return { kind: 'present', file }
+  } catch (error) {
+    const missing = (error as { code?: unknown } | null)?.code === 'ENOENT'
+    return { kind: missing ? 'missing' : 'unknown', file }
   }
 }
+
+const seenMissing = (seen: Presence): seen is SeenMissing => seen.kind === 'missing'
 
 export class Domains {
   private readonly entries = new Map<string, Entry>()
@@ -276,9 +288,14 @@ export class Domains {
     // A domain that yielded its Worker opens again only after the exit of that Worker (SPEC 5.2).
     await this.departing.get(domain)
     const file = this.fileOf(domain)
-    const existed = await exists(file)
+    const before = await presence(file)
     const forget = (): void => void this.entries.delete(domain)
-    if (!existed && create === null) {
+    if (before.kind === 'unknown') {
+      // Not absent, and not known to exist: a transient fault, not remembered (SPEC 5.2).
+      forget()
+      return { kind: 'failed', diagnostic: 'domain_presence_unknown' }
+    }
+    if (before.kind === 'missing' && create === null) {
       forget()
       return { kind: 'absent' }
     }
@@ -377,7 +394,7 @@ export class Domains {
         releaseWriter(claim)
         this.leases.release(lease)
       }
-      if (!existed) await this.removeFiles(file)
+      if (seenMissing(before)) await this.removeCreated(before)
       return { kind: 'failed', diagnostic: 'worker_unavailable' }
     }
     if (reply.kind === 'ready' && client !== null) {
@@ -407,14 +424,15 @@ export class Domains {
     }
     forget()
     // A domain that this open created and that holds no binding is absent again.
-    if (!existed) await this.removeFiles(file)
+    if (seenMissing(before)) await this.removeCreated(before)
     if (reply.kind === 'absent') return { kind: 'absent' }
     if (reply.kind === 'unknown') return { kind: 'unknown', diagnostic: reply.diagnostic }
     if (reply.kind === 'ready') return { kind: 'failed', diagnostic: 'worker_unavailable' }
     return { kind: 'failed', diagnostic: reply.diagnostic }
   }
 
-  private async removeFiles(file: string): Promise<void> {
+  /** Removes the files of a failed open that created them: the file was seen missing before it. */
+  private async removeCreated({ file }: SeenMissing): Promise<void> {
     for (const suffix of ['', '-wal', '-shm', '-journal'])
       await rm(`${file}${suffix}`, { force: true }).catch(() => undefined)
   }
