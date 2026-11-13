@@ -33,6 +33,7 @@ import { TenantGovernanceHost } from './tenant-host.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
 import { CurrentPermissionService, currentToolPermissionKey } from './current-permission-service.ts'
+import { provideTenantSettings, tenantSettingsKey } from './tenant-settings-service.ts'
 import { isHitlReservation } from '../tool-hitl/host.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
@@ -87,6 +88,7 @@ export const governanceRow = defineRow({
       sessionPermissionBackendKey,
       standingDestinationResolverKey,
       currentToolPermissionKey,
+      tenantSettingsKey,
     ],
     injects: [
       storageKey,
@@ -184,6 +186,24 @@ export const governanceRow = defineRow({
         standing: { read: input => ctx.tenantStanding.read(input) },
       },
       runtime: tenant => host.runtime(tenant),
+    })
+    let active = true
+    ctx.effect(
+      () => () => {
+        active = false
+      },
+      'governance.tenant-settings.active',
+    )
+    provideTenantSettings(ctx, {
+      host,
+      scope: config,
+      storage: ctx.storage,
+      release: () => release,
+      identity: {
+        verifier: { verify: input => ctx.principalVerifier.verify(input) },
+        standing: { read: input => ctx.tenantStanding.read(input) },
+      },
+      active: () => active,
     })
     ctx.effect(
       () => () => host.close(monotonicClock.now() + config.closeTimeoutMs),

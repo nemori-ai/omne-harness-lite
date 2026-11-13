@@ -3,7 +3,7 @@ import type { StandingDestinationResolver } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { monotonicClock } from '../../shutdown.ts'
 import type { StopResult } from '../../types.ts'
-import type { TenantGovernanceAssembly } from './tenant-runtime.ts'
+import type { TenantGovernanceAssembly, TenantSettingsAccess } from './tenant-runtime.ts'
 
 type Opened = Awaited<ReturnType<TenantGovernanceAssembly['open']>>
 type Runtime = Extract<Opened, { kind: 'created' }>
@@ -68,6 +68,12 @@ export class TenantGovernanceHost {
     if (!this.closing) return result
     await result.close()
     return undefined
+  }
+
+  /** The Settings of an open tenant runtime; undefined when the runtime is not open. */
+  async settings(tenantRef: string): Promise<TenantSettingsAccess | undefined> {
+    if ((await this.runtime(tenantRef)) === undefined) return undefined
+    return (await this.entry(tenantRef))?.assembly.settings
   }
 
   private async drain(): Promise<StopResult> {
