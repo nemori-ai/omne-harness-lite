@@ -275,6 +275,12 @@
   white-space: pre-wrap;
 }
 
+/* Streamdown draws each code line as a span that Tailwind would make a block; there is no Tailwind. */
+.omne-markdown pre code > span {
+  display: block;
+  min-height: 1.4em;
+}
+
 .omne-markdown code {
   font-family: var(--omne-mono);
   font-size: 0.92em;
