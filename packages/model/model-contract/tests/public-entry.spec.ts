@@ -47,6 +47,7 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
       'diffModelStream',
       'encodeModelInvocationRef',
       'encodeModelOutputV1',
+      'faultIsTransient',
       'judgeModelDelivery',
       'projectModelOutputV1',
       'resolveModelInvocationRef',
