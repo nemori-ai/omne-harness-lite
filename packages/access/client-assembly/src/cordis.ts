@@ -47,7 +47,6 @@ export interface Connection {
   }
   /** A protocol client says it is on the tree; returns the way to say it left. */
   readonly claim: (key: ProtocolKey) => () => void
-  /** How a protocol client asks a read again; absent, it does not. */
   readonly readRetry: ReadRetry | undefined
 }
 
@@ -64,7 +63,6 @@ export type ConnectionOptions = {
   readonly diagnostics?: (event: AssemblyDiagnostic) => void
   /** Waits `ms`, or less when `signal` aborts. Absent: `setTimeout`. */
   readonly sleep?: (ms: number, signal: AbortSignal) => Promise<void>
-  /** When a read answers that nothing could be read now: how long to wait before asking again. */
   readonly readRetry?: Pick<ReadRetry, 'delayMs'>
 }
 
@@ -155,7 +153,6 @@ export class ConnectionService extends Service implements Connection {
     }
     this.claim = key => state.claim(key)
 
-    /** Ends at the earliest of: `ms` passed, `signal` aborted, a new availability frame. */
     async function wait(ms: number, signal: AbortSignal | undefined): Promise<void> {
       if (signal?.aborted === true) return
       const ended = new AbortController()

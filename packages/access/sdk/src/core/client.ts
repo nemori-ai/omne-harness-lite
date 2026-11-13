@@ -85,7 +85,6 @@ const UNCERTAIN = Object.freeze({ outcome: 'uncertain' as const })
 
 type Outcomes = Readonly<Record<string, Codec<unknown> | true>>
 
-/** The answers of a read that may differ a moment later: nothing was read yet. */
 function isNotReadable(answer: { readonly outcome: string }): boolean {
   return (
     answer.outcome === 'unavailable' ||
