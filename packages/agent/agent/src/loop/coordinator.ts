@@ -140,6 +140,8 @@ import {
   answeredCandidate,
   deniedCandidate,
   guidedCandidate,
+  uncheckedCandidate,
+  deniedUnchecked,
   deniedForUnavailableAdmission,
   deniedSlot,
   preserveAllowedRequest,
@@ -2296,11 +2298,14 @@ function coordinate<P>(
   /**
    * The candidate of a denied slot: the generic denial, the denial with the remark of the person
    * the admission denied it for, or the answer the action was denied with, read back from its
-   * material. A material that is not an answer is `invalid` (D-104).
+   * material. A material that is not an answer is `invalid` (D-104). A slot that rule 2 denied
+   * because the admission was unavailable says that instead: nothing refused it.
    */
   async function deniedSlotCandidate(action: Action): Promise<Outcome<Message, Failure>> {
     const answer = action.judgment.kind === 'denied' ? action.judgment.answer : undefined
     if (answer === undefined) {
+      if (deniedUnchecked(execution, currentBatch(), action))
+        return succeed(uncheckedCandidate(execution, action))
       const words = guidanceOf(required(checkpoint, 'checkpoint').passages, action.id)
       return succeed(
         words === null

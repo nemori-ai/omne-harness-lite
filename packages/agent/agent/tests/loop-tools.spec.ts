@@ -593,10 +593,36 @@ describe('tool result round', () => {
     // No later chain calls admit after the unavailable answer, and nothing reaches Tool.
     expect(assembly.controls.admission.admit.calls).toHaveLength(1)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
-    expect(toolMessages(await events(assembly)).map(message => message.blocks[0])).toEqual([
+    const messages = toolMessages(await events(assembly))
+    expect(messages.map(message => message.blocks[0])).toEqual([
       expect.objectContaining({ callId: 'call-a' }),
       expect.objectContaining({ callId: 'call-b' }),
     ])
+    // The message says what happened: nothing refused the call, its permission could not be
+    // checked. A model that reads "denied" tells the person to go and change a permission.
+    const unchecked =
+      'The tool call did not run: its permission could not be checked, because the permission basis was unavailable at that moment. No rule and no person refused it. The same call may run when it is made again.'
+    expect(
+      messages.map(message =>
+        message.blocks.flatMap(block => (block.kind === 'text' ? [block.text] : [])),
+      ),
+    ).toEqual([[unchecked], [unchecked]])
+  })
+
+  it('keeps the plain denial for an action that a decision denied', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'deny', reason: 'rule/no-shell', evidence: evidence('denied-by-rule') },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(
+      toolMessages(await events(assembly)).map(message =>
+        message.blocks.flatMap(block => (block.kind === 'text' ? [block.text] : [])),
+      ),
+    ).toEqual([['The tool call was denied and did not run.']])
   })
 
   it('does not release an action allowed earlier in a batch whose later admission is unavailable', async () => {
