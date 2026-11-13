@@ -1,6 +1,7 @@
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
 import type { StandingDestinationResolver } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
+import { pauseAfterFailures } from '../../retry-pause.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import type { StopResult } from '../../types.ts'
 import type { TenantGovernanceAssembly, TenantSettingsAccess } from './tenant-runtime.ts'
@@ -42,12 +43,6 @@ type Entry = {
   spent?: { retryAt: number }
 }
 const unavailable = () => ({ kind: 'unavailable' as const, diagnostic: 'tenant-governance-route' })
-
-/** The default policy of the wait after a run of failed opens; the `retryPauseMs` option replaces it. */
-function pauseAfter(failures: number): number {
-  if (failures <= 1) return 1000
-  return failures === 2 ? 5000 : 30_000
-}
 
 export class TenantGovernanceHost {
   private readonly options: Options
@@ -110,7 +105,7 @@ export class TenantGovernanceHost {
   private fail(tenantRef: string, entry: Entry, phase: string): void {
     const failures = (this.failures.get(tenantRef) ?? 0) + 1
     this.failures.set(tenantRef, failures)
-    const againInMs = Math.max(0, (this.options.retryPauseMs ?? pauseAfter)(failures))
+    const againInMs = Math.max(0, (this.options.retryPauseMs ?? pauseAfterFailures)(failures))
     entry.spent = { retryAt: this.now() + againInMs }
     this.options.report?.({ tenantRef, phase, failures, againInMs })
   }
