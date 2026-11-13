@@ -145,6 +145,17 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
+  it('gives the Agent the retry budget of a failed main model call', () => {
+    expect(configOf(layer, 'agent-host')).toMatchObject({
+      modelRetry: {
+        maxAttempts: 4,
+        maxElapsedMs: 120_000,
+        delaysMs: [1_000, 5_000, 30_000],
+        jitter: 0.2,
+      },
+    })
+  })
+
   describe('the storage thread limits of the settings', () => {
     const threadLimits = (config: Record<string, unknown> | undefined) => ({
       maxWorkers: config?.['maxWorkers'],
