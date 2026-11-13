@@ -8,7 +8,7 @@ import { oneRow, type Executor } from './support.ts'
 /** The computation version of a list item. Add one when a rule of the computation changes. */
 export const SESSION_LIST_VERSION = 1n
 /** The characters of a title, counted in code points. */
-export const TITLE_CHARACTERS = 80
+const TITLE_CHARACTERS = 80
 
 /** The entry kinds that make a commit an activity, besides creating the session. */
 const ACTIVITY_KINDS: ReadonlySet<string> = new Set(['intake.routed', 'run.terminal'])

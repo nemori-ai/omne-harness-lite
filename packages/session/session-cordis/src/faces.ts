@@ -3,16 +3,11 @@
 // configuration of the caller (`inject: { session: { caller } }`). It selects which face the caller
 // sees. It grants nothing: the access boundary is the access decision of each operation.
 import { fail } from '@omne-harness/operation-result'
-import type {
-  SessionCallerClass,
-  SessionDirectory,
-  SessionFailure,
-  SessionFaces,
-} from '@omne-harness/session-contract'
+import type { SessionInstance } from '@omne-harness/session'
+import type { SessionCallerClass, SessionFailure } from '@omne-harness/session-contract'
 
 /** The four faces and the session list, as the instance gives them to one caller class. */
-export type ProviderFaces = SessionFaces<unknown> &
-  Readonly<{ directory: SessionDirectory<unknown> }>
+export type ProviderFaces = ReturnType<SessionInstance<unknown>['facesFor']>
 
 const CLASSES: readonly SessionCallerClass[] = ['intake', 'coordinator', 'maintainer', 'reader']
 

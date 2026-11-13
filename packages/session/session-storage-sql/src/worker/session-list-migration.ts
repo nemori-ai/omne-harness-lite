@@ -58,7 +58,7 @@ function backfillSession(port: Executor, scope: Scope): void {
 }
 
 /** One list item for every session of every tenant in this domain, 200 sessions a page. */
-export function backfillSessionList(port: Executor): void {
+function backfillSessionList(port: Executor): void {
   let tenant = ''
   let session = ''
   for (;;) {
