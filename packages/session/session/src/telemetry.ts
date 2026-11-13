@@ -87,6 +87,7 @@ export const sessionDiagnosticEvent = defineEvent({
         'startRun',
         'replay',
         'invoke',
+        'submit',
         'receive',
         'finishRun',
         'freeze',

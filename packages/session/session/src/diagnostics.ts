@@ -12,6 +12,7 @@ export type SessionDiagnostic = Readonly<{
     | 'startRun'
     | 'replay'
     | 'invoke'
+    | 'submit'
     | 'receive'
     | 'finishRun'
     | 'freeze'
@@ -25,7 +26,7 @@ export type SessionDiagnostic = Readonly<{
   /**
    * The failure kind that the port answered, or one of this member's own reasons:
    * `retries-exhausted`, `agent-absent`, `clock-refused`, `wait-cancelled`,
-   * `advance-withdrawn`, `attempt-replaced`.
+   * `advance-withdrawn`, `attempt-replaced`, `source-unavailable`.
    */
   reason: string
   /** The answered failure as JSON text, or a short text of this member. */
