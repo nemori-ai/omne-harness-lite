@@ -17,7 +17,7 @@ vi.mock('node:fs', async importOriginal => {
     ...real,
     openSync: (...args: Parameters<typeof real.openSync>) => {
       const descriptor = real.openSync(...args)
-      if (String(args[0]).endsWith('README_ZH.md')) fault.descriptor = descriptor
+      if (String(args[0]).endsWith('vitest.config.ts')) fault.descriptor = descriptor
       return descriptor
     },
     writeFileSync: (...args: Parameters<typeof real.writeFileSync>) => {
@@ -78,46 +78,43 @@ const emptyConformance: Conformance = {
   limitations: [],
 }
 const evidence: ScanEvidence = { actual: emptyActual, conformance: emptyConformance }
-/** Nodes that template 3.0.0 generates and versions 2.0.0 and 1.0.0 did not. */
-const SKELETON_ONLY = [
-  'index.md',
-  'SPEC.md',
-  'docs',
-  'schema',
-  'verification',
-  'adr',
-  'examples',
-  'resources',
-  'acceptance',
-  'src/README.md',
-  'src/index.md',
-  'tests/README.md',
-  'tests/index.md',
-  'tests/fixtures',
-]
+const COMPLETED = '# Actual accepted module\n\nThe module exports one value.\n'
 function olderShape(root: string, member: string, version: '1.0.0' | '2.0.0'): void {
-  for (const path of SKELETON_ONLY)
-    fs.rmSync(join(root, member, path), { recursive: true, force: true })
-  if (version === '1.0.0') fs.rmSync(join(root, member, 'documentation.json'))
+  for (const file of ['README.md', 'README_ZH.md'])
+    fs.writeFileSync(join(root, member, file), COMPLETED)
+  if (version === '2.0.0') fs.writeFileSync(join(root, member, 'documentation.json'), '{}')
   changeManifest(root, member, value => {
     value['omneHarness'] = {
       packageTemplate: { id: 'typescript-package', version, variant: 'module' },
     }
   })
 }
-function adopted(root: string): string {
-  const member = 'packages/util/sample'
-  createPackage({ root, group: 'util', name: 'sample', variant: 'module', write: true })
-  for (const file of ['src/index.ts', 'README.md', 'README_ZH.md'])
-    fs.writeFileSync(
-      join(root, member, file),
-      file.endsWith('.ts') ? 'export const value = 1\n' : '# Actual accepted module\n',
-    )
-  fs.mkdirSync(join(root, member, 'tests'), { recursive: true })
-  fs.writeFileSync(join(root, member, 'tests/value.spec.ts'), 'export {}\n')
+function threeShape(root: string, member: string): void {
+  const rules = readTemplate().previousVersions['3.0.0']
+  const documents = [
+    ...(rules?.requiredFiles ?? []),
+    ...(rules?.topics ?? []).map(topic => `docs/${topic}.md`),
+  ]
+  for (const file of documents) {
+    const path = join(root, member, file)
+    if (fs.existsSync(path)) continue
+    fs.mkdirSync(join(path, '..'), { recursive: true })
+    fs.writeFileSync(path, file.endsWith('.json') ? '{}' : COMPLETED)
+  }
   changeManifest(root, member, value => {
     value['omneHarness'] = {
       packageTemplate: { id: 'typescript-package', version: '3.0.0', variant: 'module' },
+    }
+  })
+}
+function adopted(root: string): string {
+  const member = 'packages/util/sample'
+  createPackage({ root, group: 'util', name: 'sample', variant: 'module', write: true })
+  fs.writeFileSync(join(root, member, 'src/index.ts'), 'export const value = 1\n')
+  fs.writeFileSync(join(root, member, 'tests/value.spec.ts'), 'export {}\n')
+  changeManifest(root, member, value => {
+    value['omneHarness'] = {
+      packageTemplate: { id: 'typescript-package', version: '4.0.0', variant: 'module' },
     }
   })
   return member
@@ -273,7 +270,7 @@ describe('template adoption and observation', () => {
       adoption: 'current',
       structure: 'pass',
     })
-    fs.rmSync(join(root, member, 'README_ZH.md'))
+    fs.rmSync(join(root, member, 'vitest.config.ts'))
     const result = inspectPackage(root, member, readTemplate(), evidence)
     expect(result.structure).toBe('fail')
     expect(scanExitCode([result], true)).toBe(1)
@@ -332,7 +329,7 @@ describe('template adoption and observation', () => {
         packageTemplate: { id: 'typescript-package', version: '0.9.0', variant: 'module' },
       }
     })
-    fs.rmSync(join(root, member, 'README_ZH.md'))
+    fs.writeFileSync(join(root, member, 'README.md'), COMPLETED)
     // Controlled test fixture, not a published historical release or migration claim.
     const fixture = {
       ...readTemplate(),
@@ -352,6 +349,7 @@ describe('template adoption and observation', () => {
   it('accepts an explicit JSON Schema export but rejects missing and escaping resources', () => {
     const root = repository(),
       member = adopted(root)
+    fs.mkdirSync(join(root, member, 'schema'))
     fs.writeFileSync(join(root, member, 'schema/value.json'), '{}')
     changeManifest(root, member, value => {
       ;(value['exports'] as Record<string, unknown>)['./schema'] = './schema/value.json'
@@ -570,6 +568,19 @@ describe('template adoption and observation', () => {
     'decisions/choice.md',
     'contract.md',
     'dist',
+    'README_ZH.md',
+    'index.md',
+    'SPEC.md',
+    'AGENTS.md',
+    'CLAUDE.md',
+    'documentation.json',
+    'docs/usage.md',
+    'adr/choice.md',
+    'src/README.md',
+    'src/index.md',
+    'tests/README.md',
+    'verification/README.md',
+    'verification/proofs/argument.md',
   ])('rejects the undeclared node %s anywhere in the complete tree', file => {
     const root = repository(),
       member = adopted(root)
@@ -605,8 +616,7 @@ describe('template adoption and observation', () => {
       'schema/value.json',
       'verification/models/State.tla',
       'verification/models/State.cfg',
-      'verification/proofs/argument.md',
-      'adr/choice.md',
+      'verification/proofs/argument.tex',
       'acceptance/entry.acceptance.ts',
       'vitest.acceptance.config.ts',
       'examples/use.mjs',
@@ -626,7 +636,7 @@ describe('template adoption and observation', () => {
     expect(result.acceptance).toBe('executable')
     expect(result.excludedDirectories).toEqual(['dist'])
     expect(result.tree.filter(node => node.kind === 'file')).toHaveLength(generated + files.length)
-    fs.rmSync(join(root, member, 'verification/README.md'))
+    fs.rmSync(join(root, member, 'tsconfig.build.json'))
     expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
   })
   it('excludes the root Turborepo task log directory but not a nested one', () => {
@@ -692,7 +702,7 @@ describe('template adoption and observation', () => {
   })
 })
 
-describe('documentation template version boundary', () => {
+describe('template version boundary', () => {
   it.each(['1.0.0', '2.0.0'] as const)(
     'keeps version %s obligations exact and reports older without the new skeleton',
     version => {
@@ -712,7 +722,6 @@ describe('documentation template version boundary', () => {
       ).toThrow('already exists')
       expect(fs.readFileSync(join(root, member, 'package.json'))).toEqual(before)
       expect(template.previousVersions[version]?.ruleSet).toBe(2)
-      // The old acceptance companions still apply: a directory without configuration fails.
       fs.mkdirSync(join(root, member, 'acceptance'))
       fs.writeFileSync(join(root, member, 'acceptance/README.md'), '# Acceptance\n')
       expect(inspectPackage(root, member, template, evidence).findings).toContainEqual(
@@ -720,130 +729,31 @@ describe('documentation template version boundary', () => {
       )
     },
   )
-  it('stores the 2.0.0 and 1.0.0 rules as exact historical entries', () => {
-    const template = readTemplate()
-    expect(template.version).toBe('3.0.0')
-    expect(template.ruleSet).toBe(3)
-    expect(template.previousVersions['1.0.0']?.requiredFiles).not.toContain('documentation.json')
-    expect(template.previousVersions['1.0.0']?.layout.files).not.toContain('docs/**/*.md')
-    expect(template.previousVersions['2.0.0']?.requiredFiles).toContain('documentation.json')
-    expect(template.previousVersions['2.0.0']?.requiredFiles).not.toContain('SPEC.md')
-    expect(template.previousVersions['2.0.0']?.variantRequiredFiles.module).toEqual([])
-    expect(template.previousVersions['2.0.0']?.layout.files).not.toContain('index.md')
-    expect(template.previousVersions['2.0.0']?.layout.companions).toHaveLength(3)
-  })
-  it('requires new registration and permits only declared documentation formats', () => {
+  it('keeps a 3.0.0 member on the 3.0.0 rules, including its documentation skeleton and topics', () => {
     const root = repository(),
-      member = adopted(root)
-    fs.writeFileSync(join(root, member, 'docs/usage.md'), '# Usage\n\nUse the public value.\n')
-    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('pass')
-    fs.writeFileSync(join(root, member, 'docs/run.sh'), 'exit 0')
-    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
-    fs.rmSync(join(root, member, 'docs/run.sh'))
-    fs.writeFileSync(join(root, member, 'docs/usage.md'), '# Usage\n\nPACKAGE_TEMPLATE_DRAFT\n')
-    expect(inspectPackage(root, member, readTemplate(), evidence).findings).toContainEqual(
-      expect.objectContaining({ code: 'draft', path: `${member}/docs/usage.md` }),
+      member = adopted(root),
+      template = readTemplate()
+    threeShape(root, member)
+    const result = inspectPackage(root, member, template, evidence)
+    expect(result).toMatchObject({ adoption: 'older', structure: 'pass', acceptance: 'none' })
+    expect(scanExitCode([result], true)).toBe(1)
+    expect(
+      inspectPackage(root, member, { ...template, previousVersions: {} }, evidence).structure,
+    ).toBe('uncovered')
+    fs.rmSync(join(root, member, 'docs/flows.md'))
+    expect(inspectPackage(root, member, template, evidence).findings).toContainEqual(
+      expect.objectContaining({ code: 'topic-missing', path: `${member}/docs/flows.md` }),
     )
+    fs.writeFileSync(join(root, member, 'docs/flows.md'), COMPLETED)
     fs.rmSync(join(root, member, 'documentation.json'))
-    expect(inspectPackage(root, member, readTemplate(), evidence).findings).toContainEqual(
-      expect.objectContaining({ path: `${member}/documentation.json` }),
+    expect(inspectPackage(root, member, template, evidence).findings).toContainEqual(
+      expect.objectContaining({ code: 'required-file', path: `${member}/documentation.json` }),
     )
   })
-})
-
-describe('template 3.0.0 skeleton', () => {
-  const DIRECTORIES = [
-    'docs',
-    'src',
-    'tests',
-    'tests/fixtures',
-    'schema',
-    'verification',
-    'verification/models',
-    'verification/proofs',
-    'adr',
-    'examples',
-    'resources',
-    'acceptance',
-    'acceptance/fixtures',
-  ]
-  const TOPICS = ['architecture', 'flows', 'object-model', 'public-api', 'context', 'cordis']
-  function files(root: string, member: string): string[] {
-    return fs
-      .readdirSync(join(root, member), { recursive: true, withFileTypes: true })
-      .filter(entry => entry.isFile())
-      .map(entry =>
-        relative(join(root, member), join(entry.parentPath, entry.name)).split(sep).join('/'),
-      )
-      .sort()
-  }
-  it.each(VARIANTS)(
-    'generates the complete tree for %s and reports only the code drafts',
-    variant => {
-      const root = repository()
-      createPackage({ root, group: 'util', name: 'sample', variant, write: true })
-      const member = 'packages/util/sample'
-      const binding = variant !== 'module'
-      const expected = [
-        'package.json',
-        'README.md',
-        'README_ZH.md',
-        'index.md',
-        'SPEC.md',
-        'documentation.json',
-        'tsconfig.build.json',
-        'tsconfig.test.json',
-        'vitest.config.ts',
-        'src/index.ts',
-        'tests/public-entry.spec.ts',
-        ...(binding ? ['src/cordis.ts', 'tests/cordis-entry.spec.ts'] : []),
-        ...DIRECTORIES.flatMap(directory => [`${directory}/README.md`, `${directory}/index.md`]),
-        ...TOPICS.map(topic => `docs/${topic}.md`),
-      ].sort()
-      expect(files(root, member)).toEqual(expected)
-      for (const file of expected.filter(
-        path => path.endsWith('.md') && !path.startsWith('README'),
-      ))
-        expect(fs.readFileSync(join(root, member, file), 'utf8')).toMatch(
-          /^# .+\n\n<!-- documentation:placeholder -->\n/u,
-        )
-      for (const file of expected.filter(path => path.endsWith('.md')))
-        expect(fs.readFileSync(join(root, member, file), 'utf8')).not.toMatch(/\{\{/u)
-      const result = inspectPackage(root, member, readTemplate(), evidence)
-      expect(result).toMatchObject({ structure: 'fail', acceptance: 'none' })
-      expect(new Set(result.findings.map(finding => finding.code))).toEqual(new Set(['draft']))
-      const registered = JSON.parse(
-        fs.readFileSync(join(root, member, 'documentation.json'), 'utf8'),
-      ) as { documents: { path: string }[] }
-      expect(
-        registered.documents.map(document => document.path.slice(member.length + 1)).sort(),
-      ).toEqual(expected.filter(path => path.endsWith('.md')))
-    },
-  )
-  it('passes once the code drafts are complete, with documentation placeholders still present', () => {
+  it('accepts a topic as a file or as a directory with entries, never both, under 3.0.0', () => {
     const root = repository(),
       member = adopted(root)
-    const result = inspectPackage(root, member, readTemplate(), evidence)
-    expect(result).toMatchObject({ adoption: 'current', structure: 'pass' })
-    expect(fs.readFileSync(join(root, member, 'docs/flows.md'), 'utf8')).toContain(
-      '<!-- documentation:placeholder -->',
-    )
-    expect(scanExitCode([result], true)).toBe(0)
-  })
-  it('fails when any skeleton node is missing', () => {
-    const root = repository(),
-      member = adopted(root)
-    fs.rmSync(join(root, member, 'verification/proofs/index.md'))
-    expect(inspectPackage(root, member, readTemplate(), evidence).findings).toContainEqual(
-      expect.objectContaining({
-        code: 'required-file',
-        path: `${member}/verification/proofs/index.md`,
-      }),
-    )
-  })
-  it('accepts a topic as a file or as a directory with entries, never both', () => {
-    const root = repository(),
-      member = adopted(root)
+    threeShape(root, member)
     const scan = () =>
       inspectPackage(root, member, readTemplate(), evidence).findings.filter(finding =>
         finding.code.startsWith('topic-'),
@@ -870,6 +780,128 @@ describe('template 3.0.0 skeleton', () => {
       expect.objectContaining({ code: 'topic-missing', path: `${member}/docs/flows.md` }),
     ])
   })
+  it('stores the 3.0.0, 2.0.0 and 1.0.0 rules as exact historical entries', () => {
+    const template = readTemplate()
+    expect(template.version).toBe('4.0.0')
+    expect(template.ruleSet).toBe(4)
+    expect(template).not.toHaveProperty('topics')
+    expect(template.previousVersions['3.0.0']?.ruleSet).toBe(3)
+    expect(template.previousVersions['3.0.0']?.topics).toEqual([
+      'architecture',
+      'flows',
+      'object-model',
+      'public-api',
+      'context',
+      'cordis',
+    ])
+    expect(template.previousVersions['3.0.0']?.requiredFiles).toContain('documentation.json')
+    expect(template.previousVersions['3.0.0']?.requiredFiles).toContain('SPEC.md')
+    expect(template.previousVersions['3.0.0']?.layout.files).toContain('docs/**/*.md')
+    expect(template.previousVersions['1.0.0']?.requiredFiles).not.toContain('documentation.json')
+    expect(template.previousVersions['1.0.0']?.layout.files).not.toContain('docs/**/*.md')
+    expect(template.previousVersions['2.0.0']?.requiredFiles).toContain('documentation.json')
+    expect(template.previousVersions['2.0.0']?.requiredFiles).not.toContain('SPEC.md')
+    expect(template.previousVersions['2.0.0']?.variantRequiredFiles.module).toEqual([])
+    expect(template.previousVersions['2.0.0']?.layout.files).not.toContain('index.md')
+    expect(template.previousVersions['2.0.0']?.layout.companions).toHaveLength(3)
+  })
+})
+
+describe('template 4.0.0 files and layout', () => {
+  function files(root: string, member: string): string[] {
+    return fs
+      .readdirSync(join(root, member), { recursive: true, withFileTypes: true })
+      .filter(entry => entry.isFile())
+      .map(entry =>
+        relative(join(root, member), join(entry.parentPath, entry.name)).split(sep).join('/'),
+      )
+      .sort()
+  }
+  it.each(VARIANTS)('generates exactly the six files for %s and no Markdown', variant => {
+    const root = repository()
+    createPackage({ root, group: 'util', name: 'sample', variant, write: true })
+    const member = 'packages/util/sample'
+    const binding = variant !== 'module'
+    const expected = [
+      'package.json',
+      'tsconfig.build.json',
+      'tsconfig.test.json',
+      'vitest.config.ts',
+      'src/index.ts',
+      'tests/public-entry.spec.ts',
+      ...(binding ? ['src/cordis.ts', 'tests/cordis-entry.spec.ts'] : []),
+    ].sort()
+    const actual = files(root, member)
+    expect(actual).toEqual(expected)
+    expect(actual.filter(path => path.endsWith('.md'))).toHaveLength(0)
+    expect(actual).not.toContain('documentation.json')
+    expect(
+      createPackage({ root, group: 'util', name: 'other', variant }).files.slice().sort(),
+    ).toEqual(expected)
+    const result = inspectPackage(root, member, readTemplate(), evidence)
+    expect(result).toMatchObject({ structure: 'fail', acceptance: 'none' })
+    expect(new Set(result.findings.map(finding => finding.code))).toEqual(new Set(['draft']))
+  })
+  it('passes once the code drafts are complete and requires only the six files', () => {
+    const root = repository(),
+      member = adopted(root)
+    const result = inspectPackage(root, member, readTemplate(), evidence)
+    expect(result).toMatchObject({ adoption: 'current', structure: 'pass' })
+    expect(scanExitCode([result], true)).toBe(0)
+  })
+  it.each([
+    'tsconfig.build.json',
+    'tsconfig.test.json',
+    'vitest.config.ts',
+    'src/index.ts',
+    'tests/public-entry.spec.ts',
+  ])('fails when the required file %s is missing', file => {
+    const root = repository(),
+      member = adopted(root)
+    fs.rmSync(join(root, member, file))
+    expect(inspectPackage(root, member, readTemplate(), evidence).findings).toContainEqual(
+      expect.objectContaining({ code: 'required-file', path: `${member}/${file}` }),
+    )
+  })
+  it('does not require docs topics or documentation slots', () => {
+    const root = repository(),
+      member = adopted(root)
+    const result = inspectPackage(root, member, readTemplate(), evidence)
+    expect(result.findings.filter(finding => finding.code.startsWith('topic-'))).toEqual([])
+    expect(result.tree.some(node => node.path.endsWith('.md'))).toBe(false)
+  })
+  it.each(['docs/x.md', 'SPEC.md', 'README_ZH.md', 'index.md', 'adr/x.md', 'src/README.md'])(
+    'reports layout for %s in a 4.0.0 member',
+    file => {
+      const root = repository(),
+        member = adopted(root)
+      fs.mkdirSync(join(root, member, file, '..'), { recursive: true })
+      fs.writeFileSync(join(root, member, file), '# Document\n\nContent.\n')
+      const result = inspectPackage(root, member, readTemplate(), evidence)
+      expect(result.structure).toBe('fail')
+      expect(result.findings).toContainEqual(
+        expect.objectContaining({ code: 'layout', path: `${member}/${file}` }),
+      )
+    },
+  )
+  it.each(['README.md', 'UPSTREAM.md', 'api/example.api.md'])(
+    'allows the optional Markdown file %s',
+    file => {
+      const root = repository(),
+        member = adopted(root)
+      fs.mkdirSync(join(root, member, file, '..'), { recursive: true })
+      fs.writeFileSync(join(root, member, file), '# Document\n\nContent.\n')
+      expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('pass')
+    },
+  )
+  it('reports the draft marker in an optional README', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.writeFileSync(join(root, member, 'README.md'), '# Module\n\nPACKAGE_TEMPLATE_DRAFT\n')
+    expect(inspectPackage(root, member, readTemplate(), evidence).findings).toContainEqual(
+      expect.objectContaining({ code: 'draft', path: `${member}/README.md` }),
+    )
+  })
   it('requires acceptance configuration only for executable scenarios', () => {
     const root = repository(),
       member = adopted(root)
@@ -878,7 +910,7 @@ describe('template 3.0.0 skeleton', () => {
         finding => finding.code === 'acceptance',
       )
     expect(acceptance()).toEqual([])
-    // A helper or a fixture is not a scenario.
+    fs.mkdirSync(join(root, member, 'acceptance/fixtures'), { recursive: true })
     fs.writeFileSync(join(root, member, 'acceptance/helper.ts'), 'export {}\n')
     fs.writeFileSync(join(root, member, 'acceptance/fixtures/x.acceptance.ts'), 'export {}\n')
     expect(acceptance()).toEqual([])
@@ -900,14 +932,14 @@ describe('template 3.0.0 skeleton', () => {
       expect.objectContaining({ path: `${member}/vitest.acceptance.config.ts` }),
     ])
   })
-  it('rejects a manifest without the rule set 3 topics', () => {
+  it('rejects a historical 3.0.0 entry without topics', () => {
     const root = repository(),
       directory = join(root, 'no-topics')
     fs.cpSync(TEMPLATE_DIRECTORY, directory, { recursive: true })
     const path = join(directory, 'manifest.json'),
       value = JSON.parse(fs.readFileSync(path, 'utf8'))
-    value.topics = ['flows', 'flows']
+    value.previousVersions['3.0.0'].topics = ['flows', 'flows']
     fs.writeFileSync(path, JSON.stringify(value))
-    expect(() => readTemplate(directory)).toThrow('Invalid package template manifest')
+    expect(() => readTemplate(directory)).toThrow('Invalid historical template rules')
   })
 })

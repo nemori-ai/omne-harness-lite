@@ -78,12 +78,10 @@ export function inspectPackage(
     ...layout.findings,
     ...checkStructure(root, member, manifest, selected, required),
   ]
-  // Historical versions keep rule set 2; only the current rules read topics and acceptance content.
-  if (previous === undefined)
-    findings.push(
-      ...checkTopics(root, member, template.topics, layout.tree),
-      ...checkAcceptance(member, manifest, layout.tree),
-    )
+  // Rule set 2 reads neither topics nor acceptance content; rule set 3 reads both; rule set 4 reads acceptance only.
+  if ('topics' in rules && rules.topics !== undefined)
+    findings.push(...checkTopics(root, member, rules.topics, layout.tree))
+  if (rules.ruleSet >= 3) findings.push(...checkAcceptance(member, manifest, layout.tree))
   if (adoption === 'current' || adoption === 'unmarked')
     for (const node of layout.tree) {
       if (node.kind !== 'file' || !node.path.startsWith('docs/') || !node.path.endsWith('.md'))
