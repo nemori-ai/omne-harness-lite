@@ -46,14 +46,14 @@ Add integration only for a package that implements storage or an application ser
 
 ## Resources and variants
 
-| Template resource          | Purpose                                                                           |
-| -------------------------- | --------------------------------------------------------------------------------- |
+| Template resource          | Purpose                                                                                |
+| -------------------------- | -------------------------------------------------------------------------------------- |
 | manifest.json              | Exact identity, version, file slots, required resources, variants and historical rules |
-| common/                    | Manifest, TypeScript/Vitest configuration and the public-entry test               |
-| variants/module/           | Public functions and values without a binding entry                               |
-| variants/cordis-module/    | Pure root and integration helpers or coordination bindings                        |
-| variants/service-contract/ | Pure public definitions and separate Service definitions, keys and typed events   |
-| variants/service-provider/ | Independent factories and bindings that consume public Service definitions        |
+| common/                    | Manifest, TypeScript/Vitest configuration and the public-entry test                    |
+| variants/module/           | Public functions and values without a binding entry                                    |
+| variants/cordis-module/    | Pure root and integration helpers or coordination bindings                             |
+| variants/service-contract/ | Pure public definitions and separate Service definitions, keys and typed events        |
+| variants/service-provider/ | Independent factories and bindings that consume public Service definitions             |
 
 `service-contract` can be created in any kebab-case group, including `identity` and `access`. The directory name `core` does not grant create or scan permission.
 Ownership of Service definitions stays with [Product package organization](../../../../docs/package-organization.md).
@@ -88,6 +88,16 @@ Integration results are separate: deviation, unknown or static-pass.
 The existing architecture extractor supplies facts. Its coverage limits remain explicit.
 A complete file tree cannot prove authorization, transactions, actual drain, recovery or formal properties.
 Known integration deviations prohibit adoption. Unknowns require manual applicability and evidence review, not automatic clearance.
+
+## Later implementers
+
+This template creates drafts and reports dependency rows. It does not build the later product.
+
+| Later work           | How to use the template                                                                                                                              | This card does not provide                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Minimal CLI          | Apps do not use this template. The CLI lives in `apps/`. Command parsing does not import `@deepseek-ai/cordis`.                                      | There is no app variant, and this card does not implement the command loop.     |
+| Member test facility | A draft includes a `tests/` slot. The isolation test shows that an official skeleton can build and typecheck.                                        | This card does not build a package test platform.                               |
+| Base capability      | `service-contract` and `cordis-module` can create a draft in a target group. The target path for `kernel-basis` is `packages/assembly/kernel-basis`. | This card does not create that member, and it does not move the sealed package. |
 
 ## Dependency diagnostics
 
