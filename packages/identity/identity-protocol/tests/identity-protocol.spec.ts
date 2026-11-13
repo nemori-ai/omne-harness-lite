@@ -232,19 +232,21 @@ describe('C3: a body reads as the governance family reads it', () => {
     }
   })
 
-  it.each(['issue-member-invitation', 'open-affiliation-request', 'query-organization-members'])(
+  const withOptional: readonly Name[] = [
+    'issue-member-invitation',
+    'open-affiliation-request',
+    'query-organization-members',
+  ]
+  it.each(withOptional)(
     '%s accepts a body without its optional field, as the old family does',
     name => {
-      const body: Record<string, unknown> = { ...bodies[name as Name] }
-      delete body.duration
-      delete body.includeRemoved
-      const old = oldRead(name as Name, body)
+      const body: Record<string, unknown> = { ...bodies[name] }
+      for (const key of optional) delete body[key]
+      const old = oldRead(name, body)
       expect(old.kind).toBe('request')
       if (old.kind !== 'request') return
-      expect(identityProtocol.operations[name as Name].body.read(json(body), limits)).toEqual({
-        ok: true,
-        value: old.request.body,
-      })
+      const codec = identityProtocol.operations[name].body as Codec<unknown>
+      expect(codec.read(json(body), limits)).toEqual({ ok: true, value: old.request.body })
     },
   )
 

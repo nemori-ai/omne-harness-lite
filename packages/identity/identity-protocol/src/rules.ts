@@ -110,7 +110,6 @@ const requestNoChange = {
   fields: { requestId: { rule: text }, state: { rule: affiliationRequestTerminal } },
 } as const
 
-/** The body rule of each operation. */
 export const requests = {
   'register-and-activate': credentialPair,
   'issue-login': credentialPair,
@@ -215,10 +214,8 @@ export const requests = {
   },
 } as const satisfies Readonly<Record<string, Rule>>
 
-/** The name of each identity operation. */
-export type IdentityOperation = keyof typeof requests
+type IdentityOperation = keyof typeof requests
 
-/** The `succeeded` body rule of each operation. */
 export const successes = {
   'register-and-activate': {
     kind: 'object',
@@ -381,7 +378,6 @@ export const successes = {
   'withdraw-authorization-expression': empty,
 } as const satisfies Readonly<Record<IdentityOperation, Rule>>
 
-/** The `no-change` body rule of each operation that has that outcome. */
 export const noChanges = {
   'revoke-login': empty,
   'switch-current-tenant': empty,
@@ -404,7 +400,6 @@ export const noChanges = {
   'withdraw-affiliation-request': requestNoChange,
 } as const satisfies Readonly<Partial<Record<IdentityOperation, Rule>>>
 
-/** The `need-decision` body rule. */
 export const needDecision = {
   kind: 'object',
   fields: { decisionRequestId: { rule: text } },
