@@ -93,7 +93,8 @@ const pseudocode = section('## 正常路径伪代码').join('\n')
 
 /** The cell of `column` in the row of `node` in the node table. */
 function cell(node: LoopNode, column: (typeof COLUMNS)[number]): string {
-  const row = nodeTable.find(line => line.startsWith(`| ${node} |`))
+  const start = new RegExp(`^\\| ${node.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} +\\|`)
+  const row = nodeTable.find(line => start.test(line))
   if (row === undefined) throw new Error(`the node table has no row ${node}`)
   const parts = row
     .split('|')
@@ -238,7 +239,7 @@ describe('C1 the transition table follows the node table on the normal path', ()
 
   it('names every node of the node table and no other', () => {
     const rows = nodeTable
-      .map(line => /^\| ([A-Z][0-9]) \|/u.exec(line)?.[1])
+      .map(line => /^\| ([A-Z][0-9]) +\|/u.exec(line)?.[1])
       .filter(node => node !== undefined)
     expect([...LOOP_NODES].sort()).toEqual([...new Set(rows)].sort())
   })
