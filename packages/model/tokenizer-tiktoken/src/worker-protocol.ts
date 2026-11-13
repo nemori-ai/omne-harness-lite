@@ -104,7 +104,7 @@ export function validInput(value: unknown): value is ExecutorInput {
     ) &&
     Number(limits.maxInputBytes) >= MIN_JOB_INPUT_BYTES &&
     Number(limits.jobTimeoutMs) <= 2147483647 &&
-    Number(limits.cancellationGraceMs) <= 2147483647
+    Number(limits.cancellationGraceMs) <= Number(limits.jobTimeoutMs)
   )
 }
 function segment(value: unknown): value is TokenizationSegment {

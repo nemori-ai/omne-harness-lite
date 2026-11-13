@@ -67,7 +67,7 @@
 
 ### 有界调度与缓存
 
-所有 limits 必须显式给出，包不提供宿主默认值。字段只接受非负安全整数。workers、maxLeases、jobTimeoutMs、maxWorkerOldSpaceMb 必须大于零。maxInputBytes 至少 164，即一个两码元字符单独成一次作业的保留字节数。jobTimeoutMs 不超过 Node 定时器的 2147483647ms 上限。资源集非空，重复的完整 definition 被拒绝。
+所有 limits 必须显式给出，包不提供宿主默认值。字段只接受非负安全整数。workers、maxLeases、jobTimeoutMs、maxWorkerOldSpaceMb 必须大于零。maxInputBytes 至少 164，即一个两码元字符单独成一次作业的保留字节数。jobTimeoutMs 不超过 Node 定时器的 2147483647ms 上限，cancellationGraceMs 不超过 jobTimeoutMs。资源集非空，重复的完整 definition 被拒绝。
 
 - `maxLeases` 限制尚未完成释放的租约数。每个租约固定在一个 worker 槽，同一租约最多一个 count 执行。
 - 空闲槽可直接接纳一个 count。等待任务同时受全局 `maxQueuedJobs`、`maxQueuedBytes` 和每租约 `maxLeaseQueuedJobs` 约束。超限立即返回 `unavailable`。
@@ -85,9 +85,9 @@
 
 `release()` 同步停止本租约的新计数，取消等待和在途调用，并返回同一份幂等 Promise。调用者可先收到 `unavailable`。取消不归还物理槽；release 等待在途计算结束，再等待 worker 的缓存清除确认。线程故障时，实际 exit 同时确认该线程中的缓存和在途计算已销毁。释放后迟到结果不能成为成功。
 
-取消会设置共享原子标志。普通 BPE 内循环与每片计数检查该标志。regex 和非有限 rank fallback 可能无法及时检查，达到显式配置的 `cancellationGraceMs` 后仍未结清则终止 worker；此值是0至2147483647的整数毫秒，应用默认25ms。终止请求不等于退出确认。
+取消会设置共享原子标志。普通 BPE 内循环与每片计数检查该标志。regex 和非有限 rank fallback 可能无法及时检查，达到显式配置的 `cancellationGraceMs` 后仍未结清则终止 worker。宽限是策略：它防的是一次卡死的同步计算，不是一次调度延迟。机器忙时线程几十毫秒没被调度到并不少见，宽限太短会把「慢」裁成「坏」。此值是0至 `jobTimeoutMs` 的整数毫秒，超过 `jobTimeoutMs` 的配置被拒绝；应用默认1000ms。终止请求不等于退出确认。
 
-worker 消息必须匹配当前代际、任务和租约。旧代际消息被忽略；当前代际的错误任务身份导致 worker 停止。故障使当次 count 失败，不隐式重试。租约和任务标识达到 JavaScript 安全整数上限后拒绝新准入；代际达到该上限后不再替换线程，不能回绕或复用旧身份。槽只有在实际 exit 后才能建立替换线程。每槽滚动一分钟内的替换次数受 `maxReplacementsPerMinute` 限制，等待任务也有原截止时间。替换额度耗尽或替换无法初始化时，无可用槽的等待任务全部失败，不无限等待。
+worker 消息必须匹配当前代际、任务和租约。旧代际消息被忽略；当前代际的错误任务身份导致 worker 停止。故障使当次 count 失败，不隐式重试。租约和任务标识达到 JavaScript 安全整数上限后拒绝新准入；代际达到该上限后不再替换线程，不能回绕或复用旧身份。槽只有在实际 exit 后才能建立替换线程。每槽滚动一分钟内的替换次数受 `maxReplacementsPerMinute` 限制，等待任务也有原截止时间。线程退出时，该槽的等待任务按[槽的替换与退避](#槽的替换与退避)处置；替换额度耗尽时槽进入退避，不无限等待，也不永久失去。
 
 `close()` 同步关闭准入并取消全部租约，停止所有线程，再等实际 exit 后返回。重复调用返回同一 Promise。close 完成后，snapshot 的 workers、leases、queuedJobs、queuedBytes、runningJobs、cacheBytes、cacheEntries 都为零。
 
@@ -99,6 +99,20 @@ snapshot 只返回冻结的数量和累计时延。workers 包含正在停止但
 - 计数保留 `unsupported-token` 和 `invalid` 的原含义与顺序。
 - 资源校验、引擎构造、固定运行时形状或 regex 抛错，由 worker 转为有诊断的 `unavailable`。不换用其他编码。
 - 引擎版本在每个 worker 第一次初始化时读取并复用，count 不读取它。
+
+### 槽的替换与退避
+
+额度耗尽之后，槽按1秒、5秒、30秒退避，此后每次30秒，到点重新拉起线程。退避拉起不占滚动一分钟的替换额度，计入 snapshot 的 `replacements`。`n` 是该槽连续退避的次数，线程答回一次 `counted`（不论计数结果是成功还是 `unsupported-token`、`invalid`）就归零。退避中的槽没有线程：不计入 snapshot 的 `workers`，不分给新租约；固定在它上面的租约，count 立即返回 `unavailable`（`tokenizer worker is unavailable`），release 直接完成。退避的时刻表是本包的常量，见 [executor.ts](src/executor.ts) 的 `RESTART_BACKOFF_MS`。
+
+下表是槽在线程实际退出（exit）与退避相关事件上的全化表。「额度」指滚动一分钟内的替换次数小于 `maxReplacementsPerMinute`。
+
+| 状态 \ 事件                                            | exit：executor 开放、代际未尽、额度有余      | exit：executor 开放、代际未尽、额度耗尽 | exit：executor 关闭中，或代际达上限，或首代初始化失败 | 退避到点                         | 线程答回 `counted`                                                    | close               |
+| ------------------------------------------------------ | -------------------------------------------- | --------------------------------------- | ----------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------- | ------------------- |
+| 有线程（starting、idle、counting、clearing、stopping） | 记一次替换，立即拉起新线程；等待任务留在槽里 | 等待任务全部失败；进入退避(n)，n 加一   | 等待任务全部失败；dead                                | 不可达：只有退避中的槽有退避计时 | counting 中与当前任务相符的答回：n 归零；其余答回按上文的身份核对处置 | 停止线程，等它 exit |
+| 退避(n)                                                | 不可达：没有线程                             | 不可达：没有线程                        | 不可达：没有线程                                      | 拉起新线程（starting）           | 不可达：没有线程                                                      | 取消退避计时；dead  |
+| dead                                                   | 不可达：没有线程                             | 不可达：没有线程                        | 不可达：没有线程                                      | 不可达                           | 不可达                                                                | 不变                |
+
+所以「每个槽都没有线程、分词永久不可用」只在 executor 关闭或代际耗尽（2^53 次替换）后出现。首代初始化失败使整个 executor 创建失败，见[初始化](#初始化)。
 
 ## 组合与验证
 

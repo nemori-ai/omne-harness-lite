@@ -93,7 +93,8 @@ export const LOCAL_TOKENIZERS = {
   jobTimeoutMs: 10_000,
   maxWorkerOldSpaceMb: 768,
   maxReplacementsPerMinute: 2,
-  cancellationGraceMs: 25,
+  // The grace guards against a stuck synchronous count, not a thread that waits to be scheduled.
+  cancellationGraceMs: 1_000,
 } as const
 
 const PREPARATION = {
