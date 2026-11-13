@@ -112,6 +112,8 @@ async function assembled(s: SqlScene) {
       fail({ kind: 'unsupported' })
     readonly detach: AgentExecutionRecoveryService<unknown>['detach'] = async () =>
       fail({ kind: 'unsupported' })
+    readonly contact: AgentExecutionRecoveryService<unknown>['contact'] = async () =>
+      fail({ kind: 'unsupported' })
   }
   class Control extends AgentExecutionControlService<unknown> {
     readonly control: AgentExecutionControlService<unknown>['control'] = async () =>

@@ -370,6 +370,8 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 
 本节规定计划停止时的协议。意外退出与非计划卸载不适用本节；那时各行的 disposer 只发起停止，其结果只进诊断，不能当作有序关闭成功。
 
+**状态目录的独占锁。**`serve` 的一次运行在装载前检查通过之后、装载任何入口对象与行之前，取得状态根上的独占锁（`src/state-lock.ts`），保持到这次运行结束。锁是 SQLite 以独占方式打开状态根下 `serve.lock` 时由操作系统持有的文件锁：一步取得，进程无论怎样结束都由系统释放，不涉及时间戳、进程号与残留文件。另一个进程持有同一个状态根时，标准错误写 `serve: state-root-in-use: another serve process works on <目录>`，退出 2，不装载任何行；状态根放不下锁文件时写 `serve: state-root-unusable: <原因>`，退出 2。这把锁是「在同一份记录上工作过的更早的进程都已经结束」的证明：发行自己的 `agent-host` 行凭它回答失联判断（[agent-host-local SPEC](../../packages/agent/agent-host-local/SPEC.md#失联判断)），所以重启后，上一个进程留下的仍标着 active 的挂接可以被接手。调用方给了自己的插件表时，它自己的 `agent-host` 行没有这份证明，什么都不判为失联。它是租约的退化情形：持有者活着就不过期，持有者一死就失效；多宿主部署换成带期限的租约时，换的是这份证明的来源，领域一侧不变。判据：`tests/state-lock.spec.ts`。
+
 **登记。**装配入口在装载第一行前，在根上下文提供 `assemblyLifecycle` 服务。需要参加关闭的行在插件体内调用 `register(handle)`，句柄声明阶段 `entry`、`business`、`composition` 或 `storage`。登记落在调用方 fiber；该 fiber 撤除时自动退登记。插件体重跑后，协调者只持有新句柄。句柄不进插件树，不发布为其他服务。真实模式里带阶段的行只经 `defineRow` 进入，登记有两种承载：行体承载由包装插件在行体返回后登记，入口对象承载由入口对象在被该行调用的方法里经调用方的 `this.ctx` 登记。两种都落在行 fiber 上。见 [docs/real-mode.md](docs/real-mode.md)「关闭承载」。
 
 **预期登记者。**预期登记者是启用行里清单带阶段的行：S0 替身行按 `stubs.ts` 的表，真实行按自己的声明。关闭时某个预期登记者没有句柄，记为 `not-registered`。预期登记者的句柄已随行撤除，记为 `disposed-before-stop`，并附 disposer 发起的关闭结果作诊断。

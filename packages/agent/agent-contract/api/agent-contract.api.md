@@ -1262,6 +1262,17 @@ export interface AgentExecutionRecovery<P> {
         authority: Authority;
         reason: DurableEvidence;
     }>): Reply<DurableEvidence>;
+    contact(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        authority: Authority;
+    }>): Reply<Readonly<{
+        kind: 'live';
+    }> | Readonly<{
+        kind: 'lost';
+        evidence: DurableEvidence;
+    }> | Readonly<{
+        kind: 'unknown';
+    }>>;
 }
 export interface AgentAdoptions<P> {
     resolve(input: Access<P> & Readonly<{

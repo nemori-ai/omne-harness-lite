@@ -1,10 +1,15 @@
-import { expect, it, vi } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, expect, it, vi } from 'vitest'
 import { stubPlugin } from '../../../src/cordis.ts'
 import { defineRow } from '../../../src/row.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 
 const root = process.platform === 'win32' ? 'C:/host-files' : '/host-files'
 const config = { filesRoot: root, stateDirectory: `${root}/state` }
+const stateRoot = mkdtempSync(join(tmpdir(), 'app-host-binding-'))
+afterAll(() => rmSync(stateRoot, { recursive: true, force: true }))
 const probe = vi.fn()
 const sentinel = defineRow({
   row: 'sentinel',
@@ -25,7 +30,8 @@ async function run(distribution: unknown, operator?: unknown) {
     entryObjects: [],
     readinessTimeoutMs: 20,
     shutdownDeadlineMs: 100,
-    stateRoot: root,
+    // A run that passes the checks takes the lock of its state directory, so it must exist.
+    stateRoot,
     stop: AbortSignal.abort(),
     write: record => records.push(record),
     stderr: line => errors.push(line),

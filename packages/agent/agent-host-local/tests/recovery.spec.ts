@@ -21,6 +21,7 @@ import {
 } from '@omne-harness/agent-contract'
 import { judgeMessage } from '@omne-harness/message'
 import { afterEach, describe, expect, it } from 'vitest'
+import { createAgentHostLocalPlugin } from '../src/cordis.ts'
 import { caller, ok, openWorld, slotOf, turns, type World } from './host-support.ts'
 
 const opened: World[] = []
@@ -205,6 +206,63 @@ describe('the recovery entry (AG-04)', () => {
     expect(refused).toEqual({ failure: { kind: 'denied', action: 'takeover' } })
     const snapshot = ok(await host.recovery.load({ ...caller('a'), execution: EXECUTION }))
     expect(snapshot.executionAttachment).toEqual(opened.authority)
+  })
+})
+
+describe('the judgment of the runtime that holds an attachment (contact)', () => {
+  /** A host whose assembly can show that an instance it does not run has ended. */
+  async function provingWorld(lostContact: (instance: AgentInstanceId) => DurableEvidence | null) {
+    const made = await openWorld({ plugin: createAgentHostLocalPlugin({ lostContact }) })
+    opened.push(made)
+    return made
+  }
+  const ask = (host: World, authority: Awaited<ReturnType<typeof openExecution>>['authority']) =>
+    host.recovery.contact({ ...caller('a'), execution: EXECUTION, authority })
+
+  it('answers live for a runtime the host still runs, and does not ask the assembly', async () => {
+    const asked: AgentInstanceId[] = []
+    const host = await provingWorld(instance => {
+      asked.push(instance)
+      return evidence('lock')
+    })
+    const { instance } = ok(await host.provision.acquire(slotOf('a')))
+    const held = await openExecution(host, instance)
+    expect(ok(await ask(host, held.authority))).toEqual({ kind: 'live' })
+    expect(asked).toEqual([])
+  })
+
+  it('answers lost with the proof of the assembly for an instance the host does not run', async () => {
+    const host = await provingWorld(instance => evidence(`lock/${instance}`))
+    const held = await openExecution(host, unknownInstance)
+    expect(ok(await ask(host, held.authority))).toEqual({
+      kind: 'lost',
+      evidence: evidence(`lock/${unknownInstance}`),
+    })
+    // The judgment is a read of the execution: it is checked as `load` and writes nothing.
+    expect(host.controls.access.check.calls.map(call => call.operation)).toEqual(['load'])
+    const snapshot = ok(await host.recovery.load({ ...caller('a'), execution: EXECUTION }))
+    expect(snapshot.executionAttachment).toEqual(held.authority)
+  })
+
+  it('answers unknown when the assembly has no proof now', async () => {
+    const host = await provingWorld(() => null)
+    const held = await openExecution(host, unknownInstance)
+    expect(ok(await ask(host, held.authority))).toEqual({ kind: 'unknown' })
+  })
+
+  it('answers unknown when the assembly gave no proof source at all', async () => {
+    const host = await world()
+    const held = await openExecution(host, unknownInstance)
+    expect(ok(await ask(host, held.authority))).toEqual({ kind: 'unknown' })
+  })
+
+  it('keeps a refusal of the access check and judges nothing', async () => {
+    const host = await provingWorld(() => evidence('lock'))
+    const held = await openExecution(host, unknownInstance)
+    host.refuseNext('load')
+    expect(await ask(host, held.authority)).toEqual({
+      failure: { kind: 'denied', action: 'load' },
+    })
   })
 })
 

@@ -86,6 +86,11 @@ export type AgentHostRowInput = Readonly<{
   toolRequestsOf?: (ctx: Context) => AgentToolRequests
   /** The observer of the Agent measurement events. Absent: the row's facade over `telemetry`. */
   measure?: AgentMeasure
+  /**
+   * The run's proof that an instance its host does not run has no runtime anywhere (`serve` gives
+   * the one of its state lock, `state-lock.ts`). Absent: the host judges nothing lost.
+   */
+  lostContact?: NonNullable<AgentHostLocalPluginInput['lostContact']>
 }>
 
 /** The row's own observer: the Agent telemetry facade over the injected `telemetry`. */
@@ -203,6 +208,7 @@ export function createAgentHostRow(input: AgentHostRowInput = {}) {
     createAgentHostLocalPlugin({
       ...(input.toolRequestsOf === undefined ? {} : { toolRequests: input.toolRequestsOf(ctx) }),
       measure: input.measure ?? agentMeasureOf(ctx),
+      ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
     }),
   )
 }

@@ -5,7 +5,11 @@
 // `AgentClock` is not used: it is a UTC reading that answers asynchronously and that tests count.
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { AgentRunEndedFailedReceiver, AgentRunFailedReceiver } from './run-failure.ts'
+import type {
+  AgentRunEndedFailedReceiver,
+  AgentRunFailedReceiver,
+  AgentRunWaitingReceiver,
+} from './run-failure.ts'
 
 /**
  * One pass of work that Agent does for one execution:
@@ -60,6 +64,11 @@ export type AgentRuntimeExtras = Readonly<{
    * Absent: the run ends the same, and nobody is told.
    */
   endedFailed?: AgentRunEndedFailedReceiver
+  /**
+   * The receiver of the report of a run that began to wait for a dependency (`AgentRunWaiting`).
+   * Absent: the run waits the same, and the reason of the wait is kept nowhere.
+   */
+  waiting?: AgentRunWaitingReceiver
 }>
 
 export type AgentMeasurer = Readonly<{

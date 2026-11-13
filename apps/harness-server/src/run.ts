@@ -41,6 +41,9 @@ import { STUB_EXPORT, s0Profile, serveProfile, type Profile } from './profile.ts
 import type { LoadedRow } from './readiness.ts'
 import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-bound.ts'
 import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
+import { releaseToolRequestsOf } from './entry/tool-requests.ts'
+import { createAgentHostRow } from './rows/agent-host/index.ts'
+import { acquireStateLock, lostContactBy, type StateLock } from './state-lock.ts'
 import { prepareStartupDirectory } from './startup-directory.ts'
 import { createTrust, type Trust } from './trust.ts'
 import type {
@@ -526,10 +529,35 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
   const hostFiles = createHostFilesRuntime({
     diagnose: diagnostic => options.stderr(`${SERVE_PREFIX}: ${diagnostic.kind}`),
   })
+  // One `serve` process for one state directory (`state-lock.ts`): the rows that take over the work
+  // of an earlier process rest on it. It is taken after the checks that need no state, before
+  // anything of the tree runs, and kept until the run is over.
+  let lock: StateLock | undefined
+  const lockState = (): string | null => {
+    try {
+      const taken = acquireStateLock(options.stateRoot)
+      if (taken.kind === 'in-use')
+        return `state-root-in-use: another serve process works on ${options.stateRoot}`
+      lock = taken.lock
+      return null
+    } catch (error) {
+      return `state-root-unusable: ${error instanceof Error ? error.message : String(error)}`
+    }
+  }
+  // The release's own `agent-host` row gets the proof of this run's lock. A caller that gives its
+  // own plugins gives its own row, which judges nothing lost unless it was built with a proof.
+  const plugins: Readonly<Record<string, unknown>> = options.plugins ?? {
+    ...releasePlugins,
+    agentHostRow: createAgentHostRow({
+      toolRequestsOf: releaseToolRequestsOf,
+      lostContact: lostContactBy(() => lock),
+    }),
+  }
   try {
-    return await runServeWithHostFiles(options, hostFiles)
+    return await runServeWithHostFiles({ ...options, plugins }, hostFiles, lockState)
   } finally {
     await hostFiles.close()
+    lock?.release()
   }
 }
 
@@ -720,6 +748,8 @@ async function settleStartFailure(
 async function runServeWithHostFiles(
   options: RunServeOptions,
   hostFiles: HostFilesRuntime,
+  /** Takes the lock of the state directory; the text of the refusal when it cannot. */
+  lockState: () => string | null,
 ): Promise<ServeResult> {
   const { stderr } = options
   // Sealed after `shutdown-result`; every writer below gets this one.
@@ -776,6 +806,11 @@ async function runServeWithHostFiles(
   } catch (error) {
     if (!(error instanceof ConfigError)) throw error
     stderr(`${SERVE_PREFIX}: ${error.code}: ${error.message}`)
+    return result(2)
+  }
+  const refused = lockState()
+  if (refused !== null) {
+    stderr(`${SERVE_PREFIX}: ${refused}`)
     return result(2)
   }
   const kinds = implementationCounts(rows)

@@ -204,6 +204,7 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     ) => Outcome<'handle', Failure> | Promise<Outcome<'handle', Failure>>)[],
     query: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['query']>>[],
     load: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['load']>>[],
+    contact: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['contact']>>[],
     submit: [] as Outcome<CommandReceipt, Failure>[],
     control: [] as Outcome<CommandReceipt, Failure>[],
   }
@@ -292,6 +293,10 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     readonly detach: AgentExecutionRecoveryService<unknown>['detach'] = async input => {
       calls.push({ method: 'detach', input })
       return succeed(evidence('handed-back'))
+    }
+    readonly contact: AgentExecutionRecoveryService<unknown>['contact'] = async input => {
+      calls.push({ method: 'contact', input })
+      return script.contact.shift() ?? succeed({ kind: 'unknown' })
     }
   }
   class Control extends AgentExecutionControlService<unknown> {
@@ -1072,6 +1077,7 @@ describe('inspect maps the snapshot and never says missing', () => {
           revision: 'revision-7',
           state: 'open',
           attachment: 'active',
+          lost: null,
           conclusion: null,
           evidence: evidence('history'),
         },
@@ -1086,6 +1092,7 @@ describe('inspect maps the snapshot and never says missing', () => {
           revision: 'revision-7',
           state: 'suspended',
           attachment: 'detached',
+          lost: null,
           conclusion: null,
           evidence: evidence('history'),
         },
@@ -1100,6 +1107,7 @@ describe('inspect maps the snapshot and never says missing', () => {
           revision: 'revision-7',
           state: 'open',
           attachment: null,
+          lost: null,
           conclusion: null,
           evidence: evidence('history'),
         },
@@ -1118,6 +1126,7 @@ describe('inspect maps the snapshot and never says missing', () => {
           revision: 'revision-7',
           state: 'ended',
           attachment: null,
+          lost: null,
           conclusion: {
             outcome: 'fail',
             cause: evidence('cause'),
@@ -1136,6 +1145,50 @@ describe('inspect maps the snapshot and never says missing', () => {
   it('an unavailable load stays unavailable', async () => {
     const f = await assembled()
     expect(await inspect(f)).toHaveProperty('failure.kind', 'unavailable')
+  })
+
+  it('asks the host about the runtime of an active attachment, and carries a lost judgment as evidence', async () => {
+    const f = await assembled()
+    f.script.load.push(succeed(snapshot({ kind: 'advancing' }, authority)))
+    f.script.contact.push(succeed({ kind: 'lost', evidence: evidence('host-lock') }))
+    expect(await inspect(f)).toHaveProperty('ok.lost', evidence('host-lock'))
+    const asked = f.calls.find(call => call.method === 'contact')
+    expect(asked?.input).toMatchObject({ execution: EXECUTION, authority })
+  })
+
+  it.each([
+    ['a runtime that is alive', succeed({ kind: 'live' as const })],
+    ['a host without a judgment', succeed({ kind: 'unknown' as const })],
+    [
+      'a host that does not answer',
+      fail({ kind: 'unavailable' as const, owner: 'test', diagnostic: 'down' }),
+    ],
+  ])('has no lost judgment for %s, and the status is still answered', async (_name, contact) => {
+    const f = await assembled()
+    f.script.load.push(succeed(snapshot({ kind: 'advancing' }, authority)))
+    f.script.contact.push(contact)
+    expect(await inspect(f)).toMatchObject({
+      ok: { state: 'open', attachment: 'active', lost: null },
+    })
+  })
+
+  it.each<[string, ExecutionSnapshot['state'], typeof authority | null]>([
+    ['a suspended execution', { kind: 'suspended', handoff: evidence('h') }, null],
+    ['an execution without attachment', { kind: 'reconciling' }, null],
+    [
+      'an ended execution',
+      {
+        kind: 'ended',
+        conclusion: { kind: 'fail', cause: evidence('cause') },
+        disposition: evidence('disposition'),
+      },
+      authority,
+    ],
+  ])('does not ask the host about %s', async (_name, state, attachment) => {
+    const f = await assembled()
+    f.script.load.push(succeed(snapshot(state, attachment)))
+    await inspect(f)
+    expect(f.calls.some(call => call.method === 'contact')).toBe(false)
   })
 })
 

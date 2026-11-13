@@ -37,6 +37,7 @@ import {
   type AgentDependencies,
   type AgentProvider,
   type AgentRunEndedFailed,
+  type AgentRunWaiting,
   type AgentRunFailed,
   type AgentRuntimeExtras,
   type AgentRuntimeOptions,
@@ -101,7 +102,9 @@ export type RuntimeFactory = (
 ) => Reply<AgentProvider<unknown>>
 
 /** What the host gives every runtime it builds besides dependencies and options. */
-export type HostRuntimeExtras = Required<Pick<AgentRuntimeExtras, 'failed' | 'endedFailed'>>
+export type HostRuntimeExtras = Required<
+  Pick<AgentRuntimeExtras, 'failed' | 'endedFailed' | 'waiting'>
+>
 
 /** The statically injected services that the factory takes as they are. */
 export type HostStatics = Readonly<{
@@ -126,7 +129,24 @@ export type HostInput = Readonly<{
   statics: HostStatics
   /** The Agent host maintenance principal (`agentHostPrincipal`), issued by the assembly entry. */
   principal: unknown
+  /** See `LostContact`. Absent: the host never judges a runtime lost. */
+  lostContact?: LostContact
 }>
+
+/**
+ * The assembly's proof that an instance this host does not run has no runtime anywhere: the
+ * evidence of that proof for `instance`, or null when the assembly cannot show it now. The host
+ * asks only for an instance it does not run, at each judgment. A single-machine assembly answers
+ * from the exclusive lock it holds on its state; a deployment with several hosts answers from the
+ * lease of the instance. The host adds nothing to the proof and never infers one itself.
+ */
+export type LostContact = (instance: AgentInstanceId) => DurableEvidence | null
+
+/** What `agentExecutionRecovery.contact` answers. */
+type Contact = Extract<
+  Awaited<ReturnType<AgentExecutionRecovery<unknown>['contact']>>,
+  { ok: unknown }
+>['ok']
 
 /** The faces that the plugin provides, and the hooks of the plugin body. */
 export type Host = Readonly<{
@@ -311,6 +331,16 @@ function runFailedRecord(event: AgentRunFailed): string {
     `agent run stopped on a failure: tenant=${tenant} instance=${event.instance} ` +
     `execution=${event.execution} node=${event.node ?? 'none'} failure=${event.failure.kind} ` +
     `diagnostic=${failureText(event.failure)}`
+  )
+}
+
+/** The warn record of a run that began to wait for a dependency: the reason nothing else keeps. */
+function runWaitingRecord(event: AgentRunWaiting): string {
+  const tenant = tenantTextOf(event.tenant) ?? 'unknown'
+  return (
+    `agent run waits for a dependency: tenant=${tenant} instance=${event.instance} ` +
+    `execution=${event.execution} step=${event.step ?? 'none'} node=${event.node} ` +
+    `owner=${event.owner} diagnostic=${event.diagnostic}`
   )
 }
 
@@ -877,6 +907,7 @@ export function createHost(input: HostInput): Host {
             record('warn', runFailedRecord(event))
           },
           endedFailed: event => record('warn', runEndedFailedRecord(event)),
+          waiting: event => record('warn', runWaitingRecord(event)),
         },
       )
       if ('failure' in created) {
@@ -1027,6 +1058,13 @@ export function createHost(input: HostInput): Host {
           if (refused !== undefined) return fail(refused)
         }
         return statics.journal.detach(request)
+      }),
+    contact: request =>
+      throughJournal<Contact>(request, 'load', onExecution(request.execution), async () => {
+        const { instance } = request.authority
+        if (liveRuntimeOf(request.tenant, instance) !== undefined) return succeed({ kind: 'live' })
+        const evidence = input.lostContact?.(instance) ?? null
+        return succeed(evidence === null ? { kind: 'unknown' } : { kind: 'lost', evidence })
       }),
   }
 
