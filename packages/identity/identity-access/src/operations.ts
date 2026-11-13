@@ -89,7 +89,9 @@ export function createIdentityOperations(services: IdentityServices): IdentityOp
     async 'query-own-memberships'(call) {
       const governance = services.governance()
       if (governance === undefined) return UNAVAILABLE
-      const outcome = await governance.queryOwnMemberships({ login: callerOf(call.principal).login })
+      const outcome = await governance.queryOwnMemberships({
+        login: callerOf(call.principal).login,
+      })
       if (outcome.kind !== 'succeeded') return { outcome: outcome.kind }
       return {
         outcome: 'succeeded',

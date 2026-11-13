@@ -542,6 +542,11 @@
       "id": "server-entry",
       "plugin": "serverEntryRow",
       "config": {}
+    },
+    {
+      "id": "identity-access",
+      "plugin": "identityAccessRow",
+      "config": {}
     }
   ]
 }

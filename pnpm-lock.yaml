@@ -244,6 +244,9 @@ importers:
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../packages/identity/identity
+      '@omne-harness/identity-access':
+        specifier: workspace:*
+        version: link:../../packages/identity/identity-access
       '@omne-harness/identity-sql':
         specifier: workspace:*
         version: link:../../packages/identity/identity-sql

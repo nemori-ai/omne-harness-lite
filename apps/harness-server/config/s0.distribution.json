@@ -279,6 +279,11 @@
       "id": "server-entry",
       "plugin": "stubPlugin",
       "config": {}
+    },
+    {
+      "id": "identity-access",
+      "plugin": "stubPlugin",
+      "config": {}
     }
   ]
 }

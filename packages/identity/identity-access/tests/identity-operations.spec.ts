@@ -269,4 +269,3 @@ describe('switch-current-tenant', () => {
     )
   })
 })
-
