@@ -1954,15 +1954,23 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
           'an uninterpretable close keeps the eligibility',
         )
         assert.deepEqual(between.handed, [], 'the terminal releases the hand-over state')
+        assert.equal(between.awaitingPerson, true, 'a failed Run waits for a person')
+        expectKind(
+          refused(await s.startRun('start-waiting'), 'startRun while waiting for a person'),
+          'no-input',
+          'startRun while waiting for a person',
+        )
+        succeeded(await s.accept('input-2'), 'accept after the failure')
         const second = succeeded(await s.startRun('start-second'), 'second startRun').execution
         assert.notEqual(second, first)
         assert.deepEqual(judgeCompletion(await s.readWork(), second), {
           kind: 'blocked',
-          pendingInputs: ['input-1'],
+          pendingInputs: ['input-1', 'input-2'],
         })
         succeeded(await s.handover(second, 'input-1', 'handover-1-second'), 'second hand-over')
+        succeeded(await s.handover(second, 'input-2', 'handover-2-second'), 'third hand-over')
         const after = await s.readWork()
-        assert.deepEqual(after.handed, ['input-1'])
+        assert.deepEqual(after.handed, ['input-1', 'input-2'])
         assert.equal(judgeCompletion(after, second).kind, 'allowed')
       },
     ),

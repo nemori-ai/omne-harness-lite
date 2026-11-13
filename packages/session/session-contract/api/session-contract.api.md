@@ -1911,6 +1911,14 @@ export declare function initializationGuard(previous: WorkSnapshot | null, comma
 export declare function validateResult(value: InitializationGuardResult, plan: InitializationPlanItem): void;
 ```
 
+## 声明文件 `input-leases.d.ts`
+
+```ts
+import type { InputId } from './identity.ts';
+import type { RunTerminal, WorkSnapshot } from './values.ts';
+export declare function pendingAfterTerminal(snapshot: Pick<WorkSnapshot, 'pending' | 'unanswered'>, outcome: RunTerminal['outcome']): readonly InputId[];
+```
+
 ## 声明文件 `intake.d.ts`
 
 ```ts
@@ -2059,7 +2067,7 @@ export type RunStartJudgment = Readonly<{
     kind: 'eligible';
     first: InputId;
 }> | Readonly<{
-    kind: 'not-ready' | 'archived' | 'frozen' | 'run-active' | 'no-input' | 'login-required';
+    kind: 'not-ready' | 'archived' | 'frozen' | 'run-active' | 'awaiting-person' | 'no-input' | 'login-required';
 }>;
 export type OpenWork = Readonly<{
     unassociatedWaiting?: readonly SessionCallWait[];
@@ -2911,8 +2919,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:c86687e95f63983616bfbb4cb27bdd4e1f86da0948975c558b455e3a3be9530d";
-export declare const SESSION_RELEASE_DIGEST = "sha256:c86687e95f63983616bfbb4cb27bdd4e1f86da0948975c558b455e3a3be9530d";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:673bab33691d4ca957c45bcbbd16700366e01e7c17ee608fb0967cb27a925c19";
+export declare const SESSION_RELEASE_DIGEST = "sha256:673bab33691d4ca957c45bcbbd16700366e01e7c17ee608fb0967cb27a925c19";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3447,6 +3455,8 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         children?: readonly SessionId[];
         autoArchive?: import("./values.ts").AutoArchivePolicy;
         taken?: readonly InputId[];
+        unanswered?: readonly InputId[];
+        awaitingPerson?: true;
         backgroundPlaceholders?: readonly import("./identity.ts").ConsumptionId[];
         releasedScopes?: readonly Readonly<{
             task: SessionOperationId;
@@ -4030,6 +4040,8 @@ export type WorkSnapshot = Readonly<{
     children?: readonly SessionId[];
     autoArchive?: AutoArchivePolicy;
     taken?: readonly InputId[];
+    unanswered?: readonly InputId[];
+    awaitingPerson?: true;
     backgroundPlaceholders?: readonly ConsumptionId[];
     releasedScopes?: readonly Readonly<{
         task: SessionOperationId;

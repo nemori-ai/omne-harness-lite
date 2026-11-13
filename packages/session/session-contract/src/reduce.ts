@@ -14,7 +14,8 @@ import { CallConflict } from './call-state.ts'
 // interprets committed entries only, in batch order, and publishes no partial state: an unknown
 // kind, a missing origin or a contradiction quarantines the session.
 import type { Adoption, DurableEvidence, InputId } from './identity.ts'
-import type { RecoveryTask, WorkSnapshot } from './values.ts'
+import type { RecoveryTask, RunTerminal, WorkSnapshot } from './values.ts'
+import { pendingAfterTerminal } from './input-leases.ts'
 import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
@@ -69,6 +70,17 @@ function without(list: readonly InputId[], removed: readonly InputId[]): readonl
   return list.filter(input => !gone.has(input))
 }
 
+function settleLeases(draft: Draft, outcome: RunTerminal['outcome']): string | null {
+  const returned = draft.unanswered ?? []
+  delete draft.unanswered
+  if (outcome !== 'failed') return null
+  if (returned.some(input => draft.pending.includes(input)))
+    return 'a returned input is already pending'
+  draft.pending = pendingAfterTerminal({ pending: draft.pending, unanswered: returned }, outcome)
+  draft.awaitingPerson = true
+  return null
+}
+
 /** Applies one decoded entry. Returns a diagnostic when the entry contradicts the state. */
 function apply(
   draft: Draft,
@@ -109,6 +121,7 @@ function apply(
     case 'message.system_reminder':
     case 'message.compaction': {
       trackCalls(draft, entry.message)
+      if (entry.kind === 'message.assistant' && draft.run.kind === 'active') delete draft.unanswered
       return entry.participation === null ? null : applyParticipation(draft, entry.participation)
     }
     case 'intake.routed':
@@ -119,6 +132,7 @@ function apply(
       if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
       draft.pending = [...draft.pending, entry.input]
       draft.idle = null
+      delete draft.awaitingPerson
       return null
     case 'intake.handed-over': {
       if (!draft.pending.includes(entry.input)) return `hand-over of an input that is not pending`
@@ -150,6 +164,8 @@ function apply(
         { run: entry.run, execution: draft.run.execution, terminal: null },
       ]
       draft.idle = null
+      delete draft.awaitingPerson
+      delete draft.unanswered
       return null
     }
     case 'run.attempt-started': {
@@ -192,7 +208,7 @@ function apply(
       draft.taken = []
       draft.waiting = []
       draft.callWaits = []
-      return null
+      return settleLeases(draft, entry.terminal.outcome)
     }
     default:
       return applyExtended(draft, entry, source)

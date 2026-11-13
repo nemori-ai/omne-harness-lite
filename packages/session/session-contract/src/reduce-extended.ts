@@ -144,8 +144,8 @@ export function applyExtended(
         return 'missing historical execution binding'
       return null
     case 'run.batch-taken':
-      // I-R3: an input is taken at most once. A repeated member or a second taking in the same
-      // Run is a contradiction to report, not a value to merge.
+      // I-R3: an input is taken at most once in one Run. A repeated member or a second taking in
+      // the same Run is a contradiction to report, not a value to merge.
       if (new Set(entry.batch.ordered).size !== entry.batch.ordered.length)
         return 'a taken batch repeats an input'
       if (draft.run.kind !== 'active' || draft.run.run !== entry.run) {
@@ -157,6 +157,7 @@ export function applyExtended(
       draft.pending = draft.pending.filter(input => !entry.batch.ordered.includes(input))
       draft.handed = draft.handed.filter(input => !entry.batch.ordered.includes(input))
       draft.taken = [...(draft.taken ?? []), ...entry.batch.ordered]
+      draft.unanswered = [...(draft.unanswered ?? []), ...entry.batch.ordered]
       return null
     case 'call.bound': {
       if ('binding' in entry && entry.reference !== entry.binding.producer.call)
@@ -248,6 +249,8 @@ export function applyExtended(
       draft.waiting = []
       draft.callWaits = []
       draft.taken = []
+      delete draft.unanswered
+      delete draft.awaitingPerson
       draft.tasks = [...draft.tasks.filter(task => task.kind !== 'routed-input'), ...entry.tasks]
       const existing = draft.contextScopes ?? []
       draft.contextScopes = [

@@ -287,7 +287,10 @@ export function requirePrepared(context: HistoryContext, scope: SessionInputScop
     if (!taken.batch.ordered.some(input => inputs.has(input))) continue
     originalBatch(context, taken.run, taken.execution, taken.sequence, taken.source, taken.batch)
     evidenceFields(taken.commit, 'history.taken.commit')
-    if (taken.batch.ordered.some(input => context.snapshot.pending.includes(input)))
+    if (
+      !failedRun(context.snapshot, taken.run) &&
+      taken.batch.ordered.some(input => context.snapshot.pending.includes(input))
+    )
       inconsistent('history.taken: interpreted input remains pending')
   }
 }
@@ -319,16 +322,30 @@ export function originalBatch(
     const admissions = inputAdmissions(context, input)
     const at = admissions.findIndex(item => item.run === run && item.execution === execution)
     if (at < 0) invalidAt('batch.ordered', 'member has no original admission')
-    if (admissions.slice(at + 1).some(item => item.run !== run))
+    if (
+      !failedRun(context.snapshot, run) &&
+      admissions.slice(at + 1).some(item => item.run !== run)
+    )
       inconsistent('history.batch: earlier taken conflicts with a successor admission')
     if (
       context.index.taken.some(item =>
         item.execution !== execution || item.sequence !== sequence
-          ? item.batch.ordered.includes(input)
+          ? item.batch.ordered.includes(input) &&
+            !retakenAfterFailure(context.snapshot, item.run, run)
           : false,
       )
     )
       inconsistent('history.batch: input has two taken events')
   }
   return original
+}
+
+function failedRun(snapshot: WorkSnapshot, run: RunId): boolean {
+  return snapshot.executions?.find(item => item.run === run)?.terminal?.outcome === 'failed'
+}
+
+function retakenAfterFailure(snapshot: WorkSnapshot, one: RunId, other: RunId): boolean {
+  if (one === other) return false
+  const order = (run: RunId) => snapshot.executions?.findIndex(item => item.run === run) ?? -1
+  return failedRun(snapshot, order(one) < order(other) ? one : other)
 }

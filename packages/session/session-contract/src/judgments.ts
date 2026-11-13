@@ -62,7 +62,14 @@ export type RouteJudgment =
 export type RunStartJudgment =
   | Readonly<{ kind: 'eligible'; first: InputId }>
   | Readonly<{
-      kind: 'not-ready' | 'archived' | 'frozen' | 'run-active' | 'no-input' | 'login-required'
+      kind:
+        | 'not-ready'
+        | 'archived'
+        | 'frozen'
+        | 'run-active'
+        | 'awaiting-person'
+        | 'no-input'
+        | 'login-required'
     }>
 /** Original work sets and control responsibilities, all derived from the snapshot. taken: inputs the Agent took with no model call registered (SE18) after them, so no model request has read them yet. unreadEvents: Agent events after readThrough count as open work. */
 export type OpenWork = Readonly<{
@@ -280,6 +287,7 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
   if (snapshot.frozen !== null) return { kind: 'frozen' }
   if (snapshot.lifecycle === 'initializing') return { kind: 'not-ready' }
   if (snapshot.run.kind === 'active') return { kind: 'run-active' }
+  if (snapshot.awaitingPerson === true) return { kind: 'awaiting-person' }
   const first = snapshot.pending[0]
   if (first === undefined) return { kind: 'no-input' }
   return { kind: 'eligible', first }
