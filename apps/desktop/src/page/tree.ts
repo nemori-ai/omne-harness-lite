@@ -9,6 +9,7 @@ import {
 } from '@omne-harness/client-assembly/cordis'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import type { Transport } from '@omne-harness/sdk/core'
+import { readRetryDelayMs } from './read-retry.ts'
 
 export type ClientTree = {
   /** Calls `listener` with the service's value while it is on the tree, `undefined` once it left. */
@@ -25,7 +26,13 @@ export async function startClientTree(options: {
   readonly protocols: readonly ProtocolContract[]
 }): Promise<ClientTree> {
   const root = new Context()
-  await root.plugin(connectionPlugin({ transport: options.transport, login: options.login }))
+  await root.plugin(
+    connectionPlugin({
+      transport: options.transport,
+      login: options.login,
+      readRetry: { delayMs: readRetryDelayMs },
+    }),
+  )
   for (const protocol of options.protocols) await root.plugin(defineProtocolClient(protocol))
   return {
     watch(service, listener) {

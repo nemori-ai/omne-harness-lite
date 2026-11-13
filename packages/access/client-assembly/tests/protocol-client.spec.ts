@@ -17,6 +17,12 @@ import { fakeTransport, settle, type FakeTransport } from './support/fake-transp
 import { ACCESS, NOTES, OTHER, notesProtocol } from './support/notes.ts'
 
 const SERVICE = protocolServiceName(NOTES)
+const HANG_MS = 60_000
+const BASIS_UNAVAILABLE = {
+  kind: 'answered',
+  outcome: 'basis-unavailable',
+  body: { kind: 'object', entries: [] },
+} as const
 type Notes = ClientOf<typeof notesProtocol>
 
 function loginSource(initial: LoginState = 'signed-out') {
@@ -62,7 +68,12 @@ type Tree = {
 }
 
 /** A tree with the connection, the notes protocol client unless left out, and a module using it. */
-async function tree(options: { withoutClient?: boolean } = {}): Promise<Tree> {
+async function tree(
+  options: {
+    withoutClient?: boolean
+    readRetry?: { readonly delayMs: (failures: number, elapsedMs: number) => number | null }
+  } = {},
+): Promise<Tree> {
   const root = new Context()
   roots.push(root)
   const fake = fakeTransport()
@@ -74,10 +85,14 @@ async function tree(options: { withoutClient?: boolean } = {}): Promise<Tree> {
       transport: fake.transport,
       login: login.source,
       diagnostics: event => diagnostics.push(event),
-      // The backoff waits no real time: it records the delay and yields once.
-      sleep: async ms => {
+      ...(options.readRetry === undefined ? {} : { readRetry: options.readRetry }),
+      // The backoff waits no real time: it records the delay and yields once. A wait of
+      // `HANG_MS` lasts until its signal aborts.
+      sleep: async (ms, signal) => {
         delays.push(ms)
-        await new Promise(resolve => setImmediate(resolve))
+        if (ms !== HANG_MS) return new Promise(resolve => setImmediate(resolve))
+        if (!signal.aborted)
+          await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }))
       },
     }),
   )
@@ -376,5 +391,59 @@ describe('C16: one protocol client on the tree', () => {
     expect(root.get(SERVICE)).toBeDefined()
     await client!.dispose()
     expect(root.get(SERVICE)).toBeUndefined()
+  })
+})
+
+describe('读类调用对「现在读不到」按策略再问', () => {
+  const policy = { delayMs: (): number => HANG_MS }
+
+  it('等待在可用性送来新的一帧时立刻结束，并再问一次，不等到点', async () => {
+    const t = await tree({ readRetry: policy })
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    t.fake.script.push(BASIS_UNAVAILABLE)
+    const answered = t.service()!.ping({})
+    await settle()
+    expect(t.fake.calls).toHaveLength(1)
+    expect(t.delays).toEqual([HANG_MS])
+    t.fake.push(added(2, OTHER))
+    expect(await answered).toEqual({ outcome: 'succeeded', body: {} })
+    expect(t.fake.calls).toHaveLength(2)
+    expect(t.fake.calls[0]!.messageId).not.toBe(t.fake.calls[1]!.messageId)
+  })
+
+  it('等待中调用方的信号中止：等待结束，返回手里的答复，不再问', async () => {
+    const t = await tree({ readRetry: policy })
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    t.fake.script.push(BASIS_UNAVAILABLE)
+    const controller = new AbortController()
+    const answered = t.service()!.ping({}, { signal: controller.signal })
+    await settle()
+    controller.abort()
+    expect(await answered).toEqual({ outcome: 'basis-unavailable' })
+    expect(t.fake.calls).toHaveLength(1)
+  })
+
+  it('等待中协议被撤回：返回手里的答复，不再问', async () => {
+    const t = await tree({ readRetry: policy })
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    t.fake.script.push(BASIS_UNAVAILABLE)
+    const answered = t.service()!.ping({})
+    await settle()
+    t.fake.push(removed(2, NOTES))
+    expect(await answered).toEqual({ outcome: 'basis-unavailable' })
+    expect(t.fake.calls).toHaveLength(1)
+  })
+
+  it('没给策略的连接：读类调用答依据不可用时只问一次', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    t.fake.script.push(BASIS_UNAVAILABLE)
+    expect(await t.service()!.ping({})).toEqual({ outcome: 'basis-unavailable' })
+    expect(t.fake.calls).toHaveLength(1)
+    expect(t.delays).toEqual([])
   })
 })
