@@ -16,74 +16,33 @@
 
 ## 成员的必选结构
 
-本节依据 [RFC-0007 revision 1](rfcs/RFC-0007-source-packages-and-templates.md#决定范围)，它在 2026-10-16 取代 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md) 除「测试」一行以外的采用范围。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/dev-flow/templates/package/README_ZH.md)。该生成器已经写出先删除 `dist` 的 build、不先构建的 typecheck、`erasableSyntaxOnly`，以及写在 `types` 前面的 `source` 条件。
+下面是新成员的形状，由[包模板](../tools/dev-flow/templates/package/README_ZH.md)生成，结构扫描按它核。应用不使用这套结构。
 
-每个新成员必须有这些文件。缺任何一个，模板生成不合格。
+每个新成员必须有这些文件。缺任何一个，结构扫描判失败。
 
 ```text
 packages/<能力组>/<成员>/
 ├── package.json
-├── README.md
-├── README_ZH.md
-├── documentation.json
 ├── src/index.ts
-├── tests/<行为>.spec.ts
+├── tests/public-entry.spec.ts
 ├── tsconfig.build.json
 ├── tsconfig.test.json
 └── vitest.config.ts
 ```
 
-`cordis-module`、`service-contract` 和 `service-provider` 再加 `src/cordis.ts`。`module` 不加这个文件。`src/index.ts` 不导入 `@deepseek-ai/cordis`。Cordis 绑定只从 `src/cordis.ts` 导出。
+`cordis-module`、`service-contract` 和 `service-provider` 再加 `src/cordis.ts` 与 `tests/cordis-entry.spec.ts`。`module` 不加这两个文件。`src/index.ts` 不导入 `@deepseek-ai/cordis`。Cordis 绑定只从 `src/cordis.ts` 导出。
 
 `package.json` 把 `source` 写在 `types` 前面，指向 `./src/index.ts`。仓库类型检查通过根 `tsconfig.base.json` 的 `customConditions` 打开它。`files` 只发布 `dist`。发布时去掉 `source`，外部只保留指向 `dist` 的 `types` 和 `import`。`build` 先删除 `dist`，再编译。`tsconfig.build.json` 只包含 `src`，并打开 `erasableSyntaxOnly`。`tsconfig.test.json` 只包含 `tests`。`typecheck` 只运行 `tsc -p tsconfig.test.json`，不先构建，被测试导入的源码经 `source` 条件一并检查。测试导入本包时使用包名。谁写哪一类测试，见[包级测试责任与边界](verification.md#包级测试责任与边界)。
 
 ### 完整生成树
 
-[RFC-0007](rfcs/RFC-0007-source-packages-and-templates.md) 规定，新成员在创建时就生成下面的完整骨架。模板版本是 `typescript-package@3.0.0`。除标注“仅绑定变体”的两项外，四个变体生成同一棵树。树中每个节点都是必需节点：缺任何一个，结构扫描判失败。`README.md + index.md` 表示该目录同时有这两个文件。
+模板版本是 `typescript-package@4.0.0`。新成员在创建时只生成上一节的必选文件，不生成任何 Markdown，也不生成文档登记。文档的规则见[成员文档](member-documentation.md#固定骨架)。
 
-```text
-packages/<能力组>/<成员>/
-├── README.md
-├── README_ZH.md
-├── index.md
-├── SPEC.md
-├── documentation.json
-├── package.json
-├── docs/                         README.md + index.md
-│   ├── architecture.md
-│   ├── flows.md
-│   ├── object-model.md
-│   ├── public-api.md
-│   ├── context.md
-│   └── cordis.md
-├── src/                          README.md + index.md
-│   ├── index.ts
-│   └── cordis.ts                 仅绑定变体
-├── tests/                        README.md + index.md
-│   ├── public-entry.spec.ts
-│   ├── cordis-entry.spec.ts      仅绑定变体
-│   └── fixtures/                 README.md + index.md
-├── schema/                       README.md + index.md
-├── verification/                 README.md + index.md
-│   ├── models/                   README.md + index.md
-│   └── proofs/                   README.md + index.md
-├── adr/                          README.md + index.md
-├── examples/                     README.md + index.md
-├── resources/                    README.md + index.md
-├── acceptance/                   README.md + index.md
-│   └── fixtures/                 README.md + index.md
-├── tsconfig.build.json
-├── tsconfig.test.json
-└── vitest.config.ts
-```
+可以随实际义务增加的目录：`tests/fixtures/`、`schema/`、`verification/`、`examples/`、`resources/`、`acceptance/`。`acceptance/` 下（不含 `acceptance/fixtures/`）有 `*.acceptance.ts` 场景时，成员必须有 `vitest.acceptance.config.ts` 与 `package.json` 的 `acceptance` 脚本；有配置时必须有场景。
 
-`SPEC.md` 对 `module` 变体也是必需节点。没有非类型行为的包在 `SPEC.md` 中写明理由。`docs/cordis.md` 在所有变体都生成；`module` 在其中写明不适用的理由，这个文件不导致生成 `src/cordis.ts` 或引入 Cordis 依赖。
+代表未来任意模块的通配槽（如 `src/**/*.ts`）不实例化。`dist/`、`node_modules/`、`generated/`、`coverage/` 和 `tmp/` 不属于源码模板，不预建。
 
-`docs/` 下的每个专题可以是 `docs/<topic>.md`，也可以升级为带 `README.md` 与 `index.md` 的 `docs/<topic>/`，二者只能存在一个。`acceptance/` 下（不含 `acceptance/fixtures/`）有 `*.acceptance.ts` 场景时，成员必须有 `vitest.acceptance.config.ts` 与 `package.json` 的 `acceptance` 脚本；有配置时必须有场景。只有入口文件时，不要求配置。
-
-代表未来任意模块的通配槽（如 `src/**/*.ts`）不实例化。`dist/`、`node_modules/`、`generated/`、`coverage/` 和 `tmp/` 不属于源码模板，不预建。各文件与目录承担什么，见[成员文档](member-documentation.md#固定骨架)。创建文档不改变运行导出、安装依赖或发布文件集合。
-
-完整骨架只用于新建的包。现有成员不自动迁移：先清点差异，再另行给出迁移范围与时点，补文件时不覆盖真实正文。未迁移的成员继续只要求上面的必选文件，`docs/`、`SPEC.md`、`schema/`、`verification/`、`adr/`、`examples/` 和 `resources/` 在里面有真实内容时才建立。
+现有成员按它们标记的模板版本的规则扫描，不自动迁移。它们的旧文档在所属包组重写规格时一起处理。
 
 ## 目标目录
 
@@ -413,7 +372,7 @@ Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Ag
 
 领域页解释模块关系、协作和组合责任，本文维护目录及包边界。精确类型、失败、状态转移、事务、取消、恢复和验证资源随实际成员或协调者，跨包协议也随其拥有者。
 
-能力组与成员包各自维护完整的文档体系，具体要求归[两层成员文档](member-documentation.md)。新成员从创建时的固定骨架开始，每类知识有固定位置；骨架以外的专题按实际阅读任务增加。组入口拥有组内工程关系及共同维护，成员入口展开公开使用、行为、内部设计与验证；必要专题就近拆分。SPEC完整表达非类型行为，不作为整套成员文档的厚度限制。不复制产品规则或创建中央模块SPEC，未实现目标不造空成员。
+一个包组只有一份规格，成员不带文档，具体要求归[成员文档](member-documentation.md)。规格只装六样：总体架构、领域边界、心智模型、应然设计、原则与约束、不变式；源码已经表达的不写。不复制产品规则，未实现目标不造空成员。
 
 agent从[任务地图](context-map.md#领域设计与新增模块)定位责任，再沿本页选择目标组，读取实际契约、实现及相称验证。涉及其他能力时进入它的拥有者，涉及系统公开投影时进入access，涉及发行装配时进入apps。责任足够就停止扩大阅读。
 
