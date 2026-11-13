@@ -2,7 +2,7 @@
 // 调用时调度原调用；唤醒失败不改变答复的结果。HITL 应用与 Tool 实例宿主都是替身。真实组合里驱动还按执行器的重试
 // 周期读决定，所以发行树的端到端测试看不出唤醒是否发生，由这里核对。
 import { setTimeout as sleep } from 'node:timers/promises'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import type { HitlApplication } from '../../../src/rows/tool-hitl/host.ts'
@@ -15,13 +15,18 @@ const cardRef = { request: { tenantRef: 't', requestId: 'request-1' }, cardId: '
 const command = { cardRef } as never
 
 function application(
-  options: Readonly<{ reply?: unknown; origin?: Record<string, unknown> }> = {},
+  options: Readonly<{
+    reply?: unknown
+    origin?: Record<string, unknown>
+    readFails?: boolean
+  }> = {},
 ) {
   const reads: unknown[] = []
   const app = {
     submitReply: async () => options.reply ?? { kind: 'decided' },
     getRequest: async (_access: unknown, query: unknown) => {
       reads.push(query)
+      if (options.readFails) throw new Error('the request source is down')
       return {
         kind: 'found',
         request: {
@@ -91,6 +96,42 @@ describe('the wake-up after a reply', () => {
     })
     await settle()
     expect(scheduled).toHaveLength(1)
+  })
+
+  it('says which step did not get done when the request source cannot be read, and the reply stays', async () => {
+    const { app } = application({ readFails: true })
+    const { host, scheduled } = instanceHost()
+    const warn = vi.fn()
+    expect(await withDecided(app, wakeOnDecision(host, warn)).submitReply(access, command)).toEqual(
+      {
+        kind: 'decided',
+      },
+    )
+    await settle()
+    expect(scheduled).toEqual([])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]?.[0]).toContain('reading the request')
+    expect(warn.mock.calls[0]?.[0]).toContain('the request source is down')
+  })
+
+  it('says so when the call could not be scheduled, whether the host throws or is not there', async () => {
+    const { app } = application()
+    const throwing = vi.fn()
+    await withDecided(app, wakeOnDecision(instanceHost(true).host, throwing)).submitReply(
+      access,
+      command,
+    )
+    const absent = vi.fn()
+    await withDecided(
+      app,
+      wakeOnDecision(() => undefined, absent),
+    ).submitReply(access, command)
+    await settle()
+    expect(throwing).toHaveBeenCalledTimes(1)
+    expect(throwing.mock.calls[0]?.[0]).toContain('scheduling the call')
+    expect(throwing.mock.calls[0]?.[0]).toContain('the host is gone')
+    expect(absent).toHaveBeenCalledTimes(1)
+    expect(absent.mock.calls[0]?.[0]).toContain('no Tool instance host')
   })
 
   it('a wake-up hook that throws does not change the answer of the reply', async () => {
