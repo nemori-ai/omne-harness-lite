@@ -270,6 +270,35 @@ describe('a failed Run returns the inputs it took and did not answer', () => {
     expect(reduce(snapshot, shortBatch, material.reads)).toMatchObject({ kind: 'quarantined' })
   })
 
+  it('7. a frozen session releases the returned inputs when the execution reports the failure', async () => {
+    const s = await open()
+    await s.accept('second')
+    await handIn(s, 'first')
+    await take(s, '1', ['first'])
+    succeeded(
+      await s.commit({
+        kind: 'freeze',
+        input: {
+          ...s.base,
+          operation: operationId('freeze'),
+          verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+        },
+      }),
+      'freeze',
+    )
+    const before = s.port.controls.entriesOf(s.access.tenant, s.access.session).length
+    await interpret(s, '2', [
+      { kind: 'ended', outcome: 'failed', cause: null, disposition: evidence('failed') },
+    ])
+    const release = s.port.controls
+      .entriesOf(s.access.tenant, s.access.session)
+      .slice(before)
+      .find(entry => entry.kind === 'intake.released')
+    if (release === undefined) throw new Error('missing intake.released')
+    expect(decodeEntry(release)).toMatchObject({ ok: { inputs: ['first', 'second'] } })
+    expect((await s.read()).pending).toEqual([])
+  })
+
   it('archiving a session that waits for a person ends the wait with the pending inputs', async () => {
     const { s } = await failedWithFirstTaken()
     await s.control('archive')
