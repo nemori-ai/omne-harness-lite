@@ -33,18 +33,16 @@ export function principalOf(principal: ActingForTenantPrincipal): Principal {
 }
 
 /**
- * The login and the acting tenant of a principal `actFor` issued: the work of an
- * `identity-login` principal is the login's text. `undefined` for a principal of another shape,
- * which this member never issued.
+ * The login and the acting tenant of a principal `actFor` issued: its work is the login's text.
+ * Only `actFor` creates a `Principal`, so text that is not a login is a broken invariant, thrown.
  */
 export function actingOf(
   principal: Principal,
-): Readonly<{ login: LoginStateId; tenant: TenantId }> | undefined {
+): Readonly<{ login: LoginStateId; tenant: TenantId }> {
   const acting = principal as unknown as ActingForTenantPrincipal
-  if (acting.kind !== 'acting-for-tenant' || acting.work.owner !== LOGIN_WORK_OWNER)
-    return undefined
   const login = loginStateCodec.parse(acting.work.work)
-  return login.ok ? { login: login.value, tenant: acting.tenant } : undefined
+  if (!login.ok) throw new TypeError('identity-access: the principal was not issued by actFor')
+  return { login: login.value, tenant: acting.tenant }
 }
 
 export function loginTextOf(login: LoginStateId): string {

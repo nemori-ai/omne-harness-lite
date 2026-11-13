@@ -34,10 +34,10 @@
     "@omne-harness/access-cordis-contract": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/identity-protocol": "workspace:*",
-    "@omne-harness/legal-identity": "workspace:*"
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness/utc-instant": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

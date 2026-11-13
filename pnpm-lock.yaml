@@ -2000,10 +2000,10 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
-    devDependencies:
       '@omne-harness/utc-instant':
         specifier: workspace:*
         version: link:../../common/utc-instant
+    devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

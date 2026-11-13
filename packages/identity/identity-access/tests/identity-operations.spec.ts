@@ -77,7 +77,9 @@ describe('issue-login', () => {
     if (answer.outcome !== 'succeeded') return
     expect(answer.body.loginIdentifier).toBe('alice')
     expect(answer.body.loginProof).not.toBe('')
-    expect(answer.body.loginId).toBeDefined()
+    const recognized = await f.operations.recognizeLogin({ loginProof: answer.body.loginProof })
+    if (recognized.kind !== 'recognized') throw new Error('the issued login is not recognized')
+    expect(answer.body.loginId).toEqual(recognized.login)
     expect(await port(f).identifyLogin(answer.body.loginProof)).toMatchObject({
       outcome: 'identified',
     })

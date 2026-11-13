@@ -26,7 +26,7 @@ export type AccessIdentityDependencies = Readonly<{
 }>
 
 /** The component of the system principal that acts for a tenant on behalf of a login. */
-export const ENTRY_COMPONENT = 'server-entry'
+const ENTRY_COMPONENT = 'server-entry'
 
 const DENIED = Object.freeze({ outcome: 'denied' as const })
 const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
