@@ -13,7 +13,7 @@ import {
 } from '@omne-harness/sql-contract'
 import { decodeScope } from '../fields.ts'
 import { canonicalJson } from '../json.ts'
-import { DataError, describeError, isTransientError } from './errors.ts'
+import { DataError, describeError, isTransientError, loadFailure } from './errors.ts'
 import {
   MigrationFailed,
   markerFault,
@@ -196,7 +196,9 @@ function failure(step: string, error: unknown, creating: boolean): OpenReply {
   if (error instanceof CommitUncertain)
     return creating ? { kind: 'unknown', diagnostic } : { kind: 'transient', diagnostic }
   if (creating) return { kind: 'create_failed', diagnostic }
-  if (!isStatic(error) && isTransientError(error)) return { kind: 'transient', diagnostic }
+  // A SQLite environment code, or a system error while a module was read or imported (SPEC 5.2).
+  if (!isStatic(error) && (isTransientError(error) || loadFailure(error) === 'transient'))
+    return { kind: 'transient', diagnostic }
   return { kind: 'quarantined', diagnostic }
 }
 
