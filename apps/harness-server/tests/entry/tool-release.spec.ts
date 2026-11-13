@@ -3,13 +3,19 @@
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
+import { describe, expect, it, vi } from 'vitest'
+import { Context, type Message } from '@deepseek-ai/cordis'
+import { principalIssuerKey } from '@omne-harness/identity/cordis'
+import {
+  toolContributionAuthorityKey,
+  type ToolContributionAuthority,
+} from '@omne-harness/tool-cordis-contract/cordis'
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
-import { fail } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import type { ToolAuthority } from '@omne-harness/tool-contract/provider'
 import {
   ReleaseToolContributionAuthority,
+  createToolReleaseEntries,
   TOOL_RELEASE_LOGGER,
   TOOL_RELEASE_TENANT,
   loadProductionRelease,
@@ -25,7 +31,7 @@ import {
   releaseFixture,
   releaseFrom,
 } from '../rows/tool-host/support.ts'
-import { fixtureTenant, got, okOf } from './support.ts'
+import { fixtureEnv, fixtureTenant, got, okOf } from './support.ts'
 
 const unavailableSnapshot = async () =>
   Object.freeze({ kind: 'unavailable' as const, diagnostic: 'fixture' })
@@ -262,5 +268,89 @@ describe('the startup snapshot', () => {
       kind: 'unavailable',
       diagnostic: 'manifest differs from its recomputation',
     })
+  })
+})
+
+describe('the snapshot after a read that failed', () => {
+  /** Entries over a scripted read: the first read throws, the next ones return the real snapshot. */
+  async function scripted(pauseMs: number) {
+    const real = await loadProductionRelease()
+    if (real.kind !== 'trusted') throw new Error('the installed release is not trusted')
+    let now = 0
+    const reads = vi.fn()
+    const entries = createToolReleaseEntries(
+      async () => {
+        reads()
+        if (reads.mock.calls.length === 1) throw new Error('disk busy')
+        return real
+      },
+      { now: () => now, retryPauseMs: () => pauseMs },
+    )
+    const fixture = fixtureEnv([principalIssuerKey])
+    const logs: Message[] = []
+    fixture.root.logger.exporter({ levels: { default: 3 }, export: message => logs.push(message) })
+    await fixture.install(entries.authority)
+    const authority = got(
+      fixture.root.get(toolContributionAuthorityKey),
+      'toolContributionAuthority',
+    ) as ToolContributionAuthority<unknown>
+    return {
+      authority,
+      logs,
+      reads,
+      shell: authorityOf(formalManifest(), 'Shell'),
+      at: (value: number) => {
+        now = value
+      },
+    }
+  }
+
+  it('reads again after the pause and then the snapshot is available', async () => {
+    const { authority, logs, reads, shell, at } = await scripted(1000)
+    expect(authority.verify(shell)).toMatchObject({ failure: { kind: 'unavailable' } })
+    // Every failed read is one warning with the thrown message and the wait before the next read.
+    const warned = logs.filter(
+      message => message.name === TOOL_RELEASE_LOGGER && message.type === 'warn',
+    )
+    expect(warned).toHaveLength(1)
+    expect(warned[0]?.args).toContain('disk busy')
+    expect(warned[0]?.args).toContain(1000)
+    at(1000)
+    // The call that finds the pause over starts the read; the answer of a call is never awaited.
+    await vi.waitFor(() => expect(okOf(authority.verify(shell), 'verify Shell')).toEqual(shell))
+    expect(reads).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not read again while the pause lasts', async () => {
+    const { authority, reads, shell, at } = await scripted(1000)
+    expect(authority.verify(shell)).toMatchObject({ failure: { kind: 'unavailable' } })
+    at(999)
+    for (let call = 0; call < 3; call += 1)
+      expect(authority.verify(shell)).toMatchObject({ failure: { kind: 'unavailable' } })
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(reads).toHaveBeenCalledTimes(1)
+  })
+
+  it('admits the registrant of the run once the snapshot is available again', async () => {
+    const real = await loadProductionRelease()
+    let now = 0
+    let reads = 0
+    const fixture = await releaseFixture(
+      async () => {
+        reads += 1
+        if (reads === 1) throw new Error('disk busy')
+        return real
+      },
+      { now: () => now, retryPauseMs: () => 1000 },
+    )
+    expect(fixture.authority.admits(fixture.registrant, { kind: 'official' })).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    now = 1000
+    await vi.waitFor(() =>
+      expect(fixture.authority.admits(fixture.registrant, { kind: 'official' })).toEqual(
+        succeed(undefined),
+      ),
+    )
   })
 })
