@@ -144,15 +144,24 @@ function listAnswered(state: State, token: number, answer: ListAnswer): Step {
   }
 }
 
-/** The row `key` of a read list and a function that puts a changed row back. */
+const CONFIRMING: Notice = { kind: 'unknown', text: '结果未知，正在确认。' }
+const STILL_UNKNOWN: Notice = {
+  kind: 'unknown',
+  text: '结果仍未知：这次确认没有说出原来那次写没写。',
+}
+
+/**
+ * The row `key` of a read list, with the three ways it changes: put a changed row back; reread it
+ * under a new token, with the write it keeps; resend the write it holds, under the same operation.
+ */
 function rowOf(state: State, key: string) {
   const list = state.list
   if (list.kind !== 'read') return undefined
   const row = list.rows.find(candidate => candidate.key === key)
   if (row === undefined) return undefined
-  const put = (next: Row, effects: readonly Effect[] = []): Step => ({
+  const put = (next: Row, effects: readonly Effect[] = [], issued = state.issued): Step => ({
     state: {
-      ...state,
+      issued,
       list: {
         ...list,
         rows: list.rows.map(candidate => (candidate.key === key ? next : candidate)),
@@ -160,7 +169,20 @@ function rowOf(state: State, key: string) {
     },
     effects,
   })
-  return { row, put }
+  const reread = (write: Write): Step => {
+    const token = state.issued + 1
+    const target = targetOf(row.view)
+    return put(
+      { ...row, read: { kind: 'reading', token }, write },
+      [{ kind: 'describe', key, token, target }],
+      token,
+    )
+  }
+  const recognize = (sent: Sent): Step =>
+    put({ ...row, write: { kind: 'unknown', sent, confirming: true, notice: CONFIRMING } }, [
+      { kind: 'write', key, target: targetOf(row.view), sent },
+    ])
+  return { row, put, reread, recognize }
 }
 
 /** Idle: read, and the write settled. Only an idle row takes a new write. */
@@ -177,27 +199,20 @@ function startWrite(state: State, key: string, operation: string, request: Write
   ])
 }
 
-const STILL_UNKNOWN: Notice = {
-  kind: 'unknown',
-  text: '结果仍未知：这次确认没有说出原来那次写没写。',
-}
-const CONFIRMING: Notice = { kind: 'unknown', text: '结果未知，正在确认。' }
-
 function writeAnswered(state: State, key: string, operation: string, answer: WriteAnswer): Step {
   const found = rowOf(state, key)
   if (found === undefined) return same(state)
-  const { row, put } = found
+  const { row, put, reread, recognize } = found
   const write = row.write
   const inFlight = write.kind === 'submitting' || (write.kind === 'unknown' && write.confirming)
   if (!inFlight || write.sent.operation !== operation) return same(state)
+  // An answer to a recognition that cannot speak for the original write (SPEC.md R7, R8).
+  const stillUnknown = (): Step =>
+    put({
+      ...row,
+      write: { kind: 'unknown', sent: write.sent, confirming: false, notice: STILL_UNKNOWN },
+    })
   const recognizing = write.kind === 'unknown'
-  const reread = (next: Write): Step => {
-    const token = state.issued + 1
-    const moved = put({ ...row, read: { kind: 'reading', token }, write: next }, [
-      { kind: 'describe', key, token, target: targetOf(row.view) },
-    ])
-    return { ...moved, state: { ...moved.state, issued: token } }
-  }
   switch (answer.outcome) {
     case 'succeeded':
       return reread({ kind: 'succeeded', change: 'written' })
@@ -220,38 +235,20 @@ function writeAnswered(state: State, key: string, operation: string, answer: Wri
     case 'basis-unavailable':
     case 'protocol-rejected':
     case 'unavailable':
-      return put({
-        ...row,
-        write: recognizing
-          ? { kind: 'unknown', sent: write.sent, confirming: false, notice: STILL_UNKNOWN }
-          : { kind: 'refused', notice: notice(answer.outcome, SENTENCES) },
-      })
+      if (recognizing) return stillUnknown()
+      return put({ ...row, write: { kind: 'refused', notice: notice(answer.outcome, SENTENCES) } })
     case 'unknown':
     case 'uncertain':
-      if (recognizing)
-        return put({
-          ...row,
-          write: { kind: 'unknown', sent: write.sent, confirming: false, notice: STILL_UNKNOWN },
-        })
-      return put(
-        {
-          ...row,
-          write: { kind: 'unknown', sent: write.sent, confirming: true, notice: CONFIRMING },
-        },
-        [{ kind: 'write', key, target: targetOf(row.view), sent: write.sent }],
-      )
+      return recognizing ? stillUnknown() : recognize(write.sent)
   }
 }
 
 function confirm(state: State, key: string): Step {
   const found = rowOf(state, key)
   if (found === undefined) return same(state)
-  const { row, put } = found
-  const write = row.write
+  const write = found.row.write
   if (write.kind !== 'unknown' || write.confirming) return same(state)
-  return put({ ...row, write: { ...write, confirming: true, notice: CONFIRMING } }, [
-    { kind: 'write', key, target: targetOf(row.view), sent: write.sent },
-  ])
+  return found.recognize(write.sent)
 }
 
 function describeAnswered(state: State, key: string, token: number, answer: DescribeAnswer): Step {
@@ -267,12 +264,7 @@ function describeAnswered(state: State, key: string, token: number, answer: Desc
 function retryRow(state: State, key: string): Step {
   const found = rowOf(state, key)
   if (found === undefined || found.row.read.kind !== 'failed') return same(state)
-  const { row, put } = found
-  const token = state.issued + 1
-  const moved = put({ ...row, read: { kind: 'reading', token } }, [
-    { kind: 'describe', key, token, target: targetOf(row.view) },
-  ])
-  return { ...moved, state: { ...moved.state, issued: token } }
+  return found.reread(found.row.write)
 }
 
 export function step(state: State, event: Event): Step {
