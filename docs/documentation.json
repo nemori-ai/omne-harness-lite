@@ -2296,6 +2296,78 @@
       ]
     },
     {
+      "id": "docs#acceptance#README",
+      "path": "docs/acceptance/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "位置与唯一源"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "matrices",
+          "anchor": "现有矩阵"
+        },
+        {
+          "id": "structure",
+          "anchor": "一份矩阵的结构"
+        },
+        {
+          "id": "cell-criteria",
+          "anchor": "格子的判据"
+        },
+        {
+          "id": "run-and-record",
+          "anchor": "执行与记录"
+        }
+      ]
+    },
+    {
+      "id": "docs#acceptance#interruption-and-return",
+      "path": "docs/acceptance/interruption-and-return.md",
+      "kind": "verification",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/acceptance/README.md",
+        "anchor": "一份矩阵的结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope-and-standard",
+          "anchor": "范围与标准"
+        },
+        {
+          "id": "axes",
+          "anchor": "轴"
+        },
+        {
+          "id": "observations",
+          "anchor": "观察点"
+        },
+        {
+          "id": "order",
+          "anchor": "次序"
+        },
+        {
+          "id": "undecided",
+          "anchor": "没有定的判据"
+        },
+        {
+          "id": "excluded",
+          "anchor": "不在这份矩阵里的"
+        }
+      ]
+    },
+    {
       "id": "docs#verification",
       "path": "docs/verification.md",
       "kind": "verification",

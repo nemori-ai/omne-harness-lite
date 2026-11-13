@@ -23,7 +23,7 @@
 | 系统或领域设计 | 目标变化读[项目要求](requirements.md)，全系统关系读[架构](architecture/README.md)，责任划分读[领域](domains/README.md)。新增模块或类别再读[扩展指导](domains/extending-the-system.md)，不从现有包树决定应然分解 |
 | 产品分析或规则设计 | 有内部访问资格时读[产品入口](../.meta_harness/design/product/README.md)，概念与对象按需进入其拥有者。缺访问资格由负责人提供允许的约束投影，不从技术正文推定产品决定 |
 | 研发流程、发卡或交付流转 | 每条流程事实的拥有者见[流程事实在哪](engineering/README.md#流程事实在哪) |
-| 验证评审或项目交付 | 先据[验证说明](verification.md)区分覆盖、实际执行与接受；系统保证再读[架构符合性](architecture/assurance.md)，跨成员保证再读[组合责任](domains/verification.md)。接受仍归有资格的负责人，结构通过不证明行为符合 |
+| 验证评审或项目交付 | 先据[验证说明](verification.md)区分覆盖、实际执行与接受；系统保证再读[架构符合性](architecture/assurance.md)，跨成员保证再读[组合责任](domains/verification.md)。做阶段的端到端验收时读[验收矩阵](acceptance/README.md)，结果不写回矩阵。接受仍归有资格的负责人，结构通过不证明行为符合 |
 | 文档、工具或技能维护 | 位置、粒度、迁移和消费者变化读[维护指南](maintenance.md)；技能采用、版本和宿主差异读[技能入口](engineering/skills.md)。具体流程按下一节展开 |
 
 找到本次承诺拥有者、适用范围、必要交接与验证责任后停止扩大阅读。只展开影响本次判断的分支。源冲突、关键契约缺失或操作资格不明时，沿[冲突与验收](context-map.md#冲突与验收)报告依据，只暂停依赖部分；当前不支持的任务不能靠读懂目标架构变成可执行任务。
