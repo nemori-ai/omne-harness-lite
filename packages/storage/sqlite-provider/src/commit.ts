@@ -145,6 +145,8 @@ export function createCommit(core: Core): SqlStorage['commit'] {
       signal?.addEventListener('abort', onAbort, { once: true })
       // Granted after a wait: the signal may have aborted between the grant and here (SPEC 7.1 item 3).
       if (signal?.aborted === true) onAbort()
+      // The write holds its domain until its request has ended (SPEC 5.2).
+      const unhold = core.domains.hold(identity.transactionDomain)
       // At the close deadline the caller gets `unknown`. The reservation stays until the Worker ends.
       const leave = core.inFlight.add({
         domain: identity.transactionDomain,
@@ -216,6 +218,7 @@ export function createCommit(core: Core): SqlStorage['commit'] {
       }
 
       const finish = (): void => {
+        unhold()
         leave()
         grant.release()
         core.pending.remove(key)

@@ -80,6 +80,11 @@ export async function createSqliteStorage(
           pause: domain => core.readers.pauseDispatch(domain),
           resume: domain => core.readers.resumeDispatch(domain),
         },
+        readers: {
+          count: () => core.readers.count(),
+          retireIdle: () => core.readers.retireIdle(),
+          slotFreed: () => core.readers.slotFreed(),
+        },
       }),
   )
   const storage: SqlStorage = {

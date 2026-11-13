@@ -39,6 +39,8 @@ export function createQuery(core: Core): SqlStorage['query'] {
     const expired = new Promise<QueryResultV2>(resolve => {
       expire = () => resolve(unknown('reply_wait_expired'))
     })
+    // The query holds its domain until its request has ended (SPEC 5.2).
+    const unhold = core.domains.hold(valid.transactionDomain)
     const work = async (): Promise<QueryResultV2> => {
       try {
         const outcome = await core.domains.ensure(valid.transactionDomain, null)
@@ -61,6 +63,7 @@ export function createQuery(core: Core): SqlStorage['query'] {
       } catch {
         return unknown('provider_error')
       } finally {
+        unhold()
         grant.release()
       }
     }
