@@ -145,6 +145,45 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
+  describe('the storage thread limits of the settings', () => {
+    const threadLimits = (config: Record<string, unknown> | undefined) => ({
+      maxWorkers: config?.['maxWorkers'],
+      reservedWriterSlots: config?.['reservedWriterSlots'],
+      maxReadWorkersPerDomain: config?.['maxReadWorkersPerDomain'],
+    })
+    const withStorage = (storage?: Record<string, number>) => {
+      const base = input('linux')
+      return localOperatorLayer({
+        ...base,
+        settings: { ...base.settings, ...(storage === undefined ? {} : { storage }) },
+      })
+    }
+
+    it('are 16, 4 and 2 when the settings give no storage object', () => {
+      expect(threadLimits(configOf(withStorage(), 'storage'))).toEqual({
+        maxWorkers: 16,
+        reservedWriterSlots: 4,
+        maxReadWorkersPerDomain: 2,
+      })
+    })
+
+    it('take the value of each key that the settings give, and keep the default of the others', () => {
+      expect(threadLimits(configOf(withStorage({ maxWorkers: 32 }), 'storage'))).toEqual({
+        maxWorkers: 32,
+        reservedWriterSlots: 4,
+        maxReadWorkersPerDomain: 2,
+      })
+      expect(
+        threadLimits(
+          configOf(
+            withStorage({ maxWorkers: 8, reservedWriterSlots: 0, maxReadWorkersPerDomain: 3 }),
+            'storage',
+          ),
+        ),
+      ).toEqual({ maxWorkers: 8, reservedWriterSlots: 0, maxReadWorkersPerDomain: 3 })
+    })
+  })
+
   it('admits LOCAL_CONCURRENT_MODEL_CALLS model calls of one tenant at once on every bound', () => {
     const calls = LOCAL_CONCURRENT_MODEL_CALLS
     expect(calls).toBe(20)

@@ -86,7 +86,17 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 
 ### 配置文件
 
-`server.json` 是一个 JSON 对象，键不多也不少：`version`（值为 `1`）、`port`（1 至 65535 的整数）、`workspace`（绝对目录）、`shell`（Shell 可执行文件的绝对路径）、`shellEnvironment`（Shell 的环境变量，名字到值，见[Shell 的环境](#shell-的环境)）。文件里没有秘密，也没有运维者层的数值。数值留在代码里，所以新的发行版带来新的数值时，用户不需要再运行 `setup`。
+`server.json` 是一个 JSON 对象，必有的键不多也不少：`version`（值为 `1`）、`port`（1 至 65535 的整数）、`workspace`（绝对目录）、`shell`（Shell 可执行文件的绝对路径）、`shellEnvironment`（Shell 的环境变量，名字到值，见[Shell 的环境](#shell-的环境)）。另有一个可选的键 `storage`，见下。文件里没有秘密，除 `storage` 外也没有运维者层的数值。数值留在代码里，所以新的发行版带来新的数值时，用户不需要再运行 `setup`。
+
+可选的键 `storage` 是一个对象，让运维者改存储的三个线程上限。它至多有三个可选的键，都是整数：
+
+| 键                        | 管什么                                         | 缺省 | 取值   |
+| ------------------------- | ---------------------------------------------- | ---- | ------ |
+| `maxWorkers`              | 存储里同时在干活的线程总数，写线程与读线程合计 | 16   | 1 以上 |
+| `reservedWriterSlots`     | `maxWorkers` 中只给写线程的名额                | 4    | 0 以上 |
+| `maxReadWorkersPerDomain` | 每个域里同时在干活的读线程数                   | 2    | 1 以上 |
+
+这三个数限制的是同时在干活的线程数。没写的键取缺省值，不写 `storage` 时三个数都取缺省值。不认识的键、不是整数的值，按 `server.json` 不合格处理（见 [serve 怎样用这份配置](#serve-怎样用这份配置)）。三个数之间的关系由存储成员自己判（[`sqlite-provider` 规格 §12.1](../../packages/storage/sqlite-provider/SPEC.md)，例如 `reservedWriterSlots` 小于 `maxWorkers`）：组合不合法时 `storage` 行进入 `FAILED`，`serve` 退出 3，行状态记录里的错误列出存储成员给的每一条问题。`setup` 不写这个键，也不删已有的这个键。
 
 `omne` CLI 只读这个文件的 `port`，把 `http://127.0.0.1:<port>` 当作默认服务地址，见 CLI 的[服务地址](../cli/SPEC.md#服务地址)。文件的位置与形状归本页。
 
@@ -159,7 +169,7 @@ Next:
 
 | 行                                                                               | 本档给出                                                                                                                                                                                                                                                                 |
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `storage`                                                                        | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半                                                                                                                                                                              |
+| `storage`                                                                        | 存储根 `<状态目录>/storage` 与提供者数值。`closeDeadlineMs` 是 D 减 1000，但不少于 D 的一半。`maxWorkers`、`reservedWriterSlots`、`maxReadWorkersPerDomain` 取 `server.json` 的 `storage` 给出的值，没给的取 16、4、2                                                    |
 | `session-storage`                                                                | 目录文件 `<存储根>/tenant-domains.json`，规则 `organization-account/1`                                                                                                                                                                                                   |
 | `secret-custody`                                                                 | 只有保管库路径 `<状态目录>/model-vault.json`，没有秘密。`model-credential` 行经本行读同一个文件，没有运维者值，见[秘密保管行](docs/rows/secret-custody.md)；`settings` 行没有运维者值，见[设置行](docs/rows/settings.md)                                                 |
 | `model-profiles`、`model-request-preparation`、`model-host`、`model-records`     | 档案、准备、宿主与记录仓的数值。路由由发行供应商 OpenRouter 的正文推出，本档不改端点。`model-records.diagnostics` 是 `tenant-self` 读取与占位的保留采用                                                                                                                  |
