@@ -8,8 +8,12 @@ import {
   type Open,
   type State,
 } from '../src/model/session-machine.ts'
+import { stepList, UNREAD, type SessionList } from '../src/model/session-list.ts'
+import { INITIAL_WORKSPACE, stepWorkspace, type Workspace } from '../src/model/workspace.ts'
 import {
   assistantEntry,
+  listed,
+  listPage,
   page,
   snapshotTree,
   deltaTree,
@@ -841,5 +845,397 @@ describe('不可达与作废的格', () => {
     }).state
     for (const state of [INITIAL, creating, unavailable])
       for (const event of events) expect(step(state, event)).toEqual({ state, effects: [] })
+  })
+})
+
+describe('R30 打开会话', () => {
+  const OTHER = 'ses_2'
+  const pick: Event = { kind: 'open-session', session: OTHER }
+  const opening = [
+    { kind: 'observe', session: OTHER, generation: 1 },
+    { kind: 'read-history', session: OTHER, token: 1, request: { cursor: null } },
+  ]
+  it('R30 还没有会话：和建会话成功走同一条路，开观察，从末尾读历史', () => {
+    const next = step(INITIAL, pick)
+    expect(next.state).toMatchObject({
+      kind: 'open',
+      session: OTHER,
+      run: { kind: 'idle' },
+      observation: { kind: 'connecting', generation: 1 },
+      inputs: [],
+    })
+    expect(next.effects).toEqual(opening)
+    const created = run(
+      INITIAL,
+      { kind: 'create', createCallId: 'c1' },
+      {
+        kind: 'create-answered',
+        createCallId: 'c1',
+        answer: { outcome: 'succeeded', body: { session: OTHER, recovered: false } },
+      },
+    ).state
+    expect(next.state).toEqual(created)
+  })
+  it('R30 建会话的调用在途：不变', () => {
+    const sent = step(INITIAL, { kind: 'create', createCallId: 'c1' }).state
+    const asking = step(sent, {
+      kind: 'create-answered',
+      createCallId: 'c1',
+      answer: { outcome: 'uncertain' },
+    }).state
+    for (const state of [sent, asking]) expect(step(state, pick)).toEqual({ state, effects: [] })
+  })
+  it('R30 建会话仍未知：打开点的那个，之后到的认回作废', () => {
+    const unknown = run(
+      INITIAL,
+      { kind: 'create', createCallId: 'c1' },
+      { kind: 'create-answered', createCallId: 'c1', answer: { outcome: 'uncertain' } },
+      { kind: 'create-confirmed', createCallId: 'c1', answer: { outcome: 'unknown' } },
+    ).state
+    const next = step(unknown, pick)
+    expect(next.state).toMatchObject({ kind: 'open', session: OTHER })
+    expect(next.effects).toEqual(opening)
+    expect(step(next.state, { kind: 'create-confirm' }).state).toBe(next.state)
+  })
+  it('R30 就绪、进行中、取消中点别的会话：停掉原会话的观察，新会话从头开始', () => {
+    for (const state of [open(), running(), cancelling()]) {
+      const next = step(step(state, send).state, pick)
+      expect(next.effects).toEqual([{ kind: 'stop-observing', generation: 1 }, ...opening])
+      expect(next.state).toMatchObject({ kind: 'open', session: OTHER, inputs: [] })
+      expect(asOpen(next.state).content.entries).toEqual([])
+      // The old session's answers carry its id and are dropped, as after R1.
+      const late = step(next.state, {
+        kind: 'send-answered',
+        session: S,
+        acceptId: 'a1',
+        answer: { outcome: 'succeeded', body: { recovered: false } },
+      })
+      expect(late.state).toBe(next.state)
+    }
+  })
+  it('R30 点的是已经打开的会话：不变', () => {
+    const state = running()
+    expect(step(state, { kind: 'open-session', session: S })).toEqual({ state, effects: [] })
+  })
+  it('R30 会话不可用：打开点的那个，同一个会话也重开', () => {
+    const unavailable = step(open(), {
+      kind: 'observation-ended',
+      session: S,
+      generation: 1,
+      end: { kind: 'ended', reason: 'denied' },
+    }).state
+    const again = step(unavailable, { kind: 'open-session', session: S })
+    expect(again.state).toMatchObject({ kind: 'open', session: S })
+    expect(again.effects).toEqual([
+      { kind: 'observe', session: S, generation: 1 },
+      { kind: 'read-history', session: S, token: 1, request: { cursor: null } },
+    ])
+  })
+})
+
+function list(...events: Parameters<typeof stepList>[1][]): {
+  list: SessionList
+  effects: unknown[]
+} {
+  let current = UNREAD
+  const effects: unknown[] = []
+  for (const event of events) {
+    const next = stepList(current, event)
+    current = next.list
+    effects.push(...next.effects)
+  }
+  return { list: current, effects }
+}
+
+describe('L1–L5 会话列表', () => {
+  const A = listed('ses_a', '第一个')
+  const B = listed('ses_b', '第二个')
+  const C = listed('ses_c', '第三个')
+  it('L1 未读：读第一页，cursor 为空，不传 limit 与 includeArchived', () => {
+    const next = stepList(UNREAD, { kind: 'list-load' })
+    expect(next.list).toMatchObject({ kind: 'reading', cursor: null, shown: null })
+    expect(next.effects).toEqual([{ kind: 'list-sessions', token: 1, cursor: null }])
+  })
+  it('L3 读首页答 succeeded：用这一页替换', () => {
+    const first = list(
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 1, answer: listPage([A, B]) },
+    )
+    const again = list(
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 1, answer: listPage([A, B]) },
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 2, answer: listPage([C]) },
+    )
+    expect(first.list).toMatchObject({ kind: 'read', page: { sessions: [A, B] } })
+    expect(again.list).toMatchObject({ kind: 'read', page: { sessions: [C] } })
+  })
+  it('L1 读首页时再读：换一个编号重发，旧答复作废', () => {
+    const next = list(
+      { kind: 'list-load' },
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 1, answer: listPage([A]) },
+    )
+    expect(next.effects).toEqual([
+      { kind: 'list-sessions', token: 1, cursor: null },
+      { kind: 'list-sessions', token: 2, cursor: null },
+    ])
+    expect(next.list).toMatchObject({ kind: 'reading', cursor: null })
+    const done = stepList(next.list, { kind: 'list-read', token: 2, answer: listPage([B]) })
+    expect(done.list).toMatchObject({ kind: 'read', page: { sessions: [B] } })
+  })
+  it('L1 已读时再读：读首页，照样显示已读到的', () => {
+    const read = list(
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 1, answer: listPage([A]) },
+    ).list
+    const next = stepList(read, { kind: 'list-load' })
+    expect(next.list).toMatchObject({ kind: 'reading', cursor: null, shown: { sessions: [A] } })
+  })
+  it('L2 已读且 next 不为空：读下一页；L3 接在后面，不重复', () => {
+    const read = list(
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 1, answer: listPage([A, B], 'cur-2') },
+    ).list
+    const more = stepList(read, { kind: 'list-more' })
+    expect(more.effects).toEqual([{ kind: 'list-sessions', token: 2, cursor: 'cur-2' }])
+    expect(more.list).toMatchObject({
+      kind: 'reading',
+      cursor: 'cur-2',
+      shown: { sessions: [A, B] },
+    })
+    const done = stepList(more.list, {
+      kind: 'list-read',
+      token: 2,
+      answer: listPage([B, C], null),
+    })
+    expect(done.list).toEqual({
+      kind: 'read',
+      issued: 2,
+      page: { sessions: [A, B, C], next: null, completeness: 'complete' },
+    })
+  })
+  it('L3 读过的页有一页 partial：列表就是 partial', () => {
+    const next = list(
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 1, answer: listPage([A], 'cur-2', 'partial') },
+      { kind: 'list-more' },
+      { kind: 'list-read', token: 2, answer: listPage([B], null, 'complete') },
+    )
+    expect(next.list).toMatchObject({ kind: 'read', page: { completeness: 'partial' } })
+  })
+  it('L2 next 为空、读着、未读、读失败：不可达，不变', () => {
+    const read = list({ kind: 'list-load' }, { kind: 'list-read', token: 1, answer: listPage([A]) })
+    const reading = list({ kind: 'list-load' })
+    const failed = list(
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 1, answer: { outcome: 'basis-unavailable' } },
+    )
+    for (const state of [UNREAD, read.list, reading.list, failed.list])
+      expect(stepList(state, { kind: 'list-more' })).toEqual({ list: state, effects: [] })
+  })
+  it('L1 读下页时再读首页：下页的答复作废', () => {
+    const next = list(
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 1, answer: listPage([A], 'cur-2') },
+      { kind: 'list-more' },
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 2, answer: listPage([C]) },
+    )
+    expect(next.list).toMatchObject({ kind: 'reading', cursor: null, shown: { sessions: [A] } })
+  })
+  it('L4 denied：读失败，不给重试，不再显示列表项', () => {
+    const next = list(
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 1, answer: listPage([A]) },
+      { kind: 'list-load' },
+      { kind: 'list-read', token: 2, answer: { outcome: 'denied' } },
+    )
+    expect(next.list).toMatchObject({
+      kind: 'failed',
+      retry: false,
+      shown: null,
+      notice: { kind: 'refused', text: '没有权限，或登录已失效。' },
+    })
+  })
+  it('L5 其他失败：读失败，给重试，照样显示已读到的；重试读第一页', () => {
+    for (const answer of [
+      { outcome: 'basis-unavailable' },
+      { outcome: 'unavailable' },
+      { outcome: 'uncertain' },
+      { outcome: 'invalid', body: {} },
+      { outcome: 'protocol-rejected' },
+    ] as const) {
+      const next = list(
+        { kind: 'list-load' },
+        { kind: 'list-read', token: 1, answer: listPage([A], 'cur-2') },
+        { kind: 'list-more' },
+        { kind: 'list-read', token: 2, answer },
+      )
+      expect(next.list).toMatchObject({
+        kind: 'failed',
+        retry: true,
+        shown: { sessions: [A] },
+        notice: { text: '会话列表暂时读不到。' },
+      })
+      expect(stepList(next.list, { kind: 'list-load' }).effects).toEqual([
+        { kind: 'list-sessions', token: 3, cursor: null },
+      ])
+    }
+  })
+  it('L3–L5 作废：未读、已读、读失败里到的答复，以及编号对不上的答复', () => {
+    const read = list({ kind: 'list-load' }, { kind: 'list-read', token: 1, answer: listPage([A]) })
+    const reading = list({ kind: 'list-load' })
+    for (const [state, token] of [
+      [UNREAD, 1],
+      [read.list, 1],
+      [reading.list, 9],
+    ] as const)
+      expect(stepList(state, { kind: 'list-read', token, answer: listPage([B]) })).toEqual({
+        list: state,
+        effects: [],
+      })
+  })
+})
+
+describe('活动之后重读列表；列表与会话互不干扰', () => {
+  function workspace(state: State): Workspace {
+    return { session: state, list: { kind: 'read', issued: 1, page: listPage([]).body } }
+  }
+  const reload = { kind: 'list-sessions', token: 2, cursor: null }
+  it('挂上：读第一页', () => {
+    expect(stepWorkspace(INITIAL_WORKSPACE, { kind: 'list-load' }).effects).toEqual([
+      { kind: 'list-sessions', token: 1, cursor: null },
+    ])
+  })
+  it('活动 建会话成功（R2、R6）：重读第一页', () => {
+    const creating = workspace(step(INITIAL, { kind: 'create', createCallId: 'c1' }).state)
+    const created = stepWorkspace(creating, {
+      kind: 'create-answered',
+      createCallId: 'c1',
+      answer: { outcome: 'succeeded', body: { session: S, recovered: false } },
+    })
+    expect(created.effects).toContainEqual(reload)
+    const asking = workspace(
+      run(
+        INITIAL,
+        { kind: 'create', createCallId: 'c1' },
+        { kind: 'create-answered', createCallId: 'c1', answer: { outcome: 'uncertain' } },
+      ).state,
+    )
+    const confirmed = stepWorkspace(asking, {
+      kind: 'create-confirmed',
+      createCallId: 'c1',
+      answer: { outcome: 'succeeded', body: { session: S } },
+    })
+    expect(confirmed.effects).toContainEqual(reload)
+  })
+  it('活动 建会话仍未知时点一项（R30）：重读第一页，由列表说明建没建成', () => {
+    const unknown = workspace(
+      run(
+        INITIAL,
+        { kind: 'create', createCallId: 'c1' },
+        { kind: 'create-answered', createCallId: 'c1', answer: { outcome: 'uncertain' } },
+        { kind: 'create-confirmed', createCallId: 'c1', answer: { outcome: 'unknown' } },
+      ).state,
+    )
+    expect(
+      stepWorkspace(unknown, { kind: 'open-session', session: 'ses_2' }).effects,
+    ).toContainEqual(reload)
+  })
+  it('活动 输入受理（R10、R14）：重读第一页', () => {
+    const sending = workspace(step(open(), send).state)
+    const accepted = stepWorkspace(sending, {
+      kind: 'send-answered',
+      session: S,
+      acceptId: 'a1',
+      answer: { outcome: 'succeeded', body: { recovered: false } },
+    })
+    expect(accepted.effects).toEqual([reload])
+    const confirming = workspace(
+      run(open(), send, {
+        kind: 'send-answered',
+        session: S,
+        acceptId: 'a1',
+        answer: { outcome: 'uncertain' },
+      }).state,
+    )
+    const confirmed = stepWorkspace(confirming, {
+      kind: 'send-confirmed',
+      session: S,
+      acceptId: 'a1',
+      answer: { outcome: 'succeeded', body: {} },
+    })
+    expect(confirmed.effects).toEqual([reload])
+  })
+  it('活动 一轮结束（R20、R17）：重读第一页', () => {
+    const ended = stepWorkspace(workspace(running()), {
+      kind: 'frame',
+      session: S,
+      generation: 1,
+      frame: stateFrame(null, '5'),
+    })
+    expect(ended.effects).toContainEqual(reload)
+    const cancelled = stepWorkspace(workspace(cancelling()), {
+      kind: 'cancel-answered',
+      session: S,
+      controlId: 'k1',
+      answer: {
+        outcome: 'succeeded',
+        body: {
+          kind: 'ended',
+          controlId: 'k1',
+          run: 'run_1',
+          terminal: {
+            outcome: 'cancelled',
+            source: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
+          },
+        },
+      },
+    })
+    expect(cancelled.effects).toEqual([reload])
+  })
+  it('不是活动的转移不重读：一轮开始、作废的答复、换会话、没受理', () => {
+    const idle = workspace(open())
+    for (const [state, event] of [
+      [idle, { kind: 'frame', session: S, generation: 1, frame: stateFrame('run_1', '0') }],
+      [
+        idle,
+        {
+          kind: 'create-answered',
+          createCallId: 'c0',
+          answer: { outcome: 'succeeded', body: { session: S, recovered: false } },
+        },
+      ],
+      [idle, { kind: 'open-session', session: 'ses_2' }],
+      [
+        workspace(step(open(), send).state),
+        { kind: 'send-answered', session: S, acceptId: 'a1', answer: { outcome: 'unavailable' } },
+      ],
+    ] as const)
+      expect(stepWorkspace(state, event).effects).not.toContainEqual(
+        expect.objectContaining({ kind: 'list-sessions' }),
+      )
+  })
+  it('列表读失败：已打开的会话一点不变', () => {
+    const session = running()
+    const reading = stepWorkspace(workspace(session), { kind: 'list-load' }).workspace
+    for (const answer of [{ outcome: 'denied' }, { outcome: 'basis-unavailable' }] as const) {
+      const next = stepWorkspace(reading, { kind: 'list-read', token: 2, answer })
+      expect(next.workspace.session).toBe(session)
+      expect(next.workspace.list.kind).toBe('failed')
+      expect(next.effects).toEqual([])
+    }
+  })
+  it('打开会话走会话那条轴，列表不变', () => {
+    const before = workspace(open())
+    const next = stepWorkspace(before, { kind: 'open-session', session: 'ses_2' })
+    expect(next.workspace.list).toBe(before.list)
+    expect(next.workspace.session).toMatchObject({ kind: 'open', session: 'ses_2' })
+    expect(next.effects).toEqual([
+      { kind: 'stop-observing', generation: 1 },
+      { kind: 'observe', session: 'ses_2', generation: 1 },
+      { kind: 'read-history', session: 'ses_2', token: 1, request: { cursor: null } },
+    ])
   })
 })

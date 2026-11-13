@@ -110,6 +110,7 @@ export type Event =
     }>
   | Readonly<{ kind: 'reconnect-due'; session: string; generation: number }>
   | Readonly<{ kind: 'history-read'; session: string; token: number; answer: HistoryAnswer }>
+  | Readonly<{ kind: 'open-session'; session: string }>
 
 export type HistoryRequest = Readonly<{ cursor: null }> | Readonly<{ cursor: string }>
 
@@ -233,7 +234,20 @@ export function step(state: State, event: Event): Step {
       return onReconnectDue(state, event)
     case 'history-read':
       return onHistoryRead(state, event)
+    case 'open-session':
+      return onOpenSession(state, event.session)
   }
+}
+
+/**
+ * The same way in as after a create succeeds. A create call in flight is waited for, as R1 does;
+ * a create still unknown has nothing in flight, so leaving it drops no answer and claims nothing.
+ */
+function onOpenSession(state: State, session: string): Step {
+  if (state.kind === 'creating' && state.confirm !== 'unknown') return same(state)
+  if (state.kind === 'open' && state.session === session) return same(state)
+  const next = opened(session)
+  return { state: next.state, effects: [...leave(state), ...next.effects] }
 }
 
 function onCreate(state: State, createCallId: string): Step {

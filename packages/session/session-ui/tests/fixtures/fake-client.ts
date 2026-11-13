@@ -89,6 +89,7 @@ export function createFakeClient(): FakeClient {
     'send-input',
     'query-send-input',
     'read-history',
+    'list-sessions',
     'cancel-run',
     'stop-call',
   ]
