@@ -41,14 +41,14 @@ type Failed = Readonly<{ failure: SessionFailure; face: 'begin' | 'since' | 'nex
 type Scanned = Readonly<{ ok: Located }> | Failed
 
 /**
- * The reference of a main Model call registration. The session contract keeps a
- * `ModelInvocationRef` text there; a text that does not decode is no main call.
+ * The reference of a main Model call registration. `readCallRegistration` answers null for a
+ * payload that is no call registration, and `main` is a purpose of the Model branch only. The
+ * session contract keeps a `ModelInvocationRef` text there; a text that does not decode is no main
+ * call.
  */
 function mainCallOf(entry: HistoryEntry): ModelInvocationRef | undefined {
-  if (entry.kind !== 'call.bound') return undefined
   const found = readCallRegistration(entry.payload)
-  if (found?.kind !== 'model' || found.purpose !== 'main' || found.reference === null)
-    return undefined
+  if (found?.purpose !== 'main') return undefined
   const decoded = decodeModelInvocationRef(found.reference)
   return 'ok' in decoded ? decoded.ok : undefined
 }

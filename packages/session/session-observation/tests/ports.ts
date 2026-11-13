@@ -82,7 +82,11 @@ export const mainCall = (name: string) => ({
   },
 })
 export const message = (text: string) => ({ kind: 'message.user', payload: { text } })
-/** A call registration that is not the main call: a tool call, or a Model call for another purpose. */
+/**
+ * A call registration that is not the main call: a tool call, or a Model call for another purpose.
+ * A Model call carries a real `ModelInvocationRef`, so only its purpose keeps it from being the
+ * main call.
+ */
 export const otherCall = (kind: 'model' | 'tool', reference: string | null, purpose: string) => ({
   kind: 'call.bound',
   payload: {
@@ -90,7 +94,12 @@ export const otherCall = (kind: 'model' | 'tool', reference: string | null, purp
     consumption: 'c',
     registration: {
       kind: reference === null ? 'unassociated' : 'associated',
-      binding: { producer: { kind, call: reference } },
+      binding: {
+        producer: {
+          kind,
+          call: kind === 'model' && reference !== null ? invocation(reference) : reference,
+        },
+      },
       purpose,
     },
     association: null,
