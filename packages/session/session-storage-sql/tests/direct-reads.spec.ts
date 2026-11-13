@@ -67,6 +67,7 @@ describe('only the work cache reads the Session current state from the store', (
       // transaction (RT-04, the fifth kind); it reads the head and the run member, no chunk.
       `${PACKAGE}/worker/run-live-guard.ts`,
       `${PACKAGE}/worker/schema.ts`,
+      `${PACKAGE}/worker/session-list-migration.ts`,
       // The stored form of the snapshot: its head row and chunk rows (R2-D292). The commit path and
       // the whole read of the work cache (`read-work.ts`) read and write the snapshot through it.
       `${PACKAGE}/worker/state-rows.ts`,
