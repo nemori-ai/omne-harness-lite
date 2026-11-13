@@ -49,6 +49,8 @@ export class TenantGovernanceHost {
   private readonly entries = new Map<string, Promise<Entry | undefined>>()
   /** Failed opens in a row per tenant; cleared by an open that created a runtime. */
   private readonly failures = new Map<string, number>()
+  /** When a tenant that failed to prepare may be prepared again (monotonic ms). */
+  private readonly preparePauses = new Map<string, number>()
   /** The replacement of a spent entry, so that callers holding the same spent entry share it. */
   private readonly renewals = new WeakMap<Entry, Promise<Entry | undefined>>()
   private closing = false
@@ -69,13 +71,40 @@ export class TenantGovernanceHost {
     return this.options.now?.() ?? monotonicClock.now()
   }
 
+  /**
+   * Prepares the assembly of a tenant. A tenant the directory does not hold is a normal answer
+   * (a tenant that never created a session). A lookup that cannot be read, or a prepare that throws,
+   * is a failure: counted, reported, and the tenant is not asked about again during the pause.
+   */
   private async prepare(tenantRef: string): Promise<Entry | undefined> {
     if (!tenantCodec.parse(tenantRef).ok) return undefined
-    const result = await this.options.domains.lookup({ tenant: tenantRef })
-    if (result.kind !== 'ready') return undefined
+    const pause = this.preparePauses.get(tenantRef)
+    if (pause !== undefined) {
+      if (this.now() < pause) return undefined
+      this.preparePauses.delete(tenantRef)
+    }
+    let result: Awaited<ReturnType<TenantDomainLookup['lookup']>>
+    try {
+      result = await this.options.domains.lookup({ tenant: tenantRef })
+    } catch {
+      return this.failPrepare(tenantRef, 'lookup')
+    }
+    if (result.kind === 'unregistered') return undefined
+    if (result.kind !== 'ready') return this.failPrepare(tenantRef, 'lookup')
     const domain = result.domain
     if (domain.scope.kind !== 'tenant' || domain.scope.tenant !== tenantRef) return undefined
-    return { domain: structuredClone(domain), assembly: this.options.prepare(tenantRef, domain) }
+    try {
+      return { domain: structuredClone(domain), assembly: this.options.prepare(tenantRef, domain) }
+    } catch {
+      return this.failPrepare(tenantRef, 'prepare')
+    }
+  }
+
+  /** A tenant that could not be prepared: count it, report it, and set the pause before the next try. */
+  private failPrepare(tenantRef: string, phase: 'lookup' | 'prepare'): undefined {
+    const againInMs = this.countFailure(tenantRef, phase)
+    this.preparePauses.set(tenantRef, this.now() + againInMs)
+    return undefined
   }
 
   /** Keeps `pending` as the entry of the tenant; an entry that could not be prepared is dropped. */
@@ -103,11 +132,16 @@ export class TenantGovernanceHost {
 
   /** The attempt of an entry did not create a runtime: count it, report it, set the next attempt. */
   private fail(tenantRef: string, entry: Entry, phase: string): void {
+    entry.spent = { retryAt: this.now() + this.countFailure(tenantRef, phase) }
+  }
+
+  /** Counts one failure of the tenant, reports it, and returns the wait before the next attempt. */
+  private countFailure(tenantRef: string, phase: string): number {
     const failures = (this.failures.get(tenantRef) ?? 0) + 1
     this.failures.set(tenantRef, failures)
     const againInMs = Math.max(0, (this.options.retryPauseMs ?? pauseAfterFailures)(failures))
-    entry.spent = { retryAt: this.now() + againInMs }
     this.options.report?.({ tenantRef, phase, failures, againInMs })
+    return againInMs
   }
 
   /** Starts the one attempt of an entry. A throw is a failed attempt, not a rejection kept forever. */

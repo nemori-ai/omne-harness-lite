@@ -131,3 +131,81 @@ it('closes the open runtime and what a failed installation holds when the host c
   expect(closeFailed).toHaveBeenCalledTimes(1)
   expect(await failed.host.runtime(TENANT)).toBeUndefined()
 })
+
+/** A lookup that answers the n-th scripted result, the last one from then on. */
+function lookupOf(...answers: readonly object[]) {
+  const lookup = vi.fn(
+    async () => answers[Math.min(lookup.mock.calls.length - 1, answers.length - 1)],
+  )
+  return lookup as unknown as HostOptions['domains']['lookup'] & typeof lookup
+}
+const READY = { kind: 'ready', domain: DOMAIN }
+
+it('answers undefined without a report or a pause for a tenant that was never registered', async () => {
+  const lookup = lookupOf({ kind: 'unregistered' }, READY)
+  const report = vi.fn()
+  const { host } = hostOver([created()], {
+    domains: { lookup },
+    report,
+    retryPauseMs: () => 60_000,
+    now: () => 0,
+  })
+  expect(await host.runtime(TENANT)).toBeUndefined()
+  expect(report).not.toHaveBeenCalled()
+  // No failure is counted: the next call asks again at once and finds the tenant registered.
+  expect(await host.runtime(TENANT)).toMatchObject({ kind: 'created' })
+  expect(lookup).toHaveBeenCalledTimes(2)
+})
+
+it('reports a lookup that cannot be read and prepares again after the pause', async () => {
+  let now = 0
+  const lookup = lookupOf({ kind: 'unavailable', diagnostic: 'directory down' }, READY)
+  const reports: object[] = []
+  const { host } = hostOver([created()], {
+    domains: { lookup },
+    report: failure => reports.push(failure),
+    retryPauseMs: () => 500,
+    now: () => now,
+  })
+  expect(await host.runtime(TENANT)).toBeUndefined()
+  expect(reports).toEqual([{ tenantRef: TENANT, phase: 'lookup', failures: 1, againInMs: 500 }])
+  now += 500
+  expect(await host.runtime(TENANT)).toMatchObject({ kind: 'created' })
+  expect(lookup).toHaveBeenCalledTimes(2)
+})
+
+it('reports a prepare that throws and prepares again after the pause', async () => {
+  let now = 0
+  let calls = 0
+  const reports: object[] = []
+  const { host } = hostOver([created()], {
+    prepare() {
+      calls += 1
+      if (calls === 1) throw new Error('governance principal unavailable')
+      return { destination: {}, open: async () => created() } as unknown as Assembly
+    },
+    report: failure => reports.push(failure),
+    retryPauseMs: () => 500,
+    now: () => now,
+  })
+  expect(await host.runtime(TENANT)).toBeUndefined()
+  expect(reports).toEqual([{ tenantRef: TENANT, phase: 'prepare', failures: 1, againInMs: 500 }])
+  now += 500
+  expect(await host.runtime(TENANT)).toMatchObject({ kind: 'created' })
+  expect(calls).toBe(2)
+})
+
+it('does not ask the directory again while the pause after a failed lookup lasts', async () => {
+  let now = 0
+  const lookup = lookupOf({ kind: 'unavailable', diagnostic: 'directory down' }, READY)
+  const { host } = hostOver([created()], {
+    domains: { lookup },
+    retryPauseMs: () => 500,
+    now: () => now,
+  })
+  expect(await host.runtime(TENANT)).toBeUndefined()
+  now += 499
+  expect(await host.runtime(TENANT)).toBeUndefined()
+  expect(await host.settings(TENANT)).toBeUndefined()
+  expect(lookup).toHaveBeenCalledTimes(1)
+})
