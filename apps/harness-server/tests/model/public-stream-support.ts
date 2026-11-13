@@ -16,7 +16,6 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
-import { writeJsonText } from '@omne-harness/json-text'
 import { identityOperationsKey } from '@omne-harness/identity/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { PrincipalIssuer } from '@omne-harness/identity'
@@ -35,7 +34,7 @@ import {
   modelStreamObservationKey,
   modelStreamReferencesKey,
 } from '@omne-harness/model-cordis-contract/cordis'
-import type { SessionId } from '@omne-harness/session-contract'
+import { readCallRegistration, type SessionId } from '@omne-harness/session-contract'
 import { sessionKey, type SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import type { EntryEnv } from '../../src/types.ts'
 import type { GatewayScript } from '../fixtures/model-gateway.ts'
@@ -85,28 +84,6 @@ export async function loginAccess(
   return { principal: principal.ok as ActingForTenantPrincipal, tenant }
 }
 
-type Payload = Readonly<Record<string, unknown>>
-
-const field = (value: unknown, key: string): unknown =>
-  typeof value === 'object' && value !== null ? (value as Payload)[key] : undefined
-
-/** Kind, reference and purpose of a `call.bound` payload (as plain JSON), from either stored shape. */
-export function registrationOf(
-  payload: unknown,
-): Readonly<{ kind: unknown; reference: unknown; purpose: unknown }> {
-  const registration = field(payload, 'registration')
-  const binding = field(registration, 'binding')
-  const producer = field(binding, 'producer')
-  return {
-    kind: field(payload, 'kind') ?? field(producer, 'kind'),
-    reference: field(payload, 'reference') ?? field(producer, 'call'),
-    purpose:
-      field(payload, 'purpose') ??
-      field(registration, 'purpose') ??
-      field(field(binding, 'consumer'), 'purpose'),
-  }
-}
-
 /**
  * The reference of the newest main Model call of `session`, read as `access` through the reader
  * history face; null when the session log has none yet. A failed read throws with its failure.
@@ -131,8 +108,8 @@ export async function newestMainCall(
   for (;;) {
     if ('failure' in page) throw new Error(`history: ${JSON.stringify(page.failure)}`)
     for (const entry of page.ok.entries) {
-      const found = registrationOf(JSON.parse(writeJsonText(entry.payload)))
-      if (found.kind === 'model' && found.purpose === 'main' && typeof found.reference === 'string')
+      const found = readCallRegistration(entry.payload)
+      if (found?.kind === 'model' && found.purpose === 'main' && found.reference !== null)
         return found.reference as ModelInvocationRef
     }
     if (page.ok.exhausted || page.ok.next === null) return null

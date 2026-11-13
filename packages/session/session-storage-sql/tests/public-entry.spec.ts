@@ -20,7 +20,7 @@ function sources(dir: string): string[] {
 }
 
 describe('public entries', () => {
-  it('exports the port factories, the binding and scope owner sources and the materials, and nothing else at the root', async () => {
+  it('exports the port factories, the binding and scope owner sources, the notifier registration and the materials, and nothing else at the root', async () => {
     const root = (await import('@omne-harness/session-storage-sql')) as Record<string, unknown>
     expect(Object.keys(root).sort()).toEqual([
       'SESSION_PARTICIPANT',
@@ -28,6 +28,7 @@ describe('public entries', () => {
       'createSessionScopeOwners',
       'createSessionStorage',
       'createSessionStoragePair',
+      'registerSessionNotifier',
       'sessionStorageMaterials',
     ])
   })

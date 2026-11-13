@@ -40,7 +40,11 @@ export { judgeModelDelivery } from './result-delivery-judge.ts'
 export type * from './model-stream-values.ts'
 export type * from './model-stream.ts'
 export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts'
-export { encodeModelOutputV1, decodeModelOutputV1 } from './model-output-v1.ts'
+export {
+  encodeModelOutputV1,
+  decodeModelOutputV1,
+  projectModelOutputV1,
+} from './model-output-v1.ts'
 export type {
   ModelOutputV1,
   ModelOutputV1Snapshot,

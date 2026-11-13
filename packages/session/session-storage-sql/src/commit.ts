@@ -32,13 +32,8 @@ import {
 } from '@omne-harness/sql-contract'
 import { canonicalText, decodeValue, encodeValue } from './codec.ts'
 import { OWNER } from './cursor.ts'
-import {
-  SESSION_PARTICIPANT,
-  decodeSessionReply,
-  sessionCommandFacts,
-  type SessionWorkReply,
-} from './participants.ts'
-import { foldCommitted } from './work-cache.ts'
+import { SESSION_PARTICIPANT, decodeSessionReply, sessionCommandFacts } from './participants.ts'
+import { afterSessionCommit } from './committed.ts'
 import {
   domainOf,
   failure,
@@ -136,15 +131,11 @@ function markRecovered(value: unknown): unknown {
 /** How a recalled result says it is a recall. */
 export type Recall = (value: unknown) => unknown
 
-/** Takes the work of a fresh committed reply (SPEC RT-04): never one of a recall. */
-type OnWork = (work: SessionWorkReply) => void
-
 function fromCommitted(
   receipt: ReceiptV2,
   expected: Expected,
   recall: boolean,
   mark: Recall = markRecovered,
-  onWork?: OnWork,
 ): Outcome<unknown, SessionFailure> {
   const entry = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
   if (entry?.reply.kind !== 'participated')
@@ -154,7 +145,6 @@ function fromCommitted(
   if (answer.digest !== expected.digest)
     return failure({ kind: 'conflict', operation: expected.operation })
   if (recall || answer.recovered) return succeed(mark(answer.result))
-  if (answer.work !== undefined) onWork?.(answer.work)
   return succeed(answer.result)
 }
 
@@ -188,15 +178,12 @@ function fromResult(
   result: CommitResultV2,
   expected: Expected,
   mark: Recall,
-  onWork: OnWork,
 ): Outcome<unknown, SessionFailure> | 'next-attempt' {
   switch (result.kind) {
     // A recalled receipt is the receipt of an earlier call (sql-contract §8, model
     // `RecallAtCommit`): a committed one is recognised, a rolled back one spends the generation.
     case 'committed':
-      return result.recalled
-        ? fromCommitted(result, expected, true, mark)
-        : fromCommitted(result, expected, false, mark, onWork)
+      return fromCommitted(result, expected, result.recalled, mark)
     case 'rolled_back':
       return result.recalled ? 'next-attempt' : fromRolledBack(result)
     case 'unknown':
@@ -273,8 +260,9 @@ async function generationFrom<P>(
  * the commit uses the ordinary basis and is sent without a query first. A source is asked only
  * when no delivery of the operation is committed. When it fails, the receipts are asked once more,
  * so a delivery that committed meanwhile is recalled and is not answered with that failure.
- * A fresh committed batch is folded into the work cache before the answer returns (SPEC RT-04); a
- * fold that cannot be made registers nothing and never changes the answer.
+ * Every storage answer goes to the one landing (`afterSessionCommit`) before the answer returns: a
+ * fresh committed batch is folded into the work cache (SPEC RT-04) and told to the notifiers
+ * registered on the database; neither ever changes the answer.
  */
 export async function commitFacts<P>(
   context: Context<P>,
@@ -317,26 +305,20 @@ export async function commitFacts<P>(
       identity = slot.identity
       submission = asked.ok
     }
-    let work: SessionWorkReply | undefined
     const result = await storage.commit({ identity, ...submission })
     if (result.kind === 'committed' || result.kind === 'rolled_back')
       saw(generations, key, attempt, result.kind)
     else if (result.kind === 'identity_conflict')
       saw(generations, key, attempt, result.existing.kind)
-    const settled = fromResult(result, expected, mark, fresh => {
-      work = fresh
+    const settled = fromResult(result, expected, mark)
+    await afterSessionCommit({
+      storage,
+      domain: domain.domain,
+      tenant: domain.text,
+      session,
+      answer: result.kind === 'committed' ? { receipt: result, recalled: result.recalled } : null,
+      ...(context.options.workCache === undefined ? {} : { bounds: context.options.workCache }),
     })
-    if (work !== undefined)
-      await foldCommitted(
-        {
-          storage,
-          domain: domain.domain,
-          tenant: domain.text,
-          session,
-          ...(context.options.workCache === undefined ? {} : { bounds: context.options.workCache }),
-        },
-        work,
-      )
     if (settled !== 'next-attempt') return settled
   }
 }

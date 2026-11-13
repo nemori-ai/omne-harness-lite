@@ -37,6 +37,7 @@ it('exports exactly the declared root runtime surface', () => {
     'projectSessionEntries',
     'projectSessionLog',
     'readAccessRequest',
+    'readCallRegistration',
     'rebuildSessionPermissions',
     'reduce',
     'resolveCascade',

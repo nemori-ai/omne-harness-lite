@@ -188,9 +188,24 @@ type PendingReason = string
 const isControl = (command: SessionCommand): boolean =>
   command.kind === 'cancelRun' || command.kind === 'stopCall'
 
-const participated = (result: unknown, recovered: boolean, work?: JsonValue): ParticipantReply => ({
+/**
+ * The reply of the participant. A batch written in this commit adds its fold for the work cache
+ * (`work`, SPEC RT-04, absent when the batch has none) and the batch itself (`batch`, SPEC
+ * 「本批与提交通知」); a reply without a written batch adds neither.
+ */
+const participated = (
+  result: unknown,
+  recovered: boolean,
+  work?: JsonValue,
+  batch?: JsonValue,
+): ParticipantReply => ({
   kind: 'participated',
-  response: { result: encodeValue(result), recovered, ...(work === undefined ? {} : { work }) },
+  response: {
+    result: encodeValue(result),
+    recovered,
+    ...(work === undefined ? {} : { work }),
+    ...(batch === undefined ? {} : { batch }),
+  },
 })
 
 /** The JSON text the decision of a work reply may take (C-TOPOLOGY §2.9). */
@@ -744,8 +759,12 @@ function insertOperation(
   )
 }
 
-/** What a batch wrote before its operation record: the new model view epoch and the stored size. */
-type Written = Readonly<{ kind: 'written'; epoch: string; bytes: number }>
+/**
+ * What a batch wrote before its operation record: the new model view epoch, the stored size, and
+ * the batch as a commit notice names it (SPEC「本批与提交通知」). This is the one place that writes
+ * entries of the session log, so the batch comes from here and from nowhere else.
+ */
+type Written = Readonly<{ kind: 'written'; epoch: string; bytes: number; batch: JsonValue }>
 
 /**
  * The rows every published batch writes before its operation record (W1 step 7): the entries and
@@ -762,9 +781,11 @@ function writeBatch(
     previous: WorkSnapshot | null
     snapshot: WorkSnapshot
     entries: readonly HistoryEntry[]
+    /** The batch receipt of these entries: its `source` is the evidence of the batch. */
+    receipt: CommitReceipt
   }>,
 ): Written | ParticipantReply {
-  const { tenant, session, revision, previous, snapshot, entries } = batch
+  const { tenant, session, revision, previous, snapshot, entries, receipt } = batch
   const unindexed = writeEntries(port, tenant, session, entries)
   if (unindexed !== null) return unindexed
   const epoch = maintainModelView(port, tenant, session, batch.epoch, entries)
@@ -775,7 +796,18 @@ function writeBatch(
   parsedSnapshots.wrote(tenant, session, covered, stored)
   writePermissionCurrent(port, { tenant, session }, previous, snapshot, entries)
   maintainDerived(port, tenant, session, previous, snapshot)
-  return { kind: 'written', epoch, bytes: stored.layout.bytes }
+  return {
+    kind: 'written',
+    epoch,
+    bytes: stored.layout.bytes,
+    batch: {
+      tenant,
+      session,
+      revision,
+      source: receipt.source,
+      kinds: [...new Set(entries.map(entry => entry.kind))],
+    },
+  }
 }
 
 function runQuery(
@@ -1075,9 +1107,10 @@ function publishCommand(
     previous,
     snapshot,
     entries,
+    receipt,
   })
   if (written.kind !== 'written') return written
-  const { epoch, bytes } = written
+  const { epoch, bytes, batch: committed } = written
   const granted = recordAttemptGrants(port, { tenant, session, entries, receipt })
   if (granted !== null) return granted
   const admitted = admittedInput(command)
@@ -1116,7 +1149,7 @@ function publishCommand(
           entries,
           decided: { scope: batch.history.reads.scope, focus: NO_FOCUS },
         })
-  return participated(result, false, work)
+  return participated(result, false, work, committed)
 }
 
 /** The revision, commit sequence and entry positions of the batch, after the journal of `start`. */
@@ -1240,9 +1273,10 @@ function publishSameLog(
     previous,
     snapshot,
     entries,
+    receipt,
   })
   if (written.kind !== 'written') return written
-  const { epoch, bytes } = written
+  const { epoch, bytes, batch: committed } = written
   const granted = recordAttemptGrants(port, { tenant, session, entries, receipt })
   if (granted !== null) return granted
   const saved = record(receipt)
@@ -1270,6 +1304,7 @@ function publishSameLog(
     batch.answer,
     false,
     workOf(port, { tenant, session, revision, bytes, entries, decided }),
+    committed,
   )
 }
 

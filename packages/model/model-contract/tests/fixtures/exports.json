@@ -282,6 +282,11 @@
               "pending": false
             },
             {
+              "name": "projectModelOutputV1",
+              "kind": "value",
+              "pending": false
+            },
+            {
               "name": "decodeModelOutputV1",
               "kind": "value",
               "pending": false

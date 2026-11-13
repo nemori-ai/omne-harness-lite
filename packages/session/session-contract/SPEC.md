@@ -688,9 +688,20 @@ Session 命令：
 - `reference` 在 Model 分支是稳定 `ModelInvocationRef` 文本。在 Tool 分支是 `ToolInvocationRef` 文本，尚未关联的 Tool 登记没有该字段。
 - `purpose` 在 Model 分支是 `main`、`compaction` 或 `extension`，在 Tool 分支是 `action`。
 
-Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用同一组字段。Session 写 Run 外登记时把 `CallBinding` 映射为这组字段：载荷的 `kind` 取 `producer.kind`，`reference` 取 `producer.call`。Model 分支的 `purpose` 为 `main`，`producer.call` 必须是 `ModelInvocationRef` 文本，不能是其他调用标识。Tool 分支的 `purpose` 为 `action`，`producer.call` 必须是 `ToolInvocationRef` 文本。`initiatingAttempt` 为 null 表示 Run 外登记。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
+Run 外登记（`bindExternalCall`）与 Run 内登记同种类，三个字段的含义相同，在载荷里的位置不同。两种存法的顶层都有编码时加上的 `kind`：
 
-`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，按载荷的 `kind` 与 `purpose` 跳过读者不需要的分支，取第一条符合的 `reference`。
+| 存法 | 谁写 | `reference` 在哪 | `purpose` 在哪 |
+| --- | --- | --- | --- |
+| Run 内登记 | 同日志解释 Agent 事件 | `registration.binding.producer.call`。`registration.kind` 为 `tool-intent` 的未关联 Tool 登记没有它 | `registration.purpose` |
+| Run 外登记 | `bindExternalCall` | 顶层 `reference` | 顶层 `purpose` |
+
+Session 写 Run 外登记时把 `CallBinding` 映射为这组字段：载荷的 `kind` 取 `producer.kind`，`reference` 取 `producer.call`。Model 分支的 `purpose` 为 `main`，`producer.call` 必须是 `ModelInvocationRef` 文本，不能是其他调用标识。Tool 分支的 `purpose` 为 `action`，`producer.call` 必须是 `ToolInvocationRef` 文本。`initiatingAttempt` 为 null 表示 Run 外登记。字段清单见[事件目录](docs/object-model/session-log-events.md#e-调用与结果)的 SE18 行。
+
+纯函数 `readCallRegistration(payload)` 是这两种存法的唯一读法。它给出 `CallRegistrationView`，即 `{ kind, reference, purpose }`；`reference` 为 null 表示未关联的 Tool 登记。载荷不是调用登记，或者 `kind` 与 `purpose` 不配套（Model 配 `main`、`compaction`、`extension`，Tool 配 `action`）时，它给出 null。
+
+`reader` 以当前读取资格调用 `begin({ kinds: ['call.bound'], from: null, direction: 'backward', pageBytes })`，从最新一条反向定位。需要时再调用 `next`，用 `readCallRegistration` 读每条载荷，按 `kind` 与 `purpose` 跳过读者不需要的分支，取第一条符合的 `reference`。
+
+「现在有没有一轮在进行」由日志判：最近一条一轮开始（SE13，种类 `run.started`，编号在载荷的 `run`）之后，没有同编号的一轮结束（SE26，种类 `run.terminal`，编号在载荷的 `terminal.run`），这一轮就在进行。只有别的编号的一轮结束时，仍然在进行。外部读者按这一条从日志读出当前这一轮，不读工作快照。
 
 这是外部读者取得稳定调用引用的唯一公开路径。它不新增操作。本版不提供「最新调用」的派生索引。
 
@@ -1348,9 +1359,9 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 #### EC-11 提交通知
 
-- 前提：`SessionNotifier.committed` 在提交之后发出。
+- 前提：会话日志的每一批新写出提交之后，会话存储一侧的唯一落点调用 `SessionNotifier.committed` 一次。认回、回滚与没写条目的提交不调用。通知不进提交的事务。
 - 结果：通知只唤醒推进触发、恢复扫描与订阅者。丢失、重复或合并都不改变事实，权威状态由扫描补查。
-- 责任：发出归本成员。通知的可靠性不是任何条款的前提。
+- 责任：调用归会话日志的唯一写入者一侧，即 session-storage-sql 的[本批与提交通知](../session-storage-sql/SPEC.md#本批与提交通知)，不归 Session 服务实例。通知的可靠性不是任何条款的前提。
 
 ### 同日志解释的历史材料与发布前缀
 
@@ -1839,7 +1850,7 @@ Session 不声明 Tool 启动资格失效端口或生产者交付解除端口。
 
 ### 构造依赖端口与出站端口
 
-本成员声明八个构造依赖端口与两个出站端口（`AgentDrivePort`、`ScopeReleasePort`），另声明一个由应用装配交付的值 `SessionInternalPrincipals`：本组系统维护用的内部主体，适用的操作见 [session CP-01](../session/SPEC.md#cp-access)，由应用装配的维护拥有者签发，身份桥核实。另有三个只经受信装配交付的接口：委派入口 `SessionDelegatedTransactions`、会话工作主体 `SessionWorkPrincipals` 与会话归属读口 `SessionPrincipalBindingSource`，见[访问检查](docs/access-check.md#委派入口)；下表另列委派入口与会话工作主体两行。接口与类型在本成员，服务键在 [session-cordis-contract](../session-cordis-contract/docs/cordis.md#端口服务键)，实现在提供者与 session-adapters。
+本成员声明七个构造依赖端口、两个出站端口（`AgentDrivePort`、`ScopeReleasePort`）与提交通知接口 `SessionNotifier`，另声明一个由应用装配交付的值 `SessionInternalPrincipals`：本组系统维护用的内部主体，适用的操作见 [session CP-01](../session/SPEC.md#cp-access)，由应用装配的维护拥有者签发，身份桥核实。另有三个只经受信装配交付的接口：委派入口 `SessionDelegatedTransactions`、会话工作主体 `SessionWorkPrincipals` 与会话归属读口 `SessionPrincipalBindingSource`，见[访问检查](docs/access-check.md#委派入口)；下表另列委派入口与会话工作主体两行。接口与类型在本成员，服务键在 [session-cordis-contract](../session-cordis-contract/docs/cordis.md#端口服务键)，实现在提供者与 session-adapters。
 
 Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedTransactions`、内部主体与 `SessionWorkPrincipals`，任一缺席不构造实例。`SessionTransactionPort` 不是 Session 服务实例的必需依赖：服务实例只为 `pending`、`references` 与 `releasedScopes` 三项目录读取按调用现取它；直接调用者与符合性套件经它读写。委派入口与 `SessionTransactionPort` 必须由同一存储核心提供，读写同一份会话事实与待办索引；应用装配的 `session-storage` 行兑现这一点。其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`，不使整个服务停下。下表的「缺席或失败时」一列与 Cordis 定义的端口表一致。本段关于必需依赖与同一存储核心的说法，以及下表委派入口与会话工作主体两行，是候选，依据 R1-D14 的 O1 与 O3。
 
@@ -1854,7 +1865,7 @@ Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedT
 | `SessionClock`                    | 时间采样与等待                                                                 | 空闲取证与等待必需                                                       | 空闲取证与等待返回 `unavailable`；不用系统时间补默认                                             |
 | `SessionIdleInput`                | 空闲观察（`inspect`）与参加者材料（`prepare`）                                 | 空闲维护与裁定必需                                                       | 空闲维护与裁定返回 `unavailable`；不阻断无关的读与控制                                           |
 | `SessionContextInput`             | 创建、声明修改与推进采用的注册材料                                             | 这些命令必需                                                             | 对应命令返回 `unavailable`                                                                       |
-| `SessionNotifier`                 | 提交后的唤醒                                                                   | 可选，每次提交后现取                                                     | 缺席或失败不回滚提交；工作由扫描恢复                                                             |
+| `SessionNotifier`                 | 提交后的唤醒                                                                   | 不是 Session 服务实例的构造依赖。会话存储一侧的唯一落点在每一批新写出之后调用，认回不调用 | 缺席或失败不回滚提交，也不改变提交的答复；工作由扫描恢复 |
 | `AgentDrivePort`                  | 驱动 Agent：发起、交入、接续、控制、交还、迟到结果记录、查询、读执行记录、预热 | 推进、恢复与控制传播必需；预热在 [P-7](#具名前提与明确缺项) 闭合前不调用 | 出站调用不发出，任务保留，由调度器按策略重放                                                     |
 | `ScopeReleasePort`                | 请执行环境释放会话作用域                                                       | 归档后的作用域释放必需                                                   | 任务保留并报告                                                                                   |
 
@@ -1889,7 +1900,9 @@ Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedT
 
 #### SessionNotifier
 
-`committed` 的载荷带租户、会话、修订、原提交证据与本次提交的事件种类集合。修订与证据取自该次提交的原回执，重试保持原值。先提交的通知晚到时，仍带它自己的修订，不拼接最新快照。只把通知当唯一唤醒路径而不扫描耐久待办的装配，不符合可靠受理。
+`committed` 的载荷带租户、会话、修订、原提交证据与这一批条目种类去重后的集合。五样都由会话日志的唯一写入者在写这一批时给出：修订是这一批的修订，证据是这一批的批回执里的 `source`，重试保持原值。
+
+调用方是会话存储一侧的唯一落点（session-storage-sql 的[本批与提交通知](../session-storage-sql/SPEC.md#本批与提交通知)），不是 Session 服务实例。每一批新写出提交之后，落点调用每个登记在该库上的实现一次，不等它返回，它的失败不改变提交的答复。认回、回滚与没写条目的提交不调用（[EC-11](#ec-11)）。先提交的通知晚到时，仍带它自己的修订，不拼接最新快照。只把通知当唯一唤醒路径而不扫描耐久待办的装配，不符合可靠受理。
 
 #### AgentDrivePort
 

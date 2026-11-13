@@ -1,109 +1,148 @@
-// What a joint commit of the Journal provider tells the work cache (session-storage-sql RT-04):
-// the work of its Session participation, only from a commit the call sent and that committed. A
-// recall, a recovered Session answer and a rolled back commit tell nothing, so nothing is folded.
-import type { CommittedV2, RolledBackV2, SqlStorage } from '@omne-harness/sql-contract'
-import { describe, expect, it } from 'vitest'
+// What a joint commit of the Journal provider hands on (session-storage-sql「本批与提交通知」,
+// RT-04): the storage answer goes to the one landing of session-storage-sql, which folds the batch
+// of the Session participation and tells it to the notifiers registered on the database. The
+// Session participation of an Agent journal commit is the fourth committer of the session log (the
+// main reply and the tool messages go through it), so its batch is told like any other: once, with
+// the revision, the batch evidence and the kinds the writer gave; a recall of the same Agent
+// operation tells nothing. A Session reply the Journal cannot decode changes no Agent answer.
+import type { SessionNotifier } from '@omne-harness/session-contract'
+import { assistantMessage } from '@omne-harness/session-contract/testing'
+import { registerSessionNotifier } from '@omne-harness/session-storage-sql'
+import type { SqlStorage } from '@omne-harness/sql-contract'
+import { afterEach, describe, expect, it } from 'vitest'
+import type { AgentJournal } from '@omne-harness/agent-contract'
 import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
-import { jointSessionWork, type JournalCommitResult } from '../src/journal-commit.ts'
-import { evidence, ok } from './fixtures/common-journal.ts'
-import { sqlScene } from './fixtures/sql-scene.ts'
+import { evidence, ok, operation } from './fixtures/common-journal.ts'
+import { handed, sqlScene, type SqlScene } from './fixtures/sql-scene.ts'
 
-const work = {
-  tail: '5',
-  published: '3',
-  bytes: 100,
-  first: '9',
-  last: '10',
-  indexed: true,
-  basis: { scope: { kind: 'pending', inputs: [] }, focus: { executions: [], event: null } },
+type Notice = Parameters<SessionNotifier['committed']>[0]
+type CommitInput = Parameters<AgentJournal<string>['commit']>[0]
+
+const scenes: SqlScene[] = []
+const unregisters: (() => void)[] = []
+afterEach(async () => {
+  for (const unregister of unregisters.splice(0)) unregister()
+  for (const s of scenes.splice(0)) await s.close()
+})
+
+async function scene(name: string) {
+  const s = await sqlScene(name, { storage: 'real' })
+  scenes.push(s)
+  return s
 }
 
-function receipt(recovered: boolean): CommittedV2 {
+const loadOf = async (s: SqlScene) =>
+  ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+
+/** One Agent commit at the current head; `change` gives what differs from an empty commit. */
+async function commitInput(s: SqlScene, label: string, change: Partial<CommitInput>) {
+  const loaded = await loadOf(s)
+  const authority = loaded.executionAttachment
+  if (authority === null) throw new Error('an active attachment is expected')
   return {
-    kind: 'committed',
-    responses: [
-      {
-        participant: 'execution-record',
-        protocol: '1',
-        reply: { kind: 'participated', response: { published: '3', digest: 'e' } },
-      },
-      {
-        participant: 'session',
-        protocol: '1',
-        reply: {
-          kind: 'participated',
-          response: { result: null, recovered, digest: 'd', work },
-        },
-      },
-    ],
-  } as unknown as CommittedV2
+    ...s.access,
+    execution: s.execution,
+    operation: operation(label),
+    authority,
+    expected: loaded.revision,
+    checkpoint: loaded.checkpoint,
+    state: { kind: 'advancing' },
+    events: [],
+    effects: [],
+    caller: { kind: 'none' },
+    replyAdmission: null,
+    handoff: null,
+    finish: null,
+    ...change,
+  } as CommitInput
 }
 
-describe('the Session work of a joint commit', () => {
-  it('a fresh committed commit gives the work of its Session participation', () => {
-    const outcome: JournalCommitResult = {
-      kind: 'committed',
-      receipt: receipt(false),
-      recalled: false,
-    }
-    expect(jointSessionWork(outcome)).toEqual(work)
-  })
+/** Open, the handover of the initial input and the take of it. */
+async function started(s: SqlScene) {
+  const opened = ok(await s.view.journal.open(s.openInput))
+  ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+  const loaded = await loadOf(s)
+  const page = ok(
+    await s.view.journal.inputs({
+      ...s.access,
+      execution: s.execution,
+      watermark: loaded.inputWatermark,
+    }),
+  )
+  ok(
+    await s.view.journal.commit(
+      await commitInput(s, 'take', {
+        checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
+        events: [{ kind: 'input-taken', batch: page.batch }],
+      }),
+    ),
+  )
+}
 
-  it('a recall, a recovered Session answer and a rolled back commit give none', () => {
-    expect(jointSessionWork({ kind: 'committed', receipt: receipt(false), recalled: true })).toBe(
-      undefined,
-    )
-    expect(jointSessionWork({ kind: 'committed', receipt: receipt(true), recalled: false })).toBe(
-      undefined,
-    )
-    const rolled = { ...receipt(false), kind: 'rolled_back' } as unknown as RolledBackV2
-    expect(jointSessionWork({ kind: 'rolled-back', receipt: rolled })).toBe(undefined)
-  })
+/** The kinds of the entries of `revision` in the session log, without repeats, sorted. */
+async function kindsOf(s: SqlScene, revision: string): Promise<readonly string[]> {
+  const page = ok(
+    await s.port.history.begin({
+      ...s.sessionAccess,
+      kinds: [],
+      from: null,
+      direction: 'forward',
+      pageBytes: 1 << 20,
+    }),
+  )
+  expect(page.next).toBe(null)
+  return [...new Set(page.entries.filter(e => e.revision === revision).map(e => e.kind))].sort()
+}
 
-  it('a commit without a Session participation gives none', () => {
-    const only = {
-      kind: 'committed',
-      responses: [receipt(false).responses[0]],
-    } as unknown as CommittedV2
-    expect(jointSessionWork({ kind: 'committed', receipt: only, recalled: false })).toBe(undefined)
+describe('the Session participation of an Agent journal commit, the fourth committer', () => {
+  it('its batch is told once, with the revision, the batch evidence and the kinds of the log', async () => {
+    const s = await scene('journal-notice')
+    await started(s)
+    const notices: Notice[] = []
+    unregisters.push(
+      registerSessionNotifier(s.storage, {
+        committed: notice => {
+          notices.push(notice)
+          return Promise.resolve()
+        },
+      }),
+    )
+    const message = assistantMessage('the main reply')
+    const input = await commitInput(s, 'message', {
+      events: [{ kind: 'message', message, source: evidence('message-admission') }],
+      caller: {
+        kind: 'message',
+        message,
+        source: evidence('message-source'),
+        admission: evidence('message-admission'),
+      },
+    })
+    ok(await s.view.journal.commit(input))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(notices).toHaveLength(1)
+    const [notice] = notices as [Notice]
+    expect(notice.tenant).toEqual(s.sessionAccess.tenant)
+    expect(notice.session).toBe(s.sessionAccess.session)
+    expect(notice.source.revision).toBe(notice.revision)
+    expect(notice.kinds).toEqual(['message.assistant'])
+    expect([...notice.kinds].sort()).toEqual(await kindsOf(s, notice.revision))
+
+    // The same Agent operation again: the storage recalls it, and nothing more is told.
+    ok(await s.view.journal.commit(input))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(notices).toHaveLength(1)
   })
 })
 
-/**
- * A Session `result` that cannot be decoded: its tenant text does not parse. The joint commit
- * reads only the `work` of the reply, so such a result must not reach the publication of the
- * Agent write (it is Session's content, not the Journal's).
- */
 describe('a Session reply with a result the Journal cannot decode', () => {
   const undecodable = {
     participant: 'session',
     protocol: '1',
     reply: {
       kind: 'participated',
-      response: { result: { $tenant: 'not-a-tenant' }, recovered: false, digest: 'd', work },
+      response: { result: { $tenant: 'not-a-tenant' }, recovered: false, digest: 'd' },
     },
   }
-
-  it('still gives the work of the reply, and never throws', () => {
-    const outcome = {
-      kind: 'committed',
-      receipt: { kind: 'committed', responses: [undecodable] },
-      recalled: false,
-    } as unknown as JournalCommitResult
-    expect(jointSessionWork(outcome)).toEqual(work)
-  })
-
-  it('a malformed work gives none, also without throwing', () => {
-    for (const bad of [null, 5, [], { ...work, tail: 'x' }, { ...work, bytes: '1' }]) {
-      const reply = { ...undecodable.reply, response: { ...undecodable.reply.response, work: bad } }
-      const outcome = {
-        kind: 'committed',
-        receipt: { kind: 'committed', responses: [{ ...undecodable, reply }] },
-        recalled: false,
-      } as unknown as JournalCommitResult
-      expect(jointSessionWork(outcome)).toBe(undefined)
-    }
-  })
 
   it('the publication of the Agent write returns normally', async () => {
     const s = await sqlScene('undecodable-result')

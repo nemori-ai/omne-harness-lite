@@ -11,9 +11,9 @@ export function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** Records through the logger of the plugin's own Context, which the plugin captured at load. */
-export function diagnoser(ctx: Context): Diagnose {
-  const logger = ctx.logger('session-provider')
+/** Records through the logger `name` of the Context the caller captured. */
+export function diagnoser(ctx: Context, name = 'session-provider'): Diagnose {
+  const logger = ctx.logger(name)
   return detail => {
     try {
       logger.error(detail)

@@ -9,6 +9,7 @@ import { SessionScopeLookupService } from '@omne-harness/session-cordis-contract
 import { createSessionModesPlugin, sessionInquiryBinding } from '../src/cordis.ts'
 import { cordisScene, sqlScene } from './fixtures/sql-scene.ts'
 import { ok } from './fixtures/common-journal.ts'
+import { TOLD_BATCHES } from './fixtures/told-batches.ts'
 
 it('publishes original Session mode changes through a coordinator Cordis fiber and withdraws on disposal', async () => {
   const scene = await sqlScene('mode-plugin')
@@ -196,6 +197,15 @@ it('publishes original Session mode changes through a coordinator Cordis fiber a
         },
       }),
     ).toHaveProperty('ok')
+    // The batches every committer now tells change no mode: the plugin does not read the session
+    // for them, so the mode committed above is not seen until something asks for it.
+    for (const kinds of TOLD_BATCHES) await notify([...kinds])
+    expect(await bound.reader.read([need])).toMatchObject({
+      kind: 'success',
+      value: [
+        { value: { inquiry: { policy: { onAsk: 'deny' } }, basis: { permissionRevision: '1' } } },
+      ],
+    })
     expect(await producer.refresh(work.session)).toEqual({ kind: 'refreshed' })
     expect(await bound.reader.read([need])).toMatchObject({
       kind: 'success',
