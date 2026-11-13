@@ -131,6 +131,16 @@ module.exports = {
       to: { path: SDK, pathNot: SDK_CORE },
     },
     {
+      name: 'client-side-only-core-contract-and-cordis',
+      comment: `A client-side member runs in a browser and depends only on the public contract, the SDK client core, Cordis and its own files; it imports no server-side member and no Node built-in. ${ACCESS_RFC}「16. 成员怎么放，依赖方向」: 客户端装配只多依赖 Cordis`,
+      severity: 'error',
+      from: { path: `${CLIENT_SIDE}src/` },
+      to: {
+        path: `${PACKAGES}|(^|/)node_modules/|${NODE_BUILTIN}`,
+        pathNot: `${PUBLIC_CONTRACT}|${SDK_CORE}|${CLIENT_SIDE}|(^|/)node_modules/@deepseek-ai/cordis/`,
+      },
+    },
+    {
       name: 'client-side-is-above',
       comment: `No other member depends on a client-side member: not the SDK, not the server side, not a capability. Applications assemble it. ${LAYERS}「依赖关系与禁止方向」`,
       severity: 'error',
