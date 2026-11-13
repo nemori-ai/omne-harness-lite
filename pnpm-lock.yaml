@@ -296,6 +296,9 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../packages/assets/assets
+      '@omne-harness/assets-access':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets-access
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../packages/assets/assets-local

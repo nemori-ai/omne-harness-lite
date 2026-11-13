@@ -83,6 +83,7 @@
 | `server-entry` | `@omne-harness/server-entry` 的插件 | 治理位置与会话位置的接入；`accessRegistry`（成员 `./cordis` 的 `AccessRegistryProvider`，装在本行作用域里：领域的接入插件经它挂协议，新地址的入口用同一个登记表；`identity-access` 行 `inject` 它。新地址的身份端口是身份的 `createAccessIdentity`，本行用按调用读的 `identityOperations`、`identityGovernance` 与受信 `principalIssuer` 构造） | `session`（`caller: 'intake'` 与 `'reader'`）、`principalIssuer`（受信）、`definitionMappings`（受信）、`telemetry`（候选，待 RFC-0013 接受；入口诊断经它发出，`system` 作用域）、`assemblyLifecycle`；会话诊断投影的三个读口（RFC-0013 revision 2 本地范围）：`agentJournal`（只用 `readFinish`）、`modelRuntime`（只用 `calls.inspect` 与 `calls.dispatches`）、`modelDiagnostics` | `identityOperations`；`identityGovernance`（受信，治理位置 18 个操作与成功业务访问的报告；服务缺席时 19 个方法都答 `basis-unavailable`，不抛出）。两项与 `identity` 行同一份记录；`settingsSecretItems`（受信，治理位置的 4 个设置操作；服务缺席时 4 个方法都答 `basis-unavailable`）；`toolRuntime`（候选，待 RFC-0013 接受；局部，只用 `queries.lookup`、`queries.account` 与 `queries.readDiagnostics`；服务缺席时投影的 Tool 读答 `unavailable`，成员记为缺口） | `listenPort`（初值 8787）；`maxBodyBytes.small`（治理路径，初值 16384）；`maxBodyBytes.input`（会话路径，初值 1048576）；`heartbeatIntervalMs`（初值 15000）；`pageBytes` 上界；读历史的条目种类清单（默认 `message.user`、`message.assistant`）；会话诊断投影的 `diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`（候选，待 RFC-0013 接受；三项一起给，没有初值；缺席时 `read-session-diagnostics` 答 `basis-unavailable`）；[定义名映射](#桥接责任)的选择 |
 | `identity-access` | `@omne-harness/identity-access` 的 `./cordis` 插件 `identityAccessPlugin` | 无服务；把 `identity/v1` 挂上 `accessRegistry`，新地址由此开放身份的六个操作（RFC-0015 I-15：装这一行就是开放这个协议，卸下这一行协议随之撤下） | `accessRegistry` | `identityOperations`；`identityGovernance`（受信）。两项每次调用现取，缺席时调用答 `basis-unavailable`，协议不撤 | 无 |
 | `session-access` | `@omne-harness/session-access` 的 `./cordis` 插件 `createSessionAccessPlugin`：`session/v1` 的接入插件（RFC-0015 §5、§7、§8）。装上这一行，新地址才开放 `session/v1` | 无。插件把 `session/v1` 的贡献（7 个操作与观察 `observe-session`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations` 构造身份的 `createAccessIdentity`，只用它的 `actFor` 为目标租户换主体） | `session`（`caller: 'intake'` 取管理与工作面，`'reader'` 取历史面）；`sessionObservation`；`definitionMappings`（受信）。任一项缺席时，需要它的调用答 `basis-unavailable`，协议不撤下 | `defaultDefinition`（不给定义名的「建会话」用它；缺席时这样的调用答 `invalid`）；`maxPageBytes`（初值 1048576）；`historyKinds`（初值运维者层 `LOCAL_HISTORY_KINDS`） |
+| `assets-access` | `@omne-harness/assets-access` 的 `./cordis` 插件 `createAssetsAccessPlugin`：`assets/v1` 的接入插件（RFC-0015 §5、§7、§9）。装上这一行，新地址才开放 `assets/v1` | 无。插件把 `assets/v1` 的贡献（设置的 4 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations` 构造身份的 `createAccessIdentity`，只用它的 `actFor` 为目标租户换主体） | `tenantSettings`（[租户层设置读写面](#tenant-settings)）。缺席时调用答 `basis-unavailable`，协议不撤下 | 无 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/session-adapters/docs/cordis.md#插件注入与提供的键)为准，运维者可以按行 id 单独替换其中一行。
 
@@ -194,6 +195,9 @@ flowchart LR
   identity -.-> session-access
   session-provider -.-> session-access
   session-observation -.-> session-access
+  server-entry --> assets-access
+  identity -.-> assets-access
+  governance -.-> assets-access
   authorization --> session-handoff
   storage --> agent-journal
   session-storage --> agent-journal
@@ -275,7 +279,7 @@ flowchart LR
 - 拥有者是 `governance` 行，它是唯一的提供者。形状是 Settings 的 `TenantSettings`（[租户层读写面](../../../packages/assets/settings/SPEC.md#tenant-settings)）：列出、查看、设置、清除行事租户持有的资产的设置项。
 - 提供者在 `governance` 行，因为读写面要的目录读取、租户层写入、组织层来源与工具发行清单都只在本行：每个租户的治理运行时各有一份目录读取与一份写入。
 - 每次调用先做准入，沿用秘密设置项的准入（`rows/authorization/settings-access.ts`）：只有代该租户行事的登录主体。会话工作主体和系统主体一律拒绝，拒绝之前不读任何存储。写入只写行事租户的租户层，计划与当前事实参与者见 [settings-local 的应用消费方](../../../packages/assets/settings-local/SPEC.md#application-current-consumer)。
-- 本发行没有行读它：公开入口的四个设置操作对普通项仍答不可写，接入插件接上它。本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 移到届时拥有它的成员的 `./cordis`，键名与形状不变。
+- `assets-access` 行每次调用现取它，把它适配成 `assets/v1` 的四个操作。本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 移到届时拥有它的成员的 `./cordis`，键名与形状不变。
 
 | 行 id | 可见的受信名 |
 | --- | --- |
@@ -312,6 +316,7 @@ flowchart LR
 | `server-entry` | `principalIssuer`、`definitionMappings`、`identityGovernance`、`settingsSecretItems` |
 | `identity-access` | `identityGovernance` |
 | `session-access` | `principalIssuer`、`definitionMappings` |
+| `assets-access` | `principalIssuer` |
 
 表中未列的行可见集合为空。受信子树内的行提供的其他服务名不受隔离，根上的行照常 `inject`。
 
