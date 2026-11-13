@@ -375,6 +375,35 @@ describe('登录失效的探测', () => {
     expect(targets(t.server).filter(item => item.endsWith('query-current-tenant'))).toHaveLength(2)
   })
 
+  it('带登录的观察以 denied 被拒之后探测，被别的原因结束不探测', async () => {
+    const t = await open({ signedIn: true })
+    t.server.stream('session/v1 observe-session', async function* () {
+      return { kind: 'refused', outcome: 'denied' }
+    })
+    const observe = () =>
+      t.session.transport
+        .observe({
+          protocol: SESSION,
+          observation: 'observe-session',
+          messageId: 'm-3',
+          open: value({}),
+          signal: new AbortController().signal,
+        })
+        .next()
+    await observe()
+    await settle()
+    expect(targets(t.server)).toEqual([
+      'session/v1 observe-session',
+      'identity/v1 query-current-tenant',
+    ])
+    t.server.stream('session/v1 observe-session', async function* () {
+      return { kind: 'ended', reason: 'refresh-exhausted' }
+    })
+    await observe()
+    await settle()
+    expect(targets(t.server).filter(item => item.endsWith('query-current-tenant'))).toHaveLength(1)
+  })
+
   it('不带登录的调用答 denied 不探测', async () => {
     const t = await open()
     t.server.answer('session/v1 read-history', () => answered('denied'))

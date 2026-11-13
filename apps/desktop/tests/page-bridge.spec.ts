@@ -6,7 +6,8 @@ import { sessionProtocol } from '@omne-harness/session-protocol'
 import { accessProtocol } from '@omne-harness/public-contract'
 import { createClient } from '@omne-harness/sdk/core'
 import { memoryCredentialStore, openLoginSession } from '../src/main-core/index.ts'
-import { createWebHost, type WebHost } from '../src/web-host/server.ts'
+import { createWebHost } from '../src/web-host/server.ts'
+import { listenFetchable } from './support/listen.ts'
 import { connectPageBridge, type PageBridge } from '../src/page/bridge.ts'
 import { serviceOf, startClientTree, type ClientTree } from '../src/page/tree.ts'
 import { PROOF_SENTINEL, answered, fakeServer, settle, value } from './support/fake-server.ts'
@@ -23,9 +24,8 @@ async function start() {
     store: memoryCredentialStore(),
     contracts: [accessProtocol, identityProtocol, sessionProtocol],
   })
-  const host: WebHost = createWebHost({ session })
+  const { host, port } = await listenFetchable(() => createWebHost({ session }))
   cleanups.push(() => host.close())
-  const port = await host.listen(0)
   const bridge: PageBridge = await connectPageBridge({ origin: `http://127.0.0.1:${port}` })
   cleanups.push(() => bridge.close())
   return { server, bridge }

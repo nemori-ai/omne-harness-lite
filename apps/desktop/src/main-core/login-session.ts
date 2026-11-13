@@ -214,9 +214,7 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
     if (state.kind !== 'signed-in') return 'unknown'
     const login = state.login
     enter({ kind: 'signing-out', login })
-    const answer = await identityFor(login)
-      ['revoke-login']({ targetLoginId: login.loginId })
-      .catch(() => ({ outcome: 'uncertain' as const }))
+    const answer = await identityFor(login)['revoke-login']({ targetLoginId: login.loginId })
     const revoked = answer.outcome === 'succeeded' || answer.outcome === 'no-change'
     if (held() === login) {
       enter({ kind: 'signed-out' })

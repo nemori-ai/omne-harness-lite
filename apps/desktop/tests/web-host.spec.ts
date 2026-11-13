@@ -7,6 +7,7 @@ import { sessionProtocol } from '@omne-harness/session-protocol'
 import { openLoginSession } from '../src/main-core/index.ts'
 import { memoryCredentialStore } from '../src/main-core/index.ts'
 import { createWebHost, type WebHost } from '../src/web-host/server.ts'
+import { listenFetchable } from './support/listen.ts'
 import {
   PROOF_SENTINEL,
   answered,
@@ -31,9 +32,8 @@ async function start(): Promise<{ base: string; server: FakeServer }> {
     store: memoryCredentialStore(),
     contracts: [identityProtocol, sessionProtocol],
   })
-  const host = createWebHost({ session })
+  const { host, port } = await listenFetchable(() => createWebHost({ session }))
   hosts.push(host)
-  const port = await host.listen(0)
   return { base: `http://127.0.0.1:${port}`, server }
 }
 
