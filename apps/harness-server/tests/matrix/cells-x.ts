@@ -1,12 +1,12 @@
 import { gate } from '../support/matrix/provider-stub.ts'
 import {
   TURN_MS,
+  idleHealth,
   bystander,
   bystanderUnchanged,
   signedIn,
   waitArrivals,
   type Cell,
-  type CellTools,
 } from './cell.ts'
 import {
   RECOVERY_MS,
@@ -17,36 +17,6 @@ import {
   toolRunning,
   waitFile,
 } from './cells-g.ts'
-
-const IDLE_SECONDS = 10
-
-async function idleHealth(tools: CellTools): Promise<void> {
-  await tools.sleep(3000)
-  const mark = tools.env.mark()
-  const cpu = await tools.env.cpuPercent(IDLE_SECONDS)
-  const records = tools.env.records().slice(mark)
-  const warnings = tools.env.warnings(mark)
-  const counts = new Map<string, number>()
-  for (const line of warnings) counts.set(line, (counts.get(line) ?? 0) + 1)
-  const repeated = [...counts.entries()].filter(([, count]) => count >= 3)
-  tools.note(
-    `idle ${String(IDLE_SECONDS)} s: cpu ${cpu.toFixed(1)}%, ${String(records.length)} records, ${String(warnings.length)} warnings`,
-  )
-  tools.check(
-    'o7 the idle server does no work (at most a few records in the idle window)',
-    records.length <= 5,
-    `${String(records.length)} records`,
-  )
-  tools.check('o7 the idle server does not spin (cpu at most 3%)', cpu <= 3, `${cpu.toFixed(1)}%`)
-  tools.check(
-    'o7 no warning repeats in the idle window',
-    repeated.length === 0,
-    repeated
-      .map(([line, count]) => `${String(count)}x ${line}`)
-      .join(' | ')
-      .slice(0, 300),
-  )
-}
 
 export const xCells: readonly Cell[] = [
   {
@@ -139,6 +109,7 @@ export const xCells: readonly Cell[] = [
       tools.check('logged in again', (await back.login()) === 'succeeded')
       await historyMatches(tools, back, session)
       await chatAgain(tools, back, session)
+      await idleHealth(tools)
     },
   },
   {

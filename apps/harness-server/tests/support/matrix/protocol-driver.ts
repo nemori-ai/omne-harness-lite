@@ -167,7 +167,7 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
       const page = answer.body
       return {
         outcome: 'succeeded',
-        entries: page.entries,
+        entries: [...page.entries].reverse(),
         pages: 1,
         exhausted: page.exhausted,
         next: page.next,
@@ -241,7 +241,7 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
       const page = answer.body
       return {
         outcome: 'succeeded',
-        entries: page.entries,
+        entries: [...page.entries].reverse(),
         pages: 1,
         exhausted: page.exhausted,
         next: page.next,

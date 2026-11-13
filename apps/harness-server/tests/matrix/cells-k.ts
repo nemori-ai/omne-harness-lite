@@ -16,11 +16,21 @@ const DIGITS = Array.from({ length: 400 }, (_, index) => String(index % 10)).joi
 
 function textsOf(value: unknown, into: string[] = []): string[] {
   if (Array.isArray(value)) for (const item of value) textsOf(item, into)
-  else if (value !== null && typeof value === 'object')
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+  else if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    if (
+      record['kind'] === 'growing' &&
+      record['content'] === 'text' &&
+      typeof record['value'] === 'string'
+    ) {
+      into.push(record['value'])
+      return into
+    }
+    for (const [key, child] of Object.entries(record)) {
       if (key === 'text' && typeof child === 'string') into.push(child)
       else textsOf(child, into)
     }
+  }
   return into
 }
 
@@ -115,7 +125,7 @@ export const kCells: readonly Cell[] = [
     run: async tools => {
       const first = await signedIn(tools)
       const session = await first.createSession()
-      tools.stub.push({ kind: 'reply', text: DIGITS, chunkChars: 10, chunkGapMs: 100 })
+      tools.stub.push({ kind: 'reply', text: DIGITS, chunkChars: 5, chunkGapMs: 100 })
       await first.send(session, 'k1 stream')
       await waitArrivals(tools, 1, 'model call in flight')
       await tools.sleep(800)

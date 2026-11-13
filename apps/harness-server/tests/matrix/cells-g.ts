@@ -5,6 +5,7 @@ import type { ProtocolDriver } from '../support/matrix/protocol-driver.ts'
 import type { SessionLog } from '../support/matrix/session-log.ts'
 import {
   TURN_MS,
+  idleHealth,
   bystander,
   bystanderUnchanged,
   sameHistory,
@@ -134,6 +135,7 @@ export const gCells: readonly Cell[] = [
       tools.check('logged in again', (await back.login()) === 'succeeded')
       await historyMatches(tools, back, session)
       await chatAgain(tools, back, session)
+      await idleHealth(tools)
     },
   },
   {

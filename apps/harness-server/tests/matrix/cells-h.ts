@@ -84,17 +84,17 @@ export const hCells: readonly Cell[] = [
       tools.stub.push({ kind: 'reply', text: 'h4-new-reply' })
       await client.send(session, 'h4 new message')
       await tools.waitLog(session, 'new turn terminal', log => log.terminals.length === 9, TURN_MS)
-      const older: HistoryEntry[] = []
+      const older: (readonly HistoryEntry[])[] = []
       let cursor = first.next
       let pages = 1
       while (cursor !== null) {
         const page = await client.readFrom(session, cursor)
         if (page.outcome !== 'succeeded') break
-        older.push(...page.entries)
+        older.push(page.entries)
         pages += 1
         cursor = page.exhausted ? null : page.next
       }
-      const chain = [...older.reverse(), ...first.entries]
+      const chain = [...older.reverse().flat(), ...first.entries]
       const unique = new Set(ids(chain)).size === chain.length
       tools.check(
         'older pages join the first page with no repeat',

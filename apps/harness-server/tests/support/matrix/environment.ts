@@ -100,6 +100,8 @@ function visitEndpoints(value: unknown, url: string): number {
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
+const CGROUP_ROOTS = ['/sys/fs/cgroup', '/sys/fs/cgroup/unified', '/sys/fs/cgroup/systemd']
+
 function unitsOwnedBy(base: string): string[] {
   const listed = spawnSync(
     'systemctl',
@@ -120,14 +122,15 @@ function unitsOwnedBy(base: string): string[] {
     )
     const group = shown.stdout.trim()
     if (group === '') continue
-    let pids: string[] = []
-    try {
-      pids = readFileSync(join('/sys/fs/cgroup', group, 'cgroup.procs'), 'utf8')
-        .split('\n')
-        .filter(Boolean)
-    } catch {
-      continue
-    }
+    const pids = CGROUP_ROOTS.flatMap(root => {
+      try {
+        return readFileSync(join(root, group, 'cgroup.procs'), 'utf8')
+          .split('\n')
+          .filter(Boolean)
+      } catch {
+        return []
+      }
+    })
     const mine = pids.some(pid => {
       try {
         if (readlinkSync(`/proc/${pid}/cwd`).startsWith(base)) return true
