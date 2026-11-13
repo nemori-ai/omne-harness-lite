@@ -194,7 +194,7 @@ function bodyOf(
         source: fact.source,
       }
     case 'wait.entered':
-      return { kind: 'waiting', waits: fact.waits }
+      return { kind: 'waiting', waits: blob(blobs, fact.waits) }
     case 'finish.ended':
       return { kind: 'ended', conclusion: fact.conclusion, disposition: fact.disposition }
     default:
@@ -221,7 +221,7 @@ function blob<T>(blobs: BlobStore, ref: unknown): T {
  * and the `state` member of the cursor (what a commit committed, with the waits of a waiting state
  * from the wait entered then) each at their pub, the latest wins.
  */
-function stateOf(view: ExecutionView): MemoryExecution['state'] {
+function stateOf(view: ExecutionView, blobs: BlobStore): MemoryExecution['state'] {
   const ended = view.finish.ended
   if (ended !== null)
     return { kind: 'ended', conclusion: ended.conclusion, disposition: ended.disposition }
@@ -240,7 +240,7 @@ function stateOf(view: ExecutionView): MemoryExecution['state'] {
     case 'waiting':
       return view.waits === null
         ? { kind: 'advancing' }
-        : { kind: 'waiting', waits: view.waits.waits }
+        : { kind: 'waiting', waits: blob(blobs, view.waits.waits) }
     case 'settling':
       return { kind: 'settling' }
     case 'reconciling':
@@ -268,7 +268,7 @@ export function projectExecution(
     id: view.execution,
     tenant: context.tenant,
     revision: view.revision,
-    state: stateOf(view) as MemoryExecution['state'],
+    state: stateOf(view, context.blobs) as MemoryExecution['state'],
     attachments: view.attachments.map(item => ({
       authority: item.authority,
       grant: item.grant,

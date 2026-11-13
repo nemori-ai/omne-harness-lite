@@ -322,7 +322,8 @@ export type ExecutionView = Readonly<{
   batches: ReadonlyMap<ActionBatchId, BatchView>
   passages: ReadonlyMap<PassageId, PassageView>
   controls: ReadonlyMap<AgentOperationId, ControlView>
-  waits: Readonly<{ step: StepId; waits: readonly Waiting[]; pub: number }> | null
+  /** The waits of the latest `wait.entered`, as the reference to their block. */
+  waits: Readonly<{ step: StepId; waits: Ref<readonly Waiting[]>; pub: number }> | null
   finish: FinishView
   settlements: readonly Readonly<{
     variant: string
