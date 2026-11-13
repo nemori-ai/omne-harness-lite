@@ -4,17 +4,27 @@ PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 module 变体草稿。
+
 ## 职责与状态
 
-<!-- documentation:placeholder -->
+会话的界面模块：一个 React 组件 `SessionWorkspace`，新建会话、发消息、看流式回复、取消这一轮。它只经 `session/v1` 的协议客户端做事（建会话、读历史、开观察、发输入、认回、取消），不认识宿主，不认识身份，不导入服务端的任何成员。消费者是 `apps/desktop` 页面的装配文件。行为见 [SPEC.md](SPEC.md)。
 
-填写实际消费者、平台、职责和采用依据。区分已实现、未实现与未验证。
+已实现：对话、流式 Markdown、推理与工具调用的卡片、工具调用与结果按编号配对、Ask 的问题卡（只渲染，不答卡）、结果未知时的认回、观察断开后的重连。未实现：会话列表、答卡、停止单个调用。
 
 ## 使用
 
-<!-- documentation:placeholder -->
+```tsx
+import { SessionWorkspace } from '@omne-harness/session-ui'
+import '@omne-harness/session-ui/session-ui.css'
 
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+;<SessionWorkspace client={sessionClient} tenant={currentTenantText} />
+```
+
+`client` 是 `ClientOf<SessionProtocol>`，`tenant` 是 `identity/v1` 的 `query-current-tenant` 给出的租户文本。组件挂上时建立自己的驱动器，卸下时中止它开的观察与计时。宿主给组件一个有高度的容器；样式只作用在 `.omne-session` 之下，深浅色跟随系统，或由祖先元素的 `data-theme="light" | "dark"` 指定。
+
+开发用的演示页：`pnpm --filter @omne-harness/session-ui run demo`，打开打印出的地址。它用假的协议客户端按时间表送帧，不进发行。
+
+取用的代码：`src/model/composer.ts` 改写自 super-assistant 的 `src/desktop/src/renderer/src/conversation/composer-action.ts`（发送与停止的三态），`src/view/scroll.ts` 改写自同目录的 `scroll.ts`（`isNearBottom`）；工具调用与结果按编号配对的规则取自同目录的 `tool-pairing.ts`，实现在 `src/model/conversation.ts`。`src/model/user-message.ts` 与 `@omne-harness/sdk` 的 `userTextMessage` 等价，改用 WebCrypto。
 
 ## 契约
 

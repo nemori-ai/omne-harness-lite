@@ -9,7 +9,7 @@ import {
   type JSX,
   type KeyboardEvent,
 } from 'react'
-import { composerAction } from '../model/composer.ts'
+import { stopFace, type StopFace } from '../model/composer.ts'
 import { EMPTY_CONTENT } from '../model/content.ts'
 import { conversationItems } from '../model/conversation.ts'
 import { SessionDriver } from '../model/session-driver.ts'
@@ -263,9 +263,15 @@ function PendingInputView({
   )
 }
 
+const STOP_LABEL: Readonly<Record<Exclude<StopFace, 'none'>, string>> = {
+  stop: '停止',
+  stopping: '正在停止',
+  'confirm-stop': '再确认停止',
+}
+
 function Composer({ state, driver }: { readonly state: Open; readonly driver: SessionDriver }) {
   const [text, setText] = useState('')
-  const action = composerAction(state.run, text)
+  const face = stopFace(state.run)
   const submit = () => {
     if (text.trim().length === 0) return
     void driver.send(text)
@@ -294,15 +300,15 @@ function Composer({ state, driver }: { readonly state: Open; readonly driver: Se
         onKeyDown={onKeyDown}
       />
       <div className="omne-composer-actions">
-        {action.kind === 'send' ? null : (
+        {face === 'none' ? null : (
           <button
             type="button"
             className="omne-button"
             data-tone="stop"
-            disabled={action.disabled}
+            disabled={face === 'stopping'}
             onClick={() => driver.cancel()}
           >
-            {action.kind === 'stopping' ? '正在停止' : action.confirming ? '再确认停止' : '停止'}
+            {STOP_LABEL[face]}
           </button>
         )}
         <button

@@ -4,17 +4,27 @@ PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
 Draft module package.
+
 ## Responsibility and status
 
-<!-- documentation:placeholder -->
+The session interface module: one React component, `SessionWorkspace`. It creates a session, sends messages, shows the streamed reply, and cancels a run. It acts only through the `session/v1` protocol client. It does not know the host or identity, and it imports no server member. The consumer is the assembly file of the `apps/desktop` page. [SPEC.md](SPEC.md) owns the behavior.
 
-Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
+Implemented: conversation, streamed Markdown, reasoning and tool call cards, tool calls paired with results by call id, the Ask question card (shown only, not answered), confirmation of unknown results, reconnection after the observation ends. Not implemented: session list, answering cards, stopping one call.
 
 ## Usage
 
-<!-- documentation:placeholder -->
+```tsx
+import { SessionWorkspace } from '@omne-harness/session-ui'
+import '@omne-harness/session-ui/session-ui.css'
 
-Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
+;<SessionWorkspace client={sessionClient} tenant={currentTenantText} />
+```
+
+`client` is a `ClientOf<SessionProtocol>`. `tenant` is the tenant text that `query-current-tenant` of `identity/v1` gives. The component starts its own driver when it mounts and aborts its observations and timers when it unmounts. Give it a container with a height. All styles apply under `.omne-session`. Light and dark follow the system, or `data-theme="light" | "dark"` on an ancestor.
+
+Development demo: `pnpm --filter @omne-harness/session-ui run demo`, then open the printed address. A fake protocol client sends frames on a schedule. The demo is not published.
+
+Adapted code: `src/model/composer.ts` from super-assistant `src/desktop/src/renderer/src/conversation/composer-action.ts`; `src/view/scroll.ts` from `scroll.ts` in the same directory (`isNearBottom`); the pairing rule of `tool-pairing.ts` there is implemented in `src/model/conversation.ts`. `src/model/user-message.ts` is equivalent to `userTextMessage` of `@omne-harness/sdk`, with WebCrypto.
 
 ## Contracts
 

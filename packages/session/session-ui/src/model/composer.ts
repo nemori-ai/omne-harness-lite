@@ -1,23 +1,18 @@
-// The composer's one action slot: send and stop are one button with three faces. Adapted from
-// super-assistant `src/desktop/src/renderer/src/conversation/composer-action.ts` (`composerAction`):
-// the face is read off the run axis of the state machine, never off a clock.
+// The stop button's face, read off the run axis of the state machine and never off a clock.
+// Adapted from super-assistant `src/desktop/src/renderer/src/conversation/composer-action.ts`
+// (`composerAction`). Sending stays open in every face: a person can keep typing while a run goes.
 import type { Run } from './session-machine.ts'
 
-export type ComposerAction =
-  | Readonly<{ kind: 'send'; disabled: boolean }>
-  | Readonly<{ kind: 'stop'; disabled: false; confirming: boolean }>
-  | Readonly<{ kind: 'stopping'; disabled: true }>
+export type StopFace = 'none' | 'stop' | 'stopping' | 'confirm-stop'
 
-export function composerAction(run: Run, text: string): ComposerAction {
+export function stopFace(run: Run): StopFace {
   switch (run.kind) {
     case 'idle':
-      return { kind: 'send', disabled: text.trim().length === 0 }
+      return 'none'
     case 'running':
-      return { kind: 'stop', disabled: false, confirming: false }
+      return 'stop'
     case 'cancelling':
       // An unknown cancel can be pressed again: it asks again under the same control id.
-      return run.unknown
-        ? { kind: 'stop', disabled: false, confirming: true }
-        : { kind: 'stopping', disabled: true }
+      return run.unknown ? 'confirm-stop' : 'stopping'
   }
 }

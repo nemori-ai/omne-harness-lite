@@ -410,6 +410,14 @@
       "source": "packages/session/session-observation/SPEC.md"
     },
     {
+      "id": "packages/session/session-ui",
+      "paths": ["packages/session/session-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/session-ui/SPEC.md"
+    },
+    {
       "id": "packages/common/stream-arrival",
       "paths": ["packages/common/stream-arrival/src/**"],
       "layer": "contract",
@@ -703,6 +711,21 @@
       "source": "docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察"
     },
     {
+      "id": "DIR-SESSION-UI-SERVER",
+      "from": ["packages/session/session-ui"],
+      "to": [
+        "packages/access/access-cordis-contract",
+        "packages/access/server-entry",
+        "packages/identity/authorization",
+        "packages/identity/identity",
+        "packages/identity/identity-sql",
+        "packages/session/session",
+        "packages/session/session-cordis",
+        "packages/session/session-storage-sql"
+      ],
+      "source": "docs/rfcs/RFC-0015-access-dynamic-registration.md#四部分界面"
+    },
+    {
       "id": "DIR-ACCESS-MODEL",
       "from": [
         "packages/access/client-assembly",
@@ -805,8 +828,14 @@
     {
       "id": "GCX-CONTEXT-TOOL",
       "edges": [
-        { "from": "packages/context/request-context-contract", "to": "packages/tool/tool-contract" },
-        { "from": "packages/tool/tool-contract", "to": "packages/context/runtime-context-contract" },
+        {
+          "from": "packages/context/request-context-contract",
+          "to": "packages/tool/tool-contract"
+        },
+        {
+          "from": "packages/tool/tool-contract",
+          "to": "packages/context/runtime-context-contract"
+        },
         { "from": "packages/tool/tool", "to": "packages/context/runtime-context-contract" }
       ],
       "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480475331",
