@@ -87,8 +87,7 @@ function demandsOf(contracts: readonly ProtocolContract[]): ReadonlyMap<string, 
  * Only what the identity requirement asks for: the proof for `login`, the proof and the acting
  * tenant for `acting-tenant`. A target outside the known contracts gets both, so it still works.
  */
-function credentialsFor(login: StoredLogin | undefined, identity: Identity): Credentials {
-  if (login === undefined || identity === 'none') return {}
+function credentialsFor(login: StoredLogin, identity: Exclude<Identity, 'none'>): Credentials {
   return identity === 'login'
     ? { proof: login.proof }
     : { proof: login.proof, tenant: login.tenant }
@@ -108,7 +107,10 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
   // The session's own identity calls: `issue-login` needs none, `query-current-tenant` and
   // `revoke-login` need the login only.
   const identityFor = (login: StoredLogin | undefined) =>
-    createClient(identityProtocol, connect(credentialsFor(login, 'login')))
+    createClient(
+      identityProtocol,
+      connect(login === undefined ? {} : credentialsFor(login, 'login')),
+    )
 
   const saved = await store.read()
   let state: SessionState =
@@ -156,8 +158,9 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
   ): { readonly credentials: Credentials; readonly carried: StoredLogin | undefined } | 'refuse' {
     const demand = demands.get(target) ?? 'acting-tenant'
     if (state.kind === 'signing-out' || demand === 'carries-credential') return 'refuse'
-    const login = state.kind === 'signed-in' && demand !== 'none' ? state.login : undefined
-    return { credentials: credentialsFor(login, demand), carried: login }
+    if (state.kind !== 'signed-in' || demand === 'none')
+      return { credentials: {}, carried: undefined }
+    return { credentials: credentialsFor(state.login, demand), carried: state.login }
   }
 
   const transport: Transport = {
