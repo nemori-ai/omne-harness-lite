@@ -41,6 +41,28 @@ describe('hygiene-spec-shape', () => {
     expect(shape(`${good}\n\`\`\`md\n## 附录\n# 另一个\n\`\`\``)).toEqual([])
   })
 
+  it('reads a heading only at the start of a line', () => {
+    expect(shape(`${good}\n正文里的 # 不是标题`)).toEqual([])
+  })
+
+  it('reports the line of the offending heading', () => {
+    expect(shape(`${good}\n# 另一个`)[0]?.line).toBe(14)
+    expect(shape(good.replace('# 标题\n', ''))[0]?.line).toBe(1)
+    expect(shape(`${good}\n## 附录`)[0]?.line).toBe(14)
+    expect(shape(good.replace('\n## 不变式\n正文', ''))[0]?.line).toBe(1)
+    const swapped = good
+      .replace('## 领域边界', '## 临时')
+      .replace('## 心智模型', '## 领域边界')
+      .replace('## 临时', '## 心智模型')
+    expect(shape(swapped)[0]?.line).toBe(4)
+  })
+
+  it('counts lines without the trailing newline and accepts a spec exactly at the limit', () => {
+    expect(shape(good, 13)).toEqual([])
+    expect(shape(`${good}\n`, 13)).toEqual([])
+    expect(shape(`${good}\n行`, 13)).toHaveLength(1)
+  })
+
   it('rejects a spec over the line limit', () => {
     const long = `${good}\n${Array.from({ length: 600 }, () => '行').join('\n')}`
     const violations = shape(long)
@@ -81,6 +103,14 @@ describe('hygiene-spec-content', () => {
   it('lets similar headings and fenced text through', () => {
     expect(content('### 依据与取舍')).toEqual([])
     expect(content('```\n2026-11-12 TODO #1249\n### 待办\n```')).toEqual([])
+  })
+
+  it('checks the text after a closed fence and keeps a fence open until its own marker', () => {
+    expect(content('```\n正文\n```\n见 #1249')).toHaveLength(1)
+    expect(content('```\n~~~\n见 #1249\n```')).toEqual([])
+    expect(content('````\n```\n见 #1249\n````')).toEqual([])
+    expect(content('```见 #1249\n```')).toEqual([])
+    expect(content('  ```\n见 #1249\n  ```')).toEqual([])
   })
 
   it('reports the line of the hit', () => {

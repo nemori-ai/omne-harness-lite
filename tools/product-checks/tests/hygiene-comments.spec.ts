@@ -54,6 +54,13 @@ describe('hygiene-comment-forms', () => {
     expect(count(`/*\n1\n2\n3\n4\n*/\nconst a = 1`)).toBe(1)
   })
 
+  it('does not join header comments that a blank line separates', () => {
+    const three = (from: number) =>
+      Array.from({ length: 3 }, (_, index) => `// 第 ${from + index} 行`).join('\n')
+    expect(count(`${three(0)}\n\n${three(3)}\nconst a = 1`)).toBe(0)
+    expect(count(`${three(0)}\n${three(3)}\nconst a = 1`)).toBe(1)
+  })
+
   it('counts a long header block once even when its lines also match a form', () => {
     const block = ['// TODO', '// 二', '// 三', '// 四', '// 五 #123'].join('\n')
     expect(count(`${block}\nconst a = 1`)).toBe(1)

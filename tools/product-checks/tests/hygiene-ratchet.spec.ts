@@ -61,6 +61,31 @@ describe('hygiene-baseline-ratchet: loose baseline', () => {
     expect(violations.map(v => v.path)).toEqual([OTHER, SOURCE, OTHER, SOURCE])
   })
 
+  it('says that the file is gone for every entry of a source that no longer exists', () => {
+    const GONE = 'packages/x/y/src/gone.ts'
+    const baseline = emptyBaseline({
+      comments: { [GONE]: 1 },
+      sizes: { files: { [GONE]: 1200 }, functions: { [GONE]: { count: 1, longest: 160 } } },
+    })
+    expect(messages(looseBaselineViolations(current, baseline, open))).toEqual([
+      '基线过宽，收紧到当前值（文件已不存在）',
+      '基线过宽，收紧到当前值（文件已不存在）',
+      '基线过宽，收紧到当前值（文件已不存在）',
+    ])
+  })
+
+  it('says what shrank for an entry whose source still exists', () => {
+    const baseline = emptyBaseline({
+      comments: { [OTHER]: 1 },
+      sizes: { files: { [SOURCE]: 1200 }, functions: { [SOURCE]: { count: 1, longest: 160 } } },
+    })
+    expect(messages(looseBaselineViolations(current, baseline, open))).toEqual([
+      '基线过宽，收紧到当前值（注释违例 1 条，现 0 条）',
+      '基线过宽，收紧到当前值（已不超 1000 行）',
+      '基线过宽，收紧到当前值（已无超过 150 行的函数）',
+    ])
+  })
+
   it('treats a longest value that shrank as loose', () => {
     const baseline = emptyBaseline({
       sizes: { files: {}, functions: { [OTHER]: { count: 1, longest: 250 } } },
@@ -184,19 +209,123 @@ describe('hygiene baseline file', () => {
     expect(rendered.indexOf('"a.ts"')).toBeLessThan(rendered.indexOf('"b.ts"'))
   })
 
+  const withLimits = (limits: unknown) => JSON.stringify({ ...valid, limits })
+  const withFunctions = (entry: unknown) =>
+    JSON.stringify({ ...valid, sizes: { files: {}, functions: { 'a.ts': entry } } })
+
   it.each([
-    ['not json', '{'],
-    ['an array', '[]'],
-    ['a missing key', JSON.stringify({ limits: DEFAULT_LIMITS, documents: [] })],
-    ['an unsorted document list', JSON.stringify({ ...valid, documents: ['b.md', 'a.md'] })],
-    ['a bad limit', JSON.stringify({ ...valid, limits: { ...DEFAULT_LIMITS, fileLines: 'x' } })],
-    ['a zero count', JSON.stringify({ ...valid, comments: { 'a.ts': 0 } })],
-    ['an unsorted comment map', JSON.stringify({ ...valid, comments: { 'b.ts': 1, 'a.ts': 1 } })],
+    ['not json', '{', 'x.json：'],
+    ['an array', '[]', '基线 须为对象'],
+    ['null', 'null', '基线 须为对象'],
+    [
+      'a missing key',
+      JSON.stringify({ limits: DEFAULT_LIMITS, documents: [] }),
+      '基线 的键须恰为 comments、documents、limits、sizes',
+    ],
+    [
+      'a misspelt key',
+      JSON.stringify({
+        limits: valid.limits,
+        documents: valid.documents,
+        comments: valid.comments,
+        size: valid.sizes,
+      }),
+      '基线 的键须恰为 comments、documents、limits、sizes',
+    ],
+    ['limits that are not an object', withLimits(3), 'limits 须为对象'],
+    [
+      'limits with another key',
+      withLimits({ ...DEFAULT_LIMITS, extra: 1 }),
+      'limits 的键须恰为 fileLines、functionLines、specLines',
+    ],
+    [
+      'a bad limit',
+      withLimits({ ...DEFAULT_LIMITS, fileLines: 'x' }),
+      'limits.fileLines 须为正整数',
+    ],
+    [
+      'a fractional limit',
+      withLimits({ ...DEFAULT_LIMITS, functionLines: 1.5 }),
+      'limits.functionLines 须为正整数',
+    ],
+    [
+      'a zero limit',
+      withLimits({ ...DEFAULT_LIMITS, specLines: 0 }),
+      'limits.specLines 须为正整数',
+    ],
+    [
+      'documents that are not a list',
+      JSON.stringify({ ...valid, documents: {} }),
+      'documents 须为字符串数组',
+    ],
+    [
+      'a document that is not a string',
+      JSON.stringify({ ...valid, documents: ['a.md', 1] }),
+      'documents 须为字符串数组',
+    ],
+    [
+      'an unsorted document list',
+      JSON.stringify({ ...valid, documents: ['b.md', 'a.md'] }),
+      'documents 须按路径字典序排列且不重复',
+    ],
+    [
+      'a repeated document',
+      JSON.stringify({ ...valid, documents: ['a.md', 'a.md'] }),
+      'documents 须按路径字典序排列且不重复',
+    ],
+    [
+      'comments that are not an object',
+      JSON.stringify({ ...valid, comments: [] }),
+      'comments 须为对象',
+    ],
+    [
+      'a zero count',
+      JSON.stringify({ ...valid, comments: { 'a.ts': 0 } }),
+      'comments[a.ts] 须为正整数',
+    ],
+    [
+      'an unsorted comment map',
+      JSON.stringify({ ...valid, comments: { 'b.ts': 1, 'a.ts': 1 } }),
+      'comments 的键须按路径字典序排列且不重复',
+    ],
+    [
+      'sizes with another key',
+      JSON.stringify({ ...valid, sizes: { files: {}, functions: {}, extra: {} } }),
+      'sizes 的键须恰为 files、functions',
+    ],
+    [
+      'a file size that is not a count',
+      JSON.stringify({ ...valid, sizes: { files: { 'a.ts': '1100' }, functions: {} } }),
+      'sizes.files[a.ts] 须为正整数',
+    ],
+    ['a function entry that is not an object', withFunctions(3), 'sizes.functions[a.ts] 须为对象'],
     [
       'a function entry without longest',
-      JSON.stringify({ ...valid, sizes: { files: {}, functions: { 'a.ts': { count: 1 } } } }),
+      withFunctions({ count: 1 }),
+      'sizes.functions[a.ts] 的键须恰为 count、longest',
     ],
-  ])('rejects %s instead of reading it as empty', (_, text) => {
-    expect(() => parseHygieneBaseline(text, 'x.json')).toThrow(/x\.json/u)
+    [
+      'a function entry with a zero count',
+      withFunctions({ count: 0, longest: 160 }),
+      'sizes.functions[a.ts].count 须为正整数',
+    ],
+    [
+      'a function entry with a zero longest',
+      withFunctions({ count: 1, longest: 0 }),
+      'sizes.functions[a.ts].longest 须为正整数',
+    ],
+  ])('rejects %s instead of reading it as empty, and says why', (_, text, reason) => {
+    expect(() => parseHygieneBaseline(text, 'x.json')).toThrow('x.json：')
+    expect(() => parseHygieneBaseline(text, 'x.json')).toThrow(reason)
+  })
+
+  it('keeps the original error as the cause', () => {
+    let caught: unknown
+    try {
+      parseHygieneBaseline('[]', 'x.json')
+    } catch (error) {
+      caught = error
+    }
+    expect((caught as Error).cause).toBeInstanceOf(Error)
   })
 })

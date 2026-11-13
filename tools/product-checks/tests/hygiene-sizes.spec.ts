@@ -86,6 +86,12 @@ describe('hygiene-size-bands', () => {
     expect(sizeViolations(measured({ sources }), baseline)).toHaveLength(1)
   })
 
+  it('accepts a file exactly at its baseline lines', () => {
+    const sources = [{ path: SOURCE, text: fileOf(1300) }]
+    const baseline = emptyBaseline({ sizes: { files: { [SOURCE]: 1300 }, functions: {} } })
+    expect(sizeViolations(measured({ sources }), baseline)).toEqual([])
+  })
+
   it('does not report files at the limit', () => {
     expect(
       sizeViolations(
