@@ -96,7 +96,7 @@ const definitionProjection = [
 ]
 
 /** The characters of the manifest digest a combination version carries: 64 bits of it. */
-const VERSION_DIGEST_LENGTH = 16
+export const VERSION_DIGEST_LENGTH = 16
 
 /** Each combination has one writer per table and one provider per required fact. */
 export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
