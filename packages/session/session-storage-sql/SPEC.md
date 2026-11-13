@@ -520,6 +520,21 @@ Session 操作的输入摘要写在 `sl_operation.input_digest`，`decide` 用�
 
 **W6 并发写的裁定。**同一会话的两次提交只允许一个后继。SQLite 由单写连接与 `BEGIN IMMEDIATE` 串行化。PostgreSQL 由 [W1 第 5 步](#w1) 对 `sl_journal` 该行的 `SELECT ... FOR UPDATE` 串行化：后到的事务等前一个提交，再读到新尾部。所以两种介质下后到的事务都在新尾部上执行 `decide`：带 `expected` 的七种命令在 `expected` 不等于新尾部时得到 `changed`；其余命令按新状态重新裁定，不产生 `changed`。第 7 步的 `UPDATE ... WHERE tail = 第 5 步读到的 tail` 是最后一道核对，影响 0 行按「失败」处理并映射为 `unavailable`。本成员不用进程内锁或内存 CAS 代替这条核对。
 
+### 本批与提交通知
+
+会话日志只有一个写入者，即写 Worker 里的 `session` 参加者（[唯一写者](docs/commit-basis.md)）。提交之后要做的事挂在这个写入者上，不挂在各个提交方上（#1230）。
+
+- 这一批。写条目的函数只有一处：`src/worker/participant.ts` 的 `writeBatch`。它写完一批条目时给出这一批的五样：租户与会话取这一次写入的那两个，修订取这一批的修订，出处证据取这一批的批回执里的 `source`，条目种类取写出的条目种类去重后的集合。两条写路径（命令批次 `publishCommand`、同日志批次 `publishSameLog`）都从它取，放进参加者答复的 `batch` 字段。`batch` 与 `work`（[RT-04](#rt-04)）并列，两者都可选。认回、写入者答已恢复（`recovered`）、只读的意图与没写条目的命令，答复里都不带 `batch`。
+- 收据。参加者答复随存储收据落盘，所以存储认回原提交时，原答复里仍带 `batch`。`batch` 不进 `sl_operation` 保存的操作记录。
+- 交回答复。`afterSessionCommit`（`src/committed.ts`，从 `./participants` 导出）是主线程一侧唯一的落点。四个提交方都把存储对本次提交的答复交给它：命令入口、条目通道与日志通道经 `commitFacts`（`src/commit.ts`），Agent 日志提交里的会话参加经 session-adapters 的 Journal 提供者。落点按下面的顺序处理：
+  1. 判断是不是新提交。存储认回（`recalled`）与没提交的答复到此结束。写入者答已恢复时，答复里没有 `work` 与 `batch`。
+  2. 折进工作缓存（[RT-04](#rt-04)）。只有 Session 参加者的提交，在同一发布计数上折叠 `work`。Agent 日志的提交知道发布计数时，带 `work` 的在加一的计数上折叠，不带 `work` 的换掉持有快照的索引；不知道计数时不折叠。
+  3. 答复带 `batch` 时，把它交给登记在该库上的每个通知接口，作为 `SessionNotifier.committed` 的载荷。落点不等通知接口返回。通知接口抛出或返回失败的 Promise 时，落点接住它。
+
+  落点没有自己的状态，从不抛出，也不改变提交的答复。通知在提交完成之后发，不进提交的事务。通知失败不回滚提交。全仓调用工作缓存折叠函数的地方只有这个落点。
+- 按库登记。`registerSessionNotifier(storage, notifier)` 把一个 `SessionNotifier` 登记在 `storage` 背后的库上，返回注销函数。登记表按 `SqlStorage.database` 保存，与工作缓存用同一种身份（[RT-04](#rt-04)）。所以本进程任一提交方写进这个库的每一批新写出都报给它，不论提交方是否经过 `createSessionStorage`。同一个通知接口登记两次就收到两次，注销之后不再收到。根入口与 `./participants` 都导出这个函数。应用装配的 `session-storage` 行在发布服务之前登记 session-cordis 造的通知接口，行卸载时注销（[harness-server 的 session-storage 行](../../../apps/harness-server/docs/rows/session-storage.md)）。
+- 验证：[commit-landing.spec.ts](tests/commit-landing.spec.ts) 逐格核对落点；[commit-notices.spec.ts](tests/commit-notices.spec.ts) 在真实 sqlite-provider 上核对本成员的三个提交方。第四个提交方的用例在 session-adapters。
+
 ### 读路径
 
 每条读路径先按身份与披露边界核权，再读取。核权失败返回 `denied` 或 `invalid`，不返回空页。提供者不可用、索引重建中或读入口缺席返回 `unavailable`，不返回空页。读路径不写任何行，不发通知。
@@ -793,9 +808,9 @@ releasedScopes(principal, scope = system, after, limit):
 - 返回的快照是深冻结的同一对象：调用方写入会抛 `TypeError`，不会改变下一位读者所见。
 - 上界：按 LRU 淘汰，会话数上限 `WORK_CACHE_SESSIONS`（256）、快照文本字节上限 `WORK_CACHE_BYTES`（64 MiB），可经 `SessionStorageOptions.workCache` 覆盖，`0` 表示不缓存；单个快照超过字节上限时不登记。同一存储对象上第一个读者的上界生效。被淘汰的会话再读时整读一次。
 - 提交不读缓存：提交在参加者里按事务内的当前状态裁定，`expected` 与尾部在事务内核对，缓存不参与。其他进程的提交由下一次读的版本点查发现。
-- 本进程的提交折叠进缓存。提交回复把本次批次交给工作缓存：`session` 参加者在推进尾部的两条写路径（命令批次、同日志批次）的回复里带 `work`，含新版本 `(tail, published)`（`published` 在同一事务里点读 `er_root`）、快照正文长度、本批首末位置，以及本批归约所依据的历史读取的输入范围与焦点（`basis`）。`basis` 的 JSON 文本超过 `WORK_BASIS_BYTES`（16 KiB）时不带；entries 通道在没有索引与读数的快照上归约，只标 `indexed: false`。认回不带 `work`。端口只在回复新鲜且已提交（不是认回、不是 `recovered`）、缓存持有的版本正是 `(tail − 1, published)` 时折叠，依次：经 `session.history` 读本批条目（O(k)，核对位置连续、修订等于 `tail`）；经 `session.work-reads` 在读 Worker 里按「位置不超过本批首位减一、`published` 相等」复现参加者的历史索引与读数（Session 行写后不变，`er_` 行只随 `published` 变；该 handler 核对 `published` 与该位置行的修订，Worker 保留的索引已越过该位置时也答 `stale`）；在持有的快照上换入这份索引，用同一个 `reduce` 与这份读数归约；经 `session.work-index` 按与 `session.work` 相同的函数和上界（`workIndexOf`）算新快照的索引，该 handler 先核对存储的 `tail` 仍等于折叠的 `tail`，不等答 `stale`；发布计数小于所问也答 `stale`，大于所问时按当前计数算索引；答复都给出当前计数，索引超过行上界答 `too-many` 时也给出。快照行只在推进 `tail` 的事务里替换（见上文「版本」），所以折叠期间插入的发布只改变索引：全部成立就以 `(tail, 答复的 published)` 登记，`too-many` 时登记不带索引的快照，与该版本的整读相同。没有持有项、版本不衔接、`basis` 缺席、`reduce` 隔离、条目读不全或 `stale` 时都不登记，只计数，下一次读照旧点查加整读。折叠进行期间，点查到同一版本的读等折叠结束再取登记项。折叠从不改变提交的回答，也从不抛错。
-- 本进程的 Agent 发布只换索引：Journal 提供者在发布提交后调用 `registerSessionWorkIndex`，缓存持有该会话时，按持有的 `tail` 经 `session.work-index` 重算索引，换掉持有项的索引并以答复的版本登记（计数可能已越过这次发布，同上）；快照行只随 `tail` 变，所以快照本身沿用。`tail` 已变（`stale`）或没有持有项时不登记。
-- 本进程的 Journal 共同提交也折叠：Journal 提供者的一次发布里带 Session 参加（命令批次）时，Session 参加者的回复同样带 `work`。同一事务里 `execution-record` 参加者先运行（名字序，见已知限制第 11 条），把发布计数加一，Session 参加者随后点读到的就是加一后的计数。所以这条提交只在缓存持有的版本正是 `(tail − 1, published − 1)` 时折叠，复现读数与读新索引都用回复里的计数；其余步骤与端口提交相同。只取这次调用发出、已提交、不是认回、Session 回答不是 `recovered` 的回复；回滚的提交没有 `work`。Journal 提供者调用 `registerSessionWorkIndex` 时带上这份 `work` 就折叠，不带就只换索引。
+- 本进程的提交折叠进缓存。提交回复把本次批次交给工作缓存（经落点 [`afterSessionCommit`](#本批与提交通知)）：`session` 参加者在推进尾部的两条写路径（命令批次、同日志批次）的回复里带 `work`，含新版本 `(tail, published)`（`published` 在同一事务里点读 `er_root`）、快照正文长度、本批首末位置，以及本批归约所依据的历史读取的输入范围与焦点（`basis`）。`basis` 的 JSON 文本超过 `WORK_BASIS_BYTES`（16 KiB）时不带；entries 通道在没有索引与读数的快照上归约，只标 `indexed: false`。认回不带 `work`。落点只在回复新鲜且已提交（不是认回、不是 `recovered`）、缓存持有的版本正是 `(tail − 1, published)` 时折叠，依次：经 `session.history` 读本批条目（O(k)，核对位置连续、修订等于 `tail`）；经 `session.work-reads` 在读 Worker 里按「位置不超过本批首位减一、`published` 相等」复现参加者的历史索引与读数（Session 行写后不变，`er_` 行只随 `published` 变；该 handler 核对 `published` 与该位置行的修订，Worker 保留的索引已越过该位置时也答 `stale`）；在持有的快照上换入这份索引，用同一个 `reduce` 与这份读数归约；经 `session.work-index` 按与 `session.work` 相同的函数和上界（`workIndexOf`）算新快照的索引，该 handler 先核对存储的 `tail` 仍等于折叠的 `tail`，不等答 `stale`；发布计数小于所问也答 `stale`，大于所问时按当前计数算索引；答复都给出当前计数，索引超过行上界答 `too-many` 时也给出。快照行只在推进 `tail` 的事务里替换（见上文「版本」），所以折叠期间插入的发布只改变索引：全部成立就以 `(tail, 答复的 published)` 登记，`too-many` 时登记不带索引的快照，与该版本的整读相同。没有持有项、版本不衔接、`basis` 缺席、`reduce` 隔离、条目读不全或 `stale` 时都不登记，只计数，下一次读照旧点查加整读。折叠进行期间，点查到同一版本的读等折叠结束再取登记项。折叠从不改变提交的回答，也从不抛错。
+- 本进程的 Agent 发布只换索引：Journal 提供者在发布提交后把答复交给落点 `afterSessionCommit`。答复里没有 Session 参加的 `work` 而缓存持有该会话时，落点按持有的 `tail` 经 `session.work-index` 重算索引，换掉持有项的索引并以答复的版本登记（计数可能已越过这次发布，同上）；快照行只随 `tail` 变，所以快照本身沿用。`tail` 已变（`stale`）或没有持有项时不登记。
+- 本进程的 Journal 共同提交也折叠：Journal 提供者的一次发布里带 Session 参加（命令批次）时，Session 参加者的回复同样带 `work`。同一事务里 `execution-record` 参加者先运行（名字序，见已知限制第 11 条），把发布计数加一，Session 参加者随后点读到的就是加一后的计数。所以这条提交只在缓存持有的版本正是 `(tail − 1, published − 1)` 时折叠，复现读数与读新索引都用回复里的计数；其余步骤与端口提交相同。只取这次调用发出、已提交、不是认回、Session 回答不是 `recovered` 的回复；回滚的提交没有 `work`。答复带这份 `work` 时落点折叠，不带时只换索引。
 - 计数：`workFoldCounts(storage)` 给出该库（按 `SqlStorage.database` 取身份）的 `folded`、`indexed`、`skipped`、`quarantined`、`stale`，以及其中按越过的计数登记的 `republished`，供测量使用。`folded`、`indexed` 只在缓存确实留下登记项时加一。
 - 回复会落盘：sqlite-provider 把参加者回复连同收据写进 `_sql_receipt`，单份回复超过 `maxResponseBytes`（初值 64 KiB）时提交回滚。所以 `basis` 有 16 KiB 的界，每次提交的收据至多多出这么多；`basis` 只是输入范围与焦点，通常几百字节。
 - 已知限制：整读仍是 O(|S|)，冷启动、淘汰、外部提交、`basis` 超界与折叠不成立时付一次。`session.work-index` 与 `session.work-reads` 的输入带全部 Run 的执行引用，长度随 Run 数增长。主线程的 `reduce` 对持有快照做顶层浅拷贝，代价未单独测。

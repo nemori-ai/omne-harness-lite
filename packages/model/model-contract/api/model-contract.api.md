@@ -153,6 +153,7 @@
 - `encodeModelInvocationRef` · `reference.d.ts`
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
+- `projectModelOutputV1` · `model-output-v1.d.ts`
 - `resolveModelInvocationRef` · `reference.d.ts`
 
 ## 入口 `./conformance` · `conformance/index.d.ts`
@@ -1247,7 +1248,7 @@ export { judgeModelDelivery } from './result-delivery-judge.ts';
 export type * from './model-stream-values.ts';
 export type * from './model-stream.ts';
 export { diffModelStream, applyModelStreamDelta } from './model-stream-values.ts';
-export { encodeModelOutputV1, decodeModelOutputV1 } from './model-output-v1.ts';
+export { encodeModelOutputV1, decodeModelOutputV1, projectModelOutputV1, } from './model-output-v1.ts';
 export type { ModelOutputV1, ModelOutputV1Snapshot, ModelOutputV1Delta, ModelOutputV1Failure, } from './model-output-v1.ts';
 export type * from './call-surface.ts';
 export type { MaterializationReceipt, RetryDecision, RetryPosition, RetryResolution, TransportFailure, } from './provider-protocol.ts';
@@ -1339,6 +1340,7 @@ export declare function outputBlocks(value: unknown, encoding: boolean): readonl
 ## 声明文件 `model-output-v1.d.ts`
 
 ```ts
+import { type JsonValue } from '@omne-harness/json-text';
 import type { Outcome } from '@omne-harness/operation-result';
 import type { VisibleBlock } from './call-surface.ts';
 import type { CallState } from './result.ts';
@@ -1363,6 +1365,8 @@ export type ModelOutputV1Failure = Readonly<{
     kind: 'invalid-model-output';
     reason: string;
 }>;
+export declare function projectModelOutputV1(input: ModelOutputV1 | ModelStreamSnapshot): Outcome<JsonValue, ModelOutputV1Failure>;
+export declare function projectModelOutputV1(input: ModelStreamDelta, basePhase: CallState['phase']): Outcome<JsonValue, ModelOutputV1Failure>;
 export declare function encodeModelOutputV1(input: ModelOutputV1 | ModelStreamSnapshot): Outcome<string, ModelOutputV1Failure>;
 export declare function encodeModelOutputV1(input: ModelStreamDelta, basePhase: CallState['phase']): Outcome<string, ModelOutputV1Failure>;
 export declare function decodeModelOutputV1(text: unknown): Outcome<ModelOutputV1, ModelOutputV1Failure>;

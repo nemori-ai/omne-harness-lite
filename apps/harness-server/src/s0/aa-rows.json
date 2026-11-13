@@ -55,6 +55,7 @@
     "agent-context",
     "agent-account-outlet",
     "runtime-context",
+    "session-observation",
     "server-entry"
   ],
   "trusted": [

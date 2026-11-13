@@ -22,7 +22,6 @@ import {
   createMemorySessionContextInput,
   createMemorySessionEvidenceBridge,
   createMemorySessionIdleInput,
-  createMemorySessionNotifier,
   createMemoryScopeRelease,
   createPolicySessionAccessCheck,
   createScriptedSessionIdentityBridge,
@@ -94,7 +93,6 @@ export type HarnessOptions = Readonly<{
   advance?: boolean
   policy?: Partial<SchedulingPolicy>
   admission?: readonly BeforeAdmitSlot[] | null
-  notifier?: boolean
   drive?: boolean
   /** The observer of the measurement events; absent leaves the instance without one. */
   measure?: SessionMeasure
@@ -206,7 +204,6 @@ export async function harness(options: HarnessOptions) {
   let identityThrows = false
   const context = createMemorySessionContextInput<string>()
   const clock = createMemorySessionClock()
-  const notifier = createMemorySessionNotifier()
   const drive: MemoryAgentDrive = createMemoryAgentDrive()
   const scopeRelease = createMemoryScopeRelease()
   const idle = createMemorySessionIdleInput<string>({
@@ -238,7 +235,6 @@ export async function harness(options: HarnessOptions) {
     clock,
     idle,
     context,
-    notifier: { current: () => (options.notifier === false ? null : notifier) },
     agentDrive: { current: () => (drivePresent ? drive : null) },
     scopeRelease: { current: () => scopeRelease },
     principals: { coordinator: 'system:coordinator', maintainer: 'system:maintainer' },
@@ -314,7 +310,6 @@ export async function harness(options: HarnessOptions) {
     context,
     idle,
     clock,
-    notifier,
     drive,
     bindings,
     workPrincipals,

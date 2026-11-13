@@ -799,7 +799,7 @@ Model 在原保存确认后发布投影。取得已确认快照 C 与登记 C �
 
 #### `model-output-v1` 的 JSON 投影
 
-`encodeModelOutputV1` 与 `decodeModelOutputV1` 是根入口的纯编解码函数。投影只包含可见块、Model 输出游标、修订和阶段，不包含 `ref`、`dispatch`、调用身份或消费者。它不提供生产观察服务或安装保证。
+`encodeModelOutputV1` 与 `decodeModelOutputV1` 是根入口的纯编解码函数。`projectModelOutputV1` 给出同一投影的值：一棵 `@omne-harness/json-text` 的 JSON 树，重载与 `encodeModelOutputV1` 相同（内部增量要显式给 `basePhase`），失败也相同。`encodeModelOutputV1` 的结果就是把这个值用 `writeJsonText` 写成的文本，键的次序与写法不变。投影只包含可见块、Model 输出游标、修订和阶段，不包含 `ref`、`dispatch`、调用身份或消费者。它不提供生产观察服务或安装保证。
 
 - snapshot 的键集是 `{projection: 'model-output-v1', phase, cursor, revision, blocks}`。`cursor` 与 `revision` 分别来自 `ModelStreamSnapshot.value.cursor` 和 `value.state.revision`。
 - delta 的键集是 `{projection: 'model-output-v1', base: {cursor, revision}, cursor, revision, phase?, blocks}`。`base.cursor` 与 `base.revision` 分别来自内部 `ModelStreamDelta.from.outputCursor` 和 `from.revision`，表示消费者当前已应用视图，不限于最近一份 snapshot。顶层 `cursor` 与 `revision` 分别来自目标 `outputCursor` 和 `state.revision`。

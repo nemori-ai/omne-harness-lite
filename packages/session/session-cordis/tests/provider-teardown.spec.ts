@@ -118,15 +118,13 @@ describe('a provider change while a command is in flight', () => {
 })
 
 describe('what a removal in progress does', () => {
-  it('refuses the faces, hands on no notice, binds no scanner, sends no call, and lets the command in flight end', async () => {
+  it('refuses the faces, ignores a notice, binds no scanner, sends no call, and lets the command in flight end', async () => {
     const a = await build()
     await a.listen()
     const intake = await a.caller('intake')
     a.bindings.controls.bind(a.tenant, a.sessionId('session-1'))
     await a.create(intake)
     await expect.poll(() => spies.maintained).toBe(1)
-    await expect.poll(() => a.events.length).toBe(1)
-    const notified = a.notifier.controls.notifications().length
     const service = a.ctx.get('session')!
     const scanners = a.hooks.pendingTenants.length
 
@@ -144,7 +142,8 @@ describe('what a removal in progress does', () => {
     expect(await service.history.next({ ...a.access(), cursor: '' as never })).toMatchObject({
       failure: { kind: 'unavailable', owner: 'session' },
     })
-    // A notice of another dispatcher neither wakes the instance nor binds a scanner.
+    // A notice neither wakes the instance nor binds a scanner: not for another tenant, and not for
+    // the bound session of this instance, whose input is now accepted and would start a Run.
     a.emitCommitted(
       a.other().tenant,
       a.sessionId('x'),
@@ -152,20 +151,26 @@ describe('what a removal in progress does', () => {
       { owner: 'o', record: 'r', revision: '1', digest: 'd' },
       ['intake.routed'],
     )
+    a.emitCommitted(
+      a.tenant,
+      a.sessionId('session-1'),
+      '3',
+      { owner: 'o', record: 'r', revision: '3', digest: 'd' },
+      ['message.user', 'intake.routed'],
+    )
     await delay(100)
     expect(a.hooks.pendingTenants.length).toBe(scanners)
     // The removal waits for the command in flight.
     expect(removed).toBe(false)
-    // The listener of the test saw the foreign notice; the plugin dispatches nothing more.
     const dispatched = a.events.length
 
     gate.release()
     await removing
-    // The command ended with its receipt, and the commit left no notice and no outbound call.
-    expect((await inflight).revision).toBeDefined()
+    // The command ended with its receipt. The store tells its batch like any other, once; the
+    // plugin that is being removed is not woken by it and sends no outbound call.
+    const receipt = await inflight
     await delay(100)
-    expect(a.events).toHaveLength(dispatched)
-    expect(a.notifier.controls.notifications()).toHaveLength(notified)
+    expect(a.events.slice(dispatched).map(payload => payload[2])).toEqual([receipt.revision])
     expect(a.hooks.invoked).toHaveLength(0)
   })
 })
@@ -188,41 +193,6 @@ describe('a scanner that is still starting when the removal begins', () => {
     open()
     await expect.poll(() => spies.maintained).toBe(1)
     await expect.poll(() => spies.released).toBe(1)
-  })
-})
-
-describe('the window between the first step and close', () => {
-  // The instance wakes its own advance after a local commit until `close` is called, so a command
-  // that ends inside this window may still start work of its own; the window is the time of the
-  // release of the scanners, which is not a wait. The notice is the plugin's own act and is held back.
-  it('a commit that completes there hands on no notice', async () => {
-    const a = await build()
-    await a.listen()
-    const intake = await a.caller('intake')
-    await a.create(intake)
-    await expect.poll(() => spies.maintained).toBe(1)
-    await expect.poll(() => a.events.length).toBe(1)
-    const notified = a.notifier.controls.notifications().length
-
-    const commit = a.hold()
-    const inflight = a.accept(intake, 'between')
-    await commit.arrived
-    // The release of the scanner is held, so the removal stays after its first step and before close.
-    let letReleaseGo!: () => void
-    spies.releaseGate = new Promise<void>(resolve => {
-      letReleaseGo = resolve
-    })
-    const removing = a.provider.dispose()
-    await expect.poll(() => spies.released).toBe(1)
-    expect(spies.closed).toBe(0)
-
-    commit.release()
-    expect((await inflight).revision).toBeDefined()
-    await delay(100)
-    letReleaseGo()
-    await removing
-    expect(a.events).toHaveLength(1)
-    expect(a.notifier.controls.notifications()).toHaveLength(notified)
   })
 })
 

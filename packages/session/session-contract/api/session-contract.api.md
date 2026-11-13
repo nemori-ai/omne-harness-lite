@@ -20,6 +20,7 @@
 - `BoundedClose` · `values.d.ts`
 - `CONTEXT_SCOPE_KINDS` · `context-scopes.d.ts`
 - `CallBinding` · `values.d.ts`
+- `CallRegistrationView` · `call-registration.d.ts`
 - `ClockSample` · `values.d.ts`
 - `CommitReceipt` · `faces.d.ts`
 - `CommittedBatch` · `judgments.d.ts`
@@ -250,6 +251,7 @@
 - `projectSessionEntries` · `entries-interpretation.d.ts`
 - `projectSessionLog` · `projection.d.ts`
 - `readAccessRequest` · `access.d.ts`
+- `readCallRegistration` · `call-registration.d.ts`
 - `rebuildSessionPermissions` · `permission-history.d.ts`
 - `reduce` · `reduce.d.ts`
 - `resolveCascade` · `judgments.d.ts`
@@ -435,6 +437,18 @@ export {};
 ```ts
 import type { SessionBlockDeclaration } from './ports.ts';
 export declare const sessionModesBlock: SessionBlockDeclaration;
+```
+
+## 声明文件 `call-registration.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+export type CallRegistrationView = Readonly<{
+    kind: 'model' | 'tool';
+    reference: string | null;
+    purpose: 'main' | 'compaction' | 'extension' | 'action';
+}>;
+export declare function readCallRegistration(payload: JsonValue): CallRegistrationView | null;
 ```
 
 ## 声明文件 `call-state.d.ts`
@@ -1745,6 +1759,8 @@ export type { InitializationRegistration } from './initialization-registration.t
 export type { InitializationRequirement } from './initialization-requirements.ts';
 export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, } from './history-values.ts';
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
+export { readCallRegistration } from './call-registration.ts';
+export type { CallRegistrationView } from './call-registration.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
 export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, } from './intake.ts';
@@ -2852,8 +2868,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:a4c742ae26fdcf45dd630c7359673bd9925219747f865cc623cef24683153ea4";
-export declare const SESSION_RELEASE_DIGEST = "sha256:a4c742ae26fdcf45dd630c7359673bd9925219747f865cc623cef24683153ea4";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:812ce4ec582eb4cdcb2fc376198161d39d6e97dab5378765a3ad017312c9cd06";
+export declare const SESSION_RELEASE_DIGEST = "sha256:812ce4ec582eb4cdcb2fc376198161d39d6e97dab5378765a3ad017312c9cd06";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

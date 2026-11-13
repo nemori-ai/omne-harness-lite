@@ -165,6 +165,16 @@ function withQueueCapacity(layer: unknown, capacity: number | undefined): unknow
   }
 }
 
+/** The operator layer with the `session-observation` row given `policy`, when it is given. */
+function withObservationPolicy(
+  layer: unknown,
+  policy: Readonly<Record<string, number>> | undefined,
+): unknown {
+  if (policy === undefined) return layer
+  const { ops } = layer as { ops: readonly object[] }
+  return { ops: [...ops, { kind: 'replace', id: 'session-observation', config: { policy } }] }
+}
+
 /**
  * The operator layer with the Agent's reconciliation delay at 50 ms. The shared test layer sets it
  * to 0, and an execution that waits then runs again at once, some 200 times a second. The scenarios
@@ -482,6 +492,8 @@ export type ReleaseTreeOptions = Readonly<{
   audience?: (registrar: string) => HitlAudience
   /** Replaces the `queueCapacity` of the Tool runtime (the `tool-records` row of the operator layer). */
   queueCapacity?: number
+  /** The refresh policy of the `session-observation` row, as its operator configuration. */
+  observationPolicy?: Readonly<Record<string, number>>
 }>
 
 /**
@@ -568,13 +580,16 @@ async function serveOnce(
   )
   const finished = runServe({
     distribution: releaseDistribution(options),
-    operator: withAgentWaitInterval(
-      withQueueCapacity(
-        withHistoryKinds(
-          operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
+    operator: withObservationPolicy(
+      withAgentWaitInterval(
+        withQueueCapacity(
+          withHistoryKinds(
+            operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
+          ),
+          options.queueCapacity,
         ),
-        options.queueCapacity,
       ),
+      options.observationPolicy,
     ),
     plugins: { ...cordis },
     entryObjects: objects,

@@ -116,12 +116,11 @@ function moveTailBeforeEachCommit(h: Harness): () => number {
 }
 
 describe('step 1: recall of a held operation', () => {
-  it('the same operation and input recalls the original receipt with no material and no notice', async () => {
+  it('the same operation and input recalls the original receipt with no material', async () => {
     const h = await service()
     await h.create()
     const first = await h.accept('one')
     const asked = h.identity.controls.asked().length
-    const notices = h.notifier.controls.notifications().length
     h.view.reset()
     const again = succeeded(
       await h.faces('intake').work.accept({
@@ -134,7 +133,6 @@ describe('step 1: recall of a held operation', () => {
     expect(again).toEqual({ ...first, recovered: true })
     expect(h.view.calls().map(call => call.method)).toEqual(['queryOperation', 'commit'])
     expect(h.identity.controls.asked().length).toBe(asked)
-    expect(h.notifier.controls.notifications().length).toBe(notices)
   })
 
   it('the same operation with another input is a conflict and commits nothing', async () => {
@@ -390,10 +388,9 @@ describe('step 5: the commit', () => {
     expect(h.view.calls().filter(call => call.method === 'commit')).toHaveLength(1)
   })
 
-  it('commit-unknown is passed on as it is, with no notice', async () => {
+  it('commit-unknown is passed on as it is', async () => {
     const h = await service()
     await h.create()
-    const notices = h.notifier.controls.notifications().length
     h.view.onCommit(async (input, next) => {
       await next()
       return fail({ kind: 'commit-unknown' as const, operation: input.command.input.operation })
@@ -407,7 +404,6 @@ describe('step 5: the commit', () => {
       kind: 'commit-unknown',
       operation: operationId('accept-x'),
     })
-    expect(h.notifier.controls.notifications().length).toBe(notices)
   })
 
   it('a commit that throws leaves the outcome unknown', async () => {
@@ -441,100 +437,15 @@ describe('step 5: the commit', () => {
   })
 })
 
-describe('step 6: the notice after a durable commit', () => {
-  it('carries the tenant, session, revision, source and the event kinds of that commit', async () => {
-    const h = await service()
-    const created = await h.create()
-    const accepted = await h.accept('one')
-    await new Promise(resolve => setImmediate(resolve))
-    const notices = h.notifier.controls.notifications()
-    expect(notices.map(notice => notice.revision)).toEqual([created.revision, accepted.revision])
-    const last = notices.at(-1)
-    expect(last?.source).toEqual(accepted.source)
-    expect(last?.kinds).toContain('intake.routed')
-    expect(last?.session).toBe(h.access().session)
-  })
-
-  it('notifies the event of a one-entry commit, including the first entry', async () => {
+describe('step 6: no notice from the instance', () => {
+  // The one writer of the session log tells each batch (session-storage-sql「本批与提交通知」); the
+  // instance has no notifier, and without an observer it reads nothing back after a commit.
+  it('a commit reads no entry back without an observer', async () => {
     const h = await service()
     await h.create()
-    const changed = succeeded(
-      await h.faces('intake').management.change({
-        ...h.access(),
-        operation: operationId('single-declaration'),
-        declaration: { kind: 'declaration', item: 'test', value: null, basis: evidence('test') },
-      }),
-      'change',
-    )
-    expect(changed.first).toBe(changed.last)
-    await new Promise(resolve => setImmediate(resolve))
-    expect(
-      h.notifier.controls.notifications().find(notice => notice.revision === changed.revision)
-        ?.kinds,
-    ).toEqual(['session.declaration-adopted'])
-  })
-
-  it('keeps a commit notice complete across history pages and later commits', async () => {
-    const h = await service({
-      backend: {
-        name: 'memory with one-entry history pages',
-        async open(accessCheck) {
-          const backend = await memoryBackend.open(accessCheck)
-          return {
-            ...backend,
-            delegated: {
-              bind(checked) {
-                const view = backend.delegated.bind(checked)
-                return {
-                  ...view,
-                  history: {
-                    ...view.history,
-                    begin: input => view.history.begin({ ...input, pageBytes: 1 }),
-                  },
-                }
-              },
-            },
-          }
-        },
-      },
-    })
-    const created = await h.create()
-    h.view.onCommit(async (_input, next) => {
-      const result = await next()
-      h.view.onCommit(null)
-      await h.accept('later')
-      return result
-    })
-    const changed = succeeded(
-      await h.faces('intake').management.change({
-        ...h.access(),
-        operation: operationId('before-later-commit'),
-        declaration: { kind: 'declaration', item: 'test', value: null, basis: evidence('test') },
-      }),
-      'change',
-    )
-    await new Promise(resolve => setImmediate(resolve))
-    const notices = h.notifier.controls.notifications()
-    expect(notices.find(notice => notice.revision === created.revision)?.kinds).toContain(
-      'session.created',
-    )
-    expect(notices.find(notice => notice.revision === changed.revision)?.kinds).toEqual([
-      'session.declaration-adopted',
-    ])
-  })
-
-  it('an absent notifier changes no answer', async () => {
-    const h = await service({ notifier: false })
-    await h.create()
+    h.view.reset()
     expect((await h.accept('one')).recovered).toBe(false)
-    expect(h.notifier.controls.notifications()).toEqual([])
-  })
-
-  it('a notifier that fails changes no answer', async () => {
-    const h = await service()
-    await h.create()
-    h.notifier.committed = () => Promise.reject(new Error('bus down'))
-    expect((await h.accept('one')).recovered).toBe(false)
+    expect(h.view.calls().map(call => call.method)).not.toContain('history.begin')
   })
 })
 

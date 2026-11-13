@@ -29,7 +29,7 @@ sequenceDiagram
     F-->>A: fiber PENDING，服务不在场
   else 正常
     T-->>F: inject 取得五项
-    F->>F: 捕获本插件 Context，构造端口代理与组合通知者
+    F->>F: 捕获本插件 Context，构造端口代理
     F->>I: createSessionInstance(依赖, 配置)
     F->>F: ctx.on 监听 committed
     F-->>A: 以键 session 提供服务
@@ -116,7 +116,7 @@ sequenceDiagram
 | --- | --- | --- |
 | 四步顺序 | 写在同一个函数里按顺序 `await`；停止句柄与 effect 两条路径调用它，后到的一次只等先到的一次结束，不重复执行；后到的是 effect 时仍退登记两个句柄 | 某一步抛出时本插件捕获、记录诊断，并继续后续步骤 |
 | 撤除开始后的面调用 | `unavailable`，`owner` 为 `session` | 调用方插件随本插件卸载或重跑后，在新的提供者上重试 |
-| 撤除期间确认的提交 | 调用方得到回执，不发通知 | 下一个实例的扫描按待办找回后续工作 |
+| 撤除期间确认的提交 | 调用方得到回执，这一批的通知不再交给实例 | 下一个实例的扫描按待办找回后续工作 |
 | 未确认的提交 | `commit-unknown` 或 `unavailable` | 调用方以同一操作身份重试或 `queryOperation` |
 | 已提交、出站调用未发出 | 不补发 | 重启或换代后的 S3 找回并以同一身份重放 |
 | 超时 | 本插件返回，仍在途的命令以自己的结果结束 | 物理等待的上界归部署 |
@@ -129,13 +129,21 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant X as 提交方
+  participant W as 会话存储的唯一落点
+  participant N as 通知接口
   participant F as 插件
   participant I as 实例
   participant B as 其他监听者
-  X->>I: 一次提交确认耐久
-  I->>F: 组合通知者 committed(载荷)
-  F-)B: parallel 派发 committed，不等待
-  F->>F: 现取 sessionNotifier，存在时转发
+  X->>W: 存储的答复，一批新写出
+  W-)N: committed(载荷)，不等待
+  N-)F: parallel 派发 committed，不等待
+  N-)B: 同一次派发
+  N->>N: 现取 sessionNotifier，存在时转交
+  alt 正在撤除
+    F->>F: 不理
+  else 未在撤除
+    F->>I: committed(载荷)
+  end
   alt 表里没有该租户
     F->>I: maintain(tenant)
     alt 成功
@@ -146,16 +154,16 @@ sequenceDiagram
       F->>F: 记录诊断，等该租户的下一条通知
     end
   end
-  Note over F: 外来通知经 ctx.on 到达时，先交给 committed，再按同样规则绑定
+  Note over F: 每条通知都经 ctx.on 到达，本实例的命令写出的批也一样
 ```
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
-| 派发 | 每次提交一次，载荷不含正文 | 监听者失败或 `AggregateError` 只记录诊断，回执不变 |
-| 转发 | `sessionNotifier` 存在时转发同一载荷 | 缺席或失败只记录诊断 |
+| 派发 | 通知接口每被调用一次派发一次，载荷不含正文 | 监听者失败或 `AggregateError` 只记录诊断，答复不变 |
+| 转交 | `sessionNotifier` 存在时转交同一载荷 | 缺席或失败只记录诊断 |
 | 首次见到租户 | 调用 `maintain`，启动扫描 | 失败时不进表，下一条通知再试，不立即重试 |
 | 再次见到租户 | 不再调用 | 无 |
-| 外来通知 | 交给 `committed`，按同样规则绑定 | 本插件自己派发的通知可以跳过，重复交入也无害 |
+| 每条通知 | 交给 `committed`，按同样规则绑定 | 本实例的命令写出的批多叫醒实例一次，重复交入也无害 |
 | 换代或重启后 | 租户表是空的，从新的通知重新建立 | 有待办而没有新提交的租户，在下一条通知之前不被启动扫描覆盖（[SPEC 的明确缺项](../SPEC.md#明确缺项)） |
 | 两份插件装在不同 isolate 标签 | 一个租户两个扫描者，违反性质 7 | 装配拥有者不得这样装。第二道保护是操作幂等与条件提交围栏 |
 

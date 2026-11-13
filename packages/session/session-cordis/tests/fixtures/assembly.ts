@@ -51,7 +51,7 @@ import {
   createMemorySessionPrincipalBindings,
   createMemorySessionWorkPrincipals,
 } from '@omne-harness/session-cordis-contract/testing'
-import { SessionProvider } from '../../src/cordis.ts'
+import { createSessionCommitNotifier, SessionProvider } from '../../src/cordis.ts'
 import { memoryBackend, type Backend, type BackendFactory } from './backends.ts'
 import { policy, prefixOf, TENANT_A } from './tenants.ts'
 
@@ -166,6 +166,11 @@ export type AssemblyOptions = Readonly<{
   provider?: unknown
   /** The plugin class to mount in place of `SessionProvider`, for the factory-made plugin cases. */
   plugin?: typeof SessionProvider
+  /**
+   * Register the commit notifier on the storage, as the session storage row of the application
+   * does (default). `false` leaves the store without one, so no commit is told.
+   */
+  notices?: boolean
 }>
 
 export async function assemble(options: AssemblyOptions = {}) {
@@ -173,6 +178,8 @@ export async function assemble(options: AssemblyOptions = {}) {
   const mounted: Fiber[] = []
   const checks = createPolicySessionAccessCheck<string>(request => policy(request))
   const backend: Backend = await (options.backend ?? memoryBackend).open(checks)
+  const unregister =
+    options.notices === false ? () => undefined : backend.register(createSessionCommitNotifier(ctx))
 
   // Hooks that tests set to control the storage under the provider.
   const hooks = {
@@ -525,6 +532,7 @@ export async function assemble(options: AssemblyOptions = {}) {
           // A fiber that a test already disposed or failed has nothing left to remove.
         }
       }
+      unregister()
       await backend.dispose()
     },
   }

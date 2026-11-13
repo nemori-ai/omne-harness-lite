@@ -37,7 +37,7 @@ flowchart LR
       transactions          = 存储提供者的事务端口（启动条件，与 accessCheck、principals 一起）
       identity、evidence、clock、idle、context
                             = 完整接口；底层能力缺席时方法返回 unavailable
-      notifier、agentDrive、scopeRelease、admission
+      agentDrive、scopeRelease、admission
                             = 现取函数；返回 null 表示当前缺席
       principals            = 维护拥有者签发的 coordinator 与 maintainer 主体（启动条件）
 
@@ -47,7 +47,7 @@ flowchart LR
         读取者     使用 实例.facesFor('reader')
 
 唤醒：对每个要服务的租户调用 实例.maintain(租户)，保存返回的句柄
-      其他进程的提交通知到达时调用 实例.committed(通知)
+      提交通知到达时调用 实例.committed(通知)
       资产、工作区或设置的变化通知到达时调用 实例.changed(通知)
 
 结束：释放各租户的维护句柄，再调用 实例.close()
@@ -58,7 +58,7 @@ flowchart LR
 1. 按调用方类分发面。一个调用方只拿它那一类的面，不把全部面交给所有调用方。
 2. 把底层能力缺席翻译为端口方法返回 `unavailable`，不传入空实现或默认成功。
 3. 每个租户在全部进程里只有一个扫描者。第一版只装一个实例即可兑现；多实例之前必须先有租约协议（[S3](../SPEC.md#s3)）。
-4. 接通提交通知与变化通知。通知丢失不影响正确性，S3 的周期扫描会补查（[CR-24](../SPEC.md#cr-崩溃矩阵)），只是工作会延迟到下一个扫描周期。
+4. 接通提交通知与变化通知。提交通知由会话存储一侧的唯一落点发出：宿主在存储上登记一个 `SessionNotifier`，把它收到的通知交给 `committed`（[session-storage-sql 本批与提交通知](../../session-storage-sql/SPEC.md#本批与提交通知)）。通知丢失不影响正确性，S3 的周期扫描会补查（[CR-24](../SPEC.md#cr-崩溃矩阵)），只是工作会延迟到下一个扫描周期。
 5. 停止时先释放维护句柄，再停止实例。停止不取消任何外部执行，外部效果也不因停止而撤回。
 
 业务身份仍是每次调用的参数。宿主不把租户或会话写进依赖或配置，也不为每个会话构造一个实例。一个实例服务全部会话，租户隔离靠每次调用的 `Access` 与事务端口的核权。

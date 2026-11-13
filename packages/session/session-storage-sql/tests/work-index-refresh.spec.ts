@@ -1,5 +1,6 @@
 // A publication of the Agent records of this process without a Session participation in its
-// commit replaces only the index of the held snapshot (`registerSessionWorkIndex` without `work`,
+// commit replaces only the index of the held snapshot (the landing `afterSessionCommit` of a Journal
+// commit with no Session batch,
 // C-TOPOLOGY §2.9.2). It replaces it only when the cache holds a snapshot and the count moved past
 // the held one, once per version (flight); a store at another tail registers nothing (stale); a
 // count that moved on during the index read is registered with the index read at it (P-4). The
@@ -12,11 +13,11 @@ import {
   ordinaryInput,
   sessionId,
 } from '@omne-harness/session-contract/testing'
-import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
+import type { DomainRef, ReceiptV2, SqlStorage } from '@omne-harness/sql-contract'
 import { describe, expect, it } from 'vitest'
 import { canonicalText, encodeValue } from '../src/codec.ts'
 import { createSessionStorage } from '../src/index.ts'
-import { registerSessionWorkIndex } from '../src/participants.ts'
+import { afterSessionCommit } from '../src/participants.ts'
 import { workFoldCounts, type WorkFoldCounts } from '../src/work-cache.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
 import {
@@ -112,7 +113,17 @@ function publishedOf(a: App): string {
 
 /** What the Journal provider calls after a publication that carried no Session participation. */
 const register = (storage: SqlStorage, published: string): Promise<void> =>
-  registerSessionWorkIndex(storage, DOMAIN, textOf(TENANT_A), SESSION, published)
+  afterSessionCommit({
+    storage,
+    domain: DOMAIN,
+    tenant: textOf(TENANT_A),
+    session: SESSION,
+    answer: {
+      receipt: { kind: 'committed', responses: [] } as unknown as ReceiptV2,
+      recalled: false,
+    },
+    journal: { published },
+  })
 
 /** A session with a running Run on `input-1` and `input-2` pending, and the publisher of its Agent. */
 async function scene() {

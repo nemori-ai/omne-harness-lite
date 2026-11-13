@@ -11,6 +11,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import {
   createSessionStoragePair,
+  registerSessionNotifier,
   sessionStorageMaterials,
 } from '@omne-harness/session-storage-sql'
 import {
@@ -158,6 +159,7 @@ export const sqlBackend: BackendFactory = {
       transactions,
       delegated,
       initializationGuards: command => Promise.resolve([fixtureInitializationGuard(command)]),
+      register: notifier => registerSessionNotifier(created.storage, notifier),
       dispose: async () => {
         await created.control.close({ initiator: 'disposal' }).catch(() => undefined)
         await rm(root, { recursive: true, force: true })
