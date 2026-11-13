@@ -4,7 +4,7 @@
 // the service through an extended copy of it and `#private` fields fail through that copy.
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { SessionInstanceOptions } from '@omne-harness/session'
-import type { SessionFaces } from '@omne-harness/session-contract'
+import type { SessionDirectory, SessionFaces } from '@omne-harness/session-contract'
 import {
   SessionService,
   sessionAccessCheckKey,
@@ -71,6 +71,9 @@ export class SessionProvider extends SessionService<unknown> {
   }
   get history(): SessionFaces<unknown>['history'] {
     return this.runtime.facesFor(callerOf(this)).history
+  }
+  override get directory(): SessionDirectory<unknown> {
+    return this.runtime.facesFor(callerOf(this)).directory
   }
 }
 

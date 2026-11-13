@@ -51,10 +51,13 @@ export abstract class SessionService<P = unknown> extends Service<SessionInterce
   abstract readonly reconciliation: SessionFaces<P>['reconciliation']
   abstract readonly history: SessionFaces<P>['history']
   /**
-   * The session list of a tenant. Optional like `commitLog`: a provider without a directory
-   * omits it, and a reader answers basis-unavailable.
+   * The session list of a tenant. Absent by default: a provider without a directory keeps this
+   * accessor, and a reader answers basis-unavailable. A provider overrides it with a getter, so
+   * the caller class of each read is the caller's, like the four faces.
    */
-  declare readonly directory?: SessionDirectory<P>
+  get directory(): SessionDirectory<P> | undefined {
+    return undefined
+  }
 }
 export const sessionKey = SessionService.provide
 

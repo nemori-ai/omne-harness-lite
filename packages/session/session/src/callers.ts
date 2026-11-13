@@ -12,6 +12,7 @@ export type FaceOperation =
   | MutationName
   | SessionReadAccessOperation
   | 'pending'
+  | 'directory.list'
   | 'references'
   | 'releasedScopes'
 
@@ -58,6 +59,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   freeze: [C],
   receive: [C, M],
   pending: [M],
+  'directory.list': [R],
   references: [M],
   releasedScopes: [M],
   'history.begin': [R],
