@@ -63,7 +63,9 @@ function summarize(session: string, entries: LogEntry[]): SessionLog {
 
 export function readSessionLog(domainsDir: string, session: string): SessionLog | null {
   if (!existsSync(domainsDir)) return null
-  for (const name of readdirSync(domainsDir).filter(n => n.endsWith('.sqlite') && n.startsWith(TENANT_DOMAIN_PREFIX))) {
+  for (const name of readdirSync(domainsDir).filter(
+    n => n.endsWith('.sqlite') && n.startsWith(TENANT_DOMAIN_PREFIX),
+  )) {
     let db: DatabaseSync
     try {
       db = new DatabaseSync(join(domainsDir, name), { readOnly: true })
@@ -77,7 +79,11 @@ export function readSessionLog(domainsDir: string, session: string): SessionLog 
       if (rows.length === 0) continue
       return summarize(
         session,
-        rows.map(row => ({ position: String(row.position), kind: row.kind, body: (decode(row.entry)['body'] ?? {}) as Record<string, unknown> })),
+        rows.map(row => ({
+          position: String(row.position),
+          kind: row.kind,
+          body: (decode(row.entry)['body'] ?? {}) as Record<string, unknown>,
+        })),
       )
     } catch {
       continue

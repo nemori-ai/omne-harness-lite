@@ -18,11 +18,22 @@ export type ToolCallStep = Readonly<{
   name: string
   arguments: unknown
   text?: string
+  more?: readonly Readonly<{ name: string; arguments: unknown }>[]
 }>
-export type CutStep = Readonly<{ kind: 'cut'; text: string; afterChars: number; chunkGapMs?: number }>
+export type CutStep = Readonly<{
+  kind: 'cut'
+  text: string
+  afterChars: number
+  chunkGapMs?: number
+}>
 export type StatusStep = Readonly<{ kind: 'status'; code: number }>
 export type RefuseStep = Readonly<{ kind: 'refuse' }>
-export type HoldStep = Readonly<{ kind: 'hold'; gate: Gate; head?: string; then: ReplyStep | ToolCallStep }>
+export type HoldStep = Readonly<{
+  kind: 'hold'
+  gate: Gate
+  head?: string
+  after: ReplyStep | ToolCallStep | Readonly<{ kind: 'drop' }>
+}>
 
 export type ScriptStep = ReplyStep | ToolCallStep | CutStep | StatusStep | RefuseStep | HoldStep
 
@@ -123,7 +134,11 @@ function factsOf(body: string): RequestFacts {
         ? content
         : Array.isArray(content)
           ? content
-              .map(part => (typeof part === 'object' && part !== null && 'text' in part ? String(part.text) : ''))
+              .map(part =>
+                typeof part === 'object' && part !== null && 'text' in part
+                  ? String(part.text)
+                  : '',
+              )
               .join('')
           : ''
     return { model: parsed.model ?? 'stub', afterToolResult: last?.role === 'tool', lastUserText }
@@ -133,7 +148,11 @@ function factsOf(body: string): RequestFacts {
 }
 
 function usage(text: string) {
-  return { prompt_tokens: 10, completion_tokens: Math.max(1, text.length), total_tokens: 10 + Math.max(1, text.length) }
+  return {
+    prompt_tokens: 10,
+    completion_tokens: Math.max(1, text.length),
+    total_tokens: 10 + Math.max(1, text.length),
+  }
 }
 
 async function writeText(
@@ -166,7 +185,9 @@ async function serveReply(
     if ((step.firstByteDelayMs ?? 0) > 0) await sleep(step.firstByteDelayMs ?? 0)
     await writeText(response, facts, step.text, step.chunkGapMs ?? 0, step.chunkChars ?? 16, live)
     if (!live()) return
-    response.write(sse({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: usage(step.text) }))
+    response.write(
+      sse({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: usage(step.text) }),
+    )
     response.end(DONE)
     return
   }
@@ -178,20 +199,22 @@ async function serveReply(
       choices: [
         {
           delta: {
-            tool_calls: [
-              {
-                index: 0,
-                id: `call_${Math.random().toString(36).slice(2, 10)}`,
+            tool_calls: [{ name: step.name, arguments: step.arguments }, ...(step.more ?? [])].map(
+              (call, index) => ({
+                index,
+                id: `call_${String(index)}_${Math.random().toString(36).slice(2, 10)}`,
                 type: 'function',
-                function: { name: step.name, arguments: JSON.stringify(step.arguments) },
-              },
-            ],
+                function: { name: call.name, arguments: JSON.stringify(call.arguments) },
+              }),
+            ),
           },
         },
       ],
     }),
   )
-  response.write(sse({ choices: [{ delta: {}, finish_reason: 'tool_calls' }], usage: usage('tool') }))
+  response.write(
+    sse({ choices: [{ delta: {}, finish_reason: 'tool_calls' }], usage: usage('tool') }),
+  )
   response.end(DONE)
 }
 
@@ -208,6 +231,7 @@ export async function startProviderStub(): Promise<ProviderStub> {
   const handle = (request: IncomingMessage, response: ServerResponse) => {
     const index = arrivals.length
     const step = script.shift()
+    response.setHeader('connection', 'close')
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
     request.on('end', () => {
@@ -246,11 +270,22 @@ export async function startProviderStub(): Promise<ProviderStub> {
         return
       case 'status':
         response.writeHead(step.code, { 'content-type': 'application/json' })
-        response.end(JSON.stringify({ error: { message: `stub status ${String(step.code)}`, code: step.code } }))
+        response.end(
+          JSON.stringify({
+            error: { message: `stub status ${String(step.code)}`, code: step.code },
+          }),
+        )
         return
       case 'cut': {
         response.writeHead(200, { 'content-type': 'text/event-stream' })
-        await writeText(response, facts, Array.from(step.text).slice(0, step.afterChars).join(''), step.chunkGapMs ?? 0, 16, live)
+        await writeText(
+          response,
+          facts,
+          Array.from(step.text).slice(0, step.afterChars).join(''),
+          step.chunkGapMs ?? 0,
+          16,
+          live,
+        )
         await sleep(50)
         request.socket.destroy()
         return
@@ -261,7 +296,11 @@ export async function startProviderStub(): Promise<ProviderStub> {
         if (step.head !== undefined) await writeText(response, facts, step.head, 0, 16, live)
         await step.gate.opened
         if (!live()) return
-        await serveReply(step.then, response, facts, live, true)
+        if (step.after.kind === 'drop') {
+          request.socket.destroy()
+          return
+        }
+        await serveReply(step.after, response, facts, live, true)
         return
       }
       default:
@@ -269,8 +308,24 @@ export async function startProviderStub(): Promise<ProviderStub> {
     }
   }
 
-  const server: Server = createServer({ key: readFileSync(keyPath), cert: readFileSync(certPath, 'utf8') }, handle)
-  server.on('secureConnection', socket => {
+  const server: Server = createServer(
+    { key: readFileSync(keyPath), cert: readFileSync(certPath, 'utf8') },
+    handle,
+  )
+  server.on('connection', (socket: Socket) => {
+    if (script[0]?.kind === 'refuse') {
+      script.shift()
+      arrivals.push({
+        index: arrivals.length,
+        at: Date.now() - started,
+        step: 'refuse',
+        afterToolResult: false,
+        lastUserText: '',
+      })
+      for (const wake of Array.from(waiters)) wake()
+      socket.destroy()
+      return
+    }
     sockets.add(socket)
     socket.on('close', () => sockets.delete(socket))
   })

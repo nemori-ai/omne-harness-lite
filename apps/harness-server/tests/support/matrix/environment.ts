@@ -1,5 +1,13 @@
 import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,7 +22,12 @@ const distributionPath = join(memberDir, 'config', 'serve.distribution.json')
 const FAKE_CREDENTIAL = 'sk-or-v1-matrix-stub-not-a-real-key'
 const STARTUP_TIMEOUT_MS = 90_000
 
-export type LogRecord = Readonly<{ kind?: string; level?: string; component?: string; name?: string }> &
+export type LogRecord = Readonly<{
+  kind?: string
+  level?: string
+  component?: string
+  name?: string
+}> &
   Record<string, unknown>
 
 export type StopReport = Readonly<{
@@ -70,7 +83,8 @@ function childEnv(home: string, base: string): NodeJS.ProcessEnv {
 }
 
 function visitEndpoints(value: unknown, url: string): number {
-  if (Array.isArray(value)) return value.reduce((sum: number, item) => sum + visitEndpoints(item, url), 0)
+  if (Array.isArray(value))
+    return value.reduce((sum: number, item) => sum + visitEndpoints(item, url), 0)
   if (value === null || typeof value !== 'object') return 0
   const record = value as Record<string, unknown>
   let changed = 0
@@ -87,27 +101,39 @@ function visitEndpoints(value: unknown, url: string): number {
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
 function unitsOwnedBy(base: string): string[] {
-  const listed = spawnSync('systemctl', ['--user', 'list-units', '--plain', '--no-legend', '--all', 'omne-host-*.scope'], {
-    encoding: 'utf8',
-  })
+  const listed = spawnSync(
+    'systemctl',
+    ['--user', 'list-units', '--plain', '--no-legend', '--all', 'omne-host-*.scope'],
+    {
+      encoding: 'utf8',
+    },
+  )
   if (listed.status !== 0) return []
   const owned: string[] = []
   for (const line of listed.stdout.split('\n')) {
     const unit = line.trim().split(/\s+/)[0]
     if (unit === undefined || unit === '') continue
-    const shown = spawnSync('systemctl', ['--user', 'show', '-p', 'ControlGroup', '--value', unit], { encoding: 'utf8' })
+    const shown = spawnSync(
+      'systemctl',
+      ['--user', 'show', '-p', 'ControlGroup', '--value', unit],
+      { encoding: 'utf8' },
+    )
     const group = shown.stdout.trim()
     if (group === '') continue
     let pids: string[] = []
     try {
-      pids = readFileSync(join('/sys/fs/cgroup', group, 'cgroup.procs'), 'utf8').split('\n').filter(Boolean)
+      pids = readFileSync(join('/sys/fs/cgroup', group, 'cgroup.procs'), 'utf8')
+        .split('\n')
+        .filter(Boolean)
     } catch {
       continue
     }
     const mine = pids.some(pid => {
       try {
         if (readlinkSync(`/proc/${pid}/cwd`).startsWith(base)) return true
-        return readFileSync(`/proc/${pid}/environ`, 'utf8').split('\0').some(entry => entry.includes(base))
+        return readFileSync(`/proc/${pid}/environ`, 'utf8')
+          .split('\0')
+          .some(entry => entry.includes(base))
       } catch {
         return false
       }
@@ -117,7 +143,10 @@ function unitsOwnedBy(base: string): string[] {
   return owned
 }
 
-export async function createEnvironment(options: { modelUrl: string; certPath: string }): Promise<Environment> {
+export async function createEnvironment(options: {
+  modelUrl: string
+  certPath: string
+}): Promise<Environment> {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'matrix-env-')))
   const home = join(base, 'home')
   const workspace = join(base, 'workspace')
@@ -125,12 +154,16 @@ export async function createEnvironment(options: { modelUrl: string; certPath: s
   mkdirSync(workspace)
   const port = await freePort()
   const env = childEnv(home, base)
-  const setup = spawnSync(process.execPath, [serverBin, 'setup', '--port', String(port), '--workspace', workspace], {
-    cwd: base,
-    env,
-    input: `${FAKE_CREDENTIAL}\n`,
-    encoding: 'utf8',
-  })
+  const setup = spawnSync(
+    process.execPath,
+    [serverBin, 'setup', '--port', String(port), '--workspace', workspace],
+    {
+      cwd: base,
+      env,
+      input: `${FAKE_CREDENTIAL}\n`,
+      encoding: 'utf8',
+    },
+  )
   if (setup.status !== 0) throw new Error(`setup failed: ${setup.stderr}`)
   const distribution: unknown = JSON.parse(readFileSync(distributionPath, 'utf8'))
   const local = localServeInputs({
@@ -142,15 +175,19 @@ export async function createEnvironment(options: { modelUrl: string; certPath: s
     distribution,
     shutdownDeadlineMs: DEFAULT_SHUTDOWN_DEADLINE_MS,
   })
-  if (local.kind !== 'ready' || local.operator === undefined) throw new Error(`no local operator layer: ${JSON.stringify(local)}`)
+  if (local.kind !== 'ready' || local.operator === undefined)
+    throw new Error(`no local operator layer: ${JSON.stringify(local)}`)
   const layer: unknown = JSON.parse(JSON.stringify(local.operator))
-  if (visitEndpoints(layer, options.modelUrl) !== 1) throw new Error('the operator layer has no single model endpoint table')
+  if (visitEndpoints(layer, options.modelUrl) !== 1)
+    throw new Error('the operator layer has no single model endpoint table')
   const operatorPath = join(base, 'operator.json')
   writeFileSync(operatorPath, JSON.stringify(layer, null, 2), { mode: 0o600 })
   const stateDir = join(home, 'state')
 
   let child: ChildProcessByStdio<null, Readable, Readable> | undefined
   let exited: Promise<number | null> = Promise.resolve(null)
+  let alive = false
+  const isAlive = () => child !== undefined && alive
   let output = ''
 
   const records = (): LogRecord[] =>
@@ -166,20 +203,31 @@ export async function createEnvironment(options: { modelUrl: string; certPath: s
       })
 
   const start = async (extraArgs: readonly string[] = []): Promise<void> => {
-    if (child !== undefined && child.exitCode === null) throw new Error('the server is already running')
+    if (isAlive()) throw new Error('the server is already running')
     const from = output.length
-    const spawned = spawn(process.execPath, [serverBin, 'serve', '--operator', operatorPath, ...extraArgs], {
-      cwd: base,
-      env: { ...env, NODE_EXTRA_CA_CERTS: options.certPath },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    const spawned = spawn(
+      process.execPath,
+      [serverBin, 'serve', '--operator', operatorPath, ...extraArgs],
+      {
+        cwd: base,
+        env: { ...env, NODE_EXTRA_CA_CERTS: options.certPath },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
     child = spawned
     spawned.stdout.setEncoding('utf8').on('data', (chunk: string) => (output += chunk))
     spawned.stderr.setEncoding('utf8').on('data', (chunk: string) => (output += chunk))
-    exited = new Promise(resolve => spawned.on('close', code => resolve(code)))
+    alive = true
+    exited = new Promise(resolve =>
+      spawned.on('close', code => {
+        alive = false
+        resolve(code)
+      }),
+    )
     const until = Date.now() + STARTUP_TIMEOUT_MS
     while (!output.slice(from).includes('"kind":"startup-result"')) {
-      if (spawned.exitCode !== null) throw new Error(`serve exited before startup:\n${output.slice(from, from + 4000)}`)
+      if (!alive)
+        throw new Error(`serve exited before startup:\n${output.slice(from, from + 4000)}`)
       if (Date.now() > until) throw new Error('serve did not report startup in time')
       await sleep(50)
     }
@@ -187,12 +235,14 @@ export async function createEnvironment(options: { modelUrl: string; certPath: s
       .slice(from)
       .split('\n')
       .find(line => line.includes('"kind":"startup-result"'))
-    if (startup === undefined || !startup.includes('"accepting":true')) throw new Error(`serve did not start accepting: ${String(startup).slice(0, 600)}`)
+    if (startup === undefined || !startup.includes('"accepting":true'))
+      throw new Error(`serve did not start accepting: ${String(startup).slice(0, 600)}`)
   }
 
   const finish = async (signal: 'SIGTERM' | 'SIGKILL', deadlineMs: number): Promise<StopReport> => {
     const running = child
-    if (running === undefined || running.exitCode !== null) return { signal, tookMs: 0, code: running?.exitCode ?? null, shutdown: undefined }
+    if (running === undefined || !alive)
+      return { signal, tookMs: 0, code: running?.exitCode ?? null, shutdown: undefined }
     const from = output.length
     const began = Date.now()
     running.kill(signal)
@@ -217,13 +267,14 @@ export async function createEnvironment(options: { modelUrl: string; certPath: s
     domainsDir: join(stateDir, 'storage', 'domains'),
     port,
     origin: `http://127.0.0.1:${String(port)}`,
-    pid: () => (child !== undefined && child.exitCode === null ? child.pid : undefined),
-    running: () => child !== undefined && child.exitCode === null,
+    pid: () => (isAlive() ? child?.pid : undefined),
+    running: isAlive,
     start,
     stop: (deadlineMs = 200_000) => finish('SIGTERM', deadlineMs),
     kill: () => finish('SIGKILL', 30_000),
     restart: async (how, extraArgs = []) => {
-      const report = how === 'stop' ? await finish('SIGTERM', 200_000) : await finish('SIGKILL', 30_000)
+      const report =
+        how === 'stop' ? await finish('SIGTERM', 200_000) : await finish('SIGKILL', 30_000)
       await start(extraArgs)
       return report
     },
@@ -242,13 +293,18 @@ export async function createEnvironment(options: { modelUrl: string; certPath: s
       const pid = environment.pid()
       if (pid === undefined) return Number.NaN
       const ticks = () => {
-        const fields = readFileSync(`/proc/${String(pid)}/stat`, 'utf8').split(') ')[1]?.split(' ') ?? []
+        const fields =
+          readFileSync(`/proc/${String(pid)}/stat`, 'utf8')
+            .split(') ')[1]
+            ?.split(' ') ?? []
         return Number(fields[11]) + Number(fields[12])
       }
       const before = ticks()
       await sleep(seconds * 1000)
       const after = ticks()
-      const hertz = Number(spawnSync('getconf', ['CLK_TCK'], { encoding: 'utf8' }).stdout.trim() || '100')
+      const hertz = Number(
+        spawnSync('getconf', ['CLK_TCK'], { encoding: 'utf8' }).stdout.trim() || '100',
+      )
       return ((after - before) * 100) / hertz / seconds
     },
     dispose: async () => {

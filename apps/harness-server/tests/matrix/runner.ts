@@ -14,7 +14,12 @@ export type Row = CellOutcome &
     mismatch: readonly string[]
   }>
 
-export type MatrixSummary = Readonly<{ rows: readonly Row[]; mismatches: readonly Row[]; out: string; tookMs: number }>
+export type MatrixSummary = Readonly<{
+  rows: readonly Row[]
+  mismatches: readonly Row[]
+  out: string
+  tookMs: number
+}>
 
 export type MatrixOptions = Readonly<{
   only?: readonly string[]
@@ -40,35 +45,66 @@ function selected(cell: Cell, options: MatrixOptions): boolean {
 async function outcomeOf(cell: Cell): Promise<CellOutcome> {
   const began = Date.now()
   if (cell.layer === 'page')
-    return { id: cell.id, block: cell.block, layer: 'page', actual: 'not-run', checks: [], notes: [`page layer, probe ${cell.probe}`], tookMs: 0, stoppedUnits: [] }
+    return {
+      id: cell.id,
+      block: cell.block,
+      layer: 'page',
+      actual: 'not-run',
+      checks: [],
+      notes: [`page layer, probe ${cell.probe}`],
+      tookMs: 0,
+      stoppedUnits: [],
+    }
   if ('untestable' in cell)
-    return { id: cell.id, block: cell.block, layer: 'protocol', actual: 'untestable', checks: [], notes: [cell.untestable], tookMs: 0, stoppedUnits: [] }
+    return {
+      id: cell.id,
+      block: cell.block,
+      layer: 'protocol',
+      actual: 'untestable',
+      checks: [],
+      notes: [cell.untestable],
+      tookMs: 0,
+      stoppedUnits: [],
+    }
   const outcome = await runProtocolCell(cell, CELL_BUDGET_MS)
   return { ...outcome, tookMs: Date.now() - began }
 }
 
-const pad = (text: string, width: number) => text + ' '.repeat(Math.max(0, width - [...text].length))
+const pad = (text: string, width: number) =>
+  text + ' '.repeat(Math.max(0, width - [...text].length))
 
 export async function runMatrix(options: MatrixOptions = {}): Promise<MatrixSummary> {
   const print = options.print ?? (() => {})
   const began = Date.now()
   const rows: Row[] = []
-  print(`${pad('cell', 14)}${pad('layer', 10)}${pad('expected', 12)}${pad('actual', 12)}seconds  mismatch`)
+  print(
+    `${pad('cell', 14)}${pad('layer', 10)}${pad('expected', 12)}${pad('actual', 12)}seconds  mismatch`,
+  )
   for (const cell of cells.filter(entry => selected(entry, options))) {
     const expectation = expectationOf(cell.id)
     const outcome = await outcomeOf(cell)
-    const failing = outcome.checks.filter(check => !check.ok).map(check => `${check.name} (${check.detail})`)
+    const failing = outcome.checks
+      .filter(check => !check.ok)
+      .map(check => `${check.name} (${check.detail})`)
     const counted = outcome.layer === 'protocol'
     const matches = !counted || outcome.actual === expectation.expected
-    const mismatch = matches ? [] : outcome.actual === 'fail' ? failing : [`expected ${expectation.expected}${expectation.failsBecause === undefined ? '' : `: ${expectation.failsBecause}`}`]
+    const mismatch = matches
+      ? []
+      : outcome.actual === 'fail'
+        ? failing
+        : [
+            `expected ${expectation.expected}${expectation.failsBecause === undefined ? '' : `: ${expectation.failsBecause}`}`,
+          ]
     const row: Row = { ...outcome, expected: expectation.expected, matches, mismatch }
     rows.push(row)
     print(
       `${pad(cell.id, 14)}${pad(outcome.layer, 10)}${pad(expectation.expected, 12)}${pad(outcome.actual, 12)}${pad(String(Math.round(outcome.tookMs / 1000)), 9)}${mismatch.join(' | ').slice(0, 400)}`,
     )
-    for (const note of outcome.notes.filter(text => text.startsWith('timeout'))) print(`${' '.repeat(14)}${note}`)
+    for (const note of outcome.notes.filter(text => text.startsWith('timeout')))
+      print(`${' '.repeat(14)}${note}`)
   }
-  const out = options.out ?? join(tmpdir(), `matrix-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
+  const out =
+    options.out ?? join(tmpdir(), `matrix-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
   mkdirSync(dirname(out), { recursive: true })
   const tookMs = Date.now() - began
   writeFileSync(out, `${JSON.stringify({ tookMs, rows }, null, 2)}\n`)
