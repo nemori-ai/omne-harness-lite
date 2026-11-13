@@ -22,7 +22,8 @@ const userMessage = { role: 'user', blocks: [{ type: 'text', text: 'hello' }], w
 const producer = { kind: 'model', call: 'call-1' }
 const source = { owner: 'agent', record: 'record-1', revision: '4', digest: 'digest-1' }
 
-type Name = keyof typeof sessionProtocol.operations
+// `list-sessions` has no old family to compare with; its own cases are at the end of this file.
+type Name = Exclude<keyof typeof sessionProtocol.operations, 'list-sessions'>
 type Samples = Readonly<Record<Name, readonly Record<string, unknown>[]>>
 
 const validBodies: Samples = {
@@ -200,5 +201,72 @@ describe('outcome bodies', () => {
         expect(expectRoundTrip(codec, {})).toEqual({})
         expect(readNew(codec, { reason: 'x' })).toEqual({ ok: false })
       }
+  })
+})
+
+describe('list-sessions', () => {
+  const listing = sessionProtocol.operations['list-sessions']
+  const row = {
+    session,
+    createdAt: '2026-11-13T01:02:03Z',
+    lastActivityAt: null,
+    lifecycle: 'dormant',
+    title: null,
+  }
+
+  it.each([
+    [{ tenant, cursor: null }],
+    [{ tenant, cursor: 'opaque-cursor', limit: 20, includeArchived: true }],
+  ])('reads a body and writes it back as it was', sample => {
+    expectRoundTrip(listing.body, sample)
+  })
+
+  it.each([
+    ['without a cursor', { tenant }],
+    ['with a limit of zero', { tenant, cursor: null, limit: 0 }],
+    ['with a text limit', { tenant, cursor: null, limit: '5' }],
+    ['with a numeric includeArchived', { tenant, cursor: null, includeArchived: 1 }],
+    ['with a tenant that is no tenant', { tenant: 'not-a-tenant', cursor: null }],
+    ['with a field it does not have', { tenant, cursor: null, extra: 1 }],
+  ])('refuses a body %s', (_label, sample) => {
+    expect(readNew(listing.body, sample)).toEqual({ ok: false })
+  })
+
+  it.each([
+    [{ sessions: [], next: null, completeness: 'complete' }],
+    [{ sessions: [row], next: 'next-cursor', completeness: 'partial' }],
+    [
+      {
+        sessions: [{ ...row, title: 'hello', lifecycle: 'archived' }],
+        next: null,
+        completeness: 'complete',
+      },
+    ],
+  ])('reads a succeeded body and writes it back as it was', sample => {
+    expectRoundTrip(listing.outcomes.succeeded, sample)
+  })
+
+  it.each([
+    ['without completeness', { sessions: [], next: null }],
+    ['with another completeness', { sessions: [], next: null, completeness: 'full' }],
+    [
+      'with another lifecycle',
+      { sessions: [{ ...row, lifecycle: 'paused' }], next: null, completeness: 'complete' },
+    ],
+    [
+      'with a time that is not an instant',
+      { sessions: [{ ...row, createdAt: 'yesterday' }], next: null, completeness: 'complete' },
+    ],
+    [
+      'with a row without a title',
+      { sessions: [{ ...row, title: undefined }], next: null, completeness: 'complete' },
+    ],
+  ])('refuses a succeeded body %s', (_label, sample) => {
+    expect(readNew(listing.outcomes.succeeded, sample)).toEqual({ ok: false })
+  })
+
+  it('answers invalid with an empty body', () => {
+    expect(expectRoundTrip(listing.outcomes.invalid, {})).toEqual({})
+    expect(readNew(listing.outcomes.invalid, { reason: 'x' })).toEqual({ ok: false })
   })
 })

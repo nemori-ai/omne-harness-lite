@@ -1,4 +1,5 @@
-// The contract keeps the shapes of the `session-public/1` family. The differences are the ones the
+// The contract keeps the shapes of the `session-public/1` family, and adds `list-sessions`, which
+// the old family does not have (RFC-0015 §8). The differences are the ones the
 // card allows: `create-session` may leave `definition` out, and `defineProtocol` adds
 // `protocol-rejected` to every operation (it adds `denied`, `basis-unavailable` and, for a commit,
 // `unknown`; the old family already lists those).
@@ -6,9 +7,11 @@ import { expectTypeOf, test } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type {
   Codec,
+  RuleValue,
   SessionOutcomes,
   SessionRequestBodies,
   SessionSuccessBodies,
+  TenantId,
 } from '@omne-harness/public-contract'
 import {
   sessionProtocol,
@@ -28,15 +31,17 @@ type ResultBody<N extends Name, K extends keyof Outcomes<N>> = ValueOf<Outcomes<
 
 /** The rule engine reads an empty object rule to `{}`; the old family names it `EmptyBody`. */
 type Empty = Readonly<Record<string, never>>
+type Instant = RuleValue<{ readonly kind: 'instant' }>
 type Limited = { readonly resource: 'pending-inputs' | 'input-bytes'; readonly limit: number }
 
-test('the operations are exactly the seven of session/v1', () => {
+test('the operations are exactly the eight of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
     | 'send-input'
     | 'query-send-input'
     | 'read-history'
+    | 'list-sessions'
     | 'cancel-run'
     | 'stop-call'
   >()
@@ -56,6 +61,29 @@ test('each body is the old request body', () => {
   expectTypeOf<BodyOf<'read-history'>>().toEqualTypeOf<Flat<SessionRequestBodies['read-history']>>()
   expectTypeOf<BodyOf<'cancel-run'>>().toEqualTypeOf<Flat<SessionRequestBodies['cancel-run']>>()
   expectTypeOf<BodyOf<'stop-call'>>().toEqualTypeOf<Flat<SessionRequestBodies['stop-call']>>()
+})
+
+test('list-sessions has a body and a success body of its own, and `invalid` is empty', () => {
+  expectTypeOf<BodyOf<'list-sessions'>>().toEqualTypeOf<{
+    readonly tenant: TenantId
+    readonly cursor: string | null
+    readonly limit?: number
+    readonly includeArchived?: boolean
+  }>()
+  expectTypeOf<ResultBody<'list-sessions', 'succeeded'>>().toEqualTypeOf<{
+    readonly sessions: readonly {
+      readonly session: string
+      readonly createdAt: Instant | null
+      readonly lastActivityAt: Instant | null
+      readonly lifecycle: 'initializing' | 'dormant' | 'active' | 'frozen' | 'archived'
+      readonly title: string | null
+    }[]
+    readonly next: string | null
+    readonly completeness: 'complete' | 'partial'
+  }>()
+  expectTypeOf<ResultBody<'list-sessions', 'invalid'>>().toExtend<Empty>()
+  expectTypeOf<Outcomes<'list-sessions'>['denied']>().toEqualTypeOf<true>()
+  expectTypeOf<Outcomes<'list-sessions'>['basis-unavailable']>().toEqualTypeOf<true>()
 })
 
 test('create-session differs only in that definition may be left out', () => {
@@ -109,7 +137,7 @@ test('limited carries the resource and its limit; the other non-fixed outcomes a
 
 test('the outcome names are the old ones plus protocol-rejected', () => {
   type Names<N extends Name> = keyof Outcomes<N>
-  type Expected<N extends Name> = SessionOutcomes[N] | 'protocol-rejected'
+  type Expected<N extends keyof SessionOutcomes> = SessionOutcomes[N] | 'protocol-rejected'
   expectTypeOf<Names<'create-session'>>().toEqualTypeOf<Expected<'create-session'>>()
   expectTypeOf<Names<'query-create-session'>>().toEqualTypeOf<Expected<'query-create-session'>>()
   expectTypeOf<Names<'send-input'>>().toEqualTypeOf<Expected<'send-input'>>()
@@ -117,6 +145,10 @@ test('the outcome names are the old ones plus protocol-rejected', () => {
   expectTypeOf<Names<'read-history'>>().toEqualTypeOf<Expected<'read-history'>>()
   expectTypeOf<Names<'cancel-run'>>().toEqualTypeOf<Expected<'cancel-run'>>()
   expectTypeOf<Names<'stop-call'>>().toEqualTypeOf<Expected<'stop-call'>>()
+  // The one operation the old family lacks.
+  expectTypeOf<Names<'list-sessions'>>().toEqualTypeOf<
+    'succeeded' | 'invalid' | 'denied' | 'basis-unavailable' | 'protocol-rejected'
+  >()
 })
 
 test('fixed outcomes are declared as true, so their body is always empty', () => {

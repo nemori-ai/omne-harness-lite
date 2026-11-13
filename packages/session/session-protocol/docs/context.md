@@ -17,7 +17,7 @@ const written = frame.write({ kind: 'refreshing' }, limits)
 
 本包在[系统最简模型](../../../../AGENTS.md#系统的最简模型)第二张图里是「某领域的协议契约」那一格，两端共用。具名消费者都还没有建：
 
-- `packages/session/session-access`：`session/v1` 的接入插件，按本契约写七个处理函数与 `observe-session` 的帧来源。
+- `packages/session/session-access`：`session/v1` 的接入插件，按本契约写八个处理函数与 `observe-session` 的帧来源。
 - 客户端核心（`@omne-harness/sdk/core` 的 `createClient`）与会话的界面模块：拿同一个值得到每个操作一个方法和 `observe.observe-session`。
 
 `read-session-diagnostics` 不在这里，归 `session-diagnostics/v1`。

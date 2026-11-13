@@ -9,17 +9,22 @@ const table = {
   'send-input': { identity: 'login', effect: 'commit', limit: 'input' },
   'query-send-input': { identity: 'login', effect: 'read', limit: 'small' },
   'read-history': { identity: 'login', effect: 'read', limit: 'small' },
+  'list-sessions': { identity: 'login', effect: 'read', limit: 'small' },
   'cancel-run': { identity: 'login', effect: 'commit', limit: 'small' },
   'stop-call': { identity: 'login', effect: 'commit', limit: 'small' },
 } as const
 
-/** Outcome names per operation: the old family's, plus `protocol-rejected`. */
+/**
+ * Outcome names per operation: the old family's, plus `protocol-rejected`. `list-sessions` has no
+ * old family; its own outcomes are `invalid` besides the always-present ones.
+ */
 const outcomes = {
   'create-session': ['limited', 'invalid', 'conflict', 'unknown'],
   'query-create-session': ['unknown'],
   'send-input': ['limited', 'invalid', 'archived', 'frozen', 'conflict', 'unknown'],
   'query-send-input': ['not-committed', 'unknown'],
   'read-history': ['invalid'],
+  'list-sessions': ['invalid'],
   'cancel-run': ['invalid', 'conflict', 'not-found', 'unknown'],
   'stop-call': ['invalid', 'conflict', 'not-found', 'unknown', 'unsupported'],
 } as const
@@ -28,7 +33,7 @@ const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 const operations = sessionProtocol.operations
 
 describe('session/v1', () => {
-  it('is session major 1 with exactly the seven operations and one observation', () => {
+  it('is session major 1 with exactly the eight operations and one observation', () => {
     expect(sessionProtocol.name).toBe('session')
     expect(sessionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())
@@ -60,6 +65,18 @@ describe('session/v1', () => {
   it('no session operation can answer stage-not-provided', () => {
     for (const operation of Object.values(operations))
       expect('stage-not-provided' in operation.outcomes).toBe(false)
+  })
+})
+
+describe('list-sessions', () => {
+  it('is a login read of the small limit, and `invalid` is its only own outcome', () => {
+    const operation = operations['list-sessions']
+    expect(operation.identity).toBe('login')
+    expect(operation.effect).toBe('read')
+    expect(operation.limit).toBe('small')
+    expect(Object.keys(operation.outcomes).filter(name => !always.includes(name))).toEqual([
+      'invalid',
+    ])
   })
 })
 
