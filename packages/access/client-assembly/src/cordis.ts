@@ -204,18 +204,35 @@ export function connectionPlugin(options: ConnectionOptions): Plugin.Object {
   }
 }
 
-/** A client whose methods answer `unavailable` once `revoked` is set, and whose observations end. */
+/**
+ * A client whose methods answer `unavailable` once `revoked` is set, and whose observations end.
+ * A call under way when `revoked` is set ends locally: the mark aborts it, so a send that did not
+ * leave answers `unavailable` and is not sent again, and one that may have left answers
+ * `uncertain`.
+ */
 function guarded<P extends ProtocolContract>(
   protocol: P,
   client: ClientOf<P>,
   revoked: AbortSignal,
 ): ClientOf<P> {
   const unavailable = Object.freeze({ outcome: 'unavailable' as const })
-  const raw = client as unknown as Record<string, (body: unknown, options?: object) => unknown>
+  const raw = client as unknown as Record<
+    string,
+    (body: unknown, options: { signal: AbortSignal; messageId?: string }) => unknown
+  >
   const guardedClient: Record<string, unknown> = {}
   for (const name of Object.keys(protocol.operations))
-    guardedClient[name] = (body: unknown, options?: object) =>
-      revoked.aborted ? Promise.resolve(unavailable) : raw[name]!(body, options)
+    guardedClient[name] = (
+      body: unknown,
+      options?: { signal?: AbortSignal; messageId?: string },
+    ) =>
+      revoked.aborted
+        ? Promise.resolve(unavailable)
+        : raw[name]!(body, {
+            ...options,
+            signal:
+              options?.signal === undefined ? revoked : AbortSignal.any([options.signal, revoked]),
+          })
   const observers: Record<string, unknown> = {}
   const rawObservers = client.observe as unknown as Record<
     string,

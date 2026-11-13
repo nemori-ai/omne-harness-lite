@@ -216,7 +216,7 @@ describe('C16: one protocol client on the tree', () => {
     expect(await ended).toEqual({ done: true, value: { kind: 'aborted' } })
   })
 
-  it('在途调用遇到服务收回：字节没发出的答不可用，可能发出的答 uncertain，不重发', async () => {
+  it('在途调用遇到服务收回，服务已提供，字节可能已发出：本地答 uncertain，不等传输', async () => {
     const t = await tree()
     t.fake.push(snapshot(1, ACCESS, NOTES))
     await settle()
@@ -224,12 +224,36 @@ describe('C16: one protocol client on the tree', () => {
     const inFlight = notes.hold({})
     await settle()
     t.fake.push(removed(2, NOTES))
+    // The test never settles the held call: the mark ends it.
+    expect(await inFlight).toEqual({ outcome: 'uncertain' })
+    expect(t.fake.sent).toHaveLength(1)
+  })
+
+  it('在途调用遇到服务收回，服务已提供，字节没发出：本地答不可用，收回之后不再送', async () => {
+    const t = await tree()
+    t.fake.heldOnAbort = 'not-sent'
+    t.fake.push(snapshot(1, ACCESS, NOTES))
     await settle()
+    const notes = t.service()!
+    const inFlight = notes.hold({})
+    await settle()
+    t.fake.push(removed(2, NOTES))
+    expect(await inFlight).toEqual({ outcome: 'unavailable' })
+    expect(t.fake.sent).toEqual([])
+  })
+
+  it('在途调用遇到连接断开，服务已提供：传输拿不准的答 uncertain，不重发', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    const notes = t.service()!
+    const inFlight = notes.hold({})
+    await settle()
+    t.fake.breakStream()
     t.fake.hold!.settle({ kind: 'uncertain' })
     expect(await inFlight).toEqual({ outcome: 'uncertain' })
-    const sends = t.fake.calls.length
-    expect(await notes.ping({})).toEqual({ outcome: 'unavailable' })
-    expect(t.fake.calls).toHaveLength(sends)
+    expect(t.fake.calls).toHaveLength(1)
+    expect(t.service()).toBe(notes)
   })
 
   it('外部代码留着的旧方法句柄，在服务收回之后调用，本地拒绝', async () => {
@@ -267,7 +291,21 @@ describe('C16: one protocol client on the tree', () => {
     expect(t.module.loaded).toBe(0)
   })
 
-  it('连接恢复，可用性给出新快照：按差异提供或收回', async () => {
+  it('连接没有接上，服务已提供：调用由传输答没发出，得到不可用；服务不收回', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    const notes = t.service()!
+    t.fake.breakStream()
+    await settle()
+    // The carrier is down: the send and the one send after it both did not leave.
+    t.fake.script.push({ kind: 'not-sent' }, { kind: 'not-sent' })
+    expect(await notes.ping({})).toEqual({ outcome: 'unavailable' })
+    expect(t.fake.sent).toEqual([])
+    expect(t.service()).toBe(notes)
+  })
+
+  it('连接恢复，可用性给出新快照，服务未提供：按差异提供', async () => {
     const t = await tree()
     t.fake.push(snapshot(1, ACCESS))
     await settle()
@@ -276,6 +314,19 @@ describe('C16: one protocol client on the tree', () => {
     t.fake.push(snapshot(4, ACCESS, NOTES))
     await settle()
     expect(t.service()).toBeDefined()
+    expect(t.module).toEqual({ loaded: 1, unloaded: 0 })
+  })
+
+  it('连接恢复，可用性给出新快照，服务已提供：按差异收回，或不变', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS, NOTES))
+    await settle()
+    const before = t.service()
+    t.fake.breakStream()
+    await settle()
+    t.fake.push(snapshot(4, ACCESS, NOTES))
+    await settle()
+    expect(t.service()).toBe(before)
     t.fake.breakStream()
     await settle()
     t.fake.push(snapshot(6, ACCESS))
@@ -284,7 +335,18 @@ describe('C16: one protocol client on the tree', () => {
     expect(t.module).toEqual({ loaded: 1, unloaded: 1 })
   })
 
-  it('换登录或换租户：不变', async () => {
+  it('换登录或换租户，服务未提供：不变', async () => {
+    const t = await tree()
+    t.fake.push(snapshot(1, ACCESS))
+    await settle()
+    t.login.set('signed-in')
+    await settle()
+    expect(t.service()).toBeUndefined()
+    expect(t.module.loaded).toBe(0)
+    expect(t.fake.subscriptions).toHaveLength(1)
+  })
+
+  it('换登录或换租户，服务已提供：不变', async () => {
     const t = await tree()
     t.fake.push(snapshot(1, ACCESS, NOTES))
     await settle()

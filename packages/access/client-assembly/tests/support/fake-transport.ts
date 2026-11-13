@@ -30,15 +30,23 @@ export type FakeTransport = {
   /** Ends the live subscription without an `ended` frame: the stream broke. */
   readonly breakStream: () => void
   readonly calls: CallRequest[]
+  /** The calls whose bytes left: every call that was not already aborted when it came. */
+  readonly sent: CallRequest[]
   /** What the next calls answer; absent, `answered succeeded {}`. */
   readonly script: CallReport[]
-  /** A call that waits until the test settles it. */
+  /** A call that waits until the test settles it, or until its signal aborts. */
   hold: { readonly settle: (report: CallReport) => void } | undefined
+  /**
+   * What a held call answers when its signal aborts, as a real transport does: `uncertain` when
+   * its bytes may have left (the default), `not-sent` when they did not.
+   */
+  heldOnAbort: 'uncertain' | 'not-sent'
 }
 
 export function fakeTransport(): FakeTransport {
   const subscriptions: Subscription[] = []
   const calls: CallRequest[] = []
+  const sent: CallRequest[] = []
   const script: CallReport[] = []
   const live = (): Subscription => {
     const last = subscriptions.at(-1)
@@ -48,8 +56,10 @@ export function fakeTransport(): FakeTransport {
   const fake: FakeTransport = {
     subscriptions,
     calls,
+    sent,
     script,
     hold: undefined,
+    heldOnAbort: 'uncertain',
     push(frame) {
       const written = accessProtocol.observations.availability.frame.write(frame, limits)
       if (!written.ok) throw new Error('a frame outside access/v1')
@@ -67,11 +77,20 @@ export function fakeTransport(): FakeTransport {
         calls.push(request)
         if (request.signal?.aborted === true) return { kind: 'not-sent' }
         const scripted = script.shift()
-        if (scripted !== undefined) return scripted
-        if (request.operation === 'hold')
+        if (scripted !== undefined) {
+          if (scripted.kind !== 'not-sent') sent.push(request)
+          return scripted
+        }
+        if (request.operation === 'hold') {
+          if (fake.heldOnAbort === 'uncertain') sent.push(request)
           return new Promise(settle => {
             fake.hold = { settle }
+            request.signal?.addEventListener('abort', () => settle({ kind: fake.heldOnAbort }), {
+              once: true,
+            })
           })
+        }
+        sent.push(request)
         return { kind: 'answered', outcome: 'succeeded', body: { kind: 'object', entries: [] } }
       },
       async *observe(request): AsyncGenerator<JsonValue, ObserveEnd> {
