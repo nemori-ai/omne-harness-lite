@@ -1,6 +1,7 @@
-// The local server settings: the choices a person makes once with `setup`. The file holds no secret
-// and no number of the operator layer. Those numbers stay in code (`operator-defaults.ts`), so a new
-// release brings its own numbers without a new `setup`.
+// The local server settings: the choices a person makes once with `setup`. The file holds no secret.
+// The numbers of the operator layer stay in code (`operator-defaults.ts`), so a new release brings
+// its own numbers without a new `setup`. The one exception is `storage`: three optional thread
+// limits that an operator may write by hand.
 import { readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { z } from 'zod'
 import { pathsOf } from './locations.ts'
@@ -53,6 +54,22 @@ export function isSecretName(name: string): boolean {
   return SECRET_NAME.test(name)
 }
 
+/**
+ * The thread limits of the storage provider that an operator may set. Each key is optional, and a
+ * missing key keeps the value of `operator-defaults.ts`. The relation between the three is judged
+ * by the storage provider when it starts (`SPEC.md` §12.1 of `sqlite-provider`), not here.
+ */
+const storageLimitsSchema = z.strictObject({
+  /** The limit on the threads that work at the same time, writers and readers together. */
+  maxWorkers: z.number().int().min(1).optional(),
+  /** The part of `maxWorkers` that only writers may use. */
+  reservedWriterSlots: z.number().int().min(0).optional(),
+  /** The readers of one domain that work at the same time. */
+  maxReadWorkersPerDomain: z.number().int().min(1).optional(),
+})
+
+export type StorageLimits = z.infer<typeof storageLimitsSchema>
+
 const settingsSchema = z.strictObject({
   version: z.literal(1),
   /** The loopback port of `server-entry`. */
@@ -67,6 +84,8 @@ const settingsSchema = z.strictObject({
     .refine(env => !Object.keys(env).some(isSecretName), {
       message: 'names a variable that looks like a secret',
     }),
+  /** The thread limits of the storage provider. Absent: the values of the release profile. */
+  storage: storageLimitsSchema.optional(),
 })
 
 export type ServerSettings = z.infer<typeof settingsSchema>
