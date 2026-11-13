@@ -1336,9 +1336,10 @@ type ClosedOperation<O> = O extends {
 } ? Only<O, keyof OperationContract> & {
     readonly outcomes: Only<R, Outcome>;
 } : O;
+declare const RESERVED_OPERATION_NAME = "observe";
 type Closed<P extends ProtocolContract> = Only<P, keyof ProtocolContract> & {
     readonly operations: {
-        readonly [N in keyof P['operations']]: ClosedOperation<P['operations'][N]>;
+        readonly [N in keyof P['operations']]: N extends typeof RESERVED_OPERATION_NAME ? never : ClosedOperation<P['operations'][N]>;
     };
     readonly observations: {
         readonly [N in keyof P['observations']]: Only<P['observations'][N], keyof ObservationContract>;
