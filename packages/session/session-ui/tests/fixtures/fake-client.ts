@@ -14,6 +14,8 @@ export type Call = Readonly<{
 }>
 
 export type FakeObservation = {
+  /** The opening body: which session it observes. */
+  readonly open: unknown
   push(frame: ObserveSessionFrame): void
   end(value: End): void
   readonly aborted: boolean
@@ -47,12 +49,13 @@ export function createFakeClient(): FakeClient {
       })
 
   function observe(
-    _open: unknown,
+    open: unknown,
     options: { signal: AbortSignal },
   ): AsyncGenerator<ObserveSessionFrame, End> {
     const queue: ({ frame: ObserveSessionFrame } | { end: End })[] = []
     let wake: (() => void) | null = null
     const observation = {
+      open,
       push(frame: ObserveSessionFrame) {
         queue.push({ frame })
         wake?.()
