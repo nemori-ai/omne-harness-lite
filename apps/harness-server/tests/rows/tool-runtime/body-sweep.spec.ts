@@ -86,6 +86,8 @@ function world(
     swept,
     indexed,
     warnings,
+    /** How many tenants the table holds, due or not. */
+    dueTenants: () => due.ready(Infinity).length,
     /** Moves the clock to `ms` after START and takes one step. */
     async at(ms: number) {
       now = START + ms
@@ -145,19 +147,19 @@ it('sweeps every tenant once at startup, then only a tenant whose due entry has 
   expect(w.indexed).toEqual([A, B])
   await w.at(5000)
   expect(w.swept).toEqual([A, B, A])
-  expect(w.due.size()).toBe(1)
+  expect(w.dueTenants()).toBe(1)
 })
 
 it('a due entry written in this process brings its tenant back when it comes due', async () => {
   const w = world()
   await w.at(0)
-  expect(w.due.size()).toBe(0)
+  expect(w.dueTenants()).toBe(0)
   w.due.note(tenantB, instant(START + 30_000))
   for (let ms = 1000; ms < 30_000; ms += 1000) await w.at(ms)
   expect(w.swept).toEqual([A, B])
   await w.at(30_000)
   expect(w.swept).toEqual([A, B, B])
-  expect(w.due.size()).toBe(0)
+  expect(w.dueTenants()).toBe(0)
 })
 
 it('a due entry noted while its tenant is swept is kept for the next visit', async () => {
@@ -215,7 +217,7 @@ it('a tenant that cannot be swept backs off 1, 5 and 30 seconds and does not hol
   down = false
   t += 30_000
   await w.at(t)
-  expect(w.due.size()).toBe(0)
+  expect(w.dueTenants()).toBe(0)
   down = true
   w.due.note(tenantA, instant(START + t))
   await w.at(t)

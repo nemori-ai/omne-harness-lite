@@ -34,7 +34,8 @@ type Job = {
 
 const STARTUP = 'startup'
 
-export type RecoveryScanState = 'waiting' | 'running' | 'done' | 'unsupported'
+/** The startup scan as the diagnostics name it. */
+type RecoveryScanState = 'waiting' | 'running' | 'done' | 'unsupported'
 
 export type RecoveryScansInput = Readonly<{
   /** 账本的受信跨租户扫描：启动扫描用它。 */

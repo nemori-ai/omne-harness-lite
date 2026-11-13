@@ -28,6 +28,8 @@ export type BodySweepProgress = Readonly<{
 
 type Slot = {
   readonly tenant: TenantId
+  /** The tenant's encoded text: the key of the table and the name in a warning. */
+  readonly text: string
   /** When the tenant is next swept, in epoch milliseconds. */
   at: number
   failures: number
@@ -42,11 +44,19 @@ export type DueTenants = ReturnType<typeof createDueTenants>
 export function createDueTenants() {
   const slots = new Map<string, Slot>()
   const noteAt = (tenant: TenantId, at: number) => {
-    const key = tenantCodec.encode(tenant)
-    if (!key.ok || Number.isNaN(at)) return
-    const slot = slots.get(key.value)
+    // A minted tenant always encodes; a value that does not is no tenant and has nothing due.
+    const text = tenantCodec.encode(tenant)
+    if (!text.ok) return
+    const slot = slots.get(text.value)
     if (slot === undefined)
-      slots.set(key.value, { tenant, at, failures: 0, visiting: false, noted: Infinity })
+      slots.set(text.value, {
+        tenant,
+        text: text.value,
+        at,
+        failures: 0,
+        visiting: false,
+        noted: Infinity,
+      })
     else if (slot.visiting) slot.noted = Math.min(slot.noted, at)
     else slot.at = Math.min(slot.at, at)
   }
@@ -71,10 +81,7 @@ export function createDueTenants() {
       slot.visiting = false
       slot.failures = 0
       slot.at = Math.min(next ?? Infinity, slot.noted)
-      if (slot.at === Infinity) {
-        const key = tenantCodec.encode(slot.tenant)
-        if (key.ok) slots.delete(key.value)
-      }
+      if (slot.at === Infinity) slots.delete(slot.text)
     },
     /** The sweep or the due read failed: the tenant stays, and waits out its backoff. */
     failed(slot: Slot, now: number): Backoff {
@@ -84,7 +91,6 @@ export function createDueTenants() {
       slot.at = now + backoff.delayMs
       return backoff
     },
-    size: () => slots.size,
   })
 }
 
@@ -201,19 +207,16 @@ export function createBodySweep<P>(input: BodySweepInput<P>) {
     let removed = 0
     let failures = 0
     for (const slot of input.due.ready(nowMs())) {
-      if (stopped) return closed()
       input.due.begin(slot)
       const visited = await visit(slot.tenant)
       if (visited.kind === 'stopped') return closed()
       if (visited.kind === 'failed') {
         failures += 1
         const backoff = input.due.failed(slot, nowMs())
-        if (backoff.warn) {
-          const text = tenantCodec.encode(slot.tenant)
+        if (backoff.warn)
           input.warn(
-            `body sweep of tenant ${text.ok ? text.value : '(no tenant text)'} failed (${visited.reason}); it goes on in ${backoff.delayMs} ms.`,
+            `body sweep of tenant ${slot.text} failed (${visited.reason}); it goes on in ${backoff.delayMs} ms.`,
           )
-        }
         continue
       }
       input.due.swept(slot, visited.next)

@@ -141,16 +141,7 @@ export function createRuntimeExecutor(
     retryDelayMs: settings.configuration.driverRetryDelayMs ?? 1000,
   })
   const keyOf = (wake: Wake) => canonicalDigest([wake.tenant, wake.call])
-  const warn = (message: string) => executorLog('warn', message)
-  const scans = createRecoveryScans({
-    startup: input.recovery.scan,
-    pending: scan => settings.store.scanPending(scan),
-    rescanMs: settings.recoveryRescanMs ?? RESCAN_MS,
-    remember: call => remember(call),
-    schedule: call => void dependencies.instances.schedule(call).catch(() => undefined),
-    warn,
-    signal: abort.signal,
-  })
+  // `scans` is built below; `remember` reaches it only when it is called, after construction.
   const remember = (wake: Wake, purpose: RuntimeCallPurpose = 'execute'): boolean => {
     const key = keyOf(wake)
     if (calls.has(key)) return !abort.signal.aborted
@@ -170,6 +161,15 @@ export function createRuntimeExecutor(
     })
     return true
   }
+  const scans = createRecoveryScans({
+    startup: input.recovery.scan,
+    pending: scan => settings.store.scanPending(scan),
+    rescanMs: settings.recoveryRescanMs ?? RESCAN_MS,
+    remember,
+    schedule: call => void dependencies.instances.schedule(call).catch(() => undefined),
+    warn: message => executorLog('warn', message),
+    signal: abort.signal,
+  })
   const publish = (
     step: Parameters<ToolDriver<unknown>['run']>[0],
     recovery: Recovered,
@@ -438,20 +438,23 @@ export function createRuntimeExecutor(
       scans.roomMade()
     },
     live: () => !abort.signal.aborted,
-    diagnostics: () => ({
-      knownCalls: calls.size,
-      pacedDeliveries: delivery.pacedEntries(),
-      completed,
-      dormantExits,
-      reentries,
-      foreignExecutionRuns,
-      unownedRuns,
-      recoveryScan: scans.diagnostics().startup,
-      recoveredCalls: scans.diagnostics().recovered,
-      owedTenants: scans.diagnostics().owedTenants,
-      progress: [...new Set([...calls.values()].map(entry => entry.progress))],
-      retired: abort.signal.aborted,
-    }),
+    diagnostics: () => {
+      const scanned = scans.diagnostics()
+      return {
+        knownCalls: calls.size,
+        pacedDeliveries: delivery.pacedEntries(),
+        completed,
+        dormantExits,
+        reentries,
+        foreignExecutionRuns,
+        unownedRuns,
+        recoveryScan: scanned.startup,
+        recoveredCalls: scanned.recovered,
+        owedTenants: scanned.owedTenants,
+        progress: [...new Set([...calls.values()].map(entry => entry.progress))],
+        retired: abort.signal.aborted,
+      }
+    },
     close(): Promise<void> {
       if (closing !== null) return closing
       abort.abort()
