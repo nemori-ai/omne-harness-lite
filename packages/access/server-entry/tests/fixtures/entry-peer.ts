@@ -1,12 +1,15 @@
 // A real entry for the client core's tests in `packages/access/sdk` (#1249 C13, C14). The SDK may
 // not import server-entry (rule `sdk-not-server`), so its tests start this file as a process:
 //   node --conditions=source tests/fixtures/entry-peer.ts
-// It prints one JSON line per event on stdout and stops when stdin closes:
+// It reads commands from stdin, one a line: `take-down` takes notes/v1 down, `mount` mounts it
+// again. It prints one JSON line per event on stdout and stops when stdin closes:
 //   {"port":N}                 listening, with notes/v1 and the built-in access/v1 mounted
 //   {"called":"save-note"}     the save-note handler started; it never answers
 //   {"opened":"watch-all"}     the frame source of watch-all was called
 //   {"aborted":"watch-all"}    the frame source of watch-all saw its abort
+//   {"done":"take-down"}       notes/v1 is off the registry; {"done":"mount"} it is on again
 // `watch-note` gives three frames and ends with `note-deleted`; `watch-all` gives one and waits.
+import { createInterface } from 'node:readline'
 import { startAccessFixture } from '../support/pipeline-kit.ts'
 
 const line = (value: unknown): void => {
@@ -41,8 +44,19 @@ notes.sources['watch-all'] = async context => {
     })(),
   }
 }
+let takeDown: (() => Promise<void>) | undefined = fixture.takeDown
 line({ port: fixture.port })
-process.stdin.resume()
-process.stdin.on('end', () => {
+const commands = createInterface({ input: process.stdin })
+commands.on('line', command => {
+  if (command === 'take-down' && takeDown !== undefined) {
+    const done = takeDown()
+    takeDown = undefined
+    void done.then(() => line({ done: 'take-down' }))
+  } else if (command === 'mount' && takeDown === undefined) {
+    takeDown = fixture.log.registry.mount(notes.contribution)
+    line({ done: 'mount' })
+  }
+})
+commands.on('close', () => {
   void fixture.stop().then(() => process.exit(0))
 })
