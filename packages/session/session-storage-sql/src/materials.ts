@@ -62,6 +62,9 @@ import {
   ATTEMPT_GRANT_TABLES,
   SCOPE_INDEX_MIGRATION,
   SCOPE_INDEX_TABLES,
+  SESSION_LIST_MIGRATION,
+  SESSION_LIST_SCAN_ROWS,
+  SESSION_LIST_TABLES,
 } from './worker/schema.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
@@ -94,6 +97,10 @@ const attemptGrantMigrationRef = Object.freeze({
 const scopeIndexMigrationRef = Object.freeze({
   owner: SCOPE_INDEX_MIGRATION.owner,
   id: SCOPE_INDEX_MIGRATION.id,
+})
+const sessionListMigrationRef = Object.freeze({
+  owner: SESSION_LIST_MIGRATION.owner,
+  id: SESSION_LIST_MIGRATION.id,
 })
 const recordMigrationRef = Object.freeze({
   owner: EXECUTION_RECORD_MIGRATION.owner,
@@ -255,6 +262,14 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_journal', 'sl_model_view'],
   },
   { handler: 'session.pending', file: 'read-pending', tables: ['sl_pending_idx'] },
+  {
+    // The session list of one tenant: at most one scan bound of rows and one more.
+    handler: 'session.list',
+    file: 'read-session-list',
+    tables: ['sl_session_list'],
+    migrations: [sessionListMigrationRef],
+    maxRowsRead: SESSION_LIST_SCAN_ROWS + 1,
+  },
   { handler: 'session.references', file: 'read-references', tables: ['sl_resident_idx'] },
   {
     handler: 'session.released-scopes',
@@ -357,6 +372,7 @@ export function sessionStorageMaterials(
   const stateItemMigration = module('state-item-migration')
   const attemptGrantMigration = module('attempt-grant-migration')
   const scopeIndexMigration = module('scope-index-migration')
+  const sessionListMigration = module('session-list-migration')
   const preadmissionMigration = module('preadmission-migration')
   const admissionAttemptMigration = module('admission-attempt-migration')
   const statePartMigration = module('state-part-migration')
@@ -422,6 +438,7 @@ export function sessionStorageMaterials(
           ...STATE_ITEM_TABLES,
           ...ATTEMPT_GRANT_TABLES,
           ...SCOPE_INDEX_TABLES,
+          ...SESSION_LIST_TABLES,
         ],
         readTables: EXECUTION_RECORD_INDEX_TABLES,
         requiresFacts: [SESSION_COMMIT_BASIS],
@@ -490,6 +507,13 @@ export function sessionStorageMaterials(
         moduleUrl: scopeIndexMigration.moduleUrl,
         checksum: scopeIndexMigration.digest,
         requires: [migrationRef],
+      },
+      {
+        // Its backfill reads the snapshot heads and the log.
+        ...sessionListMigrationRef,
+        moduleUrl: sessionListMigration.moduleUrl,
+        checksum: sessionListMigration.digest,
+        requires: [stateItemMigrationRef],
       },
       {
         ...preadmissionMigrationRef,

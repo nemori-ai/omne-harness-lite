@@ -265,6 +265,51 @@ Session 经 `AgentDrivePort` 交给 Agent 的 `grant` 是写入该 attempt 的 S
 - 执行顺序：两条命令之间没有事实格依赖，存储按名字升序执行，`execution-record` 先、`session` 后（sql-contract §7.4）。所以共同提交里 `session` 读到本批刚写的 `er_` 行与新计数。事实格表达不了这个顺序：Session 单独提交时没有 `execution-record` 命令，事实没有提供者。
 - 失效：用旧根准备的 Session 提交，在事务里按新根重判，答纯层对应的非成功答复（P5 决策第 6 条）。
 
+#### 提交的时刻与会话列表
+
+<a id="提交的时刻与会话列表"></a>
+
+依据：RFC-0015 第 8 节「列出会话」。会话契约的读取面 `SessionDirectory` 由本成员实现，端口成员是可选的 `directory`。
+
+**提交的时刻。** 每次发布一批条目的提交写一行 `sl_commit_time`：`(tenant, session, commit_seq)` 与时刻 `at`。这一行是事实，归提交。
+
+- 时刻的来源：构造选项 `clock`，即会话自己的时钟端口（`SessionClock`）。端口一侧在 `commit`、`commitEntries`、`commitLog` 提交前各取一次读数，只取 `at` 文本，放进 `session` 参加者的事实 `at`。同一次调用的各代次用同一个读数。存储里给游标算过期的 `now` 不是它的来源。
+- 时钟答失败、抛错，或没有给 `clock` 时，提交照常成立，`at` 为 `null`。不用本机墙钟顶替。
+- 参加者自己不用时间函数，只写事实里的 `at`。外部提交方（Agent Journal）经 `sessionCommandFacts` 的第四个参数交 `at`；不交时为 `null`。
+- 认回、拒绝与控制答复不发布批次，不写这一行。
+
+**会话列表项。** `sl_session_list` 每个会话一行，是投影。
+
+| 要声明的 | 答案 |
+| --- | --- |
+| 来源 | 这个会话的日志与 `sl_commit_time` |
+| 计算规则 | 见下表 |
+| 覆盖到的提交位置 | 与引起变化的那一批条目在同一个事务里写，总是覆盖到 `sl_journal.tail` |
+| 计算版本 | `version` 列，现为 `1`。计算规则变了就加一 |
+| 失效条件 | 行不存在，或 `version` 不是当前版本 |
+
+每次发布一批条目时，参加者在 `writeBatch` 里按下表写这一行。「活动」是三种提交：建会话（前一份快照为空）、批里有 `intake.routed`（受理一条输入）、批里有 `run.terminal`（一轮结束）。
+
+| 列 | 建会话的批 | 其他活动的批 | 其他批 |
+| --- | --- | --- | --- |
+| `created_at` | 本次的 `at` | 不变 | 不变 |
+| `last_activity_at` | 本次的 `at` | 本次的 `at`（可以是 `null`） | 不变 |
+| `lifecycle` | 新快照的 `lifecycle` | 同左 | 同左 |
+| `title` | 本批的标题 | 原值为 `null` 时取本批的标题，否则不变 | 同左 |
+| `version` | 当前版本 | 同左 | 同左 |
+
+- 本批的标题：按位置次序，第一条 `message.user` 里第一个去掉空白后非空的文字块。空白压成一个空格，去掉首尾空白，取前 80 个字符（按码点计）。批里没有时为 `null`。
+- 非建会话的批找不到这一行时，按「原值全为 `null`」计算。迁移之后每个会话都有行，所以这一格只在不变式被破坏时到达，结果仍是确定的。
+- 写入是 `INSERT OR REPLACE`：同一批重放得到同一行。
+
+**读。** `directory.list` 先核一次访问（操作 `directory.list`，目标是租户），再读 handler `session.list`。次序：`last_activity_at` 倒序，同时刻按会话标识升序；`last_activity_at` 为 `null` 的排在后面，按会话标识升序。键集分页：游标封装上一页最后一行的两个键，不用偏移量。handler 分三段读，每段是一次带 `LIMIT` 的索引范围扫描：同时刻且标识更大的、时刻更早的、没有时刻的。
+
+- `includeArchived` 为 `false` 时跳过 `lifecycle` 为 `archived` 的行。一页最多扫 `SESSION_LIST_SCAN_ROWS`（1000）行；扫满这个数还没凑满一页时答 `partial`，`next` 指向最后扫到的那一行。
+- `limit` 是 1 到 1000 的整数，否则答 `invalid`。部署的每页上界由接入层核对。
+- 时刻为 `null` 的项照常列出，两个时刻都是 `null`。
+
+**迁移与回填。** `session/008-session-list` 建两张表与索引 `sl_session_list_activity_idx (tenant, last_activity_at, session)`，依赖 `session/004-state-items`。同一迁移在事务里同步回填：按 `(tenant, session)` 每页 200 个扫 `sl_journal`，生命周期取 `sl_state` 头里的 `lifecycle`，标题按上面的规则从日志里的 `message.user` 条目取，两个时刻留空。已有行时不改。先例是 `session/006-permission-current`。回填期间这个事务域的写要等，见[已知限制](#已知限制)。不补 `sl_commit_time`：这一程之前的提交没有时刻，也补不出来。
+
 #### 只读核对
 
 <a id="只读核对"></a>

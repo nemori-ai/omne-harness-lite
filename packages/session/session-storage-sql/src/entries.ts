@@ -13,7 +13,7 @@ import {
 import type { Outcome } from '@omne-harness/operation-result'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import { encodeValue } from './codec.ts'
-import { commitFacts } from './commit.ts'
+import { commitFacts, withCommitTime } from './commit.ts'
 import { SESSION_PARTICIPANT } from './participants.ts'
 import { domainOf, failure, type Context } from './context.ts'
 
@@ -47,7 +47,7 @@ export async function commitEntries<P>(
     domain.ok,
     observation.session,
     { operation: observation.operation, digest: digestSessionEntries(observation) },
-    facts,
+    await withCommitTime(context, facts),
   )
   return settled as Outcome<SessionEntriesReceipt, SessionFailure>
 }

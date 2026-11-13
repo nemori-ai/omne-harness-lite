@@ -252,6 +252,28 @@ async function generationFrom<P>(
 }
 
 /**
+ * The `session` facts with the time of this commit: one reading of the Session clock, before the
+ * first attempt. No clock, a failure or a throw leaves the facts without a time; the commit goes on
+ * (SPEC「提交的时刻与会话列表」).
+ */
+export async function withCommitTime<P>(
+  context: Context<P>,
+  command: FactCommandV2,
+): Promise<FactCommandV2> {
+  const { clock } = context.options
+  if (clock === undefined) return command
+  let at: string
+  try {
+    const sample = await clock.sample()
+    if ('failure' in sample) return command
+    at = sample.ok.at
+  } catch {
+    return command
+  }
+  return { ...command, facts: { ...command.facts, at } }
+}
+
+/**
  * Commits the participant facts of one operation of `session` in the tenant domain. The attempt
  * generation is chosen by the storage receipts: a generation is used only when every earlier one is
  * a rolled back receipt, so an older attempt can never take effect beside a newer one (SPEC W1).
@@ -360,6 +382,7 @@ export async function commit<P, K extends MutationName>(
       reason: error instanceof Error ? error.message : 'not JSON data',
     })
   }
+  facts = await withCommitTime(context, facts)
   const expected = { operation: command.input.operation, digest: commandDigest(command) }
   const source = context.options.protectedBasis
   if (
