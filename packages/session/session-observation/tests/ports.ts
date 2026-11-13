@@ -246,6 +246,7 @@ export class FakeClock {
 export class FakeNotices {
   readonly #listeners = new Set<(kinds: readonly string[]) => void>()
   subscriptions = 0
+  unsubscriptions = 0
   readonly targets: unknown[] = []
 
   port: SessionObservationPorts<string>['notices'] = (target, onCommit) => {
@@ -253,6 +254,7 @@ export class FakeNotices {
     this.targets.push(target)
     this.#listeners.add(onCommit)
     return () => {
+      this.unsubscriptions += 1
       this.#listeners.delete(onCommit)
     }
   }
@@ -282,6 +284,7 @@ export class FakeStream {
   readonly #queue: unknown[] = []
   #wake: (() => void) | undefined
   #done = false
+  #farewell: unknown
 
   constructor(ref: string, signal: AbortSignal) {
     this.ref = ref
@@ -299,6 +302,11 @@ export class FakeStream {
     this.#poke()
   }
 
+  /** The frame this stream yields once after its signal aborts, the way a Model answers the observer leaving. */
+  answerAbort(frame: unknown): void {
+    this.#farewell = frame
+  }
+
   #poke(): void {
     const wake = this.#wake
     this.#wake = undefined
@@ -307,7 +315,10 @@ export class FakeStream {
 
   async *frames(): AsyncGenerator<never> {
     for (;;) {
-      if (this.signal.aborted) return
+      if (this.signal.aborted) {
+        if (this.#farewell !== undefined) yield this.#farewell as never
+        return
+      }
       const frame = this.#queue.shift()
       if (frame !== undefined) {
         yield frame as never

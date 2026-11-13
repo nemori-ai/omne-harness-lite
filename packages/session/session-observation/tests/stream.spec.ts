@@ -460,6 +460,30 @@ describe('the stream axis', () => {
     stop()
   })
 
+  it('stream, observing, the stream ended and its iterator returns: the end is delivered once, nothing after it', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    const s1 = w.model.stream('s1')
+    s1.push({ kind: 'ended', reason: 'producer-ended', value: null })
+    s1.stop()
+    expect(kinds(await drain(frames, 3))).toEqual(['state', 'refreshing'])
+    expect(w.diagnostics).toEqual([])
+    stop()
+  })
+
+  it('stream, the old subscription answers its own abort with observer-closed: that frame is not delivered', async () => {
+    const w = world(new FakeLog())
+    const frames = await observing(w)
+    w.model.stream('s1').answerAbort({ kind: 'ended', reason: 'observer-closed' })
+    w.log.append(mainCall('m-2'))
+    w.model.answer('m-2', stream('s2'))
+    w.notices.commit('call.bound')
+    expect(kinds(await drain(frames, 3))).toEqual(['state'])
+    expect(w.model.stream('s1').signal.aborted).toBe(true)
+    expect(w.diagnostics).toEqual([])
+    stop()
+  })
+
   it('stream, observing, a Model value with no model-output-v1 projection: ends with unavailable', async () => {
     const w = world(new FakeLog())
     const frames = await observing(w)
@@ -508,5 +532,14 @@ describe('abort while observing', () => {
     controller.abort()
     expect(await next).toEqual({ done: true, value: undefined })
     expect([w.model.open, w.notices.active, w.clock.pending]).toEqual([0, 0, 0])
+  })
+
+  it('tears down once: the abort and the end of the frames together unsubscribe the notice a single time', async () => {
+    const controller = new AbortController()
+    const w = world(new FakeLog())
+    const frames = await observing(w, controller.signal)
+    controller.abort()
+    expect(await frames.next()).toEqual({ done: true, value: undefined })
+    expect(w.notices.unsubscriptions).toBe(1)
   })
 })
