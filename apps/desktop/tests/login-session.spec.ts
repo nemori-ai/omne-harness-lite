@@ -174,7 +174,7 @@ describe('登录会话全化表', () => {
     expect(t.server.seen).toEqual([
       {
         target: 'identity/v1 revoke-login',
-        credentials: { proof: PROOF_SENTINEL, tenant: TENANT_TEXT },
+        credentials: { proof: PROOF_SENTINEL },
         body: { targetLoginId: LOGIN_ID },
       },
     ])
@@ -285,11 +285,19 @@ describe('登录会话全化表', () => {
     const t = await open({ signedIn: true })
     expect(await call(t.session)).toEqual(answered('succeeded'))
     expect(t.server.seen).toEqual([
-      {
-        target: 'session/v1 read-history',
-        credentials: { proof: PROOF_SENTINEL, tenant: TENANT_TEXT },
-        body: {},
-      },
+      { target: 'session/v1 read-history', credentials: { proof: PROOF_SENTINEL }, body: {} },
+    ])
+  })
+
+  it('已登录时只带操作的身份要求要的：acting-tenant 带行事租户，none 什么都不带', async () => {
+    const t = await open({ signedIn: true })
+    await call(t.session, 'create-session')
+    await call(t.session, 'register-and-activate', IDENTITY)
+    await call(t.session, 'unknown-operation', { name: 'elsewhere', major: 1 })
+    expect(t.server.seen.map(item => item.credentials)).toEqual([
+      { proof: PROOF_SENTINEL, tenant: TENANT_TEXT },
+      {},
+      { proof: PROOF_SENTINEL, tenant: TENANT_TEXT },
     ])
   })
 
@@ -329,7 +337,7 @@ describe('登录失效的探测', () => {
     await settle()
     expect(t.server.seen[1]).toEqual({
       target: 'identity/v1 query-current-tenant',
-      credentials: { proof: PROOF_SENTINEL, tenant: TENANT_TEXT },
+      credentials: { proof: PROOF_SENTINEL },
       body: {},
     })
     // The probe answered `succeeded`: the login stays; the next denied probes again.

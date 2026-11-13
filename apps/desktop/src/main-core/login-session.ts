@@ -44,18 +44,34 @@ export interface LoginSession extends LoginStateSource {
 
 const NOT_SENT: CallReport = Object.freeze({ kind: 'not-sent' })
 
-const keyOf = (key: ProtocolKey): string => `${key.name}/v${key.major}`
+type Identity = ProtocolContract['operations'][string]['identity']
+/** What the contract says one operation or observation needs; a credential-carrying one is the page's to never call. */
+type Demand = Identity | 'carries-credential'
 
-function credentialOperations(contracts: readonly ProtocolContract[]): ReadonlySet<string> {
-  const refused = new Set<string>()
-  for (const contract of contracts)
+const targetOf = (key: ProtocolKey, name: string): string => `${key.name}/v${key.major} ${name}`
+
+function demandsOf(contracts: readonly ProtocolContract[]): ReadonlyMap<string, Demand> {
+  const demands = new Map<string, Demand>()
+  for (const contract of contracts) {
     for (const [name, operation] of Object.entries(contract.operations))
-      if (operation.carriesCredential === true) refused.add(`${keyOf(contract)} ${name}`)
-  return refused
+      demands.set(
+        targetOf(contract, name),
+        operation.carriesCredential === true ? 'carries-credential' : operation.identity,
+      )
+    for (const [name, observation] of Object.entries(contract.observations))
+      demands.set(targetOf(contract, name), observation.identity)
+  }
+  return demands
 }
 
-const credentialsOf = (login: StoredLogin | undefined): Credentials =>
-  login === undefined ? {} : { proof: login.proof, tenant: login.tenant }
+/**
+ * Only what the identity requirement asks for: the proof for `login`, the proof and the acting
+ * tenant for `acting-tenant`. A target outside the known contracts gets both, so it still works.
+ */
+function credentialsFor(login: StoredLogin | undefined, identity: Identity): Credentials {
+  if (login === undefined || identity === 'none') return {}
+  return identity === 'login' ? { proof: login.proof } : { proof: login.proof, tenant: login.tenant }
+}
 
 function endedDenied(end: ObserveEnd): boolean {
   return (
@@ -67,9 +83,11 @@ function endedDenied(end: ObserveEnd): boolean {
 /** Opens the login session: reads the saved login (the event「应用启动」). */
 export async function openLoginSession(options: LoginSessionOptions): Promise<LoginSession> {
   const { connect, store } = options
-  const refused = credentialOperations(options.contracts)
+  const demands = demandsOf(options.contracts)
+  // The session's own identity calls: `issue-login` needs none, `query-current-tenant` and
+  // `revoke-login` need the login only.
   const identityFor = (login: StoredLogin | undefined) =>
-    createClient(identityProtocol, connect(credentialsOf(login)))
+    createClient(identityProtocol, connect(credentialsFor(login, 'login')))
 
   const saved = await store.read()
   let state: SessionState =
@@ -106,27 +124,34 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
       })
   }
 
-  /** The login a page request goes out with; `refuse` while signing out. */
-  function outgoing(): { readonly login: StoredLogin | undefined } | 'refuse' {
-    if (state.kind === 'signing-out') return 'refuse'
-    return { login: state.kind === 'signed-in' ? state.login : undefined }
+  /**
+   * How a page request to `target` goes out: refused while signing out and for a
+   * credential-carrying operation; otherwise with the credentials it needs, and the login it
+   * carried (the one a `denied` answer is about).
+   */
+  function route(
+    target: string,
+  ): { readonly credentials: Credentials; readonly carried: StoredLogin | undefined } | 'refuse' {
+    const demand = demands.get(target) ?? 'acting-tenant'
+    if (state.kind === 'signing-out' || demand === 'carries-credential') return 'refuse'
+    const login = state.kind === 'signed-in' && demand !== 'none' ? state.login : undefined
+    return { credentials: credentialsFor(login, demand), carried: login }
   }
 
   const transport: Transport = {
     async call(request) {
-      if (refused.has(`${keyOf(request.protocol)} ${request.operation}`)) return NOT_SENT
-      const route = outgoing()
-      if (route === 'refuse') return NOT_SENT
-      const report = await connect(credentialsOf(route.login)).call(request)
-      if (route.login !== undefined && report.kind === 'answered' && report.outcome === 'denied')
-        probe(route.login)
+      const sending = route(targetOf(request.protocol, request.operation))
+      if (sending === 'refuse') return NOT_SENT
+      const report = await connect(sending.credentials).call(request)
+      if (sending.carried !== undefined && report.kind === 'answered' && report.outcome === 'denied')
+        probe(sending.carried)
       return report
     },
     async *observe(request) {
-      const route = outgoing()
-      if (route === 'refuse') return { kind: 'not-sent' }
-      const end = yield* connect(credentialsOf(route.login)).observe(request)
-      if (route.login !== undefined && endedDenied(end)) probe(route.login)
+      const sending = route(targetOf(request.protocol, request.observation))
+      if (sending === 'refuse') return { kind: 'not-sent' }
+      const end = yield* connect(sending.credentials).observe(request)
+      if (sending.carried !== undefined && endedDenied(end)) probe(sending.carried)
       return end
     },
   }
