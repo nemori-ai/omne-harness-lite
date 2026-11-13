@@ -64,6 +64,11 @@ catalog:
   react-dom: 19.3.0
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
+  # session-ui：流式 Markdown、组件测试与它的 DOM 环境。
+  streamdown: 2.7.1
+  '@testing-library/react': 16.3.3
+  '@testing-library/dom': 10.4.2
+  happy-dom: 21.0.4
   '@xyflow/react': 12.12.0
   antd: 6.6.5
   esbuild: 0.28.2
