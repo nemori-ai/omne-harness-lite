@@ -38,7 +38,7 @@ export type SessionAccessPluginInput = Readonly<{
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
 
-export const SESSION_ACCESS_PLUGIN = 'session-access'
+const SESSION_ACCESS_PLUGIN = 'session-access'
 
 function sessionOf(ctx: Context, caller: 'intake' | 'reader'): SessionService | undefined {
   return ctx.intercept(sessionKey, { caller }).get(sessionKey)
