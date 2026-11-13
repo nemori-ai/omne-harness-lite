@@ -130,11 +130,28 @@ function functionBand(syntax: ts.SourceFile, functionLines: number): SourceMeasu
   return { count, longest, longestLine }
 }
 
-const COMMENT_RUN = /(?:^[ \t]*(?:\/\/|\/\*|\*)[^\n]*\n){5}|\/\*(?:(?:(?!\*\/)[^\n])*\n){4}/mu
+function lineAt(text: string, pos: number): number {
+  let line = 1
+  for (let at = text.indexOf('\n'); at !== -1 && at < pos; at = text.indexOf('\n', at + 1))
+    line += 1
+  return line
+}
+
+function hasLongHeaderBlock(text: string): boolean {
+  let previousEnd = -2
+  let blockStart = 0
+  for (const range of ts.getLeadingCommentRanges(text, 0) ?? []) {
+    const start = lineAt(text, range.pos)
+    if (start > previousEnd + 1) blockStart = start
+    previousEnd = lineAt(text, range.end)
+    if (previousEnd - blockStart + 1 >= HEADER_BLOCK_LINES) return true
+  }
+  return false
+}
 
 function mayHaveForbiddenComment(text: string): boolean {
   if (!text.includes('//') && !text.includes('/*')) return false
-  return FORBIDDEN_COMMENT.some(pattern => pattern.test(text)) || COMMENT_RUN.test(text)
+  return FORBIDDEN_COMMENT.some(pattern => pattern.test(text)) || hasLongHeaderBlock(text)
 }
 
 export function measureSource(path: string, text: string, functionLines: number): SourceMeasure {
