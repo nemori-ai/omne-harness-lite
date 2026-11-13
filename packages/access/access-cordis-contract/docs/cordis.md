@@ -2,7 +2,7 @@
 
 ## 集成入口
 
-`./cordis` 导出抽象 `Service` `AccessRegistryService`，服务名 `accessRegistry`，并把 `accessRegistry` 加进 Cordis `Context` 的类型。提供者是服务端接入 `./cordis` 的 `AccessRegistryProvider`，由服务端应用的装配装上（还没有接进装配）。
+`./cordis` 导出抽象 `Service` `AccessRegistryService`，服务名 `accessRegistry`，并把 `accessRegistry` 加进 Cordis `Context` 的类型。提供者是服务端接入 `./cordis` 的 `AccessRegistryProvider`，由服务端应用的装配装上：`apps/harness-server` 的 `server-entry` 行在自己的作用域里装它，并把它的登记表交给入口。
 
 ## 生命周期与清理
 
