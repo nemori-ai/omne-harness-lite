@@ -52,6 +52,7 @@ import {
   createModelResultReceiverTable,
   type ModelResultReceiverTable,
 } from '@omne-harness/model-cordis-contract/cordis'
+import { whenEmpty } from './idle.ts'
 
 const DEPENDENCY = 'model-result-push'
 
@@ -340,6 +341,11 @@ export type RuntimeStage = Readonly<{
    * the late accounts being accepted, writes what arrived into the ledger, and releases the ledger.
    */
   stop(): Promise<void>
+  /**
+   * Resolves when no call is being pushed, or when `signal` aborts; the answer is the number of
+   * calls whose push still runs. A delivery that waits for its receiver is not counted.
+   */
+  idle(signal: AbortSignal): Promise<number>
 }>
 
 /** The `modelRuntime` service: the runtime of the provider and its receiver table. */
@@ -391,6 +397,7 @@ export function createRuntimeStage(
         if (runtime !== undefined)
           throw new TypeError('model host: a runtime facade needs the result push options')
       },
+      idle: async () => 0,
       stop: async () => {},
     }
   return createResultPush(input, options.ledger, checkedLimits(options.limits), options.recovery)
@@ -1098,6 +1105,9 @@ function createResultPush(
       // What an earlier process left in the durable custody goes on here, with an empty ledger too.
       if (recovery !== undefined) scanning = recover(recovery)
     },
+    // Every piece of work that ends pumps the dirty calls first, so an empty `running` has no
+    // dirty call that could start behind it.
+    idle: signal => whenEmpty(running, signal),
     async stop() {
       if (phase === 'stopped') return
       phase = 'stopped'

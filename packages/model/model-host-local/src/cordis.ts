@@ -42,6 +42,7 @@ export type {
 } from './plugins/configured-host.ts'
 export type {
   HostEvent,
+  ModelHostDrain,
   ModelHostPluginOptions,
   ModelRuntimeLocalPluginClass,
   ModelRuntimeLocalPluginInstance,

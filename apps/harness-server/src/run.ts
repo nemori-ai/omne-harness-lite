@@ -429,6 +429,11 @@ export type RunServeOptions = Readonly<{
   operator?: unknown
   readinessTimeoutMs: number
   shutdownDeadlineMs: number
+  /**
+   * `--drain-deadline-ms`: how long the planned stop lets the rows with a `drain` finish the work
+   * they accepted, before the business phase. Absent: no drain is called.
+   */
+  drainDeadlineMs?: number
   /** `--state-root`: an existing absolute directory. Handed to the entry objects as `EntryEnv.stateRoot`. */
   stateRoot: string
   /** The planned stop. After a successful startup the run waits for it. */
@@ -812,6 +817,7 @@ async function runServeWithHostFiles(
       {
         log: write,
         stopsFirst: stopPredecessors(rows),
+        ...(options.drainDeadlineMs === undefined ? {} : { drainMs: options.drainDeadlineMs }),
         ...(finishHostFiles === undefined ? {} : { afterBusiness: finishHostFiles }),
         // After storage, before the report is fixed: the tree writes no diagnostic any more.
         afterStorage: deadline => telemetry.close(Math.max(0, deadline - monotonicClock.now())),

@@ -4,7 +4,7 @@
 // provider (here a driver and a quiesce that record what the host does to them) and the observer
 // qualification. The real runtime provider joins when the runtime facade plugin does; until then
 // nothing here proves a real driver.
-import { Context, symbols } from '@deepseek-ai/cordis'
+import { Context, Service, symbols } from '@deepseek-ai/cordis'
 import {
   accountCodec,
   organizationCodec,
@@ -716,6 +716,104 @@ it('shuts down in order: quiesce, then stop dispatching and wait for the drives,
   expect(f.messages.some(line => line.includes('1 woken calls were not dispatched'))).toBe(true)
   expect(await host.schedule(wake('late'))).toMatchObject({
     failure: { kind: 'unavailable', diagnostic: 'host-closed' },
+  })
+})
+
+describe('drain: the first half of a planned stop, while the callers are still alive', () => {
+  /** Loads the plugin the way an assembly that keeps the instance does, and gives the instance. */
+  async function loadInstance(
+    f: ReturnType<typeof fixture>,
+    overrides: Partial<typeof SETTINGS> = {},
+  ) {
+    await f.ctx.plugin(f.Authority)
+    await f.ctx.plugin(f.Clock)
+    await f.ctx.plugin(f.Commands)
+    let instance: InstanceType<typeof f.Plugin> | undefined
+    await f.ctx.plugin({
+      name: 'keeps-the-instance',
+      inject: f.Plugin.inject,
+      apply(child: Context) {
+        instance = new f.Plugin(child, { ...SETTINGS, ...overrides })
+        return instance[Service.init]()
+      },
+    })
+    if (instance === undefined) throw new Error('the plugin was not built')
+    return instance
+  }
+
+  it('closes the admission first, then lets the drive in flight and the woken call run to their end without a stop signal', async () => {
+    const f = fixture()
+    const instance = await loadInstance(f, { concurrencyLimit: 1, wakeCapacity: 2 })
+    const host = f.ctx.modelInstanceHost
+    await host.schedule(wake('running'))
+    await host.schedule(wake('queued'))
+    await until(() => f.driven.length === 1, 'the running drive')
+
+    let drained: unknown
+    const draining = instance.drain(new AbortController().signal).then(answer => (drained = answer))
+    await until(() => f.log.includes('quiesce'), 'the quiesce of the drain')
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(drained).toBeUndefined()
+
+    f.gateOf(callOf('running')).open()
+    // The woken call was admitted before the drain: it is dispatched and driven too.
+    await until(() => f.driven.length === 2, 'the queued drive')
+    expect(drained).toBeUndefined()
+    f.gateOf(callOf('queued')).open()
+    await draining
+
+    expect(drained).toEqual({ quiesced: true, inFlight: 0 })
+    expect(f.gateOf(callOf('running')).signalSeen).toBe(false)
+    expect(f.gateOf(callOf('queued')).signalSeen).toBe(false)
+    // The host is still bound: a drain is not a close.
+    expect(await host.schedule(wake('late'))).toEqual({ ok: { queued: true } })
+  })
+
+  it('answers how many drives still run when the signal aborts, and aborts none of them', async () => {
+    const f = fixture()
+    const instance = await loadInstance(f)
+    await f.ctx.modelInstanceHost.schedule(wake('slow'))
+    await until(() => f.driven.length === 1, 'the drive')
+
+    const expired = new AbortController()
+    const draining = instance.drain(expired.signal)
+    expired.abort()
+    expect(await draining).toEqual({ quiesced: true, inFlight: 1 })
+    expect(f.gateOf(callOf('slow')).signalAborted).toBe(false)
+    f.gateOf(callOf('slow')).open()
+  })
+
+  it('answers at once when nothing is in flight', async () => {
+    const f = fixture()
+    const instance = await loadInstance(f)
+    expect(await instance.drain(new AbortController().signal)).toEqual({
+      quiesced: true,
+      inFlight: 0,
+    })
+    expect(f.log).toEqual(['quiesce'])
+  })
+
+  it('says so when the runtime does not close its admission, and still waits for the drives', async () => {
+    const f = fixture()
+    const instance = await loadInstance(f)
+    f.hooks.quiesce = async () => {
+      throw new Error('the gate is stuck')
+    }
+    await f.ctx.modelInstanceHost.schedule(wake('a'))
+    await until(() => f.driven.length === 1, 'the drive')
+    const draining = instance.drain(new AbortController().signal)
+    f.gateOf(callOf('a')).open()
+    expect(await draining).toEqual({ quiesced: false, inFlight: 0 })
+    expect(f.messages.some(line => line.includes('quiesce threw'))).toBe(true)
+  })
+
+  it('has nothing in flight before the plugin started', async () => {
+    const f = fixture()
+    const instance = new f.Plugin(f.ctx, { ...SETTINGS })
+    expect(await instance.drain(new AbortController().signal)).toEqual({
+      quiesced: true,
+      inFlight: 0,
+    })
   })
 })
 

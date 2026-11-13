@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import {
   DEFAULT_READINESS_TIMEOUT_MS,
+  DEFAULT_DRAIN_DEADLINE_MS,
   DEFAULT_SHUTDOWN_DEADLINE_MS,
 } from './local/operator-defaults.ts'
 import { processSecretReader } from './local/secret-input.ts'
@@ -29,7 +30,7 @@ class NotSetUpError extends Error {}
 const S0_USAGE =
   'usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>'
 const SERVE_USAGE =
-  'usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]'
+  'usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]'
 
 /** The distribution that ships with the application: `config/serve.distribution.json`. */
 const BUNDLED_DISTRIBUTION = fileURLToPath(
@@ -45,6 +46,7 @@ const COMMON_OPTIONS = {
 
 const SERVE_OPTIONS = {
   ...COMMON_OPTIONS,
+  'drain-deadline-ms': { type: 'string' },
   'state-root': { type: 'string' },
   'stop-on-stdin-close': { type: 'boolean' },
 } as const
@@ -126,6 +128,7 @@ async function mainS0(argv: readonly string[]): Promise<number> {
 
 type ServeInputs = Common &
   Readonly<{
+    drainDeadlineMs: number
     stateRoot: string
     /** The loopback port, when the operator layer came from the local settings. */
     port?: number
@@ -133,7 +136,9 @@ type ServeInputs = Common &
 
 /** Every absent flag takes the default of the local single-user profile (SPEC.md「本机单用户档」). */
 async function serveInputs(
-  values: Readonly<{ [K in keyof typeof COMMON_OPTIONS | 'state-root']?: string }>,
+  values: Readonly<{
+    [K in keyof typeof COMMON_OPTIONS | 'state-root' | 'drain-deadline-ms']?: string
+  }>,
   positionals: readonly string[],
 ): Promise<ServeInputs> {
   if (positionals.length !== 1 || positionals[0] !== 'serve')
@@ -175,6 +180,10 @@ async function serveInputs(
     ...(layer === undefined ? {} : { operator: layer }),
     readinessTimeoutMs,
     shutdownDeadlineMs,
+    drainDeadlineMs:
+      values['drain-deadline-ms'] === undefined
+        ? DEFAULT_DRAIN_DEADLINE_MS
+        : positiveInt('drain-deadline-ms', values['drain-deadline-ms']),
     stateRoot: resolvedRoot,
     ...(local.kind === 'ready' && local.settings !== undefined
       ? { port: local.settings.port }

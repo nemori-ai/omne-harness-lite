@@ -48,6 +48,7 @@ import {
   modelHostAuthorityKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { modelHostConfigSchema, type ModelHostSettings } from './config.ts'
+import { whenEmpty } from './idle.ts'
 import { createRuntimeStage, reportRuntimeEvent, type ResultPushOptions } from './runtime.ts'
 import { createModelStreamLocalPlugin } from './stream-observation.ts'
 
@@ -99,7 +100,16 @@ function keyOf(tenant: TenantId, call: ModelCallId): string | undefined {
  * no call whose result is gone, and their size is bounded by the calls in flight and the results
  * not yet released, not by the life of the process.
  */
-type LocalDriverHost = ModelDriverHost<unknown> & Readonly<{ retireRoute(target: Wake): void }>
+type LocalDriverHost = ModelDriverHost<unknown> &
+  Readonly<{
+    retireRoute(target: Wake): void
+    /**
+     * Resolves when no drive runs and no woken call waits for its dispatch, or when `signal`
+     * aborts. The answer is the number of drives that still run. A call that waits for its pause
+     * after a drive that can be driven again is not counted: it stays owed in the commands.
+     */
+    idle(signal: AbortSignal): Promise<number>
+  }>
 
 function createLocalDriverHost(input: HostInput): LocalDriverHost {
   const { settings, authority, clock, report } = input
@@ -201,6 +211,9 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
   }
 
   return {
+    // Every drive that ends pumps the woken calls first, so an empty `running` has no woken call
+    // that could be dispatched behind it.
+    idle: signal => whenEmpty(running, signal),
     retireRoute(target) {
       const key = keyOf(target.tenant, target.call)
       const held = key === undefined ? undefined : routes.get(key)
@@ -368,7 +381,20 @@ export type ModelHostPluginOptions = Readonly<{
 }>
 
 /** The instance of the plugin class: Cordis calls `Service.init` and awaits it before ACTIVE. */
-export type ModelRuntimeLocalPluginInstance = Readonly<{ [Service.init]: () => Promise<void> }>
+export type ModelRuntimeLocalPluginInstance = Readonly<{
+  [Service.init]: () => Promise<void>
+  /**
+   * The first half of a planned stop, while the callers of the Model are still alive: the runtime
+   * admits no new call, and the calls it already admitted are driven to their end and their
+   * results pushed. It resolves when nothing runs any more, or when `signal` aborts. `inFlight` is
+   * the number of drives and pushes that still run then; the unload of the plugin aborts them.
+   * Before the host is bound, and after it closed, nothing is in flight.
+   */
+  drain(signal: AbortSignal): Promise<ModelHostDrain>
+}>
+
+/** What `drain` came to. `quiesced: false` means the runtime refused or threw, and may still admit. */
+export type ModelHostDrain = Readonly<{ quiesced: boolean; inFlight: number }>
 
 export type ModelRuntimeLocalPluginClass = {
   new (ctx: Context, settings: ModelHostSettings): ModelRuntimeLocalPluginInstance
@@ -492,7 +518,12 @@ async function publishBoundHost(ctx: Context, parts: BoundHostParts): Promise<vo
 export function createModelRuntimeLocalPlugin(
   options: ModelHostPluginOptions,
 ): ModelRuntimeLocalPluginClass {
-  async function start(ctx: Context, settings: ModelHostSettings): Promise<void> {
+  /** `bound` is given the drain of the host once the host is bound. */
+  async function start(
+    ctx: Context,
+    settings: ModelHostSettings,
+    bound: (drain: ModelRuntimeLocalPluginInstance['drain']) => void,
+  ): Promise<void> {
     assertStartOptions(ctx, options)
     const channel = captureExecutionChannel(options)
     const releaseExecution = createExecutionRelease(ctx, options, channel)
@@ -529,15 +560,22 @@ export function createModelRuntimeLocalPlugin(
       })
       // The order is the guarantee: the host was built unbound, it binds here, and only after the
       // bind has returned is the contribution that publishes it created.
-      const bound = await host.bind(provider.driver)
-      if ('failure' in bound)
-        throw new Error(`the model host could not bind: ${bound.failure.kind}`)
+      const binding = await host.bind(provider.driver)
+      if ('failure' in binding)
+        throw new Error(`the model host could not bind: ${binding.failure.kind}`)
+      bound(async signal => {
+        const quiesced = await quiesceForDrain(ctx, provider)
+        // A drive that ends may leave a result to push, and a push starts no drive: drives first.
+        const drives = await host.idle(signal)
+        const pushes = await stage.idle(signal)
+        return { quiesced, inFlight: drives + pushes }
+      })
 
       await publishBoundHost(ctx, {
         host,
         stage,
         provider,
-        binding: bound.ok,
+        binding: binding.ok,
         observation,
         releaseExecution,
       })
@@ -556,10 +594,34 @@ export function createModelRuntimeLocalPlugin(
     // context and the settings live in a closure and not on the instance.
     declare readonly [Service.init]: () => Promise<void>
 
+    declare readonly drain: ModelRuntimeLocalPluginInstance['drain']
+
     constructor(ctx: Context, settings: ModelHostSettings) {
-      Object.defineProperty(this, Service.init, { value: () => start(ctx, settings) })
+      let drain: ModelRuntimeLocalPluginInstance['drain'] | undefined
+      Object.defineProperty(this, Service.init, {
+        value: () => start(ctx, settings, bound => (drain = bound)),
+      })
+      Object.defineProperty(this, 'drain', {
+        value: (signal: AbortSignal) =>
+          drain?.(signal) ?? Promise.resolve({ quiesced: true, inFlight: 0 }),
+      })
     }
   }
+}
+
+/** Closes the admission gate for a drain. A refusal or a throw is reported; the drain goes on. */
+async function quiesceForDrain(
+  ctx: Context,
+  provider: Pick<ModelRuntimeProvider<unknown>, 'quiesce'>,
+): Promise<boolean> {
+  try {
+    const quiesced = await provider.quiesce()
+    if ('ok' in quiesced) return true
+    ctx.logger.warn(`model host: quiesce was refused (${quiesced.failure.kind})`)
+  } catch {
+    ctx.logger.warn('model host: quiesce threw')
+  }
+  return false
 }
 
 /**

@@ -6,6 +6,7 @@
 import type { LifecycleEntry, LifecycleRegistry } from './lifecycle.ts'
 import { PHASE_ORDER } from './lifecycle.ts'
 import type {
+  DrainOutcome,
   HandleOutcome,
   HostFilesReport,
   LifecyclePhase,
@@ -39,6 +40,7 @@ export const monotonicClock: ShutdownClock = {
 }
 
 export type ShutdownAction =
+  | 'drain-call' // 入口阶段之后、业务阶段之前：让一行做完已经接到的工作
   | 'stop-call'
   | 'report-fixed'
   | 'report-settled-call'
@@ -64,6 +66,11 @@ export type ShutdownOptions = Readonly<{
    * together.
    */
   stopsFirst?: ReadonlyMap<RowId, readonly RowId[]>
+  /**
+   * How long the drains may take, in milliseconds. The drains run after the entry phase, all
+   * together; the time they use is not taken from D. Without it no `drain` is called.
+   */
+  drainMs?: number
   /** Entry-owned host retirement and final maintenance, bounded only for report collection. */
   afterBusiness?: () => Promise<HostFilesReport>
   /** Entry-owned telemetry close after the storage phase, with the deadline D; bounded only for the report. */
@@ -189,6 +196,42 @@ async function stopOne(
   }
 }
 
+/**
+ * The drains of the live handles that have one, all together, each bounded by `deadline`. A drain
+ * that throws is `failed`; one that is not over at the deadline is `incomplete` and goes on by
+ * itself, because the row's `stop` ends what is left.
+ */
+async function drainAll(
+  frozen: Frozen,
+  { deadline, clock, log }: StopBudget,
+): Promise<DrainOutcome[]> {
+  const draining = [...frozen.live].flatMap(([row, entry]) => {
+    const drain = entry.handle.drain
+    return drain === undefined ? [] : [{ row, drain, phase: entry.handle.phase }]
+  })
+  return Promise.all(
+    draining.map(async ({ row, drain, phase }): Promise<DrainOutcome> => {
+      log('drain-call', phase, row)
+      const drained: Promise<StopResult> = Promise.resolve()
+        .then(() => drain(deadline))
+        .catch((error: unknown): StopResult => ({ kind: 'failed', detail: messageOf(error) }))
+      const timer = clock.after(deadline - clock.now())
+      const winner = await Promise.race([
+        drained.then(result => ({ result })),
+        timer.promise.then(() => null),
+      ])
+      if (winner !== null) {
+        timer.cancel()
+        return { row, result: winner.result }
+      }
+      void drained.then(late =>
+        log('late-result', phase, row, `drain after deadline: ${late.kind}`),
+      )
+      return { row, result: { kind: 'incomplete', detail: 'drain deadline reached' } }
+    }),
+  )
+}
+
 /** One expected row: stop the live handle, or say why there was nothing to stop. */
 async function outcomeOfRow(
   registry: LifecycleRegistry,
@@ -302,11 +345,19 @@ async function execute(
   const log = numberedLog(options.log)
   registry.enterStopping()
   const frozen = registry.freeze()
-  const budget: StopBudget = { deadline: clock.now() + deadlineMs, clock, log }
+  let budget: StopBudget = { deadline: clock.now() + deadlineMs, clock, log }
 
   const outcomes: HandleOutcome[] = []
+  let drains: DrainOutcome[] = []
   let hostFiles: HostFilesReport | undefined
   for (const phase of PHASE_ORDER) {
+    if (phase === 'business' && options.drainMs !== undefined) {
+      // The callers of a draining row are still alive here, so a result that arrives is taken the
+      // normal way. D does not pay for the drain: the later phases keep what they had.
+      const began = clock.now()
+      drains = await drainAll(frozen, { deadline: began + options.drainMs, clock, log })
+      budget = { ...budget, deadline: budget.deadline + (clock.now() - began) }
+    }
     const rows = [...expected].filter(([, expectedPhase]) => expectedPhase === phase)
     // A provider waits for the rows that depend on it. Every outcome is there by the deadline, and
     // the relation has no cycle, so each stop of the phase is called.
@@ -336,8 +387,13 @@ async function execute(
       : await collectTelemetry(options.afterStorage, budget)
 
   const report: ShutdownReport = Object.freeze({
-    overall: outcomes.every(o => o.result.kind === 'settled') ? 'settled' : 'incomplete',
+    overall:
+      outcomes.every(o => o.result.kind === 'settled') &&
+      drains.every(d => d.result.kind === 'settled')
+        ? 'settled'
+        : 'incomplete',
     outcomes: Object.freeze(outcomes),
+    ...(drains.length === 0 ? {} : { drains: Object.freeze(drains) }),
     ...(hostFiles === undefined ? {} : { hostFiles: Object.freeze(hostFiles) }),
     ...(telemetry === undefined ? {} : { telemetry: Object.freeze(telemetry) }),
   })

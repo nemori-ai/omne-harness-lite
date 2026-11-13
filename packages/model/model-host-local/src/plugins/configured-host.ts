@@ -59,6 +59,8 @@ export function createConfiguredModelRuntimeLocalPlugin(
     static readonly inject = [modelCommandsKey, modelClockKey, modelHostAuthorityKey]
     static readonly Config = configuredModelHostConfigSchema
     declare readonly [Service.init]: () => Promise<void>
+    // The constructor returns the instance of the inner plugin, which carries both members.
+    declare readonly drain: ModelRuntimeLocalPluginInstance['drain']
 
     constructor(ctx: Context, settings: ConfiguredModelHostSettings) {
       const Plugin = createModelRuntimeLocalPlugin({

@@ -32,7 +32,7 @@ S0 不接 HTTP，不创建租户，不打开业务状态根，不读真实秘密
 
 ```text
 harness-server s0 --distribution <绝对 JSON 路径> [--operator <绝对 JSON 路径>] --readiness-timeout-ms <正整数> --shutdown-deadline-ms <正整数>
-harness-server serve [--distribution <绝对 JSON 路径>] [--operator <绝对 JSON 路径>] [--readiness-timeout-ms <正整数>] [--shutdown-deadline-ms <正整数>] [--state-root <绝对目录>] [--stop-on-stdin-close]
+harness-server serve [--distribution <绝对 JSON 路径>] [--operator <绝对 JSON 路径>] [--readiness-timeout-ms <正整数>] [--shutdown-deadline-ms <正整数>] [--drain-deadline-ms <正整数>] [--state-root <绝对目录>] [--stop-on-stdin-close]
 harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文件>] [--reconfigure] [--reset] [--replace-credential]
 ```
 
@@ -46,6 +46,7 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 | `--operator`             | 本机单用户档的运维者层，由配置文件与发行层在启动时生成，见[本机单用户档](#本机单用户档) |
 | `--readiness-timeout-ms` | 30000                                                                                   |
 | `--shutdown-deadline-ms` | 10000                                                                                   |
+| `--drain-deadline-ms`    | 120000，见[有序关闭](#有序关闭)的「排空」                                               |
 | `--state-root`           | 本机单用户档的状态目录                                                                  |
 
 只有省略 `--operator` 或 `--state-root` 时，入口才读本机的配置与状态目录。两个都给出时，行为与加入默认值之前相同。
@@ -384,6 +385,10 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 7. 形成最终装配关闭报告：逐句柄结果，加 `not-registered` 与 `disposed-before-stop` 各项。只有全部结果为 `settled` 时，整体为 `settled`；否则为 `incomplete`。报告写出后即确定，之后不再修改。
 8. 报告确定之后，调用 `storage` 句柄的 `assemblyReportSettled()`。不得早于第 7 步。
 9. 撤除 Cordis 根。disposer 的结果只进诊断。
+
+**排空。**`serve` 在 `entry` 阶段之后、`business` 阶段之前做一步排空：并发调用每个带 `drain` 的在册句柄的 `drain(排空期限)`，等全部结束或到达排空期限。排空期限是这一步开始时的单调时钟加 `--drain-deadline-ms`。这一步里其他各行都还活着，所以排空的行做完的工作按正常路径交给它的调用方。`drain` 的含义是：不再接新的工作，把已经接到的做完。答 `settled` 表示没有在途的工作；到期限还没做完记 `incomplete`，抛出记 `failed`，停止照常进行，剩下的由该行自己的 `stop` 收场。排空用掉的时间不从 D 里扣：后面各阶段的截止时间顺延同样长。没有在途工作时这一步立刻结束。每次调用写一条动作为 `drain-call` 的 `shutdown-step`。报告的 `drains` 列出每个句柄的结果，有一项不是 `settled` 时整体为 `incomplete`。没有句柄带 `drain` 时报告没有 `drains`。`s0` 没有这一步。
+
+现在带 `drain` 的只有 `model-host` 行。原因：模型调用是挂在本进程连接上的付费请求，停止时中止它，已经花的钱换不回结果，重启后这次调用的结局也无从认回。所以先让模型运行时关上受理闸门，等已受理的调用驱动到收场、结果推送完，再让调用方停。排空期间调用方发起的新模型调用得到 `unavailable`（`quiesced`），调用方按依赖不可用等待，重启后接着做。到排空期限还在途的调用由 `stop` 中止，它们的结局是未知。
 
 **阶段规则。**一个阶段的全部句柄结束或到达 D 之后，才开始下一阶段。同一阶段内按依赖逆序：一行提供的服务被同阶段的另一行注入时（直接注入，或经别的行间接注入），提供方的句柄在注入方的句柄结束或到达 D 之后才被调用；互相依赖的两行不分先后，没有依赖关系的行同时调用。次序由行清单的 `provides` 与 `injects` 推出（`stopPredecessors`）。原因是一行的 `stop` 可以卸载它提供的服务，Cordis 随即让注入该服务的行失活，注入方的收尾会被打断。到达 D 时未结束的句柄记为 `incomplete`，协调者继续下一阶段，不等它。句柄抛出时记为 `failed`，继续下一阶段。报告确定后才结束的句柄只写诊断，不改变报告。协调者不关闭任何业务连接，不回滚提交；SQL 连接与 Worker 只由 SQL 提供者在第 6 步关闭。
 

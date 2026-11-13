@@ -23,6 +23,12 @@ import { isSecretName, type ServerSettings, type StorageLimits } from './setting
 export const DEFAULT_READINESS_TIMEOUT_MS = 30_000
 /** The shutdown deadline D of `serve` when no flag says otherwise. */
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000
+/**
+ * How long a planned stop of `serve` lets the work already accepted finish before the rows stop,
+ * when no flag says otherwise. It covers a long model reply; a stop with nothing in flight does
+ * not wait.
+ */
+export const DEFAULT_DRAIN_DEADLINE_MS = 120_000
 
 /** The history kinds `read-history` lists: the conversation, the tool messages and the Run frame. */
 export const LOCAL_HISTORY_KINDS = [
