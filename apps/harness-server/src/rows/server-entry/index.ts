@@ -11,9 +11,9 @@
 // which the member writes as a gap, and the entry serves the rest.
 //
 // The new address (`access.ts`): the row provides `accessRegistry` and gives the entry the same
-// registry. The release mounts no domain's protocol on it, so the entry serves its built-in
-// `access/v1` alone; access diagnostics go out as `omne.access.diagnostic` through the same
-// telemetry service.
+// registry, with identity's implementation of the identity port. The domains' access rows mount
+// their protocols on it (`identity-access` mounts `identity/v1`); access diagnostics go out as
+// `omne.access.diagnostic` through the same telemetry service.
 //
 // HITL 位置（member SPEC「HITL 位置」）：入口面把每个租户事务域的 HITL 应用（`rows/tool-hitl`）按调用现取，
 // 入口主体由 `hitlEntryPrincipals` 签发（`src/entry/hitl-entry-principals.ts`）。
@@ -21,6 +21,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
+import { createAccessIdentity } from '@omne-harness/identity-access'
 import { modelDiagnosticsKey, modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
 import { fail } from '@omne-harness/operation-result'
 import {
@@ -156,8 +157,17 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
       // 入口主体的签发者只交给 HITL 位置，用本行受信可见的签发者建（ID-16 持有者表）。
       hitlEntryPrincipals: createHitlEntryPrincipals(ctx.principalIssuer),
     },
-    // The new address `/api/<protocol>/v<major>/<name>`, over the registry the row provides.
-    access: entryAccess(ctx, ctx.telemetry),
+    // The new address `/api/<protocol>/v<major>/<name>`, over the registry the row provides and
+    // identity's implementation of the entry's identity port.
+    access: entryAccess(
+      ctx,
+      ctx.telemetry,
+      createAccessIdentity({
+        operations: identityOfCall(ctx),
+        governance: governanceOfCall(ctx),
+        issuer: ctx.principalIssuer,
+      }),
+    ),
   })
   // A fiber that unloads while the tree runs (a provider change) closes the listener too.
   ctx.effect(() => () => entry.stop(), 'server-entry.listener')

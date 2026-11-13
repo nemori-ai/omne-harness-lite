@@ -336,6 +336,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     phase: 'entry',
   },
+  'identity-access': { injects: ['accessRegistry'] },
 }
 
 export const rowManifests: ReadonlyMap<RowId, RowManifest> = new Map(

@@ -102,8 +102,8 @@ packages/
 │   ├── authorization/          授权及共同动作准入
 │   ├── identity-sql/           身份契约的持久提供者：账号、成员与登录的 SQL 存储
 │   ├── scrypt/                 有界 scrypt 派生与校验
-│   ├── identity-protocol/      公开协议 identity/v1 的协议契约，纯数据
-│   ├── identity-access/        identity/v1 的接入插件（未建）
+│   ├── identity-protocol/      公开协议 identity/v1 的协议契约，纯数据（未建）
+│   ├── identity-access/        identity/v1 的接入插件，另给入口的身份端口 AccessIdentity 的实现
 │   └── identity-ui/            身份的界面模块（未建）
 ├── assets/
 │   ├── assets/                 共同定义、版本、持有与来源
@@ -123,7 +123,7 @@ packages/
 │   ├── session-adapters/       与邻域契约的适配插件
 │   ├── session-storage-sql/    会话日志与治理状态的 SQL 存储
 │   ├── session-observation/    产出会话观察的集成成员，认识会话契约与模型契约
-│   ├── session-protocol/       公开协议 session/v1 的协议契约，纯数据
+│   ├── session-protocol/       公开协议 session/v1 的协议契约，纯数据（未建）
 │   ├── session-access/         session/v1 的接入插件（未建）
 │   ├── session-diagnostics-protocol/  公开协议 session-diagnostics/v1 的协议契约（未建）
 │   ├── session-diagnostics-access/    session-diagnostics/v1 的接入插件，读四个领域的只读记录（未建）
