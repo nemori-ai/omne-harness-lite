@@ -22,6 +22,7 @@ import type {
   HistoryPage,
   InputId,
   RunId,
+  SessionAccess,
   SessionCreation,
   SessionFailure,
   SessionId,
@@ -70,12 +71,9 @@ type Refusal = Readonly<{ outcome: 'denied' | 'basis-unavailable' }>
 const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 
 /** The target of one call: the principal for the target tenant and the session it names. */
-type Target = Readonly<{
-  principal: Principal
-  tenant: TenantId
-  tenantText: string
-  session: SessionId
-}>
+type Target = Readonly<{ access: SessionAccess<Principal>; tenantText: string }>
+/** A target and the Session faces of the moment. */
+type Admitted = Target & Readonly<{ faces: SessionAccessFaces }>
 
 /** The outcome of a Session failure, as the session location maps it. */
 function failureOutcome(failure: SessionFailure): string {
@@ -260,7 +258,19 @@ export function createSessionContribution(
       return UNAVAILABLE
     }
     if ('refused' in issued) return { outcome: issued.refused }
-    return { principal: issued.ok, tenant, tenantText, session: session as SessionId }
+    return { access: { principal: issued.ok, tenant, session: session as SessionId }, tenantText }
+  }
+
+  /** The target, then Session as it is on the tree now. */
+  async function admit(
+    login: LoginIdentity,
+    tenant: TenantId,
+    session: string,
+  ): Promise<Admitted | Refusal> {
+    const admitted = await target(login, tenant, session)
+    if ('outcome' in admitted) return admitted
+    const faces = input.faces()
+    return faces === undefined ? UNAVAILABLE : { ...admitted, faces }
   }
 
   /** The tenant, account and login of a principal; `undefined` when identity cannot tell them. */
@@ -322,27 +332,24 @@ export function createSessionContribution(
     login: LoginIdentity,
     body: Body<'query-create-session'>,
   ): Promise<Answer<'query-create-session'>> {
-    const admitted = await target(
+    const admitted = await admit(
       login,
       body.tenant,
       sessionIdentity(tenantTextOf(body.tenant), body.createCallId),
     )
     if ('outcome' in admitted) return admitted
-    const faces = input.faces()
-    if (faces === undefined) return UNAVAILABLE
+    const { access, tenantText, faces } = admitted
     const result = await readCall(() =>
       faces.work.queryOperation({
-        principal: admitted.principal,
-        tenant: admitted.tenant,
-        session: admitted.session,
-        operation: createOperation(admitted.tenantText, body.createCallId),
+        ...access,
+        operation: createOperation(tenantText, body.createCallId),
       }),
     )
     if (result === 'basis-unavailable') return UNAVAILABLE
     if ('failure' in result) return refused('query-create-session', result.failure)
     switch (result.ok.kind) {
       case 'committed':
-        return { outcome: 'succeeded', body: { session: admitted.session } }
+        return { outcome: 'succeeded', body: { session: access.session } }
       case 'not-committed':
         // A creation that never committed means the session does not exist: denied, not disclosed.
         return { outcome: 'denied' }
@@ -356,16 +363,13 @@ export function createSessionContribution(
     login: LoginIdentity,
     body: Body<'query-send-input'>,
   ): Promise<Answer<'query-send-input'>> {
-    const admitted = await target(login, body.tenant, body.session)
+    const admitted = await admit(login, body.tenant, body.session)
     if ('outcome' in admitted) return admitted
-    const faces = input.faces()
-    if (faces === undefined) return UNAVAILABLE
+    const { access, tenantText, faces } = admitted
     const result = await readCall(() =>
       faces.work.queryOperation({
-        principal: admitted.principal,
-        tenant: admitted.tenant,
-        session: admitted.session,
-        operation: acceptOperation(admitted.tenantText, admitted.session, body.acceptId),
+        ...access,
+        operation: acceptOperation(tenantText, access.session, body.acceptId),
       }),
     )
     if (result === 'basis-unavailable') return UNAVAILABLE
@@ -388,22 +392,18 @@ export function createSessionContribution(
     // The message is judged before any identity call, as the session location did.
     const message = decodeUserMessage(body.message)
     if (message === undefined) return { outcome: 'protocol-rejected' }
-    const admitted = await target(login, body.tenant, body.session)
+    const admitted = await admit(login, body.tenant, body.session)
     if ('outcome' in admitted) return admitted
-    const caller = factOf(admitted.principal)
+    const { access, tenantText, faces } = admitted
+    const caller = factOf(access.principal)
     if (caller === undefined) return UNAVAILABLE
-    const faces = input.faces()
-    if (faces === undefined) return UNAVAILABLE
-    const inputId = inputIdentity(admitted.tenantText, admitted.session, body.inputId) as InputId
     const result = await commitCall(() =>
       faces.work.accept({
-        principal: admitted.principal,
-        tenant: admitted.tenant,
-        session: admitted.session,
-        operation: acceptOperation(admitted.tenantText, admitted.session, body.acceptId),
+        ...access,
+        operation: acceptOperation(tenantText, access.session, body.acceptId),
         value: {
           kind: 'ordinary',
-          input: inputId,
+          input: inputIdentity(tenantText, access.session, body.inputId) as InputId,
           message,
           origin: loginEntryOrigin(caller.account, caller.login),
         },
@@ -418,17 +418,11 @@ export function createSessionContribution(
     login: LoginIdentity,
     body: Body<'read-history'>,
   ): Promise<Answer<'read-history'>> {
-    const admitted = await target(login, body.tenant, body.session)
+    const admitted = await admit(login, body.tenant, body.session)
     if ('outcome' in admitted) return admitted
     if (body.cursor === null && !withinPageBound(body.pageBytes, settings.maxPageBytes))
       return { outcome: 'invalid', body: {} }
-    const faces = input.faces()
-    if (faces === undefined) return UNAVAILABLE
-    const access = {
-      principal: admitted.principal,
-      tenant: admitted.tenant,
-      session: admitted.session,
-    }
+    const { access, faces } = admitted
     const result = await readCall(() =>
       body.cursor === null
         ? faces.history.begin({
@@ -449,19 +443,16 @@ export function createSessionContribution(
     login: LoginIdentity,
     body: Body<'cancel-run'>,
   ): Promise<Answer<'cancel-run'>> {
-    const admitted = await target(login, body.tenant, body.session)
+    const admitted = await admit(login, body.tenant, body.session)
     if ('outcome' in admitted) return admitted
-    const caller = factOf(admitted.principal)
+    const { access, tenantText, faces } = admitted
+    const caller = factOf(access.principal)
     if (caller === undefined) return UNAVAILABLE
-    const faces = input.faces()
-    if (faces === undefined) return UNAVAILABLE
     const { controlId, run } = body
     const result = await commitCall(() =>
       faces.work.cancelRun({
-        principal: admitted.principal,
-        tenant: admitted.tenant,
-        session: admitted.session,
-        operation: controlOperation(caller.login, admitted.tenantText, admitted.session, controlId),
+        ...access,
+        operation: controlOperation(caller.login, tenantText, access.session, controlId),
         run: run as RunId,
         urgency: body.urgency,
       }),
@@ -494,21 +485,18 @@ export function createSessionContribution(
     login: LoginIdentity,
     body: Body<'stop-call'>,
   ): Promise<Answer<'stop-call'>> {
-    const admitted = await target(login, body.tenant, body.session)
+    const admitted = await admit(login, body.tenant, body.session)
     if ('outcome' in admitted) return admitted
-    const caller = factOf(admitted.principal)
+    const { access, tenantText, faces } = admitted
+    const caller = factOf(access.principal)
     if (caller === undefined) return UNAVAILABLE
-    const faces = input.faces()
-    if (faces === undefined) return UNAVAILABLE
     const { controlId, producer } = body
     // Session judges the access first, so `denied` and unavailability come from it. For a Tool
     // target the answer is `unsupported` whatever else Session says.
     const result = await commitCall(() =>
       faces.work.stopCall({
-        principal: admitted.principal,
-        tenant: admitted.tenant,
-        session: admitted.session,
-        operation: controlOperation(caller.login, admitted.tenantText, admitted.session, controlId),
+        ...access,
+        operation: controlOperation(caller.login, tenantText, access.session, controlId),
         producer,
       }),
     )
@@ -563,14 +551,7 @@ export function createSessionContribution(
         if (observation === undefined) return UNAVAILABLE
         let opened: Awaited<ReturnType<SessionObservation<Principal>['open']>>
         try {
-          opened = await observation.open({
-            access: {
-              principal: admitted.principal,
-              tenant: admitted.tenant,
-              session: admitted.session,
-            },
-            signal: context.signal,
-          })
+          opened = await observation.open({ access: admitted.access, signal: context.signal })
         } catch {
           return UNAVAILABLE
         }
