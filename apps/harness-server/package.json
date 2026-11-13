@@ -33,7 +33,8 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false",
     "check:aa-rows": "node scripts/aa-rows.mjs check --aa ../../docs/architecture/runtime/application-assembly.md --rows src/s0/aa-rows.json",
-    "check:tool-release": "node scripts/tool-release.mjs check"
+    "check:tool-release": "node scripts/tool-release.mjs check",
+    "matrix": "node tests/matrix/run.ts"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
@@ -110,7 +111,9 @@
   "devDependencies": {
     "@omne-harness/cli": "workspace:*",
     "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/identity-protocol": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
+    "@omne-harness/session-protocol": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

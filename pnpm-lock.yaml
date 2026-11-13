@@ -498,9 +498,15 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../packages/common/content-block
+      '@omne-harness/identity-protocol':
+        specifier: workspace:*
+        version: link:../../packages/identity/identity-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
+      '@omne-harness/session-protocol':
+        specifier: workspace:*
+        version: link:../../packages/session/session-protocol
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
