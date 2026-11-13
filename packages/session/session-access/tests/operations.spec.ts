@@ -485,6 +485,9 @@ describe('read-history', () => {
       cursor: 'cursor:1',
     })
     expect(next).toMatchObject({ outcome: 'succeeded', body: { exhausted: true } })
+    // Both pages carry the traversal's pinned revision, as Session gave it (one commit: the create).
+    expect(page).toMatchObject({ body: { upper: '1' } })
+    expect(next).toMatchObject({ body: { upper: '1' } })
   })
 
   it('answers invalid to pageBytes over the deployment bound without calling Session', async () => {

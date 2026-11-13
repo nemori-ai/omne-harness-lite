@@ -188,6 +188,8 @@ function pageOf(page: HistoryPage) {
     next: page.next,
     exhausted: page.exhausted,
     scannedThrough: page.scannedThrough,
+    // The traversal's pinned revision: the same quantity a state frame's `revision` is.
+    upper: page.upper,
   }
 }
 
