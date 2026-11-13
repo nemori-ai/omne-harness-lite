@@ -109,6 +109,19 @@ describe('create-session', () => {
     })
   })
 
+  it('uses the named definition over the default', async () => {
+    const world = createWorld({ defaultDefinition: DEFAULT_DEFINITION })
+    const answer = await ops(world)['create-session'](as(world.issue(ALICE)), {
+      createCallId: 'create-1',
+      definition: DEFINITION,
+      purpose: 'hello',
+    })
+    expect(answer.outcome).toBe('succeeded')
+    expect(world.session.controls.calls()[0]?.input).toMatchObject({
+      definition: { name: DEFINITION, candidate: { name: 'assistant@1' } },
+    })
+  })
+
   it('answers invalid without a definition when the deployment marks no default', async () => {
     const world = createWorld()
     const answer = await ops(world)['create-session'](as(world.issue(ALICE)), {
