@@ -1,5 +1,6 @@
 // The new address of the `server-entry` row (#1249 C9): the row alone serves the entry's own
-// `access/v1`, the release adds `identity/v1` (the `identity-access` row); the availability needs
+// `access/v1`, the release adds `identity/v1` (the `identity-access` row) and `session/v1` (the
+// `session-access` row); the availability needs
 // no login, so the identity port of the row is never asked; access diagnostics leave as
 // `omne.access.diagnostic` in system scope.
 import { spawn } from 'node:child_process'
@@ -196,7 +197,7 @@ function withTelemetry(layer: unknown): unknown {
 
 describe('the serve process with the release', () => {
   it(
-    'C9: the release answers the availability with a snapshot of access/v1 and identity/v1, and never asks its identity port',
+    'C9: the release answers the availability with a snapshot of access/v1, identity/v1 and session/v1, and never asks its identity port',
     { tags: ['slow'] },
     async () => {
       // Slow: starts `dist/bin.js serve` on the whole release tree (real SQLite storage).
@@ -257,10 +258,11 @@ describe('the serve process with the release', () => {
         frame: { kind: string; protocols: { name: string; major: number }[] }
       }
       expect(event).toMatchObject({ kind: 'frame', frame: { kind: 'snapshot' } })
-      // The release mounts identity/v1 through the `identity-access` row beside access/v1.
+      // The release mounts identity/v1 and session/v1 through their rows beside access/v1.
       expect(event.frame.protocols.map(key => `${key.name}/v${key.major}`).sort()).toStrictEqual([
         'access/v1',
         'identity/v1',
+        'session/v1',
       ])
       const records = stdout
         .trim()
