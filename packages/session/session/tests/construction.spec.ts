@@ -70,6 +70,7 @@ describe('configuration (SR-3)', () => {
       recoveryScan: {
         periodMs: 30000,
         pageSize: 100,
+        startupRetryDelaysMs: [1000, 5000, 30000],
         sessionBackoff: { initialMs: 5000, multiplier: 2, maxMs: 300000 },
       },
       pendingResolution: { retryIntervalMs: 5000, maxAttempts: 60 },
@@ -138,15 +139,16 @@ describe('configuration (SR-3)', () => {
     ).not.toThrow()
   })
 
-  it('an empty or negative backoff sequence is refused', () => {
-    const { dependencies } = countedDependencies()
-    expect(() =>
-      createSessionInstance(dependencies, { policy: withField('advance.retryDelaysMs', []) }),
-    ).toThrow('policy.advance.retryDelaysMs')
-    expect(() =>
-      createSessionInstance(dependencies, { policy: withField('advance.retryDelaysMs', [10, -1]) }),
-    ).toThrow('policy.advance.retryDelaysMs.1')
-  })
+  for (const path of ['advance.retryDelaysMs', 'recoveryScan.startupRetryDelaysMs'])
+    it(`${path}: an empty or negative backoff sequence is refused`, () => {
+      const { dependencies } = countedDependencies()
+      expect(() => createSessionInstance(dependencies, { policy: withField(path, []) })).toThrow(
+        `policy.${path}`,
+      )
+      expect(() =>
+        createSessionInstance(dependencies, { policy: withField(path, [10, -1]) }),
+      ).toThrow(`policy.${path}.1`)
+    })
 
   it('prewarm cannot be switched on before the Agent host instance-creation entry exists', () => {
     const { dependencies } = countedDependencies()

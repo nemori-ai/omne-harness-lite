@@ -560,6 +560,7 @@ it('SC-07 周期找回遗漏通知的控制', async () => {
       recoveryScan: {
         periodMs: 100,
         pageSize: 100,
+        startupRetryDelaysMs: [1000, 5000, 30000],
         sessionBackoff: { initialMs: 1, multiplier: 2, maxMs: 10 },
       },
     },

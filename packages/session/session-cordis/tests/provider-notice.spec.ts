@@ -119,17 +119,37 @@ describe('a notice from any dispatcher', () => {
 })
 
 describe('one scanner for each tenant', () => {
-  it('starts when a tenant is first seen and not again for its later commits', async () => {
+  it('starts when a tenant is first seen; its later notices while it runs start no second one', async () => {
     const a = await build()
     const intake = await a.caller('intake')
+    let open!: () => void
+    a.hooks.pendingGate = new Promise<void>(resolve => {
+      open = resolve
+    })
     await a.create(intake)
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
+    const calls = spies.maintainCalls
     await a.accept(intake, 'one')
     await a.accept(intake, 'two')
+    // Each notice signals demand to the scanner that is reading; none starts another.
+    await expect.poll(() => spies.maintainCalls).toBeGreaterThanOrEqual(calls + 2)
     await new Promise(resolve => setTimeout(resolve, 150))
     expect(a.hooks.pendingTenants).toHaveLength(1)
-    // The table answers the later notices; the instance is not asked again.
-    expect(spies.maintainCalls).toBe(1)
+    open()
+  })
+
+  it('a tenant without work keeps no scanner: it leaves the table, and the next notice starts a new one', async () => {
+    const a = await build()
+    const tenant = a.other().tenant
+    a.emitCommitted(tenant, a.sessionId('elsewhere'), '1', evidence('x'), [])
+    await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    a.emitCommitted(tenant, a.sessionId('elsewhere'), '2', evidence('y'), [])
+    await expect.poll(() => a.hooks.pendingTenants.length).toBe(2)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    // Both scanners stopped and left the table, so the removal has nothing to release.
+    await a.provider.dispose()
+    expect(spies.released).toBe(0)
   })
 
   it('starts one more for another tenant', async () => {
@@ -142,25 +162,18 @@ describe('one scanner for each tenant', () => {
     expect(JSON.stringify(first)).not.toBe(JSON.stringify(second))
   })
 
-  it('after a failed start the tenant is tried again at its next notice, and then once', async () => {
+  it('a startup read that fails is tried again after the first delay, without waiting for a notice', async () => {
     const a = await build()
     const intake = await a.caller('intake')
     a.hooks.failPending = 1
     await a.create(intake)
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
-    await expect
-      .poll(() => diagnostics(a).some(text => text.includes('maintain for tenant')))
-      .toBe(true)
-    // No retry on its own.
     await new Promise(resolve => setTimeout(resolve, 150))
     expect(a.hooks.pendingTenants).toHaveLength(1)
-
-    await a.accept(intake, 'second-notice')
+    // The scanner waits on the session clock for the first delay of startupRetryDelaysMs.
+    a.clock.controls.advance(1000)
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(2)
-    await a.accept(intake, 'third-notice')
-    await new Promise(resolve => setTimeout(resolve, 150))
-    expect(a.hooks.pendingTenants).toHaveLength(2)
-    expect(spies.maintainCalls).toBe(2)
+    expect(diagnostics(a).some(text => text.includes('maintain for tenant'))).toBe(false)
   })
 })
 
@@ -182,10 +195,6 @@ describe('the start scans the tenants of the deployment', () => {
     expect(a.hooks.pendingTenants.map(tenant => JSON.stringify(tenant)).sort()).toEqual(
       [JSON.stringify(a.tenant), JSON.stringify(a.other().tenant)].sort(),
     )
-    // A later notice of a tenant that the start bound starts no second scanner.
-    const intake = await a.caller('intake')
-    await a.create(intake)
-    await new Promise(resolve => setTimeout(resolve, 150))
     expect(spies.maintainCalls).toBe(2)
   })
 

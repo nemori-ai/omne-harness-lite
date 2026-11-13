@@ -8,6 +8,8 @@ export type SchedulingPolicy = Readonly<{
   recoveryScan: Readonly<{
     periodMs: number
     pageSize: number
+    /** The backoff of a startup scan that did not finish; the last delay repeats (SPEC S3). */
+    startupRetryDelaysMs: readonly [number, ...number[]]
     sessionBackoff: Readonly<{ initialMs: number; multiplier: number; maxMs: number }>
   }>
   pendingResolution: Readonly<{ retryIntervalMs: number; maxAttempts: number }>
@@ -29,6 +31,7 @@ export const defaultSchedulingPolicy: SchedulingPolicy = Object.freeze({
   recoveryScan: Object.freeze({
     periodMs: 30000,
     pageSize: 100,
+    startupRetryDelaysMs: Object.freeze([1000, 5000, 30000] as const),
     sessionBackoff: Object.freeze({ initialMs: 5000, multiplier: 2, maxMs: 300000 }),
   }),
   pendingResolution: Object.freeze({ retryIntervalMs: 5000, maxAttempts: 60 }),
@@ -74,6 +77,9 @@ const NUMERIC_FIELDS: readonly (readonly [string, Rule])[] = [
   ['cache.snapshotSessions', 'count'],
 ]
 
+/** The backoff sequences: each must be non-empty, and each delay may be zero. */
+const DELAY_SEQUENCES = ['advance.retryDelaysMs', 'recoveryScan.startupRetryDelaysMs'] as const
+
 function at(root: unknown, path: string): unknown {
   let value = root
   for (const key of path.split('.')) {
@@ -104,14 +110,16 @@ export function checkSessionConfiguration(configuration: unknown): SessionConfig
     const reason = refusal(at(policy, path), rule)
     if (reason !== null) throw new SessionConfigurationError(`policy.${path}`, reason)
   }
-  const delays = at(policy, 'advance.retryDelaysMs')
-  if (!Array.isArray(delays) || delays.length === 0)
-    throw new SessionConfigurationError('policy.advance.retryDelaysMs', 'empty or not a sequence')
-  delays.forEach((delay: unknown, index) => {
-    const reason = refusal(delay, 'delay')
-    if (reason !== null)
-      throw new SessionConfigurationError(`policy.advance.retryDelaysMs.${String(index)}`, reason)
-  })
+  for (const path of DELAY_SEQUENCES) {
+    const delays = at(policy, path)
+    if (!Array.isArray(delays) || delays.length === 0)
+      throw new SessionConfigurationError(`policy.${path}`, 'empty or not a sequence')
+    delays.forEach((delay: unknown, index) => {
+      const reason = refusal(delay, 'delay')
+      if (reason !== null)
+        throw new SessionConfigurationError(`policy.${path}.${String(index)}`, reason)
+    })
+  }
   if (at(policy, 'preEvaluation.prewarm') !== false)
     throw new SessionConfigurationError(
       'policy.preEvaluation.prewarm',

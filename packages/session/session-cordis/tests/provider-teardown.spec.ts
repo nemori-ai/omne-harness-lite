@@ -36,7 +36,13 @@ async function withScanner(options: Parameters<typeof assemble>[0] = {}) {
   const a = await build(options)
   const intake = await a.caller('intake')
   await a.create(intake)
-  await expect.poll(() => spies.maintained).toBe(1)
+  await expect.poll(() => spies.maintained).toBeGreaterThanOrEqual(1)
+  // A pending input is work, so the scanner of the tenant stays (session SPEC「扫描者的生灭」). The
+  // notice of this commit reaches a running scanner, or starts a new one that finds the input.
+  const signals = spies.maintained
+  await a.accept(intake, 'work')
+  await expect.poll(() => spies.maintained).toBeGreaterThan(signals)
+  await delay(10)
   return { a, intake }
 }
 
@@ -176,7 +182,7 @@ describe('what a removal in progress does', () => {
 })
 
 describe('a scanner that is still starting when the removal begins', () => {
-  it('releases itself when it arrives, so no scanner outlives the removal', async () => {
+  it('is released with the others and reads nothing more once its startup read answers', async () => {
     // The startup read is a command in flight to the instance, so the wait for close ends by its limit.
     const a = await build({ provider: { admission: 'none', disposeWaitMs: 50 } })
     const intake = await a.caller('intake')
@@ -185,14 +191,15 @@ describe('a scanner that is still starting when the removal begins', () => {
       open = resolve
     })
     await a.create(intake)
-    // The startup scan of the new tenant is waiting for its first page.
+    // The startup scan of the new tenant is waiting for its first page; maintain did not wait for it.
     await expect.poll(() => a.hooks.pendingTenants.length).toBe(1)
+    await expect.poll(() => spies.maintained).toBeGreaterThanOrEqual(1)
     await a.provider.dispose()
-    expect(spies).toMatchObject({ closed: 1, maintained: 0, released: 0 })
+    expect(spies).toMatchObject({ closed: 1, released: 1 })
 
     open()
-    await expect.poll(() => spies.maintained).toBe(1)
-    await expect.poll(() => spies.released).toBe(1)
+    await delay(100)
+    expect(a.hooks.pendingTenants).toHaveLength(1)
   })
 })
 

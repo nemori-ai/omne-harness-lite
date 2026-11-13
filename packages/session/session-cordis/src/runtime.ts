@@ -74,8 +74,9 @@ export function startProvider(
     'session-provider.teardown',
   )
 
-  // Every notice wakes the instance and binds the scanner of its tenant, whichever committer wrote
-  // the batch: a batch of a command of this instance too, which then wakes it once more. A wake
+  // Every notice wakes the instance and signals the scanner of its tenant, which starts one when the
+  // tenant has none (session SPEC「扫描者的生灭」), whichever committer wrote the batch: a batch of
+  // a command of this instance too, which then wakes it once more. A wake
   // only reads; it commits nothing that the log does not ask for. The listener runs synchronously.
   ctx.on(COMMITTED, (tenant, session, revision, source, kinds) => {
     if (removing) return
