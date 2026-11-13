@@ -44,6 +44,7 @@ const MEMBERS: Readonly<Record<keyof SessionTransactionPort<unknown>, 'function'
   commitLog: 'function',
   history: 'object',
   pending: 'function',
+  directory: 'object',
   references: 'function',
   releasedScopes: 'function',
 }

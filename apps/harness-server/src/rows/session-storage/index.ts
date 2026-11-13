@@ -37,6 +37,7 @@ import {
   SessionScopeOwnersService,
   SessionTransactionPortService,
   sessionAccessCheckKey,
+  sessionClockKey,
   sessionCursorSigningKey,
   sessionDelegatedTransactionsKey,
   sessionPrincipalBindingsKey,
@@ -281,6 +282,8 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
   declare readonly commitLog?: NonNullable<SessionTransactionPort<unknown>['commitLog']>
   readonly history: SessionTransactionPort<unknown>['history']
   readonly pending: SessionTransactionPort<unknown>['pending']
+  /** Optional on the port: forwarded when the storage port offers it (RFC-0015 §8 列出会话). */
+  declare readonly directory?: NonNullable<SessionTransactionPort<unknown>['directory']>
   readonly references: SessionTransactionPort<unknown>['references']
   readonly releasedScopes: SessionTransactionPort<unknown>['releasedScopes']
 
@@ -296,6 +299,7 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
     if (port.commitLog !== undefined) this.commitLog = port.commitLog
     this.history = port.history
     this.pending = port.pending
+    if (port.directory !== undefined) this.directory = port.directory
     this.references = port.references
     this.releasedScopes = port.releasedScopes
   }
@@ -411,6 +415,19 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     domains: directory.access,
     accessCheck,
     cursorSigning: lateBoundCursorSigning(ctx),
+    // The time of each commit comes from the Session clock, read at each commit (RFC-0015 §8).
+    // Without the service the commit has no time; it is never the wall clock of this process.
+    clock: {
+      sample: () =>
+        ctx.get(sessionClockKey)?.sample() ??
+        Promise.resolve(
+          fail<SessionFailure>({
+            kind: 'unavailable',
+            owner: OWNER,
+            diagnostic: 'no sessionClock is mounted',
+          }),
+        ),
+    },
     combination,
     // The governance row forms the basis of a permission assignment; it may mount later.
     protectedBasis: commit =>
