@@ -57,6 +57,7 @@
     "runtime-context",
     "session-observation",
     "server-entry",
+    "identity-access",
     "session-access"
   ],
   "trusted": [
@@ -314,8 +315,15 @@
       ]
     },
     {
+      "row": "identity-access",
+      "names": [
+        "identityGovernance"
+      ]
+    },
+    {
       "row": "session-access",
       "names": [
+        "principalIssuer",
         "definitionMappings"
       ]
     }

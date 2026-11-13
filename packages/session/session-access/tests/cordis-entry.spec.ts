@@ -54,10 +54,10 @@ async function assemble() {
   const prepared: string[] = []
   await root.plugin(
     createSessionAccessPlugin({
-      principals: {
+      principals: () => ({
         actingFor: async (_login, tenantText) =>
           tenantText === ALICE.tenantText ? { ok: world.issue(ALICE) } : { refused: 'denied' },
-      },
+      }),
       facts: {
         describe: () => ({
           tenant: ALICE.tenant,

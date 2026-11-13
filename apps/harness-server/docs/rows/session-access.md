@@ -9,10 +9,10 @@
 | 项 | 内容 |
 | --- | --- |
 | 行 id 与实现 | `session-access`，`real` |
-| 导出名 | `sessionAccessRow`（`src/rows/session-access/index.ts`）；`createSessionAccessRow(identity)` 给装配换入身份端口 |
+| 导出名 | `sessionAccessRow`（`src/rows/session-access/index.ts`） |
 | 提供 | 无 |
-| 必需（`inject`） | `accessRegistry` |
-| 按调用现取 | `session`（`caller: 'intake'` 取管理与工作面，`'reader'` 取历史面）；`sessionObservation`；`definitionMappings`（受信） |
+| 必需（`inject`） | `accessRegistry`；`principalIssuer`（受信） |
+| 按调用现取 | `session`（`caller: 'intake'` 取管理与工作面，`'reader'` 取历史面）；`sessionObservation`；`definitionMappings`（受信）；`identityOperations` |
 | 阶段 | 无 |
 
 清单与 `src/s0/stubs.ts` 的同一行相同。
@@ -21,12 +21,10 @@
 
 | 成员端口 | 来源 | 说明 |
 | --- | --- | --- |
-| `principals`（`TargetTenantPrincipals`） | 入口身份端口 `AccessIdentity` 的 `actFor` | `issued` 得到主体；`denied`、`basis-unavailable` 原样交回 |
+| `principals`（`TargetTenantPrincipals`） | 身份的 `createAccessIdentity` 的 `actFor`。行在加载时构造它，依赖是按调用读的 `identityOperations`、`identityGovernance` 与受信的 `principalIssuer`，和 `server-entry` 行构造入口那一份的做法相同 | `issued` 得到主体；`denied`、`basis-unavailable` 原样交回。身份端口只缓存一个系统主体，没有要两行共享的状态，所以两行各构造一份 |
 | `facts`（`PrincipalFacts`） | 身份为登录签发的代租户主体 | 租户取主体的租户，账号取租户的账号，登录取主体的工作（`identity-login` 名下）。别的主体答「说不出」，处理函数答 `basis-unavailable` |
 | `definitions` | 每次调用时 `ctx.get('definitionMappings')`，经 `definitionResolverOf` | 受信名，本行列在受信表里。服务不在树里时，「建会话」答 `basis-unavailable` |
 | `prepareCreation` | `modesInitialization` | 与入口会话位置相同：把装配的模式初始化交给 Session |
-
-身份端口是同一个对象，入口行也用它。发行里的 `sessionAccessRow` 用与入口现在相同的「不提供」端口：每个带目标租户的调用答 `basis-unavailable`。
 
 ## 配置
 
@@ -38,4 +36,4 @@
 
 ## 验证
 
-`tests/rows/session-access/mount.spec.ts`：行的声明与桩表相同；慢层在发行树上装起这一行，可用性的快照里出现 `session/v1`。
+`tests/rows/session-access/mount.spec.ts`：行的声明与桩表相同；慢层在发行树上装起这一行，可用性的快照里出现 `session/v1`，发行自己的登录不给定义名经新地址建会话，答 `succeeded`。

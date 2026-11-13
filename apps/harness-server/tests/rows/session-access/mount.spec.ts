@@ -1,12 +1,47 @@
 // The `session-access` row loads on the release tree and opens `session/v1`: the availability
-// observation of the entry's new address lists it next to the built-in `access/v1`.
+// observation of the entry's new address lists it, and a real login creates a session there with
+// the release's default definition.
 import { request } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import { sessionAccessRow } from '../../../src/rows/session-access/index.ts'
 import { rowManifests } from '../../../src/s0/stubs.ts'
-import { onReleaseTree } from '../../support/release-tree.ts'
+import { savedLoginProof, savedTenant } from '../../r9/support.ts'
+import { onReleaseTree, type ReleaseTree } from '../../support/release-tree.ts'
 import { until } from '../server-entry/support.ts'
+
+/** Calls `/api/session/v1/create-session` with the release's own login and acting tenant. */
+function createSession(tree: ReleaseTree): Promise<{ status: number; body: string }> {
+  const body = JSON.stringify({ createCallId: 'create-1', purpose: 'hello' })
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        host: '127.0.0.1',
+        port: tree.port,
+        method: 'POST',
+        path: '/api/session/v1/create-session',
+        headers: {
+          host: `127.0.0.1:${tree.port}`,
+          authorization: `Bearer ${savedLoginProof(tree.home)}`,
+          'omne-acting-tenant': savedTenant(tree.home),
+          'content-type': 'application/json',
+          'content-length': String(Buffer.byteLength(body)),
+          'omne-message-id': 'm-create',
+        },
+      },
+      res => {
+        let text = ''
+        res.setEncoding('utf8')
+        res.on('data', (chunk: string) => {
+          text += chunk
+        })
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body: text }))
+      },
+    )
+    req.on('error', reject)
+    req.end(body)
+  })
+}
 
 type Frame = Readonly<{
   kind: string
@@ -53,12 +88,15 @@ describe('session-access row', () => {
   it('declares the manifest of the stub table', () => {
     const declared = rowDeclarationOf(sessionAccessRow)
     expect(declared?.row).toBe('session-access')
-    expect(declared?.manifest.injects).toEqual(['accessRegistry'])
-    expect(rowManifests.get(declared!.row)?.injects).toEqual(['s0.accessRegistry'])
+    expect(declared?.manifest.injects).toEqual(['accessRegistry', 'principalIssuer'])
+    expect(rowManifests.get(declared!.row)?.injects).toEqual([
+      's0.accessRegistry',
+      's0.principalIssuer',
+    ])
   })
 
   it(
-    'loads on the release tree and session/v1 appears in the availability snapshot',
+    'loads on the release tree, session/v1 appears in availability, and a login creates a session',
     { tags: ['slow'], timeout: 120_000 },
     async () => {
       const exitCode = await onReleaseTree(
@@ -69,6 +107,12 @@ describe('session-access row', () => {
             await until(() => availability.frames.length >= 1, 'the snapshot', 10_000)
             expect(availability.frames[0]?.kind).toBe('snapshot')
             expect(availability.frames[0]?.protocols).toContainEqual({ name: 'session', major: 1 })
+            const created = await createSession(tree)
+            expect(created.status).toBe(200)
+            expect(JSON.parse(created.body)).toMatchObject({
+              outcome: 'succeeded',
+              body: { recovered: false },
+            })
           } finally {
             availability.close()
           }

@@ -544,6 +544,11 @@
       "config": {}
     },
     {
+      "id": "identity-access",
+      "plugin": "identityAccessRow",
+      "config": {}
+    },
+    {
       "id": "session-access",
       "plugin": "sessionAccessRow",
       "config": {

@@ -29,7 +29,8 @@ export type SessionCreateInput = Parameters<SessionManagement<Principal>['create
 
 /** What only the application assembly can give the plugin. */
 export type SessionAccessPluginInput = Readonly<{
-  principals: TargetTenantPrincipals
+  /** Built once when the plugin loads, over what the assembly's scope sees. */
+  principals: (ctx: Context) => TargetTenantPrincipals
   facts: PrincipalFacts
   /** The deployment's definition mapping, read from the tree at every call. */
   definitions: (ctx: Context) => DefinitionResolver | undefined
@@ -81,7 +82,7 @@ export function createSessionAccessPlugin(input: SessionAccessPluginInput): Plug
               observation: () =>
                 provide(sessionObservationKey) as SessionObservation<Principal> | undefined,
               definitions: () => input.definitions(ctx),
-              principals: input.principals,
+              principals: input.principals(ctx),
               facts: input.facts,
               settings,
             }),
