@@ -47,8 +47,11 @@ type Lease = {
   release: ReturnType<typeof Promise.withResolvers<Cleanup>>
   detach(): void
 }
-/** The pauses before a slot whose replacement budget is spent starts again; the last one repeats. */
-const RESTART_BACKOFF_MS = [1000, 5000, 30000] as const
+/** The pause before a slot whose replacement budget is spent starts again: 1 s, 5 s, then 30 s. */
+function restartPauseMs(backoffs: number): number {
+  if (backoffs === 0) return 1000
+  return backoffs === 1 ? 5000 : 30000
+}
 type SlotPhase =
   | { kind: 'starting'; timer: ReturnType<typeof setTimeout> }
   | { kind: 'idle' }
@@ -566,7 +569,7 @@ class Executor implements TiktokenExecutor {
       this.start(slot)
       return 'started'
     }
-    const pause = RESTART_BACKOFF_MS[Math.min(slot.backoffs, RESTART_BACKOFF_MS.length - 1)]
+    const pause = restartPauseMs(slot.backoffs)
     slot.backoffs++
     slot.phase = {
       kind: 'backoff',

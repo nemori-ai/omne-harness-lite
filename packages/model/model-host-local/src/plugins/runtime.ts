@@ -55,8 +55,11 @@ import {
 
 const DEPENDENCY = 'model-result-push'
 
-/** The pauses before a tenant the start scan could not read is scanned again; the last repeats. */
-const RECOVERY_BACKOFF_MS = [1000, 5000, 30000] as const
+/** The pause before a tenant the start scan could not read is scanned again: 1 s, 5 s, then 30 s. */
+function recoveryPauseMs(failures: number): number {
+  if (failures === 0) return 1000
+  return failures === 1 ? 5000 : 30000
+}
 
 /** What one read of the start scan came to: read, worth reading again after a pause, or given up. */
 type Scan<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'again' | 'given-up' }>
@@ -959,11 +962,10 @@ function createResultPush(
     return scan.kind === 'again' ? readAgain(read) : null
   }
 
-  /** Pauses 1 s, 5 s, 30 s and then 30 s each time before each read, until one is read. */
+  /** Pauses before each read, longer after each failure, until one is read. */
   async function readAgain<T>(read: () => Promise<Scan<T>>): Promise<T | null> {
     for (let failures = 0; ; failures += 1) {
-      const pause = RECOVERY_BACKOFF_MS[Math.min(failures, RECOVERY_BACKOFF_MS.length - 1)]
-      if (pause === undefined || !(await paused(pause))) return null
+      if (!(await paused(recoveryPauseMs(failures)))) return null
       const scan = await read()
       if (scan.kind === 'read') return scan.value
       if (scan.kind === 'given-up') return null

@@ -102,7 +102,7 @@ snapshot 只返回冻结的数量和累计时延。workers 包含正在停止但
 
 ### 槽的替换与退避
 
-额度耗尽之后，槽按1秒、5秒、30秒退避，此后每次30秒，到点重新拉起线程。退避拉起不占滚动一分钟的替换额度，计入 snapshot 的 `replacements`。`n` 是该槽连续退避的次数，线程答回一次 `counted`（不论计数结果是成功还是 `unsupported-token`、`invalid`）就归零。退避中的槽没有线程：不计入 snapshot 的 `workers`，不分给新租约；固定在它上面的租约，count 立即返回 `unavailable`（`tokenizer worker is unavailable`），release 直接完成。退避的时刻表是本包的常量，见 [executor.ts](src/executor.ts) 的 `RESTART_BACKOFF_MS`。
+额度耗尽之后，槽按1秒、5秒、30秒退避，此后每次30秒，到点重新拉起线程。退避拉起不占滚动一分钟的替换额度，计入 snapshot 的 `replacements`。`n` 是该槽连续退避的次数，线程答回一次 `counted`（不论计数结果是成功还是 `unsupported-token`、`invalid`）就归零。退避中的槽没有线程：不计入 snapshot 的 `workers`，不分给新租约；固定在它上面的租约，count 立即返回 `unavailable`（`tokenizer worker is unavailable`），release 直接完成。退避的时刻表是本包的常量，见 [executor.ts](src/executor.ts) 的 `restartPauseMs`。
 
 下表是槽在线程实际退出（exit）与退避相关事件上的全化表。「额度」指滚动一分钟内的替换次数小于 `maxReplacementsPerMinute`。
 

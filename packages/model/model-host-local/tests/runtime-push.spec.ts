@@ -234,7 +234,9 @@ type Hooks = {
   /** Runs before each `dispatches` of the plugin's commands; the read waits for what it returns. */
   dispatches?(): Promise<void> | void
   /** `unavailable`: this page of the scan cannot be read, as a read queue that timed out. */
-  scanPending?(): 'unavailable' | 'pass'
+  scanPending?(): 'unavailable' | 'denied' | 'pass'
+  /** `unavailable`: the recovery state of this call cannot be read. */
+  loadRecovery?(): 'unavailable' | 'pass'
 }
 
 /**
@@ -371,10 +373,19 @@ function world(
       await hooks.dispatches?.()
       return raw.dispatches(input)
     },
-    scanPending: async input =>
-      hooks.scanPending?.() === 'unavailable'
+    scanPending: async input => {
+      const answer = hooks.scanPending?.()
+      if (answer === 'unavailable')
+        return {
+          failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' },
+        }
+      if (answer === 'denied') return { failure: { kind: 'denied', action: 'scan' } }
+      return raw.scanPending(input)
+    },
+    loadRecovery: async input =>
+      hooks.loadRecovery?.() === 'unavailable'
         ? { failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' } }
-        : raw.scanPending(input),
+        : raw.loadRecovery(input),
   }
   const resources: SendResources<unknown> = {
     async acquire(demand) {
@@ -1302,6 +1313,40 @@ it('lists the tenants again when the list cannot be read', async () => {
   await vi.advanceTimersByTimeAsync(1000)
   await until(() => w.record('one')?.cleanup === 'released', 'the push, ACK and cleanup')
   expect(scripted.pushes).toHaveLength(2)
+})
+
+it('scans a tenant again when one of its calls could not be loaded', async () => {
+  const { w, scripted } = await owedAfterRestart(SCAN_TENANT)
+  const load = { readable: false }
+  w.hooks.loadRecovery = () => (load.readable ? 'pass' : 'unavailable')
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  await w.load()
+  await until(
+    () => w.warnings.some(text => text.includes('start scan stopped at load (unavailable)')),
+    'the unreadable call',
+  )
+  load.readable = true
+  await vi.advanceTimersByTimeAsync(1000)
+  await until(() => w.record('one')?.cleanup === 'released', 'the push, ACK and cleanup')
+  expect(scripted.pushes).toHaveLength(2)
+})
+
+it('does not scan again after a definite refusal; the tenant waits for the next start', async () => {
+  const { w, scripted } = await owedAfterRestart(SCAN_TENANT)
+  const scan = { attempts: 0 }
+  w.hooks.scanPending = () => {
+    scan.attempts += 1
+    return 'denied'
+  }
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  await w.load()
+  await until(
+    () => w.warnings.some(text => text.includes('the rest waits for the next start')),
+    'the refused scan',
+  )
+  await vi.advanceTimersByTimeAsync(120000)
+  expect(scan.attempts).toBe(1)
+  expect(scripted.pushes).toHaveLength(1)
 })
 
 it('stops scanning again when the plugin is unloaded, without waiting for the pause', async () => {
