@@ -419,10 +419,12 @@ export function toolCall(action: Action): AssociatedToolCall | null {
   return pending?.kind === 'tool' && pending.association === 'associated' ? pending : null
 }
 
-export function unslotted(batch: ActionBatch): readonly Action[] {
-  return batch.actions.filter(
-    action => action.judgment.kind === 'allowed' && slotOf(batch, action.id) === undefined,
-  )
+export function unsent(batch: ActionBatch, unaccepted: ReadonlySet<ActionId>): readonly Action[] {
+  return batch.actions.filter(action => {
+    if (action.judgment.kind !== 'allowed') return false
+    const slot = slotOf(batch, action.id)
+    return slot === undefined || (slot.kind === 'dispatched' && unaccepted.has(action.id))
+  })
 }
 
 export function openToolCalls(batch: ActionBatch): readonly PendingCall[] {

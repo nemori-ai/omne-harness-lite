@@ -5,16 +5,25 @@ import {
   decodeToolOperationId,
   encodeToolInvocationRef,
   type ToolCallContact,
+  type ToolInvokeOutcome,
   type ToolState,
 } from '@omne-harness/tool-contract'
 import { canonical } from '../src/canonical.ts'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import { reconciliationPacer } from '../src/loop/reconciliation.ts'
-import { acceptedInput, ok, operation } from './journal-support.ts'
+import { acceptedInput, execution, ok, operation } from './journal-support.ts'
 import { alice, eventually } from './loop-support.ts'
-import { at, rebuilt, resumeEntry, saved, type Counts } from './loop-takeover-support.ts'
+import {
+  assistantTexts,
+  at,
+  rebuilt,
+  resumeEntry,
+  saved,
+  type Counts,
+} from './loop-takeover-support.ts'
 import {
   associatedTools,
+  deliverModelReply,
   deliverToolSuggestion,
   pushToolResult,
   textBlock,
@@ -25,23 +34,41 @@ import {
 
 type Assembly = Awaited<ReturnType<typeof toolAssembly>>
 
+const accepted = (recovered: boolean): ToolInvokeOutcome => ({
+  kind: 'accepted',
+  reference: ok(
+    encodeToolInvocationRef({
+      tenant: alice.tenant,
+      call: ok(decodeToolCallId('tcall_1')),
+      admission: ok(decodeToolOperationId('top_1')),
+    }),
+  ),
+  state: {} as ToolState,
+  recovered,
+})
+
+const REFUSED: ToolInvokeOutcome = {
+  kind: 'rejected',
+  failure: { kind: 'invalid', field: 'request', reason: 'the arguments do not match' },
+}
+
 function accepting(assembly: Assembly) {
-  let accepted = 0
-  assembly.controls.tools.invoke.always(async () => {
-    accepted += 1
-    return {
-      kind: 'accepted',
-      reference: ok(
-        encodeToolInvocationRef({
-          tenant: alice.tenant,
-          call: ok(decodeToolCallId('tcall_1')),
-          admission: ok(decodeToolOperationId('top_1')),
-        }),
-      ),
-      state: {} as ToolState,
-      recovered: accepted > 1,
-    }
-  })
+  let sent = 0
+  assembly.controls.tools.invoke.always(async () => accepted((sent += 1) > 1))
+}
+
+function acceptingOnce(assembly: Assembly) {
+  let sent = 0
+  assembly.controls.tools.invoke.always(async () => ((sent += 1) > 1 ? REFUSED : accepted(false)))
+}
+
+async function toolMessages(assembly: Assembly) {
+  const input = { ...alice, execution: execution(), after: null, limit: 100 }
+  const page = ok(await assembly.dependencies.journal.output.read(input))
+  if (page.kind !== 'page') throw new Error('a gap in a new execution')
+  return page.events.flatMap(event =>
+    event.body.kind === 'message' && event.body.message.role === 'tool' ? [event.body.message] : [],
+  )
 }
 
 const answering = (assembly: Assembly, kind: ToolCallContact['kind']) =>
@@ -119,6 +146,27 @@ describe('takeover of a dispatched Tool call whose result is not in the Journal'
     const after = await saved(run.assembly)
     expect(after.state).toMatchObject({ kind: 'waiting', waits: [{ kind: 'producer' }] })
     expect(after.checkpoint.batch).toEqual(run.parked.checkpoint.batch)
+  })
+
+  it('the Tool answers not-accepted and refuses the request for good: the action is denied and the run goes on', async () => {
+    const run = await dispatched(acceptingOnce)
+    answering(run.assembly, 'not-accepted')
+    const next = await run.rebuild()
+    ok(await next.runExecution())
+    expect(run.assembly.controls.tools.invoke.calls).toHaveLength(2)
+    expect(run.assembly.controls.tools.queries.contact.calls).toHaveLength(1)
+    const after = await saved(run.assembly)
+    expect(after.checkpoint.step).toBe('step-2')
+    expect(after.checkpoint.calls.map(call => call.kind)).toEqual(['model'])
+    expect(await toolMessages(run.assembly)).toHaveLength(1)
+    await deliverModelReply(run.assembly, [textBlock('after the denial')], 'final')
+    ok(await next.runExecution())
+    expect(await assistantTexts(run.assembly)).toEqual(['after the denial'])
+    expect((await saved(run.assembly)).settlement.candidate?.conclusion).toEqual({
+      kind: 'complete',
+    })
+    expect(run.assembly.controls.tools.invoke.calls).toHaveLength(2)
+    expect(run.assembly.controls.tools.queries.contact.calls).toHaveLength(1)
   })
 
   it('the result is already in the Journal: the Tool is not asked', async () => {

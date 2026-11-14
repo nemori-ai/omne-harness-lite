@@ -163,7 +163,7 @@ import {
   openToolCalls,
   slotOf,
   toolCall,
-  unslotted,
+  unsent,
   type AssociatedToolCall,
   type ToolAdmission,
 } from './tools.ts'
@@ -2077,9 +2077,10 @@ function coordinate<P>(
 
   async function toolWait(node: LoopNode, batch: ActionBatch) {
     const open = openToolCalls(batch)
-    const asked = await contactToolCalls({ ports, access, execution, batch }, open, heldTools)
-    if ('failure' in asked)
-      return asked.failure.kind === 'unavailable' ? waitFor(node, asked.failure, null) : asked
+    const known = { held: heldTools, unaccepted: unacceptedToolActions }
+    const asked = await contactToolCalls({ ports, access }, open, known)
+    if ('failure' in asked) return waitFor(node, asked.failure, null)
+    if (asked.ok === 'unaccepted') return step(node === 'T3' ? 'dispatch' : 'received', null)
     waitingAt = node
     recheckDependency = null
     waits = open.map(pending => ({ kind: 'producer' as const, pending }))
@@ -2785,7 +2786,7 @@ function coordinate<P>(
       const slotted = await slotDeniedAtJudgment(currentBatch())
       if ('failure' in slotted) return slotted
       let { batch, progressed } = slotted.ok
-      for (const original of unslotted(batch)) {
+      for (const original of unsent(batch, unacceptedToolActions)) {
         const sent = await sendAction(batch, original)
         if ('failure' in sent) return sent
         if (sent.ok.unavailable !== undefined) return waitFor('A2', sent.ok.unavailable, null)
@@ -2793,9 +2794,9 @@ function coordinate<P>(
         progressed ||= sent.ok.progressed
       }
       if (progressed) return step('dispatched')
-      if (batch.slots.some(slot => slot.kind === 'dispatched') || unslotted(batch).length === 0)
-        return step('dispatched', null)
-      return toolWait('A2', batch)
+      const idle = !batch.slots.some(slot => slot.kind === 'dispatched')
+      if (idle && unsent(batch, unacceptedToolActions).length > 0) return toolWait('A2', batch)
+      return step('dispatched', null)
     },
     /** T0: wait for a received result of any dispatched call; the receiver saves it, not T0. */
     async T0() {
@@ -2880,7 +2881,7 @@ function coordinate<P>(
       if (complete)
         return step(batch.slots.some(slot => slot.kind !== 'denied') ? 'batch' : 'admit', null)
       // 没有槽位的获准动作尚未发起或关联未知，由 A2 发起。
-      if (unslotted(batch).length > 0) return step('dispatch', null)
+      if (unsent(batch, unacceptedToolActions).length > 0) return step('dispatch', null)
       return toolWait('T3', batch)
     },
     /** T4: no extension is adopted at the after_action batch position, so the pass is empty. */
