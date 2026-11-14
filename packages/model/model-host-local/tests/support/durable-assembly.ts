@@ -1483,7 +1483,6 @@ export async function durableSubject(
   return {
     provider: {
       runtime,
-      recover: input => built.recover(input),
       quiesce: () => built.quiesce(),
     },
     principal: PRINCIPAL,

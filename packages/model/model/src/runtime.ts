@@ -1,6 +1,7 @@
 import { judgeAdmit } from '@omne-harness/model-contract/provider'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { referenceFailure } from './reference.ts'
+import { contactOf, type ModelLiveness } from './contact.ts'
 import { createModelDriver } from './driver.ts'
 import { createSendInterruption } from './send/interruption.ts'
 import type { ModelCallId, Reply } from '@omne-harness/model-contract'
@@ -31,6 +32,7 @@ export type ModelDependencies<P> = Readonly<{
   retry: ModelRetryPolicy<P>
   instances: ModelInstanceHost<P>
   clock: ModelClock
+  liveness?: ModelLiveness
 }>
 export type ModelRuntimeProvider<P> = ModelProvider<P> &
   Readonly<{
@@ -197,11 +199,7 @@ export function createModelRuntime<P>(
           if ('failure' in resolved) return referenceFailure(resolved.failure)
           return commands.recall({ principal, ...resolved.ok })
         },
-        contact: async ({ tenant, reference }) => {
-          const resolved = resolveModelInvocationRef(reference, tenant)
-          if ('failure' in resolved) return referenceFailure(resolved.failure)
-          return { ok: { kind: 'unknown' } }
-        },
+        contact: input => contactOf(commands, dependencies.liveness, input),
         dispatches: ({ principal, tenant, call }) =>
           commands.dispatches({ principal, tenant, call }),
         cancel: async ({ principal, tenant, call, operation }) => {
@@ -275,7 +273,6 @@ export function createModelRuntime<P>(
         },
       },
     },
-    recover: () => unavailable('recover', '5.4'),
     quiesce: async () => {
       quiesced = true
       await Promise.allSettled(admitting)

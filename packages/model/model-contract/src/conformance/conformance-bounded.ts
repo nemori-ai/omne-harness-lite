@@ -44,7 +44,6 @@ function boundedRuntime<P>(runtime: ModelRuntime<P>, waitMs: number): ModelRunti
 function boundedProvider<P>(provider: ModelProvider<P>, waitMs: number): ModelProvider<P> {
   return {
     runtime: boundedRuntime(provider.runtime, waitMs),
-    recover: bounded(waitMs, 'the answer of recover', provider.recover.bind(provider)),
     quiesce: bounded(waitMs, 'the answer of quiesce', provider.quiesce.bind(provider)),
   }
 }

@@ -43,6 +43,7 @@ import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-boun
 import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
+import { createModelHostRow } from './rows/model-host/index.ts'
 import { acquireStateLock, lostContactBy, type StateLock } from './state-lock.ts'
 import { prepareStartupDirectory } from './startup-directory.ts'
 import { createTrust, type Trust } from './trust.ts'
@@ -552,6 +553,7 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
       toolRequestsOf: releaseToolRequestsOf,
       lostContact: lostContactBy(() => lock),
     }),
+    modelHostRow: createModelHostRow({ lostContact: lostContactBy(() => lock) }),
   }
   try {
     return await runServeWithHostFiles({ ...options, plugins }, hostFiles, lockState)

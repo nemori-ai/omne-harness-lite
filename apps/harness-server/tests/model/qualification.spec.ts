@@ -517,7 +517,7 @@ describe('authorize for M: what resolve captured', () => {
       })
   })
 
-  it('M is bound to one call: another call is denied, the tenant-level scan is unavailable', () => {
+  it('M is bound to one call: another call and the tenant-level scan are denied', () => {
     const s = scene()
     const principal = s.host()
     s.qualification.captureHost({
@@ -536,7 +536,7 @@ describe('authorize for M: what resolve captured', () => {
         access: { principal, tenant: TENANT },
         resource: { kind: 'tenant' },
       }),
-    ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'model-recovery-scan' } })
+    ).toEqual({ failure: { kind: 'denied', action: 'recovery' } })
   })
 
   it('an M-shaped principal that resolve did not capture is not admitted by qualify (defect: shape admits M)', async () => {

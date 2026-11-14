@@ -55,6 +55,7 @@ function newRecord<P>(
     reads: new Map(),
     fill: new Map(),
     evidence: [],
+    contact: null,
   }
 }
 
@@ -136,10 +137,17 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
     const resolved = resolveModelInvocationRef(original.reference, original.tenant)
     if ('failure' in resolved) return referenceRejected(resolved.failure)
     const input = { principal: original.principal, ...resolved.ok }
+    if (isReserved(input.admission)) return reservedOperation('admission')
     const target = resolve(core, input, 'inspect')
     if (target === null) return denied('inspect')
-    if (target.record === null) return succeed<CallContact>({ kind: 'not-accepted' })
-    return succeed<CallContact>({ kind: 'unknown' })
+    const record = target.record
+    if (record === null) return succeed<CallContact>({ kind: 'not-accepted' })
+    if (record.admission !== input.admission)
+      return fail({ kind: 'invalid', field: 'admission', reason: 'not-original' })
+    if (record.contact !== null) return succeed(structuredClone(record.contact))
+    return succeed<CallContact>({
+      kind: record.lifecycle.phase === 'settled' ? 'settled' : 'holding',
+    })
   }
 
   async function dispatches(input: CallAccess<P>): Reply<readonly DispatchRecord[]> {

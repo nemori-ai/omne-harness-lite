@@ -10,6 +10,7 @@ export type {
   SupplierPort,
 } from './preparation/resources.ts'
 export type { ModelConfiguration, ModelDependencies, ModelRuntimeProvider } from './runtime.ts'
+export type { ModelLiveness } from './contact.ts'
 export { createModelSendBoundary } from './send.ts'
 export type {
   CredentialSelection,

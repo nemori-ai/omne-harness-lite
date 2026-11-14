@@ -7,6 +7,7 @@ import { expectTypeOf, it } from 'vitest'
 import type {
   Access,
   CallAccess,
+  CallContact,
   CallState,
   CustodyState,
   DispatchRecord,
@@ -93,6 +94,11 @@ it('an adapter can implement ModelCalls from the contract alone', () => {
     cancel: async () => ({ ok: { kind: 'none' } }),
   }
   void calls
+  expectTypeOf<ModelCalls<string>['contact']>().returns.toEqualTypeOf<Reply<CallContact>>()
+  const lost: CallContact = { kind: 'lost', evidence }
+  // @ts-expect-error lost carries the evidence of the judgement
+  const unproven: CallContact = { kind: 'lost' }
+  void [lost, unproven]
   expectTypeOf<ModelCalls<string>['cancel']>().parameter(0).toEqualTypeOf<Mutation<string>>()
   expectTypeOf<ModelCalls<string>['dispatches']>().returns.toEqualTypeOf<
     Reply<readonly DispatchRecord[]>
