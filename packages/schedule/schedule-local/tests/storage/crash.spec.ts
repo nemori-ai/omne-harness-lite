@@ -1,5 +1,4 @@
 // @module-tag slow
-// Starts and SIGKILLs a process while real SQLite Workers own the transaction.
 import { fork } from 'node:child_process'
 import { existsSync, watch } from 'node:fs'
 import { join } from 'node:path'

@@ -143,7 +143,6 @@ describe('unknown preserves the original address', () => {
           operationNotQueued: true,
         }
         Reflect.deleteProperty(proofs, missing)
-        // Fault injection models an invalid adapter response crossing the port.
         return JSON.parse(
           JSON.stringify({
             kind: 'ok',

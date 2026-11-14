@@ -1065,25 +1065,6 @@
     "packages/assets/settings-local/src/secrets/store.ts": 1,
     "packages/assets/settings/src/secret-items.ts": 1,
     "packages/assets/settings/src/tenant-settings.ts": 1,
-    "packages/context/agent-context/src/materials.ts": 1,
-    "packages/context/agent-context/src/measure.ts": 1,
-    "packages/context/agent-context/src/requests.ts": 1,
-    "packages/context/agent-context/src/translate.ts": 1,
-    "packages/context/request-context-contract/src/compaction-step.ts": 1,
-    "packages/context/request-context-contract/src/declare-tools.ts": 1,
-    "packages/context/request-context-cordis-contract/src/holder-sources.ts": 1,
-    "packages/context/request-context-cordis-contract/src/testing/index.ts": 1,
-    "packages/context/request-context-cordis/src/config.ts": 1,
-    "packages/context/request-context/src/compaction-strategy.ts": 1,
-    "packages/context/runtime-context-contract/src/operations.ts": 2,
-    "packages/context/runtime-context-contract/src/testing/memory-holder.ts": 3,
-    "packages/context/runtime-context-contract/src/testing/memory-replay.ts": 1,
-    "packages/context/runtime-context-contract/src/testing/memory-world.ts": 1,
-    "packages/context/runtime-context-contract/src/testing/trust-conformance.ts": 1,
-    "packages/context/runtime-context/src/config.ts": 1,
-    "packages/context/runtime-context/src/holder.ts": 3,
-    "packages/context/runtime-context/src/replay.ts": 1,
-    "packages/context/runtime-context/src/world.ts": 1,
     "packages/execution/execution-environment-host-local/src/command-gate-core.ts": 1,
     "packages/execution/execution-environment-host-local/src/command-gate.ts": 1,
     "packages/execution/execution-environment-host-local/src/host-retained-processes.ts": 1,
@@ -1267,17 +1248,6 @@
     "packages/session/session/src/recover.ts": 1,
     "packages/session/session/src/scan.ts": 1,
     "packages/session/session/src/telemetry.ts": 1,
-    "packages/storage/sql-contract/src/testing/memory.ts": 1,
-    "packages/storage/sqlite-provider/src/admission.ts": 1,
-    "packages/storage/sqlite-provider/src/commit.ts": 1,
-    "packages/storage/sqlite-provider/src/cordis.ts": 1,
-    "packages/storage/sqlite-provider/src/domains.ts": 1,
-    "packages/storage/sqlite-provider/src/query.ts": 1,
-    "packages/storage/sqlite-provider/src/reader-pool.ts": 1,
-    "packages/storage/sqlite-provider/src/waiting.ts": 1,
-    "packages/storage/sqlite-provider/src/worker/group.ts": 1,
-    "packages/storage/sqlite-provider/src/write-barrier.ts": 1,
-    "packages/telemetry/telemetry-node/src/options.ts": 1,
     "packages/tool/tool-contract/src/authoring.ts": 1,
     "packages/tool/tool-contract/src/background-calls.ts": 1,
     "packages/tool/tool-contract/src/binding.ts": 1,
@@ -1556,67 +1526,67 @@
       },
       "packages/context/agent-context/src/model-context.ts": {
         "count": 1,
-        "longest": 266
+        "longest": 252
       },
       "packages/context/agent-context/src/requests.ts": {
         "count": 1,
-        "longest": 656
+        "longest": 630
       },
       "packages/context/request-context-contract/src/testing/conformance.ts": {
         "count": 1,
-        "longest": 257
+        "longest": 256
       },
       "packages/context/request-context-contract/src/testing/history-source.ts": {
         "count": 1,
-        "longest": 188
+        "longest": 187
       },
       "packages/context/request-context-cordis-contract/src/testing/index.ts": {
         "count": 1,
-        "longest": 186
+        "longest": 183
       },
       "packages/context/request-context/src/accounting.ts": {
         "count": 1,
-        "longest": 267
+        "longest": 256
       },
       "packages/context/request-context/src/registry.ts": {
         "count": 1,
-        "longest": 234
+        "longest": 224
       },
       "packages/context/runtime-context-contract/src/testing/memory-holder.ts": {
         "count": 1,
-        "longest": 249
+        "longest": 246
       },
       "packages/context/runtime-context-contract/src/testing/memory-producer.ts": {
         "count": 1,
-        "longest": 397
+        "longest": 389
       },
       "packages/context/runtime-context-contract/src/testing/memory-reader.ts": {
         "count": 2,
-        "longest": 386
+        "longest": 382
       },
       "packages/context/runtime-context-contract/src/testing/memory-replay.ts": {
         "count": 1,
-        "longest": 267
+        "longest": 265
       },
       "packages/context/runtime-context/src/holder.ts": {
         "count": 1,
-        "longest": 262
+        "longest": 259
       },
       "packages/context/runtime-context/src/producer.ts": {
         "count": 1,
-        "longest": 441
+        "longest": 425
       },
       "packages/context/runtime-context/src/reader.ts": {
         "count": 2,
-        "longest": 494
+        "longest": 480
       },
       "packages/context/runtime-context/src/replay.ts": {
         "count": 1,
-        "longest": 275
+        "longest": 273
       },
       "packages/context/runtime-context/src/world.ts": {
         "count": 1,
-        "longest": 227
+        "longest": 218
       },
       "packages/execution/execution-environment-contract/src/testing/doubles.ts": {
         "count": 1,
@@ -2004,19 +1974,19 @@
       },
       "packages/storage/sqlite-provider/src/worker/group.ts": {
         "count": 1,
-        "longest": 224
+        "longest": 213
       },
       "packages/telemetry/telemetry-contract/src/testing/index.ts": {
         "count": 1,
-        "longest": 205
+        "longest": 199
       },
       "packages/telemetry/telemetry-node/src/emitter.ts": {
         "count": 1,
-        "longest": 205
+        "longest": 199
       },
       "packages/telemetry/telemetry-node/src/pipeline.ts": {
         "count": 1,
-        "longest": 190
+        "longest": 180
       },
       "packages/tool/tool-contract/src/testing-environment.ts": {
         "count": 1,

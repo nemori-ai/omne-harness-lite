@@ -1,5 +1,4 @@
 // @module-tag slow
-// Repeated real parser enumeration and a killed child process are CPU-sensitive evidence.
 import { createHash } from 'node:crypto'
 import oracle from './cost-oracle.json' with { type: 'json' }
 import { spawnSync } from 'node:child_process'

@@ -85,7 +85,6 @@ it('reports missing seed coverage instead of a successful empty preview', async 
   try {
     const original = await request()
     if (original.source.kind !== 'inline') throw new Error('Expected inline fixture')
-    // The first Monday-or-later week of the year after the shipped coverage ends.
     const year = Number(world.snapshot.coverageEnd.slice(0, 4)) + 1
     const result = await world.app.queries.preview(world.context, {
       source: {
