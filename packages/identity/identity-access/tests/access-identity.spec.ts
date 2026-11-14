@@ -110,6 +110,69 @@ describe('createAccessIdentity', () => {
     })
   })
 
+  it('resumes from the tenant text and the login text the principal that actFor issues', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const alice = await signUp(f.operations, 'alice')
+    const acting = await identity.actFor(await loginOf(identity, alice.proof), alice.tenantText)
+    if (acting.outcome !== 'issued') throw new Error(`not issued: ${acting.outcome}`)
+    const acted = acting.principal as unknown as ActingForTenantPrincipal
+
+    const resumed = identity.resume(alice.tenantText, acted.work.work)
+
+    expect(resumed).toEqual({ outcome: 'issued', principal: acted })
+    if (resumed.outcome !== 'issued') return
+    expect(resumed.principal).not.toBe(acting.principal)
+    expect(await f.authority.verifier.verify(resumed.principal)).toMatchObject({ kind: 'verified' })
+  })
+
+  it('denies a resume for text that is not a tenant, without calling the issuer', () => {
+    const f = fixture()
+    let issued = 0
+    const identity = createAccessIdentity({
+      operations: f.operations,
+      governance: f.governance,
+      issuer: {
+        issueSystem: input => {
+          issued += 1
+          return f.authority.issuer.issueSystem(input)
+        },
+        issueActingForTenant: input => {
+          issued += 1
+          return f.authority.issuer.issueActingForTenant(input)
+        },
+      },
+    })
+    expect(identity.resume('not-a-tenant', 'login-text')).toEqual({ outcome: 'denied' })
+    expect(issued).toBe(0)
+  })
+
+  it('answers basis-unavailable to a resume when the issuer cannot answer', async () => {
+    const f = fixture()
+    const alice = await signUp(f.operations, 'alice')
+    const { issueSystem, issueActingForTenant } = f.authority.issuer
+    const withIssuer = (issuer: Parameters<typeof createAccessIdentity>[0]['issuer']) =>
+      createAccessIdentity({ operations: f.operations, governance: f.governance, issuer })
+    const noSystem = withIssuer({
+      issueSystem: () => ({ failure: { field: 'component', reason: 'type' } }),
+      issueActingForTenant,
+    })
+    const refusing = withIssuer({
+      issueSystem,
+      issueActingForTenant: () => ({ failure: { field: 'tenant', reason: 'unminted' } }),
+    })
+    const throwing = withIssuer({
+      issueSystem,
+      issueActingForTenant: () => {
+        throw new Error('issuer down')
+      },
+    })
+    for (const identity of [noSystem, refusing, throwing])
+      expect(identity.resume(alice.tenantText, 'login-text')).toEqual({
+        outcome: 'basis-unavailable',
+      })
+  })
+
   it('reports a business access, and rejects when identity cannot take the report', async () => {
     const f = fixture()
     const alice = await signUp(f.operations, 'alice')

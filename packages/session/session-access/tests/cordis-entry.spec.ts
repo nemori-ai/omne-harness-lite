@@ -2,11 +2,13 @@
 // reads Session as `intake` for management and work and as `reader` for the history, takes it at
 // each call, and keeps the protocol mounted while Session is not on the tree (RFC-0015 I-5).
 import { Context, Service } from '@deepseek-ai/cordis'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Principal } from '@omne-harness/access-cordis-contract'
+import { readJsonText } from '@omne-harness/json-text'
 import { AccessRegistryProvider } from '@omne-harness/server-entry/cordis'
 import { SessionService } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionAccessPlugin } from '../src/cordis.ts'
+import { createJournalDouble, type JournalDouble } from './fixtures/journal-double.ts'
 import { createSessionDouble } from './fixtures/session-double.ts'
 import { createWorld, fixtureLogin, loginIdentity, resolveDefinition } from './fixtures/world.ts'
 
@@ -55,18 +57,37 @@ function harness(withDirectory: boolean) {
   return { double, reads, FakeSession }
 }
 
-async function assemble({ directory = true } = {}) {
+type Assembly = Readonly<{
+  directory?: boolean
+  store?: JournalDouble
+  resumed?: () => Promise<void>
+}>
+
+async function assemble({
+  directory = true,
+  store = createJournalDouble(),
+  resumed,
+}: Assembly = {}) {
   const { double, reads, FakeSession } = harness(directory)
   const world = createWorld()
   const root = new Context()
   await root.plugin(AccessRegistryProvider)
   const session = await root.plugin(FakeSession)
   const prepared: string[] = []
-  await root.plugin(
+  const resumes: string[] = []
+  const plugin = await root.plugin(
     createSessionAccessPlugin({
+      journal: async () => store.open(),
       principals: () => ({
         actingFor: async (_login, tenantText) =>
           tenantText === ALICE.tenantText ? { ok: world.issue(ALICE) } : { refused: 'denied' },
+        resume: async (tenantText, login) => {
+          resumes.push(login)
+          await resumed?.()
+          return tenantText === ALICE.tenantText
+            ? { ok: world.issue(ALICE) }
+            : { refused: 'denied' }
+        },
       }),
       facts: {
         describe: () => ({
@@ -93,6 +114,8 @@ async function assemble({ directory = true } = {}) {
       historyKinds: ['message.user'],
       defaultListLimit: 50,
       maxListLimit: 50,
+      requestQueueLimit: 8,
+      requestRetryDelaysMs: [1],
     },
   )
   const registry = root.accessRegistry as unknown as AccessRegistryProvider
@@ -109,7 +132,27 @@ async function assemble({ directory = true } = {}) {
       entered.leave()
     }
   }
-  return { root, registry, session, double, reads, prepared, world, call }
+  return { root, registry, session, plugin, double, reads, prepared, resumes, store, world, call }
+}
+
+function userMessage(text: string) {
+  const read = readJsonText(
+    JSON.stringify({
+      id: 'msg_abcdefghijklmnopqrstuv',
+      role: 'user',
+      blocks: [{ kind: 'text', id: 'block-1', visibility: { toHuman: true, toModel: true }, text }],
+    }),
+    {
+      maxBytes: 65536,
+      maxDepth: 16,
+      maxItems: 4096,
+      maxMembers: 256,
+      maxStringLength: 65536,
+      maxNumberLength: 32,
+    },
+  )
+  if (read.kind !== 'ok') throw new Error('fixture json did not read')
+  return read.value
 }
 
 describe('the session access plugin on real Cordis', () => {
@@ -184,6 +227,62 @@ describe('the session access plugin on real Cordis', () => {
     expect(reads).toContain('history:reader')
     expect(reads).not.toContain('management:none')
     expect(reads).not.toContain('history:none')
+  })
+
+  it('takes send-input through the queue of the journal the assembly opens', async () => {
+    const { call, store, world } = await assemble()
+    const created = await call('create-session', world.issue(ALICE) as Principal, {
+      createCallId: 'create-1',
+      definition: 'assistant',
+      purpose: 'hello',
+    })
+    const session = (created as { body: { session: string } }).body.session
+    const answer = await call('send-input', loginIdentity(ALICE), {
+      tenant: ALICE.tenant,
+      session,
+      acceptId: 'accept-1',
+      inputId: 'input-1',
+      message: userMessage('hi'),
+    })
+    expect(answer).toEqual({ outcome: 'succeeded', body: { recovered: false } })
+    expect(store.records().map(record => record.kind)).toEqual(['enqueued', 'left'])
+  })
+
+  it('stops draining when it is unloaded: the admission on its way ends, the queue stays in the journal', async () => {
+    let release = (): void => {}
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const { call, plugin, registry, resumes, store, double, world } = await assemble({
+      resumed: () => gate,
+    })
+    const created = await call('create-session', world.issue(ALICE) as Principal, {
+      createCallId: 'create-1',
+      definition: 'assistant',
+      purpose: 'hello',
+    })
+    const session = (created as { body: { session: string } }).body.session
+    const send = (acceptId: string) => {
+      const entered = registry.enter(SESSION, 'send-input')
+      if (entered?.member.kind !== 'operation') throw new Error('send-input is not mounted')
+      entered.signal.addEventListener('abort', () => entered.leave())
+      return entered.member.handler(
+        { principal: loginIdentity(ALICE) as never, messageId: 'm-1', signal: entered.signal },
+        { tenant: ALICE.tenant, session, acceptId, inputId: acceptId, message: userMessage('hi') },
+      )
+    }
+    const first = send('accept-a')
+    const second = send('accept-b')
+    await vi.waitFor(() => expect(resumes).toHaveLength(1))
+    await plugin.dispose()
+    expect(registry.enter(SESSION, 'send-input')).toBeUndefined()
+    release()
+    expect(await first).toEqual({ outcome: 'succeeded', body: { recovered: false } })
+    const waited = new Promise(resolve => setTimeout(() => resolve('still waiting'), 30))
+    expect(await Promise.race([second, waited])).toBe('still waiting')
+    expect(resumes).toHaveLength(1)
+    expect(double.controls.calls().filter(made => made.method === 'accept')).toHaveLength(1)
+    expect(store.open().pending.map(request => request.acceptId)).toEqual(['accept-a', 'accept-b'])
   })
 
   it('answers basis-unavailable while Session is off the tree and keeps the protocol mounted', async () => {

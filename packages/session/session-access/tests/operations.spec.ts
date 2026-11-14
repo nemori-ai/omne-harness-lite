@@ -327,7 +327,7 @@ describe('send-input', () => {
       { kind: 'conflict', operation: 'op' },
       { outcome: 'conflict', body: {} },
     ],
-    [{ kind: 'commit-unknown', operation: 'op' }, { outcome: 'unknown' }],
+    [{ kind: 'denied', action: 'accept' }, { outcome: 'denied' }],
     [{ kind: 'quarantined', diagnostic: 'x' }, { outcome: 'basis-unavailable' }],
     [{ kind: 'unsupported' }, { outcome: 'basis-unavailable' }],
   ] as const)('maps the Session failure %j', async (failure, expected) => {
@@ -342,15 +342,6 @@ describe('send-input', () => {
     world.issue(ALICE)
     expect(await ops(world)['send-input'](as(login()), bodyOf('0'.repeat(64)))).toEqual({
       outcome: 'denied',
-    })
-  })
-
-  it('answers unknown when Session throws after the call began', async () => {
-    const world = createWorld()
-    const session = await created(world)
-    world.session.controls.throwOn('accept', new Error('boom'))
-    expect(await ops(world)['send-input'](as(login()), bodyOf(session))).toEqual({
-      outcome: 'unknown',
     })
   })
 
@@ -371,15 +362,6 @@ describe('send-input', () => {
     const world = createWorld()
     const session = await created(world)
     world.refuseTargets('throw')
-    expect(await ops(world)['send-input'](as(login()), bodyOf(session))).toEqual({
-      outcome: 'basis-unavailable',
-    })
-  })
-
-  it('answers basis-unavailable while Session is not on the tree', async () => {
-    const world = createWorld()
-    const session = await created(world)
-    world.remove('faces')
     expect(await ops(world)['send-input'](as(login()), bodyOf(session))).toEqual({
       outcome: 'basis-unavailable',
     })

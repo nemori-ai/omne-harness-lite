@@ -13,13 +13,10 @@ import type {
   LoginIdentity,
   Principal,
 } from '@omne-harness/access-cordis-contract'
-import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { judgeMessage, type Message } from '@omne-harness/message'
 import type {
   DurableEvidence,
   HistoryPage,
-  InputId,
   RunId,
   SessionCreation,
   SessionId,
@@ -30,17 +27,10 @@ import type {
   SessionObservationFrame,
 } from '@omne-harness/session-observation'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
-import {
-  acceptOperation,
-  controlOperation,
-  createOperation,
-  inputIdentity,
-  loginEntryOrigin,
-  sessionIdentity,
-  tenantTextOf,
-} from './derivation.ts'
+import { controlOperation, createOperation, sessionIdentity, tenantTextOf } from './derivation.ts'
 import {
   commitCall,
+  describedBy,
   readCall,
   refused,
   UNAVAILABLE,
@@ -53,13 +43,14 @@ import {
 import { retryRun } from './retry-run.ts'
 import type {
   DefinitionResolver,
-  PrincipalFact,
   PrincipalFacts,
   SessionAccessFaces,
   SessionAccessSettings,
   SessionListing,
   TargetTenantPrincipals,
 } from './ports.ts'
+import type { RequestDrain } from './request-drain.ts'
+import { querySendInput, sendInput } from './send-input.ts'
 
 /** What the contribution reads. Each function is called at the moment of a call. */
 export type SessionContributionInput = Readonly<{
@@ -70,44 +61,13 @@ export type SessionContributionInput = Readonly<{
   principals: TargetTenantPrincipals
   facts: PrincipalFacts
   settings: SessionAccessSettings
+  requests: Pick<RequestDrain, 'enqueue' | 'isQueued'>
 }>
 
 type ObserveSession = SessionProtocol['observations']['observe-session']
 
 /** The principal for a target tenant, or the refusal identity gave. */
 type TenantPrincipal = Readonly<{ principal: Principal; tenantText: string }>
-
-/** A plain value of a json-text tree, for the message package. Keys are defined, never assigned. */
-function plainOf(value: JsonValue): unknown {
-  switch (value.kind) {
-    case 'null':
-      return null
-    case 'boolean':
-    case 'string':
-      return value.value
-    case 'number':
-      return Number(value.lexeme)
-    case 'array':
-      return value.items.map(plainOf)
-    case 'object': {
-      const result: Record<string, unknown> = {}
-      for (const entry of value.entries)
-        Object.defineProperty(result, entry.key, {
-          value: plainOf(entry.value),
-          enumerable: true,
-          writable: true,
-          configurable: true,
-        })
-      return result
-    }
-  }
-}
-
-/** The message package admits the message and its role is `user`. */
-function decodeUserMessage(wire: JsonValue): Message | undefined {
-  const judged = judgeMessage(plainOf(wire))
-  return 'ok' in judged && judged.ok.role === 'user' ? judged.ok : undefined
-}
 
 /** Whether a `pageBytes` text (digits only, no leading zero) is within the deployment bound. */
 function withinPageBound(pageBytes: string, bound: number): boolean {
@@ -237,13 +197,8 @@ export function createSessionContribution(
   }
 
   /** The tenant, account and login of a principal; `undefined` when identity cannot tell them. */
-  function factOf(principal: Principal): PrincipalFact | undefined {
-    try {
-      return facts.describe(principal)
-    } catch {
-      return undefined
-    }
-  }
+  const factOf = (principal: Principal) => describedBy(facts, principal)
+  const sending = { target, factOf, faces: input.faces, requests: input.requests }
 
   async function createSession(
     principal: Principal,
@@ -320,60 +275,6 @@ export function createSessionContribution(
       case 'unknown':
         return { outcome: 'unknown' }
     }
-  }
-
-  async function querySendInput(
-    login: LoginIdentity,
-    body: Body<'query-send-input'>,
-  ): Promise<Answer<'query-send-input'>> {
-    const admitted = await admit(login, body.tenant, body.session)
-    if ('outcome' in admitted) return admitted
-    const { access, tenantText, faces } = admitted
-    const result = await readCall(() =>
-      faces.work.queryOperation({
-        ...access,
-        operation: acceptOperation(tenantText, access.session, body.acceptId),
-      }),
-    )
-    if (result === 'basis-unavailable') return UNAVAILABLE
-    if ('failure' in result) return refused('query-send-input', result.failure)
-    switch (result.ok.kind) {
-      case 'committed':
-        return { outcome: 'succeeded', body: {} }
-      case 'not-committed':
-        return { outcome: 'not-committed', body: {} }
-      case 'attempt-rejected':
-      case 'unknown':
-        return { outcome: 'unknown' }
-    }
-  }
-
-  async function sendInput(
-    login: LoginIdentity,
-    body: Body<'send-input'>,
-  ): Promise<Answer<'send-input'>> {
-    const message = decodeUserMessage(body.message)
-    if (message === undefined) return { outcome: 'protocol-rejected' }
-    const admitted = await admit(login, body.tenant, body.session)
-    if ('outcome' in admitted) return admitted
-    const { access, tenantText, faces } = admitted
-    const caller = factOf(access.principal)
-    if (caller === undefined) return UNAVAILABLE
-    const result = await commitCall(() =>
-      faces.work.accept({
-        ...access,
-        operation: acceptOperation(tenantText, access.session, body.acceptId),
-        value: {
-          kind: 'ordinary',
-          input: inputIdentity(tenantText, access.session, body.inputId) as InputId,
-          message,
-          origin: loginEntryOrigin(caller.account, caller.login),
-        },
-      }),
-    )
-    if (result === 'unknown') return { outcome: 'unknown' }
-    if ('failure' in result) return refused('send-input', result.failure)
-    return { outcome: 'succeeded', body: { recovered: result.ok.recovered } }
   }
 
   async function readHistory(
@@ -541,8 +442,8 @@ export function createSessionContribution(
     operations: {
       'create-session': (call, body) => createSession(call.principal, body),
       'query-create-session': (call, body) => queryCreateSession(call.principal, body),
-      'send-input': (call, body) => sendInput(call.principal, body),
-      'query-send-input': (call, body) => querySendInput(call.principal, body),
+      'send-input': (call, body) => sendInput(sending, call.principal, body),
+      'query-send-input': (call, body) => querySendInput(sending, call.principal, body),
       'read-history': (call, body) => readHistory(call.principal, body),
       'cancel-run': (call, body) => cancelRun(call.principal, body),
       'stop-call': (call, body) => stopCall(call.principal, body),

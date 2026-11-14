@@ -11,6 +11,7 @@ import type {
   SessionWork,
 } from '@omne-harness/session-contract'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
+import type { QueuedRequest } from './request-queue.ts'
 
 /**
  * Issues the principal of this login for this target tenant. The rule belongs to identity: the
@@ -21,6 +22,20 @@ export interface TargetTenantPrincipals {
     login: LoginIdentity,
     tenant: string,
   ): Promise<{ readonly ok: Principal } | { readonly refused: 'denied' | 'basis-unavailable' }>
+  resume(
+    tenant: string,
+    login: string,
+  ): Promise<{ readonly ok: Principal } | { readonly refused: 'denied' | 'basis-unavailable' }>
+}
+
+export type JournalRecord =
+  | (Readonly<{ kind: 'enqueued' }> & QueuedRequest)
+  | Readonly<{ kind: 'left'; tenant: string; session: string; acceptId: string }>
+
+export interface RequestJournal {
+  readonly pending: readonly QueuedRequest[]
+  append(record: JournalRecord): Promise<boolean>
+  close(): Promise<void>
 }
 
 /** The facts of an issued principal that the derived identities of Session need. */
@@ -104,7 +119,7 @@ export type DefinitionResolver = (definition: string) => ResolvedDefinition | un
 /** The deployment values the handlers read. */
 export type SessionAccessSettings = Readonly<{
   /** The definition `create-session` uses when the message names none. Absent: such a call is `invalid`. */
-  defaultDefinition?: string
+  defaultDefinition?: string | undefined
   /** The bound of `pageBytes` on a first `read-history` page. */
   maxPageBytes: number
   /** The entry kinds `read-history` gives. */
@@ -113,4 +128,6 @@ export type SessionAccessSettings = Readonly<{
   defaultListLimit: number
   /** The bound of `limit` on `list-sessions`. A larger `limit` is `invalid`. */
   maxListLimit: number
+  requestQueueLimit: number
+  requestRetryDelaysMs: readonly number[]
 }>
