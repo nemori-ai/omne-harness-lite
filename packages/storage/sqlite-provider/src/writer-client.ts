@@ -12,11 +12,8 @@ import type {
 
 export class WorkerExited extends Error {}
 
-/**
- * Sends a request for a caller that observes the reply for at most `ms` (SPEC 9.3): `expire` runs
- * then, and the caller moves on with `unknown`. The request itself ends only with the reply or the
- * exit of the Worker, so what it holds goes back with that, never with the observation.
- */
+/** The caller stops observing after `ms`; the request ends only with the reply or the Worker exit,
+ *  so what it holds goes back with that, never with the observation. */
 export async function observeReply<T>(
   send: () => Promise<T>,
   ms: number,

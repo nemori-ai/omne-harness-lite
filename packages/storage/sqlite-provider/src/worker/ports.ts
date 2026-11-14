@@ -121,9 +121,8 @@ export function migrationDecision(
       case C.SQLITE_DROP_TRIGGER:
       case C.SQLITE_ALTER_TABLE:
         return arg2 !== null && write.has(arg2)
-      // CREATE INDEX also raises SQLITE_REINDEX with the index name after the CREATE_INDEX action
-      // judged the owner table. Allow only names that action allowed, so a REINDEX statement on
-      // another owner's index or table stays denied.
+      // CREATE INDEX also raises SQLITE_REINDEX with the index name. Allow only names CREATE_INDEX
+      // allowed, so a REINDEX of another owner's index or table stays denied.
       case C.SQLITE_REINDEX:
         return arg1 !== null && createdIndexes.has(arg1)
       case C.SQLITE_FUNCTION:

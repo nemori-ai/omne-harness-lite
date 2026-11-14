@@ -37,11 +37,8 @@ create table _sql_receipt(
 const DEFERRED_FK = /deferrable\s+initially\s+deferred/i
 const TIME_DEFAULT = /current_(time|date|timestamp)/i
 
-/**
- * Participants whose tables break the grouping gate: a deferred foreign key, or a default value
- * that reads the clock. They are handled as singletons in this provider generation. Temporary
- * tables are not in `sqlite_schema`, and the participant authorizer refuses to create them.
- */
+/** Participants with a deferred foreign key or a clock default run as singletons. Temporary tables
+ *  are not in `sqlite_schema`; the participant authorizer refuses to create them. */
 export function findSingletons(
   db: DatabaseSync,
   participants: readonly ParticipantDescriptor[],
