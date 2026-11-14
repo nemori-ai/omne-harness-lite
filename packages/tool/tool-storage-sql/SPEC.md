@@ -48,7 +48,7 @@
 | `rolled_back`，其他原因（参加者抛错、语句失败） | `rejected`，`reason` 为失败类别。明确回滚已持久，提交没有任何效果；失败由输入与已提交的数据决定（sql-contract §7.6），同一提交再试得到同一失败 |
 | `unknown`                                       | `unknown`。账本按它写入的操作认回结果                                                                                                          |
 | `rejected_before_accept`，暂时的原因            | `unavailable`，诊断带拒绝原因                                                                                                                  |
-| `rejected_before_accept`，确定的原因            | `rejected`，`reason` 为拒绝原因。定性见 sql-contract 的[提交拒绝原因的定性](../../storage/SPEC.md#拒绝的定性)             |
+| `rejected_before_accept`，确定的原因            | `rejected`，`reason` 为拒绝原因。定性见 sql-contract 的[提交拒绝原因的定性](../../storage/SPEC.md#拒绝的定性)                                  |
 | `identity_conflict`                             | `unavailable`。每次提交用新的操作键，提供者没有执行本次提交                                                                                    |
 
 写入的记录不是严格 JSON 时（函数、BigInt、非有限数、类型化数组、环），端口在发出提交之前答 `rejected`：同一写入集再试仍不是严格 JSON。值为 `undefined` 的对象成员按 JSON 省略。
