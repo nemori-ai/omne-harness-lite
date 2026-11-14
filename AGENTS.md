@@ -189,7 +189,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 统一语言与领域对象的位置 | `.meta_harness/design/ubiquitous_language`；`.meta_harness/design/domain_objects` |
 | 形式化工具链与声明边界 | TLC，环境见 [CONTRIBUTING](CONTRIBUTING.md#形式工具链)；声明边界见[证据与有效范围](docs/architecture/assurance.md#证据与有效范围) |
 | spec 与 plan 的项目模板 | pqw 自带模板，加 [spec 附加节](.meta_harness/agents/pqw/spec-addendum.md)与 [plan 附加节](.meta_harness/agents/pqw/plan-addendum.md) |
-| 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：先核 `git status` 干净、分支已合回，再删目录并 `git worktree prune` |
+| 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。删之前照 `omne-card` 技能的[清理之前](.meta_harness/agents/skills/omne-card/canonical/references/gate-recovery.md#清理之前)核过：树干净或分支已合回都不够。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：核过之后删目录并 `git worktree prune` |
 | 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
 | 子代理的模型与档位政策 | 按 pqw `delegate-brief` 的表定档。各档用的模型，Claude Code：便宜档 Haiku，经济档 Sonnet，默认档 Opus，顶档 Fable，都取宿主提供的当前版本；Codex：经济档与默认档 GPT-6.1 Sol，顶档 GPT-6 Astra，没有便宜档；Cursor 在可选的模型里取同档，简报里写明取了哪个。顶档的推理档位最高用 high。只读的评审与核对：Claude Code 派自带的只读子代理类型；另两个宿主在简报里写明不改文件，交回后用 `git status` 核对 |
 | 交接信息包与路线图放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`）；分程时路线图放父卡 |
