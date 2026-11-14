@@ -50,7 +50,8 @@
         "packages/governance/governance-contract",
         "packages/identity/identity",
         "packages/identity/identity-protocol",
-        "packages/identity/authorization"
+        "packages/identity/authorization",
+        "packages/assets/assets-protocol"
       ]
     },
     {

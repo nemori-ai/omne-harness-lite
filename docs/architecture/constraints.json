@@ -450,6 +450,14 @@
       "source": "packages/assets/assets-access/SPEC.md"
     },
     {
+      "id": "packages/assets/assets-ui",
+      "paths": ["packages/assets/assets-ui/src/**"],
+      "layer": "unknown",
+      "domains": ["assets"],
+      "status": "candidate",
+      "source": "packages/assets/assets-ui/SPEC.md"
+    },
+    {
       "id": "packages/common/stream-arrival",
       "paths": ["packages/common/stream-arrival/src/**"],
       "layer": "contract",
