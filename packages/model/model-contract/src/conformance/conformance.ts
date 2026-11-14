@@ -1,5 +1,6 @@
 import { admissionChecks } from './conformance-admission.ts'
 import { boundedSubject } from './conformance-bounded.ts'
+import { contactChecks } from './conformance-contact.ts'
 import { controlChecks } from './conformance-control.ts'
 import { DEFAULT_CONSUMER, DEFAULT_REQUEST } from './conformance-defaults.ts'
 import { within } from './conformance-kit.ts'
@@ -26,6 +27,7 @@ function checksOf<P>(): readonly Check<P>[] {
     ...admissionChecks<P>(),
     ...settlementChecks<P>(),
     ...controlChecks<P>(),
+    ...contactChecks<P>(),
     ...observationChecks<P>(),
     ...routeChecks<P>(),
     ...transportChecks<P>(),

@@ -1,4 +1,3 @@
-import { invocationReference } from '../testing/reference-input.ts'
 import {
   accessOf,
   admitInput,
@@ -16,6 +15,7 @@ import {
   operationId,
   placed,
   readId,
+  referenceAccessOf,
   refused,
   refusedAs,
   running,
@@ -34,6 +34,7 @@ import type { Check, Scene } from './conformance-types.ts'
 
 const PROBES = [
   'inspect',
+  'contact',
   'dispatches',
   'cancel',
   'connect',
@@ -94,13 +95,8 @@ export function routeChecks<P>(): readonly Check<P>[] {
         const other = scene.subject.otherTenant
         const operation = operationId('hidden')
         const probes = (call: ModelCallId) => ({
-          inspect: calls.inspect({
-            ...accessOf(scene, call, other),
-            reference: invocationReference({
-              ...accessOf(scene, call, other),
-              admission: operation,
-            }),
-          }),
+          inspect: calls.inspect(referenceAccessOf(scene, { call, operation }, other)),
+          contact: calls.contact(referenceAccessOf(scene, { call, operation }, other)),
           dispatches: calls.dispatches(accessOf(scene, call, other)),
           cancel: calls.cancel(mutationOf(scene, call, operation, other)),
           connect: instances.connect(accessOf(scene, call, other)),
@@ -149,15 +145,14 @@ export function routeChecks<P>(): readonly Check<P>[] {
           action: 'all',
         })
         refusedAs(
-          await calls.inspect({
-            ...accessOf(scene, call.call),
-            reference: invocationReference({
-              ...accessOf(scene, call.call),
-              admission: call.operation,
-            }),
-          }),
+          await calls.inspect(referenceAccessOf(scene, call)),
           'denied',
           'the inspection after the revoke',
+        )
+        refusedAs(
+          await calls.contact(referenceAccessOf(scene, call)),
+          'denied',
+          'the contact after the revoke',
         )
         refusedAs(
           await consumption.beginRead({

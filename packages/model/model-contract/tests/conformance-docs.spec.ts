@@ -34,6 +34,11 @@ const OBSERVED = [
   'unsealed-tool-arguments-not-executable',
 ] as const satisfies readonly ConformanceObligation[]
 
+const SETTLED_CONTACT = [
+  'contact-on-unacknowledged-result-claims-no-run',
+  'contact-on-acknowledged-result-is-settled',
+] as const satisfies readonly ConformanceObligation[]
+
 const SKIPPED_WITHOUT = {
   startRun: [
     'commit-unknown-acknowledge-recovers-original',
@@ -54,6 +59,7 @@ const SKIPPED_WITHOUT = {
     'cleanup-failure-keeps-acknowledgement',
     'cancelled-call-ends-interrupted-unacknowledged',
     'cancel-sends-nothing-more',
+    ...SETTLED_CONTACT,
     'stopping-observation-keeps-call-running',
     ...OBSERVED,
   ],
@@ -74,8 +80,9 @@ const SKIPPED_WITHOUT = {
     'revoked-reader-gets-no-page',
     'cleanup-failure-keeps-acknowledgement',
     'cancelled-call-ends-interrupted-unacknowledged',
+    ...SETTLED_CONTACT,
   ],
-  provideEvidence: [...ACKNOWLEDGE],
+  provideEvidence: [...ACKNOWLEDGE, 'contact-on-acknowledged-result-is-settled'],
   failNextWrite: [
     'commit-unknown-keeps-operation',
     'commit-unknown-not-reported-as-refusal',
