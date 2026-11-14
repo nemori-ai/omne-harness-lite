@@ -16,7 +16,6 @@ const definition = defineEvent({
 
 const valid = { code: 'timeout', retried: false, elapsed: 1.5, session: 'ses_01' }
 
-/** Replaces one field; the result is deliberately outside the declared types. */
 function withField(field: string, value: unknown): unknown {
   return { ...valid, [field]: value }
 }

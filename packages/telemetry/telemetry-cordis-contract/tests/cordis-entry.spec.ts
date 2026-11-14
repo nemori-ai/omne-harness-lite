@@ -5,7 +5,6 @@ import { TelemetryService, telemetryKey } from '../src/cordis.ts'
 
 const admitted: Admission = { kind: 'admitted' }
 
-/** An emitter that admits everything. The seam under test is the service key, not admission. */
 const emitter: Emitter = Object.freeze({
   event: () => admitted,
   record: () => admitted,
@@ -27,7 +26,6 @@ class ProbeTelemetry extends TelemetryService {
 }
 
 const binding: Binding = {
-  // The service does not read the scope; the contract validates it in a real provider.
   scope: {} as Binding['scope'],
   component: 'probe',
   instance: { owner: 'packages/telemetry/telemetry-cordis-contract', ref: 'probe' },

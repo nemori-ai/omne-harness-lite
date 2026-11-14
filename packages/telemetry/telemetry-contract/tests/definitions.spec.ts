@@ -29,7 +29,6 @@ function longText(length: number): string {
   return 'a'.repeat(length)
 }
 
-/** Replaces one member of a valid input; the result is deliberately outside the declared types. */
 function withMember(base: object, member: string, value: unknown): never {
   return { ...base, [member]: value } as never
 }

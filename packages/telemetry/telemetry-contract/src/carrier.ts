@@ -1,10 +1,5 @@
-/**
- * The serializable causal value that crosses processes, queues and recovery. It holds trace and
- * span identities and the format version only: no scope, no principal, no credential.
- */
 export type Carrier = string & { readonly __brand: 'TelemetryCarrier' }
 
-// A subset of the W3C traceparent: version 00, lowercase hexadecimal, exactly four parts.
 const CARRIER = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/
 const TRACE_ID = /^[0-9a-f]{32}$/
 const SPAN_ID = /^[0-9a-f]{16}$/
@@ -16,7 +11,6 @@ type Decoded =
 
 const INVALID: Decoded = Object.freeze({ kind: 'invalid' })
 
-/** Decodes any value; a value that is not a carrier text is `invalid`. */
 export function decodeValue(value: unknown): Decoded {
   if (typeof value !== 'string') return INVALID
   const match = CARRIER.exec(value)
@@ -29,20 +23,14 @@ export function decodeValue(value: unknown): Decoded {
     traceId,
     spanId,
     sampled: (Number.parseInt(flags, 16) & 1) === 1,
-    // The text matched the carrier format above.
     carrier: value as Carrier,
   })
 }
 
-/** Decodes a carrier text. Never throws. */
 export function decodeCarrier(text: string): Decoded {
   return decodeValue(text)
 }
 
-/**
- * Encodes trace and span identities as a carrier. The identities are lowercase hexadecimal and
- * not all zero. Throws TypeError otherwise.
- */
 export function encodeCarrier(
   input: Readonly<{ traceId: string; spanId: string; sampled: boolean }>,
 ): Carrier {
@@ -56,6 +44,5 @@ export function encodeCarrier(
       'telemetry carrier: spanId is 16 lowercase hexadecimal digits, not all zero',
     )
   if (typeof sampled !== 'boolean') throw new TypeError('telemetry carrier: sampled is a boolean')
-  // The parts were checked above, so the text has the carrier format.
   return `00-${traceId}-${spanId}-${sampled ? '01' : '00'}` as Carrier
 }
