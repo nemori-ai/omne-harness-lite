@@ -2,7 +2,7 @@
 
 [中文说明](README_ZH.md)
 
-`@omne-harness/repo-toolchain` is this repository's checker package. It is published on npm. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, contract API snapshots, structure metrics, actual architecture extraction, the review page and the clean loop. The repository pins its exact version in the catalog of `pnpm-workspace.yaml`. The root checks and the three tool members run that version from npm, not the sources in this directory. After a change here, publish a new version first, then open a PR that changes the pin. See the [development guide](../../docs/development.md#仓库工具链的版本).
+`@omne-harness/repo-toolchain` is this repository's checker package. It is published on npm. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, contract API snapshots, structure metrics, actual architecture extraction, the review page and the clean loop. The repository pins its exact version in the catalog of `pnpm-workspace.yaml`. The root checks and the three tool members run that version from npm, not the sources in this directory. After a change here, publish a new version first, then open a PR that changes the pin. See [toolchain upgrade](../../.meta_harness/agents/skills/omne-card/canonical/references/toolchain-upgrade.md).
 
 Three unpublished tool members import this package through its subpaths. This package does not import them:
 
@@ -103,7 +103,7 @@ The tool does not use API Extractor, because API Extractor does not analyze ambi
 
 The `contractApi` configuration section has two keys. `members` is the path of the contract member table. `snapshot` is the snapshot path template. It ends with `.md` and contains `{member}` or `{package}`. Any other key, a missing key or a bad value is an error.
 
-`review` means that a person must decide. It includes changes that break the writer, the reader or both. It also includes changes that the additive-change table allows but that are outside the whitelist. Examples are a new member of a union that the contract declares open, and a new default for a type parameter. `review` is not a level for the "契约变化" section of a PR. A person decides that level (none, additive or breaking) from the additive-change table in `docs/engineering/integration.md`.
+`review` means that a person must decide. It includes changes that break the writer, the reader or both. It also includes changes that the additive-change table allows but that are outside the whitelist. Examples are a new member of a union that the contract declares open, and a new default for a type parameter. `review` is not a level for the "契约变化" section of a PR. A person decides that level (none, additive or breaking) from the additive-change table in the `omne-card` skill's `references/contract-change.md`.
 
 The tool reads only the shape of the declarations. It does not read behavior, documentation or runtime validation. It reports which side breaks, but it does not decide whether that break is acceptable. The gate fails closed: when the evidence is not complete, the result is `review`. So `review` results are more frequent than with the checker alone. This is a deliberate trade-off for the report-only stage. A snapshot that matches `dist` shows only that the snapshot is current. It does not show that a change is additive. See the SPEC for the known limits, including the recursion heuristic that puts additive changes to types like `ToolBindings` into `review`.
 

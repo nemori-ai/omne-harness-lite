@@ -46,7 +46,7 @@ Claude Code 的技能发现没有按目录排除的设置。`skillOverrides` 与
 
 ## 隔离工作树与钩子观察
 
-独立任务允许各写者使用隔离工作树，共享对象仍单写，具体条件归[协作交接](../../../docs/engineering/workflow.md#责任与协作交接)。每个写者须核对宿主传入的真实cwd与自己的检出；按绝对路径写别树、设置exec的workdir或源码重新生成，都不能证明hook观察已切换。原生宿主调用未核实的部分继续报告未覆盖，不以单树禁令代替证据。
+独立任务允许各写者使用隔离工作树，共享对象仍单写。每个写者须核对宿主传入的真实cwd与自己的检出；按绝对路径写别树、设置exec的workdir或源码重新生成，都不能证明hook观察已切换。原生宿主调用未核实的部分继续报告未覆盖，不以单树禁令代替证据。
 
 ## 怎么生效
 
@@ -71,7 +71,7 @@ Claude Code 与 Codex 的 `Stop` 已有真实会话执行证据，包括本工�
 - 拿掉 `loop-stop-facts`：从 `hooks.yaml` 删掉它并重新编译。
 - `stale-skill-copies` 没有开关变量。要拿掉它，从 `hooks.yaml` 删掉它并重新编译。
 
-测量入口按实际 cwd 工作树读取 task context，不从另一个树借 taskBase 或 targetBase。缺输入报告 unknown/error；没有 task context（pending）时按[收工钩子的基线规则](../../../tools/repo-toolchain/README_ZH.md#收工钩子)读取：主线与活跃集成轨道里离 HEAD 最近的合并点。规则归执行仓库 `docs/engineering/integration.md`；生成和静态检查不证明宿主实际执行。
+测量入口按实际 cwd 工作树读取 task context，不从另一个树借 taskBase 或 targetBase。缺输入报告 unknown/error；没有 task context（pending）时按[收工钩子的基线规则](../../../tools/repo-toolchain/README_ZH.md#收工钩子)读取：主线与活跃集成轨道里离 HEAD 最近的合并点。规则归 `omne-card` 技能的「进轨道」；生成和静态检查不证明宿主实际执行。
 
 ## Cursor native adapter
 

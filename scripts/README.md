@@ -21,11 +21,11 @@
 | [install-format-hook.sh](install-format-hook.sh) | 显式安装格式化 pre-commit hook；发现已有 hook 时拒绝覆盖 |
 | [model-probe.mjs](model-probe.mjs) | 模型适配探针入口；公开目录检查与显式付费实验，预算、凭据和结果要求见 [model-probe](../tools/model-probe/README.md) |
 
-安装 Bash、uv、Node/npm/pnpm 并按[验证规范](../docs/verification.md)准备环境后，
+安装 Bash、uv、Node/npm/pnpm 并按[开始工作](../CONTRIBUTING.md#开始工作)准备环境后，
 在根执行 `pnpm run check` 或 `./scripts/check.sh`，两者等价。脚本也可通过绝对路径从其他目录调用。
 需要比较冻结基线时使用 `BASELINE=<git-ref> pnpm run check` 或
 `BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `FULL=1 pnpm run check` 或 `FULL=1 ./scripts/check.sh`。脚本只接受 `--admission`、`--keep-going`、`--preflight` 三个开关与带值的 `--resume-from <H1>`；`--preflight` 不与别的开关同给。
-准入用 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，见[集成规则](../docs/engineering/integration.md#检查责任)）：
+准入用 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，见[进轨道](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)）：
 除了构建、类型检查与成员测试不读缓存，还写准入日志 `tmp/admission/<时间>-<head 短号>.log`，作为准入证据；两种写法都写日志。准入开始时先[自检并自愈环境](#环境自检与自愈)，结果写进日志与记录。日志是本节的唯一源，别处只链接过来：
 日志旁边同名的 `.json` 是同一次运行的机读记录（头、树哈希、模式、每步的退出码、快速失败的步、缓存开关），与日志是同一份事实的两种写法：
 `check --resume-from <H1>` 与 `admission-evidence --for <F>` 读它，人读日志。JSON 记录的形状与用法归 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。文本日志的格式以本节为唯一源，别处只链接过来：
@@ -226,7 +226,7 @@ systemd 启用后 binfmt 登记常被清掉，这时经 `/init` 起。脚本在�
 
 合并前，在待合并的提交上计算影响面，再运行所需检查。`pnpm run check` 已按共同配置生成影响面计划；用 `pnpm run check:plan` 核对选中的范围、依据与跳过条件。实际结果写进 PR，规则归[整洁回路](../docs/clean-loop.md#回路怎么转)。
 
-主干与记录标签的平台保护归[多层集成](../docs/engineering/integration.md#现行准入)。本地检查不能代替平台门禁。
+主干与记录标签的平台保护归[准入证据怎样取得](../.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md)。本地检查不能代替平台门禁。
 
 恢复自动触发时，先核对现有 runner 的在线状态、标签和执行权限；需要新增或重新注册时再按下文操作。在仓库设置里启用 `Check`，命令为 `gh workflow enable Check`，再把工作流文件开头注释掉的三种触发放回 `on:` 之下。核对真实触发和结果后，才能确认正式检查已接通。工作流定义的行为如下。
 
@@ -260,4 +260,4 @@ runner 的注册是主机上的一次性操作，不由仓库脚本代办：
    不对外部贡献者的 PR 开放工作流运行。
 
 包专属的构建脚本和 skill 自带脚本随其所有者维护，不统一搬到这里。
-源码位置与 workspace 分工见[workspace 规范](../docs/workspace.md)。
+源码位置与 workspace 分工见[组织原则](../docs/architecture/structure.md#组织原则)。

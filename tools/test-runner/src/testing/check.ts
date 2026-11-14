@@ -59,7 +59,7 @@ export const KEEP_RUN_DIRS = 5
 
 export const ADMISSION_NEXT_STEP =
   '下一步：先把每处失败归类（本次改动带来的、起点上本来就失败、负载或时序、环境），再按类补证，不重排整跑。' +
-  '做法见 docs/engineering/integration.md「准入证据怎样取得」。'
+  '做法见 omne-card 技能的 references/admission-evidence.md「准入证据怎样取得」。'
 const DEP_GRAPH_CACHE_ENV = 'OMNE_DEP_GRAPH_CACHE'
 
 const GIT_ENV = [

@@ -1,8 +1,8 @@
 # 使用分支集成工具
 
-本工具在 gate 运行时等待并代为确认，派发并跟踪工具包的发行运行，并在准入中核对契约快照与 dist。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。写平台的只有两处：`gate-cli.ts wait` 批准指定环境的待确认部署，`release-run` 派发一次发行运行并在显式要求时批准 `npm-release`。
+本工具在 gate 运行时等待并代为确认，派发并跟踪工具包的发行运行，并在准入中核对契约快照与 dist。四条主干的进入按[准入证据怎样取得](../../../../.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。写平台的只有两处：`gate-cli.ts wait` 批准指定环境的待确认部署，`release-run` 派发一次发行运行并在显式要求时批准 `npm-release`。
 
-从仓库根运行。行为承诺归 [SPEC](SPEC.md)，规则归[轨道与 gate](../../../../docs/engineering/integration.md)。命令存在不授予项目 ref 或平台写权限。
+从仓库根运行。行为承诺归 [SPEC](SPEC.md)，规则归[进轨道](../../../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)。命令存在不授予项目 ref 或平台写权限。
 
 ## 等待 gate 并代为确认
 

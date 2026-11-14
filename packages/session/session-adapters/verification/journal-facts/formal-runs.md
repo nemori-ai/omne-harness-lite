@@ -1,6 +1,6 @@
 # Agent 事实族模型的运行记录
 
-本页记录 [JournalOught.tla](models/JournalOught.tla) 的 TLC 运行：版本、参数、预算、结论与判读。判读规则按 [docs/verification.md](../../../../../docs/verification.md#环境与实际执行)：正控要得到 TLC 的完成结论；负控要命中配置点名的那条性质；非零退出本身不算通过。
+本页记录 [JournalOught.tla](models/JournalOught.tla) 的 TLC 运行：版本、参数、预算、结论与判读。判读规则按 [形式工具链](../../../../../CONTRIBUTING.md#形式工具链)：正控要得到 TLC 的完成结论；负控要命中配置点名的那条性质；非零退出本身不算通过。
 
 结论只在所列范围内成立。它不是证明，也不表示实现符合模型。无界推广见 [proofs/README.md](proofs/README.md)。原始日志不进本包，留在任务过程目录。
 

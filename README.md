@@ -8,12 +8,10 @@
 
 [项目要求](docs/requirements.md) ·
 [产品设计](.meta_harness/design/product/README.md) ·
-[开发指南](docs/development.md) ·
+[开始工作](CONTRIBUTING.md#开始工作) ·
 [参与贡献](CONTRIBUTING.md)
 
-从[文档入口](docs/README.md)选择使用、管理、运维、集成、研发或负责人路径；人和 agent 使用同一套正文。已有明确任务时，从[任务地图](docs/context-map.md)找到必要上下文及停止点。Coding agents 另从 [AGENTS.md](AGENTS.md)加载项目心智、责任地图与触发。
-
-需要先看全项目知识和文档怎样组织，读[知识地图](docs/knowledge-map.md)；agent一次加载的文字版见[体系上下文](docs/knowledge-map-agent.md)。
+从[文档入口](docs/README.md)选择使用、管理、运维、集成、研发或负责人路径；人和 agent 使用同一套正文。Coding agents 另从 [AGENTS.md](AGENTS.md)加载项目心智、责任地图与触发。
 
 ## 系统目标
 
@@ -65,8 +63,8 @@
 | [packages.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)、[apps.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md) | 封存源码与公开说明，已从仓库删除，链接指向固定提交。只用于来源核对，不作为新树实现支持 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
 
-参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md)和[开发初始化](docs/development.md#准备可用的检出)开始。研发流程走 pqw-skills，它是 git 子模块，随检出初始化；人或 agent 使用的 coding agent harness 另须安装指定版本的 pstack、Matt 与 ub-mode。版本及采用范围归[技能入口](docs/engineering/skills.md#来源与项目采用)。环境准备、命令与按任务选择验证的方法继续由开发指南维护。
+参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md)和[准备检出](CONTRIBUTING.md#准备检出)开始。研发流程走 pqw-skills，它是 git 子模块，随检出初始化；人或 agent 使用的 coding agent harness 另须安装指定版本的 pstack、Matt 与 ub-mode。版本及采用范围归[来源与采用](.meta_harness/tooling/README.md#来源与采用)。环境准备见[开始工作](CONTRIBUTING.md#开始工作)。
 
 日常文档维护可运行 `pnpm run check:docs`。`pnpm run check` 按影响面选择必要检查，未选择的检查没有执行；结论边界归[质量论证](docs/architecture/assurance.md#证据与有效范围)。这些检查不证明产品已支持、业务行为符合或已获负责人接受。
 
-阅读封存命令时，从固定提交中的[封存CLI](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/README.md)或[封存宿主](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)核对构建、环境与权限前提，不能直接当作新树启动方法。新增或修改文档按[维护指南](docs/maintenance.md)选择层级、同步消费者和检查引用。
+阅读封存命令时，从固定提交中的[封存CLI](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/cli/README.md)或[封存宿主](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)核对构建、环境与权限前提，不能直接当作新树启动方法。新增或修改文档按[知识放哪](AGENTS.md#知识放哪)选择层级、同步消费者和检查引用。

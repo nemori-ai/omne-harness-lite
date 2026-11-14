@@ -7,7 +7,7 @@
 - `src/session-protocol.ts`：全部规则字面量、`sessionProtocol` 与推出的类型 `SessionProtocol`、`ObserveSessionOpen`、`ObserveSessionFrame`。
 - `src/index.ts`：根入口，只转出上面四个名字。
 
-唯一的依赖是 `@omne-harness/public-contract`（[成员组织](../../../../docs/package-organization.md)「`<领域>-protocol`」）。没有状态，没有资源。会话的领域核心不依赖本包（RFC-0015 I-17）。
+唯一的依赖是 `@omne-harness/public-contract`。没有状态，没有资源。会话的领域核心不依赖本包（RFC-0015 I-17）。
 
 ## 关键机制与理由
 

@@ -228,7 +228,7 @@ Session 规格「身份桥、证据桥与 Context 输入」说已校验候选「
 
 ### 位置与采用范围
 
-**AC-18** 新成员位于 `packages/assembly/adoption-contract`，包名 `@omne-harness/adoption-contract`。成员含纯类型、校验、摘要函数、Cordis 服务定义、内存替身与符合性套件，结构沿 `sql-contract`：入口 `.`、`./cordis`、`./testing`。它依赖 `exchange-refs`、`legal-identity`、`operation-result`、`json-text` 与 Cordis。它不依赖 `assembly`、Session、Agent、Tool 的任何成员，也不被它们依赖。只有应用成员与具名提供者导入它。依据：[产品包组织](../../package-organization.md)规定业务成员不读取 `assembly` 取得全局服务。
+**AC-18** 新成员位于 `packages/assembly/adoption-contract`，包名 `@omne-harness/adoption-contract`。成员含纯类型、校验、摘要函数、Cordis 服务定义、内存替身与符合性套件，结构沿 `sql-contract`：入口 `.`、`./cordis`、`./testing`。它依赖 `exchange-refs`、`legal-identity`、`operation-result`、`json-text` 与 Cordis。它不依赖 `assembly`、Session、Agent、Tool 的任何成员，也不被它们依赖。只有应用成员与具名提供者导入它。依据：[本组入口](README.md)规定业务成员不读取 `assembly` 取得全局服务。
 
 **AC-19** 契约只有一个 Cordis 服务键 `adoptionCoordinator`，由 `adoption-contract` 的 `./cordis` 定义。`sessionAdoptionSource` 与 `agentAdoptions` 仍由 Session 与 Agent 的 Cordis 契约拥有。它们是消费口，不是第二个来源。同一来源只保留一个键拥有位置。依据：Session 的 Cordis 契约用 `SessionAdoptionSourceService` 定义 `sessionAdoptionSource`。Session 端口把采用、生产、保管三个证据桥消费口标为 XC-ADOPTSRC，三者的键都由 Session 的 Cordis 契约定义。
 

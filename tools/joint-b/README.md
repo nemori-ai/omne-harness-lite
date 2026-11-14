@@ -208,8 +208,7 @@ sqlite-provider 的读写 Worker 也要解析源码。Worker 不继承主线程�
 
 ## 归属
 
-本目录归联调轨道，依据同 [联调 A](../joint-a/README.md#归属)：路径按 `docs/engineering/integration.md`
-「线与归属」的目录前缀匹配，`tools/` 本身列在 `engineering-toolchain` 线下，所以选 `tools/` 之下一个
+本目录归联调轨道，依据同 [联调 A](../joint-a/README.md#归属)：路径按目录前缀匹配，`tools/` 本身列在 `engineering-toolchain` 线下，所以选 `tools/` 之下一个
 表里没有的目录，不动工作区与锁文件。交付线为 `integration` 的卡写入此处时，route 用 `cross-track`，
 具名联调轨道与 `engineering-toolchain` 线的 owner。
 

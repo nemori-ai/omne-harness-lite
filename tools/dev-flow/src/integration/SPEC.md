@@ -1,8 +1,8 @@
 # 分支集成工具行为契约
 
-本工具在 gate 运行时等待并代为确认（I21），派发并跟踪工具包的发行运行，为 `pnpm run check` 核对契约快照与 dist（I22）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，不验证候选，也不发布。保留条款沿用原编号。
+本工具在 gate 运行时等待并代为确认（I21），派发并跟踪工具包的发行运行，为 `pnpm run check` 核对契约快照与 dist（I22）。四条主干的进入按[准入证据怎样取得](../../../../.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md)执行，由 `github-gate` 的流程发布。本工具不构造候选，不验证候选，也不发布。保留条款沿用原编号。
 
-本模块兑现[轨道与 gate](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码，命令用法归 [README](README.md)。以下承诺约束实现。
+本模块兑现[进轨道](../../../../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)。公开类型及输入解析归本目录源码，命令用法归 [README](README.md)。以下承诺约束实现。
 
 ## 交付配置
 

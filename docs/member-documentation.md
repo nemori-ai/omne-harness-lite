@@ -43,7 +43,7 @@
 
 ### 固定骨架
 
-新成员由包模板生成，必需节点见[包组织](package-organization.md#成员的必选结构)：`package.json`、两份 tsconfig、`vitest.config.ts`、`src/index.ts`、`tests/public-entry.spec.ts`；绑定变体另有 `src/cordis.ts` 与它的用例。没有 Markdown，没有文档登记。
+新成员由包模板生成，必需节点：`package.json`、两份 tsconfig、`vitest.config.ts`、`src/index.ts`、`tests/public-entry.spec.ts`；绑定变体另有 `src/cordis.ts` 与它的用例。没有 Markdown，没有文档登记。
 
 新包组由包组模板生成一份带六个标题的 `SPEC.md`。
 

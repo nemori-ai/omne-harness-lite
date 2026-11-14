@@ -1,6 +1,6 @@
 # TypeScript 包模板
 
-本目录拥有 `typescript-package@4.0.0`，是开发资源，不是 workspace 产品成员。公开接口、行为与接受继续归原拥有者。成员的必选形状见[包组织](../../../../docs/package-organization.md#成员的必选结构)。英文说明见 [README.md](README.md)。
+本目录拥有 `typescript-package@4.0.0`，是开发资源，不是 workspace 产品成员。公开接口、行为与接受继续归原拥有者。英文说明见 [README.md](README.md)。
 
 ## 创建与完整结构核对
 
@@ -33,7 +33,7 @@ packages/<group>/<name>/
 ```
 
 生成的 `package.json` 有先删除 `dist` 的 build、写在 `types` 前面的 `source` 条件、只发布 `dist` 的 `files`，以及 `test`、`test:fast`、`test:slow` 三个测试脚本，层由 vitest 的 mode 选择。它们不构建：在仓库根运行 `pnpm turbo run test --filter=<包名>`，turbo 先构建本成员及其依赖。`tsconfig.build.json` 设 `erasableSyntaxOnly`。发布时去掉 `source`。
-`tests/public-entry.spec.ts` 从包名核对当前公开导出。单元、契约、集成和端到端按[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)选择。只有实现具体存储或应用服务的包增加集成测试，只有关键旅程的拥有者增加端到端测试。
+`tests/public-entry.spec.ts` 从包名核对当前公开导出。单元、契约、集成和端到端按[包级测试责任与边界](../../../../docs/architecture/assurance.md#包级测试责任与边界)选择。只有实现具体存储或应用服务的包增加集成测试，只有关键旅程的拥有者增加端到端测试。
 
 ## 归属与变体
 
@@ -48,7 +48,7 @@ packages/<group>/<name>/
 
 变体由实际责任判断。私有 RowLifetime 之类的 helper 不自动使协调包变成公开 Service 提供者。不能凭目录名或一条 provide 抽取事实裁定。
 
-Service 定义的归属沿[产品包组织](../../../../docs/package-organization.md)。目录名 `core` 不授予创建或扫描许可。
+Service 定义的归属沿[组织原则](../../../../docs/architecture/structure.md#组织原则)。目录名 `core` 不授予创建或扫描许可。
 
 ## 完整结构核对
 

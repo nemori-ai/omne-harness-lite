@@ -128,7 +128,7 @@ function healLineEndings(root: string): EnvironmentHealing['lineEndings'] {
       restored: [],
       kept: [],
       blocked:
-        '本仓库 core.autocrlf=true，检出就写 CRLF，不从索引重新检出；按 docs/development.md 设 git config core.autocrlf input 后再检出',
+        '本仓库 core.autocrlf=true，检出就写 CRLF，不从索引重新检出；设 git config core.autocrlf input 后再检出',
     }
   const candidates = crlfWorkingCopies(root)
   if (candidates.length === 0) return { restored: [], kept: [] }

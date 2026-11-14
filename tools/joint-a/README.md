@@ -17,7 +17,7 @@ node tools/joint-a/refusal.mjs [--evidence <目录>] [--keep]
 
 ## 归属
 
-本目录归联调轨道。依据是 `docs/engineering/integration.md`「线与归属」：路径按目录前缀匹配，
+本目录归联调轨道。路径按目录前缀匹配，
 表中没有列出的路径归联调轨道；`tools/` 本身列在 `engineering-toolchain` 线下，所以这里选的是
 `tools/` 之下一个表里没有的目录，而不是 `tools/` 的根。写成 `tools/joint-a/` 还避开了
 `pnpm-workspace.yaml` 逐个点名的工作区成员与 `apps/*` 的成员先例，不需要动锁文件。

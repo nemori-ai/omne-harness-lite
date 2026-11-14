@@ -2,7 +2,6 @@
 
 This directory owns `typescript-package@4.0.0`. It is a development resource, not a workspace product member.
 Public interfaces, behavior and acceptance remain with their existing owners.
-The required member shape is [package organization](../../../../docs/package-organization.md#成员的必选结构).
 
 ## Create and inspect
 
@@ -42,7 +41,7 @@ The generated `package.json` has a `build` script that deletes `dist` first, the
 The vitest mode selects the tier. These scripts do not build. From the repository root, run `pnpm turbo run test --filter=<package name>`. Turbo builds the member and its dependencies first.
 `tsconfig.build.json` sets `erasableSyntaxOnly`. Published packages omit `source`.
 `tests/public-entry.spec.ts` imports the package name and checks the current public exports.
-Add integration only for a package that implements storage or an application service, and an end-to-end test only for the owner of a key user journey. See [package test duty](../../../../docs/verification.md#包级测试责任与边界).
+Add integration only for a package that implements storage or an application service, and an end-to-end test only for the owner of a key user journey. See [package test duty](../../../../docs/architecture/assurance.md#包级测试责任与边界).
 
 ## Resources and variants
 
@@ -56,7 +55,7 @@ Add integration only for a package that implements storage or an application ser
 | variants/service-provider/ | Independent factories and bindings that consume public Service definitions             |
 
 `service-contract` can be created in any kebab-case group, including `identity` and `access`. The directory name `core` does not grant create or scan permission.
-Ownership of Service definitions stays with [Product package organization](../../../../docs/package-organization.md).
+Ownership of Service definitions stays with [organization principles](../../../../docs/architecture/structure.md#组织原则).
 Choose a variant from responsibility review, not directory names or a single extracted provide fact.
 Private helper services do not automatically make a coordination package a public Service provider.
 A provider consumes the public promises instead of copying them.

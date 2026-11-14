@@ -270,7 +270,7 @@ uv run --locked python .meta_harness/tooling/src/resident_card.py --project-root
 ## Cursor 原生包与项目视图
 
 Cursor 产物根是 `output/.cursor/`，包含 `.cursor-plugin/plugin.json`、skills、hooks.json、plugin-hooks.json 和 runtime。
-manifest 明确组件路径，不把维护源目录当作插件。第三方 pstack/Matt 的宿主来源归执行仓库 `docs/engineering/skills.md`，本工具不安装或复制其正文。
+manifest 明确组件路径，不把维护源目录当作插件。第三方 pstack/Matt 的宿主来源归本页[来源与采用](#来源与采用)，本工具不安装或复制其正文。
 
 CLI 和 IDE 可用项目 `.cursor` 相对视图，也可安装物理原生包。CLI 的插件方式示例为 `agent --plugin-dir /absolute/package/.cursor`。
 外部安装先在新的物理目录生成，只搬运 `.cursor/` 包；不使用指向维护源的链接。安装位置变化不改变包内相对引用。

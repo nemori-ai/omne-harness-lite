@@ -24,11 +24,11 @@ author 与 committer 是潘其威(William)，邮箱是 `46810637+PanQiWei@users.
 
 ## pqw-skills
 
-pqw-skills 是子模块，不在镜像里安装。`install.sh` 先运行 `git submodule update --init`，再编译 agent 生成物；读哪一版按[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用)的规则。
+pqw-skills 是子模块，不在镜像里安装。`install.sh` 先运行 `git submodule update --init`，再编译 agent 生成物；读哪一版按[外部技能集](../../../tooling/README.md#外部技能集)的规则。
 
 ## Matt skills
 
-镜像安装[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用)中的 Matt revision `b0618bc436ad893b3c5e84e55fba86586d34a404`。`npx skills` 会把该 revision 当成分支名，所以镜像先取出这个 commit，再执行 `-a cursor -g`。
+镜像安装[技能来源表](../../../tooling/README.md#来源与采用)中的 Matt revision `b0618bc436ad893b3c5e84e55fba86586d34a404`。`npx skills` 会把该 revision 当成分支名，所以镜像先取出这个 commit，再执行 `-a cursor -g`。
 
 技能正文在 ubuntu 用户的 `~/.agents/skills`。每个目录再链接到 `~/.cursor/skills`。镜像不运行 `setup-matt-pocock-skills`。安装完整插件不扩大方法采用范围。
 

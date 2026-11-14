@@ -42,7 +42,7 @@ topic 按独立产品问题、读者和变化原因组织，不要求与工程�
 
 起草沿 `product-design`。写前加载 pqw `clear-writing`，照它的规则写，写后按实际正文复核。概念沿[统一语言](../ubiquitous_language/README.md)，有身份的对象沿[领域对象](../domain_objects/README.md)。已答问题落实正文并退出活动问题；原问答与评审留任务 tmp。技术细节在所属组或成员维护，产品末块保留必要影响与跳转。
 
-活动交付按[卡与交接信息包](../../agents/skills/omne-card/canonical/SKILL.md#卡就是交接信息包)。长期规格承载当前决定版行为，不以单次任务材料替代；本区不保存过程账本或第二份技术契约。
+活动交付按[卡就是交接信息包](../../agents/skills/omne-card/canonical/SKILL.md#卡就是交接信息包)。长期规格承载当前决定版行为，不以单次任务材料替代；本区不保存过程账本或第二份技术契约。
 
 ## 未决问题与待定事项
 

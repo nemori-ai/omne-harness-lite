@@ -23,4 +23,4 @@
 
 工具包不因安装到根开发环境就成为产品运行时依赖。仓库自动化的编排放在
 [scripts/](../scripts/README.md)；自包含 skill 的脚本留在技能目录。
-详细分工和依赖规则见[workspace 规范](../docs/workspace.md)。
+详细分工和依赖规则见[组织原则](../docs/architecture/structure.md#组织原则)。

@@ -93,7 +93,7 @@ function wrappedInPhysicalPath(
 
 export const testTempPhysicalPath: Rule = {
   id: 'test-temp-physical-path',
-  source: 'Issue #560 C5；docs/verification.md「包级测试责任与边界」',
+  source: 'Issue #560 C5；docs/architecture/assurance.md「包级测试责任与边界」',
   description:
     'packages/、apps/、tools/ 下的测试与夹具在系统临时目录下用 mkdtempSync／mkdtemp 建目录时，必须取物理路径',
   check(files) {
