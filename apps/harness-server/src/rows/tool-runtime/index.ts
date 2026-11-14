@@ -54,7 +54,7 @@ import { createReleaseBodySchemas } from '../../entry/tool-body-schemas.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { mountToolHitl } from '../tool-hitl/mount.ts'
-import { ensureToolRuntimeBundle } from './bundle.ts'
+import { ensureToolRuntimeBundle, type ToolLostContact } from './bundle.ts'
 import { toolRuntimeConfigSchema, type ToolRuntimeConfig } from './config.ts'
 import { awaitBundle, toolRuntimeHolder } from './holder.ts'
 import {
@@ -110,7 +110,9 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
   )
 }
 
-const recordsPlugin: Plugin.Object = {
+export type ToolRecordsRowInput = Readonly<{ lostContact?: ToolLostContact }>
+
+const recordsPluginOf = (input: ToolRecordsRowInput): Plugin.Object => ({
   name: 'tool-records',
   inject: [
     storageKey,
@@ -133,35 +135,39 @@ const recordsPlugin: Plugin.Object = {
       },
       'tool-records.body-schemas',
     )
-    const bundle = ensureToolRuntimeBundle(ctx, config)
+    const bundle = ensureToolRuntimeBundle(ctx, config, input.lostContact)
     bundle.records.apply(ctx)
     new ToolInvocationQualificationService(ctx, bundle.qualification)
   },
+})
+
+export function createToolRecordsRow(input: ToolRecordsRowInput = {}) {
+  return defineRow({
+    row: 'tool-records',
+    implementation: 'real',
+    manifest: {
+      provides: [
+        toolCommandsKey,
+        toolReadsKey,
+        toolStartAuthorityKey,
+        toolStartFenceKey,
+        toolInvocationQualificationKey,
+      ],
+      injects: [
+        storageKey,
+        tenantDomainLookupKey,
+        tenantDomainsKey,
+        TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+        telemetryKey,
+      ],
+      sameProviderGroup: 'tool-start',
+    },
+    lifecycle: { kind: 'none' },
+    plugin: recordsPluginOf(input),
+  })
 }
 
-export const toolRecordsRow = defineRow({
-  row: 'tool-records',
-  implementation: 'real',
-  manifest: {
-    provides: [
-      toolCommandsKey,
-      toolReadsKey,
-      toolStartAuthorityKey,
-      toolStartFenceKey,
-      toolInvocationQualificationKey,
-    ],
-    injects: [
-      storageKey,
-      tenantDomainLookupKey,
-      tenantDomainsKey,
-      TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
-      telemetryKey,
-    ],
-    sameProviderGroup: 'tool-start',
-  },
-  lifecycle: { kind: 'none' },
-  plugin: recordsPlugin,
-})
+export const toolRecordsRow = createToolRecordsRow()
 
 export const toolRuntimeRow = defineRow({
   row: 'tool-runtime',
@@ -273,6 +279,7 @@ const environmentsPlugin: Plugin.Object = {
       'tool-environments.schema-provider',
     )
     bundle.environments.apply(ctx)
+    await ctx.plugin(bundle.maintenance)
   },
 }
 

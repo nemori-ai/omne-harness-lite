@@ -43,6 +43,7 @@ import { checkSuspensionCommandBound } from './rows/tool-runtime/suspension-boun
 import { monotonicClock, runShutdown, stopPredecessors } from './shutdown.ts'
 import { releaseToolRequestsOf } from './entry/tool-requests.ts'
 import { createAgentHostRow } from './rows/agent-host/index.ts'
+import { createToolRecordsRow } from './rows/tool-runtime/index.ts'
 import { acquireStateLock, lostContactBy, type StateLock } from './state-lock.ts'
 import { prepareStartupDirectory } from './startup-directory.ts'
 import { createTrust, type Trust } from './trust.ts'
@@ -544,14 +545,16 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
       return `state-root-unusable: ${error instanceof Error ? error.message : String(error)}`
     }
   }
-  // The release's own `agent-host` row gets the proof of this run's lock. A caller that gives its
-  // own plugins gives its own row, which judges nothing lost unless it was built with a proof.
+  // The release's own `agent-host` and `tool-records` rows get the proof of this run's lock. A
+  // caller that gives its own plugins gives its own rows, which judge nothing lost unless they
+  // were built with a proof.
   const plugins: Readonly<Record<string, unknown>> = options.plugins ?? {
     ...releasePlugins,
     agentHostRow: createAgentHostRow({
       toolRequestsOf: releaseToolRequestsOf,
       lostContact: lostContactBy(() => lock),
     }),
+    toolRecordsRow: createToolRecordsRow({ lostContact: lostContactBy(() => lock) }),
   }
   try {
     return await runServeWithHostFiles({ ...options, plugins }, hostFiles, lockState)
