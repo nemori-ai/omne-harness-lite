@@ -96,6 +96,7 @@ import {
   frozenSet,
   journalEvidence,
   revisionOf,
+  openKey,
   semanticKey,
   sequenceOf,
   JOURNAL_OWNER,
@@ -2450,7 +2451,7 @@ export function createMemoryAgentJournal<P>(
     capabilities: Object.freeze({ coordination, participants }),
 
     open(input) {
-      const key = semanticKey('open', input)
+      const key = openKey(input)
       const { original: acceptance, runtime } = input
       const entry = acceptance.entry
       const initial = entry.kind === 'invoke' ? entry.initial : entry.value
@@ -2461,7 +2462,6 @@ export function createMemoryAgentJournal<P>(
         }
         const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
         if (original !== undefined) return answer(original)
-        // Another operation already opened this execution identity: same identity, other input.
         if (existing !== undefined) return answer(fail(conflict(input.operation)))
         // The two parts of the acceptance must agree with each other and with this operation
         // (SPEC "输入内容与水位线"): the first open uses the fixed adoption of the invoke origin.

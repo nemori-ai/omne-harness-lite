@@ -1,5 +1,7 @@
 // The recovery of an active Run whose execution was handed over (contract PM-14, PM-05; SPEC C2
-// 顺序：恢复与接管, the recovery path only). S3 hands an active Run here. The execution record decides:
+// 顺序：恢复与接管, the recovery path only). S3 hands an active Run here. Every active Run that holds
+// an advance is asked about, whether or not its hand-over was recorded: the Agent may have accepted
+// the invoke in a process that ended before the answer came back. The execution record decides:
 //
 // - The attachment is active and the host of the record has no judgment that its runtime is out of
 //   contact: the Agent advances the execution, and nothing is done (PM-14).
@@ -49,18 +51,6 @@ export type Recovery = Readonly<{
 }>
 
 type ActiveRun = Extract<WorkSnapshot['run'], { kind: 'active' }>
-
-/**
- * The active Run that the Agent accepted: its first input was handed over (SE35), or the Agent
- * took it in a batch, so it is no longer pending. The second fact stands alone where the
- * hand-over cannot be recorded (no production evidence source). The other case, a first input that
- * is pending without a hand-over, is the granted Run that C2 invokes again (PA-06 item 2).
- */
-export function acceptedRun(snapshot: WorkSnapshot): ActiveRun | null {
-  const { run } = snapshot
-  if (run.kind !== 'active') return null
-  return snapshot.handed.includes(run.first) || !snapshot.pending.includes(run.first) ? run : null
-}
 
 /**
  * Whether the attachment of the execution can be handed back now: it was handed back already, or
@@ -195,9 +185,8 @@ export function createRecovery<P>(
     if ('failure' in principal) return
     const snapshot = await coordinator.work.readWork({ principal: principal.ok, ...ref })
     if ('failure' in snapshot) return
-    const run = acceptedRun(snapshot.ok)
-    if (run === null) return
-    // No member releases an advance without a claim, so the Run that the Agent accepted holds one.
+    const { run } = snapshot.ok
+    if (run.kind !== 'active') return
     const { advance } = run
     if (advance === null) return
     const execution = run.execution.execution

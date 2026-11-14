@@ -641,6 +641,10 @@ export function createProvider<P, B extends ContentBlock>(
       else giveBack()
       return fail({ kind: 'commit-unknown', operation })
     }
+    if (opened.ok.instance !== instance) {
+      giveBack()
+      return succeed(handleOf(execution))
+    }
     accepted = { operation, execution, input: inputText(input) }
     const attachment = opened.ok.executionAttachment
     occupy({ kind: 'running', execution, attachment })
@@ -752,9 +756,6 @@ export function createProvider<P, B extends ContentBlock>(
     return succeed(handleOf(input.execution))
   }
 
-  // SPEC 804: matching operation, execution and input return the original handle.
-  // This holds during the run, after a stop and after the end. SPEC 774: another input conflicts
-  // while its original execution holds the slot. Otherwise the Journal checks the input.
   function answerRemembered(
     input: InvokeInput<P>,
   ): Outcome<AgentExecutionHandle<P>, Failure> | undefined {
@@ -780,7 +781,6 @@ export function createProvider<P, B extends ContentBlock>(
       slot.execution === input.execution
     )
       return retryUnresolved(input, slot)
-    // SPEC 646: a new invoke while the slot is held answers busy; it is never queued.
     if (slot.kind !== 'free')
       return slot.execution === input.execution ? fail({ kind: 'busy' }) : findAccepted(input)
     occupy({ kind: 'reserved', execution: input.execution, acceptance: null })

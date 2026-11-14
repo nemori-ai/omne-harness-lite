@@ -3797,7 +3797,7 @@
     "packages/session/session-adapters/src/testing/journal-finishing.ts": 11,
     "packages/session/session-adapters/src/testing/journal-receiving.ts": 2,
     "packages/session/session-adapters/src/testing/journal-records.ts": 1,
-    "packages/session/session-adapters/src/testing/journal.ts": 14,
+    "packages/session/session-adapters/src/testing/journal.ts": 13,
     "packages/session/session-adapters/src/testing/reception-targets.ts": 1,
     "packages/session/session-adapters/src/testing/root.ts": 1,
     "packages/session/session-adapters/src/testing/session-sources.ts": 2,
@@ -4150,7 +4150,7 @@
       },
       "packages/agent/agent/src/testing/journal.ts": {
         "count": 6,
-        "longest": 3147
+        "longest": 3146
       },
       "packages/agent/agent/src/testing/model-receiver.ts": {
         "count": 1,
@@ -4546,7 +4546,7 @@
       },
       "packages/session/session-adapters/src/testing/journal.ts": {
         "count": 6,
-        "longest": 3999
+        "longest": 3998
       },
       "packages/session/session-adapters/src/testing/root.ts": {
         "count": 1,
@@ -4610,7 +4610,7 @@
       },
       "packages/session/session/src/recover.ts": {
         "count": 1,
-        "longest": 169
+        "longest": 168
       },
       "packages/session/session/src/scan.ts": {
         "count": 1,

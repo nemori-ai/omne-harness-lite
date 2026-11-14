@@ -103,6 +103,7 @@ import {
   frozenSet,
   journalEvidence,
   revisionOf,
+  openKey,
   semanticKey,
   sequenceOf,
   JOURNAL_OWNER,
@@ -3516,7 +3517,7 @@ export function createJournal<P>(
     capabilities: Object.freeze({ coordination: 'coordinated' as const, participants }),
 
     open(input) {
-      const key = semanticKey('open', input)
+      const key = openKey(input)
       const { original: acceptance, runtime } = input
       const entry = acceptance.entry
       const initial = entry.kind === 'invoke' ? entry.initial : entry.value
@@ -3554,7 +3555,6 @@ export function createJournal<P>(
           generation: '1',
           source: attachmentEvidence(input.execution, 'attach', 1, 1),
         }
-        // The initial checkpoint comes from the caller, not from the invoke entry (R2-D292).
         const checkpoint = input.checkpoint
         const outcome = acceptance.outcome
         const bound = receiving.newBindings(
