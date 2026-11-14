@@ -23,8 +23,8 @@ relations:
 
 - [产品正文](design.md)维护规则、用户路径、能力状态、可观察演示和有效未决。
 - [领域责任](../../../../docs/domains/schedules-and-jobs/README.md)维护事实归属与协作边界。
-- [能力组](../../../../packages/schedule/README.md)维护工程关系。
-- [行为规格](../../../../packages/schedule/schedule/SPEC.md)及[内部设计](../../../../packages/schedule/schedule/docs/internals.md)维护精确行为、技术采用与验证义务。
+- [能力组规格](../../../../packages/schedule/SPEC.md#总体架构)维护工程关系。
+- [行为规格](../../../../packages/schedule/SPEC.md#应然设计)维护精确行为与不变式。
 
 ## 与已有 topic 的关系
 

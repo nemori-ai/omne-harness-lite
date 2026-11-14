@@ -1,6 +1,6 @@
 # 日程与 Job 协作设计
 
-本页维护已确认的目标领域边界，不表示实现、装配或运行验证。范围归[领域入口](README.md)，精确行为归[schedule/schedule SPEC](../../../packages/schedule/schedule/SPEC.md)，产品规则归[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)。类型定义由实际成员唯一维护，下列接口名表达目标消费责任，不声称已经导出。
+本页维护已确认的目标领域边界，不表示实现、装配或运行验证。范围归[领域入口](README.md)，精确行为归[日程规格](../../../packages/schedule/SPEC.md)，产品规则归[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)。类型定义由实际成员唯一维护，下列接口名表达目标消费责任，不声称已经导出。
 
 ## 独立部署与本地实现
 

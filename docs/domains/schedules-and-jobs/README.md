@@ -1,6 +1,6 @@
 # 日程与 Job
 
-本页维护已接受的目标责任与公开协作，采用范围见[领域入口](../README.md#维护与状态)。目标沿源 Python 修订 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0` 的产品范围，采用用户确认的 D3、D4、D5、D9 单一终态。来源与验收映射归[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)及[成员规格](../../../packages/schedule/schedule/SPEC.md)，正文接受不表示实现或提供者已验证。
+本页维护已接受的目标责任与公开协作，采用范围见[领域入口](../README.md#维护与状态)。目标沿源 Python 修订 `a7dbd98f9c5c7a8ead6afbd18896777f0cf1ecd0` 的产品范围，采用用户确认的 D3、D4、D5、D9 单一终态。来源与验收映射归[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)及[日程规格](../../../packages/schedule/SPEC.md)，正文接受不表示实现或提供者已验证。
 
 ## 范围与边界
 
@@ -39,7 +39,7 @@ Schedule 消费[日历](../calendars/README.md)的版本、覆盖和计算，消
 
 ## 契约与验证导航
 
-[成员规格](../../../packages/schedule/schedule/SPEC.md)拥有精确状态、命令、API、失败与验收，[成员内部设计](../../../packages/schedule/schedule/docs/internals.md)承接提交、算法、队列及恢复。产品规则沿[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)，领域消费与组合责任沿[协作设计](architecture.md)。
+[日程规格](../../../packages/schedule/SPEC.md)拥有精确行为、失败语义与不变式。产品规则沿[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)，领域消费与组合责任沿[协作设计](architecture.md)。
 
 上层约束见[总体结构](../../architecture/structure.md)、[结果承接](../../architecture/structure.md#执行事实与结果承接)、[控制恢复](../../architecture/runtime/control-and-recovery.md)及[组合验证](../verification.md)。源码无环和文档检查不证明撤权、幂等或断电恢复已成立。
 
@@ -47,10 +47,10 @@ Schedule 消费[日历](../calendars/README.md)的版本、覆盖和计算，消
 
 已确认规则沿唯一终态实施：follow/explicit 与冻结 Job 分开；eligibleLimit/jobLimit 独立且合取；draft/promote/discard 和原子 replace 保留；周期 execution 补跑只用 none/latestN，不保留 pending-first 兼容策略。精确规则与例外见[关键流程](key-flows.md)。
 
-成员须兑现同提交 participant、当前资格守卫、执行查询与真实停止、通知承接、恢复和背压。storage 已有真实 sql-contract/sqlite-provider。Schedule 管理、预测、查询及本地持久化已有实现，Job 接受、扫描、执行与结果协调仍待兑现。提供者限制不能被同进程调用或 Cordis 注入掩盖。实际公开能力与验证边界以[成员入口](../../../packages/schedule/schedule/README.md)为准。
+成员须兑现同提交 participant、当前资格守卫、执行查询与真实停止、通知承接、恢复和背压。storage 已有真实 sql-contract/sqlite-provider。Schedule 管理、预测、查询及本地持久化已有实现，Job 接受、扫描、执行与结果协调仍待兑现。提供者限制不能被同进程调用或 Cordis 注入掩盖。成员与边界见[日程规格](../../../packages/schedule/SPEC.md#总体架构)。
 
 ## 正式产品与技术承接导航
 
-[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)维护来源范围与规则，[能力组](../../../packages/schedule/README.md)维护工程关系，[成员规格](../../../packages/schedule/schedule/SPEC.md)及[内部设计](../../../packages/schedule/schedule/docs/internals.md)承接可实现行为。外部 self-wake 和 handoff 的组合责任见[协作设计](architecture.md#外部产品组合)，不成为核心强制依赖。
+[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)维护来源范围与规则，[日程规格](../../../packages/schedule/SPEC.md)维护工程关系并承接可实现行为。外部 self-wake 和 handoff 的组合责任见[协作设计](architecture.md#外部产品组合)，不成为核心强制依赖。
 
-函数、并发与时钟消费的守护见[成员函数契约](../../../packages/schedule/schedule/docs/functions-and-coordination.md)及 [verification](../../../packages/schedule/schedule/verification/README.md)。有限模型检查不代替真实执行与协调验证。
+函数、并发与时钟消费的守护见[日程规格](../../../packages/schedule/SPEC.md#时钟与定时器)及[形式化对照](../../../packages/schedule/schedule/verification/formal-mapping.md)。有限模型检查不代替真实执行与协调验证。

@@ -19,7 +19,7 @@
 | [human-intervention](human-intervention/README.md) | 人工介入 | `human-intervention` |
 | [execution](execution/SPEC.md) | 执行环境 | `execution-environment` |
 | [calendar](calendar/SPEC.md) | 日历 | `calendar-contract`, `calendar-cordis-contract`, `calendar`, `calendar-local`, `calendar-tools` |
-| [schedule](schedule/README.md) | 日程与Job | `schedule-contract`, `schedule-cordis-contract`, `schedule`, `schedule-local`, `schedule-tools` |
+| [schedule](schedule/SPEC.md) | 日程与Job | `schedule-contract`, `schedule-cordis-contract`, `schedule`, `schedule-local`, `schedule-tools` |
 | [notification](notification/README.md) | 通知 | `notification` |
 | [slash-command](slash-command/README.md) | Slash Command | 待具名 |
 | [skills](skills/SPEC.md) | Skill | `skill-contract`, `skill`, `skill-host-local`, `skill-cordis-contract` |
