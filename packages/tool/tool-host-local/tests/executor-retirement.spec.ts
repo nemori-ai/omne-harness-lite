@@ -192,6 +192,7 @@ async function world(
       options.receiver ?? (f.input.position.receiver as unknown as ExecutorInput['receiver']),
     // Without a scripted scan, no old call waits for this executor.
     recovery: { scan: options.scan ?? (async () => succeed({ calls: [], next: null })) },
+    instance: () => instanceId,
   })
   const step: Step = { ...f.access, instance: instanceId, signal: new AbortController().signal }
   return {

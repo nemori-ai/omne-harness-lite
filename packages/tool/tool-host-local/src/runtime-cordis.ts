@@ -2,11 +2,9 @@ import { createToolForwardRuntime } from '@omne-harness/tool'
 import type { ToolForwardRuntime } from '@omne-harness/tool-contract/provider'
 import type { Context } from '@deepseek-ai/cordis'
 import { fail } from '@omne-harness/operation-result'
-import type {
-  ToolInstanceHost,
-  ToolMessageContentBlock,
-} from '@omne-harness/tool-contract/provider'
+import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provider'
 import { ToolInstanceHostService } from '@omne-harness/tool-cordis-contract/cordis'
+import { executorCalls } from './call-liveness.ts'
 import { createRuntimeAuthorExecution, type RuntimeAuthorExecution } from './runtime-author.ts'
 import {
   createRuntimeDependencies,
@@ -27,7 +25,11 @@ import {
   publishRuntimeRecords,
   type RuntimeRecords,
 } from './runtime-records.ts'
-import { createLocalToolInstanceHost, createLocalToolInstanceIdentities } from './instance-host.ts'
+import {
+  createLocalToolInstanceHost,
+  createLocalToolInstanceIdentities,
+  type LocalToolInstanceHost,
+} from './instance-host.ts'
 import type { DeliveryPosition } from './result-delivery.ts'
 import { createLocalToolControlSubjects } from './control-subject-adapter.ts'
 
@@ -73,9 +75,13 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
     throw new TypeError('recoveryRescanMs: expected an integer from 1 to 2147483647')
   let environment: RuntimeEnvironment | null = null
   let records: RuntimeRecords | null = null
-  let host: ToolInstanceHost<unknown> | null = null
+  let host: LocalToolInstanceHost<unknown> | null = null
   let executor: ReturnType<typeof createRuntimeExecutor> | null = null
   let retired = false
+  const calls = executorCalls(
+    () => executor,
+    () => retired,
+  )
   let forwarding: ToolForwardRuntime<unknown> | undefined
   const bodyUnavailable = (operation: string) =>
     Promise.resolve(
@@ -114,19 +120,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
   }
   const dependencies = (ctx: Context) => {
     if (records === null) throw new Error('Tool records are not ready.')
-    return createRuntimeDependencies(
-      ctx,
-      input,
-      stages,
-      records,
-      () => host,
-      (wake, purpose) =>
-        !retired &&
-        executor !== null &&
-        (wake === null ? executor.live() : executor.remember(wake, purpose)),
-      wake => executor?.rejectAdmission(wake),
-      wake => executor?.knows(wake) ?? false,
-    )
+    return createRuntimeDependencies(ctx, input, stages, records, () => host, calls)
   }
   const close = async () => {
     retired = true
@@ -222,6 +216,7 @@ export function createLocalToolRuntimePlugins(given: LocalToolRuntimeInput) {
           },
           receiver: consumer => receivers.current(consumer),
           recovery,
+          instance: () => host?.instance ?? null,
         })
         ctx.effect(() => close)
       },

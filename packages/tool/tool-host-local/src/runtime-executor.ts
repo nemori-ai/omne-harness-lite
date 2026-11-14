@@ -7,13 +7,14 @@ import {
   type ToolLedger,
   type ToolLedgerRecovery,
 } from '@omne-harness/tool'
-import type { DurableEvidence } from '@omne-harness/tool-contract'
+import type { DurableEvidence, ToolInstanceId } from '@omne-harness/tool-contract'
 import type {
   ToolDriver,
   ToolInstanceHost,
   ToolMessageContentBlock,
 } from '@omne-harness/tool-contract/provider'
 import { owesWork, waitsForPerson } from './call-dormancy.ts'
+import { attachCall, startedElsewhere } from './call-liveness.ts'
 import { createRecoveryScans } from './recovery-scans.ts'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
@@ -72,9 +73,6 @@ function drivenLater(progress: string): boolean {
   )
 }
 
-/** 原执行可能仍在旧实例里运行的阶段：新实例不接上它，也不重新启动它。 */
-const POSSIBLY_LIVE: ReadonlySet<string> = new Set(['starting', 'live', 'unknown'])
-
 /** The rescan period when the input does not give one (SPEC「周期」). */
 const RESCAN_MS = 60_000
 
@@ -99,6 +97,7 @@ export function createRuntimeExecutor(
     >[0]['position']['receiver']
     /** 账本的受信恢复扫描：执行器启动时用它找回有待推进工作的旧调用。 */
     recovery: ToolLedgerRecovery
+    instance(): ToolInstanceId | null
   }>,
 ) {
   const { settings, dependencies } = input
@@ -364,16 +363,7 @@ export function createRuntimeExecutor(
           return
         }
         entry.started = true
-        // A new executor cannot attach an old execution by resolving the latest providers. It
-        // lets a call go only when the execution of the current segment can still run in an old
-        // instance; the start record of the segment names its owner. This instance advances a
-        // call that is suspended, ended or never started, or whose current segment it prepared.
-        const owner = before.ok.start?.execution.instance ?? before.ok.execution?.instance
-        if (
-          owner !== undefined &&
-          owner !== step.instance &&
-          POSSIBLY_LIVE.has(before.ok.state.execution.kind)
-        ) {
+        if (startedElsewhere(before.ok, step.instance) !== null) {
           foreignExecutionRuns += 1
           if (calls.get(keyOf(step)) === entry) {
             calls.delete(keyOf(step))
@@ -429,6 +419,7 @@ export function createRuntimeExecutor(
   return {
     remember,
     knows: (wake: Wake) => calls.has(keyOf(wake)),
+    attach: (wake: Wake) => attachCall(input, remember, wake),
     rejectAdmission(wake: Wake) {
       const entry = calls.get(keyOf(wake))
       if (entry === undefined || entry.started) return

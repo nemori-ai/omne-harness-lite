@@ -6,6 +6,7 @@ import { expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
+  encodeToolInvocationRef,
   resolveToolInvocationRef,
   type DecisionValue,
   type DurableEvidence,
@@ -377,6 +378,24 @@ it('a call that waits for a person leaves the executor: no slot of its table, an
     const asked = scripted.polls()
     await new Promise(resolve => setTimeout(resolve, 200))
     expect(scripted.polls()).toBe(asked)
+    expect((await recovery()).state.phase).toBe('suspended')
+  } finally {
+    await world.close()
+  }
+})
+
+it('a contact takes a call that waits for a person back: holding, and the run it queued lets the call go again', async () => {
+  const scripted = bridge(false)
+  const { world, parts, recovery, executor } = await waitingCall(scripted)
+  try {
+    await expect.poll(() => executor().knownCalls, { timeout: 3_000 }).toBe(0)
+    const exits = executor().dormantExits
+    const reference = unbox(encodeToolInvocationRef({ ...parts, tenant: world.tenantA }))
+    expect(unbox(await world.api.queries.contact(world.query(reference)))).toEqual({
+      kind: 'holding',
+    })
+    await expect.poll(() => executor().dormantExits, { timeout: 3_000 }).toBe(exits + 1)
+    expect(executor().knownCalls).toBe(0)
     expect((await recovery()).state.phase).toBe('suspended')
   } finally {
     await world.close()

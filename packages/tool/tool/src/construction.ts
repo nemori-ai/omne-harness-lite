@@ -171,9 +171,15 @@ export type ToolLedgerRejections<P> = Readonly<{
   settle(input: WriteContext & Readonly<{ principal: P; reason: string }>): Reply<ToolState>
 }>
 
+export type ToolCallLiveness = Readonly<{
+  holds(call: PendingCall): boolean
+  attach(call: PendingCall): Promise<boolean>
+}>
+
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   /** The ledger's original-controller check before a pending stop is sent. */
   controls?: ToolLedgerControls<P>
+  liveness?: ToolCallLiveness
   commands: ToolCommands<P, B>
   admissions: ToolLedgerAdmissions<P>
   queues: ToolLedgerQueues<P>

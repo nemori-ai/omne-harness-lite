@@ -803,10 +803,14 @@ export async function fixture(
      * A second runtime over the same records, as a restarted process has it: its own plugins, its
      * own start authority, and author bindings that settle into its own author execution.
      */
-    async newExecutor() {
+    async newExecutor(overrides: Partial<LocalToolRuntimeInput> = {}) {
       const nextRoot = new Context()
       let nextBindings: typeof bindings
-      const next = createLocalToolRuntimePlugins({ ...input, bindings: () => nextBindings })
+      const next = createLocalToolRuntimePlugins({
+        ...input,
+        ...overrides,
+        bindings: () => nextBindings,
+      })
       const external = nextRoot.plugin({
         name: 'frozen-reopened-external',
         apply(ctx: Context) {

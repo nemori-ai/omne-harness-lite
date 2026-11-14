@@ -4730,11 +4730,11 @@
       },
       "packages/tool/tool-host-local/src/runtime-cordis.ts": {
         "count": 1,
-        "longest": 213
+        "longest": 206
       },
       "packages/tool/tool-host-local/src/runtime-executor.ts": {
         "count": 1,
-        "longest": 384
+        "longest": 377
       },
       "packages/tool/tool-host-local/src/runtime-publication.ts": {
         "count": 1,

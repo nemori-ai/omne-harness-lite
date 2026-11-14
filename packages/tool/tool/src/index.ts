@@ -1,5 +1,6 @@
 export type {
   QueueReconciliation,
+  ToolCallLiveness,
   ToolConfiguration,
   ToolDependencies,
   ToolLedgerAdmissions,
