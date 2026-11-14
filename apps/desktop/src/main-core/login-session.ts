@@ -1,8 +1,9 @@
 // The login session (RFC-0015 §10「登录会话」, §13「桌面应用主进程里的登录会话」; SPEC.md
 // 「登录会话」). It owns the login proof: the proof is a field of the signed-in and signing-out
 // states only. It also gives the page's transport: page calls go out with the proof while signed
-// in, operations that carry a credential are never forwarded, and a `denied` answer to a call that
-// carried the login starts one probe of `query-current-tenant`.
+// in, only a target the host's contracts declare is forwarded and never one that carries a
+// credential, and a `denied` answer to a call that carried the login starts one probe of
+// `query-current-tenant`.
 import type { LoginState, LoginStateSource } from '@omne-harness/client-assembly/cordis'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import type { ProtocolContract } from '@omne-harness/public-contract'
@@ -33,8 +34,9 @@ export type LoginSessionOptions = {
   readonly connect: ServerConnector
   readonly store: CredentialStore
   /**
-   * The contracts the host knows: their `carriesCredential` operations are never forwarded, and
-   * each target gets only the credentials its identity requirement names.
+   * The contracts the host knows. Only the operations and observations they declare are forwarded,
+   * their `carriesCredential` operations never are, and each target gets only the credentials its
+   * identity requirement names.
    */
   readonly contracts: readonly ProtocolContract[]
 }
@@ -67,7 +69,8 @@ type Identity = ProtocolContract['operations'][string]['identity']
 /** What the contract says one operation or observation needs; a credential-carrying one is the page's to never call. */
 type Demand = Identity | 'carries-credential'
 
-const targetOf = (key: ProtocolKey, name: string): string => `${key.name}/v${key.major} ${name}`
+const targetOf = (key: ProtocolKey, name: string): string =>
+  JSON.stringify([key.name, key.major, name])
 
 function demandsOf(contracts: readonly ProtocolContract[]): ReadonlyMap<string, Demand> {
   const demands = new Map<string, Demand>()
@@ -85,7 +88,7 @@ function demandsOf(contracts: readonly ProtocolContract[]): ReadonlyMap<string, 
 
 /**
  * Only what the identity requirement asks for: the proof for `login`, the proof and the acting
- * tenant for `acting-tenant`. A target outside the known contracts gets both, so it still works.
+ * tenant for `acting-tenant`.
  */
 function credentialsFor(login: StoredLogin, identity: Exclude<Identity, 'none'>): Credentials {
   return identity === 'login'
@@ -149,15 +152,16 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
   }
 
   /**
-   * How a page request to `target` goes out: refused while signing out and for a
-   * credential-carrying operation; otherwise with the credentials it needs, and the login it
-   * carried (the one a `denied` answer is about).
+   * How a page request to `target` goes out: refused while signing out, for a target no known
+   * contract declares and for a credential-carrying operation; otherwise with the credentials it
+   * needs, and the login it carried (the one a `denied` answer is about).
    */
   function route(
     target: string,
   ): { readonly credentials: Credentials; readonly carried: StoredLogin | undefined } | 'refuse' {
-    const demand = demands.get(target) ?? 'acting-tenant'
-    if (state.kind === 'signing-out' || demand === 'carries-credential') return 'refuse'
+    const demand = demands.get(target)
+    if (demand === undefined || demand === 'carries-credential' || state.kind === 'signing-out')
+      return 'refuse'
     if (state.kind !== 'signed-in' || demand === 'none')
       return { credentials: {}, carried: undefined }
     return { credentials: credentialsFor(state.login, demand), carried: state.login }
@@ -196,6 +200,7 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
       .catch((error: unknown) => {
         // A body the contract cannot write: no byte left. The error names no credential.
         if (error instanceof ClientRequestError) return { outcome: 'unavailable' as const }
+        enter({ kind: 'signed-out' })
         throw error
       })
     if (answer.outcome !== 'succeeded') {
@@ -217,11 +222,15 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
     if (state.kind !== 'signed-in') return 'unknown'
     const login = state.login
     enter({ kind: 'signing-out', login })
-    const answer = await identityFor(login)['revoke-login']({ targetLoginId: login.loginId })
-    const revoked = answer.outcome === 'succeeded' || answer.outcome === 'no-change'
-    if (held() === login) {
-      enter({ kind: 'signed-out' })
-      await store.erase()
+    let revoked = false
+    try {
+      const answer = await identityFor(login)['revoke-login']({ targetLoginId: login.loginId })
+      revoked = answer.outcome === 'succeeded' || answer.outcome === 'no-change'
+    } finally {
+      if (held() === login) {
+        enter({ kind: 'signed-out' })
+        await store.erase()
+      }
     }
     return revoked ? 'signed-out' : 'unknown'
   }

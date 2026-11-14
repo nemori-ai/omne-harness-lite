@@ -1,7 +1,6 @@
-// The assembly: the only place in the page that names domains. It lists the protocol contracts the
-// tree carries and fills the shell's two regions. Take a domain out here and the shell still
-// compiles and runs.
-import type { ProtocolContract } from '@omne-harness/public-contract'
+// The assembly: the only place in the page that names domains. It fills the shell's two regions
+// from the clients of the protocol contracts the tree carries (`shared/protocols.ts`). Take a
+// domain out here and the shell still compiles and runs.
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { assetsProtocol, type AssetsProtocol } from '@omne-harness/assets-protocol'
 import { SettingsPanel } from '@omne-harness/assets-ui'
@@ -15,12 +14,6 @@ import { CurrentTenant } from './identity/current-tenant.tsx'
 import { LoginScreen } from './identity/login-screen.tsx'
 import type { Region } from './shell/shell.tsx'
 import { serviceOf } from './tree.ts'
-
-export const protocols: readonly ProtocolContract[] = [
-  identityProtocol,
-  sessionProtocol,
-  assetsProtocol,
-]
 
 const IDENTITY = serviceOf(identityProtocol)
 const SESSION = serviceOf(sessionProtocol)

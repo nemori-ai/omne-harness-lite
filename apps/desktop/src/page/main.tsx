@@ -1,7 +1,8 @@
 // The page's entry: connect to the host, start the client tree, render the shell.
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { assemble, protocols } from './assembly.tsx'
+import { domainProtocols } from '../shared/protocols.ts'
+import { assemble } from './assembly.tsx'
 import { connectPageBridge } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
 import { Shell } from './shell/shell.tsx'
@@ -15,7 +16,7 @@ async function main(): Promise<void> {
   const tree = await startClientTree({
     transport: watched.transport,
     login: bridge.loginState,
-    protocols,
+    protocols: domainProtocols,
   })
   const regions = assemble(bridge)
   createRoot(element).render(

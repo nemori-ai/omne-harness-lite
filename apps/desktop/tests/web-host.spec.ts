@@ -13,6 +13,7 @@ import {
   PROOF_SENTINEL,
   answered,
   fakeServer,
+  issued,
   settle,
   value,
   type FakeServer,
@@ -114,6 +115,19 @@ describe('宿主的通道', () => {
       ...CALL,
       protocol: { name: 'identity', major: 1 },
       operation: 'issue-login',
+      body: { loginIdentifier: 'alice', credential: 'pw' },
+    })
+    expect(JSON.parse(text)).toEqual({ kind: 'not-sent' })
+    expect(server.seen).toEqual([])
+  })
+
+  it('调用：宿主不认识的协议与没有声明的操作答「没发出」', async () => {
+    const { base, server } = await start()
+    server.answer('elsewhere/v1 ../../identity/v1/issue-login', () => issued())
+    const text = await postText(base, '/bridge/call', {
+      ...CALL,
+      protocol: { name: 'elsewhere', major: 1 },
+      operation: '../../identity/v1/issue-login',
       body: { loginIdentifier: 'alice', credential: 'pw' },
     })
     expect(JSON.parse(text)).toEqual({ kind: 'not-sent' })
@@ -255,6 +269,13 @@ describe('宿主的通道', () => {
       ...CALL,
       protocol: { name: 'identity', major: 1 },
       operation: 'issue-login',
+      body: { loginIdentifier: 'alice', credential: 'pw' },
+    })
+    server.answer('elsewhere/v1 ../../identity/v1/issue-login', () => issued())
+    await postText(base, '/bridge/call', {
+      ...CALL,
+      protocol: { name: 'elsewhere', major: 1 },
+      operation: '../../identity/v1/issue-login',
       body: { loginIdentifier: 'alice', credential: 'pw' },
     })
     seenByPage.push(await (await post(base, '/bridge/observe', OBSERVE)).text())
