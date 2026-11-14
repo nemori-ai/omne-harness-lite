@@ -2,7 +2,7 @@
 
 [RunClosure.tla](RunClosure.tla) 检查一个会话里先后的几个 Run 与它们的工具调用：Run 的终态提交为每个未答的调用写一条工具消息，所以终态的 Run 没有未答的调用，每个调用恰好一条工具消息，后继 Run 的模型请求读到完整的历史。
 
-模型检查只说明有限范围内的设计性质。它不证明产品实现符合模型。Agent 一侧的取消、Tool 的收场与卡片的关闭由人工介入成员的[打断的级联模型](../../../../../human-intervention/human-intervention/verification/README.md)检查，这里不重复。
+模型检查只说明有限范围内的设计性质。它不证明产品实现符合模型。Agent 一侧的取消、Tool 的收场与卡片的关闭由人工介入成员的[打断的级联模型](../../../../../human-intervention/human-intervention/verification/formal-mapping.md)检查，这里不重复。
 
 ## 性质
 

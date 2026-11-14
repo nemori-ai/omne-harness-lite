@@ -2,7 +2,7 @@
 
 本页给出步骤：一个人在自己的宿主上，用发行的 `serve` 和 `omne` 命令行，把 Ask 的出卡、答复、叫停和重启各走一遍。每一步写明应当看到什么。
 
-规则不在本页。卡片与答复的规则归 [HITL 公共协议](../../../../packages/human-intervention/human-intervention/docs/protocol.md)，命令行的三个 HITL 命令归 [CLI 规格](../../../cli/SPEC.md#hitl-命令)，应用怎样把 Tool 的等待接到 HITL 归 [Tool 运行时行](../rows/tool-runtime.md)。
+规则不在本页。卡片与答复的规则归 [人工介入规格](../../../../packages/human-intervention/SPEC.md#卡片与答复)，命令行的三个 HITL 命令归 [CLI 规格](../../../cli/SPEC.md#hitl-命令)，应用怎样把 Tool 的等待接到 HITL 归 [Tool 运行时行](../rows/tool-runtime.md)。
 
 ## 准备
 

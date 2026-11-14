@@ -16,7 +16,7 @@
 | [model](model/SPEC.md) | 模型调用 | `model` |
 | [tool](tool/SPEC.md) | 工具执行 | `tool` |
 | [context](context/SPEC.md) | Runtime Context | `runtime-context`, `request-context` |
-| [human-intervention](human-intervention/README.md) | 人工介入 | `human-intervention` |
+| [human-intervention](human-intervention/SPEC.md) | 人工介入 | `human-intervention` |
 | [execution](execution/SPEC.md) | 执行环境 | `execution-environment` |
 | [calendar](calendar/SPEC.md) | 日历 | `calendar-contract`, `calendar-cordis-contract`, `calendar`, `calendar-local`, `calendar-tools` |
 | [schedule](schedule/SPEC.md) | 日程与Job | `schedule-contract`, `schedule-cordis-contract`, `schedule`, `schedule-local`, `schedule-tools` |
