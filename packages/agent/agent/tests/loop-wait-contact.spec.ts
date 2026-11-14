@@ -91,6 +91,17 @@ describe('the check time of a wait for the main Model call', () => {
     expect(run.admitted).toHaveLength(1)
   })
 
+  it('an event that arrives while the Model is being asked still wakes the run', async () => {
+    const run = await takeover([null])
+    const { clock, contact, waiting } = await waitingOnModel(run)
+    contact.always(() => new Promise<never>(() => {}))
+    clock.advanceTo(at(1))
+    await eventually(async () => contact.calls.length === 1)
+    await run.settle(0, replyOf('the reply'))
+    const stuck = new Promise(resolve => setTimeout(() => resolve('stuck'), 300))
+    expect(await Promise.race([waiting, stuck])).toEqual({ ok: 'ready' })
+  })
+
   it('a result that lands while the wait is being saved wakes the run at once', async () => {
     let landed = false
     const run: Takeover = await takeover([null], policy(), d => ({

@@ -78,19 +78,23 @@ async function sleep<P>(
   timing: Timing,
 ): Promise<Woken> {
   let { checkAt, delayMs } = first
+  const woke = async (woken: Woken): Promise<Woken> => {
+    if (delayMs === 0 && 'ok' in woken && woken.ok !== 'cancelled') await yieldTurn()
+    return woken
+  }
   for (;;) {
     const due: Woken = succeed('ready')
     const timer = armed(input.ports.clock, checkAt, signal, due)
     timing.timer = timer
     if (signal.aborted) return succeed('cancelled')
     const woken = await Promise.race([notified, timer])
-    const timed = woken === due
-    if (timed) input.pacer.timerWoke()
-    const holding = timed ? await producersHolding(input.ports, input.access, input.waits) : null
-    if (holding !== true) {
-      if (delayMs === 0 && 'ok' in woken && woken.ok === 'ready') await yieldTurn()
-      return holding === false ? succeed('unheld') : woken
-    }
+    if (woken !== due) return woke(woken)
+    input.pacer.timerWoke()
+    const asked = producersHolding(input.ports, input.access, input.waits)
+    const answered = await Promise.race([asked.then(holding => ({ holding })), notified])
+    if (!('holding' in answered)) return woke(answered)
+    if (answered.holding !== true)
+      return woke(succeed(answered.holding === false ? 'unheld' : 'ready'))
     if (delayMs === 0) await yieldTurn()
     delayMs = input.pacer.delayAt(input.expected)
     const now = await input.ports.clock.now()
