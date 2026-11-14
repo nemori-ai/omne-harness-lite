@@ -18,7 +18,6 @@ const PREPARED_CLOSED_FAILURE = {
   diagnostic: 'prepared-closed',
 } as const
 
-// Nothing listens here; the fast tests never start an exchange.
 const ROUTE_URL = 'https://127.0.0.1:9/v1/chat/completions'
 
 const networks: NetworkInternals[] = []
@@ -401,9 +400,8 @@ describe('prepare', () => {
 })
 
 describe('closing a prepared transport while it materializes', () => {
-  // With the test family, materialize returns after three microtasks. A close in that window
-  // must win: the caller gets unavailable. A later close finds a materialization that was
-  // already handed out and closes it: its start sends nothing and ends interrupted.
+  // With the test family materialize returns after three microtasks: a close inside that window
+  // wins (unavailable); a later close closes the handed-out materialization, which sends nothing.
   it.each([0, 1, 2, 3, 4])(
     'a close that starts %i microtasks after materialize never lets a send out',
     async gap => {
@@ -476,7 +474,6 @@ describe('closing the transport', () => {
         return { ok: { ...acquired.ok, release } }
       },
     }
-    // Not kept for afterEach: this close rejects by design.
     const { transport, close } = createPiTransport(configWith({ families }))
     expect(await transport.prepare(REQUEST, SUPPLIER, { resent: [] })).toHaveProperty('ok')
     expect(await transport.prepare(REQUEST, SUPPLIER, { resent: [] })).toHaveProperty('ok')

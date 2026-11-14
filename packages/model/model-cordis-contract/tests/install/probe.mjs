@@ -1,4 +1,3 @@
-// Runs inside the consumer directory: resolves and imports every entry named on the command line.
 const specifiers = JSON.parse(process.argv[2])
 const entries = []
 for (const specifier of specifiers) {

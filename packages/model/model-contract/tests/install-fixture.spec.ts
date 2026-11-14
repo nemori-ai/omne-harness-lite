@@ -1,8 +1,4 @@
 // @module-tag slow
-// Runs the fixture steps of the facility where they must refuse: node, the TypeScript compiler and
-// the entry points start as child processes. The project directories are built by hand, so no pack
-// or install is needed; the cases that go through the CLI fail before anything is packed. The
-// pure judgments are in install-fixture-judgment.spec.ts.
 import { spawnSync } from 'node:child_process'
 import {
   copyFileSync,
@@ -42,7 +38,6 @@ function write(path: string, text: string): string {
   return path
 }
 
-/** A consumer project that has one installed package, `inner`, with its declarations. */
 function consumer(name: string): { base: string; project: string } {
   const base = join(root, name)
   const project = join(base, 'project')
@@ -57,7 +52,6 @@ function consumer(name: string): { base: string; project: string } {
   return { base, project }
 }
 
-/** A fixture directory that has the real compiler settings and the given source. */
 function fixtureSource(base: string, source: string): string {
   const directory = join(base, 'fixture-source')
   mkdirSync(directory, { recursive: true })
@@ -158,7 +152,6 @@ describe('compileFixture', () => {
   })
 })
 
-/** A project whose compiled fixture is the given JavaScript, run with the facility's own host. */
 function compiled(name: string, source: string): string {
   const { project } = consumer(name)
   write(join(project, 'fixture-out/fixture.js'), source)
@@ -337,9 +330,6 @@ describe('runFixture', () => {
     expect(check?.detail).toContain('not-installed')
   })
 
-  // Red when the time limit is not enforced. The path ends of itself after 20 s, so a limit that is
-  // ignored makes `fixture-run` pass and this case fail, where a path that never ended would hold
-  // the worker for ever.
   it('kills a fixture whose path does not settle in time, at the time limit', () => {
     const project = compiled(
       'run-hang',
@@ -354,8 +344,6 @@ describe('runFixture', () => {
     expect(check?.detail).toMatch(/^killed by SIGTERM/u)
   })
 
-  // Red when the default limit is dropped or replaced: a run that is given no limit must start the
-  // process with the exported default, and a run that is given one with that one.
   it('starts the process with the default time limit unless the caller gives another', () => {
     const limits: (number | undefined)[] = []
     const spy: typeof exec = (_command, _args, _cwd, _extra, timeoutMs) => {
@@ -371,8 +359,6 @@ describe('runFixture', () => {
 })
 
 describe('exec', () => {
-  // Red when the time limit is ignored: the child sleeps 20 s and is killed after 0.5 s, so a
-  // limit that does nothing shows up as a finished child, in 20 s, not as a worker that never returns.
   it('kills a child that outlives its time limit and says which signal', () => {
     const started = Date.now()
     const result = exec(
@@ -387,13 +373,11 @@ describe('exec', () => {
   })
 })
 
-/** The vitest bin shim sets NODE_PATH, and a developer shell may allow the network: strip both. */
 function cleanEnv(): NodeJS.ProcessEnv {
   const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...rest } = process.env
   return rest
 }
 
-/** The entries that refuse a fixture return in seconds; a hung one fails the case, not the suite. */
 const ENTRY_LIMIT_MS = 100_000
 
 function runEntry(entry: string, args: readonly string[]) {
@@ -415,7 +399,6 @@ function runEntry(entry: string, args: readonly string[]) {
   return { status: result.status, stderr: result.stderr, stdout: result.stdout }
 }
 
-/** A fixture directory with the given declarations, ready to hand to the CLI. */
 function declared(name: string, declarations: Record<string, unknown>): string {
   const directory = join(root, 'declared', name)
   mkdirSync(directory, { recursive: true })

@@ -1,6 +1,4 @@
 // @module-tag slow
-// Runs the install-closure CLI as a child process (node, and pnpm for the real member) on inputs
-// that it must refuse. The pure judgments are in install-judgment.spec.ts.
 import { spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -17,9 +15,6 @@ import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { Report } from './install/consumer.ts'
 
-// The facility must be able to fail. The forbidden-dependency cases feed it declarations that the
-// policy forbids and assert that it exits non-zero and names the offending package, without packing
-// or installing anything. The real install of the unmodified member is install-consumer.spec.ts.
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
 const policyPath = join(packageDirectory, 'tests/fixtures/install-policy.json')
@@ -35,7 +30,6 @@ afterAll(() => {
 })
 const [negativeDirectory, offlineDirectory] = workDirectories as [string, string]
 
-/** The vitest bin shim sets NODE_PATH, and a developer shell may allow the network: strip both. */
 function cleanEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...rest } = process.env
   return { ...rest, ...extra }
@@ -61,7 +55,6 @@ function runCli(member: string, args: readonly string[], env: NodeJS.ProcessEnv 
   return { status: result.status, stderr: result.stderr, report }
 }
 
-/** A copy of the real member manifest with one extra production dependency. */
 function injected(name: string, version: string): string {
   const manifest = JSON.parse(readFileSync(join(packageDirectory, 'package.json'), 'utf8')) as {
     dependencies: Record<string, string>
@@ -73,11 +66,6 @@ function injected(name: string, version: string): string {
   return directory
 }
 
-/**
- * A built member with one third-party dependency, so the install step has something to fetch. It
- * lives in the temporary directory, so a run that deletes its member or work directory can only
- * delete this one. Cases that exercise the work-directory guard must never name a repository path.
- */
 function builtMember(): string {
   const directory = mkdtempSync(join(temporary, 'member-'))
   mkdirSync(join(directory, 'dist'))
@@ -160,8 +148,6 @@ describe('install-closure CLI guards the work directory', () => {
 
 describe('install-closure CLI does not fall back to the network by itself', () => {
   it('fails the run when --offline fails and --allow-network is absent', () => {
-    // The member declares a package that the workspace did not install. No file pins it, and the
-    // run has no registry metadata of its own, so `pnpm install --offline` cannot resolve it.
     const { status, report } = runCli(builtMember(), ['--work-dir', offlineDirectory])
     const parsed = report()
     expect(status).toBe(1)

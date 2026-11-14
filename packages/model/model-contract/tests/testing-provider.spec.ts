@@ -189,16 +189,13 @@ describe('the ordinary path of a scripted call', () => {
     must(await consumption.closeRead({ ...access('k'), read: closing.read }))
     const receipt = must(await consumption.acknowledge(ackInput('k')))
 
-    // The read that had not ended answers with its first page again.
     expect(must(await consumption.beginRead(begin('read-open')))).toEqual(open)
     expect(open.value).toMatchObject({ kind: 'reading' })
-    // The read that had ended answers that it ended, without any content.
     expect(must(await consumption.beginRead(begin('read-closed')))).toEqual({
       kind: 'started',
       read: closing.read,
       value: { kind: 'ended', reason: 'closed' },
     })
-    // An operation that began no read gets the acknowledgement and no read.
     expect(must(await consumption.beginRead(begin('read-new')))).toEqual({
       kind: 'acknowledged',
       custody: receipt.custody,

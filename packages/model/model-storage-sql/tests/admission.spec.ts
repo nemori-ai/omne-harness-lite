@@ -1,6 +1,3 @@
-// M4-3: an admission holds in one commit. The qualification result (the initiator), the frozen
-// owner declaration, the call and its place in the tenant share are written by the one commit
-// that binds the admission operation. When that commit fails, none of them exists.
 import { describe, expect, it } from 'vitest'
 import { OWNER, callId, opId, sqlCommands, tenantOf, textOf } from './fixture.ts'
 import { PENDING_PAGE_MAX } from '@omne-harness/model-storage-sql'
@@ -29,7 +26,6 @@ function setup(overrides: Parameters<typeof sqlCommands>[1] = {}) {
       [textOf(A), call],
     ),
   })
-  /** Copies the stored call `from` as another call `to`, as a concurrent admission would. */
   const plant = (from: string, to: string) => {
     for (const sql of [
       'CREATE TEMP TABLE planted AS SELECT * FROM md_call WHERE tenant = ? AND call = ?',
@@ -66,7 +62,6 @@ describe('an admission in one commit', () => {
   it('answers unavailable at the commit when a concurrent admission took the share, and keeps none of it', async () => {
     const { commands, sqlite, core, rowsOf, plant } = setup()
     expect('ok' in (await commands.admit(core.admitOf(A, callId('first'), opId('a1'))))).toBe(true)
-    // The read of the second admission sees one of two places held; the commit meets two.
     sqlite.hooks.beforeCommit = () => plant('mcall_first', 'mcall_concurrent')
     const admit = core.admitOf(A, callId('second'), opId('a2'))
     expect(await commands.admit(admit)).toEqual({

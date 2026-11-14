@@ -181,7 +181,6 @@ describe('a commit query and the call that owns the operation', () => {
 describe('a reserved operation and the access to a call', () => {
   type Method = 'admit' | 'inspect' | 'cancel' | 'beginRead' | 'acknowledge'
 
-  /** The reserved value is refused alike for a call of the principal, of another tenant, and none. */
   async function refusedBeforeAccess(method: Method) {
     const scripted = scriptedProvider()
     const { calls, consumption } = scripted.provider.runtime
@@ -210,8 +209,6 @@ describe('a reserved operation and the access to a call', () => {
     const own = failureOf(await run(access('a')))
     expect(own).toMatchObject({ kind: 'invalid' })
     expect(failureOf(await run(access('missing')))).toEqual(own)
-    // R2-D357: another tenant's reference resolves in the caller's tenant, so the reserved
-    // operation is refused the same way as for the caller's own or a missing call.
     expect(failureOf(await run({ ...access('a'), tenant: tenantB }))).toEqual(own)
   }
 

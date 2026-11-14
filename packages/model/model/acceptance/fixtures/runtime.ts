@@ -29,11 +29,6 @@ function decoded<T>(reply: { ok: T } | { failure: unknown }): T {
 }
 export const operation = (name: string) => decoded(decodeModelOperationId(`mop_acceptance-${name}`))
 
-/**
- * Each acceptance scenario calls the built public runtime. This fixture supplies external facts.
- * No vendor, disk store or production host participates. These identities and evidence are
- * trusted only inside this isolated in-memory assembly. Never use this authority in production.
- */
 export function createAcceptanceAssembly(script: {
   facts: readonly Exclude<TransportFact, { kind: 'ended' }>[]
   termination: TransportTermination
@@ -54,8 +49,6 @@ export function createAcceptanceAssembly(script: {
     revision: '1',
     digest: '0'.repeat(64),
   }
-  // The request fixes all adoptions. A production request comes from qualified preparation
-  // and conversion providers. A layer names a credential source, not permission to use it.
   const provider = decoded(decodeProviderName('acceptance.invalid'))
   const request: FixedModelRequest = {
     profile: adoption,
@@ -135,7 +128,6 @@ export function createAcceptanceAssembly(script: {
       unacknowledgedResults: 10,
     },
     authority: {
-      // Every protected access checks the actual principal and the minted tenant.
       authorize: ({ access, action }) =>
         access.principal === principal && tenantEquals(access.tenant, scope)
           ? { ok: { owner: 'acceptance-identity', subject: principal.subject, revision: '1' } }
@@ -148,14 +140,11 @@ export function createAcceptanceAssembly(script: {
     evidence: [
       {
         adoption,
-        // Continuity vouches for this host's original call. It is not an access token.
         continuity: input =>
           input.source.owner === 'acceptance-host' && input.source.record === call
             ? { ok: input.source }
             : unavailable(),
         materialization: input => ({ ok: evidence(`${input.call}/${input.dispatch}`) }),
-        // This controlled iterator never prefetches. The exact batch digest is provided by
-        // Commands, so this proof covers the original window rather than a guessed terminal.
         receive: input => ({
           ok: {
             window: input.window,
@@ -251,7 +240,6 @@ export function createAcceptanceAssembly(script: {
           },
           startWithCredential(materialized, _syntheticCredential, signal) {
             if (materialized !== owned) throw new Error('Foreign acceptance materialization')
-            // Start is synchronous. Only delivery of its first fact waits for the observer.
             const facts = materialized.start(signal)
             return {
               async *[Symbol.asyncIterator]() {
@@ -267,8 +255,6 @@ export function createAcceptanceAssembly(script: {
       }
     },
   }
-  // createSender uses the testing assembly's public shared credential fence. The real product
-  // sender owns materialization, window/send writes, the one start, and reverse-order release.
   const send = assembly.controls.send.createSender({ resources, commands })
   let published!: () => void
   const publicationReady = new Promise<void>(resolve => {
@@ -296,7 +282,6 @@ export function createAcceptanceAssembly(script: {
     call,
     request,
     consumer,
-    // This is the observer application's completion store, not a Model API or durable backend.
     completedRecords,
     driveInput: {
       principal,
@@ -310,8 +295,6 @@ export function createAcceptanceAssembly(script: {
     publicationReady,
     upstream: { resume, counts: transport.counts },
     async withdrawPublication() {
-      // Closing an observation is separate from withdrawing a live route. Neither action
-      // cancels the business call. The memory host has no background production scheduler.
       assembly.controls.instances.take()
       if (publication) {
         const result = await instances.withdraw(publication)

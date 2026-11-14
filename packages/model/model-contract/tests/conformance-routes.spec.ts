@@ -149,7 +149,6 @@ describe('the conformance suite on access, routes and quiesce', () => {
 
   it('fails a provider that goes on accepting calls after the quiesce', async () => {
     const { failing, reasons } = await failures(subject => {
-      // Another scripted provider stands for the one that keeps accepting calls.
       const accepting = createScriptedConformanceSubject().provider.runtime.calls
       let quiesced = false
       return patched(subject, {

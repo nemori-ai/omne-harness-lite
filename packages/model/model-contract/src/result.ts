@@ -1,4 +1,3 @@
-// Declarations of the public-api chapter "结果、失败和状态".
 import type { Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence } from '@omne-harness/exchange-refs'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -71,10 +70,6 @@ export function faultIsTransient(cause: ModelFaultCause): boolean {
   }
 }
 export type OverLimitMetric = 'context-tokens' | 'input-tokens' | LimitMetric
-/**
- * `replayCarried` is present only when the failed send carried reasoning state, so the original
- * consumer can try again in a new call with replay off. A `replay-rejected` send always carried it.
- */
 export type ModelFault = Readonly<{
   diagnostic: string
   upstreamStatus: string | null
@@ -154,7 +149,6 @@ export type Admission = Readonly<{
   recovered: boolean
   reference: ModelInvocationRef
 }>
-// One definition in exchange-refs. The digest algorithm belongs to the owner of the evidence.
 export type { DurableEvidence } from '@omne-harness/exchange-refs'
 export type Handoff =
   | Readonly<{ kind: 'processed'; completion: DurableEvidence }>

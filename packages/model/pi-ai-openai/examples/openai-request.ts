@@ -1,13 +1,4 @@
 import { openTokenizerExecutor } from './support.ts'
-// One request to an OpenAI model through OpenRouter, with the real shared transport.
-//
-// The history holds an earlier tool turn written as data: an assistant message that has only a tool
-// call, then a tool result without content. The OpenAI records write content in the compact form,
-// so both go out as an empty string. The last user message carries a small image, which the
-// records write with the detail `auto`.
-//
-// Run from the package directory after building: node --experimental-strip-types examples/openai-request.ts
-// HTTPS_PROXY must point to the proxy that adds the OpenRouter credential.
 import {
   createOpenAiFamily,
   officialOpenAiProfiles,
@@ -23,11 +14,9 @@ import {
   RETRY_POLICY,
 } from './support.ts'
 
-/** A reasoning model of the OpenAI family. */
 const MODEL = 'openai/gpt-5.6-luna'
 
 const SHOWN = { toHuman: true, toModel: true }
-/** A 16 by 16 red PNG. */
 const RED_SQUARE =
   'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGO4IydHEmIY1TCqYfhqAACaMxgQdGu1YAAAAABJRU5ErkJggg=='
 
@@ -66,7 +55,6 @@ try {
         ],
       },
       {
-        // Only a tool call: the body writes its content as an empty string.
         id: 'msg_example-assistant-tool-1',
         role: 'assistant',
         blocks: [
@@ -84,7 +72,6 @@ try {
         ],
       },
       {
-        // A tool result without content: the body writes its content as an empty string.
         id: 'msg_example-tool-result-01',
         role: 'tool',
         blocks: [{ kind: 'tool_result', id: 'r1', visibility: SHOWN, callId: 'call_lookup_1' }],

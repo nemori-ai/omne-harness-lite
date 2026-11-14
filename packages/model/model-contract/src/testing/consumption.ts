@@ -35,7 +35,6 @@ import { resultPage } from './result-pages.ts'
 import { mintRead } from './mint.ts'
 import { conflictOf, performWrite, remember, sameParameters, writeOf } from './writes.ts'
 
-/** Cuts the page that starts at `offset`; serving the last page makes the read completable. */
 function servePage(read: ReadRecord, offset: number): ResultPage {
   const { parts, pageSize, pageTargetBytes } = read.source.pages
   const page = resultPage(parts, offset, pageSize, pageTargetBytes, read.source.settlement)
@@ -48,7 +47,6 @@ function endedState(reason: ReadRecord['ended']): ReadState | null {
   return reason === null ? null : { kind: 'ended', reason }
 }
 
-/** Whether the remembered operation is this very acknowledgement. */
 function sameAcknowledgement<P>(
   known: OperationEntry<P> | undefined,
   parameters: unknown,
@@ -56,12 +54,10 @@ function sameAcknowledgement<P>(
   return known !== undefined && sameParameters(known, parameters)
 }
 
-/** The evidence that a handoff carries, whether it is the completion or the retained custody. */
 function receiptOfHandoff(handoff: AckInput<unknown>['evidence']): DurableEvidence {
   return handoff.kind === 'processed' ? handoff.completion : handoff.custody
 }
 
-/** The evidence that is not one of those the script gave for the call; any when it gave none. */
 function foreignEvidence<P>(record: CallRecord<P>, receipt: DurableEvidence): ModelFailure | null {
   if (record.evidence.length === 0) return null
   if (record.evidence.some(given => isDeepStrictEqual(given, receipt))) return null
@@ -71,7 +67,6 @@ function foreignEvidence<P>(record: CallRecord<P>, receipt: DurableEvidence): Mo
   }
 }
 
-/** The settled phase of a call, or the failure that keeps a read or an acknowledgement from it. */
 function settledFor<P>(
   record: CallRecord<P>,
   result: ResultVersion,
@@ -83,7 +78,6 @@ function settledFor<P>(
 }
 
 export function createConsumption<P>(core: Core<P>): ModelConsumption<P> {
-  /** The read of a call; a revoked principal ends the read as denied the first time it asks. */
   function locate(
     input: CallAccess<P> & Readonly<{ read: ReadId }>,
   ): Outcome<ReadRecord, ModelFailure> {
@@ -97,7 +91,6 @@ export function createConsumption<P>(core: Core<P>): ModelConsumption<P> {
     return succeed(read)
   }
 
-  /** The answer to an operation that began a read before: the same read, or a conflict. */
   function repeatedRead(
     key: string,
     known: OperationEntry<P>,

@@ -1,12 +1,3 @@
-// The Model records over the SQL storage contract. The root exports the durable ModelCommands
-// (`createSqlModelCommands`: the shared commands core over the SQL storage of this member), the
-// table definitions and the migration, the stored call document with its row parse, and the
-// `ModelCommandStorage` with its construction checks. The types of the storage port belong to
-// `@omne-harness/model/commands`; they are re-exported here unchanged, not copied. The root also
-// exports the send coordinator over an in-process mirror of that storage (`createSendMirror`), the
-// diagnostics read face over the same rows (`createSqlModelDiagnostics`, handler
-// `model.diagnostics`), and the static materials with their digests (`modelStorageMaterials`).
-// Imports no Cordis.
 export {
   createSqlModelCommands,
   type SqlModelCommands,

@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { decodeOutputCursor, decodeRevision } from '../src/identity-values.ts'
 import { decodeModelOutputV1, encodeModelOutputV1 } from '../src/model-output-v1.ts'
 
-// The envelope of a sealed block (`kind`, `index`, `block`) is judged before the block itself: a
-// wire value must carry exactly those keys, a string index and a record block, while the producer
-// side (encoding) drops what it does not know. These cases hold that judgment on its own.
-
 const textBlock = {
   id: 'b1',
   visibility: { toHuman: true, toModel: true },

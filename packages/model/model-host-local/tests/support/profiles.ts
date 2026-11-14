@@ -1,5 +1,3 @@
-// Test support: the official profile of a family record as a stored factory profile, and the
-// supplier port of the tests. Every value here is a test parameter, not a package default.
 import {
   decodeRevision,
   type Adoption,
@@ -18,7 +16,6 @@ const PROFILE: Adoption = {
   digest: '0'.repeat(64),
 }
 
-/** The official profile of the record on this route, stored as a factory profile. */
 export function officialProfile(
   input: Readonly<{ family: FamilyName; model: string; retryPolicy: Adoption }>,
 ): ModelProfile {
@@ -41,7 +38,6 @@ export function officialProfile(
   }
 }
 
-/** The supplier port of the tests: the official layer, the provider of the profile kept. */
 export function factorySupplier<P>(): SupplierPort<P> {
   return ({ supplier }) => ({
     ok: {

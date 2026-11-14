@@ -1,6 +1,3 @@
-// Test support: metering a request with a real preparation lease, and reading the known numbers of
-// a call's account. The representation comes from the lease's own `rules.plan`, never from a hand
-// written shape.
 import type {
   AssembledModelInput,
   FixedModelRequest,
@@ -23,7 +20,6 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
   }
 }
 
-/** Plans the request with the lease's rules and measures it with the lease's meter. */
 export async function measureOn(
   lease: ModelPreparationLease,
   profile: ModelProfile,
@@ -43,14 +39,12 @@ export async function measureOn(
   })
 }
 
-/** The estimate that the budget holds for the input tokens. Throws when it is another kind. */
 export function inputEstimate(budget: RequestBudget) {
   const check = budget.checks.find(item => item.metric === 'input-tokens')
   if (check?.measurement.kind !== 'estimate') throw new Error('no estimated input check')
   return check.measurement
 }
 
-/** The known amount of the named usage entry of an account. Throws when it is not known. */
 export function known(account: { usage: readonly unknown[] } | null, name: string): bigint {
   const item = account?.usage.find(entry => Reflect.get(Object(entry), 'name') === name)
   const lexeme: unknown = Reflect.get(Object(item), 'lexeme')

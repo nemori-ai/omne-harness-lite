@@ -47,7 +47,6 @@ type Lease = {
   release: ReturnType<typeof Promise.withResolvers<Cleanup>>
   detach(): void
 }
-/** The pause before a slot whose replacement budget is spent starts again: 1 s, 5 s, then 30 s. */
 function restartPauseMs(backoffs: number): number {
   if (backoffs === 0) return 1000
   return backoffs === 1 ? 5000 : 30000
@@ -60,7 +59,6 @@ type SlotPhase =
   | { kind: 'stopping'; previous: Exclude<SlotPhase, { kind: 'stopping' } | Workerless> }
   | { kind: 'backoff'; timer: ReturnType<typeof setTimeout> }
   | { kind: 'dead' }
-/** The phases without a worker: waiting to start again, or for good. */
 type Workerless = { kind: 'backoff' } | { kind: 'dead' }
 type Slot = {
   generation: number
@@ -69,7 +67,6 @@ type Slot = {
   ready: Lease[]
   stats: CacheStats
   replacements: number[]
-  /** The backoffs since the slot's worker last answered a count. */
   backoffs: number
   initialized: ReturnType<typeof Promise.withResolvers<Cleanup>>
   exited: ReturnType<typeof Promise.withResolvers<void>>
@@ -221,7 +218,6 @@ class Executor implements TiktokenExecutor {
     )
   }
 
-  /** Counts an input of any size: one worker job for each bounded part, the counts added. */
   private async count(lease: Lease, input: readonly TokenizationSegment[]): Promise<CountResult> {
     let tokens = 0n
     for (const job of jobsOf(input, this.input.limits.maxInputBytes)) {
@@ -361,7 +357,6 @@ class Executor implements TiktokenExecutor {
   private cancelRunning(slot: Slot, job: Job): void {
     Atomics.store(job.cancellation, 0, 1)
     clearTimeout(job.timer)
-    // A regex or reference fallback can block between cooperative cancellation checks.
     job.timer = setTimeout(
       () => this.stop(slot, 'tokenizer cancellation did not settle'),
       this.input.limits.cancellationGraceMs,
@@ -520,7 +515,6 @@ class Executor implements TiktokenExecutor {
 
   private stop(slot: Slot, diagnostic: string): void {
     if (slot.phase.kind === 'backoff') {
-      // Only `close` reaches a slot without a worker: the restart is cancelled.
       clearTimeout(slot.phase.timer)
       slot.phase = { kind: 'dead' }
       return
@@ -552,11 +546,6 @@ class Executor implements TiktokenExecutor {
       if (lease.slot === slot && lease.phase === 'releasing') this.finishRelease(lease)
   }
 
-  /**
-   * Gives a slot whose worker exited its next worker: at once while the rolling budget lasts, after
-   * a backoff once it is spent. A closing executor, a spent generation space and a first start that
-   * failed leave the slot dead.
-   */
   private replace(slot: Slot, previous: SlotPhase): 'started' | 'backoff' | 'dead' {
     if (this.phase !== 'open' || slot.generation >= Number.MAX_SAFE_INTEGER) return 'dead'
     if (previous.kind === 'starting' && slot.generation === 1) return 'dead'

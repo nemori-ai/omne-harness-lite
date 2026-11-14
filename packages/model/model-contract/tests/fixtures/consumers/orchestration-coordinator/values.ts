@@ -1,6 +1,4 @@
 import { decodeProviderName, encodeModelInvocationRef } from '@omne-harness/model-contract'
-// The values that the paths of this fixture send and read. Every identity comes from a decoder of
-// a public package, so no value is made by an assertion.
 import {
   accountCodec,
   organizationCodec,
@@ -25,7 +23,6 @@ import {
 import { createScriptedModelProvider } from '@omne-harness/model-contract/testing'
 import type { Outcome } from '@omne-harness/operation-result'
 
-/** The party that coordinates: it is not the owner of the calls and acts under its own identity. */
 export type Principal = Readonly<{ name: string }>
 
 export const coordinator: Principal = { name: 'coordinator' }
@@ -74,7 +71,6 @@ const supplier: Supplier = {
   credential: { layer: 'official' },
 }
 
-/** The request that the owner fixed before the call was admitted; the coordinator does not read it. */
 const request: FixedModelRequest = {
   profile: adoption('profile'),
   suppliers: [supplier],
@@ -100,7 +96,6 @@ const consumer: ConsumerRef = {
   purpose: 'purpose',
 }
 
-/** The explicit identity of one request: who asks, for which tenant, about which call. */
 export const access = (name: string, tenantId: TenantId = tenantA) => ({
   principal: coordinator,
   tenant: tenantId,
@@ -125,18 +120,12 @@ export const admission = (name: string): Admit<Principal> => ({
   consumer,
 })
 
-/** One admission that the coordinator sent: for which call and operation, and whether it was accepted. */
 export type SentAdmission = Readonly<{
   call: ModelCallId
   operation: ModelOperationId
   accepted: boolean
 }>
 
-/**
- * The scripted provider that stands for whatever serves the calls, with the helpers that read it.
- * Every admission leaves through `calls.admit` and is recorded, so `admissions()` lists all the
- * calls that the coordinator ever tried to bring into the tenant; a call appears nowhere else.
- */
 export function newWorld() {
   const scripted = createScriptedModelProvider<Principal>({ instance: instance('one') })
   const { calls: provided, instances } = scripted.provider.runtime
@@ -156,11 +145,8 @@ export function newWorld() {
     calls,
     instances,
     controller: scripted.controller,
-    /** The admissions that the coordinator sent so far, in order. */
     admissions: (): readonly SentAdmission[] => sent,
-    /** Admits the call `name` under the operation `admit-<name>`. */
     admit: async (name: string) => must(await calls.admit(admission(name))),
-    /** The state of the call, looked up through its own admission operation. */
     async state(name: string): Promise<CallState> {
       const found = must(
         await calls.inspect({
@@ -177,7 +163,6 @@ export function newWorld() {
   }
 }
 
-/** This fixture constructs its own locator through the installed public codec. */
 export function invocationReference<T extends Parameters<typeof encodeModelInvocationRef>[0]>(
   parts: T,
 ) {

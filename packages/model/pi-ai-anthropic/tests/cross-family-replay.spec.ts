@@ -1,9 +1,3 @@
-// Cross-family replay, Anthropic side (spec D7, #465 C4): histories built as pure data hold
-// assistant messages that an OpenAI model produced. Encoding for an Anthropic record leaves their
-// reasoning out and omits their thinking, encode reports each as a `replay-omitted` diagnostic,
-// and the Anthropic group of the same history goes back. After a foreign tool turn every Anthropic
-// record keeps the requested effort: by the project convention no record turns reasoning off. The
-// OpenAI family is not imported.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { type Parameter } from '@omne-harness/model-contract'
@@ -54,7 +48,6 @@ function ownReplay(record: AnthropicRecord, at: readonly number[]): object {
 
 const OPENAI_REPLAY = { replay: { scope: OPENAI_SCOPE, format: OPENAI_FORMAT, at: [2] } }
 
-/** OpenAI, then this record, then a new question: the history of the second Anthropic turn. */
 function history(record: AnthropicRecord): readonly unknown[] {
   return [
     message('u1', 'user', [textBlock('b1', 'first question')]),
@@ -83,7 +76,6 @@ function history(record: AnthropicRecord): readonly unknown[] {
   ]
 }
 
-/** The wire messages of a body. */
 function messagesOf(body: JsonValue): readonly unknown[] {
   const parsed: unknown = JSON.parse(writeJsonText(body))
   const messages: unknown =
@@ -208,14 +200,11 @@ describe('an OpenAI message in an Anthropic request', () => {
       ],
     })
     expect(writeJsonText(result.ok.body)).not.toContain('openai-cipher')
-    // The meter counts what goes out: the thinking text is in the token input.
     expect(writeJsonText(result.ok.representation.tokenInput)).toContain('openai private summary')
   })
 })
 
 describe('own history', () => {
-  // Sealed anthropic-family-current.spec.ts:746-753 refused an unsigned group before sending. The
-  // current rule does not write own thinking that has no signed form, so the conversation goes on.
   it('own thinking without a sealed group is not written, never sent unsigned, and the request goes on', async () => {
     const { result } = await encoded(SONNET, {
       messages: [
@@ -239,9 +228,6 @@ describe('own history', () => {
   })
 })
 
-// --- a foreign tool turn ----------------------------------------------------------------------
-
-/** The last tool turn comes from the given scope; then the tool result and, unless open, a question. */
 function toolTurn(
   scope: string,
   format: string,
@@ -281,9 +267,6 @@ const RECORDS = [OPUS_55, recordNamed('anthropic/claude-opus-5'), SONNET, FABLE]
 )
 
 describe('a foreign tool turn', () => {
-  // Live on 2026-10-22 the gateway took an unsigned foreign tool turn with reasoning on for all
-  // four models, as the last turn and before a later question. By the project convention the
-  // engine never turns reasoning off; claude-opus-5.5 and claude-fable-5.1 also refuse it live.
   it.each(
     RECORDS.flatMap(([name, record]) => [
       [name, 'a later question', record, false] as const,

@@ -1,5 +1,3 @@
-// The only entry of the gateway engine: one record, its hooks and its meter become the complete
-// accepted family binding.
 import type { RouteAccounting } from '../config.ts'
 import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-contract'
 import { recordAdoption } from '../family-table.ts'
@@ -25,9 +23,7 @@ export type ChatCompletionsBindingInput = Readonly<{
   supplier: Supplier
   hooks: VendorHooks
   meter: FamilyMeter
-  /** The buffer limits of each decoder of the binding. From the family configuration. */
   limits: ChatCompletionsLimits
-  /** Releases what the family acquired for this binding. Called at most once. */
   release(): Promise<void>
 }>
 
@@ -40,7 +36,6 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
   )
 }
 
-/** The gateway fields that the parameter table writes. */
 function parameterFields(table: ParameterTable): readonly GatewayField[] {
   const fields: GatewayField[] = []
   for (const kind of PARAMETER_KINDS) {
@@ -54,10 +49,6 @@ function parameterFields(table: ParameterTable): readonly GatewayField[] {
   return fields
 }
 
-/**
- * Checks what the engine relies on and the type cannot state. Throws `RangeError`: a record or a
- * binding input that fails is a defect of the family package.
- */
 function checkInput(input: ChatCompletionsBindingInput, adoption: Adoption): void {
   const { record, supplier, meter } = input
   if (!sameAdoption(adoption, supplier.adoption))
@@ -66,7 +57,6 @@ function checkInput(input: ChatCompletionsBindingInput, adoption: Adoption): voi
     throw new RangeError(`record ${record.name} does not have the route of the supplier`)
   if (!sameAdoption(meter.instance.basis.supplier.adoption, adoption))
     throw new RangeError(`the meter of record ${record.name} counts for another supplier`)
-  // Throws for an official declaration that is not valid; plan and encode do not use it.
   recordDeclaration(record)
   const { produces, accepts } = record.replay.formats
   if (!accepts.includes(produces))
@@ -87,7 +77,6 @@ function checkInput(input: ChatCompletionsBindingInput, adoption: Adoption): voi
   checkLimits(input.limits)
 }
 
-/** The tool name rule of the record is an engine rule, and its length a positive integer. */
 function checkToolNames(record: ChatCompletionsRecord): void {
   const { toolNames } = record.wire
   if (typeof toolNames !== 'object' || toolNames === null)
@@ -121,7 +110,6 @@ function checkLimits(limits: ChatCompletionsLimits): void {
       throw new RangeError(`limits.toolArguments.${name} must be a positive integer`)
 }
 
-/** Each gateway field has one writer: a parameter, an extension or a fixed value. */
 function checkFields(record: ChatCompletionsRecord): void {
   const known = new Set<string>(GATEWAY_FIELDS)
   const owned = new Set(parameterFields(record.parameters))
@@ -136,11 +124,6 @@ function checkFields(record: ChatCompletionsRecord): void {
   for (const param of record.wire.fixed) claim(param.field, 'a fixed value')
 }
 
-/**
- * The tool names of the request whose response the decoder reads: the table that encode used.
- * Throws for a request whose names encode refuses: no decoder is made for a request that was not
- * sent.
- */
 function decoderNames(
   record: ChatCompletionsRecord,
   adapter: Adoption,
@@ -159,12 +142,6 @@ function decoderNames(
   return names.ok
 }
 
-/**
- * Builds the complete binding of one record. Pure: no environment, secret, network or file.
- * `counting` is `meter.instance.basis`, and `replayFormat` is `record.replay.formats.produces`.
- * `release` wraps the release of the family once: every call returns the promise of the first.
- * Throws `RangeError` for a record or an input that the engine cannot bind.
- */
 export function bindChatCompletions(input: ChatCompletionsBindingInput): PiFamilyBinding {
   const { record, supplier, hooks, meter } = input
   const adoption = recordAdoption(supplier.adoption.owner, record)

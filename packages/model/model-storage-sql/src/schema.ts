@@ -1,25 +1,15 @@
-// The five tables of the durable Model call document and their migration. Each column is declared
-// once, in `TABLES`: the DDL, the migration check and the row parser all read that list. Every
-// table is keyed by tenant first, and every statement that reads or writes it filters on tenant.
 import type { MigrationModule, MigrationPort } from '@omne-harness/sql-contract/worker'
 
-/** The participant name that a combination lists for the Model records. */
 export const MODEL_PARTICIPANT = 'model'
-/** The fact protocol of the participant and of both read handlers. */
 export const PROTOCOL = '1'
 export const MIGRATION = Object.freeze({ owner: 'model', id: '001-model-records' })
 
-/**
- * `text` columns hold TEXT. `json` columns hold JSON text in the packed text form of sql-contract
- * §10.1, a BLOB. `int` columns hold INTEGER and travel as safe integers.
- */
 export type ColumnKind = 'text' | 'json' | 'int'
 export type Column = Readonly<{ name: string; kind: ColumnKind; nullable: boolean }>
 export type Table = Readonly<{
   name: string
   columns: readonly Column[]
   primaryKey: readonly string[]
-  /** Table constraints after the primary key: UNIQUE and CHECK clauses. */
   constraints: readonly string[]
   indexes: readonly string[]
 }>
@@ -67,11 +57,6 @@ const CALL: Table = {
   ],
 }
 
-/**
- * The body of the request of a call: the whole fixed request as JSON text, cut into chunks. The
- * call row keeps the head. A chunk is keyed by the call and the digest of the request, so the
- * chunks of another input of the same call are other rows. `total` is the chunk count of the body.
- */
 const REQUEST: Table = {
   name: 'md_request',
   columns: [
@@ -158,7 +143,6 @@ function createTable(table: Table): string {
   return `CREATE TABLE ${table.name} (${clauses.join(', ')}) STRICT`
 }
 
-/** The DDL of migration `001-model-records`, in execution order. */
 export const SCHEMA_STATEMENTS: readonly string[] = Object.values(TABLES).flatMap(table => [
   createTable(table),
   ...table.indexes,
@@ -176,7 +160,6 @@ function verify(port: MigrationPort): ReturnType<MigrationModule['verify']> {
     : { kind: 'failed', diagnostic: `missing tables: ${missing.join(',')}` }
 }
 
-/** The migration module of the Model tables. The provider runs it in its atomic migration. */
 export const modelMigration: MigrationModule = {
   owner: MIGRATION.owner,
   id: MIGRATION.id,

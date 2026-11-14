@@ -1,8 +1,3 @@
-// The consumer owner's evidence of an ACK, read before the write fence (handoff-evidence.ts,
-// R2-D257). An owner's adapter reads its own durable record, so it answers later: the commands
-// await it outside the fence and the write keeps only that answer. Each case is red when the ACK
-// takes a confirmation the adapter did not give, asks the adapter for an ACK the write refuses
-// anyway, or loses what the adapter needs to find its record (the invocation reference).
 import { expect, it } from 'vitest'
 import {
   decodeDispatchId,
@@ -16,7 +11,6 @@ import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
 
 type Answer = { ok: DurableEvidence } | { failure: ModelFailure }
 
-/** A settled call whose owner's adapter answers each ACK with what `answer` resolves to, later. */
 async function settledWith(answer: (input: HandoffEvidenceInput) => Promise<Answer>) {
   const f = fixture()
   const asked: HandoffEvidenceInput[] = []
@@ -91,8 +85,6 @@ it('acknowledges on a confirmation the adapter gives later, with the reference o
   })
   const receipt = unbox(await s.commands.handoff(s.ack))
   expect(receipt.custody).toMatchObject({ kind: 'acknowledged', receipt: s.custody })
-  // The adapter is asked once, with what names the saved delivery: the invocation reference of the
-  // call and its result version.
   expect(s.asked).toHaveLength(1)
   expect(s.asked[0]).toMatchObject({
     call: s.f.admit.call,
@@ -153,9 +145,6 @@ it('does not ask the adapter for an ACK the write refuses before the evidence', 
   expect(await s.state()).toEqual({ kind: 'producer' })
 })
 
-// R2-D260: the owner refuses evidence it did not save as forged. The refusal writes nothing: the
-// result, its custody and its share stay, and the same operation still acknowledges with the
-// owner's confirmation. Red when a refusal binds the operation or changes the custody.
 it('writes nothing on a refusal of forged evidence, and the same operation acknowledges later', async () => {
   let forged = true
   const s = await settledWith(input =>
@@ -174,11 +163,6 @@ it('writes nothing on a refusal of forged evidence, and the same operation ackno
   expect(unbox(await s.commands.handoff(s.ack)).custody.kind).toBe('acknowledged')
 })
 
-// R2-D262 N1: the guard of the read before the fence. The adapter is asked about the call as it
-// was; while its answer is on its way the call is claimed again (a new generation). The write must
-// not take the answer for the changed call: `unavailable`, the custody stays, and the same
-// operation acknowledges once it is asked about the call as it is now. Red when the write keeps a
-// proof whose question differs from its own (for example a guard of `proof === null` alone).
 it('does not keep an answer read for the call before it was claimed again, and the same operation acknowledges after', async () => {
   let release: () => void = () => {}
   let held = true
@@ -216,6 +200,5 @@ it('does not keep an answer read for the call before it was claimed again, and t
   })
   expect(await s.state()).toEqual({ kind: 'producer' })
   expect(unbox(await s.commands.handoff(s.ack)).custody.kind).toBe('acknowledged')
-  // The second question was about the new generation.
   expect(s.asked[1]?.execution?.generation).not.toBe(before)
 })

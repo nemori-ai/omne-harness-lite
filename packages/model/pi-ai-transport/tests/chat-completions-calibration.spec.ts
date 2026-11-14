@@ -1,7 +1,3 @@
-// The calibrated arithmetic both families share: full metering with output-count substitution,
-// the anchored envelope difference, the margin on the estimated part only, and the named
-// unavailability of a reasoning unit no output count stands for. The counting function is a
-// deterministic stand-in (the text length), so every expected number is computed in the test.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { MeterCalibration, OutputWithheld } from '@omne-harness/model-contract/provider'
@@ -21,7 +17,6 @@ const obj = (members: Record<string, JsonValue>): JsonValue => ({
 })
 const arr = (items: readonly JsonValue[]): JsonValue => ({ kind: 'array', items })
 
-/** Real message identities through the contract judge: u1, a1 (with reasoning), u2. */
 const ids = fixedRequest(testRecord(), {
   messages: [
     message('u1', 'user', [textBlock('b1', 'one')]),
@@ -91,12 +86,10 @@ function harness(count: (text: string) => bigint = text => BigInt(text.length)):
 const len = (body: JsonValue): bigint => BigInt(writeJsonText(body).length)
 const ceil10 = (amount: bigint): bigint => (amount * 10n + 99n) / 100n
 
-/** The token input with these message units, the tools and the tool choice left out. */
 function envelope(items: readonly JsonValue[]): JsonValue {
   return obj({ messages: arr(items), parameters: str('[]') })
 }
 
-/** The token input with these message units and everything else kept. */
 function whole(items: readonly JsonValue[]): JsonValue {
   return obj({
     messages: arr(items),
@@ -159,7 +152,6 @@ describe('full metering', () => {
       },
     })
     expect(h.counts).toEqual([])
-    // Without units the unit cannot be looked up either: the same named unavailability.
     expect(await calibratedAmount({ ...h.input({}), units: undefined })).toEqual({
       failure: {
         kind: 'unavailable',
@@ -292,7 +284,6 @@ describe('anchored metering', () => {
   })
 
   it('a negative envelope difference misses as continuation-shrank and the full path answers', async () => {
-    // The stand-in counter shrinks on the new unit: a non-monotonic count that real text never gives.
     const h = harness(text =>
       text.includes('"tools"') ? BigInt(text.length) : text.includes('three') ? 5n : 50n,
     )
@@ -412,7 +403,6 @@ describe('the failures of the inputs and of the family functions', () => {
         count: async () => failure,
       }),
     ).toBe(failure)
-    // Anchored: the count of the empty envelope fails after the count of the new units succeeded.
     const counts: string[] = []
     expect(
       await calibratedAmount({

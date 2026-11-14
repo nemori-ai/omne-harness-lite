@@ -1,8 +1,3 @@
-// Calibrated metering through the real composition the request assembler uses: the production
-// preparation lease of `@omne-harness/model` over this family through `composeFamilies`, with
-// representations from the real `rules.plan`. The store is a `dispatches` stand-in: the storage
-// port answers with dispatch records, denials or unavailability; the lease and the meter are real.
-// Every expected amount is computed here with the o200k encoding over the token input.
 import { describe, expect, it } from 'vitest'
 import { sortedJsonText } from './support/sorted-json.ts'
 import { getEncoding } from 'js-tiktoken'
@@ -58,7 +53,6 @@ function unbox<T>(outcome: { ok: T } | { failure: unknown }): T {
   throw new Error(`fixture failure: ${JSON.stringify(outcome.failure)}`)
 }
 
-/** A minted tenant and principal, borrowed from the contract's scripted conformance subject. */
 const subject = createScriptedConformanceSubject()
 const access = { principal: subject.principal, tenant: subject.tenant }
 
@@ -69,8 +63,6 @@ const PAYLOAD = JSON.stringify({
   format: 'openai-responses-v1',
   data: 'fixture-only-ciphertext',
 })
-
-// --- requests --------------------------------------------------------------------------------
 
 const u1 = message('u1', 'user', [textBlock('b1', 'hello there')])
 const a1 = message('a1', 'assistant', [textBlock('t1', 'Visible answer.')])
@@ -89,8 +81,6 @@ const currentWithReasoning: RequestParts = { system: SYSTEM, messages: [u1, a1Re
 
 const ids = (record: OpenAiRecord, parts: RequestParts) =>
   fixedRequest(record, parts).messages.map(item => item.id)
-
-// --- the store stand-in -----------------------------------------------------------------------
 
 type Counts = Readonly<{
   input?: string | null
@@ -125,7 +115,6 @@ function accountOf(counts: Counts = {}): NonNullable<DispatchRecord['account']> 
   }
 }
 
-/** The accounted dispatch of a settled call of `record`, with the messages it sent. */
 function recordOf(
   record: OpenAiRecord,
   overrides: Omit<Partial<DispatchRecord>, 'dispatch'> & Readonly<{ dispatch?: string }> = {},
@@ -187,7 +176,6 @@ async function leaseOf(
 
 type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
-/** Plans the request on the lease binding and measures through the lease meter. */
 async function measureOn(
   lease: ModelPreparationLease,
   record: OpenAiRecord,
@@ -236,7 +224,6 @@ function inputCheckOf(budget: RequestBudget) {
   return check.measurement
 }
 
-/** The message units of a token input, and the token input with other units and without tools. */
 function unitsOf(tokenInput: JsonValue): readonly JsonValue[] {
   if (tokenInput.kind !== 'object') throw new Error('object token input')
   const messages = tokenInput.entries.find(entry => entry.key === 'messages')?.value
@@ -341,7 +328,6 @@ describe('the continuation anchor', () => {
     const { measured, representation } = await measureOn(lease, SOL, current)
     const budget = budgetOf(measured)
     const items = unitsOf(representation.tokenInput)
-    // units: [null (instruction), u1, a1, u2]; only u2 is new.
     expect(representation.units).toHaveLength(4)
     const delta =
       (await count(envelope(representation.tokenInput, [items[3]!]))) -
@@ -517,8 +503,6 @@ describe('the continuation anchor', () => {
   })
 
   it('reports continuation-shrank and answers with full metering when the envelope difference is negative', async () => {
-    // A tokenizer stand-in that real text never gives: a body without tools counts less with the
-    // new unit than without it. The representation still comes from the real rules.plan.
     const binding = await bindingOf(SOL)
     const request = fixedRequest(SOL, current)
     const planned = unbox(
@@ -582,7 +566,6 @@ describe('carried encrypted reasoning as the output count of its source (M5)', (
     const lease = await leaseOf(SOL, sourceAnswer({ output: '18' }), { sources: sourcesOf(SOL) })
     const { measured, representation } = await measureOn(lease, SOL, currentWithReasoning)
     const budget = budgetOf(measured)
-    // units: [null, u1, a1 (reasoning), u2]
     const estimated = (await count(withoutUnit(representation.tokenInput, 2))) + 18n
     expect(inputCheckOf(budget)).toEqual({
       kind: 'estimate',

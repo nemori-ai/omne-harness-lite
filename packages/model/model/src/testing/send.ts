@@ -24,7 +24,6 @@ export type ScriptFactory<Script> = (script: Script) => {
   transport: ModelTransport
   counts(): TransportCounters
 }
-/** Script selection and transport acquisition only. The product owns all command sequencing. */
 export function scriptedSendResources<P, Script>(
   scripts: readonly TestSendPlan<Script>[],
   makeTransport: ScriptFactory<Script>,

@@ -1,6 +1,3 @@
-// The meter: the 28-pixel patch rule with the sealed goldens, the legacy Claude BPE loaded through
-// tokenizer-tiktoken against the independent reference, the NFKC estimate of the visible
-// projection with the configured margin, and the requests that have no estimate.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { sortedJsonText } from './support/sorted-json.ts'
@@ -34,10 +31,8 @@ const patch = IMAGE_RULES['claude-patch-28/1']
 
 describe('claude-patch-28/1 (sealed input-meters/anthropic.ts:54-79)', () => {
   it.each([
-    // anthropic-family-current.spec.ts:718-744: 128x96 is 5x4 patches, 64x48 is 3x2.
     [128, 96, 20],
     [64, 48, 6],
-    // anthropic-input-meter.spec.ts:343-367: the published 1920x1080 example.
     [1920, 1080, 2691],
     [1, 1, 1],
     [2576, 1, 92],
@@ -47,12 +42,9 @@ describe('claude-patch-28/1 (sealed input-meters/anthropic.ts:54-79)', () => {
   })
 
   it.each([
-    // The square fits at most 69 × 69 patches: the long edge shrinks to 1932.
     [3000, 3000, 4761],
-    // 2:1 shrinks to the 2576 edge: 92 × 46.
     [5152, 2576, 4232],
     [2576, 5152, 4232],
-    // One edge over 2576 alone.
     [2577, 28, 92],
   ] as const)(
     '%s × %s does not fit: the largest fitting long edge gives %s',
@@ -85,7 +77,6 @@ describe('the tokenizer resources', () => {
   }
 
   it('load through tokenizer-tiktoken and match the @anthropic-ai/tokenizer 0.0.4 reference', async () => {
-    // Sealed tests/fixtures/anthropic/reference-input.json: the projected JSON of its body.
     const reference =
       '{"messages":[{"role":"system","content":[{"type":"text","text":"Read the weather."}]},{"role":"user","content":[{"type":"text","text":"What is it?"}]},{"role":"assistant","content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"weather","arguments":"{\\"city\\":\\"Paris\\"}"}}]},{"role":"tool","tool_call_id":"call_1","content":"Sunny, 22 C"},{"role":"user","content":[{"type":"text","text":"Tomorrow?"}]}],"tools":[{"type":"function","function":{"name":"weather","description":"Read forecasts","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}]}'
     expect(await TOKENIZER.count([{ kind: 'text', text: reference }])).toEqual({
@@ -114,7 +105,6 @@ describe('the tokenizer resources', () => {
 
 type Measured = Awaited<ReturnType<ModelInputMeter['measure']>>
 
-/** Plans the request on the record binding and measures the planned representation. */
 async function planAndMeasure(
   record: AnthropicRecord,
   parts: RequestParts,
@@ -200,13 +190,11 @@ describe('measure', () => {
         constraint: { profile: officialProfile(SONNET).adoption, upstream: { kind: 'unknown' } },
       },
     ])
-    // NFKC: the full-width letters count as ASCII letters.
     const raw = await claude.count([{ kind: 'text', text: sortedJsonText(tokenInput) }])
     if ('failure' in raw) throw new Error(JSON.stringify(raw.failure))
     expect(amount).toBeLessThan(Number(raw.ok.tokens))
   })
 
-  // Sealed anthropic-input-meter.spec.ts:296-341: replayed reasoning is not visible BPE.
   it('has no estimate for a carried signed group and never tokenizes it', async () => {
     const payload = JSON.stringify([
       {

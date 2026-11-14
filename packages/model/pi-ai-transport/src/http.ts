@@ -9,47 +9,27 @@ import { CONNECTION_CANCEL } from './pool-agent.ts'
 
 export type TlsOptions = Readonly<{ ca: string | Buffer }>
 
-/** The part of an exchange that the network resources keep while it is in flight. */
 export type InFlightExchange = Pick<HttpExchange, 'stop' | 'stopped'>
 
-/** What one exchange takes from the network resources. Nothing else of them is visible here. */
 export interface ExchangeResources {
   readonly agent: Agent
   readonly tls: TlsOptions | undefined
   readonly diagnostics: IsolatedDiagnostics
-  /** Every exchange registers itself here from its start until `stopped`. */
   readonly inFlight: Set<InFlightExchange>
-  /** `true` once the resources close: no new exchange may start. */
   readonly closed: boolean
-  /** Only a reservation of this capacity may start an exchange here. */
   readonly capacity: Pick<ConnectionCapacity, 'owns'>
 }
 
 export type ExchangeInput = Readonly<{
   url: URL
-  /** Sent as given, the credential included. Names are HTTP tokens; values are printable ASCII. */
   headers: Readonly<Record<string, string>>
-  /** The serialized request; `content-length` is its byte length. */
   body: Uint8Array
-  /** A held reservation of the resources' capacity. The exchange consumes it and returns the slot after its physical end. */
   reservation: ConnectionReservation
-  /**
-   * Runs from the start until the request has a connected socket: a new one through its TLS
-   * handshake, through the proxy's CONNECT, tunnel and TLS when proxied; a reused one ends it at
-   * once. `null` disables it. At most `MAX_TIMER_MS`.
-   */
   connectTimeoutMs: number | null
-  /**
-   * The longest gap between two response bytes. Runs from the start of the exchange; every byte
-   * that arrives on the socket, an SSE comment line included, starts it again. `undefined` sets no
-   * limit. At most `MAX_TIMER_MS`.
-   */
   streamStallTimeoutMs?: number | undefined
-  /** A non-2xx body beyond this many bytes is dropped as a whole and the connection is closed. */
   maxErrorBodyBytes: number
 }>
 
-/** Why no request was sent. The reservation, if it was ours and still held, is back in the capacity. */
 export type ExchangeRefusal =
   | 'resources-closed'
   | 'reservation-unusable'
@@ -63,15 +43,10 @@ export type ExchangeStart =
   | Readonly<{ kind: 'started'; exchange: HttpExchange }>
   | Readonly<{ kind: 'refused'; reason: ExchangeRefusal }>
 
-/** Copied from the response: no `undefined` entries, arrays kept as arrays. Package-internal. */
 export type ResponseHeaders = Readonly<Record<string, string | readonly string[]>>
 
 export interface ResponseBody {
   claim(): AsyncIterable<Uint8Array> | undefined
-  /**
-   * `true` once Node has received the whole body: the rest of it is buffered, so the reader gets
-   * to its end without a wait for the other side.
-   */
   received(): boolean
 }
 
@@ -81,41 +56,19 @@ export type ErrorBody =
   | Readonly<{ kind: 'read-failed' }>
 
 export type ExchangeResult =
-  /** A 2xx response. The slot stays taken until the body is read to its end, stopped or failed. */
   | Readonly<{ kind: 'ok'; status: number; headers: ResponseHeaders; body: ResponseBody }>
-  /** Any other status, 3xx included: nothing is followed. Settled after the physical end. */
   | Readonly<{ kind: 'http-error'; status: number; headers: ResponseHeaders; errorBody: ErrorBody }>
-  /** The connection closed before any response, without a stop. */
   | Readonly<{ kind: 'connect-failed'; timeout: boolean }>
-  /** The signal or `stop()` won: it can win until the physical stop completes. */
   | Readonly<{ kind: 'stopped'; responded: boolean }>
-  /**
-   * No response byte came within `streamStallTimeoutMs` of the start. Settled after the physical
-   * stop. A stall after the response head is seen by the body reader as `ResponseBodyStalledError`.
-   */
   | Readonly<{ kind: 'stalled' }>
 
 export interface HttpExchange {
-  /** Settles once. It rejects only for a defect outside the closed result set. */
   readonly result: Promise<ExchangeResult>
-  /** Asks for a physical stop. The request already sent is not recalled. Idempotent. */
   stop(): void
-  /** Request and response are closed, the error body is read, and the slot is returned. */
   readonly stopped: Promise<void>
-  /**
-   * `false` while the request cannot have reached the wire: no socket was assigned yet, or a new
-   * direct connection has not finished its TLS handshake. `true` from the moment the request may
-   * have been written to a connected socket, and for good: a reused or tunnelled socket is
-   * connected when the request gets it. Only a `connect-failed` result with `false` here is a
-   * failure before the request bytes left.
-   */
   requestMaySent(): boolean
 }
 
-/**
- * The reader of a 2xx body sees this when the exchange was stopped locally before the body
- * reached its end: by `stop()`, by the cancel signal or by the close of the network resources.
- */
 export class ResponseBodyStoppedError extends Error {
   constructor() {
     super('the exchange was stopped before the response body reached its end')
@@ -123,10 +76,6 @@ export class ResponseBodyStoppedError extends Error {
   }
 }
 
-/**
- * The reader of a 2xx body sees this when the stream stall timeout ended the body before its end:
- * no byte came within `streamStallTimeoutMs`, and no stop was requested before the expiry.
- */
 export class ResponseBodyStalledError extends Error {
   constructor() {
     super('no response byte came within the stream stall timeout')
@@ -134,10 +83,6 @@ export class ResponseBodyStalledError extends Error {
   }
 }
 
-/**
- * The reader of a 2xx body sees this when the body ended before its end without a local stop:
- * the connection was reset or closed by the other side. `cause` is the failure Node reported.
- */
 export class ResponseBodyReadError extends Error {
   constructor(cause: unknown) {
     super('the response body ended before its end', { cause })
@@ -145,13 +90,6 @@ export class ResponseBodyReadError extends Error {
   }
 }
 
-/**
- * Sends one POST at once: after the return the request is on its way, with no await and no
- * queue in between. The caller must hold a reservation of the resources' capacity; a refusal
- * returns it. One call is one physical send: nothing is retried and no redirect is followed.
- * Any synchronous throw returns the held reservation first, and is the error reported even when
- * that return fails on a defective input.
- */
 export function startExchange(
   resources: ExchangeResources,
   input: ExchangeInput,
@@ -181,25 +119,16 @@ function begin(
   return { kind: 'started', exchange: runExchange(resources, input, signal, consumed.ok) }
 }
 
-/**
- * Returns the reservation if it is ours and still held. A foreign or consumed one is not touched.
- * Total over any shape of `resources` and `input`: when the reservation cannot be read or the
- * resources have no capacity, nothing is returned and the error that led here stays the one
- * reported.
- */
 function returnIfHeld(resources: ExchangeResources, input: ExchangeInput): void {
   try {
     const { reservation } = input
     if (resources.capacity.owns(reservation)) reservation.release()
-  } catch {
-    // A defective input or resources; the caller reports the error it already has.
-  }
+  } catch {}
 }
 
 const HEADER_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
 const HEADER_VALUE = /^[\x20-\x7e]*$/
 
-/** Total over any input shape: a caller without the types gets a refusal, not a throw. */
 function refusalOf(
   resources: ExchangeResources,
   input: ExchangeInput,
@@ -219,7 +148,6 @@ function refusalOf(
   return undefined
 }
 
-/** `https:` with nothing but origin and path: no credentials, no query, no fragment. */
 export function isPlainHttpsUrl(url: unknown): url is URL {
   return (
     url instanceof URL &&
@@ -243,12 +171,6 @@ function isObject(value: unknown): value is object {
   return typeof value === 'object' && value !== null
 }
 
-/**
- * The life of one exchange. `requesting`: sent, no response yet. `responding`: a 2xx result is
- * delivered; the body is with its reader. `reading-error`: a non-2xx body is being collected.
- * `concluding`: a natural outcome is known; a stop can still replace it, except for a stall that
- * won first. `stopping`: a stop won. `defective`: a condition outside the result set. `closed`: everything is released.
- */
 type Phase =
   | Readonly<{ kind: 'requesting' }>
   | Readonly<{ kind: 'responding' }>
@@ -258,13 +180,8 @@ type Phase =
   | Readonly<{ kind: 'defective'; error: Error }>
   | Readonly<{ kind: 'closed' }>
 
-/** The physical handles that must end before the exchange is closed. */
 type OpenHandle = 'request' | 'response' | 'error-body'
 
-/**
- * Why the response was ended locally. The first cause stays: a stop that follows a stall changes
- * nothing, and the reader of a 2xx body reports the cause.
- */
 type LocalEnd = 'stop' | 'stall'
 
 function runExchange(
@@ -280,13 +197,9 @@ function runExchange(
   let phase: Phase = { kind: 'requesting' }
   let response: IncomingMessage | undefined
   let clearConnectTimeout: () => void = noop
-  /** The one stall timer of the exchange; it is armed again by every response byte. */
   let stallTimer: NodeJS.Timeout | undefined
-  /** The socket whose bytes re-arm the stall timer, until the exchange is closed. */
   let watchedSocket: Socket | undefined
-  /** Reaches the pool: a connection still being built for this request ends with the request. */
   const connecting = new AbortController()
-  /** Set by the first local end: a stop (`stop()`, the signal, the close of the resources) or a stall. */
   let localEnd: LocalEnd | undefined
   let req: ClientRequest
   /** Set once the request may have been written to a connected socket; it never goes back. */
@@ -308,7 +221,7 @@ function runExchange(
       [CONNECTION_CANCEL]: connecting.signal,
     }
     req = request(input.url, options)
-    req.on('error', noop) // Every error ends in 'close', which decides the outcome.
+    req.on('error', noop)
     req.end(input.body)
   } catch (error) {
     seat.release()
@@ -334,10 +247,6 @@ function runExchange(
     }
   }
 
-  /**
-   * A reused socket, and one that came through a proxy's tunnel, is connected when the request gets
-   * it: the timeout ends here. A new direct socket is still connecting: it ends at its handshake.
-   */
   function onSocket(socket: Socket): void {
     watchBytes(socket)
     if (!socket.connecting) {
@@ -350,8 +259,6 @@ function runExchange(
       socket.removeListener('secureConnect', clear)
       clearTimer()
     }
-    // Node writes the request as soon as the handshake is done: from here on it may be on the wire.
-    // Not part of `clear`: the close of the exchange calls that too, and it proves nothing.
     socket.once('secureConnect', () => {
       requestMaySent = true
     })
@@ -359,7 +266,6 @@ function runExchange(
     clearConnectTimeout = clear
   }
 
-  /** Starts the stall timer again. Without a limit there is no timer. */
   function armStall(): void {
     if (input.streamStallTimeoutMs === undefined) return
     clearStall()
@@ -372,7 +278,6 @@ function runExchange(
     stallTimer = undefined
   }
 
-  /** Every byte that reaches the socket counts, whatever it carries: head, body or an SSE comment. */
   function watchBytes(socket: Socket): void {
     if (input.streamStallTimeoutMs === undefined || phase.kind === 'closed') return
     watchedSocket = socket
@@ -388,11 +293,6 @@ function runExchange(
       armStall()
   }
 
-  /**
-   * The gap between two response bytes ran out. It decides only while nothing else has: a stop, a
-   * connect timeout or a natural end that came first keeps its outcome. Bytes that Node holds
-   * unread are not a stall of the other side: the reader is slow, so the timer waits again.
-   */
   function onStall(): void {
     stallTimer = undefined
     if (localEnd !== undefined || response?.complete === true) return
@@ -429,13 +329,11 @@ function runExchange(
     destroyRequest()
   }
 
-  /** The reader of the 2xx body sees `ResponseBodyStalledError`. */
   function stallInBody(): void {
     localEnd = 'stall'
     destroyConnection()
   }
 
-  /** The error body ends as `read-failed`; the status stays the outcome, and a later stop keeps it. */
   function stallInErrorBody(): void {
     localEnd = 'stall'
     destroyConnection()
@@ -452,10 +350,9 @@ function runExchange(
     clearConnectTimeout()
     response = res
     open.add('response')
-    res.on('error', noop) // The reader sees the error through its iteration; 'close' follows.
+    res.on('error', noop)
     res.once('close', onResponseClose)
     if (phase.kind !== 'requesting') {
-      // A stop or the connect timeout already decided the outcome; only drain the socket.
       res.destroy()
       return
     }
@@ -501,7 +398,6 @@ function runExchange(
   }
 
   function stop(): void {
-    // A stall that came first keeps its outcome; it has already ended the connection.
     if (localEnd === 'stall') return
     switch (phase.kind) {
       case 'requesting':
@@ -511,11 +407,9 @@ function runExchange(
         phase = { kind: 'stopping', responded: true }
         break
       case 'concluding':
-        // A natural outcome is replaced until the physical stop completes.
         phase = { kind: 'stopping', responded: phase.outcome.kind === 'http-error' }
         break
       case 'responding':
-        // The result is delivered; the stop only ends the body.
         break
       case 'stopping':
       case 'defective':
@@ -531,7 +425,6 @@ function runExchange(
     destroyConnection()
   }
 
-  /** A defect outside the result set: stop physically and reject the result at the close. */
   function fail(error: unknown): void {
     if (phase.kind === 'closed' || phase.kind === 'defective') return
     phase = { kind: 'defective', error: error instanceof Error ? error : new Error(String(error)) }
@@ -562,7 +455,7 @@ function runExchange(
     seat.release()
     switch (final.kind) {
       case 'responding':
-        break // Delivered with the response.
+        break
       case 'concluding':
         result.resolve(final.outcome)
         break
@@ -574,7 +467,6 @@ function runExchange(
         break
       case 'requesting':
       case 'reading-error':
-        // 'request' and 'error-body' leave `open` only after their transition above.
         result.reject(new Error(`exchange closed while ${final.kind}`))
         break
       default: {
@@ -624,7 +516,6 @@ async function* readBytes(
   }
 }
 
-/** A failure of the stream is reported by its cause: a local stop, a stall, or the other side. */
 async function nextChunk(
   source: AsyncIterator<unknown>,
   localEnd: () => LocalEnd | undefined,
@@ -648,10 +539,6 @@ async function nextChunk(
   }
 }
 
-/**
- * Collects a non-2xx body up to `limit` bytes. Beyond the limit the connection is closed and
- * everything read is dropped. A stream failure is a read failure; a non-byte chunk is a defect.
- */
 async function readErrorBody(
   res: IncomingMessage,
   limit: number,
@@ -688,7 +575,6 @@ function concat(chunks: readonly Uint8Array[], total: number): Uint8Array {
   return bytes
 }
 
-/** Node marks absence with `undefined`; arrays stay arrays. Own data properties only. */
 function copyHeaders(headers: IncomingHttpHeaders): ResponseHeaders {
   const entries: [string, string | readonly string[]][] = []
   for (const [name, value] of Object.entries(headers)) {

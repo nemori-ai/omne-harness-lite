@@ -1,6 +1,3 @@
-// The production send resources of the local host. Each acquire builds one pi transport over a
-// credential slot that only that resource can fill. The network resources and the family
-// contributions are shared and injected; this module never closes the network.
 import type { SendResource, SendResources } from '@omne-harness/model'
 import { isDeepStrictEqual } from 'node:util'
 import type {
@@ -36,23 +33,15 @@ import {
 export type RequestDisclosure = (request: FixedModelRequest) => TransportFailure | null
 
 export type PiSendResourcesConfig = Readonly<{
-  /** Created and closed by the caller. Every transport of these resources shares it. */
   network: NetworkResources
   families: PiFamilyContributions
-  /** Looked up by `supplier.provider`, e.g. `openrouter`. The caller gives every URL. */
   routes: Readonly<Record<string, PiRoute>>
   limits: PiTransportLimits
   materialization: PiMaterializationOptions
-  /** Fixed for this activation. A refusal leaves the request unchanged and prevents encoding. */
   requestDisclosure?: RequestDisclosure
-  /**
-   * Told before each retry of a send whose request bytes had not left (`limits.connectRetry`), with
-   * the call and the dispatch that retries. A throw is dropped. Absent: nobody is told.
-   */
   onConnectRetry?: (retry: ConnectRetryReport) => void
 }>
 
-/** One retry of one send: who retries, which retry it is, the wait before it and why. */
 export type ConnectRetryReport = Readonly<{
   call: ModelCallId
   dispatch: DispatchId
@@ -61,25 +50,14 @@ export type ConnectRetryReport = Readonly<{
   reason: 'connect-failed' | 'connect-timeout'
 }>
 
-/** Production `SendResources` and the close of every resource that is still open. */
 export type PiSendResources<P> = SendResources<P> &
   Readonly<{
     materialization: ModelMaterializationEvidenceReader
-    /**
-     * Refuses new acquires, releases every open resource and waits for the release. It does not
-     * close the network resources. Idempotent.
-     */
     close(): Promise<void>
   }>
 
-/** Why a send resource refused a call that only a program defect can make. */
 export type SendResourceDefectReason = 'foreign-materialization' | 'resource-released'
 
-/**
- * A program defect at the send resource: the caller gave a materialized transport that this
- * resource did not produce, or used the resource after its release. The message names the reason
- * only; it never holds a credential value.
- */
 export class SendResourceDefect extends Error {
   readonly reason: SendResourceDefectReason
   constructor(reason: SendResourceDefectReason) {
@@ -97,21 +75,12 @@ const CLOSED: ModelFailure = Object.freeze({
   diagnostic: 'send-resources-closed',
 })
 
-/** The slot of the configuration probe: it never holds a value. */
 const EMPTY_SLOT: PiCredentialSlot = Object.freeze({ read: () => undefined })
 
-/**
- * Builds production send resources over the pi transport. Throws `RangeError` synchronously when
- * the transport refuses the configuration.
- */
 export function createPiSendResources<P>(config: PiSendResourcesConfig): PiSendResources<P> {
   return sendResourcesOver<P>({ config, createTransport: createPiTransport })
 }
 
-/**
- * The send resources over a transport factory. `createPiSendResources` gives the pi factory; the
- * package tests give one that observes the credential slot.
- */
 export function sendResourcesOver<P>(
   input: Readonly<{
     config: PiSendResourcesConfig
@@ -119,11 +88,10 @@ export function sendResourcesOver<P>(
   }>,
 ): PiSendResources<P> {
   const { config, createTransport } = input
-  // The report hook is the send resources' own: the transport gets one per send, below.
   const { onConnectRetry, requestDisclosure, ...transportBase } = config
   const proofs = materializationRecords(config.materialization)
-  // The probe checks the configuration once, here, so a bad route or limit fails the assembly
-  // and not the first send. It is never used; its close is awaited by `close`.
+  // The probe checks the configuration once, so a bad route or limit fails the assembly, not the
+  // first send. It is never used; its close is awaited by close.
   const probe = createTransport({ ...transportBase, credential: EMPTY_SLOT })
   const probeClosed: Promise<unknown> = probe.close().then(
     () => null,
@@ -133,8 +101,6 @@ export function sendResourcesOver<P>(
   let closing: Promise<void> | undefined
 
   function acquireOne(demand: SendDemand<P>, owner: object): SendResource {
-    // The secrets of the send that is starting, by credential item. They are held only inside
-    // startWithCredential.
     let secrets: ReadonlyMap<string, string> | undefined
     const produced = new WeakSet<MaterializedTransport>()
     let released: Promise<void> | undefined
@@ -193,7 +159,6 @@ export function sendResourcesOver<P>(
         if (!produced.has(materialized)) throw new SendResourceDefect('foreign-materialization')
         secrets = value
         try {
-          // The pi transport reads the slot once, inside this synchronous call.
           return materialized.start(signal)
         } finally {
           secrets = undefined
@@ -246,7 +211,6 @@ export function sendResourcesOver<P>(
   }
 }
 
-/** Delegates to the prepared transport and records each materialized transport it hands out. */
 function recordingPrepared(
   prepared: PreparedTransport,
   produced: WeakSet<MaterializedTransport>,

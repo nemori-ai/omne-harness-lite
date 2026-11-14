@@ -1,8 +1,3 @@
-// The assembly side of the fixture. It stands for the party that picks the provider and sends the
-// notification: one host plugin provides a scripted runtime on the `modelRuntime` key through a
-// class that extends the definition, and `announce` sends the call-changed notification the way a
-// provider does, catching what the listeners throw. It is not a provider and decides nothing for the
-// plugin under test.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ModelCallId, ModelCalls, ModelRuntime, Revision } from '@omne-harness/model-contract'
@@ -14,7 +9,6 @@ export type Follow = Pick<FollowerConfig, 'principal' | 'tenant' | 'tracked'>
 
 export async function startAssembly(runtime: ModelRuntime<Principal>) {
   let inspections = 0
-  // Counting is all that this wrapper adds: every answer is the runtime's own.
   const calls: ModelCalls<Principal> = {
     admit: input => runtime.calls.admit(input),
     inspect(input) {
@@ -45,13 +39,9 @@ export async function startAssembly(runtime: ModelRuntime<Principal>) {
 
   return {
     root,
-    /** The class whose instance the host provides. */
     Hosted: HostedRuntime,
-    /** How many times the plugin asked the runtime to show a call. */
     inspections: (): number => inspections,
-    /** What the listeners threw, as the sender of the notification recorded it. */
     diagnostics: (): readonly string[] => diagnostics,
-    /** Loads the plugin under test and waits until its injection is served. */
     async follow(follow: Follow): Promise<{ fiber: Fiber; followed: Followed }> {
       const followed = newFollowed()
       const fiber = root.plugin(followerPlugin, { ...follow, followed })

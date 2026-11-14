@@ -1,25 +1,13 @@
-// The configuration of the local host plugins, parsed once at the plugin boundary (Standard Schema,
-// the same shape as the credential plugin). Every number comes from the operator: the design does
-// not turn an unmeasured production number into a default, so a missing or out-of-range value
-// fails the load instead of falling back.
 import { fieldOf, isIntegerAtLeast, rejected, type Parsed } from '../fields.ts'
 
 function schemaOf<T>(validate: (value: unknown) => Parsed<T>) {
   return { '~standard': { version: 1 as const, vendor: 'model-host-local', validate } }
 }
 
-/** The four bounds of the local host. All are required. */
 export type ModelHostSettings = Readonly<{
-  /** The most drives that run at once. */
   concurrencyLimit: number
-  /** The most calls that wait for a drive, counting a running call that was woken again. */
   wakeCapacity: number
-  /** The calls one recovery scan page reads. Consumed by the recovery scan, not by the host. */
   scanBatchSize: number
-  /**
-   * The pause, in milliseconds, before the host wakes a call again whose drive ended without
-   * ending the call. Positive: a pause of zero would drive a call that cannot progress in a loop.
-   */
   scanIntervalMs: number
 }>
 
@@ -41,9 +29,7 @@ function parseHostSettings(value: unknown): Parsed<ModelHostSettings> {
 
 export const modelHostConfigSchema = schemaOf(parseHostSettings)
 
-/** The bound of the request preparation plugin. */
 export type ModelPreparationSettings = Readonly<{
-  /** The most distinct calls one lineage may name. */
   maxCitedCalls: number
 }>
 

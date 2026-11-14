@@ -1,7 +1,3 @@
-// The request body: a request has no size bound and a commit of the storage has one, so the body
-// is written as chunks, apart from the call row, which keeps the head. The call holds only with
-// its whole body; a body that no call owns does not stay; every later commit and read of the call
-// has a size that does not depend on the request.
 import { describe, expect, it } from 'vitest'
 import type { FixedModelRequest } from '@omne-harness/model-contract'
 import { createSqlModelCommands } from '@omne-harness/model-storage-sql'
@@ -27,7 +23,6 @@ const A = tenantOf('a')
 const DOMAIN = 'body'
 const CHUNK_BYTES = 1024
 
-/** The fixture request with a first message of `length` characters. */
 function requestOf(length: number): FixedModelRequest {
   const text = 'é"\\\n😀'.repeat(Math.ceil(length / 6)).slice(0, length)
   const copy: { messages: { blocks: { text?: string }[] }[] } = JSON.parse(JSON.stringify(REQUEST))
@@ -39,7 +34,6 @@ function requestOf(length: number): FixedModelRequest {
 
 type Intercept = (request: CommitRequestV2, intent: unknown) => CommitResultV2 | null
 
-/** One process over the test provider. `intercept` may answer a commit in place of the provider. */
 function process(
   sqlite: ReturnType<typeof sqliteStorage>,
   intercept: Intercept = () => null,
@@ -104,7 +98,6 @@ describe('cutting a body into chunks', () => {
   })
 
   it('fills a chunk to the encoded size when the text allows it', () => {
-    // 1024 bytes hold the two quotes and 1022 characters of one byte each.
     expect(chunksOf('a'.repeat(5000), 1024).map(chunk => chunk.length)).toEqual([
       1022, 1022, 1022, 1022, 912,
     ])
@@ -245,12 +238,10 @@ describe('the body of an admitted call', () => {
     const p = process(sqlite)
     const input = p.admit('again', requestOf(5000))
     expect(await p.commands.admit(input)).toHaveProperty('ok')
-    // What the release commit leaves: no request head and no chunk (commit.spec.ts).
     sqlite.seed(DOMAIN, 'UPDATE md_call SET request = NULL', [])
     sqlite.seed(DOMAIN, 'DELETE FROM md_request', [])
     p.sizes.length = 0
     expect(await p.commands.admit(input)).toHaveProperty('ok')
-    // The core recognises the admission before it stages a write, so no body is written.
     expect(p.sizes).toEqual([])
     expect(chunkRows(sqlite, 'mcall_again')).toEqual([])
   })
@@ -300,7 +291,6 @@ describe('the body of an admitted call', () => {
 
   it('deletes, at the first admission of a new process, the chunks that no call owns', async () => {
     const sqlite = sqliteStorage()
-    // The process dies between the chunks and the admission: its discard never commits either.
     const crashed = process(sqlite, (request, intent) =>
       intent === 'write' || intent === 'body-discard' ? unknownOf(request) : null,
     )

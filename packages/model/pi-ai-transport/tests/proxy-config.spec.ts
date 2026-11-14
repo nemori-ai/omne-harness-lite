@@ -8,7 +8,6 @@ function withProxy(proxy: ProxyConfig): NetworkConfig {
   return { maxConnections: 1, idleConnectionTimeoutMs: 1_000, proxy }
 }
 
-/** The thrown error, so a test can check both its type and that its message keeps the URL out. */
 function thrownBy(run: () => unknown): unknown {
   try {
     run()
@@ -62,8 +61,6 @@ describe('network resources: proxy configuration', () => {
     },
   )
 
-  // `URL` accepts these; Node's own reading of the raw text throws with the whole URL, password
-  // included, in its message. This is the guarantee that construction never reports the URL.
   it.each([
     ['a trailing newline', `http://user:${SECRET}@proxy.example:8080\n`],
     ['an embedded carriage return', `http://user:${SECRET}@proxy.exa\rmple:8080`],

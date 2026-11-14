@@ -1,5 +1,3 @@
-// The revisioned rules behind the four hooks: encrypted reasoning, usage arithmetic and scope,
-// the tool schema subset and the cross-field check.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { GatewayUsage, ReasoningDetail } from '@omne-harness/pi-ai-transport/chat-completions'
@@ -140,7 +138,6 @@ const item = (name: string, lexeme: string | null) =>
 describe('usage', () => {
   const openAi = USAGE_RULES['openai-usage/1']()
   const unknownScope = USAGE_RULES['unknown-scope/1']()
-  // The sealed refusal tests: 123 prompt, 20 read, 3 written leave 100 uncached.
   const sealed = usage({
     promptTokens: '123',
     completionTokens: '7',

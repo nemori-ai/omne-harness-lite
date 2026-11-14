@@ -18,7 +18,6 @@ import { executionFailure, verdictOf, type WriteVerdict } from './commands/execu
 type Open = Parameters<ModelCommands<unknown>['openReceiveWindow']>[0]
 type Preserve = Parameters<ModelCommands<unknown>['preserve']>[0]
 type Completion = 'continue' | 'terminal' | 'stream-lost'
-/** How the receive ended: the terminal to settle with, and the failure to report for the drive. */
 export type ReceiveEnd = {
   termination: Termination | null
   failure: ModelFailure | null
@@ -39,9 +38,7 @@ type Stage =
   | { kind: 'open'; input: Open; pending: boolean }
   | { kind: 'preserve'; input: Preserve; pending: boolean; completion: Completion }
   | { kind: 'terminal'; evidence: ReceivedTerminal; published: boolean }
-  /** An execution write was refused. The call ends as an execution failure. */
   | { kind: 'refused'; refusal: ModelFailure }
-  /** The execution is no longer this receiver's. */
   | { kind: 'superseded'; failure: ModelFailure }
 export function newOperation(): ModelOperationId {
   const value = decodeModelOperationId(`mop_${randomUUID()}`)
@@ -54,7 +51,6 @@ const unavailable = (diagnostic: string): ModelFailure => ({
   diagnostic,
 })
 
-/** Owns exactly one iterator and keeps every in-flight read in its original receive window. */
 export function createReceiver<P>(input: {
   commands: ModelCommands<P>
   clock: ModelClock
@@ -232,10 +228,8 @@ export function createReceiver<P>(input: {
       case 'unconfirmed':
         return { failure: result.failure }
       case 'outdated':
-        // A terminal batch gets a new intent at most once in a drive.
         if (entry.completion !== 'continue')
           return replaceTerminalPreserve(entry, result.failure, competition)
-        // The next drive saves the same batch at the revision it then reads.
         input.rejectContent()
         stage = {
           kind: 'ready',
@@ -298,7 +292,6 @@ export function createReceiver<P>(input: {
     if (batch.facts.length === 1 && input.batchDelayMs > 0) {
       const timer = new AbortController()
       batch.timer = timer
-      // A soft trigger. It never detaches an already-pending next from this window.
       void input.clock
         .waitUntil(
           new Date(Date.parse(input.clock.now()) + input.batchDelayMs).toISOString(),

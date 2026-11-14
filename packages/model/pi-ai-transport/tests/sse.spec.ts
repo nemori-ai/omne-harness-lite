@@ -5,7 +5,6 @@ import { recordingSource } from './support/sources.ts'
 
 const encoder = new TextEncoder()
 
-/** Yields `bytes` cut at the given offsets, as separate Uint8Array chunks. */
 async function* cutAt(bytes: Uint8Array, cuts: readonly number[]): AsyncGenerator<Uint8Array> {
   let start = 0
   for (const cut of [...cuts, bytes.length]) {
@@ -34,10 +33,6 @@ async function failureOf(events: AsyncIterable<string>): Promise<SseFailureReaso
   throw new Error('expected an SseProtocolError')
 }
 
-/**
- * Every newline form, a comment, ignored fields, multi-line data, a colon-less data line,
- * a value whose second leading space is kept, and 2-, 3- and 4-byte UTF-8 characters.
- */
 const mixed = encoder.encode(
   ': keep-alive\r\n' +
     'event: message\r\n' +
@@ -142,7 +137,6 @@ describe('failing a malformed SSE stream with a closed reason', () => {
   })
 
   it('an event at the byte limit passes and one byte more fails as event-too-large', async () => {
-    // 'data:你' is 8 bytes, then two line breaks: 10 bytes in the event.
     const stream = encoder.encode('data:你\n\n')
     expect(await collect(readSseEvents(cutAt(stream, [6]), 10))).toEqual(['你'])
     expect(await failureOf(readSseEvents(cutAt(stream, [6]), 9))).toBe('event-too-large')

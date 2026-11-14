@@ -1,4 +1,3 @@
-/** Compare confirmed value trees; object member order is not part of a projection. */
 export function equalStreamValues(left: unknown, right: unknown): boolean {
   if (left === right) return true
   if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null)

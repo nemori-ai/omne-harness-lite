@@ -1,24 +1,3 @@
-// MD-01 and MD-10: the runtime part of `ModelRuntimeLocalPlugin`. It publishes `modelRuntime` from
-// the runtime of the provider, next to the host, and it runs the result push of the provider:
-// every settled call is frozen once, pushed to the receiver that its consumer owner registered,
-// acknowledged through the retained handoff after `saved`, cleaned, and every late account that
-// the provider accepts afterwards is pushed to the same owner.
-//
-// Structural facts:
-// - The push learns of results and late accounts from the commands port that the provider writes
-//   through: a committed `settle` wakes the call, and a late account is reserved before it is
-//   accepted and frozen right after. Nothing here guesses a commit from a read.
-// - The ACK takes a `SavedResult`, and only `acceptReceipt` makes one, from a receipt with the
-//   original key and an evidence of the frozen consumer owner. There is no other way to reach the
-//   handoff.
-// - The ledger holds every frozen delivery and its standing until the ACK. It is the one store of
-//   the push state and has one writer: the stage that holds its lease. A successor that takes the
-//   same ledger goes on with the same keys and payloads.
-// - The durable custody of the commands is the fact of what is still owed, not the ledger. With
-//   `recovery`, the push scans the commands when it starts and wakes every settled call that is not
-//   yet acknowledged and cleaned, so a new process with an empty ledger pushes and acknowledges
-//   what an earlier one left (R2-D260). There is no second, durable ledger. A tenant the scan cannot
-//   read now is scanned again after a backoff; the set of such tenants holds no fact.
 import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
@@ -58,31 +37,21 @@ import { whenEmpty } from './idle.ts'
 
 const DEPENDENCY = 'model-result-push'
 
-/** The pause before a tenant the start scan could not read is scanned again: 1 s, 5 s, then 30 s. */
 function recoveryPauseMs(failures: number): number {
   if (failures === 0) return 1000
   return failures === 1 ? 5000 : 30000
 }
 
-/** What one read of the start scan came to: read, worth reading again after a pause, or given up. */
 type Scan<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'again' | 'given-up' }>
 
 type Target = Readonly<{ tenant: TenantId; call: ModelCallId }>
 type ResultDelivery = Extract<ModelDelivery, { kind: 'result' }>
 type AccountDelivery = Extract<ModelDelivery, { kind: 'account' }>
 
-/** Why a delivery is not saved and will not be pushed again by itself. */
 export type DeliveryFailure =
   | Readonly<{ kind: 'rejected'; failure: ModelDeliveryFailure }>
-  /** The receipt names another key, or its evidence is not the frozen consumer owner's. */
   | Readonly<{ kind: 'receipt-mismatch' }>
 
-/**
- * What the pushes of one delivery came to. `saved` keeps its first receipt. `unknown` gives way only
- * to `saved`: a later refusal cannot show that the receiver never saved. `waiting` is a delivery
- * that waits for a receiver or for an answer that may change: no receiver, `unavailable`,
- * `backpressured` or `cancelled-before-accept`.
- */
 export type DeliveryStanding =
   | Readonly<{ status: 'pending' }>
   | Readonly<{ status: 'waiting'; reason: string }>
@@ -91,45 +60,29 @@ export type DeliveryStanding =
   | Readonly<{ status: 'failed'; failure: DeliveryFailure }>
 
 export type HeldDelivery<D extends ModelDelivery = ModelDelivery> = Readonly<{
-  /** Frozen once; every push and every redelivery sends exactly this value. */
   delivery: D
   standing: DeliveryStanding
   attempts: number
 }>
 
-/** A late account that the provider accepted, held until it is saved. */
 export type HeldAccount = HeldDelivery<AccountDelivery> & Readonly<{ reservation: string }>
 
-/**
- * The push state of one call. `operations` are fixed when the record is made, so a repeated read
- * or ACK uses the original operation. After the ACK the result body is dropped: `result` keeps
- * its key only.
- */
 export type ResultPushRecord = Readonly<{
   tenant: TenantId
   call: ModelCallId
   operations: Readonly<{ read: ModelOperationId; ack: ModelOperationId }>
-  /** Known once the result is frozen; late accounts are pushed to the same consumer. */
   origin: Readonly<{ reference: ModelInvocationRef; consumer: ConsumerRef }> | null
   result: HeldDelivery<ResultDelivery> | null
   acknowledgement: 'none' | 'unknown' | 'acknowledged'
   cleanup: 'pending' | 'released'
-  /** The account revision of each dispatch that the consumer has, in the result or pushed. */
   delivered: Readonly<Record<string, string | null>>
-  /** Accounts accepted after the result was frozen, in arrival order. */
   accounts: readonly HeldAccount[]
 }>
 
-/**
- * The store of the push records: the adapter point of a durable store. It has one writer at a time;
- * `claim` refuses a second one. The in-memory ledger keeps the records of one process.
- */
 export interface ResultPushLedger {
-  /** Takes the writer lease and returns its release. Throws while another writer holds it. */
   claim(): () => void
   read(target: Target): ResultPushRecord | undefined
   write(record: ResultPushRecord): void
-  /** Every record, in the order of its first write. */
   records(): readonly ResultPushRecord[]
 }
 
@@ -138,7 +91,6 @@ function keyOf(target: Target): string | undefined {
   return text.ok ? JSON.stringify([text.value, target.call]) : undefined
 }
 
-/** A ledger in this process. A successor plugin that is given the same ledger resumes from it. */
 export function createMemoryResultPushLedger(): ResultPushLedger {
   const records = new Map<string, ResultPushRecord>()
   let held = false
@@ -166,44 +118,24 @@ export function createMemoryResultPushLedger(): ResultPushLedger {
   }
 }
 
-/** The bounds of the push. Every one is given by the assembly; there is no default. */
 export type ResultPushLimits = Readonly<{
-  /** Calls whose deliveries are pushed at once. */
   maxConcurrentCalls: number
-  /** Pushes of one delivery after `outcome-unknown`, and resends of one ACK after `commit-unknown`, in one round. */
   maxRedeliveries: number
-  /** Cleanup steps of one call in one round. */
   maxCleanupSteps: number
-  /** Late accounts of one tenant that are accepted and not yet saved. */
   maxPendingAccountsPerTenant: number
-  /** Late accounts of all tenants that are accepted and not yet saved. */
   maxPendingAccounts: number
 }>
 
-/**
- * Where the push finds, when it starts, the calls that an earlier process left settled and not yet
- * acknowledged or cleaned. The assembly owns the tenants and their recovery principals.
- */
 export type ResultPushRecovery = Readonly<{
-  /**
-   * The tenants to scan, each with a principal that may scan and load its calls for recovery.
-   * Read once when the push starts.
-   */
   scopes(): Reply<readonly Access<unknown>[]>
 }>
 
 export type ResultPushOptions = Readonly<{
-  /** The store of the push records; the assembly owns it, so a successor plugin can take it. */
   ledger: ResultPushLedger
   limits: ResultPushLimits
-  /**
-   * The start scan. Without it the push knows only what the ledger holds and what settles while it
-   * runs, so a call that settled before the start and is missing from the ledger stays owed.
-   */
   recovery?: ResultPushRecovery
 }>
 
-/** What the push reports to the plugin for a diagnostic: kinds and counts only, no identities. */
 export type RuntimeEvent =
   | Readonly<{ kind: 'no-receiver' }>
   | Readonly<{ kind: 'push-waiting'; reason: string }>
@@ -215,18 +147,12 @@ export type RuntimeEvent =
   | Readonly<{ kind: 'late-account-refused'; pending: number }>
   | Readonly<{ kind: 'blocked'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'work-threw' }>
-  /**
-   * The start scan could not read at `step`. With `again` the tenant (or the tenant list, at
-   * `scopes`) is scanned again after a pause; without it the calls it did not reach wait for the
-   * next start.
-   */
   | Readonly<{
       kind: 'recovery-failed'
       step: 'scopes' | 'scan' | 'load' | 'wait'
       failure: string
       again: boolean
     }>
-  /** The start scan, or the scan of a tenant again, woke `woken` settled calls that were still owed. */
   | Readonly<{ kind: 'recovered'; woken: number }>
 
 const LIMIT_NAMES = [
@@ -253,7 +179,6 @@ function newOperation(): ModelOperationId {
   throw new Error('invalid generated Model operation')
 }
 
-/** A deep copy that nothing can change afterwards. */
 function frozen<T>(value: T): T {
   const copy = structuredClone(value)
   const freeze = (item: unknown): void => {
@@ -265,23 +190,17 @@ function frozen<T>(value: T): T {
   return copy
 }
 
-/** Whether a push that came to `next` may replace `standing` as the fact of the delivery. */
 function replaces(standing: DeliveryStanding, next: DeliveryStanding): boolean {
   if (standing.status === 'saved') return false
   if (standing.status === 'unknown') return next.status === 'saved'
   return true
 }
 
-/** A result whose receipt the Model accepted: the only input of the ACK. */
 type SavedResult = Readonly<{
   result: ResultDelivery['key']['result']
   evidence: ModelSavedReceipt['evidence']
 }>
 
-/**
- * The receipt counts as `saved` only for the original key and with an evidence of the frozen
- * consumer owner. The evidence itself is checked again by the commands' evidence adapter.
- */
 function acceptReceipt(
   delivery: ModelDelivery,
   receipt: ModelSavedReceipt,
@@ -298,7 +217,6 @@ function savedResultOf(record: ResultPushRecord): SavedResult | null {
   return { result: held.delivery.key.result, evidence: held.standing.receipt.evidence }
 }
 
-/** After the ACK the receiver holds the result: the producer keeps its key and standing only. */
 function dropBody(record: ResultPushRecord): ResultPushRecord {
   const held = record.result
   if (held === null) return record
@@ -308,12 +226,10 @@ function dropBody(record: ResultPushRecord): ResultPushRecord {
   }
 }
 
-/** Refuses a late account before the commands see it; the source keeps its report. */
 function refuse(diagnostic: string): Awaited<ReturnType<ModelCommands<unknown>['recordLateFact']>> {
   return { failure: { kind: 'unavailable', dependency: DEPENDENCY, diagnostic } }
 }
 
-/** A late account frozen at its acceptance, with the origin of its call. */
 type Arrival = Readonly<{
   target: Target
   held: HeldAccount
@@ -321,42 +237,22 @@ type Arrival = Readonly<{
 }>
 
 type StageInput = Readonly<{
-  /** The commands of the plugin: the push reads, acknowledges and cleans through them. */
   commands: ModelCommands<unknown>
-  /** Gives the trusted principal of a call; the push acts as it. */
   authority: ModelHostAuthority<unknown>
-  /** The page size of the start scan: the host's `scanBatchSize`. */
   scanBatchSize: number
-  /** Times the pause before the start scan reads a tenant again. */
   clock: ModelClock
   report(event: RuntimeEvent): void
-  /** Told once the result body of a call is released: the host retires the call's route. */
   released?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
 }>
 
-/** The runtime stage of one plugin instance: made before the provider, started after the bind. */
 export type RuntimeStage = Readonly<{
-  /** The commands to give the provider: its committed settles and late accounts reach the push. */
   commands: ModelCommands<unknown>
-  /**
-   * Publishes `modelRuntime` in `child` from the provider's runtime and starts the push. Called once,
-   * inside the plugin of the contribution. Without push options it publishes nothing.
-   */
   contribute(child: Context, runtime: ModelRuntime<unknown> | undefined): void
-  /**
-   * Stops the push: refuses new late accounts, aborts the pushes in flight, waits for them and for
-   * the late accounts being accepted, writes what arrived into the ledger, and releases the ledger.
-   */
   stop(): Promise<void>
-  /**
-   * Resolves when no call is being pushed, or when `signal` aborts; the answer is the number of
-   * calls whose push still runs. A delivery that waits for its receiver is not counted.
-   */
   idle(signal: AbortSignal): Promise<number>
   delivering(target: Target): boolean
 }>
 
-/** The `modelRuntime` service: the runtime of the provider and its receiver table. */
 class RuntimeContribution extends ModelRuntimeService<unknown> {
   readonly calls: ModelRuntime<unknown>['calls']
   readonly consumption: ModelRuntime<unknown>['consumption']
@@ -368,7 +264,6 @@ class RuntimeContribution extends ModelRuntimeService<unknown> {
     table: ModelResultReceiverTable<unknown>,
   ) {
     super(ctx, table)
-    // Cordis hands consumers the instance, so the runtime stays in these closures.
     const calls: ModelRuntime<unknown>['calls'] = {
       admit: input => runtime.calls.admit(input),
       inspect: input => runtime.calls.inspect(input),
@@ -391,10 +286,6 @@ class RuntimeContribution extends ModelRuntimeService<unknown> {
   }
 }
 
-/**
- * Makes the runtime stage. Without `options` the plugin is a host only: the provider gets the
- * commands as they are, and a provider that brings a runtime is refused.
- */
 export function createRuntimeStage(
   input: StageInput,
   options: ResultPushOptions | undefined,
@@ -422,14 +313,8 @@ function createResultPush(
   const { commands, authority, clock, report } = input
   const dirty = new Map<string, Target>()
   const running = new Map<string, Promise<void>>()
-  /** Late accounts accepted and not yet saved: reservation → tenant. */
   const reservations = new Map<string, string>()
-  /** Late accounts of one call are accepted one after the other. */
   const intake = new Map<string, Promise<unknown>>()
-  /**
-   * Late accounts frozen at their acceptance, until the work of their call takes them into the
-   * record. The work of a call is the one writer of its record.
-   */
   const inbox = new Map<string, Arrival[]>()
   const stopping = new AbortController()
   let phase: 'ready' | 'started' | 'stopped' = 'ready'
@@ -449,7 +334,6 @@ function createResultPush(
       if (running.size >= limits.maxConcurrentCalls) return
       if (running.has(key)) continue
       dirty.delete(key)
-      // `work` does not reject, so the chained promise needs no handler of its own.
       const task = work(target).finally(() => {
         running.delete(key)
         pump()
@@ -499,7 +383,6 @@ function createResultPush(
 
   type Access = Readonly<{ principal: unknown; tenant: TenantId }>
 
-  /** Takes the late accounts that arrived for the call into its record. */
   function receive(record: ResultPushRecord): ResultPushRecord {
     const key = keyOf(record)
     const arrived = key === undefined ? undefined : inbox.get(key)
@@ -523,7 +406,6 @@ function createResultPush(
     return save(next)
   }
 
-  /** Reads the settled call once and freezes its result delivery. */
   async function freeze(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     const call = { ...access, call: record.call }
     const recovery = await commands.loadRecovery(call)
@@ -544,7 +426,6 @@ function createResultPush(
     }
     const origin = frozen({ reference: reference.ok, consumer: state.consumer })
     if (state.custody.kind === 'acknowledged')
-      // Acknowledged before this push froze it: there is no result to push, only later accounts.
       return save({ ...record, origin, acknowledgement: 'acknowledged' })
     const dispatches = await commands.dispatches(call)
     if ('failure' in dispatches) {
@@ -565,7 +446,6 @@ function createResultPush(
     })
     const delivered: Record<string, string | null> = {}
     for (const item of dispatches.ok) delivered[item.dispatch] = item.account?.revision ?? null
-    // A late account that the snapshot already holds is not pushed again on its own.
     const accounts = record.accounts.filter(held => {
       const known = delivered[held.delivery.key.dispatch]
       const later =
@@ -582,7 +462,6 @@ function createResultPush(
     })
   }
 
-  /** The ordered parts of the settled result, with the record's read operation. */
   async function readParts(
     record: ResultPushRecord,
     access: Access,
@@ -621,10 +500,6 @@ function createResultPush(
     return parts
   }
 
-  /**
-   * Pushes `held` until it is saved, fails, waits, or stays unknown after the redeliveries, and
-   * gives the held delivery with what the pushes came to.
-   */
   async function push<D extends ModelDelivery>(
     held: HeldDelivery<D>,
     access: Access,
@@ -647,7 +522,6 @@ function createResultPush(
       try {
         outcome = await receiver.push({ access, delivery, signal: stopping.signal })
       } catch {
-        // A receiver that throws may have saved: the outcome is unknown.
         outcome = { failure: { kind: 'outcome-unknown' } }
       }
       if ('ok' in outcome) {
@@ -695,7 +569,6 @@ function createResultPush(
     return save({ ...record, result: await push(held, access) })
   }
 
-  /** The Model's own ACK: only for a saved result, with its evidence, through the retained handoff. */
   async function acknowledge(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     if (record.acknowledgement === 'acknowledged') return record
     const saved = savedResultOf(record)
@@ -708,7 +581,6 @@ function createResultPush(
     access: Access,
     saved: SavedResult,
   ): Promise<ResultPushRecord['acknowledgement']> {
-    // The same operation and the same input on every resend: an unknown ACK is recognised, not repeated.
     const ack = {
       ...access,
       call: record.call,
@@ -730,7 +602,6 @@ function createResultPush(
     }
   }
 
-  /** Moves the cleanup of an acknowledged call on. A failure keeps the ACK and tries again later. */
   async function clean(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     if (record.acknowledgement !== 'acknowledged' || record.cleanup === 'released') return record
     const execution = await cleanupExecution(record, access)
@@ -743,10 +614,6 @@ function createResultPush(
     return record
   }
 
-  /**
-   * The execution whose cleanup is still to do, `released` when it is done, or null when the
-   * cleanup cannot go on now (reported).
-   */
   async function cleanupExecution(
     record: ResultPushRecord,
     access: Access,
@@ -766,7 +633,6 @@ function createResultPush(
     return execution
   }
 
-  /** At most `maxCleanupSteps` cleanup steps; true once the cleanup is released. */
   async function advanceCleanup(execution: ExecutionRef): Promise<boolean> {
     for (let step = 0; step < limits.maxCleanupSteps; step += 1) {
       const advanced = await commands.advanceCleanup({ ...execution, operation: newOperation() })
@@ -785,7 +651,6 @@ function createResultPush(
     return false
   }
 
-  /** Pushes the held late accounts in order, once the result is saved or was acknowledged. */
   async function pushAccounts(record: ResultPushRecord, access: Access): Promise<void> {
     const resultDone = record.acknowledgement === 'acknowledged' || savedResultOf(record) !== null
     if (!resultDone || record.origin === null) return
@@ -809,11 +674,6 @@ function createResultPush(
     return count
   }
 
-  /**
-   * Reserves a place for a late account before the commands accept it, and freezes its delivery
-   * right after. A full bound refuses the account; the source keeps its report. A stopped stage
-   * refuses every account: nothing would hold it after the ledger is released.
-   */
   async function recordLateFact(
     late: Parameters<ModelCommands<unknown>['recordLateFact']>[0],
   ): ReturnType<ModelCommands<unknown>['recordLateFact']> {
@@ -864,10 +724,6 @@ function createResultPush(
     return result
   }
 
-  /**
-   * Freezes the account delivery of the revision that was just accepted and leaves it for the work
-   * of its call; false when none is due.
-   */
   async function hold(
     target: Target,
     dispatch: DispatchId,
@@ -929,13 +785,6 @@ function createResultPush(
     return frozen({ reference: reference.ok, consumer: recovery.ok.state.consumer })
   }
 
-  /**
-   * The start scan: every tenant of `recovery`, page by page, wakes each settled call whose custody
-   * is still with the producer or whose cleanup is not released. A call that is not settled is not
-   * the push's: its settle wakes it. It never rejects. A read that is unavailable or throws is
-   * reported and its tenant (or the tenant list) is scanned again after a backoff until it is read;
-   * any other failure is reported and waits for the next start. The stop ends every pause.
-   */
   async function recover(source: ResultPushRecovery): Promise<void> {
     const scopes = await persistently(() => listScopes(source))
     if (scopes === null) return
@@ -955,14 +804,12 @@ function createResultPush(
     if (woken !== null) report({ kind: 'recovered', woken })
   }
 
-  /** `read`, and after a failure worth it, `readAgain`; null when it is given up or stopped. */
   async function persistently<T>(read: () => Promise<Scan<T>>): Promise<T | null> {
     const scan = await read()
     if (scan.kind === 'read') return scan.value
     return scan.kind === 'again' ? readAgain(read) : null
   }
 
-  /** Pauses before each read, longer after each failure, until one is read. */
   async function readAgain<T>(read: () => Promise<Scan<T>>): Promise<T | null> {
     for (let failures = 0; ; failures += 1) {
       if (!(await paused(recoveryPauseMs(failures)))) return null
@@ -972,7 +819,6 @@ function createResultPush(
     }
   }
 
-  /** False when the stop ends the pause, or when the clock fails: nothing is read again then. */
   async function paused(ms: number): Promise<boolean> {
     try {
       const instant = new Date(Date.parse(clock.now()) + ms).toISOString()
@@ -983,7 +829,6 @@ function createResultPush(
     }
   }
 
-  /** Reports a failed read; an unavailable dependency or a throw is worth reading again. */
   function failed(
     step: 'scopes' | 'scan' | 'load',
     failure: ModelFailure | 'threw',
@@ -1008,7 +853,6 @@ function createResultPush(
     }
   }
 
-  /** Reads every page of a tenant; a call that could not be loaded makes it worth reading again. */
   async function scanTenant(scope: Access): Promise<Scan<number>> {
     let woken = 0
     let again = false
@@ -1059,7 +903,6 @@ function createResultPush(
     recordLateFact,
   }
 
-  /** Every record that still waits for a push, an ACK, a cleanup or an account. */
   function unfinished(record: ResultPushRecord): boolean {
     return (
       record.acknowledgement !== 'acknowledged' ||
@@ -1092,14 +935,10 @@ function createResultPush(
       release = ledger.claim()
       new RuntimeContribution(child, runtime, table)
       phase = 'started'
-      // What a predecessor left in the ledger goes on here, with its original keys and payloads.
       for (const record of ledger.records()) if (unfinished(record)) wake(record)
       pump()
-      // What an earlier process left in the durable custody goes on here, with an empty ledger too.
       if (recovery !== undefined) scanning = recover(recovery)
     },
-    // Every piece of work that ends pumps the dirty calls first, so an empty `running` has no
-    // dirty call that could start behind it.
     idle: signal => whenEmpty(running, signal),
     delivering(target) {
       const key = keyOf(target)
@@ -1111,15 +950,12 @@ function createResultPush(
       if (phase === 'stopped') return
       phase = 'stopped'
       stopping.abort()
-      // The scan stops at its next page or call; what it wakes after the stop is not pushed.
       await scanning
       dirty.clear()
       await Promise.allSettled(running.values())
       // An account that was accepted before the stop is frozen into the inbox by its intake. No
       // intake starts after the stop, so these are the last ones.
       await Promise.allSettled(intake.values())
-      // What arrived and was not yet taken in stays owed: the successor finds it in the ledger.
-      // Deleting the entry in hand while a Map is iterated is safe.
       for (const [first] of inbox.values())
         if (first !== undefined) receive(ledger.read(first.target) ?? fresh(first.target))
       release?.()
@@ -1128,12 +964,9 @@ function createResultPush(
   }
 }
 
-/** Logs a runtime event as the host logs its own: kinds and counts only. */
 export function reportRuntimeEvent(ctx: Context, event: RuntimeEvent): void {
   switch (event.kind) {
     case 'no-receiver':
-      // A warning: the delivery stays owed and its consumer waits until a receiver registers
-      // (R2-D237: a missing registration kept every Agent reply from arriving, logged as info).
       ctx.logger.warn('model result push: no receiver is registered for the consumer owner')
       return
     case 'push-waiting':

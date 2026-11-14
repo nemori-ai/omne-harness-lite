@@ -1,8 +1,3 @@
-// The push-producer double: it wraps a scripted provider and, when the script settles a call,
-// freezes the result through the public face and pushes it to the receiver that the test
-// resolves for the consumer owner. It keeps the delivery keys and the frozen payload, redelivers
-// on an unknown outcome, takes the ACK through the retained handoff after `saved`, and pushes
-// late accounts only after the result is saved. It reads no internal state of the provider.
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -30,17 +25,12 @@ import type { ScriptedModelProvider } from './provider.ts'
 import { frozenCopy, laterDecimal, sameValue, tenantText } from './values.ts'
 
 export type ScriptedResultPusherOptions<P> = Readonly<{
-  /** The scripted provider the double wraps. */
   scripted: ScriptedModelProvider<P>
-  /** The principal the double acts as when it reads the call, pushes and acknowledges. */
   principal: P
-  /** The receiver of a consumer owner, or null when the owner has none. */
   resolveReceiver: (owner: ConsumerRef['owner']) => ModelResultReceiver<P> | null
-  /** How often a delivery is pushed again on `outcome-unknown` before it stays unknown: 3. */
   maxRedeliveries?: number
 }>
 
-/** Why a delivery failed; `rejected` carries the receiver's own failure, which is never unknown. */
 export type PushFailure =
   | Readonly<{ kind: 'no-receiver' }>
   | Readonly<{ kind: 'receipt-key-mismatch'; receipt: ModelSavedReceipt }>
@@ -51,7 +41,6 @@ export type PushFailure =
   | Readonly<{ kind: 'not-frozen'; step: 'inspect' | 'dispatches' | 'read'; reason: string }>
   | Readonly<{ kind: 'threw'; error: unknown }>
 
-/** One delivery by key. `delivery` is null only while the payload has not been frozen yet. */
 export type PushRecord = Readonly<{
   key: ModelDeliveryKey
   delivery: ModelDelivery | null
@@ -64,7 +53,6 @@ export type PushRecord = Readonly<{
     | Readonly<{ status: 'unknown' }>
   )
 
-/** One acknowledgement attempt; `attempt` counts the attempts of the same call from 1. */
 export type AckRecord = Readonly<{
   call: ScriptedCall
   operation: ModelOperationId
@@ -74,22 +62,14 @@ export type AckRecord = Readonly<{
 }>
 
 export type ScriptedResultPusher<P> = Readonly<{
-  /** The wrapped provider: admit through it, so the double learns the admission of each call. */
   provider: ModelProvider<P>
-  /** The wrapped controller: `settle` pushes the result, `recordDispatch` pushes a late account. */
   controller: ScriptController<P>
   deliveries(): readonly PushRecord[]
-  /** Resolves with the result delivery of the call once it, its ACK and its queued accounts are done. */
   settled(call: ScriptedCall): Promise<PushRecord>
-  /**
-   * Pushes the delivery with this key again, with the original key and frozen payload, and
-   * resolves with the result of this attempt. A saved delivery stays saved whatever it gets.
-   */
   redeliver(key: ModelDeliveryKey): Promise<PushRecord>
   acknowledgements(): readonly AckRecord[]
 }>
 
-/** What one attempt or a whole delivery came to; `saved` always carries its receipt. */
 type Standing =
   | Readonly<{ status: 'pending' }>
   | Readonly<{ status: 'saved'; receipt: ModelSavedReceipt }>
@@ -97,18 +77,11 @@ type Standing =
   | Readonly<{ status: 'unknown' }>
 type Saved = Extract<Standing, { status: 'saved' }>
 
-/**
- * The standing of one delivery; `conclude` is the only writer. `saved` and `unknown` are
- * established facts. Nothing replaces `saved`, which keeps its first receipt. Only a later
- * `saved` replaces `unknown`: a later denied, unavailable or backpressured answer cannot show
- * that the receiver never saved. A kept standing only hands back the standing of the attempt.
- */
 type StandingCell = Readonly<{
   current(): Standing
   conclude(attempt: Standing): Standing
 }>
 
-/** Whether `attempt` may replace `standing` as the fact of the delivery. */
 function replaces(standing: Standing, attempt: Standing): boolean {
   if (standing.status === 'saved') return false
   if (standing.status === 'unknown') return attempt.status === 'saved'
@@ -132,11 +105,9 @@ type Record = {
   delivery: ModelDelivery | null
   attempts: number
   readonly standing: StandingCell
-  /** Whether a push of this delivery is under way. */
   inFlight: boolean
 }
 
-/** The result delivery of a call, with the two operations the double minted for it. */
 type ResultRecord = Record &
   Readonly<{
     key: Extract<ModelDeliveryKey, { kind: 'result' }>
@@ -148,20 +119,16 @@ type Slot = {
   readonly call: ModelCallId
   admission: Readonly<{ operation: ModelOperationId; reference: ModelInvocationRef }> | null
   result: ResultRecord | null
-  /** The account revision frozen or pushed for each dispatch; null for a dispatch without one. */
   readonly accounted: Map<DispatchId, string | null>
   readonly lateAccounts: Readonly<{ dispatch: DispatchId; account: CallAccount }>[]
   acknowledged: boolean
   ackAttempts: number
-  /** Resolves with the result delivery when it first reaches a terminal state. */
   readonly terminal: PromiseWithResolvers<ResultRecord>
-  /** The delivery work of the call, one task after the other; it never rejects. */
   chain: Promise<void>
   error: unknown
   failed: boolean
 }
 
-/** The operation `mop_<kind>-<call body>`: the same call always gets the same operation. */
 function mintOperation(kind: 'ack' | 'push-read', call: ModelCallId): ModelOperationId {
   const body = call.slice(MODEL_IDENTITY_PREFIXES.ModelCallId.length)
   const decoded = decodeModelOperationId(
@@ -172,10 +139,6 @@ function mintOperation(kind: 'ack' | 'push-read', call: ModelCallId): ModelOpera
   return decoded.ok
 }
 
-/**
- * A frozen copy of `record` with `standing`. A thrown value stays the value the receiver threw:
- * it is neither copied nor frozen, so its class and fields survive and it need not be cloneable.
- */
 function snapshotOf(record: Record, standing: Standing = record.standing.current()): PushRecord {
   const base = frozenCopy({ key: record.key, delivery: record.delivery, attempts: record.attempts })
   if (standing.status === 'failed' && standing.failure.kind === 'threw') {
@@ -185,13 +148,11 @@ function snapshotOf(record: Record, standing: Standing = record.standing.current
   return Object.freeze({ ...base, ...frozenCopy(standing) })
 }
 
-/** The saved standing of a delivery, or null while it is not saved. */
 function savedOf(record: Record): Saved | null {
   const standing = record.standing.current()
   return standing.status === 'saved' ? standing : null
 }
 
-/** The operation prefixes that the double mints for itself; a caller may not use them. */
 const RESERVED_OPERATION_PREFIXES = ['ack', 'push-read'].map(
   kind => `${MODEL_IDENTITY_PREFIXES.ModelOperationId}${kind}-`,
 )
@@ -231,7 +192,6 @@ export function createScriptedResultPusher<P>(
     return slot
   }
 
-  /** Runs `task` after the earlier work of the call; the chain itself never rejects. */
   function run<T>(slot: Slot, task: () => Promise<T>): Promise<T> {
     const result = slot.chain.then(task)
     slot.chain = result.then(
@@ -248,7 +208,6 @@ export function createScriptedResultPusher<P>(
     return { tenant: slot.tenant, principal }
   }
 
-  /** The ordered parts of the settled result, read page by page with the call's read operation. */
   async function readParts(
     slot: Slot,
     reference: ModelInvocationRef,
@@ -280,7 +239,6 @@ export function createScriptedResultPusher<P>(
     return { ok: parts }
   }
 
-  /** Composes and freezes the result delivery through the public face; null when it cannot. */
   async function freeze(slot: Slot, record: ResultRecord): Promise<ModelDelivery | null> {
     const { reference } = record.key
     const access = accessOf(slot)
@@ -311,10 +269,6 @@ export function createScriptedResultPusher<P>(
     return delivery
   }
 
-  /**
-   * Pushes the frozen delivery until it is saved, fails, or stays unknown after the
-   * redeliveries, and gives what this push came to. A saved delivery keeps its saved standing.
-   */
   async function deliver(record: Record, delivery: ModelDelivery): Promise<Standing> {
     record.inFlight = true
     record.standing.conclude({ status: 'pending' })
@@ -325,7 +279,6 @@ export function createScriptedResultPusher<P>(
     }
   }
 
-  /** The pushes of one delivery, with the redeliveries on `outcome-unknown`. */
   async function push(record: Record, delivery: ModelDelivery): Promise<Standing> {
     let receiver: ModelResultReceiver<P> | null
     try {
@@ -358,7 +311,6 @@ export function createScriptedResultPusher<P>(
     }
   }
 
-  /** Takes the ACK of a saved result through the retained handoff, resending on `commit-unknown`. */
   async function acknowledge(slot: Slot, record: ResultRecord, saved: Saved): Promise<void> {
     if (slot.acknowledged) return
     const operation = record.operations.ack
@@ -389,7 +341,6 @@ export function createScriptedResultPusher<P>(
     }
   }
 
-  /** Pushes the queued late accounts of a call whose result is saved, in arrival order. */
   async function flushAccounts(slot: Slot, result: ResultRecord): Promise<void> {
     const frozen = result.delivery
     if (savedOf(result) === null || frozen === null) return
@@ -426,7 +377,6 @@ export function createScriptedResultPusher<P>(
     }
   }
 
-  /** After a push of a result: the ACK when it is saved, then the accounts that waited for it. */
   async function afterResult(slot: Slot, record: ResultRecord): Promise<void> {
     const saved = savedOf(record)
     if (saved === null) return

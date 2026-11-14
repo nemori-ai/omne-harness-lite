@@ -17,7 +17,6 @@ import {
   watch,
 } from './scripted-support.ts'
 
-/** A watcher that has taken its first snapshot and is now waiting for the next item. */
 async function waiting(name: string) {
   const scripted = scriptedProvider()
   await admitCall(scripted, name)

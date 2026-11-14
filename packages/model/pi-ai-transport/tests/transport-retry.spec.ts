@@ -1,5 +1,4 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and connects to
-// a closed local port and a server that resets after the request, with real (short) backoffs.
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { PiTransportLimits } from '../src/index.ts'
@@ -37,7 +36,6 @@ function retries(observed: readonly TransportDiagnostic[]): TransportDiagnostic[
   return observed.filter(event => event.kind === 'connect-retry')
 }
 
-/** A URL on which nothing listens: a server that has been started and closed. */
 async function refusedUrl(): Promise<{ url: string; server: HttpsFixture }> {
   const server = await startHttpsServer(certificate, () => {})
   const url = new URL(PATH, server.url).href

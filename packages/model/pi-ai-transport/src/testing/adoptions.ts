@@ -1,19 +1,12 @@
-// The adoption fingerprints of a family: a committed file with one `{name, revision, digest}` line
-// per record. The check compares both ways; the generator only appends lines for new records.
 import { readFile, writeFile } from 'node:fs/promises'
 import { familyRecords, type PiFamily } from '../family-table.ts'
 
-/** One line of the fingerprint file. */
 export type AdoptionFingerprint = Readonly<{ name: string; revision: string; digest: string }>
 
 export type FingerprintReport = Readonly<{ problems: readonly string[] }>
 
 const FIELDS = ['digest', 'name', 'revision'] as const
 
-/**
- * The text of a fingerprint file: a JSON array with one fingerprint per line, in the given order,
- * members in the order `name`, `revision`, `digest`, and a final line break.
- */
 export function renderFingerprints(lines: readonly AdoptionFingerprint[]): string {
   if (lines.length === 0) return '[]\n'
   const items = lines.map(line =>
@@ -77,11 +70,6 @@ async function readText(file: string): Promise<string | null> {
   }
 }
 
-/**
- * Compares the fingerprint file with the records of the family, both ways. Reports a missing or
- * malformed file, a repeated line, a record without a line, a line whose digest differs from the
- * digest of its record, and a line that names no record.
- */
 export async function checkAdoptionFingerprints(
   family: PiFamily,
   file: string,
@@ -113,12 +101,6 @@ export async function checkAdoptionFingerprints(
   return Object.freeze({ problems: Object.freeze(problems) })
 }
 
-/**
- * Appends a line for every record that has none, after the existing lines, and writes the file;
- * a missing file starts empty. Throws `RangeError` and writes nothing when the file is malformed
- * or a record has a line with another digest: a changed record needs a new revision, never a
- * changed line. Lines that name no record stay; the check reports them. Returns the added lines.
- */
 export async function appendAdoptionFingerprints(
   family: PiFamily,
   file: string,

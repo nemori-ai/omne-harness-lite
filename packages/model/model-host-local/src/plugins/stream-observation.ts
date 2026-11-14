@@ -5,7 +5,6 @@ import {
   ModelStreamReferencesService,
 } from '@omne-harness/model-cordis-contract/cordis'
 
-/** Publishes both observation services over one host lease. */
 export function createModelStreamLocalPlugin(
   input: Readonly<{ source: ModelObservationHost<unknown> }>,
 ): (ctx: Context) => void {

@@ -1,6 +1,4 @@
 // @module-tag slow
-// Reads the files of the other contract member, so it cannot run where only this member is copied
-// (the differential mutation run copies one member).
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'

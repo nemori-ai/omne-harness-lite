@@ -2,11 +2,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialPort } from '@omne-harness/model-contract/provider'
 import { ModelCredentialService } from '@omne-harness/model-cordis-contract/cordis'
 
-/**
- * Serves `port` as `modelCredential` on `ctx`, for the life of `ctx`. The port lives only in the
- * closures of the two methods: Cordis hands consumers a proxy of the instance, and `#private`
- * fields fail through it, so a closure is the only place that stays out of reach.
- */
 export function serveModelCredential<P>(
   ctx: Context,
   port: CredentialPort<P>,

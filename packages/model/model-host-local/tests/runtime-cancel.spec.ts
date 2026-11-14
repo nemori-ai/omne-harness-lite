@@ -1,12 +1,4 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, writes a vault
-// file, and holds streamed responses open until the client stops them.
-//
-// `calls.cancel` on a call whose supplier stream is running. The send path is the assembled local
-// one: the credential port over a secret vault, the Model send boundary and the pi transport with the OpenAI family.
-// The commands are the in-memory ModelCommands of model (a store without durability); the gateway
-// is a local HTTPS server that streams an answer and then holds the response open. The physical
-// stop of an exchange is read from the transport's own `exchange-stopped` diagnostic, which the
-// transport emits when the connection is closed and before the stop resolves.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -65,13 +57,11 @@ if (record === undefined) throw new Error('no record openai/gpt-6-sol')
 const { request } = readRecordFixture('pi-ai-openai', record)
 
 const sse = (value: unknown) => `data: ${JSON.stringify(value)}\n\n`
-/** The answer that is on its way when the cancel comes: content, no finish yet. */
 const HEAD = sse({
   model: 'openai/gpt-6-sol',
   provider: 'OpenAI',
   choices: [{ delta: { content: 'partial answer' } }],
 })
-/** The rest of a natural completion: the finish, the usage with its cost, and the end marker. */
 const TAIL =
   sse({
     choices: [{ delta: {}, finish_reason: 'stop' }],
@@ -83,11 +73,8 @@ const TAIL =
     },
   }) + 'data: [DONE]\n\n'
 
-/** One streamed response that the server holds open until the test finishes it. */
 type Held = Readonly<{
-  /** Resolves when the server sees the response closed, by the client or by `finish`. */
   closed: Promise<void>
-  /** Writes the rest of the answer and ends the response. */
   finish(): void
 }>
 
@@ -127,7 +114,6 @@ async function eventually(check: () => boolean | Promise<boolean>, label: string
   throw new Error(`timed out waiting for ${label}`)
 }
 
-/** Resolves with the value, or rejects after `ms` with `label`: a stream that never stops is red. */
 function within<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     promise,
@@ -144,11 +130,6 @@ function tenantOf(suffix: string) {
   return tenant(organization.value, account.value)
 }
 
-/**
- * One local host for several calls of one tenant: the vault, the assembled send path over the
- * local server, the in-memory ModelCommands and the Model runtime over them. `log` gets
- * `exchange-stopped` from the transport and `settle:<call>` when the runtime settles a call.
- */
 function assembleHost(label: string) {
   const scope = tenantOf('5')
   const principal = Object.freeze({ subject: 'runtime-cancel-test' })
@@ -278,7 +259,6 @@ function assembleHost(label: string) {
   const access = { principal, tenant: scope }
   const op = (name: string) => decoded(decodeModelOperationId(`mop_${name}-${label}`))
 
-  /** Admits the call and starts its drive; the drive resolves when the call is settled. */
   async function start(name: string) {
     const call = decoded(decodeModelCallId(`mcall_${name}-${label}`))
     const admitted = decoded(
@@ -314,7 +294,6 @@ function assembleHost(label: string) {
     return lookup.state
   }
 
-  /** Waits until the first content of the call is saved: the stream is running. */
   async function running(reference: ModelInvocationRef): Promise<void> {
     await eventually(async () => {
       const state = await stateOf(reference)
@@ -387,13 +366,11 @@ describe('calls.cancel on a running supplier stream', () => {
       )
       expect(cancelled).toMatchObject({ kind: 'requested', operation: local.op('cancel-a') })
 
-      // The drive ends only because the stream stopped: the server never finishes this answer.
       expect(await within(a.driven, 5_000, 'the settlement of the cancelled call')).toEqual({
         ok: undefined,
       })
       await within(response.closed, 5_000, 'the close of the response at the server')
 
-      // The termination is the interruption of this cancel, given after the physical stop.
       const state = await local.stateOf(a.reference)
       expect(state.phase).toBe('settled')
       if (state.phase !== 'settled') return
@@ -406,7 +383,6 @@ describe('calls.cancel on a running supplier stream', () => {
       expect(stopped).toBeGreaterThanOrEqual(0)
       expect(settled).toBeGreaterThan(stopped)
 
-      // The content delivered before the cancel stays in the result; the cost stays unknown, not zero.
       expect(textOf(await local.partsOf(a.call, a.reference))).toBe('partial answer')
       const [dispatch] = await local.dispatchesOf(a.call)
       expect(dispatch?.terminal).toEqual({ kind: 'interrupted', control: local.op('cancel-a') })
@@ -439,7 +415,6 @@ describe('calls.cancel on a running supplier stream', () => {
       await within(a.driven, 5_000, 'the settlement of the cancelled call')
       await within(responseA.closed, 5_000, 'the close of the cancelled response')
 
-      // B is still streaming: its response is open and its call is not settled.
       expect((await local.stateOf(b.reference)).phase).toBe('running')
       const raced = await Promise.race([
         responseB.closed.then(() => 'closed'),
@@ -483,7 +458,6 @@ describe('calls.cancel on a running supplier stream', () => {
         ok: undefined,
       })
 
-      // One settle, and the one termination is what the stream really did.
       expect(local.log.filter(entry => entry === `settle:${a.call}`)).toHaveLength(1)
       const state = await local.stateOf(a.reference)
       if (state.phase !== 'settled') throw new Error('the raced call is not settled')

@@ -1,4 +1,3 @@
-// Test support shared by the exchange and network specs: inputs, reservations and observation.
 import { getEventListeners } from 'node:events'
 import type { Socket } from 'node:net'
 import { expect } from 'vitest'
@@ -18,7 +17,6 @@ export const REQUEST_HEADERS: Readonly<Record<string, string>> = Object.freeze({
 })
 export const REQUEST_PATH = '/api/v1/chat/completions'
 
-/** The initial values of this test suite; every limit is a parameter, not a package default. */
 export function network(
   ca: Buffer,
   overrides: Partial<NetworkConfig> = {},
@@ -69,7 +67,6 @@ export function started(start: ExchangeStart): HttpExchange {
   return start.exchange
 }
 
-/** The body of a 2xx result, claimed here. Throws for any other result or a second claim. */
 export function claimed(result: ExchangeResult): AsyncIterable<Uint8Array> {
   if (result.kind !== 'ok') throw new Error(`expected a 2xx result, got ${result.kind}`)
   const body = result.body.claim()
@@ -83,7 +80,6 @@ export async function readToEnd(bytes: AsyncIterable<Uint8Array>): Promise<strin
   return decoder.decode(Buffer.concat(chunks))
 }
 
-/** Lets every queued promise job and one macrotask run. */
 export async function settle(): Promise<void> {
   await new Promise<void>(resolve => setImmediate(resolve))
 }
@@ -92,13 +88,11 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-/** Observes a promise without awaiting it. */
 export function watch<T>(promise: Promise<T>): {
   readonly done: boolean
   readonly value: T | undefined
 } {
   const observed: { done: boolean; value: T | undefined } = { done: false, value: undefined }
-  // The observed promise is a test input that never rejects.
   void promise.then(value => {
     observed.done = true
     observed.value = value
@@ -106,17 +100,14 @@ export function watch<T>(promise: Promise<T>): {
   return observed
 }
 
-/** The client sockets the pool currently has in use, through the documented `agent.sockets`. */
 export function clientSockets(resources: NetworkInternals): readonly Socket[] {
   return Object.values(resources.agent.sockets).flatMap(sockets => sockets ?? [])
 }
 
-/** The timers that keep the process alive right now, through `process.getActiveResourcesInfo()`. */
 export function activeTimers(): number {
   return process.getActiveResourcesInfo().filter(kind => kind === 'Timeout').length
 }
 
-/** After `stopped`: the abort listener left the signal and the exchange left the registry. */
 export function expectCleanedUp(resources: NetworkInternals, signal: AbortSignal): void {
   expect(getEventListeners(signal, 'abort')).toHaveLength(0)
   expect(resources.inFlight.size).toBe(0)

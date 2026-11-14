@@ -1,9 +1,3 @@
-// A transport as a provider author writes it: only the ports of the contract, no provider, no
-// Cordis. It sends the business request when the stream starts and at no earlier step, runs each
-// step once, and ends its stream with one termination. It measures nothing: a request that reaches
-// it is sent. When the supplier refuses the request, the stream ends with the fault that the refusal
-// maps to, and the transport does not send again. The two defect options write a defect on purpose,
-// so that the conformance suite has something to refuse.
 import { succeed } from '@omne-harness/operation-result'
 import type {
   MaterializedTransport,
@@ -14,9 +8,7 @@ import type {
 import { terminationOfRefusal, type SupplierRefusal } from './author-response.ts'
 
 export type TransportDefects = Readonly<{
-  /** The request leaves at `prepare`, before anyone asked for it to be sent. */
   sendsAtPrepare?: boolean
-  /** The stream gives its facts and then runs out without a termination. */
   neverEnds?: boolean
 }>
 

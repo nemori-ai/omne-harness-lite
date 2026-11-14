@@ -1,5 +1,3 @@
-// The credential port of this package over a real settings-local secret vault: the credential
-// conformance suite of model-contract, and the Cordis service that serves the port.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -46,11 +44,9 @@ const PROVIDER = providerName('suite-gateway')
 const BARE = providerName('suite-local')
 const ITEMS = ['apiKey', 'organization'] as const
 
-/** A fresh vault, the port over it, and the controls that write the vault as an operator would. */
 function subject(label: string) {
   const vault = vaultAt(label)
   let unavailable = false
-  // The use and read faces answer `unavailable` while the test says the source is down.
   const custody: Pick<SecretVault, 'describe'> & SecretCustodyUse = {
     describe: key => (unavailable ? 'unavailable' : vault.describe(key)),
     use: key => (unavailable ? 'unavailable' : vault.use(key)),
@@ -147,7 +143,6 @@ it('answers unavailable for a binding that the vault no longer serves between re
   const own = access('principal-a', identity('5'))
   const scope: SecretScope = { layer: 'tenant', tenant: own.tenant }
   for (const item of ITEMS) vault.bind(keyOf(scope, item), secretText(`synthetic-${item}`), null)
-  // The read face still sees the binding; the use face no longer serves it.
   const port = createSecretCredentialPort<string>({
     custody: { describe: key => vault.describe(key), use: () => 'missing' },
     providers: new Map([[PROVIDER, { items: ITEMS, official: true, keyOf }]]),
@@ -168,7 +163,6 @@ it('does not read the official layer once the tenant holds an item', () => {
   const own = access('principal-a', identity('5'))
   const scope: SecretScope = { layer: 'tenant', tenant: own.tenant }
   for (const item of ITEMS) vault.bind(keyOf(scope, item), secretText(`synthetic-${item}`), null)
-  // A custody whose official layer cannot be read: the tenant's complete layer still serves.
   const official = (key: Parameters<typeof vault.describe>[0]) => key.scope.layer === 'official'
   const port = createSecretCredentialPort<string>({
     custody: {
@@ -214,7 +208,6 @@ it('serves the port as modelCredential through the real Cordis proxy and withdra
     }),
   ).toEqual({ ok: new Map([['apiKey', 'synthetic']]) })
   expect(calls).toEqual(['layerOf', 'resolve'])
-  // Besides the two members of every Cordis service, the instance exposes the two operations.
   expect(Object.keys(service ?? {}).sort()).toEqual(['ctx', 'layerOf', 'name', 'resolve'])
   await fiber.dispose()
   expect(ctx.modelCredential).toBeUndefined()

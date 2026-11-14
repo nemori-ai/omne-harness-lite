@@ -33,7 +33,6 @@ it('the cordis entry exports the service definitions with their keys, and no oth
     [
       ...Object.keys(definitions),
       ...Object.keys(definitions).map(keyName),
-      // The result receiver table is not a Service: it is the backend of `registerResultReceiver`.
       'ModelResultReceiverConflictError',
       'createModelResultReceiverTable',
     ].sort(),

@@ -1,7 +1,4 @@
 // @module-tag slow
-// Runs the facility's scenario step in hand-built consumer directories: node starts as a child
-// process. The script must run with the consumer directory as its working directory and without
-// any inherited module path, and its exit status decides the check.
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -78,7 +75,6 @@ it('lets a scenario import a closure member that is not the target', () => {
       '',
     ].join('\n'),
   )
-  // The vitest bin shim sets NODE_PATH, and a developer shell may allow the network.
   const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...environment } = process.env
   const run = spawnSync(
     process.execPath,

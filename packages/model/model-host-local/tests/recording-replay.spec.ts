@@ -1,16 +1,4 @@
 // @module-tag slow — starts openssl child processes and real local HTTPS servers, writes vault
-// files, and drives Model calls through the assembled send path.
-//
-// The gate: the four real recordings replayed through the assembled local path, without network
-// and without a key. For each recording the request is rebuilt (a continued round from the replay
-// of its first round), sent through the vault, the send fence, the pi transport and the family to
-// a local HTTPS server that answers with the recorded body, and the call is checked end to end:
-// the facts, the dispatch with its receipt and the account that reached ModelCommands.
-//
-// The two tool-call cases have no real recording yet. Their replay pieces are synthetic
-// (`fixtures/recordings/<case>/synthetic.jsonl`, written by hand) and go through the same path, and
-// the recorder writes the same stream back. They show the request shape, the continuation with the
-// tool result and the recorder's refusals; they are no evidence of what the real model sends.
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -36,7 +24,6 @@ import {
 import type { FamilyName } from './support/records.ts'
 import { onlyDispatch, openReplay, recordedRequest, replayLabel } from './support/replay.ts'
 
-/** The replay format of the receipt, per family. */
 const FORMATS: Readonly<Record<FamilyName, string>> = {
   'pi-ai-openai': 'openai-responses-v1',
   'pi-ai-anthropic': 'anthropic-claude-v1',
@@ -54,11 +41,9 @@ describe('each real recording replays through the assembled local path', () => {
         expect(note.model).toBe(item.model)
         expect(opened.driven).toEqual({ ok: undefined })
 
-        // The request carried the credential the custodian resolved, inside the send fence.
         expect(opened.requests).toHaveLength(1)
         expect(opened.requests[0]?.headers.authorization).toBe(`Bearer ${PLACEHOLDER}`)
 
-        // The facts end with exactly one termination, a completed one, and hold a reasoning state.
         const ended = local.facts.filter(
           (fact): fact is Extract<TransportFact, { kind: 'ended' }> => fact.kind === 'ended',
         )
@@ -71,16 +56,12 @@ describe('each real recording replays through the assembled local path', () => {
           ),
         ).toBe(true)
 
-        // The dispatch keeps the termination of the stream, the receipt and the account.
         const record = await onlyDispatch(local)
         expect(record.terminal).toEqual(ended[0]?.termination)
         const receipt = record.materialization?.receipt
         expect(receipt?.replayFormat).toBe(FORMATS[item.family])
-        // The request is reproducible: this materialization sent the recorded request body.
         expect(receipt?.payloadDigest).toBe(note.payloadDigest)
 
-        // The account came through the real path: ModelCommands completed it with this call
-        // and the receipt. The cost is the gateway's, billable, with a known amount.
         const reported = local.facts.filter(fact => fact.kind === 'account')
         expect(reported).toHaveLength(1)
         expect(record.account).toEqual({
@@ -101,7 +82,6 @@ describe('each real recording replays through the assembled local path', () => {
           },
         })
 
-        // The secret entered neither the facts nor the kept records.
         expect(JSON.stringify(local.facts)).not.toContain(PLACEHOLDER)
         expect(JSON.stringify(record)).not.toContain(PLACEHOLDER)
       } finally {
@@ -111,12 +91,9 @@ describe('each real recording replays through the assembled local path', () => {
   )
 })
 
-// --- the synthetic tool-call pieces ---------------------------------------------------------------
-
 const SYNTHETIC_ROOT = fileURLToPath(new URL('./fixtures/recordings/', import.meta.url))
 const syntheticDirectory = (name: RecordCaseName) => join(SYNTHETIC_ROOT, name)
 
-/** A local HTTPS server that answers every request on the route with `stream`. */
 async function serving(stream: Uint8Array) {
   const certificate = createCertificate()
   const server = await startHttpsServer(certificate, (res, received) => {
@@ -144,10 +121,6 @@ function privateDirectory(): string {
   return realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-toolcall-')))
 }
 
-/**
- * Drives `request` through the assembled path against the synthetic piece of `name`. The caller
- * ends the run with `done`, which closes the host, the server and the vault directory.
- */
 async function replaySynthetic(name: RecordCaseName, request: FixedModelRequest) {
   const { stream, note } = readRecording(syntheticDirectory(name))
   const served = await serving(stream)
@@ -184,7 +157,6 @@ async function replaySynthetic(name: RecordCaseName, request: FixedModelRequest)
   }
 }
 
-/** The member `name` of a parsed JSON value, or undefined. */
 function member(value: unknown, name: string): unknown {
   return typeof value === 'object' && value !== null ? Reflect.get(value, name) : undefined
 }
@@ -197,8 +169,6 @@ describe('the synthetic tool-call pieces replay through the assembled local path
     try {
       expect(run.driven).toEqual({ ok: undefined })
       expect(run.requests).toHaveLength(1)
-      // The wire shape of the request: a function tool with an object schema, `auto`, a reasoning
-      // effort that is on, and the model of the record.
       expect(member(run.body, 'model')).toBe('openai/gpt-5.6-sol')
       expect(member(run.body, 'tools')).toEqual([
         {
@@ -218,7 +188,6 @@ describe('the synthetic tool-call pieces replay through the assembled local path
       expect(member(run.body, 'tool_choice')).toBe('auto')
       expect(member(run.body, 'reasoning')).toEqual({ effort: 'medium' })
 
-      // The reply: one tool call with its arguments, a reasoning state, one termination.
       const facts = run.local.facts
       const ended = facts.flatMap(fact => (fact.kind === 'ended' ? [fact.termination] : []))
       expect(ended).toEqual([{ kind: 'completed', reason: 'tool-suggestions' }])
@@ -262,7 +231,6 @@ describe('the synthetic tool-call pieces replay through the assembled local path
         expect(run.driven).toEqual({ ok: undefined })
         const messages = member(run.body, 'messages')
         if (!Array.isArray(messages)) throw new Error('the request has no messages')
-        // The assistant message that holds the tool call is followed at once by its result.
         const assistant: unknown = messages.at(-2)
         const result: unknown = messages.at(-1)
         expect(member(assistant, 'role')).toBe('assistant')
@@ -273,7 +241,6 @@ describe('the synthetic tool-call pieces replay through the assembled local path
             function: { name: 'get_weather', arguments: '{"city":"Paris"}' },
           },
         ])
-        // The encrypted item goes back with the id and the bytes it came with.
         expect(member(assistant, 'reasoning_details')).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
@@ -357,7 +324,6 @@ describe('the recorder over the synthetic tool-call stream', () => {
 
   it('writes nothing when a key pattern occurs in the stream', async () => {
     const { stream } = readRecording(syntheticDirectory(NAME))
-    // Built at run time, so that this source holds no complete key pattern.
     const leaked = Buffer.from(`: ${'sk-'}${'or-v1-'}${'a'.repeat(24)}\n\n`, 'utf8')
     const { outcome, output } = await recordWith(Buffer.concat([leaked, stream]))
     try {

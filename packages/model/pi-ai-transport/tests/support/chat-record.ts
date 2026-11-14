@@ -1,5 +1,3 @@
-// Test support for the gateway engine: a small record, hook and meter stubs, and builders that
-// make contract values through the contract judge, so the branded identities are real.
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   decodeRevision,
@@ -40,7 +38,6 @@ export function adoption(name: string): Adoption {
   return { owner: 'engine-test', name, revision: '1', digest: 'a'.repeat(64) }
 }
 
-/** The decoder buffer limits of the engine tests: test parameters, not package defaults. */
 export const LIMITS: ChatCompletionsLimits = {
   toolArguments: {
     maxBytes: 4_096,
@@ -57,7 +54,6 @@ export const REPRESENTATION = adoption('representation')
 export const SOURCE = adoption('source')
 export const EXTENSION = adoption('extension-top-p')
 
-/** The engine-test record. Every variation point has a value a test can change. */
 export function testRecord(overrides: Partial<ChatCompletionsRecord> = {}): ChatCompletionsRecord {
   return {
     name: 'model-a',
@@ -128,7 +124,6 @@ export function supplierOf(record: ChatCompletionsRecord): Supplier {
   }
 }
 
-/** What the hook and meter stubs saw, and how a test makes them answer. */
 export type EngineProbe = {
   checks: { applied: readonly Parameter[]; treatments: readonly ReplayTreatment[] }[]
   checkFailure: TransportFailure | undefined
@@ -157,10 +152,6 @@ function str(value: string): JsonValue {
   return { kind: 'string', value }
 }
 
-/**
- * Hook stubs. Replay writes one detail per carried part, or plain text for thinking alone. A tool
- * schema with a member `refuse` is unsupported.
- */
 export function testHooks(probe: EngineProbe, reasoning = true): VendorHooks {
   return {
     reasoning: reasoning
@@ -292,11 +283,9 @@ export type RequestParts = Readonly<{
   parameters?: readonly unknown[]
   parameterAdoptions?: readonly unknown[]
   replay?: 'off'
-  /** The declaration that the request fixes; the record declaration expanded by default. */
   declaration?: ReplayDeclaration
 }>
 
-/** The declaration of the record with every default applied, as a request of its profile fixes it. */
 export function declarationOf(record: ChatCompletionsRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
@@ -310,7 +299,6 @@ export function declarationOf(record: ChatCompletionsRecord): ReplayDeclaration 
   return judged.ok
 }
 
-/** A fixed request through the contract judge; throws when the judge refuses it. */
 export function fixedRequest(
   record: ChatCompletionsRecord,
   parts: RequestParts = {},
@@ -348,7 +336,6 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
   }
 }
 
-/** A profile with the one supplier of the record and the given replay declaration. */
 export function profileOf(
   record: ChatCompletionsRecord,
   options: Readonly<{ replay?: ProfileReplay; outputLimit?: string }> = {},

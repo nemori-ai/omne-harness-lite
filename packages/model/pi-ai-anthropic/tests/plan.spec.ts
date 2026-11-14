@@ -1,6 +1,3 @@
-// Parameter planning and the request body on the Anthropic records through the binding: the
-// supported subset passes, the sealed drops and the effort `none` fail before sending, and the 1h
-// cache marker lands on the last message or fails when there is no place for it.
 import { describe, expect, it } from 'vitest'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import { writeJsonText } from '@omne-harness/json-text'
@@ -126,7 +123,6 @@ describe('parameters', () => {
 })
 
 describe('the 1h cache marker', () => {
-  // Sealed anthropic-cache-target.spec.ts:83-89: text mixed with images keeps the text target.
   it('marks the last text part of the last message, with text mixed with images', async () => {
     const body = await bodyOf(SONNET, {
       messages: [message('u1', 'user', [textBlock('b1', 'question'), imageBlock('i1')])],
@@ -144,7 +140,6 @@ describe('the 1h cache marker', () => {
     })
   })
 
-  // Sealed anthropic-family-current.spec.ts:677-713: a terminal pure-image user message.
   it('marks the last image of a last user message of images only', async () => {
     const body = await bodyOf(SONNET, {
       messages: [
@@ -174,9 +169,6 @@ describe('the 1h cache marker', () => {
     expect(text.split('cache_control')).toHaveLength(2)
   })
 
-  // Migration L02 and sealed anthropic-cache-target.spec.ts:91-95: empty text is written as it is,
-  // so a last user message of images and only empty text is not a message of images only, and has
-  // no place for the marker. The sealed selector gave no marker; the engine refuses.
   it('refuses a last user message of images and only empty text, in either order', async () => {
     for (const blocks of [
       [textBlock('b1', ''), imageBlock('i1')],
@@ -191,7 +183,6 @@ describe('the 1h cache marker', () => {
       })
   })
 
-  // Migration L02: a last message without a place for the marker is a refusal.
   it('refuses a request whose last message has no text and is not a user image message', async () => {
     expect(
       await encode(SONNET, {

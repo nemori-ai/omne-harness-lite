@@ -12,7 +12,6 @@ import type { ModelClock, ModelInstanceDirectory } from '@omne-harness/model-con
 type End = Extract<Observation, { kind: 'ended' }>['reason']
 type Watcher = { lag: number; wake: () => void; end: (reason: End) => void }
 
-/** One confirmed view per instance; notifications carry versions, never copied snapshots. */
 export function createObservation<P>(input: {
   access: CallAccess<P>
   instance: ModelInstanceId
@@ -31,7 +30,6 @@ export function createObservation<P>(input: {
     view = structuredClone(snapshot)
     version += 1
     for (const watcher of watchers) {
-      // Logical notification accounting: 64 bytes registration, 32 per unseen version.
       watcher.lag += 32
       if (watcher.lag > input.bufferBytes) watcher.end('unavailable')
       else watcher.wake()
@@ -125,7 +123,6 @@ export function createObservation<P>(input: {
                 closure,
               ]).catch(() => null)
               if (ending) break
-              // No await between the observer's current authorization and selecting the view.
               if (!authorize(route)) break
               const selected = selectView()
               if (selected) return selected

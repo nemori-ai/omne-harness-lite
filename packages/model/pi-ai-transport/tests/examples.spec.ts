@@ -1,5 +1,4 @@
 // @module-tag slow — runs the example in a Node child process, with an openssl child process and
-// a real local HTTPS server.
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
@@ -7,7 +6,6 @@ import { expect, it } from 'vitest'
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 
 it('the public example sends once through the root entry and shows the refused content reference', () => {
-  // The child gets the inherited environment without the repository's BASELINE override.
   const { BASELINE: _inherited, ...env } = process.env
   const output = execFileSync(
     process.execPath,

@@ -37,7 +37,6 @@ it('keeps non-finite rank behavior on the original engine', async () => {
     [Infinity, 3],
     [-Infinity, 2],
   ] as const) {
-    // The compressed parser accepts parseInt overflow; literal Infinity parses as NaN.
     const ordinary = ranksOf({ a: 10, b: 11, c: 12, d: 13, bc: 1, cd: 2, ab: rank })
     const bpeRanks = ordinary.bpeRanks
       .replace(' Infinity ', ` ${'9'.repeat(400)} `)

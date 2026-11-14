@@ -16,10 +16,6 @@ import type {
 import { MemoryState } from '../src/testing/state.ts'
 import { callId, fixture, instance, op, unbox } from './memory-fixture.ts'
 
-// Which confirmed passes advance a first-execution record. The run's private port receives hand-made
-// passes over real records: only the record's own committed admit admits it, and only its own
-// confirmed claim gives the bound record its execution. Outcomes are read through the channel.
-
 function assembly() {
   const f = fixture()
   const run = createModelInitialRun<typeof f.principal>({
@@ -65,7 +61,6 @@ function assembly() {
 type Pending = Awaited<ReturnType<typeof pending>>
 type Bound = Awaited<ReturnType<typeof bound>>
 
-/** A record still pending: its admit committed in storage without a confirmation pass. */
 async function pending() {
   const a = assembly()
   a.memory.control.injectUnknown({ ...a.f.admit, method: 'admit', effect: 'applied' })
@@ -163,7 +158,6 @@ it('advances nothing for a failed run or a pass that saw nothing', async () => {
   })
 })
 
-/** A bound record without execution, and the claim pass that would confirm its execution. */
 async function bound() {
   const a = assembly()
   unbox(await a.commands.admit(a.f.admit))

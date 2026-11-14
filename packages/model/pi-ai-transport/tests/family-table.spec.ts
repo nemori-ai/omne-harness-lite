@@ -49,7 +49,6 @@ function supplierOf(
   }
 }
 
-/** What a test family saw and how it answers. */
 type Probe = {
   calls: { record: TestRecord; supplier: Supplier; signal: AbortSignal }[]
   released: number
@@ -120,7 +119,6 @@ function family(records: readonly TestRecord[], seen: Probe, owner = OWNER) {
   })
 }
 
-/** An array whose first item is a hole. */
 function holed(): number[] {
   const items: number[] = []
   items[1] = 1
@@ -202,7 +200,6 @@ describe('recordAdoption', () => {
   })
 })
 
-/** A record head view of a cyclic object, made without a type assertion. */
 function cyclicRecord(value: Record<string, unknown>): PiModelRecordHead {
   const head = record()
   return Object.assign(value, {

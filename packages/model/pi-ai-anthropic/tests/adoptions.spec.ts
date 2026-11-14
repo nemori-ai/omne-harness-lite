@@ -1,5 +1,3 @@
-// The committed adoption fingerprints: one line per record, compared both ways. A record changed
-// in place without a new revision fails here; `pnpm run fingerprints` only appends.
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import { checkAdoptionFingerprints } from '@omne-harness/pi-ai-transport/testing'

@@ -1,6 +1,3 @@
-// The boundary parse of the lineage a caller declares at acquire. The shape and the identities are
-// checked once here, item by item, so a malformed value is a named `invalid` and never a throw;
-// the lease trusts the parsed value. An empty lineage is no lineage.
 import { parseMessageId, type MessageId } from '@omne-harness/message'
 import {
   decodeModelCallId,
@@ -12,9 +9,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 
 export type Lineage = Readonly<{
   continues: ModelCallId | null
-  /** The source call of each message, one per message. */
   sources: ReadonlyMap<MessageId, ModelCallId>
-  /** Every distinct call the lineage names, in declaration order. */
   calls: readonly ModelCallId[]
 }>
 
@@ -26,13 +21,11 @@ function isObject(value: unknown): value is object {
   return typeof value === 'object' && value !== null
 }
 
-/** The member `key` of an object, read as a property; nothing about its type is assumed. */
 function memberOf(value: object, key: string): unknown {
   const member: unknown = Reflect.get(value, key)
   return member
 }
 
-/** One declared source: an object with a message identity and a call identity. */
 function parseSource(
   raw: unknown,
 ): Outcome<Readonly<{ message: MessageId; call: ModelCallId }>, ModelFailure> {
@@ -45,7 +38,6 @@ function parseSource(
   return { ok: { message: message.value, call: call.ok } }
 }
 
-/** The declared sources as a map, one source per message. Absent sources are no sources. */
 function parseSources(raw: unknown): Outcome<ReadonlyMap<MessageId, ModelCallId>, ModelFailure> {
   const sources = new Map<MessageId, ModelCallId>()
   if (raw === undefined) return { ok: sources }
@@ -59,13 +51,6 @@ function parseSources(raw: unknown): Outcome<ReadonlyMap<MessageId, ModelCallId>
   return { ok: sources }
 }
 
-/**
- * `null` when the caller declared nothing: the meters of the lease then answer as the family meters do.
- * A lineage that is not an object is `invalid` (`lineage`, `shape`); `sources` that is not an array,
- * or an item that is not an object, is `invalid` (`lineage.sources`, `shape`); a bad identity names
- * its field. More distinct calls than `maxCitedCalls` is `invalid` (`lineage`, `too-many-calls`); a
- * message with two sources is `invalid` (`lineage.sources`, `duplicate-message`).
- */
 export function parseLineage(
   raw: PreparationLineage | undefined,
   maxCitedCalls: number,

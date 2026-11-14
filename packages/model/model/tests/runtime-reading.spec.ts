@@ -80,7 +80,6 @@ it('rejects paging preparation atomically before freezing, including unknown cal
         ]),
       ).toThrow()
     expect(await f.dependencies.commands.loadRecovery(f.admit)).toEqual(before)
-    // A rejected two-field update must not leave its first valid field behind.
     expect(() =>
       f.controls.commands.configureResultPaging({
         ...original,
@@ -184,7 +183,6 @@ it('uses content authority for every read and hides settled results from another
     const next = { ...f.admit, read: first.read, after: first.value.page.next }
     for (const call of [f.admit.call, callId('absent')]) {
       const cross = { ...next, call, tenant: identity('6') }
-      // R2-D357: the reference carries no tenant; tenant 6 reaches its own content authority.
       expect(await f.provider.runtime.consumption.beginRead({ ...begin, ...cross })).toMatchObject({
         failure: { kind: 'denied', action: 'content' },
       })

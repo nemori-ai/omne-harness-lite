@@ -1,7 +1,3 @@
-// The construction and the close of the local Model assembly. The whole send path runs in the slow
-// layer (local-model.spec.ts); here only what the assembly decides before any send, and how its
-// close ends the preparation resources. The preparation tests use the real families: a lease
-// needs no network.
 import { describe, expect, it } from 'vitest'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
 import type { ModelPreparationLease, ModelProfile } from '@omne-harness/model-contract'
@@ -36,7 +32,6 @@ function openAiProfile(): ModelProfile {
   })
 }
 
-/** Plans the recorded request of MODEL with the lease's rules and measures it with its meter. */
 async function measureOn(lease: ModelPreparationLease, profile: ModelProfile) {
   const record = OPENAI_RECORDS.find(item => item.name === MODEL)
   if (record === undefined) throw new Error(`no record ${MODEL}`)
@@ -159,7 +154,6 @@ describe('assembleLocalModel', () => {
         config({ preparation: { maxCitedCalls: 0, supplierOf: factorySupplier() } }),
       ),
     ).toThrow(RangeError)
-    // A missing or null preparation is refused by name, before anything reads its members.
     for (const preparation of [Reflect.get({}, 'preparation'), JSON.parse('null')]) {
       const assemble = () => assembleLocalModel(config({ preparation }))
       expect(assemble).toThrow(RangeError)
@@ -178,7 +172,6 @@ describe('assembleLocalModel', () => {
       }),
     )
     const profile = openAiProfile()
-    // The configured families hold no family, so the family table answers for the adoption.
     expect(await local.preparation.acquire({ ...ACCESS, profile })).toEqual({
       failure: {
         kind: 'unavailable',
@@ -236,7 +229,6 @@ describe('assembleLocalModel', () => {
   })
 })
 
-/** A network and send resources that only record their closes, and fail them on request. */
 function observedFactories(
   failures: Readonly<{ network?: Error; resources?: Error; build?: Error }> = {},
 ) {
@@ -274,7 +266,6 @@ function observedFactories(
   return { events, factories }
 }
 
-/** The unhandled rejections while `body` runs and a few turns of the loop after it. */
 async function unhandledDuring(body: () => void): Promise<readonly unknown[]> {
   const seen: unknown[] = []
   const listener = (reason: unknown) => seen.push(reason)

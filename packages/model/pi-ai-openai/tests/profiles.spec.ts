@@ -1,5 +1,3 @@
-// The official profiles: one per current record, derived from the record, and each one round
-// trips: its supplier acquires a binding through composeFamilies and plans a request.
 import { describe, expect, it } from 'vitest'
 import { composeFamilies, recordAdoption } from '@omne-harness/pi-ai-transport'
 import {
@@ -21,9 +19,6 @@ import {
 const RECORDS: readonly OpenAiRecord[] = OPENAI_RECORDS
 const PROFILES = officialOpenAiProfiles({ retryPolicy: RETRY, compactionTriggerPercent: '80' })
 
-// The shared family builds its tokenizer on the first acquire, which can take seconds under
-// parallel load. One acquire while the file loads, outside every test timeout, builds it once;
-// each round trip below reuses it.
 const [FIRST] = RECORDS
 if (FIRST === undefined) throw new Error('no OpenAI record')
 await (await bindingOf(FIRST)).release()

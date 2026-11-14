@@ -22,9 +22,7 @@ export type ConfiguredModelHostOptions = Pick<
   'qualifyObservation' | 'executionChannel' | 'releaseExecution' | 'observation'
 > &
   Readonly<{
-    /** The stage bridge owns the send boundary and its resources. */
     send: ModelSendBoundary<unknown>
-    /** The assembly retains this ledger for a successor host. */
     ledger: ResultPushLedger
   }>
 
@@ -51,7 +49,6 @@ const unavailableRetry: ModelRetryPolicy<unknown> = {
   }),
 }
 
-/** Builds the configured runtime through the existing host's bind and shutdown lifecycle. */
 export function createConfiguredModelRuntimeLocalPlugin(
   options: ConfiguredModelHostOptions,
 ): ConfiguredModelRuntimeLocalPluginClass {
@@ -59,7 +56,6 @@ export function createConfiguredModelRuntimeLocalPlugin(
     static readonly inject = [modelCommandsKey, modelClockKey, modelHostAuthorityKey]
     static readonly Config = configuredModelHostConfigSchema
     declare readonly [Service.init]: () => Promise<void>
-    // The constructor returns the instance of the inner plugin, which carries both members.
     declare readonly drain: ModelRuntimeLocalPluginInstance['drain']
 
     constructor(ctx: Context, settings: ConfiguredModelHostSettings) {

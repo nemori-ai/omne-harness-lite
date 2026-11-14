@@ -1,7 +1,3 @@
-// The official-profile source: the definitions the assembly hands over become one frozen
-// snapshot, with the identity, adoption and revision rules the member SPEC states. The digests
-// are checked against numbers computed outside this package with a separate canonicalizer, so the
-// rule is pinned by a fixture and not by the implementation under test.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { Adoption, ModelProfile, ModelProfileDefinition } from '@omne-harness/model-contract'
 import type { ModelProfileSnapshot } from '@omne-harness/model-contract/provider'
@@ -105,9 +101,6 @@ function profilesOfRoute(profile: ModelProfile): Adoption {
   return profile.adoption
 }
 
-// The two digests below were computed outside this package: Python's `json.dumps` with
-// `sort_keys=True, separators=(',', ':')` over the same values, then SHA-256. Python writes
-// non-ASCII as `\\u` escapes and the source writes UTF-8, so both fixtures here are ASCII.
 const DEFINITION_DIGEST = '936a8c89f93b6f943bf7e7b55af590a5c9e16d7f46c74e16c91c84de6c71a40b'
 const SNAPSHOT_DIGEST = '3252c6c3908c2223dfa1add8afcfd61948e63b5183d6027de4919d8547837795'
 
@@ -136,8 +129,6 @@ it('keeps the supplier owner and revision in the profile adoption and names the 
   expect(profile.adoption.owner).toBe(supplier.owner)
   expect(profile.adoption.name).toBe('alpha/route')
   expect(profile.adoption.revision).toBe(supplier.revision)
-  // The digest covers the definition, not the family record: the same definition always digests
-  // the same, and a changed definition changes it.
   expect(profile.adoption.digest).toBe(DEFINITION_DIGEST)
 })
 

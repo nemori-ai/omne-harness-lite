@@ -1,13 +1,4 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, writes a vault
-// file, drives a call of each pi family through the assembled send path, then meters the next
-// request with the real preparation lease.
-//
-// The calibrated metering of the local host as one composition: the first call X runs through
-// `assembleLocalModel`, the real Model runtime and the in-memory ModelCommands, settles with a
-// reasoning state, is read, acknowledged and cleaned up. The next request continues X and carries
-// X's reply. Its lease comes from the same host (`host.preparation`), reads X through the same
-// ModelCommands and meters with the real family meter over the real `rules.plan`. Nothing leaves
-// the machine: the server answers with the recorded SSE body of the model that the request names.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,13 +22,7 @@ import { readRecordFixture, type FamilyName, type RecordFixture } from './suppor
 type Case = Readonly<{
   family: FamilyName
   name: string
-  /** The method name of the family for a unit replaced by the output count of its source. */
   outputGroup: string
-  /**
-   * Whether X's own request history holds an earlier reply with reasoning state, for which the
-   * fixture declares no source. When X cannot be read the anchor misses and the full metering
-   * reaches that reply first, so it decides the named unavailability (`source-missing`).
-   */
   historyCarriesState: boolean
 }>
 
@@ -106,10 +91,6 @@ const NEXT_USER = {
   ],
 }
 
-/**
- * X's reply as the consumer writes it into the next request: the read blocks, the scope of the
- * request declaration, the format of X's receipt and the positions of the reasoning state parts.
- */
 function replyOf(
   input: Readonly<{ fixture: RecordFixture; blocks: readonly ModelBlock[]; format: string }>,
 ) {
@@ -126,14 +107,12 @@ function replyOf(
   }
 }
 
-/** The identity of the carried reply in the next request, as the judge branded it. */
 function replyId(request: FixedModelRequest) {
   const message = request.messages.find(item => item.id === ASSISTANT_ID)
   if (message === undefined) throw new Error('the next request has no reply')
   return message.id
 }
 
-/** The first request with these messages appended, through the contract judge. */
 function nextRequest(fixture: RecordFixture, appended: readonly unknown[]): FixedModelRequest {
   const json: unknown = fixture.requestJson
   const messages: unknown = Reflect.get(Object(json), 'messages')
@@ -143,10 +122,6 @@ function nextRequest(fixture: RecordFixture, appended: readonly unknown[]): Fixe
 
 const ceilMargin = (estimated: bigint): bigint => (estimated * MARGIN_PERCENT + 99n) / 100n
 
-/**
- * Runs X through the host: drive to settlement, read the reply, acknowledge it and release the
- * request material. Returns X's reply as the assistant message of the next request.
- */
 async function settleReadAndClean(local: ReturnType<typeof assembleLocalHost>) {
   const callAccess = { ...local.access, call: local.call }
   const { driven, reference } = await local.drive()
@@ -217,7 +192,6 @@ describe('the next request continues a settled and cleaned call X through the as
         const blocks = await settleReadAndClean(local)
         expect(blocks.some(block => block.kind === 'reasoning_state')).toBe(true)
 
-        // X's dispatch keeps its message sequence, its receipt and its account after cleanup.
         const [record, ...others] = decoded(
           await local.commands.dispatches({ ...local.access, call: local.call }),
         )
@@ -232,7 +206,6 @@ describe('the next request continues a settled and cleaned call X through the as
           known(record.account, 'cache-write')
         const output = known(record.account, 'output')
 
-        // The consumer writes X's reply as the assistant message of the next request.
         const reply = replyOf({ fixture, blocks, format })
         const withReply = nextRequest(fixture, [reply, NEXT_USER])
         const withoutReply = nextRequest(fixture, [NEXT_USER])
@@ -266,8 +239,6 @@ describe('the next request continues a settled and cleaned call X through the as
         const [carried, plain] = budgets.map(inputEstimate)
         if (carried === undefined || plain === undefined) throw new Error('two estimates')
 
-        // The amount is the anchor plus the estimate of the new units; the margin covers only
-        // the estimate. The carried reply adds exactly X's output count, the rest is the same.
         const carriedEstimate = BigInt(carried.amount) - anchor
         const plainEstimate = BigInt(plain.amount) - anchor
         expect(plainEstimate).toBeGreaterThan(0n)
@@ -343,8 +314,6 @@ describe('the next request continues a settled and cleaned call X through the as
           }),
         )
         expect(JSON.stringify(outcomes[0])).toBe(JSON.stringify(outcomes[1]))
-        // X reads as no fact: the anchor misses and the full metering answers. A reasoning unit
-        // without an output count is a named unavailability, never zero.
         const [carried, plain] = outcomes[0] ?? []
         const unavailable = (diagnostic: string) => ({
           failure: {

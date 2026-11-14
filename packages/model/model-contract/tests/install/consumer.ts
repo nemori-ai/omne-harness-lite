@@ -1,6 +1,3 @@
-// Packs a workspace member and its workspace closure, installs only those tarballs and their
-// third-party dependencies into an isolated consumer directory, then proves from inside that
-// directory that every entry resolves, imports and type-checks without leaving it.
 import { copyFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -48,16 +45,13 @@ export type Report = {
   workspaceRoot: string
   consumerDirectory: string
   closure: { workspace: string[]; external: string[] }
-  /** Which attempt installed the dependencies. `network` only when the caller allowed it. */
   install: { mode: 'offline' | 'network'; allowNetwork: boolean }
   installed: string[]
   forbidden: Violation[]
   tarballs: { name: string; file: string; files: string[] }[]
   probe: { specifier: string; resolved: string; exports: string[] }[]
   typeCheck: { files: number }
-  /** Present only when a scenario script was given. */
   scenario?: { script: string; output: string }
-  /** Present only when a fixture was given and its process reported. */
   fixture?: { role: string; directory: string; paths: FixtureOutcome['paths'] }
   checks: Check[]
   ok: boolean
@@ -68,31 +62,20 @@ export type Options = Readonly<{
   workspaceRoot: string
   policy: Policy
   consumerDirectory: string
-  /** Lets the install step fall back from `--offline` to a run that may reach the registry. */
   allowNetwork?: boolean
-  /** A pnpm store other than the one inside the consumer directory. */
   storeDirectory?: string
-  /** A script that runs inside the consumer directory after the probe; a non-zero exit fails the run. */
   scenarioScript?: string
-  /**
-   * A role fixture directory. The consumer then installs only what the fixture declares, and the
-   * run compiles and runs the fixture where the member's own entries would have been imported.
-   */
   fixtureDirectory?: string
 }>
 
 type Tree = Readonly<{
   version: string
-  /** Where pnpm installed this package. */
   path?: string
   dependencies?: Readonly<Record<string, Tree>>
 }>
 
-/** What `pnpm ls --prod` finds below a directory. */
 type Listing = Readonly<{
-  /** The resolved versions of every package. */
   versions: Map<string, Set<string>>
-  /** The installed directory of every `name@version`. */
   directories: Map<string, string>
 }>
 
@@ -109,7 +92,6 @@ function exists(path: string): boolean {
   }
 }
 
-/** Every package that `pnpm ls --prod` finds below a directory, with its versions and directories. */
 function listed(directory: string, standalone = false): Listing {
   // The consumer lives below the repository, so pnpm would otherwise adopt the workspace root.
   const flags = standalone ? ['--ignore-workspace'] : []
@@ -145,13 +127,6 @@ export type InstallResult = Readonly<{
   detail: string
 }>
 
-/**
- * Installs the tarballs and the pinned third-party packages. Every one of them is a file of the
- * workspace, so the install runs with `--offline`, and it reads no pnpm state of the machine: the
- * store and the cache are those of the run. When the install fails the run fails too, unless the
- * caller allowed the network: then a second attempt (`--prefer-offline`) may reach the registry,
- * and the result says `network`.
- */
 export function installDependencies(
   project: string,
   options: Readonly<{ allowNetwork: boolean; storeDirectory: string; cacheDirectory: string }>,
@@ -187,17 +162,14 @@ function exportSpecifiers(manifest: Manifest): string[] {
     .map(([subpath]) => (subpath === '.' ? manifest.name : `${manifest.name}/${subpath.slice(2)}`))
 }
 
-/** What a run judges against the policy: the member's whole closure, or only what a fixture declares. */
 type Plan = Readonly<{
   fixture: FixtureSpec | null
   policy: Policy
   declared: readonly Readonly<{ name: string; via: readonly string[] }>[]
 }>
 
-/** What every step of a run shares: where it reports and what it was asked to do. */
 type Run = Readonly<{ options: Options; manifest: Manifest; report: Report; check: CheckFn }>
 
-/** The plan of the run, or null when the fixture is unreadable or reaches outside the closure. */
 function planOf(
   run: Run,
   closure: DeclaredClosure,
@@ -228,7 +200,6 @@ function planOf(
 
 type Declared = Readonly<{ closure: DeclaredClosure; plan: Plan }>
 
-/** Reads the closure, judges what the run declares against the policy, and checks the builds. */
 function declare(run: Run): Declared | null {
   const { options, report, check } = run
   if (!check('node-path-unset', (process.env['NODE_PATH'] ?? '') === '', 'NODE_PATH is not set'))
@@ -261,7 +232,6 @@ type Packed = Readonly<{
   pins: Listing
 }>
 
-/** Packs one closure member and judges the tarball; false when it could not be packed. */
 function packMember(
   run: Run,
   member: DeclaredClosure['workspace'][number],
@@ -278,7 +248,6 @@ function packMember(
   report.tarballs.push({ name: member.name, file: info.filename, files })
   const source = sourceFiles(files)
   check(`tarball-no-source:${member.name}`, source.length === 0, source.join(', ') || 'no source')
-  // A name relative to `packs`: GNU tar reads an absolute `C:\…` name as a remote `host:file` archive.
   const archive = relative(packs, resolve(packs, info.filename))
   const text = exec('tar', ['-xzOf', archive, 'package/package.json'], packs).stdout
   const residue = workspaceResidue(JSON.parse(text) as Manifest)
@@ -290,10 +259,8 @@ function packMember(
   return true
 }
 
-/** Prepares the consumer directory and packs every closure member into it. */
 function pack(run: Run, closure: DeclaredClosure): Packed | null {
   const { options, report } = run
-  // The directory is deleted below, so it is vetted first (the caller sees a usage error).
   assertWorkDirectory(options.consumerDirectory, options.memberDirectory, options.workspaceRoot)
   const pins = listed(options.memberDirectory)
   rmSync(options.consumerDirectory, { recursive: true, force: true })
@@ -307,11 +274,6 @@ function pack(run: Run, closure: DeclaredClosure): Packed | null {
   return report.checks.some(item => !item.ok) ? null : { project, tarballs, pins }
 }
 
-/**
- * Pins every member to its tarball, and every third-party package of the workspace that has one
- * version to the directory where the workspace installed it. pnpm then resolves each of them from
- * a file, and asks no registry and no registry metadata which version to take.
- */
 function overridesOf(run: Run, closure: DeclaredClosure, packed: Packed): Record<string, string> {
   const overrides: Record<string, string> = {}
   for (const member of closure.workspace)
@@ -326,12 +288,6 @@ function overridesOf(run: Run, closure: DeclaredClosure, packed: Packed): Record
   return overrides
 }
 
-/**
- * The direct dependencies of the consumer project, or null when a fixture needs a package that
- * the workspace does not pin to one version. A scenario imports closure members other than the
- * target, and pnpm only links direct dependencies. Without a scenario the consumer stays as thin
- * as the target alone.
- */
 function directOf(run: Run, declared: Declared, packed: Packed): Record<string, string> | null {
   const { options, manifest, check } = run
   const { plan, closure } = declared
@@ -352,7 +308,6 @@ function directOf(run: Run, declared: Declared, packed: Packed): Record<string, 
   return Object.fromEntries(names.map(name => [name, `file:${packed.tarballs.get(name)}`]))
 }
 
-/** Installs the consumer project and judges the lockfile and what was installed. */
 function install(run: Run, declared: Declared, packed: Packed): boolean {
   const { options, manifest, report, check } = run
   const { closure, plan } = declared
@@ -366,7 +321,6 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
         version: '0.0.0',
         private: true,
         type: 'module',
-        // pnpm runs here without the workspace, so the consumer names the pnpm of the workspace.
         packageManager: readManifest(options.workspaceRoot).packageManager,
         dependencies,
         pnpm: { overrides: overridesOf(run, closure, packed) },
@@ -406,7 +360,6 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
   return true
 }
 
-/** Imports and type-checks the entries of the member, and runs the scenario when one was given. */
 function exerciseMember(run: Run, project: string): void {
   const { options, manifest, report, check } = run
   const specifiers = exportSpecifiers(manifest)
@@ -423,7 +376,6 @@ function exerciseMember(run: Run, project: string): void {
   for (const item of typed.checks) check(item.id, item.ok, item.detail)
 }
 
-/** Compiles the fixture against what was installed and runs its paths in the consumer directory. */
 function exerciseFixture(run: Run, spec: FixtureSpec, project: string): void {
   const { report, check } = run
   copyFixture({ project, directory: spec.directory })
@@ -462,8 +414,6 @@ function startRun(options: Options): Run {
 }
 
 function finish({ options, report, check }: Run): Report {
-  // Every early return follows a failed check. A run that passes all of its checks must also
-  // have reported all of them, or a judgment that is no longer wired in would go unnoticed.
   if (report.checks.every(item => item.ok)) {
     const missing = missingCheckIds(
       report.checks,
@@ -489,10 +439,6 @@ export function runConsumerInstall(options: Options): Report {
   return finish(run)
 }
 
-/**
- * Imports every entry in a child process whose resolve hook records each resolution, ESM and
- * CommonJS, then judges the records against the consumer directory.
- */
 export function probeEntries(
   project: string,
   specifiers: readonly string[],
@@ -533,11 +479,6 @@ export function probeEntries(
   }
 }
 
-/**
- * Copies a scenario script into the consumer directory and runs it there, with the same clean
- * environment as the probe. The script sees only what was installed, so it exercises the member
- * the way an outside caller would.
- */
 export function runScenario(
   project: string,
   script: string,
@@ -556,7 +497,6 @@ export function runScenario(
   }
 }
 
-/** Compiles one file that imports the type of every entry, then judges which files tsc loaded. */
 export function typeCheck(
   project: string,
   memberDirectory: string,

@@ -1,10 +1,3 @@
-// A profile maintenance as an author writes it against the contract. It checks a definition before
-// it keeps it, and it gives the update time itself from a clock that it is given: the change has no
-// field for a time, and a time that goes back is refused. An operation that succeeded is answered
-// again with its original result when the same change comes with it, and with a conflict when
-// another change does. The store is a map, because this file shows the rules and not a storage. A
-// production maintainer keeps profiles durably and compares times as instants; `Date.parse` is
-// enough for the whole seconds and milliseconds written here.
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   decodeRevision,
@@ -27,14 +20,12 @@ import { adoption } from './values.ts'
 const POSITIVE_INTEGER = /^[1-9][0-9]*$/u
 const PERCENT = /^(?:[1-9][0-9]?|100)$/u
 
-/** Whether a provided limit is above a finite upstream value that a supplier is known to have. */
 function exceedsKnownUpstream(limit: TokenLimit): boolean {
   return limit.upstream.some(
     entry => entry.limit.kind === 'finite' && BigInt(limit.provided) > BigInt(entry.limit.amount),
   )
 }
 
-/** The fields of a definition that break the rules of the contract, in the order the rules list them. */
 export function invalidFields(definition: ModelProfileDefinition): string[] {
   const fields: string[] = []
   const { context } = definition
@@ -72,8 +63,6 @@ export function invalidFields(definition: ModelProfileDefinition): string[] {
     !definition.limits.some(item => item.metric === 'image-bytes')
   )
     fields.push('limits.image-bytes')
-  // The metrics of this author count bytes, images or milliseconds, so a provided limit is a whole
-  // number; each metric is declared once, and none is above what its supplier is known to allow.
   const declared = new Set<string>()
   for (const item of definition.limits) {
     const name = `limits.${item.metric}`
@@ -85,7 +74,6 @@ export function invalidFields(definition: ModelProfileDefinition): string[] {
   return fields
 }
 
-/** The text of a change with its keys in one order, so that the same change written twice compares equal. */
 function canonical(change: ProfileChange): string {
   return JSON.stringify(change, (_key, value: unknown) =>
     value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -112,7 +100,6 @@ function nextRevision(previous: Revision | null): Revision {
 
 export function createProfileMaintenance(now: () => string): AuthorProfileMaintenance {
   const profiles = new Map<string, ModelProfile>()
-  /** Each operation that succeeded, with the change it carried, to answer the same operation again. */
   const committed = new Map<ModelOperationId, Readonly<{ change: string; profile: ModelProfile }>>()
 
   function stored(identity: ProfileIdentity): ModelProfile | undefined {
@@ -141,8 +128,6 @@ export function createProfileMaintenance(now: () => string): AuthorProfileMainte
     current: stored,
     async change(input) {
       const { change, operation } = input
-      // The same operation again: the same change is answered with the result it had, and nothing
-      // is read or written; another change under it is a conflict with the revision it committed.
       const earlier = committed.get(operation)
       if (earlier !== undefined) {
         if (earlier.change === canonical(change)) return succeed(earlier.profile)
@@ -177,10 +162,6 @@ export function createProfileMaintenance(now: () => string): AuthorProfileMainte
   }
 }
 
-/**
- * The failure for a clock reading that is not a time, or that is before the last change. A reading
- * that cannot be parsed compares as neither earlier nor later, so it is refused before comparing.
- */
 function refuseClock(updatedAt: string, previous: ModelProfile | undefined): ModelFailure | null {
   const reading = Date.parse(updatedAt)
   if (Number.isNaN(reading))
@@ -206,7 +187,6 @@ function refuseClock(updatedAt: string, previous: ModelProfile | undefined): Mod
   return null
 }
 
-/** The failure that stops a change before the clock is read, or null when the change may go on. */
 function refuse(
   change: ProfileChange,
   previous: ModelProfile | undefined,

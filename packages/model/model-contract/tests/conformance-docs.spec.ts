@@ -34,7 +34,6 @@ const OBSERVED = [
   'unsealed-tool-arguments-not-executable',
 ] as const satisfies readonly ConformanceObligation[]
 
-/** For each hook and for the transport, the obligations that the suite cannot check without it. */
 const SKIPPED_WITHOUT = {
   startRun: [
     'commit-unknown-acknowledge-recovers-original',

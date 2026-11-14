@@ -10,24 +10,17 @@ import type {
 import { ScriptedModelError } from './error.ts'
 
 export type ScriptedTransportEnding =
-  /** The stream gives one `ended` fact with this termination, then finishes. */
   | Readonly<{ kind: 'terminated'; termination: TransportTermination }>
-  /** The stream runs out of facts without any `ended` fact. */
   | Readonly<{ kind: 'exhausted' }>
-  /** The stream throws this error after its last fact. */
   | Readonly<{ kind: 'throws'; error: Error }>
 
 export type ScriptedTransportScript = Readonly<{
-  /** What `materialize` reports. The scripted transport reads no media and measures nothing. */
   receipt: MaterializationReceipt
-  /** The facts of the stream, in order. The `ended` fact comes from `ending`, so it is not listed. */
   facts: readonly Exclude<TransportFact, { kind: 'ended' }>[]
   ending: ScriptedTransportEnding
-  /** A step that answers a failure instead of going on; null lets every step succeed. */
   rejection: Readonly<{ at: 'prepare' | 'materialize'; failure: TransportFailure }> | null
 }>
 
-/** How often each step ran. A step counts when it is called, whether or not it succeeded. */
 export type ScriptedTransportCounts = Readonly<{
   prepare: number
   materialize: number
@@ -46,10 +39,6 @@ const CANCELLED: TransportFact = {
   termination: { kind: 'interrupted', stop: 'confirmed' },
 }
 
-/**
- * The fact that closes the stream, or null when the stream just runs out. A new kind of ending
- * that this switch does not handle fails to compile, because the function would not return.
- */
 function lastFact(ending: ScriptedTransportEnding): TransportFact | null {
   switch (ending.kind) {
     case 'throws':
@@ -61,11 +50,6 @@ function lastFact(ending: ScriptedTransportEnding): TransportFact | null {
   }
 }
 
-/**
- * A transport that plays a script. `start` begins the stream at once, as the protocol requires;
- * the facts are only handed out while the consumer iterates. An abort of the signal ends the
- * stream with a confirmed interruption.
- */
 export function createScriptedTransport(script: ScriptedTransportScript): ScriptedTransport {
   const counts = { prepare: 0, materialize: 0, start: 0, closePrepared: 0, closeMaterialized: 0 }
 

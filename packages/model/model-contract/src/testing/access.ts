@@ -1,15 +1,10 @@
-// The test control plane that the public doubles share: a rule table keyed by the minted tenant
-// text and the principal. It is not a production access check; it answers only what the test set.
 import { tenantCodec, type Access } from '@omne-harness/legal-identity'
 import { tenantText } from './values.ts'
 
-/** What the control plane says about one access: the default for an unlisted access is `deny`. */
 export type ScriptedAccessDecision = 'allow' | 'deny' | 'unavailable'
 
 export type AccessRules<P> = Readonly<{
-  /** Sets the decision for this tenant and principal; a tenant that is not minted is a misuse. */
   set(access: Access<P>, decision: ScriptedAccessDecision): void
-  /** The decision for this access; an unminted tenant or an unlisted access is `deny`. */
   decide(access: Access<P>): ScriptedAccessDecision
 }>
 

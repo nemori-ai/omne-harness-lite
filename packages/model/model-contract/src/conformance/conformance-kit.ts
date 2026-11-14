@@ -1,7 +1,5 @@
 import { invocationReference } from '../testing/reference-input.ts'
 import { encodeModelInvocationRef } from '../reference.ts'
-// The helpers that the checks share: the verdict primitives, the identities the suite makes, and the
-// small scenes (a call that was accepted, runs, has ended) that most checks start from.
 import { isDeepStrictEqual } from 'node:util'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -83,7 +81,6 @@ function isKind<K extends ModelFailure['kind']>(
   return failure.kind === kind
 }
 
-/** Fails unless the outcome is a failure of this kind; the failure comes back as that kind. */
 export function refusedAs<K extends ModelFailure['kind']>(
   outcome: Outcome<unknown, ModelFailure>,
   kind: K,
@@ -95,7 +92,6 @@ export function refusedAs<K extends ModelFailure['kind']>(
   return failure
 }
 
-/** The identity that the decoder accepts; a refusal means the suite built a bad label. */
 function decoded<T>(outcome: Outcome<T, unknown>): T {
   if ('ok' in outcome) return outcome.ok
   throw new ConformanceFailure('the suite built an identity that the package decoder refuses')
@@ -173,7 +169,6 @@ export function mutationOf<P>(
   return { ...accessOf(scene, call, tenant), operation }
 }
 
-/** An admission that this call and operation fix. */
 export function admitInput<P>(
   scene: Scene<P>,
   label: string,
@@ -190,10 +185,6 @@ export function admitInput<P>(
   }
 }
 
-/**
- * The same admission with its data copied, so a provider that remembers the first request by
- * reference cannot take a repeat for the same object. The identities are opaque and stay shared.
- */
 export function copyOfAdmit<P>(input: Admit<P>): Admit<P> {
   return {
     ...input,
@@ -208,14 +199,12 @@ export type Placed<P> = Readonly<{
   operation: ModelOperationId
 }>
 
-/** Accepts a call. */
 export async function placed<P>(scene: Scene<P>, label: string): Promise<Placed<P>> {
   const input = admitInput(scene, label)
   succeeded(await runtimeOf(scene).calls.admit(input), `the admission of ${label}`)
   return { input, call: input.call, operation: input.operation }
 }
 
-/** Accepts a call and lets it run. */
 export async function running<P>(scene: Scene<P>, label: string): Promise<Placed<P>> {
   const call = await placed(scene, label)
   await hookOf(
@@ -264,7 +253,6 @@ export function resultBlocks(): readonly ModelBlock[] {
   return [textBlock('b1', 'one'), textBlock('b2', 'two'), textBlock('b3', 'three')]
 }
 
-/** Ends a call through the hook and returns what the provider then shows. */
 export async function ending<P>(
   scene: Scene<P>,
   call: Placed<P>,
@@ -288,7 +276,6 @@ export async function ending<P>(
   return { ...call, version: state.settlement.version, state }
 }
 
-/** A call that was accepted, ran and ended. */
 export async function ended<P>(
   scene: Scene<P>,
   label: string,
@@ -323,7 +310,6 @@ export function ackInput<P>(
   }
 }
 
-/** Acknowledges the ended call with evidence of the given label. */
 export async function acknowledged<P>(
   scene: Scene<P>,
   call: Ended<P>,
@@ -378,7 +364,6 @@ export async function dispatchesOf<P>(
   )
 }
 
-/** Waits for the promise, and fails when it does not settle in `waitMs`. */
 export async function within<T>(waitMs: number, promise: Promise<T>, what: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<never>((_, reject) => {
@@ -394,7 +379,6 @@ export async function within<T>(waitMs: number, promise: Promise<T>, what: strin
   }
 }
 
-/** Asks the iterator to release what it holds, and fails when it does not answer in `waitMs`. */
 export async function releaseIterator(
   iterator: AsyncIterator<unknown>,
   waitMs: number,
@@ -411,14 +395,9 @@ export async function releaseIterator(
 
 export type Watch = Readonly<{
   next(): Promise<Observation | 'finished'>
-  /** Aborts the signal; the stream is expected to end. */
   abort(): void
 }>
 
-/**
- * Observes through the handle for the length of `body`, and always releases the stream, so a
- * check that ends early holds nothing.
- */
 export async function observing<P, T>(
   scene: Scene<P>,
   handle: ModelHandle<P>,
@@ -447,7 +426,6 @@ export async function observing<P, T>(
   try {
     result = await body(watch)
   } catch (error) {
-    // The failure of the body is the finding; a release that fails on top of it adds nothing.
     await release().catch(() => undefined)
     throw error
   }
@@ -455,7 +433,6 @@ export async function observing<P, T>(
   return result
 }
 
-/** The handle of the instance that serves the call now. */
 export async function liveHandle<P>(scene: Scene<P>, call: Placed<P>): Promise<ModelHandle<P>> {
   const route = succeeded(
     await runtimeOf(scene).instances.connect(accessOf(scene, call.call)),
@@ -465,13 +442,11 @@ export async function liveHandle<P>(scene: Scene<P>, call: Placed<P>): Promise<M
   return route.handle
 }
 
-/** The snapshot that an observation carries, whether it is the first or a later one. */
 export function snapshotOf(item: Observation | 'finished', what: string): Snapshot {
   expect(item !== 'finished' && item.kind !== 'ended', `${what} is not a snapshot: ${show(item)}`)
   return item.value
 }
 
-/** The reason that an observation ended for; fails when the item is anything else. */
 export function endReason(item: Observation | 'finished', what: string): string {
   expect(item !== 'finished' && item.kind === 'ended', `${what} did not end: ${show(item)}`)
   return item.reason
@@ -481,27 +456,22 @@ export function blockAt(snapshot: Snapshot, index: string): VisibleBlock | undef
   return snapshot.blocks.find(block => block.index === index)
 }
 
-/** The operation of the control that a cancel gave, or null when it gave none. */
 export function requestedOperation(control: ControlState): ModelOperationId | null {
   return control.kind === 'requested' ? control.operation : null
 }
 
-/** The operation of the acknowledgement that the custody shows, or null for the producer. */
 export function acknowledgedOperation(custody: CustodyState): ModelOperationId | null {
   return custody.kind === 'acknowledged' ? custody.operation : null
 }
 
-/** The number that a decimal count text names, or null when the text is not a count. */
 export function countOf(text: string): number | null {
   return /^(?:0|[1-9][0-9]*)$/u.test(text) ? Number(text) : null
 }
 
-/** The kind of an observation item, or `finished` when the stream is over. */
 export function kindOf(item: Observation | 'finished'): string {
   return item === 'finished' ? item : item.kind
 }
 
-/** What a block in flight shows, or null when the block is anything else. */
 export function growingState(
   block: VisibleBlock | undefined,
 ): Readonly<{ content: GrowingContentKind; mode: 'append' | 'replace'; value: string }> | null {
@@ -510,12 +480,10 @@ export function growingState(
     : null
 }
 
-/** True for a sealed tool suggestion: the form in which a tool call may be acted on. */
 export function isSealedToolCall(block: VisibleBlock | undefined): boolean {
   return block?.kind === 'sealed' && block.block.kind === 'tool_call'
 }
 
-/** The first snapshot that a new observer is given. */
 export async function firstSnapshot<P>(
   scene: Scene<P>,
   handle: ModelHandle<P>,
@@ -524,7 +492,6 @@ export async function firstSnapshot<P>(
   return observing(scene, handle, async watch => snapshotOf(await watch.next(), what))
 }
 
-/** Reads the observation until it ends, and gives the reason; fails when it finishes without one. */
 export async function untilEnd(watch: Watch, what: string): Promise<string> {
   for (let seen = 0; seen < 10; seen += 1) {
     const item = await watch.next()
@@ -534,7 +501,6 @@ export async function untilEnd(watch: Watch, what: string): Promise<string> {
   throw new ConformanceFailure(`${what} did not end within ten items`)
 }
 
-/** A tool suggestion that the judge of the message package accepts. */
 export function toolCallBlock(id: string, args: JsonValue): ModelBlock {
   const judged = judgePart({
     kind: 'tool_call',

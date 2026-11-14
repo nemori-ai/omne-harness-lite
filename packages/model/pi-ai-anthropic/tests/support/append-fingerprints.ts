@@ -1,5 +1,3 @@
-// Appends a fingerprint line for every record without one. Run with `pnpm run fingerprints` after
-// adding a record; it refuses to change the line of an existing record.
 import { fileURLToPath } from 'node:url'
 import { appendAdoptionFingerprints } from '@omne-harness/pi-ai-transport/testing'
 import { FAMILY } from './anthropic.ts'

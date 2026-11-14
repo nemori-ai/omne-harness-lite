@@ -1,5 +1,3 @@
-// Writes tests/fixtures/records and tests/fixtures/cases from the case table. Run with
-// `pnpm run fixtures` after a change of the table; the fixture test fails until the files match.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'

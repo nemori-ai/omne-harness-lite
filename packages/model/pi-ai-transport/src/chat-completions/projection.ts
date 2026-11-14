@@ -1,10 +1,6 @@
 // Derived from pi 1.0.0, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (convertMessages,
 // convertTools, addCacheControlToTextContent; the source file is named in provenance.json).
 // Copyright (c) 2025 Mario Zechner. MIT: ../../LICENSE.pi. See provenance.json.
-//
-// The one projection of a request onto the gateway messages. Plan and encode both call it, so the
-// meter sees the shape that encode writes. Replay follows the contract projection; every vendor
-// difference comes from the record or a hook.
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
@@ -39,22 +35,17 @@ import type {
 
 type WireRole = ProjectedTurn['role']
 
-/** One part of a wire message. */
 type WirePart =
   | Readonly<{ type: 'text'; text: string }>
   | Readonly<{ type: 'image'; url: string; detail: string }>
 
-/** One gateway message before it is written. */
 export type WireMessage = Readonly<{
   role: WireRole
-  /** The log message it comes from; `null` for the system instruction. */
   message: ChatMessageId | null
   parts: readonly WirePart[]
   blocks: readonly ProjectedPart[]
-  /** Only for an assistant message. */
   toolCalls: readonly JsonValue[]
   replay: ReplayWire
-  /** Only for a tool message: the normalized call id. */
   toolCallId: string | null
 }>
 
@@ -62,11 +53,8 @@ export type Projection = Readonly<{
   instruction: readonly ContentBlock[]
   messages: readonly WireMessage[]
   tools: readonly JsonValue[]
-  /** `undefined`: the body has no `tool_choice`. */
   toolChoice: JsonValue | undefined
-  /** The tool declarations with their gateway names, for the meter. */
   declared: readonly ToolDeclaration[]
-  /** The tool choice with the gateway name, for the meter. */
   choice: FixedModelRequest['toolChoice']
   treatments: readonly ReplayTreatment[]
   diagnostics: readonly ReplayDiagnostic[]
@@ -82,23 +70,17 @@ export type ProjectionInput = Readonly<{
   tools: readonly ToolDeclaration[]
   toolChoice: FixedModelRequest['toolChoice']
   replayOff: boolean
-  /** The messages that this dispatch must treat as unable to continue. */
   resent: ReadonlySet<ChatMessageId>
 }>
 
 const TOOL_CALL_ID = /^[A-Za-z0-9_-]{1,64}$/
 
-/**
- * A call id the gateway accepts: kept when it matches `^[A-Za-z0-9_-]{1,64}$`, else `call_` and
- * the first 32 characters of the base64url SHA-256 of the id.
- */
 export function normalizeToolCallId(id: string): string {
   return TOOL_CALL_ID.test(id)
     ? id
     : `call_${createHash('sha256').update(id).digest('base64url').slice(0, 32)}`
 }
 
-/** The replay declaration of a record with every default applied. Throws for a record defect. */
 export function recordDeclaration(record: ChatCompletionsRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
@@ -123,7 +105,6 @@ function invalid(field: string, reason: string): Outcome<never, TransportFailure
   return { failure: { kind: 'invalid', field, reason } }
 }
 
-/** The wire part of one content block, `null` for a block the model does not see. An empty text is a part. */
 function contentPart(
   block: ContentBlock,
   path: string,
@@ -156,14 +137,8 @@ function contentPart(
   }
 }
 
-/** The tool call id each pending call answers to, with the path of the call. */
 type PendingCalls = Map<string, string>
 
-/**
- * Projects the request for one supplier. Failures name a safe path: `/system/<i>`,
- * `/messages/<i>/blocks/<j>`, `/tools/<k>` or `toolChoice`. The tool names of the request map
- * first, with the rule of the record (see tool-names.ts).
- */
 export function project(input: ProjectionInput): Outcome<Projection, TransportFailure> {
   const { record, hooks } = input
   const named = toolNamesOf({
@@ -189,7 +164,6 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
   if (instruction.ok !== null) messages.push(instruction.ok)
 
   const pending: PendingCalls = new Map()
-  /** Images of a run of tool messages; they go out in one user message after the run. */
   let toolImages: { message: ChatMessageId; parts: WirePart[]; blocks: ProjectedPart[] } | null =
     null
   const flushToolImages = (): void => {
@@ -285,7 +259,6 @@ function instructionMessage(input: ProjectionInput): Outcome<WireMessage | null,
   const blocks: ContentBlock[] = []
   for (const [index, block] of input.system.entries()) {
     const path = `/system/${index}`
-    // The instruction carries text only.
     if (block.visibility.toModel && block.kind !== 'text') return unsupported(path, input.adapter)
     const part = contentPart(block, path, null, input.adapter)
     if (!('ok' in part)) return part
@@ -340,7 +313,6 @@ function assistantMessage(
     if (!block.visibility.toModel) continue
     switch (block.kind) {
       case 'reasoning_state':
-        // A part that cannot continue is left out; projectReplay gives its diagnostic.
         if (carry.has(index) && message.replay !== undefined)
           carried.push({ payload: block.payload, format: message.replay.format })
         continue
@@ -349,7 +321,6 @@ function assistantMessage(
           case 'omit':
             continue
           case 'text':
-            // Written as a text part, so the meter sees a text part: what goes out is metered.
             parts.push({ type: 'text', text: block.text })
             blocks.push({
               kind: 'text',
@@ -381,7 +352,6 @@ function assistantMessage(
           }),
         )
         pending.set(id, at)
-        // The meter sees the gateway name, as the call goes out.
         blocks.push({ ...block, name })
         continue
       }
@@ -397,7 +367,6 @@ function assistantMessage(
         continue
       }
       default: {
-        // Media in an assistant message has no wire form here.
         const part = contentPart(block, at, null, input.adapter)
         if (!('ok' in part)) return part
         continue
@@ -487,10 +456,6 @@ function toolMessage(
   }
 }
 
-/**
- * `binding.tools.convertToModelPayload`: the function tool of one declaration alone, with its
- * gateway name. A name that the rule cannot write is `unsupported` (`name`).
- */
 export function convertTool(
   tool: ToolDeclaration,
   hooks: VendorHooks,
@@ -502,7 +467,6 @@ export function convertTool(
   return toolPayload({ ...tool, name: name.ok }, hooks)
 }
 
-/** The function tool of one declaration that already has its gateway name, its schema through the family hook. */
 function toolPayload(
   tool: ToolDeclaration,
   hooks: VendorHooks,
@@ -521,7 +485,6 @@ function toolPayload(
   }
 }
 
-/** The body `tool_choice` and, for the meter, the choice with the gateway name. */
 function toolChoiceOf(
   choice: FixedModelRequest['toolChoice'],
   tools: readonly ToolDeclaration[],
@@ -545,15 +508,8 @@ function toolChoiceOf(
   }
 }
 
-// --- Writing the messages ------------------------------------------------------------------
-
-/** Where the cache marker goes: a part of a message. */
 export type CacheTarget = Readonly<{ message: number; part: number }>
 
-/**
- * The cache target of `last-message`: the last non-empty text part of the last message, or, when
- * the last message is a user message of images only, its last image. `null` when there is none.
- */
 export function cacheTarget(messages: readonly WireMessage[]): CacheTarget | null {
   const index = messages.length - 1
   const last = messages[index]
@@ -617,7 +573,6 @@ function replayMembers(replay: ReplayWire): Readonly<Record<string, JsonValue>> 
   }
 }
 
-/** The JSON of the gateway messages, with the cache marker on `target` when it is not `null`. */
 export function messagesJson(
   messages: readonly WireMessage[],
   wire: WireProfile,

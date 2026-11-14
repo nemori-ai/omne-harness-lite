@@ -1,13 +1,4 @@
 // @module-tag slow — builds 53 full Cordis assemblies with a SQL store each and waits on real timers.
-// The 53 provider obligations of the Model contract on the full assembly: the runtime plugin of
-// this member (host, runtime facade, result push), its send stage plugin, the real Model runtime
-// and the durable ModelCommands of model-storage-sql, on real Cordis 4.0.4. The assembly, its
-// hooks and its fault injection are in `support/durable-assembly.ts`.
-//
-// With `OMNE_EVIDENCE_OUT=<directory>` the case writes `conformance.json` (one row per obligation),
-// `assembly.json` (which ModelCommands, which SQL provider, the Cordis version, the plugins, as the
-// built subject reports them) and `hooks.json` (the hook calls). None holds a request body, a
-// credential or an identity beyond the principal subject.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -18,17 +9,8 @@ import {
 import { expect, it } from 'vitest'
 import { durableSubject, type AssemblyFacts } from './support/durable-assembly.ts'
 
-/**
- * The obligations this assembly cannot make applicable, each with its reason. A row in the report
- * that is not applicable and not in this table fails the case.
- */
 const ALLOWED_NOT_APPLICABLE: Readonly<Partial<Record<ConformanceObligation, string>>> = {}
 
-/**
- * Obligations that fail today for a reason outside this member, each with the reason and the text
- * its failure must carry. Any other failure, or one of these failing for another reason, fails the
- * case. The dispatcher turns a row into a pass assertion when its closure lands (2026-11-02).
- */
 const KNOWN_FAILING: Readonly<
   Partial<Record<ConformanceObligation, Readonly<{ reason: string; detail: string }>>>
 > = {}
@@ -52,9 +34,7 @@ it('keeps the 53 provider obligations on the full assembly with the durable Mode
     writeFileSync(join(out, 'hooks.json'), `${JSON.stringify(hookEvents, null, 2)}\n`)
   }
 
-  // Every obligation once, in the order of the contract.
   expect(report.results.map(row => row.obligation)).toEqual([...CONFORMANCE_OBLIGATIONS])
-  // No failure beyond the known ones, and each known one fails for its known reason.
   const failed = report.results.filter(row => row.status === 'fail')
   const unexpected = failed.filter(row => {
     const known = KNOWN_FAILING[row.obligation]
@@ -67,7 +47,6 @@ it('keeps the 53 provider obligations on the full assembly with the durable Mode
     Object.keys(ALLOWED_NOT_APPLICABLE).sort(),
   )
   expect(report.ok).toBe(Object.keys(KNOWN_FAILING).length === 0)
-  // The report is about the durable commands, as the built subject says.
   expect(facts?.commandsKind).toBe('durable-sql')
 }, 120_000)
 

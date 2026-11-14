@@ -1,13 +1,3 @@
-// The send stage plugin on real Cordis 4.0.4: it serves `modelSendBoundary` over the local send
-// path and statically injects the credential service and `modelCommands`. Doubles, each with its
-// source:
-// - ModelCommands: `createTestModelDependencies` of `@omne-harness/model/testing` (a store without
-//   durability), served through a `ModelCommandsService` test class. The durable commands join
-//   with the storage member; until then nothing here proves a restart.
-// - The credential service: `SpyCredential`, a `ModelCredentialService` that counts its calls.
-// - The transport of the fast tests: the observing factory of `send-resources.spec.ts`, here a
-//   copy that reads the slot at start. The slow tests use the real pi transport and families.
-// The runtime of the driven calls is the real `createModelRuntime`; the plugin replaces its sender.
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { createServer, connect, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -67,8 +57,6 @@ import { onlyDispatch, openReplay, recordedRequest, replayLabel } from './suppor
 
 type Principal = Readonly<{ subject: string }>
 
-// --- the memory side of one call, the same set-up as `support/local-host.ts` -------------------
-
 const CONSUMER = 'local-model-consumer'
 const TEST_ADOPTION: Adoption = {
   owner: 'model-host-local-tests',
@@ -94,7 +82,6 @@ function tenantOf(suffix: string) {
   return tenant(organization.value, account.value)
 }
 
-/** One call over in-memory commands: what a plugin tree needs besides the plugin itself. */
 function sceneOf(request: FixedModelRequest, label: string) {
   const scope = tenantOf('5')
   const principal = Object.freeze({ subject: 'local-model-test' })
@@ -174,7 +161,6 @@ function sceneOf(request: FixedModelRequest, label: string) {
 }
 type Scene = ReturnType<typeof sceneOf>
 
-/** The commands of the scene as the service the plugin injects. */
 function commandsServiceOver(commands: ModelCommands<unknown>) {
   return class extends ModelCommandsService<unknown> {
     declare readonly admit: ModelCommands<unknown>['admit']
@@ -207,10 +193,8 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
   }
 }
 
-/** The secrets of the official layer: the one credential item of the route. */
 const SECRETS: ReadonlyMap<string, string> = new Map([['apiKey', PLACEHOLDER]])
 
-/** A credential service that answers the official layer and counts what it was asked. */
 class SpyCredential extends ModelCredentialService {
   static resolves = 0
   readonly layerOf: CredentialPort['layerOf'] = () => ({ ok: { layer: 'official' } })
@@ -219,8 +203,6 @@ class SpyCredential extends ModelCredentialService {
     return { ok: SECRETS }
   }
 }
-
-// --- the observing transport of the fast tests ---------------------------------------------------
 
 type Observed = { config: PiTransportConfig; reads: (ReadonlyMap<string, string> | undefined)[] }
 
@@ -290,11 +272,8 @@ function observing() {
   return {
     factories,
     events,
-    /** Every transport that was made; the first is the configuration probe. */
     transports,
-    /** The transports of acquired resources. */
     acquired: () => transports.slice(1),
-    /** The next close of the send resources waits for `release`. */
     hold() {
       const gate = Promise.withResolvers<void>()
       closeGate = gate.promise
@@ -332,7 +311,6 @@ function optionsOf(scene: Scene, over: Partial<ModelSendStagePluginOptions> = {}
   } satisfies ModelSendStagePluginOptions
 }
 
-// Cordis fibers are thenables that Vitest's matchers probe as injected values, so wrap the await.
 async function loadError(fiber: PromiseLike<unknown>): Promise<unknown> {
   try {
     await fiber
@@ -342,7 +320,6 @@ async function loadError(fiber: PromiseLike<unknown>): Promise<unknown> {
   }
 }
 
-/** The runtime over the scene, sending through `send`, with every send result and fact kept. */
 function runtimeOver(scene: Scene, send: ModelSendBoundary<Principal>) {
   const results: SendResult[] = []
   const facts: TransportFact[] = []
@@ -400,7 +377,6 @@ function runtimeOver(scene: Scene, send: ModelSendBoundary<Principal>) {
   }
 }
 
-/** The plugin tree: credential, commands and the stage over the observing send path. */
 async function treeOf(
   label: string,
   wrap: (commands: ModelCommands<unknown>) => ModelCommands<unknown> = commands => commands,
@@ -417,7 +393,6 @@ async function treeOf(
 
 const SETTINGS = { maxRetainedAttempts: 4 }
 
-/** The stage class over the observing send path. */
 function stageOver(
   options: ModelSendStagePluginOptions,
   factories: AssemblyFactories<unknown, NetworkResources>,
@@ -531,7 +506,6 @@ describe('the plugin and its dependencies', () => {
     const { ctx, Stage, watch } = await treeOf('serve')
     const fiber = await ctx.plugin(Stage, SETTINGS)
     expect(ctx.modelSendBoundary).toBeInstanceOf(ModelSendBoundaryService)
-    // Besides the two members of every Cordis service, the instance exposes the one operation.
     expect(
       Object.keys(ctx.modelSendBoundary).filter(key => key !== 'ctx' && key !== 'name'),
     ).toEqual(['send'])
@@ -551,7 +525,6 @@ describe('the plugin and its dependencies', () => {
     const Stage = stageOver(optionsOf(scene), watch.factories)
     const waiting = ctx.plugin(Stage, SETTINGS)
     await new Promise(resolve => setTimeout(resolve, 20))
-    // No credential service: nothing is built, nothing is served.
     expect(ctx.modelSendBoundary).toBeUndefined()
     expect(watch.events).toEqual([])
 
@@ -573,7 +546,6 @@ describe('the plugin and its dependencies', () => {
     const Stage = stageOver(optionsOf(scene), watch.factories)
     const waiting = ctx.plugin(Stage, SETTINGS)
     await new Promise(resolve => setTimeout(resolve, 20))
-    // The credential service is there, modelCommands is not: nothing is built, nothing is served.
     expect(ctx.modelSendBoundary).toBeUndefined()
     expect(watch.events).toEqual([])
 
@@ -623,7 +595,6 @@ describe('a send through the plugin', () => {
     })
     await run.drive(REQUEST)
     expect(run.results).toEqual([expect.objectContaining({ kind: 'started' })])
-    // One acquire: the probe is the first transport, the send's own transport the second.
     const [sent] = watch.acquired()
     expect(sent?.reads).toEqual([SECRETS])
     expect(sent?.config.credential.read()).toBeUndefined()
@@ -674,7 +645,6 @@ describe('a send through the plugin', () => {
     })
     const driving = run.drive(REQUEST)
     await entered.promise
-    // The send is between its materialization and its start. The plugin exits now.
     await fiber.dispose()
     proceed.resolve()
     await driving
@@ -710,11 +680,9 @@ describe('a send through the plugin', () => {
     })
     const driving = run.drive(REQUEST)
     await entered.promise
-    // The exit begins and its close of the send path is held open.
     const release = watch.hold()
     const disposing = fiber.dispose()
     await vi.waitFor(() => expect(watch.events.at(-1)).toBe('resources-close'))
-    // The send continues inside the closing window: the credential is already withdrawn.
     proceed.resolve()
     await driving
     release()
@@ -729,7 +697,6 @@ describe('a send through the plugin', () => {
     const { ctx, scene, watch } = await treeOf('close-fails')
     const warnings: string[] = []
     const errors: unknown[][] = []
-    // Cordis drops what ranks above the exporter level, so the level is raised to see the warning.
     ctx.logger.exporter({
       colors: 0,
       levels: { default: 3 },
@@ -784,8 +751,6 @@ describe('a send through the plugin', () => {
   })
 })
 
-// --- the slow tests: the real pi transport, the real families, the real vault -------------------
-
 describe('the recordings through modelSendBoundary', () => {
   it.each(RECORD_CASE_NAMES)(
     '%s: the plugin boundary gives the same facts, dispatch and request as the assembled path',
@@ -799,7 +764,6 @@ describe('the recordings through modelSendBoundary', () => {
         const viaPlugin = await replayThroughPlugin(name, request, label)
         expect(viaPlugin.driven).toEqual({ ok: undefined })
         expect(viaPlugin.facts).toEqual(direct.local.facts)
-        // Both servers are local, so only the port in `host` differs between the two requests.
         expect(viaPlugin.requests.map(wireOf)).toEqual(direct.requests.map(wireOf))
         expect(viaPlugin.requests).toHaveLength(1)
         expect(viaPlugin.requests[0]?.headers.authorization).toBe(`Bearer ${PLACEHOLDER}`)
@@ -815,10 +779,6 @@ describe('the recordings through modelSendBoundary', () => {
   )
 })
 
-/**
- * A TCP front for a local server: the first connection is dropped before the TLS handshake ends,
- * so the client fails to connect and no request byte is written. Later connections go through.
- */
 async function frontDroppingFirst(target: URL): Promise<{
   readonly url: URL
   readonly connections: () => number
@@ -933,7 +893,6 @@ describe('a connect failure that the send retries, through the plugin', () => {
         )
         expect(records).toHaveLength(1)
         expect(records[0]?.terminal).toMatchObject({ kind: 'completed' })
-        // The first connection was dropped, the retry got through, and only one request arrived.
         expect(front.connections()).toBe(2)
         expect(server.requests).toHaveLength(1)
         expect(warnings).toHaveLength(1)

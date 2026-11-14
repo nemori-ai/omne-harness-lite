@@ -1,9 +1,3 @@
-// The `ModelCommandStorage` of this member, driven the way the shared commands core drives it:
-// a run with a scope, `documents`, `reserved`, one `commit` or `publish`. It runs against the
-// real participant, migration and read handlers on node:sqlite. The storage below is a test
-// provider: one in-memory database per transaction domain, receipts by full identity, rollback on
-// a stopping reply. It does not model Workers, durability, queues or limits; the real provider is
-// joined later (sqlite-provider, integration A).
 import { requestHead } from '@omne-harness/model-contract/provider'
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
@@ -57,8 +51,6 @@ import {
 import participant from '../src/commit.ts'
 import { providerName } from './provider-name.ts'
 
-// --- Test provider -------------------------------------------------------------------------
-
 function isObject(value: JsonValue | undefined): value is { readonly [key: string]: JsonValue } {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -68,7 +60,6 @@ const decoded = <T>(result: Outcome<T, unknown>): T => {
   return result.ok
 }
 
-/** A stored open part, in the packed text form of its JSON column (sql-contract §10.1). */
 const OPEN_PART = packText('{"index":"0","mode":"append","content":"text"}')
 
 function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
@@ -219,7 +210,6 @@ function sqliteStorage() {
     storage,
     hooks,
     commits: () => commits,
-    /** Runs every held commit now: the storage decides them. */
     release() {
       for (const item of held.values())
         item.domain.receipts.set(item.key, execute(item.domain, item.request))
@@ -231,8 +221,6 @@ function sqliteStorage() {
       rowsOf(domainOf(domain).db, sql, params),
   }
 }
-
-// --- Values --------------------------------------------------------------------------------
 
 function tenantOf(letter: string): TenantId {
   const parsed = tenantCodec.parse(
@@ -379,7 +367,6 @@ function options(
 
 type Change = (current: CallDocument | undefined) => CallDocument | undefined
 
-/** One command attempt as the core runs it: read the documents, write once, answer. */
 function write(
   store: SqlModelStorage,
   call: ModelCallId,
@@ -421,8 +408,6 @@ async function stored(store: SqlModelStorage, call: ModelCallId, tenant: string 
   if ('failure' in read) throw new Error(`read failed: ${JSON.stringify(read.failure)}`)
   return read.ok
 }
-
-// --- Cases ---------------------------------------------------------------------------------
 
 describe('construction', () => {
   it('refuses a tenant share that is not a positive count', () => {
@@ -467,8 +452,6 @@ describe('commit and read back', () => {
     expect(read.record?.version).toBe(1)
     expect(read.record?.document).toEqual(document)
     expect(read.held).toBe(1)
-    // Each JSON column holds the packed text form (sql-contract §10.1): marker 0 below 128 UTF-8
-    // bytes, marker 1 from there on.
     const markers = new Set<number>()
     for (const table of Object.values(TABLES))
       for (const item of table.columns.filter(column => column.kind === 'json'))
@@ -614,7 +597,6 @@ describe('CAS conflict', () => {
     const row = facts?.['row']
     const bound = facts?.['binding']
     if (!isObject(row) || !isObject(bound)) throw new Error('no facts')
-    // The same write once more, at a version ahead of the stored one (stored 2, expected 4).
     const ahead = {
       ...facts,
       expected: 4,
@@ -657,8 +639,6 @@ describe('operation identity', () => {
   it('reads again when the storage recalls an earlier commit of the generation, and writes nothing twice', async () => {
     const sqlite = sqliteStorage()
     let first = true
-    // An earlier call of the same operation committed this generation after this call read: the
-    // commit is sent first through the storage itself, then the call's own commit arrives.
     const racing: SqlStorage = {
       ...sqlite.storage,
       commit: async (request, options) => {
@@ -700,7 +680,6 @@ describe('operation identity', () => {
       },
     }
     const call = callId('conflict')
-    // Process A gives up after one round: generation #1 of `edit` rolls back on a newer version.
     const a = createSqlModelStorage(options(watching, { attemptLimit: 1 }))
     await write(a, call, opId('admit'), () => admitted(call, opId('admit')))
     race = () =>
@@ -720,7 +699,6 @@ describe('operation identity', () => {
     ).toMatchObject({
       failure: { kind: 'unavailable', dependency: 'model-records' },
     })
-    // Process B reads the newer version, so its input to #1 differs: #1 is spent, #2 is written.
     const b = createSqlModelStorage(options(watching))
     expect(
       await write(
@@ -755,7 +733,6 @@ describe('operation identity', () => {
     const call = callId('taken')
     const store = createSqlModelStorage(options(watching))
     await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
-    // After this call read, another process committed generation #1 of `edit` with its own input.
     const other = createSqlModelStorage(options(sqlite.storage))
     let raced = false
     const result = await write(store, call, opId('edit'), doc => {
@@ -791,7 +768,6 @@ describe('operation identity', () => {
         race = null
         if (racing !== null && request.identity.operationKey === 'mop_edit#1') await racing()
         const answer = await sqlite.storage.commit(request, options)
-        // The conflict on #1 spends it; the next generation stays undecided.
         if (answer.kind === 'identity_conflict') sqlite.hooks.holdNextCommit = true
         return answer
       },
@@ -812,7 +788,6 @@ describe('operation identity', () => {
       opId('edit'),
       edit(doc => (doc.requestDigest = 'a')),
     )
-    // A new process: #1 answers a conflict (spent), #2 stays undecided.
     const b = createSqlModelStorage(options(watching))
     expect(
       await write(
@@ -911,7 +886,6 @@ describe('operation identity', () => {
       ),
     ).toEqual({ failure: { kind: 'commit-unknown', operation: opId('held') } })
     const sent = sentKeys.length
-    // This work stages the write whatever the binding says.
     const result = await store.run(
       () => {
         const original = store.documents(A).calls.get(call)
@@ -972,7 +946,6 @@ describe('operation identity', () => {
     ).toEqual({
       failure: { kind: 'commit-unknown', operation: opId('held') },
     })
-    // Step 2 found it still undecided: the write is not sent again.
     expect(sentKeys.length).toBe(sent)
     sqlite.release()
     expect(await statusOf()).toEqual({ ok: 'none' })
@@ -1020,7 +993,6 @@ describe('tenant share', () => {
       opId('rel'),
       edit(doc => (doc.request = null)),
     )
-    // The commit that releases the material deletes the body of the call.
     expect(bodies()).toEqual([[0n]])
     expect(await store.readBody(A, callId('c1'))).toEqual({ ok: null })
     expect(
@@ -1031,7 +1003,6 @@ describe('tenant share', () => {
   })
 })
 
-/** The storage, except that every commit is rejected before acceptance for `reason`. */
 function rejecting(storage: SqlStorage, reason: CommitRejectReason): SqlStorage {
   return {
     ...storage,
@@ -1046,7 +1017,6 @@ function rejecting(storage: SqlStorage, reason: CommitRejectReason): SqlStorage 
 }
 
 describe('rejection before acceptance', () => {
-  // sql-contract "提交拒绝原因的定性"; `cancelled` is not classified there and is held transient.
   const transient: readonly CommitRejectReason[] = [
     'closing',
     'queue_full',
@@ -1125,7 +1095,6 @@ describe('rejection before acceptance', () => {
 describe('attempt generations', () => {
   const full = { failure: { kind: 'unavailable', dependency: 'model-capacity' } }
 
-  /** A storage whose share is held by c1, and the admission of c2 that the share refuses. */
   function heldShare() {
     const sqlite = sqliteStorage()
     const queried: string[] = []
@@ -1193,7 +1162,6 @@ describe('attempt generations', () => {
     await write(f.store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1')))
     const answers: string[] = []
     let earlier = true
-    // An earlier call sent the same request to #1 and it rolled back on the full share.
     const watching: SqlStorage = {
       ...f.sqlite.storage,
       commit: async (request, options) => {
@@ -1315,7 +1283,6 @@ describe('pending flag', () => {
     expect(await store.readPending({ tenant: A, after: null, limit: 2 })).toEqual({
       ok: { calls: [callId('m1'), callId('m2')], next: callId('m2') },
     })
-    // Settled, handed off and cleaned up: the core rule leaves no recovery work.
     const settled = edit(doc => {
       doc.state = {
         ...doc.state,
@@ -1426,7 +1393,6 @@ describe('parts', () => {
     const store = createSqlModelStorage(options(sqlite.storage))
     const call = callId('rows')
     await started(store, call)
-    // One dispatch row; the call, operation and capacity rows take three more of the bound.
     sqlite.seed(
       'domain-a',
       `INSERT INTO md_part (tenant, call, seq, block, part, kind, payload)

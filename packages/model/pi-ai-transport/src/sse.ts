@@ -3,7 +3,6 @@
 
 import { closeIterable, closeSourceOnEarlyEnd } from './iteration.ts'
 
-/** Why a byte stream is not a well-formed, bounded SSE stream. */
 export type SseFailureReason = 'non-byte' | 'invalid-utf8' | 'event-too-large' | 'unterminated'
 
 const MESSAGES: Readonly<Record<SseFailureReason, string>> = {
@@ -23,13 +22,6 @@ export class SseProtocolError extends Error {
   }
 }
 
-/**
- * Yields the data of each SSE event. UTF-8 and CR/LF state both survive arbitrary byte cuts.
- * Comments and the event, id and retry fields are ignored; data lines join with LF. An event
- * whose bytes, line breaks included, exceed `maxEventBytes` fails. Throws `SseProtocolError`
- * for a malformed stream; any other failure of the body passes through unchanged. A reader
- * that ends the events early closes the body, even before the first event was read.
- */
 export function readSseEvents(
   body: AsyncIterable<Uint8Array>,
   maxEventBytes: number,
@@ -56,7 +48,6 @@ async function* frameEvents(
   framer.finish()
 }
 
-/** Only the decoder's own error means invalid UTF-8; `undefined` flushes the decoder. */
 function decode(decoder: InstanceType<typeof TextDecoder>, chunk: Uint8Array | undefined): string {
   try {
     return chunk === undefined ? decoder.decode() : decoder.decode(chunk, { stream: true })
@@ -79,7 +70,6 @@ function createFramer(maximum: number) {
       bytes = 0
       return event
     }
-    // A line without a colon is a field name with an empty value (WHATWG); `:` starts a comment.
     const colon = line.indexOf(':')
     const name = colon < 0 ? line : line.slice(0, colon)
     if (name === 'data') lines.push(colon < 0 ? '' : line.slice(colon + 1).replace(/^ /, ''))
@@ -110,7 +100,6 @@ function createFramer(maximum: number) {
   }
 }
 
-/** UTF-8 byte length of one code point. */
 function utf8Length(character: string): number {
   const codePoint = character.codePointAt(0) ?? 0
   if (codePoint < 0x80) return 1

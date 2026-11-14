@@ -1,5 +1,3 @@
-// The stream decoder of the gateway engine, one block per row of the stream interpretation table,
-// through a binding and the same body decoding that a send uses.
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { ModelBlock, ModelFault } from '@omne-harness/model-contract'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
@@ -62,7 +60,6 @@ function bind(options: Options = {}): PiFamilyBinding {
 
 type ChoiceShape = Readonly<{ delta?: Record<string, unknown>; finish?: string | null }>
 
-/** One gateway chunk with the served model and provider of the test record. */
 function chunk(choice?: ChoiceShape, extra: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 'gen-1',
@@ -79,7 +76,6 @@ function chunk(choice?: ChoiceShape, extra: Record<string, unknown> = {}): Recor
 
 const DONE = '[DONE]'
 
-/** The request whose response the decoders of these tests read: no tool. */
 const REQUEST = fixedRequest(testRecord())
 
 function sse(...events: readonly (Record<string, unknown> | string)[]): Uint8Array {
@@ -89,7 +85,6 @@ function sse(...events: readonly (Record<string, unknown> | string)[]): Uint8Arr
   return new TextEncoder().encode(`: gateway processing\n\n${text}`)
 }
 
-/** The facts of a stream, checked to end with exactly one `ended`. */
 async function replay(
   binding: PiFamilyBinding,
   ...events: readonly (Record<string, unknown> | string)[]
@@ -125,7 +120,6 @@ function protocolFault(diagnostic: string): TransportFact {
 
 const SHOWN = { toHuman: true, toModel: true }
 const STOP: TransportFact = { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } }
-/** The account of a finished response of the test record, with the empty items of the test hook. */
 const ACCOUNT: TransportFact = {
   kind: 'account',
   event: 'usage',
@@ -390,11 +384,7 @@ describe('reasoning details and sealing', () => {
   })
 })
 
-// The identity of streamed reasoning detail items. The cases follow the sealed late-signature
-// tests with neutral names. The sealed file is deleted from the repository. It stays at
-// https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/model/pi-ai-transport/tests/anthropic-stream-late-signature.spec.ts
 describe('reasoning detail identity', () => {
-  /** A json-text tree as plain data; a number becomes a JavaScript number. */
   function data(value: JsonValue): unknown {
     switch (value.kind) {
       case 'null':
@@ -411,7 +401,6 @@ describe('reasoning detail identity', () => {
     }
   }
 
-  /** The items that the seal hook gets when each fragment arrives in its own chunk. */
   async function joined(fragments: readonly Record<string, unknown>[]): Promise<unknown[]> {
     const seen: ReasoningDetail[][] = []
     await replay(
@@ -789,7 +778,6 @@ describe('finish', () => {
     for (const finish of ['stop', 'tool_calls']) {
       const facts = await replay(
         bind({ usage: usageHook, seal: () => ({ ok: [{ payload: 'p' }] }) }),
-        // Encrypted reasoning alone is no content: a reply of a reasoning state part only is not valid.
         chunk({ delta: { reasoning_details: [{ type: 'reasoning.encrypted', data: 'e' }] } }),
         chunk({ delta: { content: '' }, finish }),
         { ...chunk(), choices: [], usage },
@@ -1057,7 +1045,6 @@ describe('account of a response that fails after its finish', () => {
   const usage = { prompt_tokens: 9, completion_tokens: 3 }
   const finished = [chunk({ delta: { content: 'x' } }), chunk({ finish: 'stop' }, { usage })]
   const inconsistent: UsageDiagnostic = { kind: 'usage-inconsistent', field: 'input' }
-  /** Writes the prompt count it received as an item, so the account shows the usage it kept. */
   const keeping: VendorHooks['usage'] = read => ({
     ok: {
       items:
@@ -1081,7 +1068,6 @@ describe('account of a response that fails after its finish', () => {
   })
   const kept = account([{ name: 'input', state: 'known', lexeme: '9', unit: 'token' }])
 
-  /** The facts of a body that gives `events` and then throws `error`, as a send reads it. */
   async function failing(
     events: readonly (Record<string, unknown> | string)[],
     error: Error,

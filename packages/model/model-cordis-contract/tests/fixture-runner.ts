@@ -1,14 +1,7 @@
-// Runs role fixtures. A fixture is a consumer written against the public entries only. The runner
-// does not judge what a fixture proves; it refuses fixtures that do not declare both a normal path
-// and a failure path, because a consumer that was never shown a failure has not shown that it can
-// decide anything. A failure path names the external coordination decision that the failure changes.
-
 export type FixturePath = Readonly<{
   name: string
   kind: 'normal' | 'failure'
-  /** Failure paths only: the decision of the external coordinator that this failure changes. */
   decision?: string
-  /** Throws when the consumer behaves wrongly on this path. */
   run: () => void | Promise<void>
 }>
 
@@ -25,11 +18,9 @@ export type PathResult = Readonly<{
 export type FixtureReport = Readonly<{
   ok: boolean
   fixtures: readonly Readonly<{ role: string; paths: readonly PathResult[] }>[]
-  /** Declaration problems. A fixture with a problem is not run. */
   problems: readonly string[]
 }>
 
-/** What the declaration rules read of a fixture; a report that a fixture process wrote has the same fields. */
 export type Declared = Readonly<{
   role: string
   paths: readonly Pick<FixturePath, 'name' | 'kind' | 'decision'>[]

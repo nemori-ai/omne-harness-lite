@@ -15,7 +15,6 @@ const notCanonical = {
   failure: { kind: 'invalid', reason: expect.stringContaining('canonical') },
 }
 
-// Forms that name a real media type but are not the canonical form of it.
 const nonCanonicalMediaTypes = [
   'IMAGE/PNG',
   'image/PNG',
@@ -37,8 +36,6 @@ describe('registration key form', () => {
 
       const refused = await world.contribute(input(mediaType(form), converter('other')))
 
-      // Red when the catalog takes the key as written: the refused converter would be stored under the odd form
-      // and the lookup below would not find the held converter any more, or the outcome would be ok.
       expect(refused.outcome).toEqual(notCanonical)
       const lent = selection(await world.acquire({ mediaType: 'image/png', modality: 'image' }))
       expect(lent.converter.adoption).toEqual(held.adoption)
@@ -50,7 +47,6 @@ describe('registration key form', () => {
     await world.contribute(input(mediaType('IMAGE/PNG'), converter('upper')))
     const canonical = converter('png')
 
-    // Red when the refused key had been stored as the canonical one: this registration would conflict.
     registrationOf((await world.contribute(input(mediaType('image/png'), canonical))).outcome)
 
     const lent = selection(await world.acquire({ mediaType: 'image/png', modality: null }))
@@ -68,7 +64,6 @@ describe('registration key form', () => {
         input({ kind: 'modality', modality: form } as unknown as ConverterKey, converter('other')),
       )
 
-      // Red when the modality key is not judged: the odd key would be registered.
       expect(refused.outcome).toEqual({
         failure: { kind: 'invalid', reason: expect.stringContaining('modality') },
       })
@@ -86,7 +81,6 @@ describe('registration key form', () => {
       input(mediaType('IMAGE/PNG'), converter('upper')),
     )
 
-    // Red when a refused key still leaves its effect on the fiber of the caller.
     expect(outcome).toEqual(notCanonical)
     expect(fiber.getEffects().length).toBe(idle.getEffects().length)
   })
@@ -121,7 +115,6 @@ describe('registration key form', () => {
 
     const refused = await world.contribute(input(mediaType('IMAGE/PNG'), converter('upper')))
 
-    // Red when the form of the key is judged before the authority is asked.
     expect(refused.outcome).toEqual({ failure: { kind: 'denied' } })
   })
 })
@@ -137,7 +130,6 @@ describe('lookup input form', () => {
 
       const answer = await world.acquire({ mediaType: form, modality: 'image' })
 
-      // Red when the catalog normalises or matches loosely: the png converter would be lent.
       expect(answer).toEqual({
         failure: {
           kind: 'invalid',
@@ -159,8 +151,6 @@ describe('lookup input form', () => {
         modality: form as unknown as 'image',
       })
 
-      // Red when the modality of the lookup is not judged: the image converter would be lent for
-      // an unknown modality, or the key `modality:undefined` would be looked up.
       expect(answer).toEqual({
         failure: { kind: 'invalid', field: 'modality', reason: expect.stringContaining('known') },
       })
@@ -174,8 +164,6 @@ describe('lookup input form', () => {
     )
     await world.acquire({ mediaType: 'IMAGE/PNG', modality: null })
 
-    // Red when a refused lookup still borrowed the converter: release would wait for a lease that
-    // nobody holds.
     expect(await registration.release()).toEqual({ removed: true })
   })
 

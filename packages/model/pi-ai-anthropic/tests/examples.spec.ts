@@ -1,19 +1,12 @@
 // @module-tag slow — runs the examples in Node child processes; each sends real requests to
-// OpenRouter through the environment's proxy. It runs only when OMNE_LIVE_TESTS=1 and skips at run
-// time otherwise: a `skipIf` would make the slow tier's pre-parse drop the whole file, even with
-// the switch set. The examples import the built entries, so build the package and its dependencies
-// first.
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
-/** A live round takes seconds; four rounds and a slow upstream stay well inside this. */
 const CHILD_TIMEOUT_MS = 280_000
 
-/** Runs one example and returns its output lines. A non-zero exit fails the test. */
 function run(example: string): readonly string[] {
-  // The child gets the inherited environment, HTTPS_PROXY included, without BASELINE.
   const { BASELINE: _inherited, ...env } = process.env
   const output = execFileSync(process.execPath, ['--experimental-strip-types', example], {
     cwd: packageDirectory,
@@ -38,16 +31,10 @@ it('the Anthropic example sends once after a foreign tool turn with reasoning on
   ])
 }, 300_000)
 
-/** The family of a model name: the part before the slash. */
 function familyOf(model: string): string {
   return model.slice(0, model.indexOf('/'))
 }
 
-/**
- * The replay summary that each round must print, derived from the models of the rounds and from
- * which earlier replies carried a state: a state of the same family goes back, a state of the
- * other family is left out, and a reply without a state is in neither list.
- */
 function expectedSummaries(
   models: readonly string[],
   states: ReadonlyMap<number, boolean>,
@@ -88,8 +75,6 @@ it('the cross-family example leaves out the other family and carries its own sta
   expect(lines.filter(line => line.startsWith('replay summary: '))).toEqual(
     expectedSummaries(models, states),
   )
-  // The mechanism is exercised only when each family returned a state at least once in a round
-  // that a later round reads; the state of the last round goes into no request.
   for (const family of ['openai', 'anthropic']) {
     const read = models.some(
       (model, at) =>

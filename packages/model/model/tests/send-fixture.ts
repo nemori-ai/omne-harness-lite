@@ -14,7 +14,6 @@ import {
 import { fixture, identity, instance, op, proof, unbox } from './memory-fixture.ts'
 
 export const synthetic = 'synthetic-send-credential'
-/** The secrets of the fixed layer: one credential item. */
 export const secrets: ReadonlyMap<string, string> = new Map([['apiKey', synthetic]])
 export type Principal = ReturnType<typeof fixture>['principal']
 export const signal = () => new AbortController().signal
@@ -234,7 +233,6 @@ export async function sendFixture(
     },
   }
 }
-/** A port whose send-time read answers `result`; choosing a layer belongs to preparation. */
 export function credentialPort(result: CredentialResolution): CredentialPort<Principal> {
   return {
     layerOf: () => fail({ kind: 'unavailable' }),
@@ -259,7 +257,6 @@ export function faultCommands(
     | { tenant: typeof f.tenant; call: typeof f.admit.call; operation: typeof f.admit.operation }
     | undefined
   const commands: ModelCommands<Principal> = { ...f.dependencies.commands }
-  // Each wrapper preserves the concrete method's public signature.
   const wrap =
     <A extends Parameters<ModelCommands<Principal>[SendWriteMethod]>[0], T>(
       run: (input: A) => Promise<T>,

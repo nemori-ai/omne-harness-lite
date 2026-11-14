@@ -109,7 +109,6 @@ it('the network resources are an opaque handle: only close is reachable from the
   expectTypeOf<NetworkResources>().not.toHaveProperty('tls')
   expectTypeOf<NetworkResources>().not.toHaveProperty('closed')
   expectTypeOf<Extract<keyof NetworkResources, string>>().toEqualTypeOf<'close'>()
-  // A structurally similar object is not a handle: only the factory makes one.
   expectTypeOf<{ close(): Promise<void> }>().not.toExtend<NetworkResources>()
 })
 

@@ -1,7 +1,3 @@
-// A coordinator that owns none of the calls it controls: every request carries its own principal,
-// tenant, call and operation. It cancels a call, finds that the instance of a call is gone, and
-// carries on with the original call instead of replacing it. It imports only the public contract
-// and the scripted provider that stands for whatever serves the calls.
 import type { ModelHandle, Observation } from '@omne-harness/model-contract'
 import {
   access,
@@ -32,7 +28,6 @@ const cancelOf = (name: string, label: string) => ({
   operation: operation(label),
 })
 
-/** The first thing that an observer of the call is shown, and the end of the observation. */
 async function firstObservation(handle: ModelHandle<Principal>): Promise<Observation> {
   const abort = new AbortController()
   const iterator = handle
@@ -96,8 +91,6 @@ async function cancelReachesACallWithoutALiveRoute(): Promise<void> {
   expect((await world.state('a')).control.kind === 'requested', 'the control was not kept')
 }
 
-// SPEC.md cancel row and docs/object-model.md (ModelCalls.cancel, "未知"): an unknown reply is
-// answered by sending the same operation again, which recovers the original control.
 async function unknownCancelReplyIsSentAgainUnderTheSameOperation(): Promise<void> {
   const world = newWorld()
   await world.admit('a')
@@ -126,9 +119,6 @@ async function unknownCancelReplyIsSentAgainUnderTheSameOperation(): Promise<voi
   }
 }
 
-// SPEC.md connect row ("失去目录依赖为 unavailable，不能变 not-accepted") and docs/object-model.md
-// (ModelDirectory.connect, "no-live-route 不表示没有调用"): an unreachable directory is a failure to
-// look, not an answer that no live route exists, and the call stays where it was.
 async function unreachableDirectoryIsNotAMissingRoute(): Promise<void> {
   const world = newWorld()
   await world.admit('a')
@@ -138,9 +128,6 @@ async function unreachableDirectoryIsNotAMissingRoute(): Promise<void> {
   expect((await world.state('a')).phase === 'accepted', 'the lookup lost the call')
 }
 
-// docs/public-api.md `refusal-hides-existence` and SPEC.md (cross-tenant access is refused): the
-// refusal for another tenant equals the refusal for a call that does not exist. No kind is pinned,
-// so only the equality of the two refusals and the untouched call are checked.
 async function otherTenantIsRefusedAsForAMissingCall(): Promise<void> {
   const world = newWorld()
   await world.admit('a')
@@ -152,11 +139,6 @@ async function otherTenantIsRefusedAsForAMissingCall(): Promise<void> {
   expect((await world.state('a')).control.kind === 'none', 'the refused cancel left a control')
 }
 
-// docs/object-model.md (ModelDirectory.connect: "改用 inspect 查原调用") and docs/context.md
-// ("admit 成功、目录 no-live-route": 消费者不创建替代调用): after the route is lost the caller looks at
-// the original call and repeats its original admission; no other admission exists. The world
-// records every admission the coordinator sends, and a call enters the tenant no other way, so
-// the record shows whether a replacement call or admission appeared.
 async function lostRouteIsFollowedByInspectNotByAReplacement(): Promise<void> {
   const world = newWorld()
   await world.admit('a')

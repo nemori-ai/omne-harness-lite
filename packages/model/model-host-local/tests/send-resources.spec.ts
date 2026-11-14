@@ -1,7 +1,4 @@
 import { testExecutor } from './support/executor.ts'
-// The credential seam of the production send resources. A transport factory that observes the
-// credential slot stands in for the pi transport where a send would leave the process; the
-// foreign-materialization check also runs against the real pi transport, which encodes without I/O.
 import { afterEach, describe, expect, it } from 'vitest'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import type { SendResources } from '@omne-harness/model'
@@ -36,7 +33,6 @@ import {
   SendResourceDefect,
   type PiSendResourcesConfig,
 } from '@omne-harness/model-host-local'
-// The observing factory reaches the module itself; its defect class is the module's own.
 import { SendResourceDefect as ModuleDefect, sendResourcesOver } from '../src/send-resources.ts'
 import { proofContext } from './support/proof-context.ts'
 import { readRecordFixture } from './support/records.ts'
@@ -65,42 +61,31 @@ const ROUTES = {
   },
 }
 
-/** The secrets of one send: the one credential item of the route. */
 const secretsOf = (secret: string): ReadonlyMap<string, string> => new Map([['apiKey', secret]])
 
-/** One transport the observing factory made: its slot and what each start read from it. */
 type Observed = {
   config: PiTransportConfig
   prepares: number
-  /** The slot value each start read, in order. */
   reads: (ReadonlyMap<string, string> | undefined)[]
   closes: number
-  /** How often a prepared transport of this transport was closed. */
   preparedCloses: number
 }
 
-/** What the next transport the observing factory makes does instead of succeeding. */
 type Faults = {
-  /** `prepare` answers this failure. */
   prepare?: TransportFailure
-  /** `materialize` answers this failure. */
   materialize?: TransportFailure
-  /** `close` of the transport rejects with this reason. */
   close?: { reason: unknown }
 }
 
-/** What the next start of an observed transport does after it reads the slot. */
 type StartPlan = (starting: Observed, transports: readonly Observed[]) => void
 
 const NO_FACTS: AsyncIterable<TransportFact> = {
   [Symbol.asyncIterator]: () => ({ next: async () => ({ done: true, value: undefined }) }),
 }
 
-/** A transport factory whose materialized transports read the slot at start, as pi does. */
 function observingFactory() {
   const transports: Observed[] = []
   let plan: StartPlan = () => {}
-  /** The faults of each transport, by its position in `transports`. */
   const faults = new Map<number, Faults>()
   function createTransport(config: PiTransportConfig): PiTransport {
     const observed: Observed = { config, prepares: 0, reads: [], closes: 0, preparedCloses: 0 }
@@ -145,11 +130,9 @@ function observingFactory() {
   }
   return {
     transports,
-    /** The transport at `position` (0 is the configuration probe) answers with these faults. */
     fail(position: number, next: Faults) {
       faults.set(position, next)
     },
-    /** The transports of acquired resources, without the configuration probe. */
     acquired: () => transports.slice(1),
     onStart(next: StartPlan) {
       plan = next
@@ -162,7 +145,6 @@ const REQUEST = readRecordFixture('pi-ai-openai', OPENAI_RECORDS[0]).request
 
 type Principal = Readonly<{ subject: string }>
 
-/** The fixed binding captured by each acquired resource. */
 const DEMAND: SendDemand<Principal> = demandOf(REQUEST)
 
 function demandOf(request: FixedModelRequest): SendDemand<Principal> {
@@ -398,7 +380,6 @@ describe('the credential slot', () => {
     const [firstTransport, secondTransport] = factory.acquired()
     expect(firstTransport?.reads).toEqual([secretsOf('placeholder-a')])
     expect(secondTransport?.reads).toEqual([secretsOf('placeholder-b')])
-    // While either start ran, the slot of the other resource was empty.
     expect(seenByOthers).toEqual([[undefined], [undefined]])
     expect(firstTransport?.config.credential).not.toBe(secondTransport?.config.credential)
     await resources.close()
@@ -414,7 +395,6 @@ describe('the ownership of a materialized transport', () => {
     const start = () =>
       second.startWithCredential(foreign, secretsOf('placeholder-b'), new AbortController().signal)
     expect(start).toThrow(ModuleDefect)
-    // The defect names its reason, and only its reason: never the credential value.
     expect(start).toThrow(
       expect.objectContaining({ name: 'SendResourceDefect', reason: 'foreign-materialization' }),
     )
@@ -661,7 +641,6 @@ describe('close failures', () => {
     await acquired(resources)
     await acquired(resources)
     await expect(resources.close()).rejects.toBe(reason)
-    // The other resource was released all the same.
     expect(factory.acquired().map(item => item.closes)).toEqual([1, 1])
   })
 

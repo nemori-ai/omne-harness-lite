@@ -71,10 +71,6 @@ import type {
   WriteIdentity,
 } from './types.ts'
 
-// The state machine of one call: the document changes that the methods make, and the core that
-// reads, checks and writes call documents through the storage port.
-
-/** A copy of the document that a write may change without touching the stored one. */
 export function copyCall(call: CallDocument): CallDocument {
   const { execution, dispatches, ...plain } = call
   return {
@@ -92,14 +88,6 @@ export function bump(call: CallDocument): Revision {
   return next
 }
 
-// --- Stream facts into a dispatch.
-
-/**
- * Keeps the account that a provider reported for a dispatch. The runtime adds the subject (this
- * call) and the receipt (`received` in the stream, `late` through `recordLateFact`). A report that
- * names a subject or a receipt itself is refused. The same event with the same report is accepted
- * once on either path; the same event with another report is a conflict.
- */
 export function accountFact(
   call: CallDocument,
   dispatch: DispatchDocument,
@@ -231,7 +219,6 @@ function trimBlock(
   ])
   return null
 }
-/** Keeps a diagnostic on the dispatch. It changes no block, no first content and no terminal. */
 function diagnosticFact(
   dispatch: DispatchDocument,
   diagnostic: ProviderDiagnostic,
@@ -314,11 +301,6 @@ export function completesNotSentWindow(
     )
   )
 }
-/**
- * Records an actual terminal that arrived late. Content that does not form a message leaves the
- * logical terminal open; reasoning state without a known replay range refuses the whole fact, as
- * at the finish.
- */
 export function lateTerminal(
   call: CallDocument,
   dispatch: DispatchDocument,
@@ -349,14 +331,11 @@ export function mergeReceiveWindow(
   if (call.state.phase === 'running')
     call.state = { ...call.state, firstContent: dispatch.record.firstContent }
 }
-/** The execution owner gives up its open windows. What they received stays unproven. */
 export function abandonReceiveWindows(call: CallDocument): void {
   for (const dispatch of call.dispatches)
     for (const [window, state] of dispatch.windows)
       if (state === 'open') mergeReceiveWindow(call, dispatch, window, false)
 }
-
-// --- Consumption: read relations and cleanup.
 
 export function expireReads(call: CallDocument, now: () => string, idleMs: number): void {
   for (const read of call.reads.values()) {
@@ -380,9 +359,6 @@ export function releaseMaterial(call: CallDocument): void {
   }
 }
 
-// --- The core.
-
-/** The methods whose unresolved write blocks a later write of the same method on the same call. */
 const ORDERED_METHODS: readonly ModelWriteMethod[] = [
   'admit',
   'claim',
@@ -409,13 +385,6 @@ export type WriteArguments<T> = {
 }
 export type CallAccessInput<P> = Access<P> & { readonly call: ModelCallId }
 
-/**
- * The shared commands core. It owns the rules of the 22 methods and reads and writes documents
- * only through `storage`. One write: identity, access, fingerprint, recovery of a bound operation,
- * the block of an unresolved ordered write, the change on a copy, then one
- * `commit`.
- */
-/** A first admit reserves its initial record before the commit, when the core has an initial run. */
 function beginInitialAdmission<P, T>(
   initialRun: ModelInitialRun<P> | undefined,
   args: WriteArguments<T>,
@@ -456,11 +425,6 @@ export class ModelCommandCore<P> {
   replaceOwners(owners: readonly ModelConsumerOwnerDeclaration[]): void {
     this.owners = this.checkOwners(owners)
   }
-  /**
-   * Runs a read attempt under the scope of its tenant and, when it names one, its call. A read
-   * names no operation, even when its input carries one. A tenant that has no canonical text gets
-   * no scope: `work` then answers it with the same `denied` failure as before.
-   */
   runRead<T>(
     input: Readonly<{ tenant: TenantId; call?: ModelCallId }>,
     work: () => Outcome<T, ModelFailure>,
@@ -476,7 +440,6 @@ export class ModelCommandCore<P> {
           : { tenant, call: input.call, operation }
     return this.storage.run(work, scope)
   }
-  /** Runs a write attempt under the scope of its tenant, call and operation. */
   runWrite<T>(
     input: Readonly<{ tenant: TenantId; call: ModelCallId; operation: ModelOperationId }>,
     work: () => Outcome<T, ModelFailure>,
@@ -687,8 +650,6 @@ export class ModelCommandCore<P> {
     return { ok: applied.ok.value }
   }
 
-  // --- Send binding: whether a send demand still matches the prepared dispatch.
-
   sendBinding(
     input: SendDemand<P>,
     call: CallDocument | undefined,
@@ -763,8 +724,6 @@ export class ModelCommandCore<P> {
       return { failure: unavailable('model-send-source', 'official-layer-not-official') }
     return { ok: { provider: input.supplier.provider, layer } }
   }
-
-  // --- Read relations and result pages.
 
   private authorizedRead(
     input: CallAccessInput<P>,

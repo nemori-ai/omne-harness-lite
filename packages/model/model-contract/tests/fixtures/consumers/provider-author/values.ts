@@ -1,6 +1,3 @@
-// The request and supplier that the transport of this fixture is checked with. The conformance
-// suite hands them to `prepare`, and the receipt of the transport must name the same supplier and
-// representation.
 import {
   decodeModelOperationId,
   decodeProviderName,
@@ -34,7 +31,6 @@ export const supplier: Supplier = {
   credential: { layer: 'official' },
 }
 
-/** The counting basis of the meter that this author writes. */
 export const basis: ModelCountingBasis = {
   supplier: { adoption: supplier.adoption, provider: supplier.provider, model: supplier.model },
   meter: adoption('meter'),
@@ -72,7 +68,6 @@ export function operationOf(name: string): ModelOperationId {
 
 const unknownUpstream = [{ supplier: adoption('supplier'), limit: { kind: 'unknown' } }] as const
 
-/** A profile definition that follows every rule of the contract; a path changes one thing at a time. */
 export const definition: ModelProfileDefinition = {
   suppliers: [{ adoption: supplier.adoption, provider: supplier.provider, model: supplier.model }],
   fallback: false,

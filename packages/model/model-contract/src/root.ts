@@ -1,4 +1,3 @@
-// Declarations of the public-api chapter "根入口的值与请求".
 import type { Access } from '@omne-harness/legal-identity'
 import type { Adoption, ConsumerRef } from '@omne-harness/exchange-refs'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -37,8 +36,6 @@ export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
   reason: 'type' | 'empty' | 'length' | 'prefix' | 'character' | 'leading-zero'
 }>
 
-// `Adoption` and `ConsumerRef` have one definition in exchange-refs, `Access` has one in
-// legal-identity. The closed judgments and the digest rule stay in request-shape.ts.
 export type { Adoption, ConsumerRef } from '@omne-harness/exchange-refs'
 export type { Access } from '@omne-harness/legal-identity'
 export type ActorRef = Readonly<{ owner: string; subject: string; revision: string }>
@@ -60,17 +57,12 @@ export type ToolDeclaration = Readonly<{
   description: string
   argumentsSchema: JsonValue
 }>
-/**
- * The layer a supplier's credential items are read from, fixed when the request is prepared: the
- * calling tenant's own layer, the official layer, or `none` for a provider that declares no item.
- */
 export type CredentialLayer =
   | Readonly<{ layer: 'tenant' }>
   | Readonly<{ layer: 'official' }>
   | Readonly<{ layer: 'none' }>
 export type Supplier = Readonly<{
   adoption: Adoption
-  /** The model provider asset the request reaches. */
   provider: ProviderName
   model: string
   credential: CredentialLayer
@@ -85,19 +77,12 @@ export type FixedModelRequest = Readonly<{
   messages: readonly Message[]
   tools: readonly ToolDeclaration[]
   toolChoice: 'none' | 'auto' | 'required' | Readonly<{ name: string }>
-  /** `'off'` turns replay off for every dispatch of this request. */
   replay?: 'off'
-  /** The expanded replay declaration of each supplier, in the order of `suppliers`. */
   declarations: readonly [ReplayDeclaration, ...ReplayDeclaration[]]
   representation: Adoption
   parameterAdoptions: readonly ParameterAdoption[]
   source: Adoption
 }>
-/**
- * What the record of a call keeps of its fixed request for its own decisions: every field except
- * the content (`system`, `messages`, `tools`), and the identities of the messages in their order.
- * The content is kept once, apart from the record, and is read only to send the request.
- */
 export type FixedRequestHead = Readonly<
   Omit<FixedModelRequest, 'system' | 'messages' | 'tools'> & {
     messageIds: readonly Message['id'][]

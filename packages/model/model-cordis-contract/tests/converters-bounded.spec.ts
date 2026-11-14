@@ -11,13 +11,9 @@ import {
 } from './converters-harness.ts'
 import { collectGarbage } from './garbage.ts'
 
-// A bounded number of contributions is registered, leased, withdrawn and drained. Afterwards the
-// catalog must hold nothing of them. The converters are watched through weak references, which
-// the garbage collector clears only when the catalog and the fibers hold no strong reference.
 const CONTRIBUTIONS = 64
 const LEASES_PER_CONTRIBUTION = 3
 
-/** Runs every contribution through its life. Even ones leave by release, odd ones by fiber disposal. */
 async function run(world: World) {
   const watched: WeakRef<ModelConverter<unknown>>[] = []
   const effectsLeft: number[] = []

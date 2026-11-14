@@ -1,6 +1,3 @@
-// Runtime values of the design section "推理回放": the replay declaration of a supplier and the
-// replay projection that an adapter and a meter share. This file imports types only from the
-// chapter files. Nothing here reads the payload of a reasoning state part.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { isReplayTag, type AssistantMessage, type MessageId } from '@omne-harness/message'
 import type {
@@ -25,24 +22,14 @@ function invalid(index: number, reason: string) {
 
 const REPLAY_KEYS: ReadonlySet<PropertyKey> = new Set(['produces', 'accepts', 'foreignThinking'])
 
-/** The three keys of a stored declaration, each one as read. A value of `undefined` is absent. */
 type DeclaredReplay = Readonly<{ produces?: unknown; accepts?: unknown; foreignThinking?: unknown }>
 
-/**
- * The value of an own enumerable data property, read by descriptor, or `undefined` for a missing
- * key, a non-enumerable key or an accessor. An accessor is never called.
- */
 function ownData(raw: object, key: PropertyKey): { value: unknown } | undefined {
   const descriptor = Reflect.getOwnPropertyDescriptor(raw, key)
   if (descriptor === undefined || descriptor.enumerable !== true) return undefined
   return 'value' in descriptor ? { value: descriptor.value } : undefined
 }
 
-/**
- * The keys of a declaration as stored, or `undefined` when the value is not a plain object with only
- * the three keys as enumerable data properties. A primitive and an array fail on their prototype.
- * The prototype chain is never read. `undefined` as the whole value is a declaration without keys.
- */
 function readDeclared(raw: unknown): DeclaredReplay | undefined {
   if (raw === undefined) return {}
   if (raw === null) return undefined
@@ -57,10 +44,6 @@ function readDeclared(raw: unknown): DeclaredReplay | undefined {
   return read
 }
 
-/**
- * The items of a stored array, each read once by descriptor, or `undefined` when an item is a hole
- * or an accessor. An accessor is never called.
- */
 function readItems(raw: readonly unknown[]): unknown[] | undefined {
   const items: unknown[] = []
   for (let position = 0; position < raw.length; position += 1) {
@@ -79,10 +62,6 @@ function isOptionalArray(value: unknown): value is readonly unknown[] | undefine
   return value === undefined || Array.isArray(value)
 }
 
-/**
- * The items of `accepts` as tags when they and `produces` keep the tag rules, or the first reason
- * they break them. `accepts` is `undefined` when its items could not be read.
- */
 function checkTags(produces: string, accepts: readonly unknown[] | undefined): string[] | string {
   if (!isReplayTag(produces)) return 'produces'
   if (accepts === undefined || !accepts.every(isReplayTag)) return 'accepts'
@@ -90,16 +69,6 @@ function checkTags(produces: string, accepts: readonly unknown[] | undefined): s
   return accepts.includes(produces) ? [...accepts] : 'accepts-lacks-produces'
 }
 
-/**
- * Reads, expands and checks the declaration of the supplier at `index` of a profile definition.
- * `replay` is typed `unknown` because it comes from a store or a configuration. The success value
- * is the declaration with every default applied and is frozen: `produces` is the exact model
- * identity (provider, `/`, model), `accepts` holds only `produces`, `foreignThinking` is `omit`.
- * The first failure in this order is returned: the shape of `replay` as stored, a `produces` that
- * is not text, an `accepts` that is not an array, `produces` (also when it is a default that is
- * too long), each item of `accepts`, duplicates, `produces` missing from `accepts`,
- * `foreignThinking`. `field` is `suppliers[index].replay`.
- */
 export function judgeReplayDeclaration(
   supplier: Readonly<{ provider: string; model: string; replay?: unknown }>,
   index: number,
@@ -112,18 +81,11 @@ export function judgeReplayDeclaration(
   const accepts = declared.accepts === undefined ? [produces] : readItems(declared.accepts)
   const tags = checkTags(produces, accepts)
   if (typeof tags === 'string') return invalid(index, tags)
-  // A null is a stored value that is not a choice, so `??` would hide it.
   const foreignThinking = declared.foreignThinking === undefined ? 'omit' : declared.foreignThinking
   if (!isForeignThinking(foreignThinking)) return invalid(index, 'foreign-thinking')
   return succeed(Object.freeze({ produces, accepts: Object.freeze(tags), foreignThinking }))
 }
 
-/**
- * The replay projection of one dispatch: one treatment for each message of the role assistant, in
- * the order of `messages`, and the diagnostics of the messages that lose reasoning state parts.
- * A message can continue when it has `replay`, its `scope` is in `accepts`, its `format` is known,
- * replay is not off and a re-dispatch does not leave it out. A part is found by `replay.at`.
- */
 export function projectReplay(input: ReplayProjectionInput): ReplayProjection {
   const accepted: ReadonlySet<string> = new Set(input.declaration.accepts)
   const treatments: ReplayTreatment[] = []
@@ -164,7 +126,6 @@ function treat(
     : Object.freeze({ ...identity, continuable: false, omit: at, thinking: foreignThinking })
 }
 
-/** The diagnostic of a message that cannot continue and so loses its parts, or null. */
 function diagnose(message: AssistantMessage): ReplayDiagnostic | null {
   const { replay } = message
   if (replay === undefined || replay.at.length === 0) return null
@@ -176,10 +137,6 @@ function diagnose(message: AssistantMessage): ReplayDiagnostic | null {
   })
 }
 
-/**
- * The messages that a projection continues. A re-dispatch after `replay-rejected` passes them as
- * `resent`, so none of them continues again.
- */
 export function continuedMessages(projection: ReplayProjection): ReadonlySet<MessageId> {
   return new Set(projection.treatments.filter(item => item.continuable).map(item => item.message))
 }

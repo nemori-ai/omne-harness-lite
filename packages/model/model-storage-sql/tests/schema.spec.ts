@@ -1,5 +1,3 @@
-// The migration of the Model tables on node:sqlite: it creates exactly the four tables, STRICT,
-// keyed by tenant first, with the declared columns, and its verify step notices a missing table.
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import {

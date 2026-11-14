@@ -18,7 +18,6 @@ const unavailable = {
   },
 }
 
-/** True when the promise settles within a few turns of the event loop. */
 async function settlesSoon(promise: Promise<unknown>): Promise<boolean> {
   return Promise.race([
     promise.then(() => true),
@@ -29,7 +28,6 @@ async function settlesSoon(promise: Promise<unknown>): Promise<boolean> {
   ])
 }
 
-/** A release hook that the test completes by hand and that counts its calls. */
 function hook() {
   const calls: unknown[] = []
   const pending: PromiseWithResolvers<void>[] = []

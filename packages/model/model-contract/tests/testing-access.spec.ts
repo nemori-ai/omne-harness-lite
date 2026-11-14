@@ -47,7 +47,6 @@ async function settledCallWithTwoReads() {
 
 type Probe = readonly [action: ScriptedAction, isDenied: () => Promise<boolean>]
 
-/** Revokes one action, then asks every operation: exactly the operations of that action are denied. */
 async function deniesOnly(revoked: ScriptedAction) {
   const { scripted, handle, first, second } = await settledCallWithTwoReads()
   const { calls, consumption, instances } = scripted.provider.runtime
@@ -141,7 +140,6 @@ describe('revoking one action of a principal', () => {
   it('denies query and nothing else', () => deniesOnly('query'))
 })
 
-/** Every operation on a call that the tenant does not own is denied, for the tenant given. */
 async function deniedOnEveryOperation(tenant: TenantId) {
   const { scripted, handle, first } = await settledCallWithTwoReads()
   const { calls, consumption, instances } = scripted.provider.runtime
@@ -150,8 +148,6 @@ async function deniedOnEveryOperation(tenant: TenantId) {
     deniedAs(await calls.dispatches(who), 'dispatches'),
     deniedAs(await calls.cancel({ ...who, operation: operation('c') }), 'cancel'),
     deniedAs(await instances.connect(who), tenantCodec.encode(tenant).ok ? 'connect' : 'tenant'),
-    // A minted tenant of another account reaches the read of its own partition, which has no such
-    // call (R2-D357): the action is that of a call the provider never accepted.
     deniedAs(
       await consumption.beginRead({ ...who, operation: operation('r'), result: version('a') }),
       tenantCodec.encode(tenant).ok ? 'read' : 'tenant',
@@ -179,7 +175,6 @@ describe('an input that names no call the principal may use', () => {
       reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
     }
     const before = await calls.inspect(input)
-    // R2-D357: the same reference in a provider where no tenant ever admitted the call.
     const empty = scriptedProvider().provider.runtime.calls
     const foreign = await calls.inspect({ ...input, tenant: tenantB })
     const absent = await empty.inspect({ ...input, tenant: tenantB })

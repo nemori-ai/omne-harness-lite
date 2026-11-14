@@ -18,7 +18,6 @@ import {
   type ResultPaging,
 } from '../commands/types.ts'
 
-// The memory commands use the shared core's ports and options unchanged.
 export type { EvidenceContext, ResultPaging } from '../commands/types.ts'
 export type MemoryAction = CommandAction
 export type MemoryResource = CommandResource
@@ -51,5 +50,4 @@ export interface MemoryModelControl {
   ): void
 }
 
-/** Explicit trusted assembly registration. current runs inside MemoryState's synchronous fence. */
 export type MemorySendSource<P> = ModelSendSource<P>

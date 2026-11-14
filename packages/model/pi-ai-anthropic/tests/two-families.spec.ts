@@ -1,14 +1,5 @@
 import { testExecutor } from './support/executor.ts'
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, and sends the
-// record fixtures of two families through the real shared transport.
-//
-// The two-family integration (spec D9): the OpenAI and the Anthropic family go through one
-// `composeFamilies` into one `createPiTransport`. The local server answers each request with the
-// recorded stream of the model that the body names. For every record of both families, the body
-// that leaves the transport is the fixture body, and the facts that come back are the fixture
-// facts. The transport group of the model-contract conformance suite passes against the composed
-// transport for a record of each family. HTTP refusals, rate limits and stream loss are mapped by
-// the shared transport, which tests them itself; they are not tested here again per family.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -41,7 +32,6 @@ import { CONFIG, FAMILY as ANTHROPIC_FAMILY, MARGIN_SOURCE } from './support/ant
 import { FIXTURES_ROOT, RECORDS_DIRECTORY } from './support/fixture-files.ts'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
 
-/** The OpenAI fixtures, read through the declared dev dependency on the OpenAI family. */
 const OPENAI_FIXTURES = fileURLToPath(
   new URL('../node_modules/@omne-harness/pi-ai-openai/tests/fixtures/records/', import.meta.url),
 )
@@ -56,7 +46,6 @@ const OPENAI_FAMILY = createOpenAiFamily({
 })
 const FAMILIES = composeFamilies([OPENAI_FAMILY, ANTHROPIC_FAMILY])
 
-/** The placeholder secret of the test; the server does not check it. */
 const PLACEHOLDER = 'placeholder-credential'
 const ROUTE_PATH = '/api/v1/chat/completions'
 
@@ -132,7 +121,6 @@ afterAll(async () => {
 type Built = Readonly<{
   transport: PiTransport
   network: NetworkResources
-  /** How many sends started: the transport reads the credential once per send, inside `start`. */
   sends(): number
 }>
 
@@ -224,7 +212,6 @@ const TRANSPORT_OBLIGATIONS = [
   'transport-close-is-idempotent',
 ] as const
 
-/** The first record fixture of each family. */
 const CONFORMANCE_FIXTURES = [
   FIXTURES.find(item => item.family === 'openai'),
   FIXTURES.find(item => item.family === 'anthropic'),
@@ -263,7 +250,6 @@ describe('the transport group of the conformance suite against the composed tran
       expect(results).toEqual(
         TRANSPORT_OBLIGATIONS.map(obligation => ({ obligation, status: 'pass', detail: '' })),
       )
-      // Every counted send reached the server, and nothing else did.
       const counted = counters.reduce((total, sends) => total + sends(), 0)
       expect(counted).toBeGreaterThan(0)
       await expect.poll(() => server.requests.length - before).toBe(counted)

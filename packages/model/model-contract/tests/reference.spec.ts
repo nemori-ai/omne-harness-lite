@@ -31,7 +31,6 @@ const tuple = ['model-invocation', 2, parts.call, parts.admission]
 describe('saveable Model references', () => {
   it('encodes canonical tuples before any admission and resolves the current tenant object', () => {
     expect(reference).toBe(JSON.stringify(tuple))
-    // R2-D357: the text carries no tenant; the caller's Access supplies it.
     expect(reference).not.toContain(tenantText.value)
     expect(operationReference).toBe(
       JSON.stringify(['model-operation', 2, parts.call, parts.admission, action.operation]),
@@ -68,7 +67,6 @@ describe('saveable Model references', () => {
     ['null', 'shape'],
     [JSON.stringify(['tool-invocation', 2]), 'domain'],
     [JSON.stringify(['model-invocation', 3]), 'version'],
-    // A version 1 text (it carried the tenant) is refused, not read.
     [
       JSON.stringify(['model-invocation', 1, tenantText.value, parts.call, parts.admission]),
       'version',
@@ -171,7 +169,6 @@ describe('saveable Model references', () => {
     )
     expect(must(encodeModelInvocationRef(changing))).toBe(reference)
     expect(observations).toBe(1)
-    // A snapshot that actually includes the extra field must be rejected.
     expect(encodeModelInvocationRef(new Proxy({ ...parts, extra: 'untrusted' }, {}))).toMatchObject(
       { failure: { reason: 'shape' } },
     )
@@ -191,8 +188,6 @@ describe('saveable Model references', () => {
   })
 
   it('checks the current minted tenant before parsing and locates in the presented tenant', () => {
-    // R2-D357: a reference of tenant A, presented by tenant B, names B's call of the same identity;
-    // B's store has none, so the store-backed entry answers as for a call that never existed.
     expect(must(resolveModelInvocationRef(reference, tenantB))).toEqual({
       ...parts,
       tenant: tenantB,

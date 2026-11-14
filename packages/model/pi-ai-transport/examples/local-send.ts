@@ -1,10 +1,3 @@
-// One send through the public entry against a local HTTPS server, and one request that the
-// transport refuses. Prerequisites: Node 24 or later, `openssl` in PATH, and a build of this
-// package (`pnpm --filter @omne-harness/pi-ai-transport... -r run build`). Run it from the
-// package directory: `node --experimental-strip-types examples/local-send.ts`.
-//
-// The family here is a sketch for this example only: it sends `{"model":...}` and reads SSE
-// events of the form `{"text":"..."}`. A real family (the OpenAI family) comes from its own package.
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { createServer } from 'node:https'
@@ -60,7 +53,6 @@ const request: FixedModelRequest = {
   source: adoption('source'),
 }
 
-/** Gives one text block from `{"text":"..."}` events, and `completed` at the end marker. */
 function createDecoder(): PiResponseDecoder {
   let opened = false
   return {
@@ -85,7 +77,6 @@ function createDecoder(): PiResponseDecoder {
 }
 
 function exampleBinding(bound: Supplier): PiFamilyBinding {
-  // This family only sends: it plans, meters and converts tools for nothing.
   const refused: TransportFailure = {
     kind: 'unsupported',
     field: 'example',
@@ -138,7 +129,6 @@ const families: PiFamilyContributions = {
   acquire: async bound => ({ ok: exampleBinding(bound) }),
 }
 
-/** A self-signed certificate for 127.0.0.1, in a private directory that is deleted at once. */
 function localCertificate(): Readonly<{ key: Buffer; cert: Buffer }> {
   const directory = realpathSync(mkdtempSync(join(tmpdir(), 'pi-ai-transport-example-')))
   try {
@@ -188,13 +178,11 @@ const address = server.address()
 if (address === null || typeof address === 'string') throw new Error('the server has no port')
 const { port } = address
 
-// The assembly creates the network resources, and closes them after every transport.
 const network = createNetworkResources({
   maxConnections: 1,
   idleConnectionTimeoutMs: 1_000,
   tls: { ca: tls.cert },
 })
-// The caller fills the slot just before `start` and clears it right after.
 let secret: string | undefined
 const pi = createPiTransport({
   network,
@@ -224,7 +212,6 @@ const pi = createPiTransport({
 })
 
 try {
-  // Example: prepare, materialize, then start one send.
   const prepared = await pi.transport.prepare(request, supplier, { resent: [] })
   if (!('ok' in prepared)) throw new Error(`prepare failed: ${prepared.failure.kind}`)
   const materialized = await prepared.ok.materialize(new AbortController().signal)
@@ -239,8 +226,6 @@ try {
   }
   await prepared.ok.close()
 
-  // Counterexample: this transport does not read media yet. A request that shows the model a
-  // content reference gets `unsupported` from materialize, and nothing is sent.
   const block = judgeContentBlock({
     kind: 'image',
     id: 'picture',

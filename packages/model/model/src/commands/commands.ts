@@ -79,18 +79,12 @@ import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
 import { handoffQuestion, provenHandoff, readHandoffProof } from './handoff-evidence.ts'
 
-/**
- * The share check of an admission. Every admitted call holds one place until its result is
- * acknowledged and released. A full share is full now and has room later: `unavailable` on
- * `model-capacity`, and the caller admits the same call again.
- */
 function shareRefusal(share: number, storage: Pick<ModelCommandStorage, 'held'>) {
   return storage.held() < share
     ? null
     : unavailable('model-capacity', 'the tenant share is full: unacknowledged results')
 }
 
-/** Every execution write first needs its call, still at the revision that the writer expected. */
 function atExpected<T>(
   draft: Draft,
   input: Readonly<{ expected: Revision; operation: ModelOperationId }>,
@@ -103,7 +97,6 @@ function atExpected<T>(
   return apply(call)
 }
 
-/** An execution write on one dispatch also needs that dispatch in the expected call. */
 function atDispatch<T>(
   draft: Draft,
   input: Readonly<{ expected: Revision; operation: ModelOperationId; dispatch: DispatchId }>,
@@ -115,9 +108,6 @@ function atDispatch<T>(
     return apply(call, dispatch)
   })
 }
-
-// The 22 methods of ModelCommands over the shared core: for each, the order of its checks, the
-// change it makes to the call document and the receipt that recovers it.
 
 export function callCommands<P>(
   core: ModelCommandCore<P>,
@@ -234,8 +224,6 @@ export function callCommands<P>(
           return { failure: invalid('admission', 'not-original') }
         return { ok: { kind: 'found', state: structuredClone(call.state) } }
       }),
-    // The read names the operation, so a storage that reads bindings by operation (the SQL one)
-    // holds the binding of the original write in the documents it gives.
     query: input =>
       core.runRead(
         input,
@@ -372,7 +360,6 @@ export function recoveryCommands<P>(
     if (next) scans.set(next, { tenant: scope, calls: ids, offset: end })
     return { ok: { calls, next } }
   }
-  /** The tenant text of a scan that may go ahead: the caller may recover and the limit fits. */
   function scanScope(input: Parameters<ModelCommands<P>['scanPending']>[0]) {
     const tenant = core.authorize(input, 'recovery')
     if ('failure' in tenant) return tenant
@@ -389,7 +376,6 @@ export function recoveryCommands<P>(
   return {
     scanPending: input => {
       const storage = core.storage
-      // A storage that pages the pending calls itself is asked for the page outside an attempt.
       if (storage.pending !== undefined) {
         const scope = scanScope(input)
         if ('failure' in scope) return Promise.resolve(scope)
@@ -539,7 +525,6 @@ export function dispatchCommands<P>(
       }),
     )
   }
-  /** Opens `window` on `dispatch`, or says why it cannot be opened; nothing changes then. */
   function openWindow(
     call: CallDocument,
     dispatch: DispatchDocument,
@@ -670,8 +655,6 @@ export function dispatchCommands<P>(
             call.dispatches.some(d => d.record.dispatch === input.dispatch)
           )
             return invalid('dispatch', 'duplicate-or-identity')
-          // A released request has no supplier to prepare against: the same refusal as a
-          // supplier outside the request.
           if (call.request === null) return invalid('supplier', 'outside-request')
           const supplier = prepareSupplierFailure(call, call.request, input)
           if (supplier) return supplier
@@ -685,7 +668,6 @@ export function dispatchCommands<P>(
               terminal: null,
               account: null,
               materialization: null,
-              // Identities only. They outlive the request material, which cleanup releases.
               messages: [...call.request.messageIds],
             },
             logicalTerminal: null,
@@ -728,7 +710,6 @@ export function dispatchCommands<P>(
             atDispatch(draft, input, (call, dispatch) => {
               const proof = materializationProof(call, dispatch, input)
               if ('failure' in proof) return proof
-              // The receive window opens in the same write: nothing is sent before both are durable.
               const opened = openWindow(call, dispatch, input.window)
               if (opened) return { failure: opened }
               dispatch.record = {
@@ -1058,8 +1039,6 @@ export function consumptionCommands<P>(
           : core.updateRead(input, input.read, 'end'),
       ),
     handoff: async input => {
-      // The owner's evidence is read before the fence (handoff-evidence.ts); the write keeps it
-      // only for the very call, consumer, result and evidence it was read for.
       const read = await readHandoffProof(core, input)
       return core.runWrite(input, () =>
         core.write<AckReceipt>({
@@ -1157,7 +1136,6 @@ export function consumptionCommands<P>(
   }
 }
 
-/** All 23 methods over one core. */
 export function modelCommands<P>(
   core: ModelCommandCore<P>,
   bound?: BoundCommandAccess<P>,

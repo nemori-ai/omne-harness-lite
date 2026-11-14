@@ -17,9 +17,6 @@ import {
   sourceFiles,
 } from './install/judgment.ts'
 
-// Each judgment of the install-closure facility gets an input that it must reject. A judgment
-// that always passed would leave the real-install spec green, so these cases are the proof that
-// the instrument can fail.
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'install-judgment-')))
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 

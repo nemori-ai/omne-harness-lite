@@ -1,5 +1,3 @@
-// The model provider asset (SPEC「模型供应商资产」): which bodies the category contract accepts, and
-// the secret settings its hook derives through the asset domain's projection.
 import {
   capabilityId,
   createCategoryRegistry,

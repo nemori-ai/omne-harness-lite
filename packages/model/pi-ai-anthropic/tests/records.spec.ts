@@ -1,5 +1,3 @@
-// The record table: the migrated facts of the sealed Anthropic definitions and replay policy, the
-// shared wire data, and the purity that the adoption digest relies on.
 import { describe, expect, it } from 'vitest'
 import { defineFamily, recordAdoption } from '@omne-harness/pi-ai-transport'
 import {
@@ -10,7 +8,6 @@ import {
 
 const RECORDS: readonly AnthropicRecord[] = ANTHROPIC_RECORDS
 
-/** The models of the sealed `anthropicReplayModels` (anthropic-replay.ts:28-33). */
 const SEALED_MODELS = [
   'anthropic/claude-opus-5.5',
   'anthropic/claude-opus-5',
@@ -18,13 +15,8 @@ const SEALED_MODELS = [
   'anthropic/claude-fable-5.1',
 ] as const
 
-/** The models added from the official model list of 2026-11-03. */
 const ADDED_MODELS = ['anthropic/claude-sonnet-5.5', 'anthropic/claude-haiku-5.5'] as const
 
-/**
- * The sealed models are at revision 2, which takes the official upstream limits; R2-D126 deleted
- * revision 1. The added models start at revision 1.
- */
 const revisionOf = (record: AnthropicRecord) =>
   (SEALED_MODELS as readonly string[]).includes(record.name) ? '2' : '1'
 
@@ -86,13 +78,11 @@ describe('the migrated models', () => {
     for (const record of RECORDS) {
       expect(record.profile.input).toEqual(['text', 'image'])
       expect(record.profile.output).toEqual(['text'])
-      // The official window and output are upstream values; Anthropic publishes no input limit.
       expect(record.profile.context).toEqual({
         window: { provided: '1000000', upstream: { kind: 'finite', amount: '1000000' } },
         input: { provided: '872000', upstream: { kind: 'unknown' } },
         output: { provided: '128000', upstream: { kind: 'finite', amount: '128000' } },
       })
-      // The evidence of the finite values names its sources and the day of the observation.
       expect(record.profile.evidence).toContain(
         'https://platform.claude.com/docs/en/about-claude/models/overview',
       )

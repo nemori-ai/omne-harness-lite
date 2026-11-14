@@ -1,15 +1,3 @@
-// The runtime facade of `ModelRuntimeLocalPlugin` on real Cordis 4.0.4: result push, the Model's
-// own ACK after `saved`, late accounts and the receiver registration.
-//
-// Real parts: the plugin, its host, its runtime stage, the Model runtime of `@omne-harness/model`
-// with its driver and send boundary, and the in-memory ModelCommands of `@omne-harness/model/testing`
-// (a store without durability; the durable commands join in the full assembly). Stand-ins, each
-// named: the transport is the scripted transport of `@omne-harness/model-contract/testing`; the
-// result receiver is the scripted receiver below, which stands for the Agent receiver of
-// agent-host-local (`createLocalModelReceiver`, joined in integration A). The receiver keeps the
-// four facts of `saved` apart and answers `saved` only when all four hold. Its saved map stands for
-// the receiver's durable records and outlives a restart; a restart is simulated in one process by a
-// new plugin class with a new, empty push ledger over the same commands.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import {
   accountCodec,
@@ -128,7 +116,6 @@ const report = (revision: string): CallAccountReport => ({
   revision,
 })
 
-// The answer ends at the output limit, so its growing text block completes as it is.
 const ANSWER: readonly Exclude<TransportFact, { kind: 'ended' }>[] = [
   { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
   { kind: 'block-delta', index: '0', delta: 'kept' },
@@ -147,23 +134,15 @@ async function until(check: () => boolean | Promise<boolean>, label: string): Pr
 async function settled(fiber: Fiber): Promise<void> {
   try {
     await fiber
-  } catch {
-    // A failed fiber is read from its state.
-  }
+  } catch {}
 }
 
-/** Gives the macrotask queue a few turns, so that nothing that would happen is still on its way. */
 async function quiet(): Promise<void> {
   for (let n = 0; n < 5; n += 1) await new Promise(resolve => setTimeout(resolve, 5))
 }
 
 type Conjunct = 'material' | 'responsibility' | 'deduplication' | 'retention'
 
-/**
- * The scripted receiver. It keeps the four facts of `saved` apart: the material, the consumer's
- * responsibility, the deduplication by key and the retention. A missing fact gives the answer that
- * the contract gives for it, and never `saved`. `next` answers the next pushes instead, in order.
- */
 function scriptedReceiver() {
   const pushes: ModelDelivery[] = []
   const saved = new Map<string, { delivery: ModelDelivery; receipt: ModelSavedReceipt }>()
@@ -228,39 +207,23 @@ function scriptedReceiver() {
 }
 
 type Hooks = {
-  /** `lost`: this ACK takes effect and its answer is lost; the storage knows it committed. */
   handoff?(): 'lost' | 'pass'
   advanceCleanup?(): 'fail' | 'pass'
-  /** Runs before each `dispatches` of the plugin's commands; the read waits for what it returns. */
   dispatches?(): Promise<void> | void
-  /** `unavailable`: this page of the scan cannot be read, as a read queue that timed out. */
   scanPending?(): 'unavailable' | 'denied' | 'pass'
-  /** `unavailable`: the recovery state of this call cannot be read. */
   loadRecovery?(): 'unavailable' | 'pass'
 }
 
-/**
- * The services the plugin injects, the in-memory commands under them, and a plugin class whose
- * provider is the real Model runtime over the plugin's commands.
- */
 function world(
   input: Readonly<{
     limits?: ResultPushLimits
     ledger?: ResultPushLedger
-    /**
-     * `unavailable`: the consumer owner's evidence adapter cannot confirm, as the release's
-     * `handoff` evidence answers while the durable received record cannot be read (R2-D257).
-     */
     custodyEvidence?: 'verified' | 'unavailable'
-    /** The share of the whole assembly; the memory commands sum every tenant against it. */
-    /** How many unacknowledged results the tenant may hold. */
     share?: number
-    /** The start scan of the push; without it the push does not scan. */
     recovery?: ResultPushRecovery
   }> = {},
 ) {
   let ledger = input.ledger ?? createMemoryResultPushLedger()
-  /** The answer of the consumer owner's evidence adapter; a test may change it. */
   const evidence = { mode: input.custodyEvidence ?? 'verified' }
   const hooks: Hooks = {}
   const handoffs: Parameters<ModelCommands<unknown>['handoff']>[0][] = []
@@ -304,7 +267,6 @@ function world(
         retry: () => ({
           failure: { kind: 'unavailable', dependency: 'retry', diagnostic: 'none' },
         }),
-        // The custody evidence is the scripted receiver's own, for this call's frozen key only.
         handoff: given =>
           evidence.mode === 'unavailable'
             ? {
@@ -463,7 +425,6 @@ function world(
       Object.assign(this, commands)
     }
   }
-  // The commands the provider writes through: the plugin's, captured for the late-account source.
   const provided: { commands?: ModelCommands<unknown> } = {}
   const pluginClass = () =>
     createModelRuntimeLocalPlugin({
@@ -511,10 +472,6 @@ function world(
     controls: memory.controls,
     evidence,
     provided,
-    /**
-     * A new process over the same commands: the next `load` builds a new plugin class over a new,
-     * empty push ledger. Unload the plugin first.
-     */
     restart() {
       ledger = createMemoryResultPushLedger()
       Plugin = pluginClass()
@@ -527,7 +484,6 @@ function world(
     load(): Fiber {
       return ctx.plugin(Plugin, { ...SETTINGS })
     },
-    /** A plugin that registers `receiver` under `owner`, the way the Agent host does. */
     register(receiver: ModelResultReceiver<unknown>, owner = CONSUMER): Fiber {
       return ctx.plugin({
         name: 'receiver-stand-in',
@@ -540,7 +496,6 @@ function world(
     async admit(name: string) {
       return unbox(await this.tryAdmit(name))
     },
-    /** The admission answer as it is, a refusal included. */
     tryAdmit(name: string) {
       return ctx.modelRuntime.calls.admit({
         principal: PRINCIPAL,
@@ -571,7 +526,6 @@ function world(
         await raw.dispatches({ principal: PRINCIPAL, tenant: TENANT, call: callOf(name) }),
       )
     },
-    /** What the host's directory answers for the call: a live route or none. */
     async route(name: string) {
       return unbox(
         await ctx.modelInstanceHost.directory.connect({
@@ -581,7 +535,6 @@ function world(
         }),
       ).kind
     },
-    /** A late account from the trusted supplier source, through the provider's commands. */
     async late(name: string, revision: string, operation = `late-${name}-${revision}`) {
       const target = provided.commands
       if (target === undefined) throw new Error('the provider was not built')
@@ -624,18 +577,13 @@ it('pushes the frozen result to the registered receiver and then acknowledges it
     parts: [{ kind: 'partial', content: 'text', value: 'kept' }],
     accounts: [{ dispatch: dispatch?.dispatch, account: dispatch?.account }],
   })
-  // The payload is frozen: nothing the receiver does changes what was pushed.
   expect(Object.isFrozen(delivery)).toBe(true)
-  // One ACK, retained, with the receiver's evidence, after the push.
   expect(w.handoffs).toHaveLength(1)
   expect(w.handoffs[0]?.evidence).toMatchObject({ kind: 'retained', custody: { owner: CONSUMER } })
   const custody = await w.custody('one')
   expect(custody).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
 })
 
-// #1214: a settled call keeps its route while its result is held, and the route goes once the
-// result body is released, so the routes of the host are bounded by the calls in flight and the
-// results not yet released, not by the life of the process.
 it('retires the route of a call once its result body is released (defect: every call keeps a route for the life of the host)', async () => {
   const w = world()
   await w.services()
@@ -646,10 +594,6 @@ it('retires the route of a call once its result body is released (defect: every 
   await until(() => w.record('one')?.cleanup === 'released', 'the push, ACK and cleanup')
   expect(await w.route('one')).toBe('no-live-route')
 })
-
-// R2-D256: every call holds one place of the tenant share. The place comes back only when the
-// Model's own ACK and the cleanup are done; with a share of one, a second call of the same tenant
-// fits only then.
 
 it('gives the share of a call back after the ACK and the cleanup, so the same tenant admits its next call', async () => {
   const w = world({ share: 1 })
@@ -677,14 +621,11 @@ it('keeps the custody and the share of a saved call while the consumer evidence 
 
   await until(() => w.handoffs.length > 0, 'the ACK attempt after saved')
   await quiet()
-  // Saved is not an ACK: the producer keeps the result and its place (SPEC: no place is won back
-  // by dropping a delivered result before the ACK).
   expect(w.record('first')?.result?.standing.status).toBe('saved')
   expect(await w.custody('first')).toEqual({ kind: 'producer' })
   expect(
     w.warnings.some(text => text.includes('acknowledgement did not complete (unavailable)')),
   ).toBe(true)
-  // The first call still holds the one place: the share is full now (#1174).
   expect(await w.tryAdmit('second')).toMatchObject({
     failure: { kind: 'unavailable', dependency: 'model-capacity' },
   })
@@ -761,7 +702,6 @@ it.each(['unavailable', 'backpressured'] as const)(
     await until(() => w.record('one')?.result?.standing.status !== 'pending', 'the answers')
     await quiet()
     expect(scripted.pushes).toHaveLength(2)
-    // A refusal cannot show that the receiver never saved the first push.
     expect(w.record('one')?.result?.standing).toEqual({ status: 'unknown' })
     expect(w.handoffs).toEqual([])
     expect(await w.custody('one')).toEqual({ kind: 'producer' })
@@ -827,7 +767,6 @@ it('keeps a result without a receiver waiting and pushes it when the consumer ow
   await until(() => w.record('one')?.result?.standing.status === 'waiting', 'the waiting result')
   expect(w.record('one')?.result?.standing).toEqual({ status: 'waiting', reason: 'no-receiver' })
   expect(w.messages.some(text => text.includes('no receiver'))).toBe(true)
-  // A warning, not info: the consumer waits until a receiver registers (R2-D237).
   expect(w.warnings.some(text => text.includes('no receiver'))).toBe(true)
 
   const scripted = scriptedReceiver()
@@ -868,7 +807,6 @@ it('pushes each late account to the same consumer after the body is released, on
   })
   expect(second).toEqual(expected(after2))
   expect(third).toEqual(expected(after3))
-  // The unknown parts of the account stay unknown: nothing is written as zero.
   expect(second?.kind === 'account' && second.account.trimmed).toEqual({
     state: 'unknown',
     unit: 'token',
@@ -925,7 +863,6 @@ it('refuses a late account beyond the bound, says so, and accepts it from its so
     },
   })
   expect(w.messages.some(text => text.includes('late account was refused'))).toBe(true)
-  // The refused account was not accepted: the commands still hold revision 2.
   expect((await w.dispatches('one'))[0]?.account?.revision).toBe('2')
 
   scripted.state.refuseAccounts = false
@@ -948,7 +885,6 @@ it('keeps the place of a late account whose acceptance is unknown, and its resub
   const unknown = { tenant: TENANT, call: callOf('one'), operation: op('late-one-2') }
   w.controls.commands.injectUnknown({ ...unknown, method: 'recordLateFact', effect: 'applied' })
   expect(await w.late('one', '2')).toMatchObject({ failure: { kind: 'commit-unknown' } })
-  // The account may have been accepted, so its place stays taken: the tenant has no room left.
   expect(await w.late('one', '3')).toEqual({
     failure: {
       kind: 'unavailable',
@@ -958,7 +894,6 @@ it('keeps the place of a late account whose acceptance is unknown, and its resub
   })
 
   w.controls.commands.reveal({ ...unknown, result: 'committed' })
-  // The same operation again uses the place it holds and is not refused for capacity.
   const again = await w.late('one', '2')
   expect('ok' in again).toBe(true)
   await until(() => w.record('one')?.accounts[0]?.standing.status === 'saved', 'the account')
@@ -976,7 +911,6 @@ it('fails a second live plugin that registers the same consumer owner and keeps 
   const claimant = w.register(second.receiver)
   await settled(claimant)
 
-  // Cordis fiber states by value: ACTIVE 2, FAILED 3.
   expect(claimant.state).toBe(3)
   expect(holder.state).toBe(2)
   await w.admit('one')
@@ -1054,7 +988,6 @@ it('waits on unload for a late account that is being accepted and hands it to th
   await w.admit('one')
   await until(() => w.record('one')?.cleanup === 'released', 'the released body')
 
-  // The acceptance commits the account, then stops while it reads the revision back.
   let reached = false
   let resume = () => {}
   const gate = new Promise<void>(resolve => {
@@ -1078,11 +1011,9 @@ it('waits on unload for a late account that is being accepted and hands it to th
   resume()
   await unloading
   expect(await late).toMatchObject({ ok: { recovered: false } })
-  // The account is owed in the ledger, not lost with the stopped stage.
   expect(w.record('one')?.accounts.map(held => held.delivery.key)).toMatchObject([
     { kind: 'account', revision: '2' },
   ])
-  // The stopped stage accepts no more accounts: the source keeps them for the successor.
   expect(await w.late('one', '3')).toEqual({
     failure: {
       kind: 'unavailable',
@@ -1100,9 +1031,6 @@ it('waits on unload for a late account that is being accepted and hands it to th
   expect(scripted.pushes.map(delivery => delivery.kind)).toEqual(['result', 'account'])
 })
 
-// R2-D260: the push ledger is in memory and a restart loses it. The durable custody of the commands
-// says what is owed: with `recovery`, the push scans every tenant when it starts and wakes each
-// settled call that is not yet acknowledged and cleaned.
 const SCAN_TENANT: ResultPushRecovery = {
   scopes: async () => ({ ok: [{ principal: PRINCIPAL, tenant: TENANT }] }),
 }
@@ -1127,7 +1055,6 @@ it('pushes again after a restart that lost the ledger, acknowledges, and gives t
   w.evidence.mode = 'verified'
   await w.load()
   await until(() => w.record('first')?.cleanup === 'released', 'the push, ACK and cleanup')
-  // Pushed again with the same key and the same frozen payload, so the receiver recognises it.
   expect(scripted.pushes).toHaveLength(2)
   expect(scripted.pushes[1]).toEqual(scripted.pushes[0])
   expect(await w.custody('first')).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
@@ -1160,8 +1087,6 @@ it('wakes nothing on a later restart once the call is acknowledged and cleaned',
 })
 
 it('acknowledges after a restart when the result was saved but the ACK answer was lost, without a second push', async () => {
-  // The ACK commits and its answer is lost, then the process ends before the ACK is recognised: the
-  // custody is acknowledged and the cleanup pending. The start scan wakes it for the cleanup only.
   const w = world({ recovery: SCAN_TENANT, limits: { ...LIMITS, maxRedeliveries: 0 } })
   await w.services()
   w.hooks.handoff = () => 'lost'
@@ -1212,7 +1137,6 @@ it('says so when the start scan cannot run, and the call stays with the producer
 })
 
 it('leaves a call that is not settled to its own settle', async () => {
-  // Admitted in the commands and never driven, as a call an earlier process left running.
   const w = world({ recovery: SCAN_TENANT })
   await w.services()
   unbox(
@@ -1233,14 +1157,10 @@ it('leaves a call that is not settled to its own settle', async () => {
   expect(w.record('running')).toBeUndefined()
 })
 
-// A read that is unavailable once must not wait for the next start: the tenant is scanned again
-// after 1 s, 5 s, 30 s and then every 30 s until it is read. The clock is fake and moves with the
-// real time too, so the plugin's other waits go on.
 afterEach(() => {
   vi.useRealTimers()
 })
 
-/** A settled call whose ACK waits, left owed by a process that ended. The next load restarts. */
 async function owedAfterRestart(recovery: ResultPushRecovery) {
   const w = world({ custodyEvidence: 'unavailable', recovery })
   await w.services()
@@ -1256,7 +1176,6 @@ async function owedAfterRestart(recovery: ResultPushRecovery) {
   return { w, scripted }
 }
 
-/** The drift of the fake clock between two steps of a test stays well under this. */
 const DRIFT_MS = 200
 
 it('scans a tenant it could not read again after 1 s, 5 s and 30 s, without waiting for the next start', async () => {
@@ -1287,7 +1206,6 @@ it('scans a tenant it could not read again after 1 s, 5 s and 30 s, without wait
   expect(scripted.pushes).toHaveLength(2)
   expect(scripted.pushes[1]).toEqual(scripted.pushes[0])
   expect(w.messages.at(-1)).toContain('start scan woke 1 owed calls')
-  // Read once, the tenant leaves the set: no scan follows.
   const attempts = scan.attempts
   await vi.advanceTimersByTimeAsync(120000)
   expect(scan.attempts).toBe(attempts)

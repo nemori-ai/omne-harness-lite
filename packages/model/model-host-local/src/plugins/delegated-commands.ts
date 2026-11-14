@@ -1,9 +1,7 @@
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 
-/**
- * Every method of `commands`, called on it. A Service may keep its methods on its prototype, so the
- * object is not spread.
- */
+// A Service may keep its methods on its prototype, so the object is not spread:
+// every method is called on `commands`.
 export function delegatedCommands(commands: ModelCommands<unknown>): ModelCommands<unknown> {
   return {
     admit: input => commands.admit(input),

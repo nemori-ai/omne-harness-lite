@@ -1,5 +1,3 @@
-// Test support for the transport specs: a transport over given network resources and the test
-// family, the count of sends, and the collection of a fact stream.
 import type {
   MaterializedTransport,
   PreparedTransport,
@@ -22,11 +20,6 @@ import {
   type FamilyProbe,
 } from './test-family.ts'
 
-/**
- * Counts the exchanges that start on the network resources. Every exchange registers itself in
- * the in-flight registry in the same synchronous call that hands the request to Node, so the
- * count is exact right after `start` returns.
- */
 export function countSends(network: NetworkInternals): () => number {
   const registry = network.inFlight
   const add = registry.add.bind(registry)
@@ -42,9 +35,7 @@ export type TransportUnderTest = PiTransport &
   Readonly<{
     probe: FamilyProbe
     sends: () => number
-    /** Prepares REQUEST for SUPPLIER and expects success. */
     prepare(): Promise<PreparedTransport>
-    /** Prepares and materializes REQUEST and expects success. */
     materialize(signal?: AbortSignal): Promise<MaterializedTransport>
   }>
 
@@ -53,7 +44,6 @@ export function transportOver(
   options: Readonly<{
     url: string
     credential?: PiCredentialSlot
-    /** The way the route takes its credential. Default: the bearer of `apiKey`. */
     auth?: PiRouteAuth
     limits?: PiTransportLimits
     onConnectRetry?: PiTransportConfig['onConnectRetry']
@@ -101,7 +91,6 @@ export async function collect(stream: AsyncIterable<TransportFact>): Promise<Tra
   return facts
 }
 
-/** True when the capacity grants a reservation at once; the reservation goes back right away. */
 export async function slotFree(network: NetworkInternals): Promise<boolean> {
   const controller = new AbortController()
   const pending = network.capacity.reserve(controller.signal)

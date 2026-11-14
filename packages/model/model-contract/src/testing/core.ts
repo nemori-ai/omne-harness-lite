@@ -1,6 +1,3 @@
-// The state that the scripted provider keeps in one closure, and the small rules that every
-// operation shares: which tenant and call an input addresses, whether the principal still holds
-// the right to act, and how a change reaches the observers.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -61,7 +58,6 @@ export type SettledLifecycle = Extract<Lifecycle, { phase: 'settled' }>
 
 export type ObservationEnd = 'stale-instance' | 'denied' | 'unavailable'
 
-/** One open observation of a call. `ended` is set by the script; the stream reads it. */
 export type Subscription<P> = {
   readonly principal: P
   ended: ObservationEnd | null
@@ -70,56 +66,38 @@ export type Subscription<P> = {
 
 export type ReadRecord = {
   readonly read: ReadId
-  /** The settled call that the pages of this read are cut from. */
   readonly source: SettledLifecycle
-  /** What the read was begun with; a repeat of the same operation must match it. */
   readonly parameters: unknown
   ended: Extract<ReadState, { kind: 'ended' }>['reason'] | null
-  /** The last page has been served, so closing the read is a completion. */
   exhausted: boolean
-  /** The `next` values served so far: the only values `readNext` accepts as `after`. */
   readonly issued: Set<string>
 }
 
 export type CallRecord<P> = {
   readonly tenant: TenantId
-  /** The tenant as `scopeOf` gives it; two tenants are the same exactly when their scopes are. */
   readonly scope: string
   readonly call: ModelCallId
   readonly admission: ModelOperationId
   readonly reference: ModelInvocationRef
   readonly consumer: ConsumerRef
-  /** Counts every change of the call; the revision and the output cursor are both built from it. */
   revision: number
   lifecycle: Lifecycle
   control: ControlState
   custody: CustodyState
   blocks: readonly VisibleBlock[]
   dispatches: readonly DispatchRecord[]
-  /** The instance that serves the call now, or null after the instance left. */
   instance: ModelInstanceId | null
   readonly handles: Map<ModelInstanceId, ModelHandle<P>>
   readonly observers: Set<Subscription<P>>
   readonly reads: Map<ReadId, ReadRecord>
-  /** The blocks that upstream facts have built; `blocks` is cut from it when the script plays facts. */
   readonly fill: FillTable
-  /**
-   * The evidence that the script gave for acknowledging the call. When it is empty, any evidence
-   * is taken; otherwise only one of these is.
-   */
   readonly evidence: DurableEvidence[]
   contact: CallContact | null
 }
 
-/**
- * What the provider remembers of an accepted operation, to recognise or reject a repeat. Each
- * method has its own set of parameter members, so an operation used for another method never
- * matches.
- */
 export type OperationEntry<P> = Readonly<{
   record: CallRecord<P>
   parameters: unknown
-  /** The revision of the call when the operation took effect. */
   revision: number
 }>
 
@@ -140,13 +118,7 @@ export type Core<P> = {
   readonly operations: Map<string, OperationEntry<P>>
   readonly readsByOperation: Map<string, ReadRecord>
   readonly revocations: Map<string, Revocation<P>[]>
-  /** Scripted unknown commits, keyed by tenant, action and operation; each is used once. */
   readonly unknownWrites: Map<string, CommitUnknownScript>
-  /**
-   * Operations whose commit query stays unknown until the same operation is sent again, keyed
-   * by tenant and operation. The value is the call that sent the operation: only a query that
-   * names that call sees the operation, as with every other answer about an operation.
-   */
   readonly heldQueries: Map<string, ModelCallId>
   state: { quiescing: boolean; directoryDown: boolean; reads: number }
 }
@@ -168,13 +140,11 @@ export function createCore<P>(input: {
   }
 }
 
-/** The tenant as text, or null for a value that did not come from the legal-identity package. */
 export function scopeOf(tenant: TenantId): string | null {
   const encoded = tenantCodec.encode(tenant)
   return encoded.ok ? encoded.value : null
 }
 
-/** A key for a name inside a tenant; the JSON keeps one pair from colliding with another. */
 export function scoped(scope: string, name: string): string {
   return JSON.stringify([scope, name])
 }
@@ -198,7 +168,6 @@ export function isRevoked<P>(
   )
 }
 
-/** The call of a tenant, or null. A tenant that is not a legal identity has no calls. */
 export function findCall<P>(
   core: Core<P>,
   tenant: TenantId,
@@ -210,10 +179,6 @@ export function findCall<P>(
 
 export type Target<P> = Readonly<{ scope: string; record: CallRecord<P> | null }>
 
-/**
- * The tenant and call an input addresses, or null when the principal may not act on it. A call
- * of another tenant is not found, so the answer does not tell whether it exists.
- */
 export function resolve<P>(
   core: Core<P>,
   input: CallAccess<P>,
@@ -224,7 +189,6 @@ export function resolve<P>(
   return { scope, record: core.records.get(scoped(scope, input.call)) ?? null }
 }
 
-/** The call, or null when the input is denied or addresses no call. */
 export function openCall<P>(
   core: Core<P>,
   input: CallAccess<P>,
@@ -245,10 +209,6 @@ export function reservedOperation(field: string): Outcome<never, ModelFailure> {
   })
 }
 
-/**
- * A repeat of a held operation by the call that sent it is the retry that settles its commit
- * query. The same operation sent for another call is a write of its own and settles nothing.
- */
 export function retried<P>(
   core: Core<P>,
   scope: string,
@@ -263,7 +223,6 @@ export function notify<P>(record: CallRecord<P>): void {
   for (const subscription of record.observers) subscription.wake?.()
 }
 
-/** Counts one change of the call and tells the observers. */
 export function commit<P>(record: CallRecord<P>): void {
   mintRevision(record.revision + 1)
   record.revision += 1

@@ -23,7 +23,6 @@ type Edge = Readonly<{
 }>
 type MergeState = { head: Part | undefined; heap: Edge[] }
 
-/** The only adapter for runtime members omitted from js-tiktoken 1.0.21's declarations. */
 function snapshotPinnedEngine(engine: unknown): EngineSnapshot {
   const incompatible = () => new TypeError('incompatible js-tiktoken 1.0.21 runtime shape')
   if (

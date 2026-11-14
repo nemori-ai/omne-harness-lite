@@ -1,8 +1,3 @@
-// Calibrated metering through the real composition the request assembler uses: the production
-// preparation lease of `@omne-harness/model` over this family through `composeFamilies`, with
-// representations from the real `rules.plan`. The store is a `dispatches` stand-in; the lease and
-// the meter are real. Expected amounts are computed here with the legacy Claude BPE over the NFKC
-// form of the token input, as the meter counts.
 import { describe, expect, it } from 'vitest'
 import { sortedJsonText } from './support/sorted-json.ts'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'

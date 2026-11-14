@@ -1,12 +1,5 @@
-// The image token rules of the OpenAI family: patch counts from pixel dimensions. Migrated from the
-// sealed `input-meters/openai-images.ts`. The archived images-vision guide (2026-09-28, image-doc.md
-// SHA-256 4936284cccfc38f22281d6a698b6f190ccc857849ea8dc533ed68617984b608d) gives the patch rules;
-// every count is an estimate of the input that the gateway hosts, never an exact count.
-
-/** The detail modes the patch rules know. A record writes one of the first three on the wire. */
 export type ImageDetail = 'low' | 'high' | 'auto' | 'original'
 
-/** One image rule: the estimated tokens of one image, or `null` when the rule does not apply. */
 export type ImageRule = (
   input: Readonly<{ width: number; height: number; detail: ImageDetail }>,
 ) => number | null
@@ -15,11 +8,6 @@ const PATCH = 32
 const HIGH_PATCH_LIMIT = 2500
 const PROCESSED_PATCH_LIMIT = 30000
 
-/**
- * The fitted patch estimate: the larger side fits to `maxDimension` (floor), `high` shrinks to at
- * most 2500 patches, more than 30000 processed patches is `null`, and the tokens are
- * `ceil(patches * 6 / 5)`. The rounding direction of the first fit is this estimator's convention.
- */
 function fittedPatchTokens(
   width: number,
   height: number,
@@ -52,7 +40,6 @@ function isPixelCount(value: number): boolean {
   return Number.isSafeInteger(value) && value > 0
 }
 
-/** A named patch rule: `low` fits to 512, `high` to `highMaxDimension`, other modes to 65535. */
 function patchRule(highMaxDimension: number): ImageRule {
   return ({ width, height, detail }) => {
     if (!isPixelCount(width) || !isPixelCount(height)) return null
@@ -61,10 +48,6 @@ function patchRule(highMaxDimension: number): ImageRule {
   }
 }
 
-/**
- * The Sol/Luna proxy: native dimensions, `ceil(ceil(w/32) * ceil(h/32) * 6 / 5)`, for `auto` only.
- * It borrows no resize or patch cap; arithmetic beyond safe integers is `null`, not rounded.
- */
 const solLunaAutoProxy: ImageRule = ({ width, height, detail }) => {
   if (!isPixelCount(width) || !isPixelCount(height) || detail !== 'auto') return null
   const scaledPatches = Math.ceil(width / PATCH) * Math.ceil(height / PATCH) * 6
@@ -72,7 +55,6 @@ const solLunaAutoProxy: ImageRule = ({ width, height, detail }) => {
   return Math.ceil(scaledPatches / 5)
 }
 
-/** The image rules by revisioned name. A record names one; a changed rule is a new name. */
 export const IMAGE_RULES = {
   'gpt56-patch/1': patchRule(2048),
   'astra-patch/1': patchRule(65535),

@@ -28,7 +28,6 @@ type WriteResult<T> =
   | { kind: 'confirmed'; value: T }
   | { kind: 'rejected'; failure: ModelFailure }
   | { kind: 'unconfirmed' }
-// A pending stop stays outside perform's busy lifetime, as with a direct return of stop().
 type Completion = { kind: 'complete'; result: SendResult | Promise<SendResult> }
 type Progress = Completion | { kind: 'continue' }
 type Materialization = Parameters<Commands['recordMaterialization']>[0]
@@ -72,11 +71,6 @@ export const unavailable = (dependency: string, diagnostic: string): ModelFailur
   diagnostic,
 })
 export const refused = (failure: ModelFailure): SendResult => ({ kind: 'not-started', failure })
-/**
- * A credential that is missing or cannot be read does not come back by itself: the call ends as a
- * failure with cause `credential`, not as an unavailable that a caller waits on. No byte was sent,
- * so there is no upstream status.
- */
 function credentialFault(diagnostic: string): ModelFault {
   return { cause: 'credential', diagnostic, upstreamStatus: null }
 }
@@ -153,11 +147,6 @@ export function createAttemptRunner<P>(
     attempts.delete(id)
     return refused(failure)
   }
-  /**
-   * Ends a final refusal. A release failure keeps the attempt and its capacity held, as `stop`
-   * does, but the answer stays the definite one: a retryable unavailable would leave the caller
-   * waiting on a call that cannot be sent.
-   */
   async function stopFinal(
     id: string,
     attempt: SendAttempt<P>,
@@ -172,10 +161,6 @@ export function createAttemptRunner<P>(
     attempts.delete(id)
     return refused(failure)
   }
-  /**
-   * The secrets of the fixed credential layer. A refused layer is final for this dispatch: it
-   * carries a credential fault. A source that cannot answer now is not.
-   */
   function resolveCredential(
     attempt: SendAttempt<P>,
     selection: CredentialSelection,
@@ -229,7 +214,6 @@ export function createAttemptRunner<P>(
     const acquired = await resources.acquire(input)
     if ('failure' in acquired) return acquired
     attempt.lifetime.resource = acquired.ok
-    // A send is a first dispatch until a re-dispatch after `replay-rejected` names its messages.
     const prepared = await acquired.ok.transport.prepare(input.request, input.supplier, {
       resent: [],
     })
@@ -339,7 +323,6 @@ export function createAttemptRunner<P>(
       return { kind: 'complete', result: unknown(attempt, 'materialization-commit-unknown') }
     if (result.kind === 'rejected')
       return { kind: 'complete', result: stop(id, attempt, result.failure) }
-    // The materialization write opened the receive window too: the send comes next.
     attempt.stage = { kind: 'start', revision: result.value.revision }
     return { kind: 'continue' }
   }
@@ -353,7 +336,6 @@ export function createAttemptRunner<P>(
       return { kind: 'complete', result: unknown(attempt, 'receive-window-commit-unknown') }
     if (result.kind === 'rejected')
       return { kind: 'complete', result: stop(id, attempt, result.failure) }
-    // Only a refusal opens a window on its own: a materialization opens it in its own write.
     return recordStarted(id, attempt, buildRecord(attempt, result.value, operation(), entry.next))
   }
   function startQualified(attempt: SendAttempt<P>, receipt: MaterializationReceipt): SendStart {
@@ -416,15 +398,12 @@ export function createAttemptRunner<P>(
     attempt.stage = recording
     return recording
   }
-  /** A refusal whose not-sent record was definitely rejected: nothing was committed or sent. */
   async function rejectedRefusal(
     id: string,
     attempt: SendAttempt<P>,
     decision: Extract<SendStart, { kind: 'refused' }>,
     rejection: ModelFailure,
   ): Promise<Completion> {
-    // A final refusal must not come back as a retryable unavailable: the write rejection is the
-    // definite answer of the record owner.
     if (decision.fault !== undefined)
       return { kind: 'complete', result: stopFinal(id, attempt, rejection) }
     try {
@@ -475,11 +454,6 @@ export function createAttemptRunner<P>(
       },
     }
   }
-  /**
-   * Prepares the write that records a final refusal as the terminal of the not-sent dispatch, in
-   * the receive window this attempt opened. Nothing was started, so the window holds this one fact.
-   * The stage keeps the write, so a retry after an unconfirmed result uses the same operation.
-   */
   function terminalStage(
     attempt: SendAttempt<P>,
     revision: RecordSend['expected'],
@@ -504,7 +478,6 @@ export function createAttemptRunner<P>(
       },
     }
   }
-  /** Writes the terminal so the driver can settle the call with it. Unconfirmed stays unknown. */
   async function recordTerminal(
     id: string,
     attempt: SendAttempt<P>,
@@ -513,8 +486,6 @@ export function createAttemptRunner<P>(
     const written = await write(attempt, entry.write)
     if (written.kind === 'unconfirmed')
       return { kind: 'complete', result: unknown(attempt, 'credential-terminal-unconfirmed') }
-    // A definite rejection (stale instance, conflict, denied) is returned as it is, so the caller
-    // does not wait on the credential's retryable unavailable.
     const failure = written.kind === 'rejected' ? written.failure : entry.failure
     return { kind: 'complete', result: stopFinal(id, attempt, failure) }
   }

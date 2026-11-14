@@ -48,7 +48,6 @@ function must<T>(outcome: Outcome<T, unknown>): T {
   throw new Error(`expected success, got ${JSON.stringify(outcome.failure)}`)
 }
 
-/** A principal with a method: the double keeps it by reference and compares it by identity. */
 class Agent {
   readonly name: string
   constructor(name: string) {
@@ -158,7 +157,6 @@ const bound = (supplier: ProfileSupplier, credential: Supplier['credential']): S
 
 const temperature = { kind: 'temperature', value: 0.5 } as const
 const topP = { kind: 'top-p', value: 0.9 } as const
-/** One explicit adoption of `parameter` for each supplier of the profile, in supplier order. */
 const explicitFor = (parameter: Parameter): ParameterAdoption[] =>
   [first, second].map(supplier => ({
     supplier: supplier.adoption,
@@ -167,7 +165,6 @@ const explicitFor = (parameter: Parameter): ParameterAdoption[] =>
   }))
 const adoptions = (): ParameterAdoption[] => explicitFor(temperature)
 
-/** The script misuse that a refused registration throws, with the message that names its check. */
 const misuseOf = (message: string) => ({ reason: 'invalid-script', message })
 
 const plan = (): ScriptedModelPreparationPlan => ({
@@ -198,10 +195,6 @@ type Step =
   | Readonly<{ kind: 'fail'; failure: TransportFailure }>
   | Readonly<{ kind: 'throw'; error: Error }>
 
-/**
- * A transport made for these tests: each prepare follows the next step and hands out a new
- * prepared object, so that the leases of two calls can be told apart.
- */
 function recordingTransport(steps: readonly Step[] = []) {
   const seen: { request: FixedModelRequest; supplier: Supplier; dispatch: TransportDispatch }[] = []
   const leases: Lease[] = []
@@ -369,10 +362,6 @@ describe('suppliers and parameter adoptions (M11)', () => {
   })
 })
 
-/**
- * Each check of a plan registration has one case whose plan breaks that check alone. The case
- * asserts the message that names the check and that the plan registered before is still used.
- */
 describe('each plan check has a case that breaks only it (M11)', () => {
   function planned() {
     const fixture = setup()
@@ -665,8 +654,6 @@ describe('the transport lifecycle (M13 to M16)', () => {
     const held = new Promise<void>(resolve => {
       release = resolve
     })
-    // The test transport gives a signal when the close begins and keeps the close open until
-    // `release`.
     let signal: () => void = () => undefined
     const closing = new Promise<void>(resolve => {
       signal = resolve
@@ -682,8 +669,6 @@ describe('the transport lifecycle (M13 to M16)', () => {
       return outcome
     })
     await closing
-    // One macrotask runs every queued microtask: a call that does not wait for the close has
-    // settled when it ends. The count of microtask turns that the double takes does not matter.
     await new Promise<void>(resolve => {
       setImmediate(resolve)
     })
@@ -761,7 +746,6 @@ describe('the read order and the record of attempts (M17)', () => {
       assembled: assembled(),
       ...over,
     })
-    // No plan is set at all: each answer below comes before the lookup.
     expect(await scripted.preparation.prepare(input())).toEqual({
       failure: { kind: 'denied', action: 'prepare' },
     })
@@ -823,14 +807,12 @@ describe('the read order and the record of attempts (M17)', () => {
         required: requirement(),
         assembled: assembled(),
       })
-    // No plan is set at all: each answer below comes before the lookup.
     expect(await prepareFor(mint('2', '3').organization)).toEqual({
       failure: { kind: 'denied', action: 'prepare' },
     })
     expect(await prepareFor(structuredClone(access.tenant.organization))).toEqual({
       failure: { kind: 'invalid', field: 'profile.identity.scope', reason: 'invalid-identity' },
     })
-    // The scope of the tenant's own organization passes, so the call reaches the plan lookup.
     const own = await rejection(prepareFor(mint('1', '2').organization))
     expect(own).toMatchObject({ reason: 'invalid-script', message: 'no scripted preparation plan' })
     expect(recorded.seen).toHaveLength(0)

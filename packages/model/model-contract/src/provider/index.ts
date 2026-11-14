@@ -1,11 +1,3 @@
-// The `./provider` entry of the Model contract package: the provider protocol. It re-exports,
-// from the same source files as the root entry, the names that only the implementation members
-// of the Model group use (model, model-host-local, pi-ai-*, tokenizer-tiktoken,
-// model-cordis-contract, and the tests of this package): the ports that external providers
-// implement, the protocol records between providers, the credential resolution port, the
-// conversion and tokenizer ports, the host driver, and the contract functions that only providers
-// call. It does not import Cordis or another Model member, and it exports nothing of `./testing`
-// or `./conformance`. A name is exported from exactly one of the root and provider entries.
 export type { ActorRef, FixedRequestHead } from '../root.ts'
 export type {
   CallAccountReport,

@@ -29,8 +29,6 @@ async function failures(defect: Defect | 'real' | 'reference'): Promise<string[]
   return failed.sort()
 }
 
-// The cases that hold the rule that each defect breaks. A defect can also turn a neighbouring
-// case red; the list is the exact set, so a case that stops noticing its defect shows here.
 const EXPECTED_RED: Record<Defect, readonly string[]> = {
   'overwrite-live': ['live-conflict-fails-the-second'],
   'refuse-unloading': ['unloading-registration-is-replaced'],

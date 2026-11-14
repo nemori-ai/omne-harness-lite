@@ -40,7 +40,6 @@ const done = (): IteratorResult<ModelObservationFrame> => ({ done: true, value: 
 const publicReason = (failure: StreamCheckFailure): StreamEndReason =>
   failure === 'cold' ? 'unavailable' : failure
 
-/** One FIFO owns its own logical bytes, deadline, listener and last delivered cursor. */
 export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservation<P> {
   return {
     observe(original) {
@@ -123,7 +122,6 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
             if (request.signal.aborted) return { kind: 'ended', reason: 'observer-closed' }
             return held
           }
-          /** Before an open delivery: qualification, abort and residence; false once it held a terminal. */
           function recheck(): boolean {
             const checked = ports.check(request)
             if ('failure' in checked) {
@@ -190,7 +188,6 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
             push: enqueue,
             end: reason => hold({ kind: 'ended', reason }),
           }
-          /** The current timer is due: recheck the open observation, deliver, then arm the next one. */
           function elapse(controller: AbortController, result: 'elapsed' | 'cancelled'): void {
             if (timer !== controller || phase !== 'open' || result === 'cancelled') return
             timer = null
@@ -239,7 +236,6 @@ export function createStreamObservation<P>(ports: Ports<P>): ModelStreamObservat
               abort()
               return
             }
-            // Snapshot capture and watcher insertion share this synchronous section.
             const frame: Body = { kind: 'snapshot', cursor: target.cursor, value: target.snapshot }
             target.watchers.add(watcher)
             enqueue(frame)

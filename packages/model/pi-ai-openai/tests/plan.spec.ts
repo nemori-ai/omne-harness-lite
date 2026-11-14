@@ -1,5 +1,3 @@
-// Parameter planning on the OpenAI records through the binding: the supported subset passes, and
-// the sealed parameter drops and the efforts a record does not publish fail before sending.
 import { describe, expect, it } from 'vitest'
 import { recordAdoption } from '@omne-harness/pi-ai-transport'
 import { writeJsonText } from '@omne-harness/json-text'
@@ -176,7 +174,6 @@ describe('request body', () => {
     await binding.release()
   })
 
-  // Sealed official-openai-routes.spec.ts:181-234: a tool call without its result is refused.
   it('refuses an orphaned tool call instead of sending it', async () => {
     const binding = await bindingOf(ASTRA)
     const request = fixedRequest(ASTRA, {

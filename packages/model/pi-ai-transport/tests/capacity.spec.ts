@@ -6,12 +6,10 @@ import {
   type ConsumedSeat,
 } from '../src/capacity.ts'
 
-/** Lets every queued promise job and one macrotask run. */
 async function settle(): Promise<void> {
   await new Promise<void>(resolve => setImmediate(resolve))
 }
 
-/** Observes a reserve promise without awaiting it. */
 function watch(promise: Promise<ConnectionReservation | undefined>) {
   const observed: { done: boolean; value: ConnectionReservation | undefined } = {
     done: false,

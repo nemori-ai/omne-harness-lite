@@ -1,23 +1,4 @@
 // @module-tag slow — the recorder of real requests: one HTTPS request through the environment's
-// proxy, which adds the real credential, and a recording written into the pi transport's fixtures.
-// It runs only when OMNE_LIVE_TESTS=1 and OMNE_RECORD_CASE names a case, and skips at run time
-// otherwise: a `skipIf` would make the slow tier's pre-parse drop the whole file. A run costs
-// money, so no default case exists.
-//
-// Environment, read only at this test boundary:
-// - OMNE_RECORD_CASE: one of ALL_RECORD_CASE_NAMES, which holds the four reasoning cases and the
-//   two tool-call cases (`openai-tool-call`, then `openai-tool-call-continued`, model
-//   `openai/gpt-5.6-sol`). A continued case replays its first round's recording from the same
-//   output root, so the first round is recorded before it. The synthetic pieces of the tool-call
-//   cases below this package's `tests/fixtures/recordings/` are not read from there: the recorder
-//   writes `stream.sse` and `recording.json` into the output root.
-// - OMNE_RECORD_OUT: the root of the recordings. Default: pi-ai-transport's
-//   `tests/fixtures/recordings/`. An existing recording is never replaced.
-// - OMNE_RECORD_TARGET: the gateway origin. Default: `https://openrouter.ai/`.
-// - OMNE_RECORD_CA: a PEM file that the host trusts instead of Node's default authorities; only
-//   for a local target.
-// - HTTPS_PROXY and NO_PROXY: the proxy and its bypass list. The proxy is required.
-// The credential variables are never read: the vault holds a placeholder.
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -38,7 +19,6 @@ const DEFAULT_OUTPUT = fileURLToPath(
   new URL('../../../pi-ai-transport/tests/fixtures/recordings/', import.meta.url),
 )
 const DEFAULT_TARGET = 'https://openrouter.ai/'
-/** A real gateway through a proxy may take longer to connect than a local server. */
 const CONNECT_TIMEOUT_MS = 30_000
 
 function proxyFromEnvironment(): ProxyConfig {
@@ -70,7 +50,6 @@ it('records one real request of the named case', { timeout: 300_000 }, async ctx
   try {
     let request = firstRoundRequest(item)
     if (item.round.kind === 'continued') {
-      // The first round's request and its reply, replayed from its recording on this machine.
       const first = firstRoundRequest(RECORD_CASES[item.round.first])
       const replayed = await replayRound({
         request: first,
@@ -94,7 +73,6 @@ it('records one real request of the named case', { timeout: 300_000 }, async ctx
       vault,
       now: () => new Date(),
     })
-    // The outcome holds no header, no body and no matched secret; it is safe to print.
     console.info(`recorder ${name}: ${JSON.stringify(outcome)}`)
     expect(outcome.kind).toBe('written')
   } finally {

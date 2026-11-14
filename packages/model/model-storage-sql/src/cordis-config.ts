@@ -3,7 +3,6 @@ import type { ModelConsumerOwnerDeclaration } from '@omne-harness/model-contract
 import type { ModelObservationLimits } from '@omne-harness/model/commands'
 import type { SqlModelCommandsOptions } from './commands.ts'
 
-/** Data for one records plugin life. Every bound is explicit. */
 export type SqlModelRecordsConfig = Readonly<
   Pick<SqlModelCommandsOptions<unknown>, 'owners' | 'limits' | 'requestChunkBytes'> & {
     observation?: ModelObservationLimits
