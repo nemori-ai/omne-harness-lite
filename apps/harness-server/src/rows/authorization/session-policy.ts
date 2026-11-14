@@ -145,6 +145,11 @@ export const SESSION_POLICY = Object.freeze({
     member('SS:588，DA4 §4.1'),
     deny(OUTSIDE_MATRIX),
   ),
+  retryRun: row(
+    member('与 `cancelRun` 相同：SW:265 J-SW06，`session/v1` 的 `retry-run`，SS:588'),
+    member('与 `cancelRun` 相同：SS:588，DA4 §4.1'),
+    deny(OUTSIDE_MATRIX),
+  ),
   stopCall: row(
     member('SW:265 J-SW06，PC:454 `stop-call`，SS:588'),
     member('SS:588，DA4 §4.1'),

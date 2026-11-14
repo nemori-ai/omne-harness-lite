@@ -70,6 +70,7 @@ const WAKES_ADVANCE: ReadonlySet<MutationName> = new Set([
   'receive',
   'control',
   'cancelRun',
+  'retryRun',
   'interrupt',
   'completeInitialization',
 ])

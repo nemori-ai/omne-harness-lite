@@ -293,6 +293,21 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
   return { kind: 'eligible', first }
 }
 
+export function judgeRetryRun(
+  snapshot: WorkSnapshot,
+  run: RunId,
+): 'archived' | 'frozen' | 'not-found' | 'nothing-pending' | null {
+  if (snapshot.lifecycle === 'archived') return 'archived'
+  if (snapshot.frozen !== null) return 'frozen'
+  if (
+    snapshot.awaitingPerson !== true ||
+    snapshot.run.kind !== 'terminal' ||
+    snapshot.run.terminal.run !== run
+  )
+    return 'not-found'
+  return snapshot.pending.length === 0 ? 'nothing-pending' : null
+}
+
 /**
  * The open work of one committed snapshot (EC-03, ST20, ST24b).
  */
@@ -364,9 +379,14 @@ export function judgeCompletion(snapshot: WorkSnapshot, execution: string): Comp
 
 export function resolveControlScope(snapshot: WorkSnapshot, intent: ControlIntent): ControlScope {
   const control = intent.kind === 'control' ? intent.value : null
-  if (control?.kind === 'unarchive') {
-    if (snapshot.lifecycle !== 'archived')
-      return { kind: 'invalid', reason: 'the session is not archived' }
+  if (control?.kind === 'unarchive' || control?.kind === 'retry-run') {
+    const refusal =
+      control.kind === 'retry-run'
+        ? judgeRetryRun(snapshot, control.run)
+        : snapshot.lifecycle === 'archived'
+          ? null
+          : 'the session is not archived'
+    if (refusal !== null) return { kind: 'invalid', reason: refusal }
     return {
       kind: 'scope',
       producers: [],

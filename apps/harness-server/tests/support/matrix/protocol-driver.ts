@@ -59,6 +59,11 @@ export type ProtocolDriver = Readonly<{
     reasks: number
   }>
   cancelRun(session: string, run: string): Promise<string>
+  retryRun(
+    session: string,
+    run: string,
+    controlId: string,
+  ): Promise<{ outcome: string; recovered: boolean | null }>
   observe(session: string): Observation
   currentRun(session: string, timeoutMs: number): Promise<string | null>
   rawOutcome(call: 'list-sessions' | 'read-history', session?: string): Promise<string>
@@ -214,6 +219,13 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
         urgency: 'graceful',
       })
       return answer.outcome
+    },
+    retryRun: async (id, run, controlId) => {
+      const answer = await session['retry-run']({ ...target(id), run, controlId })
+      return {
+        outcome: answer.outcome,
+        recovered: answer.outcome === 'succeeded' ? answer.body.recovered : null,
+      }
     },
     observe: id => {
       const controller = new AbortController()

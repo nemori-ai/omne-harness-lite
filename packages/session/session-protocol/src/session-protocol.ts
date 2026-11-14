@@ -285,6 +285,22 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
+    'retry-run': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text }, run: { rule: text } })),
+      outcomes: {
+        succeeded: ruleCodec(object({ recovered: { rule: boolean } })),
+        invalid: empty,
+        archived: empty,
+        frozen: empty,
+        'not-found': empty,
+        'no-change': empty,
+        conflict: empty,
+      },
+      countsAsAccess: true,
+    },
   },
   observations: {
     'observe-session': {

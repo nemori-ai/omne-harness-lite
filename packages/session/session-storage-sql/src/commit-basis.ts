@@ -83,6 +83,7 @@ const commandKinds = {
   interrupt: true,
   cancelRun: true,
   stopCall: true,
+  retryRun: true,
   freeze: true,
   receive: true,
 } satisfies Record<MutationName, true>

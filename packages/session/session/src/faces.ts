@@ -49,7 +49,6 @@ export function createFaces<P>(
       const { principal, ...rest } = value
       // The face input is the command input plus the principal; the kind fixes which command it is.
       const command = { kind, input: rest } as SessionCommand
-      // The handler answers with the result of the commit of this very command kind.
       return handle(caller, command, principal) as ReturnType<FaceMutations<P>[K]>
     }
 
@@ -93,6 +92,7 @@ export function createFaces<P>(
       ),
     cancelRun: mutation('cancelRun'),
     stopCall: mutation('stopCall'),
+    retryRun: mutation('retryRun'),
     queryControlOperation: value =>
       reads.session(caller, 'queryControlOperation', value, view =>
         view.queryControlOperation({ ...accessOf(value), operation: value.operation }),

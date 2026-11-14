@@ -197,6 +197,7 @@ function controlOf(
     case 'archive':
       return succeed({ kind: 'cancel', reason })
     case 'unarchive':
+    case 'retry-run':
       return succeed(null)
     default: {
       const unknown: never = intent
@@ -335,7 +336,7 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       const reason = sessionBasis(tenant, input.session, input.control)
       const command = controlOf(input.intent, input.tenant, reason)
       if ('failure' in command) return this.defect('control', command.failure.diagnostic)
-      // unarchive is reconciled by the original Session command; Agent is not called.
+      // unarchive and retry-run are reconciled by the original Session command; Agent is not called.
       if (command.ok === null) return fail({ kind: 'unsupported' })
       const answer = await this.scope.agentExecutionControl.control({
         ...mutation,

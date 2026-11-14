@@ -157,6 +157,7 @@ export type Control =
   | Readonly<{ kind: 'background-tool'; producer: Extract<ProducerRef, { kind: 'tool' }> }>
   | Readonly<{ kind: 'archive' }>
   | Readonly<{ kind: 'unarchive' }>
+  | Readonly<{ kind: 'retry-run'; run: RunId }>
 export type ControlIntent =
   | Readonly<{ kind: 'control'; value: Control }>
   | Readonly<{

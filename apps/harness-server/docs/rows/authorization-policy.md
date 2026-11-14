@@ -161,6 +161,7 @@
 | `interrupt`                   | 放行（成员）                                       | 拒绝                                | 拒绝                                                           |
 | `cancelRun`                   | 放行（成员）                                       | 放行（成员）                        | 拒绝                                                           |
 | `stopCall`                    | 放行（成员）                                       | 放行（成员）                        | 拒绝                                                           |
+| `retryRun`                    | 放行（成员）                                       | 放行（成员）                        | 拒绝                                                           |
 | `freeze`                      | 拒绝                                               | 放行（成员）                        | 拒绝                                                           |
 | `receive`                     | 拒绝                                               | 放行（成员）                        | 放行（矩阵 scope-release-receive），只限事实种类 scope-release |
 | `readWork`                    | 拒绝                                               | 放行（成员）                        | 拒绝                                                           |
@@ -281,6 +282,10 @@
 - `stopCall`
   - L：出处：SW:265 J-SW06，PC:454 `stop-call`，SS:588
   - W：出处：SS:588，DA4 §4.1
+  - S：拒绝依据：矩阵外（AU-12 第 2 步）
+- `retryRun`
+  - L：出处：与 `cancelRun` 相同：SW:265 J-SW06，`session/v1` 的 `retry-run`，SS:588
+  - W：出处：与 `cancelRun` 相同：SS:588，DA4 §4.1
   - S：拒绝依据：矩阵外（AU-12 第 2 步）
 - `freeze`
   - L：拒绝依据：无放行出处

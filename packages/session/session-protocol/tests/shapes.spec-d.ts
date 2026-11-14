@@ -34,7 +34,7 @@ type Empty = Readonly<Record<string, never>>
 type Instant = RuleValue<{ readonly kind: 'instant' }>
 type Limited = { readonly resource: 'pending-inputs' | 'input-bytes'; readonly limit: number }
 
-test('the operations are exactly the eight of session/v1', () => {
+test('the operations are exactly the nine of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
@@ -44,6 +44,7 @@ test('the operations are exactly the eight of session/v1', () => {
     | 'list-sessions'
     | 'cancel-run'
     | 'stop-call'
+    | 'retry-run'
   >()
   expectTypeOf<keyof SessionProtocol['observations']>().toEqualTypeOf<'observe-session'>()
   expectTypeOf(sessionProtocol.name).toEqualTypeOf<'session'>()
@@ -145,10 +146,26 @@ test('the outcome names are the old ones plus protocol-rejected', () => {
   expectTypeOf<Names<'read-history'>>().toEqualTypeOf<Expected<'read-history'>>()
   expectTypeOf<Names<'cancel-run'>>().toEqualTypeOf<Expected<'cancel-run'>>()
   expectTypeOf<Names<'stop-call'>>().toEqualTypeOf<Expected<'stop-call'>>()
-  // The one operation the old family lacks.
+  // The two operations the old family lacks.
   expectTypeOf<Names<'list-sessions'>>().toEqualTypeOf<
     'succeeded' | 'invalid' | 'denied' | 'basis-unavailable' | 'protocol-rejected'
   >()
+  expectTypeOf<Names<'retry-run'>>().toEqualTypeOf<
+    | 'succeeded'
+    | 'invalid'
+    | 'archived'
+    | 'frozen'
+    | 'not-found'
+    | 'no-change'
+    | 'conflict'
+    | 'unknown'
+    | 'denied'
+    | 'basis-unavailable'
+    | 'protocol-rejected'
+  >()
+  expectTypeOf<ResultBody<'retry-run', 'succeeded'>>().toEqualTypeOf<{
+    readonly recovered: boolean
+  }>()
 })
 
 test('fixed outcomes are declared as true, so their body is always empty', () => {

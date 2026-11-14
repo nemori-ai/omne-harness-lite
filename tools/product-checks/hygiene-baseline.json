@@ -4067,7 +4067,7 @@
       },
       "apps/harness-server/src/rows/session-provider/faces.ts": {
         "count": 1,
-        "longest": 336
+        "longest": 335
       },
       "apps/harness-server/src/rows/tool-hitl/bridge.ts": {
         "count": 1,

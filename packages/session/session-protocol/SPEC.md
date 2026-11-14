@@ -5,12 +5,12 @@
 ## 范围与依据
 
 - 设计源：[RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md)「共同契约」「协议怎样划分」「会话观察」「成员怎么放，依赖方向」四节。成员落点与允许的依赖见[成员组织](../../../docs/package-organization.md)「`<领域>-protocol`」一行。
-- 状态：候选。契约与用例已建；接入插件 `session-access` 已按它写了八个处理函数；客户端核心对它的消费还没有做。
-- 操作清单从哪来：现有家族 `session-public/1`（共同契约成员的 `session-rules.ts`、`session-messages.ts`）的八个操作，去掉 `read-session-diagnostics`（它归 `session-diagnostics/v1`），得到七个；再加 `list-sessions`（[RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 8 节「列出会话」），它在旧家族里没有，同一个主版本里加。
+- 状态：候选。契约与用例已建；接入插件 `session-access` 已按它写了九个处理函数；客户端核心对它的消费还没有做。
+- 操作清单从哪来：现有家族 `session-public/1`（共同契约成员的 `session-rules.ts`、`session-messages.ts`）的八个操作，去掉 `read-session-diagnostics`（它归 `session-diagnostics/v1`），得到七个；再加 `list-sessions`（[RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 8 节「列出会话」），它在旧家族里没有，同一个主版本里加；再加 `retry-run`，同样只在本家族。
 
 ## 结果与不变量
 
-<a id="operations"></a>**八个操作。** `create-session`、`query-create-session`、`send-input`、`query-send-input`、`read-history`、`list-sessions`、`cancel-run`、`stop-call`。三栏按 RFC-0015 第 7 节的规则机械地得到：
+<a id="operations"></a>**九个操作。** `create-session`、`query-create-session`、`send-input`、`query-send-input`、`read-history`、`list-sessions`、`cancel-run`、`stop-call`、`retry-run`。三栏按 RFC-0015 第 7 节的规则机械地得到：
 
 | 操作                   | 身份要求        | 效果     | 体上限  |
 | ---------------------- | --------------- | -------- | ------- |
@@ -22,10 +22,11 @@
 | `list-sessions`        | `login`         | `read`   | `small` |
 | `cancel-run`           | `login`         | `commit` | `small` |
 | `stop-call`            | `login`         | `commit` | `small` |
+| `retry-run`            | `login`         | `commit` | `small` |
 
-八个操作与观察都标 `countsAsAccess`：答 `succeeded`（观察：建立成功）算一次业务访问。没有操作标 `carriesCredential`。
+九个操作与观察都标 `countsAsAccess`：答 `succeeded`（观察：建立成功）算一次业务访问。没有操作标 `carriesCredential`。
 
-<a id="differences"></a>**和旧家族的六处差别。** 其余的消息体、成功体、结果集逐字段相同：
+<a id="differences"></a>**和旧家族的七处差别。** 其余的消息体、成功体、结果集逐字段相同：
 
 1. `create-session` 的 `definition` 可以不给。不给时取哪个定义是接入插件的行为，不在本契约里。
 2. `defineProtocol` 给每个操作并进 `protocol-rejected`、`basis-unavailable`、`denied`，给提交类并进 `unknown`。旧家族的结果集本来就有后三个，所以实际多出来的只有 `protocol-rejected`。
@@ -33,6 +34,9 @@
 4. `query-create-session`、`query-send-input` 的效果是 `read`，但结果里手写了 `unknown`：查询本身可能答不出那次提交的结局，这是旧家族就有的结果。
 5. `read-history` 的成功体多一个字段 `upper`：这一轮读取固定的会话修订号。旧家族没有带出它，读者就没有办法把历史页和状态帧对上，见[会话修订号与读历史](#revisions)。
 6. 多一个操作 `list-sessions`，旧家族没有，见[列出会话](#list-sessions)。
+7. 多一个操作 `retry-run`，旧家族没有，见[重试](#retry-run)。
+
+<a id="retry-run"></a>**重试 `retry-run`。** 身份要求 `login`，提交类，体上限 `small`，业务访问。消息体 `{ tenant, session, controlId, run }`：`run` 是失败的那一轮。成功体 `{ recovered }`，同一个 `controlId` 再发一次时为 `true`。自己的结果：`invalid`、`archived`、`frozen`、`not-found`（`run` 不是会话在等的那一轮失败）、`no-change`（会话在等人，但没有待处理的输入）、`conflict`，体都为空。会话契约里的 `nothing-pending` 在公开结果的封闭集合里没有同名的一项，这里答 `no-change`。哪种情形答哪个结果归会话，见[包组规格](../SPEC.md)「等人」。
 
 <a id="list-sessions"></a>**列出会话 `list-sessions`。** 身份要求 `login`，只读，体上限 `small`，业务访问。消息体 `{ tenant, cursor, limit?, includeArchived? }`：`tenant` 是目标租户；`cursor` 是上一页的 `next` 原文，第一页给 `null`；`limit` 不给时用部署的默认值，超过部署的上界答 `invalid`；`includeArchived` 不给时不含已归档的会话。成功体 `{ sessions, next, completeness }`：
 
@@ -94,6 +98,7 @@
 - [tests/operations.spec.ts](tests/operations.spec.ts)：遍历操作表核三栏、算业务访问、结果名，`list-sessions` 的三栏与它唯一的自有结果 `invalid`，以及两个查询的 `unknown`、唯一的 `input` 与唯一的 `acting-tenant`。
 - [tests/shapes.spec-d.ts](tests/shapes.spec-d.ts)：类型断言核每个操作的请求体、成功体、`limited` 与空体、结果名集合与旧家族相同，差别逐处写明（含 `list-sessions` 自己的体与结果名）；观察的帧恰好五种。
 - [tests/wire.spec.ts](tests/wire.spec.ts)：合规样本新旧两边读出的值相同且写回原样；不合规样本两边都拒绝；`create-session` 带与不带 `definition`；`list-sessions` 没有旧家族，单独核消息体与成功体的合规与不合规样本。
+- [tests/retry-run.spec.ts](tests/retry-run.spec.ts)：`retry-run` 没有旧家族，单独核三栏、自有结果、消息体与成功体的合规与不合规样本。
 - [tests/observe-session.spec.ts](tests/observe-session.spec.ts)：观察的身份、建立点、结束原因，每种帧读写来回，`state` 的三个可空字段，种类不认识的帧被拒绝。
 - [tests/browser-fixture.spec.ts](tests/browser-fixture.spec.ts)（慢层）：不带 Node 类型、带 DOM 的消费者工程把包入口编过去。
 - 未覆盖：依赖规则（`tools/repo-config`）还没有守本包的纯度与 I-17，现在靠上面的浏览器夹具和 `git grep` 核。

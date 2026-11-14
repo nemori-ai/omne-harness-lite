@@ -42,10 +42,12 @@ export function decideControl(
   const archive =
     intent.kind === 'auto-archive' || (intent.kind === 'control' && intent.value.kind === 'archive')
   const unarchive = intent.kind === 'control' && intent.value.kind === 'unarchive'
+  const retry = intent.kind === 'control' && intent.value.kind === 'retry-run'
   const target: ControlProgress['target'] =
     intent.kind === 'interrupt'
       ? { kind: 'run', run: intent.run }
-      : intent.kind === 'control' && intent.value.kind === 'cancel-run'
+      : intent.kind === 'control' &&
+          (intent.value.kind === 'cancel-run' || intent.value.kind === 'retry-run')
         ? { kind: 'run', run: intent.value.run }
         : intent.kind === 'control' &&
             (intent.value.kind === 'stop-call' || intent.value.kind === 'background-tool')
@@ -55,7 +57,7 @@ export function decideControl(
     operation,
     target,
     intent,
-    state: unarchive ? 'reconciled' : 'propagating',
+    state: unarchive || retry ? 'reconciled' : 'propagating',
     pending: scope.producers,
     pendingUnassociatedWaiting: scope.unassociatedWaiting ?? [],
   }
