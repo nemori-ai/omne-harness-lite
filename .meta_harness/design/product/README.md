@@ -23,7 +23,7 @@
 | [工作区产品设计](workspaces/design.md) | [未决](workspaces/design.md#未决问题与待定事项) | [领域](../../../docs/domains/workspaces/README.md) | [工程与规格](../../../packages/workspace/SPEC.md#总体架构) |
 | [执行环境产品设计](execution-environments/design.md) | [未决](execution-environments/design.md#未决问题与待定事项) | [领域](../../../docs/domains/execution-environments/README.md) | 工程与规格（`packages/execution/SPEC.md`） |
 | [Skill产品设计](skills/design.md) | [未决](skills/design.md#未决问题与待定事项) | [领域](../../../docs/domains/skills/README.md) | [工程与规格](../../../packages/skills/SPEC.md) |
-| [Slash Command产品设计](slash-commands/design.md) | [未决](slash-commands/design.md#未决问题与待定事项) | [领域](../../../docs/domains/slash-commands/README.md) | [工程与规格](../../../packages/slash-command/README.md) |
+| [Slash Command产品设计](slash-commands/design.md) | [未决](slash-commands/design.md#未决问题与待定事项) | [领域](../../../docs/domains/slash-commands/README.md) | [工程与规格](../../../packages/slash-command/SPEC.md) |
 | [MCP产品设计](mcp/design.md) | [未决](mcp/design.md#未决问题与待定事项) | [领域](../../../docs/domains/mcp/README.md) | [工程与规格](../../../packages/mcp/SPEC.md) |
 | [人在回路产品设计](human-intervention/design.md) | [未决](human-intervention/design.md#未决问题与待定事项) | [领域](../../../docs/domains/human-intervention/README.md) | [工程与规格](../../../packages/human-intervention/SPEC.md#总体架构) |
 | [日历产品设计](calendars/design.md) | [未决](calendars/design.md#未决问题与待定事项) | [领域](../../../docs/domains/calendars/README.md) | [工程与规格](../../../packages/calendar/SPEC.md) |

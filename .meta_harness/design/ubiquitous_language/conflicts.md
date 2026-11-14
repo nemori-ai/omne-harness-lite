@@ -357,7 +357,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-61：斜杠命令受理依赖已移除的位置
 
 - **类型**：定义打架，外域。2026-10-17 用户决定移除消息落盘之前位置后发现。
-- **来源**：[slash-commands 产品页](../product/slash-commands/design.md)、[领域流程](../../../docs/domains/slash-commands/key-flows.md)与[包架构](../../../packages/slash-command/docs/architecture.md)依赖该位置做展开、脱敏与否决。[UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) 的出处引用封存 PF-014 §5.6，该节标题含已移除的位置名。
+- **来源**：[slash-commands 产品页](../product/slash-commands/design.md)、[领域流程](../../../docs/domains/slash-commands/key-flows.md)与[包组规格](../../../packages/slash-command/SPEC.md#受理与内容交接)依赖该位置做展开、脱敏与否决。[UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) 的出处引用封存 PF-014 §5.6，该节标题含已移除的位置名。
 - **处理**：产品负责人于 2026-10-19 裁定：消息持久化归会话，不归 Agent。所以消息落盘之前与之后的处理不是 Loop 拓展点，而是会话的[业务流程拓展点](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)。斜杠命令的展开、脱敏与否决挂在会话的业务流程拓展点上。omne-harness 的拓展点因此分两类：会话的业务流程拓展点与 Agent 的 Loop 拓展点，两类并列。
 - **负责与闭合条件**：会话领域定义消息持久化前后的业务流程拓展点；slash-commands 产品页、领域流程与包架构改挂到这些拓展点；hooks 导入专题的 UserPromptSubmit 同样改挂。会话领域定义这些拓展点时一并写明：展开与脱敏改变的是尚未受理、尚未落定的输入，与业务流程拓展点“不改变已经落定的事实、不对会话日志留下持久化影响”的定义性质怎样相容。各页回改后闭合。
 - **状态**：已裁定，待会话领域定义拓展点与各页回改。

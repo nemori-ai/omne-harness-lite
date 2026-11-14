@@ -1,6 +1,6 @@
 # Slash Command跨领域关键流程
 
-状态：技术协作草案。图表达责任，不指定线程、进程或寿命；完整 INV 与 V 仍为正式成员承接缺项，责任见[正式承接缺口](../../../packages/slash-command/docs/architecture.md#完整行为候选的正式承接缺口)。
+状态：技术协作草案。图表达责任，不指定线程、进程或寿命；不变式见[包组规格](../../../packages/slash-command/SPEC.md#不变式)。
 
 ## F-SC02 交付预检与受理侧复核
 
