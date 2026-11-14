@@ -45,7 +45,6 @@ const defaults: StreamLimits = {
 const emptyResources = { subscriptions: 0, queuedFrames: 0, queuedBytes: 0, scheduledDeadlines: 0 }
 type End = { code: string }
 
-// This explicit call-codec substitute tests observer scheduling, not producer identity adapters.
 function identity(producer: StreamProducer = 'model', owner = tenant, stream = 'str_observer') {
   const encoded = tenantCodec.encode(owner)
   if (!encoded.ok) throw new Error('Invalid fixture owner')
@@ -120,7 +119,6 @@ const delta = (from: StreamCursor, cursor: StreamCursor, value: string) => ({
   value,
 })
 
-// Independent oracle: sorted keys spelled out, UTF-8 encoded without the fixture meter.
 function snapshotSize(cursor: StreamCursor, value: string): number {
   return Buffer.byteLength(
     `{"cursor":${JSON.stringify(cursor)},"kind":"snapshot","value":${JSON.stringify(value)}}`,
@@ -289,8 +287,6 @@ describe('identity, qualification and publication checks', () => {
     },
   )
 
-  // A call of another tenant is not refused as such (R2-D370): the observer's tenant has no such
-  // publication, so it ends as an unknown one does.
   it.each(['wrong-producer', 'unknown', 'another-tenant-call', 'retired'] as const)(
     'O05 exposes %s only after allow',
     async kind => {
@@ -517,7 +513,6 @@ describe('inclusive budgets and manual residence deadlines', () => {
       expect(await frame(reader)).toEqual(expected)
       expect(f.resources()).toEqual(emptyResources)
       expect(await reader.next()).toEqual({ done: true, value: undefined })
-      // A later observation still sees the original source end, with its own admission check.
       expect(await frame(iterator(f.observer, f.ref, access))).toEqual(expected)
     },
   )

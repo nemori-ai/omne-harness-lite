@@ -46,12 +46,9 @@ const call = JSON.stringify(['model-invocation', 2, 'mcall_a', 'mop_a'])
 const refText = JSON.stringify(['stream-ref', 1, 'model', call, 'str_a'])
 const c0 = JSON.stringify(['stream-cursor', 1, refText, '0'])
 const c10 = JSON.stringify(['stream-cursor', 1, refText, '10'])
-// Decoded fixtures are built inside each test, so a decoder fault fails that test rather than
-// the module load.
 const streamId = () => success(decodeStreamId('str_a'))
 const positionOf = (text: string) => success(decodeStreamPosition(text))
 
-// This is a protocol stub, not a Model identity adapter. Tenant minting is real.
 function codecStub() {
   const resolve = vi.fn(
     ({
@@ -246,7 +243,6 @@ describe('reference parsing and failure precedence', () => {
   })
 
   it('judges another minted tenant to the same reference and preserves a malformed call failure', () => {
-    // The call text carries no tenant (R2-D357), so the reference names no tenant either.
     expect(judgeStreamRef({ value: refText, tenant: otherTenant }, codecStub())).toEqual({
       ok: refText,
     })

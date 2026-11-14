@@ -1,4 +1,3 @@
-/** Copies legal typed value trees without minting identities or freezing caller values. */
 export function copyObservationValue<T>(value: T): T {
   if (typeof value !== 'object' || value === null) return value
   const fields = { ...value }
@@ -25,7 +24,6 @@ function canonicalJson(value: unknown): string | undefined {
   return `{${fields.join(',')}}`
 }
 
-/** Normative UTF-8 bytes, not a JavaScript heap measurement. */
 export function observationBytes(value: unknown): number {
   const text = canonicalJson(value)
   if (text === undefined) throw new TypeError('A frame must have a JSON representation')

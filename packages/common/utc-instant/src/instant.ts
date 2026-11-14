@@ -6,10 +6,8 @@ let fractionOf: (instant: Instant) => string
 let inserts: (table: LeapSecondData, day: string) => boolean
 let deletes: (table: LeapSecondData, day: string) => boolean
 
-// Only this module holds the token, so `new value.constructor(...)` from outside cannot mint.
 const MINT = Symbol('utc-instant mint')
 
-/** A UTC instant: calendar fields to the second plus the exact fraction digits it was written with. */
 class Instant {
   readonly #civil: string
   readonly #fraction: string
@@ -34,7 +32,6 @@ class Instant {
   }
 }
 
-/** A read leap-second table: where it came from, its version and expiry, and the days it lists. */
 class LeapSecondData {
   readonly #source: string
   readonly #version: Instant
@@ -92,11 +89,6 @@ export type LeapSecondDataRead =
   | { readonly ok: true; readonly value: LeapSecondData }
   | { readonly ok: false; readonly failure: LeapSecondsListFailure }
 
-/**
- * Reads the text of an IERS `leap-seconds.list`, or the IANA copy of it. `source` names where the
- * text came from. A malformed line or a missing `#$` or `#@` line fails as `syntax`; rows out of
- * order, off midnight, or changing TAI-UTC by anything but one second fail as `step`.
- */
 export function readLeapSecondData(text: string, source: string): LeapSecondDataRead {
   const list = readLeapSecondsList(text)
   if (!list.ok) return list
@@ -120,11 +112,6 @@ const bundled = readLeapSecondData(
 )
 if (!bundled.ok) throw new Error(`The bundled leap-seconds.list failed as ${bundled.failure.kind}`)
 
-/**
- * The IERS leap-seconds.list bundled with this package, downloaded from
- * https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list (byte-identical to the IANA copy).
- * Read `version` and `expires` from the value; `resources/leap-seconds.list` is the file itself.
- */
 export const leapSecondData: LeapSecondData = bundled.value
 
 export type InstantFailure =
@@ -137,15 +124,6 @@ export type InstantParse =
 
 const INSTANT_TEXT = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/u
 
-/**
- * Reads `YYYY-MM-DDTHH:MM:SS[.digits]Z`. This is the only way to obtain an Instant.
- * A numeric offset fails as `offset`; impossible calendar fields fail as `range`.
- *
- * Second 60 exists only on a day `table` lists as an insertion, even after the table expires.
- * An unlisted second 60 fails as `leap-second` before the table expiry and as
- * `leap-data-expired` from the expiry on, because the table cannot know about later insertions.
- * Second 59 on a day `table` lists as a deletion fails as `leap-second`.
- */
 export function parseInstant(text: string, table: LeapSecondData = leapSecondData): InstantParse {
   const match = INSTANT_TEXT.exec(text)
   if (match === null) return { ok: false, failure: { kind: 'syntax' } }
@@ -188,16 +166,11 @@ function lastDayOfMonth(year: string, month: string): string {
   return month === '04' || month === '06' || month === '09' || month === '11' ? '30' : '31'
 }
 
-/** Writes the text the instant was parsed from, fraction digits unchanged. */
 export function encodeInstant(instant: Instant): string {
   const fraction = fractionOf(instant)
   return `${civilOf(instant)}${fraction === '' ? '' : `.${fraction}`}Z`
 }
 
-/**
- * Orders two instants by calendar fields, then by fraction digits with the shorter fraction
- * read as padded with trailing zeros. `0.5` and `0.500` compare equal.
- */
 export function compareInstants(a: Instant, b: Instant): -1 | 0 | 1 {
   const civilA = civilOf(a)
   const civilB = civilOf(b)

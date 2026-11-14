@@ -1098,7 +1098,6 @@
     "packages/assets/settings-local/src/secrets/store.ts": 1,
     "packages/assets/settings/src/secret-items.ts": 1,
     "packages/assets/settings/src/tenant-settings.ts": 1,
-    "packages/common/exchange-refs/src/index.ts": 1,
     "packages/context/agent-context/src/materials.ts": 1,
     "packages/context/agent-context/src/measure.ts": 1,
     "packages/context/agent-context/src/requests.ts": 1,
@@ -1628,7 +1627,7 @@
       },
       "packages/common/json-text/src/read.ts": {
         "count": 1,
-        "longest": 155
+        "longest": 152
       },
       "packages/context/agent-context/src/model-context.ts": {
         "count": 1,

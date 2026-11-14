@@ -41,11 +41,6 @@ export interface FileContentBlock {
   readonly mediaType: string
 }
 
-/**
- * Where content is and how to check it. It is not a URL, a read capability, or a release grant.
- * `bytes` is a non-negative decimal integer string. The content provider names the digest
- * algorithm and encoding.
- */
 export type ContentReference = Readonly<{
   storage: string
   key: string
@@ -54,7 +49,6 @@ export type ContentReference = Readonly<{
   digest: string
 }>
 
-/** A closed voice, image, or file block that points at content by `ref` instead of inline data. */
 export type ReferenceContentBlock = Readonly<{
   kind: 'voice' | 'image' | 'file'
   id: BlockId
@@ -92,7 +86,6 @@ export type ContentBlockJudgment =
 
 interface BlockRule {
   readonly keys: readonly string[]
-  /** The key that carries the streamed body. A head carries every other key of the kind. */
   readonly body?: 'text' | 'inline'
   readonly admit: (
     value: Record<string, unknown>,
@@ -178,7 +171,6 @@ function admitFile(
   }
 }
 
-/** One table for legal keys and admission. `judgeContentBlock` does not keep a second list. */
 const BLOCKS: Readonly<Record<ContentBlockKind, BlockRule>> = {
   text: { keys: ['kind', 'id', 'visibility', 'text'], body: 'text', admit: admitText },
   thinking: { keys: ['kind', 'id', 'visibility', 'text'], body: 'text', admit: admitThinking },
@@ -200,10 +192,6 @@ function headKeys(kind: ContentBlockKind): readonly string[] {
   return Object.freeze(keys.filter(key => key !== body))
 }
 
-/**
- * The keys of each kind other than its body field: what an opening head can carry. Derived from
- * the block table, so it never drifts from what `judgeContentBlock` admits.
- */
 export const CONTENT_BLOCK_HEAD_KEYS: Readonly<Record<ContentBlockKind, readonly string[]>> =
   Object.freeze({
     text: headKeys('text'),
@@ -251,11 +239,6 @@ export type BlockIdentityJudgment =
   | { readonly ok: { readonly id: BlockId; readonly visibility: Visibility } }
   | { readonly rejected: BlockIdentityRejection }
 
-/**
- * Judge the `id` and `visibility` of a block, or of any part that is a block. Other keys are not
- * looked at. An unknown key inside `visibility` is `extra`, and it is reported before a bad `id`.
- * The returned `visibility` is a new object.
- */
 export function judgeBlockIdentity(value: unknown): BlockIdentityJudgment {
   if (!isRecord(value)) return { rejected: 'id' }
   if (isRecord(value.visibility) && hasUnknownKey(value.visibility, VISIBILITY_KEYS)) {
@@ -275,7 +258,6 @@ function isFilled(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0
 }
 
-/** Shape only. It does not prove that the content exists, who owns it, or who may read it. */
 function referenceOf(
   value: unknown,
 ): { readonly ok: ContentReference } | { readonly rejected: ContentBlockRejection } {
@@ -303,10 +285,6 @@ function admitReference(
   return { ok: { kind, id, visibility, ref: ref.ok, transcript } }
 }
 
-/**
- * Admit one closed content block. Tool calls, tool results, and growing blocks are rejected.
- * An own `ref` key selects the reference form, which only voice, image, and file have.
- */
 export function judgeContentBlock(value: unknown): ContentBlockJudgment {
   if (!isRecord(value) || typeof value.kind !== 'string') return { rejected: 'kind' }
   if (!isContentBlockKind(value.kind)) return { rejected: 'kind' }

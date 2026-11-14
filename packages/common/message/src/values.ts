@@ -8,7 +8,6 @@ export function isPlainRecord(value: unknown): value is Record<string, unknown> 
   return proto === Object.prototype || proto === null
 }
 
-/** True when a getter, a setter, or a non-enumerable key would hide what a read does. */
 export function hasUnreadableOwn(value: object): boolean {
   return Object.getOwnPropertyNames(value).some(key => {
     const descriptor = Object.getOwnPropertyDescriptor(value, key)
@@ -22,16 +21,6 @@ export function nonEmpty(value: unknown): value is string {
 
 const ARRAY_INDEX = /^(0|[1-9]\d*)$/u
 
-/**
- * True when the own keys of an array are `length` and its indices, and each index is an
- * enumerable data property. An accessor, a symbol key, or any other own key makes it false.
- * A hole is not a key, so a sparse array passes and the hole reads as `undefined`.
- */
-/**
- * Reads an array whose own keys are only data items and `length`, and maps each item; any item
- * that maps to `undefined`, or any other array shape, is `undefined`. A hole reads as `undefined`
- * and no accessor is called.
- */
 export function readDataItems<T>(
   raw: unknown,
   item: (value: unknown) => T | undefined,
@@ -64,12 +53,6 @@ export function hasDuplicates<T>(items: readonly T[]): boolean {
   return new Set(items).size !== items.length
 }
 
-/**
- * The values of a plain object whose own keys are exactly `keys`, read by name. An accessor is
- * never called: it makes the object unreadable, as does a non-enumerable key. A symbol key
- * also makes it unreadable, which the part judges do not do: SPEC.md, judgeMessage steps 8 and
- * 10, refuses `covers` and `derivation` with one.
- */
 export function closedFields(
   value: unknown,
   keys: readonly string[],

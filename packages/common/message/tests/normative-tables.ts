@@ -1,7 +1,3 @@
-// The case rows that tests/normative.spec.ts runs and counts. Polarity 正 is an allowed example,
-// 反 a refused one; the shorthand of each cell is resolved by the spec.
-
-/** Tool parts and role rules: rule, polarity, role, blocks as JSON, outcome. */
 export const EXAMPLE_TABLE: readonly (readonly string[])[] = [
   [
     'call.keys',
@@ -474,7 +470,6 @@ export const EXAMPLE_TABLE: readonly (readonly string[])[] = [
   ],
 ]
 
-/** Compaction variant: rule, polarity, message, context, outcome. */
 export const COMPACTION_TABLE: readonly (readonly string[])[] = [
   ['compaction.keys', '正', '{}', '-', 'ok'],
   ['compaction.keys', '反', '{"derivation":"<absent>"}', '-', 'rejected:missing'],
@@ -807,7 +802,6 @@ export const COMPACTION_TABLE: readonly (readonly string[])[] = [
   ],
 ]
 
-/** Reasoning state: rule, polarity, message, outcome. */
 export const REASONING_TABLE: readonly (readonly string[])[] = [
   ['state.keys', '正', '{}', 'ok'],
   ['state.keys', '反', '{"state":{"tenant":"a"}}', 'rejected:extra@1'],

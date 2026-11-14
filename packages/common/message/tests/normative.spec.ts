@@ -12,12 +12,6 @@ import {
 } from '@omne-harness/message'
 import { COMPACTION_TABLE, EXAMPLE_TABLE, REASONING_TABLE } from './normative-tables.ts'
 
-/**
- * The three tables in normative-tables.ts are the rule list of the tool parts, the role rules, the
- * compaction variant, and the reasoning state. This file runs every row, and it also fixes which
- * rules and which polarities each table has to show, so a table that lost a row or changed an
- * outcome fails here.
- */
 const ID = 'msg_abcdefghijklmnopqrstuv'
 
 const POSITIVE = '正'
@@ -27,7 +21,6 @@ interface Cells {
   readonly cells: readonly string[]
 }
 
-/** The rows of one table, numbered on from `firstLine` so that the case names stay the same. */
 function tableRows(
   table: readonly (readonly string[])[],
   width: number,
@@ -48,7 +41,6 @@ function countShown(rows: readonly { rule: string; polarity: string }[]): Record
   return shown
 }
 
-// The three keys of a compaction message, for a row that is about its blocks.
 const COMPACTION_KEYS = {
   covers: { from: 'e1', to: 'e1' },
   retained: [],
@@ -84,8 +76,6 @@ function outcomeOf(role: string, blocks: unknown): string {
   return `rejected:${judged.rejected}@${judged.blockIndex ?? '-'}`
 }
 
-// How many rows show each rule on each side. An unparsed call may carry any visibility, so that
-// rule has no refused row.
 const EXPECTED_ROWS: Readonly<Record<string, number>> = {
   'call.keys/正': 1,
   'call.keys/反': 2,
@@ -169,12 +159,10 @@ const BASE_MESSAGE = {
   ...COMPACTION_KEYS,
 }
 
-/** The accessor of a `<getter>` cell, and how often it has been called. */
 interface Probe {
   calls: number
 }
 
-/** An array item that is `<getter>` becomes an accessor, as an object value does. */
 function resolveItems(items: readonly unknown[], probe: Probe): unknown[] {
   const resolved: unknown[] = []
   items.forEach((item, index) => {
@@ -192,16 +180,11 @@ function countedAnswer(probe: Probe): string {
   return 'e1'
 }
 
-/** A `<length:N>` cell is a string of that many code units. Any other value is as it is. */
 function resolveText(value: unknown): unknown {
   const length = typeof value === 'string' ? LENGTH.exec(value)?.[1] : undefined
   return length === undefined ? value : 'x'.repeat(Number(length))
 }
 
-/**
- * Applies the markers of the message cell: a key is dropped, is `undefined`, or becomes an
- * accessor, and a text of a given length stands in for a string.
- */
 function resolveMarkers(value: unknown, probe: Probe): unknown {
   if (Array.isArray(value)) return resolveItems(value, probe)
   if (typeof value !== 'object' || value === null) return resolveText(value)
@@ -235,7 +218,6 @@ function textBlock(visibility = SEEN): object {
   return { kind: 'text', id: 'b1', visibility, text: 'x' }
 }
 
-/** The message that a shorthand of the context cell stands for. */
 function shorthandMessage(shorthand: string): Message {
   const [kind = '', callId = ''] = shorthand.split(':')
   const call = { id: 'b1', callId, name: 'echo' }
@@ -264,7 +246,6 @@ function shorthandMessage(shorthand: string): Message {
         { ...textBlock(), id: 'b2' },
       ])
     case 'compaction': {
-      // `compaction:TO:R1+R2` covers e1 to TO and keeps R1, R2; bare `compaction` is the base keys.
       const [, to, retained] = shorthand.split(':')
       if (to === undefined) return admit('compaction', [textBlock()], COMPACTION_KEYS)
       const kept = retained === undefined || retained === '' ? [] : retained.split('+')
@@ -360,7 +341,6 @@ function compactionRows(): readonly CompactionRow[] {
   })
 }
 
-/** What the function under test says: a message rejection, or a history rejection with its ref. */
 function verdictOf(message: unknown, context: ContextCell | undefined): string {
   if (context === undefined) {
     const judged = judgeMessage(message)
@@ -422,7 +402,6 @@ describe('the compaction table', () => {
   )
 })
 
-/** The success value keeps the three keys as they were, and no later change of the input reaches it. */
 function expectCopy(message: Record<string, unknown>): void {
   const judged = judgeMessage(message)
   if (!('ok' in judged) || judged.ok.role !== 'compaction') {
@@ -473,7 +452,6 @@ function reasoningRows(): readonly ReasoningRow[] {
   })
 }
 
-/** The block that a shorthand of the message cell stands for, or the block object as it is. */
 function shorthandBlock(item: unknown): unknown {
   if (typeof item !== 'string') return item
   const [kind = '', rest = ''] = item.split(':')
@@ -511,7 +489,6 @@ function textBlockOf(id: string, kind: 'text' | 'thinking'): object {
   return { kind, id, visibility: SEEN, text: 'x' }
 }
 
-/** The message of a row: the base, the patch, the block shorthands, and the `state` override. */
 function reasoningMessage(patch: Record<string, unknown>): Record<string, unknown> {
   const { state, ...own } = patch
   const message: Record<string, unknown> = { ...BASE_ASSISTANT, ...own }
@@ -594,10 +571,6 @@ function expectNoReplay(message: Record<string, unknown>): void {
   expect('replay' in admittedAssistant(message)).toBe(false)
 }
 
-/**
- * `replay`, its `at`, and the `pairs` of each state part are frozen copies, and no later change
- * of the input reaches them.
- */
 function expectFrozenCopy(message: Record<string, unknown>): void {
   const { replay, blocks } = admittedAssistant(message)
   if (replay === undefined) throw new Error('expected replay in the success value')

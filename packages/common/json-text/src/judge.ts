@@ -8,10 +8,6 @@ type Kind = JsonValue['kind']
 
 const DEFAULT_MAX_VISITS = 1_000_000
 
-/**
- * The fields of each node kind. A node with any other own key is rejected. A node that
- * `readJsonText` produced has exactly these keys.
- */
 const NODE_KEYS: Readonly<Record<Kind, readonly string[]>> = {
   null: ['kind'],
   boolean: ['kind', 'value'],
@@ -21,11 +17,6 @@ const NODE_KEYS: Readonly<Record<Kind, readonly string[]>> = {
   object: ['kind', 'entries'],
 }
 
-/**
- * The way from the root to a node, as a chain of links from the node back to the root. A walk
- * extends it for every child and builds a `JsonTreePath` only for a rejection, so a deep tree
- * does not copy a path per node.
- */
 type Trail = Readonly<{ parent: Trail; segment: string | number }> | null
 
 function step(parent: Trail, segment: string | number): Trail {
@@ -42,12 +33,6 @@ function reject(reason: Reason, trail: Trail, ...tail: (string | number)[]): Rej
   return { rejected: reason, path: pathOf(trail, ...tail) }
 }
 
-/**
- * Raised when the input itself throws while it is read, for example from a Proxy trap. Each
- * function below that touches the input converts such an exception into this one, and nothing
- * else does. `judgeJsonValue` turns this one into `unreadable`; any other exception comes from
- * the walk, is a defect of the walk, and propagates.
- */
 class UnreadableInput extends Error {}
 
 function descriptorOf(object: object, key: string): PropertyDescriptor | undefined {
@@ -82,7 +67,6 @@ function isList(value: unknown): value is readonly unknown[] {
   }
 }
 
-/** The length of a list. A Proxy can claim any value, and one that is no length is unreadable. */
 function lengthOf(list: readonly unknown[]): number {
   let length: unknown
   try {
@@ -97,7 +81,6 @@ function lengthOf(list: readonly unknown[]): number {
 
 type Field = Readonly<{ found: unknown }>
 
-/** Reads one own data property. A getter is never called. */
 function ownField(object: object, key: string, trail: Trail): Field | Rejected {
   const descriptor = descriptorOf(object, key)
   if (descriptor === undefined) return reject('missing', trail, key)
@@ -115,11 +98,6 @@ function isKind(kind: unknown): kind is Kind {
   return typeof kind === 'string' && Object.hasOwn(NODE_KEYS, kind)
 }
 
-/**
- * The elements of a list field, each read as an own data property. Every element is a visit to
- * come, so the length is checked against the rest of the visit budget before any element is
- * read.
- */
 function ownList(
   walk: Walk,
   node: object,
@@ -146,20 +124,15 @@ type Visit = Readonly<{
   action: 'visit'
   value: unknown
   trail: Trail
-  /** Puts the copy of this node where its parent expects it. */
   place: (tree: JsonValue) => void
 }>
-/** Runs after every descendant of a container: the container is then no longer an ancestor. */
 type Leave = Readonly<{ action: 'leave'; node: object }>
 type Walk = {
   readonly pending: (Visit | Leave)[]
-  /** The containers on the path from the root to the node being visited. */
   readonly ancestors: Set<object>
-  /** The containers, lists and entries of the copy, frozen once the walk has accepted all. */
   readonly built: object[]
   readonly maxVisits: number
   visits: number
-  /** The visits that the walk has queued and not yet made. */
   queued: number
 }
 
@@ -207,7 +180,6 @@ function visitArray(walk: Walk, node: object, visit: Visit): JsonValue | Rejecte
   return tree
 }
 
-/** One object entry: a plain object with the fields `key` and `value` only. */
 function readEntry(
   entry: unknown,
   trail: Trail,
@@ -252,7 +224,6 @@ function visitObject(walk: Walk, node: object, visit: Visit): JsonValue | Reject
   walk.queued += children.length
   walk.ancestors.add(node)
   walk.pending.push({ action: 'leave', node })
-  // One push per child: a spread passes every child as an argument and overflows the stack.
   for (const child of children.reverse()) walk.pending.push(child)
   const tree: JsonValue = { kind: 'object', entries }
   walk.built.push(entries, tree)
@@ -261,7 +232,6 @@ function visitObject(walk: Walk, node: object, visit: Visit): JsonValue | Reject
 
 type Typed = Readonly<{ node: object; kind: Kind }>
 
-/** The node as a plain object of one of the six kinds, with no key outside that kind's set. */
 function typedNode(visit: Visit): Typed | Rejected {
   const node = visit.value
   if (!isPlainObject(node)) return reject('type', visit.trail)
@@ -333,14 +303,6 @@ function parseMaxVisits(limits: unknown): number {
   return maxVisits
 }
 
-/**
- * Judges a value that was built in memory. It accepts a closed tree of `JsonValue` nodes and
- * returns a frozen copy, or the first rejection with the structural path of the field. It reads
- * own data properties only and never calls a getter. An exception raised by reading the input,
- * such as a Proxy trap, rejects the whole value as `unreadable`, and so does a list whose length
- * is not a non-negative safe integer. A list is checked against the
- * visit budget before its elements are read.
- */
 export function judgeJsonValue(
   value: unknown,
   limits?: Readonly<{ maxVisits: number }>,

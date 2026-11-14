@@ -46,7 +46,6 @@ function openThinking(index: string) {
   return { step: 'open', index, mode: 'append', head: thinkingHead }
 }
 
-/** The thinking block with the text `why`, from open to close. */
 function thinking(index: string): unknown[] {
   return [
     openThinking(index),

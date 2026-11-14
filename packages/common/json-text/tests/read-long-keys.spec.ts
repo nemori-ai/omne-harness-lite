@@ -11,7 +11,6 @@ const limits: JsonLimits = {
   maxNumberLength: 100,
 }
 
-/** A key of `length` units that differs from the others of that length only in its last 8 units. */
 const longKey = (length: number, index: number): string =>
   'x'.repeat(length - 8) + String(index).padStart(8, '0')
 
@@ -90,10 +89,6 @@ describe('KeySet when every long key lands in one bucket', () => {
 })
 
 describe('readJsonText on long keys of equal length', () => {
-  // Slow: 999 keys of 50,000 units. The engine hashes a string of 16,384 units or more by its
-  // length only, so a native Set of such keys takes seconds while keys of distinct lengths take
-  // milliseconds. The guard compares the two, so machine load cancels out: a quadratic reader
-  // is tens of times slower on equal lengths, a linear one is within a small factor.
   it(
     'reads 999 keys of 50,000 equal-length code units about as fast as keys of distinct lengths',
     { tags: ['slow'] },
