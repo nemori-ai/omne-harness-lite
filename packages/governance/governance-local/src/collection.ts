@@ -19,7 +19,6 @@ const sorted = <T>(values: readonly T[]) =>
     return left < right ? -1 : left > right ? 1 : 0
   })
 
-/** Builds the wire collection reference; only the provider can verify its completeness. */
 export function createGovernanceCollection(
   input: Readonly<{
     scope: GovernanceScope

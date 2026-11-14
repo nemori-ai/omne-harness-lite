@@ -1,4 +1,3 @@
-// Which origins an independent preparation serves, and who must be in its audience.
 import { expect, it } from 'vitest'
 import { OperationRefSchema, RegisterRequestSchema } from '@omne-harness/human-intervention'
 import { IndependentCommandSchema } from '@omne-harness/human-intervention-local'

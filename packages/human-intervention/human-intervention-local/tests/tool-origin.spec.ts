@@ -1,5 +1,3 @@
-// Tool 来源的卡片与原工作守卫，经公开应用入口、真实 Identity 与真实 SQLite。守卫参与者是替身
-// （fixtures/guard.mjs）；Session 的真实守卫 session.run-live 由 session-storage-sql 自己的测试覆盖。
 import { afterEach, expect, it } from 'vitest'
 import {
   GetRequestSchema,
@@ -54,7 +52,6 @@ function toolRegistration(request: RegisterRequest): RegisterRequest {
 const open = (guards: HitlGuards, tool = true) =>
   openOriginWorld(guards, tool ? toolRegistration : undefined)
 type World = Awaited<ReturnType<typeof open>>
-/** 由可信原工作拥有者另准备一个独立等待，再经公开入口登记。 */
 async function registerIndependent(w: World) {
   const request = RegisterRequestSchema.parse({
     ...w.request,
@@ -208,7 +205,6 @@ it('rolls back the whole registration when the original work guard rejects', asy
     operationRef: w.request.operation,
   }
   expect(await w.app.registerRequest(w.principal, w.request)).toEqual(rejected)
-  // Identity 结算时已封口这次操作，重试得到封口冲突，不会再写入。
   expect(await w.app.registerRequest(w.principal, w.request)).toEqual({
     ...rejected,
     reason: 'operation-sealed',
@@ -258,8 +254,6 @@ it('rolls back the whole reply when the original work guard rejects, but never g
     registered.cards,
   )
 
-  // A late reply to a card that is closed already is told so. The original work is over, so its
-  // guard still rejects the commit; the state of the card answers, not the guard.
   const late = SubmitReplySchema.parse({ ...reply, operation: w.operation('late-reply') })
   expect(await w.app.submitReply(w.principal, late)).toEqual({
     kind: 'invalidated',

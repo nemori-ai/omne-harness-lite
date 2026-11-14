@@ -7,7 +7,6 @@ import type { ReadAudience } from './read-audience.ts'
 import type { RequestPlan, RequestRecord } from './request-schema.ts'
 import { originCells } from './origin-cells.ts'
 
-/** 写入辅助只需要执行 SQL 的能力，参与者端口即满足。 */
 type SqlPort = Pick<ParticipantPort, 'execute'>
 
 export function insertRequest(port: SqlPort, record: RequestRecord, audience: ReadAudience) {
@@ -72,7 +71,6 @@ export function insertRequest(port: SqlPort, record: RequestRecord, audience: Re
   return sequence
 }
 type Scope = readonly [sessionKey: string, originKey: string]
-/** 一个请求出现在哪些带过滤的池范围里，与 hi_pool_scoped_buckets_v2 的约定一致。 */
 function requestScopes(
   origin: Readonly<{ kind: string; sessionRef?: string | undefined }>,
 ): Scope[] {
@@ -83,7 +81,6 @@ function requestScopes(
   }
   return scopes
 }
-/** 请求进入一个状态桶：对每个读者写入无过滤目录及各过滤范围的目录。 */
 function insertBucket(
   port: SqlPort,
   tenant: string,

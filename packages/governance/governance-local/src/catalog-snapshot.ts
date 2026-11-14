@@ -167,7 +167,6 @@ function capture(port: ParticipantPort, binding: CatalogBinding, current: Catalo
     entriesFor(binding, current, candidates.entries, selected),
   )
 }
-/** Computes one catalog page from the tables of this owner and the current evidence. It writes nothing. */
 export default {
   ...CATALOG_SNAPSHOT,
   execute(facts, port) {

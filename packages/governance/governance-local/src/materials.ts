@@ -30,7 +30,6 @@ import {
   governanceDefinitionProjectionFact,
 } from './definition-projection.ts'
 
-/** One migration creates every Governance relation. */
 function migrations(): SqlMaterialCatalog['migrations'] {
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
   const url = new URL(`./migration.${extension}`, import.meta.url)

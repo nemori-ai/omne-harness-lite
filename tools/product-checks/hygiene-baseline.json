@@ -1057,14 +1057,6 @@
     "packages/agent/agent/src/testing/journal-finishing.ts": 3,
     "packages/agent/agent/src/testing/journal.ts": 2,
     "packages/agent/agent/src/tool-receiving-types.ts": 1,
-    "packages/assembly/kernel-basis/src/caller-fiber.ts": 1,
-    "packages/assets/assets-access/src/cordis.ts": 1,
-    "packages/assets/assets-access/src/ports.ts": 2,
-    "packages/assets/assets-protocol/src/assets-protocol.ts": 1,
-    "packages/assets/settings-local/src/secrets/init.ts": 1,
-    "packages/assets/settings-local/src/secrets/store.ts": 1,
-    "packages/assets/settings/src/secret-items.ts": 1,
-    "packages/assets/settings/src/tenant-settings.ts": 1,
     "packages/execution/execution-environment-host-local/src/command-gate-core.ts": 1,
     "packages/execution/execution-environment-host-local/src/command-gate.ts": 1,
     "packages/execution/execution-environment-host-local/src/host-retained-processes.ts": 1,
@@ -1078,23 +1070,7 @@
     "packages/execution/execution-environment-host-local/src/windows-files/native-host.ts": 1,
     "packages/execution/execution-environment-host-local/src/windows-files/native-tree.ts": 1,
     "packages/execution/execution-environment-host-local/src/windows-files/native-write.ts": 1,
-    "packages/identity/authorization/src/system-reference.ts": 1,
-    "packages/identity/identity-access/src/access-identity.ts": 1,
-    "packages/identity/identity-access/src/cordis.ts": 1,
-    "packages/identity/identity-access/src/operations.ts": 1,
-    "packages/identity/identity-protocol/src/rules.ts": 1,
-    "packages/identity/identity-sql/src/config.ts": 1,
-    "packages/identity/identity-sql/src/cordis.ts": 1,
-    "packages/identity/identity-sql/src/deadline.ts": 1,
-    "packages/identity/identity-sql/src/worker/participant.ts": 1,
-    "packages/identity/identity-sql/src/worker/read-governance.ts": 1,
-    "packages/identity/identity-sql/src/worker/schema.ts": 1,
     "packages/identity/identity/src/cordis.ts": 2,
-    "packages/identity/identity/src/principal.ts": 1,
-    "packages/identity/identity/src/testing/contract.ts": 1,
-    "packages/identity/identity/src/testing/double.ts": 1,
-    "packages/identity/identity/src/testing/governance-contract.ts": 1,
-    "packages/identity/identity/src/testing/governance-double.ts": 1,
     "packages/model/model-contract/src/conformance/conformance-stream.ts": 1,
     "packages/model/model-contract/src/credential-values.ts": 1,
     "packages/model/model-contract/src/index.ts": 1,
@@ -1307,14 +1283,6 @@
     "packages/tool/tool/src/stream-facade.ts": 1,
     "packages/tool/tool/src/testing-access.ts": 1,
     "packages/tool/tool/src/testing-store.ts": 1,
-    "packages/util/unix-format/src/envelope.ts": 1,
-    "packages/util/unix-format/src/numbered.ts": 1,
-    "packages/util/unix-format/src/structured.ts": 1,
-    "packages/util/unix-format/src/text.ts": 1,
-    "packages/util/xml-format/src/escape.ts": 1,
-    "packages/util/xml-format/src/format.ts": 1,
-    "packages/util/xml-format/src/options.ts": 1,
-    "packages/util/xml-format/src/types.ts": 1,
     "tools/dev-flow/src/package-template/create.ts": 2,
     "tools/product-checks/src/rules/core-pure-imports.ts": 4,
     "tools/product-checks/src/rules/ops-import-whitelist.ts": 1,
@@ -1361,7 +1329,7 @@
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1062,
       "packages/execution/execution-environment-host-local/src/host-command.ts": 1042,
       "packages/execution/execution-environment/src/registry.ts": 1105,
-      "packages/identity/identity/src/testing/governance-contract.ts": 2277,
+      "packages/identity/identity/src/testing/governance-contract.ts": 2224,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2537,
       "packages/model/model-host-local/src/plugins/runtime.ts": 1212,
       "packages/model/model-storage-sql/src/commit.ts": 1273,
@@ -1510,11 +1478,11 @@
       },
       "packages/assets/settings-local/src/catalog.ts": {
         "count": 1,
-        "longest": 239
+        "longest": 238
       },
       "packages/assets/settings/src/tenant-settings.ts": {
         "count": 1,
-        "longest": 249
+        "longest": 248
       },
       "packages/calendar/calendar-local/src/runner/index.ts": {
         "count": 1,
@@ -1686,15 +1654,15 @@
       },
       "packages/human-intervention/human-intervention-local/src/application.ts": {
         "count": 1,
-        "longest": 208
+        "longest": 202
       },
       "packages/human-intervention/human-intervention-local/src/identity.ts": {
         "count": 1,
-        "longest": 163
+        "longest": 162
       },
       "packages/identity/identity-access/src/operations.ts": {
         "count": 1,
-        "longest": 291
+        "longest": 280
       },
       "packages/identity/identity-sql/src/coordination.ts": {
         "count": 1,
@@ -1702,15 +1670,15 @@
       },
       "packages/identity/identity-sql/src/governance.ts": {
         "count": 1,
-        "longest": 537
+        "longest": 511
       },
       "packages/identity/identity-sql/src/provider.ts": {
         "count": 1,
-        "longest": 303
+        "longest": 286
       },
       "packages/identity/identity/src/testing/governance-double.ts": {
         "count": 1,
-        "longest": 541
+        "longest": 510
       },
       "packages/identity/scrypt/src/gate.ts": {
         "count": 1,

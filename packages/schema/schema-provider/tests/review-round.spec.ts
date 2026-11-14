@@ -449,7 +449,6 @@ it('defect: a check error or when callback still runs', async () => {
         }),
       }),
   })
-  // Zod stores `when` at runtime. The published parameter type does not list it.
   const whenSchema = defineSchema({
     id: 'check-when',
     load: async () =>

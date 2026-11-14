@@ -61,7 +61,6 @@ function outcome(found: HitlSqlOperationInspection): WriteResult {
       return found
   }
 }
-/** 守卫拒绝了共同提交。回滚回执是耐久的，同一操作身份重试仍得到同一回滚，所以这是确定失败。 */
 function guardRejected(
   result: CommitResultV2,
   guards: readonly FactCommandV2[],
@@ -112,7 +111,6 @@ function qualification(options: IdentityHitlOptions) {
   }
 }
 
-/** Coordinates Identity standing for named HITL writes. Work and permission guards remain with their owners. */
 export function createIdentityQualifiedHitl(input: IdentityHitlOptions) {
   const required = [...new Set(input.required)]
   if (!required.every(isQualification)) throw new TypeError('Unknown Identity qualification')
@@ -226,7 +224,6 @@ export function createIdentityQualifiedHitl(input: IdentityHitlOptions) {
         ? Promise.resolve({ kind: 'unavailable', reason: 'closing' })
         : track(() => qualify(principal))
     },
-    /** guards 是装配按原来源给出的守卫命令，与本次 HITL 命令放进同一笔提交。 */
     execute(
       principal: ActingForTenantPrincipal,
       input: IdentityHitlCommand,
