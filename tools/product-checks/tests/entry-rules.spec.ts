@@ -129,7 +129,7 @@ describe('D055 maintenance import boundary', () => {
     const input = file(`${E}src/schema-inputs.ts`, `import data from '../schema/${name}'`)
     expect(opsImportWhitelist.check([events, ops, input])).toHaveLength(violations)
   })
-  it('checks the D-116 resource leaf and permits only its finite generated entry', () => {
+  it('checks the native-loading resource leaf and permits only its finite generated entry', () => {
     const schema = file(
       `${E}src/routing/schema.ts`,
       "import { entryDefinitions } from '../schema-inputs.ts'; import type { ErrorObject } from 'ajv/dist/2020.js'; const validators = require('./generated/ordinary.cjs')",
@@ -522,7 +522,7 @@ describe('no-network-listen-in-tenancy', () => {
   })
 })
 
-describe('restricted-call-sites：入口 SC-1 新增的四个方法', () => {
+describe('restricted-call-sites：入口新增的四个方法', () => {
   it('入口层包与其他非 owner 包调 createPersonal/activate/purge/sweepStaleSelections ⇒ 报出', () => {
     const entry = file(
       `${E}src/routing/leak.ts`,
@@ -636,7 +636,7 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
   })
 })
 
-describe('R1-T5 strict JSON shape owner', () => {
+describe('strict JSON shape owner', () => {
   const events = file('core/governance-center-entry/src/events.ts', '')
   const ops = file(`${E}src/ops/start.ts`, '')
   it('admits only the moved named type imports in the original reader', () => {

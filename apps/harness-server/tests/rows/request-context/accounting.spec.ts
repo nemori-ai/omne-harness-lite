@@ -149,7 +149,7 @@ describe('the source authority: only the configured agent-account-outlet sender'
     expect(diagnostics).toEqual([ACCOUNTING_DENIALS.tenant])
   })
 
-  it('denies a verified system principal of any component: the system scope stands for no tenant (IC-18)', async () => {
+  it('denies a verified system principal of any component: the system scope stands for no tenant', async () => {
     const { authority, system, diagnostics } = authorityUnderTest()
     for (const component of ['any-root-component', 'agent-host']) {
       const access: Access<unknown> = { principal: system(component), tenant: tenantB }

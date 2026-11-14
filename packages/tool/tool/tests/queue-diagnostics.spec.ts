@@ -54,7 +54,7 @@ async function waitOf(harness: StartHarness, call: string): Promise<string> {
   return answer.diagnostic
 }
 
-describe('20 queue wait diagnostic (P02)', () => {
+describe('20 queue wait diagnostic', () => {
   it('names the call and its ordinal, and counts the entries ahead that do not hold a slot', async () => {
     const harness = startHarness()
     await admitCall(harness, 'c1', toolIn('read_file', { concurrency: 1, scopeBudget: null }))

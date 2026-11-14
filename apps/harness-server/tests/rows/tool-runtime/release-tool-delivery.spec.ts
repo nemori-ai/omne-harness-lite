@@ -329,7 +329,7 @@ const resultText = (entry: Entry | undefined): string =>
     .map(block => String(block['text'] ?? ''))
     .join('')
 
-describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
+describe('a Tool result on the release tree reaches the Agent', () => {
   it(
     'W3-A carries return schemas through native declarations, Tools.inspect and command help into model requests',
     { timeout: 240_000 },
@@ -535,7 +535,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
   )
 
   it(
-    'a call that names no command reads the tool guide, a wrong parameter reads the command guide, and the other call runs (D-104)',
+    'a call that names no command reads the tool guide, a wrong parameter reads the command guide, and the other call runs',
     { timeout: 240_000 },
     async () => {
       const seen: string[] = []

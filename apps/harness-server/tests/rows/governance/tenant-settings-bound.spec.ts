@@ -155,7 +155,7 @@ async function world(organization: Rule | null, own: Rule | null = null) {
   return { face, item, writes }
 }
 
-it('C4 an organization allowed set without auto: a tenant pick of auto is out of bound and not written, a pick of deny is written', async () => {
+it('an organization allowed set without auto: a tenant pick of auto is out of bound and not written, a pick of deny is written', async () => {
   const w = await world({ pick: null, allowedSet: ['deny', 'ask'] })
   const auto = await w.face.set({
     ...w.item,
@@ -177,7 +177,7 @@ it('C4 an organization allowed set without auto: a tenant pick of auto is out of
   ])
 })
 
-it('C4 an organization deny is an active prohibition: a tenant pick that permits the operation is out of bound', async () => {
+it('an organization deny is an active prohibition: a tenant pick that permits the operation is out of bound', async () => {
   const w = await world({ pick: 'deny', allowedSet: null })
   expect(
     await w.face.set({
@@ -190,7 +190,7 @@ it('C4 an organization deny is an active prohibition: a tenant pick that permits
   expect(w.writes).toEqual([])
 })
 
-it('C10 an organization locked to deny and ask with a tenant pick of auto shows the effective value ask and that bound', async () => {
+it('an organization locked to deny and ask with a tenant pick of auto shows the effective value ask and that bound', async () => {
   const w = await world(
     { pick: null, allowedSet: ['deny', 'ask'] },
     { pick: 'auto', allowedSet: null },
@@ -209,7 +209,7 @@ it('C10 an organization locked to deny and ask with a tenant pick of auto shows 
   })
 })
 
-it('C10 an organization deny shows the item prohibited by the organization and not editable', async () => {
+it('an organization deny shows the item prohibited by the organization and not editable', async () => {
   const w = await world({ pick: 'deny', allowedSet: null }, { pick: 'auto', allowedSet: null })
   expect(await w.face.describe(w.item)).toMatchObject({
     kind: 'described',
@@ -223,7 +223,7 @@ it('C10 an organization deny shows the item prohibited by the organization and n
   })
 })
 
-it('C10 without any organization value the effective value is the tenant pick from the tenant layer', async () => {
+it('without any organization value the effective value is the tenant pick from the tenant layer', async () => {
   const w = await world(null, { pick: 'auto', allowedSet: null })
   expect(await w.face.describe(w.item)).toMatchObject({
     kind: 'described',

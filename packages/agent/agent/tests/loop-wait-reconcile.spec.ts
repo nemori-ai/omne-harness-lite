@@ -112,7 +112,7 @@ describe('R0 preserves the original conditional operation', () => {
 })
 
 describe('W0 rereads the original producer', () => {
-  it('NA-W0-2: a lost notification wakes at the configured check time without another admission', async () => {
+  it('a lost notification wakes at the configured check time without another admission', async () => {
     let admissions = 0
     let observations = 0
     let closed = 0
@@ -592,7 +592,7 @@ it.each(['observer', 'clock'] as const)(
   },
 )
 
-it('NA-W0-2: an input arriving as observation starts is reread before sleeping under the original attachment', async () => {
+it('an input arriving as observation starts is reread before sleeping under the original attachment', async () => {
   let inserted = false
   const assembly = await loopAssembly([execution()], d => ({
     ...d,
@@ -718,7 +718,7 @@ it('NA-R0-2: an unknown W0 commit is queried without a second waiting submission
   expect(waitingWrites).toBe(1)
 })
 
-it('NA-W0-1: an input racing the waiting commit is reread without abandoning the original call', async () => {
+it('an input racing the waiting commit is reread without abandoning the original call', async () => {
   let inserted = false
   const assembly = await loopAssembly([execution()], d => ({
     ...d,
@@ -887,7 +887,7 @@ describe('review regressions preserve the original wait responsibility', () => {
     },
   )
 
-  it('NA-W0-1: a dependency that recovers during W0 is reread before the check timer', async () => {
+  it('a dependency that recovers during W0 is reread before the check timer', async () => {
     let available = false
     let reads = 0
     const assembly = await loopAssembly([execution()], d => ({

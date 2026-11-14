@@ -178,7 +178,7 @@ describe('the replay facts of the installed runtimeContextTrust (B1-GAP-REPLAY-F
     })
   })
 
-  it('does not read a same-name provider on the root: a forged known stays unavailable (R2-D168 N1)', async () => {
+  it('does not read a same-name provider on the root: a forged known stays unavailable (N1)', async () => {
     const { fixture, acting, ask } = await world()
     const calls: unknown[] = []
     await fixture.root.plugin(factsPlugin(known(), calls))

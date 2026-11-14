@@ -127,7 +127,7 @@ function delivery(): ToolDelivery<ContentBlock> {
   }
 }
 
-describe('the Tool result receiver of the agent-host plugin (R2-D273)', () => {
+describe('the Tool result receiver of the agent-host plugin', () => {
   it('the host is ready without the Tool rows; once they come, the receiver is registered under the Agent owner', async () => {
     const w = await world()
     expect(w.root.get('agentInstanceProvision')).toBeDefined()

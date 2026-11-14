@@ -39,7 +39,7 @@ function counted(origin: string): { transport: Transport; reports: CallReport['k
   }
 }
 
-describe('C13: calls over HTTP to a real entry', () => {
+describe('calls over HTTP to a real entry', () => {
   it('answers by the contract', async () => {
     const entry = await peer()
     const notes = createClient(notesProtocol, counted(entry.origin).transport)
@@ -79,7 +79,7 @@ async function drain<F, E>(frames: AsyncGenerator<F, E>): Promise<{ frames: F[];
   }
 }
 
-describe('C14: observations over HTTP to a real entry', () => {
+describe('observations over HTTP to a real entry', () => {
   it('subscribes to the availability without a login, and the abort closes it', async () => {
     const entry = await peer()
     const access = createClient(

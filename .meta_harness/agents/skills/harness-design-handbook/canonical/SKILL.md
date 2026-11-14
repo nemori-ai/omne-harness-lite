@@ -7,7 +7,7 @@ description: "为新的能力或责任边界核对已有覆盖、性质保护责
 
 先确认本次执行仓库、有效要求、所核修订、采用范围及承诺拥有者。本技能提供判断方法，不定义系统、领域或成员承诺，也不授予实施、接受或发布权限。
 
-项目输入从执行仓库读取。新责任从 `docs/requirements.md`、`docs/architecture/README.md`、`docs/domains/README.md` 定位本次拥有者。已有接口从实际包或应用的公开定义及必要行为读取。通用方法按执行仓库 `docs/engineering/skills.md` 加载。信息足够就停，不递归通读整个文档树。
+项目输入从执行仓库读取。新责任从 `docs/requirements.md`、`docs/architecture/README.md`、`docs/domains/README.md` 定位本次拥有者。已有接口从实际包或应用的公开定义及必要行为读取。通用方法按执行仓库 `.meta_harness/tooling/README.md` 的「来源与采用」加载。信息足够就停，不递归通读整个文档树。
 
 技能资源从宿主给出的本 SKILL.md 实际位置读取。不要从安装目录向上猜项目 docs，也不要假定维护源码和当前工作仓库相邻。
 

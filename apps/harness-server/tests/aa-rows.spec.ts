@@ -48,7 +48,7 @@ afterAll(() => {
 })
 
 describe('AA row snapshot', () => {
-  test('R-P1 the formal AA matches the committed snapshot', () => {
+  test('the formal AA matches the committed snapshot', () => {
     const result = run('check', FORMAL_AA, FORMAL_ROWS, [])
     expect(result.stderr).toBe('')
     expect(result.status).toBe(0)
@@ -67,14 +67,14 @@ describe('AA row snapshot', () => {
     expect(seeing).toEqual(['authorization', 'session-storage'])
   })
 
-  test('R-P2 write then check agrees, and a second write keeps the bytes', () => {
+  test('write then check agrees, and a second write keeps the bytes', () => {
     expect(run('check', fixture('base.md'), baseRows).status).toBe(0)
     const before = readFileSync(baseRows)
     expect(run('write', fixture('base.md'), baseRows).status).toBe(0)
     expect(readFileSync(baseRows).equals(before)).toBe(true)
   })
 
-  test('R-P2 the committed fixture snapshot is what write produces', () => {
+  test('the committed fixture snapshot is what write produces', () => {
     const committed = readFileSync(fixture('base.rows.json'))
     expect(committed.equals(readFileSync(baseRows))).toBe(true)
   })
@@ -108,40 +108,40 @@ describe('AA row snapshot', () => {
     expect(result.stdout).toBe('aa-rows: ok rows=3 trusted=none\n')
   })
 
-  test('R-N1 an extra AA row is reported with +id', () => {
+  test('an extra AA row is reported with +id', () => {
     const result = run('check', fixture('extra-row.md'), baseRows)
     expect(result.status).toBe(1)
     expect(result.stderr).toMatch(/^aa-rows: mismatch\n/)
     expect(result.stderr).toContain('+extra-row')
   })
 
-  test('R-N2 a missing AA row is reported with -id', () => {
+  test('a missing AA row is reported with -id', () => {
     const result = run('check', fixture('missing-row.md'), baseRows)
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('-identity')
   })
 
-  test('R-N3 the same rows in another order are reported with order', () => {
+  test('the same rows in another order are reported with order', () => {
     const result = run('check', fixture('reordered.md'), baseRows)
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('order 0 aa=identity rows=storage')
   })
 
-  test('R-N4 a renamed row with an unchanged count reports both sides', () => {
+  test('a renamed row with an unchanged count reports both sides', () => {
     const result = run('check', fixture('renamed.md'), baseRows)
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('+entry')
     expect(result.stderr).toContain('-server-entry')
   })
 
-  test('R-N5 a changed trusted name list is reported with scope', () => {
+  test('a changed trusted name list is reported with scope', () => {
     const result = run('check', fixture('scope-changed.md'), baseRows)
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('scope storage aa=storage rows=storage,tenantDomainLookup')
   })
 
   test.each(['no-section.md', 'bad-id-cell.md', 'duplicate-id.md', 'trusted-unknown-row.md'])(
-    'R-N6 %s is a parse error with exit 2',
+    '%s is a parse error with exit 2',
     name => {
       const check = run('check', fixture(name), baseRows)
       expect(check.status).toBe(2)

@@ -211,7 +211,7 @@ describe('refresh keeps the earlier adoption', () => {
     { kind: 'error-answer', code: -32603, message: 'internal' },
     { kind: 'answer-malformed', what: 'tools-missing' },
   ] as const)(
-    'listing-incomplete (page-failed) on %o without the mark: the connection is degraded, not lost, the record kept (S5, S7, T1)',
+    'listing-incomplete (page-failed) on %o without the mark: the connection is degraded, not lost, the record kept (T1)',
     async failure => {
       const { w, discovery, status } = core(
         world({
@@ -251,7 +251,7 @@ describe('refresh fails', () => {
     [{ kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, 'session-ended'],
     [{ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, 'process-exited'],
   ] as const)(
-    'a page answered %o, with the mark: connection-unavailable, the connection lost for %s and the record marked (S5, S7, T1)',
+    'a page answered %o, with the mark: connection-unavailable, the connection lost for %s and the record marked (T1)',
     async (failure, reason) => {
       const { w, discovery, status } = core(
         world({
@@ -402,7 +402,7 @@ describe('refresh fails', () => {
       'stream-broken',
     ],
   ] as const)(
-    'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost for the mark, else by the build rule (%s) (S5, S7, MC-5)',
+    'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost for the mark, else by the build rule (%s)',
     async (failure, expected, reason) => {
       const { w, discovery, status } = core(world({ script: [{ discover: failure }] }))
       adoptStdio(w, files)
@@ -460,7 +460,7 @@ describe('refresh fails', () => {
     expect(w.transports.calls).toHaveLength(0)
   })
 
-  it('after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked (S8)', async () => {
+  it('after closeAll: connection-unavailable before the gate, for an endpoint not adopted too; no port is asked', async () => {
     const { w, discovery, connections } = core(world({ script: usualScript() }))
     expect(await connections.closeAll()).toEqual([])
     const asked = { adoption: w.adoption.calls(), eligibility: w.eligibility.calls() }
@@ -471,7 +471,7 @@ describe('refresh fails', () => {
     expect(w.transports.calls).toHaveLength(0)
   })
 
-  it('closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (S8, MC-7)', async () => {
+  it('closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (MC-7)', async () => {
     const base = world({ script: usualScript() })
     adoptStdio(base, files)
     const store = armedStore(base.store)
@@ -490,7 +490,7 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
-  it('a release while the refresh waits on the store before the listing: no page is asked on the released connection; the listing is incomplete and nothing is published (MC-10, MC-7)', async () => {
+  it('a release while the refresh waits on the store before the listing: no page is asked on the released connection; the listing is incomplete and nothing is published (MC-7)', async () => {
     const base = world({ script: usualScript() })
     adoptStdio(base, files)
     const store = armedStore(base.store)
@@ -511,7 +511,7 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
-  it('closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (S8, MC-7)', async () => {
+  it('closeAll while a page is asked: connection-unavailable, not the listing-incomplete the page failure would give, and nothing is published (MC-7)', async () => {
     const listing = deferred<ListingPage | TransportFailure>()
     const { w, discovery, connections } = core(
       world({ script: [{ discover: peer }, { listActions: listing }] }),
@@ -526,7 +526,7 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
-  it('at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (S8, MC-7)', async () => {
+  it('at whichever microtask closeAll lands, the refresh starts no step after it: no gate or store port and no page, and it answers connection-unavailable unless it published (MC-7)', async () => {
     const LIMIT = 2_000
     let publishedBefore = false
     for (let k = 0; k < LIMIT && !publishedBefore; k += 1) {
@@ -593,7 +593,7 @@ describe('refresh fails', () => {
     expect(publishedBefore).toBe(true)
   })
 
-  it('the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (S8, MC-7, MC-16)', async () => {
+  it('the caller aborts and closeAll begins while a page is asked: kept (cancelled), the stop ranks before the shutdown as at the exit of a call (MC-7)', async () => {
     const listing = deferred<ListingPage | TransportFailure>()
     const { w, discovery, connections } = core(
       world({ script: [{ discover: peer }, { listActions: listing }] }),
@@ -609,7 +609,7 @@ describe('refresh fails', () => {
     expect(await record(w)).toBe('absent')
   })
 
-  it('closeAll while the store writes the listing: the refresh that published stays published (S8)', async () => {
+  it('closeAll while the store writes the listing: the refresh that published stays published', async () => {
     const base = world({ script: usualScript() })
     adoptStdio(base, files)
     const reached = deferred<void>()

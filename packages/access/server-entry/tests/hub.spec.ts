@@ -63,7 +63,7 @@ function pausedObserver(fixture: AccessFixture, name: string, body = '{"noteId":
   return socket
 }
 
-describe('C1: an observation goes through the whole pipeline', () => {
+describe('an observation goes through the whole pipeline', () => {
   it('opens an event stream: the head, the frames by the contract, and the ended frame', async () => {
     const fixture = await entry()
     const client = open(fixture)
@@ -138,7 +138,7 @@ describe('C1: an observation goes through the whole pipeline', () => {
   })
 })
 
-describe('C2: the hub keeps its behaviour at the new address', () => {
+describe('the hub keeps its behaviour at the new address', () => {
   it('bounds the observations of one login', async () => {
     const fixture = await entry({
       config: { observation: { perLogin: 2, perInstance: 8, cancelRetentionMs: 0 } },
@@ -274,7 +274,7 @@ describe('C2: the hub keeps its behaviour at the new address', () => {
   })
 })
 
-describe('C3: the frame source', () => {
+describe('the frame source', () => {
   it('gets the principal the port issued, the opening value and the message id', async () => {
     const fixture = await entry()
     const client = open(fixture, 'watch-tenant')
@@ -382,7 +382,7 @@ describe('C3: the frame source', () => {
   })
 })
 
-describe('C4: the frame queue bound', () => {
+describe('the frame queue bound', () => {
   async function flood(feed: Feed, limit: number): Promise<number> {
     const title = 'x'.repeat(16 * 1024)
     let pushed = 0
@@ -416,7 +416,7 @@ describe('C4: the frame queue bound', () => {
   })
 })
 
-describe('C5: a take-down ends every observation, and completes after their ended frames', () => {
+describe('a take-down ends every observation, and completes after their ended frames', () => {
   it('when the take-down completes, every observation of it has received its ended frame', async () => {
     const fixture = await entry()
     const clients = [
@@ -494,7 +494,7 @@ describe('C5: a take-down ends every observation, and completes after their ende
   })
 })
 
-describe('C6: the business access and what stays out of every output', () => {
+describe('the business access and what stays out of every output', () => {
   it('reports a business access once, after the first frame, only for an observation that counts', async () => {
     const fixture = await entry()
     const reports = () =>

@@ -119,7 +119,7 @@ describe('forgettable: closed, and holding nothing', () => {
     )
   })
 
-  it('is false for a closed entry that holds nothing while its build is in flight (MC-10)', () => {
+  it('is false for a closed entry that holds nothing while its build is in flight', () => {
     const pending = new Promise<never>(() => undefined)
     expect(forgettable({ ...nothing(), pending, connection: connection(true) })).toBe(false)
   })

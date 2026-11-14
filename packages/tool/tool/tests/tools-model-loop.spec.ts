@@ -29,7 +29,7 @@ function corrupt(token: string, change: (fields: unknown[]) => unknown[]) {
   return `${token.slice(0, token.indexOf('.'))}.${Buffer.from(JSON.stringify(change(payload))).toString('base64url')}`
 }
 
-describe('model-visible Tools result loop through real runtime and P14', () => {
+describe('model-visible Tools result loop through the real runtime and the result projection', () => {
   it('collects at least three source pages with new calls while executing the original once', async () => {
     const host = await modelHost()
     const general = await host.call('help', {})

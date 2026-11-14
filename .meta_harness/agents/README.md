@@ -1,6 +1,6 @@
 # Agent 源资产
 
-本目录是技能、钩子、云端环境与外部技能集的源。执行仓库根 `.agents/`、`.claude/`、`.codex/`、`.cursor/` 通过相对软链接暴露生成物；接入状态由工具核对。研发方法怎样分层、外部来源钉哪一版，归[技能入口](../../docs/engineering/skills.md#三层分工)。
+本目录是技能、钩子、云端环境与外部技能集的源。执行仓库根 `.agents/`、`.claude/`、`.codex/`、`.cursor/` 通过相对软链接暴露生成物；接入状态由工具核对。研发方法怎样分层、外部来源钉哪一版，归[来源与采用](../tooling/README.md#来源与采用)。
 
 | 源 | 内容 | 输出（相对显式指定的输出根） |
 |---|---|---|
@@ -11,7 +11,7 @@
 | [`pqw/`](pqw/spec-addendum.md) | pqw spec 与 plan 模板的本项目附加节；`contract-version` 是本项目满足的 pqw 接入约定版本 | 不生成，由根 `AGENTS.md`「pqw-skills 接入」引用 |
 | [`roles/engineering-taste.md`](roles/engineering-taste.md) | 研发品味的项目补充 | 不生成 |
 
-规矩本身归 canonical skills。过程材料放哪归[位置与唯一源](../../docs/engineering/documentation.md#位置与唯一源)。
+规矩本身归 canonical skills。过程材料放哪归[知识放哪](../../AGENTS.md#知识放哪)。
 
 ## 编译
 
@@ -25,6 +25,6 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 
 ## Skills
 
-项目自有技能的清单、何时加载与规则拥有者归[项目技能](../../docs/engineering/skills.md#项目技能)。使用时按名加载，不按路径读源；只有维护源时才进 `skills/<name>/canonical/` 与 `skills/<name>/adapters/<host>/`。研发流程的环节技能来自 pqw，入口是 `single-session-dev-flow`。
+项目自有技能使用时按名加载，不按路径读源；只有维护源时才进 `skills/<name>/canonical/` 与 `skills/<name>/adapters/<host>/`。研发流程的环节技能来自 pqw，入口是 `single-session-dev-flow`。
 
 外部项目依赖必须作为明确工作区或执行仓库输入，不暗接父仓库。编译保留草稿状态，生成不代表接受、安装、宿主加载或模型行为已验证。

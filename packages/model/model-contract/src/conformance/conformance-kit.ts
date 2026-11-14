@@ -9,6 +9,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import type {
   Admit,
   AckReceipt,
+  CallContact,
   CallState,
   ControlState,
   CustodyState,
@@ -217,16 +218,27 @@ export async function running<P>(scene: Scene<P>, label: string): Promise<Placed
   return call
 }
 
+export type Admitted<P> = Pick<Placed<P>, 'call' | 'operation'>
+
+export function referenceAccessOf<P>(scene: Scene<P>, call: Admitted<P>, tenant?: TenantId) {
+  const access = accessOf(scene, call.call, tenant)
+  return {
+    ...access,
+    reference: invocationReference({ ...access, admission: call.operation }),
+  }
+}
+
 export async function lookup<P>(scene: Scene<P>, call: Placed<P>): Promise<Lookup> {
   return succeeded(
-    await runtimeOf(scene).calls.inspect({
-      ...accessOf(scene, call.call),
-      reference: invocationReference({
-        ...accessOf(scene, call.call),
-        admission: call.operation,
-      }),
-    }),
+    await runtimeOf(scene).calls.inspect(referenceAccessOf(scene, call)),
     `the inspection of ${call.call}`,
+  )
+}
+
+export async function contactOf<P>(scene: Scene<P>, call: Admitted<P>): Promise<CallContact> {
+  return succeeded(
+    await runtimeOf(scene).calls.contact(referenceAccessOf(scene, call)),
+    `the contact of ${call.call}`,
   )
 }
 

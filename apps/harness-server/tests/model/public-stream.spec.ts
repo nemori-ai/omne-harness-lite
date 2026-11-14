@@ -57,7 +57,7 @@ describe('the public Model stream on the release tree', () => {
     })
   })
 
-  it('C3: the logged-in person takes the current stream of the main call and gets a snapshot, then deltas', async () => {
+  it('the logged-in person takes the current stream of the main call and gets a snapshot, then deltas', async () => {
     const gateway = heldAnswer('Hello', ' world')
     await onReleaseTree({ script: gateway.script }, async tree => {
       const access = await loginAccess(tree)
@@ -83,7 +83,7 @@ describe('the public Model stream on the release tree', () => {
     })
   })
 
-  it('C2: another tenant gets for a real reference exactly what it gets for an absent one; no login principal is denied', async () => {
+  it('another tenant gets for a real reference exactly what it gets for an absent one; no login principal is denied', async () => {
     const gateway = heldAnswer('Hello', ' world')
     await onReleaseTree({ script: gateway.script }, async tree => {
       const access = await loginAccess(tree)
@@ -113,7 +113,7 @@ describe('the public Model stream on the release tree', () => {
     })
   })
 
-  it('C5: an observation that stops midway leaves the Model call to settle as it would', async () => {
+  it('an observation that stops midway leaves the Model call to settle as it would', async () => {
     const gateway = heldAnswer('Hello', ' world')
     await onReleaseTree({ script: gateway.script }, async tree => {
       const access = await loginAccess(tree)

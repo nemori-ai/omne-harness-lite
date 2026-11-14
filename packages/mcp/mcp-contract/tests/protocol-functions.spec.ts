@@ -304,7 +304,7 @@ describe('withheldTools (T2)', () => {
   })
 })
 
-describe('authorization discovery (R4, T4)', () => {
+describe('authorization discovery (T4)', () => {
   it('reads the challenge parameters of any scheme, quoted or not', () => {
     const challenge = authorizationChallengeOf(
       'Bearer realm="mcp", resource_metadata="https://peer.test/.well-known/oauth-protected-resource/mcp", scope=files:read, error="insufficient_scope"',
@@ -400,7 +400,7 @@ describe('authorization discovery (R4, T4)', () => {
   })
 })
 
-describe('the scopes of a discovery (R4)', () => {
+describe('the scopes of a discovery', () => {
   const candidates = ['https://p/.well-known/oauth-protected-resource']
   const metadata = json({ scopes_supported: ['m1', 'm2'], authorization_servers: [] })
   const scopesOf = (header: string) =>
@@ -668,7 +668,7 @@ describe('readers (T2, T3, T6)', () => {
     })
   })
 
-  it('reads a task report and a task answer with the defects of T7', () => {
+  it('reads a task report and a task answer with their answer-malformed defects', () => {
     expect(
       readTaskReport(
         json({

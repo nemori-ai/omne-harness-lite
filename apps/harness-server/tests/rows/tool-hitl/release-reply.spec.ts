@@ -169,7 +169,7 @@ async function outcomeOf(
 const ONE = 'Which port should the dev server use?'
 const ACTION = 'Delete the build directory'
 
-describe('a person answers an Ask on the release tree and the call resumes once (C3, C4)', () => {
+describe('a person answers an Ask on the release tree and the call resumes once', () => {
   it(
     'an answer from the session entry and one from the pool resume their calls the same way, once each',
     { timeout: 300_000 },

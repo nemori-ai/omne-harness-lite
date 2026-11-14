@@ -204,7 +204,7 @@ describe('carried rows are reused only under the same key', () => {
   })
 })
 
-describe('lent reuse never changes the original reads (CX-14)', () => {
+describe('lent reuse never changes the original reads', () => {
   const withReuse = (f: AssemblyFixture) =>
     createAssemblyOperations({
       target: f.target,

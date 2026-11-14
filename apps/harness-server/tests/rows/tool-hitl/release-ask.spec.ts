@@ -54,7 +54,7 @@ const askOnce = toolCallsThenText(body => [
 ])
 const options = { script: askOnce, permission: 'bypass-permissions' }
 
-describe('Ask on the release tree puts its cards before a person and parks its calls (C2)', () => {
+describe('Ask on the release tree puts its cards before a person and parks its calls', () => {
   it(
     'ask and request_approval each suspend, their entries park, and the session and the pool list the same cards with their decline consequences',
     { timeout: 240_000 },

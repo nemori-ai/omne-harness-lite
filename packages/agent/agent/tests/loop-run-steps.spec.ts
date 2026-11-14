@@ -103,7 +103,7 @@ function expectStepLimitFailure(read: ExecutionSnapshot, maxRunSteps: number) {
   })
 }
 
-describe('the step limit of one execution (R2-D221)', () => {
+describe('the step limit of one execution', () => {
   it('ends normally when the Model stops calling tools within the limit', async () => {
     const assembly = await looping({ maxRunSteps: 3 })
     await toolSteps(assembly, 2)

@@ -705,7 +705,7 @@ test('native lookup construction is restricted to the original acquisition funct
     check(nativeDirectory.replace('createSessionModelDirectory()', 'anotherOwner()'), cliDirectory),
   ).not.toEqual([])
 })
-test('independent P-1r reads only inside its value operation', () => {
+test('the independent credential lookup reads only inside its value operation', () => {
   const path = 'packages/model/model-profile-directory-local/src/local-credentials.ts'
   const source = `import type {LocalCredentialLookupDependencies} from './local-credentials.ts';
     import {createCredentialBindingReader} from './tx-reads.ts';
@@ -719,7 +719,7 @@ test('independent P-1r reads only inside its value operation', () => {
   expect(check(source.replace('value: async', 'wrong: async'), path)).not.toEqual([])
   expect(check(source.replace('return lookup;', 'return read;'), path)).not.toEqual([])
 })
-test('Cordis lookup transfers only its actual read closure into the independent P-1r owner', () => {
+test('Cordis lookup transfers only its actual read closure into the independent credential lookup', () => {
   const source = `import {createLocalCredentialLookup} from './local-credentials.ts';
     export const localCredentialLookupPlugin = {apply(ctx) {
       createLocalCredentialLookup({readBoundReplicaIn:(unit,tenant,ref)=>ctx.boundCredentialReplicaReader.readIn(unit,tenant,ref)});

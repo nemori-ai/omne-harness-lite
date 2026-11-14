@@ -529,7 +529,7 @@ const g3Event = defineEvent({
   schema: { code: { kind: 'enum', values: ['ok', 'fault'] } },
 })
 
-describe('G3: a record with an error object or a secret-like text, through the real record writer', () => {
+describe('a record with an error object or a secret-like text, through the real record writer', () => {
   it(
     'is refused as dropped(invalid), counted in shutdown-result, and its text is not in the bytes written',
     { timeout: 60_000 },
@@ -636,7 +636,7 @@ function terminalOf(history: string): { run: string; outcome: string } | undefin
   }
 }
 
-describe('G7: the segment pairs of a real Run are released when the Run ends', () => {
+describe('the segment pairs of a real Run are released when the Run ends', () => {
   it(
     'every segment start of the run has its end, and the close report counts no segment open at close',
     { timeout: 120_000 },

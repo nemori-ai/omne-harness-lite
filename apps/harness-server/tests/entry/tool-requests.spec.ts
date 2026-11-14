@@ -513,7 +513,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
   })
 })
 
-describe('the release composition releaseToolRequestsOf on a real Cordis root (R2-D189 N1)', () => {
+describe('the release composition releaseToolRequestsOf on a real Cordis root (N1)', () => {
   it('reads the session as the coordinator caller and the scope binding under executionScopeBinding', async () => {
     const { fixture, ports, principalA, snapshot } = await world()
     const callers: unknown[] = []

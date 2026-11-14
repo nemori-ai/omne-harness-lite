@@ -112,7 +112,7 @@ export function riskLines(
   context: { base: string; changed: number; missing?: string },
 ): string[] {
   return [
-    `风险级别 L${risk.level}（改动路径推出的下限，级别定义见 docs/engineering/quality.md）${context.missing === undefined ? '' : '；不完整'}`,
+    `风险级别 L${risk.level}（改动路径推出的下限，级别定义见 docs/architecture/assurance.md）${context.missing === undefined ? '' : '；不完整'}`,
     `基线 ${context.base.slice(0, 9)} 到工作树，改动 ${context.changed} 个文件${risk.hits.length === 0 ? '，没有命中路径规则' : ''}`,
     ...risk.hits.map(hit => `- L${hit.level} ${hit.reason}：${listed(hit.paths)}`),
     ...(context.missing === undefined ? [] : [`没判的规则：${context.missing}`]),

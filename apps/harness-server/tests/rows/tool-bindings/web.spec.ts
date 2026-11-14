@@ -139,7 +139,7 @@ describe('tool-bindings: the Web attachment', () => {
     }
   })
 
-  it('search uses the official key when the tenant layer has none (F7), and the tenant key over it when both exist', async () => {
+  it('search uses the official key when the tenant layer has none, and the tenant key over it when both exist', async () => {
     const { w, vault, custody, tenantKey, officialKey, parent } = await world()
     try {
       const stub = await exa()

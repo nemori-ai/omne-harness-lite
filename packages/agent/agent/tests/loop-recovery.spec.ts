@@ -85,7 +85,7 @@ function isCommitOf(node: string, operation: string): boolean {
 }
 
 describe('E4 recovery routing', () => {
-  it.each(['E4', 'I0'])('NA-E4-1: input boundary %s delegates I0 to the evaluator', position => {
+  it.each(['E4', 'I0'])('input boundary %s delegates I0 to the evaluator', position => {
     expect(ok(route(checkpoint(position)))).toBe('evaluate')
   })
 
@@ -110,18 +110,15 @@ describe('E4 recovery routing', () => {
     ['F4', 'F4'],
     ['O0', 'O0'],
     ['E9', 'E9'],
-  ])(
-    'NA-E4-2: saved position %s resumes at %s without changing its facts',
-    (position, expected) => {
-      const at = checkpoint(position)
-      const before = structuredClone(at)
-      expect(ok(route(at))).toBe(expected)
-      expect(route(at)).toEqual(route(before))
-      expect(at).toEqual(before)
-    },
-  )
+  ])('saved position %s resumes at %s without changing its facts', (position, expected) => {
+    const at = checkpoint(position)
+    const before = structuredClone(at)
+    expect(ok(route(at))).toBe(expected)
+    expect(route(at)).toEqual(route(before))
+    expect(at).toEqual(before)
+  })
 
-  it('NA-E4-2: the input batch and the saved preparation determine the recovery point', async () => {
+  it('the input batch and the saved preparation determine the recovery point', async () => {
     const preparationsSaved: AgentCheckpoint[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -161,13 +158,13 @@ describe('E4 recovery routing', () => {
     expect(ok(route({ ...at, position: 'I8', calls: [] }))).toBe('I8')
   })
 
-  it('NA-E4-3: a pending operation goes to R0 and a settled operation resumes the main call at M1', () => {
+  it('a pending operation goes to R0 and a settled operation resumes the main call at M1', () => {
     const at = { ...checkpoint('M1'), calls: [pendingCall] }
     expect(ok(route(at, { unresolved: [operation('M1/commit@1')] }))).toBe('R0')
     expect(ok(route(at))).toBe('M1')
   })
 
-  it.each(['F2', 'F3'])('NA-E4-2: settling resumes %s from the saved finish intent', position => {
+  it.each(['F2', 'F3'])('settling resumes %s from the saved finish intent', position => {
     const intent = {
       candidate: operation('F1/commit@1'),
       conclusion: { kind: 'complete' as const },
@@ -180,7 +177,7 @@ describe('E4 recovery routing', () => {
   })
 
   it.each(['C0', 'C1', 'C2', 'C3', 'C4', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5'])(
-    'NA-E4-2: unfinished node %s has a named stage owner',
+    'unfinished node %s has a named stage owner',
     position => {
       expect(failure(route(checkpoint(position)))).toMatchObject({
         kind: 'unsupported',
@@ -237,7 +234,7 @@ describe('E4 recovery routing', () => {
     ).toBe('T2')
   })
 
-  it('NA-E4-2: a saved extension passage takes precedence over the E3 position', () => {
+  it('a saved extension passage takes precedence over the E3 position', () => {
     expect(failure(route(checkpoint('E3', [afterTerminalPassage('extension')])))).toMatchObject({
       kind: 'unsupported',
       node: 'X2',
@@ -246,7 +243,7 @@ describe('E4 recovery routing', () => {
 })
 
 describe('E1 and E2 read-only recognition', () => {
-  it('NA-E1-1: allowed enters E2 with no extra access check or business write', async () => {
+  it('allowed enters E2 with no extra access check or business write', async () => {
     let evaluations = 0
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly, {
@@ -268,7 +265,7 @@ describe('E1 and E2 read-only recognition', () => {
     expect(assembly.controls.access.check.calls).toHaveLength(0)
   })
 
-  it('NA-E1-3: ended goes to F4 without entering E2', async () => {
+  it('ended goes to F4 without entering E2', async () => {
     let reads = 0
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -293,7 +290,7 @@ describe('E1 and E2 read-only recognition', () => {
   })
 
   it.each(['load', 'inputs', 'readReplyAdmissions', 'query'] as const)(
-    'NA-E2-2: unavailable %s waits on the dependency instead of reading empty facts',
+    'unavailable %s waits on the dependency instead of reading empty facts',
     async method => {
       const assembly = await loopAssembly([execution()], d => ({
         ...d,
@@ -335,7 +332,7 @@ describe('E1 and E2 read-only recognition', () => {
     },
   )
 
-  it('NA-E2-2: a reply projection gap saves waiting', async () => {
+  it('a reply projection gap saves waiting', async () => {
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
       journal: {
@@ -353,7 +350,7 @@ describe('E1 and E2 read-only recognition', () => {
 
 describe('R0 and W0 coordination', () => {
   it.each(['unknown', 'applied', 'dropped'] as const)(
-    'NA-E4-3: R0 keeps the original operation when its result is %s',
+    'R0 keeps the original operation when its result is %s',
     async outcome => {
       const pending = operation('original-commit')
       const queried: string[] = []
@@ -407,7 +404,7 @@ describe('R0 and W0 coordination', () => {
   )
 
   it.each(['own-commit', 'other-operation'] as const)(
-    'NA-E4-3: R0 treats a rejected %s as settled or as a provider violation, not as unknown',
+    'R0 treats a rejected %s as settled or as a provider violation, not as unknown',
     async which => {
       const other = operation('other-ack')
       let target: ReturnType<typeof operation> | null = which === 'other-operation' ? other : null
@@ -482,7 +479,7 @@ describe('R0 and W0 coordination', () => {
     },
   )
 
-  it('NA-E4-3: recovery of the original main call reaches I3 without another admission', async () => {
+  it('recovery of the original main call reaches I3 without another admission', async () => {
     let connects = 0
     let admits = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -690,7 +687,7 @@ describe('R0 and W0 coordination', () => {
     },
   )
 
-  it('NA-E1-1: detach between E1 and E2 stops before another Model connection', async () => {
+  it('detach between E1 and E2 stops before another Model connection', async () => {
     let connects = 0
     let reentryLoads = 0
     let resuming = false
@@ -752,7 +749,7 @@ describe('R0 and W0 coordination', () => {
     expect(saved.checkpoint).toEqual(before.checkpoint)
   })
 
-  it('NA-E1-3: a terminal E2 snapshot takes priority over unresolved business continuation', async () => {
+  it('a terminal E2 snapshot takes priority over unresolved business continuation', async () => {
     let reentry = false
     let loads = 0
     let idle = 0
@@ -801,7 +798,7 @@ describe('R0 and W0 coordination', () => {
     )
   })
 
-  it('NA-W0-1: a waiting commit answered unavailable keeps the wait in the process and saves no event', async () => {
+  it('a waiting commit answered unavailable keeps the wait in the process and saves no event', async () => {
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly)
     ok(await c.accept())
@@ -812,7 +809,7 @@ describe('R0 and W0 coordination', () => {
     expect(await load(assembly)).toEqual(before)
   })
 
-  it('NA-E2-1: load, query, inputs and reply admissions reclaim facts without a revision change', async () => {
+  it('load, query, inputs and reply admissions reclaim facts without a revision change', async () => {
     const queried: string[] = []
     let inputReads = 0
     let admissionReads = 0
@@ -858,7 +855,7 @@ describe('R0 and W0 coordination', () => {
 })
 
 describe('saved waiting through invoke', () => {
-  it('NA-W0-1: state, basis and event commit once while observe remains occupied', async () => {
+  it('state, basis and event commit once while observe remains occupied', async () => {
     const writes: Parameters<ExecutionEntry<Principal>['ports']['journal']['commit']>[0][] = []
     const assembly = await loopAssembly([execution(), execution('exec-2')], d => ({
       ...d,
@@ -886,7 +883,7 @@ describe('saved waiting through invoke', () => {
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
   })
 
-  it('NA-E1-2: unavailable E1 load preserves the original continuation in a dependency wait', async () => {
+  it('unavailable E1 load preserves the original continuation in a dependency wait', async () => {
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly)
     ok(await c.accept())
@@ -898,7 +895,7 @@ describe('saved waiting through invoke', () => {
     })
   })
 
-  it('NA-E1-1: a replaced attachment goes to E9 without a business write', async () => {
+  it('a replaced attachment goes to E9 without a business write', async () => {
     let idle = 0
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -924,7 +921,7 @@ describe('saved waiting through invoke', () => {
 })
 
 describe('the recovered input boundary', () => {
-  it('NA-E4-1: I0 takes the input content saved by acceptance', async () => {
+  it('I0 takes the input content saved by acceptance', async () => {
     const initial = acceptedInput('persisted-input', 'the saved input')
     const messages: unknown[] = []
     const assembly = await loopAssembly([execution()], d => ({
@@ -949,7 +946,7 @@ describe('the recovered input boundary', () => {
 })
 
 describe('a saved admission position in a new coordinator', () => {
-  it('NA-E4-1: a new coordinator over a saved Q2 position recognizes the original open and ends at E1; the P and currentHandoff stay as saved', async () => {
+  it('a new coordinator over a saved Q2 position recognizes the original open and ends at E1; the P and currentHandoff stay as saved', async () => {
     let replies = 0
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -989,8 +986,8 @@ describe('a saved admission position in a new coordinator', () => {
   })
 })
 
-describe('the Access of the admission calls (#963 N-2)', () => {
-  it('NA-Q2-2: each prepare carries the tenant of the execution that calls it, and the unavailable one is not looked up', async () => {
+describe('the Access of the admission calls', () => {
+  it('each prepare carries the tenant of the execution that calls it, and the unavailable one is not looked up', async () => {
     const prepared: (readonly [kind: string, tenant: unknown])[] = []
     let replies = 0
     const assembly = await loopAssembly([execution('exec-a'), execution('exec-b')], d => ({
@@ -1034,7 +1031,7 @@ describe('the Access of the admission calls (#963 N-2)', () => {
 })
 
 describe('checkpoint positions saved by the current assembly', () => {
-  it('NA-E4-2: every checkpoint written on the normal path has the specified recovery destination', async () => {
+  it('every checkpoint written on the normal path has the specified recovery destination', async () => {
     const saved: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,

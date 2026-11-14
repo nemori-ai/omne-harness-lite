@@ -16,7 +16,7 @@ const answers = (step: 'preparation' | 'meter') => ({
   unavailable: { kind: 'unavailable', owner: step },
 })
 
-describe('a failure of a supplier keeps its kind (RQ-05)', () => {
+describe('a failure of a supplier keeps its kind', () => {
   it.each(kinds)('the rules answer %s', async kind => {
     const f = fixture()
     const result = await assemble(

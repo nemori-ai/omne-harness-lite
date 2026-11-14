@@ -1,6 +1,6 @@
 # 给人看的开发指南
 
-本页写给指导 agent 工作、并对交付结果负责的人。你主要负责定义问题、判断质量和决定是否接受。具体实现由 agent 完成，命令和操作步骤见[开发指南](development.md)。原生依赖的锁定安装、白名单构建和编译器前提也由该指南维护。
+本页写给指导 agent 工作、并对交付结果负责的人。你主要负责定义问题、判断质量和决定是否接受。具体实现由 agent 完成，命令和操作步骤见[开始工作](../CONTRIBUTING.md#开始工作)。原生依赖的锁定安装、白名单构建和编译器前提也由该节维护。
 
 ## 用机器学习训练理解研发分工
 
@@ -59,8 +59,6 @@ model structure 在这里对应软件怎样分担责任。看新增依赖有没�
 
 核对实际提交或未提交字节、工作树、基线、工具版本和运行环境。旧候选的绿测、旧 `dist` 或另一棵树的日志，不能支持当前交付。
 
-任务工作树的基线怎样取，见[迭代中的受影响测试](development.md#迭代中的受影响测试)。
-
 ## 主动让 agent 做可视化讲解
 
 理解顶层架构、陌生模块或复杂业务流程时，主动让 agent 为你做一次性的、定制化的可视化讲解。说明你想弄清哪个问题、已经知道什么，以及哪里还不理解。agent 可以根据这次需要生成可离线打开的 HTML、可交互的图，或能逐步播放的演示动画。
@@ -90,23 +88,23 @@ model structure 在这里对应软件怎样分担责任。看新增依赖有没�
 | 时点 | 你做什么 | 需要看到的依据 |
 | --- | --- | --- |
 | 定义期 | 和 agent 一起定需求与不变式、领域边界、选型与细化设计，确认正式文档落盘 | 一个能单独接受的结果，必要时先做探路件 |
-| 交接期 | 认可 spec；看切片大纲，答验收窗口，定这一程多大、分不分程；确认卡发出。一程交回后上手验收，再定交不交下一程 | [卡就是交接信息包](engineering/delivery.md#卡就是交接信息包)；只有你能定的待决已写明 |
+| 交接期 | 认可 spec；看切片大纲，答验收窗口，定这一程多大、分不分程；确认卡发出。一程交回后上手验收，再定交不交下一程 | [卡就是交接信息包](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#卡就是交接信息包)；只有你能定的待决已写明 |
 | 交付期 | 不逐步监督；agent 停下来问只有你能定的事时回答 | 回看记录与汇报件 |
 | agent 交回 | 核对交付声明、实际结果、未覆盖和结构读数 | 见[交回时看什么](#交回时看什么)，不以完成声明代替证据 |
-| 接受 | 由具名有权者确认接受范围和剩余责任 | [接受、取消与重开](engineering/delivery.md#接受取消与重开) |
+| 接受 | 由具名有权者确认接受范围和剩余责任 | [决定记录](../.meta_harness/agents/skills/omne-card/canonical/references/decisions.md) |
 | 集成 | 核对精确候选、影响面、必要检查与授权 | 接受、Git 集成、Issue 关闭和 Project 阶段分别判断 |
 
-合并、推送和发布沿[任务授权](engineering/publication.md#提交表达与权限)执行。已有授权无需重复询问。检查通过不扩大权限。正式成果和临时材料的保存分别沿[成果保存](engineering/publication.md#成果保存与跨会话接续)核对。
+合并、推送和发布沿任务授权执行。已有授权无需重复询问。检查通过不扩大权限。
 
 ### 独立任务隔离并行，共享对象单写
 
 独立任务可以由主会话协调多个隔离写者。每个写者有明确 worktree、分支和范围。共享接口、锁文件与集成拓扑由单一负责人维护，耦合任务按依赖串行。你核对写权和依赖，不用会话数量判断协作是否合规。
 
-检查和 hooks 观察实际执行者的检出。另一棵树的环境、检查结果或钩子沉默不能代替本树证据。清理前核对活跃消费者、唯一 ignored 材料和保存授权，具体条件归[协作交接](engineering/workflow.md#责任与协作交接)。
+检查和 hooks 观察实际执行者的检出。另一棵树的环境、检查结果或钩子沉默不能代替本树证据。清理前核对活跃消费者、唯一 ignored 材料和保存授权。
 
 ### 接受一张卡之后
 
-普通Issue保留精确交付修订、最小决定和结果定位，接受的写法归[接受、取消与重开](engineering/delivery.md#接受取消与重开)；关闭、Project阶段、有效接受与当前能力支持分别判断。
+普通Issue保留精确交付修订、最小决定和结果定位，接受的写法归[决定记录](../.meta_harness/agents/skills/omne-card/canonical/references/decisions.md)；关闭、Project阶段、有效接受与当前能力支持分别判断。
 
 将获接受的持续规则写回其现行拥有者，保留持续行为验收，由验收拥有者移除仅在本次交付时刻成立的临时断言。`pnpm run acceptance:scenarios`只读取长期产品与覆盖声明，不能证明验收已执行、通过或产品已接受。
 
@@ -122,7 +120,7 @@ model structure 在这里对应软件怎样分担责任。看新增依赖有没�
 
 ## 接受级别
 
-按改动触及的最高风险定级，不按行数或文件数定级。拿不准就上调。级别的定义与人审数归[风险级别](engineering/quality.md#按风险选择接受实现的看法)，L3 逐行核的热点归 [`omne-card`](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#l3-热点清单)。
+按改动触及的最高风险定级，不按行数或文件数定级。拿不准就上调。级别的定义与人审数归[风险级别](architecture/assurance.md#按风险选择接受实现的看法)，L3 逐行核的热点归 [`omne-card`](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#l3-热点清单)。
 
 | 级别 | 你主要看什么 |
 | --- | --- |
@@ -148,13 +146,13 @@ model structure 在这里对应软件怎样分担责任。看新增依赖有没�
 7. 看[硬线](clean-loop.md#回路怎么转)与需解释读数。`pnpm run loop:status` 的红项应在交付中有处置或明确理由。没变差的历史超线数不要求实施者替历史逐条交代。
 8. 核对提交与接受责任。提交应能按独立单元理解，人的署名及 `Harness:`、`Agent-Role:` 来源沿[贡献交付](../CONTRIBUTING.md#形成可审阅的交付)核对。
 
-度量是定位和抽查依据。方向无违规不证明架构合理，覆盖率高不证明行为正确。各入口的能力与声明边界归[验证与证据](verification.md#检查入口)。
+度量是定位和抽查依据。方向无违规不证明架构合理，覆盖率高不证明行为正确。
 
 ### 合并前按影响面检查，同时守住硬线
 
 `pnpm run check` 打印影响面，再执行常驻检查和受影响成员的必要步骤。硬线是哪几条、怎样核对，归[整洁回路](clean-loop.md#回路怎么转)，本页不另列。
 
-计划未选中的检查没有运行。硬线不能因检查范围收窄而省略。全量检查由负责人安排，或由实际全局影响决定，合并后没有自动补跑。基线怎样取见[迭代中的受影响测试](development.md#迭代中的受影响测试)。
+计划未选中的检查没有运行。硬线不能因检查范围收窄而省略。全量检查由负责人安排，或由实际全局影响决定，合并后没有自动补跑。
 
 传感器量不出数据时，先查原因。目录迁移、工具故障或配置关闭都可能导致缺数据。需要停用传感器时记录决定与理由，不为让这次检查变绿而悄悄关闭。
 
@@ -202,7 +200,7 @@ hook 是提醒，不是合并门禁。未碰适用源码、hook 未启用、重�
 
 ## 开始前准备 coding agent 环境
 
-流程层 pqw-skills 是子模块，随检出初始化，不另装。在实际使用的 coding agent harness 中安装并启用项目[三层方法](engineering/skills.md#三层分工)的其余来源：pstack 与 Matt 两份插件，以及 ub-mode 技能。ub-mode 按来源表的固定提交取 `https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode-revision>/SKILL.md`，放到宿主的用户技能目录：Claude Code 为 `~/.claude/skills/ub-mode/SKILL.md`，Codex 为 `~/.codex/skills/ub-mode/SKILL.md`，Cursor 为 `~/.cursor/skills/ub-mode/SKILL.md`。精确版本归[技能来源表](engineering/skills.md#来源与项目采用)，操作归[开发初始化](development.md#初始化-coding-agent-插件)，本页只说明人要核对的责任。
+流程层 pqw-skills 是子模块，随检出初始化，不另装。在实际使用的 coding agent harness 中安装并启用项目[外部方法](../.meta_harness/tooling/README.md#来源与采用)的其余来源：pstack 与 Matt 两份插件，以及 ub-mode 技能。ub-mode 按来源表的固定提交取 `https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode-revision>/SKILL.md`，放到宿主的用户技能目录：Claude Code 为 `~/.claude/skills/ub-mode/SKILL.md`，Codex 为 `~/.codex/skills/ub-mode/SKILL.md`，Cursor 为 `~/.cursor/skills/ub-mode/SKILL.md`。精确版本归[技能来源表](../.meta_harness/tooling/README.md#来源与采用)，操作归[开始工作](../CONTRIBUTING.md#开始工作)，本页只说明人要核对的责任。
 
 新机器、cloud 环境或更换 harness 后，确认插件版本、会话发现（含 `ub-mode`）、所需技能和参考，以及实际可用的模型和工具。Matt 完整插件仍只按项目选定子集触发。插件出现在列表中不证明自动路由、hooks 或真实任务遵循已经发生。
 
@@ -210,16 +208,16 @@ agent 可完成获准且能够自行操作的安装与核对，需要人完成�
 
 ## 对话与交付队列
 
-提出任务时说清本次要设计、发卡还是实施。卡就是交接信息包，规则归[卡与交接信息包](engineering/delivery.md#卡就是交接信息包)，发卡、开工、进轨道与接受的命令归 `omne-card`。Project 是派生视图，关闭或阶段变化不授接受。
+提出任务时说清本次要设计、发卡还是实施。卡就是交接信息包，规则归[卡就是交接信息包](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#卡就是交接信息包)，发卡、开工、进轨道与接受的命令归 `omne-card`。Project 是派生视图，关闭或阶段变化不授接受。
 
-人的工作是确定路线、必要条件和集成责任，具体操作可委派给获授权的 agent。轨道与 gate 的规则归[集成规则](engineering/integration.md#轨道责任与保护)。Git 已集成、任务接受、Issue 写回及关闭分别读回，运输成功不自动结束全部责任。
+人的工作是确定路线、必要条件和集成责任，具体操作可委派给获授权的 agent。轨道与 gate 的规则归[进轨道](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)。Git 已集成、任务接受、Issue 写回及关闭分别读回，运输成功不自动结束全部责任。
 
 ## 已有机制与待补齐的接入
 
 下面说明已具备的能力和剩余责任。工具实现、数据覆盖、正式启用和交付接受分别核对。写进计划或生成适配文件不表示已经接通。
 
-- 可执行验收、覆盖声明和验收锁已有工具入口。产品观察读取当前PD；缺场景正文或编号时单列未覆盖，覆盖声明保留其现行格式与来源核对。实际执行、支持和有效接受仍分别核验。接受时仍核对有效场景、本次候选和实际运行证据，覆盖声明与任务阶段不能代替它们。具体覆盖归[验证说明](verification.md)。
+- 可执行验收、覆盖声明和验收锁已有工具入口。产品观察读取当前PD；缺场景正文或编号时单列未覆盖，覆盖声明保留其现行格式与来源核对。实际执行、支持和有效接受仍分别核验。接受时仍核对有效场景、本次候选和实际运行证据，覆盖声明与任务阶段不能代替它们。具体覆盖归[证据与有效范围](architecture/assurance.md#证据与有效范围)。
 - 趋势已有历史快照，工具支持回退到可用的祖先记录。比较时核对当前 main 提交是否有对应快照，以及实际采用的历史范围；共享时间线可能包含不同分支的记录。没有可用数据时保持未判，不能补造主线历史。采集条件归[回路](clean-loop.md)。
 - hooks 的源、配置和入口已有，本工作树的原生 Codex `Stop` 已观察到正常反馈。这只支持当次事件与受检工作树。其他宿主、`SubagentStop` 和每个隔离执行者仍须核对真实 cwd、加载、信任与反馈；命令重放不能代替原生事件验证。边界归[hooks 说明](../.meta_harness/agents/hooks/README.md)。
-- Issue 协议和多层集成工具已有，日常入口的启用状态归交付配置。主干的进入由 `github-gate` 的流程执行，当前轨道以 policy registry 为准。开工前按实际任务明确本次身份、结果与条件。条件归[卡与交接信息包](engineering/delivery.md#卡就是交接信息包)与[集成规则](engineering/integration.md)。
-- 正式 `Check` 工作流当前停用，已有在线 runner 和试验工作流不构成 main 或 PR 的正式检查。共享分支与记录标签的保护按[集成规则](engineering/integration.md#轨道责任与保护)配置，执行前核对实际生效状态。合并前保留绑定候选的本地检查证据，平台接入与恢复沿[自动化入口](../scripts/README.md#ci)核对。
+- Issue 协议和多层集成工具已有，日常入口的启用状态归交付配置。主干的进入由 `github-gate` 的流程执行，当前轨道以 policy registry 为准。开工前按实际任务明确本次身份、结果与条件。条件归[卡就是交接信息包](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#卡就是交接信息包)与[进轨道](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)。
+- 正式 `Check` 工作流当前停用，已有在线 runner 和试验工作流不构成 main 或 PR 的正式检查。共享分支与记录标签的保护按[进轨道](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)配置，执行前核对实际生效状态。合并前保留绑定候选的本地检查证据，平台接入与恢复沿 `omne-card` 技能的[正式 Check 工作流与自托管 runner](../.meta_harness/agents/skills/omne-card/canonical/references/ci-runner.md)核对。

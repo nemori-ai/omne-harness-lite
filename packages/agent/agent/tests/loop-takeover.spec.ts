@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { StepId } from '@omne-harness/agent-contract'
-import { evidence, execution, ok } from './journal-support.ts'
-import { eventually } from './loop-support.ts'
+import { decodeModelOperationId, decodeRevision } from '@omne-harness/model-contract'
+import { fail, succeed } from '@omne-harness/operation-result'
+import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
+import { acceptedInput, evidence, execution, ok, operation } from './journal-support.ts'
+import { alice, eventually, loopAssembly } from './loop-support.ts'
 import {
   assistantTexts,
   at,
@@ -11,6 +14,7 @@ import {
   lostContact,
   policy,
   replyOf,
+  resumeEntry,
   saved,
   START,
   takeover,
@@ -109,6 +113,64 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
         },
       ],
     ])
+    expect(run.admitted).toHaveLength(1)
+  })
+
+  it('the Model answers lost: M3 produces no producer event, since no result is handed over', async () => {
+    const run = await takeover([null, replyOf('the second reply')])
+    await inFlight(run)
+    run.assembly.controls.modelContact.always(lostContact)
+    const next = await run.rebuild()
+    ok(await next.runExecution())
+    const page = ok(
+      await run.assembly.dependencies.journal.output.read({
+        ...alice,
+        execution: execution(),
+        after: null,
+        limit: 100,
+      }),
+    )
+    if (page.kind !== 'page') throw new Error('a gap in a new execution')
+    expect(page.events.map(event => event.body.kind)).not.toContain('producer')
+    expect((await saved(run.assembly)).checkpoint).toMatchObject({ position: 'I8', calls: [] })
+  })
+
+  it('the received results cannot be read when the Model is to be asked: M6 waits on the Journal and does not take the call as accepted', async () => {
+    let broken = false
+    const run = await takeover([null], policy(), d => ({
+      ...d,
+      entries: {
+        ...d.entries,
+        receivedOf: input =>
+          broken
+            ? Promise.resolve(
+                fail({
+                  kind: 'unavailable',
+                  owner: 'agentJournal',
+                  diagnostic: 'the Journal is down',
+                }),
+              )
+            : d.entries.receivedOf(input),
+      },
+    }))
+    await inFlight(run)
+    const contact = run.assembly.controls.modelContact
+    contact.always(contactAnswer('holding'))
+    const next = await run.rebuild()
+    broken = true
+    ok(await next.runExecution())
+    expect((await saved(run.assembly)).state).toEqual({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', owner: 'agentJournal', position: 'M6' }],
+    })
+    expect(contact.calls).toEqual([])
+    broken = false
+    ok(await next.runExecution())
+    expect(contact.calls).toHaveLength(1)
+    expect((await saved(run.assembly)).state).toMatchObject({
+      kind: 'waiting',
+      waits: [{ kind: 'producer' }],
+    })
     expect(run.admitted).toHaveLength(1)
   })
 
@@ -231,6 +293,52 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
     expect((await saved(run.assembly)).checkpoint).toMatchObject({
       calls: [],
       modelRetry: { failures: 1 },
+    })
+  })
+})
+
+describe('a not-accepted answer that names another admission', () => {
+  it('an admission conflict whose inspection answers not-accepted for another admission: M6 fails as a defect and voids nothing', async () => {
+    let admits = 0
+    const assembly = await loopAssembly([execution()], d => ({
+      ...d,
+      models: {
+        ...d.models,
+        calls: {
+          ...d.models.calls,
+          admit: async input =>
+            (admits += 1) > 1
+              ? fail({ kind: 'unavailable', dependency: 'model-host', diagnostic: 'not mounted' })
+              : fail({
+                  kind: 'conflict',
+                  operation: input.operation,
+                  revision: ok(decodeRevision('1')),
+                }),
+          inspect: async () =>
+            succeed({
+              kind: 'not-accepted' as const,
+              operation: ok(decodeModelOperationId('mop_another')),
+            }),
+        },
+      },
+    }))
+    const coordinator = createExecutionCoordinator({
+      ...resumeEntry(assembly.dependencies),
+      operation: operation('invoke-exec-1'),
+      initial: acceptedInput('input-exec-1', 'hello exec-1'),
+      grant: null,
+    })
+    ok(await coordinator.accept())
+    ok(await coordinator.runExecution())
+    expect(admits).toBe(1)
+    const after = await saved(assembly)
+    expect(after.checkpoint.voided).toEqual([])
+    expect(after.state).toMatchObject({
+      kind: 'settling',
+      intent: {
+        conclusion: { kind: 'fail' },
+        failure: { kind: 'node-failed', node: 'M6', category: 'invariant' },
+      },
     })
   })
 })

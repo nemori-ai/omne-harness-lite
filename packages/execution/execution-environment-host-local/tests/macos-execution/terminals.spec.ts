@@ -85,7 +85,7 @@ const noBetween = { data: Buffer.alloc(0), count: { observedBytes: 0, discardedB
 const sentinelPrefix = Buffer.from('\u001b]7770;')
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-it('C7 keeps the terminal valid when a segment leaves a background job', async ctx => {
+it('keeps the terminal valid when a segment leaves a background job', async ctx => {
   if (!enabled) return ctx.skip()
   const f = await fixture()
   const background = await run(f.terminal, f.ref, 'sleep 30 & echo x')
@@ -97,7 +97,7 @@ it('C7 keeps the terminal valid when a segment leaves a background job', async c
   expect(value(await f.terminal.list(base))).toMatchObject([{ terminal: f.ref, state: 'idle' }])
 }, 60_000)
 
-it('C8 keeps every foreground byte inside its own segment over 200 segments', async ctx => {
+it('keeps every foreground byte inside its own segment over 200 segments', async ctx => {
   if (!enabled) return ctx.skip()
   const f = await fixture()
   const written = 65536
@@ -113,7 +113,7 @@ it('C8 keeps every foreground byte inside its own segment over 200 segments', as
   }
 }, 600_000)
 
-it('C9 reports bytes written between segments in the next result only', async ctx => {
+it('reports bytes written between segments in the next result only', async ctx => {
   if (!enabled) return ctx.skip()
   const f = await fixture()
   const writer = await run(f.terminal, f.ref, "(sleep 0.3; printf 'G%.0s' $(seq 1000)) &")
@@ -129,7 +129,7 @@ it('C9 reports bytes written between segments in the next result only', async ct
   expect((await run(f.terminal, f.ref, 'printf again')).between).toEqual(noBetween)
 }, 60_000)
 
-it('C9 counts between-segment bytes beyond betweenSegmentBytes as discarded', async ctx => {
+it('counts between-segment bytes beyond betweenSegmentBytes as discarded', async ctx => {
   if (!enabled) return ctx.skip()
   const f = await fixture({ betweenSegmentBytes: 100 })
   await run(f.terminal, f.ref, "(sleep 0.3; printf 'G%.0s' $(seq 1000)) &")
@@ -142,7 +142,7 @@ it('C9 counts between-segment bytes beyond betweenSegmentBytes as discarded', as
   })
 }, 60_000)
 
-it('C10 close stops a nohup process, a background job and the shell, and removes the marker and the FIFOs', async ctx => {
+it('close stops a nohup process, a background job and the shell, and removes the marker and the FIFOs', async ctx => {
   if (!enabled) return ctx.skip()
   const state = await workDirectory('omne-terminal-state-')
   const f = await fixture({ state })

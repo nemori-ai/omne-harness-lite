@@ -167,7 +167,7 @@ const kinds = (outcome: Outcome): string[] =>
 const receipts = (): unknown[] =>
   readRows(workspace, 'select operation_key, kind from _sql_receipt order by rowid')
 
-describe('C03, C18: a result is posted only after the physical commit that holds it', () => {
+describe('C03: a result is posted only after the physical commit that holds it', () => {
   it('posts the group results after the outer COMMIT', async () => {
     const log: Log = []
     const group = runner(log, () => false)

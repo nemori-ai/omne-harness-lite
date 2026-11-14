@@ -7,7 +7,7 @@ const files = (dir: string): string[] =>
     entry.isDirectory() ? files(`${dir}/${entry.name}`) : [`${dir}/${entry.name}`],
   )
 
-describe('the ./testing subpath (C3)', () => {
+describe('the ./testing subpath', () => {
   it('declares source, types and import conditions', () => {
     const exported = JSON.parse(read('package.json')).exports['./testing']
     expect(exported).toEqual({

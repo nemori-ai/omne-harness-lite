@@ -164,7 +164,7 @@ async function allPages(
   return pages
 }
 
-describe('15 result pages and the account (P08, P09)', () => {
+describe('15 result pages and the account', () => {
   it('15 pages: readResult reads the full text of the logical result in whole-block pages', async () => {
     const assembly = harness({ chunk: 13, resultPageBytes: 220 })
     const admitted = await assembly.admitInternal(dummyRequest())

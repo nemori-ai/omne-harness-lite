@@ -201,7 +201,7 @@ type Foreign = Readonly<{
   execution: 'other' | 'self'
 }>
 
-it('R2-D164 a complete call retires when the run in progress ends, and is not rescheduled', async () => {
+it('a complete call retires when the run in progress ends, and is not rescheduled', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   try {
     const w = await world()
@@ -233,7 +233,7 @@ it('R2-D164 a complete call retires when the run in progress ends, and is not re
   }
 })
 
-it('R2-D186 a failed cleanup keeps the call, the interval wakes it, and it retires once', async () => {
+it('a failed cleanup keeps the call, the interval wakes it, and it retires once', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   try {
     const dispose = vi.fn(async () => undefined)
@@ -299,7 +299,7 @@ it('a read before the run that cannot answer is handed to the driver, not to eve
   }
 })
 
-it('R2-D327 the executor lets a call go and its pacing entries go with it', async () => {
+it('the executor lets a call go and its pacing entries go with it', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   try {
     const unavailable = async () =>

@@ -127,7 +127,7 @@ function holdTools(f: AssemblyFixture) {
 }
 
 describe('a hot call gives the content of a cold call', () => {
-  it('CX-14 reads no page for a repeated call and only the tail for a longer history', async () => {
+  it('reads no page for a repeated call and only the tail for a longer history', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -152,7 +152,7 @@ describe('a hot call gives the content of a cold call', () => {
     expect(longer.preparation.view).toEqual(alone.preparation.view)
   })
 
-  it('CX-14 meters every cache hit and lets the second measurement decide', async () => {
+  it('meters every cache hit and lets the second measurement decide', async () => {
     let measured = 0
     const f = createAssemblyFixture({
       rows: rows(),
@@ -175,7 +175,7 @@ describe('a hot call gives the content of a cold call', () => {
     expect(second.kind).not.toBe('candidate-before-extension')
   })
 
-  it('CX-14 rejects a hot call after the eligibility was withdrawn', async () => {
+  it('rejects a hot call after the eligibility was withdrawn', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -194,7 +194,7 @@ describe('a hot call gives the content of a cold call', () => {
 })
 
 describe('the cache is partitioned by who asks and by what was registered', () => {
-  it('CX-14 reads the history again for another principal of the same tenant', async () => {
+  it('reads the history again for another principal of the same tenant', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -209,7 +209,7 @@ describe('the cache is partitioned by who asks and by what was registered', () =
     expect(counts.pages).toBe(2)
   })
 
-  it('CX-14 keeps purposes apart', async () => {
+  it('keeps purposes apart', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -220,7 +220,7 @@ describe('the cache is partitioned by who asks and by what was registered', () =
     expect(counts.pages).toBe(2)
   })
 
-  it('CX-14 answers a caller of another tenant before any cache or history read', async () => {
+  it('answers a caller of another tenant before any cache or history read', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -234,7 +234,7 @@ describe('the cache is partitioned by who asks and by what was registered', () =
 })
 
 describe('the cache lives and dies with its generation', () => {
-  it('CX-14 rejects cached publication after replacement', async () => {
+  it('rejects cached publication after replacement', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     const first = await registered(registry, f)
@@ -258,7 +258,7 @@ describe('the cache lives and dies with its generation', () => {
     expect(counts.rows).toBe(8)
   })
 
-  it('CX-14 starts empty after a withdrawn set is registered again', async () => {
+  it('starts empty after a withdrawn set is registered again', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     const handle = await registered(registry, f)
@@ -274,7 +274,7 @@ describe('the cache lives and dies with its generation', () => {
     expect(counts.rows).toBe(8)
   })
 
-  it('CX-14 lets a slower older call return its result without replacing newer material', async () => {
+  it('lets a slower older call return its result without replacing newer material', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -294,7 +294,7 @@ describe('the cache lives and dies with its generation', () => {
     expect(counts.pages).toBe(pages)
   })
 
-  it('CX-14 keeps nothing from a call that failed', async () => {
+  it('keeps nothing from a call that failed', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -310,7 +310,7 @@ describe('the cache lives and dies with its generation', () => {
     expect(counts.rows).toBe(16)
   })
 
-  it('CX-14 bounds the slots of one generation', async () => {
+  it('bounds the slots of one generation', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -327,7 +327,7 @@ describe('the cache lives and dies with its generation', () => {
 })
 
 describe('consecutive Runs of one session', () => {
-  it('CX-14 reads only the new rows for the next Run of the same session', async () => {
+  it('reads only the new rows for the next Run of the same session', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -352,7 +352,7 @@ describe('consecutive Runs of one session', () => {
     expect(second.preparation.key.identity).toEqual(alone.preparation.key.identity)
   })
 
-  it('CX-14 reads the whole history for the next Run of another principal', async () => {
+  it('reads the whole history for the next Run of another principal', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)
@@ -369,7 +369,7 @@ describe('consecutive Runs of one session', () => {
     expect(starts).toEqual([null, null, '3'])
   })
 
-  it('CX-14 reads the whole history for a Run of another session', async () => {
+  it('reads the whole history for a Run of another session', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const g = otherSession(f)
     const registry = registryFor(f)
@@ -387,7 +387,7 @@ describe('consecutive Runs of one session', () => {
     expect(first.starts).toEqual([null, '3'])
   })
 
-  it('CX-14 reads the new epoch from its first row for the next Run after a compaction', async () => {
+  it('reads the new epoch from its first row for the next Run after a compaction', async () => {
     const f = createAssemblyFixture({ rows: rows() })
     const registry = registryFor(f)
     await registered(registry, f)

@@ -102,8 +102,8 @@ const ENDED_EVENTS = [
 const idle: AgentState = { kind: 'idle', instance: instance() }
 const reserved = { kind: 'reserved', instance: instance() }
 
-describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1, Q2 and Q4', () => {
-  it('NA-U0-1: Journal.inputs returns the content that invoke handed over', async () => {
+describe('the input of invoke through U0, Q1, Q2 and Q4', () => {
+  it('Journal.inputs returns the content that invoke handed over', async () => {
     const assembly = await recorded()
     ok(await invoke(assembly))
     const snapshot = ok(
@@ -120,7 +120,7 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
     assembly.release.open()
   })
 
-  it('NA-Q1-1: the external input has no P; the Model reply has exactly its P between the producer commit and prepare', async () => {
+  it('the external input has no P; the Model reply has exactly its P between the producer commit and prepare', async () => {
     const assembly = await recorded()
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
@@ -142,7 +142,7 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
     expect(p[0]?.events).toEqual([])
   })
 
-  it('NA-Q2-1: an accepted Model reply commits its admission with the checkpoint, and the node goes to Q4', async () => {
+  it('an accepted Model reply commits its admission with the checkpoint, and the node goes to Q4', async () => {
     const assembly = await recorded()
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
@@ -167,7 +167,7 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
     ])
   })
 
-  it('NA-Q2-1: an accepted external input saves no receipt of its own (S-13 of #558); it goes to open unchanged', async () => {
+  it('an accepted external input saves no receipt of its own; it goes to open unchanged', async () => {
     const assembly = await recorded()
     ok(await invoke(assembly))
     const [external] = assembly.record.prepares
@@ -187,7 +187,7 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
     assembly.release.open()
   })
 
-  it('NA-Q4-1: Q4 returns each admission to its call position once: the input to U0 and E0, the reply to I3', async () => {
+  it('Q4 returns each admission to its call position once: the input to U0 and E0, the reply to I3', async () => {
     const assembly = await recorded()
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
@@ -208,8 +208,8 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
   })
 })
 
-describe('NA-E0-1: invoke reserves the slot, then open saves the input and the initial checkpoint', () => {
-  it('NA-E0-1: the slot is reserved while open runs; after the Authority the node goes to E1', async () => {
+describe('invoke reserves the slot, then open saves the input and the initial checkpoint', () => {
+  it('the slot is reserved while open runs; after the Authority the node goes to E1', async () => {
     const opening = gate()
     const record: Record = { log: [], prepares: [], commits: [] }
     const seen: unknown[] = []
@@ -247,8 +247,8 @@ describe('NA-E0-1: invoke reserves the slot, then open saves the input and the i
   })
 })
 
-describe('NA-E0-2 (C1): the same operation again gets the original handle and runs no second loop', () => {
-  it('NA-E0-2: while the run goes on', async () => {
+describe('the same operation again gets the original handle and runs no second loop', () => {
+  it('while the run goes on', async () => {
     const assembly = await recorded()
     const first = ok(await invoke(assembly))
     const again = ok(await invoke(assembly))
@@ -259,7 +259,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(opens(assembly.record)).toBe(1)
   })
 
-  it('NA-E0-2: after the execution ended', async () => {
+  it('after the execution ended', async () => {
     const assembly = await recorded()
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
@@ -273,7 +273,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(await shown(assembly)).toEqual(idle)
   })
 
-  it('NA-E0-2: an earlier ended operation is found while another execution holds the slot', async () => {
+  it('an earlier ended operation is found while another execution holds the slot', async () => {
     const holding = gate()
     const record: Record = { log: [], prepares: [], commits: [] }
     const assembly = await loopAssembly([execution(), execution('exec-2')], dependencies => {
@@ -312,7 +312,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     holding.open()
   })
 
-  it('NA-E0-2: after the run stopped, the same operation neither opens nor drives it again', async () => {
+  it('after the run stopped, the same operation neither opens nor drives it again', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('commit', { kind: 'unavailable' })
     const first = ok(await invoke(assembly))
@@ -324,7 +324,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(assembly.record.commits).toHaveLength(commits)
   })
 
-  it('NA-E0-2: a new runtime drives an opened execution whose revision did not advance', async () => {
+  it('a new runtime drives an opened execution whose revision did not advance', async () => {
     const loading = gate()
     const record: Record = { log: [], prepares: [], commits: [] }
     let loads = 0
@@ -355,7 +355,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(record.commits).toHaveLength(commits)
   })
 
-  it('NA-E0-2: a runtime of another instance gets the original handle of an open it did not make and does not drive the execution', async () => {
+  it('a runtime of another instance gets the original handle of an open it did not make and does not drive the execution', async () => {
     const loading = gate()
     const record: Record = { log: [], prepares: [], commits: [] }
     let loads = 0
@@ -397,7 +397,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     loading.open()
   })
 
-  it('NA-E0-2: in a new runtime over the same Journal, open gives the original back and the execution is not driven', async () => {
+  it('in a new runtime over the same Journal, open gives the original back and the execution is not driven', async () => {
     const assembly = await recorded()
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
@@ -413,7 +413,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(opens(assembly.record)).toBe(2)
   })
 
-  it('NA-E0-2: the remembered operation with another input conflicts without a query or a slot change', async () => {
+  it('the remembered operation with another input conflicts without a query or a slot change', async () => {
     const assembly = await recorded()
     const other = { input: acceptedInput('input-other', 'other') }
     ok(await invoke(assembly))
@@ -447,7 +447,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(await shown(assembly)).toEqual(idle)
   })
 
-  it('NA-E0-2: a remembered operation with another input queries the Journal while another execution reserves the slot', async () => {
+  it('a remembered operation with another input queries the Journal while another execution reserves the slot', async () => {
     const opening = gate()
     let reserved = false
     const record: Record = { log: [], prepares: [], commits: [] }
@@ -490,7 +490,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     await eventsOf(ok(await second))
   })
 
-  it('NA-E0-2: a failed adoption lookup for an earlier operation returns its failure without changing the held slot', async () => {
+  it('a failed adoption lookup for an earlier operation returns its failure without changing the held slot', async () => {
     const assembly = await recorded()
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
@@ -513,7 +513,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     expect(await shown(assembly)).toEqual(before)
   })
 
-  it('NA-E0-2: a lost acceptance receipt while finding an earlier operation names the invoke operation and preserves the slot', async () => {
+  it('a lost acceptance receipt while finding an earlier operation names the invoke operation and preserves the slot', async () => {
     const assembly = await recorded()
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
@@ -537,8 +537,8 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
   })
 })
 
-describe('NA-E0-3: a slot held by another operation answers busy, never a queue', () => {
-  it('NA-E0-3: a failed query for another execution returns the original failure and keeps the slot', async () => {
+describe('a slot held by another operation answers busy, never a queue', () => {
+  it('a failed query for another execution returns the original failure and keeps the slot', async () => {
     const refused = fail({
       kind: 'unavailable',
       owner: 'test-journal',
@@ -564,7 +564,7 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
     assembly.release.open()
   })
 
-  it('NA-E0-3: an unknown query for another execution returns commit-unknown with that invoke operation', async () => {
+  it('an unknown query for another execution returns commit-unknown with that invoke operation', async () => {
     const assembly = await recorded()
     ok(await invoke(assembly))
     const before = await shown(assembly)
@@ -586,7 +586,7 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
     assembly.release.open()
   })
 
-  it('NA-E0-3: an excluded query for another execution answers busy without admitting it', async () => {
+  it('an excluded query for another execution answers busy without admitting it', async () => {
     const assembly = await recorded()
     ok(await invoke(assembly))
     const other = ok(await createAgentRuntime(assembly.dependencies, options()))
@@ -614,7 +614,7 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
     assembly.release.open()
   })
 
-  it('NA-E0-3: while the first invoke is reserved, in the same turn', async () => {
+  it('while the first invoke is reserved, in the same turn', async () => {
     const assembly = await recorded()
     const [first, second] = await Promise.all([invoke(assembly), invoke(assembly, 'exec-2')])
     ok(first)
@@ -622,14 +622,14 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
     assembly.release.open()
   })
 
-  it('NA-E0-3: while the first run is running', async () => {
+  it('while the first run is running', async () => {
     const assembly = await recorded()
     ok(await invoke(assembly))
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
     assembly.release.open()
   })
 
-  it('NA-E0-3: while the first run is stopped', async () => {
+  it('while the first run is stopped', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('commit', { kind: 'unavailable' })
     ok(await invoke(assembly))
@@ -638,7 +638,7 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
     expect(await shown(assembly)).toMatchObject({ kind: 'occupied', execution: execution() })
   })
 
-  it('NA-E0-3: while the open of the first invoke is unresolved', async () => {
+  it('while the open of the first invoke is unresolved', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await invoke(assembly))).toMatchObject({ kind: 'commit-unknown' })
@@ -648,8 +648,8 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
   })
 })
 
-describe('NA-Q2-2 (C2): a lost receipt of prepare is found by calling it again with the same request', () => {
-  it('NA-Q2-2: invoke answers commit-unknown and frees the slot; the same operation again gets the original result and runs on', async () => {
+describe('a lost receipt of prepare is found by calling it again with the same request', () => {
+  it('invoke answers commit-unknown and frees the slot; the same operation again gets the original result and runs on', async () => {
     const assembly = await recorded()
     assembly.controls.handoff.prepare.once(input =>
       fail({ kind: 'commit-unknown', operation: handoffOperationOf(input) }),
@@ -667,10 +667,10 @@ describe('NA-Q2-2 (C2): a lost receipt of prepare is found by calling it again w
   })
 })
 
-describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an R0 item', () => {
+describe('an open whose outcome is unknown keeps the reservation as an R0 item', () => {
   const unresolved = { kind: 'commit-unknown', operation: operation('invoke-exec-1') }
 
-  it('NA-E0-4: a reservation without an unresolved open answers busy without querying or retrying', async () => {
+  it('a reservation without an unresolved open answers busy without querying or retrying', async () => {
     const opening = gate()
     const record: Record = { log: [], prepares: [], commits: [] }
     const assembly = await loopAssembly([execution()], dependencies => {
@@ -699,7 +699,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     await eventsOf(ok(await first))
   })
 
-  it('NA-E0-4: a different operation for the reserved execution does not retry the unresolved open', async () => {
+  it('a different operation for the reserved execution does not retry the unresolved open', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
@@ -719,7 +719,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     expect(failure(await invoke(assembly))).toEqual(unresolved)
   })
 
-  it('NA-E0-4: the same operation with another execution queries that execution without retrying the R0 item', async () => {
+  it('the same operation with another execution queries that execution without retrying the R0 item', async () => {
     const queries: { execution: string; operation: string }[] = []
     const assembly = await loopAssembly([execution(), execution('exec-2')], dependencies => ({
       ...dependencies,
@@ -750,7 +750,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     expect(failure(await invoke(assembly))).toEqual(unresolved)
   })
 
-  it('NA-E0-4: a failed retry query returns the original failure and preserves the R0 item', async () => {
+  it('a failed retry query returns the original failure and preserves the R0 item', async () => {
     const refused = fail({
       kind: 'unavailable',
       owner: 'test-journal',
@@ -775,7 +775,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     expect(queries).toBe(2)
   })
 
-  it('NA-E0-4: another invoke stays busy while the retry query is in progress', async () => {
+  it('another invoke stays busy while the retry query is in progress', async () => {
     const querying = gate()
     let queries = 0
     const assembly = await loopAssembly([execution()], dependencies => ({
@@ -803,7 +803,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     expect(failure(await retry)).toEqual(unresolved)
   })
 
-  it('NA-E0-4: pending, then applied: the retry queries the original operation, then runs on', async () => {
+  it('pending, then applied: the retry queries the original operation, then runs on', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
@@ -820,7 +820,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     expect(opens(assembly.record)).toBe(2)
   })
 
-  it('NA-E0-4: applied: the query finds it committed, and the same open gives the original receipt back', async () => {
+  it('applied: the query finds it committed, and the same open gives the original receipt back', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'applied' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
@@ -832,7 +832,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     expect(opens(assembly.record)).toBe(2)
   })
 
-  it('NA-E0-4: dropped: the original open conflicts and keeps its reservation', async () => {
+  it('dropped: the original open conflicts and keeps its reservation', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'dropped' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
@@ -861,7 +861,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     ).toEqual({ kind: 'busy' })
     expect(await shown(assembly)).toEqual(reserved)
   })
-  it('NA-E0-4: a retry of committed open skips admission even when adoption resolution is now unavailable', async () => {
+  it('a retry of committed open skips admission even when adoption resolution is now unavailable', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'applied' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
@@ -874,7 +874,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     expect(await sequences(handle)).toEqual(ENDED_EVENTS)
   })
 
-  it('NA-E0-4: excluded open without absence proof keeps the reservation', async () => {
+  it('excluded open without absence proof keeps the reservation', async () => {
     const assembly = await recorded()
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'dropped' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
@@ -889,7 +889,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
   })
 })
 
-describe('NA-Q5-1: a rejected candidate is disposed at Q5 by its source', () => {
+describe('a rejected candidate is disposed at Q5 by its source', () => {
   function rejecting(
     record: Record,
     rejects: (input: PrepareInput) => boolean,
@@ -915,7 +915,7 @@ describe('NA-Q5-1: a rejected candidate is disposed at Q5 by its source', () => 
       })
   }
 
-  it('NA-Q5-1: a rejected external input is the invalid answer of invoke; nothing opens and the slot is free', async () => {
+  it('a rejected external input is the invalid answer of invoke; nothing opens and the slot is free', async () => {
     const record: Record = { log: [], prepares: [], commits: [] }
     const assembly = await loopAssembly(
       [execution(), execution('exec-2')],
@@ -933,7 +933,7 @@ describe('NA-Q5-1: a rejected candidate is disposed at Q5 by its source', () => 
     assembly.release.open()
   })
 
-  it('NA-Q5-1: a rejected Model reply writes its Ja with the rejected admission fact and no message, and I3 goes to I8', async () => {
+  it('a rejected Model reply writes its Ja with the rejected admission fact and no message, and I3 goes to I8', async () => {
     const record: Record = { log: [], prepares: [], commits: [] }
     let replies = 0
     const assembly = await loopAssembly(

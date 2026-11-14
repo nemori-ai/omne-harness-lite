@@ -7,7 +7,7 @@ import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import { succeed } from '@omne-harness/operation-result'
 import { accepted, fixture, unbox } from './fixture.ts'
 
-it('C05 requires a declared durable store and keeps foreign tenant reads in their own partition', async () => {
+it('requires a declared durable store and keeps foreign tenant reads in their own partition', async () => {
   const world = await fixture()
   try {
     expect(() =>
@@ -75,7 +75,7 @@ it('missing execution provider leaves preparation pending and never invokes the 
   }
 })
 
-it('C07 retirement rejects new work while preserving unresolved delivery for reads', async () => {
+it('retirement rejects new work while preserving unresolved delivery for reads', async () => {
   const world = await fixture()
   try {
     await world.removeReceiver()

@@ -337,7 +337,7 @@ describe('connected tenant path, first round', () => {
   })
 })
 
-describe('the injected Session access check (#680 B-1)', () => {
+describe('the injected Session access check', () => {
   it('stays pending before H03 when no sessionAccessCheck is injected', async () => {
     let built = 0
     const build = sessionAssembly()

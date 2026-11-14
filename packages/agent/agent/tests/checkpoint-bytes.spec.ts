@@ -79,7 +79,7 @@ function sizeOf(checkpoint: AgentCheckpoint): number {
   return Buffer.byteLength(JSON.stringify(agentEvaluator.encode(checkpoint).value))
 }
 
-describe('R2-D292: the checkpoint does not grow with the rounds', () => {
+describe('the checkpoint does not grow with the rounds', () => {
   it(`the M0 checkpoint of round ${ROUNDS} is no larger than that of round 5 beyond the digits of its counters`, async () => {
     const bytes = await measured()
     const early = bytes.get(5)

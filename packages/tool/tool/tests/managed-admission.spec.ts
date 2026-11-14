@@ -763,7 +763,7 @@ describe('11 operation idempotency (P01)', () => {
   })
 })
 
-describe('12 logical terminals (P02)', () => {
+describe('12 logical terminals', () => {
   it('12 logical terminal: a known-unavailable tool settles as unavailable without parsing arguments or touching a port', async () => {
     const assembly = harness()
     const body = dummyRequest({

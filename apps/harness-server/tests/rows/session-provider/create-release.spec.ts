@@ -304,7 +304,7 @@ describe('the first create of a tenant over the release rows of the Session path
   )
 
   it(
-    '`create` of the coding definition (R2-D124) saves the release model selection and reads back',
+    '`create` of the coding definition saves the release model selection and reads back',
     { timeout: 90_000 },
     async () => {
       const base = makeBase()

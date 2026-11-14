@@ -137,7 +137,7 @@ async function firstConditionsRead(distribution: Distribution): Promise<Round> {
   }
 }
 
-describe('the release assistant definition has an initial model selection (R2-D236)', () => {
+describe('the release assistant definition has an initial model selection', () => {
   it('the mapping names the route and its basis digest is the content digest of { name }', () => {
     const selection = assistantOf(release).initialModelSelection as
       | { name: string; basis: { digest: string } }

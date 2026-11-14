@@ -38,7 +38,7 @@ function scripted(reports: CallReport[]) {
 
 const NOTE = object({ noteId: 'n-1', title: 'first' })
 
-describe('C12: a client from one protocol contract', () => {
+describe('a client from one protocol contract', () => {
   it('writes the body by the contract and reads the answer by the contract', async () => {
     const { requests, client } = scripted([{ kind: 'answered', outcome: 'succeeded', body: NOTE }])
     const answer = await client['read-note']({ noteId: 'n-1' }, { messageId: 'm-1' })
@@ -85,7 +85,7 @@ describe('C12: a client from one protocol contract', () => {
   })
 })
 
-describe('C13: the three results of a transport', () => {
+describe('the three results of a transport', () => {
   it('sends once more when the first send did not leave, under the same message id', async () => {
     const { requests, client } = scripted([
       { kind: 'not-sent' },
@@ -262,7 +262,7 @@ async function endOf(frames: JsonValue[], end: ObserveEnd): Promise<unknown> {
   }
 }
 
-describe('C14: how an observation ends', () => {
+describe('how an observation ends', () => {
   it('passes the reasons the contract allows, and the two of the hub', async () => {
     for (const reason of ['note-deleted', 'denied', 'unavailable'])
       expect(await endOf([], { kind: 'ended', reason })).toEqual({ kind: 'ended', reason })

@@ -28,7 +28,7 @@ function stored(value: FixedRequestRecord): Record<string, unknown> {
   return JSON.parse(JSON.stringify(encodeFixedRequestRecord(value))) as Record<string, unknown>
 }
 
-describe('FixedRequestRecord format (RQ-14)', () => {
+describe('FixedRequestRecord format', () => {
   it('round-trips through JSON text to an equal record', async () => {
     const value = await recordOf()
     expect(decodeFixedRequestRecord(stored(value))).toEqual({ ok: value })

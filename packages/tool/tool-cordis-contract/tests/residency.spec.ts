@@ -146,7 +146,7 @@ it.each(['shape', 'duplicate', 'cursor'] as const)(
   },
 )
 
-describe('C7: same-name holders of two tenants are judged on their own tenant facts only', () => {
+describe('same-name holders of two tenants are judged on their own tenant facts only', () => {
   const evidenceOf = (record: string): DurableEvidence => ({
     owner: 'conformance',
     record,

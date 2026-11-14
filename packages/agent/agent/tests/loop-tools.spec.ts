@@ -263,7 +263,7 @@ describe('tool result round', () => {
     ])
   })
 
-  it('commits nothing when a wake finds the Tool calls still open (D-104)', async () => {
+  it('commits nothing when a wake finds the Tool calls still open', async () => {
     const assembly = await toolAssembly({ toolConcurrency: 1, reconciliationDelaysMs: [0] })
     let attempts = 0
     assembly.controls.tools.invoke.always(async () => {

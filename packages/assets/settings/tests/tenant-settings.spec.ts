@@ -312,7 +312,7 @@ const pick = (value: string, operation = `op-${value}`, expectedRevision = '0') 
   value: { kind: 'permission' as const, pick: value },
 })
 
-describe('set (RFC-0015 §9「设置」)', () => {
+describe('set', () => {
   it('S1 a login principal of the tenant writes a valid pick of a held, declared item under the current revision: written with the new revision', async () => {
     const w = world()
     expect(await w.face.set(pick('auto'))).toEqual({ kind: 'written', revision: '1' })
@@ -485,34 +485,34 @@ describe('set (RFC-0015 §9「设置」)', () => {
   })
 })
 
-describe('clear (RFC-0015 §9「清除」)', () => {
+describe('clear', () => {
   const clear = (operation: string, expectedRevision: string, itemId = 'invoke') => ({
     ...item(undefined, undefined, itemId),
     operation,
     expectedRevision,
   })
 
-  it('C1 the layer has a value, the right and the revision are current: written, the layer no longer supplies the value', async () => {
+  it('the layer has a value, the right and the revision are current: written, the layer no longer supplies the value', async () => {
     const w = world()
     w.assign('tenant', 'invoke', { pick: 'deny', allowedSet: null })
     expect(await w.face.clear(clear('clear', '1'))).toEqual({ kind: 'written', revision: '2' })
     expect(w.own('invoke')).toBeNull()
   })
 
-  it('C1 a clear of a permission item withdraws the pick and keeps an allowed set of the layer', async () => {
+  it('a clear of a permission item withdraws the pick and keeps an allowed set of the layer', async () => {
     const w = world()
     w.assign('tenant', 'invoke', { pick: 'deny', allowedSet: ['deny', 'ask'] })
     expect(await w.face.clear(clear('clear', '1'))).toEqual({ kind: 'written', revision: '2' })
     expect(w.own('invoke')).toEqual({ pick: null, allowedSet: ['deny', 'ask'] })
   })
 
-  it('C2 the layer has no value: no-change, nothing written', async () => {
+  it('the layer has no value: no-change, nothing written', async () => {
     const w = world()
     expect(await w.face.clear(clear('clear', '0'))).toEqual({ kind: 'no-change' })
     expect(w.state().revision).toBe(0)
   })
 
-  it('C3 the other rows answer as set does: denied, not-visible, conflict, locked', async () => {
+  it('the other rows answer as set does: denied, not-visible, conflict, locked', async () => {
     const w = world()
     expect(await w.face.clear({ ...clear('c', '0'), principal: WORK_A })).toEqual({
       kind: 'denied',
@@ -528,8 +528,8 @@ describe('clear (RFC-0015 §9「清除」)', () => {
   })
 })
 
-describe('list and describe (RFC-0015 §9「列出」「查看」)', () => {
-  it('L1 the login principal lists the items of its assets, each with declaration, revision, own, effective, bound and editability', async () => {
+describe('list and describe', () => {
+  it('the login principal lists the items of its assets, each with declaration, revision, own, effective, bound and editability', async () => {
     const w = world()
     w.assign('tenant', 'invoke', { pick: 'deny', allowedSet: null })
     w.flags.organizationBound = ['deny', 'ask']
@@ -586,7 +586,7 @@ describe('list and describe (RFC-0015 §9「列出」「查看」)', () => {
     })
   })
 
-  it('L1 pages come from one read and continue with next', async () => {
+  it('pages come from one read and continue with next', async () => {
     const w = world()
     const first = await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 2 })
     if (first.kind !== 'listed') throw new Error(JSON.stringify(first))
@@ -601,14 +601,14 @@ describe('list and describe (RFC-0015 §9「列出」「查看」)', () => {
     expect(second).toMatchObject({ kind: 'listed', next: null, items: [{ item: 'verbose' }] })
   })
 
-  it('L2 no right, or a target that is not its tenant: denied, the same as an absent target, and nothing is read', async () => {
+  it('no right, or a target that is not its tenant: denied, the same as an absent target, and nothing is read', async () => {
     const w = world()
     expect(await w.face.describe(item(LOGIN_A, tenantB))).toEqual({ kind: 'denied' })
     expect(await w.face.describe(item('login:b'))).toEqual({ kind: 'denied' })
     expect(w.calls).toEqual(['principals.admit', 'principals.admit'])
   })
 
-  it('L3 describe of an asset that is not held or an undeclared item: not-visible', async () => {
+  it('describe of an asset that is not held or an undeclared item: not-visible', async () => {
     const w = world()
     expect(await w.face.describe(item(undefined, undefined, 'missing'))).toEqual({
       kind: 'not-visible',
@@ -617,13 +617,13 @@ describe('list and describe (RFC-0015 §9「列出」「查看」)', () => {
     expect(await w.face.describe(item())).toEqual({ kind: 'not-visible' })
   })
 
-  it('L4 the asset reference matches several holdings: conflict', async () => {
+  it('the asset reference matches several holdings: conflict', async () => {
     const w = world()
     w.flags.catalog = 'duplicate'
     expect(await w.face.describe(item())).toEqual({ kind: 'conflict' })
   })
 
-  it('L5 a source, the right or the storage is unreadable: unavailable, never a partial answer as a complete one', async () => {
+  it('a source, the right or the storage is unreadable: unavailable, never a partial answer as a complete one', async () => {
     const w = world()
     w.flags.catalog = 'unavailable'
     expect(await w.face.describe(item())).toEqual({ kind: 'unavailable' })
@@ -646,7 +646,7 @@ describe('list and describe (RFC-0015 §9「列出」「查看」)', () => {
     ).toMatchObject({ kind: 'listed', completeness: 'partial' })
   })
 
-  it('L2 an unreadable admission is unavailable and reads nothing', async () => {
+  it('an unreadable admission is unavailable and reads nothing', async () => {
     const w = world()
     const face = createTenantSettings<string>({
       deploymentRef: 'deployment',

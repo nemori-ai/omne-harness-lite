@@ -68,7 +68,7 @@ function holdingAt(where: 'before' | 'after') {
   }
 }
 
-describe('cancel reads the in-flight table only (SPEC S2)', () => {
+describe('cancel reads the in-flight table only', () => {
   it('answers unknown to another principal and to another tenant on the same correlation key, and asks no port', async () => {
     const hold = holdingAt('after')
     const { p, digest } = await arranged({ kind: 'silent' }, { callGate: hold.callGate })
@@ -97,7 +97,7 @@ describe('cancel reads the in-flight table only (SPEC S2)', () => {
   })
 })
 
-describe('a cancel before the send (SPEC S2, MC-16 steps 2–8)', () => {
+describe('a cancel before the send', () => {
   it('makes the call answer not sent (cancelled) with no call on the wire; the key has ended', async () => {
     const { p, digest } = await arranged(completed([text('hi')]))
     const stalled = stallingEligibility(p.eligibility, 1)
@@ -142,7 +142,7 @@ describe('a cancel before the send (SPEC S2, MC-16 steps 2–8)', () => {
   })
 })
 
-describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {
+describe('a cancel after the send', () => {
   it('tells the peer once and ends the call as unknown (abandoned), without waiting for the peer', async () => {
     const { p, digest } = await arranged({ kind: 'silent' })
     const { services: s } = services(p)
@@ -186,7 +186,7 @@ describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {
     })
   })
 
-  it('that races the send, followed by closeAll, which the transport then refuses: cancelled, not connection-unavailable; the stop signal is read before the shutdown (S2, S8)', async () => {
+  it('that races the send, followed by closeAll, which the transport then refuses: cancelled, not connection-unavailable; the stop signal is read before the shutdown', async () => {
     const hold = holdingAt('before')
     const { p, digest } = await arranged(completed([text('hi')]), { callGate: hold.callGate })
     const { services: s } = services(p)
@@ -201,7 +201,7 @@ describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {
     expect(p.cancels()).toBe(0)
   })
 
-  it('that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: the answer carries the mark that the transport is not usable any more (T1, S7)', async () => {
+  it('that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: the answer carries the mark that the transport is not usable any more (T1)', async () => {
     const hold = holdingAt('before')
     const base = await arranged(completed([text('hi')]), { callGate: hold.callGate })
     const transports = reshapedTransports(base.p.ports.transports, transport => ({
@@ -252,7 +252,7 @@ function tracked(call: Promise<InvokeResult>) {
   return { read: () => answer, done }
 }
 
-describe('one stop signal from the reservation on (SPEC S2, MC-16 step 2)', () => {
+describe('one stop signal from the reservation on', () => {
   it.each(['cancel', 'abort'] as const)(
     'after the send, a %s does not wait for cancelRequest: the call answers unknown (abandoned) within a few turns',
     async how => {

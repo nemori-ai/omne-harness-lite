@@ -89,7 +89,7 @@ export function preflightSteps(): CheckStep[] {
 export const PREFLIGHT_FIXES: Readonly<Record<string, string>> = {
   'check:agents':
     '投影与源不一致：按 .meta_harness/tooling/README.md 重新生成（多出的、退役的生成物一并删掉）；不手改根目录的投影',
-  'check:docs': '按日志修链接、锚点与必要章节；规则见 docs/engineering/documentation.md',
+  'check:docs': '按日志修链接、锚点与必要章节；规则见根 AGENTS.md「知识放哪」',
   'check:design':
     '按日志修设计材料的结构与登记；需要 uv 锁文件一致（UV_DEFAULT_INDEX 指向镜像时先 unset）',
   'format:check':
@@ -97,7 +97,7 @@ export const PREFLIGHT_FIXES: Readonly<Record<string, string>> = {
   'lint:rules':
     '按日志修结构规则（tools/product-checks）；报「找不到 dist」时先 pnpm run build --filter @omne-harness/legal-identity',
   'lint:oxlint': 'pnpm run lint:oxlint 看逐条；改代码，不加 disable 指令绕过',
-  'acceptance:lock': '验收锁不一致：按 tools/repo-toolchain/README_ZH.md 的验收锁一节更新或回退',
+  'acceptance:lock': '验收锁不一致：按 tools/repo-toolchain/SPEC.md 的验收锁一节更新或回退',
 }
 
 export function residentStepNames(steps: readonly CheckStep[]): string[] {

@@ -180,7 +180,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | --- | --- |
 | 类型检查与 lint 命令 | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint`；`pnpm run lint:deps` |
 | 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入排在这些之后，在最终的头上只跑一次；没通过就把失败归类后补证，不重排整跑，见 `omne-card` 技能的[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md) |
-| 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。用法见 [pqw-adapter](tools/pqw-adapter/README_ZH.md) |
+| 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。行为见 [pqw-adapter 的规格](tools/pqw-adapter/SPEC.md)，参数见命令的帮助 |
 | 差分变异的范围与点名文件 | `pnpm run closeout:mutation -- --base <起点> --scope <关键位置>...`：先 `--plan-only` 看范围，超过上限要给 `--scope` 或 `--files`；按改动成员各调一次 pqw `mutation.mjs`。[风险级别](docs/architecture/assurance.md#按风险选择接受实现的看法)的路径下限：`pnpm run risk -- --base <起点>` |
 | 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |
 | 文档检查命令 | `pnpm run check:docs`；`pnpm run check:design`；`pnpm run check:agents` |
@@ -189,7 +189,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 统一语言与领域对象的位置 | `.meta_harness/design/ubiquitous_language`；`.meta_harness/design/domain_objects` |
 | 形式化工具链与声明边界 | TLC，环境见 [CONTRIBUTING](CONTRIBUTING.md#形式工具链)；声明边界见[证据与有效范围](docs/architecture/assurance.md#证据与有效范围) |
 | spec 与 plan 的项目模板 | pqw 自带模板，加 [spec 附加节](.meta_harness/agents/pqw/spec-addendum.md)与 [plan 附加节](.meta_harness/agents/pqw/plan-addendum.md) |
-| 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：先核 `git status` 干净、分支已合回，再删目录并 `git worktree prune` |
+| 项目专有的清理项 | 本卡的工作树 `.worktrees/<卡>`；`tmp/<卡>/`；成员外写出的 lcov 目录；Stryker 容器 `.stryker-tmp*`。删之前照 `omne-card` 技能的[清理之前](.meta_harness/agents/skills/omne-card/canonical/references/gate-recovery.md#清理之前)核过：树干净或分支已合回都不够。工作树里有 pqw 子模块，`git worktree remove` 会拒绝：核过之后删目录并 `git worktree prune` |
 | 验收处 | 卡评论：判据要求的证据贴摘要与关键行，原件位置与哈希写在评论里 |
 | 子代理的模型与档位政策 | 按 pqw `delegate-brief` 的表定档。各档用的模型，Claude Code：便宜档 Haiku，经济档 Sonnet，默认档 Opus，顶档 Fable，都取宿主提供的当前版本；Codex：经济档与默认档 GPT-6.1 Sol，顶档 GPT-6 Astra，没有便宜档；Cursor 在可选的模型里取同档，简报里写明取了哪个。顶档的推理档位最高用 high。只读的评审与核对：Claude Code 派自带的只读子代理类型；另两个宿主在简报里写明不改文件，交回后用 `git status` 核对 |
 | 交接信息包与路线图放哪 | 卡正文，模板 `.github/ISSUE_TEMPLATE/card.md`（见 `omne-card`）；分程时路线图放父卡 |
@@ -223,6 +223,8 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 当前判断 | 加载入口与停止点 | 重点带的 |
 | --- | --- | --- |
 | 开工前建立系统图景、理解知识体系或普通阅读 | 上面两张图与要点先给出图景；要展开时从[架构入口](docs/architecture/README.md)与[领域入口](docs/domains/README.md)进，再读要改的包组或应用的 `SPEC.md`。找到本次责任就停 | 拆、证 |
+| 在 `packages/` 或 `apps/` 里实现或修复 | 读所在包组或应用的 `SPEC.md`。新建或拆分成员先核[组织原则](docs/architecture/structure.md#组织原则)里的依赖方向、独立使用与 Cordis 集成边界，用包模板生成。已有承诺够用就不展开架构 | 定形、建、证 |
+| 在 `tools/` 或 `scripts/` 里写检查与工具 | 读这个工具的 `SPEC.md` 与命令的帮助。发现实现与规则冲突时核对规则的拥有者，不靠改检查器放宽要求；失败状态传给调用方；产品包不依赖工具。要改仓库检查跑的两个发布包，先读 `omne-card` 的工具链升级参考页 | 证、找差异 |
 | 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 | 拆、找差异、对人 |
 | 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 | 对人、找差异、拆 |
 | 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；改了源、锚点或路径之后，核对入向链接与生成物 | 拆、找差异 |

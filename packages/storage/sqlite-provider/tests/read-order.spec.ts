@@ -43,7 +43,7 @@ afterEach(async () => {
   await workspace.remove()
 })
 
-describe('domain-serial (C10)', () => {
+describe('domain-serial', () => {
   it('holds the barrier until the read has ended: a commit that arrives meanwhile completes after it', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 1)
     const events: string[] = []

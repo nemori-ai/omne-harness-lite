@@ -89,7 +89,7 @@ describe('core-pure-imports', () => {
         ).toHaveLength(1)
     }
   })
-  it('D-116 native loading is confined to declared fixed-schema and build sites', () => {
+  it('native loading is confined to declared fixed-schema and build sites', () => {
     for (const path of [
       'core/content-blocks/src/schema.ts',
       'core/content-blocks/src/exact-schema.ts',
@@ -403,7 +403,7 @@ import { ArrivalEnvelope } from '@omne-harness/arrival-events'`,
       ).toHaveLength(1)
   })
 
-  it('asset-model S-17 可用纯 path 字面规范化；其他节点不因此获得路径依赖', () => {
+  it('asset-model 可用纯 path 字面规范化；其他节点不因此获得路径依赖', () => {
     for (const specifier of ['node:path', 'path']) {
       const source = file(
         'core/asset-model/src/workspace.ts',
@@ -509,7 +509,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
   })
 })
 
-describe('SC-OE-3 no-wall-clock', () => {
+describe('no-wall-clock', () => {
   it('字面解码、globalThis、const 与解构别名仍禁止取墙钟，显式转换保持合法', () => {
     const source = file(
       'core/offer-expiry/src/time.ts',
@@ -584,7 +584,7 @@ const note = "from '@omne-harness/offer-expiry/testing'"`,
   })
 })
 
-describe('identity SC-1 精确输入', () => {
+describe('identity 精确输入', () => {
   const path = 'assets/asset-governance/src/admission.ts'
   const rule = createIdentityDecisionInputs({
     ...IDENTITY_CHECK_INPUTS,
@@ -668,7 +668,7 @@ function unrelated(path: FilePath) {}`,
   })
 })
 
-describe('identity SC-2 账号记录', () => {
+describe('identity 账号记录', () => {
   const path = 'tenancy/account-identity-sql/src/identity-data.ts'
   it('两个AccountId字段（含改名与品牌别名）必红；登录状态引用与合法账号记录不报', () => {
     const source = file(
@@ -707,7 +707,7 @@ interface LoginStateRow { login: LoginStateId; account: AccountId }`,
   })
 })
 
-describe('identity SC-9 持久归属', () => {
+describe('identity 持久归属', () => {
   const path = 'core/asset-model/src/records.ts'
   it('optional、nullable、nullable本地别名成对列必红', () => {
     const source = file(

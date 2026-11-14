@@ -105,7 +105,7 @@ describe('localServeInputs', () => {
     expect(JSON.stringify(result)).not.toContain(key)
   })
 
-  it('a workspace named through a link is served at its real path; the settings file keeps the link (R2-D376)', async () => {
+  it('a workspace named through a link is served at its real path; the settings file keeps the link', async () => {
     const h = serverHome()
     const real = join(h.root, 'real-ws')
     mkdirSync(real)

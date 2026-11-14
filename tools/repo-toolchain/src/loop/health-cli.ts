@@ -22,7 +22,13 @@ import { readTrend } from './trend.ts'
 import { readConformanceSensor } from './sensors/conformance.ts'
 import { subjectRoot } from '../core/subject.ts'
 
-const USAGE = '用法：loop-health [--out <dir>] [--root <检出目录>]'
+const USAGE = `用法：loop-health [--out <dir>] [--root <检出目录>]
+把趋势快照、测试耗时账本与 Git 历史汇成一张离线可开的页面。
+  --out   产物目录，缺省为回路目录下的 health/，每次覆盖。
+  --root  被检查的检出，缺省取 OMNE_SUBJECT_ROOT，再取当前目录所在 Git 仓库的根。
+环境变量：OMNE_METRICS_HOME 改回路目录，缺省为主检出的 tmp/clean-loop/；OMNE_TEST_LEDGER_HOME 改测试耗时账本的根，缺省为主检出的 tmp/test-ledger/。
+窗口与条数在 repo-toolchain.config.json 的 loop.health 一段。
+退出 0 写出页面；2 参数、配置或 Git 出错。`
 interface Options {
   readonly out?: string
   readonly root: string
@@ -135,6 +141,11 @@ function main(argv: readonly string[]): number {
   writeFileSync(join(outDir, 'summary.md'), `${summary.join('\n')}\n`)
   console.log(summary.join('\n'))
   return 0
+}
+
+if (process.argv.includes('--help')) {
+  console.log(USAGE)
+  process.exit(0)
 }
 
 try {

@@ -106,7 +106,7 @@ describe('the verifier view (验收 1)', () => {
     expect(reads).toBe(0)
   })
 
-  it('serves the reference admission check (AU-11) as its verifier: a forged acting principal is denied before standing is read', async () => {
+  it('serves the reference admission check as its verifier: a forged acting principal is denied before standing is read', async () => {
     const { fixture } = await installed()
     let reads = 0
     const standing: TenantStandingSource = {
@@ -302,7 +302,7 @@ describe('system principals against the release action matrix (验收 2)', () =>
   })
 })
 
-describe('installation shape (DP1-C11, 验收 5)', () => {
+describe('installation shape', () => {
   it('constructs the service definitions of identity and session-contract, the issuer only in its own scope', async () => {
     const { fixture, verifier, issuer, principals } = await installed()
     expect(verifier).toBeInstanceOf(PrincipalVerifierService)
@@ -336,7 +336,7 @@ describe('installation shape (DP1-C11, 验收 5)', () => {
     expect(fixture.env.stateRoot).toBe('fixture-state-root')
   })
 
-  it('shares one authority per run across the three modules, whatever the install order (DP1-C17)', async () => {
+  it('shares one authority per run across the three modules, whatever the install order', async () => {
     const fixture = fixtureEnv(TRUSTED)
     await fixture.install(sessionPrincipals)
     await fixture.install(principalIssuer)

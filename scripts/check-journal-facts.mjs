@@ -67,7 +67,19 @@ export function databasesOf(paths) {
   return files
 }
 
+export const USAGE = [
+  'Usage: node scripts/check-journal-facts.mjs [<database or directory>...] (root script: pnpm run check:journal-facts)',
+  `Scans er_fact.body in the test-world databases (default ${DEFAULT_DIRECTORY}/, written by the harness-server journal-bytes tests).`,
+  `A body with a ${CONTENT_KEYS.join(', ')} key at any depth, or a body that is not valid JSON, is a violation.`,
+  'No database or no er_fact table: the scan is skipped and prints "skipped". A skip is not a pass.',
+  'Exit 0: no violation or skipped. Exit 1: violations. Exit 2: a given path does not exist or a database cannot be read.',
+].join('\n')
+
 export function main(argv, log = console.log) {
+  if (argv.length === 1 && argv[0] === '--help') {
+    log(USAGE)
+    return 0
+  }
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const given = argv.length > 0
   const paths = given ? argv : [join(root, DEFAULT_DIRECTORY)]

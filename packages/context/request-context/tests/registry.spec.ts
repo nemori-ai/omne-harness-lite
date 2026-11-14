@@ -300,7 +300,7 @@ const planFails = () => ({
   failure: { kind: 'unavailable' as const, dependency: 'rules', diagnostic: 'no plan' },
 })
 
-describe('leases are recorded per generation (RQ-05, RQ-12)', () => {
+describe('leases are recorded per generation (RQ-12)', () => {
   it('a failed operation whose lease also fails to come back keeps both failures', async () => {
     const f = createAssemblyFixture({ preparation: { plan: planFails as never, release: stuck } })
     const registry = registryFor(f)
@@ -533,7 +533,7 @@ describe('the decision is the last await before the registration changes', () =>
   })
 })
 
-describe('a hot cache keeps the borrow, publication and lease rules (CX-14)', () => {
+describe('a hot cache keeps the borrow, publication and lease rules', () => {
   it('an operation that reused cached material is not published after a replacement', async () => {
     const f = createAssemblyFixture()
     const registry = registryFor(f)
@@ -580,7 +580,7 @@ describe('a hot cache keeps the borrow, publication and lease rules (CX-14)', ()
   })
 })
 
-describe('a failure of the rules or the meter of a supplier keeps its kind (RQ-05)', () => {
+describe('a failure of the rules or the meter of a supplier keeps its kind', () => {
   const assemble = async (preparation: object) => {
     const f = createAssemblyFixture({ preparation: preparation as never })
     const registry = registryFor(f)

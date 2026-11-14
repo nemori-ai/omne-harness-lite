@@ -84,7 +84,7 @@ async function open(root: string, catalog: SqlMaterialCatalog) {
   return { register, close }
 }
 
-it('C9: a database created under the pre-r6 baseline is quarantined by the current catalog', async () => {
+it('a database created under the pre-r6 baseline is quarantined by the current catalog', async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-storage-sql-c9-')))
   roots.push(root)
   const materials = toolStorageMaterials()

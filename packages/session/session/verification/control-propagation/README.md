@@ -149,6 +149,6 @@ Windows 运行器把模型、配置及自身快照通过标准输入复制到 WS
 
 十个配置全部与预期一致，入口退出 0。正控日志均包含 `Model checking completed. No error has been found.`，无剩余队列状态。TLC 报告的指纹碰撞乐观估计为 `9.3E-14` 与 `1.8E-13`。这是有限模型检查结果，不是数学证明。负控在反例处停止，其状态数不代表完整探索。时序负控没有深度行，TLC 的时序检查在完整状态图上报告 lasso 反例。
 
-按 [docs/verification.md「分别表述这六种状态」](../../../../../docs/verification.md#分别表述这六种状态)：本模型在上表范围内有限通过。`control.ts` 在 `f42da6226` 的结构与六条约束一致（结构核对，不是机器证明），对应正控的设计，`outbound-in-serial` 开关对应的是修复前的旧实现。实现与模型的精化没有证明，真实 Agent 应答、真实时钟、S1 `invoke` 不应答以及权威读不返回的组合没有验证。
+按 [docs/architecture/assurance.md「分别表述这六种状态」](../../../../../docs/architecture/assurance.md#分别表述这六种状态)：本模型在上表范围内有限通过。`control.ts` 在 `f42da6226` 的结构与六条约束一致（结构核对，不是机器证明），对应正控的设计，`outbound-in-serial` 开关对应的是修复前的旧实现。实现与模型的精化没有证明，真实 Agent 应答、真实时钟、S1 `invoke` 不应答以及权威读不返回的组合没有验证。
 
 每次运行的原始日志与输入快照在证据根目录的 `runs/<UTC 时间>/` 下，不入库。`results.json` 汇总全部十项。

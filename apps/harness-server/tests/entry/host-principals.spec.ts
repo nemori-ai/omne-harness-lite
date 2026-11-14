@@ -84,7 +84,7 @@ function systemOf(principal: Principal): SystemPrincipal {
 }
 
 describe('agentHostPrincipal and toolResidencyPrincipal on a real Cordis context', () => {
-  it('are provided on the root as the system principals of DP-1 table 3-3, with the grant-table component names', async () => {
+  it('are provided on the root as the system principals, with the grant-table component names', async () => {
     const { host, residency } = await installed()
     expect(host).toEqual({ kind: 'system', component: AGENT_HOST_COMPONENT })
     expect(residency).toEqual({ kind: 'system', component: TOOL_RESIDENCY_COMPONENT })

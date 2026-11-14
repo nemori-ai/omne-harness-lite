@@ -847,7 +847,7 @@ async function settle(): Promise<void> {
   for (let turn = 0; turn < 4; turn++) await Promise.resolve()
 }
 
-describe('target eviction (CX-11)', () => {
+describe('target eviction', () => {
   const small = (maxTargets: number): AccountingLimits => ({
     maxTargets,
     maxFactsPerTarget: 2,
@@ -985,7 +985,7 @@ describe('target eviction (CX-11)', () => {
     expect(await isReady(a, target)).toBe(true)
   })
 
-  it('an evicted target answers like one that was never rebuilt (E10)', async () => {
+  it('an evicted target answers like one that was never rebuilt', async () => {
     const a = setup({ limits: small(1) })
     a.adoptedSource.set(adopted())
     await a.rebuild(fact('0', '1001'))

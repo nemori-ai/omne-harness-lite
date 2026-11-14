@@ -15,7 +15,7 @@ const KNOWN_FAILING: Readonly<
   Partial<Record<ConformanceObligation, Readonly<{ reason: string; detail: string }>>>
 > = {}
 
-it('keeps the 53 provider obligations on the full assembly with the durable ModelCommands', async () => {
+it('keeps every provider obligation on the full assembly with the durable ModelCommands', async () => {
   const hookEvents: unknown[] = []
   let facts: AssemblyFacts | undefined
   const report = await checkModelProviderConformance({

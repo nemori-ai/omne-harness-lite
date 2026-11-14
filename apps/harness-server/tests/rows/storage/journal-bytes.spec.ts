@@ -138,10 +138,10 @@ function run200(tier: GuardTier): Promise<RunMeasurement> {
   return run
 }
 
-describe('Journal growth (R2-D294)', () => {
+describe('Journal growth', () => {
   for (const tier of TIERS_UNDER_GUARD)
     it(
-      `20 steps, ${tier} messages: the largest publication of step 20 is at most step 5 plus 2 KiB (R2-D294)`,
+      `20 steps, ${tier} messages: the largest publication of step 20 is at most step 5 plus 2 KiB`,
       { tags: ['slow'], timeout: 1_800_000 },
       async () => {
         const { measureToolRun } = await import('./fixtures/journal-world.ts')
@@ -162,7 +162,7 @@ describe('Journal growth (R2-D294)', () => {
 
   for (const tier of TIERS_UNDER_GUARD) {
     it(
-      `200 steps, ${tier} messages: every publication is bounded, and no tool step grows past its ceiling in own bytes or publications (R2-D294, R2-D380)`,
+      `200 steps, ${tier} messages: every publication is bounded, and no tool step grows past its ceiling in own bytes or publications`,
       { tags: ['slow'], timeout: 7_200_000, skip: !growth200 },
       async () => {
         const measured = await run200(tier)
@@ -199,7 +199,7 @@ describe('Journal growth (R2-D294)', () => {
     )
 
     it(
-      `200 steps, ${tier} messages: no row of the former K-23 bridge (core.*) is written`,
+      `200 steps, ${tier} messages: no row of the former core.* bridge is written`,
       { tags: ['slow'], timeout: 7_200_000, skip: !growth200 },
       async () => {
         const measured = await run200(tier)
@@ -209,7 +209,7 @@ describe('Journal growth (R2-D294)', () => {
     )
 
     it(
-      `200 steps, ${tier} messages: D-92 known limit (R2-D380), cumulative own bytes are above J0 + W × steps; once wave 3 fixes it this case turns red: then assert the linear bound as a plain case and remove this one`,
+      `200 steps, ${tier} messages: known limit, cumulative own bytes are above J0 + W × steps; once it is fixed this case turns red: then assert the linear bound as a plain case and remove this one`,
       { tags: ['slow'], timeout: 7_200_000, skip: !growth200 },
       async () => {
         const measured = await run200(tier)
@@ -222,7 +222,7 @@ describe('Journal growth (R2-D294)', () => {
     )
 
     it(
-      `200 steps, ${tier} messages: the closing step reaches a committed completed terminal (D-88)`,
+      `200 steps, ${tier} messages: the closing step reaches a committed completed terminal`,
       { tags: ['slow'], timeout: 7_200_000, skip: !growth200 },
       async () => {
         const measured = await run200(tier)

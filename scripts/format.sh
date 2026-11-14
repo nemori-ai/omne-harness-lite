@@ -4,6 +4,8 @@ set -euo pipefail
 usage() {
     echo "Usage: $0 check|write [repository-relative-file ...]" >&2
     echo "       $0 staged" >&2
+    echo "Root scripts: pnpm format:check, pnpm format:write (add -- <files> to narrow), pnpm format:staged, pnpm format:hook:install." >&2
+    echo "staged checks only the Git index blobs. With OMNE_SUBJECT_ROOT, check reads the repository of that directory and keeps the rules of this checkout." >&2
 }
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -83,7 +83,7 @@ describe('classifyOutcome and the injected output validator', () => {
     expect(outcome).toMatchObject({ kind: 'complete', output: { kind: 'no-schema' } })
   })
 
-  it('absorbs a validator that throws: the output violates with the contract reason output-check-failed (O1, O3)', () => {
+  it('absorbs a validator that throws: the output violates with the contract reason output-check-failed', () => {
     const check = (): OutputCheck => {
       throw new Error('schema engine: unsupported keyword')
     }

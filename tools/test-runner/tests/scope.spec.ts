@@ -452,7 +452,7 @@ function planLock(paths: string[], judge: LockfileJudge | string, dependents = t
   )
 }
 
-describe('锁文件按 importer 映射到成员（W2-C1）', () => {
+describe('锁文件按 importer 映射到成员', () => {
   it('只改一个成员的依赖：只选那个成员与它的下游；说明写明映射结论与每个成员的原因', () => {
     const result = planLock(['pnpm-lock.yaml'], ONE_MEMBER_DEPENDENCY)
     expect(result.mode).toBe('scoped')

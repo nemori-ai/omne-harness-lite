@@ -91,7 +91,7 @@ describe('the package manifest', () => {
   })
 })
 
-describe('Cordis-free entries (IC-4)', () => {
+describe('Cordis-free entries', () => {
   it.each([
     ['root', 'index.ts'],
     ['worker', 'worker.ts'],

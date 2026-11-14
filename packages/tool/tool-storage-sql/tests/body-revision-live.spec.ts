@@ -46,7 +46,7 @@ async function putHost(store: ToolLedgerStore, domain: LedgerDomain, key: string
   })
 }
 
-it('writing and sealing a body moves no ledger domain revision (TS-06)', async () => {
+it('writing and sealing a body moves no ledger domain revision', async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'tool-body-revision-')))
   try {
     const opened = await openStorage(root, [TENANT_A])

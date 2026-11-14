@@ -3,7 +3,10 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
-import { checkModelProviderConformance } from '@omne-harness/model-contract/conformance'
+import {
+  CONFORMANCE_OBLIGATIONS,
+  checkModelProviderConformance,
+} from '@omne-harness/model-contract/conformance'
 import { fixture, identity, instance, op, proof, unbox, callId } from './memory-fixture.ts'
 
 import { runtimeConformanceSubject } from './runtime-conformance-fixture.ts'
@@ -84,7 +87,7 @@ it('rejects extra admit fields and preserves opaque identity on the closed input
   })
 })
 
-it('preserves all 53 obligations with actual runtime observation and controlled upstream', async () => {
+it('preserves every obligation with actual runtime observation and controlled upstream', async () => {
   const hookEvents: unknown[] = []
   const report = await checkModelProviderConformance({
     subject: () => runtimeConformanceSubject(event => hookEvents.push(event)),
@@ -95,7 +98,7 @@ it('preserves all 53 obligations with actual runtime observation and controlled 
     '../../../tmp/issue-455/checks/conformance-hooks.json',
     JSON.stringify(hookEvents, null, 2),
   )
-  expect(report.results).toHaveLength(53)
+  expect(report.results.map(row => row.obligation)).toEqual([...CONFORMANCE_OBLIGATIONS])
   const consumption = report.results.filter(row =>
     [
       'commit-unknown-acknowledge-recovers-original',

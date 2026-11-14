@@ -2,6 +2,7 @@ const FIXED = new Set(['README.md', 'CONTRIBUTING.md', 'AGENTS.md', 'CLAUDE.md']
 
 const ALWAYS: readonly RegExp[] = [
   /^docs\/requirements\.md$/u,
+  /^docs\/clean-loop\.md$/u,
   /^docs\/architecture\/.+/u,
   /^docs\/domains\/.+/u,
   /^(packages|apps|tools)\/[^/]+\/SPEC\.md$/u,

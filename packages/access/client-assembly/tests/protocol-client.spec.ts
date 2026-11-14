@@ -105,7 +105,7 @@ async function tree(
   return { root, fake, diagnostics, delays, login, module, service: () => root.get(SERVICE) }
 }
 
-describe('C17: the connection follows the availability', () => {
+describe('the connection follows the availability', () => {
   it('subscribes at once and takes the snapshot', async () => {
     const t = await tree()
     expect(t.fake.subscriptions).toHaveLength(1)
@@ -161,7 +161,7 @@ describe('C17: the connection follows the availability', () => {
   })
 })
 
-describe('C16: one protocol client on the tree', () => {
+describe('one protocol client on the tree', () => {
   it('开放了，装了插件，服务未提供：提供服务，依赖它的模块加载', async () => {
     const t = await tree()
     expect(t.service()).toBeUndefined()

@@ -24,7 +24,7 @@ function fixture(): ToolStartAuthorityFixture<Principal> {
   }
 }
 
-describe('G5 conformance: the local start coordinator against the ToolStartAuthority suite', () => {
+describe('conformance: the local start coordinator against the ToolStartAuthority suite', () => {
   const cases = toolStartAuthorityConformance<Principal>()
 
   it('runs every case of the suite', () => {

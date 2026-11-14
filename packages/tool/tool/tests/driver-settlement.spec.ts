@@ -300,7 +300,7 @@ describe('original final settlement in one shared driver', () => {
     }
   })
 
-  it('F06 stops a queue repair with a recalled success but no original physical-end proof', async () => {
+  it('stops a queue repair with a recalled success but no original physical-end proof', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     let offline = true
     const f = fixture({
@@ -359,7 +359,7 @@ describe('original final settlement in one shared driver', () => {
     await f.close()
   })
 
-  it('F01 keeps the second call queued after retention until the original call commit lands', async () => {
+  it('keeps the second call queued after retention until the original call commit lands', async () => {
     const committing = deferred<void>()
     const release = deferred<void>()
     const f = fixture({
@@ -397,7 +397,7 @@ describe('original final settlement in one shared driver', () => {
     await f.close()
   })
 
-  it('F01/F11 releases the shared slot after retention and keeps an offline ACK recoverable', async () => {
+  it('releases the shared slot after retention and keeps an offline ACK recoverable', async () => {
     const retained = deferred<void>()
     const retaining = deferred<void>()
     const f = fixture({
@@ -479,7 +479,7 @@ describe('original final settlement in one shared driver', () => {
   })
 
   it.each(['dropped', 'applied'] as const)(
-    'F05 repairs an %s unknown queue commit without reading a released final envelope',
+    'repairs an %s unknown queue commit without reading a released final envelope',
     async mode => {
       const operations: string[] = []
       let releasedReads = 0
@@ -526,7 +526,7 @@ describe('original final settlement in one shared driver', () => {
     },
   )
 
-  it('F05 reconciles a predecessor after the release notification is lost, then closes its original queue task', async () => {
+  it('reconciles a predecessor after the release notification is lost, then closes its original queue task', async () => {
     let allowRelease = false
     const f = fixture({
       store: memory => ({
@@ -563,7 +563,7 @@ describe('original final settlement in one shared driver', () => {
     await f.close()
   })
 
-  it('F10 preserves the abnormal reader and accepts its late process without changing the result', async () => {
+  it('preserves the abnormal reader and accepts its late process without changing the result', async () => {
     const f = fixture()
     const first = await f.invoke('first')
     const start = await f.start(first.call)
@@ -616,7 +616,7 @@ describe('original final settlement in one shared driver', () => {
   })
 
   it.each(['end', 'throw'] as const)(
-    'F06/F10 persistently blocks an abnormal source that reports %s without spinning',
+    'persistently blocks an abnormal source that reports %s without spinning',
     async channel => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
       const f = fixture({ channel })
@@ -656,7 +656,7 @@ describe('original final settlement in one shared driver', () => {
     },
   )
 
-  it('F12 aborts only coordination and lets a fresh run reconnect the abnormal reader', async () => {
+  it('aborts only coordination and lets a fresh run reconnect the abnormal reader', async () => {
     const f = fixture()
     const first = await f.invoke('first')
     await f.h.binding.controls.finish(
@@ -680,7 +680,7 @@ describe('original final settlement in one shared driver', () => {
     await f.close()
   })
 
-  it('F10 records lost abnormal-source recovery as blocked without restarting the author', async () => {
+  it('records lost abnormal-source recovery as blocked without restarting the author', async () => {
     const f = fixture()
     const first = await f.invoke('first')
     await f.h.binding.controls.finish(
@@ -705,7 +705,7 @@ describe('original final settlement in one shared driver', () => {
   })
 
   it.each(['dropped', 'applied'] as const)(
-    'F10 retries the same blocked-source observation after an %s unknown commit',
+    'retries the same blocked-source observation after an %s unknown commit',
     async mode => {
       const operations: string[] = []
       const f = fixture({
@@ -754,7 +754,7 @@ describe('original final settlement in one shared driver', () => {
     },
   )
 
-  it('F11 repairs the queue while an original next is still unresolved', async () => {
+  it('repairs the queue while an original next is still unresolved', async () => {
     const seen = deferred<FactBatch>()
     const resume = deferred<void>()
     const f = fixture({ pendingFinal: { seen, resume: resume.promise } })
@@ -775,7 +775,7 @@ describe('original final settlement in one shared driver', () => {
     await f.close()
   })
 
-  it('F11 closes a completed reader without waiting for return before the next call starts', async () => {
+  it('closes a completed reader without waiting for return before the next call starts', async () => {
     const returning = deferred<void>()
     const f = fixture({ returning: returning.promise })
     const first = await f.invoke('first')

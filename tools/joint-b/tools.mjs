@@ -27,7 +27,16 @@ import {
   REPLY_TIMEOUT_MS,
 } from './support.mjs'
 
-holdTestSlot(import.meta.url)
+holdTestSlot(
+  import.meta.url,
+  [
+    '用法：node tools/joint-b/tools.mjs [--definition <名>] [--platform windows|linux] [--model-source real|replay] [--evidence <目录>] [--keep]',
+    '联调 B 的工具判据（S4-1 到 S4-9）：Shell 同一会话执行两次并继承工作目录、命令记录、Files 读写与精确编辑、结果块、取消 Run。',
+    '--platform 只标注证据，并核对与本机一致，不一致记失败。--definition 缺省 coding。--model-source 同 conversation.mjs。',
+    'OMNE_JOINT_B_REPLY_MS 是单轮回复的等待上限（缺省 90000 毫秒）。先占一个运行名额，经构建产物起进程，产物不在时每步记等件。',
+    '证据缺省写到 tmp/m2-joint-b/tools/。退出码：全部通过 0，有失败 1，只剩等件 3。',
+  ].join('\n'),
+)
 
 const args = parseArgs(process.argv.slice(2))
 const HOST_PLATFORM = process.platform === 'win32' ? 'windows' : process.platform
@@ -48,7 +57,7 @@ const BUILD_AWAIT =
 const REAL_ROWS_AWAIT =
   '树上替身行换进真件：模型侧同 conversation.mjs，加 tool-records、tool-runtime、tool-executor、' +
   'tool-instances、tool-environments 与 execution-environment、execution-files、execution-command、' +
-  'execution-host（见 README「S2～S4 依赖哪些行是真件」）；替身清单见证据文件的 doubleRows'
+  'execution-host；替身清单见证据文件的 doubleRows'
 const MODEL_SOURCE_AWAIT =
   '真实模型或获准回放的授权：以 --model-source real|replay 重跑，并在运维层给出模型凭据或回放记录'
 const RECORD_AWAIT =

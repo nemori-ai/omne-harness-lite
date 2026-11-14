@@ -2,7 +2,7 @@
 import { expect, it } from 'vitest'
 
 it.skipIf(process.platform !== 'win32')(
-  'C06 runs the Windows Shell/Files, retained terminal and single-call termination assembly',
+  'runs the Windows Shell/Files, retained terminal and single-call termination assembly',
   { tags: ['slow'], timeout: 300_000 },
   async () => {
     const path = process.env.OMNE_TOOL_WINDOWS_COMPOSITION

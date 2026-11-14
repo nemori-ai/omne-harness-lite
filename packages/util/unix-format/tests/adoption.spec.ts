@@ -10,7 +10,7 @@ import {
   resolveUnixFormatOptions,
 } from '@omne-harness/unix-format'
 
-describe('UF-2 and UF-5 exact code-point formatting and caller text', () => {
+describe('exact code-point formatting and caller text', () => {
   it('UF5-CODEPOINT aligns emoji and CJK by code point and emits the em dash', () => {
     expect(
       formatCommandList([
@@ -47,7 +47,7 @@ describe('UF-2 and UF-5 exact code-point formatting and caller text', () => {
   })
 })
 
-describe('UF-3 signed starts and ordered truncation', () => {
+describe('signed starts and ordered truncation', () => {
   it('UF3-SIGNED accepts a negative integer and increments the absolute address', () => {
     expect(formatNumberedLines(['zero', 'one', 'two'], { start: -1 })).toBe(
       '    -1 | zero\n     0 | one\n     1 | two',
@@ -64,7 +64,7 @@ describe('UF-3 signed starts and ordered truncation', () => {
   })
 })
 
-describe('UF-4 option guards', () => {
+describe('option guards', () => {
   for (const invalid of [
     -1,
     -0.1,

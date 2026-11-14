@@ -237,7 +237,7 @@ describe('#516 terminal exit', () => {
     },
   )
 
-  it('NA-E9-1 / NA-O0-1: idle retains registration and unacknowledged events for the original reader', async () => {
+  it('idle retains registration and unacknowledged events for the original reader', async () => {
     const registrations: string[] = []
     const assembly = await loopAssembly([execution(), execution('exec-2')], d => ({
       ...d,
@@ -277,7 +277,7 @@ describe('#516 terminal exit', () => {
       ).kind,
     ).toBe('terminal')
   })
-  it('NA-F1-1: candidate and before-terminal evidence are fixed before the one terminal commit', async () => {
+  it('candidate and before-terminal evidence are fixed before the one terminal commit', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -327,7 +327,7 @@ describe('#516 terminal exit', () => {
   })
 
   it.each([false, true])(
-    'NA-F3-3: blocked custody is retained; real transfer=%s permits a fresh candidate',
+    'blocked custody is retained; real transfer=%s permits a fresh candidate',
     async transferred => {
       let proposed = false
       const outcomes: string[] = []
@@ -401,7 +401,7 @@ describe('#516 terminal exit', () => {
     },
   )
 
-  it('NA-O0-1: terminal replay keeps received custody without Agent Model consumption', async () => {
+  it('terminal replay keeps received custody without Agent Model consumption', async () => {
     let modelReads = 0,
       acknowledgements = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -442,7 +442,7 @@ describe('#516 terminal exit', () => {
     expect(idle).toBe(1)
   })
 
-  it('NA-F4-1: a nonempty terminal ledger survives coordinator loss and recalls the original observation registration', async () => {
+  it('a nonempty terminal ledger survives coordinator loss and recalls the original observation registration', async () => {
     let finish: Parameters<AgentJournal<Principal>['tryFinish']>[0] | null = null
     const assembly = await loopAssembly([execution()], d => ({
       ...d,

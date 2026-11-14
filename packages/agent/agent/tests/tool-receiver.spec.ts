@@ -427,7 +427,7 @@ it('checks the complete saved payload before returning the provider receipt', as
   ).toHaveLength(1)
 })
 
-it('cannot name another tenant in a delivery reference (R2-D357)', () => {
+it('cannot name another tenant in a delivery reference', () => {
   expect(reference(otherTenant, 'call-1')).toBe(reference(access, 'call-1'))
 })
 

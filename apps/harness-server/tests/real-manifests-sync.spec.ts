@@ -81,7 +81,7 @@ describe('real-manifests-sync', () => {
     expect(names.filter(name => name.startsWith('s0.'))).toEqual([])
   })
 
-  test('AAP-7: the table no longer lists agentHost as a provided name', () => {
+  test('the table no longer lists agentHost as a provided name', () => {
     const provided = [...profile.stubManifests.values()].flatMap(m => m.provides)
     expect(provided).not.toContain('agentHost')
     expect(profile.stubManifests.get('agent-host' as RowId)?.provides).toContain(
@@ -105,7 +105,7 @@ function releaseFiles(): string[] {
   return files.map(path => join(root, path))
 }
 
-describe('FIXED-FACTS F6：窄采用来源的替身已删除', () => {
+describe('窄采用来源的替身已删除', () => {
   test('发行树（src、config）里不再出现采用来源缺件的三个字面量', () => {
     const literals = ['adopted-facts-absent', 'adopted-absent', 'B1-GAP-ADOPTED-REQUEST-SOURCE']
     const files = releaseFiles()

@@ -233,7 +233,7 @@ describe('build bound (B5): credentials and the landing are bounded too', () => 
   })
 })
 
-describe('a port that breaches its contract (MC-15, contract T9)', () => {
+describe('a port that breaches its contract (T9)', () => {
   it('a rejected discover answers effect-unknown (abandoned) and is torn down; the next ensure builds again', async () => {
     const broken = deferred<typeof peer>()
     const w = world({ script: [{ discover: broken }, ...usualScript()] })
@@ -253,7 +253,7 @@ describe('a port that breaches its contract (MC-15, contract T9)', () => {
   })
 })
 
-describe('caller abort during the build (O3)', () => {
+describe('caller abort during the build', () => {
   it('answers kept (cancelled), marks nothing, and leaves the shared build to the other caller', async () => {
     const discover = deferred<typeof peer>()
     const w = world({ script: [{ discover }, { listActions: page(['a']) }] })
@@ -271,7 +271,7 @@ describe('caller abort during the build (O3)', () => {
   })
 })
 
-describe('an old adoption revision (O2)', () => {
+describe('an old adoption revision', () => {
   it('ensure with a token of an earlier revision answers unknown and leaves the new connection alone', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
     adoptStdio(w, files)
@@ -292,7 +292,7 @@ describe('an old adoption revision (O2)', () => {
   })
 })
 
-describe('the gate the services walk through (D1)', () => {
+describe('the gate the services walk through', () => {
   it('does not ask eligibility for an endpoint that is not adopted', async () => {
     const w = world()
     adoptStdio(w, files)
@@ -305,7 +305,7 @@ describe('the gate the services walk through (D1)', () => {
     expect(w.eligibility.calls()).toBe(0)
   })
 
-  it('another principal without eligibility does not close the connection of the tenant (O1)', async () => {
+  it('another principal without eligibility does not close the connection of the tenant', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
     const c = core(w)
@@ -322,7 +322,7 @@ describe('the gate the services walk through (D1)', () => {
 
 const NOT_SENT = GONE
 
-describe('lose shares the close (R3-1): one teardown per entry, in the close order', () => {
+describe('lose shares the close: one teardown per entry, in the close order', () => {
   it('a release during the teardown of a lost connection waits for it; the next refresh builds', async () => {
     const closing = deferred<'closed'>()
     const w = world({
@@ -387,7 +387,7 @@ describe('lose shares the close (R3-1): one teardown per entry, in the close ord
   })
 })
 
-describe('a process that lands after the bound (R3-2, S9)', () => {
+describe('a process that lands after the bound', () => {
   function stalledLanding(w: World) {
     const stalled = stallingLanding(w.landing)
     return { gate: stalled.gate, c: core({ ...w, ports: { ...w.ports, landing: stalled.port } }) }
@@ -436,7 +436,7 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
     expect(await c.connections.closeAll()).toEqual([{ ref: files, process: 'unconfirmed' }])
   })
 
-  it('the process credential handle is released after the late stop() returned (S9)', async () => {
+  it('the process credential handle is released after the late stop() returned', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, {
       auth: 'static',
@@ -523,7 +523,7 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
   })
 })
 
-describe('the adoption read again in the critical section is bounded (MC-5)', () => {
+describe('the adoption read again in the critical section is bounded', () => {
   it('a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
@@ -544,7 +544,7 @@ describe('the adoption read again in the critical section is bounded (MC-5)', ()
   })
 })
 
-describe('a teardown that does not answer holds no ensure past its bound (MC-5)', () => {
+describe('a teardown that does not answer holds no ensure past its bound', () => {
   const REFUSED = { failure: { kind: 'connection-unavailable' } }
 
   it('the close of an earlier revision hangs: two refreshes of the new revision answer connection-unavailable, then the close ends on its own', async () => {

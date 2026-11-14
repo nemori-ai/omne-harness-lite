@@ -80,7 +80,7 @@ describe('snapshot read (C09)', () => {
   })
 })
 
-describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
+describe('limits and handler failures', () => {
   it('returns read_limit when the rows read exceed maxRowsRead, and no output', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 5)
     const result = await storage.read(readRequest('rows', { limit: 5 }))
@@ -134,7 +134,7 @@ describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
     expect(summary(await storage.read(readRequest('nope')))).toBe('unavailable/handler_unavailable')
   })
 
-  it('reads back a result between 1 MiB and 20 MiB under the candidate config (R2-D81)', async () => {
+  it('reads back a result between 1 MiB and 20 MiB under the candidate config', async () => {
     const big = await buildReadMaterials(workspace, {
       bigout: { maxOutputBytes: 20 * 1024 * 1024 },
     })

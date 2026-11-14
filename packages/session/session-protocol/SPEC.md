@@ -4,7 +4,6 @@
 
 ## 范围与依据
 
-- 成员落点与允许的依赖见[成员组织](../../../docs/package-organization.md)「`<领域>-protocol`」一行。
 - 状态：候选。契约与用例已建；接入插件 `session-access` 已按它写了九个处理函数；客户端核心对它的消费还没有做。
 - 操作清单从哪来：现有家族 `session-public/1`（共同契约成员的 `session-rules.ts`、`session-messages.ts`）的八个操作，去掉 `read-session-diagnostics`（它归 `session-diagnostics/v1`），得到七个；再加 `list-sessions`，它在旧家族里没有，同一个主版本里加；再加 `retry-run`，同样只在本家族。
 

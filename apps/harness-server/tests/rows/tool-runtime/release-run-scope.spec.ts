@@ -122,7 +122,7 @@ async function answer(world: ReleaseTree, session: string, text: string): Promis
 
 const ANSWER = 'Q1 Which port should the dev server use?: the person wrote: "Use 8081"'
 
-describe('the slots of the concurrency scope of one run (C5)', () => {
+describe('the slots of the concurrency scope of one run', () => {
   it(
     'with toolConcurrency 1, B runs while A waits for a person; answered, A queues until B ends',
     { timeout: 300_000 },
