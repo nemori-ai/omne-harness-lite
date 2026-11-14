@@ -3,7 +3,7 @@ import type { DurableEvidence, Reply, ToolFailure, ToolState } from '@omne-harne
 import type { ToolTask } from '@omne-harness/tool-contract/provider'
 import { invalid, judgeEvidenceField, judgeMutationInput, type MutationInput } from './boundary.ts'
 import { digestOf } from './evidence.ts'
-import { invalidationOperation } from './ledger-control.ts'
+import { controlFinished, invalidationOperation } from './ledger-control.ts'
 import {
   operationRecord,
   put,
@@ -57,6 +57,17 @@ function lostTiming(timing: ToolState['timing']): ToolState['timing'] {
     return { ...timing, kind: 'unknown', diagnostic: 'execution-end-clock-marker-unavailable' }
   if (timing.kind === 'unknown') return timing
   return { kind: 'closed', accumulatedMs: timing.accumulatedMs }
+}
+
+function endedControls(
+  controls: ToolState['controls'],
+  evidence: DurableEvidence,
+): ToolState['controls'] {
+  return controls.map(control =>
+    controlFinished(control.progress)
+      ? control
+      : { ...control, progress: { kind: 'already-ended', evidence } },
+  )
 }
 
 function supersededWrites(snapshot: Snapshot): LedgerWrite[] {
@@ -151,6 +162,7 @@ export function decideSettleLost(
     terminal: LOST_TERMINAL,
     effect: LOST_EFFECT,
     execution: { kind: 'lost', evidence: command.continuity },
+    controls: endedControls(current.controls, command.continuity),
     timing: lostTiming(current.timing),
     queue,
     delivery,

@@ -12,7 +12,12 @@ import type {
   ToolRecovery,
 } from '@omne-harness/tool-contract/provider'
 import { startedElsewhere, type LostContact } from './call-liveness.ts'
-import { createEnvironmentStateStore } from './environment-state.ts'
+import { succeed } from '@omne-harness/operation-result'
+import {
+  createEnvironmentStateStore,
+  environmentFailure,
+  type EnvironmentState,
+} from './environment-state.ts'
 
 export type Maintenance = Pick<ExecutionEnvironment<unknown>, 'recoverResources'>
 
@@ -32,6 +37,16 @@ type Step = Parameters<ToolDriver<unknown>['run']>[0]
 
 const STOPPABLE: ReadonlySet<string> = new Set(['active', 'unconfirmed'])
 
+function confirmedStops(state: EnvironmentState, keys: ReadonlySet<string>): EnvironmentState {
+  const confirm = <T extends Readonly<{ resource: ManagedResource; stop: string }>>(item: T): T =>
+    keys.has(item.resource.key) && STOPPABLE.has(item.stop) ? { ...item, stop: 'confirmed' } : item
+  return {
+    ...state,
+    resources: state.resources.map(confirm),
+    reservations: state.reservations.map(confirm),
+  }
+}
+
 export function createLostExecutions(
   { settings, dependencies, maintenance }: LostExecutionsInput,
   later: (step: Step) => void,
@@ -39,8 +54,8 @@ export function createLostExecutions(
   const stopped = async (step: Step, recovery: ToolRecovery): Promise<boolean> => {
     const state = createEnvironmentStateStore({ store: settings.store })
     for (const preparation of recovery.preparations) {
-      const { tenant, call } = step
-      const read = await state.read({ tenant, call, operation: preparation.operation })
+      const address = { tenant: step.tenant, call: step.call, operation: preparation.operation }
+      const read = await state.read(address)
       if ('failure' in read) return false
       if (read.ok === null) continue
       const owned: ManagedResource[] = [...read.ok.resources, ...read.ok.reservations]
@@ -52,6 +67,14 @@ export function createLostExecutions(
       const { scope } = read.ok.original
       const answer = await environment.recoverResources(scope, settings.recoveryAccess, owned)
       if (answer.kind !== 'recovered' || answer.stopped.length !== owned.length) return false
+      const keys = new Set(owned.map(resource => resource.key))
+      await state
+        .update(address, current =>
+          current === null
+            ? environmentFailure('original acquisition is missing')
+            : succeed(confirmedStops(current, keys)),
+        )
+        .catch(() => undefined)
     }
     return true
   }
@@ -64,6 +87,7 @@ export function createLostExecutions(
     if (recovery.start === null) return false
     try {
       if (!(await stopped(step, recovery))) return false
+      if (recovery.tasks.some(task => task.kind === 'settle')) return true
       const { commands } = dependencies
       return 'ok' in (await settleLostExecution(commands, step, recovery.start, continuity))
     } catch {

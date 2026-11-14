@@ -174,13 +174,25 @@ describe('settleLost: an execution that started and whose continuity is lost', (
     expect((await recovery(harness)).state.phase).toBe('suspended')
   })
 
-  it('a stop that was never dispatched to the lost execution is dropped with it', async () => {
+  it('a stop that was never dispatched to the lost execution is dropped with it, and its control is closed as already-ended in the same commit', async () => {
     const harness = await live()
     const stop = operationId('stop-c1')
     ok(await harness.commands.control({ ...ACCESS, operation: stop, intent: { kind: 'stop' } }))
-    expect((await recovery(harness)).tasks.map(task => task.kind)).toContain('stop')
-    expectLost(ok(await settle(harness)))
-    expect((await recovery(harness)).tasks.map(task => task.kind)).not.toContain('stop')
+    const before = await recovery(harness)
+    expect(before.tasks.map(task => task.kind)).toContain('stop')
+    expect(before.state.controls.map(control => control.progress.kind)).toEqual(['pending'])
+    const settled = ok(await settle(harness))
+    expectLost(settled)
+    expect(settled.controls).toEqual([
+      {
+        ...before.state.controls[0],
+        progress: { kind: 'already-ended', evidence: CONTINUITY },
+      },
+    ])
+    const after = await recovery(harness)
+    expect(after.tasks.map(task => task.kind)).not.toContain('stop')
+    expect(after.state.controls).toEqual(settled.controls)
+    expect(after.state.revision).toBe(settled.revision)
   })
 
   it('a lost resume segment closes the wait it was answering and owes the invalidation of its registration', async () => {

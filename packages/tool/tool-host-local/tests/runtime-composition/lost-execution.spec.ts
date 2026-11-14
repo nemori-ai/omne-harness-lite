@@ -79,7 +79,33 @@ async function plant(world: World, reference: ToolInvocationRef, key: string) {
   expect(await ledger.plan(resource)).toBe('recorded')
   const original = unbox(await state.read(address))?.original
   if (original === undefined) throw new Error('no original acquisition')
-  return { resource, scope: original.scope }
+  const stops = async () => {
+    const read = unbox(await state.read(address))
+    return read === null ? null : [...read.resources, ...read.reservations].map(item => item.stop)
+  }
+  return { resource, scope: original.scope, stops }
+}
+
+type Commit = World['store']['commit']
+
+function patchCommit(world: World, refuse: (write: string) => boolean) {
+  const store = world.store as { commit: Commit }
+  const commit = store.commit
+  let refused = 0
+  store.commit = write => {
+    const text = JSON.stringify(write, (_key, value: unknown) =>
+      typeof value === 'bigint' ? value.toString() : value,
+    )
+    if (!refuse(text)) return commit(write)
+    refused += 1
+    return Promise.resolve({ kind: 'unavailable', diagnostic: 'the store refuses this write' })
+  }
+  return {
+    refused: () => refused,
+    restore: () => {
+      store.commit = commit
+    },
+  }
 }
 
 async function takeover(world: World, overrides: Overrides, receive = true) {
@@ -173,7 +199,7 @@ it('the managed resources of the lost execution are stopped by their identity an
   let next: Executor | null = null
   try {
     const { reference, owner } = await running(world, 'hold-command')
-    const { resource, scope } = await plant(world, reference, 'unit-1')
+    const { resource, scope, stops } = await plant(world, reference, 'unit-1')
     await world.plugins.close()
     const recoveryAccess = createRecoveryAccess()
     const asked: { args: unknown[]; phase: string }[] = []
@@ -201,13 +227,83 @@ it('the managed resources of the lost execution are stopped by their identity an
       kind: 'holding',
     })
     expect(taken.received).toHaveLength(0)
+    expect(await stops()).toEqual(['active'])
     confirmed = true
     await expectLost(world, reference, owner)
     expect(asked.every(ask => ask.phase === 'running')).toBe(true)
+    expect(await stops()).toEqual(['confirmed'])
     await expect.poll(() => taken.received.length, { timeout: 3_000 }).toBe(1)
     expect(world.launches()).toBe(1)
   } finally {
     author.release()
+    await next?.close()
+    await world.close()
+  }
+})
+
+it('a resource ledger that cannot take the confirmed stop does not hold the record back', async () => {
+  const author = held()
+  const world = await fixture(author.author)
+  let next: Executor | null = null
+  try {
+    const { reference, owner } = await running(world, 'hold-ledger-of-resources-down')
+    const { stops } = await plant(world, reference, 'unit-1')
+    await world.plugins.close()
+    const writes = patchCommit(world, write => write.includes('"key":"environment@'))
+    world.resourceRecovery.answer = async (scope, _access, resources) => ({
+      kind: 'recovered',
+      scope,
+      stopped: [...resources],
+      pending: [],
+      unsupported: [],
+    })
+    next = await takeover(world, { recoveryAccess: createRecoveryAccess() })
+    const taken = next
+    await expectLost(world, reference, owner)
+    expect(writes.refused()).toBeGreaterThanOrEqual(1)
+    expect(await stops()).toEqual(['active'])
+    await expect.poll(() => taken.received.length, { timeout: 3_000 }).toBe(1)
+  } finally {
+    author.release()
+    await next?.close()
+    await world.close()
+  }
+})
+
+it('a call whose final was saved before its instance was lost is settled by that final: completed, not lost, delivered once, never run again', async () => {
+  const world = await fixture()
+  let next: Executor | null = null
+  try {
+    const writes = patchCommit(world, write => write.includes('preserve-result'))
+    const reference = accepted(await world.api.invoke(world.invocation('saved-final')))
+    await expect
+      .poll(async () => (await recovery(world, reference)).tasks.map(task => task.kind), {
+        timeout: 3_000,
+      })
+      .toContain('settle')
+    await expect.poll(() => writes.refused(), { timeout: 3_000 }).toBeGreaterThanOrEqual(1)
+    expect((await recovery(world, reference)).state).toMatchObject({
+      phase: 'running',
+      execution: { kind: 'live' },
+    })
+    await world.plugins.close()
+    writes.restore()
+    next = await takeover(world, {})
+    const taken = next
+    await expect
+      .poll(async () => (await recovery(world, reference)).state.phase, { timeout: 3_000 })
+      .toBe('settled')
+    expect((await recovery(world, reference)).state).toMatchObject({
+      phase: 'settled',
+      terminal: { kind: 'completed' },
+      execution: { kind: 'ended' },
+    })
+    await expect.poll(() => taken.received.length, { timeout: 3_000 }).toBe(1)
+    expect(taken.received[0]).toMatchObject({ kind: 'result', terminal: { kind: 'completed' } })
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(taken.received).toHaveLength(1)
+    expect(world.launches()).toBe(1)
+  } finally {
     await next?.close()
     await world.close()
   }
