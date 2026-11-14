@@ -1,6 +1,6 @@
 # `session-access` 行
 
-本页是 `session-access` 行的行规格。行的代码在 `src/rows/session-access/`。行用 `defineRow` 声明，没有关闭阶段。依据是 [RFC-0015](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 5、7、8 节，以及[装配页](../../../../docs/architecture/runtime/application-assembly.md)的 `session-access` 行。处理函数与帧来源的行为归 [`@omne-harness/session-access` 的 SPEC](../../../../packages/session/session-access/SPEC.md)。
+本页是 `session-access` 行的行规格。行的代码在 `src/rows/session-access/`。行用 `defineRow` 声明，没有关闭阶段。依据是[装配页](../../../../docs/architecture/runtime/application-assembly.md)的 `session-access` 行。处理函数与帧来源的行为归 [`@omne-harness/session-access` 的 SPEC](../../../../packages/session/session-access/SPEC.md)。
 
 ## 这一行做什么
 

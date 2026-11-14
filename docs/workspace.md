@@ -58,7 +58,7 @@ Python 当前服务于开发工具。
 
 ## 目标骨架与封存实现
 
-新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。旧产品正文保持在 `.meta_harness/design/product.0.0.1.legacy`，留在仓库里供核对。后缀不是发布版本。旧应用与旧包已从仓库删除，原件见固定提交中的 [apps.0.0.1.legacy](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy) 和 [packages.0.0.1.legacy](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy)。活动工具及其测试不读取这些旧源。规则测试使用工具自己拥有的最小夹具。旧源不授予架构采用。
+新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。后缀不是发布版本。旧应用与旧包已从仓库删除，原件见固定提交中的 [apps.0.0.1.legacy](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy) 和 [packages.0.0.1.legacy](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy)。活动工具及其测试不读取这些旧源。规则测试使用工具自己拥有的最小夹具。旧源不授予架构采用。
 
 新包区按目标能力组维护工程关系，已具名目标成员维护长期 SPEC 与内部设计。尚未具名的行为规格承接继续计缺项。新产品区的[正式正文](../.meta_harness/design/product/README.md)包含需求、能力及实现状态、阶段承诺和未决四块。文档落位不建立可执行成员，也不授予设计或实现接受；常规新增成员的公开承诺与模板准入要求保持。
 

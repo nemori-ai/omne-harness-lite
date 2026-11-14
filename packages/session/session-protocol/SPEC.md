@@ -4,9 +4,9 @@
 
 ## 范围与依据
 
-- 设计源：[RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md)「共同契约」「协议怎样划分」「会话观察」「成员怎么放，依赖方向」四节。成员落点与允许的依赖见[成员组织](../../../docs/package-organization.md)「`<领域>-protocol`」一行。
+- 成员落点与允许的依赖见[成员组织](../../../docs/package-organization.md)「`<领域>-protocol`」一行。
 - 状态：候选。契约与用例已建；接入插件 `session-access` 已按它写了九个处理函数；客户端核心对它的消费还没有做。
-- 操作清单从哪来：现有家族 `session-public/1`（共同契约成员的 `session-rules.ts`、`session-messages.ts`）的八个操作，去掉 `read-session-diagnostics`（它归 `session-diagnostics/v1`），得到七个；再加 `list-sessions`（[RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 8 节「列出会话」），它在旧家族里没有，同一个主版本里加；再加 `retry-run`，同样只在本家族。
+- 操作清单从哪来：现有家族 `session-public/1`（共同契约成员的 `session-rules.ts`、`session-messages.ts`）的八个操作，去掉 `read-session-diagnostics`（它归 `session-diagnostics/v1`），得到七个；再加 `list-sessions`，它在旧家族里没有，同一个主版本里加；再加 `retry-run`，同样只在本家族。
 
 ## 结果与不变量
 
@@ -70,7 +70,7 @@
 - `gap`：`reason` 为 `buffer` 或 `source-history`。
 - `refreshing`：没有别的字段。
 
-帧的含义归会话观察（[RFC-0015](../../../docs/rfcs/RFC-0015-access-dynamic-registration.md) 第 8 节与[会话观察的规格](../session-observation/SPEC.md)），读者按下表读，不另作推断：
+帧的含义归会话观察（[会话观察的规格](../session-observation/SPEC.md)），读者按下表读，不另作推断：
 
 | 帧           | 它说的是                                                                   | 读者据此                                                                                                                                               |
 | ------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |

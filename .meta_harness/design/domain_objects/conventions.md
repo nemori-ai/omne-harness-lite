@@ -14,7 +14,7 @@
 - **宿主**：[会话](objects.md#ul-session--会话)；前台后台不改变生命周期归属，agent runtime 只持有执行句柄
 - **身份**：正文未给标识；只要求记得下「哪一次运行、哪个 agent runtime 发起、属于哪个会话」
 - **生灭**：发起 → 前台/后台 × 执行中/等待 → 完成 · 失败 · 被中断 · 等不到；停机后不重来，算失败；会话被归档时随之收场
-- **依据**：[PF-006 §6.5](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 21）；[PF-012 §6.13](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 17）
+- **依据**：[PF-006 §6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 21）；[PF-012 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 17）
 - **并入**：「工具执行运行时」「一次工具调用」——正文当同一物用
 - **未裁**：具体执行标识格式正文未述；PF-011 的归因树与生命周期归属是不同关系，不据此改宿主
 ````
@@ -61,7 +61,7 @@
 ### 存储
 
 - **现象**：工具定义可以指名声明「把附件放进哪个存储」，存储没配好则该工具整个不可用；但全系统没有任何一处定义它
-- **牵涉**：[PF-006 §4 工具的产出](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 12）
+- **牵涉**：[PF-006 §4 工具的产出](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#工具的产出)（rev 12）
 - **挂着谁**：[附件](objects.md#ul-attachment--附件)存在它里面，附件的宿主与留存因此都定不下来
 - **谁来裁**：PF-006 的 owner；已记入该 topic 的 decisions「已知的来源问题」
 - **闭合条件**：有一个 topic 定义了它，并立了词条，或明确说它不是一个产品概念
@@ -99,7 +99,7 @@
 不复核就改 rev，等于把这道检查关掉——对账器证明得了「rev 写的是当前值」，证明不了「有人回头看过」。
 
 **对账器查不了的**是「产品正文里冒出一个新对象，却没人给它立词条」：上游是散文。
-那个方向靠[新概念先进词表、再进正文](../product.0.0.1.legacy/AGENTS.md#红线)这条落字时的规矩，以及定期的全量重提兜底；
+那个方向靠[新概念先进词表、再进正文](../ubiquitous_language/AGENTS.md#红线)这条落字时的规矩，以及定期的全量重提兜底；
 两样的做法都在 `domain-objects` skill。
 
 返回[领域对象入口](README.md)。

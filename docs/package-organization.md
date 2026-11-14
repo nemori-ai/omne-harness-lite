@@ -185,9 +185,9 @@ tools/<开发工具>/              检查与开发工具
 scripts/                       仓库自动化
 ```
 
-标「未建」的叶子是 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md) 接受的落点，成员还没有建。它们在交付时用包模板生成，建好之后去掉这个标记。`access` 组三个现有成员的职责按上面的写法改变，现有实现与它的差别见[系统分层的现行偏离](architecture/layers-and-dependencies.md#现行偏离)。`apps/m2-contract-skeleton` 按同一份提案退役，随接入插件那一程删除。
+标「未建」的叶子是已接受的落点，成员还没有建。它们在交付时用包模板生成，建好之后去掉这个标记。`access` 组三个现有成员的职责按上面的写法改变，现有实现与它的差别见[系统分层的现行偏离](architecture/layers-and-dependencies.md#现行偏离)。`apps/m2-contract-skeleton` 按同一份提案退役，随接入插件那一程删除。
 
-telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，依据 [RFC-0013 revision 2](rfcs/RFC-0013-engineering-telemetry.md)，职责见[遥测规格](../packages/telemetry/SPEC.md#总体架构)。
+telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，职责见[遥测规格](../packages/telemetry/SPEC.md#总体架构)。
 
 同一能力组内可以增加具名提供者或独立适配成员，前提是包边界有依据。单成员组仍提供稳定知识位置，不为目录对称增加转发层。time、telemetry和common须有实际共同语义及消费者，不能成为收纳未归属代码的目录。`util` 只放纯文本格式化。`unix-format` 和 `xml-format` 从封存的 [packages.0.0.1.legacy/util](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/util) 迁入，输出由迁来的测试锁定。它们不进入 `common`，因为还没有两个已确认的共同消费者。
 
@@ -247,8 +247,7 @@ telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contrac
 | [Skill](domains/skills/README.md)                          | skills             | 方法取用、正文及资源           |
 | [MCP](domains/mcp/README.md)                               | mcp                | 端点、连接、发现与桥接         |
 
-另有一项不属于任何业务领域的责任：界面外壳契约与共用界面件。它管界面外壳提供哪几种界面插入位置的契约，以及各领域界面共用的基础组件、主题和多语言装配。目标组是 `frontend`。它不放在 `access`，因为它不碰线上的契约；不放在某个应用里，因为下一种应用形态要复用它；不放在某个业务领域里，因为它是所有领域的界面模块共用的。依据是 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)。
-
+另有一项不属于任何业务领域的责任：界面外壳契约与共用界面件。它管界面外壳提供哪几种界面插入位置的契约，以及各领域界面共用的基础组件、主题和多语言装配。目标组是 `frontend`。它不放在 `access`，因为它不碰线上的契约；不放在某个应用里，因为下一种应用形态要复用它；不放在某个业务领域里，因为它是所有领域的界面模块共用的。
 assets维护共同治理，具体类别维护专有定义与业务。共同治理不反向导入全部类别实现，Tool不接管被调用类别的业务状态。命令受理、Skill读取、MCP连接与实际调用的分责继续沿对应领域页。
 
 ## 包边界与公开入口
@@ -346,7 +345,7 @@ Session、Agent、Model 与 Tool 按公开责任单向组合。Session 通过 Ag
 
 本表不改变各组内部成员分工。Session 组导入邻域契约的只有 session-adapters 与 session-observation，后者只导入 Model 契约与 Model 的 Cordis 定义；表中 Session 到 Agent 的方向不授予 session-contract 或 session-cordis 新的邻域导入权限。外部装配按其实际职责选择公开能力与提供者，不获得整个目录的反向依赖豁免。
 
-会话观察的依赖边归 session 组的 session-observation，不归接入组（[RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md)）。它有两条跨组的成员级边：`session-observation -> model-contract` 只用公共流的两个读取面 `ModelStreamReferences.current` 与 `ModelStreamObservation.observe` 的类型，`session-observation -> model-cordis-contract` 只用这两个面的服务键。两条边都不导入实现，也不导入接入组的任何成员；后一条由约束登记的方向行 `DIR-SESSION-OBSERVATION-ACCESS` 守。
+会话观察的依赖边归 session 组的 session-observation，不归接入组。它有两条跨组的成员级边：`session-observation -> model-contract` 只用公共流的两个读取面 `ModelStreamReferences.current` 与 `ModelStreamObservation.observe` 的类型，`session-observation -> model-cordis-contract` 只用这两个面的服务键。两条边都不导入实现，也不导入接入组的任何成员；后一条由约束登记的方向行 `DIR-SESSION-OBSERVATION-ACCESS` 守。
 
 同一能力的 Cordis 定义入口保持相同依赖方向，不能以服务键、Context/Events 增补或 `import type` 重新引入纯契约禁止的耦合。类型导入、重导出、跨成员相对路径和公开子路径分别核对。实际约束以所引用成员的身份与责任判断，不按名称含有 Session 或 Agent 一词作结论。
 

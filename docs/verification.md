@@ -139,11 +139,9 @@ SHA-256；当前环境是否安装、仓库是否定义了模型，是两个问�
 
 ## 检查的基线
 
-检查以显式给出的基线或 `origin/main` 为基线。全局 main 趋势仍按 main。双基线与目标基线同步已按 [RFC-0014](rfcs/RFC-0014-single-card-session-and-gate-relief.md) 退役。
-
+检查以显式给出的基线或 `origin/main` 为基线。全局 main 趋势仍按 main。
 ## 包级测试责任与边界
 
-PanQiWei 于 2026-10-14 接受 [RFC-0005 revision 1](rfcs/RFC-0005-package-testing.md#决定范围)。本页是该决定的现行说明。
 
 测试责任由包的公开承诺和实际职责决定。目录名、测试数量、是否起子进程、使用什么框架，都不决定责任。`fast` 和 `slow` 记录执行成本。单元、契约、集成、端到端记录责任和组合范围。`slow` 不等于端到端。`fast` 不能代替集成证据。
 

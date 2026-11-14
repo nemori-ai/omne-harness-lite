@@ -48,7 +48,7 @@
 - **出处**：[现行词义](../index.md)（产品负责人 2026-09-18 直接裁决）；
   **主语于 2026-09-20 由「agent runtime」换成 agent runtime**，见 [现行词义](../index.md)
 - **⚠️ 它有明确的失效条件**：**开始设计支持 GPT-Live 时重新裁决**，在那之前一律遵循。
-  [GPT-Live 把语音层与推理层拆成两个模型](../../product.0.0.1.legacy/PF-009-context-message-types/design.md)，
+  [GPT-Live 把语音层与推理层拆成两个模型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md)，
   **届时「谁在活跃」会有第二个答案**
 - **注意**：这条**不是性能约束，是治理约束**——「这个会话现在在干什么」**必须只有一个答案**，
   否则成本、失败与收束都算不清
@@ -58,7 +58,7 @@
 ### UL-session · 会话 · Session
 
 > **中**：**一段持续协作的耐久身份与归属边界**。这段协作里产生的一切——
-> [记录](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md)、运行、会话级的设置与授权、
+> [记录](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md)、运行、会话级的设置与授权、
 > 落地的执行环境、花掉的成本——**都归到它名下**。
 > 它**跨多次运行存活**，且**不要求有人说过话**：定时触发、外部消息送达、
 > 系统发起，**同样开一个会话**。
@@ -83,23 +83,23 @@
   协程可被取消、可重新起，没了之后**会话还在、历史还在、认定的定义还在**。
   **它自己不是活物**：它是纯数据、治理性质的概念，不占用计算资源，也不会「停下来」
 - **注意 ③**：**没有「会话结束」这回事。****没有删除会话的概念**，所以严格意义上
-  它不会终止。它走的是[四个状态](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)——
+  它不会终止。它走的是[四个状态](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话的生命周期)——
   **创建/初始化 · 运行/活跃 · 休眠 · [归档](#ul-session-archival--会话归档--session-archival)**，
   其中**运行与休眠来回切换没有上限**，**归档可以撤销**。
   另有一个不可逆的状态：[会话冻结](#ul-session-freeze--会话冻结--session-freeze)。会话冻结后不再开始新的运行，仍可归档；撤销归档后回到冻结。
   **凡是要挂在「这段协作到此为止」上的东西，锚点都是归档**：
-  [未完成的工具执行随之收场](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)就是其中之一。
-  **注意[会话级沙箱的销毁不在此列](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)**——
+  [未完成的工具执行随之收场](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)就是其中之一。
+  **注意[会话级沙箱的销毁不在此列](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)**——
   它挂的是**沙箱自己的最大连续存活时间**，那一节同时明写「**会话可以无限期存在**」
 - **注意 ④**：**它有两种性质**——[主会话](#ul-primary-session--主会话--primary-session)
   与[子会话](#ul-child-session--子会话--child-session)。两者**都完整地是会话**，
   区别只在关系里扮演的角色
 - **注意 ⑤**：**它归哪个租户，在创建那一刻就定了**——它持有
   [创建那一刻的当前租户身份](subjects-and-ownership.md#ul-current-tenant-identity--当前租户身份--current-tenant-identity)，
-  [此后不随这个账号切换到别的租户身份而变](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)
+  [此后不随这个账号切换到别的租户身份而变](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#612-会话持有创建那一刻的租户身份)
 - **注意 ⑥**：**它指向哪条模型，是它的[选中模型](capabilities-and-composition.md#ul-selected-model--选中模型--selected-model)**；
   这个取值的每一次改变都以一条[模型切换](capabilities-and-composition.md#ul-model-switch--模型切换--model-switch)事实记在[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)里，
-  [不是一个当场改掉的开关](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实)（PF-013 rev 12）
+  [不是一个当场改掉的开关](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#66-切换先是一条要被记录的事实)（PF-013 rev 12）
 
 ### UL-primary-session · 主会话 · Primary Session
 
@@ -177,7 +177,7 @@
 - **出处**：[会话与工作：插队、取消工作和归档有不同影响范围](../../product/sessions-and-work/design.md#插队取消工作和归档有不同影响范围) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 9）；冻结会话的归档与撤销见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)
 - **别混 ①**：**不是删除。**会话的身份与历史一直在，**归档只让它从眼前收起来**
 - **别混 ②**：**不是[会话级沙箱的销毁](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)。**
-  那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——
+  那挂的是**沙箱自己的最大连续存活时间**，[同一节明写「会话可以无限期存在」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)——
   **沙箱没了，会话照活**
 - **别混 ③**：**不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)。**
   那三个终态是 **Run 的**，一次运行收场不等于这段协作收场
@@ -189,8 +189,8 @@
   授权是数据，**归档不丢**——「工作被取消」推不出「授权也没了」
 - **注意 ④**：**自动归的档和手动归的档，后果一模一样**——
   同样级联、同样中断、同样可撤销。**没有「系统归的比较轻」这回事**
-- **注意 ⑤**：**那条时限是[出厂配置，默认 30 天](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动)**，
-  **不是每个会话各设一个**；[租户改不改得动尚未裁决](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md)
+- **注意 ⑤**：**那条时限是[出厂配置，默认 30 天](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#62-归档有两条来路人手动或到期自动)**，
+  **不是每个会话各设一个**；[租户改不改得动尚未裁决](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md)
 
 ### UL-session-freeze · 会话冻结 · Session Freeze
 
@@ -207,7 +207,7 @@
 > undoing that archival returns it to frozen, not to dormant.
 
 - **形态**：状态
-- **出处**：[会话产品页 常驻工具无法保持形状时，会话冻结](../../product/sessions-and-work/design.md#frozen)（rev 9）；[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)（PanQiWei 2026-10-21 裁定：冻结是独立的会话状态，不是归档）；判定条件见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
+- **出处**：[会话产品页 常驻工具无法保持形状时，会话冻结](../../product/sessions-and-work/design.md#frozen)（rev 9）；[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)（PanQiWei 2026-10-21 裁定：冻结是独立的会话状态，不是归档）；判定条件见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
 - **别混 ①**：不是[会话归档](#ul-session-archival--会话归档--session-archival)。冻结不中断在途的运行；归档会中断未完成的工具执行与模型响应
 - **别混 ②**：不是休眠。休眠的会话可以开始新的运行，冻结的会话不能
 - **注意 ①**：只在采用点判定。「耐久地不可装载」要有耐久证据：实现包的摘要缺失，或装载被确定性拒绝。实现暂时缺席、状态未知或被撤权时，会话用[替换件](reach-and-availability.md#ul-stand-in--替换件--stand-in)，不冻结
@@ -217,7 +217,7 @@
 ### UL-session-type · 会话类型 · Session Type
 
 > **中**：**一个[会话](#ul-session--会话--session)主要是用来干什么的。**
-> 它在会话建立时，**由用户选定的 [AgentDefinition](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md) 算出来**，
+> 它在会话建立时，**由用户选定的 [AgentDefinition](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md) 算出来**，
 > **此后不随来源变化**。
 >
 > **EN**: **What a session is mainly for.** It is **computed at creation from the
@@ -225,7 +225,7 @@
 > happens to that definition.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话类型](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 21）
+- **出处**：[PF-015 §4 会话类型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 21）
 - **⚠️ 别混**：**它不是一道闸门。**它**不参与**
   [放行三元组](../../product/meta-capabilities/design.md#meta-ask)，
   也不收窄任何[权限](capabilities-and-composition.md#ul-permission--权限--permission)——
@@ -233,9 +233,9 @@
 - **注意 ①**：**是算出来的，不是绑上去的。**它与来源之间是一条**映射**，
   映射改了**只影响新建的会话**，已存在的一个都不变
 - **注意 ②**：**当前五类只能出厂增补**，租户不能自定义——
-  [因为租户能自定义的是子 agent](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#为什么类型只能出厂加)
+  [因为租户能自定义的是子 agent](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#为什么类型只能出厂加)
 - **注意 ③**：**它唯一的用途是判断「用户此刻聊的，和这个会话本来是干什么的，对不对得上」**——
-  对不上时[只提醒，不阻拦](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)
+  对不上时[只提醒，不阻拦](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)
 
 ### UL-session-run-mode · 会话运行模式 · Session Run Mode
 
@@ -254,7 +254,7 @@
 > only what happens at that moment.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话运行模式](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
+- **出处**：[PF-015 §4 会话运行模式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
   它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 7）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
@@ -278,7 +278,7 @@
 > **EN**: A runtime property of a session describing how the person and agent advance work together. It currently has two values: `co-work`, emphasizing collaborative creation with the person, with Ask() enabled and without the mode-added goal-completion check; and `auto-drive`, emphasizing goal-directed, self-driven execution, with Ask() disabled and a check preventing normal completion while the goal remains unmet. It can change during the session and is orthogonal to the permission dimension of Session Run Mode and to the execution-environment dimension.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话协作模式](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话协作模式)（rev 21）
+- **出处**：[PF-015 §4 会话协作模式](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话协作模式)（rev 21）
 - **别混**：不是会话用途类型、权限模式或执行环境落点；切成 auto-drive 不自动授予权限，切成 co-work 也不据此变成只读。
 - **注意**：Ask() 的开启仍受权限模式约束；关闭不移除或替换 meta 资产。检查的承载、装卸与切换细节归技术设计；会话类型强制要求的完成检查不随 co-work 取消。初始模式归创建入口的产品规则。
 
@@ -299,24 +299,24 @@
 
 - **形态**：对象
 - **出处**：[现行词义](../index.md)（产品负责人 2026-09-18 直接裁决，定义由 PM 起草）；
-  **边界那两句来自 2026-09-20 与 2026-09-22 的裁决**，见 [PF-012 §4 Run](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run)（rev 25）
+  **边界那两句来自 2026-09-20 与 2026-09-22 的裁决**，见 [PF-012 §4 Run](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run)（rev 25）
 - **别混 ⓪**：**它是纯粹的逻辑概念**。「一次 Run」不对应任何一段进程、一个连接或一次请求——
   **换一个 agent runtime 接着跑，还是这一个**；**队列没空就退不出去，哪怕模型已经没话说了**
 - **别混 ⓪′**：**「未终结」不等于「有一副 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 活着」**——
-  [等人的时候协程可以先被回收，而这个运行还好端端悬在日志上](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run-未终结不等于有一副-agent-runtime-活着)
+  [等人的时候协程可以先被回收，而这个运行还好端端悬在日志上](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run-未终结不等于有一副-agent-runtime-活着)
 - **别混 ①**：**它是逻辑的，不是物理的**——一次 Run 可能经历多次[执行尝试](#ul-run-attempt--执行尝试--run-attempt)。
   **「重跑一次」与「同一次跑的第二次尝试」必须分得开**，否则成本与失败都算错
-- **别混 ②**：Run 的**收束**与[一次工具执行的收场](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)**不是一回事**——
+- **别混 ②**：Run 的**收束**与[一次工具执行的收场](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#55-一次工具执行的收场有六种)**不是一回事**——
   后者是工具那一层的六种，**粒度差着好几层**。**裸写「收场」不作数**
 - **注意 ①**：**它不拥有记录**——它往会话的日志里写，**日志归会话**
 - **注意 ②**：**它不拥有执行体**——推进它的是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)，
   而**一次 Run 可能先后由好几个协程推进**（会话一侧把每一段推进记为一次[尝试](#ul-run-attempt--执行尝试--run-attempt)）
 - **注意 ②′**：新 Run 登录确认不等于每个 Attempt 的开始条件；已经执行中的 Run 不因登录到期停止。原合法动作和结果收场沿原准入与运行控制规则。
 - **注意 ③**：**怎么被驱动、怎么推进、怎么收束、怎么中断**，归
-  [PF-012](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/README.md)；本条只定**它是什么、边界在哪**
+  [PF-012](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/README.md)；本条只定**它是什么、边界在哪**
 - **注意 ④**：**终结之后不再为它发起新动作，但终结前已发起的那些，账迟到了照样归它**，并标明是迟到的——
-  [I-11](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)；否则「按运行汇总成本」算不全
-- **注意 ⑤**：会话[冻结](#ul-session-freeze--会话冻结--session-freeze)后不再开始新的运行。冻结前已经在途的运行照常走到终态。依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596) 与 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
+  [I-11](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)；否则「按运行汇总成本」算不全
+- **注意 ⑤**：会话[冻结](#ul-session-freeze--会话冻结--session-freeze)后不再开始新的运行。冻结前已经在途的运行照常走到终态。依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596) 与 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R5b）
 - **注意 ⑥**：新 Run 开始是一个[采用点](#ul-adoption-point--采用点--adoption-point)。常驻工具当前记下的登记键从这次运行的[采用依据](#ul-adoption-basis--采用依据--adoption-basis)算出
 
 ### UL-trigger · 触发 · Trigger
@@ -332,7 +332,7 @@
 > create an attempt, or continue the current attempt.
 
 - **形态**：属性
-- **出处**：[PF-012 §4 Run 的开始与推进边界](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#边界什么让它开始什么让它结束)（rev 25）
+- **出处**：[PF-012 §4 Run 的开始与推进边界](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#边界什么让它开始什么让它结束)（rev 25）
 - **别混 ①**：它不是 Run 开始事实，也不保证产生一次 attempt。队列从空变非空不是开 Run 的充分或必要条件。
 - **别混 ②**：它不授予推进权，也不替代持久输入、承接、等待结果或尝试栅栏。普通追加不因信号送达而中断在途调用。
 - **注意 ①**：重复、合并或重建信号不提供新增工作依据，仍按当前持久事实检查；没有可推进工作时不创建 Run 或 attempt。
@@ -351,7 +351,7 @@
 > itself. Messages are taken **in arrival order**, the sole exception being a queue jump.
 
 - **形态**：视图
-- **出处**：[PF-012 §4 待处理消息队列](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#待处理消息队列)（rev 25）
+- **出处**：[PF-012 §4 待处理消息队列](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#待处理消息队列)（rev 25）
 - **别混 ①**：**它不是一个收件箱。**收件箱是东西送到的地方，
   **而这里的每一项都已经是日志里的一条消息了**——[到达要先被受理并落账](interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)，才谈得上排队
 - **别混 ②**：**[控制指令](interaction-and-dispatch.md#ul-control-command--控制指令--control-command)不进这个队列**——
@@ -362,7 +362,7 @@
   [组装是纯派生的](#ul-agent-loop--agent-loop--agent-loop)（不能另立一份由组装消费的权威队列），
   且**停机是主路径的一部分**（攒在内存里一次重启就丢）
 - **注意 ③**：**什么东西会进来、怎么受理、一次取几条**，归
-  [PF-014](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/README.md)；本条只定**它是什么**
+  [PF-014](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/README.md)；本条只定**它是什么**
 
 ### UL-input-claim · 承接 · Input Claim
 
@@ -377,14 +377,14 @@
 > the queue cannot be rebuilt after a restart.
 
 - **形态**：过程
-- **出处**：[PF-012 §4 边界](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#边界什么让它开始什么让它结束) ·
-  [§6.16](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)（rev 25）
+- **出处**：[PF-012 §4 边界](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#边界什么让它开始什么让它结束) ·
+  [§6.16](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)（rev 25）
 - **别混**：**不是[入站到达](interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival)**——
   到达说的是**东西进了日志**，承接说的是 **loop 把它取走去做**。两者之间就是排队那段时间
 - **注意 ①**：**一次运行的承接范围会在它跑着的时候继续长**——
-  [新到的东西默认并入当前那一次](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run-跑着的时候又进来一条东西)，所以边界到终结时才完全确定
+  [新到的东西默认并入当前那一次](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run-跑着的时候又进来一条东西)，所以边界到终结时才完全确定
 - **注意 ②**：**每条已记录的输入至多被承接一次**；最新那次运行已终结而它还没被承接，
-  就必须有一次新的运行把它承接掉（[PF-012 I-12](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)）
+  就必须有一次新的运行把它承接掉（[PF-012 I-12](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)）
 
 ### UL-run-attempt · 执行尝试 · Run Attempt
 
@@ -406,7 +406,7 @@
 
 - **形态**：视图
 - **出处**：[现行词义](../index.md)（PM 起草；与前身系统「logical Run / physical attempt」同构）；
-  **形态与身份于 2026-09-22 定死**，见 [PF-012 §4 执行尝试](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 25）；
+  **形态与身份于 2026-09-22 定死**，见 [PF-012 §4 执行尝试](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 25）；
   会话一侧拥有、Agent 不要求它，见[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 5）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **别混**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)，也不是 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)**——
   后两者是 Agent 一侧的概念；执行尝试是会话一侧「这次运行的第几次推进」。
@@ -414,7 +414,7 @@
 - **注意 ①**：**它有一个指得到的身份，但没有自己的存储**——内存态重算即得，
   花的钱记在成本条目里，做过的事记在效果条目里，**它本身没有「只有它知道」的东西**
 - **注意 ②**：**序号显式写在那条尝试开始记录里**，不靠数前面有几条；
-  [「只有序号最大的那次尝试能写入推进运行的记录」这道栅栏拿它做比较](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它)
+  [「只有序号最大的那次尝试能写入推进运行的记录」这道栅栏拿它做比较](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它)
 - **注意 ③**：**这一条是「治理性质」的直接后果**——一次网络抖动重试若算成两次运行，**账和失败都算错**。
   **成本明细按它记，汇总按运行算**
 - **注意 ④**：**执行开始之后位置不按它计**——那个位置按[Agent 执行](#ul-agent-execution--agent-执行--agent-execution)的新开计，见[执行开始之后](#ul-execution-started-position--执行开始之后--execution-started-position)
@@ -433,14 +433,14 @@
 > log: **no separate lock, and no second record of "which attempt is current" kept outside the log**.
 
 - **形态**：规则
-- **出处**：[PF-012 §5.7 同一个 Run 同一时刻只有一副协程在推它](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它) ·
-  [§6.17 I-15](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 25）
+- **出处**：[PF-012 §5.7 同一个 Run 同一时刻只有一副协程在推它](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它) ·
+  [§6.17 I-15](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式)（rev 25）
 - **⚠️ 别混 ①**：**不是锁，也不是租约**——它不挡一副旧协程接着跑，只让它写不进推进运行的记录；它只比序号，不看谁先到、谁超时
 - **别混 ②**：**不是[会话内单活跃](#ul-single-active-execution--会话内单活跃--single-active-execution)**——
   那条是要守住的不变式（一个会话同一时刻至多一个活跃运行、一副活跃 agent runtime）；
   这一条兑现的是它下面的一个前提：**同一个运行不被两副协程同时推进**——恢复逻辑起了新的一副、旧的那副又活过来时，靠它让旧的不能再推进运行
 - **注意 ①**：**它靠序号显式写在日志里成立**：每次尝试先落那条带序号的尝试开始记录，再以这次尝试写别的
-  （[PF-012 §6.16](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)；I-15 序号严格递增）——**序号不是数出来的**
+  （[PF-012 §6.16](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#616-日志里至少要有这几种-run-相关的条目)；I-15 序号严格递增）——**序号不是数出来的**
 - **注意 ②**：**裸写「已被取代」不指它**——那几个字在别处也说被新决定取代的旧决定、被新求值取代的旧求值。
   说尝试时写「这次尝试已被取代」；「运行已终结」是另一件事，说的是运行落了[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)
 - **注意 ③**：栅栏拒绝的是旧尝试推进运行的写，独立执行的结果与结算仍保留；当前尝试可以承接仍被该 Run 等待的调用结果，不能复活终结的 Run；[C-34](../conflicts.md#现有冲突) 已由产品负责人裁决闭合。
@@ -457,11 +457,11 @@
 > holds while still alive.
 
 - **形态**：状态
-- **出处**：[PF-012 §6.6](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#66-终态不可逆且只有一个出口)（rev 25）
+- **出处**：[PF-012 §6.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#66-终态不可逆且只有一个出口)（rev 25）
 - **别混**：**不是[终局](execution-and-outcome.md#ul-terminal-disposition--终局--terminal-disposition)**——
   终局说的是**一件[非常态](execution-and-outcome.md#ul-off-nominal--非常态--off-nominal)**走完了整条阶梯，
   这一条说的是**这一次运行**的结局。**两条线各走各的**：Run 已经落了终态，那件非常态可能还在往外交
-- **注意**：[被取消自成一种](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)，**不并进失败**
+- **注意**：[被取消自成一种](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#67-用户可以中断而中断不是失败)，**不并进失败**
 
 ## 怎么往前走
 
@@ -481,7 +481,7 @@
 > and the same conditions always yield the same next step.
 
 - **形态**：规则
-- **出处**：[PF-012 §4 Agent Loop](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#agent-loop)（rev 25）
+- **出处**：[PF-012 §4 Agent Loop](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#agent-loop)（rev 25）
 - **别混 ①**：**不是 [Run](#ul-run--运行--run)**——Run 是那次运行本身，Agent Loop 是推进它的那套逻辑
 - **别混 ②**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——
   **这一条是被求值的那个函数，那一条是求值它的那个协程**。
@@ -520,7 +520,7 @@
 - **注意 ③**：会话路径中，它代表当前 Run 发起模型／工具执行，持有[运行时句柄](#ul-runtime-handle--运行时句柄--runtime-handle)来等待或控制；两类执行的生命周期均归会话，释放句柄不取消执行。主流程等待依赖不等于生命周期依附，见[取消范围](#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)。
 - **注意 ④**：空闲与承接下一次执行的系统表述见已接受系统页 [Agent runtime](../../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)
 
-- **输入与恢复依据**：[PF-012 §4 agent runtime](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#agent-runtime)（rev 23）。
+- **输入与恢复依据**：[PF-012 §4 agent runtime](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#agent-runtime)（rev 23）。
 
 ### UL-agent-execution · Agent 执行 · Agent Execution
 
@@ -582,10 +582,10 @@
 > there is **at most one model call**, plus whatever tool executions it calls for.
 
 - **形态**：过程
-- **出处**：[PF-012 §4 agent 的一步](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#agent-的一步) · [§5.4](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 25）
+- **出处**：[PF-012 §4 agent 的一步](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#agent-的一步) · [§5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#54-一步的骨架)（rev 25）
 - **别混**：**不是一次[模型调用](execution-and-outcome.md#ul-model-call--一次模型调用--model-call)**——
   模型调用是它**里面**的一段，两者差着一层
-- **注意**：它是 [PF-011 那棵树上的一层](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)，
+- **注意**：它是 [PF-011 那棵树上的一层](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)，
   父节点是[运行](#ul-run--运行--run)
 
 ### UL-message-admission · 消息准入 · Message Admission
@@ -616,11 +616,11 @@
 > cost is attributed at the session level**.
 
 - **形态**：过程
-- **出处**：[PF-012 §4 Run 是三样东西的归属单位](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 25） ·
-  [PF-013 §5.13 它只有一个宿主](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局)（rev 17）
+- **出处**：[PF-012 §4 Run 是三样东西的归属单位](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#run-是三样东西的归属单位)（rev 25） ·
+  [PF-013 §5.13 它只有一个宿主](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#它只有一个宿主所以只有一种结局)（rev 17）
 - **别混**：**不是[插队](interaction-and-dispatch.md#ul-queue-jump--插队--queue-jump)**——插队的那句话要进队列、被这次运行看到；旁路提问碰不到运行
 - **注意**：**模型调用的全套规则对它照样成立**——生命周期归会话，不受无关 Run 取消影响；同样按档案与有效模型出门、看首 token、由重试挂件决定试不试；
-  归属规则本身归 [PF-015](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/README.md)
+  归属规则本身归 [PF-015](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/README.md)
 
 ### UL-current-conditions · 当下条件 · Current Conditions
 
@@ -634,7 +634,7 @@
 > request uses, and whatever has been injected. **It is evaluated from current sources each time; recorded inputs from a past evaluation do not replace current conditions.**
 
 - **形态**：视图
-- **出处**：[PF-012 §4 当下条件](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#当下条件)（rev 25）
+- **出处**：[PF-012 §4 当下条件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#当下条件)（rev 25）
 - **别混**：**不是[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)**——
   条目是发生过的事，写下就不再改变；当下条件是此刻算出来的，历史留存不使它继续有效
 - **注意**：**它变了，同一份日志会算出不同的下一步**——这不动摇
@@ -643,7 +643,7 @@
 ### UL-loop-extension-point · Loop 拓展点 · Loop Extension Point
 
 > **中**：[Agent Loop](#ul-agent-loop--agent-loop--agent-loop) 上一个开放的位置，
-> **挂在某个[状态点](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)的紧前或紧后**。
+> **挂在某个[状态点](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作)的紧前或紧后**。
 > **它按自己相对哪个状态点命名，不按挂在那儿的功能命名**——
 > **同一个位置可以挂多个[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)，各干各的。**
 >
@@ -653,7 +653,7 @@
 > same position, each doing its own thing.**
 
 - **形态**：位置
-- **出处**：[PF-012 §4 Loop 拓展点](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#loop-拓展点) · [§5.8](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 25）；
+- **出处**：[PF-012 §4 Loop 拓展点](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#loop-拓展点) · [§5.8](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 25）；
   位置的个数与各位置的限制见[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 5）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **⚠️ 别混**：**它不是[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)**——
   **拓展点是位置，拓展件是挂上去的东西**（第八类资产）
@@ -697,11 +697,11 @@
 > already written intervenes in nothing.
 
 - **形态**：属性
-- **出处**：[PF-000 §4 干预力](../../product.0.0.1.legacy/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power) ·
-  [§5.3](../../product.0.0.1.legacy/PF-000-occurrences-and-record-entries/design.md#53-干预力只长在瞬态这一半上)（rev 1） ·
-  [PF-012 §5.8 干预力三档](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的) ·
-  [没有「放宽」这一档](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#没有放宽这一档)（rev 25） ·
-  [PF-002 §4 Loop Extension](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 32）
+- **出处**：[PF-000 §4 干预力](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-000-occurrences-and-record-entries/design.md#干预力--intervention-power) ·
+  [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-000-occurrences-and-record-entries/design.md#53-干预力只长在瞬态这一半上)（rev 1） ·
+  [PF-012 §5.8 干预力三档](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#干预力三档直接用-pf-000-的) ·
+  [没有「放宽」这一档](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#没有放宽这一档)（rev 25） ·
+  [PF-002 §4 Loop Extension](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 32）
 - **注意 ①**：**在拓展件上它是一项[权限](capabilities-and-composition.md#ul-permission--权限--permission)，不是设置**——各层按收窄合成，组织锁在「只观察」，租户就放不宽
 - **注意 ②**：**三档挂了的后果相反**——只观察那一档不影响正在发生的事；可改写那一档不影响，但留一笔「它没跑成」；可否决那一档报错默认当作否决。**「不可用」不是报错**，另有定法
 - **注意 ③**：**否决只在「之前」的位置上有意义**；后置位置不提供否决；停止和请求人处理（等人）在后置位置只影响后续推进，不撤销已发生的动作。哪些后置位置接受停止与请求人处理，由位置输出表逐位置定
@@ -723,10 +723,10 @@
 > error policy**: unavailable means it never ran; an error means it ran and failed.
 
 - **形态**：属性（一件拓展件登记上的一项；系统自带的那几件由系统预先给定）
-- **出处**：[PF-012 §5.8 拓展件是可插拔的服务](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略) · [系统自带的几件](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 25） · [PF-002 §4 不可用处置是这一件自己的声明](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 32）
+- **出处**：[PF-012 §5.8 拓展件是可插拔的服务](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#拓展件是可插拔的服务不可用即卸载报错按策略) · [系统自带的几件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 25） · [PF-002 §4 不可用处置是这一件自己的声明](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 32）
 - **⚠️ 别混**：与[干预力](#ul-intervention-power--干预力--intervention-power)里「报错默认当作否决」那条是两回事——那条管跑了出错，这条管根本没跑
 - **注意 ①**：**「此刻不在」无论按哪种处置，都必须看得见**——日志里有一笔「这一件此刻不在、按 X 处置」
-- **注意 ②**：系统自带的[放行判断](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#52-那个判断函数)的指定挂件是**全拒件**——它不在时，需要判断的动作一律拒绝，不放行、也不出卡问人
+- **注意 ②**：系统自带的[放行判断](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#52-那个判断函数)的指定挂件是**全拒件**——它不在时，需要判断的动作一律拒绝，不放行、也不出卡问人
 - **注意 ③**：**它是拓展件自己的一项声明，不是设置，也不是权限**——持有它的各层不给它配值、也收窄不了它（PF-002 D-5 已裁）；本条只定取值与谁能用哪一种。声明了否决，也要干预力求出来是可否决才算数——被收窄到另两档的，不在时照跳过办
 
 ### UL-extension-point-pass · 一次经过 · Extension-Point Pass
@@ -741,9 +741,9 @@
 > again, **but that position is not visited again**.
 
 - **形态**：过程
-- **出处**：[PF-012 §5.8 改了日志就重新组装，同一位置同一次经过只跑一轮](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#改了日志就重新组装同一位置同一次经过只跑一轮)（rev 25）
+- **出处**：[PF-012 §5.8 改了日志就重新组装，同一位置同一次经过只跑一轮](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#改了日志就重新组装同一位置同一次经过只跑一轮)（rev 25）
 - **注意 ①**：**与压缩那一圈同构**——压完再量一次，还超就上交，不再压一轮；不定这条，一个爱改日志的挂件就能把自己无限触发下去
-- **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 31），后一件看得到前一件的结论
+- **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 31），后一件看得到前一件的结论
 
 ### UL-extension-invocation · 拓展件调用 · Extension Invocation
 
@@ -770,7 +770,7 @@
 > **EN**: **The judgement result an extension invocation leaves once the agent has obtained and adopted it. The agent keeps it in its own execution record.** A result that asks a person to decide (`ask` in code) is a non-final conclusion: it does not end the invocation, and once the answers are complete the same extension obtains the next conclusion. Every other conclusion is final. An invocation that already has a final conclusion is read, not called again, on continuation. Code and specifications may shorten it to *Conclusion*.
 
 - **形态**：属性
-- **出处**：[产品页 人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 5）；封存来源 [PF-012 §6.10 能干预的拓展件必须留下结论](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)（rev 25）；形态由 Agent 契约的[扩展作者协议](../../../../packages/agent/SPEC.md#扩展与卡片)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-60](../conflicts.md#c-60拓展结论的形态)
+- **出处**：[产品页 人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 5）；封存来源 [PF-012 §6.10 能干预的拓展件必须留下结论](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)（rev 25）；形态由 Agent 契约的[扩展作者协议](../../../../packages/agent/SPEC.md#扩展与卡片)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-60](../conflicts.md#c-60拓展结论的形态)
 - **别混 ①**：**不是[干预力](#ul-intervention-power--干预力--intervention-power)**——干预力是拓展件能做到什么的上限，结论是一次调用实际得出的结果
 - **别混 ②**：**不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)**——结论只说一次调用的判断，不结束任何运行或执行
 - **注意**：它是挂在 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)记录上的一项值，不是会话日志里的条目，也没有独立于所属调用的身份。作者不返回结论，由 Agent 把校验通过的输出包装并保存
@@ -806,7 +806,7 @@
 > and the two are never merged.
 
 - **形态**：规则
-- **出处**：[PF-012 §5.8 等人是 loop 的原语](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 25） · [PF-008 §4 等待态的两个维度](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 7）
+- **出处**：[PF-012 §5.8 等人是 loop 的原语](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 25） · [PF-008 §4 等待态的两个维度](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 7）
 - **注意 ①**：**落终态之后等不了**（Run 已收束）；可否决不表示所有位置都允许等待，各位置的限制归[系统页](../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)
 - **注意 ②**：**一批动作先全部判完再执行**（见[整批判断屏障](#ul-batch-judgment-barrier--整批判断屏障--batch-judgment-barrier)）——各动作并行过执行动作之前那一串拓展件，都到了结论或等人，Run 才进等人，卡片成批落
 - **注意 ③**：**agent runtime 被回收，Run 还在等、卡片还在、工具执行照跑**；Run 被取消，悬着的卡片才作废
@@ -827,7 +827,7 @@
 > gone after it.**
 
 - **形态**：过程
-- **出处**：[PF-012 §5.8 等人是 loop 的原语](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 25）
+- **出处**：[PF-012 §5.8 等人是 loop 的原语](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 25）
 - **别混**：**不是「重跑挂件」**——「新尝试里不重跑挂件」精确地说是：有最终结论的不重跑，挂起中的回放到挂起点
 - **别混 ②**：**不是[推理回放](record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)**——那是每次发出时决定带上哪些推理续接状态；两者都可能简称「回放」，跨 topic 时写全名
 - **注意 ①**：回放时走到的地方与上次不同，**停住并可见**——那说明拓展件没守住上面那一条
@@ -836,7 +836,7 @@
 ## 算出一份构成
 
 > **三个时刻**：**装配时**定构成，**注入变化时**定处境，**请求时**定这一次。
-> 见 [PF-004 §5.3](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)。
+> 见 [PF-004 §5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)。
 > **中间那一列是这套模型的关键**——没有它，任何环境或权限的变化都只能靠重建来生效，
 > 而重建会打断正在进行的工作。
 >
@@ -854,8 +854,8 @@
 > **It happens at a definite moment, rather than continuously.** Inputs include session-type requirements, the definition version and its capability declarations, and the scope's asset and attribute-evaluation inputs at that time. The definition is one input among these.
 
 - **形态**：过程
-- **出处**：[PF-004 §4 装配](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#装配)（rev 20） ·
-  [PF-002 §5.6](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 32）
+- **出处**：[PF-004 §4 装配](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#装配)（rev 20） ·
+  [PF-002 §5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 32）
 - **别混 ①**：**裸写「装配 / assembly」在跨领域的文字里不作数**——它专指把 agent 定义求值成清单的这个动作
 - **别混 ②**：**它的产物不是一个活物**——
   **2026-09-20 之前本条写的是「变成一个运行实例」，那个说法已退役**，见 [现行词义](../index.md)
@@ -877,7 +877,7 @@
 > mid-run **adds** an entry, it never edits one.
 
 - **形态**：对象
-- **出处**：[PF-004 §4 装配清单](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 20）
+- **出处**：[PF-004 §4 装配清单](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 20）
 - **别混**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——
   **清单是照着起协程的那份图纸，协程是照它起来的那个东西**。
   复用清单**不等于**复用协程：清单是数据，协程是活的、会没；协程在执行结束后回空闲、可承接下一次执行，见 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)
@@ -897,7 +897,7 @@
 > the middle of a Run changes only current availability.
 
 - **形态**：位置
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 9）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（采用点判定表与刷新点表）；新 Run 开始与显式 reload 两个入口见 [项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)
+- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 9）；已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（采用点判定表与刷新点表）；新 Run 开始与显式 reload 两个入口见 [项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)
 - **别混**：不是当下可用性的核对时点。可用性每次尝试开始时核对，Run 中途也可以变
 - **注意**：会话初始化不判冻结，也不谈前进；它只确定集合与每一项的首次定义
 
@@ -914,7 +914,7 @@
 > for recovery and explanation.
 
 - **形态**：属性
-- **出处**：[项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)；[C-44](../conflicts.md#c-44持久化投影与完整恢复输入) 的处置区分了历史采用依据与当前来源；常驻工具的固定版本由它算出，见已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R4）
+- **出处**：[项目要求 SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)；[C-44](../conflicts.md#c-44持久化投影与完整恢复输入) 的处置区分了历史采用依据与当前来源；常驻工具的固定版本由它算出，见已采用的 [RFC-0012 会话常驻集合的规则](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R4）
 - **别混 ①**：不是保存下来的选择。新选择保存了，但还没走到采用点时，它不是采用依据
 - **别混 ②**：不是[当下条件](#ul-current-conditions--当下条件--current-conditions)。历史采用依据可以留存，但不替代下一次求值时的当下条件
 - **别混 ③**：不是常驻工具的首次定义。首次定义是会话事实，只记一次；采用依据每次采用都有一份
@@ -935,7 +935,7 @@
 > re-evaluated and the coroutine need not be restarted.** **Context, permissions and current session capability data arrive this way.**
 
 - **形态**：过程
-- **出处**：[PF-004 §4 注入](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#注入)（rev 20）
+- **出处**：[PF-004 §4 注入](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#注入)（rev 20）
 - **别混 ①**：**不是依赖注入**（DI）。那是技术设计里的容器机制；**裸写「注入」不作数**
 - **⚠️ 别混 ②**：**[执行环境](grounding-and-isolation.md#ul-execution-environment--执行环境--execution-environment)不是注入进来的**——
   它**每扇门每次执行现算**。两者共享同一条性质（变了不必重新装配、协程不必重起），**来路不同**
@@ -949,7 +949,7 @@
 > **EN**: Admitting a new capability permitted by current rules into a running session, including one created by the agent. Adoption records and the known session identities grow, and the running agent accesses it through existing capability entry points without an Agent runtime rebuild.
 
 - **形态**：过程
-- **出处**：[PF-004 §6.3](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播) · [§5.3](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 20）
+- **出处**：[PF-004 §6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#63-三类变化三种传播) · [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#53-三个时刻)（rev 20）
 - **别混**：能力身份新增与 runtime 自身捕获的 Loop、extension 或直接服务依赖替换不同；必需能力声明本身不等于 Cordis inject 边。
 - **注意**：现行产品里没有这一步。新的不常驻能力发布后，已有会话的下一次发现就能看到，不需要装载动作；常驻的在采用点加入。依据是 [Skill 产品 J-SK07](../../product/skills/design.md#j-sk07-合法新增或更新方法而不改写原工作)（rev 3）与[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 9），见 [C-79](../conflicts.md#c-79能发现的范围与会话已知能力)。本条只在读封存的 PF 时用，新正文不再用这个词。
 
@@ -964,7 +964,7 @@
 > **EN**: All three runtime types belong to the session for lifetime governance; a run governs its associated work. Cancellation propagates by an explicit session, run, or call target. Model/tool handles held by an agent runtime confer no lifetime ownership: releasing or destroying that agent runtime does not cancel those executions. Archiving a session cancels its executions; cancelling a run cancels its model calls and foreground tools, while background tools continue under existing rules and calls outside that run are unaffected.
 
 - **形态**：规则
-- **出处**：[PF-012 §6.13](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 25）；[PF-006 §6.5](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 24）
+- **出处**：[PF-012 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 25）；[PF-006 §6.5](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-006-tools-and-skills/design.md#65-工具执行有自己的运行时绑定在-session-上)（rev 24）
 - **别混**：宿主在此指治理归属，不是调用栈父协程。归档、休眠和加载位置变化不是同一动作；句柄降到零也不构成取消。取消请求不保证不可撤销效果消失。
 - **弃用说法**：~~模型运行时永远挂在 Agent runtime 上~~、~~等模型时不能回收 Agent runtime~~、~~转后台就是换宿主~~。2026-09-29 的产品要求取代 [现行词义](../index.md) 中旧模型宿主表述，历史记录保留。
 - **注意**：`spawn`／`delegate` 子会话仍按归档规则递归停止；`handoff` 的独立主会话不在该递归范围。
@@ -981,7 +981,7 @@
 > unreported failures **must each reach an outcome** in the process.
 
 - **形态**：过程
-- **出处**：[PF-012 §6.13](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走) · [§6.14](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#614-停止有两级)（rev 25）
+- **出处**：[PF-012 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走) · [§6.14](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#614-停止有两级)（rev 25）
 - **弃用的说法**：**「实例退役 / Instance Retirement」**——
   2026-09-20 之前的名字，主语是已退役的「运行实例」，见 [现行词义](../index.md)
 - **注意**：**等人回话时 agent runtime 可以被取消**——**等待是一个持久的事实，不是一个协程的姿势**。
@@ -997,11 +997,11 @@
 > state **logical stop, actual stop and external effects separately**.
 
 - **形态**：过程
-- **出处**：[PF-012 §6.14 停止有两级](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#614-停止有两级) ·
-  [§6.15](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号)（rev 25）
+- **出处**：[PF-012 §6.14 停止有两级](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#614-停止有两级) ·
+  [§6.15](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#615-取消先落日志再发信号)（rev 25）
 - **别混 ①**：**「已经停止」与「外部效果已经撤销」不是一回事**
 - **注意 ⓪**：**被它杀掉的那副协程写不了终结条目**——
-  所以[终结条目由会话这一侧写，并标注「可能存在未收尾的外部效果」](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#强制停止的三步闭环)
+  所以[终结条目由会话这一侧写，并标注「可能存在未收尾的外部效果」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#强制停止的三步闭环)
 - **别混 ②**：与[撤销不等于强制停止](circulation-and-entitlement.md#ul-revocation-is-not-stop--撤销不等于强制停止--revocation-is-not-a-stop)那一条配着读——
   **撤权管的是下一道准入，这个管的是正在跑的**
 - **注意**：**它与[优雅取消](#ul-graceful-cancellation--优雅取消--graceful-cancellation)是同一件事的两级**，
@@ -1027,7 +1027,7 @@
 > **EN**: A session's execution role, determining its mandatory capabilities and loop extensions. It is established at creation; the required capability identities remain fixed during the session. It is distinct from the session's purpose classification.
 
 - **形态**：属性
-- **出处**：[PF-015 §4 会话执行类型](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话执行类型)（rev 21）
+- **出处**：[PF-015 §4 会话执行类型](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话执行类型)（rev 21）
 - **别混**：不是权限、执行环境或协作模式，也不是一个独立对象。
 
 ### UL-runtime-handle · 运行时句柄 · Runtime Handle
@@ -1037,5 +1037,5 @@
 > **EN**: A reference used to access a particular model or tool runtime, await its result, or request control. A handle does not own the referenced execution's lifetime: releasing it, even the last handle, does not cancel execution. Execution identity and state are independent of handles, allowing eligible holders to acquire a new reference.
 
 - **形态**：属性
-- **出处**：[PF-012 §6.13](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 25）
+- **出处**：[PF-012 §6.13](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 25）
 - **别混**：不是持久化的调用／执行身份，不是独立治理对象；取得句柄不另授控制权限，也不规定具体语言的句柄类型。

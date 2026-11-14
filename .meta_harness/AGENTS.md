@@ -53,7 +53,6 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
 | 拥有者 | 保存什么 |
 |---|---|
 | [design/](design/README.md) | 统一语言、产品、领域对象、上游机制及未迁精确技术源；已采用顶层要求、架构与领域正文归执行仓库docs |
-| [research/](research/README.md) | TypeSafe Jev 与两篇交付调研；目录职责与结构待负责人另行定义 |
 | [agents/](agents/README.md) | 技能、钩子、云端环境与外部技能集的源 |
 | [tooling/](tooling/README.md) | 确定性的生成、检查与项目链接 |
 | [human/](human/README.md) | 写给人类协作者的学习指南。它不是规则，agent 不以它为任务依据 |
@@ -84,7 +83,7 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
 | 在 product 区起草或修订产品正文 | 加载 `product-design` skill：它把视角切成 product manager。**做技术设计或实现的人只读正文，不加载它**；该区的维护规矩归 [product/AGENTS.md](design/product/AGENTS.md) |
 | 要用到一个概念，或两处说法对不上 | [统一语言](design/ubiquitous_language/index.md) 查重；对不上的记进 [conflicts](design/ubiquitous_language/conflicts.md)，**不静默统一掉**。**查词、用词不加载 skill**；要新增或修改词条才加载 `ubiquitous-language` skill，该区的约定归 [ubiquitous_language/AGENTS.md](design/ubiquitous_language/AGENTS.md) |
 | 系统里有哪些有身份的对象、各自依据在哪；或改了产品 topic 后要对账 | [领域对象](design/domain_objects/README.md)：条目以词条 ID 为键，依据带 rev。**来取输入的人只读，不加载 skill**；立条目、登记待裁、**topic 升 rev 后逐条复核被点名的条目**才加载 `domain-objects` skill，该区的约定归 [domain_objects/AGENTS.md](design/domain_objects/AGENTS.md) |
-| 上游到底保证什么 | [research/](research/README.md) 的 topic 或 [basis/](design/basis/README.md) 的条目；**不在本次分析里重新推导一遍** |
+| 上游到底保证什么 | [basis/](design/basis/README.md) 的条目；**不在本次分析里重新推导一遍** |
 | 已有契约、映射或证据发生变化 | 执行仓库的文档治理与维护入口：定位拥有者与受影响消费者，只展开变化涉及的范围 |
 | 知识该落哪里、怎样建 topic | [design/AGENTS.md](design/AGENTS.md) 的准入四步，再读目标目录 README；**不要求每项需求创建所有目录** |
 | 已有架构或规格待审稿 | 派只读子代理，带 `harness-design-handbook` 本次那一种判断的评审判据页；给出对象/版本、依据与范围，意见不代替接受 |

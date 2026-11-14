@@ -1,6 +1,6 @@
 # 分支集成工具行为契约
 
-本工具在 gate 运行时等待并代为确认（I21），派发并跟踪工具包的发行运行，为 `pnpm run check` 核对契约快照与 dist（I22）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，不验证候选，也不发布。认卡、执行记录、绑定、开工、双基线、目标基线同步、轨道树与提升 PR 的说明生成已按 [RFC-0014](../../../../docs/rfcs/RFC-0014-single-card-session-and-gate-relief.md) 删除，相应条款随之删除。保留条款沿用原编号。
+本工具在 gate 运行时等待并代为确认（I21），派发并跟踪工具包的发行运行，为 `pnpm run check` 核对契约快照与 dist（I22）。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，不验证候选，也不发布。保留条款沿用原编号。
 
 本模块兑现[轨道与 gate](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码，命令用法归 [README](README.md)。以下承诺约束实现。
 

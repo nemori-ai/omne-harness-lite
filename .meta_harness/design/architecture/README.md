@@ -17,7 +17,7 @@
 | 完整Session与Agent第一期候选 | [session-agent-runtime-phase1](session-agent-runtime-phase1/README.md)；F0限定授权与完整候选分开，实际成员维护其当前契约 |
 | Connector接入 | [connector](connector/README.md)；产品整体搁置，保留条件性设计，不构成当前交付承诺 |
 
-PF 分解后的当前产品正文从[产品入口](../product/README.md)进入，领域、能力组与成员分别维护已落位关系、工程设计及行为规格。尚未承接的 PF 详细技术保留在[封存原源](../product.0.0.1.legacy/README.md)，只供后续专项核对，不成为已落位正文的并列权威。
+PF 分解后的当前产品正文从[产品入口](../product/README.md)进入，领域、能力组与成员分别维护已落位关系、工程设计及行为规格。
 
 ## 已承接信息从哪里读取
 

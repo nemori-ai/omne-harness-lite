@@ -29,14 +29,14 @@
 
 > **中**：系统里**立规矩**的那一部分——概念在这里定义、边界在这里划、
 > 其余部分必须遵守的协议在这里立；其余部分**消费**它们，不重新定义。
-> 它由[架构内核 PF 索引](../../product.0.0.1.legacy/architecture-core.md)登记的那批产品设计 topic
+> 它由[架构内核 PF 索引](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/architecture-core.md)登记的那批产品设计 topic
 > 所覆盖的对象、层与领域构成，**那份清单会随设计生长而增补**。
 >
 > **EN**: The part of the system that **establishes the rules** — where concepts are
 > defined, boundaries are drawn, and the protocols everything else must obey are
 > set. The rest **consumes** them rather than redefining them. It consists of the
 > objects, layers and domains covered by the product-design topics registered in
-> the [architecture-core PF index](../../product.0.0.1.legacy/architecture-core.md), a set that
+> the [architecture-core PF index](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/architecture-core.md), a set that
 > grows as the design grows.
 
 - **形态**：总称
@@ -181,8 +181,8 @@
 > Its shape is given by its protocol contract, which is pure data and belongs to the domain.
 
 - **形态**：位置
-- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
-  [「协议怎样划分」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#7-协议怎样划分)（revision 1，PanQiWei 2026-11-12 采用）
+- **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「协议怎样划分」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#7-协议怎样划分)（revision 1，PanQiWei 2026-11-12 采用）
 - **别混 ①**：不是[能力接缝](#ul-capability-seam--能力接缝--capability-seam)。接缝是进程内按服务键接入一项能力的位点；
   公开协议是客户端隔着网络、按名字与主版本调用的位点。
 - **别混 ②**：不是传输协议。字节怎样走（HTTP、SSE）由承载决定，公开协议不规定。
@@ -202,8 +202,8 @@
 > call in flight and each observation in flight gets a definite outcome.
 
 - **形态**：属性
-- **出处**：[RFC-0015「概念」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
-  [「登记表与贡献」](../../../../docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献)（revision 1，PanQiWei 2026-11-12 采用）
+- **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
+  [「登记表与贡献」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#登记表与贡献)（revision 1，PanQiWei 2026-11-12 采用）
 - **别混**：不是[提示词贡献](record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution)。
   裸写「贡献」在本系统不止一个所指，跨题目引用时写正式名。
 - **注意**：有贡献不等于开放。一个部署装不装某个领域的接入插件，由服务端应用的装配决定。

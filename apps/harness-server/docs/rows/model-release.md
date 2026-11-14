@@ -31,7 +31,7 @@ model-host-local、model 的首次执行记录。
 
 ## 诊断读面 `modelDiagnostics`
 
-`model-records` 行发布 `modelDiagnostics`，读取同一租户域里的调用与派发记录。`modelCommands`、`modelSendBoundary` 与它属于同一提供者组。`diagnosticsRead: tenant-self` 显式采用本租户诊断读取：每次调用先核验主体与当前成员资格，使用 `inspect` 只读动作，返回前再次核验，再释放资格租约；不依赖另一个并发调用留在共享表里的资格。登录主体 L 在诊断这条路上只用 `inspect` 和 `read-account`，分别供调用身份/状态与派发账目读取。采用依据为 [RFC-0013 revision 2](../../../../docs/rfcs/RFC-0013-engineering-telemetry.md#决定范围)。配置 `retention` 缺席时每次 list 答 `unavailable`；阶段计时尚未记录，`timing` 三项为 `unknown`。唯一消费者仍是服务端会话诊断投影。
+`model-records` 行发布 `modelDiagnostics`，读取同一租户域里的调用与派发记录。`modelCommands`、`modelSendBoundary` 与它属于同一提供者组。`diagnosticsRead: tenant-self` 显式采用本租户诊断读取：每次调用先核验主体与当前成员资格，使用 `inspect` 只读动作，返回前再次核验，再释放资格租约；不依赖另一个并发调用留在共享表里的资格。登录主体 L 在诊断这条路上只用 `inspect` 和 `read-account`，分别供调用身份/状态与派发账目读取。配置 `retention` 缺席时每次 list 答 `unavailable`；阶段计时尚未记录，`timing` 三项为 `unknown`。唯一消费者仍是服务端会话诊断投影。
 
 ## 主体类别与 ActorRef
 

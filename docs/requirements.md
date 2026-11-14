@@ -91,7 +91,7 @@ omne-harness-lite 是一个 agent harness，为服务组织或个人的智能体
 
 激活能力时明确其产生的效用，卸载时明确需要撤回的逆效用、撤回条件和在途工作的处置。只登记依赖字段或做一次加载前检查，不能满足这些要求。撤回运行时资源与撤销已经发生的外部行动分别判断。
 
-Tool 的运行时加载、卸载与替换实现已有验收判据。依据是 PanQiWei 于 2026-10-21 采用的 [RFC-0012 revision 1](rfcs/RFC-0012-tool-dynamics.md#决定范围)。常驻工具、同形、采用点、登记键与协调者的规则归 [Tool 契约](../packages/tool/SPEC.md#定义采用与常驻)。下列判据须在真实 Cordis 4.0.4 `Context` 上可复跑：
+Tool 的运行时加载、卸载与替换实现已有验收判据。常驻工具、同形、采用点、登记键与协调者的规则归 [Tool 契约](../packages/tool/SPEC.md#定义采用与常驻)。下列判据须在真实 Cordis 4.0.4 `Context` 上可复跑：
 
 1. 装载作者插件前后，`toolRuntime`、`toolCommands`、`toolReads`、`toolInstances` 提供者的 fiber uid 不变。
 2. 同一登记键的重复登记按规则认回同一贡献，或返回 conflict。release 只撤除自己的贡献。晚到的旧 release 不删除后继贡献。
