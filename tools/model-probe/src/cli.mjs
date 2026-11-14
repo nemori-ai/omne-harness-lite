@@ -3,8 +3,23 @@ import { dirname } from 'node:path'
 import { collectCatalog } from './catalog.mjs'
 import { runProbes } from './run.mjs'
 
+const USAGE = [
+  'Usage:',
+  '  node scripts/model-probe.mjs catalog --output <new file>',
+  '  node scripts/model-probe.mjs run --config <file> --snapshot <catalog file> --credential-file <.env file> --ledger <file> --output <directory>',
+  'catalog only reads the public OpenRouter directory and writes a snapshot to a file that does not exist.',
+  'run sends paid probe requests only with all five options. There is no implicit paid request, environment credential fallback, redirect or retry.',
+  'Runs of one delivery share one ledger. Its limitUsd must equal the ledger header and stay within the approved 200 USD. Missing costs block later sends.',
+  'A process that was killed leaves its exclusive lock. Check the requests and the ledger before you remove the lock.',
+  'Exit 0: done. Exit 1: any error. Rules: tools/model-probe/SPEC.md.',
+].join('\n')
+
 export async function main(args) {
   const [command, ...options] = args
+  if (command === '--help') {
+    console.log(USAGE)
+    return
+  }
   const values = new Map()
   for (let i = 0; i < options.length; i += 2) {
     if (!options[i]?.startsWith('--') || options[i + 1] === undefined || values.has(options[i]))
