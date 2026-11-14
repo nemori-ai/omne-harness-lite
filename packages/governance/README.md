@@ -2,7 +2,7 @@
 
 ## 责任与范围
 
-本组承接[装配与交接领域](../../docs/domains/assembly-and-handoff/README.md)中的动态治理贡献、精确租约和当前治理采用。它保护已装配声明及当前选择的事实，不接管设置值、资产持有、身份资格或授权许可。跨领域规则归[动态贡献](../assets/docs/governance-contributions.md)。
+本组承接[装配与交接领域](../../docs/domains/assembly-and-handoff/README.md)中的动态治理贡献、精确租约和当前治理采用。它保护已装配声明及当前选择的事实，不接管设置值、资产持有、身份资格或授权许可。跨领域规则归[动态贡献](../assets/SPEC.md#动态治理贡献)。
 
 本组与底层 Cordis 辅助所在的 assembly 物理分组分开。业务提供者可以依赖 kernel-basis；治理组合可以依赖业务公开定义。既有领域不得反向导入本组获取全局状态。
 

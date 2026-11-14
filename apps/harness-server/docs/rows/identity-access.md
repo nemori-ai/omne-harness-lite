@@ -1,6 +1,6 @@
 # 身份接入行
 
-`identity-access` 行装身份的接入插件 `identityAccessPlugin`（`@omne-harness/identity-access/cordis`），把协议 `identity/v1` 挂上入口的登记表。装这一行就是开放这个协议，卸下这一行协议随之撤下（RFC-0015 I-15）。操作的消息体与结果集归 [identity-protocol](../../../../packages/identity/identity-protocol/SPEC.md)，处理函数与身份端口归 [identity-access](../../../../packages/identity/identity-access/SPEC.md)。
+`identity-access` 行装身份的接入插件 `identityAccessPlugin`（`@omne-harness/identity-access/cordis`），把协议 `identity/v1` 挂上入口的登记表。装这一行就是开放这个协议，卸下这一行协议随之撤下（RFC-0015 I-15）。操作的消息体与结果集归 [identity-protocol](../../../../packages/identity/SPEC.md#协议与接入)，处理函数与身份端口归 [identity-access](../../../../packages/identity/SPEC.md#协议与接入)。
 
 ## 行声明与依赖
 

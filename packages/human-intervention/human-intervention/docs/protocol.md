@@ -96,7 +96,7 @@ local装配中，独立请求的HITL与原等待参与者位于同一登记SQL�
 
 HITL 的公开入口是系统公开契约的 HITL 位置 `hitl-public/1`，操作与线上形状见[HITL 公开操作](../../../access/SPEC.md#hitl-位置)。四个公开操作 `list-cards`、`read-card`、`submit-reply` 与 `query-submit-reply` 分别对应本协议的 `listPool`、`getCard`、`submitReply` 与 `getOperation`，不增加业务含义。会话入口与待办池都是 `list-cards`：过滤条件带 `sessionRef` 时是会话入口，不带时是待办池。服务端接入以租户的入口主体调用本协议的应用服务，不另核资格。
 
-租户由 `<account_id, org_id>` 确定，是一个身份。租户的入口主体是 `{ actor: server-entry, tenant, work: { owner: 'harness.hitl', work: 'cards' } }`，由具名持有者在同一次请求的登录核对之后签发，见 identity 的[持有者与关系核对位置](../../../identity/identity/SPEC.md#持有者与关系核对位置)。入口主体的 `standingPrincipalRef` 对同一租户稳定，与登录无关。
+租户由 `<account_id, org_id>` 确定，是一个身份。租户的入口主体是 `{ actor: server-entry, tenant, work: { owner: 'harness.hitl', work: 'cards' } }`，由具名持有者在同一次请求的登录核对之后签发，见 identity 的[持有者与关系核对位置](../../../identity/SPEC.md#主体的签发与核验)。入口主体的 `standingPrincipalRef` 对同一租户稳定，与登录无关。
 
 来源为 Tool 或 Agent 的卡片按同一条规则固定受众。出卡方准备等待材料时：
 
@@ -190,7 +190,7 @@ WaitRef.waitId、原RequestRef/CardRef/DecisionRef和逻辑incarnation持久保�
 | identity | Identity成员关系；撤销成员及具名资格写者 | 既有ID-19 reservation绑定tenant/principal/目的操作；settle或seal认回。登录凭证入口规则保持，不扩大ID-19范围 | C2消费，Identity仍拥有协议 |
 | holding | Assets持有/启用与采用代次；撤销、禁用、替换写者 | local事务参与者检查当前持有及固定采用代次；写者与目的提交同域排序 | C3及目的集成 |
 | permissions | Permissions声明上界、主动禁止与外部约束；发布/替换/禁止写者 | 事务内采用完整revisionVector并重新求值；任何来源无法同域保护则unavailable | C3 |
-| adoption | 装配协调者的当前贡献、完整采用集及 ActivationFence；登记、撤除、重装配与声明替换写者 | 目的提交内核验逻辑服务、来源及采用代际。撤除先成立则旧准备不得提交，提交先成立则保留回执。精确协议归[治理贡献合同](../../../assets/docs/governance-contributions.md) | C3/C6 |
+| adoption | 装配协调者的当前贡献、完整采用集及 ActivationFence；登记、撤除、重装配与声明替换写者 | 目的提交内核验逻辑服务、来源及采用代际。撤除先成立则旧准备不得提交，提交先成立则保留回执。精确协议归[治理贡献合同](../../../assets/SPEC.md#动态治理贡献) | C3/C6 |
 | settings | Settings组织/租户/会话适用配值；改值、撤销及动态注册写者 | 权威配值及定义修订在目的提交时有效；不以Context缓存替代。嵌套写采用具名参与者，不开启第二独立事务 | C3/C6 |
 | session | Session/Run权威控制记录；archive/cancel/终局写者 | 绑定tenant/session/run/逻辑代次。登记、答复、继续与权威控制同域排序；缓存失效可滞后，提交检查不可滞后 | C1及C4/C5 |
 | card | HITL原卡revision/状态、答卡资格、合法选项；其他答复、失效及资格改变写者 | 原提交检查pending及当前答卡资格；资格所依赖外域继续展开为对应guard | C2 |

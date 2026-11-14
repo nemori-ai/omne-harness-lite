@@ -276,9 +276,9 @@ flowchart LR
 
 <a id="tenant-settings"></a>`tenantSettings` 是本应用自己定义的第四个服务键，服务定义在 `apps/harness-server/src/rows/governance/tenant-settings-service.ts`：
 
-- 拥有者是 `governance` 行，它是唯一的提供者。形状是 Settings 的 `TenantSettings`（[租户层读写面](../../../packages/assets/settings/SPEC.md#tenant-settings)）：列出、查看、设置、清除行事租户持有的资产的设置项。
+- 拥有者是 `governance` 行，它是唯一的提供者。形状是 Settings 的 `TenantSettings`（[租户层读写面](../../../packages/assets/SPEC.md#租户层读写面)）：列出、查看、设置、清除行事租户持有的资产的设置项。
 - 提供者在 `governance` 行，因为读写面要的目录读取、租户层写入、组织层来源与工具发行清单都只在本行：每个租户的治理运行时各有一份目录读取与一份写入。
-- 每次调用先做准入，沿用秘密设置项的准入（`rows/authorization/settings-access.ts`）：只有代该租户行事的登录主体。会话工作主体和系统主体一律拒绝，拒绝之前不读任何存储。写入只写行事租户的租户层，计划与当前事实参与者见 [settings-local 的应用消费方](../../../packages/assets/settings-local/SPEC.md#application-current-consumer)。
+- 每次调用先做准入，沿用秘密设置项的准入（`rows/authorization/settings-access.ts`）：只有代该租户行事的登录主体。会话工作主体和系统主体一律拒绝，拒绝之前不读任何存储。写入只写行事租户的租户层，计划与当前事实参与者见 [settings-local 的应用消费方](../../../packages/assets/SPEC.md#租户层读写面)。
 - `assets-access` 行每次调用现取它，把它适配成 `assets/v1` 的四个操作。本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 移到届时拥有它的成员的 `./cordis`，键名与形状不变。
 
 | 行 id | 可见的受信名 |
@@ -322,7 +322,7 @@ flowchart LR
 
 受信表的读法由 `check:aa-rows` 机读拦截：受信名只经入口对象的 `env.readTrusted` 读取，或由上表列为可见的行在自己的行上下文里读取；`issueActingForTenant(` 与 `issueSystem(` 只出现在白名单文件里（`apps/harness-server/scripts/aa-trust-config.json`）。
 
-<a id="principal-holders"></a>代租户行事主体的持有者与关系核对位置（[ID-16 持有者与关系核对位置](../../../packages/identity/identity/SPEC.md#持有者与关系核对位置)）。进程内参考件的持有约束在本发行里由受信表与上述两项检查兑现：
+<a id="principal-holders"></a>代租户行事主体的持有者与关系核对位置（[ID-16 持有者与关系核对位置](../../../packages/identity/SPEC.md#主体的签发与核验)）。进程内参考件的持有约束在本发行里由受信表与上述两项检查兑现：
 
 | 持有者 | 位置 | 签发前的关系核对 |
 | --- | --- | --- |
@@ -345,7 +345,7 @@ flowchart LR
 | 缺口 | 承接者 |
 | --- | --- |
 | `storage` 行：存储契约的 SQLite 提供者 | [#687](https://github.com/nemori-ai/omne-harness-lite/issues/687)（SQL 契约）、[#786](https://github.com/nemori-ai/omne-harness-lite/issues/786)（存储线）、[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)（真实存储） |
-| `identity` 行：持久提供者与插件；identity 自己的记录落在哪个事务域（租户在注册时才产生，[ID-16](../../../packages/identity/identity/SPEC.md#id-16-首批公开形状主体与资格事实) 未写） | identity 持久提供者，待建卡 |
+| `identity` 行：持久提供者与插件；identity 自己的记录落在哪个事务域（租户在注册时才产生，[ID-16](../../../packages/identity/SPEC.md#主体的签发与核验) 未写） | identity 持久提供者，待建卡 |
 | `session-storage`、`session-provider`、`session-ad*` 行的源码与 `session` 服务键 | Session 实现，待建卡；目标形状已在 [session-cordis-contract 的 Cordis 页](../../../packages/session/session-cordis-contract/docs/cordis.md)固定 |
 | `session-storage` 行的会话存储组合插件：目录、首次 `create` 时的组合登记与迁移、Session SQL 纯工厂接线与共同关闭。成员 `./cordis` 及其加载时一次登记的步骤删除，不再提供 `sessionTransactions` | Session 实现交纯工厂、登记材料与实例关闭契约；M2 应用装配实现交组合插件与登记表 |
 | 登记表重建的两个前提：存储提供者文件名与事务域标识的对应、推导规则可逆 | 存储提供者（[#687](https://github.com/nemori-ai/omne-harness-lite/issues/687)、[#786](https://github.com/nemori-ai/omne-harness-lite/issues/786) 存储线）与应用装配实现；前提不成立时登记表丢失只能人工恢复 |
@@ -382,7 +382,7 @@ flowchart LR
 
 | 对象 | 使用者 | 要求 |
 | --- | --- | --- |
-| identity 的签发者 | `server-entry`（为登录请求签发代租户行事主体）；装配入口自己（签发系统主体：`SessionInternalPrincipals`、常驻引用读取主体、恢复与扫描的维护者、AD-14 的出站主体、Agent 宿主维护主体） | 装配入口在签发作用域 provide `principalIssuer`，只有 `server-entry` 可见并 `inject`；未提供时 `server-entry` 停在 `PENDING`。装配入口自己持有同一签发者签发系统主体与会话工作主体。identity 的登录流程不持有它（[ID-16](../../../packages/identity/identity/SPEC.md#id-16-首批公开形状主体与资格事实)） |
+| identity 的签发者 | `server-entry`（为登录请求签发代租户行事主体）；装配入口自己（签发系统主体：`SessionInternalPrincipals`、常驻引用读取主体、恢复与扫描的维护者、AD-14 的出站主体、Agent 宿主维护主体） | 装配入口在签发作用域 provide `principalIssuer`，只有 `server-entry` 可见并 `inject`；未提供时 `server-entry` 停在 `PENDING`。装配入口自己持有同一签发者签发系统主体与会话工作主体。identity 的登录流程不持有它（[ID-16](../../../packages/identity/SPEC.md#主体的签发与核验)） |
 | identity 的核验器（`principalVerifier`） | `authorization`、`session-ad09`、`session-storage`、`model-records`、`tool-bindings`；`request-context`（按调用现取，账目来源核验，SC2，R2-D163）；Tool 运行时组与 Tool 请求来源（经入口对象 `toolClock` 交给 Tool 共享状态的逐次读法） | 入口对象，由装配入口在受信作用域「identity 读口」提供，不进插件树与插件配置。只证明来源，不证明成员资格 |
 | `storageHost` | `storage` | 入口对象，只交给 `storage` 行，不进插件树与插件配置。它把存储控制接到装配的有序关闭 |
 | `identityClock` | `identity`（`identity-sql` 插件 `inject`）；`authorization`（`inject`，判定维护授予的到期） | 入口对象，在根上 provide，不受信，不进插件树与插件配置。它是 identity 契约 `./cordis` 的 `IdentityClockService` 子类；两行必须注入它，缺席时停在 `PENDING` |
@@ -437,7 +437,7 @@ flowchart LR
 - 推导规则：每个租户一个事务域，事务域标识由租户的 tenantCodec 文本按 `session-storage` 行配置的规则推导。运行时新建的租户不需要改配置。
 - 一租户一事务域：Model 与 Tool 的耐久记录仓（`model-records`、`tool-records` 行）与会话日志在同一事务域，共用该事务域的写队列。它们经受信的 `tenantDomainLookup` 取得已登记租户的事务域，没有登记时不写入、不触发登记；它们的参加者与迁移材料进入下一条的组合登记。写队列争用是已知限制；存储测量超过阈值时重开分域。
 - 组合登记：会话存储组合内的 Session SQL 只在 `create` 提交通过 `sessionAccessCheck`、且目录已发布的快照里没有该租户时，调用目录的解析。解析先以该租户、推导出的事务域和配置的组合版本调用 `registerCombination`。参加者清单与登记材料（参加者模块与迁移片段）取自会话日志存储提供者的公开导出，以及 Model 与 Tool 耐久记录仓实现的公开导出。`agent-journal` 与 Session 共用同一日志发布根，每个事务域只登记一个组合；生产存储的具体参加者材料仍由其实现拥有者交付。`session-handoff` 的准入记录是 `execution-record` 参加者的新独立表与迁移，`model` 参加者与 `modelStorageMaterials()`、Tool 记录仓的 `tool` 参加者与迁移也并入这次登记，组合版本随之更换（发行现为 `session-composite/4`：R2-D185 换到 `/3`，Agent Journal 事实族的迁移加入后换到 `/4`，R2-D342）；M2 无发行，开发环境清存储根。已登记租户由 `session-storage` 行在启动时逐个确认当前组合登记，全部成功后才发布服务；失败、最终未知或依赖撤除阻止发布。此屏障不等于 Tool 历史结果已转换。应用成员在构建时导入材料，不经插件树，也不另写一份名字。登记成功、该事务域的迁移片段按存储契约的期望 XP-5 执行完毕之后，才返回事务域；所以第一次提交之前登记与迁移都已完成。再次登记同一组合是幂等的；参加者清单与已登记的不一致时得到 `registration_conflict`，解析返回 `unavailable` 并报告诊断。读取与其他提交只查已发布快照，不登记、不迁移。`agent-host` 的 `jointCommits` 是共同提交的种类，另行与 Journal 提供者核对，不与这份名字清单比较。
-- 登记表：目录在第一次登记成功、返回事务域之前，把该租户写进登记表。登记表是存储根目录下由应用装配持有的一个文件，以先写临时文件、刷盘、再改名并刷盘目录的方式整体替换；它不是事务域，不经存储契约，只记租户的 tenantCodec 文本。登记表只记解析过的租户，不按 identity 核对租户是否存在：[TenantStandingSource](../../../packages/identity/identity/SPEC.md#当前资格读口) 不区分未知租户与非成员，而进入 Session 的租户已经经过身份桥的资格判断。登记表只增不删、不改。
+- 登记表：目录在第一次登记成功、返回事务域之前，把该租户写进登记表。登记表是存储根目录下由应用装配持有的一个文件，以先写临时文件、刷盘、再改名并刷盘目录的方式整体替换；它不是事务域，不经存储契约，只记租户的 tenantCodec 文本。登记表只记解析过的租户，不按 identity 核对租户是否存在：[TenantStandingSource](../../../packages/identity/SPEC.md#资格与当前资格读口) 不区分未知租户与非成员，而进入 Session 的租户已经经过身份桥的资格判断。登记表只增不删、不改。
 - 系统读取：Session SQL 经会话存储组合闭包内的只读快照遍历全部已登记租户的事务域（[XP-6](../../../packages/session/session-storage-sql/SPEC.md#xp-table)），不经 `tenantDomains`。目录缺席、重建中或任何事务域不可读时，`references` 与 `releasedScopes` 返回 `unavailable`，不返回空页或部分租户；AD-15 的重新释放保留任务并重试，换代协调者不能据此撤贡献。未登记租户的读取不触发登记。`agent-journal` 写共同提交之前，经受信的 `tenantDomainLookup` 取得已登记租户的事务域；没有登记时不写入、不触发登记。
 - 启动扫描与周期扫描的扫描者以部署扫描主体调用 `tenantDomains.enumerate`，取得一个修订的完整租户集合，再逐个租户读 `pending`。一轮只覆盖该修订的集合，扫描中目录变化不重启本轮；之后登记的租户由它的首次提交通知与下一轮覆盖。登记表丢失或损坏时，按存储根目录下的事务域文件重建；重建完成之前启动扫描不开始。重建有两个前提：存储提供者的文件名能还原事务域标识，推导规则能从事务域标识还原租户。两者都还没有承诺，见缺口表。
 - 隔离：本部署每个事务域一个数据库文件。写者 Worker 是否按租户分开归存储提供者；不分开时，按[存储契约](../../../packages/storage/SPEC.md#写者读屏障与-worker)记为该部署的已知限制。

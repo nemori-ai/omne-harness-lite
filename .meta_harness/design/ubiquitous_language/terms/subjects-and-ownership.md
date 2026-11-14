@@ -315,7 +315,7 @@
 > If the facts cannot be read, the answer is "unavailable". That is a failure. It is not a third value of membership standing.
 
 - **形态**：视图
-- **出处**：[ID-16 当前资格读口](../../../../packages/identity/identity/SPEC.md#当前资格读口)
+- **出处**：[ID-16 当前资格读口](../../../../packages/identity/SPEC.md#资格与当前资格读口)
 - **别混**：与[成员资格效力](#ul-membership-standing--成员资格效力--membership-standing)不是一回事——成员资格效力只有有效与无效两个取值，是当前资格的一部分；当前资格还带租户角色与具名资格，并且可以是「不可用」
 - **注意**：读口不区分未知租户与非成员，两者都答成员资格无效
 
@@ -416,7 +416,7 @@
 > Only the identity issuer can issue it. It has no form without a tenant. A change of membership does not invalidate it. The next admission uses the new facts.
 
 - **形态**：属性
-- **出处**：[ID-16 两种主体](../../../../packages/identity/identity/SPEC.md#两种主体) · [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)；[身份与授权 §加入组织后，按明确的租户身份协作](../../product/identity-and-authorization/design.md#加入组织后按明确的租户身份协作)（rev 2）
+- **出处**：[ID-16 两种主体](../../../../packages/identity/SPEC.md#主体的签发与核验) · [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)；[身份与授权 §加入组织后，按明确的租户身份协作](../../product/identity-and-authorization/design.md#加入组织后按明确的租户身份协作)（rev 2）
 - **别混**：已签发或核验通过只证明来源，不证明成员资格有效，也不证明动作获准——成员资格要读[当前资格](#ul-current-standing--当前资格--current-standing)，动作要取授权裁定
 - **注意**：形态判「属性」，因为系统里没有按标识引用「这一个主体」的做法，它是租户或系统部件在一次行事里扮演的角色，不是一份有自己存储的记录
 
@@ -431,7 +431,7 @@
 > The system scope does not automatically grant reading of business content or access on behalf of a tenant. It also does not remove the source, resource and qualification checks that an action requires.
 
 - **形态**：属性
-- **出处**：[ID-16 两种主体](../../../../packages/identity/identity/SPEC.md#两种主体) · [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
+- **出处**：[ID-16 两种主体](../../../../packages/identity/SPEC.md#主体的签发与核验) · [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
 - **别混**：与[代租户行事主体](#ul-acting-for-tenant-principal--代租户行事主体--acting-for-tenant-principal)不是一回事——后者必带租户。后者的实际代行者是一个系统主体，但代行者的身份不替代租户的账号。也不是[运维者](#ul-deployment-operator--运维者--deployment-operator)：运维者是握着部署的人，系统主体是装配给部件签发的主体
 
 ### UL-session-work-principal · 会话工作主体 · Session Work Principal
@@ -445,7 +445,7 @@
 > The session uses it to show its origin to capabilities such as Agent while it does its work.
 
 - **形态**：属性
-- **出处**：[ID-16 签发与核验](../../../../packages/identity/identity/SPEC.md#签发与核验) · [Session 契约的端口表](../../../../packages/session/session-contract/SPEC.md)；[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
+- **出处**：[ID-16 签发与核验](../../../../packages/identity/SPEC.md#主体的签发与核验) · [Session 契约的端口表](../../../../packages/session/session-contract/SPEC.md)；[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)
 - **别混**：原工作关联为登录的代租户行事主体不是它——那一种的 `work.owner` 是 `identity-login`，工作拥有者是 identity。它也不是[系统主体](#ul-system-principal--系统主体--system-principal)：它带租户
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

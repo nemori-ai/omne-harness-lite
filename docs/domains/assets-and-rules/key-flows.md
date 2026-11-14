@@ -6,7 +6,7 @@
 
 <a id="ar-f10"></a>
 
-对应 [AR-J10](../../../.meta_harness/design/product/assets-and-rules/design.md#ar-j10)。各成员分别拥有自己的结果与恢复，assembly 拥有候选采用和推进交接。共同完成行为归 [assets](../../../packages/assets/assets/SPEC.md#failure-and-recovery)、[settings](../../../packages/assets/settings/SPEC.md#failure-and-recovery)和 [permissions](../../../packages/assets/permissions/SPEC.md#failure-and-recovery)，不会由本文合成统一提交机制。
+对应 [AR-J10](../../../.meta_harness/design/product/assets-and-rules/design.md#ar-j10)。各成员分别拥有自己的结果与恢复，assembly 拥有候选采用和推进交接。共同完成行为归 [assets](../../../packages/assets/SPEC.md#失败并发与恢复)、[settings](../../../packages/assets/SPEC.md#设置写入准备与原操作)和 [permissions](../../../packages/assets/SPEC.md#权限写入与准入)，不会由本文合成统一提交机制。
 
 ```mermaid
 sequenceDiagram

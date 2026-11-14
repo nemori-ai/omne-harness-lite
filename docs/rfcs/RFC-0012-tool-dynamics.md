@@ -34,7 +34,7 @@ owner: PanQiWei
 | [Session、Run 与输入承接](../architecture/runtime/session-and-run.md) | 日志准入（92 行） | 新增会话事实须满足"缺了它就不能恢复" |
 | [Tool 契约](../../packages/tool/SPEC.md) | 定义完整性（385-399 行）、已知与可用的动态关系（419-427 行）、G7 与装载登记（877-883 行）、P16（887-901 行） | 固定采用、P16 故障隔离、"撤登记只阻止后续采用"不变 |
 | [Tool 的 Cordis 定义](../../packages/tool/SPEC.md#装载登记与换代)、[tool-host-local 的 Cordis 集成](../../packages/tool/SPEC.md#装载登记与换代) | 登记输入与撤除协议；作者装载与贡献登记；阶段装配与换代 | 登记表不重造资产优先级；计划替换先停新准入、排空、交接 |
-| [assets SPEC](../../packages/assets/assets/SPEC.md) | 身份与必要区别；定义、草稿与发布（含 41 行的跟随规则） | 能力身份 = 类别 + name；每层对同一能力身份至多持有一份；本提案为跟随规则加一条例外 |
+| [assets SPEC](../../packages/assets/SPEC.md#创作归属定义与发布) | 身份与必要区别；定义、草稿与发布（含 41 行的跟随规则） | 能力身份 = 类别 + name；每层对同一能力身份至多持有一份；本提案为跟随规则加一条例外 |
 | PanQiWei 在 #618 的裁定（2026-10-21） | R1–R5、同形判据、冻结含义、Cordis 形态、同键 conflict、登记键来源层、裁定点归属 | 本提案把这些裁定写成可实施条款；不改其含义 |
 
 ## 建议与改变范围

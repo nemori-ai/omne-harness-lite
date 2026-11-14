@@ -130,7 +130,7 @@ harness-server setup [--port <n>] [--workspace <目录>] [--shell <可执行文�
 权限：
 
 - POSIX：配置目录、状态目录、`host-files/` 与新建的工作区设为 `0700`，`server.json` 设为 `0600`。已存在的工作区不改模式。保管库按 settings-local 的权限护栏建立与替换：创建掩码 `077`，文件 `0600` 并读回。
-- Windows：不改访问控制列表。保护来自用户目录下继承的访问控制，前提与 settings-local 的[秘密保管](../../packages/assets/settings-local/SPEC.md#secret-custody)相同。保管库必须位于用户目录之下。`OMNE_SERVER_HOME` 指向用户目录之外时，第 8 步失败，原因是 `path-outside-home`。
+- Windows：不改访问控制列表。保护来自用户目录下继承的访问控制，前提与 settings-local 的[秘密保管](../../packages/assets/SPEC.md#秘密设置项与秘密保管)相同。保管库必须位于用户目录之下。`OMNE_SERVER_HOME` 指向用户目录之外时，第 8 步失败，原因是 `path-outside-home`。
 
 成功时标准输出写一份给人看的总结，退出 0：
 

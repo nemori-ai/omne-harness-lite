@@ -1,8 +1,8 @@
 # 人工授权、权限依据与上下文组合
 
-动态项声明、四类 scope、存储归属及卸载/重装配的共同协议归[治理贡献合同](../../../assets/docs/governance-contributions.md)。C3/C6/C8 消费该 HJ0 候选。HITL 只保管人的决定，不拥有贡献目录或许可持久化。
+动态项声明、四类 scope、存储归属及卸载/重装配的共同协议归[治理贡献合同](../../../assets/SPEC.md#动态治理贡献)。C3/C6/C8 消费该 HJ0 候选。HITL 只保管人的决定，不拥有贡献目录或许可持久化。
 
-本页是已于2026-11-06由用户验收的HJ0跨域采用协议，描述本波必须接通的组合。Permissions的完整规则仍由[权限规格](../../../assets/permissions/SPEC.md)拥有；Authorization解释授权表达与许可；[Runtime Context](../../../../docs/architecture/runtime/runtime-context.md)按资格供给当前值和变化，不判权限、不组装请求。界面上的global/only-session/one-time-call只是便于人的选项，不是一个足够表达业务的权限枚举。
+本页是已于2026-11-06由用户验收的HJ0跨域采用协议，描述本波必须接通的组合。Permissions的完整规则仍由[权限规格](../../../assets/SPEC.md#权限上界挑选与主动禁止)拥有；Authorization解释授权表达与许可；[Runtime Context](../../../../docs/architecture/runtime/runtime-context.md)按资格供给当前值和变化，不判权限、不组装请求。界面上的global/only-session/one-time-call只是便于人的选项，不是一个足够表达业务的权限枚举。
 
 ## 正交轴
 
