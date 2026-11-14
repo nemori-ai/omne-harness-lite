@@ -11,6 +11,7 @@ import type {
   SessionWork,
 } from '@omne-harness/session-contract'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
+import type { QueuedRequest } from './request-queue.ts'
 
 /**
  * Issues the principal of this login for this target tenant. The rule belongs to identity: the
@@ -21,6 +22,16 @@ export interface TargetTenantPrincipals {
     login: LoginIdentity,
     tenant: string,
   ): Promise<{ readonly ok: Principal } | { readonly refused: 'denied' | 'basis-unavailable' }>
+}
+
+export type JournalRecord =
+  | (Readonly<{ kind: 'enqueued' }> & QueuedRequest)
+  | Readonly<{ kind: 'left'; tenant: string; session: string; acceptId: string }>
+
+export interface RequestJournal {
+  readonly pending: readonly QueuedRequest[]
+  append(record: JournalRecord): Promise<boolean>
+  close(): Promise<void>
 }
 
 /** The facts of an issued principal that the derived identities of Session need. */
