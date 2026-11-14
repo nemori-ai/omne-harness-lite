@@ -24,7 +24,11 @@ export const serveDistribution = join(serverMember, 'config', 'serve.distributio
 
 export const SHUTDOWN_DEADLINE_MS = 5000
 
-export function holdTestSlot(scriptUrl) {
+export function holdTestSlot(scriptUrl, usage) {
+  if (usage !== undefined && process.argv.slice(2).includes('--help')) {
+    process.stdout.write(`${usage}\n`)
+    process.exit(0)
+  }
   if (process.env['OMNE_TEST_SLOT_HELD']) return
   const child = spawnSync(
     process.execPath,

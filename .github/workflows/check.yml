@@ -2,8 +2,8 @@ name: Check
 
 # 远程 CI 目前关闭：检查结论以本地跑的 pnpm run check 为准（2026-10-01 定）。
 # 这份工作流只留手动触发，仓库设置里也已停用；没有注册 runner 时任务只会排队。
-# 要恢复自动触发：注册自托管 runner（见 scripts/README.md），在仓库设置里启用本工作流，
-# 再把下面注释掉的三种触发放回 on: 之下。
+# 要恢复自动触发：注册自托管 runner，在仓库设置里启用本工作流，
+# 再把下面注释掉的三种触发放回 on: 之下。步骤见 omne-card 技能的 references/ci-runner.md。
 #   pull_request:
 #   push:
 #     branches: [main]

@@ -117,7 +117,7 @@ commit 的 author 与 committer 只有实际负责的人。commit、PR 标题和
 - `Harness: <宿主名>`，例如 `codex` 或 `claude-code`。
 - `Agent-Role: <角色名>`，主会话写 `main`。
 
-署名回答谁负责，来源回答怎样产生；来源不表示作者身份，也不转移责任。可以用 `git log --format='%h %(trailers:key=Agent-Role,valueonly)'` 按来源复核。[提交署名检查](tools/repo-toolchain/README_ZH.md#提交署名)拦作者式工具署名，但不能判断哪些提交实际有 agent 参与或来源是否如实填写。
+署名回答谁负责，来源回答怎样产生；来源不表示作者身份，也不转移责任。可以用 `git log --format='%h %(trailers:key=Agent-Role,valueonly)'` 按来源复核。[提交署名检查](tools/repo-toolchain/SPEC.md#提交署名)拦作者式工具署名，但不能判断哪些提交实际有 agent 参与或来源是否如实填写。
 
 ## 提交与 PR 表达
 

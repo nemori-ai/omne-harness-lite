@@ -220,4 +220,4 @@ agent 可完成获准且能够自行操作的安装与核对，需要人完成�
 - 趋势已有历史快照，工具支持回退到可用的祖先记录。比较时核对当前 main 提交是否有对应快照，以及实际采用的历史范围；共享时间线可能包含不同分支的记录。没有可用数据时保持未判，不能补造主线历史。采集条件归[回路](clean-loop.md)。
 - hooks 的源、配置和入口已有，本工作树的原生 Codex `Stop` 已观察到正常反馈。这只支持当次事件与受检工作树。其他宿主、`SubagentStop` 和每个隔离执行者仍须核对真实 cwd、加载、信任与反馈；命令重放不能代替原生事件验证。边界归[hooks 说明](../.meta_harness/agents/hooks/README.md)。
 - Issue 协议和多层集成工具已有，日常入口的启用状态归交付配置。主干的进入由 `github-gate` 的流程执行，当前轨道以 policy registry 为准。开工前按实际任务明确本次身份、结果与条件。条件归[卡就是交接信息包](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#卡就是交接信息包)与[进轨道](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)。
-- 正式 `Check` 工作流当前停用，已有在线 runner 和试验工作流不构成 main 或 PR 的正式检查。共享分支与记录标签的保护按[进轨道](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)配置，执行前核对实际生效状态。合并前保留绑定候选的本地检查证据，平台接入与恢复沿[自动化入口](../scripts/README.md#ci)核对。
+- 正式 `Check` 工作流当前停用，已有在线 runner 和试验工作流不构成 main 或 PR 的正式检查。共享分支与记录标签的保护按[进轨道](../.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)配置，执行前核对实际生效状态。合并前保留绑定候选的本地检查证据，平台接入与恢复沿 `omne-card` 技能的[正式 Check 工作流与自托管 runner](../.meta_harness/agents/skills/omne-card/canonical/references/ci-runner.md)核对。

@@ -14,6 +14,17 @@ import { applyAttributionBaseline, readAttributionBaseline } from './attribution
 import { parseArguments } from './hygiene/arguments.ts'
 import { HYGIENE_CHECK_COUNT, runHygiene } from './hygiene/run.ts'
 
+const USAGE = `用法：cli.ts [--hygiene] [<包根>...]
+在给出的包根（缺省 packages）上跑包规则，再在被检查的仓库上跑仓库路径规则、验收覆盖声明与提交署名。根 pnpm run lint:rules 给的是 --hygiene ../../packages ../../apps。
+  --hygiene  另跑整洁检查。
+环境变量：OMNE_RUNNER_ROOT 是运行检查器的仓库，缺省为本工具所在的检出；OMNE_SUBJECT_ROOT 是被检查的仓库，缺省为运行检查器的仓库；相对的包根从它解析，没设时从当前目录解析。
+退出 0 没有违反；1 有违反，逐条写在标准错误。`
+
+if (process.argv.includes('--help')) {
+  console.log(USAGE)
+  process.exit(0)
+}
+
 const runnerRoot = resolve(
   process.env['OMNE_RUNNER_ROOT'] || fileURLToPath(new URL('../../../', import.meta.url)),
 )

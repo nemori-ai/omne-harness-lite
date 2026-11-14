@@ -6,7 +6,10 @@ import { inspectCoverage } from './coverage.ts'
 import { readAcceptanceLockConfig } from '@omne-harness/repo-toolchain/acceptance/lock'
 import { renderScenarioStatus, scenarioStatuses } from './scenario-status.ts'
 
-const USAGE = '用法：scenario-status [--root <检出目录>]'
+const USAGE = `用法：scenario-status [--root <检出目录>]
+从长期产品正文发现当前 PD 与编号场景，分别报告覆盖声明、执行与接受。
+  --root  被观察的检出，缺省为本工具所在的检出。配置从运行检查器的仓库读（OMNE_RUNNER_ROOT，缺省为本工具所在的检出）。
+退出 0 正常观察；2 参数错误、产品输入非法或工具出错。`
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 const CONFIG = toolchainConfigPath(resolve(process.env['OMNE_RUNNER_ROOT'] || ROOT))
 
@@ -34,6 +37,11 @@ function main(argv: readonly string[]): number {
   const statuses = scenarioStatuses(coverage)
   for (const line of renderScenarioStatus(statuses, notes)) console.log(line)
   return 0
+}
+
+if (process.argv.includes('--help')) {
+  console.log(USAGE)
+  process.exit(0)
 }
 
 try {

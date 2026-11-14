@@ -37,8 +37,15 @@ interface Options {
   readonly out?: string
 }
 
-const USAGE =
-  '用法：metrics [--base <ref> | --plan <计划文件>] [--coverage [--coverage-parallel <M>x<W>]] [--out <dir>]'
+const USAGE = `用法：metrics [--base <ref> | --plan <计划文件>] [--coverage [--coverage-parallel <M>x<W>]] [--out <dir>]
+结构度量与审讯页：实际架构、圈复杂度、依赖图、依赖方向与环。只报告，不判失败。
+  --base                        另标出基线以来变更的成员、函数、导入与提交形状。
+  --plan <计划文件>             test-runner 的 plan --json 写出的计划。基线与合并点取自计划，不能再给 --base。计划要算的是当前提交。
+  --coverage                    对计划里要跑测试的成员逐个跑测试，取覆盖率并合成 CRAP。要带 --plan，先构建。
+  --coverage-parallel <M>x<W>   覆盖率跨成员并行：同时至多 M 个成员，每个成员的 vitest 至多 W 个工作进程。也可用环境变量 OMNE_METRICS_COVERAGE_PARALLEL，参数优先。缺省逐个成员串行。
+  --out                         产物目录，缺省为主检出的 tmp/metrics/<提交短号>[-dirty]/，环境变量 OMNE_METRICS_OUT 也可改。
+被检查的仓库取 OMNE_SUBJECT_ROOT，再取当前目录所在 Git 仓库的根。配置：repo-toolchain.config.json 的 metrics 一节。
+退出 0 写出报告；1 参数、配置、计划或测试运行出错。`
 
 const VALUED = ['--base', '--out', '--plan', '--coverage-parallel'] as const
 
@@ -223,6 +230,11 @@ async function main(): Promise<void> {
   writeFileSync(join(outDir, 'architecture.json'), JSON.stringify(architecture, null, 2) + '\n')
   writeFileSync(reviewPath, renderPage(report, page, architecture))
   console.log(summary.join('\n'))
+}
+
+if (process.argv.includes('--help')) {
+  console.log(USAGE)
+  process.exit(0)
 }
 
 main().catch((error: unknown) => {

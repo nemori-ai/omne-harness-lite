@@ -97,7 +97,7 @@ export const PREFLIGHT_FIXES: Readonly<Record<string, string>> = {
   'lint:rules':
     '按日志修结构规则（tools/product-checks）；报「找不到 dist」时先 pnpm run build --filter @omne-harness/legal-identity',
   'lint:oxlint': 'pnpm run lint:oxlint 看逐条；改代码，不加 disable 指令绕过',
-  'acceptance:lock': '验收锁不一致：按 tools/repo-toolchain/README_ZH.md 的验收锁一节更新或回退',
+  'acceptance:lock': '验收锁不一致：按 tools/repo-toolchain/SPEC.md 的验收锁一节更新或回退',
 }
 
 export function residentStepNames(steps: readonly CheckStep[]): string[] {

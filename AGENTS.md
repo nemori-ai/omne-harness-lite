@@ -180,7 +180,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | --- | --- |
 | 类型检查与 lint 命令 | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint`；`pnpm run lint:deps` |
 | 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入排在这些之后，在最终的头上只跑一次；没通过就把失败归类后补证，不重排整跑，见 `omne-card` 技能的[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md) |
-| 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。用法见 [pqw-adapter](tools/pqw-adapter/README_ZH.md) |
+| 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。行为见 [pqw-adapter 的规格](tools/pqw-adapter/SPEC.md)，参数见命令的帮助 |
 | 差分变异的范围与点名文件 | `pnpm run closeout:mutation -- --base <起点> --scope <关键位置>...`：先 `--plan-only` 看范围，超过上限要给 `--scope` 或 `--files`；按改动成员各调一次 pqw `mutation.mjs`。[风险级别](docs/architecture/assurance.md#按风险选择接受实现的看法)的路径下限：`pnpm run risk -- --base <起点>` |
 | 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |
 | 文档检查命令 | `pnpm run check:docs`；`pnpm run check:design`；`pnpm run check:agents` |
@@ -224,6 +224,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | --- | --- | --- |
 | 开工前建立系统图景、理解知识体系或普通阅读 | 上面两张图与要点先给出图景；要展开时从[架构入口](docs/architecture/README.md)与[领域入口](docs/domains/README.md)进，再读要改的包组或应用的 `SPEC.md`。找到本次责任就停 | 拆、证 |
 | 在 `packages/` 或 `apps/` 里实现或修复 | 读所在包组或应用的 `SPEC.md`。新建或拆分成员先核[组织原则](docs/architecture/structure.md#组织原则)里的依赖方向、独立使用与 Cordis 集成边界，用包模板生成。已有承诺够用就不展开架构 | 定形、建、证 |
+| 在 `tools/` 或 `scripts/` 里写检查与工具 | 读这个工具的 `SPEC.md` 与命令的帮助。发现实现与规则冲突时核对规则的拥有者，不靠改检查器放宽要求；失败状态传给调用方；产品包不依赖工具。要改仓库检查跑的两个发布包，先读 `omne-card` 的工具链升级参考页 | 证、找差异 |
 | 新要求、系统边界或跨成员保证 | 加载 `harness-design-handbook`，从[项目要求](docs/requirements.md)、[架构](docs/architecture/README.md)、[领域](docs/domains/README.md)定位拥有者，只展开本次必要输入 | 拆、找差异、对人 |
 | 产品、概念或对象治理 | 起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`；只消费已有正文不加载 | 对人、找差异、拆 |
 | 文档、AGENTS 或技能维护 | 文档加载 pqw `clear-writing`，AGENTS 加载 pqw `write-agents-md`，技能加载官方 `skill-creator`；改了源、锚点或路径之后，核对入向链接与生成物 | 拆、找差异 |

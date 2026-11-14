@@ -8,7 +8,7 @@
 | `oxlint.json` | oxlint 的插件、类别与忽略路径 | `.oxlintrc.json` |
 | `dependency-cruiser.cjs` | 依赖规则与解析选项 | `.dependency-cruiser.cjs` |
 
-规则的含义与出处见 [repo-toolchain 的依赖规则](../repo-toolchain/README_ZH.md#依赖图与依赖规则)。
+规则怎样判见 repo-toolchain 规格的[依赖图](../repo-toolchain/SPEC.md#依赖图)与[依赖方向](../repo-toolchain/SPEC.md#依赖方向)；每条规则的出处写在预设里它自己的 `comment`。
 
 oxfmt 的配置不支持 `extends`，所以 `.oxfmtrc.json` 仍放在根目录。
 

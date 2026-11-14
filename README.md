@@ -61,7 +61,7 @@
 | `packages/` | 按能力组组织的产品包；每个包组的规格是它的 `SPEC.md`，包边界沿[组织原则](docs/architecture/structure.md#组织原则)维护 |
 | `apps/` | 产品应用与装配；每个应用的规格是它的 `SPEC.md` |
 | [packages.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)、[apps.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md) | 封存源码与公开说明，已从仓库删除，链接指向固定提交。只用于来源核对，不作为新树实现支持 |
-| [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
+| `tools/`、`scripts/` | 开发检查器与仓库自动化；每个工具的规格是它的 `SPEC.md`，用法见命令的帮助 |
 
 参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md)和[准备检出](CONTRIBUTING.md#准备检出)开始。研发流程走 pqw-skills，它是 git 子模块，随检出初始化；人或 agent 使用的 coding agent harness 另须安装指定版本的 pstack、Matt 与 ub-mode。版本及采用范围归[来源与采用](.meta_harness/tooling/README.md#来源与采用)。环境准备见[开始工作](CONTRIBUTING.md#开始工作)。
 

@@ -19,7 +19,22 @@ import { basename, dirname, join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 if (args.length === 0) {
-  process.stderr.write('Usage: with-test-slot <command> [args...]\n')
+  process.stderr.write(
+    [
+      'Usage: with-test-slot <command> [args...]',
+      'Runs the command when a run slot is free, in arrival order, and returns its exit code. The command does not run through a shell.',
+      'A process that already holds a slot (OMNE_TEST_SLOT_HELD) runs the command at once.',
+      'Environment:',
+      '  OMNE_TEST_SLOTS                  slots on this machine (default 2, equal to parallel.concurrentRuns in tools/test-runner/test-runs.config.json)',
+      '  OMNE_TEST_SLOT_DIR               lock directory (default omne-test-slots-<user> in the Windows temp directory, shared with WSL; /tmp/omne-test-slots-<uid> on other POSIX hosts)',
+      '  OMNE_TEST_SLOT_POLL_SECONDS      seconds between queue checks (default 5)',
+      '  OMNE_TEST_SLOT_MAX_WAIT_SECONDS  longest wait (default 7200)',
+      '  OMNE_TEST_SLOT_LEDGER            slot ledger, one JSON line per use (default ${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl)',
+      'Exit 75: the wait timed out and the command did not run. Exit 127 on Windows: no pnpm or no Git bash was found. Exit 2: usage error.',
+      'To stop a run that holds a slot on POSIX, kill the whole process group. Rules: tools/test-runner/SPEC.md.',
+      '',
+    ].join('\n'),
+  )
   process.exit(2)
 }
 

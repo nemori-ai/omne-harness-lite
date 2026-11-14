@@ -152,7 +152,7 @@ uv run --locked python .meta_harness/tooling/src/pqw_contract.py --project-root 
 ```
 
 - 不带 `--check`：拉 pqw-skills 的 tag，找约定版本等于所钉版本、并且在子模块提交之后的最新 tag，把它解到 `.meta_harness/.vendor-float/pqw-skills/`（不进 Git）。没有更新的就删掉这个目录，读子模块。拉不到 tag 时用本机已有的。`--offline` 不拉。`initialize_agents.py` 第一步就跑它。
-- 读哪一份只有一条规则：浮动目录的约定版本等于所钉版本就读它，否则读子模块。生成器、常驻卡片与 [pqw-adapter](../../tools/pqw-adapter/README_ZH.md) 都按这条规则读，技能正文与脚本不会各读一版。
+- 读哪一份只有一条规则：浮动目录的约定版本等于所钉版本就读它，否则读子模块。生成器、常驻卡片与 [pqw-adapter](../../tools/pqw-adapter/SPEC.md#读哪一版-pqw-脚本) 都按这条规则读，技能正文与脚本不会各读一版。
 - `--check` 只读：子模块的约定版本等于所钉版本；根 `AGENTS.md`「pqw-skills 接入」有约定列出的每个槽位；卡模板的二级标题等于约定的节名。`pnpm run check:agents` 的第一步就是它。
 - pqw-skills 的约定版本涨了：浮动停在旧约定的最后一版。要用新版时，在一个 PR 里把子模块指到新版、改 `contract-version`，再按 `--check` 报的逐条改接入节与卡模板。
 - 没有网络的环境（gate、CI）读子模块。约定版本相同，接入节与卡模板对两份都成立。

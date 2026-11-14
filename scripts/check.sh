@@ -2,8 +2,19 @@
 set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/git-environment.sh"
+usage_text() {
+    cat <<EOF
+Usage: $0 [--admission] [--keep-going] [--resume-from <H1>] | $0 --preflight (optional BASELINE and FULL=1 environment variables)
+Root scripts: pnpm run check runs it without flags, pnpm run admission adds --admission, pnpm run preflight adds --preflight.
+It takes one run slot, then runs the check command of tools/test-runner/src/testing/cli.ts. --preflight takes no slot and no other flag.
+--admission (or OMNE_ADMISSION=1) writes the admission log tmp/admission/<time>-<short head>.log and its .json record.
+--keep-going runs the other steps after a failure. --resume-from <H1> continues a failed admission on H1 and needs --admission.
+BASELINE=<git-ref> sets the baseline. FULL=1 makes the plan full. Step logs are in tmp/check-run/<short head>/.
+The step table, the log format and the run slot are specified in tools/test-runner/SPEC.md.
+EOF
+}
 usage() {
-    echo "Usage: $0 [--admission] [--keep-going] [--resume-from <H1>] | $0 --preflight (optional BASELINE and FULL=1 environment variables)" >&2
+    usage_text >&2
     exit 2
 }
 main() {
@@ -13,6 +24,7 @@ for (( i = 0; i < ${#args[@]}; i++ )); do
     case "${args[i]}" in
         --admission|--keep-going) ;;
         --preflight) preflight=1 ;;
+        --help) usage_text; exit 0 ;;
         --resume-from)
             # 带一个值：接续的那个头。值缺失或为空就是用法错误，不交给正文去猜。
             (( i + 1 < ${#args[@]} )) && [[ -n "${args[i+1]}" ]] || usage

@@ -28,7 +28,17 @@ import {
   writeJson,
 } from './support.mjs'
 
-holdTestSlot(import.meta.url)
+holdTestSlot(
+  import.meta.url,
+  [
+    '用法：node tools/joint-a/end-to-end.mjs [--evidence <目录>] [--keep]',
+    '联调 A 的骨架判据：插件树装载，建租户、登录、建会话、发输入，单轮纯消息（步骤 S0-1 到 S2-3）。',
+    '先占一个运行名额。经构建产物起进程，不导入产品包，不改实现：先构建',
+    '  pnpm --filter @omne-harness/harness-server... run build 与 pnpm --filter @omne-harness/cli... run build；产物不在时每步记等件。',
+    '证据缺省写到 tmp/m2-joint-a/end-to-end/。--keep 保留临时目录。',
+    '每步三态：通过、失败、等件（写明等哪一件）。退出码：全部通过 0，有失败 1，只剩等件 3。',
+  ].join('\n'),
+)
 
 const CREDENTIALS = { alice: 'alice-pw-JOINTA-2f81', bob: 'bob-pw-JOINTA-73ce' }
 const INPUT_TEXT = 'joint-a S2 first round'

@@ -1,0 +1,336 @@
+# @omne-harness/test-runner
+
+## 总体架构
+
+测试运行器按一次改动的影响面计划成员的构建、类型检查、测试与验收，运行它们，并写耗时账本。`pnpm run check` 的正文也在这里：按步骤图跑全部检查，准入时写运行记录。本成员不发布。规则在 `test-runs.config.json`。
+
+入口是 `src/testing/cli.ts`，子命令与根脚本的对应：
+
+| 子命令 | 根脚本 | 做什么 |
+| --- | --- | --- |
+| `baseline` | | 打印统一规则取到的基线 |
+| `plan` | `pnpm run check:plan` | 算影响面并打印计划 |
+| `step` | `pnpm run test:gate`（`step test`） | 按计划执行一步 |
+| `run` | `pnpm run test:affected`、`test:tier`、`test`、`acceptance` | 跑成员的测试或验收 |
+| `triage` | `pnpm run test:triage` | 失败归因 |
+| `replay` | | 对一段历史逐个提交算计划 |
+| `coverage-parallel` | 由 `scripts/metrics.sh` 调 | 覆盖率的并发度 |
+| `check` | `pnpm run check`、`admission`、`preflight` | 步骤图、准入、接续、预检 |
+| `admission-evidence` | | 核对可采用的全量准入 |
+
+参数、环境变量与退出码见 `cli.ts --help`。
+
+另有两样随本成员定形，代码在别处：
+
+- 分层定义在仓库根的 `vitest.tiers.mts`，过滤守卫在 `src/testing/filter-guard.ts`。
+- 运行名额由 `scripts/with-test-slot.mjs` 实现。它的承诺写在本规格，因为名额个数与并行度的份数是同一个数。
+
+## 领域边界
+
+本成员拥有：
+
+- 影响面规则（`test-runs.config.json` 的 `affected`）与计划文件的形状。
+- 检查步骤图、步骤的调度与失败语义。
+- 成员测试的结果缓存、工作进程预算、耗时账本与失败归因。
+- 准入的文本日志格式、JSON 运行记录的形状、接续准入与证据核对。
+- 准入开始时的环境自检与自愈，预检的步骤与输出。
+- 运行名额的排队规则、锁目录与名额账本。
+
+本成员不拥有：
+
+- 统一的缺省基线规则：归 repo-toolchain 的 `resolveBaseline`，见 [repo-toolchain 的缺省基线](../repo-toolchain/SPEC.md#缺省基线)。
+- 账本的读取格式：归 repo-toolchain 的 `core/test-ledger`。回路状态与体检页按它读。
+- 代理怎样取得准入证据、什么情形要整跑：归 `omne-card` 技能的 `references/admission-evidence.md`。
+- 步骤里各项检查的判定：契约快照核对归 dev-flow，验收锁与回路状态归 repo-toolchain，产品规则归 product-checks。
+
+消费者：`scripts/check.sh`、根 `package.json` 的测试脚本、`scripts/metrics.sh`、repo-toolchain 的回路状态与体检页、dev-flow 的接线测试（读 `check --list`）、`omne-card` 技能。
+
+## 心智模型
+
+- 影响面规则是查出来的现状，不是机器推导的。测试读了某个路径却没写进读者规则，改它时就漏选。新增这样的读取，同时补一条规则。
+- 运行记录与准入日志是同一次运行的同一份事实。人读日志，工具读记录。
+- 缓存宁可少命中，也不错命中。
+- turbo 接替它的工作以后，本成员删除。
+
+## 应然设计
+
+### 影响面计划
+
+改动文件取基线合并点到当前工作树的全部差异，含未提交与未跟踪的文件。改名拆成删与增两侧，文件名原样，不受 git 引号转义影响。成员清单读 `pnpm-workspace.yaml`。
+
+`affected.excludeRoots` 下的成员与任意层级里名字以 `.legacy` 结尾的目录不进检查、测试与验收的目标。`FULL=1`、未知路径回退与 `run --all` 都应用这一排除。`.legacy` 目录里的改动记为排除，不触发全量回退。
+
+其余改动文件按顺序归到第一类命中的：
+
+1. 全局（`globalPaths`）：根清单、锁文件、共享 tsconfig、`vitest.tiers.mts`、入口脚本、本配置、引擎自己的源码，以及任何位置的 `turbo.json`。命中就判全量，因为改过的引擎不能给自己划范围。引擎源码是从 `src/testing/cli.ts` 与 `src/testing/check.ts` 沿静态导入能到的文件，加上按路径加载的过滤守卫。新增引擎模块要加进 `globalPaths`，`tests/engine-closure.spec.ts` 守这份清单。
+2. 读者（`readers`，每条 `{ paths, members, why }`）：这些路径被这些成员的测试读。改了只选这些成员，不沿反向依赖传播。
+3. 成员文件：按最长的成员目录前缀归属，由 turbo 的 `--affected` 选出改了文件的成员及其直接、间接下游（含 `devDependencies`）。
+4. Python 工具（`pythonPaths`）：跑 pytest。
+5. 只需常驻检查（`residentPaths`）：文档、设计区、给人读的指南、`examples/`、`.github/`、格式配置等。
+6. 其余没有规则认得的路径：判全量，理由点名前几个文件与总数。
+
+读者、成员文件与 Python 工具三种归属可以同时成立，三者都算。
+
+只改了文档的成员：
+
+- 成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动。只改了文档的成员不进测试、类型检查与验收，也不作下游选择的种子。
+- 计划用 turbo 的依赖图拿掉只由文档改动带进来的成员。同一成员既改文档又改代码，照旧选中它与下游。
+- 拿掉之前核对 turbo 选中的每个成员都解释得了。有解释不了的成员，计划照 turbo 的名单原样跑，理由点名这些成员。
+- 拿掉的成员列在计划的「只改了文档、不选的成员」下，`check:plan --json` 的 `plan.documentsOnly` 给同一份清单。
+- `tests/` 等其余目录里的 `.md` 可能是夹具，照成员改动算。
+
+依赖清单例外：`pnpm-lock.yaml` 与 `pnpm-workspace.yaml` 是仅有的全局改动时，普通计划不直接判全量。
+
+- `pnpm-workspace.yaml` 里 `catalog`、`catalogs` 之外的键有变化，判全量。
+- 两份锁文件的差异按 importer 映射到成员：变化的 importer 对应的成员，加上传递依赖了变化的 `packages`／`snapshots` 条目的成员。映射到的成员作为种子，按依赖图带上下游。
+- 下面任一情形仍判全量并写明原因：
+  - 锁文件顶层键有变化。
+  - 根 importer 的依赖直接或间接变了。
+  - 任一份解析失败，或有解释不了的引用。
+  - `tools/test-runner` 在映射到的成员或其下游里。
+  - 与别的全局文件一起改。
+- 两份解析后等价时，不因依赖清单选成员。
+- 计划的「锁文件：」一行与 `check:plan --json` 的 `plan.lockfile` 写同一句结论。
+- 接续准入里两份都按全局文件处理，不问映射。
+
+选中成员之后：测试、类型检查、验收各取其中有对应脚本的。构建取其中有 `build` 脚本的，另加 `residentBuild` 列的成员，纯文档改动也构建它们。
+
+类型检查之前，`src/testing/typecheck-scope.ts` 核对编译根里没有归档目录的文件。成员的 `exclude` 盖掉了模板那条、`include` 指到成员外的归档目录、或 `typecheck` 不是 `tsc -p <配置>` 形式而成员里有归档目录时，点名报错，不运行类型检查。
+
+成员目录下的 `turbo.json`：`apps/*` 之外一律拒绝。`apps/*` 的按合成后的定义核对：`extends` 只能是 `["//"]`，只覆盖根已定义的任务，`dependsOn` 与 `env` 只增不减，测试任务不缓存，`outputs`、`inputs` 不指到成员目录外，不设 `persistent`。`passThroughEnv` 只放不影响结果的变量，这一条留给评审。
+
+`FULL=1` 或 `--full` 直接给全量计划。基线不存在、取不到改动、规则点名的成员不存在、turbo 出错、成员 `turbo.json` 不合规则时，报错退出，不改判全量。
+
+计划不能声称：没被选中的成员通过。环境变量、外部服务与时间不在影响面里。
+
+### 分层与过滤
+
+测试分快慢两层，定义只在 `vitest.tiers.mts` 写一处：一个 `slow` 标签，以及把 vitest 的 mode（`fast`、`slow`，不给为两层）翻成标签过滤。
+
+- 一个测试归慢层：整个文件在开头注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，并写一句为什么慢。
+- 时限的先后：用例自己写的，再是慢层标签的（120 秒），再是成员配置的 `testTimeout`，最后是快层时限 15 秒。快层的承诺仍是单条用例不到 5 秒，超过的由账本点名。
+- 成员有三个测试脚本：`test:fast`、`test:slow`（关类型测试，`*.spec-d.ts` 都归快层）、`test`。脚本不先构建。层只经脚本里的 mode 传递，外面的环境变量改不了层。
+- 不带命令行过滤时，一层里一个测试都不剩不算失败。带过滤时，过滤后一个文件都不剩就非零退出。带 `-t` 时还关静态预解析，因为它认不出 `test.each` 生成的名字。
+- 带过滤时挂过滤守卫：过滤后一条用例都没有真跑，这次运行退出 1，并在标准错误写出过滤条件。watch 模式、运行被打断、有文件失败或有未处理的错误时，守卫不出声。命令行给了 `--reporter` 时守卫不在。
+- 过滤照 vitest 自己的命令行解析读出，`VITEST_BOOLEAN_OPTIONS` 与安装的 vitest 定义双向对账。经 API 起 vitest 时读不到过滤，按不带过滤算。
+
+### 成员测试与验收的运行
+
+- 运行器调一次 `turbo run <层的任务> --continue=dependencies-successful`。调用方已经构建过时只跑测试任务，否则 turbo 在同一次运行里先构建成员及其上游。
+- 构建失败的成员不跑测试，记为失败并点名失败的构建。turbo 运行摘要里没有某个成员的执行记录时，这个成员记为失败。报告里出现归档目录中的测试文件时，这个成员也判失败。
+- 一个成员失败不拦其余的，结束时列全失败。退出码只反映测试是否全过。
+- 验收选 `package.json` 里有 `acceptance` 脚本的成员，排除规则同测试，逐个跑 `pnpm run acceptance`。验收不分层，不缓存。验收账本另放在主检出的 `tmp/acceptance-ledger/`，不混进测试账本。
+- `pnpm run check` 按计划跑验收那一步：只跑被选中、带验收的成员，驱动构建好的 `dist/`。任何一份不过，整套检查失败。一个都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，回路状态的验收耗时传感器认它。
+
+### 结果缓存
+
+成员测试按成员、按层缓存完整通过的运行。条目在主检出的 `tmp/test-cache/<成员>/<层>-<键>.json`。
+
+- 完整通过指：退出码 0，写出了报告，报告里没有失败的文件或用例，运行器自己没判问题。失败、超时、被中断、没写出报告的从不进缓存。
+- 键与影响面同源：一个成员的输入集就是改了会让计划选中它的那些文件。全局文件与没有规则认得的文件进每个成员的键。键里另有层、平台与架构、Node 版本，以及 `cache.env` 列出的环境变量。只影响怎么跑的变量（`cache.ignoreEnv`）不进键。
+- 锁文件在键里不按 importer 收窄。锁文件一变，全部条目失效。
+- 只有对这次构建出的产物跑出的通过才写。构建前记成员的输入摘要，构建后记本成员与上游 `dist/` 的产物摘要（路径、字节数与 mtimeMs，不读内容）。写之前重算，任一项不等就跳过这个成员并打印原因。没有构建记录、记录是另一个提交的或是旧格式时，整次不写。
+- 跑完后重算键，与开跑前不一致的成员不写。
+- `FULL=1`、`OMNE_TEST_CACHE=0` 与 `--no-cache` 不读缓存（`test:tier` 与 `test` 不认 `--no-cache`）。不读时照常算键，满足条件时照写。
+- 准入模式只认准入模式真跑出来的条目。平常的运行不覆盖准入写的条目。带 `FULL=1` 的准入不认任何条目。构建与类型检查的 turbo 缓存在准入模式下只写不读。
+- 快照或依赖图取不到、条目坏了、写不进去，一律按未命中：既不让检查失败，也不让检查放行。
+- 命中只意味着同一台机器上键完全相同的一次完整通过曾经发生过，不意味着这次再跑也会过。
+- 账本的 `meta.members` 列这次覆盖的全部成员，`meta.cache` 记读写模式、命中与来源、写入与跳过。`members`、`failures` 与 `nearTimeout` 只有这次跑了的成员。一层的成员全部命中时这一层算通过。
+
+### 并行度
+
+- 一次检查的工作进程预算 = floor((核数 − `parallel.reserveCores`) ÷ `parallel.concurrentRuns`)，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1。
+- 预算不看 CPU 空闲率。按固定份数分，两次检查同时跑时哪一次先起都拿到同样多。空闲率只记进账本。
+- `pnpm run check` 在起任何步骤之前算一次预算，经 `OMNE_WORKER_BUDGET` 交给各重步骤。调用方已设它时原样交下去。
+- 同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程数 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。
+- `OMNE_WORKER_BUDGET`、`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 可以临时盖过推出的值。账本的 `meta` 记下并行度、核数与预算的来历。
+- `coverage-parallel` 打印 `<同时成员数>x<每成员工作进程数>`，两数之积不超过预算。`scripts/metrics.sh` 在占到名额之后调它，经 `OMNE_METRICS_COVERAGE_PARALLEL` 交给 repo-toolchain 的 omne-metrics。
+
+### 耗时账本
+
+每次运行在主检出的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/` 留下账本（`OMNE_TEST_LEDGER_HOME` 可改根目录，`--out` 可直接指定）：
+
+| 文件 | 内容 |
+| --- | --- |
+| `summary.md` | 同时打印到标准输出：总数与墙钟、逐条失败、最慢的成员与文件、导入耗时、贴着时限的用例、「归层」一行 |
+| `ledger.json` | 运行坐标（提交、是否干净、基线、并行度、核数、计划的模式与理由，验收的 `scope`，测试的 `cache`），成员与文件两级的用例耗时与导入耗时，`nearTimeout`，失败清单 |
+| `<成员>.log`、`<成员>.json`、`<成员>.timing.json` | 各成员的原始输出、vitest 的 JSON 报告、计时报告 |
+| `turbo.log`、`turbo-summary.json` | 成员测试时 turbo 的输出与运行摘要 |
+| `build.log` | 验收运行前的构建输出 |
+
+- `meta.tier` 记层，`meta.script` 记跑的是测试还是验收。被滤掉的用例计进「没跑」，不计进「用例」。
+- 贴着时限：耗时 ≥ 用例自身时限 × `ledger.nearTimeoutRatio`。时限 0 的不列。没写出计时报告的成员按 5 秒算，并在摘要里注明。
+- 「归层」一行只列事实：快层里合计超过 `ledger.slowFileSeconds` 的文件、快层里超过单条预算的用例，以及全归慢层却其实守得住快层预算的文件。一次的读数只是线索。
+
+### 失败归因
+
+`triage` 读一次运行的账本，把每处失败单独重跑 `triage.repeats` 次（一次一个工作进程），再从 JSON 报告核对这条用例确实跑了。它照 `meta.script` 经同一个脚本重跑。
+
+| 归类 | 重跑看到了什么 |
+| --- | --- |
+| 隔离仍失败 | 每次单独跑都不过 |
+| 隔离时过时不过 | 单独跑就不稳定 |
+| 隔离稳定通过 | 每次单独跑都过。再把所在文件整个单独跑一次一并报告。它只说明这不是该用例单独的逻辑错误 |
+| 未能单独重跑 | 名字没选中、没有报告，或失败不在任何测试文件里 |
+
+归因只报告，不改变那次运行的结论。重跑的日志与报告在运行目录的 `triage/` 下。
+
+### 检查步骤图
+
+`check` 先算计划，写进被忽略的 `tmp/check-plan/plan.json`，再按 `src/testing/check-steps.ts` 的步骤表跑。`check --list` 打印当前的表：名字、依赖、轻重、命令。
+
+- 每一步只声明先于它完成的步骤，没有依赖的同时跑。
+- 重步骤（构建、类型检查、成员测试、验收）各自按预算起多进程，所以一次只跑一个。轻步骤同时至多 `max(2, 核数 ÷ 3)` 个。pytest 算一个轻步骤，它的 xdist 进程数取预算的四分之一。
+- 读 `dist/` 的步骤排在类型检查成功之后，因为有成员的类型检查会重建自己的 `dist/`。
+- 常驻步骤不按计划，对整仓跑。计划为空时成员测试明说「没有要跑的成员」，那不是「跑过了、全绿」。
+- 一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步，并打印它日志的末尾。`--keep-going` 时其余照跑，依赖失败步骤的不启动，退出码仍取第一个失败。
+- 成员测试一步的例外：一层失败不超过 10 处、都落在测试文件里时，同一次运行内把那些文件各重跑一次（成员串行、每成员一个工作进程）。全过则这一步通过，重跑写进运行记录的 `retried` 与准入日志。仍失败、超过 10 处或有成员一级的失败时照旧失败。断言失败也重跑，分类里分开计。
+- 每步的输出落 `tmp/check-run/<head 短号>/<步骤>.log`，名字里的 `:` 换成 `-`。结束时写逐步耗时表 `steps.tsv`（步骤、退出码、秒数、相对开始的起止秒）与运行记录 `run.json`，并打印实际走过的关键路径。只留最近 5 个头的目录。
+- 严格模式的回路状态不在步骤表里。
+
+### 预检
+
+`check --preflight`（`pnpm run preflight`）在当前树上一次跑完准入里不依赖构建与全量测试的步骤，表是 `check-steps.ts` 的 `preflightSteps`，判据与 check 的表相同。
+
+- 全部同时起，受轻步骤的并发上限约束。失败不终止其余，最后一次列出全部失败：每一步的退出码、日志末尾与一句修法。退出码取第一个失败的那一步，全过退出 0。
+- 开始时同样做环境自检与自愈。
+- 不占运行名额。不写准入日志与运行记录，不是准入证据。日志落 `tmp/preflight/`。
+- 不构建。`lint:rules` 读磁盘上 `packages/common/legal-identity` 的 `dist/`，没有就在那一步失败，修法写明先构建它。
+
+### 环境自检与自愈
+
+准入与预检开始时、读任何现场之前做两件事，只改工作副本与依赖目录，不改提交：
+
+- `node_modules/.pnpm/lock.yaml` 与 `pnpm-lock.yaml` 逐字节不同或没有时，运行 `pnpm install --offline --frozen-lockfile`。离线安装失败时不跑任何步骤、不写记录，以 2 退出，输出写明联网后手动安装。
+- 已跟踪文件里索引为 LF、工作副本为 CRLF、除换行外与索引相同的，从索引重新检出。有内容改动的不碰，记在 `kept` 里。`core.autocrlf=true` 时不重新检出，写明改法。
+
+做了什么写进运行记录的 `environment` 与准入日志的两行 `环境自检：依赖——…`、`环境自检：换行——…`。一致时写「不动」。
+
+### 准入日志
+
+`--admission` 或 `OMNE_ADMISSION=1` 是准入模式。准入写文本日志 `tmp/admission/<时间>-<head 短号>.log`，旁边写同名的 `.json` 运行记录。文本日志的格式：
+
+- 首行：命令、head（有未提交改动时注明）、基线与它的来源、核数、开始时刻。
+- 接着是环境自检的两行。
+- 中间：影响面计划、每一步的开始与结束（秒数、退出码、失败步骤的日志路径）、总计与关键路径。成员测试做过定向重跑时，另有一行 `test 步定向重跑 N 个文件：…`。
+- 末行：`exit=<退出码>`。没有这一行表示运行中途中止。基线被拒时根本不写日志，以 2 退出。核对证据时按这一条判断。
+
+基线在正文开头按统一规则解析一次，以 `BASELINE` 传给各步，影响面与回路状态共用它。已绑定任务的工作树只接受等于 `targetBase` 的显式基线，否则在标准错误写出原因并以 2 退出，不运行任何检查。
+
+### 运行记录
+
+每次 `check` 结束时在 `tmp/check-run/<head 短号>/run.json` 写一份 JSON，准入运行另在准入日志旁边写一份。形状是 schemaVersion 1、`kind: admission-run`：
+
+| 栏 | 含义 |
+| --- | --- |
+| `head`、`tree` | 40 位提交号与开始时那个头的树哈希 |
+| `dirty` | 开始或结束时有未提交改动（含 assume-unchanged、skip-worktree 的文件，被忽略的不算），或结束时头已变。这样的记录不是对 `head` 的证据 |
+| `worktree` | 运行所在工作树的根，取真实路径 |
+| `admission` | 是不是准入运行。只有准入运行能被接续或复用 |
+| `mode`、`base`、`resumeFrom` | `full`：计划判了全量，`base` 为 null。`affected`：按影响面，`base` 是本次基线与头的合并点。`resume`：接续，`base` 是 H1，`resumeFrom` 写 H1 的头、树、失败的步骤、H1 的 `mode` 与 `fullRequested` |
+| `fullRequested` | 这次运行带没带 `FULL=1`。计划因全局文件判了全量的，`mode` 是 `full` 而这一栏为假 |
+| `caches` | `test` 与 `depGraph` 两种缓存的 `on`、`off` |
+| `steps` | 按步骤表的顺序，每步 `ran`、`exit`、`seconds`。被终止与没开始的记 `ran: false`、`exit: null` |
+| `failedStep` | 最早结束的失败步骤，全部通过为 null |
+| `startedAt`、`finishedAt` | 起止时刻 |
+| `environment` | 环境自检的结果，只有准入运行写 |
+| `retried` | 成员测试定向重跑过的文件：`member`、`file`、`tier`、`kind`（`timeout`、`stack-trace`、`startup`、`assertion`）、`firstError`、`retryResult` |
+| `testFailures` | 成员测试最终仍失败的文件，形状同 `retried` 去掉 `retryResult`。接续据它收窄 |
+
+- 先写临时名再改名。解析失败、形状不对的文件按「没有记录」处理。
+- 各步骤只在被忽略的目录里写东西，干净的工作树跑完仍是干净的。步骤留下没被忽略的文件，或运行中有人提交、切换了头，记录就记 `dirty: true`。
+
+### 接续准入
+
+`check --admission --resume-from <H1>`（`pnpm run admission --resume-from <H1>`）。H1 上跑过一次准入，快速失败在步骤 X，修复后在 HEAD 上接着跑。它只在准入模式下可用，与 `FULL=1`、`--list` 互斥，违反时以 2 退出。
+
+拒绝时以 2 退出，不留日志、不写记录，原因逐条写明。下面任一条成立就拒绝：
+
+- 工作树有未提交改动。
+- H1 就是当前头，或 H1 不是 HEAD 的祖先。
+- H1 没有干净的、准入模式的 `full` 或 `affected` 记录（在 `tmp/admission/*.json` 与 `tmp/check-run/*/run.json` 两处找）。H1 只有 `resume` 记录时同样拒绝：接续不链式。
+- 记录的树与 H1 实际的树不符，或 H1 那次的工作树与本次不同。
+- H1 按影响面时，记录的 `base` 不等于本次基线与 HEAD 的合并点。合并点..H1 与 H1..HEAD 首尾相接，才是 HEAD 相对本次基线的影响面。
+- 记录没有失败步骤，除 X 外还有步骤没通过，记录不自洽，或 X 不在当前步骤表里。
+
+退化为整次重跑：H1..HEAD 的差异碰到全局路径（含锁文件，退役目录里的不算），或 H1..HEAD 的影响面自己判了全量。重跑按 H1 那次的范围算计划，说明写进准入日志，`fullRequested` 照搬 H1 的。
+
+接续时全部步骤都跑。「整次范围」指 H1 全量时选全部成员，H1 按影响面时选 HEAD 相对本次基线的影响面：
+
+| 步骤 | H1 上的状态 | HEAD 上的范围 |
+| --- | --- | --- |
+| 常驻步骤 | 任何 | 整仓 |
+| 按计划的轻步骤 | 任何 | 整次范围 |
+| 按计划的重步骤 | 失败（X）、没跑到，或通过而它之后有整次跑的步骤 | 整次范围 |
+| 按计划的重步骤 | 通过，其余情况 | 只跑 H1..HEAD 影响到的成员 |
+| 成员测试 | X，记录写了 `testFailures`，失败都在慢层，H1..HEAD 的差异都落在这些文件所在的成员里 | H1..HEAD 影响到的成员跑两层，失败的文件各单独跑一次，计划的 `testResume` 列出它们 |
+
+- 接续只在 H1 那次的工作树里进行：收窄的构建只重建影响到的成员，其余读 H1 留在磁盘上的 `dist/`。本树上 H1 之后留下记录的运行，它们的头到 HEAD 的改动并进影响面与全局路径的核对。其中有带未提交改动的记录，或某个头算不出差异，整次重跑。
+- 证据写进准入日志：H1 全量时是「准入证据：H1 全量（失败于 X）＋ HEAD 增量（基线 H1）」，H1 按影响面时是「准入证据：H1 影响面准入（失败于 X）＋ HEAD 增量（基线 H1）」，再起一行写本次基线与合并点。之后分组列出每一步的范围与原因、H1 运行时的缓存状态、H1..HEAD 的差异文件。
+- 不能声称：手工构建或没有留下记录的运行改过的 `dist/` 看不出来。pnpm 依赖提升让成员读到没声明的依赖时，锁文件映射看不到这种读取。
+
+### 准入证据核对
+
+`admission-evidence --for <F> [--record <路径>]` 核对 F 上有没有可采用的全量准入。给 `--record` 时只看那一份。不给时在本树 `tmp/admission/*.json` 里按 F 的树找（不读 `tmp/check-run/`），同树且可采用的取最晚结束的那份。
+
+接受要满足每一条：
+
+- 记录是 schemaVersion 1 的 `admission-run`，`admission` 为真。
+- 带了 `FULL=1`：`mode: full` 且 `fullRequested` 为真，或 `mode: resume` 且 `resumeFrom.fullRequested` 为真。
+- `dirty` 为假，`failedStep` 为 null，步骤表非空且每步 `ran: true`、`exit: 0`，有 `finishedAt`。
+- 记录的头在本仓库里，记录的树与头的树一致（缺 `tree` 时由头补算），且等于 F 的树。
+
+接受时一行写明「F 采用 C 的全量准入，树 … 相同；记录 …；缓存 …」，列出 `retried`，退出 0。拒绝时逐项列出原因，退出 1。用法错误退出 2。只核对树相同，不看 C 与 F 的祖先关系。
+
+它接受的是「这棵树上跑过一次干净的全量准入」，不是「这次再跑也会过」。记录与日志都在被忽略的 `tmp/` 下，不是跨检出或跨机器的证据。
+
+### 运行名额
+
+`scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。实现在 `scripts/with-test-slot.mjs`，只用 Node 标准库，macOS、Linux 与 Windows 通用。
+
+- 经它执行的入口：根 `pnpm run check`（整套占一个名额）、`admission`、`test`、`test:gate`、`test:affected`、`test:tier`、`test:triage`、`test:python`、`acceptance`、`metrics --coverage`、`closeout:metrics`、`closeout:mutation`。`test:affected` 与 `closeout:mutation` 带 `--plan-only` 时不占。预检不占。
+- 已经持有名额的进程（`OMNE_TEST_SLOT_HELD`）再调用它时直接放行，不重复排队，也不另记账本。
+- 先来后到：进队时领一张号，号比目录里见过的所有票号都大。名额空出时只有号码最小的活票去拿。
+- 票、名额与队列锁都是独占创建的文件，记着登记者的进程号、所在侧（`side=<平台>@<主机名>`，WSL 里再加发行版名）与心跳。进程不在了（只在同侧判）或心跳停了超过三个间隔，登记就失效，由下一个看队列的进程删掉。没有完整发布的登记保留，不当作死进程。
+- 名额随持有它的包装进程退出而释放。POSIX 下只杀包装进程时，被包装的命令成孤儿接着跑，名额却已释放，所以要杀整棵进程树。
+- Windows 侧与 WSL 侧共用 Windows 用户临时目录下的 `omne-test-slots-<用户名>`。WSL 里经 interop 解析这个目录，并用探针文件核对两侧看到的是同一个目录。解析失败时回退 `/tmp/omne-test-slots-<uid>`，并在标准错误报「WSL 与 Windows 没有共用名额」。
+- Windows 上，命令是 `pnpm` 时按 `PATH` 找能起 pnpm 的目录，命令以 `.sh` 结尾时经 Git for Windows 的 bash 运行，参数逐个加引号原样到达。找不到时以 127 退出。
+
+| 环境变量 | 缺省 | 含义 |
+| --- | --- | --- |
+| `OMNE_TEST_SLOTS` | 2 | 同时允许几套在跑。与 `parallel.concurrentRuns` 是同一个数，`tests/parallelism.spec.ts` 核对两处相等 |
+| `OMNE_TEST_SLOT_DIR` | 见上 | 锁目录。同一用户且临时目录相同的全部检出共用 |
+| `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没轮到时隔多久再看一次 |
+| `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久。超过以 75 退出，命令没有执行 |
+| `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 名额账本 |
+
+- 排队时在标准错误报前面还有几个、每个名额被什么命令占着，变了再报一次。75 表示「没轮到」，既不是检查失败也不是通过。
+- 每次用完名额或等到超时放弃，往名额账本追加一行 JSON：`event`（`ran` 或 `gave-up`）、`command`（截到 500 字符）、`cwd`、`pid`、`issue` 与 `attempt`（取自工作树的任务上下文，取不到为 null）、`cores`、`slots`、`slot`、`aheadOnArrival`、`arrivedAt`、`acquiredAt`、`endedAt`（RFC 3339，截到秒）、`waitSeconds`、`heldSeconds`（毫秒差向下取整）、`cpuSeconds`（到 0.01 秒）、`loadAtAcquire`、`loadAtEnd`、`exitCode`。放弃时名额相关的栏为 null，`exitCode` 为 75。写不进去只提醒一句，不改退出码。
+- 平均核数落在 (`cpuSeconds` ÷ (`heldSeconds` + 1)，`cpuSeconds` ÷ `heldSeconds`] 区间里。
+
+名额的已知限制：
+
+- 名额只覆盖经根脚本的入口。成员级 vitest 不占名额，与准入并发时，时序敏感的用例可能变红。
+- 跨侧判定只看心跳，依赖两侧时钟一致。嵌套放行不跨 interop 边界。
+- 队列锁依赖 30 秒年龄回收，有代际回收的竞态。队列失去独占时，先来后到与互斥都不能无条件保证。
+- 写入者在登记没有完整发布时异常退出，会留下无法判定归属的文件。清理前先确认相关包装进程与命令都已结束。
+- 领票循环没有次数上限。
+
+## 原则与约束
+
+- 策略都在 `test-runs.config.json`，不写死在代码里。策略只含比例与上下限，不含任何一台机器的核数。
+- 算不出计划就报错，不改判全量。引擎自己改了判全量。
+- 预算按固定份数分，不按空闲率分。按空闲率分时，后起的一次会把先起的一次算成别的负载而缩到很小。
+- 快层时限 15 秒只是失败线，为机器忙时起子进程的用例留余地。快层的承诺仍是单条用例不到 5 秒。
+- 轻步骤与重步骤同时跑，优先级相同。把轻步骤降级会让关键路径上的轻步骤变慢，总墙钟反而变长。
+- 准入要防的是没有真跑过却显示通过。准入只认准入写的缓存条目，构建与类型检查的 turbo 缓存只写不读。
+- 合并后没有自动补跑。全量由负责人不定时让一个会话手动跑 `FULL=1 pnpm run check`。
+
+## 不变式
+
+- 没有规则认得的改动文件让计划判全量。
+- 准入日志没有末行 `exit=<退出码>` 时，这次运行不是证据。
+- 带未提交改动的运行记录不被接续，也不被 `admission-evidence` 接受。
+- 只有完整通过、且对这次构建的产物跑出的成员测试才写进缓存。
+- 接续的范围不比 H1 那次的范围宽。
+- 名额没轮到时以 75 退出，命令没有执行。

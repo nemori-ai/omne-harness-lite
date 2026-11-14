@@ -38,7 +38,7 @@
 
 1. 依赖方向与环——`pnpm run lint:rules` 的方向规则与 `pnpm run lint:deps`，`pnpm run loop:status` 也会标出。
 2. 验收没有被实施者改动——`pnpm run acceptance:lock`。
-3. 主线保持绿——合并前，在待合并的提交上计算好影响面，再运行受影响、因此需要执行的检查。检查范围包括所需的构建、类型检查、测试和可执行验收，以及共同硬线检查。交付说明记录基线、提交、范围、依据与结果。准入只有一步失败时的增量接续，以及树与已通过准入的头相同时的复用，机制见[准入的运行记录与接续](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。`pnpm run check` 按影响面打印计划并执行这些检查；未选中的检查没有运行，交付说明应如实列出。
+3. 主线保持绿——合并前，在待合并的提交上计算好影响面，再运行受影响、因此需要执行的检查。检查范围包括所需的构建、类型检查、测试和可执行验收，以及共同硬线检查。交付说明记录基线、提交、范围、依据与结果。准入只有一步失败时的增量接续，以及树与已通过准入的头相同时的复用，机制见[准入的运行记录与接续](../tools/test-runner/SPEC.md#接续准入)。`pnpm run check` 按影响面打印计划并执行这些检查；未选中的检查没有运行，交付说明应如实列出。
 4. 传感器有数据——一项指标量不出来不等于它是好的。传感器自己会不会悄悄失灵，由一份种了已知违规的小夹具每次跟着
    `tools/repo-toolchain` 的测试跑来守，测试失败就挡合并。严格模式（`pnpm run loop:status --strict --out …`）下，
    配置里开着的传感器有哪个没数据就判失败并指名；它不在准入里，在 mainline 提升 main 时跑，结果贴在提升 PR 上，只报告不挡。
@@ -48,9 +48,9 @@
 - 缓存的输入集与影响面规则同源：成员自己、上游成员、读者规则点名的文件、全局文件，以及没有规则认得的文件的内容。
 - 键里另有层、平台与架构、Node 版本与列出的环境变量。
 - 命中不证明不稳定的用例这次也会过。
-- 合并前的准入不读缓存，所以硬线 3 要的运行不含命中。准入模式、`FULL=1`、`--no-cache` 与 `OMNE_TEST_CACHE=0` 只写不读缓存。
-- 依赖图也有缓存，它直接决定硬线 1 的方向与环、硬线 4 的读数。准入时它同样不读，所以合并前的硬线判断不含命中；本地非准入的 `pnpm run check` 会读它。
-- 细则见 [test-runner 的结果缓存](../tools/test-runner/README_ZH.md#测试运行)与 [repo-toolchain 的依赖图](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则)。
+- 合并前的准入只认准入模式真跑出来的条目，所以硬线 3 要的运行里，命中只来自输入完全相同的另一次准入。`FULL=1`、`--no-cache` 与 `OMNE_TEST_CACHE=0` 只写不读缓存。
+- 依赖图也有缓存，它直接决定硬线 1 的方向与环、硬线 4 的读数。准入时它不读，所以合并前这两条硬线的判断不含命中；本地非准入的 `pnpm run check` 会读它。
+- 细则见 [test-runner 的结果缓存](../tools/test-runner/SPEC.md#结果缓存)与 [repo-toolchain 的依赖图](../tools/repo-toolchain/SPEC.md#依赖图)。
 
 `--strict --scope engineering` 是 `omne-loop-status` 的工程范围严格模式，需要时显式传入；提升 main 时的严格一步不传 `--scope`。只有当前树、固定 targetBase、实际 merge-base 和每个 taskBase 均无受维护产品源码与测试时，duplication 与 assertions 的无数据读数才标为工程范围不适用。
 原始 no-data 保留，报告给出精确提交与计数。任何一处仍有输入、基线未知、读取失败或其他启用传感器无数据，均不能用此范围放行。
@@ -64,7 +64,7 @@
 
 **收工时的反馈**：agent 收工的那一刻，若这次变更碰了产品源码或架构预期、且有要报告的读数，宿主的收工钩子会把那几条读数作为事实交还给它——
 只说位置与数值，不说该怎么改；只说比这棵工作树这条分支上一次量到的新出现或变差的，没有就不出声；钩子只量自己所在的工作树，退回到别的检出时只说「量不了」；钩子自己出错从不拦人。它是提醒，不是门：
-没被提醒不等于没有红项，交代了没有仍由交付说明与接受的人核对。没有 task context 时，钩子的基线是主线与活跃集成轨道里离 HEAD 最近的合并点，细则见[收工钩子](../tools/repo-toolchain/README_ZH.md#收工钩子)。怎么生效、怎么关，见[宿主钩子的源](../.meta_harness/agents/hooks/README.md)。
+没被提醒不等于没有红项，交代了没有仍由交付说明与接受的人核对。没有 task context 时，钩子的基线是主线与活跃集成轨道里离 HEAD 最近的合并点，细则见[收工钩子](../tools/repo-toolchain/SPEC.md#收工钩子)。怎么生效、怎么关，见[宿主钩子的源](../.meta_harness/agents/hooks/README.md)。
 
 **长期验证跟着场景走。**验收场景和声明覆盖它们的可执行验收随产品持续维护，不按任务数量复制。`pnpm run acceptance:scenarios`分别报告当前产品的覆盖声明、执行与接受；缺编号场景的topic单列未覆盖。覆盖声明不证明验收已执行、通过或交付已接受。实际运行和接受分别核对。合并前按影响面选择必要验收，验收耗时由传感器报告。
 
@@ -85,12 +85,12 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 | 只跑可执行验收 | `pnpm run acceptance`（缺省先构建；`pnpm run check` 里它排在构建之后） |
 | 合并前第一、二条硬线（方向与环、验收锁）破没破 | `pnpm run check` 的常驻步骤 `lint:rules`、`lint:deps` 与 `acceptance:lock` |
 | 一程改动里的克隆、成员预算、传感器有没有数据 | 一程全量读数时（全部切片收口之后、交付声明之前）跑 `pnpm run loop:status --base <一程起点> --out <目录>`，红项与结构读数一样逐条交代；这几项收工钩子不报，准入也不跑 |
-| 整仓健康读数：开着的传感器都有数据、成员预算、重复代码、趋势 | mainline 提升 main 时跑 `pnpm run loop:status --strict --out <目录>`，摘要贴在提升 PR 上，只报告不挡；之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
+| 整仓健康读数：开着的传感器都有数据、成员预算、重复代码、趋势 | mainline 提升 main 时跑 `pnpm run loop:status --strict --out <目录>`，摘要贴在提升 PR 上，只报告不挡；之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具规格](../tools/repo-toolchain/SPEC.md#回路状态)的「验收耗时」 |
 | 在主线上留一条趋势 | 干净的主线提交上跑 `pnpm run loop:status`，它自己追加一条快照；别的提交上要留就加 `--snapshot` |
 | 提交大小、测试耗时与结构指标的走向 | `pnpm run loop:health`，出一张离线可开的页面 |
 
 每个入口覆盖什么、**不能声称什么**，传感器各自的算法、出处与查不出的东西，在
-[tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md)。这里不抄第二份。
+[tools/repo-toolchain 的规格](../tools/repo-toolchain/SPEC.md)，各入口的用法见它的 `--help`。这里不抄第二份。
 
 ## 条目对照表
 
