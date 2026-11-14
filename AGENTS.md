@@ -92,7 +92,7 @@ flowchart LR
   common -.- entry
 ```
 
-第二张图是已接受的目标。现有实现和它的差别见[系统分层](docs/architecture/layers-and-dependencies.md#现行偏离)「现行偏离」。
+第二张图是已接受的目标，现有实现还没有完全照它做。
 
 ## 心智模型要点
 

@@ -222,7 +222,7 @@ flowchart LR
 | 状态 | 元素 |
 | --- | --- |
 | 已接受正文 | 图中全部元素与关系 |
-| 已接受正文，成员未建 | 客户端装配、领域的界面模块、领域的协议契约、领域的接入插件。现有实现里，各领域的线上形状在公开契约、处理代码在服务端入口、SDK 为每个位置手写一个客户端，差别见[系统分层](architecture/layers-and-dependencies.md#现行偏离)「现行偏离」 |
+| 已接受正文，成员未建 | 客户端装配、领域的界面模块、领域的协议契约、领域的接入插件。现有实现里，各领域的线上形状在公开契约、处理代码在服务端入口、SDK 为每个位置手写一个客户端 |
 | 首条路径已装载 | 图中不标。插件树装载的成员包括：服务端接入适配中的 `server-entry`；基础设施与 Cordis 适配中由 `agent-host`、`model-host`、`tool-runtime`、`tool-executor`、`tool-host`、`execution-environment`、`execution-files`、`execution-host-files`、`storage`、`session-storage` 与 `session-ad*` 各行装载的成员；服务端能力的公开接口中这些行所依赖的各契约成员。全部装载行见[插件树](architecture/runtime/application-assembly.md#插件树) |
 | 已知冲突待裁 | 无 |
 | 已裁定待写回 | 无 |

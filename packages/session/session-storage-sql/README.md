@@ -68,7 +68,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-storage-sql
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The cases are in [tests/](tests/README.md). The `node:sqlite` fixture does not pass through the Worker of sqlite-provider; `tests/real-provider.spec.ts` does, and covers process-level durability, close, and the `command_limit` and `queue_full` limits. Power-loss durability and WAL maintenance have no coverage. The "derived equals recomputed" check, the read-path complexity benchmarks, concurrent writes, and failure-table injection in the [verification obligations](docs/verification-obligations.md) are not implemented. The package declares no numeric target before measurement. Power-loss durability belongs to the owners of [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01), and this package does not claim it. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The cases are in [tests/](tests/README.md). The `node:sqlite` fixture does not pass through the Worker of sqlite-provider; `tests/real-provider.spec.ts` does, and covers process-level durability, close, and the `command_limit` and `queue_full` limits. Power-loss durability and WAL maintenance have no coverage. The "derived equals recomputed" check, the read-path complexity benchmarks, concurrent writes, and failure-table injection in the [verification obligations](docs/verification-obligations.md) are not implemented. The package declares no numeric target before measurement. This package does not claim power-loss durability. A passing structure check does not prove behavior.
 
 ## Maintenance
 

@@ -285,14 +285,14 @@
 > （工具结果**自己又是一串块**，所以工具也能返回图）。
 > 工具调用、工具结果和推理续接状态也是内容块的种类，不是块之外的另一层东西。
 > 代码里的类型名 `ToolCallPart`、`ToolResultPart` 与 `ReasoningStatePart` 只与这三种块对照，没有别的含义。
-> 哪个包发布哪几种块，见 [COMMON-T02](../../../../docs/architecture/cross-cutting-concepts.md#common-t02)。
+> 哪个包发布哪几种块，见 [Common 规格的内容块](../../../../packages/common/SPEC.md#内容块)。
 >
 > **EN**: **A message holds a number of blocks, not a span of text.** The kinds are
 > text, thinking, voice, image, file, tool call, tool result and reasoning state — **a tool result being
 > itself a series of blocks**, which is how a tool can return an image.
 > Tool call, tool result and reasoning state are kinds of content block, not a separate layer outside the blocks.
 > The code type names `ToolCallPart`, `ToolResultPart` and `ReasoningStatePart` only correspond to these three kinds and carry no other meaning.
-> For which package publishes which kinds, see [COMMON-T02](../../../../docs/architecture/cross-cutting-concepts.md#common-t02).
+> For which package publishes which kinds, see [the content-block section of the Common spec](../../../../packages/common/SPEC.md#内容块).
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息的内容是一串块](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
