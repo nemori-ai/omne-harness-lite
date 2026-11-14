@@ -78,6 +78,7 @@ const statements = [
   ) WITHOUT ROWID, STRICT`,
   `CREATE INDEX gc_operation_pending ON gc_operation(scope_key, command_owner, principal_ref, operation_id)
     WHERE state IN ('accepted','submitted')`,
+  // The recovery scan: operations that are not terminal, or whose standing custody is not settled.
   `CREATE INDEX gc_operation_recovery ON gc_operation(scope_key, command_owner, principal_ref, operation_id)
     WHERE state IN ('accepted','submitted')
        OR (held_json IS NOT NULL AND json_extract(held_json, '$.kind') IS NOT 'settled')`,

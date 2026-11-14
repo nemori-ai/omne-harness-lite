@@ -8,6 +8,7 @@ export const SETTINGS_INTENT_TABLES = ['st_governance_intent', 'st_governance_at
 export const SETTINGS_STANDING_CUSTODY_TABLE = 'st_intent_standing'
 export const SETTINGS_SOURCE_CUSTODY_TABLES = ['st_intent_source_plan', 'st_intent_source']
 
+/** The relations of a prepared operation: its root, its attempts and the custody of each attempt. */
 export default {
   ...SETTINGS_PREPARATION_MIGRATION,
   up(port) {
