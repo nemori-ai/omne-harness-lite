@@ -89,7 +89,6 @@ export const target: ContextTarget = { tenant, scope }
 export { profile } from './profile.js'
 import { profile } from './profile.js'
 
-/** The stably read groups of one call, flattened as the operations read them. */
 export type Snapshot = Readonly<{
   identity: AssemblyCall<string>
   history: InputGroups<string>['history']['evidence']
@@ -106,7 +105,6 @@ export type Snapshot = Readonly<{
   alterations: InputGroups<string>['control']['alterations']
   beforeModelCall: InputGroups<string>['control']['beforeModelCall']
 }>
-/** The source-side doubles a test drives; the meter is wrapped into a scripted lease. */
 export type Ports = {
   history: HistorySource<string>
   conversions: ConversionResultSource<string>
@@ -268,10 +266,6 @@ function groupsOf(input: Snapshot) {
     },
   }
 }
-/**
- * Source doubles for one ports object. A group's count moves only when that group's value
- * changes, so repeated calls with equal groups present equal tokens, as real sources must.
- */
 export function sourcesFor(input: Snapshot, ports: Ports): MemoryContextSources<string> {
   const groups = groupsOf(input)
   let held = bound.get(ports)
@@ -337,7 +331,6 @@ export function callId(raw = 'one') {
 export function dispatchId(raw = 'one') {
   return must(decodeDispatchId(`mdisp_${raw}`))
 }
-/** The adopted fact a coordinator would save when it fixes `candidate`. */
 export function adoptedOf(
   candidate: RequestCandidate,
   extra: Partial<AdoptedRequestFact> = {},
@@ -356,7 +349,6 @@ export function adoptedOf(
     ...extra,
   }
 }
-/** A row of `index` that carries `message`; an assistant message may carry a source call. */
 export function rowWith(index: number, carried: Message, sourceCall?: TenantModelCall): HistoryRow {
   const base = row(index)
   return {

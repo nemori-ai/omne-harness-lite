@@ -1,9 +1,3 @@
-// `AgentContextProvider` on real Cordis 4.0.4: the real request-context provider, the real
-// runtime-context provider, the memory holder double of contextHolderSources (K-RQ), a scripted
-// reader eligibility handoff (K-RC), the Model request preparation double, and the stand-in for the
-// Model preparation resources key (X-3). The plugin loads only with all six keys, provides two
-// services, withdraws what it registered when it stops, and the holder closes its reads only after
-// the settlement it pulled has ended.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import {
@@ -45,14 +39,11 @@ import type { EligibilityId } from '@omne-harness/runtime-context-contract'
 import { modelRequestPreparationKey } from '@omne-harness/model-cordis-contract/cordis'
 import { createWorld, evidence, owner, type World } from './fixtures/context-world.ts'
 
-// `FiberState` is a const enum in Cordis 4.0.4, erased at runtime: PENDING is its first member,
-// ACTIVE its third and FAILED its fourth.
 const PENDING = 0
 const ACTIVE = 2
 const FAILED = 3
 const config = { owner }
 
-/** The adoptions double: one definition, `coding`, with two instruction sections; others invalid. */
 const CODING: AgentDefinition = {
   category: 'AgentDefinition',
   name: 'coding',
@@ -67,8 +58,7 @@ const CODING_ADOPTION = { owner: 'release', name: 'coding', revision: '1', diges
 class Adoptions extends AgentAdoptionsService<unknown> {
   readonly resolve: AgentAdoptions<unknown>['resolve'] = async input =>
     input.adoption.name === CODING_ADOPTION.name
-      ? // The evaluator is not read by the fourth group; the double gives none.
-        { ok: { definition: CODING, evaluator: {} as never, extensions: [] } }
+      ? { ok: { definition: CODING, evaluator: {} as never, extensions: [] } }
       : { failure: { kind: 'invalid', field: 'adoption', reason: 'not of this deployment' } }
   readonly handover: AgentAdoptions<unknown>['handover'] = async () => ({
     failure: { kind: 'unsupported' },
@@ -80,7 +70,6 @@ class ProbeTrust extends RequestContextTrustService<unknown> {
   readonly registrationAuthority = { check: async () => ({ kind: 'allowed' as const }) }
 }
 
-/** Every provider the plugin injects, each as its own plugin so a test can leave one out. */
 async function providers(w: World) {
   const ports = createTestAuthorityPorts<unknown>()
   ports.bind(w.f.target.scope, w.tenant)
@@ -260,7 +249,6 @@ describe('AgentContextProvider on real Cordis', () => {
       coverage: evidence('read'),
     }
     expect(await requests.prepare(w.prepareInput(context))).toEqual(closed)
-    // The holder pulled the settlement once, and it settled.
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(holder.settlements()).toEqual([{ kind: 'settled' }])
     const served = await ctx.get(requestContextKey)?.assembly(w.f.target).assemble(w.f.call)
@@ -303,7 +291,6 @@ describe('AgentContextProvider on real Cordis', () => {
     const face = ctx.get(requestContextKey)
     if (reader === undefined || requests === undefined || face === undefined)
       throw new Error('services absent')
-    // A registered contributor of the same scope: it must follow the definition sections.
     await ctx.plugin({
       name: 'contributor',
       inject: { [requestContextKey]: { scope: w.f.target.scope } },

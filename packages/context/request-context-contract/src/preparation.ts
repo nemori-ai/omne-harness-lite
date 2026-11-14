@@ -14,7 +14,6 @@ import type {
   RequestCandidate,
 } from './values.js'
 
-/** The reuse key: principal key, call identity, the six group tokens and the derivation rules. */
 export function preparationKey<P>(
   input: AssemblyInput<P>,
   principal: PrincipalKey,
@@ -35,7 +34,6 @@ export function preparationKey<P>(
   }
 }
 
-/** What a call may build on: the history read of this call and the material it continues. */
 export type ReuseBasis = Readonly<{ historyRead: StableInputs<unknown>['historyRead'] }>
 
 export type StablePreparation = Readonly<{
@@ -45,16 +43,10 @@ export type StablePreparation = Readonly<{
   view: ProjectedHistory
   prompt: Extract<SystemPromptResult, { kind: 'rendered' }>
   declarations: ToolDeclarationSet
-  /**
-   * The cached material whose layered content this preparation may keep: same model, and no
-   * alteration that touches the existing layers. Null: every layer is derived again.
-   */
   layers: CachedAssemblyMaterial | null
-  /** How `view` relates to the cached view: the same one, or that one plus appended rows. */
   viewFrom: 'same' | 'appended' | null
 }>
 
-/** Whether the stable layers of the cached material still describe this call (R7). */
 function layerBasis<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,
@@ -68,7 +60,6 @@ function layerBasis<P>(
   return altered ? null : cached
 }
 
-/** The carried candidate whose key equals this key, if any. */
 export function reusableCandidate<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,
@@ -80,7 +71,6 @@ export function reusableCandidate<P>(
     ? carried
     : null
 }
-/** A fixed candidate retried with different groups: the other adoption cannot rewrite it. */
 export function contradictoryPreparation<P>(
   input: AssemblyInput<P>,
   reusable: RequestCandidate | null,
@@ -95,7 +85,6 @@ export function contradictoryPreparation<P>(
   )
 }
 
-/** The view of the rows: the carried one, the cached one, the cached one plus the new rows, or all rows. */
 function viewOf<P>(
   input: AssemblyInput<P>,
   rows: readonly HistoryRow[],
@@ -112,7 +101,6 @@ function viewOf<P>(
   }
   return { view: project(rows, input.history.epoch), viewFrom: null }
 }
-/** The system prompt: the carried one, the cached one under the same prompt token, or a new render. */
 function promptOf<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,

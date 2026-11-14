@@ -1,7 +1,3 @@
-// CX-14 at the operation group: a call that is lent reuse reads only the rows after the cached
-// ones, projects only the appended rows, and derives the same candidate as a call without reuse.
-// The reuse here is a one-slot double of the seam; the registry that owns the real state is tested
-// in the request-context member.
 import { describe, expect, it } from 'vitest'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import { judgeMessage, type Message } from '@omne-harness/message'
@@ -37,7 +33,6 @@ function candidateOf(result: AssemblyResult) {
   return result.candidate
 }
 
-/** A one-slot double of the seam: what a call stages becomes visible to the next call. */
 function oneSlot() {
   let slot: CachedAssemblyMaterial | null = null
   const staged: CachedAssemblyMaterial[] = []
@@ -55,7 +50,6 @@ function oneSlot() {
     reuse,
     staged,
     loads,
-    /** Publishes what the last call staged, as the registry does after its publication check. */
     commit() {
       slot = staged.at(-1) ?? slot
     },
@@ -75,7 +69,6 @@ function operationsOf(f: AssemblyFixture, reuse?: AssemblyReuse) {
     ...(reuse === undefined ? {} : { reuse }),
   })
 }
-/** Counts what the history port really returns. */
 function counted(f: AssemblyFixture) {
   const counts = { pages: 0, rows: 0 }
   const reader = f.history as unknown as { read: AssemblyFixture['history']['read'] }
@@ -90,7 +83,6 @@ function counted(f: AssemblyFixture) {
 }
 type Eligibility = { set(decision: 'allowed' | { kind: 'denied' }): void }
 const eligibilityOf = (f: AssemblyFixture) => f.sources.eligibility as unknown as Eligibility
-/** The history group says the history ends at `index`; the double serves rows up to it. */
 function growTo(f: AssemblyFixture, index: number) {
   const history = f.sources.values().history
   f.sources.update('history', {
@@ -156,7 +148,6 @@ describe('an appended projection equals the full projection', () => {
       const warm = candidateOf(await hot.assemble(f.call))
       slot.commit()
       const cold = candidateOf(await operationsOf(f).assemble(f.call))
-      // The source chains the prefix digests, so the full projection runs over the rows it returned.
       expect(warm.preparation.view).toEqual(project(cold.preparation.rows, epoch))
       expect(warm.preparation.view).toEqual(cold.preparation.view)
       expect(warm.layers.historyHead).toEqual(cold.layers.historyHead)
@@ -197,7 +188,6 @@ describe('the layered history is extended, not derived again', () => {
     growTo(f, 2)
     candidateOf(await hot.assemble(f.call))
     slot.commit()
-    // The appended rows are the new inputs of this request, so the anchor stays at the old tail.
     const history = f.sources.values().history
     f.sources.update('history', {
       ...history,
@@ -225,7 +215,6 @@ describe('the layered history is extended, not derived again', () => {
     slot.commit()
     expect(forward.layers.historyBody).toEqual([])
     expect(forward.layers.historyHead).toHaveLength(7)
-    // The new inputs now reach back before the cached anchor.
     const history = f.sources.values().history
     f.sources.update('history', {
       ...history,
@@ -265,7 +254,6 @@ describe('the history read continues from the cached rows', () => {
     slot.commit()
     const reader = f.history as unknown as { read: AssemblyFixture['history']['read'] }
     const original = reader.read.bind(f.history)
-    // The page starts after the row that the cursor named, with one row missing in between.
     reader.read = async input => {
       const result = await original(input)
       return result.kind === 'page'
@@ -342,7 +330,6 @@ describe('the history read continues from the cached rows', () => {
     expect(current.epoch).toBe(next)
     expect(warm.preparation.rows).toEqual(cold.preparation.rows)
     expect(warm.preparation.view).toEqual(cold.preparation.view)
-    // The new epoch was read from its first row, not from the end of the old rows.
     expect(counts.rows).toBe(warm.preparation.rows.length * 2)
   })
 
@@ -375,7 +362,6 @@ describe('cached material is used only for the call it belongs to', () => {
       candidate: 'candidate:2' as never,
     }
     const warm = candidateOf(await hot.assemble(next))
-    // Only the two new rows are read; the content is that of a call without reuse.
     expect(counts.rows).toBe(2)
     const cold = candidateOf(await operationsOf(f).assemble(next))
     expect(warm.layers).toEqual(cold.layers)
@@ -404,7 +390,6 @@ describe('cached material is used only for the call it belongs to', () => {
       slot.put(other)
       counts.rows = 0
       candidateOf(await hot.assemble(f.call))
-      // Everything is read again from the first row.
       expect(counts.rows).toBe(5)
     }
   })
@@ -437,7 +422,6 @@ describe('cached material is used only for the call it belongs to', () => {
     const before = f.preparation.calls().length
     candidateOf(await hot.assemble(f.call))
     candidateOf(await hot.assemble(f.call))
-    // Each call measures the whole request and its fixed part, each with its own lease.
     expect(f.preparation.calls().length - before).toBe(4)
   })
 })

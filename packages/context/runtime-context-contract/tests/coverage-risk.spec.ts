@@ -73,7 +73,6 @@ it('refuses invalid bindings without a producer declaration and does not commit 
       }),
     ).toMatchObject({ kind: 'invalid', reason: 'registration', current: 0 })
   }
-  // A lawful declaration-independent registration still succeeds at revision zero.
   expect(
     await memory.applyCommit('principal', {
       kind: 'registration',
@@ -164,7 +163,6 @@ it('stops value fallback when the parent has no registration for the requested b
   if (producer.kind !== 'registered') throw new Error('Producer refused')
   const parent = scope('unregistered-parent')
   await add(memory, ports, parent, owner, 'suite.other')
-  // Publishing does not grant registration or make an unregistered block inheritable.
   await producer.handle.publish({ scope: parent, tenant: owner, value: 91 })
   const child = scope('registered-child', parent)
   await add(memory, ports, child)

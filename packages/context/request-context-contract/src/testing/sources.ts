@@ -23,7 +23,6 @@ import { digest } from '../internal.js'
 
 type SourceGroup = Exclude<GroupName, 'identity'>
 type Failed = Exclude<SourceRead<never>, { kind: 'value' }>
-/** The value each group source gives; the third group has no adopted fact. */
 export type AssemblyGroupValues<P> = { [K in SourceGroup]: SourceGroupValue<P, K> }
 let instances = 0
 function token(text: string): GroupToken {
@@ -36,11 +35,9 @@ export interface MemoryAdoptedSource<P> extends AdoptedRequestSource<P> {
   readonly durability: 'none'
   set(fact: AdoptedRequestFact | null): void
   fail(read: Failed | null): void
-  /** Runs once, right after the next source read; a test uses it to change the fact mid-read. */
   afterSourceRead(hook: () => void): void
   reads(): number
 }
-/** A non-durable narrow adoption source; the count changes on every `set`, never reused. */
 export function createMemoryAdoptedSource<P>(
   initial: AdoptedRequestFact | null = null,
   authority: Adoption = {
@@ -110,7 +107,6 @@ export function createMemoryReadEligibility<P>(): MemoryReadEligibility<P> {
   }
 }
 
-/** Keys a principal by its tenant text and its JSON text; only for principals that JSON can carry. */
 export function createTestingPrincipalBinding<P>(): PrincipalBinding<P> {
   return {
     async key(access: Access<P>) {
@@ -134,12 +130,9 @@ export interface MemoryContextSources<P> extends ContextSources<P> {
   readonly durability: 'none'
   readonly target: ContextTarget
   values(): AssemblyGroupValues<P>
-  /** Replaces one group value and moves that group's count. */
   update<K extends SourceGroup>(group: K, value: AssemblyGroupValues<P>[K]): void
-  /** Runs once, right after the next source read of the group. */
   afterSourceRead(group: SourceGroup, hook: () => void): void
   fail(group: SourceGroup, read: Failed | null): void
-  /** Moves the count of a group on every count read: the group never becomes stable. */
   churn(group: SourceGroup, on: boolean): void
   sourceReads(group: SourceGroup): number
 }
@@ -160,7 +153,6 @@ function covered(group: SourceGroup, value: unknown): string {
   const { carried: _carried, ...identity } = previous
   return digest({ ...control, previous: identity })
 }
-/** Non-durable group sources with source-owned counters. Never install them as production sources. */
 export function createMemoryContextSources<P>(
   input: MemoryContextSourcesInput<P>,
 ): MemoryContextSources<P> {
@@ -211,7 +203,6 @@ export function createMemoryContextSources<P>(
     update(group, value) {
       const before = covered(group, values[group])
       values[group] = value
-      // The control token covers the previous preparation's identity, not the content it carries.
       if (group !== 'control' || before !== covered(group, value))
         counters.set(group, (counters.get(group) ?? 0) + 1)
     },

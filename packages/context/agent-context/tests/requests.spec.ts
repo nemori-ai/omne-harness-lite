@@ -1,7 +1,3 @@
-// agentRequests over the real Request Context registry and operation group with the default
-// strategies: the four outcomes of prepare, the request that the Model double fixes, the lineage of
-// a second round, the translated groups, the staging table, the registration, the failure classes,
-// and the plan identity, bound and completed checks of derive and resume.
 import { writeFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { decodeActionId, type Preparation } from '@omne-harness/agent-contract'
@@ -50,7 +46,6 @@ function kindOf(result: { ok: Preparation } | { failure: unknown }) {
   return 'ok' in result ? result.ok.kind : result
 }
 
-/** Holds every assemble until `open` is called, to keep calls in flight; `held` lists their calls. */
 function gated(): Readonly<{
   wrap: NonNullable<WorldOptions['operations']>
   held: readonly AssemblyCall<string>[]
@@ -92,7 +87,6 @@ describe('prepare', () => {
   })
 
   describe('the fixed request record in the state of a ready preparation (RQ-14)', () => {
-    /** A report with two input-tokens checks; the forecast is the larger one. */
     const twoChecks: NonNullable<WorldOptions['meter']> = () => {
       const [only] = fixtureBudget().checks
       if (only === undefined) throw new Error('fixture check')
@@ -102,7 +96,6 @@ describe('prepare', () => {
       })
       return { ok: { ...fixtureBudget(), checks: [at('7'), at('90')] } }
     }
-    /** The selection of a profile with another window than the fixture profile has. */
     function widerSelection(w: World, provided: string) {
       const { profile } = w.selection.resolution
       const { context } = profile.definition
@@ -392,7 +385,6 @@ describe('the groups that Request Context reads', () => {
   })
 })
 
-/** Waits until `count` assemble calls are held in the gate. */
 async function heldFor(gate: ReturnType<typeof gated>, count: number) {
   for (let turn = 0; gate.held.length < count; turn += 1) {
     if (turn > 200) throw new Error(`only ${gate.held.length} of ${count} calls reached the gate`)
@@ -548,7 +540,6 @@ describe('registration of the source set', () => {
     const context = await w.read()
     okOf(await w.requests.prepare(w.prepareInput(context)))
     expect(await w.requests.close()).toEqual({ kind: 'settled' })
-    // The target is free again: another registrant gets it, which a live registration refuses.
     const other = { ...owner, name: 'next' }
     const next = await w.registry.register({
       access: w.access,
@@ -677,7 +668,6 @@ describe('derive and resume', () => {
     })
   })
 
-  /** A plan whose step results are readable, with each derived step result passed through `rewrite`. */
   function stepped(rewrite: (real: StepResult) => StepResult) {
     return planned({
       stepResults: async () =>
@@ -697,10 +687,6 @@ describe('derive and resume', () => {
     expect(result.kind === 'cannot-fit' ? 'cannot-fit' : result.progress.completed).toBe('1')
   })
 
-  // R2-D292: the Agent keeps no step request; with the same action and progress and a null result
-  // it derives the request of the current step again. The content is the same: the same fixed
-  // request and the same digests. The evidence records are minted anew, so a caller recognizes the
-  // step by its content digests, never by the records.
   it('derives a step request of the same content again for the same action and progress', async () => {
     const { derive } = await stepped(real => real)
     const content = (step: Extract<Awaited<ReturnType<typeof derive>>, { ok: unknown }>['ok']) => {
@@ -720,7 +706,6 @@ describe('derive and resume', () => {
     const first = okOf(await derive())
     const again = okOf(await derive())
     expect(content(again)).toEqual(content(first))
-    // Negative control of the comparison: the evidence records themselves are not the same.
     if (first.kind === 'continue' && again.kind === 'continue')
       expect(again.stepRequest.source.record).not.toBe(first.stepRequest.source.record)
   })
@@ -784,7 +769,6 @@ describe('CX-14 the derivation of a long conversation grows with the new rows', 
     if ('failure' in id) throw new Error('fixture action')
     return id.ok
   }
-  /** One real round: the holder resolves the head to the longer history, then the adapter prepares. */
   async function round(w: World, index: number, last: number) {
     w.growTo(last)
     w.observation.reset()
@@ -797,7 +781,6 @@ describe('CX-14 the derivation of a long conversation grows with the new rows', 
     return {
       round: index,
       ...w.observation.counts(),
-      // The whole request is still measured with every message of the history.
       measuredMessages: whole?.assembled[0]?.messages.length ?? 0,
       requestMessages:
         'ok' in result && result.ok.kind === 'assembled' ? result.ok.input.messages.length : 0,
@@ -837,15 +820,12 @@ describe('CX-14 the derivation of a long conversation grows with the new rows', 
     })
     const early = table.slice(10, 30).map(derived)
     const late = table.slice(180, 200).map(derived)
-    // Rounds 11 to 30 and rounds 181 to 200 do the same work per round, pair by pair.
     expect(late).toEqual(early.slice(0, late.length))
     for (const item of table.slice(1)) {
       expect(item.pageCalls).toBe(1)
       expect(item.returnedRows).toBe(perRound)
-      // Only the last cached row is read: the cursor of the tail read continues from it.
       expect(item.olderRowsTouched).toBe(1)
     }
-    // The full request is not skipped: it is still built and measured over the whole history.
     const requests = table.map(item => item.requestMessages)
     expect(requests.at(-1)).toBeGreaterThan((requests[19] ?? 0) * 5)
     expect(table.at(-1)?.measuredMessages).toBeGreaterThan(table[19]?.measuredMessages ?? 0)

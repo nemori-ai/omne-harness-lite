@@ -1,7 +1,3 @@
-// agentModelContext (AG-13): reads the model-readable Runtime Context for one execution attachment.
-// The block material of the latest full read stays in this process; a read after it is lost is a
-// full read. The evidence it hands out names its execution in its key, so a later instance can tell
-// whose it is, but only the minting instance can resolve it to material.
 import type { Failure, ModelContextRead, ModelContextReader } from '@omne-harness/agent-contract'
 import { succeed, fail } from '@omne-harness/operation-result'
 import type {
@@ -28,13 +24,9 @@ import { failureOfRead, recipientText, unavailable } from './translate.ts'
 
 export type AgentModelContextOptions<P> = Readonly<{
   materials: ContextMaterials<P>
-  /** From the leased holder parts: the history resolution and the narrow adoption source. */
   parts: Pick<ContextHolderParts<P>, 'resolveHistory' | 'adopted'>
-  /** The reader eligibility handoff of the scope holder (K-RC). */
   eligibility: ReaderEligibilityHandoff<P>
-  /** The Runtime Context reader face, bound to the model consumer class. */
   runtimeContext: ReaderOperations
-  /** The observer of the measurement events (SPEC「测量事件」). Absent means no event is built. */
   measure?: ContextMeasure
 }>
 
@@ -44,7 +36,6 @@ type Read = SnapshotResult | ChangesResult
 
 const RC = 'runtime-context'
 
-/** The answer of a read that gave no material: never a success and never an older value. */
 function failureOfReadOutcome(read: Exclude<Read, { kind: 'success' }>): Failure {
   switch (read.kind) {
     case 'refused':
@@ -60,7 +51,6 @@ function failureOfReadOutcome(read: Exclude<Read, { kind: 'success' }>): Failure
   }
 }
 
-/** The per-request blocks with a value; a missing or unknown one fails the read. */
 function perRequestOf(entries: readonly PerRequestEntry[]): Answer<readonly BlockMaterial[]> {
   const blocks: BlockMaterial[] = []
   for (const entry of entries) {
@@ -104,11 +94,6 @@ export function createAgentModelContext<P>(
     }
   }
 
-  /**
-   * The reader of the current eligibility: the kept one when the eligibility did not change, else a
-   * new bind. A bind refused as unauthorized means the eligibility was replaced; the handoff is
-   * asked once more, and a second refusal is the answer.
-   */
   async function readerOf(
     access: Access<P>,
     target: ContextTarget,
@@ -142,7 +127,6 @@ export function createAgentModelContext<P>(
     }
   }
 
-  /** True when the adopted coverage is the one the narrow adoption source holds as fixed now. */
   async function adoptedHolds(input: ReadInput<P>, target: ContextTarget): Promise<boolean> {
     if (input.adopted === null) return false
     const access = { principal: input.principal, tenant: input.tenant }
@@ -176,10 +160,6 @@ export function createAgentModelContext<P>(
     return material
   }
 
-  /**
-   * The checks on the evidence this owner minted, before any read. Evidence names its tenant, so a
-   * foreign one is denied. The adopted coverage must be ours and belong to this execution.
-   */
   function evidenceRefusal(input: ReadInput<P>, tenant: string): Failure | null {
     for (const evidence of [input.adopted, input.transition]) {
       const key = evidence === null ? null : materials.key(evidence)
@@ -250,7 +230,6 @@ export function createAgentModelContext<P>(
     return succeed(result)
   }
 
-  /** The kept read when this read goes on from it, else undefined: the read is then a full one. */
   async function keptRead(
     latest: LatestRead | undefined,
     reader: ContextReader,
@@ -267,14 +246,12 @@ export function createAgentModelContext<P>(
     return incremental ? latest : undefined
   }
 
-  /** What a read that gave no material leaves behind: its reader and, when it ended, its scope. */
   function releaseAfter(
     ended: boolean,
     latest: LatestRead | undefined,
     reader: ContextReader,
     place: Place,
   ): void {
-    // A reader that no entry holds ends here; a kept one stays with its entry.
     if (latest?.reader !== reader) void reader.end().catch(() => undefined)
     if (ended) materials.dropScope(place.tenant, place.scope)
   }
@@ -289,7 +266,6 @@ export function createAgentModelContext<P>(
     content: ModelContextRead['content']
   }>
 
-  /** An incremental read from the kept material when there is one, else a full read. */
   async function take(
     bound: Readonly<{ reader: ContextReader; eligibility: EligibilityId }>,
     kept: LatestRead | undefined,

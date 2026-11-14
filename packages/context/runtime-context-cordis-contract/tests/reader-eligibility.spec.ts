@@ -1,5 +1,3 @@
-// The reader eligibility handoff: the five results of `current`, the tenant check, the Cordis key,
-// and the handoff suite run against the scripted double.
 import { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {

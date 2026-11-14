@@ -16,7 +16,6 @@ type Measured = M.RequestBudget | AssemblyFailure | AssemblyUnknown
 function failed(value: Measured): value is AssemblyFailure | AssemblyUnknown {
   return value.kind !== 'complete' && value.kind !== 'deferred-media'
 }
-/** Measures the whole request and its fixed part, each as its own complete candidate (RQ-05). */
 export async function measureLayers<P>(
   input: AssemblyInput<P>,
   context: OperationContext<P>,

@@ -26,7 +26,6 @@ import {
   type World,
 } from './memory-world.js'
 
-/** How one supply attempt ended, for the read that may have triggered it. */
 export type SupplyOutcome =
   | Readonly<{ kind: 'stored' }>
   | Readonly<{ kind: 'refused' }>
@@ -114,10 +113,6 @@ export function createSupplier<P>(world: World<P>) {
     }
   }
 
-  /**
-   * One bounded supply attempt for one scope (RC-07 回调协议): authorize before, re-authorize after,
-   * then a final synchronous check of generation, replay epoch, sequence, end and registration.
-   */
   async function supplyOnce(
     producer: Producer<P>,
     s: ScopeState,
@@ -125,7 +120,6 @@ export function createSupplier<P>(world: World<P>) {
   ): Promise<SupplyOutcome> {
     if (!producer.supply || !isCurrent(producer)) return { kind: 'stale' }
     const epoch = s.replayEpoch
-    // A per-request read keeps no stored value, so concurrent reads do not supersede each other.
     const seq = store ? world.nextSeq(s, producer.key) : (s.supplySeq.get(producer.key) ?? 0)
     const before = await producerGate(producer, 'supply', s.scope)
     if ('kind' in before)
@@ -210,7 +204,6 @@ export function createSupplier<P>(world: World<P>) {
     return !producer.scoped && producer.declaration.volatility !== 'per-request'
   }
 
-  /** The first supply time point: the holder registered the block for this scope. */
   async function afterRegistration(s: ScopeState, key: ContextBlockKey) {
     const producer = producerFor(s, key)
     if (producer && drivesSupply(producer) && s.fence === 'open' && !s.ended)
@@ -355,7 +348,6 @@ export function createSupplier<P>(world: World<P>) {
       s.needsSupply.delete(producer.key)
       return { kind: 'published', scope, revision: s.values.get(producer.key)?.revision ?? 0 }
     }
-    /** Synchronous, so a batch of targets commits in one segment without `await`. */
     function invalidateOne(s: ScopeState) {
       world.nextSeq(s, producer.key)
       world.put(s, producer.key, undefined, producer.generation, false)
@@ -386,7 +378,6 @@ export function createSupplier<P>(world: World<P>) {
         if ('kind' in gate) return gate
         gates.push(gate)
       }
-      // From here to the last write there is no `await`: every check and every write is one segment.
       const late = refusal()
       if (late) return { kind: 'rejected', reason: late }
       if (world.targetsVersion !== version) return 'changed'

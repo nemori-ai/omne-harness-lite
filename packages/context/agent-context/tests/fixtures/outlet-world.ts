@@ -1,6 +1,3 @@
-// The shared world of the outlet tests: two tenants, one target per tenant, and a real account
-// projection (createContextAccounting) that the test rebuilds from an empty replay. Only the
-// account projection is real. The outlet under test is built by the caller.
 import {
   accountCodec,
   organizationCodec,
@@ -36,7 +33,6 @@ export const otherAccess: Access<string> = { principal: 'bob', tenant: mintTenan
 export const sender = { owner: 'agent-context', name: 'outlet', revision: '1', digest: 'd' }
 
 const scope = createAssemblyFixture().target.scope
-/** The one target of a tenant. */
 export function targetOf(who: TenantId): ContextTarget {
   return { tenant: who, scope: { ...scope, ref: 'scope:outlet' } as never }
 }
@@ -50,22 +46,13 @@ const system: SystemRecoveryAccess<string> = {
   grant: grant.ok,
 }
 
-/** What the real projection reported for the facts that the spy saw. */
 export type SpiedInbox = ContextAccountingInbox<string> &
   Readonly<{
     adopted: ReturnType<typeof createMemoryAdoptedSource<string>>
-    /** The facts that reached `receive`, in order, with the receipt of each. */
     seen(): readonly Readonly<{ input: ContextAccountingInput; receipt: AccountReceipt }>[]
-    /** The revision of the dispatch that the projection made current, or null. */
-    /** Per tenant: a call reference carries no tenant (R2-D357). */
     current(tenant: TenantId, call: string, dispatch: string): string | null
   }>
 
-/**
- * A real account projection whose targets are rebuilt from an empty replay, wrapped so that the
- * test sees each fact and its receipt. `current` follows only what the projection reports: a
- * fact it answers `inserted` is the current revision of its dispatch.
- */
 export async function realInbox(
   targets: readonly ContextTarget[],
   limits = { maxTargets: 4, maxFactsPerTarget: 16, maxRevisionsPerDispatch: 8 },

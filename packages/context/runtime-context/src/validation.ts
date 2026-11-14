@@ -5,10 +5,6 @@ const NOT_SYNCHRONOUS: readonly StandardSchemaV1.Issue[] = Object.freeze([
   Object.freeze({ message: 'schema-not-synchronous' }),
 ])
 
-/**
- * Runs a declared schema synchronously. An asynchronous schema cannot guard a synchronous commit,
- * so it reads as one issue instead of a throw that would escape the operation.
- */
 export function validate(
   schema: StandardSchemaV1,
   value: unknown,

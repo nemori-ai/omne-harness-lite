@@ -21,7 +21,6 @@ export const SNAPSHOT_ANCHOR_RULE = Object.freeze({
 } as const)
 export type Placement = Readonly<{
   snapshot: SnapshotReminder
-  /** The identity of the stable reminder: scope, eligibility, snapshot revision and anchor. */
   identity: SnapshotIdentity
   tail: TailFacts
   anchorSource: 'new-full-read' | 'adopted' | 'after-compaction'
@@ -33,11 +32,9 @@ export type PlacementInput = Readonly<{
   transition: TransitionEvidence | null
   view: ProjectedHistory
   newInputs: NewInputBatch
-  /** The stable reminder of an earlier call; it is kept when its identity is this call's identity. */
   cachedSnapshot?: Readonly<{ identity: SnapshotIdentity; reminder: SnapshotReminder }> | null
 }>
 
-/** The last model-visible message that is not a new input of this request, scanned from the end. */
 function lastBeforeInputs(
   messages: ProjectedHistory['messages'],
   transition: TransitionEvidence | null,
@@ -52,7 +49,6 @@ function lastBeforeInputs(
   return undefined
 }
 type Material = NonNullable<ContextReadGroup['snapshot']>
-/** An incremental read needs the adopted request to carry the same snapshot and epoch. */
 function adoptedLacksSnapshot(
   adopted: Coverage | null,
   material: Material,
@@ -66,7 +62,6 @@ function adoptedLacksSnapshot(
     adopted.snapshot.anchor.epoch !== view.epoch
   )
 }
-/** The adopted anchor of an incremental read; the visible history tail of a full read. */
 function anchorOf(input: PlacementInput, full: boolean): SnapshotAnchor {
   const { adopted, view, transition, newInputs } = input
   if (!full && adopted !== null) return adopted.snapshot.anchor

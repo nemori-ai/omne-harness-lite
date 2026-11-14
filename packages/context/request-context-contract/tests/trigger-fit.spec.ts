@@ -1,7 +1,3 @@
-// Behavior of the check after a summary (RQ-06, R2-D316): it judges the whole request against the
-// trigger line, as `judgeBudget` does. A compaction that passes `deriveStep` therefore does not
-// come back from `resume` as "still too big". Weights are the lengths of the `x` texts of the
-// request, so the sizes of the counterexample in verification/formal-mapping.md are exact.
 import { describe, expect, it } from 'vitest'
 import type * as M from '@omne-harness/model-contract'
 import type { CompactionMessage } from '@omne-harness/message'
@@ -25,7 +21,6 @@ import {
 
 const WINDOW = '10'
 const HARD = '8'
-/** Window 10, output 2, 60 percent: the trigger line is 6, the hard limit is 8. */
 function profileOf(base: Snapshot['selection']['profile']): Snapshot['selection']['profile'] {
   return {
     ...base,
@@ -42,17 +37,11 @@ function profileOf(base: Snapshot['selection']['profile']): Snapshot['selection'
 }
 
 type Scenario = Readonly<{
-  /** The weight of each history entry; the last entry is the new input. */
   weights: readonly number[]
-  /** The weight of the system prompt (layer 1). */
   system: number
-  /** Whether layer 6 carries one block, which weighs 1. */
   tail: boolean
-  /** The index of the last covered entry. */
   cover: number
-  /** The indexes of the retained entries. */
   retained: readonly number[]
-  /** The weight of the summary. */
   summary: number
   bound: number
 }>
@@ -60,7 +49,6 @@ type Scenario = Readonly<{
 const xs = (n: number) => 'x'.repeat(n)
 const idOf = (index: number) => String(index).padStart(22, 'a')
 
-/** The weight of a request: its `x` texts, plus one for each reminder message. */
 function weightOf(request: unknown): number {
   const json = JSON.stringify(request)
   const texts = [...json.matchAll(/"text":"(x+)"/gu)].reduce(
@@ -180,7 +168,6 @@ function build(s: Scenario) {
   return { input, ports, policies, extra, last }
 }
 
-/** Plans, then derives with a summary of `s.summary`; the history is the one the plan read. */
 async function compact(s: Scenario) {
   const c = build(s)
   const before = await assemble(c.input, c.ports, c.policies)
@@ -205,7 +192,6 @@ async function compact(s: Scenario) {
   return { c, before, planned, step }
 }
 
-/** What `resume` sees after the commit: the history with the compaction record appended. */
 async function resumed(c: ReturnType<typeof build>, record: CompactionMessage, plan: string) {
   c.extra.rows = [rowWith(c.last + 1, record)]
   const input: Snapshot = {
@@ -233,8 +219,6 @@ describe('the check after a summary is the check of the whole request', () => {
     expect(planned.kind).toBe('planned')
   })
 
-  // Red when the check compares the hard limit only: it would give a transition (7 is under 8)
-  // that `resume` then judges over the trigger line (6) and turns into cannot-fit.
   it('a summary that leaves the request over the trigger line gives no transition', async () => {
     const { c, step } = await compact(counterexample)
     expect(step).toMatchObject({
@@ -250,8 +234,6 @@ describe('the check after a summary is the check of the whole request', () => {
     expect(step).toMatchObject({ kind: 'next', progress: { completed: '1' } })
   })
 
-  // The same history with the coverage that fits: the compaction succeeds, and the commit is
-  // followed by a request that fits (the property CompactionKeepsWork of CompactionFit.tla).
   it('a larger coverage compacts, and the request after the commit fits', async () => {
     const { c, step, planned } = await compact({ ...counterexample, cover: 1 })
     expect(step).toMatchObject({ kind: 'transition' })
@@ -260,8 +242,6 @@ describe('the check after a summary is the check of the whole request', () => {
     expect(after.kind).toMatch(/^candidate-/u)
   })
 
-  // Red when the check leaves out layer 1 or layer 6: the request is over the line only with
-  // them, and the transition would come back from `resume` as cannot-fit.
   it('counts the system prompt and layer 6 in the request', async () => {
     const plain: Scenario = { ...counterexample, weights: [1, 2, 2, 1], cover: 1 }
     expect((await compact(plain)).step).toMatchObject({ kind: 'transition' })
@@ -278,8 +258,6 @@ describe('the check after a summary is the check of the whole request', () => {
     }
   })
 
-  // The model property over generated cases: every transition `deriveStep` gives is followed by a
-  // request that fits; only a request that cannot fit is refused, and before the commit.
   it('every transition is followed by a request that fits', async () => {
     let seed = 7
     const next = (n: number) => {

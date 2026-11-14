@@ -146,7 +146,6 @@ export function testingAccess<P>(principal: P, tenant: TenantId): import('../ref
   return { principal, tenant }
 }
 
-/** Default values of the six source groups for one target, with an empty saved input batch. */
 export function createAssemblyGroups(
   target: ContextTarget,
   overrides: Partial<AssemblyGroupValues<string>> = {},
@@ -243,7 +242,6 @@ export type AssemblyFixtureOptions = Readonly<{
   groups?: Partial<AssemblyGroupValues<string>>
   policies?: AssemblyPolicies
   preparation?: Partial<PreparationScript>
-  /** Open-work entries the history holder reports. */
   open?: readonly import('@omne-harness/message').RecordEntryRef[]
 }>
 export type AssemblyFixture = Readonly<{
@@ -255,7 +253,6 @@ export type AssemblyFixture = Readonly<{
   policies: AssemblyPolicies
   operations: () => AssemblyOperations<string>
 }>
-/** A complete in-memory source set for one target: one saved row, a scripted lease, no adoption. */
 export function createAssemblyFixture(options: AssemblyFixtureOptions = {}): AssemblyFixture {
   const tenant = options.tenant ?? fixtureTenant()
   const target: ContextTarget = { tenant, scope }

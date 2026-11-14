@@ -1,6 +1,3 @@
-// The default strategies inside a real operation group: a fixed history assembles into a request
-// that the Model request preparation double accepts, planning respects pairing and the budget, and
-// a later round that holds a continuation fact declares `continues` in its lineage.
 import { describe, expect, it } from 'vitest'
 import {
   createScriptedModelRequestPreparation,
@@ -46,7 +43,6 @@ function candidateOf(result: AssemblyResult): RequestCandidate {
   return result.candidate
 }
 
-/** Hands the assembled input to the Model request preparation double, as a coordinator would. */
 async function prepareThroughModel(f: AssemblyFixture, candidate: RequestCandidate) {
   const transport = createScriptedTransport({
     receipt: {
@@ -100,7 +96,6 @@ describe('default strategies in a real operation group', () => {
       'tool',
       'user',
     ])
-    // Text goes to the model as it is: the strategy chose the original for every block.
     expect(candidate.representations.map(choice => choice.choice)).toEqual([
       'original',
       'original',
@@ -115,8 +110,6 @@ describe('default strategies in a real operation group', () => {
     const candidate = candidateOf(await f.operations().assemble(f.call))
     const prepared = await prepareThroughModel(f, candidate)
     if (!('ok' in prepared)) throw new Error(`Preparation refused: ${JSON.stringify(prepared)}`)
-    // The double keeps the profile fixtures as given, the request representation among them: it is
-    // the one the profile fixes. Only the adoption this member mints, `source`, is under test.
     const sha = (letter: string) => letter.repeat(64)
     const hexAdoption = (name: string, letter: string) => ({
       owner: 'test',
@@ -187,7 +180,6 @@ describe('default strategies in a real operation group', () => {
   it('declares continues in the second round when the first request was fixed', async () => {
     const f = createAssemblyFixture({ policies: policies(), rows: rows() })
     const first = candidateOf(await f.operations().assemble(f.call))
-    // Round 1 has no adopted fact, so it declares nothing to continue from.
     expect(f.preparation.calls().every(seen => seen.lineage?.continues === undefined)).toBe(true)
     const call = decodeModelCallId('mcall_fixed')
     const order = decodeCommitOrder('1')

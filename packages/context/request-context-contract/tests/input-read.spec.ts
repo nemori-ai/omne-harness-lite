@@ -1,5 +1,3 @@
-// The stable read of the groups (RQ-13): each count and source read keeps its class, retries are
-// bounded, carried rows are reused only under the same key, and the judgment window is checked.
 import { describe, expect, it } from 'vitest'
 import {
   createAssemblyOperations,
@@ -24,7 +22,6 @@ function candidate(result: AssemblyResult) {
     throw new Error(result.kind)
   return result.candidate
 }
-/** Replaces one method of a group reader; the memory reader object is writable. */
 function patchGroup<K extends 'readCount' | 'readSource'>(
   f: AssemblyFixture,
   group: Group,
@@ -126,7 +123,6 @@ describe('retries are bounded', () => {
         retained: [],
         derivation: evidence,
       })
-      // The group still answers the old evidence on this read; its next read is the new epoch.
       f.sources.update('history', {
         ...history,
         evidence: { ...f.history.evidence(), epoch: next },

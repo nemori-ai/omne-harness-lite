@@ -1,4 +1,3 @@
-// The stable read of the seven groups (RQ-13): count, source, count; two attempts per group.
 import type { ContextTarget, GroupToken, PrincipalKey } from './refs.js'
 import { decodeGroupToken } from './refs.js'
 import { digest } from './internal.js'
@@ -18,7 +17,6 @@ import type {
 } from './values.js'
 import type { ContextSources, SourceRead } from './sources.js'
 
-/** Attempts per group: the first read and one re-read. */
 export const GROUP_READ_ATTEMPTS = 2
 type Failure = AssemblyFailure | AssemblyUnknown
 type Retry = Readonly<{ kind: 'retry' }>
@@ -45,17 +43,12 @@ export function sourceFailure(
 function isFailure<T>(value: Got<T> | Failure | Retry): value is Failure {
   return value.kind !== 'got' && value.kind !== 'retry'
 }
-/** Combines several source counts into one opaque token of a group. */
 export function combinedToken(parts: readonly GroupToken[]): GroupToken {
   const token = decodeGroupToken(`t_${digest(parts)}`)
   if ('failure' in token) throw new Error('Combined group token is invalid')
   return token.ok
 }
 
-/**
- * Runs the fixed order of one group: all before counts, the value, all after counts. A changed
- * count discards the group and its dependent reads; a second change is `unstable-input:<group>`.
- */
 export async function stableGroup<T>(
   name: string,
   counts: readonly (() => Promise<SourceRead<GroupToken>>)[],
@@ -99,9 +92,7 @@ export type StableInputs<P> = Readonly<{
   input: AssemblyInput<P>
   tokens: Tokens
   rows: readonly HistoryRow[]
-  /** The incremental judgment window under the same evidence, when it was asked for. */
   window: CompactionContext | null
-  /** How the rows were obtained, and the cached material they continue. */
   historyRead: Readonly<{
     mode: HistoryReadMode | 'carried'
     added: readonly HistoryRow[]
@@ -109,20 +100,12 @@ export type StableInputs<P> = Readonly<{
   }>
 }>
 export type InputReadOptions = Readonly<{
-  /** Also read the CM-02 judgment window inside the history group (planCompaction). */
   window?: boolean
-  /** The principal key of this call; carried rows are reused only for the same key. */
   principal?: PrincipalKey
-  /** The source set generation; carried rows are reused only within one generation. */
   generation?: PreparedInputKey['generation']
-  /**
-   * Material derived earlier for the same principal, generation, target and purpose, at any
-   * position. It only shortens the history read; every group is still read and checked in this call.
-   */
   cached?: CachedAssemblyMaterial | null
 }>
 
-/** The cached material, when it belongs to exactly this call and the call does not ask a window. */
 function usableMaterial<P>(
   call: AssemblyCall<P>,
   target: ContextTarget,
@@ -138,7 +121,6 @@ function usableMaterial<P>(
   })
   return belongs ? cached : null
 }
-/** The rows of a carried candidate prepared under the same candidate, principal, generation and token. */
 function carriedRows<P>(
   call: AssemblyCall<P>,
   options: InputReadOptions,
@@ -160,7 +142,6 @@ type HistoryAttempt = {
   window: CompactionContext | null
   historyRead: StableInputs<unknown>['historyRead']
 }
-/** One attempt of the history group: the rows of the group value, from carried, cached or source. */
 async function readHistoryValue<P>(
   call: AssemblyCall<P>,
   sources: ContextSources<P>,
@@ -174,7 +155,6 @@ async function readHistoryValue<P>(
 ): Promise<Got<InputGroups<P>['history']> | Failure | Retry> {
   const { value, attempt } = state
   const cached = attempt.historyRead.cached
-  // Unsaved new input is rejected before any history page is read.
   if (value.inputs.saved === null)
     return { kind: 'invalid', field: 'inputs.saved', reason: 'inputs-not-saved' }
   const reused = carriedRows(call, options, state.carried, state.token)
@@ -200,7 +180,6 @@ async function readHistoryValue<P>(
   return got(value)
 }
 
-/** Reads the six source groups of one call; the identity group is the call itself. */
 export async function readInputs<P>(
   call: AssemblyCall<P>,
   target: ContextTarget,
@@ -217,7 +196,6 @@ export async function readInputs<P>(
   const control = await simple('control')
   if (control.kind !== 'stable') return control
   const cached = usableMaterial(call, target, options)
-  // What the final attempt of the group read; a retried attempt never publishes an earlier one.
   const attempt: HistoryAttempt = {
     rows: [],
     window: null,
@@ -325,7 +303,6 @@ async function readWindow<P>(
   }
 }
 
-/** Reads only the model selection group, for `deriveStep`. */
 export async function readModelGroup<P>(call: AssemblyCall<P>, sources: ContextSources<P>) {
   return stableGroup('model', [() => sources.groups.model.readCount(call)], () =>
     sourceValue(sources.groups.model.readSource(call), 'model'),

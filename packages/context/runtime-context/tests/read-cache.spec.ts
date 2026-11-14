@@ -111,8 +111,6 @@ describe('read cache in the mechanism', () => {
     await r.snapshot()
     await r.snapshot()
     const hits = cacheCount(h, 'hit')
-    // The binding source now names tenant B. Tenant B's holder cannot get an eligibility on the
-    // scope text, because the recorded tenant conflicts, and tenant A's reader is refused.
     h.ports.bind(a, tenantB)
     const other = await h.rc.issueEligibility('holder', {
       supersedes: null,
@@ -198,7 +196,6 @@ describe('projection version advances on every change that alters a filtered rea
     await first.publish({ scope: a, tenant: tenantA, value: 1 })
     const r = await reader(h, await issue(h, a, tenantA, ['test.value']))
     expect(await firstBlock(r)).toEqual({ kind: 'value', value: 1 })
-    // Same declaration object: the catalog entry does not change, only the generation does.
     await producer(h, tenantA, 'test.value', { declaration })
     expect(await firstBlock(r)).toEqual({ kind: 'none' })
   })
@@ -208,7 +205,6 @@ describe('projection version advances on every change that alters a filtered rea
     await r.snapshot()
     await r.snapshot()
     expect(cacheCount(h, 'miss')).toBe(1)
-    // Same digest, new declaration object: the catalog entry of the key is replaced.
     await producer(h, tenantB, 'test.value', { declaration: supplied('test.value') })
     await r.snapshot()
     expect(cacheCount(h, 'miss')).toBe(2)
@@ -229,8 +225,6 @@ describe('projection version advances on every change that alters a filtered rea
     const declaration = supplied('test.param', { parameterSchema: strict })
     await open(h, a, tenantA)
     await open(h, b, tenantB)
-    // Tenant B registers the key before any declaration exists, with a parameter the
-    // declaration will reject. Tenant A's producer then brings the declaration into the catalog.
     await register(h, b, tenantB, 'test.param', 0, { parameters: 'bad' })
     await producer(h, tenantA, 'test.param', { declaration })
     const rb = await reader(h, await issue(h, b, tenantB, ['test.param']))
@@ -239,7 +233,6 @@ describe('projection version advances on every change that alters a filtered rea
     const after = await rb.snapshot()
     expect(after.kind).toBe('success')
     if (after.kind !== 'success') return
-    // The arrival is judged against every registration of the key, across tenants.
     expect(after.value.blocks).toEqual([])
     expect(after.value.missing.map(item => item.cause)).toEqual(['no-value'])
     expect(h.diagnostics.some(d => d.kind === 'incompatible-registration')).toBe(true)

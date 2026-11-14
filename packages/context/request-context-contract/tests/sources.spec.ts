@@ -1,5 +1,3 @@
-// Seven-group stable reads, access and eligibility, full metering with leases, source calls,
-// decimal history and the incremental compaction window (RQ-05, RQ-06, RQ-12 – RQ-15).
 import { describe, expect, it } from 'vitest'
 import { judgeMessage, type CompactionMessage, type Message } from '@omne-harness/message'
 import {
@@ -210,7 +208,6 @@ describe('J48: source calls and continues', () => {
     f.sources.update('context', context)
     candidate(await f.operations().assemble(f.call))
     expect(f.preparation.calls().at(-2)?.lineage).toEqual({ continues: callId('fixed') })
-    // Changing the parameters breaks the precondition: continues is omitted, not an error.
     const model = f.sources.values().model
     f.sources.update('model', { ...model, replay: 'off' })
     candidate(await f.operations().assemble(f.call))
@@ -255,7 +252,6 @@ describe('J15: the incremental window of a later compaction', () => {
     if (planned.kind !== 'planned') return
     expect(planned.plan.basis.context.base.kind).toBe('previous')
     expect(planned.plan.covers.from).toBe(rows[0]!.entry)
-    // The summarized first row is not in the window.
     expect(planned.plan.basis.context.covered.map(e => e.ref)).not.toContain(rows[0]!.entry)
   })
   it('a window that revives a summarized entry is a source conflict, not a consumed step', async () => {

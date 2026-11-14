@@ -50,7 +50,6 @@ export const descriptor: SuppliedBlockDescriptor<'test.value', unknown> & { vola
     recovery: 'reread',
   }
 
-/** A trust provider class that hands the given ports to the provider plugin. */
 export function trustOf(ports: {
   authority: RuntimeContextAuthority<unknown>
   bindings: ScopeBindingSource

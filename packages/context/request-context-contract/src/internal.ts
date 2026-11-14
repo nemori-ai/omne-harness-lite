@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { judgeBlockIdentity, type TextContentBlock } from '@omne-harness/content-block'
 import { parseMessageId, type MessageId, type SystemReminderMessage } from '@omne-harness/message'
-/** Canonical data encoding. Object keys are sorted recursively; array order is retained. */
 export function canonical(value: unknown): string {
   if (value === undefined) return 'null'
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
@@ -15,11 +14,6 @@ export function canonical(value: unknown): string {
 export function digest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('base64url')
 }
-/**
- * The digest of an `Adoption` this package mints: SHA-256 of the canonical form as 64 lowercase
- * hex characters, the encoding the Model request judgment requires. Identifiers and tokens keep
- * `digest`.
- */
 export function adoptionDigest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('hex')
 }

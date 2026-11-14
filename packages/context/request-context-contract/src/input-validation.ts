@@ -1,7 +1,6 @@
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type { AssemblyUnknown } from './values.js'
 import type { AssemblyInput, AssemblyFailure } from './values.js'
-/** Cross-group relations of stably read groups; each group being stable does not make them hold. */
 export function validateInput<P>(
   input: AssemblyInput<P>,
 ): AssemblyFailure | AssemblyUnknown | null {

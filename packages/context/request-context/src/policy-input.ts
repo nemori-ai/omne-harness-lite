@@ -1,5 +1,3 @@
-// Strategy parameters are checked once, at construction, against the contract schemas. A value
-// that does not fit is refused with a TypeError; nothing is corrected or replaced by a default.
 import type { standardSchema } from '@omne-harness/request-context-contract'
 
 export function decodeParameters<T>(

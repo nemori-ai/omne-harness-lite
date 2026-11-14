@@ -1,4 +1,3 @@
-// The account projection (RQ-14) and its recovery (RQ-15).
 import { describe, expect, it } from 'vitest'
 import { createContextAccounting } from '@omne-harness/request-context'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -49,7 +48,6 @@ const system: SystemRecoveryAccess<string> = {
 }
 const limits: AccountingLimits = { maxTargets: 4, maxFactsPerTarget: 8, maxRevisionsPerDispatch: 4 }
 
-/** A target in the same tenant with a scope of its own. */
 function targetAt(name: string): ContextTarget {
   return { tenant, scope: { ...target.scope, ref: `scope:${name}` } as never }
 }
@@ -831,7 +829,6 @@ describe('rebuild: access, capacity and failure paths', () => {
   })
 })
 
-/** An adopted source whose count read waits until the promise settles. */
 function gatedSource(gate: Promise<void>): AdoptedRequestSource<string> {
   const inner = createMemoryAdoptedSource<string>()
   return {
@@ -873,7 +870,6 @@ describe('target eviction (CX-11)', () => {
     await a.inbox.usage({ access, target: t1! })
     await a.rebuildAt(t4!)
     expect(await isReady(a, t2!)).toBe(false)
-    // t3 is now the oldest unused one; a receive on it counts as a use.
     await a.inbox.receive({ access, input: { ...fact(), target: t3! } })
     await a.rebuildAt(t5!)
     expect(await isReady(a, t1!)).toBe(false)
@@ -886,7 +882,6 @@ describe('target eviction (CX-11)', () => {
     const [t1, t2, t3] = [targetAt('t1'), targetAt('t2'), targetAt('t3')]
     await a.rebuildAt(t1)
     await a.rebuildAt(t2)
-    // t1 is the oldest and its usage is in flight, so t2 goes instead.
     const inflight = a.inbox.usage({ access, target: t1 })
     expect((await a.rebuildAt(t3)).kind).toBe('rebuilt')
     gate.open()
@@ -977,7 +972,6 @@ describe('target eviction (CX-11)', () => {
       await gate.promise
       yield* []
     }
-    // `target` is the oldest and it rebuilds again, so it is not a candidate meanwhile.
     const again = a.recovery.rebuildAccounts({
       access: system,
       target,

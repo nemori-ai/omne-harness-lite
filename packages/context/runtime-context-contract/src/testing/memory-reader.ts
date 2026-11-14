@@ -61,7 +61,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return undefined
   }
 
-  /** Reader authority, then the trusted binding, then the scope state (RC-03 核对顺序). */
   async function check(e: Eligibility<P>): Promise<Checked<P> | CheckRefusal | CheckUnknownRead> {
     const decided = await world.decide(() => world.options.authority.reader(e.principal, e))
     if (isFailure(decided))
@@ -80,7 +79,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return { kind: 'checked', e, s, gate: decided }
   }
 
-  /** Walks the parent chain; every hop checks its own binding and tenant (RC-03). */
   async function inheritedValue(
     found: Found,
     key: ContextBlockKey,
@@ -151,7 +149,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     }
   }
 
-  /** The fourth supply time point: an ordinary read finds a refresh mark left by a finished replay (RC-09). */
   async function refresh(
     found: Found,
     key: ContextBlockKey,
@@ -229,7 +226,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
         return { kind: 'refused', reason: 'unauthorized' }
       return check(e)
     }
-    /** Final synchronous check before disclosure: authority still current, scope still readable. */
     function disclose<T>(checked: Checked<P>, value: T): T | Refusal {
       if (world.closed || ended) return { kind: 'refused', reason: 'closed' }
       if (

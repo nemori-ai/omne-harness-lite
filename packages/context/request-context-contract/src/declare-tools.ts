@@ -4,11 +4,6 @@ import type { ToolAdoption } from './values.js'
 import { digest } from './internal.js'
 export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './values.js'
 import type { ToolRoute, ToolDeclarationSet } from './values.js'
-/**
- * Only resident tools are declarations; availability never changes their original definition.
- * Each tool is one declaration (D-94): a multi-command tool names the command inside its arguments,
- * and its description ends with the command menu.
- */
 export function declareTools(tools: readonly ToolAdoption[]): ToolDeclarationSet {
   const direct: ToolDeclaration[] = []
   const programmatic: ToolDeclaration[] = []

@@ -21,7 +21,6 @@ import { prepareStable } from './preparation.js'
 import { placeLayers } from './assembly-layers.js'
 import { withMeasurementSession } from './measurement-session.js'
 
-/** The window cut at the plan's end: covered to `coverTo`, the rest of covered joins `after`. */
 export function planWindow(window: CompactionContext, coverTo: RecordEntryRef): CompactionContext {
   const end = window.covered.findIndex(entry => entry.ref === coverTo)
   return {
@@ -34,7 +33,6 @@ export function basisDigest(basis: Omit<CompactionBasis, 'digest'>): string {
   return digest(basis)
 }
 
-/** Plans a compaction from stably read groups and the CM-02 window of the same evidence. */
 export async function planInputs<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,
@@ -95,7 +93,6 @@ export async function planInputs<P>(
   )
 }
 
-/** The layers outside the history, placed as `assemble` places them for this call (RQ-06). */
 function frameOf<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,
@@ -119,7 +116,6 @@ function measuredFailure(measured: Exclude<RetentionMeasurement, { kind: 'measur
     : measured
 }
 
-/** A draft that the compaction policy should not have given is a fault of that policy (RQ-06). */
 function policyFault(diagnostic: string) {
   return { kind: 'unavailable' as const, owner: 'compaction-policy' as const, diagnostic }
 }

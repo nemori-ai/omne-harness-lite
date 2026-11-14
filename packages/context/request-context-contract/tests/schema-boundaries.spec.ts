@@ -38,7 +38,6 @@ it('policy boundaries preserve exact budget and step representations and reject 
     expect(compactionPolicySchema['~standard'].validate({ ...policy, ...change })).toHaveProperty(
       'issues',
     )
-  // Trimming is not a step: one summarize step may follow the trim.
   expect(
     compactionPolicySchema['~standard'].validate({ ...policy, stepBound: '1' }),
   ).toHaveProperty('value')
@@ -63,7 +62,6 @@ it('required block schemas compose policy validation and keep their own failure 
       windowTokens: '1000',
       ratio: '0',
     },
-    // A real overflow keeps its ratio above 1, rounded up to six decimals.
     {
       kind: 'actual',
       candidate: 'candidate:one',

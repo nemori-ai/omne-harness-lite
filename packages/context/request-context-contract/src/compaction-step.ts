@@ -18,7 +18,6 @@ import { canonical, digest, messageId } from './internal.js'
 
 const INDEX = /^(0|[1-9][0-9]*)$/u
 
-/** Checks plan, progress, basis and step index; nothing here creates new progress. */
 export function validatePlan<P>(
   input: DeriveInput<P>,
   context: OperationContext<P>,
@@ -68,7 +67,6 @@ function advance(plan: CompactionPlan, progress: PlanProgress, step: StepInput):
   }
 }
 
-/** Derives the next step or the transition from one summarize result (RQ-06). */
 export async function deriveFrom<P>(
   input: DeriveInput<P>,
   selection: SelectedModel,
@@ -130,7 +128,6 @@ export async function deriveFrom<P>(
     frame,
   )
   if (budget.kind !== 'complete' && budget.kind !== 'deferred-media') return budget
-  // The whole request against the trigger line, as `judgeBudget` judges it (RQ-06, R2-D316).
   const { context: limits } = plan.basis.selection.profile.definition
   const fits = overTrigger(budget, limits, context.policies.compaction.config).length === 0
   if ('ok' in legal && fits)

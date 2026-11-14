@@ -29,16 +29,13 @@ import { createReadCache, type ReadCache } from './read-cache.js'
 
 export type Descriptor = ContextBlockDescriptor<ContextBlockKey, unknown, unknown>
 
-/** One stored current value or the failure that replaced it. */
 export type Stored = {
   value: unknown
   revision: number
   generation: number | null
   present: boolean
   cause?: 'no-value' | 'source-unavailable' | 'producer-withdrawn' | 'uninterpretable'
-  /** The last source answer was unknown, a throw, a timeout or an unrecognized answer. */
   unknown?: boolean
-  /** The last source answer refused the supply. */
   refused?: boolean
 }
 
@@ -56,7 +53,6 @@ export type ScopeState = {
   tenant: TenantId
   revision: number
   view: number
-  /** Bumped when cursors become invalid: registration change, producer replacement, replay begin. */
   epoch: number
   /** Bumped by every change that can alter any filtered read of this scope. The read cache keys on
    * it, so an entry is never served across such a change. */
@@ -67,25 +63,12 @@ export type ScopeState = {
   ended: CommitRef | null
   replayEpoch: number
   replay: ReplaySession | null
-  /** The `through` of the last finished replay. */
   checkpoint: CommitRef | null
-  /** Supplied blocks whose value is not restored yet; tagged with the replay epoch (RC-09). */
   needsSupply: Map<ContextBlockKey, number>
-  /** When the last restored supply of a block failed, for the retry interval. */
   refreshFailedAt: Map<ContextBlockKey, number>
-  /** Per-key supply sequence shared by publish, invalidate, registration change and refresh. */
   supplySeq: Map<ContextBlockKey, number>
-  /** Bumped by every applied ordinary commit and end; the final replay check compares it. */
   commitsVersion: number
-  /**
-   * The head of the scope's commit chain (RC-02, R2-D319): the last applied ordinary commit, or the
-   * `through` of the installed replay. An ordinary commit applies only when its `after` equals it.
-   */
   head: CommitRef | null
-  /**
-   * The success table of the scope, by commit identity: at most the commit at `head`, when this
-   * instance applied it. Applying the next commit or installing a replay releases the others.
-   */
   successes: Map<string, AppliedEntry>
 }
 
@@ -115,7 +98,6 @@ export type CheckFailure =
 type Invalid = Readonly<{ kind: 'invalid'; reason: string }>
 type Decided<P> = Authorized<P> | CheckFailure | Invalid
 
-/** One cached snapshot part: the stable entries of every non-per-request key, by key. */
 export type CachedItem =
   | Readonly<{ key: ContextBlockKey; kind: 'value'; value: unknown; evidence: CachedEvidence }>
   | Readonly<{ key: ContextBlockKey; kind: 'none' }>
@@ -132,7 +114,6 @@ type CachedEvidence = Readonly<{
 }>
 export type CachedRead = ReadonlyMap<ContextBlockKey, CachedItem>
 
-/** A restored-supply source call in flight; concurrent reads of the same mark join it. */
 export type Refresh = Readonly<{ epoch: number; done: Promise<unknown> }>
 
 export const CANCELLED: unique symbol = Symbol('runtime-context-closed')
@@ -148,13 +129,11 @@ export type WorldOptions<P> = Readonly<{
   diagnose: Diagnose | undefined
 }>
 
-/** The shared state of one mechanism instance and the checks every face uses. */
 export interface World<P> {
   readonly trust: RuntimeContextTrust<P>
   readonly config: ResolvedRuntimeContextConfig
   closed: boolean
   serial: number
-  /** Bumped when the set of open, registered targets changes; a tenant batch compares it. */
   targetsVersion: number
   readonly incompatible: Set<string>
   readonly descriptors: Map<ContextBlockKey, Descriptor>
@@ -164,11 +143,9 @@ export interface World<P> {
   readonly eligibilities: Map<string, Eligibility<P>>
   readonly sessions: Map<string, ReplaySession>
   readonly refreshes: Map<string, Refresh>
-  /** End functions of the bound readers; close ends every one. */
   readonly readers: Set<() => void>
   readonly cache: ReadCache<CachedRead>
   readonly catalog: { get(key: ContextBlockKey): Descriptor | undefined }
-  /** Resolves when close cancels the waits in flight. */
   readonly cancelled: Promise<typeof CANCELLED>
   diagnose(event: RuntimeContextDiagnostic): void
   state(scope: ScopeRef): ScopeState | undefined
@@ -182,17 +159,14 @@ export interface World<P> {
     present: boolean,
     cause?: Stored['cause'],
   ): void
-  /** Puts a declaration into the catalog; a changed entry is judged against every registration of the key. */
   declare(key: ContextBlockKey, declaration: Descriptor): void
   nextSeq(s: ScopeState, key: ContextBlockKey): number
   registration(scope: ScopeRef, key: ContextBlockKey): Registered | undefined
   currentEligibility(id: EligibilityId): Eligibility<P> | undefined
   newScope(scope: ScopeRef, tenant: TenantId): ScopeState
-  /** Races an outside promise with close: after close begins the wait ends with CANCELLED. */
   wait<T>(pending: Promise<T>): Promise<T | typeof CANCELLED>
   decide(ask: () => Promise<AuthorityDecision<P> | HolderDecision<P>>): Promise<Decided<P>>
   bound(scope: ScopeRef, tenant: TenantId): Promise<CheckFailure | null>
-  /** Counts an operation in flight until it settles; close waits for these. */
   track<T>(operation: Promise<T>): Promise<T>
   close(): Promise<void>
 }
@@ -209,9 +183,7 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
   function diagnose(event: RuntimeContextDiagnostic) {
     try {
       options.diagnose?.(event)
-    } catch {
-      /* A diagnostic sink never changes a result. */
-    }
+    } catch {}
   }
 
   const world: World<P> = {
@@ -247,7 +219,6 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
       try {
         options.onChange(s.scope, s.view)
       } catch {
-        // A wake-up is not the source of fact: the write stands.
         diagnose({ kind: 'change-outlet-failed', revision: s.view })
       }
     },
@@ -338,7 +309,6 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
     wait<T>(waiting: Promise<T>): Promise<T | typeof CANCELLED> {
       return Promise.race([waiting, cancelled])
     },
-    /** Maps an authority decision; `current` is kept for the final synchronous check. */
     async decide(ask) {
       let decision: AuthorityDecision<P> | HolderDecision<P> | typeof CANCELLED
       try {
@@ -364,7 +334,6 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
           return { kind: 'unknown', cause: 'authority' }
       }
     },
-    /** Trusted binding: unbound or another tenant is unauthorized; the real tenant is never disclosed. */
     async bound(scope: ScopeRef, tenant: TenantId): Promise<CheckFailure | null> {
       if (!isMinted(tenant)) return { kind: 'refused', reason: 'unauthorized' }
       let binding
@@ -401,10 +370,6 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
     },
   }
 
-  /**
-   * The close order: refuse new requests, end the bound readers, cancel the waits in flight, wait
-   * for the operations in flight within the settle bound, then release the tables.
-   */
   async function closeInOrder() {
     world.closed = true
     for (const end of world.readers) end()
@@ -425,7 +390,6 @@ export function createWorld<P>(options: WorldOptions<P>): World<P> {
   return world
 }
 
-/** Waits for the promise, or for `ms`, whichever comes first. */
 export async function within(waiting: Promise<unknown>, ms: number): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined
   await Promise.race([
@@ -462,7 +426,6 @@ export function unavailable(cause: CheckCause): CheckUnavailable {
   return { kind: 'unavailable', cause }
 }
 
-/** Copies a scope chain into owned data. Undefined when the chain is not a valid scope. */
 export function ownScope(value: ScopeRef, seen = new Set<object>()): ScopeRef | undefined {
   if (typeof value !== 'object' || value === null || seen.has(value)) return undefined
   seen.add(value)
@@ -473,7 +436,6 @@ export function ownScope(value: ScopeRef, seen = new Set<object>()): ScopeRef | 
   return parent ? { ref: value.ref, parent } : undefined
 }
 
-/** Copies data by its declared shape. Undefined when the value is not plain data. */
 export function ownData(value: unknown): { value: unknown } | undefined {
   try {
     return { value: structuredClone(value) }
@@ -482,7 +444,6 @@ export function ownData(value: unknown): { value: unknown } | undefined {
   }
 }
 
-/** A stable digest of captured input: functions and schemas by presence, tenants by their text. */
 export function digest(value: unknown): string {
   const seen = new WeakSet<object>()
   const text = JSON.stringify(value, (_key, item: unknown) => {

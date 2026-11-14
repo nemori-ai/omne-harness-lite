@@ -1,6 +1,3 @@
-// The `agentAccountOutlet` plugin on real Cordis 4.0.4, with the real request-context provider
-// as the one that provides `requestContext` and `contextAccountingInbox`. Only the trust object
-// and the memory sources are doubles.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { sampleAccountHandoff } from '@omne-harness/agent-contract/testing'
@@ -20,8 +17,6 @@ import {
 } from '@omne-harness/request-context-contract/testing'
 import { access, otherAccess, sender } from './fixtures/outlet-world.ts'
 
-// `FiberState` is a const enum in Cordis 4.0.4, erased at runtime: PENDING is its first member,
-// ACTIVE its third and FAILED its fourth.
 const PENDING = 0
 const ACTIVE = 2
 const FAILED = 3

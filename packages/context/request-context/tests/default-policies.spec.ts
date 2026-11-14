@@ -1,6 +1,3 @@
-// The default compaction strategy, representation strategy and trimmer: the numbers of the SPEC,
-// the shared policy obligations, retention that never splits a call from its result, and trimming
-// that shortens only what goes to the summary step.
 import { describe, expect, it } from 'vitest'
 import type { CompactionContext, RecordEntryRef } from '@omne-harness/message'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
@@ -44,7 +41,6 @@ const scope = (() => {
   return decoded.ok
 })()
 
-/** Every entry costs 10 tokens, so a set costs ten times its size. */
 async function measure(entries: readonly RecordEntryRef[]): Promise<RetentionMeasurement> {
   return { kind: 'measured', tokens: String(entries.length * 10) }
 }
@@ -133,7 +129,6 @@ describe('default compaction policy: what is retained', () => {
     expect(draft.shape).toEqual({ kind: 'summarize', trimFirst: true })
   })
   it('derives the budget from the window when it is a ratio', async () => {
-    // 15% of 200 tokens is 30: three entries of ten.
     const draft = draftOf(
       await planWith(
         policyWith({ retainBudget: { kind: 'ratio', retainRatio: '0.15' } }),
@@ -171,7 +166,6 @@ describe('default compaction policy: what is retained', () => {
     }
   })
   it('retains a call whose result lies after the window before it ranks anything else', async () => {
-    // Newest-first would take the user message; the call must stay because its result stays.
     const draft = draftOf(
       await planWith(
         policyWith({ retainBudget: tokens(10) }),
@@ -193,7 +187,6 @@ describe('default compaction policy: what is retained', () => {
       floor: [entryRef(1)],
       budget: '5',
     })
-    // The same forced entry fits a larger budget.
     const fits = await planWith(
       policyWith({ retainBudget: tokens(15) }),
       contextOf(history, [], [entryRef(1)]),
@@ -249,7 +242,6 @@ describe('default compaction policy: trimmer and instruction', () => {
     ])
     const body = trimmed.covered[1]?.message?.blocks.find(part => part.kind === 'text')
     expect(body !== undefined && 'text' in body ? Buffer.byteLength(body.text) : -1).toBe(100)
-    // The user message is not a tool result: it stays as it is.
     expect(trimmed.covered[0]).toBe(material.covered[0])
     expect(trimmed.covered[1]?.message?.id).toBe(result.id)
   })

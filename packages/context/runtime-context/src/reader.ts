@@ -54,7 +54,6 @@ type Checked<P> = Readonly<{
 }>
 type Item = PerRequestEntry | Refusal
 
-/** What a Cordis caller declared in its intercept configuration; `consumer` is absent when it declared none. */
 export type BindCaller = Readonly<{ consumer?: ConsumerClass | undefined }>
 
 function cacheable(item: Item): item is CachedItem {
@@ -73,7 +72,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return undefined
   }
 
-  /** Reader authority, then the trusted binding, then the scope state (RC-03 核对顺序). */
   async function check(e: Eligibility<P>): Promise<Checked<P> | CheckRefusal | CheckUnknownRead> {
     const decided = await world.decide(() => world.trust.authority.reader(e.principal, e))
     if (isFailure(decided)) {
@@ -92,7 +90,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return { kind: 'checked', e, s, gate: decided }
   }
 
-  /** Walks the parent chain; every hop checks its own binding and tenant (RC-03). */
   async function inheritedValue(
     found: Found,
     key: ContextBlockKey,
@@ -165,12 +162,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
 
   let refreshing = 0
 
-  /**
-   * The fourth supply time point: an ordinary read finds a refresh mark left by a finished replay
-   * (RC-09). Concurrent reads of one mark join one source call; distinct marks are limited by the
-   * concurrency bound; a failed mark waits out the retry interval. A read that does not call the
-   * source keeps the mark and reports what is stored, or unknown when nothing is stored.
-   */
   async function refresh(
     found: Found,
     key: ContextBlockKey,
@@ -219,7 +210,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return fromOutcome(key, d, outcome)
   }
 
-  /** After a joined or skipped refresh: a cleared mark reads the stored value; a kept one, the stored failure. */
   function refreshedEntry(s: ScopeState, key: ContextBlockKey, d: Descriptor): Item | null {
     if (s.needsSupply.get(key) !== s.replayEpoch) return null
     const stored = s.values.get(key)
@@ -290,7 +280,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return items
   }
 
-  /** The stable entries of one snapshot: from the cache when the key matches, otherwise computed. */
   async function readStable(checked: Checked<P>): Promise<ReadonlyMap<ContextBlockKey, Item>> {
     const key = cacheKey(checked)
     const hit = key && world.cache.get(key)
@@ -312,9 +301,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     if (checked.kind !== 'checked') return checked
     if (world.closed) return { kind: 'refused', reason: 'closed' }
     if (!checked.gate.current()) return { kind: 'refused', reason: 'unauthorized' }
-    // Over Cordis the caller's declared consumer class must match the eligibility; a caller that
-    // declared none is refused too. The comparison comes after every access check, so a mismatch
-    // discloses nothing an unbound caller could not see. It is a consistency check, not access control.
     if (caller && caller.consumer !== initial.consumer)
       return { kind: 'refused', reason: 'callerMismatch' }
     return { kind: 'bound', reader: readerOf(id, initial) }
@@ -342,7 +328,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
         return { kind: 'refused', reason: 'unauthorized' }
       return check(e)
     }
-    /** Final synchronous check before disclosure: authority still current, scope still readable. */
     function disclose<T>(checked: Checked<P>, value: T): T | Refusal {
       if (world.closed || ended) return { kind: 'refused', reason: 'closed' }
       if (
