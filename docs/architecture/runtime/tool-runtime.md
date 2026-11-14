@@ -2,8 +2,6 @@
 
 Tool runtime 管理一次工具的实际执行、等待、结果和收场。工具定义、会话已知能力视图与实际执行分别存在。知道某个工具、当前能够调用它、这次调用获得授权，是三个不同判断。
 
-状态：已接受的目标架构。动作准入归[Loop extensions](loop-extensions.md#准入与-hitl)，环境供应归[执行环境](execution-environment.md)。两者都不代替工具实际执行的责任。
-
 ## 调用输入与身份
 
 一次执行固定匹配的定义、实现、参数、设置、允许读取的 contexts、准入依据、环境、工作区和资源入口。保留调用身份、原消费位置、适用租户与逻辑工作关联，以及明确的控制关系。
@@ -22,7 +20,7 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 ## 常驻工具与冻结
 
-常驻工具是调用方不经 Tools 元工具发现即可调用的工具。常驻规则 R1–R5、同形判据和采用点判定表归 Tool 契约，见[常驻规则](../../../packages/tool/SPEC.md#定义采用与常驻)与[采用点判定](../../../packages/tool/SPEC.md#定义采用与常驻)。下文的跨成员分工依据 [D-04 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6392857690)。
+常驻工具是调用方不经 Tools 元工具发现即可调用的工具。常驻规则 R1–R5、同形判据和采用点判定表归 Tool 契约，见[常驻规则](../../../packages/tool/SPEC.md#定义采用与常驻)与[采用点判定](../../../packages/tool/SPEC.md#定义采用与常驻)。
 
 常驻持有者是持久保存常驻工具首次定义的 shape、并在采用点把它供给 `planAdoption` 的一方。会话是一种常驻持有者。常驻工具被卸载或暂时不可用，且登记表里没有该持有者可访问的同形可用贡献时，常驻持有者以[替换件](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-stand-in--替换件--stand-in)占住它的位置（Tool 契约的 R3）。替换件按首次定义的 shape 呈现，只把说明换成不可用原因。调用替换件得到不可用应答（`known-unavailable`）。常驻工具的 name 与参数形状对同一常驻持有者不变，判据是与首次定义同形。会话记录首次定义的事实种类与种类准入归会话域，见[会话与工作](../../domains/sessions-and-work/README.md)。
 
@@ -34,7 +32,7 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 1. [装配协调者](../../domains/assembly-and-handoff/README.md#模块角色与事实归属)（领域角色「采用协调」）为本会话收集采用点事实，调用 Tool 的纯函数 `planAdoption`。判定为冻结时，输出是 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。
 2. 装配协调者把判定放进本次候选采用材料。
-3. Session 的协调器取得这份材料，以该会话的访问依据（`SessionAccess`）和调用方类 `coordinator` 调用 Session 的 `startRun` 或 `reload`。`startRun` 分支由推进触发调度器（[S1](../../../packages/session/session/SPEC.md#s1-推进触发调度器)）触发，由 Agent 推进协调器（[C2](../../../packages/session/session/SPEC.md#c2-agent-推进协调器)）提交。`reload` 分支也由 C2 提交。C2 的换代顺序产出 `reload`，C2 的冻结判定行同时覆盖 `startRun` 与 `reload` 返回 `frozen` 的情形。调度器与协调器的分工见[协调器与调度器](session-and-run.md#协调器与调度器)。它们在 `session-provider` 行（[插件树](application-assembly.md#插件树)），以 `SessionInternalPrincipals` 提交命令。`maintainer` 发起的 `startRun` 返回 `frozen` 的分支待 C7（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。
+3. Session 的协调器取得这份材料，以该会话的访问依据（`SessionAccess`）和调用方类 `coordinator` 调用 Session 的 `startRun` 或 `reload`。`startRun` 分支由推进触发调度器（[S1](../../../packages/session/session/SPEC.md#s1-推进触发调度器)）触发，由 Agent 推进协调器（[C2](../../../packages/session/session/SPEC.md#c2-agent-推进协调器)）提交。`reload` 分支也由 C2 提交。C2 的换代顺序产出 `reload`，C2 的冻结判定行同时覆盖 `startRun` 与 `reload` 返回 `frozen` 的情形。调度器与协调器的分工见[协调器与调度器](session-and-run.md#协调器与调度器)。它们在 `session-provider` 行（[插件树](application-assembly.md#插件树)），以 `SessionInternalPrincipals` 提交命令。
 4. 材料带冻结判定时，命令返回 `frozen`，不提交。
 5. 收到 `frozen` 的同一协调器以同一判定、同一 `SessionAccess` 和调用方类 `coordinator` 调用 Session 的 `freeze`。`freeze` 是冻结的唯一提交点，同一会话只成立一次冻结，见[常驻工具与会话冻结](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)。
 
@@ -51,7 +49,7 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 精确形状与服务键 `toolResidencyReader` 归 [tool-cordis-contract](../../../packages/tool/SPEC.md#装载登记与换代)。
 
-Tool 契约不导入 Session 契约（规则见[依赖方向与 Cordis 集成](../../package-organization.md#依赖方向与cordis集成)，机读约束 `DIR-TOOL-SESSION` 见 [constraints](../constraints.json)），Session 也不实现 Tool 的端口。所以 `toolResidencyReader` 由应用装配提供。应用成员的桥接插件以调用方类 `maintainer` 调用 Session 的公开操作 [`references`](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)，并出示装配入口签发的系统主体，作为系统作用域的读取资格。桥接插件把每个引用会话投影为一个持有者引用。`references` 的任何失败都交为 `unavailable`，不交空页。桥接插件的行归[应用装配的插件树](application-assembly.md#插件树)（行由 #789 写入），它使用的运行时对象归[应用装配的运行时对象](application-assembly.md#运行时对象)（行由 #789 写入）。
+Tool 契约不导入 Session 契约（规则见[依赖方向与 Cordis 集成](../../package-organization.md#依赖方向与cordis集成)，机读约束 `DIR-TOOL-SESSION` 见 [constraints](../constraints.json)），Session 也不实现 Tool 的端口。所以 `toolResidencyReader` 由应用装配提供。应用成员的桥接插件以调用方类 `maintainer` 调用 Session 的公开操作 [`references`](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)，并出示装配入口签发的系统主体，作为系统作用域的读取资格。桥接插件把每个引用会话投影为一个持有者引用。`references` 的任何失败都交为 `unavailable`，不交空页。桥接插件的行归[应用装配的插件树](application-assembly.md#插件树)，它使用的运行时对象归[应用装配的运行时对象](application-assembly.md#运行时对象)。
 
 两种情形下协调者都不撤除贡献：
 
@@ -80,7 +78,7 @@ Tool 与 Session 之间没有箭头：两者只经应用装配的桥接插件连
 | `freeze` | 提交 `startRun` 或 `reload` 的同一协调器以同一会话与同一 `SessionAccess` 调用，不另取租户。`freeze` 代表该会话的租户，不属于系统作用域例外 |
 | `ToolResidencyReader` | `references` 逐条返回每个引用会话的租户。桥接插件把它原样放进持有者引用的 `tenant` |
 
-三条路径都不按会话身份经会话目录反查租户。不同租户可以有同名会话，反查会把冻结或可访问性核对落到错误的租户（[同名会话反例](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6368233555)）。
+三条路径都不按会话身份经会话目录反查租户。不同租户可以有同名会话，反查会把冻结或可访问性核对落到错误的租户。
 
 ## 脚本编排的调用方式许可
 
@@ -125,7 +123,7 @@ flowchart TD
 
 工具结果含给消费者的内容及可选附件或卸载原文。作者在 content 用多模态 ref 声明模型直接感知，在 attachments 留地址供 agent 按需另行读取；附件只投影为文本，不自动载入。Agent、Session、Context 保管引用，Model 仅在实际请求时加载选中的内容 ref。精确规则归 [P14](../../../packages/tool/SPEC.md#执行事实收场与结果)。过程帧给人观察，不能替代最终结果，帧发送失败也不单独使工具执行失败。执行账保存实际时长和资源用量，不直接塞进模型上下文。
 
-成员契约规定普通函数返回与直接 ToolResult 在 settle 时归一化。具名程序数据与展示内容使用同一结果身份；Code 消费前校验输出声明和真实值，不解析展示文本猜业务字段。自定义等待固定请求和响应 schema，无效响应提交不结束等待。精确形状与边界归成员 [P12](../../../packages/tool/SPEC.md#等待与检查点作者)及 [P13](../../../packages/tool/SPEC.md#执行事实收场与结果)，不据设计声明运行支持。
+成员契约规定普通函数返回与直接 ToolResult 在 settle 时归一化。具名程序数据与展示内容使用同一结果身份；Code 消费前校验输出声明和真实值，不解析展示文本猜业务字段。自定义等待固定请求和响应 schema，无效响应提交不结束等待。精确形状与边界归成员 [P12](../../../packages/tool/SPEC.md#等待与检查点作者)及 [P13](../../../packages/tool/SPEC.md#执行事实收场与结果)。
 
 会话路径在 Tool 已可靠保管结果的前提下，先保存内容或可恢复引用及原消费位置，或先完成处理并可靠保存必要完成事实，再凭对应证据解除原交付关系。内联材料在可靠承接且无剩余用途后由 Tool 释放；卸载正文按其固定有限期限保管，到期不再可读；各参与方时钟偏差造成的到期判定窗口由 [Tool 的结果卸载设计](../../domains/tool-execution/architecture.md#结果卸载)规定。压缩、Run 结束、归档和读取不延长期限，历史保留预览及原引用。原生资源由原拥有者治理，模型 ACK 不自动成为工具的材料删除许可。
 
@@ -148,10 +146,6 @@ flowchart TD
 独立程序调用直接提供合法输入、环境需求、结果消费和控制责任，无须通过完整会话界面或 Agent Loop。独立入口同样支持查询、停止及允许的转后台，并保持定义与实现匹配。
 
 MCP 动作通过工具契约接入。远端刷新影响后续调用，断线保留最近合法清单的不可用解释，不为未发现过的动作伪造定义，也不自动重发已产生外部效果的请求。
-
-## 依据
-
-工具执行与独立入口的产品责任见[工具执行](../../../.meta_harness/design/product/tool-execution/README.md)。授权、人工等待和持久承接分别归[身份与授权](../../../.meta_harness/design/product/identity-and-authorization/README.md)、[人在回路](../../../.meta_harness/design/product/human-intervention/README.md)及[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，按各自采用范围协作。
 
 ## 未决问题与待办事项
 
