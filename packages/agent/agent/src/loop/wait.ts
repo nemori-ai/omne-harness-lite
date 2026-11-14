@@ -11,6 +11,9 @@ import type {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { LoopPorts } from './coordinator.ts'
 import { diagnosticOf } from './diagnostic.ts'
+import type { ReconciliationPacer } from './reconciliation.ts'
+
+export type { ReconciliationPacer }
 
 /** The revision and the event cursor of one execution that the coordinator knows exactly. */
 export type HeldPosition = Readonly<{
@@ -35,7 +38,7 @@ export async function waitForExecutionChange<P>(
     operations: readonly AgentOperationId[]
     waits: readonly Waiting[]
     position: string
-    reconciliationDelayMs: number
+    pacer: ReconciliationPacer
     signal: AbortSignal
     recheck?: ((read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>) | null
     held?: HeldPosition | null
@@ -43,10 +46,11 @@ export async function waitForExecutionChange<P>(
 ): Promise<Outcome<'ready' | 'cancelled', Failure>> {
   const { ports, access, execution, signal } = input
   if (signal.aborted) return succeed('cancelled')
+  const delayMs = input.pacer.delayAt(input.expected)
   const now = await ports.clock.now()
   if (signal.aborted) return succeed('cancelled')
   if ('failure' in now) return now
-  const at = new Date(Date.parse(now.ok) + input.reconciliationDelayMs)
+  const at = new Date(Date.parse(now.ok) + delayMs)
   if (!Number.isFinite(at.getTime()) || at.getUTCFullYear() > 9999)
     return fail({
       kind: 'unavailable',
@@ -161,8 +165,7 @@ export async function waitForExecutionChange<P>(
       if (controller.signal.aborted) return succeed('cancelled')
       const result = await Promise.race([notified, timer])
       // A configured zero interval still yields the event loop; it is not a polling default.
-      if (input.reconciliationDelayMs === 0 && 'ok' in result && result.ok === 'ready')
-        await yieldTurn()
+      if (delayMs === 0 && 'ok' in result && result.ok === 'ready') await yieldTurn()
       return result
     } finally {
       signal.removeEventListener('abort', abort)

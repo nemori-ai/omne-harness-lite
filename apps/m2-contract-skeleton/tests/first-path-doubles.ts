@@ -419,7 +419,7 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
       },
       configuration: {
         observerBufferBytes: 1024,
-        reconciliationDelayMs: 1000,
+        reconciliationDelaysMs: [1000],
         reconciliationBatchLimit: 8,
         denialBackoffMs: 0,
         toolConcurrency: 1,

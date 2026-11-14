@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import { fail } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
+import { reconciliationPacer } from '../src/loop/reconciliation.ts'
 import { options } from './factory-support.ts'
 import {
   acceptedInput,
@@ -166,7 +167,7 @@ describe('W0 rereads the original producer', () => {
           lost,
         ),
       { texts: ['reply after a lost notification'], pageSize: 10 },
-      { reconciliationDelayMs: 1000 },
+      { reconciliationDelaysMs: [1000] },
     )
     const handle = ok(await invoke(assembly))
     await eventually(async () => assembly.controls.clock.pending().length === 1)
@@ -229,7 +230,7 @@ describe('W0 rereads the original producer', () => {
     ok(await c.accept())
     ok(await c.runExecution())
     const controller = new AbortController()
-    const waiting = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+    const waiting = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
     // The check time is installed before the result arrives, so the wake can only come from the
     // event stream, not from the snapshot read at the start of the wait.
     await eventually(async () => assembly.controls.clock.pending().length === 1)
@@ -352,11 +353,12 @@ describe('W0 local ownership', () => {
       execution: execution(),
     })
     const controller = new AbortController()
-    const waiting = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+    const waiting = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
     await eventually(async () => assembly.controls.clock.pending().length === 1)
     expect(
-      failure(await c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal }))
-        .failure.kind,
+      failure(
+        await c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal }),
+      ).failure.kind,
     ).toBe('busy')
     expect(failure(await c.runExecution()).failure.kind).toBe('busy')
     expect(failure(await c.continueExecution(authority)).failure.kind).toBe('busy')
@@ -414,7 +416,10 @@ describe('W0 local ownership', () => {
     })
     expect(
       failure(
-        await c.waitForWake({ reconciliationDelayMs: 1e300, signal: new AbortController().signal }),
+        await c.waitForWake({
+          pacer: reconciliationPacer([1e300]),
+          signal: new AbortController().signal,
+        }),
       ),
     ).toMatchObject({
       node: 'W0',
@@ -454,7 +459,12 @@ it('a zero interval yields to other tasks and does not fabricate a positive dead
     otherTask = true
   })
   expect(
-    ok(await c.waitForWake({ reconciliationDelayMs: 0, signal: new AbortController().signal })),
+    ok(
+      await c.waitForWake({
+        pacer: reconciliationPacer([0]),
+        signal: new AbortController().signal,
+      }),
+    ),
   ).toBe('ready')
   expect(otherTask).toBe(true)
   expect(assembly.controls.clock.pending()).toEqual([])
@@ -511,7 +521,7 @@ it('an abort during a pending clock read cannot miss the local stop', async () =
   ok(await c.accept())
   ok(await c.runExecution())
   const controller = new AbortController()
-  const waiting = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+  const waiting = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
   await reading
   controller.abort()
   release()
@@ -569,7 +579,7 @@ it.each(['observer', 'clock'] as const)(
       execution: execution(),
     })
     const result = await c.waitForWake({
-      reconciliationDelayMs: 1000,
+      pacer: reconciliationPacer([1000]),
       signal: new AbortController().signal,
     })
     expect(failure(result)).toMatchObject({
@@ -631,7 +641,12 @@ it('NA-W0-2: an input arriving as observation starts is reread before sleeping u
     execution: execution(),
   })
   expect(
-    ok(await c.waitForWake({ reconciliationDelayMs: 1000, signal: new AbortController().signal })),
+    ok(
+      await c.waitForWake({
+        pacer: reconciliationPacer([1000]),
+        signal: new AbortController().signal,
+      }),
+    ),
   ).toBe('ready')
   expect(assembly.controls.clock.pending()).toEqual([])
   assembly.release.open()
@@ -915,7 +930,7 @@ describe('review regressions preserve the original wait responsibility', () => {
     ok(await c.runExecution())
     const before = reads
     const controller = new AbortController()
-    const waiting = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+    const waiting = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
     await eventually(async () => reads > before || assembly.controls.clock.pending().length > 0)
     const reread = reads > before
     const slept = assembly.controls.clock.pending().length > 0
@@ -1043,7 +1058,10 @@ describe('review regressions preserve the original wait responsibility', () => {
         execution: execution(),
       })
       const controller = new AbortController()
-      const waiting = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+      const waiting = c.waitForWake({
+        pacer: reconciliationPacer([1000]),
+        signal: controller.signal,
+      })
       if (outcome === 'unavailable') {
         await eventually(async () => assembly.controls.clock.pending().length === 1)
         expect(reads).toBe(2)
@@ -1051,7 +1069,10 @@ describe('review regressions preserve the original wait responsibility', () => {
         ok(assembly.controls.clock.advanceTo('1970-01-01T00:00:01.000Z'))
         expect(ok(await waiting)).toBe('ready')
         ok(await c.runExecution())
-        const again = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+        const again = c.waitForWake({
+          pacer: reconciliationPacer([1000]),
+          signal: controller.signal,
+        })
         await eventually(async () => assembly.controls.clock.pending().length === 1)
         expect(reads).toBe(4)
         controller.abort()
@@ -1108,7 +1129,7 @@ describe('review regressions preserve the original wait responsibility', () => {
             },
           },
           access: {}, execution: 'exec-1', expected: '1', operations: [], waits: [],
-          position: 'E2', reconciliationDelayMs: 1000, signal: outer.signal,
+          position: 'E2', pacer: { delayAt: () => 1000 }, signal: outer.signal,
         })
         assert.equal(closed, true)
         assert.equal(result.failure.kind, 'unavailable')
@@ -1162,7 +1183,7 @@ describe('review regressions preserve the original wait responsibility', () => {
             },
           },
           access: {}, execution: 'exec-1', expected: '1', operations: [], waits: [],
-          position: 'E2', reconciliationDelayMs: 1000, signal: new AbortController().signal,
+          position: 'E2', pacer: { delayAt: () => 1000 }, signal: new AbortController().signal,
         })
         assert.equal(closed, true)
         assert.equal(result.failure.kind, 'unavailable')

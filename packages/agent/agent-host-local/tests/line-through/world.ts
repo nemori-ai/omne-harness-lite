@@ -556,7 +556,7 @@ async function replyWithText(admission: ModelAdmission): Promise<unknown> {
 
 const AGENT_HOST_CONFIG: AgentHostConfig = {
   observerBufferBytes: 65536,
-  reconciliationDelayMs: 1000,
+  reconciliationDelaysMs: [1000],
   reconciliationBatchLimit: 8,
   denialBackoffMs: 0,
   toolConcurrency: 1,

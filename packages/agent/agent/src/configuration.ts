@@ -36,7 +36,7 @@ const POSITIVE_SAFE = [
   'reconciliationBatchLimit',
   'toolConcurrency',
 ] as const
-const NON_NEGATIVE = ['reconciliationDelayMs', 'denialBackoffMs'] as const
+const NON_NEGATIVE = ['denialBackoffMs'] as const
 
 const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
 
@@ -57,6 +57,11 @@ function isPositiveSafeInteger(value: unknown): boolean {
 
 function isNonNegativeInteger(value: unknown): boolean {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+/** A non-empty list of non-negative integers. */
+function isDelaySequence(value: unknown): value is readonly number[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isNonNegativeInteger)
 }
 
 /** A structure judgment failure under `path`; the structure's own name becomes the path itself. */
@@ -87,6 +92,8 @@ function judgeConfiguration(configuration: AgentConfiguration): Failure | undefi
     if (!isPositiveSafeInteger(configuration[key])) return invalid(`configuration.${key}`, 'range')
   for (const key of NON_NEGATIVE)
     if (!isNonNegativeInteger(configuration[key])) return invalid(`configuration.${key}`, 'range')
+  if (!isDelaySequence(configuration.reconciliationDelaysMs))
+    return invalid('configuration.reconciliationDelaysMs', 'range')
   if (configuration.maxRunSteps !== undefined && !isPositiveSafeInteger(configuration.maxRunSteps))
     return invalid('configuration.maxRunSteps', 'range')
   if (!COORDINATION_MODES.includes(configuration.coordination))

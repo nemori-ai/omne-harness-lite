@@ -326,7 +326,7 @@ describe('createAgentHostLocalPlugin with a Tool request source', () => {
     })
   })
 
-  // D-104：宿主配置的复查间隔为 0（reconciliationDelayMs），toolConcurrency 为 1。
+  // D-104：宿主配置的复查间隔为 0（reconciliationDelaysMs），toolConcurrency 为 1。
   it('sends both calls of a batch and commits nothing while it waits for their results', async () => {
     const { source } = countingSource()
     let commits = 0

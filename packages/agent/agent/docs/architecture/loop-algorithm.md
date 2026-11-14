@@ -542,7 +542,7 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 | 每段处理限额 | R0 与 W0 每个处理段对账或重读的未决项数                                                | reconciliationBatchLimit                                                     |
 | 活体订阅缓冲 | O0 与读取方的订阅                                                                      | observerBufferBytes                                                          |
 | 拒收后退避   | I3 转 I8 后开新 step 之前                                                              | denialBackoffMs                                                              |
-| 对账间隔     | R0 与 W0 的重查间隔                                                                    | reconciliationDelayMs                                                        |
+| 对账间隔     | R0 与 W0 的重查间隔                                                                    | reconciliationDelaysMs                                                        |
 | 压缩步数     | C1                                                                                     | Context 计划的 bound，不是 Agent 配置                                        |
 | 守卫阈值     | M4 的循环判断                                                                          | loopGuardPolicy 的精确采用携带，不是数值配置项。M2 的临时兜底除外，见下一行  |
 | 执行步数     | E4 与 I8 开新一步之前                                                                  | maxRunSteps，缺省 50。这是 M2 的临时兜底，依据 R2-D221，完整的循环判断见波 3 |
