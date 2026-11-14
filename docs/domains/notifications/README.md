@@ -49,7 +49,7 @@
 
 ## 正式产品与技术承接导航
 
-[产品正文](../../../.meta_harness/design/product/notifications/design.md)保留完整能力与阶段缺项。[能力组](../../../packages/notification/README.md)解释具名工程关系。[完整行为候选](../../../packages/notification/notification/SPEC.md)与[成员内部设计](../../../packages/notification/notification/docs/internals.md)尚待技术采用。正式维护位置不扩大本页已接受责任或证明实现。
+[产品正文](../../../.meta_harness/design/product/notifications/design.md)保留完整能力与阶段缺项。[包组规格](../../../packages/notification/SPEC.md#总体架构)解释具名工程关系与完整行为。正式维护位置不扩大本页已接受责任或证明实现。
 
 [领域角色与交接](architecture.md)补充候选分解；精确状态、提交与恢复条件由成员拥有。
 

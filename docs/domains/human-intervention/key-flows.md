@@ -1,6 +1,6 @@
 # 人在回路协作设计候选
 
-本页保存尚待技术采用的设计，不表示实现、产品接受或阶段承诺。完整必要行为见[human-intervention/human-intervention SPEC](../../../packages/human-intervention/human-intervention/SPEC.md)，产品范围见[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)。
+本页保存尚待技术采用的设计，不表示实现、产品接受或阶段承诺。完整必要行为见[人工介入包组规格](../../../packages/human-intervention/SPEC.md#应然设计)，产品范围见[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)。
 
 下列流程里的请求、卡片、答复、池查询与通知都带原请求的租户。跨租户的读取与答复默认拒绝。
 

@@ -51,7 +51,7 @@ HITL契约拥有关联、呈现、答复及有效性，原等待/准入契约拥
 
 ## 正式产品与技术承接导航
 
-[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)保留完整能力与阶段缺项。[能力组](../../../packages/human-intervention/README.md)解释具名工程关系。[完整行为候选](../../../packages/human-intervention/human-intervention/SPEC.md)与[成员内部设计](../../../packages/human-intervention/human-intervention/docs/internals.md)尚待技术采用。正式维护位置不扩大本页已接受责任或证明实现。
+[产品正文](../../../.meta_harness/design/product/human-intervention/design.md)保留完整能力与阶段缺项。[包组规格](../../../packages/human-intervention/SPEC.md#总体架构)解释具名工程关系与完整行为。正式维护位置不扩大本页已接受责任或证明实现。
 
 [领域角色与交接](architecture.md)补充候选分解；精确状态、提交与恢复条件由成员拥有。
 

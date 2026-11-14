@@ -20,14 +20,14 @@
 | [工具执行](tool-execution/design.md) | [未决](tool-execution/design.md#未决问题与待定事项) | [领域](../../../docs/domains/tool-execution/README.md) | [工程与规格](../../../packages/tool/SPEC.md) |
 | [元能力入口](meta-capabilities/design.md) | [未决](meta-capabilities/design.md#未决问题与待定事项) | 依各入口的原领域责任 | 完整入口定义与旅程，技术承接按入口分配；Code 已定名并细化程序编排，Engram 与 Stop 占位 |
 | [运行感知与一次模型请求](runtime-context/design.md) | [未决](runtime-context/design.md#未决问题与待定事项) | [领域](../../../docs/domains/runtime-context/README.md) | 工程与规格（`packages/context/SPEC.md`「总体架构」） |
-| [工作区产品设计](workspaces/design.md) | [未决](workspaces/design.md#未决问题与待定事项) | [领域](../../../docs/domains/workspaces/README.md) | [工程与规格](../../../packages/workspace/README.md) |
+| [工作区产品设计](workspaces/design.md) | [未决](workspaces/design.md#未决问题与待定事项) | [领域](../../../docs/domains/workspaces/README.md) | [工程与规格](../../../packages/workspace/SPEC.md#总体架构) |
 | [执行环境产品设计](execution-environments/design.md) | [未决](execution-environments/design.md#未决问题与待定事项) | [领域](../../../docs/domains/execution-environments/README.md) | 工程与规格（`packages/execution/SPEC.md`） |
 | [Skill产品设计](skills/design.md) | [未决](skills/design.md#未决问题与待定事项) | [领域](../../../docs/domains/skills/README.md) | [工程与规格](../../../packages/skills/SPEC.md) |
-| [Slash Command产品设计](slash-commands/design.md) | [未决](slash-commands/design.md#未决问题与待定事项) | [领域](../../../docs/domains/slash-commands/README.md) | [工程与规格](../../../packages/slash-command/README.md) |
+| [Slash Command产品设计](slash-commands/design.md) | [未决](slash-commands/design.md#未决问题与待定事项) | [领域](../../../docs/domains/slash-commands/README.md) | [工程与规格](../../../packages/slash-command/SPEC.md) |
 | [MCP产品设计](mcp/design.md) | [未决](mcp/design.md#未决问题与待定事项) | [领域](../../../docs/domains/mcp/README.md) | [工程与规格](../../../packages/mcp/SPEC.md) |
-| [人在回路产品设计](human-intervention/design.md) | [未决](human-intervention/design.md#未决问题与待定事项) | [领域](../../../docs/domains/human-intervention/README.md) | [工程与规格](../../../packages/human-intervention/README.md) |
+| [人在回路产品设计](human-intervention/design.md) | [未决](human-intervention/design.md#未决问题与待定事项) | [领域](../../../docs/domains/human-intervention/README.md) | [工程与规格](../../../packages/human-intervention/SPEC.md#总体架构) |
 | [日历产品设计](calendars/design.md) | [未决](calendars/design.md#未决问题与待定事项) | [领域](../../../docs/domains/calendars/README.md) | [工程与规格](../../../packages/calendar/SPEC.md) |
-| [通知产品候选](notifications/design.md) | [未决](notifications/design.md#未决问题与待定事项) | [领域](../../../docs/domains/notifications/README.md) | [工程与规格](../../../packages/notification/README.md) |
+| [通知产品候选](notifications/design.md) | [未决](notifications/design.md#未决问题与待定事项) | [领域](../../../docs/domains/notifications/README.md) | [工程与规格](../../../packages/notification/SPEC.md#总体架构) |
 | [日程与作业产品设计](schedules-and-jobs/design.md) | [未决](schedules-and-jobs/design.md#未决问题与待定事项) | [领域](../../../docs/domains/schedules-and-jobs/README.md) | [工程与规格](../../../packages/schedule/SPEC.md) |
 
 Skill、Slash Command、MCP 的工程分解已维护在对应能力组，完整行为候选尚未分配正式成员。其产品末块与组入口继续显示承接缺项，不以组根 SPEC 或空包替代。

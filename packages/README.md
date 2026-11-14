@@ -9,27 +9,27 @@
 | [access](access/SPEC.md) | 系统接入 | `public-contract`, `sdk`, `server-entry` |
 | [identity](identity/SPEC.md) | 身份与授权 | `identity`, `authorization` |
 | [assets](assets/SPEC.md) | 资产与规则 | `assets`, `assets-local`, `settings`, `settings-local`, `permissions` |
-| [workspace](workspace/README.md) | 工作区 | `workspace` |
+| [workspace](workspace/SPEC.md) | 工作区 | `workspace` |
 | [session](session/README.md) | 会话与工作 | `session` |
-| [assembly](assembly/README.md) | 装配交接 | `assembly` |
+| [assembly](assembly/SPEC.md) | 装配交接 | `assembly` |
 | [agent](agent/SPEC.md#领域边界) | Agent推进 | `agent` |
 | [model](model/SPEC.md) | 模型调用 | `model` |
 | [tool](tool/SPEC.md) | 工具执行 | `tool` |
 | [context](context/SPEC.md) | Runtime Context | `runtime-context`, `request-context` |
-| [human-intervention](human-intervention/README.md) | 人工介入 | `human-intervention` |
+| [human-intervention](human-intervention/SPEC.md) | 人工介入 | `human-intervention` |
 | [execution](execution/SPEC.md) | 执行环境 | `execution-environment` |
 | [calendar](calendar/SPEC.md) | 日历 | `calendar-contract`, `calendar-cordis-contract`, `calendar`, `calendar-local`, `calendar-tools` |
 | [schedule](schedule/SPEC.md) | 日程与Job | `schedule-contract`, `schedule-cordis-contract`, `schedule`, `schedule-local`, `schedule-tools` |
-| [notification](notification/README.md) | 通知 | `notification` |
-| [slash-command](slash-command/README.md) | Slash Command | 待具名 |
+| [notification](notification/SPEC.md) | 通知 | `notification` |
+| [slash-command](slash-command/SPEC.md) | Slash Command | 待具名 |
 | [skills](skills/SPEC.md) | Skill | `skill-contract`, `skill`, `skill-host-local`, `skill-cordis-contract` |
 | [mcp](mcp/SPEC.md) | MCP | `mcp-contract`, `mcp`, `mcp-host-local`, `mcp-cordis-contract` |
 | [storage](storage/SPEC.md) | 存储 | 待具名 |
-| [time](time/README.md) | 时间 | 待具名 |
+| time | 时间 | 待具名 |
 | [telemetry](telemetry/SPEC.md) | 遥测 | 待具名 |
 | [common](common/SPEC.md) | 共同纯表示 | `json-text`, `legal-identity`, `utc-instant`, `content-block`, `message`, `stream-arrival`, `call-account`, `operation-result` |
-| [util](util/README.md) | 纯文本格式化 | `unix-format`, `xml-format` |
-| [schema](schema/README.md) | Schema 提供者 | `schema-provider` |
+| [util](util/SPEC.md) | 纯文本格式化 | `unix-format`, `xml-format` |
+| [schema](schema/SPEC.md) | Schema 提供者 | `schema-provider` |
 
 ## 阅读与维护
 
