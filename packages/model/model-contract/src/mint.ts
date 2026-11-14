@@ -9,6 +9,7 @@ function mint<K extends ModelIdentityKey>(text: string): Identity<K>
 function mint(text: string, kind: 'invocation'): ModelInvocationRef
 function mint(text: string, kind: 'operation'): ModelOperationRef
 function mint(text: string, _kind?: 'invocation' | 'operation'): Minted[keyof Minted] {
+  // brand-mint: the caller has already checked the text or built it by a fixed rule.
   return text as Minted[keyof Minted]
 }
 export function mintIdentity<K extends ModelIdentityKey>(text: string): Identity<K> {
