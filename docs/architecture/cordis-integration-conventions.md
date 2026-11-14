@@ -38,7 +38,7 @@
 
 非装配成员的跨成员依赖按[承载项目的系统分层及包组织角色入口](../package-organization.md)判断，core/util目录名不构成许可。业务不得反向依赖客户端、协议运输或应用，不通过私有入口读写其他能力事实。
 
-工具换代协调者 `toolGenerations` 是一个例外。它按工具资产的实现引用动态 import 实现包，取得实现模块与作者插件，再装载该作者插件。这是装载动作，协调者不是该实现的操作消费者，不调用实现的操作。依据是 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)，规则见 [tool-host-local 的 Cordis 集成](../../packages/tool/tool-host-local/docs/cordis.md#作者装载与贡献登记)。
+工具换代协调者 `toolGenerations` 是一个例外。它按工具资产的实现引用动态 import 实现包，取得实现模块与作者插件，再装载该作者插件。这是装载动作，协调者不是该实现的操作消费者，不调用实现的操作。依据是 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)，规则见 [tool-host-local 的 Cordis 集成](../../packages/tool/SPEC.md#装载登记与换代)。
 
 同提交事务读函数例外保持原精确范围，须在实际拥有者的行为规格中声明，并写明两个写入者共同触碰的存储对象。目录变化不扩大例外符号、提供者互引或装配豁免，实际同提交和资源责任仍需验证。
 
@@ -78,7 +78,7 @@
 
 登记是业务事实、需要显式撤回或接替的目录，可以采用下面的写法，并在其 Cordis 集成页的符合性映射中声明采用。目录的 `register` 可以返回登记回执，不返回撤除函数。撤除函数由目录持有，显式撤回与调用方 fiber 卸载共用同一个幂等删除。同一实例的后继登记可以在同一个本地动作内原子取代旧登记。贡献者 fiber 卸载后其登记仍须撤除，提供者仍须验证。其他使用者仍按上文执行。
 
-Tool 的绑定登记表采用目录写法，但不使用后继登记的原子取代。同一 fiber 以同一装载 digest 再登记同一登记键时，登记表认回同一贡献。同一登记键的其他第二次登记一律返回 conflict，原贡献不动。release 只撤除自己的 token。依据是 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)，采用声明归 [Tool 的 Cordis 集成](../../packages/tool/tool-cordis-contract/docs/cordis.md#登记输入与撤除协议)。
+Tool 的绑定登记表采用目录写法，但不使用后继登记的原子取代。同一 fiber 以同一装载 digest 再登记同一登记键时，登记表认回同一贡献。同一登记键的其他第二次登记一律返回 conflict，原贡献不动。release 只撤除自己的 token。依据是 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)，采用声明归 [Tool 的 Cordis 集成](../../packages/tool/SPEC.md#装载登记与换代)。
 
 ## IC-14
 
@@ -94,7 +94,7 @@ Tool 的绑定登记表采用目录写法，但不使用后继登记的原子取
 
 ## IC-17
 
-运行中按会话为 agent 装上的 Cordis 插件**不进**插件树。按工具资产动态装载的作者插件 fiber 也不进插件树。工具换代协调者 `toolGenerations` 持有它的句柄并负责撤除，见 [tool-host-local 的 Cordis 集成](../../packages/tool/tool-host-local/docs/cordis.md#作者装载与贡献登记)。进程保留少量长期 Cordis 根，服务受理、控制和短推进。一个会话不是一根 Context，也不是一个 isolate。会话作用域是会话身份，加上挂在调用方 fiber 上的登记。事件按这个身份过滤。撤除只撤这些登记。故障和登记不漏到别的会话。
+运行中按会话为 agent 装上的 Cordis 插件**不进**插件树。按工具资产动态装载的作者插件 fiber 也不进插件树。工具换代协调者 `toolGenerations` 持有它的句柄并负责撤除，见 [tool-host-local 的 Cordis 集成](../../packages/tool/SPEC.md#装载登记与换代)。进程保留少量长期 Cordis 根，服务受理、控制和短推进。一个会话不是一根 Context，也不是一个 isolate。会话作用域是会话身份，加上挂在调用方 fiber 上的登记。事件按这个身份过滤。撤除只撤这些登记。故障和登记不漏到别的会话。
 
 模型和工具不挂成 Agent 的子 Fiber。它们在各自的执行器上运行。执行器只有自己需要 Cordis 时才另建根。跨线程只传业务身份和任务，不传 Context、Fiber 或闭包。租户是操作参数，不从 Context 推断。
 

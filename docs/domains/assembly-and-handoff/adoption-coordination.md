@@ -38,7 +38,7 @@
 | `SessionAdoptionSource`、`SessionCommand`                                                 | [Session 端口](../../../packages/session/session-contract/src/ports.ts)                                                                                         | F 上已发布的类型          |
 | 服务键 `sessionAdoptionSource`                                                            | [Session 的 Cordis 契约](../../../packages/session/session-cordis-contract/src/cordis.ts) 的 `SessionAdoptionSourceService`                                     | F 上已发布                |
 | `AgentAdoptions`                                                                          | [Agent 执行契约](../../../packages/agent/agent-contract/src/execution.ts)                                                                                       | F 上已发布的类型          |
-| Tool「采用点判定」与 `known-unavailable`                                                  | [Tool 规格](../../../packages/tool/tool-contract/SPEC.md#采用点判定)                                                                                            | 已接受                    |
+| Tool「采用点判定」与 `known-unavailable`                                                  | [Tool 规格](../../../packages/tool/SPEC.md#定义采用与常驻)                                                                                            | 已接受                    |
 | `Adoption`、`DurableEvidence`                                                             | [exchange-refs](../../../packages/common/exchange-refs/src/index.ts)                                                                                            | F 上已发布的类型          |
 | `Adoption` 的值由被采用物的发布者解释                                                     | [exchange-refs 规格「所有权、失败与生命周期」](../../../packages/common/SPEC.md#交接引用)                                                        | F 上已发布的成员规格      |
 | Session 的创建校验与 reload 的定义身份检查                                                | [初始化校验](../../../packages/session/session-contract/src/initialization-validation.ts)、[命令判定](../../../packages/session/session-contract/src/decide.ts) | F 上已发布的实现          |
@@ -124,7 +124,7 @@
 
 本节关于类别不限于工具、常驻的例外和两处叠加的规则，是负责人 2026-11-12 裁定的已接受目标，实现在 4 号线。现在只有定义里标了 `resident` 的 Tool 引用被采用点读取，见 KL-11。
 
-`manifest` 不含主体、范围、入口、当前采用与 `knownUnavailable`。这些项随每次调用或每个时刻变化，内容却不变。它们进入清单，会让同一内容得到不同的 `ref`（AC-12）。`manifest` 也不含活体句柄、推进权、Tool 冻结判定与常驻登记键。依据：assembly 规格「记录」（清单不是可持久化的活体句柄），[Tool 采用点判定](../../../packages/tool/tool-contract/SPEC.md#采用点判定)。
+`manifest` 不含主体、范围、入口、当前采用与 `knownUnavailable`。这些项随每次调用或每个时刻变化，内容却不变。它们进入清单，会让同一内容得到不同的 `ref`（AC-12）。`manifest` 也不含活体句柄、推进权、Tool 冻结判定与常驻登记键。依据：assembly 规格「记录」（清单不是可持久化的活体句柄），[Tool 采用点判定](../../../packages/tool/SPEC.md#定义采用与常驻)。
 
 **AC-07** 候选与 `ref` 都没有推进效力。`prepare` 成功不等于已采用。Session 提交 `ref` 之后，该清单才是本次执行的采用依据。依据：Session 规格 [PM-06](../../../packages/session/session-contract/SPEC.md#pm-06)。
 

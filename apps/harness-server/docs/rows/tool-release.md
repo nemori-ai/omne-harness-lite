@@ -3,8 +3,8 @@
 本页说明发行自带的六个作者 `Shell`、`Files`、`Tools`、`TodoItems`、`Web` 与 `Ask` 怎样进入登记表。它覆盖发行清单、两个入口对象
 `toolContributionAuthority` 与 `toolReleaseRegistrant`，以及 `tool-host`、`tool-bindings` 两行。
 系统责任归[应用装配](../../../../docs/architecture/runtime/application-assembly.md#插件树)。
-接口事实归 L-TOOL 的契约成员：[Tool Cordis 契约](../../../../packages/tool/tool-cordis-contract/docs/cordis.md)
-与 [tool-host-local](../../../../packages/tool/tool-host-local/SPEC.md)。本页依据 Reduce 裁定 R2-D60、R2-D63、
+接口事实归 L-TOOL 的契约成员：[Tool Cordis 契约](../../../../packages/tool/SPEC.md#装载登记与换代)
+与 [tool-host-local](../../../../packages/tool/SPEC.md#总体架构)。本页依据 Reduce 裁定 R2-D60、R2-D63、
 R2-D66、R2-D68（含补充）与 B3-T2a 简报，只写 A 段。
 
 ## 发行清单

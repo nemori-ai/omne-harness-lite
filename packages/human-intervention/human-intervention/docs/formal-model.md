@@ -177,6 +177,6 @@ Tool 来源的 Ask 使用 HITL local 的 WaitOwner，经 Tool 的决策方端口
 | HumanDecision `Terminal` | Tool 调用域提交终局并关闭等待，同一笔提交生成失效任务；失效任务调用 `invalidate`，即 HITL invalidateWait |
 | HumanDecision `Consume`、RecoveryRouting `Deliver` | Tool 的 `resolve` 经 bindReceiver、readInbox、consumeDecision 接手；随后 Tool 提交 `acceptDecision`，固定 ResponseRecord。取消先在调用记录成立时，`acceptDecision` 不成立，决定不被当作答案 |
 | ContinuationComposition `SafeAdvance` | 恢复段启动前，`prepareResume` 经与首次启动相同的启动协调器核当前资格、同一未消费检查点与旧执行排除 |
-| ExecutionSlots `Park`、`Acquire` | Tool 队列域的 held→parked 与 ready→held；两域分提交的细化由 Tool 的 [SuspendedSlots 模型](../../../tool/tool/verification/models/README.md#暂停与执行名额模型) 检查 |
+| ExecutionSlots `Park`、`Acquire` | Tool 队列域的 held→parked 与 ready→held；两域分提交的细化由 Tool 的 [SuspendedSlots 模型](../../../tool/tool/verification/formal-mapping.md#suspendedslots) 检查 |
 
 session guard 只在 origin 带 sessionRef 时为必需项。没有会话的 Tool 来源不需要 session guard。card guard 与按 actionBasis 冻结的其他 guard 照常适用。这份映射说明模型动作对应哪些提交，不证明实现符合；实现符合性由真实组合测试验证。

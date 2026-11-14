@@ -280,7 +280,7 @@ Run终态只为完成、失败、被取消，每Run最多一次有效终结。�
 | 同身份重试 | 相同提交身份返回原结果。                                                                           |
 | 参数冲突   | 同一提交身份带上不同目标或不同种类则拒绝。                                                         |
 
-会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/SPEC.md#身份租户与资格)。模型受理归 [model](../../model/SPEC.md#受理与调用身份)。工具的停止和交付解除归 [tool](../../tool/tool-contract/SPEC.md#必要持久事实与确认)。Context 的注册和读取归 [runtime-context](../../context/SPEC.md#块注册与资格)。请求组装归 [request-context](../../context/SPEC.md#七组稳定读取与来源登记)。
+会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/SPEC.md#身份租户与资格)。模型受理归 [model](../../model/SPEC.md#受理与调用身份)。工具的停止和交付解除归 [tool](../../tool/SPEC.md#交付与调用状态的寿命)。Context 的注册和读取归 [runtime-context](../../context/SPEC.md#块注册与资格)。请求组装归 [request-context](../../context/SPEC.md#七组稳定读取与来源登记)。
 
 会话控制请求工具转后台时沿工具许可及转换契约；控制受理不表示转换完成。工具侧保存实际转换/收场，会话和 Agent 可靠承接后改变原步骤等待，不建立第二次执行或释放仍在执行的并发名额。后台最终结果沿原消费契约交回，原身份、效果、全文和费用保持；不默认支持后台转回前台。工具内 Ask 等待的后台限制沿工具契约，不由会话控制绕过。
 
@@ -1748,7 +1748,7 @@ Tool 来源：
 | 常驻工具的首次定义                     | 采用点的候选采用材料（证据桥）                                                                                                                                                                            | SE36                             | `create`、有新增实际采用的 `completeInitialization`、`startRun`、`reload`    | 依据                 |
 | 冻结判定                               | 新 Run 或显式 reload 的候选采用材料                                                                                                                                                                       | SE37；没有未终结 Run 时另有 SE38 | `freeze`                                                                     | 依据                 |
 
-SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类准入由本成员规定：缺了它，会话就不能恢复常驻工具在会话内不变的 name 与参数形状。常驻工具当前记下的登记键从 Run 的采用依据（SE08）派生，不另写条目，规则见 Tool 的[R4](../../tool/tool-contract/SPEC.md#会话常驻规则r1r5)。
+SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类准入由本成员规定：缺了它，会话就不能恢复常驻工具在会话内不变的 name 与参数形状。常驻工具当前记下的登记键从 Run 的采用依据（SE08）派生，不另写条目，规则见 Tool 的[R4](../../tool/SPEC.md#不变式)。
 
 其他来源：
 
@@ -2121,7 +2121,7 @@ Session 在撤销归档的同一次提交中，持久保存新业务代次、可
 
 ### JC-Release 原生产者确认的写入与未决路径
 
-Tool 结果按已采用的推送路径交付。结果接收方实现 Tool 的 `ToolResultReceiver`，只返回 saved。Tool 宿主收到 saved 后，以 saved 的证据经 `releaseDelivery` 自己解除交付责任（Agent 契约的[结果接收](../../agent/SPEC.md#结果接收)，Tool 契约的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)）。Session 不调用生产者解除端口。同一日志中已有 Tool 原生产者确认时，Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。重复投影认回，异版本不解除责任。
+Tool 结果按已采用的推送路径交付。结果接收方实现 Tool 的 `ToolResultReceiver`，只返回 saved。Tool 宿主收到 saved 后，以 saved 的证据经 `releaseDelivery` 自己解除交付责任（Agent 契约的[结果接收](../../agent/SPEC.md#结果接收)，Tool 契约的[结果推送与保存](../../tool/SPEC.md#交付与调用状态的寿命)）。Session 不调用生产者解除端口。同一日志中已有 Tool 原生产者确认时，Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。重复投影认回，异版本不解除责任。
 
 <a id="jc-release-tool-path"></a>
 

@@ -2,7 +2,7 @@
 
 本页说明发行树里 Tool 的执行一侧怎样接线。它覆盖五个 Tool 行、执行环境的三行、两个入口对象，以及交给
 `agent-host` 行的可信 Tool 请求供给者。系统责任归[应用装配](../../../../docs/architecture/runtime/application-assembly.md#插件树)。
-工厂与参数的契约归 L-TOOL 的 [tool-host-local](../../../../packages/tool/tool-host-local/docs/cordis.md#阶段装配与换代)。
+工厂与参数的契约归 L-TOOL 的 [tool-host-local](../../../../packages/tool/SPEC.md#装载登记与换代)。
 发行内置作者的来源与登记见[发行内置 Tool](tool-release.md)。本页依据 Reduce 裁定 R2-D14、R2-D36、R2-D66、
 R2-D79、R2-D84 与 Tool B 段简报。
 
@@ -47,7 +47,7 @@ Tool 记录仓的 `tool` 参加者与迁移并入会话存储组合，与会话�
 
 ## 生命周期观察
 
-记录行和 `tool-body-sweep` 行都把确认的 Tool 提交投影到既有 telemetry 行。事件为 `omne.tool.material.lifecycle`，语义与限制见[应用规格](../../SPEC.md#tool-生命周期遥测)和[Tool 规格](../../../../packages/tool/tool/SPEC.md#生命周期提交观察)。业务恢复沿耐久事实，不依赖事件是否成功输出。
+记录行和 `tool-body-sweep` 行都把确认的 Tool 提交投影到既有 telemetry 行。事件为 `omne.tool.material.lifecycle`，语义与限制见[应用规格](../../SPEC.md#tool-生命周期遥测)和[Tool 规格](../../../../packages/tool/SPEC.md#观察)。业务恢复沿耐久事实，不依赖事件是否成功输出。
 
 ## bundle 的输入
 
@@ -170,7 +170,7 @@ Run，最后做 HITL 的准备与登记。调用只保存最近一个等待的�
 - 唤醒：宿主的每个租户应用经 `withDecided` 包一层，答复成为有效决定之后，[wake.ts](../../src/rows/tool-hitl/wake.ts) 读这张卡
   的来源，来源是 Tool 调用时请实例宿主 `schedule` 原调用。唤醒只是提示。等人的调用已经离开执行器的内存表，提示排入的
   那次运行按账本把它认回；提示丢了，执行器周期性再开的恢复扫描按待办标记找回它，所以丢了唤醒不丢事实
-  （[等人的调用休眠](../../../../packages/tool/tool-host-local/SPEC.md#等人的调用休眠)）。
+  （[等人的调用休眠](../../../../packages/tool/SPEC.md#恢复与推进)）。
 
 谁能读、谁能答不在这里定：读者与答复者由注入的受众函数（`holder.audience`）给出，发行注入 `hitlCardAudience`。HITL 的对外
 入口在 `server-entry` 行（[hitl.ts](../../src/rows/server-entry/hitl.ts)）。还没有事务域的租户由宿主的 `qualify` 按 HITL local 的
@@ -265,6 +265,6 @@ Tool 把暂停调用的三样东西各用一笔提交写进调用域：等待的
 
 运维层必须显式给出 `offloading` 的全部字段，形状见 [config.ts](../../src/rows/tool-runtime/config.ts)。其中许可时长 W（`permitMs`）、时钟偏差 ε（`clockSkewMs`）与孤儿宽限期 G（`orphanGraceMs`）是部署参数。Tool 在构造账本时核 G 与最长保留毫秒数都大于 W + 2ε，不满足就拒绝启动。工具只能收紧正文和期限上限，模型参数不能覆盖这些值。示例值与验收值不冒充通用默认。
 
-`tool-body-sweep` 行调度 Tool 的清扫（`createToolSweep`）。它每隔 `intervalMs` 走一步，每步为一个租户清扫最多 `limit` 个到期正文，一轮访问租户目录列出的每个租户。回收由 Tool 运行时执行：先删除正文字节，再在账本记录 `reclaimed`，见[清扫与回收](../../../../packages/tool/tool-contract/SPEC.md#清扫与回收)。清扫读同一参与者时钟。停止时不再开始新的一步，并等待在途的一步结束；超过期限时答 `incomplete`。定时器与 disposer 都不是回收授权，只有到期索引给出回收对象。
+`tool-body-sweep` 行调度 Tool 的清扫（`createToolSweep`）。它每隔 `intervalMs` 走一步，每步为一个租户清扫最多 `limit` 个到期正文，一轮访问租户目录列出的每个租户。回收由 Tool 运行时执行：先删除正文字节，再在账本记录 `reclaimed`，见[清扫与回收](../../../../packages/tool/SPEC.md#正文卸载与保管)。清扫读同一参与者时钟。停止时不再开始新的一步，并等待在途的一步结束；超过期限时答 `incomplete`。定时器与 disposer 都不是回收授权，只有到期索引给出回收对象。
 
 telemetry 只记录有界的阶段、数量、字节数、延迟与错误类别，不记录正文、程序 data、秘密或文件路径。admitted/dropped 不构成存储确认；观测关闭不得改变提交、交付或清理结果。

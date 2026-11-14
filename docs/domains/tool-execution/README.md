@@ -21,9 +21,9 @@
 | 控制与收场 | 取消、转后台等操作的实际结果 |
 | 原消费者 | 结果保管/可靠承接及业务继续，按原契约分责 |
 
-内部等待不是完成，效果未知不同于已知没有执行。原调用和包装工具的业务对象分别拥有。交给原消费者的事实见[工具规格](../../../packages/tool/tool-contract/SPEC.md#必要持久事实与确认)。
+内部等待不是完成，效果未知不同于已知没有执行。原调用和包装工具的业务对象分别拥有。交给原消费者的事实见[工具规格](../../../packages/tool/SPEC.md#交付与调用状态的寿命)。
 
-工具实现变化时，会话常驻工具的 name 与参数形状在会话内不变。常驻规则与采用点判定见[工具规格](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)。Tool 只给冻结判定与原因 `tool-shape-lost`。会话冻结由[会话与工作](../sessions-and-work/README.md)执行。
+工具实现变化时，会话常驻工具的 name 与参数形状在会话内不变。常驻规则与采用点判定见[工具规格](../../../packages/tool/SPEC.md#定义采用与常驻)。Tool 只给冻结判定与原因 `tool-shape-lost`。会话冻结由[会话与工作](../sessions-and-work/README.md)执行。
 
 ## 协作与依赖
 
@@ -33,7 +33,7 @@
 
 人工等待交[HITL](../human-intervention/README.md)，答复回原工具等待点，后续按原资格解释。MCP 对端要求补充输入时复用同一个「等人决定」的原语，问的是人。后台寿命按工具声明管理，不能从Agent或Run结束自动推断其结束。
 
-Agent 脚本组合或编排工具受[可编程调用许可](../../../.meta_harness/design/product/tool-execution/design.md#可编程调用许可)约束。工具作者声明许可，发起协调者提供可信来源，Tool 执行准入核对目标许可。独立 SDK 消费与脚本编排的边界由[定义专题](../../../packages/tool/tool-contract/SPEC.md#可编程调用的定义与准入)细化。
+Agent 脚本组合或编排工具受[可编程调用许可](../../../.meta_harness/design/product/tool-execution/design.md#可编程调用许可)约束。工具作者声明许可，发起协调者提供可信来源，Tool 执行准入核对目标许可。独立 SDK 消费与脚本编排的边界由[定义专题](../../../packages/tool/SPEC.md#定义采用与常驻)细化。
 
 ## 主路径与交接
 
@@ -58,4 +58,4 @@ Agent 脚本组合或编排工具受[可编程调用许可](../../../.meta_harne
 
 ## 正式产品与技术承接
 
-[产品正文](../../../.meta_harness/design/product/tool-execution/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/tool/README.md)展开工程依赖与成员机制。本域细化设计已接受，成员运行接口尚未实现。`Tools` 的可搜范围与工具条目来源是负责人 2026-11-12 裁定的已接受目标，实现在 4 号线。
+[产品正文](../../../.meta_harness/design/product/tool-execution/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/tool/SPEC.md)展开工程依赖与成员机制。本域细化设计已接受，成员运行接口尚未实现。`Tools` 的可搜范围与工具条目来源是负责人 2026-11-12 裁定的已接受目标，实现在 4 号线。
