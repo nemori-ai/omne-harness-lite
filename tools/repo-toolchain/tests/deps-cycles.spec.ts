@@ -60,20 +60,9 @@ describe('omne-deps 只把成员之间成环当失败', { timeout: 120_000 }, ()
 })
 
 describe('约束文件', () => {
-  it('schema 3 带 groupCycleExceptions：这个键被接受，但不读它，解析结果里没有它', () => {
+  it.each([2, 3])('schema %i 带 groupCycleExceptions：按不认识的字段拒绝', schemaVersion => {
     const text = JSON.stringify({
-      schemaVersion: 3,
-      domains: [],
-      roles: [],
-      rules: [],
-      groupCycleExceptions: [{ id: 'X', edges: 'not even an array' }],
-    })
-    expect(parseConstraints(text)).not.toHaveProperty('groupCycleExceptions')
-  })
-
-  it('schema 2 带 groupCycleExceptions：按不认识的字段拒绝', () => {
-    const text = JSON.stringify({
-      schemaVersion: 2,
+      schemaVersion,
       domains: [],
       roles: [],
       rules: [],
