@@ -30,8 +30,3 @@ export function sameTree(first: string, second: string): boolean {
   }
   return real(first) === real(second)
 }
-
-/** 被检查的仓库就是运行检查器的仓库自己。runner 登记的东西是否过期，只有这时才能对照被检树判断。 */
-export function subjectIsRunner(subject: string, env: Env = process.env): boolean {
-  return sameTree(subject, runnerRoot(env))
-}

@@ -1,6 +1,6 @@
 // 收工钩子的依赖图：基线合并点上的图（deps/graph.ts 按提交缓存）里，只把这次改过的文件的边换成现算的。
 // 一条依赖边属于发出导入的文件，所以新增的边只可能出自改过的文件；新的环或方向违规一定含一条新边。
-// 于是只对改过且还在的源文件跑一层 dependency-cruiser，耗时随改动大小走，不随仓库大小走。成员边、成员环与组环在
+// 于是只对改过且还在的源文件跑一层 dependency-cruiser，耗时随改动大小走，不随仓库大小走。成员边与成员环在
 // 合并后的依赖上重算（graphOf），新边、稳定依赖不稳定、方向与环的读数照旧读这张图。
 // 不覆盖：同一成员里的文件环（基线图只留跨成员的依赖）；没改的文件指向已删文件的旧边。两者归 pnpm run lint:deps。
 import { spawnSync } from 'node:child_process'
@@ -158,7 +158,7 @@ export function cruiseFiles(root: string, files: readonly string[]): CruiseOutpu
 }
 
 /**
- * 基线图里去掉改过的文件发出的依赖与违规，换上 `current`（改过且还在的文件一层的结果）；成员边、成员环与组环在合并后的
+ * 基线图里去掉改过的文件发出的依赖与违规，换上 `current`（改过且还在的文件一层的结果）；成员边与成员环在合并后的
  * 依赖上由 graphOf 重算。`changed` 是基线到工作树改过的全部路径，含删掉的。
  */
 export function patchGraph(

@@ -8,8 +8,6 @@ import {
   RULE_IDS,
   type ArchitectureConstraints,
   type ArchitectureDirection,
-  type ArchitectureGroupCycleEdge,
-  type ArchitectureGroupCycleException,
   type ArchitectureImportException,
   type ArchitectureRole,
   type ConstraintInput,
@@ -71,15 +69,11 @@ const SEGMENT = '[A-Za-z0-9][A-Za-z0-9._-]*'
 const PACKAGE_MEMBER = `packages/${SEGMENT}/${SEGMENT}`
 /** 导入例外的成员：`packages/<组>/<包>`、`apps/<应用>`；`examples/` 不在其内。 */
 const IMPORT_MEMBER = new RegExp(`^(?:${PACKAGE_MEMBER}|apps/${SEGMENT})$`, 'u')
-/** 依赖图的成员，与 deps/graph.ts 的 `memberOf` 给出的 `path` 同形：另含 `examples/<示例>`。 */
-const GRAPH_MEMBER = new RegExp(`^(?:${PACKAGE_MEMBER}|(?:apps|examples)/${SEGMENT})$`, 'u')
-function exactMember(value: unknown, shape: RegExp, failure: string): string {
-  const path = safePath(str(value))
-  if (!shape.test(path)) throw new Error(`${failure}: ${path}`)
-  return path
-}
 function memberPath(value: unknown): string {
-  return exactMember(value, IMPORT_MEMBER, 'Architecture exceptions require exact members')
+  const path = safePath(str(value))
+  if (!IMPORT_MEMBER.test(path))
+    throw new Error(`Architecture exceptions require exact members: ${path}`)
+  return path
 }
 function importException(value: unknown): ArchitectureImportException {
   const row = obj(value, ['id', 'member', 'target', 'symbols', 'sharedStorage', 'source'])
@@ -223,60 +217,6 @@ function directions(value: unknown, roles: readonly ArchitectureRole[]): Archite
   const byId = new Map(roles.map(declared => [declared.id, declared]))
   return unique((value === undefined ? [] : list(value)).map(item => direction(item, byId)))
 }
-function groupCycleMember(value: unknown): { path: string; group: string } {
-  const path = exactMember(
-    value,
-    GRAPH_MEMBER,
-    'Architecture group cycle exceptions require member paths',
-  )
-  // 与 `memberOf` 的组同形：`packages/<组>`、`apps`、`examples`。
-  return { path, group: path.slice(0, path.lastIndexOf('/')) }
-}
-function ruling(value: unknown): string {
-  const text = str(value)
-  let url: URL
-  try {
-    url = new URL(text)
-  } catch {
-    throw new Error(`Architecture group cycle exceptions require an https ruling link: ${text}`)
-  }
-  if (url.protocol !== 'https:')
-    throw new Error(`Architecture group cycle exceptions require an https ruling link: ${text}`)
-  return text
-}
-function groupCycleEdge(value: unknown): ArchitectureGroupCycleEdge {
-  const row = obj(value, ['from', 'to'])
-  const from = groupCycleMember(row['from'])
-  const to = groupCycleMember(row['to'])
-  if (from.group === to.group)
-    throw new Error(
-      `Architecture group cycle exceptions require edges across groups: ${from.path} -> ${to.path}`,
-    )
-  return { from: from.path, to: to.path }
-}
-function groupCycleException(value: unknown): ArchitectureGroupCycleException {
-  const row = obj(value, ['id', 'edges', 'ruling', 'reason'])
-  const [first, ...rest] = list(row['edges']).map(groupCycleEdge)
-  if (first === undefined)
-    throw new Error('Architecture group cycle exceptions require at least one edge')
-  return {
-    id: str(row['id']),
-    edges: [first, ...rest],
-    ruling: ruling(row['ruling']),
-    reason: str(row['reason']),
-  }
-}
-/**
- * schema 3 的 `groupCycleExceptions`：缺省是没有例外；给了就必须是数组。同一条成员边在全部例外里只能出现一次：
- * 放行哪条边由哪条例外负责，不留两份裁定。
- */
-function groupCycleExceptions(value: unknown): ArchitectureGroupCycleException[] {
-  const rows = unique((value === undefined ? [] : list(value)).map(groupCycleException))
-  const keys = rows.flatMap(row => row.edges.map(edge => `${edge.from}\u0000${edge.to}`))
-  if (new Set(keys).size !== keys.length)
-    throw new Error('Architecture group cycle exceptions repeat an edge')
-  return rows
-}
 export function parseConstraints(text: string): ArchitectureConstraints {
   const parsed: unknown = JSON.parse(text)
   if (!record(parsed)) throw new Error('Architecture constraints require an object')
@@ -289,7 +229,7 @@ export function parseConstraints(text: string): ArchitectureConstraints {
     'roles',
     'rules',
     'importExceptions',
-    ...(schemaVersion === 3 ? ['directions', 'groupCycleExceptions'] : []),
+    ...(schemaVersion === 3 ? ['directions'] : []),
   ])
   const domains = unique(
     list(value['domains']).map(item => {
@@ -305,12 +245,7 @@ export function parseConstraints(text: string): ArchitectureConstraints {
     roles,
     rules: unique(list(value['rules']).map(rule)),
     importExceptions: importExceptions(value['importExceptions']),
-    ...(schemaVersion === 3
-      ? {
-          directions: directions(value['directions'], roles),
-          groupCycleExceptions: groupCycleExceptions(value['groupCycleExceptions']),
-        }
-      : {}),
+    ...(schemaVersion === 3 ? { directions: directions(value['directions'], roles) } : {}),
   }
 }
 /** 读哪一版：工作树读文件，历史版本读那个提交。 */
@@ -559,20 +494,6 @@ function semanticDirections(rows: ArchitectureConstraints['directions']) {
     ),
   }
 }
-/** 语义比较里的组环例外：与方向行相同，没有例外时不出现这个键；例外内边的书写顺序不是语义。 */
-function semanticGroupCycleExceptions(rows: ArchitectureConstraints['groupCycleExceptions']) {
-  if (!rows?.length) return {}
-  return {
-    groupCycleExceptions: sortedById(
-      rows.map(row => ({
-        ...row,
-        edges: row.edges
-          .map(edge => ({ from: edge.from, to: edge.to }))
-          .sort((a, b) => `${a.from}\u0000${a.to}`.localeCompare(`${b.from}\u0000${b.to}`)),
-      })),
-    ),
-  }
-}
 export function semanticConstraints(value: ArchitectureConstraints | null): string | null {
   if (value === null) return null
   return JSON.stringify({
@@ -586,7 +507,6 @@ export function semanticConstraints(value: ArchitectureConstraints | null): stri
         }
       : {}),
     ...semanticDirections(value.directions),
-    ...semanticGroupCycleExceptions(value.groupCycleExceptions),
     rules: sortedById(value.rules),
     roles: sortedById(
       value.roles.map(row => ({
