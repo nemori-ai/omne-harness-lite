@@ -402,16 +402,18 @@ export const gCells: readonly Cell[] = [
     run: async tools => {
       const from = Date.now()
       const held = Array.from({ length: CROWD_TENANTS }, () => gate())
-      const sessions: string[] = []
+      /** The session of each sent text, so that a call at the provider names its run. */
+      const sessions = new Map<string, string>()
       let quietFrom = 0
       try {
-        for (const one of held) {
+        for (const [index, one] of held.entries()) {
           const other = await signedIn(tools)
           const session = await other.createSession()
           tools.stub.push({ kind: 'hold', gate: one, after: { kind: 'reply', text: 'crowd' } })
-          const sent = await other.send(session, 'g-crowd hold')
+          const text = `g-crowd hold ${String(index + 1)}`
+          const sent = await other.send(session, text)
           tools.check('input accepted', sent === 'succeeded', sent)
-          if (sent === 'succeeded') sessions.push(session)
+          sessions.set(text, session)
         }
         // The Model holds at most a set number of sends in flight and queues the rest in its own
         // records, so only some of the calls reach the provider while the runs are held.
@@ -427,22 +429,33 @@ export const gCells: readonly Cell[] = [
         const own = await newcomer.createSession()
         tools.check('the newcomer creates a session', own.length > 0)
         tools.stub.push({ kind: 'reply', text: 'newcomer' })
-        tools.check('the newcomer input accepted', (await newcomer.send(own, 'hi')) === 'succeeded')
+        sessions.set('g-crowd newcomer', own)
+        const sent = await newcomer.send(own, 'g-crowd newcomer')
+        tools.check('the newcomer input accepted', sent === 'succeeded', sent)
         const listed = await newcomer.listSessions()
         tools.check('the newcomer lists its session', listed.sessions.includes(own), listed.outcome)
-        const released = tools.env.mark()
-        for (const one of held) one.open()
-        for (const session of [own, ...sessions]) {
-          const log = await tools.waitLog(session, 'run terminal', settled, TURN_MS)
-          tools.check('the run completed', log?.terminals[0] === 'completed', session)
-          if (log?.terminals[0] !== 'completed')
+        // One call at a time, in the order the calls reached the provider: the Model sends the
+        // queued calls as earlier ones end, so a call that has not arrived waits for an earlier one.
+        for (let step = 0; step < sessions.size; step += 1) {
+          const mark = tools.env.mark()
+          const arrived = await tools.stub.waitArrivals(step + 1, TURN_MS)
+          const text = tools.stub.arrivals()[step]?.lastUserText ?? ''
+          held[step]?.open()
+          const session = sessions.get(text)
+          const log =
+            arrived && session !== undefined
+              ? await tools.waitLog(session, 'run terminal', settled, TURN_MS)
+              : null
+          const done = log?.terminals[0] === 'completed'
+          tools.check('the run completed', done, `call ${String(step + 1)} (${text})`)
+          if (!done)
             tools.note(
-              `${session.slice(0, 8)} started ${String(log?.started)} ended ${JSON.stringify(log?.terminals)}: ${warningsSince(tools, released)}`,
+              `call ${String(step + 1)} (${text}) arrived ${String(arrived)} started ${String(log?.started)} ended ${JSON.stringify(log?.terminals)}: ${warningsSince(tools, mark)}`,
             )
         }
       } finally {
         for (const one of held) one.open()
-        tools.note(`${String(sessions.length)} of ${String(CROWD_TENANTS)} tenants waiting`)
+        tools.note(`${String(sessions.size)} sessions`)
         if (quietFrom > 0)
           tools.note(`quiet from window ${String(Math.floor((quietFrom - from) / WINDOW_MS))}`)
         tools.note(`omne.session.readWork per 5 s: ${readsPerWindow(tools, from).join(' ')}`)
@@ -452,7 +465,7 @@ export const gCells: readonly Cell[] = [
 ]
 
 const CROWD_TENANTS = 24
-const CROWD_QUIET_MS = 40_000
+const CROWD_QUIET_MS = 20_000
 const WINDOW_MS = 5000
 
 /** The warnings of the server since `mark`, the most frequent first, with their counts. */
