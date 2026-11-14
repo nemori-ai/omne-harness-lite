@@ -12,11 +12,8 @@ const STAGED_ARCHIVE = 'omne-cli.tar.gz'
 
 type Step = { command: string; args: string[]; cwd: string }
 
-/**
- * The command line that starts a step. On Windows `pnpm` on PATH is `pnpm.cmd` and a shell shim,
- * which Node cannot start without a shell; there pnpm runs as `node_modules/pnpm/bin/pnpm.cjs` next
- * to `pnpm.cmd` (the npm global layout) with this process's Node. A missing entry fails the step.
- */
+// On Windows `pnpm` on PATH is a `pnpm.cmd` shim that Node cannot start without a shell, so pnpm
+// runs as the `node_modules/pnpm/bin/pnpm.cjs` next to it, under this process's Node.
 function commandLine(step: Step): [string, string[]] {
   if (process.platform !== 'win32' || step.command !== 'pnpm') return [step.command, step.args]
   for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
@@ -27,11 +24,8 @@ function commandLine(step: Step): [string, string[]] {
   throw new Error('pnpm.cjs not found next to pnpm.cmd on PATH')
 }
 
-// The same steps as the member's `build` script, with the output moved to staging; change both together.
-// Source maps are left out: the archive carries no sources, and maps built outside `apps/cli/dist`
-// would record this machine's paths.
-// tar runs inside staging with relative names: GNU tar (Git for Windows) reads an absolute `C:\…`
-// archive name as a remote `host:file`.
+// The same steps as the `build` script, output in staging; change both together. No source maps: they would record this machine's paths.
+// tar runs in staging with relative names: GNU tar (Git for Windows) reads an absolute `C:\…` name as a remote `host:file`.
 function buildSteps(dist: string, staging: string): Step[] {
   return [
     {

@@ -47,13 +47,8 @@ type Attachments = Readonly<{
   web: WebBindingConfig | null
 }>
 
-/**
- * The per-call attachments of the release, in a fixed order: Tools first (it produces the context the
- * others attach to), then TodoItems, then Web. Each attaches only to the call of its own release tool.
- * The Web attachment reads the trusted `settingsSecretCustody` per call: the assembly page lists it
- * as a name this row reads, not one it injects, so a tree without the custody row still binds and
- * only search answers unavailable.
- */
+/** The order is fixed: Tools first, because it produces the context the others attach to, then
+ * TodoItems, then Web. */
 export function releaseCapability(
   ctx: Context,
   attachments: Attachments,

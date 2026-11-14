@@ -1,12 +1,5 @@
-// The assembly's `SessionContextDefinitions` (AD-12, `context-input.ts`「The definitions」): what JSON
-// cannot hold, given back from one exact adopted definition. A need binding's shape and translation
-// and a stateful block's schema and reducer are functions, so a Context material only references
-// them, and the assembly, which adopted the definitions, gives them back. AD-12 compares by object
-// identity (`definitions.binding(ref) !== binding`), so one table is built once from the declared
-// blocks and every query returns the object it was built from, never a copy.
-//
-// The application adopts the adapter's supplied modes carrier independently of Agent definitions.
-// Its binding is recoverable by exact adoption; its supplied declaration belongs to the producer.
+// AD-12 compares these definitions by object identity, so the table is built once and every query
+// returns the object it was built from, never a copy.
 import type {
   ContextBlockKey,
   NeedBinding,

@@ -20,11 +20,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const scratch: string[] = []
 
-/**
- * Runs the packaging script. Windows cannot start a shell script directly (EFTYPE); there it runs
- * under Git for Windows' bash, found from `git --exec-path` rather than PATH, where `bash` may be
- * the WSL launcher.
- */
+// Windows cannot start a shell script directly (EFTYPE): run it under Git for Windows' bash, found
+// from `git --exec-path` and not from PATH, where `bash` may be the WSL launcher.
 function runScript(script: string, args: string[], options: ExecFileSyncOptions): void {
   if (process.platform !== 'win32') {
     execFileSync(script, args, options)

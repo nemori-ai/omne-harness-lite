@@ -1,6 +1,6 @@
 import type { Violation } from '@omne-harness/repo-toolchain/core/rule'
 
-export const SPEC_PATH = /^packages\/[^/]+\/SPEC\.md$/u
+export const SPEC_PATH = /^(?:packages|apps|tools)\/[^/]+\/SPEC\.md$/u
 
 export const SPEC_SECTIONS = [
   '总体架构',

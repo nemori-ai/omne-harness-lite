@@ -3,7 +3,7 @@
 本页维护 monorepo 的源码归属、包边界与开发环境组织。产品实现以 TypeScript 为主；
 Python 当前服务于开发工具。
 
-> 目标分组与包边界见[产品包组织](package-organization.md)，新骨架见[packages/README](../packages/README.md)、[apps/README](../apps/README.md)，旧成员已从仓库删除，查固定提交中的[legacy包](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)及[legacy应用](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md)。领域责任从[领域入口](domains/README.md)定位，未迁契约仍从[原维护入口](../.meta_harness/design/architecture/README.md)定位。本页维护顶层归属与workspace操作规则，不另存成员总数或第二份目标包树。
+> 目标分组与包边界见[产品包组织](package-organization.md)，新骨架见[packages/README](../packages/README.md)，旧成员已从仓库删除，查固定提交中的[legacy包](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)及[legacy应用](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md)。领域责任从[领域入口](domains/README.md)定位，未迁契约仍从[原维护入口](../.meta_harness/design/architecture/README.md)定位。本页维护顶层归属与workspace操作规则，不另存成员总数或第二份目标包树。
 
 项目要求与已接受技术架构从[docs入口](README.md)定位；产品、统一语言及持续研究保持meta源。公开类型、行为契约、必要理由和验证资源随成员拥有者维护。
 目录和包的划分不直接决定插件、服务或部署边界。
@@ -13,7 +13,7 @@ Python 当前服务于开发工具。
 | 位置 | 职责 | 放置判断 |
 |---|---|---|
 | [packages/](../packages/README.md) | 产品的可复用包，以 TS 为主 | 有明确职责、依赖和对外入口；消费者通过包入口使用 |
-| [apps/](../apps/README.md) | 可启动的产品应用与装配入口 | 组合包、加载配置、启动宿主；可复用行为回到所属包 |
+| `apps/` | 可启动的产品应用与装配入口 | 组合包、加载配置、启动宿主；可复用行为回到所属包 |
 | [tools/](../tools/README.md) | 开发、验证和维护工具 | 工具也可拥有独立包、CLI、资源和测试；以 TS 编写也归此处 |
 | [scripts/](../scripts/README.md) | 仓库级开发与 CI/CD 自动化 | 串联现有工具、准备构建输入、整理产物；复杂检查逻辑归工具包 |
 | 各包或应用内的 `src/` | 该成员的实现源码 | TS、Python 都可采用；源码跟随所属包，不汇入根 `src/` |

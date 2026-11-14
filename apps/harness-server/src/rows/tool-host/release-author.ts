@@ -236,11 +236,8 @@ export function releaseAuthorInput(
       },
     })
 
-  /**
-   * 模块绑到清单的固定模块（R2-D82 D1）：调用方交来的模块的 executor 四项必须与清单全等，否则 invalid；
-   * 真正交给 loader 的始终是快照里的固定模块，调用方给的 `createAuthor` 不会运行。contributeTool 会把固定
-   * 模块包一层再交来，所以这里不能要求同一对象，改为按清单换回固定模块。
-   */
+  /** contributeTool 会把固定模块包一层再交来，所以这里不能要求同一对象：核 executor 四项与清单全等，
+   * 再换回快照里的固定模块。 */
   const loaderFor = (authority: ToolAuthority): ToolLoader<unknown, unknown, B> => {
     const loader = inner(authority)
     return {

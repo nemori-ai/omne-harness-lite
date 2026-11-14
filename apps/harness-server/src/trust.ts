@@ -18,13 +18,8 @@ export interface Trust {
   contextForName(root: Context, name: ServiceName): Context
 }
 
-/**
- * Build the scope table. The labels live only in this closure.
- *
- * Cordis keys its service store by the label symbol alone, so two names that
- * shared one label would collide at `provide`. Each trusted name therefore gets
- * its own label. A scope is the set of names that the table treats together.
- */
+/** Cordis keys its service store by the label symbol alone, so two names that shared one label
+ * would collide at `provide`: each trusted name gets its own label. */
 export function createTrust(scopes: readonly TrustScopeSpec[], visibility: Visibility): Trust {
   const labels = new Map<ServiceName, symbol>()
   for (const scope of scopes) {

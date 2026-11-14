@@ -1,16 +1,5 @@
-// The cancellation policy installation of the release (R2-D35): the immutable governance record and
-// the pure judgment it names. The assembly entry hands it to the `agent-journal` row; the row gives it
-// to the session-log Journal of every session. A caller never supplies or names an implementation:
-// a cancel request only refers to the record (Agent SPEC "取消判断与路线" / "安装记录与资格").
-//
-// This is not a Cordis service and not a configuration member: the judgment is a function holder.
-// The record is fixed here by name, revision and a digest of that identity. Changing the criteria
-// below means a new revision, a new digest and so a new installation record.
-//
-// The judgment is pure. It reads only the input the Journal built from its own authoritative read
-// of the Run (control, candidate, obligations, coverage, participants), in the order of SPEC
-// "判断输入、判据与记录". It never allows by default: it answers `allowed` only when the cancel is
-// effective, every obligation is settled or held, and every participant condition is ready.
+// The installation record is fixed by name, revision and digest: changing the criteria below means
+// a new revision, a new digest and so a new installation record.
 import { createHash } from 'node:crypto'
 import type {
   Adoption,

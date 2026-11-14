@@ -1,371 +1,137 @@
-# M2 contract skeleton behavior
-
-This private application connects the M2 tenant path. It is the CS of the M1 joint acceptance (G1) and the evidence of the M1.5 closing gate [H3](https://github.com/nemori-ai/omne-harness-lite/issues/783) (CS v2). It uses only the public exports of contract members and their `./testing` doubles. Its report belongs to this application. The report is not a shared protocol or a production API.
-
-The adopted scope is [#790 revision 5](https://github.com/nemori-ai/omne-harness-lite/issues/790), section 「目标与范围」, items 1 to 8, on top of [#684 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/684). The [H3 ruling](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6515275392) sets the result of this revision: H01 to H08 connect. H09 to H12 record where the upstream public entries stop them. The default store does not probe H13. H13 is recorded as a named gap, and a separate test pins the upstream fact behind it (GAP-SESSION-LOG-TARGETS). These five hops move to M2 ([#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)) as blocking residual gaps. They stay blocking. Their acceptance continues on the first tenant path of M2.
-
-The assembly model is the 「替身与真件」 section of the [application assembly page](../../docs/architecture/runtime/application-assembly.md#替身与真件). This application is the CS that the page names. It is not the application assembly of the first tenant path.
-
-## Path
-
-`runFirstTenantPath(dependencies)` in [path.ts](src/path.ts) has thirteen hops:
-
-1. H01: create the organization and tenant.
-2. H02: log in and recognize the tenant.
-3. H03: create the session through the session codec, with the injected Session access check.
-4. H04: accept the first request through the session codec, start the Run, and hand the request to Agent.
-5. H05: Agent assembles the request through Request Context and sends the Model call.
-6. H06: the Model pushes the result to the host receiver, which writes the received entry. The loop continues from that entry.
-7. H07: the Agent reply enters the Session journal.
-8. H08: a history read through the session codec returns the replies of the main session.
-9. H09: the later rounds of the main session, one Run and one reply for each input.
-10. H10: the Model requests a tool. Tool runs it in the execution environment, and the result returns to the Model.
-11. H11: the Agent instance is withdrawn during a Model call and assembled again.
-12. H12: a reply with reasoning is consumed, and the next request replays its state.
-13. H13: the Agent records of the first round are read from the Session log.
+# @omne-harness/m2-contract-skeleton
 
-The path runs the hops in this order:
+## 总体架构
 
-```mermaid
-flowchart TD
-  H01[H01 tenant] --> H02[H02 login]
-  H02 -->|no access check| P[H03 stays pending]
-  H02 --> H03[H03 main session]
-  H03 --> H04[H04 round 1: input, Run, invoke, hand-over]
-  H04 --> A[H05, H06, H07 read together from the Agent journal]
-  A --> H13[H13 Agent records from the Session log]
-  H13 --> H09[H09 rounds 2 and 3]
-  H09 --> H08[H08 history of the replied rounds]
-  H08 -->|H07 connected| H10[H10 tool probe session]
-  H10 --> H11[H11 reassembly probe session]
-  H11 --> H12[H12 reasoning probe session]
-  H01 -. not connected .-> X[stop]
-  H02 -. not connected .-> X
-  H03 -. not connected .-> X
-  H04 -. not connected .-> X
-  H08 -. H07 not connected .-> X
-```
+契约骨架是一个私有的验证应用。它回答一个问题：契约成员的公开入口能不能沿首条租户的路径，为同一个租户按次序连起来；连不上时，停在哪一跳、哪一个公开入口、以什么失败。它在一个进程里运行，只用契约成员的公开导出，替身由调用方接入。它的报告属于本应用，不是共享协议，也不是生产接口。它不是首条租户路径的应用装配。
 
-H03 to H09 and H13 use the main session. H09 drives the later rounds on that session. H08 runs after H09, so it reads the replies of every replied round. H10, H11 and H12 are the probes. Each probe opens its own session with its own Agent instance, because each probe needs its own scripted Model answer.
+| 部分       | 回答的问题                                                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 路径       | 十三跳各调哪个公开入口、按什么次序；每一跳观察到什么                                                                     |
+| 两座桥     | Agent 的消息交接与请求准备在没有 Session 协调者与 Agent 侧 Context 适配时，怎样经公开端口接到 Session 与 Request Context |
+| 治理场景   | 治理协议的固定正例与边界例是否各执行一次并符合预期                                                                       |
+| Model 义务 | Model 公开义务套件对调用方给的主体是否都通过                                                                             |
+| 报告       | 观察、场景与义务怎样合成每一跳的状态、残余缺口与整条路径的结论                                                           |
 
-These rules stop the path:
+调用方给出路径依赖、Model 义务的主体与插件树各行的实现声明表。路径逐跳调用公开入口并记下观察；治理场景与 Model 义务各自执行；报告把三者按跳合并，给出每跳的状态、整条路径是否完整，以及本次调用内的检查是否全部通过。替身只在用例里接入。
 
-- A hop of H01 to H04 that does not connect stops the path. Every later hop reports `not-reached`.
-- H05, H06 and H07 are read together from the Agent journal after H04. A failure of one of them does not stop H13, H09 or H08.
-- The probes run only when H07 connected.
+## 领域边界
 
-Each hop calls the public entry of a contract member through a port that the caller passes in. The module builds no double. A hop never reports success for a call that it did not make. A probe goes until the first upstream refusal. It records the refusal as evidence, and it never builds the refused behavior in this application. Each probe also holds the next step for the time after the upstream entry is delivered. That step is the connection criterion of the hop.
+本应用拥有：路径与它的连通判据、观察的四种结论、两座桥、报告的形状与状态规则、残余缺口的分类方式。
 
-The path uses one tenant and one principal from H02 onward. The tenant comes from the identity response that the governance codec read back. The principal is the account that identity recognized from the login proof.
+本应用不拥有任何领域规则。治理与会话消息、身份、Session、Agent、Request Context 与 Model 的行为都归各自的包组；替身归各成员的测试入口；插件树的行归应用装配的架构页。本应用不补造上游拒绝的行为，不用私有导入或本地的业务替代品让一跳连通。
 
-## Report
+本应用需要别人提供的：
 
-`runContractSkeleton(inputs)` in [run.ts](src/run.ts) runs the connected path, the fixed governance protocol scenarios, and the public Model obligation suite. It returns one `PathReport`.
+| 需要                         | 对方                | 本应用需要它做什么                                                          |
+| ---------------------------- | ------------------- | --------------------------------------------------------------------------- |
+| 治理与会话的编解码           | 接入（公开契约）    | 在进程内编码并读回注册、签发登录、创建会话、发送输入与读历史的请求与答复    |
+| 注册、签发与识别登录         | 身份                | 建租户、签发登录证明、从证明识别租户与主体                                  |
+| 事务端口、证据桥与历史读取   | Session（会话契约） | 按注入的访问检查提交创建、接受、开始 Run、交接与记消息；读工作与历史        |
+| 运行时、宿主接收方与日志读取 | Agent               | 运行一轮、接收 Model 推送的结果、按执行读日志条目；撤回、续接与恢复的公开面 |
+| 组装操作                     | Request Context     | 对 Session 历史组装一次请求，经 Model 准备租约计划输入                      |
+| 结果推送与义务套件           | Model               | 把冻结的结果推给宿主接收方；给出公开义务套件                                |
 
-The path gives one observation for each hop that it reached. An observation has one of four kinds:
+本应用为 Agent 实现两个端口：消息交接（Session 一侧交接的替身）与请求准备（Agent 侧 Context 适配的替身）。它不为别的包组提供端口。
 
-- `not-reached`: the path stopped before the hop. The report gives the evidence `not-reached`.
-- `refused`: an upstream public entry refused a call with a named failure, such as `run-active` or `unavailable`, or the Agent journal shows the loop at a named refusal point, such as the loop position A0 with a pending action, or M6. The evidence names the refusal.
-- `disconnected`: the calls answered, but the results do not meet the connection criterion of the hop. This kind also covers a hop that is pending: the path made no call because an input is missing, such as an injection without a value, or because the store does not supply the part that the hop reads, such as H13 on the default store.
-- `connected`: the public calls succeeded in order and met the criterion.
+## 心智模型
 
-A hop that stops takes the kind of the step that stopped it. For example, Session refusing the hand-over of H04 with `conflict` makes H04 `refused`. A probe that stops in its own session keeps the kind of that step. Its evidence names the step, not an earlier step that succeeded.
+把契约骨架想成一个沿路走、在哪里被拦下就在哪里记一笔的探子。它每一步都真的调用公开入口；被拒时记下拒绝它的入口与失败种类，就此停下，绝不在本应用里补出被拒的那段行为。它的报告证明的是「这些公开入口在这些替身上按这个次序能连起来」，以及每一跳交接的值形状与判断次序。
 
-`hops` contains one entry for each hop H01 through H13. Each entry records `hopId`, `publicEntry`, `responsibility`, `ownerCards`, `reason`, `rows`, `realization`, `state`, `blockedBy` and `fragments`. A fragment has `fragmentId`, `status`, and `evidence`. Fragment status is `pass`, `fail`, or `not-applicable`. The `<hop>-connected` fragment passes only for a `connected` observation.
+它不证明耐久：替身把状态放在内存里。它不证明跨进程的主体来源、同一事务域里的联合提交、真实供应商的行为，也不证明 HTTP 承载：消息经编解码在进程内往返。
 
-`rows` lists the rows of the plugin tree of the [application assembly page](../../docs/architecture/runtime/application-assembly.md#插件树) that the wiring of the hop crosses when the hop connects. A probe that stops early does not reach every row. Its evidence says where it stopped.
+最容易想错的三处。被拒与未连通不同：被拒是上游公开入口以具名失败答了，未连通是调用都答了但结果不满足判据。一跳的片段全部通过，只要有阻断的残余缺口点名它，它仍是缺口。本次调用内的检查通过，只说明这一次调用里的场景与片段都执行并符合预期，不代表外部测试、评审或验收的结论。
 
-`realization` records the caller's declaration for each row. The caller gives the table in `inputs.realization`. The report records the declaration by row. It does not check the declaration against the wiring, hop by hop. The values are:
+## 应然设计
 
-- `real`: the production implementation that the row names is wired.
-- `double`: a `./testing` double or a stand-in of this application is wired. A production runtime over test dependencies is also `double` when the row names another member. For example, `agent-host` names the host plugin of `@omne-harness/agent-host-local`. The tests run `createAgentRuntime` of `@omne-harness/agent` over `createTestAgentDependencies`, so the row is `double`.
-- `absent`: nothing stands in the row on this path.
-- `undeclared`: the caller gave no declaration.
+### 路径与次序
 
-The tests declare these rows. The two Session stores differ only in `session-ad01` and `session-ad02`:
+路径从注入的依赖出发，自第二跳起用同一个租户与同一个主体：租户取治理编解码读回的身份答复，主体取身份从登录证明识别出的账号。
 
-| Hop      | Rows                                                                                                                          | `contract-memory` | `session-log` |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------- |
-| H01, H02 | `server-entry`, `identity`                                                                                                    | double            | double        |
-| H03      | `server-entry`, `authorization`, `session-storage`, `session-provider`, `session-ad10`                                        | double            | double        |
-| H04      | `server-entry`, `session-provider`, `session-ad14`, `agent-adoptions`, `agent-host`, `session-handoff`                        | double            | double        |
-| H05      | `agent-host`, `session-conditions`, `agent-model-selection`, `session-ad04`, `agent-context`, `request-context`, `model-host` | double            | double        |
-| H06      | `model-host`, `agent-host`, `agent-journal`                                                                                   | double            | double        |
-| H07      | `session-handoff`                                                                                                             | double            | double        |
-| H07      | `session-ad01`                                                                                                                | absent            | double        |
-| H08      | `server-entry`, `session-provider`                                                                                            | double            | double        |
-| H09      | `session-provider`, `session-ad14`, `agent-host`                                                                              | double            | double        |
-| H09, H13 | `session-ad02`                                                                                                                | absent            | double        |
-| H10      | `agent-host`, `tool-runtime`, `execution-files`                                                                               | double            | double        |
-| H10      | `tool-executor`, `tool-environments`, `execution-environment`                                                                 | absent            | absent        |
-| H11      | `agent-host`, `model-host`, `server-entry`                                                                                    | double            | double        |
-| H11      | `agent-instances`                                                                                                             | absent            | absent        |
-| H12      | `model-host`, `agent-host`, `session-ad04`                                                                                    | double            | double        |
-| H13      | `agent-journal`                                                                                                               | double            | double        |
+- 次序：第一到第四跳依次执行；第四跳之后，第五到第七跳从 Agent 日志一并读出；然后在主会话上执行第十三、第九、第八跳；最后是三个探测：第十、第十一、第十二跳。第三到第九跳与第十三跳用主会话；每个探测开自己的会话与自己的 Agent 实例，因为各自需要不同的脚本化 Model 答复。
+- 第一到第四跳任一不连通，路径停下，之后各跳报告「未到达」。第五到第七跳之一失败，不阻止第十三、第九、第八跳。只有第七跳连通时才运行探测。
+- 每一跳经调用方传入的端口调用一个契约成员的公开入口；路径模块不构建替身。一跳不为它没有发出的调用报告成功。
 
-Every hop has one fragment `<hop>-connected` from the connected path. H01 and H02 also carry the governance protocol scenarios. H06 also carries every public Model obligation from `@omne-harness/model-contract/conformance`.
+### 每跳的连通判据
 
-The hop `state` follows these rules:
+| 跳  | 做什么                                                                               | 连通的判据                                                                                                                                                               |
+| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| H01 | 经治理编解码注册并激活，建组织与租户                                                 | 答复携带的租户等于身份的租户                                                                                                                                             |
+| H02 | 签发登录，再以答复里的证明识别                                                       | 身份识别出第一跳的租户                                                                                                                                                   |
+| H03 | 经会话编解码创建会话，Session 存储带注入的访问检查                                   | 提交成功，两条编解码消息都读回，读工作返回该会话                                                                                                                         |
+| H04 | 经会话编解码发送输入；接受、开始 Run、调用 Agent、交接外部输入、Session 一侧收下交接 | 开始 Run 固定了这条请求，交接承认了输入，Session 一侧持有交接                                                                                                            |
+| H05 | Agent 经请求准备，在 Session 历史上经 Request Context 组装并发出 Model 调用          | 至少组装了一条历史消息；至少取得一个准备租约并用它计划了输入，没有未交还的租约；固定的请求带组装的消息；Agent 日志绑定这一步的 Model 调用；调用方报告至少一次 Model 受理 |
+| H06 | Model 结算受理的调用，经公开推送器推给宿主接收方                                     | 日志有收到条目，材料按原绑定读回，交接带同一次调用的回复                                                                                                                 |
+| H07 | 消息桥把 Agent 的回复作为消息参与提交到 Session                                      | 提交成功，Agent 日志显示执行结束                                                                                                                                         |
+| H08 | 经会话编解码读历史，只取部署缺省披露的用户与助手消息                                 | 历史页里的助手消息按轮次带着各轮的 Model 回复文本                                                                                                                        |
+| H09 | 在主会话上再驱动第二、第三轮；某轮开始 Run 被拒时改试向第一个执行提交                | 三轮都得到回复                                                                                                                                                           |
+| H10 | 工具探测：Model 先答一个工具调用，再答文本                                           | Tool 运行时收到调用；执行环境的效应含文件读、文件写与命令启动，各自答完成；Model 受理了第二次调用；之后的某次 Model 请求带工具结果；执行结束                             |
+| H11 | 重装配探测：Model 挂住调用时撤回 Agent 实例并续接，再放开 Model                      | 撤回与续接成功；Model 只受理一次调用，没有重发；执行从日志里的收到条目结束；重装配之后，同一观察连接上的帧序号连续，且观察经过服务端入口的观察路径                       |
+| H12 | 推理探测：第一条回复带推理部件，第二轮在同一 Agent 上发出                            | 第一条回复交接了，第二轮的请求再次带上推理部件                                                                                                                           |
+| H13 | Session 存储提供同日志的 Agent 日志时，从中读第一轮的执行、工作与历史                | 日志返回 Run 授权打开的执行；读工作报告该执行的 Run；历史含该执行的交接条目或该 Run 的「已取走输入」条目                                                                 |
 
-- `gap`: the path did not reach the hop, the observation is missing, or a blocking residual gap names the hop. `blockedBy` lists the blocking residual gaps of the hop. The fragments keep the evidence of what the path met there.
-- `failed`: the path reached the hop, no blocking residual gap names it, and at least one fragment failed or is `not-applicable`.
-- `verified`: the path reached the hop, every fragment passed, and no blocking residual gap names the hop.
+- 第三跳的访问检查是必需依赖，调用方必须给值；值为空时路径不构建 Session 存储，第三跳不连通并写明缺的是访问检查。路径从不使用缺省的检查。检查拒绝时第三跳以拒绝停下。
+- 第四跳：在同日志存储上，Agent 循环可能在 Session 一侧收下交接之前已取走输入。只有 Session 以「输入已不在等待」答复交接、且日志里有同一 Run 的「已取走输入」条目时，才算交接成立；别的拒绝都是拒绝。
+- 第五跳的租约与受理计数由调用方报告，证据标明是调用方报告的；本应用的源码不导入测试入口，读不到计数器本身。
+- 第十跳只在最后读到的日志快照里循环停在动作准入、且批里仍有等待中的动作时，才把停下记为拒绝；没有等待中的动作的同一位置是普通一步，探测继续等。
+- 默认存储把 Agent 日志放在 Session 日志之外，不探测第十三跳，记为缺口并写明原因。
 
-`fullPath` is `complete` only when all thirteen unique hops are `verified` with a connected fragment and there is no structural error. Any other result keeps it `incomplete`. The field `gaps` lists the hops that are not verified.
+### 观察与证据
 
-`residualGaps` lists what the connected path does not include. Each residual gap has `gapId`, `hops`, `owners`, `blocking`, and `reason`. A residual gap names a part of the target system that this path replaces with a call sequence of this application or does not exercise. A blocking residual gap names a part that the hop definition below needs and that no public entry supplies. The hops that it names stay in the `gap` state. A non-blocking residual gap names a part that this application calls directly or leaves out. `owners` lists open cards only, except that a part which Reduce wires in the assembly names Reduce and its decision (GAP-TOOL-LOOP). A residual gap without an open implementation card names the M2 milestone card [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784). The sections below are the only detailed inventory of residual gaps.
+- 每一跳的观察是四种之一：未到达（路径在这一跳之前停了）；被拒（上游公开入口以具名失败拒绝了调用，或 Agent 日志显示循环停在具名的拒绝点）；未连通（调用都答了，但结果不满足判据；也包括因缺输入或存储不提供而没有发出调用的一跳）；连通（公开调用按次序成功并满足判据）。
+- 停下的一跳取让它停下的那一步的结论。探测在自己的会话里停下时保留那一步的结论，证据点名那一步，不点名更早已成功的步。
+- 证据只放固定标签、失败种类、位置与计数。失败标签只含本应用铸造的步名与失败的种类。不是路径步骤拒绝的异常记为未知的抛出。报告里没有供应商或端口的自由文本，没有凭据、登录证明或消息正文。
+- 连通路径里的异常是结构错误，使每一跳都成为缺口。某个治理场景失败，不删除它的跳，也不停止 Model 检查。
 
-`checksPassed` describes the checks inside one invocation. Every required scenario must occur once, execute, and match its expectation. Every hop fragment must pass. Exceptions, timeouts, missing or repeated entries, `fail`, and `not-applicable` make this value false. External Vitest results, independent reviews, and QA do not change this value.
+### 报告
 
-The aggregator inserts a `gap` entry for a missing hop. It keeps repeated observations in `duplicateObservations`, adds a duplicate diagnostic, and marks the normalized hop failed. Both structural faults make `checksPassed` false and `fullPath` incomplete.
+- 报告对第一到第十三跳各有一项。每项记下跳穿过的插件树行与调用方对每行的实现声明：真件、替身、缺席或未声明。声明按行记录，不逐跳核对它与实际接线是否一致。
+- 每跳有一个来自连通路径的「已连通」片段；第一、第二跳另带治理场景，第六跳另带 Model 的全部公开义务。「已连通」片段只在观察为连通时通过。
+- 跳的状态：路径没有到达、观察缺失、或有阻断的残余缺口点名它，是缺口；到达、没有阻断缺口点名、有片段失败或不适用，是失败；到达、片段全部通过、没有阻断缺口点名，是已验证。
+- 整条路径只在十三跳都已验证、各带一个通过的「已连通」片段、且没有结构错误时才完整，否则不完整。报告另列没有验证的跳。
+- 残余缺口写连通路径不包含的部分：本应用用自己的调用顺序替代、或没有走到的目标系统部分。阻断的残余缺口点名一跳的判据需要、而没有公开入口提供的部分，被点名的跳保持缺口；不阻断的残余缺口点名本应用直接调用或略过的部分。每个残余缺口带承接者。
+- 本次调用内的检查通过，要求每个必需场景恰好出现一次、执行并符合预期，且每个跳片段都通过。异常、超时、缺失或重复的条目、失败与不适用都使它不通过。外部测试结果、独立评审与验收不改变这个值。
+- 聚合时缺一跳就补一项缺口；同一跳重复的观察保留在重复观察里，加一条诊断，并把这一跳标为失败。这两种结构问题都使检查不通过、路径不完整。
 
-## What the report proves
+### 两座桥
 
-A report proves that the public entries of the members connect in this order, for one tenant, with the doubles that the tests supply. It proves the shapes of the values that cross each hop and the order of the judgments. A probe that does not connect proves where it stopped: the public entry that refused with its failure kind, or the loop position that the Agent journal shows.
+两座桥都按调用点名的 Agent 执行找到它属于哪一轮，不读共享的「当前轮」。
 
-The report does not prove durability. The doubles keep state in memory. It does not prove cross-process principal origin, joint commits in one transaction domain, or real vendor behavior. The scripted Model provider answers what the test scripted. The governance and session messages travel through the codecs in process, not over HTTP.
-
-## Public dependencies
-
-[path.ts](src/path.ts) imports only root entries: `@omne-harness/public-contract`, `@omne-harness/identity`, `@omne-harness/session-contract`, `@omne-harness/agent`, `@omne-harness/agent-contract`, `@omne-harness/request-context-contract`, `@omne-harness/message`, `@omne-harness/content-block`, `@omne-harness/json-text`, `@omne-harness/legal-identity` and `@omne-harness/model-contract`. [model.ts](src/model.ts) and [path-report.ts](src/path-report.ts) import `@omne-harness/model-contract/conformance`. No file in `src/` imports a `./testing` entry. `@omne-harness/session-adapters` and `@omne-harness/execution-environment-contract` are development dependencies, because only the tests import them.
-
-The path does not touch the shapes that [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) changed on the Agent side: `AgentEventBody`, observation through `StreamRef`, and `retry.notBefore`. It consumes them only through the type check and the run on the adopted base.
-
-The tests wire the doubles in [first-path-doubles.ts](tests/first-path-doubles.ts):
-
-| Capability                                           | Double                                                                                                                                                                                                                                                                                                                         |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Registration, login, recognition                     | `inProcessIdentityOperations` with `manualIdentityClock` and `adjustableLoginTerms`                                                                                                                                                                                                                                            |
-| Session access check                                 | `createPolicySessionAccessCheck` with an explicit policy, injected by the path                                                                                                                                                                                                                                                 |
-| Session store, `contract-memory` (default)           | `createMemorySessionTransactions` and `createMemorySessionEvidenceBridge`. The Agent keeps its own memory Journal.                                                                                                                                                                                                             |
-| Session store, `session-log`                         | `createMemorySessionJournal` of `@omne-harness/session-adapters/testing` ([#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)): one log for the Session entries and the Agent Journal                                                                                                                            |
-| Agent runtime                                        | `createAgentRuntime` over `createTestAgentDependencies`, with the generic `agentEvaluator`                                                                                                                                                                                                                                     |
-| Model call and result push                           | the scripted Model provider and its public result pusher inside `createTestAgentDependencies`. The host receiver of `@omne-harness/agent` writes the received entry.                                                                                                                                                           |
-| Tool runtime                                         | the scripted Tool runtime of `createTestAgentDependencies`. Each invocation first reads and writes a file in `createMemoryFileSystem` and starts one command in `createScriptedCommandFacility` of `@omne-harness/execution-environment-contract/testing` ([#791](https://github.com/nemori-ai/omne-harness-lite/issues/791)). |
-| Request Context assembly and Model preparation lease | `createAssemblyOperations` through `createAssemblyFixture`, with its scripted preparation resources                                                                                                                                                                                                                            |
-| Model obligations                                    | `createScriptedConformanceSubject`                                                                                                                                                                                                                                                                                             |
-
-The application owns two bridges in [path.ts](src/path.ts). Both bridges find the round of a call by the Agent execution that the call names. They do not read a shared "current round".
-
-- The message bridge is the Agent `MessageHandoff`. Its `prepare` fixes the admission of each hand-over (H) and keeps the outcome. For the external input of an invoke it fixes the admitted message. For a Model reply it commits `recordMessage` with a `message` participation and fixes that message. A second `prepare` of the same request answers the original outcome. A different request for the same H is a `conflict`. A submit answers `unsupported`, because the bridge has no trusted migration of the entry index. `lookup` only reads the fixed outcome back, and answers `unknown` without material for an H that it did not decide. `exclude` answers `recorded` for a fixed outcome. For any other H it answers `unsupported`, because the bridge has no trusted Journal resolver for the pending request and no durable fence. The round driver commits `receive(input-handover)` after the Agent accepted the invoke.
-- The context bridge is the Agent `RequestPreparation`. On the first preparation it assembles through Request Context. On the second preparation it fixes the request from the assembled input.
-
-## Resource lifetime and failure
-
-A failure label holds only the step name that this application mints and the `kind` of the failure. An exception that is not a refusal of a path step becomes `first-path-threw:unknown`. Tests check this on the happy path, on the login-gate refusal, and on a supplier that throws.
-
-The path does not call `quiesce` to end a round. On the happy path the Agent execution of each round has ended when the path returns. The H10 message bridge refuses the hand-over at T5. The Agent closes that failed node and reaches `ended` at F3; H10 remains disconnected because no Tool ran. The runtime and the memory doubles stay reachable only from the caller, and the process releases them. The H11 probe releases the held Model call in a `finally` step, also when a withdrawal call throws. When the Model does not settle, the admitted call stays open in the scripted provider until the process exits. The Model obligation suite owns its subject disposal and its bounded waits. The default wait bound is 500 ms for each suite operation. Tests use a 15 second outer limit.
-
-The path waits for each Agent reply for at most `replyTurns` event-loop turns. The default is 2000. Each turn yields to the event loop through `setImmediate` from `node:timers/promises`. Every wait of the main rounds and of the probes that ends at the bound adds a timeout label to the evidence of its hop. The label tells a wait that ended at its bound from a refusal of an upstream entry. When the Model does not settle, H06 through H08 do not connect, and the report says which call did not occur.
-
-H10 and H12 reuse the first-reply wait recorded by the round driver. They do not start another wait for that reply. H10 keeps its separate wait for the reply after the tool result unless the snapshot shows the A0 refusal. A missing wait record adds no timeout label and proves no reply.
-
-A failed governance scenario does not remove its hop or stop the Model checks. An exception in the connected path becomes a structural error and leaves every hop in the `gap` state. Evidence holds fixed labels, failure kinds, positions, and counts. The report holds no free text of a supplier or a port, and no credential, login proof, or message body.
-
-Known limitations of this application, hop by hop. Each item says what the skeleton itself meets first after the upstream entry of the hop is delivered. These items are not residual gaps. M2 must remove them before the hop can connect.
-
-- Request Context fixture. The fixture of the tests throws on an assistant history row, because it cannot name the source call of that row. The Agent loop calls the request preparation with `previous: null` at I1 of every iteration ([coordinator.ts](../../packages/agent/agent/src/loop/coordinator.ts)). The context bridge then assembles over the Session history again. After a reply, that history holds a `message.assistant` row, so the fixture throws inside the Agent preparation, and the loop records a defect. M2 must replace the throw with a Request Context refusal or with a fixture row that names its source call.
-- H09: when GAP-SECOND-RUN closes, rounds 2 and 3 assemble after the reply of round 1 and meet the fixture throw above.
-- H10: when GAP-TOOL-LOOP closes, the second Model call assembles after the tool-call reply and meets the fixture throw above. The message bridge also refuses a `tool-result` source with `unsupported-source:tool-result`, although the Agent contract defines that source. It refuses an `action-denied` source in the same way. That refusal is the stop that H10 meets now (see GAP-TOOL-LOOP). A bridge failure of a probe session does not enter the H10 evidence, because only the main session adds its bridge failures to its hops. The H10 criterion counts the execution-environment effects that the test wrapper of the Tool runtime produces on each invocation, for every tool name. It does not measure a Tool executor, because the rows `tool-executor` and `tool-environments` are `absent`.
-- H11: when GAP-AGENT-REASSEMBLY closes on the Agent side, the probe still has no server-entry observation path. H11 stays `disconnected` until that path exists (see H11).
-- H12: round 2 needs a second Run on the same session. It meets GAP-SECOND-RUN now. When that gap closes, round 2 meets the fixture throw above.
-- H13: the default store does not probe H13. The `session-log` store probes it, but H06 then does not connect (GAP-SESSION-LOG-TARGETS).
-
-## H01
-
-The governance codec encodes and reads a `register-and-activate` request. Identity runs `registerAndActivate`. The codec encodes and reads the response with the identity tenant. The hop is connected when the tenant that the response carries equals the identity tenant. The fixed `G1-register` and `G1-create` protocol scenarios are additional fragments.
-
-## H02
-
-The governance codec carries an `issue-login` request and its response. Identity runs `issueLogin` and then `recognizeLogin` with the login proof that the response carries. The hop is connected when identity recognizes the tenant of H01. The other fixed governance scenarios are additional fragments.
-
-## H03
-
-The path hands the injected `sessionAccessCheck` to the caller's Session store builder ([#680 ruling B-1](https://github.com/nemori-ai/omne-harness-lite/issues/680#issuecomment-6498559862), item 4). The dependency is required. Its type is `SessionAccessCheck | undefined`, so a caller must give a value. When the value is `undefined`, the path does not build the store, and H03 stays `session-assembly:pending:sessionAccessCheck`. This matches the `agent-journal` row, which stays `PENDING` without the check. The path never uses a default check.
-
-The card and the `agent-journal` row require the check because the Session store judges the Session participation that it derives from the Agent Journal. This path does not exercise that judgment. The Agent configuration of the tests has no joint commits (`jointCommits` is empty), so no derived participation reaches the injected check. The check sees only the commands of the path. This application therefore has no test of a refused derived participation. The evidence of card item 8 is the pending stop above and the check on each command.
-
-Steps:
-
-1. The session codec of [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685) encodes and reads a `create-session` request with the login proof and the acting tenant.
-2. The path commits `create` for the recognized tenant, with the definition mapping entry that the caller passes.
-3. The codec encodes and reads the `create-session` response with the wire session.
-4. `readWork` returns the session.
-
-Every commit carries the guard materials of the Session evidence bridge. The store asks the injected check once for each command. A `denied` answer stops the hop with `session-create:denied`.
-
-The hop is connected when the commit succeeded, both codec messages were read back, and `readWork` returns the session.
-
-## H04
-
-Steps:
-
-1. The session codec carries a `send-input` request with the message.
-2. The path commits `accept` for the ordinary request that it read back. The request origin has the owner `login-entry`, as the access layer sets it after a login.
-3. The path builds the Agent of the tenant and commits `startRun`. Session reads the stored origin of the first input in the commit transaction. When its owner is not `login-entry`, Session `decide` refuses `startRun` with `login-required`.
-4. The path reads the admitted input back with `readInput`. It invokes the Agent runtime with the Session execution and that input. On the `session-log` store the invoke carries the receipt of the Run as the Journal grant.
-5. The Agent message hand-over admits the external input.
-6. The round driver commits `receive(input-handover)`.
-
-On the `session-log` store the Agent loop can take the input before step 6 lands. The log then holds `run.batch-taken` for the Run ([AD-02](../../packages/session/session-adapters/SPEC.md#ad-02)), and Session answers the hand-over `invalid` on the field `fact.input`. Only that answer, with `run.batch-taken` for the same Run, counts as the hand-over. Any other refusal of the hand-over is a refusal.
-
-The hop is connected when `startRun` fixed the request, the hand-over admitted the input, and the Session side holds the hand-over.
-
-## H05
-
-The Agent calls its request preparation. The context bridge reads the Session history and runs Request Context `assemble` over it. During the assembly Request Context acquires a Model preparation lease from its sources, plans the assembled input with the lease, and releases it. The first preparation returns the assembled input. The second preparation fixes the request with the assembled messages.
-
-The hop is connected when all of these are true:
-
-- Request Context assembled at least one history message.
-- At least one lease was acquired and planned an input, and no lease is still open.
-- The fixed request carries the assembled messages.
-- The Agent journal binds the Model call of the step.
-- The caller reports at least one Model admission.
-
-The lease and admission counts are caller-reported. `src/` does not import `./testing`, so it cannot read the counters itself. The assembler that the caller passes reports the lease counts. The Agent that the caller passes reports the admissions. The evidence labels say `caller-reported`. In the tests of this application the assembler reads the counts from the scripted preparation resources of the Request Context `./testing` fixture. Those resources count every real `acquire`, plan, and `release`. A test checks that the counts come from that counter, and that H05 fails when the assembler reports no lease.
-
-## H06
-
-The Model settles the admitted call. The public result pusher of `@omne-harness/model-contract/testing` ([#683](https://github.com/nemori-ai/omne-harness-lite/issues/683)) pushes the frozen delivery to the host receiver of `@omne-harness/agent` ([#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)). The receiver writes the `received` entry and its material in one commit. The Agent loop waits for that entry, reads the material, and hands over the reply of the original call.
-
-The hop is connected when the journal holds the received entry, the material reads back under its original binding, and the hand-over carries the reply of the same call.
-
-The Model takes its ACK through the pusher after `saved`. The Session-side accounting of that ACK stays open. When the journal holds a received result, the evidence records the named deviation `MODEL-ACK-ARRIVAL` (GAP-RECEIVE-SURFACE). Without a received result there is no ACK, and the evidence does not name the deviation.
-
-## H07
-
-The message bridge commits `recordMessage` with a `message` participation for the Agent reply. The hop is connected when the commit succeeded and the Agent journal shows the execution ended.
-
-## H08
-
-The session codec carries a `read-history` request with the wire session. The path reads the Session history with `history.begin` for the entry kinds that a deployment discloses by default, `message.user` and `message.assistant`. The codec encodes and reads the `read-history` response with the page. The hop is connected when the assistant messages of the page carry the Model reply texts of the replied rounds, in round order.
-
-## H09
-
-After the first round the path drives rounds 2 and 3 on the same session. `PATH_ROUNDS` is 3, which is the minimum of card item 1. Each round accepts its input through the session codec, starts a Run, and invokes the same Agent with a new execution. The path stops at the first round that does not reply. When Session refuses the `startRun` of that round, the path tries the other route: `input.submit` on the first execution.
-
-The hop is connected when all three rounds replied.
-
-## H10
-
-In the `tool` probe session the scripted Model answers the first call with a `tool_call` block for `read_file`. It answers a later call with a text reply. The Tool runtime of the tests runs each invocation in the file and command doubles of [#791](https://github.com/nemori-ai/omne-harness-lite/issues/791): it reads a file, writes the file, and starts one command. The probe waits for the tool-call reply. When the loop did not stop at A0 with an action pending, the probe also waits for the reply that follows the tool result.
-
-The hop is connected when all of these are true (card item 2):
-
-- The Tool runtime received an invocation.
-- The execution-environment effects include a file read, a file write and a command start that each answered `done`.
-- The Model admitted a second call.
-- A Model request after the first one carried a `tool_result` block.
-- The Agent execution ended.
-
-The Tool runtime double of the Agent test dependencies answers each invocation itself. No public double issues the invocation reference and the result pages of a Tool runtime. When the loop reaches the Tool, M2 must check that the Tool result reaches the Model through such a runtime.
-
-Two parts of this application also stop the next step of H10 after GAP-TOOL-LOOP closes: the Request Context fixture throws when the second Model call assembles after the tool-call reply, and the message bridge refuses the `tool-result` source ([path.ts](src/path.ts), the message bridge). The known limitations under 「Resource lifetime and failure」 give the details.
-
-The probe judges the stop at A0 from the last journal snapshot that it read. The stop counts as a refusal only when the action batch still holds a `pending` action; an A0 snapshot with no pending action is an ordinary step, and the probe goes on waiting. When a wait ends at its bound, the evidence says so.
-
-## H11
-
-In the `reassembly` probe session the scripted Model holds the call. After the Model admitted the call, the path calls `control.quiesce`, `recovery.detach` with the current attachment, and `runtime.resume` on the public faces of the Agent provider. Then it releases the Model and waits for the reply.
-
-The hop is connected when all of these are true (card item 3):
-
-- The withdrawal and the resume succeeded.
-- The Model admitted the call exactly once, so the call was not sent again.
-- The execution ended from the received entry in the Journal.
-- The observation stayed continuous: after the reassembly, the frames on the same observation connection keep a continuous sequence number, and the observation runs through the observation path of the server entry. This is E4 of the [H3 ruling](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6515275392) and the observation part of card item 3. The 「观察通道」 row of the [assembly page](../../docs/architecture/runtime/application-assembly.md) gives the run continuity evidence to this hop.
-
-The evidence records the answer of each of the three faces, the Model admission count after the Model settled, and how the execution ended. When the withdrawal failed and the execution ended, the evidence says that the original driver continued. When the withdrawal succeeded, it says that the resumed execution ended. No public entry supplies the observation path of the server entry on this track, so the probe cannot observe the continuity. The evidence says so, and H11 does not connect without it (GAP-AGENT-REASSEMBLY).
-
-## H12
-
-In the `reasoning` probe session the scripted Model answers with a `thinking` part followed by text. The pusher delivers the result, and the receiver writes the received entry. When the loop hands over the first reply, the probe drives round 2 on the same Agent.
-
-The hop is connected when the first reply was handed over and the request of round 2 carries the reasoning part again (card item 4).
-
-The probe sends a `thinking` part and not a sealed `reasoning_state` part. The scripted Model producer of `@omne-harness/model-contract/testing` refuses to settle a result with a sealed `reasoning_state` part with `invalid-script`. A test of this application pins that upstream fact. A `reasoning_state` part therefore never reaches the Agent through the public doubles, and the probe would stop at the double instead of at the loop.
-
-## H13
-
-When the Session store supplies the same-log Agent Journal of [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756), the path loads the execution of the first round through that Journal, reads `readWork`, and reads the history.
-
-The hop is connected when all of these are true (card item 5):
-
-- The Journal returns the execution that the Run grant opened.
-- `readWork` reports the Run of that execution: the active Run with the same execution, or a terminal of the same Run.
-- The history holds the hand-over entry of the execution or the `run.batch-taken` entry of the Run.
-
-On the default `contract-memory` store the Agent keeps its own memory Journal. That store is not the Session log, so the path does not probe H13 on it. The report records H13 as a `gap`, and its evidence says that this store does not probe H13 and names GAP-SESSION-LOG-TARGETS. The H13 of the path report therefore holds no upstream refusal. The upstream fact behind the gap comes from a separate test on the real same-log provider.
-
-## GAP-SESSION-WIRE
-
-Non-blocking for H03, H04 and H08. The session codecs of [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685) carry `create-session`, `send-input` and `read-history` in process. The server entry is M2 work. It maps the wire session (the 64-hex digest) to the Session id, recognizes the login proof, and selects the disclosed entry kinds. This application mints the digest from the Session id. It also mints the caller operation ids of `create`, `accept` and `startRun`. Owner: [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784).
-
-## GAP-SESSION-COORDINATOR
-
-Non-blocking for H04, H07 and H09. No Session implementation supplies the Session faces, the `AgentDrivePort` adapter, or the Session-side `MessageHandoff`. This application orders the port commits, the Agent invoke and the hand-over. Its message bridge stands in for the Session-side hand-over. The stand-in writes the Model reply message when `prepare` fixes the outcome, and not through the Ja commit of the Session-side plugin. It keeps its outcomes in memory and does not check the `read-message-handoff` or `exclude-message-handoff` access of the caller. Its execution `prepare` does not check the advance, so it never returns `stale-advance`. Its `lookup` and `exclude` do not check the tenant, and its outcomes are not keyed by tenant. A Session write that is unavailable or has an unknown result returns the failure and fixes no outcome. Only a validation refusal of the Session write fixes a rejection. The application assembly page lists these rows without an owner card. Owner: [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784).
-
-## GAP-RUN-COMPLETED
-
-Non-blocking for H07. Session cannot form a `completed` Run terminal on this path. The only terminal is the bounded `finishRun`, which fails the Run. The Agent execution ends, but the Session Run stays active after H07. AD-02 interprets the Agent `ended` event into the Session terminal. The `session-log` store exposes that interpretation only as a testing control, and the path does not drive it. H09 needs this terminal, see GAP-SECOND-RUN. Owner: [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784).
-
-## GAP-AGENT-CONTEXT
-
-Non-blocking for H05. No Agent-side Context adapter is available. The context bridge of this application stands in for it. The Model preparation lease of the path is the one that Request Context acquires during assembly. The bridge fixes the request itself and does not run a second Model preparation. It takes the source, state, schema, budget, and coverage of the preparation from the Agent test frame. It keeps the representation and source adoptions of the frame, because the Request Context testing policies carry adoption digests that the Model request check refuses. Owner: [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542).
-
-## GAP-RECEIVE-SURFACE
-
-Non-blocking for H06. H06 connects through the public pusher, the host receiver and the received entry. What remains is the named deviation `MODEL-ACK-ARRIVAL`: the Model takes its ACK after `saved`, and the Session-side accounting of that ACK is not closed on this path. The [assembly page](../../docs/architecture/runtime/application-assembly.md#缺口与承接者) gives that accounting to the Agent contract and host owners, [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502). [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795) implements the production Model host. Owners: #502, #795.
-
-## GAP-SECOND-RUN
-
-Blocking for H09. A second Run needs one of two parts that no public entry supplies:
-
-- the completed terminal of the first Run, which GAP-RUN-COMPLETED leaves open, or
-- a submit to the first execution.
-
-Observed stop: round 1 replies. Session refuses the `startRun` of round 2 with `run-active`. The Agent runtime answers `input.submit` on the first execution with `unavailable`. Its diagnostic says that [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) assigns `submit` no stage. Round 3 is not tried.
-
-The gap closes when a later round can start its Run or submit to the execution, and all three rounds reply. Owners: [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784) for the Run terminal through the same-log interpretation, and #502 for `submit`.
-
-## GAP-TOOL-LOOP
-
-Blocking for H10. The Agent loop of the adopted base now turns the tool calls of a Model reply into an action batch and admits each action at A0. The assembly of this application does not give the Agent a trusted Tool request source (`toolRequests`), so the action admission is unavailable (owner `agentToolRequests`). The Agent then denies every action of the batch, as item 2 of 「[整批判断屏障与动作准入](../../packages/agent/SPEC.md#动作与工具)」 requires, and the loop does not dispatch an action. Per R2-D36, Reduce owns the production source of `toolRequests` and wires it in B3.
-
-Observed stop: the loop admits the tool-call reply and hands it over to Session. The barrier is `all-denied`, and the slot of the action is `denied` with the `admission-unavailable` evidence. At T5 the loop hands the denial over as a `tool` message (see the [node table](../../packages/agent/SPEC.md#领域边界)). The message bridge of this application refuses that `action-denied` source with `unsupported`. The Agent closes the failed T5 node and the journal reaches `ended` at F3. The wait for the second reply ends at its bound. The Tool runtime receives no invocation. The file and command doubles of #791 see no call. The Model admits no second call. Before commit b0204876e the loop stopped at A0 with the action `pending`. The probe still reports that stop as `refused` (see H10).
-
-The gap closes when the H10 criteria above hold, that is, when the assembly supplies `toolRequests` and the two further stops below it (the Request Context fixture and the `tool-result` source of the message bridge) are also removed. Owner: Reduce B3 (R2-D36), for the missing `toolRequests` in the assembly.
-
-## GAP-AGENT-REASSEMBLY
-
-Blocking for H11. Two parts have no public entry on this track:
-
-- the public faces that withdraw an instance and continue an execution from the Journal under a new instance, and
-- the observation path of the server entry, through which the observation must stay continuous after the reassembly.
-
-Observed stop: `control.quiesce` answers `drained`. The driver hands the execution over at the wait for the Model result, and the Journal state becomes `suspended`. `recovery.detach` answers `unavailable`: its diagnostic says that the face is not implemented until #502 stage 5. `runtime.resume` answers `unavailable`: the runtime drains after `quiesce` and accepts no new resume. The Model call is not cancelled, and the host receiver outside the instance keeps receiving. No instance continues the execution on this path, so no reply comes after the Model settles, with one Model admission. The probe has no observation path to check.
-
-The gap closes when the H11 criteria above hold, including the observation continuity. Owners: [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) for the Agent faces, and [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784) for the observation continuity, which the access line of M2 takes over.
-
-## GAP-REASONING-REPLAY
-
-Blocking for H12. Under R2-D268 the Agent loop consumes a Model result with a sealed `thinking` or `reasoning_state` part, but it leaves these parts out of the reply (Agent [SPEC](../../packages/agent/SPEC.md#应然设计)). The reply carries no `replay`, so the next request has no block that replays the state (KL-66).
-
-Observed stop: the pusher delivers the result and the receiver writes the received entry. The loop hands over the reply without the `thinking` part, and the execution ends at F3. The probe drives round 2, and Session refuses its `startRun` with `run-active` (GAP-SECOND-RUN). Before R2-D268 the loop answered `unsupported` for these parts and held the result at M6. The probe still reports that stop as `refused`.
-
-The gap closes when the H12 criteria above hold. Owner: [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502).
-
-## GAP-SESSION-LOG-TARGETS
-
-Blocking for H13. The same-log provider of `@omne-harness/session-adapters/testing` exposes the Agent Journal, entries, materials and received ports. It does not expose the `ModelReceptionTargets` that the host receiver needs. A test of this application checks this upstream fact on the real provider. That test fails when the provider exposes the targets, and the gap must then be checked again.
-
-Without the targets no public entry builds a receiver over the Session log. On the `session-log` store the tests therefore give the Model pusher no receiver. That wiring is a result of the upstream fact, not its evidence. H13 connects on that store, but H06 does not, because the journal holds no received Model result. The default store keeps the Agent's own memory Journal, so H13 is not probed there.
-
-The gap closes when one store connects H06 and H13 together. Owner: [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784).
-
-## Maintenance and exit
-
-The integration delivery line keeps this application until it exits. A new connection requires real public consumption and a failure test for the hop. No upstream private import or local business substitute closes a gap. When a supplying contract changes, this application consumes the adopted change and updates the hop and gap sections. A blocking residual gap stays blocking when its owner defers the work. It closes only when the public entry exists, the hop criterion holds, and a failure test covers the hop.
-
-The application exits under the [policy that removes replaced implementations](../../docs/engineering/publication.md#当前演进与消费者). The exit happens after the application member of the first tenant path completes the same end-to-end acceptance through the plugin tree. That acceptance includes H01 to H13 as this page defines them. The same change removes this member, its navigation entry in [apps/README.md](../README.md), and its dependency closure.
+- 消息桥是 Agent 的消息交接端口。它为每次交接固定一次受理并保存结局：外部输入固定受理的消息；Model 回复先作为消息参与提交到 Session，再固定这条消息。同一请求的第二次准备答原结局；同一交接的不同请求是冲突；正在进行中的同一交接，第二次调用等第一次，不判两次。
+- 只有 Session 写入的校验拒绝才固定一个拒绝；存储不可用、提交结果未知与其他拒绝都以同类失败返回，什么也不固定，同一交接的重试会再判一次。
+- 查询只读回已固定的结局，没判过的答未知；排除对已固定的结局答「已记录」，请求不同则无效，对没判过的交接答不支持，因为没有可信的解析器与耐久的围栏；向执行提交的准备答不支持，因为没有可信的条目迁移。
+- 请求准备桥：第一次准备经 Request Context 组装；第二次准备从组装好的输入固定请求，不另做一次 Model 准备。
+
+### 等待与资源
+
+- 路径等每一条 Agent 回复至多有限个事件循环轮次，每轮让出一次事件循环；等到上界的等待在这一跳的证据里加超时标签，把「等到上界」与「上游拒绝」分开。Model 不结算时，第六到第八跳不连通，报告写明哪个调用没有发生。探测复用轮驱动记下的首条回复等待，不为同一条回复另起一次等待；没有等待记录不加超时标签，也不证明有回复。
+- 路径不靠静默来结束一轮。重装配探测在收尾步骤里放开挂住的 Model 调用，撤回调用抛出时也一样。Model 义务套件自己负责主体的释放与有界等待，每个操作的等待上界可以配置。
+- 运行时与内存替身只由调用方持有，进程退出时释放。
+
+### 依赖与退出
+
+- 源码只导入契约成员的根入口与 Model 的义务套件入口，从不导入测试入口。只有用例导入的成员是开发依赖。
+- 新的一跳连通，需要真实的公开消费与这一跳的失败用例。上游契约变化时，本应用消费已采用的变化并更新跳的判据。阻断的残余缺口在承接者推迟时仍然阻断；只有公开入口存在、这一跳的判据成立、且有失败用例覆盖时才关闭。
+- 首条租户路径的应用成员经插件树通过同样的端到端验收（含本页定义的第一到第十三跳）之后，本应用连同它的依赖闭包一起删除。
+
+## 原则与约束
+
+- 只走公开入口。不导入上游的私有模块，不在本应用里补造被拒的行为；一个缺口只能由上游的公开入口关闭。
+- 不为没有发出的调用报告成功；等到上界、上游拒绝与判据不满足分开记。
+- 证据只放固定标签、种类、位置与计数；新增证据先确认它不带自由文本、凭据、登录证明或消息正文。
+- 源码不构建替身；替身只在用例里接入，用例负责声明每一行接的是什么。
+- 报告是本应用的私有输出，不当作共享协议或生产接口使用。
+
+## 不变式
+
+| 编号  | 永远成立的性质                                                                           | 违反的后果                                   | 由什么守                          |
+| ----- | ---------------------------------------------------------------------------------------- | -------------------------------------------- | --------------------------------- |
+| SK-01 | 一跳不为它没有发出的调用报告连通；Model 不结算时不声称结果、回复或历史条目               | 报告把没走通的路径说成走通                   | `first-path` 用例                 |
+| SK-02 | 第一到第四跳任一不连通时，之后各跳是未到达，不是连通                                     | 后面的跳在缺前提时被当作已验证               | `first-path` 用例                 |
+| SK-03 | 报告不含凭据、登录证明、消息正文与供应商或端口的自由文本                                 | 秘密或用户内容进入验证报告                   | `first-path`、`path-report` 用例  |
+| SK-04 | 被阻断的残余缺口点名的跳保持缺口，即使片段全部通过                                       | 缺口被误报为已验证                           | `path-report` 用例                |
+| SK-05 | 整条路径只在十三跳都已验证且没有结构错误时完整；缺跳补缺口，重复观察留诊断并使检查不通过 | 缺失或重复的观察被静默吞掉                   | `path-report` 用例                |
+| SK-06 | 没有注入访问检查时不构建 Session 存储，从不使用缺省检查                                  | 一条没有访问检查的路径被当作连通             | `first-path` 用例                 |
+| SK-07 | 消息桥对每次交接只判一次；只有校验拒绝固定拒绝；不可用与结果未知什么也不固定             | 重试被旧的失败锁死，或同一交接被写两次       | `message-bridge` 用例             |
+| SK-08 | 等到上界的等待带超时标签，与上游拒绝分开                                                 | 超时被读成上游拒绝，或反过来                 | `first-path`、`hop-criteria` 用例 |
+| SK-09 | 每跳的连通判据只在全部条件满足时成立；探测停下时证据点名停下的那一步                     | 部分满足的跳被报为连通；证据指向错误的步     | `hop-criteria` 用例               |
+| SK-10 | 源码不导入任何成员的测试入口                                                             | 报告依赖替身的内部计数，证明的不再是公开入口 | 只有文字                          |

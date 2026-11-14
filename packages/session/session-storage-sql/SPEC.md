@@ -579,7 +579,7 @@ Session 操作的输入摘要写在 `sl_operation.input_digest`，`decide` 用�
   3. 答复带 `batch` 时，把它交给登记在该库上的每个通知接口，作为 `SessionNotifier.committed` 的载荷。落点不等通知接口返回。通知接口抛出或返回失败的 Promise 时，落点接住它。
 
   落点没有自己的状态，从不抛出，也不改变提交的答复。通知在提交完成之后发，不进提交的事务。通知失败不回滚提交。全仓调用工作缓存折叠函数的地方只有这个落点。
-- 按库登记。`registerSessionNotifier(storage, notifier)` 把一个 `SessionNotifier` 登记在 `storage` 背后的库上，返回注销函数。登记表按 `SqlStorage.database` 保存，与工作缓存用同一种身份（[RT-04](#rt-04)）。所以本进程任一提交方写进这个库的每一批新写出都报给它，不论提交方是否经过 `createSessionStorage`。同一个通知接口登记两次就收到两次，注销之后不再收到。根入口与 `./participants` 都导出这个函数。应用装配的 `session-storage` 行在发布服务之前登记 session-cordis 造的通知接口，行卸载时注销（[harness-server 的 session-storage 行](../../../apps/harness-server/docs/rows/session-storage.md)）。
+- 按库登记。`registerSessionNotifier(storage, notifier)` 把一个 `SessionNotifier` 登记在 `storage` 背后的库上，返回注销函数。登记表按 `SqlStorage.database` 保存，与工作缓存用同一种身份（[RT-04](#rt-04)）。所以本进程任一提交方写进这个库的每一批新写出都报给它，不论提交方是否经过 `createSessionStorage`。同一个通知接口登记两次就收到两次，注销之后不再收到。根入口与 `./participants` 都导出这个函数。应用装配的 `session-storage` 行在发布服务之前登记 session-cordis 造的通知接口，行卸载时注销（[harness-server 的会话存储与部署](../../../apps/harness-server/SPEC.md#会话存储与部署)）。
 - 验证：[commit-landing.spec.ts](tests/commit-landing.spec.ts) 逐格核对落点；[commit-notices.spec.ts](tests/commit-notices.spec.ts) 在真实 sqlite-provider 上核对本成员的三个提交方。第四个提交方的用例在 session-adapters。
 
 ### 读路径

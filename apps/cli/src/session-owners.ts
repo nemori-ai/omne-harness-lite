@@ -47,11 +47,8 @@ function shapeOf(value: unknown): Map<string, string> | undefined {
   return owners
 }
 
-/**
- * Reads the records. A missing file is an empty record: no session has been created yet. A file
- * that cannot be read or has an unexpected shape is a failure, never an empty record, so a damaged
- * file cannot make a known session look unknown.
- */
+// A missing file is an empty record. An unreadable or malformed file is a failure, never an empty
+// record, so a damaged file cannot make a known session look unknown.
 export function readSessionOwners(directory: string): SessionOwnersRead {
   const path = sessionOwnersPath(directory)
   let content: string
