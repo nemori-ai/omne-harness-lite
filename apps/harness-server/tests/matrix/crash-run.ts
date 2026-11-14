@@ -19,6 +19,8 @@ const POLL_MS = 250
 const SECOND_RUN_GRACE_MS = 2_000
 const QUIET_MS = 3_000
 const SESSION_QUIET_MS = 1_500
+const CREATE_ATTEMPTS = 5
+const CREATE_RETRY_MS = 1_000
 const CUT_EXIT_MS = 5_000
 const PARALLEL = 2
 
@@ -39,7 +41,8 @@ type Rig = Readonly<{
 
 async function rig(): Promise<Rig> {
   const stub = await startProviderStub()
-  for (let index = 0; index < SCRIPTED_REPLIES; index += 1) stub.push({ kind: 'reply', text: REPLY })
+  for (let index = 0; index < SCRIPTED_REPLIES; index += 1)
+    stub.push({ kind: 'reply', text: REPLY })
   const env = await createEnvironment({ modelUrl: stub.url, certPath: stub.certPath })
   const counts = join(env.base, 'cut', 'counts')
   const marker = join(env.base, 'cut', 'marker')
@@ -67,27 +70,41 @@ async function release(made: Rig, drivers: readonly ProtocolDriver[]): Promise<v
   await made.stub.close()
 }
 
+async function createSession(driver: ProtocolDriver): Promise<string> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await driver.createSession()
+    } catch (error: unknown) {
+      if (attempt === CREATE_ATTEMPTS) throw error
+      await sleep(CREATE_RETRY_MS)
+    }
+  }
+}
+
 async function prepare(made: Rig): Promise<{ driver: ProtocolDriver; session: string }> {
   const driver = createProtocolDriver(made.env.origin)
   const registered = await driver.register()
   if (registered !== 'succeeded') throw new Error(`register answered ${registered}`)
-  const session = await driver.createSession()
+  const session = await createSession(driver)
+  await waitQuiet(
+    () => readSessionLog(made.env.domainsDir, session)?.entries.length ?? 0,
+    SESSION_QUIET_MS,
+  )
+  writeFileSync(made.marker, '')
+  return { driver, session }
+}
+
+async function waitQuiet(measure: () => number, quietMs: number): Promise<void> {
   let seen = -1
   let stableSince = Date.now()
-  while (Date.now() - stableSince < SESSION_QUIET_MS) {
-    const now = readSessionLog(made.env.domainsDir, session)?.entries.length ?? 0
+  while (Date.now() - stableSince < quietMs) {
+    const now = measure()
     if (now !== seen) {
       seen = now
       stableSince = Date.now()
     }
     await sleep(POLL_MS)
   }
-  writeFileSync(made.marker, '')
-  return { driver, session }
-}
-
-function claimed(counts: string): string[] {
-  return readdirSync(counts)
 }
 
 function cutOf(file: string): string {
@@ -114,10 +131,7 @@ function cutsOf(recorded: Recorded): string[] {
     .sort(byCut)
 }
 
-async function waitFor<T>(
-  probe: () => T | undefined,
-  timeoutMs: number,
-): Promise<T | undefined> {
+async function waitFor<T>(probe: () => T | undefined, timeoutMs: number): Promise<T | undefined> {
   const until = Date.now() + timeoutMs
   for (;;) {
     const found = probe()
@@ -127,8 +141,13 @@ async function waitFor<T>(
   }
 }
 
-const settled = (log: SessionLog | null) =>
-  log !== null && log.terminals.length > 0 && log.started === log.terminals.length
+const settled = (log: SessionLog) =>
+  log.terminals.length > 0 && log.started === log.terminals.length
+
+function settledLog(made: Rig, session: string): SessionLog | undefined {
+  const log = readSessionLog(made.env.domainsDir, session)
+  return log !== null && settled(log) ? log : undefined
+}
 
 async function record(print: (line: string) => void): Promise<{
   recorded: Recorded
@@ -142,27 +161,15 @@ async function record(print: (line: string) => void): Promise<{
     drivers.push(driver)
     const sent = await driver.send(session, INPUT)
     if (sent !== 'succeeded') throw new Error(`send answered ${sent}`)
-    const ended = await waitFor(() => {
-      const log = readSessionLog(made.env.domainsDir, session)
-      return settled(log) ? log : undefined
-    }, TURN_MS)
+    const ended = await waitFor(() => settledLog(made, session), TURN_MS)
     if (ended === undefined) throw new Error('the recorded run did not settle')
     if (ended.terminals[0] !== 'completed' || ended.assistants[0] !== REPLY)
       throw new Error(`the recorded run is not a plain reply: ${JSON.stringify(ended.kinds)}`)
-    let seen = -1
-    let stableSince = Date.now()
-    while (Date.now() - stableSince < QUIET_MS) {
-      const now = claimed(made.counts).length
-      if (now !== seen) {
-        seen = now
-        stableSince = Date.now()
-      }
-      await sleep(POLL_MS)
-    }
+    await waitQuiet(() => readdirSync(made.counts).length, QUIET_MS)
     const recorded: Record<string, number> = {}
     const threads = new Set<string>()
     const entries = new Map<string, string>()
-    for (const file of claimed(made.counts)) {
+    for (const file of readdirSync(made.counts)) {
       const cut = cutOf(file)
       const [kind, ordinal] = splitCut(cut)
       recorded[kind] = Math.max(recorded[kind] ?? 0, ordinal)
@@ -232,10 +239,7 @@ async function crash(cut: string): Promise<Row> {
     const gone = await waitFor(() => (made.env.running() ? undefined : true), CUT_EXIT_MS)
     if (gone === undefined) return row('error', 'the server was still alive at the cut point')
     await made.env.start()
-    const ended = await waitFor(() => {
-      const log = readSessionLog(made.env.domainsDir, session)
-      return settled(log) ? log : undefined
-    }, RECOVERY_MS)
+    const ended = await waitFor(() => settledLog(made, session), RECOVERY_MS)
     if (ended !== undefined) await sleep(SECOND_RUN_GRACE_MS)
     const judged = judge(readSessionLog(made.env.domainsDir, session))
     return row(judged.result, `${judged.detail}; send answered ${answered}`)
@@ -304,7 +308,8 @@ const unlisted = red.filter(row => !listed.has(row.cut))
 const greened = rows.filter(row => row.result === 'equivalent' && listed.has(row.cut))
 
 const out =
-  values.out ?? join(tmpdir(), `crash-matrix-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
+  values.out ??
+  join(tmpdir(), `crash-matrix-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
 mkdirSync(dirname(out), { recursive: true })
 writeFileSync(
   out,

@@ -10,7 +10,7 @@ const cutAt = process.env.CRASH_CUT_AT
 
 const TENANT_FILE = /^74656e616e742f[0-9a-f]+\.sqlite$/
 
-export function classOf(location) {
+function classOf(location) {
   const segments = relative(stateDir, location).split('/')
   const last = segments.pop()
   segments.push(TENANT_FILE.test(last) ? 'tenant.sqlite' : last)
