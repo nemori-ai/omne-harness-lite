@@ -64,7 +64,7 @@ function ownedAs(answer: SessionScopeOwnership) {
   return { source, asked: () => asked }
 }
 
-describe('the session cell of the release list (R2-D202)', () => {
+describe('the session cell of the release list', () => {
   const { authority, acting } = authorityWithActing(ENTRY_COMPONENTS.sessionWork, tenantA)
   const bound = (tenant: TenantId, session: string): SessionScopeOwnership => ({
     kind: 'bound',
@@ -127,7 +127,7 @@ describe('the session cell of the release list (R2-D202)', () => {
     ).resolves.toEqual({ kind: 'denied' })
   })
 
-  it('denies a session cell for a principal whose issuing component is not sessionWorkPrincipals, before it reads the scope (R2-D219)', async () => {
+  it('denies a session cell for a principal whose issuing component is not sessionWorkPrincipals, before it reads the scope', async () => {
     const other = authorityWithActing('session-ad04', tenantA)
     const owned = ownedAs(bound(tenantA, 'ses_1'))
     const decision = await createRegistrationAuthority({
@@ -160,8 +160,8 @@ describe('the session cell of the release list (R2-D202)', () => {
   })
 })
 
-describe('registrationAuthority (DP5-C2 order)', () => {
-  it('ships one cell (R2-D202): only the session work principal, for the release agent-context owner, to register; others are denied', async () => {
+describe('registrationAuthority', () => {
+  it('ships one cell: only the session work principal, for the release agent-context owner, to register; others are denied', async () => {
     expect(REGISTRATION_ALLOW_LIST).toEqual([
       {
         component: 'sessionWorkPrincipals',

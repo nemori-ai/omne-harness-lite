@@ -932,7 +932,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
   )
 
   it(
-    'Windows: a workspace configured by its 8.3 short name runs Shell and Files with its long name; outside stays refused (R2-D374, R2-D376)',
+    'Windows: a workspace configured by its 8.3 short name runs Shell and Files with its long name; outside stays refused',
     { timeout: 180_000 },
     async context => {
       if (process.platform !== 'win32')

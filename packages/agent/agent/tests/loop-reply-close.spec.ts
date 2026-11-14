@@ -108,7 +108,7 @@ async function settled(
 }
 
 describe('#515 reply admission and iteration close', () => {
-  it('NA-I3-1: admission and its continuation hold at one revision before I4', async () => {
+  it('admission and its continuation hold at one revision before I4', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -174,7 +174,7 @@ describe('#515 reply admission and iteration close', () => {
     ).toHaveLength(1)
   })
 
-  it('NA-I3-1: a lost handoff receipt is recalled with the original operation and candidate', async () => {
+  it('a lost handoff receipt is recalled with the original operation and candidate', async () => {
     const commits: JournalCommit<Principal>[] = []
     let lost = true
     const assembly = await loopAssembly([execution()], d => ({
@@ -211,7 +211,7 @@ describe('#515 reply admission and iteration close', () => {
     ).toHaveLength(1)
   })
 
-  it('NA-I4-1: an admitted reply without tool calls commits its empty batch before I8', async () => {
+  it('an admitted reply without tool calls commits its empty batch before I8', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await loopAssembly([execution()], recordCommits(commits))
     const c = coordinator(assembly)
@@ -231,7 +231,7 @@ describe('#515 reply admission and iteration close', () => {
     expect((await load(assembly)).checkpoint.batch).toBeNull()
   })
 
-  it('NA-I8-1: an empty queue and no outstanding wait propose completion before terminal commit', async () => {
+  it('an empty queue and no outstanding wait propose completion before terminal commit', async () => {
     const commits: JournalCommit<Principal>[] = []
     let terminals = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -258,7 +258,7 @@ describe('#515 reply admission and iteration close', () => {
     })
   })
 
-  it('NA-I8-2: input accepted while a call is in flight enters only the next step', async () => {
+  it('input accepted while a call is in flight enters only the next step', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await loopAssembly([execution()], recordCommits(commits))
     const c = coordinator(assembly)
@@ -290,7 +290,7 @@ describe('#515 reply admission and iteration close', () => {
     expect(new Set(admitted.map(item => item.action)).size).toBe(2)
   })
 
-  it('NA-I8-2: after terminal release a new invoke starts the next execution first step', async () => {
+  it('after terminal release a new invoke starts the next execution first step', async () => {
     const assembly = await loopAssembly([execution(), execution('exec-2')])
     ok(await invoke(assembly))
     assembly.release.open()
@@ -310,7 +310,7 @@ describe('#515 reply admission and iteration close', () => {
     expect((await load(assembly, 'exec-2')).checkpoint.step).toBe('step-1')
   })
 
-  it('NA-I8-3: an unprocessed responsibility waits at I8 despite an empty action batch and queue', async () => {
+  it('an unprocessed responsibility waits at I8 despite an empty action batch and queue', async () => {
     const commits: JournalCommit<Principal>[] = []
     let injected = false
     const assembly = await loopAssembly([execution()], d => ({
@@ -355,7 +355,7 @@ describe('#515 reply admission and iteration close', () => {
     expect((await load(assembly)).state.kind).toBe('waiting')
     expect(commits.filter(item => item.state.kind === 'settling')).toEqual([])
   })
-  it('NA-I3-2: final failure without content fixes the real no-reply candidate before F1', async () => {
+  it('final failure without content fixes the real no-reply candidate before F1', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await settled(
       [],

@@ -456,7 +456,7 @@ describe('A10: the disabled implementation', () => {
     })
   }
 
-  it('B-5: sets the bridge to direct writes, so more messages than the bootstrap buffer holds all reach stdout and none counts as overflow', async () => {
+  it('sets the bridge to direct writes, so more messages than the bootstrap buffer holds all reach stdout and none counts as overflow', async () => {
     const count = 300
     const run = await serveOnce({
       distribution: tree([
@@ -521,7 +521,7 @@ describe('A12: the factory numbers come from the operator layer', () => {
     expect(run.state('telemetry')).toMatchObject({ state: 'ACTIVE' })
   })
 
-  it('B-6: loads a disabled row that gives neither an outlet nor budgets; the tree names no outlet', async () => {
+  it('loads a disabled row that gives neither an outlet nor budgets; the tree names no outlet', async () => {
     const run = await serveOnce({
       distribution: tree([TELEMETRY({ implementation: 'disabled' })]),
       plugins: { stubPlugin },
@@ -533,7 +533,7 @@ describe('A12: the factory numbers come from the operator layer', () => {
     expect(run.tree('telemetry')?.['telemetry']).not.toHaveProperty('outlet')
   })
 
-  it('B-6: refuses a node row without an outlet before loading, with invalid-config', async () => {
+  it('refuses a node row without an outlet before loading, with invalid-config', async () => {
     const run = await serveOnce({
       distribution: tree([TELEMETRY({ implementation: 'node', budgets: BUDGETS })]),
       plugins: { stubPlugin },
@@ -599,7 +599,7 @@ describe('A13: the row configuration', () => {
       expect(telemetryRowConfig.safeParse(config).success, JSON.stringify(config)).toBe(false)
   })
 
-  it('B-6: a disabled row may leave out the outlet and the budgets, and keeps them when given; a node row needs both', () => {
+  it('a disabled row may leave out the outlet and the budgets, and keeps them when given; a node row needs both', () => {
     for (const config of [
       { implementation: 'disabled' },
       { implementation: 'disabled', outlet: { kind: 'stdout' } },
@@ -619,7 +619,7 @@ describe('A13: the row configuration', () => {
     ).toBe(false)
   })
 
-  it('B-6: refuses a disabled row with an unknown key, and an implementation outside the union', () => {
+  it('refuses a disabled row with an unknown key, and an implementation outside the union', () => {
     for (const config of [
       { implementation: 'disabled', foo: 1 },
       { implementation: 'disabled', outlet: { kind: 'stdout' }, budgets: BUDGETS, foo: 1 },
@@ -631,7 +631,7 @@ describe('A13: the row configuration', () => {
       expect(telemetryRowConfig.safeParse(config).success, JSON.stringify(config)).toBe(false)
   })
 
-  it('B-6: accepts maxSegmentLifetimeMs as an optional positive safe integer', () => {
+  it('accepts maxSegmentLifetimeMs as an optional positive safe integer', () => {
     const lifetime = { ...valid, budgets: { ...BUDGETS, maxSegmentLifetimeMs: 60_000 } }
     expect(telemetryRowConfig.safeParse(lifetime).data).toEqual(lifetime)
     for (const bad of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 2, '10', null])
@@ -683,7 +683,7 @@ function holdingRow(holdMs: number, ends: unknown[]): Plugin.Object {
   })
 }
 
-describe('B-6: maxSegmentLifetimeMs reaches the provider', () => {
+describe('maxSegmentLifetimeMs reaches the provider', () => {
   const run = (budgets: Readonly<Record<string, number>>, ends: unknown[]) =>
     serveOnce({
       distribution: tree([

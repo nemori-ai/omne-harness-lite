@@ -44,7 +44,7 @@ function releasedReceipt(outcome: ToolReleaseDeliveryOutcome): ReleasedDelivery 
   return outcome.receipt
 }
 
-describe('16 delivery release (P08)', () => {
+describe('16 delivery release', () => {
   it.each([
     ['retained', retained],
     ['processed', processed],
@@ -140,7 +140,7 @@ describe('16 delivery release (P08)', () => {
     ])
   })
 
-  it('16 release (C6): the released record keeps the summary of its channels, not the values', async () => {
+  it('16 release: the released record keeps the summary of its channels, not the values', async () => {
     const assembly = harness()
     await assembly.admitInternal(dummyRequest())
     const resultOf = async () => {

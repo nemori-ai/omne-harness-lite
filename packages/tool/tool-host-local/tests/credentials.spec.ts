@@ -344,7 +344,7 @@ it.each(['', null] as const)(
   },
 )
 
-it('J56: a capability that escaped through the return of a use cannot act after the use ended', async () => {
+it('a capability that escaped through the return of a use cannot act after the use ended', async () => {
   const f = fixture()
   const capability = await f.credentials.resolve(f.request)
   if ('failure' in capability) throw new Error('fixture resolve failed')

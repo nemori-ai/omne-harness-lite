@@ -79,7 +79,7 @@ afterEach(() => {
   for (const base of scratches.splice(0)) rmSync(base, { recursive: true, force: true })
 })
 
-describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
+describe('serve: the release tree of doubles', () => {
   it('the release tree of 57 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
@@ -181,7 +181,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
     expect(row).toMatchObject({ plugin, config: agentJournalCombination() })
   })
 
-  it('R1-1: only s0.assemblyLifecycle carries the s0. prefix', async () => {
+  it('only s0.assemblyLifecycle carries the s0. prefix', async () => {
     const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
     const profile = serveProfile()
     const names = new Set<string>()
@@ -197,7 +197,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
     expect(prefixed).toEqual(['s0.assemblyLifecycle'])
   })
 
-  it('DP1-C11: placeholders are s0-double, the lifecycle is real, no value is printed', async () => {
+  it('placeholders are s0-double, the lifecycle is real, no value is printed', async () => {
     const run = await serveOnce({ distribution: release, operator: await releaseOperator() })
     const entries = run.of('entry-object')
     expect(entries.find(r => r['name'] === 's0.assemblyLifecycle')).toEqual({
@@ -227,8 +227,8 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
   })
 })
 
-describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
-  it('R1-6: the fixture storage row replaces the double, the identity double is ACTIVE, shutdown is ordered', async () => {
+describe('serve: fixture rows', () => {
+  it('the fixture storage row replaces the double, the identity double is ACTIVE, shutdown is ordered', async () => {
     const run = await serveOnce({
       distribution: tree([
         { id: 'storage', plugin: 'fixtureStorage' },
@@ -258,7 +258,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
     expect(storageEvents).toEqual(['start', 'close:assembly', 'report-settled'])
   })
 
-  it('R1-6: without the fixture row the identity double stays PENDING and names storage', async () => {
+  it('without the fixture row the identity double stays PENDING and names storage', async () => {
     const run = await serveOnce({
       distribution: tree([{ id: 'identity', plugin: 'stubPlugin' }]),
       plugins: fixturePlugins,
@@ -268,7 +268,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
     expect(run.startup).toMatchObject({ accepting: false, outcome: 'pending', barrierCalls: 0 })
   })
 
-  it('R1-3: a real consumer whose provider the operator disabled is PENDING with the key, and gets no placeholder', async () => {
+  it('a real consumer whose provider the operator disabled is PENDING with the key, and gets no placeholder', async () => {
     const run = await serveOnce({
       distribution: tree([
         { id: 'storage', plugin: 'fixtureStorage' },
@@ -285,7 +285,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
     expect(run.startup['appliedRows']).toEqual([])
   })
 
-  it('R1-3: a real row that injects an entry-object name the registry lacks is PENDING, with the module it is ACTIVE', async () => {
+  it('a real row that injects an entry-object name the registry lacks is PENDING, with the module it is ACTIVE', async () => {
     const rows = tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }])
     const without = await serveOnce({
       distribution: rows,
@@ -320,7 +320,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
     })
   })
 
-  it('R1-5: a new row joins with one entry in the plugin table and one row in the distribution', async () => {
+  it('a new row joins with one entry in the plugin table and one row in the distribution', async () => {
     const run = await serveOnce({
       distribution: tree([
         { id: 'storage', plugin: 'fixtureStorage' },
@@ -343,8 +343,8 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
   })
 })
 
-describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () => {
-  it('DP1-C10: a real row that depends on a double provider is refused, exit 2, zero plugin bodies', async () => {
+describe('serve: checks before loading', () => {
+  it('a real row that depends on a double provider is refused, exit 2, zero plugin bodies', async () => {
     const run = await serveOnce({
       distribution: tree([
         { id: 'storage', plugin: 'stubPlugin' },
@@ -358,7 +358,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(run.of('row-state')).toEqual([])
   })
 
-  it('DP1-C9: a real export bound to another row id is refused, exit 2', async () => {
+  it('a real export bound to another row id is refused, exit 2', async () => {
     const run = await serveOnce({
       distribution: tree([{ id: 'storage', plugin: 'fixtureIdentity' }]),
       plugins: fixturePlugins,
@@ -368,7 +368,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(run.result.appliedRows).toEqual([])
   })
 
-  it('DP1-C15: via without a registering entry object is refused, exit 2', async () => {
+  it('via without a registering entry object is refused, exit 2', async () => {
     const rows = tree([{ id: 'storage', plugin: 'fixtureStorage' }])
     const absent = await serveOnce({
       distribution: rows,
@@ -388,7 +388,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(unlisted.result.appliedRows).toEqual([])
   })
 
-  it('DP1-C11: two modules with one name are refused, exit 2', async () => {
+  it('two modules with one name are refused, exit 2', async () => {
     const run = await serveOnce({
       distribution: tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }]),
       plugins: fixturePlugins,
@@ -398,7 +398,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(run.stderr.join('\n')).toContain('runtimeContextTrust')
   })
 
-  it('DP1-C11: an install that throws: exit 3, one stderr line, no row loads, the message stays off stdout', async () => {
+  it('an install that throws: exit 3, one stderr line, no row loads, the message stays off stdout', async () => {
     const run = await serveOnce({
       distribution: tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }]),
       plugins: fixturePlugins,
@@ -412,7 +412,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
     expect(JSON.stringify(run.records)).not.toContain('secret-detail-7')
   })
 
-  it('DP1-C17: once shares one object per key, and a second create for the same key fails the install', async () => {
+  it('once shares one object per key, and a second create for the same key fails the install', async () => {
     const rows = tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }])
     const same: unknown[] = []
     const ok = await serveOnce({
@@ -435,7 +435,7 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
   })
 })
 
-describe('serve: the four phases with fixture rows (R1-4)', () => {
+describe('serve: the four phases with fixture rows', () => {
   it('start runs storage → composition → business → entry, stop runs the reverse, the report is fixed before assemblyReportSettled', async () => {
     const log: string[] = []
     const run = await serveOnce({

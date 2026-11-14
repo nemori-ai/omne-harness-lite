@@ -136,7 +136,7 @@ describe('J1 negative control of the history read criterion', () => {
 
 describe('J1 replay block', () => {
   it.todo(
-    'J1 the request of round 2 replays the reasoning_state block of round 1 (R2-D70 named deviation, wave 3)',
+    'J1 the request of round 2 replays the reasoning_state block of round 1 (named deviation)',
   )
 })
 

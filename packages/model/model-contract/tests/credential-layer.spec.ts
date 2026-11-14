@@ -127,7 +127,7 @@ describe('selectCredentialLayer', () => {
     }
   })
 
-  it('never falls back to the official layer when the tenant holds any item (I-3)', () => {
+  it('never falls back to the official layer when the tenant holds any item', () => {
     for (const input of cases) {
       const holds = ITEMS.some(item => input.tenant.get(item) !== 'unbound')
       const result = selectCredentialLayer({ items: ITEMS, ...input })

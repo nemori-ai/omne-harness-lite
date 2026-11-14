@@ -168,7 +168,7 @@ describe('C1 the transition table follows the node table on the normal path', ()
     expect(successor('P1', 'wait')).toBe('W0')
   })
 
-  it('M6 waits on an unavailable Model and takes a definite refusal to F1 (R2-D237)', () => {
+  it('M6 waits on an unavailable Model and takes a definite refusal to F1', () => {
     expect(successor('M6', 'wait')).toBe('W0')
     expect(successor('M6', 'try-finish')).toBe('F1')
   })

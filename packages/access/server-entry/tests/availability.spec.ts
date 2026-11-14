@@ -87,7 +87,7 @@ async function subscriber({ opened, controller }: ReturnType<typeof open>): Prom
   return { frames, read, close }
 }
 
-describe('C7: availability is a projection of the registry', () => {
+describe('availability is a projection of the registry', () => {
   it('订阅的同时挂上一个协议，订阅者最终的集合里有它', async () => {
     const registry = entryRegistry(4)
     const opened = open(registry, 4)
@@ -259,7 +259,7 @@ function eventText(client: SseClient, count: number): string {
     .join('\n\n')
 }
 
-describe('C7 and C8: availability at the entry', () => {
+describe('availability at the entry', () => {
   it('is mounted while the entry runs and taken down last when it stops', async () => {
     const fixture = await entry()
     expect(registryView(fixture.log.registry).protocols).toEqual(new Set(['notes/v1', 'access/v1']))

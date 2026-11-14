@@ -526,7 +526,7 @@ describe('concludeAnswer holds every cell of T8', () => {
   })
 })
 
-describe('the readings of a settled answer (T2, T6, T7)', () => {
+describe('the readings of a settled answer (T2, T6)', () => {
   const error = (errorClass: ErrorClass, object: unknown): WireAnswer => ({
     kind: 'error',
     error: jsonOf(object),
@@ -543,7 +543,7 @@ describe('the readings of a settled answer (T2, T6, T7)', () => {
     })
   })
 
-  it("a reader's defect is the what of T7", () => {
+  it("a reader's defect is the what of an answer-malformed failure", () => {
     const read = readerOf((_result: JsonValue) => ({ failure: 'tools-missing' as const }))
     expect(read(jsonOf({}))).toEqual({
       failure: { kind: 'answer-malformed', what: 'tools-missing' },
@@ -777,7 +777,7 @@ describe('the probe and the paths of discover (T3, T8 D rows)', () => {
   })
 })
 
-describe('the authorization discovery (T4, R4)', () => {
+describe('the authorization discovery (T4)', () => {
   const challenge = new Map<string, string>()
   const target = 'https://peer.test/mcp'
 
@@ -1067,7 +1067,7 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
   })
 })
 
-describe('the messages of the peer and the texts of this side (T3, RFC-0010)', () => {
+describe('the messages of the peer and the texts of this side (T3)', () => {
   it('reads a request with its id as written, a notification with its progress token as text', () => {
     expect(readPeerMessage('{"jsonrpc":"2.0","id":1234567890123456789,"method":"ping"}')).toEqual({
       kind: 'request',

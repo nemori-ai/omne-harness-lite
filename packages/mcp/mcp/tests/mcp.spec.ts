@@ -44,7 +44,7 @@ describe('createMcp', () => {
     })
   })
 
-  it('stamps the acquisition time from the clock of the ports (SPEC S3)', async () => {
+  it('stamps the acquisition time from the clock of the ports', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
     const clock = { now: () => new Date('2026-11-03T08:00:00Z') }

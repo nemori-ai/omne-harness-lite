@@ -53,7 +53,7 @@ async function until(ready: () => boolean): Promise<void> {
 
 const UNAVAILABLE = '{"outcome":"basis-unavailable","body":{}}'
 
-describe('C8: a take-down answers a waiting call at once', () => {
+describe('a take-down answers a waiting call at once', () => {
   it('while the identity port has not returned', async () => {
     fixture.accessIdentity.identifyLogin = { kind: 'hold', held: held<LoginResult>() }
     const reply = call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' })
@@ -112,7 +112,7 @@ describe('C8: a take-down answers a waiting call at once', () => {
   })
 })
 
-describe('C8: the caller goes away', () => {
+describe('the caller goes away', () => {
   it('before the identity port returns: no handler call, and the take-down completes', async () => {
     const recognised = held<LoginResult>()
     fixture.accessIdentity.identifyLogin = { kind: 'hold', held: recognised }
@@ -177,7 +177,7 @@ describe('the abort signal keeps no listener of a finished call', () => {
   })
 })
 
-describe('C13: stopping the entry waits for the calls at the new address', () => {
+describe('stopping the entry waits for the calls at the new address', () => {
   it('stop settles only after the handler in flight has answered', async () => {
     const answer = held<{ outcome: 'succeeded'; body: { noteId: string; title: string } }>()
     fixture.notes.scripts['read-note'] = () => answer.promise

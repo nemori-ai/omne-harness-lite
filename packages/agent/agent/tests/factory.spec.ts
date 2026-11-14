@@ -94,7 +94,7 @@ describe('C1 invalid: a configuration value out of range', () => {
   })
 })
 
-describe('C1 maxRunSteps is optional (R2-D221)', () => {
+describe('C1 maxRunSteps is optional', () => {
   it('creates without maxRunSteps, and with the smallest limit', async () => {
     const without = options()
     expect('maxRunSteps' in without.configuration).toBe(false)

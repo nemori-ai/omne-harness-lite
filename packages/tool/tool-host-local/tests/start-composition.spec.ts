@@ -390,8 +390,8 @@ function assembly(
   }
 }
 
-describe('G5 under the runtime', () => {
-  it('G5 composition: an invalidation before the acceptance settles the call unavailable, never started', async () => {
+describe('the local start coordinator under the runtime', () => {
+  it('composition: an invalidation before the acceptance settles the call unavailable, never started', async () => {
     let invalidate: (() => Promise<unknown>) | null = null
     const harness = assembly({
       beforeConsume: async () => {
@@ -415,7 +415,7 @@ describe('G5 under the runtime', () => {
     })
   })
 
-  it('G5 composition: an acceptance before the invalidation is a start in flight', async () => {
+  it('composition: an acceptance before the invalidation is a start in flight', async () => {
     const harness = assembly()
     await harness.admit()
     await harness.run()
@@ -425,7 +425,7 @@ describe('G5 under the runtime', () => {
     expect(await harness.state()).toMatchObject({ phase: 'running', execution: { kind: 'live' } })
   })
 
-  it('G5 composition: a lost recordStart answer is recovered from the coordinator, and the binding starts once', async () => {
+  it('composition: a lost recordStart answer is recovered from the coordinator, and the binding starts once', async () => {
     let lose = true
     const harness = assembly({
       store: memory => ({
@@ -461,7 +461,7 @@ describe('G5 under the runtime', () => {
   })
 })
 
-describe('G5 under the runtime: a consume the coordinator cannot answer', () => {
+describe('the local start coordinator under the runtime: a consume the coordinator cannot answer', () => {
   const busyOnce = (real: ReturnType<typeof coordinator>['consume']) => {
     let busy = true
     return ((input: Parameters<typeof real>[0]) => {
@@ -473,7 +473,7 @@ describe('G5 under the runtime: a consume the coordinator cannot answer', () => 
     }) as typeof real
   }
 
-  it('G5 composition: the next run starts the call', async () => {
+  it('composition: the next run starts the call', async () => {
     const harness = assembly({ consume: busyOnce })
     await harness.admit()
     await harness.run()
@@ -484,7 +484,7 @@ describe('G5 under the runtime: a consume the coordinator cannot answer', () => 
     expect(await harness.state()).toMatchObject({ phase: 'running', execution: { kind: 'live' } })
   })
 
-  it('G5 composition: a new process over the same store starts the call', async () => {
+  it('composition: a new process over the same store starts the call', async () => {
     const first = assembly({ consume: busyOnce })
     await first.admit()
     await first.run()

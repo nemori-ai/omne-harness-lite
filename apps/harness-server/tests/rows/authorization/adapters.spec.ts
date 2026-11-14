@@ -663,7 +663,7 @@ describe('agentAccessCheck', () => {
     })
   })
 
-  it('lets the Model host work principal M receive a result for its own tenant only, and nothing else (R2-D248)', async () => {
+  it('lets the Model host work principal M receive a result for its own tenant only, and nothing else', async () => {
     const w = world()
     const target = { kind: 'execution' as const, execution }
     const host = w.system(MODEL_HOST_COMPONENT)

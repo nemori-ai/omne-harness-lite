@@ -80,7 +80,7 @@ const ended = (world: ReleaseTree, session: string, runs = 1) =>
     seen => seen.filter(entry => entry.kind === 'run.terminal').length >= runs,
   )
 
-describe('a session that waits for a person does not hold up the others (C8)', () => {
+describe('a session that waits for a person does not hold up the others', () => {
   it(
     'another session runs to its end while the Ask waits, and the waiting session ends once answered',
     { timeout: 300_000 },
@@ -136,7 +136,7 @@ describe('a session that waits for a person does not hold up the others (C8)', (
   )
 })
 
-describe('two Ask calls of one batch each wait for a person (C2, C5)', () => {
+describe('two Ask calls of one batch each wait for a person', () => {
   it(
     'both cards are listed and both calls park; one answer gives the model nothing, and after both the Run ends with the results in call order',
     { timeout: 300_000 },

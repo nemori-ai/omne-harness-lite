@@ -138,7 +138,7 @@ afterEach(async () => {
   expect(await leftoverServers(), 'servers left listening').toEqual([])
 })
 
-describe('authorization (T4, R4)', () => {
+describe('authorization (T4)', () => {
   it("the SDK's bearer gate: a wrong token is authorization-required with the metadata it names; reportRejection once; the right token works", async () => {
     const server = await bearerServer(SECRET, ['files:read'])
     const wrong = credential('not-the-token')
@@ -541,7 +541,7 @@ describe('the events of a 2xx answer body (T2)', () => {
   })
 })
 
-describe('the byte bound of one SSE event (T2, SPEC H8)', () => {
+describe('the byte bound of one SSE event (T2)', () => {
   const BYTE_LIMIT = 16_777_216
   const CALL_ID = 'r1'
 

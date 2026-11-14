@@ -74,7 +74,7 @@ const fabricated = (bytes: string) => ({
   digest: `sha256:${'0'.repeat(64)}`,
 })
 
-it('C3 begin: an unknown `opened` commit issues no permit and the store sees no chunk', async () => {
+it('begin: an unknown `opened` commit issues no permit and the store sees no chunk', async () => {
   const f = await settlementFixture()
   const put = vi.spyOn(f.bodies.store, 'put')
   const w = await writer(f.ledger, f.access, 'unknown-begin')
@@ -84,7 +84,7 @@ it('C3 begin: an unknown `opened` commit issues no permit and the store sees no 
   expect(put).not.toHaveBeenCalled()
 })
 
-it('C3 renew: a write longer than W continues under a later permit, each put within its deadline', async () => {
+it('renew: a write longer than W continues under a later permit, each put within its deadline', async () => {
   const f = await settlementFixture()
   const permits: ToolBodyPermit[] = []
   const put = f.bodies.store.put.bind(f.bodies.store)
@@ -106,7 +106,7 @@ it('C3 renew: a write longer than W continues under a later permit, each put wit
   expect(Date.parse(permits[1]!.claims.deadline)).toBeGreaterThanOrEqual(W + 1 + W)
 })
 
-it('C3 store checks the permit: a put past the deadline on the store clock is not kept', async () => {
+it('store checks the permit: a put past the deadline on the store clock is not kept', async () => {
   const f = await settlementFixture()
   const w = await writer(f.ledger, f.access, 'late')
   ok(await w.begin('begin-late'))
@@ -124,7 +124,7 @@ it('C3 store checks the permit: a put past the deadline on the store clock is no
   expect(found.kind).toBe('found')
 })
 
-it('C3 settle: the referenced body is linked and due at its expiry, the other body is orphaned and due at now + G; begin and seal are refused afterwards', async () => {
+it('settle: the referenced body is linked and due at its expiry, the other body is orphaned and due at now + G; begin and seal are refused afterwards', async () => {
   let sealedId = ''
   let orphan: Awaited<ReturnType<typeof writer>> | null = null
   const f = await settlementFixture({
@@ -167,7 +167,7 @@ it('C3 settle: the referenced body is linked and due at its expiry, the other bo
   expect(await late.begin('begin-after-settle')).toHaveProperty('failure.kind', 'closed')
 })
 
-it('C3 commitResult: a return that references an unsealed body is refused at the final with body-not-sealed and does not hang', async () => {
+it('commitResult: a return that references an unsealed body is refused at the final with body-not-sealed and does not hang', async () => {
   const f = await settlementFixture()
   const w = await writer(f.ledger, f.access, 'unsealed')
   ok(await w.begin('begin-unsealed'))
@@ -220,7 +220,7 @@ async function offloaded(value = '中🙂'.repeat(300), maxBytes = 8) {
   return { f, input, body: page.value.original, value }
 }
 
-it('C4 pages rebuild the text byte for byte, never cut a character, and every page but the last advances', async () => {
+it('pages rebuild the text byte for byte, never cut a character, and every page but the last advances', async () => {
   const { f, input, value } = await offloaded()
   let after: string | null = null
   let actual = ''
@@ -239,7 +239,7 @@ it('C4 pages rebuild the text byte for byte, never cut a character, and every pa
   expect(new Set(positions).size).toBe(positions.length)
 })
 
-it('C4 refuses a cursor of another tenant, another result version and a revoked access', async () => {
+it('refuses a cursor of another tenant, another result version and a revoked access', async () => {
   const { f, input } = await offloaded()
   const first = ok(await f.ledger.reads.body.read(input))
   if (first.next === null) throw new Error('fixture body must span pages')
@@ -260,7 +260,7 @@ it('C4 refuses a cursor of another tenant, another result version and a revoked 
   })
 })
 
-it('C5 a read at or after expiresAt answers expired and never extends retention', async () => {
+it('a read at or after expiresAt answers expired and never extends retention', async () => {
   const { f, input, body } = await offloaded()
   f.bodies.clock.set(body.retention.expiresAt)
   expect(await f.ledger.reads.body.read(input)).toEqual({
@@ -271,7 +271,7 @@ it('C5 a read at or after expiresAt answers expired and never extends retention'
   expect(page.value.original.retention.expiresAt).toBe(body.retention.expiresAt)
 })
 
-it('C5 a read that crosses the expiry point between the ledger check and the store read answers expired, not bytes', async () => {
+it('a read that crosses the expiry point between the ledger check and the store read answers expired, not bytes', async () => {
   const { f, input, body } = await offloaded()
   const read = f.bodies.store.read.bind(f.bodies.store)
   vi.spyOn(f.bodies.store, 'read').mockImplementationOnce(async (ref, range) => {
@@ -283,7 +283,7 @@ it('C5 a read that crosses the expiry point between the ledger check and the sto
   })
 })
 
-it('C5 a miss in the store is expired within ε of expiry and integrity only clearly before expiry', async () => {
+it('a miss in the store is expired within ε of expiry and integrity only clearly before expiry', async () => {
   const { f, input, body } = await offloaded()
   const ref = { tenant: f.access.tenant, call: f.access.call, body: input.bodyId }
   await f.bodies.store.delete(ref)
@@ -351,7 +351,7 @@ async function settledWithOrphan() {
   }
 }
 
-it('C5 sweep: nothing before due; the orphan is reclaimed at settle + G and the linked body at its expiry; the store keeps no bytes, the due index empties, a rerun reclaims nothing', async () => {
+it('sweep: nothing before due; the orphan is reclaimed at settle + G and the linked body at its expiry; the store keeps no bytes, the due index empties, a rerun reclaims nothing', async () => {
   const s = await settledWithOrphan()
   const tenant = s.f.access.tenant
   expect(ok(await s.f.ledger.sweep(tenant, instantAt(s.settledMs + G - 1), 10))).toEqual({
@@ -388,7 +388,7 @@ it('C5 sweep: nothing before due; the orphan is reclaimed at settle + G and the 
   expect(ok(await s.f.ledger.sweep(tenant, s.expiresAt, 10))).toEqual({ reclaimed: 0, removed: 0 })
 })
 
-it('C5 sweep deletes the bytes before it records reclaimed: a sweeper that loses its reclaim commit leaves the due entry and the rerun reaches the same end state', async () => {
+it('sweep deletes the bytes before it records reclaimed: a sweeper that loses its reclaim commit leaves the due entry and the rerun reaches the same end state', async () => {
   const s = await settledWithOrphan()
   const tenant = s.f.access.tenant
   const at = instantAt(s.settledMs + G)
@@ -402,7 +402,7 @@ it('C5 sweep deletes the bytes before it records reclaimed: a sweeper that loses
   expect(await s.due()).toEqual([`body:${s.linked}`])
 })
 
-it('C5 sweep stops at a store that cannot delete and records nothing for that body', async () => {
+it('sweep stops at a store that cannot delete and records nothing for that body', async () => {
   const s = await settledWithOrphan()
   const at = instantAt(s.settledMs + G)
   s.f.bodies.store.failNext()

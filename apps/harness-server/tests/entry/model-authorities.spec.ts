@@ -452,7 +452,7 @@ describe('modelHostAuthority.resolve: read the acceptance, check the relation, i
     expect(scene.script.prepares).toHaveLength(0)
   })
 
-  it('reads the standing in its trusted scope: a root provider of the same name is not seen (P-9)', async () => {
+  it('reads the standing in its trusted scope: a root provider of the same name is not seen', async () => {
     const scene = await installed()
     await attachedAndBound(scene)
     class Impostor extends TenantStandingSourceService {

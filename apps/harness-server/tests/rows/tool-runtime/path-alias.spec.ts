@@ -9,7 +9,7 @@ import { shortNameOf } from './short-name.ts'
 const windows = process.platform === 'win32'
 const backslash = String.fromCharCode(92)
 
-describe('the files root guard on Windows (R2-D374, R2-D376)', () => {
+describe('the files root guard on Windows', () => {
   let base = ''
   let long = { root: '', child: '', outside: '' }
   let short = { root: '', child: '', outside: '' }

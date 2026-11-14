@@ -161,7 +161,7 @@ async function scanShutdown(
   throw new Error(`the call was still under way ${LIMIT} microtasks after it started`)
 }
 
-describe('the send order: each step refuses with the place given back (SPEC MC-16)', () => {
+describe('the send order: each step refuses with the place given back', () => {
   it('step 2: a second call on the same tenant, principal and correlation key is correlation-key-in-use while the first is in flight; another key is not', async () => {
     const gate = deferred<void>()
     const c = arrange(
@@ -217,7 +217,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(await c.invoker.invoke(alice, request(digest))).toEqual(NOT_SENT({ kind: 'unknown' }))
   })
 
-  it('step 4: the setting defects of S4 are the reasons, in the order of S4, before any catalog read', async () => {
+  it('step 4: the setting defects are the reasons, in the order of the settings table, before any catalog read', async () => {
     const c = arrange()
     const digest = await published(c)
     c.p.adoption.update(alice.tenant, files, {
@@ -372,7 +372,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(requests).toEqual([{ action: READ, args: jsonOf({}) }])
   })
 
-  it('step 4: a missing credential of an authenticated endpoint is credential-unavailable (missing), K1', async () => {
+  it('step 4: a missing credential of an authenticated endpoint is credential-unavailable (missing)', async () => {
     const c = arrange({}, { adopt: 'none' })
     adoptStdio(c.p, files, { auth: 'static', settings: { credential: ABSENT } })
     const digest = digestDefinition({ name: READ, definition: jsonOf({ name: 'read' }) })
@@ -419,7 +419,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(c.p.requests('tools/call')).toHaveLength(0)
   })
 
-  it('step 5: a catalog store that breaches its contract is unknown (MC-15)', async () => {
+  it('step 5: a catalog store that breaches its contract is unknown', async () => {
     const p = peer({ listing: { '': TOOLS }, calls: { read: HI } })
     const digest = digestDefinition({ name: READ, definition: jsonOf({ name: 'read' }) })
     adoptStdio(p, files)
@@ -430,7 +430,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     )
   })
 
-  it('step 3: after closeAll nothing is asked: not sent, connection-unavailable; the gate, the store and the build are left alone (S8)', async () => {
+  it('step 3: after closeAll nothing is asked: not sent, connection-unavailable; the gate, the store and the build are left alone', async () => {
     let store: ReturnType<typeof countedReads> | undefined
     const c = arrange({}, { shape: p => ({ store: (store = countedReads(p.store)) }) })
     if (store === undefined) throw new Error('not shaped')
@@ -442,7 +442,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(c.p.opens()).toBe(1)
   })
 
-  it('step 3: closeAll while the call waits on the gate: not sent, connection-unavailable; the store is not read and nothing is built after it (S8)', async () => {
+  it('step 3: closeAll while the call waits on the gate: not sent, connection-unavailable; the store is not read and nothing is built after it', async () => {
     let store: ReturnType<typeof countedReads> | undefined
     let armed: ReturnType<typeof armedEligibility> | undefined
     const c = arrange(
@@ -556,7 +556,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(queued.requests('tools/call')).toHaveLength(0)
   })
 
-  it('step 9: a call the transport could not send is connection-unavailable and the connection is lost (S7); the catalog is marked', async () => {
+  it('step 9: a call the transport could not send is connection-unavailable and the connection is lost; the catalog is marked', async () => {
     const c = arrange({ calls: { read: { kind: 'unsent' } } })
     const digest = await published(c)
     expect(await c.invoker.invoke(alice, request(digest))).toEqual(CONNECTION_UNAVAILABLE)
@@ -567,7 +567,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     )
   })
 
-  it('step 9 (S7, T1): a call not sent with the mark loses the connection; one not sent without it (HTTP, before it left) leaves the connection ready', async () => {
+  it('step 9 (T1): a call not sent with the mark loses the connection; one not sent without it (HTTP, before it left) leaves the connection ready', async () => {
     const marked = arrange({ calls: { read: { kind: 'unsent' } } })
     const markedDigest = await published(marked)
     expect(await marked.invoker.invoke(alice, request(markedDigest))).toEqual(
@@ -585,7 +585,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     ['a 5xx', { kind: 'http', status: 503, body: 'down' }],
     ['a broken answer stream', { kind: 'stream-breaks' }],
   ] as const)(
-    'step 12 (S7, T1): %s on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call',
+    'step 12 (T1): %s on one HTTP call is unknown (stream-broken) without the mark, and the connection stays ready for the next call',
     async (_what, reply) => {
       const c = arrange({ calls: { read: [reply, HI] } }, { adopt: 'http' })
       const digest = await published(c)
@@ -648,7 +648,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(await state(c)).toEqual({ kind: 'ready' })
   })
 
-  it('step 8: at whichever microtask the close of the connection begins, it is not sent on after it; the call goes on a new connection or is not sent (MC-10)', async () => {
+  it('step 8: at whichever microtask the close of the connection begins, it is not sent on after it; the call goes on a new connection or is not sent', async () => {
     const LIMIT = 400
     let sentBefore = false
     for (let k = 0; k < LIMIT && !sentBefore; k += 1) {
@@ -688,7 +688,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(sentBefore).toBe(true)
   })
 
-  it('step 7: a release while the call builds the connection closes it first: the build goes no further, the call is not sent, and nothing is marked (MC-10, MC-5)', async () => {
+  it('step 7: a release while the call builds the connection closes it first: the build goes no further, the call is not sent, and nothing is marked', async () => {
     const negotiating = deferred<void>()
     const c = arrange(
       {},
@@ -725,7 +725,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(await c.p.store.read(anonymousKey)).toEqual(stored)
   })
 
-  it('step 11: the signal after the send, once closeAll began: unknown (abandoned), and the peer is not told; the transport closing settles its own requests (S8, T5)', async () => {
+  it('step 11: the signal after the send, once closeAll began: unknown (abandoned), and the peer is not told; the transport closing settles its own requests (T5)', async () => {
     let cancelRequests = 0
     const c = arrange(
       {},
@@ -770,7 +770,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(await c.invoker.cancel(alice, c1)).toBe('no-call-in-flight')
   })
 
-  it('arguments that are not a JSON object reject with TypeError before any place is taken (R2)', async () => {
+  it('arguments that are not a JSON object reject with TypeError before any place is taken', async () => {
     const c = arrange()
     const digest = await published(c)
     await expect(c.invoker.invoke(alice, request(digest, { args: jsonOf('x') }))).rejects.toThrow(
@@ -780,7 +780,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     expect(await c.invoker.invoke(alice, request(digest))).toMatchObject({ kind: 'sent' })
   })
 
-  it('arguments whose value tree fails judgeJsonValue reject with TypeError before any place is taken, not as a connection failure (R2)', async () => {
+  it('arguments whose value tree fails judgeJsonValue reject with TypeError before any place is taken, not as a connection failure', async () => {
     const c = arrange()
     const digest = await published(c)
     const args: JsonValue = {
@@ -794,7 +794,7 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
   })
 })
 
-describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
+describe('the outcome of a sent call', () => {
   it('step 12: complete: the content through toContentBlocks, no schema means no-schema and no validator call', async () => {
     const c = arrange()
     const digest = await published(c)
@@ -899,7 +899,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
     ['stream-breaks', 'stream-broken'],
     ['process-exits', 'process-exited'],
   ] as const)(
-    'unknown (%s): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (S7, T1)',
+    'unknown (%s): the answer never came on stdio, it carries the mark, the outcome is unknown with the cause, the connection is lost with it (T1)',
     async (reply, cause) => {
       const c = arrange({ calls: { read: { kind: reply } satisfies PeerReply } })
       const digest = await published(c)
@@ -957,7 +957,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
     },
   )
 
-  it('closeAll joins the teardown that a call started on the connection it lost: it answers after that teardown, which closes the transport once; the catalog mark of the loss may come after closeAll (MC-10, MC-14)', async () => {
+  it('closeAll joins the teardown that a call started on the connection it lost: it answers after that teardown, which closes the transport once; the catalog mark of the loss may come after closeAll', async () => {
     const closeHeld = deferred<void>()
     const writeHeld = deferred<void>()
     let closes = 0
@@ -1008,7 +1008,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
     writeHeld.resolve()
   })
 
-  it('progress notifications reach the observer as untrusted values; an observer that throws changes nothing (S6)', async () => {
+  it('progress notifications reach the observer as untrusted values; an observer that throws changes nothing', async () => {
     const c = arrange(
       {
         calls: {
@@ -1047,7 +1047,7 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
   })
 })
 
-describe('the call keeps its one exit whatever the peer or the host does (SPEC MC-16 step 13)', () => {
+describe('the call keeps its one exit whatever the peer or the host does', () => {
   const throwing = () => {
     throw new Error('schema engine: unsupported keyword')
   }
@@ -1116,7 +1116,7 @@ describe('the call keeps its one exit whatever the peer or the host does (SPEC M
     expect(await next).toEqual({ kind: 'sent', outcome: { kind: 'unknown', cause: 'abandoned' } })
   })
 
-  it('step 10: a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer (MC-12)', async () => {
+  it('step 10: a call sent on one generation, whose connection is lost and rebuilt before call returns: a later cancel answers unknown and tells no peer', async () => {
     const gate = deferred<void>()
     let calls = 0
     const base = peer({ listing: { '': TOOLS }, calls: { read: { kind: 'silent' } } })

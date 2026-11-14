@@ -274,7 +274,7 @@ describe('writes map every outcome of the face', () => {
     })
 })
 
-describe('the principal for the target tenant (AA-1)', () => {
+describe('the principal for the target tenant', () => {
   it.each(NAMES)(
     '%s: a login of another account is denied and the face is not called',
     async name => {
@@ -302,7 +302,7 @@ describe('the principal for the target tenant (AA-1)', () => {
   })
 })
 
-describe('the face is taken at the call (AA-2)', () => {
+describe('the face is taken at the call', () => {
   it.each(NAMES)('%s: the face is not on the tree, the basis is unavailable', async name => {
     const world = createWorld()
     world.removeFace()
@@ -310,7 +310,7 @@ describe('the face is taken at the call (AA-2)', () => {
   })
 })
 
-describe('a face that throws (AA-5)', () => {
+describe('a face that throws', () => {
   it.each(['list-settings', 'describe-setting'] as const)(
     '%s: nothing was committed, the basis is unavailable',
     async name => {

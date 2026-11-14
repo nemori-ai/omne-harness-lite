@@ -42,7 +42,7 @@ it('registers the runtime-context narrowing and the three execution modules once
   ])
 })
 
-it('answers unavailable for scope bindings and recovery while sessionScopeLookup and AD-15 have no provider', async () => {
+it('answers unavailable for scope bindings and recovery while their sources have no provider', async () => {
   const keys = [
     principalIssuerKey,
     runtimeContextTrustKey,
@@ -127,7 +127,7 @@ it('reads the scope owner from the trusted sessionScopeLookup: the binding is bo
   expect(await trust.bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
 })
 
-it('does not read a same-name sessionScopeLookup on the root: a scope of tenant A is never bound to tenant B (R2-D189 B1)', async () => {
+it('does not read a same-name sessionScopeLookup on the root: a scope of tenant A is never bound to tenant B (B1)', async () => {
   const { fixture, bindings, trust } = await wired()
   fixture.root.provide(sessionScopeLookupKey, lookupAs(tenantB, 'ses-b'))
   expect(await bindings.lookup(scope)).toEqual({ kind: 'unavailable' })

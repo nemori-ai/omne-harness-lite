@@ -1900,7 +1900,7 @@ describe('D5: the reply admission ledger of the memory Journal', () => {
     admission: evidence('admission'),
   } as const
 
-  it('SQ-1: the sequence a withdrawn joint commit would have taken is neither observable nor a gap', async () => {
+  it('the sequence a withdrawn joint commit would have taken is neither observable nor a gap', async () => {
     const journal = memory({ participants: ['message'] })
     const opened = await open(journal.port)
     const attempt = async (name: string, call: string) =>
@@ -1931,7 +1931,7 @@ describe('D5: the reply admission ledger of the memory Journal', () => {
     )
   })
 
-  it('R-598 is not adopted: the same call and version with another step, action and source is recognized without a new fact', async () => {
+  it('the same call and version with another step, action and source is recognized without a new fact', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     const commitWith = async (name: string, admission: ReturnType<typeof replyAdmission>) =>

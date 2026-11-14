@@ -287,7 +287,7 @@ describe('RcCommit guard: applyCommit refines the model', () => {
   })
 })
 
-describe('RcCommit guard: the success table is bounded (P3, R2-D319)', () => {
+describe('RcCommit guard: the success table is bounded (P3)', () => {
   async function after(count: number): Promise<readonly string[]> {
     const h = harness()
     const log = new Log()

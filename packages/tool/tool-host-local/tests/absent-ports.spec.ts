@@ -38,7 +38,7 @@ const METHODS = {
 
 type Port = (input: unknown) => Promise<unknown>
 
-describe('D-07 the absent ports', () => {
+describe('the absent ports', () => {
   const ports = createAbsentToolPorts<string>()
 
   it('provides exactly the three named ports', () => {

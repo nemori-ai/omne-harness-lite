@@ -37,7 +37,7 @@ function fixture(): ToolClockFixture {
   }
 }
 
-describe('G4 conformance: the host clock against the ToolClock suite', () => {
+describe('conformance: the host clock against the ToolClock suite', () => {
   const cases = toolClockConformance()
 
   it('runs every case of the suite', () => {

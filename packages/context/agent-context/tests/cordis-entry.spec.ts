@@ -116,7 +116,7 @@ describe('what the plugin answers in the first wave (ACCT-INIT, ACCT-TARGET)', (
     })
   })
 
-  it('answers a call encoded for another tenant as the same call of the deliverer (R2-D357)', async () => {
+  it('answers a call encoded for another tenant as the same call of the deliverer', async () => {
     const { ctx } = await assembled()
     const outlet = ctx.get(agentAccountOutletKey)!
     const foreign = await outlet.deliver({

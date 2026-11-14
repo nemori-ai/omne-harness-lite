@@ -54,7 +54,7 @@ describe('defineRow: shape of the wrapper', () => {
     expect(rowDeclarationOf(undefined)).toBeUndefined()
   })
 
-  test('IC-8: the declared injects must include the literal inject of the wrapped plugin', () => {
+  test('the declared injects must include the literal inject of the wrapped plugin', () => {
     const definition: RowDefinition = {
       row: 'fx-short',
       implementation: 'real',
@@ -65,7 +65,7 @@ describe('defineRow: shape of the wrapper', () => {
     expect(() => defineRow(definition)).toThrow(/fxDep/)
   })
 
-  test('IC-8 holds for the object form of inject as well', () => {
+  test('holds for the object form of inject as well', () => {
     expect(() =>
       defineRow({
         row: 'fx-object-inject',
@@ -77,7 +77,7 @@ describe('defineRow: shape of the wrapper', () => {
     ).toThrow(/fxDep/)
   })
 
-  test('a name with the s0. prefix is refused: serve mode has no private names (DP1-C6)', () => {
+  test('a name with the s0. prefix is refused: serve mode has no private names', () => {
     expect(() =>
       defineRow({
         row: 'fx-prefixed',
@@ -140,7 +140,7 @@ describe('defineRow: the wrapper runs the wrapped plugin in the row fiber', () =
     expect(seen).toEqual([true, { tuned: true }])
   })
 
-  test('IC-14: the wrapped plugin Config is handed over, a rejected config fails the row', async () => {
+  test('the wrapped plugin Config is handed over, a rejected config fails the row', async () => {
     const root = new Context()
     const Config = z.object({ port: z.number() })
     const plugin = defineRow({
@@ -156,7 +156,7 @@ describe('defineRow: the wrapper runs the wrapped plugin in the row fiber', () =
   })
 })
 
-describe('defineRow: body-borne registration (DP1-C15 kind 1)', () => {
+describe('defineRow: body-borne registration', () => {
   test('the handle is registered with the declared phase and row, on the row fiber', async () => {
     const registry = registryFor({ 'fx-body': 'entry' })
     const root = new Context()

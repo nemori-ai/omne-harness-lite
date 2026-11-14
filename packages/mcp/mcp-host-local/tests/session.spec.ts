@@ -865,7 +865,7 @@ describe('the requests and notifications of the peer (T3)', () => {
     await transport.close()
   })
 
-  it('an observer that throws does not change the outcome (S6)', async () => {
+  it('an observer that throws does not change the outcome', async () => {
     const { line, transport } = open('stdio', { 'tools/call': [{ kind: 'silent' }] })
     const sent = ok(
       await transport.call(echo, never, () => {
@@ -1127,7 +1127,7 @@ describe("the contract's classes decide, not a second reading (T2, T8 D05, D11, 
   })
 })
 
-describe('what goes on the wire keeps its lexemes (RFC-0010, T3)', () => {
+describe('what goes on the wire keeps its lexemes (T3)', () => {
   it("writes the caller's values and the peer's request id as they are: an integer beyond 2^53 keeps its digits", async () => {
     const { line, transport } = open('stdio', {
       'tools/call': [{ kind: 'silent' }],
@@ -1890,7 +1890,7 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
     expect(line.sseAttempts).toEqual([])
   })
 
-  it('a metadata fetch that throws at every address counts as nothing fetched (R4): authorization-required with the metadata unavailable, reportRejection once', async () => {
+  it('a metadata fetch that throws at every address counts as nothing fetched: authorization-required with the metadata unavailable, reportRejection once', async () => {
     const { transport, credential } = open(
       'streamable-http',
       { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
@@ -2216,7 +2216,7 @@ describe('an answer on the shared stream reaches a request only once it was hand
   })
 })
 
-describe('the metadata fetch of a refused authorization (R4, T9)', () => {
+describe('the metadata fetch of a refused authorization (T9)', () => {
   const path = 'https://peer.test/.well-known/oauth-protected-resource/mcp'
   const root = 'https://peer.test/.well-known/oauth-protected-resource'
   const refused: Script = {
@@ -2332,7 +2332,7 @@ describe('the metadata fetch of a refused authorization (R4, T9)', () => {
   })
 })
 
-describe('a defect of the session goes to the defect outlet (DP-06): the request settles by its phase', () => {
+describe('a defect of the session goes to the defect outlet: the request settles by its phase', () => {
   type Defects = Readonly<{ seen: unknown[]; reportDefect: SessionOptions['reportDefect'] }>
   const defects = (): Defects => {
     const seen: unknown[] = []

@@ -133,7 +133,7 @@ async function fixture(
   }
 }
 
-describe('R2-D60 start permit requirements', () => {
+describe('start permit requirements', () => {
   it('does not issue a permit without a requirement source', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = createLocalStartCoordinator({

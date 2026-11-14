@@ -136,7 +136,7 @@ function injected(events: readonly StubEvent[], row: string, name: ServiceName):
   return hit !== undefined && 'value' in hit ? hit.value : 'NOT-OBSERVED'
 }
 
-describe('serve visibility (R1-4, same mechanism as trust.spec, formal names)', () => {
+describe('serve visibility (same mechanism as trust.spec, formal names)', () => {
   test('the fixture storage row provides under the label: the root cannot get it, the identity double gets the instance', async () => {
     const events: StubEvent[] = []
     const loaded = await load(
@@ -182,7 +182,7 @@ describe('serve visibility (R1-4, same mechanism as trust.spec, formal names)', 
   })
 })
 
-describe('entry-object-borne registration lands on the row fiber (DP1-C15 kind 2)', () => {
+describe('entry-object-borne registration lands on the row fiber', () => {
   test('attachControl registers for the storage row: the handle leaves with the storage fiber', async () => {
     const loaded = await load([declared('storage', fixtureStorage)], [fixtureStorageHost()])
     if (loaded.result.kind !== 'started') throw new Error('not started')

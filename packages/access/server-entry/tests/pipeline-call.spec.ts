@@ -33,7 +33,7 @@ function expectAnswer(reply: HttpReply, status: number, text: string): void {
   expect(reply.headers['content-length']).toBe(String(reply.body.byteLength))
 }
 
-describe('C2: the new address answers', () => {
+describe('the new address answers', () => {
   it('a legal call gets the handler answer with the four headers', async () => {
     const entry = await access()
     const reply = await call(entry.port, 'read-note', { body: '{"noteId":"n-1"}' })
@@ -60,7 +60,7 @@ describe('C2: the new address answers', () => {
   })
 })
 
-describe('C4: the message id', () => {
+describe('the message id', () => {
   const rejected = '{"outcome":"protocol-rejected","body":{}}'
 
   it.each([
@@ -124,7 +124,7 @@ describe('C4: the message id', () => {
   })
 })
 
-describe('C9: what the handler receives', () => {
+describe('what the handler receives', () => {
   it('the login the identity port gave, the same object', async () => {
     const entry = await access()
     await call(entry.port, 'read-note', { body: '{"noteId":"n-1"}' })
@@ -158,7 +158,7 @@ describe('C9: what the handler receives', () => {
   })
 })
 
-describe('C10: failures and refusals', () => {
+describe('failures and refusals', () => {
   it('a handler that throws answers basis-unavailable for a read and unknown for a commit', async () => {
     const entry = await access()
     entry.notes.scripts['read-note'] = async () => {
@@ -192,7 +192,7 @@ describe('C10: failures and refusals', () => {
   })
 })
 
-describe('C11: the report of a successful business access', () => {
+describe('the report of a successful business access', () => {
   it('reports once after a success of an operation that counts', async () => {
     const entry = await access()
     const reply = await call(entry.port, 'save-note', { body: '{"noteId":"n-1","title":"t"}' })

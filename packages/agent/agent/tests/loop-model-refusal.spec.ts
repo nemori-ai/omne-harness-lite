@@ -70,7 +70,7 @@ async function read(assembly: LoopAssembly) {
   })
 }
 
-describe('M6 with an admission the Model does not accept (R2-D237)', () => {
+describe('M6 with an admission the Model does not accept', () => {
   it.each(REFUSALS)(
     'ends the run with the model-refused failure of the original call ($kind)',
     async refusal => {

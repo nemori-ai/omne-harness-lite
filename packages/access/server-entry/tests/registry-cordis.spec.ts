@@ -169,7 +169,7 @@ const notesAccess = defineAccessPlugin({
   }),
 })
 
-describe('defineAccessPlugin on real Cordis (C11)', () => {
+describe('defineAccessPlugin on real Cordis', () => {
   async function readNote(registry: AccessRegistryProvider): Promise<unknown> {
     const entered = registry.enter(NOTES, 'read-note')
     if (entered?.member.kind !== 'operation') return 'not mounted'

@@ -263,7 +263,7 @@ describe('the settings row: registry, secret items and governance', () => {
     }
   })
 
-  it('shows the official layer beside the own one, and a tenant set or clear never touches it (I-7, I-8)', async () => {
+  it('shows the official layer beside the own one, and a tenant set or clear never touches it', async () => {
     const w = await world()
     try {
       const definition = rememberWeb(w.root)

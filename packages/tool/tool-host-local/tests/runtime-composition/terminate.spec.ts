@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { accepted, fixture, unbox } from './fixture.ts'
 import { resolveToolOperationRef } from '@omne-harness/tool-contract'
 
-it('C03 stops only the selected live call while the other author continues', async () => {
+it('stops only the selected live call while the other author continues', async () => {
   const completions = new Map<string, (value: string) => void>()
   const world = await fixture(
     (value, _environment, context) =>

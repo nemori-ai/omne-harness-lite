@@ -40,7 +40,7 @@ async function budgeted(globalReadResultBytes: number) {
   return { read }
 }
 
-describe('the global read budget (sql-contract 准入等待, replacing R2-D115)', () => {
+describe('the global read budget (sql-contract 准入等待)', () => {
   it('a read that finds the reserved bytes full waits for room and reads', async () => {
     const { read } = await budgeted(TWO_READS)
     const settled = await Promise.all([read(), read(), read()])

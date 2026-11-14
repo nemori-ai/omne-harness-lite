@@ -166,7 +166,7 @@ describe('ensure: reuse, rebuild and single flight', () => {
   })
 })
 
-describe('ensure: setting defects (S4)', () => {
+describe('ensure: setting defects', () => {
   const cases: readonly [string, (w: World) => void, unknown][] = [
     [
       'target missing',
@@ -244,7 +244,7 @@ describe('ensure: setting defects (S4)', () => {
     })
   })
 
-  it('answers credential-unavailable (missing) when the credential setting is absent (K1)', async () => {
+  it('answers credential-unavailable (missing) when the credential setting is absent', async () => {
     const w = world()
     adoptHttp(w, files, { settings: { credential: { kind: 'absent' } } })
     const table = tableOf(w)
@@ -268,13 +268,13 @@ describe('ensure: setting defects (S4)', () => {
   })
 })
 
-describe('ensure: connection failures (R6) mark the catalog and release what was taken', () => {
+describe('ensure: connection failures mark the catalog and release what was taken', () => {
   async function keyOf(w: World, adopted: AdoptedEndpoint, account: PeerAccount) {
     return catalogKeyOf(alice.tenant, adopted, account)
   }
   const credentialAccount: PeerAccount = { kind: 'credential', binding: MAIN }
 
-  it('an error of this package while marking reaches the caller; it is not read as a store breach (MC-5, MC-15)', async () => {
+  it('an error of this package while marking reaches the caller; it is not read as a store breach', async () => {
     const w = world()
     const adopted = adoptStdio(w, files, {
       auth: 'static',
@@ -508,7 +508,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     [{ kind: 'no-answer', cause: 'stream-broken' }, 'preparation-failed'],
     [{ kind: 'no-answer', cause: 'abandoned' }, 'preparation-failed'],
   ] as const)(
-    'discover without an answer (%o): effect-unknown with the cause, lost for the mark, else preparation-failed (%s) (S7, MC-5)',
+    'discover without an answer (%o): effect-unknown with the cause, lost for the mark, else preparation-failed (%s)',
     async (failure, lost) => {
       const w = world({ script: [{ discover: failure }] })
       adoptStdio(w, files)
@@ -526,7 +526,7 @@ describe('ensure: connection failures (R6) mark the catalog and release what was
     },
   )
 
-  it('discover not sent on a line that ended (X02, marked stream-broken): connection-unavailable, lost (stream-broken) (S7, MC-5)', async () => {
+  it('discover not sent on a line that ended (X02, marked stream-broken): connection-unavailable, lost (stream-broken)', async () => {
     const w = world({
       script: [
         {
@@ -707,7 +707,7 @@ describe('ensure: the connection key (invariant 1)', () => {
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
   })
 
-  it('a close of the holding refuses requests on each of its connections at once, not one after the other (MC-10)', async () => {
+  it('a close of the holding refuses requests on each of its connections at once, not one after the other', async () => {
     const { table, ours, theirs } = await twoAccounts()
     const closing = table.close(alice.tenant, files.holding)
     const refused = { failure: { kind: 'not-sent', cause: 'connection-unavailable' } }
@@ -717,7 +717,7 @@ describe('ensure: the connection key (invariant 1)', () => {
     expect(await closing).toEqual({ kind: 'released', process: 'no-process' })
   })
 
-  it('a close that raised an error of this package on one connection waits for the others, then rejects with an AggregateError that holds the error (MC-10, P7)', async () => {
+  it('a close that raised an error of this package on one connection waits for the others, then rejects with an AggregateError that holds the error (P7)', async () => {
     const closing = deferred<'closed'>()
     const { w, table, ours, theirs } = await twoAccounts([{ close: closing }])
     const defect = new Error('a defect of this package while forgetting the entry')
@@ -807,7 +807,7 @@ describe('ensure: the connection key (invariant 1)', () => {
   })
 })
 
-describe('ensure: the adoption is read again before a build (MC-5)', () => {
+describe('ensure: the adoption is read again before a build', () => {
   it('answers not-available-to-you for a token of an endpoint withdrawn after the gate, and builds nothing', async () => {
     const w = world({ script: [{ discover: peer }] })
     adoptStdio(w, files)
@@ -836,7 +836,7 @@ describe('ensure: the adoption is read again before a build (MC-5)', () => {
   })
 })
 
-describe('ensure: a close against the build (MC-10, MC-5, P16)', () => {
+describe('ensure: a close against the build (P16)', () => {
   const STOPPED = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
 
   it('a release after the process started: the build answers the refusal and tears nothing down; the release stops the process once and reports what that stop confirmed', async () => {

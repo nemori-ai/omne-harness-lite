@@ -35,7 +35,7 @@ const APPROVAL = JSON.stringify({
   },
 })
 
-describe('Ask in an auto-drive session (I-14)', () => {
+describe('Ask in an auto-drive session', () => {
   it(
     'neither command runs: no card, no Tool record, and the model reads why',
     { timeout: 240_000 },

@@ -28,7 +28,7 @@ async function through(limit: number, chunks: readonly (string | Uint8Array)[]):
 
 const eventOf = (size: number, end = '\n') => `data: ${'x'.repeat(size - 6 - end.length)}${end}`
 
-describe('the byte counter of an SSE event (SPEC H8)', () => {
+describe('the byte counter of an SSE event', () => {
   it('passes an event of exactly the bound and breaks on one byte more', async () => {
     expect(await through(16, [`${eventOf(16)}\n`])).toEqual({ passed: `${eventOf(16)}\n` })
     const above = await through(16, [`${eventOf(17)}\n`])

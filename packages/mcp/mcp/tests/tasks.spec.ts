@@ -115,7 +115,7 @@ function enteredAfterShut() {
   }
 }
 
-describe('the task table opens the operations to the initiator only (SPEC S2)', () => {
+describe('the task table opens the operations to the initiator only', () => {
   it('answers the initiator from the task on the connection it was started on', async () => {
     const c = await started()
     expect(await c.invoker.queryTask(alice, task)).toEqual({ ok: { status: 'working' } })
@@ -142,7 +142,7 @@ describe('the task table opens the operations to the initiator only (SPEC S2)', 
   })
 })
 
-describe('the connection of a task operation (SPEC S2)', () => {
+describe('the connection of a task operation', () => {
   it('reuses the existing connection without asking adoption or eligibility', async () => {
     const c = await started()
     const asked = portCalls(c.p)
@@ -185,7 +185,7 @@ describe('the connection of a task operation (SPEC S2)', () => {
     expect(c.p.opens()).toBe(1)
   })
 
-  it('a new connection needs the setting values of S4: a missing one is effect-unknown (no-connection)', async () => {
+  it('a new connection needs its setting values: a missing one is effect-unknown (no-connection)', async () => {
     const c = await started()
     await c.connections.release(alice, files)
     c.p.adoption.update(alice.tenant, files, {
@@ -257,7 +257,7 @@ describe('the connection of a task operation (SPEC S2)', () => {
   })
 })
 
-describe('the answers of the task operations (SPEC S2, T6)', () => {
+describe('the answers of the task operations (T6)', () => {
   it('no answer is effect-unknown with the same cause, and the connection is lost', async () => {
     const c = await started({ get: { kind: 'stream-breaks' } })
     expect(await c.invoker.queryTask(alice, task)).toEqual({
@@ -291,7 +291,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
       { kind: 'ready' },
     ],
   ] as const)(
-    'a task request answered %o answers %o; the connection follows the mark only: %o (S2, S7, T1)',
+    'a task request answered %o answers %o; the connection follows the mark only: %o (T1)',
     async (answer, failure, connection) => {
       const c = await started(undefined, {}, undefined, p => ({
         ports: {
@@ -401,7 +401,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(c.p.requests('tasks/cancel')[0]?.params).toMatchObject({ taskId: 't1' })
   })
 
-  it('provideTaskInput rejects responses whose value tree fails judgeJsonValue with TypeError and sends nothing (R2)', async () => {
+  it('provideTaskInput rejects responses whose value tree fails judgeJsonValue with TypeError and sends nothing', async () => {
     const c = await started({ get: WORKING, update: { kind: 'result', result: {} } })
     const asked = portCalls(c.p)
     const inputResponses: JsonValue = {
@@ -413,7 +413,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(portCalls(c.p)).toEqual(asked)
   })
 
-  it('after closeAll: the initiator check first, then effect-unknown (no-connection), with no port asked (S8)', async () => {
+  it('after closeAll: the initiator check first, then effect-unknown (no-connection), with no port asked', async () => {
     const c = await started()
     await c.connections.closeAll()
     const asked = portCalls(c.p)
@@ -424,7 +424,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(c.p.opens()).toBe(1)
   })
 
-  it('closeAll while the operation waits on the gate: effect-unknown (no-connection), the same as after closeAll; nothing is built (S8)', async () => {
+  it('closeAll while the operation waits on the gate: effect-unknown (no-connection), the same as after closeAll; nothing is built', async () => {
     let armed: ReturnType<typeof armedEligibility> | undefined
     const c = await started(undefined, {}, undefined, p => {
       armed = armedEligibility(p.eligibility)
@@ -445,7 +445,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
 
-  it('a request already sent when closeAll lands keeps its outcome: effect-unknown with the cause of no answer, not no-connection (S8, MC-17)', async () => {
+  it('a request already sent when closeAll lands keeps its outcome: effect-unknown with the cause of no answer, not no-connection', async () => {
     const c = await started({ get: { kind: 'silent' } })
     const query = c.invoker.queryTask(alice, task)
     for (let round = 0; round < 50 && c.p.requests('tasks/get').length === 0; round += 1)
@@ -456,7 +456,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     await closing
   })
 
-  it('closeAll in the same synchronous run as a task operation on a reused connection: effect-unknown (no-connection), and the transport is not asked after closeAll (S8)', async () => {
+  it('closeAll in the same synchronous run as a task operation on a reused connection: effect-unknown (no-connection), and the transport is not asked after closeAll', async () => {
     const entered = enteredAfterShut()
     const c = await started(undefined, {}, undefined, entered.shape)
     entered.watch(c.table)
@@ -472,7 +472,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     ['reused', false],
     ['built through the gate', true],
   ] as const)(
-    'at whichever microtask closeAll lands, a task operation on a connection %s answers effect-unknown (no-connection) and does not ask the transport after it (S8, MC-17 step 4)',
+    'at whichever microtask closeAll lands, a task operation on a connection %s answers effect-unknown (no-connection) and does not ask the transport after it',
     async (_how, rebuilt) => {
       const LIMIT = 2_000
       let sentBefore = false
@@ -495,7 +495,7 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
   )
 })
 
-describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step 3)', () => {
+describe('a task request the build does not get to send', () => {
   const CONNECTION_UNAVAILABLE = { failure: { kind: 'connection-unavailable' } }
 
   it('a discover without an answer on the new connection is connection-unavailable, not effect-unknown', async () => {
@@ -564,7 +564,7 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
     expect(c.p.requests('tasks/get')).toHaveLength(0)
   })
 
-  it('a shutdown under way while the connection is built is effect-unknown (no-connection), the same as after closeAll (S8)', async () => {
+  it('a shutdown under way while the connection is built is effect-unknown (no-connection), the same as after closeAll', async () => {
     let stalled: ReturnType<typeof stallingLanding> | undefined
     const c = await started(undefined, {}, undefined, p => {
       stalled = stallingLanding(p.landing, only(2))
@@ -615,7 +615,7 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
     },
   )
 
-  it('a task request the transport could not send is the connection failure, and the connection is lost (S7)', async () => {
+  it('a task request the transport could not send is the connection failure, and the connection is lost', async () => {
     const c = await started({ get: { kind: 'unsent' } })
     expect(await c.invoker.queryTask(alice, task)).toEqual(CONNECTION_UNAVAILABLE)
     expect(await c.status.inspect(alice, files)).toMatchObject({
@@ -653,7 +653,7 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
   })
 })
 
-describe('the task reference names the task it was issued as (SPEC S2, MC-17 step 1)', () => {
+describe('the task reference names the task it was issued as', () => {
   it('an issuedAt other than the recorded one is unknown: not this task, no port asked, no request', async () => {
     const c = await started()
     const asked = portCalls(c.p)
@@ -668,7 +668,7 @@ describe('the task reference names the task it was issued as (SPEC S2, MC-17 ste
   })
 })
 
-describe('the task table keys by tenant, principal, holding and task id; the peer account is recorded, not keyed (SPEC S2, MC-17)', () => {
+describe('the task table keys by tenant, principal, holding and task id; the peer account is recorded, not keyed', () => {
   async function movedToCredentialAccount(c: Awaited<ReturnType<typeof started>>) {
     c.p.adoption.update(alice.tenant, files, {
       body: jsonOf({
@@ -707,7 +707,7 @@ describe('the task table keys by tenant, principal, holding and task id; the pee
     expect(c.p.opens()).toBe(2)
   })
 
-  it('an ambiguous key stays ambiguous: the id given once more, on either account, names no task (MC-17 step 1)', async () => {
+  it('an ambiguous key stays ambiguous: the id given once more, on either account, names no task', async () => {
     const c = await started()
     await movedToCredentialAccount(c)
     await invokeTask(c.invoker, c.digest, correlationKeyOf('c2'))
@@ -730,7 +730,7 @@ describe('the task table keys by tenant, principal, holding and task id; the pee
   })
 })
 
-describe('the result of a finished task is classified outside the port call (SPEC O1, MC-15, MC-17 step 5)', () => {
+describe('the result of a finished task is classified outside the port call', () => {
   it('a checkOutput that throws is absorbed: the result carries violates (output-check-failed), not effect-unknown', async () => {
     const throwing = () => {
       throw new Error('schema engine: unsupported keyword')

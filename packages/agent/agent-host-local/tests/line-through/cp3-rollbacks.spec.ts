@@ -49,7 +49,7 @@ const committed = (log: SeenCommit['log']): SeenCommit => ({
 const changed = { kind: 'changed', revision: '4' }
 const nothingRead = (): string | null => '0'
 
-describe('CP3: a rolled-back Session-only commit is explained only in the two R2-D152 ways', () => {
+describe('CP3: a rolled-back Session-only commit is explained only in the two accepted ways', () => {
   it('accepts a rollback whose input another path took', () => {
     const commits = [
       rolledBack({ kind: 'invalid', field: 'fact.input', reason: INPUT_NOT_PENDING }),

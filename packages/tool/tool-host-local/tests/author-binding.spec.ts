@@ -15,7 +15,7 @@ import {
 } from './coordinator-values.ts'
 import { createLiveAuthorExecution } from '../src/live-author-execution.ts'
 
-describe('real author binding N7', () => {
+describe('real author binding', () => {
   it('stopping one author leaves another invocation live', async () => {
     const fixture = await bindingFixture()
     if (fixture.request?.availability.kind !== 'available' || fixture.permit === undefined)

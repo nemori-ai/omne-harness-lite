@@ -81,7 +81,7 @@ async function finish(harness: StartHarness, call: string): Promise<void> {
   for (let i = 0; i < 30; i += 1) await Promise.resolve()
 }
 
-describe('20 preparation and queue (P02, P03)', () => {
+describe('20 preparation and queue (P03)', () => {
   it('20 order: an admitted call takes its ordinal before admit answers, in the order of admission', async () => {
     const harness = startHarness()
     await admitAll(harness, 'c1', 'c2', 'c3')

@@ -154,7 +154,7 @@ describe('the cells R2-D204 decided', () => {
   })
 })
 
-describe('accept is judged by the RoutedInput branch (DP4-C14)', () => {
+describe('accept is judged by the RoutedInput branch', () => {
   it('lets the login principal send ordinary and card-decision input, not business input', () => {
     const cell = SESSION_POLICY.accept.login
     expect(resolveCell(cell, { routed: 'ordinary' }).verdict).toBe('member')

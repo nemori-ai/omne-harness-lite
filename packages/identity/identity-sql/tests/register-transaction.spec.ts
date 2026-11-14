@@ -91,7 +91,7 @@ describe('registration is one transaction', () => {
   })
 })
 
-describe('the stricter input rules (DP3-C8)', () => {
+describe('the stricter input rules', () => {
   it('refuses a login identifier over 1024 UTF-8 bytes and a credential over 4096 bytes', async () => {
     const { provider: sql, scrypt } = await provider()
     const longIdentifier = 'é'.repeat(513)

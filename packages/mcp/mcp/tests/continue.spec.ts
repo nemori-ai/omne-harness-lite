@@ -81,7 +81,7 @@ function continuation(
   }
 }
 
-describe('continueWithInput (SPEC S2)', () => {
+describe('continueWithInput', () => {
   it('completes on the same generation, sending the request state and the input responses', async () => {
     const c = await arranged()
     const issuedAt = await asked(c, c.digest)
@@ -116,7 +116,7 @@ describe('continueWithInput (SPEC S2)', () => {
     expect(await c.invoker.cancel(alice, c2)).toBe('unknown')
   })
 
-  it('after closeAll is not sent: connection-unavailable, and nothing connects (S8)', async () => {
+  it('after closeAll is not sent: connection-unavailable, and nothing connects', async () => {
     const c = await arranged()
     const issuedAt = await asked(c, c.digest)
     await c.connections.closeAll()
@@ -130,7 +130,7 @@ describe('continueWithInput (SPEC S2)', () => {
     expect(c.p.opens()).toBe(1)
   })
 
-  it('closeAll while the continuation waits on the gate: the same not sent, connection-unavailable, as a first call; the store is not read after it (S8)', async () => {
+  it('closeAll while the continuation waits on the gate: the same not sent, connection-unavailable, as a first call; the store is not read after it', async () => {
     let store: ReturnType<typeof countedReads> | undefined
     let armed: ReturnType<typeof armedEligibility> | undefined
     const c = await arranged(p => ({
@@ -154,7 +154,7 @@ describe('continueWithInput (SPEC S2)', () => {
     expect(c.p.opens()).toBe(1)
   })
 
-  it('closeAll while the continuation waits on the store: the same not sent, connection-unavailable, as a first call, not the unknown of step 6; nothing is built or sent after it (S8)', async () => {
+  it('closeAll while the continuation waits on the store: the same not sent, connection-unavailable, as a first call, not the unknown of step 6; nothing is built or sent after it', async () => {
     let store: ReturnType<typeof armedStore> | undefined
     const c = await arranged(p => ({ store: (store = armedStore(p.store)).port }))
     if (store === undefined) throw new Error('not shaped')
@@ -251,7 +251,7 @@ describe('continueWithInput (SPEC S2)', () => {
     expect(await c.invoker.cancel(alice, c2)).toBe('unknown')
   })
 
-  it('rejects arguments that are not a JSON object with TypeError (R2)', async () => {
+  it('rejects arguments that are not a JSON object with TypeError', async () => {
     const c = await arranged()
     const issuedAt = await asked(c, c.digest)
     await expect(
@@ -260,7 +260,7 @@ describe('continueWithInput (SPEC S2)', () => {
     expect(c.p.requests('tools/call')).toHaveLength(1)
   })
 
-  it('reads each field of the request once: input responses that are an accessor answer once, and that answer is what goes out (R2)', async () => {
+  it('reads each field of the request once: input responses that are an accessor answer once, and that answer is what goes out', async () => {
     const c = await arranged()
     const issuedAt = await asked(c, c.digest)
     let reads = 0
@@ -286,7 +286,7 @@ describe('continueWithInput (SPEC S2)', () => {
     expect(second?.params).not.toHaveProperty('inputResponses')
   })
 
-  it('rejects input responses whose value tree fails judgeJsonValue with TypeError before any place is taken (R2)', async () => {
+  it('rejects input responses whose value tree fails judgeJsonValue with TypeError before any place is taken', async () => {
     const c = await arranged()
     const issuedAt = await asked(c, c.digest)
     const inputResponses: JsonValue = {

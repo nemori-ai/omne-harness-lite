@@ -81,7 +81,7 @@ async function endedOnce(world: ReleaseTree, session: string): Promise<void> {
   expect(entries.filter(entry => entry.kind === 'run.terminal')).toHaveLength(1)
 }
 
-describe('a waiting Ask goes on after the service restarts on the same state (C7)', () => {
+describe('a waiting Ask goes on after the service restarts on the same state', () => {
   it(
     'a card that was not answered before the restart is answered after it, and the call resumes once',
     { timeout: 300_000 },

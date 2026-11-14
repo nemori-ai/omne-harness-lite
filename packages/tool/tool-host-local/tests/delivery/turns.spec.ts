@@ -84,7 +84,7 @@ async function twoCalls() {
   return { f, later, worker, driveLater, ready, release, pushedCalls, otherTenant }
 }
 
-it('R2-D164 a later call of the same tenant waits for its turn instead of being refused', async () => {
+it('a later call of the same tenant waits for its turn instead of being refused', async () => {
   const w = await twoCalls()
   const first = w.f.drive(w.worker)
   await w.ready
@@ -100,7 +100,7 @@ it('R2-D164 a later call of the same tenant waits for its turn instead of being 
   await w.worker.close()
 })
 
-it('R2-D164 close ends a queued turn before its run starts', async () => {
+it('close ends a queued turn before its run starts', async () => {
   const w = await twoCalls()
   const first = w.f.drive(w.worker)
   await w.ready
@@ -113,7 +113,7 @@ it('R2-D164 close ends a queued turn before its run starts', async () => {
   w.release()
 })
 
-it('R2-D186 a queued turn of one tenant does not take the place of another tenant', async () => {
+it('a queued turn of one tenant does not take the place of another tenant', async () => {
   const w = await twoCalls()
   const other = await w.otherTenant()
   const first = w.f.drive(w.worker)
@@ -129,7 +129,7 @@ it('R2-D186 a queued turn of one tenant does not take the place of another tenan
   await first
 })
 
-it('R2-D186 the running and queued runs of one tenant stay within the capacity', async () => {
+it('the running and queued runs of one tenant stay within the capacity', async () => {
   const w = await twoCalls()
   const first = w.f.drive(w.worker)
   await w.ready

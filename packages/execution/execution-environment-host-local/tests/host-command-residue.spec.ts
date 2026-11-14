@@ -340,7 +340,7 @@ async function retainServer(f: Awaited<ReturnType<typeof retaining>>) {
 }
 
 describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, () => {
-  it('C1: hands the whole scope over, the server outlives the call and the release of the acquisition', async () => {
+  it('hands the whole scope over, the server outlives the call and the release of the acquisition', async () => {
     const f = await retaining()
     const { port, handle, residue } = await retainServer(f)
     expect(residue).toEqual({
@@ -377,7 +377,7 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     await unitGone(handle.process.id)
   })
 
-  it('C2: lists the retained process; closing the scope stops its unit, confirms it and records it', async () => {
+  it('lists the retained process; closing the scope stops its unit, confirms it and records it', async () => {
     const f = await retaining()
     const { port, handle, residue } = await retainServer(f)
     if (residue?.kind !== 'retained') throw new Error('expected retained')
@@ -404,7 +404,7 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     expect(await readdir(join(f.state, 'retained-processes'))).toEqual([])
   })
 
-  it('C3: a full retention scope stops the newcomer for capacity and keeps the retained one', async () => {
+  it('a full retention scope stops the newcomer for capacity and keeps the retained one', async () => {
     const f = await retaining({ command: { retainedPerScope: 1 } })
     const first = await retainServer(f)
     expect(first.residue).toMatchObject({ kind: 'retained' })
@@ -423,7 +423,7 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     await unitGone(first.handle.process.id)
   })
 
-  it('C4: after the scope closed, a new leftover is stopped for closure and the stop is confirmed', async () => {
+  it('after the scope closed, a new leftover is stopped for closure and the stop is confirmed', async () => {
     const f = await retaining()
     f.released.abort()
     const { handle, residue } = await retainServer(f)
@@ -436,7 +436,7 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     expect(f.processes.plans).toEqual([])
   })
 
-  it('C6: a fresh provider in a fresh domain finds the retained process by its marker, and closing stops it', async () => {
+  it('a fresh provider in a fresh domain finds the retained process by its marker, and closing stops it', async () => {
     const f = await retaining()
     const { port, handle, residue } = await retainServer(f)
     if (residue?.kind !== 'retained') throw new Error('expected retained')
@@ -475,7 +475,7 @@ describe('what a one-shot command leaves behind, on Linux', { skip: !enabled }, 
     expect(await readdir(join(f.state, 'retained-processes'))).toEqual([])
   })
 
-  it('C14: another retention scope and another tenant do not see the retained process', async () => {
+  it('another retention scope and another tenant do not see the retained process', async () => {
     const f = await retaining()
     const { residue } = await retainServer(f)
     if (residue?.kind !== 'retained') throw new Error('expected retained')

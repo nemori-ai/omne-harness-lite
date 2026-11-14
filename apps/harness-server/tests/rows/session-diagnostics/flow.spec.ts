@@ -145,7 +145,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
   })
 
   it(
-    'E1: the second concurrent Run of the tenant waits while the first call holds the share, and goes on once it settles',
+    'the second concurrent Run of the tenant waits while the first call holds the share, and goes on once it settles',
     { timeout: 240_000 },
     async () => {
       sessions.held = await createSession(alice)
@@ -186,7 +186,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
   )
 
   it(
-    'E2: an upstream 504 on the stream ends the Run no-reply with the cause and the status',
+    'an upstream 504 on the stream ends the Run no-reply with the cause and the status',
     { timeout: 240_000 },
     async () => {
       sessions.upstream = await createSession(bob)
@@ -208,7 +208,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
   )
 
   it(
-    'E2b: the login reads its Model dispatch failure and explicit account state',
+    'the login reads its Model dispatch failure and explicit account state',
     { timeout: 120_000 },
     async () => {
       const { run } = await untilRunEnded(bob, sessions.upstream, RUN_END_TIMEOUT_MS)
@@ -229,7 +229,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
     },
   )
 
-  it('E3: another login reads the session: denied, exit 3', { timeout: 120_000 }, async () => {
+  it('another login reads the session: denied, exit 3', { timeout: 120_000 }, async () => {
     const read = await bob([
       'read-session-diagnostics',
       '--session',
@@ -244,7 +244,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
   })
 
   it(
-    'E4: with telemetry and the new injects the tree starts in the release order, and shutdown-result is the last line',
+    'with telemetry and the new injects the tree starts in the release order, and shutdown-result is the last line',
     { timeout: 120_000 },
     async () => {
       outcome = await server.stop()
@@ -275,7 +275,7 @@ describe('session diagnostics over real processes: the two smoke failures', () =
   )
 })
 
-describe('E5: the local single-user profile', () => {
+describe('the local single-user profile', () => {
   const memberDir = join(distributionPath, '..', '..')
   const distribution = JSON.parse(
     readFileSync(join(memberDir, 'config', 'serve.distribution.json'), 'utf8'),

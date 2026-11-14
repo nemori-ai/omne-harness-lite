@@ -50,7 +50,7 @@ async function snapshot(assembly: LoopAssembly) {
 }
 
 describe('I0 fixes one batch at a legal input boundary', () => {
-  it('NA-I0-1: fixes all accepted inputs, the new step and one input-taken in one commit', async () => {
+  it('fixes all accepted inputs, the new step and one input-taken in one commit', async () => {
     const commits: JournalCommit<Principal>[] = []
     let loads = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -100,7 +100,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     )
   })
 
-  it('NA-I0-2: an input accepted after intent and before Model admission waits for the next step', async () => {
+  it('an input accepted after intent and before Model admission waits for the next step', async () => {
     const taken: JournalCommit<Principal>[] = []
     let before: AgentCheckpoint | null = null
     let after: AgentCheckpoint | null = null
@@ -152,7 +152,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     expect(calls).toBe(2)
   })
 
-  it('NA-I0-2: two invokes on the runtime take disjoint input batches', async () => {
+  it('two invokes on the runtime take disjoint input batches', async () => {
     const assembly = await loopAssembly([execution(), execution('exec-2')])
     assembly.release.open()
     const first = await eventsOf(ok(await invoke(assembly)))
@@ -219,7 +219,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
 })
 
 describe('I1 prepares at the fixed input boundary', () => {
-  it('NA-I1-1: reads conditions, selects, reads context and prepares assembled before P1 produces ready', async () => {
+  it('reads conditions, selects, reads context and prepares assembled before P1 produces ready', async () => {
     const log: string[] = []
     const saved: AgentCheckpoint[] = []
     const prepared: unknown[] = []
@@ -294,7 +294,7 @@ describe('I1 prepares at the fixed input boundary', () => {
     expect(saved[0]?.priorConditions).toEqual(initial?.conditions.source)
   })
 
-  it('NA-I1-2: new execution reads with no adopted coverage, then M0 adopts the returned coverage', async () => {
+  it('new execution reads with no adopted coverage, then M0 adopts the returned coverage', async () => {
     let recorded: AgentCheckpoint | null = null
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -356,7 +356,7 @@ describe('I1 prepares at the fixed input boundary', () => {
   })
 
   it.each(['conditions', 'selection', 'modelContext', 'requests'] as const)(
-    'NA-I1-3: unavailable %s saves one I1 wait without preparing or calling Model',
+    'unavailable %s saves one I1 wait without preparing or calling Model',
     async port => {
       let modelCalls = 0
       const unavailable = {

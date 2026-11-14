@@ -1938,7 +1938,7 @@ function binding(
 
 const far = () => performance.now() + 10_000
 
-it('C5: a stop or release while the commit is in flight makes a confirmed commit an interrupted one, and before it aborts the reservation', async () => {
+it('a stop or release while the commit is in flight makes a confirmed commit an interrupted one, and before it aborts the reservation', async () => {
   const adopt = deferred<'confirmed' | 'closed' | 'unavailable'>()
   let interrupted = false
   const aborted: string[] = []

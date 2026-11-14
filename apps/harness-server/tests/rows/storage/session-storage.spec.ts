@@ -364,7 +364,7 @@ describe('the composite declaration (acceptance 6)', () => {
     expect([...SESSION_COMPOSITE_PARTICIPANTS]).toEqual([...SESSION_COMPOSITE_PARTICIPANTS].sort())
   })
 
-  test('wave 2: the model participant and its migration are in the combination the row registers (R2-D6, R2-D65)', () => {
+  test('wave 2: the model participant and its migration are in the combination the row registers', () => {
     expect(SESSION_COMPOSITE_PARTICIPANTS).toContain(MODEL_PARTICIPANT)
     const catalog = storageCatalog()
     expect(catalog.migrations.map(item => item.owner)).toContain(MODEL_PARTICIPANT)
@@ -424,7 +424,7 @@ describe('the delegated entry and the trusted reads', () => {
     expect('ok' in (await bound.readWork(access(TENANT_A, 's1')))).toBe(true)
   })
 
-  test('a bound view refuses the two writes that ask no access on the port: commitEntries and commitLog (R2-D256)', async () => {
+  test('a bound view refuses the two writes that ask no access on the port: commitEntries and commitLog', async () => {
     const tree = await load(workspace())
     started(tree)
     const command = createCommand(TENANT_A, 's1')

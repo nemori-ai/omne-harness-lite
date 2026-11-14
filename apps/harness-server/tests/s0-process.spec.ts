@@ -105,7 +105,7 @@ function pendingClosure(enabled: readonly string[]) {
   return enabled.filter(id => !active.has(id))
 }
 
-describe('S0-1 完整发行替身树', () => {
+describe('完整发行替身树', () => {
   it('行序与快照一致，全部 ACTIVE，barrier 一次，每个 start 一次，退出 0', async () => {
     const out = await runS0Process(distributionPath)
     expect(out.code).toBe(0)
@@ -131,7 +131,7 @@ describe('S0-1 完整发行替身树', () => {
   })
 })
 
-describe('S0-2 缺 storage', () => {
+describe('缺 storage', () => {
   const check = (out: Outcome) => {
     expect(out.code).toBe(4)
     const s = states(out)
@@ -160,11 +160,11 @@ describe('S0-2 缺 storage', () => {
     for (const id of pending) expect(result['appliedRows']).not.toContain(id)
   }
 
-  it('S0-2 删除 storage 行', async () => {
+  it('删除 storage 行', async () => {
     check(await runS0Process(withoutRow('storage')))
   })
 
-  it('S0-2b 运维停用 storage：同样的阻塞，最终树打印停用与 operator 来源', async () => {
+  it('运维停用 storage：同样的阻塞，最终树打印停用与 operator 来源', async () => {
     const out = await runS0Process(distributionPath, {
       operator: fixture.operators['disableStorage'],
     })
@@ -174,7 +174,7 @@ describe('S0-2 缺 storage', () => {
   })
 })
 
-describe('S0-3 插件失败', () => {
+describe('插件失败', () => {
   it('无缺项的行 FAILED，依赖方 PENDING，两类都报告，barrier 零次，退出 3', async () => {
     const out = await runS0Process(withConfig('model-profiles', { failOnApply: 'boom-tag' }))
     expect(out.code).toBe(3)
@@ -186,7 +186,7 @@ describe('S0-3 插件失败', () => {
   })
 })
 
-describe('S0-4 配置失败', () => {
+describe('配置失败', () => {
   it('行对象含未知键：装载前退出 2，没有任何行状态', async () => {
     const rows = baseDistribution.rows.map(row =>
       row.id === 'identity' ? { ...row, surprise: true } : row,
@@ -204,7 +204,7 @@ describe('S0-4 配置失败', () => {
   })
 })
 
-describe('S0-5 运维目标错误', () => {
+describe('运维目标错误', () => {
   it.each([
     ['unknownReplace', 'replace'],
     ['unknownDisable', 'disable'],
@@ -225,7 +225,7 @@ describe('S0-5 运维目标错误', () => {
   })
 })
 
-describe('S0-6 层叠', () => {
+describe('层叠', () => {
   it('替换、停用、插入后的顺序、配置与来源；插入行可见集合为空', async () => {
     const out = await runS0Process(distributionPath, { operator: fixture.operators['layering'] })
     expect(out.code).toBe(0)
@@ -257,7 +257,7 @@ describe('S0-6 层叠', () => {
   })
 })
 
-describe('S0-7 恢复', () => {
+describe('恢复', () => {
   it('同一进程起新根，结果恢复，旧根撤除，不遗留定时器', async () => {
     const run = async () => {
       const records: S0Record[] = []
@@ -284,7 +284,7 @@ describe('S0-7 恢复', () => {
 })
 
 describe('G 启动门控', () => {
-  it('G-1 构造检查在启动时以 FAILED 可见', async () => {
+  it('构造检查在启动时以 FAILED 可见', async () => {
     const out = await runS0Process(
       withConfig('agent-host', { constructionCheck: 'joint-commits-mismatch' }),
     )
@@ -315,7 +315,7 @@ describe('G 启动门控', () => {
     )
   }
 
-  it('G-2 映射选择不在映射列表：server-entry 启动时 FAILED', async () => {
+  it('映射选择不在映射列表：server-entry 启动时 FAILED', async () => {
     const out = await mappingRun('map-zzz')
     expect(out.code).toBe(3)
     expect(states(out).get('server-entry')).toMatchObject({
@@ -324,11 +324,11 @@ describe('G 启动门控', () => {
     })
   })
 
-  it('G-2 对照：选择在列表中则退出 0', async () => {
+  it('对照：选择在列表中则退出 0', async () => {
     expect((await mappingRun('map-b')).code).toBe(0)
   })
 
-  it('G-3 T-05：运维插入行 inject 不可见的受信名 → 退出 2，零个插件体运行', async () => {
+  it('运维插入行 inject 不可见的受信名 → 退出 2，零个插件体运行', async () => {
     const manifests = new Map<RowId, RowManifest>(rowManifests)
     manifests.set('intruder' as RowId, {
       provides: [],
@@ -351,7 +351,7 @@ describe('G 启动门控', () => {
     expect(records.filter(r => r['kind'] === 'row-state')).toEqual([])
   })
 
-  it('G-3 T-08：同提供者组的名由两行提供 → 退出 2', async () => {
+  it('同提供者组的名由两行提供 → 退出 2', async () => {
     const manifests = new Map<RowId, RowManifest>(rowManifests)
     const journal = manifests.get('agent-journal' as RowId)!
     manifests.set('agent-journal' as RowId, {

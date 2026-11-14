@@ -121,7 +121,7 @@ function valueSeen(
 }
 
 describe('trust scopes (spec 5.3)', () => {
-  test('T-01 a visible row gets the entry-created issuer object', async () => {
+  test('a visible row gets the entry-created issuer object', async () => {
     const issuer = { issue: () => 'p' }
     const f = await run(
       [{ id: 'entry-stub', injects: [ISSUER] }],
@@ -132,7 +132,7 @@ describe('trust scopes (spec 5.3)', () => {
     expect(valueSeen(f.events, 'injected', 'entry-stub', ISSUER)).toBe(issuer)
   })
 
-  test('T-02 a root row cannot get the issuer by name and stays ACTIVE', async () => {
+  test('a root row cannot get the issuer by name and stays ACTIVE', async () => {
     const f = await run(
       [{ id: 'probe', config: { probeGet: [ISSUER] } }],
       {},
@@ -156,7 +156,7 @@ describe('trust scopes (spec 5.3)', () => {
     expect(valueSeen(f.events, 'probed', 'sibling', ISSUER)).toBeUndefined()
   })
 
-  test('T-03 a root provider of the same name does not replace the subtree implementation', async () => {
+  test('a root provider of the same name does not replace the subtree implementation', async () => {
     const f = await run(
       [
         { id: 'mapping-provider', provides: [MAPPINGS] },
@@ -172,7 +172,7 @@ describe('trust scopes (spec 5.3)', () => {
     expect(got.rowId).toBe('mapping-provider')
   })
 
-  test('T-04 a second visible provider in one scope FAILS with has been registered', async () => {
+  test('a second visible provider in one scope FAILS with has been registered', async () => {
     const f = await run(
       [
         { id: 'storage-a', provides: [STORAGE] },
@@ -188,7 +188,7 @@ describe('trust scopes (spec 5.3)', () => {
     expect(f.result.report.exitCode).toBe(3)
   })
 
-  test('T-05 an operator-inserted row injecting a trusted name is rejected before any plugin body runs', async () => {
+  test('an operator-inserted row injecting a trusted name is rejected before any plugin body runs', async () => {
     const f = await run(
       [
         { id: 'storage', provides: [STORAGE] },
@@ -205,7 +205,7 @@ describe('trust scopes (spec 5.3)', () => {
     expect(f.events).toEqual([])
   })
 
-  test('T-06 missing issuer leaves server-entry PENDING with no FAILED and no barrier', async () => {
+  test('missing issuer leaves server-entry PENDING with no FAILED and no barrier', async () => {
     const f = await run(
       [{ id: 'entry-stub', injects: [ISSUER] }],
       { 'entry-stub': [ISSUER] },
@@ -220,7 +220,7 @@ describe('trust scopes (spec 5.3)', () => {
     expect(f.result.report.exitCode).toBe(4)
   })
 
-  test('T-07 replacing a trusted row config keeps its scope and visible set', async () => {
+  test('replacing a trusted row config keeps its scope and visible set', async () => {
     const f = await run(
       [
         { id: 'storage', provides: [STORAGE] },
@@ -235,7 +235,7 @@ describe('trust scopes (spec 5.3)', () => {
     })
   })
 
-  test('T-08 one provider group split across two rows is rejected before loading', async () => {
+  test('one provider group split across two rows is rejected before loading', async () => {
     const f = await run(
       [
         { id: 'journal', provides: ['s0.agentJournal'], group: 'journal-group' },
@@ -260,7 +260,7 @@ describe('trust scopes (spec 5.3)', () => {
   })
 })
 
-describe('mechanism probes (N-8)', () => {
+describe('mechanism probes', () => {
   test('isolate changes the label of one name only', async () => {
     const f = await run([{ id: 'mixed', provides: [STORAGE, LOOKUP, 's0.plain'] }], {
       mixed: [STORAGE],
@@ -306,7 +306,7 @@ describe('mechanism probes (N-8)', () => {
   })
 })
 
-describe('child fiber consumption (N-4)', () => {
+describe('child fiber consumption', () => {
   test('child-consumed trusted names count in the visible set and are rejected when absent', async () => {
     const scopes: readonly TrustScopeSpec[] = [
       ...SCOPES,
@@ -380,13 +380,13 @@ describe('trust table validation', () => {
   })
 })
 
-describe('session work principals (N-1, N-2)', () => {
+describe('session work principals', () => {
   const issuer = {
     issue: (claim: { session: string; owner: string }) =>
       `principal:${claim.owner}:${claim.session}`,
   }
 
-  test('N-1 forSession reads the bindings source per call and issues when it is present', async () => {
+  test('forSession reads the bindings source per call and issues when it is present', async () => {
     const root = new Context()
     const trust = createTrust(SCOPES, new Map())
     const work = createSessionWorkPrincipals(issuer, trust.contextForName(root, BINDINGS), BINDINGS)
@@ -398,7 +398,7 @@ describe('session work principals (N-1, N-2)', () => {
     expect(work.forSession('missing')).toEqual({ kind: 'unavailable' })
   })
 
-  test('N-1 a bindings provider on the root label is not read', () => {
+  test('a bindings provider on the root label is not read', () => {
     const root = new Context()
     const trust = createTrust(SCOPES, new Map())
     const work = createSessionWorkPrincipals(issuer, trust.contextForName(root, BINDINGS), BINDINGS)
@@ -406,7 +406,7 @@ describe('session work principals (N-1, N-2)', () => {
     expect(work.forSession('s1')).toEqual({ kind: 'unavailable' })
   })
 
-  test('N-2 the instance holds no reference to the issuer', () => {
+  test('the instance holds no reference to the issuer', () => {
     const root = new Context()
     const trust = createTrust(SCOPES, new Map())
     const work = createSessionWorkPrincipals(issuer, trust.contextForName(root, BINDINGS), BINDINGS)

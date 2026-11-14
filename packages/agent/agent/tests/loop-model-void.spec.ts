@@ -128,7 +128,7 @@ function oneRequestPerIdentity(observed: Observed) {
   for (const [call, bodies] of observed.sent) expect(bodies.size, call).toBe(1)
 }
 
-describe('R2-D292: the Model admission window after a restart', () => {
+describe('the Model admission window after a restart', () => {
   it('a stop between M0 and admit, then not-accepted: voids the intent and admits attempt 1 only', async () => {
     let stop = true
     const { assembly, observed } = await faulted({

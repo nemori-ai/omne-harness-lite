@@ -29,7 +29,7 @@ function closes(w: World): number {
   return w.transports.calls.filter(call => call.kind === 'close').length
 }
 
-describe('teardown: every step runs, whichever port rejects (MC-14)', () => {
+describe('teardown: every step runs, whichever port rejects', () => {
   it.each(COMBINATIONS.map(faults => [faults.join(' + '), faults] as const))(
     '%s rejecting: the transport is closed, the process stopped, the handle released once',
     async (_name, faults) => {
@@ -100,7 +100,7 @@ describe('teardown: every step runs, whichever port rejects (MC-14)', () => {
   })
 })
 
-describe('every process is asked to stop, whichever stop rejects (MC-14)', () => {
+describe('every process is asked to stop, whichever stop rejects', () => {
   const CLOSES = [
     [
       'release',
@@ -171,7 +171,7 @@ describe('every process is asked to stop, whichever stop rejects (MC-14)', () =>
   })
 })
 
-describe('the entry stays while its teardown waits on a port (MC-14)', () => {
+describe('the entry stays while its teardown waits on a port', () => {
   const SHORT = { settings: { connectTimeout: VALUE(millisOf(50)) } }
   const RELEASED = { ok: { kind: 'released', process: 'tree-confirmed' } }
 
@@ -285,7 +285,7 @@ describe('a landing still in flight at the close (decisions 5, 6)', () => {
   })
 })
 
-describe('the stop of what the key left behind is part of the build and under its bound (MC-5)', () => {
+describe('the stop of what the key left behind is part of the build and under its bound', () => {
   it('a stop that hangs when the connection is rebuilt: the bound ends the build as preparation-failed, nothing is started, the process stays lingering', async () => {
     const w = world({ script: [...usualScript(), ...usualScript()], stop: 'root-only' })
     adoptStdio(w, files)
@@ -334,7 +334,7 @@ describe('the stop of what the key left behind is part of the build and under it
   })
 })
 
-describe('the state of a holding reads its connection that takes requests (S7)', () => {
+describe('the state of a holding reads its connection that takes requests', () => {
   it('an older closed entry that still holds a process, listed before the ready one, does not decide the state', async () => {
     const w = world({ script: usualScript(), stop: 'unconfirmed' })
     adoptStdio(w, files)

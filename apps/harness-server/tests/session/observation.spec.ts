@@ -112,7 +112,7 @@ describe('session observation on the release tree', () => {
     })
   })
 
-  it('content frames: the snapshot of the running main call, then its deltas (C9b on the release tree)', async () => {
+  it('content frames: the snapshot of the running main call, then its deltas, on the release tree', async () => {
     const held = heldAnswer('one', ' two')
     await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
       const access = await loginAccess(tree)
@@ -153,7 +153,7 @@ describe('session observation on the release tree', () => {
     })
   })
 
-  it('an observation stopped midway leaves the Model call to settle and commit (C11b)', async () => {
+  it('an observation stopped midway leaves the Model call to settle and commit', async () => {
     const held = heldAnswer('one', ' two')
     await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
       const access = await loginAccess(tree)
@@ -204,7 +204,7 @@ describe('session observation on the release tree', () => {
     })
   })
 
-  it('the login principal an observation uses cannot admit a Model call (C18)', async () => {
+  it('the login principal an observation uses cannot admit a Model call', async () => {
     const held = heldAnswer('one', ' two')
     await onReleaseTree({ script: held.script, observationPolicy: MINUTE }, async tree => {
       const access = await loginAccess(tree)

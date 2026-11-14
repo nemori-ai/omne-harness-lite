@@ -188,7 +188,7 @@ describe('C1: the operations and their columns', () => {
   })
 })
 
-describe('C3: a body reads as the governance family reads it', () => {
+describe('a body reads as the governance family reads it', () => {
   it.each(names)('%s reads a valid body to the value the old family reads', name => {
     const body = bodies[name]
     const old = oldRead(name, body)

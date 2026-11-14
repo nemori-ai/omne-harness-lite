@@ -75,20 +75,20 @@ function stillUnknown(): State {
 }
 
 describe('整张表', () => {
-  it('L1 挂上：读中，列出第一页', () => {
+  it('挂上：读中，列出第一页', () => {
     const { state, effects } = run(INITIAL, { kind: 'read-list' })
     expect(state.list.kind).toBe('reading')
     expect(effects).toEqual([{ kind: 'list', token: 1, after: null }])
   })
 
-  it('L1 读中、已读时再挂上不变', () => {
+  it('读中、已读时再挂上不变', () => {
     const reading = run(INITIAL, { kind: 'read-list' }).state
     expect(step(reading, { kind: 'read-list' }).state).toBe(reading)
     const read = listed()
     expect(step(read, { kind: 'read-list' }).state).toBe(read)
   })
 
-  it('L2 读失败时点「重试」：从第一页重读，旧的读取编号作废', () => {
+  it('读失败时点「重试」：从第一页重读，旧的读取编号作废', () => {
     const failed = run(
       INITIAL,
       { kind: 'read-list' },
@@ -107,7 +107,7 @@ describe('整张表', () => {
     expect(late.state).toBe(state)
   })
 
-  it('L3 有 next：收下这一页，按 next 读下一页', () => {
+  it('有 next：收下这一页，按 next 读下一页', () => {
     const { state, effects } = run(
       INITIAL,
       { kind: 'read-list' },
@@ -124,7 +124,7 @@ describe('整张表', () => {
     expect(effects).toContainEqual({ kind: 'list', token: 1, after: 'p2' })
   })
 
-  it('L4 next 为空：已读；有一页 partial 就标不全', () => {
+  it('next 为空：已读；有一页 partial 就标不全', () => {
     const second = permissionView({ item: 'other' })
     const { state } = run(
       INITIAL,
@@ -159,7 +159,7 @@ describe('整张表', () => {
     { outcome: 'protocol-rejected' },
     { outcome: 'unavailable' },
     { outcome: 'uncertain' },
-  ] as const)('L5 列出答 $outcome：读失败，带一句话', answer => {
+  ] as const)('列出答 $outcome：读失败，带一句话', answer => {
     const { state } = run(
       INITIAL,
       { kind: 'read-list' },
@@ -170,7 +170,7 @@ describe('整张表', () => {
     expect(state.list.notice.text.length).toBeGreaterThan(0)
   })
 
-  it('L5 denied 写「没有权限，或登录已失效」', () => {
+  it('denied 写「没有权限，或登录已失效」', () => {
     const { state } = run(
       INITIAL,
       { kind: 'read-list' },
@@ -184,7 +184,7 @@ describe('整张表', () => {
 })
 
 describe('一项', () => {
-  it('R1 闲时点「设置」：交，带这一项的修订号与挑选', () => {
+  it('闲时点「设置」：交，带这一项的修订号与挑选', () => {
     const { state, effects } = run(listed(), {
       kind: 'set',
       key: KEY,
@@ -195,7 +195,7 @@ describe('一项', () => {
     expect(effects).toEqual([{ kind: 'write', key: KEY, target: TARGET, sent: SENT_SET }])
   })
 
-  it('R1 交、认、疑、重时点「设置」不变', () => {
+  it('交、认、疑、重时点「设置」不变', () => {
     for (const state of [submitting(), confirming(), stillUnknown()])
       expect(step(state, { kind: 'set', key: KEY, pick: 'deny', operation: 'op-2' }).state).toBe(
         state,
@@ -209,14 +209,14 @@ describe('一项', () => {
     expect(step(rereading, { kind: 'clear', key: KEY, operation: 'op-2' }).state).toBe(rereading)
   })
 
-  it('R2 闲时点「清除」：交，带这一项的修订号', () => {
+  it('闲时点「清除」：交，带这一项的修订号', () => {
     const { state, effects } = run(listed(), { kind: 'clear', key: KEY, operation: 'op-1' })
     const sent = { operation: 'op-1', expectedRevision: '1', request: { kind: 'clear' } }
     expect(rowIn(state).write).toEqual({ kind: 'submitting', sent })
     expect(effects).toEqual([{ kind: 'write', key: KEY, target: TARGET, sent }])
   })
 
-  it('R3 写答 succeeded：成功，重读这一项', () => {
+  it('写答 succeeded：成功，重读这一项', () => {
     const { state, effects } = run(submitting(), {
       kind: 'write-answered',
       key: KEY,
@@ -229,7 +229,7 @@ describe('一项', () => {
     expect(effects).toEqual([{ kind: 'describe', key: KEY, token: 2, target: TARGET }])
   })
 
-  it('R3 认回答 succeeded：同交', () => {
+  it('认回答 succeeded：同交', () => {
     const { state } = run(confirming(), {
       kind: 'write-answered',
       key: KEY,
@@ -240,7 +240,7 @@ describe('一项', () => {
     expect(rowIn(state).read.kind).toBe('reading')
   })
 
-  it('R3 别的操作编号的答复作废', () => {
+  it('别的操作编号的答复作废', () => {
     const state = submitting()
     const late = step(state, {
       kind: 'write-answered',
@@ -251,7 +251,7 @@ describe('一项', () => {
     expect(late.state).toBe(state)
   })
 
-  it('R4 写答 no-change：成功（无变化），不重读', () => {
+  it('写答 no-change：成功（无变化），不重读', () => {
     const { state, effects } = run(submitting(), {
       kind: 'write-answered',
       key: KEY,
@@ -265,7 +265,7 @@ describe('一项', () => {
     expect(effects).toEqual([])
   })
 
-  it('R5 写答 conflict：被拒，一句原因，重读这一项', () => {
+  it('写答 conflict：被拒，一句原因，重读这一项', () => {
     const { state, effects } = run(submitting(), {
       kind: 'write-answered',
       key: KEY,
@@ -286,7 +286,7 @@ describe('一项', () => {
     ['out-of-bound', '越过了上层允许的范围'],
     ['prohibited-above', '上层已经主动禁止'],
     ['not-a-source', '这一层不能配这一项'],
-  ] as const)('R6 写答 not-writable（%s）：被拒，按原因写', (reason, text) => {
+  ] as const)('写答 not-writable（%s）：被拒，按原因写', (reason, text) => {
     const { state, effects } = run(submitting(), {
       kind: 'write-answered',
       key: KEY,
@@ -300,7 +300,7 @@ describe('一项', () => {
     expect(effects).toEqual([])
   })
 
-  it.each(['invalid', 'not-visible'] as const)('R6 写答 %s：被拒', outcome => {
+  it.each(['invalid', 'not-visible'] as const)('写答 %s：被拒', outcome => {
     const { state } = run(submitting(), {
       kind: 'write-answered',
       key: KEY,
@@ -311,7 +311,7 @@ describe('一项', () => {
   })
 
   it.each(['denied', 'basis-unavailable', 'protocol-rejected', 'unavailable'] as const)(
-    'R7 交时写答 %s：被拒',
+    '交时写答 %s：被拒',
     outcome => {
       const { state, effects } = run(submitting(), {
         kind: 'write-answered',
@@ -325,7 +325,7 @@ describe('一项', () => {
   )
 
   it.each(['denied', 'basis-unavailable', 'protocol-rejected', 'unavailable'] as const)(
-    'R7 认回答 %s：仍未知，不写成失败',
+    '认回答 %s：仍未知，不写成失败',
     outcome => {
       const { state, effects } = run(confirming(), {
         kind: 'write-answered',
@@ -343,7 +343,7 @@ describe('一项', () => {
   )
 
   it.each(['unknown', 'uncertain'] as const)(
-    'R8 交时写答 %s：认，原样再送同一次，不发新的一次',
+    '交时写答 %s：认，原样再送同一次，不发新的一次',
     outcome => {
       const { state, effects } = run(submitting(), {
         kind: 'write-answered',
@@ -361,7 +361,7 @@ describe('一项', () => {
     },
   )
 
-  it('R8 认回又答 unknown：疑，不再自动送', () => {
+  it('认回又答 unknown：疑，不再自动送', () => {
     const { state, effects } = run(confirming(), {
       kind: 'write-answered',
       key: KEY,
@@ -372,7 +372,7 @@ describe('一项', () => {
     expect(effects).toEqual([])
   })
 
-  it('R8 疑时迟到的答复作废', () => {
+  it('疑时迟到的答复作废', () => {
     const state = stillUnknown()
     expect(
       step(state, {
@@ -384,18 +384,18 @@ describe('一项', () => {
     ).toBe(state)
   })
 
-  it('R9 疑时点「再确认一次」：认，原样再送同一次', () => {
+  it('疑时点「再确认一次」：认，原样再送同一次', () => {
     const { state, effects } = run(stillUnknown(), { kind: 'confirm', key: KEY })
     expect(rowIn(state).write).toMatchObject({ kind: 'unknown', confirming: true, sent: SENT_SET })
     expect(effects).toEqual([{ kind: 'write', key: KEY, target: TARGET, sent: SENT_SET }])
   })
 
-  it('R9 别的列点「再确认一次」不变', () => {
+  it('别的列点「再确认一次」不变', () => {
     for (const state of [listed(), submitting(), confirming()])
       expect(step(state, { kind: 'confirm', key: KEY }).state).toBe(state)
   })
 
-  it('R10 查看答 succeeded：闲，按读到的视图重画（清除之后显示外层来的值）', () => {
+  it('查看答 succeeded：闲，按读到的视图重画（清除之后显示外层来的值）', () => {
     const cleared = permissionView({
       revision: '3',
       own: null,
@@ -423,7 +423,7 @@ describe('一项', () => {
     expect(row.write).toEqual({ kind: 'succeeded', change: 'written' })
   })
 
-  it('R10 旧读取编号的答复作废', () => {
+  it('旧读取编号的答复作废', () => {
     const rereading = run(submitting(), {
       kind: 'write-answered',
       key: KEY,
@@ -439,7 +439,7 @@ describe('一项', () => {
     expect(late.state).toBe(rereading)
   })
 
-  it('R11 查看答别的：败，带一句话', () => {
+  it('查看答别的：败，带一句话', () => {
     const { state } = run(
       submitting(),
       {
@@ -456,7 +456,7 @@ describe('一项', () => {
     })
   })
 
-  it('R12 败时点这一项的「重试」：重，发查看', () => {
+  it('败时点这一项的「重试」：重，发查看', () => {
     const failed = run(
       submitting(),
       {
@@ -472,7 +472,7 @@ describe('一项', () => {
     expect(effects).toEqual([{ kind: 'describe', key: KEY, token: 3, target: TARGET }])
   })
 
-  it('R12 闲时点「重试」不变', () => {
+  it('闲时点「重试」不变', () => {
     const state = listed()
     expect(step(state, { kind: 'retry-row', key: KEY }).state).toBe(state)
   })

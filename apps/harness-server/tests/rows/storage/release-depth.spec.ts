@@ -420,7 +420,7 @@ function measured(commits: readonly Commit[]): Measured {
 
 const MARGIN = 32
 
-describe('the storage JSON depth limit of the release, checked on the real composition (K-14, R2-D270)', () => {
+describe('the storage JSON depth limit of the release, checked on the real composition', () => {
   it(
     'reopens the original Session, checks permission again and commits each Tool start with its basis condition after cold restart',
     { timeout: 180_000 },

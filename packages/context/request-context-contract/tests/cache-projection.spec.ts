@@ -137,7 +137,7 @@ const mixed = (): HistoryRow[] => [
 ]
 
 describe('an appended projection equals the full projection', () => {
-  it('CX-14 gives the same candidate content for every growth step, with replay and source call', async () => {
+  it('gives the same candidate content for every growth step, with replay and source call', async () => {
     const rows = mixed()
     const f = createAssemblyFixture({ rows })
     const slot = oneSlot()
@@ -162,7 +162,7 @@ describe('an appended projection equals the full projection', () => {
     expect(assistant?.message).toMatchObject({ role: 'assistant', replay: { at: [1] } })
   })
 
-  it('CX-14 projects again after a compaction record among the added rows', async () => {
+  it('projects again after a compaction record among the added rows', async () => {
     const rows = [row(0), row(1), row(2), compactionRow(3, row(0)), row(4), row(5)]
     const f = createAssemblyFixture({ rows })
     const slot = oneSlot()
@@ -181,7 +181,7 @@ describe('an appended projection equals the full projection', () => {
 })
 
 describe('the layered history is extended, not derived again', () => {
-  it('CX-14 keeps the head of an unchanged anchor and classifies only the appended messages', async () => {
+  it('keeps the head of an unchanged anchor and classifies only the appended messages', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)
@@ -203,7 +203,7 @@ describe('the layered history is extended, not derived again', () => {
     expect(warm.layers.historyBody).toEqual(cold.layers.historyBody)
   })
 
-  it('CX-14 moves the anchor forward over the appended messages and splits again after a backward move', async () => {
+  it('moves the anchor forward over the appended messages and splits again after a backward move', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)
@@ -229,7 +229,7 @@ describe('the layered history is extended, not derived again', () => {
 })
 
 describe('the history read continues from the cached rows', () => {
-  it('CX-14 reads no page for the same evidence and only the tail for a later one', async () => {
+  it('reads no page for the same evidence and only the tail for a later one', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const { counts } = counted(f)
     const slot = oneSlot()
@@ -245,7 +245,7 @@ describe('the history read continues from the cached rows', () => {
     expect(counts).toEqual({ pages: 2, rows: 5 })
   })
 
-  it('CX-14 rejects a gapped tail', async () => {
+  it('rejects a gapped tail', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)
@@ -270,7 +270,7 @@ describe('the history read continues from the cached rows', () => {
     expect(slot.staged.length).toBe(before)
   })
 
-  it('CX-14 rejects a tail that ends before the upper bound and a cursor that changed evidence', async () => {
+  it('rejects a tail that ends before the upper bound and a cursor that changed evidence', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)
@@ -306,7 +306,7 @@ describe('the history read continues from the cached rows', () => {
     })
   })
 
-  it('CX-14 never joins pages of two epochs', async () => {
+  it('never joins pages of two epochs', async () => {
     const rows = [row(0), row(1), row(2)]
     const f = createAssemblyFixture({ rows })
     const slot = oneSlot()
@@ -333,7 +333,7 @@ describe('the history read continues from the cached rows', () => {
     expect(counts.rows).toBe(warm.preparation.rows.length * 2)
   })
 
-  it('CX-14 never stages the material of an attempt that the group retried', async () => {
+  it('never stages the material of an attempt that the group retried', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)
@@ -347,7 +347,7 @@ describe('the history read continues from the cached rows', () => {
 })
 
 describe('cached material is used only for the call it belongs to', () => {
-  it('CX-14 continues the material of another position of the same principal and purpose', async () => {
+  it('continues the material of another position of the same principal and purpose', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)
@@ -368,7 +368,7 @@ describe('cached material is used only for the call it belongs to', () => {
     expect(warm.preparation).toEqual(cold.preparation)
   })
 
-  it('CX-14 ignores material of another principal, generation or purpose', async () => {
+  it('ignores material of another principal, generation or purpose', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)
@@ -394,7 +394,7 @@ describe('cached material is used only for the call it belongs to', () => {
     }
   })
 
-  it('CX-14 asks for material only after the call was admitted', async () => {
+  it('asks for material only after the call was admitted', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     eligibilityOf(f).set({ kind: 'denied' })
     const slot = oneSlot()
@@ -403,7 +403,7 @@ describe('cached material is used only for the call it belongs to', () => {
     expect(slot.loads).toEqual([])
   })
 
-  it('CX-14 keeps the eligibility check before the result leaves, with hot material', async () => {
+  it('keeps the eligibility check before the result leaves, with hot material', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)
@@ -413,7 +413,7 @@ describe('cached material is used only for the call it belongs to', () => {
     expect(await hot.assemble(f.call)).toMatchObject({ kind: 'denied' })
   })
 
-  it('CX-14 measures and takes a lease again on every hot call', async () => {
+  it('measures and takes a lease again on every hot call', async () => {
     const f = createAssemblyFixture({ rows: mixed() })
     const slot = oneSlot()
     const hot = operationsOf(f, slot.reuse)

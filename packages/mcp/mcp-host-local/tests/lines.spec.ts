@@ -212,7 +212,7 @@ function stuckOnSecondWrite(): ProcessHandle {
   }
 }
 
-describe('the stdio line and close() with writes in flight (T5, SPEC H6)', () => {
+describe('the stdio line and close() with writes in flight (T5)', () => {
   it('two overlapping writes, the first completes, then close(): close() returns at once and the write still in flight reports aborted', async () => {
     const line = new StdioLine(stuckOnSecondWrite())
     const never = new AbortController().signal
@@ -225,7 +225,7 @@ describe('the stdio line and close() with writes in flight (T5, SPEC H6)', () =>
   })
 })
 
-describe('the stdio line closes once (T5, SPEC H6)', () => {
+describe('the stdio line closes once (T5)', () => {
   it('a second close() is the first one: it does not complete before the read loops ended and the events ended', async () => {
     let release = (): void => undefined
     const held = new Promise<void>(resolve => {
@@ -288,7 +288,7 @@ async function nextEvent(
   return settledWithin(events.next(), bound)
 }
 
-describe('the stdio line reads stdout by lines (T2, SPEC H8)', () => {
+describe('the stdio line reads stdout by lines (T2)', () => {
   it('a line that spans many chunks and passes the byte bound before any newline breaks the stream and stops reading', async () => {
     const process = fedProcess()
     const line = new StdioLine(process.handle)
@@ -438,7 +438,7 @@ describe('which failures of a request the HTTP line reports as not made (T8 X01,
   })
 })
 
-describe('the fetch of protected resource metadata (R4, T4)', () => {
+describe('the fetch of protected resource metadata (T4)', () => {
   const BYTE_LIMIT_TEXT = 16_777_216
   const never = new AbortController().signal
   const document = { authorization_servers: ['https://issuer.test'], scopes_supported: ['a'] }

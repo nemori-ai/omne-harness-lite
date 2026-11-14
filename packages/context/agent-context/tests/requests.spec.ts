@@ -86,7 +86,7 @@ describe('prepare', () => {
     expect(w.counts.model).toBe(1)
   })
 
-  describe('the fixed request record in the state of a ready preparation (RQ-14)', () => {
+  describe('the fixed request record in the state of a ready preparation', () => {
     const twoChecks: NonNullable<WorldOptions['meter']> = () => {
       const [only] = fixtureBudget().checks
       if (only === undefined) throw new Error('fixture check')
@@ -219,7 +219,7 @@ describe('the groups that Request Context reads', () => {
     })
   })
 
-  describe('the fourth group with a definition (R2-D124)', () => {
+  describe('the fourth group with a definition', () => {
     const definition = { owner: 'release', name: 'coding', revision: '1', digest: 'sha256:coding' }
     const sections = [
       { id: 'role', text: '# Role' },
@@ -761,7 +761,7 @@ describe('derive and resume', () => {
   })
 })
 
-describe('CX-14 the derivation of a long conversation grows with the new rows', () => {
+describe('the derivation of a long conversation grows with the new rows', () => {
   const seed = 2
   const perRound = 2
   const actionOf = (round: number) => {
@@ -792,7 +792,7 @@ describe('CX-14 the derivation of a long conversation grows with the new rows', 
       upper: seed - 1,
     })
 
-  it('CX-14 reads only the new rows in the second and third round', async () => {
+  it('reads only the new rows in the second and third round', async () => {
     const w = await worldOf(3)
     const first = await round(w, 1, seed - 1)
     const second = await round(w, 2, seed + perRound - 1)
@@ -805,7 +805,7 @@ describe('CX-14 the derivation of a long conversation grows with the new rows', 
     expect(second.messageRows).toBeLessThan(first.messageRows + perRound * 2)
   })
 
-  it('CX-14 keeps derivation counts constant for 200 rounds', async () => {
+  it('keeps derivation counts constant for 200 rounds', async () => {
     const rounds = 200
     const w = await worldOf(rounds)
     const table = [await round(w, 1, seed - 1)]

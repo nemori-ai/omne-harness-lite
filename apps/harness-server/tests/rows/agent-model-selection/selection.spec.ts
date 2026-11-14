@@ -329,7 +329,7 @@ describe('what the row depends on', () => {
     expect(value.reads).toBe(0)
   })
 
-  test('the release trusted table shows the row the two names of the execution index (R2-D160)', () => {
+  test('the release trusted table shows the row the two names of the execution index', () => {
     expect(serveProfile().visibility.get('agent-model-selection' as RowId)).toEqual([
       'storage',
       'tenantDomainLookup',

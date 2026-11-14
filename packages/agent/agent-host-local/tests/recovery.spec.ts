@@ -122,7 +122,7 @@ async function openExecution(host: World, instance: AgentInstanceId) {
 
 const unknownInstance = ok(decodeAgentInstanceId('not-a-host-instance'))
 
-describe('the recovery entry (AG-04)', () => {
+describe('the recovery entry', () => {
   it('reads back by the original execution without a live runtime', async () => {
     const host = await world()
     const opened = await openExecution(host, unknownInstance)
@@ -255,7 +255,7 @@ describe('the judgment of the runtime that holds an attachment (contact)', () =>
   })
 })
 
-describe('the control entry without a live runtime (AG-05)', () => {
+describe('the control entry without a live runtime', () => {
   const cancel = (tenant: 'a' | 'b', name: string) => ({
     ...caller(tenant),
     execution: EXECUTION,

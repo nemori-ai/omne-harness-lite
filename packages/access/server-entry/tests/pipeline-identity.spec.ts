@@ -207,7 +207,7 @@ describe('acting-tenant: the Omne-Acting-Tenant header', () => {
   })
 })
 
-describe('C6: a call with no login is answered before its body is read', () => {
+describe('a call with no login is answered before its body is read', () => {
   it('declares 10 MB, sends no byte, and still gets denied with the connection closed', async () => {
     const reply = await rawCall(fixture.port, '/api/notes/v1/read-note', [
       'Host: 127.0.0.1',

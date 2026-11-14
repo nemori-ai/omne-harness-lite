@@ -120,7 +120,7 @@ describe('command call encodings', () => {
         ).toEqual({ ok: command })
     })
 
-    it(`${encoding}: the one declaration enumerates exactly the commands (I1, U1)`, () => {
+    it(`${encoding}: the one declaration enumerates exactly the commands`, () => {
       const schema = commandCallSchema(definition)
       const text = writeJsonText(schema)
       const value = JSON.parse(text) as {
@@ -136,7 +136,7 @@ describe('command call encodings', () => {
       )
     })
 
-    it(`${encoding}: every example in the menu decodes to its own command (U4)`, () => {
+    it(`${encoding}: every example in the menu decodes to its own command`, () => {
       for (const command of names) {
         const example = commandExample(definition, command)
         expect(example.startsWith(`${definition.name} `)).toBe(true)
@@ -192,7 +192,7 @@ describe('command call encodings', () => {
     })
   }
 
-  it('derives the signature from the schema: required, optional with ?, choices with =a|b (U2)', () => {
+  it('derives the signature from the schema: required, optional with ?, choices with =a|b', () => {
     const parameters = {
       kind: 'declared' as const,
       value: {
@@ -207,7 +207,7 @@ describe('command call encodings', () => {
     expect(commandSignature({ kind: 'executor-owned' })).toBe('{…}')
   })
 
-  it('names the reason and repeats the menu in a rejection text (U3)', () => {
+  it('names the reason and repeats the menu in a rejection text', () => {
     const definition = withEncoding('wrapped')
     const text = describeCommandCallRejection(definition, {
       kind: 'command-unknown',

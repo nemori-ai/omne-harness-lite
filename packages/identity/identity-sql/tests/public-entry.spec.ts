@@ -165,7 +165,7 @@ it('judges the plugin configuration: positive durations, the default invitation 
   }
 })
 
-it('requires both invitation durations: the provider has no duration of its own (ID-18)', () => {
+it('requires both invitation durations: the provider has no duration of its own', () => {
   const judged = root.parseIdentitySqlConfig({
     maxLifetime: 'PT2592000S',
     idlePeriod: 'PT604800S',

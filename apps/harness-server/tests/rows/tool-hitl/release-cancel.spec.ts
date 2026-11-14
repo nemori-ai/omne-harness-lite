@@ -121,7 +121,7 @@ const STOPPED_ASK: Partial<ToolCallLedger> = {
   released: true,
 }
 
-describe('a control ends a suspended Ask on the release tree (C6)', () => {
+describe('a control ends a suspended Ask on the release tree', () => {
   it(
     'cancel-run while the card waits: the card is closed as cancelled, the call settles interrupted, the entry goes, and a lost invalidation answer is recalled',
     { timeout: 300_000 },
@@ -336,7 +336,7 @@ describe('a control ends a suspended Ask on the release tree (C6)', () => {
   )
 })
 
-describe('a lost answer of HITL on the release tree is recalled by the original operation (C6)', () => {
+describe('a lost answer of HITL on the release tree is recalled by the original operation', () => {
   it(
     'a registration whose answer was lost is recalled through inspectOperation: one registration, one card, and the answer resumes the call',
     { timeout: 300_000 },

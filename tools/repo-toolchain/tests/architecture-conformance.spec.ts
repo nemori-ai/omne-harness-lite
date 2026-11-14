@@ -755,7 +755,7 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
       ]),
     )
   })
-  it('a type-compatible write provider can violate the existing P-1 error identity obligation', async () => {
+  it('a type-compatible write provider can violate the existing error identity obligation', async () => {
     const { root } = setup()
     const original = new Error('callback failure'),
       changed = new Error('provider changed failure')

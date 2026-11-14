@@ -245,7 +245,7 @@ describe('X-1 关闭次序', () => {
   })
 })
 
-describe('X-1b 同一阶段内的停止次序由行清单推出', () => {
+describe('同一阶段内的停止次序由行清单推出', () => {
   const spec = (
     id: string,
     phase: LifecyclePhase | null,
@@ -617,7 +617,7 @@ describe('X-9 排空：业务阶段之前，先让有 drain 的行做完已经�
   })
 })
 
-describe('N-7 登记准入', () => {
+describe('登记准入', () => {
   const newRegistry = () =>
     new LifecycleRegistry({ expected: EXPECTED, clock: fakeClock(), requestStop: () => {} })
   const refusal = (fn: () => unknown) => {
@@ -679,7 +679,7 @@ describe('N-7 登记准入', () => {
   })
 })
 
-describe('N-3 运行期换代视为计划停止', () => {
+describe('运行期换代视为计划停止', () => {
   it('启动后提供者换代使登记行重跑：进入停止，不重新调用 start', async () => {
     const calls: Calls = []
     const clock = fakeClock()
@@ -758,7 +758,7 @@ describe('N-3 运行期换代视为计划停止', () => {
   })
 })
 
-describe('X-5 启动期的停止状态与失败（§9 步骤 1、N-3，Reduce R-1、R-2）', () => {
+describe('X-5 启动期的停止状态与失败', () => {
   const startable = (calls: Calls, id: string, phase: LifecyclePhase, onStart?: () => void) =>
     handle(calls, id, phase, undefined, {
       start: async () => {
@@ -865,7 +865,7 @@ describe('X-5 启动期的停止状态与失败（§9 步骤 1、N-3，Reduce R-
   })
 })
 
-describe('B-7 stdout 在 shutdown-result 之后封口', () => {
+describe('stdout 在 shutdown-result 之后封口', () => {
   function lateStopRow(holdMs: number, done: () => void) {
     return defineRow({
       row: 'late-stop',

@@ -34,7 +34,7 @@ function gateOf(w = world({ script: [{ discover: peerIdentityOf() }] })) {
   return { w, table, gate: { ports: w.ports, table } }
 }
 
-describe('admitForUse: the six answers of SPEC S1', () => {
+describe('admitForUse: the six answers', () => {
   it('admits an adopted endpoint that the principal is eligible for', async () => {
     const { w, gate } = gateOf()
     adoptStdio(w, files)
@@ -173,7 +173,7 @@ describe('stillAdmitted: the gate at the publish boundary', () => {
 })
 
 describe('admit: the decision the services compose on', () => {
-  it('names every outcome, and refusalOf maps each to its S1 refusal', async () => {
+  it('names every outcome, and refusalOf maps each to its refusal', async () => {
     const { adoption, eligibility } = ports()
     expect(await admit({ adoption, eligibility }, alice, nowhere)).toEqual({ kind: 'not-adopted' })
     expect(await admit({ adoption, eligibility }, bob, files)).toMatchObject({

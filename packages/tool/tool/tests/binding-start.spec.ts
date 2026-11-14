@@ -81,7 +81,7 @@ describe('21 binding start outcomes', () => {
   })
 })
 
-describe('21 a binding that cannot answer (F1)', () => {
+describe('21 a binding that cannot answer', () => {
   const answering = (answer: 'unavailable' | 'commit-unknown') => {
     let failing = true
     return {

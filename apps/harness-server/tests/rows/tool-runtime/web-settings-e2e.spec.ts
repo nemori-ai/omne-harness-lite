@@ -360,7 +360,7 @@ const unconfiguredLine =
 
 describe('the Web search key through `omne setting` on the release tree (web-meta-tool slice 04)', () => {
   it(
-    'C2 and C6: set, show, list and unset the key; search uses it; the custody is the one fact; no sentinel leaves the vault',
+    'set, show, list and unset the key; search uses it; the custody is the one fact; no sentinel leaves the vault',
     { timeout: 300_000 },
     async () => {
       const holding = await webHolding()
@@ -499,7 +499,7 @@ describe('the Web search key through `omne setting` on the release tree (web-met
   )
 
   it(
-    'C4: zero results, 401, 402, 429 and 500 of the search provider each give their own result',
+    'zero results, 401, 402, 429 and 500 of the search provider each give their own result',
     { timeout: 300_000 },
     async () => {
       const key = sentinel('alice')
@@ -547,7 +547,7 @@ describe('the Web search key through `omne setting` on the release tree (web-met
   )
 
   it(
-    "C5: two tenants send only their own key; a cleared key is not replaced by another tenant's or a cached one; Model and Web keys do not see each other",
+    "two tenants send only their own key; a cleared key is not replaced by another tenant's or a cached one; Model and Web keys do not see each other",
     { timeout: 300_000 },
     async () => {
       const holding = await webHolding()
@@ -632,7 +632,7 @@ describe('the Web search key through `omne setting` on the release tree (web-met
   )
 
   it(
-    'C1: the Model sends with the official OpenRouter key, with the tenant key once it is set, and with the official key again once it is cleared',
+    'the Model sends with the official OpenRouter key, with the tenant key once it is set, and with the official key again once it is cleared',
     { timeout: 300_000 },
     async () => {
       const own = `sk-or-v1-${randomBytes(12).toString('hex')}`

@@ -51,7 +51,7 @@ describe('call-faults: invoke and cancel, one port failing, rejecting or throwin
 
 describe('marks: invoke and getTask, one request failing with or without the unusable mark', () => {
   it(
-    'P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, S7, T1); a marked one loses it',
+    'P1–P15 hold: a failure without the mark leaves the ready connection ready (P15, T1); a marked one loses it',
     async () => {
       const result = await explore(MARKS)
       console.info(readings(result))

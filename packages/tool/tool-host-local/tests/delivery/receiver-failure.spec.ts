@@ -53,7 +53,7 @@ async function scripted(initial: Mode) {
   }
 }
 
-describe('a receiver that fails definitively (O1)', () => {
+describe('a receiver that fails definitively', () => {
   it.each<[Mode, string]>([
     ['denied', 'denied (action recover)'],
     ['invalid', 'invalid (field delivery, reason too-large)'],
@@ -130,7 +130,7 @@ describe('a receiver that fails definitively (O1)', () => {
   })
 })
 
-describe('the pacing table follows the delivery (O2)', () => {
+describe('the pacing table follows the delivery', () => {
   it('holds an entry only while the delivery is owed: saved releases it', async () => {
     const t = await scripted('unavailable')
     await t.drive()

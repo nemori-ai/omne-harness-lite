@@ -7,7 +7,7 @@ import {
   type ToolMeasurementEvent,
 } from './support/tool-measurement.ts'
 
-describe('E9 fixed-delay Tool execution observations', () => {
+describe('fixed-delay Tool execution observations', () => {
   it('runs the real independent execution path and emits one same-clock interval per call', async () => {
     const events: ToolMeasurementEvent[] = []
     const executor = createMeasuredFixedDelayTool({

@@ -174,7 +174,7 @@ describe('materials (acceptance 4)', () => {
   })
 })
 
-describe('the registration lands on the storage row fiber (acceptance 5, DP1-C15 kind 2)', () => {
+describe('the registration lands on the storage row fiber', () => {
   test('with the real SqliteStoragePlugin: disposing the storage fiber withdraws the handle, and the report says disposed-before-stop', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'app1-fiber-')))
     dirs.push(base)

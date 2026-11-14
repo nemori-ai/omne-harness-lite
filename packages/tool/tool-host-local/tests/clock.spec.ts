@@ -17,8 +17,8 @@ const execution = {
   generation: '1',
 }
 
-describe('G4 host clock', () => {
-  it('G4 a marker of another run is refused as an epoch that cannot be compared', async () => {
+describe('host clock', () => {
+  it('a marker of another run is refused as an epoch that cannot be compared', async () => {
     const time = manualSources()
     const first = createLocalToolClock({ ...time.sources, epoch: 'run-1' })
     const second = createLocalToolClock({ ...time.sources, epoch: 'run-2' })
@@ -32,7 +32,7 @@ describe('G4 host clock', () => {
     })
   })
 
-  it('G4 a marker whose digest was changed is not a marker of this clock', async () => {
+  it('a marker whose digest was changed is not a marker of this clock', async () => {
     const clock = createLocalToolClock({ ...manualSources().sources, epoch: 'run-1' })
     const { marker } = unwrap(await clock.begin({ operation, execution }), 'begin')
     const answer = await clock.elapsed({ ...marker, digest: `${marker.digest}0` })
@@ -41,7 +41,7 @@ describe('G4 host clock', () => {
     })
   })
 
-  it('G4 a record rewritten to an earlier start does not buy budget', async () => {
+  it('a record rewritten to an earlier start does not buy budget', async () => {
     const time = manualSources()
     const clock = createLocalToolClock({ ...time.sources, epoch: 'run-1' })
     const { marker } = unwrap(await clock.begin({ operation, execution }), 'begin')
@@ -51,7 +51,7 @@ describe('G4 host clock', () => {
     expect(await clock.elapsed({ ...marker, record: parts.join('/') })).toHaveProperty('failure')
   })
 
-  it('G4 evidence of another owner and an elapsed measurement are not markers', async () => {
+  it('evidence of another owner and an elapsed measurement are not markers', async () => {
     const clock = createLocalToolClock({ ...manualSources().sources, epoch: 'run-1' })
     const { marker } = unwrap(await clock.begin({ operation, execution }), 'begin')
     expect(await clock.elapsed({ ...marker, owner: 'someone-else' })).toHaveProperty('failure')
@@ -59,7 +59,7 @@ describe('G4 host clock', () => {
     expect(await clock.elapsed(measured.evidence)).toHaveProperty('failure')
   })
 
-  it('G4 two begins of one operation give two markers that each measure from their own begin', async () => {
+  it('two begins of one operation give two markers that each measure from their own begin', async () => {
     const time = manualSources()
     const clock = createLocalToolClock({ ...time.sources, epoch: 'run-1' })
     const first = unwrap(await clock.begin({ operation, execution }), 'first')
@@ -71,7 +71,7 @@ describe('G4 host clock', () => {
     expect(unwrap(await clock.elapsed(second.marker), 'b').milliseconds).toBe('10')
   })
 
-  it('G4 waitUntil follows the wall time: a sleep that ended early does not answer elapsed', async () => {
+  it('waitUntil follows the wall time: a sleep that ended early does not answer elapsed', async () => {
     const time = manualSources()
     const clock = createLocalToolClock({ ...time.sources, epoch: 'run-1' })
     const waiting = clock.waitUntil(time.instantAfter(200), new AbortController().signal)
@@ -86,19 +86,19 @@ describe('G4 host clock', () => {
     expect(await waiting).toBe('elapsed')
   })
 
-  it('G4 an instant that is not a date is a TypeError, not an elapsed wait', async () => {
+  it('an instant that is not a date is a TypeError, not an elapsed wait', async () => {
     const clock = createLocalToolClock({ ...manualSources().sources, epoch: 'run-1' })
     await expect(clock.waitUntil('tomorrow-ish', new AbortController().signal)).rejects.toThrow(
       TypeError,
     )
   })
 
-  it('G4 an epoch that is empty or holds a slash is refused when the clock is built', () => {
+  it('an epoch that is empty or holds a slash is refused when the clock is built', () => {
     expect(() => createLocalToolClock({ epoch: '' })).toThrow(TypeError)
     expect(() => createLocalToolClock({ epoch: 'a/b' })).toThrow(TypeError)
   })
 
-  it('G4 the default sources read the process: ISO now, whole-millisecond elapsed, real waits', async () => {
+  it('the default sources read the process: ISO now, whole-millisecond elapsed, real waits', async () => {
     const clock = createLocalToolClock()
     expect(clock.now()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u)
     const { marker } = unwrap(await clock.begin({ operation, execution }), 'begin')

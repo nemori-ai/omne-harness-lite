@@ -58,7 +58,7 @@ async function bound(options: { policy?: 'stop'; processes?: boolean; otherScope
   return { cwd, provider, own, processes, released, lease, command: commandOf(lease) }
 }
 
-describe('C11 and a clean exit', () => {
+describe('a clean exit', () => {
   it('reports residue none, stops the gate, confirms and has no retention extension', async ctx => {
     if (!enabled) return ctx.skip()
     const { cwd, own, command } = await bound()

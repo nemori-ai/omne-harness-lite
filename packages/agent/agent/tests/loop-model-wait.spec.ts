@@ -106,7 +106,7 @@ async function settleModel(assembly: LoopAssembly): Promise<void> {
   })
 }
 
-describe('AG-03 (R6.5): invoke to one Model request that answers after the run waits', () => {
+describe('invoke to one Model request that answers after the run waits', () => {
   it('commits each node of the path once and W0 once with the producer wait, then ends complete', async () => {
     const calls: Call[] = []
     const assembly = await loopAssembly([execution()], recording(calls))
@@ -222,7 +222,7 @@ describe('R6.5: entering the Model wait reads the Journal at most once', () => {
   })
 })
 
-describe('AG-03: a failure in the wait is not progress and not a result', () => {
+describe('a failure in the wait is not progress and not a result', () => {
   it('an unavailable read of the wait neither wakes nor ends the run; the result that arrives later does', async () => {
     const calls: Call[] = []
     const unavailable: Failure = {
@@ -280,7 +280,7 @@ describe('AG-03: a failure in the wait is not progress and not a result', () => 
   })
 })
 
-describe('AG-03: invoke again while the run waits for the Model', () => {
+describe('invoke again while the run waits for the Model', () => {
   it('the same operation and input gets the original handle; another input conflicts; another tenant is denied', async () => {
     const calls: Call[] = []
     const assembly = await loopAssembly([execution()], recording(calls))
