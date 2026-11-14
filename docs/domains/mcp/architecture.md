@@ -1,6 +1,6 @@
 # MCP领域交接设计
 
-状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受）。`@omne-harness/mcp` 已实现（候选，尚未取得技术接受）：`EndpointInspection`、`ActionDiscovery`、`ActionInvoker`、`EndpointStatus`、`Connections` 与 `CatalogStore` 的内存实现，行为正文是它的 [SPEC](../../../packages/mcp/mcp/SPEC.md)。`@omne-harness/mcp-host-local` 已实现传输与 Cordis 插件（候选，尚未取得技术接受），行为正文是它的 [SPEC](../../../packages/mcp/mcp-host-local/SPEC.md)。`@omne-harness/mcp-cordis-contract` 已实现服务定义与服务键（候选，尚未取得技术接受），行为正文是它的 [SPEC](../../../packages/mcp/mcp-cordis-contract/SPEC.md)。成员分解、端口操作、对外接口和失败种类见[组工程设计](../../../packages/mcp/docs/architecture.md)，精确公开行为见各成员的候选 SPEC。成员里对不上现行规则的地方登记在[包组织「Skill 与 MCP 的成员边界」](../../package-organization.md#skill-与-mcp-的成员边界)里。
+状态：技术草案，未获技术接受。已接受职责沿[领域入口](README.md)。本页只维护事实拥有者、端口的实现方和跨领域交接。`@omne-harness/mcp-contract` 已有实现（候选，尚未取得技术接受）。`@omne-harness/mcp` 已实现（候选，尚未取得技术接受）：`EndpointInspection`、`ActionDiscovery`、`ActionInvoker`、`EndpointStatus`、`Connections` 与 `CatalogStore` 的内存实现，`@omne-harness/mcp-host-local` 已实现传输与 Cordis 插件（候选，尚未取得技术接受）。`@omne-harness/mcp-cordis-contract` 已实现服务定义与服务键（候选，尚未取得技术接受）。成员分解、端口、对外接口和行为规则见[包组规格](../../../packages/mcp/SPEC.md)。成员里对不上现行规则的地方登记在[包组织「Skill 与 MCP 的成员边界」](../../package-organization.md#skill-与-mcp-的成员边界)里。
 
 用词沿统一语言：[MCP 连接](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-connection--mcp-连接--mcp-connection)、[MCP 动作清单](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-action-catalog--mcp-动作清单--mcp-action-catalog)、[MCP 已知动作](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-mcp-known-action--mcp-已知动作--mcp-known-action)、[凭据保管方](../../../.meta_harness/design/ubiquitous_language/terms/grounding-and-isolation.md#ul-credential-custodian--凭据保管方--credential-custodian)。接入点指 MCP 资产。
 
@@ -22,7 +22,7 @@
 
 ## MCP 声明的端口与实现方
 
-MCP 是需求方。它用自己的词声明下面三个跨领域端口，由集成方实现。MCP 不认识实现方，只读端口交回的结论。依据层：架构[外域概念的进入方式](../../architecture/layers-and-dependencies.md#外域概念的进入方式)。操作与规则见[组工程设计](../../../packages/mcp/docs/architecture.md#mcp-声明的端口)。
+MCP 是需求方。它用自己的词声明下面三个跨领域端口，由集成方实现。MCP 不认识实现方，只读端口交回的结论。依据层：架构[外域概念的进入方式](../../architecture/layers-and-dependencies.md#外域概念的进入方式)。操作与规则见[组工程设计](../../../packages/mcp/SPEC.md#领域边界)。
 
 | 端口（候选）     | 实现方                                                                                                              | 交给 MCP 什么                                                                                                                                                                                                                                                                                                                            | 不交什么                                                                                                             |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -32,11 +32,11 @@ MCP 是需求方。它用自己的词声明下面三个跨领域端口，由集�
 
 `AdoptionView` 只回答采用，`UseEligibility` 只回答接入点这一级的使用资格，两者各自交出结论。接入点的调用权限由 MCP 类别声明，判定不在 MCP。
 
-在 Cordis 装配里，这些端口的实现方把实现包成 `@omne-harness/mcp-cordis-contract` 的抽象 Service 的子类，在键 `mcpAdoptionView`、`mcpUseEligibility`、`mcpCredentialUse` 上提供。`@omne-harness/mcp-host-local` 的插件每次调用都从键现取。键缺席时的答复见 [mcp-host-local 成员规格](../../../packages/mcp/mcp-host-local/SPEC.md#port-absent)。目前这些端口在 Cordis 装配里都没有他域的提供者，实现方见上表「实现方」列。
+在 Cordis 装配里，这些端口的实现方把实现包成 `@omne-harness/mcp-cordis-contract` 的抽象 Service 的子类，在键 `mcpAdoptionView`、`mcpUseEligibility`、`mcpCredentialUse` 上提供。`@omne-harness/mcp-host-local` 的插件每次调用都从键现取。键缺席时的答复见 [mcp-host-local 成员规格](../../../packages/mcp/SPEC.md#cordis-装配)。目前这些端口在 Cordis 装配里都没有他域的提供者，实现方见上表「实现方」列。
 
 本组自己的 `McpTransport` 由组内的本地宿主成员实现，不是跨领域端口。
 
-MCP 还声明需求端口 `CatalogStore`，保存自己的 MCP 动作清单。它的问题、答复与失败见[组工程设计](../../../packages/mcp/docs/architecture.md#mcp-声明的端口)。实现方如下：
+MCP 还声明需求端口 `CatalogStore`，保存自己的 MCP 动作清单。它的问题、答复与失败见[组工程设计](../../../packages/mcp/SPEC.md#领域边界)。实现方如下：
 
 - 组内通用实现成员的内存实现。它只在一次运行内保存清单，进程重启后清单回到「未取得」。
 - 耐久实现：接存储契约 [sql-contract](../../../packages/storage/sql-contract/README.md)，是剩余义务。存储契约只提供存储机制，清单的含义、键与修订条件仍归 MCP。拥有者：MCP 组的维护者。
@@ -47,7 +47,7 @@ MCP 还声明需求端口 `CatalogStore`，保存自己的 MCP 动作清单。�
 | -------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `EndpointInspection` | 资产与装配     | 按 assets [类别提供方](../../../packages/assets/assets/SPEC.md#category-provider)接入 MCP 类别，声明三项固定设置                                                                                                                                                                                                                                                                                                                                                 |
 | `ActionDiscovery`    | 调用方         | 读口：MCP 动作清单视图（取得状态、清单修订、采用依据、新鲜度、每个 MCP 已知动作的原样定义与定义的内容摘要、可用性）、刷新结论与对端视图。首次发现由调用方经 `refresh` 触发，之前视图答「未取得」。接入点未采用时答 `not-available-to-you`                                                                                                                                                                                                                        |
-| `ActionInvoker`      | 调用方         | 调用口：按调用方给出的接入点引用、对端动作名、参数、预期的定义的内容摘要与关联键发出协议请求，交回「未发出」或调用结局；带回输入答复；取消在途调用。在途调用按（租户、主体、关联键）分开，取消只对同一租户与同一主体有效，不要求当前使用资格。接入点未采用时答 `not-available-to-you`。关停与中止的情形见[组工程设计](../../../packages/mcp/docs/architecture.md#资格与换代)。状态口：任务的查询、取结果、交回输入答复与取消。调用的截止由调用方经 `signal` 给出 |
+| `ActionInvoker`      | 调用方         | 调用口：按调用方给出的接入点引用、对端动作名、参数、预期的定义的内容摘要与关联键发出协议请求，交回「未发出」或调用结局；带回输入答复；取消在途调用。在途调用按（租户、主体、关联键）分开，取消只对同一租户与同一主体有效，不要求当前使用资格。接入点未采用时答 `not-available-to-you`。关停与中止的情形见[组工程设计](../../../packages/mcp/SPEC.md#访问核对)。状态口：任务的查询、取结果、交回输入答复与取消。调用的截止由调用方经 `signal` 给出 |
 | `EndpointStatus`     | 管理与查询读面 | 接入点、MCP 连接与 MCP 动作清单的状态，不含秘密值。对无权主体和未采用的接入点返回 `not-available-to-you`，与「不存在」不可区分。主体有使用资格、但接入点被设置挡下时，给出该原因                                                                                                                                                                                                                                                                                 |
 
 MCP 不知道接收方是谁。MCP 交出可作稳定键的身份与定义的内容摘要。动作经动作桥接进工具入口，见[工具条目来源](#工具条目来源)。依据层：同上；领域[模块角色与事实归属](README.md#模块角色与事实归属)。
@@ -59,7 +59,7 @@ MCP 不知道接收方是谁。MCP 交出可作稳定键的身份与定义的内
 | 组合保证                                                                     | 承担者                                                              | 参与方                                                                                                                                           | 失败归谁                                                           |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
 | MCP 连接不跨租户、不跨对端账号；MCP 动作清单按租户、对端账号与接入点持有分开 | MCP 的连接提供者与发现协调者                                        | 凭据保管方核实际秘密的租户绑定                                                                                                                   | 绑定不符时凭据保管方拒绝；MCP 不发起                               |
-| 断流后效果未知、不自动重发                                                   | 原调用的调用方                                                      | MCP 报 `unknown`（带子因）并记录对协议的偏离，见 [Q-MC04](../../../packages/mcp/docs/architecture.md#q-mc04-原调用dummy可靠结果和恢复的组合协议) | 由原调用的合法调用方决定核查、补偿或另起动作                       |
+| 断流后效果未知、不自动重发                                                   | 原调用的调用方                                                      | MCP 报 `unknown`（带子因）并记录对协议的偏离，见 [Q-MC04](../../../packages/mcp/SPEC.md#传输) | 由原调用的合法调用方决定核查、补偿或另起动作                       |
 | 需要输入与长任务不丢失                                                       | 原调用的调用方                                                      | MCP 交回 `requestState` 或 `taskId` 与发出代际，见[领域流程 F-MC04](key-flows.md#f-mc04-动作准入至可靠结果)                                      | 保存失败的处置归调用方                                             |
 | MCP 动作清单跨进程重启保留                                                   | `CatalogStore` 的耐久实现（剩余义务）                               | MCP 的发现协调者按修订条件整份写入                                                                                                               | 写入不可用时发现协调者不报新修订。当前只有内存实现，不兑现这项保证 |
 | 撤采用、禁用或采用修订变化后不再使用旧连接                                   | MCP 的连接提供者                                                    | 资产求值与身份授权给出当前结论                                                                                                                   | MCP 在下一次使用边界之前关闭连接；关闭只报告实际确认的范围         |

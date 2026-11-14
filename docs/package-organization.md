@@ -437,7 +437,7 @@ Skill 与 MCP 各按纯契约、通用实现、Cordis 定义和单机宿主组�
 | `skill-cordis-contract`、`mcp-cordis-contract` | 唯一的 Cordis 服务定义与键。不依赖通用实现 |
 | `skill-host-local`、`mcp-host-local` | 单机宿主：Skill 的本机目录来源，MCP 的传输；各带 Cordis 绑定 |
 
-纯契约和通用实现不依赖 Cordis 定义与单机宿主；Cordis 定义不依赖通用实现与单机宿主。两个领域向外声明的需求端口现在只有测试替身，还没有接进发行应用：没有 `Skills` 元工具，MCP 的动作还没有成为工具条目，也没有经过会话的用例。这些在后续各程交付，支持范围见 [Skill 组](../packages/skills/README.md)与 [MCP 组](../packages/mcp/README.md)。
+纯契约和通用实现不依赖 Cordis 定义与单机宿主；Cordis 定义不依赖通用实现与单机宿主。两个领域向外声明的需求端口现在只有测试替身，还没有接进发行应用：没有 `Skills` 元工具，MCP 的动作还没有成为工具条目，也没有经过会话的用例。这些在后续各程交付，支持范围见 [Skill 组](../packages/skills/SPEC.md)与 [MCP 组](../packages/mcp/SPEC.md)。
 
 成员带入轨道时有五处对不上现行规则，登记为偏离。前三处由紧接着的一程消除，后两处在 MCP 的动作成为工具条目的那一程消除：
 
