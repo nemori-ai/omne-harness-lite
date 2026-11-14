@@ -112,7 +112,7 @@
 | DG7 | 相容恢复在重新核验后可采用合法保存值，不要求永远受阻 | C3/C6/C8 |
 | DG8 | 声明冲突不发布混合目录，定义删除不能解除已有禁止 | C3 |
 
-有限模型、正负控及条件活性在 [HJ0 verification](../../governance/governance-local/verification/README.md) 登记。该位置承载本波跨域组合检查，不转移语义所有权。真实源码提交点、故障恢复、provider 重装配和 Settings 注册资源预算仍由 C3/C6/C8 验证。模型不证明任意规模、真实 SQL 或 Cordis 内部行为。
+有限模型、正负控及条件活性在 [治理的形式化对照](../../governance/governance-local/verification/formal-mapping.md) 登记。该位置承载本波跨域组合检查，不转移语义所有权。真实源码提交点、故障恢复、provider 重装配和 Settings 注册资源预算仍由 C3/C6/C8 验证。模型不证明任意规模、真实 SQL 或 Cordis 内部行为。
 
 
 ## 组织来源与原修改终结
