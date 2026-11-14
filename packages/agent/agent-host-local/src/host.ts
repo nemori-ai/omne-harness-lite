@@ -29,13 +29,12 @@
 //   names why in its record (R2-D285).
 // The runtime's own duties (quiesce drains, detaches and withdraws through the handle) belong to
 // the factory. The host never takes the end of a fiber for a detach or for a stopped execution.
-import { randomInt, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import {
   advanceControl,
   type AgentConfiguration,
   type AgentDependencies,
-  type AgentModelRetrying,
   type AgentProvider,
   type AgentRunEndedFailed,
   type AgentRunWaiting,
@@ -90,6 +89,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolRuntime } from '@omne-harness/tool-contract'
 import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
 import type { AgentHostConfig } from './host-config.ts'
+import { cryptoRandom, modelRetryingRecord } from './model-retry.ts'
 import { stagePort } from './stage-ports.ts'
 
 /**
@@ -325,7 +325,6 @@ function failureText(failure: Failure): string {
   }
 }
 
-/** The warn record of a run that stopped on a failure (SPEC「运行失败」). */
 function runFailedRecord(event: AgentRunFailed): string {
   const tenant = tenantTextOf(event.tenant) ?? 'unknown'
   return (
@@ -342,21 +341,6 @@ function runWaitingRecord(event: AgentRunWaiting): string {
     `agent run waits for a dependency: tenant=${tenant} instance=${event.instance} ` +
     `execution=${event.execution} step=${event.step ?? 'none'} node=${event.node} ` +
     `owner=${event.owner} diagnostic=${event.diagnostic}`
-  )
-}
-
-const RANDOM_SPAN = 2 ** 47
-
-function cryptoRandom(): number {
-  return randomInt(RANDOM_SPAN) / RANDOM_SPAN
-}
-
-function modelRetryingRecord(event: AgentModelRetrying): string {
-  const tenant = tenantTextOf(event.tenant) ?? 'unknown'
-  return (
-    `agent run retries the model: tenant=${tenant} instance=${event.instance} ` +
-    `execution=${event.execution} step=${event.step} attempt=${event.attempt} ` +
-    `fault=${event.fault.cause} diagnostic=${event.fault.diagnostic} notBefore=${event.notBefore}`
   )
 }
 
@@ -401,8 +385,6 @@ export function createHost(input: HostInput): Host {
     }
   }
 
-  // --- access ----------------------------------------------------------------------------------
-
   /** One check of the authorization domain. Anything but `allowed` refuses; nothing defaults to allowed. */
   async function qualify(
     access: Access<unknown>,
@@ -437,7 +419,6 @@ export function createHost(input: HostInput): Host {
   }
 
   // --- registration ----------------------------------------------------------------------------
-
   function directoryOf(context: Context): Outcome<Context['agentInstances'], Failure> {
     const directory = context.get('agentInstances')
     return directory === undefined
@@ -925,7 +906,8 @@ export function createHost(input: HostInput): Host {
           },
           endedFailed: event => record('warn', runEndedFailedRecord(event)),
           waiting: event => record('warn', runWaitingRecord(event)),
-          modelRetrying: event => record('warn', modelRetryingRecord(event)),
+          modelRetrying: event =>
+            record('warn', modelRetryingRecord(event, tenantTextOf(event.tenant))),
         },
       )
       if ('failure' in created) {

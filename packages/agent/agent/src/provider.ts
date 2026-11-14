@@ -61,6 +61,7 @@ import {
   type ResumeEntry,
 } from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
+import { modelRetryEntry } from './loop/model-retry.ts'
 import { createControlWriter } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type {
@@ -248,7 +249,6 @@ export function createProvider<P, B extends ContentBlock>(
 
   const writeControl = createControlWriter(dependencies)
   let slot: Slot = { kind: 'free' }
-  // The drive of the `running` slot, null while no drive works.
   let driving: Driving | null = null
   let current: AgentState = { kind: 'idle', instance }
   const listeners = new Set<() => void>()
@@ -532,19 +532,7 @@ export function createProvider<P, B extends ContentBlock>(
           // The report observes the runtime and never decides an answer of it.
         }
       },
-      modelRetry: { policy: entry.configuration.modelRetry, random: dependencies.random },
-      modelRetrying: (step, retry) => {
-        try {
-          entry.modelRetrying?.({
-            kind: 'model-retrying',
-            tenant: binding.tenant,
-            instance,
-            execution,
-            step,
-            ...retry,
-          })
-        } catch {}
-      },
+      ...modelRetryEntry(entry, dependencies.random, execution),
       toolConcurrency: entry.configuration.toolConcurrency,
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })
