@@ -154,8 +154,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 44 Session rows and 26 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(44)
+  it('has the 45 Session rows and 26 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(45)
     expect(Object.keys(AGENT_GOLDEN)).toHaveLength(26)
   })
 })
