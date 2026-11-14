@@ -196,12 +196,12 @@ describe('C1 the transition table follows the node table on the normal path', ()
 
   it('names every node of the node table and no other', () => {
     const nodes = [
-      ...['E0', 'E1', 'E2', 'E3', 'E4', 'E9', 'I0', 'I1', 'I2', 'I3', 'I4', 'I8', 'P0', 'P1'],
-      ...['C0', 'C1', 'C2', 'C3', 'C4', 'A0', 'A1', 'A2', 'A3'],
-      ...['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'M0', 'M1', 'M2', 'M3', 'M4', 'M5', 'M6'],
-      ...['U0', 'Q1', 'Q2', 'Q4', 'Q5', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5'],
-      ...['F0', 'F1', 'F2', 'F3', 'F4', 'O0', 'H0', 'R0', 'W0'],
-    ]
+      ['E0', 'E1', 'E2', 'E3', 'E4', 'E9', 'I0', 'I1', 'I2', 'I3', 'I4', 'I8', 'P0', 'P1'],
+      ['C0', 'C1', 'C2', 'C3', 'C4', 'A0', 'A1', 'A2', 'A3'],
+      ['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'M0', 'M1', 'M2', 'M3', 'M4', 'M5', 'M6'],
+      ['U0', 'Q1', 'Q2', 'Q4', 'Q5', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5'],
+      ['F0', 'F1', 'F2', 'F3', 'F4', 'O0', 'H0', 'R0', 'W0'],
+    ].flat()
     expect([...LOOP_NODES].sort()).toEqual(nodes.sort())
   })
 
