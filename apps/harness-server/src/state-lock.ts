@@ -1,17 +1,5 @@
-// The exclusive lock of one `serve` run on its state directory.
-//
-// Why it exists. After a restart, the durable records still name the runtimes of the earlier
-// process as the holders of work in flight. Taking that work over is safe only when the earlier
-// process is really gone: a fence keeps its late writes out of the records, and nothing keeps it
-// from still sending to a model provider. So the run must be able to show that no other process
-// works on the same state. This lock is that proof on one machine. It is the degenerate case of a
-// lease: it never expires while the holder lives, and it ends with the holder.
-//
-// How. The lock is the exclusive file lock that SQLite takes on a database file in the directory
-// (`locking_mode = EXCLUSIVE`): an operating-system lock on every platform SQLite supports, taken
-// in one step, and released by the system when the process ends, however it ends. A second
-// connection, of another process or of this one, is refused at once. No timestamp, no process id
-// check and no stale file is involved.
+// The lock is an operating-system file lock (SQLite `locking_mode = EXCLUSIVE`): released however the
+// process ends, so no timestamp, process id or stale file may stand in for it.
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { DurableEvidence } from '@omne-harness/agent-contract'
