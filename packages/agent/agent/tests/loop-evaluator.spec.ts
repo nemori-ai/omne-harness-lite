@@ -262,27 +262,44 @@ describe('decode (D5: the checkpoint read position and the exact schema)', () =>
     expect(Object.hasOwn(decoded, 'modelRetry')).toBe(false)
   })
 
-  const voidedBy = (cause: unknown) => ({
+  const voidedBy = (cause: unknown, kind: string | null = 'model') => ({
+    ...(kind === null ? {} : { kind }),
     step: saved.step,
     action: pendingCall.action,
-    reference: pendingCall.reference,
+    ...(kind === 'tool' ? {} : { reference: pendingCall.reference }),
     ...(cause === undefined ? {} : { cause }),
     basis: evidence('answer'),
   })
 
-  it.each(['not-accepted', 'lost'])('keeps a voided intent whose cause is %s', cause => {
-    const closed = { ...saved, voided: [voidedBy(cause)] }
+  it.each([
+    ['model', 'not-accepted'],
+    ['model', 'lost'],
+    ['tool', 'not-accepted'],
+  ])('keeps a voided %s intent whose cause is %s', (kind, cause) => {
+    const closed = { ...saved, voided: [voidedBy(cause, kind)] }
     expect(ok(agentEvaluator.decode(encodedOf(closed)))).toEqual(closed)
   })
 
   it.each([
     ['no cause', voidedBy(undefined)],
     ['another cause', voidedBy('stream-lost')],
-    ['an item that is no record', 'lost'],
+    ['a Tool intent that is lost', voidedBy('lost', 'tool')],
   ])('refuses a voided intent with %s', (_name, item) => {
     expect(failure(agentEvaluator.decode(encodedOf({ ...saved, voided: [item] })))).toEqual({
       kind: 'invalid',
       field: 'checkpoint.voided.cause',
+      reason: 'type',
+    })
+  })
+
+  it.each([
+    ['no kind', voidedBy('not-accepted', null)],
+    ['another kind', voidedBy('not-accepted', 'compaction')],
+    ['an item that is no record', 'lost'],
+  ])('refuses a voided intent with %s', (_name, item) => {
+    expect(failure(agentEvaluator.decode(encodedOf({ ...saved, voided: [item] })))).toEqual({
+      kind: 'invalid',
+      field: 'checkpoint.voided.kind',
       reason: 'type',
     })
   })

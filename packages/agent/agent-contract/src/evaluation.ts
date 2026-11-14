@@ -314,21 +314,33 @@ export type AdoptedRequest = Readonly<{
   record: JsonValue
 }>
 /**
- * A main Model intent that will have no result that counts, on the authoritative answer of the
- * Model (SPEC "身份、范围与归属", Model 未知行; R2-D292). `cause` says which answer: `not-accepted`,
- * the call was never admitted and never sent, and the step prepares its request again under the
- * next attempt; `lost`, the call was admitted and nobody advances it any more, its cost is unknown,
- * and it counts as one transient failure of the main call. The intent is closed by `basis`, the
- * evidence of that answer. `reference` is the invocation of the voided intent; `action` is the
- * action of its effect.
+ * An intent that will have no result that counts, on the authoritative answer of the callee
+ * (SPEC "身份、范围与归属", Model 未知行; R2-D292). `kind` says whose intent: the main Model call of
+ * a step, or the Tool call of an action. `cause` says which answer: `not-accepted`, the call was
+ * never admitted, and for a Model call never sent, so the step prepares its request again under
+ * the next attempt, and for a Tool call the Tool refused the action for good, so the action is
+ * denied; `lost`, of a Model call only, the call was admitted and nobody advances it any more, its
+ * cost is unknown, and it counts as one transient failure of the main call. The intent is closed
+ * by `basis`, the evidence of that answer. `action` is the action of the intent's effect; a Model
+ * intent also names its invocation in `reference`, a Tool intent that was refused has none.
  */
-export type VoidedIntent = Readonly<{
-  step: StepId
-  action: ActionId
-  reference: M.ModelInvocationRef
-  cause: 'not-accepted' | 'lost'
-  basis: DurableEvidence
-}>
+export type VoidedIntent =
+  | Readonly<{
+      kind: 'model'
+      step: StepId
+      action: ActionId
+      reference: M.ModelInvocationRef
+      cause: 'not-accepted' | 'lost'
+      basis: DurableEvidence
+    }>
+  | Readonly<{
+      kind: 'tool'
+      step: StepId
+      action: ActionId
+      reference?: never
+      cause: 'not-accepted'
+      basis: DurableEvidence
+    }>
 export type ModelRetryState = Readonly<{
   failures: number
   since: AgentInstant
@@ -369,9 +381,9 @@ export type AgentCheckpoint = Readonly<{
   /** The verified read position of the reply admission facts; written only by an ordinary commit. */
   replyAdmissionRead: ReplyAdmissionRead
   /**
-   * The voided main Model intents of this execution, in the order they were voided. The attempt of
-   * the main call of a step is the number of its voided intents. Only the voiding commit appends
-   * to it; nothing removes an item.
+   * The voided intents of this execution, in the order they were voided. The attempt of the main
+   * call of a step is the number of its voided Model intents; a voided Tool intent does not count.
+   * Only the voiding commit appends to it; nothing removes an item.
    */
   voided: readonly VoidedIntent[]
 }>

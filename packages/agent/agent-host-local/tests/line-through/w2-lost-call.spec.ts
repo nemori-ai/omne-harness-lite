@@ -55,6 +55,7 @@ it('closes a main call the Model lost in the Session log Journal, and a new call
     expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
     expect(ended.checkpoint.voided).toEqual([
       expect.objectContaining({
+        kind: 'model',
         step: 'step-1',
         reference: lost,
         cause: 'lost',

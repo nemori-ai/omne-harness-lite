@@ -6,6 +6,7 @@ import type {
   Failure,
   LoopFacts,
   StepId,
+  VoidedIntent,
 } from '@omne-harness/agent-contract'
 import { faultIsTransient } from '@omne-harness/model-contract'
 import type * as M from '@omne-harness/model-contract'
@@ -111,7 +112,21 @@ export function lostIntent(
   const { step, pending, lost } = call
   if (pending === null || lost === null) return {}
   const { action, reference } = pending
-  return { voided: [...at.voided, { step, action, reference, cause: 'lost', basis: lost }] }
+  const record = { kind: 'model' as const, step, action, reference, cause: 'lost' as const }
+  return { voided: [...at.voided, { ...record, basis: lost }] }
+}
+
+export function unacceptedIntent(
+  step: StepId,
+  pending: Extract<PendingCall, { kind: 'model' }>,
+  basis: DurableEvidence,
+): VoidedIntent {
+  const { action, reference } = pending
+  return { kind: 'model', step, action, reference, cause: 'not-accepted', basis }
+}
+
+export function voidedModelIntents(voided: readonly VoidedIntent[], step: StepId): number {
+  return voided.filter(item => item.kind === 'model' && item.step === step).length
 }
 
 /** The longest model diagnostic a cause record carries; a longer one is cut there. */

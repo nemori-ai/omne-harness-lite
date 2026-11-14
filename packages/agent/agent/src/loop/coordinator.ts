@@ -130,6 +130,8 @@ import {
   lostIntent,
   lostModelResult,
   noReplyReason,
+  unacceptedIntent,
+  voidedModelIntents,
   type ModelOutcome,
   type ModelResult,
 } from './model-result.ts'
@@ -162,6 +164,7 @@ import {
   toolResultCandidate,
   openToolCalls,
   slotOf,
+  refusedTool,
   toolCall,
   unsent,
   type AssociatedToolCall,
@@ -2225,11 +2228,8 @@ function coordinate<P>(
       if (!unacceptedToolActions.has(action.id)) return succeed({ batch: next, progressed: false })
       const evidence = agentEvidence(`${execution}/${action.id}/rejected`, result.failure)
       next = replaceSlot(next, deniedSlot(action, evidence))
-      // A denied first attempt has no call to wait for: its intent leaves the producer waits.
-      const calls = required(checkpoint, 'checkpoint').calls.filter(
-        call => call.kind !== 'tool' || call.action !== action.id,
-      )
-      const saved = await commit('A2', 'A2', { checkpoint: { batch: next, calls } })
+      const closed = refusedTool(required(checkpoint, 'checkpoint'), action.id, evidence)
+      const saved = await commit('A2', 'A2', { checkpoint: { batch: next, ...closed } })
       if ('failure' in saved) return saved
       unacceptedToolActions.delete(action.id)
       return succeed({ batch: next, progressed: true })
@@ -3128,7 +3128,7 @@ function coordinate<P>(
 
   /** The attempt of the main call of `of`: the number of its voided intents (R2-D292). */
   function attemptOf(of: StepId): number {
-    return required(checkpoint, 'checkpoint').voided.filter(item => item.step === of).length
+    return voidedModelIntents(required(checkpoint, 'checkpoint').voided, of)
   }
 
   function mainPending(step: StepId, ready: ReadyPreparation): ModelPendingCall {
@@ -3336,8 +3336,7 @@ function coordinate<P>(
       reference: pending.reference,
       answer,
     })
-    const { action, reference } = pending
-    const record = { step: current.step, action, reference, cause: 'not-accepted' as const, basis }
+    const record = unacceptedIntent(current.step, pending, basis)
     // The batch of the step: in memory, or the saved one after a restart (R2-D292).
     iteration = newIteration(current.step, current.batch ?? at.inputBatch, attempt + 1)
     state = { kind: 'advancing' }

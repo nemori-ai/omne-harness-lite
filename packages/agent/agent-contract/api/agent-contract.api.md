@@ -787,10 +787,18 @@ export type AdoptedRequest = Readonly<{
     record: JsonValue;
 }>;
 export type VoidedIntent = Readonly<{
+    kind: 'model';
     step: StepId;
     action: ActionId;
     reference: M.ModelInvocationRef;
     cause: 'not-accepted' | 'lost';
+    basis: DurableEvidence;
+}> | Readonly<{
+    kind: 'tool';
+    step: StepId;
+    action: ActionId;
+    reference?: never;
+    cause: 'not-accepted';
     basis: DurableEvidence;
 }>;
 export type ModelRetryState = Readonly<{

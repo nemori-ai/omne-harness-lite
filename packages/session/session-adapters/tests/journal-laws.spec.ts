@@ -25,12 +25,14 @@ import {
   factKey,
   fold,
   foldAll,
+  modelAttempt,
   movedMembers,
   openCalls,
   operationState,
   refOf,
   viewDigest,
   viewText,
+  voidedFacts,
   type FactBody,
   type FactRow,
   type PublishedBatch,
@@ -920,13 +922,21 @@ describe('R2-D297: the finishing records are the projection of the folded facts'
 
 describe('the checkpoint of a folded view takes the input batch and the voided intents from their facts', () => {
   /** A one-execution scene whose round voided its first Model request (R2-D292). */
-  function voidedScene(cause: 'not-accepted' | 'lost' = 'not-accepted') {
+  function voidedScene(
+    cause: 'not-accepted' | 'lost' = 'not-accepted',
+    later: readonly FactBody[] = [],
+  ) {
     for (let seed = 1; seed < 200; seed += 1) {
       const { log } = scene(random(seed), { rounds: 1, executions: 1, finish: false })
       if (!log.some(batch => batch.facts.some(fact => fact.kind === 'intent.voided'))) continue
-      const caused = log.map(batch => ({
+      const caused = log.map((batch, index) => ({
         ...batch,
-        facts: batch.facts.map(fact => (fact.kind === 'intent.voided' ? { ...fact, cause } : fact)),
+        facts: [
+          ...batch.facts.map(fact =>
+            fact.kind === 'intent.voided' && fact.intent === 'model' ? { ...fact, cause } : fact,
+          ),
+          ...(index === log.length - 1 ? later : []),
+        ],
       }))
       return foldAll(caused).executions.get(log[0]!.execution)!
     }
@@ -946,6 +956,7 @@ describe('the checkpoint of a folded view takes the input batch and the voided i
       inputBatch: begun.batch,
       voided: [
         {
+          kind: 'model' as const,
           step: request.step,
           action: intent.action,
           reference: request.reference,
@@ -980,6 +991,38 @@ describe('the checkpoint of a folded view takes the input batch and the voided i
         basis: request.voided?.basis,
       }),
     ])
+  })
+
+  it('a voided Tool intent folds beside the requests and reads back by its action, in voiding order', () => {
+    const execution = voidedScene()
+    const begun = execution.steps.at(-1)!
+    const refused = {
+      kind: 'tool' as const,
+      step: begun.step,
+      action: [...execution.intents.keys()][0]!,
+      cause: 'not-accepted' as const,
+      basis: evidence('tool/refused'),
+    }
+    const facts = voidedFacts(execution, [refused]) ?? []
+    expect(facts).toEqual([
+      {
+        kind: 'intent.voided',
+        intent: 'tool',
+        step: refused.step,
+        action: refused.action,
+        cause: 'not-accepted',
+        basis: refused.basis,
+      },
+    ])
+    const after = voidedScene('not-accepted', facts)
+    expect(after.adopted).toEqual(execution.adopted)
+    expect(after.requests).toEqual(execution.requests)
+    const checkpoint = { ...sampleCheckpoint(), step: begun.step, inputBatch: begun.batch }
+    const cursor = cursorOf(checkpoint, { kind: 'advancing' })
+    const read = checkpointOf({ ...after, cursor }, new Map(blobsOf(checkpoint)))
+    expect(read.voided.map(item => item.kind)).toEqual(['model', 'tool'])
+    expect(read.voided[1]).toEqual(refused)
+    expect(modelAttempt({ step: begun.step, voided: read.voided })).toBe(1)
   })
 
   it('negative control: a batch without its step.begun, or a voided request without its intent, throws', () => {

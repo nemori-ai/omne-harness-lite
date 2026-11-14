@@ -6,6 +6,7 @@ import type {
   AgentCheckpoint,
   AgentOperationId,
   JournalCommitState,
+  VoidedIntent,
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
 import {
@@ -89,13 +90,13 @@ function held<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: stri
  * The checkpoint a complete folded view names: the inverse of `cursorOf`, reading the referred
  * members from the blocks. Two members are not in the cursor because facts of their own hold them
  * (R2-D292): `inputBatch` is the batch of the `step.begun` the cursor names, and `voided` lists the
- * `intent.voided` requests in adoption order, each with the action of its `call.intended`. A member
+ * `intent.voided` facts in their order, a request with the action of its `call.intended`. A member
  * the cursor lacks, a block the store does not hold, a batch no `step.begun` holds, or a voided
  * request without its intended call is a defect of the writer that folded it, not a value to
  * invent: it throws.
  */
 export function checkpointOf(
-  view: Pick<ExecutionView, 'cursor' | 'steps' | 'requests' | 'intents'>,
+  view: Pick<ExecutionView, 'cursor' | 'steps' | 'requests' | 'voided' | 'intents'>,
   blobs: BlobStore,
 ): AgentCheckpoint {
   const { cursor } = view
@@ -108,23 +109,21 @@ export function checkpointOf(
     taken === null ? null : (view.steps.find(item => item.batch.id === taken)?.batch ?? null)
   if (taken !== null && inputBatch === null)
     throw new TypeError(`the Journal holds no step.begun for the input batch ${taken}`)
-  const voided = view.requests
-    .filter(request => request.voided !== null)
-    .map(request => {
-      const intent = [...view.intents.values()].find(
-        item => item.pending.kind === 'model' && item.pending.reference === request.reference,
+  const voided = view.voided.map((fact): VoidedIntent => {
+    const { step, basis } = fact
+    if (fact.intent === 'tool')
+      return { kind: 'tool', step, action: fact.action, cause: fact.cause, basis }
+    const request = view.requests.find(item => item.step === step && item.attempt === fact.attempt)
+    const reference = request?.reference
+    const intent = [...view.intents.values()].find(
+      item => item.pending.kind === 'model' && item.pending.reference === reference,
+    )
+    if (reference === undefined || intent === undefined)
+      throw new TypeError(
+        `the Journal holds no call.intended for the voided request ${step}/${fact.attempt}`,
       )
-      if (intent === undefined)
-        throw new TypeError(
-          `the Journal holds no call.intended for the voided request ${request.reference}`,
-        )
-      return {
-        step: request.step,
-        action: intent.action,
-        reference: request.reference,
-        ...request.voided!,
-      }
-    })
+    return { kind: 'model', step, action: intent.action, reference, cause: fact.cause, basis }
+  })
   const checkpoint: AgentCheckpoint = {
     schema: need('schema'),
     definition: need('definition'),

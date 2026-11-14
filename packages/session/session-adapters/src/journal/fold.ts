@@ -44,6 +44,7 @@ import {
   type Ref,
   type ResultStage,
 } from './facts.ts'
+import { foldVoided } from './voided.ts'
 
 /** One attachment as the view keeps it: active until a detach or the next attach supersedes it. */
 export type AttachmentView = Readonly<{
@@ -315,6 +316,7 @@ export type ExecutionView = Readonly<{
   requests: readonly RequestView[]
   /** The latest request not voided: AD-04's adopted request; its order is its pub. */
   adopted: RequestView | null
+  voided: readonly FactOf<'intent.voided'>[]
   intents: ReadonlyMap<ActionId, IntentView>
   results: ReadonlyMap<ConsumptionId, ResultView>
   admissions: readonly AdmissionView[]
@@ -404,6 +406,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     steps: [],
     requests: [],
     adopted: null,
+    voided: [],
     intents: new Map(),
     results: new Map(),
     admissions: [],
@@ -612,15 +615,9 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       draft.adopted = request
       break
     }
-    case 'intent.voided': {
-      draft.requests = draft.requests.map(item =>
-        item.step === fact.step && item.attempt === fact.attempt
-          ? { ...item, voided: { cause: fact.cause, basis: fact.basis } }
-          : item,
-      )
-      draft.adopted = draft.requests.findLast(item => item.voided === null) ?? null
+    case 'intent.voided':
+      Object.assign(draft, foldVoided(draft, fact))
       break
-    }
     case 'call.intended':
       if (!draft.intents.has(fact.action))
         draft.intents.set(fact.action, {
