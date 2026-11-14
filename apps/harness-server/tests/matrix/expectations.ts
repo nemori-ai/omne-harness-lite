@@ -58,6 +58,7 @@ export const expectations: Readonly<Record<string, Expectation>> = {
     failsBecause:
       'page: right after startup the session list answers basis-unavailable and the page waits for a manual retry',
   },
+  'G-开页/协议': { expected: 'pass' },
   'R-0': { expected: 'pass' },
   'R-1/t2': { expected: 'untestable' },
   'R-1/t1': { expected: 'untestable' },

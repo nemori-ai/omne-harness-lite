@@ -17,6 +17,7 @@ import {
 } from './cell.ts'
 
 export const RECOVERY_MS = 60_000
+const WAITING_TENANTS = 8
 
 export function lines(file: string): number {
   return existsSync(file) ? readFileSync(file, 'utf8').trim().split('\n').filter(Boolean).length : 0
@@ -356,4 +357,42 @@ export const gCells: readonly Cell[] = [
     },
   },
   { id: 'G-开页', block: 'G', layer: 'page', probe: 'gx-block.mjs <cell> closed' },
+  {
+    id: 'G-开页/协议',
+    block: 'G',
+    layer: 'protocol',
+    run: async tools => {
+      const reader = await signedIn(tools)
+      const own = await reader.createSession()
+      const held = Array.from({ length: WAITING_TENANTS }, () => gate())
+      for (const one of held) {
+        const other = await signedIn(tools)
+        const session = await other.createSession()
+        tools.stub.push({ kind: 'hold', gate: one, after: { kind: 'drop' } })
+        tools.check('input accepted', (await other.send(session, 'g-open hold')) === 'succeeded')
+      }
+      await waitArrivals(tools, WAITING_TENANTS, 'every run reached the provider')
+      await tools.env.restart('kill')
+      const started = Date.now()
+      const raw = await reader.rawOutcome('list-sessions')
+      tools.note(
+        `one plain ask right after the restart: ${raw} at ${String(Date.now() - started)} ms`,
+      )
+      const listed = await reader.listSessionsAsShipped()
+      tools.note(
+        `as shipped: ${listed.outcome} at ${String(Date.now() - started)} ms after ${String(listed.reasks)} more asks`,
+      )
+      tools.check(
+        'the session list is read without a manual retry',
+        listed.outcome === 'succeeded',
+        listed.outcome,
+      )
+      tools.check(
+        'the own session is in the list',
+        listed.sessions.includes(own),
+        `${String(listed.sessions.length)} listed`,
+      )
+      for (const one of held) one.open()
+    },
+  },
 ]

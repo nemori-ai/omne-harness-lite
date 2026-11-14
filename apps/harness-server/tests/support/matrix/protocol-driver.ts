@@ -53,6 +53,11 @@ export type ProtocolDriver = Readonly<{
     pageBytes: number,
   ): Promise<HistoryRead & { next: string | null }>
   listSessions(): Promise<{ outcome: string; sessions: readonly string[] }>
+  listSessionsAsShipped(): Promise<{
+    outcome: string
+    sessions: readonly string[]
+    reasks: number
+  }>
   cancelRun(session: string, run: string): Promise<string>
   observe(session: string): Observation
   currentRun(session: string, timeoutMs: number): Promise<string | null>
@@ -66,6 +71,7 @@ export type ProtocolDriver = Readonly<{
 export type TenantOnly = Readonly<{ id: TenantId | undefined; text: string | undefined }>
 
 const DEFAULT_PAGE_BYTES = 65_536
+const READ_RETRY_MS = 30_000
 
 export function createProtocolDriver(origin: string, account?: Account): ProtocolDriver {
   let credentials: { proof?: string; tenant?: string } = {}
@@ -80,6 +86,17 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
   })
   const identity: IdentityClient = createClient(identityProtocol, transport)
   const session: SessionClient = createClient(sessionProtocol, transport)
+  let reasks = 0
+  const asShipped: SessionClient = createClient(sessionProtocol, transport, {
+    readRetry: {
+      delayMs: (failures, elapsedMs) => {
+        if (elapsedMs > READ_RETRY_MS) return null
+        reasks = failures
+        return Math.min(250 * 2 ** (failures - 1), 4_000)
+      },
+      wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
+    },
+  })
   const controllers = new Set<AbortController>()
   const tenant = () => credentials.tenant ?? ''
   const tenantValue = () => tenantId as unknown as Tenant
@@ -178,6 +195,16 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
       if (answer.outcome !== 'succeeded') return { outcome: answer.outcome, sessions: [] }
       const body = answer.body
       return { outcome: 'succeeded', sessions: body.sessions.map(item => String(item.session)) }
+    },
+    listSessionsAsShipped: async () => {
+      reasks = 0
+      const answer = await asShipped['list-sessions']({ tenant: tenantValue(), cursor: null })
+      if (answer.outcome !== 'succeeded') return { outcome: answer.outcome, sessions: [], reasks }
+      return {
+        outcome: 'succeeded',
+        sessions: answer.body.sessions.map(item => String(item.session)),
+        reasks,
+      }
     },
     cancelRun: async (id, run) => {
       const answer = await session['cancel-run']({
