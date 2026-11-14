@@ -132,7 +132,7 @@ Scope 与最终事实适配是 `createLocalToolBindings` 的构造依赖，返�
 - `handedOver` 对本次获取是终态：获取账本之后的 `stopped` 不改它，`permit` 与 `adopt` 把它当作没有活动计划。
 - 已采纳或已许可的键归保留范围：范围的任一视图都能记它的停止，确认停止删去该条目。保留进程的确认停止在同一次提交里留下按键的收场记录 `ended/<键>`，`ended(key)` 按键读它：答 `confirmed` 直到范围释放，没有记录答 `none`，读不到答 `unavailable`（契约停止第 7 项，见 SPEC）。范围释放时与范围记录一起删去。
 
-作者环境把租约视图交出的命令保留扩展原样转交给作者：扩展存在的前提是有 `list`（契约[保留进程扩展](../../../execution/execution-environment-contract/SPEC.md#保留进程扩展)）；扩展另有 `stop`、`output` 时，作者一并看到，没有的方法作者也看不到。调用时补上本次调用的访问身份、原调用与绑定。命令设施的 `containment` 也原样转交。
+作者环境把租约视图交出的命令保留扩展原样转交给作者：扩展存在的前提是有 `list`（契约[保留进程扩展](../../../execution/SPEC.md#一次性命令留下的进程)）；扩展另有 `stop`、`output` 时，作者一并看到，没有的方法作者也看不到。调用时补上本次调用的访问身份、原调用与绑定。命令设施的 `containment` 也原样转交。
 
 交接提交的断言在内存存储加注入故障上验证（`tests/retained-process-ledger.spec.ts`），没有在 SQL 后端上单独验证。`createLocalToolControlSubjects` 按原主体绑定恢复并重新核验资格；JSON 中的主体描述不是可直接使用的主体。
 

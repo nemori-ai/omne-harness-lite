@@ -1,6 +1,6 @@
 # 执行环境产品设计
 
-状态：产品设计草案，revision 4。尚无整体接受证据。设计落位不授予实现支持或技术采用；阶段承诺与里程碑顺序见[阶段与版本支持承诺](#阶段与版本支持承诺)。技术承接从[领域入口](../../../../docs/domains/execution-environments/README.md)与[能力组入口](../../../../packages/execution/README.md)展开。
+状态：产品设计草案，revision 4。尚无整体接受证据。设计落位不授予实现支持或技术采用；阶段承诺与里程碑顺序见[阶段与版本支持承诺](#阶段与版本支持承诺)。技术承接从[领域入口](../../../../docs/domains/execution-environments/README.md)与能力组入口（`packages/execution/SPEC.md`）展开。
 
 ## 产品需求描述
 
@@ -184,7 +184,7 @@ agent 必须能感知当前落点及上次痕迹是否仍在；环境过期、�
 
 ## 能力定义与实现状态记录表
 
-契约层已有操作参数与结果 schema、提供者契约套件、Cordis 服务定义及机制读数测试；现有运行成员还提供登记表与宿主 files。具体范围见[执行环境能力组入口](../../../../packages/execution/README.md)。以下完整产品能力仍未核实，契约测试不证明真实隔离、耐久性、资源停止或集成方对账；旧 PF 接受、正式目标和候选自检也不能证明这些保证。
+契约层已有操作参数与结果 schema、提供者契约套件、Cordis 服务定义及机制读数测试；现有运行成员还提供登记表与宿主 files。具体范围见执行环境能力组入口（`packages/execution/SPEC.md`）。以下完整产品能力仍未核实，契约测试不证明真实隔离、耐久性、资源停止或集成方对账；旧 PF 接受、正式目标和候选自检也不能证明这些保证。
 
 | 能力 | 完整能力及条件 | 产品位置 | 实现观察、限制及依据 |
 | --- | --- | --- | --- |
@@ -229,9 +229,9 @@ PanQiWei 在 2026-11-12 裁定：MCP 只按地址接入，系统不替用户起�
 
 分类：技术后续义务。准备完成后取消、权限变更或新选择到达，迟到准备仍可能已分配资源。
 
-产品影响：影响 CAP-EE02、03、06 及 [INV-EE03](../../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee03-必需设施和隔离不得降低满足)、[INV-EE05](../../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee05-实际执行捕获原落点与版本)、[INV-EE15](../../../../packages/execution/execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)的可实施性。
+产品影响：影响 CAP-EE02、03、06 及 INV-EE03、INV-EE05、INV-EE15的可实施性。
 
-维护责任：条件协调、环境资源与原工具调用拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment-contract/docs/architecture.md#q-ee02-选择准备与实际发起的协调边界)。
+维护责任：条件协调、环境资源与原工具调用拥有者。
 
 ### Q-EE03 受限执行域、宿主桥接与监督证据
 
@@ -239,7 +239,7 @@ PanQiWei 在 2026-11-12 裁定：MCP 只按地址接入，系统不替用户起�
 
 产品影响：影响 CAP-EE08、09；机制未验证时不能授予不可信代码该运行方式。
 
-维护责任：执行隔离、受控宿主接口、工具与部署拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment-contract/docs/architecture.md#q-ee03-受限执行域宿主桥接与监督证据)。
+维护责任：执行隔离、受控宿主接口、工具与部署拥有者。
 
 ### Q-EE04 托管数据与计算分别恢复
 
@@ -247,7 +247,7 @@ PanQiWei 在 2026-11-12 裁定：MCP 只按地址接入，系统不替用户起�
 
 产品影响：影响 CAP-EE05、10、12 及数据耐久、共享冲突与恢复接受证据。
 
-维护责任：数据托管、存储与部署拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment-contract/docs/architecture.md#q-ee04-托管数据与计算分别恢复)。
+维护责任：数据托管、存储与部署拥有者。
 
 ### Q-EE05 设施控制、观察及原结果交接协议
 
@@ -255,7 +255,7 @@ PanQiWei 在 2026-11-12 裁定：MCP 只按地址接入，系统不替用户起�
 
 产品影响：影响 CAP-EE04、09、11、12 及资源关闭、痕迹供给和结果不丢失。
 
-维护责任：设施提供者、原调用与 Runtime Context 拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment-contract/docs/architecture.md#q-ee05-设施控制观察及原结果交接协议)。
+维护责任：设施提供者、原调用与 Runtime Context 拥有者。
 
 ### Q-EE06 运行实现与真实提供者尚未核实
 
@@ -263,7 +263,7 @@ PanQiWei 在 2026-11-12 裁定：MCP 只按地址接入，系统不替用户起�
 
 产品影响：影响能力实现状态、阶段接受与后续施工准入。
 
-维护责任：实际提供者、实现与验证拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment-contract/docs/architecture.md#q-ee06-运行实现与真实提供者尚未核实)。
+维护责任：实际提供者、实现与验证拥有者。
 
 ### Q-EE07 未扩展为通用兼容或回滚承诺
 
@@ -279,7 +279,7 @@ PanQiWei 在 2026-11-12 裁定：MCP 只按地址接入，系统不替用户起�
 
 决定责任：执行环境产品拥有者。
 
-下面几处由执行环境的技术设计推导，已写进本页与契约，产品负责人尚未确认。确认之前它们按候选执行。改变任一处时，同步修订[执行环境契约](../../../../packages/execution/execution-environment-contract/SPEC.md)。
+下面几处由执行环境的技术设计推导，已写进本页与契约，产品负责人尚未确认。确认之前它们按候选执行。改变任一处时，同步修订执行环境契约（`packages/execution/SPEC.md`）。
 
 - [环境要求与落点](#环境要求与落点)：`auto_place` 下，工具声明能在宿主机工作时宿主机才进允许清单，并排在最后。
 - 同一节：同一层有多个提供者同时满足条件时按歧义拒绝，不取先登记者。

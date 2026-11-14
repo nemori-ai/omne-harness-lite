@@ -227,7 +227,7 @@ Tool 的这些类型由 Tool 自己拥有，不导入消费方的身份或确认
 
 ### 环境声明与请求方作用域
 
-`ToolEnvironmentDeclaration` 是环境声明槽，包含 schema 的精确 `adoption` 与 JSON 声明 `value`。作者的 `ToolDeclarations.environment` 可以为 null，表示没有特殊环境声明。非空槽必须同时给出这两项，旧的裸 `Adoption` 无效。Tool 的受信 Loader 装配把精确 adoption 映射到 schema-provider 的 `SchemaRef`，再经 schema-provider 校验 value；schema-provider 本身不提供采用身份目录。schema 不可取得时不开放该定义的可用性，声明不合法时拒绝定义。当前没有真实 ToolLoader 实现，映射与定义层校验是其未交付责任；声明槽的形状检查不能代替它。Tool 不解释设施枚举、绑定层、放置或恢复类型，也不直接导入 EE 契约。工具作者按[环境声明拥有者](../../execution/execution-environment-contract/docs/public-api.md#工具环境声明)发布的 schema 写值。
+`ToolEnvironmentDeclaration` 是环境声明槽，包含 schema 的精确 `adoption` 与 JSON 声明 `value`。作者的 `ToolDeclarations.environment` 可以为 null，表示没有特殊环境声明。非空槽必须同时给出这两项，旧的裸 `Adoption` 无效。Tool 的受信 Loader 装配把精确 adoption 映射到 schema-provider 的 `SchemaRef`，再经 schema-provider 校验 value；schema-provider 本身不提供采用身份目录。schema 不可取得时不开放该定义的可用性，声明不合法时拒绝定义。当前没有真实 ToolLoader 实现，映射与定义层校验是其未交付责任；声明槽的形状检查不能代替它。Tool 不解释设施枚举、绑定层、放置或恢复类型，也不直接导入 EE 契约。工具作者按[环境声明拥有者](../../execution/SPEC.md#领域边界)发布的 schema 写值。
 
 固定请求的 `environment` 保留与所采用定义相同的声明槽或 null。受理和准备边界核对其一致性，不能用一个合法但不同的环境声明替换原需求。固定请求的唯一 `requesterScope` 消费 RC 公开的 `ScopeRef`，未知输入经 `decodeScopeRef` 检查。调用方显式给出同一引用，Tool 不按 Session 标识拼造，也不查询 RC。`ResourceScope` 只拥有并发授予与排队，`workspace` 只拥有工作区身份，这三项不互相推导。
 
@@ -1125,7 +1125,7 @@ release 使用独立 ReleaseRecord，绑定原准备、资源和独立保管证�
 
 准备、获取和释放的 pending 或 unknown 保留原身份及责任，先查询原事实。Tool 在向环境适配器发出获取前可靠保存原调用、准备操作、requesterScope、固定环境采用和完整原获取描述的可恢复引用。环境适配器保存 EE 要求的 tenant、acquisition、origin、scope 与 placement，placement 含 quotaDomain、原 provider 名称/代/版本、binding、continuity 与完整 requirement。Tool 不复制这些外域类型或在 Tool 进度中另造同义结构。
 
-inspect 查询只刷新原事实，不调用 acquire、plan、permit、adopt 或设施动作，也不签发采用记录或租约。查询发现原 provider 已分配后，只有原登记、首次捕获的 guard 与 ledger 仍有效，且原采用核验、作用域状态与当前准入均成立时，调用方才可用完全相同的 acquire 输入继续首次采用或认回。该阶段沿 EE 的原采用状态转移，只签发一次采用记录与租约，不再调用 provider 获取，也不重新计划、许可或接续。acquisition、tenant、origin、scope、placement 和 provider 均不得改变。完整规则归 [EE 查询本地获取](../../execution/execution-environment-contract/SPEC.md#原获取的查询与结清)。
+inspect 查询只刷新原事实，不调用 acquire、plan、permit、adopt 或设施动作，也不签发采用记录或租约。查询发现原 provider 已分配后，只有原登记、首次捕获的 guard 与 ledger 仍有效，且原采用核验、作用域状态与当前准入均成立时，调用方才可用完全相同的 acquire 输入继续首次采用或认回。该阶段沿 EE 的原采用状态转移，只签发一次采用记录与租约，不再调用 provider 获取，也不重新计划、许可或接续。acquisition、tenant、origin、scope、placement 和 provider 均不得改变。完整规则归 [EE 查询本地获取](../../execution/SPEC.md#原获取的查询结清与采用失败)。
 
 分配 unknown 保留原名额，pending 不证明零分配。原事实未查清时不再次分配。已分配后采用失败保留首次失败及 cleanup 的 settled、pending 或 unknown，清理未结清继续计额。采用失败不能重新采用，已失效或已结清的记录不复活旧租约。当前普通权限与系统恢复资格分别核验。原引用仍在或可从原持久事实重建时按原记录接续，不能换键、scope、origin、provider 或 placement 重发。
 

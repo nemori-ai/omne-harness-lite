@@ -1,6 +1,6 @@
 # 宿主文件工厂行
 
-本行消费 [host-local 的公开工厂](../../../../packages/execution/execution-environment-host-local/docs/cordis.md)，采用 [HOSTFILE-FACTORY-ROW](../../../../docs/architecture/runtime/application-assembly.md#hostfile-factory-row) 的固定绑定。行提供 `host_machine` 的宿主提供者，不新增服务键。
+本行消费 [host-local 的公开工厂](../../../../packages/execution/SPEC.md#cordis-装配)，采用 [HOSTFILE-FACTORY-ROW](../../../../docs/architecture/runtime/application-assembly.md#hostfile-factory-row) 的固定绑定。行提供 `host_machine` 的宿主提供者，不新增服务键。
 
 ## 入口持有责任域
 

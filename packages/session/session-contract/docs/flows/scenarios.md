@@ -765,7 +765,7 @@ sequenceDiagram
 
 ## F-SC16 作用域释放与换代后重新释放
 
-细化 [F-SE04](../../../docs/key-flows.md#f-se04-归档级联与作用域释放)的释放部分。依据：JC-16、[ScopeReleasePort](../../SPEC.md#scopereleaseport) 与它的五类处置表、`releasedScopes` 的操作表行（[SessionReconciliation](../../SPEC.md#sessionreconciliation)）、[守卫条款](../../SPEC.md#守卫条款)并入 ST21 与 ST26 的分支、[VC-O02](../../SPEC.md#候选的持续验证义务)、[VC-O07](../../SPEC.md#候选的持续验证义务)。系统层说明见[作用域释放](../../../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)，执行环境一侧沿[恢复](../../../../execution/execution-environment-contract/SPEC.md#恢复)与[拒绝原因](../../../../execution/execution-environment-contract/SPEC.md#拒绝原因)。
+细化 [F-SE04](../../../docs/key-flows.md#f-se04-归档级联与作用域释放)的释放部分。依据：JC-16、[ScopeReleasePort](../../SPEC.md#scopereleaseport) 与它的五类处置表、`releasedScopes` 的操作表行（[SessionReconciliation](../../SPEC.md#sessionreconciliation)）、[守卫条款](../../SPEC.md#守卫条款)并入 ST21 与 ST26 的分支、[VC-O02](../../SPEC.md#候选的持续验证义务)、[VC-O07](../../SPEC.md#候选的持续验证义务)。系统层说明见[作用域释放](../../../../../docs/architecture/runtime/control-and-recovery.md#作用域释放)，执行环境一侧沿[恢复](../../../../execution/SPEC.md#恢复)。
 
 ```mermaid
 sequenceDiagram

@@ -1,6 +1,6 @@
 # Execution 授权入口
 
-[execution-authorities.ts](../../src/entry/execution-authorities.ts) 提供 AS-10 的三个定义类子类。公开端口归 [Execution 契约](../../../../packages/execution/execution-environment-contract/SPEC.md) 与 [Cordis 定义](../../../../packages/execution/execution-environment-cordis-contract/SPEC.md)。这些运行时对象不进入插件树或可序列化配置。
+[execution-authorities.ts](../../src/entry/execution-authorities.ts) 提供 AS-10 的三个定义类子类。公开端口归 [Execution 契约](../../../../packages/execution/SPEC.md) 与 [Cordis 定义](../../../../packages/execution/SPEC.md#cordis-装配)。这些运行时对象不进入插件树或可序列化配置。
 
 装配者通过 `createExecutionAuthorityModules({ readBindings, readRecovery })` 取得三个入口模块，登记到入口对象列表。生产入口的登记在 [execution-wiring.ts](../../src/entry/execution-wiring.ts)：`readBindings` 取共享来源的 `bindings`，`readRecovery` 不给。键分别取自 `ExecutionEnvironmentAuthorityService`、`ExecutionScopeBindingService` 和 `ExecutionRecoveryAuthorityService`，不另造服务键。`readBindings` 每次返回共享 `createSessionScopeSource` 的 `bindings`。`readRecovery` 每次返回维护拥有者提供的受信 `RecoveryAuthority`。回调捕获入口的受信来源，不能从请求者上下文读取授权来源。
 

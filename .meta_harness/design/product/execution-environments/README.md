@@ -18,7 +18,7 @@ relations:
 - [产品正文](design.md)提供需求、能力状态、阶段与第四章未决。
 - [环境、落点与资源的概念](design.md#环境落点与资源的概念)说明本域概念的形状与后果；精确词义在统一语言的[落地与隔离](../../ubiquitous_language/terms/grounding-and-isolation.md)卷。
 - [领域责任](../../../../docs/domains/execution-environments/README.md)提供已接受的职责与边界。
-- [能力组工程入口](../../../../packages/execution/README.md)定位工程分解、契约及组合验证责任。
+- 能力组工程入口（`packages/execution/SPEC.md`）定位工程分解、契约及组合验证责任。
 
 ## 维护
 

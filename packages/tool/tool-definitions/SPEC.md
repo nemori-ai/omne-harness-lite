@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本包按 #421 修订 6 的 C-TOOLS 实施输入实现 Files 与 Shell 根作者。产品含义归 [Meta Capability](../../../.meta_harness/design/product/meta-capabilities/design.md)。多命令作者与普通文本返回采用 [Tool 契约](../tool-contract/SPEC.md)，设施采用 [Execution 契约](../../execution/execution-environment-contract/SPEC.md)。本包负责参数、操作映射和结果文本。宿主授权、真实文件系统、PTY、持久化与 Cordis 装配由消费者提供。
+本包按 #421 修订 6 的 C-TOOLS 实施输入实现 Files 与 Shell 根作者。产品含义归 [Meta Capability](../../../.meta_harness/design/product/meta-capabilities/design.md)。多命令作者与普通文本返回采用 [Tool 契约](../tool-contract/SPEC.md)，设施采用 [Execution 契约](../../execution/SPEC.md)。本包负责参数、操作映射和结果文本。宿主授权、真实文件系统、PTY、持久化与 Cordis 装配由消费者提供。
 
 ## 结果与不变量
 
@@ -45,9 +45,9 @@ list 使用 FileEntry.name，不解析对象令牌。任一条目缺少有效名
 
 ### Shell 路由与控制
 
-没有 terminal 参数时，execute 调用 command.start，使用显式配置的可执行文件、参数前缀、初始 cwd 与 env。结局 `completed` 带处置报告时，结局行之后写一行：`residue=none`、`residue=retained process=<引用> processes=<数|unknown>`、`residue=stopping reason=<原因>` 或 `residue=unknown`。`stopping` 不写成已停，`unknown` 不写成 `none`。结局没有处置报告（终端段、不做处置的提供者、`failed`）时没有这一行。处置的含义归[执行环境契约的「一次性命令留下的进程」](../../execution/execution-environment-contract/SPEC.md#一次性命令留下的进程)。create_session 声明 Session 保留；带 terminal 的 execute 与 close_session 先由本次获取 attach，再调用对应设施。缺保留或附着能力时明确 unsupported，不创建替代终端，也不回退为一次性执行。terminal 的持续状态归提供者，作者不保存会话表。单次 cwd 与 env 覆盖只转发到本次调用。
+没有 terminal 参数时，execute 调用 command.start，使用显式配置的可执行文件、参数前缀、初始 cwd 与 env。结局 `completed` 带处置报告时，结局行之后写一行：`residue=none`、`residue=retained process=<引用> processes=<数|unknown>`、`residue=stopping reason=<原因>` 或 `residue=unknown`。`stopping` 不写成已停，`unknown` 不写成 `none`。结局没有处置报告（终端段、不做处置的提供者、`failed`）时没有这一行。处置的含义归[执行环境契约的「一次性命令留下的进程」](../../execution/SPEC.md#一次性命令留下的进程)。create_session 声明 Session 保留；带 terminal 的 execute 与 close_session 先由本次获取 attach，再调用对应设施。缺保留或附着能力时明确 unsupported，不创建替代终端，也不回退为一次性执行。terminal 的持续状态归提供者，作者不保存会话表。单次 cwd 与 env 覆盖只转发到本次调用。
 
-terminal 的 completed 表示前台段结束，不证明持久 shell 退出或业务成功。各平台按同一哨兵规则归属字节，退出码按该平台 shell 的规则求得（Windows 的规则见 [host-local 的 Windows 终端](../../execution/execution-environment-host-local/SPEC.md#windows-终端未接受)）。help 说明 completed 的这一含义，未知退出码不显示为成功。
+terminal 的 completed 表示前台段结束，不证明持久 shell 退出或业务成功。各平台按同一哨兵规则归属字节，退出码按该平台 shell 的规则求得。help 说明 completed 的这一含义，未知退出码不显示为成功。
 
 执行前已取消时不启动。启动后中断只请求当前 ProcessHandle.stop('forced')。未确认停止保留 unconfirmed。作者继续排空唯一输出读者并等待原终局。流或终局异常返回 unknown。停止未确认且提供者仍不终结时，作者可能继续等待，不能声称进程已结束。
 
