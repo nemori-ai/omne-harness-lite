@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   judgeCompaction,
@@ -11,9 +10,10 @@ import {
   type Message,
   type RecordEntryRef,
 } from '@omne-harness/message'
+import { COMPACTION_TABLE, EXAMPLE_TABLE, REASONING_TABLE } from './normative-tables.ts'
 
 /**
- * The three tables in docs/public-api.md are the rule list of the tool parts, the role rules, the
+ * The three tables in normative-tables.ts are the rule list of the tool parts, the role rules, the
  * compaction variant, and the reasoning state. This file runs every row, and it also fixes which
  * rules and which polarities each table has to show, so a table that lost a row or changed an
  * outcome fails here.
@@ -27,25 +27,16 @@ interface Cells {
   readonly cells: readonly string[]
 }
 
-/** The data rows of the table under a `## ` heading, each cell without its backticks. */
-function tableRows(heading: string, width: number): readonly Cells[] {
-  const doc = readFileSync(new URL('../docs/public-api.md', import.meta.url), 'utf8')
-  const lines = doc.split('\n')
-  const start = lines.findIndex(line => line.trim() === heading)
-  if (start < 0) throw new Error(`the heading ${heading} is missing`)
-  const rows: Cells[] = []
-  for (let at = start + 1; at < lines.length; at += 1) {
-    const line = lines[at] ?? ''
-    if (line.startsWith('## ')) break
-    if (!line.startsWith('|') || /^\|[\s:-]+\|/u.test(line)) continue
-    const cells = line
-      .slice(1, line.lastIndexOf('|'))
-      .split('|')
-      .map(cell => cell.trim().replace(/^`|`$/gu, ''))
-    if (cells.length !== width) throw new Error(`line ${at + 1}: a row has ${width} cells`)
-    if (cells[0] !== '规则') rows.push({ line: at + 1, cells })
-  }
-  return rows
+/** The rows of one table, numbered on from `firstLine` so that the case names stay the same. */
+function tableRows(
+  table: readonly (readonly string[])[],
+  width: number,
+  firstLine: number,
+): readonly Cells[] {
+  return table.map((cells, at) => {
+    if (cells.length !== width) throw new Error(`line ${firstLine + at}: a row has ${width} cells`)
+    return { line: firstLine + at, cells }
+  })
 }
 
 function countShown(rows: readonly { rule: string; polarity: string }[]): Record<string, number> {
@@ -74,7 +65,7 @@ interface Row {
 }
 
 function exampleRows(): readonly Row[] {
-  return tableRows('## 示例表', 5).map(({ line, cells }) => {
+  return tableRows(EXAMPLE_TABLE, 5, 103).map(({ line, cells }) => {
     const [rule, polarity, role, blocks, outcome] = cells as [
       string,
       string,
@@ -347,7 +338,7 @@ interface CompactionRow {
 const NOTES = ['getter 未被调用', '成功值不变且已冻结']
 
 function compactionRows(): readonly CompactionRow[] {
-  return tableRows('## 压缩用例表', 5).map(({ line, cells }) => {
+  return tableRows(COMPACTION_TABLE, 5, 181).map(({ line, cells }) => {
     const [rule, polarity, patch, context, outcome] = cells as [
       string,
       string,
@@ -465,7 +456,7 @@ interface ReasoningRow {
 }
 
 function reasoningRows(): readonly ReasoningRow[] {
-  return tableRows('## 推理续接状态用例表', 4).map(({ line, cells }) => {
+  return tableRows(REASONING_TABLE, 4, 253).map(({ line, cells }) => {
     const [rule, polarity, patch, outcome] = cells as [string, string, string, string]
     const [verdict = '', ...notes] = outcome.split(';').map(part => part.trim())
     for (const note of notes) {
