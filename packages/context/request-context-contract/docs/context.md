@@ -72,7 +72,7 @@ flowchart LR
 
 ### 字段对应
 
-本节写协调者一侧的真实端口与本成员的对应。现在唯一定义了这类端口的是 Agent 契约：[request.ts](../../../agent/agent-contract/src/request.ts) 的 `ModelContextReader` 与 `RequestPreparation`。它们的行为见 Agent SPEC 的[请求、扩展和材料接缝](../../../agent/agent-contract/SPEC.md#请求扩展和材料接缝)、[请求准备与压缩](../../../agent/agent-contract/SPEC.md#请求准备与压缩)与[调模型之前的复核与最终请求](../../../agent/agent-contract/SPEC.md#调模型之前的复核与最终请求)。
+本节写协调者一侧的真实端口与本成员的对应。现在唯一定义了这类端口的是 Agent 契约：[request.ts](../../../agent/agent-contract/src/request.ts) 的 `ModelContextReader` 与 `RequestPreparation`。它们的行为见 Agent SPEC 的[请求、扩展和材料接缝](../../../agent/SPEC.md#请求准备与压缩)、[请求准备与压缩](../../../agent/SPEC.md#请求准备与压缩)与[调模型之前的复核与最终请求](../../../agent/SPEC.md#请求准备与压缩)。
 
 Agent 契约是本成员的消费者，本成员不依赖它。下表只说适配器要翻译哪些字段，不给本成员增加对 Agent 类型的依赖。表中「组一」至「组七」指 [RQ-02](../SPEC.md#rq-02-组装的前置输入) 的七组，依次是：调用身份与用途、历史与新输入、runtime context 读取结果、系统提示词、模型侧、工具侧、当前条件与本次经过。组一的字段进入 `AssemblyCall`；其余各组的字段由适配器实现的组读口给出，操作组按 [RQ-13](../SPEC.md#rq-13-七组的稳定读取) 读计数、读来源、再读计数，适配器不把七组作为一个值传入。
 
@@ -185,7 +185,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 
 ### 适配方案
 
-协调者一侧有两个端口要由 Context 一侧实现：可读上下文读取与请求准备。Agent 的 Cordis 服务定义把它们登记为服务键 `agentModelContext` 与 `agentRequests`，提供者归属写为「外域适配器：Context」，见 [Agent 的服务键与提供者](../../../agent/agent-cordis-contract/docs/cordis.md#服务键与提供者)。
+协调者一侧有两个端口要由 Context 一侧实现：可读上下文读取与请求准备。Agent 的 Cordis 服务定义把它们登记为服务键 `agentModelContext` 与 `agentRequests`，提供者归属写为「外域适配器：Context」，见 [Agent 的服务键与提供者](../../../agent/SPEC.md#宿主)。
 
 **在哪一侧实现。**适配器不在本成员里，也不在本组其他契约或机制成员里，因为它们都不导入协调者的契约（[组架构](../../docs/architecture.md#安装与源码依赖)）。它是 Context 组里的单独集成包 [agent-context](../../agent-context/README_ZH.md)，依赖下列入口：
 

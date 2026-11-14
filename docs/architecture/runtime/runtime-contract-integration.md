@@ -2,7 +2,7 @@
 
 本页是 #342 的装配候选，尚未技术接受或生产实现。领域和操作边界先由[对象模型](runtime-contract-model.md)及四成员 SPEC 与 public-api 确定。这里消费 [IC-1 至 IC-19](../cordis-integration-conventions.md)，选择服务定义、依赖、宿主与撤除协议，不把 Cordis 机制当作领域授权或持久提交。
 
-成员的精确接缝分别归 [Session](../../../packages/session/session-cordis-contract/docs/cordis.md)、[Agent](../../../packages/agent/agent-cordis-contract/docs/cordis.md)、[Model](../../../packages/model/model-cordis-contract/docs/cordis.md)、[Tool](../../../packages/tool/tool-cordis-contract/docs/cordis.md)。Tool 和 Model 的成员集成设计已接受，其中 Model 的 pi-ai 相关细化仍为候选。本页共同集成及 Session、Agent 成员设计保持原候选状态。生产服务图、事件矩阵及绑定读数从实际源码生成，不另立手写实现权威。
+成员的精确接缝分别归 [Session](../../../packages/session/session-cordis-contract/docs/cordis.md)、[Agent](../../../packages/agent/SPEC.md#宿主)、[Model](../../../packages/model/model-cordis-contract/docs/cordis.md)、[Tool](../../../packages/tool/tool-cordis-contract/docs/cordis.md)。Tool 和 Model 的成员集成设计已接受，其中 Model 的 pi-ai 相关细化仍为候选。本页共同集成及 Session、Agent 成员设计保持原候选状态。生产服务图、事件矩阵及绑定读数从实际源码生成，不另立手写实现权威。
 
 ## 根入口、定义与提供者
 
@@ -67,7 +67,7 @@ API 门面可以将 directory 暴露为只读查询面，但宿主注册必须�
 | 共同性质 | 共同触碰的权威对象与拥有者 | 必须的提供者条件 |
 | --- | --- | --- |
 | Session 唯一推进、cancel/reload/finish 竞争 | Session 的原工作条目范围、operation identity、当前治理 revision/advance | Session 参加者在同一 Storage transactionDomain 内保护原状态及提交尾部 |
-| Agent 会话输入与普通终结 | Session 已受理输入、Run/attempt/control，Agent 输入水位线、责任及 execution | 会话专用的 Journal 提供者以提交参加者身份，把会话输入受理与普通终结纳入同一提交边界；延迟唤醒不得造成遗漏。精确行为归 Agent SPEC 的[提交参加者协议](../../../packages/agent/agent-contract/SPEC.md#提交参加者协议)与[条件终结](../../../packages/agent/agent-contract/SPEC.md#条件终结) |
+| Agent 会话输入与普通终结 | Session 已受理输入、Run/attempt/control，Agent 输入水位线、责任及 execution | 会话专用的 Journal 提供者以提交参加者身份，把会话输入受理与普通终结纳入同一提交边界；延迟唤醒不得造成遗漏。精确行为归 Agent SPEC 的[提交参加者协议](../../../packages/agent/SPEC.md#提交认回与未知)与[条件终结](../../../packages/agent/SPEC.md#终结) |
 | Model/Tool 受理与当前工作资格 | 原 Session governance/consumer binding，生产者原 call/admission/capacity 或队列责任 | 固定 combinationVersion 同事务执行领域参加者；外域当前资格有实际受信参加者，不能先读后写冒称共同成立 |
 | 结果保管及生产确认 | Session 消费版本项、独立材料记录，Model custody 或 Tool delivery | 各域确认顺序及双路径证据，不要求跨域一个 SQL 事务；交接前始终有人保管，未知不解除 |
 | 撤权/取消与真实发起 | 当前权威许可、原工作资格、生产者 send/start 意图及实际效果启动边界 | 同一实际排序围栏封闭资格变化与 S；数据库事务不包含网络，部署必须提供可验证的排除/发起协议 |
@@ -75,7 +75,7 @@ API 门面可以将 directory 暴露为只读查询面，但宿主注册必须�
 
 前五行由具体 Storage、身份授权和执行提供者兑现，Cordis 仅决定能力对象装载、可见与撤除。这里没有扩大跨提供者私有事务读例外；参加者通过已登记协议和精确版本组合，不让 Agent 导入 Model/Tool 存储实现。迁往多进程时，同提交、启动排序、目录路由、时钟和结果流分别需要运输/一致性协议；Context、Fiber、闭包与本地锁不跨边界。
 
-Agent 独立装配只要求本域输入受理与终结的条件提交，不依赖 Session 完成回调。会话绑定则必须证明上述共同保证；服务键存在、同进程或同数据库均不单独构成证据。已成立的取消可先结束 Run，随后沿原控制收束 Agent，不能恢复旧资格或重新裁定 Run。精确协议归 Agent SPEC 的[提交参加者协议](../../../packages/agent/agent-contract/SPEC.md#提交参加者协议)与[条件终结](../../../packages/agent/agent-contract/SPEC.md#条件终结)；外部协调者一侧的前提见[消费与系统定位](../../../packages/agent/agent-contract/docs/context.md#外部协调者的前提)。
+Agent 独立装配只要求本域输入受理与终结的条件提交，不依赖 Session 完成回调。会话绑定则必须证明上述共同保证；服务键存在、同进程或同数据库均不单独构成证据。已成立的取消可先结束 Run，随后沿原控制收束 Agent，不能恢复旧资格或重新裁定 Run。精确协议归 Agent SPEC 的[提交参加者协议](../../../packages/agent/SPEC.md#提交认回与未知)与[条件终结](../../../packages/agent/SPEC.md#终结)；外部协调者一侧的前提见[消费与系统定位](../../../packages/agent/SPEC.md#领域边界)。
 
 ## 事件与作用域
 

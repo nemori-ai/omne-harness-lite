@@ -13,7 +13,7 @@
 | 前提 | 拥有者 | 在模型里 |
 | --- | --- | --- |
 | 同一 Session 至多一个未终结 Run | [session-contract SW-I05](../../../../../session/session-contract/SPEC.md#业务不变式索引) | `StartRun` 只在会话没有活跃 Run 时成立 |
-| 同一执行挂接同一时刻至多一个在途准备 | [agent-contract 请求接缝](../../../../../agent/agent-contract/SPEC.md#请求接缝的逐操作要素) | `Prepare` 只在本 Run 是会话的活跃 Run、且本 execution 没有在途准备时成立 |
+| 同一执行挂接同一时刻至多一个在途准备 | [agent-contract 请求接缝](../../../../../agent/SPEC.md#请求准备与压缩) | `Prepare` 只在本 Run 是会话的活跃 Run、且本 execution 没有在途准备时成立 |
 
 租户只作隔离，不作排他。模型对 Model 侧不设任何限制。Agent 的候选身份只取步号。消费位置取 execution 与步号，这一点来自 Agent 的消费位置命名。
 

@@ -7,7 +7,7 @@ The Context-side Agent adapter member, `service-provider` variant.
 
 ## Responsibility and status
 
-This member carries two rows of the application assembly page. The `agent-account-outlet` row provides `agentAccountOutlet`. The `agent-context` row provides `agentRequests` and `agentModelContext`. The service definitions belong to [agent-cordis-contract](../../agent/agent-cordis-contract/README.md). The Context-side ports belong to [request-context-contract](../request-context-contract/README.md). For the rows and their dependencies, see the [application assembly](../../../docs/architecture/runtime/application-assembly.md#插件树). For the adapter plan, see [the Context adapter plan](../request-context-contract/docs/context.md#适配方案).
+This member carries two rows of the application assembly page. The `agent-account-outlet` row provides `agentAccountOutlet`. The `agent-context` row provides `agentRequests` and `agentModelContext`. The service definitions belong to [agent-cordis-contract](../../agent/SPEC.md#宿主). The Context-side ports belong to [request-context-contract](../request-context-contract/README.md). For the rows and their dependencies, see the [application assembly](../../../docs/architecture/runtime/application-assembly.md#插件树). For the adapter plan, see [the Context adapter plan](../request-context-contract/docs/context.md#适配方案).
 
 Status: second step, in progress. The package is the adapter between Agent and Request Context and Runtime Context. It is the only member of the Context group that imports the Agent contract. It does not import session-adapters. The session-side parts arrive through the key `contextHolderSources` (K-RQ), and the reader eligibility arrives through `runtimeContextReaderEligibility` (K-RC).
 

@@ -56,7 +56,7 @@
 | 模型类绑定读者 | `bind`，随变化提醒子插件 | 读者结束。下一次绑定取完整快照 |
 | Session 参加者 | 向执行记录提供者的组合登记，形状待 P-1 | 执行记录提供者对未登记参加者的共同提交返回 `unsupported`，不保存任何一半 |
 | 执行句柄 | 随 AD-14 的 fiber | 句柄丢弃。AD-02 的事件订阅随它的 fiber 撤除：Agent 条目留在会话日志里，换代后由下一个发布事件从 `ExecutionRef.readThrough` 续读 |
-| Journal 服务提供 | 提供者子类随插件装载登记在本插件 fiber 上 | 静态注入 `agentJournal` 的 Agent 插件随依赖撤除而卸载（[Agent 的 Cordis 页](../../../agent/agent-cordis-contract/docs/cordis.md)）。已提交的 Agent 条目与 Session 事实保留在会话日志里 |
+| Journal 服务提供 | 提供者子类随插件装载登记在本插件 fiber 上 | 静态注入 `agentJournal` 的 Agent 插件随依赖撤除而卸载（[Agent 的 Cordis 页](../../../agent/SPEC.md#宿主)）。已提交的 Agent 条目与 Session 事实保留在会话日志里 |
 
 撤除不撤回已提交的会话事实，也不撤回已交给邻域的确认、释放或外部效果。
 

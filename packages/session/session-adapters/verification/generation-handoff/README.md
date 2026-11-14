@@ -9,8 +9,8 @@
 | 拥有者                                                                                    | 采用条款                                                                       |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | [session-adapters SPEC](../../SPEC.md#j06-会话路径的两个-agent-提供者)                    | J06 的 Ki/H 原身份、完整 request、origin、原主体与 outcome，固定后才返回       |
-| [Agent SPEC](../../../../agent/agent-contract/SPEC.md#消息准入)                           | prepare 的步骤 2、4、6，原结果先认回，异输入冲突，首次来源不被新主体或路由覆盖 |
-| [Agent 恢复切点](../../../../agent/agent-contract/SPEC.md#准入的恢复切点)                 | 准入已经固定后崩溃，沿原 Ki/H 查询，不重复准入                                 |
+| [Agent SPEC](../../../../agent/SPEC.md#消息准入)                           | prepare 的步骤 2、4、6，原结果先认回，异输入冲突，首次来源不被新主体或路由覆盖 |
+| [Agent 恢复切点](../../../../agent/SPEC.md#受理恢复与接管)                 | 准入已经固定后崩溃，沿原 Ki/H 查询，不重复准入                                 |
 | [Runtime Context SPEC](../../../../context/runtime-context-contract/SPEC.md#当前授权前提) | 捕获的 current 在失效后不能恢复，异步等待后须重核                              |
 | [session-storage-sql SPEC](../../../session-storage-sql/SPEC.md#执行索引)                 | `(tenant, execution)` 到 Session 的唯一映射，同名 execution 可分别属于不同租户 |
 

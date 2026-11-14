@@ -420,7 +420,7 @@ Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 wor
 
 工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口与领域操作归纯契约。框架定义从 agent-cordis-contract 的 `./cordis` 提供，定义包不依赖通用实现或具体提供者。agent-host-local 负责 Agent 实例宿主。
 
-详细成员关系见 [Agent 组](../packages/agent/README.md)。
+详细成员关系见 [Agent 组](../packages/agent/SPEC.md#领域边界)。
 
 ## Session 的安装边界
 

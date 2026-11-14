@@ -71,7 +71,7 @@ classDiagram
   AgentInstance ..> ToolInstance : observes through handle
 ```
 
-图中 Run 的消费位置只覆盖实际属于该 Run 的工作。独立消费者拥有自己的原位置，不放进某个碰巧活动的 Run。Agent 与 Model/Tool 之间只有使用关系，没有生命周期组成关系。Agent 条件性终结自身 execution；会话集成才负责 Run/execution 的共同终结，不能以观察者收到末事件代替治理提交。Agent 对外域仅持必要消费事实，分类与内部可见范围归[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#跨域概念与内部可见范围)。
+图中 Run 的消费位置只覆盖实际属于该 Run 的工作。独立消费者拥有自己的原位置，不放进某个碰巧活动的 Run。Agent 与 Model/Tool 之间只有使用关系，没有生命周期组成关系。Agent 条件性终结自身 execution；会话集成才负责 Run/execution 的共同终结，不能以观察者收到末事件代替治理提交。Agent 对外域仅持必要消费事实，分类与内部可见范围归[对象模型](../../../packages/agent/SPEC.md#领域边界)。
 
 ## 深 Module 与内部协作
 

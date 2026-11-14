@@ -7,7 +7,7 @@ Context 一侧的 Agent 适配集成成员，`service-provider` 变体。
 
 ## 职责与状态
 
-本成员承载应用装配页的两行：`agent-account-outlet` 行提供 `agentAccountOutlet`，`agent-context` 行提供 `agentRequests` 与 `agentModelContext`。服务定义归 [agent-cordis-contract](../../agent/agent-cordis-contract/README_ZH.md)，Context 一侧的端口归 [request-context-contract](../request-context-contract/README_ZH.md)。行与依赖见[应用装配](../../../docs/architecture/runtime/application-assembly.md#插件树)，适配方案见 [Context 的适配方案](../request-context-contract/docs/context.md#适配方案)。
+本成员承载应用装配页的两行：`agent-account-outlet` 行提供 `agentAccountOutlet`，`agent-context` 行提供 `agentRequests` 与 `agentModelContext`。服务定义归 [agent-cordis-contract](../../agent/SPEC.md#宿主)，Context 一侧的端口归 [request-context-contract](../request-context-contract/README_ZH.md)。行与依赖见[应用装配](../../../docs/architecture/runtime/application-assembly.md#插件树)，适配方案见 [Context 的适配方案](../request-context-contract/docs/context.md#适配方案)。
 
 状态：第二步，实现中。本包是 Agent 与 Request Context、Runtime Context 之间的适配器，是 Context 组里唯一导入 Agent 契约的成员。它不导入 session-adapters：会话侧部件经键 `contextHolderSources`（K-RQ）到达，读取资格经 `runtimeContextReaderEligibility`（K-RC）到达。
 

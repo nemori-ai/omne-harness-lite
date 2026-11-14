@@ -25,7 +25,7 @@ Agent runtime 可在一次工作完成后保持空闲和注册，后续执行复
 
 Session 拥有 Run 及 attempt，外部适配器保存 Run/execution 和 attempt/execution attachment/runtime 的关联。Agent 条件性结束本域执行。会话专用提供者把 Session 输入受理、当前输入/等待/控制核验及普通 Run 终结纳入同一提交边界；已受理而通知延迟的输入不能遗漏。事件流结束或 Agent 对象退出不代替 Run 终态。Run 已完成不强制注销空闲 Agent，也不自动取消独立 Model/Tool 工作。
 
-具体 OOP、接口及状态归 [Agent 对象模型](../../../packages/agent/agent-contract/docs/object-model.md)。独立调用者提供合格的本域持久和准入依赖，不虚构 Session/Run，也无需返回完成批准；系统路径仍兑现 Session 的唯一推进和终态规则。
+具体 OOP、接口及状态归 [Agent 对象模型](../../../packages/agent/SPEC.md#领域边界)。独立调用者提供合格的本域持久和准入依赖，不虚构 Session/Run，也无需返回完成批准；系统路径仍兑现 Session 的唯一推进和终态规则。
 
 ## 一轮推进
 
@@ -72,7 +72,7 @@ step 用于标识一次 Loop 推进单元，不能替代实际调用身份。同
 
 ### 完成条件与终态
 
-Agent 执行满足候选条件时，执行终态前扩展。会话路径将该候选关联到原 Run，终结协议由 Agent SPEC 的[条件终结](../../../packages/agent/agent-contract/SPEC.md#条件终结)与[提交参加者协议](../../../packages/agent/agent-contract/SPEC.md#提交参加者协议)细化。扩展可要求继续、等待或否决完成候选或失败候选。取消候选不经过这些扩展，由系统的受信只读核对决定 Agent 能否结束这次执行，规则见 Agent SPEC 的[取消判断与路线](../../../packages/agent/agent-contract/SPEC.md#取消判断与路线)。只有实际记录的终态才生效，随后执行终态后扩展。后置扩展不能撤销已成立的终态。
+Agent 执行满足候选条件时，执行终态前扩展。会话路径将该候选关联到原 Run，终结协议由 Agent SPEC 的[条件终结](../../../packages/agent/SPEC.md#终结)与[提交参加者协议](../../../packages/agent/SPEC.md#提交认回与未知)细化。扩展可要求继续、等待或否决完成候选或失败候选。取消候选不经过这些扩展，由系统的受信只读核对决定 Agent 能否结束这次执行，规则见 Agent SPEC 的[取消判断与路线](../../../packages/agent/SPEC.md#控制与取消)。只有实际记录的终态才生效，随后执行终态后扩展。后置扩展不能撤销已成立的终态。
 
 失败和取消也经过适用的终态路径，不能由普通消息冒充。终态后禁止发起新的工作，迟到结果与费用仍可记录。真实收场、逻辑终态、结果消费及资源清理分别判断。
 

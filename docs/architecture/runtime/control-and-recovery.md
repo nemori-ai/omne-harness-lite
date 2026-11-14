@@ -27,7 +27,7 @@ Session 不直接控制 Model 或 Tool 的调用。控制按下列方式到达�
 1. Session 经 Agent 的长期控制入口向原执行发出控制，受理不依赖活体挂接。Agent 按原控制范围处理关联调用。
 2. 原执行没有挂接时，控制仍先送达。后续收束由恢复协调接续原执行，必要时另取得接管资格；不为发出控制先取得挂接。
 
-Tool 启动围栏由 [Agent J03](../../../packages/agent/agent-contract/SPEC.md#tool-启动围栏) 保护。Agent 取得 Tool 排序域的失效证据后才写 `start-fence`。Session 提交本域撤销并读取原事实，不拥有 Tool 启动资格版本。哪些控制或挂接变化触发失效及特定失败的恢复仍属 Agent #502 未决项，不能从取消或换代推导围栏已生效。Session 不参加 Model 的受理点守卫；失效推进者发起的新模型调用由 Agent 的条件提交与动作发出围栏阻止。
+Tool 启动围栏由 [Agent J03](../../../packages/agent/SPEC.md#动作与工具) 保护。Agent 取得 Tool 排序域的失效证据后才写 `start-fence`。Session 提交本域撤销并读取原事实，不拥有 Tool 启动资格版本。哪些控制或挂接变化触发失效及特定失败的恢复仍属 Agent #502 未决项，不能从取消或换代推导围栏已生效。Session 不参加 Model 的受理点守卫；失效推进者发起的新模型调用由 Agent 的条件提交与动作发出围栏阻止。
 
 ```mermaid
 sequenceDiagram
@@ -110,7 +110,7 @@ sequenceDiagram
 
 ## 恢复的发现与收束
 
-Agent 提供原执行的对账与接续。发现哪些会话需要恢复、何时扫描、怎样退避，归外部协调者，见 Agent 契约的[外部协调者的前提](../../../packages/agent/agent-contract/docs/context.md#外部协调者的前提)。在会话路径上，这一责任归 Session。
+Agent 提供原执行的对账与接续。发现哪些会话需要恢复、何时扫描、怎样退避，归外部协调者，见 Agent 契约的[外部协调者的前提](../../../packages/agent/SPEC.md#领域边界)。在会话路径上，这一责任归 Session。
 
 ### 恢复扫描
 

@@ -181,7 +181,7 @@ writeFile(参数: {path, text}, 环境, 执行上下文):
 
 ## 多命令工具的单槽调用与出错时的 guide
 
-多命令工具对模型只有一条声明。下图画一次调用经过的各方，以及三条出路：执行、来源作答、参数错。规则归 [SPEC](../SPEC.md#多命令工具的单槽调用)，作答在 Agent 一侧的处置归 [Agent 契约](../../../agent/agent-contract/SPEC.md#整批判断屏障与动作准入)。
+多命令工具对模型只有一条声明。下图画一次调用经过的各方，以及三条出路：执行、来源作答、参数错。规则归 [SPEC](../SPEC.md#多命令工具的单槽调用)，作答在 Agent 一侧的处置归 [Agent 契约](../../../agent/SPEC.md#动作与工具)。
 
 ```mermaid
 sequenceDiagram
