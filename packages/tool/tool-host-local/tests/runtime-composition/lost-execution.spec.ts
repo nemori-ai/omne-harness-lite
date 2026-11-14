@@ -241,7 +241,7 @@ it('the managed resources of the lost execution are stopped by their identity an
   }
 })
 
-it('a resource ledger that cannot take the confirmed stop does not hold the record back', async () => {
+it('while the resource ledger cannot take the confirmed stop the execution is not recorded lost; once it takes it, the record follows', async () => {
   const author = held()
   const world = await fixture(author.author)
   let next: Executor | null = null
@@ -259,9 +259,16 @@ it('a resource ledger that cannot take the confirmed stop does not hold the reco
     })
     next = await takeover(world, { recoveryAccess: createRecoveryAccess() })
     const taken = next
-    await expectLost(world, reference, owner)
-    expect(writes.refused()).toBeGreaterThanOrEqual(1)
+    await expect.poll(() => writes.refused(), { timeout: 3_000 }).toBeGreaterThanOrEqual(2)
+    expect((await recovery(world, reference)).state).toMatchObject({
+      phase: 'running',
+      execution: { kind: 'live' },
+    })
+    expect(taken.received).toHaveLength(0)
     expect(await stops()).toEqual(['active'])
+    writes.restore()
+    await expectLost(world, reference, owner)
+    expect(await stops()).toEqual(['confirmed'])
     await expect.poll(() => taken.received.length, { timeout: 3_000 }).toBe(1)
   } finally {
     author.release()

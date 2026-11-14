@@ -68,13 +68,14 @@ export function createLostExecutions(
       const answer = await environment.recoverResources(scope, settings.recoveryAccess, owned)
       if (answer.kind !== 'recovered' || answer.stopped.length !== owned.length) return false
       const keys = new Set(owned.map(resource => resource.key))
-      await state
+      const written = await state
         .update(address, current =>
           current === null
             ? environmentFailure('original acquisition is missing')
             : succeed(confirmedStops(current, keys)),
         )
-        .catch(() => undefined)
+        .catch(() => null)
+      if (written === null || 'failure' in written) return false
     }
     return true
   }
