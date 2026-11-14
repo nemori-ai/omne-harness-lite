@@ -9,11 +9,23 @@ import { readJson, repositoryFile } from './repository-files.ts'
 import { waitGate } from './gate.ts'
 import { IntegrationError } from './parse.ts'
 
-const usage =
-  'Usage: gate-cli.ts wait --run <run id> --note <file> [--environments <name,...>] [--interval <seconds>] [--timeout <minutes>] [--config <file>]'
+const usage = [
+  'Usage: gate-cli.ts wait --run <run id> --note <file> [--environments <name,...>] [--interval <seconds>] [--timeout <minutes>] [--config <file>]',
+  'Waits for one workflow run. The repository comes from docs/engineering/github-delivery.json, or from --config.',
+  'Each round approves, with the note as the comment, every pending deployment whose environment is in --environments (default publish) and that the current account can approve.',
+  'Other approval environments must be named, for example --environments npm-release.',
+  'The note, without leading and trailing white space, must be 1 to 1024 bytes in UTF-8. A longer note exits 2 before any request.',
+  '--interval defaults to 10 seconds. --timeout defaults to 90 minutes.',
+  'Exit 0: the run concluded success. Exit 1: another conclusion. Exit 2: usage error, timeout, or a read or approval failure.',
+  'The command does not check that the admin authorized this approval. Run it only after that authorization.',
+].join('\n')
 
 function options(args: string[]): Map<string, string> {
   const [first, ...rest] = args
+  if (first === '--help') {
+    process.stdout.write(`${usage}\n`)
+    process.exit(0)
+  }
   if (first !== 'wait') throw new InputError(usage)
   return parseCliOptions(
     rest,
