@@ -84,6 +84,7 @@ type Placed = Readonly<{ instance: AgentInstanceId; runtime: AgentRuntime<unknow
 type Slot = Readonly<{ scope: DurableEvidence; definition: Adoption }>
 
 const LOGGER = 'session-adapters/agent-drive'
+const PUBLISHED = 'session-adapters/agent-published'
 
 const unavailable = (diagnostic: string): Drive<never> => fail({ kind: 'unavailable', diagnostic })
 
@@ -416,6 +417,7 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       if ('failure' in loaded) return this.agentFailure('inspect', loaded.failure)
       const authority = loaded.ok.executionAttachment
       const { kind } = loaded.ok.state
+      if (kind === 'ended') this.wake(input.tenant, input.session, execution.ok)
       if (authority === null || kind === 'ended' || kind === 'suspended')
         return succeed(statusOf(loaded.ok, null))
       // The judgment belongs to the host of the record. A host that cannot answer has none, which
@@ -434,6 +436,17 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
   readonly prewarm: AgentDrivePort['prewarm'] = async () => fail({ kind: 'unsupported' })
 
   // --- steps -----------------------------------------------------------------------------------
+
+  private wake(tenant: TenantId, session: SessionId, execution: AgentExecutionId): void {
+    const logger = this.scope.logger(LOGGER)
+    try {
+      this.scope.parallel(PUBLISHED, tenant, session, execution).catch((error: unknown) => {
+        logger.warn(`a listener of ${PUBLISHED} failed: ${String(error)}`)
+      })
+    } catch (error) {
+      logger.warn(`dispatching ${PUBLISHED} failed: ${String(error)}`)
+    }
+  }
 
   /**
    * Runs one operation. A closed plugin gives unavailable. A throw is reported as a defect and also

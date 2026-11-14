@@ -3986,12 +3986,9 @@ export function createJournal<P>(
           const request = view.requests.findLast(request => request.reference === item.reference)
           if (request === undefined)
             return answer(fail(invalid('checkpoint.voided', 'the voided request was not adopted')))
-          facts.push({
-            kind: 'intent.voided',
-            step: request.step,
-            attempt: request.attempt,
-            basis: copy(item.basis),
-          })
+          const { step, attempt } = request
+          const closed = { cause: item.cause, basis: copy(item.basis) }
+          facts.push({ kind: 'intent.voided', step, attempt, ...closed })
         }
         for (const body of input.events) {
           if (body.kind === 'input-taken')

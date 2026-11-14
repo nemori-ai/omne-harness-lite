@@ -423,6 +423,7 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
         }
       : {}),
   })
+  controls.tools.queries.contact.always(() => ({ ok: { kind: 'holding' } }))
   const outlet = createMemoryAgentAccountOutlet<Principal>()
   const admits: Outcome<Admission, unknown>[] = []
   const models: ModelRuntime<Principal> = {

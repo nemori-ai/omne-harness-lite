@@ -786,6 +786,12 @@ describe('the discriminants of the request chapter', () => {
     expectTypeOf<AgentCheckpoint['voided']>().toEqualTypeOf<readonly VoidedIntent[]>()
   })
 
+  it('a voided intent names the answer that closed it', () => {
+    expectTypeOf<VoidedIntent['cause']>().toEqualTypeOf<'not-accepted' | 'lost'>()
+    expectTypeOf<VoidedIntent>().toHaveProperty('cause')
+    expectTypeOf<{ cause?: undefined }>().not.toMatchTypeOf<Pick<VoidedIntent, 'cause'>>()
+  })
+
   it('a checkpoint may hold the retry state of the main model call of its step', () => {
     expectTypeOf<AgentCheckpoint['modelRetry']>().toEqualTypeOf<
       ModelRetryState | null | undefined

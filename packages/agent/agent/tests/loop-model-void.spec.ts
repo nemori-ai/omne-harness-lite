@@ -121,6 +121,13 @@ async function faulted(faults: Faults): Promise<{ assembly: LoopAssembly; observ
             return fail({ kind: 'unavailable', dependency: 'admission', diagnostic: 'offline' })
           return d.models.calls.inspect(input)
         },
+        async contact(input) {
+          const call = callOf(input.reference)
+          observed.inspects.push(call)
+          if (faults.inspect(call) === 'unavailable')
+            return fail({ kind: 'unavailable', dependency: 'admission', diagnostic: 'offline' })
+          return d.models.calls.contact(input)
+        },
       },
     },
   }))
@@ -161,7 +168,7 @@ describe('R2-D292: the Model admission window after a restart', () => {
     expect(observed.admits).toEqual([callOf(retried)])
     expect(observed.inspects[0]).toBe(callOf(original))
     expect(after.checkpoint.voided).toEqual([
-      expect.objectContaining({ step: STEP, reference: original }),
+      expect.objectContaining({ step: STEP, reference: original, cause: 'not-accepted' }),
     ])
     expect(
       after.effects.map(effect => effect.pending.kind === 'model' && effect.pending.reference),

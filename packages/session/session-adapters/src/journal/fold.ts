@@ -76,7 +76,7 @@ export type RequestView = Readonly<{
   schema: Adoption
   record: Ref
   coverage: DurableEvidence | null
-  voided: DurableEvidence | null
+  voided: Readonly<{ cause: 'not-accepted' | 'lost'; basis: DurableEvidence }> | null
   pub: number
 }>
 
@@ -615,7 +615,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
     case 'intent.voided': {
       draft.requests = draft.requests.map(item =>
         item.step === fact.step && item.attempt === fact.attempt
-          ? { ...item, voided: fact.basis }
+          ? { ...item, voided: { cause: fact.cause, basis: fact.basis } }
           : item,
       )
       draft.adopted = draft.requests.findLast(item => item.voided === null) ?? null

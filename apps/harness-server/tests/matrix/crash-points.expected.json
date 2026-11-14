@@ -85,11 +85,6 @@
       "cut": "storage~domains~tenant.sqlite:28",
       "result": "no-outcome",
       "detail": "the run started and the history was annotated, then nothing more: no assistant message, no terminal"
-    },
-    {
-      "cut": "storage~domains~tenant.sqlite:47",
-      "result": "no-outcome",
-      "detail": "the assistant message is in the log, but the run never got its terminal"
     }
   ]
 }

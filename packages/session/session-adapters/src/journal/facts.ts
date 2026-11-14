@@ -191,7 +191,13 @@ export type FactBody =
       record: Ref<JsonValue>
       coverage: DurableEvidence | null
     }>
-  | Readonly<{ kind: 'intent.voided'; step: StepId; attempt: Attempt; basis: DurableEvidence }>
+  | Readonly<{
+      kind: 'intent.voided'
+      step: StepId
+      attempt: Attempt
+      cause: 'not-accepted' | 'lost'
+      basis: DurableEvidence
+    }>
   | Readonly<{
       kind: 'call.intended'
       action: ActionId

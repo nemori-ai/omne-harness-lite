@@ -122,7 +122,7 @@ export function checkpointOf(
         step: request.step,
         action: intent.action,
         reference: request.reference,
-        basis: request.voided!,
+        ...request.voided!,
       }
     })
   const checkpoint: AgentCheckpoint = {

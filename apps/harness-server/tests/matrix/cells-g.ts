@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { gate } from '../support/matrix/provider-stub.ts'
+import { UNSCRIPTED_REPLY, gate } from '../support/matrix/provider-stub.ts'
 import type { ProtocolDriver } from '../support/matrix/protocol-driver.ts'
 import type { SessionLog } from '../support/matrix/session-log.ts'
 import {
@@ -8,6 +8,7 @@ import {
   idleHealth,
   bystander,
   bystanderUnchanged,
+  interruptedCallNotResent,
   sameHistory,
   shellCommand,
   signedIn,
@@ -106,6 +107,29 @@ export async function toolRunning(
   tools.check('input accepted', (await client.send(session, 'run the command')) === 'succeeded')
   tools.check('the command started before the stop', await waitFile(tools, counter, TURN_MS))
   return { client, session, counter, finished, marker, by }
+}
+
+export async function interruptedCommand(
+  tools: CellTools,
+  setup: ToolSetup,
+  what: string,
+): Promise<void> {
+  const log = await tools.waitLog(setup.session, what, settled, RECOVERY_MS)
+  tools.check(
+    'o3 the run went on after the interrupted call and completed',
+    log?.terminals[0] === 'completed',
+    JSON.stringify(log?.terminals),
+  )
+  tools.check(
+    'the tool call has one result, and it is not the output of the command',
+    log?.tools.length === 1 && log.tools[0]?.includes(setup.marker) === false,
+    String(log?.tools.length),
+  )
+  tools.check(
+    'o6 the command ran once',
+    lines(setup.counter) === 1 && lines(setup.finished) <= 1,
+    `${String(lines(setup.counter))}/${String(lines(setup.finished))}`,
+  )
 }
 
 export const gCells: readonly Cell[] = [
@@ -257,6 +281,7 @@ export const gCells: readonly Cell[] = [
       })
       await client.send(session, 'g1 timeout')
       await waitArrivals(tools, 1, 'model call in flight')
+      const before = tools.stub.arrivals().length
       const report = await tools.env.stop()
       tools.check(
         'the stop ends at the drain deadline',
@@ -271,51 +296,24 @@ export const gCells: readonly Cell[] = [
       await tools.env.start()
       const log = await tools.waitLog(session, 'run terminal after restart', settled, RECOVERY_MS)
       tools.check(
-        'o3 the run ends truthfully after the restart',
-        log !== null && settled(log),
-        JSON.stringify(log?.terminals),
+        'o3 the run ends truthfully after the restart: a new call completes it',
+        log?.terminals[0] === 'completed' && log.assistants.at(-1) === UNSCRIPTED_REPLY,
+        JSON.stringify([log?.terminals, log?.assistants]),
       )
-      tools.check(
-        'o6 the model call was not sent again',
-        tools.stub.arrivals().length === 1,
-        String(tools.stub.arrivals().length),
-      )
+      interruptedCallNotResent(tools, before)
     },
   },
   {
     id: 'G-2/t1',
     block: 'G',
     layer: 'protocol',
+    leavesNoUnits: true,
     run: async tools => {
       const setup = await toolRunning(tools, 4)
       const report = await tools.env.stop()
       tools.note(`ordered stop ${String(report.tookMs)} ms`)
-      await waitFile(tools, setup.finished, 15_000)
-      tools.note(
-        `the command finished while the server was down: ${String(existsSync(setup.finished))}`,
-      )
       await tools.env.start()
-      const log = await tools.waitLog(
-        setup.session,
-        'run terminal after restart',
-        settled,
-        RECOVERY_MS,
-      )
-      tools.check(
-        'the tool result is taken back',
-        log?.tools.some(text => text.includes(setup.marker)) === true,
-        String(log?.tools.length),
-      )
-      tools.check(
-        'o3 the run completed',
-        log?.terminals[0] === 'completed',
-        JSON.stringify(log?.terminals),
-      )
-      tools.check(
-        'o6 the command ran once',
-        lines(setup.counter) === 1 && lines(setup.finished) <= 1,
-        `${String(lines(setup.counter))}/${String(lines(setup.finished))}`,
-      )
+      await interruptedCommand(tools, setup, 'run terminal after restart')
       bystanderUnchanged(tools, setup.by)
     },
   },
@@ -323,36 +321,13 @@ export const gCells: readonly Cell[] = [
     id: 'G-2/t2',
     block: 'G',
     layer: 'protocol',
+    leavesNoUnits: true,
     run: async tools => {
       const setup = await toolRunning(tools, 15)
       const report = await tools.env.restart('stop')
       tools.note(`ordered stop ${String(report.tookMs)} ms`)
       tools.check('the command was still running at the restart', !existsSync(setup.finished))
-      tools.check(
-        'the command was not stopped: it finished',
-        await waitFile(tools, setup.finished, 30_000),
-      )
-      const log = await tools.waitLog(
-        setup.session,
-        'run terminal after restart',
-        settled,
-        RECOVERY_MS,
-      )
-      tools.check(
-        'the tool result is taken back',
-        log?.tools.some(text => text.includes(setup.marker)) === true,
-        String(log?.tools.length),
-      )
-      tools.check(
-        'o3 the run completed',
-        log?.terminals[0] === 'completed',
-        JSON.stringify(log?.terminals),
-      )
-      tools.check(
-        'o6 the command ran once',
-        lines(setup.counter) === 1 && lines(setup.finished) <= 1,
-        `${String(lines(setup.counter))}/${String(lines(setup.finished))}`,
-      )
+      await interruptedCommand(tools, setup, 'run terminal after restart')
       bystanderUnchanged(tools, setup.by)
     },
   },

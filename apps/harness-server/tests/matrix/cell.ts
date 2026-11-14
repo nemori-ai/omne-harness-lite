@@ -34,6 +34,7 @@ export type ProtocolCell = Readonly<{
   id: string
   block: Block
   layer: 'protocol'
+  leavesNoUnits?: true
   run(tools: CellTools): Promise<void>
 }>
 
@@ -153,6 +154,15 @@ export function eachInputTakenOnce(tools: CellTools, log: SessionLog | null): vo
   )
 }
 
+export function interruptedCallNotResent(tools: CellTools, before: number): void {
+  const later = tools.stub.arrivals().slice(before)
+  tools.check(
+    'o6 the interrupted call was not sent twice: one new call after the restart',
+    later.length === 1 && later[0]?.step === 'unscripted',
+    `${String(before)} before, [${later.map(arrival => arrival.step).join(',')}] after`,
+  )
+}
+
 export async function waitArrivals(
   tools: CellTools,
   count: number,
@@ -235,6 +245,12 @@ export async function runProtocolCell(
     notes.push(`dispose ${String(Date.now() - t2)} ms`)
     await stub.close()
   }
+  if (cell.leavesNoUnits === true)
+    checks.push({
+      name: 'no command unit is left when the cell ends',
+      ok: stoppedUnits.length === 0,
+      detail: stoppedUnits.join(','),
+    })
   return {
     id: cell.id,
     block: cell.block,
