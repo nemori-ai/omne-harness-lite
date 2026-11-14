@@ -62,6 +62,7 @@ const USAGE = [
   '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
   '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
   '  triage --run <运行目录>',
+  '      读那次运行的账本，把每处失败单独重跑 triage.repeats 次并归类，日志与报告在运行目录的 triage/ 下；只报告，不改那次运行的结论',
   '  coverage-parallel',
   '      打印覆盖率跨成员并行的并发度 <同时成员数>x<每成员工作进程数>，两数之积不超过本机的工作进程预算（scripts/metrics.sh 用）',
   '  check [--admission] [--keep-going] [--list] [--no-cache] [--resume-from <H1>] | check --preflight',
@@ -75,6 +76,13 @@ const USAGE = [
   '      --preflight 预检（根脚本 pnpm run preflight）：只跑准入里不依赖构建与全量测试的步骤，全部同时起、失败不终止其余，',
   '      最后一次列出全部发现与修法；开始时同样自检并自愈环境；不写准入日志与运行记录。不与别的 check 开关同给',
   ADMISSION_EVIDENCE_USAGE,
+  '根脚本：check:plan 是 plan；test:gate 是 step test；test:affected 是 run（带 --plan-only 时不占运行名额）；',
+  '  test:tier <fast|slow|all> 与 test 是 run --all --build；test:triage 是 triage；acceptance 是 run --all --script acceptance；',
+  '  check、admission、preflight 经 scripts/check.sh 进 check（admission 带 --admission，preflight 带 --preflight）',
+  '环境变量：OMNE_WORKER_BUDGET 钉死工作进程预算（正整数，超过核数按核数）；OMNE_TEST_MEMBER_CONCURRENCY 与 VITEST_MAX_WORKERS 临时盖过同时成员数与每成员工作进程数；',
+  '  OMNE_TEST_CACHE_HOME 结果缓存的根（缺省主检出 tmp/test-cache/）；OMNE_TEST_LEDGER_HOME 测试账本的根（缺省主检出 tmp/test-ledger/）；',
+  '  OMNE_ACCEPTANCE_LEDGER_HOME 验收账本的根（缺省主检出 tmp/acceptance-ledger/）；OMNE_SUBJECT_ROOT 被检查的检出（缺省本工具所在的检出）',
+  '退出码：run 与 step 全过为 0，有失败为 1；check 取第一个失败步骤的退出码；用法错误、算不出计划与接续前提不满足为 2。--help 打印本说明并退出 0',
 ].join('\n')
 
 const ROOT = resolve(
@@ -312,7 +320,8 @@ async function runTriage(argv: readonly string[]): Promise<number> {
 
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2)
-  if (command === 'baseline') process.exitCode = baseline(rest)
+  if (command === '--help') console.log(USAGE)
+  else if (command === 'baseline') process.exitCode = baseline(rest)
   else if (command === 'plan') process.exitCode = plan(rest)
   else if (command === 'step') process.exitCode = await step(rest)
   else if (command === 'run') process.exitCode = await run(parseRun(rest))
