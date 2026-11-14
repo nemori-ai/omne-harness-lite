@@ -70,7 +70,6 @@ async function qualifyTool<P>(
   return succeed(null)
 }
 
-/** Reads original Agent facts and trusted Tool description; it neither grants nor commits permission. */
 export function createAgentActionQualification<P>(
   sources: AgentActionQualificationSources<P>,
 ): AgentActionQualification<P> {

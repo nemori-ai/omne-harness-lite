@@ -1,12 +1,3 @@
-// The Model result receiver of the `agent-host` plugin on real Cordis 4.0.4 (SPEC "结果接收"; IC-13;
-// R2-D237): the plugin body registers it with the Model runtime under the Agent consumer owner, the
-// ordered stop and the fiber end remove the registration, and the host drives its maintenance.
-//
-// The Model is the scripted provider and pusher of `@omne-harness/model-contract/testing`, made to
-// resolve its receiver from the Model runtime's table as a Model runtime does (`pushTo: 'host'`), so
-// a push reaches only what the host registered. Journal, access check and outlet are the memory
-// doubles of `@omne-harness/agent/testing` and agent-contract. Nothing here proves the real Model
-// host, the session-log Journal or a process restart; `apps/harness-server` composes those.
 import { AGENT_CONSUMER_OWNER, agentEvaluator } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
@@ -69,7 +60,6 @@ const adoption = (name: string) => ({
 const EXECUTION: AgentExecutionId = ok(decodeAgentExecutionId('reception-execution'))
 const REPLY = 'the reply the receiver saved'
 const RETRY_MS = 1000
-/** How the Model records a supplier's HTTP 400 for the call: the input was rejected upstream. */
 const REJECTED_400 = {
   cause: 'input-rejected' as const,
   diagnostic: 'the supplier answered 400',
@@ -124,7 +114,6 @@ type HostOptions = Readonly<{
   reception?: Partial<typeof RECEPTION>
 }>
 
-/** A host whose pusher resolves from the Model runtime's table, with EXECUTION waiting at M1. */
 async function waitingAtM1(options: HostOptions | AgentAccountOutlet<Principal> = {}) {
   const given: HostOptions = 'deliver' in options ? { outlet: options } : options
   const host = await openWorld({
@@ -181,10 +170,8 @@ const RECEPTION = {
   retryMaxMs: 8 * RETRY_MS,
 }
 
-/** What the supplier of the scripted call answered: a reply, or an HTTP 400 that fails the call. */
 type Answer = 'reply' | 'rejected-400'
 
-/** Settles the open Model call with one text and an account; the pusher pushes it at once. */
 async function settleReply(host: World, snapshot: ExecutionSnapshot, answer: Answer = 'reply') {
   const pending = snapshot.checkpoint.calls.find(call => call.kind === 'model')
   if (pending?.kind !== 'model') throw new Error('no Model call is open')
@@ -264,8 +251,6 @@ const receivedResults = (entries: readonly AgentJournalEntry[]) =>
   entries.filter(entry => entry.kind === 'received' && entry.delivery.key.kind === 'result')
 
 describe('the Model result receiver of the host plugin', () => {
-  // Red when the plugin body stops registering the receiver: the push then finds none and the
-  // execution stays waiting at M1 on its Model call.
   it('registers under the Agent consumer owner, and a pushed reply takes the execution past M1', async () => {
     const { host, load } = await waitingAtM1()
     expect(host.receivers.resolve(AGENT_CONSUMER_OWNER)).not.toBeNull()
@@ -278,8 +263,6 @@ describe('the Model result receiver of the host plugin', () => {
     expect(ended.checkpoint.calls.filter(call => call.kind === 'model')).toEqual([])
   })
 
-  // Red when the receiver does not save a failed result: the Agent then never learns that the call
-  // failed and waits at M1 instead of ending with no reply (I3 to F1).
   it('a call the supplier rejected with 400 is saved, and the execution fails with no reply', async () => {
     const { host, load } = await waitingAtM1()
     const { record, call } = await settleReply(host, await load(), 'rejected-400')
@@ -291,8 +274,6 @@ describe('the Model result receiver of the host plugin', () => {
     expect(receivedResults(await entries(host))).toHaveLength(1)
   })
 
-  // Red when the ordered stop leaves the registration in place: a push during the shutdown would
-  // still reach a host that is stopping.
   it('the ordered stop removes the registration; a reply pushed afterwards finds no receiver', async () => {
     const { host, load } = await waitingAtM1()
     await host.plugin.quiesceAll({ signal: AbortSignal.timeout(2000) })
@@ -302,8 +283,6 @@ describe('the Model result receiver of the host plugin', () => {
     expect(receivedResults(await entries(host))).toEqual([])
   })
 
-  // Red when the receiver state or the registration does not come back with the plugin body, or
-  // when the saved delivery is committed a second time on the redelivery.
   it('a reply pushed while the host was down is saved once after the host comes back', async () => {
     const { host, load } = await waitingAtM1()
     await host.host.dispose()
@@ -322,9 +301,6 @@ describe('the Model result receiver of the host plugin', () => {
     expect(receivedResults(await entries(host))).toHaveLength(1)
   })
 
-  // Red when the host does not drive the maintenance: the account the outlet could not take stays
-  // pending. It also shows that the outlet's `unavailable` (the release outlet answers
-  // `scope-unresolved`) does not keep the receiver from answering `saved`.
   it('answers saved while the outlet is unavailable, and the driven retry delivers the account later', async () => {
     const answers: AgentAccountOutcome[] = [
       { kind: 'unavailable', diagnostic: 'scope-unresolved' },
@@ -341,7 +317,6 @@ describe('the Model result receiver of the host plugin', () => {
     const { record } = await settleReply(host, await load())
     expect(record.status).toBe('saved')
     await until(() => delivered.length === 1)
-    // Nothing happens before the clock reaches the first wait of the driver.
     host.advance(RETRY_MS - 1)
     await new Promise(resolve => setTimeout(resolve, 50))
     expect(delivered).toHaveLength(1)
@@ -355,7 +330,6 @@ describe('the Model result receiver of the host plugin', () => {
   })
 })
 
-/** An outlet that answers `unavailable` until `open()`, and counts every handoff it got. */
 function gatedOutlet() {
   let opened = false
   const delivered: unknown[] = []
@@ -380,12 +354,10 @@ const receiverOf = (host: World) =>
 
 const plus = (instant: string, ms: number) => new Date(Date.parse(instant) + ms).toISOString()
 
-/** Waits until the driver waits for `instant` on the manual clock. */
 const waitsFor = (host: World, instant: string) =>
   until(() => host.controls.clock.pending().includes(instant))
 
 describe('the maintenance driver of the host receiver', () => {
-  // N1. Red when a clock without a reading ends the driving: the entry then never waits again.
   it('goes on after agentClock gave no reading once', async () => {
     const gate = gatedOutlet()
     let failNext = false
@@ -405,19 +377,16 @@ describe('the maintenance driver of the host receiver', () => {
     await settleReply(host, await load())
     await until(async () => (await load()).state.kind === 'ended')
     await waitsFor(host, plus(start, 20))
-    // The run at +20 keeps the account pending; the next reading of the clock fails once.
     failNext = true
     ok(host.controls.clock.advanceTo(plus(start, 20)))
     await until(() => gate.delivered.length >= 2)
     await until(() => host.errors.some(text => text.includes('agentClock gave no reading')))
-    // The driver waits again after its backoff (40, then 80 after the failure) and delivers.
     await waitsFor(host, plus(start, 100))
     gate.open()
     ok(host.controls.clock.advanceTo(plus(start, 100)))
     await until(() => receiverOf(host).inspect().pending === 0)
   })
 
-  // N2. Red when a run does not double the wait, or does not stop at retryMaxMs.
   it('doubles the wait after each run with pending work, up to retryMaxMs', async () => {
     const gate = gatedOutlet()
     const { host, load } = await waitingAtM1({
@@ -436,7 +405,6 @@ describe('the maintenance driver of the host receiver', () => {
     expect(gate.delivered.length).toBeGreaterThanOrEqual(5)
   })
 
-  // N2. Red when the driver goes on after `denied`, or says nothing.
   it('stops driving an execution whose maintenance is denied, with a warning', async () => {
     const gate = gatedOutlet()
     const { host, load } = await waitingAtM1({ outlet: gate.outlet })
@@ -456,7 +424,6 @@ describe('the maintenance driver of the host receiver', () => {
     expect(receiverOf(host).inspect().pending).toBe(1)
   })
 
-  // N5. Red when a body that runs again does not take over the pending work of the state.
   it('a body that runs again drives the pending work it found in the state', async () => {
     const gate = gatedOutlet()
     const { host, load } = await waitingAtM1({ outlet: gate.outlet })
@@ -473,7 +440,6 @@ describe('the maintenance driver of the host receiver', () => {
     expect(gate.delivered.length).toBeGreaterThanOrEqual(2)
   })
 
-  // Item 5 of R2-D250. Red when a refused push replaces the access the driver keeps.
   it('keeps the access of the admitted push when a later push is refused', async () => {
     const gate = gatedOutlet()
     const { host, load } = await waitingAtM1({ outlet: gate.outlet })

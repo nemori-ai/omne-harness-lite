@@ -1,6 +1,3 @@
-// The port answers the coordinator treats as a dependency wait (Agent SPEC 依赖不可用时的等待):
-// only failures a port answered are noted. Production ports are frozen objects, so the noting
-// wrapper must work over them too.
 import { describe, expect, it } from 'vitest'
 import type { Failure } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -38,8 +35,6 @@ describe('notingPorts', () => {
   })
 
   it('reaches and notes a method under a callable namespace, as the stage port of the host gives it', async () => {
-    // The host hands the loop a port whose every member is a callable proxy: it reads its provider
-    // at each call and cannot tell a namespace from a method. `commands` is callable here too.
     const provider = {
       commands: {
         control: (reason: string) => Promise.resolve(fail({ ...down, diagnostic: reason })),

@@ -1,7 +1,3 @@
-// `createAgentHostLocalPlugin` on real Cordis 4.0.4 (Agent SPEC「测量事件」, agent-host-local SPEC
-// 「测量事件的插件入口」): the observer given to the plugin factory reaches `createAgentRuntime` of
-// every instance the host builds, so an invoke through the real host emits the Agent segments. The
-// services behind the host are the non-durable doubles of `@omne-harness/agent/testing`.
 import { agentEvaluator, type AgentMeasureEvent } from '@omne-harness/agent'
 import {
   decodeAgentExecutionId,
@@ -61,7 +57,6 @@ const conditions: RuntimeConditions = {
   bindings: [],
 }
 
-/** Loads the plugin, makes one instance for tenant a and invokes one execution on it. */
 async function invokeThrough(plugin: ReturnType<typeof createAgentHostLocalPlugin>) {
   const made = await openWorld({ plugin })
   opened.push(made)

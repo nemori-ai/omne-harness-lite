@@ -28,7 +28,6 @@ const evidence = (record: string): DurableEvidence => ({
   digest: 'd',
 })
 
-/** A start-fence entry of the suite. */
 export function sampleStartFence(name: string): StartFenceEntry {
   return {
     kind: 'start-fence',
@@ -60,7 +59,6 @@ function account(
   }
 }
 
-/** A received Model result of the suite, with its call reference minted for `tenant`. */
 export function sampleReceivedModelResult(
   tenant: TenantId,
   name: string,
@@ -117,7 +115,6 @@ const consumerOf = (name: string) => ({
   material: evidence(`material-${name}`),
 })
 
-/** A received Model account delivery of the suite, with its call reference minted for `tenant`. */
 export function sampleReceivedModelAccount(
   tenant: TenantId,
   name: string,
@@ -140,7 +137,6 @@ export function sampleReceivedModelAccount(
   }
 }
 
-/** A received Tool account delivery of the suite, with its call reference minted for `tenant`. */
 export function sampleReceivedToolAccount(
   tenant: TenantId,
   name: string,

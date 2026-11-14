@@ -1,8 +1,3 @@
-// The admission of #511 (#502 1.3): U0, Q1, Q2, Q4 and E0 as the node table states them. The same
-// operation again gets the original handle (C1), a lost receipt of `accept` is found again by the
-// same call (C2), a held slot answers busy, and an `open` whose outcome is unknown keeps the
-// reservation as an R0 item that a retry of the same operation queries. Each test name starts with
-// its row of the node acceptance table (agent-contract verification/node-acceptance.md).
 import { describe, expect, it } from 'vitest'
 import { createAgentRuntime, type AgentDependencies } from '@omne-harness/agent'
 import { testEvidence } from '@omne-harness/agent/testing'
@@ -42,7 +37,6 @@ import {
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 type PrepareInput = Parameters<MessageHandoff<Principal>['prepare']>[0]
 
-/** The port calls of one assembly in order, and what `prepare` was given and answered. */
 type Record = {
   log: string[]
   prepares: { input: PrepareInput; result: Outcome<HandoffOutcome, unknown> }[]
@@ -131,8 +125,6 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
     const { log, commits } = assembly.record
-    // The external input: prepare, then open; no P. The Model reply: the M3 producer commit, the
-    // P of Q1 (SPEC "消息准入": P fixes H before prepare), then prepare.
     expect(log.slice(0, 2)).toEqual(['prepare external-input', 'open'])
     const reply = log.indexOf('prepare model-reply')
     expect(
@@ -372,7 +364,6 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
       const wrapped = recording(record)(dependencies)
       return {
         ...wrapped,
-        // The owner of the admission recognizes the original request and answers its outcome again.
         handoff: {
           ...wrapped.handoff,
           prepare: input => (admitted ??= wrapped.handoff.prepare(input)),
@@ -418,7 +409,6 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     await eventually(async () => (await shown({ provider: restarted })).kind === 'idle')
     expect(assembly.record.commits).toHaveLength(commits)
     expect(await sequences(again)).toEqual(ENDED_EVENTS)
-    // The new runtime holds the original handle too: the same operation does not open again.
     ok(await invoke({ provider: restarted }))
     expect(opens(assembly.record)).toBe(2)
   })
@@ -900,7 +890,6 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
 })
 
 describe('NA-Q5-1: a rejected candidate is disposed at Q5 by its source', () => {
-  /** The real `prepare`, with the decision of the request that `rejects` selects turned down. */
   function rejecting(
     record: Record,
     rejects: (input: PrepareInput) => boolean,
@@ -971,7 +960,6 @@ describe('NA-Q5-1: a rejected candidate is disposed at Q5 by its source', () => 
     })
     const i3 = record.commits.filter(commit => commitNodeOf(commit.operation) === 'I3')
     expect(i3[0]?.checkpoint.position).toBe('I8')
-    // The rejected candidate never enters the history: only prepared replies publish a message.
     const messages = record.commits.flatMap(commit =>
       commit.events.filter(event => event.kind === 'message'),
     )
@@ -986,9 +974,6 @@ describe('NA-Q5-1: a rejected candidate is disposed at Q5 by its source', () => 
   })
 })
 
-// SPEC "查询的四种结论与持久拒绝": consumers branch on all four conclusions. `rejected` only comes
-// from recordControl, so for the operation of an invoke it is a violation of the Journal provider:
-// it is neither a free slot, nor busy, nor a settled admission.
 describe('the admission branches on a rejected query explicitly', () => {
   type Conclusion = Awaited<ReturnType<Dependencies['journal']['query']>>
   const rejected = (refused: ReturnType<typeof operation>): Conclusion => ({

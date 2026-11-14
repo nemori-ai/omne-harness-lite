@@ -1,8 +1,3 @@
-// The `agent-host` plugin on real Cordis 4.0.4 (docs/cordis.md "装载", "换代"): it loads with every
-// injected service present and provides its five faces on one fiber; it stays PENDING, provides
-// nothing and builds nothing while any one is absent; a wrong configuration fails the fiber before
-// the body runs; a new provider of an injected service runs the body again, so the old faces and
-// the registrations of the old instances end and a later acquire builds a new instance.
 import { afterEach, describe, expect, it } from 'vitest'
 import { createAgentRuntime } from '@omne-harness/agent'
 import { agentHostConfig } from '../src/host-config.ts'
@@ -20,8 +15,6 @@ import {
   type World,
 } from './host-support.ts'
 
-// `FiberState` is a const enum of Cordis, so its members are not values to import: 0 is PENDING,
-// 2 is ACTIVE and 3 is FAILED in Cordis 4.0.4.
 const PENDING = 0
 const ACTIVE = 2
 const FAILED = 3
@@ -90,8 +83,6 @@ describe('loading', () => {
   })
 })
 
-// R2-D221: the step limit is an optional factory item. The host hands it to the factory as given;
-// absent, the factory's own default applies, so the host adds no value of its own.
 describe('the step limit of an execution', () => {
   async function limitSeen(config: unknown): Promise<unknown> {
     const seen: unknown[] = []

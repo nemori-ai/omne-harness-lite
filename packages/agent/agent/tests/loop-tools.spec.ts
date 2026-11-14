@@ -52,12 +52,9 @@ function accepted(name: string): ToolInvokeOutcome {
       admission: ok(decodeToolOperationId(`top_${name}`)),
     }),
   )
-  // Agent keeps the receipt as an original fact and never reads it as the current state, so the
-  // test does not build a full ToolState.
   return { kind: 'accepted', reference, state: {} as ToolState, recovered: false }
 }
 
-/** Accepts each invoke with a new Tool call, in the order the Tool runtime received them. */
 function acceptEach(assembly: Assembly) {
   let count = 0
   assembly.controls.tools.invoke.always(async () => {
@@ -90,10 +87,6 @@ function toolMessages(bodies: readonly AgentEventBody[]) {
   )
 }
 
-/**
- * True once the action is denied. The denied slot is in the batch only until the round goes on to
- * the next Model call; after that the denial is the tool message in the history.
- */
 async function denied(assembly: Assembly): Promise<boolean> {
   const slots = (await snapshot(assembly)).checkpoint.batch?.slots ?? []
   return (
@@ -169,7 +162,6 @@ describe('tool result round', () => {
     await secondModelCall(assembly)
 
     const read = await snapshot(assembly)
-    // The tool call left the open calls; its received entry still holds content and account.
     expect(read.checkpoint.calls.some(call => call.kind === 'tool')).toBe(false)
     expect(read.checkpoint.batch).toBeNull()
     const received = read.entries?.find(
@@ -194,7 +186,6 @@ describe('tool result round', () => {
     )
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
 
-    // The next step ends the execution through the one terminal commit.
     await deliverModelReply(assembly, [textBlock('done', 'blk_done')], 'final')
     await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
     expect((await snapshot(assembly)).state).toMatchObject({
@@ -210,10 +201,8 @@ describe('tool result round', () => {
     await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
     const [first, second] = await associatedTools(assembly, 2)
     if (first === undefined || second === undefined) throw new Error('calls not associated')
-    // Both are in flight before either result arrives.
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
     const receiver = toolReceiver(assembly)
-    // The second action's result arrives first; it is kept in its own slot at once.
     expect(
       await pushToolResult(
         receiver,
@@ -252,11 +241,9 @@ describe('tool result round', () => {
       toolCall('call-b'),
       toolCall('call-c'),
     ])
-    // 还没有结果，三个动作都已发起：Agent 不计数在途调用。
     const sent = await associatedTools(assembly, 3)
     const requests = assembly.controls.tools.invoke.calls.map(call => call.request)
     expect(requests.map(request => request.consumer)).toEqual(sent.map(call => call.position))
-    // 预算由 Tool 在受信请求来源给出的范围内执行。
     for (const request of requests) {
       expect(request.limits.scopeBudget).toBe(1)
       expect(request.scope).toEqual({
@@ -277,7 +264,6 @@ describe('tool result round', () => {
   })
 
   it('commits nothing when a wake finds the Tool calls still open (D-104)', async () => {
-    // 复查间隔为 0，与发行树相同：每次等待立刻唤醒。
     const assembly = await toolAssembly({ toolConcurrency: 1, reconciliationDelaysMs: [0] })
     let attempts = 0
     assembly.controls.tools.invoke.always(async () => {
@@ -286,12 +272,10 @@ describe('tool result round', () => {
     })
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
-    // 每次唤醒都回到 A2，A2 以保存的原请求重发 call-b。
     await eventually(async () => assembly.controls.tools.invoke.calls.length >= 3)
     const before = await snapshot(assembly)
     expect(before.state.kind).toBe('waiting')
     const seen = assembly.controls.tools.invoke.calls.length
-    // 再唤醒两次：第二次重发之前，第一次唤醒的推进已经结束。
     await eventually(async () => assembly.controls.tools.invoke.calls.length >= seen + 2)
     const after = await snapshot(assembly)
     expect(after.revision).toBe(before.revision)
@@ -315,12 +299,10 @@ describe('tool result round', () => {
       return read.state.kind === 'waiting' && read.checkpoint.position === 'A2'
     })
     const unknown = await snapshot(assembly)
-    // No slot and no denial: the action stays unresolved with its intent and request.
     expect(unknown.checkpoint.batch?.slots).toEqual([])
     expect(unknown.checkpoint.calls).toEqual([
       expect.objectContaining({ kind: 'tool', association: 'intent' }),
     ])
-    // The wait wakes at its check time and A2 repeats the complete original invoke.
     const now = ok(await assembly.dependencies.clock.now())
     ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
     const [pending] = await associatedTools(assembly, 1)
@@ -332,9 +314,6 @@ describe('tool result round', () => {
     await secondModelCall(assembly)
   })
 
-  // Agent SPEC "依赖不可用时的等待": a rejected invoke whose failure is unavailable did not admit
-  // the call and does not refuse the action. A2 waits on the Tool runtime and sends the same
-  // request again at the check time; no denied slot is made.
   it('waits on a rejected invoke whose failure is unavailable and sends the same request again', async () => {
     const assembly = await toolAssembly()
     let attempts = 0
@@ -414,9 +393,6 @@ describe('tool result round', () => {
     ])
   })
 
-  // An unavailable answer admitted nothing, so the action still has no accepted or unknown attempt:
-  // a definite rejection after the wait denies it like a first one (Agent SPEC "依赖不可用时的
-  // 等待", Tool 受理), and the run does not wait on a producer that never comes.
   it('denies an action rejected for good after a wait on an unavailable invoke', async () => {
     const assembly = await toolAssembly()
     let attempts = 0
@@ -444,8 +420,6 @@ describe('tool result round', () => {
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
   })
 
-  // The same holds when the attempt is not made at all: after the intent is saved, a dependency
-  // that A2 reads before invoke answers unavailable once (#1174 review round 2).
   for (const port of ['materials', 'journal'] as const)
     it(`denies an action rejected for good after ${port} was unavailable before its first invoke`, async () => {
       let intentSaved = false
@@ -503,9 +477,6 @@ describe('tool result round', () => {
       expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
     })
 
-  // A rejection is no evidence of acceptance: when the commit of the denied slot is unavailable,
-  // the wait comes back to the same denial, not to resuming a call that never existed (#1174
-  // review round 3).
   it('denies an action whose denied slot could not be saved at first', async () => {
     let refused = 0
     const assembly = await controlAssembly({}, d => ({
@@ -549,8 +520,6 @@ describe('tool result round', () => {
     expect(assembly.controls.tools.invoke.calls).toHaveLength(2)
   })
 
-  // An intent commit whose outcome is unknown, found landed, is still an intent Tool never saw:
-  // its rejection is denied like a first one (#1174 review round 3, out of scope 1).
   it('denies an action whose intent commit had an unknown outcome', async () => {
     let unknown = 0
     const assembly = await controlAssembly({}, d => ({
@@ -615,7 +584,6 @@ describe('tool result round', () => {
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
     await secondModelCall(assembly)
-    // No later chain calls admit after the unavailable answer, and nothing reaches Tool.
     expect(assembly.controls.admission.admit.calls).toHaveLength(1)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
     const messages = toolMessages(await events(assembly))
@@ -623,8 +591,6 @@ describe('tool result round', () => {
       expect.objectContaining({ callId: 'call-a' }),
       expect.objectContaining({ callId: 'call-b' }),
     ])
-    // The message says what happened: nothing refused the call, its permission could not be
-    // checked. A model that reads "denied" tells the person to go and change a permission.
     const unchecked =
       'The tool call did not run: its permission could not be checked, because the permission basis was unavailable at that moment. No rule and no person refused it. The same call may run when it is made again.'
     expect(
@@ -721,7 +687,6 @@ describe('tool result round', () => {
     await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
     const [called] = await associatedTools(assembly, 1)
     if (called === undefined) throw new Error('call-b not associated')
-    // The answered action is not admitted or sent; the other action of the batch runs.
     expect(assembly.controls.admission.admit.calls).toHaveLength(1)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
     const [denied] = (await snapshot(assembly)).checkpoint.batch?.actions ?? []
@@ -730,7 +695,6 @@ describe('tool result round', () => {
       evidence: { record: expect.stringMatching(/\/answered$/) },
       answer: expect.anything(),
     })
-    // The answer is preserved under an identity that names its text, so another text is another material.
     const digest = createHash('sha256').update(answer).digest('hex')
     expect(
       assembly.controls.materials.preserve.calls
@@ -854,7 +818,6 @@ describe('tool result round', () => {
   })
 })
 
-/** One tool round, up to the second Model call, on an assembly with the given joint commits. */
 async function toolRound(
   jointCommits: readonly ('message' | 'context-transition')[],
   participants: readonly ('message' | 'context-transition')[],
@@ -870,8 +833,6 @@ async function toolRound(
   return assembly
 }
 
-/** The handoff records of one source kind, each with the Ja that published its history. */
-/** The committed H of `source`, closed ones included: the snapshot lists the open records only. */
 function published(assembly: Assembly, source: 'tool-result' | 'model-reply') {
   const records = assembly.controls.journal.handoffRecords({
     tenant: alice.tenant,
@@ -887,8 +848,6 @@ function published(assembly: Assembly, source: 'tool-result' | 'model-reply') {
   )
 }
 
-// SPEC "真实历史的提交点": with the kind declared, T5 hands its message to the participant; without
-// it, the caller is none. The main reply is never a CallerCommit.
 describe('the caller commit of a source Ja', () => {
   it('hands the tool message to the declared message participant in the same commit', async () => {
     const assembly = await toolRound(['message'], ['message'])
@@ -911,7 +870,6 @@ describe('the caller commit of a source Ja', () => {
   })
 
   it('commits the tool message with caller none when the assembly did not declare message', async () => {
-    // The Journal binding offers the participant, but the factory configuration does not use it.
     const assembly = await toolRound([], ['message'])
     expect(published(assembly, 'tool-result')).toHaveLength(1)
     expect(assembly.controls.journal.joint()).toEqual([])

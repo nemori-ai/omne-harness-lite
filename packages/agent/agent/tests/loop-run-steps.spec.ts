@@ -1,7 +1,3 @@
-// The step limit of one execution (R2-D221, the M2 fallback for the loop judgment of wave 3): a
-// scripted Model calls the same tool at every step. Within the limit the execution ends as the
-// Model decides; after the last allowed step the next step is not opened and the execution fails
-// with a `guard` candidate. A configuration without `maxRunSteps` gets DEFAULT_MAX_RUN_STEPS.
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_MAX_RUN_STEPS } from '@omne-harness/agent'
 import type { AgentEventBody, EventPage, ExecutionSnapshot } from '@omne-harness/agent-contract'
@@ -46,12 +42,10 @@ async function events(assembly: Assembly): Promise<readonly AgentEventBody[]> {
   }
 }
 
-/** The steps the execution opened: one input-taken event each (node table I0). */
 async function steps(assembly: Assembly): Promise<number> {
   return (await events(assembly)).filter(body => body.kind === 'input-taken').length
 }
 
-/** An assembly whose Tool runtime accepts every invoke as a new call. */
 async function looping(configuration: { maxRunSteps?: number } = {}) {
   const assembly = await toolAssembly(configuration)
   let count = 0
@@ -70,7 +64,6 @@ async function looping(configuration: { maxRunSteps?: number } = {}) {
   return assembly
 }
 
-/** Step `k`: the Model calls the same tool once more, and the tool result comes back. */
 async function toolStep(assembly: Assembly, k: number) {
   await deliverModelReply(assembly, [toolCall(`tool-call-${k}`, 'read_file')], `tools-${k}`)
   const [pending] = await associatedTools(assembly, 1)
@@ -78,7 +71,6 @@ async function toolStep(assembly: Assembly, k: number) {
   ok(await pushToolResult(toolReceiver(assembly), toolDelivery(pending, { name: `r${k}` })))
 }
 
-/** Drives `count` tool steps, then waits for the execution to end or for the next Model call. */
 async function toolSteps(assembly: Assembly, count: number) {
   for (let k = 1; k <= count; k += 1) await toolStep(assembly, k)
   await eventually(async () => {
@@ -92,13 +84,11 @@ async function ended(assembly: Assembly): Promise<ExecutionSnapshot> {
   return snapshot(assembly)
 }
 
-/** A Model call is open: the execution went on to another step. */
 async function openModelCall(assembly: Assembly): Promise<boolean> {
   const read = await snapshot(assembly)
   return read.state.kind !== 'ended' && read.checkpoint.calls.some(call => call.kind === 'model')
 }
 
-/** The Model gives a final reply without tool calls at step `k`. */
 async function finalReply(assembly: Assembly, k: number) {
   await deliverModelReply(assembly, [textBlock('done', `blk_done_${k}`)], `final-${k}`)
 }
@@ -137,7 +127,6 @@ describe('the step limit of one execution (R2-D221)', () => {
     await toolSteps(assembly, 2)
     const read = await ended(assembly)
     expectStepLimitFailure(read, 2)
-    // The step after the last allowed one is never opened: no third Model request.
     expect(await steps(assembly)).toBe(2)
     expect(read.checkpoint.calls.some(call => call.kind === 'model')).toBe(false)
   })

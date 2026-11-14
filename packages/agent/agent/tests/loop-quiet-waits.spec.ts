@@ -1,7 +1,3 @@
-// The check delays of the public driver (package SPEC "等着的时候"): a run parked on an unavailable
-// I1 dependency checks at the delays of `reconciliationDelaysMs` in order and then at the last one;
-// once the execution moves, the next check is the first delay again, and an event still wakes the
-// run before any check time.
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator, type AgentMeasureEvent } from '@omne-harness/agent'
 import { fail } from '@omne-harness/operation-result'
@@ -66,7 +62,6 @@ describe('a waiting run whose execution does not change', () => {
     )
     expect(quiet.revision).toBe(parked.revision)
 
-    // The dependency answers: the run moves on to the Model call, whose reply is held, and waits.
     dependency.available = true
     ok(clock.advanceTo(at(13_000)))
     await eventually(async () => clock.pending().length === 1 && clock.pending()[0] !== at(13_000))
@@ -76,7 +71,6 @@ describe('a waiting run whose execution does not change', () => {
     expect(moved.revision).not.toBe(parked.revision)
     expect(clock.pending()).toEqual([at(14_000)])
 
-    // The reply is an event: it wakes the run before the check time, so the clock stays put.
     assembly.release.open()
     const ended = await eventsOf(handle)
     expect(ended.at(-1)?.body.kind).toBe('ended')
@@ -86,8 +80,6 @@ describe('a waiting run whose execution does not change', () => {
 
 describe('a waiting run woken by an event', () => {
   it('checks again after the first delay when the woken pass does not finish', async () => {
-    // While `busy`, the Journal answers unavailable to the reads of reply admissions and to
-    // commits: a woken pass can neither go on nor save its wait.
     const journal = { busy: false }
     const unavailable = () =>
       Promise.resolve(
@@ -131,7 +123,6 @@ describe('a waiting run woken by an event', () => {
       return clock.pending()[0]
     }
 
-    // The run waits for the Model, which holds the call: each check time asks it and waits on.
     const parked = wait()
     for (const due of [1000, 3000, 8000]) {
       expect(await checkTime()).toBe(at(due))
@@ -140,7 +131,6 @@ describe('a waiting run woken by an event', () => {
     }
     expect(await checkTime()).toBe(at(13_000))
 
-    // The reply is an event: it wakes the run before the check time. That pass does not finish.
     journal.busy = true
     assembly.release.open()
     expect(ok(await parked)).toBe('ready')

@@ -1,12 +1,3 @@
-// The `./testing` entry: the conformance suites of the receiving ports that outside providers
-// implement (SPEC "生产者接收面"), and a non-durable double for each port that passes its suite. A
-// suite returns a list of cases and does not depend on a test framework. A case fails with a
-// `node:assert` AssertionError. A case that needs an optional fixture control the fixture lacks
-// carries `uncovered` and rejects; it is reported, never passed. Each double declares
-// `durability: 'none'` and must not be
-// assembled into production. The doubles do not prove durability, cross-process behavior or the
-// real Agent runtime. The entry also carries the trace replay of the finishing model
-// (verification/formal-mapping.md): the TLC traces replayed onto a Journal core fixture.
 export type { ConformanceCase } from './testing-case.ts'
 export {
   agentJournalEntriesConformance,

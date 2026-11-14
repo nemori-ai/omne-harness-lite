@@ -31,7 +31,6 @@ export type Outbound<P> = {
 } & ({ kind: 'pending' } | { kind: 'received' } | { kind: 'blocked'; reason: AgentAccountOutcome })
 export type ModelReceptionDiagnostic = Readonly<{ operation: string; reason: string }>
 type ScopedDiagnostic = { binding: string | null; value: ModelReceptionDiagnostic }
-/** The host retains facts and actual tasks across receiver reassembly. Tasks are not durable. */
 export class ModelReceiverState<P> {
   readonly receptions = new Map<string, Reception<P>>()
   readonly outbound = new Map<string, Outbound<P>>()
@@ -89,7 +88,6 @@ export function receptionReport<P>(
     ),
   }
 }
-/** The supplied task already maps rejection to a protocol result or a retained diagnostic. */
 export function retainTask<P, T>(state: ModelReceiverState<P>, task: Promise<T>): Promise<T> {
   state.tasks.add(task)
   void task.then(

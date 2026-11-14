@@ -1,12 +1,8 @@
 import type { Failure } from '@omne-harness/agent-contract'
 
-// The failures that a port answered (Agent SPEC "依赖不可用时的等待"): a port's `unavailable` is a
-// dependency that is not available now, and the run waits on it. A failure that the coordinator or
-// the evaluator made is not a port's answer, so it keeps its own meaning (for example a stop).
 const answered = new WeakSet<object>()
 const wrapped = new WeakMap<object, object>()
 
-/** Whether `failure` is the answer of a port, not one made inside the coordinator or evaluator. */
 export const answeredByPort = (failure: Failure): boolean => answered.has(failure)
 
 function note(value: unknown): unknown {
@@ -17,29 +13,19 @@ function note(value: unknown): unknown {
   return value
 }
 
-/**
- * The same ports, with every failure that a method answers (directly or through its promise)
- * noted as a port's answer. Methods run on the original objects; nested port objects are wrapped
- * the same way, once each, and so are the members under a callable member. The proxy stands over an empty target, because production ports are
- * frozen and a proxy may not answer another value for a frozen property of its target; keys and
- * descriptors are read from the original, so spreading a wrapped port keeps its members.
- */
+// The proxy stands over an empty target: production ports are frozen, and a proxy may not answer
+// another value for a frozen property of its target. Keys and descriptors come from the original.
 export function notingPorts<T extends object>(ports: T): T {
   const known = wrapped.get(ports)
   if (known !== undefined) return known as T
   const wrap = (value: unknown): unknown => {
     if (typeof value === 'function') {
       const member = value
-      // A callable member can be a namespace too: the stage port of the host answers a callable
-      // proxy for every member, because it reads its provider at each call and cannot tell a
-      // namespace from a method. So the members under a callable stay reachable, wrapped alike.
       return new Proxy(() => undefined, {
         apply: (_target, _receiver, args: unknown[]) => {
           const result: unknown = Reflect.apply(member, ports, args)
           return result instanceof Promise ? result.then(note) : note(result)
         },
-        // What every function has (`bind`, `call`, `apply`) works on the wrapper itself, so a
-        // bound or applied method is still noted.
         get: (target, key, receiver) =>
           key in Function.prototype
             ? Reflect.get(target, key, receiver)

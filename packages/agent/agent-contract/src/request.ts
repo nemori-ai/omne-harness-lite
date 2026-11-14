@@ -1,5 +1,3 @@
-// Request preparation, model selection and compaction types of the Agent contract (README,
-// "请求准备、模型选择与压缩"): Agent's own port shapes toward Model and Context.
 import type { JsonValue } from '@omne-harness/json-text'
 import type * as M from '@omne-harness/model-contract'
 import type {
@@ -28,7 +26,6 @@ export type SelectedModel = Readonly<{
   tools: DurableEvidence
   evidence: DurableEvidence
 }>
-/** The port that selects the model of one request; see SPEC "模型选择". */
 export interface ModelSelection<P> {
   select(
     input: Access<P> &
@@ -50,7 +47,6 @@ export type ModelContextRead = Readonly<{
   source: DurableEvidence
   coverage: DurableEvidence
 }>
-/** The port that reads the runtime context for the model as the one consumer; see SPEC "Runtime Context 的消费". */
 export interface ModelContextReader<P> {
   read(
     input: Access<P> &
@@ -103,12 +99,6 @@ export type Preparation = Readonly<{
       }>
     | Readonly<{ kind: 'cannot-fit'; reason: 'fixed' | 'after-compaction'; diagnostic: string }>
   )
-/**
- * The preparations a checkpoint keeps (SPEC "请求准备与压缩", R2-D292): `needs-compaction` and
- * `cannot-fit` change what the Loop does next and cannot be computed again for free. `assembled`
- * and `ready` live only in the memory of the coordinator; after a restart the request is prepared
- * again from the input batch, so the checkpoint holds no request content.
- */
 export type SavedPreparation = Extract<Preparation, { kind: 'needs-compaction' | 'cannot-fit' }>
 export type CompactionAdvance =
   | Readonly<{
@@ -123,10 +113,6 @@ export type CompactionAdvance =
       reason: 'after-compaction'
       diagnostic: string
     }>
-/**
- * The compaction plan of the current step. It keeps no step request: the request of the current
- * step is derived again with the same action and progress and a null result (R2-D292).
- */
 export type CompactionState = Readonly<{
   action: ActionId
   progress: CompactionProgress
@@ -140,7 +126,6 @@ export type FinalRequest = Readonly<{
   coverage: DurableEvidence
   alterations: readonly DurableEvidence[]
 }>
-/** The port that prepares, derives and resumes a model request; see SPEC "请求准备与压缩". */
 export interface RequestPreparation<P> {
   prepare(
     input: Access<P> &
@@ -157,12 +142,6 @@ export interface RequestPreparation<P> {
         previous: Preparation | null
         alterations: readonly DurableEvidence[]
         beforeModelCall: readonly PassageId[] | null
-        /**
-         * The exact adoption of the definition that the execution runs under (the `definition` of
-         * the instance binding). The preparation reads the `instructions` of that definition as the
-         * first sections of the system prompt; see SPEC "请求准备" of agent-context. Absent: the
-         * caller carries no definition and no definition sections are read.
-         */
         definition?: Adoption
       }>,
   ): Reply<Preparation>
@@ -188,7 +167,6 @@ export interface RequestPreparation<P> {
       }>,
   ): Reply<Preparation>
 }
-/** The port that reads the current runtime conditions through a trusted adapter; see SPEC "身份、原位置与纯求值". */
 export interface CurrentConditions<P> {
   read(
     input: Access<P> & Readonly<{ advance: Authority; previous: DurableEvidence | null }>,

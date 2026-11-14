@@ -1,7 +1,3 @@
-// The shape of what `judgeAgentDefinition` and `judgeLoopExtensions` return and the corners of the
-// text rules that they apply. The accepted value is plain data, so these tests compare it with
-// `toStrictEqual`: a member that holds `undefined`, or a member that is missing, is a defect, and
-// `toEqual` would not see it.
 import { describe, expect, it } from 'vitest'
 import { judgeAgentDefinition, judgeLoopExtensions } from '@omne-harness/agent-contract'
 

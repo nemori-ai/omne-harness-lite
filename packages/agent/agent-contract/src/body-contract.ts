@@ -29,7 +29,6 @@ const schemaRead = readBodyText(
 if (schemaRead.kind !== 'ok') throw new TypeError('agent definition schema text is not a document')
 const schema: JsonValue = schemaRead.value
 
-/** Refusal words of the body judgment. They belong to this category provider, not to `RefusalReason`. */
 type BodyRefusal =
   | 'incomplete-reference'
   | 'name-mismatch'
@@ -50,18 +49,12 @@ type Decoded = Step<{
 
 type Member = { readonly key: string; readonly value: JsonValue }
 
-/**
- * The category contract of an AgentDefinition body for the `assets` registry.
- * The body carries no `category` key because the registry key names the category.
- * Every function reads the json-text read tree only. None reads the asset library or a clock.
- */
 export function agentBodyContract(): BodyContract {
   return {
     category: CATEGORY,
     schema,
     judge,
     deriveDeclarations(body, context) {
-      // Judgment rejects duplicate items, so the attribute items are already distinct and ordered.
       return { entries: decodeOrThrow(body, context).items }
     },
     references(body, context) {
@@ -89,7 +82,6 @@ function reject(rejected: BodyRefusal): Refused {
   return { ok: false, rejected }
 }
 
-/** The one place the body rules are written. Order of checks follows the rule table. */
 function decode(body: unknown, context?: JudgeContext): Decoded {
   const members = membersOf(body)
   if (members === undefined) return reject('incomplete-reference')
@@ -108,13 +100,11 @@ function decode(body: unknown, context?: JudgeContext): Decoded {
       'invalid-input'
   )
     return reject('invalid-permission-bounds')
-  // A body carries no version, so `version` is an unknown key like any other.
   if (!onlyKeys(members, ['name', 'references', 'attributes', 'instructions', 'permissionBounds']))
     return reject('unknown-field')
   return { ok: true, references: references.ids, items: items.items }
 }
 
-/** The `name` rules. `undefined` means they pass. */
 function checkIdentity(members: readonly Member[], context?: JudgeContext): Refused | undefined {
   const name = textOf(valueAt(members, 'name'))
   if (name === undefined || name === '') return reject('incomplete-reference')
@@ -170,12 +160,6 @@ function decodeAttributes(
   return { ok: true, items }
 }
 
-/**
- * The `instructions` rules, the same as `judgeAgentDefinition` applies (SPEC "声明判断"): absent is
- * legal; present, a non-empty list of objects with exactly a non-empty `id` and a non-empty `text`,
- * then the composition rules of `instructionsProblem`. Every failure is `invalid-instructions`,
- * except an unknown key inside a section, which is `unknown-field` like every other unknown key.
- */
 function decodeInstructions(value: JsonValue | undefined): Step<Record<never, never>> {
   if (value === undefined) return { ok: true }
   if (value.kind !== 'array' || value.items.length === 0) return reject('invalid-instructions')
@@ -197,10 +181,6 @@ function decodeInstructions(value: JsonValue | undefined): Step<Record<never, ne
   return { ok: true }
 }
 
-/**
- * The entries of an object node of a registered read tree. `readSnapshot` accepts every node
- * of such a tree, so a hand-built look-alike at any depth has no entries.
- */
 function membersOf(value: unknown): readonly Member[] | undefined {
   const node = readSnapshot(value)
   return node?.kind === 'object' ? node.entries : undefined

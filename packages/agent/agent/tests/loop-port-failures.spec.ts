@@ -1,12 +1,3 @@
-// A port that fails at any node of the normal path holds the run at that node: a port's
-// `unavailable` is a dependency wait (Agent SPEC 依赖不可用时的等待; with a dependency that never comes
-// back, as here, the run waits and sleeps between check times).
-// end before F3, and the runtime never shows idle. The stop keeps the port's owner apart from
-// `@omne-harness/agent#defect` inside the coordinator only; the waits of #502 1.9 make that
-// readable. The failure branches of these nodes are the work of #502 1.3 to 1.9; this test only
-// pins that no failure becomes a success or a silent stop. M6 has its branch (R2-D237): an
-// unavailable admission is a saved dependency wait at M6, not a stop; the refusals and the wake are
-// in loop-model-refusal.spec.ts.
 import { describe, expect, it } from 'vitest'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type { Failure } from '@omne-harness/agent-contract'
@@ -32,10 +23,6 @@ const MODEL_FAILURE: ModelFailure = {
   diagnostic: 'injected',
 }
 
-/**
- * A method that fails on the call that `when` picks and otherwise calls the original. `when` gets
- * the input and the ordinal of the call, from 1.
- */
 function failing<I, O>(
   original: (input: I) => Promise<O>,
   failed: O,
@@ -48,8 +35,6 @@ function failing<I, O>(
   }
 }
 
-// W0 retries a failed read before sleeping. A stable-stop assertion needs a dependency
-// that remains unavailable; recovered one-shot failures are covered by the W0 regression.
 const fromNth =
   (n: number) =>
   (_: unknown, call: number): boolean =>
@@ -59,7 +44,6 @@ const nth =
   (n: number) =>
   (_: unknown, call: number): boolean =>
     call === n
-/** A Journal write of `node`: the coordinator names its operations `<node>/<what>@<revision>`. */
 const of =
   (node: string) =>
   (input: Readonly<{ operation: string }>): boolean =>
@@ -98,7 +82,6 @@ function models(
   }
 }
 
-/** Inject at a persisted boundary, independently of the extra qualification reads at M6. */
 function failLoadAt(d: Dependencies, position: string): Dependencies['journal']['load'] {
   return async input => {
     const loaded = await d.journal.load(input)
@@ -108,7 +91,6 @@ function failLoadAt(d: Dependencies, position: string): Dependencies['journal'][
   }
 }
 
-/** Inject at the first read after the ended commit: F4's read of the terminal ledger. */
 function failLoadWhenEnded(d: Dependencies): Dependencies['journal']['load'] {
   return async input => {
     const loaded = await d.journal.load(input)
@@ -116,7 +98,6 @@ function failLoadWhenEnded(d: Dependencies): Dependencies['journal']['load'] {
   }
 }
 
-/** Every port call of the normal path after `open`, in path order. E9 calls no port. */
 const CASES: readonly Case[] = [
   [
     'E1',
@@ -262,9 +243,6 @@ const CASES: readonly Case[] = [
     d =>
       journal(d, { prepareFinish: failing(d.journal.prepareFinish, fail(PORT_FAILURE), nth(1)) }),
   ],
-  // An unavailable tryFinish is not a failure stop at F3: F3 goes to R0, which saves one dependency
-  // wait under the position F3 (SPEC "取消判断与路线"). A tryFinish that stays unavailable keeps the
-  // execution waiting there; a one-shot one is retried on the wake and ends the execution.
   [
     'F3',
     'journal.tryFinish',
@@ -279,8 +257,6 @@ describe('a port failure on the normal path holds the run at its node', () => {
     const assembly = await loopAssembly([execution(), execution('exec-2')], inject)
     assembly.release.open()
     ok(await invoke(assembly))
-    // Before F3 the execution never ends. A failure at F4 or O0 comes after the ended commit, so
-    // the execution is ended, but the runtime still holds the slot and does not show idle.
     const state = await stoppedAt(assembly, position)
     if (node === 'F4' || node === 'O0') expect(state.kind).toBe('ended')
     else if (port === 'models.calls.admit')
@@ -290,8 +266,6 @@ describe('a port failure on the normal path holds the run at its node', () => {
       })
     else expect(state.kind).not.toBe('ended')
     if (port !== 'journal.tryFinish') return
-    // The wait of an unavailable F3 is in memory: several check times pass, each retries
-    // tryFinish, and none of them writes a revision.
     const read = async () =>
       await loadWithEntries(assembly.controls.journal.provider, {
         ...alice,
@@ -311,10 +285,6 @@ describe('a port failure on the normal path holds the run at its node', () => {
   })
 })
 
-// An unavailable dependency at P1 is not a node failure (SPEC "确定节点故障的收尾"): P1 saves a
-// dependency wait as I1 does, and the wake prepares again from I1 (`recoveryRoute`, BEFORE_RECORD).
-// The first call of each port is at I1, so the second is the one at P1. The wait rechecks the
-// dependency once before it sleeps, so a stable wait needs a dependency that stays unavailable.
 describe('an unavailable port at P1 is a dependency wait at P1', () => {
   const P1_CASES: readonly (readonly [string, (d: Dependencies) => Dependencies])[] = [
     [
@@ -349,7 +319,6 @@ describe('an unavailable port at P1 is a dependency wait at P1', () => {
     })
   })
 
-  // A definite failure is not a dependency: it is a node failure that ends the execution, not a wait.
   const INVALID: Failure = { kind: 'invalid', field: 'injected', reason: 'injected' }
   const P1_DEFINITE: readonly (readonly [string, (d: Dependencies) => Dependencies])[] = [
     [
@@ -392,7 +361,6 @@ describe('an unavailable port at P1 is a dependency wait at P1', () => {
     assembly.release.open()
     const handle = ok(await invoke(assembly))
     await eventually(async () => assembly.controls.clock.pending().length === 1)
-    // I1, P1, and the recheck before the driver sleeps.
     expect(dependency.calls).toBe(3)
     dependency.available = true
     const due = assembly.controls.clock.pending()[0]
@@ -401,7 +369,6 @@ describe('an unavailable port at P1 is a dependency wait at P1', () => {
     const events = await eventsOf(handle)
     expect(events.filter(event => event.body.kind === 'waiting')).toHaveLength(1)
     expect(events.at(-1)?.body.kind).toBe('ended')
-    // After the wake: I1 and P1 again.
     expect(dependency.calls).toBe(5)
   })
 })

@@ -95,7 +95,6 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
     return input
   }
   const stats = (input: ReceivedCommitInput<P, B>) => joint.inspect(input, input.execution)
-  /** The events of an execution the suite opened; an absent list is a defect of the fixture. */
   const events = async (input: ReceivedCommitInput<P, B>): Promise<readonly AgentEvent[]> => {
     const listed = await fixture.events(input, input.execution)
     assert.ok(listed !== undefined, 'the fixture must list the events of an open execution')
@@ -844,14 +843,10 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       },
     },
     {
-      // Red when commit writes the entry without its `entry` event, allocates the event under
-      // another cause, another attachment or another schema, or gives it a sequence out of order.
       name: 'received commit projects the entry as one entry event of the same commit',
       async run() {
         const input = await prepare('entry-event')
         const latest = await fixture.supersede(input, input.execution)
-        // Two earlier events, so that the sequence and the schema of the commit's event have a
-        // predecessor to compare with, and the commit's event is the last one but not the second.
         for (const name of ['entry-event-fence', 'entry-event-fence-2']) {
           await ok(
             fixture.entries.record({
@@ -890,8 +885,6 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       },
     },
     {
-      // Red when a replay of the operation or another operation of the same delivery allocates
-      // a second event.
       name: 'received commit replays and operation aliases allocate no second event',
       async run() {
         const input = await prepare('replay-event')
@@ -911,8 +904,6 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       },
     },
     {
-      // Red when the entry written through one entry port gets a second event when the other
-      // port recognizes the same delivery.
       name: 'received record then commit and commit then record allocate one event each',
       async run() {
         const legacy = await prepare('record-then-commit')
@@ -960,7 +951,6 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       },
     },
     {
-      // Red when commit appends an entry event after the end; ended is the last event.
       name: 'received commit after the end writes the entry without an event',
       async run() {
         const input = await prepare('ended-event')
@@ -972,8 +962,6 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       },
     },
     {
-      // Red when a commit whose reply is lost after publication holds the entry without its
-      // event, or when a failure before publication leaves either of them.
       name: 'received lost reply keeps entry and event together and a failure before publication leaves neither',
       async run() {
         const lost = await prepare('lost-reply-event')
@@ -996,7 +984,6 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       },
     },
     {
-      // Red when a denied or conflicting commit allocates an event.
       name: 'received denied and conflicting commits allocate no event',
       async run() {
         const input = await prepare('refused-event')
@@ -1014,8 +1001,6 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       },
     },
     {
-      // Red when a preserve of content already kept writes a second copy or another source, or
-      // when describe needs the content to answer.
       name: 'materials are addressed by content: the same content answers the same source, describe gives digest, size and kind',
       async run() {
         const input = await prepare('content-addressed')
@@ -1051,7 +1036,6 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       },
     },
     {
-      // Red when describe answers for a material of another tenant.
       name: 'describe of a material of another tenant is not answered',
       async run() {
         const input = await prepare('describe-foreign')

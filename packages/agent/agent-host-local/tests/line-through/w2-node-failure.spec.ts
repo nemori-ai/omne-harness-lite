@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real SQLite, Session AD-02 and Agent runtime; producer and context doubles are defined in w2-world.
 import { afterEach, expect, it } from 'vitest'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import { operationId } from '@omne-harness/session-contract/testing'
@@ -196,8 +195,6 @@ it('retains a failed execution and hands its untaken input to the Run a new inpu
     }),
   )
   if (secondEvents.kind !== 'page') throw new Error('the successor events are unavailable')
-  // `in-1` comes with the invoke and `in-2` with the submit that follows it. Whether `in-2` joins the
-  // first batch depends on whether its submit commits before the Run first reads its inputs.
   expect(
     secondEvents.events.flatMap(event =>
       event.body.kind === 'input-taken' ? event.body.batch.ordered : [],

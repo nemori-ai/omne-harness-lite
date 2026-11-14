@@ -1,8 +1,3 @@
-// The pure evaluator of #510 (C1): what it decides at E4 and I8, that it answers `unsupported`
-// instead of guessing outside the normal path, and, over many seeded `LoopFacts`, that the same
-// facts give the same `Next`, that it never changes its input, and that every step it takes has a
-// row in the transition table. The evaluator is reached through the root entry; the table and the
-// module graph are read from the source (tests/README.md).
 import { describe, expect, it } from 'vitest'
 import { agentCheckpointSchema, agentEvaluator } from '@omne-harness/agent'
 import {
@@ -138,7 +133,6 @@ describe('codec', () => {
 
   it('encode writes strings, booleans, finite numbers and null, and leaves out absent members', () => {
     const { checkpoint } = loopFacts('I8')
-    // The checkpoint is data only; a member of another type is the test's input to the encoder.
     const value = { ...checkpoint, guard: { flag: true, count: 1.5, absent: undefined } }
     const encoded = agentEvaluator.encode(value as unknown as typeof checkpoint)
     const entries = encoded.value.kind === 'object' ? encoded.value.entries : []
@@ -243,7 +237,6 @@ describe('decode (D5: the checkpoint read position and the exact schema)', () =>
     } as const
     const withRequest = { ...saved, adoptedRequest }
     expect(ok(agentEvaluator.decode(agentEvaluator.encode(withRequest)))).toEqual(withRequest)
-    // A checkpoint written before the member existed decodes without it, not as null.
     const decoded = ok(agentEvaluator.decode(agentEvaluator.encode(saved)))
     expect(Object.hasOwn(decoded, 'adoptedRequest')).toBe(false)
   })
@@ -336,14 +329,9 @@ function adoptionEvidence() {
   return { owner, record: name, revision, digest }
 }
 
-// ---------------------------------------------------------------------------------------------
-// Seeded property test, as packages/tool/tool/tests/json-tree-wait.spec.ts builds its trees
-
-/** Deterministic pseudo-random numbers, so that failing facts can be rebuilt from their seed. */
 function randoms(seed: number): (below: number) => number {
   let state = seed >>> 0
   return below => {
-    // mulberry32
     state = (state + 0x6d2b79f5) >>> 0
     let mixed = Math.imul(state ^ (state >>> 15), state | 1)
     mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61)
@@ -357,7 +345,6 @@ function pick<T>(random: (below: number) => number, values: readonly T[]): T {
   return value
 }
 
-/** Positions of the node table, weighted towards the two decision segments, and two non-nodes. */
 const POSITIONS: readonly string[] = [...LOOP_NODES, 'E4', 'E4', 'I8', 'I8', 'I8', 'Z9', '']
 
 function generatedFacts(random: (below: number) => number): LoopFacts {
@@ -407,19 +394,16 @@ describe('C1 property: next is a pure function whose steps the table can take', 
         expect(['ended', 'superseded'], `seed ${seed}`).toContain(facts.advancement.kind)
         continue
       }
-      // A step is taken only at a decision segment, and the table has a row for it there.
       const position = facts.checkpoint.position as LoopNode
       expect(['E4', 'I0', 'I8'], `seed ${seed}`).toContain(position)
       expect(successor(position === 'I0' ? 'E4' : position, next.kind), `seed ${seed}`).toBeTruthy()
       if (next.kind === 'try-finish') {
-        // Completion is proposed only with no input taken, nothing owed and completion to evaluate.
         expect(facts.batch.ordered, `seed ${seed}`).toEqual([])
         expect(facts.conditions.progression.kind, `seed ${seed}`).toBe('evaluate-completion')
         expect(facts.checkpoint.calls, `seed ${seed}`).toEqual([])
         expect(facts.producers, `seed ${seed}`).toEqual([])
       }
     }
-    // The seeds reach every answer of this card.
     expect([...seen].sort()).toEqual(['stop', 'take-inputs', 'try-finish', 'unsupported', 'wait'])
   })
 })

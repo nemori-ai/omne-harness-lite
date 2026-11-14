@@ -1,6 +1,3 @@
-// C1 of #509: createAgentRuntime checks configuration, binding, registration handle, required
-// dependencies and joint commits before it builds anything. Each failure builds no runtime and calls
-// no dependency method: no Journal write, no event, no registration, no access check.
 import { describe, expect, it } from 'vitest'
 import { createAgentRuntime, type AgentConfiguration } from '@omne-harness/agent'
 import { createTestAgentDependencies } from '@omne-harness/agent/testing'
@@ -17,7 +14,6 @@ import { adoption, failure, instance, ok, type Principal } from './journal-suppo
 
 const OWNER = '@omne-harness/agent'
 
-/** Creates with a watched copy of the test assembly; returns the result and the call log. */
 async function create(
   configure: (dependencies: Dependencies) => Dependencies = dependencies => dependencies,
   creation = options(),
@@ -42,7 +38,6 @@ async function refused(
   return failure(created)
 }
 
-/** A configuration value that the type forbids, as an untyped caller could pass it. */
 const loose = (value: unknown) => value as never
 
 describe('C1 invalid: a configuration value out of range', () => {
@@ -184,9 +179,6 @@ describe('C1 unavailable: a required dependency is absent', () => {
     expect(result).toMatchObject({ kind: 'invalid', field: 'binding.instance' })
   })
 
-  // Cards, materials and reads fail only on their own path, never the creation (public-api
-  // dependency table). Tools, admission and extensions depend on the adopted definition, which the
-  // factory cannot read at creation; see tests/README.md.
   it.each(['cards', 'materials', 'reads'] as const)(
     '%s absent does not stop the creation',
     async name => {
@@ -246,8 +238,6 @@ describe('C1 unsupported: a joint commit kind that the Journal does not declare'
   })
 })
 
-// SPEC "提交参加者协议": the factory compares the configured mode with the binding's declaration
-// strictly, before it creates the runtime, registers or writes any state; there is no default.
 describe('C1 unsupported: the coordination mode of the Journal binding', () => {
   it('refuses a coordinated binding under a standalone configuration', async () => {
     const result = await refused(undefined, options({ coordination: 'standalone' }), {

@@ -1,8 +1,3 @@
-// The finishing records of the memory Journal (SPEC "条件终结", "取消判断与路线", "终结责任清单" and
-// "commitSettlement 的变体"): the candidate, route, migration, judgment and custody records of one
-// execution, the FinishIntent and settlement projections `load` derives from them, and the
-// obligations the Journal issues from its own records. Pure over the execution record; the writes
-// that change it live in journal.ts.
 import type {
   AcceptedInput,
   Adoption,
@@ -43,13 +38,10 @@ import type { MemoryExecution } from './journal.ts'
 import { journalEvidence, JOURNAL_OWNER, revisionOf } from './journal-values.ts'
 import { canonical } from '../canonical.ts'
 
-/** The finishing records of one execution. Every record is immutable once pushed, except the proof of an author route. */
 export type FinishingRecords = {
   candidates: FinishCandidate[]
   routes: FinishRoute[]
-  /** The current candidate, or null before the first F1 or establish. */
   current: AgentOperationId | null
-  /** The record text of the current route. */
   currentRoute: string | null
   supersessions: CandidateSupersession[]
   migrations: MigrationRecord[]
@@ -58,11 +50,8 @@ export type FinishingRecords = {
   cardReconciliations: CardReconciliationRecord[]
   legacyReturns: LegacyInvocationReturn[]
   toolAssociations: ToolAssociationRecord[]
-  /** Every issued list by the record text of its evidence. */
   issued: Map<string, FinishObligations>
-  /** The record text of the list issued for the current candidate, or null. */
   obligations: string | null
-  /** The operation that established each effect intent, by action. */
   effectOperations: Map<string, AgentOperationId>
 }
 
@@ -116,10 +105,8 @@ export function currentJudgment(records: FinishingRecords): CancellationJudgment
   return records.judgments.find(judgment => judgment.operation === records.currentJudgment)
 }
 
-/** The content of a candidate with its checkpoint: what "the same business content" compares (SPEC "条件终结"). */
 export type CandidateContent = FinishCandidateContent & Readonly<{ checkpoint: AgentCheckpoint }>
 
-/** Whether two candidate contents are the same business content; the checkpoint is part of it. */
 export function sameContent(left: CandidateContent, right: CandidateContent): boolean {
   const content = (value: CandidateContent) =>
     canonical({
@@ -133,10 +120,6 @@ export function sameContent(left: CandidateContent, right: CandidateContent): bo
   return content(left) === content(right)
 }
 
-/**
- * The proof of the before-terminal judgment of the current route (SPEC "条件终结"): the F2 commit on
- * an author route, the current judgment record on a cancellation route, null before either.
- */
 export function beforeTerminalOf(records: FinishingRecords): DurableEvidence | null {
   const route = currentRoute(records)
   if (route === undefined) return null
@@ -144,7 +127,6 @@ export function beforeTerminalOf(records: FinishingRecords): DurableEvidence | n
   return currentJudgment(records)?.evidence ?? null
 }
 
-/** The FinishIntent projection of the current candidate; `undefined` when there is none. */
 export function intentOf(records: FinishingRecords): FinishIntent | undefined {
   const candidate = currentCandidate(records)
   if (candidate === undefined) return undefined
@@ -174,17 +156,12 @@ export function settlementOf(records: FinishingRecords): ExecutionSettlement {
   }
 }
 
-/** Whether the checkpoint still has a before-terminal passage that is not applied. */
 export function beforeTerminalPending(checkpoint: AgentCheckpoint): boolean {
   return checkpoint.passages.some(
     passage => passage.position === 'before_terminal' && passage.progress.kind !== 'applied',
   )
 }
 
-// ------------------------------------------------------------------------------------------
-// The obligations (SPEC "终结责任清单")
-
-/** The part of the execution record that the obligations are built from. */
 export type ObligationSource = Pick<
   MemoryExecution,
   | 'id'
@@ -209,7 +186,6 @@ const JOURNAL_CUSTODIAN: ConsumerRef = Object.freeze({
   purpose: 'custody',
 })
 
-/** The schema under which this double keeps the record a continuation refers to. */
 const RECORD_SCHEMA: Adoption = Object.freeze({
   owner: JOURNAL_OWNER,
   name: 'journal-record',
@@ -217,14 +193,12 @@ const RECORD_SCHEMA: Adoption = Object.freeze({
   digest: 'memory:journal-record',
 })
 
-/** The request of a continuation that refers to a record of this Journal under its schema. */
 function ofRecord(
   record: DurableEvidence,
 ): Extract<ContinuationRequest<never>, { kind: 'record' }> {
   return { kind: 'record', schema: RECORD_SCHEMA, record }
 }
 
-/** The request of a continuation that carries the complete parameters of the original operation. */
 function ofParameters<T>(value: T): Extract<ContinuationRequest<T>, { kind: 'parameters' }> {
   return { kind: 'parameters', value }
 }
@@ -260,20 +234,12 @@ function unknown(
   }
 }
 
-/** A record this double must hold is missing: a defect of the double, never another identity. */
 function defect(what: string): never {
   throw new Error(`memory Journal defect: ${what}`)
 }
 
-/** The resolution of each pending write of the execution that the builder is told about. */
 export type PendingOperation = Readonly<{ operation: AgentOperationId; method: string }>
 
-/**
- * Builds the obligations of `candidate` from the Journal's own records at the current revision.
- * `pendingOperations` are the writes of the execution still undecided, except the issuing one.
- * prepareFinish issues the result; tryFinish rebuilds it with the same function to compare the
- * projection and to read the dispositions (SPEC "终结责任清单").
- */
 export function buildObligations(
   source: ObligationSource,
   candidate: FinishCandidate,
@@ -283,9 +249,6 @@ export function buildObligations(
   const nodeFailed =
     candidate.conclusion.kind === 'fail' && candidate.failure?.kind === 'node-failed'
   const complete = candidate.conclusion.kind === 'complete'
-  // The fixed evidence of one fact of the closure names the fact, not the revision it was read at:
-  // the same fact reads the same at every revision, so a judgment that read it still applies
-  // (SPEC "取消路线上的 tryFinish": the criteria compare keys, versions and dispositions).
   const fixed = (what: string): DurableEvidence =>
     journalEvidence(`${source.id}/obligation/${what}`, 0)
   const items: FinishObligation[] = []
@@ -323,8 +286,6 @@ export function buildObligations(
       taken,
     })
   })
-  // controls: the cancel and the revocation that apply must hold; the three late stages may be
-  // carried by a lawful successor (SPEC "六个阶段").
   for (const control of source.controls) {
     const key = control.operation
     const sourceEvidence = control.stages.accepted.source
@@ -358,8 +319,6 @@ export function buildObligations(
       control: control.operation,
     })
   }
-  // operations: a write still undecided may change the candidate; it is unknown, not pending
-  // (SPEC "条件终结" table, operations; tryFinish answers unavailable).
   for (const { operation, method } of pendingOperations) {
     const sourceEvidence = fixed(`operation/${operation}`)
     items.push({
@@ -381,8 +340,6 @@ export function buildObligations(
       result: null,
     })
   }
-  // handoffs: a prepared H that no Ja published is a pending history of a complete candidate; only
-  // a failed or cancelled candidate may retain it at the end (SPEC "终结责任清单").
   for (const record of source.handoffs) {
     if (record.history.kind !== 'pending') continue
     const key = canonical(record.handoff)
@@ -404,12 +361,6 @@ export function buildObligations(
       record: { ...record, custody: null },
     })
   }
-  // calls: a call with a result is settled and the custody is the result item's; a final failure
-  // of the producer settles it on that basis, and so does a definite refusal of its admission by
-  // the Model (R2-D237: a refused admission leaves no send); an association keeps it held (accepted) or unknown
-  // (commit-unknown); a call with none of these is unknown (SPEC "终结责任清单" call row). Of several
-  // associations of one intent the accepted one counts, else the last: a later undecided record
-  // does not take a known one back.
   for (const effect of source.effects) {
     const key = effect.action
     const sourceEvidence = effect.pending.fixed
@@ -422,8 +373,6 @@ export function buildObligations(
     const received = source.entries.find(
       entry => entry.kind === 'received' && entry.consumption === effect.pending.consumption,
     )
-    // The final failure of the producer, or the Model's refusal of the admission, is read from every
-    // candidate, not only the current one: a cancelled candidate that replaced it does not undo it.
     const call =
       effect.pending.kind === 'model' ? callOfModel(effect.pending.reference, source) : null
     const finalFailure =
@@ -435,8 +384,6 @@ export function buildObligations(
               (item.failure?.kind === 'no-reply' || item.failure?.kind === 'model-refused') &&
               item.failure.call === call,
           )?.failure?.source ?? null)
-    // R2-D292: an intent its callee answered authoritatively will have no result that counts; its
-    // voided record settles the call on the basis of that answer.
     const voided = source.checkpoint.voided.find(item => item.action === effect.action)
     const intent =
       source.finishing.effectOperations.get(effect.action) ??
@@ -473,14 +420,11 @@ export function buildObligations(
       custodian: association?.obligation.kind === 'call' ? association.obligation.custodian : null,
     })
   }
-  // passages and card rounds: an ordinary candidate needs its before-terminal passages applied; a
-  // cancelled candidate keeps the undetermined ones complete (SPEC "条件终结" table, passages).
   for (const passage of source.checkpoint.passages) {
     const key = passage.id
     const applied = passage.progress.kind === 'applied'
     const superseded = cancelled && passage.position === 'before_terminal'
     const route = routeOfPassage(source.finishing, candidate, superseded)
-    // On its own author route (before or after a migration) the passage is the candidate's own.
     const own = route?.kind === 'author' && route.candidate === candidate.candidate
     const lookup: RecoveryContinuation = {
       kind: 'card-lookup',
@@ -511,7 +455,6 @@ export function buildObligations(
     })
     if (passage.progress.kind !== 'asked') continue
     for (const round of passage.progress.rounds) {
-      // Of several reconciliations of one round the known result counts, else the last.
       const reconciliations = source.finishing.cardReconciliations.filter(
         item => item.passage === passage.id && item.round === round.round,
       )
@@ -545,7 +488,6 @@ export function buildObligations(
       )
     }
   }
-  // results: each received result has completion, custody or neither (SPEC "条件终结" table, custody).
   for (const responsibility of source.results) {
     const key = `${responsibility.result.producer.kind}/${responsibility.result.producer.call}/${responsibility.result.version}/${responsibility.consumption}`
     const parameters = { result: responsibility.result, consumption: responsibility.consumption }
@@ -575,7 +517,6 @@ export function buildObligations(
       material: null,
     })
   }
-  // output: the emitted events the Journal retains until they are acknowledged.
   if (source.events.length > 0) {
     const retention = fixed('output')
     const emittedThrough = String(source.events.length)
@@ -596,7 +537,6 @@ export function buildObligations(
       retention,
     })
   }
-  // terminal observations: the fixed plan of the after-terminal passages, carried by the Journal.
   for (const passage of source.checkpoint.passages) {
     if (passage.position !== 'after_terminal') continue
     const key = passage.id
@@ -648,7 +588,6 @@ export function buildObligations(
   }
 }
 
-/** The disposition a saved association gives the call: held for an accepted return, unknown for commit-unknown. */
 function associationDisposition(
   association: ToolAssociationRecord,
   effect: EffectIntent,
@@ -678,13 +617,11 @@ function associationDisposition(
   )
 }
 
-/** The call id of a model invocation reference in the tenant of the execution, or null when it does not resolve. */
 function callOfModel(reference: unknown, source: ObligationSource): string | null {
   const parts = resolveModelInvocationRef(reference, source.tenant)
   return 'ok' in parts ? parts.ok.call : null
 }
 
-/** The interrupt and background controls that name the call of `effect`. */
 function interruptionsOf(effect: EffectIntent, source: ObligationSource): AgentOperationId[] {
   const pending = effect.pending
   return source.controls
@@ -709,18 +646,12 @@ function lateStageUnresolved(control: ControlRecord): boolean {
   )
 }
 
-/** The evidence of the first presented card of a round, or null while nothing was presented. */
 function presentOf(round: CardRound): DurableEvidence | null {
   const progress = round.progress
   if (progress.kind === 'requested' || progress.kind === 'present-failed') return null
   return progress.cards[0]?.card ?? null
 }
 
-/**
- * The acceptance of an input: the entry operation that accepted it and the record of its
- * admission, from the handoff record of its external H. Every accepted input of this double has
- * one (open and a new-input submit write it), so a missing one is a defect, never another identity.
- */
 function acceptanceOf(
   source: ObligationSource,
   input: AcceptedInput,
@@ -734,7 +665,6 @@ function acceptanceOf(
   return defect(`the input ${input.id} has no acceptance record`)
 }
 
-/** The candidate a cancelled candidate superseded, when one exists. */
 function supersededCandidate(
   records: FinishingRecords,
   candidate: FinishCandidate,
@@ -742,10 +672,6 @@ function supersededCandidate(
   return records.supersessions.find(link => link.to === candidate.candidate)?.from
 }
 
-/**
- * The route a passage belongs to: the author route a migrated candidate left, the superseded author
- * route of a cancelled candidate, else the current one.
- */
 function routeOfPassage(
   records: FinishingRecords,
   candidate: FinishCandidate,
@@ -760,15 +686,10 @@ function routeOfPassage(
   return currentRoute(records)
 }
 
-/** The category of an obligation, from its kind (SPEC "终结责任清单" table). */
 export function categoryOf(item: FinishObligation): ObligationCategory {
   return obligationCategoryOf(item.kind)
 }
 
-/**
- * The responsibility projection of a list: the identity, kind and target of each item, without
- * the dispositions (SPEC "终结责任清单"). Two lists with the same projection are interchangeable.
- */
 export function projectionOf(items: readonly FinishObligation[]): string {
   return canonical(
     items
@@ -777,13 +698,6 @@ export function projectionOf(items: readonly FinishObligation[]): string {
   )
 }
 
-/**
- * The criteria a judgment read (SPEC "取消路线上的 tryFinish"): the kind, key, target and
- * disposition of each item, and the owner and condition of each participant. The evidences inside
- * a disposition compare by owner and record only: the revision an evidence was read at is not a
- * criterion, so the same fact reads the same at every revision. A judgment whose criteria differ
- * from the current closure no longer applies.
- */
 export function criteriaOf(
   items: readonly FinishObligation[],
   participants: CancellationJudgmentInput['participants'],
@@ -801,10 +715,6 @@ export function criteriaOf(
   )
 }
 
-/**
- * `value` with every durable evidence reduced to its owner and record, so that the revision and
- * digest of a read do not compare.
- */
 function withoutRevisions(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutRevisions)
   if (value === null || typeof value !== 'object') return value
@@ -845,7 +755,6 @@ function targetOf(item: FinishObligation): unknown {
   }
 }
 
-/** The first pending obligation in the fixed category order, or `undefined`. */
 export function firstPending(items: readonly FinishObligation[]): FinishObligation | undefined {
   const pendingItems = items.filter(item => item.disposition.kind === 'pending')
   pendingItems.sort(
@@ -855,7 +764,6 @@ export function firstPending(items: readonly FinishObligation[]): FinishObligati
   return pendingItems[0]
 }
 
-/** The first unknown obligation, or `undefined`. */
 export function firstUnknown(items: readonly FinishObligation[]): FinishObligation | undefined {
   return items.find(item => item.disposition.kind === 'unknown')
 }

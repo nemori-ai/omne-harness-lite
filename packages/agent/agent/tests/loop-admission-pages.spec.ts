@@ -1,7 +1,3 @@
-// The pure parts of E2's reply admission read (Agent SPEC "回复准入的已核实前缀", D5 r2.2 第 5 节):
-// the one rule that chooses the lower bound, the position an ordinary commit carries, and the
-// check of each page before the verified prefix moves on. The pages come from a scripted port,
-// so each case breaks exactly one condition of a page.
 import { describe, expect, it } from 'vitest'
 import {
   decodeReplyAdmissionPageCursor,
@@ -42,7 +38,6 @@ const FACT = { decision: 'admitted' } as ModelReplyAdmission
 
 type Page = Extract<ReplyAdmissionPage, { kind: 'page' }>
 
-/** A lawful page of `(start, end]`, complete when `end` is the target. */
 function page(start: bigint, end: bigint, target: bigint, next = `after-${end}`): Page {
   const items = []
   for (let at = start + 1n; at <= end; at += 1n)
@@ -57,7 +52,6 @@ function page(start: bigint, end: bigint, target: bigint, next = `after-${end}`)
   }
 }
 
-/** Reads with the scripted pages; answers the outcome and the prefixes that passed. */
 async function run(pages: readonly ReplyAdmissionPage[], request: Partial<RangeRequest> = {}) {
   const passed: string[] = []
   let at = 0

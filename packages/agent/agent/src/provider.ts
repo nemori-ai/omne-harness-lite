@@ -1,27 +1,3 @@
-// The four faces of one created runtime. Every public operation passes the access guard first.
-// `invoke` admits the input and opens the execution (U0 to E0, #502 1.3): it reserves the one
-// execution slot, resolves the evaluator of the bound definition, returns the handle at E1, and
-// leaves the Loop to run on until the runtime is idle again. `observe` shows the state of the
-// instance as it changes. Execution control saves its command, advances a Model or Tool
-// interruption and establishes cancellation stages. A failed step goes back to the caller, who
-// retries with the same control operation. `quiesce` drains the instance: an execution whose drive
-// sleeps on a wait saved in the Journal is handed over by that drive (`Journal.detach`), and the slot
-// is free; an execution whose drive runs a node stays in its slot and the answer is `unresolved`.
-// `resume` takes an execution that was handed over: it reserves the slot, `Journal.attach` grants a
-// new attachment, and a new coordinator goes on from the saved position. `input.submit` accepts a
-// later input on the durable view (submit.ts) and wakes a drive that sleeps on its wait. The
-// remaining bodies answer a named stage-temporary `unavailable` after `allowed`.
-//
-// The slot and the observed state never disagree: `observe` shows the state that `stateOf` derives
-// from the slot, and every slot change goes through `occupy`. A run that stopped keeps the slot
-// occupied, and the next invoke answers busy (S-14 of #558). A run whose drive stopped on a
-// failure moves the slot to `failed` and is reported once through `failed` (SPEC「运行失败」,
-// R2-D282). Its responsibility is not handed over, so quiesce still counts it as remaining
-// (R2-D285): the ordered stop answers unresolved for it. Determinate node failures continue through
-// settlement and release the slot only after the Journal records ended. The
-// registration handle only receives a projection: a report that throws is dropped, because `report`
-// returns void and the contract gives its failure no channel (待拥有者); the slot and `observe` stay
-// authoritative.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   Access,
@@ -75,13 +51,8 @@ import { submitInput } from './submit.ts'
 
 const OWNER = '@omne-harness/agent'
 
-/** The #502 stage that implements each operation body; see the parent card "阶段与子任务". */
 type Stage = 'stage 3' | 'stage 5'
 
-/**
- * Stage-temporary (#502): the answer of an operation whose body does not exist yet. It says what is
- * missing; it is not a contract failure of the operation.
- */
 function notImplemented(operation: string, stage: Stage): Failure {
   return {
     kind: 'unavailable',
@@ -90,11 +61,6 @@ function notImplemented(operation: string, stage: Stage): Failure {
   }
 }
 
-/**
- * The ended reason of an observation whose guard failed. 待拥有者: `AgentObservation` has no reason
- * for `invalid` (an Access without tenant), so that case ends as `denied`, fail closed, until the
- * contract owner names a channel. Any other failure ends as `unavailable`.
- */
 function endedReason(failure: Failure): Extract<AgentObservation, { kind: 'ended' }>['reason'] {
   switch (failure.kind) {
     case 'denied':
@@ -105,7 +71,6 @@ function endedReason(failure: Failure): Extract<AgentObservation, { kind: 'ended
   }
 }
 
-/** The text of a thrown value, without trusting it to have one. */
 function thrownText(error: unknown): string {
   try {
     return error instanceof Error ? error.message : String(error)
@@ -114,7 +79,6 @@ function thrownText(error: unknown): string {
   }
 }
 
-/** Resolves when the signal aborts or `wake` is called, whichever comes first. */
 function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
   if (signal.aborted) return Promise.resolve()
   return new Promise(resolve => {
@@ -128,14 +92,6 @@ function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
   })
 }
 
-/**
- * The one execution slot (SPEC "受理与单执行槽"). `reserved`: an invoke holds it until `open` has
- * answered.
- * `running`: the Loop runs until E9 frees the slot. A run that stopped still holds it.
- * `failed`: the drive stopped on a failure at `node`. The execution is not ended and holds the slot
- * (the next invoke answers busy). No drive works on it, but its responsibility is not handed over,
- * so a quiesce leaves it as remaining.
- */
 type Slot =
   | Readonly<{ kind: 'free' }>
   | Readonly<{
@@ -160,7 +116,6 @@ type Slot =
       failure: Failure
     }>
 
-/** The last invoke that this runtime accepted, and the text of its input (SPEC 804). */
 type Accepted = Readonly<{
   operation: AgentOperationId
   execution: AgentExecutionId
@@ -169,27 +124,14 @@ type Accepted = Readonly<{
 
 type InvokeInput<P> = Parameters<AgentProvider<P>['runtime']['invoke']>[0]
 
-/**
- * The one quiesce of a runtime, from its acceptance on (SPEC "交接与停用"). A later quiesce with
- * another operation joins it and does not start a second one. `drained` is the final answer once the
- * registration is withdrawn. `step` is the drain step in flight, which joined callers share.
- */
 type Quiescing = {
   readonly operation: AgentOperationId
   readonly reason: DurableEvidence
-  /** The canonical text of `reason`: the same operation with another reason conflicts. */
   readonly reasonText: string
   drained: QuiesceResult | null
   step: Promise<Outcome<QuiesceResult, Failure>> | null
 }
 
-/**
- * The drive of the execution in the slot, as quiesce and submit reach it. `asked` is the handover
- * quiesce asked for: the drive is the only writer of its execution, so it makes the handover
- * itself, when its current pass is over and before it sleeps, and settles the request. `wait` is set
- * while the drive sleeps in `waitForWake`; aborting it wakes the drive for the request, or for the
- * hint of an accepted submit.
- */
 type Driving = {
   wait: AbortController | null
   asked: Readonly<{
@@ -199,7 +141,6 @@ type Driving = {
   }> | null
 }
 
-/** The answer of an invoke or resume that reaches a draining runtime (SPEC "四种控制", 停用). */
 function drainingRefusal(operation: 'invoke' | 'resume'): Failure {
   return {
     kind: 'unavailable',
@@ -208,12 +149,10 @@ function drainingRefusal(operation: 'invoke' | 'resume'): Failure {
   }
 }
 
-/** A registration answer that does not let quiesce say `drained`, as a named `unavailable`. */
 function withdrawalFailure(diagnostic: string): Failure {
   return { kind: 'unavailable', owner: 'agentRegistration', diagnostic }
 }
 
-/** The input of an invoke that the same operation must repeat to get the original handle back. */
 function inputText<P>(input: InvokeInput<P>): string {
   return canonical({ execution: input.execution, initial: input.initial, grant: input.grant })
 }
@@ -227,11 +166,8 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
   measurer: AgentMeasurer
-  /** The receiver of the report of a run that stopped on a failure; undefined: nobody is told. */
   failed: AgentRunFailedReceiver | undefined
-  /** The receiver of the report of a run that ended with a `fail` conclusion; undefined: nobody is told. */
   endedFailed: AgentRunEndedFailedReceiver | undefined
-  /** The receiver of the report of a run that began to wait for a dependency; undefined: nobody is told. */
   waiting: AgentRunWaitingReceiver | undefined
   modelRetrying: AgentModelRetryingReceiver | undefined
 }>
@@ -242,7 +178,6 @@ export function createProvider<P, B extends ContentBlock>(
   const { binding, guard, dependencies, measurer } = entry
   const instance: AgentInstanceId = binding.instance
   const onInstance: AgentAccessTarget = { kind: 'instance', instance }
-  // SPEC "主体资格核验": the execution target is the logical execution alone, without the instance.
   const onExecution = (execution: AgentExecutionId): AgentAccessTarget => ({
     kind: 'execution',
     execution,
@@ -254,13 +189,10 @@ export function createProvider<P, B extends ContentBlock>(
   let current: AgentState = { kind: 'idle', instance }
   const listeners = new Set<() => void>()
 
-  // SPEC "交接与停用": the accepted quiesce, null before one is accepted.
   let quiescing: Quiescing | null = null
-  // Quiesce calls still at their access check. Public API "quiesce 与执行槽的同步义务" 1: the runtime
-  // drains before the first await of quiesce, so these count as draining too. A refused call that
-  // leaves no accepted quiesce behind lifts it again; an invoke refused meanwhile was refused closed.
+  // Quiesce calls still at their access check count as draining: the runtime drains before the
+  // first await of quiesce. A refused call that leaves no accepted quiesce lifts it again.
   let checking = 0
-  // Drained: the registration is withdrawn and every observation has ended `retired`.
   let retired = false
   const draining = () => quiescing !== null || checking > 0
 
@@ -271,7 +203,6 @@ export function createProvider<P, B extends ContentBlock>(
       case 'reserved':
         return { kind: 'reserved', instance }
       case 'running':
-      // A failed run is not ended: the execution still exists and holds the slot.
       case 'failed':
         return {
           kind: 'occupied',
@@ -286,22 +217,17 @@ export function createProvider<P, B extends ContentBlock>(
     }
   }
 
-  /** The one way the slot changes: observations wake, then the registration handle is told. */
   function occupy(next: Slot): void {
     slot = next
     const state = stateOf(next)
     if (JSON.stringify(state) === JSON.stringify(current)) return
     current = state
-    // A woken observation removes itself; a Set iteration skips nothing when that happens.
     for (const wake of listeners) wake()
     try {
       dependencies.registration?.report({ state })
-    } catch {
-      // Dropped: see the header. The slot and `observe` already hold the new state.
-    }
+    } catch {}
   }
 
-  /** The guard, then the stage-temporary body. */
   async function guarded(
     input: Access<P>,
     operation: AgentAccessOperation,
@@ -313,11 +239,6 @@ export function createProvider<P, B extends ContentBlock>(
     return fail(notImplemented(operation, stage))
   }
 
-  /**
-   * The state projection of this instance, as it changes. It keeps no buffer: a slow reader sees
-   * the latest state, not every one in between, so observerBufferBytes has nothing to bound yet.
-   * The sequence ends `closed` when the signal aborts.
-   */
   async function* observe(
     input: Parameters<AgentProvider<P>['observation']['observe']>[0],
   ): AsyncGenerator<AgentObservation, void, undefined> {
@@ -338,7 +259,6 @@ export function createProvider<P, B extends ContentBlock>(
     yield { kind: 'ended', reason: retired ? 'retired' : 'closed' }
   }
 
-  /** The handle of one execution. Reading its events is guarded like every public operation. */
   function handleOf(execution: AgentExecutionId): AgentExecutionHandle<P> {
     const target = onExecution(execution)
     const foreign: Failure = {
@@ -393,22 +313,10 @@ export function createProvider<P, B extends ContentBlock>(
 
   let accepted: Accepted | null = null
 
-  /**
-   * The wake hint of an accepted submit (SPEC "输入内容与水位线"): it cancels the wait the drive
-   * sleeps on. With no handover asked, the drive waits again, and a wait reads the execution before
-   * it sleeps: the new revision wakes it. A drive that runs a pass needs no hint for the same reason.
-   * Without a live drive there is nobody to tell; the next legal advance reads the same input
-   * boundary.
-   */
   function hint(execution: AgentExecutionId): void {
     if (slot.kind === 'running' && slot.execution === execution) driving?.wait?.abort()
   }
 
-  /**
-   * The drive of `execution` stopped on `failure` (SPEC「运行失败」). Only the run that still holds
-   * the slot moves it: a slot that E9 freed, or that another execution holds now, stays. The
-   * report goes out once, after the slot changed; a receiver that throws changes nothing.
-   */
   function failRun(
     execution: AgentExecutionId,
     attachment: ExecutionAttachmentId,
@@ -426,16 +334,9 @@ export function createProvider<P, B extends ContentBlock>(
         node,
         failure,
       })
-    } catch {
-      // The report observes the runtime and never decides an answer of it.
-    }
+    } catch {}
   }
 
-  /**
-   * F4 of `execution` found its committed terminal (SPEC「以失败终结」). A `fail` conclusion goes to
-   * the receiver once, with its cause as the Journal keeps it; other conclusions are not reported.
-   * A receiver that throws changes nothing.
-   */
   function endedRun(
     execution: AgentExecutionId,
     state: Extract<ExecutionState, { kind: 'ended' }>,
@@ -458,17 +359,9 @@ export function createProvider<P, B extends ContentBlock>(
                 fault: candidate.kind === 'no-reply' ? (candidate.fault ?? null) : null,
               },
       })
-    } catch {
-      // The report observes the runtime and never decides an answer of it.
-    }
+    } catch {}
   }
 
-  /**
-   * U0 to E1 for an invoke that holds the reservation, then the Loop in the background. SPEC
-   * "创建、登记与复用": invoke waits for the reliable acceptance only, not for the Loop. A failure
-   * before E1 puts the slot `back`: free for a new invoke, the R0 item again for its retry, because
-   * the `open` of that item may have committed.
-   */
   async function admit(
     input: InvokeInput<P>,
     back: Slot,
@@ -491,10 +384,6 @@ export function createProvider<P, B extends ContentBlock>(
     return acceptOriginal(input, back, coordinator)
   }
 
-  /**
-   * What the coordinator of an execution in the slot is built with, for an invoke and for a resume:
-   * the evaluator of the bound definition and the limits of the configuration.
-   */
   async function coordinatorEntry(
     access: Access<P>,
     execution: AgentExecutionId,
@@ -505,7 +394,6 @@ export function createProvider<P, B extends ContentBlock>(
       adoption: binding.definition,
     })
     if ('failure' in resolved) return resolved
-    // E3, P0, M4 and F2 pass through without extensions; running one is #502 stage 3.
     if (resolved.ok.extensions.length > 0)
       return fail(notImplemented('an adopted loop extension', 'stage 3'))
     return succeed({
@@ -529,9 +417,7 @@ export function createProvider<P, B extends ContentBlock>(
             owner: failure.owner,
             diagnostic: failure.diagnostic,
           })
-        } catch {
-          // The report observes the runtime and never decides an answer of it.
-        }
+        } catch {}
       },
       ...modelRetryEntry(entry, dependencies.random, execution),
       toolConcurrency: entry.configuration.toolConcurrency,
@@ -539,11 +425,6 @@ export function createProvider<P, B extends ContentBlock>(
     })
   }
 
-  /**
-   * The background drive of the execution in the `running` slot. It answers the failure it stopped
-   * on, or null for a stop without one (E9 freed the slot, or the execution was handed over). A
-   * failed pass is not a stop yet: a commit-unknown keeps the drive waiting and running.
-   */
   function startDrive(
     execution: AgentExecutionId,
     attachment: ExecutionAttachmentId,
@@ -552,7 +433,6 @@ export function createProvider<P, B extends ContentBlock>(
     const own: Driving = { wait: null, asked: null }
     driving = own
     const pacer = reconciliationPacer(entry.configuration.reconciliationDelaysMs)
-    /** The handover quiesce asked for, made between a pass and a wait. True: the slot is free. */
     const handOver = async (): Promise<boolean> => {
       const asked = own.asked
       if (asked === null) return false
@@ -585,12 +465,9 @@ export function createProvider<P, B extends ContentBlock>(
             if ('failure' in wake) return wake.failure
             if (wake.ok === 'stopped') return 'failure' in ran ? ran.failure : null
             if (wake.ok === 'ready') break
-            // Quiesce or a submit's hint cancelled the wait: a request is answered, then the drive
-            // waits again and reads the execution first.
           }
         }
       } finally {
-        // The drive ends: E9 freed the slot, or the run failed. Nothing is left to hand over here.
         own.asked?.settle(false)
         own.asked = null
         if (driving === own) driving = null
@@ -600,7 +477,6 @@ export function createProvider<P, B extends ContentBlock>(
       if (halted !== null) failRun(execution, attachment, halted.node, halted.failure)
     }
     void drive().then(stopped, (error: unknown) =>
-      // Node 24 ends the process on an unhandled rejection; the throw becomes the failure instead.
       failRun(execution, attachment, null, {
         kind: 'unavailable',
         owner: OWNER,
@@ -625,9 +501,6 @@ export function createProvider<P, B extends ContentBlock>(
     )
     if ('failure' in opened) {
       const { node, failure } = opened.failure
-      // SPEC "受理与单执行槽": only an `open` whose outcome is unknown keeps the reservation, as the
-      // R0 item of this operation. A commit-unknown at Q2 comes before `open`; no execution exists,
-      // so the slot is given back. Both name the operation of the invoke: retrying it is the query.
       if (failure.kind !== 'commit-unknown') {
         giveBack()
         return fail(failure)
@@ -652,11 +525,6 @@ export function createProvider<P, B extends ContentBlock>(
     return succeed(handleOf(execution))
   }
 
-  /**
-   * SPEC "查询的四种结论与持久拒绝": only `recordControl` can be refused durably. A `rejected`
-   * conclusion for the operation of an invoke is a violation by the Journal provider: the slot is
-   * neither free nor busy nor admitted, and a held reservation stays.
-   */
   function rejectedOpen(operation: InvokeInput<P>['operation']): Failure {
     return {
       kind: 'unavailable',
@@ -701,13 +569,11 @@ export function createProvider<P, B extends ContentBlock>(
     }
   }
 
-  /** A held slot cannot hide an earlier admission (SPEC 804 and mechanisms.md). */
   async function findAccepted(
     input: InvokeInput<P>,
   ): Promise<Outcome<AgentExecutionHandle<P>, Failure>> {
     const found = await dependencies.journal.query(input)
     if ('failure' in found) {
-      // SPEC 61 hides absence as denied; after the access guard, this means a new invoke meets a held slot (SPEC 646).
       return found.failure.kind === 'denied' ? fail({ kind: 'busy' }) : found
     }
     switch (found.ok.kind) {
@@ -772,8 +638,6 @@ export function createProvider<P, B extends ContentBlock>(
     if ('failure' in passed) return passed
     const remembered = answerRemembered(input)
     if (remembered !== undefined) return remembered
-    // SPEC "四种控制": after quiesce a new invoke answers unavailable. The R0 item is refused too:
-    // its retry could admit the execution anew, and the quiesce already counts it as remaining.
     if (draining()) return fail(drainingRefusal('invoke'))
     if (
       slot.kind === 'reserved' &&
@@ -787,13 +651,6 @@ export function createProvider<P, B extends ContentBlock>(
     return admit(input, { kind: 'free' })
   }
 
-  /**
-   * SPEC "创建、登记与复用": resume reserves the slot, then `Journal.attach` recognizes the original
-   * record and grants a new attachment. Only the recovery path is here: the execution was handed
-   * over and is `suspended`. An attachment that is still active needs a takeover, which this runtime
-   * does not ask for, so `attach` answers `changed`. Every failure gives the slot back; a retry with
-   * the same operation is recognized by the Journal.
-   */
   const resume: AgentProvider<P>['runtime']['resume'] = async input => {
     const passed = await guard(input, 'resume', onExecution(input.execution))
     if ('failure' in passed) return passed
@@ -824,12 +681,6 @@ export function createProvider<P, B extends ContentBlock>(
     return succeed(handleOf(execution))
   }
 
-  /**
-   * Asks the drive of the execution in the slot to hand it over, and waits for its answer. The
-   * drive answers when its current pass is over: a pass that only reads the saved wait again is
-   * short, and a pass that runs a node ends at the next wait. False: no drive works (the run
-   * failed), or the drive did not hand over.
-   */
   function askHandover(held: Quiescing): Promise<boolean> {
     const own = driving
     if (own === null || own.asked !== null) return Promise.resolve(false)
@@ -855,11 +706,6 @@ export function createProvider<P, B extends ContentBlock>(
     }
   }
 
-  /**
-   * Withdraws the registration of this instance through its handle. Without a handle the instance
-   * was never published, and quiesce skips the withdrawal (public API "参数与依赖", registration).
-   * Only `withdrawn`, or no registration left, lets quiesce say drained.
-   */
   async function withdrawRegistration(
     held: Quiescing,
     access: Access<P>,
@@ -881,15 +727,6 @@ export function createProvider<P, B extends ContentBlock>(
     return fail(withdrawalFailure(`withdraw left the registration ${answer.ok.state}`))
   }
 
-  /**
-   * One drain step. The drive of an execution is asked to hand it over, and does so when its pass
-   * ends on a wait that is saved in the Journal; its slot is then free (SPEC "交接与停用"). Any other
-   * execution stays in the slot and the answer is `unresolved` with it, never `drained`: a wait in
-   * memory, an operation whose outcome is unknown, a handover the Journal did not confirm, and a
-   * `failed` slot (R2-D285: no drive works on it, but nothing handed it over). A free slot withdraws the registration, ends
-   * every observation and answers `drained` for good. The slot cannot be taken while this step
-   * waits: the runtime is draining and refuses every new invoke and resume.
-   */
   async function drainStep(
     held: Quiescing,
     access: Access<P>,
@@ -905,11 +742,6 @@ export function createProvider<P, B extends ContentBlock>(
     return succeed(drained)
   }
 
-  /**
-   * SPEC "交接与停用": a drained quiesce answers its original result. Otherwise every caller (a
-   * retry, or a new quiesce that joins) goes on with the handover and gets the current remainder;
-   * callers that arrive while a step runs share it.
-   */
   function continueQuiesce(
     held: Quiescing,
     access: Access<P>,
@@ -961,7 +793,6 @@ export function createProvider<P, B extends ContentBlock>(
       load: input => guarded(input, 'load', onExecution(input.execution), 'stage 5'),
       reconcile: input => guarded(input, 'reconcile', onExecution(input.execution), 'stage 5'),
       detach: input => guarded(input, 'detach', onExecution(input.execution), 'stage 5'),
-      // A runtime cannot judge another runtime: the judgment belongs to the host that runs them.
       contact: input => guarded(input, 'load', onExecution(input.execution), 'stage 5'),
     },
     control: {

@@ -1,5 +1,3 @@
-// The test assembly and the factory: all 18 dependencies are present, they are independent per call,
-// and the factory turns them into an idle provider without touching any of them (C1).
 import { expect, it } from 'vitest'
 import { createAgentRuntime } from '@omne-harness/agent'
 import { createTestAgentDependencies } from '@omne-harness/agent/testing'
@@ -83,7 +81,6 @@ it('C1: the factory given the test assembly returns an idle provider and calls n
   expect(first).toEqual({ kind: 'state', value: { kind: 'idle', instance: instance() } })
   expect(calls).toEqual(['access.check'])
 
-  // The recorder itself works: a call through a wrapped journal is logged.
   await dependencies.journal.load({ principal: 'alice', tenant: tenantA, execution: execution() })
   expect(calls).toEqual(['access.check', 'journal.load'])
 })

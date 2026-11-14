@@ -1,18 +1,3 @@
-// The core conformance suite of `AgentJournal` (SPEC "并发与提交" and "托管协调与运行实例"): the
-// facts that every Journal binding, standalone or coordinated, must give the same answers to.
-// It reads only what the port returns. A fixture opens executions under its own binding; what the
-// coordinator side needs so that an ordinary end can succeed is the fixture's business.
-//
-// The suite covers: the revision rule of "执行修订" (Q3), the receipts and index of a new
-// operation that recognizes an existing fact ("原操作认回与恢复", Q13), the atomic control facts and
-// the late stages after ended ("六个阶段", Q1 and Q1b), the persistent rejection of contradicting
-// evidence and the four query conclusions ("查询的四种结论与持久拒绝", R2), the order of
-// "判定次序与失败映射" for ended and superseded attachments (Q11), the admission records of
-// "消息准入" (P, the Ja variants resolve and retire, the handoff projection of `load`), the custody
-// of "准入结果保管" (Rh root, permanent exclusion, the one successor), the two submit lineages
-// of "输入内容与水位线", and the finishing cases of testing-journal-finishing.ts: the candidate
-// and its projection, the obligations, the blocked order, the cancellation route and the six
-// settlement variants.
 import assert from 'node:assert/strict'
 import type {
   AgentCheckpoint,
@@ -86,7 +71,6 @@ export type {
   SettlementQualification,
 } from './testing-journal-helpers.ts'
 
-/** The cases that every `AgentJournal` binding passes. */
 export function agentJournalCoreConformance<P>(
   fixture: AgentJournalCoreFixture<P>,
 ): readonly ConformanceCase[] {
@@ -531,8 +515,6 @@ export function agentJournalCoreConformance<P>(
           'terminal',
           'submit',
         )
-        // SPEC per-operation table, input.submit: a new operation B after ended is terminal; only
-        // the original successful O is recognized before that check.
         await refused(
           journal.submit(
             recognizingSubmit(opened, 'recognize-after-end', value, accepted.lineage.original),
@@ -664,7 +646,6 @@ export function agentJournalCoreConformance<P>(
             detached.revision,
             'at the revision of the handoff',
           )
-        // A terminal observation is pending after an end whose checkpoint carries an after_terminal passage.
         const reopened = await fixture.open('q13-observation')
         const passage = afterTerminalPassage('observer')
         const snapshot = await load(reopened)
@@ -799,14 +780,11 @@ export function agentJournalCoreConformance<P>(
         assert.equal(listed.resolution, null)
         assert.ok(listed.prepared !== null, 'the P basis is kept')
         assert.deepEqual(await query(opened, operation('p1')), { kind: 'committed', receipt })
-        // The same source position cannot take another H while h1 is undetermined.
         const other = pendingHandoff(opened, after, 'h2')
         await notSuccessful(
           journal.commit(prepareCommit(opened, after, 'p2', other)),
           'a second P at the same position',
         )
-        // Only a Ja clears the pointer: a P at another position cannot move it from h1 to its own H
-        // (SPEC "消息准入": currentHandoff moves only through a successful resolve or retire).
         const elsewhere: PendingHandoff = {
           ...pendingHandoff(opened, after, 'h3'),
           position: { step: after.checkpoint.step, node: 'I8', slot: null },
@@ -853,7 +831,6 @@ export function agentJournalCoreConformance<P>(
           'invalid',
           'a resolve that keeps currentHandoff pointing at H',
         )
-        // A Ja clears the pointer; it cannot set it to an H that no P prepared.
         const moved = await refused(
           journal.commit(
             resolveCommit(opened, before, 'ja-moves-pointer', prepared1, {
@@ -890,7 +867,6 @@ export function agentJournalCoreConformance<P>(
         assert.deepEqual(listed.resolution, { kind: 'recorded', outcome: prepared1 })
         assert.deepEqual(await ok(journal.commit(ja), 'the retry'), receipt)
         assert.deepEqual(await load(opened), after, 'the retry wrote nothing')
-        // One H has at most one history application: another Ja for the same H does not succeed.
         await notSuccessful(
           journal.commit(resolveCommit(opened, after, 'ja-again', prepared1)),
           'a second Ja of the same H',
@@ -974,14 +950,10 @@ export function agentJournalCoreConformance<P>(
           revision: receipt.revision,
           reason: evidence('retire'),
         })
-        // After the retirement, a successor P at the same position may name h1 as its predecessor.
         const successor = pendingHandoff(opened, after, 'h2', request.reference)
         await ok(journal.commit(prepareCommit(opened, after, 'p2', successor)), 'the successor P')
         const pointed = await load(opened)
         assert.deepEqual(pointed.checkpoint.currentHandoff, successor.reference)
-        // h1 already has its history disposition (not-applicable), so a second retire of it is
-        // invalid and leaves that history as it is; a retire whose checkpoint keeps a pointer is
-        // invalid at checkpoint.currentHandoff.
         const retiredAgain = await refused(
           journal.commit(
             commitAt(opened, pointed, 'retire-not-current', opened.authority, {
@@ -1047,15 +1019,11 @@ export function agentJournalCoreConformance<P>(
           committed: record.operation,
         })
         assert.deepEqual(await query(opened, record.operation), { kind: 'committed', receipt })
-        // The root cannot change its payload: the same operation with the exclusion conflicts.
         await refused(
           journal.recordHandoff({ ...record, original: excluded(request) }),
           'conflict',
           'the root with another payload',
         )
-        // After the end, the history of a prepared H that never published is retained. Only a
-        // failed or cancelled candidate may retain it: a complete one is blocked by the pending
-        // history (SPEC "终结责任清单"), see the finishing case of the pending H.
         await end(opened, 'end', opened.authority, failedContent('end'))
         const retained = handoffOf(await load(opened), request.reference)
         assert.equal(retained.history.kind, 'retained', 'the terminal disposition retains it')
@@ -1138,7 +1106,6 @@ export function agentJournalCoreConformance<P>(
           operation: operation(name),
           custody: custody(predecessor, chain),
         })
-        // Before the root was attempted, no successor can start.
         await refused(
           journal.recordHandoff(successorOf('rh-early', root.operation, [])),
           'invalid',
@@ -1179,7 +1146,6 @@ export function agentJournalCoreConformance<P>(
         })
         assert.deepEqual(await ok(journal.recordHandoff(successor), 'the retry'), receipt)
         assert.deepEqual(await load(opened), after, 'the retry wrote nothing')
-        // Once an attempt succeeded, another successor of the same predecessor cannot succeed.
         await refused(
           journal.recordHandoff(
             successorOf('rh-3', root.operation, [exclusionOf(root.operation, null)]),
@@ -1234,13 +1200,6 @@ export function agentJournalCoreConformance<P>(
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// Reply admission reads (SPEC "回复准入的已核实前缀"): the verified prefix, the fixed range
-// `(from, through]`, the five conditions of a successful page, the page bounds, the gaps, the
-// commit-time check of the checkpoint's read position, the rule change, the current read
-// qualification and the read counters. A case that needs `replyAdmissions` controls the fixture
-// lacks is uncovered.
-
 type Opened<P> = AgentJournalCoreOpened<P>
 type Page = Extract<ReplyAdmissionPage, { kind: 'page' }>
 type ReadInput<P> = Parameters<AgentJournal<P>['readReplyAdmissions']>[0]
@@ -1272,7 +1231,6 @@ function pageOf(read: ReplyAdmissionPage, what: string): Page {
   return read
 }
 
-/** Every page of `(from, through]` with `limit`, following `tail.more` until complete. */
 async function readAll<P>(
   opened: Opened<P>,
   from: ReplyAdmissionFrom,
@@ -1305,7 +1263,6 @@ function caseName(name: string): string {
   return name.slice(0, 32).replace(/[^a-z0-9]+/giu, '-')
 }
 
-/** A case that runs on the public port alone. */
 function plain<P>(
   name: string,
   fixture: AgentJournalCoreFixture<P>,
@@ -1314,7 +1271,6 @@ function plain<P>(
   return { name, run: async () => run(await fixture.open(caseName(name))) }
 }
 
-/** A case that needs the `replyAdmissions` controls; uncovered when the fixture lacks them. */
 function controlled<P>(
   name: string,
   fixture: AgentJournalCoreFixture<P>,
@@ -1336,7 +1292,6 @@ function controlled<P>(
   }
 }
 
-/** A commit at the current snapshot that only moves the read position, as an ordinary commit carries it. */
 async function writeRead<P>(
   opened: Opened<P>,
   name: string,
@@ -1350,7 +1305,6 @@ async function writeRead<P>(
   )
 }
 
-/** A lawful prefix of an execution of another tenant: its first admitted fact. */
 async function foreignPrefix<P>(
   controls: Controls<P>,
   name: string,
@@ -1360,10 +1314,6 @@ async function foreignPrefix<P>(
   return (await load(foreign)).replyAdmissions.prefix
 }
 
-/**
- * The reply admission cases. `covered` is false when the fixture gives no `replyAdmissions`
- * controls; the cases that need them are then uncovered.
- */
 function replyAdmissionCases<P>(
   fixture: AgentJournalCoreFixture<P>,
   covered: boolean,
@@ -1596,7 +1546,6 @@ function replyAdmissionCases<P>(
       async opened => {
         await admitReply(opened, 1)
         const before = (await load(opened)).replyAdmissions
-        // The same call and result version under another H, action and step: recognized.
         await admitReply(opened, 2, 'admitted', 'mcall_reply000000000001')
         const replayed = (await load(opened)).replyAdmissions
         assert.deepEqual(replayed.prefix, before.prefix, 'no new sequence and no new basis')

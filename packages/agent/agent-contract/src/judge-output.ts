@@ -28,7 +28,6 @@ type SplitPosition = 'before_model_call' | 'after_model_call' | 'after_action'
 type Ending = Extract<Dimension, { ending: unknown }>['ending']
 type Scope = Extract<Dimension, { scope: unknown }>['scope']
 
-/** A row of the position output table: a position, with its dimension or purpose where one splits it. */
 export type PositionOutputKey =
   | Exclude<Position, SplitPosition>
   | `before_model_call/${NonNullable<ExtensionOutputJudgeInput['purpose']>}`
@@ -36,9 +35,7 @@ export type PositionOutputKey =
   | `after_action/${Scope}`
 
 export type PositionOutputs = Readonly<{
-  /** The outputs the position allows, before the power narrows them. */
   allowed: readonly OutputKind[]
-  /** The fields an output may rewrite, each as a path into the subject. Every other field is fixed. */
   rewritable: readonly (readonly string[])[]
 }>
 
@@ -50,11 +47,6 @@ function freezeDeep<T>(value: T): T {
   return value
 }
 
-/**
- * The position output table of docs/public-api/extensions.md, "位置输出表": the one table that
- * decides which output is legal where. The `observe`, `rewrite` and `veto` columns of that page are
- * `allowed` narrowed by `POWER_OUTPUTS`.
- */
 export const POSITION_OUTPUTS: Readonly<Record<PositionOutputKey, PositionOutputs>> = freezeDeep({
   execution_started: { allowed: ['observed', 'inject', 'stop', 'ask'], rewritable: [] },
   before_compaction: { allowed: ['observed', 'inject', 'veto', 'stop', 'ask'], rewritable: [] },
@@ -91,26 +83,19 @@ export const POSITION_OUTPUTS: Readonly<Record<PositionOutputKey, PositionOutput
   after_terminal: { allowed: ['observed'], rewritable: [] },
 })
 
-/** The outputs a declared power allows (extensions.md, "按干预力的上限"). */
 const POWER_OUTPUTS: Readonly<Record<Power, readonly OutputKind[]>> = {
   observe: ['observed'],
   rewrite: ['observed', 'inject', 'rewrite', 'select_model', 'retry'],
   veto: ['observed', 'inject', 'rewrite', 'select_model', 'veto', 'stop', 'retry', 'ask'],
 }
 
-/** What the judgment needs to know about one extension call and its output. */
 export type ExtensionOutputJudgeInput = Readonly<{
   position: Position
   dimension: Dimension | null
-  /** Non-null only at `before_model_call` and `after_model_call`. */
   purpose: 'main' | 'compaction' | null
-  /** The power in force: the declared ceiling after the source has narrowed it. */
   power: Power
-  /** Non-null only for the `failure` ending of `after_model_call`. */
   trigger: 'first-content' | 'final' | null
-  /** The subject the author received. */
   subject: Subject
-  /** What the author returned, as `output.value` of the invocation result. */
   output: unknown
 }>
 
@@ -143,7 +128,6 @@ function afterActionRow(dimension: Dimension | null): Located {
   return refuse('dimension_missing')
 }
 
-/** The row of a position that takes no dimension. An absent purpose takes the stricter compaction row. */
 function undimensionedRow(
   position: Exclude<Position, 'after_model_call' | 'after_action'>,
   purpose: ExtensionOutputJudgeInput['purpose'],
@@ -152,7 +136,6 @@ function undimensionedRow(
   return purpose === 'main' ? 'before_model_call/main' : 'before_model_call/compaction'
 }
 
-/** Steps 1 and 2: the position, the power and the dimension, ending in the table row. */
 function locate(input: ExtensionOutputJudgeInput): Located {
   const { position, dimension } = input
   if (!oneOf(POSITIONS, position)) return refuse('position_unknown')
@@ -171,28 +154,14 @@ function locate(input: ExtensionOutputJudgeInput): Located {
 type MessageShape = Readonly<{ id: string; role: string; blocks: readonly unknown[] }>
 type InjectedMessage = Extract<ExtensionOutput, { kind: 'inject' }>['message']
 
-/** Step 4: the role of an injected message. This is the only rule of `Message` that it checks. */
 function isReminder(message: MessageShape): boolean {
   return message.role === 'system_reminder'
 }
 
-/**
- * Hands a value that passed the checks of this judgment on as the type of its owner. The message,
- * the subject and the supplier are values of other owners: message admission judges a reminder
- * message, the position judges its own subject, and Model judges a retry plan. This judgment checks
- * only what the author protocol says about them, so the type is not proven here. The consumer runs
- * the judgment of each owner before it adopts the value. Every such step goes through this one
- * function, so each place where an unproven type is given can be found.
- */
 function asOwnerTyped<T>(value: unknown): T {
   return value as T
 }
 
-/**
- * The limits of one output. A rewrite returns a whole subject, such as a model request with its
- * message history, so they are far wider than the limits of a declaration. They still bound depth,
- * so the copy of an output cannot exhaust the stack.
- */
 const OUTPUT_LIMITS: JsonLimits = {
   maxDepth: 64,
   maxMembers: 10_000,
@@ -205,12 +174,9 @@ const OUTPUT_LIMITS: JsonLimits = {
 const text = z.string().min(1)
 const data = z.record(z.string(), z.unknown())
 const jsonValue = z.custom<JsonValue>(value => 'ok' in judgeJsonValue(value))
-/** An action identity is judged by its decoder, the one rule of the identity text. */
 const actionId = z.custom<ActionId>(value => 'ok' in decodeActionId(value))
-/**
- * A UTC instant text is judged by `parseInstant`, the one rule of the text. Only the verdict is
- * used: the parsed `Instant` is a class and never enters the output, which must stay JSON data.
- */
+// Only the verdict of `parseInstant` is used: the parsed `Instant` is a class and must not enter
+// the output, which has to stay JSON data.
 const utcInstantText = z.custom<UtcInstantText>(
   value => typeof value === 'string' && parseInstant(value).ok,
 )
@@ -258,7 +224,6 @@ const outputSchema = z.discriminatedUnion('kind', [
 
 type Parsed = z.output<typeof outputSchema>
 
-/** Step 3: the output is plain data of one of the eight shapes. */
 function parseOutput(value: unknown): Parsed | undefined {
   const copied = copyPlain(value, OUTPUT_LIMITS)
   if (!copied.ok) return undefined
@@ -319,7 +284,6 @@ function buildRetry(parsed: Extract<Parsed, { kind: 'retry' }>): ExtensionOutput
   }
 }
 
-/** The typed output of a parsed one that passed steps 4 to 7. */
 function build(parsed: Parsed): ExtensionOutput {
   switch (parsed.kind) {
     case 'observed':
@@ -353,7 +317,6 @@ function definedKeys(record: Readonly<Record<string, unknown>>): string[] {
   return Object.keys(record).filter(key => record[key] !== undefined)
 }
 
-/** Structural equality of plain data. Key order does not matter; a member set to `undefined` is absent. */
 function sameData(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
   if (Array.isArray(left) || Array.isArray(right)) {
@@ -372,7 +335,6 @@ function sameData(left: unknown, right: unknown): boolean {
   )
 }
 
-/** The value without the member at `path`. Only the objects along the path are copied. */
 function withoutPath(value: unknown, path: readonly string[]): unknown {
   const [head, ...rest] = path
   if (head === undefined || !isRecord(value)) return value
@@ -384,7 +346,6 @@ function withoutPath(value: unknown, path: readonly string[]): unknown {
   )
 }
 
-/** Step 7: a rewrite changes the rewritable fields of the position and nothing else. */
 function rewriteRefusal(
   parsed: Parsed,
   row: PositionOutputKey,
@@ -396,7 +357,6 @@ function rewriteRefusal(
   return sameData(fixed(parsed.subject), fixed(subject)) ? undefined : 'rewrite_touches_immutable'
 }
 
-/** Step 5: the position table. `ask` has its own word; `retry` also needs the first-content trigger. */
 function positionRefusal(
   parsed: Parsed,
   row: PositionOutputKey,
@@ -410,7 +370,6 @@ function positionRefusal(
   return undefined
 }
 
-/** Steps 4 to 7, in order. */
 function outputRefusal(
   parsed: Parsed,
   row: PositionOutputKey,
@@ -426,13 +385,6 @@ function outputRefusal(
   )
 }
 
-/**
- * Judge what an extension author returned against the position output table. The function is
- * synchronous and pure: it reads no clock, performs no I/O and does not throw for any `output`.
- * An `output` that is a Proxy, or that holds one, runs its traps during the copy. A trap that
- * throws, or a revoked Proxy, gives `malformed`. The accepted value is a frozen copy that shares
- * nothing with `output`.
- */
 export function judgeExtensionOutput(
   input: ExtensionOutputJudgeInput,
 ): Judgment<ExtensionOutput, OutputRefusalReason> {
@@ -445,7 +397,6 @@ export function judgeExtensionOutput(
   return { kind: 'accepted', value: freezeDeep(build(parsed)) }
 }
 
-/** Names the shape of the value of a decision card request: the card draft of an `ask`. */
 export const DECISION_CARD_DRAFT_SCHEMA: Adoption = Object.freeze({
   owner: 'agent',
   name: 'decision-card-draft',
@@ -453,7 +404,6 @@ export const DECISION_CARD_DRAFT_SCHEMA: Adoption = Object.freeze({
   digest: 'agent:decision-card-draft/1',
 })
 
-/** A value of plain JSON data without numbers, as the tree of json-text. */
 function treeOf(value: unknown): JsonValue {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'string') return { kind: 'string', value }
@@ -467,15 +417,10 @@ function treeOf(value: unknown): JsonValue {
   }
 }
 
-/**
- * The request of one card of a round: the draft, under the identity the Agent fixed for the card.
- * The loop and a card provider read the draft with `cardDraftOf`; neither parses the value itself.
- */
 export function cardRequestOf(identity: string, draft: DecisionCardDraft): CardRequest {
   return { identity, schema: DECISION_CARD_DRAFT_SCHEMA, value: treeOf(draft) }
 }
 
-/** The draft a card request carries; `null` for another shape, or for a value that is no draft. */
 export function cardDraftOf(request: CardRequest): DecisionCardDraft | null {
   const { owner, name, revision, digest } = DECISION_CARD_DRAFT_SCHEMA
   const { schema } = request

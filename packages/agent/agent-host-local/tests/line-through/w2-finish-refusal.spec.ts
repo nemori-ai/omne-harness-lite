@@ -5,8 +5,6 @@ import { openW2World, replyText } from './w2-world.ts'
 
 it('waits on Session pending input without replacing the completion candidate', async () => {
   let injected = false
-  // Session hands `in-2` to the active Run through the Agent's submit, which prepares the admission
-  // before it accepts: held here, `in-2` stays pending in Session and out of the Run's hands.
   const handIn = Promise.withResolvers<void>()
   const w = await openW2World({
     receptionTargets: 'journal',
@@ -45,8 +43,6 @@ it('waits on Session pending input without replacing the completion candidate', 
     })
 
     await w.accept('in-2', 'another input after the failure')
-    // One saved Model result lets the clock release three reconciliation waits; after them nothing
-    // moves the clock, so the Run keeps the state the assertions read.
     await w.until(() => w.modelCalls.length === 1 && w.releases() === 3, 10_000)
     const active = await w.execution()
     expect(active).not.toBe(failed)

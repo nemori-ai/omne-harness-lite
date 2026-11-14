@@ -1,5 +1,3 @@
-// The Tool start fence that Agent consumes. Agent takes the `toolStartFence` key of the Tool Cordis
-// definition: this member must not declare that key or the wider `toolStartAuthority`.
 import { describe, expect, it } from 'vitest'
 import * as cordis from '@omne-harness/agent-cordis-contract/cordis'
 import { toolStartAuthorityKey, toolStartFenceKey } from '@omne-harness/tool-cordis-contract/cordis'

@@ -41,13 +41,10 @@ const legal = {
 type Row = {
   readonly label: string
   readonly content: Record<string, unknown>
-  /** The refusal word of the body judgment. Absent means the body is accepted. */
   readonly rejected?: string
-  /** The reason of `judgeAgentDefinition`. It names only two of the finer words and uses `malformed` otherwise. */
   readonly definitionReason?: string
 }
 
-// One table drives both entries. `judgeAgentDefinition` takes the same content plus `category`.
 const rows: readonly Row[] = [
   { label: 'legal full body', content: legal },
   {
@@ -121,7 +118,6 @@ const rows: readonly Row[] = [
     rejected: 'incomplete-reference',
   },
   {
-    // A definition carries no version (SPEC "声明判断"), so `version` is a key neither entry lists.
     label: 'stated version',
     content: { name: 'a', version: 'v2', references: [], attributes: [] },
     rejected: 'unknown-field',
@@ -283,7 +279,6 @@ describe('agentBodyContract registration', () => {
     const { schema } = agentBodyContract()
     expect(isReadBody(schema)).toBe(true)
     expect(schema).toMatchObject({ kind: 'object' })
-    // The schema is descriptive: a body that matches it is not thereby judged legal.
     expect(agentBodyContract().judge(schema)).toEqual({
       ok: false,
       rejected: 'incomplete-reference',
@@ -315,7 +310,6 @@ describe('judge agrees with judgeAgentDefinition', () => {
       expect(definitionJudgment.kind).toBe('accepted')
     } else {
       expect(bodyJudgment).toEqual({ ok: false, rejected })
-      // `detail` is a diagnostic the definition judgment may add; the reason is what both agree on.
       expect(definitionJudgment).toMatchObject({
         kind: 'refused',
         reason: definitionReason ?? 'malformed',
@@ -371,7 +365,6 @@ describe('judge differences that come from the body entry', () => {
   it('refuses values that are not read trees without throwing', () => {
     const { judge } = agentBodyContract()
     const refused = { ok: false, rejected: 'incomplete-reference' }
-    // A hand-built tree has the right shape but was not produced by readBodyText.
     const lookalike = {
       kind: 'object',
       entries: [{ key: 'name', value: { kind: 'string', value: 'a' } }],

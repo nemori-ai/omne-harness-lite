@@ -16,7 +16,6 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { describeImport, memberPath, walkModules, type ModuleKind } from './module-graph.ts'
 
-/** The key table of docs/cordis.md: key constant to its class. */
 const documentedPairs = {
   agentJournalKey: 'AgentJournalService',
   agentAccessCheckKey: 'AgentAccessCheckService',
@@ -46,11 +45,8 @@ const documentedPairs = {
   agentInstanceProvisionKey: 'AgentInstanceProvisionService',
 } as const
 
-/** The Agent packages that depend on this one. This one must not depend on either. */
 const dependent = /^@omne-harness\/agent(-host-local)?(\/|$)/u
 
-// `FiberState` is a const enum of Cordis, so its members are not values to import: 0 is PENDING and
-// 2 is ACTIVE in Cordis 4.0.4.
 const PENDING = 0
 const ACTIVE = 2
 
@@ -90,8 +86,6 @@ describe('service keys', () => {
 })
 
 describe('the key texts', () => {
-  // The texts are written out, because a key that equals the `provide` of its class would still
-  // pass the pairing above if both were changed together, and a plugin reads a service by its text.
   it('are the names of the documented services', () => {
     expect(Object.fromEntries(keyConstants)).toEqual({
       agentJournalKey: 'agentJournal',
@@ -198,7 +192,6 @@ describe('under Cordis 4.0.4', () => {
   })
 
   it('provides each definition, whichever it is, under its own key and under no other', async () => {
-    // `AgentInstancesService` takes the publication authority and is loaded through its plugin.
     const definitions = serviceClasses.filter(([, type]) => type.provide !== agentInstancesKey)
     expect(definitions).toHaveLength(25)
     for (const [name, type] of definitions) {
@@ -364,7 +357,6 @@ describe('the directory plugin', () => {
     const root = new Context()
     await root.plugin({ name: 'access', apply: ctx => void new Access(ctx) })
     await root.plugin({ name: 'authority', apply: ctx => void new Authority(ctx) })
-    // The plugin types its configuration as absent, so the runtime check gets values by assertion.
     await root.plugin(agentInstancesPlugin, config as never)
     expect(root.get(agentInstancesKey)).toBeInstanceOf(AgentInstancesService)
   })

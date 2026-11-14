@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real SQLite and production Journal targets; Model and Tool execution use w2-world's scripted providers.
 import { expect, it } from 'vitest'
 import { readToolDeliveryMaterial } from '@omne-harness/agent'
 import { ok } from './world.ts'

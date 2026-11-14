@@ -45,7 +45,6 @@ type Saved = Outcome<ToolSavedReceipt, ToolDeliveryFailure>
 type Rejected = Outcome<never, ToolDeliveryFailure>
 type Maintained = Awaited<Reply<ToolReceiverReport>>
 type Capacity = ReturnType<ToolReceiverDependencies<unknown>['capacity']>
-/** What one push has settled before a reception is kept. */
 type Pending<P> = Readonly<{
   access: Access<P>
   value: ToolDelivery<ContentBlock>
@@ -54,7 +53,6 @@ type Pending<P> = Readonly<{
   key: string
   tenant: string
 }>
-/** The target query of a delivery: the route comes from the position this owner registered. */
 function targetQuery<P>(access: Access<P>, value: ToolDelivery<ContentBlock>) {
   const route = actionPositionExecution(value.consumer)
   return {
@@ -90,7 +88,6 @@ function attachments(value: unknown, found = new Set<string>()): number {
   return found.size
 }
 
-/** A push that failed for a reason other than an unknown outcome stops maintenance. */
 function pushRejection(pushed: Saved): Maintained | null {
   if (!('failure' in pushed) || pushed.failure.kind === 'outcome-unknown') return null
   return pushed.failure.kind === 'denied'
@@ -110,7 +107,6 @@ function accepts(
   )
 }
 
-/** Settles with `settle()` when the signal aborts first; the work itself keeps running. */
 async function raceAbort<T>(work: Promise<T>, signal: AbortSignal, settle: () => T): Promise<T> {
   const abort = Promise.withResolvers<T>()
   const stopped = () => abort.resolve(settle())
@@ -274,7 +270,6 @@ export function createAgentToolReceiver<P>(
         : fail({ kind: 'denied' })
     return admit(access, value)
   }
-  /** Conflict and capacity gates, in this order, before a reception is kept. */
   function gate(
     pending: Pending<P>,
     current: ToolReception<P> | undefined,
@@ -301,10 +296,6 @@ export function createAgentToolReceiver<P>(
     if ('failure' in operation) throw new Error('invalid derived Tool reception operation')
     return operation.ok
   }
-  /**
-   * A delivery without a record under a stopped signal: nothing new is written. The Journal is
-   * asked for its operation; a delivery it holds is answered saved, any other is not accepted.
-   */
   async function recognise(pending: Pending<P>): Promise<Saved> {
     const probe: ToolReception<P> = {
       access: pending.access,
@@ -320,7 +311,6 @@ export function createAgentToolReceiver<P>(
     state.diagnostics.delete(probe.operation)
     return fail({ kind: 'cancelled-before-accept' })
   }
-  /** Records a first-seen delivery against the tenant's record, byte and attachment limits. */
   function keep(
     pending: Pending<P>,
     capacity: Capacity,
@@ -346,7 +336,6 @@ export function createAgentToolReceiver<P>(
     state.receptions.set(key, reception)
     return succeed(reception)
   }
-  /** Starts the write as a retained task; the writing slot is released when it ends. */
   function write(reception: ToolReception<P>, key: string, tenant: string): Promise<Saved> {
     return retain(
       (async () => {
@@ -359,8 +348,6 @@ export function createAgentToolReceiver<P>(
         } finally {
           state.writing.delete(key)
           state.active.set(tenant, (state.active.get(tenant) ?? 1) - 1)
-          // A record stays only while its outcome is not known: maintenance owes that one a query.
-          // A decided delivery needs none; the Journal recognises its operation when it comes again.
           if (reception.commit.kind !== 'unknown') state.receptions.delete(key)
         }
       })(),
@@ -403,7 +390,6 @@ export function createAgentToolReceiver<P>(
         : unknown(),
     )
   }
-  /** Returns the failure that stops maintenance, or null when every target is allowed. */
   async function checkTargets(
     input: Maintenance<P>,
     targets: readonly ToolReceptionTarget[],
@@ -439,8 +425,6 @@ export function createAgentToolReceiver<P>(
     input: Maintenance<P>,
     targets: readonly ToolReceptionTarget[],
   ): Promise<Maintained | null> {
-    // The received entries of each original consumption, from the entries port of the same
-    // provider (agent-contract SPEC "日志条目" 6); the snapshot carries none.
     const entries: AgentJournalEntry[] = []
     for (const consumption of new Set(targets.map(target => target.pending.consumption))) {
       const read = await dependencies.provider.entries.receivedOf({

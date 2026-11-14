@@ -1,12 +1,3 @@
-// The Tool result receiver of the `agent-host` plugin on real Cordis 4.0.4 (SPEC "结果接收";
-// IC-13; R2-D273): the body's child plugin registers it with the Tool runtime under the Agent
-// consumer owner once `toolRuntime` and `agentToolReceptionTargets` are there, the host is ready
-// without them, and the ordered stop, the child's end and the host's end remove the registration.
-//
-// The Tool runtime is a bare `ToolRuntimeService` whose only working part is the receiver table of
-// tool-cordis-contract; the target query is a recording double. Journal and access are the memory
-// doubles of `@omne-harness/agent/testing`. Nothing here proves the real Tool host or the
-// session-log targets; `apps/harness-server` composes those (release-tool-delivery.spec.ts).
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { AGENT_CONSUMER_OWNER } from '@omne-harness/agent'
 import type { ToolReceptionTargets } from '@omne-harness/agent-contract'
@@ -33,7 +24,6 @@ const unused = () => {
   throw new Error('not used by the reception tests')
 }
 
-/** A Tool runtime whose receiver table is the real one of tool-cordis-contract. */
 class TableRuntime extends ToolRuntimeService<unknown, ContentBlock> {
   invoke = unused
   inspect = unused
@@ -44,7 +34,6 @@ class TableRuntime extends ToolRuntimeService<unknown, ContentBlock> {
   content = unused as never
   catalog = unused as never
   body = unused as never
-  /** The receiver the push stage would reach for `owner`. */
   registered(owner: string): ToolResultReceiver<unknown, ContentBlock> | undefined {
     return this.resultReceiver(owner)
   }
@@ -52,7 +41,6 @@ class TableRuntime extends ToolRuntimeService<unknown, ContentBlock> {
 
 type Resolve = Parameters<ToolReceptionTargets<unknown>['resolve']>[0]
 
-/** Provides `toolRuntime` as a table runtime on a fiber of its own. */
 function serveRuntime(
   root: Context,
 ): Readonly<{ runtime: () => TableRuntime | undefined; fiber: Fiber }> {
@@ -66,7 +54,6 @@ function serveRuntime(
   return { runtime: () => runtime, fiber }
 }
 
-/** Provides `agentToolReceptionTargets` that records each resolve and answers no binding. */
 function serveTargets(root: Context): Readonly<{ resolved: Resolve[]; fiber: Fiber }> {
   const resolved: Resolve[] = []
   const fiber = root.plugin({
@@ -85,7 +72,6 @@ function serveTargets(root: Context): Readonly<{ resolved: Resolve[]; fiber: Fib
   return { resolved, fiber }
 }
 
-/** Both Tool services, settled. */
 async function serveTool(root: Context) {
   const runtime = serveRuntime(root)
   const targets = serveTargets(root)
@@ -101,7 +87,6 @@ async function world(): Promise<World> {
   return made
 }
 
-/** One result delivery of a Tool call that the Agent registered as action `step-1/tool/0`. */
 function delivery(): ToolDelivery<ContentBlock> {
   const access = caller('a')
   const reference = ok(
@@ -145,12 +130,10 @@ function delivery(): ToolDelivery<ContentBlock> {
 describe('the Tool result receiver of the agent-host plugin (R2-D273)', () => {
   it('the host is ready without the Tool rows; once they come, the receiver is registered under the Agent owner', async () => {
     const w = await world()
-    // Ready and serving with no Tool runtime: the reception child waits, the host does not.
     expect(w.root.get('agentInstanceProvision')).toBeDefined()
     const tool = await serveTool(w.root)
     const receiver = tool.runtime()?.registered(AGENT_CONSUMER_OWNER)
     expect(receiver).toBeDefined()
-    // It is the Agent Tool receiver: it has the maintenance calls next to `push`.
     expect(typeof (receiver as unknown as { recover?: unknown }).recover).toBe('function')
   })
 
@@ -164,7 +147,6 @@ describe('the Tool result receiver of the agent-host plugin (R2-D273)', () => {
       delivery: delivery(),
       signal: new AbortController().signal,
     })
-    // The double answers no original consumption: the Tool protocol's `not-accepted`.
     expect(answer).toEqual({
       failure: { kind: 'invalid', field: 'key.reference', reason: 'not-accepted' },
     })

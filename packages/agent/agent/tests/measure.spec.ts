@@ -1,5 +1,3 @@
-// SPEC「测量事件」: the Agent segment of an execution (the acceptance pass and each drive pass) and
-// the absence of any change when no observer is given.
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentMeasureEvent } from '@omne-harness/agent'
 import { execution, ok } from './journal-support.ts'
@@ -17,7 +15,6 @@ describe('the Agent segment', () => {
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    // The drive pass that ended the execution closes after the ended event is readable.
     await vi.waitFor(() => {
       const runs = events.filter(event => event.pass === 'run')
       expect(runs.length).toBeGreaterThanOrEqual(2)
@@ -34,7 +31,6 @@ describe('the Agent segment', () => {
         .filter(event => event.phase === 'end')
         .map(event => 'outcome' in event && event.outcome),
     ).not.toContain('failure')
-    // The spans pair: every end follows its own start.
     const open = new Set<number>()
     for (const event of events) {
       if (event.phase === 'start') open.add(event.span)

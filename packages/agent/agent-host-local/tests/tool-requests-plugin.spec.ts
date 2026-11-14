@@ -1,11 +1,4 @@
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
-// `createAgentHostLocalPlugin({ toolRequests })` on real Cordis 4.0.4 (agent-host-local SPEC
-// 「Tool 请求来源的插件入口」, R2-D36): the trusted Tool request source given to the plugin factory
-// reaches the dependencies of every runtime the host builds, so a Tool action that the Model
-// suggests is described, prepared and invoked through it. Without it the same action is not
-// invoked. The Model, Journal, action admission and Tool runtime are the non-durable doubles of
-// `@omne-harness/agent/testing`; the Tool request is a fixed value. Nothing here proves a real
-// Tool runtime or a real source of Tool requests.
 import { agentEvaluator } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
@@ -81,7 +74,6 @@ const conditions: RuntimeConditions = {
 }
 
 const selected = {
-  // A Model request accepts only an adoption whose digest is 64 hex digits, as testAdoption mints.
   recipient: { route: 'route-1', profile: testAdoption('profile') },
   resolution: { kind: 'resolved', selectable: true },
   parameters: [],
@@ -167,7 +159,6 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
   return ok(judged as never)
 }
 
-/** A Tool request source that counts each face and answers a fixed request. */
 function countingSource() {
   const seen = { describe: 0, prepare: 0 }
   const source = {
@@ -183,10 +174,6 @@ function countingSource() {
   return { seen, source }
 }
 
-/**
- * The Tool runtime accepts the invoke with a new Tool call. Agent keeps the receipt as an original
- * fact and never reads it as the current state, so the test does not build a full ToolState.
- */
 function accepted(name = 'tool_request'): ToolInvokeOutcome {
   const reference = ok(
     encodeToolInvocationRef({
@@ -206,10 +193,6 @@ async function until(probe: () => boolean | Promise<boolean>, ms = 10_000): Prom
   }
 }
 
-/**
- * A host that runs EXECUTION to the point where its Model suggests `calls` Tool calls, and delivers
- * them. `journal` wraps the Journal port the host runs on.
- */
 async function suggestTool(
   plugin: ReturnType<typeof createAgentHostLocalPlugin>,
   calls = 1,
@@ -326,7 +309,6 @@ describe('createAgentHostLocalPlugin with a Tool request source', () => {
     })
   })
 
-  // D-104：宿主配置的复查间隔为 0（reconciliationDelaysMs），toolConcurrency 为 1。
   it('sends both calls of a batch and commits nothing while it waits for their results', async () => {
     const { source } = countingSource()
     let commits = 0
@@ -341,7 +323,6 @@ describe('createAgentHostLocalPlugin with a Tool request source', () => {
         },
       }),
     )
-    // 两个调用都没有结果，也都已发起：预算由 Tool 执行，Agent 不计数。
     await until(() => host.controls.tools.invoke.calls.length === 2, 3_000)
     const requests = host.controls.tools.invoke.calls.map(call => call.request)
     expect(requests.map(request => request.limits.scopeBudget)).toEqual([1, 1])
@@ -350,7 +331,6 @@ describe('createAgentHostLocalPlugin with a Tool request source', () => {
     await until(async () => (await load()).state.kind === 'waiting', 3_000)
     const before = await load()
     const committed = commits
-    // 每次到点只问 Tool；Tool 还拿着这两个调用，等待不醒，也不读日志。
     const asked = host.controls.tools.queries.contact.calls
     await until(() => asked.length > 2, 3_000)
     const loads = host.journalCalls.length

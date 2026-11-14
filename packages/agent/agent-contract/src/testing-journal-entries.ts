@@ -1,7 +1,3 @@
-// The AgentJournalEntries conformance suite (SPEC "日志条目", J01, J02, J40) and a non-durable double
-// that passes it. The double keeps one record per (tenant, execution), so the same execution text
-// in two tenants is two executions, and an execution of another tenant answers as one that does
-// not exist.
 import assert from 'node:assert/strict'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { RequiredReceivedCommits } from './testing-received-fixture.ts'
@@ -59,7 +55,6 @@ const OWNER = 'agentJournalEntries'
 
 type Execution = {
   authority: Authority
-  /** Whether the current attachment has been detached; it stays the latest established one. */
   detached: boolean
   ended: boolean
   revision: number
@@ -67,35 +62,22 @@ type Execution = {
   readonly events: AgentEvent[]
   readonly operations: Map<string, Readonly<{ text: string; receipt: CommandReceipt }>>
   readonly deliveries: Map<string, Readonly<{ text: string; receipt: CommandReceipt }>>
-  /** The scripted faults of this execution, used in order by the record calls that write. */
   readonly recordFaults: RecordFault[]
 }
 
-/** A non-durable double of the receiving entries port. It must not be assembled into production. */
 export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
   readonly durability: 'none'
-  /** Opens one execution of `tenant` under its current attachment. */
   open(input: Readonly<{ tenant: TenantId; authority: Authority }>): void
-  /** Gives the execution a new current attachment. The previous Authority is superseded. */
   supersede(input: Readonly<{ tenant: TenantId; authority: Authority }>): void
-  /** Detaches the current attachment. It stays the latest established one; advancing stops. */
   detach(input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>): void
-  /** Ends the execution. */
   end(input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>): void
-  /**
-   * Scripts the fault of the next `record` call on this execution that reaches its write step.
-   * A refused call and a call that recalls an original receipt do not reach that step and leave
-   * the fault in place. Faults are used in order.
-   */
   failNextRecord(
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
     fault: RecordFault,
   ): void
-  /** The committed entries in commit order, as the pages of `read` give them. */
   entries(
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
   ): readonly AgentJournalEntry[] | undefined
-  /** The events of the execution in sequence order, as `AgentJournal.read` gives them. */
   events(
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
   ): readonly AgentEvent[] | undefined
@@ -107,7 +89,6 @@ const keyOf = (tenant: TenantId, execution: AgentExecutionId) =>
 const sameAttachment = (left: Authority, right: Authority) =>
   left.executionAttachment === right.executionAttachment && left.generation === right.generation
 
-/** Whether the call reference of a received delivery belongs to `tenant`. */
 function deliveryTenantFits(entry: ReceivedEntry, tenant: TenantId): boolean {
   const { delivery } = entry
   if (delivery.producer === 'model') {
@@ -120,15 +101,9 @@ function denied(): Outcome<never, Failure> {
   return fail({ kind: 'denied', action: 'record' })
 }
 
-/** Creates the double. Every execution starts with `open`. */
 export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<P> {
   const executions = new Map<string, Execution>()
 
-  /**
-   * The write step of a record call. The scripted fault of the execution is used here and nowhere
-   * else: `unavailable` fails before anything is written, `commit-unknown` writes as usual and
-   * loses only the reply.
-   */
   const write = (
     execution: Execution,
     input: JournalEntryRecord<P>,
@@ -151,7 +126,6 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
       state: 'applied',
     })
     execution.entries.push(structuredClone(input.entry))
-    // The entry event belongs to the same write (SPEC "日志条目" 6).
     projectEntryEvent(execution, input.entry, receipt)
     execution.operations.set(input.operation, { text, receipt })
     if (input.entry.kind === 'received') {
@@ -168,7 +142,6 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
 
   const record = async (input: JournalEntryRecord<P>) => {
     const execution = executions.get(keyOf(input.tenant, input.execution))
-    // An execution of another tenant and one that does not exist answer the same.
     if (execution === undefined) return denied()
     const { entry } = input
     if (entry.kind === 'received' && !deliveryTenantFits(entry, input.tenant)) return denied()
@@ -271,32 +244,10 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
   }
 }
 
-/**
- * The scripted fault of one `record` call that reaches its write step. `commit-unknown` with
- * outcome `applied`: the write takes effect, only the reply is lost. `unavailable`: the call
- * fails before publication and leaves neither the entry nor its event.
- */
 export type RecordFault =
   | Readonly<{ kind: 'commit-unknown'; outcome: 'applied' }>
   | Readonly<{ kind: 'unavailable' }>
 
-/**
- * What the suite needs from a provider. `access` and `otherAccess` belong to two different
- * tenants. `open` opens a new execution of the tenant of the access under the given execution
- * text and returns its current Authority. `supersede` gives it a new current attachment, `end`
- * ends it, and `read` returns every committed entry in commit order, as the pages of
- * `AgentJournalEntries.read` give them. `events` returns
- * every event of the execution in sequence order, as `AgentJournal.read` gives them, and
- * `undefined` for an execution that does not exist, as `read` does; the projection cases
- * (SPEC "日志条目" 6) read it, so a provider without it does not pass the suite.
- *
- * Two controls are optional. `detach` detaches the current attachment without ending the
- * execution, as `AgentJournalAttachment.detach` does. `failNextRecord` scripts the next `record`
- * call on that execution that reaches its write step, see `RecordFault`; a refused call and a
- * call that recalls an original receipt do not use the fault. The suite awaits it before the
- * record it scripts. A fixture without one of them gets the case that needs it marked
- * `uncovered`; that case rejects, it does not pass.
- */
 export interface AgentJournalEntriesFixture<P> {
   readonly entries: AgentJournalEntries<P>
   readonly access: Access<P>
@@ -348,7 +299,6 @@ async function refused(
   return outcome.failure
 }
 
-/** The cases that a provider of `AgentJournalEntries` passes. */
 export function agentJournalEntriesConformance<P, B extends ContentBlock = ContentBlock>(
   fixture: AgentJournalEntriesFixture<P>,
   profile?: RequiredReceivedCommits<P, B>,
@@ -369,7 +319,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
     operation: AgentOperationId,
     entry: ReceivedEntry,
   ) => record({ ...who, execution, operation, authority: null, entry })
-  /** The events of an execution the suite opened; an absent list is a defect of the fixture. */
   const eventsOf = async (execution: AgentExecutionId): Promise<readonly AgentEvent[]> => {
     const events = await fixture.events(access, execution)
     assert.ok(events !== undefined, 'the fixture should list the events of an open execution')
@@ -734,8 +683,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
       },
     },
     {
-      // Red when a provider writes an entry without its `entry` event, allocates the event under
-      // another attachment or another cause, or allocates one for a refused write.
       name: 'projects each written entry as one entry event of the same commit',
       async run() {
         const execution = executionId('projection')
@@ -759,8 +706,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
         assert.deepEqual(second?.body, { kind: 'entry', entry: delivery })
         assert.deepEqual(first?.cause, fenced.evidence, 'the cause should be the commit evidence')
         assert.deepEqual(second?.cause, kept.evidence, 'the cause should be the commit evidence')
-        // Sequences start at 1 and grow by 1 (SPEC "事件身份与序号"); on a fresh execution the
-        // first event is '1'.
         assert.equal(
           first?.sequence,
           String(before.length + 1),
@@ -778,7 +723,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
             authority.executionAttachment,
             'the event should carry the latest attachment, also for received without one',
           )
-          // The schema is a complete Adoption, the one every event of the execution carries.
           assert.ok(
             'ok' in judgeAdoption(event?.schema),
             'the schema of an entry event should be a complete Adoption',
@@ -802,7 +746,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
       },
     },
     {
-      // Red when a provider appends an entry event after the end; ended is the last event.
       name: 'writes a received entry after the end without an event',
       async run() {
         const execution = executionId('after-end')
@@ -819,8 +762,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
       },
     },
     {
-      // Red when a provider allocates a second event on the replay of the same operation or on a
-      // repeated push of the same delivery; both recall the original receipt.
       name: 'allocates no second event when an operation or a delivery is replayed',
       async run() {
         const execution = executionId('replay')
@@ -850,10 +791,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
         assert.equal((await eventsOf(execution)).length, count, 'a replay should allocate no event')
       },
     },
-    // Red when a provider writes the entry and allocates its event in two steps, so that a lost
-    // reply can leave one without the other, or when the replay after the lost reply allocates
-    // a second event. The fixture scripts the lost reply; without that control the case is
-    // uncovered.
     fixture.failNextRecord === undefined
       ? uncoveredCase(
           'keeps the entry and its event together when the record reply is lost',
@@ -895,9 +832,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
             await unchangedEvents(execution, after, 'the replay')
           },
         },
-    // Red when a provider that fails before publication leaves the entry, its event, or both, or
-    // when the retry of the same operation does not write afterwards. The fixture scripts the
-    // failure; without that control the case is uncovered.
     fixture.failNextRecord === undefined
       ? uncoveredCase(
           'leaves neither the entry nor its event when the record fails before publication',
@@ -932,8 +866,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
             assert.deepEqual(after.at(-1)?.cause, written.evidence)
           },
         },
-    // Red when a provider refuses the event after a detach, or allocates it under an attachment
-    // other than the latest established one. Without a detach control the case is uncovered.
     fixture.detach === undefined
       ? uncoveredCase(
           'projects a received entry under the latest attachment after a detach',
@@ -973,7 +905,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
   ]
 }
 
-/** A fixture of the double, for its own conformance run and for consumer tests. */
 export function memoryAgentJournalEntriesFixture<P>(
   access: Access<P>,
   otherAccess: Access<P>,

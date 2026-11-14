@@ -1,8 +1,3 @@
-// The test cancellation policy of the `./testing` entry (SPEC "取消判断与路线"): the installation
-// record a fixture hands its Journal double, the pure judgment that judges the obligations the
-// Journal built, and the host records the custody variants of commitSettlement read through a
-// double's trusted host adapter. None of it proves a real governance installation, a real policy
-// or a real host; the doubles declare `durability: 'none'`.
 import type { TenantId } from '@omne-harness/legal-identity'
 import type * as T from '@omne-harness/tool-contract'
 import type {
@@ -31,18 +26,10 @@ const evidence = (record: string): DurableEvidence =>
 const adoption = (name: string): Adoption =>
   Object.freeze({ owner: 'suite', name, revision: '1', digest: `suite:${name}` })
 
-/** The exact adoption of the test policy; `judge` is the implementation. */
 export const TEST_CANCELLATION_POLICY: Adoption = adoption('cancellation-policy')
-/** The exact adoption of the judgment input and criteria the test policy reads. */
 export const TEST_CANCELLATION_INPUT_SCHEMA: Adoption = adoption('cancellation-input')
-/** The exact adoption of the test implementation of `judge`. */
 export const TEST_CANCELLATION_IMPLEMENTATION: Adoption = adoption('cancellation-judge')
 
-/**
- * The installation a fixture gives its Journal double (SPEC "安装记录与资格"). The seven fields are
- * all present, so a double that holds it can run the protocol; a double without one answers
- * `unavailable` to the candidate, migration and judgment variants.
- */
 export const testCancellationPolicyInstallation: CancellationPolicyInstallation = Object.freeze({
   record: evidence('cancellation/installation'),
   decision: evidence('cancellation/decision'),
@@ -61,12 +48,6 @@ const ORDER: readonly ObligationCategory[] = [
   'custody',
 ]
 
-/**
- * The test policy: a pure judgment over the input the Journal built, in the order of SPEC
- * "判断输入、判据与记录". It is `unknown` when any obligation is unknown or a participant's condition
- * is unknown, `blocked` when the cancel is not effective or any obligation is pending or a
- * participant is blocked or changed, and `allowed` otherwise. It reads nothing but its input.
- */
 export function createTestCancellationPolicy(): CancellationPolicy {
   return Object.freeze({
     policy: TEST_CANCELLATION_POLICY,
@@ -178,31 +159,21 @@ export function createTestCancellationPolicy(): CancellationPolicy {
   })
 }
 
-/**
- * One record of the trusted host reads that a double serves to the custody variants of
- * commitSettlement (SPEC "commitSettlement 的变体"). A fixture registers it under a source
- * evidence; the double resolves `source.record` (or `original.record`) to it. A source that no
- * record answers is unreadable: the variant returns `unavailable`.
- */
 export type TestHostRecord =
   | Readonly<{
-      /** The late return of an author invocation that started before the cancellation fence. */
       kind: 'legacy-return'
-      /** The tenant and the execution of the original invocation. */
       tenant: TenantId
       execution: AgentExecutionId
       passage: PassageId
       input: DurableEvidence
       mode: ExtensionInvocationMode
       implementation: Adoption
-      /** The proof that the call started before the fence. */
       started: DurableEvidence
       result: ExtensionInvocationResult
       received: DurableEvidence
       custody: DurableEvidence
     }>
   | Readonly<{
-      /** The immutable return of an original Tool invoke the host kept. */
       kind: 'tool-return'
       intent: ToolIntentKey
       request: DurableEvidence
@@ -213,12 +184,7 @@ export type TestHostRecord =
       custody: DurableEvidence
     }>
   | Readonly<{
-      /**
-       * The result of an original lookup or invalidate of one card round, as the card owner kept
-       * it: the known present, lookups and invalidate, or that the owner could not determine it.
-       */
       kind: 'card-reconciliation'
-      /** The tenant and the execution of the original card round. */
       tenant: TenantId
       execution: AgentExecutionId
       passage: PassageId

@@ -288,9 +288,6 @@ describe('#516 terminal exit', () => {
           return d.journal.commit(input)
         },
         async tryFinish(input) {
-          // F1 writes the candidate content and settling without an intent; F2 is the plain
-          // settling commit; the Journal fills candidate, obligations and beforeTerminal, and the
-          // coordinator presents the loaded projection (SPEC "条件终结").
           const fixed = commits.find(item => item.operation.startsWith('F1/'))
           const passed = commits.find(item => item.operation.startsWith('F2/'))
           expect(fixed?.state).toEqual({ kind: 'settling' })
@@ -384,8 +381,6 @@ describe('#516 terminal exit', () => {
       const c = coordinator(assembly, () => {}, {
         ...agentEvaluator,
         next(facts) {
-          // An independently authored evaluator proposes completion despite a known debt.
-          // The authoritative Journal must refuse it, and the coordinator must keep that refusal.
           if (facts.checkpoint.position === 'I8' && !proposed) {
             proposed = true
             return succeed({ kind: 'try-finish', conclusion: { kind: 'complete' }, failure: null })
@@ -455,8 +450,6 @@ describe('#516 terminal exit', () => {
         ...d.journal,
         tryFinish(input) {
           finish = input
-          // A refusal stops the coordinator at F3 with the execution left settling; an
-          // unavailable answer would make R0 wait on it instead.
           return Promise.resolve(fail({ kind: 'denied', action: 'stop before terminal' }))
         },
       },
@@ -481,8 +474,6 @@ describe('#516 terminal exit', () => {
         }),
       ),
     )
-    // The new observation plan changed the responsibility projection: the host issues the list
-    // again, loads the projection and presents it (SPEC "终结责任清单").
     const fixed = await load(assembly)
     expect(
       ok(
@@ -523,7 +514,6 @@ describe('#516 terminal exit', () => {
     expect(terminal.terminalObservations).toHaveLength(2)
     const item = terminal.terminalObservations[1]
     if (item === undefined) throw new Error('missing observation')
-    // The host observer supplies its real completion evidence. F4 does not run the extension.
     const registration = {
       ...alice,
       execution: execution(),
@@ -562,7 +552,6 @@ describe('#516 terminal exit', () => {
     expect(idle).toBe(1)
     const stillPending = retained.terminalObservations[0]
     if (stillPending === undefined) throw new Error('lost pending responsibility')
-    // The long-lived custodian can finish the remaining item after the runtime released its slot.
     ok(
       await journal.recordTerminalObservation({
         ...registration,
@@ -655,7 +644,6 @@ describe('#516 terminal exit', () => {
     const unavailable = await load(assembly)
     expect(unavailable.state.kind).toBe('settling')
     expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual([])
-    // Nothing rechecks the terminal inside the wait: the driver sleeps until the check time.
     const controller = new AbortController()
     const wake = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
     await eventually(async () => assembly.controls.clock.pending().length > 0)
@@ -777,7 +765,6 @@ describe('#516 terminal exit', () => {
               outcome: 'dropped',
             })
             const result = await d.journal.tryFinish(input)
-            // A newer input moves the revision, so R0 reads the finish as refused, not as retried.
             ok(
               await d.journal.submit(
                 withLineage({
@@ -805,7 +792,6 @@ describe('#516 terminal exit', () => {
     const c = coordinator(assembly)
     ok(await c.accept())
     assembly.release.open()
-    // The unavailable read of R0 is a wait, not a stop of the run.
     ok(await c.runExecution())
     const unavailable = await load(assembly)
     expect(unavailable.state.kind).toBe('settling')
@@ -856,7 +842,6 @@ describe('#516 terminal exit', () => {
       const c = coordinator(assembly)
       ok(await c.accept())
       assembly.release.open()
-      // Only an unavailable read is a wait; any other failure is a stop of the run at its node.
       expect(failure(await c.runExecution())).toMatchObject({ node: 'R0', failure: cause })
       expect((await load(assembly)).state.kind).toBe('settling')
       expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual(
@@ -881,8 +866,6 @@ describe('#516 terminal exit', () => {
           if (tryFinishes === 1)
             return fail({ kind: 'unavailable', owner: 'test-journal', diagnostic: 'undetermined' })
           if (tryFinishes === 2) {
-            // An excluded finish at the same revision is not a refusal: R0 reads the facts as the
-            // ordinary route, and the facts are not readable.
             assembly.controls.journal.failNext('tryFinish', {
               kind: 'commit-unknown',
               outcome: 'dropped',
@@ -925,7 +908,6 @@ describe('#516 terminal exit', () => {
     })
     expect(saved.revision).not.toBe(memoryWait.revision)
     factsDown = false
-    // The saved wait rechecks its dependency before the driver sleeps; the facts are back.
     expect(
       ok(await c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })),
     ).toBe('ready')

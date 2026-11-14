@@ -1,8 +1,3 @@
-// The one execution slot and what a caller can read of it: when a failed invoke gives the slot
-// back, that `observe` shows the state the slot implies, and that the registration handle only
-// receives a projection. busy, the same operation again and the R0 item are in
-// loop-admission.spec.ts. A stopped run has no contract state or channel of its own (S-14 of
-// #558): it is read from the Journal's `position` and from `observe`.
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type { AgentEvaluator, LoopExtensionDeclaration } from '@omne-harness/agent-contract'
@@ -19,7 +14,6 @@ import {
   type LoopAssembly,
 } from './loop-support.ts'
 
-/** Redefines the bound definition with another evaluator or extensions. */
 function adopt(
   assembly: LoopAssembly,
   evaluator: AgentEvaluator,

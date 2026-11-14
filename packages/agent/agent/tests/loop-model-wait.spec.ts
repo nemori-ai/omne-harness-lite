@@ -1,13 +1,3 @@
-// AG-03 (R6.5): the execution operation of a running instance takes one input through invoke to one
-// Model request whose result arrives only after the run has saved its wait at M1, and from there to
-// the reply and ended. The scripted Model settles each admitted call once the test opens its gate;
-// the memory Journal is the only store. Nothing here proves a real provider, a durable Journal or
-// public resume.
-//
-// The count of R6.5 is per entry into the wait (perf baseline 2.3, W0 row of the node table: the
-// wait registers its observation, then reads once, and sleeps when nothing moved): between the
-// waiting commit and the parked driver the coordinator calls `Journal.load` at most once. The reads
-// of E1, E2 and M1 after a wake leave the wait and are not counted here.
 import { describe, expect, it } from 'vitest'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type { ExecutionSnapshot, Failure, JournalCommit } from '@omne-harness/agent-contract'
@@ -38,22 +28,13 @@ import {
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 type Loaded = Outcome<ExecutionSnapshot, Failure>
 
-/** One call the coordinator made on the Journal, or the start of a sleep on the clock, in order. */
 type Call =
   | Readonly<{ kind: 'load' }>
   | Readonly<{ kind: 'commit'; input: JournalCommit<Principal> }>
   | Readonly<{ kind: 'sleep' }>
 
-/**
- * What a test does with the first load after a waiting commit, which is the read of the wait:
- * `load` is the real read.
- */
 type Reread = (load: () => Promise<Loaded>) => Promise<Loaded>
 
-/**
- * The dependencies with each Journal load and commit and each clock sleep recorded, and the read of
- * the wait hooked.
- */
 function recording(calls: Call[], reread: Reread = load => load()) {
   return (dependencies: Dependencies): Dependencies => {
     const { journal, clock } = dependencies
@@ -90,7 +71,6 @@ function commits(calls: readonly Call[]): JournalCommit<Principal>[] {
   return calls.flatMap(call => (call.kind === 'commit' ? [call.input] : []))
 }
 
-/** The kinds of the calls after the last waiting commit. */
 function afterWaitSaved(calls: readonly Call[]): Call['kind'][] {
   const saved = calls.findLastIndex(
     call => call.kind === 'commit' && call.input.state.kind === 'waiting',
@@ -99,14 +79,12 @@ function afterWaitSaved(calls: readonly Call[]): Call['kind'][] {
   return calls.slice(saved + 1).map(call => call.kind)
 }
 
-/** Invokes exec-1 with the Model gate closed and returns when the driver sleeps in W0. */
 async function parkedAtModelWait(assembly: LoopAssembly) {
   const handle = ok(await invoke(assembly))
   await eventually(async () => assembly.controls.clock.pending().length === 1)
   return handle
 }
 
-/** Lets 20 turns of the event loop pass. */
 async function turns(): Promise<void> {
   for (let turn = 0; turn < 20; turn += 1) await new Promise(resolve => setTimeout(resolve, 0))
 }
@@ -117,7 +95,6 @@ async function journalState(assembly: LoopAssembly) {
   ).state
 }
 
-/** Opens the Model gate and returns when the received entry of the main call is in the Journal. */
 async function settleModel(assembly: LoopAssembly): Promise<void> {
   assembly.release.open()
   await eventually(async () => {
@@ -137,7 +114,6 @@ describe('AG-03 (R6.5): invoke to one Model request that answers after the run w
     assembly.release.open()
     const events = await eventsOf(handle)
     const written = commits(calls)
-    // One checkpoint write per commit; F3 is tryFinish and writes no checkpoint.
     expect(
       written.map(input => [commitNodeOf(input.operation), input.checkpoint.position]),
     ).toEqual([
@@ -212,7 +188,6 @@ describe('R6.5: entering the Model wait reads the Journal at most once', () => {
     const assembly = await loopAssembly([execution()], recording(calls))
     const handle = await parkedAtModelWait(assembly)
     await turns()
-    // One read and one sleep since the waiting commit: the driver never woke on its own event.
     expect(afterWaitSaved(calls)).toEqual(['load', 'sleep'])
     expect(assembly.controls.clock.pending()).toHaveLength(1)
     expect((await journalState(assembly)).kind).toBe('waiting')
@@ -226,7 +201,6 @@ describe('R6.5: entering the Model wait reads the Journal at most once', () => {
     assembly.release.open()
     const events = await eventsOf(handle)
     expect(events.at(-1)?.body).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-    // The clock never reached the check time: the wake came from the Journal events.
     expect(ok(await assembly.dependencies.clock.now())).toBe('1970-01-01T00:00:00Z')
   })
 
@@ -262,8 +236,6 @@ describe('AG-03: a failure in the wait is not progress and not a result', () => 
     )
     const handle = await parkedAtModelWait(assembly)
     await turns()
-    // The failed read is no progress: the driver sleeps and reads nothing again before an event or
-    // the check time.
     expect(afterWaitSaved(calls)).toEqual(['load', 'sleep'])
     expect((await journalState(assembly)).kind).toBe('waiting')
     expect(assembly.controls.clock.pending()).toHaveLength(1)
@@ -334,9 +306,7 @@ describe('AG-03: invoke again while the run waits for the Model', () => {
       ),
     ).toMatchObject({ kind: 'denied' })
 
-    // The two own-tenant invokes passed the guard once each; the foreign one never reached it.
     expect(assembly.controls.access.check.calls.length).toBe(checks + 2)
-    // Nothing was prepared, opened, loaded or committed, and the run still sleeps on its wait.
     expect(assembly.controls.handoff.prepare.calls.length).toBe(prepares)
     expect(calls.slice(parked)).toEqual([])
     expect(await shown(assembly)).toEqual(before)

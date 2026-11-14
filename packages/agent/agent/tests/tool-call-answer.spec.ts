@@ -1,5 +1,3 @@
-// The preserved answer of the trusted Tool request source (R2-D399): only a facts material of the
-// answer schema whose value is one string is an answer; everything else is refused, never read.
 import { describe, expect, it } from 'vitest'
 import { toolCallAnswerOf, toolCallAnswerSchema } from '../src/loop/tools.ts'
 

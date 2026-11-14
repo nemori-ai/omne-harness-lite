@@ -1,13 +1,3 @@
-// The crash matrix of the Loop. The re-entry of an execution is a function of its Journal alone:
-// whatever coordinator ran before is gone, with everything it kept in memory. So the property is
-// checked at every point where the durable state can differ: after each call of a port that
-// leaves something durable (a Journal write, a Model admission, an admission prepare), the
-// coordinator is dropped, the attachment is handed back in its place, a new coordinator resumes
-// from the Journal, and the run must end as the uninterrupted run ends.
-//
-// A recovery route that names a node is not enough (`loop-recovery.spec.ts` checks the names): the
-// node must run in a coordinator that holds nothing but the Journal. A node that needs a frame
-// only its predecessor built in memory fails here.
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator, type AgentDependencies } from '@omne-harness/agent'
 import type { ExecutionSnapshot } from '@omne-harness/agent-contract'
@@ -28,7 +18,6 @@ import { alice, loopAssembly, type LoopAssembly } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 
-/** The calls that leave something durable; a crash is injected after each of them. */
 const JOURNAL_WRITES = [
   'open',
   'commit',
@@ -45,10 +34,8 @@ const JOURNAL_WRITES = [
 
 class Crashed extends Error {}
 
-/** `at`: the durable call after which the process dies; 0 never. `seen` names each durable call. */
 type Crash = { at: number; calls: number; dead: boolean; seen: string[] }
 
-/** Every function of `port` refuses once the process is dead; the durable ones are counted. */
 function mortal<T extends object>(
   port: T,
   crash: Crash,
@@ -94,7 +81,6 @@ const entry = (assembly: LoopAssembly) => ({
 const load = (assembly: LoopAssembly): Promise<ExecutionSnapshot> =>
   loadWithEntries(assembly.controls.journal.provider, { ...alice, execution: execution() })
 
-/** What a finished run leaves, as far as an interruption must not change it. */
 function outcomeOf(snapshot: ExecutionSnapshot | null) {
   if (snapshot === null) return null
   return {
@@ -104,7 +90,6 @@ function outcomeOf(snapshot: ExecutionSnapshot | null) {
   }
 }
 
-/** The uninterrupted run, or the run that dies after durable call `at` and is resumed. */
 async function run(at: number) {
   const crash: Crash = { at, calls: 0, dead: false, seen: [] }
   const assembly = await loopAssembly([execution()], wrapped(crash))
@@ -123,12 +108,10 @@ async function run(at: number) {
   }
   if (!crash.dead) return { crash, snapshot: await load(assembly), position: null, error: null }
 
-  // The process is gone. A new one holds nothing but the Journal.
   crash.dead = false
   crash.at = 0
   const opened = await load(assembly).catch(() => null)
   if (opened === null) {
-    // The execution was never opened: the caller of invoke replays it with the same operation.
     try {
       const again = createExecutionCoordinator({
         ...entry(assembly),
@@ -151,7 +134,6 @@ async function run(at: number) {
     if (recovery === null) {
       const authority = before.executionAttachment
       if (authority === null) throw new Error('an open execution without an attachment')
-      // The recovery entry of the host hands the attachment back in the place of the lost runtime.
       recovery = ok(
         await assembly.dependencies.journal.detach({
           ...alice,

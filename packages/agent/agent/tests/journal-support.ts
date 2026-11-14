@@ -1,5 +1,3 @@
-// Values and steps that the Journal tests share. They build well-formed contract values; they are not
-// a Loop and decide nothing about how a coordinator uses the Journal.
 import {
   decodeAgentExecutionId,
   decodeAgentInstanceId,
@@ -49,14 +47,12 @@ export const tenantB = testingTenant(`org_${'2'.repeat(26)}`, `acc_${'3'.repeat(
 export const access = { principal: 'alice', tenant: tenantA } as const
 export const otherTenant = { principal: 'mallory', tenant: tenantB } as const
 
-/** The success value of an outcome; a failure fails the test with the failure in the message. */
 export function ok<T, F>(outcome: Outcome<T, F>): T {
   if ('failure' in outcome)
     throw new Error(`expected success, got ${JSON.stringify(outcome.failure)}`)
   return outcome.ok
 }
 
-/** The failure of an outcome; a success fails the test. */
 export function failure<T, F>(outcome: Outcome<T, F>): F {
   if (!('failure' in outcome))
     throw new Error(`expected failure, got ${JSON.stringify(outcome.ok)}`)
@@ -123,7 +119,6 @@ export function checkpoint(position = 'E3', passages: readonly Passage[] = []): 
   }
 }
 
-/** The prepared outcome that the test's admission provider fixed for one external entry. */
 function preparedOutcome(
   request: Extract<HandoffOutcome['request'], { kind: 'input' }>,
   origin: HandoffOutcome['origin'],
@@ -144,7 +139,6 @@ function preparedOutcome(
   }
 }
 
-/** The runtime context of an invoke: the test instance, scope and definition, and the grant. */
 export function runtimeContext(
   instanceId: AgentInstanceId = instance(),
   grant: DurableEvidence | null = null,
@@ -157,7 +151,6 @@ export function runtimeContext(
   }
 }
 
-/** The original acceptance of one invoke, as `open` receives it: the entry, its H and the prepared outcome. */
 export function invokeAcceptance(
   id: AgentExecutionId,
   op: AgentOperationId,
@@ -181,7 +174,6 @@ export function invokeAcceptance(
   }
 }
 
-/** The new-input lineage of one submit: the entry of this operation, its H and the prepared outcome. */
 export function newInput(
   id: AgentExecutionId,
   op: AgentOperationId,
@@ -214,7 +206,6 @@ export function newInput(
 type SubmitInput = Parameters<Journal['submit']>[0]
 type PlainSubmit = Omit<SubmitInput, 'lineage'> & Readonly<{ lineage?: JournalSubmitLineage }>
 
-/** A submit input with the new-input lineage of its own operation, unless one is given. */
 export function withLineage(input: PlainSubmit): SubmitInput {
   const { lineage, ...rest } = input
   return { ...rest, lineage: lineage ?? newInput(rest.execution, rest.operation, rest.value) }
@@ -229,7 +220,6 @@ type PlainOpen = Omit<OpenInput, 'original' | 'runtime' | 'checkpoint'> &
     checkpoint?: AgentCheckpoint
   }>
 
-/** An open input from its plain parts: the acceptance of the invoke and the runtime context. */
 export function openInput(input: PlainOpen): OpenInput {
   const { instance: instanceId, grant, initial, checkpoint: initialCheckpoint, ...rest } = input
   const runtime = runtimeContext(instanceId ?? instance(), grant ?? null)
@@ -246,7 +236,6 @@ export function openInput(input: PlainOpen): OpenInput {
   }
 }
 
-/** A post-terminal passage that `tryFinish` turns into a pending observation. */
 export function afterTerminalPassage(id: string): Passage {
   return {
     id: passageId(id),
@@ -299,7 +288,6 @@ export type Opened = Readonly<{
   authority: Authority
 }>
 
-/** Opens one execution on the independent path (null grant) and returns its first authority. */
 export async function open(journal: Journal, id = 'exec-1', initial = 'input-1'): Promise<Opened> {
   const opened = ok(
     await journal.open(
@@ -318,7 +306,6 @@ export async function load(journal: Journal, id: AgentExecutionId): Promise<Exec
   return ok(await journal.load({ ...access, execution: id }))
 }
 
-/** A conditional commit at the current revision, as one coordinator step would write it. */
 export function commitAt(
   snapshot: ExecutionSnapshot,
   authority: Authority,
@@ -343,7 +330,6 @@ export function commitAt(
   }
 }
 
-/** The candidate content of an ordinary completion at `snapshot` (SPEC "条件终结" 1). */
 export function candidateContent(
   snapshot: ExecutionSnapshot,
   name: string,
@@ -359,7 +345,6 @@ export function candidateContent(
   }
 }
 
-/** The F1 commit at the current revision: settling with the candidate content, under the active attachment. */
 export async function fixCandidate(
   journal: Journal,
   opened: Opened,
@@ -376,7 +361,6 @@ export async function fixCandidate(
   )
 }
 
-/** The F2 commit at the current revision: the plain settling commit that proves the author route. */
 export async function proveBeforeTerminal(journal: Journal, opened: Opened, name = 'finish') {
   const snapshot = await load(journal, opened.execution)
   return journal.commit(
@@ -387,7 +371,6 @@ export async function proveBeforeTerminal(journal: Journal, opened: Opened, name
   )
 }
 
-/** The prepareFinish of the current candidate at the current revision. */
 export async function prepareFinish(
   journal: Journal,
   opened: Opened,
@@ -410,7 +393,6 @@ export async function prepareFinish(
   })
 }
 
-/** The cancel authorization bound to the saved control `control` of `snapshot`. */
 export function cancelAuthorization(
   snapshot: ExecutionSnapshot,
   control: AgentOperationId,
@@ -420,7 +402,6 @@ export function cancelAuthorization(
   return { kind: 'cancel', control, source: found.stages.accepted.source }
 }
 
-/** establish-cancellation of the effective cancel `control` under the test installation. */
 export async function establishCancellation(
   journal: Journal,
   opened: Opened,
@@ -440,7 +421,6 @@ export async function establishCancellation(
   })
 }
 
-/** judge-cancellation of the current cancellation candidate of `control`. */
 export async function judgeCancellation(
   journal: Journal,
   opened: Opened,
@@ -464,10 +444,6 @@ export async function judgeCancellation(
   })
 }
 
-/**
- * The `tryFinish` input of the cancelled end under `control`: establish, judge and prepareFinish
- * first, unless the execution already ended, then the loaded projection.
- */
 export async function cancelledInput(
   journal: Journal,
   opened: Opened,
@@ -491,7 +467,6 @@ export async function cancelledInput(
   } as const
 }
 
-/** Ends under the cancel `control`: establish, judge, prepareFinish, load and tryFinish. */
 export async function finishCancelled(
   journal: Journal,
   opened: Opened,
@@ -501,7 +476,6 @@ export async function finishCancelled(
   return journal.tryFinish(await cancelledInput(journal, opened, control, name))
 }
 
-/** The FinishIntent projection of the snapshot; after ended, the projection the end committed. */
 export function intentOf(snapshot: ExecutionSnapshot): FinishIntent {
   if (snapshot.state.kind === 'settling') return snapshot.state.intent
   const candidate = snapshot.settlement.candidate
@@ -522,16 +496,10 @@ export function intentOf(snapshot: ExecutionSnapshot): FinishIntent {
   }
 }
 
-/**
- * The `tryFinish` input of an ordinary completion at the current revision: F1, F2 and
- * prepareFinish first, unless the execution already ended, then the loaded projection.
- */
 export async function finishInput(journal: Journal, opened: Opened, name = 'finish') {
   if ((await load(journal, opened.execution)).state.kind !== 'ended') {
     ok(await fixCandidate(journal, opened, name))
     ok(await proveBeforeTerminal(journal, opened, name))
-    // A refused list (an effective cancel, a stale candidate) leaves the projection unissued; the
-    // tryFinish of the caller then answers the refusal the test expects.
     await prepareFinish(journal, opened, name)
   }
   const snapshot = await load(journal, opened.execution)
@@ -562,17 +530,11 @@ export async function takeInputs(journal: Journal, opened: Opened) {
   )
 }
 
-/** Takes the inputs, then ends through `tryFinish` with an ordinary completion. */
 export async function finish(journal: Journal, opened: Opened, name = 'finish') {
   ok(await takeInputs(journal, opened))
   return journal.tryFinish(await finishInput(journal, opened, name))
 }
 
-/**
- * Every committed receiving entry of an execution in commit order, read page by page through the
- * entries port: the snapshot carries none (agent-contract SPEC "日志条目" 6). A read that fails
- * throws; it is never an empty list.
- */
 export async function entriesOf<P>(
   entries: AgentJournalEntries<P>,
   input: Readonly<{
@@ -592,11 +554,9 @@ export async function entriesOf<P>(
   }
 }
 
-/** A loaded snapshot with the committed entries of its execution beside it, for assertions. */
 export type LoadedWithEntries = ExecutionSnapshot &
   Readonly<{ entries: readonly AgentJournalEntry[] }>
 
-/** The snapshot of `input` and, read right after it, the committed entries of the execution. */
 export async function loadWithEntries<P>(
   ports: Readonly<{ journal: AgentJournal<P>; entries: AgentJournalEntries<P> }>,
   input: Parameters<AgentJournal<P>['load']>[0],

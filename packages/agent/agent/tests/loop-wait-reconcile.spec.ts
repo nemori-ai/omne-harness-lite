@@ -201,7 +201,6 @@ describe('W0 rereads the original producer', () => {
     })
     expect(received.checkpoint).toEqual(waiting.checkpoint)
     expect(received.executionAttachment).toEqual(waiting.executionAttachment)
-    // The notification was dropped and the driver has not replied: only the check time remains.
     expect(lost.pages).toBeGreaterThan(0)
     expect(await eventKindsSoFar(assembly)).not.toContain('message')
     expect(ok(assembly.controls.clock.advanceTo('1970-01-01T00:00:01.000Z'))).toBe(1)
@@ -231,20 +230,16 @@ describe('W0 rereads the original producer', () => {
     ok(await c.runExecution())
     const controller = new AbortController()
     const waiting = c.waitForWake({ pacer: reconciliationPacer([1000]), signal: controller.signal })
-    // The check time is installed before the result arrives, so the wake can only come from the
-    // event stream, not from the snapshot read at the start of the wait.
     await eventually(async () => assembly.controls.clock.pending().length === 1)
     expect(await eventKindsSoFar(assembly)).not.toContain('entry')
     assembly.release.open()
     expect(ok(await waiting)).toBe('ready')
     expect(await eventKindsSoFar(assembly)).toContain('entry')
     expect(assembly.controls.clock.pending()).toEqual([])
-    // Nothing moved the clock: the wake did not come from the check time.
     expect(assembly.controls.clock.now()).toBe(clockStart)
   })
 })
 
-/** The kinds of the events emitted so far, read from the Journal without waiting for ended. */
 async function eventKindsSoFar(assembly: Awaited<ReturnType<typeof loopAssembly>>) {
   const page = ok(
     await assembly.controls.journal.port.output.read({
@@ -1066,7 +1061,6 @@ describe('review regressions preserve the original wait responsibility', () => {
       if (outcome === 'unavailable') {
         await eventually(async () => assembly.controls.clock.pending().length === 1)
         expect(reads).toBe(2)
-        // An unrelated healthy Journal read is not recovery of the failed conditions port.
         ok(assembly.controls.clock.advanceTo('1970-01-01T00:00:01.000Z'))
         expect(ok(await waiting)).toBe('ready')
         ok(await c.runExecution())

@@ -1,9 +1,3 @@
-// Agent SPEC "依赖不可用时的等待": a Journal commit answered `unavailable` wrote nothing, so the
-// run waits on the dependency and writes the same step again at the check time; a resource that
-// is full now only makes the run later. A non-closing node waits in W0; a closing node waits in
-// the process and saves no waiting; a W0 whose own save is unavailable keeps the wait in the
-// process. A definite refusal (`invalid`, `unsupported`) ends the run with a failure and does not
-// wait. The memory Journal and the scripted Model are the providers.
 import { describe, expect, it } from 'vitest'
 import type { AgentDependencies, AgentRunFailed } from '@omne-harness/agent'
 import type { ExecutionState, Failure } from '@omne-harness/agent-contract'
@@ -20,11 +14,6 @@ const FULL: Failure = {
   diagnostic: 'storage rejected the commit: queue_full',
 }
 
-/**
- * The Journal answers `answer` to the first `times` commits whose operation starts with one of
- * `nodes`. `states` records the state of every commit the Journal took, `queried` the operation
- * of every query.
- */
 function refusing(nodes: readonly string[], answer: Failure, times = Number.POSITIVE_INFINITY) {
   const states: ExecutionState['kind'][] = []
   const queried: string[] = []
@@ -58,7 +47,6 @@ async function read(assembly: LoopAssembly) {
   })
 }
 
-/** Moves the test clock to the next check time once the run has armed one. */
 async function checkTime(assembly: LoopAssembly): Promise<void> {
   await eventually(async () => assembly.controls.clock.pending().length > 0)
   const due = assembly.controls.clock.pending()[0]
@@ -66,7 +54,6 @@ async function checkTime(assembly: LoopAssembly): Promise<void> {
   ok(assembly.controls.clock.advanceTo(due))
 }
 
-/** Advances the test clock to each check time the run arms, until the run has ended. */
 async function endedThroughChecks(assembly: LoopAssembly) {
   await eventually(async () => {
     if ((await read(assembly)).state.kind === 'ended') return true
@@ -98,7 +85,6 @@ describe('a Journal commit answered unavailable is a dependency wait', () => {
     })
     await checkTime(assembly)
     expect(await ended(assembly)).toMatchObject({ conclusion: { kind: 'complete' } })
-    // An unavailable write is not an unknown outcome: nothing asks the Journal about it.
     expect(journal.queried.filter(operation => operation.startsWith('I0/'))).toEqual([])
     expect(reports).toEqual([])
   })
@@ -146,9 +132,6 @@ describe('a Journal commit answered unavailable is a dependency wait', () => {
 })
 
 describe('a read answered unavailable inside a node is a dependency wait too', () => {
-  // SPEC 依赖不可用时的等待: reads and writes alike. The live run in #1174 stopped at Q1 when the
-  // message admission could not read the Session snapshot, and at I3 when the Journal could not
-  // read the common root of the session (queue_full).
   it('the message admission answering unavailable at Q1 waits and the run completes', async () => {
     let prepares = 0
     let refused = 0
@@ -161,7 +144,6 @@ describe('a read answered unavailable inside a node is a dependency wait too', (
           ...d.handoff,
           prepare(input) {
             prepares += 1
-            // The first prepare admits the invoke's own input; the second is Q1's reply.
             if (prepares === 2 && refused === 0) {
               refused += 1
               return Promise.resolve(
@@ -188,9 +170,6 @@ describe('a read answered unavailable inside a node is a dependency wait too', (
     expect(reports).toEqual([])
   })
 
-  // #1174 qa D1: the wait comes back at Q2 with no outcome in hand. The prepare that answered
-  // unavailable took no effect, so Q2 prepares the same request again; it does not take the
-  // lookup of a receipt lost with a process, which the local authorization denies.
   it('after an unavailable prepare at Q1 the same request is prepared again, not looked up', async () => {
     let prepares = 0
     let lookups = 0
@@ -243,7 +222,6 @@ describe('a read answered unavailable inside a node is a dependency wait too', (
           ...d.journal,
           load(input) {
             loads += 1
-            // Past the first reads of E1 and E2, one later read of a node is unavailable.
             if (loads === 4 && refused === 0) {
               refused += 1
               return Promise.resolve(fail(FULL))
@@ -265,8 +243,6 @@ describe('a read answered unavailable inside a node is a dependency wait too', (
 })
 
 describe('a received-records read answered unavailable is a Journal wait', () => {
-  // The live run in #1174 stopped at I3: the received entries, which the session log Journal
-  // serves, could not be read (the common root of the session, queue_full).
   it('the received entries answering unavailable at I3 wait and the run completes', async () => {
     let refused = 0
     const reports: AgentRunFailed[] = []
@@ -277,7 +253,6 @@ describe('a received-records read answered unavailable is a Journal wait', () =>
         entries: {
           ...d.entries,
           async receivedOf(input) {
-            // M1 and M3 read at M6 (M1 waits by itself); the read after them is I3's.
             const at = await d.journal.load({ ...alice, execution: execution() })
             if (refused === 0 && 'ok' in at && at.ok.checkpoint.position !== 'M6') {
               refused += 1

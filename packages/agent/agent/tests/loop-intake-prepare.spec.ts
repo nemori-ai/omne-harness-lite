@@ -59,7 +59,6 @@ describe('I0 fixes one batch at a legal input boundary', () => {
         ...d.journal,
         async load(input) {
           loads += 1
-          // Accept two inputs before E2's atomic snapshot, after E1 checked the open receipt.
           if (loads === 2) {
             for (const id of ['second', 'third'])
               ok(
@@ -157,7 +156,6 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     const assembly = await loopAssembly([execution(), execution('exec-2')])
     assembly.release.open()
     const first = await eventsOf(ok(await invoke(assembly)))
-    // The ended event precedes E9. Wait for the actual slot release before another invoke.
     const controller = new AbortController()
     for await (const seen of assembly.provider.observation.observe({
       ...alice,
@@ -211,12 +209,9 @@ describe('I0 fixes one batch at a legal input boundary', () => {
       tenant: alice.tenant,
       call: ok(resolveModelInvocationRef(pending.reference, alice.tenant)).call,
     })
-    // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
-    // 依赖不可用时的等待).
     ok(await c.runExecution())
     expect(after).toEqual(before)
     const at = (await snapshot(assembly)).checkpoint
-    // R2-D292: the ready preparation lived in memory only; the saved intent keeps the request.
     expect(at.requestPreparation).toBeNull()
     expect(at.position).toBe('I8')
     expect(assembly.controls.requests.prepare.calls).toHaveLength(2)
@@ -279,7 +274,6 @@ describe('I1 prepares at the fixed input boundary', () => {
       'prepare-review',
       'conditions',
     ])
-    // R2-D292: the I1 and P1 commits move the position; neither saves the preparation.
     expect(saved.map(at => [at.position, at.requestPreparation])).toEqual([
       ['P0', null],
       ['I2', null],
@@ -318,7 +312,6 @@ describe('I1 prepares at the fixed input boundary', () => {
     expect(read?.adopted).toBeNull()
     expect(read?.transition).toBeNull()
     const final = (await snapshot(assembly)).checkpoint
-    // R2-D292: the ready preparation is not saved; M0 adopts the coverage it held.
     expect(final.requestPreparation).toBeNull()
     expect(recorded).toMatchObject({ adoptedContext: final.adoptedContext })
     expect(final.adoptedContext).not.toBeNull()
@@ -669,8 +662,6 @@ describe('I1 preparation outcomes', () => {
     assembly.controls.requests.prepare.always(input => ({ ok: cannotFit(input, 'fixed') }))
     const current = coordinator(assembly)
     ok(await current.accept())
-    // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
-    // 依赖不可用时的等待).
     ok(await current.runExecution())
     const stopped = await snapshot(assembly)
     expect(stopped.checkpoint.position).toBe('F1')

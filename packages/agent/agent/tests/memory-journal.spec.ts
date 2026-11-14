@@ -1,7 +1,3 @@
-// The memory Journal against the same-shape list of docs/architecture/mechanisms.md
-// "两种实现必须同形的事实". Each `describe` names one fact by its number, so the suite can move to a
-// durable provider unchanged. Tests read only what the port returns. Fact 10 fixes the five
-// blocked categories of `tryFinish` in their order and the cancellation route of SPEC "取消判断与路线".
 import { describe, expect, it } from 'vitest'
 import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-harness/agent/testing'
 import {
@@ -58,13 +54,11 @@ import {
 
 type MemoryOptions = Parameters<typeof createMemoryAgentJournal<string>>[0]
 
-/** The test cancellation policy and its installation (SPEC "安装记录与资格"). */
 const cancellation = {
   installation: testCancellationPolicyInstallation,
   policy: createTestCancellationPolicy(),
 }
 
-/** A memory Journal with the test cancellation policy; a standalone binding unless the test names another mode. */
 function memory(options: Partial<MemoryOptions> = {}) {
   return createMemoryAgentJournal<string>({ coordination: 'standalone', cancellation, ...options })
 }
@@ -387,12 +381,10 @@ describe('fact 2: idempotence by original operation', () => {
     } as const
     const first = ok(await journal.recordControl(stage))
     const before = await load(journal, opened.execution)
-    // The new operation is recognized with its own receipt at the revision of the fact.
     expect(
       ok(await journal.recordControl({ ...stage, operation: operation('stage-new-attachment') })),
     ).toMatchObject({ operation: operation('stage-new-attachment'), revision: first.revision })
     expect(await load(journal, opened.execution)).toEqual(before)
-    // Another source for the reached fact is contradicting evidence: conflict with a saved audit.
     expect(
       failure(
         await journal.recordControl({
@@ -423,7 +415,6 @@ describe('fact 3: unknown result', () => {
     const answer = ok(await journal.port.query(query))
     expect(answer.kind).toBe('committed')
     expect(ok(await journal.port.query(query))).toEqual(answer)
-    // The retry under the original operation recognizes the original receipt.
     expect({ kind: 'committed', receipt: ok(await journal.port.commit(commit)) }).toEqual(answer)
   })
 
@@ -585,7 +576,6 @@ describe('fact 4: four conclusions of query', () => {
     failure(await journal.port.commit(commit))
 
     expect(journal.settle(opened.execution, commit.operation, 'dropped')).toBe(true)
-    // Nothing is pending any more, so the original write can no longer land.
     expect(journal.settle(opened.execution, commit.operation, 'applied')).toBe(false)
     expect(
       ok(
@@ -680,7 +670,6 @@ describe('fact 5: fence', () => {
     }
     const handoff = ok(await journal.detach(detach))
     expect((await load(journal, opened.execution)).state).toEqual({ kind: 'suspended', handoff })
-    // A detached attachment only recognizes its handoff.
     expect(ok(await journal.detach({ ...detach, operation: operation('detach-again') }))).toEqual(
       handoff,
     )
@@ -962,7 +951,6 @@ describe('fact 8: inputs', () => {
         }),
       ),
     )
-    // The second operation recognizes the acceptance of the first (SPEC "消息准入", recognize-input).
     ok(
       await journal.submit(
         withLineage({
@@ -1072,7 +1060,6 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
         ...overrides,
       }),
     )
-  /** The attachment of an execution opened through `openWith`, as `finish` and `takeInputs` need it. */
   async function attachmentOf(journal: Journal, name = 'exec-1'): Promise<Opened> {
     const snapshot = await load(journal, execution(name))
     const found = ok(
@@ -1477,8 +1464,6 @@ describe('fact 10: the one terminal commit', () => {
         source: evidence('intent'),
       }),
     )
-    // The complete candidate fixed before the cancel is not usable any more: a new complete F1
-    // under the effective cancel is changed, as are its prepareFinish and tryFinish.
     expect(failure(await fixCandidate(journal, opened, 'complete-after-cancel')).kind).toBe(
       'changed',
     )
@@ -1496,8 +1481,6 @@ describe('fact 10: the one terminal commit', () => {
         }),
       ).kind,
     ).toBe('changed')
-    // The cancel authorization cannot end the complete candidate; the cancelled candidate is
-    // established by commitSettlement and judged before the end (SPEC "取消判断与路线").
     expect(
       failure(
         await journal.tryFinish({
@@ -1602,7 +1585,6 @@ describe('fact 10: the one terminal commit', () => {
       }),
     )
     ok(await finishCancelled(journal, opened, operation('cancel')))
-    // SPEC 六个阶段: after ended, a late stopping fact is recorded without an event.
     ok(
       await journal.recordControl({
         ...access,
@@ -2216,7 +2198,6 @@ describe('fact 14: denied', () => {
       ),
     ).toEqual({ kind: 'denied', action: 'query' })
     expect(journal.settle(opened.execution, commit.operation, 'applied')).toBe(false)
-    // The fault was spent on the denied call, so the owner's commit is an ordinary write.
     ok(await journal.port.commit(commit))
     expect((await load(journal.port, opened.execution)).unresolved).toEqual([])
   })
@@ -2238,7 +2219,6 @@ describe('fact 14: denied', () => {
       kind: 'denied',
       action: 'open',
     })
-    // The minted tenant opens the same identity as a first open, not as a recognition or conflict.
     const opened = ok(await journal.open(openInput(input)))
     expect(opened.authority.generation).toBe('1')
     expect((await load(journal, input.execution)).revision).toBe(opened.receipt.revision)
@@ -2343,8 +2323,6 @@ describe('fact 16: entry event projection', () => {
     ).toEqual({ kind: 'unknown' })
   })
 
-  // Red when the guard lets an `ended` body through: the execution would then stop projecting
-  // entries while it is still open.
   it('fact 16: a commit that carries an ended event body is invalid at events, and a later entry still has its event', async () => {
     const { port: journal, provider } = memory()
     const opened = await open(journal)
@@ -2578,7 +2556,6 @@ describe('scripted read faults', () => {
   })
 })
 
-// Public controls establish corrupted storage; the real Journal remains the behavior oracle.
 describe('retained invocation fault controls', () => {
   async function fixture(label = 'A', spaced = false) {
     const control = memory({ retainedToolInvocationFaults: true, participants: ['message'] })
@@ -2599,7 +2576,6 @@ describe('retained invocation fault controls', () => {
       const commit = commitAt(await load(journal, opened.execution), opened.authority, 'calls', {
         checkpoint: checkpoint(),
       })
-      // JS callers can provide non-canonical valid text. The real resolver checks these bytes.
       const committed: Awaited<ReturnType<Journal['commit']>> = await Reflect.apply(
         journal.commit,
         journal,
@@ -2968,7 +2944,6 @@ describe('retained invocation fault controls', () => {
       }),
     ).toEqual({ kind: 'applied' })
     const otherFault = (await observeAll(store))[1]
-    // A later normal write must survive clear; the baseline owns only the invocation field.
     ok(
       await store.journal.recordControl({
         ...store.first.recording,

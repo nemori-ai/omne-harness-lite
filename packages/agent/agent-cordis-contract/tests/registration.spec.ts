@@ -1,6 +1,3 @@
-// The instance directory on a real Cordis Context. The directory loads through its own plugin. The
-// authority of the host, the access check and the host are test providers of the abstract
-// definitions: in a real assembly they come from agent-host-local and the authorization domain.
 import { type Context as CordisContext, Context } from '@deepseek-ai/cordis'
 import {
   decodeAgentInstanceId,
@@ -80,7 +77,6 @@ function registrationOf(answer: Answer): Registration {
 
 const unsupported: Failure = { kind: 'unsupported' }
 
-/** Stands in for the publication authority of the host. It records every question. */
 class TestAuthority extends AgentPublicationAuthorityService<string> {
   answer: 'allow' | 'throw' | 'garbage' | 'shapeless' | Failure = 'allow'
   readonly seen: { input: unknown; caller: CordisContext }[] = []
@@ -93,14 +89,12 @@ class TestAuthority extends AgentPublicationAuthorityService<string> {
   }
 }
 
-/** Stands in for the authorization domain. It records every question. */
 class TestAccess extends AgentAccessCheckService<string> {
   decision: AgentAccessDecision | 'throw' = {
     kind: 'allowed',
     evidence: { owner: 'test', record: 'grant', revision: '1', digest: 'sha256:grant' },
   }
   readonly seen: Parameters<AgentAccessCheckService<string>['check']>[0][] = []
-  /** Runs after the question is recorded and before the answer, to let something happen between. */
   meanwhile: (() => Promise<unknown>) | undefined = undefined
   readonly check: AgentAccessCheckService<string>['check'] = async request => {
     this.seen.push(request)
@@ -110,7 +104,6 @@ class TestAccess extends AgentAccessCheckService<string> {
   }
 }
 
-/** Stands in for agent-host-local: it owns the objects of live instances and gives their route. */
 class TestHost extends AgentInstanceHostService<string> {
   readonly routes = new Map<string, AgentLocalRoute<string> | 'throw'>()
   readonly asked: Readonly<{ tenant: TenantId; instance: AgentInstanceId }>[] = []
@@ -180,7 +173,6 @@ async function start() {
     retired,
     logs,
     records,
-    /** Registers from a fresh contributor fiber. The unload of the fiber ends the registration. */
     async contribute(request: Input) {
       const call: { ctx?: CordisContext; answer?: Promise<Answer> } = {}
       const fiber = root.plugin({
@@ -198,7 +190,6 @@ async function start() {
         answer: await (call.answer as Promise<Answer>),
       }
     },
-    /** Starts a host as the provider of `agentInstanceHost`, and returns the host and its fiber. */
     async host(...instances: AgentInstanceId[]) {
       const made = await provide(root, `host-${++count}`, ctx => new TestHost(ctx))
       for (const instance of instances) made.service.routes.set(instance, routeOf(instance))
@@ -228,7 +219,6 @@ describe('register', () => {
       apply(ctx: CordisContext) {
         call.answers = Promise.all([
           ctx.agentInstances.register(first),
-          // An equal input of another object, built in another order: it is the same data.
           ctx.agentInstances.register({ ...input(), scope: { ...scope } }),
         ])
       },
@@ -276,7 +266,6 @@ describe('register', () => {
     expect(world.authority.seen[0]?.caller.fiber).toBe(refused.ctx.fiber)
     world.authority.answer = 'allow'
     const entered = await world.contribute(input({ operation: 'operation_2' }))
-    // The refused request used no generation and left no entry: the first registration is the first.
     await world.directory.withdraw({
       principal: 'host',
       tenant: tenantA,
@@ -345,12 +334,10 @@ describe('a successor registration', () => {
     expect(world.retired).toEqual([
       { tenant: tenantA, instance: instanceOf('instance_1'), generation: 1, reason: 'superseded' },
     ])
-    // The successor is the entry of the instance: one live route, now under its generation.
     const access = { principal: 'p', tenant: tenantA }
     expect(
       await world.directory.resolve({ ...access, instance: instanceOf('instance_1') }),
     ).toMatchObject({ ok: { instance: instanceOf('instance_1') } })
-    // The superseded fiber ends later and reports nothing a second time.
     await old.fiber.dispose()
     expect(world.retired).toHaveLength(1)
     await successor.fiber.dispose()
@@ -450,7 +437,6 @@ describe('withdraw', () => {
     ])
     const repeat = await world.directory.withdraw(withdrawal(registration))
     expect(repeat).toEqual(ended)
-    // The entry is gone, and so the unload of the fiber has nothing left to remove or to report.
     await contribution.fiber.dispose()
     expect(world.retired).toHaveLength(1)
     const access = { principal: 'p', tenant: tenantA }
@@ -530,9 +516,7 @@ describe('a listener of instance-retired that fails', () => {
       })
       await old.fiber.dispose()
       await successor.fiber.dispose()
-      // The listener of the world still saw each removal that happened, once.
       expect(world.retired.map(event => event.reason)).toEqual(['superseded', 'withdrawn'])
-      // The failures were recorded, and the record names no payload of the failure.
       expect(world.logs.filter(line => line.includes('instance-retired'))).toHaveLength(2)
       expect(world.logs.join('')).not.toContain('secret-boom')
     },
@@ -575,10 +559,6 @@ describe('a listener of instance-retired that fails', () => {
   })
 })
 
-/**
- * A directory that a plugin without `inject` built, with one published instance and a host that
- * routes it. No access check is declared for the directory, so it cannot reach one.
- */
 async function directoryOutsideItsPlugin() {
   const root = new Context()
   const authority = await provide(root, 'authority', ctx => new TestAuthority(ctx))
@@ -693,7 +673,6 @@ describe('resolve and connect', () => {
     ).toMatchObject({
       failure: { kind: 'denied' },
     })
-    // The key of the directory refused every call above before the access check was asked.
     expect(world.access.seen).toEqual([])
     expect(host.service.asked).toEqual([])
   })
@@ -755,11 +734,6 @@ describe('resolve and connect', () => {
   })
 })
 
-// The tests below have literal names and no `it.each` on purpose. A run that picks tests by name
-// from the text of the file cannot see the names that a generated test gets, and these tests are
-// the ones that must keep the failure words and the guards of the directory.
-
-/** The human text of a failure: the diagnostic of `unavailable`, the reason of `invalid`. */
 function textOf(answer: unknown): string {
   const failure = (answer as { failure?: { diagnostic?: unknown; reason?: unknown } }).failure
   const text = failure?.diagnostic ?? failure?.reason
@@ -815,7 +789,6 @@ describe('register, given a request with one part that is not valid', () => {
 })
 
 describe('a retry of register from the same fiber', () => {
-  /** Registers each request in turn from one fiber, and returns the answers. */
   async function retry(requests: readonly Input[]) {
     const world = await start()
     const call: { answers?: Promise<Answer[]> } = {}
@@ -936,7 +909,6 @@ describe('the access check and the host of resolve and connect, when they cannot
       expect(textOf(answer)).not.toBe(textOf(given))
     }
 
-    // A directory that cannot reach an access check says so, in other words than the two above.
     const { directory } = await directoryOutsideItsPlugin()
     const missing = await directory.resolve(asker)
     expect(missing).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentAccessCheck' } })
@@ -1009,7 +981,6 @@ describe('register and withdraw called without their service', () => {
 describe('the effect that a registration puts on the fiber of its caller', () => {
   let counted = 0
 
-  /** The number of effects that the fiber holds after it made the requests in turn. */
   async function effectsAfter(
     world: Awaited<ReturnType<typeof start>>,
     requests: readonly Input[],
@@ -1040,7 +1011,6 @@ describe('the effect that a registration puts on the fiber of its caller', () =>
       input({ operation: 'operation_a', instance: 'instance_a' }),
     ])
     expect(one).toBe(none + 1)
-    // The same request twice from one fiber: the second is recognised and adds nothing.
     const twice = await effectsAfter(world, [
       input({ operation: 'operation_b', instance: 'instance_b' }),
       input({ operation: 'operation_b', instance: 'instance_b' }),
@@ -1080,8 +1050,6 @@ describe('withdraw, given an identity that is not the registration of the instan
 })
 
 describe('a calling context whose effect does not behave as Cordis does', () => {
-  // Cordis always runs an effect at once and always ends it at once. A caller that does neither is
-  // not a context of Cordis, so a stub stands for it: the directory must not trust the effect.
   const stub = (effect: (run: () => unknown) => () => unknown) =>
     ({ ctx: { fiber: {}, effect } }) as never
 
@@ -1137,7 +1105,6 @@ describe('a calling context whose effect does not behave as Cordis does', () => 
     expect(route).toMatchObject({ ok: { instance: instanceOf('instance_1') } })
     const hosted = host.service.asked.length
 
-    // The removal is not confirmed, so the answer says so and the caller may retry.
     expect(await world.directory.withdraw(withdrawal)).toEqual({
       ok: { registration, state: 'withdrawing' },
     })
@@ -1149,7 +1116,6 @@ describe('a calling context whose effect does not behave as Cordis does', () => 
     expect(failures.every(record => record.name === 'agent-cordis-contract')).toBe(true)
     expect(failures.every(record => record.message !== '')).toBe(true)
 
-    // A registration that is going away has no live route, and the host is not asked for one.
     const resolved = await world.directory.resolve(asker)
     expect(resolved).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentInstances' } })
     expect(textOf(resolved)).not.toBe('')
@@ -1293,7 +1259,6 @@ describe('resolve and connect for an instance of another tenant', () => {
     const host = await world.host(instanceOf('instance_1'))
     const contribution = await world.contribute(input())
     const asker = { principal: 'caller', tenant: tenantA, instance: instanceOf('instance_1') }
-    // The check ends the registration before it answers allowed: the key no longer has an entry.
     world.access.meanwhile = () => contribution.fiber.dispose()
     expect(await world.directory.connect(asker)).toEqual({
       failure: { kind: 'denied', action: 'connect' },

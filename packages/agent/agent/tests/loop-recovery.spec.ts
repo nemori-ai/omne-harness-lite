@@ -80,10 +80,6 @@ function route(at: AgentCheckpoint, change: Partial<ExecutionSnapshot> = {}) {
   return recoveryRoute({ checkpoint: at, unresolved: [], state: { kind: 'advancing' }, ...change })
 }
 
-/**
- * Whether `operation` is the commit of `node` on the normal path: node commits carry the node as
- * their prefix; the Ja of Q2 derives from its H and the stage `resolve` (SPEC "消息准入").
- */
 function isCommitOf(node: string, operation: string): boolean {
   return node === 'Q2' ? operation.endsWith('/resolve') : operation.startsWith(`${node}/commit@`)
 }
@@ -96,7 +92,6 @@ describe('E4 recovery routing', () => {
   it.each([
     ['E3', 'E3'],
     ['I1', 'I1'],
-    // R2-D292: the positions before the final request record prepare again at I1.
     ['P0', 'I1'],
     ['P1', 'I1'],
     ['I2', 'I1'],
@@ -109,7 +104,6 @@ describe('E4 recovery routing', () => {
     ['I3', 'I3'],
     ['I4', 'I4'],
     ['I8', 'I8'],
-    // F1 fixes a decision that I8 formed in memory: before F1 commits, I8 forms it again.
     ['F1', 'I8'],
     ['F2', 'F2'],
     ['F3', 'F3'],
@@ -145,13 +139,11 @@ describe('E4 recovery routing', () => {
     ok(await c.runExecution())
     const preparations = assembly.controls.requests.prepare.calls
     expect(preparations).toHaveLength(2)
-    // R2-D292: an assembled or ready preparation is never written; the route prepares again.
     expect(preparationsSaved).toEqual([])
     const at = (await load(assembly)).checkpoint
     expect(at.requestPreparation).toBeNull()
     expect(ok(route({ ...at, position: 'I2', calls: [] }))).toBe('I1')
     expect(ok(route({ ...checkpoint('I0'), inputBatch: inputBatch(1) }))).toBe('I1')
-    // The saved kinds still decide: cannot-fit goes to F1.
     const cannotFit = {
       id: preparations[0]!.action,
       purpose: 'main',
@@ -228,7 +220,6 @@ describe('E4 recovery routing', () => {
     const at = (position: string, saved: ActionBatch) => ({ ...checkpoint(position), batch: saved })
     const two = [action('a', 'allowed', pendingCall), action('b', 'allowed')]
     expect(ok(route(at('A1', batch('closed', two, []))))).toBe('A1')
-    // b has no slot yet: only A2 may send it, even if a result of a is kept.
     expect(ok(route(at('T2', batch('open', two, [slot('a', 'result')]))))).toBe('A2')
     expect(
       ok(route(at('T3', batch('open', two, [slot('a', 'dispatched'), slot('b', 'result')])))),
@@ -319,7 +310,6 @@ describe('E1 and E2 read-only recognition', () => {
       const c = coordinator(assembly)
       ok(await c.accept())
       if (method === 'load') {
-        // E1 succeeds. Its wrapper schedules the fault for the separate E2 load.
         const original = assembly.dependencies.journal.load
         let first = true
         assembly.dependencies.journal.load = async input => {
@@ -333,8 +323,6 @@ describe('E1 and E2 read-only recognition', () => {
       } else assembly.controls.journal.failNextRead(method)
       const ran = await c.runExecution()
       if (method === 'query') {
-        // An unresolved original is waiting for its outcome: the wait stays in memory and saves
-        // nothing over it (Agent SPEC 依赖不可用时的等待).
         ok(ran)
         expect((await load(assembly)).state.kind).toBe('advancing')
         return
@@ -418,14 +406,10 @@ describe('R0 and W0 coordination', () => {
     },
   )
 
-  // SPEC "查询的四种结论与持久拒绝": R0 branches on rejected explicitly. For an unresolved operation of
-  // another writer it is a settled refusal, so R0 goes on; for the coordinator's own commit it is a
-  // violation of the Journal provider, reported as unavailable, never waited on.
   it.each(['own-commit', 'other-operation'] as const)(
     'NA-E4-3: R0 treats a rejected %s as settled or as a provider violation, not as unknown',
     async which => {
       const other = operation('other-ack')
-      // For `own-commit`, the first commit of the coordinator is held pending and named here.
       let target: ReturnType<typeof operation> | null = which === 'other-operation' ? other : null
       const assembly = await loopAssembly([execution()], d => ({
         ...d,
@@ -647,8 +631,6 @@ describe('R0 and W0 coordination', () => {
       expect(acknowledgements).toBe(0)
       expect(processed).toBe(0)
       expect(assembly.controls.pusher?.acknowledgements()).toHaveLength(1)
-      // The outcome of the reply was fixed by prepare at Q1 (SPEC "消息准入"): the Ja retried
-      // after a dropped commit applies that outcome again and asks the provider nothing new.
       expect(assembly.controls.handoff.prepare.calls).toHaveLength(2)
       const replies = assembly.controls.handoff.prepare.calls.filter(
         call => call.request.source.kind === 'model-reply',
@@ -781,7 +763,6 @@ describe('R0 and W0 coordination', () => {
       ...d,
       journal: {
         ...d.journal,
-        // A refusal stops the run at F3; an unavailable tryFinish would go to R0 instead.
         tryFinish: async input => {
           finish = input
           return fail({ kind: 'denied', action: 'pause before terminal' })
@@ -820,8 +801,6 @@ describe('R0 and W0 coordination', () => {
     )
   })
 
-  // Agent SPEC 依赖不可用时的等待: the wait stays in the process, the drive yields and nothing
-  // is saved; the check time goes through E1.
   it('NA-W0-1: a waiting commit answered unavailable keeps the wait in the process and saves no event', async () => {
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly)
@@ -885,7 +864,6 @@ describe('saved waiting through invoke', () => {
       ...d,
       journal: {
         ...d.journal,
-        // Hold the failure through W0's readiness reread; a one-shot read now recovers immediately.
         inputs: async () =>
           fail({ kind: 'unavailable', owner: 'test-inputs', diagnostic: 'offline' }),
         commit: input => {
@@ -971,10 +949,6 @@ describe('the recovered input boundary', () => {
 })
 
 describe('a saved admission position in a new coordinator', () => {
-  // A new coordinator with the same operation recognizes the original open and ends at E1 with
-  // found-existing: the replay of an invoke never continues the execution. The continuation of a
-  // saved P belongs to `resume`: the route names I3, which builds the admission frame again from
-  // the Journal (`loop-crash-matrix.spec.ts` runs it from every cut).
   it('NA-E4-1: a new coordinator over a saved Q2 position recognizes the original open and ends at E1; the P and currentHandoff stay as saved', async () => {
     let replies = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -995,9 +969,7 @@ describe('a saved admission position in a new coordinator', () => {
         waits.push(`${step} ${node} ${failure.owner}: ${failure.diagnostic}`),
     })
     ok(await first.accept())
-    // The admission is unavailable: the run waits at Q1 (Agent SPEC 依赖不可用时的等待).
     ok(await first.runExecution())
-    // The Journal keeps the owner and the node of the wait; the reason goes to the report, once.
     expect(waits).toEqual(['step-1 Q1 test-handoff: injected'])
     const saved = await load(assembly)
     expect(saved.checkpoint.position).toBe('Q2')
@@ -1018,10 +990,6 @@ describe('a saved admission position in a new coordinator', () => {
 })
 
 describe('the Access of the admission calls (#963 N-2)', () => {
-  // Q1 and Q2 hand the Access of the execution's entry to the message handoff. The unavailable
-  // prepare took no effect, so the same coordinator at Q2 prepares the same request again and does
-  // not read it back with lookup (#1174 qa D1). Red when a call carries another tenant than the
-  // caller's.
   it('NA-Q2-2: each prepare carries the tenant of the execution that calls it, and the unavailable one is not looked up', async () => {
     const prepared: (readonly [kind: string, tenant: unknown])[] = []
     let replies = 0
@@ -1050,7 +1018,6 @@ describe('the Access of the admission calls (#963 N-2)', () => {
         initial: acceptedInput(`input-${id}`, `hello ${id}`),
       })
       ok(await entry.accept())
-      // The admission is unavailable: the run waits at Q1, and the next pass prepares again.
       ok(await entry.runExecution())
       ok(await entry.runExecution())
     }
@@ -1074,7 +1041,6 @@ describe('checkpoint positions saved by the current assembly', () => {
       journal: {
         ...d.journal,
         commit: input => {
-          // A committed settling state carries no intent; the route reads only the kind.
           const state: ExecutionState =
             input.state.kind === 'settling'
               ? {
@@ -1096,20 +1062,17 @@ describe('checkpoint positions saved by the current assembly', () => {
     }))
     const expected: Record<string, string> = {
       E4: 'evaluate',
-      // R2-D292: before the final request record nothing of the preparation is saved.
       I1: 'I1',
       P0: 'I1',
       P1: 'I1',
       I2: 'I1',
       M6: 'M6',
       M4: 'M4',
-      // The admission frame of Q2 and Q4 lives in memory; I3 builds it again from the Journal.
       Q2: 'I3',
       Q4: 'I3',
       I3: 'I3',
       I4: 'I4',
       I8: 'I8',
-      // The decision F1 fixes lives in memory; I8 forms it again.
       F1: 'I8',
       F2: 'F2',
       F3: 'F3',

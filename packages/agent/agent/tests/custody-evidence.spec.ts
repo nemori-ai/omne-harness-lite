@@ -1,9 +1,3 @@
-// The evidence adapter of the Agent consumer owner for a Model ACK (R2-D257). It confirms the
-// retained evidence of an ACK only from the record this owner's receiver committed for the same
-// delivery. Red when the adapter and the receiver disagree on where the record is (the derived
-// reception operation), when it confirms a record that differs in any part, when it waits on
-// forged evidence instead of refusing it, or when a failed or missing read becomes a confirmation
-// or a refusal.
 import { describe, expect, it } from 'vitest'
 import {
   createAgentCustodyEvidence,
@@ -24,10 +18,8 @@ import { acceptedInput, evidence, execution, ok, operation, tenantB } from './jo
 import { alice, loopAssembly } from './loop-support.ts'
 import { options } from './factory-support.ts'
 
-/** One Agent call waiting on the Model, its frozen result delivery and the receiver of this owner. */
 async function setup() {
   const assembly = await loopAssembly([execution()])
-  // The assembly's own receiver is refused while the call runs, so the delivery waits for this one.
   assembly.controls.access.check.always(input =>
     input.operation === 'receive-result'
       ? { kind: 'denied' }
@@ -101,8 +93,6 @@ describe('the Agent custody evidence of a Model ACK', () => {
     })
   })
 
-  // R2-D260: evidence that differs from the committed record is forged (SPEC 伪证据拒绝), not a
-  // record to wait for. Red when it is answered `unavailable` again.
   it('refuses evidence that differs from the committed record as handoff-invalid', async () => {
     const s = await setup()
     const saved = await s.push()
@@ -123,7 +113,6 @@ describe('the Agent custody evidence of a Model ACK', () => {
     const s = await setup()
     const saved = await s.push()
     const adapter = createAgentCustodyEvidence(s.records)
-    // Another result version names another delivery, which this owner has not saved (yet).
     expect(
       await adapter.verify({
         ...s.question(saved),
@@ -132,8 +121,6 @@ describe('the Agent custody evidence of a Model ACK', () => {
     ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'consumer-evidence' } })
   })
 
-  // R2-D262: the record of one tenant confirms nothing for another. Red when the adapter reads the
-  // record without the ACK's own tenant, or confirms it for another tenant.
   it('confirms nothing for another tenant that presents the saved evidence', async () => {
     const s = await setup()
     const saved = await s.push()

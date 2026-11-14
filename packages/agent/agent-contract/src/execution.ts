@@ -1,7 +1,3 @@
-// Execution coordination and runtime instance types of the Agent contract (README, "托管协调与运行实例"):
-// the execution record and its snapshot, the control and result-responsibility records, the event
-// stream, the runtime, directory, recovery, adoption and instance-host ports, the access check and
-// the clock. Types only; no function runs here. The Journal ports live in journal.ts.
 import type { Message } from '@omne-harness/message'
 import type * as M from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -47,12 +43,6 @@ export type ExecutionState =
   | Readonly<{ kind: 'settling'; intent: FinishIntent }>
   | Readonly<{ kind: 'suspended'; handoff: DurableEvidence }>
   | Readonly<{ kind: 'ended'; conclusion: AgentConclusion; disposition: DurableEvidence }>
-/**
- * The open state of one execution at its head position `revision` (SPEC "提交与保管"): the current
- * checkpoint and only the items still open. A closed item leaves the snapshot; its facts stay in the
- * Journal and are read through the paged reads. The size of a snapshot does not grow with the
- * number of steps the execution has taken.
- */
 export type ExecutionSnapshot = Readonly<{
   execution: AgentExecutionId
   revision: ExecutionRevision
@@ -64,23 +54,11 @@ export type ExecutionSnapshot = Readonly<{
   executionAttachment: Authority | null
   unresolved: readonly AgentOperationId[]
   controls: readonly ControlRecord[]
-  /** The result responsibilities that are not closed: no completion yet, or a pending release. */
   results: readonly ResultResponsibility[]
-  /** The effect intents whose call is still open in the checkpoint or whose action is in its batch. */
   effects: readonly EffectIntent[]
   terminalObservations: readonly TerminalObservation[]
-  /**
-   * The open handoff records at this revision: a pending history, an unsettled custody chain, or a
-   * record still referred to (the current H, a slot of the current batch, the main reply of the
-   * current step, or the issued finish obligations), and the H of an input that no batch took yet
-   * or that is in the current input batch. A settled record of an earlier step that nothing refers
-   * to leaves the snapshot. A settling or ended execution keeps all its results, effects and
-   * handoffs here: it takes no further step, and its settlement may refer to any of them.
-   */
   handoffs: readonly ExecutionHandoff[]
-  /** The issued finish obligations of the current candidate; null until prepareFinish issued them (SPEC "终结责任清单"). */
   finishObligations: FinishObligations | null
-  /** The candidate, route, migration, judgment and custody records at this revision (SPEC "commitSettlement 的变体"). */
   settlement: ExecutionSettlement
   output: Readonly<{ emittedThrough: string | null; acknowledgedThrough: string | null }>
 }>
@@ -111,14 +89,6 @@ export type TerminalObservation = Readonly<{
   implementation: Adoption
   observed: DurableEvidence | null
 }>
-/**
- * The projection of the current finish candidate that the Journal maintains (SPEC "条件终结"). The
- * caller never writes it: `candidate` is the first F1 operation of an ordinary candidate or the
- * establishing operation of a cancellation candidate, `obligations` is null until prepareFinish
- * issued the list, and `beforeTerminal` points at the real before-terminal judgment of the current
- * route: the F2 commit on the author route, the current judgment record on the cancellation route.
- * The `intent` of tryFinish is compared with this projection for equality only.
- */
 export type FinishIntent = Readonly<{
   candidate: AgentOperationId
   conclusion: AgentConclusion
@@ -223,17 +193,14 @@ export type AgentEvent = Readonly<{
 export type EventPage =
   | Readonly<{ kind: 'page'; events: readonly AgentEvent[]; next: string; caughtUp: boolean }>
   | Readonly<{ kind: 'gap'; retainedFrom: string; recovery: DurableEvidence }>
-/** The input view of one execution handle; see SPEC "托管协调与运行实例". */
 export interface AgentExecutionInput<P> {
   submit(input: ExecutionMutation<P> & Readonly<{ value: AcceptedInput }>): Reply<CommandReceipt>
 }
-/** The control view of one execution handle; see SPEC "取消、退出与结构变更". */
 export interface AgentExecutionControl<P> {
   control(
     input: ExecutionMutation<P> & Readonly<{ command: ExecutionControl }>,
   ): Reply<CommandReceipt>
 }
-/** The output view of one execution handle: paged reads, a live stream and acknowledgement; see SPEC "事件流与读取". */
 export interface AgentExecutionEvents<P> {
   read(
     input: Access<P> &
@@ -247,14 +214,12 @@ export interface AgentExecutionEvents<P> {
     input: ExecutionMutation<P> & Readonly<{ through: string; receipt: DurableEvidence | null }>,
   ): Reply<CommandReceipt>
 }
-/** The input, control and output views of the one execution that invoke or resume returned; see SPEC "托管协调与运行实例". */
 export interface AgentExecutionHandle<P> {
   readonly execution: AgentExecutionId
   readonly input: AgentExecutionInput<P>
   readonly control: AgentExecutionControl<P>
   readonly output: AgentExecutionEvents<P>
 }
-/** The runtime of one agent instance: start an execution or take one over; see SPEC "创建、登记与复用" and "恢复与接管". */
 export interface AgentRuntime<P> {
   readonly instance: AgentInstanceId
   invoke(
@@ -269,21 +234,17 @@ export interface AgentRuntime<P> {
 export type AgentObservation =
   | Readonly<{ kind: 'state'; value: AgentState }>
   | Readonly<{ kind: 'ended'; reason: 'closed' | 'denied' | 'retired' | 'unavailable' }>
-/** The live observation of one instance; see SPEC "创建、登记与复用". */
 export interface AgentHandle<P> {
   readonly instance: AgentInstanceId
   observe(input: Access<P> & Readonly<{ signal: AbortSignal }>): AsyncIterable<AgentObservation>
 }
-/** The directory that resolves an instance to its runtime or to a live handle; see SPEC "创建、登记与复用". */
 export interface AgentDirectory<P> {
   resolve(input: Access<P> & Readonly<{ instance: AgentInstanceId }>): Reply<AgentRuntime<P>>
   connect(
     input: Access<P> & Readonly<{ instance: AgentInstanceId }>,
   ): Reply<Readonly<{ kind: 'live'; handle: AgentHandle<P> }> | Readonly<{ kind: 'no-live-route' }>>
 }
-/** The entry that reconciles one execution when no live runtime exists; see SPEC "提交与保管" and "交接与停用". */
 export interface AgentExecutionRecovery<P> {
-  /** The four conclusions of SPEC "查询的四种结论与持久拒绝"; `rejected` only comes from recordControl. */
   query(input: ExecutionMutation<P>): Reply<
     | Readonly<{ kind: 'committed'; receipt: CommandReceipt }>
     | Readonly<{
@@ -302,14 +263,6 @@ export interface AgentExecutionRecovery<P> {
   detach(
     input: ExecutionMutation<P> & Readonly<{ authority: Authority; reason: DurableEvidence }>,
   ): Reply<DurableEvidence>
-  /**
-   * The host's judgment of the runtime that holds `authority`; see SPEC "恢复与接管". `live`: this
-   * host still runs it. `lost`: the host can show that it runs nowhere any more, and `evidence` is
-   * that judgment, fit for the reason of a detach through this entry and for the recovery basis of
-   * a resume. `unknown`: the host does not run it and cannot show that it ended. The judgment
-   * grants nothing: every write that follows it keeps its own qualification and its own
-   * conditional commit.
-   */
   contact(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; authority: Authority }>,
   ): Reply<
@@ -318,7 +271,6 @@ export interface AgentExecutionRecovery<P> {
     | Readonly<{ kind: 'unknown' }>
   >
 }
-/** The port that resolves an adoption into its definition, evaluator and extensions and hands a snapshot over to another adoption; see SPEC "采用交接". */
 export interface AgentAdoptions<P> {
   resolve(input: Access<P> & Readonly<{ adoption: Adoption }>): Reply<
     Readonly<{
@@ -342,7 +294,6 @@ export type Registration = Readonly<{
   registration: AgentRegistrationId
   state: RegistrationState
 }>
-/** The registration capability that the host gives a runtime at reserve; see SPEC "创建、登记与复用". */
 export interface AgentRegistrationHandle<P> {
   readonly instance: AgentInstanceId
   report(input: Readonly<{ state: AgentState }>): void
@@ -350,7 +301,6 @@ export interface AgentRegistrationHandle<P> {
     input: Access<P> & Readonly<{ operation: AgentOperationId; reason: DurableEvidence }>,
   ): Reply<Registration | null>
 }
-/** The host that reserves, publishes and withdraws instances and owns the directory; see SPEC "创建、登记与复用". */
 export interface AgentInstanceHost<P> {
   reserve(
     input: Access<P> &
@@ -385,7 +335,6 @@ export type QuiesceResult = Readonly<{
   remaining: readonly AgentExecutionId[]
   evidence: DurableEvidence
 }>
-/** The control plane that retires an instance, given by the runtime provider to the host only; see SPEC "交接与停用". */
 export interface AgentRuntimeControl<P> {
   quiesce(
     input: Access<P> & Readonly<{ operation: AgentOperationId; reason: DurableEvidence }>,
@@ -418,11 +367,6 @@ export type AgentAccessOperation =
   | 'exclude-message-handoff'
   | 'settle'
   | 'migrate-cancellation'
-/**
- * What one public operation acts on. The execution target is the logical execution alone, without
- * an instance; the input-entry target is the execution with the original entry operation O
- * (SPEC "主体资格核验").
- */
 export type AgentAccessTarget =
   | Readonly<{ kind: 'scope'; scope: DurableEvidence; definition: Adoption }>
   | Readonly<{ kind: 'instance'; instance: AgentInstanceId }>
@@ -432,7 +376,6 @@ export type AgentAccessDecision =
   | Readonly<{ kind: 'allowed'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-/** The port of the authorization domain that checks the current standing of a principal for one public operation; see SPEC "主体资格核验". */
 export interface AgentAccessCheck<P> {
   check(
     input: Readonly<{
@@ -442,9 +385,7 @@ export interface AgentAccessCheck<P> {
     }>,
   ): Promise<AgentAccessDecision>
 }
-/** The injected UTC reading and wait port; see SPEC "托管协调与运行实例". */
 export interface AgentClock {
-  /** Reads the provider's current UTC instant; unavailable time is not a fabricated reading. */
   now(): Reply<AgentInstant>
   waitUntil(instant: AgentInstant, signal: AbortSignal): Reply<'elapsed' | 'cancelled'>
 }

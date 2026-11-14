@@ -1,7 +1,3 @@
-// The child process of J5. It opens the joint world of wave 2 on the storage directory in argv[2],
-// creates the session and lets the Agent run one round, collects every `agentMessageHandoff.prepare`
-// the Agent asks for with its answer, prints one line when the Agent has had a reply admitted
-// (the execution branch), and then waits to be killed. Run by plain `node`.
 import { replyText, openW2World } from './w2-world.ts'
 
 const root = process.argv[2]

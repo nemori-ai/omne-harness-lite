@@ -1,9 +1,6 @@
-// Every transition goes where this independently written expectation says. The table is internal,
-// so this test imports the module source directly.
 import { describe, expect, it } from 'vitest'
 import { LOOP_NODES, TRANSITIONS, successor, type Label, type LoopNode } from '../src/loop/nodes.ts'
 
-/** The reason of each normal-path edge, named by the column of the former node table. */
 const COLUMNS = [
   '节点',
   '读什么',
@@ -18,13 +15,11 @@ type Source = (typeof COLUMNS)[number] | '伪代码'
 
 type Row = readonly [from: LoopNode, on: Label, to: LoopNode | null, source: Source, says: string]
 
-/** The normal path of #502 1.2 in path order, with the words of the node table that decide it. */
 const NORMAL_PATH: readonly Row[] = [
   ['U0', 'candidate', 'Q1', '如何返回', '转 Q1'],
   ['Q1', 'prepared', 'Q2', '如何返回', 'prepared 转 Q2'],
   ['Q2', 'resolved', 'Q4', '如何返回', '成功转 Q4'],
   ['Q4', 'return-U0', 'U0', '如何返回', '回固定调用位置：…U0'],
-  // The admission of the input leads into the real acceptance of invoke at E0.
   ['U0', 'admitted', 'E0', '终止或进展条件', '真实受理才进入可承接输入'],
   ['E0', 'authority', 'E1', '如何返回', '取得 Authority 转 E1'],
   ['E1', 'allowed', 'E2', '如何返回', '允许转 E2'],
@@ -33,7 +28,6 @@ const NORMAL_PATH: readonly Row[] = [
   ['E3', 'passed', 'E4', '如何返回', '效果采纳或单独提交后转 E4'],
   ['E4', 'take-inputs', 'I0', '如何返回', '新 iter 或原输入边界转 I0'],
   ['I0', 'taken', 'I1', '如何返回', '转 I1'],
-  // #558 S-11: the first prepare returns assembled. P1's review produces ready.
   ['I1', 'prepared', 'P0', '如何返回', 'assembled 转 P0'],
   ['P0', 'proceed', 'P1', '如何返回', 'proceed 转 P1'],
   ['P1', 'ready', 'I2', '如何返回', 'ready 且再选择一致转 I2'],
@@ -44,12 +38,10 @@ const NORMAL_PATH: readonly Row[] = [
   ['M3', 'kept', 'M4', '如何返回', '转 M4'],
   ['M4', 'proceed', 'M5', '如何返回', '转 M5'],
   ['M5', 'return-I3', 'I3', '如何返回', '主请求回 I3'],
-  // I3 hands the reply to Q: the pseudocode runIter calls admitMessage on it.
   ['I3', 'admit', 'Q1', '伪代码', 'admission = admitMessage(model-reply, reply)'],
   ['Q4', 'return-I3', 'I3', '如何返回', '回固定调用位置：I3'],
   ['I3', 'admitted', 'I4', '如何返回', '准入成功转 I4'],
   ['I4', 'empty', 'I8', '如何返回', '空转 I8'],
-  // The tool round: per-slot custody and passage, then the batch pass and admission in order.
   ['A3', 'slotted', 'T2', '如何返回', '转 T2'],
   ['T0', 'received', 'T1', '如何返回', '真实结果或确认后台占位转 T1'],
   ['T1', 'kept', 'T2', '如何返回', '真实结果或拒绝转 T2'],
@@ -96,7 +88,6 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['Q5', 'disposed', 'Q4'],
       ['M6', 'wait', 'W0'],
       ['M6', 'try-finish', 'F1'],
-      // R2-D292: an authoritative not-accepted voids the intent and prepares the next attempt.
       ['M6', 'voided', 'I1'],
       ['M1', 'wait', 'W0'],
       ['E1', 'cancel', 'F0'],
@@ -114,7 +105,6 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['A2', 'dispatched', 'T0'],
       ['A2', 'wait', 'W0'],
       ['T0', 'wait', 'W0'],
-      // A2's wait for a free place (A2 -> A2 in the graph) re-enters A2 from T3.
       ['T3', 'dispatch', 'A2'],
       ['T5', 'wait', 'W0'],
       ...[
@@ -206,7 +196,6 @@ describe('C1 the transition table follows the node table on the normal path', ()
   })
 
   it('walks the path from U0 to the end through the table alone', () => {
-    // The outcomes of the one normal run, in order; the table alone must give the nodes.
     const outcomes: readonly Label[] = [
       'candidate',
       'prepared',

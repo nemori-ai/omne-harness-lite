@@ -40,7 +40,6 @@ export type ModelReceiverFixture = Readonly<{
   sent: AgentAccountHandoff[]
   outlet(next: AgentAccountOutcome): void
 }>
-/** Real memory Journal and original binding, with explicit Model/access/outlet doubles. No durability. */
 export async function assembleModelReceiverFixture(
   tenant: Access<string>['tenant'],
   entry: ReceivedEntry,

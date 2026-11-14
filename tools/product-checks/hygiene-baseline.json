@@ -857,50 +857,6 @@
     "apps/harness-server/src/state-lock.ts": 1,
     "apps/m2-contract-skeleton/src/path-report.ts": 2,
     "apps/m2-contract-skeleton/src/path.ts": 13,
-    "packages/agent/agent-contract/src/definition.ts": 1,
-    "packages/agent/agent-contract/src/evaluation.ts": 6,
-    "packages/agent/agent-contract/src/finishing.ts": 1,
-    "packages/agent/agent-contract/src/journal.ts": 1,
-    "packages/agent/agent-contract/src/judge-handoff.ts": 1,
-    "packages/agent/agent-contract/src/passages.ts": 1,
-    "packages/agent/agent-contract/src/request.ts": 2,
-    "packages/agent/agent-contract/src/testing-account-outlet.ts": 1,
-    "packages/agent/agent-contract/src/testing-cancellation.ts": 1,
-    "packages/agent/agent-contract/src/testing-journal-core.ts": 1,
-    "packages/agent/agent-contract/src/testing-journal-finishing.ts": 2,
-    "packages/agent/agent-contract/src/testing-journal-replay.ts": 1,
-    "packages/agent/agent-contract/src/testing.ts": 1,
-    "packages/agent/agent-cordis-contract/src/cordis.ts": 1,
-    "packages/agent/agent-cordis-contract/src/testing-provision.ts": 1,
-    "packages/agent/agent-cordis-contract/src/testing.ts": 1,
-    "packages/agent/agent-host-local/src/host-config.ts": 2,
-    "packages/agent/agent-host-local/src/host-plugin.ts": 2,
-    "packages/agent/agent-host-local/src/host.ts": 1,
-    "packages/agent/agent-host-local/src/reception-driver.ts": 1,
-    "packages/agent/agent-host-local/src/reception.ts": 1,
-    "packages/agent/agent-host-local/src/stage-ports.ts": 1,
-    "packages/agent/agent-host-local/src/testing.ts": 1,
-    "packages/agent/agent-host-local/src/tool-reception.ts": 1,
-    "packages/agent/agent/src/configuration.ts": 2,
-    "packages/agent/agent/src/construction.ts": 2,
-    "packages/agent/agent/src/custody-evidence.ts": 1,
-    "packages/agent/agent/src/loop/admission-chain.ts": 1,
-    "packages/agent/agent/src/loop/coordinator.ts": 27,
-    "packages/agent/agent/src/loop/evaluator.ts": 4,
-    "packages/agent/agent/src/loop/identities.ts": 3,
-    "packages/agent/agent/src/loop/model-result.ts": 2,
-    "packages/agent/agent/src/loop/nodes.ts": 5,
-    "packages/agent/agent/src/loop/passages.ts": 1,
-    "packages/agent/agent/src/loop/tools.ts": 2,
-    "packages/agent/agent/src/measure.ts": 1,
-    "packages/agent/agent/src/provider.ts": 5,
-    "packages/agent/agent/src/run-failure.ts": 1,
-    "packages/agent/agent/src/submit.ts": 1,
-    "packages/agent/agent/src/testing/fixtures.ts": 2,
-    "packages/agent/agent/src/testing/journal-admissions.ts": 1,
-    "packages/agent/agent/src/testing/journal-finishing.ts": 3,
-    "packages/agent/agent/src/testing/journal.ts": 2,
-    "packages/agent/agent/src/tool-receiving-types.ts": 1,
     "packages/identity/identity/src/cordis.ts": 2,
     "packages/session/session-access/src/contribution.ts": 1,
     "packages/session/session-access/src/cordis.ts": 1,
@@ -1013,14 +969,12 @@
   "sizes": {
     "files": {
       "apps/m2-contract-skeleton/src/path.ts": 2273,
-      "packages/agent/agent-contract/src/testing-journal-core.ts": 1999,
-      "packages/agent/agent-contract/src/testing-journal-entries.ts": 1018,
-      "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4227,
-      "packages/agent/agent-contract/src/testing-journal-helpers.ts": 1042,
-      "packages/agent/agent-contract/src/testing-received-conformance.ts": 1071,
-      "packages/agent/agent-host-local/src/host.ts": 1184,
-      "packages/agent/agent/src/loop/coordinator.ts": 4063,
-      "packages/agent/agent/src/testing/journal.ts": 4031,
+      "packages/agent/agent-contract/src/testing-journal-core.ts": 1948,
+      "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4160,
+      "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,
+      "packages/agent/agent-host-local/src/host.ts": 1053,
+      "packages/agent/agent/src/loop/coordinator.ts": 3471,
+      "packages/agent/agent/src/testing/journal.ts": 3613,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
       "packages/execution/execution-environment/src/registry.ts": 1046,
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
@@ -1101,59 +1055,59 @@
       },
       "packages/agent/agent-contract/src/testing-journal-core.ts": {
         "count": 2,
-        "longest": 1146
+        "longest": 1128
       },
       "packages/agent/agent-contract/src/testing-journal-entries.ts": {
         "count": 1,
-        "longest": 623
+        "longest": 605
       },
       "packages/agent/agent-contract/src/testing-journal-finishing.ts": {
         "count": 2,
-        "longest": 3454
+        "longest": 3422
       },
       "packages/agent/agent-contract/src/testing-journal-replay.ts": {
         "count": 2,
-        "longest": 221
+        "longest": 213
       },
       "packages/agent/agent-contract/src/testing-received-conformance.ts": {
         "count": 1,
-        "longest": 1019
+        "longest": 1003
       },
       "packages/agent/agent-contract/src/testing-received-memory.ts": {
         "count": 1,
-        "longest": 484
+        "longest": 477
       },
       "packages/agent/agent-cordis-contract/src/cordis.ts": {
         "count": 1,
-        "longest": 274
+        "longest": 251
       },
       "packages/agent/agent-host-local/src/host.ts": {
         "count": 1,
-        "longest": 816
+        "longest": 766
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 3388
+        "longest": 2951
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
-        "longest": 733
+        "longest": 628
       },
       "packages/agent/agent/src/receiving.ts": {
         "count": 1,
-        "longest": 335
+        "longest": 327
       },
       "packages/agent/agent/src/testing/journal-finishing.ts": {
         "count": 1,
-        "longest": 373
+        "longest": 347
       },
       "packages/agent/agent/src/testing/journal-receiving.ts": {
         "count": 1,
-        "longest": 486
+        "longest": 480
       },
       "packages/agent/agent/src/testing/journal.ts": {
         "count": 6,
-        "longest": 3146
+        "longest": 2922
       },
       "packages/agent/agent/src/testing/model-receiver.ts": {
         "count": 1,
@@ -1161,7 +1115,7 @@
       },
       "packages/agent/agent/src/tool-receiving.ts": {
         "count": 1,
-        "longest": 386
+        "longest": 374
       },
       "packages/assets/settings-local/src/catalog.ts": {
         "count": 1,

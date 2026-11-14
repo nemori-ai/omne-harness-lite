@@ -1,8 +1,3 @@
-// The handover of a waiting execution at quiesce and its resume in another runtime (SPEC "交接与停用",
-// "创建、登记与复用" resume). An execution whose drive sleeps on a saved wait is handed over by its
-// own drive: Journal.detach revokes the attachment, the slot is free and quiesce answers drained. The
-// Tool call it waits for is not stopped. A new runtime over the same Journal resumes it: Journal.attach
-// grants a new attachment, and a new coordinator comes back to the saved position and goes on.
 import { describe, expect, it } from 'vitest'
 import { createAgentRuntime } from '@omne-harness/agent'
 import {
@@ -39,7 +34,6 @@ type Assembly = Awaited<ReturnType<typeof toolAssembly>>
 
 const input = { ...alice, execution: execution() }
 
-/** The receipt of an accepted Tool invoke. Agent keeps it as a fact and does not read its state. */
 function accepted(name: string): ToolInvokeOutcome {
   const reference = ok(
     encodeToolInvocationRef({
@@ -55,7 +49,6 @@ async function snapshot(assembly: Assembly): Promise<LoadedWithEntries> {
   return await loadWithEntries(assembly.dependencies, input)
 }
 
-/** One execution whose only Tool call is accepted and open, with the wait saved in the Journal. */
 async function waitingOnTool(assembly: Assembly) {
   assembly.controls.tools.invoke.always(async () => accepted('call-1'))
   ok(await invoke(assembly))
@@ -73,7 +66,6 @@ const quiesce = (assembly: Assembly) =>
     reason: evidence('stop'),
   })
 
-/** Another runtime over the same dependencies, as the process that starts after a stop. */
 async function successor(assembly: Assembly) {
   return ok(
     await createAgentRuntime(assembly.dependencies, options({ reconciliationDelaysMs: [1000] })),
@@ -100,7 +92,6 @@ describe('quiesce with an execution that waits', () => {
     const after = await snapshot(assembly)
     expect(after.state.kind).toBe('suspended')
     expect(after.executionAttachment).toBeNull()
-    // The position and the open call stay as saved: the handover is not an interruption.
     expect(after.checkpoint).toEqual(before.checkpoint)
     expect(assembly.controls.tools.commands.control.calls).toEqual([])
   })
@@ -140,7 +131,6 @@ describe('resume of an execution that was handed over', () => {
     const handle = ok(await resumeIn(next))
 
     expect(handle.execution).toBe(execution())
-    // The new coordinator saves the same wait again, under the new attachment.
     await eventually(async () => (await snapshot(assembly)).state.kind === 'waiting')
     const waiting = await snapshot(assembly)
     expect(waiting.executionAttachment).toMatchObject({ generation: '2' })
@@ -148,7 +138,6 @@ describe('resume of an execution that was handed over', () => {
       kind: 'waiting',
       waits: [{ kind: 'producer', pending: { action: pending.action } }],
     })
-    // The call was sent once: the resumed execution waits for the original call.
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
 
     const delivery = toolDelivery(pending, {
@@ -196,7 +185,6 @@ describe('resume of an execution that was handed over', () => {
     )
     const load = async () => ok(await assembly.dependencies.journal.load(input))
     expect((await load()).state.kind).toBe('suspended')
-    // The Model settles its call now: the receiver keeps the result without an attachment.
     assembly.release.open()
 
     const next = ok(
@@ -215,7 +203,6 @@ describe('resume of an execution that was handed over', () => {
 
     expect(failure(await resumeIn(next))).toEqual({ kind: 'changed' })
 
-    // The first runtime still holds the attachment, and the second one is free for another resume.
     expect((await snapshot(assembly)).executionAttachment).toMatchObject({ generation: '1' })
     expect(failure(await resumeIn(next, 'resume-2'))).toEqual({ kind: 'changed' })
   })

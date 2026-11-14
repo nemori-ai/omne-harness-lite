@@ -24,8 +24,6 @@ it('accepts an empty definition, and its value carries no version', async () => 
   })
 })
 
-// Goes red when `version` returns to the declaration table (SPEC "声明判断": a definition carries
-// no version; a `version` member is one the table does not list, so it is `malformed`).
 it('refuses a definition that states a version as malformed', async () => {
   expect(await judgeAgentDefinition({ ...legalDefinition, version: 'v2' })).toEqual({
     kind: 'refused',
@@ -712,7 +710,6 @@ it('keeps an omitted optional field omitted and returns frozen data that shares 
   expect(Object.isFrozen(judged.value)).toBe(true)
   expect(Object.isFrozen(first)).toBe(true)
   expect(Object.isFrozen(first?.implementation)).toBe(true)
-  // SPEC "声明判断": the needs list, each need and its schema are frozen and shared with nothing.
   expect(Object.isFrozen(first?.needs)).toBe(true)
   expect(Object.isFrozen(first?.needs?.[0])).toBe(true)
   expect(Object.isFrozen(first?.needs?.[0].schema)).toBe(true)
@@ -806,7 +803,6 @@ it('accepts an ISO 8601 timeout text and refuses any other text', async () => {
   }
 })
 
-// A need declaration of the SPEC shape: name, the exact adoption of its contract, whether required.
 function need(name: string, required = true): Record<string, unknown> {
   return { name, schema: { owner: 'o', name: 'n', revision: '1', digest: 'd' }, required }
 }
@@ -817,10 +813,6 @@ it('accepts a list of distinctly named need declarations in order and refuses ev
     kind: 'accepted',
     value: [declare('before_action', 'observe', { needs })],
   })
-  // Each entry is `needs-not-allowed` by SPEC "声明判断": any structure fault inside the list and a
-  // repeated name share the one reason of the field. The entries go red when a check is dropped:
-  // the same name twice when the name set is not compared, a missing or non-boolean `required` when
-  // the member is optional or loose, a fifth or missing schema member when the schema is open.
   const refusedNeeds: unknown[] = [
     [],
     [need('a'), need('a')],
