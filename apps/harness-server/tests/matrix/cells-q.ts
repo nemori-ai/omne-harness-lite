@@ -225,6 +225,79 @@ export const qCells: readonly Cell[] = [
     },
   },
   {
+    id: 'Q-取消/已取走',
+    block: 'Q',
+    layer: 'protocol',
+    run: async tools => {
+      const client = await signedIn(tools)
+      const session = await client.createSession()
+      const first = gate()
+      const second = gate()
+      tools.stub.push({
+        kind: 'hold',
+        gate: first,
+        head: 'Q'.repeat(60),
+        after: { kind: 'reply', text: 'q-first-reply' },
+      })
+      tools.stub.push({ kind: 'hold', gate: second, after: { kind: 'drop' } })
+      tools.check(
+        'first input accepted',
+        (await client.send(session, 'q write an essay')) === 'succeeded',
+      )
+      await waitArrivals(tools, 1, 'first model call')
+      tools.check(
+        'appended input accepted',
+        (await client.send(session, 'appended 甲: reply 收到甲')) === 'succeeded',
+      )
+      await tools.waitLog(
+        session,
+        'appended message in the log',
+        log => log.users.length === 2,
+        TURN_MS,
+      )
+      first.open()
+      await waitArrivals(tools, 2, 'the model call that carries the appended input')
+      const taking = tools.log(session)
+      const appended = taking?.inputs[1] ?? ''
+      tools.check(
+        'the run took the appended input before the cancel',
+        taking?.batches.some(batch => batch.includes(appended)) === true,
+        JSON.stringify(taking?.batches),
+      )
+      const run = await client.currentRun(session, 10_000)
+      tools.check('the current run is observable', run !== null)
+      if (run !== null)
+        tools.check('cancel accepted', (await client.cancelRun(session, run)) === 'succeeded')
+      const cancelled = await tools.waitLog(
+        session,
+        'the cancelled run terminal',
+        log => log.terminals.length === 1,
+        TURN_MS,
+      )
+      second.open()
+      tools.check(
+        'the run was cancelled',
+        cancelled?.terminals[0] === 'cancelled',
+        JSON.stringify(cancelled?.terminals),
+      )
+      await tools.sleep(5_000)
+      const quiet = tools.log(session)
+      tools.check(
+        'the taken input ends with the cancel: no run starts for it',
+        quiet?.started === 1 && quiet.terminals.length === 1,
+        `${String(quiet?.started)} started, ${String(quiet?.terminals.length)} ended`,
+      )
+      tools.stub.clear()
+      await chatAgain(tools, client, session)
+      const after = tools.log(session)
+      tools.check(
+        'the next run does not take the appended input again',
+        after?.batches.filter(batch => batch.includes(appended)).length === 1,
+        JSON.stringify(after?.batches),
+      )
+    },
+  },
+  {
     id: 'Q-G',
     block: 'Q',
     layer: 'protocol',

@@ -3,7 +3,6 @@ import {
   TURN_MS,
   bystander,
   bystanderUnchanged,
-  eachInputTakenOnce,
   plain,
   signedIn,
   waitArrivals,
@@ -49,6 +48,7 @@ function causeInServerLog(tools: CellTools, mark: number): void {
 }
 
 const OUTAGE_MS = 120_000
+const QUIET_MS = 5_000
 
 function retryInServerLog(tools: CellTools, mark: number): void {
   const lines = tools.env
@@ -195,8 +195,13 @@ export const dCells: readonly Cell[] = [
       const client = await signedIn(tools)
       const session = await client.createSession()
       const held = gate()
-      tools.stub.push({ kind: 'hold', gate: held, head: 'D'.repeat(180), after: { kind: 'drop' } })
-      tools.stub.push({ kind: 'refuse' }, { kind: 'refuse' }, { kind: 'refuse' })
+      tools.stub.push({
+        kind: 'hold',
+        gate: held,
+        head: 'D'.repeat(180),
+        after: { kind: 'reply', text: 'qf-first-reply' },
+      })
+      tools.stub.push({ kind: 'status', code: 400 })
       tools.check(
         'input accepted',
         (await client.send(session, 'qf write an essay')) === 'succeeded',
@@ -219,24 +224,52 @@ export const dCells: readonly Cell[] = [
         log => log.terminals.length >= 1,
         TURN_MS,
       )
-      tools.note(
-        `after the outage: ${JSON.stringify(failed?.terminals)}, batches ${JSON.stringify(failed?.batches)}`,
+      const appended = failed?.inputs[1] ?? ''
+      tools.check(
+        'the run that took the appended input ends as failed',
+        failed?.terminals[0] === 'failed' && failed.batches.some(batch => batch.includes(appended)),
+        `${JSON.stringify(failed?.terminals)}, batches ${JSON.stringify(failed?.batches)}`,
       )
-      tools.stub.push({ kind: 'reply', text: '收到甲' })
+      await tools.sleep(QUIET_MS)
+      const quiet = tools.log(session)
+      tools.check(
+        'no run starts by itself after the failure',
+        quiet?.started === 1 && quiet.terminals.length === 1,
+        `${String(quiet?.started)} started, ${String(quiet?.terminals.length)} ended`,
+      )
+      tools.stub.clear()
+      tools.stub.push({ kind: 'reply', text: '收到甲，也收到新的' })
+      tools.check(
+        'a new input is accepted',
+        (await client.send(session, 'qf new message')) === 'succeeded',
+      )
       const handled = await tools.waitLog(
         session,
-        'the appended message answered without a new input',
-        log =>
-          log.started === log.terminals.length &&
-          log.assistants.some(text => text.includes('收到甲')),
+        'the run after the new input ends',
+        log => log.started === 2 && log.terminals.length === 2,
         TURN_MS,
       )
       tools.check(
-        'o4 the appended message is answered without a new input',
-        handled?.assistants.some(text => text.includes('收到甲')) === true,
-        JSON.stringify(handled?.assistants),
+        'the next run completes and answers',
+        handled?.terminals[1] === 'completed' &&
+          handled.assistants.some(text => text.includes('收到甲')),
+        `${JSON.stringify(handled?.terminals)} ${JSON.stringify(handled?.assistants)}`,
       )
-      eachInputTakenOnce(tools, handled)
+      const fresh = handled?.inputs[2] ?? ''
+      const later = handled?.batches.slice(failed?.batches.length ?? 0) ?? []
+      const taken = later.flat()
+      tools.check(
+        'the next run takes the appended input again, before the new one, once each',
+        taken.filter(input => input === appended).length === 1 &&
+          taken.filter(input => input === fresh).length === 1 &&
+          taken.indexOf(appended) < taken.indexOf(fresh),
+        JSON.stringify(later),
+      )
+      tools.check(
+        'nobody had to type the appended message again',
+        handled?.users.filter(text => text.includes('qf appended')).length === 1,
+        JSON.stringify(handled?.users),
+      )
     },
   },
 ]

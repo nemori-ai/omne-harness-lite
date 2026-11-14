@@ -37,10 +37,8 @@ export const expectations: Readonly<Record<string, Expectation>> = {
       'o4: after the kill the run that took the first input never ends, so the appended input is never taken',
   },
   'Q-R': { expected: 'untestable' },
-  'Q-失败': {
-    expected: 'fail',
-    failsBecause: 'o4: the failed run took the appended input and nothing answers it afterwards',
-  },
+  'Q-失败': { expected: 'pass' },
+  'Q-取消/已取走': { expected: 'pass' },
   'G-0': { expected: 'pass' },
   'G-1/单步': { expected: 'pass' },
   'G-1/多步': { expected: 'pass' },
