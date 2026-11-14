@@ -45,8 +45,11 @@ export const xCells: readonly Cell[] = [
         JSON.stringify([log?.terminals, log?.assistants]),
       )
       interruptedCallNotResent(tools, before)
-      if (log !== null && settled(log))
-        await chatAgain(tools, tools.driver(client.account), session)
+      if (log !== null && settled(log)) {
+        const back = tools.driver(client.account)
+        tools.check('logged in again', (await back.login()) === 'succeeded')
+        await chatAgain(tools, back, session)
+      }
       bystanderUnchanged(tools, by)
     },
   },
