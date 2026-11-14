@@ -241,7 +241,7 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 ## 运行入口
 
-**先构建，再按所属应用的 README 启动。**现有应用及其构建与运行命令见[应用入口](../apps/README.md#现有成员)。封存治理中心已从仓库删除，固定提交中的命令与配置见
+**先构建，再启动所属应用。**封存治理中心已从仓库删除，固定提交中的命令与配置见
 [tenancy-host](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/README.md)，从零部署并完成账号/组织旅程的演练见
 [黑盒端到端入口](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/tenancy-host/tests/e2e/README.md)。后者使用实际构建产物，包含网络、证书和临时数据目录的环境要求。
 
@@ -443,7 +443,7 @@ gh pr create --base integration/mainline --head <自己的工作分支> \
 | 形式工具检查失败 | `pnpm run check:formal-tools` 看 Java/JAR 是否就位；输出`MISMATCH`表示`TLA2TOOLS_JAR`不是钉住的v1.7.4发布文件；缺环境、覆盖缺口与执行失败是三件事 |
 | `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness/cli`、`@omne-harness/harness-server`、`@omne-harness/m2-contract-skeleton` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
-| 不知道如何启动产品 | 先构建，再按[应用入口](../apps/README.md#现有成员)的命令启动；制品打包不自动安装或发布服务 |
+| 不知道如何启动产品 | 先构建，再启动所属应用；制品打包不自动安装或发布服务 |
 
 ### 投影、工作树与宿主的常见坑
 

@@ -4,7 +4,7 @@
 
 项目处于 `0.0.0 → 0.1.0` 研发阶段，尚未正式上线或提供生产服务。第一版完整交付为单机系统，同时为个人设备和云端集群的后续装配保留边界。具体阶段范围归[项目要求](docs/requirements.md#交付阶段与功能范围)和各产品的版本承诺。
 
-`apps/` 已有命令行客户端、Harness Server 装配与一个私有验证应用，见[应用入口](apps/README.md#现有成员)；`packages/` 各成员的实现状态见[包入口](packages/README.md)。0.0.1 的封存实现已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31)。设计接受、实现支持和运行验证分别记录，不能凭文档目录判断功能已可用。
+`apps/` 已有命令行客户端、Harness Server 装配与一个私有验证应用；`packages/` 各成员的实现状态见[包入口](packages/README.md)。0.0.1 的封存实现已从仓库删除，原件见[固定提交](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31)。设计接受、实现支持和运行验证分别记录，不能凭文档目录判断功能已可用。
 
 [项目要求](docs/requirements.md) ·
 [产品设计](.meta_harness/design/product/README.md) ·
@@ -61,7 +61,7 @@
 | [.meta_harness/](.meta_harness/README.md) | 产品设计、统一语言、领域对象、持续研究及独有agent能力；保留源按其入口定位 |
 | [docs/](docs/README.md) | 项目要求、工程规范、系统架构、领域关系、读者与任务指引、维护指南及RFC入口 |
 | [packages/](packages/README.md) | 目标能力组与成员文档；具体包边界沿[产品包组织](docs/package-organization.md)维护 |
-| [apps/](apps/README.md) | 产品应用与装配；现有成员见其入口 |
+| `apps/` | 产品应用与装配；每个应用的规格是它的 `SPEC.md` |
 | [packages.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/README.md)、[apps.0.0.1.legacy/](https://github.com/nemori-ai/omne-harness-lite/blob/250d074a88223b7f7dced248ba08ca0160485f31/apps.0.0.1.legacy/README.md) | 封存源码与公开说明，已从仓库删除，链接指向固定提交。只用于来源核对，不作为新树实现支持 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
 

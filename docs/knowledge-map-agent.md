@@ -29,7 +29,7 @@
 | 领域责任、逻辑模块、事实拥有者、允许协作、组合验证 | [docs/domains/](domains/README.md) | 不复制成员字段、状态协议、算法或完整SPEC；精确技术未决链接实际拥有者 |
 | 目标能力组、包边界、SDK及新增扩展 | [docs/package-organization.md](package-organization.md)、[docs/workspace.md](workspace.md) | 前者维护目标组织，后者维护源码归属与实际工具边界；新目录不批准实施 |
 | 能力组内工程分解、成员依赖、关键流程及共同维护 | [packages/<domain>/](../packages/README.md)的README及按需工程专题 | 与docs领域关系分开；成员未具名时保留承接缺项，不创建组根统一SPEC代替成员 |
-| 公开形状、必要行为、内部机制、使用与持续资源 | 实际[packages](../packages/README.md)、[apps](../apps/README.md)、[tools](../tools/README.md)成员 | 类型/Schema拥有形状；SPEC拥有非类型行为；docs维护机制及使用；verification/tests/acceptance维护相称资源。完整必要行为不受“薄SPEC”篇幅限制 |
+| 公开形状、必要行为、内部机制、使用与持续资源 | 实际[packages](../packages/README.md)、`apps`、[tools](../tools/README.md)成员 | 类型/Schema拥有形状；SPEC拥有非类型行为；docs维护机制及使用；verification/tests/acceptance维护相称资源。完整必要行为不受“薄SPEC”篇幅限制 |
 | 工程规则、任务场景、技能采用与交付 | [docs/engineering/](engineering/README.md)、[CONTRIBUTING](../CONTRIBUTING.md)、[development](development.md) | 项目额外约束归工程拥有者，研发流程归 pqw，方法分层见[三层分工](engineering/skills.md#三层分工)；每条流程事实的拥有者见[流程事实在哪](engineering/README.md#流程事实在哪)。技能名字不证明实际加载或遵循 |
 | 一次交付范围、条件、具名接受及恢复定位 | 实际GitHub Issue，规则归[卡与交接信息包](engineering/delivery.md#卡就是交接信息包)，命令归 `omne-card` | 卡就是交接信息包；Project为派生视图，平台关闭不授予接受 |
 | 统一概念、正式用语及英文名 | [.meta_harness/design/ubiquitous_language/](../.meta_harness/design/ubiquitous_language/README.md) | 用词读取词条，不另建同义词表；改概念加载ubiquitous-language，单纯消费词条不加载治理技能 |
