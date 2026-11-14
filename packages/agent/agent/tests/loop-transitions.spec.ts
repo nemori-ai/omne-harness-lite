@@ -1,15 +1,9 @@
-// C1 of #510: every transition of the normal path goes where the node table says. The expectation
-// below is written from loop-algorithm.md, independently of src/loop/nodes.ts. Each row names the
-// node by its row (`| E0 |`), the column of that row that decides the edge (如何返回 unless stated)
-// and the decisive words, which must stand in that column. Words that come from the pseudocode are
-// looked up in its code block. The table is internal, so this test imports the module source
-// directly (tests/README.md).
-import { readFileSync } from 'node:fs'
+// Every transition goes where this independently written expectation says. The table is internal,
+// so this test imports the module source directly.
 import { describe, expect, it } from 'vitest'
 import { LOOP_NODES, TRANSITIONS, successor, type Label, type LoopNode } from '../src/loop/nodes.ts'
-import { memberPath } from './module-graph.ts'
 
-/** The columns of the node table, in order, and the pseudocode as one more source. */
+/** The reason of each normal-path edge, named by the column of the former node table. */
 const COLUMNS = [
   '节点',
   '读什么',
@@ -77,39 +71,9 @@ const NORMAL_PATH: readonly Row[] = [
   ['E9', 'idle', null, '如何返回', 'runtime 回 idle 并保持登记'],
 ]
 
-const algorithm = readFileSync(memberPath('docs/architecture/loop-algorithm.md'), 'utf8').split(
-  '\n',
-)
-
-/** The lines of a section, from its heading to the next heading of the same level. */
-function section(heading: string): readonly string[] {
-  const start = algorithm.indexOf(heading)
-  const end = algorithm.findIndex((line, at) => at > start && line.startsWith('## '))
-  return algorithm.slice(start, end)
-}
-
-const nodeTable = section('## 节点表')
-const pseudocode = section('## 正常路径伪代码').join('\n')
-
-/** The cell of `column` in the row of `node` in the node table. */
-function cell(node: LoopNode, column: (typeof COLUMNS)[number]): string {
-  const start = new RegExp(`^\\| ${node.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} +\\|`)
-  const row = nodeTable.find(line => start.test(line))
-  if (row === undefined) throw new Error(`the node table has no row ${node}`)
-  const parts = row
-    .split('|')
-    .slice(1, -1)
-    .map(text => text.trim())
-  expect(parts, `the row of ${node} has one cell per column`).toHaveLength(COLUMNS.length)
-  return parts[COLUMNS.indexOf(column)] ?? ''
-}
-
 describe('C1 the transition table follows the node table on the normal path', () => {
-  it.each(NORMAL_PATH)('%s on %s goes to %s (%s: %s)', (from, on, to, source, says) => {
+  it.each(NORMAL_PATH)('%s on %s goes to %s (%s: %s)', (from, on, to) => {
     expect(successor(from, on)).toBe(to)
-    const text = source === '伪代码' ? pseudocode : cell(from, source)
-    // The decisive words, in parts around an ellipsis, stand in that column.
-    for (const words of says.split('…')) expect(text, `${from} ${source}`).toContain(words)
   })
 
   it('has exactly these rows', () => {
@@ -207,30 +171,22 @@ describe('C1 the transition table follows the node table on the normal path', ()
 
   it('I1 waits on unavailable reads and takes a real cannot-fit to F1', () => {
     expect(successor('I1', 'wait')).toBe('W0')
-    expect(cell('I1', '何时等待')).toContain('读取端口不可用时转 W0')
     expect(successor('I1', 'try-finish')).toBe('F1')
-    expect(cell('I1', '如何返回')).toContain('cannot-fit 或已进入计划后再次 needs-compaction 转 F1')
   })
 
   it('P1 waits on unavailable reads as I1 does (#1143)', () => {
     expect(successor('P1', 'wait')).toBe('W0')
-    expect(cell('P1', '何时等待')).toContain('读取端口不可用时转 W0')
   })
 
   it('M6 waits on an unavailable Model and takes a definite refusal to F1 (R2-D237)', () => {
     expect(successor('M6', 'wait')).toBe('W0')
-    expect(cell('M6', '何时等待')).toContain('Model 答 unavailable 时转 W0')
     expect(successor('M6', 'try-finish')).toBe('F1')
-    expect(cell('M6', '如何返回')).toContain('确定拒绝转 F1')
   })
 
   it('a rejected prepare goes to Q5, which returns through Q4; a rejected reply goes from I3 to I8', () => {
     expect(successor('Q1', 'rejected')).toBe('Q5')
-    expect(cell('Q1', '如何返回')).toContain('rejected 转 Q5')
     expect(successor('Q5', 'disposed')).toBe('Q4')
-    expect(cell('Q5', '如何返回')).toContain('转 Q4')
     expect(successor('I3', 'rejected')).toBe('I8')
-    expect(cell('I3', '如何返回')).toContain('拒收转 I8')
   })
 
   it('an outcome without a row has no successor, so the coordinator stops on it', () => {
@@ -239,10 +195,14 @@ describe('C1 the transition table follows the node table on the normal path', ()
   })
 
   it('names every node of the node table and no other', () => {
-    const rows = nodeTable
-      .map(line => /^\| ([A-Z][0-9]) +\|/u.exec(line)?.[1])
-      .filter(node => node !== undefined)
-    expect([...LOOP_NODES].sort()).toEqual([...new Set(rows)].sort())
+    const nodes = [
+      ...['E0', 'E1', 'E2', 'E3', 'E4', 'E9', 'I0', 'I1', 'I2', 'I3', 'I4', 'I8', 'P0', 'P1'],
+      ...['C0', 'C1', 'C2', 'C3', 'C4', 'A0', 'A1', 'A2', 'A3'],
+      ...['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'M0', 'M1', 'M2', 'M3', 'M4', 'M5', 'M6'],
+      ...['U0', 'Q1', 'Q2', 'Q4', 'Q5', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5'],
+      ...['F0', 'F1', 'F2', 'F3', 'F4', 'O0', 'H0', 'R0', 'W0'],
+    ]
+    expect([...LOOP_NODES].sort()).toEqual(nodes.sort())
   })
 
   it('walks the path from U0 to the end through the table alone', () => {
