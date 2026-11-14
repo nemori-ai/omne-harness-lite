@@ -1976,7 +1976,7 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | --- | --- | --- | --- |
 | 接入 | [公开契约规格](../../packages/access/SPEC.md)；[承载页](../../packages/access/SPEC.md#http-承载)；[服务端接入规格](../../packages/access/SPEC.md)；[SDK 规格](../../packages/access/SPEC.md#客户端) | 线上形状、共同契约、登记表、管道、观察中枢、可用性、客户端核心、客户端装配 | 对外结果表、拒绝一致、严格读取沿用 |
 | 身份与授权 | [身份规格](../../packages/identity/SPEC.md#协议与接入) | `identity/v1` 的协议契约与接入插件；登录签发必返回登录的编号；登录的界面模块；实现接入的身份端口 | 34 个操作的消息体、结果集与业务规则不变 |
-| 资产与规则 | [设置规格](../../packages/assets/settings/SPEC.md) | `assets/v1` 的协议契约与接入插件；普通项可写；设置的界面模块 | 设置领域的业务规则不变；锁定与解锁不公开 |
+| 资产与规则 | [设置规格](../../packages/assets/SPEC.md#租户层读写面) | `assets/v1` 的协议契约与接入插件；普通项可写；设置的界面模块 | 设置领域的业务规则不变；锁定与解锁不公开 |
 | 会话与工作 | [会话契约规格](../../packages/session/session-contract/SPEC.md)；[会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md) | `session/v1` 的协议契约与接入插件；每次提交记时刻；列出会话与会话列表项；会话观察；每次提交都发通知；调用登记的读取函数；读历史按标注过滤；建会话的定义名可以不给；定义名映射从入口搬回会话一侧；会话列表与对话的界面模块 | 业务规则除新增的读取外不变；目标租户的规则不变；派生标识用的文本不改 |
 | 模型调用 | [模型包组规格](../../packages/model/SPEC.md#公共观察与当前目标) | 公共流的两个读取面装进正式装配，消费者改成会话观察；投影函数给出「得到值」的一步 | 读取面的形状与读取次序不变 |
 | 应用装配 | [应用装配](../architecture/runtime/application-assembly.md)；[服务端应用规格](../../apps/harness-server/SPEC.md) | 入口行瘦身；各领域的接入插件行；会话诊断的贡献；实例化租户的设置写入服务 | 有贡献不等于开放 |
@@ -2229,7 +2229,7 @@ SSE 的解析用 eventsource-parser 4.1.1。流式 Markdown 用 streamdown 及�
 | 公共流的两个读取面装进正式装配，消费者是会话观察；投影函数给出值 | [模型包组规格](../../packages/model/SPEC.md#公共观察与当前目标)；[应用装配](../architecture/runtime/application-assembly.md#插件树) | 已写回（#1214 装进正式装配；#1248 投影函数 `projectModelOutputV1` 给出值，消费者改为会话观察） | 未切换 |
 | 每次提交的时刻；会话列表项的派生表、迁移与回填；会话列表项的写入路径、查询路径与索引 | [会话 SQL 存储规格](../../packages/session/session-storage-sql/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |
 | 会话观察：领域面、五个对象、定位与流两条轴的全化表、刷新策略与新事件 | [会话观察的规格](../../packages/session/session-observation/SPEC.md)。刷新状态图从[服务端接入规格的刷新策略](../../packages/access/SPEC.md#会话观察)搬过去 | 部分写回（#1248）：领域面、五个对象、两条轴的全化表与用例对照、刷新策略与通知已写回；入口规格的刷新状态图在接入组，没有搬，入口那一节仍在 | 未切换 |
-| 普通设置项的读写：领域面、租户的写入服务进正式装配 | [设置规格](../../packages/assets/settings/SPEC.md)；[服务端应用规格](../../apps/harness-server/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |
+| 普通设置项的读写：领域面、租户的写入服务进正式装配 | [设置规格](../../packages/assets/SPEC.md#租户层读写面)；[服务端应用规格](../../apps/harness-server/SPEC.md) | 待写回，随「领域一侧」那一路 | 未切换 |
 | `identity/v1`：操作划分；四个不进新契约的操作；登录签发必返回登录的编号；实现接入的身份端口 | `packages/identity/identity-protocol`、`identity-access` 的规格（成员未建）；[身份规格](../../packages/identity/SPEC.md#协议与接入) | 待写回，随「接入插件」那一程 | 未切换 |
 | `assets/v1`：四个操作；普通项可写；修订号与 `conflict` | `packages/assets/assets-protocol`、`assets-access` 的规格（成员未建） | 待写回，随「接入插件」那一程 | 未切换 |
 | `session/v1`：全部操作、观察的帧、读历史的八种与按标注过滤；建会话的定义名可以不给；定义名映射搬到会话一侧 | `packages/session/session-protocol`、`session-access` 的规格（成员未建） | 待写回，随「接入插件」那一程 | 未切换 |

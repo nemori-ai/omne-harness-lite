@@ -56,7 +56,7 @@ GovernanceLifecycle 增加两个贡献槽、两代提供者的有界交错。正
 
 GovernancePublication 另含一个正例及四个具名负控，检查整份发布、冲突拒绝、删声明不删禁止、缺项不绕禁止。check-contributions.py 检查 8768 个租约释放分区与三个负控，命令为 `python3 packages/human-intervention/human-intervention/verification/check-contributions.py`。有限谓词与 TLC 状态模型共同守护合同，不能替代生产注册表/SQL/多租户验证。
 
-唯一协议来源是[动态治理贡献](../../../assets/docs/governance-contributions.md)。模型位于本波 HITL 验证目录只是组合测试的组织方式，不改变 Assets、Settings、Authorization 或装配的所有权。
+唯一协议来源是[动态治理贡献](../../../assets/SPEC.md#动态治理贡献)。模型位于本波 HITL 验证目录只是组合测试的组织方式，不改变 Assets、Settings、Authorization 或装配的所有权。
 
 这些资源验证HJ0候选协议和抽象行为，不提供生产HITL服务。模型是行为权威表达，含义与前提见[数学说明](../docs/formal-model.md)，接口见[公共协议](../docs/protocol.md)及[权限组合](../docs/permission-composition.md)。后续实现必须填写抽象动作到真实源码/事务的映射，不能拿模型绿灯替代实现接受。
 

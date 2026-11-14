@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本包实现 [治理贡献契约](../governance-contract/SPEC.md) 的本地持久提供者。领域职责和同提交要求归 [动态治理贡献](../../assets/docs/governance-contributions.md)。根入口提供迁移和 SQL 材料、Identity 与 Settings 目的解析器、普通应用服务工厂及当前权限依据读取。受信装配提供真实发布、当前事实和原动作资格，组合测试不替代完整消费者验收。
+本包实现 [治理贡献契约](../governance-contract/SPEC.md) 的本地持久提供者。领域职责和同提交要求归 [动态治理贡献](../../assets/SPEC.md#动态治理贡献)。根入口提供迁移和 SQL 材料、Identity 与 Settings 目的解析器、普通应用服务工厂及当前权限依据读取。受信装配提供真实发布、当前事实和原动作资格，组合测试不替代完整消费者验收。
 
 ## 结果与不变量
 

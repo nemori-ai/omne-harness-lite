@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | [access](access/SPEC.md) | 系统接入 | `public-contract`, `sdk`, `server-entry` |
 | [identity](identity/SPEC.md) | 身份与授权 | `identity`, `authorization` |
-| [assets](assets/README.md) | 资产与规则 | `assets`, `assets-local`, `settings`, `settings-local`, `permissions` |
+| [assets](assets/SPEC.md) | 资产与规则 | `assets`, `assets-local`, `settings`, `settings-local`, `permissions` |
 | [workspace](workspace/README.md) | 工作区 | `workspace` |
 | [session](session/README.md) | 会话与工作 | `session` |
 | [assembly](assembly/README.md) | 装配交接 | `assembly` |

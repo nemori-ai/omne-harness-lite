@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-本成员拥有动态贡献、当前治理采用和受保护目录的公共协议。语义依据为[动态治理贡献](../../assets/docs/governance-contributions.md)与[领域边界](../../../docs/architecture/layers-and-dependencies.md)。本成员的类型与 Schema 已进入源码。本地提供者的实现与验证状态见 [governance-local](../governance-local/README.md)；完整生产组合仍待独立验收。
+本成员拥有动态贡献、当前治理采用和受保护目录的公共协议。语义依据为[动态治理贡献](../../assets/SPEC.md#动态治理贡献)与[领域边界](../../../docs/architecture/layers-and-dependencies.md)。本成员的类型与 Schema 已进入源码。本地提供者的实现与验证状态见 [governance-local](../governance-local/README.md)；完整生产组合仍待独立验收。
 
 执行清单采用继续遵循 [AC-02](../../../docs/domains/assembly-and-handoff/adoption-coordination.md)。本协议不改变 adoptionCoordinator 的 prepare、validate、read，也不发行授权、修改设置或推进 HITL 等待。
 
@@ -66,4 +66,4 @@ Cordis 提供者把登记绑定到调用方 fiber，在首次异步等待前登�
 
 ## 组合与验证
 
-输入形状与公开导出由本成员测试验证。生命周期、跨租户、完整发布、同提交围栏、原操作恢复和实际 SQL 成本由提供者符合性验证承担。动态贡献的有限模型归 [HJ0 verification](../governance-local/verification/README.md)，组织来源保留归 [Settings verification](../../assets/settings/verification/README.md)。这些模型不证明本成员的实际提供者已经实现。
+输入形状与公开导出由本成员测试验证。生命周期、跨租户、完整发布、同提交围栏、原操作恢复和实际 SQL 成本由提供者符合性验证承担。动态贡献的有限模型归 [HJ0 verification](../governance-local/verification/README.md)，组织来源保留归 [Settings verification](../../assets/settings/verification/formal-mapping.md)。这些模型不证明本成员的实际提供者已经实现。

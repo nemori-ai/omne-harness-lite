@@ -4,7 +4,7 @@
 
 ## 动态治理贡献的组合模型
 
-共同协议归[治理贡献合同](../../../assets/docs/governance-contributions.md)，不由 HITL 接管设置或权限。GovernanceLifecycle 从已有持久配值和一次许可开始，检查贡献登记、精确释放、关闭、重装配、准备/提交、撤回、会话终局及消费的交错。两个贡献槽、两代、两个来源/相容性选择、三个请求范围构成有限实例。
+共同协议归[治理贡献合同](../../../assets/SPEC.md#动态治理贡献)，不由 HITL 接管设置或权限。GovernanceLifecycle 从已有持久配值和一次许可开始，检查贡献登记、精确释放、关闭、重装配、准备/提交、撤回、会话终局及消费的交错。两个贡献槽、两代、两个来源/相容性选择、三个请求范围构成有限实例。
 
 DG1–DG6 分别由 CatalogCurrent、OtherContributionsPreserved/OldTokenFenced、ScopeBound、DurableCustody/ReceiptPreserved/NoRevival/ConsumptionPreserved/SessionTerminal、CurrentCommit、NoTransfer/DefinitionCompatible 守护。DG7 使用 CanReprepare 检查失效准备可以刷新，SettingRecoveryProgress 检查合法保存值最终采用，RecoveryProgress 检查合法许可最终消费。DG8 使用 GovernancePublication 的 AtomicPublication、ConflictRejected、ProhibitionPreserved、AbsentItemCannotBypass。ImmutableDefinition 仅检查单定义摘要不被冲突覆盖，不能代表完整发布。
 

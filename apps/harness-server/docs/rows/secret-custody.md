@@ -1,6 +1,6 @@
 # 秘密保管行
 
-`secret-custody` 行把 settings-local 的秘密保管库（`@omne-harness/settings-local/secrets`）作为受信服务 `settingsSecretCustody` 提供给装配。端口与值归 [Settings 的秘密设置项](../../../../packages/assets/settings/SPEC.md#secret-items)，文件格式、文件锁、原子发布与读分类归 [settings-local 的秘密保管](../../../../packages/assets/settings-local/SPEC.md#secret-custody)。本行不解释目标的含义，不在范围之间选择，也不持有工厂规则。
+`secret-custody` 行把 settings-local 的秘密保管库（`@omne-harness/settings-local/secrets`）作为受信服务 `settingsSecretCustody` 提供给装配。端口与值归 [Settings 的秘密设置项](../../../../packages/assets/SPEC.md#秘密设置项与秘密保管)，文件格式、文件锁、原子发布与读分类归 [settings-local 的秘密保管](../../../../packages/assets/SPEC.md#秘密设置项与秘密保管)。本行不解释目标的含义，不在范围之间选择，也不持有工厂规则。
 
 ## 配置与装载
 

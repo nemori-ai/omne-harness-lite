@@ -276,9 +276,9 @@ flowchart LR
 
 <a id="tenant-settings"></a>`tenantSettings` 是本应用自己定义的第四个服务键，服务定义在 `apps/harness-server/src/rows/governance/tenant-settings-service.ts`：
 
-- 拥有者是 `governance` 行，它是唯一的提供者。形状是 Settings 的 `TenantSettings`（[租户层读写面](../../../packages/assets/settings/SPEC.md#tenant-settings)）：列出、查看、设置、清除行事租户持有的资产的设置项。
+- 拥有者是 `governance` 行，它是唯一的提供者。形状是 Settings 的 `TenantSettings`（[租户层读写面](../../../packages/assets/SPEC.md#租户层读写面)）：列出、查看、设置、清除行事租户持有的资产的设置项。
 - 提供者在 `governance` 行，因为读写面要的目录读取、租户层写入、组织层来源与工具发行清单都只在本行：每个租户的治理运行时各有一份目录读取与一份写入。
-- 每次调用先做准入，沿用秘密设置项的准入（`rows/authorization/settings-access.ts`）：只有代该租户行事的登录主体。会话工作主体和系统主体一律拒绝，拒绝之前不读任何存储。写入只写行事租户的租户层，计划与当前事实参与者见 [settings-local 的应用消费方](../../../packages/assets/settings-local/SPEC.md#application-current-consumer)。
+- 每次调用先做准入，沿用秘密设置项的准入（`rows/authorization/settings-access.ts`）：只有代该租户行事的登录主体。会话工作主体和系统主体一律拒绝，拒绝之前不读任何存储。写入只写行事租户的租户层，计划与当前事实参与者见 [settings-local 的应用消费方](../../../packages/assets/SPEC.md#租户层读写面)。
 - `assets-access` 行每次调用现取它，把它适配成 `assets/v1` 的四个操作。本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 移到届时拥有它的成员的 `./cordis`，键名与形状不变。
 
 | 行 id | 可见的受信名 |
