@@ -7,7 +7,7 @@
 
 本区将项目目标展开为全系统设计，再展开为领域责任与实际成员承诺。要求回答要达成什么，架构回答全系统怎样协作，领域回答责任如何划分，实际成员回答精确接口、行为及验证；[工程约定](engineering/README.md)约束这些成果怎样形成与交付。这个责任地图是[文档分层](engineering/documentation.md#分层与遵循方向)的简短投影，业务含义继续由各正文拥有。
 
-采用范围与未决分别归[项目要求](requirements.md)、[架构入口](architecture/README.md#采用状态与当前有效源)和[领域入口](domains/README.md#维护与状态)。精确正文按[位置与唯一源](engineering/documentation.md#位置与唯一源)分层；旧材料按现行架构筛选，冲突内容不得迁入规范，实际限制作为偏离。源切换与符合目标分别判断。产品规则、独立目标、统一语言、领域对象、持续研究和独有 agent 能力仍归[meta](../.meta_harness/AGENTS.md)。
+采用范围与未决分别归[项目要求](requirements.md)、[架构入口](architecture/README.md#采用状态与当前有效源)和[领域入口](domains/README.md)。精确正文按[位置与唯一源](engineering/documentation.md#位置与唯一源)分层；旧材料按现行架构筛选，冲突内容不得迁入规范，实际限制作为偏离。源切换与符合目标分别判断。产品规则、独立目标、统一语言、领域对象、持续研究和独有 agent 能力仍归[meta](../.meta_harness/AGENTS.md)。
 
 顶层设计按[应然原则](engineering/documentation.md#顶层设计表达应然)约束实现。核对实现时保留目标、当前契约与运行证据的区别；发现差距就定位受影响保证及拥有者，不据源码改低目标。新边界、保证或取舍按根约定加载 `harness-design-handbook`，从[后续设计入口](architecture/README.md#未决事项与后续设计入口)找未决责任。
 

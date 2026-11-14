@@ -1,7 +1,5 @@
 # Agent推进
 
-本页维护已接受的应然模块分工与公开协作，采用范围见[领域入口](../README.md#维护与状态)。引用的上游约束保持原采用范围；正文接受不表示当前代码已实现。
-
 ## 范围与边界
 
 Agent runtime按Agent Loop模型推进工作。Loop求值下一步，动作执行调用真实能力，Loop extensions在规定位置参与。它不接管模型/工具的执行寿命或Run业务终态。
@@ -38,19 +36,3 @@ Loop 决定、模型建议、工具实际效果和业务完成事实各有自己
 4. 原结果可靠承接后回到相应位置继续求值；Agent 条件性结束本域执行，会话集成同时兑现治理方的 Run 收束规则。
 
 扩展等待时保留原身份和决定位置。取消、撤权或换代后不借旧资格发新动作，迟到结果仍归原调用，不从Agent退出推断工具结束。
-
-## 契约与验证导航
-
-Loop/推进契约维护决定和步骤，扩展链契约维护位置、改参/暂停/失败，调用协调者维护发起和消费交接。具体动作类型、状态机及持久等待协议随实际成员。
-
-上层沿[Agent runtime](../../architecture/runtime/agent-runtime.md)、[Loop extensions](../../architecture/runtime/loop-extensions.md)、[流式消费](../../architecture/runtime/streaming-and-consumption.md)；产品依据[产品正文](../../../.meta_harness/design/product/agent-progression/design.md)。跨能力核对见[验证](../verification.md)。
-
-## 后续设计与维护
-
-扩展位置的精确协议、可替换实现的失败策略、推进调度和等待恢复由推进/扩展/工作协调者设计。禁止把占位实现或接口存在当作完整Loop兑现。
-
-局部扩展沿位置契约阅读；新控制语义、HITL或在途交接再展开相邻责任。精确机制待补不降低已接受的资格和连续性要求。
-
-## 正式产品与技术承接
-
-[产品正文](../../../.meta_harness/design/product/agent-progression/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/agent/SPEC.md#领域边界)展开工程依赖与成员机制。细化技术设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，采用不表示成员已实现。

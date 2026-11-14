@@ -1,7 +1,5 @@
 # 工具执行的角色与交接
 
-本页在正式维护位置保存待审技术设计。领域分解已评审不等于成员技术接受、阶段选择或实现支持。契约包 `packages/tool/tool-contract` 与 `packages/tool/tool-cordis-contract` 已导出公开类型、契约函数、服务定义与端口一致性套件，见[支持范围](../../../packages/tool/SPEC.md#总体架构)。实现成员位于 `packages/tool/tool` 与 `packages/tool/tool-host-local`，当前实现与组合验证范围仍以该支持表为准。
-
 ## 责任与依赖
 
 Tool 组拥有工具专有定义、逻辑调用、真实执行、内部等待、控制实际结果、原结果、效果确定性及交付关系。契约包 `packages/tool/tool-contract` 定义这些契约，Cordis 定义归 `tool-cordis-contract`；`tool` 承担独立执行、账本与 runtime 的实现责任，`tool-host-local` 承担单机宿主适配的实现责任。具体支持与未交付部分见[组支持范围](../../../packages/tool/SPEC.md#总体架构)。真实执行的提供者兑现共同契约，契约与实现分包，不合并二者版本和生命周期。
@@ -55,8 +53,6 @@ flowchart LR
 
 标了常驻的来源（例如标了常驻的 MCP 接入点），它的条目在采用点成为常驻工具记录，进工具声明，适用常驻持有者规则。其余来源的条目是非常驻的，经 `Tools` 发现与调用。
 
-本节是已接受的目标，实现在 4 号线，尚未实现。
-
 <a id="342-完整成员设计承接"></a>
 
 ## 完整成员设计承接
@@ -95,8 +91,6 @@ flowchart TD
 
 [结果卸载](../../../.meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)只处理本来给模型阅读的正文。产品规则见[产品正文](../../../.meta_harness/design/product/tool-execution/design.md#结果保管卸载与模型采用)，系统约束见[工具运行时](../../architecture/runtime/tool-runtime.md#返回结果与执行账)与[模型 ACK 与副本清理](../../architecture/runtime/streaming-and-consumption.md#模型-ack-与副本清理)。本节规定 Tool 领域内的责任划分、跨域交接、性质的守护者和组合验证责任。能力组的工程分解见[结果卸载的工程分解](../../../packages/tool/SPEC.md#正文卸载与保管)。
 
-状态：已接受的目标设计，尚未实现。成员 SPEC 中与本节冲突的条款描述现有实现，不约束后续设计。
-
 ### 领域模型
 
 一次调用的结果在 Tool 的账本中有唯一的结果记录。需要卸载时，结果记录带一个正文描述，指向一份正文。正文的事实分成两部分：
@@ -125,7 +119,7 @@ flowchart TD
 Tool 不读取 Session 的私有状态。消费方用自己的证据完成交接，Tool 用自己的账本判定释放。
 
 1. Agent 发起调用，并采用 Tool 已提交的交付。结果卸载是 Tool 运行时的原生机制，不是 Agent 的扩展位置：是否卸载、首屏内容和期限由 Tool 在结果提交时确定。Agent 不另存正文，交付或读回失败时不能伪造已卸载。
-2. 消费方耐久保存交付中的首屏、读回引用和期限，然后交回 retained 或 processed 证据。Tool 凭证据、按自己的账本释放普通副本。会话路径上，消费方是受理时登记的消费位置：Agent 一侧的结果接收方把交付写进会话日志，Session 从同一份日志读到它并提交本域后果。Session 不另存卸载正文，也不为正文续期。证据怎样进入日志仍有具名偏离，见[会话与 Run](../../architecture/runtime/session-and-run.md)。
+2. 消费方耐久保存交付中的首屏、读回引用和期限，然后交回 retained 或 processed 证据。Tool 凭证据、按自己的账本释放普通副本。会话路径上，消费方是受理时登记的消费位置：Agent 一侧的结果接收方把交付写进会话日志，Session 从同一份日志读到它并提交本域后果。Session 不另存卸载正文，也不为正文续期。
 3. 程序消费方是独立的消费方。它有自己的交付和证据。Tool 在结果提交时，按固定请求中的发起方建立程序交付，不依赖程序事后登记。模型交付的释放不释放程序值。某个通道的值只在需要它的全部交付都释放后才被替换为摘要。
 4. 模型通过读回工具按页读取正文。每次读回都是新的工具调用，不改原首屏，不重计原调用费用，不重做原效果。每页都重新核对当前授权、租户和结果版本。
 5. 正文到期后，读回答复找不到，不重新执行原工具。历史保留首屏、原引用和期限。

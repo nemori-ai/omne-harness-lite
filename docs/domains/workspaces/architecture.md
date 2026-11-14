@@ -1,10 +1,10 @@
 # 工作区领域交接设计
 
-状态：技术设计草案，未获整体技术接受。领域责任沿[已接受入口](README.md)；本页只拥有角色、事实归属与跨领域交接。
+领域责任沿[已接受入口](README.md)；本页只拥有角色、事实归属与跨领域交接。
 
 ## 责任与协作
 
-工作区维护逻辑身份、参与、实例与地址关联，并为获准消费者提供资源来源。完整长期行为草案位于 [工作区包组规格](../../../packages/workspace/SPEC.md#应然设计)，正式叶包尚未成立。独立领域行为不依赖 Cordis 的业务含义；将来集成入口只承载真实依赖注入与生命周期，不把治理、授权或来源规则藏入内核。
+工作区维护逻辑身份、参与、实例与地址关联，并为获准消费者提供资源来源。完整长期行为位于 [工作区包组规格](../../../packages/workspace/SPEC.md#应然设计)。独立领域行为不依赖 Cordis 的业务含义；将来集成入口只承载真实依赖注入与生命周期，不把治理、授权或来源规则藏入内核。
 
 | 事实拥有者 | 本次责任 | 交接与边界 |
 | --- | --- | --- |
@@ -19,17 +19,17 @@
 
 ### workspace 三轴与承载者
 
-[#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)把 `workspace` 分为身份、实例与版本三轴。下表列出各轴的拥有者与当前承载者。
+`workspace` 分为身份、实例与版本三轴。下表列出各轴的拥有者与当前承载者。
 
 | 对象 | 承载什么 | 拥有者或当前持有者 |
 | --- | --- | --- |
 | `WorkspaceId` 的含义 | 哪个工作区 | 工作区域 |
 | `WorkspaceId` 的文本形式 | legal-identity 第六族文本，前缀 `wsp_` | [legal-identity](../../../packages/common/SPEC.md#合法身份) |
-| 工作区附着 `WorkspaceAttachment` | 实例标识 `instance` 与装载依据 `basis` | 语义归工作区域。形状暂由 [session-contract](../../../packages/session/session-contract/SPEC.md#消费者资格与输入) 持有，迁出见 [#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) |
+| 工作区附着 `WorkspaceAttachment` | 实例标识 `instance` 与装载依据 `basis` | 语义归工作区域。形状暂由 [session-contract](../../../packages/session/session-contract/SPEC.md#消费者资格与输入) 持有 |
 | Session 创建、`DeclarationChange` 的 `workspace` 分支、SE05 `session.workspace-changed` | 身份加附着 | [session-contract](../../../packages/session/session-contract/SPEC.md#消费者资格与输入) |
 | Tool 的 `SourceLayer`、`FixedToolRequest` | 只承载身份 | [tool-contract](../../../packages/tool/SPEC.md) |
 | `AssemblyContext.workspace` | 只承载文本，不解析 | [request-context-contract](../../../packages/context/SPEC.md#应然设计) |
-| 工具运行的实例与版本 | 执行环境的放置 | [执行环境域](../execution-environments/README.md)。承载改造归 [#675](https://github.com/nemori-ai/omne-harness-lite/issues/675) J17，落地前 Tool 不承载实例与版本 |
+| 工具运行的实例与版本 | 执行环境的放置 | [执行环境域](../execution-environments/README.md)。承载改造落地前 Tool 不承载实例与版本 |
 
 ## 来源修订计数
 
