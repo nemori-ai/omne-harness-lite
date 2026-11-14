@@ -199,9 +199,9 @@ flowchart LR
 
 #### CLI 命令
 
-命令名等于操作名：`omne read-session-diagnostics --session <id> [--run <id>] [--tenant <tenant>] [--page-bytes <n>] [--json] [--server <url>]`。规则沿 [CLI 规格](../../apps/cli/SPEC.md#命令)：`tenant` 的来源次序同 `read-history`；命令按页读到 `exhausted` 为真；`--json` 是开关。
+命令名等于操作名：`omne read-session-diagnostics --session <id> [--run <id>] [--tenant <tenant>] [--page-bytes <n>] [--json] [--server <url>]`。规则沿 [CLI 规格](../../apps/cli/SPEC.md#分页读取)：`tenant` 的来源次序同 `read-history`；命令按页读到 `exhausted` 为真；`--json` 是开关。
 
-人读输出每个 Run 一段，全部 Run 之后集中列出缺口（每个缺口一行，写来源、对象与原因），规则以 [CLI 规格](../../apps/cli/SPEC.md#读诊断投影)为准：
+人读输出每个 Run 一段，全部 Run 之后集中列出缺口（每个缺口一行，写来源、对象与原因），规则以 [CLI 规格](../../apps/cli/SPEC.md#分页读取)为准：
 
 ```text
 Run <run> (entry <entry>, execution <execution>): failed
@@ -436,7 +436,7 @@ flowchart TB
 | 系统负责人：跨系统技术约定 | [当前承接与后续设计](../architecture/cross-cutting-concepts.md#当前承接与后续设计)的「观测基础契约」待承接 | 改为由 `telemetry-contract` 承接，指向成员 SPEC | 不建全局事件流；OTel 不取得事实权威 |
 | 联调轨道：应用装配 | [插件树](../architecture/runtime/application-assembly.md#插件树)没有 `telemetry` 行 | 新增 `telemetry` 行与遥测关闭步骤；`server-entry` 行新增注入；`model-records` 行提供 `modelDiagnostics` | 运行时对象不进树；受信可见性表同步 |
 | 包组织拥有者 | [目标目录](../package-organization.md#目标目录)的 `telemetry/` 组 | `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node` 三个成员；`diagnostic` 已删除 | 新成员有具名消费者 |
-| app-access 线 | [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)；[服务端接入会话位置](../../packages/access/SPEC.md)；[公开契约会话操作](../../packages/access/SPEC.md#判断次序)；[CLI 命令](../../apps/cli/SPEC.md#命令) | 日志桥、`telemetry` 行、关闭步骤；新操作 `read-session-diagnostics`、SDK 转出诊断页类型、CLI 命令；`session-view` 模块 | stdout 唯一写者；`denied` 不披露存在性；只做加法 |
+| app-access 线 | [harness-server 进程输出](../../apps/harness-server/SPEC.md#进程输出与退出码)；[服务端接入会话位置](../../packages/access/SPEC.md)；[公开契约会话操作](../../packages/access/SPEC.md#判断次序)；[CLI 命令](../../apps/cli/SPEC.md#命令与操作) | 日志桥、`telemetry` 行、关闭步骤；新操作 `read-session-diagnostics`、SDK 转出诊断页类型、CLI 命令；`session-view` 模块 | stdout 唯一写者；`denied` 不披露存在性；只做加法 |
 | session-run 线（Session、Agent） | 各成员已有的诊断与测量回调；[Agent Journal 读面](../../packages/agent/SPEC.md#应然设计) | measure 事件加可选 `tenant`，facade；`AgentJournalReading.readFinish?` | 回调形状不变；只做可加改动；失败诊断不带正文 |
 | model 线 | [诊断与数据保护](../../packages/model/SPEC.md#诊断与数据保护)已接受字段与协议 | 实现 `ModelDiagnostics`；采用诊断读取资格映射与保留；可选的阶段时长 | 白名单字段；`timing` 证据不足时 `unknown`；游标不代替权限 |
 | tool-exec 线 | 账本对 `diagnostics` 答 `unsupported` | 不改 | 投影如实写 `unsupported` |
