@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,7 +11,7 @@ let directory: string
 let file: string
 
 beforeEach(() => {
-  directory = mkdtempSync(join(tmpdir(), 'request-journal-'))
+  directory = realpathSync(mkdtempSync(join(tmpdir(), 'request-journal-')))
   file = join(directory, 'state', 'request-queue.jsonl')
 })
 

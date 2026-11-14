@@ -21,24 +21,31 @@
 //
 // A creation passes the assembly's modes initialization on to Session, as the entry's session
 // location does.
+import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Principal } from '@omne-harness/access-cordis-contract'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { createAccessIdentity } from '@omne-harness/identity-access'
+import { tenantCodec } from '@omne-harness/legal-identity'
 import { definitionMappingsKey, definitionResolverOf } from '@omne-harness/server-entry/cordis'
-import type {
-  PrincipalFacts,
-  SessionListEntry,
-  SessionListing,
-  TargetTenantPrincipals,
+import {
+  openRequestJournal,
+  type PrincipalFacts,
+  type SessionListEntry,
+  type SessionListing,
+  type TargetTenantPrincipals,
 } from '@omne-harness/session-access'
 import {
   createSessionAccessPlugin,
   type SessionCreateInput,
 } from '@omne-harness/session-access/cordis'
-import type { SessionDirectory, SessionListItem } from '@omne-harness/session-contract'
+import {
+  DEFAULT_SESSION_INTAKE_LIMITS,
+  type SessionDirectory,
+  type SessionListItem,
+} from '@omne-harness/session-contract'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { z } from 'zod'
 import {
@@ -64,6 +71,14 @@ export const sessionAccessConfig = z
     historyKinds: z.array(z.string().min(1)).default(() => [...LOCAL_HISTORY_KINDS]),
     defaultListLimit: positive.default(50),
     maxListLimit: positive.default(50),
+    requestJournalFile: z
+      .string()
+      .refine(isAbsolute, 'requestJournalFile must be an absolute path'),
+    requestQueueLimit: positive.default(DEFAULT_SESSION_INTAKE_LIMITS.maxPendingInputs),
+    requestRetryDelaysMs: z
+      .array(z.number().int().min(0).max(Number.MAX_SAFE_INTEGER))
+      .min(1)
+      .default(() => [100, 300, 1000, 3000]),
   })
   .refine(config => config.defaultListLimit <= config.maxListLimit, {
     message: 'defaultListLimit must not exceed maxListLimit',
@@ -72,18 +87,33 @@ export const sessionAccessConfig = z
 
 /** The work owner of a principal identity issues for a login (identity's login steps). */
 const LOGIN_WORK_OWNER = 'identity-login'
+const LOGIN_ACTOR_COMPONENT = 'server-entry'
 
 /** `TargetTenantPrincipals` over identity's `actFor`. */
 function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
+  const issuer = ctx.principalIssuer
   const identity = createAccessIdentity({
     operations: identityOfCall(ctx),
     governance: governanceOfCall(ctx),
-    issuer: ctx.principalIssuer,
+    issuer,
   })
   return {
     async actingFor(login, tenant) {
       const issued = await identity.actFor(login, tenant)
       return issued.outcome === 'issued' ? { ok: issued.principal } : { refused: issued.outcome }
+    },
+    async resume(tenant, login) {
+      const target = tenantCodec.parse(tenant)
+      if (!target.ok) return { refused: 'denied' }
+      const actor = issuer.issueSystem({ component: LOGIN_ACTOR_COMPONENT })
+      if ('failure' in actor) return { refused: 'basis-unavailable' }
+      const issued = issuer.issueActingForTenant({
+        actor: actor.ok,
+        tenant: target.value,
+        work: { owner: LOGIN_WORK_OWNER, work: login },
+      })
+      if ('failure' in issued) return { refused: 'basis-unavailable' }
+      return { ok: issued.ok as unknown as Principal }
     },
   }
 }
@@ -151,6 +181,8 @@ function prepareCreation(input: SessionCreateInput): SessionCreateInput {
 }
 
 const plugin = createSessionAccessPlugin({
+  journal: (config: z.infer<typeof sessionAccessConfig>) =>
+    openRequestJournal(config.requestJournalFile),
   principals: targetTenantPrincipals,
   facts: principalFacts,
   definitions: definitionsOf,

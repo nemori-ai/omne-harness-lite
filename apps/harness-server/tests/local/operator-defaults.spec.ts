@@ -26,6 +26,7 @@ import {
   storageCloseDeadlineMs,
   type LocalOperatorInput,
 } from '../../src/local/operator-defaults.ts'
+import { sessionAccessConfig } from '../../src/rows/session-access/index.ts'
 import { toolRowsOperatorConfig } from '../r9/support.ts'
 
 const memberDir = fileURLToPath(new URL('../..', import.meta.url))
@@ -243,6 +244,14 @@ describe('localOperatorLayer over the bundled distribution', () => {
     const version = releaseRow('session-handoff')?.config?.['combinationVersion']
     for (const id of ['session-storage', 'model-records', 'tool-records'])
       expect(configOf(layer, id)?.['combinationVersion'], id).toBe(version)
+  })
+
+  it('puts the request journal of session-access in the storage root, beside the release values', () => {
+    expect(configOf(layer, 'session-access')).toEqual({
+      ...releaseRow('session-access')?.config,
+      requestJournalFile: `${input('linux').locations.storageRoot}/request-queue.jsonl`,
+    })
+    expect(sessionAccessConfig.safeParse(configOf(layer, 'session-access')).success).toBe(true)
   })
 
   it('lists the Run frame and the tool messages in the history and uses the settings port', () => {

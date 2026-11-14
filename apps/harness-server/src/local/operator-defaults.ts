@@ -623,6 +623,10 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
     ['session-ad03', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     ['session-ad04', { scopeIndexEntries: 4096, pageBytes: 65_536 }],
     [
+      'session-access',
+      { requestJournalFile: path.join(locations.storageRoot, 'request-queue.jsonl') },
+    ],
+    [
       'server-entry',
       {
         listenPort: settings.port,

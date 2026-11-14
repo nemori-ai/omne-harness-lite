@@ -4503,7 +4503,7 @@
       },
       "packages/session/session-access/src/contribution.ts": {
         "count": 1,
-        "longest": 382
+        "longest": 323
       },
       "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
         "count": 1,
