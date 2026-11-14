@@ -50,6 +50,7 @@ import type {
 import { AgentDrivePortService, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { resolveToolInvocationRef, type ToolCallId } from '@omne-harness/tool-contract'
 import { decodeSessionSlotRef } from '../slot-ref.ts'
+import { announcePublished } from './published-queue.ts'
 
 /** The failures of the coordinator principal: those of `SessionWorkPrincipals.forSession`. */
 export type SessionCoordinatorPrincipalFailure = Extract<
@@ -84,7 +85,6 @@ type Placed = Readonly<{ instance: AgentInstanceId; runtime: AgentRuntime<unknow
 type Slot = Readonly<{ scope: DurableEvidence; definition: Adoption }>
 
 const LOGGER = 'session-adapters/agent-drive'
-const PUBLISHED = 'session-adapters/agent-published'
 
 const unavailable = (diagnostic: string): Drive<never> => fail({ kind: 'unavailable', diagnostic })
 
@@ -439,13 +439,7 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
 
   private wake(tenant: TenantId, session: SessionId, execution: AgentExecutionId): void {
     const logger = this.scope.logger(LOGGER)
-    try {
-      this.scope.parallel(PUBLISHED, tenant, session, execution).catch((error: unknown) => {
-        logger.warn(`a listener of ${PUBLISHED} failed: ${String(error)}`)
-      })
-    } catch (error) {
-      logger.warn(`dispatching ${PUBLISHED} failed: ${String(error)}`)
-    }
+    announcePublished(this.scope, line => logger.warn(line), { tenant, session, execution })
   }
 
   /**
