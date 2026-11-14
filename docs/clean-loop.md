@@ -38,7 +38,7 @@
 
 1. 依赖方向与环——`pnpm run lint:rules` 的方向规则与 `pnpm run lint:deps`，`pnpm run loop:status` 也会标出。
 2. 验收没有被实施者改动——`pnpm run acceptance:lock`。
-3. 主线保持绿——合并前，在待合并的提交上计算好影响面，再运行受影响、因此需要执行的检查。检查范围包括所需的构建、类型检查、测试和可执行验收，以及共同硬线检查。交付说明记录基线、提交、范围、依据与结果。准入只有一步失败时的增量接续，以及树与已通过准入的头相同时的复用，机制见[准入的运行记录与接续](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。`pnpm run check` 按影响面打印计划并执行这些检查；未选中的检查没有运行，交付说明应如实列出。
+3. 主线保持绿——合并前，在待合并的提交上计算好影响面，再运行受影响、因此需要执行的检查。检查范围包括所需的构建、类型检查、测试和可执行验收，以及共同硬线检查。交付说明记录基线、提交、范围、依据与结果。准入只有一步失败时的增量接续，以及树与已通过准入的头相同时的复用，机制见[准入的运行记录与接续](../tools/test-runner/SPEC.md#接续准入)。`pnpm run check` 按影响面打印计划并执行这些检查；未选中的检查没有运行，交付说明应如实列出。
 4. 传感器有数据——一项指标量不出来不等于它是好的。传感器自己会不会悄悄失灵，由一份种了已知违规的小夹具每次跟着
    `tools/repo-toolchain` 的测试跑来守，测试失败就挡合并。严格模式（`pnpm run loop:status --strict --out …`）下，
    配置里开着的传感器有哪个没数据就判失败并指名；它不在准入里，在 mainline 提升 main 时跑，结果贴在提升 PR 上，只报告不挡。
@@ -50,7 +50,7 @@
 - 命中不证明不稳定的用例这次也会过。
 - 合并前的准入不读缓存，所以硬线 3 要的运行不含命中。准入模式、`FULL=1`、`--no-cache` 与 `OMNE_TEST_CACHE=0` 只写不读缓存。
 - 依赖图也有缓存，它直接决定硬线 1 的方向与环、硬线 4 的读数。准入时它同样不读，所以合并前的硬线判断不含命中；本地非准入的 `pnpm run check` 会读它。
-- 细则见 [test-runner 的结果缓存](../tools/test-runner/README_ZH.md#测试运行)与 [repo-toolchain 的依赖图](../tools/repo-toolchain/SPEC.md#依赖图)。
+- 细则见 [test-runner 的结果缓存](../tools/test-runner/SPEC.md#结果缓存)与 [repo-toolchain 的依赖图](../tools/repo-toolchain/SPEC.md#依赖图)。
 
 `--strict --scope engineering` 是 `omne-loop-status` 的工程范围严格模式，需要时显式传入；提升 main 时的严格一步不传 `--scope`。只有当前树、固定 targetBase、实际 merge-base 和每个 taskBase 均无受维护产品源码与测试时，duplication 与 assertions 的无数据读数才标为工程范围不适用。
 原始 no-data 保留，报告给出精确提交与计数。任何一处仍有输入、基线未知、读取失败或其他启用传感器无数据，均不能用此范围放行。
