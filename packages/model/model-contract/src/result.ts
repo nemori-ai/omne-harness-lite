@@ -142,6 +142,12 @@ export type ControlState =
 export type Lookup =
   | Readonly<{ kind: 'found'; state: CallState }>
   | Readonly<{ kind: 'not-accepted'; operation: ModelOperationId }>
+export type CallContact =
+  | Readonly<{ kind: 'holding' }>
+  | Readonly<{ kind: 'settled' }>
+  | Readonly<{ kind: 'lost'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'not-accepted' }>
+  | Readonly<{ kind: 'unknown' }>
 export type Admission = Readonly<{
   call: ModelCallId
   revision: Revision

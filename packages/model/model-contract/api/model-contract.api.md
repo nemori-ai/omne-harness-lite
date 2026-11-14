@@ -17,6 +17,7 @@
 - `BudgetCheck` · `profile.d.ts`
 - `CalibrationReport` · `profile.d.ts`
 - `CallAccess` · `root.d.ts`
+- `CallContact` · `result.d.ts`
 - `CallState` · `result.d.ts`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContextLimits` · `profile.d.ts`
@@ -337,7 +338,7 @@
 
 ```ts
 import type { Access, ModelReferenceAccess, CallAccess, Mutation, Admit, DispatchId, ModelCallId, ModelInstanceId, ModelOperationId, OutputCursor, ReadId, ResultVersion, Supplier } from './root.ts';
-import type { AckInput, AckReceipt, Admission, ControlState, CustodyState, Lookup, ModelBlock, Reply, Settlement, Termination, CallState } from './result.ts';
+import type { AckInput, AckReceipt, Admission, CallContact, ControlState, CustodyState, Lookup, ModelBlock, Reply, Settlement, Termination, CallState } from './result.ts';
 import type { MaterializationReceipt } from './provider-protocol.ts';
 import type { DurableEvidence } from './result.ts';
 import type { CallAccount } from '@omne-harness/call-account';
@@ -435,6 +436,7 @@ export type DispatchRecord = Readonly<{
 export interface ModelCalls<P> {
     admit(input: Admit<P>): Reply<Admission>;
     inspect(input: ModelReferenceAccess<P>): Reply<Lookup>;
+    contact(input: ModelReferenceAccess<P>): Reply<CallContact>;
     dispatches(input: CallAccess<P>): Reply<readonly DispatchRecord[]>;
     cancel(input: Mutation<P>): Reply<ControlState>;
 }
@@ -2614,6 +2616,18 @@ export type Lookup = Readonly<{
 }> | Readonly<{
     kind: 'not-accepted';
     operation: ModelOperationId;
+}>;
+export type CallContact = Readonly<{
+    kind: 'holding';
+}> | Readonly<{
+    kind: 'settled';
+}> | Readonly<{
+    kind: 'lost';
+    evidence: DurableEvidence;
+}> | Readonly<{
+    kind: 'not-accepted';
+}> | Readonly<{
+    kind: 'unknown';
 }>;
 export type Admission = Readonly<{
     call: ModelCallId;

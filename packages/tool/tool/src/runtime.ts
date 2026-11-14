@@ -305,6 +305,10 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
         const resolved = invocationInput<P>(input, 'lookup')
         return 'failure' in resolved ? resolved : reads.lookup(resolved.ok)
       },
+      contact: async input => {
+        const resolved = invocationInput<P>(input, 'lookup')
+        return 'failure' in resolved ? resolved : succeed({ kind: 'unknown' })
+      },
       queryOperation: async input => {
         const resolved = operationInput<P>(input, 'query-operation')
         return 'failure' in resolved ? resolved : reads.operation(resolved.ok)

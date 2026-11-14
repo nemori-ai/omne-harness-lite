@@ -88,6 +88,7 @@ it('an adapter can implement ModelCalls from the contract alone', () => {
   const calls: ModelCalls<string> = {
     admit: async () => ({ ok: { call, revision, recovered: false, reference } }),
     inspect: async _unused => ({ ok: { kind: 'not-accepted', operation: operation } }),
+    contact: async () => ({ ok: { kind: 'unknown' } }),
     dispatches: async () => ({ ok: [] }),
     cancel: async () => ({ ok: { kind: 'none' } }),
   }
@@ -315,6 +316,7 @@ it('the ordinary runtime has no driver, no publication and no replaceable parts'
     calls: {
       admit: calls.admit,
       inspect: calls.inspect,
+      contact: calls.contact,
       dispatches: calls.dispatches,
       cancel: calls.cancel,
     },

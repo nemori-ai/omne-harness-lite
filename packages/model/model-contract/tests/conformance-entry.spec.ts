@@ -36,6 +36,7 @@ function failingAt(at: number): Subject {
     calls: inner => ({
       admit: input => (injected() ? Promise.resolve(refusal) : inner.admit(input)),
       inspect: input => (injected() ? Promise.resolve(refusal) : inner.inspect(input)),
+      contact: input => (injected() ? Promise.resolve(refusal) : inner.contact(input)),
       dispatches: input => (injected() ? Promise.resolve(refusal) : inner.dispatches(input)),
       cancel: input => (injected() ? Promise.resolve(refusal) : inner.cancel(input)),
     }),

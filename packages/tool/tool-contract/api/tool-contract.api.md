@@ -67,6 +67,7 @@
 - `ToolBodyRetention` · `results.d.ts`
 - `ToolBodyWriter` · `body-writer.d.ts`
 - `ToolBodyWriterStatus` · `body-writer.d.ts`
+- `ToolCallContact` · `results.d.ts`
 - `ToolCallId` · `identity.d.ts`
 - `ToolCatalog` · `authoring.d.ts`
 - `ToolCatalogSearchEntry` · `authoring.d.ts`
@@ -2216,7 +2217,7 @@ export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCa
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
 export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
-export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
+export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
 export type { ToolExecutionRef } from './execution.ts';
@@ -2385,7 +2386,7 @@ import type { FixedToolRequest, ToolAvailability } from './definitions.ts';
 import type { Access, CallAccess, ConsumerRef, DurableEvidence, ToolCallId, ToolCursor, ToolDeliveryId, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
 import type { ControlProgress, WaitRecord } from './records.ts';
 import type { ToolInvocationRef, ToolOperationRef } from './reference.ts';
-import type { Attachment, ReleasedDelivery, OperationResolution, Reply, ResultPage, ToolFailure, ToolLookup, ToolState } from './results.ts';
+import type { Attachment, ReleasedDelivery, OperationResolution, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolState } from './results.ts';
 export type ToolControl = Readonly<{
     kind: 'stop';
 }> | Readonly<{
@@ -2521,6 +2522,7 @@ export type ToolReleaseDeliveryOutcome = Readonly<{
 }>;
 export interface ToolInvocationQueries<P, B extends ContentBlock> {
     lookup(input: InvocationAccess<P>): Reply<ToolLookup>;
+    contact(input: InvocationAccess<P>): Reply<ToolCallContact>;
     queryOperation(input: Access<P> & Readonly<{
         operation: ToolOperationRef;
     }>): Reply<OperationResolution>;
@@ -4045,6 +4047,15 @@ export type ToolLookup = Readonly<{
 }> | Readonly<{
     kind: 'not-accepted';
     operation: ToolOperationId;
+}>;
+export type ToolCallContact = Readonly<{
+    kind: 'holding';
+}> | Readonly<{
+    kind: 'settled';
+}> | Readonly<{
+    kind: 'not-accepted';
+}> | Readonly<{
+    kind: 'unknown';
 }>;
 ```
 

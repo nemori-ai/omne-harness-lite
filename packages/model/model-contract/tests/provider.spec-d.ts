@@ -508,6 +508,7 @@ it('a ModelProvider exposes the ordinary runtime and the operator entries, and n
           if ('failure' in resolved) throw new Error('bad fixture')
           return commands.recall({ principal: input.principal, ...resolved.ok })
         },
+        contact: async () => ({ ok: { kind: 'unknown' } }),
         dispatches: commands.dispatches,
         cancel: commands.control,
       },

@@ -364,6 +364,7 @@ class RuntimeContribution extends ModelRuntimeService<unknown> {
     const calls: ModelRuntime<unknown>['calls'] = {
       admit: input => runtime.calls.admit(input),
       inspect: input => runtime.calls.inspect(input),
+      contact: input => runtime.calls.contact(input),
       dispatches: input => runtime.calls.dispatches(input),
       cancel: input => runtime.calls.cancel(input),
     }

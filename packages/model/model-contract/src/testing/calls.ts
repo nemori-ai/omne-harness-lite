@@ -5,6 +5,7 @@ import { encodeModelInvocationRef, resolveModelInvocationRef } from '../referenc
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   Admission,
+  CallContact,
   ModelInvocationRef,
   ControlState,
   DispatchRecord,
@@ -131,6 +132,16 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
     return succeed<Lookup>({ kind: 'found', state: stateOf(record) })
   }
 
+  async function contact(original: ModelReferenceAccess<P>): Reply<CallContact> {
+    const resolved = resolveModelInvocationRef(original.reference, original.tenant)
+    if ('failure' in resolved) return referenceRejected(resolved.failure)
+    const input = { principal: original.principal, ...resolved.ok }
+    const target = resolve(core, input, 'inspect')
+    if (target === null) return denied('inspect')
+    if (target.record === null) return succeed<CallContact>({ kind: 'not-accepted' })
+    return succeed<CallContact>({ kind: 'unknown' })
+  }
+
   async function dispatches(input: CallAccess<P>): Reply<readonly DispatchRecord[]> {
     const record = openCall(core, input, 'dispatches')
     if (record === null) return denied('dispatches')
@@ -164,5 +175,5 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
     })
   }
 
-  return { admit, inspect, dispatches, cancel }
+  return { admit, inspect, contact, dispatches, cancel }
 }

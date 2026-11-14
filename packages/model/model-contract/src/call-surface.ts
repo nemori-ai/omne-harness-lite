@@ -18,6 +18,7 @@ import type {
   AckInput,
   AckReceipt,
   Admission,
+  CallContact,
   ControlState,
   CustodyState,
   Lookup,
@@ -102,6 +103,7 @@ export type DispatchRecord = Readonly<{
 export interface ModelCalls<P> {
   admit(input: Admit<P>): Reply<Admission>
   inspect(input: ModelReferenceAccess<P>): Reply<Lookup>
+  contact(input: ModelReferenceAccess<P>): Reply<CallContact>
   dispatches(input: CallAccess<P>): Reply<readonly DispatchRecord[]>
   cancel(input: Mutation<P>): Reply<ControlState>
 }

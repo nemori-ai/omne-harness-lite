@@ -511,6 +511,7 @@ export function createScriptedResultPusher<P>(
           return reply
         },
         inspect: input => calls.inspect(input),
+        contact: input => calls.contact(input),
         dispatches: input => calls.dispatches(input),
         cancel: input => calls.cancel(input),
       },

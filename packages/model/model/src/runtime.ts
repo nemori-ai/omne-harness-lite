@@ -197,6 +197,11 @@ export function createModelRuntime<P>(
           if ('failure' in resolved) return referenceFailure(resolved.failure)
           return commands.recall({ principal, ...resolved.ok })
         },
+        contact: async ({ tenant, reference }) => {
+          const resolved = resolveModelInvocationRef(reference, tenant)
+          if ('failure' in resolved) return referenceFailure(resolved.failure)
+          return { ok: { kind: 'unknown' } }
+        },
         dispatches: ({ principal, tenant, call }) =>
           commands.dispatches({ principal, tenant, call }),
         cancel: async ({ principal, tenant, call, operation }) => {

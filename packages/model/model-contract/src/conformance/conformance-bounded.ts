@@ -27,6 +27,7 @@ function boundedRuntime<P>(runtime: ModelRuntime<P>, waitMs: number): ModelRunti
     calls: {
       admit: ask('admit', calls.admit.bind(calls)),
       inspect: ask('inspect', calls.inspect.bind(calls)),
+      contact: ask('contact', calls.contact.bind(calls)),
       dispatches: ask('dispatches', calls.dispatches.bind(calls)),
       cancel: ask('cancel', calls.cancel.bind(calls)),
     },

@@ -55,6 +55,9 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
   const invoke = scriptedMethod<In<R['invoke']>, Out<R['invoke']>>(rejecting())
   const inspect = scriptedMethod<In<R['inspect']>, Out<R['inspect']>>(failing())
   const lookup = scriptedMethod<In<R['queries']['lookup']>, Out<R['queries']['lookup']>>(failing())
+  const contact = scriptedMethod<In<R['queries']['contact']>, Out<R['queries']['contact']>>(
+    failing(),
+  )
   const queryOperation = scriptedMethod<
     In<R['queries']['queryOperation']>,
     Out<R['queries']['queryOperation']>
@@ -107,6 +110,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
       inspect: inspect.call,
       queries: {
         lookup: lookup.call,
+        contact: contact.call,
         queryOperation: queryOperation.call,
         readProcess: readProcess.call,
         readWait: readWait.call,
@@ -125,6 +129,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
     inspect: inspect.script,
     queries: {
       lookup: lookup.script,
+      contact: contact.script,
       queryOperation: queryOperation.script,
       readProcess: readProcess.script,
       readWait: readWait.script,
