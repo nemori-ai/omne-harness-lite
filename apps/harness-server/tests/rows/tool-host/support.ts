@@ -140,11 +140,12 @@ export type ReleaseFixture = FixtureEnv &
 /** 在一个根上装好入口对象与一个空常驻引用读取器。`load` 默认是生产读法。 */
 export async function releaseFixture(
   load: () => Promise<ToolReleaseSnapshot> = loadProductionRelease,
+  options?: Parameters<typeof createToolReleaseEntries>[1],
 ): Promise<ReleaseFixture> {
   const fixture = fixtureEnv([principalIssuerKey])
   const logs: Message[] = []
   fixture.root.logger.exporter({ levels: { default: 3 }, export: message => logs.push(message) })
-  const entries = createToolReleaseEntries(load)
+  const entries = createToolReleaseEntries(load, options)
   await fixture.install(principalVerifier)
   await fixture.install(principalIssuer)
   await fixture.install(toolResidencyPrincipal)

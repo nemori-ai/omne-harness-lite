@@ -19,20 +19,21 @@ async function build(): Promise<Assembly> {
 }
 
 type Face = Record<string, (input: unknown) => Promise<unknown>>
-const faceNames = ['work', 'management', 'reconciliation', 'history'] as const
+const faceNames = ['work', 'management', 'reconciliation', 'history', 'directory'] as const
 
-/** Every operation of the four faces with the action name that a refusal names. */
+/** Every operation of the four faces and the list, with the action name that a refusal names. */
 function operationsOf(session: {
   work: unknown
   management: unknown
   reconciliation: unknown
   history: unknown
+  directory: unknown
 }): readonly (readonly [string, () => Promise<unknown>])[] {
   return faceNames.flatMap(name =>
     Object.keys(session[name] as Face).map(
       operation =>
         [
-          name === 'history' ? `history.${operation}` : operation,
+          name === 'history' || name === 'directory' ? `${name}.${operation}` : operation,
           () => (session[name] as Face)[operation]!({}),
         ] as const,
     ),
@@ -93,6 +94,21 @@ describe('the class selects the face of that caller', () => {
       failure: { kind: 'denied', action: 'history.begin' },
     })
     expect(await reader.session().history.begin(begin)).toHaveProperty('ok')
+    // `directory.list` belongs to the reader too: the intake face refuses it, the reader's goes
+    // on to the transaction port, whose double offers no directory.
+    const list = {
+      principal: a.access().principal,
+      tenant: a.access().tenant,
+      after: null,
+      limit: 10,
+      includeArchived: false,
+    }
+    expect(await intake.session().directory?.list(list)).toEqual({
+      failure: { kind: 'denied', action: 'directory.list' },
+    })
+    expect(await reader.session().directory?.list(list)).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'sessionTransactions' },
+    })
   })
 
   it.each([

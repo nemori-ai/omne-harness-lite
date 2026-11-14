@@ -58,7 +58,7 @@ node apps/harness-server/dist/bin.js serve            # Ctrl+C 停止
 ```sh
 pnpm --filter @omne-harness/harness-server run build
 node apps/harness-server/dist/bin.js s0 --distribution <绝对 JSON 路径> [--operator <绝对 JSON 路径>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
-node apps/harness-server/dist/bin.js serve [--distribution <绝对 JSON 路径>] [--operator <绝对 JSON 路径>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <绝对目录>] [--stop-on-stdin-close]
+node apps/harness-server/dist/bin.js serve [--distribution <绝对 JSON 路径>] [--operator <绝对 JSON 路径>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--state-root <绝对目录>] [--stop-on-stdin-close]
 ```
 
 `serve` 省略的参数取本机单用户档的值：发行文件用随应用的 `config/serve.distribution.json`，超时取 30000 与 10000 毫秒，运维者层与状态根来自 `setup` 的配置。
@@ -71,7 +71,7 @@ node apps/harness-server/dist/bin.js serve [--distribution <绝对 JSON 路径>]
 
 ```text
 usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
-usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
+usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
 usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--reset] [--replace-credential]
 ```
 
@@ -102,7 +102,7 @@ import type {
 
 - 根上不能按名取得受信名，子树行可以。
 - PENDING 与 FAILED 分开报告。超时不把 PENDING 改为 FAILED。
-- 关闭按 `entry`、`business`、`composition`、`storage` 四个阶段依次进行，全部阶段共用一个截止时间。错过截止时间的句柄记为 `incomplete`，下一阶段仍然执行。
+- 关闭按 `entry`、`business`、`composition`、`storage` 四个阶段依次进行，全部阶段共用一个截止时间。错过截止时间的句柄记为 `incomplete`，下一阶段仍然执行。`serve` 在 `entry` 与 `business` 之间先做一步排空：模型运行时不再接新调用，等在途的调用做完，上限是 `--drain-deadline-ms`。
 - 报告先确定，之后才调用 `assemblyReportSettled()`。
 - 退出码 `5` 表示启动成功而关闭 `incomplete`。
 - `serve` 里真实行不依赖 S0 替身，不得到占位，只装在它声明的行 id 上。每条检查都在插件体运行之前决定。
@@ -117,16 +117,17 @@ import type {
 
 ## 配置与运行
 
-| 输入 | 作用 |
-| --- | --- |
-| `--distribution` | 发行层 JSON 的绝对路径。`serve` 省略时用 `config/serve.distribution.json`。 |
-| `--operator` | 运维层 JSON 的绝对路径，可选。`serve` 省略时由本机单用户档生成。 |
-| `--readiness-timeout-ms` | 正整数，就绪等待上限。`serve` 省略时为 30000。 |
-| `--shutdown-deadline-ms` | 正整数，共用的关闭截止时间。`serve` 省略时为 10000。 |
-| `--state-root` | 只在 `serve`。入口对象状态文件所在的已存在绝对目录。省略时用本机单用户档的状态目录。它的保护是前提：放在运维者的用户目录下。 |
-| `--stop-on-stdin-close` | 只在 `serve`。标准输入关闭时发起计划停止。 |
-| `OMNE_SERVER_HOME` | 环境变量。`setup` 与 `serve` 用 `<目录>/config` 与 `<目录>/state` 代替平台的标准目录。 |
-| `LOCALAPPDATA`、`XDG_CONFIG_HOME`、`XDG_STATE_HOME` | 环境变量。决定平台的标准目录。 |
+| 输入                                                | 作用                                                                                                                         |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `--distribution`                                    | 发行层 JSON 的绝对路径。`serve` 省略时用 `config/serve.distribution.json`。                                                  |
+| `--operator`                                        | 运维层 JSON 的绝对路径，可选。`serve` 省略时由本机单用户档生成。                                                             |
+| `--readiness-timeout-ms`                            | 正整数，就绪等待上限。`serve` 省略时为 30000。                                                                               |
+| `--shutdown-deadline-ms`                            | 正整数，共用的关闭截止时间。`serve` 省略时为 10000。                                                                         |
+| `--drain-deadline-ms`                               | 只在 `serve`。正整数，停止各行之前等在途的模型调用做完的上限，不占关闭截止时间。省略时为 120000。                            |
+| `--state-root`                                      | 只在 `serve`。入口对象状态文件所在的已存在绝对目录。省略时用本机单用户档的状态目录。它的保护是前提：放在运维者的用户目录下。 |
+| `--stop-on-stdin-close`                             | 只在 `serve`。标准输入关闭时发起计划停止。                                                                                   |
+| `OMNE_SERVER_HOME`                                  | 环境变量。`setup` 与 `serve` 用 `<目录>/config` 与 `<目录>/state` 代替平台的标准目录。                                       |
+| `LOCALAPPDATA`、`XDG_CONFIG_HOME`、`XDG_STATE_HOME` | 环境变量。决定平台的标准目录。                                                                                               |
 
 `setup` 的参数与行为见 [SPEC.md](SPEC.md#setup)。
 

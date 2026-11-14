@@ -1,4 +1,5 @@
 import { SETTINGS_RECOVERY_PARTICIPANTS } from '@omne-harness/settings-local/preparation'
+import { VERSION_DIGEST_LENGTH } from './storage-combinations.ts'
 import {
   combinationManifest,
   manifestDigest,
@@ -15,9 +16,10 @@ export function organizationSettingsCombination(catalog: SqlMaterialCatalog) {
   const result = combinationManifest({ catalog, participants })
   if (result.kind !== 'manifest')
     throw new Error(`Invalid organization Settings combination: ${JSON.stringify(result)}`)
+  const digest = manifestDigest(result.manifest)
   return {
     participants,
-    combinationVersion: 'harness-organization-settings/1',
-    manifestDigest: manifestDigest(result.manifest),
+    combinationVersion: `harness-organization-settings/${digest.slice(0, VERSION_DIGEST_LENGTH)}`,
+    manifestDigest: digest,
   }
 }

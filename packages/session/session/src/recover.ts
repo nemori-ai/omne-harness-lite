@@ -1,7 +1,13 @@
 // The recovery of an active Run whose execution was handed over (contract PM-14, PM-05; SPEC C2
 // 顺序：恢复与接管, the recovery path only). S3 hands an active Run here. The execution record decides:
 //
-// - The attachment is active: the Agent advances the execution, and nothing is done (PM-14).
+// - The attachment is active and the host of the record has no judgment that its runtime is out of
+//   contact: the Agent advances the execution, and nothing is done (PM-14).
+// - The attachment is active and the host judges its runtime out of contact (`ExecutionStatus.lost`,
+//   for example the runtime of a process that ended): `detach` through the recovery entry of the
+//   host hands the attachment back in the place of that runtime, which suspends the execution. The
+//   next item then applies. The old runtime, should the judgment be wrong, learns it from
+//   `stale-advance` at its next commit; nothing here depends on the judgment being right for safety.
 // - The execution is suspended, so its attachment was handed back: `claim` grants a new attempt
 //   with the handover evidence as its continuity, and `resume` asks the Agent to go on under the
 //   grant of that attempt. `claim` supersedes the former attempt in the same batch (PM-05 item 1).
@@ -10,9 +16,10 @@
 //   after a failed `resume` resumes with the same grant and claims no second attempt (PM-10).
 // - The execution ended, or its record cannot be read: nothing is done here.
 //
-// A takeover of an attachment that is still active needs a lost-contact judgment and the takeover
-// qualification, and is not in this member. A `resume` that fails leaves the claim as it is; the next
-// scan comes back with the same identities.
+// The takeover in one commit (an `attach` that supersedes an active attachment, Agent SPEC "恢复与
+// 接管") is not in this member: an attachment whose runtime is out of contact goes the hand-back way
+// above. A `resume` that fails leaves the claim as it is; the next scan comes back with the same
+// identities.
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   deriveDriveOperation,
@@ -21,6 +28,7 @@ import {
   type AgentDrivePort,
   type DriveFailure,
   type DurableEvidence,
+  type ExecutionStatus,
   type RunId,
   type SessionFaces,
   type SessionFailure,
@@ -50,6 +58,17 @@ export function acceptedRun(snapshot: WorkSnapshot): ActiveRun | null {
   const { run } = snapshot
   if (run.kind !== 'active') return null
   return snapshot.handed.includes(run.first) || !snapshot.pending.includes(run.first) ? run : null
+}
+
+/**
+ * Whether the attachment of the execution can be handed back now: it was handed back already, or
+ * it is active and the host of the record judges its runtime out of contact. An active attachment
+ * without that judgment belongs to an Agent that advances, or to one nobody can speak for: both
+ * wait (PM-14). Session never infers the judgment from a timeout or an empty directory.
+ */
+export function handsBack(status: ExecutionStatus): boolean {
+  if (status.state === 'suspended') return true
+  return status.state === 'open' && status.attachment === 'active' && status.lost !== null
 }
 
 /** A drive failure that the next scan may meet differently: nothing is reported for it. */
@@ -181,8 +200,10 @@ export function createRecovery<P>(
     if (advance === null) return
     const execution = run.execution.execution
     const status = await outbound(() => port.inspect({ ...ref, execution }))
-    if ('failure' in status || status.ok.state !== 'suspended') return
-    // The attachment was handed back already, so `detach` answers its handover evidence.
+    if ('failure' in status || !handsBack(status.ok)) return
+    // A suspended execution handed its attachment back already, so `detach` answers its handover
+    // evidence. For a runtime that is out of contact, the recovery entry of the host hands the
+    // attachment back in its place, and the execution is suspended from then on.
     const handover = await outbound(() =>
       port.detach({
         ...ref,

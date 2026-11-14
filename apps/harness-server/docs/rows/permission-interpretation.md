@@ -268,7 +268,25 @@ prepareTenantGovernance 先固定数据配置和组合引用，返回 Identity �
 
 [governance 行](../../src/rows/governance/index.ts)已进入默认发行。它用原只读 tenantDomainLookup 查已登记事务域，并为每个租户配置固定的 deploymentId、logicalServiceId 与 tenant visibility。目录读者由入口的窄签发能力提供，只取得该 scope 的 catalog-management grant。Tool 定义来自原发行权威核验的快照；该权威沿用原根服务及实现身份核验，不改变其他 Tool 消费者的可见范围。
 
-[TenantGovernanceHost](../../src/rows/governance/tenant-host.ts)持有本行的内存实例表。每个租户先保存 preparation Promise，再查询目录和调用工厂；成功 prepared 项在当前装配内不替换。因此相同租户只开启一次，其他租户不排在它后面。未知租户不触发登记或准备。这个表不替代租户目录，也不是第二份持久业务状态。
+[TenantGovernanceHost](../../src/rows/governance/tenant-host.ts)持有本行的内存实例表。每个租户先保存 preparation Promise，再查询目录和调用工厂；成功 prepared 项在它的那一次打开创建出运行时之后不替换。因此相同租户同一时刻只有一次打开在途，其他租户不排在它后面。未知租户不触发登记或准备。
+
+一个 prepared 项只拥有一次打开。这次打开没有创建出运行时（装配答 unavailable，或抛出）时，宿主做三件事：把这个租户连续失败的次数加一；经 `report` 上报租户、停在哪个阶段、第几次、多久之后再试，默认行把它写成一条警告；记下再试的时刻。在那个时刻之前，这个租户的运行时答不可用，不再打开。到时刻之后的第一次调用，宿主先关闭失败的那次打开仍持有的东西，再用同一个耐久域准备一个新的装配并打开；关闭没有收场时不准备新的，原项留着再等一轮，关闭责任不丢。等待时长由 `retryPauseMs(连续失败次数)` 给出，缺省是 1、5 秒，之后每次 30 秒；创建出运行时后次数清零。同一时刻到达的调用共用同一次替换。
+
+准备阶段走同一条路。目录答「没登记过」是正常情形（没建过会话的新租户）：答不可用，不上报，不计数。目录读不到（答 unavailable 或抛出，阶段记 `lookup`），或工厂准备抛出（阶段记 `prepare`），算一次失败：计数、上报、按 `retryPauseMs` 停一段；停顿期内这个租户的运行时与设置答不可用，也不再查询目录。到时刻之后的下一次调用重新查询并准备。
+
+下表是一个租户的项在各状态下对「取运行时」的答复：
+
+| 项的状态                                           | 答复                                     | 之后的状态                         |
+| -------------------------------------------------- | ---------------------------------------- | ---------------------------------- |
+| 没有项                                             | 准备并打开，按打开的结果答               | 打开在途                           |
+| 目录答没登记过                                     | 不可用，不上报，不计数                   | 没有项                             |
+| 准备失败（目录读不到或装配抛出），还没到再试的时刻 | 不可用，不再查询目录                     | 不变                               |
+| 准备失败，已到再试的时刻                           | 重新查询并准备，按结果答                 | 打开在途，或再次准备失败           |
+| 打开在途                                           | 等这一次打开，按它的结果答               | 不变                               |
+| 已创建出运行时                                     | 这个运行时                               | 不变                               |
+| 打开失败，还没到再试的时刻                         | 不可用                                   | 不变                               |
+| 打开失败，已到再试的时刻                           | 关闭旧的、准备新的并打开，按打开的结果答 | 打开在途；关闭没收场时仍是打开失败 |
+| 宿主正在关闭                                       | 不可用                                   | 不变                               | 这个表不替代租户目录，也不是第二份持久业务状态。 |
 
 行发布 sessionPermissionBackend 与 Identity standingDestinationResolver。Session 存储每次提交权限配值时现取后端。后端按命令的租户找到实例，交回依据来源的计划。主体不是登录主体时答 denied，实例不可用时答 unavailable。Identity 结算按公开 scopeRef 找回 prepared 目的地，不等待业务 open 完成。目的地由原提供者核对封套和终态，应用不解析私有记录。
 
@@ -300,7 +318,6 @@ flowchart LR
   Basis --> Commit[Session 的提交]
 ```
 
-
 ## Built-in installation owner operations
 
 The application installation functions consume the trusted Tool release and original owner capabilities. `installToolAsset` publishes its fixed body and establishes a stable tenant holding. Repeated installation preserves the holding identity and existing Settings source grants. Disabled or removed holdings stay inactive. Publication revision comes from `AssetsLocal.readAsset`; it is not the holding revision or the domain owner sequence.
@@ -330,7 +347,6 @@ The denial property follows independently: structural `deny` is returned before 
 The default Authorization row reads this publication through `CurrentPermissionService` on each admission. Actual release-tree tests cover Agent and Tool checks, a Tool result returned to the model, and new checks after cold restart of the same Session. A public Session permission change also updates the publication before the tested next invocation, which returns structural denial without invoking the Tool. These tests use a local model gateway and skip human inquiry; they do not prove durable human response delivery.
 
 Notifications remain best effort. If a publication is stale, revision checks refuse it; these checks do not promise reliable delivery of every notification.
-
 
 ## Permissions without a Settings mapping
 

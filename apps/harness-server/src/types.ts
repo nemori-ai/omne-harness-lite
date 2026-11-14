@@ -54,6 +54,14 @@ export type LifecycleHandle = Readonly<{
   phase: LifecyclePhase
   row: RowId
   start?: () => Promise<void>
+  /**
+   * Finishes the work the row already accepted and accepts no more, while every other row is still
+   * alive. It is called once, after the entry phase and before the business phase, with the drain
+   * deadline. `settled`: nothing accepted is left in flight. `incomplete`: the deadline came first,
+   * and what is still in flight ends with the row's `stop`. The row stays usable for the work it
+   * already accepted; `stop` comes later, whatever the answer.
+   */
+  drain?: (deadlineMonotonicMs: number) => Promise<StopResult>
   stop: (deadlineMonotonicMs: number) => Promise<StopResult>
   assemblyReportSettled?: () => void // 只有 storage 阶段提供
 }>
@@ -90,9 +98,14 @@ export type TelemetryShutdownReport =
   | Readonly<{ kind: 'not-registered' } & CordisLogBridgeCounts>
   | Readonly<{ kind: 'unavailable'; diagnostic: 'close-failed' | 'deadline' }>
 
+/** The answer of one row's `drain`, between the entry phase and the business phase. */
+export type DrainOutcome = Readonly<{ row: RowId; result: StopResult }>
+
 export type ShutdownReport = Readonly<{
   overall: 'settled' | 'incomplete'
   outcomes: readonly HandleOutcome[]
+  /** Present when a live handle has a `drain`. A drain that is not `settled` makes `overall` incomplete. */
+  drains?: readonly DrainOutcome[]
   hostFiles?: HostFilesReport
   telemetry?: TelemetryShutdownReport
 }>

@@ -27,7 +27,8 @@ export function mountToolHitl(
     standing: () => tool.standing(),
     reservations: () => hitl.reservations(),
     // 答复成为 Tool 调用的卡片决定之后，再调度这个调用。
-    decided: wakeOnDecision(currentInstanceHost(ctx)),
+    // 没唤醒成不改变结局（调用等下一次唤醒），但要留一条告警。
+    decided: wakeOnDecision(currentInstanceHost(ctx), text => ctx.logger('tool-hitl').warn(text)),
   })
   const readWork = sessionWorkReaderOf(ctx)
   const bridge = createToolHitlBridge({

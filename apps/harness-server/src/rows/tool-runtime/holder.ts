@@ -13,8 +13,15 @@
 // - 结清通知：记录仓提交了某个调用的 `settled` 状态后，见证与执行环境的按调用表（origin、账本视图）删掉这个
 //   调用，长跑进程里这些表只随在途调用数增长，不随累计调用数增长（L3 评审 N5）。
 // - bundle 本身：由 `tool-records` 行按运维者配置建一次，其余四行等它建好再装自己的插件。
+// - 待清租户表：记录仓的提交写下到期项时记进来，`tool-body-sweep` 行按它只清扫到点的租户。
 import type { Context } from '@deepseek-ai/cordis'
-import { canonicalDigest, type LedgerRecord, type ToolLedgerStore } from '@omne-harness/tool'
+import {
+  canonicalDigest,
+  type LedgerCommit,
+  type LedgerCommitInput,
+  type LedgerRecord,
+  type ToolLedgerStore,
+} from '@omne-harness/tool'
 import type { ToolClock } from '@omne-harness/tool-contract/provider'
 import {
   createLocalToolClock,
@@ -36,6 +43,7 @@ import {
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
 import type { SchemaProvider } from '@omne-harness/schema-provider'
 import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis'
+import { createDueTenants, type DueTenants } from './body-sweep.ts'
 
 export type ToolRuntimeBundle = ReturnType<typeof createLocalToolRuntimePlugins> &
   Readonly<{
@@ -81,6 +89,11 @@ export type ToolRuntimeHolder = {
   readonly settled: Set<(call: string) => void>
   /** 本进程按调用表的当前大小（见证、origin、账本视图），诊断与用例读。 */
   readonly residents: Map<string, () => number>
+  /**
+   * 待清租户表：本进程的账本提交写下到期项时记进来，`tool-body-sweep` 行只清扫到点的租户。可丢的
+   * 活体，启动时的全量清扫重建它（SPEC「Tool 正文清扫」）。
+   */
+  readonly bodyDue: DueTenants
 }
 
 /** 按调用表的键：(tenant, call) 的摘要。 */
@@ -138,6 +151,7 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
     witnessed: new Map(),
     settled: new Set(),
     residents: new Map(),
+    bodyDue: createDueTenants(),
   }
   created.residents.set('witnessed', () => created.witnessed.size)
   holders.set(root, created)
@@ -145,6 +159,16 @@ export function toolRuntimeHolder(ctx: Context): ToolRuntimeHolder {
 }
 
 const unavailableRead = (diagnostic: string) => ({ kind: 'unavailable' as const, diagnostic })
+
+/**
+ * 一笔提交写下的到期项记进待清租户表。答 `unknown` 的提交也记：它可能已落盘，多记的代价只是到点时
+ * 多读一次。
+ */
+function noteDue(holder: ToolRuntimeHolder, input: LedgerCommitInput, answer: LedgerCommit): void {
+  if (answer.kind !== 'committed' && answer.kind !== 'unknown') return
+  for (const write of input.writes)
+    if (write.kind === 'schedule') holder.bodyDue.note(input.domain.tenant, write.dueAt)
+}
 
 /**
  * 交给 bundle 的耐久记录仓：逐次读当前 SQL 端口，缺席答 `unavailable`（不是空记录）。读到的未结清原调用记进
@@ -199,6 +223,7 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
       const sql = holder.sql
       if (sql === null) return unavailableRead('tool-records: no SQL ledger store is installed')
       const answer = await sql.store.commit(input)
+      noteDue(holder, input, answer)
       if (answer.kind === 'committed')
         for (const write of input.writes)
           if (
@@ -215,9 +240,14 @@ export function lateStore(holder: ToolRuntimeHolder): ToolLedgerStore {
 /** 交给 bundle 的带条件提交：逐次读当前 SQL 端口，缺席答 `unavailable`。 */
 export function lateConditional(holder: ToolRuntimeHolder): StartConditionalCommit {
   const conditional: StartConditionalCommit = {
-    commit: input =>
-      holder.sql?.conditional.commit(input) ??
-      Promise.resolve(unavailableRead('tool-records: no SQL conditional commit is installed')),
+    async commit(input) {
+      const sql = holder.sql
+      if (sql === null)
+        return unavailableRead('tool-records: no SQL conditional commit is installed')
+      const answer = await sql.conditional.commit(input)
+      if (answer.kind !== 'condition-failed') noteDue(holder, input.ledger, answer)
+      return answer
+    },
   }
   return Object.freeze(conditional)
 }

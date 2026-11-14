@@ -76,6 +76,7 @@ it('does not start maintenance when entry-object installation fails', async () =
   vi.useFakeTimers()
   const timer = vi.spyOn(globalThis, 'setTimeout')
   const directory = process.platform === 'win32' ? 'C:/files' : '/files'
+  const stateRoot = await realpath(await mkdtemp(join(tmpdir(), 'app-host-install-')))
   const result = await runServe({
     distribution: {
       rows: [
@@ -98,11 +99,13 @@ it('does not start maintenance when entry-object installation fails', async () =
     ],
     readinessTimeoutMs: 30,
     shutdownDeadlineMs: 100,
-    stateRoot: directory,
+    // A run that passes the checks takes the lock of its state directory, so it must exist.
+    stateRoot,
     stop: AbortSignal.abort(),
     write: vi.fn(),
     stderr: vi.fn(),
   })
+  await rm(stateRoot, { recursive: true, force: true })
   expect(result.exitCode).toBe(3)
   expect(result.appliedRows).toEqual([])
   expect(timer.mock.calls.filter(call => call[1] === 12345)).toEqual([])

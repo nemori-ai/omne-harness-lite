@@ -34,7 +34,10 @@ import {
   modelStreamObservationKey,
   modelStreamReferencesKey,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { createModelRuntimeLocalPlugin } from '@omne-harness/model-host-local/cordis'
+import {
+  createModelRuntimeLocalPlugin,
+  type ModelHostDrain,
+} from '@omne-harness/model-host-local/cordis'
 import { qualifyingCommands } from '../../model/commands-qualifying.ts'
 import { modelHostPortOf } from '../../model/ports.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
@@ -73,8 +76,13 @@ export function lateBoundSendBoundary(ctx: Context): ModelSendBoundary<unknown> 
   return Object.freeze(boundary)
 }
 
-/** The host plugin of one row activation, with every live object in its closure. */
-function hostPlugin(config: ModelHostConfig): Plugin.Object {
+type Drain = (signal: AbortSignal) => Promise<ModelHostDrain>
+
+/**
+ * The host plugin of one row activation, with every live object in its closure. `built` is given
+ * the drain of the host instance when the plugin builds it.
+ */
+function hostPlugin(config: ModelHostConfig, built: (drain: Drain) => void): Plugin.Object {
   return {
     name: 'model-host',
     inject: [modelCommandsKey, modelClockKey, modelHostAuthorityKey],
@@ -114,6 +122,7 @@ function hostPlugin(config: ModelHostConfig): Plugin.Object {
           ),
       })
       const instance = new Plugin(ctx, config.host)
+      built(signal => instance.drain(signal))
       return instance[Service.init]()
     },
   }
@@ -121,10 +130,28 @@ function hostPlugin(config: ModelHostConfig): Plugin.Object {
 
 async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
   const config = modelHostConfig.parse(raw)
-  const child = ctx.plugin(hostPlugin(config))
+  let drain: Drain | undefined
+  const child = ctx.plugin(hostPlugin(config, built => (drain = built)))
   await child
   let disposing: Promise<void> | undefined
   return {
+    // A model call is a paid request that lives on this process: aborting it loses what was paid
+    // for. So before any caller stops, the calls already admitted run to their end.
+    drain: async deadline => {
+      if (drain === undefined) return { kind: 'settled' }
+      const expired = new AbortController()
+      const timer = monotonicClock.after(deadline - monotonicClock.now())
+      void timer.promise.then(() => expired.abort())
+      const drained = await drain(expired.signal)
+      timer.cancel()
+      if (!drained.quiesced)
+        return { kind: 'incomplete', detail: 'the model runtime did not close its admission' }
+      if (drained.inFlight === 0) return { kind: 'settled' }
+      return {
+        kind: 'incomplete',
+        detail: `${drained.inFlight} model call(s) or result push(es) still ran at the drain deadline; the stop aborts them and their outcome stays unknown`,
+      }
+    },
     stop: async deadline => {
       disposing ??= child.dispose()
       const remaining = deadline - monotonicClock.now()

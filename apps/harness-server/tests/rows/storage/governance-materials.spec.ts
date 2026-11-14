@@ -66,6 +66,22 @@ it('registers all governance combinations on the Session tenant domain without c
   }
 })
 
+// Storage keeps one manifest per combination version and refuses the same version with another
+// manifest. These manifests change when a participant of another owner changes, so a version that
+// does not follow its manifest strands every tenant registered before the change: its governance
+// no longer opens, every tool call loses its permission basis and Settings cannot be read.
+it('names every governance combination after its own manifest', async () => {
+  const combinations = governanceStorageCombinations(await productionStorageCatalog())
+  const versions = Object.entries(combinations).map(([name, combination]) => {
+    expect(combination.manifestDigest, name).toMatch(/^[0-9a-f]{64}$/)
+    expect(combination.combinationVersion, name).toBe(
+      `harness-governance-${name}/${combination.manifestDigest.slice(0, 16)}`,
+    )
+    return combination.combinationVersion
+  })
+  expect(new Set(versions).size).toBe(versions.length)
+})
+
 it('keeps ordinary storage available when the Tool release cannot be loaded', async () => {
   const catalog = await productionStorageCatalog(async () => ({
     kind: 'unavailable',

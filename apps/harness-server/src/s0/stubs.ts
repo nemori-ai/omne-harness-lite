@@ -39,7 +39,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
   governance: {
-    provides: ['sessionPermissionBackend', 'standingDestinationResolver', 'currentToolPermission'],
+    provides: [
+      'sessionPermissionBackend',
+      'standingDestinationResolver',
+      'currentToolPermission',
+      'tenantSettings',
+    ],
     injects: [
       'storage',
       'tenantDomainLookup',
@@ -336,6 +341,9 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     phase: 'entry',
   },
+  'identity-access': { injects: ['accessRegistry'] },
+  'session-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 
 export const rowManifests: ReadonlyMap<RowId, RowManifest> = new Map(

@@ -302,6 +302,21 @@ export interface AgentExecutionRecovery<P> {
   detach(
     input: ExecutionMutation<P> & Readonly<{ authority: Authority; reason: DurableEvidence }>,
   ): Reply<DurableEvidence>
+  /**
+   * The host's judgment of the runtime that holds `authority`; see SPEC "恢复与接管". `live`: this
+   * host still runs it. `lost`: the host can show that it runs nowhere any more, and `evidence` is
+   * that judgment, fit for the reason of a detach through this entry and for the recovery basis of
+   * a resume. `unknown`: the host does not run it and cannot show that it ended. The judgment
+   * grants nothing: every write that follows it keeps its own qualification and its own
+   * conditional commit.
+   */
+  contact(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId; authority: Authority }>,
+  ): Reply<
+    | Readonly<{ kind: 'live' }>
+    | Readonly<{ kind: 'lost'; evidence: DurableEvidence }>
+    | Readonly<{ kind: 'unknown' }>
+  >
 }
 /** The port that resolves an adoption into its definition, evaluator and extensions and hands a snapshot over to another adoption; see SPEC "采用交接". */
 export interface AgentAdoptions<P> {

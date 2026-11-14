@@ -19,7 +19,7 @@
 import { symbols, type Context } from '@deepseek-ai/cordis'
 import type { SystemActionAuthorization } from '@omne-harness/authorization'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
-import { fail, type Outcome } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   mutationAccessRequest,
   type SessionAccessCheck,
@@ -37,6 +37,7 @@ import {
   SessionScopeOwnersService,
   SessionTransactionPortService,
   sessionAccessCheckKey,
+  sessionClockKey,
   sessionCursorSigningKey,
   sessionDelegatedTransactionsKey,
   sessionPrincipalBindingsKey,
@@ -243,6 +244,35 @@ function unregisteredTenantIsAbsent<P>(
   }
 }
 
+/**
+ * A tenant that the directory does not hold never created a session, so its session list is the
+ * empty page, complete (RFC-0015 §8 列出会话). session-storage-sql answers `unavailable` for a
+ * tenant without an entry: it treats the gap as an assembly fault. For a list, that would tell a
+ * person who has no session yet that the service is down. The list itself runs first, so its access
+ * decision stands: `denied` stays `denied`, and only the `unavailable` of a tenant that is not
+ * registered becomes the empty page.
+ */
+function emptyListWhenUnregistered<P>(
+  port: SessionTransactionPort<P>,
+  directory: TenantDirectory,
+): SessionTransactionPort<P> {
+  const inner = port.directory
+  if (inner === undefined) return port
+  return {
+    ...port,
+    directory: {
+      list: async input => {
+        const answer = await inner.list(input)
+        if (!('failure' in answer) || answer.failure.kind !== 'unavailable') return answer
+        const text = tenantCodec.encode(input.tenant)
+        return text.ok && !directory.holds(text.value)
+          ? succeed({ items: [], next: null, completeness: 'complete' as const })
+          : answer
+      },
+    },
+  }
+}
+
 function delegatedView(
   base: SessionStorageOptions<unknown>,
   directory: TenantDirectory,
@@ -264,9 +294,10 @@ function delegatedView(
     references: denied('references'),
     releasedScopes: denied('releasedScopes'),
   }
+  const listed = emptyListWhenUnregistered(bound, directory)
   return creating === null
-    ? unregisteredTenantIsAbsent(bound, directory, boundTenantText(checked.request))
-    : bound
+    ? unregisteredTenantIsAbsent(listed, directory, boundTenantText(checked.request))
+    : listed
 }
 
 class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
@@ -281,6 +312,8 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
   declare readonly commitLog?: NonNullable<SessionTransactionPort<unknown>['commitLog']>
   readonly history: SessionTransactionPort<unknown>['history']
   readonly pending: SessionTransactionPort<unknown>['pending']
+  /** Optional on the port: forwarded when the storage port offers it (RFC-0015 §8 列出会话). */
+  declare readonly directory?: NonNullable<SessionTransactionPort<unknown>['directory']>
   readonly references: SessionTransactionPort<unknown>['references']
   readonly releasedScopes: SessionTransactionPort<unknown>['releasedScopes']
 
@@ -296,6 +329,7 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
     if (port.commitLog !== undefined) this.commitLog = port.commitLog
     this.history = port.history
     this.pending = port.pending
+    if (port.directory !== undefined) this.directory = port.directory
     this.references = port.references
     this.releasedScopes = port.releasedScopes
   }
@@ -411,6 +445,19 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     domains: directory.access,
     accessCheck,
     cursorSigning: lateBoundCursorSigning(ctx),
+    // The time of each commit comes from the Session clock, read at each commit (RFC-0015 §8).
+    // Without the service the commit has no time; it is never the wall clock of this process.
+    clock: {
+      sample: () =>
+        ctx.get(sessionClockKey)?.sample() ??
+        Promise.resolve(
+          fail<SessionFailure>({
+            kind: 'unavailable',
+            owner: OWNER,
+            diagnostic: 'no sessionClock is mounted',
+          }),
+        ),
+    },
     combination,
     // The governance row forms the basis of a permission assignment; it may mount later.
     protectedBasis: commit =>
@@ -423,12 +470,15 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
         }),
       ),
   }
-  const port = registeringOnCreate(
-    createSessionStorage(base),
+  const port = emptyListWhenUnregistered(
+    registeringOnCreate(
+      createSessionStorage(base),
+      directory,
+      async input =>
+        (await accessCheck.check(mutationAccessRequest(input.access, input.command))).kind ===
+        'allowed',
+    ),
     directory,
-    async input =>
-      (await accessCheck.check(mutationAccessRequest(input.access, input.command))).kind ===
-      'allowed',
   )
   new SessionTransactionsImpl(ctx, port)
   new DelegatedTransactionsImpl(ctx, checked => delegatedView(base, directory, checked))

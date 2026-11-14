@@ -62,6 +62,8 @@ export type ReleaseEnvironmentOptions = Readonly<{
   commitAttempts: number
   /** 执行域的 schema-provider；`tool-environments` 行装载时交来，缺席时需求答 unavailable。 */
   schemaProvider: () => SchemaProvider | null
+  /** One line for a session work principal that could not be verified. Default: not reported. */
+  warn?(text: string): void
 }>
 
 const unavailable = (dependency: string, diagnostic: string) =>
@@ -278,11 +280,19 @@ export function createReleaseEnvironment(
   holder.residents.set('origins', () => origins.size)
   holder.residents.set('ledgerViews', () => ledgerViews.size)
 
+  /** The session work principal could not be checked: that is not a refusal, and it is said so. */
+  const unverified = (where: string, diagnostic: string): void =>
+    options.warn?.(`session work principal not verified for ${where}: ${diagnostic}`)
+
   const guard: FacilityGuard<unknown> = {
     async authorize(facility, _operation, request) {
       try {
-        const session = await identity.sessionOf(request.access.principal, request.access.tenant)
-        if (session === undefined || !origins.has(request.origin)) return 'notAuthorized'
+        const work = await identity.sessionWork(request.access.principal, request.access.tenant)
+        if (work.kind === 'unavailable') {
+          unverified('the facility guard', work.diagnostic)
+          return 'unavailable'
+        }
+        if (work.kind !== 'session' || !origins.has(request.origin)) return 'notAuthorized'
         return (await confinedToRoot(root, facility, request)) ? 'authorized' : 'notAuthorized'
       } catch {
         return 'unavailable'
@@ -292,9 +302,13 @@ export function createReleaseEnvironment(
 
   const naming: EnvironmentInput['naming'] = {
     async name(input) {
-      const session = await identity.sessionOf(input.principal, input.tenant)
+      const work = await identity.sessionWork(input.principal, input.tenant)
+      if (work.kind === 'unavailable') {
+        unverified('the host object naming', work.diagnostic)
+        return unavailable('principalVerifier', work.diagnostic)
+      }
       if (
-        session === undefined ||
+        work.kind !== 'session' ||
         !origins.has(input.origin) ||
         (await placeAgainstRoot(root, input.path, false)) === 'outside'
       )

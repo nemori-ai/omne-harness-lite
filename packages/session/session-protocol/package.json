@@ -1,0 +1,43 @@
+{
+  "name": "@omne-harness/session-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Protocol contract of the public protocol session/v1: Session's operations and observation",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/public-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/json-text": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "omneHarness": {
+    "packageTemplate": {
+      "id": "typescript-package",
+      "version": "3.0.0",
+      "variant": "module"
+    }
+  }
+}

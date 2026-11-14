@@ -23,7 +23,12 @@ import type { LocalToolRuntimeInput } from '@omne-harness/tool-host-local/cordis
 import { SESSION_WORK_OWNER } from '../authorization/principals.ts'
 import { createToolAccessGuard } from '../authorization/tool-access.ts'
 import type { ToolRuntimeHolder } from './holder.ts'
-import { SESSION_WORK_COMPONENT, sessionWorkOf, verifySessionWork } from './session-work.ts'
+import {
+  SESSION_WORK_COMPONENT,
+  sessionWorkOf,
+  verifySessionWork,
+  type VerifiedSessionWork,
+} from './session-work.ts'
 
 /** Agent 的 Tool 动作 consumer（`@omne-harness/agent` 的 `toolConsumer`）。 */
 export const AGENT_CONSUMER_OWNER = '@omne-harness/agent'
@@ -99,6 +104,8 @@ export type ReleaseToolIdentity = Readonly<{
   sourceAuthority: ToolInvokeAuthority<unknown>
   /** 主体经核验是这个租户的会话工作主体时给出会话 id。 */
   sessionOf(principal: unknown, tenant: TenantId): Promise<string | undefined>
+  /** The verdict of the check itself: a session, a refusal, or unavailable when it could not be read. */
+  sessionWork(principal: unknown, tenant: TenantId): Promise<VerifiedSessionWork>
 }>
 
 /** 核验器、当前资格与会话工作主体读口都来自 `holder`：入口对象 `toolClock` 交来的受信读法。 */
@@ -108,8 +115,10 @@ export function createReleaseToolIdentity(holder: ToolRuntimeHolder): ReleaseToo
   const guard = createToolAccessGuard(() => admission)
   const project = (principal: unknown) => projectWith(verifier, principal)
 
+  const sessionWork = (principal: unknown, tenant: TenantId) =>
+    verifySessionWork(verifier, principal, tenant)
   const sessionOf = async (principal: unknown, tenant: TenantId) => {
-    const verdict = await verifySessionWork(verifier, principal, tenant)
+    const verdict = await sessionWork(principal, tenant)
     return verdict.kind === 'session' ? verdict.session : undefined
   }
 
@@ -180,5 +189,11 @@ export function createReleaseToolIdentity(holder: ToolRuntimeHolder): ReleaseToo
     },
   }
 
-  return Object.freeze({ access: { guard, start: guard }, subjects, sourceAuthority, sessionOf })
+  return Object.freeze({
+    access: { guard, start: guard },
+    subjects,
+    sourceAuthority,
+    sessionOf,
+    sessionWork,
+  })
 }

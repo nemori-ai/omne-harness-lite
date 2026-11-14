@@ -7,6 +7,7 @@ import type {
   SessionAccess,
   SessionCallerClass,
   SessionCommand,
+  SessionDirectory,
   SessionFaces,
   SessionManagement,
   SessionReconciliation,
@@ -14,7 +15,7 @@ import type {
 } from '@omne-harness/session-contract'
 import type { CommandHandler } from './command.ts'
 import type { SessionDependencies } from './dependencies.ts'
-import { guarded, OWNERS } from './failures.ts'
+import { guarded, OWNERS, unavailable } from './failures.ts'
 import { createHistoryPages } from './history-pages.ts'
 import { readSnapshot } from './qualify.ts'
 import type { Reads } from './reads.ts'
@@ -23,6 +24,10 @@ type FaceMutations<P> = Pick<
   SessionWork<P> & SessionManagement<P> & SessionReconciliation<P>,
   MutationName
 >
+
+/** The four faces and the session list of a tenant (contract「会话列表」). */
+export type SessionFacesWithDirectory<P> = SessionFaces<P> &
+  Readonly<{ directory: SessionDirectory<P> }>
 
 function accessOf<P>(input: SessionAccess<P>): SessionAccess<P> {
   return { principal: input.principal, tenant: input.tenant, session: input.session }
@@ -35,7 +40,7 @@ export function createFaces<P>(
     reads: Reads<P>
     dependencies: SessionDependencies<P>
   }>,
-): SessionFaces<P> {
+): SessionFacesWithDirectory<P> {
   const { caller, handle, reads, dependencies } = input
 
   const mutation =
@@ -177,10 +182,24 @@ export function createFaces<P>(
       ),
   }
 
+  // The list names no session, so it goes to the public port like `pending`. A port without the
+  // optional member answers unavailable, never an empty page.
+  const directory: SessionDirectory<P> = {
+    list: value =>
+      reads.directory(caller, 'directory.list', value.tenant, port =>
+        port.directory === undefined
+          ? Promise.resolve(
+              fail(unavailable(OWNERS.directory, 'the transaction port offers no directory')),
+            )
+          : port.directory.list(value),
+      ),
+  }
+
   return Object.freeze({
     work: Object.freeze(work),
     management: Object.freeze(management),
     reconciliation: Object.freeze(reconciliation),
     history: Object.freeze(history),
+    directory: Object.freeze(directory),
   })
 }

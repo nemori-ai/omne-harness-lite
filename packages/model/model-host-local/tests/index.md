@@ -22,6 +22,7 @@
 - [recording-c1.spec.ts](recording-c1.spec.ts)：慢层，传输义务证据：四份回放件经装配路径的事实序列、终止与账目，以及真实传输上的六条传输义务；设 `OMNE_EVIDENCE_OUT` 时写脱敏 JSON
 - [recorder.spec.ts](recorder.spec.ts)：慢层，录制器经本地 HTTPS 服务与本地 CONNECT 代理写出原样正文与旁注，各种不写文件的情形，以及第二轮的输入形状
 - [secret-scan.spec.ts](secret-scan.spec.ts)：录制器的密钥模式检查
+- [idle.spec.ts](idle.spec.ts)：等一组任务跑空：结束的任务派发出的下一个也等、信号中止时答还剩几个
 - [live/record.spec.ts](live/record.spec.ts)：录制器的真实入口，只在 `OMNE_LIVE_TESTS=1` 并给出 `OMNE_RECORD_CASE` 时运行（`record:live`）
 - [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务与 CONNECT 代理、形成官方档案、装配一次调用的本地宿主，回放回放件，用真实租约计量请求，以及录制器、正文截取、密钥检查与录制用例；`credentials.ts` 给出测试供应商名、测试绑定键，以及在临时保管库官方层存合成密钥的凭据端口与服务插件；`durable-assembly.ts` 装出 53 项义务的整装配（node:sqlite 测试提供者上的耐久命令、脚本传输、存储端口与实例目录上的故障注入）；`line-assembly.ts` 装出线内贯通的整装配（一个根 Context 上的五成员与 node:sqlite 文件库替身）
 - [fixtures/](fixtures/index.md)：测试固定输入。`fixtures/recordings/<用例>/synthetic.jsonl` 是两个工具调用用例的合成回放件

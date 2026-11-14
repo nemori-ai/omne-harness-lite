@@ -5,7 +5,6 @@ import type {
   MutationName,
   Reply,
   SessionCallerClass,
-  SessionFaces,
   SessionId,
   SessionRevision,
   DurableEvidence,
@@ -15,7 +14,7 @@ import { ADVANCE_KINDS, createCommandHandler } from './command.ts'
 import { createControlPropagation, type ControlPropagation } from './control.ts'
 import { checkStartConditions, type SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnose } from './diagnostics.ts'
-import { createFaces } from './faces.ts'
+import { createFaces, type SessionFacesWithDirectory } from './faces.ts'
 import { Lifecycle } from './lifecycle.ts'
 import { createSessionMeasurer, type SessionMeasure } from './measure.ts'
 import { checkSessionConfiguration, type SessionConfiguration } from './policy.ts'
@@ -39,8 +38,8 @@ export type SessionInstanceOptions = Readonly<{
 }>
 
 export type SessionInstance<P> = Readonly<{
-  /** The four faces as one caller class sees them. */
-  facesFor(caller: SessionCallerClass): SessionFaces<P>
+  /** The four faces and the session list as one caller class sees them. */
+  facesFor(caller: SessionCallerClass): SessionFacesWithDirectory<P>
   /** Wakes S1, S2 and C5 from a commit notice that another process or a participant commit produced. */
   committed(
     notice: Readonly<{
@@ -104,10 +103,10 @@ export function createSessionInstance<P>(
         advance?.trigger({ tenant: command.input.tenant, session: command.input.session })
     },
   })
-  const facesOf = new Map<SessionCallerClass, SessionFaces<P>>(
+  const facesOf = new Map<SessionCallerClass, SessionFacesWithDirectory<P>>(
     CALLERS.map(caller => [caller, createFaces({ caller, handle, reads, dependencies })]),
   )
-  const facesFor = (caller: SessionCallerClass): SessionFaces<P> =>
+  const facesFor = (caller: SessionCallerClass): SessionFacesWithDirectory<P> =>
     facesOf.get(caller) ?? createFaces({ caller, handle, reads, dependencies })
   const faces = { coordinator: facesFor('coordinator'), maintainer: facesFor('maintainer') }
   const scheduling = createScheduling(dependencies, lifecycle)

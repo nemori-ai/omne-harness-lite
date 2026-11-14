@@ -50,6 +50,7 @@ import {
 } from './history-index.ts'
 import { judgeLog, readCoveringHead, type CoveringSnapshot, type LogBatch } from './log.ts'
 import type { SessionWorkReply } from '../participants.ts'
+import { writeSessionList } from './session-list.ts'
 import { assemble, deepFreeze, writeState, type StoredState } from './state-rows.ts'
 import {
   assignPositions,
@@ -783,6 +784,9 @@ function writeBatch(
     entries: readonly HistoryEntry[]
     /** The batch receipt of these entries: its `source` is the evidence of the batch. */
     receipt: CommitReceipt
+    /** The commit sequence of this batch and its time. */
+    seq: bigint
+    at: string | null
   }>,
 ): Written | ParticipantReply {
   const { tenant, session, revision, previous, snapshot, entries, receipt } = batch
@@ -796,6 +800,15 @@ function writeBatch(
   parsedSnapshots.wrote(tenant, session, covered, stored)
   writePermissionCurrent(port, { tenant, session }, previous, snapshot, entries)
   maintainDerived(port, tenant, session, previous, snapshot)
+  writeSessionList(port, {
+    tenant,
+    session,
+    seq: batch.seq,
+    at: batch.at,
+    previous,
+    snapshot,
+    entries,
+  })
   return {
     kind: 'written',
     epoch,
@@ -883,6 +896,8 @@ type Received = Readonly<{
   command: SessionCommand
   guards: readonly GuardCommand[]
   evidence: string | null
+  /** The time of this commit from the facts; null when the clock gave none. */
+  at: string | null
 }>
 
 /** W1 steps 3 and 4: the key of the command, then its record, its journal row and its snapshot. */
@@ -1108,6 +1123,8 @@ function publishCommand(
     snapshot,
     entries,
     receipt,
+    seq,
+    at: received.at,
   })
   if (written.kind !== 'written') return written
   const { epoch, bytes, batch: committed } = written
@@ -1222,13 +1239,12 @@ function settleDecision(
 }
 
 function runCommand(
-  command: SessionCommand,
-  guards: readonly GuardCommand[],
-  evidence: string | null,
+  received: Received,
   port: ParticipantPort,
   intakeLimits: SessionIntakeLimits,
   permissionChange: SessionPermissionChangeBasis | undefined,
 ): ParticipantReply {
+  const { command, guards } = received
   const start = commandStart(command, port)
   if (!isStart(start)) return start
   const reads = commandReads(port, command, start)
@@ -1245,7 +1261,7 @@ function runCommand(
     intakeLimits,
     ...(history === null ? {} : { history: history.reads }),
   })
-  return settleDecision(port, { command, guards, evidence }, start, decision, { prepared, history })
+  return settleDecision(port, received, start, decision, { prepared, history })
 }
 
 /** What a same-log batch publishes: its rows, its snapshot and the record of its operation. */
@@ -1260,6 +1276,7 @@ type SameLogRecord = Readonly<{ form: 'entries' | 'log'; receipt: unknown; resul
 function publishSameLog(
   port: ParticipantPort,
   batch: SameLogBatch,
+  at: string | null,
   record: (receipt: CommitReceipt) => SameLogRecord,
 ): ParticipantReply {
   const { tenant, session, operation, journal, previous, snapshot, entries } = batch
@@ -1274,6 +1291,8 @@ function publishSameLog(
     snapshot,
     entries,
     receipt,
+    seq: journal.seq,
+    at,
   })
   if (written.kind !== 'written') return written
   const { epoch, bytes, batch: committed } = written
@@ -1316,7 +1335,11 @@ function withDigest(reply: ParticipantReply, digest: string, extra: object = {})
 }
 
 /** The entries interpretation commit. Its record keeps the batch receipt and the entries receipt. */
-function runEntries(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
+function runEntries(
+  facts: Readonly<Record<string, JsonValue>>,
+  port: ParticipantPort,
+  at: string | null,
+) {
   const judged = judgeEntries(facts, port, parsedSnapshots.covering)
   switch (judged.kind) {
     case 'unsupported':
@@ -1331,7 +1354,7 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
       return withDigest(participated(judged.result, true), judged.digest)
     case 'publish':
       return withDigest(
-        publishSameLog(port, judged.batch, receipt => ({
+        publishSameLog(port, judged.batch, at, receipt => ({
           form: 'entries',
           receipt,
           result: judged.batch.answer,
@@ -1347,7 +1370,11 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
  * refusal save no record of this identity, and say so (`recorded`), so the lookup reads this
  * identity as unknown.
  */
-function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
+function runLog(
+  facts: Readonly<Record<string, JsonValue>>,
+  port: ParticipantPort,
+  at: string | null,
+) {
   const judged = judgeLog(facts, port, parsedSnapshots.covering)
   switch (judged.kind) {
     case 'unsupported':
@@ -1371,7 +1398,7 @@ function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPor
     case 'publish': {
       const { answer } = judged.batch
       return withDigest(
-        publishSameLog(port, judged.batch, () => ({
+        publishSameLog(port, judged.batch, at, () => ({
           form: 'log',
           receipt: answer,
           result: answer,
@@ -1456,6 +1483,7 @@ function runCommandFacts(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
   basis: SessionCommitBasis,
+  at: string | null,
 ): ParticipantReply {
   if (typeof facts['command'] !== 'object' || !Array.isArray(facts['guards']))
     return {
@@ -1489,7 +1517,7 @@ function runCommandFacts(
     basis.permissionChange.operation === command.input.operation
       ? { ...basis.permissionChange, operation: command.input.operation }
       : undefined
-  const reply = runCommand(command, guards, evidence, port, intakeLimits, permissionChange)
+  const reply = runCommand({ command, guards, evidence, at }, port, intakeLimits, permissionChange)
   // The digest of the command travels with the answer, so a later caller can tell a recall of the
   // same command from the same identity used for another command (SL07).
   return reply.kind === 'participated'
@@ -1516,17 +1544,20 @@ function executeSession(
   port: ParticipantPort,
   basis: SessionCommitBasis,
 ): ParticipantReply {
+  const at = facts['at'] ?? null
+  if (at !== null && typeof at !== 'string')
+    return { kind: 'unsupported', basis: { reason: 'the commit time is not a text' } }
   switch (facts['intent']) {
     case 'query':
       return runQueryFacts(facts, port)
     case 'entries':
-      return runEntries(facts, port)
+      return runEntries(facts, port, at)
     case 'log':
-      return runLog(facts, port)
+      return runLog(facts, port, at)
     case 'check':
       return runChecks(facts, port)
     case 'command':
-      return runCommandFacts(facts, port, basis)
+      return runCommandFacts(facts, port, basis, at)
     default:
       return {
         kind: 'unsupported',

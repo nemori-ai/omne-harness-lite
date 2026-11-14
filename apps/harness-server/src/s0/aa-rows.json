@@ -56,7 +56,10 @@
     "agent-account-outlet",
     "runtime-context",
     "session-observation",
-    "server-entry"
+    "server-entry",
+    "identity-access",
+    "session-access",
+    "assets-access"
   ],
   "trusted": [
     {
@@ -310,6 +313,25 @@
         "definitionMappings",
         "identityGovernance",
         "settingsSecretItems"
+      ]
+    },
+    {
+      "row": "identity-access",
+      "names": [
+        "identityGovernance"
+      ]
+    },
+    {
+      "row": "session-access",
+      "names": [
+        "principalIssuer",
+        "definitionMappings"
+      ]
+    },
+    {
+      "row": "assets-access",
+      "names": [
+        "principalIssuer"
       ]
     }
   ]

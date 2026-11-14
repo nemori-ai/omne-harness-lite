@@ -266,6 +266,26 @@ export async function preserveAllowedRequest<P>(
   return succeed({ ...action, judgment: { kind: 'allowed', evidence, request: stored.ok } })
 }
 
+/** The record of the evidence that denies a batch whose admission was unavailable (rule 2). */
+function uncheckedRecord(execution: AgentExecutionId, batch: ActionBatch): string {
+  return `${execution}/${batch.id}/admission-unavailable`
+}
+
+/**
+ * Whether an action was denied by rule 2 and not by a decision: its evidence is the one
+ * `deniedForUnavailableAdmission` wrote for its batch. Nothing refused such an action.
+ */
+export function deniedUnchecked(
+  execution: AgentExecutionId,
+  batch: ActionBatch,
+  action: Action,
+): boolean {
+  return (
+    action.judgment.kind === 'denied' &&
+    action.judgment.evidence.record === uncheckedRecord(execution, batch)
+  )
+}
+
 /**
  * Rule 2 for an unavailable admission: no action of the batch is released. Every action that is
  * not denied already, allowed or still pending, is denied with the evidence of the unavailable
@@ -277,7 +297,7 @@ export function deniedForUnavailableAdmission(
   cause: Extract<ToolAdmission, { kind: 'unavailable' }>,
   actions: readonly Action[],
 ): readonly Action[] {
-  const evidence = agentEvidence(`${execution}/${batch.id}/admission-unavailable`, {
+  const evidence = agentEvidence(uncheckedRecord(execution, batch), {
     owner: cause.owner,
     diagnostic: cause.diagnostic,
   })
@@ -463,6 +483,22 @@ export function toolResultCandidate(
     action,
     content.filter((block): block is MessageBlock => block.kind !== 'thinking'),
   )
+}
+
+/**
+ * T2: the candidate message of an action that rule 2 denied because the admission of its batch was
+ * unavailable. It does not say "denied": no rule and no person refused the call, and a model that
+ * reads a denial sends the person to change a permission that is not the cause.
+ */
+export function uncheckedCandidate(execution: AgentExecutionId, action: Action): Message {
+  return toolMessage(execution, action, [
+    {
+      kind: 'text',
+      id: `${action.id}/denied` as BlockId,
+      visibility: VISIBLE,
+      text: 'The tool call did not run: its permission could not be checked, because the permission basis was unavailable at that moment. No rule and no person refused it. The same call may run when it is made again.',
+    },
+  ])
 }
 
 /** T2: the candidate message of a denied slot names the denial; the evidence stays in the slot. */

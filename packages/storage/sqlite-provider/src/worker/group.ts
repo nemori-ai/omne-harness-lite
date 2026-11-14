@@ -9,7 +9,7 @@ import type { ParticipantDescriptor, ReceiptV2 } from '@omne-harness/sql-contrac
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { canonicalJson, utf8Length } from '../json.ts'
 import { readWriteGeneration, rollbackQuietly, transact, type WorkerState } from './domain.ts'
-import { describeError } from './errors.ts'
+import { describeError, loadFailure } from './errors.ts'
 import {
   checkRegistration,
   executionOrder,
@@ -184,9 +184,19 @@ export class GroupRunner {
           )
         }
     } catch (error) {
-      const diagnostic =
-        error instanceof MaterialMismatch ? 'material_digest_mismatch' : 'module_load_failed'
-      for (const entry of entries) settle(entry, () => ({ kind: 'quarantine', diagnostic }))
+      // Nothing ran. A system error of the read or the import may go away: the domain stays, and
+      // the next request loads again (the cache keeps no failed load). Wrong content quarantines.
+      const reply: CommitReply =
+        loadFailure(error) === 'transient'
+          ? { kind: 'rejected', reason: 'domain_unavailable' }
+          : {
+              kind: 'quarantine',
+              diagnostic:
+                error instanceof MaterialMismatch
+                  ? 'material_digest_mismatch'
+                  : 'module_load_failed',
+            }
+      for (const entry of entries) settle(entry, () => reply)
       return { unstarted: rest(), fatal: false }
     }
 

@@ -166,6 +166,7 @@
 - `SessionCursorVerifyResult` · `cursor-signing.d.ts`
 - `SessionCustodySource` · 包 `@omne-harness/session-contract`
 - `SessionDelegatedTransactions` · 包 `@omne-harness/session-contract`
+- `SessionDirectory` · 包 `@omne-harness/session-contract`
 - `SessionEntriesBoundary` · 包 `@omne-harness/session-contract`
 - `SessionEntriesChannel` · 包 `@omne-harness/session-contract`
 - `SessionEntriesInterpretation` · 包 `@omne-harness/session-contract`
@@ -192,6 +193,7 @@
 - `SessionInputScope` · 包 `@omne-harness/session-contract`
 - `SessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `SessionInternalPrincipals` · 包 `@omne-harness/session-contract`
+- `SessionListItem` · 包 `@omne-harness/session-contract`
 - `SessionLogCommitObservation` · 包 `@omne-harness/session-contract`
 - `SessionLogConsequence` · 包 `@omne-harness/session-contract`
 - `SessionLogObservation` · 包 `@omne-harness/session-contract`
@@ -414,7 +416,7 @@ export interface SessionScopeLookup {
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
+import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts';
@@ -428,6 +430,7 @@ export declare abstract class SessionService<P = unknown> extends Service<Sessio
     abstract readonly management: SessionFaces<P>['management'];
     abstract readonly reconciliation: SessionFaces<P>['reconciliation'];
     abstract readonly history: SessionFaces<P>['history'];
+    get directory(): SessionDirectory<P> | undefined;
 }
 export declare const sessionKey = "session";
 export declare abstract class SessionAccessCheckService<P = unknown> extends Service implements SessionAccessCheck<P> {
@@ -449,6 +452,7 @@ export declare abstract class SessionTransactionPortService<P = unknown> extends
     readonly commitLog?: NonNullable<SessionTransactionPort<P>['commitLog']>;
     abstract readonly history: SessionTransactionPort<P>['history'];
     abstract readonly pending: SessionTransactionPort<P>['pending'];
+    readonly directory?: NonNullable<SessionTransactionPort<P>['directory']>;
     abstract readonly references: SessionTransactionPort<P>['references'];
     abstract readonly releasedScopes: SessionTransactionPort<P>['releasedScopes'];
 }

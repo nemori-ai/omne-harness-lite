@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { controlled } from './support/controlled-worker.ts'
+import { controlled, type ControlledWorker } from './support/controlled-worker.ts'
 
 const input = [{ kind: 'text', text: 'abcd' }] as const
 afterEach(() => {
@@ -198,4 +198,90 @@ it('renews replacement capacity after the rolling minute without retrying a fail
   await Promise.resolve()
   expect(workers).toHaveLength(3)
   expect(executor.snapshot()).toMatchObject({ replacements: 2, runningJobs: 0, queuedJobs: 0 })
+}, 5000)
+
+it('lets a cancelled count that settles within the grace finish without stopping the worker', async () => {
+  // 1000 ms is the local default: a thread that is only slow to be scheduled is not a stuck one.
+  vi.useFakeTimers()
+  const { executor, lease, worker, workers } = await controlled({ cancellationGraceMs: 1000 })
+  const acquired = lease()
+  const running = acquired.tokenizer.count(input)
+  const releasing = acquired.release()
+  expect(await running).toHaveProperty('failure')
+  await vi.advanceTimersByTimeAsync(100)
+  expect(worker().terminated).toBe(false)
+  worker().complete()
+  worker().cleared()
+  expect(await releasing).toEqual({ ok: undefined })
+  await vi.advanceTimersByTimeAsync(1000)
+  expect(worker().terminated).toBe(false)
+  expect(workers).toHaveLength(1)
+  expect(executor.snapshot()).toMatchObject({ workers: 1, replacements: 0 })
+}, 5000)
+
+it('rejects a cancellation grace longer than the job deadline', async () => {
+  await expect(controlled({ jobTimeoutMs: 1000, cancellationGraceMs: 1001 })).rejects.toThrow()
+  expect(await controlled({ jobTimeoutMs: 1000, cancellationGraceMs: 1000 })).toHaveProperty(
+    'executor',
+  )
+}, 5000)
+
+/** Crashes the current worker and lets it exit, as a thread that died. */
+async function lose(worker: () => ControlledWorker): Promise<void> {
+  worker().crash()
+  worker().exit()
+  await Promise.resolve()
+}
+
+it('backs a slot off once its replacement budget is spent and starts it again, so the slot is never lost', async () => {
+  vi.useFakeTimers()
+  const { executor, lease, worker, workers } = await controlled({ maxReplacementsPerMinute: 0 })
+  const acquired = lease()
+  await lose(worker)
+  expect(executor.snapshot()).toMatchObject({ workers: 0, replacements: 0 })
+  expect(await acquired.tokenizer.count(input)).toHaveProperty('failure')
+  // 1 s, 5 s, 30 s, then 30 s each time: each restart dies again before it counts anything.
+  for (const [index, pause] of [1000, 5000, 30000, 30000].entries()) {
+    await vi.advanceTimersByTimeAsync(pause - 1)
+    expect(workers).toHaveLength(index + 1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(workers).toHaveLength(index + 2)
+    expect(executor.snapshot()).toMatchObject({ workers: 1, replacements: index + 1 })
+    await lose(worker)
+  }
+  await vi.advanceTimersByTimeAsync(30000)
+  const counted = acquired.tokenizer.count(input)
+  worker().complete()
+  expect(await counted).toEqual({ ok: { tokens: '1' } })
+}, 5000)
+
+it('resets the backoff of a slot once its restarted worker answers a count', async () => {
+  vi.useFakeTimers()
+  const { lease, worker, workers } = await controlled({ maxReplacementsPerMinute: 0 })
+  const acquired = lease()
+  await lose(worker)
+  await vi.advanceTimersByTimeAsync(1000)
+  await lose(worker)
+  await vi.advanceTimersByTimeAsync(5000)
+  expect(workers).toHaveLength(3)
+  const counted = acquired.tokenizer.count(input)
+  worker().complete()
+  expect(await counted).toEqual({ ok: { tokens: '1' } })
+  await lose(worker)
+  await vi.advanceTimersByTimeAsync(999)
+  expect(workers).toHaveLength(3)
+  await vi.advanceTimersByTimeAsync(1)
+  expect(workers).toHaveLength(4)
+}, 5000)
+
+it('cancels the restart of a backed-off slot on close', async () => {
+  vi.useFakeTimers()
+  const { executor, lease, worker, workers } = await controlled({ maxReplacementsPerMinute: 0 })
+  const acquired = lease()
+  await lose(worker)
+  expect(await executor.close()).toEqual({ ok: undefined })
+  expect(await acquired.release()).toEqual({ ok: undefined })
+  await vi.advanceTimersByTimeAsync(60000)
+  expect(workers).toHaveLength(1)
+  expect(executor.snapshot()).toMatchObject({ workers: 0, leases: 0 })
 }, 5000)

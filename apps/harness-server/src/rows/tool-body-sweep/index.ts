@@ -1,7 +1,8 @@
-// The `tool-body-sweep` row: the application schedules the Tool sweep over the due index of every
-// tenant (spec C5, C15): due bodies are reclaimed and due call domains are removed with the
-// records the host keeps for the call. The Tool runtime does both; this row only gives it the
-// clock, the interval and the batch limit, and stops it at shutdown.
+// The `tool-body-sweep` row: the application schedules the Tool sweep over the due index of the
+// tenants whose entries have come due (spec C5, C15): due bodies are reclaimed and due call
+// domains are removed with the records the host keeps for the call. The Tool runtime does both;
+// this row only gives it the clock, the interval, the batch limit and the table of due tenants,
+// and stops it at shutdown.
 import { z } from 'zod'
 import { observeToolLedgerCommit, createToolSweep } from '@omne-harness/tool'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
@@ -82,22 +83,24 @@ export const toolBodySweepRow = defineRow({
       config.ledgerCommitAttempts,
       { graceMs: config.orphanGraceMs, hostRecords: createLocalCallRecords(store) },
     )
+    const logger = ctx.logger('tool-body-sweep')
     const schedule = createBodySweep({
       domains: directory,
       scanner,
       clock,
       sweep: sweep.sweep,
+      dueIndex: store.due,
+      due: holder.bodyDue,
       limit: config.limit,
+      // The sweep logs a tenant that cannot be swept on its first failure and at the cap.
+      warn: message => logger.warn(message),
     })
-    const logger = ctx.logger('tool-body-sweep')
     const runner = startSweepRunner({
       sweep: schedule,
       clock: monotonicClock,
       intervalMs: config.intervalMs,
       report(result) {
         if ('failure' in result) logger.warn('body sweep step failed: %s', result.failure.kind)
-        else if (result.ok.failures > 0)
-          logger.warn('body sweep step failures: %d', result.ok.failures)
       },
     })
     void runner.done.catch(() => logger.warn('body sweep runner failed'))

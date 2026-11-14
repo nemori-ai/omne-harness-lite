@@ -17,12 +17,18 @@
 // combination version of `session-handoff`) therefore come from the distribution, not from here.
 import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
-import { isSecretName, type ServerSettings } from './settings.ts'
+import { isSecretName, type ServerSettings, type StorageLimits } from './settings.ts'
 
 /** `serve` waits this long for every enabled row to become ACTIVE when no flag says otherwise. */
 export const DEFAULT_READINESS_TIMEOUT_MS = 30_000
 /** The shutdown deadline D of `serve` when no flag says otherwise. */
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000
+/**
+ * How long a planned stop of `serve` lets the work already accepted finish before the rows stop,
+ * when no flag says otherwise. It covers a long model reply; a stop with nothing in flight does
+ * not wait.
+ */
+export const DEFAULT_DRAIN_DEADLINE_MS = 120_000
 
 /** The history kinds `read-history` lists: the conversation, the tool messages and the Run frame. */
 export const LOCAL_HISTORY_KINDS = [
@@ -93,7 +99,8 @@ export const LOCAL_TOKENIZERS = {
   jobTimeoutMs: 10_000,
   maxWorkerOldSpaceMb: 768,
   maxReplacementsPerMinute: 2,
-  cancellationGraceMs: 25,
+  // The grace guards against a stuck synchronous count, not a thread that waits to be scheduled.
+  cancellationGraceMs: 1_000,
 } as const
 
 const PREPARATION = {
@@ -233,7 +240,7 @@ function modelRecords(combinationVersion: string) {
  * The storage provider of the local host. `closeDeadlineMs` stays below the shutdown deadline D,
  * because the storage handle answers at D (SPEC.md, ordered shutdown, step 6).
  */
-function storage(storageRoot: string, shutdownDeadlineMs: number) {
+function storage(storageRoot: string, shutdownDeadlineMs: number, limits: StorageLimits = {}) {
   return {
     storageRoot,
     admissionQueueLimit: 64,
@@ -251,9 +258,11 @@ function storage(storageRoot: string, shutdownDeadlineMs: number) {
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,
-    maxWorkers: 16,
-    reservedWriterSlots: 4,
-    maxReadWorkersPerDomain: 2,
+    // The three thread limits are the only storage numbers that the settings file may give. The
+    // storage provider judges how they relate when it starts.
+    maxWorkers: limits.maxWorkers ?? 16,
+    reservedWriterSlots: limits.reservedWriterSlots ?? 4,
+    maxReadWorkersPerDomain: limits.maxReadWorkersPerDomain ?? 2,
     readQueuePerDomain: 32,
     readQueueGlobal: 256,
     readQueueTimeoutMs: 1000,
@@ -520,7 +529,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
   const path = pathsOf(platform)
   const local: ReadonlyArray<readonly [string, Readonly<Record<string, unknown>>]> = [
     ['telemetry', { budgets: TELEMETRY_BUDGETS }],
-    ['storage', storage(locations.storageRoot, input.shutdownDeadlineMs)],
+    ['storage', storage(locations.storageRoot, input.shutdownDeadlineMs, settings.storage)],
     [
       'session-storage',
       {

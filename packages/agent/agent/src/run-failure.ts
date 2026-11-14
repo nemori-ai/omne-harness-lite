@@ -50,3 +50,28 @@ export type AgentRunEndedFailed = Readonly<{
 
 /** Receives each report synchronously, at most once per ended run. It must not call back into the runtime. */
 export type AgentRunEndedFailedReceiver = (event: AgentRunEndedFailed) => void
+
+/**
+ * The report of a run that began to wait for a dependency: a port of the Loop answered
+ * `unavailable` at `node`, and the run stands there until the dependency answers. The execution is
+ * neither stopped nor ended. The Journal keeps only the owner and the node of the wait; `diagnostic`
+ * is the reason as the port gave it, which nothing else keeps. One report goes out for each new
+ * combination of step, node, owner and diagnostic, so a wait that is entered again for the same
+ * reason is reported once. The report is an observation: it decides no answer of the runtime.
+ */
+export type AgentRunWaiting = Readonly<{
+  kind: 'run-waiting'
+  tenant: TenantId
+  instance: AgentInstanceId
+  execution: AgentExecutionId
+  /** Null before the first read of the execution gave a step. */
+  step: StepId | null
+  node: string
+  /** The owner of the dependency, as the failure named it. */
+  owner: string
+  /** Names identities and states only, like every failure text. */
+  diagnostic: string
+}>
+
+/** Receives each report synchronously. It must not call back into the runtime. */
+export type AgentRunWaitingReceiver = (event: AgentRunWaiting) => void

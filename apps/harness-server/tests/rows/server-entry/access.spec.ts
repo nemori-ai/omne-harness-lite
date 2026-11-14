@@ -1,12 +1,15 @@
-// The new address of the `server-entry` row (#1249 C9): the release serves the entry's own
-// `access/v1` and nothing else; its availability needs no login, so the identity port of the row
-// is never asked; access diagnostics leave as `omne.access.diagnostic` in system scope.
+// The new address of the `server-entry` row (#1249 C9): the row alone serves the entry's own
+// `access/v1`, the release adds `identity/v1` (the `identity-access` row) and `session/v1` (the
+// `session-access` row); the availability needs
+// no login, so the identity port of the row is never asked; access diagnostics leave as
+// `omne.access.diagnostic` in system scope.
 import { spawn } from 'node:child_process'
 import { request } from 'node:http'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
+import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import { createCapturingTelemetry } from '@omne-harness/telemetry-contract/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineProtocol } from '@omne-harness/public-contract'
@@ -71,6 +74,13 @@ function firstEvent(port: number): Promise<{ status: number; type: string; event
   })
 }
 
+/** An identity port for the cases that never ask it. */
+const NO_IDENTITY: AccessIdentity = {
+  identifyLogin: async () => ({ outcome: 'basis-unavailable' }),
+  actFor: async () => ({ outcome: 'basis-unavailable' }),
+  reportAccess: async () => {},
+}
+
 const SNAPSHOT = {
   kind: 'frame',
   frame: { kind: 'snapshot', revision: 1, protocols: [{ name: 'access', major: 1 }] },
@@ -130,15 +140,19 @@ describe('server-entry row: the access it gives the entry', () => {
     ])
   })
 
-  it('answers basis-unavailable from every identity method that judges', async () => {
-    const { identity } = entryAccess(new Context(), createCapturingTelemetry().port)
-    expect(await identity.identifyLogin({} as never)).toEqual({ outcome: 'basis-unavailable' })
-    expect(await identity.actFor({} as never, 't-1')).toEqual({ outcome: 'basis-unavailable' })
+  it('gives the entry the identity port the row built', () => {
+    const port: AccessIdentity = {
+      identifyLogin: async () => ({ outcome: 'denied' }),
+      actFor: async () => ({ outcome: 'denied' }),
+      reportAccess: async () => {},
+    }
+    const { identity } = entryAccess(new Context(), createCapturingTelemetry().port, port)
+    expect(identity).toBe(port)
   })
 
   it('writes access.listener-fault when an availability listener throws', () => {
     const capture = createCapturingTelemetry()
-    const { registry } = entryAccess(new Context(), capture.port)
+    const { registry } = entryAccess(new Context(), capture.port, NO_IDENTITY)
     registry.subscribe(() => {
       throw new Error('listener')
     })
@@ -183,7 +197,7 @@ function withTelemetry(layer: unknown): unknown {
 
 describe('the serve process with the release', () => {
   it(
-    'C9: the release answers the availability with a snapshot of access/v1 alone, and never asks its identity port',
+    'C9: the release answers the availability with a snapshot of access/v1, assets/v1, identity/v1 and session/v1, and never asks its identity port',
     { tags: ['slow'] },
     async () => {
       // Slow: starts `dist/bin.js serve` on the whole release tree (real SQLite storage).
@@ -239,7 +253,18 @@ describe('the serve process with the release', () => {
       child.stdin.end()
       expect(await closed, stderr).toBe(0)
       expect(first.status).toBe(200)
-      expect(JSON.parse(first.event.slice('data: '.length))).toEqual(SNAPSHOT)
+      const event = JSON.parse(first.event.slice('data: '.length)) as {
+        kind: string
+        frame: { kind: string; protocols: { name: string; major: number }[] }
+      }
+      expect(event).toMatchObject({ kind: 'frame', frame: { kind: 'snapshot' } })
+      // The release mounts assets/v1, identity/v1 and session/v1 through their rows beside access/v1.
+      expect(event.frame.protocols.map(key => `${key.name}/v${key.major}`).sort()).toStrictEqual([
+        'access/v1',
+        'assets/v1',
+        'identity/v1',
+        'session/v1',
+      ])
       const records = stdout
         .trim()
         .split('\n')
@@ -247,8 +272,8 @@ describe('the serve process with the release', () => {
       const access = records.filter(
         record => record.kind === 'telemetry' && record['name'] === 'omne.access.diagnostic',
       )
-      // The identity port answers basis-unavailable to every call, and the pipeline writes each
-      // such answer as `access.identity-unavailable`: none means it was asked 0 times.
+      // The availability needs no login, so the identity port is never asked; any refusal or
+      // failure of it would leave an `access.identity-*` diagnostic here.
       expect(access).toEqual([])
     },
   )

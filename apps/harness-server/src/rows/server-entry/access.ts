@@ -1,7 +1,9 @@
 // The new address of the `server-entry` row (#1249 block 2, spec 已定 12 and 13): the registry, the
-// identity port, the grace and the two bounds the member's `access` takes. The release mounts no
-// domain's contribution, so the only protocol at the new address is the entry's own `access/v1`,
-// whose one observation needs no login (RFC-0015 I-15: a contribution is not an opening).
+// identity port, the grace and the two bounds the member's `access` takes. Besides the entry's own
+// `access/v1`, the protocols at the new address are those the domains' access rows mount (the
+// `identity-access` row mounts `identity/v1`; RFC-0015 I-15: a contribution is not an opening).
+// The identity port is identity's (`createAccessIdentity` of `@omne-harness/identity-access`),
+// built by the row over the identity ports it reads per call and the trusted issuer it injects.
 //
 // The registry comes from the member's Cordis provider, installed in the row scope: the tree has
 // `accessRegistry`, a domain's access plugin mounts its protocol there, and the entry serves the
@@ -29,17 +31,6 @@ const GRACE_MS = 5000
 const FRAME_QUEUE_BYTES = 1 << 20
 /** The change frames one availability subscriber may have waiting before they become a snapshot. */
 const AVAILABILITY_BACKLOG = 64
-
-/**
- * The identity port of the new address. The release has no protocol that needs a login there, and
- * identity offers no adapter for this port yet: every method answers `basis-unavailable`, so a
- * call that would need one is refused and leaves an `access.identity-unavailable` diagnostic.
- */
-const IDENTITY_NOT_OFFERED: AccessIdentity = {
-  identifyLogin: async () => ({ outcome: 'basis-unavailable' }),
-  actFor: async () => ({ outcome: 'basis-unavailable' }),
-  reportAccess: async () => {},
-}
 
 const OWNER = 'server-entry'
 
@@ -111,13 +102,18 @@ export function accessDiagnostics(telemetry: TelemetryPort): (event: AccessDiagn
 
 /**
  * The `access` of `createServerEntry`. Installs the registry provider in `ctx`, so `accessRegistry`
- * is on the tree, and gives the entry that provider's registry.
+ * is on the tree, and gives the entry that provider's registry and `identity`, identity's own
+ * implementation of the port (`createAccessIdentity`).
  */
-export function entryAccess(ctx: Context, telemetry: TelemetryPort): ServerEntryAccess {
+export function entryAccess(
+  ctx: Context,
+  telemetry: TelemetryPort,
+  identity: AccessIdentity,
+): ServerEntryAccess {
   const diagnostics = accessDiagnostics(telemetry)
   return {
     registry: new AccessRegistryProvider(ctx, { diagnostics }).registry,
-    identity: IDENTITY_NOT_OFFERED,
+    identity,
     graceMs: GRACE_MS,
     frameQueueBytes: FRAME_QUEUE_BYTES,
     availabilityBacklog: AVAILABILITY_BACKLOG,

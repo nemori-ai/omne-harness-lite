@@ -253,7 +253,10 @@ export async function harness(options: HarnessOptions) {
     },
   )
 
-  const faces = (caller: SessionCallerClass): SessionFaces<string> => instance.facesFor(caller)
+  const faces = (
+    caller: SessionCallerClass,
+  ): SessionFaces<string> & Pick<ReturnType<typeof instance.facesFor>, 'directory'> =>
+    instance.facesFor(caller)
   const access = (session = 'session-1'): SessionAccess<string> => memoryAccess('a:tester', session)
   const other = (session = 'session-1'): SessionAccess<string> =>
     memoryOtherAccess('b:stranger', session)

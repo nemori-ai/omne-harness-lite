@@ -13,7 +13,7 @@ import type {
   StorageScope,
 } from '@omne-harness/sql-contract'
 import type { SqliteStorageConfig } from './config.ts'
-import type { Domains, Lifecycle, ReadyDomain } from './domains.ts'
+import type { Domains, Lifecycle, VerifiedDomain } from './domains.ts'
 import { decodeScope, scopeKey } from './fields.ts'
 import { ReaderClient } from './reader-client.ts'
 import type { WriteBarrier } from './write-barrier.ts'
@@ -124,7 +124,7 @@ class Task {
 type PoolReader = {
   client: ReaderClient
   readonly domain: string
-  readonly entry: ReadyDomain
+  readonly entry: VerifiedDomain
   readonly generation: number
   readonly leaseName: string
   readonly lease: object
@@ -314,18 +314,27 @@ export class ReaderPool {
 
   private async enqueue(task: Task): Promise<void> {
     const { job } = task
-    let outcome: Awaited<ReturnType<Domains['ensure']>>
-    try {
-      outcome = await this.domains.ensure(job.domain, null)
-    } catch {
-      this.endQueued(task, unavailable('read_failed', 'provider_error'))
-      return
+    // A read needs the record that the domain was opened once, not a write Worker (SPEC 5.2). Only
+    // the first touch of a domain opens it.
+    if (this.domains.readable(job.domain) === null) {
+      let outcome: Awaited<ReturnType<Domains['ensure']>>
+      try {
+        outcome = await this.domains.ensure(job.domain, null)
+      } catch {
+        this.endQueued(task, unavailable('read_failed', 'provider_error'))
+        return
+      }
+      // The request may have ended while the domain opened (expiry, abort). Then it is done.
+      if (task.settled) return task.finish()
+      if (outcome.kind === 'closing') return this.endQueued(task, unavailable('closing'))
+      if (outcome.kind !== 'ready') return this.endQueued(task, unavailable('domain_unavailable'))
     }
-    // The request may have ended while the domain opened (expiry, abort). Then it is done.
-    if (task.settled) return task.finish()
-    if (outcome.kind === 'closing') return this.endQueued(task, unavailable('closing'))
-    if (outcome.kind !== 'ready' || scopeKey(outcome.entry.scope) !== scopeKey(job.scope))
-      return this.endQueued(task, unavailable('domain_unavailable'))
+    const verified = this.domains.readable(job.domain)
+    if (verified === null || scopeKey(verified.scope) !== scopeKey(job.scope))
+      return this.endQueued(
+        task,
+        unavailable(this.closing || this.lifecycle.closing ? 'closing' : 'domain_unavailable'),
+      )
     this.park(this.domainState(job.domain), task, false)
     this.pump(job.domain)
   }
@@ -374,7 +383,7 @@ export class ReaderPool {
       const task = d.queue[0]
       if (task === undefined || d.pauses > 0) return
       if (this.closing || this.lifecycle.closing) return this.drain(d, unavailable('closing'))
-      const entry = this.domains.peekReady(domain)
+      const entry = this.domains.readable(domain)
       if (entry === null || scopeKey(entry.scope) !== scopeKey(task.job.scope)) {
         d.queue.shift()
         task.settle(unavailable('domain_unavailable'))
@@ -399,7 +408,7 @@ export class ReaderPool {
   }
 
   /** A reader that fits the tag and is idle, or a new one, or null when the request must wait. */
-  private acquire(d: DomainReaders, entry: ReadyDomain): ReaderAcquisition {
+  private acquire(d: DomainReaders, entry: VerifiedDomain): ReaderAcquisition {
     const scope = scopeKey(entry.scope)
     for (const reader of d.readers) {
       if (reader.state !== 'idle') continue
@@ -414,7 +423,7 @@ export class ReaderPool {
     }
     if (d.readers.length >= this.config.maxReadWorkersPerDomain) return null
     if (!this.hasSlot()) {
-      this.freeSlot()
+      this.freeSlot(entry.domain)
       return null
     }
     return this.spawn(d, entry)
@@ -424,17 +433,37 @@ export class ReaderPool {
     const { maxWorkers, reservedWriterSlots } = this.config
     return (
       this.readerCount < maxWorkers - reservedWriterSlots &&
-      this.domains.liveWriterCount() + this.readerCount < maxWorkers
+      this.domains.writerSlots() + this.readerCount < maxWorkers
     )
   }
 
-  /** Closes one idle reader of any domain, so that the slot is free once its exit is observed. */
-  private freeSlot(): void {
-    for (const d of this.byDomain.values())
-      for (const reader of d.readers) if (reader.state === 'idle') return void this.retire(reader)
+  /**
+   * Makes room for a reader of `domain` (SPEC 5.2): an idle reader of any domain closes; when none
+   * is idle, an idle domain other than this one yields its write Worker. The slot is free once the
+   * exit is observed, and the queues are pumped then (`exited`, `slotFreed`).
+   */
+  private freeSlot(domain: string): void {
+    if (this.retireIdle() === null) void this.domains.yieldIdle(domain)
   }
 
-  private spawn(d: DomainReaders, entry: ReadyDomain): ReaderAcquisition {
+  /** Read Workers whose exit was not observed: each holds a Worker slot (SPEC 12.2). */
+  count(): number {
+    return this.readerCount
+  }
+
+  /** Closes one idle reader of any domain. Null when none is idle; else settles at its exit. */
+  retireIdle(): Promise<void> | null {
+    for (const d of this.byDomain.values())
+      for (const reader of d.readers) if (reader.state === 'idle') return this.retire(reader)
+    return null
+  }
+
+  /** A write Worker's slot went back: reads that wait for a slot go on. */
+  slotFreed(): void {
+    this.pumpAll()
+  }
+
+  private spawn(d: DomainReaders, entry: VerifiedDomain): ReaderAcquisition {
     this.readerGeneration += 1
     const generation = this.readerGeneration
     let leased: { name: string; lease: object }
@@ -623,7 +652,10 @@ export class ReaderPool {
     reader.state = 'idle'
     reader.idleTimer = setTimeout(() => void this.retire(reader), this.config.readerIdleMs)
     reader.idleTimer.unref()
+    // Its own domain first: a queued read there takes this reader as it is. If it stays idle, it is
+    // room for a read of another domain that waits for a slot (SPEC 5.2): those queues go on too.
     this.pump(reader.domain)
+    this.pumpAll()
   }
 
   private stopIdle(reader: PoolReader): void {

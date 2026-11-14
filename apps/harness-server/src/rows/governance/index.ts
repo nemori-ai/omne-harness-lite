@@ -33,6 +33,7 @@ import { TenantGovernanceHost } from './tenant-host.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
 import { CurrentPermissionService, currentToolPermissionKey } from './current-permission-service.ts'
+import { provideTenantSettings, tenantSettingsKey } from './tenant-settings-service.ts'
 import { isHitlReservation } from '../tool-hitl/host.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
@@ -87,6 +88,7 @@ export const governanceRow = defineRow({
       sessionPermissionBackendKey,
       standingDestinationResolverKey,
       currentToolPermissionKey,
+      tenantSettingsKey,
     ],
     injects: [
       storageKey,
@@ -124,6 +126,14 @@ export const governanceRow = defineRow({
     ctx.effect(() => () => sources.close(), 'governance.settings-sources.close')
     const host = new TenantGovernanceHost({
       domains: ctx.tenantDomainLookup,
+      // A tenant whose governance did not open has every tool call without a permission basis and
+      // no Settings: say so each time, with the phase and when the host opens it again.
+      report: failure =>
+        ctx
+          .logger('governance')
+          .warn(
+            `tenant governance did not open: tenant=${failure.tenantRef} phase=${failure.phase} failures=${failure.failures}; again in ${failure.againInMs} ms`,
+          ),
       prepare(tenantRef, domain) {
         const tenant = tenantCodec.parse(tenantRef)
         const principal = tenant.ok
@@ -184,6 +194,24 @@ export const governanceRow = defineRow({
         standing: { read: input => ctx.tenantStanding.read(input) },
       },
       runtime: tenant => host.runtime(tenant),
+    })
+    let active = true
+    ctx.effect(
+      () => () => {
+        active = false
+      },
+      'governance.tenant-settings.active',
+    )
+    provideTenantSettings(ctx, {
+      host,
+      scope: config,
+      storage: ctx.storage,
+      release: () => release,
+      identity: {
+        verifier: { verify: input => ctx.principalVerifier.verify(input) },
+        standing: { read: input => ctx.tenantStanding.read(input) },
+      },
+      active: () => active,
     })
     ctx.effect(
       () => () => host.close(monotonicClock.now() + config.closeTimeoutMs),

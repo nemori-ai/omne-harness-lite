@@ -441,6 +441,8 @@ export async function fixture(
     access,
     clock,
     configuration: configure(configuration),
+    // Short, so that a call whose hint was lost is found again within a test's poll.
+    recoveryRescanMs: 600,
     guardsOf: () => [],
     permitRequirements: {
       check: async () => ({ kind: 'not-required', source: evidence('frozen-no-permit-action') }),

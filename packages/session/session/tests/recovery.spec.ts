@@ -14,7 +14,7 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { evidence, succeeded } from '@omne-harness/session-contract/testing'
-import { acceptedRun as acceptedRunOf } from '../src/recover.ts'
+import { acceptedRun as acceptedRunOf, handsBack } from '../src/recover.ts'
 import { sessionSlotReference } from '../src/slot-reference.ts'
 import { memoryBackend } from './fixtures/backends.ts'
 import { harness, TENANT_A, type Harness } from './fixtures/harness.ts'
@@ -48,10 +48,14 @@ async function acceptedRun(): Promise<Readonly<{ h: Harness; run: ActiveRun }>> 
   return { h, run: await activeRun(h) }
 }
 
-const status = (state: ExecutionStatus['state']): ExecutionStatus => ({
+const status = (
+  state: ExecutionStatus['state'],
+  lost: ExecutionStatus['lost'] = null,
+): ExecutionStatus => ({
   revision: 'revision-7',
   state,
   attachment: state === 'suspended' ? 'detached' : state === 'open' ? 'active' : null,
+  lost,
   conclusion: null,
   evidence: evidence('history'),
 })
@@ -113,6 +117,32 @@ describe('the recovery of an active Run (PM-14)', () => {
     expect(agent.detach).not.toHaveBeenCalled()
     expect(agent.resume).not.toHaveBeenCalled()
     expect((await activeRun(h)).advance).toEqual(run.advance)
+  })
+
+  it('takes up an active attachment whose runtime the host judges out of contact: the attachment is handed back in its place, then claimed and resumed', async () => {
+    const { h, run } = await acceptedRun()
+    const agent = handedOver(h)
+    // For example the runtime of a process that ended: the record still says active.
+    h.drive.inspect = async () => ({ ok: status('open', evidence('host-lock')) })
+
+    await scan(h)
+    await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
+
+    const execution = run.execution.execution
+    expect(agent.detach.mock.calls[0]![0]).toMatchObject({ execution, advance: run.advance })
+    const after = await activeRun(h)
+    expect(ordinalOf(after)).toBe(ordinalOf(run) + 1)
+    expect(agent.resume.mock.calls[0]![0]).toMatchObject({ execution, recovery: agent.handover })
+  })
+
+  it.each([
+    ['an execution that has no attachment', { ...status('open'), attachment: null }],
+    [
+      'a judgment that came with a record that is not open',
+      { ...status('ended'), lost: evidence('host-lock') },
+    ],
+  ] as const)('does not hand back %s', (_name, given) => {
+    expect(handsBack(given)).toBe(false)
   })
 
   it('recognizes its claim after a resume that failed: the next scan resumes with the same grant and no new attempt', async () => {

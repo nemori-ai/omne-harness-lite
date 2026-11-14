@@ -527,3 +527,23 @@ describe('a joint commit with a Session participation folds its batch (session-s
     expect(held).toEqual(decoded?.kind === 'state' ? decoded.snapshot : null)
   })
 })
+
+describe('a wait for many things at once', () => {
+  it('commits and reads back whatever the number of waits: the list is a block, the fact a reference', async () => {
+    // A step that sends many calls side by side waits for all of them. Two hundred waits are far
+    // more than one fact body holds (`FACT_MAX_BYTES`); the commit still stands.
+    const s = await scene('many-waits')
+    await started(s)
+    const waits: Waiting[] = Array.from({ length: 200 }, (_, index) => ({
+      kind: 'dependency',
+      owner: 'test',
+      position: `position-${String(index)}`,
+    }))
+    await committed(s, 'many-waits', () => ({
+      state: { kind: 'waiting', waits },
+      events: [{ kind: 'waiting', waits }],
+    }))
+    const loaded = await loadOf(s)
+    expect(loaded.state).toEqual({ kind: 'waiting', waits })
+  })
+})

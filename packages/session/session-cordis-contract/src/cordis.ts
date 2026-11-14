@@ -22,6 +22,7 @@ import type {
   SessionCallerClass,
   SessionClock,
   SessionContextInput,
+  SessionDirectory,
   SessionEvidenceBridge,
   SessionFaces,
   SessionId,
@@ -49,6 +50,14 @@ export abstract class SessionService<P = unknown> extends Service<SessionInterce
   abstract readonly management: SessionFaces<P>['management']
   abstract readonly reconciliation: SessionFaces<P>['reconciliation']
   abstract readonly history: SessionFaces<P>['history']
+  /**
+   * The session list of a tenant. Absent by default: a provider without a directory keeps this
+   * accessor, and a reader answers basis-unavailable. A provider overrides it with a getter, so
+   * the caller class of each read is the caller's, like the four faces.
+   */
+  get directory(): SessionDirectory<P> | undefined {
+    return undefined
+  }
 }
 export const sessionKey = SessionService.provide
 
@@ -85,6 +94,8 @@ export abstract class SessionTransactionPortService<P = unknown>
   declare readonly commitLog?: NonNullable<SessionTransactionPort<P>['commitLog']>
   abstract readonly history: SessionTransactionPort<P>['history']
   abstract readonly pending: SessionTransactionPort<P>['pending']
+  /** Optional like the port member: a provider without it omits it. */
+  declare readonly directory?: NonNullable<SessionTransactionPort<P>['directory']>
   abstract readonly references: SessionTransactionPort<P>['references']
   abstract readonly releasedScopes: SessionTransactionPort<P>['releasedScopes']
 }

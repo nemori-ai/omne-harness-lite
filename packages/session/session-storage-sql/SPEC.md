@@ -48,8 +48,9 @@
 | --- | --- |
 | 根入口导出 | `createSessionStorage`、`createSessionStoragePair`、`createSessionPrincipalBindings`、`sessionStorageMaterials`、`SESSION_PARTICIPANT` 和它们的类型（含 `SessionStorageMaterialsOptions`）。子路径 `./participants` 导出参加者与提交依据的词汇，见[对外部提交方的词汇](#对外部提交方的词汇)。没有 `./cordis` 子路径，也没有该源文件。会话存储组合由应用承担，本成员不建 Cordis 服务、目录或组合登记 |
 | SQL 依赖 | 只从 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入。不导入 `packages/storage/**` 内部，`dependencies` 不含 `@omne-harness/sqlite-provider`，源码里没有 `node:sqlite`。`devDependencies` 有 sqlite-provider，只供 `tests/real-provider.spec.ts` 用它的公开入口 |
-| 端口操作 | `commit`、`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、`commitLog`、`history`（`begin`、`next`、`since`、`readModelView`）、`pending`、`references`、`releasedScopes` 已实现。`commitEntries` 的步骤见[已知限制](#已知限制)第 1 条，`commitLog` 的步骤见第 16 条。`readWork` 的快照带同一快照里读出的 `historyIndex`，见第 12 条 |
+| 端口操作 | `commit`、`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、`commitLog`、`history`（`begin`、`next`、`since`、`readModelView`）、`pending`、`directory`（`list`）、`references`、`releasedScopes` 已实现。`directory` 见[提交的时刻与会话列表](#提交的时刻与会话列表)。`commitEntries` 的步骤见[已知限制](#已知限制)第 1 条，`commitLog` 的步骤见第 16 条。`readWork` 的快照带同一快照里读出的 `historyIndex`，见第 12 条 |
 | 静态材料 | 三个参加者 `execution-record`、`session-ordinary-basis` 与 `session`（`grouping` 都为 `singleton`）；十一个迁移 `session/001-session-log`、`session/002-execution-index`、`session/003-operation-evidence`、`session/004-state-items`、`session/005-attempt-grant`、`execution-record/001-execution-record`、`execution-record/002-preadmission`、`execution-record/003-admission-attempt`、`execution-record/004-state-parts`、`execution-record/005-fact-body` 与 `execution-record/006-fact-blob`；二十个 `snapshot` 读 handler：`session.work`、`session.work-version`、`session.binding`、`session.work-index`、`session.work-reads`、`session.input`、`session.model-selection`、`session.history`、`session.model-view`、`session.pending`、`session.references`、`session.released-scopes`、`session.history-root`、`session.execution`、`execution-record.facts`、`execution-record.open-executions`、`execution-record.events`、`execution-record.operation`、`execution-record.blob`、`execution-record.preadmission`。`session.work` 另读 `sl_state_item`、`sl_entry` 与 `er_` 同根索引表；`session.work-version` 只读 `sl_journal` 与 `er_root` 两次主键点查（[RT-04](#rt-04)）；`session.binding` 只读 `sl_journal` 的主键点查与 `sl_entry` 里第一批（修订 1）的条目，不读 `sl_state`（[BD-01](#bd-01)）。每个模块带文件摘要。参加者与迁移的材料变化改变组合的清单摘要，读 handler 不进清单，见第 17 条 |
+| 会话列表的材料 | 本行补记 head `80852180e` 之后的变化：迁移 `session/006-permission-current`、`session/007-scope-index`、`session/008-session-list`；读 handler `session.list`（读 `sl_session_list`，`maxRowsRead` 1001）；表 `sl_commit_time`、`sl_session_list` 与索引 `sl_session_list_activity_idx`，都归 `session`。见[提交的时刻与会话列表](#提交的时刻与会话列表) |
 | 当前表 | `sl_journal`、`sl_entry`、`sl_operation`、`sl_state`、`sl_state_item`、`sl_input`、`sl_model_view`、`sl_annotation_idx`、`sl_pending_idx`、`sl_resident_idx`、`sl_released_scope_idx`，另有 `sl_kind_idx` 与 `sl_operation_revision_idx` 两个二级索引。执行索引 `sl_execution_idx` 也归 `session`，见[执行索引](#执行索引)。操作的访问证据 `sl_operation_evidence` 也归 `session`，见[操作记录的访问证据](#操作记录的访问证据)。attempt 的授予 `sl_attempt_grant`（二级索引 `sl_attempt_grant_position_idx`）也归 `session`，见[attempt 的授予](#attempt-的授予)。`execution-record` 拥有 `er_root`、`er_operation`、`er_execution`、`er_fact`、`sl_blob`、`er_admission_idx`、`er_admission_attempt_idx`、`er_preadmission`，二级索引 `er_execution_session_idx`、`er_fact_execution`，唯一索引 `er_preadmission_entry_idx`、`er_fact_event`、`er_fact_operation`。迁移 006 删除了 `er_state`、`er_state_part`、`er_fact_idx`、`er_fact_body` 与 `er_batch_idx`，见[已知限制](#已知限制)第 18 条。列见[对象模型](docs/object-model.md) |
 | 尚未实现的设计 | `sl_batch`、`sl_ref_idx`、`sl_rebuild`；TB-04 在条目一侧的内联阈值与 `payload_ref`（`sl_blob` 已落地，只由 `execution-record` 写入）；R9 的追赶与重建、`fold_version`、解释版本记录与隔离；R4 的按关联定位；PostgreSQL；`maxScanPerPage` 与读路径的逐条披露核对；配置项「内联阈值」「大对象去向」「快照重建方式」。`sl_state` 落后时 handler 返回 `behind`，端口映射为 `unavailable`，没有自动追赶 |
 | 与设计的差异 | 提交身份的 `protocolVersion` 为 `2`，`scope` 为租户域，`operationKey` 为 `JSON.stringify([SessionId, SessionOperationId, attempt])`。待办原因有八个，含 `initialization`（与 `PendingReason` 一致，下文 W3 与 R8 写「七个」处按八个读）。`sl_operation.form` 有 `batch`、`control`、`answer`、`entries`、`log` 五种，`answer` 行没有 `revision`。尝试代次不设上限，游标有效期初值为 15 分钟。`commit` 先对各代次调用存储 `query`，不先点查 `sl_operation`；参加者模块不另核对材料集合，交给 `decide`；提交结果从回执的响应证据取出，不读回 `sl_operation` |
@@ -143,6 +144,7 @@ K-n 编号是 Session 组各成员共用的一套序列：本页用 K-1 至 K-5 
 21. 历史索引的 Session 行在 Worker 模块里增量保留（[Worker 内的两处保留](#worker-retention)）。`src/worker/history-index.ts` 的 `sessionRows` 按会话保留五种行（`intake.routed`、`run.started`、`run.attempt-started`、`run.terminal`、`control.requested`）折出的索引，下次只读游标之后的行；游标处的行指纹不符就从第一行重建，游标之后有空洞就丢掉保留的索引并让本次调用失败。修订大于日志尾部的行是未提交事务的行，只折进本次调用的副本，从不保留。修订不大于尾部就当作已提交，这只在 `session` 参加者是 `grouping: 'singleton'` 时成立：每个写事务只有一个操作，参加者在推进尾部之前读索引。组提交里后一个操作会看到同组前一个操作推进的尾部，从而保留同组仍可能回滚的行。把 `session` 改成 `groupable` 之前，必须先重新设计这份保留。验证：`tests/history-index-incremental.spec.ts`（其中「rows of an open transaction folded over a kept index are folded into a copy」覆盖副本分支：保留索引之上读到未提交的第 2、3 行，回滚后另一事务提交不同的第 2 行与相同的第 3 行，得到 `in-1`、`in-X`、`in-3`；把副本改成直接用保留的索引时这条用例变红）。
 22. 具名差额「待 Reduce 重算」：迁移 `execution-record/005-fact-body`（第 20 条）与 `execution-record/006-fact-blob`（第 18 条）、写 Worker 的解析快照与历史索引的 Session 行保留（[Worker 内的两处保留](#worker-retention)）、工作缓存的折叠（[RT-04](#rt-04)）改变参加者模块或迁移的摘要，因而改变组合的 `manifestDigest`。新增的 `session.work-index`、`session.work-reads` 两个 handler 不进清单，本身不改变它。本成员不改 apps，也不改 `serve.spec`，由集成方统一重算。Reduce 批次 D 已重算一次（R2-D127），`apps/harness-server/config/serve.distribution.json` 的 `agent-journal` 行现在钉的是包含上述改动的摘要。本成员材料以后再变时，集成方要再重算。
 23. 条目文本只有一种编码（`src/entry-codec.ts`）。`sl_entry.entry` 是 `HistoryEntry` 的各成员，按原顺序。载荷成员在文本里名为 `body`，值是载荷值树的普通 JSON 文本，不是值树本身。读出时用 `@omne-harness/json-text` 还原值树：数字的原文与键的顺序不变，重复键使该行不可读。条目对象的摘要（行证据的 `digest`）不变。存储文本的指纹（历史索引的锚点）随编码变化，同一行的指纹不变。`bytes` 是新文本的 UTF-8 字节数，页预算按它累计。`session.history` 把条目与注释以存储文本交给端口，端口用同一模块读出，所以一页输出的大小与它的行一致。本成员不读旧编码（整条条目的值树 JSON），也不迁移旧行：0.0.x 阶段历史字节不构成兼容承诺。旧行使读它的读口答 `unavailable`，使读它的提交答 `unavailable`，两者都带诊断「retired value-tree encoding」，不按普通载荷误读。验证：`tests/entry-codec.spec.ts`、`tests/entry-codec-roundtrip.spec.ts`、`tests/stored-entry-rows.spec.ts`。速度对照：`tests/entry-codec-bench.spec.ts`（慢层）。
+24. 会话列表的回填（[提交的时刻与会话列表](#提交的时刻与会话列表)）在迁移 `session/008-session-list` 的事务里同步做完，期间这个事务域的写要等。量级假设：单机部署，一个租户一年一万个会话的量级；回填每个会话读一次快照头与它的 `message.user` 条目，直到找到标题。超过这个量级时先变慢的是回填与「含已归档」的翻页。外部提交方（Agent Journal）不交提交时刻时，它的提交时刻为空：一轮结束若经它提交，最近活动时刻为空。验证：`tests/session-list.spec.ts`。
 
 ### 两个「事务端口」
 
@@ -264,6 +266,51 @@ Session 经 `AgentDrivePort` 交给 Agent 的 `grant` 是写入该 attempt 的 S
 - 提交外：读 handler `session.history-root` 在一个快照里组出同一个根（FR-03 第 2 步）。调用方不从两个读口分别取值再拼。
 - 执行顺序：两条命令之间没有事实格依赖，存储按名字升序执行，`execution-record` 先、`session` 后（sql-contract §7.4）。所以共同提交里 `session` 读到本批刚写的 `er_` 行与新计数。事实格表达不了这个顺序：Session 单独提交时没有 `execution-record` 命令，事实没有提供者。
 - 失效：用旧根准备的 Session 提交，在事务里按新根重判，答纯层对应的非成功答复（P5 决策第 6 条）。
+
+#### 提交的时刻与会话列表
+
+<a id="提交的时刻与会话列表"></a>
+
+依据：RFC-0015 第 8 节「列出会话」。会话契约的读取面 `SessionDirectory` 由本成员实现，端口成员是可选的 `directory`。
+
+**提交的时刻。** 每次发布一批条目的提交写一行 `sl_commit_time`：`(tenant, session, commit_seq)` 与时刻 `at`。这一行是事实，归提交。
+
+- 时刻的来源：构造选项 `clock`，即会话自己的时钟端口（`SessionClock`）。端口一侧在 `commit`、`commitEntries`、`commitLog` 提交前各取一次读数，只取 `at` 文本，放进 `session` 参加者的事实 `at`。同一次调用的各代次用同一个读数。存储里给游标算过期的 `now` 不是它的来源。
+- 时钟答失败、抛错，或没有给 `clock` 时，提交照常成立，`at` 为 `null`。不用本机墙钟顶替。
+- 参加者自己不用时间函数，只写事实里的 `at`。外部提交方（Agent Journal）经 `sessionCommandFacts` 的第四个参数交 `at`；不交时为 `null`。
+- 认回、拒绝与控制答复不发布批次，不写这一行。
+
+**会话列表项。** `sl_session_list` 每个会话一行，是投影。
+
+| 要声明的 | 答案 |
+| --- | --- |
+| 来源 | 这个会话的日志与 `sl_commit_time` |
+| 计算规则 | 见下表 |
+| 覆盖到的提交位置 | 与引起变化的那一批条目在同一个事务里写，总是覆盖到 `sl_journal.tail` |
+| 计算版本 | `version` 列，现为 `1`。计算规则变了就加一 |
+| 失效条件 | 行不存在，或 `version` 不是当前版本 |
+
+每次发布一批条目时，参加者在 `writeBatch` 里按下表写这一行。「活动」是三种提交：建会话（前一份快照为空）、批里有 `intake.routed`（受理一条输入）、批里有 `run.terminal`（一轮结束）。
+
+| 列 | 建会话的批 | 其他活动的批 | 其他批 |
+| --- | --- | --- | --- |
+| `created_at` | 本次的 `at` | 不变 | 不变 |
+| `last_activity_at` | 本次的 `at` | 本次的 `at`（可以是 `null`） | 不变 |
+| `lifecycle` | 新快照的 `lifecycle` | 同左 | 同左 |
+| `title` | 本批的标题 | 原值为 `null` 时取本批的标题，否则不变 | 同左 |
+| `version` | 当前版本 | 同左 | 同左 |
+
+- 本批的标题：按位置次序，第一条 `message.user` 里第一个去掉空白后非空的文字块。空白压成一个空格，去掉首尾空白，取前 80 个字符（按码点计）。批里没有时为 `null`。
+- 非建会话的批找不到这一行时，按「原值全为 `null`」计算。迁移之后每个会话都有行，所以这一格只在不变式被破坏时到达，结果仍是确定的。
+- 写入是 `INSERT OR REPLACE`：同一批重放得到同一行。
+
+**读。** `directory.list` 先核一次访问（操作 `directory.list`，目标是租户），再读 handler `session.list`。次序：`last_activity_at` 倒序，同时刻按会话标识升序；`last_activity_at` 为 `null` 的排在后面，按会话标识升序。键集分页：游标封装上一页最后一行的两个键，不用偏移量。handler 分三段读，每段是一次带 `LIMIT` 的索引范围扫描：同时刻且标识更大的、时刻更早的、没有时刻的。
+
+- `includeArchived` 为 `false` 时跳过 `lifecycle` 为 `archived` 的行。一页最多扫 `SESSION_LIST_SCAN_ROWS`（1000）行；扫满这个数还没凑满一页时答 `partial`，`next` 指向最后扫到的那一行。
+- `limit` 是 1 到 1000 的整数，否则答 `invalid`。部署的每页上界由接入层核对。
+- 时刻为 `null` 的项照常列出，两个时刻都是 `null`。
+
+**迁移与回填。** `session/008-session-list` 建两张表与索引 `sl_session_list_activity_idx (tenant, last_activity_at, session)`，依赖 `session/004-state-items`。同一迁移在事务里同步回填：按 `(tenant, session)` 每页 200 个扫 `sl_journal`，生命周期取 `sl_state` 头里的 `lifecycle`，标题按上面的规则从日志里的 `message.user` 条目取，两个时刻留空。已有行时不改。先例是 `session/006-permission-current`。回填期间这个事务域的写要等，见[已知限制](#已知限制)。不补 `sl_commit_time`：这一程之前的提交没有时刻，也补不出来。
 
 #### 只读核对
 

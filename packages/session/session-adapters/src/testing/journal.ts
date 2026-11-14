@@ -3996,12 +3996,15 @@ export function createJournal<P>(
         for (const body of input.events) {
           if (body.kind === 'input-taken')
             facts.push({ kind: 'step.begun', step: input.checkpoint.step, batch: copy(body.batch) })
-          if (body.kind === 'waiting')
+          if (body.kind === 'waiting') {
+            // The list of waits is a block: its size follows the number of calls waited for.
+            blobs.push(blobOf(body.waits))
             facts.push({
               kind: 'wait.entered',
               step: input.checkpoint.step,
-              waits: copy(body.waits),
+              waits: refOf(body.waits),
             })
+          }
           // A reply admission projects its message (`reply.judged`); any other message is
           // referred to by its own fact.
           if (body.kind === 'message' && admission === null) {

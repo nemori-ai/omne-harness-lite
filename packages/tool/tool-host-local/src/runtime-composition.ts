@@ -71,6 +71,12 @@ export type LocalToolRuntimeInput = Readonly<{
   observersPerCall: number
   observerQueueFrames: number
   observerResidenceMs: number
+  /**
+   * How often, in milliseconds, the executor scans the tenants that have calls not yet settled
+   * for calls whose hint was lost. It is not tied to `driverRetryDelayMs`. An integer from 1 to
+   * 2147483647; absent means 60000.
+   */
+  recoveryRescanMs?: number
 }>
 
 export type RuntimeCompositionInput = LocalToolRuntimeInput &

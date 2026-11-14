@@ -61,6 +61,7 @@ import {
   type AgentHostStopResult,
   type AgentHostUnsettled,
   type Host,
+  type LostContact,
   type RuntimeFactory,
 } from './host.ts'
 import { RECEPTION_INITIAL, startReception, type Reception } from './reception.ts'
@@ -131,12 +132,14 @@ class LocalExecutionRecovery extends AgentExecutionRecoveryService<unknown> {
   readonly load: Host['recovery']['load']
   readonly reconcile: Host['recovery']['reconcile']
   readonly detach: Host['recovery']['detach']
+  readonly contact: Host['recovery']['contact']
   constructor(ctx: Context, host: Host) {
     super(ctx)
     this.query = host.recovery.query
     this.load = host.recovery.load
     this.reconcile = host.recovery.reconcile
     this.detach = host.recovery.detach
+    this.contact = host.recovery.contact
   }
 }
 
@@ -160,7 +163,10 @@ class LocalInstanceProvision extends AgentInstanceProvisionService<unknown> {
  * The plugin over a given runtime factory. Production uses `createAgentRuntime`; a test may wrap
  * it, for example to stand in for a runtime duty that the factory does not keep yet.
  */
-export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin {
+export function createAgentHostPlugin(
+  factory: RuntimeFactory,
+  options: Readonly<{ lostContact?: LostContact }> = {},
+): AgentHostPlugin {
   const live = new Set<Host>()
   const receptions = new Map<Host, Reception>()
   const toolReceptions = new Map<Host, ToolReception>()
@@ -228,6 +234,7 @@ export function createAgentHostPlugin(factory: RuntimeFactory): AgentHostPlugin 
         },
         // A runtime object provided at the root; it has no service definition to type it.
         principal: ctx.get('agentHostPrincipal'),
+        ...(options.lostContact === undefined ? {} : { lostContact: options.lostContact }),
       })
       ctx.on('agent-cordis-contract/instance-retired', (tenant, instance, generation, reason) =>
         host.retired(tenant, instance, generation, reason),
@@ -315,6 +322,12 @@ export type AgentHostLocalPluginInput = Readonly<{
    * `unavailable` as with `agentHostPlugin`.
    */
   toolRequests?: AgentDependencies<unknown, ContentBlock>['toolRequests']
+  /**
+   * The assembly's proof that an instance this host does not run has no runtime anywhere (`host.ts`
+   * `LostContact`). Absent: `agentExecutionRecovery.contact` never answers `lost`, as with
+   * `agentHostPlugin`.
+   */
+  lostContact?: LostContact
 }>
 
 /**
@@ -324,12 +337,14 @@ export type AgentHostLocalPluginInput = Readonly<{
  * the returned plugin as `ctx.plugin(plugin, config)` does with `agentHostPlugin`.
  */
 export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}): AgentHostPlugin {
-  const { measure, toolRequests } = input
-  return createAgentHostPlugin((dependencies, options, extras) =>
-    createAgentRuntime(
-      toolRequests === undefined ? dependencies : { ...dependencies, toolRequests },
-      options,
-      measure === undefined ? extras : { ...extras, measure },
-    ),
+  const { measure, toolRequests, lostContact } = input
+  return createAgentHostPlugin(
+    (dependencies, options, extras) =>
+      createAgentRuntime(
+        toolRequests === undefined ? dependencies : { ...dependencies, toolRequests },
+        options,
+        measure === undefined ? extras : { ...extras, measure },
+      ),
+    lostContact === undefined ? {} : { lostContact },
   )
 }

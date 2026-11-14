@@ -102,6 +102,7 @@ describe('the migration of the evidence table', () => {
       'session/005-attempt-grant',
       'session/006-permission-current',
       'session/007-scope-index',
+      'session/008-session-list',
       'execution-record/002-preadmission',
       'execution-record/003-admission-attempt',
       'execution-record/004-state-parts',

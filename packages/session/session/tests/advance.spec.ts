@@ -708,12 +708,19 @@ describe('S1 from a notice of another process, and S3 after a restart', () => {
     await handle.release()
   })
 
-  it('without the public port maintain answers unavailable and starts no scanner', async () => {
+  it('without the public port the startup scan does not finish and is tried again after the first delay', async () => {
     const h = await service()
+    await h.create()
+    await acceptDirectly(h, 'input-1')
     h.setDirectory(false)
-    const answer = await h.instance.maintain(TENANT_A)
-    expect(answer).toEqual({
-      failure: expect.objectContaining({ kind: 'unavailable', owner: 'sessionTransactions' }),
+    const handle = succeeded(await h.instance.maintain(TENANT_A), 'maintain')
+    await turn()
+    expect((await read(h)).handed).toEqual([])
+    h.setDirectory(true)
+    h.clock.controls.advance(1000)
+    await vi.waitFor(async () => {
+      expect((await read(h)).handed).toEqual(['input-1'])
     })
+    await handle.release()
   })
 })

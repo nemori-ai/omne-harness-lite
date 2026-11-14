@@ -2,6 +2,8 @@
 
 `settings` 行把 Settings 的秘密设置项交给装配：官方持有声明的设置定义的登记表、`@omne-harness/settings` 的秘密项入口（`createSettingsSecretItems`），以及受准入的设置管理。它提供受信服务 `settingsSecretItems`，形状是 server-entry 的 `SettingsGovernance` 端口，只有 `server-entry` 行按调用读取。声明与秘密项的含义归 [Settings 的秘密设置项](../../../../packages/assets/settings/SPEC.md#secret-items)，一份资产声明哪些设置归它的类别契约（`BodyContract.settings`，例如 [tool-contract](../../../../packages/tool/tool-contract/SPEC.md#p15-配置声明与合法装载) 的 `toolBodyContract`），经资产域的 `projectAssetSettings` 推出。本行不持有秘密，不读使用面。
 
+普通设置项的租户层读写面不在本行：服务 `tenantSettings` 由 `governance` 行提供，因为它要的目录读取、租户层写入与组织层来源都在那一行。它沿用本行同一个准入（`src/rows/authorization/settings-access.ts`）。见装配页的[租户层设置读写面](../../../../docs/architecture/runtime/application-assembly.md#tenant-settings)。
+
 ## 配置与装载
 
 本行没有运维者值；发行层写空对象。行声明：提供 `settingsSecretItems`，`inject` 受信 `settingsSecretCustody`，生命周期 `none`。准入按调用读受信 `principalVerifier` 与 `tenantStanding`，与 `model-credential` 行相同：缺席时管理答 `basis-unavailable`，行不停在 `PENDING`。

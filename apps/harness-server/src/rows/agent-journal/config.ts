@@ -25,8 +25,10 @@ import { storageCatalog } from '../storage/catalog.ts'
  * (`tool/r6-002-tool-pending`) for the recovery scan, adopting combination /9.
  * The Session writer answers the batch it wrote, so that every committer of the session log tells
  * it (#1230); its material and the manifest digest changed, adopting combination /10.
+ * The Session writer records the time of each commit and keeps the session list, with migration
+ * `session/008-session-list` (#1267), adopting combination /11.
  */
-export const COMBINATION_VERSION = 'session-composite/10'
+export const COMBINATION_VERSION = 'session-composite/11'
 
 export type AgentJournalCombination = Readonly<{
   combinationVersion: string

@@ -27,6 +27,19 @@ export function isTransientError(error: unknown): boolean {
   return code !== null && TRANSIENT_CODES.has(code)
 }
 
+/** A POSIX error name, as Node puts it in `code` of a system error: E, then letters or digits. */
+const SYSTEM_CODE = /^E[A-Z0-9]+$/
+
+/**
+ * What a failure to load a module says (SPEC 5.2). `transient`: reading or importing the file met a
+ * system error (EMFILE, EIO, ...); the module may load next time. `content`: anything else, such as
+ * a digest mismatch, an evaluation error or a wrong export; loading again gives the same failure.
+ */
+export function loadFailure(error: unknown): 'transient' | 'content' {
+  const code = (error as { code?: unknown } | null)?.code
+  return typeof code === 'string' && SYSTEM_CODE.test(code) ? 'transient' : 'content'
+}
+
 /** A diagnostic without SQL text: the name of the failing step and the result code. */
 export function describeError(step: string, error: unknown): string {
   const code = resultCode(error)

@@ -12,6 +12,7 @@
 - [pipeline.spec.ts](pipeline.spec.ts)：命令处理器流水线
 - [construction.spec.ts](construction.spec.ts)：启动条件与配置核对
 - [advance.spec.ts](advance.spec.ts)：S1、C2 开 Run、会话槽引用、S4、S3
+- [continuation.spec.ts](continuation.spec.ts)：C2 续入与开 Run 末尾的交入，以及 `submit` 的失败分支
 - [recovery.spec.ts](recovery.spec.ts)：C2 的恢复路径（已交接的执行 claim 后 resume）
 - [wake-up.spec.ts](wake-up.spec.ts)：唤醒模型的守卫：在途触发、已授予 Run 的重放、失败诊断与有界收束
 - [complexity.spec.ts](complexity.spec.ts)：SS-02 确定性计数

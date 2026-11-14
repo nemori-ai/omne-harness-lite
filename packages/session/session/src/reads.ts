@@ -32,7 +32,10 @@ export type Reads<P> = Readonly<{
    */
   directory<T>(
     caller: SessionCallerClass,
-    operation: Extract<FaceOperation, 'pending' | 'references' | 'releasedScopes'>,
+    operation: Extract<
+      FaceOperation,
+      'pending' | 'directory.list' | 'references' | 'releasedScopes'
+    >,
     whose: SegmentOwner,
     read: (port: SessionTransactionPort<P>) => Reply<T>,
   ): Reply<T>

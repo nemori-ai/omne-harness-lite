@@ -236,6 +236,7 @@ export declare abstract class AgentExecutionRecoveryService<P> extends Service i
     abstract readonly load: AgentExecutionRecovery<P>['load'];
     abstract readonly reconcile: AgentExecutionRecovery<P>['reconcile'];
     abstract readonly detach: AgentExecutionRecovery<P>['detach'];
+    abstract readonly contact: AgentExecutionRecovery<P>['contact'];
 }
 export declare const agentExecutionRecoveryKey = "agentExecutionRecovery";
 export declare abstract class AgentJournalEntriesService<P> extends Service implements AgentJournalEntries<P> {

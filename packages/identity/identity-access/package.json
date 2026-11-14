@@ -1,0 +1,45 @@
+{
+  "name": "@omne-harness/identity-access",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The identity/v1 access plugin and the access entry's identity port, over identity's public entries",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/access-cordis-contract": "workspace:*",
+    "@omne-harness/identity": "workspace:*",
+    "@omne-harness/identity-protocol": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

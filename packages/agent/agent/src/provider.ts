@@ -63,7 +63,11 @@ import {
 import { agentEvidence } from './loop/identities.ts'
 import { createControlWriter } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
-import type { AgentRunEndedFailedReceiver, AgentRunFailedReceiver } from './run-failure.ts'
+import type {
+  AgentRunEndedFailedReceiver,
+  AgentRunFailedReceiver,
+  AgentRunWaitingReceiver,
+} from './run-failure.ts'
 import { submitInput } from './submit.ts'
 
 const OWNER = '@omne-harness/agent'
@@ -224,6 +228,8 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   failed: AgentRunFailedReceiver | undefined
   /** The receiver of the report of a run that ended with a `fail` conclusion; undefined: nobody is told. */
   endedFailed: AgentRunEndedFailedReceiver | undefined
+  /** The receiver of the report of a run that began to wait for a dependency; undefined: nobody is told. */
+  waiting: AgentRunWaitingReceiver | undefined
 }>
 
 export function createProvider<P, B extends ContentBlock>(
@@ -508,6 +514,22 @@ export function createProvider<P, B extends ContentBlock>(
       execution,
       idle,
       ended: (state, candidate) => endedRun(execution, state, candidate),
+      waiting: (step, node, failure) => {
+        try {
+          entry.waiting?.({
+            kind: 'run-waiting',
+            tenant: binding.tenant,
+            instance,
+            execution,
+            step,
+            node,
+            owner: failure.owner,
+            diagnostic: failure.diagnostic,
+          })
+        } catch {
+          // The report observes the runtime and never decides an answer of it.
+        }
+      },
       toolConcurrency: entry.configuration.toolConcurrency,
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })
@@ -937,6 +959,8 @@ export function createProvider<P, B extends ContentBlock>(
       load: input => guarded(input, 'load', onExecution(input.execution), 'stage 5'),
       reconcile: input => guarded(input, 'reconcile', onExecution(input.execution), 'stage 5'),
       detach: input => guarded(input, 'detach', onExecution(input.execution), 'stage 5'),
+      // A runtime cannot judge another runtime: the judgment belongs to the host that runs them.
+      contact: input => guarded(input, 'load', onExecution(input.execution), 'stage 5'),
     },
     control: {
       quiesce,

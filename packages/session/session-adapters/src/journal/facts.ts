@@ -332,7 +332,11 @@ export type FactBody =
       control: AgentOperationId
       audit: DurableEvidence
     }>
-  | Readonly<{ kind: 'wait.entered'; step: StepId; waits: readonly Waiting[] }>
+  /**
+   * The waits are a list that grows with what the step waits for (one per call sent side by side),
+   * so the fact holds a reference and the list is a block, like the cursor's `calls`.
+   */
+  | Readonly<{ kind: 'wait.entered'; step: StepId; waits: Ref<readonly Waiting[]> }>
   /**
    * The first binding of a pending call the execution holds at a commit or an open: the reference
    * the producer answers to, the call as pending, and the instance that holds it. The receiving
@@ -697,7 +701,7 @@ export function factKey(fact: FactBody): string {
     case 'control.rejected':
       return `rejected/${fact.control}/${fact.audit.record}`
     case 'wait.entered':
-      return `wait/${fact.step}/${digestOf(fact.waits)}`
+      return `wait/${fact.step}/${fact.waits.digest}`
     case 'target.bound':
       return `target/${fact.reference}/${fact.pending.digest}`
     case 'finish.candidate':

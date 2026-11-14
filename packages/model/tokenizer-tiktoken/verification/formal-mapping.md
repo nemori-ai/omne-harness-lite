@@ -13,6 +13,7 @@
 | Counted、OldReady、GenerationFence | `start`的回调闭包、`receive`、`receivedCount` | 回调代际与消息代际均核对；模型负控覆盖旧Ready。当前代际job/lease匹配由源码和行为测试承接，不由本模型穷尽 |
 | ClearStart、ClearAck、ReleaseComplete | `dispatch`的releasing分支、`receivedClear`、`finishRelease` | 清缓存ACK须匹配当前代际和lease；未收ACK只能等实际exit |
 | Stop、Exit、CloseDone | `stop`、`exited`、`settleExitedWork`、`close`；[worker-port.ts](../src/worker-port.ts) | terminate调用不算退出；实际exit清空槽、统计与释放；close后不替换 |
+| 不替换的Exit与BackoffStart | `exited`、`replace`、`restartPauseMs`，`stop`的backoff分支 | 额度耗尽时Exit不替换：等待任务全部失败，槽没有线程，不分给新lease，其上的count被拒绝，release直接完成；到点才以新代际拉起。退避中的槽是模型里host=open且代际未尽的dead。模型不含额度和时刻，可替换时任意选择替换或不替换，拉起可在任意时刻发生 |
 | 超时事件 | `expire`、`cancelRunning`，[worker-protocol.ts](../src/worker-protocol.ts) 的limits校验 | jobTimeoutMs和显式cancellationGraceMs分别控制截止与取消宽限；模型不使用具体毫秒值 |
 | lease私有cache与PrivateHit | [piece-cache.ts](../src/piece-cache.ts) 的 `leases.get(lease)`、`cache.entries.get(piece)` | 命中只搜索当前lease；不根据tenant或principal决定共享 |
 | EvictLocal、EvictGlobal、Commit | `canStore`、`evict`、`remove`、`count` | 先满足两级容量再插入；模型放宽LRU选择为任意真实成员删除，保持更大的安全交错集合 |
@@ -36,7 +37,7 @@ python3 -m unittest discover -s packages/model/tokenizer-tiktoken/verification -
 
 | 配置 | 检查范围或预期反例 |
 | --- | --- |
-| executor/positive | 2 lease、3 job、2代际，队列数量1、字节2、每lease排队1；含释放和关闭 |
+| executor/positive | 2 lease、3 job、2代际，队列数量1、字节2、每lease排队1；含释放、关闭和退避后拉起 |
 | executor/zero-queue | 2 lease、2 job、1代际，所有排队界为0，立即执行仍允许 |
 | executor/bad-cancel-return | cancel答复后错误将槽设idle，命中PhysicalCapacity |
 | executor/bad-late-success | counted覆盖已经失败的答复，命中NoLateSuccess |

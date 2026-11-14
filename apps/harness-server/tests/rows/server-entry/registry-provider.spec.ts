@@ -1,8 +1,10 @@
 // The `server-entry` row provides `accessRegistry` (#1249 spec 已定 13): an access plugin loaded on
 // the release tree mounts its protocol on that service, and the entry's new address serves it at
 // once, because the entry uses the same registry. Unloading the plugin takes the protocol down.
-// The release identity port answers `basis-unavailable` to every login, so the probe operation
-// needs no login; the call still carries the release's own login proof and tenant.
+// The release tree also mounts `identity/v1` (the `identity-access` row) and `session/v1` (the
+// `session-access` row), so the snapshot names them.
+// The probe operation needs no login; the call still carries the release's own login proof and
+// tenant.
 import { request } from 'node:http'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { accessRegistryKey, defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
@@ -140,7 +142,11 @@ describe('server-entry row: the registry provider on the release tree', () => {
             await until(() => availability.frames.length >= 1, 'the snapshot', 10_000)
             expect(availability.frames[0]).toMatchObject({
               kind: 'snapshot',
-              protocols: [{ name: 'access', major: 1 }],
+              protocols: expect.arrayContaining([
+                { name: 'access', major: 1 },
+                { name: 'identity', major: 1 },
+                { name: 'session', major: 1 },
+              ]),
             })
 
             const fiber = await loadProbe(tree.scope)

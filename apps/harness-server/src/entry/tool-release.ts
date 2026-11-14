@@ -7,7 +7,7 @@
 import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Logger } from '@deepseek-ai/cordis'
 import { tenantCodec, tenantEquals, type Access, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
@@ -19,6 +19,8 @@ import {
   type ToolContributionAuthority,
   type VerifiedAuthority,
 } from '@omne-harness/tool-cordis-contract/cordis'
+import { pauseAfterFailures } from '../retry-pause.ts'
+import { monotonicClock } from '../shutdown.ts'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
 import { issueEntrySystemPrincipal } from './agent-host-principal.ts'
 import {
@@ -68,7 +70,20 @@ export type ToolRelease =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 type Bound = Readonly<{ access: ToolReleaseRegistrant; generation: string | null }>
-type ReleaseState = { snapshot: Promise<ToolReleaseSnapshot> | null; registrant: Bound | null }
+/**
+ * What one run knows of the release. `current` is the latest result of a read: a trusted snapshot is
+ * read once and kept; an unavailable one is not kept for good, a later call reads again (`retryAt`).
+ */
+type ReleaseState = {
+  current: ToolReleaseSnapshot | null
+  loading: Promise<ToolReleaseSnapshot> | null
+  /** Failed reads in a row. */
+  failures: number
+  /** Monotonic ms before which no new read starts. */
+  retryAt: number
+  registrant: Bound | null
+  logger: Logger | null
+}
 
 const unavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, diagnostic: `toolContributionAuthority: ${diagnostic}` })
@@ -156,19 +171,33 @@ export class ReleaseToolContributionAuthority extends ToolContributionAuthorityS
   readonly admits: Admits
   readonly release: () => ToolRelease
 
-  constructor(ctx: Context, snapshot: ToolReleaseSnapshot, registrant: () => Bound | null) {
+  /** `snapshot` is a fixed snapshot, or a function that answers the current one at every call. */
+  constructor(
+    ctx: Context,
+    snapshot: ToolReleaseSnapshot | (() => ToolReleaseSnapshot),
+    registrant: () => Bound | null,
+  ) {
     super(ctx)
-    const release: ToolRelease =
-      snapshot.kind === 'trusted'
-        ? Object.freeze({
-            kind: 'trusted',
-            generation: snapshot.generation,
-            manifest: snapshot.manifest,
-            modules: snapshot.modules,
-          })
-        : Object.freeze({ kind: 'unavailable', diagnostic: snapshot.diagnostic })
-    this.release = () => release
+    const current = typeof snapshot === 'function' ? snapshot : () => snapshot
+    let last: { from: ToolReleaseSnapshot; release: ToolRelease } | undefined
+    const releaseNow = (): ToolRelease => {
+      const from = current()
+      if (last?.from === from) return last.release
+      const release: ToolRelease =
+        from.kind === 'trusted'
+          ? Object.freeze({
+              kind: 'trusted',
+              generation: from.generation,
+              manifest: from.manifest,
+              modules: from.modules,
+            })
+          : Object.freeze({ kind: 'unavailable', diagnostic: from.diagnostic })
+      last = { from, release }
+      return release
+    }
+    this.release = releaseNow
     this.verify = authority => {
+      const release = releaseNow()
       if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
       try {
         return verifyAgainst(release, authority)
@@ -177,6 +206,7 @@ export class ReleaseToolContributionAuthority extends ToolContributionAuthorityS
       }
     }
     this.admits = (access, layer) => {
+      const release = releaseNow()
       if (release.kind !== 'trusted') return unavailable('release snapshot unavailable')
       try {
         return admitsAgainst(release, registrant(), access, layer)
@@ -232,22 +262,85 @@ export function productionReleaseInput(): Parameters<typeof loadToolRelease>[0] 
 export const loadProductionRelease = (): Promise<ToolReleaseSnapshot> =>
   loadToolRelease(productionReleaseInput())
 
+type ReleaseEntriesOptions = Readonly<{
+  /** Monotonic milliseconds. Default the process monotonic clock. */
+  now?(): number
+  /** The wait before the next read after `failures` failed reads in a row. Default 1, 5, 30 s. */
+  retryPauseMs?(failures: number): number
+}>
+
 /**
  * 建两个入口对象。`load` 只在测试里换成别的读法（例如篡改过的产物副本）；发行注册表用生产读法。
- * 每次调用有自己的 `once` 键，同一次运行只读一次清单。
+ * 每次调用有自己的 `once` 键。读成功的快照只读一次；读失败（抛出，或答不可用）的结果不留：每次失败记一条
+ * 告警，停一段之后，下一次核验调用启动重读，在读完之前那一次调用仍答不可用（核验是同步的，不等读）。
  */
 export function createToolReleaseEntries(
   load: () => Promise<ToolReleaseSnapshot> = loadProductionRelease,
+  options: ReleaseEntriesOptions = {},
 ): Readonly<{ registrant: EntryObjectModule; authority: EntryObjectModule }> {
   const key = Symbol('harness-server/tool-release')
-  const create = (): ReleaseState => ({ snapshot: null, registrant: null })
+  const now = () => options.now?.() ?? monotonicClock.now()
+  const create = (): ReleaseState => ({
+    current: null,
+    loading: null,
+    failures: 0,
+    retryAt: 0,
+    registrant: null,
+    logger: null,
+  })
   const stateOf = (env: EntryEnv) => env.once(key, create)
-  const snapshotOf = (env: EntryEnv) => {
+
+  /** One read. A read that did not give a trusted snapshot is counted, warned about and paused. */
+  const attempt = (state: ReleaseState): Promise<ToolReleaseSnapshot> => {
+    state.loading ??= (async () => {
+      let snapshot: ToolReleaseSnapshot
+      let reason: string
+      try {
+        snapshot = await load()
+        reason = snapshot.kind === 'trusted' ? '' : snapshot.diagnostic
+      } catch (error) {
+        reason = error instanceof Error ? error.message : 'unreadable'
+        snapshot = Object.freeze({
+          kind: 'unavailable' as const,
+          diagnostic: 'release load failed',
+        })
+      }
+      if (snapshot.kind === 'trusted') {
+        state.failures = 0
+        if (state.registrant !== null)
+          state.registrant = Object.freeze({
+            access: state.registrant.access,
+            generation: snapshot.generation,
+          })
+      } else {
+        state.failures += 1
+        const againInMs = Math.max(0, (options.retryPauseMs ?? pauseAfterFailures)(state.failures))
+        state.retryAt = now() + againInMs
+        // Observation only: the authority still fails closed while the snapshot is unavailable.
+        state.logger?.warn(
+          'tool release read failed: %s; tool contributions are refused; reading again in %d ms',
+          reason,
+          againInMs,
+        )
+      }
+      state.current = snapshot
+      state.loading = null
+      return snapshot
+    })()
+    return state.loading
+  }
+  const snapshotOf = (scope: Context, env: EntryEnv) => {
     const state = stateOf(env)
-    state.snapshot ??= load().catch(() =>
-      Object.freeze({ kind: 'unavailable' as const, diagnostic: 'release load failed' }),
-    )
-    return state.snapshot
+    state.logger ??= scope.logger(TOOL_RELEASE_LOGGER)
+    return state.current ?? attempt(state)
+  }
+  /** The current snapshot; an unavailable one whose pause is over starts a new read. */
+  const currentOf = (state: ReleaseState): ToolReleaseSnapshot => {
+    const current = state.current
+    if (current === null) return Object.freeze({ kind: 'unavailable', diagnostic: 'not read yet' })
+    if (current.kind === 'unavailable' && state.loading === null && now() >= state.retryAt)
+      void attempt(state)
+    return current
   }
   return Object.freeze({
     registrant: {
@@ -259,7 +352,7 @@ export function createToolReleaseEntries(
           principal,
           tenant: TOOL_RELEASE_TENANT,
         })
-        const snapshot = await snapshotOf(env)
+        const snapshot = await snapshotOf(scope, env)
         stateOf(env).registrant = Object.freeze({
           access,
           generation: snapshot.kind === 'trusted' ? snapshot.generation : null,
@@ -271,17 +364,13 @@ export function createToolReleaseEntries(
       name: toolContributionAuthorityKey,
       implementation: 'real',
       async install(scope, env) {
-        const snapshot = await snapshotOf(env)
+        await snapshotOf(scope, env)
         const state = stateOf(env)
-        // Observation only: the authority still fails closed. The diagnostic is a fixed phrase.
-        if (snapshot.kind === 'unavailable')
-          scope
-            .logger(TOOL_RELEASE_LOGGER)
-            .warn(
-              'tool release snapshot unavailable: %s; tool contributions are refused',
-              snapshot.diagnostic,
-            )
-        new ReleaseToolContributionAuthority(scope, snapshot, () => state.registrant)
+        new ReleaseToolContributionAuthority(
+          scope,
+          () => currentOf(state),
+          () => state.registrant,
+        )
       },
     },
   })

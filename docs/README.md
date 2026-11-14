@@ -109,6 +109,7 @@ docs/
 ├── package-organization.md    目标能力组、SDK位置与包边界
 ├── member-documentation.md    能力组与成员包的完整文档要求
 ├── verification.md            检查覆盖、证据与结论限制
+├── acceptance/                系统级端到端验收矩阵：逐格的情形与期望
 ├── defensive-patterns.md      项目防御要求与复核触发
 ├── clean-loop.md              传感器、硬线及处置责任
 ├── maintenance.md             文档新增、拆分、整合与维护
@@ -140,6 +141,7 @@ docs/
 | [工程](engineering/README.md)、[架构](architecture/README.md)、[领域](domains/README.md)、[指南](guides/README.md) | 对应分区的源、落点与缺口 |
 | [开发](development.md)、[负责人指南](development_human.md)、[布局](workspace.md) | 开发操作、负责人职责及源码归属，详细规则继续引用其拥有者 |
 | [验证](verification.md)、[防御](defensive-patterns.md)、[整洁回路](clean-loop.md) | 检查能力与限制、项目防御要求及质量反馈机制；迁移时须同时核对实际读取者 |
+| [端到端验收矩阵](acceptance/README.md) | 一项系统质量要求在整套系统上逐格的情形与期望；只规定判据，一次验收的结果不写在那里 |
 | 内部 [产品](../.meta_harness/design/product/README.md)、[研究](../.meta_harness/research/README.md)、[agent 能力](../.meta_harness/agents/README.md) | 私有源的内部入口，不作公共必读 |
 
 角色起点由本页维护，产品、架构与领域的阅读路由由 context-map 维护，研发流程的事实见[流程事实在哪](engineering/README.md#流程事实在哪)；局部细节继续随领域／成员，不在各入口复制相同正文。发现失效路径交对应源维护者，导航调整交文档维护者。

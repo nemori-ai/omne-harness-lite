@@ -33,7 +33,8 @@
 | `ClearStart(l)` | idle 时 physical为空，目标 lease为releasing。动作只记录 clearing和clear=l，故 `Structure` 的清理前提成立。 |
 | `ClearAck` | `Structure` 给出clear是releasing lease。`PhysicalCapacity` 在clearing时排除物理任务；queue的owner必须active，因此没有该lease的排队任务。动作删除该lease的cache，然后标released，满足 `ReleaseComplete`。其他lease的cache不变。 |
 | `Stop` | 把物理集合中全部job答复改failed并加入cancelled，worker进入stopping。physical与cache保留，故物理占用和释放保证保持。 |
-| `Exit` | 只有实际退出事件移除全部physical和cache，同时清除当前worker的initialized。被移除的物理job记failed；所有releasing lease变released。若替换，queue仅含active lease，因此不会留下属于新released lease的任务；gen只在小于上限时加1。若不替换，queue全部失败并清空。替换只在host=open发生，关闭结构保持。 |
+| `Exit` | 只有实际退出事件移除全部physical和cache，同时清除当前worker的initialized。被移除的物理job记failed；所有releasing lease变released。若替换，queue仅含active lease，因此不会留下属于新released lease的任务；gen只在小于上限时加1。若不替换，queue全部失败并清空。替换只在host=open且gen小于上限时允许，此时不替换也允许，两个分支分别按上面两句保持 `I`；关闭结构保持。 |
+| `BackoffStart` | 前提是dead、host=open、gen小于上限。`Structure` 给出dead时physical与cache为空，进入dead的 `Exit` 已把initialized置FALSE、clear置0并清空queue，dead期间 `Submit` 不启用。动作只把worker改starting、gen加1。physical为空，故 `PhysicalCapacity` 成立；starting不在可派发的三个状态里，故 `GenerationFence` 不受约束；gen不超过上限，类型成立。leases、queue、答复、cancelled和cache不变，其余各项保持。host=open，关闭结构不触发。 |
 | `OldReady(messageGen)` | 只考察messageGen小于当前gen且新槽仍starting的旧Ready。消息环境允许故障注入产生旧代际消息，不声称Node必然会这样投递。正常动作保持全部字段。故它不能使尚未完成初始化的新worker变成可派发槽。BadStale会只把worker设idle，initialized仍FALSE，GenerationFence随即给出真实状态矛盾。这一动作仅覆盖stale-ready，不声称验证了每种reply的job/lease匹配。 |
 | `Close` | 同步把host改closing，删除所有排队任务，物理任务保留且答复失败。所有active lease改releasing；如果槽已dead，则直接released，此时physical与cache已经为空。没有新任务或新缓存，因此关闭结构和资源界保持。 |
 | `CloseDone` | 前提明确要求dead且Live为空。`Structure` 给出physical、cache为空，非open给出queue为空。因此将host改closed后 `ClosedEmpty` 成立。 |
@@ -63,7 +64,7 @@ Init使每份cache为空、phase为idle、lastHit为空。空和为零，`Bounde
 
 缓存淘汰在成功BeginStore后可终止。若LocalFull成立而目标cache为空，单片字节和正条数前提会使LocalFull为假，矛盾，所以必有可删成员。每次EvictLocal将有限条数减1。进入global后同理，GlobalFull时必有全局成员可删。每次EvictGlobal减1。假定这些启用的本地动作被调度，最终Commit可执行。LRU只决定删除哪个成员，不影响这个终止或安全论证。零容量使BeginStore不启用，对应直接返回未缓存的计数。
 
-executor.close的条件性终止依赖所有存活worker的实际Exit最终到达、宿主回调继续被调度。Close之后不再替换，所以对有限槽集合，最后一个Exit之后CloseDone可执行。普通release还依赖counted或Exit最终到达，以及clear ACK或Exit最终到达。`cancellationGraceMs`到期和clear超时只发起stop，不能代替Exit。模型把时间抽象为事件，不证明25ms、截止精准度或Node定时器公平性。
+executor.close的条件性终止依赖所有存活worker的实际Exit最终到达、宿主回调继续被调度。Close之后不再替换，退避中的槽也不再拉起，所以对有限槽集合，最后一个Exit之后CloseDone可执行。普通release还依赖counted或Exit最终到达，以及clear ACK或Exit最终到达。`cancellationGraceMs`到期和clear超时只发起stop，不能代替Exit。模型把时间抽象为事件，不证明具体宽限值、退避时刻、截止精准度或Node定时器公平性。
 
 ## 多槽组合与界限
 

@@ -51,7 +51,7 @@ import {
   ModelHostAuthorityService,
   modelRuntimeKey,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import {
   createMemoryResultPushLedger,
   createModelRuntimeLocalPlugin,
@@ -233,6 +233,10 @@ type Hooks = {
   advanceCleanup?(): 'fail' | 'pass'
   /** Runs before each `dispatches` of the plugin's commands; the read waits for what it returns. */
   dispatches?(): Promise<void> | void
+  /** `unavailable`: this page of the scan cannot be read, as a read queue that timed out. */
+  scanPending?(): 'unavailable' | 'denied' | 'pass'
+  /** `unavailable`: the recovery state of this call cannot be read. */
+  loadRecovery?(): 'unavailable' | 'pass'
 }
 
 /**
@@ -369,6 +373,19 @@ function world(
       await hooks.dispatches?.()
       return raw.dispatches(input)
     },
+    scanPending: async input => {
+      const answer = hooks.scanPending?.()
+      if (answer === 'unavailable')
+        return {
+          failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' },
+        }
+      if (answer === 'denied') return { failure: { kind: 'denied', action: 'scan' } }
+      return raw.scanPending(input)
+    },
+    loadRecovery: async input =>
+      hooks.loadRecovery?.() === 'unavailable'
+        ? { failure: { kind: 'unavailable', dependency: 'storage', diagnostic: 'queue_timeout' } }
+        : raw.loadRecovery(input),
   }
   const resources: SendResources<unknown> = {
     async acquire(demand) {
@@ -1214,4 +1231,141 @@ it('leaves a call that is not settled to its own settle', async () => {
     'the start scan',
   )
   expect(w.record('running')).toBeUndefined()
+})
+
+// A read that is unavailable once must not wait for the next start: the tenant is scanned again
+// after 1 s, 5 s, 30 s and then every 30 s until it is read. The clock is fake and moves with the
+// real time too, so the plugin's other waits go on.
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+/** A settled call whose ACK waits, left owed by a process that ended. The next load restarts. */
+async function owedAfterRestart(recovery: ResultPushRecovery) {
+  const w = world({ custodyEvidence: 'unavailable', recovery })
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.handoffs.length > 0, 'the ACK attempt after saved')
+  await first.dispose()
+  w.restart()
+  w.evidence.mode = 'verified'
+  return { w, scripted }
+}
+
+/** The drift of the fake clock between two steps of a test stays well under this. */
+const DRIFT_MS = 200
+
+it('scans a tenant it could not read again after 1 s, 5 s and 30 s, without waiting for the next start', async () => {
+  const { w, scripted } = await owedAfterRestart(SCAN_TENANT)
+  const scan = { attempts: 0, readable: false }
+  w.hooks.scanPending = () => {
+    scan.attempts += 1
+    return scan.readable ? 'pass' : 'unavailable'
+  }
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  await w.load()
+  await until(
+    () => w.warnings.some(text => text.includes('start scan stopped at scan (unavailable)')),
+    'the unreadable scan',
+  )
+  expect(scan.attempts).toBe(1)
+  for (const pause of [1000, 5000, 30000, 30000]) {
+    const before = scan.attempts
+    await vi.advanceTimersByTimeAsync(pause - DRIFT_MS)
+    expect(scan.attempts).toBe(before)
+    await vi.advanceTimersByTimeAsync(DRIFT_MS)
+    await until(() => scan.attempts === before + 1, 'the next scan')
+  }
+  expect(scripted.pushes).toHaveLength(1)
+  scan.readable = true
+  await vi.advanceTimersByTimeAsync(30000)
+  await until(() => w.record('one')?.cleanup === 'released', 'the push, ACK and cleanup')
+  expect(scripted.pushes).toHaveLength(2)
+  expect(scripted.pushes[1]).toEqual(scripted.pushes[0])
+  expect(w.messages.at(-1)).toContain('start scan woke 1 owed calls')
+  // Read once, the tenant leaves the set: no scan follows.
+  const attempts = scan.attempts
+  await vi.advanceTimersByTimeAsync(120000)
+  expect(scan.attempts).toBe(attempts)
+})
+
+it('lists the tenants again when the list cannot be read', async () => {
+  const list = { readable: true }
+  const flaky: ResultPushRecovery = {
+    scopes: async () =>
+      list.readable
+        ? { ok: [{ principal: PRINCIPAL, tenant: TENANT }] }
+        : { failure: { kind: 'unavailable', dependency: 'tenants', diagnostic: 'synthetic' } },
+  }
+  const { w, scripted } = await owedAfterRestart(flaky)
+  list.readable = false
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  await w.load()
+  await until(
+    () => w.warnings.some(text => text.includes('start scan stopped at scopes (unavailable)')),
+    'the unreadable list',
+  )
+  list.readable = true
+  await vi.advanceTimersByTimeAsync(1000)
+  await until(() => w.record('one')?.cleanup === 'released', 'the push, ACK and cleanup')
+  expect(scripted.pushes).toHaveLength(2)
+})
+
+it('scans a tenant again when one of its calls could not be loaded', async () => {
+  const { w, scripted } = await owedAfterRestart(SCAN_TENANT)
+  const load = { readable: false }
+  w.hooks.loadRecovery = () => (load.readable ? 'pass' : 'unavailable')
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  await w.load()
+  await until(
+    () => w.warnings.some(text => text.includes('start scan stopped at load (unavailable)')),
+    'the unreadable call',
+  )
+  load.readable = true
+  await vi.advanceTimersByTimeAsync(1000)
+  await until(() => w.record('one')?.cleanup === 'released', 'the push, ACK and cleanup')
+  expect(scripted.pushes).toHaveLength(2)
+})
+
+it('does not scan again after a definite refusal; the tenant waits for the next start', async () => {
+  const { w, scripted } = await owedAfterRestart(SCAN_TENANT)
+  const scan = { attempts: 0 }
+  w.hooks.scanPending = () => {
+    scan.attempts += 1
+    return 'denied'
+  }
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  await w.load()
+  await until(
+    () => w.warnings.some(text => text.includes('the rest waits for the next start')),
+    'the refused scan',
+  )
+  await vi.advanceTimersByTimeAsync(120000)
+  expect(scan.attempts).toBe(1)
+  expect(scripted.pushes).toHaveLength(1)
+})
+
+it('stops scanning again when the plugin is unloaded, without waiting for the pause', async () => {
+  const { w } = await owedAfterRestart(SCAN_TENANT)
+  const scan = { attempts: 0 }
+  w.hooks.scanPending = () => {
+    scan.attempts += 1
+    return 'unavailable'
+  }
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const second = w.load()
+  await second
+  await until(() => scan.attempts === 1, 'the unreadable scan')
+  let unloaded = false
+  void second.dispose().then(() => {
+    unloaded = true
+  })
+  await vi.advanceTimersByTimeAsync(1000 - DRIFT_MS * 2)
+  expect(unloaded).toBe(true)
+  await vi.advanceTimersByTimeAsync(120000)
+  expect(scan.attempts).toBe(1)
 })

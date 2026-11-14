@@ -3,11 +3,11 @@
 // configuration of the caller (`inject: { session: { caller } }`). It selects which face the caller
 // sees. It grants nothing: the access boundary is the access decision of each operation.
 import { fail } from '@omne-harness/operation-result'
-import type {
-  SessionCallerClass,
-  SessionFailure,
-  SessionFaces,
-} from '@omne-harness/session-contract'
+import type { SessionInstance } from '@omne-harness/session'
+import type { SessionCallerClass, SessionFailure } from '@omne-harness/session-contract'
+
+/** The four faces and the session list, as the instance gives them to one caller class. */
+export type ProviderFaces = ReturnType<SessionInstance<unknown>['facesFor']>
 
 const CLASSES: readonly SessionCallerClass[] = ['intake', 'coordinator', 'maintainer', 'reader']
 
@@ -21,12 +21,13 @@ export function callerClassOf(intercept: unknown): SessionCallerClass | null {
 /**
  * A copy of `template` in which every operation answers `refusal(action)`. The operations are those
  * of `template`, so the list lives in one place: the faces of the instance. The history operations
- * are named `history.<operation>`, as the instance names them in its own answers.
+ * are named `history.<operation>` and the list `directory.list`, as the instance names them in its
+ * own answers.
  */
 function refuseAll(
-  template: SessionFaces<unknown>,
+  template: ProviderFaces,
   refusal: (action: string) => SessionFailure,
-): SessionFaces<unknown> {
+): ProviderFaces {
   const refused = (face: object, prefix: string): object =>
     Object.freeze(
       Object.fromEntries(
@@ -41,16 +42,17 @@ function refuseAll(
     management: refused(template.management, ''),
     reconciliation: refused(template.reconciliation, ''),
     history: refused(template.history, 'history.'),
-  }) as unknown as SessionFaces<unknown>
+    directory: refused(template.directory, 'directory.'),
+  }) as unknown as ProviderFaces
 }
 
 /** Every operation `denied`, for a caller whose class is unknown. */
-export function deniedFaces(template: SessionFaces<unknown>): SessionFaces<unknown> {
+export function deniedFaces(template: ProviderFaces): ProviderFaces {
   return refuseAll(template, action => ({ kind: 'denied', action }))
 }
 
 /** Every operation `unavailable` with owner `session`, once removal has started. */
-export function removedFaces(template: SessionFaces<unknown>): SessionFaces<unknown> {
+export function removedFaces(template: ProviderFaces): ProviderFaces {
   return refuseAll(template, action => ({
     kind: 'unavailable',
     owner: 'session',

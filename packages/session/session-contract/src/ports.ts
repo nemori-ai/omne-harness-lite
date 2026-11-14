@@ -46,6 +46,7 @@ import type {
   ReleasedScope,
   Reply,
   ResidentReference,
+  SessionDirectory,
   SessionHistory,
   SessionManagement,
   SessionReconciliation,
@@ -84,6 +85,13 @@ export type ExecutionStatus = Readonly<{
   revision: string | null
   state: 'missing' | 'open' | 'suspended' | 'ended'
   attachment: 'active' | 'detached' | 'superseded' | null
+  /**
+   * The judgment of the host of the execution record that the runtime holding the active
+   * attachment is out of contact (SPEC PM-05, PM-14), as evidence. Null when the attachment is not
+   * active, when its runtime is alive, and when the host has no such judgment. Session never infers
+   * it.
+   */
+  lost: DurableEvidence | null
   conclusion: Readonly<{
     outcome: 'complete' | 'fail' | 'cancelled'
     cause: DurableEvidence | null
@@ -335,6 +343,12 @@ export interface SessionTransactionPort<P> {
       reason?: PendingReason
     }>,
   ): Reply<Readonly<{ sessions: readonly SessionId[]; next: string | null }>>
+  /**
+   * The session list of one tenant (SPEC「会话列表」). It asks the access check once, with the
+   * tenant as the target. A provider that does not offer it omits it, and a reader answers
+   * unavailable. A delegated view answers `denied`: it names no session.
+   */
+  readonly directory?: SessionDirectory<P>
   references(
     input: Readonly<{
       principal: P

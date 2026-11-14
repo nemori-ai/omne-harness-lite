@@ -29,6 +29,8 @@ export type {
   AgentRunEndedFailedReceiver,
   AgentRunFailed,
   AgentRunFailedReceiver,
+  AgentRunWaiting,
+  AgentRunWaitingReceiver,
 } from './run-failure.ts'
 
 export { agentModelDeliverySchema, readModelDeliveryMaterial } from './receiving-material.ts'

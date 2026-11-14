@@ -17,7 +17,8 @@
 // - The durable custody of the commands is the fact of what is still owed, not the ledger. With
 //   `recovery`, the push scans the commands when it starts and wakes every settled call that is not
 //   yet acknowledged and cleaned, so a new process with an empty ledger pushes and acknowledges
-//   what an earlier one left (R2-D260). There is no second, durable ledger.
+//   what an earlier one left (R2-D260). There is no second, durable ledger. A tenant the scan cannot
+//   read now is scanned again after a backoff; the set of such tenants holds no fact.
 import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
@@ -42,6 +43,7 @@ import {
 } from '@omne-harness/model-contract'
 import type {
   ExecutionRef,
+  ModelClock,
   ModelCommands,
   ModelHostAuthority,
 } from '@omne-harness/model-contract/provider'
@@ -50,8 +52,18 @@ import {
   createModelResultReceiverTable,
   type ModelResultReceiverTable,
 } from '@omne-harness/model-cordis-contract/cordis'
+import { whenEmpty } from './idle.ts'
 
 const DEPENDENCY = 'model-result-push'
+
+/** The pause before a tenant the start scan could not read is scanned again: 1 s, 5 s, then 30 s. */
+function recoveryPauseMs(failures: number): number {
+  if (failures === 0) return 1000
+  return failures === 1 ? 5000 : 30000
+}
+
+/** What one read of the start scan came to: read, worth reading again after a pause, or given up. */
+type Scan<T> = Readonly<{ kind: 'read'; value: T }> | Readonly<{ kind: 'again' | 'given-up' }>
 
 type Target = Readonly<{ tenant: TenantId; call: ModelCallId }>
 type ResultDelivery = Extract<ModelDelivery, { kind: 'result' }>
@@ -201,9 +213,18 @@ export type RuntimeEvent =
   | Readonly<{ kind: 'late-account-refused'; pending: number }>
   | Readonly<{ kind: 'blocked'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'work-threw' }>
-  /** The start scan stopped at `step`; the calls it did not reach wait for the next start. */
-  | Readonly<{ kind: 'recovery-failed'; step: 'scopes' | 'scan' | 'load'; failure: string }>
-  /** The start scan ended: it woke `woken` settled calls that were still owed. */
+  /**
+   * The start scan could not read at `step`. With `again` the tenant (or the tenant list, at
+   * `scopes`) is scanned again after a pause; without it the calls it did not reach wait for the
+   * next start.
+   */
+  | Readonly<{
+      kind: 'recovery-failed'
+      step: 'scopes' | 'scan' | 'load' | 'wait'
+      failure: string
+      again: boolean
+    }>
+  /** The start scan, or the scan of a tenant again, woke `woken` settled calls that were still owed. */
   | Readonly<{ kind: 'recovered'; woken: number }>
 
 const LIMIT_NAMES = [
@@ -299,6 +320,8 @@ type StageInput = Readonly<{
   authority: ModelHostAuthority<unknown>
   /** The page size of the start scan: the host's `scanBatchSize`. */
   scanBatchSize: number
+  /** Times the pause before the start scan reads a tenant again. */
+  clock: ModelClock
   report(event: RuntimeEvent): void
   /** Told once the result body of a call is released: the host retires the call's route. */
   released?(target: Readonly<{ tenant: TenantId; call: ModelCallId }>): void
@@ -318,6 +341,11 @@ export type RuntimeStage = Readonly<{
    * the late accounts being accepted, writes what arrived into the ledger, and releases the ledger.
    */
   stop(): Promise<void>
+  /**
+   * Resolves when no call is being pushed, or when `signal` aborts; the answer is the number of
+   * calls whose push still runs. A delivery that waits for its receiver is not counted.
+   */
+  idle(signal: AbortSignal): Promise<number>
 }>
 
 /** The `modelRuntime` service: the runtime of the provider and its receiver table. */
@@ -369,6 +397,7 @@ export function createRuntimeStage(
         if (runtime !== undefined)
           throw new TypeError('model host: a runtime facade needs the result push options')
       },
+      idle: async () => 0,
       stop: async () => {},
     }
   return createResultPush(input, options.ledger, checkedLimits(options.limits), options.recovery)
@@ -380,7 +409,7 @@ function createResultPush(
   limits: ResultPushLimits,
   recovery: ResultPushRecovery | undefined,
 ): RuntimeStage {
-  const { commands, authority, report } = input
+  const { commands, authority, clock, report } = input
   const dirty = new Map<string, Target>()
   const running = new Map<string, Promise<void>>()
   /** Late accounts accepted and not yet saved: reservation → tenant. */
@@ -910,53 +939,121 @@ function createResultPush(
   /**
    * The start scan: every tenant of `recovery`, page by page, wakes each settled call whose custody
    * is still with the producer or whose cleanup is not released. A call that is not settled is not
-   * the push's: its settle wakes it. It never rejects; a failure is reported and ends the scan of
-   * that tenant, and the next start scans again.
+   * the push's: its settle wakes it. It never rejects. A read that is unavailable or throws is
+   * reported and its tenant (or the tenant list) is scanned again after a backoff until it is read;
+   * any other failure is reported and waits for the next start. The stop ends every pause.
    */
   async function recover(source: ResultPushRecovery): Promise<void> {
-    try {
-      const scopes = await source.scopes()
-      if ('failure' in scopes) {
-        report({ kind: 'recovery-failed', step: 'scopes', failure: scopes.failure.kind })
-        return
-      }
-      let woken = 0
-      for (const scope of scopes.ok) woken += await scanTenant(scope)
-      report({ kind: 'recovered', woken })
-    } catch {
-      report({ kind: 'recovery-failed', step: 'scan', failure: 'threw' })
+    const scopes = await persistently(() => listScopes(source))
+    if (scopes === null) return
+    const again: Promise<void>[] = []
+    let woken = 0
+    for (const scope of scopes) {
+      const scan = await scanTenant(scope)
+      if (scan.kind === 'read') woken += scan.value
+      if (scan.kind === 'again') again.push(scanAgain(scope))
+    }
+    report({ kind: 'recovered', woken })
+    await Promise.all(again)
+  }
+
+  async function scanAgain(scope: Access): Promise<void> {
+    const woken = await readAgain(() => scanTenant(scope))
+    if (woken !== null) report({ kind: 'recovered', woken })
+  }
+
+  /** `read`, and after a failure worth it, `readAgain`; null when it is given up or stopped. */
+  async function persistently<T>(read: () => Promise<Scan<T>>): Promise<T | null> {
+    const scan = await read()
+    if (scan.kind === 'read') return scan.value
+    return scan.kind === 'again' ? readAgain(read) : null
+  }
+
+  /** Pauses before each read, longer after each failure, until one is read. */
+  async function readAgain<T>(read: () => Promise<Scan<T>>): Promise<T | null> {
+    for (let failures = 0; ; failures += 1) {
+      if (!(await paused(recoveryPauseMs(failures)))) return null
+      const scan = await read()
+      if (scan.kind === 'read') return scan.value
+      if (scan.kind === 'given-up') return null
     }
   }
 
-  async function scanTenant(scope: Access): Promise<number> {
-    let woken = 0
-    let after: string | null = null
-    do {
-      if (stopping.signal.aborted) return woken
-      const page = await commands.scanPending({ ...scope, after, limit: input.scanBatchSize })
-      if ('failure' in page) {
-        report({ kind: 'recovery-failed', step: 'scan', failure: page.failure.kind })
-        return woken
-      }
-      for (const call of page.ok.calls) if (await wakeIfOwed(scope, call)) woken += 1
-      after = page.ok.next
-    } while (after !== null)
-    return woken
+  /** False when the stop ends the pause, or when the clock fails: nothing is read again then. */
+  async function paused(ms: number): Promise<boolean> {
+    try {
+      const instant = new Date(Date.parse(clock.now()) + ms).toISOString()
+      return (await clock.waitUntil(instant, stopping.signal)) === 'elapsed'
+    } catch {
+      report({ kind: 'recovery-failed', step: 'wait', failure: 'threw', again: false })
+      return false
+    }
   }
 
-  async function wakeIfOwed(scope: Access, call: ModelCallId): Promise<boolean> {
-    if (stopping.signal.aborted) return false
+  /** Reports a failed read; an unavailable dependency or a throw is worth reading again. */
+  function failed(
+    step: 'scopes' | 'scan' | 'load',
+    failure: ModelFailure | 'threw',
+  ): 'again' | 'given-up' {
+    const again = failure === 'threw' || failure.kind === 'unavailable'
+    report({
+      kind: 'recovery-failed',
+      step,
+      failure: failure === 'threw' ? failure : failure.kind,
+      again,
+    })
+    return again ? 'again' : 'given-up'
+  }
+
+  async function listScopes(source: ResultPushRecovery): Promise<Scan<readonly Access[]>> {
+    try {
+      const scopes = await source.scopes()
+      if ('ok' in scopes) return { kind: 'read', value: scopes.ok }
+      return { kind: failed('scopes', scopes.failure) }
+    } catch {
+      return { kind: failed('scopes', 'threw') }
+    }
+  }
+
+  /** Reads every page of a tenant; a call that could not be loaded makes it worth reading again. */
+  async function scanTenant(scope: Access): Promise<Scan<number>> {
+    let woken = 0
+    let again = false
+    let after: string | null = null
+    try {
+      do {
+        if (stopping.signal.aborted) break
+        const page = await commands.scanPending({ ...scope, after, limit: input.scanBatchSize })
+        if ('failure' in page) return { kind: failed('scan', page.failure) }
+        for (const call of page.ok.calls) {
+          const owed = await wakeIfOwed(scope, call)
+          if (owed === 'woken') woken += 1
+          if (owed === 'again') again = true
+        }
+        after = page.ok.next
+      } while (after !== null)
+    } catch {
+      return { kind: failed('scan', 'threw') }
+    }
+    return again ? { kind: 'again' } : { kind: 'read', value: woken }
+  }
+
+  async function wakeIfOwed(
+    scope: Access,
+    call: ModelCallId,
+  ): Promise<'woken' | 'skipped' | 'again'> {
+    if (stopping.signal.aborted) return 'skipped'
     const loaded = await commands.loadRecovery({ ...scope, call })
     if ('failure' in loaded) {
       const { failure } = loaded
-      if (failure.kind !== 'invalid' || failure.reason !== 'recovery-material-released')
-        report({ kind: 'recovery-failed', step: 'load', failure: failure.kind })
-      return false
+      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released')
+        return 'skipped'
+      return failed('load', failure) === 'again' ? 'again' : 'skipped'
     }
     const { state } = loaded.ok
-    if (state.phase !== 'settled') return false
+    if (state.phase !== 'settled') return 'skipped'
     wake({ tenant: scope.tenant, call })
-    return true
+    return 'woken'
   }
 
   const wrapped: ModelCommands<unknown> = {
@@ -1008,6 +1105,9 @@ function createResultPush(
       // What an earlier process left in the durable custody goes on here, with an empty ledger too.
       if (recovery !== undefined) scanning = recover(recovery)
     },
+    // Every piece of work that ends pumps the dirty calls first, so an empty `running` has no
+    // dirty call that could start behind it.
+    idle: signal => whenEmpty(running, signal),
     async stop() {
       if (phase === 'stopped') return
       phase = 'stopped'
@@ -1100,7 +1200,9 @@ export function reportRuntimeEvent(ctx: Context, event: RuntimeEvent): void {
       return
     case 'recovery-failed':
       ctx.logger.warn(
-        `model result push: the start scan stopped at ${event.step} (${event.failure}); the rest waits for the next start`,
+        `model result push: the start scan stopped at ${event.step} (${event.failure}); ${
+          event.again ? 'it is scanned again after a pause' : 'the rest waits for the next start'
+        }`,
       )
       return
     case 'recovered':

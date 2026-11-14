@@ -14,12 +14,12 @@
 
 ## 部件与归属
 
-| 部件 | 所在线程 | 拥有什么 |
-| --- | --- | --- |
-| 控制侧入口 | 调用方所在线程 | 字段核对、JSON 值核对、清单摘要与输入摘要的核对、规范写出、预留与等待列表 |
-| 写 Worker | 每个事务域一个专用 Worker 线程，不共用 | 写连接、写代际、登记读写、组调度器、域状态、DO-1、事务和回执 |
-| 读 Worker | 每域最多 `maxReadWorkersPerDomain` 个，惰性创建 | 只读连接与 handler 执行 |
-| 参加者模块 | Worker 内 | 本参加者的事实语句。模块只拿到 `ParticipantPort` |
+| 部件       | 所在线程                                        | 拥有什么                                                                  |
+| ---------- | ----------------------------------------------- | ------------------------------------------------------------------------- |
+| 控制侧入口 | 调用方所在线程                                  | 字段核对、JSON 值核对、清单摘要与输入摘要的核对、规范写出、预留与等待列表 |
+| 写 Worker  | 每个事务域一个专用 Worker 线程，不共用          | 写连接、写代际、登记读写、组调度器、域状态、DO-1、事务和回执              |
+| 读 Worker  | 每域最多 `maxReadWorkersPerDomain` 个，惰性创建 | 只读连接与 handler 执行                                                   |
+| 参加者模块 | Worker 内                                       | 本参加者的事实语句。模块只拿到 `ParticipantPort`                          |
 
 控制侧入口只把版本化数据和操作身份发给 Worker，这条约束来自[数据与状态](../../../docs/architecture/data-and-state.md#事务域与异步sqlite执行)。函数不能经结构化克隆进入 Worker。所以 JSON 值核对在控制侧完成，在消息发出之前。
 
@@ -54,8 +54,50 @@
 - `opening` 成功到 `ready`。暂时性故障回到 `unopened`，持久或静态故障到 `quarantined`。
 - `ready` 的写 Worker 异常退出时到 `recovering`，观察到退出后到 `opening`。
 - `absent` 经登记创建到 `ready`。
+- `ready` 而且空闲的域，在有人要 Worker 名额而没有名额时让出：提供者关闭它的写 Worker，域回到 `unopened`。下一次触及按 DO-1 路径 A 重新打开。让出不是故障，也不改任何事实：已提交的都在文件里。
 
-暂时性故障是：没有 Worker 名额或进程内声明（§13.5）、打开时 I/O 错误、写锁等待超过 `lockWaitMs`、迁移 COMMIT 的结果不确定。其余打开故障都是持久或静态故障。
+**持有与空闲。** 登记、提交、查询在触及一个域之前取得对它的持有，在自己的请求结束时归还。请求结束是指收到答复或观察到 Worker 退出，不是调用方的观察期限到期。没有任何持有、WAL 状态是 `normal` 的 `ready` 域是空闲的。
+
+**读不需要写 Worker。** 读要的是一条记录：本代提供者打开过这个域，它绑定的是哪个作用域。这条记录在第一次打开成功时写下，写 Worker 让出或退出之后仍然留着，域被隔离时删除。读只在一个域还没有这条记录时触发打开；之后读只占读 Worker 的名额，不持有域，不妨碍它让出写 Worker。读 Worker 绑定的是这条记录，所以写 Worker 让出再打开不关闭读连接。
+
+域的条目在各状态下对四件事的答复：
+
+| 状态                                           | 被操作触及                                                                                           | 别人要名额而没有名额           | 写 Worker 异常退出         | 提供者关闭     |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------ | -------------------------- | -------------- |
+| 没有条目（`absent`、`unopened`）               | 文件不在且不是登记：`absent`。不知道在不在：暂时性故障。否则取一个名额并开始打开；取不到是暂时性故障 | 不适用：不占名额               | 不适用                     | 无事           |
+| 让出中（没有条目，写 Worker 的退出还没被观察） | 等退出被观察，再按「没有条目」处理                                                                   | 不再让别的域让出，等这一个退出 | 退出即让出完成             | 等退出         |
+| `opening`                                      | 等同一个结果                                                                                         | 不让                           | 打开失败，回到没有条目     | 等它打开完再关 |
+| `ready`，有持有                                | 直接用                                                                                               | 不让                           | 删掉条目，下次触及重新打开 | 关             |
+| `ready`，空闲                                  | 取得持有，直接用                                                                                     | 让出                           | 同上                       | 关             |
+| `quarantined`                                  | 答不可用                                                                                             | 不适用：没有 Worker            | 不适用                     | 无事           |
+
+要名额时按这个次序腾：先关一个任意域的空闲读 Worker；没有，就让最久没被持有的那个空闲域让出（不让正在要名额的那个域自己让出）。都没有时，读留在队列里等（计入 `readQueueTimeoutMs`），打开域是暂时性故障。
+
+等名额的读在三个时刻再试一次：一个 Worker 的退出被观察到；一个读 Worker 做完手上的读变成空闲；它自己的域有读结束。第二个时刻以前没有：一个读到达时别的读 Worker 都在忙，它就一直等到有 Worker 退出，即使那些读 Worker 很快就空下来了。
+
+**域文件在不在。** 打开开始时，提供者用 `stat` 判断域文件在不在。答案有三个：
+
+| `stat` 的结果   | 在不在 | 登记以外的操作（`commit`、`query`、`read`） | 登记                      |
+| --------------- | ------ | ------------------------------------------- | ------------------------- |
+| 成功            | 在     | 按路径 A 打开                               | 按路径 A 打开             |
+| 错误码 `ENOENT` | 不在   | `absent`                                    | 按路径 B 创建             |
+| 其他任何错误    | 不知道 | 暂时性故障，不启动 Worker                   | 暂时性故障，不启动 Worker |
+
+「不知道」不是 `absent`：`commit` 得到 `domain_unavailable`，不得到 `combination_unregistered`。它不留条目，下一次触及重新判断。打开失败时，提供者只删除本次打开之前确凿看到 `ENOENT` 的文件（库文件与 `-wal`、`-shm`、`-journal`）：这些文件是本次打开创建的。在或不知道时，提供者不删除任何文件。
+
+**模块加载失败的定性。** 写 Worker 在两处加载模块：组提交前加载参加者模块（§7.5），打开前加载待做迁移的模块（§5.3 路径 A 第 7 步、路径 B 第 2 步）。加载失败由同一个全函数定性：
+
+| 抛出的值                                                                                                                             | 定性 | 组提交前                                                    | 重开已有的域时 |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ---- | ----------------------------------------------------------- | -------------- |
+| 带字符串 `code`，形如 `E` 加大写字母或数字（系统错误码，例如 EMFILE、ENFILE、EIO、ENOMEM、EAGAIN、EBUSY、ETIMEDOUT、EACCES、ENOENT） | 暂时 | 本组的操作得到 `domain_unavailable`，没有语句执行，域不隔离 | 暂时性故障     |
+| 摘要不符（`material_digest_mismatch`）                                                                                               | 内容 | 隔离                                                        | 隔离           |
+| 其他任何值：求值失败、导出形状不对、`ERR_` 开头的 Node 错误码、非 `Error` 的值                                                       | 内容 | 隔离（`module_load_failed`）                                | 隔离           |
+
+加载失败不缓存，所以暂时的失败之后，下一次请求重新读取并导入模块。
+
+暂时性故障是：没有 Worker 名额或进程内声明（§13.5）、不知道域文件在不在、打开时 I/O 错误（SQLite 的环境类结果码）、读取或导入模块时的系统错误、写锁等待超过 `lockWaitMs`、迁移 COMMIT 的结果不确定。暂时性故障不隔离域。
+
+**隔离的条件。** 只有内容不对时，域才进入 `quarantined`：SQLite 版本低于下限、PRAGMA 读回不符、绑定行与路径不符或作用域无法解析、迁移标记不符、声明组合的登记冲突、迁移失败（`up` 抛错或 `verify` 不通过）、模块内容不对（上表）。重开已有的域时，其余不属于暂时性故障的打开故障也归隔离。创建域（路径 B）时的失败不隔离：域保持 `absent`。
 
 ### §5.3 DO-1：构造与域打开
 
@@ -109,12 +151,12 @@
 
 一个原操作的每个参加者在该域都可分组时，这个操作才进入多操作组。否则它单独成组（§7.3）。
 
-| 层 | 条件 | 核验者与时点 | 不通过时 |
-| --- | --- | --- | --- |
-| 声明 | 材料字段 `grouping` 为 `groupable` 或 `singleton`，没有默认值 | 工厂，构造期 | 构造被拒绝 |
+| 层   | 条件                                                                                                                                 | 核验者与时点                                                     | 不通过时                                                |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------- |
+| 声明 | 材料字段 `grouping` 为 `groupable` 或 `singleton`，没有默认值                                                                        | 工厂，构造期                                                     | 构造被拒绝                                              |
 | 模式 | 参加者拥有的表没有 `DEFERRABLE INITIALLY DEFERRED` 外键，没有 `CURRENT_TIME`、`CURRENT_DATE`、`CURRENT_TIMESTAMP` 默认值，不是临时表 | 提供者读取 `sqlite_schema`，在域打开或新登记的迁移事务内（§5.3） | 本提供者代际内，该参加者在该域按 singleton 处理，记诊断 |
-| 运行 | 语句只调用基本允许清单与 `allowedFunctions` 中的函数。基本清单不含时间、随机与连接状态函数 | authorizer，每条语句 | 回复 `failed`（`port_violation`），明确回滚 |
-| 模块 | 模块不跨调用保留影响结果的状态，不产生带外副作用 | 材料拥有者，场景 C21 | 材料声明 `singleton` |
+| 运行 | 语句只调用基本允许清单与 `allowedFunctions` 中的函数。基本清单不含时间、随机与连接状态函数                                           | authorizer，每条语句                                             | 回复 `failed`（`port_violation`），明确回滚             |
+| 模块 | 模块不跨调用保留影响结果的状态，不产生带外副作用                                                                                     | 材料拥有者，场景 C21                                             | 材料声明 `singleton`                                    |
 
 延迟外键是唯一能被后续操作修复的约束。反例 FK-1：A 插入违反延迟外键的行，B 补上父行，合组后 A 从应失败变为成功。参加者不能执行 PRAGMA（sql-contract 规格 §7.4），所以模式层足以排除 FK-1，而且核验成本不随历史数据增长。作者自报不代替核验。全部材料标为 singleton 不算完成 IP-ST-09（场景 C20）。authorizer 能否看到默认值中的时间函数待实测，实测前以模式层为准（L-9）。
 
@@ -279,13 +321,13 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 
 身份带 `recall: 'never'` 时，`query` 在控制侧返回 `not_recallable`，不发给 Worker（sql-contract 规格 §8）。其他 `query` 是写 Worker 上的排序屏障：当前组结束之后才执行。域与作用域的判断见 sql-contract 规格 §8。查询的作用域不是该事务域服务的作用域时，Worker 返回 `unknown`，不读取回执。五项证明的来源【提案 P-01、P-09】：
 
-| 证明 | 来源 |
-| --- | --- |
-| 旧写代际已排除 | 本代际已完成 DO-1 路径 A 第 6 步（或路径 B 把写代际置为 1），并且此前写 Worker 的退出已被观察到 |
-| 旧事务已终止 | 路径 A 第 2 步打开成功。之后在下一次 `BEGIN` 之前，提供者不持有事务 |
-| 数据库恢复已完成 | 路径 A 第 2 至 4 步成功 |
-| 权威读取已成功 | 本次在写连接上的读取成功 |
-| 未进入受理队列 | 待决索引中没有该身份 |
+| 证明             | 来源                                                                                            |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| 旧写代际已排除   | 本代际已完成 DO-1 路径 A 第 6 步（或路径 B 把写代际置为 1），并且此前写 Worker 的退出已被观察到 |
+| 旧事务已终止     | 路径 A 第 2 步打开成功。之后在下一次 `BEGIN` 之前，提供者不持有事务                             |
+| 数据库恢复已完成 | 路径 A 第 2 至 4 步成功                                                                         |
+| 权威读取已成功   | 本次在写连接上的读取成功                                                                        |
+| 未进入受理队列   | 待决索引中没有该身份                                                                            |
 
 受理队列只在内存中。重启后队列为空，旧队列中尚未开始的操作没有回执。读 Worker 不能构造任何一项证明。
 
@@ -323,51 +365,51 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 
 `storage` 行的配置只含可序列化的数据（IC-16）。字段都必填。除 `storageRoot` 外，字段都是有限正整数，只有 `groupCollectMs` 与 `admissionWaitMs` 可以为 0。初值是待实测的工程建议，不是吞吐或延迟承诺。装配填写采用值，工厂在构造期核对。缺值或违反规则时构造被拒绝（`config_invalid`，带字段名与规则），fiber 进入 `FAILED`（IC-14）。S1 的四项配置（`admissionQueueLimit`、`lockWaitMs`、`maxCommandsPerCommit`、`maxCommandBytes`）保持 S1 的含义，其余字段是 S1 允许提供者补充的配置。
 
-| 字段 | 候选初值 | 限制什么 |
-| --- | --- | --- |
-| `storageRoot` | 装配给出 | 绝对路径（§5.1） |
-| `admissionQueueLimit` | 64 | S1：每域已预留、尚未确认结束的 `commit` 数 |
-| `globalAdmissionLimit` | 256 | 全局的同一计数 |
-| `admissionWaitMs` | 1000 | `commit`、`registerCombination`、`query` 拿不到预留时在等待列表里等待的上界（sql-contract 规格[准入等待](../sql-contract/SPEC.md#准入等待)）；0 为不等。读的等待计入 `readQueueTimeoutMs` |
-| `lockWaitMs` | 5000 | S1：写锁等待，到期为 `unknown`。也是写在 `domain-serial` 屏障前的等待上界（到期撤下，`barrier_wait_expired`）；它的两倍是已发送的 `commit`、`query`、`registerCombination` 的调用方观察上界（到期 `reply_wait_expired`，预留保持到 Worker 答复或退出），见 §9.3 |
-| `maxCommandsPerCommit` | 16 | S1：命令条数 |
-| `maxCommandBytes` | 1048576 | S1：单条命令 |
-| `maxRequestBytes` | 4194304 | 一个 `commit` 请求 |
-| `globalInFlightWriteBytes` | 67108864 | 全部已预留请求 |
-| `maxJsonDepth` | 64 | JSON 嵌套深度 |
-| `maxJsonMembers` | 65536 | 一个请求的容器成员总数 |
-| `maxResponseBytes` | 65536 | 一份参加者回复 |
-| `maxOperationResponseBytes` | 1048576 | 一个操作的全部回复，也是每个预留的响应额度 |
-| `globalWriteResponseBytes` | 33554432 | 全局写响应预留 |
-| `maxDiagnosticBytes` | 4096 | 一条诊断 |
-| `maxWorkers` | 16 | 全局写与读 Worker 数 |
-| `reservedWriterSlots` | 4 | 只给写 Worker 的名额 |
-| `maxReadWorkersPerDomain` | 2 | 每域读 Worker，惰性创建 |
-| `readQueuePerDomain` | 32 | 每域读等待项 |
-| `readQueueGlobal` | 256 | 全局读等待项 |
-| `readQueueTimeoutMs` | 1000 | 读请求从调用起等待派发，含等待预留与 `domain-serial` 屏障的时间；到期从次序中撤下 |
-| `maxReadInputBytes` | 262144 | 一个读请求的输入 |
-| `maxReadResultBytes` | 20971520 | 一个读结果；每个 handler 的 `maxOutputBytes` 不得超过它。20 MiB 是 Session 日志读所需的上限（R2-D81） |
-| `globalReadResultBytes` | 134217728 | 全局在途读结果预留。每次读按 handler 的 `maxOutputBytes` 预留，所以它至少容纳数个 20 MiB 预留（R2-D81） |
-| `readObservationMs` | 2000 | 读运行的观察期限，也是 `domain-serial` 屏障的持有上界（§9.3） |
-| `readerIdleMs` | 30000 | 空闲读 Worker 的关闭期限 |
-| `queryQueuePerDomain` | 16 | 每域 `query` 等待项 |
-| `queryQueueGlobal` | 64 | 全局 `query` 等待项 |
-| `controlQueuePerDomain` | 8 | 每域控制消息 |
-| `controlQueueGlobal` | 32 | 全局控制消息 |
-| `writesPerControlTurn` | 4 | §7.3 的公平份额 |
-| `groupMaxOperations` | 8 | 一组的原操作数 |
-| `groupCollectMs` | 1 | 收集期限。Windows 定时器可能晚醒，不是延迟上界 |
-| `groupMaxInputBytes` | 4194304 | 一组的输入字节 |
-| `groupMaxResponseReservationBytes` | 8388608 | 一组的响应预留 |
-| `groupMaxExecutionSliceMs` | 5 | 一组的时间片 |
-| `walAutocheckpointPages` | 1000 | `wal_autocheckpoint` |
-| `journalSizeLimitBytes` | 67108864 | `journal_size_limit` |
-| `checkpointIntervalMs` | 1000 | PASSIVE checkpoint 间隔 |
-| `checkpointWalBytes` | 16777216 | 触发 PASSIVE checkpoint 的 WAL 大小 |
-| `walReadPauseBytes` | 67108864 | 进入 `read-paused` 的 WAL 大小 |
-| `walWriteStopBytes` | 134217728 | 进入 `write-stopped` 的 WAL 大小 |
-| `closeDeadlineMs` | 10000 | 关闭期限的唯一来源 |
+| 字段                               | 候选初值  | 限制什么                                                                                                                                                                                                                                                        |
+| ---------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storageRoot`                      | 装配给出  | 绝对路径（§5.1）                                                                                                                                                                                                                                                |
+| `admissionQueueLimit`              | 64        | S1：每域已预留、尚未确认结束的 `commit` 数                                                                                                                                                                                                                      |
+| `globalAdmissionLimit`             | 256       | 全局的同一计数                                                                                                                                                                                                                                                  |
+| `admissionWaitMs`                  | 1000      | `commit`、`registerCombination`、`query` 拿不到预留时在等待列表里等待的上界（sql-contract 规格[准入等待](../sql-contract/SPEC.md#准入等待)）；0 为不等。读的等待计入 `readQueueTimeoutMs`                                                                       |
+| `lockWaitMs`                       | 5000      | S1：写锁等待，到期为 `unknown`。也是写在 `domain-serial` 屏障前的等待上界（到期撤下，`barrier_wait_expired`）；它的两倍是已发送的 `commit`、`query`、`registerCombination` 的调用方观察上界（到期 `reply_wait_expired`，预留保持到 Worker 答复或退出），见 §9.3 |
+| `maxCommandsPerCommit`             | 16        | S1：命令条数                                                                                                                                                                                                                                                    |
+| `maxCommandBytes`                  | 1048576   | S1：单条命令                                                                                                                                                                                                                                                    |
+| `maxRequestBytes`                  | 4194304   | 一个 `commit` 请求                                                                                                                                                                                                                                              |
+| `globalInFlightWriteBytes`         | 67108864  | 全部已预留请求                                                                                                                                                                                                                                                  |
+| `maxJsonDepth`                     | 64        | JSON 嵌套深度                                                                                                                                                                                                                                                   |
+| `maxJsonMembers`                   | 65536     | 一个请求的容器成员总数                                                                                                                                                                                                                                          |
+| `maxResponseBytes`                 | 65536     | 一份参加者回复                                                                                                                                                                                                                                                  |
+| `maxOperationResponseBytes`        | 1048576   | 一个操作的全部回复，也是每个预留的响应额度                                                                                                                                                                                                                      |
+| `globalWriteResponseBytes`         | 33554432  | 全局写响应预留                                                                                                                                                                                                                                                  |
+| `maxDiagnosticBytes`               | 4096      | 一条诊断                                                                                                                                                                                                                                                        |
+| `maxWorkers`                       | 16        | 全局写与读 Worker 数                                                                                                                                                                                                                                            |
+| `reservedWriterSlots`              | 4         | 只给写 Worker 的名额                                                                                                                                                                                                                                            |
+| `maxReadWorkersPerDomain`          | 2         | 每域读 Worker，惰性创建                                                                                                                                                                                                                                         |
+| `readQueuePerDomain`               | 32        | 每域读等待项                                                                                                                                                                                                                                                    |
+| `readQueueGlobal`                  | 256       | 全局读等待项                                                                                                                                                                                                                                                    |
+| `readQueueTimeoutMs`               | 1000      | 读请求从调用起等待派发，含等待预留与 `domain-serial` 屏障的时间；到期从次序中撤下                                                                                                                                                                               |
+| `maxReadInputBytes`                | 262144    | 一个读请求的输入                                                                                                                                                                                                                                                |
+| `maxReadResultBytes`               | 20971520  | 一个读结果；每个 handler 的 `maxOutputBytes` 不得超过它。20 MiB 是 Session 日志读所需的上限（R2-D81）                                                                                                                                                           |
+| `globalReadResultBytes`            | 134217728 | 全局在途读结果预留。每次读按 handler 的 `maxOutputBytes` 预留，所以它至少容纳数个 20 MiB 预留（R2-D81）                                                                                                                                                         |
+| `readObservationMs`                | 2000      | 读运行的观察期限，也是 `domain-serial` 屏障的持有上界（§9.3）                                                                                                                                                                                                   |
+| `readerIdleMs`                     | 30000     | 空闲读 Worker 的关闭期限                                                                                                                                                                                                                                        |
+| `queryQueuePerDomain`              | 16        | 每域 `query` 等待项                                                                                                                                                                                                                                             |
+| `queryQueueGlobal`                 | 64        | 全局 `query` 等待项                                                                                                                                                                                                                                             |
+| `controlQueuePerDomain`            | 8         | 每域控制消息                                                                                                                                                                                                                                                    |
+| `controlQueueGlobal`               | 32        | 全局控制消息                                                                                                                                                                                                                                                    |
+| `writesPerControlTurn`             | 4         | §7.3 的公平份额                                                                                                                                                                                                                                                 |
+| `groupMaxOperations`               | 8         | 一组的原操作数                                                                                                                                                                                                                                                  |
+| `groupCollectMs`                   | 1         | 收集期限。Windows 定时器可能晚醒，不是延迟上界                                                                                                                                                                                                                  |
+| `groupMaxInputBytes`               | 4194304   | 一组的输入字节                                                                                                                                                                                                                                                  |
+| `groupMaxResponseReservationBytes` | 8388608   | 一组的响应预留                                                                                                                                                                                                                                                  |
+| `groupMaxExecutionSliceMs`         | 5         | 一组的时间片                                                                                                                                                                                                                                                    |
+| `walAutocheckpointPages`           | 1000      | `wal_autocheckpoint`                                                                                                                                                                                                                                            |
+| `journalSizeLimitBytes`            | 67108864  | `journal_size_limit`                                                                                                                                                                                                                                            |
+| `checkpointIntervalMs`             | 1000      | PASSIVE checkpoint 间隔                                                                                                                                                                                                                                         |
+| `checkpointWalBytes`               | 16777216  | 触发 PASSIVE checkpoint 的 WAL 大小                                                                                                                                                                                                                             |
+| `walReadPauseBytes`                | 67108864  | 进入 `read-paused` 的 WAL 大小                                                                                                                                                                                                                                  |
+| `walWriteStopBytes`                | 134217728 | 进入 `write-stopped` 的 WAL 大小                                                                                                                                                                                                                                |
+| `closeDeadlineMs`                  | 10000     | 关闭期限的唯一来源                                                                                                                                                                                                                                              |
 
 字段之间的规则：
 
@@ -381,7 +423,8 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 
 ### §12.2 资源
 
-- 全局 Worker 名额计入处于任何状态的写 Worker 与读 Worker。观察到 Worker 退出之前，名额不归还。读 Worker 最多使用 `maxWorkers − reservedWriterSlots` 个名额。没有名额时，打开域是暂时性故障。读请求等待名额的时间计入 `readQueueTimeoutMs`。
+- 全局 Worker 名额计入处于任何状态的写 Worker 与读 Worker。写 Worker 在启动之前取得名额，读 Worker 同样。观察到 Worker 退出之前，名额不归还。读 Worker 最多使用 `maxWorkers − reservedWriterSlots` 个名额。没有名额时先按 §5.2 的次序腾名额；腾不出时，打开域是暂时性故障。读请求等待名额的时间计入 `readQueueTimeoutMs`。
+- 名额限制的是同时在用的 Worker 数，不是部署里的域数：空闲的域不长期占名额。
 - 输入、结构化克隆、响应、等待者与结果发送都计入有界预算。提供者先做有界遍历，再分配完整字符串。
 - 预算是资源配置，不是租户之间的公平政策。提供者不在租户之间轮转调度（S1）。
 - 慢语句期间持续提交的内存上界没有探针（L-6）。没有这次探针，不能声称内存已经证明有界。
@@ -418,12 +461,12 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 
 采用 Cordis `4.0.4`。basis 的 probe 记录见 `.meta_harness/design/basis/README.md`，本规格没有重跑 probe。下表是设计符合，不是运行通过。契约部分见 sql-contract 规格 §14。
 
-| IC | 承载 | 后继须能失败的验证 |
-| --- | --- | --- |
-| 8 | `inject: [storageHostKey]`；重跑时 §13.5 排除第二写者 | 换代后没有两个写者（basis `plugin-body-reruns-on-provider-change`） |
-| 13、17 | Worker、队列与结果拥有者属于提供者宿主；登记不随调用方 effect 撤除；Worker 内没有 Cordis Context | 卸载调用方后原操作能收场与认回（basis `service-method-ctx-is-caller`） |
-| 14–16 | `definePlugin` 的同步 Standard Schema 校验 §12.1；一条发行层 `storage` 行，运行时对象经 `storageHost` 交入 | 非法配置使 fiber `FAILED`（basis `plugin-throw-fails-fiber`，只按函数插件核验过） |
-| 19 | 单进程的调度、写者排除与恢复前提写在 §7、§8、§13；跨进程排除不由 Context 提供 | 真实进程故障与旧代际迟到消息的验收 |
+| IC     | 承载                                                                                                       | 后继须能失败的验证                                                                |
+| ------ | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 8      | `inject: [storageHostKey]`；重跑时 §13.5 排除第二写者                                                      | 换代后没有两个写者（basis `plugin-body-reruns-on-provider-change`）               |
+| 13、17 | Worker、队列与结果拥有者属于提供者宿主；登记不随调用方 effect 撤除；Worker 内没有 Cordis Context           | 卸载调用方后原操作能收场与认回（basis `service-method-ctx-is-caller`）            |
+| 14–16  | `definePlugin` 的同步 Standard Schema 校验 §12.1；一条发行层 `storage` 行，运行时对象经 `storageHost` 交入 | 非法配置使 fiber `FAILED`（basis `plugin-throw-fails-fiber`，只按函数插件核验过） |
+| 19     | 单进程的调度、写者排除与恢复前提写在 §7、§8、§13；跨进程排除不由 Context 提供                              | 真实进程故障与旧代际迟到消息的验收                                                |
 
 ## §15 预算、LI-A3-5 与 D5
 
@@ -439,22 +482,22 @@ D5 的公开协议归 Agent 契约拥有者。SQL 只承诺 `(作用域, executi
 
 有界模型 `bounded_model_r2.py` 复制自 G2 的 `bounded_model.py`，r2 只增加一项：前缀为 0 的整事务结束场景（sql-contract 规格 §7.7.5，第二个短事务成功、未发生、响应丢失），以及它的负控 `prefix0-early-rollback`。候选运行结果是 76 个场景、836 个 checkpoint、8 个负控。模型只用 Python 标准库，不执行 SQLite，不验证生产代码。枚举边界是最多两个成功前缀、一个失败身份、一个后缀与一个早已持久的身份。这是有限轨迹检查，不是对任意规模或真实 I/O 的证明。原子持久化是模型前提。模型脚本与运行记录目前保存在任务 tmp，尚未进入本成员的 `verification/` 目录。
 
-| G2 §9 的行 | 模型规则名 | 负控 | 覆盖 |
-| --- | --- | --- | --- |
-| committed | `publication-requires-original-durable-receipt` | `early-commit` | 覆盖 |
-| rolled_back | 同上 | `early-rollback` | 覆盖 |
-| identity_conflict | 同上 | `early-conflict` | 覆盖 |
-| unknown | 同上；`no-fabricated-result-kind` | `fabricate-batch-rollback` | 覆盖；`no-fabricated-result-kind` 没有专门负控 |
-| rejected_before_accept | 无 | 无 | **未覆盖**：模型没有准入与预留 |
-| query 阳性 | `recovery-query-per-original-identity` | 无 | **部分**：「把暂存回执当阳性」没有负控 |
-| query not_committed | `pending-is-not-negative-proof`、`all-five-proofs-required` | `forget-pending` | 覆盖 |
-| 同摘要认回 | `publication-requires-original-durable-receipt` | 无 | **部分**：「同组重执行同一身份」未建模 |
-| 租户、代际与命令边界 | `identity-dimension-separation`、`full-identity` | 无 | **部分**：跨租户合组、错代际回复、触发器结束事务未建模 |
-| 原业务响应 | `historical-basis-durable` | `orphan-failure-basis` | 覆盖 |
-| 操作独立提交检查 | 无 | 无 | **未覆盖**：没有约束语义，归 C21 |
-| 取消与关闭 | `release-requires-resource-and-report` | `early-release` | **部分**：只覆盖报告闩锁的两种事件次序 |
-| r2：前缀为 0（P-10） | `publication-requires-original-durable-receipt` | `prefix0-early-rollback` | 覆盖 |
-| 原子性前提 | `fact-receipt-atomicity` | 无 | 不变式，没有负控 |
+| G2 §9 的行             | 模型规则名                                                  | 负控                       | 覆盖                                                   |
+| ---------------------- | ----------------------------------------------------------- | -------------------------- | ------------------------------------------------------ |
+| committed              | `publication-requires-original-durable-receipt`             | `early-commit`             | 覆盖                                                   |
+| rolled_back            | 同上                                                        | `early-rollback`           | 覆盖                                                   |
+| identity_conflict      | 同上                                                        | `early-conflict`           | 覆盖                                                   |
+| unknown                | 同上；`no-fabricated-result-kind`                           | `fabricate-batch-rollback` | 覆盖；`no-fabricated-result-kind` 没有专门负控         |
+| rejected_before_accept | 无                                                          | 无                         | **未覆盖**：模型没有准入与预留                         |
+| query 阳性             | `recovery-query-per-original-identity`                      | 无                         | **部分**：「把暂存回执当阳性」没有负控                 |
+| query not_committed    | `pending-is-not-negative-proof`、`all-five-proofs-required` | `forget-pending`           | 覆盖                                                   |
+| 同摘要认回             | `publication-requires-original-durable-receipt`             | 无                         | **部分**：「同组重执行同一身份」未建模                 |
+| 租户、代际与命令边界   | `identity-dimension-separation`、`full-identity`            | 无                         | **部分**：跨租户合组、错代际回复、触发器结束事务未建模 |
+| 原业务响应             | `historical-basis-durable`                                  | `orphan-failure-basis`     | 覆盖                                                   |
+| 操作独立提交检查       | 无                                                          | 无                         | **未覆盖**：没有约束语义，归 C21                       |
+| 取消与关闭             | `release-requires-resource-and-report`                      | `early-release`            | **部分**：只覆盖报告闩锁的两种事件次序                 |
+| r2：前缀为 0（P-10）   | `publication-requires-original-durable-receipt`             | `prefix0-early-rollback`   | 覆盖                                                   |
+| 原子性前提             | `fact-receipt-atomicity`                                    | 无                         | 不变式，没有负控                                       |
 
 SQ-1 与 DO-1 没有模型覆盖，分别由 C22、C17 验证。
 
@@ -483,16 +526,16 @@ S2 中已闭合的项已经从本节删除：事务域绑定配置（P-07，§5.
 
 下列限制写入本规格，触发条件出现时重开对应设计。
 
-| 编号 | 限制 | 后续触发条件 |
-| --- | --- | --- |
-| L-1 | 资格核验与提交之间的窗口，上界是一次 check→commit 路径 | 真实多进程或高并发撤权需求 |
-| L-2 | 真实单轮中的可合并窗口尚未证实 | V4 的真实轨迹 |
-| L-3 | 写 Worker 不做空闲关闭。同时打开的域数受 `maxWorkers` 限制，超出时打开为 `domain_unavailable` | 部署租户数接近该上限 |
-| L-4 | 跨进程写者排除不在保证内 | 多进程部署 |
-| L-5 | 单条 SQL 的 CPU 与内存没有硬上限；Node 同步语句没有已验证的中断；旧 Worker 卡住时 `recovering` 没有时间上界。提供者不终止卡住的 Worker：它持有的预留、待决索引项、次序位置与读连接直到退出才归还。调用方的等待有界（§9.3：`lockWaitMs` 与它的两倍、`readQueueTimeoutMs`、`readObservationMs`），该域的吞吐在 Worker 退出前为零 | handler 负载验证失败，或出现卡死的原生调用 |
-| L-6 | 慢语句期间持续提交的内存上界没有探针（S1） | V2 |
-| L-7 | 材料摘要不防御能写构建目录的攻击者；核对与加载之间存在竞态 | 构建目录不受受信部署保护 |
-| L-8 | WAL 阈值不是磁盘空间的硬保证 | 磁盘空间告警 |
-| L-9 | authorizer 能否看到默认值中的时间函数待实测；实测前以模式层为准 | V2 |
-| L-10 | 期限到达时，正在打开已有文件、还不知道 scope 的写 Worker 不列入 `residuals`。`StorageResidual.domain.scope` 是必填字段，提供者不伪造 scope。这个 Worker 仍计入 `incomplete` 的判定，它的租约按 sql-contract 规格 §13.4 处理 | 契约拥有者裁定 scope 在打开前未知时的表示 |
-| L-11 | `writesPerControlTurn` 没有实现。写 Worker 的 inbox 严格先进先出，`query` 排在已发送的写之后。`query` 的延迟上界由 `admissionQueueLimit` 约束，而不是由 `writesPerControlTurn` 约束。这不会使 `query` 饿死 | 出现 `query` 延迟需求，或控制消息需要插队 |
+| 编号 | 限制                                                                                                                                                                                                                                                                                                                                                                  | 后续触发条件                                                     |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| L-1  | 资格核验与提交之间的窗口，上界是一次 check→commit 路径                                                                                                                                                                                                                                                                                                                | 真实多进程或高并发撤权需求                                       |
+| L-2  | 真实单轮中的可合并窗口尚未证实                                                                                                                                                                                                                                                                                                                                        | V4 的真实轨迹                                                    |
+| L-3  | 同时在写的域各占一个写 Worker 名额，同时在读的连接各占一个读 Worker 名额，所以同一时刻在用的 Worker 数受 `maxWorkers` 限制。空闲的域只在别人要名额时让出写 Worker，不按空闲时长关闭。让出之后再写要重新打开：起线程、恢复、写代际加一的一次提交、迁移核验。一条读连接仍然独占一条线程：调用方周期性地读全部域、而域数超过读 Worker 名额时，读 Worker 会不停地关了再起 | 被周期性读到的域数接近读 Worker 的名额；或要让一条线程服务多个域 |
+| L-4  | 跨进程写者排除不在保证内                                                                                                                                                                                                                                                                                                                                              | 多进程部署                                                       |
+| L-5  | 单条 SQL 的 CPU 与内存没有硬上限；Node 同步语句没有已验证的中断；旧 Worker 卡住时 `recovering` 没有时间上界。提供者不终止卡住的 Worker：它持有的预留、待决索引项、次序位置与读连接直到退出才归还。调用方的等待有界（§9.3：`lockWaitMs` 与它的两倍、`readQueueTimeoutMs`、`readObservationMs`），该域的吞吐在 Worker 退出前为零                                        | handler 负载验证失败，或出现卡死的原生调用                       |
+| L-6  | 慢语句期间持续提交的内存上界没有探针（S1）                                                                                                                                                                                                                                                                                                                            | V2                                                               |
+| L-7  | 材料摘要不防御能写构建目录的攻击者；核对与加载之间存在竞态                                                                                                                                                                                                                                                                                                            | 构建目录不受受信部署保护                                         |
+| L-8  | WAL 阈值不是磁盘空间的硬保证                                                                                                                                                                                                                                                                                                                                          | 磁盘空间告警                                                     |
+| L-9  | authorizer 能否看到默认值中的时间函数待实测；实测前以模式层为准                                                                                                                                                                                                                                                                                                       | V2                                                               |
+| L-10 | 期限到达时，正在打开已有文件、还不知道 scope 的写 Worker 不列入 `residuals`。`StorageResidual.domain.scope` 是必填字段，提供者不伪造 scope。这个 Worker 仍计入 `incomplete` 的判定，它的租约按 sql-contract 规格 §13.4 处理                                                                                                                                           | 契约拥有者裁定 scope 在打开前未知时的表示                        |
+| L-11 | `writesPerControlTurn` 没有实现。写 Worker 的 inbox 严格先进先出，`query` 排在已发送的写之后。`query` 的延迟上界由 `admissionQueueLimit` 约束，而不是由 `writesPerControlTurn` 约束。这不会使 `query` 饿死                                                                                                                                                            | 出现 `query` 延迟需求，或控制消息需要插队                        |

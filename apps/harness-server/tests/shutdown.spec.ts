@@ -501,6 +501,130 @@ describe('X-8 迟到结果', () => {
   })
 })
 
+describe('X-9 排空：业务阶段之前，先让有 drain 的行做完已经接到的工作', () => {
+  const DRAIN_MS = 5000
+
+  function draining(
+    calls: Calls,
+    drain: (deadline: number) => Promise<StopResult>,
+    clock: FakeClock = fakeClock(),
+    drainMs: number | null = DRAIN_MS,
+  ) {
+    const deadlines: Record<string, number> = {}
+    const modelHost = handle(
+      calls,
+      'agent-host',
+      'business',
+      async deadline => {
+        deadlines['stop'] = deadline
+        return { kind: 'settled' }
+      },
+      {
+        drain: async deadline => {
+          calls.push('drain:agent-host')
+          deadlines['drain'] = deadline
+          return drain(deadline)
+        },
+      },
+    )
+    const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+    for (const h of fullSet(calls, { 'agent-host': modelHost })) registry.add(h)
+    const run = () =>
+      runShutdown(registry, EXPECTED, DEADLINE_MS, clock, drainMs === null ? {} : { drainMs })
+    return { run, clock, deadlines }
+  }
+
+  it('drain 排在入口阶段之后、任何业务行的 stop 之前，结果进报告', async () => {
+    const calls: Calls = []
+    const { run } = draining(calls, async () => ({ kind: 'settled' }))
+    const report = await run()
+    expect(calls).toEqual([
+      'stop:server-entry',
+      'drain:agent-host',
+      'stop:agent-host',
+      'stop:session-storage',
+      'stop:storage',
+      'report-settled',
+    ])
+    expect(report.drains).toEqual([{ row: 'agent-host', result: { kind: 'settled' } }])
+    expect(report.overall).toBe('settled')
+  })
+
+  it('drain 没结束之前，业务行的 stop 不被调用', async () => {
+    const calls: Calls = []
+    let finish: (r: StopResult) => void = () => {}
+    const { run } = draining(calls, () => new Promise<StopResult>(r => (finish = r)))
+    const done = run()
+    await flush()
+    expect(calls).toEqual(['stop:server-entry', 'drain:agent-host'])
+    finish({ kind: 'settled' })
+    await done
+    expect(calls).toContain('stop:agent-host')
+  })
+
+  it('排空用掉的时间不从 D 里扣：之后各阶段的截止时间顺延', async () => {
+    const calls: Calls = []
+    let finish: (r: StopResult) => void = () => {}
+    const { run, clock, deadlines } = draining(
+      calls,
+      () => new Promise<StopResult>(r => (finish = r)),
+    )
+    const done = run()
+    await flush()
+    clock.advance(3000)
+    finish({ kind: 'settled' })
+    const report = await done
+    expect(deadlines['drain']).toBe(DRAIN_MS)
+    expect(deadlines['stop']).toBe(DEADLINE_MS + 3000)
+    expect(report.overall).toBe('settled')
+  })
+
+  it('到排空期限还没做完：记 incomplete，整体 incomplete，停止照常进行', async () => {
+    const calls: Calls = []
+    const { run, clock } = draining(calls, () => new Promise<StopResult>(() => {}))
+    const done = run()
+    await flush()
+    clock.advance(DRAIN_MS)
+    const report = await done
+    expect(report.drains).toEqual([
+      { row: 'agent-host', result: { kind: 'incomplete', detail: 'drain deadline reached' } },
+    ])
+    expect(report.overall).toBe('incomplete')
+    expect(report.outcomes.map(o => o.result.kind)).toEqual([
+      'settled',
+      'settled',
+      'settled',
+      'settled',
+    ])
+  })
+
+  it('drain 如实答没做完：照它的话记，整体 incomplete', async () => {
+    const calls: Calls = []
+    const { run } = draining(calls, async () => ({ kind: 'incomplete', detail: '1 call' }))
+    const report = await run()
+    expect(report.drains?.[0]?.result).toEqual({ kind: 'incomplete', detail: '1 call' })
+    expect(report.overall).toBe('incomplete')
+  })
+
+  it('drain 抛出：记 failed，停止照常进行', async () => {
+    const calls: Calls = []
+    const { run } = draining(calls, async () => {
+      throw new Error('boom')
+    })
+    const report = await run()
+    expect(report.drains?.[0]?.result).toEqual({ kind: 'failed', detail: 'boom' })
+    expect(calls).toContain('stop:storage')
+  })
+
+  it('没有给排空期限：不调用 drain，报告里没有这一项', async () => {
+    const calls: Calls = []
+    const { run } = draining(calls, async () => ({ kind: 'settled' }), fakeClock(), null)
+    const report = await run()
+    expect(calls).not.toContain('drain:agent-host')
+    expect(report.drains).toBeUndefined()
+  })
+})
+
 describe('N-7 登记准入', () => {
   const newRegistry = () =>
     new LifecycleRegistry({ expected: EXPECTED, clock: fakeClock(), requestStop: () => {} })

@@ -83,6 +83,8 @@ export type RegisterReply =
 
 export type CommitWorkerRejection =
   | 'combination_unregistered'
+  /** A module could not be loaded for a transient reason (SPEC 5.2): nothing ran. */
+  | 'domain_unavailable'
   | 'manifest_mismatch'
   | 'material_unavailable'
   | 'participant_not_in_combination'

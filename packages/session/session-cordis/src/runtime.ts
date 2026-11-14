@@ -8,7 +8,7 @@ import {
   type SessionDependencies,
   type SessionInstanceOptions,
 } from '@omne-harness/session'
-import type { SessionCallerClass, SessionFaces } from '@omne-harness/session-contract'
+import type { SessionCallerClass } from '@omne-harness/session-contract'
 import {
   assemblyLifecycleKey,
   sessionProviderRow,
@@ -16,7 +16,7 @@ import {
 } from './assembly-lifecycle.ts'
 import type { ResolvedProviderConfig } from './config.ts'
 import { describe, diagnoser } from './diagnostics.ts'
-import { deniedFaces, removedFaces } from './faces.ts'
+import { deniedFaces, removedFaces, type ProviderFaces } from './faces.ts'
 import { createPorts } from './ports.ts'
 import { createScanners } from './scanners.ts'
 import { createTeardown, type Teardown } from './teardown.ts'
@@ -27,7 +27,7 @@ const TENANTS = 'sessionTenants'
 
 export type ProviderRuntime = Readonly<{
   /** The faces a caller of that class sees; null is a caller whose class is unknown. */
-  facesFor(caller: SessionCallerClass | null): SessionFaces<unknown>
+  facesFor(caller: SessionCallerClass | null): ProviderFaces
   /** The removal. Both triggers call it; the steps run once. */
   teardown: Teardown
 }>
@@ -74,8 +74,9 @@ export function startProvider(
     'session-provider.teardown',
   )
 
-  // Every notice wakes the instance and binds the scanner of its tenant, whichever committer wrote
-  // the batch: a batch of a command of this instance too, which then wakes it once more. A wake
+  // Every notice wakes the instance and signals the scanner of its tenant, which starts one when the
+  // tenant has none (session SPEC「扫描者的生灭」), whichever committer wrote the batch: a batch of
+  // a command of this instance too, which then wakes it once more. A wake
   // only reads; it commits nothing that the log does not ask for. The listener runs synchronously.
   ctx.on(COMMITTED, (tenant, session, revision, source, kinds) => {
     if (removing) return

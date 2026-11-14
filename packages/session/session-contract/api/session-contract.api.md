@@ -159,6 +159,7 @@
 - `SessionCreation` · `values.d.ts`
 - `SessionCustodySource` · `ports.d.ts`
 - `SessionDelegatedTransactions` · `access.d.ts`
+- `SessionDirectory` · `faces.d.ts`
 - `SessionEntriesBoundary` · `interpretation-values.d.ts`
 - `SessionEntriesChannel` · `interpretation-values.d.ts`
 - `SessionEntriesInterpretation` · `interpretation-values.d.ts`
@@ -185,6 +186,7 @@
 - `SessionInputScope` · `history-values.d.ts`
 - `SessionIntakeLimits` · `intake.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
+- `SessionListItem` · `faces.d.ts`
 - `SessionLogCommitObservation` · `interpretation-values.d.ts`
 - `SessionLogConsequence` · `projection.d.ts`
 - `SessionLogObservation` · `projection.d.ts`
@@ -382,6 +384,13 @@ export type SessionAccessRequest<P> = SessionMutationAccess<P> | Readonly<{
 }> | Readonly<{
     access: Access<P>;
     operation: 'pending';
+    target: Readonly<{
+        kind: 'tenant';
+        tenant: TenantId;
+    }>;
+}> | Readonly<{
+    access: Access<P>;
+    operation: 'directory.list';
     target: Readonly<{
         kind: 'tenant';
         tenant: TenantId;
@@ -1532,6 +1541,26 @@ export interface SessionHistory<P> {
         pageBytes: number;
     }>): Reply<ModelViewRead>;
 }
+export type SessionListItem = Readonly<{
+    session: SessionId;
+    createdAt: string | null;
+    lastActivityAt: string | null;
+    lifecycle: WorkSnapshot['lifecycle'];
+    title: string | null;
+}>;
+export interface SessionDirectory<P> {
+    list(input: Readonly<{
+        principal: P;
+        tenant: TenantId;
+        after: string | null;
+        limit: number;
+        includeArchived: boolean;
+    }>): Reply<Readonly<{
+        items: readonly SessionListItem[];
+        next: string | null;
+        completeness: 'complete' | 'partial';
+    }>>;
+}
 export type SessionFaces<P> = Readonly<{
     work: SessionWork<P>;
     management: SessionManagement<P>;
@@ -1735,7 +1764,7 @@ export type AdvanceRef = Readonly<{
 ```ts
 export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, TodoItemId, } from './identity.ts';
 export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionFrozen, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
-export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionFaces, SessionFailure, SessionHistory, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
+export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, SessionListItem, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
 export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionControlReceipt, SessionModelSelection, SessionRunLookup, } from './control-values.ts';
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt, } from './interpretation-values.ts';
@@ -2444,7 +2473,7 @@ import type { Adoption, AdvanceRef, ConsumptionId, DurableEvidence, InputId, Res
 import type { ClockSample, Control, FreezeVerdict, IdleObservation, ProducedResult, ResidentAdoption, RoutedInput, ScopeReleaseDisposition, WorkSnapshot } from './values.ts';
 import type { ControlOperationResolution, SessionModelSelection } from './control-values.ts';
 import type { SessionEntriesObservation, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt } from './interpretation-values.ts';
-import type { OperationResolution, PendingReason, SessionFailure, ReleasedScope, Reply, ResidentReference, SessionHistory, SessionManagement, SessionReconciliation, SessionWork } from './faces.ts';
+import type { OperationResolution, PendingReason, SessionFailure, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionHistory, SessionManagement, SessionReconciliation, SessionWork } from './faces.ts';
 export type DriveFailure = Readonly<{
     kind: 'denied' | 'busy' | 'terminal' | 'changed' | 'stale-advance' | 'unsupported' | 'conflict';
 }> | Readonly<{
@@ -2478,6 +2507,7 @@ export type ExecutionStatus = Readonly<{
     revision: string | null;
     state: 'missing' | 'open' | 'suspended' | 'ended';
     attachment: 'active' | 'detached' | 'superseded' | null;
+    lost: DurableEvidence | null;
     conclusion: Readonly<{
         outcome: 'complete' | 'fail' | 'cancelled';
         cause: DurableEvidence | null;
@@ -2668,6 +2698,7 @@ export interface SessionTransactionPort<P> {
         sessions: readonly SessionId[];
         next: string | null;
     }>>;
+    readonly directory?: SessionDirectory<P>;
     references(input: Readonly<{
         principal: P;
         scope: 'system';
@@ -2880,8 +2911,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:841bd4c0d938df89a04095415e0c6e4bb4a3154cb2b29e34ab9e44945657a344";
-export declare const SESSION_RELEASE_DIGEST = "sha256:841bd4c0d938df89a04095415e0c6e4bb4a3154cb2b29e34ab9e44945657a344";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:c86687e95f63983616bfbb4cb27bdd4e1f86da0948975c558b455e3a3be9530d";
+export declare const SESSION_RELEASE_DIGEST = "sha256:c86687e95f63983616bfbb4cb27bdd4e1f86da0948975c558b455e3a3be9530d";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

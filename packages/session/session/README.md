@@ -22,8 +22,8 @@ Allow and deny decisions come only from the pure functions of session-contract. 
 
 Status: mechanism member, candidate technical design. Technical acceptance has not happened.
 
-- Implemented: the factory `createSessionInstance`, the command handler pipeline (CP-01), the reads and writes of the four faces (CP-03), `close`, and the SS-01 subset of the schedulers and coordinators: S1, the open-Run sequence of C2, S4, and two reasons of S3. The SPEC section [实现现状](SPEC.md#实现现状) lists them and the implementation choices.
-- Not implemented: the CP-02 participant branch, a non-empty before-admit slot list, the other C2 sequences, C1 as a separate coordinator, C3 to C5, S2, S5 to S7, and the three caches. The SPEC section [未实现与触发条件](SPEC.md#未实现与触发条件) gives the trigger of each item.
+- Implemented: the factory `createSessionInstance`, the command handler pipeline (CP-01), the reads and writes of the four faces (CP-03), `close`, and the SS-01 subset of the schedulers and coordinators: S1, the open-Run and continuation sequences of C2, S4, and two reasons of S3. The SPEC section [实现现状](SPEC.md#实现现状) lists them and the implementation choices.
+- Not implemented: the CP-02 participant branch, a non-empty before-admit slot list, the other C2 sequences (same-log interpretation, recovery and takeover, reload), C1 as a separate coordinator, C3 to C5, S2, S5 to S7, and the three caches. The SPEC section [未实现与触发条件](SPEC.md#未实现与触发条件) gives the trigger of each item.
 - Verified scope: the member tests run the session-contract transaction suite on the in-memory pair and on the SQL pair over the real sqlite-provider. They also check the decision count, the refusal of another tenant and the SS-02 counts. See [已有测试](SPEC.md#已有测试). The crash matrix and the fault scenarios have no runner.
 
 [session-cordis](../session-cordis/README.md) lists this package as a dependency. The root entry of session-cordis exports nothing yet, so no call runs now. No other package depends on this package.

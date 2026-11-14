@@ -208,7 +208,8 @@ function controlOf(
   }
 }
 
-function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
+/** `lost` is the host's judgment of the runtime of the active attachment; it is read only then. */
+function statusOf(snapshot: ExecutionSnapshot, lost: DurableEvidence | null): ExecutionStatus {
   const { state } = snapshot
   if (state.kind === 'ended') {
     const { conclusion } = state
@@ -216,6 +217,7 @@ function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
       revision: snapshot.revision,
       state: 'ended',
       attachment: null,
+      lost: null,
       conclusion: {
         outcome: conclusion.kind,
         cause: conclusion.kind === 'complete' ? null : conclusion.cause,
@@ -232,6 +234,7 @@ function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
       revision: snapshot.revision,
       state: 'suspended',
       attachment: 'detached',
+      lost: null,
       conclusion: null,
       evidence: snapshot.history,
     }
@@ -239,6 +242,7 @@ function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
     revision: snapshot.revision,
     state: 'open',
     attachment: snapshot.executionAttachment === null ? null : 'active',
+    lost: snapshot.executionAttachment === null ? null : lost,
     conclusion: null,
     evidence: snapshot.history,
   }
@@ -408,9 +412,21 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
         execution: execution.ok,
       })
       // NP-05: load has no answer for "no record", so this port never says missing.
-      return 'ok' in loaded
-        ? succeed(statusOf(loaded.ok))
-        : this.agentFailure('inspect', loaded.failure)
+      if ('failure' in loaded) return this.agentFailure('inspect', loaded.failure)
+      const authority = loaded.ok.executionAttachment
+      const { kind } = loaded.ok.state
+      if (authority === null || kind === 'ended' || kind === 'suspended')
+        return succeed(statusOf(loaded.ok, null))
+      // The judgment belongs to the host of the record. A host that cannot answer has none, which
+      // is not a judgment that the runtime is alive; Session then waits (contract PM-14).
+      const contact = await this.scope.agentExecutionRecovery.contact({
+        principal: principal.ok,
+        tenant: input.tenant,
+        execution: execution.ok,
+        authority,
+      })
+      const lost = 'ok' in contact && contact.ok.kind === 'lost' ? contact.ok.evidence : null
+      return succeed(statusOf(loaded.ok, lost))
     })
 
   // P-7: no Agent entry is called before the host instance-creation entry is adopted for prewarm.

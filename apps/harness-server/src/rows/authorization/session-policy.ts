@@ -216,6 +216,11 @@ export const SESSION_POLICY = Object.freeze({
     member('SS:634，DA4 §4.7 第 3 步。只核租户，不核工作绑定'),
     matrix('pending-sessions', 'AU:266，DA4 §4.5、§4.7 第 2 步，AA:308。目标为租户分支'),
   ),
+  'directory.list': row(
+    member('RFC-0015 §8「列出会话」：登录的人按租户成员放行，不看租户角色。目标为租户分支'),
+    deny('RFC-0015 §8「列出会话」：工作主体拒绝'),
+    deny(NO_SYSTEM_READ),
+  ),
   references: row(
     deny(SYSTEM_ONLY),
     deny(SYSTEM_ONLY),

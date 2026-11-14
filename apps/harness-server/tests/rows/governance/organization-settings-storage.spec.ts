@@ -15,6 +15,7 @@ import { organizationCodec } from '@omne-harness/legal-identity'
 import { productionStorageCatalog } from '../../../dist/rows/storage/production-catalog.js'
 import { loadProductionRelease } from '../../../src/entry/tool-release.ts'
 import { organizationSettingsCombination } from '../../../src/rows/governance/organization-settings-combination.ts'
+import { VERSION_DIGEST_LENGTH } from '../../../src/rows/governance/storage-combinations.ts'
 import { installToolOrganizationSource } from '../../../src/rows/governance/tool-installation-source.ts'
 import { providerConfig, TENANT_A, textOf } from '../storage/fixtures/tree.ts'
 
@@ -261,4 +262,15 @@ it('preserves revoked source grants on version adoption and refuses a rebound de
       definition: { providerId: 'another-owner' },
     },
   })
+})
+
+it('names the combination version after the manifest content, so that changed material registers under a new name', async () => {
+  const release = await loadProductionRelease()
+  if (release.kind !== 'trusted') throw new Error('Tool release unavailable')
+  const catalog = await productionStorageCatalog(async () => release)
+  const { manifestDigest, combinationVersion } = organizationSettingsCombination(catalog)
+  expect(combinationVersion).toBe(
+    `harness-organization-settings/${manifestDigest.slice(0, VERSION_DIGEST_LENGTH)}`,
+  )
+  expect(combinationVersion).toMatch(/^harness-organization-settings\/[0-9a-f]{16}$/u)
 })

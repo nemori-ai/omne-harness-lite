@@ -192,4 +192,54 @@ describe('localServeInputs', () => {
     expect(invalid.kind === 'refused' && invalid.message).toContain('Edit the file')
     expect(invalid.kind === 'refused' && invalid.message).not.toContain('--reconfigure')
   })
+
+  describe('the storage object of the settings', () => {
+    const settingsWith = async (storage: unknown) => {
+      const h = serverHome()
+      await h.setup()
+      const file = join(h.home, 'config', 'server.json')
+      const settings = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+      writeFileSync(file, JSON.stringify({ ...settings, storage }))
+      return localServeInputs(h.input())
+    }
+    const limitsOf = (result: ReturnType<typeof localServeInputs>) => {
+      if (result.kind !== 'ready' || result.operator === undefined)
+        throw new Error(`not ready: ${result.kind}`)
+      const config = result.operator.ops.find(op => op.id === 'storage')?.config
+      return [
+        config?.['maxWorkers'],
+        config?.['reservedWriterSlots'],
+        config?.['maxReadWorkersPerDomain'],
+      ]
+    }
+
+    it('gives its keys to the storage row', async () => {
+      expect(limitsOf(await settingsWith({ maxWorkers: 24, maxReadWorkersPerDomain: 3 }))).toEqual([
+        24, 4, 3,
+      ])
+    })
+
+    it('keeps the default numbers when a host has no storage object', async () => {
+      const h = serverHome()
+      await h.setup()
+      expect(limitsOf(localServeInputs(h.input()))).toEqual([16, 4, 2])
+    })
+
+    it.each([
+      ['a key that is not known', { maxThreads: 4 }, 'maxThreads'],
+      ['a value that is not an integer', { maxWorkers: 2.5 }, 'storage.maxWorkers'],
+      ['a value that is not a number', { reservedWriterSlots: '4' }, 'storage.reservedWriterSlots'],
+      ['a zero maxWorkers', { maxWorkers: 0 }, 'storage.maxWorkers'],
+      [
+        'a negative reservedWriterSlots',
+        { reservedWriterSlots: -1 },
+        'storage.reservedWriterSlots',
+      ],
+      ['a storage that is not an object', 4, 'storage'],
+    ])('refuses %s', async (_name, storage, mention) => {
+      const result = await settingsWith(storage)
+      expect(result.kind).toBe('refused')
+      expect(result.kind === 'refused' && result.message).toContain(mention)
+    })
+  })
 })

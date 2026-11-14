@@ -30,7 +30,7 @@
 | `identity` | `@omne-harness/identity-sql` 的 `./cordis` 插件 | `identityOperations`（注册激活、签发登录、识别登录）；`tenantStanding`（受信）；`identityGovernance`（ID-18 治理端口，受信）。三项出自同一个提供者实例、同一份 identity 记录，治理端口的撤销与切换对登录识别生效；`standingReservations`（原资格保留与结算） | `storage`、`identityClock` | 无 | 登录期限与空闲期限；访问刷新粒度 `accessRefreshGranularity`（必须短于空闲期限，发行层初值 1 小时）；邀请默认时长 `invitationDefaultDuration` 与最长时长 `invitationMaxDuration`（发行层初值 7 天与 30 天，R2-D204 第 7 项）。迁移 `identity/002-governance` 与读 handler `identity.governance`（输出上限 1 MiB，不超过 `storage` 行的 `maxReadResultBytes`）随本行材料进入发行目录；已有的发行数据库在本行 `registerCombination` 时执行 002 |
 | `authorization` | 应用成员的授权适配插件 | Session 身份桥使用的准入裁定；`agentAccessCheck`、`sessionAccessCheck`（含作用域释放恢复的三项系统请求：`scope-release-receive`、`scope-release-load` 与 `scope-release-query`）；`agentActionAdmission`；`systemActionAuthorization`（系统动作授权，受信，见[系统动作授权](#system-action-authorization)） | `tenantStanding`（受信）、`principalVerifier`（受信）、`identityGovernance`（受信，核对会话权限配值的原登录当前有效性）、`identityClock`（维护授予到期的判定时钟，每次判断到期时重新读取） | 无 | `actionRules`；`maintenanceGrants`：运维者对随版本内置的维护授予表只能收回某项（`revoked: true`）或设到期（`expiresAt`），不能新增；表外授予项、改用途、主体或范围的配置让本行启动失败（R2-D204 第 2 项）。收回与到期对本行的三个访问裁定和 `systemActionAuthorization` 同样生效。发行层写空对象 |
 | `session-storage` | 应用成员的会话存储组合插件：在同一插件体内构造租户到事务域的目录与 `@omne-harness/session-storage-sql` 根入口的纯提供者，目录的存储构造能力只经闭包交给后者 | `sessionTransactions`；`sessionDelegatedTransactions`（会话委派事务，受信）；`tenantDomains`（只含部署枚举 `enumerate`）；`tenantDomainLookup`（已发布快照的只读查找，受信）；`sessionPrincipalBindings`（会话归属读口，受信）；`sessionScopeOwners`（作用域归属读口：铸作用域的提交写下的归属，受信） | `storage`、`sessionAccessCheck`、`assemblyLifecycle` | `sessionPermissionBackend`（受信；权限配值委派提交按调用现取，缺席返回不可用，普通命令不消费）；`sessionCursorSigning`；`systemActionAuthorization`（受信；部署枚举每次调用都经它判断，缺席或答 `unavailable` 时枚举答 `unavailable`，不放行；本行不持有授予表，R2-D245）；`sessionNotifier`（本行在发布服务之前登记在存储上的提交通知接口每一批现取它，在时转交同一份载荷） | 事务域推导规则；组合版本；登记表的文件位置（在存储根目录下）；介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；`maxRegistrationRetries`；快照重建方式。其余字段取 Session SQL 纯工厂配置的初值。见[租户到事务域的目录](#租户到事务域的目录) |
-| `governance` | 应用租户治理装配，复用 Governance 本地提供者 | `sessionPermissionBackend`、`standingDestinationResolver`（均受信）、`currentToolPermission` | `storage`、`tenantDomainLookup`、`principalVerifier`、`identityGovernance`、`tenantStanding`、`standingReservations`、`governanceDirectoryPrincipals`、`governanceInstallationPrincipals`、`toolContributionAuthority` | `composition`，行体承载 | `deploymentId`、`logicalServiceId`、`recoveryPagesPerPass`、`closeTimeoutMs`。只开启已登记租户，配置身份不由会话推导 |
+| `governance` | 应用租户治理装配，复用 Governance 本地提供者 | `sessionPermissionBackend`、`standingDestinationResolver`（均受信）、`currentToolPermission`、`tenantSettings`（本应用的服务键，见[租户层设置读写面](#tenant-settings)） | `storage`、`tenantDomainLookup`、`principalVerifier`、`identityGovernance`、`tenantStanding`、`standingReservations`、`governanceDirectoryPrincipals`、`governanceInstallationPrincipals`、`toolContributionAuthority` | `composition`，行体承载 | `deploymentId`、`logicalServiceId`、`recoveryPagesPerPass`、`closeTimeoutMs`。只开启已登记租户，配置身份不由会话推导 |
 | `session-provider` | `@omne-harness/session-cordis` 的插件 | `session`（四个面）；协调器与调度器，含推进触发调度器 S1 | `sessionAccessCheck`、`sessionDelegatedTransactions`（受信）、`sessionPrincipals`、`sessionWorkPrincipals`（受信）、`assemblyLifecycle`、`telemetry`（候选，待 RFC-0013 接受：行体在它上面构造 Session 遥测 facade，把 `measure` 与 `diagnose` 交给插件；记录按访问的租户作用域）、`tenantDomains`、`tenantDomainScannerPrincipal`（受信；行体以部署扫描主体调用 `tenantDomains.enumerate`，在只对插件可见的子作用域里提供 `sessionTenants`，插件在有序启动时据此给每个租户绑定扫描者） | `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionTransactions`（只服务 `pending`、`references`、`releasedScopes` 三项目录读取） | `admission: 'none'`（本部署没有命令域与 hooks） |
 | `session-ad02` | AD-02 Agent 同日志解释（session-adapters 的 `createSessionJournalInterpretationPlugin`，B1 已接） | 无 | `session`（`'coordinator'`）、`sessionTransactions`（`commitLog` 所在的端口，日志解释的写口，与 AD-05 同构）；`storage`、`tenantDomainLookup`（受信，只读该 execution 的执行记录分区）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源（经受信 `sessionWorkPrincipals` 的 `forSession` 构造） | 无：插件不取配置 |
 | `session-ad03` | AD-03 持有者、回放、事实及按租户装配的模式生产者。注册成功后刷新；提交事件仅唤醒原来源重读 | `runtimeContextReaderEligibility`、`sessionReplayFacts`、`sessionScopeLookup`、`sessionModesInstallation` | `runtimeContext`、`session`、`sessionWorkPrincipals`、`sessionModesPrincipals`、`principalVerifier`、`storage`、`tenantDomainLookup`、`definitionMappings` | 协调者主体及模式租户主体；共享精确采用定义表；`sessionModesInstallation` 是应用装配口，不授予权限 | `scopeIndexEntries`、`pageBytes` |
@@ -80,7 +80,10 @@
 | `agent-account-outlet` | Context 一侧的 Agent 集成提供者的账目出站插件，继承 `AgentAccountOutletService` | `agentAccountOutlet` | `requestContext`、`contextAccountingInbox`（两键由 `request-context` 行在同一 fiber 提供，见 [request-context-cordis 的 Cordis 页](../../../packages/context/request-context-cordis/docs/cordis.md#插件与服务)） | 无 | `sender`：出站插件作为每条账目事实的发送方给出的采用身份（`owner`、`name`、`revision`、`digest`，都是文本） |
 | `runtime-context` | `@omne-harness/runtime-context-cordis` 的插件 | `runtimeContext` | `runtimeContextTrust`（受信） | 无 | `retention`（初值 64）；`replayCapacity`（初值 10000）；`supplyBoundMs`（初值 30000）；`settleBoundMs`（初值 1000）；`readCacheEntries`（初值 256，0 表示不缓存）；`diagnostics`（诊断级别）。初值由装配给 |
 | `session-observation` | `@omne-harness/session-observation` 的 `./cordis` 插件 `createSessionObservationPlugin` | `sessionObservation`：会话观察的领域面，登录的人以自己的主体对一个会话建立观察，得到状态帧、快照与增量（RFC-0015 §8） | `session`（`caller: 'reader'`，只用日志读取面的 `begin`、`next`、`since`）、`modelStreamReferences`、`modelStreamObservation` | 无 | `policy`（刷新策略 `ObservationRefreshPolicy` 的部分字段）与 `locatePages`，都可省，省掉的取成员的默认初值（间隔 1000 ms、退避 1.5、次数 60、累计等待 30 分钟、取流等待 5 s、翻页 4）；发行层不写。唤醒定位的种类集合是 `call.bound`、`run.started`、`run.terminal` 加本部署读历史的种类（运维者层 `LOCAL_HISTORY_KINDS`，与读历史同一个来源）；刷新策略取成员的默认初值。插件在树上只挂一个 `session-cordis-contract/committed` 监听者，按租户与会话分发给各次观察。见[会话观察的 Cordis 页](../../../packages/session/session-observation/docs/cordis.md) |
-| `server-entry` | `@omne-harness/server-entry` 的插件 | 治理位置与会话位置的接入；`accessRegistry`（成员 `./cordis` 的 `AccessRegistryProvider`，装在本行作用域里：领域的接入插件经它挂协议，新地址的入口用同一个登记表；本发行没有行 `inject` 它） | `session`（`caller: 'intake'` 与 `'reader'`）、`principalIssuer`（受信）、`definitionMappings`（受信）、`telemetry`（候选，待 RFC-0013 接受；入口诊断经它发出，`system` 作用域）、`assemblyLifecycle`；会话诊断投影的三个读口（RFC-0013 revision 2 本地范围）：`agentJournal`（只用 `readFinish`）、`modelRuntime`（只用 `calls.inspect` 与 `calls.dispatches`）、`modelDiagnostics` | `identityOperations`；`identityGovernance`（受信，治理位置 18 个操作与成功业务访问的报告；服务缺席时 19 个方法都答 `basis-unavailable`，不抛出）。两项与 `identity` 行同一份记录；`settingsSecretItems`（受信，治理位置的 4 个设置操作；服务缺席时 4 个方法都答 `basis-unavailable`）；`toolRuntime`（候选，待 RFC-0013 接受；局部，只用 `queries.lookup`、`queries.account` 与 `queries.readDiagnostics`；服务缺席时投影的 Tool 读答 `unavailable`，成员记为缺口） | `listenPort`（初值 8787）；`maxBodyBytes.small`（治理路径，初值 16384）；`maxBodyBytes.input`（会话路径，初值 1048576）；`heartbeatIntervalMs`（初值 15000）；`pageBytes` 上界；读历史的条目种类清单（默认 `message.user`、`message.assistant`）；会话诊断投影的 `diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`（候选，待 RFC-0013 接受；三项一起给，没有初值；缺席时 `read-session-diagnostics` 答 `basis-unavailable`）；[定义名映射](#桥接责任)的选择 |
+| `server-entry` | `@omne-harness/server-entry` 的插件 | 治理位置与会话位置的接入；`accessRegistry`（成员 `./cordis` 的 `AccessRegistryProvider`，装在本行作用域里：领域的接入插件经它挂协议，新地址的入口用同一个登记表；`identity-access` 行 `inject` 它。新地址的身份端口是身份的 `createAccessIdentity`，本行用按调用读的 `identityOperations`、`identityGovernance` 与受信 `principalIssuer` 构造） | `session`（`caller: 'intake'` 与 `'reader'`）、`principalIssuer`（受信）、`definitionMappings`（受信）、`telemetry`（候选，待 RFC-0013 接受；入口诊断经它发出，`system` 作用域）、`assemblyLifecycle`；会话诊断投影的三个读口（RFC-0013 revision 2 本地范围）：`agentJournal`（只用 `readFinish`）、`modelRuntime`（只用 `calls.inspect` 与 `calls.dispatches`）、`modelDiagnostics` | `identityOperations`；`identityGovernance`（受信，治理位置 18 个操作与成功业务访问的报告；服务缺席时 19 个方法都答 `basis-unavailable`，不抛出）。两项与 `identity` 行同一份记录；`settingsSecretItems`（受信，治理位置的 4 个设置操作；服务缺席时 4 个方法都答 `basis-unavailable`）；`toolRuntime`（候选，待 RFC-0013 接受；局部，只用 `queries.lookup`、`queries.account` 与 `queries.readDiagnostics`；服务缺席时投影的 Tool 读答 `unavailable`，成员记为缺口） | `listenPort`（初值 8787）；`maxBodyBytes.small`（治理路径，初值 16384）；`maxBodyBytes.input`（会话路径，初值 1048576）；`heartbeatIntervalMs`（初值 15000）；`pageBytes` 上界；读历史的条目种类清单（默认 `message.user`、`message.assistant`）；会话诊断投影的 `diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`（候选，待 RFC-0013 接受；三项一起给，没有初值；缺席时 `read-session-diagnostics` 答 `basis-unavailable`）；[定义名映射](#桥接责任)的选择 |
+| `identity-access` | `@omne-harness/identity-access` 的 `./cordis` 插件 `identityAccessPlugin` | 无服务；把 `identity/v1` 挂上 `accessRegistry`，新地址由此开放身份的六个操作（RFC-0015 I-15：装这一行就是开放这个协议，卸下这一行协议随之撤下） | `accessRegistry` | `identityOperations`；`identityGovernance`（受信）。两项每次调用现取，缺席时调用答 `basis-unavailable`，协议不撤 | 无 |
+| `session-access` | `@omne-harness/session-access` 的 `./cordis` 插件 `createSessionAccessPlugin`：`session/v1` 的接入插件（RFC-0015 §5、§7、§8）。装上这一行，新地址才开放 `session/v1` | 无。插件把 `session/v1` 的贡献（7 个操作与观察 `observe-session`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations` 构造身份的 `createAccessIdentity`，只用它的 `actFor` 为目标租户换主体） | `session`（`caller: 'intake'` 取管理与工作面，`'reader'` 取历史面）；`sessionObservation`；`definitionMappings`（受信）。任一项缺席时，需要它的调用答 `basis-unavailable`，协议不撤下 | `defaultDefinition`（不给定义名的「建会话」用它；缺席时这样的调用答 `invalid`）；`maxPageBytes`（初值 1048576）；`historyKinds`（初值运维者层 `LOCAL_HISTORY_KINDS`） |
+| `assets-access` | `@omne-harness/assets-access` 的 `./cordis` 插件 `createAssetsAccessPlugin`：`assets/v1` 的接入插件（RFC-0015 §5、§7、§9）。装上这一行，新地址才开放 `assets/v1` | 无。插件把 `assets/v1` 的贡献（设置的 4 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations` 构造身份的 `createAccessIdentity`，只用它的 `actFor` 为目标租户换主体） | `tenantSettings`（[租户层设置读写面](#tenant-settings)）。缺席时调用答 `basis-unavailable`，协议不撤下 | 无 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/session-adapters/docs/cordis.md#插件注入与提供的键)为准，运维者可以按行 id 单独替换其中一行。
 
@@ -186,6 +189,15 @@ flowchart LR
   session-ad11 -.-> session-provider
   session-ad15 -.-> session-provider
   identity -.-> server-entry
+  server-entry --> identity-access
+  identity -.-> identity-access
+  server-entry --> session-access
+  identity -.-> session-access
+  session-provider -.-> session-access
+  session-observation -.-> session-access
+  server-entry --> assets-access
+  identity -.-> assets-access
+  governance -.-> assets-access
   authorization --> session-handoff
   storage --> agent-journal
   session-storage --> agent-journal
@@ -238,6 +250,7 @@ flowchart LR
 | 治理装配权威 | `governanceDirectoryPrincipals`、`governanceInstallationPrincipals`、`standingReservations`、`standingDestinationResolver` | 目录与安装主体的独立窄签发能力归入口，只给 governance；保留端口归 identity；结算 resolver 归 governance，identity 按调用读取 |
 | 秘密保管 | `settingsSecretCustody` | `secret-custody` 行；`settings` 行 `inject`，`tool-bindings` 行按调用读取（Web 附着） |
 | 秘密设置项 | `settingsSecretItems` | `settings` 行；只有 `server-entry` 行按调用读取 |
+| 租户层设置读写面 | `tenantSettings` | `governance` 行；不受信，本发行没有行 `inject` 或按调用读取它（接入插件那一程接上） |
 | 接收记录读面 | `agentReceivedRecords` | `agent-journal` 行；只有 `model-records` 行按调用读取，用于 Agent consumer owner 的 ACK 证据核验（R2-D257） |
 | identity 读口 | `principalVerifier`、`tenantStanding`、`identityGovernance` | 核验器：装配入口；资格读口与治理端口：`identity` 行（R2-D203 P-9）。`settings` 行按调用读核验器与资格读口做设置管理的准入。入口对象只经 `env.readTrusted` 读取；Tool 运行时组与 Tool 请求来源不在可见表里，由入口对象 `toolClock` 交给 Tool 共享状态的逐次读法读取 |
 
@@ -260,6 +273,13 @@ flowchart LR
 - 拥有者是 `settings` 行，它是唯一的提供者。形状是 server-entry 的 `SettingsGovernance` 端口：列出、写入、查看、清除行事租户自己的秘密设置项。秘密只经写入进入，任何结果都不带秘密。
 - 每次调用先做准入。只有代该租户行事的登录主体可以管理，经 authorization 的租户准入（AU-11，`requires` 为空）。会话工作主体和系统主体一律拒绝。写入的范围恒为行事租户的租户范围：公开操作没有通往官方范围或使用面的路径。
 - 目标由具体持有身份推出：发行条目的采用 owner 与工具名投影出的 `providerId` 与 `definitionId`，加项标识，编码与 settings 的秘密项入口相同（`apps/harness-server/src/rows/settings/holding.ts`，本应用内唯一的一份，Web 附着读同一份）。
+
+<a id="tenant-settings"></a>`tenantSettings` 是本应用自己定义的第四个服务键，服务定义在 `apps/harness-server/src/rows/governance/tenant-settings-service.ts`：
+
+- 拥有者是 `governance` 行，它是唯一的提供者。形状是 Settings 的 `TenantSettings`（[租户层读写面](../../../packages/assets/settings/SPEC.md#tenant-settings)）：列出、查看、设置、清除行事租户持有的资产的设置项。
+- 提供者在 `governance` 行，因为读写面要的目录读取、租户层写入、组织层来源与工具发行清单都只在本行：每个租户的治理运行时各有一份目录读取与一份写入。
+- 每次调用先做准入，沿用秘密设置项的准入（`rows/authorization/settings-access.ts`）：只有代该租户行事的登录主体。会话工作主体和系统主体一律拒绝，拒绝之前不读任何存储。写入只写行事租户的租户层，计划与当前事实参与者见 [settings-local 的应用消费方](../../../packages/assets/settings-local/SPEC.md#application-current-consumer)。
+- `assets-access` 行每次调用现取它，把它适配成 `assets/v1` 的四个操作。本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 移到届时拥有它的成员的 `./cordis`，键名与形状不变。
 
 | 行 id | 可见的受信名 |
 | --- | --- |
@@ -294,6 +314,9 @@ flowchart LR
 | `request-context` | `requestContextTrust`、`principalVerifier` |
 | `runtime-context` | `runtimeContextTrust` |
 | `server-entry` | `principalIssuer`、`definitionMappings`、`identityGovernance`、`settingsSecretItems` |
+| `identity-access` | `identityGovernance` |
+| `session-access` | `principalIssuer`、`definitionMappings` |
+| `assets-access` | `principalIssuer` |
 
 表中未列的行可见集合为空。受信子树内的行提供的其他服务名不受隔离，根上的行照常 `inject`。
 
@@ -304,6 +327,7 @@ flowchart LR
 | 持有者 | 位置 | 签发前的关系核对 |
 | --- | --- | --- |
 | server-entry 的登录步骤 | `packages/access/server-entry/src/identity-steps.ts`（`server-entry` 行，受信 `principalIssuer`） | 账号相等：识别出的账号等于目标租户的账号（ID-16:291） |
+| 新地址的身份端口 | `packages/identity/identity-access/src/access-identity.ts`（`createAccessIdentity`，由 `server-entry` 行以受信 `principalIssuer` 构造） | 账号相等：识别出的账号等于目标租户的账号（ID-16:291），与上一行同一条规则 |
 | 会话工作主体的签发者 `sessionWorkPrincipals` | `apps/harness-server/src/entry/session-work-principals.ts` | 会话的归属读口 `sessionPrincipalBindings` |
 | Model 宿主权威 | `apps/harness-server/src/entry/model-authorities.ts` | 原受理记录；核对不成立时不签发 |
 
@@ -501,4 +525,9 @@ Web 元工具与秘密设置项修订（web-meta-tool，切片 04）：
 
 新地址的登记表提供者修订（#1249 已定 13）：
 
-- 行 `server-entry` 提供 `accessRegistry`：行在自己的作用域里装上成员的 `AccessRegistryProvider`，新地址的入口用它的登记表。本发行没有行 `inject` 它，`entry` 阶段的停止次序不变。
+- 行 `server-entry` 提供 `accessRegistry`：行在自己的作用域里装上成员的 `AccessRegistryProvider`，新地址的入口用它的登记表。`entry` 阶段的停止次序不变。
+
+身份接入修订（#1267）：
+
+- 新增行 `identity-access`，列在 `server-entry` 之后：`inject` `accessRegistry`，把 `identity/v1` 挂上登记表；按调用现取 `identityOperations` 与受信 `identityGovernance`，受信表加这一行。
+- 行 `server-entry` 给新地址的身份端口换成身份的实现 `createAccessIdentity`（`@omne-harness/identity-access`），用本行按调用读的身份端口与受信签发者构造；持有者表加这一处签发位置。

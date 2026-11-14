@@ -453,7 +453,7 @@ function roundBatches(builder: Builder, rng: Random): void {
         {
           kind: 'wait.entered',
           step,
-          waits: [{ kind: 'producer', pending: { ...toolPending } }],
+          waits: blob([{ kind: 'producer', pending: { ...toolPending } }]),
         },
         { kind: 'cursor.moved', step, members: { state: 'waiting', position: 'W0' } },
       ])

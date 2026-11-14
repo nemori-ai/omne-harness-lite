@@ -18,7 +18,7 @@ catalog:
   # 检查器与配置预设：仓库检查运行 npm 上的这两个精确版本，不运行工作区 tools/ 下的同名成员。
   # 升级先发新版本，再开只改这两行的 PR，见 docs/development.md「仓库工具链的版本」。
   '@omne-harness/repo-toolchain': 0.0.18
-  '@omne-harness/repo-config': 0.0.3
+  '@omne-harness/repo-config': 0.0.6
   '@babel/helper-validator-identifier': 8.0.6
   validate-npm-package-name: 8.0.0
   '@types/validate-npm-package-name': 4.0.2
@@ -64,7 +64,15 @@ catalog:
   react-dom: 19.3.0
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
+  # session-ui：流式 Markdown、组件测试与它的 DOM 环境。
+  streamdown: 2.7.1
+  '@testing-library/react': 16.3.3
+  '@testing-library/dom': 10.4.2
+  happy-dom: 21.0.4
   '@xyflow/react': 12.12.0
+  # 桌面应用页面的构建与界面测试（apps/desktop）。vite 取 vitest 已经装着的同一个版本，不另起一份。
+  vite: 8.3.0
+  '@vitejs/plugin-react': 6.3.0
   antd: 6.6.5
   esbuild: 0.28.2
   '@eslint-community/regexpp': 4.12.2

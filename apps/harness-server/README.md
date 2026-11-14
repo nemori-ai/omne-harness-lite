@@ -59,7 +59,7 @@ The `s0` and `serve` positionals select the mode:
 ```sh
 pnpm --filter @omne-harness/harness-server run build
 node apps/harness-server/dist/bin.js s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
-node apps/harness-server/dist/bin.js serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
+node apps/harness-server/dist/bin.js serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
 ```
 
 For each argument that `serve` does not get, it takes the value of the local single-user profile. The distribution is the bundled `config/serve.distribution.json`. The timeouts are 30000 and 10000 ms. The operator layer and the state root come from the `setup` configuration.
@@ -72,7 +72,7 @@ A usage error prints `<subcommand>: <reason>` and then the usage line of that su
 
 ```text
 usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>
-usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
+usage: serve [--distribution <abs json>] [--operator <abs json>] [--readiness-timeout-ms <n>] [--shutdown-deadline-ms <n>] [--drain-deadline-ms <n>] [--state-root <abs dir>] [--stop-on-stdin-close]
 usage: setup [--port <n>] [--workspace <dir>] [--shell <executable>] [--reconfigure] [--reset] [--replace-credential]
 ```
 
@@ -103,7 +103,7 @@ The stable promises are:
 
 - A root cannot get a trusted name by its name. A subtree row can.
 - A pending row and a failed row are reported apart. A timeout does not turn PENDING into FAILED.
-- Shutdown runs four phases in order: `entry`, `business`, `composition`, `storage`. All phases share one deadline. A handle that misses the deadline is `incomplete`, and the next phase still runs.
+- Shutdown runs four phases in order: `entry`, `business`, `composition`, `storage`. All phases share one deadline. Between `entry` and `business`, `serve` does a drain step: the model runtime admits no new call, and the stop waits for the calls in flight, for `--drain-deadline-ms` at most. A handle that misses the deadline is `incomplete`, and the next phase still runs.
 - The report is final before `assemblyReportSettled()` is called.
 - Exit code `5` means start succeeded and shutdown is `incomplete`.
 - In `serve`, a real row never depends on an S0 double, never gets a placeholder, and loads only on the row id it declares. Each check decides before any plugin body runs.
@@ -118,16 +118,17 @@ The test inventory in [tests/README.md](tests/README.md) names each file and its
 
 ## Configuration and operation
 
-| Input | Effect |
-| --- | --- |
-| `--distribution` | Absolute path of the release layer JSON. Without it, `serve` uses `config/serve.distribution.json`. |
-| `--operator` | Optional absolute path of the operator layer JSON. Without it, `serve` makes the layer of the local single-user profile. |
-| `--readiness-timeout-ms` | Positive integer. Wait limit for readiness. Without it, `serve` uses 30000. |
-| `--shutdown-deadline-ms` | Positive integer. Shared shutdown deadline. Without it, `serve` uses 10000. |
-| `--state-root` | `serve` only. Existing absolute directory for the state files of the entry objects. Without it, `serve` uses the state directory of the local profile. Its protection is a premise: keep it under the user directory of the operator. |
-| `--stop-on-stdin-close` | `serve` only. A closed stdin requests a planned stop. |
-| `OMNE_SERVER_HOME` | Environment variable. `setup` and `serve` use `<dir>/config` and `<dir>/state` instead of the platform directories. |
-| `LOCALAPPDATA`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME` | Environment variables. They set the platform directories. |
+| Input                                               | Effect                                                                                                                                                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--distribution`                                    | Absolute path of the release layer JSON. Without it, `serve` uses `config/serve.distribution.json`.                                                                                                                                   |
+| `--operator`                                        | Optional absolute path of the operator layer JSON. Without it, `serve` makes the layer of the local single-user profile.                                                                                                              |
+| `--readiness-timeout-ms`                            | Positive integer. Wait limit for readiness. Without it, `serve` uses 30000.                                                                                                                                                           |
+| `--shutdown-deadline-ms`                            | Positive integer. Shared shutdown deadline. Without it, `serve` uses 10000.                                                                                                                                                           |
+| `--drain-deadline-ms`                               | `serve` only. Positive integer. The longest time that the stop waits for model calls in flight before it stops the rows. The shutdown deadline does not include this time. Without it, `serve` uses 120000.                           |
+| `--state-root`                                      | `serve` only. Existing absolute directory for the state files of the entry objects. Without it, `serve` uses the state directory of the local profile. Its protection is a premise: keep it under the user directory of the operator. |
+| `--stop-on-stdin-close`                             | `serve` only. A closed stdin requests a planned stop.                                                                                                                                                                                 |
+| `OMNE_SERVER_HOME`                                  | Environment variable. `setup` and `serve` use `<dir>/config` and `<dir>/state` instead of the platform directories.                                                                                                                   |
+| `LOCALAPPDATA`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME` | Environment variables. They set the platform directories.                                                                                                                                                                             |
 
 The arguments and the behavior of `setup` are in [SPEC.md](SPEC.md#setup).
 

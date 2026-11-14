@@ -44,6 +44,11 @@ export type SessionAccessRequest<P> =
       target: Readonly<{ kind: 'tenant'; tenant: TenantId }>
     }>
   | Readonly<{
+      access: Access<P>
+      operation: 'directory.list'
+      target: Readonly<{ kind: 'tenant'; tenant: TenantId }>
+    }>
+  | Readonly<{
       access: Readonly<{ principal: P; scope: 'system' }>
       operation: 'references'
       target: Readonly<{ kind: 'resident-references'; key: ResidentKey }>
@@ -83,7 +88,7 @@ export type SessionCheckedAccess<P> = Readonly<{
  * face operation and does not ask the access check: it answers `denied` to any call whose tenant
  * or session differs from the request target, to a commit whose command (kind, operation and the
  * OP-00 digest without `expected`) differs from the command of a mutation request, and to
- * `pending`, `references`, `releasedScopes` and `commitEntries`. The view stores `evidence` with
+ * `pending`, `directory`, `references`, `releasedScopes` and `commitEntries`. The view stores `evidence` with
  * the operation record.
  */
 export interface SessionDelegatedTransactions<P> {
