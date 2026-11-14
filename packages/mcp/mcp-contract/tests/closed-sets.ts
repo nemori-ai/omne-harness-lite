@@ -1,6 +1,5 @@
 // The closed sets of the contract as code lists. The types are the only source of each set:
-// `closed-sets.spec-d.ts` pins every list to its type, and `spec-closed-sets.spec.ts` checks that
-// SPEC.md names every member.
+// `closed-sets.spec-d.ts` pins every list to its type.
 import type {
   AnswerMalformed,
   ContentDefect,
