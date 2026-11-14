@@ -765,7 +765,6 @@ function coordinate<P>(
   // the history of a saved intent is not known here, and the original call is resumed.
   const unacceptedToolActions = new Set<ActionId>()
   const heldTools = new Set<ActionId>()
-  let movedInPass = false
   // The tool message that T5 found rejected, for H0. In process only: a restart finds the
   // rejected Ja in the Journal again at T5.
   let rejectedMessage: Readonly<{ source: InternalSource; evidence: DurableEvidence }> | null = null
@@ -843,7 +842,6 @@ function coordinate<P>(
           return fail({ kind: 'stale-advance' })
         if (canonical(latest.ok.checkpoint) === canonical(base)) {
           revision = latest.ok.revision
-          movedInPass = true
           return commit(node, to, write)
         }
       }
@@ -4016,9 +4014,6 @@ function coordinate<P>(
       if (activeDrive || activeWait) return fail({ node: 'W0', failure: { kind: 'busy' } })
       if (!yieldedWait && pendingCommit === null && reconciliationOperations.length === 0)
         return succeed('stopped')
-      const moved = movedInPass
-      movedInPass = false
-      if (moved) return succeed('ready')
       const operations = [
         ...new Set([
           ...reconciliationOperations,

@@ -459,11 +459,15 @@ describe('tool call control', () => {
       ),
     )
     // Both slots are kept and the same run sends its next model request.
-    await eventually(async () =>
-      (await loadWithEntries(assembly.dependencies, input)).checkpoint.calls.some(
+    assembly.controls.tools.queries.contact.always(() => ({ ok: { kind: 'settled' } }))
+    await eventually(async () => {
+      const moved = (await loadWithEntries(assembly.dependencies, input)).checkpoint.calls.some(
         pending => pending.kind === 'model' && pending.action.startsWith('step-2/'),
-      ),
-    )
+      )
+      const due = assembly.controls.clock.pending()[0]
+      if (!moved && due !== undefined) ok(assembly.controls.clock.advanceTo(due))
+      return moved
+    })
     const after = await loadWithEntries(assembly.dependencies, input)
     const kept = after.entries?.find(
       entry =>

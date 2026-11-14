@@ -4007,7 +4007,7 @@
       "packages/agent/agent-contract/src/testing-journal-helpers.ts": 1042,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1071,
       "packages/agent/agent-host-local/src/host.ts": 1184,
-      "packages/agent/agent/src/loop/coordinator.ts": 4069,
+      "packages/agent/agent/src/loop/coordinator.ts": 4064,
       "packages/agent/agent/src/testing/journal.ts": 4031,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1062,
       "packages/execution/execution-environment-host-local/src/host-command.ts": 1042,
@@ -4130,7 +4130,7 @@
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 3397
+        "longest": 3392
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,

@@ -102,7 +102,7 @@ describe('the check time of a wait for the main Model call', () => {
     expect(await Promise.race([waiting, stuck])).toEqual({ ok: 'ready' })
   })
 
-  it('a result that lands while the wait is being saved wakes the run at once', async () => {
+  it('a result that lands while the wait is being saved is taken at the check time, when the Model answers settled', async () => {
     let landed = false
     const run: Takeover = await takeover([null], policy(), d => ({
       ...d,
@@ -126,9 +126,10 @@ describe('the check time of a wait for the main Model call', () => {
       pacer: reconciliationPacer([1000]),
       signal: new AbortController().signal,
     })
-    const asleep = eventually(async () => run.assembly.controls.clock.pending().length === 1)
-    expect(await Promise.race([waiting, asleep.then(() => 'asleep')])).toEqual({ ok: 'ready' })
-    expect(run.assembly.controls.modelContact.calls).toEqual([])
+    await eventually(async () => run.assembly.controls.clock.pending().length === 1)
+    run.assembly.controls.clock.advanceTo(at(1))
+    expect(ok(await waiting)).toBe('ready')
+    expect(run.assembly.controls.modelContact.calls).toHaveLength(1)
     ok(await coordinator.runExecution())
     expect(await assistantTexts(run.assembly)).toEqual(['the reply'])
   })
