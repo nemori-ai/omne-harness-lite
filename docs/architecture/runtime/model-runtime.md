@@ -4,8 +4,6 @@ Model runtime 接受完整请求，管理真实发出、内容交付和实际收
 
 Model 对 Tool 没有直接依赖。工具调用响应与 ToolMessage 使用 common/message 的消息值，内容使用 common/content-block。请求中的可用动作声明属于 Model 请求契约，由上层请求组装者从工具定义投影并保管原工具及命令路由。会话路径上，可见工具声明来自会话常驻工具集合，工具的名称与参数形状在同一会话的各次请求中保持一致，规则见 [Tool 契约](../../../packages/tool/SPEC.md#定义采用与常驻)；Model adapter 只负责供应商格式，不读取 Tool 定义、结果对象、注册表或执行句柄。
 
-状态：已接受的目标架构。请求输入由[请求上下文](request-context.md)组织；流式协议和消费责任由[流式与消费](streaming-and-consumption.md)说明。
-
 <a id="h1-model-lifetime"></a>
 ## 调用生命周期独立于 Agent 实例
 
@@ -115,10 +113,6 @@ stateDiagram-v2
 接口拥有者须验证首内容前后故障、重复查询与 ACK、消费者替换、清理失败、迟到费用和供应商多次发出。适配器须验证参数、模态与限额映射，不以模拟流成功代替真实协议验证。
 
 精确状态码映射、退避数值和请求快照格式由后续规格确定。图中状态表达语义，不要求实现使用同名枚举。流中已经展示但尚未收场的内容，其故障保留边界只在[局部对账](streaming-and-consumption.md#在途内容的局部对账)集中说明。
-
-## 依据
-
-模型档案、调用及 ACK 的已接受产品责任见[模型调用](../../../.meta_harness/design/product/model-invocation/README.md)。Model 非 pi-ai 细化设计已接受；pi-ai 的采用范围由[包组规格](../../../packages/model/SPEC.md#总体架构)维护。输入与交接另见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，其采用范围由该拥有者维护。
 
 ## 未决问题与待办事项
 
