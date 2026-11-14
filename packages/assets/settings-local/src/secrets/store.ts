@@ -144,11 +144,8 @@ function errorCode(error: unknown): string | undefined {
     : undefined
 }
 
-// proper-lockfile's time-based takeover is disabled by a `stale` of the largest safe integer: no
-// finite clock jump can make a live holder's lock appear stale, so another writer cannot steal it.
-// The lockfile mtime is still refreshed within Node's timer limit. Crash recovery is manual: a
-// leftover `${path}.lock` means the owning process died and an operator removes it after all
-// writers are stopped.
+// No clock jump may make a live lock look stale, so time-based takeover is off. A leftover
+// `${path}.lock` means its process died; an operator removes it after every writer stops.
 const STALE_NEVER_MS = Number.MAX_SAFE_INTEGER
 const LOCK_UPDATE_MS = 2 ** 31 - 1
 
