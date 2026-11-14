@@ -1,9 +1,3 @@
-// `omne setting list|set|show|unset` (SPEC「设置命令」): the settings of the acting tenant, through
-// the four governance operations `list-settings`, `set-setting`, `describe-setting` and
-// `clear-setting`. The asset and the item are words on the command line; the secret of `set` comes
-// from standard input or a hidden prompt, never from the command line. It goes into the request and
-// nowhere else. `show` prints the two layers of the item, the tenant's own and the deployment's, as
-// two lines; `--json` prints the result object instead.
 import {
   createGovernanceClient,
   tenantText,
@@ -29,14 +23,12 @@ const JSON_SWITCH = '--json'
 
 type Action = 'list' | 'set' | 'show' | 'unset'
 
-/** The asset of the public contract's setting operations; the request type checks the shape. */
 type AssetSelector = { readonly category?: string; readonly name: string }
 
 function isAction(value: string | undefined): value is Action {
   return value === 'list' || value === 'set' || value === 'show' || value === 'unset'
 }
 
-/** The words each action takes after its name: `list` takes the asset optionally. */
 const WORDS: Readonly<Record<Action, readonly string[]>> = {
   list: ['<asset>'],
   set: ['<asset>', '<item>'],
@@ -44,10 +36,8 @@ const WORDS: Readonly<Record<Action, readonly string[]>> = {
   unset: ['<asset>', '<item>'],
 }
 
-/** Options that take a value, so the word after one is its value and not a positional word. */
 const VALUE_OPTIONS: readonly string[] = [serverOption]
 
-/** Splits the words of the command from its options. Anything that starts with `-` is an option. */
 function split(args: readonly string[]): { words: string[]; options: string[] } {
   const words: string[] = []
   const options: string[] = []
@@ -64,7 +54,6 @@ function split(args: readonly string[]): { words: string[]; options: string[] } 
   return { words, options }
 }
 
-/** One layer of a secret item in words: its state and, when the custody recorded it, the time. */
 function layerText(layer: unknown): string {
   const state = text(layer, 'state')
   const words =
@@ -79,7 +68,6 @@ function layerText(layer: unknown): string {
   return at === '' ? words : `${words} (configured at ${at})`
 }
 
-/** The human summary of `show`: one line per layer. A non-success result names its outcome only. */
 function summary(result: CallerResult): string {
   if (result.kind === 'uncertain') return 'Result: uncertain\n'
   const { outcome, body } = result.message
@@ -100,7 +88,6 @@ function writeSummary(name: string, result: CallerResult, output: CliOutput): Ex
   return code
 }
 
-/** `[<category>:]<name>`: the text before the first colon is the category. Both parts are non-empty. */
 function assetOf(text: string): AssetSelector | undefined {
   const colon = text.indexOf(':')
   if (colon === -1) return text === '' ? undefined : { name: text }
@@ -109,7 +96,6 @@ function assetOf(text: string): AssetSelector | undefined {
   return category === '' || name === '' ? undefined : { category, name }
 }
 
-/** What one action names: its options, and the asset and item it acts on. */
 type Invocation =
   | Readonly<{ action: 'list'; values: ReadonlyMap<string, string>; asset?: AssetSelector }>
   | Readonly<{
@@ -119,7 +105,6 @@ type Invocation =
       item: string
     }>
 
-/** Reads the words and options of one action, or the text of the usage error that refuses them. */
 function readInvocation(
   action: Action,
   rest: readonly string[],
@@ -148,7 +133,6 @@ function readInvocation(
   return { action, values: read.values, asset, item }
 }
 
-/** The secret of `set`, from standard input or a hidden prompt; the exit code when there is none. */
 async function readSecret(
   output: CliOutput,
   environment: CommandEnvironment,

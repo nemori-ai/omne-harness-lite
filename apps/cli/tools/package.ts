@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
 const cliDir = resolve(repoRoot, 'apps/cli')
 const target = process.argv[2]
-/** The archive's name inside staging; tar writes it there and it is copied next to the target. */
 const STAGED_ARCHIVE = 'omne-cli.tar.gz'
 
 type Step = { command: string; args: string[]; cwd: string }
@@ -58,7 +57,6 @@ function buildSteps(dist: string, staging: string): Step[] {
 /** Builds into a private staging directory, so `apps/cli/dist` is never removed or rewritten. */
 function packageInto(target: string): number {
   const staging = mkdtempSync(join(tmpdir(), 'omne-cli-package-'))
-  // The archive is copied next to the target and renamed into place, so a failed run leaves no partial target.
   const partial = join(dirname(target), `.${basename(target)}.partial`)
   try {
     for (const step of buildSteps(join(staging, 'dist'), staging)) {

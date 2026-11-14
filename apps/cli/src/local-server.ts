@@ -1,7 +1,3 @@
-// The address of the local server that `harness-server setup` configured on this host. The CLI
-// reads only the `port` of the server settings file. The place of that file and its shape belong
-// to harness-server (apps/harness-server/SPEC.md, local single-user profile). This module repeats
-// the place rule, because an application does not import another application.
 import { readFileSync } from 'node:fs'
 import { posix, win32 } from 'node:path'
 
@@ -13,10 +9,8 @@ export type LocalServerInput = Readonly<{
 }>
 
 export type LocalServerRead =
-  /** No settings file: the host has no local setup. */
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'address'; origin: string }>
-  /** A settings file or a place variable is there but cannot be used. */
   | Readonly<{ kind: 'invalid'; message: string }>
 
 function absolute(path: typeof posix, value: string | undefined): string | undefined {
@@ -24,7 +18,6 @@ function absolute(path: typeof posix, value: string | undefined): string | undef
   return text !== undefined && text !== '' && path.isAbsolute(text) ? text : undefined
 }
 
-/** `<config>/server.json` by the harness-server place rule, or a message why it has no place. */
 function settingsFile(input: LocalServerInput): string | Readonly<{ message: string }> | undefined {
   const path = input.platform === 'win32' ? win32 : posix
   const override = input.env['OMNE_SERVER_HOME']

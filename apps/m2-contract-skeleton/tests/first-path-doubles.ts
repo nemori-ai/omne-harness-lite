@@ -1,7 +1,3 @@
-// The `./testing` doubles of the tenant path, wired as the application assembly page's "替身与真件"
-// table names them: identity's in-process operations, a non-durable Session store, the Agent test
-// dependencies with the scripted Model provider and its public pusher, and the Request Context
-// memory sources. Nothing here is durable or proves a real provider. `src/` never imports this file.
 import { agentEvaluator, createAgentRuntime, type AgentRuntimeOptions } from '@omne-harness/agent'
 import {
   createTestAgentDependencies,
@@ -88,7 +84,6 @@ import type {
 } from '../src/path-report.ts'
 import type { ContractSkeletonInputs } from '../src/run.ts'
 
-/** The reply texts the scripted Model settles the admitted calls of one Agent with, in order. */
 export const REPLY_TEXTS = [
   'first reply from the scripted model',
   'second reply from the scripted model',
@@ -136,7 +131,6 @@ export function firstRequest(text = REQUEST_TEXTS[0], ordinal = 0): Message {
   return judged.ok
 }
 
-/** The external inputs of the main session, one for each round. */
 export function requests(): readonly Message[] {
   return REQUEST_TEXTS.slice(0, PATH_ROUNDS).map((text, index) => firstRequest(text, index))
 }
@@ -149,7 +143,6 @@ const selected: SelectedModel = {
   evidence: testEvidence('selected'),
 }
 
-/** A block id of a scripted Model part; the fixed ids of this file are valid block ids. */
 function blockId(raw: string): BlockId {
   const judged = judgeBlockIdentity({ id: raw, visibility: { toHuman: true, toModel: true } })
   if ('rejected' in judged) throw new Error(`block id ${raw}: ${judged.rejected}`)
@@ -169,12 +162,10 @@ function textPart(text: string, ordinal = 0): ResultPart {
   }
 }
 
-/** A plain text reply. */
 export function replyParts(text: string): readonly ResultPart[] {
   return [textPart(text)]
 }
 
-/** A reply that asks for the `read_file` tool of the execution environment (H10). */
 export function toolCallParts(): readonly ResultPart[] {
   const call: ToolCallPart = {
     kind: 'tool_call',
@@ -190,7 +181,6 @@ export function toolCallParts(): readonly ResultPart[] {
   return [{ kind: 'sealed', trims: [], block: call }]
 }
 
-/** A reply whose first part is reasoning the next request must replay (H12). */
 export function reasoningParts(): readonly ResultPart[] {
   return [
     {
@@ -207,7 +197,6 @@ export function reasoningParts(): readonly ResultPart[] {
   ]
 }
 
-/** A reply that carries a sealed reasoning continuation state, as card #790 item 4 names it. */
 export function reasoningStateParts(): readonly ResultPart[] {
   const state: ReasoningStatePart = {
     kind: 'reasoning_state',
@@ -219,11 +208,6 @@ export function reasoningStateParts(): readonly ResultPart[] {
   return [{ kind: 'sealed', trims: [], block: state }, textPart('reply after reasoning', 1)]
 }
 
-/**
- * The scripted parts of the n-th admitted call of an Agent under a scenario; null holds the call.
- * `tool-call` answers the first call with the tool call and a later call, which carries the tool
- * result once the loop runs tools, with a text reply.
- */
 function scriptedParts(scenario: AgentScenario, ordinal: number): readonly ResultPart[] | null {
   switch (scenario) {
     case 'reply':
@@ -241,12 +225,6 @@ function scriptedParts(scenario: AgentScenario, ordinal: number): readonly Resul
   }
 }
 
-/**
- * The execution-environment side of the Tool double (H10): the memory file system and the scripted
- * command facility of `@omne-harness/execution-environment-contract/testing` (#791). One Tool
- * invocation reads `notes.txt`, replaces it, and starts one command. `effects` lists each facility
- * call with the kind of its answer.
- */
 export function executionEnvironmentDouble(access: Access<PathPrincipal>) {
   const files = createMemoryFileSystem({ files: { 'notes.txt': 'notes before the tool' } })
   const command = createScriptedCommandFacility(() => ({
@@ -289,24 +267,10 @@ export function executionEnvironmentDouble(access: Access<PathPrincipal>) {
 }
 
 export type AgentDoubleOptions = Readonly<{
-  /** The parts the scripted Model settles with; null lets admitted calls stay unsettled. */
   parts?: ((scenario: AgentScenario, ordinal: number) => readonly ResultPart[] | null) | null
-  /**
-   * Takes the reason when the scripted Model producer refuses to settle a call with the scripted
-   * parts. Without it the refusal is thrown and fails the run.
-   */
   onSettleRefused?: (reason: string) => void
 }>
 
-/**
- * The Agent of one tenant from `createTestAgentDependencies`, with the path's bridges plugged in.
- * With a same-log Journal from the Session store, the Agent reads and writes that Journal. The
- * same-log provider of session-adapters/testing exposes no Model reception targets (the test
- * "finds no Model reception targets…" pins that upstream fact), so no receiver can be built over
- * the Session log; the pusher of that Agent therefore resolves no receiver
- * (GAP-SESSION-LOG-TARGETS). The Tool runtime is the scripted one of the Agent test dependencies;
- * each invocation first runs in the execution-environment double (H10).
- */
 export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies['agent'] {
   const parts = options.parts === undefined ? scriptedParts : options.parts
   return async ({
@@ -405,8 +369,6 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
       async invoke(input: Parameters<typeof dependencies.tools.invoke>[0]) {
         toolInvocations += 1
         await environment.run()
-        // The Tool runtime double of the Agent test dependencies answers the invocation; a Tool
-        // runtime that issues the invocation reference and result pages has no public double.
         return dependencies.tools.invoke(input)
       },
     }
@@ -424,8 +386,6 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
         denialBackoffMs: 0,
         toolConcurrency: 1,
         jointCommits: [],
-        // The same-log Journal of the Session store is the coordinated binding; the Agent's own
-        // memory Journal of the test dependencies is standalone. Declared apart from the binding.
         coordination: sessionLog ? 'coordinated' : 'standalone',
         loopGuardPolicy: testAdoption('loop-guard'),
         modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
@@ -436,7 +396,6 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
         {
           ...dependencies,
           journal: journal?.journal ?? dependencies.journal,
-          // The Loop reads its received entries from the Journal it commits to.
           entries: journal?.entries ?? dependencies.entries,
           materials: journal?.materials ?? dependencies.materials,
           models,
@@ -461,7 +420,6 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
   }
 }
 
-/** Request Context assembly over the given Session history, from the memory source fixture. */
 export const assembleWithMemorySources: PathDependencies['assemble'] = async ({
   tenant,
   history,
@@ -470,8 +428,6 @@ export const assembleWithMemorySources: PathDependencies['assemble'] = async ({
     const entry = parseRecordEntryRef(String(item.entry))
     if (entry === null) throw new Error(`Session entry ${item.entry} is not a RecordEntryRef`)
     const { message } = item
-    // A history row of an assistant message also names its source call. The rounds of this path
-    // assemble before each reply and the later rounds do not reach assembly (GAP-SECOND-RUN).
     if (message.role === 'assistant')
       throw new Error('an assistant history row needs its source call; not reached on this path')
     return {
@@ -494,7 +450,6 @@ export const assembleWithMemorySources: PathDependencies['assemble'] = async ({
   }
 }
 
-/** Offline fixture: each `create` the path commits is registered as trusted initialization facts. */
 function trustedInitialization(): MemoryInitializationSource {
   const source = createMemoryInitializationSource()
   return {
@@ -512,11 +467,6 @@ function trustedInitialization(): MemoryInitializationSource {
   }
 }
 
-/**
- * The Session access check the path injects (#680 B-1). An explicit policy: a request under a
- * tenant principal on a session or tenant target is allowed with its own evidence; a system-scope
- * read is denied. The skeleton proves the injection and the judgment order, not a product policy.
- */
 export function sessionAccessCheckDouble(): ScriptedSessionAccessCheck<PathPrincipal> {
   return createPolicySessionAccessCheck<PathPrincipal>(request =>
     'scope' in request.access
@@ -535,13 +485,6 @@ export function sessionAccessCheckDouble(): ScriptedSessionAccessCheck<PathPrinc
 
 export type SessionStoreKind = 'contract-memory' | 'session-log'
 
-/**
- * The Session store of the path, built with the injected access check. `contract-memory` is the
- * session-contract memory transaction port; the Agent then keeps its own memory Journal.
- * `session-log` is the common-log provider of session-adapters (#756): one log carries the Session
- * entries and the Agent Journal, and derived Session participation is judged by the same check.
- * `configure` may script the evidence bridge and wrap the contract-memory transaction port.
- */
 export function sessionAssembly(
   kind: SessionStoreKind = 'contract-memory',
   configure: Readonly<{
@@ -584,15 +527,6 @@ export function sessionAssembly(
   }
 }
 
-/**
- * The declared realization of each plugin-tree row under the `contract-memory` store. `agent-host`
- * is `double`: the row names the host plugin of `@omne-harness/agent-host-local`, which is not
- * loaded; the path runs `createAgentRuntime` of `@omne-harness/agent` over its test dependencies
- * instead. `session-ad01` is `absent`: the Agent keeps its own memory Journal, so no participant
- * shares a publication boundary with Session. The Tool runtime is the scripted one of the Agent
- * test dependencies and runs the file and command facility doubles of #791 directly, without a
- * Tool executor, an environment adapter or an execution-environment registry.
- */
 export const REALIZATION: Readonly<Record<RowId, Realization>> = {
   'server-entry': 'double',
   identity: 'double',
@@ -621,11 +555,6 @@ export const REALIZATION: Readonly<Record<RowId, Realization>> = {
   'request-context': 'double',
 }
 
-/**
- * The declared realization under the `session-log` store: one log of #756's double carries the
- * Session entries and the Agent Journal, so the same-log participant and interpretation rows are
- * that double.
- */
 export const SESSION_LOG_REALIZATION: RealizationTable = {
   ...REALIZATION,
   'session-ad01': 'double',
@@ -650,7 +579,6 @@ export function pathDependencies(
   }
 }
 
-/** The inputs of `runContractSkeleton` with every double of the path and the scripted Model subject. */
 export function skeletonInputs(
   overrides: Partial<ContractSkeletonInputs<ScriptedPrincipal>> = {},
   store: SessionStoreKind = 'contract-memory',
@@ -663,23 +591,16 @@ export function skeletonInputs(
   }
 }
 
-/** The Model obligation fragments of H06, without the connected-path fragment. */
 export function modelFragments(report: PathReport): readonly FragmentObservation[] {
   return (report.hops.find(hop => hop.hopId === 'H06')?.fragments ?? []).filter(
     fragment => fragment.fragmentId !== 'H06-connected',
   )
 }
 
-/** A durable evidence record of this file's fixtures. */
 function fixtureEvidence(record: string) {
   return { owner: 'm2-contract-skeleton', record, revision: '1', digest: `sha256:${record}` }
 }
 
-/**
- * Wraps the Session transaction port of a store with `wrap`, which sees the whole assembly (its
- * evidence bridge included), so that a fixture can commit extra Session commands under the same
- * guards as the path does.
- */
 export function wrappedSession(
   wrap: (assembly: SessionAssembly) => SessionAssembly['transactions'],
   kind: SessionStoreKind = 'contract-memory',
@@ -691,13 +612,6 @@ export function wrappedSession(
   }
 }
 
-/**
- * The Session transaction port of an assembly that closes the unfinished Run of a session before
- * the input of the next round is accepted, by a bounded close that rejects the first input of the
- * closed Run. The path has no Session coordinator that finishes a Run (GAP-SESSION-COORDINATOR), so
- * the later rounds meet `run-active`; this port stands in for the closing so that the later rounds
- * run. A failed Run leaves the session waiting for the person, so the close precedes the input.
- */
 export function closingRuns({
   transactions,
   evidence,
@@ -717,7 +631,6 @@ export function closingRuns({
               session: input.access.session,
               operation: `sop_cs-close-${closes}` as never,
               run: work.ok.run.run,
-              // The Run-layer revision, the `expected` of a Run advance (R2-D343).
               expected: work.ok.run.revision,
               bounded: {
                 kind: 'admission-rejected' as const,
@@ -741,20 +654,14 @@ export function closingRuns({
   }
 }
 
-/** A Session store whose Runs are closed before the next one starts (`closingRuns`). */
 export const sessionClosingRuns = (): PathDependencies['session'] => wrappedSession(closingRuns)
 
-/** Request Context assembly that leaves out the assistant rows, which the memory sources cannot take. */
 export const assembleWithoutAssistantRows: PathDependencies['assemble'] = input =>
   assembleWithMemorySources({
     ...input,
     history: input.history.filter(item => item.message.role !== 'assistant'),
   })
 
-/**
- * A Session store that accepts another input into the named session before the path accepts its
- * own, so that `startRun` fixes the earlier pending input and not the input of the round.
- */
 export function sessionWithEarlierInput(session: string): PathDependencies['session'] {
   let injected = false
   return wrappedSession(({ transactions, evidence }) => ({
@@ -794,10 +701,6 @@ export function sessionWithEarlierInput(session: string): PathDependencies['sess
   }))
 }
 
-/**
- * An Agent whose `invoke` answers without running the loop, so the Agent never asks the message
- * hand-over to admit the external input. Session still holds the hand-over of the input.
- */
 export function agentWithoutAdmission(
   original: PathDependencies['agent'],
   scenario?: AgentScenario,

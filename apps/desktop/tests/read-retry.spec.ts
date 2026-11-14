@@ -1,4 +1,3 @@
-// The page's policy for a read that finds nothing to read now: how long to wait before asking again.
 import { describe, expect, it } from 'vitest'
 import { readRetryDelayMs, readRetryPolicy } from '../src/page/read-retry.ts'
 

@@ -15,20 +15,12 @@ import {
 import { GOVERNANCE_SCENARIOS, type ScenarioResult } from './scenarios.ts'
 
 export type ContractSkeletonInputs<P> = Readonly<{
-  /** The ports and doubles of the connected first tenant path. */
   path: PathDependencies
-  /** The subject of the public Model obligation suite. */
   model: ModelInputs<P>
-  /** What the caller wired in each plugin-tree row: the real member, a double, or nothing. */
   realization: RealizationTable
   governance?: GovernanceInputs
 }>
 
-/**
- * Runs the connected first tenant path, the governance protocol scenarios and the public Model
- * obligations, and aggregates the per-hop report. An exception in one part stays a failed or
- * unreached hop; it does not remove the other parts.
- */
 export async function runContractSkeleton<P>(
   inputs: ContractSkeletonInputs<P>,
 ): Promise<PathReport> {

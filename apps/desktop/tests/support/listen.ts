@@ -1,5 +1,3 @@
-// This machine's ephemeral port range starts at 1024, so `listen(0)` can land on a port that
-// `fetch` refuses ("bad port", Fetch standard §2.9). Such a host is closed and made again.
 import type { WebHost } from '../../src/web-host/server.ts'
 
 const FETCH_BAD_PORTS = new Set([

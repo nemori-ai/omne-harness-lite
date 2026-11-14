@@ -1,5 +1,4 @@
 // @module-tag slow
-// Packaging runs a full tsc build and a tar child process.
 import { execFileSync, type ExecFileSyncOptions } from 'node:child_process'
 import {
   cpSync,
@@ -61,7 +60,6 @@ function packageFixture(root: string) {
   }
 }
 
-/** Inode and modification time of every entry under the member's dist; a delete-and-rebuild changes them. */
 function identities(memberDist: string): Map<string, string> {
   const entries = readdirSync(memberDist, { recursive: true, withFileTypes: true })
   return new Map(
@@ -82,7 +80,6 @@ describe('package-cli.sh', () => {
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-cli-package-')))
     scratch.push(dir)
     const { checkout, script, memberDist } = packageFixture(dir)
-    // The turbo test task depends on build, so dist exists here.
     expect(existsSync(memberDist)).toBe(true)
     const sentinel = join(memberDist, '.packaging-sentinel')
     writeFileSync(sentinel, '')
@@ -92,7 +89,6 @@ describe('package-cli.sh', () => {
     const target = join(output, 'omne-cli.tar.gz')
     runScript(script, [target], { cwd: checkout, stdio: 'inherit' })
     expect(identities(memberDist)).toEqual(before)
-    // A name relative to `output`: GNU tar reads an absolute `C:\…` name as a remote `host:file`.
     const names = execFileSync('tar', ['-tzf', basename(target)], {
       cwd: output,
       encoding: 'utf8',

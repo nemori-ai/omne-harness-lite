@@ -1,5 +1,3 @@
-// The bytes between the page and its host: one JSON text per request, answer or SSE event. Both
-// sides read and write them here, so the wire has one definition. Pure: no Node, no DOM.
 import {
   readJsonText,
   writeJsonText,
@@ -16,7 +14,6 @@ import type {
 import type { LoginState } from '@omne-harness/client-assembly/cordis'
 import type { LoginCredentials, LoginResult, LogoutResult } from './host-bridge.ts'
 
-/** The host's paths. All same-origin with the page. */
 export const BRIDGE = {
   call: '/bridge/call',
   observe: '/bridge/observe',
@@ -25,7 +22,6 @@ export const BRIDGE = {
   loginState: '/bridge/login-state',
 } as const
 
-/** Budgets for reading any bridge message. An input body may be large; the server checks its own limits. */
 export const WIRE_LIMITS: JsonLimits = {
   maxBytes: 8 * 1024 * 1024,
   maxDepth: 64,
@@ -65,8 +61,6 @@ function protocolOf(value: JsonValue | undefined): ProtocolKey | undefined {
   return Number.isSafeInteger(parsed) && parsed > 0 ? { name, major: parsed } : undefined
 }
 
-// ---- call
-
 export type CallMessage = Omit<CallRequest, 'signal'>
 
 export function writeCall(request: CallMessage): string {
@@ -98,7 +92,6 @@ export function writeReport(report: CallReport): string {
   )
 }
 
-/** The report the host sent; anything else is `uncertain`, since the call may have gone out. */
 export function readReport(text: string): CallReport {
   const value = read(text)
   const kind = textOf(member(value, 'kind'))
@@ -110,8 +103,6 @@ export function readReport(text: string): CallReport {
   }
   return { kind: 'uncertain' }
 }
-
-// ---- observe
 
 export type ObserveMessage = Omit<ObserveRequest, 'signal'>
 
@@ -137,7 +128,6 @@ export function readObserve(text: string): ObserveMessage | undefined {
   return open === undefined ? undefined : { protocol, observation, messageId, open }
 }
 
-/** One SSE event of an observation: a frame, or how it ended (always the last event). */
 export type ObserveEvent = { readonly frame: JsonValue } | { readonly end: ObserveEnd }
 
 export function writeObserveEvent(event: ObserveEvent): string {
@@ -149,7 +139,6 @@ export function writeObserveEvent(event: ObserveEvent): string {
   return writeJsonText(object({ kind: string('end'), end: object(fields) }))
 }
 
-/** An event the page cannot read ends the observation as `uncertain`. */
 export function readObserveEvent(text: string): ObserveEvent {
   const value = read(text)
   const kind = textOf(member(value, 'kind'))
@@ -167,8 +156,6 @@ export function readObserveEvent(text: string): ObserveEvent {
   }
   return { end: { kind: 'uncertain' } }
 }
-
-// ---- login, logout, login state
 
 export function writeCredentials(credentials: LoginCredentials): string {
   return writeJsonText(

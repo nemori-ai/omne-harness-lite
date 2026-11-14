@@ -8,7 +8,6 @@ const cardOf = (owner: string) => {
   const id = /\/issues\/(\d+)$/.exec(owner)?.[1]
   return id === undefined ? owner : Number(id)
 }
-/** The hops a blocking residual gap names on this track. */
 const BLOCKED: readonly string[] = ['H09', 'H10', 'H11', 'H12', 'H13']
 
 describe('M2 path observations', () => {
@@ -23,7 +22,6 @@ describe('M2 path observations', () => {
     expect(report.fullPath).toBe('incomplete')
     expect(report.gaps).toEqual([...BLOCKED])
     expect(report.residualGaps).toHaveLength(10)
-    // Owners are open cards only; a gap without an open implementation card names M2 (#784).
     expect(
       Object.fromEntries(report.residualGaps.map(gap => [gap.gapId, gap.owners.map(cardOf)])),
     ).toEqual({
@@ -47,7 +45,6 @@ describe('M2 path observations', () => {
     ])
     for (const hop of report.hops.filter(hop => BLOCKED.includes(hop.hopId))) {
       expect(hop.blockedBy.length).toBeGreaterThan(0)
-      // The probe reached the hop and recorded the refusal it met; the evidence is not empty.
       expect(hop.fragments[0]?.status).toBe('fail')
       expect(hop.fragments[0]?.evidence).not.toContain('not-reached')
     }
@@ -108,7 +105,6 @@ describe('M2 path observations', () => {
     }))
     const unblocked = report.residualGaps.map(gap => ({ ...gap, blocking: false }))
     expect(aggregatePath({ ...report, hops, residualGaps: unblocked }).fullPath).toBe('complete')
-    // A supplied observation cannot claim a hop verified while a blocking gap names it.
     const reblocked = unblocked.map(gap =>
       gap.gapId === 'GAP-RECEIVE-SURFACE' ? { ...gap, blocking: true } : gap,
     )

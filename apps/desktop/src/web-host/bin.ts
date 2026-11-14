@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// `node apps/desktop/dist/web-host/bin.js [--server <origin>] [--port <port>]`: starts the web host
-// on 127.0.0.1 and serves the built page from `dist/page`.
 import { fileURLToPath } from 'node:url'
 import { accessProtocol } from '@omne-harness/public-contract'
 import { httpServer, memoryCredentialStore, openLoginSession } from '../main-core/index.ts'

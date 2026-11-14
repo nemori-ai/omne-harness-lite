@@ -1,7 +1,3 @@
-// The login gate's screen (RFC-0015 §10「登录」): register and sign in. Registering goes through
-// the ordinary call channel (`identity/v1` `register-and-activate`), signing in through the
-// bridge's `login`; the page never sees a login proof. The form is cleared as soon as the
-// credentials are handed over, and every failure is said plainly.
 import { useState, type FormEvent } from 'react'
 import type { IdentityProtocol } from '@omne-harness/identity-protocol'
 import { ClientRequestError, type ClientOf } from '@omne-harness/sdk/core'
@@ -20,7 +16,6 @@ const LOGIN_TEXT: Readonly<Record<Exclude<LoginResult, 'signed-in'>, string>> = 
   unavailable: '现在登录不了：服务暂时不可用。请稍后再试。',
 }
 
-/** What a register answer means to the person; `undefined` when it succeeded. */
 function registerText(outcome: string): string | undefined {
   switch (outcome) {
     case 'succeeded':
@@ -61,14 +56,12 @@ export function LoginScreen(props: LoginScreenProps) {
     }
     const text = registerText(outcome)
     if (text !== undefined) return setError(text)
-    // First use: registered, now sign in with the same credentials.
     await signIn(credentials)
   }
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault()
     const credentials = { loginIdentifier: loginIdentifier.trim(), credential }
-    // Handed over: the form keeps nothing.
     setLoginIdentifier('')
     setCredential('')
     setError(undefined)

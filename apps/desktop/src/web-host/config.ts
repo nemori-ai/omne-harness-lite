@@ -1,5 +1,3 @@
-// The web host's configuration: command-line flags first, then environment variables, then defaults.
-
 export type WebHostConfig = Readonly<{ server: string; port: number }>
 
 export const DEFAULT_SERVER = 'http://127.0.0.1:8787'

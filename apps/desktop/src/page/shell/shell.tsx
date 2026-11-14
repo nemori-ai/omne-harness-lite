@@ -1,6 +1,3 @@
-// The shell (RFC-0015 §6「外壳与界面模块」, §10): top bar, login gate, the signed-in workspace,
-// and the two fallbacks — 「连不上服务」 and 「这项能力暂时不可用」. It imports no domain: the
-// assembly hands it two regions, each naming the services it needs and how to render them.
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { LoginState } from '@omne-harness/client-assembly/cordis'
 import type { HostBridge } from '../../shared/host-bridge.ts'
@@ -8,17 +5,12 @@ import type { Connectivity } from '../connectivity.ts'
 import type { ClientTree } from '../tree.ts'
 import { useServices, useSource, type Source } from './hooks.ts'
 
-/**
- * What a region may ask of the shell: show a short label of the current tenant in the top bar, and
- * lay out the workspace's views with a switch between them.
- */
 export type ShellChrome = Readonly<{
   setScope(label: ScopeLabel | undefined): void
   views(views: readonly WorkspaceView[]): ReactNode
 }>
 export type ScopeLabel = Readonly<{ short: string; full: string }>
 
-/** One view of the workspace. Its tab shows only while all its services are on the tree. */
 export type WorkspaceView = Readonly<{
   id: string
   title: string
@@ -27,7 +19,6 @@ export type WorkspaceView = Readonly<{
 }>
 
 export type Region = Readonly<{
-  /** The tree services this region needs; it is shown only while all are there. */
   services: readonly string[]
   render(services: readonly unknown[], chrome: ShellChrome): ReactNode
 }>
@@ -37,9 +28,7 @@ export type ShellProps = Readonly<{
   bridge: HostBridge
   tree: ClientTree
   connectivity: Source<Connectivity>
-  /** Shown while signed out: the login gate. */
   gate: Region
-  /** Shown while signed in. */
   workspace: Region
 }>
 
@@ -64,10 +53,6 @@ function RegionView(props: { region: Region; tree: ClientTree; chrome: ShellChro
   return <>{props.region.render(values, props.chrome)}</>
 }
 
-/**
- * The workspace's views, one tab each, the first one chosen at the start. Every open view stays
- * mounted and the others are only hidden, so looking at one view does not stop the work of another.
- */
 function ViewSwitch(props: { tree: ClientTree; views: readonly WorkspaceView[] }) {
   const names = [...new Set(props.views.flatMap(view => view.services))]
   const values = useServices(props.tree, names)

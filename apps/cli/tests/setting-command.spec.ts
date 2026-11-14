@@ -1,7 +1,3 @@
-// `omne setting list|set|show|unset` (SPEC「设置命令」): the request each subcommand sends, the asset
-// selector with and without a category, the output and exit code of each result, the usage errors,
-// and a secret that never reaches standard output, standard error or the state directory. The
-// secret is a sentinel value, and every case scans every output for it.
 import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -68,7 +64,6 @@ async function login(service: FakeService) {
   expect(result.code).toBe(0)
 }
 
-/** Every byte the command left where a user or another process could read it. */
 function visible(result: { stdout: string; stderr: string }): string {
   const files = readdirSync(state).map(name => readFileSync(join(state, name), 'utf8'))
   return [result.stdout, result.stderr, ...files].join('\n')
@@ -163,7 +158,6 @@ describe('setting set', () => {
     let stdout = ''
     let stderr = ''
     const listeners = new Map<string, (chunk?: string) => void>()
-    // A terminal that turns echo off when asked and types the secret once reading starts.
     const terminal: CredentialInput = {
       isTTY: true,
       setRawMode: mode => modes.push(mode),
@@ -413,7 +407,6 @@ describe('the built bin', () => {
   afterAll(() => sandbox.remove())
 
   it('reads the secret from a pipe and writes it nowhere', { tags: ['slow'] }, async () => {
-    // Slow: it spawns the built bin twice.
     expect(builtBin).toContain('dist')
     const service = await serve()
     const home = join(sandbox.root, 'omne-home')

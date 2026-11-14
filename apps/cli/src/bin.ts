@@ -43,7 +43,6 @@ async function main(): Promise<ExitCode> {
   return stdoutFailed ? 1 : code
 }
 
-// Setting exitCode instead of calling process.exit() lets piped stdout drain first.
 main().then(
   code => {
     process.exitCode = code

@@ -1,9 +1,3 @@
-// The login session (RFC-0015 §10「登录会话」, §13「桌面应用主进程里的登录会话」; SPEC.md
-// 「登录会话」). It owns the login proof: the proof is a field of the signed-in and signing-out
-// states only. It also gives the page's transport: page calls go out with the proof while signed
-// in, only a target the host's contracts declare is forwarded and never one that carries a
-// credential, and a `denied` answer to a call that carried the login starts one probe of
-// `query-current-tenant`.
 import type { LoginState, LoginStateSource } from '@omne-harness/client-assembly/cordis'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import type { ProtocolContract } from '@omne-harness/public-contract'
@@ -27,22 +21,15 @@ type SessionState =
   | { readonly kind: 'signed-in'; readonly login: StoredLogin }
   | { readonly kind: 'signing-out'; readonly login: StoredLogin }
 
-/** A transport to the server entry that puts these credentials on every request. */
 export type ServerConnector = (credentials: Credentials) => Transport
 
 export type LoginSessionOptions = {
   readonly connect: ServerConnector
   readonly store: CredentialStore
-  /**
-   * The contracts the host knows. Only the operations and observations they declare are forwarded,
-   * their `carriesCredential` operations never are, and each target gets only the credentials its
-   * identity requirement names.
-   */
   readonly contracts: readonly ProtocolContract[]
 }
 
 export interface LoginSession extends LoginStateSource {
-  /** The page's transport. */
   readonly transport: Transport
   login(credentials: LoginCredentials): Promise<LoginResult>
   logout(): Promise<LogoutResult>
@@ -54,7 +41,6 @@ type IssueLoginOutcome = Awaited<
   ReturnType<ClientOf<typeof identityProtocol>['issue-login']>
 >['outcome']
 
-/** What the page is told for each `issue-login` outcome other than success (SPEC.md「实现的读法」). */
 const LOGIN_RESULTS: Readonly<Record<Exclude<IssueLoginOutcome, 'succeeded'>, LoginResult>> = {
   'uniform-auth-failure': 'auth-failed',
   unknown: 'unknown',
@@ -66,7 +52,6 @@ const LOGIN_RESULTS: Readonly<Record<Exclude<IssueLoginOutcome, 'succeeded'>, Lo
 }
 
 type Identity = ProtocolContract['operations'][string]['identity']
-/** What the contract says one operation or observation needs; a credential-carrying one is the page's to never call. */
 type Demand = Identity | 'carries-credential'
 
 const targetOf = (key: ProtocolKey, name: string): string =>
@@ -86,10 +71,6 @@ function demandsOf(contracts: readonly ProtocolContract[]): ReadonlyMap<string, 
   return demands
 }
 
-/**
- * Only what the identity requirement asks for: the proof for `login`, the proof and the acting
- * tenant for `acting-tenant`.
- */
 function credentialsFor(login: StoredLogin, identity: Exclude<Identity, 'none'>): Credentials {
   return identity === 'login'
     ? { proof: login.proof }
@@ -103,12 +84,9 @@ function endedDenied(end: ObserveEnd): boolean {
   )
 }
 
-/** Opens the login session: reads the saved login (the event「应用启动」). */
 export async function openLoginSession(options: LoginSessionOptions): Promise<LoginSession> {
   const { connect, store } = options
   const demands = demandsOf(options.contracts)
-  // The session's own identity calls: `issue-login` needs none, `query-current-tenant` and
-  // `revoke-login` need the login only.
   const identityFor = (login: StoredLogin | undefined) =>
     createClient(
       identityProtocol,
@@ -126,36 +104,27 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
     for (const listener of Array.from(listeners)) listener(next.kind)
   }
 
-  /** The login currently held, if the state holds one. */
   const held = (): StoredLogin | undefined =>
     state.kind === 'signed-in' || state.kind === 'signing-out' ? state.login : undefined
 
-  /** 「身份协议明确答复登录已失效」: acts only while the session still holds this login. */
   async function invalidated(login: StoredLogin): Promise<void> {
     if (held() !== login) return
     enter({ kind: 'signed-out' })
     await store.erase()
   }
 
-  /** At most one probe in flight; its result is not kept. */
   function probe(login: StoredLogin): void {
     if (probing) return
     probing = true
     void identityFor(login)
       ['query-current-tenant']({})
       .then(answer => (answer.outcome === 'denied' ? invalidated(login) : undefined))
-      // A probe that did not come back `denied` is no event; the next `denied` probes again.
       .catch(() => undefined)
       .finally(() => {
         probing = false
       })
   }
 
-  /**
-   * How a page request to `target` goes out: refused while signing out, for a target no known
-   * contract declares and for a credential-carrying operation; otherwise with the credentials it
-   * needs, and the login it carried (the one a `denied` answer is about).
-   */
   function route(
     target: string,
   ): { readonly credentials: Credentials; readonly carried: StoredLogin | undefined } | 'refuse' {
@@ -198,7 +167,6 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
         credential: credentials.credential,
       })
       .catch((error: unknown) => {
-        // A body the contract cannot write: no byte left. The error names no credential.
         if (error instanceof ClientRequestError) return { outcome: 'unavailable' as const }
         enter({ kind: 'signed-out' })
         throw error

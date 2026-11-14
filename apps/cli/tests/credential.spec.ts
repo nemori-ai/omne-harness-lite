@@ -86,7 +86,6 @@ describe('readCredential from a terminal', () => {
     stream.write('3\r')
     expect(await pending).toEqual({ kind: 'credential', value: 'hunter3' })
     expect(modes).toEqual([true, false])
-    // Only the prompt and the closing newline are written: no typed character is echoed.
     expect(prompts).toEqual(['Credential: ', '\n'])
     expect(prompts.join('')).not.toContain('hunter')
   })

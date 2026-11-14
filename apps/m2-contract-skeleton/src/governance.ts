@@ -28,7 +28,6 @@ const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
 export type GovernanceInputs = Readonly<{
-  /** Corrupt only the fixed registration response; all codecs still run. */
   registrationResponseBytes?: Uint8Array
 }>
 

@@ -7,11 +7,6 @@ import {
 import type { FragmentObservation } from './path-report.ts'
 import type { ScenarioResult } from './scenarios.ts'
 
-/**
- * The subject factory and the wait bound of the public Model obligation suite. The caller supplies
- * the subject, such as the scripted subject of `@omne-harness/model-contract/testing`; this module
- * imports only the `./conformance` entry.
- */
 export type ModelInputs<P> = Pick<ConformanceOptions<P>, 'subject' | 'waitMs'>
 export type ModelObservation = Readonly<{
   scenario: ScenarioResult

@@ -39,16 +39,11 @@ export function refusedServer(output: CliOutput): ExitCode {
   return usageError(output, serverRefused)
 }
 
-/** The server a command was told about on its command line or in its environment, if any. */
 export function givenServer(values: Option, environment: CommandEnvironment): string | undefined {
   const fromEnvironment = environment.environmentServer
   return values.get(serverOption) ?? (fromEnvironment === '' ? undefined : fromEnvironment)
 }
 
-/**
- * The server of a command that has no login yet: the command line, the environment, the address
- * that `harness-server setup` configured on this host, then the default.
- */
 export function serverOf(
   values: Option,
   environment: CommandEnvironment,
@@ -79,7 +74,6 @@ export function openTransport(
   }
 }
 
-/** Runs the submit and turns a request the contract refuses into `undefined`, a usage error. */
 export async function attempt(
   submit: () => Promise<CallerResult>,
 ): Promise<CallerResult | undefined> {
@@ -91,7 +85,6 @@ export async function attempt(
   }
 }
 
-/** `--tenant`: `undefined` when absent, `null` when present but not a tenant text. */
 export function tenantOption(values: Option): TenantId | undefined | null {
   const given = values.get('--tenant')
   if (given === undefined) return undefined
@@ -106,10 +99,6 @@ export type OwnerResolution =
   | { readonly kind: 'owner'; readonly owner: TenantId }
   | { readonly kind: 'exit'; readonly code: ExitCode }
 
-/**
- * The tenant that owns an existing session: the `--tenant` value, else the record of the state
- * directory. No record is a usage error, so a request never falls back to the selected tenant.
- */
 export function resolveOwner(
   command: string,
   session: string,
@@ -172,11 +161,6 @@ export type LoadedLogin =
     }
   | { readonly kind: 'exit'; readonly code: ExitCode }
 
-/**
- * Reads the login a command acts under and opens the transport for its location. The server is
- * the one the command line or environment names, else the one the login was issued by. The state
- * directory is only read, never created.
- */
 export function loadLogin(
   values: Option,
   output: CliOutput,

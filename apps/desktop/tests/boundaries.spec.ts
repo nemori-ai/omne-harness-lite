@@ -1,6 +1,3 @@
-// The import boundaries of the app (SPEC.md「守住『登录证明不进页面』」第 3 条, 「页面」):
-// the page and the shared types import neither the host side nor Node; the host side does not
-// import the page; the shell names no domain.
 import { readdirSync, readFileSync } from 'node:fs'
 import { builtinModules } from 'node:module'
 import { join, relative } from 'node:path'

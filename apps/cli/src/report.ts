@@ -1,7 +1,6 @@
 import type { CallerResult } from '@omne-harness/sdk'
 import type { CliOutput, ExitCode } from './cli-types.ts'
 
-/** The values a command sent, in the keys of the spec's `request` table. */
 export type RequestEcho = Readonly<Record<string, string>>
 
 /** Exit code 3 to 5 depend on `result` and `outcome` only, never on the HTTP status. */
@@ -34,11 +33,6 @@ function resultObject(
   }
 }
 
-/**
- * Writes the result object to standard output and the uncertainty note to standard error, and
- * returns the exit code. `redact` removes values that must not reach standard output, such as the
- * login proof. A failed write of standard output is a local failure, exit 1.
- */
 export function report(
   command: string,
   result: CallerResult,

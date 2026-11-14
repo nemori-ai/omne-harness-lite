@@ -1,6 +1,3 @@
-// The assembly: the only place in the page that names domains. It fills the shell's two regions
-// from the clients of the protocol contracts the tree carries (`shared/protocols.ts`). Take a
-// domain out here and the shell still compiles and runs.
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { assetsProtocol, type AssetsProtocol } from '@omne-harness/assets-protocol'
 import { SettingsPanel } from '@omne-harness/assets-ui'
@@ -35,7 +32,6 @@ export function assemble(bridge: HostBridge): {
       render: ([identity], chrome) => (
         <CurrentTenant identity={identity as ClientOf<IdentityProtocol>} chrome={chrome}>
           {tenant =>
-            // Each view reads its tenant once, on mount: another tenant is another view.
             chrome.views([
               {
                 id: 'conversation',

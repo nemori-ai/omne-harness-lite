@@ -1,6 +1,3 @@
-// The login session (SPEC.md「登录会话」). One case per reachable cell of the table, named
-// 「事件 × 状态」; then the refusal of credential-carrying operations and of undeclared targets,
-// and the probe.
 import { describe, expect, it } from 'vitest'
 import type { LoginState } from '@omne-harness/client-assembly/cordis'
 import { identityProtocol } from '@omne-harness/identity-protocol'
@@ -61,7 +58,6 @@ const call = (session: LoginSession, operation = 'read-history', protocol = SESS
 
 const targets = (server: FakeServer) => server.seen.map(item => item.target)
 
-/** A signed-in session whose revoke answer waits for the test. */
 async function signingOut(revoke = gate<CallReport>()) {
   const t = await open({ signedIn: true })
   t.server.answer('identity/v1 revoke-login', () => revoke.promise)
@@ -348,7 +344,6 @@ describe('页面的调用不转发带凭据的操作', () => {
     const t = await open()
     expect(await call(t.session, 'issue-login', IDENTITY)).toEqual({ kind: 'not-sent' })
     expect(t.server.seen).toEqual([])
-    // An operation of the same contract without the mark goes out.
     await call(t.session, 'register-and-activate', IDENTITY)
     expect(targets(t.server)).toEqual(['identity/v1 register-and-activate'])
   })
@@ -403,7 +398,6 @@ describe('登录失效的探测', () => {
       credentials: { proof: PROOF_SENTINEL },
       body: {},
     })
-    // The probe answered `succeeded`: the login stays; the next denied probes again.
     expect(t.session.state()).toBe('signed-in')
     await call(t.session)
     await settle()

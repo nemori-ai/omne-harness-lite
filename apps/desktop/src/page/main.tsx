@@ -1,4 +1,3 @@
-// The page's entry: connect to the host, start the client tree, render the shell.
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { domainProtocols } from '../shared/protocols.ts'

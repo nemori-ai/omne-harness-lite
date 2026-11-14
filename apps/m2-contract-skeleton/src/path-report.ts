@@ -15,14 +15,8 @@ export type FragmentObservation = Readonly<{
   status: 'pass' | 'fail' | 'not-applicable'
   evidence: string
 }>
-/**
- * What stands in a plugin-tree row of the application assembly page on this path: the member's
- * real implementation, a `./testing` double or a stand-in of this application, or nothing.
- */
 export type Realization = 'real' | 'double' | 'absent'
-/** A plugin-tree row of the application assembly page that some hop of this path crosses. */
 export type RowId = (typeof HOP_DEFINITIONS)[number]['rows'][number]
-/** The caller's declaration of the realization of each plugin-tree row it wired. */
 export type RealizationTable = Readonly<Partial<Record<RowId, Realization>>>
 export type RowRealization = Readonly<{ row: RowId; realization: Realization | 'undeclared' }>
 export type HopObservation = Readonly<{
@@ -30,17 +24,13 @@ export type HopObservation = Readonly<{
   publicEntry: string
   responsibility: string
   ownerCards: readonly string[]
-  /** The rows of the plugin tree that the hop crosses, by the row ids of the assembly page. */
   rows: readonly RowId[]
-  /** The declared realization of each row on this invocation. */
   realization: readonly RowRealization[]
   state: 'verified' | 'gap' | 'failed'
-  /** The blocking residual gaps that keep this hop a gap although its fragments pass. */
   blockedBy: readonly string[]
   fragments: readonly FragmentObservation[]
 }>
 const card = (id: number) => `https://github.com/nemori-ai/omne-harness-lite/issues/${id}`
-/** The owner of the assembly parts that no card owns: Reduce wires the trusted Tool request source (R2-D36). */
 const REDUCE_B3 = 'Reduce B3 (R2-D36)'
 
 export const HOP_DEFINITIONS = [
@@ -171,13 +161,6 @@ export const HOP_DEFINITIONS = [
   rows: readonly string[]
 }>[]
 
-/**
- * What the connected path does not include. A blocking gap names a part that the card requires for
- * the hop, so the hop stays a gap even when every fragment passes. A non-blocking gap names a part
- * that the card lets this application call directly or leave out. `owners` lists open cards only,
- * except an assembly part that Reduce owns, which names that owner; a gap without an open
- * implementation card names the M2 milestone card (#784).
- */
 export type ResidualGap = Readonly<{
   gapId: string
   hops: readonly HopId[]
@@ -270,11 +253,6 @@ function blockingGaps(
     .map(gap => gap.gapId)
 }
 
-/**
- * A hop the path did not reach, or that a blocking residual gap names, is a gap; its fragments
- * keep the evidence of what the path met there. A reached, unblocked hop with a failing fragment
- * is failed; otherwise it is verified.
- */
 function stateOf(
   fragments: readonly FragmentObservation[],
   reached: boolean,
@@ -291,12 +269,6 @@ function realizationOf(
   return rows.map(row => ({ row, realization: declared[row] ?? 'undeclared' }))
 }
 
-/**
- * Builds one observation per hop from the connected path, the governance protocol scenarios and the
- * public Model obligations. A hop that the path did not reach is a gap. A reached hop with any
- * failing fragment is failed. A reached hop whose fragments pass stays a gap while a blocking
- * residual gap names it. `realization` is the caller's declaration of what stands in each row.
- */
 export function observeHops(
   path: FirstPathObservation | null,
   governance: readonly ScenarioResult[],
@@ -348,9 +320,7 @@ export type PathReport = Readonly<{
   fullPath: 'complete' | 'incomplete'
   hops: readonly HopObservation[]
   scenarios: readonly ScenarioResult[]
-  /** Hops that are not verified. */
   gaps: readonly HopId[]
-  /** What the connected path does not include, with owners. */
   residualGaps: readonly ResidualGap[]
   structureErrors: readonly string[]
   duplicateObservations: readonly HopObservation[]
@@ -424,7 +394,6 @@ export function aggregatePath(
     hops: readonly HopObservation[]
     scenarios: readonly ScenarioResult[]
     structureErrors?: readonly string[]
-    /** The residual gap table. Default: `RESIDUAL_GAPS`. Tests replace it to reach both outcomes. */
     residualGaps?: readonly ResidualGap[]
   }>,
 ): PathReport {

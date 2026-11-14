@@ -689,16 +689,6 @@
     "tools/test-runner/tests/README.md"
   ],
   "comments": {
-    "apps/cli/src/history-render.ts": 1,
-    "apps/cli/src/setting-command.ts": 1,
-    "apps/desktop/src/main-core/credential-store.ts": 1,
-    "apps/desktop/src/main-core/login-session.ts": 1,
-    "apps/desktop/src/page/identity/login-screen.tsx": 1,
-    "apps/desktop/src/page/shell/shell.tsx": 1,
-    "apps/desktop/src/page/tree.ts": 1,
-    "apps/desktop/src/shared/host-bridge.ts": 1,
-    "apps/m2-contract-skeleton/src/path-report.ts": 2,
-    "apps/m2-contract-skeleton/src/path.ts": 13,
     "packages/identity/identity/src/cordis.ts": 2,
     "packages/session/session-access/src/contribution.ts": 1,
     "packages/session/session-access/src/cordis.ts": 1,
@@ -810,7 +800,7 @@
   },
   "sizes": {
     "files": {
-      "apps/m2-contract-skeleton/src/path.ts": 2265,
+      "apps/m2-contract-skeleton/src/path.ts": 1987,
       "packages/agent/agent-contract/src/testing-journal-core.ts": 1948,
       "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4160,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,

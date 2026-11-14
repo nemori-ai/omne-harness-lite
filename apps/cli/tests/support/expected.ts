@@ -7,10 +7,8 @@ function fixture(name: string): string {
   )
 }
 
-/** The help text of an empty command catalog. */
 export const expectedEmptyHelp = fixture('help-empty-catalog.txt')
 
-/** The help text of the production catalog with its 30 commands. */
 export const expectedHelp = fixture('help.txt')
 
 export const expectedVersion = '0.0.0\n'
