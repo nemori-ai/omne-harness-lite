@@ -1,10 +1,3 @@
-// The `server-entry` row provides `accessRegistry` (#1249 spec 已定 13): an access plugin loaded on
-// the release tree mounts its protocol on that service, and the entry's new address serves it at
-// once, because the entry uses the same registry. Unloading the plugin takes the protocol down.
-// The release tree also mounts `identity/v1` (the `identity-access` row) and `session/v1` (the
-// `session-access` row), so the snapshot names them.
-// The probe operation needs no login; the call still carries the release's own login proof and
-// tenant.
 import { request } from 'node:http'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { accessRegistryKey, defineAccessPlugin } from '@omne-harness/access-cordis-contract/cordis'
@@ -16,7 +9,6 @@ import { until } from './support.ts'
 
 const empty = ruleCodec({ kind: 'object', fields: {} })
 
-/** A protocol in no release: one read that needs no login. */
 const probeProtocol = defineProtocol({
   name: 'probe',
   major: 1,
@@ -43,7 +35,6 @@ const probePlugin = defineAccessPlugin({
 
 type Frame = Readonly<{ kind: string; protocols?: unknown; added?: unknown; removed?: unknown }>
 
-/** The availability observation, opened without a login; it collects the frames of its events. */
 function openAvailability(port: number) {
   const frames: Frame[] = []
   let buffered = ''
@@ -79,7 +70,6 @@ function openAvailability(port: number) {
   return { frames, close: () => req.destroy() }
 }
 
-/** Calls `/api/probe/v1/ping` with the release's own login and tenant; answers status and body. */
 function ping(tree: ReleaseTree): Promise<{ status: number; body: string }> {
   const body = '{}'
   return new Promise((resolve, reject) => {
@@ -112,7 +102,6 @@ function ping(tree: ReleaseTree): Promise<{ status: number; body: string }> {
   })
 }
 
-/** Loads `probePlugin` on the tree and answers its fiber, for the take-down. */
 async function loadProbe(scope: Context): Promise<Fiber> {
   let fiber: Fiber | undefined
   await scope.plugin({

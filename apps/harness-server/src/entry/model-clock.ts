@@ -1,6 +1,3 @@
-// `modelClock`（AA 运行时对象表「Model 与 Tool 的原事实、权威与时钟适配对象」、model-contract `ModelClock`）：根上的入口对象，
-// `model-host` 静态 inject。读数与等待取自 `session-clock.ts` 的系统时间来源。契约没有失败通道：读不到时抛出，
-// 不编造读数；不能接受的时刻文本抛出，不永远等。
 import type { Context } from '@deepseek-ai/cordis'
 import type { ModelClock } from '@omne-harness/model-contract/provider'
 import { ModelClockService, modelClockKey } from '@omne-harness/model-cordis-contract/cordis'

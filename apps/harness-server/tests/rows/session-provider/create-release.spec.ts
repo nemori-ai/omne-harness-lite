@@ -9,21 +9,6 @@ import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { contextScopeOf } from '@omne-harness/session-contract'
 import { sessionInquiryBinding } from '@omne-harness/session-adapters/cordis'
 // @module-tag slow
-// R2-D7: the first `create` of a tenant over the release rows of the Session path. Real rows:
-// `storage`, `session-storage`, `agent-adoptions` (the mapping of `config/serve.distribution.json`),
-// `adoption-sources`, `session-ad10`, `runtime-context`, `session-ad12` and `session-provider`, on
-// the real entry objects (`runtimeContextTrust`, the two evidence sources, the principals and the
-// clock). The doubles are the ones the release path does not decide here: the authorization policy
-// and the identity bridge (`session-ad09`), which lets the test principal through. The creation is
-// built as `server-entry` builds it, through `definitionResolverOf` over the same table. The session
-// is in SQLite: a tree started again over the same storage reads it back. A creation that the mapping
-// does not hold is `invalid` and creates nothing.
-//
-// The `coding` definition names Files, Shell, Tools, TodoItems and Ask as resident tools. Its cases
-// add the real Tool rows `tool-bindings`, `tool-host` (with the operator construction of the tests)
-// and `tool-residency` on the release entry objects, with the local operator's storage configuration.
-// Without the Tool rows the creation fails closed and creates nothing.
-// Slow: a real SQLite tree per case.
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
@@ -93,14 +78,12 @@ const releaseDistribution = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 ) as Distribution
 
-/** The `agent-adoptions` configuration of the release distribution. */
 const releaseMapping = (() => {
   const row = releaseDistribution.rows.find(item => item.id === 'agent-adoptions')
   if (row === undefined) throw new Error('the release distribution has no agent-adoptions row')
   return row.config
 })()
 
-/** The identity bridge double that lets the test principal through (the release's is real). */
 function identityDouble(): RowSpec {
   return declared(
     defineRow({
@@ -128,7 +111,6 @@ afterEach(async () => {
   for (const release of live.splice(0).reverse()) await release()
 })
 
-/** `tools: 'release'` adds the real Tool rows and the release entry objects of the tool path. */
 async function start(
   base: Base,
   tools: 'none' | 'release' = 'none',
@@ -232,7 +214,6 @@ function faces(tree: LoadedTree, caller: 'intake' | 'coordinator'): SessionServi
   return session
 }
 
-/** The creation as `server-entry` builds it (`session.ts`, step 5) for a public definition name. */
 async function releaseCreation(
   name: string,
   patch: Partial<SessionCreation> = {},
@@ -342,7 +323,6 @@ describe('the first create of a tenant over the release rows of the Session path
       const codingAccess = { ...access, session: sessionId('coding-first') }
       const read = await faces(tree, 'coordinator').work.readWork(codingAccess)
       expect(read).toMatchObject({ ok: { lifecycle: 'dormant', tenant: TENANT_A } })
-      // `readModelSelection` is an intake or maintainer read (session `callers.ts`).
       const selection = await faces(tree, 'intake').work.readModelSelection(codingAccess)
       expect(selection).toMatchObject({ ok: { selection: { name: 'openai/gpt-6.1-sol' } } })
     },
@@ -371,8 +351,6 @@ describe('the first create of a tenant over the release rows of the Session path
         return entry.asset.adoption
       }
       expect(read.ok.residents.map(resident => resident.capability)).toEqual(residentNames)
-      // J06's projection (session-adapters `conditions.ts`): owner and digest of `admitted`,
-      // the capability as the name, the version as the revision.
       const bindings = read.ok.residents.map(resident => ({
         owner: resident.admitted.owner,
         name: resident.capability,
@@ -469,7 +447,6 @@ it(
     if (storage === undefined) throw new Error('no storage')
     const commits = vi.spyOn(storage, 'commit')
     const created = await faces(first, 'intake').management.create(input)
-    // Measure the actual evidence-bridge composition, not only Session's inner command.
     const depthOf = (value: unknown): number =>
       value !== null && typeof value === 'object'
         ? 1 + Math.max(0, ...Object.values(value).map(depthOf))
@@ -512,7 +489,6 @@ it(
         { need: sessionInquiryBinding.need.name, key: sessionInquiryBinding.key },
       ])
     }
-    // The coding entry of the release adopts `bypass-permissions`, which publishes `skip-ask`.
     const published = {
       kind: 'success',
       value: [

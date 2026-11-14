@@ -1,16 +1,4 @@
 // @module-tag slow
-// The ordered stop of the `agent-host` row (agent-host-local SPEC "有序停止"): three rows loaded
-// together (the stand-ins of `doubles.ts`, `agent-host` and the real `agent-instances`), then the
-// ordered shutdown or the row's own handle. The handle calls the member's `quiesceAll` and maps its
-// answer as it is: `settled` only when every instance drained, `incomplete` with the member's detail
-// otherwise.
-//
-// `agentHostRow` runs the Agent factory of this release. Its quiesce drains an idle instance and
-// answers `unresolved` for an execution in its slot, whose handover is #502 stage 5 (agent SPEC
-// "停用", R2-D173): with no instance or an idle one the stop is settled, with an execution in a slot
-// it is incomplete. The other cases use `createAgentHostRowOver` with the member's testing plugin
-// and a factory wrapper that stands in for the runtime's quiesce; they prove the row and the host
-// side only, not the runtime.
 import type { Plugin } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createAgentRuntime } from '@omne-harness/agent'
@@ -63,7 +51,6 @@ function ok<T>(outcome: Outcome<T, unknown>): T {
 
 type Script = 'drained' | 'unresolved' | 'hang'
 
-/** The runtime's quiesce, stood in for: each quiesce takes the next script, `drained` when none. */
 type Duties = Readonly<{
   scripts: Script[]
   handles: Map<AgentInstanceId, AgentRegistrationHandle<unknown>>
@@ -96,7 +83,6 @@ function dutiesFactory(duties: Duties): AgentHostRuntimeFactory {
   }
 }
 
-/** An input in its admitted shape; the invoke that carries it never gets past the adoption. */
 function heldInput(): AcceptedInput {
   return {
     id: ok(decodeInputId('row-stop-input')),
@@ -112,7 +98,6 @@ function heldInput(): AcceptedInput {
   }
 }
 
-/** Waits on later turns of the event loop until `probe` holds, at most 200 turns. */
 async function until(probe: () => boolean): Promise<void> {
   for (let turn = 0; turn < 200 && !probe(); turn += 1)
     await new Promise(resolve => setTimeout(resolve, 0))
@@ -130,7 +115,6 @@ type Started = Readonly<{
   doubles: HostDoubles
 }>
 
-/** The three rows together: the stand-ins of the injects, `agent-host` and `agent-instances`. */
 async function start(row: Plugin): Promise<Started> {
   const base = makeBase()
   release.push(() => base.release())
@@ -182,8 +166,6 @@ describe('the agent-host row: ordered stop with the Agent factory of this releas
     expect(await shutdownOutcome(tree)).toEqual({ kind: 'settled' })
   })
 
-  // R2-D173: the factory's quiesce drains an idle instance, so the stop is settled and the instance
-  // is withdrawn. Before it the factory answered `unavailable` and this stop was incomplete.
   it(
     'answers settled when a live instance is idle, and the instance is withdrawn',
     { timeout: 60_000 },
@@ -196,9 +178,6 @@ describe('the agent-host row: ordered stop with the Agent factory of this releas
     },
   )
 
-  // R2-D173: an execution in the slot is not handed over (#502 stage 5). The factory answers
-  // `unresolved` with that execution, never drained, so the stop is incomplete and names it. The
-  // invoke holds the slot because the adoption it resolves never answers.
   it(
     'answers incomplete and names an instance whose slot an invoke holds',
     { timeout: 60_000 },
@@ -289,8 +268,6 @@ describe('the agent-host row: ordered stop over a runtime that drains', () => {
       const instance = await acquire(started)
       duties.scripts.push('hang')
       const handle = started.tree.registry.freeze().live.get('agent-host' as never)?.handle
-      // The handle's own answer, not the coordinator's timer: the row turns its deadline into the
-      // member's signal.
       const result = await handle!.stop(monotonicClock.now() + 200)
       expect(result).toEqual({
         kind: 'incomplete',

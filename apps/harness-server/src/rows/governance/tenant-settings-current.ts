@@ -1,9 +1,3 @@
-// The current facts of a tenant-layer Settings write (settings-local SPEC「Application current
-// consumer」). A tenant asset target joins three owners: Assets holds the asset, Governance declares
-// and adopts its definition, Settings keeps the values. The target snapshot of this row reads the
-// three in one transaction. The plan reads it before the preparation; the ready and the commit
-// participants read it again inside their own transactions and state the current material from it,
-// so a change of the holding, the declaration or the value after the plan stops the write.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { z } from 'zod'
@@ -27,7 +21,6 @@ export type TenantSettingsCurrentConfiguration = z.infer<
 >
 const materialSchema = SettingsCommitCurrentSchema.shape.observation.options[0].shape.material
 export type TenantSettingsCurrentMaterial = z.infer<typeof materialSchema>
-/** The one configuration of the tenant-layer write of this application: its settlement route. */
 export const TENANT_SETTINGS_CONFIGURATION: TenantSettingsCurrentConfiguration = {
   destination: 'harness.governance.tenant-settings',
   sourceRoute: 'harness.governance.tenant-settings',
@@ -44,16 +37,11 @@ export const tenantSettingsCurrentProtocol = (
 ) =>
   `harness-tenant-settings-current/1/${phase}/${createHash('sha256').update(JSON.stringify(configuration)).digest('hex')}`
 
-/** What a phase command states: the attempt of the write and the snapshot it reads again. */
 export const tenantSettingsCurrentRequestSchema = z.strictObject({
   binding: z.json(),
   snapshot: GovernanceTargetBindingSchema,
 })
 
-/**
- * The current material of a tenant asset target, as its snapshot states it. Undefined when the
- * values are unavailable or a source of the target is not this tenant's.
- */
 export function tenantSettingsCurrentMaterial(
   snapshot: TargetSnapshot,
   configuration: TenantSettingsCurrentConfiguration,
@@ -127,7 +115,6 @@ export function tenantSettingsCurrentMaterial(
   return parsed.success ? parsed.data : undefined
 }
 
-/** The ready and the commit participant. Each requires the target snapshot of its transaction. */
 export function tenantSettingsCurrentParticipants(
   configuration: TenantSettingsCurrentConfiguration,
 ): SqlMaterialCatalog['participants'] {

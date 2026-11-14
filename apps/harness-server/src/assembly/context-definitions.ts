@@ -12,12 +12,9 @@ import {
 import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
 import type { Adoption } from '@omne-harness/session-contract'
 
-/** The Context blocks that one exact adopted definition declares. */
 export type DeclaredContextBlocks = Readonly<{
   definition: Adoption
-  /** The need bindings of the definition; one per need name and block key. */
   bindings: readonly NeedBinding[]
-  /** The stateful blocks the definition declares; one per block key. */
   declarations: readonly StatefulBlockDescriptor<ContextBlockKey, unknown, unknown>[]
 }>
 
@@ -28,7 +25,6 @@ type DefinitionTable = Readonly<{
   declarations: ReadonlyMap<ContextBlockKey, Declaration>
 }>
 
-/** The exact adoption: every field counts, the digest included. */
 const adoptionKey = (adoption: Adoption): string =>
   JSON.stringify([adoption.owner, adoption.name, adoption.revision, adoption.digest])
 
@@ -55,11 +51,6 @@ function tableOf(declared: DeclaredContextBlocks): DefinitionTable {
   return { bindings, declarations }
 }
 
-/**
- * One table over the declared blocks of the adopted definitions, built once. A query of a
- * definition, need or key the table does not hold is `undefined`. A table that lists one definition
- * twice, binds one need and key twice or declares one key twice is refused at construction.
- */
 export function createContextDefinitions(
   declared: readonly DeclaredContextBlocks[],
 ): SessionContextDefinitions {
@@ -86,6 +77,5 @@ const ADOPTED: readonly DeclaredContextBlocks[] = [
   },
 ]
 
-/** The definitions of the release, for the `session-ad12` row. */
 export const adoptedContextDefinitions: SessionContextDefinitions =
   createContextDefinitions(ADOPTED)

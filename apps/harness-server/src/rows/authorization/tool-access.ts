@@ -50,7 +50,6 @@ function qualificationRequest(input: Input): AdmissionInput | undefined {
   }
 }
 
-/** The consuming row returns undefined after retirement and reads its current ports each time. */
 export function createToolAccessGuard(readAdmission: AdmissionReader) {
   const qualify = async (input: Input): Promise<AccessVerdict> => {
     try {

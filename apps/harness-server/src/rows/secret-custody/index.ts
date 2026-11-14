@@ -1,14 +1,3 @@
-// The `secret-custody` row (application assembly, settings-local secret vault): the file custody of
-// secret bindings of this host, opened at the vault path the operator layer names (the same file
-// the model credential plugin reads). It provides the trusted key `settingsSecretCustody`: the
-// management face and the use face of `@omne-harness/settings` in one service. Only rows the
-// assembly page lists as seeing the key can inject it; the use face therefore reaches only the
-// consumers the assembly trusts (I-6). It injects nothing and has no shutdown phase: the vault
-// handle holds no resource beyond the path, and closing it only marks this process's handle.
-//
-// Why the key is defined here: the provider and its consumers are rows of this application, and
-// settings has no Cordis entry. When a member outside this
-// application needs the key, it moves to the `./cordis` entry of the member that then owns it.
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import type { SecretCustodyManagement, SecretCustodyUse } from '@omne-harness/settings'
 import { openSecretVault, type SecretVault } from '@omne-harness/settings-local/secrets'
@@ -38,19 +27,14 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** The lock wait of a service process: short, so a held lock cannot stall the event loop for long. */
 export const SERVICE_LOCK_WAIT_MS = 2000
 
-/** The configuration of the row: the vault file and, optionally, how long a write waits for its lock. */
 export const secretCustodyConfig = z.strictObject({
-  /** The vault file. The operator layer takes it from the location resolution. */
   path: z.string().min(1),
-  /** How long a write waits for the file lock, in milliseconds. Default: `SERVICE_LOCK_WAIT_MS`. */
   lockWaitMs: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
 })
 export type SecretCustodyConfig = z.output<typeof secretCustodyConfig>
 
-/** The faces of a vault that could not be opened: nothing is written, nothing is read. */
 const unavailable: SecretCustodyManagement & SecretCustodyUse = {
   bind: () => 'not-written',
   unbind: () => 'not-written',
@@ -59,9 +43,6 @@ const unavailable: SecretCustodyManagement & SecretCustodyUse = {
   use: () => 'unavailable',
 }
 
-// The service keeps closures only: a method reached through a caller proxy has a `this` that is
-// not the instance (docs/real-mode.md). The vault handle itself stays in the closure, so the
-// snapshot and the locked revision it offers trusted adapters are not on the service.
 class SettingsSecretCustodyImpl extends SettingsSecretCustodyService {
   readonly bind: SecretCustodyManagement['bind']
   readonly unbind: SecretCustodyManagement['unbind']
@@ -86,9 +67,6 @@ const plugin: Plugin.Object = {
       path: config.path,
       lockWaitMs: config.lockWaitMs ?? SERVICE_LOCK_WAIT_MS,
     })
-    // A file that cannot be read registers the service all the same: every read answers
-    // `unavailable` and every write `not-written`, and the file is not changed. The cause is not
-    // reported through the service; `serve` refuses to start on such a file before any row loads.
     const vault: SecretVault | undefined = opened.kind === 'open' ? opened.vault : undefined
     if (vault !== undefined) ctx.effect(() => () => vault.close(), 'secret-custody.vault')
     new SettingsSecretCustodyImpl(ctx, vault ?? unavailable)

@@ -1,8 +1,3 @@
-// The identity ports of the row, taken from the tree on every call. The assembly page lists
-// `identityOperations` and `identityGovernance` as names the row reads per call, not names it
-// injects, so a reloaded identity provider is seen by the next request and a missing one never
-// blocks the row. Both names come from the one `identity` row, over one set of identity-sql
-// records: a revocation or a switch through the governance port is what `recognizeLogin` reads.
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   GovernanceBasisUnavailable,
@@ -19,7 +14,6 @@ export function identityOfCall(ctx: Context): IdentityOperations {
   return {
     async registerAndActivate(input) {
       const identity = current()
-      // The operation has no "unavailable" outcome. The entry answers an empty 500 for a throw.
       if (identity === undefined) throw new Error(MISSING)
       return identity.registerAndActivate(input)
     },
@@ -41,10 +35,6 @@ const ABSENT: GovernanceBasisUnavailable = Object.freeze({
   diagnostic: GOVERNANCE_MISSING,
 })
 
-/**
- * The governance port read on every call. With the service absent every method answers
- * `basis-unavailable`: nothing was committed, so the answer holds (ID-18), and no method throws.
- */
 export function governanceOfCall(ctx: Context): IdentityGovernance {
   const current = (): IdentityGovernance | undefined => ctx.get(identityGovernanceKey)
   return {

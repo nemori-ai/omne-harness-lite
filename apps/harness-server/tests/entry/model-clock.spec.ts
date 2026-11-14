@@ -1,6 +1,3 @@
-// `modelClock`（AA 运行时对象表「时钟」、model-contract `ModelClock`）：`model-host` 行静态 inject 的入口对象，
-// 在根上 provide。`now()` 同步给出可解析的 UTC 时刻；`waitUntil` 到点答 `elapsed`、中止答 `cancelled`，
-// 不能接受的时刻文本抛出而不是永远等。
 import { describe, expect, it } from 'vitest'
 import { ModelClockService, modelClockKey } from '@omne-harness/model-cordis-contract/cordis'
 import { parseInstant } from '@omne-harness/utc-instant'
@@ -40,7 +37,6 @@ describe('modelClock (ModelClock shape)', () => {
         seen.push(ctx.modelClock)
       },
     })
-    // Cordis 按调用方上下文代理服务，所以不比引用；比定义与行为。
     expect(seen).toHaveLength(1)
     expect(seen[0]).toBeInstanceOf(ModelClockService)
     expect(parseInstant(seen[0]?.now() ?? '').ok).toBe(true)

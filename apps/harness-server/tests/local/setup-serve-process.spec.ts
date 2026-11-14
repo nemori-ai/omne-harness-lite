@@ -1,8 +1,4 @@
 // @module-tag slow
-// 慢：起 dist/bin.js 的 setup 与 serve 子进程，serve 装载整棵发行树（真实 SQLite 存储），再起 omne CLI 子进程。
-// `harness-server setup` 之后 `serve` 不带参数（只带 --stop-on-stdin-close）就绪，CLI 不给地址也连得上；
-// 已知的哨兵密钥不出现在配置文件、任何标准输出或标准错误里。没有 setup 时 `serve` 给出提示并非零退出。
-// 先构建 harness-server 与 cli。测试不访问网络：没有 Model 调用。
 import { randomBytes } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -16,10 +12,6 @@ afterAll(() => rmSync(root, { recursive: true, force: true }))
 
 type Outcome = { code: number | null; stdout: string; stderr: string }
 
-/**
- * The environment of every child: a user directory and a server home inside the scratch root, so
- * no case reads or writes the setup of the host that runs it. `OMNE_SERVER` is never set.
- */
 function envFor(serverHome: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     PATH: process.env['PATH'] ?? '',
@@ -54,7 +46,6 @@ function run(
 
 const sentinel = () => ['sk', 'or', 'v1', 'sentinel', randomBytes(12).toString('hex')].join('-')
 
-/** Starts `serve` without arguments, runs `during` once it accepts, then closes stdin. */
 function serveWithoutArguments(
   env: NodeJS.ProcessEnv,
   during: () => Promise<void>,
@@ -96,7 +87,6 @@ describe('setup, then serve without arguments', () => {
     const port = await freePort()
     const key = sentinel()
 
-    // A secret in the environment of setup must not reach the settings or the Shell tool.
     const envKey = sentinel()
     const setup = await run(
       serverBin,
@@ -127,7 +117,6 @@ describe('setup, then serve without arguments', () => {
       .find(record => record['kind'] === 'startup-result')
     expect(startup).toMatchObject({ outcome: 'ready', accepting: true })
     expect(served.stderr).toContain(`serve: accepting on http://127.0.0.1:${String(port)}`)
-    // The CLI had neither --server nor OMNE_SERVER: it read the port that setup wrote.
     expect(register?.code, register?.stderr).toBe(0)
     expect(JSON.parse(register?.stdout ?? '{}')).toMatchObject({ outcome: 'succeeded' })
 
@@ -144,7 +133,6 @@ describe('setup, then serve without arguments', () => {
       expect(text).not.toContain(key)
       expect(text).not.toContain(envKey)
     }
-    // Negative control: the scan finds the key in the one file that must hold it.
     expect(readFileSync(join(home, 'state', 'model-vault.json'), 'utf8')).toContain(key)
   })
 
@@ -157,7 +145,6 @@ describe('setup, then serve without arguments', () => {
     const kept = await run(serverBin, ['setup'], env, `${second}\n`)
     expect(kept.code).toBe(0)
     const vault = () => readFileSync(join(home, 'state', 'model-vault.json'), 'utf8')
-    // Negative control: without the option the offered key is not read into the vault.
     expect(vault()).toContain(first)
     expect(vault()).not.toContain(second)
     const replaced = await run(serverBin, ['setup', '--replace-credential'], env, `${second}\n`)
@@ -214,7 +201,6 @@ describe('a vault that cannot be read', () => {
     )
     expect(serve.stderr).toContain('harness-server setup --replace-credential')
 
-    // Negative control: the advised command repairs the host.
     const key = sentinel()
     const rebuilt = await run(serverBin, ['setup', '--replace-credential'], env, `${key}\n`)
     expect(rebuilt.code, rebuilt.stderr).toBe(0)

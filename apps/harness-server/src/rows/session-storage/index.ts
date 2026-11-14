@@ -1,21 +1,3 @@
-// `session-storage` 行（装配页「会话存储组合」）：行体承载，阶段 `composition`。同一行体内构造租户到事务域的目录与
-// `@omne-harness/session-storage-sql` 的纯端口，目录的存储构造能力只经闭包交给后者。提供五个键：
-// `sessionTransactions`（公开端口）、`sessionDelegatedTransactions`（受信，委派视图）、`tenantDomains`（部署枚举）、
-// `tenantDomainLookup`（受信，只读快照）、`sessionPrincipalBindings`（受信，会话归属读口）。
-// 登记规则：session-storage-sql 在每次读与提交都 `resolve` 租户的域（XP-6），而目录的 `resolve` 只查快照；
-// 新租户仅由访问裁定放行的 `create` 登记。公开端口在 `create` 提交前登记；委派视图绑定到一次放行的 `create`
-// 时，视图解析该租户的域就登记（Session 核心先经视图 `queryOperation` 再提交，登记必须在第一次读之前）。
-// 读与被拒的 `create` 不登记，所以目录没有的租户没有会话：委派视图对它的会话读与提交答 `denied`（同「会话不存在」），不答
-// session-storage-sql 的 `unavailable`（`unregisteredTenantIsAbsent`）。
-// 发布服务前确认持久目录中每个租户的本次组合登记；失败或撤除时不发布。
-// 游标签名按调用现取 `sessionCursorSigning`（IC-9），不在 inject 里；入口对象缺席时五种读答 `unavailable`。
-// 提交通知：会话日志只有一个写入者，它在 session-storage-sql 的落点把每一批新写出的条目报给登记在本库上的通知接口。
-// 本行发布服务之前用 session-cordis 的 `createSessionCommitNotifier` 在自己的存储上登记一个（在本行的 Context 上派发
-// `session-cordis-contract/committed`，现取可选的 `sessionNotifier` 转交），行卸载或停止时注销。`agent-journal` 行注入
-// 同一个 `storage`，所以 Agent 日志提交里的会话参加写出的批也报到这里。清单不变：不新增提供或依赖的键。
-// 部署枚举 `tenantDomains.enumerate` 每次调用都按调用现取受信键 `systemActionAuthorization`（`authorization` 行提供，
-// R2-D245），由它按发行授予表与运维者的收回、到期判断；本行不持有授予表。键缺席或答 `unavailable` 时枚举答
-// `unavailable`，不放行。
 import { symbols, type Context } from '@deepseek-ai/cordis'
 import type { SystemActionAuthorization } from '@omne-harness/authorization'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
@@ -77,13 +59,11 @@ import { sessionStorageRowConfigSchema, type SessionStorageRowConfig } from './c
 import { openTenantDirectory, type RegisterOutcome, type TenantDirectory } from './directory.ts'
 import { createTenantEnumeration } from './enumeration.ts'
 
-/** `SessionFailure.unavailable` 的拥有者。 */
 export const OWNER = 'apps/harness-server/session-storage'
 
 const unavailable = (diagnostic: string): Outcome<never, SessionFailure> =>
   fail<SessionFailure>({ kind: 'unavailable', owner: OWNER, diagnostic })
 
-/** 按调用现取入口对象 `sessionCursorSigning`。缺席时答 `unavailable`。 */
 function lateBoundCursorSigning(ctx: Context): SessionCursorSigning {
   const current = (): SessionCursorSigning | undefined => ctx.get(sessionCursorSigningKey)
   return {
@@ -94,7 +74,6 @@ function lateBoundCursorSigning(ctx: Context): SessionCursorSigning {
 
 type RegisterEntry = Parameters<Parameters<typeof openTenantDirectory>[0]['register']>[0]
 
-/** 向存储登记该租户的组合。结果 `unknown` 时用完全相同的输入认回一次（sql-contract §6.3）。 */
 function registerWith(
   storage: SqlStorage,
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>,
@@ -128,10 +107,6 @@ function registerWith(
 
 type CommitInput<P> = Parameters<SessionTransactionPort<P>['commit']>[0]
 
-/**
- * 公开端口与委派视图共用的登记规则：`create` 提交、访问与命令指名同一租户和同一会话、目录快照里没有该租户、`authorize` 放行时，
- * 先登记（含迁移），再交给端口提交。其余调用原样交给端口。
- */
 function registeringOnCreate<P>(
   port: SessionTransactionPort<P>,
   directory: TenantDirectory,
@@ -139,7 +114,6 @@ function registeringOnCreate<P>(
 ): SessionTransactionPort<P> {
   const commit = async (input: CommitInput<P>): Promise<Outcome<unknown, SessionFailure>> => {
     const { command, access } = input
-    // 与 session-storage-sql 的第一道拒绝相同：访问与命令指名的租户或会话不一致时，交给端口拒绝，不登记。
     if (
       command.kind === 'create' &&
       tenantEquals(access.tenant, command.input.tenant) &&
@@ -154,14 +128,9 @@ function registeringOnCreate<P>(
     }
     return port.commit(input)
   }
-  // 与 session-storage-sql 相同的写法：`commit` 的返回类型按命令种类分派，包装函数只能整体标注。
   return { ...port, commit: commit as SessionTransactionPort<P>['commit'] }
 }
 
-/**
- * 放行的 `create` 所绑定的租户文本：请求是 `create` 的变更请求，且访问与命令指名同一租户和同一会话（与
- * session-storage-sql 的第一道拒绝相同）。别的绑定，或租户、会话不一致的 `create`，给 `null`。
- */
 function boundCreateTenant<P>(request: SessionAccessRequest<P>): string | null {
   if (request.operation !== 'create') return null
   const { command } = request.target
@@ -174,11 +143,6 @@ function boundCreateTenant<P>(request: SessionAccessRequest<P>): string | null {
   return text.ok ? text.value : null
 }
 
-/**
- * 放行的 `create` 所绑定的视图看到的目录：解析这一个租户的域就登记（含迁移），其余租户照快照。Session 核心
- * 在提交前先经视图 `queryOperation`，而 session-storage-sql 每次读都 `resolve`，所以登记落在视图的第一次解析，
- * 不等到提交。登记失败时解析答 `unavailable`，session-storage-sql 把它作为该次调用的失败返回。
- */
 function registeringAccess(directory: TenantDirectory, tenantText: string): TenantDomainAccess {
   return {
     ...directory.access,
@@ -189,8 +153,6 @@ function registeringAccess(directory: TenantDirectory, tenantText: string): Tena
   }
 }
 
-// Like the member's own delegated view (session-storage-sql `delegated.ts`): `commitEntries` and
-// `commitLog` ask no access on the port, and the other three name no session (R2-D256).
 const DENIED_IN_VIEW = [
   'commitEntries',
   'commitLog',
@@ -199,20 +161,12 @@ const DENIED_IN_VIEW = [
   'releasedScopes',
 ] as const
 
-/** 绑定所指名的租户文本；绑定不指名单一租户或文本不合法时给 `null`。 */
 function boundTenantText<P>(request: SessionAccessRequest<P>): string | null {
   if (request.target.kind !== 'session' || !('tenant' in request.access)) return null
   const text = tenantCodec.encode(request.access.tenant)
   return text.ok ? text.value : null
 }
 
-/**
- * 目录里没有的租户没有会话：登记只由放行的 `create` 触发，读与被拒的 `create` 不登记（见文件头）。对外这与「会话不存在」
- * 是同一个结局，即 `denied`（public-contract「会话判断次序」第 6 步：主体没有资格与会话不存在不能区分）。
- * session-storage-sql 对目录缺项答 `unavailable`（它把缺项当作装配故障），经公开契约成为 `basis-unavailable`，
- * 调用者就能凭它区分「租户从未建过会话」与「租户有会话」，也会被引去无意义的重试。本包装只在视图里、访问裁定已放行
- * 之后生效：裁定的 `denied` 与 `unavailable` 仍在它之前。绑定是 `create` 时租户由 `registeringAccess` 登记，不包装。
- */
 function unregisteredTenantIsAbsent<P>(
   view: SessionTransactionPort<P>,
   directory: TenantDirectory,
@@ -244,14 +198,6 @@ function unregisteredTenantIsAbsent<P>(
   }
 }
 
-/**
- * A tenant that the directory does not hold never created a session, so its session list is the
- * empty page, complete (RFC-0015 §8 列出会话). session-storage-sql answers `unavailable` for a
- * tenant without an entry: it treats the gap as an assembly fault. For a list, that would tell a
- * person who has no session yet that the service is down. The list itself runs first, so its access
- * decision stands: `denied` stays `denied`, and only the `unavailable` of a tenant that is not
- * registered becomes the empty page.
- */
 function emptyListWhenUnregistered<P>(
   port: SessionTransactionPort<P>,
   directory: TenantDirectory,
@@ -308,11 +254,9 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
   readonly queryControlOperation: SessionTransactionPort<unknown>['queryControlOperation']
   readonly readModelSelection: SessionTransactionPort<unknown>['readModelSelection']
   readonly commitEntries: SessionTransactionPort<unknown>['commitEntries']
-  /** Optional on the port: forwarded when the storage port offers it (AD-02 commits through it). */
   declare readonly commitLog?: NonNullable<SessionTransactionPort<unknown>['commitLog']>
   readonly history: SessionTransactionPort<unknown>['history']
   readonly pending: SessionTransactionPort<unknown>['pending']
-  /** Optional on the port: forwarded when the storage port offers it (RFC-0015 §8 列出会话). */
   declare readonly directory?: NonNullable<SessionTransactionPort<unknown>['directory']>
   readonly references: SessionTransactionPort<unknown>['references']
   readonly releasedScopes: SessionTransactionPort<unknown>['releasedScopes']
@@ -343,7 +287,6 @@ class DelegatedTransactionsImpl extends SessionDelegatedTransactionsService<unkn
   }
 }
 
-/** 按调用现取 `systemActionAuthorization`。缺席时答 `unavailable`，不放行。 */
 function lateBoundSystemActions(ctx: Context): SystemActionAuthorization {
   return {
     check: input =>
@@ -371,16 +314,6 @@ class TenantDomainLookupImpl extends TenantDomainLookupService {
   }
 }
 
-/**
- * 会话归属读口（受信）：session-storage-sql 的 `createSessionPrincipalBindings`，与公开端口同一存储、同一目录快照。
- * 它窄读取（不读工作快照，不共用工作缓存），已成立的归属在进程内记住。它不问访问裁定，只答租户、会话与建立证据；
- * 目录没有该租户（未登记）或存储读失败答 `unavailable`，行停止后一律答 `unavailable`（诊断含 `closing`），
- * 未知会话与别的租户的会话都答 `not-bound`。读不登记租户。
- */
-/**
- * 作用域归属读口（受信）：session-storage-sql 的 `createSessionScopeOwners`，读铸造作用域的那笔提交写下的归属，
- * 与公开端口同一存储、同一目录。它不问访问裁定，只交给装配入口；入口在 AD-03 的进程内索引没见过该作用域时读它。
- */
 class ScopeOwnersImpl extends SessionScopeOwnersService {
   readonly lookup: SessionScopeOwnersService['lookup']
   constructor(ctx: Context, source: SessionScopeOwnersService['lookup']) {
@@ -445,7 +378,6 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     domains: directory.access,
     accessCheck,
     cursorSigning: lateBoundCursorSigning(ctx),
-    // The time of each commit comes from the Session clock, read at each commit (RFC-0015 §8).
     // Without the service the commit has no time; it is never the wall clock of this process.
     clock: {
       sample: () =>
@@ -459,7 +391,6 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
         ),
     },
     combination,
-    // The governance row forms the basis of a permission assignment; it may mount later.
     protectedBasis: commit =>
       ctx.get(sessionPermissionBackendKey)?.basis(commit) ??
       Promise.resolve(
@@ -492,7 +423,6 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     stop: deadline => {
       active = false
       unregister()
-      // 两个读口记住了已成立的归属，不再读存储，所以关闭要显式告诉它们：此后一律答 `unavailable`。
       bindings.stop()
       scopeOwners.stop()
       return directory.close(deadline)

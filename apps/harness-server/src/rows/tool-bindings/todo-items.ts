@@ -98,7 +98,6 @@ function fixedArguments(parent: Parent): unknown {
   }
 }
 
-/** DTO cursor text is checked for ownership and revision again by Session.listTodos. */
 function cursorOf(cursor: TodoAuthorCursor | null): TodoPageCursor | null {
   return cursor === null
     ? null

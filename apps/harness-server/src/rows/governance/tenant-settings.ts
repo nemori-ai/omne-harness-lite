@@ -14,7 +14,6 @@ import { createTenantSettingsWrite } from './tenant-settings-write.ts'
 
 const destination = 'harness.governance.settings-catalog'
 
-/** Application composition; each original owner retains its own state and terminal protocol. */
 export function prepareTenantGovernanceWithSettings(
   options: Omit<TenantGovernanceOptions, 'settings'> &
     Pick<SettingsCatalogOptions, 'registry' | 'clock' | 'cursorLifetimeMs'>,
@@ -47,8 +46,6 @@ export function prepareTenantGovernanceWithSettings(
   const readSettings = (request: Parameters<typeof catalog.read>[1]) =>
     catalog.read(options.catalogPrincipal, request)
   const permissionRelease = options.permissionRelease
-  // The tenant layer is written as the catalog principal: a principal of the tenant alone, so the
-  // root of an operation outlives one login.
   const write = createTenantSettingsWrite({
     scope: options.scope,
     domain: options.domain,

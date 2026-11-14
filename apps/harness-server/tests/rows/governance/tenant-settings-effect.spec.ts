@@ -1,9 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite、真实 Tool 与 Agent 宿主、真实 Identity），每条命令起一个 `omne` 子进程，模型走
-// 本进程的脚本网关。先构建 `apps/cli`。
-// 写了真的生效（#1265 C3）：登录的人经 `tenantSettings` 把 Shell 的调用权限挑成「拒绝」之后，下一次 Shell 调用不启动，
-// 结局是被权限拒绝；「清除」之后，再下一次 Shell 调用照常启动。两次之间不重启服务。工具调用准入怎样读权限归 Tool
-// 与权限的现有实现，本文件只看结局随租户层的配值变。
 import { expect, it } from 'vitest'
 import { loginAccess } from '../../model/public-stream-support.ts'
 import { onReleaseTree } from '../../support/release-tree.ts'
@@ -12,8 +7,6 @@ import { SHELL, faceOf, shellRound, shellScript } from '../../governance/tenant-
 it('a deny pick of the tenant layer stops the next Shell call at its start, and a clear lets the call after it start', async () => {
   const exit = await onReleaseTree({ script: shellScript }, async tree => {
     const face = faceOf(tree)
-    // The first session registers the tenant domain; its call may meet a governance runtime that
-    // is not open yet. It is not part of the claim.
     await shellRound(tree, 'warmup')
     const baseline = await shellRound(tree, 'baseline')
     expect(baseline.started).toBe(true)
@@ -22,8 +15,6 @@ it('a deny pick of the tenant layer stops the next Shell call at its start, and 
     const item = { principal, tenant, asset: SHELL, item: 'invoke' }
     const read = await face.describe(item)
     if (read.kind !== 'described') throw new Error(JSON.stringify(read))
-    // C11: the shown effective value is the tier the call met. `ask` is let through by the
-    // release permission mode `bypass-permissions`, as the baseline call shows.
     expect(read.item).toMatchObject({ effective: { kind: 'value', value: 'ask' } })
     const denied = await face.set({
       ...item,

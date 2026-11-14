@@ -11,7 +11,6 @@ import { SESSION_PERMISSION_OWN_LOGIN_POLICY } from '../../../src/rows/authoriza
 import { loadProductionRelease } from '../../../src/entry/tool-release.ts'
 import type { EntryEnv, EntryObjectModule } from '../../../src/types.ts'
 
-/** A trusted test client of real Identity and Session services, without replacement decisions. */
 export function permissionManagement() {
   let mounted: { scope: Context; env: EntryEnv } | undefined
   const entry: EntryObjectModule = {

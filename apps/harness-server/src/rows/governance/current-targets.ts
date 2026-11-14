@@ -50,7 +50,6 @@ function targetEvidence(
   }
 }
 
-/** Joins only owner-produced facts captured for this exact transaction request. */
 export function currentGovernanceTargets(input: {
   capture: SettingsProjectionBinding
   assets: SettingsOwnerProjection
@@ -109,7 +108,6 @@ function matchTarget(
   return released === undefined ? undefined : targetEvidence(view, publication, released)
 }
 
-/** A catalog preserves known disabled targets and identifies unresolved publication owners. */
 export function currentGovernanceCatalog(input: Parameters<typeof currentGovernanceTargets>[0]) {
   const sources = [
     input.assets,

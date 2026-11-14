@@ -1,9 +1,3 @@
-// 发行内置 Tool 的两个入口对象（简报 B3-T2a 第 2、3 项，R2-D66）：
-// - `toolReleaseRegistrant`：装配入口签发的系统主体加发行登记租户，作为 Shell、Files 官方贡献的登记者
-//   （作者闭包的 `context.access`）。签发方式与 `toolResidencyPrincipal` 相同，不借用它。
-// - `toolContributionAuthority`：同步的来源核验。启动时读 `config/tool-release.json`，按包产物清单重算已安装
-//   tool-definitions 的摘要，全等才得到带发行代次的受信快照；快照不可用时一切核验答 `unavailable`。
-// 两个模块共用一份按运行建立的状态（`env.once`），登记者必须排在权威之前。行经 `releaseOf` 读同一份快照。
 import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -34,15 +28,9 @@ import {
   type ToolReleaseSnapshot,
 } from './tool-release-manifest.ts'
 
-/** 作者闭包按这个名字取登记者（AA 运行时对象表「发行登记者」）。定义包没有键常量。 */
 export const TOOL_RELEASE_REGISTRANT_KEY = 'toolReleaseRegistrant'
-/** 登记者系统主体的组件名。它不在维护授予表里：登记官方贡献只经本权威的 `admits` 放行。 */
 export const TOOL_RELEASE_COMPONENT = 'toolReleaseRegistrant'
 
-/**
- * 发行登记租户：`Access` 需要租户，官方层的登记者不属于任何用户租户。取时间戳为零的标识，真实标识不会生成它；
- * `admits` 同时核主体对象本身，所以同名租户也冒充不了登记者。
- */
 export const TOOL_RELEASE_TENANT: TenantId = (() => {
   const parsed = tenantCodec.parse(
     JSON.stringify({
@@ -54,12 +42,10 @@ export const TOOL_RELEASE_TENANT: TenantId = (() => {
   return parsed.value
 })()
 
-/** 启动快照不可用时 warn 日志的记录器名（Cordis 的 `ctx.logger`）。 */
 export const TOOL_RELEASE_LOGGER = 'tool-release'
 
 export type ToolReleaseRegistrant = Access<unknown>
 
-/** 行读到的发行事实：受信快照与登记者，或不可用。 */
 export type ToolRelease =
   | Readonly<{
       kind: 'trusted'
@@ -70,16 +56,10 @@ export type ToolRelease =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 type Bound = Readonly<{ access: ToolReleaseRegistrant; generation: string | null }>
-/**
- * What one run knows of the release. `current` is the latest result of a read: a trusted snapshot is
- * read once and kept; an unavailable one is not kept for good, a later call reads again (`retryAt`).
- */
 type ReleaseState = {
   current: ToolReleaseSnapshot | null
   loading: Promise<ToolReleaseSnapshot> | null
-  /** Failed reads in a row. */
   failures: number
-  /** Monotonic ms before which no new read starts. */
   retryAt: number
   registrant: Bound | null
   logger: Logger | null
@@ -88,7 +68,6 @@ type ReleaseState = {
 const unavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, diagnostic: `toolContributionAuthority: ${diagnostic}` })
 
-/** 结构上恰好是 `{ kind: 'official' }`。 */
 function isOfficial(layer: unknown): boolean {
   return (
     typeof layer === 'object' &&
@@ -102,13 +81,11 @@ type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
 type Verify = ToolContributionAuthority<unknown>['verify']
 type Admits = ToolContributionAuthority<unknown>['admits']
 
-/** 清单里与来源资产同名的条目；名字读不到时为 undefined。 */
 function entryNamed(release: Trusted, asset: unknown) {
   const name = typeof asset === 'object' && asset !== null ? Reflect.get(asset, 'name') : null
   return release.manifest.entries.find(candidate => candidate.asset.name === name)
 }
 
-/** 来源与条目哪一项不全等；全等时为 null。 */
 function mismatchOf(
   authority: ToolAuthority,
   entry: Trusted['manifest']['entries'][number],
@@ -124,7 +101,6 @@ function mismatchOf(
   return null
 }
 
-/** `verify` 对受信快照的判定：官方层、资产在清单里、四项采用与两项证据全等。 */
 function verifyAgainst(release: Trusted, authority: ToolAuthority): ReturnType<Verify> {
   if (!isOfficial(authority.layer)) return fail({ kind: 'denied' })
   const entry = entryNamed(release, authority.asset)
@@ -138,11 +114,9 @@ function verifyAgainst(release: Trusted, authority: ToolAuthority): ReturnType<V
     holding: entry.holding,
     publication: entry.publication,
   })
-  // Only this boundary mints the brand (tool-cordis-contract `VerifiedAuthority`).
   return succeed(verified as VerifiedAuthority)
 }
 
-/** 访问就是本运行签发的登记者：同一主体对象，合法且相等的租户。 */
 function isRegistrant(access: Access<unknown>, bound: Bound): boolean {
   return (
     access.principal === bound.access.principal &&
@@ -151,7 +125,6 @@ function isRegistrant(access: Access<unknown>, bound: Bound): boolean {
   )
 }
 
-/** `admits` 对受信快照的判定：官方层、登记者已安装、代次相同、访问就是登记者。 */
 function admitsAgainst(
   release: Trusted,
   bound: Bound | null,
@@ -165,13 +138,11 @@ function admitsAgainst(
   return succeed(undefined)
 }
 
-/** 同步核验（G7）。`release` 是行读快照的唯一入口；类里不用 `#` 私有字段（经调用方代理时 `this` 不是实例本身）。 */
 export class ReleaseToolContributionAuthority extends ToolContributionAuthorityService<unknown> {
   readonly verify: Verify
   readonly admits: Admits
   readonly release: () => ToolRelease
 
-  /** `snapshot` is a fixed snapshot, or a function that answers the current one at every call. */
   constructor(
     ctx: Context,
     snapshot: ToolReleaseSnapshot | (() => ToolReleaseSnapshot),
@@ -217,7 +188,6 @@ export class ReleaseToolContributionAuthority extends ToolContributionAuthorityS
   }
 }
 
-/** 行读快照：注入的权威若是本发行的实现，取它的快照；否则不可用。 */
 export function releaseOf(ctx: Context): ToolRelease {
   const service: unknown = ctx.get(toolContributionAuthorityKey)
   return service instanceof ReleaseToolContributionAuthority
@@ -225,7 +195,6 @@ export function releaseOf(ctx: Context): ToolRelease {
     : Object.freeze({ kind: 'unavailable', diagnostic: 'no release contribution authority' })
 }
 
-/** 行读当前登记者：没有或形状不对时为 undefined。是否就是本发行的登记者由 `admits` 判。 */
 export function registrantOf(ctx: Context): ToolReleaseRegistrant | undefined {
   const value: unknown = ctx.get(TOOL_RELEASE_REGISTRANT_KEY)
   if (typeof value !== 'object' || value === null) return undefined
@@ -238,7 +207,6 @@ export function registrantOf(ctx: Context): ToolReleaseRegistrant | undefined {
 
 const MEMBER_DIR = dirname(dirname(dirname(fileURLToPath(import.meta.url))))
 
-/** 生产读法的输入：清单与包版本取自本成员目录，tool-definitions 按 node_modules 规则定位，核对之后才 import。 */
 export function productionReleaseInput(): Parameters<typeof loadToolRelease>[0] {
   return {
     manifestPath: fileURLToPath(new URL('../../config/tool-release.json', import.meta.url)),
@@ -263,17 +231,10 @@ export const loadProductionRelease = (): Promise<ToolReleaseSnapshot> =>
   loadToolRelease(productionReleaseInput())
 
 type ReleaseEntriesOptions = Readonly<{
-  /** Monotonic milliseconds. Default the process monotonic clock. */
   now?(): number
-  /** The wait before the next read after `failures` failed reads in a row. Default 1, 5, 30 s. */
   retryPauseMs?(failures: number): number
 }>
 
-/**
- * 建两个入口对象。`load` 只在测试里换成别的读法（例如篡改过的产物副本）；发行注册表用生产读法。
- * 每次调用有自己的 `once` 键。读成功的快照只读一次；读失败（抛出，或答不可用）的结果不留：每次失败记一条
- * 告警，停一段之后，下一次核验调用启动重读，在读完之前那一次调用仍答不可用（核验是同步的，不等读）。
- */
 export function createToolReleaseEntries(
   load: () => Promise<ToolReleaseSnapshot> = loadProductionRelease,
   options: ReleaseEntriesOptions = {},
@@ -290,7 +251,6 @@ export function createToolReleaseEntries(
   })
   const stateOf = (env: EntryEnv) => env.once(key, create)
 
-  /** One read. A read that did not give a trusted snapshot is counted, warned about and paused. */
   const attempt = (state: ReleaseState): Promise<ToolReleaseSnapshot> => {
     state.loading ??= (async () => {
       let snapshot: ToolReleaseSnapshot
@@ -316,7 +276,6 @@ export function createToolReleaseEntries(
         state.failures += 1
         const againInMs = Math.max(0, (options.retryPauseMs ?? pauseAfterFailures)(state.failures))
         state.retryAt = now() + againInMs
-        // Observation only: the authority still fails closed while the snapshot is unavailable.
         state.logger?.warn(
           'tool release read failed: %s; tool contributions are refused; reading again in %d ms',
           reason,
@@ -334,7 +293,6 @@ export function createToolReleaseEntries(
     state.logger ??= scope.logger(TOOL_RELEASE_LOGGER)
     return state.current ?? attempt(state)
   }
-  /** The current snapshot; an unavailable one whose pause is over starts a new read. */
   const currentOf = (state: ReleaseState): ToolReleaseSnapshot => {
     const current = state.current
     if (current === null) return Object.freeze({ kind: 'unavailable', diagnostic: 'not read yet' })
@@ -385,7 +343,6 @@ const knownDefinitions = new WeakMap<
   { generation: string; entries: Map<string, ToolDefinition> }
 >()
 
-/** Plain metadata retained for this verified release generation, independent of live contributors. */
 export function rememberReleaseDefinition(
   ctx: Context,
   generation: string,

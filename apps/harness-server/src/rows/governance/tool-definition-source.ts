@@ -4,7 +4,6 @@ import {
 } from '@omne-harness/governance-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 
-/** The trusted release snapshot is shared across tenant consumers; local copies are not issuers. */
 export function createToolGovernanceDefinitionSource(
   readRelease: () => ToolRelease,
 ): GovernanceDefinitionSource {

@@ -1,11 +1,3 @@
-// The demonstration of the tenant-layer settings face on the release tree (#1265). Not in the release.
-// Usage, from apps/harness-server after `pnpm run build` of the members and of apps/cli:
-//   node tests/governance/tenant-settings-demo.ts
-// It starts the release tree in this process (real SQLite, real identity, the local HTTPS Model
-// gateway of the release-tree scenarios), registers and logs in one person through the `omne` CLI,
-// takes `tenantSettings` from the tree and acts as that person. It prints the Shell invoke
-// permission as `describe` shows it, picks `deny`, runs one Shell call, clears the pick, runs one
-// Shell call again, and prints the item once more. The service is not restarted in between.
 import type { SettingView } from '@omne-harness/settings'
 import { loginAccess } from '../model/public-stream-support.ts'
 import { onReleaseTree } from '../support/release-tree.ts'

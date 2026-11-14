@@ -1,8 +1,3 @@
-// 关闭协调器（s0-spec-r2 §9「步骤」「阶段规则」）。全部阶段共用截止时间 D；句柄超时记 incomplete，
-// 抛出记 failed，协调者继续下一阶段。四个阶段之后是入口交来的遥测关闭步骤，报告确定后才调用
-// `assemblyReportSettled()`，之后才撤除根。
-// 同一阶段内按依赖逆序：一行的 stop 可以卸载它提供的服务，Cordis 随即让注入该服务的行失活，
-// 所以提供方的句柄等注入它的各行的句柄结束或到达 D 之后才被调用（`stopPredecessors`）。
 import type { LifecycleEntry, LifecycleRegistry } from './lifecycle.ts'
 import { PHASE_ORDER } from './lifecycle.ts'
 import type {
@@ -22,7 +17,6 @@ export type { ShutdownReport }
 export type Timer = Readonly<{ promise: Promise<void>; cancel: () => void }>
 
 export type ShutdownClock = Readonly<{
-  /** 单调时钟，毫秒。 */
   now: () => number
   after: (ms: number) => Timer
 }>
@@ -40,13 +34,13 @@ export const monotonicClock: ShutdownClock = {
 }
 
 export type ShutdownAction =
-  | 'drain-call' // 入口阶段之后、业务阶段之前：让一行做完已经接到的工作
+  | 'drain-call'
   | 'stop-call'
   | 'report-fixed'
   | 'report-settled-call'
   | 'dispose-root'
-  | 'telemetry-close' // 存储阶段之后的遥测关闭步骤
-  | 'late-result' // 报告确定前后才结束的句柄：只写诊断
+  | 'telemetry-close'
+  | 'late-result'
   | 'diagnostic'
 
 export type ShutdownRecord = Readonly<{
@@ -60,33 +54,15 @@ export type ShutdownRecord = Readonly<{
 
 export type ShutdownOptions = Readonly<{
   log?: (record: ShutdownRecord) => void
-  /**
-   * For a row, the rows of its phase whose stop is over (or at the deadline) before its own stop
-   * is called. `stopPredecessors` derives it from the row manifests. Rows it does not name stop
-   * together.
-   */
   stopsFirst?: ReadonlyMap<RowId, readonly RowId[]>
-  /**
-   * How long the drains may take, in milliseconds. The drains run after the entry phase, all
-   * together; the time they use is not taken from D. Without it no `drain` is called.
-   */
   drainMs?: number
-  /** Entry-owned host retirement and final maintenance, bounded only for report collection. */
   afterBusiness?: () => Promise<HostFilesReport>
-  /** Entry-owned telemetry close after the storage phase, with the deadline D; bounded only for the report. */
   afterStorage?: (deadlineMonotonicMs: number) => Promise<TelemetryShutdownReport>
-  /** 步骤 9：撤除 Cordis 根。结果只进诊断。 */
   disposeRoot?: () => Promise<unknown> | unknown
 }>
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
-/**
- * The stop order inside a phase, from the row manifests: for each row with a shutdown phase, the
- * rows of the same phase that inject, directly or through other rows, a service it provides. Their
- * stops come first, because the stop of a provider may unload its service. Two rows that depend
- * on each other have no order between them.
- */
 export function stopPredecessors(
   rows: readonly Readonly<{ row: Readonly<{ id: RowId }>; manifest: RowManifest }>[],
 ): Map<RowId, RowId[]> {
@@ -100,7 +76,6 @@ export function stopPredecessors(
       manifest.injects.flatMap(name => providers.get(name) ?? []).filter(id => id !== row.id),
     ]),
   )
-  /** Every row that `from` depends on, directly or through other rows. */
   const reach = (from: RowId): Set<RowId> => {
     const seen = new Set<RowId>()
     const pending = [...(direct.get(from) ?? [])]
@@ -145,7 +120,6 @@ type StepLog = (
   detail?: string,
 ) => void
 
-/** What every stop step shares: the one deadline D, its clock and the numbered step log. */
 type StopBudget = Readonly<{ deadline: number; clock: ShutdownClock; log: StepLog }>
 
 type Frozen = ReturnType<LifecycleRegistry['freeze']>
@@ -196,11 +170,6 @@ async function stopOne(
   }
 }
 
-/**
- * The drains of the live handles that have one, all together, each bounded by `deadline`. A drain
- * that throws is `failed`; one that is not over at the deadline is `incomplete` and goes on by
- * itself, because the row's `stop` ends what is left.
- */
 async function drainAll(
   frozen: Frozen,
   { deadline, clock, log }: StopBudget,
@@ -232,7 +201,6 @@ async function drainAll(
   )
 }
 
-/** One expected row: stop the live handle, or say why there was nothing to stop. */
 async function outcomeOfRow(
   registry: LifecycleRegistry,
   frozen: Frozen,
@@ -245,7 +213,6 @@ async function outcomeOfRow(
     const outcome = await stopOne(live, phase, row, budget)
     const failure = registry.startFailure
     if (failure?.row !== row) return outcome
-    // 启动期抛出的句柄仍收到 stop；报告记 failed，并保留 stop 的结果作诊断。
     const stop = outcome.result.kind === 'settled' ? '' : `; stop ${outcome.result.kind}`
     return {
       row,
@@ -260,11 +227,6 @@ async function outcomeOfRow(
   return { row, phase, result: { kind: 'not-registered' } }
 }
 
-/**
- * An entry-owned appendix of the report (host-files maintenance, telemetry close), bounded by D only
- * for the report: a throw is a diagnostic and `onFailure`, the deadline is `onDeadline` and a late
- * completion is a diagnostic. The task itself goes on; the root disposer waits for it.
- */
 async function collectAppendix<T>(
   task: () => Promise<T>,
   label: string,
@@ -312,7 +274,6 @@ const collectTelemetry = (
   })
 }
 
-/** After the report is fixed, each live handle that asked for it is told so. A throw is a diagnostic. */
 function announceReportSettled(live: Frozen['live'], log: StepLog): void {
   for (const [row, entry] of live) {
     if (entry.handle.assemblyReportSettled === undefined) continue
@@ -352,15 +313,11 @@ async function execute(
   let hostFiles: HostFilesReport | undefined
   for (const phase of PHASE_ORDER) {
     if (phase === 'business' && options.drainMs !== undefined) {
-      // The callers of a draining row are still alive here, so a result that arrives is taken the
-      // normal way. D does not pay for the drain: the later phases keep what they had.
       const began = clock.now()
       drains = await drainAll(frozen, { deadline: began + options.drainMs, clock, log })
       budget = { ...budget, deadline: budget.deadline + (clock.now() - began) }
     }
     const rows = [...expected].filter(([, expectedPhase]) => expectedPhase === phase)
-    // A provider waits for the rows that depend on it. Every outcome is there by the deadline, and
-    // the relation has no cycle, so each stop of the phase is called.
     const settling = new Map<RowId, Promise<HandleOutcome>>()
     const outcomeAfterDependents = (row: RowId): Promise<HandleOutcome> => {
       const known = settling.get(row)
@@ -380,7 +337,6 @@ async function execute(
       hostFiles = await collectHostFiles(options.afterBusiness, phase, budget)
     }
   }
-  // Storage has stopped, so nothing of the tree writes diagnostics any more: close telemetry now.
   const telemetry =
     options.afterStorage === undefined
       ? undefined

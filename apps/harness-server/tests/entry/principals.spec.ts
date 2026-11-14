@@ -1,5 +1,3 @@
-// R3 的主体权威（DP1-C17、DP5-C1、表 3-3）：核验器只认本权威签发的主体，系统主体对十行矩阵的裁定，
-// 入口对象是定义的子类，签发者不被模块对象持有。用例经服务键与 `referenceSystemActionAuthorization` 调用。
 import { describe, expect, it } from 'vitest'
 import {
   SYSTEM_ACTION_MATRIX,
@@ -188,7 +186,6 @@ describe('system principals against the release action matrix (验收 2)', () =>
       [TOOL_RESIDENCY_COMPONENT]: systemOf(issuer, TOOL_RESIDENCY_COMPONENT),
       [AGENT_HOST_COMPONENT]: systemOf(issuer, AGENT_HOST_COMPONENT),
       [TENANT_DOMAIN_SCANNER_COMPONENT]: systemOf(issuer, TENANT_DOMAIN_SCANNER_COMPONENT),
-      // The installed `sessionPrincipals.maintainer`, not a fresh copy: S3 reads `pending` with it.
       [ENTRY_COMPONENTS.sessionMaintainer]: maintainer,
     }
     const outsiders: Principal[] = [principals.coordinator, systemOf(issuer, 'restart-scanner')]

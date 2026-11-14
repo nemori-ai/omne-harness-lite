@@ -1,9 +1,4 @@
 // @module-tag slow
-// 慢：组织层来源跑在真实 SQLite 的 Worker 上。
-// 租户层设置的权限上界（#1265 C4、C10）：读写面经本行的权限端口问权限，材料是发行清单里 Shell 的权限声明、
-// 当时读到的组织层与目录里的租户层。组织层现在没有公开入口能写，这里用设置本机的来源世界写进它自己的存储
-// （`settings-local` 的 `openSourceServiceWorld`），本行的端口按组织来源的地址读它。目录与写入用替身：写入要守的
-// 条件在提交事务里核，那一段由发行树上的用例证。
 import { rmSync } from 'node:fs'
 import { afterEach, expect, it } from 'vitest'
 import { organizationCodec, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -36,7 +31,6 @@ function tenantOf(): TenantId {
 
 type Rule = Readonly<{ pick: string | null; allowedSet: readonly string[] | null }>
 
-/** The face over the real permission port; the organization layer is `organization` when given. */
 async function world(organization: Rule | null, own: Rule | null = null) {
   const release = await loadProductionRelease()
   if (release.kind !== 'trusted') throw new Error(JSON.stringify(release))
@@ -207,7 +201,6 @@ it('C10 an organization locked to deny and ask with a tenant pick of auto shows 
     item: {
       kind: 'permission',
       own: 'auto',
-      // The first pick outwards inside the bound is the default pick `ask`.
       effective: { kind: 'value', value: 'ask', source: 'default' },
       bound: ['deny', 'ask'],
       editable: { kind: 'yes' },

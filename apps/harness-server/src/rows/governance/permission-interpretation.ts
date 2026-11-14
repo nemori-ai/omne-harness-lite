@@ -38,7 +38,6 @@ function completeMapping(released: PermissionInterpretation): boolean {
   )
 }
 
-/** The release owner supplies this material; validation alone does not establish its provenance. */
 export function resolvePermissionInterpretation(
   released: unknown,
   expected: EnforcementBinding,

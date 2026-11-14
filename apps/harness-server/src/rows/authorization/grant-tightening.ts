@@ -1,8 +1,3 @@
-// The operator's tightening of the maintenance grant table (R2-D204 item 2, IC-18). The table is
-// built into the release: the operator can revoke one record or give it an end time, and nothing
-// else. A record id outside the table, or a member beyond `revoked` and `expiresAt` (purposes,
-// principal, scope), fails the configuration, so the row does not start. The end time is judged by
-// the injected clock, never by the system time. This file holds no table of its own.
 import { z } from 'zod'
 import type { SystemActionClock } from '@omne-harness/authorization'
 import type { IdentityClock } from '@omne-harness/identity'
@@ -28,16 +23,10 @@ function knownRecords(table: Readonly<Record<GrantHolder, ReleaseGrant>>): strin
   return Object.values(table).map(grant => grant.record)
 }
 
-/**
- * The row configuration `maintenanceGrants`: tightenings by record id (`maintenance-grant/<component>`
- * as the read port reports it). Absent or empty means the table as released.
- */
 export const maintenanceGrantsSchema = z
   .custom<object>(value => typeof value === 'object' && value !== null && !Array.isArray(value), {
     message: 'maintenanceGrants must be an object of tightenings by record id',
   })
-  // The keys are read from the raw object: a key such as `__proto__` is not dropped by the record
-  // parser below, it is named and refused here.
   .superRefine((value, ctx) => {
     const known = knownRecords(MAINTENANCE_GRANTS)
     for (const key of Object.getOwnPropertyNames(value)) {
@@ -54,11 +43,6 @@ export const maintenanceGrantsSchema = z
 
 export type MaintenanceGrantsConfig = z.output<typeof maintenanceGrantsSchema>
 
-/**
- * The release table with the operator's tightening: a record named by the configuration gets
- * `revoked: true` and/or `expiresAt`; every other member of every record is the release value. An
- * empty configuration returns the release table itself. A record id outside the table throws.
- */
 export function tightenMaintenanceGrants(
   config: MaintenanceGrantsConfig | undefined,
   builtin: Readonly<Record<GrantHolder, ReleaseGrant>> = MAINTENANCE_GRANTS,
@@ -84,11 +68,6 @@ export function tightenMaintenanceGrants(
   return Object.freeze(Object.fromEntries(tightened)) as Readonly<Record<GrantHolder, ReleaseGrant>>
 }
 
-/**
- * The system action clock over the injected clock. An end time is reached when the reading of
- * `now` is at or after it. A clock that cannot answer, or an end time that is not an instant, is
- * `unavailable`, never reached and never pending.
- */
 export function grantClockOf(clock: IdentityClock): SystemActionClock {
   return Object.freeze({
     reached: async (expiresAt: string) => {

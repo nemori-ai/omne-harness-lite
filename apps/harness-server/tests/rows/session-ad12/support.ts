@@ -1,7 +1,3 @@
-// Shared fixtures of the `session-ad12` row tests and of the `session-provider` create test: the
-// `runtimeContext` contract double, which is the memory double of runtime-context-contract behind
-// the service definition of runtime-context-cordis-contract, over the test authority ports. It
-// does not import vitest.
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createMemoryRuntimeContext,
@@ -15,7 +11,6 @@ import type { RowSpec } from '../../../src/loader.ts'
 import { defineRow } from '../../../src/row.ts'
 import { declared } from '../session-fixtures/tree.ts'
 
-/** A contract-double row `runtime-context` that provides `runtimeContext` over the memory double. */
 export function runtimeContextDoubleRow(): RowSpec {
   const ports = createTestAuthorityPorts<unknown>()
   class RuntimeContextDouble extends RuntimeContextService<unknown> {

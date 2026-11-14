@@ -1,8 +1,3 @@
-// The admission of the setting management (public contract「设置项」): who may list, set, describe
-// or clear a tenant's own secret setting items: only the login principal that acts for that tenant,
-// with the tenant admission of authorization AU-11 and an empty `requires`. A session work principal and a
-// system principal are denied: being able to call a tool is not the right to configure its key.
-// The scope the port writes is always the acting tenant's; the official scope has no path here.
 import { noArguments, type AdmissionInput } from '@omne-harness/authorization'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { AdmissionReader } from './action-admission.ts'
@@ -21,7 +16,6 @@ export type SettingsAdmissionInput = Readonly<{
   action: SettingsAction
 }>
 
-/** The admission request of one action, or `undefined` when the principal is not this tenant's login principal. */
 export function settingsAdmission(input: SettingsAdmissionInput): AdmissionInput | undefined {
   const who = classify(input.principal)
   const tenantText = tenantCodec.encode(input.tenant)
@@ -41,7 +35,6 @@ export function settingsAdmission(input: SettingsAdmissionInput): AdmissionInput
   }
 }
 
-/** The guard reads its admission check on every call; an absent or failing check is `unavailable`. */
 export function createSettingsGuard(readAdmission: AdmissionReader) {
   const qualify = async (input: SettingsAdmissionInput): Promise<SettingsVerdict> => {
     try {

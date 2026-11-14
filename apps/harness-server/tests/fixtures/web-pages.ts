@@ -1,5 +1,3 @@
-// A local HTTP server with one HTML page for the release-tree Web tests. It listens on 127.0.0.1
-// only; the release Web fetch reads it and no test reaches the outside network.
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
@@ -10,9 +8,7 @@ export const PAGE_HTML = `<!doctype html>
 <body><h1>${PAGE_TITLE_MARKER}</h1><p>${PAGE_BODY_MARKER} with <a href="/other">a link</a>.</p></body></html>`
 
 export type WebPages = Readonly<{
-  /** The `http:` URL of the HTML page. */
   pageUrl: string
-  /** How many requests reached the server, with their methods. */
   requests(): readonly string[]
   close(): Promise<void>
 }>

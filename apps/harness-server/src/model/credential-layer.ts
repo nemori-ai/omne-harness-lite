@@ -1,8 +1,3 @@
-// The credential layer of a profile supplier (model-contract「凭据引用与解析端口」). Request
-// preparation, and the preparation leases of the send stage, fix the layer of every supplier
-// through the Model credential port: the tenant's own layer when the tenant set any item of the
-// provider, the official layer only for an official profile of a provider the release holds. The
-// secrets are not read here; the send reads the fixed layer in its fence.
 import type { SupplierPort } from '@omne-harness/model'
 import type { ModelFailure } from '@omne-harness/model-contract'
 import type { CredentialFailure, CredentialPort } from '@omne-harness/model-contract/provider'
@@ -24,10 +19,6 @@ function preparationFailure(failure: CredentialFailure): ModelFailure {
   }
 }
 
-/**
- * Completes a profile supplier with its credential layer. A port that is absent or cannot judge
- * stops the preparation: it never picks a layer by itself.
- */
 export function credentialLayerSupplier(
   readPort: () => CredentialPort | undefined,
 ): SupplierPort<unknown> {

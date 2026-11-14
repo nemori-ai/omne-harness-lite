@@ -4,7 +4,6 @@ import { awaitReadiness, type LoadedRow, type ReadinessReport } from './readines
 import type { Trust } from './trust.ts'
 import type { Implementation, RowId, RowManifest, ServiceName, TreeRow } from './types.ts'
 
-/** Factory ownership follows the release binding, not a replaced row's config source. */
 export function validateFactoryRows(options: {
   distribution: unknown
   operator: unknown
@@ -29,22 +28,13 @@ export type RowSpec = Readonly<{
   row: TreeRow
   manifest: RowManifest
   plugin: Plugin
-  /** Default `s0-double`. */
   implementation?: Implementation
-  /** What a real export declares: its row id (DP1-C9) and the entry object that registers for it (DP1-C15). */
   declared?: Readonly<{ row: RowId; via: ServiceName | null }>
 }>
 
-/**
- * An object the entry provides before the first row loads. Trusted names go under their own label.
- * A `value` is provided as is (S0 stand-ins and `serve` placeholders). An `install` constructs the
- * service definition's subclass on the scope (DP1-C11).
- */
 export type EntryObject = Readonly<{
   name: ServiceName
-  /** Default `s0-double`. */
   implementation?: Implementation
-  /** Rows this object registers shutdown handles for (DP1-C15). Default none. */
   registersFor?: readonly RowId[]
 }> &
   (Readonly<{ value: unknown }> | Readonly<{ install: (scope: Context) => void | Promise<void> }>)
@@ -80,14 +70,6 @@ export type PreflightEntryObject = Readonly<{
 const implementationOf = (item: { implementation?: Implementation }): Implementation =>
   item.implementation ?? 's0-double'
 
-/**
- * Checks that decide before any plugin body runs. A row that injects a trusted
- * name it cannot see would stop in PENDING for ever, and a provider group split
- * over rows has no receiving surface. A real row served by a double would only
- * fail at first use (DP1-C10). A real export on another row id, or an
- * entry-object-borne row without its registering object, would never register
- * (DP1-C9, DP1-C15). All are assembly errors.
- */
 export function preflight(
   rows: readonly PreflightRow[],
   trust: Trust,
@@ -188,7 +170,6 @@ function preflightStart(options: StartOptions): PreflightDiagnostic[] {
   )
 }
 
-/** Install the entry objects in order, apart from the withheld ones. The first install failure stops it. */
 async function installEntryObjects(
   options: StartOptions,
 ): Promise<Extract<StartResult, { kind: 'entry-failed' }> | undefined> {
@@ -215,11 +196,6 @@ async function installEntryObjects(
   return undefined
 }
 
-/**
- * Create every row in order and wait for each to finish loading, sharing the readiness deadline.
- * A row still LOADING at the deadline does not hold the loader for ever: later rows are still
- * created, in order, but not awaited. `elapsedMs` is what the readiness wait must subtract.
- */
 async function loadRows(
   options: StartOptions,
 ): Promise<{ loaded: LoadedRow[]; elapsedMs: number }> {
@@ -263,13 +239,6 @@ async function loadRows(
   return { loaded, elapsedMs }
 }
 
-/**
- * Load the final tree in order, then wait for readiness.
- *
- * `omitEntryObjects` is a test input that withholds named entry objects.
- * `await ctx.plugin(...)` ends when loading ends, which does not mean ACTIVE:
- * the state is read from the fiber afterwards.
- */
 export async function startTree(options: StartOptions): Promise<StartResult> {
   const diagnostics = preflightStart(options)
   if (diagnostics.length > 0) return { kind: 'rejected', exitCode: 2, diagnostics }
@@ -301,7 +270,6 @@ export async function disposeRow(
   await afterDispose?.()
 }
 
-/** Dispose rows in reverse load order, then the root. Reports every failure together. */
 export async function disposeTree(root: Context, rows: readonly LoadedRow[]): Promise<void> {
   const errors: unknown[] = []
   for (const row of [...rows].reverse()) {
@@ -323,7 +291,6 @@ export type PrincipalIssuer = Readonly<{
   issue: (claim: { session: string; owner: string }) => unknown
 }>
 
-/** Source of session ownership, provided by the session storage row under the S-BIND label. */
 export type SessionPrincipalBindings = Readonly<{
   ownerOf: (session: string) => string | undefined
 }>
@@ -334,11 +301,6 @@ export type SessionWorkPrincipals = Readonly<{
   ) => Readonly<{ kind: 'issued'; principal: unknown }> | Readonly<{ kind: 'unavailable' }>
 }>
 
-/**
- * Entry stand-in for the S-WORK object. The issuer lives only in this closure.
- * Each call reads the bindings source through `bindingsCtx`, the entry's own
- * S-BIND context, and not through any context the object was handed later.
- */
 export function createSessionWorkPrincipals(
   issuer: PrincipalIssuer,
   bindingsCtx: Context,

@@ -1,17 +1,3 @@
-// Tool 运行时组的五行（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：一次 `createLocalToolRuntimePlugins` 返回的
-// 六个插件分装到五行，每行一个 fiber，全部共用一份记录仓、账本、启动协调器和 driver：
-// - `tool-records`：records 插件，提供 `toolCommands`、`toolReads`、`toolStartAuthority`、`toolStartFence`（同提供者
-//   组 `tool-start`）。本行在受信存储子树内建 SQL 记录仓与正文存储，以及 Ask 等待的决策方（HITL 宿主，
-//   `rows/tool-hitl`），交给共享状态；整组的运维者配置也只在
-//   本行（bundle 建一次就要全部数值）。会话工作主体（受信）不经本行：入口对象 `toolClock` 安装时把入口自己的
-//   受信读口交给共享状态（`entry/tool-runtime-objects.ts`），本行的可见集合不变。
-// - `tool-runtime`：门面插件，提供 `toolRuntime`。
-// - `tool-executor`：实例宿主与长期执行宿主。实例宿主提供 `toolInstanceHost`，执行宿主以子 fiber 静态 inject 它。
-// - `tool-instances`：实例目录，提供 `toolInstances`，inject `toolPublicationAuthority`。
-// - `tool-environments`：环境适配，提供 `toolEnvironments`，以 integrator 调用方 inject `executionEnvironment`；
-//   本行建执行域的 schema-provider，供环境需求校验，行撤除时关闭。
-// 四行等 `tool-records` 建好 bundle 再装；`tool-records` 一直不装时它们停在装载中，不答就绪。
-// 已知限制：bundle 每次运行只建一次，实例宿主与执行宿主不能在同一运行里重装（成员抛出，行 FAILED）。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { observeToolLedgerCommit } from '@omne-harness/tool'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
@@ -64,18 +50,15 @@ import {
 
 const INTEGRATOR = { [executionEnvironmentKey]: { caller: 'integrator' as const } }
 
-/** `tool-records` 在受信存储子树里建 SQL 端口并交给共享状态；行撤除时收回。 */
 function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
   const manifest = compositeManifestDigest(storageCatalog())
   if (manifest.kind === 'invalid')
     throw new Error(
       `tool-records: the session composite is not registrable: ${manifest.diagnostic}`,
     )
-  // The row's static inject guarantees these names are ACTIVE when the body runs.
   const storage = ctx.get(storageKey) as SqlStorage
   const domains = ctx.get(tenantDomainLookupKey) as TenantDomainLookup
   const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
-  // The pending scan of the ledger lists the deployment's tenants with the scanner principal only.
   const scanner = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY) as SystemPrincipal
   const options = {
     storage,
@@ -100,7 +83,6 @@ function mountSql(ctx: Context, config: ToolRuntimeConfig): void {
     conditional: createSqlToolConditionalCommit(options),
   })
   holder.sql = sql
-  // The Ask waits of the Tool calls are kept by HITL in the same domain and combination.
   mountToolHitl(ctx, options)
   ctx.effect(
     () => () => {
@@ -188,10 +170,6 @@ export const toolRuntimeRow = defineRow({
   },
 })
 
-/**
- * 执行宿主行体（业务阶段）：实例宿主装在行 fiber，长期执行宿主装在子 fiber（它静态 inject 本行刚提供的
- * `toolInstanceHost`）。业务停止时关闭 bundle：执行宿主退役、作者执行停止接新；期限内完成答 settled。
- */
 async function executorBody(ctx: Context): Promise<RowHandle> {
   const bundle = await awaitBundle(ctx)
   await bundle.instanceHost.apply(ctx)

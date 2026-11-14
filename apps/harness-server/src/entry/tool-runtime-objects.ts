@@ -45,7 +45,6 @@ class EntryToolClock extends ToolClockService {
 
 type Check = ToolPublicationAuthority<unknown>['check']
 
-/** 发布核验：执行与句柄一致，且调用见证里有这次执行与来源证据。 */
 export function publicationCheck(ctx: Context): Check {
   const holder = toolRuntimeHolder(ctx)
   return request => {
@@ -78,7 +77,6 @@ export const toolClock: EntryObjectModule = {
   implementation: 'real',
   install(scope, env) {
     new EntryToolClock(scope)
-    // The entry reads its own trusted names per call; a root provider of the same name is not seen.
     const holder = toolRuntimeHolder(scope)
     holder.workPrincipals = () => {
       const work: SessionWorkPrincipals<unknown> | undefined = env
@@ -98,8 +96,6 @@ export const toolClock: EntryObjectModule = {
         .get(tenantStandingKey)
       return standing
     }
-    // The decision owner of the Ask waits (`rows/tool-hitl`): Identity's reservations, which the HITL
-    // writes reserve through, and the principal that registers the waits of a tenant.
     const hitl = toolHitlHolder(scope)
     hitl.reservations = () => {
       const reservations: StandingReservations | undefined = env
@@ -108,7 +104,6 @@ export const toolClock: EntryObjectModule = {
       return reservations
     }
     hitl.registrar = toolDecisionsIssuerOf(env)
-    // 卡片的读者与答复者：该租户的入口主体（protocol「公开入口与受众」）。
     hitl.audience = hitlCardAudience
   },
 }

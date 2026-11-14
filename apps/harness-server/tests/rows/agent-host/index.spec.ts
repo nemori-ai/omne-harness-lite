@@ -1,14 +1,5 @@
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 // @module-tag slow
-// The `agent-host` row: the real local Agent host (the plugin `createAgentHostLocalPlugin` of
-// `@omne-harness/agent-host-local/cordis` makes) on a real Cordis, carried by the row body in the
-// `business` phase. The row is ACTIVE and provides the host faces once all sixteen injects of the
-// assembly page are present; with any one absent it stays PENDING and names that key. Its schema
-// is the member's plus the release rule that `jointCommits` lists `message` (R2-D93). The two
-// construction inputs reach every runtime the host builds: the measurement observer, and the Tool
-// request source, without which a Tool action is denied. The injects are the stand-ins of
-// `doubles.ts`; the real providers are other rows and the assembly entry. The handle's stop is the
-// member's ordered stop; its cases are in `stop.spec.ts`.
 import { afterEach, describe, expect, it } from 'vitest'
 import { agentEvaluator, type AgentMeasureEvent } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
@@ -149,7 +140,6 @@ describe('the agent-host row: declaration and configuration', () => {
     })
     const table = serveProfile().stubManifests.get('agent-host' as RowId)
     expect(declaration?.manifest).toEqual(table)
-    // A row made with construction inputs is the same row.
     const withInputs = createAgentHostRow({ measure: () => {} })
     expect(rowDeclarationOf(withInputs)).toEqual(declaration)
   })
@@ -206,7 +196,6 @@ describe('the agent-host row: on test stand-ins of its sixteen injects', () => {
   )
 
   it('acquires an instance through the provision face', { timeout: 60_000 }, async () => {
-    // The real `agent-instances` row is the directory the host publishes into.
     const { tree } = await start({ omit: null, directory: true })
     const provision =
       tree.service<AgentInstanceProvisionService<string>>(agentInstanceProvisionKey)!
@@ -239,8 +228,6 @@ describe('the agent-host row: on test stand-ins of its sixteen injects', () => {
   )
 })
 
-// --- construction inputs --------------------------------------------------------------------------
-
 const evidence = (record: string) => ({
   owner: 'row-test',
   record,
@@ -264,7 +251,6 @@ const conditions: RuntimeConditions = {
 }
 
 const selected = {
-  // A Model request accepts only an adoption whose digest is 64 hex digits, as testAdoption mints.
   recipient: { route: 'route-1', profile: testAdoption('profile') },
   resolution: { kind: 'resolved', selectable: true },
   parameters: [],
@@ -272,9 +258,6 @@ const selected = {
   evidence: evidence('selected'),
 } as unknown as SelectedModel
 
-// The message and the block are written in their admitted shapes: the judges of
-// `@omne-harness/message` and `@omne-harness/content-block` are not dependencies of this app, and
-// the Agent judges what it takes in again.
 function acceptedInput(): AcceptedInput {
   return {
     id: ok(decodeInputId('row-input')),
@@ -285,7 +268,6 @@ function acceptedInput(): AcceptedInput {
         { kind: 'text', id: 'blk_1', visibility: { toHuman: true, toModel: true }, text: 'go' },
       ],
     } as unknown as AcceptedInput['content'],
-    // A coordinated Journal requires the input source and the grant of `open`.
     source: evidence('input-source'),
     priority: 'ordinary',
   }
@@ -354,7 +336,6 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
   return ok(judged as never)
 }
 
-/** A Tool request source that counts each face and answers a fixed request. */
 function countingSource() {
   const seen = { describe: 0, prepare: 0 }
   const source = {
@@ -381,7 +362,6 @@ function acceptedInvoke(): ToolInvokeOutcome {
   return { kind: 'accepted', reference, state: {} as ToolState, recovered: false }
 }
 
-/** Acquires an instance on the row and invokes one execution on it. */
 async function invoke(row: Plugin, execution: AgentExecutionId) {
   const started = await start({ omit: null, directory: true, row })
   const { tree, doubles } = started
@@ -408,7 +388,6 @@ async function invoke(row: Plugin, execution: AgentExecutionId) {
   return { ...started, answer }
 }
 
-/** Runs the execution until its Model suggests one Tool call, and delivers the suggestion. */
 async function suggestTool(row: Plugin) {
   const execution = ok(decodeAgentExecutionId('row-tool-execution'))
   const started = await invoke(row, execution)
@@ -514,9 +493,6 @@ describe('the agent-host row: construction inputs reach the runtimes it builds',
     { timeout: 60_000 },
     async () => {
       const { doubles, load } = await suggestTool(agentHostRow)
-      // The source is part of the admission, so its absence is an unavailable admission: the whole
-      // batch is denied and the denial goes to the next request (agent-contract SPEC
-      // "整批判断屏障与动作准入" rule 2, TOOL-A0). The Run does not stop at A0: step 2 asks the Model.
       await until(
         async () =>
           (await load()).checkpoint.calls.some(

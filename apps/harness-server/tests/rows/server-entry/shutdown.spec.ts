@@ -1,5 +1,3 @@
-// The planned stop: the entry phase stops first, the entry stops accepting and lets the requests in
-// flight write their answers, and only then the next phase stops.
 import { describe, expect, it } from 'vitest'
 import { defineRow } from '../../../src/row.ts'
 import {
@@ -23,7 +21,6 @@ describe('server-entry row: planned stop', () => {
     const port = await freePort()
     const observed: Observed = {}
     let answered: Reply | undefined
-    // A business-phase row: when its stop runs, the entry phase must be completely done.
     const business = defineRow({
       row: 'business-probe',
       implementation: 'real',
@@ -46,7 +43,6 @@ describe('server-entry row: planned stop', () => {
     await waitListening(tree, port)
     const who = await login(port, 'alice', 'pw-1')
 
-    // Hold one create-session inside the Session faces.
     let release: () => void = () => {}
     tree.recorder.gate.create = () =>
       new Promise<void>(resolve => {
@@ -63,7 +59,6 @@ describe('server-entry row: planned stop', () => {
       ended = true
       return run
     })
-    // The entry has stopped accepting, but the stop waits for the request in flight.
     await until(async () => !(await connectable('127.0.0.1', port)), 'the port to refuse')
     await sleep(150)
     expect(ended).toBe(false)
@@ -73,12 +68,10 @@ describe('server-entry row: planned stop', () => {
     const reply = await inFlight
     const run = await stopping
 
-    // The answer was written in full, not cut off with the connection.
     expect(reply.status).toBe(200)
     expect((reply.json as { outcome: string }).outcome).toBe('succeeded')
     expect(run.result.exitCode).toBe(0)
 
-    // The entry phase stopped first, the business phase after it.
     const calls = run
       .of('shutdown-step')
       .filter(step => step['action'] === 'stop-call')

@@ -1,14 +1,3 @@
-// The `session-provider` row. `sessionProviderRow`, the export the release names, is the real
-// Session provider of `real.ts` (`implementation: 'real'`, a `business` shutdown handle). This
-// module also keeps the contract double (`implementation: 'contract-double'`): the Session faces
-// under the service key `session`, over sessions that live in process memory, with no business
-// durability and no shutdown phase. The tests that observe arrivals and the R9 in-process layer
-// still load the double through `createSessionProviderRow`.
-//
-// The double's manifest equals the `session-provider` row of `src/s0/stubs.ts`. The double reads
-// `sessionAccessCheck` and asks it for every call. It does not read `sessionDelegatedTransactions`,
-// `sessionPrincipals` or `sessionWorkPrincipals`: a double needs no storage and runs no work, but
-// the injects keep the visibility and the start order of the row what the real provider needs.
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionFaces, SessionIntakeLimits } from '@omne-harness/session-contract'
 import {
@@ -27,13 +16,10 @@ export type { ArrivalObserver, SessionProviderArrival, SessionProviderMethod } f
 export { sessionProviderRealRow as sessionProviderRow } from './real.ts'
 
 export type CreateSessionProviderRowOptions = Readonly<{
-  /** Receives one arrival per call that reaches the double: classes and verdicts, no credentials. */
   observe?: ArrivalObserver
   intakeLimits?: SessionIntakeLimits
 }>
 
-// The faces are fields, set once from one memory. The class has no `#` field: a call through the
-// caller context does not run with the instance as `this`.
 class SessionProviderDouble extends SessionService<unknown> {
   readonly work: SessionFaces<unknown>['work']
   readonly management: SessionFaces<unknown>['management']
@@ -48,7 +34,6 @@ class SessionProviderDouble extends SessionService<unknown> {
   }
 }
 
-/** A fresh double row. A reload of the row, or another call of this function, starts with an empty memory. */
 export function createSessionProviderRow(options: CreateSessionProviderRowOptions = {}) {
   return defineRow({
     row: 'session-provider',

@@ -1,20 +1,3 @@
-// Tool 运行时组的执行环境输入（B 段，L-TOOL 事实清单 §3「应用提供真实 store、custody/content、source/资格、
-// Session 重签回调、无许可需求来源、当前 EE 授权/命名/精确原获取清理和配置」）。只有一种落点：宿主机
-// （`host_machine`），由 `execution-host` 行的宿主提供者兑现；本发行不声称隔离。
-// - `requirement`：经执行域的 schema-provider 校验 environment 声明并取值（与 `tool-host` 的 loader 同一路径，
-//   R2-D80）；声明不允许宿主机落点答 denied；provider 不在（`tool-environments` 行未装）答 unavailable。
-// - `binding`：origin 由调用与准备操作铸出并记进本运行的 origin 表；scope 就是固定请求的 requesterScope；
-//   保留终端的账本绑在同一 scope 上；同一个保留视图也作保留进程账本交出（`processes`），它的 `adopt` 在一个提交里
-//   同时结束本次获取账本对该键的责任（#1137）。
-// - `guard`：设施请求的主体经核验是本租户的会话工作主体、origin 是本运行铸的、请求里的每个路径都在文件根内：
-//   cwd，文件设施的 `path`、`move`/`copy` 的 `target.path`、`commitBatch` 的每个 `entries[].path`；带了这些字段
-//   却不是字符串路径的答 notAuthorized。位置与对象两条都在根内才算（R2-D374、R2-D376），见 `placeAgainstRoot`。
-//   命令内容不过滤：Shell 是发行授予的能力，授权规则在 `authorization` 行，本发行不声称沙盒。
-// - origin 表与账本视图按调用存，调用结清时（记录仓提交了 `settled`，见 `holder.ts`）删掉；结清后同一 origin 的
-//   设施请求与命名一律不授权。
-// - `naming`：路径解析到文件根内的宿主对象，取宿主对象令牌；越出文件根答 denied。
-// - `facts`：落点必须是宿主机；系统、版本、架构取本进程所在主机，设施取落点的需求。
-// - `cleanup.settle`：冷获取的原清理不在本波（与 L-TOOL C06 同一做法），答 pending，责任保留。
 import { lstat, realpath } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { release as osRelease } from 'node:os'
@@ -49,7 +32,6 @@ import { callKeyOf, lateStore, type ToolRuntimeHolder } from './holder.ts'
 type EnvironmentInput = LocalToolRuntimeInput['environment']
 type Preparation = Parameters<EnvironmentInput['plan']['ledger']>[0]
 
-/** 本发行的环境适配采用（固定在准备记录里）。 */
 export const RELEASE_ENVIRONMENT_ADOPTION = describedAdoption({
   owner: '@omne-harness/harness-server',
   name: 'host-machine-environment',
@@ -57,19 +39,15 @@ export const RELEASE_ENVIRONMENT_ADOPTION = describedAdoption({
 })
 
 export type ReleaseEnvironmentOptions = Readonly<{
-  /** 宿主文件根：与 `execution-host` 行的 `filesRoot` 相同（运维者层）。 */
   filesRoot: string
   commitAttempts: number
-  /** 执行域的 schema-provider；`tool-environments` 行装载时交来，缺席时需求答 unavailable。 */
   schemaProvider: () => SchemaProvider | null
-  /** One line for a session work principal that could not be verified. Default: not reported. */
   warn?(text: string): void
 }>
 
 const unavailable = (dependency: string, diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency, diagnostic })
 
-/** 路径在文件根之内（含文件根本身），按文字判断。相对路径按文件根解析。 */
 export function withinRoot(root: string, path: string): boolean {
   const tail = relative(root, resolve(root, path))
   return (
@@ -85,11 +63,6 @@ function missing(error: unknown): boolean {
   return typeof code === 'string' && missingCodes.has(code)
 }
 
-/**
- * 宿主路径的规范形式：最近的存在者取真实路径，再接上其下还不存在的段。真实路径由系统给出：Windows 上是长名，
- * 联接与符号链接都解析到目标。`follow` 为假时，最后一段若是链接本身就不解析它，只解析它所在的目录，所以链接按它
- * 所在的位置判断，链接的语义仍由设施决定。查不了（不是「不存在」的错误）时答 undefined。
- */
 async function canonicalPath(path: string, follow: boolean): Promise<string | undefined> {
   const rest: string[] = []
   let current = path
@@ -113,16 +86,6 @@ async function canonicalPath(path: string, follow: boolean): Promise<string | un
     }
 }
 
-/**
- * 路径相对文件根的位置：`root`（文件根本身）、`inside`、`outside`。相对路径按文件根解析。两条都满足才在根内
- * （R2-D374、R2-D376）：
- * - 位置：不跟随任何链接，路径按段落在根下（`hostSegmentsBelowRoot`，与 Windows 文件后端同一个判断）。Windows 上
- *   根的某段写法不同（8.3 短名、大小写）时按目录项身份比较。`\\?\`、`\\.\`、UNC、别的盘符与 `..` 都不在根下。
- *   经根外的联接指进根内的路径也不在根下：进程按路径的文字解析 `..`，会落到根外。
- * - 对象：路径解析后的真实位置也在根的真实路径内，所以经根内的联接走出根的路径不在根内。`follow` 见
- *   `canonicalPath`。归一失败按根外处理。
- * 这是判断时的事实：判断之后链接仍可被改指，见行页的已知限制。
- */
 export async function placeAgainstRoot(
   root: string,
   path: string,
@@ -145,12 +108,10 @@ function textField(request: object, name: string): unknown {
   return Reflect.get(request, name)
 }
 
-/** 记录里 `name` 字段的值；不是对象时答 null（随后被当成不合格的路径）。 */
 function memberOf(value: unknown, name: string): unknown {
   return typeof value === 'object' && value !== null ? Reflect.get(value, name) : null
 }
 
-/** 文件设施请求里要落在文件根内的值：`path`、`target.path`、`entries[].path`（字段在时）。 */
 function filePathValues(request: object): unknown[] {
   const values: unknown[] = []
   const path = textField(request, 'path')
@@ -165,10 +126,6 @@ function filePathValues(request: object): unknown[] {
   return values
 }
 
-/**
- * 设施请求里的每个路径值（cwd 与文件设施的路径）都是文件根内的字符串路径。cwd 是命令实际运行的目录，链接解析到
- * 目标再判断；文件设施的路径不解析最后一段链接（见 `placeAgainstRoot`）。
- */
 export async function confinedToRoot(
   root: string,
   facility: FacilityKey,
@@ -187,7 +144,6 @@ export async function confinedToRoot(
 
 type NamingResult = Awaited<ReturnType<LocalToolRuntimeInput['environment']['naming']['name']>>
 
-/** 取 `path` 的宿主对象令牌；`ancestor` 时向上找最近的存在者，不越出文件根。 */
 async function nearestToken(
   root: string,
   path: string,
@@ -209,7 +165,6 @@ async function nearestToken(
 
 export type ReleaseEnvironment = Readonly<{
   input: EnvironmentInput
-  /** origin → 原调用（(tenant, call) 的摘要）；只在本运行内，调用结清时删掉，重启后旧 origin 一律不授权。 */
   origins: ReadonlyMap<OriginRef, string>
 }>
 
@@ -226,7 +181,6 @@ export function createReleaseEnvironment(
     commitAttempts: options.commitAttempts,
   })
 
-  /** 本租户会话工作主体的当前资格，用于账本的授权回调。 */
   const currentAccess = async (request: Preparation) => {
     const verdict = await identity.access.guard.qualify({
       principal: request.principal,
@@ -241,7 +195,6 @@ export function createReleaseEnvironment(
         : ('unavailable' as const)
   }
 
-  /** (tenant, call, operation) → 账本视图；`call` 是 (tenant, call) 的摘要，结清时按它删。 */
   const ledgerViews = new Map<string, { call: string; view: ReturnType<typeof openLedgers> }>()
   function openLedgers(request: Preparation) {
     return (async () => {
@@ -265,14 +218,12 @@ export function createReleaseEnvironment(
     const view = openLedgers(request)
     const entry = { call: callKeyOf(request.tenant, request.call), view }
     ledgerViews.set(key, entry)
-    // A failed open is not kept, so a later preparation tries again.
     view.catch(() => {
       if (ledgerViews.get(key) === entry) ledgerViews.delete(key)
     })
     return view
   }
 
-  // A settled call forgets its origins and ledger views: the tables hold calls in flight only.
   holder.settled.add(call => {
     for (const [origin, owner] of origins) if (owner === call) origins.delete(origin)
     for (const [key, entry] of ledgerViews) if (entry.call === call) ledgerViews.delete(key)
@@ -280,7 +231,6 @@ export function createReleaseEnvironment(
   holder.residents.set('origins', () => origins.size)
   holder.residents.set('ledgerViews', () => ledgerViews.size)
 
-  /** The session work principal could not be checked: that is not a refusal, and it is said so. */
   const unverified = (where: string, diagnostic: string): void =>
     options.warn?.(`session work principal not verified for ${where}: ${diagnostic}`)
 
@@ -337,7 +287,6 @@ export function createReleaseEnvironment(
         return fail({ kind: 'denied', action: 'host-machine-placement' })
       return succeed({
         allowedBindings: [{ kind: 'host_machine' }],
-        // Validated against the contract's need schema; an unregistered key is refused at placement.
         facilities: need.ok.facilities as readonly FacilityKey[],
         isolation: need.ok.isolation as readonly IsolationClaim[],
       })

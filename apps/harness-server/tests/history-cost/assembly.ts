@@ -1,8 +1,3 @@
-// The assembly that the history-cost runs drive (C8): the release distribution, real SQLite storage,
-// the `omne` CLI and the local model gateway, all as `rows/tool-runtime/release-tool-delivery.spec.ts`
-// assembles them. The payload comes from the release Shell, which prints a file of its working
-// directory. The server runs in this process, so `sql-probe.ts` sees its statements. One call is one Shell call in a new session, so the Agent's history stays one call
-// long and only the tenant's history grows.
 import {
   mkdirSync,
   mkdtempSync,
@@ -41,7 +36,6 @@ import { createTraversal } from './traversal.ts'
 
 type Op = Readonly<{ kind: string; id: string; config?: Record<string, unknown> }>
 
-/** The payload kind named on the command line. */
 export function payloadKind(value: string | undefined): PayloadKind {
   if (value !== 'inline' && value !== 'text') throw new Error('give a payload kind: inline or text')
   return value
@@ -52,17 +46,11 @@ const setPhase = (value: number) => {
   if (typeof mark === 'function') mark(value)
 }
 
-/** Starts the server and returns what a run needs to drive calls and to end the assembly. */
-/** A change of the operator configuration of one row, for a measurement that varies one setting. */
 export type Tuning = (row: string, config: Record<string, unknown>) => Record<string, unknown>
 
-/** What a measurement other than the new-session call changes in the assembly. */
 export type AssemblyOptions = Readonly<{
-  /** The entry kinds `read-history` answers. Default: only `run.terminal`, which `call` reads. */
   historyKinds?: readonly string[]
-  /** Every record the server writes to its stdout writer: row states and telemetry records. */
   record?: (record: unknown) => void
-  /** The Shell script of each model call that executes. Default: print the payload file. */
   script?: () => string
 }>
 
@@ -71,8 +59,6 @@ export async function startAssembly(
   tune: Tuning = (_row, config) => config,
   options: AssemblyOptions = {},
 ) {
-  // The state lives in a short temporary path (socket paths have a length limit) and is removed at
-  // the end; the evidence goes to the output directory of the run.
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'history-cost-')))
   const stateRoot = join(base, 'state')
   const storageRoot = join(stateRoot, 'storage')
@@ -84,7 +70,6 @@ export async function startAssembly(
     script: options.script ?? PAYLOAD_SCRIPT,
     pageBytes: PAGE_BYTES,
   })
-  // The time the scripted model spends forming its answers: the wait on the model of a call.
   let modelMs = 0
   const gateway = await startModelGateway(request => {
     const started = performance.now()
@@ -116,7 +101,6 @@ export async function startAssembly(
           ...op,
           config: {
             ...config,
-            // A Tools reply fits the inline threshold, or the reply that carries a page offloads again.
             tools: {
               ...tools,
               contentPageBytes: PAGE_BYTES,
@@ -130,8 +114,6 @@ export async function startAssembly(
       if (construction?.['Shell'] !== undefined) {
         const shell = construction['Shell'] as Record<string, unknown>
         writeFileSync(join(String(shell['cwd']), PAYLOAD_FILE), author.body)
-        // The run pins its own Shell bound, apart from the operator layer of the tests, so the
-        // payload and its frame fit whatever that layer gives.
         return {
           ...op,
           config: {
@@ -191,10 +173,6 @@ export async function startAssembly(
     return value
   }
 
-  /**
-   * Null until the only Run of `session` reaches its terminal; then `completed`, or the whole
-   * terminal as text, so a failed call reports its reason.
-   */
   async function terminal(home: string, session: string): Promise<string | null> {
     const response = await fetch(`${server}/session-public/1`, {
       method: 'POST',
@@ -230,24 +208,16 @@ export async function startAssembly(
     server,
     cli,
     model,
-    /** The milliseconds the scripted model has spent forming answers since the assembly started. */
     modelMs: () => modelMs,
     author,
     stderr,
     ready: () => until(() => connectable('127.0.0.1', port), 'the server to listen', 20_000),
 
-    /** Registers the account `name` and logs it in; `home` then holds its tenant and proof. */
     async enrol(home: string, name: string) {
       await cli(home, ['register', '--login-identifier', name], 'history-cost-password-1')
       await cli(home, ['login', '--login-identifier', name], 'history-cost-password-1')
     },
 
-    /**
-     * One Shell call of the tenant of `home` in a new session, as SQL phase `ordinal`: from
-     * `send-input` to the terminal of its Run. With `readBack` the model reads the whole body back
-     * page by page and the digest is checked. `settleMs` keeps the work the call leaves behind (the
-     * release of its delivered values) in its phase.
-     */
     async call(home: string, ordinal: number, options: { readBack: boolean; settleMs: number }) {
       const session = String(
         bodyOf(await cli(home, ['create-session', '--definition', 'coding']))['session'],
@@ -284,10 +254,6 @@ export async function startAssembly(
       return { elapsedMs, pages: result.pages, requests: result.requests }
     },
 
-    /**
-     * Writes to `file`, for every database under the storage root: the bytes of the file with its
-     * write-ahead log, the rows of each table, and the bytes of each table and index.
-     */
     storageSnapshot(file: string) {
       const files: unknown[] = []
       const visit = (dir: string) => {
@@ -330,7 +296,6 @@ export async function startAssembly(
       writeFileSync(file, `${JSON.stringify(files, null, 2)}\n`)
     },
 
-    /** Stops the server and the gateway and removes the state; answers the server's exit code. */
     async close(): Promise<number> {
       controller.abort('history cost run complete')
       const shutdown = await finished

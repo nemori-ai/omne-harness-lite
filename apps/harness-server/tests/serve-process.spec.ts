@@ -1,7 +1,4 @@
 // @module-tag slow
-// 慢：每个用例启动 dist/bin.js 子进程，并装载发行树、真实 SQLite 存储与宿主文件根。
-// `serve` 子命令的进程级验收（DP1-C1、C2、C3、C19）：起 `dist/bin.js serve`，`--stop-on-stdin-close` 发起计划停止，
-// 断言退出码与 stdout JSON 记录。先运行 `pnpm run build`。
 import { execFile, spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -40,7 +37,6 @@ function runBin(args: readonly string[], env: NodeJS.ProcessEnv = {}): Promise<O
   })
 }
 
-/** 起 `serve`，看到 `startup-result` 后关闭 stdin，等进程退出。 */
 function serveUntilStartup(args: readonly string[]): Promise<Outcome> {
   return new Promise(resolve => {
     const child = spawn(process.execPath, [bin, ...args], {
@@ -66,10 +62,6 @@ function serveUntilStartup(args: readonly string[]): Promise<Outcome> {
   })
 }
 
-/**
- * The operator file that the release tree needs: the storage root, the directory file and the port of
- * the entry. Each call makes a fresh state root, so two runs never share a database or a port.
- */
 async function releaseRun(): Promise<{ stateRoot: string; args: string[] }> {
   const stateRoot = join(scratch, `state-${String(runCount++)}`)
   mkdirSync(stateRoot)
@@ -144,8 +136,6 @@ describe('serve process', () => {
       exited,
       new Promise(resolve => setTimeout(() => resolve('alive'), 1500)),
     ])
-    // Snapshot before the cleanup kill: on Linux SIGTERM is a graceful stop and rightly writes
-    // a shutdown-result, which is not part of the "stdin closed does not stop it" window.
     const beforeKill = stdout
     try {
       expect(early).toBe('alive')

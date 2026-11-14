@@ -1,7 +1,3 @@
-// The `assets-access` row loads on the release tree and opens `assets/v1`: the availability
-// observation of the entry's new address lists it, and a real login sets the Shell invoke
-// permission through `/api/assets/v1/set-setting` and then reads the new pick back through
-// `describe-setting`. A login acting for a tenant of another account is denied.
 import { request } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { rowDeclarationOf } from '../../../src/row.ts'
@@ -14,7 +10,6 @@ import { until } from '../server-entry/support.ts'
 
 type Reply = Readonly<{ status: number; json: unknown }>
 
-/** Calls `/api/assets/v1/<operation>` with the release's own login and no acting tenant. */
 function assets(tree: ReleaseTree, operation: string, body: unknown, messageId: string) {
   const text = JSON.stringify(body)
   return new Promise<Reply>((resolve, reject) => {
@@ -53,7 +48,6 @@ type Frame = Readonly<{
   protocols?: readonly Readonly<{ name: string; major: number }>[]
 }>
 
-/** The availability observation, opened without a login; it collects the frames of its events. */
 function openAvailability(port: number) {
   const frames: Frame[] = []
   let buffered = ''
@@ -89,7 +83,6 @@ function openAvailability(port: number) {
   return { frames, close: () => req.destroy() }
 }
 
-/** A tenant text of the same shape whose account is not the login's. */
 function foreignTenant(tenant: string): string {
   const parsed = JSON.parse(tenant) as { organization: string; account: string }
   const last = parsed.account.at(-1) === 'a' ? 'b' : 'a'
@@ -119,7 +112,6 @@ describe('assets-access row', () => {
         } finally {
           availability.close()
         }
-        // The governance runtime of a tenant opens once its transaction domain is published.
         await settledSession(tree, 'hello')
         const tenant = savedTenant(tree.home)
         const item = { tenant, asset: SHELL, item: 'invoke' }

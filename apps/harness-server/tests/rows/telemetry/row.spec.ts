@@ -1,8 +1,3 @@
-// The `telemetry` row in a `serve` tree, in one process: the entry diagnostic facade on the
-// capturing double (A2), the states of the Cordis log bridge (A3, A5, A6, A7, B-5), a record
-// writer that throws (A8), the shutdown step and its report (A9), the disabled implementation
-// (A10, B-5), the factory numbers of the operator layer (A12) and the configuration boundary (A13,
-// B-6). The real `server-entry` row is in `serve.spec.ts`.
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -22,7 +17,6 @@ import { telemetryRowConfig } from '../../../src/rows/telemetry/config.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 import { serveOnce, type ServeRun } from '../../fixtures/serve/harness.ts'
 
-/** Test budgets. They let the row construct; no measurement backs them. */
 const BUDGETS = {
   maxRecordBytes: 65_536,
   maxQueueItems: 1024,
@@ -56,7 +50,6 @@ afterEach(() => {
   for (const dir of scratches.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-/** A row that logs one message of each level while its body runs. */
 function loggingRow(id = 'logging-probe'): Plugin.Object {
   return defineRow({
     row: id,
@@ -76,7 +69,6 @@ function loggingRow(id = 'logging-probe'): Plugin.Object {
   })
 }
 
-/** The `log` records of one logger name, in stdout order. */
 const logsOf = (records: readonly S0Record[], component: string) =>
   records.filter(
     record =>
@@ -154,7 +146,6 @@ describe('A3: the Cordis log bridge in the ready state', () => {
       ['info', 'probe info'],
       ['warn', 'probe warn 7'],
     ])
-    // The runtime, not the bridge, formed them: they carry the run's generation and instance.
     for (const record of logs) {
       expect(record).toMatchObject({
         kind: 'telemetry',
@@ -183,7 +174,6 @@ describe('A5: the bootstrap state when the telemetry row fails', () => {
     expect(run.state('logging-probe')).toMatchObject({ state: 'ACTIVE' })
     const logs = logsOf(run.records, 'logging-probe')
     expect(levelsOf(logs)).toEqual(['error', 'info', 'warn'])
-    // Written by the bridge itself: no generation, no instance.
     for (const record of logs) {
       expect(record).not.toHaveProperty('generation')
       expect(record).not.toHaveProperty('instance')
@@ -194,7 +184,6 @@ describe('A5: the bootstrap state when the telemetry row fails', () => {
 })
 
 describe('A6: the state after the telemetry close', () => {
-  /** A row whose disposer logs a warn: it runs while the root is retired, after the telemetry close. */
   function disposerWarnRow(): Plugin.Object {
     return defineRow({
       row: 'disposer-probe',
@@ -246,7 +235,6 @@ describe('M1: the stderr outlet', () => {
       .map(line => JSON.parse(line) as S0Record)
     expect(levelsOf(logsOf(records, 'logging-probe'))).toEqual(['error', 'info', 'warn'])
     for (const record of records) expect(record).toMatchObject({ kind: 'telemetry' })
-    // The runtime wrote them to stderr: stdout has no log record of the probe.
     expect(logsOf(run.records, 'logging-probe')).toEqual([])
     expect(reportOf(run)).toMatchObject({ kind: 'closed', admitted: 3, transport: 'closed' })
   })
@@ -285,7 +273,6 @@ describe('M4: the close step with the deadline spent', () => {
       shutdownDeadlineMs: 0,
     })
     expect(run.result.exitCode).toBe(0)
-    // The scenario: the coordinator gave up on the close before the file outlet confirmed.
     expect(reportOf(run)).toEqual({ kind: 'unavailable', diagnostic: 'deadline' })
     const logs = logsOf(run.records, 'disposer-probe')
     expect(logs).toHaveLength(1)
@@ -297,7 +284,6 @@ describe('M4: the close step with the deadline spent', () => {
 describe('A7: the bootstrap buffer', () => {
   it('replays into a file outlet with bootstrap: true, and stdout keeps each bootstrap record once', async () => {
     const path = join(scratch(), 'telemetry.jsonl')
-    // The probe loads before the telemetry row, so its messages wait in the bootstrap buffer.
     const run = await serveOnce({
       distribution: tree([PROBE, TELEMETRY(node({ kind: 'file', path }))]),
       plugins: { stubPlugin, probe: loggingRow() },
@@ -363,8 +349,6 @@ describe('A8: a record writer that throws', () => {
     }
     expect(report).toMatchObject({ kind: 'closed', flush: 'failed' })
     expect(report.dropped).toBeGreaterThanOrEqual(3)
-    // The failures never surface as a thrown error or a log record: at most the provider's summary
-    // line for a person, on stderr with the serve prefix, and the stop request.
     expect(stderr.every(line => line.startsWith('serve: '))).toBe(true)
   })
 })
@@ -408,7 +392,6 @@ const probeEvent = defineEvent({
   schema: { n: { kind: 'number', min: 0, max: 100 } },
 })
 
-/** A consumer row that injects `telemetry` and emits `count` events while its body runs. */
 function emittingRow(count: number): Plugin.Object {
   return defineRow({
     row: 'emitting-probe',
@@ -454,11 +437,9 @@ describe('A10: the disabled implementation', () => {
       droppedBy: { disabled: 4 },
       boundary: 'none',
     })
-    // Cordis logs keep the direct path: a disabled telemetry does not make WARN messages vanish.
     expect(levelsOf(logsOf(run.records, 'logging-probe'))).toEqual(['error', 'info', 'warn'])
   })
 
-  /** A row that logs `count` warnings while its body runs. */
   function chattyRow(count: number): Plugin.Object {
     return defineRow({
       row: 'chatty-probe',
@@ -476,7 +457,7 @@ describe('A10: the disabled implementation', () => {
   }
 
   it('B-5: sets the bridge to direct writes, so more messages than the bootstrap buffer holds all reach stdout and none counts as overflow', async () => {
-    const count = 300 // more than TELEMETRY_BOOTSTRAP_RECORDS
+    const count = 300
     const run = await serveOnce({
       distribution: tree([
         TELEMETRY({ implementation: 'disabled' }),
@@ -595,7 +576,6 @@ describe('A13: the row configuration', () => {
     expect(
       telemetryRowConfig.safeParse(node({ kind: 'file', path: 'relative.jsonl' })).success,
     ).toBe(false)
-    // Each implementation has the same three keys and no other: no remote destination field.
     expect(telemetryRowConfig.options.map(option => Object.keys(option.shape))).toEqual([
       ['implementation', 'outlet', 'budgets'],
       ['implementation', 'outlet', 'budgets'],
@@ -633,7 +613,6 @@ describe('A13: the row configuration', () => {
       { implementation: 'node', budgets: BUDGETS },
     ])
       expect(telemetryRowConfig.safeParse(config).success, JSON.stringify(config)).toBe(false)
-    // A given value is still checked.
     expect(
       telemetryRowConfig.safeParse({ implementation: 'disabled', budgets: { maxRecordBytes: 1 } })
         .success,
@@ -680,7 +659,6 @@ describe('A13: the row configuration', () => {
 
 const probeSegment = defineSegment({ owner: 'test', name: 'omne.test.held', version: 1 })
 
-/** A consumer row that holds one segment open for `holdMs` while its body runs, then ends it. */
 function holdingRow(holdMs: number, ends: unknown[]): Plugin.Object {
   return defineRow({
     row: 'holding-probe',

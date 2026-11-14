@@ -1,7 +1,4 @@
 import { modelTokenizersRow } from '../../../src/rows/model-tokenizers/index.ts'
-// The five model-side rows declare exactly the table row of `src/s0/stubs.ts` (names without the S0
-// prefix). `src/cordis.ts` does not export them yet (shared file), so `real-manifests-sync` does not
-// reach them; this check holds the same rule until the export is added.
 import { describe, expect, it } from 'vitest'
 import { serveProfile } from '../../../src/profile.ts'
 import { rowDeclarationOf } from '../../../src/row.ts'

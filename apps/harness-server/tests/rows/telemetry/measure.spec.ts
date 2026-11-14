@@ -1,25 +1,4 @@
 // @module-tag slow
-// The measurement wiring of the two emitting rows (#1140 C8): `session-provider` hands the Session
-// telemetry facade (`measure`, `diagnose`) to its plugin, `agent-host` hands the Agent facade to the
-// runtimes it builds, and both inject `telemetry` (D04: required, so a tree without the row does not
-// serve). W1 and W2 run the release tree in this process with the real rows, a local Model gateway
-// that refuses every call (R2-D258) and the `omne` CLI as a process, as `tests/r9/arrival.spec.ts`
-// does; one input starts one Run, and the stdout records then carry the Session operation segments
-// and the Agent pass segment of that tenant. W3 removes `session-ad14` from the tree, so the Run's
-// invoke finds no Agent drive port and the coordinator reports `agent-absent`. W4 and W5 load each
-// row alone: without `telemetry` it stays PENDING, over the disabled implementation it is ACTIVE.
-// W6 loads the real `session-provider` over the node implementation and makes the three directory
-// reads of the recovery scanner: `pending` writes segments of its tenant, `references` and
-// `releasedScopes` segments of the system scope, and the close report counts no `invalid` drop. A
-// probe row then hands the test the port, and a Session segment without a tenant goes through the
-// facade to `discard`, which the close report counts under `droppedBy.invalid` (TC-4).
-// G3 writes through the application's own record writer (`recordLineWriter`, the one `bin.ts`
-// gives `process.stdout`) into a byte stream: a record with an `Error` object or a secret-like
-// text in a field that is not a reference is refused as `dropped(invalid)`, counted in
-// `shutdown-result`, and its text is nowhere in the bytes. G7 lets the Model double answer with a
-// text, so the Run of the release tree reaches its terminal entry; every segment start of the run
-// has its end, and with a short `maxSegmentLifetimeMs` the close report would count a segment
-// still open at close under `droppedBy.expired`.
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { Writable } from 'node:stream'
@@ -103,15 +82,11 @@ const named = (records: readonly S0Record[], name: string, signal: string) =>
   telemetryOf(records).filter(record => record['name'] === name && record['signal'] === signal)
 
 type ReleaseOptions = Readonly<{
-  /** The Model double's answers. Default: every call is refused. */
   answer?: GatewayScript
-  /** Budgets added to the `telemetry` row of the test operator layer. */
   budgets?: Readonly<Record<string, number>>
-  /** Lets `server-entry` serve the Run entries of the history, so a test can see `run.terminal`. */
   runEntries?: boolean
 }>
 
-/** The test operator layer, with the changes of `options` to its `telemetry` and `server-entry` rows. */
 function releaseOperator(
   layerOptions: Parameters<typeof operatorLayer>[0],
   options: ReleaseOptions,
@@ -136,11 +111,6 @@ function releaseOperator(
   }
 }
 
-/**
- * Runs the release tree in this process, with the real rows of `./cordis`, and gives `scenario` the
- * CLI. `omit` leaves rows out of the distribution. The Model route is the local gateway: by default
- * every call is refused, so the Run that an input starts ends the same way each time.
- */
 async function withRelease<T>(
   omit: readonly string[],
   scenario: (tools: Tools) => Promise<T>,
@@ -203,7 +173,6 @@ async function withRelease<T>(
   }
 }
 
-/** Registers and logs in, creates a session and sends one input, which starts one Run. */
 async function oneRun(tools: Tools): Promise<{ session: string; tenantText: string }> {
   for (const step of [
     await tools.cli(['register', '--login-identifier', 'alice'], CREDENTIAL),
@@ -223,7 +192,6 @@ function scopeOf(tenantText: string) {
   if (!tenant.ok) throw new Error('the saved tenant does not parse')
   const encoded = actingScopeCodec.encode(tenantScope(tenant.value))
   if (!encoded.ok) throw new Error('the tenant scope does not encode')
-  // The codec gives the JSON text; a record carries the object.
   return { tenant: tenant.value, scope: JSON.parse(encoded.value) as unknown }
 }
 
@@ -234,10 +202,6 @@ describe('W1, W2: one Run of the release tree', () => {
     async () => {
       const { value, run } = await withRelease([], async tools => {
         const started = await oneRun(tools)
-        // The Run of this tree does not reach its terminal entry: after the refused Model call the
-        // coordinator's `receive` fails and the Run stays active, so a stop finds the execution in
-        // its slot and the ordered shutdown is incomplete (R2-D173). This test observes the records;
-        // it waits for the Agent pass and the Session accept to end, then stops.
         await until(
           () =>
             named(tools.records, 'omne.agent.pass.run', 'segment-end').length > 0 &&
@@ -251,14 +215,11 @@ describe('W1, W2: one Run of the release tree', () => {
         accepting: true,
         outcome: 'ready',
       })
-      // The runtime closed and drained to the outlet, so the records below are the whole output.
       expect(run.records.find(record => record.kind === 'shutdown-result')).toMatchObject({
         telemetry: { kind: 'closed' },
       })
       const { tenant, scope } = scopeOf(value.tenantText)
 
-      // W1: the Session segments are owner `session`, scoped to the tenant, and name the session as
-      // the work; the Agent pass segment is owner `agent`, scoped to the same tenant.
       const sessionEnds = run
         .telemetry()
         .filter(
@@ -280,7 +241,6 @@ describe('W1, W2: one Run of the release tree', () => {
         expect(record).toMatchObject({ owner: 'agent', component: 'agent', scope })
       }
 
-      // W2: the stdout records, as lines, summarize per operation with a count and p50/p95.
       const summary = summarizeTelemetry(
         run.telemetry().map(record => JSON.stringify(record)),
         { tenant },
@@ -324,7 +284,6 @@ describe('W3: the Session diagnostic reaches the outlet', () => {
           work: { owner: SESSION_OWNER, ref: value.session },
           fields: { owner: 'C2', step: 'invoke', reason: 'agent-absent' },
         })
-        // The member's detail text is not projected (P3).
         expect(Object.keys(record['fields'] as object).sort()).toEqual(['owner', 'reason', 'step'])
         expect(JSON.stringify(record)).not.toContain('drive port is absent')
       }
@@ -396,10 +355,8 @@ describe('W4, W5: the `telemetry` row is required, and disabled is present', () 
   })
 })
 
-/** The row id of the W6 probe that hands the test the `telemetry` port of its tree. */
 const PORT_PROBE = 'telemetry-port-probe' as RowId
 
-/** A row that injects `telemetry` and hands its port to `seen`, so a test can measure over it. */
 function portProbeRow(seen: (port: TelemetryPort) => void): Plugin.Object {
   return defineRow({
     row: PORT_PROBE,
@@ -416,7 +373,6 @@ function portProbeRow(seen: (port: TelemetryPort) => void): Plugin.Object {
   })
 }
 
-/** The JSON form a record carries for `scope`: the text of `actingScopeCodec.encode`, parsed. */
 function recordScope(scope: ActingScope): unknown {
   const encoded = actingScopeCodec.encode(scope)
   if (!encoded.ok) throw new Error('the scope does not encode')
@@ -446,16 +402,12 @@ describe('W6: the directory reads of the scanner, and a record without a tenant'
       live.push(() => tree.dispose())
       expect(tree.state('session-provider')).toMatchObject({ state: 'ACTIVE', missing: [] })
 
-      // The recovery scanner's reads: `pending` names its tenant; the other two are system scope
-      // in the contract (session-contract `SessionReconciliation`).
       const maintainer: SessionService<unknown> | undefined = tree.root.intercept(sessionKey, {
         caller: 'maintainer',
       }).session
       if (maintainer === undefined) throw new Error('the tree provides no session')
       const organization = 'org_app8c0pr0v1der000000000000'
       const tenant = testingTenant(organization, 'acc_app8c0pr0v1der000000000000')
-      // The storage answers for a tenant nobody registered; the read ran through the measurer
-      // either way, and only the row's own refusal (`denied`) would have stopped it before that.
       const pending = await maintainer.reconciliation.pending({
         principal: 'maintenance',
         tenant,
@@ -477,8 +429,6 @@ describe('W6: the directory reads of the scanner, and a record without a tenant'
         limit: 10,
       })
 
-      // The application closes the runtime before the fibers end (`run.ts`, after the storage
-      // phase); ending the fiber first would close it with no time to drain the six records.
       const report = await telemetry.close(1000)
       await tree.shutdown()
       if (report.kind !== 'closed') throw new Error(`telemetry close: ${report.kind}`)
@@ -503,7 +453,6 @@ describe('W6: the directory reads of the scanner, and a record without a tenant'
         if (name === 'omne.session.pending') expect(record['scope']).toEqual(tenantScoped)
         else {
           expect(record['scope']).toEqual(systemScoped)
-          // A fact of the service carries no tenant identity (TC-4).
           expect(JSON.stringify(record)).not.toContain(organization)
         }
       }
@@ -532,8 +481,6 @@ describe('W6: the directory reads of the scanner, and a record without a tenant'
       live.push(() => tree.dispose())
       if (port === undefined) throw new Error('the probe row did not run')
 
-      // The Session facade the row builds, over the same port: a segment with neither a tenant nor
-      // the system scope is tenant work without its tenant, so it is not written (TC-4).
       const { measure } = createSessionTelemetry(port, { instance: processInstance })
       measure({
         kind: 'segment',
@@ -563,7 +510,6 @@ describe('W6: the directory reads of the scanner, and a record without a tenant'
   )
 })
 
-/** The bytes a stream received, in order. */
 function byteSink(): Readonly<{ stream: Writable; bytes(): Buffer }> {
   const chunks: Buffer[] = []
   const stream = new Writable({
@@ -609,7 +555,6 @@ describe('G3: a record with an error object or a secret-like text, through the r
               component: 'g3-probe',
               instance: processInstance,
             })
-            // The field is an enum, not a reference: a value outside it is refused whole.
             answers.push(
               emitter.event(g3Event, { code: new Error(SECRET) as never }),
               emitter.event(g3Event, { code: `Bearer ${SECRET}` as never }),
@@ -638,7 +583,6 @@ describe('G3: a record with an error object or a secret-like text, through the r
       expect(bytes.at(-1)).toBe(0x0a)
       const lines = bytes.toString('utf8').split('\n').slice(0, -1)
       const records = lines.map(line => JSON.parse(line) as S0Record)
-      // The positive control: the valid record of the same definition was written.
       expect(named(records, 'omne.test.g3', 'event').map(record => record['fields'])).toEqual([
         { code: 'fault' },
       ])
@@ -650,11 +594,9 @@ describe('G3: a record with an error object or a secret-like text, through the r
   )
 })
 
-/** One SSE body: the events, then `[DONE]`. */
 const sse = (events: readonly unknown[]): string =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
 
-/** Every Model call is answered with one short text, so a Run ends with its terminal entry. */
 const textAnswer: GatewayScript = ({ body }) => ({
   status: 200,
   contentType: 'text/event-stream',
@@ -668,7 +610,6 @@ const textAnswer: GatewayScript = ({ body }) => ({
   ]),
 })
 
-/** The segment starts that have no end with the same trace and span. */
 function unended(records: readonly S0Record[]): S0Record[] {
   const key = (record: S0Record) => `${String(record['trace'])}/${String(record['span'])}`
   const ends = new Set(
@@ -681,13 +622,8 @@ function unended(records: readonly S0Record[]): S0Record[] {
   )
 }
 
-/**
- * Long enough for every segment of one Run. A segment that stays open outlives it while the test
- * waits for the ends, so the wait times out and the close report would count it under `expired`.
- */
 const G7_SEGMENT_LIFETIME_MS = 5000
 
-/** The Run of a `run.terminal` entry in the `--json` history, with its outcome; undefined before it. */
 function terminalOf(history: string): { run: string; outcome: string } | undefined {
   try {
     const parsed = JSON.parse(history) as {
@@ -719,8 +655,6 @@ describe('G7: the segment pairs of a real Run are released when the Run ends', (
             'the Run to reach its terminal entry (run.terminal in the history)',
             60_000,
           )
-          // The segments still in flight end within this wait; it returns as soon as every start
-          // written so far has its end. A segment that stays open never has one.
           await until(
             () => unended(tools.records).length === 0,
             'every segment start of the run to have its end',
@@ -738,8 +672,6 @@ describe('G7: the segment pairs of a real Run are released when the Run ends', (
       const runId = value.terminal?.run ?? ''
       expect(runId).toMatch(/^run_/)
 
-      // The segments of the Run: the Agent passes name it as their attempt, and the Session
-      // operations that start and feed it ran in this tree.
       const starts = telemetryOf(run.records).filter(r => r['signal'] === 'segment-start')
       const passes = starts.filter(
         record =>
@@ -750,18 +682,14 @@ describe('G7: the segment pairs of a real Run are released when the Run ends', (
         expect.arrayContaining(['omne.session.accept', 'omne.session.startRun']),
       )
 
-      // The provider's count: no place was still held at the close.
       const report = run.records.find(record => record.kind === 'shutdown-result')?.['telemetry']
       expect(report).toMatchObject({ kind: 'closed', pending: 0, flush: 'completed-to-boundary' })
       const droppedBy = (report as { droppedBy: Readonly<Record<string, number>> }).droppedBy
       expect(droppedBy).not.toHaveProperty('expired')
       expect(droppedBy).not.toHaveProperty('capacity')
-      // The records: each start has the end of the same trace and span.
       expect(unended(run.records)).toEqual([])
       const ends = telemetryOf(run.records).filter(r => r['signal'] === 'segment-end')
       expect(ends).toHaveLength(starts.length)
-      // Every record the runtime admitted reached stdout: the runtime writes the generation on
-      // each record it forms, and the bridge's direct writes carry none.
       expect((report as { admitted: number }).admitted).toBe(
         telemetryOf(run.records).filter(record => 'generation' in record).length,
       )

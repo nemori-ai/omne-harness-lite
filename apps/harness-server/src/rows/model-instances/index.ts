@@ -1,7 +1,3 @@
-// The `model-instances` row: model-host-local `ModelInstancesLocalPlugin`, the one instance
-// directory. It injects `modelPublicationAuthority`, which an entry object of the assembly provides
-// (application assembly, runtime objects). Without it the row stays PENDING and names the key. It
-// has no shutdown phase and no configuration.
 import {
   modelInstancesKey,
   modelPublicationAuthorityKey,

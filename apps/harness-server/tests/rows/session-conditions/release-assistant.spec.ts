@@ -1,12 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程。先构建 `apps/cli`（`pnpm turbo run build --filter
-// "@omne-harness/cli..."`）。
-// 发行的 `assistant` 映射带初始模型选择（R2-D236）。没有它时，会话没有保存的模型选择，`session-conditions` 对 Agent 的
-// 每次 `read` 都答 `unavailable`，Run 停在 E2。用例在发行树里用 `assistant` 建会话、发一条输入，观察 Agent 对
-// `agentConditions` 的读取答复：发行映射下第一次读取就成功。同一棵树只去掉这个字段时，接入在调用 Session 之前就拒绝
-// `create-session`（`basis-unavailable`，server-entry SPEC 第 5 步，R2-D236），没有会话，也就没有一次读取。
-// 观察的做法：本用例把 `session-conditions` 行换成同一组合（`createSessionConditionsPlugin` 加 `defaultModesOf`）外面
-// 多一层记录答复的服务，行清单与发行行相同。它不证明后续步骤（I1 之后）能走通。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Context, Plugin } from '@deepseek-ai/cordis'
@@ -34,7 +26,6 @@ type Distribution = { rows: { id: string; config: { mappings?: Mapping[] } }[] }
 
 const INJECTS = [definitionMappingsKey, sessionKey, storageKey, tenantDomainLookupKey]
 
-/** The release composition of the row, with every `read` answer recorded in `answers`. */
 function observedConditionsRow(answers: Answer[]) {
   class Observed extends CurrentConditionsService<unknown> {
     readonly read: CurrentConditions<unknown>['read']
@@ -82,7 +73,6 @@ function assistantOf(distribution: Distribution): Mapping {
   return assistant
 }
 
-/** The release with the assistant mapping's initial model selection removed. */
 function withoutInitialSelection(): Distribution {
   const copy = structuredClone(release)
   delete assistantOf(copy).initialModelSelection
@@ -94,18 +84,12 @@ type Round = Readonly<
   | { created: false; status: number | null; outcome: unknown; reads: readonly Answer[] }
 >
 
-/**
- * Creates an `assistant` session in the tree of `distribution`, sends one input, returns the first
- * read answer. A `create-session` that does not succeed returns its exit status and outcome, and the
- * reads recorded by then.
- */
 async function firstConditionsRead(distribution: Distribution): Promise<Round> {
   const dir = newScratch('release-assistant-')
   const port = await freePort()
   const home = join(dir.base, 'home')
   const controller = new AbortController()
   const answers: Answer[] = []
-  // The Model calls go to a local gateway, never to a real supplier (R2-D258).
   const gateway = await startModelGateway()
   gateway.trustInProcess()
   const finished = runServe({
@@ -174,7 +158,6 @@ describe('the release assistant definition has an initial model selection (R2-D2
     'without the initial model selection the same tree refuses create-session as basis-unavailable, before Session reads anything',
     { timeout: 120_000 },
     async () => {
-      // Exit 4 is the CLI's code for `basis-unavailable`; no session exists, so no read happened.
       expect(await firstConditionsRead(withoutInitialSelection())).toEqual({
         created: false,
         status: 4,

@@ -1,4 +1,3 @@
-// `identityClock` 入口对象：identity `./cordis` 的时钟定义（R1-D27），读宿主系统时间。用例经服务键调用。
 import { describe, expect, it } from 'vitest'
 import { IdentityClockService, identityClockKey } from '@omne-harness/identity/cordis'
 import { compareInstants, encodeInstant, parseInstant } from '@omne-harness/utc-instant'

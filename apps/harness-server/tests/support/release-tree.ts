@@ -1,10 +1,3 @@
-// 发行树端到端的共用支架：本进程装发行树（真实 SQLite、真实 Tool 与 Agent 宿主、真实 Identity），模型走本进程的
-// 脚本网关，每条 CLI 命令起一个 `omne` 子进程（先构建 `apps/cli`）。场景只给网关脚本与断言。
-// 支架提供：起停服务、注册与登录一个用户、再登录一次、建会话并送一条输入、读会话历史、读 Tool 的耐久记录、经进程内的
-// HITL 应用列卡，以及经 HITL 位置（`/hitl-public/1`）的真实 HTTP 往返。停服后答服务的退出码。入口对象 `toolClock` 被包一层，只为取得本次运行
-// 的入口环境、Tool 决策方的共享状态、Tool 运行时服务与 Session 服务，树的其余部分不变。卡片的受众是发行注入的规则，场景可以换掉它。
-// 公开契约没有归档会话的操作，所以归档经进程内 Session 服务的 `work.control`，主体是该会话的会话工作主体。
-// 场景可以换掉 Tool 队列的容量（运维者层 `tool-records` 行的 `queueCapacity`）。
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -51,11 +44,6 @@ import {
 } from '../r9/support.ts'
 import { connectable, until } from '../rows/server-entry/support.ts'
 
-/**
- * The release distribution. `modes` replaces modes of the `coding` definition when given: the
- * permission mode, for a scenario that must not stop at the permission inquiry; the collaboration
- * mode, for a scenario of a session that does not ask a person.
- */
 export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   const distribution = JSON.parse(
     readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
@@ -80,10 +68,6 @@ const sse = (events: readonly unknown[]): string =>
 
 export type ScriptedToolCall = Readonly<{ id: string; tool: string; arguments: string }>
 
-/**
- * A gateway script: a request without a tool result answers with the calls that `pick` gives for
- * the request body (none: the text `done`); a request that has a tool result answers with `done`.
- */
 export function toolCallsThenText(
   pick: (body: string) => readonly ScriptedToolCall[],
 ): GatewayScript {
@@ -125,7 +109,6 @@ export function toolCallsThenText(
   }
 }
 
-/** The operator layer with `read-history` listing the tool messages and the Run boundaries too. */
 function withHistoryKinds(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
@@ -149,7 +132,6 @@ function withHistoryKinds(layer: unknown): unknown {
   }
 }
 
-/** The operator layer with the Tool queue capacity replaced, when `capacity` is given. */
 function withQueueCapacity(layer: unknown, capacity: number | undefined): unknown {
   if (capacity === undefined) return layer
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
@@ -165,7 +147,6 @@ function withQueueCapacity(layer: unknown, capacity: number | undefined): unknow
   }
 }
 
-/** The operator layer with the `session-observation` row given `policy`, when it is given. */
 function withObservationPolicy(
   layer: unknown,
   policy: Readonly<Record<string, number>> | undefined,
@@ -175,12 +156,6 @@ function withObservationPolicy(
   return { ops: [...ops, { kind: 'replace', id: 'session-observation', config: { policy } }] }
 }
 
-/**
- * The operator layer with the Agent's reconciliation delay at 50 ms. The shared test layer sets it
- * to 0, and an execution that waits then runs again at once, some 200 times a second. The scenarios
- * here wait for a person for seconds, in several sessions at a time: the store load of that spin is
- * not what they examine. The release value starts at 1000 ms and grows while nothing changes.
- */
 function withAgentWaitInterval(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
@@ -225,7 +200,6 @@ export async function history(
   return (JSON.parse(answer.body) as { body: { entries: Entry[] } }).body.entries
 }
 
-/** The SQLite files under `storageRoot`. */
 function sqliteFiles(storageRoot: string): string[] {
   const files: string[] = []
   const walk = (dir: string) => {
@@ -239,14 +213,8 @@ function sqliteFiles(storageRoot: string): string[] {
   return files
 }
 
-/** One row of the Tool ledger as SQLite holds it: the domain it belongs to and its record. */
 type LedgerRow = Readonly<{ kind: string; name: string; record: Record<string, unknown> }>
 
-/**
- * The Tool ledger rows of every tenant domain under `storageRoot`. The store keeps a record as
- * packed text, and the fixed request of a call record in a column of its own: both are read back
- * the way the store reads them.
- */
 function ledgerRows(storageRoot: string): readonly LedgerRow[] {
   const rows: LedgerRow[] = []
   const unpacked = (value: unknown) => JSON.parse(unpackText(value as Uint8Array)) as unknown
@@ -276,7 +244,6 @@ function ledgerRows(storageRoot: string): readonly LedgerRow[] {
   return rows
 }
 
-/** The durable Tool records of the tenant domain: call states and queue entries, read from SQLite. */
 export function toolRecords(storageRoot: string): Readonly<{ phases: string[]; stages: string[] }> {
   const phases: string[] = []
   const stages: string[] = []
@@ -294,12 +261,10 @@ export function toolRecords(storageRoot: string): Readonly<{ phases: string[]; s
   return { phases, stages }
 }
 
-/** One Tool call of the tenant domain, as SQLite holds it, with its queue entry while it has one. */
 export type ToolCallRow = Readonly<{
   call: string
   tool: string
   phase: string
-  /** The queue entry: its domain (the concurrency scope), ordinal, stage and scope budget. */
   entry: Readonly<{
     domain: string
     ordinal: string
@@ -308,7 +273,6 @@ export type ToolCallRow = Readonly<{
   }> | null
 }>
 
-/** The Tool calls of the tenant domain, read from SQLite, in the order of their queue ordinal. */
 export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
   const calls = new Map<string, { tool: string; phase: string }>()
   const entries = new Map<string, NonNullable<ToolCallRow['entry']>>()
@@ -340,27 +304,17 @@ export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
     .sort((left, right) => Number(left.entry?.ordinal ?? 0) - Number(right.entry?.ordinal ?? 0))
 }
 
-/** One Tool call as its call domain holds it: the state, its waits, its open duties and its release. */
 export type ToolCallLedger = Readonly<{
   call: string
   tool: string
   phase: string
-  /** The kind of the terminal of a settled call, else null. */
   terminal: string | null
-  /** The kind of the physical execution: `suspended` while no resume segment started. */
   execution: string
-  /** The waits of the call, each with its phase and, once closed, its cause. */
   waits: readonly Readonly<{ phase: string; cause: string | null }>[]
-  /** The duties of the call that are still there: the kind, and the action of a wait duty. */
   tasks: readonly string[]
-  /**
-   * The entry of the call was released: the call settled with a released queue position and the
-   * queue domain holds no entry of it. A release deletes the entry and writes nothing else.
-   */
   released: boolean
 }>
 
-/** The Tool calls of the tenant domain with their waits and duties, read from SQLite. */
 export function toolLedger(storageRoot: string): readonly ToolCallLedger[] {
   const rows = ledgerRows(storageRoot)
   const queued = new Set(
@@ -406,7 +360,6 @@ export function toolLedger(storageRoot: string): readonly ToolCallLedger[] {
   })
 }
 
-/** HITL 位置的路径（承载绑定表）。 */
 export const HITL_PATH = '/hitl-public/1'
 const HITL_LIMITS = {
   maxBytes: 4_194_304,
@@ -417,7 +370,6 @@ const HITL_LIMITS = {
   maxNumberLength: 100,
 }
 
-/** 一次 HITL 位置的往返：状态、响应头（不含 `date`）、正文字节，以及按公开契约读出的响应。 */
 export type HitlExchange = Readonly<{
   status: number
   headers: readonly (readonly [string, string])[]
@@ -425,10 +377,6 @@ export type HitlExchange = Readonly<{
   response: HitlResponse<HitlOperation> | undefined
 }>
 
-/**
- * 经真实 HTTP 送一条 HITL 请求。请求按公开契约编码，响应按公开契约读取，与 SDK 的 `createHitlClient` 用同一对编解码函数。
- * `date` 头随秒变化，不进比较。
- */
 export async function hitlPublic(port: number, request: HitlRequest): Promise<HitlExchange> {
   const encoded = encodeHitlRequest({ request, limits: HITL_LIMITS })
   if (encoded.kind !== 'encoded')
@@ -453,37 +401,24 @@ export async function hitlPublic(port: number, request: HitlRequest): Promise<Hi
   }
 }
 
-/** The Tool runtime service of the release, over the release's content blocks. */
 export type ReleaseToolRuntime = ToolRuntime<unknown, ToolMessageContentBlock>
 
 export type ReleaseTree = Readonly<{
   port: number
   home: string
   storageRoot: string
-  /** The entry environment of the run: the narrow issuer views of `src/entry/principals.ts` take it. */
   env: EntryEnv
-  /** The context the entry object `toolClock` was installed on: a scenario reads root services from it. */
   scope: Context
-  /** The shared state of the Tool decision owner over HITL (`rows/tool-hitl`). */
   hitl: ToolHitlHolder
-  /** The Tool runtime service of the run, as the Agent host reads it; a scenario may wrap `invoke`. */
   toolRuntime(): ReleaseToolRuntime
   records: readonly S0Record[]
   cli(args: readonly string[], credential?: string): ReturnType<typeof runOmne>
-  /** Logs the same user in once more and answers the new login proof; the CLI then uses it. */
   relogin(): Promise<string>
-  /** Creates a session of `definition` (default `coding`), sends it one input, answers its id. */
   startSession(text: string, definition?: string): Promise<string>
-  /** The registering principal of the decision owner for the logged-in tenant. */
   registrar(): Readonly<{ tenant: TenantId; principal: ActingForTenantPrincipal }>
-  /** The cards that the registering principal reads in the pool, with the given filter. */
   cards(
     filter?: Readonly<{ sessionRef?: string; states?: readonly string[] }>,
   ): Promise<readonly PoolItem[]>
-  /**
-   * Archives `session` through the in-process Session service, as the session work principal of the
-   * session; answers what `work.control` answers.
-   */
   archive(session: string): ReturnType<SessionService['work']['control']>
 }>
 
@@ -492,18 +427,10 @@ export type ReleaseTreeOptions = Readonly<{
   permission?: string
   collaboration?: 'co-work' | 'auto-drive'
   audience?: (registrar: string) => HitlAudience
-  /** Replaces the `queueCapacity` of the Tool runtime (the `tool-records` row of the operator layer). */
   queueCapacity?: number
-  /** The refresh policy of the `session-observation` row, as its operator configuration. */
   observationPolicy?: Readonly<Record<string, number>>
 }>
 
-/**
- * Starts the release tree with `script`, registers and logs in one user, runs `body`, then stops.
- * `audience` replaces the readers and responders of HITL cards that the release injects (the entry
- * principal of the tenant); it gets the reference of the registering principal of the decision owner.
- * Answers the exit code of the stopped service, or undefined when the service did not finish.
- */
 export async function onReleaseTree(
   options: ReleaseTreeOptions,
   body: (tree: ReleaseTree) => Promise<void>,
@@ -512,12 +439,6 @@ export async function onReleaseTree(
   return exitCode
 }
 
-/**
- * Starts the release tree once per body on the same state root, storage root, port and home, and
- * stops it after each body. The first run registers and logs in one user; the later runs use the
- * login that the first saved. Answers the exit code of each stop, in order. The state is removed
- * after the last run.
- */
 export async function onReleaseTreeRuns(
   options: ReleaseTreeOptions,
   bodies: readonly ((tree: ReleaseTree) => Promise<void>)[],
@@ -547,7 +468,6 @@ type ReleaseState = Readonly<{
   modelRoute: string
 }>
 
-/** One start and stop of the release tree on `state`; `register` registers and logs in the user. */
 async function serveOnce(
   options: ReleaseTreeOptions,
   state: ReleaseState,
@@ -704,7 +624,6 @@ async function serveOnce(
   return exitCode
 }
 
-/** Polls `read` until `done` holds for its value, for at most two minutes; answers the value. */
 export async function pollUntil<T>(
   what: string,
   read: () => T | Promise<T>,
@@ -718,7 +637,6 @@ export async function pollUntil<T>(
   return value
 }
 
-/** The texts of the text blocks in a value, in order. */
 function textsOf(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(textsOf)
   if (typeof value !== 'object' || value === null) return []
@@ -727,13 +645,11 @@ function textsOf(value: unknown): string[] {
   return Object.values(record).flatMap(textsOf)
 }
 
-/** The result texts of the tool messages in a history, one per tool message. */
 export const toolResults = (entries: readonly Entry[]): string[] =>
   entries
     .filter(entry => entry.kind === 'message.tool')
     .map(entry => textsOf(entry.payload).join('\n'))
 
-/** Answers the one pending card of `session` with own words `text` through the CLI. */
 export async function answerCard(tree: ReleaseTree, session: string, text: string): Promise<void> {
   const [item] = await pollUntil(
     'the card of the session',
@@ -757,7 +673,6 @@ export async function answerCard(tree: ReleaseTree, session: string, text: strin
   expect(answered.status, answered.stderr).toBe(0)
 }
 
-/** Reads the history of `session` as the logged-in user. */
 export function historyOf(tree: ReleaseTree, session: string): Promise<readonly Entry[]> {
   return history(tree.port, tree.home, session)
 }

@@ -99,7 +99,6 @@ it('does not start maintenance when entry-object installation fails', async () =
     ],
     readinessTimeoutMs: 30,
     shutdownDeadlineMs: 100,
-    // A run that passes the checks takes the lock of its state directory, so it must exist.
     stateRoot,
     stop: AbortSignal.abort(),
     write: vi.fn(),

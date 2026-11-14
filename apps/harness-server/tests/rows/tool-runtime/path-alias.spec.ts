@@ -1,7 +1,3 @@
-// 文件根守卫：同一目录的不同写法是同一位置（R2-D374），但两条都满足才在根内（R2-D376）：位置不经任何链接落在根下，
-// 解析后的对象也在根的真实路径内。Windows 真实文件系统：8.3 短名取自 `cmd` 的 `%~sI`。本机取不到与长名不同的短名时
-// （卷关闭了 8.3 生成），依赖短名的用例跳过并写明原因，不算通过；不在 Windows 上整组跳过。
-// 负控：根外目录的长名与短名、`..` 越界、根内指向根外的联接、根外指向根内的联接、`\\?\`、`\\.\`、UNC 与别的盘符。
 // 整组不用 `describe.runIf`：分层的 preParse 静态读用例，读不懂它会把整个文件滤掉。
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -15,12 +11,9 @@ const backslash = String.fromCharCode(92)
 
 describe('the files root guard on Windows (R2-D374, R2-D376)', () => {
   let base = ''
-  /** The long and the short spelling of the workspace, of a child of it, and of a sibling outside it. */
   let long = { root: '', child: '', outside: '' }
   let short = { root: '', child: '', outside: '' }
-  /** `<outside>\to-ws`: a junction outside the root that points at the child. */
   let outsideToIn = ''
-  /** `<base>\ws-link`: a junction beside the root that points at the root. */
   let linkRoot = ''
   let aliased = false
 
@@ -113,7 +106,6 @@ describe('the files root guard on Windows (R2-D374, R2-D376)', () => {
       for (const root of [long.root, short.root]) {
         expect(await confinedToRoot(root, 'command', { cwd: link })).toBe(false)
         expect(await confinedToRoot(root, 'files', { path: join(link, 'x.txt') })).toBe(false)
-        // The link itself lies inside the root: the files facility decides what an operation on it does.
         expect(await confinedToRoot(root, 'files', { path: link })).toBe(true)
       }
     } finally {
@@ -121,7 +113,6 @@ describe('the files root guard on Windows (R2-D374, R2-D376)', () => {
     }
   })
 
-  // A process started in `<outside>\to-ws` resolves `..` by the text of its directory, outside the root.
   it('a junction outside the root that points into it is refused as cwd and as a Files path', async () => {
     for (const root of [long.root, short.root]) {
       expect(await confinedToRoot(root, 'command', { cwd: outsideToIn })).toBe(false)
@@ -146,7 +137,6 @@ describe('the files root guard on Windows (R2-D374, R2-D376)', () => {
   })
 
   it('a root that is a junction: its real path is the root, and its own spelling names itself', async () => {
-    // `serve` gives the rows the real path of the workspace; the guard then judges the real names.
     const real = realpathSync.native(linkRoot)
     expect(real.toLowerCase()).toBe(long.root.toLowerCase())
     expect(await placeAgainstRoot(real, real, true)).toBe('root')
@@ -154,11 +144,9 @@ describe('the files root guard on Windows (R2-D374, R2-D376)', () => {
       true,
     )
     expect(await confinedToRoot(real, 'command', { cwd: join(real, 'tank-battle') })).toBe(true)
-    // A name through the junction is a path through a link outside the real root.
     expect(await confinedToRoot(real, 'command', { cwd: join(linkRoot, 'tank-battle') })).toBe(
       false,
     )
-    // A root configured as the junction itself still names the root and what lies below it.
     expect(await placeAgainstRoot(linkRoot, linkRoot, false)).toBe('root')
     expect(await placeAgainstRoot(linkRoot, linkRoot, true)).toBe('root')
     expect(

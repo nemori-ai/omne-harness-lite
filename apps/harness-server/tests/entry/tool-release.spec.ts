@@ -1,5 +1,3 @@
-// 发行内置 Tool 的来源权威与登记者（B3-T2a 第 2、3 项）：`verify` 只认与受信快照全等的官方来源，`admits`
-// 只认本运行签发的发行登记者，快照只在清单与已安装产物全等时受信。每条用例只违反一项。
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -124,7 +122,6 @@ describe('the startup warning', () => {
       const logged = warnings(fixture)
       expect(logged).toHaveLength(1)
       expect(logged[0]?.args).toContain('artifacts differ from the manifest')
-      // Still fail closed.
       expect(fixture.authority.verify(authorityOf(fixture.manifest, 'Shell'))).toMatchObject({
         failure: { kind: 'unavailable' },
       })
@@ -147,7 +144,6 @@ describe('toolContributionAuthority.admits', () => {
     expect(
       authority.admits({ principal: residency, tenant: registrant.tenant }, { kind: 'official' }),
     ).toEqual(fail({ kind: 'denied' }))
-    // A copy of the registrant principal is not the issued object.
     expect(
       authority.admits(
         { principal: { ...(registrant.principal as object) }, tenant: registrant.tenant },
@@ -194,7 +190,6 @@ describe('the startup snapshot', () => {
     try {
       const trusted = await releaseFrom(exact.root)()
       expect(trusted).toMatchObject({ kind: 'trusted' })
-      // The modules come from the checked copy itself, not from a second resolution of the package name.
       if (trusted.kind !== 'trusted') throw new Error('unreachable')
       expect(trusted.modules.shellToolModule).not.toBe(shellToolModule)
       expect(trusted.modules.shellToolModule.executor).toEqual(shellToolModule.executor)
@@ -272,7 +267,6 @@ describe('the startup snapshot', () => {
 })
 
 describe('the snapshot after a read that failed', () => {
-  /** Entries over a scripted read: the first read throws, the next ones return the real snapshot. */
   async function scripted(pauseMs: number) {
     const real = await loadProductionRelease()
     if (real.kind !== 'trusted') throw new Error('the installed release is not trusted')
@@ -308,7 +302,6 @@ describe('the snapshot after a read that failed', () => {
   it('reads again after the pause and then the snapshot is available', async () => {
     const { authority, logs, reads, shell, at } = await scripted(1000)
     expect(authority.verify(shell)).toMatchObject({ failure: { kind: 'unavailable' } })
-    // Every failed read is one warning with the thrown message and the wait before the next read.
     const warned = logs.filter(
       message => message.name === TOOL_RELEASE_LOGGER && message.type === 'warn',
     )
@@ -316,7 +309,6 @@ describe('the snapshot after a read that failed', () => {
     expect(warned[0]?.args).toContain('disk busy')
     expect(warned[0]?.args).toContain(1000)
     at(1000)
-    // The call that finds the pause over starts the read; the answer of a call is never awaited.
     await vi.waitFor(() => expect(okOf(authority.verify(shell), 'verify Shell')).toEqual(shell))
     expect(reads).toHaveBeenCalledTimes(2)
   })

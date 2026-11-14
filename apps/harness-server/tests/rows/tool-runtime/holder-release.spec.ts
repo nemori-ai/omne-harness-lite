@@ -1,7 +1,3 @@
-// Tool 运行时组的按调用表（见证、origin、账本视图）何时释放：调用的 `settled` 状态是唯一终态（R2-D193 N5）。
-// 释放认记录里的 `settled`：本进程提交成功的，和提交答 `unknown` 实际已落盘、之后读到的，都释放。
-// 没有终态的调用仍是在途调用，契约不设超时（Ask 无超时，名额不因时间释放），表项留着，不按时间收回。
-// 这里用窄的记录仓替身，只给 `lateStore` 要读写的字段；真实 SQL 与五行的贯通在 composition.spec.ts。
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import {
@@ -24,7 +20,6 @@ function row(call: string, phase: Phase): Row {
   return { kind: 'call', call: { tenant: TENANT, call, execution, state: { phase, source } } }
 }
 
-/** 记录仓替身：`rows` 是下一次读答的记录；`commitAnswer` 是提交的答复，`landed` 为真时提交的写入也进 `rows`。 */
 function world() {
   const holder: ToolRuntimeHolder = toolRuntimeHolder({ root: {} } as unknown as Context)
   const state = {

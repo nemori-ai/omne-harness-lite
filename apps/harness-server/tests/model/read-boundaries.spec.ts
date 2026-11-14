@@ -65,7 +65,6 @@ const page: ModelDiagnosticsPage = {
   retention: { owner: 'test', name: 'retained', revision: '1', digest: 'd' },
 }
 
-// The paused read supplies data; the real issuer, verifier and qualification govern its release.
 describe('read completion checks', () => {
   it.each(['recall', 'dispatches'] as const)(
     '%s withholds a result when membership is revoked during the read',
@@ -120,7 +119,6 @@ describe('read completion checks', () => {
           return { kind: 'unregistered' }
         },
       }
-      // No domain means no SQL invocation; this exercises the SQL reader's real async lookup path.
       const reader = createSqlModelDiagnostics({
         storage: {} as SqlStorage,
         domains,

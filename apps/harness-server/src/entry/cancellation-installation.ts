@@ -24,14 +24,10 @@ const evidence = (record: string): DurableEvidence =>
 const adoption = (name: string): Adoption =>
   Object.freeze({ owner: OWNER, name, revision: REVISION, digest: digestOf(name) })
 
-/** The exact adoption of the cancellation protocol the release runs; `judge` is the implementation. */
 export const RELEASE_CANCELLATION_POLICY: Adoption = adoption('cancellation-policy')
-/** The exact adoption of the judgment input and criteria. */
 export const RELEASE_CANCELLATION_INPUT_SCHEMA: Adoption = adoption('cancellation-input')
-/** The exact adoption of the implementation of `judge` below. */
 export const RELEASE_CANCELLATION_IMPLEMENTATION: Adoption = adoption('cancellation-judge')
 
-/** The installation record of the release: all seven fields present, no legacy protocol to map. */
 export const releaseCancellationPolicyInstallation: CancellationPolicyInstallation = Object.freeze({
   record: evidence('cancellation/installation'),
   decision: evidence('cancellation/decision'),
@@ -63,12 +59,6 @@ function queryControl(input: CancellationJudgmentInput): CancellationBlock['requ
   }
 }
 
-/**
- * The judgment of the release. `unknown` when any obligation or participant condition is unknown or
- * the coverage was read at another revision; `blocked` when the cancel is not effective, a
- * revocation is unresolved, an obligation is pending, or a participant is blocked or changed;
- * `allowed` otherwise. The Journal checks tenant, execution and qualification before it calls this.
- */
 export function createReleaseCancellationPolicy(): CancellationPolicy {
   return Object.freeze({
     policy: RELEASE_CANCELLATION_POLICY,
@@ -169,7 +159,6 @@ export function createReleaseCancellationPolicy(): CancellationPolicy {
   })
 }
 
-/** What the `agent-journal` row of the release hands to `createSessionAgentJournalPlugin`. */
 export const releaseCancellation = Object.freeze({
   installation: releaseCancellationPolicyInstallation,
   policy: createReleaseCancellationPolicy(),

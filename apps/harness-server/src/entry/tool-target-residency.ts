@@ -3,7 +3,6 @@ import type { Access, Reply, ToolAvailability } from '@omne-harness/tool-contrac
 import { sameBindingKey } from '@omne-harness/tool-contract/provider'
 import type { LocalToolCatalogViewSource } from '@omne-harness/tool-host-local'
 
-/** A current disclosure view does not grant execution; this check only narrows the target set. */
 export async function targetResidency(
   source: LocalToolCatalogViewSource<unknown> | undefined,
   access: Access<unknown>,

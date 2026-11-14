@@ -1,14 +1,4 @@
 // @module-tag slow
-// The session read of the release Tool request source (`sessionWorkReaderOf`) against the real
-// Session provider: the real `session-provider` row over the real storage rows, so the caller class
-// check is Session's own table (`readWork` admits `coordinator` and `maintainer` only). A session is
-// created through the `intake` caller class, as `server-entry` does, and the source's read must get
-// its snapshot. Before R2-D266 the source read as `reader` and Session refused it with
-// `denied readWork`, so no Tool action could be prepared.
-// Named doubles, as in `rows/session-provider/create-storage.spec.ts`: the authorization row allows
-// every access, the identity bridge lets the command through, the evidence bridge gives `create` its
-// initialization guard, and `runtimeContext` is the contract double under the real `session-ad12`.
-// Slow: a real SQLite tree per case.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { succeed } from '@omne-harness/operation-result'

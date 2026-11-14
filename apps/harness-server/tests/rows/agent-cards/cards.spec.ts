@@ -1,6 +1,3 @@
-// The pure mapping of the Agent card port onto HITL (tmp design 08a, the mapping table): the keys of
-// a round, a draft as a HITL question, the evidence of a card, and the state of a card as the reply
-// of the port. Nothing here reads or writes.
 import { describe, expect, it } from 'vitest'
 import {
   admissionPassageOf,

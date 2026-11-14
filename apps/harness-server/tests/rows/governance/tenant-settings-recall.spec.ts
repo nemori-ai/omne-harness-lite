@@ -1,7 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite、真实 Identity、真实治理与设置），每条命令起一个 `omne` 子进程。
-// 认回（#1265 C8，S-6）：同一个 `operation` 加同样的输入再送，答原来的 `written` 与同一个修订号，存储里只有一次写入；
-// 换一次登录之后用同一个 `operation` 再送，仍然认回；加不同的输入答 `conflict`。写入的根只由租户决定，不随登录变。
 import { expect, it } from 'vitest'
 import { loginAccess } from '../../model/public-stream-support.ts'
 import { onReleaseTree, toolCallsThenText } from '../../support/release-tree.ts'

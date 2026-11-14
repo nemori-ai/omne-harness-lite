@@ -1,25 +1,3 @@
-// The `model-host` row (assembly page row table, R2-D6, `tmp/wire-model/design.md` §4, §5, §7):
-// model-host-local's `createModelRuntimeLocalPlugin` with the real Model runtime as its provider.
-// It injects `modelCommands`, `modelClock` and `modelHostAuthority` (the plugin's static inject).
-// The objects that do not go into configuration come from the row's port of the run composition
-// (`src/model/ports.ts`; the injected authority carries nothing but `resolve`):
-// - `executionChannel`: the one channel of the current records activation, shared with the send stage.
-// - `releaseExecution`: disposes the send child, then closes the channel (host-local SPEC release order).
-// - `qualifyObservation`: the `observe` row of the authority, after qualifying the observer.
-// - `observation`: the observation pair of the current records activation, its source behind the
-//   application's admission point (`src/model/observation.ts`). The host publishes
-//   `modelStreamReferences` and `modelStreamObservation` from it (#1214, RFC-0015 §8).
-// - `send`: `modelSendBoundary`, read per call (the records row's send child provides it; absent
-//   means `not-started` with `unavailable`, never another source).
-// - `retry`: the always-unavailable policy of M2 (no retry policy; a stall before the first content
-//   stays `running`, the user can still cancel; known limitation).
-// - the commands the runtime writes through are wrapped with the W admission point.
-//
-// Shutdown. The row is body-borne with phase `business`: the host plugin runs in a child fiber of
-// the row, and the business stop disposes that child, which is the member's ordered shutdown
-// (quiesce, stop dispatching and wait for every drive, stop the push, release the send child and
-// the channel). The stop answers `settled` when the child is disposed before the deadline, else
-// `incomplete` while the disposal goes on; the tree disposal awaits the same disposal later.
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import { createModelRuntime } from '@omne-harness/model'
 import type { DurableEvidence } from '@omne-harness/model-contract'
@@ -51,13 +29,11 @@ const RETRY_UNAVAILABLE = {
   diagnostic: 'not-configured',
 }
 
-/** M2 has no retry policy: every position ends `policy-unavailable`. */
 export const unavailableRetry: ModelRetryPolicy<unknown> = Object.freeze({
   inspect: async () => ({ failure: RETRY_UNAVAILABLE }),
   decide: async () => ({ failure: RETRY_UNAVAILABLE }),
 })
 
-/** The send boundary, read per call: only the contract service under the formal key, or unavailable. */
 export function lateBoundSendBoundary(ctx: Context): ModelSendBoundary<unknown> {
   const boundary: ModelSendBoundary<unknown> = {
     async send(demand, signal) {
@@ -83,10 +59,6 @@ export type ModelHostRowInput = Readonly<{
   lostContact?: (instance: string) => DurableEvidence | null
 }>
 
-/**
- * The host plugin of one row activation, with every live object in its closure. `built` is given
- * the drain of the host instance when the plugin builds it.
- */
 function hostPlugin(
   input: ModelHostRowInput,
   config: ModelHostConfig,
@@ -147,8 +119,6 @@ const bodyOf = (input: ModelHostRowInput) =>
     await child
     let disposing: Promise<void> | undefined
     return {
-      // A model call is a paid request that lives on this process: aborting it loses what was paid
-      // for. So before any caller stops, the calls already admitted run to their end.
       drain: async deadline => {
         if (drain === undefined) return { kind: 'settled' }
         const expired = new AbortController()

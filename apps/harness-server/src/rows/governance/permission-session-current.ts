@@ -29,7 +29,6 @@ export type SessionPermissionCaptureReader = (
   request: PermissionBasisRequest,
 ) => Promise<SessionPermissionReadResult | undefined>
 
-/** Used by trusted per-tenant assembly after original principal and action qualification. */
 export async function readSessionPermissionForCapture(
   storage: SqlStorage,
   domain: DomainRef,

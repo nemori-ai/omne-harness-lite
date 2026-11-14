@@ -20,7 +20,6 @@ const fixture = (name: string): string => member(`tests/fixtures/aa/${name}`)
 
 type Run = { status: number | null; stdout: string; stderr: string }
 
-/** Fixture runs skip the source rules (`--no-source`); the formal run passes `[]` and scans the real sources. */
 function run(
   command: 'check' | 'write',
   aa: string,

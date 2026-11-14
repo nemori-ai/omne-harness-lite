@@ -29,8 +29,6 @@ const plugin: Plugin.Object = {
     ])
     const preparation = createModelRequestPreparationPlugin({
       bindings,
-      // `modelCredential` is read per call: a missing custody stops a preparation, it does not hold
-      // the row PENDING, and it never falls back to the factory reference.
       supplierOf: credentialLayerSupplier(() => ctx.get(modelCredentialKey)),
     })
     await ctx.plugin(preparation.plugin, { maxCitedCalls: config.maxCitedCalls })

@@ -1,5 +1,3 @@
-// The driver of `run-r9.sh`: runs the process-level R9 flow once and writes the machine-readable record.
-// Usage: node tests/r9/drive.ts <output directory>. Exit 0 when every check holds, 1 otherwise.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { failed, runR9Flow } from './flow.ts'

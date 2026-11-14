@@ -2,7 +2,6 @@ import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { ScopeBindingSource, ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { SessionId, SessionPrincipalBindingSource } from '@omne-harness/session-contract'
 
-/** Application consumption projection. AD-03 owns the scope fact; this is not a service key. */
 export type SessionScopeOwnership =
   | Readonly<{ kind: 'bound'; tenant: TenantId; session: SessionId; generation: string }>
   | Readonly<{ kind: 'unbound' | 'unavailable' | 'unknown' }>

@@ -54,7 +54,6 @@ export function isReleaseToolRequest(
   )
 }
 
-/** Builds only the target business request. The source provider owns its slot and invocation. */
 export function createForwardTargetRequests(ports: ForwardRequestPorts) {
   return async (
     parent: Pick<ToolForwardParent<unknown>, 'principal' | 'tenant' | 'request'>,

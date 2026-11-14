@@ -1,6 +1,3 @@
-// The operator layer of the local single-user profile, built over the release distribution that
-// ships with the application. The process test (`setup-serve-process.spec.ts`) proves that the
-// whole tree loads with it. These cases pin what the layer holds and what it never holds.
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -35,7 +32,6 @@ const distribution = JSON.parse(
 ) as { rows: { id: string; plugin: string; config?: Record<string, unknown> }[] }
 const releaseRow = (id: string) => distribution.rows.find(row => row.id === id)
 
-/** A host environment with secrets in it: none of them may reach the shell. */
 function hostEnvironment(platform: NodeJS.Platform): Record<string, string> {
   const secrets = {
     OPENROUTER_API_KEY: 'sk-or-must-not-leak',
@@ -89,9 +85,6 @@ describe('localOperatorLayer over the bundled distribution', () => {
     }
   })
 
-  // A fixed tool request holds the arguments twice (original and effective), and its admission is
-  // one storage command (Tool SPEC「固定请求只保存一份」). The model bounds the arguments of a call;
-  // with this relation the storage never refuses an admission for its size.
   it('bounds the arguments of a tool call so that an admission fits one storage command', () => {
     const limits = z.object({
       preparation: z.object({
@@ -108,27 +101,18 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
     const argumentBytes = preparation.openai.limits.toolArguments.maxBytes
     const commandBytes = storage.maxCommandBytes
-    // A JSON string escapes to at most six bytes for one, so the two texts take at most twelve
-    // times the argument bound inside the command; the rest of the request is far below the rest.
     expect(argumentBytes * 12).toBeLessThan(commandBytes)
   })
 
-  // Tool keeps the request original, the checkpoint state and the response of a suspended call in
-  // records of the call, and writes each in one commit (Tool SPEC 30 and 31). The contract bounds
-  // the three; with these relations the storage never refuses one of those commits for its size.
   it('bounds the suspension content of a tool call so that each of its commits fits one storage command', () => {
     const config = layer.ops.find(item => item.id === 'storage')?.config
     const commandBytes = z.object({ maxCommandBytes: z.number() }).parse(config).maxCommandBytes
-    // The request original is canonical JSON text: as a string of the record it takes at most
-    // twice its size. The state is base64 text. Half of the command is left for the other records.
     expect(WAIT_REQUEST_MAX_BYTES * 2).toBeLessThanOrEqual(commandBytes / 2)
     expect(Math.ceil(CHECKPOINT_STATE_MAX_BYTES / 3) * 4).toBeLessThanOrEqual(commandBytes / 2)
     expect(WAIT_RESPONSE_MAX_BYTES).toBeLessThanOrEqual(commandBytes / 2)
   })
 
   it('names only the vault path for the secret custody, and no secret anywhere', () => {
-    // The model credential row reads the vault through the custody row; it and the `settings` row
-    // take no operator value.
     expect(configOf(layer, 'model-credential')).toBeUndefined()
     expect(configOf(layer, 'secret-custody')).toEqual({ path: '/h/state/model-vault.json' })
     expect(configOf(layer, 'settings')).toBeUndefined()
@@ -209,7 +193,6 @@ describe('localOperatorLayer over the bundled distribution', () => {
         }),
       })
       .parse(configOf(layer, 'model-records'))
-    // The tenant's share holds exactly `calls` unacknowledged results.
     expect(records.limits.unacknowledgedResults).toBe(calls)
     expect(records.send.maxClaims).toBe(calls)
     expect(records.sendStage.materialization.maxRecords).toBe(calls)
@@ -225,7 +208,6 @@ describe('localOperatorLayer over the bundled distribution', () => {
   })
 
   it('does not overwrite any key that the release gives a replaced row', () => {
-    // A key in both would let the profile change a release value without anyone noticing.
     const profileOnly = localOperatorLayer({
       ...input('linux'),
       distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
@@ -277,9 +259,6 @@ describe('localOperatorLayer over the bundled distribution', () => {
       z.object({ construction: z.unknown() }).parse(configOf(layer, 'tool-host')).construction,
     )
 
-  // A result above the inline threshold is offloaded and read back by pages; a result bound at or
-  // under it cuts every large result to a head and tail before offloading can see it. A Tools
-  // reply is itself a page read back, and it stays inline (Tool SPEC 第 28 条, `checkToolsReplyBudget`).
   it('bounds every tool result above the inline threshold, and the Tools reply within it', () => {
     const inline = z
       .object({
@@ -300,8 +279,6 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(bounds['Tools']?.resultMaxBytes).toBeLessThanOrEqual(inline)
   })
 
-  // The test operator layer builds the same tool host, so a test on its defaults takes the path
-  // the local profile takes.
   it('gives the test operator layer the tool result bounds of the local profile', () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'omne-result-bounds-')))
     try {
@@ -408,8 +385,6 @@ describe('shellArguments', () => {
     ['linux', '/bin/sh', 'posix'],
   ] as const)('%s %s takes the %s arguments', (platform, executable, kind) => {
     const expected = {
-      // Windows: the default execution policy refuses local scripts, so this process bypasses it.
-      // The prelude sets UTF-8 output in this one process; it is the last argument before the script.
       ps: [
         '-NoLogo',
         '-NoProfile',

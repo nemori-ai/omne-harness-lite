@@ -1,9 +1,3 @@
-// B1-GAP-REPLAY-FACTS-LINK (SC2): the installed `runtimeContextTrust` reads the holder facts per call
-// from `sessionReplayFacts`, the service of the facts sub-plugin of row `session-ad03`. A recovery
-// that finishes (RC-09) is checked against those facts; with the service absent, stopped or
-// throwing, the answer is `unavailable`, never `authorized`. The name is trusted (scope 「会话回放事实」
-// of the assembly page, R2-D163, R2-D168): the facts plugin runs in the trusted context of the name,
-// as row `session-ad03` does, and a same-name provider on the root is not read.
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { Principal } from '@omne-harness/identity'
@@ -42,7 +36,6 @@ function scopeOf(ref: string): ScopeRef {
 }
 const scope = scopeOf(`session-scope:${'a'.repeat(64)}`)
 
-/** A recovery that finishes; `restored` are the block keys its material carries. */
 function finishReplay(
   tenant: TenantId,
   restored: readonly ContextBlockKey[],
@@ -72,7 +65,6 @@ function finishReplay(
   }
 }
 
-/** Trusted bindings that assign the scope to session `ses_1` of tenant A. */
 const boundScopes = createSessionScopeSource({
   readOwnership: () => ({
     lookup: async () => ({
@@ -93,7 +85,6 @@ const boundScopes = createSessionScopeSource({
   }),
 })
 
-/** A stand-in of the facts sub-plugin: provides `sessionReplayFacts` in the context it runs in. */
 function factsPlugin(answer: SessionReplayFacts['stepCommittedBlocks'], calls: unknown[] = []) {
   class Facts extends SessionReplayFactsService {
     readonly stepCommittedBlocks: SessionReplayFacts['stepCommittedBlocks'] = (...args) => {
@@ -113,17 +104,14 @@ const known =
 
 type World = Readonly<{
   fixture: FixtureEnv
-  /** The trusted context of `sessionReplayFacts`, where row `session-ad03` provides it. */
   facts: Context
   acting: (tenant: TenantId) => Principal
-  /** Asks one holder decision through the installed service, from a reader fiber. */
   ask(principal: Principal, action: HolderAction<unknown>): Promise<HolderDecision<unknown>>
 }>
 
 async function world(): Promise<World> {
   const fixture = fixtureEnv([runtimeContextTrustKey, principalIssuerKey, sessionReplayFactsKey])
   await fixture.install(principalIssuer)
-  // The entry is installed before any row, as in `serve`: the facts plugin starts later.
   await fixture.install(createRuntimeContextTrustModule(boundScopes))
   const issuer = got(fixture.scopeOf(principalIssuerKey).get(principalIssuerKey), 'issuer')
   const actor = okOf(issuer.issueSystem({ component: 'session-ad03' }), 'actor')

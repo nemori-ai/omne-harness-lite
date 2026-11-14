@@ -1,9 +1,6 @@
 import { defaultResultPolicy } from '@omne-harness/tool-contract/provider'
 import { TOOL_READ_ARGUMENTS } from '../../entry/tool-read-budget.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
-// 建 Tool 运行时组的唯一 bundle（B 段，R2-D66 第 3 项，L-TOOL 事实清单 §3）：`createLocalToolRuntimePlugins` 的
-// 每个输入只取已核来源，缺席时由各自的窄代理答 `unavailable`。`tool-records` 行按运维者配置调用一次；同一运行的
-// 后续调用配置必须相同，否则装载失败（不建第二份 bundle，也不悄悄沿用旧配置）。
 import type { Context } from '@deepseek-ai/cordis'
 import { createRecoveryAccess } from '@omne-harness/execution-environment-contract'
 import { canonicalDigest } from '@omne-harness/tool'
@@ -46,10 +43,6 @@ import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
 const OWNER = '@omne-harness/harness-server'
 
-/**
- * 启动许可需求（`permitRequirements`）：发行内置的官方 Shell、Files，调用方是本租户的会话工作主体时不需要另取许可，
- * 证据指名这次启动；其余答 unavailable，启动不进行。动作本身的准入归 `authorization` 行的动作规则。
- */
 function releasePermitRequirements(
   root: Context,
   identity: ReturnType<typeof createReleaseToolIdentity>,
@@ -66,8 +59,6 @@ function releasePermitRequirements(
         availability.layer.kind === 'official' &&
         release.manifest.entries.some(entry => entry.asset.name === name)
       if (!inRelease) return { kind: 'unavailable', diagnostic: 'not a release built-in tool' }
-      // The three answers stay apart: a verifier that could not be read is not a principal that
-      // is not session work, and the diagnostic says which one it was.
       const work = await identity.sessionWork(input.principal, input.tenant)
       if (work.kind === 'unavailable')
         return {
@@ -125,7 +116,6 @@ function inputFor(
     filesRoot: config.filesRoot,
     commitAttempts: config.configuration.ledgerCommitAttempts,
     schemaProvider: () => holder.schemaProvider,
-    // A principal check that could not be read is reported, not only answered.
     warn: text => root.logger('tool-runtime').warn(text),
   })
   const input: LocalToolRuntimeInput = {
@@ -156,11 +146,8 @@ function inputFor(
     permitRequirements: releasePermitRequirements(root, identity),
     clock: holder.clock,
     configuration: { ...config.configuration, readResultArguments: TOOL_READ_ARGUMENTS },
-    // The bindings row is built for any environment value; at run time the value it hands to the
-    // authors is the environment this bundle prepares, so the narrower type is the same object.
     bindings: () => root.get(toolBindingsKey) as ReturnType<LocalToolRuntimeInput['bindings']>,
     catalog: () => root.get(toolCatalogKey),
-    // The decision owner of the Ask waits, built by `tool-records` (`rows/tool-hitl`); absent, the absent port.
     decisions: () => toolHitlHolder(root).bridge ?? undefined,
     environment: environment.input,
     capacity: config.capacity,
@@ -173,7 +160,6 @@ function inputFor(
   return { input, qualification: createLocalInvocationQualifier(sourceInput) }
 }
 
-/** 本运行的 bundle：第一次按 `config` 建；之后配置不同就抛出（行 FAILED）。 */
 export function ensureToolRuntimeBundle(
   ctx: Context,
   config: ToolRuntimeConfig,

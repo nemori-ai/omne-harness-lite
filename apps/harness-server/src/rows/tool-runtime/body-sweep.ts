@@ -1,8 +1,3 @@
-// The application's schedule of the Tool sweep (BodyLifecycle `DeleteBytes` then `Reclaim`), by
-// due time (SPEC「Tool 正文清扫」): a step sweeps only the tenants whose next due entry has come.
-// The table of due tenants is a live object of this process: commits of this process note the
-// due entries they write, and the startup sweep over every tenant rebuilds it. The Tool runtime
-// does the reclaiming; this only decides when and for whom.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { TenantDomains } from '@omne-harness/sql-contract'
@@ -10,41 +5,31 @@ import type { Reply } from '@omne-harness/tool-contract'
 import type { ToolInstant, ToolInstantClock } from '@omne-harness/tool-contract/provider'
 import type { ToolLedgerStore, ToolLedgerSweep } from '@omne-harness/tool'
 
-/** After the n-th failure in a row the tenant waits item min(n, 3), capped at 30 seconds. */
 const BACKOFF_MS = [1000, 5000, 30_000] as const
 
-/** The last instant: the due index read up to it answers the earliest entry first. */
 const LAST_INSTANT = '9999-12-31T23:59:59.999Z' as ToolInstant
 
 export type BodySweepProgress = Readonly<{
-  /** The tenants this step swept. */
   tenants: number
   reclaimed: number
-  /** Call domains removed with the host records of the call. */
   removed: number
-  /** The tenants whose sweep or due read failed in this step; they wait out their backoff. */
   failures: number
 }>
 
 type Slot = {
   readonly tenant: TenantId
-  /** The tenant's encoded text: the key of the table and the name in a warning. */
   readonly text: string
-  /** When the tenant is next swept, in epoch milliseconds. */
   at: number
   failures: number
   visiting: boolean
-  /** The earliest due time noted while the tenant was being swept. */
   noted: number
 }
 
-/** The tenants with due entries, and when each is next swept (SPEC「按到期时刻安排」). */
 export type DueTenants = ReturnType<typeof createDueTenants>
 
 export function createDueTenants() {
   const slots = new Map<string, Slot>()
   const noteAt = (tenant: TenantId, at: number) => {
-    // A minted tenant always encodes; a value that does not is no tenant and has nothing due.
     const text = tenantCodec.encode(tenant)
     if (!text.ok) return
     const slot = slots.get(text.value)
@@ -61,12 +46,10 @@ export function createDueTenants() {
     else slot.at = Math.min(slot.at, at)
   }
   return Object.freeze({
-    /** A commit of this process wrote a due entry of `tenant` at `instant`. */
     note(tenant: TenantId, instant: ToolInstant): void {
       noteAt(tenant, Date.parse(instant))
     },
     noteAt,
-    /** The tenants due at `now`, earliest first. */
     ready(now: number): Slot[] {
       return [...slots.values()]
         .filter(slot => !slot.visiting && slot.at <= now)
@@ -76,14 +59,12 @@ export function createDueTenants() {
       slot.visiting = true
       slot.noted = Infinity
     },
-    /** The sweep and the due read answered: the tenant is next due at `next`, or not at all. */
     swept(slot: Slot, next: number | null): void {
       slot.visiting = false
       slot.failures = 0
       slot.at = Math.min(next ?? Infinity, slot.noted)
       if (slot.at === Infinity) slots.delete(slot.text)
     },
-    /** The sweep or the due read failed: the tenant stays, and waits out its backoff. */
     failed(slot: Slot, now: number): Backoff {
       slot.visiting = false
       slot.failures += 1
@@ -96,7 +77,6 @@ export function createDueTenants() {
 
 type Backoff = Readonly<{ delayMs: number; warn: boolean }>
 
-/** The wait after the n-th failure in a row; a warning only for the first and those at the cap. */
 function backoffOf(failures: number): Backoff {
   const step = Math.min(failures, BACKOFF_MS.length) - 1
   return {
@@ -115,7 +95,6 @@ export type BodySweepInput<P> = Readonly<{
   scanner: P
   clock: ToolInstantClock
   sweep: ToolLedgerSweep['sweep']
-  /** The due index of the record store: the sweep reads the earliest entry of a tenant with it. */
   dueIndex: ToolLedgerStore['due']
   due: DueTenants
   limit: number
@@ -138,7 +117,6 @@ export function createBodySweep<P>(input: BodySweepInput<P>) {
     })
   const nowMs = () => Date.parse(input.clock.now())
 
-  /** Startup: every tenant of the directory is due once. */
   async function list(): Promise<string | null> {
     let answer: Awaited<ReturnType<TenantDomains<P>['enumerate']>>
     try {
@@ -159,7 +137,6 @@ export function createBodySweep<P>(input: BodySweepInput<P>) {
     return null
   }
 
-  /** Sweeps one tenant in full batches, then reads its earliest due entry. */
   async function visit(
     tenant: TenantId,
   ): Promise<

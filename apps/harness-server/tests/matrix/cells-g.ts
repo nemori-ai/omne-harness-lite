@@ -377,7 +377,6 @@ export const gCells: readonly Cell[] = [
     run: async tools => {
       const from = Date.now()
       const held = Array.from({ length: CROWD_TENANTS }, () => gate())
-      /** The session of each sent text, so that a call at the provider names its run. */
       const sessions = new Map<string, string>()
       let quietFrom = 0
       try {
@@ -390,8 +389,6 @@ export const gCells: readonly Cell[] = [
           tools.check('input accepted', sent === 'succeeded', sent)
           sessions.set(text, session)
         }
-        // The Model holds at most a set number of sends in flight and queues the rest in its own
-        // records, so only some of the calls reach the provider while the runs are held.
         const arrived = await waitArrivals(tools, 1, 'a run reached the provider')
         tools.check('calls reached the provider', arrived, String(tools.stub.arrivals().length))
         quietFrom = Date.now()
@@ -409,8 +406,6 @@ export const gCells: readonly Cell[] = [
         tools.check('the newcomer input accepted', sent === 'succeeded', sent)
         const listed = await newcomer.listSessions()
         tools.check('the newcomer lists its session', listed.sessions.includes(own), listed.outcome)
-        // One call at a time, in the order the calls reached the provider: the Model sends the
-        // queued calls as earlier ones end, so a call that has not arrived waits for an earlier one.
         for (let step = 0; step < sessions.size; step += 1) {
           const mark = tools.env.mark()
           const arrived = await tools.stub.waitArrivals(step + 1, TURN_MS)
@@ -443,7 +438,6 @@ const CROWD_TENANTS = 24
 const CROWD_QUIET_MS = 20_000
 const WINDOW_MS = 5000
 
-/** The warnings of the server since `mark`, the most frequent first, with their counts. */
 function warningsSince(tools: CellTools, mark: number): string {
   const counts = new Map<string, number>()
   for (const line of tools.env.warnings(mark)) counts.set(line, (counts.get(line) ?? 0) + 1)
@@ -454,7 +448,6 @@ function warningsSince(tools: CellTools, mark: number): string {
     .join(' | ')
 }
 
-/** The snapshot reads of the session per 5 s window since `from`. */
 function readsPerWindow(tools: CellTools, from: number): number[] {
   const counts: number[] = []
   for (const record of tools.env.records()) {

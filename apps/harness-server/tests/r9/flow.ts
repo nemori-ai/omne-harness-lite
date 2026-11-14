@@ -1,8 +1,3 @@
-// R9 line-internal flow over real processes. It starts `dist/bin.js serve` on the release distribution
-// (the wave-1 real rows in the order of DP1-C18, the operator layer for the paths and the port), drives it
-// with the `omne` CLI, and returns what it saw plus a list of named checks. The slow spec asserts the
-// checks, and `drive.ts` (the `run-r9.sh` driver) writes them as a machine-readable record.
-// The checks hold the judgments, so the spec and the driver cannot drift apart.
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { startModelGateway, type ModelGateway } from '../fixtures/model-gateway.ts'
@@ -28,14 +23,11 @@ export const SESSION_PATH = '/session-public/1'
 export const GOVERNANCE_PATH = '/governance-public/1'
 const CREDENTIALS = { alice: 'alice-pw-MARKER-7f3a', bob: 'bob-pw-MARKER-91c2' } as const
 const INPUT_TEXT = 'hello from the r9 flow MARKER-input'
-/** A session id of the real shape that nobody created. */
 const UNKNOWN_SESSION = 'f'.repeat(64)
-/** How long the flow waits for the Run that the input started to end before the first stop. */
 const RUN_END_TIMEOUT_MS = 60_000
 const RUN_END_POLL_MS = 500
 
 export type Check = Readonly<{
-  /** Acceptance item of the R9 closure (APP-12). 0 is the flow itself. */
   item: number
   name: string
   ok: boolean
@@ -46,7 +38,6 @@ export type Step = Readonly<{
   label: string
   command: readonly string[]
   exitCode: number | null
-  /** The parsed result of the CLI: `result`, `outcome`, `body`, `request`. */
   result: Record<string, unknown> | undefined
   stderr: string
 }>
@@ -81,7 +72,6 @@ const check = (item: number, name: string, ok: boolean, detail: string): Check =
 
 const shortJson = (value: unknown): string => JSON.stringify(value).slice(0, 300)
 
-/** The part of a CLI result that two requests of the same shape must share: outcome and body. */
 const answerOf = (run: CliRun): string =>
   JSON.stringify({ outcome: run.result?.['outcome'], body: run.result?.['body'] })
 
@@ -106,11 +96,6 @@ const readHistory = (tenant: string, session: string, loginProof: string) => ({
   loginProof,
 })
 
-/**
- * The operator layer of the flow: the release layer of `support.ts`, plus the Run entries in the
- * history that `server-entry` serves. The flow reads `run.terminal` to know that the Run the input
- * started has ended before it stops the process.
- */
 function withRunEntries(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
@@ -134,7 +119,6 @@ function pendingRows(records: readonly Rec[]): string[] {
     .map(record => `${String(record['id'])}:${String(record['state'])}`)
 }
 
-/** Runs the whole flow. A failed judgment, or a step that cannot go on, is a failed check, not a throw. */
 export async function runR9Flow(): Promise<FlowRecord> {
   const scratch = newScratch()
   const startedAt = new Date().toISOString()
@@ -147,8 +131,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
   let gateway: ModelGateway | undefined
   try {
     const port = await freePort()
-    // The Model calls go to a local gateway that refuses each with HTTP 400, never to a real
-    // supplier (R2-D258): the Run that the input starts ends the same way every time.
     gateway = await startModelGateway()
     const modelGateway = gateway
     const operatorPath = join(scratch.base, 'operator.json')
@@ -221,7 +203,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
       return outcome
     }
 
-    // --- run 1: the real tree accepts, a login reaches the Session face, another tenant is refused.
     server = await start('first start')
     const first = runs[0]
     checks.push(
@@ -290,7 +271,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
     const aliceTenant = savedTenant(homes.alice)
     const bobTenant = savedTenant(homes.bob)
 
-    // The input is in the history that the Session double keeps: it arrived and was accepted.
     const history = await post(port, SESSION_PATH, readHistory(aliceTenant, session, aliceProof))
     http.push({ label: 'alice reads her history', ...history })
     outputs.push(history.body)
@@ -303,8 +283,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
       ),
     )
 
-    // Another tenant: with the owner's tenant text, and with its own tenant text, on the real
-    // session and on a session nobody created.
     const bobOnRealWithAlice = await cli('bob sends to the session with the owner tenant', 'bob', [
       'send-input',
       '--session',
@@ -319,8 +297,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
       'bob',
       ['send-input', '--session', UNKNOWN_SESSION, '--text', 'x', '--tenant', aliceTenant],
     )
-    // Bob's own tenant is named with --tenant: the session is not Bob's, so his CLI has no record
-    // of its owner and the current selection is no longer used for an existing session.
     const bobOnReal = await cli('bob sends to the session with his own tenant', 'bob', [
       'send-input',
       '--session',
@@ -340,10 +316,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
       bobTenant,
     ])
     const refusals = [bobOnRealWithAlice, bobOnUnknownWithAlice, bobOnReal, bobOnUnknown]
-    // With the owner's tenant text the answer is denied. Bob's own tenant has no transaction
-    // domain until its first create, so there the storage answers unavailable
-    // (session-storage-sql SPEC, "事务域目录没有该租户"). Either answer must not tell a real
-    // session from an unknown one; the next check compares them byte for byte.
     const isDenied = (run: CliRun): boolean =>
       run.status === 3 && run.result?.['outcome'] === 'denied'
     const isUnregistered = (run: CliRun): boolean =>
@@ -365,7 +337,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
         `${answerOf(bobOnRealWithAlice)} | ${answerOf(bobOnUnknownWithAlice)} | ${answerOf(bobOnReal)} | ${answerOf(bobOnUnknown)}`,
       ),
     )
-    // Reading the history: the same four pairs, raw bodies, same message id.
     const reads = {
       ownerTenantReal: await post(port, SESSION_PATH, readHistory(aliceTenant, session, bobProof)),
       ownerTenantUnknown: await post(
@@ -407,9 +378,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
       ),
     )
 
-    // Item 4 is an ordered stop and a restart, not a stop with work in flight: the input started a
-    // Run (its Model call goes out), so the flow waits until the history shows that Run ended. A
-    // stop while the Run is still running answers `incomplete` on purpose (AG-QUIESCE).
     const ended = await waitForRunEnd(port, aliceTenant, session, aliceProof)
     outputs.push(ended.body)
     checks.push(
@@ -438,7 +406,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
       ),
     )
 
-    // --- run 2: same state root. The account, its login and the old proof are still there.
     const oldHome = join(scratch.base, 'home-alice-before-restart')
     mkdirSync(oldHome)
     cpSync(homes.alice, oldHome, { recursive: true })
@@ -503,8 +470,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
         `exit ${String(tamperedUse.status)} ${tamperedUse.stdout.slice(0, 200)}`,
       ),
     )
-    // The governance reply to a legitimate client does carry the proof. It is the positive control
-    // for the search below, so it is kept out of `outputs`.
     const rawIssue = await post(port, GOVERNANCE_PATH, {
       protocolVersion: 'governance-public/1',
       messageId: 'r9-raw-issue',
@@ -523,7 +488,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
       ),
     )
 
-    // --- no secret in anything that left a process or a reply.
     const secrets = {
       'alice credential': [CREDENTIALS.alice],
       'bob credential': [CREDENTIALS.bob],
@@ -541,7 +505,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
         `leaked: ${found.join(', ')}`,
       ),
     )
-    // Positive controls: the search sees each kind of secret where it is.
     const controls = [
       leaked(rawIssue.body, secrets).includes('alice login proofs'),
       leaked(readFileSync(join(homes.alice, 'login.json'), 'utf8'), secrets).includes(
@@ -563,8 +526,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
 
     return { startedAt, runs, steps, http, checks }
   } catch (error) {
-    // A step that cannot go on (the flow needs a session to continue) ends the story here. The
-    // failure is a check, so the record still says how far it got.
     checks.push(check(0, 'the flow ran to its end', false, String(error)))
     return { startedAt, runs, steps, http, checks }
   } finally {
@@ -574,7 +535,6 @@ export async function runR9Flow(): Promise<FlowRecord> {
   }
 }
 
-/** Reads the owner's history until a `run.terminal` entry is there, or the timeout passes. */
 async function waitForRunEnd(
   port: number,
   tenant: string,

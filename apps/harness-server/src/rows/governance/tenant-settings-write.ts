@@ -1,10 +1,3 @@
-// The tenant-layer write of Settings on the real assembly (settings-local SPEC「Application current
-// consumer」): the plan and the current participants come from the target snapshot of this row,
-// the qualification from Identity. The write acts as one stable principal of the tenant, so the
-// root of an operation depends on the tenant and its account and never on one login: a caller that
-// logs in again and sends the same operation recalls the same write. Who may write is decided
-// before this module by the face; this module only writes the tenant layer of the tenant's own
-// asset targets.
 import { randomUUID } from 'node:crypto'
 import { canonicalText } from '@omne-harness/authorization'
 import {
@@ -52,10 +45,8 @@ export type TenantSettingsWriteOptions = Readonly<{
     standing: TenantStandingSource
     reservations: StandingReservations
   }>
-  /** The stable principal of the tenant that writes; it depends on the tenant only. */
   writer: Principal
   release(): ToolRelease | undefined
-  /** The epoch of the opened Governance runtime of the tenant; undefined when it is not open. */
   epoch(): Promise<string | undefined>
 }>
 
@@ -71,7 +62,6 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
   const domain = structuredClone(options.domain)
   const combinations = governanceStorageCombinations(options.materials)
   const writerRef = standingPrincipalRef(options.writer)
-  /** The epoch of the open runtime, as the last write or plan read it; one runtime keeps one epoch. */
   let planned: string | undefined
 
   function entryOf(target: SettingsTarget): ToolReleaseEntry | undefined {
@@ -185,7 +175,6 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
             : failure('forbidden')
         },
       },
-      // A tenant asset target has no source in another domain: the plan names none.
       sources: {
         reserve: async () => failure('unsupported'),
         settle: async () => failure('unsupported'),
@@ -195,8 +184,6 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
 
   const writer: TenantSettingsWriter = {
     async write({ command, beforeWrite }) {
-      // A pending operation of an earlier process commits without a new plan; its phases read
-      // the epoch of the runtime that is open now.
       planned = (await options.epoch()) ?? planned
       const service = prepared.service
       const operation = { target: command.target, operationId: command.operationId }

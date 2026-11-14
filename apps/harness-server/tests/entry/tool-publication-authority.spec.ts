@@ -1,5 +1,3 @@
-// 发布核验（`toolPublicationAuthority` 入口对象）：只有执行与句柄一致、且本运行的记录仓见证过这次原调用的
-// 执行与来源证据时才放行；其余一律 denied。Shell、Files 的单次调用不发布实例，组合用例碰不到它，这里单独守。
 import { describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { canonicalDigest } from '@omne-harness/tool'

@@ -1,8 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite、真实 Identity、真实治理与设置），每条命令起一个 `omne` 子进程。
-// 租户层设置的读写面在正式装配上（#1265 C1）：登录的人经树上的 `tenantSettings` 把 Shell 的调用权限挑成「拒绝」，
-// 答 `written` 带新的修订号；随后「查看」读到本层的挑选是「拒绝」。停服再起，同一份存储上仍读到它（S-7）。
-// 租户的事务域要在目录里发布之后，治理的租户运行时才打开，所以每次起服先跑完一个会话。
 import { expect, it } from 'vitest'
 import { loginAccess } from '../../model/public-stream-support.ts'
 import { onReleaseTreeRuns, toolCallsThenText } from '../../support/release-tree.ts'
@@ -16,7 +12,6 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
       await settledSession(tree, 'hello')
       const { principal, tenant } = await loginAccess(tree)
       const item = { principal, tenant, asset: SHELL, item: 'invoke' }
-      // C9: the six tools of the release, each with its invoke permission and every view field.
       const listed = await face.list({ principal, tenant, after: null, limit: 100 })
       if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
       expect(listed.completeness).toBe('complete')

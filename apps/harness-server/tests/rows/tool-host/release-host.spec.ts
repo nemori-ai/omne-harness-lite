@@ -1,6 +1,3 @@
-// `tool-host` 行的发行内置来源（B3-T2a 第 2、4、7、8 项）：真实 Cordis 装 `tool-bindings` 与 `tool-host` 两行，
-// 经 `toolGenerations.ensureLoaded` 观察作者是否进入登记表。environment 检查经执行域的 schema-provider 与
-// 执行环境契约的 `environmentNeedSchemaRef`（R2-D80）；只有「schema 加载失败 / provider 已关闭」两条反例注入别的来源。
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   environmentNeedSchemaRef,
@@ -259,7 +256,6 @@ describe('tool-host: the release source and loader input', () => {
     })
     expect(answer).toMatchObject({ failure: { kind: 'invalid', field: 'module' } })
     expect(names(app)).toEqual([])
-    // The real release author still loads under the official key afterwards.
     const loaded = await app.generations.ensureLoaded({
       authority: authorityOf(app.manifest, 'Files'),
       access: SYSTEM,

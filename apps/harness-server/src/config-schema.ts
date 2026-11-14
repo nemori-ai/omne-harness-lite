@@ -8,7 +8,6 @@ export type ConfigErrorCode =
   | 'duplicate-row-id'
   | 'unknown-target'
 
-/** Every rejection at the configuration boundary. Exit code 2 in the process entry. */
 export class ConfigError extends Error {
   readonly code: ConfigErrorCode
 
@@ -19,10 +18,6 @@ export class ConfigError extends Error {
   }
 }
 
-/**
- * Parse unknown input with a synchronous schema. A schema that needs async work is a
- * boundary error: silently skipping it would turn a rejection into a pass.
- */
 export function parseBoundary<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
   let result: z.ZodSafeParseResult<z.output<S>>
   try {
@@ -66,7 +61,6 @@ function rowSchema(allowlist: readonly string[]) {
   })
 }
 
-/** Distribution layer: ordered rows, unique ids, plugin names from the allowlist only. */
 export function distributionSchema(allowlist: readonly string[]) {
   return z.strictObject({ rows: z.array(rowSchema(allowlist)) }).superRefine((value, ctx) => {
     const seen = new Set<string>()
@@ -84,7 +78,6 @@ export function distributionSchema(allowlist: readonly string[]) {
   })
 }
 
-/** Operator layer: an ordered list of replace, disable and insert operations. */
 export function operatorSchema(allowlist: readonly string[]) {
   return z.strictObject({
     ops: z.array(

@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real production materials and SQLite. Destination recognition is a named owner fixture.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

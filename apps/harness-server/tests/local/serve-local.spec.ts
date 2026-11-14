@@ -1,5 +1,3 @@
-// What `serve` takes from the local setup when `--operator` or `--state-root` is absent. The host is
-// a temporary server home that `runSetup` prepares, so these cases read what setup really writes.
 import { randomBytes } from 'node:crypto'
 import {
   mkdirSync,
@@ -99,7 +97,6 @@ describe('localServeInputs', () => {
     expect(result.operator?.ops.find(op => op.id === 'secret-custody')?.config).toEqual({
       path: join(h.home, 'state', 'model-vault.json'),
     })
-    // The telemetry row gets its budgets from the profile; the release gives none (A12).
     expect(result.operator?.ops.find(op => op.id === 'telemetry')?.config).toMatchObject({
       implementation: 'node',
       outlet: { kind: 'stdout' },
@@ -188,7 +185,6 @@ describe('localServeInputs', () => {
     writeFileSync(join(h.home, 'config', 'server.json'), '{"version":2}')
     const invalid = localServeInputs(h.input())
     expect(invalid).toMatchObject({ kind: 'refused' })
-    // The hint does not lead to a command that overwrites the settings in silence.
     expect(invalid.kind === 'refused' && invalid.message).toContain('Edit the file')
     expect(invalid.kind === 'refused' && invalid.message).not.toContain('--reconfigure')
   })

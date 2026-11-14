@@ -1,6 +1,3 @@
-// The tenant governance host over scripted assemblies: what a failed open leaves behind. One
-// prepared assembly owns one attempt (tenant-runtime.ts), so a later attempt is a new assembly;
-// a tenant whose first open failed must not stay without governance for the life of the process.
 import { expect, it, vi } from 'vitest'
 import { TenantGovernanceHost } from '../../../src/rows/governance/tenant-host.ts'
 import { monotonicClock } from '../../../src/shutdown.ts'
@@ -29,7 +26,6 @@ const failedStartup = () =>
     phase: 'startup',
   }) as unknown as Opened
 
-/** A host whose n-th prepared assembly opens with the n-th scripted result. */
 function hostOver(results: readonly Opened[], extra: Partial<HostOptions> = {}) {
   const opens = vi.fn()
   let prepared = 0
@@ -60,7 +56,6 @@ it('opens the tenant again with a new assembly after an open that failed', async
   expect(await host.runtime(TENANT)).toMatchObject({ kind: 'created' })
   expect(opens).toHaveBeenCalledTimes(2)
   expect(prepared()).toBe(2)
-  // The open one is kept: no third attempt.
   expect(await host.runtime(TENANT)).toMatchObject({ kind: 'created' })
   expect(opens).toHaveBeenCalledTimes(2)
 })
@@ -132,7 +127,6 @@ it('closes the open runtime and what a failed installation holds when the host c
   expect(await failed.host.runtime(TENANT)).toBeUndefined()
 })
 
-/** A lookup that answers the n-th scripted result, the last one from then on. */
 function lookupOf(...answers: readonly object[]) {
   const lookup = vi.fn(
     async () => answers[Math.min(lookup.mock.calls.length - 1, answers.length - 1)],
@@ -152,7 +146,6 @@ it('answers undefined without a report or a pause for a tenant that was never re
   })
   expect(await host.runtime(TENANT)).toBeUndefined()
   expect(report).not.toHaveBeenCalled()
-  // No failure is counted: the next call asks again at once and finds the tenant registered.
   expect(await host.runtime(TENANT)).toMatchObject({ kind: 'created' })
   expect(lookup).toHaveBeenCalledTimes(2)
 })

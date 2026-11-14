@@ -1,7 +1,3 @@
-// The current permission of one action, by reads only. Tenant-domain facts come from one
-// projection read. Identity standing and the organization source are in other domains: they are
-// read here, at the time of the check, and never cached. The read answers the reading and the
-// condition that a later commit uses to check that the tenant-domain facts did not change.
 import { randomUUID } from 'node:crypto'
 import type {
   AgentActionQualification,
@@ -49,7 +45,6 @@ import { qualifyToolPermission } from './tool-permission-qualification.ts'
 
 type Principal = ActingForTenantPrincipal
 
-/** The owners of the original action: they prove where the action comes from. */
 export type PermissionOrigins = Readonly<{
   action: AgentActionQualification<Principal>
   tool: LocalInvocationQualifier<Principal>
@@ -63,21 +58,17 @@ export type PermissionBasisReadOptions = PermissionReadMappingOptions &
     scope: GovernanceScope
     storage: SqlStorage
     domain: DomainRef
-    /** The current epoch of the Governance scope; the target projection reads this epoch. */
     epoch: string
     identity: Readonly<{ verifier: PrincipalVerifier; standing: TenantStandingSource }>
     read: ProjectionRead
-    /** The registered combinations that hold the condition commands with the Tool participant. */
     conditions: Readonly<{ mapped: Combination; unmapped: Combination }>
     origins(): PermissionOrigins | undefined
     accepting(): boolean
   }>
 
 export type CurrentPermissionRead = Readonly<{
-  /** The request of this check, from its one mapping; null when the check stopped before it. */
   request: PermissionBasisRequest | null
   reading: PermissionBasisReading
-  /** Present only with a current reading. */
   condition: StartCondition | null
 }>
 
@@ -98,14 +89,12 @@ const missingOrganization = (): PermissionSource => ({
 export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
   const map = createPermissionReadMapping(options)
 
-  /** The request comes from the mapping of this scope, so the principal's tenant decides. */
   const matchesScope = (principal: Principal) => {
     const tenant = tenantCodec.encode(principal.tenant)
     const organization = organizationCodec.encode(principal.tenant.organization)
     return tenant.ok && organization.ok && tenant.value === options.scope.tenantRef
   }
 
-  /** Identity is in another domain. It is read for every check. */
   async function member(principal: Principal) {
     const checked = await options.identity.verifier.verify(principal)
     if (checked.kind === 'unavailable') return unavailable()
@@ -177,7 +166,6 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
     }
     const standing = await member(context.principal)
     if (standing.kind !== 'member') return without(standing)
-    // One mapping for one check: it gives the request and the target the basis is read at.
     const mapped = await map(context)
     if (mapped === undefined) return without(unavailable('harness.permission-target'))
     const request = mapped.permission

@@ -1,6 +1,3 @@
-// server-entry 行的 HITL 入口面（`src/rows/server-entry/hitl.ts`）：按入口主体的租户选 `tool-records` 行建的 HITL 应用，
-// 每次调用现取宿主；宿主不在或租户不可用时答 unavailable。HITL 应用是替身，只记下谁被调用；真实组合见
-// release-hitl.spec.ts。
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -37,7 +34,6 @@ const principalOf = (tenant: TenantId): ActingForTenantPrincipal => {
 const tenantA = fixtureTenant('a')
 const tenantB = fixtureTenant('b')
 const tenantC = fixtureTenant('c')
-/** A tenant that the directory does not know yet: it has no domain and no HITL application. */
 const tenantD = fixtureTenant('d')
 
 const operationOf = (tenant: TenantId) => ({
@@ -54,7 +50,6 @@ const submitOf = (tenant: TenantId) =>
     reply: { kind: 'decline' },
   })
 
-/** One HITL application double per tenant: every method records its tenant and answers its name. */
 function world(qualification: unknown = { kind: 'qualified' }) {
   const calls: string[] = []
   const qualified: string[] = []
@@ -112,7 +107,6 @@ describe('the HITL entry faces of the server-entry row', () => {
       tenant: textOf(tenantA),
     })
     await w.faces.queries.listPool(b, list(tenantB))
-    // The card names tenant A, but the principal is tenant B's: tenant B's application answers.
     await w.faces.queries.getCard(b, card)
     await w.faces.queries.getOperation(a, operation)
     await w.faces.commands.submitReply(a, submitOf(tenantA))
@@ -137,7 +131,6 @@ describe('the HITL entry faces of the server-entry row', () => {
       reason: 'the HITL host is not installed',
       operationRef: operationOf(tenantA),
     })
-    // The `tool-records` row installs the host later: the same faces see it.
     w.holder.host = w.host
     await w.faces.queries.listPool(a, list(tenantA))
     expect(w.calls).toEqual([`${textOf(tenantA)}:listPool`])

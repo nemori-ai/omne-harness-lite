@@ -1,5 +1,3 @@
-// The owner of the `agent-context` row is fixed by the release code (R2-D202): the source
-// registration grant of `requestContextTrust` names it, so a configuration cannot move it.
 import { describe, expect, it } from 'vitest'
 import { AGENT_CONTEXT_OWNER } from '../../../src/assembly/agent-context-owner.ts'
 import { agentContextRowConfig } from '../../../src/rows/agent-context/index.ts'

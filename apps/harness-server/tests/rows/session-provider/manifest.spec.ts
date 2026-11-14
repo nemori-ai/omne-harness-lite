@@ -1,10 +1,3 @@
-// The `session-provider` export of `./cordis` is the real Session provider (`real.ts`): the release
-// names the plugin `sessionProviderRow`, so the swap from the contract double to the real row is
-// the identity of this export. The double stays available to the tests that observe arrivals, and
-// its manifest stays what `src/s0/stubs.ts` gives the same row, except the shutdown phase and three
-// injects of the real provider: the table carries the real provider's `business`, its `telemetry`
-// and the two names of its startup scan (`tenantDomains`, `tenantDomainScannerPrincipal`). The
-// double has no phase, emits no record and scans no tenant, so it injects none of the three.
 import { describe, expect, it } from 'vitest'
 import { sessionProviderRow as fromCordis } from '../../../src/cordis.ts'
 import { serveProfile } from '../../../src/profile.ts'

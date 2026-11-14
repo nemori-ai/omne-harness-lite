@@ -100,7 +100,6 @@ async function currentLogin(
   }
 }
 
-/** New durable operations cannot reuse a login decision made by an earlier caller. */
 export function recheckSessionPermissionLogin(
   principal: ActingForTenantPrincipal,
   source: SessionPermissionLogin | undefined,
@@ -111,7 +110,6 @@ export function recheckSessionPermissionLogin(
   return currentLogin(login.value, principal.tenant.account, source)
 }
 
-/** Called only after the original principal and target tenant pass the admission check. */
 export async function qualifyPermissionWrite(
   prepared: PreparedPermissionWrite,
   evidence: DurableEvidence,

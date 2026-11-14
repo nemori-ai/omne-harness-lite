@@ -1,7 +1,3 @@
-// `harness-server setup` as a function: real files in a temporary server home, an injected platform,
-// environment, secret reader and mode setter. Every credential is a sentinel built at run time; each
-// case that says "no secret" also proves, as its negative control, that the scan finds the sentinel
-// where it must be (the vault).
 import { randomBytes } from 'node:crypto'
 import {
   existsSync,
@@ -40,11 +36,6 @@ const ENV_SECRET = sentinel()
 
 type Modes = 'posix' | 'host'
 
-/**
- * `posix`: the mode setter and the vault guard are POSIX, with recorded operations, so the Linux
- * mode rule runs on any test host. `host`: no mode setter (as on Windows) and the vault's own guard.
- */
-/** The binding key `setup` writes: the official layer of the OpenRouter `apiKey`. */
 function officialApiKey() {
   const provider = releaseProvider('openrouter')
   if (provider === undefined) throw new Error('the release holds no openrouter provider')
@@ -59,9 +50,7 @@ function host(modes: Modes = 'host') {
   const guardCalls: string[] = []
   const shell = join(root, 'shell.exe')
   writeFileSync(shell, '')
-  // A POSIX guard over recorded operations: the creation mask, the mode set and the mode read back.
   const set = new Map<string, number>()
-  // When set, every mode reads back wide: the narrowing of the vault fails its read-back.
   const readBack = { wide: false }
   const posixGuard: PermissionGuard = createPosixGuard({
     umask: mask => {
@@ -80,7 +69,6 @@ function host(modes: Modes = 'host') {
       OMNE_SERVER_HOME: home,
       SystemRoot: process.env['SystemRoot'] ?? 'C:\\Windows',
       PATH: TOOL_PATH,
-      // Secrets in the environment of setup: none of them may reach the settings.
       OPENROUTER_API_KEY: ENV_SECRET,
       GH_TOKEN: ENV_SECRET,
     },
@@ -120,8 +108,6 @@ function host(modes: Modes = 'host') {
         string,
         unknown
       >,
-    // The deployment key as the vault serves it: the official layer of the OpenRouter `apiKey`,
-    // read through the use face.
     factorySecret: () => {
       const opened = openSecretVault({ path: join(home, 'state', 'model-vault.json') })
       if (opened.kind !== 'open') throw new Error(`vault ${opened.cause}`)
@@ -131,7 +117,6 @@ function host(modes: Modes = 'host') {
   }
 }
 
-/** Every file under the server home except the vault, as text. */
 function filesOutsideVault(home: string): string {
   const texts: string[] = []
   const walk = (dir: string) => {
@@ -159,14 +144,12 @@ describe('first run', () => {
       shell: expect.any(String),
       shellEnvironment: expect.objectContaining({ PATH: TOOL_PATH }),
     })
-    // The shell environment is the allowlist only: no variable that looks like a secret.
     const shellEnvironment = h.settings()['shellEnvironment'] as Record<string, string>
     expect(Object.keys(shellEnvironment).filter(isSecretName)).toEqual([])
     for (const text of [out.stdout, out.stderr, filesOutsideVault(h.home)]) {
       expect(text).not.toContain(key)
       expect(text).not.toContain(ENV_SECRET)
     }
-    // Negative control: the scan finds the key where it must be.
     expect(readFileSync(h.vaultFile, 'utf8')).toContain(key)
     expect(h.factorySecret()).toBe(key)
     expect(out.stdout).toContain(`settings     ${h.settingsFile} (created)`)
@@ -266,7 +249,6 @@ describe('a second run', () => {
     expect(out.code).toBe(0)
     expect(h.factorySecret()).toBe(second)
     expect(out.stdout).toContain('(replaced)')
-    // Replacing the deployment key of a readable vault keeps the tenant secrets: no warning.
     expect(out.stdout).not.toContain('tenant secret settings of the old vault')
     expect(out.stdout + out.stderr).not.toContain(second)
   })
@@ -361,7 +343,6 @@ describe('POSIX modes (injected mode setter and POSIX vault guard, on any host)'
     expect(modes.get(join(h.root, 'ws'))).toBe('700')
     const settingsTemporary = h.chmods.find(([path]) => path.startsWith(`${h.settingsFile}.`))
     expect(settingsTemporary?.[1]).toBe('600')
-    // The vault is created under the mask 077, then set to 0600 and read back.
     expect(h.guardCalls).toEqual(['umask:77', 'umask:22', 'chmod:600'])
   })
 
@@ -384,7 +365,6 @@ describe('POSIX modes (injected mode setter and POSIX vault guard, on any host)'
       `setup: the new model credential was written to ${h.vaultFile}, but the file could not be made private to this user (mode 0600)\n` +
         `Set the mode yourself (chmod 600 ${h.vaultFile}), then run setup again to check it.\n`,
     )
-    // The message tells the truth: the new key is in the vault.
     expect(h.factorySecret()).toBe(key)
   })
 

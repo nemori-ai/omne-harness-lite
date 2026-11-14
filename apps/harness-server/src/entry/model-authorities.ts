@@ -1,15 +1,3 @@
-// Model 的三个权威入口对象（AA 运行时对象表「Model 与 Tool 的原事实、权威与时钟适配对象」、Model 装配设计的三个插件 inject）：
-// `modelHostAuthority` 给 `model-host`，`modelPublicationAuthority` 给 `model-instances`，`modelConverterAuthority` 给
-// `model-converters`，都在根上 provide。发布与转换器登记核验对任何请求答 `denied`（入口没有预约表与采用表，不认识即拒绝；
-// R2-D33 §5.3：目录发布恒 denied 不挡本地 host 的 drive）。
-//
-// `modelHostAuthority` 是波 2 的真件（简报 B3-M 第 4 项、`tmp/wire-model/design.md` §3）。它在自己的闭包里持有本运行的
-// Model 组合（`src/model/composition.ts`），服务实例上只有 `resolve`；`model-records` 与 `model-host` 两行各经
-// `src/model/ports.ts` 按根上下文取自己的窄口（附着、宿主绑定），`ctx.get` 拿不到组合的任何部分（R2-D108 B1）。`resolve` 按
-// 固定次序取事实：读原受理（只在本次许可内）→ 核受理记录的关系（租户、调用、原发起者就是本租户账号）→ 用入口受信读取的
-// 签发者签 M → `channel.prepare`。关系核对在签发之前（ID-16：核对失败、依据不可得时不得签发），所以关系不成立的请求不会
-// 让签发者签出任何主体。任一步失败答 `unavailable` 或 `denied`，不补造 ActorRef、operation 或摘要。
-// 签发者只在安装时经受信名 `principalIssuer` 读一次；签发闭包固定 actor 与 `work.owner`，不交给任何行。
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   ActingForTenantPrincipal,
@@ -55,26 +43,21 @@ import type { EntryEnv, EntryObjectModule } from '../types.ts'
 
 const DENIED: ModelRegistrationFailure = Object.freeze({ kind: 'denied' })
 
-/** 发布权威：入口没有宿主预约表，没有一次登记是它认识的。 */
 export function createModelPublicationAuthority(): ModelPublicationAuthority<unknown> {
   return Object.freeze({ check: () => fail(DENIED) })
 }
 
-/** 转换器权威：入口没有转换器采用表，没有一次登记是它认识的。 */
 export function createModelConverterAuthority(): ModelConverterAuthority<unknown> {
   return Object.freeze({ check: () => fail(DENIED) })
 }
 
-/** 窄签发闭包：actor 与 `work.owner` 固定，只收租户与调用。 */
 export type ModelWorkIssue = (
   input: Readonly<{ tenant: TenantId; call: ModelCallId }>,
 ) => Outcome<ActingForTenantPrincipal, unknown>
 
 export type ModelHostAuthorityInput = Readonly<{
   composition: ModelRunComposition
-  /** 没装好签发者时为 undefined：`resolve` 答 unavailable。 */
   issue: ModelWorkIssue | undefined
-  /** 按调用现取 `tenantStanding`；缺席时 `resolve` 答 unavailable。 */
   standing(): Pick<TenantStandingSource, 'read'> | undefined
 }>
 
@@ -92,7 +75,6 @@ type Ready = Readonly<{
   standing: Pick<TenantStandingSource, 'read'>
 }>
 
-/** 前提：记录行已附着、宿主已绑定、签发者与 standing 来源在场。缺任一项答 `unavailable`。 */
 function readiness(input: ModelHostAuthorityInput): Outcome<Ready, ModelFailure> {
   const attached = input.composition.attached()
   if (attached === undefined) return fail(unavailable('records-not-attached'))
@@ -104,7 +86,6 @@ function readiness(input: ModelHostAuthorityInput): Outcome<Ready, ModelFailure>
   return succeed({ attached, current, issue: input.issue, standing })
 }
 
-/** 第 1 步：原受理，只在本次许可内读。`commit-unknown` 答 `unavailable`，别的失败原样返回。 */
 async function readOrigin(
   composition: ModelRunComposition,
   initial: ModelInitialExecution<unknown>,
@@ -124,7 +105,6 @@ async function readOrigin(
   return accepted
 }
 
-/** 第 2 步：受理记录的租户与调用等于请求，租户是成员，原发起者就是本租户账号。通过后给出主体引用。 */
 async function checkRelation(
   standing: Pick<TenantStandingSource, 'read'>,
   accepted: ModelAcceptedOrigin,
@@ -141,7 +121,6 @@ async function checkRelation(
   return succeed(subject.actor)
 }
 
-/** 第 4 步：通道 prepare，首次生成或认回 operation 与 continuity。失败撤掉 M 的登记并原样返回。 */
 async function prepareOnChannel(
   composition: ModelRunComposition,
   ready: Ready,
@@ -178,7 +157,6 @@ async function prepareOnChannel(
   return prepared
 }
 
-/** 宿主权威的 `resolve`：前提 → 读原受理 → 核关系 → 签 M → prepare。诊断不回显调用身份。 */
 export function createModelHostAuthority(
   input: ModelHostAuthorityInput,
 ): ModelHostAuthority<unknown> {
@@ -190,7 +168,6 @@ export function createModelHostAuthority(
     // 2. 核关系。核对失败时没有签发过任何主体（ID-16：核对失败、依据不可得不得签发）。
     const actor = await checkRelation(ready.ok.standing, accepted.ok, target)
     if ('failure' in actor) return actor
-    // 3. 关系成立后才签 M。
     const issued = ready.ok.issue({ tenant: accepted.ok.tenant, call: accepted.ok.call })
     if ('failure' in issued) return fail(unavailable('principal-issue-refused'))
     return prepareOnChannel(input.composition, ready.ok, {
@@ -219,7 +196,6 @@ class EntryModelConverterAuthority extends ModelConverterAuthorityService<unknow
   }
 }
 
-/** 服务实例上只有 `resolve`；组合留在入口闭包里，不挂到任何 `ctx.get` 能到的对象上。 */
 class EntryModelHostAuthority extends ModelHostAuthorityService<unknown> {
   readonly resolve: ModelHostAuthority<unknown>['resolve']
   constructor(ctx: Context, authority: ModelHostAuthority<unknown>) {
@@ -228,7 +204,6 @@ class EntryModelHostAuthority extends ModelHostAuthorityService<unknown> {
   }
 }
 
-/** 模型宿主签发闭包：经入口受信读取的签发者签系统 actor，再固定它与 `work.owner`。签发者缺席时为 undefined。 */
 function modelWorkIssuerOf(env: EntryEnv): ModelWorkIssue | undefined {
   const issuer: PrincipalIssuer | undefined = env
     .readTrusted(principalIssuerKey)
@@ -277,7 +252,6 @@ export const modelHostAuthority: EntryObjectModule = {
     const authority = createModelHostAuthority({
       composition,
       issue,
-      // The entry reads its trusted name per call; a root provider of the same name is not seen.
       standing: () => env.readTrusted(tenantStandingKey).get(tenantStandingKey),
     })
     new EntryModelHostAuthority(scope, authority)

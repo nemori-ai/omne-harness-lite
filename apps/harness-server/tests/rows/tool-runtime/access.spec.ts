@@ -1,5 +1,3 @@
-// Tool 运行时组的来源资格（`sourceAuthority`）：组合用例里外租户先被准入核验拒绝，这里单独守第二道——
-// 来源资格只认本租户、经核验的会话工作主体，consumer 只认 Agent 的动作位置；核验器缺席答 unavailable，不放行。
 import { describe, expect, it } from 'vitest'
 import type { PrincipalIssuer, PrincipalVerifier } from '@omne-harness/identity'
 import { principalIssuerKey, principalVerifierKey } from '@omne-harness/identity/cordis'
@@ -18,8 +16,6 @@ const AGENT_ACTION = {
   position: 'p-1',
   purpose: 'action',
 } as unknown as ConsumerRef
-/** The holder as the entry object `toolClock` fills it: here the verifier is the fixture's. The
- * session work source and the standing are not read by the source authority. */
 function holderOf(verifier: () => PrincipalVerifier | undefined): ToolRuntimeHolder {
   return {
     workPrincipals: () => undefined,

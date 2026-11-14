@@ -1,7 +1,5 @@
 import type { LifecyclePhase, RowId, RowManifest } from '../types.ts'
 
-/** A hand-kept projection of the assembly page's plugin-tree table: when the page changes the rows,
- * regenerate aa-rows.json, then update this table by hand. */
 type Entry = {
   provides?: readonly string[]
   injects?: readonly string[]

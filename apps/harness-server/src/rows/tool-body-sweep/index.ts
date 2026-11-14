@@ -1,8 +1,3 @@
-// The `tool-body-sweep` row: the application schedules the Tool sweep over the due index of the
-// tenants whose entries have come due (spec C5, C15): due bodies are reclaimed and due call
-// domains are removed with the records the host keeps for the call. The Tool runtime does both;
-// this row only gives it the clock, the interval, the batch limit and the table of due tenants,
-// and stops it at shutdown.
 import { z } from 'zod'
 import { observeToolLedgerCommit, createToolSweep } from '@omne-harness/tool'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
@@ -29,7 +24,6 @@ const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 export const toolBodySweepConfig = z.strictObject({
   combinationVersion: z.string().min(1).max(1024),
   ledgerCommitAttempts: positive,
-  /** G: the same value as the Tool runtime's `offloading.orphanGraceMs`. */
   orphanGraceMs: positive,
   intervalMs: z.number().int().min(1).max(2_147_483_647),
   limit: z.number().int().min(1).max(1000),
@@ -92,7 +86,6 @@ export const toolBodySweepRow = defineRow({
       dueIndex: store.due,
       due: holder.bodyDue,
       limit: config.limit,
-      // The sweep logs a tenant that cannot be swept on its first failure and at the cap.
       warn: message => logger.warn(message),
     })
     const runner = startSweepRunner({

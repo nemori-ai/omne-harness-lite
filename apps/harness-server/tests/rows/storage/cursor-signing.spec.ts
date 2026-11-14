@@ -1,5 +1,3 @@
-// `sessionCursorSigning` 入口对象（acceptance 3）：首次启动在状态根生成 32 字节密钥文件，之后复用、不轮换；签名可验证，
-// 篡改与别的密钥都答 `invalid`；密钥只在文件里，不在服务实例的可枚举属性上。
 import { mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { inspect } from 'node:util'
 import { tmpdir } from 'node:os'
@@ -79,7 +77,6 @@ describe('the cursor signing key (acceptance 3)', () => {
     expect(await other.verify({ payload: payload('cursor'), signature: signed.value })).toEqual({
       kind: 'invalid',
     })
-    // 重启后的服务用同一个文件：旧签名仍然有效（不轮换）。
     const again = await installed(root)
     expect(await again.verify({ payload: payload('cursor'), signature: signed.value })).toEqual({
       kind: 'valid',

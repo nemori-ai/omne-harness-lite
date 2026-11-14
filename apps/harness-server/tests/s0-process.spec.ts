@@ -1,8 +1,4 @@
 // @module-tag slow
-// 慢：每个用例启动 dist/bin.js 子进程，并装载 45 行替身树。
-// S0 进程级验收（s0-spec-r2 §7、§8、§10）。慢层：直接启动 dist/bin.js，用绝对 fixture 路径，
-// 断言退出码与 stdout JSON 记录，不经 POSIX shell。S0-7 与 G-3 的装载前拒绝用同进程 runS0，因为
-// 替身清单与可见表是代码事实，CLI 不暴露它们。
 import { execFile } from 'node:child_process'
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -89,7 +85,6 @@ function withoutRow(id: string): Distribution {
 
 const phased = [...rowManifests].filter(([, m]) => m.phase !== null).map(([id]) => id)
 
-/** 按 stubs.ts 的清单算：哪些行永远得不到全部 inject。入口对象是没有任何行提供的名。 */
 function pendingClosure(enabled: readonly string[]) {
   const providedByRows = new Set([...rowManifests.values()].flatMap(m => m.provides))
   const entryNames = new Set(
@@ -127,7 +122,6 @@ describe('S0-1 完整发行替身树', () => {
       barrierCalls: 1,
     })
     expect([...result['startedRows']].sort()).toEqual([...phased].sort())
-    // R-2：阶段间启动次序是关闭次序的逆序 storage → composition → business → entry。
     const rank = ['storage', 'composition', 'business', 'entry']
     const phaseOf = (id: string) => rank.indexOf(rowManifests.get(id as RowId)!.phase!)
     const ranks = (result['startedRows'] as string[]).map(phaseOf)

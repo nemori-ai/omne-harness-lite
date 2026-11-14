@@ -32,7 +32,6 @@ function digestOfFile(moduleUrl: string): string | null {
   }
 }
 
-/** 构造期的材料核对（acceptance 4）：每份材料的文件可读且摘要等于描述符写的值。问题按材料点名。 */
 export function catalogProblems(catalog: SqlMaterialCatalog): string[] {
   const items: readonly (readonly [material: string, moduleUrl: string, expected: string])[] = [
     ...catalog.participants.map(
@@ -55,7 +54,6 @@ export function catalogProblems(catalog: SqlMaterialCatalog): string[] {
 }
 
 type AdapterState = {
-  /** 每一代交来的控制口，直到装配报告确定（§2.3、§13.4）。 */
   readonly controls: StorageControl[]
   readonly leases: Set<CloseLeaseHandle>
   admitting: boolean
@@ -81,11 +79,6 @@ function summarize(results: readonly PromiseSettledResult<StorageCloseResult>[])
   return { failed, writer, reader }
 }
 
-/**
- * 句柄的 `stop(D)`：先停止租约准入，再对每个保存的控制口调用 `close({ initiator: 'assembly' })`，等全部结果或到达 D。
- * 全部 `closed` 答 `settled`；有 `incomplete` 时 `detail` 只写残留 Worker 的个数与角色；到达 D 答 `incomplete`。
- * 迟到的结果不改写已给出的答案。
- */
 async function closeAll(state: AdapterState, deadlineMonotonicMs: number): Promise<StopResult> {
   state.admitting = false
   const pending = state.controls.map(control => control.close({ initiator: 'assembly' }))
@@ -111,8 +104,6 @@ async function closeAll(state: AdapterState, deadlineMonotonicMs: number): Promi
   }
 }
 
-/** `attachControl` 是只读属性，不能用方法语法覆盖，所以用 `function` 表达式赋值：
- * 箭头函数拿不到调用方代理的 `this`。 */
 export class StorageHostAdapter extends StorageHostService {
   readonly materials: SqlMaterialCatalog
   readonly closeLeases: CloseLeasePort
@@ -136,10 +127,6 @@ export class StorageHostAdapter extends StorageHostService {
         state.leases.delete(handle)
       },
     }
-    /**
-     * 先保存交来的控制口，再经 `this.ctx` 登记句柄：登记落在调用它的 `storage` 行的 fiber 上。登记被拒
-     * （`phase-mismatch`、`duplicate`、`generation-change`）时关闭刚保存的控制口并重新抛出（N-r2-2），该行随之 FAILED。
-     */
     this.attachControl = function attachControl(this: StorageHostAdapter, control: StorageControl) {
       state.controls.push(control)
       const lifecycle: AssemblyLifecycle = this.ctx.get(S0_ASSEMBLY_LIFECYCLE_KEY)
@@ -153,7 +140,6 @@ export class StorageHostAdapter extends StorageHostService {
           },
         })
       } catch (error) {
-        // 结果只作诊断：这一代控制口不再有登记者去等它。
         control.close({ initiator: 'assembly' }).catch(() => {})
         throw error
       }
@@ -162,7 +148,6 @@ export class StorageHostAdapter extends StorageHostService {
 }
 
 export type StorageHostOptions = Readonly<{
-  /** 测试输入：替换本构建的材料目录。 */
   catalog?: () => SqlMaterialCatalog | Promise<SqlMaterialCatalog>
 }>
 

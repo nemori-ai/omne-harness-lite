@@ -1,5 +1,3 @@
-// The projection read runs read-only participant commands on one read connection of the real
-// provider. The same commands in a commit give the same response.
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

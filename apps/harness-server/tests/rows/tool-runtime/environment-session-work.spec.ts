@@ -1,6 +1,3 @@
-// A session work principal that cannot be verified is not a refused one: the environment facilities
-// answer unavailable, and say so in a warning; only a principal that was checked and is not a
-// session work principal of the tenant is refused.
 import { describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { VerifiedSessionWork } from '../../../src/rows/tool-runtime/session-work.ts'

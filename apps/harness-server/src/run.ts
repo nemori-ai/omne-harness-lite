@@ -1,6 +1,3 @@
-// `runS0` 与 `runServe`：把装载树（plugin-tree）、装载与就绪（loader）、行清单（profile）与有序关闭
-// （lifecycle、shutdown）组合成一次运行。S0 不接 HTTP，不打开业务状态根（s0-spec-r2 §2、§10）。
-// `serve` 以正式服务键装载行，启动后等停止请求（DP-1 决定，#978）。
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { ConfigError } from './config-schema.ts'
@@ -64,32 +61,22 @@ import type {
 
 type ExecutionHostBinding = ReturnType<typeof createExecutionHostBinding>
 
-/** One stdout record. `kind` names it; the other fields are the record's own. */
 export type S0Record = { readonly kind: string } & Readonly<Record<string, unknown>>
 
-/** A text stream of the process: `process.stdout` or `process.stderr` in `bin.ts`. */
 export type TextSink = Readonly<{ write(text: string): unknown }>
 
-/** The application's record writer over `sink`: each record is one complete JSON line. */
 export function recordLineWriter(sink: TextSink): (record: unknown) => void {
   return record => {
     sink.write(`${JSON.stringify(record)}\n`)
   }
 }
 
-/** The application's line writer over `sink`: each call writes one line. */
 export function lineWriter(sink: TextSink): (line: string) => void {
   return line => {
     sink.write(`${line}\n`)
   }
 }
 
-/**
- * Seals stdout after `shutdown-result`. The run's records go through `write` until it has written
- * `shutdown-result`; a record that comes later (a `late-result` of a stop that ended after the
- * deadline, or a log message after the bridge was detached) goes to `stderr` as one JSON line
- * without a prefix, so `shutdown-result` stays the last line of stdout.
- */
 function sealedAfterShutdownResult(
   write: (record: S0Record) => void,
   stderr: (line: string) => void,
@@ -106,25 +93,18 @@ function sealedAfterShutdownResult(
 }
 
 export type RunS0Options = Readonly<{
-  /** Parsed JSON of the distribution file. Validated at the boundary here. */
   distribution: unknown
   operator?: unknown
   readinessTimeoutMs: number
   shutdownDeadlineMs: number
-  /** The stdout record writer. `shutdown-result` is the last record it gets; later ones go to `stderr`. */
   write: (record: S0Record) => void
-  /** Diagnostics for a person. Rejections before loading go here. */
   stderr: (line: string) => void
-  /** Test input: entry objects to withhold, by full name. The CLI does not expose it. */
   omitEntryObjects?: readonly ServiceName[]
-  /** Test input: replace the row manifests of the release code. */
   manifests?: ReadonlyMap<RowId, RowManifest>
-  /** Test input: replace the trusted-name table of the release code. */
   visibility?: Visibility
 }>
 
 export type S0Result = Readonly<{
-  /** 0 ready and shutdown settled; 2 rejected before loading; 3 FAILED; 4 PENDING or LOADING; 5 shutdown incomplete. */
   exitCode: 0 | 2 | 3 | 4 | 5
   barrierCalls: number
   startedRows: readonly string[]
@@ -133,7 +113,6 @@ export type S0Result = Readonly<{
 
 const NO_MANIFEST: RowManifest = { provides: [], injects: [], phase: null, sameProviderGroup: null }
 
-/** The one stub switch this entry reads itself. The rest belongs to the stub plugin. */
 const StopConfig = z.object({
   startBehavior: z.enum(['settle', 'fail']).optional(),
   stopBehavior: z.enum(['settle', 'hang']).optional(),
@@ -143,10 +122,6 @@ type Probes = { started: string[]; applied: string[] }
 
 const SETTLED: StopResult = { kind: 'settled' }
 
-/**
- * The registry of one run, with a probe before every `start` the registry calls: `startedRows` lists
- * the rows in call order, whoever registered the handle (a stub, a row body or an entry object).
- */
 class ProbedRegistry extends LifecycleRegistry {
   readonly #started: string[]
 
@@ -168,10 +143,6 @@ class ProbedRegistry extends LifecycleRegistry {
   }
 }
 
-/**
- * A stub row's plugin: the stub for its manifest, plus a lifecycle handle for a row that the release
- * code expects to register. The handle is registered from the row's own fiber, so it leaves with it.
- */
 function stubRowPlugin(id: RowId, manifest: RowManifest, probes: Probes): Plugin.Object {
   const stub = stubPlugin({
     id,
@@ -205,7 +176,6 @@ function stubRowPlugin(id: RowId, manifest: RowManifest, probes: Probes): Plugin
   }
 }
 
-/** A declared row's plugin: the wrapper from `defineRow`, with the probes of this run around it. */
 function declaredRowPlugin(id: RowId, wrapper: Plugin.Object, probes: Probes): Plugin.Object {
   return {
     ...wrapper,
@@ -216,7 +186,6 @@ function declaredRowPlugin(id: RowId, wrapper: Plugin.Object, probes: Probes): P
   }
 }
 
-/** Names that no row provides: the runtime objects of the root, which the entry stands in for. */
 function entryNames(manifests: ReadonlyMap<RowId, RowManifest>): ServiceName[] {
   const provided = new Set([...manifests.values()].flatMap(m => m.provides))
   const wanted = [...manifests.values()].flatMap(m => m.injects)
@@ -252,7 +221,6 @@ function treeRecords(
   tree: ResolvedTree,
   visible: (row: RowId) => readonly ServiceName[],
   implementationOf: (row: RowId) => Implementation,
-  /** Members a factory row adds to its own record (`telemetry`: implementation and outlet). */
   describe: (row: TreeRow) => Readonly<Record<string, unknown>> = () => ({}),
 ): S0Record[] {
   return [
@@ -276,7 +244,6 @@ function treeRecords(
   ]
 }
 
-/** A non-zero startup code wins. Otherwise an incomplete shutdown is 5. */
 function finalExitCode(
   startCode: 0 | 3 | 4,
   overall: 'settled' | 'incomplete',
@@ -285,7 +252,6 @@ function finalExitCode(
   return overall === 'settled' ? 0 : 5
 }
 
-/** Expected registrants of the enabled rows, by shutdown phase. */
 function expectedPhases(rows: readonly RowSpec[]): Map<RowId, LifecyclePhase> {
   const expected = new Map<RowId, LifecyclePhase>()
   for (const { row, manifest } of rows) {
@@ -429,36 +395,22 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
 }
 
 export type RunServeOptions = Readonly<{
-  /** Parsed JSON of the distribution file. Validated at the boundary here. */
   distribution: unknown
   operator?: unknown
   readinessTimeoutMs: number
   shutdownDeadlineMs: number
-  /**
-   * `--drain-deadline-ms`: how long the planned stop lets the rows with a `drain` finish the work
-   * they accepted, before the business phase. Absent: no drain is called.
-   */
   drainDeadlineMs?: number
-  /** `--state-root`: an existing absolute directory. Handed to the entry objects as `EntryEnv.stateRoot`. */
   stateRoot: string
-  /** The planned stop. After a successful startup the run waits for it. */
   stop: AbortSignal
-  /** The stdout record writer. `shutdown-result` is the last record it gets; later ones go to `stderr`. */
   write: (record: S0Record) => void
-  /** Diagnostics for a person. Rejections before loading go here. */
   stderr: (line: string) => void
-  /** Test input: replace the `./cordis` exports (the allowlist and the row declarations). */
   plugins?: Readonly<Record<string, unknown>>
-  /** Test input: replace the entry object registry `src/entry/index.ts`. */
   entryObjects?: readonly EntryObjectModule[]
-  /** Test input: replace the stub manifests of the release code (formal names). */
   manifests?: ReadonlyMap<RowId, RowManifest>
-  /** Test input: replace the trusted-name table of the release code. */
   visibility?: Visibility
 }>
 
 export type ServeResult = Readonly<{
-  /** 0 was accepting, stopped on request and shutdown settled; 2 rejected before loading; 3 FAILED, start failed or an entry object failed to install; 4 PENDING or LOADING; 5 shutdown incomplete. */
   exitCode: 0 | 2 | 3 | 4 | 5
   accepting: boolean
   barrierCalls: number
@@ -469,7 +421,6 @@ export type ServeResult = Readonly<{
 
 const SERVE_PREFIX = 'serve'
 
-/** DP1-C17: one object per key for one run. A second `create` for the same key is a programming error. */
 function createOnce(): EntryEnv['once'] {
   const made = new Map<symbol, { create: () => unknown; value: unknown }>()
   return <T>(key: symbol, create: () => T): T => {
@@ -481,16 +432,10 @@ function createOnce(): EntryEnv['once'] {
     }
     if (hit.create !== create)
       throw new Error(`entry env: ${String(key)} was first created by a different function`)
-    // The same `create` made it, so it is a T.
     return hit.value as T
   }
 }
 
-/**
- * DP1-C11: names that only s0-double rows inject, that no row of the table or any declaration
- * provides, that no module of the registry installs, and that no real or contract-double row injects.
- * The entry provides a placeholder for each. A real consumer never gets a placeholder.
- */
 function placeholderNames(
   rows: readonly RowSpec[],
   profile: Profile,
@@ -512,7 +457,6 @@ function placeholderNames(
   )
 }
 
-/** Settles with the reason when the signal aborts. `cancel` detaches the listener. */
 function stopRequest(signal: AbortSignal): { promise: Promise<string>; cancel: () => void } {
   const reasonOf = () => (typeof signal.reason === 'string' ? signal.reason : 'stop signal')
   let onAbort = () => {}
@@ -531,9 +475,6 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
   const hostFiles = createHostFilesRuntime({
     diagnose: diagnostic => options.stderr(`${SERVE_PREFIX}: ${diagnostic.kind}`),
   })
-  // One `serve` process for one state directory (`state-lock.ts`): the rows that take over the work
-  // of an earlier process rest on it. It is taken after the checks that need no state, before
-  // anything of the tree runs, and kept until the run is over.
   let lock: StateLock | undefined
   const lockState = (): string | null => {
     try {
@@ -546,9 +487,6 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
       return `state-root-unusable: ${error instanceof Error ? error.message : String(error)}`
     }
   }
-  // The release's own `agent-host` and `tool-records` rows get the proof of this run's lock. A
-  // caller that gives its own plugins gives its own rows, which judge nothing lost unless they
-  // were built with a proof.
   const plugins: Readonly<Record<string, unknown>> = options.plugins ?? {
     ...releasePlugins,
     agentHostRow: createAgentHostRow({
@@ -566,7 +504,6 @@ export async function runServe(options: RunServeOptions): Promise<ServeResult> {
   }
 }
 
-/** The spec of one enabled row: a stub row from the table, or a declared export of the profile. */
 function rowSpecOf(
   row: TreeRow,
   profile: Profile,
@@ -599,7 +536,6 @@ function rowSpecOf(
   }
 }
 
-/** The `entry-object` records: the lifecycle, the registry modules, then the placeholders. */
 function entryObjectRecords(
   modules: readonly EntryObjectModule[],
   placeholders: readonly ServiceName[],
@@ -627,7 +563,6 @@ function entryObjectRecords(
   ]
 }
 
-/** The entry objects the tree starts with: the registry modules over `env`, then the placeholders. */
 function entryObjectsOf(
   modules: readonly EntryObjectModule[],
   placeholders: readonly ServiceName[],
@@ -650,7 +585,6 @@ function entryObjectsOf(
 
 const implementationOfSpec = (spec: RowSpec): Implementation => spec.implementation ?? 's0-double'
 
-/** How many rows each implementation kind has, and the kind of each row. */
 function implementationCounts(rows: readonly RowSpec[]): Readonly<{
   counts: Record<Implementation, number>
   of: ReadonlyMap<RowId, Implementation>
@@ -660,7 +594,6 @@ function implementationCounts(rows: readonly RowSpec[]): Readonly<{
   return { counts, of: new Map(rows.map(spec => [spec.row.id, implementationOfSpec(spec)])) }
 }
 
-/** The factory rows' configuration is parsed before any row can run (`ConfigError` on rejection). */
 function parseFactoryConfigs(
   rows: readonly TreeRow[],
   factories: Readonly<{ executionHost: ExecutionHostBinding; telemetry: TelemetryBinding }>,
@@ -674,10 +607,6 @@ function parseFactoryConfigs(
 type Started = Extract<StartResult, { kind: 'started' }>
 type StartFailure = Exclude<StartResult, { kind: 'started' }>
 
-/**
- * Runs the registered `start`s (only when the barrier was reached), writes the row states and the
- * `startup-result`, and gives the startup code: 0 accepts, 3 when a `start` threw, else the loader's.
- */
 async function startAndReport(
   input: Readonly<{
     registry: LifecycleRegistry
@@ -709,7 +638,6 @@ async function startAndReport(
   return startCode
 }
 
-/** Waits for the planned stop, or for a stop the registry asked for (then the registry already said why). */
 async function awaitStop(
   signal: AbortSignal,
   registryStop: Promise<void>,
@@ -721,7 +649,6 @@ async function awaitStop(
   if (reason !== null) stderr(`${SERVE_PREFIX}: stop requested: ${reason}`)
 }
 
-/** A start that loaded no row: the diagnostics for a person, the disposal or the shutdown, and the exit code. */
 async function settleStartFailure(
   started: StartFailure,
   io: Readonly<{
@@ -753,16 +680,12 @@ async function settleStartFailure(
 async function runServeWithHostFiles(
   options: RunServeOptions,
   hostFiles: HostFilesRuntime,
-  /** Takes the lock of the state directory; the text of the refusal when it cannot. */
   lockState: () => string | null,
 ): Promise<ServeResult> {
   const { stderr } = options
   // Sealed after `shutdown-result`; every writer below gets this one.
   const write = sealedAfterShutdownResult(options.write, stderr)
   const executionHost = createExecutionHostBinding(hostFiles)
-  // One stdout writer: the telemetry `stdout` outlet and the log bridge write through `write` too.
-  // The `stderr` outlet gets the bare writer (one JSON record per line); only the summary line for
-  // a person carries the serve prefix.
   const telemetry = createTelemetryBinding({
     write,
     stderr,
@@ -841,8 +764,6 @@ async function runServeWithHostFiles(
 
   const expected = expectedPhases(rows)
   const root = new Context()
-  // Messages up to WARN become `log` records before any row loads; without it Cordis exports up to
-  // INFO only (R2-D253). The bridge hands them to the telemetry runtime once that row is active.
   root.logger.exporter(telemetry.bridge.exporter)
   installToolResultDisclosure(root, disclosure)
   let loaded: readonly LoadedRow[] = []
@@ -859,7 +780,6 @@ async function runServeWithHostFiles(
         stopsFirst: stopPredecessors(rows),
         ...(options.drainDeadlineMs === undefined ? {} : { drainMs: options.drainDeadlineMs }),
         ...(finishHostFiles === undefined ? {} : { afterBusiness: finishHostFiles }),
-        // After storage, before the report is fixed: the tree writes no diagnostic any more.
         afterStorage: deadline => telemetry.close(Math.max(0, deadline - monotonicClock.now())),
         disposeRoot: async () => {
           await finishHostFiles?.()
@@ -869,7 +789,6 @@ async function runServeWithHostFiles(
       },
     ))
   }
-  /** The host-files settlement after the business phase, only with the factory row enabled. */
   const finishHostFiles = rows.some(spec => spec.row.plugin === 'executionHost')
     ? () =>
         hostFiles.finish(async () => {

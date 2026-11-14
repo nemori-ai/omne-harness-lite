@@ -1,6 +1,3 @@
-// 生产入口对 Runtime Context 收窄与 Execution 授权三件的接线：四个模块都在清单里各一次，
-// 共用一份 Scope 来源；`sessionScopeLookup` 与 AD-15 的来源缺席时，绑定与恢复授权答 unavailable，不因会话归属读口可读而放行。
-// Scope 归属只读受信作用域里的 `sessionScopeLookup`（R2-D168、R2-D189 B1）：根上的同名提供者读不到。
 import { expect, it } from 'vitest'
 import {
   executionEnvironmentAuthorityKey,
@@ -55,7 +52,6 @@ it('answers unavailable for scope bindings and recovery while sessionScopeLookup
     sessionPrincipalBindingsKey,
   ]
   const fixture = fixtureEnv(keys)
-  // The session side is readable and says bound: the missing scope owner alone must keep the answer closed.
   fixture.scopeOf(sessionPrincipalBindingsKey).provide(sessionPrincipalBindingsKey, {
     read: async (input: { tenant: typeof tenant; session: string }) => ({
       ok: {
@@ -86,7 +82,6 @@ it('answers unavailable for scope bindings and recovery while sessionScopeLookup
   expect(await recovery.authorizeRecovery(createRecoveryAccess(), scope, [])).toBe('unavailable')
 })
 
-/** The installed wiring with the session side readable and saying bound for any (tenant, session). */
 async function wired() {
   const fixture = fixtureEnv([
     principalIssuerKey,
@@ -121,7 +116,6 @@ async function wired() {
   return { fixture, bindings, trust }
 }
 
-/** A scope lookup that answers every scope as session `session` of `owner`. */
 const lookupAs = (owner: typeof tenant, session: string) => ({
   lookup: async () => ({ kind: 'known', tenant: owner, session, generation: 'g1' }),
 })
@@ -138,12 +132,10 @@ it('does not read a same-name sessionScopeLookup on the root: a scope of tenant 
   fixture.root.provide(sessionScopeLookupKey, lookupAs(tenantB, 'ses-b'))
   expect(await bindings.lookup(scope)).toEqual({ kind: 'unavailable' })
   expect(await trust.bindings.lookup(scope)).toEqual({ kind: 'unavailable' })
-  // With the trusted provider present, the root one still does not replace it.
   fixture.scopeOf(sessionScopeLookupKey).provide(sessionScopeLookupKey, lookupAs(tenant, 'ses-a'))
   expect(await bindings.lookup(scope)).toEqual({ kind: 'bound', tenant })
 })
 
-/** The durable scope owners of Session, answering every scope as session `session` of `owner`. */
 const ownersAs = (owner: typeof tenant, session: string) => ({
   lookup: async () => ({ ok: { kind: 'owned', tenant: owner, session, generation: '1' } }),
 })

@@ -1,9 +1,3 @@
-// The access checks of the `authorization` row (APP-6b, DP-4 §3.4 and §3.5). The checks run against
-// the real consumer contracts (`SessionAccessCheck`, `AgentAccessCheck`) and the real reference
-// authorization pieces. Only the dependencies are test doubles: a verifier and a standing source
-// whose answers and failures the test sets. Each case asks one question of the answer, and the
-// recorders show which dependency was reached, because a denial before the dependencies must not
-// call them (policy draft §3).
 import { describe, expect, it } from 'vitest'
 import { Service, Context } from '@deepseek-ai/cordis'
 import { toolAccessGuardConformance, type ToolAccessGuardFixture } from '@omne-harness/tool/testing'
@@ -85,7 +79,6 @@ function readingOf(mode: Exclude<StandingMode, 'throws'>): TenantStandingReading
   return { kind: 'unavailable', diagnostic: 'the standing store is closed' }
 }
 
-/** The dependencies with switches and recorders, over the real reference authorization. */
 function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
   const authority = inProcessPrincipalAuthority()
   const flags = { verifierThrows: false, standing: 'member' as StandingMode }
@@ -129,7 +122,6 @@ function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
         return systemActions.check(input)
       },
     },
-    // This world has no login source: a Session permission write reads it as unavailable.
     login: { queryCurrentTenant: () => Promise.reject(new Error('no login source')) },
   }
 
@@ -155,11 +147,6 @@ function world(grantTable: typeof MAINTENANCE_GRANTS = MAINTENANCE_GRANTS) {
   }
 }
 
-/**
- * A Session request. The adapter reads the command kind, `input.tenant`, `input.session`,
- * `input.value.kind` and `input.fact.kind` and digests the rest, so the tests build commands with
- * these members only. The one cast is the shape of that minimal command.
- */
 function sessionRequest(value: unknown): SessionAccessRequest<unknown> {
   return value as SessionAccessRequest<unknown>
 }
@@ -572,7 +559,6 @@ describe('sessionAccessCheck: system principals and the matrix', () => {
       },
       arguments: effectiveArgumentsOf(scopeReleaseFact.fact),
     })
-    // The tenant admission was never asked for a system principal.
     expect(w.seen.admissions).toEqual([])
   })
 
@@ -696,12 +682,10 @@ describe('agentAccessCheck', () => {
     expect(await w.agent.check(agentRequest(model(B), 'receive-result', target))).toEqual({
       kind: 'denied',
     })
-    // The member cells of the work column, which W passes: M passes none of them.
     for (const operation of ['submit', 'control', 'resume', 'detach', 'invoke'] as const)
       expect(await w.agent.check(agentRequest(model(A), operation, target)), operation).toEqual({
         kind: 'denied',
       })
-    // M's shape with an actor of another component is not M.
     const forged = okOf(
       w.issuer.issueActingForTenant({
         actor: w.system('sessionWorkPrincipals'),
@@ -1009,7 +993,6 @@ describe('Tool access qualification', () => {
   for (const check of toolAccessGuardConformance<unknown>()) {
     it(check.name, async () => {
       const subject = fixture()
-      // The suite is only evidence if the fixture really separates listed from unlisted principals.
       expect(await subject.guard.qualify(subject.allowed)).toEqual({ kind: 'allowed' })
       expect(await subject.guard.qualify(subject.unlisted)).toMatchObject({ kind: 'denied' })
       await expect(check.run(subject)).resolves.toBeUndefined()
@@ -1233,7 +1216,6 @@ describe('the row', () => {
         name: 'probe',
         inject: ['sessionAccessCheck', 'agentAccessCheck', 'agentActionAdmission'],
         apply: (ctx: Context) => {
-          // The services are taken while the plugin runs; the continuation below has no active context.
           const { sessionAccessCheck, agentAccessCheck, agentActionAdmission } = ctx
           answers['run'] = (async () => {
             answers['work'] = await sessionAccessCheck.check(read(work, 'readWork'))
@@ -1298,7 +1280,6 @@ describe('the row', () => {
     ])
     expect(answers['work']).toMatchObject({ kind: 'allowed' })
     expect(answers['holder']).toMatchObject({ kind: 'allowed' })
-    // Unlisted components have no maintenance purpose.
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
     expect(answers['admission']).toMatchObject({ ok: { kind: 'unavailable' } })

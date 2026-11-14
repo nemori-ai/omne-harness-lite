@@ -1,5 +1,3 @@
-// The driver of the identity end-to-end run (K10, AC-9): runs the flow once and writes the evidence file.
-// Usage: node tests/e2e-identity/drive.ts <evidence file>. Exit 0 when every step and check matches, 1 otherwise.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -18,9 +16,7 @@ const passed =
 let head = 'unknown'
 try {
   head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-} catch {
-  // the evidence is still useful without the head
-}
+} catch {}
 mkdirSync(dirname(resolve(target)), { recursive: true })
 writeFileSync(
   resolve(target),

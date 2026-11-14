@@ -1,13 +1,4 @@
 // @module-tag slow
-// Session observation end to end on the release tree (#1248 C13, RFC-0015 §8「界面要知道的」). One
-// turn with one tool call; both Model calls hold their answer after the first piece until the case
-// lets them go.
-//
-// The interval of the refresh policy is long against the time of a notice. A Model call that is
-// accepted but has no stream yet makes no session commit, so its stream is found at the next
-// interval (§13, a new main call with no stream); that bounds the time of the case, not what it
-// checks. What it checks of time: the state after the tool result comes within a fraction of the
-// interval from the commit, which only a commit notice gives.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
 import type { SessionObservationFrame } from '@omne-harness/session-observation'
@@ -44,7 +35,6 @@ describe('session observation through a turn with a tool call', () => {
       const controller = new AbortController()
       const opened = await openObservation(tree, access, session, controller.signal)
       if (opened.kind !== 'opened') throw new Error(`open answered ${opened.kind}`)
-      // Frames are read all the time, so the time of each is when the observation gave it.
       const seen: Seen[] = []
       let finished: { value: unknown } | undefined
       let wake = (): void => undefined
@@ -97,15 +87,11 @@ describe('session observation through a turn with a tool call', () => {
 
       const frames = seen.map(entry => entry.frame)
       const states = frames.filter(frame => frame.kind === 'state')
-      // `run` gives the number of this turn.
       const run = states.find(frame => frame.run !== null)
       expect(run).toMatchObject({ run: expect.stringMatching(/^run_/u) })
-      // Snapshots and deltas give the answer being made: the first call, then the one after the tool.
       expect(frames.map(valueText).join('')).toContain('Checking.')
       expect(frames.map(valueText).join('')).toContain('All')
       expect(frames.map(valueText).join('')).toContain(' done.')
-      // After the tool result is committed, a state with a larger revision comes without waiting
-      // for the interval.
       expect(toolCommits).toHaveLength(1)
       const [tool] = toolCommits
       const afterTool = seen.find(
@@ -116,7 +102,6 @@ describe('session observation through a turn with a tool call', () => {
       )
       expect(afterTool).toBeDefined()
       expect((afterTool?.at ?? Infinity) - (tool?.at ?? 0)).toBeLessThan(INTERVAL / 4)
-      // The snapshot of the call after the tool comes next, with nothing of the first call in it.
       const next = seen.findIndex(
         entry => entry.at > (tool?.at ?? Infinity) && entry.frame.kind === 'snapshot',
       )
@@ -127,7 +112,6 @@ describe('session observation through a turn with a tool call', () => {
           .map(entry => valueText(entry.frame))
           .join(''),
       ).not.toContain('Checking.')
-      // Revisions only grow, and when the turn ends `run` is null.
       const revisions = states.map(frame => Number(frame.revision))
       expect(revisions).toEqual([...revisions].sort((a, b) => a - b))
       expect(states.at(-1)).toMatchObject({ run: null })

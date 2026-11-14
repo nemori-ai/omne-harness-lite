@@ -1,40 +1,23 @@
-// Where the local single-user server keeps its configuration and its state on one host. `setup`
-// writes these places and `serve` without arguments reads them. The rule is a pure function of the
-// platform, the environment and the user directory, so a test can run the Linux rule on Windows.
-//
-// - `OMNE_SERVER_HOME=<abs dir>` moves the whole set: `<dir>/config` and `<dir>/state`.
-// - Windows: `%LOCALAPPDATA%\omne\config` and `%LOCALAPPDATA%\omne\state`.
-// - Other platforms (XDG): `$XDG_CONFIG_HOME/omne` (default `~/.config/omne`) and
-//   `$XDG_STATE_HOME/omne` (default `~/.local/state/omne`). A relative XDG value is ignored, as the
-//   XDG base directory rule says.
 import { posix, win32 } from 'node:path'
 
 export const SERVER_HOME_ENV = 'OMNE_SERVER_HOME'
 
-/** The file of the local server settings, in the configuration directory. */
 export const SETTINGS_FILE = 'server.json'
 
 export type LocationInput = Readonly<{
   platform: NodeJS.Platform
   env: Readonly<Record<string, string | undefined>>
-  /** The user directory (`os.homedir()`). */
   home: string
 }>
 
 export type ServerLocations = Readonly<{
-  /** Which rule chose the places. */
   source: 'override' | 'platform'
   configDir: string
   stateDir: string
-  /** `<config>/server.json`: port, workspace, shell. No secret. */
   settingsFile: string
-  /** `<state>/model-vault.json`: the model credential vault. The only file that holds a secret. */
   vaultFile: string
-  /** `<state>/storage`: the storage root of the `storage` row. `serve` creates it. */
   storageRoot: string
-  /** `<state>/host-files`: the state directory of the execution host and the shell temp files. */
   hostFilesDir: string
-  /** `<state>/workspace`: the workspace when `setup` is not told another one. */
   defaultWorkspace: string
 }>
 
@@ -42,7 +25,6 @@ export type Located =
   | Readonly<{ kind: 'located'; locations: ServerLocations }>
   | Readonly<{ kind: 'refused'; message: string }>
 
-/** The path functions of the platform the rule runs for, not of the host that runs the test. */
 export function pathsOf(platform: NodeJS.Platform): typeof posix {
   return platform === 'win32' ? win32 : posix
 }

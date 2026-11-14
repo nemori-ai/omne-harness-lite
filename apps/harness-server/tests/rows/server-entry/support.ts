@@ -1,7 +1,3 @@
-// Shared fixtures of the `server-entry` row tests: the contract-double rows that stand next to the
-// row in a `serve` tree (identity operations, the Session faces, the definition mapping, the three
-// read ports of the session diagnostics projection), the HTTP helpers, and a harness that keeps the
-// tree open while a test talks to the loopback port.
 import { createHash } from 'node:crypto'
 import { request as httpRequest } from 'node:http'
 import { connect, createServer } from 'node:net'
@@ -40,11 +36,6 @@ export const GOVERNANCE_PATH = '/governance-public/1'
 export const SESSION_PATH = '/session-public/1'
 export const DEFINITION = 'assistant'
 
-/**
- * The `telemetry` row that `server-entry` injects: the node implementation on the run's record
- * writer, with test budgets (no measurement backs them). The row's plugin is bound by `runServe`
- * itself, so a tree only names it in its distribution.
- */
 export const TELEMETRY_ROW_CONFIG = Object.freeze({
   implementation: 'node',
   outlet: { kind: 'stdout' },
@@ -79,7 +70,6 @@ export function sessionMessage(
 
 export type Reply = Readonly<{ status: number; body: string; json: unknown }>
 
-/** One HTTP POST to the loopback port. */
 export function post(port: number, path: string, body: string): Promise<Reply> {
   const bytes = Buffer.from(body, 'utf8')
   return new Promise((resolve, reject) => {
@@ -113,7 +103,6 @@ export function post(port: number, path: string, body: string): Promise<Reply> {
   })
 }
 
-/** A port that was free a moment ago. The row needs a fixed port, so the test picks one first. */
 export function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const probe = createServer()
@@ -126,7 +115,6 @@ export function freePort(): Promise<number> {
   })
 }
 
-/** Whether a TCP connection to `host:port` succeeds right now. */
 export function connectable(host: string, port: number): Promise<boolean> {
   return new Promise(resolve => {
     const socket = connect({ host, port, timeout: 1000 }, () => {
@@ -154,8 +142,6 @@ export async function until(
     await sleep(10)
   }
 }
-
-// --- identity operations (row `identity`, contract double) -------------------------------------
 
 function identityOperations() {
   const start = parseInstant('2026-11-02T00:00:00Z')
@@ -194,11 +180,6 @@ export const identityDoubleRow = defineRow({
   },
 })
 
-/**
- * The identity double whose `recognizeLogin` throws: registration and login issue still work, so a
- * test can hold a real login proof and then watch the entry's `identity.fault` diagnostic. The error
- * text is a marker a test asserts never reaches stdout.
- */
 class FaultingIdentityDouble extends IdentityDouble {
   override readonly recognizeLogin: IdentityOperationsService['recognizeLogin'] = () =>
     Promise.reject(new Error('IDENTITY-FAULT-TEXT: store unreachable'))
@@ -217,21 +198,15 @@ export const identityFaultsRow = defineRow({
   },
 })
 
-// --- the Session faces (row `session-provider`, contract double) -------------------------------
-
 export type SessionCall = Readonly<{
   face: 'create' | 'accept' | 'begin'
-  /** The caller class the row asked the faces for (`intake` or `reader`). */
   caller: string | undefined
-  /** What the principal verifier says about the principal that reached the face. */
   verdict: string
-  /** The component name of the system actor behind the principal. */
   actorComponent: string | undefined
 }>
 
 export type SessionRecorder = Readonly<{
   calls: SessionCall[]
-  /** Called inside `create` before it answers. A test holds a request open with it. */
   gate: { create: (() => Promise<void>) | undefined }
 }>
 
@@ -267,8 +242,6 @@ class SessionDouble extends SessionService<unknown> {
     this.verifier = verifier
   }
 
-  // The faces are read once, while the row builds its dependencies. `this.ctx` is then the context
-  // the row asked with, so the caller class is fixed by that read.
   private facesFor(): Readonly<{
     caller: string | undefined
     record: (face: SessionCall['face'], access: AccessLike) => Promise<void>
@@ -333,11 +306,6 @@ class SessionDouble extends SessionService<unknown> {
   }
 }
 
-/**
- * The release trusted table, with `principalVerifier` also visible to the Session double: the
- * double verifies what reaches it to record a verdict. The real `session-provider` does not read
- * the verifier, so the release table does not list it (R2-D203 P-9).
- */
 export function visibilityWithSessionDouble() {
   const visibility = new Map(serveProfile().visibility)
   visibility.set('session-provider' as never, [
@@ -362,8 +330,6 @@ export function sessionDoubleRow(recorder: SessionRecorder) {
     },
   })
 }
-
-// --- the definition mapping (row `agent-adoptions`, contract double) ---------------------------
 
 const adoption = (name: string) => ({
   owner: 'fixture',
@@ -416,11 +382,8 @@ export const mappingsDoubleRow = defineRow({
   },
 })
 
-// --- the diagnostics ports (rows `agent-journal`, `model-records`, `model-host`; contract doubles)
-
 type Constructor = new (ctx: Context) => object
 
-/** The definition classes are abstract only to TypeScript; the double gives each its members. */
 function provideDouble(ctx: Context, Definition: unknown, members: object): void {
   Object.assign(new (Definition as Constructor)(ctx), members)
 }
@@ -428,7 +391,6 @@ function provideDouble(ctx: Context, Definition: unknown, members: object): void
 const portUnavailable = (dependency: string) =>
   fail({ kind: 'unavailable' as const, dependency, diagnostic: 'contract double: no records' })
 
-/** The Agent Journal with the finish read: no execution has a finish candidate. */
 export const journalDoubleRow = defineRow({
   row: 'agent-journal',
   implementation: 'contract-double',
@@ -442,7 +404,6 @@ export const journalDoubleRow = defineRow({
   },
 })
 
-/** The Model diagnostics read face: every list is `unavailable`. */
 export const diagnosticsDoubleRow = defineRow({
   row: 'model-records',
   implementation: 'contract-double',
@@ -458,7 +419,6 @@ export const diagnosticsDoubleRow = defineRow({
   },
 })
 
-/** The Model runtime: only `calls.inspect`, every lookup `unavailable`. */
 export const runtimeDoubleRow = defineRow({
   row: 'model-host',
   implementation: 'contract-double',
@@ -474,20 +434,12 @@ export const runtimeDoubleRow = defineRow({
   },
 })
 
-// --- the tree ----------------------------------------------------------------------------------
-
 export type TreeOptions = Readonly<{
-  /** The row configuration of `server-entry`. */
   config: unknown
-  /** Leave the identity row out. */
   withoutIdentity?: boolean
-  /** Put in the identity double whose `recognizeLogin` throws. */
   identityFaults?: boolean
-  /** Leave the Session row out. */
   withoutSession?: boolean
-  /** Leave the telemetry row out: the entry injects it, so it stays PENDING. */
   withoutTelemetry?: boolean
-  /** Extra distribution rows and their plugins (for example a row that stays PENDING). */
   extraRows?: readonly { id: string; plugin: string; config?: unknown }[]
   extraPlugins?: Readonly<Record<string, Plugin>>
   readinessTimeoutMs?: number
@@ -496,13 +448,10 @@ export type TreeOptions = Readonly<{
 
 export type LiveTree = Readonly<{
   recorder: SessionRecorder
-  /** Asks for the planned stop and returns the whole run. */
   stop(reason?: string): Promise<ServeRun>
-  /** The run, once it ends. */
   finished: Promise<ServeRun>
 }>
 
-/** Starts the tree without waiting. The caller polls the port, then calls `stop`. */
 export function startTree(options: TreeOptions): LiveTree {
   const recorder = newRecorder()
   const controller = new AbortController()
@@ -516,7 +465,6 @@ export function startTree(options: TreeOptions): LiveTree {
       ? []
       : [{ id: 'session-provider', plugin: 'sessionDouble', config: {} }]),
     { id: 'agent-adoptions', plugin: 'mappingsDouble', config: {} },
-    // The three injected ports of the session diagnostics projection.
     { id: 'agent-journal', plugin: 'journalDouble', config: {} },
     { id: 'model-records', plugin: 'diagnosticsDouble', config: {} },
     { id: 'model-host', plugin: 'runtimeDouble', config: {} },
@@ -554,7 +502,6 @@ export function startTree(options: TreeOptions): LiveTree {
   }
 }
 
-/** Waits until the port accepts connections, or the tree ends first (then it throws). */
 export async function waitListening(tree: LiveTree, port: number): Promise<void> {
   let ended = false
   void tree.finished.then(
@@ -569,7 +516,6 @@ export async function waitListening(tree: LiveTree, port: number): Promise<void>
 
 export type Login = Readonly<{ loginProof: string; tenantText: string; reply: Reply }>
 
-/** Register and activate, then issue a login. */
 export async function login(port: number, identifier: string, credential: string): Promise<Login> {
   const registered = await post(
     port,

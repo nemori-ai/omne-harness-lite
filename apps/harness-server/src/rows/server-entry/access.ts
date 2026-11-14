@@ -1,13 +1,3 @@
-// The new address of the `server-entry` row (#1249 block 2, spec 已定 12 and 13): the registry, the
-// identity port, the grace and the two bounds the member's `access` takes. Besides the entry's own
-// `access/v1`, the protocols at the new address are those the domains' access rows mount (the
-// `identity-access` row mounts `identity/v1`; RFC-0015 I-15: a contribution is not an opening).
-// The identity port is identity's (`createAccessIdentity` of `@omne-harness/identity-access`),
-// built by the row over the identity ports it reads per call and the trusted issuer it injects.
-//
-// The registry comes from the member's Cordis provider, installed in the row scope: the tree has
-// `accessRegistry`, a domain's access plugin mounts its protocol there, and the entry serves the
-// same registry. Unloading the row removes the service with it.
 import type { Context } from '@deepseek-ai/cordis'
 import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import { systemScope } from '@omne-harness/legal-identity'
@@ -25,16 +15,12 @@ import {
 } from '@omne-harness/telemetry-contract'
 import { processInstance } from '../telemetry/instance.ts'
 
-/** How long a handler may run after a take-down before the entry answers for it. */
 const GRACE_MS = 5000
-/** The bytes of one observation's frames not yet written out before it ends with `capacity`. */
 const FRAME_QUEUE_BYTES = 1 << 20
-/** The change frames one availability subscriber may have waiting before they become a snapshot. */
 const AVAILABILITY_BACKLOG = 64
 
 const OWNER = 'server-entry'
 
-/** Every code of the member's `AccessDiagnostic`, so the enum and the member's type move together. */
 const CODES = [
   'access.path-rejected',
   'access.method-rejected',
@@ -57,11 +43,9 @@ const CODES = [
   'access.frame-rejected',
   'access.frame-queue-full',
 ] as const satisfies readonly AccessDiagnosticCode[]
-// A code the member adds without this table fails here, not at run time.
 const exhaustive: [AccessDiagnosticCode] extends [(typeof CODES)[number]] ? true : never = true
 void exhaustive
 
-/** The event of the new address, beside `omne.entry.diagnostic` of the three locations. */
 export const accessDiagnosticDefinition = defineEvent({
   owner: OWNER,
   name: 'omne.access.diagnostic',
@@ -76,7 +60,6 @@ export const accessDiagnosticDefinition = defineEvent({
 
 type AccessFields = Fields<typeof accessDiagnosticDefinition.schema>
 
-/** The fields of one diagnostic; a reference the contract refuses is left out. */
 function fieldsOf(event: AccessDiagnostic): AccessFields {
   const { code, path, operation } = event
   const admits = (fields: AccessFields): boolean =>
@@ -88,7 +71,6 @@ function fieldsOf(event: AccessDiagnostic): AccessFields {
   }
 }
 
-/** The member's `access.diagnostics`, bound once at row build: system scope, as the entry's own. */
 export function accessDiagnostics(telemetry: TelemetryPort): (event: AccessDiagnostic) => void {
   const emitter = telemetry.bind({
     scope: systemScope(),
@@ -100,11 +82,6 @@ export function accessDiagnostics(telemetry: TelemetryPort): (event: AccessDiagn
   }
 }
 
-/**
- * The `access` of `createServerEntry`. Installs the registry provider in `ctx`, so `accessRegistry`
- * is on the tree, and gives the entry that provider's registry and `identity`, identity's own
- * implementation of the port (`createAccessIdentity`).
- */
 export function entryAccess(
   ctx: Context,
   telemetry: TelemetryPort,

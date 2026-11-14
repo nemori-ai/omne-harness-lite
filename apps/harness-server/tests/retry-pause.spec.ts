@@ -1,4 +1,3 @@
-// The one wait policy after a run of failures: the governance host and the tool release read share it.
 import { expect, it } from 'vitest'
 import { pauseAfterFailures } from '../src/retry-pause.ts'
 

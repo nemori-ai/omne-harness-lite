@@ -1,7 +1,3 @@
-// The accounting ports of the `request-context` row (SC2): the narrow source authority, the read
-// eligibility and the adopted source over the registered holder sources, and the one gap that
-// stays. The verifier is a real in-process principal authority; the inbox is the real
-// `createContextAccounting` of the member, so the order of its checks is the member's own.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -72,7 +68,6 @@ function fact(
   }
 }
 
-/** A real verifier, one acting principal per tenant, and system principals of the same authority. */
 function principals() {
   const authority = inProcessPrincipalAuthority()
   const actor = okOf(authority.issuer.issueSystem({ component: 'agent-host' }), 'actor')
@@ -227,13 +222,11 @@ type Probe = { leases: number; releases: number }
 
 type Adopted = Pick<AdoptedRequestSource<unknown>, 'readCount' | 'readSource'>
 
-/** The adopted part of a Session with no fixed request yet: one stable token and no fact. */
 const noAdoption: Adopted = {
   readCount: async () => ({ kind: 'value', value: 'token-1' as GroupToken }),
   readSource: async () => ({ kind: 'value', value: null }),
 }
 
-/** A holder that lends an eligibility and an adopted part and counts its leases. */
 function holderWith(
   eligibility: ContextReadEligibility<unknown>,
   probe: Probe,

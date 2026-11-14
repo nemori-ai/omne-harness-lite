@@ -1,6 +1,4 @@
 // @module-tag slow
-// 慢层：起两个子进程（真实 sqlite-provider 的 Worker、真实文件）。重启后可读（acceptance 2）：两个子进程共用一个状态根
-// 与存储根，第一个建会话并登记租户，第二个不再登记就读回。
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

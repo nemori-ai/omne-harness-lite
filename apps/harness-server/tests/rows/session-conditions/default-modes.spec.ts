@@ -1,7 +1,3 @@
-// The `session-conditions` row: the tenant-default modes resolver over the definition mapping. A
-// session's creation names the modes adoption of its entry; the resolver gives the entry's modes
-// only while the entry still stands for exactly that adoption. A missing entry or a changed default
-// is `unavailable`, never the current default. The row declaration matches the stubs table.
 import type { Modes } from '@omne-harness/session-contract'
 import {
   modesAdoptionOf,

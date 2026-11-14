@@ -1,8 +1,4 @@
 // @module-tag slow
-// The public Model stream on the release tree (#1214, RFC-0015 §8「会话观察」). Slow: each case
-// starts the release tree in this process and runs the `omne` CLI as child processes. The Model
-// supplier is the local HTTPS gateway the release-tree scenarios use; it holds a stream open until
-// the case lets it go, so the case looks at a call that is still running.
 import { describe, expect, it } from 'vitest'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type { PrincipalIssuer } from '@omne-harness/identity'
@@ -27,7 +23,6 @@ function services(tree: ReleaseTree) {
   return { references, observation }
 }
 
-/** Sends one input and answers the reference of its main call, read from the session log. */
 async function mainCall(tree: ReleaseTree, access: LoginAccess): Promise<ModelInvocationRef> {
   const session = await tree.startSession('say hello')
   const reference = await pollUntil(
@@ -39,7 +34,6 @@ async function mainCall(tree: ReleaseTree, access: LoginAccess): Promise<ModelIn
   return reference
 }
 
-/** The current stream of `reference` for `access`, once the host has published one. */
 async function currentStream(
   tree: ReleaseTree,
   access: LoginAccess,
@@ -105,7 +99,6 @@ describe('the public Model stream on the release tree', () => {
       })
       expect(forReal).toEqual(forAbsent)
       expect(forReal).toHaveProperty('failure')
-      // A principal no login issued: a copy of the person's principal, and a system principal.
       const issuer = tree.env.readTrusted(principalIssuerKey).get(principalIssuerKey) as
         | PrincipalIssuer
         | undefined

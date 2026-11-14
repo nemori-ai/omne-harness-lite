@@ -50,7 +50,6 @@ export async function toolAssetsWorld(
     initialize?: (storage: SqlStorage) => Promise<string>
     release?: Extract<ToolRelease, { kind: 'trusted' }>
     releaseParticipant?: SqlMaterialCatalog['participants'][number]
-    /** More read-only participants that the projection read of this world can run. */
     projectionMembers?: readonly string[]
   } = {},
 ) {
@@ -83,8 +82,6 @@ export async function toolAssetsWorld(
     participants: [...baseMaterials.participants, ...(options.extraMaterials?.participants ?? [])],
     migrations: [...baseMaterials.migrations, ...(options.extraMaterials?.migrations ?? [])],
   }
-  // The read-only members of the catalog chain. The handler requires only the migrations of the
-  // owners of their tables, which the combinations of this world apply to the tenant domain.
   const readMembers = new Set([
     (options.releaseParticipant ?? toolPermissionReleaseParticipant(release)).participant,
     SUPPORT_PARTICIPANT.participant,
@@ -98,8 +95,6 @@ export async function toolAssetsWorld(
     all.participants.filter(participant => readMembers.has(participant.participant)),
     all,
   )
-  // A second handler for the extra members. The catalog handler does not depend on their
-  // migrations.
   const extraMembers = new Set([...readMembers, ...(options.projectionMembers ?? [])])
   const extendedRead = projectionReadHandler(
     'fixture.extended-projection-read',
@@ -146,7 +141,6 @@ export async function toolAssetsWorld(
       reservedWriterSlots: 1,
       maxReadWorkersPerDomain: 1,
       groupMaxOperations: 1,
-      // Session creation with initial input carries nested typed guards, as in the Journal SQL fixture.
       maxJsonDepth: 80,
     }),
     materials,
@@ -159,7 +153,6 @@ export async function toolAssetsWorld(
   const categories = createCategoryRegistry()
   categories.register(createToolAssetCategory(release))
   const owner = createAssetsLocal({ ...combination, domain, storage: made.storage, categories })
-  // The address the installation holds the tool at, which consumers compute too.
   const target: SettingsTargetProjection['target'] = toolAssetTarget(entry, domain.scope.tenant)
   let closed = false
   return {

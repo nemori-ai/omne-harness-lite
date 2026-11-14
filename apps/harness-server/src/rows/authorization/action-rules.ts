@@ -32,7 +32,6 @@ export const authorizationConfig = z.strictObject({
 })
 export type ActionRules = z.output<typeof actionRulesSchema>
 
-/** One rule selector for Agent actions and their Tool targets. Deny wins within the generation. */
 export function toolActionRule(
   rules: ActionRules,
   definition: NonNullable<ActionRules['rules'][number]['definition']>,

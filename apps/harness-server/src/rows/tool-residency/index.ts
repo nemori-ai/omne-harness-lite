@@ -22,7 +22,6 @@ type Result = Awaited<ReturnType<ToolResidencyReader['referencing']>>
 const unavailable = (diagnostic: string): Result =>
   fail({ kind: 'unavailable', diagnostic: `tool-residency: ${diagnostic}` })
 
-/** One row generation owns its pending settlements. Removal does not wait for Session reads. */
 class ToolResidencyBridge extends ToolResidencyReaderService {
   static readonly Config = configSchema
   static readonly inject = {
@@ -70,7 +69,6 @@ class ToolResidencyBridge extends ToolResidencyReaderService {
       if (scope !== 'system') return unavailable('scope')
       const encoded = encodeResidentKey(key)
       if ('failure' in encoded) return unavailable('invalid key')
-      // Tool minted and validated this opaque text. Session deliberately does not parse it.
       const residentKey = encoded.ok as ResidentKey
       const read = await session.reconciliation.references({
         principal,

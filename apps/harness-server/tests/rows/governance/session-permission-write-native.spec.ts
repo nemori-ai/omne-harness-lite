@@ -1,6 +1,4 @@
 // @module-tag slow
-// A Session permission assignment is one Session commit. The basis source, the basis producer,
-// the Session writer, the registered declaration and the login are the production modules.
 import { afterEach, expect, it } from 'vitest'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import type { SessionPermissionCatalogReader } from '../../../src/rows/governance/session-permission-discovery.ts'
@@ -152,7 +150,6 @@ it.each([
       clearBasis.participant,
     ])
     const entry = { tenant: w.scope.tenantRef, domain: w.activation.domain }
-    // Every storage commit of the test, so a write can be shown to be one Session commit.
     const commits: CommitRequestV2[] = []
     const storage: SqlStorage = {
       ...w.activation.storage,
@@ -164,7 +161,6 @@ it.each([
     let source: ReturnType<typeof createSessionPermissionBasisSource> | undefined
     let plans = 0
     let tamper = (planned: Awaited<ReturnType<NonNullable<typeof source>>>) => planned
-    // A change gets the real access check. The creation and the reads are fixture decisions.
     const accessCheck: SessionAccessCheck<Principal> = {
       check: request =>
         request.operation === 'change'
@@ -312,7 +308,6 @@ it.each([
       },
     })
     if (scenario === 'selected-definition')
-      // The source states another definition than the one that the commit projects.
       tamper = planned => {
         if (!('ok' in planned)) return planned
         return {
@@ -339,14 +334,12 @@ it.each([
       qualification: admitted.writeQualification!,
       session: sessionCommandFacts(value, originalGuards),
     })
-    // The qualification of this command does not qualify a write to another session.
     expect(
       await source({
         ...delivery(command),
         access: { ...sessionAccess, session: sessionId('another-session') },
       }),
     ).toEqual({ failure: { kind: 'denied', action: 'change' } })
-    // Nor does it qualify another content under the same operation.
     expect(
       await source(
         delivery({
@@ -369,12 +362,10 @@ it.each([
         failure: { kind: scenario === 'stale-revision' ? 'changed' : 'unavailable' },
       })
     if (scenario === 'mapped-missing-source') {
-      // The source could not form a basis: no commit, and no generation is used.
       expect(commits).toHaveLength(written)
       expect(await port.readWork(sessionAccess)).toEqual(before)
       return
     }
-    // One Session commit. Its only writer command is the Session command; Governance gets none.
     expect(commits).toHaveLength(written + 1)
     expect(commits.at(-1)).toMatchObject({
       identity: { operation: command.input.operation },
@@ -429,8 +420,6 @@ it.each([
       })
     else expect(state).toEqual(before)
     if (scenario === 'withdrawn') {
-      // The refusal left no verdict. With the declaration registered again, the same operation
-      // is decided on the facts of that time.
       const again = await service.contribute(access(principal, principal.tenant), {
         ...w.command('native-register-again'),
         declaration,
@@ -444,11 +433,9 @@ it.each([
     if (scenario === 'set') {
       const asked = plans
       const sent = commits.length
-      // A redelivery with other guards is the same operation: the original result, no new basis.
       expect(await commit(command, [])).toMatchObject({ ok: { recovered: true } })
       expect(plans).toBe(asked)
       expect(commits).toHaveLength(sent)
-      // The declaration is withdrawn after the write. The operation is still the committed one.
       await withdraw()
       expect(await commit(command, [])).toMatchObject({ ok: { recovered: true } })
       expect(await port.readWork(sessionAccess)).toEqual(state)

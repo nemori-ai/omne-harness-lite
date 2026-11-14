@@ -1,7 +1,4 @@
 // @module-tag slow
-// 慢：每个用例起一个 node 子进程。
-// The process ends when its command has reported the result (SPEC「进程的结束」): a handle left
-// behind does not keep it alive, and the output it wrote reaches the reader whole.
 import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -10,7 +7,6 @@ import { expect, it } from 'vitest'
 const memberDir = fileURLToPath(new URL('..', import.meta.url))
 const built = pathToFileURL(join(memberDir, 'dist', 'process-end.js')).href
 
-/** Runs `script` as an ES module in a child process; resolves with its exit code and output. */
 function run(
   script: string,
   timeout = 10_000,

@@ -1,22 +1,3 @@
-// Fixture of the custody ACK composition (R2-D257). It does not import vitest.
-//
-// Real parts: the release rows below the Journal (`storage` on the real SQLite provider,
-// `session-storage`, the release `agent-journal` row with its session-log Journal), the trust table
-// of the release, the release evidence adapter (`createModelEvidence` with `agentCustodyOf`, read in
-// a row that sees what `model-records` sees), the Agent result receiver of `@omne-harness/agent`,
-// the result push, ACK and cleanup of `ModelRuntimeLocalPlugin`, and the Model runtime of
-// `@omne-harness/model` with its driver and send boundary.
-// Stand-ins, each named: the Session access check allows everything (the contract double of the
-// storage fixture); the Model commands are the in-memory commands of `@omne-harness/model/testing`
-// (they stand for the SQL records, which keep the same share rule: a call's share comes back with
-// its cleanup) and outlive a reload of the tree, as the durable records do; the transport is the
-// scripted transport; the Agent's access check and account outlet allow and receive everything.
-// The host authority answers every call, and the start scan of the push gets the fixture principal
-// for the one tenant: the release has neither for a call admitted before a restart (model-release.md).
-// A restart is simulated in one process: the Model records and the Journal's storage stay, and the
-// tree, the host, the Agent receiver state and the push ledger are made new.
-// The evidence adapter of the in-memory commands is the fixture's for continuity, materialization
-// and receive, and the release one for `handoff`.
 import { Context, type Fiber, type Plugin } from '@deepseek-ai/cordis'
 import {
   createAgentModelReceiver,
@@ -112,9 +93,7 @@ export function ok<T, F>(outcome: Outcome<T, F>): T {
 }
 const must = <T>(outcome: Outcome<T, unknown>): T => ok(outcome as Outcome<T, never>)
 
-/** The consumer owner of every Agent call (agent loop/identities.ts AGENT_OWNER). */
 const AGENT = '@omne-harness/agent'
-/** The share of the tenant: one unacknowledged result, so a second call fits after a release. */
 export const SHARE = 1
 
 const ADOPTION = {
@@ -252,7 +231,6 @@ function openInputOf(
   }
 }
 
-/** The release rows below the Journal, and a row that sees what `model-records` sees. */
 async function journalTree(base: ReturnType<typeof makeBase>) {
   const combination = agentJournalCombination()
   const policy = accessPolicyRow(request => ({
@@ -260,7 +238,6 @@ async function journalTree(base: ReturnType<typeof makeBase>) {
     evidence: evidence(`access/${request.operation}`),
   }))
   const seen: { ctx?: Context } = {}
-  // Same row id as the release row, so the loader gives it the trusted names of `model-records`.
   const probe = defineRow({
     row: 'model-records',
     implementation: 'contract-double',
@@ -306,7 +283,6 @@ async function journalTree(base: ReturnType<typeof makeBase>) {
 
 type JournalTree = Awaited<ReturnType<typeof journalTree>>
 
-/** One session with an active Run whose execution the Journal opened. */
 async function openRun(t: JournalTree, access: SessionAccess<string>) {
   const port = t.service<SessionTransactionPort<string>>(sessionTransactionsKey)
   const journal = t.service<AgentJournal<string>>(agentJournalKey)
@@ -386,15 +362,10 @@ async function openRun(t: JournalTree, access: SessionAccess<string>) {
   return execution
 }
 
-/** The consumer of one Agent Model call of `execution`, as the Agent loop names it. */
 function consumerOf(execution: AgentExecutionId): ConsumerRef {
   return { owner: AGENT, work: `${execution}/step-1`, position: 'I3', purpose: 'main' }
 }
 
-/**
- * The Agent records that `names` are Model calls it waits on: one PendingCall each, with the
- * reference the Model admission will have. The receiver resolves a delivery to this binding.
- */
 async function waitOn(
   t: JournalTree,
   access: SessionAccess<string>,
@@ -440,7 +411,6 @@ async function waitOn(
   )
 }
 
-/** The in-memory Model records with the release handoff evidence. They outlive a reload. */
 function modelRecords(custody: { open: boolean; view?: Context }) {
   const handoffs: unknown[] = []
   const release = createModelEvidence(ADOPTION, {
@@ -485,7 +455,6 @@ function modelRecords(custody: { open: boolean; view?: Context }) {
         retry: () => ({
           failure: { kind: 'unavailable', dependency: 'retry', diagnostic: 'none' },
         }),
-        // The release adapter of the Agent consumer owner (src/model/evidence.ts).
         handoff: given => release.handoff(given),
       },
     ],
@@ -530,7 +499,6 @@ function modelRecords(custody: { open: boolean; view?: Context }) {
     raw,
     commands,
     handoffs,
-    /** The push ledger is in memory: a restart replaces it, a reload keeps it. */
     ledger: createMemoryResultPushLedger(),
   }
 }
@@ -538,7 +506,6 @@ function modelRecords(custody: { open: boolean; view?: Context }) {
 type Records = ReturnType<typeof modelRecords>
 type Provider = ModelReceiverDependencies<unknown>['provider']
 
-/** The Model host on `root` over `records`, with the Agent receiver registered for its owner. */
 async function modelHost(root: Context, t: JournalTree, records: Records, tenant: TenantId) {
   const resources: SendResources<unknown> = {
     async acquire(demand) {
@@ -687,7 +654,6 @@ async function modelHost(root: Context, t: JournalTree, records: Records, tenant
   }
 }
 
-/** The custody of call `name` in the Model records. */
 export async function custodyOf(records: Records, access: SessionAccess<string>, name: string) {
   const found = ok(
     await records.raw.recall({
@@ -701,7 +667,6 @@ export async function custodyOf(records: Records, access: SessionAccess<string>,
   return found.state.custody
 }
 
-/** The push record of call `name`. */
 export function pushRecord(records: Records, access: SessionAccess<string>, name: string) {
   return records.ledger.read({ tenant: access.tenant, call: callOf(name) })
 }
@@ -714,11 +679,6 @@ export async function until(check: () => boolean | Promise<boolean>, label: stri
   throw new Error(`timed out waiting for ${label}`)
 }
 
-/**
- * One world: a session whose execution waits on the Model calls `names`, the Model records, and
- * a host over the current tree. `reload` disposes the host and the tree and loads both again on the
- * same storage, with the same Model records and push ledger.
- */
 export async function custodyWorld(names: readonly string[], open = true) {
   const base = makeBase()
   const custody: { open: boolean; view?: Context } = { open }
@@ -735,7 +695,6 @@ export async function custodyWorld(names: readonly string[], open = true) {
     records,
     custody,
     admit: (name: string) => host.admit(access, execution, name),
-    /** An ACK of call `name` under `operation` with the retained evidence `custody`. */
     async acknowledge(name: string, operation: string, custody: DurableEvidence) {
       const found = ok(
         await records.raw.recall({
@@ -765,7 +724,6 @@ export async function custodyWorld(names: readonly string[], open = true) {
       custody.view = t.view
       host = await modelHost(t.tree.root, t, records, access.tenant)
     },
-    /** As `reload`, and the push ledger of the process is lost: only the durable records stay. */
     async restart(openAfter: boolean) {
       await host.stop()
       await t.tree.dispose()

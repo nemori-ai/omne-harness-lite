@@ -1,5 +1,3 @@
-// 关闭协调器的各个步骤各自对外留下的事实：启动失败的报告详情、宿主文件维护的三种结局、
-// 存储阶段之后的遥测关闭步骤、assemblyReportSettled 与撤除根的失败只进诊断、迟到结果的详情。时钟是注入的假时钟。
 import { describe, expect, it } from 'vitest'
 import { LifecycleRegistry } from '../src/lifecycle.ts'
 import { runShutdown, type ShutdownClock, type ShutdownRecord } from '../src/shutdown.ts'
@@ -187,7 +185,6 @@ describe('host-files maintenance after the business phase', () => {
     clock.advance(300)
     const done = run()
     await flush()
-    // D is 1300 on this clock and the stops take no time, so the maintenance timer is D minus now.
     expect(clock.delays.at(-1)).toBe(DEADLINE_MS)
     clock.advance(DEADLINE_MS)
     const report = await done

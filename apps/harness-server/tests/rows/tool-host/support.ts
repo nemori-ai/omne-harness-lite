@@ -1,5 +1,3 @@
-// 发行内置 Tool 用例的共用夹具：真实入口对象（核验器、签发者、两个系统主体、发行登记者与来源权威）装在
-// 一个根上下文上，清单取自正式 `config/tool-release.json`。用例只经服务键、模块 `install` 与公开导出调用。
 import {
   cpSync,
   existsSync,
@@ -50,7 +48,6 @@ export function formalManifest(): ToolReleaseManifest {
   return JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as ToolReleaseManifest
 }
 
-/** 清单里某个作者的完整来源（四个字段）。 */
 export function authorityOf(manifest: ToolReleaseManifest, name: string): ToolAuthority {
   const entry = manifest.entries.find(candidate => candidate.asset.name === name)
   if (entry === undefined) throw new Error(`fixture: no release entry ${name}`)
@@ -68,7 +65,6 @@ export function entryOf(manifest: ToolReleaseManifest, name: string) {
   return entry
 }
 
-/** 运维者层的测试构造值：本组用例不执行作者，值只满足两个作者的构造字段。 */
 export const TEST_CONSTRUCTION = Object.freeze({
   Shell: {
     resultMaxBytes: 4096,
@@ -90,11 +86,8 @@ export function tree(value: unknown): JsonValue {
   return read
 }
 
-/**
- * 已安装 tool-definitions 的副本（`package.json` 与 `dist`），可选地翻转 `dist/index.js` 的一个字节。副本的
- * `node_modules` 是指向原包依赖目录的链接（Windows 上是目录联接），所以从副本 import 能解析它的依赖。
- * 清理时先单独删掉这个链接本身，确认它已不在，再删副本；不递归进链接目标。
- */
+// 清理时先单独删掉副本的 `node_modules` 这个链接本身、确认它已不在，再删副本；
+// 递归进链接目标会删掉原包真实的依赖目录。
 export async function packageCopy(tamper: boolean): Promise<{ root: string; remove(): void }> {
   const source = await locateToolDefinitions(MEMBER)
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'tool-release-copy-')))
@@ -119,7 +112,6 @@ export async function packageCopy(tamper: boolean): Promise<{ root: string; remo
   }
 }
 
-/** 换掉包根的生产读法：模块仍从已安装的包导入，只有产物摘要按副本重算。 */
 export const releaseFrom = (packageRoot: string) => (): Promise<ToolReleaseSnapshot> =>
   loadToolRelease({ ...productionReleaseInput(), packageRoot: async () => packageRoot })
 
@@ -133,11 +125,9 @@ export type ReleaseFixture = FixtureEnv &
     authority: ToolContributionAuthority<unknown>
     registrant: ToolReleaseRegistrant
     manifest: ToolReleaseManifest
-    /** Cordis 日志：本根上的全部级别（含默认不导出的 warn 与 debug）。 */
     logs: Message[]
   }>
 
-/** 在一个根上装好入口对象与一个空常驻引用读取器。`load` 默认是生产读法。 */
 export async function releaseFixture(
   load: () => Promise<ToolReleaseSnapshot> = loadProductionRelease,
   options?: Parameters<typeof createToolReleaseEntries>[1],

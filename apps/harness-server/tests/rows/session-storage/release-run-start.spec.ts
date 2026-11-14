@@ -1,18 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程。先构建 `apps/cli`（`pnpm turbo run build --filter
-// "@omne-harness/cli..."`）。
-// 发行树里会话归属读口的下游（R2-D190）：`session-storage` 行的 `sessionPrincipalBindings` 答 bound，入口的会话工作
-// 主体才签得出 Session 自己的维护者与协调者主体；之前两者都答 unavailable，S1 读不到工作快照，所有 Run 都开始不了。
-// 用例经 CLI 建 `coding` 会话、发一条输入，然后看 Session 为这个会话取到的两个工作主体：维护者（S1 读快照）与
-// 协调者（C2 提交 `startRun`）都签发成功。会话工作主体是发行的同一组合（`createSessionWorkPrincipals`、入口的窄签发
-// 视图、经受信作用域现读的归属读口），外面只多一层记录答复的观察。
-// 所以这条用例观察的是重新组合的 `observedWorkPrincipals`，不是发行的 `session-work-principals.ts` 模块本身。发行模块
-// 改成经根读取归属读口这类回归，由 `tests/rows/tool-runtime/composition.spec.ts` 的第二条用例（发行读口）与
-// `tests/entry/session-work-principals.spec.ts` 兜住（R2-D195 N2）。
-// 登录门由 Session 在 `startRun` 的提交事务里核对首条输入保存的 origin（R2-D198），CLI 经登录发的输入带
-// `login-entry` origin，所以 Run 开始：历史里出现 `run.started`（G-DIALOG 第二层）。用例只证明到 Run 开始。
-// 模型回复还写不进历史：Agent 在 I1 等 Runtime Context 读取资格、Request Context 来源登记与固定请求事实，
-// 这三项是 G-DIALOG 报告里的具名阻断（第四至六层），不在本用例断言。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -69,7 +55,6 @@ const readHistory = (tenant: string, session: string, loginProof: string) => ({
 
 type Issued = Readonly<{ actor: string; session: string; outcome: string }>
 
-/** The operator layer with `read-history` also listing the Run start, so the history shows it. */
 function withHistoryKinds(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
@@ -87,10 +72,6 @@ function withHistoryKinds(layer: unknown): unknown {
   }
 }
 
-/**
- * The release `sessionWorkPrincipals`, composed as the entry composes it, with each answer recorded:
- * `issued`, or the failure kind.
- */
 function observedWorkPrincipals(issued: Issued[]): EntryObjectModule {
   return {
     name: sessionWorkPrincipalsKey,
@@ -118,7 +99,6 @@ function observedWorkPrincipals(issued: Issued[]): EntryObjectModule {
   }
 }
 
-/** The entry kinds of a history page, in order. */
 function kindsOf(body: string): string[] {
   const kinds: string[] = []
   const visit = (value: unknown): void => {
@@ -146,7 +126,6 @@ describe('the release tree with the release session ownership read', () => {
       const records: S0Record[] = []
       const stderr: string[] = []
       const issued: Issued[] = []
-      // The Model calls go to a local gateway, never to a real supplier (R2-D258).
       const gateway = await startModelGateway()
       gateway.trustInProcess()
       const finished = runServe({
@@ -195,21 +174,17 @@ describe('the release tree with the release session ownership read', () => {
         const created = await cli(['create-session', '--definition', 'coding'])
         steps.push(created)
         const session = String(bodyOf(created)['session'])
-        // The answers given while the creation was prepared and committed.
         const atCreate = issued.filter(entry => entry.session === session)
         steps.push(await cli(['send-input', '--session', session, '--text', INPUT_TEXT]))
         for (const step of steps) expect(step.status, step.stderr).toBe(0)
 
         const request = readHistory(savedTenant(home), session, savedLoginProof(home))
-        // S1 reads as the maintainer and C2 commits `startRun` as the coordinator, on the Session's own
-        // worker after the input is accepted: wait until the coordinator asked.
         const mine = () => issued.filter(entry => entry.session === session)
         for (
           const end = Date.now() + 30_000;
           Date.now() < end && !mine().some(entry => entry.actor === 'coordinator');
           await sleep(100)
         );
-        // C2 commits `startRun` after the coordinator principal: wait until the history shows the Run.
         let history = await post(port, request)
         for (
           const end = Date.now() + 30_000;
@@ -219,16 +194,11 @@ describe('the release tree with the release session ownership read', () => {
           history = await post(port, request)
         expect(history.status, history.body).toBe(200)
         expect(kindsOf(history.body)).toContain('message.user')
-        // The input came through the login, so the login gate of `startRun` lets the Run start.
         expect(kindsOf(history.body)).toContain('run.started')
         expect(history.body).toContain(INPUT_TEXT)
         const answers = mine()
         expect(answers.some(entry => entry.actor === 'maintainer')).toBe(true)
         expect(answers.some(entry => entry.actor === 'coordinator')).toBe(true)
-        // A create first tries to recall its original mode initialization through the coordinator
-        // of the session (adoption-sources docs「create 的模式注册」). The session is not bound yet,
-        // so that one answer is `denied`, which tells the creation that there is nothing to recall.
-        // Every answer after the creation is issued.
         expect(atCreate.filter(entry => entry.outcome !== 'issued')).toEqual([
           { actor: 'coordinator', session, outcome: 'denied' },
         ])

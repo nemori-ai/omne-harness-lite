@@ -63,20 +63,12 @@ export function agentPermissionOperation(
 }
 
 type Decision = Exclude<AdmissionDecision, { kind: 'need-decision' }>
-/**
- * An allow carries the condition of the reading. A consumer that commits the action commits this
- * condition in the same transaction; a consumer that only answers early ignores it.
- */
 export type ToolPermissionDecision =
   | (Extract<Decision, { kind: 'allow' }> & Readonly<{ condition: StartCondition | null }>)
   | Exclude<Decision, { kind: 'allow' }>
 export type ToolPermissionCheck = Readonly<{
   check(input: ToolPermissionAction): Promise<ToolPermissionDecision>
 }>
-/**
- * The request of one check, the reading of the current permission for it, and the condition that
- * keeps the reading current at a commit. The source maps the action to its request once per check.
- */
 export type CurrentPermissionRead = Readonly<{
   request: unknown
   reading: unknown

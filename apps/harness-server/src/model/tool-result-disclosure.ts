@@ -42,14 +42,6 @@ export function toolResultDisclosureOf(ctx: Context): Disclosure {
   return policies.get(ctx.root) ?? missingPolicy
 }
 
-/**
- * A page read back with `read_result` is itself a tool result. The Tools capability keeps each of
- * its replies within `replyMaxBytes` and each block within `resultPageBytes`, measured as JSON.
- * The runtime offloads a result whose model text is over the inline threshold, or that has a
- * block over its own result page. So neither Tools budget may exceed the runtime's bound: a
- * larger one lets the reply that carries a page offload again, and no page of the body reaches
- * the model. Checked at the configuration boundary, only when both rows are the release exports.
- */
 export function checkToolsReplyBudget(rows: readonly TreeRow[]): void {
   const records = rows.find(row => row.id === 'tool-records' && row.plugin === 'toolRecordsRow')
   const bindings = rows.find(row => row.id === 'tool-bindings' && row.plugin === 'toolBindingsRow')

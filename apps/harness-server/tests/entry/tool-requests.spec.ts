@@ -1,6 +1,3 @@
-// 可信 Tool 请求供给者（R2-D36 第 2、3 点，Tool B 段）：五个来源（核验器、Catalog、会话快照、可信作用域绑定、
-// 发行快照）每次现取；任一缺席或不符都答 unavailable 或 denied，跨租户被拒。供给的请求经 Tool 公开判定通过，
-// 且定义、consumer、参数都是准入动作的原样。
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
@@ -167,14 +164,12 @@ describe('the trusted Tool request source', () => {
       if ('failure' in described || described.ok.kind === 'answered') return described
       return source.prepare({ ...input, definition: described.ok.definition, admission })
     }
-    // The command codec judges the rest of the call when the tool runs, so a bad call still routes.
     expect(await request('{"command":"info","params":{}}')).toMatchObject({
       ok: { command: 'info' },
     })
     expect(await request('{"command":"info","params":[]}')).toMatchObject({
       ok: { command: 'info' },
     })
-    // A call that names no command is not run: the source answers it with the guide (D-104).
     const unknown = await request('{"command":"nope"}')
     expect(unknown).toMatchObject({ ok: { kind: 'answered' } })
     const text = 'ok' in unknown && 'text' in unknown.ok ? unknown.ok.text : ''
@@ -186,7 +181,6 @@ describe('the trusted Tool request source', () => {
         text: expect.stringMatching(/^Shell: the arguments name no command\./),
       },
     })
-    // A command is never read from the declared name.
     expect(await source.describe(actionInput(principalA, TENANT_A, 'Shell.execute'))).toMatchObject(
       {
         failure: { kind: 'unavailable' },
@@ -207,7 +201,6 @@ describe('the trusted Tool request source', () => {
         complete: true,
       },
       requesterScope: SCOPE,
-      // The concurrency scope of the run of the action, granted to the tenant of the request.
       scope: runToolScope(TENANT_A, actionInput(principalA).consumer),
       workspace: null,
       resources: [],
@@ -331,10 +324,6 @@ describe('the trusted Tool request source', () => {
   })
 })
 
-/**
- * A Session service on the root whose `work` face records the caller class it was read for (the
- * intercept configuration of the caller, as the Session provider reads it) and answers `snapshot`.
- */
 function recordingSession(snapshot: WorkSnapshot, callers: unknown[]) {
   class RecordingSession extends SessionService<unknown> {
     get work(): SessionFaces<unknown>['work'] {
@@ -473,7 +462,6 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     })
     reads.length = 0
     expect(await source.describe(call('Shell', EXECUTE))).toMatchObject({ ok: { kind: 'tool' } })
-    // A call that names no command of Ask is answered with the guide, before any read.
     expect(await source.describe(call('Ask', '{"command":"nope"}'))).toMatchObject({
       ok: { kind: 'answered' },
     })
@@ -532,7 +520,6 @@ describe('the release composition releaseToolRequestsOf on a real Cordis root (R
     await fixture.root.plugin(recordingSession(snapshot, callers))
     fixture.root.provide(toolCatalogKey, ports.catalog())
     fixture.root.provide(executionScopeBindingKey, ports.scopeBinding())
-    // What the entry object `toolClock` hands over: its trusted verifier read (R2-D203 P-9).
     toolRuntimeHolder(fixture.root).verifier = ports.verifier
     const request = okOf(
       await preparedBy(releaseToolRequestsOf(fixture.root), principalA),

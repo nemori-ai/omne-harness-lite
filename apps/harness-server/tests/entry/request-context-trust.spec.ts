@@ -1,6 +1,3 @@
-// `requestContextTrust`（验收 4、DP5-C2、DP5-C3、R2-D202）：登记授权默认拒绝，核验器先于一切，三个租户逐一比较；
-// 发行名单只有会话格：会话工作主体只为自己的会话、以发行固定的 agent-context owner 做 register。
-// 主体绑定给经核验主体的稳定键。经服务键与导出的工厂调用。
 import { describe, expect, it } from 'vitest'
 import {
   inProcessPrincipalAuthority,
@@ -56,7 +53,6 @@ const GRANT: RegistrationGrant = {
   actions: ['register'],
 }
 
-/** A scope ownership source that answers one fixed ownership, and counts the lookups. */
 function ownedAs(answer: SessionScopeOwnership) {
   let asked = 0
   const source: SessionScopeOwnershipSource = {
@@ -132,8 +128,6 @@ describe('the session cell of the release list (R2-D202)', () => {
   })
 
   it('denies a session cell for a principal whose issuing component is not sessionWorkPrincipals, before it reads the scope (R2-D219)', async () => {
-    // A grant that names another component with the session cell: its principal has a session work
-    // and the scope is that session's, but only `sessionWorkPrincipals` issues session work principals.
     const other = authorityWithActing('session-ad04', tenantA)
     const owned = ownedAs(bound(tenantA, 'ses_1'))
     const decision = await createRegistrationAuthority({

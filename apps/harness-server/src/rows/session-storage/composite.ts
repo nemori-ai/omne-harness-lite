@@ -16,7 +16,6 @@ import {
   type SqlMaterialCatalog,
 } from '@omne-harness/sql-contract'
 
-/** HITL 的全部参加者：终态、请求与等待的规划者和写者。 */
 const HITL_PARTICIPANTS = [
   ...hitlSqlMaterials().participants,
   ...independentWaitSqlMaterials().participants,
@@ -34,7 +33,6 @@ export type CompositeManifest =
   | Readonly<{ kind: 'manifest'; digest: string }>
   | Readonly<{ kind: 'invalid'; diagnostic: string }>
 
-/** 本构建对会话存储组合算出的清单摘要（sql-contract §4.4）。提供者在登记时按同一算法核对。 */
 export function compositeManifestDigest(catalog: SqlMaterialCatalog): CompositeManifest {
   const judged = combinationManifest({ catalog, participants: SESSION_COMPOSITE_PARTICIPANTS })
   switch (judged.kind) {

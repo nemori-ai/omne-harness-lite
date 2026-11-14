@@ -23,8 +23,6 @@ async function assembly(register: SqlStorage['registerCombination']) {
   const registered = vi.fn()
   const dependency = await root.plugin({
     apply(ctx: Context) {
-      // The identity of the database (sql-contract `SqlStorage.database`): the row registers the
-      // commit notifier on it.
       ctx.provide('storage', { database: {}, registerCombination: register })
       ctx.provide('sessionAccessCheck', {})
       ctx.provide('s0.assemblyLifecycle', { register: registered })

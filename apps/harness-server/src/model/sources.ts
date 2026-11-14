@@ -10,7 +10,6 @@ export type OfficialProfilesInput = Readonly<{
   compactionTriggerPercent: string
 }>
 
-/** Canonical JSON: no white space, object keys sorted by UTF-16 code units. */
 function canonicalJson(value: unknown): string {
   if (value === null) return 'null'
   switch (typeof value) {
@@ -33,7 +32,6 @@ function canonicalJson(value: unknown): string {
   }
 }
 
-/** The adoption the official profile source gives a definition. */
 export function officialProfileAdoption(definition: ModelProfileDefinition): Adoption {
   const supplier = definition.suppliers[0]
   return Object.freeze({

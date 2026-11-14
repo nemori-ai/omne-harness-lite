@@ -1,5 +1,3 @@
-// `serve` 模式在同一进程里的行为（DP1-C3、C6、C9、C10、C11、C15、C17 的 once）：发行替身树、夹具行、装载前拒绝、
-// 入口对象与占位规则、四个阶段的有序关闭。进程级（`dist/bin.js serve`）在 `serve-process.spec.ts`。
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -30,10 +28,6 @@ const release = JSON.parse(
   readFileSync(join(memberDir, 'config', 'serve.distribution.json'), 'utf8'),
 ) as { rows: Row[] }
 
-/**
- * The test operator layer plus the `telemetry` replace: the release row carries no budgets (A12)
- * and a `replace` swaps the whole row, so it restates the implementation and the outlet.
- */
 function withTelemetry(layer: unknown): unknown {
   const { ops } = layer as { ops: unknown[] }
   return {
@@ -73,11 +67,6 @@ beforeEach(() => {
   storageEvents.length = 0
 })
 
-/**
- * The release names the `execution-host` factory row, whose absolute paths only the operator layer
- * gives (L1-12); without them the tree is rejected before loading. These cases read the tree and
- * entry records, so they load the release with the test operator layer.
- */
 async function releaseOperator(): Promise<unknown> {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
   scratches.push(base)
@@ -92,7 +81,6 @@ afterEach(() => {
 
 describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
   it('the release tree of 57 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
-    // The operator layer gives what the distribution file does not hold: absolute paths and the port.
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
@@ -224,7 +212,6 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
       implementation: 'real',
       trusted: true,
     })
-    // 名字只被行提供的不是入口对象，即使这一次树里没有提供者。
     expect(entries.map(r => r['name'])).not.toContain('storage')
     for (const record of run.records) expect(Object.keys(record)).not.toContain('value')
   })
@@ -300,7 +287,6 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
 
   it('R1-3: a real row that injects an entry-object name the registry lacks is PENDING, with the module it is ACTIVE', async () => {
     const rows = tree([{ id: 'runtime-context', plugin: 'fixtureRuntimeContext' }])
-    // The release registry carries `runtimeContextTrust` since C-TRUST; a registry without it is given explicitly.
     const without = await serveOnce({
       distribution: rows,
       plugins: fixturePlugins,
@@ -335,7 +321,6 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
   })
 
   it('R1-5: a new row joins with one entry in the plugin table and one row in the distribution', async () => {
-    // 行目录 tests/fixtures/serve/rows/identity/ 之外，只有这两处各一条：`plugins`（./cordis 的替代）与发行层的一行。
     const run = await serveOnce({
       distribution: tree([
         { id: 'storage', plugin: 'fixtureStorage' },

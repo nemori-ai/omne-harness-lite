@@ -5,13 +5,11 @@ import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import { succeed } from '@omne-harness/operation-result'
 import { monotonicClock } from '../shutdown.ts'
 
-/** The pair the host plugin takes: both from one `model-records` activation. */
 export type ModelObservationPair = Readonly<{
   commands: ModelCommands<unknown>
   source: ModelObservationSource<unknown>
 }>
 
-/** Captures `access` for the caller; the return releases this capture only. */
 export type ObservationQualify = (access: Access<unknown>) => Promise<() => void>
 
 export const observationTiming: ModelObservationTiming = Object.freeze({
@@ -39,7 +37,6 @@ type Frame = Host['observation']['observe'] extends (input: never) => AsyncItera
   ? F
   : never
 
-/** The observation of `host` with a capture held while it runs and taken anew every `recheckMs`. */
 async function* observeQualified(
   host: Host,
   input: ObserveInput,
@@ -72,8 +69,6 @@ async function* observeQualified(
   }
   try {
     await take()
-    // A recheck that fails leaves no capture: the source's next check answers unavailable and ends
-    // the observation, instead of the old capture going on as a lasting permission.
     void recheck().catch(releaseAll)
     yield* host.observation.observe(input)
   } finally {
@@ -82,7 +77,6 @@ async function* observeQualified(
   }
 }
 
-/** `source` with the application's admission point on `current` and on every observation. */
 export function qualifyingObservation(
   source: ModelObservationSource<unknown>,
   qualify: ObservationQualify,

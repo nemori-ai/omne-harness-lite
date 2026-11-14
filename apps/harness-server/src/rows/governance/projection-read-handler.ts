@@ -1,7 +1,3 @@
-// Runs read-only participant commands on one read connection. The participants are the same
-// modules that a commit runs: this handler gives them a read port and keeps their facts in memory.
-// It knows no table and no domain. The members come from the handler URL, which the application
-// build fixes.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

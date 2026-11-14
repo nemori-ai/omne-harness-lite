@@ -1,7 +1,3 @@
-// `secret-custody` row: the settings-local secret vault as a row, over a real file in a temporary
-// directory. The trusted table of the assembly page does not list the key yet, so these cases give
-// the loader a visibility table of their own: it shows what the row provides to a row that may see
-// the key, and that a row the table does not list cannot inject it (I-6).
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -38,7 +34,6 @@ function vaultPath(): string {
   return join(directory, 'model-vault.json')
 }
 
-/** The binding key of the OpenRouter `apiKey` in one layer: the key the model credential row reads. */
 function apiKey(scope: SecretBindingKey['scope']): SecretBindingKey {
   const provider = releaseProvider('openrouter')
   if (provider === undefined) throw new Error('the release holds no openrouter provider')
@@ -47,7 +42,6 @@ function apiKey(scope: SecretBindingKey['scope']): SecretBindingKey {
 const officialKey = (): SecretBindingKey => apiKey({ layer: 'official' })
 const tenantKey = (): SecretBindingKey => apiKey({ layer: 'tenant', tenant: TENANT })
 
-/** A vault file that holds the official and the tenant OpenRouter key. */
 function writeVault(path: string): void {
   const created = createSecretVault({
     path,
@@ -69,7 +63,6 @@ function text(raw: string): SecretText {
 const PROBE = 'secret-probe' as RowId
 const plugins = { secretCustodyRow }
 
-/** A probe row that injects the key; `capture` receives its context while the tree is up. */
 function probeRow(capture: (ctx: Context) => void) {
   return defineRow({
     row: PROBE,
@@ -86,7 +79,6 @@ function probeRow(capture: (ctx: Context) => void) {
   })
 }
 
-/** Runs the row with a probe under a visibility table of the test's choice. */
 async function withRow<T>(
   path: string,
   visibility: ReadonlyMap<RowId, readonly string[]>,
@@ -129,7 +121,6 @@ async function withRow<T>(
   }
 }
 
-// The release trusted table (the entry objects need it) plus the two rows that may see the key.
 const RELEASE_TABLE = serveProfile().visibility
 const SEES_KEY: ReadonlyMap<RowId, readonly string[]> = new Map([
   ...RELEASE_TABLE,
@@ -198,7 +189,6 @@ describe('the secret-custody row', () => {
       removed: 'removed',
       after: { kind: 'unbound' },
     })
-    // The file still holds the two OpenRouter keys it was built with.
     const stored = JSON.parse(readFileSync(path, 'utf8')) as {
       version: number
       bindings: unknown[]
@@ -286,7 +276,6 @@ describe('the operator layer of the local profile', () => {
     expect(withRow.ops.find(op => op.id === 'secret-custody')?.config).toEqual({
       path: '/h/state/model-vault.json',
     })
-    // The model credential row reads the vault through this row: the layer gives it no path.
     expect(withRow.ops.find(op => op.id === 'model-credential')).toBeUndefined()
   })
 

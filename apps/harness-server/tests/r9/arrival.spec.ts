@@ -1,8 +1,4 @@
 // @module-tag slow
-// 慢：每个用例在本进程装真实 SQLite 存储，并为每条命令起一个 `omne` 子进程。
-// R9 贯通的进程内一层：发行树（真实行与契约替身行，运维者层给路径和端口）在本进程里运行，`omne` CLI 经回环端口
-// 连它。会话替身换成带观察者的那一份，所以能看到到达会话面的主体。进程外看不到替身内部，这一层补上进程级贯通
-// （`flow.ts`）看不到的证据：输入带着装配入口签发、并被访问检查核验通过的代租户主体到达。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -43,12 +39,6 @@ const release: unknown = JSON.parse(
   readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
 )
 
-/**
- * Runs the release tree in this process with the observing double and gives `scenario` the CLI and
- * the arrivals. The tree is stopped in order afterwards. Returns what the scenario returned and the
- * whole run (result, records and stderr). `runServe` is called directly, not through `serveOnce`,
- * because the scenario needs the state root: the cursor signing key file lives there.
- */
 type Run = Readonly<{
   result: ServeResult
   records: readonly S0Record[]
@@ -66,7 +56,6 @@ async function withTree<T>(
   const controller = new AbortController()
   const records: S0Record[] = []
   const stderr: string[] = []
-  // The Model calls go to a local gateway, never to a real supplier (R2-D258).
   const gateway = await startModelGateway()
   gateway.trustInProcess()
   const finished: Promise<Run> = runServe({
@@ -168,9 +157,6 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
       accepting: true,
       implementations: { real: 56, 'contract-double': 1, 's0-double': 2 },
     })
-    // The face saw the create and the input, each as the principal that the entry's own system
-    // component acts with for the tenant. `access: allowed` is the access check, which asks the
-    // principal verifier first: a principal that the verifier does not trust is not let through.
     expect(value.arrivals).toEqual([
       {
         method: 'management.create',
@@ -188,7 +174,6 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
       },
     ])
 
-    // No credential, proof or key in the CLI output, the run records, stderr or the arrivals.
     const everything = JSON.stringify({
       outputs: value.outputs,
       records: run.records,
@@ -196,7 +181,6 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
       arrivals: value.arrivals,
     })
     expect(leaked(everything, value.secrets)).toEqual([])
-    // Positive control: the same search finds each kind where it is.
     expect(leaked(value.proofFile, value.secrets)).toEqual(['proof'])
     expect(leaked(`password ${CREDENTIAL_A}`, value.secrets)).toEqual(['credential'])
     expect(leaked(value.secrets.key.join(' '), value.secrets)).toEqual(['key'])
@@ -211,8 +195,6 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
       const aliceTenant = savedTenant(tools.homes.alice)
       const bobTenant = savedTenant(tools.homes.bob)
       const mark = tools.arrivals.length
-      // --tenant is always given: an existing session needs its tenant named, and Bob has no
-      // record of this one.
       const send = (session: string, tenant: string) =>
         tools.cli('bob', ['send-input', '--session', session, '--text', 'x', '--tenant', tenant])
       const runs = {
@@ -231,9 +213,6 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
     const answered = (name: keyof typeof value.runs) => value.runs[name].result?.['body']
     expect(answered('ownerTenantReal')).toEqual(answered('ownerTenantUnknown'))
     expect(answered('ownTenantReal')).toEqual(answered('ownTenantUnknown'))
-    // With the owner's tenant text, the other principal is refused before the Session face, so
-    // nothing arrives. With his own tenant text, the access check lets him through and the double
-    // answers the same `denied` for the real session as for the unknown one.
     const arrived = {
       method: 'work.accept',
       principalKind: 'acting-for-tenant',

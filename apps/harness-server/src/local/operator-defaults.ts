@@ -1,36 +1,11 @@
-// The operator layer of the "local single-user" profile: one person runs the server on own host,
-// with own model credential, one workspace and the host shell. `serve` without `--operator` builds
-// this layer at start. The release layer writes no numeric defaults (R2-D6), so the numbers of
-// this profile live here, in code, and not in the settings file.
-//
-// Sources of the values: the operator layer of joint B (`tools/joint-b/operator.mjs`) and of the
-// coding agent tutorial, which ran a real model with 15 tool calls on the WIRE head `1a34bcba6`.
-// Where the two differ, the tutorial value is taken: Files with a working directory (R2-D295) and a
-// `tool-records` reconciliation delay of 1000 ms. The result bound of Shell, Files and Web is not
-// from those sources: see `LOCAL_TOOL_RESULT_BYTES`.
-// No measurement backs these numbers, and the adoption references are placeholders with a zero
-// digest. SPEC.md lists this as a known limitation.
-//
-// A `replace` swaps the whole row configuration. So every row here starts from the configuration
-// that the release layer gives the row, and the profile adds its own keys over it. Values the
-// release owns (`storage.maxJsonDepth`, `agent-host.jointCommits` and `coordination`, and the
-// combination version of `session-handoff`) therefore come from the distribution, not from here.
 import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
 import { isSecretName, type ServerSettings, type StorageLimits } from './settings.ts'
 
-/** `serve` waits this long for every enabled row to become ACTIVE when no flag says otherwise. */
 export const DEFAULT_READINESS_TIMEOUT_MS = 30_000
-/** The shutdown deadline D of `serve` when no flag says otherwise. */
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000
-/**
- * How long a planned stop of `serve` lets the work already accepted finish before the rows stop,
- * when no flag says otherwise. It covers a long model reply; a stop with nothing in flight does
- * not wait.
- */
 export const DEFAULT_DRAIN_DEADLINE_MS = 120_000
 
-/** The history kinds `read-history` lists: the conversation, the tool messages and the Run frame. */
 export const LOCAL_HISTORY_KINDS = [
   'message.user',
   'message.assistant',
@@ -40,12 +15,6 @@ export const LOCAL_HISTORY_KINDS = [
   'run.terminal',
 ] as const
 
-/**
- * The entry kinds `read-session-diagnostics` reads: every kind the projection knows
- * (server-entry `PROJECTED_KINDS`, RFC-0013「数据来源与读取路径」), so the diagnostics of one
- * person's host hide nothing from that person (DA4, adopted for now). A kind left out here is a
- * `not-disclosed` gap of every read.
- */
 export const LOCAL_DIAGNOSTICS_KINDS = [
   'run.started',
   'run.attempt-started',
@@ -64,13 +33,8 @@ export const LOCAL_DIAGNOSTICS_KINDS = [
   'message.compaction',
 ] as const
 
-/**
- * The bounds of one diagnostics page: the most Runs, and the most calls of one Run that enter the
- * fan-out to Model and Tool. Initial values, not measured: a page of one person's session.
- */
 export const LOCAL_DIAGNOSTICS_LIMITS = { maxRuns: 32, maxCallsPerRun: 64 } as const
 
-/** The adoption that the placeholder references of this profile name. */
 const ADOPTION = {
   owner: '@omne-harness/harness-server',
   name: 'local-single-user',
@@ -99,7 +63,6 @@ export const LOCAL_TOKENIZERS = {
   jobTimeoutMs: 10_000,
   maxWorkerOldSpaceMb: 768,
   maxReplacementsPerMinute: 2,
-  // The grace guards against a stuck synchronous count, not a thread that waits to be scheduled.
   cancellationGraceMs: 1_000,
 } as const
 
@@ -121,14 +84,8 @@ const PREPARATION = {
   },
 } as const
 
-/**
- * How many model calls of the one tenant may be in flight at once. The tenant's share in
- * `model-records` is this many unacknowledged results, and every bound on the way of a call
- * (host drives, result pushes, send claims, materialized transports, connections) admits as many.
- */
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20
 
-/** G of the Tool ledger: the runtime and the sweep row take the same value. */
 const TOOL_ORPHAN_GRACE_MS = 60_000
 
 const MODEL_HOST = {
@@ -157,7 +114,6 @@ const MODEL_HOST = {
   },
 } as const
 
-/** The storage provider's command bound. The Tool record store commits through that provider. */
 const MAX_COMMAND_BYTES = 1_048_576
 
 function modelRecords(combinationVersion: string) {
@@ -176,11 +132,9 @@ function modelRecords(combinationVersion: string) {
       readIdleMs: MODEL_HOST.runtime.readIdleMs,
       unacknowledgedResults: LOCAL_CONCURRENT_MODEL_CALLS,
     },
-    // One chunk of a request body travels in one command: a quarter of the provider's bound.
     requestChunkBytes: MAX_COMMAND_BYTES / 4,
     combinationVersion,
     send: { mirrorBytes: 4_194_304, maxClaims: LOCAL_CONCURRENT_MODEL_CALLS },
-    // The read face `modelDiagnostics`: a tenant reads its own calls; the retention is a placeholder adoption.
     diagnostics: {
       diagnosticsRead: 'tenant-self',
       retention: { ...ADOPTION, name: 'local-single-user/model-diagnostics-retention' },
@@ -211,11 +165,9 @@ function modelRecords(combinationVersion: string) {
       },
       preparation: PREPARATION,
       network: { maxConnections: LOCAL_CONCURRENT_MODEL_CALLS, idleConnectionTimeoutMs: 60_000 },
-      // The routes come from the release provider bodies; the local profile sends to their own endpoints.
       endpoints: {},
       transportLimits: {
         connectTimeoutMs: 10_000,
-        // Retries only a failure before the request bytes left: 2 retries after 500 ms and 1000 ms.
         connectRetry: { backoffMs: [500, 1000] },
         maxErrorBodyBytes: 4096,
         maxEventBytes: 1_048_576,
@@ -232,17 +184,11 @@ function modelRecords(combinationVersion: string) {
   }
 }
 
-/**
- * The storage provider of the local host. `closeDeadlineMs` stays below the shutdown deadline D,
- * because the storage handle answers at D (SPEC.md, ordered shutdown, step 6).
- */
 function storage(storageRoot: string, shutdownDeadlineMs: number, limits: StorageLimits = {}) {
   return {
     storageRoot,
     admissionQueueLimit: 64,
     globalAdmissionLimit: 256,
-    // A commit, registration or query waits this long for a reservation before it is refused
-    // (sql-contract 准入等待): the same bound as a read waits in its queue (readQueueTimeoutMs).
     admissionWaitMs: 1000,
     lockWaitMs: 5000,
     maxCommandsPerCommit: 16,
@@ -254,8 +200,6 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,
-    // The three thread limits are the only storage numbers that the settings file may give. The
-    // storage provider judges how they relate when it starts.
     maxWorkers: limits.maxWorkers ?? 16,
     reservedWriterSlots: limits.reservedWriterSlots ?? 4,
     maxReadWorkersPerDomain: limits.maxReadWorkersPerDomain ?? 2,
@@ -287,34 +231,12 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
   }
 }
 
-/** One second below D, but never less than half of D. */
 export function storageCloseDeadlineMs(shutdownDeadlineMs: number): number {
   return shutdownDeadlineMs - Math.min(1000, Math.floor(shutdownDeadlineMs / 2))
 }
 
 const POWERSHELL_ARGS = ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'] as const
 
-/**
- * A script that `-Command` runs before the script of the call. On Windows, a PowerShell whose
- * output goes to a pipe writes in the OEM code page of the console (936 on a Chinese system), and
- * reads the input of `[Console]::In` and decodes the output of native programs in the same page, while `$OutputEncoding` (the page of text
- * that goes to a native program) is ASCII. The host decodes the output as UTF-8, so Chinese text
- * turns to noise. This prelude sets the encodings of this one process to UTF-8 without a
- * byte order mark. `[Console]::OutputEncoding` also sets the page of the console, which native
- * programs inherit, so
- * - the output of PowerShell itself and the output of native programs (`cmd /c echo`, `git log`)
- *   reach the host as UTF-8, and a string piped to a native program goes out as UTF-8;
- * - `[Console]::In` reads the standard input of a call, which the host sends as UTF-8, as UTF-8;
- * - `Get-Content` and `Select-String` read a file without a byte order mark as UTF-8 and not as the
- *   ANSI page. A call that names another `-Encoding` still wins.
- * The encodings belong to the process: no machine or user setting changes. The prelude ends with
- * a semicolon, because PowerShell joins the arguments after `-Command` with spaces, so the script of
- * the call follows it as the rest of the command.
- *
- * Known limit: `Set-Content`, `Out-File` and `>` still write in the default encoding of the
- * PowerShell, which is the ANSI page in Windows PowerShell 5.1. A byte order mark would break
- * files such as `package.json`, so the profile does not force one.
- */
 export const WINDOWS_POWERSHELL_PRELUDE = [
   '$omneUtf8 = New-Object System.Text.UTF8Encoding $false',
   '[Console]::InputEncoding = $omneUtf8',
@@ -326,10 +248,6 @@ export const WINDOWS_POWERSHELL_PRELUDE = [
   '',
 ].join('; ')
 
-/**
- * Windows PowerShell refuses local scripts under its default execution policy. `Bypass` applies to
- * this one process only and changes no policy of the host.
- */
 const WINDOWS_POWERSHELL_ARGS = [
   '-NoLogo',
   '-NoProfile',
@@ -340,11 +258,6 @@ const WINDOWS_POWERSHELL_ARGS = [
   WINDOWS_POWERSHELL_PRELUDE,
 ] as const
 
-/**
- * The arguments that put a script after the executable. PowerShell (`powershell`, `pwsh`) takes
- * `-Command`, on Windows with `-ExecutionPolicy Bypass` and the UTF-8 prelude, which is the last
- * argument before the script. Any other executable is taken as a POSIX shell that takes `-c`.
- */
 export function shellArguments(platform: NodeJS.Platform, executable: string): readonly string[] {
   const name = pathsOf(platform)
     .basename(executable)
@@ -354,12 +267,6 @@ export function shellArguments(platform: NodeJS.Platform, executable: string): r
   return platform === 'win32' ? WINDOWS_POWERSHELL_ARGS : POWERSHELL_ARGS
 }
 
-/**
- * The environment of the shell process: the allowlist values that `setup` saved, and the temp
- * directory, which is the host files directory that the server owns. Nothing else of the server
- * environment reaches the shell. A name that looks like a secret is dropped here too, so a layer
- * built from settings that bypassed the schema still holds none.
- */
 export function shellEnvironment(
   platform: NodeJS.Platform,
   saved: Readonly<Record<string, string>>,
@@ -377,8 +284,6 @@ export function shellEnvironment(
   }
 }
 
-/** Must stay above the inline threshold (`offloading.maxInlineUtf8Bytes`): a bound under it cuts
- * every large result before offloading can see it, and the cut bytes are lost. */
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
 
 function toolRecords(workspace: string, combinationVersion: string) {
@@ -434,12 +339,6 @@ function toolRecords(workspace: string, combinationVersion: string) {
   }
 }
 
-/**
- * The factory numbers of `agent-host`. A waiting run checks again after 1000 ms three times, then
- * after longer delays while nothing changes, at most every 30 s; a change starts the list again. The
- * denial backoff is 1000 ms; 0 runs it again about every 9 ms (R2-D209). `loopGuardPolicy` has no
- * production adoption source yet (L-RUN wave 3).
- */
 const AGENT_HOST = {
   observerBufferBytes: 65_536,
   reconciliationDelaysMs: [1000, 1000, 1000, 2000, 2000, 5000, 5000, 10_000, 30_000],
@@ -456,15 +355,6 @@ const AGENT_HOST = {
   instanceIdleMs: 60_000,
 } as const
 
-/**
- * The budgets of the `telemetry` row (the implementation and the outlet are release values). Like
- * every number of this profile they are unmeasured initial values: a few hundred records in flight
- * cover the diagnostics of one person's host, and the summary line on stderr is at most one in ten
- * seconds. `maxSegmentLifetimeMs` is one hour, the provider's default (`DEFAULT_SEGMENT_LIFETIME_MS`
- * of `@omne-harness/telemetry-node`, proposed by the closure tel-r4-node of card #1140); RFC-0013
- * names the budget without a number. It is written here so that the profile states every number
- * it runs with.
- */
 const TELEMETRY_BUDGETS = {
   maxRecordBytes: 16_384,
   maxQueueItems: 1024,
@@ -487,7 +377,6 @@ function releaseRows(distribution: unknown): ReleaseRows {
   return new Map(parsed.data.rows.map(row => [row.id, row.config ?? {}]))
 }
 
-/** Why the profile cannot build a layer for the given distribution. */
 export class LocalProfileError extends Error {}
 
 function combinationVersionOf(rows: ReleaseRows): string {
@@ -501,7 +390,6 @@ function combinationVersionOf(rows: ReleaseRows): string {
 }
 
 export type LocalOperatorInput = Readonly<{
-  /** The parsed distribution. Its row configurations are the base of each replaced row. */
   distribution: unknown
   locations: Pick<ServerLocations, 'vaultFile' | 'storageRoot' | 'hostFilesDir'>
   settings: ServerSettings
@@ -517,10 +405,6 @@ export type ReplaceOperation = Readonly<{
 
 export type OperatorLayer = Readonly<{ ops: readonly ReplaceOperation[] }>
 
-/**
- * Builds the operator layer of the local single-user profile. The secret custody row names only
- * the vault path: the secrets are in the vault that `setup` built, never in this layer.
- */
 export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
   const rows = releaseRows(input.distribution)
   const combinationVersion = combinationVersionOf(rows)
@@ -537,9 +421,6 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         domainRule: 'organization-account/1',
       },
     ],
-    // The secret custody row opens the vault; the model credential row reads it through the row.
-    // The release lists the row only once the trusted table and the distribution carry it; until
-    // then the layer leaves it out.
     ...(rows.has('secret-custody')
       ? ([['secret-custody', { path: locations.vaultFile }]] as const)
       : []),
@@ -559,7 +440,6 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
             cwd: settings.workspace,
             env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
           },
-          // Files resolves a relative path against its own working directory (R2-D295).
           Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, cwd: settings.workspace },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
@@ -585,16 +465,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         tools: {
           attemptMs: 250,
           resultPageBytes: 65_536,
-          // Not above the inline threshold of the runtime: `checkToolsReplyBudget`.
           replyMaxBytes: 65_536,
-          // The page of a body read back. Measured on real models with a 32 KiB body: the tokens
-          // and the cost of a task follow the number of pages read (4 KiB: 8 pages, 16 KiB: 2
-          // pages, about a third of the cost), with the same answers.
           contentPageBytes: 16_384,
         },
-        // Web provider values of the local profile: initial values without a measurement, configurable.
-        // The local profile reaches the host network directly; sandbox or multi-tenant egress control
-        // is a known limitation of this profile.
         web: {
           search: {
             endpoint: 'https://api.exa.ai/search',

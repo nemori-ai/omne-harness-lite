@@ -1,5 +1,3 @@
-// 会话工作主体（验收 3、AA 运行时对象表、ports.ts `SessionWorkPrincipals`）：每次 `forSession` 都现读受信的
-// `sessionPrincipalBindings`，读口缺席、`not-bound`、绑定不符、读失败或签发失败都不签发。经服务键调用。
 import { describe, expect, it } from 'vitest'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import type {
@@ -32,7 +30,6 @@ const bound = (tenant: TenantId, id: SessionId): Reading => ({
 })
 const notBound: Reading = { ok: { kind: 'not-bound' } }
 
-/** 脚本化的归属读口：每次 `read` 取当前的 `answer`，记下被问过的输入。`answer` 是函数时由它作答（可抛出）。 */
 class ScriptedBindings extends SessionPrincipalBindingsService {
   readonly asked: Parameters<SessionPrincipalBindingSource['read']>[0][] = []
   answer: Reading | (() => Promise<Reading>) = notBound

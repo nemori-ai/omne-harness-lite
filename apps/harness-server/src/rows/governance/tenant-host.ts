@@ -9,33 +9,21 @@ import type { TenantGovernanceAssembly, TenantSettingsAccess } from './tenant-ru
 type Opened = Awaited<ReturnType<TenantGovernanceAssembly['open']>>
 type Runtime = Extract<Opened, { kind: 'created' }>
 
-/** One failed open of a tenant's governance runtime, as the host reports it. */
 export type TenantGovernanceOpenFailure = Readonly<{
   tenantRef: string
-  /** The phase the assembly stopped in, or `threw` when the open threw. */
   phase: string
-  /** Failed opens of this tenant in a row, this one included. */
   failures: number
-  /** The wait before the host opens this tenant again. */
   againInMs: number
 }>
 
 type Options = Readonly<{
   domains: TenantDomainLookup
   prepare(tenantRef: string, domain: DomainRef): TenantGovernanceAssembly
-  /** The wait before the next attempt after `failures` failed opens in a row. Default 1, 5, 30 s. */
   retryPauseMs?(failures: number): number
-  /** Monotonic milliseconds. Default the process monotonic clock. */
   now?(): number
-  /** Every failed open is reported; a tenant without governance is not a silent state. */
   report?(failure: TenantGovernanceOpenFailure): void
 }>
 
-/**
- * One prepared assembly and its one attempt (tenant-runtime.ts: one assembly owns one attempt).
- * `spent` is set when that attempt did not create a runtime: the entry answers unavailable until
- * `retryAt`, then the host replaces it with a new assembly over the same durable domain.
- */
 type Entry = {
   domain: DomainRef
   assembly: TenantGovernanceAssembly
@@ -47,11 +35,8 @@ const unavailable = () => ({ kind: 'unavailable' as const, diagnostic: 'tenant-g
 export class TenantGovernanceHost {
   private readonly options: Options
   private readonly entries = new Map<string, Promise<Entry | undefined>>()
-  /** Failed opens in a row per tenant; cleared by an open that created a runtime. */
   private readonly failures = new Map<string, number>()
-  /** When a tenant that failed to prepare may be prepared again (monotonic ms). */
   private readonly preparePauses = new Map<string, number>()
-  /** The replacement of a spent entry, so that callers holding the same spent entry share it. */
   private readonly renewals = new WeakMap<Entry, Promise<Entry | undefined>>()
   private closing = false
   private stopping: Promise<StopResult> | undefined
@@ -71,11 +56,6 @@ export class TenantGovernanceHost {
     return this.options.now?.() ?? monotonicClock.now()
   }
 
-  /**
-   * Prepares the assembly of a tenant. A tenant the directory does not hold is a normal answer
-   * (a tenant that never created a session). A lookup that cannot be read, or a prepare that throws,
-   * is a failure: counted, reported, and the tenant is not asked about again during the pause.
-   */
   private async prepare(tenantRef: string): Promise<Entry | undefined> {
     if (!tenantCodec.parse(tenantRef).ok) return undefined
     const pause = this.preparePauses.get(tenantRef)
@@ -100,14 +80,12 @@ export class TenantGovernanceHost {
     }
   }
 
-  /** A tenant that could not be prepared: count it, report it, and set the pause before the next try. */
   private failPrepare(tenantRef: string, phase: 'lookup' | 'prepare'): undefined {
     const againInMs = this.countFailure(tenantRef, phase)
     this.preparePauses.set(tenantRef, this.now() + againInMs)
     return undefined
   }
 
-  /** Keeps `pending` as the entry of the tenant; an entry that could not be prepared is dropped. */
   private keep(tenantRef: string, pending: Promise<Entry | undefined>): Promise<Entry | undefined> {
     const kept = pending
       .catch(() => undefined)
@@ -130,12 +108,10 @@ export class TenantGovernanceHost {
     )
   }
 
-  /** The attempt of an entry did not create a runtime: count it, report it, set the next attempt. */
   private fail(tenantRef: string, entry: Entry, phase: string): void {
     entry.spent = { retryAt: this.now() + this.countFailure(tenantRef, phase) }
   }
 
-  /** Counts one failure of the tenant, reports it, and returns the wait before the next attempt. */
   private countFailure(tenantRef: string, phase: string): number {
     const failures = (this.failures.get(tenantRef) ?? 0) + 1
     this.failures.set(tenantRef, failures)
@@ -144,7 +120,6 @@ export class TenantGovernanceHost {
     return againInMs
   }
 
-  /** Starts the one attempt of an entry. A throw is a failed attempt, not a rejection kept forever. */
   private open(tenantRef: string, entry: Entry): Promise<Opened | undefined> {
     return Promise.resolve()
       .then(() => entry.assembly.open())
@@ -161,11 +136,6 @@ export class TenantGovernanceHost {
       )
   }
 
-  /**
-   * The entry that replaces a spent one: what the failed attempt still holds is closed first, then
-   * a new assembly is prepared. When the close does not settle, the spent entry stays and waits
-   * another pause, so that no closing responsibility is dropped.
-   */
   private renew(tenantRef: string, spent: Entry): Promise<Entry | undefined> {
     const known = this.renewals.get(spent)
     if (known !== undefined) return known
@@ -202,7 +172,6 @@ export class TenantGovernanceHost {
     return undefined
   }
 
-  /** The Settings of an open tenant runtime; undefined when the runtime is not open. */
   async settings(tenantRef: string): Promise<TenantSettingsAccess | undefined> {
     if ((await this.runtime(tenantRef)) === undefined) return undefined
     return (await this.entry(tenantRef))?.assembly.settings

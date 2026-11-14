@@ -1,8 +1,3 @@
-// The permission port of the tenant-settings face. A tool's invoke permission is a Settings item;
-// how it evaluates belongs to Permissions. This adapter gives Permissions the three layers of the
-// management view (the default of the declaration, the organization layer read now in its own
-// domain, the tenant layer of the catalog read) and answers with its evaluation. A session pick is
-// not in this view. The adapter does not evaluate a rule itself.
 import { canonicalText } from '@omne-harness/authorization'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import { organizationCodec, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -31,7 +26,6 @@ import { organizationSettingsSource } from './organization-settings.ts'
 import { mappedDefinition } from './session-permission-settings.ts'
 import { toolAssetTarget } from './tool-installation-assets.ts'
 
-/** When a new value of a tool permission is used (the real use boundary, not the declared one). */
 export const TOOL_PERMISSION_APPLIES_AT = '对之后的每一次工具调用生效，已经启动的不受影响'
 
 type Mapped = Readonly<{ entry: ToolReleaseEntry; permission: PermissionDefinition }>
@@ -42,7 +36,6 @@ export type TenantSettingsPermissionOptions = Readonly<{
   release(): ToolRelease | undefined
 }>
 
-/** The rule a tenant source states for the item; null when the layer states none. */
 function ownRule(view: SettingsTargetView, itemId: string): PermissionRule | null {
   const sources = view.sources.filter(source => source.scope.kind === 'tenant')
   if (sources.length !== 1) return null
@@ -133,7 +126,6 @@ export function createTenantSettingsPermissions(
       : result
   }
 
-  /** The management view: default, organization now, tenant from the catalog read; no session. */
   async function material(
     tenant: TenantId,
     view: SettingsTargetView,
@@ -183,7 +175,6 @@ export function createTenantSettingsPermissions(
     }
   }
 
-  /** The layer whose rule the result comes from; the outermost layer that locks, for a nearest. */
   function layerOf(
     evaluation: PermissionEvaluation,
     value: string,

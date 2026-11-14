@@ -1,6 +1,3 @@
-// The application's sweep schedule: it sweeps a tenant only when its next due entry has come, closes
-// cleanly while a step is still waiting on the Tool sweep, and backs a tenant that cannot be swept
-// off without holding the others (SPEC「Tool 正文清扫」).
 import type { Context } from '@deepseek-ai/cordis'
 import { expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -33,12 +30,10 @@ const B = textOf(tenantB)
 const START = Date.parse('2026-11-10T00:00:00.000Z')
 const instant = (ms: number) => new Date(ms).toISOString() as ToolInstant
 
-/** A schedule over a scripted Tool sweep and due index, with a clock the test moves. */
 function world(
   options: Readonly<{
     tenants?: readonly string[]
     sweep?: BodySweepInput<string>['sweep']
-    /** The earliest due entry of a tenant, in milliseconds after START; none by default. */
     earliest?: (tenant: string) => number | null | 'unavailable'
     limit?: number
   }> = {},
@@ -86,9 +81,7 @@ function world(
     swept,
     indexed,
     warnings,
-    /** How many tenants the table holds, due or not. */
     dueTenants: () => due.ready(Infinity).length,
-    /** Moves the clock to `ms` after START and takes one step. */
     async at(ms: number) {
       now = START + ms
       return schedule.advance()
@@ -141,7 +134,6 @@ it('sweeps every tenant once at startup, then only a tenant whose due entry has 
   await w.at(0)
   expect(w.swept).toEqual([A, B])
   expect(w.indexed).toEqual([A, B])
-  // B has nothing due: it is not read again. A comes due at 5 seconds, not sooner.
   for (const ms of [1000, 2000, 3000, 4000, 4999]) await w.at(ms)
   expect(w.swept).toEqual([A, B])
   expect(w.indexed).toEqual([A, B])
@@ -211,9 +203,7 @@ it('a tenant that cannot be swept backs off 1, 5 and 30 seconds and does not hol
   const line = (ms: number) =>
     `body sweep of tenant ${A} failed (queue_timeout); it goes on in ${ms} ms.`
   expect(w.warnings).toEqual([line(1000), line(30_000), line(30_000), line(30_000)])
-  // B was swept once and has nothing due: the failures of A never made it read again.
   expect(w.swept.filter(tenant => tenant === B)).toHaveLength(1)
-  // A succeeds and leaves the table; a later failure starts the ladder from one second again.
   down = false
   t += 30_000
   await w.at(t)

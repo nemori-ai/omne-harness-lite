@@ -1,7 +1,3 @@
-// Test support. It seeds a tenant-layer Settings value through the preparation protocol of
-// settings-local. No production row writes Settings values in this release. The current facts are
-// therefore a named fixture: the material comes from a target snapshot that the test takes when
-// the change is planned, and the fixture participants of settings-local publish it.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { z } from 'zod'
@@ -27,7 +23,6 @@ export type SettingsCurrentConfiguration = z.infer<typeof settingsCurrentConfigu
 const materialSchema = SettingsCommitCurrentSchema.shape.observation.options[0].shape.material
 type SettingsCurrentMaterial = z.infer<typeof materialSchema>
 
-/** The current material of a tenant-local target, as its snapshot states it. */
 function settingsCurrentMaterial(
   snapshot: TargetSnapshot,
   configuration: SettingsCurrentConfiguration,
@@ -103,7 +98,6 @@ function settingsCurrentMaterial(
 export const SETTINGS_SEED_READY = 'fixture.preparation-current'
 export const SETTINGS_SEED_COMMIT = 'fixture.commit-current'
 
-/** The two fixture participants of settings-local. Each publishes the fact of its command. */
 export function settingsSeedParticipants(): SqlMaterialCatalog['participants'] {
   const fixture = (
     file: string,
@@ -139,11 +133,6 @@ export function settingsSeedParticipants(): SqlMaterialCatalog['participants'] {
   ]
 }
 
-/**
- * The `plan` and `currentCommands` of a preparation that seeds one value. `snapshot` takes the
- * target snapshot of the change. Nothing changes the target between the plan and the commit of a
- * seed, so the material of the plan is also the current of the two later phases.
- */
 export function settingsSeedCurrent<Context>(options: {
   snapshot: () => Promise<TargetSnapshot>
   configuration: SettingsCurrentConfiguration

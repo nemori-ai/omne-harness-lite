@@ -1,21 +1,3 @@
-// The accounting ports of the `request-context` row (B1, R2-D136; SC2). They are runtime objects of
-// trusted assembly code, not configuration.
-//
-// - Source authority: a narrow allow fixed by the release (SC2). It admits one sender only, the
-//   adoption that the `agent-account-outlet` row is configured with, and only for a verified
-//   acting-for-tenant principal whose tenant is the tenant of the access, the target and the call.
-//   A system principal is `denied`: the system scope stands for no tenant (IC-18). Every other
-//   input is `denied`; the reason goes to the diagnostic hook, because the contract's `denied`
-//   carries no text. The verifier is the `principalVerifier` service, read per call. It does not check that the account and its evidence are one committed log fact, nor that
-//   the caller is the outlet itself: the release has no source for either (residual of
-//   B1-GAP-ACCOUNTING-SOURCE-AUTHORITY, see `docs/rows/session-run-release.md`).
-// - Read eligibility: the `eligibility` part of the holder sources that are already registered
-//   (`contextHolderSources`, row `session-ad04`), read per call under a short lease. Only the
-//   `accounts` operation is admitted.
-// - Adopted source: the `adopted` part of the same registered holder sources, read per call under a
-//   short lease (FIXED-FACTS F6). The holder (AD-04) reads the fixed request facts that the session
-//   log keeps for the target; this port only lends the call through.
-// - Recovery authority stays a named gap; it answers `unavailable`.
 import type { PrincipalVerification, PrincipalVerifier } from '@omne-harness/identity'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type {
@@ -36,14 +18,11 @@ import type {
   ContextHolderSources,
 } from '@omne-harness/request-context-cordis-contract'
 
-/** The gaps that stay, by name. A production source for one of them replaces the entry here. */
 export const ACCOUNTING_GAPS = Object.freeze({
   recoveryAuthority:
     'B1-GAP-ACCOUNTING-RECOVERY-AUTHORITY: the release has no authority for rebuilding accounts',
 })
 
-/** Equals the `sender` of the `agent-account-outlet` row in the release configuration: an operator
- * layer that gives that row another sender makes every account `denied`. */
 export const ACCOUNT_OUTLET_SENDER: Adoption = Object.freeze({
   owner: '@omne-harness/agent-context',
   name: 'account-outlet',
@@ -51,7 +30,6 @@ export const ACCOUNT_OUTLET_SENDER: Adoption = Object.freeze({
   digest: 'agent-context:account-outlet/1',
 })
 
-/** Why a port answered `denied`. The text names no tenant, principal or account. */
 export const ACCOUNTING_DENIALS = Object.freeze({
   principal: 'accounting source: the principal of the access is not verified',
   system:
@@ -64,7 +42,6 @@ export const ACCOUNTING_DENIALS = Object.freeze({
 
 export type AccountingDiagnose = (diagnostic: string) => void
 
-/** Swallowed failures and routine refusals: debug level, never part of an answer. */
 export type AccountingTrace = (diagnostic: string) => void
 
 const DENIED = Object.freeze({ kind: 'denied' as const })
@@ -81,18 +58,12 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
 }
 
 export type OutletSourceAuthorityOptions = Readonly<{
-  /** Reads the principal verifier now; `undefined` when none is running. */
   readVerifier: () => PrincipalVerifier | undefined
   sender: Adoption
   diagnose: AccountingDiagnose
   trace: AccountingTrace
 }>
 
-/**
- * The narrow source authority. Order: the principal (an absent, unavailable or throwing verifier
- * stays unavailable, never `denied`; only an acting-for-tenant principal of the access tenant
- * passes), then the three tenants, then producer and sender. The first that fails answers.
- */
 export function createOutletSourceAuthority(
   options: OutletSourceAuthorityOptions,
 ): AccountingSourceAuthority<unknown> {
@@ -132,7 +103,6 @@ export function createOutletSourceAuthority(
 }
 
 export type HolderReadEligibilityOptions = Readonly<{
-  /** Reads the registered holder sources now; `undefined` when no holder is running. */
   readHolder: () => ContextHolderSources<unknown> | undefined
   diagnose: AccountingDiagnose
   trace: AccountingTrace
@@ -140,12 +110,6 @@ export type HolderReadEligibilityOptions = Readonly<{
 
 const SETTLED = Object.freeze({ kind: 'settled' as const })
 
-/**
- * The read eligibility of the accounting inbox: the `eligibility` part of the registered holder
- * sources. Each check takes a lease and ends it before it returns; this port registers no source
- * set with the parts, so the settlement is immediate. No holder, a refused lease or a throw is
- * `unavailable`; a `denied` of the holder stays `denied`.
- */
 export function createHolderReadEligibility(
   options: HolderReadEligibilityOptions,
 ): ContextReadEligibility<unknown> {
@@ -187,12 +151,10 @@ export function createHolderReadEligibility(
 }
 
 export type HolderAdoptedSourceOptions = Readonly<{
-  /** Reads the registered holder sources now; `undefined` when no holder is running. */
   readHolder: () => ContextHolderSources<unknown> | undefined
   trace: AccountingTrace
 }>
 
-/** The adoption that names this port: the release adapter that lends the holder's `adopted` part. */
 export const HOLDER_ADOPTED_AUTHORITY: Adoption = Object.freeze({
   owner: '@omne-harness/harness-server',
   name: 'request-context/holder-adopted',
@@ -200,12 +162,6 @@ export const HOLDER_ADOPTED_AUTHORITY: Adoption = Object.freeze({
   digest: 'harness-server:request-context/holder-adopted/1',
 })
 
-/**
- * The narrow adoption source of the accounting inbox: the `adopted` part of the registered holder
- * sources (FIXED-FACTS F6). Each read takes a lease and ends it before it returns, like the read
- * eligibility above. No holder, a refused lease or a throw is `unavailable`; the answer of the part
- * (a fact, `null` before the first main-purpose request, `denied`, `unavailable`) stays as it is.
- */
 export function createHolderAdoptedSource(
   options: HolderAdoptedSourceOptions,
 ): AdoptedRequestSource<unknown> {
@@ -261,7 +217,6 @@ export type ReleaseAccountingPorts = Readonly<{
   trace: AccountingTrace
 }>
 
-/** The accounting options of the release: the source authority, the two holder ports, the recovery gap and the limits. */
 export function releaseAccounting(
   limits: AccountingOptions<unknown>['limits'],
   ports: ReleaseAccountingPorts,
