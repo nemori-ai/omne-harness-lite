@@ -42,11 +42,8 @@ export const ACCOUNTING_GAPS = Object.freeze({
     'B1-GAP-ACCOUNTING-RECOVERY-AUTHORITY: the release has no authority for rebuilding accounts',
 })
 
-/**
- * The sender the source authority admits: the adoption identity the `agent-account-outlet` row is
- * configured with in the release (`config/serve.distribution.json`). A test keeps the two equal; an
- * operator layer that gives that row another sender makes every account `denied`.
- */
+/** Equals the `sender` of the `agent-account-outlet` row in the release configuration: an operator
+ * layer that gives that row another sender makes every account `denied`. */
 export const ACCOUNT_OUTLET_SENDER: Adoption = Object.freeze({
   owner: '@omne-harness/agent-context',
   name: 'account-outlet',

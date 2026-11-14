@@ -185,12 +185,8 @@ function modelRecords(combinationVersion: string) {
       diagnosticsRead: 'tenant-self',
       retention: { ...ADOPTION, name: 'local-single-user/model-diagnostics-retention' },
     },
-    // The public Model stream (#1214): the bounds of the confirming observation source. A call
-    // keeps its publication from its first dispatch until its result body is released, so the
-    // publications are at most the calls in flight plus the results whose share is still held:
-    // `concurrencyLimit` + `unacknowledgedResults` for the one tenant of this profile (the share is
-    // per tenant). A publication beyond `maxRetainedCalls` fails that call's publish, so the bound
-    // is their sum.
+    // A call keeps its publication until its result body is released, so `maxRetainedCalls` must be
+    // at least the calls in flight plus the unacknowledged results; a publication beyond it fails.
     observation: {
       maxSnapshotBytes: 4_194_304,
       maxDeltaBytes: 1_048_576,
@@ -381,12 +377,8 @@ export function shellEnvironment(
   }
 }
 
-/**
- * The most bytes one Shell, Files or Web result keeps. It is above the inline threshold
- * (`offloading.maxInlineUtf8Bytes`), so a result between the two is offloaded with a bounded first
- * screen and read back by pages. A bound under the threshold cuts every large result to a head and
- * tail window before offloading can see it, and the cut bytes are lost.
- */
+/** Must stay above the inline threshold (`offloading.maxInlineUtf8Bytes`): a bound under it cuts
+ * every large result before offloading can see it, and the cut bytes are lost. */
 export const LOCAL_TOOL_RESULT_BYTES = 1_048_576
 
 function toolRecords(workspace: string, combinationVersion: string) {

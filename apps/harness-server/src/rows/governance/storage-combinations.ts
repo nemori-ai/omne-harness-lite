@@ -141,11 +141,8 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     const result = combinationManifest({ catalog, participants })
     if (result.kind !== 'manifest')
       throw new Error(`Invalid governance combination ${name}: ${JSON.stringify(result)}`)
-    // The version follows the manifest: storage keeps one manifest per version and refuses the same
-    // version with another one (sql-contract `registration_conflict`). These manifests hold
-    // participants of other owners (the Session writer, the execution record), so they change
-    // when those change. A version written by hand stayed `/1` through such a change, and every
-    // tenant registered before it could no longer open its governance.
+    // The version follows the manifest: these manifests change when other owners' participants change,
+    // and storage refuses one version with another manifest, so a hand-written version breaks tenants.
     const digest = manifestDigest(result.manifest)
     return {
       participants,
