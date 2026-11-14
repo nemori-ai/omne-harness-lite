@@ -94,6 +94,7 @@ export function createFakeClient(): FakeClient {
     'read-history',
     'list-sessions',
     'cancel-run',
+    'retry-run',
     'stop-call',
   ]
   const client = Object.fromEntries(names.map(name => [name, operation(name)])) as Record<
