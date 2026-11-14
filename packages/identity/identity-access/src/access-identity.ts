@@ -13,7 +13,7 @@ import type {
   PrincipalIssuer,
   SystemPrincipal,
 } from '@omne-harness/identity'
-import { accountEquals, tenantCodec } from '@omne-harness/legal-identity'
+import { accountEquals, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { callerOf, LOGIN_WORK_OWNER, loginIdentityOf, loginTextOf, principalOf } from './caller.ts'
 
 export type AccessIdentityDependencies = Readonly<{
@@ -31,7 +31,9 @@ const ENTRY_COMPONENT = 'server-entry'
 const DENIED = Object.freeze({ outcome: 'denied' as const })
 const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 
-export function createAccessIdentity(deps: AccessIdentityDependencies): AccessIdentity {
+export function createAccessIdentity(
+  deps: AccessIdentityDependencies,
+): AccessIdentity & Readonly<{ resume(tenant: string, loginText: string): ActForResult }> {
   const { operations, governance, issuer } = deps
   let actor: SystemPrincipal | undefined
 
@@ -41,6 +43,22 @@ export function createAccessIdentity(deps: AccessIdentityDependencies): AccessId
     if ('failure' in issued) return undefined
     actor = issued.ok
     return actor
+  }
+
+  const issueFor = (tenant: TenantId, loginText: string): ActForResult => {
+    try {
+      const system = systemPrincipal()
+      if (system === undefined) return UNAVAILABLE
+      const issued = issuer.issueActingForTenant({
+        actor: system,
+        tenant,
+        work: { owner: LOGIN_WORK_OWNER, work: loginText },
+      })
+      if ('failure' in issued) return UNAVAILABLE
+      return { outcome: 'issued', principal: principalOf(issued.ok) }
+    } catch {
+      return UNAVAILABLE
+    }
   }
 
   return {
@@ -66,19 +84,12 @@ export function createAccessIdentity(deps: AccessIdentityDependencies): AccessId
       const caller = callerOf(login)
       const target = tenantCodec.parse(tenant)
       if (!target.ok || !accountEquals(target.value.account, caller.account)) return DENIED
-      try {
-        const system = systemPrincipal()
-        if (system === undefined) return UNAVAILABLE
-        const issued = issuer.issueActingForTenant({
-          actor: system,
-          tenant: target.value,
-          work: { owner: LOGIN_WORK_OWNER, work: caller.loginText },
-        })
-        if ('failure' in issued) return UNAVAILABLE
-        return { outcome: 'issued', principal: principalOf(issued.ok) }
-      } catch {
-        return UNAVAILABLE
-      }
+      return issueFor(target.value, caller.loginText)
+    },
+
+    resume(tenant, loginText): ActForResult {
+      const target = tenantCodec.parse(tenant)
+      return target.ok ? issueFor(target.value, loginText) : DENIED
     },
 
     async reportAccess(login): Promise<void> {

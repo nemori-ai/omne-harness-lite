@@ -28,7 +28,6 @@ import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { createAccessIdentity } from '@omne-harness/identity-access'
-import { tenantCodec } from '@omne-harness/legal-identity'
 import { definitionMappingsKey, definitionResolverOf } from '@omne-harness/server-entry/cordis'
 import {
   openRequestJournal,
@@ -87,15 +86,13 @@ export const sessionAccessConfig = z
 
 /** The work owner of a principal identity issues for a login (identity's login steps). */
 const LOGIN_WORK_OWNER = 'identity-login'
-const LOGIN_ACTOR_COMPONENT = 'server-entry'
 
 /** `TargetTenantPrincipals` over identity's `actFor`. */
 function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
-  const issuer = ctx.principalIssuer
   const identity = createAccessIdentity({
     operations: identityOfCall(ctx),
     governance: governanceOfCall(ctx),
-    issuer,
+    issuer: ctx.principalIssuer,
   })
   return {
     async actingFor(login, tenant) {
@@ -103,17 +100,8 @@ function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
       return issued.outcome === 'issued' ? { ok: issued.principal } : { refused: issued.outcome }
     },
     async resume(tenant, login) {
-      const target = tenantCodec.parse(tenant)
-      if (!target.ok) return { refused: 'denied' }
-      const actor = issuer.issueSystem({ component: LOGIN_ACTOR_COMPONENT })
-      if ('failure' in actor) return { refused: 'basis-unavailable' }
-      const issued = issuer.issueActingForTenant({
-        actor: actor.ok,
-        tenant: target.value,
-        work: { owner: LOGIN_WORK_OWNER, work: login },
-      })
-      if ('failure' in issued) return { refused: 'basis-unavailable' }
-      return { ok: issued.ok as unknown as Principal }
+      const issued = identity.resume(tenant, login)
+      return issued.outcome === 'issued' ? { ok: issued.principal } : { refused: issued.outcome }
     },
   }
 }
