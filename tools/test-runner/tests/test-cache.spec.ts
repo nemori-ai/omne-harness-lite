@@ -87,7 +87,6 @@ const MEMBERS = [
   member('packages/core/base'),
   member('packages/core/mid', ['@x/base']),
   member('apps/top', ['@x/mid']),
-  member('packages/common/message'),
   member('tools/test-runner'),
   member('tools/product-checks'),
   member('tools/repo-toolchain'),
@@ -148,7 +147,7 @@ describe('输入集与影响面规则同源：每类改动进谁的键', () => {
       'tools/product-checks',
       'tools/repo-toolchain',
     ])
-    expect(keyedBy('packages/common/message/README.md')).toEqual(['packages/common/message'])
+    expect(keyedBy('scripts/test-formatting.sh')).toEqual(['tools/repo-toolchain'])
     expect(keyedBy('packages/core/base/src/c.ts')).toEqual([
       'packages/core/base',
       'packages/core/mid',
