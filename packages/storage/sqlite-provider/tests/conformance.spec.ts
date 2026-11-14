@@ -1,5 +1,3 @@
-// The conformance suite of the SQL contract, run against the SQLite provider. The suite covers
-// C01 to C07, C12, C14 and C16 only. The other scenarios belong to later closures of the provider.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

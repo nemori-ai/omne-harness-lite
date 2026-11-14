@@ -1,6 +1,3 @@
-// Whether a domain file exists is three-valued (SPEC 5.2): present, missing (only ENOENT), or
-// unknown (any other error of stat). Unknown is a transient fault: it is not `absent`, it is not
-// remembered, and it never leads to the removal of files.
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -65,7 +62,6 @@ async function provide(leases = recordingLeases()): Promise<Provider> {
   return provider
 }
 
-/** A domain registered and written by an earlier provider generation, then closed. */
 async function existingDomain(): Promise<void> {
   const first = await provide()
   expect(kindOf(await first.storage.registerCombination(registration(built)))).toBe('registered')
@@ -95,7 +91,6 @@ it('answers an existing domain whose presence cannot be read as unavailable, not
     'rejected_before_accept/domain_unavailable',
   )
   expect(kindOf(await provider.storage.query(identity()))).toBe('unknown')
-  // Unknown is not remembered: once stat answers again, the same domain commits.
   fault.statDenied = null
   expect(kindOf(await provider.storage.commit(second))).toBe('committed')
   expect(kindOf(await provider.storage.query(identity()))).toBe('committed')
@@ -107,8 +102,6 @@ it('starts no Worker and removes no file when a registration cannot read the pre
   const leases = recordingLeases()
   const provider = await provide(leases)
   fault.statDenied = domainFile()
-  // The Worker would fail to start too: with the presence taken as missing, its cleanup would
-  // remove the files of a domain that exists.
   fault.writerFails = true
   expect(kindOf(await provider.storage.registerCombination(registration(built)))).toBe(
     'rejected_before_accept/domain_unavailable',

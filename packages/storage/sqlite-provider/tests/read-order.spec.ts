@@ -1,5 +1,3 @@
-// Read ordering (SQL contract SPEC 9.3, scenarios C10 and C11): the domain-serial barrier and the
-// reads that stay on the write path.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   buildReadMaterials,
@@ -25,11 +23,6 @@ import {
 let workspace: Workspace
 let built: Built
 
-/**
- * Two quick snapshot reads side by side, so that both reader Workers of the domain exist before a
- * case measures time: a read that has to spawn and open its Worker takes longer than the short
- * delays below, and a case that expects a read to wait at the barrier needs its reader at once.
- */
 async function warmReaders(storage: Provider['storage']): Promise<void> {
   const results = await Promise.all([
     storage.read(readRequest('page')),
@@ -92,9 +85,6 @@ describe('domain-serial (C10)', () => {
 
 describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
   it('a commit makes progress while domain-serial reads keep arriving', async () => {
-    // Defect: a write waits while any barrier is queued (the old barrier). Six streams keep the
-    // read queue of the domain non-empty, so a barrier is queued at every release and the commit
-    // would wait until the streams drain (well over 2 s from its start).
     const { storage } = await readyProvider(workspace, built, {}, 1)
     await warmReaders(storage)
     const stopAt = Date.now() + 2000
@@ -110,15 +100,11 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
     expect((await storage.commit(commitOf(built, 'during-stream'))).kind).toBe('committed')
     const elapsed = Date.now() - start
     await Promise.all(streams)
-    // Under the defect the commit lands only after the streams end: after `stopAt`, not before.
     expect(elapsed).toBeLessThan(1000)
     expect(start + elapsed).toBeLessThan(stopAt)
   })
 
   it('keeps the place of a sent write until the Worker answers, also after its caller stopped observing', async () => {
-    // Defect (reviewer probe G12): the place goes back when the reply observation expires. A
-    // domain-serial read sent after that would snapshot before the write commits: it would see no
-    // row and return long before the write ends.
     const { storage } = await readyProvider(workspace, built, { lockWaitMs: 200 }, 0)
     await warmReaders(storage)
     const start = Date.now()
@@ -136,8 +122,6 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
   })
 
   it('withdraws a write that waited at the barrier longer than lockWaitMs: unknown, no place kept, not pending', async () => {
-    // Defect: the wait has no bound (the commit would come back `committed` after the read), or
-    // the expired write keeps its place (the second serial read would wait behind it for ever).
     const { storage } = await readyProvider(workspace, built, { lockWaitMs: 200 }, 1)
     await warmReaders(storage)
     const reading = storage.read(readRequest('serial', { sleepMs: 700 }))
@@ -149,13 +133,10 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
     const second = storage.read(readRequest('serial', { sleepMs: 50 }))
     expect((await reading).kind).toBe('read')
     expect((await second).kind).toBe('read')
-    // Nothing was sent: the identity is neither pending nor committed.
     expect((await storage.query(identity({ operationKey: 'expired' }))).kind).toBe('not_committed')
   })
 
   it('withdraws a domain-serial read that times out while it waits at the barrier: its reader serves the next read at once', async () => {
-    // Defect: the expired read keeps its place and its reader until the barrier is granted to it
-    // (the old code): the snapshot read would wait for the first read to end (about 600 ms).
     const { storage } = await readyProvider(workspace, built, { readQueueTimeoutMs: 100 }, 1)
     await warmReaders(storage)
     const first = storage.read(readRequest('serial', { sleepMs: 600 }))
@@ -169,8 +150,6 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
   })
 
   it('withdraws a write whose observer aborts while it waits at the barrier: the write never runs', async () => {
-    // Defect: the abort only detaches the observer and the write is still sent after the read
-    // (the old code): the query would find it `committed`.
     const { storage } = await readyProvider(workspace, built, {}, 1)
     await warmReaders(storage)
     const reading = storage.read(readRequest('serial', { sleepMs: 500 }))
@@ -187,8 +166,6 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
 
 describe('the barrier is held for at most readObservationMs (SPEC 9.3)', () => {
   it('releases the barrier at the observation deadline: a commit does not wait for the abandoned read', async () => {
-    // Defect: the barrier is held until the SQL of the read ends (the old code): the commit would
-    // wait the whole 800 ms sleep.
     const { storage } = await readyProvider(workspace, built, { readObservationMs: 100 }, 1)
     await warmReaders(storage)
     const start = Date.now()
@@ -201,8 +178,6 @@ describe('the barrier is held for at most readObservationMs (SPEC 9.3)', () => {
   })
 
   it('a cancelled observation does not stop the deadline: the barrier of a cancelled read still goes at it', async () => {
-    // Defect: the cancel stops the timers of the task and the barrier is held until the SQL ends
-    // (the old code): the commit would wait the whole 800 ms sleep.
     const { storage } = await readyProvider(workspace, built, { readObservationMs: 100 }, 1)
     await warmReaders(storage)
     const start = Date.now()

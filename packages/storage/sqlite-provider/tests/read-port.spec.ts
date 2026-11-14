@@ -1,5 +1,3 @@
-// The read port of the SQL gateway: the row ceiling stops the statement while it iterates, so the
-// provider never reads everything first and counts after (SQL contract SPEC 9.4, scenario C15).
 import { constants as C, DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SqlGateway } from '../src/worker/ports.ts'

@@ -1,5 +1,3 @@
-// WAL maintenance (SQL contract SPEC 12.3, C19): checkpoint cadence, the read-paused and
-// write-stopped states, FULL kept, and a query that is not starved while maintenance cannot finish.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -169,7 +167,6 @@ describe('write-stopped through the provider', () => {
       const began = Date.now()
       expect(kindOf(await storage.query(identity({ operationKey: 'k0' })))).toBe('committed')
       expect(Date.now() - began).toBeLessThan(1500)
-      // read-paused: no new read is dispatched, so the read waits and times out (SPEC 5.5).
       expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_timeout')
     } finally {
       reader.exec('rollback')

@@ -1,6 +1,3 @@
-// The control side of one read Worker: start, one request at a time, reply matching and exit
-// observation (SPEC 9.5). A reply counts only when its Worker generation, request number and lease
-// token all match the request in flight, and that request is not settled. Anything else is dropped.
 import { Worker } from 'node:worker_threads'
 import type {
   ReaderEnv,
@@ -22,7 +19,6 @@ type InFlight = {
 }
 
 export class ReaderClient {
-  /** Settles when the Worker has ended. */
   readonly exited: Promise<void>
   readonly generation: number
   private readonly worker: Worker
@@ -48,12 +44,10 @@ export class ReaderClient {
         onExit()
         resolve()
       })
-      // A Worker that fails to start emits error and then exit.
       this.worker.on('error', () => undefined)
     })
   }
 
-  /** Takes a message from the Worker. Returns true when it settled the request in flight. */
   receive(envelope: ReaderEnvelope): boolean {
     const waiting = this.current
     if (
@@ -70,7 +64,6 @@ export class ReaderClient {
     return true
   }
 
-  /** One request at a time. Rejects with WorkerExited when the Worker ends first. */
   call(request: ReaderRequest, token: string): Promise<ReaderReply> {
     if (this.ended) return Promise.reject(new WorkerExited('worker exited'))
     if (this.current !== null) return Promise.reject(new Error('request already in flight'))
@@ -82,10 +75,6 @@ export class ReaderClient {
     })
   }
 
-  /**
-   * Asks the Worker to close its connection and end, then waits for the exit. The close message
-   * queues in the Worker behind the request in flight. Its reply matches nothing and is dropped.
-   */
   async close(): Promise<void> {
     if (!this.closeRequested && !this.ended) {
       this.closeRequested = true

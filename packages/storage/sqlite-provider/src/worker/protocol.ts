@@ -1,5 +1,3 @@
-// Messages between the control side and one write Worker (one Worker per domain file). The Worker
-// loads no Cordis. Replies carry plain data only, so they cross the structured clone boundary.
 import type {
   CommitRequestV2,
   ReceiptV2,
@@ -8,10 +6,8 @@ import type {
   StorageScope,
 } from '@omne-harness/sql-contract'
 
-/** Static data that the Worker gets at start (workerData). */
 export type WorkerEnv = Readonly<{
   file: string
-  /** The transaction domain that the file path stands for (SPEC 5.1 item 3). */
   domain: string
   catalog: SqlMaterialCatalog
   lockWaitMs: number
@@ -27,17 +23,14 @@ export type WorkerEnv = Readonly<{
   /** One Int32 shared with the control side, 1 once closing. Read before each request starts, so it
    *  does not depend on when a message reaches the Worker. */
   closingFlag: SharedArrayBuffer
-  /** Group commit limits (SPEC 7.3). */
   groupMaxOperations: number
   groupCollectMs: number
   groupMaxInputBytes: number
   groupMaxResponseReservationBytes: number
   groupMaxExecutionSliceMs: number
-  /** The Worker generation of this start. Every reply carries it (SPEC 7.7.2). */
   generation: number
 }>
 
-/** What the Worker confirms for a request that it did not start because the provider is closing. */
 export type WithdrawnReply = Readonly<{ kind: 'withdrawn' }>
 
 export type WalState = 'normal' | 'read-paused' | 'write-stopped'
@@ -46,7 +39,6 @@ export type RegistrationSpec = Readonly<{
   scope: StorageScope
   combinationVersion: string
   manifestDigest: string
-  /** Sorted by UTF-16 code units. */
   participants: readonly string[]
 }>
 
@@ -62,7 +54,6 @@ export type OpenReply =
       kind: 'ready'
       scope: StorageScope
       singletons: readonly string[]
-      /** True only when this open wrote the binding and the registration (path B). */
       created: boolean
     }>
   | Readonly<{ kind: 'absent' }>
@@ -80,7 +71,6 @@ export type RegisterReply =
 
 export type CommitWorkerRejection =
   | 'combination_unregistered'
-  /** A module could not be loaded for a transient reason (SPEC 5.2): nothing ran. */
   | 'domain_unavailable'
   | 'manifest_mismatch'
   | 'material_unavailable'
@@ -88,7 +78,6 @@ export type CommitWorkerRejection =
   | 'participant_dependency_missing'
 
 export type CommitReply =
-  /** `recalled`: the Worker recognised an earlier receipt, or another job of the group ran the identity. */
   | Readonly<{ kind: 'receipt'; receipt: ReceiptV2; recalled: boolean }>
   | Readonly<{ kind: 'conflict'; existing: ReceiptV2 }>
   | Readonly<{ kind: 'rejected'; reason: CommitWorkerRejection }>
@@ -105,5 +94,4 @@ export type InternalErrorReply = Readonly<{ kind: 'internal_error'; diagnostic: 
 
 export type WorkerEnvelope = Readonly<{ id: number; generation: number; reply: unknown }>
 
-/** A message that the Worker sends on its own, not as a reply (SPEC 12.3). */
 export type WorkerEvent = Readonly<{ event: 'wal'; generation: number; state: WalState }>

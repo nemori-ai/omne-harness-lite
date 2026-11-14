@@ -1,6 +1,3 @@
-// The Cordis binding (SQL contract SPEC 2.2, 14): a function plugin that only injects storageHost,
-// builds a StorageService subclass instance, fails the fiber on a bad configuration, and closes the
-// provider when the fiber is disposed. The FiberState values are mirrored as in kernel-basis.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CloseLeasePort, StorageControl } from '@omne-harness/sql-contract'
@@ -122,7 +119,6 @@ describe('SqliteStoragePlugin', () => {
     const running = storage.commit(spinning('slow', 600))
     await sleep(150)
     await fiber.dispose()
-    // The disposal ran the close and waited for it: the running write ended and its lease is back.
     expect(recorded.released).toEqual(recorded.admitted)
     const state = await Promise.race([running, Promise.resolve('pending' as const)])
     expect(state).not.toBe('pending')
@@ -197,7 +193,6 @@ describe('SqliteStoragePlugin', () => {
         ),
       ),
     ).toBe('rejected_before_accept/closing')
-    // The old Worker still runs: the new generation gets no second writer.
     expect(
       kindOf(
         await fresh.commit(commitRequest(built, { identity: identity({ operationKey: 'fresh' }) })),

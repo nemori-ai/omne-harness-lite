@@ -1,5 +1,3 @@
-// The read pool (SQL contract SPEC 9.5, scenarios C12 read part and C15 read side): Worker
-// crash, idle close, cancellation, timeouts, reply matching and migration.
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ReaderClient } from '../src/reader-client.ts'
@@ -62,10 +60,6 @@ describe('cancellation (C12)', () => {
     await delay(100)
     abort.abort()
     expect((await running).kind).toBe('cancelled')
-    // The reservation is still held, so the next read waits for it (sql-contract 准入等待). The
-    // waiting list holds one per domain: a third read finds it full and is refused at once. Had
-    // the cancel returned the reservation, the waiter would have been granted and the third would
-    // wait instead.
     const waiting = storage.read(readRequest('page'))
     expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
     expect(summary(await waiting)).toBe('read')
@@ -135,8 +129,6 @@ describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
 
 describe('result byte budget (SPEC 9.2 step 6)', () => {
   it('admits as many reads as the global budget holds; the next waits until one ends, then reads', async () => {
-    // Defect: the reservation ignores the byte budget (only the counts are checked): with a third
-    // read Worker free, the third read would run at once and end before the slow two.
     const { storage } = await readyProvider(
       workspace,
       built,
@@ -186,7 +178,6 @@ describe('reply matching (SPEC 9.5)', () => {
 describe('migration (SPEC 9.5, last item)', () => {
   it('waits for the read in flight, then closes the old connection before the migration', async () => {
     const full = await buildReadMaterials(workspace, {}, { journal: 'ok', declaredVersion: 'v1' })
-    // The domain is created with v1, then v2 arrives with a new migration (the journal tables).
     const { storage } = await readyProvider(workspace, full, {}, 0)
     const events: string[] = []
     const reading = storage.read(readRequest('slow', { ms: 500 })).then(result => {

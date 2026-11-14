@@ -1,5 +1,3 @@
-// Domain state table and DO-1 (SQL contract SPEC 5.1 to 5.5): construction touches no database,
-// registration creates and migrates in one transaction, a failed open never opens write admission.
 import { copyFile, mkdir, readdir, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'

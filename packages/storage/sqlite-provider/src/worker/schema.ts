@@ -1,5 +1,3 @@
-// Provider tables of one domain file (SPEC 5.1, 5.3) and the schema check of the grouping gate
-// (SPEC 4.5, layer "schema").
 import type { DatabaseSync } from 'node:sqlite'
 import type { ParticipantDescriptor } from '@omne-harness/sql-contract'
 

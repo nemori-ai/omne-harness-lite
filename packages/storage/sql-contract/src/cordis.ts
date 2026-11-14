@@ -1,7 +1,3 @@
-// The Cordis service definitions of the SQL storage contract (docs/cordis.md): the `storage` seam
-// that providers extend, the `storageHost` service that only the assembly entry provides, and the
-// `tenantDomains` enumeration and the trusted `tenantDomainLookup`. The root entry imports no
-// Cordis; this entry imports no provider.
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { SqlStorage, StorageHost, TenantDomainLookup, TenantDomains } from './types.ts'
 
@@ -78,7 +74,6 @@ export abstract class TenantDomainLookupService extends Service implements Tenan
 export const tenantDomainLookupKey = TenantDomainLookupService.provide
 
 declare module '@deepseek-ai/cordis' {
-  // The trusted identity adapter of an assembly narrows the principal type.
   interface Context {
     storage: StorageService
     storageHost: StorageHostService

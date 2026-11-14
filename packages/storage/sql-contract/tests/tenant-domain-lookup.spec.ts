@@ -1,5 +1,3 @@
-// The trusted tenant domain lookup: the suite passes on the memory double, each scenario fails
-// under a variant that breaks it, and the Service loads under its key in a real Context.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { TenantDomain, TenantDomainLookup } from '@omne-harness/sql-contract'

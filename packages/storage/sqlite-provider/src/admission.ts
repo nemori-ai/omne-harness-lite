@@ -1,14 +1,8 @@
-// Admission counters (SPEC 7.2 step 8, 6.2 step 8, 8) and their waiting lists (sql-contract SPEC
-// 准入等待). A reservation is taken before an operation is sent, and it is returned exactly once
-// when the result owner has the result, or the send failed. A caller that stops observing does not
-// return it (SPEC 7.1). A request that finds no room waits in arrival order, at most
-// admissionWaitMs, in a list bounded like the counters themselves.
 import type { SqliteStorageConfig } from './config.ts'
 import { WaitingQueue, type Acquired, type Fit, type Resource } from './waiting.ts'
 
 export type { Acquired } from './waiting.ts'
 
-/** A per-domain and a global counter with their limits. */
 class Pool {
   private readonly perDomain = new Map<string, number>()
   private total = 0
@@ -20,7 +14,6 @@ class Pool {
     this.limitGlobal = limitGlobal
   }
 
-  /** The domain bound first: a need its domain blocks waits for its domain, not for the rest. */
   fit(domain: string): Fit {
     if ((this.perDomain.get(domain) ?? 0) >= this.limitPerDomain) return 'domain'
     return this.total < this.limitGlobal ? 'fits' : 'global'
@@ -61,8 +54,6 @@ export class Admission {
     this.config = config
     const writes = new Pool(config.admissionQueueLimit, config.globalAdmissionLimit)
     const { globalInFlightWriteBytes, maxOperationResponseBytes, globalWriteResponseBytes } = config
-    // A request is at most maxRequestBytes (step 7) and maxRequestBytes <= globalInFlightWriteBytes,
-    // maxOperationResponseBytes <= globalWriteResponseBytes (SPEC 12.1): every write fits an empty point.
     const write: Resource<Write> = {
       fit: need => {
         const counted = writes.fit(need.domain)
@@ -91,7 +82,6 @@ export class Admission {
     this.queries = countedQueue(new Pool(config.queryQueuePerDomain, config.queryQueueGlobal))
   }
 
-  /** One commit: a count, the request bytes and the response allowance (SPEC 7.2 step 8). */
   reserveWrite(
     domain: string,
     requestBytes: number,
@@ -100,7 +90,6 @@ export class Admission {
     return this.writes.acquire({ domain, requestBytes }, this.config.admissionWaitMs, signal)
   }
 
-  /** One control message: a registration (SPEC 6.2 step 8). */
   reserveControl(domain: string): Acquired | Promise<Acquired> {
     return this.controls.acquire({ domain }, this.config.admissionWaitMs)
   }
@@ -109,7 +98,6 @@ export class Admission {
     return this.queries.acquire({ domain }, this.config.admissionWaitMs)
   }
 
-  /** The close protocol started: every waiter ends with closing (SPEC 13.3 step 1). */
   close(): void {
     this.writes.close()
     this.controls.close()
@@ -117,7 +105,6 @@ export class Admission {
   }
 }
 
-/** Identities that are queued, sent or waiting for a result (SPEC 8, pending index). */
 export class PendingIndex {
   private readonly counts = new Map<string, number>()
 

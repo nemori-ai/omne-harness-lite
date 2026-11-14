@@ -1,7 +1,3 @@
-// The SQL gateway that stands behind every port (SPEC 5.4, 7.4, 9.4). One gateway lives for one
-// call of a participant or migration. It installs an authorizer, runs each statement through a
-// fresh prepare so that the authorizer judges every statement, and closes for good after a failed
-// statement or when the call ends. Authority never comes from the statement text.
 import {
   constants as C,
   type DatabaseSync,
@@ -11,7 +7,6 @@ import {
 import type { QueryRows, SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
 import { DataError, isDataError } from './errors.ts'
 
-/** Functions that every participant may call. No time, random or connection state functions. */
 export const BASE_FUNCTIONS: ReadonlySet<string> = new Set([
   'abs',
   'avg',
@@ -51,7 +46,6 @@ export const BASE_FUNCTIONS: ReadonlySet<string> = new Set([
   'json_array_length',
 ])
 
-/** Judges one authorizer call. `table` arguments follow the SQLite authorizer rules. */
 export type Decision = (action: number, arg1: string | null, arg2: string | null) => boolean
 
 const INTERNAL_TABLES = new Set(['sqlite_master', 'sqlite_schema', 'sqlite_sequence'])
@@ -60,7 +54,6 @@ function functionSet(extra: readonly string[]): Set<string> {
   return new Set([...BASE_FUNCTIONS, ...extra.map(name => name.toLowerCase())])
 }
 
-/** Participant rule: write only owned tables, read owned and declared tables, no DDL (SPEC 7.4). */
 export function participantDecision(
   ownedTables: readonly string[],
   readTables: readonly string[],
@@ -88,7 +81,6 @@ export function participantDecision(
   }
 }
 
-/** Migration rule: DDL and writes on the owner tables, reads on the tables of the requires closure. */
 export function migrationDecision(
   ownedTables: readonly string[],
   requiredTables: readonly string[],
@@ -96,7 +88,6 @@ export function migrationDecision(
   const write = new Set(ownedTables)
   const read = new Set([...ownedTables, ...requiredTables])
   const functions = functionSet([])
-  // Index names that SQLITE_CREATE_INDEX allowed in this migration; only those may be reindexed.
   const createdIndexes = new Set<string>()
   return (action, arg1, arg2) => {
     switch (action) {
@@ -157,22 +148,16 @@ function cell(value: unknown): SqlCell {
   throw new DataError('unsupported SQLite value')
 }
 
-/** Thrown when the rows of a read exceed the ceiling. The gateway keeps `rowLimitHit`. */
 export class RowLimitError extends Error {}
 
 export type GatewayOptions = Readonly<{
-  /** Rows that all statements of this gateway may return together (read port, SPEC 9.4). */
   maxRows?: number
 }>
 
 export class SqlGateway {
-  /** The authorizer refused a statement. */
   violated = false
-  /** The rows of the statements went over `maxRows`. */
   rowLimitHit = false
-  /** A statement failed for a reason that only the statement and the data decide. */
   dataFailure = false
-  /** A statement failed for an environment reason. The operation becomes unknown. */
   environmentFailure: unknown = null
 
   private open = true
@@ -197,7 +182,6 @@ export class SqlGateway {
     return this.open
   }
 
-  /** Marks a use after the port closed as a violation, and refuses it. */
   guard(): void {
     if (this.open) return
     this.violated = true
@@ -239,7 +223,6 @@ export class SqlGateway {
     }
   }
 
-  /** Takes rows one by one and stops at the row after the ceiling, so nothing is read ahead. */
   private collect(statement: StatementSync, bound: readonly unknown[]): SqlCell[][] {
     const rows: SqlCell[][] = []
     for (const row of statement.iterate(...(bound as SQLInputValue[])) as Iterable<unknown[]>) {
@@ -253,7 +236,6 @@ export class SqlGateway {
     return rows
   }
 
-  /** Removes the authorizer. The provider runs its own statements after this. */
   close(): void {
     this.open = false
     this.db.setAuthorizer(null)

@@ -1,7 +1,3 @@
-// Fixtures of the group commit tests (SPEC 7.3, 7.7). The participants run real SQL. The `seq`
-// participant has modes that fail, hang, end the whole transaction, exit the Worker, or look at
-// the file through its own read-only connection. That last probe tells whether an earlier
-// operation is already durable, so it shows which physical transaction an operation ran in.
 import { createHash } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -17,7 +13,6 @@ import { DOMAIN, TENANT_A, digestOf, identity, type Built, type Workspace } from
 
 const sha = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
-/** Module-level `cached` is the defect that SQ-1 puts on the material owner (SPEC 7.7.6 item 4). */
 const SEQ = `
 import { DatabaseSync } from 'node:sqlite'
 let cached = 0
@@ -216,7 +211,6 @@ export function seqCommand(facts: FactCommandV2['facts'] = {}): FactCommandV2 {
   return { participant: 'seq', facts }
 }
 
-/** One operation. The operation key is its identity inside the domain. */
 export function op(built: Built, key: string, commands: readonly FactCommandV2[]): CommitRequestV2 {
   return {
     identity: identity({ operationKey: key }),
@@ -238,7 +232,6 @@ export function readRows(workspace: Workspace, sql: string): unknown[] {
   }
 }
 
-/** The first missing number of a sequence that must start at 1 and have no gap, or null. */
 export function firstGap(numbers: readonly number[]): number | null {
   const sorted = [...numbers].sort((a, b) => a - b)
   for (const [index, value] of sorted.entries()) if (value !== index + 1) return index + 1

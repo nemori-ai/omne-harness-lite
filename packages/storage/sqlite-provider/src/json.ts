@@ -1,6 +1,3 @@
-// RFC 8785 writing and the strict JSON judgement. The provider keeps its own copy because the
-// sql-contract root exports shapes and three pure functions only. Cleanup candidate: sql-contract
-// could export these helpers, and this file would go.
 import { createHash } from 'node:crypto'
 import type { JsonValue } from '@omne-harness/sql-contract'
 
@@ -48,11 +45,6 @@ function judge(value: unknown, ancestors: Set<object>): boolean {
   }
 }
 
-/**
- * True for strict JSON: null, boolean, finite number, well-formed string, dense array and plain
- * object of those. A cycle, a shared getter, a Date, a bigint or an undefined is not JSON. A value
- * so deep that the walk overflows the stack is not JSON either.
- */
 export function isStrictJson(value: unknown): value is JsonValue {
   try {
     return judge(value, new Set())
@@ -65,7 +57,6 @@ export function isStrictJson(value: unknown): value is JsonValue {
 function write(value: JsonValue): string {
   if (value === null) return 'null'
   if (typeof value === 'boolean') return value ? 'true' : 'false'
-  // ECMAScript Number::toString is the number form that RFC 8785 requires, and -0 writes "0".
   if (typeof value === 'number') return String(value)
   if (typeof value === 'string') return JSON.stringify(value)
   if (Array.isArray(value)) return `[${(value as readonly JsonValue[]).map(write).join(',')}]`
@@ -75,13 +66,11 @@ function write(value: JsonValue): string {
   return `{${keys.map(key => `${JSON.stringify(key)}:${write(object[key] as JsonValue)}`).join(',')}}`
 }
 
-/** The RFC 8785 text of a strict JSON value. Throws TypeError for any other value. */
 export function canonicalJson(value: unknown): string {
   if (!isStrictJson(value)) throw new TypeError('value is not strict JSON')
   return write(value)
 }
 
-/** Nesting depth of the containers (the first container is depth 1) and total member count. */
 export function jsonShape(value: JsonValue): Readonly<{ depth: number; members: number }> {
   let depth = 0
   let members = 0

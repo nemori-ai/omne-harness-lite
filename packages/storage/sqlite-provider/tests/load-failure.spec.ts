@@ -1,7 +1,3 @@
-// A module load that fails for an input or output reason is transient; only a module whose content
-// is wrong quarantines the domain (SPEC 5.2, 「模块加载失败的定性」). Both places that load modules
-// in the write Worker are covered: the participants of a group (SPEC 7.5) and the migrations of a
-// reopen (SPEC 5.3 path A step 7). The module cache is replaced by one that fails on demand.
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -34,7 +30,6 @@ import {
 const systemError = (code: string): Error =>
   Object.assign(new Error(`${code}: injected`), { code, errno: -1, syscall: 'open' })
 
-/** A module cache whose next loads fail with the given errors, one each, then load for real. */
 class FailingModules extends ModuleCache {
   private readonly faults: unknown[]
   constructor(faults: readonly unknown[]) {
@@ -59,9 +54,7 @@ afterEach(async () => {
     try {
       if (db.isTransaction) db.exec('rollback')
       db.close()
-    } catch {
-      // Closed already.
-    }
+    } catch {}
   }
   await workspace.remove()
 })
@@ -183,8 +176,6 @@ describe('migration modules of a reopen (SPEC 5.3 path A)', () => {
   let catalog: SqlMaterialCatalog
 
   beforeEach(async () => {
-    // The domain is registered without the journal participant. The next build declares it, so
-    // the reopen has a pending migration to load.
     const before = await buildMaterials(workspace)
     const provider = await createProvider(workspace, before)
     const registered = await provider.storage.registerCombination(registration(before))

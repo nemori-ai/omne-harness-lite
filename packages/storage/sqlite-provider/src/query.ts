@@ -1,9 +1,3 @@
-// query (SPEC 8). It recognizes an identity on the write path. An identity that is never recalled
-// has no receipt and answers not_recallable. Otherwise the order of the answer is fixed: a saved
-// receipt, then the pending index (unknown), and only then not_committed with five proofs.
-// The proofs hold when the domain is ready: this generation ran path A (or path B), so the old
-// write generation is excluded, the old transaction ended and the recovery is finished. The read
-// just made on the write connection is the authoritative read.
 import type { QueryResultV2, SqlIdentity, SqlStorage } from '@omne-harness/sql-contract'
 import { type Core, identityKey, sameScope } from './core.ts'
 import { decodeIdentity } from './fields.ts'
@@ -30,22 +24,18 @@ export function createQuery(core: Core): SqlStorage['query'] {
     if (decoded.identity === null) return unknown('invalid_identity')
     const valid = decoded.identity
     if (valid.recall === 'never') return { kind: 'not_recallable', identity: valid }
-    // A full query queue makes the query wait (sql-contract SPEC 准入等待): nothing is sent yet.
     const grant = await core.admission.reserveQuery(valid.transactionDomain)
     if (grant.kind === 'closing') return unknown('closing')
     if (grant.kind !== 'granted') return unknown('queue_full')
-    // The caller observes a sent query for a bounded time. The queue place goes back with the reply.
     let expire: () => void = () => undefined
     const expired = new Promise<QueryResultV2>(resolve => {
       expire = () => resolve(unknown('reply_wait_expired'))
     })
-    // The query holds its domain until its request has ended (SPEC 5.2).
     const unhold = core.domains.hold(valid.transactionDomain)
     const work = async (): Promise<QueryResultV2> => {
       try {
         const outcome = await core.domains.ensure(valid.transactionDomain, null)
         if (outcome.kind === 'closing' || core.lifecycle.closing) return unknown('closing')
-        // Absent, another scope, failed and quarantined domains give the same answer (SPEC 5.5).
         if (outcome.kind !== 'ready' || !sameScope(outcome.entry.scope, valid.scope))
           return unknown('domain_unavailable')
         const key = identityKey(valid)

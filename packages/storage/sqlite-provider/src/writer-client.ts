@@ -1,6 +1,3 @@
-// The control side of one write Worker: start, request and reply matching, and exit observation.
-// Requests settle with the reply, or reject with WorkerExited when the Worker ends first. Nothing
-// here judges a result. The domain state and the operations decide what a reply or an exit means.
 import { Worker } from 'node:worker_threads'
 import type {
   WalState,
@@ -33,7 +30,6 @@ const WRITER_URL = new URL(`./worker/writer.${WRITER_EXTENSION}`, import.meta.ur
 type Waiter = Readonly<{ resolve(reply: unknown): void; reject(error: Error): void }>
 
 export class WriterClient {
-  /** Settles when the Worker has ended. */
   readonly exited: Promise<void>
   private readonly worker: Worker
   private readonly generation: number
@@ -55,7 +51,6 @@ export class WriterClient {
     }
     this.worker = new Worker(WRITER_URL, { workerData })
     this.worker.on('message', (envelope: WorkerEnvelope | WorkerEvent) => {
-      // A message of another Worker generation answers nothing that this client sent (SPEC 7.7.2).
       if (envelope.generation !== this.generation) return
       if ('event' in envelope) {
         onWalState(envelope.state)
@@ -75,7 +70,6 @@ export class WriterClient {
         resolve()
       }
       this.worker.on('exit', finish)
-      // A Worker that fails to start emits error and then exit.
       this.worker.on('error', () => undefined)
     })
   }
@@ -90,15 +84,10 @@ export class WriterClient {
     })
   }
 
-  /**
-   * Tells the Worker that the provider closes. A request that the Worker has not started is
-   * answered `withdrawn`. A request that runs now finishes (SPEC 13.3 steps 2 and 3).
-   */
   markClosing(): void {
     Atomics.store(this.closingFlag, 0, 1)
   }
 
-  /** Asks the Worker to close its connection and end, then waits for the exit. */
   async close(): Promise<void> {
     this.closeRequested = true
     this.markClosing()

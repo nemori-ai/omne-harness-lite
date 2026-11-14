@@ -1,7 +1,3 @@
-// Group execution with injected SQLite faults (SPEC 7.7.1, 7.7.2, scenarios C03, C04, C09, C13).
-// The group runner works on a real domain file and a real connection. A wrapper around the
-// connection throws for chosen statements, the way an I/O error would. This is a fault injection
-// with a wrapped connection, not a proof about a failing disk.
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { inputDigestV2, type CommitRequestV2 } from '@omne-harness/sql-contract'
@@ -41,9 +37,7 @@ beforeEach(async () => {
 afterEach(async () => {
   try {
     real?.exec('rollback')
-  } catch {
-    // No transaction was open.
-  }
+  } catch {}
   real?.close()
   real = null
   await workspace.remove()
@@ -51,7 +45,6 @@ afterEach(async () => {
 
 type Log = string[]
 
-/** Wraps the connection: every exec is logged, and `fail` can make one throw an I/O error. */
 function wrap(
   db: DatabaseSync,
   log: Log,
@@ -258,8 +251,6 @@ describe('C09: ROLLBACK TO that cannot be confirmed (SPEC 7.7.2, state unclear)'
     expect(receipts()).toEqual([])
   })
 
-  // SPEC 7.7.6 item 1: the outer transaction was alive when ROLLBACK TO failed. The connection is
-  // not used again, so no second short transaction and no suffix runs on it.
   it('ROLLBACK TO fails with no prefix: the failed operation is unknown, no rolled_back receipt, the Worker must end', async () => {
     const log: Log = []
     const group = runner(log, sql => sql.startsWith('ROLLBACK TO'))
@@ -290,8 +281,6 @@ describe('C09: ROLLBACK TO that cannot be confirmed (SPEC 7.7.2, state unclear)'
 })
 
 describe('C04: an environment error inside a participant statement (SPEC 7.6)', () => {
-  // The error is an I/O failure of the statement, not a verdict of the material. The operation
-  // is not rolled_back: it is unknown, and no rollback receipt may claim otherwise.
   const envStatement = (params: readonly unknown[]): boolean => params[0] === 'ENV'
 
   it('alone in the group: the operation is unknown and no receipt is written', async () => {

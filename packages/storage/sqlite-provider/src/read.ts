@@ -1,6 +1,3 @@
-// read, control side (SPEC 9.2). Steps 1 to 5 are judged here and never queue. Step 6 reserves in
-// the read pool, which then waits for the domain, queues, dispatches and gives the result (steps 7
-// to 13). A read of an absent domain does not create a file. The pool owns the readers.
 import type {
   ReadRequest,
   ReadResult,
@@ -46,7 +43,6 @@ export function createRead(core: Core): SqlStorage['read'] {
     const handler = core.catalog.readHandlers.find(
       item => item.handler === raw.handler && item.protocol === raw.protocol,
     )
-    // A handler that may return more than the provider allows cannot be served (SPEC 12.1).
     if (handler === undefined || handler.maxOutputBytes > config.maxReadResultBytes)
       return unavailable('handler_unavailable')
     const outcome = await core.readers

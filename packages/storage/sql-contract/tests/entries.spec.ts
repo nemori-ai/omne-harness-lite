@@ -1,5 +1,3 @@
-// The four entries: their runtime exports, the package manifest, the Cordis-free root and worker,
-// and the forbidden service names.
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,13 +15,11 @@ function sourceFiles(directory: string): string[] {
   })
 }
 
-/** Every import specifier of a file, static or dynamic. */
 function specifiers(file: string): string[] {
   const text = readFileSync(file, 'utf8')
   return [...text.matchAll(/(?:from|import\()\s*['"]([^'"]+)['"]/g)].map(m => m[1] ?? '')
 }
 
-/** The relative closure of imports that starts at one entry file. */
 function closure(entry: string): { files: Set<string>; external: Set<string> } {
   const files = new Set<string>()
   const external = new Set<string>()
@@ -112,7 +108,6 @@ describe('Cordis-free entries (IC-4)', () => {
 })
 
 describe('forbidden service names', () => {
-  // Built from parts so that this file does not contain the names.
   const forbidden = [['sql', 'Storage'].join(''), ['Sql', 'Storage', 'Service'].join('')]
 
   it('no source file uses the forbidden key or definition name', () => {

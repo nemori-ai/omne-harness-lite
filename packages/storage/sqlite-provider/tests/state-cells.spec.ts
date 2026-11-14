@@ -1,23 +1,3 @@
-// Domain state x operation cells (SQL contract SPEC 5.5, scenario C7). One test per cell, on the
-// real provider with a real file and real Workers. The cell is the name prefix of the test.
-//
-// Cell to test name (row x column):
-//   absent           x registerCombination, commit, query, read   [absent x ...]
-//   other scope      x registerCombination, commit, query, read   [other scope x ...]
-//   unopened         x registerCombination, commit, query, read   [unopened x ...]
-//   open failure     x registerCombination, commit, query, read   [open failure x ...]
-//   ready            x registerCombination, commit, query, read   [ready x ...]
-//   quarantined      x registerCombination, commit, query, read   [quarantined x ...]
-//   closed           x registerCombination, commit, query, read   [closed x ...]
-// Cells with a test elsewhere:
-//   opening (queued operations get the result of the open): the [open failure x ...] cells send
-//     the four operations together while the open is still pending.
-//   draining x commit, registerCombination, query: close.spec.ts, "close steps (13.3)".
-//   read-paused, write-stopped x commit, query, read: wal.spec.ts, "write-stopped through the provider".
-// Cells without a test:
-//   read-paused, write-stopped x registerCombination; draining x read.
-//   recovering (writer_not_current): the provider does not give writer_not_current; the SPEC
-//     marks it as proposal P-08.
 import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -61,7 +41,6 @@ async function provide(): Promise<Provider> {
   return provider
 }
 
-/** Registers the combination and makes one commit (key "seed") durable, then closes the provider. */
 async function seededFile(): Promise<void> {
   const first = await provide()
   await first.storage.registerCombination(registration(built))
@@ -103,8 +82,6 @@ describe('bound to another scope (SPEC 5.5)', () => {
     await seededFile()
   })
 
-  // The first touch of the file is this registration, so the provider opens it through path A.
-  // The scope check must still run after that open.
   it('[other scope x registerCombination] is domain_occupied', async () => {
     const { storage } = await provide()
     expect(
@@ -159,7 +136,6 @@ describe('open failure: the operations wait for an open that fails (SPEC 5.5)', 
     await mkdir(join(workspace.storageRoot, 'domains'), { recursive: true })
     await writeFile(domainFile(), 'this is not a database, but long enough to be read as a header')
   })
-  // All four are issued before any of them settles, so each waits for the same open.
   async function together(): Promise<{
     register: Awaited<ReturnType<Provider['storage']['registerCombination']>>
     commit: Awaited<ReturnType<Provider['storage']['commit']>>

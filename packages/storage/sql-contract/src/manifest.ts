@@ -1,4 +1,3 @@
-// Combination validity, manifest and manifest digest (SPEC 4.3, 4.4). All three are pure.
 import { canonicalJson, sha256Hex } from './canonical.ts'
 import type {
   CombinationManifest,
@@ -13,7 +12,6 @@ import type {
   SqlMaterialCatalog,
 } from './types.ts'
 
-/** UTF-16 code unit order, the order that every list of the manifest uses. */
 function compare(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
@@ -28,10 +26,6 @@ const refId = (ref: MigrationRef): string => JSON.stringify([ref.owner, ref.id])
 const sortedFacts = (facts: readonly FactKey[]): FactKey[] =>
   facts.map(fact => ({ key: fact.key, protocol: fact.protocol })).sort(byFact)
 
-/**
- * Strongly connected components with more than one node, or with a self edge. Each component is
- * sorted and the list is sorted by its first member, so the result does not depend on input order.
- */
 function cycles(
   nodes: readonly string[],
   edges: ReadonlyMap<string, readonly string[]>,
@@ -121,7 +115,6 @@ function tableProblems(selected: readonly ParticipantDescriptor[]): CombinationP
   return problems
 }
 
-/** The migrations of the selected participants and everything that their requires reach. */
 function migrationClosure(
   catalog: SqlMaterialCatalog,
   selected: readonly ParticipantDescriptor[],
@@ -184,10 +177,6 @@ function manifestMigration(item: MigrationDescriptor): ManifestMigration {
   }
 }
 
-/**
- * Judges a combination and builds the digest input (SPEC 4.3). A participant that the catalog lacks
- * is reported first, alone. Otherwise every problem of the combination is collected in one result.
- */
 export function combinationManifest(
   input: Readonly<{ catalog: SqlMaterialCatalog; participants: readonly string[] }>,
 ): CombinationManifestResult {
@@ -200,7 +189,6 @@ export function combinationManifest(
   }
   const closure = migrationClosure(catalog, selected)
   const problems = [...factProblems(selected), ...tableProblems(selected), ...closure.problems]
-  // The order of the kinds is the order of SPEC 4.3. migration_missing comes before cycles.
   const rank = (problem: CombinationProblem): number =>
     [
       'fact_cycle',
@@ -229,7 +217,6 @@ export function combinationManifest(
   }
 }
 
-/** Lowercase hex SHA-256 of the RFC 8785 UTF-8 text of the manifest (SPEC 4.4). */
 export function manifestDigest(manifest: CombinationManifest): string {
   return sha256Hex(canonicalJson(manifest))
 }

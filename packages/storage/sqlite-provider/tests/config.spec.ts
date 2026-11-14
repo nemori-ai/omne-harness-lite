@@ -1,5 +1,3 @@
-// Configuration rules of SQL contract SPEC 12.1. Each rule has one case that goes red when the rule
-// is dropped. A violation rejects construction with config_invalid and names the field.
 import { describe, expect, it } from 'vitest'
 import { validateConfig, type SqliteStorageConfig } from '../src/config.ts'
 import { defaultConfig } from './support.ts'

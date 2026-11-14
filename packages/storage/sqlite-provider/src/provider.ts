@@ -1,7 +1,3 @@
-// The pure factory (SPEC 2.1, 5.3). Construction checks configuration, material digests and the
-// declared combinations. It opens no database and starts no Worker. The operations and the close
-// control are built from one Core, so the Worker, the queues and the result owner live in this
-// object and never on a caller Context (IC-13).
 import type {
   CloseLeasePort,
   SqlMaterialCatalog,
@@ -19,7 +15,6 @@ import { createRead } from './read.ts'
 import { createRegister } from './register.ts'
 
 export type SqliteStorageInput = Readonly<{
-  /** The serializable configuration of the `storage` row (IC-16). Judged here, not trusted. */
   config: unknown
   materials: SqlMaterialCatalog
   closeLeases: CloseLeasePort
@@ -33,11 +28,6 @@ export type CreateSqliteStorageResult =
       problems: readonly string[]
     }>
 
-/**
- * A handler whose `maxOutputBytes` is above `maxReadResultBytes` can never be served (SPEC 12.1).
- * Reporting it at construction fails a wrong pairing at start, not at the first read. The read
- * itself still checks, as a backstop.
- */
 function oversizedHandlers(catalog: SqlMaterialCatalog, maxReadResultBytes: number): string[] {
   return catalog.readHandlers
     .filter(handler => handler.maxOutputBytes > maxReadResultBytes)
