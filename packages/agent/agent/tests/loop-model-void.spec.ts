@@ -121,6 +121,13 @@ async function faulted(faults: Faults): Promise<{ assembly: LoopAssembly; observ
             return fail({ kind: 'unavailable', dependency: 'admission', diagnostic: 'offline' })
           return d.models.calls.inspect(input)
         },
+        async contact(input) {
+          const call = callOf(input.reference)
+          observed.inspects.push(call)
+          if (faults.inspect(call) === 'unavailable')
+            return fail({ kind: 'unavailable', dependency: 'admission', diagnostic: 'offline' })
+          return d.models.calls.contact(input)
+        },
       },
     },
   }))

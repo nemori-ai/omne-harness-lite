@@ -630,6 +630,7 @@ describe('tool call control', () => {
       return { failure: { kind: 'stale-advance' as const } }
     }
     // The loop wakes before the control is there and reads the conditions.
+    assembly.controls.tools.queries.contact.always(() => ({ ok: { kind: 'unknown' } }))
     await eventually(async () => assembly.controls.clock.pending().length === 1)
     const [check] = assembly.controls.clock.pending()
     if (check === undefined) throw new Error('the driver is not sleeping on a check time')

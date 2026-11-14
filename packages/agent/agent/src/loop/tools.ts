@@ -5,6 +5,8 @@ import {
   type Access,
   type Action,
   type ActionBatch,
+  type ActionId,
+  type ActionSlot,
   type ActionToolCall,
   type AdmissionDecision,
   type Adoption,
@@ -407,6 +409,30 @@ export function fixedRequestOf(material: Material<ContentBlock>): ToolInvokeRequ
 }
 
 export type AssociatedToolCall = Extract<PendingCall, { kind: 'tool'; association: 'associated' }>
+
+export function slotOf(batch: ActionBatch, action: ActionId): ActionSlot | undefined {
+  return batch.slots.find(slot => slot.action === action)
+}
+
+export function toolCall(action: Action): AssociatedToolCall | null {
+  const pending = action.call
+  return pending?.kind === 'tool' && pending.association === 'associated' ? pending : null
+}
+
+export function unslotted(batch: ActionBatch): readonly Action[] {
+  return batch.actions.filter(
+    action => action.judgment.kind === 'allowed' && slotOf(batch, action.id) === undefined,
+  )
+}
+
+export function openToolCalls(batch: ActionBatch): readonly PendingCall[] {
+  return batch.actions.flatMap(action => {
+    const slot = slotOf(batch, action.id)
+    return action.call !== null && (slot === undefined || slot.kind === 'dispatched')
+      ? [action.call]
+      : []
+  })
+}
 
 /** The Tool call that a saved reference names, read back for the tenant it was issued to. */
 export function toolCallOf<P>(access: Access<P>, pending: AssociatedToolCall): ToolCallId {

@@ -115,11 +115,13 @@ export async function toolAssembly(
     },
     ...requests,
   }
-  return controlAssembly(
+  const assembly = await controlAssembly(
     journal,
     dependencies => (requests === null ? dependencies : { ...dependencies, toolRequests: source }),
     configuration,
   )
+  assembly.controls.tools.queries.contact.always(() => ({ ok: { kind: 'holding' } }))
+  return assembly
 }
 
 async function load(assembly: Assembly): Promise<ExecutionSnapshot> {

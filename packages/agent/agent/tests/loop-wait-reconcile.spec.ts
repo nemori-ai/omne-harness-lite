@@ -437,6 +437,7 @@ describe('W0 local ownership', () => {
 
 it('a zero interval yields to other tasks and does not fabricate a positive deadline', async () => {
   const assembly = await loopAssembly([execution()])
+  assembly.controls.modelContact.always(() => ({ ok: { kind: 'unknown' } }))
   const c = createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,

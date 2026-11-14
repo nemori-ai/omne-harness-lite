@@ -127,6 +127,8 @@ import { readBatchToolCalls } from './action-source.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
 import {
   consumeModelResult,
+  lostIntent,
+  lostModelResult,
   noReplyReason,
   type ModelOutcome,
   type ModelResult,
@@ -158,9 +160,16 @@ import {
   toolReceivedOf,
   toolCallAnswerOf,
   toolResultCandidate,
+  openToolCalls,
+  slotOf,
+  toolCall,
+  unslotted,
   type AssociatedToolCall,
   type ToolAdmission,
 } from './tools.ts'
+import { contactMainCall } from './contact.ts'
+import { sameAuthority, sameRecipient } from './same.ts'
+import { contactToolCalls } from './tool-contact.ts'
 import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
 import type { ToolDelivery } from '@omne-harness/tool-contract'
 
@@ -410,7 +419,7 @@ type Iteration = {
   preparation: Preparation | null // I1
   ready: ReadyPreparation | null // P1
   pending: ModelPendingCall | null // I2
-  settlement: M.Settlement | null // M1
+  lost: DurableEvidence | null
   result: ModelResult | null // restored from the Journal-bound completion, not a Model cache
   admission: 'new' | 'unknown' | 'accepted'
 }
@@ -526,38 +535,6 @@ function modelFailure(node: LoopNode, failure: M.ModelFailure): Failure {
 function required<T>(value: T | null, what: string): T {
   if (value === null) throw new Error(`coordinator defect: ${what} is not set`)
   return value
-}
-
-function sameRecipient(left: SelectedModel, right: SelectedModel): boolean {
-  const a = left.recipient
-  const b = right.recipient
-  return (
-    a.route === b.route &&
-    a.profile.owner === b.profile.owner &&
-    a.profile.name === b.profile.name &&
-    a.profile.revision === b.profile.revision &&
-    a.profile.digest === b.profile.digest
-  )
-}
-
-function sameEvidence(left: DurableEvidence, right: DurableEvidence): boolean {
-  return (
-    left.owner === right.owner &&
-    left.record === right.record &&
-    left.revision === right.revision &&
-    left.digest === right.digest
-  )
-}
-
-function sameAuthority(left: Authority | null, right: Authority): boolean {
-  return (
-    left !== null &&
-    left.execution === right.execution &&
-    left.executionAttachment === right.executionAttachment &&
-    left.instance === right.instance &&
-    left.generation === right.generation &&
-    sameEvidence(left.source, right.source)
-  )
 }
 
 type UnsupportedRecovery = Readonly<{ kind: 'unsupported'; node: string; card: string }>
@@ -787,6 +764,8 @@ function coordinate<P>(
   // Tool 受理), and keeps it unaccepted until that slot is saved. In process only: after a restart
   // the history of a saved intent is not known here, and the original call is resumed.
   const unacceptedToolActions = new Set<ActionId>()
+  const heldTools = new Set<ActionId>()
+  let movedInPass = false
   // The tool message that T5 found rejected, for H0. In process only: a restart finds the
   // rejected Ja in the Journal again at T5.
   let rejectedMessage: Readonly<{ source: InternalSource; evidence: DurableEvidence }> | null = null
@@ -864,6 +843,7 @@ function coordinate<P>(
           return fail({ kind: 'stale-advance' })
         if (canonical(latest.ok.checkpoint) === canonical(base)) {
           revision = latest.ok.revision
+          movedInPass = true
           return commit(node, to, write)
         }
       }
@@ -1909,8 +1889,9 @@ function coordinate<P>(
           ports.clock,
         )
         if ('failure' in retried) return retried
+        const lost = lostIntent(execution, required(checkpoint, 'checkpoint'), current)
         if (retried.ok !== null)
-          return step('retry', { checkpoint: { calls: [], modelRetry: retried.ok } })
+          return step('retry', { checkpoint: { calls: [], modelRetry: retried.ok, ...lost } })
         if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
           const instant = await ports.clock.now()
           if ('failure' in instant) return instant
@@ -2096,39 +2077,14 @@ function coordinate<P>(
     return required(required(checkpoint, 'checkpoint').batch, 'action batch')
   }
 
-  function slotOf(batch: ActionBatch, action: ActionId): ActionSlot | undefined {
-    return batch.slots.find(slot => slot.action === action)
-  }
-
-  function toolCall(action: Action): AssociatedToolCall | null {
-    const pending = action.call
-    return pending?.kind === 'tool' && pending.association === 'associated' ? pending : null
-  }
-
-  /** Allowed actions without a slot: never sent, waiting for a free place, or association-unknown. */
-  function unslotted(batch: ActionBatch): readonly Action[] {
-    return batch.actions.filter(
-      action => action.judgment.kind === 'allowed' && slotOf(batch, action.id) === undefined,
-    )
-  }
-
-  /**
-   * 已保存、还没有结果或拒绝槽位的调用，即 Tool 等待所等的生产者。Agent 不拿它们与
-   * `toolConcurrency` 比较，预算由 Tool 执行。
-   */
-  function openToolCalls(batch: ActionBatch): readonly PendingCall[] {
-    return batch.actions.flatMap(action => {
-      const slot = slotOf(batch, action.id)
-      return action.call !== null && (slot === undefined || slot.kind === 'dispatched')
-        ? [action.call]
-        : []
-    })
-  }
-
-  function toolWait(node: LoopNode, batch: ActionBatch) {
+  async function toolWait(node: LoopNode, batch: ActionBatch) {
+    const open = openToolCalls(batch)
+    const asked = await contactToolCalls({ ports, access, execution, batch }, open, heldTools)
+    if ('failure' in asked)
+      return asked.failure.kind === 'unavailable' ? waitFor(node, asked.failure, null) : asked
     waitingAt = node
     recheckDependency = null
-    waits = openToolCalls(batch).map(pending => ({ kind: 'producer' as const, pending }))
+    waits = open.map(pending => ({ kind: 'producer' as const, pending }))
     return step('wait', null)
   }
 
@@ -2282,6 +2238,7 @@ function coordinate<P>(
     // Accepted, commit-unknown or association-unknown: the call may exist from here on.
     unacceptedToolActions.delete(action.id)
     if (result.kind === 'association-unknown') return succeed({ batch: next, progressed: false })
+    if (result.kind === 'accepted') heldTools.add(action.id)
     return associate(next, action, pending, result.reference)
   }
 
@@ -3188,7 +3145,6 @@ function coordinate<P>(
     }
   }
 
-  /** The frame of one main attempt of `of`, before its request is prepared. */
   /**
    * The iteration of a saved main Model call, for a coordinator that did not send it: the call
    * path recognizes the saved intent and does not prepare the request again. Null without one.
@@ -3219,7 +3175,7 @@ function coordinate<P>(
       preparation: null,
       ready: null,
       pending: null,
-      settlement: null,
+      lost: null,
       result: null,
       admission: 'new',
     }
@@ -3281,14 +3237,15 @@ function coordinate<P>(
         return step('admitted', null)
       }
       if (current.admission === 'unknown') {
-        const found = await ports.models.calls.inspect({ ...access, reference: pending.reference })
-        if ('failure' in found) return modelWait('M6', found.failure)
-        if (found.ok.kind === 'found') {
-          current.admission = 'accepted'
-          state = { kind: 'advancing' }
-          return step('admitted', null)
-        }
-        return voided(current, pending, found.ok)
+        const asked = await contactMainCall(ports, access, pending, () => receivedOf(pending))
+        if (asked.kind === 'journal-failed') return fail(asked.failure)
+        if (asked.kind === 'model-failed') return modelWait('M6', asked.failure)
+        if (asked.kind === 'not-accepted') return voided(current, pending, asked)
+        if (asked.kind === 'unknown') return producerWait('M6', pending)
+        if (asked.kind === 'lost') current.lost = asked.evidence
+        current.admission = 'accepted'
+        state = { kind: 'advancing' }
+        return step('admitted', null)
       }
       const eligible = await currentAttachment()
       if ('failure' in eligible) return eligible
@@ -3319,6 +3276,7 @@ function coordinate<P>(
     async M1() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
+      if (current.lost !== null) return step('settled', null)
       const received = await receivedOf(pending)
       if ('failure' in received)
         return received.failure.kind === 'unavailable'
@@ -3329,6 +3287,7 @@ function coordinate<P>(
     },
     async M3() {
       const current = required(iteration, 'iteration')
+      if (current.lost !== null) return step('kept', null)
       const restored = await readCompletion(current)
       if ('failure' in restored) return restored
       current.result = restored.ok.result
@@ -3367,9 +3326,10 @@ function coordinate<P>(
   function voided(
     current: Iteration,
     pending: ModelPendingCall,
-    answer: Extract<M.Lookup, { kind: 'not-accepted' }>,
+    answer: Extract<M.Lookup | M.CallContact, { kind: 'not-accepted' }>,
   ): Outcome<Step, Failure> {
-    if (answer.operation !== invocationParts(pending.reference, access.tenant).admission)
+    const admission = invocationParts(pending.reference, access.tenant).admission
+    if ('operation' in answer && answer.operation !== admission)
       return fail(defect('M6: not-accepted names another admission'))
     const at = required(checkpoint, 'checkpoint')
     const attempt = attemptOf(current.step)
@@ -3414,6 +3374,9 @@ function coordinate<P>(
     current: Iteration,
   ): Promise<Outcome<{ result: ModelResult; completion: DurableEvidence }, Failure>> {
     const pending = required(current.pending, 'pending call')
+    const call = invocationParts(pending.reference, access.tenant).call
+    if (current.lost !== null)
+      return succeed({ result: lostModelResult(call, current.lost), completion: current.lost })
     const received = await receivedOf(pending)
     if ('failure' in received) return received
     if (received.ok === null)
@@ -3432,7 +3395,6 @@ function coordinate<P>(
         field: 'received.material',
         reason: 'invalid schema or original binding',
       })
-    const call = invocationParts(pending.reference, access.tenant).call
     const result = consumeModelResult([execution, current.step], {
       produced: {
         producer: { kind: 'model', call },
@@ -3470,7 +3432,7 @@ function coordinate<P>(
     return failure.kind === 'unavailable' || failure.kind === 'commit-unknown'
       ? waitFor(node, modelUnavailable(node, failure), async () => {
           const pending = required(required(iteration, 'iteration').pending, 'pending call')
-          const read = await ports.models.calls.inspect({
+          const read = await ports.models.calls.contact({
             ...access,
             reference: pending.reference,
           })
@@ -4054,6 +4016,9 @@ function coordinate<P>(
       if (activeDrive || activeWait) return fail({ node: 'W0', failure: { kind: 'busy' } })
       if (!yieldedWait && pendingCommit === null && reconciliationOperations.length === 0)
         return succeed('stopped')
+      const moved = movedInPass
+      movedInPass = false
+      if (moved) return succeed('ready')
       const operations = [
         ...new Set([
           ...reconciliationOperations,
@@ -4076,7 +4041,11 @@ function coordinate<P>(
           position: waitingAt,
           ...input,
         })
-        return 'failure' in result ? fail({ node: 'W0', failure: result.failure }) : result
+        if ('failure' in result) return fail({ node: 'W0', failure: result.failure })
+        if (result.ok !== 'unheld') return succeed(result.ok)
+        heldTools.clear()
+        if (iteration?.admission === 'accepted') iteration.admission = 'unknown'
+        return succeed('ready')
       } catch (error) {
         return fail({ node: 'W0', failure: defect(diagnosticOf(error)) })
       } finally {

@@ -131,15 +131,13 @@ describe('a waiting run woken by an event', () => {
       return clock.pending()[0]
     }
 
-    // The run waits for the Model, whose reply is held: each check time finds nothing new.
+    // The run waits for the Model, which holds the call: each check time asks it and waits on.
+    const parked = wait()
     for (const due of [1000, 3000, 8000]) {
-      const woken = wait()
       expect(await checkTime()).toBe(at(due))
       ok(clock.advanceTo(at(due)))
-      expect(ok(await woken)).toBe('ready')
-      ok(await c.runExecution())
+      await eventually(async () => clock.pending().length === 1 && clock.pending()[0] !== at(due))
     }
-    const parked = wait()
     expect(await checkTime()).toBe(at(13_000))
 
     // The reply is an event: it wakes the run before the check time. That pass does not finish.
