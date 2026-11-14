@@ -128,6 +128,8 @@
 
 第一行是同一个 topic 的两节共用一个 rev，第二行是两个 topic 各带各的。
 
+**指向封存的旧产品设计（`PF-*`）时，链接写成封存提交上的固定链接**：`https://github.com/nemori-ai/omne-harness-lite/blob/<封存提交>/.meta_harness/design/product.0.0.1.legacy/<PF 目录>/design.md#<锚点>`（或 `flows.md`），路径与锚点照原样。后面的 `（rev N）` 与锚点对[封存修订表](../domain_objects/sealed-revisions.json)核；别的提交、别的路径的链接不算出处。
+
 **指向产品正文的链接，后面要跟着它那个 topic 的 `（rev N）`。**同一个 topic 连着的几条链接可以共用后面那一个；
 换了 topic 就各带各的。[对象条目的「依据」](../domain_objects/conventions.md#一条对象条目长什么样)是同一条规矩，由同一个对账器查。
 
