@@ -10,6 +10,18 @@ import { summaryLines } from '../metrics/report.ts'
 import { git } from '../core/git.ts'
 import { projectConformance, readConformance } from './conformance.ts'
 
+const USAGE = `Usage: omne-architecture --root <git-root> [--revision <ref>] [--base <ref>] [--out <json-file>] [--report <dir>]
+       omne-architecture --root <git-root> --conformance [--member <member-path>] [--revision <ref>] [--base <ref>] [--out <json-file>] [--report <dir>]
+Writes the actual architecture JSON to stdout. stdout carries only JSON.
+  --root         Top level of a Git repository with pnpm-workspace.yaml. Default: the current directory.
+  --revision     Read this commit instead of the current file system.
+  --base         Compare with this exact commit. The base is not replaced by a merge base.
+  --out          Also write the selected JSON to this file. It must not overwrite a report file.
+  --report       Also write report.html, graph.json, actual.json, conformance.json and summary.md to this directory. The report path goes to stderr.
+  --conformance  Write the global conformance JSON instead of the actual architecture JSON.
+  --member       Keep only the conformance rows of this exact workspace member path. Requires --conformance.
+Exit 0 on success. Exit 2 on an argument, Git, workspace, manifest, configuration, read or write error.`
+
 function argumentsOf(args: readonly string[]): {
   root: string
   revision?: string
@@ -36,9 +48,7 @@ function argumentsOf(args: readonly string[]): {
       value.startsWith('--') ||
       values.has(flag)
     )
-      throw new Error(
-        'Usage: omne-architecture --root <git-root> [--revision <ref>] [--base <ref>] [--out <json-file>] [--report <dir>]',
-      )
+      throw new Error(USAGE)
     values.set(flag, value)
     i += 1
   }
@@ -70,6 +80,11 @@ function argumentsOf(args: readonly string[]): {
     ...(report === undefined ? {} : { report }),
   }
 }
+if (process.argv.includes('--help')) {
+  console.log(USAGE)
+  process.exit(0)
+}
+
 try {
   const args = argumentsOf(process.argv.slice(2))
   const config = args.report === undefined ? undefined : readMetricsConfig()
