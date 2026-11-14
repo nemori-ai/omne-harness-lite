@@ -1,6 +1,6 @@
 // @module-tag slow
 // 归慢层：真起 dependency-cruiser，在临时 git 检出里出依赖图。全量准入快层账本里整份合计 12.1 秒，负载下 21.1 秒，9 条里 5 条在全量准入或负载下超单条预算（2.5 秒），余下的合计不到 0.2 秒（tools/test-runner/README_ZH.md「归层」）。
-// 依赖图：dependency-cruiser 的输出怎样收成成员边与违规，成员、组之间的环，以及按提交取的基线图。
+// 依赖图：dependency-cruiser 的输出怎样收成成员边与违规，成员之间的环，以及按提交取的基线图。
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readdirSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -164,19 +164,11 @@ describe('graphOf', () => {
     expect(byKind('member-cycle').map(finding => finding.message)).toEqual([
       '成员之间成环：packages/infra/x、packages/session/p、packages/session/q',
     ])
-    expect(byKind('group-cycle').map(finding => finding.message)).toEqual([
-      '组之间成环：packages/infra、packages/session',
-    ])
-    // 组环发现带环上的组与环内全部跨组成员边；具名组环例外按这些边判。
-    expect(
-      graph.findings.flatMap(finding =>
-        finding.kind === 'group-cycle' ? [{ groups: finding.groups, edges: finding.edges }] : [],
-      ),
-    ).toEqual([
-      {
-        groups: ['packages/infra', 'packages/session'],
-        edges: expect.arrayContaining([{ from: 'packages/session/q', to: 'packages/infra/x' }]),
-      },
+    // infra 与 session 两个组也成环，那不是发现。
+    expect(graph.findings.map(finding => finding.kind)).toEqual([
+      'dependency-rule',
+      'file-cycle',
+      'member-cycle',
     ])
   })
 })
