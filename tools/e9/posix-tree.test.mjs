@@ -53,9 +53,7 @@ for (const fault of ['snapshot', 'deadline']) {
       snapshot: () => {
         if (++snapshots === 4) {
           if (fault === 'snapshot') throw new Error('snapshot unavailable')
-          while (performance.now() - started < 60) {
-            /* exhaust the cleanup budget */
-          }
+          while (performance.now() - started < 60) {}
         }
         return [...rows.values()].map(row => ({ ...row }))
       },
@@ -150,7 +148,6 @@ function fixture({ reused = false, failSignal = false, failSnapshot = false } = 
       signals.push({ pid, signal })
       if (failSignal && pid === 102) throw new Error('permission denied')
       if (signal === 'SIGKILL') {
-        // The root has group 101; detached 102 and its child have group 102.
         if (pid === -101) rows.delete(101)
         else rows.delete(pid)
       }

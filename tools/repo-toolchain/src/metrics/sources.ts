@@ -5,7 +5,6 @@ import type { SourceFile } from '../core/rule.ts'
 import { fileAt } from '../core/git.ts'
 import { memberOf } from '../deps/graph.ts'
 
-/** 成员目录下的 TypeScript 源，路径相对于仓库根；不进 node_modules、dist 与覆盖率产物。 */
 export function collectMemberSources(root: string): SourceFile[] {
   const out: SourceFile[] = []
   const walk = (dir: string): void => {
@@ -28,10 +27,6 @@ export function collectMemberSources(root: string): SourceFile[] {
   return out
 }
 
-/**
- * 改动过的成员 TypeScript 源在基线上的文本（基线上还没有的文件值为 undefined），
- * 用来按函数文本判断哪些函数真的变了、或还原基线上的导入。
- */
 export function baseTextsOf(
   root: string,
   mergeBase: string,

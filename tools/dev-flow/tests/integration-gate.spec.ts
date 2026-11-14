@@ -3,10 +3,6 @@ import type { GhCommand } from '../src/shared/gh.ts'
 import { confirmationNote, NOTE_LIMIT, waitGate } from '../src/integration/gate.ts'
 
 type Poll = { status: string; conclusion?: string; pending?: unknown[] }
-/**
- * A GitHub stand-in that answers poll `i` with `polls[i]`: the run read returns its status,
- * the pending read that follows returns its pending deployments. Approvals are recorded.
- */
 function gate(polls: Poll[]) {
   const calls: string[][] = []
   let poll = 0
@@ -86,7 +82,6 @@ describe('gate wait', () => {
 
   it('refuses a note over the limit in UTF-8 bytes, before any request', async () => {
     const g = gate([{ status: 'completed', conclusion: 'success' }])
-    // GitHub refused a 750-character note of 1220 UTF-8 bytes and took one of 604 bytes.
     const atLimit = `${'中'.repeat(341)}a`
     expect(new TextEncoder().encode(atLimit).length).toBe(NOTE_LIMIT)
     expect(confirmationNote(atLimit)).toBe(atLimit)

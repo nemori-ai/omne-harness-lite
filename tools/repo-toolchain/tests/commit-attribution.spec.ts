@@ -1,4 +1,3 @@
-// 提交信息规则的正反夹具：作者式署名报出，来源 trailer 与人与人的共同署名放行；
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -119,8 +118,6 @@ describe('commit-attribution', () => {
     expect(parsed[0]?.trailers).toBe('Agent-Role: main\n')
     expect(parsed[1]).toMatchObject({ authorName: 'n2', committerEmail: 'ce2', trailers: '' })
   })
-
-  // 本仓库历史的断言与它的审计基线一起归 tools/product-checks（tests/attribution-baseline.spec.ts）。
 })
 
 describe('来源 trailer', () => {

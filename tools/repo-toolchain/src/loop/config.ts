@@ -1,5 +1,3 @@
-// 回路状态的阈值、窗口与开关只在仓库根 `repo-toolchain.config.json` 的 `loop` 一节里定一次。这里只读它、校验它：
-// 缺项或类型不对一律报错，不悄悄换成默认值——那些数字是试点后要校准的起步值，必须看得见。
 import { validLines, type Lines } from './bands.ts'
 import { readToolchainSection, toolchainConfigPath } from '../core/toolchain-config.ts'
 
@@ -24,7 +22,6 @@ export const INDICATORS = [
 ] as const
 export type IndicatorId = (typeof INDICATORS)[number]
 
-/** 配置里带 `enabled` 开关的传感器；严格模式要求开着的每一个都有数据。 */
 export const SWITCHED_SENSORS = [
   'stability',
   'cochange',
@@ -42,29 +39,18 @@ export const BUDGET_ITEMS = ['overAlert', 'risk', 'duplication', 'testsWithoutAs
 export type BudgetItem = (typeof BUDGET_ITEMS)[number]
 
 export interface IndicatorConfig {
-  /** null：没有绝对线，只与基线比（或只进「要解释」）。 */
   readonly lines: Lines | null
-  /** 另与基线快照比，比基线差至少是提醒。 */
   readonly baseline: boolean
-  /** 写给读配置的人的一句话，例如这几条线是谁定的、校准过没有。工具不读它的内容。 */
   readonly note?: string
 }
 
 export interface LoopConfig {
-  /** 主线分支：HEAD 正是它的头时自动写趋势快照；不给 BASE 时以它的合并点找基线快照。 */
   readonly primaryBranch: string
-  /** 「解除之后又进入处置」达到这个次数的成员标结构问题，不生成清理草稿。 */
   readonly relapseLimit: number
-  /** 「要解释的红项」每一类在终端最多列几条。 */
   readonly explainTop: number
   readonly indicators: Readonly<Record<IndicatorId, IndicatorConfig>>
   readonly memberBudget: Readonly<Record<BudgetItem, Lines>>
-  /** 不判预算、不生成草稿的成员组（`memberOf` 的 group，如 `examples`）。全仓指标不受它影响。 */
   readonly budgetExcludeGroups: readonly string[]
-  /**
-   * 成员预算另与基线快照比：基线里有的成员只在变差时进提醒，绝对线只管新成员与处置。
-   * 处置（超预算）的条件不受它影响。
-   */
   readonly budgetBaseline: boolean
   readonly sensors: {
     readonly stability: { readonly enabled: boolean; readonly margin: number }
@@ -83,9 +69,7 @@ export interface LoopConfig {
     readonly assertions: {
       readonly enabled: boolean
       readonly assertionPattern: RegExp
-      /** 空串表示不用。 */
       readonly helperPattern: RegExp | undefined
-      /** 类型测试文件的路径模式；空串表示不区分。 */
       readonly typeTestPattern: RegExp | undefined
     }
     readonly newEdges: { readonly enabled: boolean }
@@ -95,20 +79,14 @@ export interface LoopConfig {
       readonly windowDays: number
     }
     readonly worktrees: { readonly enabled: boolean }
-    /**
-     * 验收耗时：读 `pnpm run acceptance` 写下的账本。`excludeRoots` 下的成员不算有验收的成员，
-     * 须与测试运行配置 `affected.excludeRoots` 一致，由自测核对。
-     */
     readonly acceptance: { readonly enabled: boolean; readonly excludeRoots: readonly string[] }
     readonly architecture: { readonly enabled: boolean }
     readonly catalogue: { readonly path: string; readonly doctrinePath: string }
   }
-  /** 流程体检页的窗口与条数。 */
   readonly health: Readonly<Record<HealthWindow, number>>
   readonly hook: HookConfig
 }
 
-/** 收工钩子：关掉、反馈的条数与字数上限、量一次的内部时限、记住反馈过几组读数。 */
 export interface HookConfig {
   readonly enabled: boolean
   readonly maxItems: number
@@ -117,7 +95,6 @@ export interface HookConfig {
   readonly stateLimit: number
 }
 
-/** commits：主线最近几个提交；runs：最近几次全量测试运行。 */
 export const HEALTH_WINDOWS = ['commits', 'runs'] as const
 export type HealthWindow = (typeof HEALTH_WINDOWS)[number]
 
@@ -160,7 +137,6 @@ function pattern(value: unknown, name: string): RegExp {
   }
 }
 
-/** 可以是空串，表示不用。 */
 function optionalPattern(value: unknown, name: string): RegExp | undefined {
   if (value === '') return undefined
   return pattern(value, name)
@@ -177,7 +153,6 @@ function lines(value: unknown, name: string): Lines {
   return parsed
 }
 
-/** 键须恰好是 `ids`：少了或多了都报错，免得拼错的键被悄悄忽略。 */
 function exactly<K extends string, V>(
   value: unknown,
   ids: readonly K[],
@@ -234,7 +209,6 @@ function groups(value: unknown, name: string): string[] {
 
 export function parseLoopConfig(parsed: unknown): LoopConfig {
   const raw = object(parsed, '配置')
-  // memberBudget 里除四项预算的线之外，还有 excludeGroups 与 baseline 两项。
   const { excludeGroups, baseline, ...budgetLines } = object(raw['memberBudget'], 'memberBudget')
   const sensors = object(raw['sensors'], 'sensors')
   const stability = object(sensors['stability'], 'sensors.stability')

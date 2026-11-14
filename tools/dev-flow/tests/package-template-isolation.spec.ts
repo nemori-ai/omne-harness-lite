@@ -1,7 +1,4 @@
 // @module-tag slow
-// Slow: the case runs tsc ten times (build and typecheck of five generated members) and git in a temporary
-// workspace. It takes about 3.5 s on an idle 4-core host and more than 5 s on the integration node, over the 2.5 s
-// fast-tier budget per case (the 5 s vitest default × `ledger.nearTimeoutRatio` 0.5, tools/test-runner/README_ZH.md「归层」).
 import { describe, expect, it } from 'vitest'
 import { createDomain } from '../src/package-template/domain.ts'
 import { createPackage } from '../src/package-template/create.ts'
@@ -17,7 +14,6 @@ const members = [
 ] as const
 
 describe('official template isolation', () => {
-  // Ten compiler processes and temporary Git setup exceed the fast-tier budget.
   it(
     'builds and typechecks generated members without a dependency deviation',
     { tags: ['slow'] },

@@ -283,7 +283,6 @@ it('measures into an output directory that already exists, as when --out is reus
 it('passes no lcov to metrics.mjs when the coverage run wrote none, and names a signal that ended it', async () => {
   const { calls, exec } = recorder(command => {
     if (command.command === 'pnpm') {
-      // 覆盖率目录建了、lcov.info 没写：只有文件本身才算产物。
       const reports = command.args.find(a => a.startsWith('--coverage.reportsDirectory='))
       mkdirSync(reports?.split('=')[1] ?? '', { recursive: true })
       return { code: null }

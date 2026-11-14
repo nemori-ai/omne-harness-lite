@@ -1,4 +1,3 @@
-// 回路配置：仓库里那一份读得进来且是简报给的初值；缺项、类型不对、线的次序不对、多出认不出的项都报错，不悄悄用默认。
 import { describe, expect, it } from 'vitest'
 import { parseLoopConfig, readLoopConfig } from '../src/loop/config.ts'
 import { readToolchainSection } from '../src/core/toolchain-config.ts'

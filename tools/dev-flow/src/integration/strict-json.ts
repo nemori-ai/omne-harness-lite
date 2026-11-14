@@ -1,9 +1,5 @@
 import { InputError } from '../shared/input.ts'
 
-/**
- * Rejects duplicate keys before shape validation; escaped spellings name the same key.
- * `path` labels every error, for example `input.json: json-invalid`.
- */
 export function strictJson(source: string, path: string): unknown {
   function fail(code: string): never {
     throw new InputError(`${path}: ${code}`)

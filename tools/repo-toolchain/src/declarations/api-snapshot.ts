@@ -1,8 +1,3 @@
-// 契约 API 快照的生成：用 TypeScript 6 读契约成员 dist 里的声明，产出快照模型（格式见 api-format.ts）。
-// 程序选项同声明兼容检查：消费者视角，成员之间的导入解析到对方的 dist。
-// 模型是两部分：每个入口导出的名字，以及本成员 dist 里的全部声明文件（打印器规范化，去掉注释）。
-// 模型只取决于成员自己的文件：别的成员写进来的模块扩充在那个成员的文件里。
-// 成员 dist 里有编译诊断（例如转导出的包没有构建）时不生成它的快照：缺项的快照比没有快照更糟。
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import ts from '@typescript/typescript6'
@@ -22,10 +17,8 @@ import {
 } from './compat.ts'
 
 export interface ContractMember {
-  /** 仓库相对的成员目录，例如 `packages/common/message`。 */
   readonly directory: string
   readonly packageName: string
-  /** `exports` 的子路径与它 `types` 条件指向的文件（成员相对）。 */
   readonly entries: readonly { readonly subpath: string; readonly types: string }[]
 }
 
@@ -38,7 +31,6 @@ export type MemberRead =
   | { readonly kind: 'member'; readonly member: ContractMember }
   | { readonly kind: 'invalid'; readonly problem: MemberProblem }
 
-/** 读一个仓库相对路径的文本；不存在时为 undefined。工作树与基线提交各有一个实现。 */
 export type ReadFile = (path: string) => string | undefined
 
 export const readWorkingFile =
@@ -48,7 +40,6 @@ export const readWorkingFile =
     return existsSync(full) ? readFileSync(full, 'utf8') : undefined
   }
 
-/** 读成员的 `package.json`：要有 `name`，`exports` 的每个子路径要有 `types` 条件。 */
 export function readContractMember(read: ReadFile, directory: string): MemberRead {
   const invalid = (message: string): MemberRead => ({
     kind: 'invalid',
@@ -80,12 +71,9 @@ function entriesOf(exports: unknown): { subpath: string; types: string }[] | str
 
 export type SnapshotResult =
   | { readonly kind: 'snapshot'; readonly directory: string; readonly snapshot: ApiSnapshot }
-  /** 没有 dist：这次没生成。 */
   | { readonly kind: 'unbuilt'; readonly directory: string }
-  /** 入口文件缺失、dist 有编译诊断或快照键冲突。 */
   | { readonly kind: 'invalid'; readonly directory: string; readonly message: string }
 
-/** 为契约成员各生成一份快照模型；它们共用一个程序，结果按成员目录排序。 */
 export function snapshotContracts(
   root: string,
   members: readonly ContractMember[],
@@ -107,8 +95,6 @@ export function snapshotContracts(
       })
     else built.push(member)
   }
-  // 根文件是成员 dist 里的全部声明文件（与声明兼容检查读的同一批）：只作模块扩充目标的文件不经导入可达，
-  // 不放进根就不在程序里，快照里缺了它就还原不出能编译的声明。
   const rootNames = built.flatMap(member => declarationsIn(distOf(realRoot, member.directory)))
   const options = consumerCompilerOptions(realRoot)
   const host = ts.createCompilerHost(options)
@@ -123,7 +109,6 @@ interface Context {
   readonly program: ts.Program
   readonly checker: ts.TypeChecker
   readonly root: string
-  /** 成员 dist 目录（真实路径，带结尾分隔符）。 */
   readonly dist: string
   readonly own: (node: ts.Node) => boolean
 }
@@ -143,7 +128,6 @@ function contextFor(program: ts.Program, root: string, member: ContractMember): 
   return { program, checker: program.getTypeChecker(), root, dist, own }
 }
 
-/** dist 内相对路径，斜杠分隔。 */
 function distPath(ctx: Context, fileName: string): string {
   return relative(ctx.dist, realpathSync(fileName)).split(sep).join('/')
 }
@@ -196,7 +180,6 @@ function diagnosticsOf(ctx: Context, files: readonly ts.SourceFile[]): string[] 
 
 const filePrinter = ts.createPrinter({ removeComments: true, newLine: ts.NewLineKind.LineFeed })
 
-/** 声明文件原样打印：注释与原有空白去掉，布局由打印器决定，导入与导出语句保留，所以能再编译。 */
 function declarationFile(ctx: Context, file: ts.SourceFile): DeclarationFile {
   return { path: distPath(ctx, file.fileName), code: filePrinter.printFile(file).trimEnd() }
 }
@@ -209,7 +192,6 @@ function moduleFileOf(symbol: ts.Symbol): ts.SourceFile | undefined {
   return (symbol.declarations ?? []).find(ts.isSourceFile)
 }
 
-/** 一个入口（或命名空间导出）导出的名字；`export * as ns` 记一行 `ns`，再记它的成员 `ns.<名字>`。 */
 function entryExports(
   ctx: Context,
   file: ts.SourceFile | undefined,
@@ -252,7 +234,6 @@ function namespaceExports(
   return [head, ...entryExports(ctx, file, `${name}.`, new Set([...seen, target]))]
 }
 
-/** 声明在哪里；只由别的成员的模块扩充加进来的名字没有本成员或别的包的原始声明，不算导出。 */
 function originOf(ctx: Context, target: ts.Symbol): ExportOrigin | undefined {
   const declarations = sortDeclarations(
     (target.declarations ?? []).filter(node => !insideAugmentation(node)),
@@ -285,10 +266,6 @@ function exportOf(
   }
 }
 
-/**
- * 消费者是否只能把这个导出当类型用：别名链上有 `export type`／`import type`，
- * 或经 `export type * from` 带出（可以隔几层 `export *`）。
- */
 function isTypeOnlyExport(
   checker: ts.TypeChecker,
   moduleSymbol: ts.Symbol,
@@ -333,7 +310,6 @@ function typeOnlyThroughStar(
   return false
 }
 
-/** 模块里的 `export * from '…'` 与 `export type * from '…'`（不含 `export * as ns`）。 */
 function starExports(
   moduleSymbol: ts.Symbol,
 ): { readonly isTypeOnly: boolean; readonly moduleSpecifier: ts.Expression }[] {
@@ -347,7 +323,6 @@ function starExports(
     )
 }
 
-/** 声明在 `declare module '…'`／`declare global` 里：它是模块扩充，归写它的成员。 */
 function insideAugmentation(node: ts.Node): boolean {
   for (let parent = node.parent; parent !== undefined; parent = parent.parent)
     if (
@@ -366,7 +341,6 @@ function sortDeclarations(nodes: readonly ts.Node[]): ts.Node[] {
   )
 }
 
-/** 声明所在文件归哪个包：向上找最近的、有 `name` 的 `package.json`。 */
 function packageOf(root: string, fileName: string): string {
   for (
     let directory = dirname(realpathSync(fileName));

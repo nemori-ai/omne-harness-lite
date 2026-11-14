@@ -1,4 +1,3 @@
-// 三条带的转移：进入提醒与处置、处置的滞回、解除、与基线比变差抬到提醒、没有基线标未判。
 import { describe, expect, it } from 'vitest'
 import { bandOf, compare, judgeIndicator, replay } from '../src/loop/bands.ts'
 
@@ -19,7 +18,6 @@ describe('三条带', () => {
 
   it('回落到解除线及以下才解除，解除后按值重新判', () => {
     expect(bandOf(2, lines, 'act')).toBe('normal')
-    // 解除线与提醒线相等时，解除后正落在提醒线上。
     expect(bandOf(3, { warn: 3, act: 6, release: 3 }, 'act')).toBe('warn')
   })
 

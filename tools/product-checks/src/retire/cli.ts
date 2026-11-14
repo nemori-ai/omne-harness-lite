@@ -26,7 +26,6 @@ function parseArguments(argv: readonly string[]): Arguments {
   let strict = false
   for (let index = 0; index < argv.length; index++) {
     const flag = argv[index]
-    // pnpm 把 `pnpm run retire -- --wave B` 里的 `--` 原样传给脚本，单独的 `--` 不是参数。
     if (flag === '--') continue
     if (flag === '--json') json = true
     else if (flag === '--strict') strict = true
@@ -43,7 +42,6 @@ function parseArguments(argv: readonly string[]): Arguments {
   return { wave: wave as Wave, root, table, json, strict }
 }
 
-/** 退出码：0 无问题；1 有问题（--strict 时含未映射）；2 表、检出或参数不可用，或表过期。 */
 function main(argv: readonly string[]): number {
   const args = parseArguments(argv)
   const table = readRetireTable(args.table)

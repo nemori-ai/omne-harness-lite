@@ -15,13 +15,10 @@ import {
 afterEach(removeTemporaries)
 
 function checkout(): string {
-  // 共享夹具用 realpathSync 取临时目录；Windows 上它保留 8.3 短名（`ALIENW~1`），而 Git 报告的顶层是长名，
-  // 实际架构读取会以“不是 Git 顶层”拒绝。这里取系统的真实路径（POSIX 上与原值相同）。
   const root = realpathSync.native(repository())
   write(root, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n  - apps/*\n')
   write(root, 'package.json', JSON.stringify({ engines: { node: '>=24 <25' } }))
   cpSync(
-    // 根 tsconfig.base.json 只是指向共享预设的 extends；快照里直接放预设本身。
     fileURLToPath(new URL('../../../tools/repo-config/tsconfig.base.json', import.meta.url)),
     join(root, 'tsconfig.base.json'),
   )
@@ -125,7 +122,6 @@ describe('dependency rows', () => {
     ])
   })
 
-  // Access-role fixtures run a fresh dependency-cruiser process beyond the fast-tier budget.
   it(
     'reports a cycle hidden by a cordis subpath and a resolved relative import',
     { tags: ['slow'] },
@@ -159,7 +155,6 @@ describe('dependency rows', () => {
     },
   )
 
-  // Access-role fixtures run a fresh dependency-cruiser process beyond the fast-tier budget.
   it('reports a type-only workspace import that has no declaration', { tags: ['slow'] }, () => {
     const root = checkout()
     const sdk = member(root, 'access', 'sdk')

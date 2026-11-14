@@ -80,9 +80,7 @@ function texts(root: string, directories: readonly string[]): Map<string, string
 const exportsOf = (snapshot: ApiSnapshot, subpath = '.') =>
   snapshot.entries.find(entry => entry.subpath === subpath)?.exports ?? []
 
-// Each case builds a real TypeScript 6 program over the fixture dist, which takes about a second.
 describe('contract API snapshots', { timeout: 60_000 }, () => {
-  // Slow: builds a real TypeScript 6 program over the fixture dist. 1.8 s on the full-admission fast-tier ledger, 4.4 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
   it(
     'lists the exports of each entry and every declaration file of the dist, normalized',
     { tags: ['slow'] },
@@ -96,7 +94,6 @@ describe('contract API snapshots', { timeout: 60_000 }, () => {
         '- `Unit` 仅类型 · `unit.d.ts`',
         '- `area` · `shape.d.ts`',
       ])
-      // Every declaration file, also one reached only as an augmentation target; comments and layout removed.
       expect(shapes.match(/^## 声明文件 .*$/gmu)).toEqual([
         '## 声明文件 `augment.d.ts`',
         '## 声明文件 `facility.d.ts`',
@@ -113,14 +110,12 @@ describe('contract API snapshots', { timeout: 60_000 }, () => {
       expect(shapes).toContain(
         "declare module './facility.ts' {\n    interface Facilities {\n        files: string;\n    }\n}",
       )
-      // The augmenting member's interface does not leak into the augmented member's snapshot.
       const base = texts(root, MEMBERS).get('packages/x/base') ?? ''
       expect(base).toContain('export interface Blocks {\n}')
       expect(base).not.toContain('shape: number')
     },
   )
 
-  // Slow: builds real TypeScript 6 programs over two fixture dists. 1.7 s on the full-admission fast-tier ledger, 6.0 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
   it(
     'gives byte-identical output for the same dist, and ignores comments and member order',
     { tags: ['slow'] },
@@ -203,7 +198,6 @@ describe('contract API snapshots', { timeout: 60_000 }, () => {
     expect(results[1]).toMatchObject({ message: '入口 ./more 的 ./dist/more.d.ts 不存在' })
   })
 
-  // Slow: builds real TypeScript 6 programs over the fixture dist, twice. 3.6 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (6.5 s under load) (tools/test-runner/README_ZH.md「归层」).
   it(
     'writes the configured path, then reports a member whose dist moved away from it',
     { tags: ['slow'] },

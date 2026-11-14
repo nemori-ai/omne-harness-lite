@@ -1,8 +1,3 @@
-// 根脚本背后的几个入口脚本（scripts/ 下）与根 package.json 的 `test:python` 一行：只核它们拥有的部分——
-// 参数怎样分派、谁占运行名额、先后与退出码。
-// 真正的命令换成记录参数的假程序：node、uv 放在 PATH 前面，运行名额与钉住的 omne-metrics 放在脚本找它们的位置；
-// 要核「名额被占时不起命令」的用例换用真实的名额脚本与私有锁目录。
-// 每次起脚本都带时限，到时连整棵进程树一起杀：被测脚本挂住或无限重入时用例变红，不留孤儿进程（#979 事故）。
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import {
   chmodSync,
@@ -19,26 +14,16 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 const WINDOWS = process.platform === 'win32'
 
-/**
- * 一次 `run` 的时限：到时杀整棵进程树并按失败返回。正常一次不到一秒。机器满载时用例自己的时限先到，
- * 这时由 afterEach 兜底杀树。
- */
 const RUN_TIMEOUT_MS = 10_000
-/** 杀树之后等子进程关闭标准错误管道的上限；超过就按已杀处理，不让一个残留的管道持有者拖住用例。 */
 const CLOSE_GRACE_MS = 2_000
 
-/**
- * 杀掉 pid 及其全部后代。POSIX 杀 `run` 起时另建的进程组。Windows 上被测脚本是 MSYS 进程：它 fork 与 exec 出的进程在
- * Windows 看来不是它的后代，taskkill /T 够不到（#979 事故里孤儿就是这样留下的），所以先按 MSYS 的进程组杀
- * （`ps -W` 把 Windows 进程号映射到组号），再 taskkill /T 收拾非 MSYS 的后代。目标已经不在时静默。
- */
+// Windows 上被测脚本是 MSYS 进程，它 fork 出的后代 taskkill /T 够不到：
+// 先按 MSYS 进程组杀（ps -W 取组号），再 taskkill /T 收拾其余后代。
 function killTree(pid: number): void {
   if (!WINDOWS) {
     try {
       process.kill(-pid, 'SIGKILL')
-    } catch {
-      // 进程组已经不在
-    }
+    } catch {}
     return
   }
   spawnSync(
@@ -54,7 +39,6 @@ function killTree(pid: number): void {
   spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
 }
 
-/** 进程还在不在：信号 0 只探测不投递；没权限探测的算还在。 */
 function alive(pid: number): boolean {
   try {
     process.kill(pid, 0)
@@ -67,7 +51,6 @@ function alive(pid: number): boolean {
 const homes: string[] = []
 const active = new Set<ChildProcess>()
 afterEach(() => {
-  // 用例超时或断言失败时 `run` 可能还没返回：先把它起的进程树杀干净，再删夹具目录（目录被占着时删不掉）。
   for (const child of active) if (child.pid !== undefined) killTree(child.pid)
   active.clear()
   for (const home of homes.splice(0))
@@ -88,7 +71,6 @@ function executable(path: string, text: string): void {
   chmodSync(path, 0o755)
 }
 
-/** 根 package.json 里一条脚本的命令行。 */
 function rootScript(name: string): string {
   const parsed: unknown = JSON.parse(
     readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'),
@@ -105,7 +87,6 @@ function rootScript(name: string): string {
   return line
 }
 
-/** 一次 `run` 的结果。`timedOut` 为真时脚本没在时限内结束，整棵进程树已被杀，`status` 为 null。 */
 interface Ran {
   readonly status: number | null
   readonly stderr: string
@@ -114,10 +95,6 @@ interface Ran {
   readonly pid: number | undefined
 }
 
-/**
- * 夹具。`realSlot` 时放真实的名额脚本（`with-test-slot.sh` 与 `.mjs`），锁目录与账本指到夹具里；
- * 否则放只记参数、打上已持有标记再执行命令的替身。
- */
 function fixture(options: { readonly realSlot?: boolean } = {}) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-entry-scripts-')))
   homes.push(home)
@@ -138,10 +115,6 @@ function fixture(options: { readonly realSlot?: boolean } = {}) {
         join(root, 'scripts', name),
         readFileSync(new URL(`../../../scripts/${name}`, import.meta.url), 'utf8'),
       )
-  // 运行名额的替身：记下命令，给它打上「已持有名额」的标记再执行——真的名额脚本也这样做
-  // （with-test-slot.mjs 给子进程 OMNE_TEST_SLOT_HELD）。check.sh 看不到这个标记就再去占名额：替身不打标记时
-  // 它会无限重入自己，MSYS 上每一跳都留下一个进程（#979 事故）。标记已在时再被叫到，说明被测脚本无视了它：
-  // 立刻以 97 退出、不执行命令，用例看到的是失败而不是挂住。
   else
     executable(
       join(root, 'scripts/with-test-slot.sh'),
@@ -151,7 +124,6 @@ printf "slot|%s\\n" "$*" >> "$TRACE"
 OMNE_TEST_SLOT_HELD=stub exec "$@"
 `,
     )
-  // omne-metrics 另记下收到的覆盖率并发度（环境变量）与 --plan 指向的文件在它运行时是否存在。
   executable(
     join(root, 'node_modules/.bin/omne-metrics'),
     `#!/usr/bin/env bash
@@ -163,9 +135,6 @@ while (( $# )); do
 done
 `,
   )
-  // node 只认测试运行器的 plan 与 coverage-parallel：前者写出 --json 指向的计划文件，FAIL_NODE 给出它的退出码；
-  // 后者打印 PARALLEL（缺省 3x5），FAIL_PARALLEL 给出它的退出码。真实的名额脚本要起真的 node，那时不放这个替身。
-  // HANG_NODE 模拟运行器挂住：记下自己与 sleep 的进程号（Windows 上记 Windows 进程号）供用例核对它们被杀，然后一直等。
   if (options.realSlot !== true)
     executable(
       join(bin, 'node'),
@@ -185,7 +154,6 @@ done
 exit "\${FAIL_NODE:-0}"
 `,
     )
-  // uv 被当作 pytest 起（给了 PYTEST_XDIST_AUTO_NUM_WORKERS）时，另记下 pytest 相关的两个环境变量。
   executable(
     join(bin, 'uv'),
     `#!/usr/bin/env bash
@@ -196,7 +164,6 @@ fi
 `,
   )
   const environment = (env: Record<string, string>): NodeJS.ProcessEnv => {
-    // 这份测试自己可能就跑在名额里（准入）：清掉继承的标记，用例要给的自己给。
     const inherited: NodeJS.ProcessEnv = { ...process.env }
     delete inherited['OMNE_TEST_SLOT_HELD']
     return {
@@ -208,7 +175,6 @@ fi
       ...env,
     }
   }
-  /** 经 bash 起一条命令，带时限；到时杀整棵进程树并按失败返回。`run` 与 `runLine` 都走这里。 */
   const launch = (
     bashArgs: string[],
     env: Record<string, string>,
@@ -220,9 +186,7 @@ fi
       const child = spawn('bash', bashArgs, {
         env: environment(env),
         ...(cwd === undefined ? {} : { cwd }),
-        // 标准输入不接管道：脚本不该读它，接了又不关就可能挂住。标准输出没有用例读，直接丢。
         stdio: ['ignore', 'ignore', 'pipe'],
-        // POSIX 上另起进程组，杀树时按组杀；Windows 上 detached 会脱离 libuv 的 job，不用。
         detached: !WINDOWS,
         windowsHide: true,
       })
@@ -240,7 +204,6 @@ fi
         clearTimeout(timer)
         active.delete(child)
         const lines = readFileSync(trace, 'utf8').split('\n').filter(Boolean)
-        // 超时即失败：被杀的脚本报什么退出码（Windows 上 MSYS 进程报信号编码的数）都不作数。
         resolve({ status: timedOut ? null : status, stderr, lines, timedOut, pid: child.pid })
       }
       timer = setTimeout(() => {
@@ -261,10 +224,8 @@ fi
     env: Record<string, string> = {},
     timeoutMs = RUN_TIMEOUT_MS,
   ): Promise<Ran> => launch([join(root, 'scripts', script), ...args], env, timeoutMs)
-  /** 在夹具根目录里经 bash 跑一整条命令行（根 package.json 脚本的写法）。 */
   const runLine = (line: string, env: Record<string, string> = {}): Promise<Ran> =>
     launch(['-c', line], env, RUN_TIMEOUT_MS, root)
-  /** 在夹具的锁目录里放一份活着的名额登记（本进程的进程号、心跳新鲜）。 */
   const occupySlot = () => {
     mkdirSync(join(home, 'locks'), { recursive: true })
     writeFileSync(
@@ -284,7 +245,6 @@ describe('metrics.sh', () => {
     expect(plan).toMatch(
       /^node\|.*tools\/test-runner\/src\/testing\/cli\.ts plan --base abc --json \S+\/plan\.json$/u,
     )
-    // 名额脚本用 Node 起命令，脚本要显式经 bash；占到名额后才向测试运行器要并发度。
     expect(slot).toMatch(
       /^slot\|bash scripts\/metrics\.sh --in-slot --plan \S+\/plan\.json --coverage --out o$/u,
     )
@@ -431,7 +391,6 @@ describe('check.sh', () => {
     expect((await run('check.sh', ['--keep-going'], held)).lines).toEqual([
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
     ])
-    // 预检不占运行名额：没有拿到名额也直接起运行器。
     const preflight = await run('check.sh', ['--preflight'])
     expect(preflight.status, preflight.stderr).toBe(0)
     expect(preflight.lines).toEqual([
@@ -472,7 +431,6 @@ describe('夹具：起脚本的时限与进程树', () => {
     expect(ran.lines).toEqual([
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
     ])
-    // 替身记下的两个进程（自己与 sleep）与 bash 本身都已不在。
     const recorded = readFileSync(pidsFile, 'utf8').split('\n').filter(Boolean).map(Number)
     expect(recorded, '替身应在时限内到达挂住点并记下两个进程号').toHaveLength(2)
     const pids = ran.pid === undefined ? recorded : [ran.pid, ...recorded]

@@ -78,7 +78,6 @@ export function inspectPackage(
     ...layout.findings,
     ...checkStructure(root, member, manifest, selected, required),
   ]
-  // Rule set 2 reads neither topics nor acceptance content; rule set 3 reads both; rule set 4 reads acceptance only.
   if ('topics' in rules && rules.topics !== undefined)
     findings.push(...checkTopics(root, member, rules.topics, layout.tree))
   if (rules.ruleSet >= 3) findings.push(...checkAcceptance(member, manifest, layout.tree))
@@ -93,8 +92,6 @@ export function inspectPackage(
           reason: 'Complete the package documentation draft',
         })
     }
-  // A private helper's Service/provide fact does not decide public responsibility.
-  // Unmarked inference is an inventory hint; adopted variants require manual review.
   if (adoption === 'invalid')
     findings.push({
       code: 'marker',
@@ -198,10 +195,8 @@ export function scanPackages(root: string, members?: readonly string[]): Package
     )
 }
 export function scanExitCode(results: readonly PackageScan[], check: boolean): number {
-  if (!check) return 0 // inventory is not an assertion; every state is still reported
+  if (!check) return 0
   if (results.some(item => item.structure === 'uncovered')) return 2
-  // This command asserts the full template tree, not a full integration acceptance.
-  // Unknown integration facts remain visible and require manual adoption review.
   return results.some(
     item =>
       item.adoption !== 'current' || item.structure !== 'pass' || item.integration === 'deviation',

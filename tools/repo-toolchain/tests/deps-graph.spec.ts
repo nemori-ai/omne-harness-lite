@@ -1,6 +1,4 @@
 // @module-tag slow
-// 归慢层：真起 dependency-cruiser，在临时 git 检出里出依赖图。全量准入快层账本里整份合计 12.1 秒，负载下 21.1 秒，9 条里 5 条在全量准入或负载下超单条预算（2.5 秒），余下的合计不到 0.2 秒（tools/test-runner/README_ZH.md「归层」）。
-// 依赖图：dependency-cruiser 的输出怎样收成成员边与违规，成员之间的环，以及按提交取的基线图。
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readdirSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -67,8 +65,6 @@ describe('graphOf', () => {
   })
 
   it('文件级的依赖事实逐处保留：测试里的也在，成员内部、内建模块与解析失败的不在；成员里的模块本身也留下', () => {
-    // 方向规则要按源文件判角色，所以不能只有按成员对归并的边；源范围是 src/** 全部，包含测试与 testing 入口。
-    // 模块清单让「角色有没有文件」能从同一张图判，没有跨成员导入的文件也算有。
     const output: CruiseOutput = {
       modules: [
         {
@@ -164,7 +160,6 @@ describe('graphOf', () => {
     expect(byKind('member-cycle').map(finding => finding.message)).toEqual([
       '成员之间成环：packages/infra/x、packages/session/p、packages/session/q',
     ])
-    // infra 与 session 两个组也成环，那不是发现。
     expect(graph.findings.map(finding => finding.kind)).toEqual([
       'dependency-rule',
       'file-cycle',
@@ -174,7 +169,6 @@ describe('graphOf', () => {
 })
 
 describe('真实检出上的依赖图', { timeout: 60_000 }, () => {
-  /** 两个成员：a 用相对路径导入 b；只在基线之后加上 b 到 c 的依赖。 */
   function members(): { root: string; base: string } {
     const root = repository()
     write(root, '.gitignore', 'node_modules/\n')
@@ -214,7 +208,6 @@ describe('真实检出上的依赖图', { timeout: 60_000 }, () => {
     const { root, base } = members()
     const cache = join(root, '.git', 'omne-dep-graph')
     const old = (Date.now() - STALE_TREE_GRACE_MS - 60_000) / 1000
-    // 一个已经结束的进程号，与本进程（活着）的进程号。
     const dead = spawnSync(process.execPath, ['-e', '']).pid
     const leftover = join(cache, `tree-${base}-${dead}`)
     const living = join(cache, `tree-${base}-${process.ppid}`)
@@ -247,7 +240,6 @@ describe('真实检出上的依赖图', { timeout: 60_000 }, () => {
   })
 
   it('被 git 忽略的目录里的违规不进工作树的图：沙箱里的文件环不算仓库的违规', () => {
-    // 缺陷：withoutIgnoredModules 只滤了模块、没滤违规，本地沙箱的环让每次收工都报硬线。
     const { root } = members()
     write(root, '.gitignore', 'node_modules/\n.stryker-tmp*\n')
     commit(root, 'ignore sandboxes')
@@ -258,7 +250,6 @@ describe('真实检出上的依赖图', { timeout: 60_000 }, () => {
   })
 
   it('不在 git 仓库里的目录照常出图：没有忽略规则可言，不抛错', () => {
-    // 缺陷：workingGraph 无条件跑 git，`omne-deps --root <非 git 目录>` 从能用变成 not a git repository。
     const root = temporaryDirectory('omne-deps-nogit-')
     write(root, 'tsconfig.base.json', '{}\n')
     write(

@@ -1,4 +1,3 @@
-// 两个根是不是同一棵树：解析符号链接后比较；OMNE_RUNNER_ROOT 缺省时 runner 就是被检树。
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

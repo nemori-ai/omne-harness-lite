@@ -1,15 +1,3 @@
-// 联调 A 的 S0～S2 端到端脚本。
-// 判据来源：`slices.md` 的 S0（骨架：插件树装载）、S1（T1–T3 建租户、登录、建会话、发输入）、
-// S2（E1 单轮纯消息）。检查步骤的编号与那一页相同。
-//
-// 用法：
-//   node tools/joint-a/end-to-end.mjs [--evidence <目录>] [--keep]
-//
-// 判定三种：通过、失败、等件。等件不是失败，它写明还差哪一件。
-// 退出码：全部通过 0；有失败 1；只剩等件 3。
-//
-// 不改实现，不构造替身：本脚本只经构建产物 `dist/bin.js` 起真进程，读它们的行为。
-// 树上还有替身时，替身树上的观察写进等件的说明里，不记成通过。
 import { DatabaseSync } from 'node:sqlite'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -46,7 +34,6 @@ const CREDENTIALS = { alice: 'alice-pw-JOINTA-2f81', bob: 'bob-pw-JOINTA-73ce' }
 const INPUT_TEXT = 'joint-a S2 first round'
 const S0_DISTRIBUTION = join(serverMember, 'config', 's0.distribution.json')
 
-/** 组装页的行快照。S0-1 的行数核对以它为据。 */
 const EXPECTED_ROWS = JSON.parse(
   readFileSync(join(serverMember, 'src', 's0', 'aa-rows.json'), 'utf8'),
 ).rows.length
@@ -100,10 +87,7 @@ async function main() {
   }
 }
 
-// ------------------------------------------------------------------------------ S0
-
 async function s0(scratch) {
-  // S0-1：`s0` 模式装发行层。全部行先是标记的替身，读打印出的树核对行数。
   const run = runS0Process()
   const enabled = run.records.filter(entry => entry.kind === 'tree' && entry.disabled !== true)
   const startup = run.records.find(entry => entry.kind === 'startup-result')
@@ -131,7 +115,6 @@ async function s0(scratch) {
       : `没有标记的行：${unmarked.map(row => `${String(row.id)}(${String(row.implementation)})`).join(', ')}`,
   )
 
-  // S0-2：删掉 `storage` 行重启。依赖它的行停在 PENDING，退出码 4 表示仍有 PENDING。
   const whole = JSON.parse(readFileSync(S0_DISTRIBUTION, 'utf8'))
   const path = join(scratch.base, 's0-without-storage.json')
   writeJson(path, { rows: whole.rows.filter(row => row.id !== 'storage') })
@@ -149,8 +132,6 @@ async function s0(scratch) {
       (broken.stderr === '' ? '' : `，stderr ${broken.stderr.slice(0, 300)}`),
   )
 }
-
-// ------------------------------------------------------------------------ S1 与 S2
 
 async function s1AndS2(scratch) {
   const port = await freePort()
@@ -186,7 +167,6 @@ async function s1AndS2(scratch) {
         '全部启用行是 real',
       )
 
-    // S0-1 后半（AG-16→AG-01）：插件树上有时钟行。`serve` 的入口对象记录写出实现种类。
     const clocks = records.filter(
       entry =>
         entry.kind === 'entry-object' &&
@@ -209,10 +189,6 @@ async function s1AndS2(scratch) {
   }
 }
 
-/**
- * S1。树上还有替身时，能跑的前半照跑，观察写进等件的说明；整步仍按等件记。
- * 返回观察，供 S2 的等件说明引用。
- */
 async function s1(scratch, port, treeDouble) {
   const homes = { alice: join(scratch.base, 'home-alice'), bob: join(scratch.base, 'home-bob') }
   const url = `http://127.0.0.1:${String(port)}`
@@ -249,8 +225,6 @@ async function s1(scratch, port, treeDouble) {
       detail,
     )
 
-  // 接入与持久身份这两段已经是真件（`identity`、`storage`、`server-entry` 行是 real）。
-  // 单独报一条，免得等件把已经通的部分盖住。
   record(
     'S1',
     'S1-a 接入层与持久身份两段真件（S1 的一部分，不等于 S1-1）',
@@ -317,11 +291,6 @@ async function s1(scratch, port, treeDouble) {
   return observed
 }
 
-/**
- * S1-3：直接查 SQLite。系统域有账号与登录记录，租户域有会话日志条目。
- * 域文件由 `storage` 行的真件创建：文件名是域名的十六进制，`system.identity` 是系统域。
- * 租户域的会话日志由真实会话提供者写；它还是替身时，这一半按等件记。
- */
 async function s1_3(scratch, session, treeDouble) {
   const dir = join(scratch.storageRoot, 'domains')
   let files = []
@@ -373,7 +342,6 @@ async function s1_3(scratch, session, treeDouble) {
   else record('S1', name, systemOk ? 'pass' : 'fail', detail)
 }
 
-/** S2：一轮对话得到一次真实模型回复。树上还有替身时按等件记。 */
 async function s2(treeDouble, observed) {
   const why = treeDouble
     ? `agent-host 与 model-host 仍是替身；参考：替身上到 S1 的历史读回为止` +
@@ -382,8 +350,6 @@ async function s2(treeDouble, observed) {
   for (const [, name] of STEPS.filter(([step]) => step === 'S2'))
     blocked('S2', name, why, treeDouble ? REAL_ROWS_AWAIT : 'E1 的真件环节')
 }
-
-// ------------------------------------------------------------------------------ 入口
 
 const argv = process.argv.slice(2)
 const evidenceOverride = argv.includes('--evidence')

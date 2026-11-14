@@ -1,15 +1,3 @@
-// 契约 API 快照的差异粗分类：none、additive、review。白名单门：只有正证据成立才是 additive。
-//   none：两侧规范化文本相同。
-//   review（全局作用域）：扩充块、脚本文件、三斜线指令、导入导出的模块边或 `export as namespace` 有任何差异，
-//     整份 review，不跑检查器。消费者程序里全局作用域只有一份，检查器证明不了「这处改动没有影响已有导出」。
-//   additive：每一处差异都在模块作用域的白名单里（新增一个旧侧不知道的名字：不是入口已有的导出名，也不能在
-//     该文件作用域里解析到已有符号；模块作用域的接口或类型字面量里新增可选属性），
-//     并且检查器对涉及的每个导出用同一种写法证明两个方向都可赋值。
-//   review：其余一切。附注写明命中哪一条：全局作用域变了、白名单外改动、涉及的导出没有被比较覆盖、
-//     方向不成立、检查器未完成、实例组合超限、编译诊断。
-// 白名单的判断在 api-whitelist.ts（名字的作用域解析借旧侧程序），检查器证明在 api-compare.ts，
-// 这里把两者合成结论（judge 是纯函数）。
-// 这是粗分类：review 的意思是「需要人判断」，不是 PR「契约变化」的级别。拿不准一律 review。
 import {
   compareSnapshots,
   oldSideScope,
@@ -40,17 +28,12 @@ export function strongest(changes: readonly ApiChange[]): ApiChange {
   return changes.reduce<ApiChange>((a, b) => (RANK[b] > RANK[a] ? b : a), 'none')
 }
 
-/** 差异落在哪里：整份快照、一个入口、入口里的一个导出，或某个声明文件里的一条语句。 */
 export type DifferenceTarget =
   | { readonly scope: 'snapshot' }
   | { readonly scope: 'entry'; readonly entry: string }
   | { readonly scope: 'export'; readonly entry: string; readonly name: string }
   | { readonly scope: 'declaration'; readonly path: string; readonly statement: string }
 
-/**
- * added／removed／changed：增删改；marked：导出标注变了（改名、仅类型、声明来源）；
- * renamed：包名变了；missing：两边都没有快照；unresolved：还原的声明有编译诊断，检查器的结论不可信。
- */
 export type DifferenceKind =
   | 'added'
   | 'removed'
@@ -60,12 +43,6 @@ export type DifferenceKind =
   | 'missing'
   | 'unresolved'
 
-/**
- * review 的依据。global-scope-change：全局作用域有差异（扩充块、脚本文件、三斜线指令、导入导出的模块边），
- * 整份 review 且不跑检查器；outside-whitelist：改动不在白名单里（含删除、标注变化、包名变化、两侧都没有快照）；
- * uncovered：涉及的导出没有任何可赋值比较；direction：某个方向不成立；incomplete：检查器没有给出结论；
- * truncated：类型参数实例组合超过上限；diagnostics：还原的声明有编译诊断。
- */
 export type ReviewReason =
   | { readonly kind: 'global-scope-change'; readonly why: string }
   | { readonly kind: 'outside-whitelist'; readonly why: string }
@@ -85,7 +62,6 @@ export type Difference =
       readonly target: DifferenceTarget
       readonly kind: DifferenceKind
       readonly change: 'additive'
-      /** 检查器比较过并证明两个方向都成立时为 true。 */
       readonly proved?: true
     }
   | {
@@ -100,7 +76,6 @@ export interface SnapshotDifference {
   readonly differences: readonly Difference[]
 }
 
-/** 检查器还原声明要用的位置：外部包从检出根解析。 */
 export interface ClassifyContext {
   readonly root: string
   readonly directory: string
@@ -122,7 +97,6 @@ function review(
   return { target, kind, change: 'review', reasons }
 }
 
-/** 比较两份快照；`undefined` 表示那一侧没有快照。两侧都没有是 review：没有可比的东西，不能当作没变。 */
 export function classifySnapshots(
   before: ApiSnapshot | undefined,
   after: ApiSnapshot | undefined,
@@ -152,7 +126,6 @@ export function classifySnapshots(
     whitelist,
     textChanged: changedText(before, after),
   }
-  // 全局作用域有差异：整份 review，检查器证明不了别的导出不受影响，不跑。
   if (whitelist.global.length > 0) return judge({ ...judging, comparison: undefined })
   const comparison = compareSnapshots({
     root: context.root,
@@ -165,20 +138,12 @@ export function classifySnapshots(
 }
 
 export interface JudgeInput {
-  /** 结构上的增删与标注变化，已经按规则分好类。 */
   readonly structure: readonly Difference[]
   readonly whitelist: WhitelistResult
-  /** 检查器的结论；全局作用域有差异时没有跑，是 undefined。 */
   readonly comparison: CheckerComparison | undefined
-  /** 规范化后的声明文本有变化（参数改名、注释与布局之外）。 */
   readonly textChanged: boolean
 }
 
-/**
- * 白名单门的判定（纯函数）：结构差异照收；全局作用域的差异与白名单外的语句改动各记一项 review；
- * 每个检查器结论按问题种类记 review，涉及却没有比较覆盖的也记 review；
- * 两侧文本变了而没有任何差异落到导出上时，整份记一项 additive。整份取最强。
- */
 export function judge(input: JudgeInput): SnapshotDifference {
   const differences: Difference[] = [...input.structure]
   const declaration = (item: StatementChange) =>
@@ -202,7 +167,6 @@ export function judge(input: JudgeInput): SnapshotDifference {
   return result(differences)
 }
 
-/** 旧侧每个入口导出的名字（`export *` 与改名导出已经展开）到它所在的入口，给白名单 (a) 判断新名字。 */
 function exportedNames(snapshot: ApiSnapshot): ReadonlyMap<string, readonly string[]> {
   const names = new Map<string, string[]>()
   for (const entry of snapshot.entries)
@@ -214,7 +178,6 @@ function exportedNames(snapshot: ApiSnapshot): ReadonlyMap<string, readonly stri
   return names
 }
 
-/** 参数改名、注释与布局之外的声明变化。 */
 function changedText(before: ApiSnapshot, after: ApiSnapshot): boolean {
   const a = normalizedFiles(before.files)
   const b = normalizedFiles(after.files)
@@ -223,7 +186,6 @@ function changedText(before: ApiSnapshot, after: ApiSnapshot): boolean {
 
 interface Structure {
   readonly differences: Difference[]
-  /** 两侧都有、标注也相同的导出：交给检查器比形状。 */
   readonly common: { entry: string; name: string }[]
 }
 
@@ -261,7 +223,6 @@ function compareExports(structure: Structure, before: EntrySection, after: Entry
   }
 }
 
-/** 标注相同：改名、仅类型一致，来源同为本成员（文件可以挪动）或同一个外部包。 */
 function sameMarks(a: EntryExport, b: EntryExport): boolean {
   if (a.typeOnly !== b.typeOnly || a.renamedFrom !== b.renamedFrom) return false
   return sameOrigin(a.origin, b.origin)
@@ -272,7 +233,6 @@ function sameOrigin(a: ExportOrigin, b: ExportOrigin): boolean {
   return a.kind === b.kind
 }
 
-/** 检查器的一条结论变成差异：有任何 review 依据就是 review，否则文本变了才记一项 additive。 */
 function verdictDifference(verdict: Verdict, changed: ReadonlySet<string>): Difference[] {
   const reasons = reviewReasons(verdict, changed)
   const target = {

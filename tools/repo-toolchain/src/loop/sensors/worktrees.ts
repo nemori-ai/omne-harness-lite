@@ -1,5 +1,3 @@
-// 并行工作树：主检出以外、带分支的工作树有几棵，各自相对主线合并点改过哪些成员，
-// 哪些成员被两棵以上同时在改——同时改得越多，合回主线时越容易互相踩。
 import { baselines, readTaskContext } from '../../core/task-context.ts'
 import { statSync } from 'node:fs'
 import { changedFiles, git } from '../../core/git.ts'
@@ -8,11 +6,9 @@ import { memberOf } from '../../deps/graph.ts'
 export interface WorktreeEntry {
   readonly path: string
   readonly head: string | undefined
-  /** `refs/heads/` 之后的分支名；分离头指针或裸仓库没有。 */
   readonly branch: string | undefined
 }
 
-/** `git worktree list --porcelain` → 条目；第一条是主检出。 */
 export function parseWorktrees(porcelain: string): WorktreeEntry[] {
   const entries: WorktreeEntry[] = []
   for (const block of porcelain.split(/\n\s*\n/u)) {
@@ -33,7 +29,6 @@ export function parseWorktrees(porcelain: string): WorktreeEntry[] {
 export interface WorktreeChanges {
   readonly path: string
   readonly branch: string
-  /** 相对主线合并点改过的成员；读不出来时为 undefined，原因在 `problem`。 */
   readonly members?: readonly string[]
   readonly problem?: string
 }
@@ -43,7 +38,6 @@ export interface SharedMember {
   readonly worktrees: readonly string[]
 }
 
-/** 被两棵以上工作树同时改的成员，按棵数从多到少。 */
 export function sharedMembers(worktrees: readonly WorktreeChanges[]): SharedMember[] {
   const by = new Map<string, string[]>()
   for (const tree of worktrees)
@@ -55,7 +49,6 @@ export function sharedMembers(worktrees: readonly WorktreeChanges[]): SharedMemb
     .sort((a, b) => b.worktrees.length - a.worktrees.length || a.member.localeCompare(b.member))
 }
 
-/** 主检出以外、带分支的工作树及其改过的成员。 */
 export function readWorktrees(root: string, primaryBranch: string): WorktreeChanges[] {
   const [, ...others] = parseWorktrees(git(root, ['worktree', 'list', '--porcelain']))
   const out: WorktreeChanges[] = []

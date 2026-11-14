@@ -1,5 +1,3 @@
-// 仓库专用的配置只在仓库根的 `repo-toolchain.config.json` 里定一次，按节分给回路、度量、验收锁与契约 API 快照。
-// 文件从运行检查器的仓库读（见 subject.ts）；缺文件、缺节或不是 JSON 对象都报错，不悄悄用默认。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runnerRoot } from './subject.ts'
@@ -17,7 +15,6 @@ export function toolchainConfigPath(root: string = runnerRoot()): string {
   return join(root, TOOLCHAIN_CONFIG_FILE)
 }
 
-/** 读一节原样的 JSON；校验各节内容归各自的读取函数。 */
 export function readToolchainSection(
   section: ToolchainConfigSection,
   path: string = toolchainConfigPath(),

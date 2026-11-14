@@ -1,5 +1,3 @@
-// 量读数子进程收到的任务参数与收工钩子入口的「是不是本检出」判断，进程内直接调用：
-// 入口脚本只经子进程跑，覆盖率读不到它们里面的分支（子进程的端到端在 loop-stop-hook.spec.ts）。
 import { afterEach, describe, expect, it } from 'vitest'
 import { jobOf } from '../src/loop/hook-process.ts'
 import { toolRoot } from '../src/loop/tool-root.ts'

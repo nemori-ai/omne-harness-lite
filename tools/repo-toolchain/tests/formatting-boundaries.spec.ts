@@ -1,5 +1,4 @@
 // @module-tag slow
-// Runs the real formatting sandbox and Git hook through child processes.
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

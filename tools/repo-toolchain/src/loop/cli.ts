@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// 回路状态的命令行外壳：解析参数、调 run.ts、打印、给退出码。
-// 退出码 1 只在硬线被破时；2 是工具自己出错（参数、配置、git）。
 import { resolve } from 'node:path'
 import { runLoopStatus, type RunOptions } from './run.ts'
 import { parseScope } from './product-inputs.ts'
@@ -8,7 +6,6 @@ import { subjectRoot } from '../core/subject.ts'
 
 const USAGE =
   '用法：loop-status [--base <ref>] [--snapshot] [--out <dir>] [--strict] [--scope all|engineering] [--root <检出目录>]'
-/** 被量的检出缺省是本工具所在的检出；测试用 `--root` 指向临时仓库。 */
 
 function parseArgs(argv: readonly string[]): RunOptions {
   const values = new Map<string, string>()

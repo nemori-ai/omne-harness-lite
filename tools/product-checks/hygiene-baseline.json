@@ -1126,38 +1126,7 @@
     "packages/tool/tool/src/ledger-sweep.ts": 1,
     "packages/tool/tool/src/stream-facade.ts": 1,
     "packages/tool/tool/src/testing-access.ts": 1,
-    "packages/tool/tool/src/testing-store.ts": 1,
-    "tools/dev-flow/src/package-template/create.ts": 2,
-    "tools/product-checks/src/rules/core-pure-imports.ts": 4,
-    "tools/product-checks/src/rules/ops-import-whitelist.ts": 1,
-    "tools/product-checks/src/rules/test-temp-physical-path.ts": 1,
-    "tools/repo-toolchain/src/acceptance/historical-approvals.data.ts": 5,
-    "tools/repo-toolchain/src/declarations/api-classify.ts": 1,
-    "tools/repo-toolchain/src/declarations/api-cli.ts": 1,
-    "tools/repo-toolchain/src/declarations/api-compare.ts": 1,
-    "tools/repo-toolchain/src/declarations/api-format.ts": 1,
-    "tools/repo-toolchain/src/declarations/api-snapshot.ts": 1,
-    "tools/repo-toolchain/src/declarations/api-whitelist.ts": 1,
-    "tools/repo-toolchain/src/loop/budget.ts": 1,
-    "tools/repo-toolchain/src/loop/hook-graph.ts": 1,
-    "tools/repo-toolchain/src/loop/sensors/acceptance.ts": 1,
-    "tools/repo-toolchain/src/metrics/complexity.ts": 1,
-    "tools/repo-toolchain/src/metrics/coverage.ts": 2,
-    "tools/repo-toolchain/src/report/render.ts": 1,
-    "tools/test-runner/src/testing/admission-evidence.ts": 1,
-    "tools/test-runner/src/testing/check-graph.ts": 1,
-    "tools/test-runner/src/testing/cli.ts": 1,
-    "tools/test-runner/src/testing/environment.ts": 1,
-    "tools/test-runner/src/testing/filter-guard.ts": 1,
-    "tools/test-runner/src/testing/lockfile-impact.ts": 1,
-    "tools/test-runner/src/testing/parallelism.ts": 1,
-    "tools/test-runner/src/testing/pnpm-lockfile.ts": 1,
-    "tools/test-runner/src/testing/replay.ts": 1,
-    "tools/test-runner/src/testing/resume.ts": 1,
-    "tools/test-runner/src/testing/scope.ts": 1,
-    "tools/test-runner/src/testing/test-cache.ts": 2,
-    "tools/test-runner/src/testing/test-retry.ts": 1,
-    "tools/test-runner/src/testing/turbo.ts": 1
+    "packages/tool/tool/src/testing-store.ts": 1
   },
   "sizes": {
     "files": {
@@ -1200,8 +1169,7 @@
       "packages/tool/tool/src/driver.ts": 1105,
       "packages/tool/tool/src/ledger-start.ts": 1217,
       "packages/tool/tool/src/ledger.ts": 2249,
-      "tools/repo-toolchain/src/arch/extract.ts": 1106,
-      "tools/repo-toolchain/src/deps/graph.ts": 1085
+      "tools/repo-toolchain/src/arch/extract.ts": 1098
     },
     "functions": {
       "apps/harness-server/src/model/qualification.ts": {
@@ -1966,7 +1934,7 @@
       },
       "tools/product-checks/src/rules/model-credential-boundary.ts": {
         "count": 1,
-        "longest": 549
+        "longest": 547
       },
       "tools/repo-toolchain/src/arch/conformance.ts": {
         "count": 1,
@@ -1976,21 +1944,13 @@
         "count": 1,
         "longest": 188
       },
-      "tools/repo-toolchain/src/metrics/cli.ts": {
-        "count": 1,
-        "longest": 152
-      },
-      "tools/repo-toolchain/src/metrics/report.ts": {
-        "count": 1,
-        "longest": 152
-      },
       "tools/repo-toolchain/src/report/architecture-browser.ts": {
         "count": 1,
-        "longest": 579
+        "longest": 576
       },
       "tools/repo-toolchain/src/report/conformance-browser.ts": {
         "count": 1,
-        "longest": 180
+        "longest": 179
       },
       "tools/repo-toolchain/src/report/matrix.ts": {
         "count": 1,
@@ -1998,7 +1958,7 @@
       },
       "tools/test-runner/src/testing/check.ts": {
         "count": 1,
-        "longest": 190
+        "longest": 181
       }
     }
   }

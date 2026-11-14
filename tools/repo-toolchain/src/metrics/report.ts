@@ -1,5 +1,3 @@
-// 报告组装。着色评分、汇总规则、行内排序与依赖度量照 Robert C. Martin 的工具按其逻辑重写
-// （原仓库无许可证，不搬原文），出处逐处标注；与原实现的有意差异也在标注处说明。
 import { isTestPath, type SourceFile } from '../core/rule.ts'
 import { functionMetrics, nestedUnits, unitDigests } from './complexity.ts'
 import { touches, type ChangedLines, type CommitShape } from '../core/git.ts'
@@ -13,13 +11,11 @@ import {
   type MemberEdge,
 } from '../deps/graph.ts'
 
-/** 函数级的「要解释」线：超过 warn 列入清单，超过 alert 另计。 */
 export interface Thresholds {
   readonly warn: number
   readonly alert: number
 }
 
-/** 成员着色的色带：风险值不超过 green 为绿，到 yellow 过渡为黄，到 red 及以上为红。 */
 export interface Bands {
   readonly green: number
   readonly yellow: number
@@ -29,16 +25,11 @@ export interface Bands {
 export type Level = 'ok' | 'warn' | 'alert'
 export type Band = 'green' | 'yellow' | 'red'
 
-/** 一个文件里各行的命中：有可执行语句的行 → 是否执行过。 */
 export type LineHits = ReadonlyMap<number, boolean>
 
-/** 覆盖率层的输入；没有跑覆盖率时整体缺席。 */
 export interface CoverageInput {
-  /** 仓库相对路径 → 行命中。 */
   readonly files: ReadonlyMap<string, LineHits>
-  /** 成员路径 → 测试进程退出码；没有跑的成员不在其中。 */
   readonly members: ReadonlyMap<string, number>
-  /** dist 早于源码的成员：映射回源码的行号可能对不上。 */
   readonly staleDist: readonly string[]
 }
 
@@ -49,14 +40,10 @@ export interface FunctionRow {
   readonly line: number
   readonly endLine: number
   readonly complexity: number
-  /** 0 到 1；没有覆盖率数据或函数里没有可执行语句时缺席。 */
   readonly coverage?: number
-  /** 只在有覆盖率时给出。 */
   readonly crap?: number
-  /** 评级用的分数：有 CRAP 用 CRAP，否则用圈复杂度。 */
   readonly score: number
   readonly level: Level
-  /** 1（最差）到 10（最好），着色用。 */
   readonly grade: number
   readonly changed: boolean
 }
@@ -66,24 +53,18 @@ export interface MemberRow {
   readonly group: string
   readonly layer: number
   readonly functions: number
-  /** 函数评级分的均值、总体标准差与最大值，各自四舍五入到 0.1。 */
   readonly mu: number
   readonly sigma: number
   readonly max: number
-  /** 风险值 = 均值 + 标准差；着色按它，单个最差函数不至于把整个成员染红。 */
   readonly risk: number
   readonly grade: number
   readonly band: Band
   readonly overWarn: number
   readonly overAlert: number
   readonly changed: boolean
-  /** 基线以来变更的函数里超过 warn 的个数。 */
   readonly changedOver: number
-  /** measured：有行命中数据；no-data：跑了测试但没有命中本包源码；not-run：没跑。 */
   readonly coverage: 'measured' | 'no-data' | 'not-run'
-  /** 语句行命中比例，只在 measured 时给出。 */
   readonly lineCoverage?: number
-  /** 依赖它的成员数、它依赖的成员数，与不稳定度 出 /（入 + 出）。 */
   readonly fanIn: number
   readonly fanOut: number
   readonly instability: number
@@ -95,16 +76,13 @@ export interface EdgeRow {
   readonly count: number
   readonly sites: readonly ImportSite[]
   readonly violating: boolean
-  /** 有导入处落在基线以来改动的行里。 */
   readonly changed: boolean
 }
 
 export interface GroupRow {
   readonly group: string
-  /** 组内最差成员的风险值与评分。 */
   readonly risk: number
   readonly grade: number
-  /** 成员路径，已按行内排序排好。 */
   readonly members: readonly string[]
 }
 
@@ -113,14 +91,12 @@ export interface Report {
   readonly bands: Bands
   readonly coverageEnabled: boolean
   readonly hasBase: boolean
-  /** 下标即层号，0 为最内层；每层的组已按行内排序排好。 */
   readonly layout: readonly (readonly GroupRow[])[]
   readonly members: readonly MemberRow[]
   readonly functions: readonly FunctionRow[]
   readonly edges: readonly EdgeRow[]
   readonly findings: readonly DependencyFinding[]
   readonly commits?: CommitShape
-  /** 覆盖率那一趟里测试退出码非零的成员。度量照出，测试结论另算。 */
   readonly failedTests: readonly string[]
   readonly staleDist: readonly string[]
 }
@@ -138,10 +114,6 @@ const GRADE_BEST = 10
 const GRADE_MID = 5.5
 const GRADE_WORST = 1
 
-/**
- * 风险值在三个色带点上分段线性地映到 10、5.5、1，两端截断。
- * 出自 unclebob/uml-viewer@0171682 src/uml_viewer/domain/config.clj 的 `along` 与 `crap-grade`。
- */
 export function gradeOf(risk: number, bands: Bands): number {
   const lerp = (x: number, x0: number, x1: number, y0: number, y1: number) =>
     x0 === x1 ? y0 : y0 + ((x - x0) / (x1 - x0)) * (y1 - y0)
@@ -151,7 +123,6 @@ export function gradeOf(risk: number, bands: Bands): number {
   return GRADE_WORST
 }
 
-/** 同一文件的 `crap-band`：不超过 green 为绿，不超过 yellow 为黄，其余为红。 */
 export function bandOf(risk: number, bands: Bands): Band {
   if (risk <= bands.green) return 'green'
   return risk <= bands.yellow ? 'yellow' : 'red'
@@ -159,10 +130,6 @@ export function bandOf(risk: number, bands: Bands): Band {
 
 const round1 = (value: number) => Math.round(value * 10) / 10
 
-/**
- * 均值、**总体**标准差（除以 n）与最大值，各自四舍五入到 0.1；风险值取四舍五入后的均值加标准差。
- * 出自 uml-viewer@0171682 application/overlay.clj:103-113。
- */
 export function spread(scores: readonly number[]): {
   mu: number
   sigma: number
@@ -177,12 +144,6 @@ export function spread(scores: readonly number[]): {
   return { mu, sigma, max: round1(Math.max(...scores)), risk: mu + sigma }
 }
 
-/**
- * 行内排序：位置取下标 × 80；做 5 轮，每轮从上到下逐行，按「无向邻居当前位置的平均值」稳定排序
- * （没有邻居就用自身位置），再重排为下标 × 80。只有重心法，不统计交叉数。
- * 出自 uml-viewer@0171682 engine/layout.clj:286-358。
- * 这里每行是若干段，只在段内重排：组级调用每行一段，成员级调用每个组一段（成员不出自己的组）。
- */
 export function barycenterOrder(
   rows: readonly (readonly (readonly string[])[])[],
   neighbors: ReadonlyMap<string, ReadonlySet<string>>,
@@ -237,16 +198,10 @@ function undirected(
   return neighbors
 }
 
-/** 度量的口径：成员 `src/` 下的非测试、非声明 TypeScript 源。 */
 export function isMeasuredSource(path: string): boolean {
   return /\/src\//u.test(path) && !isTestPath(path) && !path.endsWith('.d.ts')
 }
 
-/**
- * 函数行范围内、且不落在更内层有名函数里的语句行的命中比例；范围内没有语句行时不给数。
- * crapper@4909ad2 coverage.py 按整个区间求比例、区间内没有行时记 0%；这里内层有名函数各自成单元，
- * 所以把它们的行从外层扣掉，外层只剩声明时不拿 0% 去罚它。
- */
 function coverageOf(
   hits: LineHits,
   unit: { readonly line: number; readonly endLine: number },
@@ -265,16 +220,10 @@ function coverageOf(
 
 export interface BuildInput {
   readonly files: readonly SourceFile[]
-  /** dependency-cruiser 给出的成员图与违规，见 `deps/graph.ts`。 */
   readonly graph: DependencyGraph
   readonly thresholds: Thresholds
   readonly bands: Bands
-  /** 基线以来改动的文件与行区间；缺席表示没有基线。 */
   readonly changed?: ChangedLines
-  /**
-   * 改动文件在基线上的文本（基线上没有这个文件则值为 undefined）。给了它，函数是否变更按函数文本
-   * 摘要比对；没给的文件退回「改动行是否落在函数范围内」。
-   */
   readonly baseTexts?: ReadonlyMap<string, string | undefined>
   readonly coverage?: CoverageInput
   readonly commits?: CommitShape
@@ -285,10 +234,6 @@ interface LayoutGraph {
   readonly edges: readonly MemberEdge[]
 }
 
-/**
- * 组的层号，由依赖图本身得出：不依赖别的组的在第 0 层，其余在它所依赖的组之上一层；成环的组并作一处。
- * 层位不再人工登记，方向由 dependency-cruiser 的规则判，这里只决定画面上的上下次序。
- */
 export function groupLayers(graph: LayoutGraph): ReadonlyMap<string, number> {
   const groupOf = new Map(graph.members.map(member => [member.path, member.group]))
   const groups = [...new Set(groupOf.values())].sort()
@@ -334,7 +279,6 @@ function layoutOf(
 ): GroupRow[][] {
   const groupOf = new Map(graph.members.map(member => [member.path, member.group]))
   const count = Math.max(-1, ...layers.values()) + 1
-  // 行从最外层排到最内层，与画面自上而下一致。
   const layerRows = Array.from({ length: count }, (_, index) => ({
     index,
     groups: [...layers].filter(([, layer]) => layer === index).map(([group]) => group),
@@ -359,7 +303,6 @@ function layoutOf(
   layerRows.forEach((row, rowIndex) => {
     layout[row.index] = (groupOrder[rowIndex] ?? []).map((group, groupIndex) => {
       const members = memberOrder[rowIndex]?.[groupIndex] ?? []
-      // 父节点取最差的子节点：uml-viewer@0171682 application/hierarchy.clj:94-104。
       const risk = members.reduce(
         (worst, path) => Math.max(worst, memberRows.get(path)?.risk ?? 0),
         0,
@@ -370,10 +313,8 @@ function layoutOf(
   return layout
 }
 
-/** 路径一律相对于仓库根。 */
 export function buildReport(input: BuildInput): Report {
   const { files, thresholds, bands, changed, coverage } = input
-  // 成员取依赖图里的与源码里出现的并集：没有导入也没被导入的成员同样要度量。
   const known = new Map(input.graph.members.map(member => [member.path, member]))
   for (const file of files) {
     const member = memberOf(file.path)
@@ -386,7 +327,6 @@ export function buildReport(input: BuildInput): Report {
   const findings = input.graph.findings
   const layerOf = groupLayers(graph)
 
-  // 跑了测试却一条语句都没命中：几乎总是测试在子进程或别处执行，不是真的零覆盖，按缺数据处理。
   const lineTotals = new Map<string, { total: number; covered: number }>()
   for (const [path, hits] of coverage?.files ?? []) {
     const member = memberOf(path)
@@ -408,8 +348,6 @@ export function buildReport(input: BuildInput): Report {
     const ranges = changed?.get(file.path)
     const hits = hasData(member.path) ? coverage?.files.get(file.path) : undefined
 
-    // 函数是否变更：比对函数自身文本的摘要（unclebob/mutator@21d6d6f engine.py:61-98 的判法），
-    // 不看 diff 行号——挪位置、上方插入代码都不算变。
     let isChanged = (unit: { name: string; line: number; endLine: number }): boolean =>
       ranges !== undefined && touches(ranges, unit.line, unit.endLine)
     if (ranges !== undefined && input.baseTexts?.has(file.path) === true) {
@@ -448,9 +386,6 @@ export function buildReport(input: BuildInput): Report {
     if (member !== undefined) changedMembers.add(member.path)
   }
 
-  // 扇入、扇出按去重后的相邻成员数；不稳定度 = 出 /（入 + 出），两者都为 0 时取 0。
-  // 出自 unclebob/dependency-checker@61097ea core/stats.clj。抽象度与主序列距离没有移植：
-  // 那套判法会把稳定而没有抽象的叶子一律判进「痛苦区」，对纯数据契约包不成立。
   const fanIn = new Map<string, number>()
   const fanOut = new Map<string, number>()
   for (const edge of graph.edges) {
@@ -542,9 +477,7 @@ export function describeFunction(row: FunctionRow): string {
   return `${row.path}:${row.line} ${row.name} CC ${row.complexity}${coverage}${score}`
 }
 
-/** 交付说明里原样粘贴的摘要；不超过 12 行。 */
 export function summaryLines(report: Report, context: SummaryContext): string[] {
-  // 开了覆盖率也只有跑过的成员有 CRAP，其余函数仍按圈复杂度评级。
   const metric = report.coverageEnabled ? 'CRAP 或圈复杂度' : '圈复杂度'
   const lines: string[] = []
   const base = context.baseRef === undefined ? '无基线，按全仓报告' : `基线 ${context.baseRef}`

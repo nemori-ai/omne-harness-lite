@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict'
 
-// Feasibility experiment only. Not a production registry or a lifecycle contract.
-// Context is supplied from the exact adopted Cordis installation by the caller.
 export async function probeLifecycle(Context) {
   const observations = []
   const context = new Context()
@@ -60,7 +58,6 @@ export async function probeLifecycle(Context) {
     return { fiber, entry }
   }
   const first = await register('v1')
-  // A prior idle interval must not authorize disposing a later live invocation.
   const earlier = acquire('v1')
   earlier.release()
   const runtime = acquire(adopted)
@@ -90,7 +87,6 @@ export async function probeLifecycle(Context) {
     result: 'pass',
   })
 
-  // Cancelling alone does not release resources. A consumer must acknowledge stop.
   newCall.signal.addEventListener('abort', () =>
     observations.push({ scenario: 'force_cancel_requested' }),
   )

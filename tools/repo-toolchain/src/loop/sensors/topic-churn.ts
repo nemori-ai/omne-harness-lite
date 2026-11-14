@@ -5,13 +5,11 @@ import { git } from '../../core/git.ts'
 import { noData, data, type Reading } from '../reading.ts'
 
 export interface TopicChurn {
-  /** 相对于仓库根的 README 路径。 */
   readonly path: string
   readonly topic: string
   readonly revisions: number
 }
 
-/** 各 topic 的翻动次数，多的在前。`productRoot` 不存在或没有当前 topic 就没有数据；非法产品元数据明确失败。 */
 export function readTopicChurn(
   root: string,
   productRoot: string,

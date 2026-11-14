@@ -1,6 +1,3 @@
-// 验收的覆盖声明：每份可执行验收在开头的注释块里恰好一行 `// covers: PD-cli S5`（多条用逗号隔开），
-// 文件名以它覆盖的某个 topic 的完整身份开头，声明的每条场景都在那个 topic 的 acceptance.md 里有一行。
-// 场景含义变了会换新编号，覆盖旧编号的验收在这里被点名——这是这份检查存在的理由。
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { isLegacyDirectory } from '@omne-harness/repo-toolchain/core/check-scope'
@@ -17,7 +14,6 @@ import {
 } from '@omne-harness/repo-toolchain/acceptance/lock'
 
 export const ACCEPTANCE_COVERS_RULE = 'acceptance-covers'
-/** 成员跑验收的脚本名；有验收文件的成员必须有它，测试运行器以 `--script acceptance` 跑它。 */
 export const ACCEPTANCE_SCRIPT: RunScript = 'acceptance'
 
 const SUFFIX = '.acceptance.ts'
@@ -27,30 +23,25 @@ const FILE_TOPIC = /^(PD-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)\./u
 const SKIP = new Set(['node_modules', 'dist', '.git'])
 
 export interface AcceptanceFile {
-  /** 仓库相对路径。 */
   readonly path: string
   readonly text: string
 }
 
 export interface CoveredScenario {
-  /** `PD-cli`。 */
   readonly topic: string
   readonly id: string
 }
 
-/** 一份验收声明覆盖的场景；声明本身不合写法的项不在其中。 */
 export interface Declaration {
   readonly path: string
   readonly covers: readonly CoveredScenario[]
 }
 
-/** 成员目录：路径里 `acceptance` 那一段之前的部分。 */
 export function memberOfAcceptance(path: string, config: AcceptanceLockConfig): string {
   const segments = path.split('/')
   return segments.slice(0, segments.indexOf(config.directory, 1)).join('/')
 }
 
-/** 成员根下全部 `acceptance/**\/*.acceptance.ts`，仓库相对路径，排好序。 */
 export function listAcceptanceFiles(root: string, config: AcceptanceLockConfig): string[] {
   const found: string[] = []
   const walk = (relative: string): void => {
@@ -73,7 +64,6 @@ export function listAcceptanceFiles(root: string, config: AcceptanceLockConfig):
 
 type Problem = { readonly line: number; readonly message: string }
 
-/** 开头注释块里那一行声明：文件开头连续的 `//` 注释行（中间可以有空行）里恰好一行 `// covers:`。 */
 function declarationOf(text: string): {
   readonly declared?: { readonly line: number; readonly value: string }
   readonly problems: Problem[]
@@ -108,7 +98,6 @@ function declarationOf(text: string): {
   return second === undefined && only !== undefined ? { declared: only, problems } : { problems }
 }
 
-/** 声明里一项指的场景在不在：topic 目录唯一，那份 acceptance.md 里恰好一行带这个编号。 */
 function scenarioProblem(
   scenario: CoveredScenario,
   byTopic: ReadonlyMap<string, readonly ProductTopic[]>,
@@ -127,7 +116,6 @@ function scenarioProblem(
   return undefined
 }
 
-/** 声明的值逐项拆开：写法、重复、场景在不在。 */
 function itemsOf(
   value: string,
   byTopic: ReadonlyMap<string, readonly ProductTopic[]>,
@@ -157,7 +145,6 @@ function itemsOf(
   return { covers, problems }
 }
 
-/** 文件名以 `PD-<slug>.` 开头，且这个 topic 在它声明覆盖的 topic 里。 */
 function fileNameProblem(path: string, covers: readonly CoveredScenario[]): string | undefined {
   const named = FILE_TOPIC.exec(path.split('/').at(-1) ?? '')?.[1]
   if (named === undefined)
@@ -170,12 +157,10 @@ function fileNameProblem(path: string, covers: readonly CoveredScenario[]): stri
 export interface CoverageInput {
   readonly files: readonly AcceptanceFile[]
   readonly topics: readonly ProductTopic[]
-  /** 成员目录 → 它有没有 `acceptance` 脚本。 */
   readonly hasScript: (member: string) => boolean
   readonly config: AcceptanceLockConfig
 }
 
-/** 纯函数：逐份核覆盖声明，返回违反与读出来的声明。 */
 export function judgeCoverage(input: CoverageInput): {
   readonly violations: Violation[]
   readonly declarations: Declaration[]
@@ -219,7 +204,6 @@ function hasAcceptanceScript(root: string, member: string): boolean {
   return typeof parsed.scripts?.[ACCEPTANCE_SCRIPT] === 'string'
 }
 
-/** 读仓库的持续覆盖声明；非法产品来源明确失败。 */
 export function inspectCoverage(
   root: string,
   productRoot: string,

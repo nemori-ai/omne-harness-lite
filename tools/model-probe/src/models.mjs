@@ -1,4 +1,3 @@
-// Confirmed delivery scope. Presence in a directory is not certification.
 export const models = Object.freeze(
   [
     ...[

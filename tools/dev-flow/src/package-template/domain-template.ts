@@ -11,7 +11,6 @@ export interface DomainManifest {
   readonly common: readonly FileTemplate[]
   readonly requiredFiles: readonly string[]
   readonly layout: LayoutRules
-  /** Exact historical versions only. These are structural rules, never old template bodies. */
   readonly previousVersions: Readonly<
     Record<string, { readonly requiredFiles: readonly string[]; readonly layout: LayoutRules }>
   >

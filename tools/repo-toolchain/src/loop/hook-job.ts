@@ -1,14 +1,9 @@
-// 收工钩子量读数的子进程要做的事：先只跑 git 看这次变更碰没碰产品源码，碰了再量。
-// 进程与消息通道的装配在 hook-child.ts；这里没有进程副作用，进程内可直接调用。
 import { readMetricsConfig } from '../metrics/config.ts'
 import { cachedBaselineReader } from './baseline-cache.ts'
 import { readLoopConfig } from './config.ts'
 import { measureForHook, touchedBase } from './hook-measure.ts'
 import type { ChildJob, ChildMessage } from './hook-process.ts'
 
-/**
- * 做一份任务，返回要发回的 `result` 消息。基线读数这次现算存下时，量的过程中调 `onPrepared` 报一次提交。
- */
 export function resultOf(
   job: ChildJob,
   onPrepared: (commit: string) => void,

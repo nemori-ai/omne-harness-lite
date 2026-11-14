@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// 命令面：根 package.json 的 closeout:metrics、closeout:mutation 与 risk。逻辑在 commands.ts，这里只装真实的 Git、执行器与配置。
 import { availableParallelism, tmpdir } from 'node:os'
 import { COMMANDS, isCommandName, runCommand, usageExitCode, type Deps } from './commands.ts'
 import { readReadingConfig } from './config.ts'

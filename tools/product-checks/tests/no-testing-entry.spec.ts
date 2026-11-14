@@ -25,7 +25,6 @@ const manifest = (testing: unknown): string =>
     name: '@omne-harness/b',
     exports: { '.': './src/index.ts', './testing': testing },
   })
-/** 与 CLI 对每个扫描根的做法一致：该根的源码按该根的规则检查。 */
 function testingViolations(root: string): string[] {
   return runRules(collectSources(root), rulesForRoot(root))
     .filter(item => item.rule === 'no-testing-import')

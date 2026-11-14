@@ -1,5 +1,3 @@
-// E9 适配器的轮驱动：用替身世界跑 `runOneRound`，核对读不到终态时报错、读到的终态与日志数怎样交给采集者。
-// 真实的 line-through 世界只在 `tools/e9/cli.mjs run` 里跑（不进准入，R2-D141）。
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRoundCollector } from '../e9/collector.mjs'
@@ -14,7 +12,6 @@ import {
 const SESSION = 'cp3-session'
 const access = { principal: 'p', tenant: 't', session: SESSION }
 
-/** 一页历史：`ids` 是条目标识，`next` 是下一页游标。 */
 const page = (ids, next = null) => ({
   ok: { entries: ids.map(id => ({ id })), annotations: [], next },
 })
@@ -38,10 +35,6 @@ const terminal = (run, outcome = 'completed') => ({
   ok: { run: { kind: 'terminal', terminal: { run, outcome, evidence: { record: run } } } },
 })
 
-/**
- * 替身世界：`runRound` 按 `script` 依次答 readWork（经 watch 包过的读口），像 w2-world 的 runRound 那样
- * 轮询到新终态为止；`script` 用完仍没有新终态时抛错，就像世界的 `until` 超时。
- */
 function fakeWorld({ answers, entries = ['e1', 'e2'], fail }) {
   let index = 0
   const raw = async () => answers[Math.min(index++, answers.length - 1)]

@@ -2,13 +2,9 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { isLegacyDirectory } from '@omne-harness/repo-toolchain/core/check-scope'
 
-/** 同一扫描根中的 testing 入口、成员验收目录与无法解析的清单。 */
 export interface TestingEntries {
-  /** 入口文件，相对于扫描根的 POSIX 路径，与 `SourceFile.path` 同一写法。 */
   readonly entries: ReadonlySet<string>
-  /** 合法具名成员的直接 acceptance 目录，相对于扫描根，含末尾斜杠。 */
   readonly acceptanceDirectories: ReadonlySet<string>
-  /** 无法解析的 package.json，相对于扫描根；其声明的入口不可知，不能当作没有入口。 */
   readonly unparsable: readonly string[]
 }
 
@@ -18,7 +14,6 @@ export const NO_TESTING_ENTRIES: TestingEntries = {
   unparsable: [],
 }
 
-/** `exports["./testing"]` 指向的源文件：字符串取其值；对象取 `source`，缺 `source` 时只在 `import` 指向 `.ts` 源时取它。 */
 function declaredSource(manifest: unknown): string | undefined {
   if (manifest === null || typeof manifest !== 'object') return undefined
   const exportsField = (manifest as { exports?: unknown }).exports
@@ -34,7 +29,6 @@ function declaredSource(manifest: unknown): string | undefined {
     : undefined
 }
 
-/** 读 `root` 下每个 package.json 声明的 `./testing` 入口；遍历范围与 `collectSources` 一致（跳过 node_modules、dist 与归档目录）。 */
 export function collectTestingEntries(root: string): TestingEntries {
   const base = resolve(root)
   const entries = new Set<string>()

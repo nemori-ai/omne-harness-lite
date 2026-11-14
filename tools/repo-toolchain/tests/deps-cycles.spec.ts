@@ -1,6 +1,4 @@
 // @module-tag slow
-// 环的判定：成员之间成环让 `omne-deps` 退出 1；只在组的层面成环、成员之间不成环，不是发现，退出 0。
-// 约束文件 schema 3 接受登记组层面例外的那个键，但不读它。归慢层：临时仓库上起子进程真跑 dependency-cruiser。
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -15,7 +13,6 @@ const CLI = fileURLToPath(new URL('../src/deps/cli.ts', import.meta.url))
 const source = (imports: readonly string[]) =>
   `${imports.map((path, index) => `import { v as v${index} } from '${path}'`).join('\n')}\nexport const v = ${imports.length === 0 ? '1' : imports.map((_, index) => `v${index}`).join(' + ')}\n`
 
-/** 组 context 的 x → 组 tool 的 y → `yImports`；z 与 w 在组 context，不导入别人。 */
 function subject(yImports: readonly string[]): string {
   const root = repository()
   write(root, '.gitignore', 'node_modules/\n')

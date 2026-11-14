@@ -1,28 +1,14 @@
 #!/usr/bin/env node
-// Journal 事实体守卫：扫测试世界生成的库里 `er_fact.body`（sql-contract §10.1 的压缩文本，先解码），里面出现内容类型的判别键（`role`、`content`、
-// `messages`、`system`）就判红。Journal 的事实只存引用、摘要和小值；这些键说明有 `Message`、模型请求或
-// 工具请求的内容被整份拷进了事实体，违背「Journal 自有部分不含日志或生产者已有内容」。
-//
-// 用法：
-//   node scripts/check-journal-facts.mjs [库文件或目录 ...]
-// 不给参数时扫 `tmp/journal-facts/`，那是 harness-server 的 journal-bytes 用例跑完世界后留下的库副本。
-//
-// 退出码：0 通过或跳过；1 发现违规；2 库打不开或用法错误。
-// 跳过要说明原因：没有库，或库里没有 `er_fact` 表（终态 Journal provider 合入之前，事实还不是一行一条；
-// R2-D294）。跳过不是通过：输出里写明「skipped」。
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
 import { unpackText } from '../packages/storage/sql-contract/src/text-pack.ts'
 
-/** 内容类型的判别键。键名整词相等才算，`contentDigest` 这类不算。 */
 export const CONTENT_KEYS = Object.freeze(['role', 'content', 'messages', 'system'])
 
-/** 默认扫的目录，相对仓库根。 */
 export const DEFAULT_DIRECTORY = 'tmp/journal-facts'
 
-/** 在解析后的 JSON 值里找判别键，返回带路径的命中。 */
 export function findContentKeys(value, path = '$') {
   const hits = []
   if (Array.isArray(value)) {
@@ -36,10 +22,6 @@ export function findContentKeys(value, path = '$') {
   return hits
 }
 
-/**
- * 扫一个库。返回 `{ kind: 'skipped', reason }` 或 `{ kind: 'scanned', rows, violations }`。
- * `body` 不是合法 JSON 也算违规：守卫读不懂的事实体不能当作干净。
- */
 export function scanDatabase(file) {
   const db = new DatabaseSync(file, { readOnly: true })
   try {
@@ -71,7 +53,6 @@ export function scanDatabase(file) {
   }
 }
 
-/** 把参数展开成库文件：目录取其中的 `.sqlite`。 */
 export function databasesOf(paths) {
   const files = []
   for (const path of paths) {

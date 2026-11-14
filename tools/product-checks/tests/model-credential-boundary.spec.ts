@@ -536,13 +536,10 @@ test('root configured aliases have collector and actual built CLI parity', () =>
     expect(modelCredentialBoundary.check(inputs[0] ?? [])).toEqual(
       modelCredentialBoundary.check(inputs[1] ?? []),
     )
-    // The built public CLI derives its repository root with a trailing slash.
-    // Copy its emitted bytes, preserving the real tools/ layout and locked dependencies.
     cpSync(fileURLToPath(new URL('../dist', import.meta.url)), join(tool, 'dist'), {
       recursive: true,
     })
     writeFileSync(join(tool, 'package.json'), JSON.stringify({ type: 'module' }))
-    // The CLI reads its configuration from the repository it runs in, as in the real layout.
     cpSync(
       fileURLToPath(new URL('../../../repo-toolchain.config.json', import.meta.url)),
       join(root, 'repo-toolchain.config.json'),
@@ -580,7 +577,7 @@ test('root configured aliases have collector and actual built CLI parity', () =>
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
-}, 30_000) // Two runs of the built CLI (~2 s alone, over 5 s under workspace-wide load); assertions unchanged.
+}, 30_000)
 
 test('retired app and unrelated example cannot own model credential factories', () => {
   for (const path of [

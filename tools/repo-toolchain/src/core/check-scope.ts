@@ -13,7 +13,6 @@ export function isLegacyFile(path: string): boolean {
   return isLegacyDirectory(segments.slice(0, -1).join('/'))
 }
 
-/** Whether any directory under `root`, outside node_modules and .git, is an archived `.legacy` one. */
 export function hasArchivedDirectories(root: string): boolean {
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory() || ['node_modules', '.git'].includes(entry.name)) continue

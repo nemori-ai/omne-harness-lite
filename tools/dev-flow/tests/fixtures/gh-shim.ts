@@ -1,9 +1,3 @@
-// Preloaded on Windows through NODE_OPTIONS by ghEnv in gh.ts. It does nothing unless this process was
-// started as `gh`, that is, through the `gh.exe` link that writeGh puts next to the stand-in script.
-// Node then takes the first gh argument as its main module and has already resolved it against the
-// working directory. The shim recovers that argument, gives the script the argv it has on POSIX, and
-// runs the script `gh` next to the link in its place: a Node script in this process, any other script
-// through Git for Windows' bash.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { registerHooks } from 'node:module'

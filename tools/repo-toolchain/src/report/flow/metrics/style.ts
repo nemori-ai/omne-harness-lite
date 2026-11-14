@@ -1,4 +1,3 @@
-/** 结构图岛的样式。颜色取页面 token，深浅色跟随系统设置，不另配一套。 */
 export const STRUCTURE_STYLE = `
 /* 侧栏占满右列，与工具栏、画布、底栏三行等高；左列自上而下是这三行。 */
 .structure-frame { margin-top:4px; border:1px solid var(--line); border-radius:var(--r-panel); overflow:hidden; background:var(--panel);

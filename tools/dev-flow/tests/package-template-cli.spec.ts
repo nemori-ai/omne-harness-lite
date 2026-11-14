@@ -1,5 +1,4 @@
 // @module-tag slow
-// Slow: every case runs the package-template CLI as a child process over a temporary git workspace (tsc and git included). File total 19.1 s on the full-admission fast-tier ledger, 56.1 s under load; 2 of its 13 cases are over the 2.5 s per-case budget on the admission run, all 13 under load, and one reached 6 s under load against the 5 s timeout (tools/test-runner/README_ZH.md「归层」).
 import { afterEach, expect, it } from 'vitest'
 import { spawnSync, execFileSync } from 'node:child_process'
 import {
@@ -23,8 +22,6 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 function fixture() {
-  // native: on Windows tmpdir() may be an 8.3 short name that the JS realpath keeps, while Git
-  // reports the long name and the installed repo-toolchain compares the two literally.
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'omne-template-cli-')))
   roots.push(root)
   mkdirSync(join(root, 'packages'))
@@ -39,7 +36,6 @@ function fixture() {
       rules: [{ id: 'IC-4', source: 'docs/architecture/policy.md' }],
     }),
   )
-  // 根 tsconfig.base.json 只是指向共享预设的 extends；隔离工作区里直接放预设本身。
   cpSync(join(repo, 'tools/repo-config/tsconfig.base.json'), join(root, 'tsconfig.base.json'))
   writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n')
   writeFileSync(join(root, 'package.json'), JSON.stringify({ engines: { node: '>=24 <25' } }))
@@ -83,7 +79,6 @@ it('runs real preview/write/scan paths and rejects a Cordis leak despite a curre
   writeFileSync(manifestPath, JSON.stringify(manifest))
   const clean = run(root, ['scan', '--member', member, '--check', '--json'])
   expect(clean.stderr).toBe('')
-  // A full tree assertion does not resolve this fixture's unknown architectural role.
   expect(clean.status).toBe(0)
   expect(JSON.parse(clean.stdout).packages[0].structure).toBe('pass')
   expect(JSON.parse(clean.stdout).packages[0].integration).toBe('unknown')

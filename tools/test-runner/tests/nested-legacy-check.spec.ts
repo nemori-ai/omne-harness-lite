@@ -79,16 +79,11 @@ function fixture(): string {
   return root
 }
 
-/** 成员的 tsconfig 在自己的 exclude 后面加上模板给的归档排除。 */
 function excludeArchives(root: string): void {
   const config = JSON.parse(readFileSync(join(root, 'tsconfig.test.json'), 'utf8'))
   config.exclude = [...(config.exclude ?? []), '**/*.legacy/**']
   put(root, 'tsconfig.test.json', JSON.stringify(config))
 }
-/**
- * 成员的 typecheck 脚本由 turbo 原样运行；这里照样跑一次 tsc。`.bin/tsc` 链到 tsc 的 Node 入口，由当前
- * Node 运行它：Windows 上不经 shell 起不了无扩展名的脚本。
- */
 function tsc(root: string): number {
   return (
     spawnSync(process.execPath, [join(root, 'node_modules/.bin/tsc'), '-p', 'tsconfig.test.json'], {
@@ -145,7 +140,6 @@ it('preserves project references and existing exclusions in the generated projec
     join(root, 'evidence/project.json'),
   )
   const output = JSON.parse(readFileSync(scoped.path, 'utf8'))
-  // files 与 references 是 TypeScript 解析出的路径，各平台都用正斜杠。
   const parsed = (path: string) => join(root, path).split(sep).join('/')
   expect(output.files).toEqual([parsed('src/live.ts')])
   expect(output.include).toEqual([])
@@ -180,7 +174,6 @@ it('reports archived compiler roots outside the member, which a member glob cann
   expect(problem(root)).toContain('Archived files are compiler roots')
 }, 20_000)
 
-// Slow: starts real Vitest in a fixture workspace. 2.4 s on the full-admission fast-tier ledger, 6.2 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
 it(
   'real Vitest filters external compiler roots without an internal archive trigger',
   { tags: ['slow'], timeout: 20_000 },
@@ -248,7 +241,6 @@ it('accepts the native directory form of tsc --project without archives', () => 
   expect(problem(root)).toBeUndefined()
 }, 20_000)
 
-// Slow: starts real Vitest in a fixture workspace. 2.6 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (5.1 s under load) (tools/test-runner/README_ZH.md「归层」).
 it(
   'keeps a native Vitest projects configuration when there are no archived inputs',
   { tags: ['slow'], timeout: 20_000 },
@@ -308,7 +300,6 @@ it('preserves a single native CLI exclusion as a whole pattern', () => {
   ])
 }, 20_000)
 
-// Slow: starts real Vitest in a fixture workspace. 4.5 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (10.9 s under load) (tools/test-runner/README_ZH.md「归层」).
 it(
   'filters external archived runtime tests and preserves external active failures',
   { tags: ['slow'], timeout: 30_000 },
@@ -350,7 +341,6 @@ it(
     }
     const passed = await run('pass')
     expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)
-    // vitest 的 JSON 报告按模块 ID 记文件名，各平台都用正斜杠。
     expect(passed?.report?.testResults.map(result => result.name)).toEqual([
       join(root, 'tests/live.spec.ts').split(sep).join('/'),
     ])
@@ -367,7 +357,6 @@ it(
   },
 )
 
-// Slow: starts real Vitest in a fixture workspace. 4.2 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (8.2 s under load) (tools/test-runner/README_ZH.md「归层」).
 it(
   'real Vitest ignores archived runtime/type roots while active source errors still fail',
   { tags: ['slow'], timeout: 30_000 },
@@ -422,7 +411,6 @@ it(
   },
 )
 
-// 归慢层：起两次真实 vitest，各带一次 tsc 类型测试。
 it(
   'the shared tier configuration keeps archived runtime and type tests out of a real Vitest run',
   { tags: ['slow'], timeout: 30_000 },
@@ -458,10 +446,8 @@ it(
     const vitest = (spread: boolean) => {
       put(root, 'vitest.config.ts', config(spread))
       const report = join(root, `report-${spread}.json`)
-      // 不把运行器的报告目录传给夹具。
       const env: NodeJS.ProcessEnv = { ...process.env }
       delete env['OMNE_TEST_REPORT_DIR']
-      // `.bin/vitest` 链到 vitest 的 Node 入口，由当前 Node 运行它：Windows 上不经 shell 起不了无扩展名的脚本。
       const ran = spawnSync(
         process.execPath,
         [
@@ -478,7 +464,6 @@ it(
     expect(kept.ran.status, `${kept.ran.stdout}${kept.ran.stderr}`).toBe(0)
     expect(kept.report).toContain('live.spec.ts')
     expect(kept.report).not.toContain('.legacy/')
-    // 不展开分层定义时同一批归档测试会跑：上面的通过靠的是它的排除。
     const unfiltered = vitest(false)
     expect(unfiltered.ran.status).not.toBe(0)
     expect(unfiltered.report).toContain('archive.legacy/poison.spec.ts')

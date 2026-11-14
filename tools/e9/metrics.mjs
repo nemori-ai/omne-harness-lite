@@ -96,11 +96,6 @@ function stageGrowth(rounds, stage) {
   return growth.state === 'blocked' ? growth : { ...growth, clock: samples[0].stageClocks[stage] }
 }
 
-/**
- * DP2 B on the 190 values of rounds 11 to 200 of one series: 19 blocks of ten rounds, the median of
- * each block against its middle round, an OLS line through the blocks. The series grows when the
- * slope is positive, R² is at least 0.95 and the growth over 180 rounds exceeds three residual MADs.
- */
 export function blockGrowth(values) {
   if (values.length !== 190 || values.some(value => !Number.isFinite(value)))
     return { state: 'blocked', reason: 'requires 190 finite values of rounds 11-200' }
@@ -108,7 +103,6 @@ export function blockGrowth(values) {
     x: 15.5 + index * 10,
     y: median(values.slice(index * 10, index * 10 + 10)),
   }))
-  // Scaling preserves OLS shape and avoids overflow for large finite durations.
   const scale = Math.max(...blocks.map(block => block.y)) || 1
   const ys = blocks.map(block => block.y / scale)
   const mean = ys.reduce((sum, value) => sum + value / 19, 0)
@@ -165,11 +159,6 @@ export function evaluateMedian(rounds, threshold = 1.5) {
   }
 }
 
-/**
- * The two gates on any series of 200 per-round values (`docs/engineering/perf-baseline.md` uses
- * them for own overhead, memory and new disk bytes): the median of rounds 181-200 over the median of
- * rounds 11-30 against `threshold`, and `blockGrowth` on rounds 11-200.
- */
 export function evaluateSeries(values, threshold = 1.5) {
   thresholdValue(threshold)
   if (values.length !== 200 || values.some(value => !Number.isFinite(value)))

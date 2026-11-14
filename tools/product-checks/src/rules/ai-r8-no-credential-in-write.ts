@@ -8,12 +8,6 @@ import {
   viewsOf,
 } from '@omne-harness/repo-toolchain/core/source-text'
 
-/**
- * AI design R-8（节点 verification「持锁段里没有 credentials 调用」一行的形式 ①）：
- * 账号能力包源码里，`storage.write(`/`persistence.write(` 调用的实参（即写事务回调）的词法范围内不出现
- * `credentials.verify(`／`derive(`／`checkPolicy(`／`parse(`。scrypt 若进了持锁段，登录负载会让本库一切写排队。
- * 只看词法范围：经辅助函数（例如回调里调的 `#issueCommitted`）的间接调用看不到，由形式 ② 的替身标记测试补。
- */
 export const aiR8NoCredentialInWrite: Rule = {
   id: 'ai-r8-no-credential-in-write',
   source:

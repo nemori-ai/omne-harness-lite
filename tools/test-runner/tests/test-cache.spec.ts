@@ -1,6 +1,3 @@
-// 成员级测试结果缓存：键与影响面规则同源——用仓库里真实的路径规则与一份造出来的成员清单、依赖图，
-// 核对每类改动让哪些成员的键变、哪些不变；再核对策略、写入条件、条目的读写与坏条目的处理。
-// 规则一旦从键里漏掉一类输入（例如上游成员的文件），这里会变红。
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -86,7 +83,6 @@ const member = (path: string, dependencies: string[] = []): WorkspaceMember => (
   dependencies,
 })
 
-// base ← mid ← top；message 独立；读者规则点名的几个真实成员也在清单里。
 const MEMBERS = [
   member('packages/core/base'),
   member('packages/core/mid', ['@x/base']),
@@ -98,7 +94,6 @@ const MEMBERS = [
   member('packages.archive.legacy/core/stream-assembly'),
 ]
 
-/** 造出来的 turbo 包依赖图：与成员清单声明的依赖一致。 */
 const GRAPH: PackageGraph = new Map(
   MEMBERS.map(entry => [entry.name, { path: entry.path, dependencies: entry.dependencies }]),
 )
@@ -109,20 +104,17 @@ const byPath = (path: string) => {
   return found
 }
 
-/** 这些路径里哪些进 `path` 这个成员的输入集。 */
 function inputsOf(path: string, paths: readonly string[]): string[] {
   const files = paths.map(file => classify(file, MEMBERS, RULES))
   return memberInputs(path, files, upstreamOf(byPath(path), MEMBERS, GRAPH))
 }
 
-/** 这个路径进了哪些成员的输入集。 */
 const keyedBy = (file: string) =>
   MEMBERS.map(entry => entry.path).filter(path => inputsOf(path, [file]).includes(file))
 
 describe('输入集与影响面规则同源：每类改动进谁的键', () => {
   it('成员自己的文件：进它与它下游的键，不进上游与无关成员的', () => {
     expect(keyedBy('packages/core/mid/src/data.json')).toEqual(['packages/core/mid', 'apps/top'])
-    // tsconfig 与 tests/ 下的夹具都是成员文件；package.json 另被 test-runner 的读者规则点名。
     expect(keyedBy('packages/core/mid/tsconfig.json')).toEqual(['packages/core/mid', 'apps/top'])
     expect(keyedBy('packages/core/mid/package.json')).toEqual([
       'packages/core/mid',
@@ -156,9 +148,7 @@ describe('输入集与影响面规则同源：每类改动进谁的键', () => {
       'tools/product-checks',
       'tools/repo-toolchain',
     ])
-    // 被读的成员根目录文档：只进读者规则点名的成员。
     expect(keyedBy('packages/common/message/README.md')).toEqual(['packages/common/message'])
-    // 产品源码只是成员文件，没有读者规则点名它。
     expect(keyedBy('packages/core/base/src/c.ts')).toEqual([
       'packages/core/base',
       'packages/core/mid',
@@ -410,7 +400,6 @@ describe('读不读', () => {
       writeReason: expect.stringContaining('没有构建'),
     })
     expect(cachePolicy({}, { ...base, build: true })).toMatchObject({ read: true, write: true })
-    // 不读的原因与不写互不牵连。
     expect(cachePolicy({}, { noCache: true, full: false, build: true })).toMatchObject({
       read: false,
       write: true,
@@ -461,7 +450,6 @@ const RUN: MemberRun = {
 describe('只有完整通过才写', () => {
   it('退出码 0、有报告、没有失败、运行器没判问题：写', () => {
     expect(cacheable(RUN)).toBe(true)
-    // 这一层一个用例都没有（慢层下没有慢测试的成员）也是完整通过。
     expect(cacheable({ ...RUN, report: { testResults: [] } })).toBe(true)
   })
 
@@ -562,16 +550,13 @@ describe('条目', () => {
 
   it('写不进去不抛，返回原因', () => {
     const home = temporary('test-cache-ro-')
-    // 成员目录的位置被一个文件占着，建不了目录。
     writeFileSync(join(home, 'packages__core__mid'), '')
     expect(writeEntry(home, ENTRY)).toContain('packages__core__mid')
   })
 })
 
-// 归慢层：起 git 子进程。
 describe('写缓存：策略与跑完后的键复核', () => {
   const SOURCE = { ledger: '/runs/1', head: 'abc', dirty: false, admission: false }
-  /** 一个只有成员 mid 的查询结果；`rekey` 是可注入的钩子：模拟「跑完后重算键」得到什么。 */
   const lookupFor = (
     home: string,
     write: boolean,
@@ -592,7 +577,6 @@ describe('写缓存：策略与跑完后的键复核', () => {
     hits: new Map(),
     rekey,
   })
-  /** 构建记录：这个成员构建时的输入摘要。 */
   const BUILT = new Map([['packages/core/mid', { input: 'd-built' }]])
   const same = () =>
     new Map([['packages/core/mid', { key: 'k-before', digest: 'd-built', inputs: 3 }]])
@@ -843,14 +827,12 @@ describe('工作树快照（真起 git）', () => {
         'staged.txt',
         '中文 名.txt',
       ])
-      // 内容改回去，id 也回去：键只看内容。
       put('changed.txt', 'before\n')
       expect(snapshotTree(root).get('changed.txt')).toBe(git('rev-parse', 'HEAD:changed.txt'))
     },
   )
 })
 
-// 归慢层：起 turbo 与 git 子进程，在本仓库上算全部成员的键。
 describe('本仓库', () => {
   it(
     'turbo 的包依赖图里有每个成员，转置后与 --filter=...<包> 给的下游一致',
@@ -891,7 +873,6 @@ describe('本仓库', () => {
   })
 })
 
-/** 成员的测试脚本：按第一个参数往报告目录写一份 vitest 形状的报告，再按第二个参数退出；同时记一笔自己跑了。 */
 const FAKE_VITEST = `
 import { appendFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -905,7 +886,6 @@ writeFileSync(
 process.exit(Number(code))
 `
 
-/** 一个小 workspace（已提交）：成员互不依赖，名字以 bad 打头的失败、其余通过；两层脚本相同。 */
 function workspace(names: readonly string[] = ['good', 'bad']): {
   root: string
   targets: TestMember[]
@@ -945,7 +925,6 @@ function workspace(names: readonly string[] = ['good', 'bad']): {
   return { root, targets }
 }
 
-/** 构建记录：模拟前面一步在同一份源码上构建完（`step build --plan` 在构建开始前取的摘要）。 */
 const builtNow = (root: string, targets: readonly TestMember[]) =>
   new Map(
     [
@@ -979,7 +958,6 @@ interface LedgerCache {
   readonly members: { member: string }[]
 }
 
-// 归慢层：每次运行真起一次 turbo。
 describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () => {
   it(
     '完整通过的写进去，失败的不写；第二次命中的不执行并标明来源；改了输入、换层、不读时照跑；坏条目按未命中',
@@ -997,7 +975,6 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         count += 1
         const out = join(root, `run-${count}`)
         writeFileSync(join(root, 'ran.txt'), '')
-        // 准入模式由环境变量认：写出的条目带 admission，读的时候只认带它的。
         if (admission) process.env['OMNE_ADMISSION'] = '1'
         else delete process.env['OMNE_ADMISSION']
         const { exitCode } = await recordedRun(root, {
@@ -1031,7 +1008,6 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         }
       }
       try {
-        // 第一次：都跑；good 完整通过写进去，bad 失败不写。
         const first = await run('fast')
         expect(first.exitCode).toBe(1)
         expect(first.ran).toEqual(['members__bad', 'members__good'])
@@ -1042,7 +1018,6 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         })
         expect(first.summary).toContain('缓存命中 0 个成员；本次写入 1 个成员的完整通过')
 
-        // 第二次：good 命中不执行、来源指向第一次的账本；bad 照跑；成员一级的读数只有跑了的。
         const second = await run('fast')
         expect(second.exitCode).toBe(1)
         expect(second.ran).toEqual(['members__bad'])
@@ -1054,24 +1029,20 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         expect(second.summary).toContain(`缓存命中 1 个成员，来源 ${first.out}`)
         expect(second.summary).toContain('1 个成员（另有 1 个成员缓存命中，没有跑）、1 个文件')
 
-        // 换层：键不同，good 重跑。
         const slow = await run('slow')
         expect(slow.ran).toEqual(['members__bad', 'members__good'])
         expect(slow.ledger.meta.cache.written).toEqual(['members/good'])
 
-        // 改 good 自己的文件：快层的 good 重跑；改回去又命中。
         writeFileSync(join(root, 'members/good/src/index.ts'), 'export const value = 2\n')
         expect((await run('fast')).ran).toEqual(['members__bad', 'members__good'])
         writeFileSync(join(root, 'members/good/src/index.ts'), 'export const value = 1\n')
         expect((await run('fast')).ran).toEqual(['members__bad'])
 
-        // 不读：good 有条目也照跑，账本写明只写不读。
         const writeOnly = await run('fast', false)
         expect(writeOnly.ran).toEqual(['members__bad', 'members__good'])
         expect(writeOnly.ledger.meta.cache.mode).toBe('write-only')
         expect(writeOnly.summary).toContain('只写不读：测试要求不读')
 
-        // 准入模式只认准入写的条目：good 现有的条目是平常的运行写的，准入照跑它；这次准入写下的，下一次准入才认。
         const admitted = await run('fast', true, true)
         expect(admitted.ran).toEqual(['members__bad', 'members__good'])
         expect(admitted.ledger.meta.cache).toMatchObject({ trustedOnly: true, hits: [] })
@@ -1080,10 +1051,8 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         expect(readmitted.ledger.meta.cache.hits).toEqual([
           expect.objectContaining({ member: 'members/good', source: admitted.out }),
         ])
-        // 平常的运行也认准入写的条目。
         expect((await run('fast')).ran).toEqual(['members__bad'])
 
-        // 坏条目：按未命中，重跑后被完整通过的新条目覆盖。
         const entries = readdirSync(join(home, 'members__good')).filter(name =>
           name.startsWith('fast-'),
         )
@@ -1098,7 +1067,6 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
     },
   )
 
-  /** 在 `root` 上起运行器跑一层（读写缓存，缓存根是 `home`），返回这次谁真跑了与账本。调用方负责环境变量。 */
   const runner = (root: string, targets: TestMember[]) => {
     let count = 0
     return async (tier: RunTier) => {
@@ -1123,7 +1091,6 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
       return { out, exitCode, ran, ledger }
     }
   }
-  /** 缓存根设成新的临时目录、清掉会改变读不读的变量，跑完恢复环境。 */
   const withCacheHome = async (body: () => Promise<void>) => {
     const saved = { ...process.env }
     process.env[TEST_CACHE_HOME_ENV] = temporary('test-cache-home-')
@@ -1274,7 +1241,6 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
   )
 })
 
-/** 测试读 `dist/`（按包名导入自己、执行的是构建产物）的成员：dist 里是 `value = 1` 才通过；构建把 src 拷成 dist。 */
 const CHECK_DIST = `
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -1298,7 +1264,6 @@ function commitAll(root: string, message: string): void {
   )
 }
 
-/** 一个已提交的 workspace，成员 alpha 有 build 脚本，测试读构建产物 dist。 */
 function distWorkspace(
   buildScript = `node -e "${COPY_DIST}"`,
   options: { readonly upstream?: boolean } = {},
@@ -1359,13 +1324,11 @@ function distWorkspace(
       python: { run: false, reason: '' },
     },
   }
-  // 计划文件放在被忽略的目录里：未跟踪、未忽略的文件会进键。
   const planPath = join(root, 'run-plan', 'plan.json')
   writePlanFile(planPath, file)
   return { root, file, planPath }
 }
 
-/** 缓存根设成新的临时目录、清掉会改变读不读的变量，跑完恢复环境。 */
 async function withHome(body: (home: string) => Promise<void>): Promise<void> {
   const saved = { ...process.env }
   const home = temporary('test-cache-home-')
@@ -1382,14 +1345,12 @@ async function withHome(body: (home: string) => Promise<void>): Promise<void> {
 }
 const entriesIn = (home: string) => (existsSync(home) ? readdirSync(home) : [])
 
-// 归慢层：真起 turbo，分进程的构建与测试一步一步走。
 describe(
   '构建与测试之间改了源码（step build --plan → step test --plan）',
   {
     timeout: 180_000,
   },
   () => {
-    /** 按 cli.ts `step test --plan` 的做法跑成员测试一步。 */
     const stepTest = (root: string, file: PlanFile, planPath: string) => {
       const { policy, builtFrom } = stepTestCache(process.env, {
         planPath,
@@ -1415,13 +1376,11 @@ describe(
           try {
             expect(stepBuild(root, file, planPath)).toBe(0)
             expect(existsSync(builtFromPath(planPath))).toBe(true)
-            // 构建之后、测试一步之前：源码变成会让测试失败的样子。
             writeFileSync(join(root, 'members/alpha/src/index.ts'), 'export const value = 2\n')
-            expect(await stepTest(root, file, planPath)).toBe(0) // 旧 dist 仍通过
+            expect(await stepTest(root, file, planPath)).toBe(0)
             expect(entriesIn(home)).toEqual([])
             expect(lines.join('\n')).toContain('构建之后输入变了')
 
-            // 下一次检查：构建出新 dist，测试失败，不能因缓存命中而通过。
             expect(stepBuild(root, file, planPath)).toBe(0)
             expect(await stepTest(root, file, planPath)).toBe(1)
           } finally {
@@ -1441,7 +1400,7 @@ describe(
           const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
           try {
             expect(stepBuild(root, file, planPath)).toBe(0)
-            expect(await stepTest(root, file, planPath)).toBe(0) // dist 是 value = 1 的源码构建的
+            expect(await stepTest(root, file, planPath)).toBe(0)
             expect(entriesIn(home)).toEqual([])
           } finally {
             spy.mockRestore()
@@ -1463,7 +1422,6 @@ describe(
       }),
     )
 
-    /** 计划之外重建 dist：源码临时换成 `source` 构建，再还原；mtime 拨到固定的另一刻，不依赖文件系统的时间精度。 */
     const outOfBandBuild = (root: string, member: string, source: string, restore: string) => {
       const src = join(root, member, 'src/index.ts')
       const dist = join(root, member, 'dist/index.js')
@@ -1488,19 +1446,18 @@ describe(
       () =>
         withHome(async home => {
           const { root, file, planPath } = distWorkspace()
-          const S1 = 'export const value = 2\n' // 构建出的 dist 让测试失败
+          const S1 = 'export const value = 2\n'
           const S2 = 'export const value = 1\n'
           writeFileSync(join(root, 'members/alpha/src/index.ts'), S1)
           const { lines, spy } = quiet()
           try {
             expect(stepBuild(root, file, planPath)).toBe(0)
             outOfBandBuild(root, 'members/alpha', S2, S1)
-            expect(await stepTest(root, file, planPath)).toBe(0) // dist(S2) 通过
+            expect(await stepTest(root, file, planPath)).toBe(0)
             expect(entriesIn(home)).toEqual([])
             expect(lines.join('\n')).toContain(
               '构建之后 dist 被改过，这次通过不一定对应记录里的构建',
             )
-            // 下一次检查：dist 是对 S1 构建出的，测试失败；缓存里没有「S1 通过」可命中。
             expect(stepBuild(root, file, planPath)).toBe(0)
             outOfBandBuild(root, 'members/alpha', S1, S1)
             expect(await stepTest(root, file, planPath)).toBe(1)
@@ -1518,8 +1475,8 @@ describe(
           expect(stepBuild(root, file, planPath)).toBe(0)
           expect(existsSync(join(root, 'members/beta/dist/index.js'))).toBe(true)
           const same = 'export const value = 1\n'
-          outOfBandBuild(root, 'members/beta', same, same) // 内容与大小都没变，只动了 mtime
-          expect(await stepTest(root, file, planPath)).toBe(0) // alpha 自己的 dist 没动，测试照过
+          outOfBandBuild(root, 'members/beta', same, same)
+          expect(await stepTest(root, file, planPath)).toBe(0)
           expect(entriesIn(home)).toEqual([])
           expect(lines.join('\n')).toContain('构建之后 dist 被改过')
         } finally {
@@ -1574,7 +1531,6 @@ describe(
     it('手工 --plan、计划旁边没有构建记录：测试通过也不写缓存', { tags: ['slow'] }, () =>
       withHome(async home => {
         const { root, file, planPath } = distWorkspace()
-        // 前面没有构建一步；dist 是以前留下的。
         mkdirSync(join(root, 'members/alpha/dist'), { recursive: true })
         writeFileSync(join(root, 'members/alpha/dist/index.js'), 'export const value = 1\n')
         expect(existsSync(builtFromPath(planPath))).toBe(false)
@@ -1614,7 +1570,6 @@ describe(
 
 const RUNNER_CLI = fileURLToPath(new URL('../src/testing/cli.ts', import.meta.url))
 
-// 归慢层：起真正的命令行入口（OMNE_SUBJECT_ROOT 指向造出来的 workspace），核对 `run` 入口的接线。
 describe('run 入口的缓存接线（真起命令行与 turbo）', { timeout: 180_000 }, () => {
   const runCli = (root: string, home: string, args: string[]) => {
     const out = join(root, 'run-cli')
@@ -1670,7 +1625,6 @@ describe('run 入口的缓存接线（真起命令行与 turbo）', { timeout: 1
   })
 
   it('带 --build，构建期间改了源码：不写，账本记下跳过', { tags: ['slow'] }, () => {
-    // 构建脚本自己在拷贝之后改源码：模拟构建开始之后、测试算键之前的改动。
     const { root } = distWorkspace(
       `node -e "${COPY_DIST};require('fs').writeFileSync('src/index.ts','export const value = 2\\n')"`,
     )

@@ -1,4 +1,3 @@
-// 本仓库的产品规则：契约与节点 verification 点名的结构检查。规则引擎归 src/core/scan.ts。
 import type { Rule } from '@omne-harness/repo-toolchain/core/rule'
 import { aiR8NoCredentialInWrite } from './ai-r8-no-credential-in-write.ts'
 import { credentialsParseOnly } from './credentials-parse-only.ts'
@@ -91,7 +90,6 @@ export const RULES: readonly Rule[] = [
   noBailControl,
   restrictedCallSites,
   noTestingImport,
-  // 入口层包（governance-center-entry）：包不存在时这些规则无事可查
   opsImportWhitelist,
   opsEventWhitelist,
   singleTableEntry,
@@ -99,11 +97,9 @@ export const RULES: readonly Rule[] = [
   credentialsParseOnly,
   presentationOnlyAuthn,
   noNetworkListenInTenancy,
-  // 账号能力
   noPresentationInDiagnostics,
   noRandomSourceInline,
   aiR8NoCredentialInWrite,
-  // offer-expiry 的消费者、凭据材料、注册组合、清除链、存储边界
   scOe1,
   scOe2,
   scCv1,
@@ -119,7 +115,6 @@ export const RULES: readonly Rule[] = [
   singleToolArgumentParser,
 ]
 
-/** 某个扫描根适用的规则：与 `RULES` 同一份，只是 no-testing-import 带上该根里各包声明的 `./testing` 入口。 */
 export function rulesForRoot(root: string): readonly Rule[] {
   const testingImport = createNoTestingImport(collectTestingEntries(root))
   return RULES.map(rule => (rule === noTestingImport ? testingImport : rule))

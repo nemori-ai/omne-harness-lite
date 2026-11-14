@@ -1,18 +1,3 @@
-// 成员级测试结果缓存：一个成员某一层的一次完整通过，按「输入集的内容摘要」记在主检出的 `tmp/test-cache/`；
-// 下一次同样的输入就不再跑它。只缓存完整通过（退出码 0、有报告、没有失败、运行器自己没判问题）；
-// 失败、超时、被中断、没写出报告的从不进缓存。借鉴 ub-mode 的 mutator 与 crapper：上次的结果有效就复用，
-// 不重跑没变的东西。
-//
-// 输入集与影响面同源：一个成员的输入，就是「改了会让计划选中它」的那些文件——由 scope.ts 的 `classify`
-// 按 test-runs.config.json 的 `affected` 规则判，不另写一套：
-// - 全局文件与没有规则认得的文件（改了计划判全量）进每个成员的键；
-// - 读者规则点名它的文件、它自己的文件（成员根目录文档除外）、它上游成员（按 turbo 的包依赖图传递）的文件进它的键；
-// - 只需常驻检查、Python 工具、退役目录与别的成员的文件不进。
-// 内容摘要取 git 的 blob id：已跟踪且干净的直接读索引，改过与未跟踪的用 `git hash-object`（走同一套换行过滤）。
-// 键里另有层（turbo 任务名）、平台与架构、Node 版本，以及配置 `cache.env` 列出的环境变量。
-// 锁文件、根清单、分层定义、本运行器的源码、成员的 vitest 配置与 package.json 都已由上面的规则进键。
-//
-// 缓存读写失败一律按未命中：既不让检查失败，也不让检查放行。
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
@@ -39,9 +24,7 @@ import { slugOf } from './run.ts'
 import { classify, patternToRegExp, type ClassifiedFile } from './scope.ts'
 import { admissionRequested, packageGraph, TIER_TASKS, type PackageGraph } from './turbo.ts'
 
-/** 环境变量 `OMNE_TEST_CACHE`：`0` 不读缓存（照常写），`1` 或不设照常读写；别的值报错，不猜。 */
 export const TEST_CACHE_ENV = 'OMNE_TEST_CACHE'
-/** 缓存根：环境变量给了用它，否则是主检出的 `tmp/test-cache/`（与账本同级）。 */
 export const TEST_CACHE_HOME_ENV = 'OMNE_TEST_CACHE_HOME'
 export const TEST_CACHE_DIR = 'tmp/test-cache'
 
@@ -50,36 +33,20 @@ export function cacheHome(mainRoot: string, env: Readonly<Record<string, string 
   return value === undefined || value === '' ? join(mainRoot, TEST_CACHE_DIR) : value
 }
 
-/**
- * 这次运行读不读、写不写缓存，两个开关分开。写还要过 `cacheable`（失败的运行写不进去）和跑完后的键复核。
- * 很多成员的测试按包名导入自己、执行的是 `dist/`，而键按源码内容算：本次没有为这些成员构建就跑，
- * 通过的可能是旧 dist，不能记在新源码的键下。
- */
 export interface CachePolicy {
   readonly read: boolean
-  /** 不读时的原因；读时为空串。 */
   readonly reason: string
-  /** 读的时候只认准入模式下真跑出来的条目（`CacheEntry.admission`）。准入模式为真，其余为假。 */
   readonly trustedOnly: boolean
   readonly write: boolean
-  /** 不写时的原因；写时为空串。 */
   readonly writeReason: string
 }
 
-/**
- * `FULL=1`（或 `--full`）、`--no-cache`、`OMNE_TEST_CACHE=0` 不读。
- * 准入模式读，但只认准入模式下真跑出来的条目（RFC-0002「只读取受信运行写入的缓存」）：准入要防的是「没有真跑过却显示通过」。
- * 一条记录是一次准入真跑出来的完整通过，而且它的键盖住这个成员读的全部输入，认它不违反这条防线；
- * 平常的运行（可能没构建、可能带过滤、可能跑的是旧 dist）写的条目，准入不认。
- * 本次调用没有为被选中的成员构建（`build` 为假）时不写：测试可能跑的是旧 dist。
- */
 export function cachePolicy(
   env: Readonly<Record<string, string | undefined>>,
   options: {
     readonly noCache: boolean
     readonly full: boolean
     readonly build: boolean
-    /** 没构建时的原因；不给用默认说法。 */
     readonly unbuiltReason?: string
   },
 ): CachePolicy {
@@ -99,7 +66,6 @@ export function cachePolicy(
   return { read: true, reason: '', trustedOnly: admissionRequested(env), ...write }
 }
 
-/** 工作树快照：影响面里能出现的每个文件（已跟踪的，加未跟踪、未忽略的）的内容 id。 */
 export type Snapshot = ReadonlyMap<string, string>
 
 function git(root: string, args: readonly string[], input?: string): string {
@@ -113,10 +79,6 @@ function git(root: string, args: readonly string[], input?: string): string {
   })
 }
 
-/**
- * 已跟踪且干净的文件取索引里的 blob id；工作树里改过的（含有冲突的）与未跟踪的用 `git hash-object` 现算，
- * 它走与提交相同的换行过滤，内容没变的仍得到同一个 id。工作树里删掉的不在快照里；被忽略的从不在。
- */
 export function snapshotTree(root: string): Snapshot {
   const snapshot = new Map<string, string>()
   const rehash = new Set<string>()
@@ -148,10 +110,6 @@ export function snapshotTree(root: string): Snapshot {
   return snapshot
 }
 
-/**
- * 一个文件在不在某个成员的输入集里：与 `planCheck` 选中它的条件同源。
- * 全局与未归类的文件让计划判全量，所以进每个成员的键；读者规则点名、自己的文件、上游成员的文件进它的键。
- */
 export function selects(
   file: ClassifiedFile,
   member: string,
@@ -163,8 +121,6 @@ export function selects(
     case 'global':
     case 'unclassified':
       return true
-    // 锁文件进每个成员的键。计划按 importer 把锁文件改动映射到受影响的成员（scope.ts），键却取整份锁文件的内容摘要：
-    // 锁文件一变，所有成员的条目都失效。这比计划保守——只多重跑、不少跑；按 importer 把锁文件投影进各成员的键另议。
     case 'lockfile':
       return true
     case 'reader':
@@ -183,7 +139,6 @@ export function selects(
   }
 }
 
-/** 一个成员的输入集：按归属选出的路径，已排序。 */
 export function memberInputs(
   member: string,
   files: readonly ClassifiedFile[],
@@ -195,10 +150,6 @@ export function memberInputs(
     .sort()
 }
 
-/**
- * 一个成员的上游闭包（成员目录），按 turbo 的包依赖图传递求出；不含它自己。
- * 图里点名了成员清单以外的包就报错：那个包的文件由规则归不到成员，键会漏掉它。
- */
 export function upstreamOf(
   member: WorkspaceMember,
   members: readonly WorkspaceMember[],
@@ -223,7 +174,6 @@ export function upstreamOf(
   return upstream
 }
 
-/** 进键的环境变量：匹配 `cache.env` 任一模式、不在 `cache.ignoreEnv` 里、且已设置的，按名字排序。 */
 export function keyEnvironment(
   env: Readonly<Record<string, string | undefined>>,
   rules: CacheRules,
@@ -238,11 +188,9 @@ export function keyEnvironment(
   return picked
 }
 
-/** 键的全部输入。键的版本号随这里的形状变：形状一变旧条目全部失效。 */
 export interface KeyInputs {
   readonly member: string
   readonly tier: RunTier
-  /** 输入集里每个文件的内容 id，按路径排序。 */
   readonly files: readonly (readonly [path: string, blob: string])[]
   readonly platform: string
   readonly arch: string
@@ -275,19 +223,12 @@ export function cacheKey(inputs: KeyInputs): string {
   return hashInputs(inputs, TIER_TASKS[inputs.tier])
 }
 
-/** 输入摘要：与缓存键同源（同样的输入集、平台、Node 与环境变量），不含层；构建记录用它说「这次构建看到的是哪份输入」。 */
 export function inputDigest(inputs: KeyInputs): string {
   return hashInputs(inputs, undefined)
 }
 
-/**
- * 构建记录：构建成功后，每个被构建成员在构建开始前的输入摘要，加构建完成后的产物摘要。测试跑的是 `dist/`，而键按源码算：
- * 只有「现在的输入摘要等于构建时的」且「现在的产物摘要等于构建完成时的」，这次通过的才说得清是对哪份源码构建出的产物。
- * `step build --plan` 把它写在计划文件旁边；`run --build` 在同一个进程里直接取（没有产物摘要），不落盘。
- */
 export const BUILT_FROM_FILE = 'built-from.json'
 
-/** 构建记录里一个成员的一项。`output` 只在记录来自文件时有：同进程构建紧接测试，没有可被改动的间隙。 */
 export interface BuiltMember {
   readonly input: string
   readonly output?: string
@@ -297,7 +238,6 @@ export function builtFromPath(planPath: string): string {
   return join(dirname(planPath), BUILT_FROM_FILE)
 }
 
-/** 删掉旧的构建记录：新一轮构建开始前先删，构建失败时不留上一轮的记录。 */
 export function clearBuiltFrom(path: string): void {
   rmSync(path, { force: true })
 }
@@ -312,14 +252,12 @@ export function writeBuiltFrom(
   writeFileSync(path, `${JSON.stringify({ head, members: Object.fromEntries(sorted) }, null, 1)}\n`)
 }
 
-/** 读构建记录的结果：没有的三种情形分开说，测试一步据此写出不写缓存的原因。 */
 export type BuiltFromRead =
   | { readonly status: 'ok'; readonly members: ReadonlyMap<string, BuiltMember> }
   | { readonly status: 'missing' }
   | { readonly status: 'other-head'; readonly recorded: string }
   | { readonly status: 'legacy' }
 
-/** 读构建记录：文件不存在或不是 JSON 为 missing；成员项不是 `{ input, output }`（旧格式是字符串）为 legacy；记的不是这个提交为 other-head。 */
 export function readBuiltFrom(path: string, head: string): BuiltFromRead {
   let parsed: unknown
   try {
@@ -344,7 +282,6 @@ export function readBuiltFrom(path: string, head: string): BuiltFromRead {
   return { status: 'ok', members: digests }
 }
 
-/** 递归列出目录下的全部文件：相对路径、字节数、mtimeMs 一行；只 stat，不读内容。目录读不了给 undefined。 */
 function listFiles(dir: string, prefix = ''): string[] | undefined {
   let names: string[]
   try {
@@ -362,17 +299,12 @@ function listFiles(dir: string, prefix = ''): string[] | undefined {
   return lines
 }
 
-/** 一个成员目录下 `dist/` 的产物摘要：全部文件的相对路径、字节数、mtimeMs 排序后取 sha256；没有 `dist/` 记 `absent`。 */
 export function distDigest(root: string, memberPath: string): string {
   const lines = listFiles(join(root, memberPath, 'dist'))
   if (lines === undefined) return 'absent'
   return createHash('sha256').update(lines.sort().join('\n')).digest('hex')
 }
 
-/**
- * 各成员的产物摘要：本成员与上游成员（与缓存键同源）的 `dist/` 摘要合在一起。
- * 测试读的不只是本成员的 dist，上游的 dist 被换掉，「通过」同样说不清对应哪次构建。
- */
 export function outputDigests(options: {
   readonly root: string
   readonly targets: readonly string[]
@@ -404,23 +336,19 @@ export function outputDigests(options: {
   return result
 }
 
-/** 缓存里的一个条目：哪次运行、什么输入下，这个成员这一层完整通过了。 */
 export interface CacheEntry {
   readonly version: typeof KEY_VERSION
   readonly member: string
   readonly tier: RunTier
   readonly key: string
-  /** 来源账本：那次运行的目录。 */
   readonly ledger: string
   readonly head: string
   readonly dirty: boolean
   readonly recordedAt: string
-  /** 那次跑了的用例数与文件数、墙钟。 */
   readonly tests: number
   readonly files: number
   readonly wallSeconds: number
   readonly inputs: { readonly files: number; readonly node: string; readonly platform: string }
-  /** 这一条是准入模式下真跑出来的。准入模式只认带它的条目；平常的运行写的条目没有这一栏。 */
   readonly admission?: true
 }
 
@@ -428,7 +356,6 @@ export function entryPath(home: string, member: string, tier: RunTier, key: stri
   return join(home, slugOf(member), `${tier}-${key}.json`)
 }
 
-/** 条目的形状核对：每个字段的类型，`tier` 是认得的层，`inputs` 的三项各有类型。 */
 export function isEntry(value: unknown): value is CacheEntry {
   if (typeof value !== 'object' || value === null) return false
   const entry = value as Record<string, unknown>
@@ -454,7 +381,6 @@ export function isEntry(value: unknown): value is CacheEntry {
   )
 }
 
-/** 读一个条目；文件不存在、不是 JSON、形状不对、或记的不是这个成员这一层这个键，都当作没有。 */
 export function readEntry(
   home: string,
   member: string,
@@ -471,7 +397,6 @@ export function readEntry(
   return parsed.member === member && parsed.tier === tier && parsed.key === key ? parsed : undefined
 }
 
-/** 写一个条目（先写临时文件再改名）；写不进去返回原因，不抛。 */
 export function writeEntry(home: string, entry: CacheEntry): string | undefined {
   const path = entryPath(home, entry.member, entry.tier, entry.key)
   try {
@@ -485,7 +410,6 @@ export function writeEntry(home: string, entry: CacheEntry): string | undefined 
   }
 }
 
-/** 完整通过才进缓存：退出码 0、运行器没判问题、有报告、报告里没有失败的文件或用例。 */
 export function cacheable(run: MemberRun): boolean {
   return (
     run.exitCode === 0 &&
@@ -499,26 +423,15 @@ export function cacheable(run: MemberRun): boolean {
   )
 }
 
-/** 一次运行开始前对缓存的查询结果。 */
 export interface CacheLookup {
   readonly home: string
   readonly policy: CachePolicy
-  /** 能算出键的成员：键与输入集的文件数。 */
   readonly keys: ReadonlyMap<string, MemberKey>
-  /** 算不出键的成员与原因：照常跑，不写缓存。 */
   readonly uncacheable: ReadonlyMap<string, string>
-  /** 读缓存时命中的成员。 */
   readonly hits: ReadonlyMap<string, CacheEntry>
-  /** 跑完后重新取快照、重算各成员的键，用来复核开跑前的键；取不到时抛。 */
   readonly rekey: () => ReadonlyMap<string, MemberKey>
-  /**
-   * 构建记录：成员目录到构建时输入摘要的映射。没有它（或没有这个成员的）就不写：
-   * 测试跑的可能是别的源码构建出的 dist。
-   */
   readonly built?: ReadonlyMap<string, BuiltMember>
-  /** 现在这些成员的产物摘要：构建记录带产物摘要（来自文件）时，写缓存前用它核对；取不到时抛。 */
   readonly outputs?: () => ReadonlyMap<string, string>
-  /** 整个缓存不可用的原因（快照或依赖图取不到）；有它时 `keys` 为空。 */
   readonly unavailable?: string
 }
 
@@ -534,13 +447,10 @@ export interface LookupOptions {
 
 export interface MemberKey {
   readonly key: string
-  /** 输入摘要（不含层），与构建记录比。 */
   readonly digest: string
-  /** 输入集里的文件数。 */
   readonly inputs: number
 }
 
-/** 各成员的键：取一次快照与依赖图，逐成员按归属选输入；算不出的成员记下原因。 */
 export function memberKeys(
   options: LookupOptions,
   members: readonly WorkspaceMember[],
@@ -583,7 +493,6 @@ export function memberKeys(
   return { keys, uncacheable }
 }
 
-/** 现在这些成员的输入摘要；取不到快照或依赖图时抛。构建开始前取一次，构成构建记录。 */
 export function currentDigests(options: {
   readonly root: string
   readonly targets: readonly string[]
@@ -605,7 +514,6 @@ export function currentDigests(options: {
   return new Map([...keys].map(([member, { digest }]) => [member, digest]))
 }
 
-/** 查缓存：算键，按策略读条目。快照或依赖图取不到时整个缓存不可用，全部成员照常跑、不写。 */
 export function lookupCache(options: LookupOptions): CacheLookup {
   const home = cacheHome(options.mainRoot, options.env)
   const { policy } = options
@@ -647,11 +555,6 @@ export function lookupCache(options: LookupOptions): CacheLookup {
   }
 }
 
-/**
- * 运行之后写缓存：完整通过且有键的成员各写一条；返回写了谁、哪些写不进去、哪些因键变了而跳过。
- * 策略不许写时一条不写。成员还要有构建记录，且现在的输入摘要等于构建时的；记录带产物摘要时，现在的产物摘要也要相等，否则跳过。写之前用 `lookup.rekey` 重算键：运行中改过输入的成员，结果属于哪份输入已说不清，跳过；
- * 重算本身失败时全部跳过。
- */
 export function recordCache(
   lookup: CacheLookup,
   runs: readonly MemberRun[],
@@ -660,7 +563,6 @@ export function recordCache(
     readonly ledger: string
     readonly head: string
     readonly dirty: boolean
-    /** 这次运行是不是准入模式：是，写出的条目带 `admission`。 */
     readonly admission: boolean
   },
 ): { readonly written: string[]; readonly problems: string[]; readonly skipped: string[] } {
@@ -722,7 +624,6 @@ export function recordCache(
         continue
       }
     }
-    // 同一个键下已有准入写的条目时，平常的运行不盖掉它：两条说的是同一份输入的完整通过，准入写的那条准入还要认。
     if (
       !source.admission &&
       readEntry(lookup.home, run.member, tier, found.key)?.admission === true
@@ -755,26 +656,21 @@ export function recordCache(
   return { written, problems, skipped }
 }
 
-/** 账本抬头里的 `cache` 一栏：怎么用的缓存、谁命中了、来源在哪、谁写进去了。 */
 export interface CacheMeta {
   readonly mode: 'read-write' | 'write-only' | 'unavailable'
   readonly reason: string
-  /** 读的时候是不是只认准入写的条目。 */
   readonly trustedOnly: boolean
   readonly home: string
   readonly hits: readonly {
     readonly member: string
     readonly key: string
     readonly source: string
-    /** 那次运行的头与时刻：证据里说得清这一项取自哪一次。 */
     readonly head: string
     readonly recordedAt: string
     readonly tests: number
   }[]
   readonly written: readonly string[]
-  /** 写不写：`mode` 只说读不读；本次不写缓存（没有构建、缓存不可用）时为 `off`。 */
   readonly write: 'on' | 'off'
-  /** 通过了却因没有构建记录、构建之后输入变了、运行期间输入变了而没写的成员数。 */
   readonly skipped: number
   readonly uncacheable: readonly { readonly member: string; readonly reason: string }[]
   readonly problems: readonly string[]

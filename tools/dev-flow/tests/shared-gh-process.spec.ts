@@ -1,5 +1,3 @@
-// How `ghProcess` launches `gh` and how the default backoff waits. The launch and the wait are
-// stand-ins here; the real `gh` child process is run in shared-gh.spec.ts (slow cases).
 import { execFileSync } from 'node:child_process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ghCommand, ghProcess } from '../src/shared/gh.ts'
@@ -9,7 +7,6 @@ vi.mock('node:child_process', () => ({ execFileSync: vi.fn(() => '{"ok":true}') 
 afterEach(() => vi.restoreAllMocks())
 
 const launch = vi.mocked(execFileSync)
-/** The command, the arguments and the options of the one launch that the last call made. */
 function lastLaunch() {
   const call = launch.mock.calls.at(-1)
   if (call === undefined) throw new Error('gh was not launched')

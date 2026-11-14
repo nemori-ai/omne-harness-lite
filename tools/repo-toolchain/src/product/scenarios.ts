@@ -6,7 +6,6 @@ import { isLegacyDirectory } from '../core/check-scope.ts'
 export const SCENARIO_ID = /^[A-Z]{1,3}\d{1,3}[a-z]?$/u
 const CELL_SPLIT = /(?<!\\)\|/u
 
-/** 去掉两端空白、`*` 与反引号：`**S1**`、`` `S4b` `` 都读成编号本身。 */
 export function bareLabel(text: string): string {
   return text
     .trim()
@@ -14,7 +13,6 @@ export function bareLabel(text: string): string {
     .trim()
 }
 
-/** 表格行第一格里的场景编号；不是带编号的场景行就返回 undefined。 */
 export function scenarioId(line: string): string | undefined {
   const trimmed = line.trim()
   if (!trimmed.startsWith('|')) return undefined
@@ -22,7 +20,6 @@ export function scenarioId(line: string): string | undefined {
   return SCENARIO_ID.test(first) ? first : undefined
 }
 
-/** 一份 acceptance.md 里带编号的场景行：编号 → 出现的行号（1 起），按出现先后。 */
 export function scenarioRows(text: string): Map<string, number[]> {
   const rows = new Map<string, number[]>()
   text.split('\n').forEach((line, index) => {
@@ -33,25 +30,20 @@ export function scenarioRows(text: string): Map<string, number[]> {
 }
 
 export interface ProductTopic {
-  /** 当前产品目录的 slug。 */
   readonly dir: string
-  /** README 元数据中的 PD 身份。 */
   readonly topic: string
-  /** 这个 topic 的 acceptance.md 里带编号的场景行；没有这份文件时为空。 */
   readonly scenarios: ReadonlyMap<string, readonly number[]>
 }
 
 const isDirectory = (path: string) => statSync(path, { throwIfNoEntry: false })?.isDirectory()
 const isFile = (path: string) => statSync(path, { throwIfNoEntry: false })?.isFile() === true
 
-/** 当前产品目录及其编号场景。无编号场景仍返回 topic，由调用方报告未覆盖。 */
 export function readProductTopics(productRoot: string): ProductTopic[] {
   if (isDirectory(productRoot) !== true) throw new Error(`产品区不存在或不是目录：${productRoot}`)
   const root = realpathSync(productRoot)
   const inside = (path: string): string => {
     const actual = realpathSync(path)
     const rel = relative(root, actual)
-    // `relative` 用平台分隔符：Windows 上越界是 `..\x`，不是 `../x`。
     if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel))
       throw new Error(`产品路径越界：${path}`)
     return actual

@@ -1,6 +1,3 @@
-// 按改动路径推出风险级别的下限。L0 到 L3 的含义与「至少几级」的路径规则归 docs/engineering/quality.md
-// 「按风险选择接受实现的看法」；这里只把那几条路径规则写成数据，不重定义级别，也不决定派几面评审。
-
 export type Level = 0 | 1 | 2 | 3
 
 export interface PathRule {
@@ -10,7 +7,6 @@ export interface PathRule {
   readonly pattern: RegExp
 }
 
-/** quality.md 列出的固定路径规则。工具链路径另从 github-gate 读，公开入口另从成员的 package.json 读。 */
 export const PATH_RULES: readonly PathRule[] = [
   { id: 'ci', level: 3, reason: 'CI 与 gate 定义（.github/）', pattern: /^\.github\// },
   {
@@ -45,10 +41,8 @@ export const PUBLIC_ENTRY_RULE = {
   reason: '公开入口（成员 package.json exports 的 source），公开契约可能有增加',
 } as const
 
-/** 只改 Markdown 时下限是 L0（纯文档）；其余改动下限 L1。 */
 const DOCUMENT = /\.md$/
 
-/** gate/toolchain-paths.txt：每行一条 git glob pathspec，`#` 起头的是注释。 */
 export function toolchainPathspecs(text: string): string[] {
   return text
     .split('\n')
@@ -57,7 +51,6 @@ export function toolchainPathspecs(text: string): string[] {
     .map(line => `:(glob)${line}`)
 }
 
-/** 成员公开入口的源码路径：exports 里每个条件对象的 `source`。 */
 export function publicEntriesOf(member: string, manifest: unknown): string[] {
   const exports =
     typeof manifest === 'object' && manifest !== null
@@ -82,7 +75,6 @@ export interface Hit {
 
 export interface RiskInput {
   readonly changed: readonly string[]
-  /** 改动文件里匹配工具链路径的那些（由 git 按 pathspec 判）。 */
   readonly toolchain: readonly string[]
   readonly publicEntries: ReadonlySet<string>
 }

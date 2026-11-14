@@ -9,15 +9,12 @@ import {
   type ImportRef,
 } from '@omne-harness/repo-toolchain/core/source-text'
 
-/** 非治理的第三方：内核与 config 校验（主线 2026-09-23 裁决纳入白名单）。 */
 const THIRD_PARTY = new Set(['@deepseek-ai/cordis', 'zod'])
 const OPS_PACKAGES = new Set([
-  // Adopted identity T2: admission signal and owned-work protocol; no governance operations.
   '@omne-harness/governance-center-entry',
   '@omne-harness/governance-center-entry/cordis',
   '@omne-harness/assembly-lifecycle/cordis',
   '@omne-harness/kernel-basis',
-  // 原根入口的同一组 Cordis 助手；只跟随入口迁移，不开放其他子路径。
   '@omne-harness/kernel-basis/cordis',
   '@omne-harness/storage',
   '@omne-harness/storage/cordis',
@@ -47,11 +44,6 @@ const MAINTENANCE_PACKAGES = new Set([
 ])
 const WORK_MODULE = `${ENTRY_SRC}work`
 
-/**
- * SC-2 和既有维护叶子保持。T4 只增添无导入的共有生命周期叶子、
- * AssemblyDeclaration 类型及迁到公共拥有者的纯事件叶子。
- * 包存在而运维面或公共事件叶子缺席时报告布局偏离，不静默失效。
- */
 export const opsImportWhitelist: Rule = {
   id: 'ops-import-whitelist',
   source:
@@ -185,8 +177,6 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
   if (specifier === undefined) return '运维只读叶子的动态导入说明符不是字面量'
   const module = withoutExtension(path)
   const resolved = resolveRelative(path, specifier)
-  // R1-T5 moved the same three JSON types to their sole dependency-free owner.
-  // Only the original reader may import them, and only as named types.
   if (
     module === JSON_MODULE &&
     resolved !== undefined &&
@@ -201,8 +191,6 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
     )
       return undefined
   }
-  // D-116 moves resource assembly into this checked readonly leaf. The native
-  // generated module is resolved by routing/schema's package-root createRequire.
   if (module === `${ENTRY_SRC}routing/schema` || module === `${ENTRY_SRC}schema-inputs`) {
     if (
       [
@@ -214,7 +202,6 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
       ].includes(specifier)
     )
       return undefined
-    // The async Clock backup envelope is a separate, fixed resource of this same owner.
     if (
       module === `${ENTRY_SRC}schema-inputs` &&
       resolved === 'tenancy/governance-center-entry-node/schema/governance-maintenance.schema.json'
@@ -244,7 +231,6 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
   return `运维只读叶子导入了 ${specifier}；不得经叶子绕过治理与写入口边界`
 }
 
-/** T3 moved these two readonly definitions out of the local table module. */
 function centerIdentityOnly(file: SourceFile, index: number): boolean {
   const source = ts.createSourceFile(file.path, file.text, ts.ScriptTarget.Latest, true)
   const statement = source.statements.find(node => node.pos <= index && index < node.end)

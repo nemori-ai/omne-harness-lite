@@ -1,4 +1,3 @@
-// 词法视图的自测：规则的「注释不算、字面量不算、括号按代码配对」全靠它，它错了规则会静默漏报或误报。
 import { describe, expect, it } from 'vitest'
 import {
   analyse,

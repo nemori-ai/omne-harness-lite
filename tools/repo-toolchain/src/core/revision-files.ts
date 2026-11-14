@@ -28,7 +28,6 @@ function blobTexts(output: Buffer, ids: readonly string[]): Map<string, string> 
   return texts
 }
 
-/** Read selected paths from one tree, by immutable blob IDs. No per-file Git processes or cache. */
 export function readRevisionTexts(
   root: string,
   commit: string,

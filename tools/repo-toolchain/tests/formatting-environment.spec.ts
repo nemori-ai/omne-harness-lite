@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real formatter, selected Git indexes, installed hooks and linked worktrees.
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, symlinkSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -98,7 +97,6 @@ it('checks the explicit bad subject even when Git routing points at a formatted 
     GIT_INDEX_FILE: join(b, '.git/index'),
   })
   expect(result.status, result.stdout + result.stderr).toBe(1)
-  // format.sh 按 `git rev-parse --show-toplevel` 报路径；Windows 上那是正斜杠、长文件名的写法。
   expect(result.stderr).toContain(`${git(a, 'rev-parse', '--show-toplevel')}/tools/demo.ts`)
 })
 

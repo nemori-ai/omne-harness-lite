@@ -1,4 +1,3 @@
-// 成员预算与清理草稿：超预算生成草稿、六个标题齐全且顺序对；反复变红达到上限时标结构问题、不生成草稿。
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -33,7 +32,6 @@ const values = (overrides: Partial<BudgetValues> = {}): BudgetValues => ({
   ...overrides,
 })
 
-/** 一串快照，第 i 条里这个成员的超 alert 函数数是 `counts[i]`，总带位按同一组线算好。 */
 function history(entries: readonly [number, MemberSnapshot['band']][]): Snapshot[] {
   return entries.map(([overAlert, band], index) => ({
     schema: 1,
@@ -64,7 +62,6 @@ const judge = (
     baseline,
   })
 
-/** 基线快照里这个成员的条目：超 alert 的函数数取 `overAlert`，其余同 `values()`。 */
 const entry = (overAlert: number | null): MemberSnapshot => ({
   overAlert,
   risk: 5,
@@ -119,7 +116,6 @@ describe('成员预算', () => {
   })
 })
 
-// 线：超 alert 的函数数 提醒 3／处置 6／解除 2。
 describe('成员预算与基线比', () => {
   it('没有基线快照：照绝对线判，各项标未判（没有基线快照）', () => {
     const judged = judge(values({ overAlert: 4 }), [], 'head', { kind: 'none' })

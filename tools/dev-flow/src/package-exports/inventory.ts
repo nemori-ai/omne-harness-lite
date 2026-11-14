@@ -1,18 +1,9 @@
-// The machine-readable export inventory of one package (`tests/fixtures/exports.json` by default)
-// and the checks that need only the inventory and the package manifest.
-
-/** `both`: one name that is a value and a type, such as `const X` with `type X`. */
 export type ExportKind = 'type' | 'value' | 'class' | 'both'
 
 export type InventoryName = Readonly<{
   name: string
   kind: ExportKind
-  /** True while the accepted declaration has no implementation in the built entry yet. */
   pending: boolean
-  /**
-   * Set when another entry owns the declaration and this entry only re-exports it: an entry
-   * subpath of this package (`.`, `./testing`), or a module specifier of another package.
-   */
   sameAs?: string
 }>
 
@@ -25,25 +16,14 @@ export type Augmentation = Readonly<{
   interface: string
   members: readonly string[]
   pending: boolean
-  /**
-   * Members that are already built while the augmentation as a whole is still pending. The built
-   * set must equal this list exactly, so a pending augmentation cannot grow unnoticed. Every name
-   * must also be one of `members`, so a misnamed built member is not accepted for a listed one.
-   */
   landed?: readonly string[]
 }>
 
 export type Inventory = Readonly<{
   package: string
-  /** The public-api page, relative to the package directory, whose chapters the inventory follows. */
   source: string
-  /**
-   * Names that the inventory flags `pending`, summed over all entries. A stage that lands names
-   * lowers it in the same change, so a flag cannot be flipped or deleted unnoticed.
-   */
   expectedPending: number
   entries: Readonly<Record<string, InventoryEntry>>
-  /** Module augmentations (`declare module`): not exports, so they are compared separately. */
   augmentations: readonly Augmentation[]
 }>
 
@@ -115,10 +95,6 @@ function augmentationProblems(value: unknown, at: string): string[] {
   return problems
 }
 
-/**
- * Reads parsed JSON as an inventory. Every field is checked, so a misspelled field or a wrong kind
- * is reported instead of silently weakening a later comparison.
- */
 export function decodeInventory(value: unknown): DecodedInventory {
   if (!isRecord(value)) return { kind: 'invalid', problems: ['inventory: not an object'] }
   const problems = unknownKeys(
@@ -144,7 +120,6 @@ export function decodeInventory(value: unknown): DecodedInventory {
       problems.push(...augmentationProblems(item, `augmentation ${index}`)),
     )
   if (problems.length > 0) return { kind: 'invalid', problems }
-  // Every field was checked above; the narrowing cannot be expressed through the record checks.
   return { kind: 'inventory', inventory: value as Inventory }
 }
 
@@ -152,17 +127,10 @@ export function namesOf(entry: InventoryEntry): readonly InventoryName[] {
   return entry.chapters.flatMap(chapter => chapter.names)
 }
 
-/** Whether `sameAs` names an entry of this package rather than another package. */
 export function isOwnEntry(sameAs: string): boolean {
   return sameAs === '.' || sameAs.startsWith('./')
 }
 
-/**
- * Problems that the inventory has on its own, given the export subpaths of `package.json`: an entry
- * set that differs from the manifest, an empty chapter, a name listed twice in one entry, a pending
- * count that differs from the flags, and a re-export of an own entry that the owner does not list
- * as an owner. Built declarations independently verify each export kind.
- */
 export function inventoryProblems(
   inventory: Inventory,
   manifestEntries: readonly string[],

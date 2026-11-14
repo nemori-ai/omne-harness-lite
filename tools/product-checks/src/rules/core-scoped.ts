@@ -40,7 +40,6 @@ function problem(rule: string, file: SourceFile, node: ts.Node, message: string)
   return { rule, path: file.path, line: lineAt(file.text, node.getStart(syntaxOf(file))), message }
 }
 
-/** 注册的锚点消失必须失败；不会把空注册表作为消费者的符合性证据。 */
 function targetFunction(rule: string, files: readonly SourceFile[], target: CoreFunctionTarget) {
   const file = files.find(value => value.path === target.path)
   const fn = file === undefined ? undefined : findFunction(file, target.functionName)
@@ -51,7 +50,6 @@ function targetFunction(rule: string, files: readonly SourceFile[], target: Core
   return { file, fn, missing }
 }
 
-/** 同文件具名 import 和 const 标识符别名；不声称解析跨文件闭包或动态成员。 */
 function localNames(file: SourceFile): Map<string, string> {
   const names = new Map<string, string>()
   visitSyntax(syntaxOf(file), node => {
@@ -95,11 +93,9 @@ function calledName(
 }
 
 export interface BodyProjectionTarget extends CoreFunctionTarget {
-  /** 按已经接受的正文签名逐参数登记；MCP 的第二参为显式动作副本。 */
   readonly parameterTypes: readonly string[]
 }
 
-/** 仅检查已经点名的推出模块：类型 import 与明确正文参数，不能扩成整个包禁值 import。 */
 export function createBodyProjectionInputs(targets: readonly BodyProjectionTarget[]): Rule {
   if (targets.length === 0) throw new TypeError('body-projection-inputs 需要非空实际范围')
   return {
@@ -184,12 +180,10 @@ export function createBodyProjectionInputs(targets: readonly BodyProjectionTarge
 }
 
 export interface ParameterCacheTarget extends CoreFunctionTarget {
-  /** 限定动态作者 Schema 模块中的实际构造器，不是全仓 Map/Set 禁令。 */
   readonly constructors: readonly string[]
   readonly factories: readonly string[]
 }
 
-/** 这里只查分配点归属；回收/独立性/编译次数仍需调用方对象的行为证据。 */
 export function createParameterJudgeCacheOwner(target: ParameterCacheTarget): Rule {
   return {
     id: 'parameter-judge-cache-owner',
@@ -218,7 +212,6 @@ export function createParameterJudgeCacheOwner(target: ParameterCacheTarget): Ru
 }
 
 export interface ToolArgumentParserInputs {
-  /** 应登记实际需要禁止重解析的函数；通用 JSON 读写不属于这里。 */
   readonly rawTargets: readonly CoreFunctionTarget[]
   readonly closeTarget: CoreFunctionTarget
   readonly streamPrefix: string
@@ -243,11 +236,9 @@ function parserKind(
 }
 
 export interface ModelToolNameOriginTarget extends CoreFunctionTarget {
-  /** 真正消费 ToolName/ModelToolName 的参数绑定；不是按任意字符串变量名推断。 */
   readonly nameParameters: readonly string[]
 }
 
-/** 规范转换函数不应登记成来源判断消费者；这条规则只查具名名字参数的局部操作。 */
 export function createModelToolNameOrigin(targets: readonly ModelToolNameOriginTarget[]): Rule {
   if (targets.length === 0) throw new TypeError('model-tool-name-origin 需要非空实际消费者')
   return {
@@ -308,7 +299,6 @@ export function createModelToolNameOrigin(targets: readonly ModelToolNameOriginT
   }
 }
 
-/** 只在具名消息次序消费者查 createdAt；表示层的 RFC3339 校验和原样记录不在此范围。 */
 export function createMessageCreatedAtOrder(targets: readonly CoreFunctionTarget[]): Rule {
   if (targets.length === 0) throw new TypeError('message-createdAt-order 需要非空实际消费者')
   return {
@@ -368,7 +358,6 @@ export function createMessageCreatedAtOrder(targets: readonly CoreFunctionTarget
   }
 }
 
-/** 解析点计数是结构证据；“只在接受 close”仍由状态与调用次数行为测试核实。 */
 export function createSingleToolArgumentParser(inputs: ToolArgumentParserInputs): Rule {
   return {
     id: 'single-tool-argument-parser',
@@ -424,7 +413,6 @@ export function createSingleToolArgumentParser(inputs: ToolArgumentParserInputs)
   }
 }
 
-/** 已由主调度点名且源码存在的五类正文模块；没有源码的正文不登记占位锚点。 */
 export const CORE_BODY_PROJECTION_TARGETS: readonly BodyProjectionTarget[] = Object.freeze([
   Object.freeze({
     path: 'core/tool-definition/src/declarations.ts',
@@ -480,7 +468,6 @@ export const CORE_PARAMETER_CACHE_TARGET: ParameterCacheTarget = Object.freeze({
   factories: Object.freeze(['createSchemaRuntime']),
 })
 
-/** 主调度点名的实现锚点；只有实际包出现时登记到默认扫描，缺席保留覆盖缺口。 */
 export const CORE_TOOL_ARGUMENT_PARSER_INPUTS: ToolArgumentParserInputs = Object.freeze({
   streamPrefix: 'core/stream-assembly/src/',
   closeTarget: Object.freeze({
@@ -495,7 +482,6 @@ export const CORE_TOOL_ARGUMENT_PARSER_INPUTS: ToolArgumentParserInputs = Object
   ]),
 })
 
-/** 包尚不存在是覆盖缺口；包一旦存在，登记模块或函数丢失不能静默通过。 */
 function whenPackageExists(prefix: string, rule: Rule): Rule {
   return {
     ...rule,

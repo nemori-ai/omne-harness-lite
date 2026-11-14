@@ -1,6 +1,3 @@
-// 成员测试一层失败后的定向重跑：失败 ≤ 10 处且都落在测试文件里时，同一次运行内低并发只重跑那些文件一次；
-// 全过记通过并保留 retried，仍失败按现语义失败，超过 10 处或有成员一级的失败不重跑。失败原因分类进记录，断言失败分开计。
-// 运行与重跑都换成假函数，这里只核编排、分类与记录；真的起 vitest 在 steps.ts 里接线。
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,7 +21,6 @@ const failure = (file: string, message: string, test = 'a case'): Failure => ({
   message,
 })
 
-/** 一次假的层运行：按给定的失败结束；再一次假的重跑：按文件给结果并记下被叫到的顺序。 */
 function harness(
   failures: readonly Failure[],
   outcomes: Record<string, RerunOutcome>,

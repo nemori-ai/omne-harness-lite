@@ -1,5 +1,3 @@
-// 结构图的几何：层是横向的列（第 0 层最左），组是层内的容器，成员是组内网格里的卡片。
-// 分组与组内顺序是 report.layout 给的事实（行内排序已按重心法排好），这里只摆位置，不改归属。
 import type { Report } from '../../../metrics/report.ts'
 
 export const CARD_WIDTH = 188
@@ -25,7 +23,6 @@ export interface Box {
 
 export interface LayerBox extends Box {
   readonly id: string
-  /** 层号；未登记层位的组收在 layer 为 undefined 的兜底列里。 */
   readonly layer: number | undefined
   readonly label: string
 }
@@ -48,7 +45,6 @@ export interface StructureLayout {
   readonly members: readonly MemberBox[]
 }
 
-/** 组内网格的列数：成员多就多列，封顶 MAX_COLUMNS，让大组变高而不是变得过宽。 */
 export function columnsFor(count: number): number {
   return Math.min(MAX_COLUMNS, Math.max(1, Math.ceil(Math.sqrt(count / 2))))
 }
@@ -67,10 +63,6 @@ function groupSize(count: number): { width: number; height: number } {
   }
 }
 
-/**
- * 层内的组自上而下排；超过目标高度就另起一个子列。目标高度取全图最高的单个组，
- * 所以最大的组独占一列，其余层压成相近的高度，整张图接近横向的矩形。
- */
 function packColumns(groups: readonly GroupInput[], target: number): GroupInput[][] {
   const columns: GroupInput[][] = []
   let current: GroupInput[] = []

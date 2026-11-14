@@ -1,4 +1,3 @@
-// 并行度从机器推的规则：预算怎么来、怎么分。池子是核数减去留给别的活的核，按同一台机器同时跑几次检查平分。
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'

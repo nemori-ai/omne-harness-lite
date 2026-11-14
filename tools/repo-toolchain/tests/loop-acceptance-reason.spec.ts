@@ -1,5 +1,3 @@
-// 验收耗时传感器没数据时的原因文字：它指向的入口随本包发布，所以断言放在本包，与源码里的文字一起改。
-// 读数的其余行为由 test-runner 的 loop-acceptance.spec.ts 在它写出的真实账本上核对。
 import { afterEach, expect, it } from 'vitest'
 import { readAcceptanceTiming } from '../src/loop/sensors/acceptance.ts'
 import {
@@ -19,7 +17,6 @@ it('有验收却没有这个提交的记录：没数据，原因指到跑验收�
     'apps/cli/package.json',
     JSON.stringify({ name: '@x/cli', scripts: { test: 'vitest run', acceptance: 'vitest run' } }),
   )
-  // 别的提交的记录不算这个提交的。
   put(ledgers, 'other0000/20261002-000000/ledger.json', '{}')
   const reading = readAcceptanceTiming({
     root,

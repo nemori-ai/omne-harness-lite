@@ -31,7 +31,6 @@ const local = (...parts: [number, number, number, number?, number?]) =>
 const config = readLoopConfig()
 
 describe('提交与合并的大小', () => {
-  // `git log --format=%x00%H%x09%s --name-only` 的形状：每个提交以 NUL 起头，标题行后空一行再列文件。
   const log = [
     '\u0000a1\tfirst\n\nx.ts\n',
     '\u0000b2\tsecond\twith tab\n\nx.ts\ny.ts\nz.ts\nw.ts\nv.ts\n',
@@ -366,7 +365,6 @@ describe('页面与摘要', () => {
   })
 })
 
-// 入口：起 git 与 node 子进程；全量检查满载时会超过默认的 5 秒，所以写明时限。
 describe('入口', { timeout: 60_000 }, () => {
   const made: string[] = []
   afterEach(() => {

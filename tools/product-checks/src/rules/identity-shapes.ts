@@ -14,14 +14,12 @@ export interface IdentityDecisionTarget {
   readonly functionName: string
 }
 
-/** 注册的是可检查的表示；这不是凭名字推导业务资格的规则。 */
 export interface IdentityCheckInputs {
   readonly identityTypeNames: readonly string[]
   readonly physicalTypeNames: readonly string[]
   readonly decisionTargets: readonly IdentityDecisionTarget[]
 }
 
-/** 身份类型名单只从 legal-identity 公开入口取得，不维护第二份领域名单。 */
 export const IDENTITY_CHECK_INPUTS: IdentityCheckInputs = Object.freeze({
   identityTypeNames: IDENTITY_TYPE_NAMES,
   physicalTypeNames: Object.freeze([
@@ -36,7 +34,6 @@ export const IDENTITY_CHECK_INPUTS: IdentityCheckInputs = Object.freeze({
     'EnvironmentVariables',
     'RuntimeInstanceId',
   ]),
-  // S-21 是范围化对象的准入；本阶段没有已点名的消费者准入函数。
   decisionTargets: Object.freeze([]),
 })
 
@@ -54,7 +51,6 @@ function typeEnvironment(syntax: ts.SourceFile) {
   return { aliases, imports }
 }
 
-/** 识别本文件类型别名、接口成员和具名 import 改名；不解析跨文件别名或泛型实例化。 */
 function typeNames(node: ts.Node, syntax: ts.SourceFile): Set<string> {
   const { aliases, imports } = typeEnvironment(syntax)
   const names = new Set<string>()
@@ -69,7 +65,6 @@ function typeNames(node: ts.Node, syntax: ts.SourceFile): Set<string> {
       names.add(imports.get(local) ?? local)
       const alias = aliases.get(local)
       if (alias !== undefined) inspect(alias)
-      // Branded<string, 'FilePath'>／OpaqueIdentifier<'AccountId'>，也认具名构造器改名。
       if (['Branded', 'OpaqueIdentifier'].includes(imports.get(local) ?? local)) {
         for (const arg of current.typeArguments ?? []) {
           if (ts.isLiteralTypeNode(arg) && ts.isStringLiteral(arg.literal))
@@ -110,7 +105,6 @@ function functionParameters(node: ts.Node): ts.NodeArray<ts.ParameterDeclaration
   return undefined
 }
 
-/** SC-1：只有显式注册或 @identityDecision 标注的范围对象准入函数才受查。 */
 export function createIdentityDecisionInputs(
   inputs: IdentityCheckInputs = IDENTITY_CHECK_INPUTS,
 ): Rule {
@@ -176,7 +170,6 @@ export function createIdentityDecisionInputs(
             })
         }
       }
-      // 目标消失时也报出，不把旧注册默认为“无事可查”。
       for (const target of inputs.decisionTargets) {
         if (!files.some(f => f.path === target.path))
           out.push({
@@ -196,7 +189,6 @@ function recordMembers(node: RecordDeclaration): readonly ts.TypeElement[] {
   return ts.isTypeLiteralNode(node.type) ? node.type.members : []
 }
 
-/** SC-2 的 typed 面：仅账号包的 AccountRecord/AccountRow 或 @accountRecord 声明。 */
 export const identityAccountReferences: Rule = {
   id: 'identity-account-references',
   source: 'data.identity-values v1 S-24 · identity-values 节点 SC-2',
@@ -265,7 +257,6 @@ function nullable(member: ts.PropertySignature, syntax: ts.SourceFile): boolean 
   return inspect(member.type)
 }
 
-/** SC-9 的结构反例：持久记录中成对出现可空 organization 与 tenant。 */
 export const identityScopeColumns: Rule = {
   id: 'identity-scope-columns',
   source: 'data.identity-values v1 S-11/S-16 · identity-values 节点 SC-9',

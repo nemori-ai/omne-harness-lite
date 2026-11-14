@@ -57,7 +57,6 @@ const members = [
   member('packages/infra/b', 'packages/infra', 1),
   member('packages/tools/t', 'packages/tools', 1),
   member('apps/cli', 'apps', 2),
-  // 没有登记层位的组：不在 layout 里，仍要有位置。
   member('lost/x', 'lost', 1),
 ]
 

@@ -1,7 +1,4 @@
 // @module-tag slow
-// 归慢层：每条用例在临时 git 仓库里建提交、跑 dependency-cruiser（基线一次全量，改动一层）。
-// 收工钩子的依赖图只换改过的文件的边：新边闭成环、新边违反方向规则要报，新边不闭环不报；去掉的边不再在图里；
-// 成员清单里的解析字段变了就不量依赖项，只出一句。对照：同一棵树上整张工作树图的成员边与环。
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { workingGraph, type DependencyGraph } from '../src/deps/graph.ts'
 import { readLoopConfig } from '../src/loop/config.ts'
@@ -26,7 +23,6 @@ const A = 'apps/a'
 const source = (imports: readonly string[]) =>
   `${imports.map((path, index) => `import { v as v${index} } from '${path}'`).join('\n')}\nexport const v = ${imports.length === 0 ? '1' : imports.map((_, index) => `v${index}`).join(' + ')}\n`
 
-/** 基线：x → y，z 与 a 不导入别人；y 有包名。返回被检树与基线提交。 */
 function subject(): { readonly root: string; readonly base: string } {
   const root = repository()
   write(root, 'tsconfig.base.json', '{}\n')

@@ -8,7 +8,6 @@ import { renderScenarioStatus, scenarioStatuses } from './scenario-status.ts'
 
 const USAGE = '用法：scenario-status [--root <检出目录>]'
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
-// 本成员只在本仓库里运行：配置取运行检查器的仓库，也就是本仓库。
 const CONFIG = toolchainConfigPath(resolve(process.env['OMNE_RUNNER_ROOT'] || ROOT))
 
 function main(argv: readonly string[]): number {

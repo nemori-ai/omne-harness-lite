@@ -3,10 +3,6 @@ import { lineAt } from '@omne-harness/repo-toolchain/core/source-text'
 import { syntaxImports, syntaxOf } from '@omne-harness/repo-toolchain/core/syntax'
 import { NO_TESTING_ENTRIES, type TestingEntries } from '../testing-entries.ts'
 
-/**
- * 装配节点 verification 点名：产品源码不得 import 任何包的 `./testing` 子入口（测试装配、可控时钟只给测试）。
- * 测试路径、精确声明的 testing 入口与合法成员的直接 acceptance 目录豁免。
- */
 export function createNoTestingImport(declared: TestingEntries): Rule {
   const acceptanceDirectories = [...declared.acceptanceDirectories]
   return {
@@ -47,5 +43,4 @@ export function createNoTestingImport(declared: TestingEntries): Rule {
   }
 }
 
-/** 不带任何已声明入口的默认规则：只豁免测试路径。 */
 export const noTestingImport: Rule = createNoTestingImport(NO_TESTING_ENTRIES)

@@ -96,7 +96,6 @@ function dispatch(
   return { receipt, workflowId }
 }
 
-/** Dispatches once and observes that exact run/attempt. Approval is separately, explicitly requested. */
 export async function releaseRun(options: ReleaseRunOptions): Promise<ReleaseRunResult> {
   const input = parseReleaseRunInput(options.input)
   if (!Number.isSafeInteger(options.timeoutMs) || options.timeoutMs < 1)

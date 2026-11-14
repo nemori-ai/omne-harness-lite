@@ -1,8 +1,4 @@
 // @module-tag slow
-// 依赖方向规则（constraints.json schema 3 的 `directions`）：schema 校验（C1）、`omne-deps` 对五条禁边 × 八种导入形态的
-// 命中与退出码（C2）、合法对照（C3）、规则只从可信 runner 读（C4）、架构符合性报告的方向行（C5）、
-// 依赖图的 `modules` 只含解析到的文件（规格 S10）与能由路径判定时报告不取图（规格 S9）。
-// 归慢层：runner 与被检树分开的临时仓库上真实跑 dependency-cruiser（起子进程）。
 import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, renameSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
@@ -29,8 +25,6 @@ const REPOSITORY_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 const CLI = fileURLToPath(new URL('../src/deps/cli.ts', import.meta.url))
 const CONSTRAINTS = 'docs/architecture/constraints.json'
 const ORGANIZATION = 'docs/package-organization.md'
-
-// ---- 已采用的 11 个角色与 5 条方向行（#689 I-02、规格 S1） --------------------------------------------
 
 const MEMBERS = {
   agent: 'packages/agent/agent-contract',
@@ -114,7 +108,6 @@ const DIRECTIONS: readonly DirectionRow[] = [
   },
 ]
 
-/** `directions` 传 null 表示文档里没有这个字段。 */
 function policy(
   schemaVersion: 1 | 2 | 3 = 3,
   directions: unknown = DIRECTIONS,
@@ -128,7 +121,6 @@ function policy(
     ...(directions === null ? {} : { directions }),
   }
 }
-/** 规则文件和它引用的 Markdown 来源：runner 与被检树都可以写。 */
 function writePolicy(root: string, value: unknown): void {
   write(root, CONSTRAINTS, JSON.stringify(value, null, 2))
   write(root, ORGANIZATION, '# 包组织\n\n## 依赖方向与Cordis集成\n\n正文。\n')
@@ -137,13 +129,7 @@ function writePolicy(root: string, value: unknown): void {
 }
 const POLICY_FILES = [CONSTRAINTS, ORGANIZATION, 'docs/domains/boundaries.md']
 
-// ---- 可信 runner：预设、解析配置、规则 -------------------------------------------------------------
-
 const PRESET = `module.exports = require(${JSON.stringify(join(REPOSITORY_ROOT, 'node_modules/@omne-harness/repo-config/dependency-cruiser.cjs'))})\n`
-/**
- * 同一个预设，加载时在 runner 与被检树之外的 `marker` 追加一行：dependency-cruiser 读配置就会加载它，
- * 所以标记文件存在就说明这次运行取了依赖图。
- */
 function markPreset(root: string): string {
   const marker = join(temporaryDirectory('omne-direction-marker-'), 'loaded')
   write(
@@ -153,14 +139,9 @@ function markPreset(root: string): string {
   )
   return marker
 }
-/**
- * runner 的预设取本仓库安装的 repo-config；tsconfig 里的别名指向被检树，让「别名」这种导入形态能解析。
- * `constraints` 传 null 表示 runner 没有 constraints.json。
- */
 function runner(subject: string, constraints: unknown = policy()): string {
   const root = temporaryDirectory('omne-direction-runner-')
   write(root, '.dependency-cruiser.cjs', PRESET)
-  // TypeScript 不接受没有输入文件的配置，所以列一个空文件。
   write(root, 'stub.ts', 'export {}\n')
   write(
     root,
@@ -179,8 +160,6 @@ function runner(subject: string, constraints: unknown = policy()): string {
   if (constraints !== null) writePolicy(root, constraints)
   return root
 }
-
-// ---- 被检树：八个成员的最小源码与合法对照 ------------------------------------------------------------
 
 const manifest = (member: string, subpaths: readonly string[]) =>
   JSON.stringify({
@@ -205,10 +184,6 @@ const pureOf = (cordis: string) => `packages/${domainOf(cordis)}/${domainOf(cord
 const name = (member: string) => `@omne-harness/${member.split('/').pop() ?? ''}`
 const valueOf = (member: string) => member.split('/').pop()?.replaceAll('-', '_') ?? ''
 
-/**
- * 十一个成员的最小源码。`contrasts` 为真时再放 C3 的合法对照：Agent 纯契约 → Model/Tool 纯契约、各 Cordis 定义 → 自身纯契约、
- * session-adapters → Agent、名字含 Session 的公共值、同前缀兄弟成员。为假时树里没有任何跨成员导入，单独一个反例就是唯一的发现。
- */
 function subject(
   root: string = temporaryDirectory('omne-direction-subject-'),
   contrasts = true,
@@ -231,7 +206,6 @@ function subject(
     for (const subpath of subpaths)
       write(root, `${member}/src/${subpath}.ts`, `export const ${value}_${subpath} = 3\n`)
   }
-  // 目标成员的 dist 与声明文件：指向它们的依赖同样算目标成员。
   write(root, `${MEMBERS.session}/dist/index.js`, 'export const session_contract = 1\n')
   write(
     root,
@@ -243,7 +217,6 @@ function subject(
   return root
 }
 function writeContrasts(root: string): void {
-  // 公共值：名字含 Session，但在 common 组。
   write(
     root,
     'packages/common/legal-identity/package.json',
@@ -255,7 +228,6 @@ function writeContrasts(root: string): void {
     'export interface SessionPrincipal { readonly id: string }\nexport const sessionPrincipal = 1\n',
   )
   write(root, 'packages/common/legal-identity/src/extra.ts', 'export const identity_extra = 1\n')
-  // 同前缀的兄弟成员：不是任何角色。
   write(
     root,
     'packages/session/session-contract-extra/package.json',
@@ -300,8 +272,6 @@ function writeContrasts(root: string): void {
   )
 }
 
-// ---- 反例：五条方向 × 八种导入形态 ------------------------------------------------------------------
-
 const FORMS = [
   'type',
   'value',
@@ -319,7 +289,6 @@ interface Negative {
   readonly path: string
   readonly target: string
 }
-/** 纯契约放类型、值、`export *`、`export { x } from` 四种；Cordis 定义放公开子路径、别名、跨成员相对路径、动态 `import()` 四种。导入都写在第 2 行。 */
 function negative(direction: DirectionRow, form: Form): { readonly text: string } & Negative {
   const toKind = direction.to.includes(MEMBERS.session) ? 'session' : 'agent'
   const pure = toKind === 'session' ? MEMBERS.session : MEMBERS.agent
@@ -372,8 +341,6 @@ function writeNegative(root: string, direction: DirectionRow, form: Form): Negat
 function writeNegatives(root: string): Negative[] {
   return DIRECTIONS.flatMap(direction => FORMS.map(form => writeNegative(root, direction, form)))
 }
-
-// ---- 跑 CLI -------------------------------------------------------------------------------------------
 
 function deps(root: string, runnerRoot: string) {
   const run = spawnSync(process.execPath, ['--experimental-strip-types', CLI, '--root', root], {
@@ -496,7 +463,6 @@ describe('schema 3 的方向行（C1）', () => {
       status: 'candidate',
       source: `${MEMBERS.agent}/SPEC.md`,
     })
-    // 更精确、不在 from 里的角色会把 src/** 的一部分截走。
     const precise = extra(`${MEMBERS.agent}/testing`, [`${MEMBERS.agent}/src/testing/**`])
     expect(() => parse(policy(3, DIRECTIONS, [...roles(), precise]))).toThrow(
       `${MEMBERS.agent} shares or contains the paths of ${precise.id}: ${MEMBERS.agent}/src/**`,
@@ -504,19 +470,16 @@ describe('schema 3 的方向行（C1）', () => {
     expect(() => parse(policy(3, DIRECTIONS, [precise, ...roles()]))).toThrow(
       'shares or contains the paths of',
     )
-    // paths 相同的角色让成员归属不唯一。
     const twin = extra(`${MEMBERS.agent}/twin`, [`${MEMBERS.agent}/src/**`])
     expect(() => parse(policy(3, DIRECTIONS, [...roles(), twin]))).toThrow(
       `${MEMBERS.agent} shares or contains the paths of ${twin.id}`,
     )
-    // 与方向行无关的两个角色互相包含不是方向行的错。
     const aside = extra('packages/agent/agent-host-local/testing', [
       `${MEMBERS.host}/src/testing/**`,
     ])
     expect(parse(policy(3, DIRECTIONS, [...roles(), aside])).directions).toHaveLength(5)
   })
   it('源角色与目标角色在同一个成员里时报错：成员内部的依赖不进依赖图，这一对永远不会命中', () => {
-    // 与 agent-contract 同成员、paths 不重叠的另一个角色，放在目标一侧。
     const neighbour: ArchitectureRole = {
       id: `${MEMBERS.agent}/lib`,
       paths: [`${MEMBERS.agent}/lib/**`],
@@ -525,7 +488,6 @@ describe('schema 3 的方向行（C1）', () => {
       status: 'candidate',
       source: `${MEMBERS.agent}/SPEC.md`,
     }
-    // 对照：角色只是声明了、没有被方向行引用，不是错。
     expect(parse(policy(3, DIRECTIONS, [...roles(), neighbour])).directions).toHaveLength(5)
     const [, ...rest] = DIRECTIONS
     const sameMember = { ...AGENT_SESSION, to: [MEMBERS.session, neighbour.id] }
@@ -555,15 +517,12 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
   it('合法对照通过；每条方向 × 八种形态都命中，写明方向行、源、目标与行号；未解析与环不算命中；被检树改不了规则；删掉反例后恢复', () => {
     const tree = subject()
     const trusted = runner(tree)
-    // C3：只有合法对照时通过，汇总行写明检查了几条方向行、几个成员对。
     const legal = deps(tree, trusted)
     expect(legal).toEqual({
       status: 0,
       stderr: '',
       stdout: expect.stringContaining('依赖方向：检查了 5 条方向行、20 个成员对，命中 0 处'),
     })
-    // C3 的同前缀兄弟成员：agent-contract 导入 packages/session/session-contract-extra 不是方向命中。
-    // 它与 session-adapters → agent-contract 一起让 agent、session 两个组成环，成员之间不成环，不是发现。
     const sibling = `${MEMBERS.agent}/src/legal-sibling.ts`
     write(
       tree,
@@ -577,7 +536,6 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
     expect(siblingRun.stdout).not.toContain('成环')
     rmSync(join(tree, sibling))
 
-    // C2：四十个反例，外加一处未解析的导入与一个文件环。
     const negatives = writeNegatives(tree)
     write(
       tree,
@@ -614,7 +572,6 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
       false,
     )
 
-    // C4：被检树自己的规则文件与预设，改了也好、删了也好，都不改变结果。
     writePolicy(tree, policy(2, null))
     write(tree, '.dependency-cruiser.cjs', 'module.exports = { forbidden: [], options: {} }\n')
     write(tree, 'tsconfig.base.json', '{ "compilerOptions": {} }\n')
@@ -627,7 +584,6 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
     expect(deleted.status).toBe(1)
     expect(located(hits(deleted.stdout))).toEqual(expected(negatives))
 
-    // 删掉反例、未解析导入与环后恢复通过。
     for (const row of negatives) rmSync(join(tree, row.path))
     rmSync(join(tree, MEMBERS.agent, 'src', 'unresolved.ts'))
     for (const path of ['cycle-a.ts', 'cycle-b.ts']) rmSync(join(tree, MEMBERS.model, 'src', path))
@@ -637,13 +593,11 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
   })
 
   it('每条方向单独一个反例就在没有其他发现的树上退出 1', () => {
-    // 没有合法对照的树：没有任何跨成员导入，所以一个反例就是唯一的一处发现，退出码只来自它。
     const tree = subject(undefined, false)
     const trusted = runner(tree)
     const clean = deps(tree, trusted)
     expect(clean.status).toBe(0)
     for (const [index, direction] of DIRECTIONS.entries()) {
-      // 形态轮着取，别名这种只有 runner 的 tsconfig 声明了 paths 才解析得到的也在其中。
       const form = FORMS[index % FORMS.length] ?? 'value'
       const single = writeNegative(tree, direction, form)
       const alone = deps(tree, trusted)
@@ -676,14 +630,12 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
   })
 
   it('目标成员迁到别的目录后仍有导入：目标角色没有文件，报 direction-unknown 并退出 1，不以命中 0 处通过', () => {
-    // 没有合法对照的树，再加一处 Agent → Session 纯契约的导入：迁走之前它是唯一的发现。
     const tree = subject(undefined, false)
     const trusted = runner(tree)
     const single = writeNegative(tree, AGENT_SESSION, 'value')
     const before = deps(tree, trusted)
     expect(before.status).toBe(1)
     expect(located(hits(before.stdout))).toEqual(expected([single]))
-    // 迁走 session-contract，包名链接改指新目录：导入照样解析，只是落到了不属于任何角色的成员里。
     renameSync(join(tree, MEMBERS.session), join(tree, 'packages/session/session-moved'))
     rmSync(join(tree, 'node_modules', name(MEMBERS.session)))
     linkWorkspace(tree, join(tree, 'node_modules'))
@@ -703,7 +655,6 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
 
   it('runner 没有 constraints.json 就不检查方向；schema 2 没有方向行；文件坏了退出 2 且不跑 dependency-cruiser', () => {
     const tree = subject()
-    // 反例让 Agent、Model、Tool 的纯契约成环，所以退出码 1 来自预设的环，不来自方向。
     writeNegatives(tree)
     const missing = runner(tree, null)
     const skipped = deps(tree, missing)
@@ -733,7 +684,6 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
     expect(rejected.stderr).toContain('unknown fields: directions')
     expect(rejected.stdout).toBe('')
 
-    // 两份约束文件并存也退出 2。
     writePolicy(missing, policy())
     write(missing, '.meta_harness/design/architecture/constraints.json', '{}')
     const ambiguous = deps(tree, missing)
@@ -749,7 +699,6 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
     const broken = deps(tree, trusted)
     expect(broken.status).toBe(2)
     expect(existsSync(marker)).toBe(false)
-    // 对照：文件修好后同一个预设被加载，标记出现。
     writePolicy(trusted, policy())
     expect(deps(tree, trusted).status).toBe(0)
     expect(existsSync(marker)).toBe(true)
@@ -757,9 +706,7 @@ describe('omne-deps 的方向发现（C2–C4）', { timeout: 180_000 }, () => {
 })
 
 describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () => {
-  /** 报告的其他行读被检树自己的 constraints.json，所以规则也写进被检树；方向行与预设只从 runner 读。 */
   function reportable(): { tree: string; trusted: string } {
-    // readConformance 要求根是 Git 仓库顶层，成员直接写进 git 仓库。
     const tree = subject(repository())
     write(tree, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
     writePolicy(tree, policy())
@@ -783,7 +730,6 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
 
   it('每个成员对一行：收敛、偏离与未知各有一例，偏离逐处列源、目标与行号；报告本身不因偏离失败', () => {
     const { tree, trusted } = reportable()
-    // 一个源角色在被检树里没有文件：写完反例后把 tool-cordis-contract 的源码整个删掉。
     const negatives = writeNegatives(tree).filter(
       row => !row.path.startsWith(`${MEMBERS.toolCordis}/`),
     )
@@ -821,7 +767,6 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
       own.map(item => ({ path: item.path, line: 2 })).sort((a, b) => a.path.localeCompare(b.path)),
     )
     for (const item of own) expect(row?.reason).toContain(`${item.path}:2 → ${item.target}`)
-    // 偏离行只报告：报告读得出来，没有抛错；exit 0 不表示符合由 CLI 与 SPEC 约定。
     expect(deviations.every(item => item.sites.length > 0)).toBe(true)
   })
 
@@ -845,14 +790,12 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
 
   it('runner 没有方向行时不取依赖图：不运行 dependency-cruiser', () => {
     const { tree } = reportable()
-    // runner 是 schema 2，或者没有 constraints.json：报告里没有方向行，预设一次都没有加载。
     for (const constraints of [policy(2, null), policy(3, null), null]) {
       const plain = runner(tree, constraints)
       const marker = markPreset(plain)
       expect(withRunner(plain, () => directionRows(tree))).toEqual([])
       expect(existsSync(marker)).toBe(false)
     }
-    // 对照：runner 有方向行时同一个预设被加载，标记出现。
     const trusted = runner(tree)
     const marker = markPreset(trusted)
     expect(withRunner(trusted, () => directionRows(tree))).toHaveLength(20)
@@ -875,10 +818,8 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
 
   it('方向行只从 runner 读：runner 没有方向行就没有这些行，被检树的 schema 不起作用；--member 投影按源成员或目标成员取行', () => {
     const { tree, trusted } = reportable()
-    // 被检树是 schema 2 也有方向行，因为 runner 有。
     writePolicy(tree, policy(2, null))
     expect(withRunner(trusted, () => directionRows(tree))).toHaveLength(20)
-    // runner 是 schema 2 或缺文件时没有方向行，被检树自己的方向行不算数。
     writePolicy(tree, policy())
     const plain = runner(tree, policy(2, null))
     expect(withRunner(plain, () => directionRows(tree))).toEqual([])
@@ -906,7 +847,6 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
     expect(rows.filter(row => row.state !== 'deviation').every(row => row.age === 'unjudged')).toBe(
       true,
     )
-    // 被检版本的图已经算好传进来，然后弄坏 runner 的预设：基线的图取不到，当前的偏离不判为新增。
     const graph = withRunner(trusted, () => workingGraph(tree))
     write(
       trusted,
@@ -918,7 +858,6 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
     )
     expect(unjudged.map(row => row.state)).toEqual(rows.map(row => row.state))
     expect(unjudged.every(row => row.age === 'unjudged')).toBe(true)
-    // 不判的原因写在每一行里，报告的读者看得到基线依赖事实不可得。
     expect(unjudged.every(row => row.reason.includes('基线依赖事实不可得，偏离行未判新旧：'))).toBe(
       true,
     )
@@ -926,7 +865,6 @@ describe('架构符合性报告的方向行（C5）', { timeout: 180_000 }, () =
   })
 })
 
-/** 在可信 runner 下跑：方向行与预设只从它读。 */
 function underRunner<T>(trusted: string, body: () => T): T {
   const previous = process.env['OMNE_RUNNER_ROOT']
   process.env['OMNE_RUNNER_ROOT'] = trusted
@@ -942,10 +880,6 @@ type Version = Pick<SourceCoordinates, 'kind' | 'commit'>
 describe('依赖图的 modules 只含解析到的文件（规格 S10）', { timeout: 180_000 }, () => {
   const PHANTOM = `${MEMBERS.agent}/src/phantom.ts`
   const MISSING = `${MEMBERS.session}/src/index.ts`
-  /**
-   * 目标成员 session-contract 的源码不在树里，agent-contract 仍以写成成员路径的裸说明符导入它，解析不了。
-   * dependency-cruiser 把这个说明符留成节点：0.0.12 把它当成目标角色的文件，这一对因此报 converged。
-   */
   function phantom(): { tree: string; trusted: string; base: string } {
     const tree = subject(repository(), false)
     write(tree, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
@@ -984,7 +918,6 @@ describe('依赖图的 modules 只含解析到的文件（规格 S10）', { time
         `目标角色 ${MEMBERS.session} 的 paths 在被检树中匹配不到任何文件`,
       )
     }
-    // 解析失败的导入不是命中：哪一行都不把它列成导入处。
     expect(working.flatMap(row => row.sites).map(site => site.path)).not.toContain(PHANTOM)
     expect(reported(base)).toEqual(working)
   })
@@ -1005,7 +938,6 @@ describe('依赖图的 modules 只含解析到的文件（规格 S10）', { time
 })
 
 describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout: 180_000 }, () => {
-  /** 计数的读图函数：记下每次取的是哪一种版本，取法与默认的相同。 */
   function counting(): { readonly read: GraphReader; readonly calls: string[] } {
     const calls: string[] = []
     return {
@@ -1016,7 +948,6 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
       },
     }
   }
-  /** 同一版本的方向行两份：按路径判的（读图计数），与把强制取到的图传进去的。 */
   function bothWays(tree: string, trusted: string, current: Version) {
     const { read, calls } = counting()
     return underRunner(trusted, () => ({
@@ -1025,7 +956,6 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
       calls,
     }))
   }
-  /** 没有任何角色文件的仓库：只有一个不属于任何角色的成员，dependency-cruiser 照常有文件可走。 */
   function bare(): { tree: string; head: string } {
     const tree = repository()
     write(tree, 'packages/common/thing/src/index.ts', 'export const thing = 1\n')
@@ -1058,7 +988,6 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
   })
 
   it('只有一边角色有文件时照常取图：清单里有文件不等于图里有模块，目标角色没有文件时目标成员的 dist 仍会命中', () => {
-    // 目标角色里只有 README.md：清单有文件，图里没有模块，取图的行两边角色都写进原因。
     const readme = bare()
     write(readme.tree, `${MEMBERS.session}/src/README.md`, '# notes\n')
     const readmeRun = bothWays(readme.tree, runner(readme.tree), {
@@ -1071,7 +1000,6 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
       state: 'unknown',
       reason: expect.stringContaining(`；目标角色 ${MEMBERS.session} 的 paths`),
     })
-    // 源角色有文件、目标角色没有，导入落在目标成员的 dist：取图的未知行带着导入处。
     const dist = bare()
     write(dist.tree, `${MEMBERS.session}/dist/index.js`, 'export const s = 1\n')
     write(
@@ -1089,7 +1017,6 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
   })
 
   it('角色目录经符号链接才有文件：工作树与提交都取图，图走进链接的目录', () => {
-    // 链接是角色的 src 本身，或者在 src 下面一层：Git 不走进链接，dependency-cruiser 走进去。
     for (const [link, target] of [
       ['src', '../../common/real/src'],
       ['src/lib', '../../../common/real/src'],
@@ -1136,7 +1063,6 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
     expect(rows.filter(row => row.state !== 'deviation').every(row => row.age === 'unjudged')).toBe(
       true,
     )
-    // 对照：基线强制取图也没有偏离行，所以「新增」与取图时相同。
     const stock = underRunner(trusted, () =>
       directionConformance({ root: tree, current: baseline, graph: versionGraph(tree, baseline) }),
     )
@@ -1185,7 +1111,6 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
     const { tree, head } = bare()
     const trusted = runner(tree)
     const blob = git(tree, 'rev-parse', `${head}:packages/common/thing/src/index.ts`)
-    // 树对象能 `ls-tree`，依赖图却按提交取：不能拿它的树当清单。
     const treeObject = git(tree, 'rev-parse', `${head}^{tree}`)
     for (const commit of ['0'.repeat(40), blob, treeObject]) {
       const bad: Version = { kind: 'revision', commit }
@@ -1250,7 +1175,6 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
   it('提交里角色前缀或它的上级是子模块：Git 不走进去，按有处理，照常取图', () => {
     for (const at of [`${MEMBERS.agent}/src`, MEMBERS.agent]) {
       const { tree, head } = bare()
-      // 只改索引再提交：工作树里没有这个目录，`git add -A` 会把子模块项删掉。
       git(tree, 'update-index', '--add', '--cacheinfo', `160000,${head},${at}`)
       git(tree, 'commit', '-q', '-m', `gitlink at ${at}`)
       const next = git(tree, 'rev-parse', 'HEAD')
@@ -1265,7 +1189,6 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
 
   it.skipIf(process.getuid?.() === 0)('工作树里角色下的目录读不了：按有处理，照常取图', () => {
     const exact = `${MEMBERS.agent}/src/index.ts`
-    // 目录模式的角色下有一个读不了的子目录；精确路径的角色所在目录读不了（stat 得到 EACCES）。
     const cases: readonly [string, unknown][] = [
       [`${MEMBERS.agent}/src/locked`, policy()],
       [
@@ -1302,13 +1225,11 @@ describe('能由路径判定时报告不取依赖图（规格 S9）', { timeout:
     const top = repository()
     const tree = join(top, 'sub')
     write(top, 'sub/packages/common/thing/src/index.ts', 'export const thing = 1\n')
-    // 仓库顶层有角色文件，root 下没有：不取图。
     write(top, `${MEMBERS.session}/src/index.ts`, 'export const s = 1\n')
     const before = commit(top, 'role file only at top level')
     const quiet = bothWays(tree, runner(tree), { kind: 'revision', commit: before })
     expect(quiet.rows).toEqual(quiet.forced)
     expect(quiet.calls).toEqual([])
-    // root 下有角色文件，仓库顶层同一路径没有：取图。
     write(top, `sub/${MEMBERS.agent}/src/index.ts`, 'export const a = 1\n')
     const after = commit(top, 'role file under root')
     const taken = bothWays(tree, runner(tree), { kind: 'revision', commit: after })

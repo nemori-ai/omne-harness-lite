@@ -1,5 +1,4 @@
 // @module-tag slow
-// Enumerates real temporary Git trees and missing objects.
 import { rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
@@ -17,7 +16,6 @@ afterEach(removeTemporaries)
 
 it('uses the same source, test, declaration and archive scope for current and historical trees', () => {
   const root = repository()
-  // 当前一侧按工作树数；Windows 文件名不能含制表符，那里换成空格，仍是要 Git 转义的非 ASCII 路径。
   const quoted = process.platform === 'win32' ? '中文 file.ts' : '中文\tfile.ts'
   for (const path of [
     `packages/core/demo/src/${quoted}`,

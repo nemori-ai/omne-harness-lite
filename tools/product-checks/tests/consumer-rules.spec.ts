@@ -1,5 +1,3 @@
-// offer-expiry 消费者（SC-OE-1/2）、凭据材料（SC-CV-1）、注册组合（S-5）、清除链解析（OG S-42）与存储边界（N-2）：
-// 内存夹具两向自测，加最小语法夹具的变异核对。
 import { contractSource } from './fixtures/contract-sources.ts'
 import { describe, expect, it } from 'vitest'
 import { type SourceFile } from '@omne-harness/repo-toolchain'
@@ -24,11 +22,11 @@ describe('sc-oe-1', () => {
       [
         'export interface InvitationRecord {',
         '  readonly id: InvitationId',
-        '  readonly state: OfferState', // 3
+        '  readonly state: OfferState',
         '}',
-        'type OfferRow = { settled: OfferState | null }', // 5
+        'type OfferRow = { settled: OfferState | null }',
         'export interface InvitationTable extends Base<X> {',
-        '  state: OfferState', // 7
+        '  state: OfferState',
         '}',
       ].join('\n'),
     )
@@ -70,17 +68,17 @@ describe('sc-oe-2', () => {
       [
         'async function acceptInvitation(deps: Deps, a: unknown): Promise<Outcome<T, F>> {',
         '  return deps.storage.write(async tx => {',
-        "    if (state === 'expired') return fail('offerExpired')", // 3
-        "    if ('withdrawn' === state) return fail('offerWithdrawn')", // 4
+        "    if (state === 'expired') return fail('offerExpired')",
+        "    if ('withdrawn' === state) return fail('offerWithdrawn')",
         '    switch (state) {',
-        "      case 'accepted':", // 6
+        "      case 'accepted':",
         "        return fail('alreadyAccepted')",
         '    }',
         '  })',
         '}',
         'class Offers {',
         '  async acceptAffiliationRequest(t: unknown): Promise<X> {',
-        "    if (state !== 'pending') return fail('x')", // 13
+        "    if (state !== 'pending') return fail('x')",
         '  }',
         '}',
       ].join('\n'),
@@ -130,13 +128,13 @@ describe('sc-cv-1', () => {
       `${AI}accounts.ts`,
       [
         'let material: CredentialMaterial | undefined',
-        "const [scheme] = material.split('$')", // 2
-        'const salt = snapshot.material.slice(0, 8)', // 3
-        'const n = row.credential_material.length', // 4
-        "const p = (row.credential_material as CredentialMaterial).split('$')", // 5
-        'const ok = /^scrypt\\$/.test(material)', // 6
-        'const parsed = JSON.parse(snapshot.credential_material)', // 7
-        'const first = material[0]', // 8
+        "const [scheme] = material.split('$')",
+        'const salt = snapshot.material.slice(0, 8)',
+        'const n = row.credential_material.length',
+        "const p = (row.credential_material as CredentialMaterial).split('$')",
+        'const ok = /^scrypt\\$/.test(material)',
+        'const parsed = JSON.parse(snapshot.credential_material)',
+        'const first = material[0]',
       ].join('\n'),
     )
     expect(scCv1.check([bad]).map(v => v.line)).toEqual([2, 3, 4, 5, 8, 6, 7])
@@ -209,13 +207,12 @@ describe('terminal-outcome-closed', () => {
       `${AR}register.ts`,
       [
         'async function register(id: unknown): Promise<TerminalOutcome> {',
-        "  if (x) return 'failed'", // 2
-        "  return 'unknown' as TerminalOutcome", // 3
+        "  if (x) return 'failed'",
+        "  return 'unknown' as TerminalOutcome",
         '}',
       ].join('\n'),
     )
     const found = terminalOutcomeClosed.check([file(`${AR}index.ts`, constant), fifth])
-    // 第 3 行两处：断言本身，以及它塞进来的第五个值
     expect(found.map(v => v.line).sort()).toEqual([2, 3, 3])
 
     const widened = constant
@@ -232,7 +229,6 @@ describe('terminal-outcome-closed', () => {
   })
 
   it('变异核对：工具夹具的 AR 源码原文无违反；追加一个返回第五个值的 register ⇒ 报出', () => {
-    // 常量属于公共定义，方法属于提供者；规则同时核对两者，不丢失第五值反例。
     const types = contractSource('core/account-registration/src/types.ts')
     const original = contractSource(`${AR}index.ts`)
     expect(terminalOutcomeClosed.check([types, original])).toEqual([])
@@ -249,10 +245,10 @@ describe('og-s42-dynamic-resolve', () => {
     const entry = file(
       'tenancy/governance-center-entry-node/src/x.ts',
       [
-        "import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness/organization-governance'", // 1
-        'const p = ctx.get(ORGANIZATION_PURGE_SERVICE)', // 2（常量引用也在这一行）
-        "const q = resolveOptional<Purge>(ctx, 'organization-purge')", // 3
-        "export const plugin = definePlugin({ inject: ['storage', 'organization-purge'] })", // 4
+        "import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness/organization-governance'",
+        'const p = ctx.get(ORGANIZATION_PURGE_SERVICE)',
+        "const q = resolveOptional<Purge>(ctx, 'organization-purge')",
+        "export const plugin = definePlugin({ inject: ['storage', 'organization-purge'] })",
       ].join('\n'),
     )
     const og = file(`${OG}plugin.ts`, 'const self = ctx.get(ORGANIZATION_PURGE_SERVICE)')
@@ -301,11 +297,11 @@ describe('no-dialect-bypass', () => {
     const bad = file(
       `${OG}db.ts`,
       [
-        "import { openStorage, type StorageSqlConfig } from '@omne-harness/storage-sql'", // 1
-        "import { NodeSqliteDialect as D } from '@omne-harness/storage-sql'", // 2
-        "import * as sq from '@omne-harness/storage-sql'", // 3
-        'const s = new sq.SqlStorage(x)', // 4
-        'const db = new Kysely<Db>({ dialect: new D(opts) })', // 5
+        "import { openStorage, type StorageSqlConfig } from '@omne-harness/storage-sql'",
+        "import { NodeSqliteDialect as D } from '@omne-harness/storage-sql'",
+        "import * as sq from '@omne-harness/storage-sql'",
+        'const s = new sq.SqlStorage(x)',
+        'const db = new Kysely<Db>({ dialect: new D(opts) })',
       ].join('\n'),
     )
     expect(
