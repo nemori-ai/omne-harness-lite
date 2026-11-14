@@ -4594,7 +4594,7 @@
       },
       "packages/session/session/src/advance.ts": {
         "count": 1,
-        "longest": 582
+        "longest": 587
       },
       "packages/session/session/src/command.ts": {
         "count": 1,
@@ -4607,10 +4607,6 @@
       "packages/session/session/src/faces.ts": {
         "count": 1,
         "longest": 170
-      },
-      "packages/session/session/src/recover.ts": {
-        "count": 1,
-        "longest": 155
       },
       "packages/session/session/src/scan.ts": {
         "count": 1,

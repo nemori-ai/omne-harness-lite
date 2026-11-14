@@ -1,7 +1,8 @@
 // The recovery of an active Run whose execution was handed over (contract PM-14, PM-05; SPEC C2
-// 顺序：恢复与接管, the recovery path only). S3 hands an active Run here. A Run that C2 came to by
-// replaying its invoke is asked about without a recorded hand-over too: the Agent may have accepted
-// the invoke in a process that ended before the answer came back. The execution record decides:
+// 顺序：恢复与接管, the recovery path only). S3 hands an active Run here, and C2 hands one whose
+// invoke it sent again: the Agent may have accepted that invoke in a process that ended before the
+// answer came back. A Run whose acceptance this instance read is asked about without a recorded
+// hand-over too. The execution record decides:
 //
 // - The attachment is active and the host of the record has no judgment that its runtime is out of
 //   contact: the Agent advances the execution, and nothing is done (PM-14).
@@ -33,6 +34,7 @@ import {
   type DriveFailure,
   type DurableEvidence,
   type ExecutionStatus,
+  type InputId,
   type RunId,
   type SessionFaces,
   type SessionFailure,
@@ -41,6 +43,7 @@ import {
 import type { SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnostic } from './diagnostics.ts'
 import { messageOf } from './failures.ts'
+import type { KnownHandovers } from './known-handovers.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import { sessionKey, type Scheduling, type SessionRef } from './scheduling.ts'
 import { sessionSlotReference } from './slot-reference.ts'
@@ -48,8 +51,6 @@ import { sessionSlotReference } from './slot-reference.ts'
 export type Recovery = Readonly<{
   /** Checks the active Run of one session. A check in flight absorbs later triggers into one more. */
   trigger(ref: SessionRef): void
-  /** C2 replayed the invoke of `run`: the Run is checked from now on, hand-over recorded or not. */
-  replayed(ref: SessionRef, run: RunId): void
 }>
 
 type ActiveRun = Extract<WorkSnapshot['run'], { kind: 'active' }>
@@ -66,10 +67,10 @@ export function acceptedRun(snapshot: WorkSnapshot): ActiveRun | null {
   return snapshot.handed.includes(run.first) || !snapshot.pending.includes(run.first) ? run : null
 }
 
-/** The Run a check asks about: the accepted one, or the active one whose invoke C2 replayed. */
-function checkedRun(snapshot: WorkSnapshot, replayed: RunId | undefined): ActiveRun | null {
+/** The Run a check asks about: the accepted one, by the snapshot or by an answer this instance read. */
+function checkedRun(snapshot: WorkSnapshot, known: ReadonlySet<InputId>): ActiveRun | null {
   const { run } = snapshot
-  return run.kind === 'active' && run.run === replayed ? run : acceptedRun(snapshot)
+  return run.kind === 'active' && known.has(run.first) ? run : acceptedRun(snapshot)
 }
 
 /**
@@ -93,11 +94,10 @@ export function createRecovery<P>(
     lifecycle: Lifecycle
     scheduling: Scheduling<P>
     coordinator: SessionFaces<P>
+    known: KnownHandovers
   }>,
 ): Recovery {
-  const { dependencies, lifecycle, scheduling, coordinator } = input
-  /** Per session, the Run whose invoke C2 replayed. An entry leaves when that Run is not active. */
-  const replays = new Map<string, RunId>()
+  const { dependencies, lifecycle, scheduling, coordinator, known } = input
 
   const report = (
     ref: SessionRef,
@@ -207,9 +207,8 @@ export function createRecovery<P>(
     if ('failure' in principal) return
     const snapshot = await coordinator.work.readWork({ principal: principal.ok, ...ref })
     if ('failure' in snapshot) return
-    const key = sessionKey(ref)
-    const run = checkedRun(snapshot.ok, replays.get(key))
-    if (run === null) return void replays.delete(key)
+    const run = checkedRun(snapshot.ok, known.of(ref, snapshot.ok))
+    if (run === null) return
     const { advance } = run
     if (advance === null) return
     const execution = run.execution.execution
@@ -233,14 +232,7 @@ export function createRecovery<P>(
     await takeUp(ref, port, principal.ok, snapshot.ok, run, handover.ok)
   }
 
-  const trigger = absorbing(lifecycle, scheduling, check)
-  return {
-    trigger,
-    replayed: (ref, run) => {
-      replays.set(sessionKey(ref), run)
-      trigger(ref)
-    },
-  }
+  return { trigger: absorbing(lifecycle, scheduling, check) }
 }
 
 /** Runs `check` on the lane of the session. A check in flight absorbs later triggers into one more. */

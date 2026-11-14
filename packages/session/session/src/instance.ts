@@ -15,12 +15,13 @@ import { createControlPropagation, type ControlPropagation } from './control.ts'
 import { checkStartConditions, type SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnose } from './diagnostics.ts'
 import { createFaces, type SessionFacesWithDirectory } from './faces.ts'
+import { createKnownHandovers } from './known-handovers.ts'
 import { Lifecycle } from './lifecycle.ts'
 import { createSessionMeasurer, type SessionMeasure } from './measure.ts'
 import { checkSessionConfiguration, type SessionConfiguration } from './policy.ts'
 import { createReads } from './reads.ts'
 import { createResolution } from './resolution.ts'
-import { createRecovery, type Recovery } from './recover.ts'
+import { createRecovery } from './recover.ts'
 import { createScan, type MaintenanceHandle } from './scan.ts'
 import { createScheduling, type TenantId } from './scheduling.ts'
 
@@ -117,7 +118,14 @@ export function createSessionInstance<P>(
     scheduling,
     maintainer: faces.maintainer,
   })
-  let recovery: Recovery | null = null
+  const known = createKnownHandovers()
+  const recovery = createRecovery({
+    dependencies,
+    lifecycle,
+    scheduling,
+    coordinator: faces.coordinator,
+    known,
+  })
   const wired = createAdvance({
     dependencies,
     lifecycle,
@@ -125,7 +133,8 @@ export function createSessionInstance<P>(
     scheduling,
     resolution,
     faces,
-    replayed: (ref, run) => recovery?.replayed(ref, run),
+    known,
+    recover: recovery.trigger,
   })
   advance = wired
   controls = createControlPropagation({
@@ -136,13 +145,6 @@ export function createSessionInstance<P>(
     coordinator: faces.coordinator,
   })
   const controlPropagation = controls
-  const checks = createRecovery({
-    dependencies,
-    lifecycle,
-    scheduling,
-    coordinator: faces.coordinator,
-  })
-  recovery = checks
   const scan = createScan({
     lifecycle,
     policy,
@@ -152,7 +154,7 @@ export function createSessionInstance<P>(
     advance: wired,
     resolution,
     controls: controlPropagation,
-    recovery: checks,
+    recovery,
   })
 
   return Object.freeze({

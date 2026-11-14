@@ -135,6 +135,44 @@ describe('the recovery of an active Run (PM-14)', () => {
     expect(agent.detach.mock.calls[0]![0]).toMatchObject({ execution, advance: run.advance })
   })
 
+  it('takes up a granted Run that a later attempt holds although its hand-over is not recorded: the claim is recalled and the execution is resumed', async () => {
+    const h = await harness({ backend: memoryBackend, advance: true })
+    open.push(h)
+    await h.create()
+    // No acceptance reaches this instance, as after a restart: the first input stays pending.
+    h.drive.invoke = async () => ({ failure: { kind: 'denied' } })
+    await h.accept('input-1')
+    await vi.waitFor(async () => expect((await read(h)).run.kind).toBe('active'))
+    const run = await activeRun(h)
+    // A recovery before the restart claimed the Run for the handover and did not resume it.
+    const agent = handedOver(h)
+    const instance = sessionSlotReference(h.access().session, run.adoption)
+    succeeded(
+      await h.faces('coordinator').work.claim({
+        principal: 'system:coordinator',
+        ...sessionRef(h),
+        operation: deriveSessionOperation({
+          kind: 'claim',
+          run: run.run,
+          instance,
+          continuity: agent.handover,
+        }),
+        run: run.run,
+        instance,
+        continuity: agent.handover,
+        expected: expectedRevision(await read(h), 'claim'),
+      }),
+      'the claim before the restart',
+    )
+
+    await scan(h)
+    await vi.waitFor(() => expect(agent.resume).toHaveBeenCalledTimes(1))
+
+    expect((await read(h)).handed).toEqual([])
+    expect(ordinalOf(await activeRun(h))).toBe(ordinalOf(run) + 1)
+    expect(agent.resume.mock.calls[0]![0]).toMatchObject({ recovery: agent.handover })
+  })
+
   it('leaves the Run to the Agent while the attachment is active', async () => {
     const { h, run } = await acceptedRun()
     const agent = handedOver(h)

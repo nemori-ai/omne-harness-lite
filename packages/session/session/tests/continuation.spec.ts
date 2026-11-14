@@ -303,3 +303,45 @@ describe('C2 续入: the failure branches of submit', () => {
     expect(submitted).toEqual([])
   })
 })
+
+describe('an answer of the Agent that this instance read is not asked for again', () => {
+  /** No hand-over can be recorded, as with an evidence source that does not answer. */
+  function unrecorded(h: Harness): void {
+    const bridge = h.evidence as { prepare: Harness['evidence']['prepare'] }
+    const prepare = bridge.prepare
+    bridge.prepare = async (command, access) =>
+      command.kind === 'receive'
+        ? fail({ kind: 'unavailable', owner: 'evidence', diagnostic: 'no source' })
+        : prepare(command, access)
+  }
+
+  it('without a recorded hand-over and with the inputs still pending, the Run is invoked once and each waiting input is submitted once', async () => {
+    const h = await service()
+    await h.create()
+    unrecorded(h)
+    const invoked: string[] = []
+    h.drive.invoke = async input => {
+      invoked.push(input.operation)
+      return succeed({ revision: 'revision-1', evidence: evidence('accepted') })
+    }
+    const submitted = recordSubmits(h, async () =>
+      succeed({ revision: 'revision-2', evidence: evidence('submitted') }),
+    )
+
+    await h.accept('input-1')
+    await vi.waitFor(() => expect(invoked).toHaveLength(1))
+    // Each later input is a new trigger of S1, which reads the same pending inputs again.
+    await h.accept('input-2')
+    await vi.waitFor(() => expect(submitted.map(item => item.input)).toContain('input-2'))
+    await h.accept('input-3')
+    await vi.waitFor(() => expect(submitted.map(item => item.input)).toContain('input-3'))
+    await notice(h)
+    await new Promise(resolve => setImmediate(resolve))
+
+    expect(invoked).toHaveLength(1)
+    expect(submitted.map(item => item.input)).toEqual(['input-2', 'input-3'])
+    const snapshot = await read(h)
+    expect(snapshot.handed).toEqual([])
+    expect(snapshot.pending).toEqual(['input-1', 'input-2', 'input-3'])
+  })
+})
