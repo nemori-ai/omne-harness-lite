@@ -8,6 +8,14 @@
 
 改源之后删除旧的 `.meta_harness/.cursor`，再按 [tooling](../../../tooling/README.md#根软链接) 重新编译并链接。内容或权限与源不一致时，编译拒绝覆盖。`pnpm run check:agents` 核对投影与根链接。
 
+## 镜像里有什么，怎样启动
+
+镜像提供 Git、Bash、Make、rsync、支持 C++20 的编译器、GitHub CLI、uv，以及根 `package.json` 的 `engines` 与 `packageManager` 所要求的 Node 和 pnpm。精确版本写在源 `Dockerfile` 的 `NODE_VERSION`、`PNPM_VERSION` 等变量里。更换根 `engines` 或 `packageManager` 时，同步改源 `Dockerfile` 里的对应版本，并重新投影。
+
+镜像不安装 Java、TLC、Alloy 或 Postgres。缺这些工具时报告没有执行，不把跳过的检查写成通过。密钥和令牌放在 Cursor Cloud Agents 的 Secrets，不写进仓库。
+
+对已经包含这份投影和根链接的分支，直接启动 Cloud Agent。交互式的 Set up agent 会忽略 `Dockerfile`。仓库里这份 `environment.json` 优先于仪表盘里保存的个人或团队环境。Build 已经装好依赖；锁文件没变时不再安装。
+
 ## Git 身份
 
 author 与 committer 是潘其威(William)，邮箱是 `46810637+PanQiWei@users.noreply.github.com`。这是 GitHub 账号 PanQiWei 的 noreply 身份。

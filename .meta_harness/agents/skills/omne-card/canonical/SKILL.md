@@ -15,6 +15,8 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 | 改动碰到契约成员；写 PR 的「契约变化」；契约工具报了 `review` | `references/contract-change.md` |
 | 把成果交给接受者；记接受、取消、重开；关卡 | `references/decisions.md` |
 | gate 停了或失败了；发布结果未知；合并有冲突；有缺口 Issue；清理轨道上的东西 | `references/gate-recovery.md` |
+| 要改或发布仓库工具链、要改钉子；检查结果和工具源码对不上 | `references/toolchain-upgrade.md` |
+| 检查或准入报了环境错；新建工作树或换了机器；在 Windows 或 WSL 上干活 | `references/environment-pitfalls.md` |
 
 开工前先进入卡给定的工作树，核对 cwd、分支、HEAD 与已有写者。不要从技能安装路径推断目标仓库。
 
