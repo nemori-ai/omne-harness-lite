@@ -1,10 +1,3 @@
-// P1–P8 of SPEC「性质与证据」, checked by the bounded exhaustive explorer on the real connection
-// table at the bounds of `scenarios.ts`: no scenario reaches a violation. A violation fails its
-// case with the shortest schedule that showed it. A1, the known limitation, is witnessed: once
-// every bound fired, `closeAll` still waits behind a teardown port that hangs.
-// The bounds, wide and two-key scenarios are CPU-heavy (tens of thousands of states, each a replay).
-// Each exploration runs inside a case, not in a hook: per-case coverage then sees it, and mutation
-// testing runs only the cases that reach a mutant instead of every case for each one.
 import { describe, expect, it } from 'vitest'
 import { explore, type Exploration, type Scenario } from './explore.ts'
 import { BOUNDS, FAULTS, REBUILD, THROWS, TWO_ACCOUNTS, TWO_KEYS, WIDE } from './scenarios.ts'
@@ -15,10 +8,6 @@ function violations(result: Exploration): readonly string[] {
   )
 }
 
-/**
- * What a run found, without the trace: each property and signature with the length of its
- * shortest schedule.
- */
 function kinds(result: Exploration): readonly string[] {
   const shortest = new Map<string, number>()
   for (const { property, signature, depth } of result.violations) {
@@ -28,7 +17,6 @@ function kinds(result: Exploration): readonly string[] {
   return [...shortest].map(([kind, depth]) => `${kind} at ${depth}`).sort()
 }
 
-/** Explores once, in the first case that asks; later cases of the scenario reuse the result. */
 function exploration(scenario: Scenario): () => Promise<Exploration> {
   let run: Promise<Exploration> | undefined
   return () => (run ??= explore(scenario))

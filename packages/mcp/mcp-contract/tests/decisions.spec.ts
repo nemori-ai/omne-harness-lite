@@ -1,6 +1,3 @@
-// The decision layer of T8: for every cell of the table, the conclusion of the classification
-// matches the row; and the readings, the probe, the discovery loop and the message texts that
-// every transport takes from here.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -88,8 +85,6 @@ const context = (request: RequestClass, extra: Partial<WireContext> = {}): WireC
   ...extra,
 })
 
-// ---- Samples, one per answer class ----
-
 function errorObject(code: string): unknown {
   switch (code) {
     case '-32020':
@@ -159,7 +154,6 @@ function resultValue(request: RequestClass, answer: string): unknown {
 const STATUS_OF: Readonly<{ [statusClass: string]: number }> = { '4xx': 418, '5xx': 503 }
 const HTTP_ANSWER = /^http:(\w+)\+(.+)$/u
 
-/** The wire event of one cell, delivered on its material. */
 function eventOf(cell: TableCell): WireEvent {
   const { request, answer } = cell
   const stdio = cell.kind === 'stdio'
@@ -215,7 +209,6 @@ function conclusionOf(cell: TableCell): AnswerConclusion {
   return concludeAnswer(classifyWireEvent(eventOf(cell), ctx), ctx, cell.kind)
 }
 
-/** The reading of a settled answer for the request class, as the transport applies it. */
 function readingOf(request: RequestClass, wire: WireAnswer): Outcome<unknown, TransportFailure> {
   switch (request) {
     case 'initialize':
@@ -229,7 +222,6 @@ function readingOf(request: RequestClass, wire: WireAnswer): Outcome<unknown, Tr
   }
 }
 
-/** What the row says the request settles with, read through the layer for that request. */
 function outcomeOf(
   cell: TableCell,
   conclusion: AnswerConclusion,
@@ -254,7 +246,6 @@ function outcomeOf(
   }
 }
 
-/** The row's conclusion in the same terms. */
 function expectedOf(cell: TableCell, conclusion: TableConclusion): readonly unknown[] {
   const probe = cell.request === 'discover' || cell.request === 'discover-retry'
   const unusable = conclusion.unusable === true ? expect.anything() : undefined
@@ -393,8 +384,6 @@ describe('concludeAnswer holds every cell of T8', () => {
       ...ABANDONED,
       unusable: 'process-exited',
     })
-    // The mark is the transport's state, not the line's: one already on the answer gives way to
-    // the cause the transport recorded.
     const marked = unusableAnswerOf(ABANDONED, 'stream-broken')
     expect(unusableAnswerOf(marked, 'session-ended')).toEqual({
       ...ABANDONED,
@@ -408,8 +397,6 @@ describe('concludeAnswer holds every cell of T8', () => {
       kind: 'not-sent',
       failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'process-exited' },
     })
-    // A `not-sent` (`session-ended`) can carry only `session-ended`: it is marked with it whatever
-    // the transport recorded (a cell no transport reaches, see `unusableAnswerOf`).
     const sessionEnded: WireAnswer = {
       kind: 'not-sent',
       failure: { kind: 'not-sent', cause: 'session-ended' },
@@ -607,7 +594,6 @@ describe('the readings of a settled answer (T2, T6, T7)', () => {
       kind: 'no-answer',
       cause: 'process-exited',
     })
-    // Strict: a `not-sent` without the mark reads as `abandoned` without the field, not with it undefined.
     expect(callAnswerOf({ kind: 'not-sent', failure: NOT_SENT })).toStrictEqual(ABANDONED_ANSWER)
     expect(callAnswerOf({ kind: 'legacy-peer' })).toEqual(ABANDONED_ANSWER)
     expect(callAnswerOf({ kind: 'legacy-http' })).toEqual(ABANDONED_ANSWER)
@@ -626,7 +612,6 @@ describe('the probe and the paths of discover (T3, T8 D rows)', () => {
     expect(retryVersionOf(error([HIGHEST]), ['2027-01-01', HIGHEST])).toBe(HIGHEST)
     expect(retryVersionOf(error(['2099-01-01']), VERSIONS)).toBeUndefined()
     expect(retryVersionOf(error([]), VERSIONS)).toBeUndefined()
-    // A legacy revision in `supported`, alone or first, is never in common: this side speaks modern ones only.
     expect(retryVersionOf(error([LEGACY_PROTOCOL_VERSIONS[0]]), VERSIONS)).toBeUndefined()
     expect(retryVersionOf(error([LEGACY_PROTOCOL_VERSIONS[0], HIGHEST]), VERSIONS)).toBe(HIGHEST)
     expect(retryVersionOf(jsonOf({ code: -32022, message: 'x' }), VERSIONS)).toBeUndefined()

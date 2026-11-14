@@ -1,7 +1,3 @@
-// An async queue: what a line pushes its events into, and what the session reads them from.
-// `push` hands an item to the waiting reader or keeps it; `end` finishes the iteration after the
-// kept items; `fail` finishes it with a rejection.
-
 export class AsyncQueue<T> implements AsyncIterable<T> {
   private readonly items: T[] = []
   private waiting:

@@ -1,7 +1,3 @@
-// A Streamable HTTP peer of the 2025 revisions with sessions: the SDK's
-// `NodeStreamableHTTPServerTransport` with a session id generator, one `McpServer` per session,
-// `DELETE` ending the session as the 2025 revisions say. The B layer for the legacy session (T3)
-// and its end (T8 S07).
 import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node'
@@ -12,7 +8,6 @@ import { listenFree } from '../scripted/http.ts'
 
 export type LegacyHttpServer = Readonly<{
   target: ConnectionTarget
-  /** The sessions open now. */
   sessions(): readonly string[]
   close(): Promise<void>
 }>

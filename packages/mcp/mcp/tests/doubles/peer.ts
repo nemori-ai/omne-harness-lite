@@ -1,8 +1,3 @@
-// Test helper: the world of the call port. The ports are the contract's in-memory doubles with
-// counts (as in `world.ts`); the transport is the contract's scripted transport, which answers
-// from a `PeerScript` and records what the peer received. Cases of the call port and the task
-// operations script what the peer says; cases of the connection table keep `world.ts`, which
-// scripts what the transport object does.
 import type { McpConfig, McpPorts, PeerNotification } from '@omne-harness/mcp-contract'
 import type { McpTransportFactory } from '@omne-harness/mcp-contract/provider'
 import {
@@ -46,28 +41,18 @@ export type Peer = Readonly<{
   landing: ScriptedLanding
   store: MemoryCatalogStore
   checks: CountedOutputCheck
-  /** The scripted transport factory, with what the peer received. */
   transports: ScriptedTransportFactory
-  /** How many transports were opened. */
   opens: () => number
-  /** The requests of `method` the peer received, in order. */
   requests: (method: string) => readonly Request[]
-  /** How many `notifications/cancelled` the peer received (stdio material). */
   cancels: () => number
 }>
 
-/**
- * Where a transport's `call` waits on the case: before it sends, or after it sent, before it
- * answers. `notify` is handed to the observer as given, outside the scripted transport, which
- * catches an observer's error itself.
- */
 export type CallGate = Readonly<{
   before?: () => Promise<void>
   after?: () => Promise<void>
   notify?: PeerNotification
 }>
 
-/** A factory whose transports' `call` waits on the gate; the test orders a cancel with it. */
 function gatedCalls(factory: McpTransportFactory, gate: CallGate): McpTransportFactory {
   return reshapedTransports(factory, transport => ({
     async call(request, signal, observe) {
@@ -84,7 +69,6 @@ export function peer(
   script: PeerScript,
   options: Readonly<{
     transport?: ScriptedTransportOptions
-    /** Where every `call` waits on the case. */
     callGate?: CallGate
     facilities?: readonly string[]
     config?: Partial<McpConfig<Principal>>
@@ -139,12 +123,10 @@ export function peer(
   }
 }
 
-/** The services on a peer, through the one assembly, with the table exposed. */
 export function services(p: Pick<Peer, 'ports' | 'config'>, runtime?: TableRuntime) {
   return assemble(p.ports, p.config, runtime)
 }
 
-/** A `tools/list` reply that lists the tools, each with an object input schema. */
 export function listing(
   tools: readonly Readonly<{ name: string; outputSchema?: PlainJson }>[],
 ): PeerReply {
@@ -162,17 +144,14 @@ export function listing(
 
 type PlainRecord = Readonly<{ [key: string]: PlainJson }>
 
-/** A `tools/call` result with the content blocks given, the modern way. */
 export function completed(content: readonly PlainJson[], extra: PlainRecord = {}): PeerReply {
   return { kind: 'result', result: { resultType: 'complete', content, ...extra } }
 }
 
-/** A task handle as the peer answers it to `tools/call`. */
 export function taskHandle(taskId: string, hints: PlainRecord = {}): PeerReply {
   return { kind: 'result', result: { resultType: 'task', taskId, ...hints } }
 }
 
-/** A `tasks/get` result in `status`, with the members given. */
 export function taskStatus(taskId: string, status: string, members: PlainRecord = {}): PeerReply {
   return { kind: 'result', result: { taskId, status, ...members } }
 }

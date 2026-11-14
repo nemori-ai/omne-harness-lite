@@ -1,11 +1,3 @@
-// P9–P14 of SPEC「性质与证据」(the call port, MC-16 and MC-17), with P1–P8 still checked, and
-// P15 (contract S7: a failure without the `unusable` mark does not lose the connection), by the
-// bounded exhaustive explorer on the real `createCalls` and `createTasks` over the real
-// connection table, at the bounds of `scenarios.ts`: no scenario reaches a violation. A
-// violation fails its case with the shortest schedule that showed it. The two-invoke,
-// continue-shutdown, task and task-account scenarios are CPU-heavy (thousands of states, each a
-// replay) and run in the slow tier. Each exploration runs inside a case, not in a hook, for the same reasons as
-// `lifecycle.spec.ts`.
 import { describe, expect, it } from 'vitest'
 import { explore, type Exploration } from './explore.ts'
 import {
@@ -32,7 +24,6 @@ function violations(result: Exploration): readonly string[] {
   )
 }
 
-/** The readings a run reports: states, replays, depth and time, for `verification/README.md`. */
 function readings(result: Exploration): string {
   const { scenario, states, runs, depth, elapsedMs } = result
   return `${scenario.name}: ${states} states, ${runs} runs, depth ${depth}, ${elapsedMs} ms`
@@ -65,7 +56,6 @@ describe('marks: invoke and getTask, one request failing with or without the unu
       const result = await explore(MARKS)
       console.info(readings(result))
       expect(violations(result)).toEqual([])
-      // Each request port reaches both endings on a ready connection: the property is not vacuous.
       expect(result.failureEndings).toEqual([
         'transport.answer fail lost',
         'transport.answer fail-usable ready',

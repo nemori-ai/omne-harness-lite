@@ -1,6 +1,3 @@
-// The read port `ActionDiscovery` (SPEC S5, S8): `refresh` discovers and publishes a whole
-// listing under the publish boundary; `current` and `peer` answer from the store and the
-// connection table and never connect.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -39,14 +36,12 @@ import {
   type Ensured,
 } from './internal/table.ts'
 
-/** The refresh request of the contract: the caller's signal belongs to this refresh alone (S5). */
 type RefreshRequest = Parameters<ActionDiscovery<unknown>['refresh']>[1]
 
 export type DiscoveryDependencies<P, S> = Readonly<{
   ports: McpPorts<P, S>
   config: McpConfig<P>
   table: ConnectionTable<P>
-  /** The clock that stamps the time a listing is acquired at (SPEC S3): `McpPorts.clock` or the host's. */
   clock: McpClock
 }>
 
@@ -55,16 +50,11 @@ const CANCELLED: RefreshResult = { kind: 'kept', reason: { kind: 'cancelled' } }
 const UNKNOWN: Refusal = { kind: 'unknown' }
 const ABANDONED: TransportFailure = { kind: 'no-answer', cause: 'abandoned' }
 
-/** The shutdown began before a step of `refresh`: its exit answers it (S8). */
 const SHUT = 'shut'
 type Shut = typeof SHUT
 
 type Refreshed = Outcome<RefreshResult, OperationFailure>
 
-/**
- * What a connection failure's catalog marking means for `refresh` (SPEC S5). A mark still
- * `pending` at the build's bound leaves the failure itself as the answer.
- */
 function afterMarking(
   reason: OperationFailure,
   catalog: CatalogMark | 'not-current',
@@ -92,14 +82,8 @@ function stateOf(record: ActionCatalogRecord | 'absent'): CatalogState {
 
 type Pages = readonly Outcome<ListingPage, TransportFailure>[]
 
-/** A page whose failure says the connection is lost, and the failure `refresh` answers for it. */
 type LostPage = Readonly<{ lost: Lost; reason: ConnectionFailure }>
 
-/**
- * The page failure that takes the connection down (S5, S7): one that `lostOf` reads as lost. A
- * refused authorization answers its `ConnectionFailure`; a transport that is not usable any more
- * answers `connection-unavailable`. Any other page failure fails the page only (`page-failed`).
- */
 function lostPageOf(page: Outcome<ListingPage, TransportFailure>): readonly LostPage[] {
   if (!('failure' in page)) return []
   const { failure } = page
@@ -114,15 +98,6 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
   const { scope, startBound } = table.runtime
   const gate: UseGate<P, S> = { ports, table }
 
-  /**
-   * Reads pages until the last one, a failed one, or the page bound, under the listing bound of
-   * invariant 5. A page the bound cuts off is a page without an answer, and so is a `listActions`
-   * that breaches its contract (contract T9); an abort of the caller ends the listing as cancelled.
-   * Each page goes out only while the connection takes requests, read in the same synchronous run
-   * as the request: once its close began (`ConnectionTable.close` and `closeAll` make every
-   * connection refuse before they first yield: S8) or it is lost, the page gets the refusal a
-   * closed transport gives (T1, MC-10).
-   */
   async function listPages(
     ensured: Ensured,
     signal: AbortSignal | undefined,
@@ -152,7 +127,6 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return pages
   }
 
-  /** A page whose answer says the connection is lost: the connection is gone (S5, S7). */
   async function pageLost(
     ensured: Ensured,
     page: LostPage,
@@ -161,11 +135,6 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return afterMarking(page.reason, catalog)
   }
 
-  /**
-   * The publish boundary and the write. The asynchronous check (eligibility and adoption
-   * revision) comes first; the synchronous checks (producing connection still current, not
-   * cancelled) sit right before the write, so nothing can slip between them and it.
-   */
   async function written(
     access: Access<P>,
     request: RefreshRequest,
@@ -188,7 +157,6 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return succeed({ kind: 'published', revision: merged.revision })
   }
 
-  /** The pages as a listing, merged with the stored record, then published unless the shutdown began. */
   async function published(
     access: Access<P>,
     request: RefreshRequest,
@@ -216,19 +184,16 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
       })
     const merged = mergeListing(stateOf(stored), listing.ok)
     if ('failure' in merged) return succeed(SUPERSEDED)
-    // S8: the publish boundary is a step of its own; it does not start after the shutdown began.
     if (table.isShut()) return SHUT
     return written(access, request, ensured, merged.ok, basedOn)
   }
 
-  /** The stored record, then the pages, then the publish (MC-7); no step starts after the shutdown began. */
   async function publish(
     access: Access<P>,
     request: RefreshRequest,
     ensured: Ensured,
   ): Promise<Refreshed | Shut> {
     if (table.isShut()) return SHUT
-    // A store that breaches is unavailable (SPEC MC-15): `unknown`.
     const read = await ask(() => ports.store.read(ensured.catalogKey), fail('unavailable'))
     if ('failure' in read) return fail(UNKNOWN)
     const pages = await listPages(ensured, request.signal)
@@ -236,14 +201,6 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return published(access, request, ensured, read.ok, pages)
   }
 
-  /**
-   * The answer of a refresh (MC-7), read from the state of the moment it comes back: a refresh
-   * that published nothing once the shutdown began is S8's `connection-unavailable`, whatever step
-   * refused or kept it, so a refresh in flight at `closeAll` answers as one that started after
-   * it. A published listing stays published.
-   */
-  // The same order as the exit of a call (MC-16): what was published stays, the caller's stop
-  // ranks before the shutdown, and the shutdown before what the step would have answered.
   function answerAtExit(result: Refreshed | Shut, stop: AbortSignal | undefined): Refreshed {
     if (result !== SHUT && 'ok' in result && result.ok.kind === 'published') return result
     if (stop?.aborted === true) return succeed(CANCELLED)
@@ -257,17 +214,13 @@ export function createDiscovery<P, S>(deps: DiscoveryDependencies<P, S>): Action
     return answerAtExit(await refreshOrder(access, request), request.signal)
   }
 
-  /** The order of MC-7: the shutdown, the gate, the build, then the publish. */
   async function refreshOrder(
     access: Access<P>,
     request: RefreshRequest,
   ): Promise<Refreshed | Shut> {
-    // S8: after `closeAll` nothing connects; no port is asked, the gate included (MC-7).
     if (table.isShut()) return SHUT
     const admitted = await admitForUse(gate, access, request.ref)
     if ('failure' in admitted) return admitted
-    // The build is shared by every caller of the key and bounded by the connection bound; the
-    // caller's abort ends only this refresh.
     const asked = await within(
       table.ensure(admitted.ok, access, ensureOptionsOf(request.connectBound)),
       request.signal,

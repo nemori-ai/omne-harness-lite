@@ -1,6 +1,3 @@
-// The category port `EndpointInspection`: the contract's body contract for category `mcp`, plus
-// `inspect` and `launchesLocalCommand` on any JSON tree. All three read the body with the one
-// parser of the contract; no rule is repeated here.
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   launchesLocalCommand,

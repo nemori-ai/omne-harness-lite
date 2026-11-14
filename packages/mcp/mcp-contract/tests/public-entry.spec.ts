@@ -20,11 +20,6 @@ const BRAND_GUARDS = [
   'isTaskId',
 ]
 
-/**
- * The decision layer of T8 (one implementation for every transport), the readings of a settled
- * answer, what a transport writes and the requests its operations send, the rules by connection,
- * and the authorization discovery.
- */
 const DECISIONS = [
   'ABANDONED',
   'METHOD_NOT_FOUND',
@@ -197,10 +192,6 @@ it('the testing entry exports the conformance facilities', async () => {
   expect(Object.keys(testing).sort()).toEqual(TESTING)
 })
 
-/**
- * The source text of a module without comments and empty statements. A mutation sandbox adds a
- * `// @ts-nocheck` header and stray `;` statements; neither is an import or an export.
- */
 function sourceOf(file: string): string {
   return withoutNoise(readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8'))
 }
@@ -214,16 +205,11 @@ function withoutNoise(text: string): string {
     .join('\n')
 }
 
-/**
- * The relative modules that a source file imports or re-exports, in either quote style, through
- * `from`, a bare `import` or a dynamic `import()`.
- */
 function relativeImports(text: string): readonly string[] {
   const pattern = /(?:\bfrom\s*|\bimport\s*\(?\s*)(["'])\.\/([^"']+)\1/gu
   return [...text.matchAll(pattern)].flatMap(match => (match[2] === undefined ? [] : [match[2]]))
 }
 
-/** The source files that an entry reaches through relative imports. */
 function reached(entry: string): ReadonlySet<string> {
   const seen = new Set<string>()
   const pending = [entry]
@@ -261,10 +247,6 @@ it('reads relative imports in either quote style and form', () => {
   expect(relativeImports(text)).toEqual(['single.ts', 'double.ts', 'bare.ts', 'dynamic.ts'])
 })
 
-/**
- * The names an entry exports. Star exports (`export *`, `export type *`) cannot be listed by
- * name, so they come back as `*`; `export { type X }` counts as a name too.
- */
 function exportedNames(text: string): readonly string[] {
   const stars = [...text.matchAll(/\bexport\s+(?:type\s+)?\*/gu)].map(() => '*')
   const named = [...text.matchAll(/\bexport\s+(?:type\s+)?\{([^}]*)\}/gu)]
@@ -274,7 +256,6 @@ function exportedNames(text: string): readonly string[] {
   return [...stars, ...named].sort()
 }
 
-/** Every export statement of an entry, from `export` to the end of the statement. */
 function exportStatements(text: string): readonly string[] {
   return [...text.matchAll(/\bexport\b[^;]*?from\s*['"][^'"]+['"]|\bexport\b[^\n]*/gu)].map(
     match => match[0],

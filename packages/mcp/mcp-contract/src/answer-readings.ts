@@ -1,5 +1,3 @@
-// The readings of a settled answer (SPEC T2, T6, T7), once for every transport: how the
-// `WireAnswer` a request settled with reads for each request, with the reader of that request.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -23,7 +21,6 @@ import type { PeerIdentity } from './values.ts'
 
 const ABANDONED_ANSWER: PeerAnswer = { kind: 'no-answer', cause: 'abandoned' }
 
-/** A reader of the contract as a reader of the transport: its defect is the `what` of T7. */
 export function readerOf<T, W extends AnswerMalformed['what']>(
   read: (result: JsonValue) => Outcome<T, W>,
 ): (result: JsonValue) => Outcome<T, TransportFailure> {
@@ -33,7 +30,6 @@ export function readerOf<T, W extends AnswerMalformed['what']>(
   }
 }
 
-/** Reads the answer to a request other than `tools/call` with the reader of that request. */
 export function interpretAnswer<T>(
   wire: WireAnswer,
   read: (result: JsonValue) => Outcome<T, TransportFailure>,
@@ -58,10 +54,6 @@ export function interpretAnswer<T>(
   }
 }
 
-/**
- * The answer of a sent call (T8 C01–C05, S03, S04). A `no-answer` keeps the mark that the
- * transport is not usable any more (T1); so does a `not-sent` that settles a call after it left.
- */
 export function callAnswerOf(wire: WireAnswer): PeerAnswer {
   switch (wire.kind) {
     case 'result':
@@ -86,7 +78,6 @@ export function callAnswerOf(wire: WireAnswer): PeerAnswer {
   }
 }
 
-/** The page of `tools/list` (T2, L01–L03); `checkHeaders` applies the `x-mcp-header` rule. */
 export function listingPageOf(
   wire: WireAnswer,
   checkHeaders: boolean,
@@ -97,24 +88,20 @@ export function listingPageOf(
   )
 }
 
-/** G06: the `-32602` of a task operation that reads a task says the task expired. */
 function expired(wire: WireAnswer): boolean {
   return wire.kind === 'error' && wire.errorClass === '-32602'
 }
 
-/** The report of `tasks/get` for `getTask` (T6, G01–G06). */
 export function taskReportOf(wire: WireAnswer): Outcome<TaskReport | 'expired', TransportFailure> {
   return expired(wire) ? { ok: 'expired' } : interpretAnswer(wire, readerOf(readTaskReport))
 }
 
-/** The answer of `tasks/get` for `getTaskResult` (T6, G01–G06). */
 export function taskAnswerOf(wire: WireAnswer): Outcome<TaskAnswer, TransportFailure> {
   return expired(wire)
     ? { ok: { kind: 'expired' } }
     : interpretAnswer(wire, readerOf(readTaskAnswer))
 }
 
-/** The peer identity the legacy path reads from the answer to `initialize` (T3, T8 I01–I07). */
 export function legacyIdentityOf(
   wire: WireAnswer,
   bound: IdentityBound,

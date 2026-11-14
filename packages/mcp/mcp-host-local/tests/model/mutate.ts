@@ -1,20 +1,5 @@
-// Runs the negative controls of `mutants.ts`: for each mutant, puts the defect into `src/`,
-// runs the case that must catch it, restores the source byte for byte, and reports whether the
-// case went red for the expected reason. The explorer and the line cases import `src/` directly;
-// the slow-tier cases import the package through its `dist`, so a mutant in the slow tier builds
-// the package before its case runs and again after the source is restored. Run from the package
-// root:
-//
-//   node tests/model/mutate.ts                 every mutant
-//   node tests/model/mutate.ts mV4-signal-dead  one or more by name
-//   node tests/model/mutate.ts --out <dir>      keep each run's output in <dir>/<name>.log
-//
-// The mutation is made in place, in the working tree, so three guards hold: every file a mutant
-// touches must be clean in Git before the run starts; an interrupt (SIGINT, SIGTERM) restores
-// the files before the process ends; and at the end every file is compared byte for byte with
-// what it was. Exit code 0 when every mutant ran red for its expected reason; 1 otherwise. A
-// mutant whose text is not found exactly as listed, or whose text the compiler rejects, is a
-// defect of the table and is reported without running its case.
+// Usage, from the package root: `node tests/model/mutate.ts [name...] [--out <dir>]`. It mutates
+// `src/` in place: the files a mutant touches must be clean in Git. Exit 0: every mutant ran red.
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -37,7 +22,6 @@ function apply(source: string, mutant: Mutant): string | undefined {
   return mutated
 }
 
-/** The original bytes of every file a chosen mutant touches, taken before any mutation. */
 type Originals = ReadonlyMap<string, Buffer>
 
 function originalsOf(chosen: readonly Mutant[], root: string): Originals {
@@ -49,7 +33,6 @@ function originalsOf(chosen: readonly Mutant[], root: string): Originals {
   return originals
 }
 
-/** The files that Git sees as modified or untracked among those the mutants touch. */
 function unclean(originals: Originals, root: string): readonly string[] {
   const status = spawnSync('git', ['status', '--porcelain', '--', ...originals.keys()], {
     cwd: root,
@@ -66,7 +49,6 @@ function restore(originals: Originals): void {
   for (const [path, bytes] of originals) writeFileSync(path, bytes)
 }
 
-/** True when every file holds the bytes it held before the run. */
 function restored(originals: Originals): boolean {
   return [...originals].every(([path, bytes]) => readFileSync(path).equals(bytes))
 }
@@ -111,8 +93,6 @@ function run(mutant: Mutant, root: string, originals: Originals): Result {
     return { mutant, status: 'not-applicable', exitCode: null, output: 'text not found as listed' }
   writeFileSync(path, mutated)
   try {
-    // The slow tier imports the package through `dist`: the mutant has to be built to be seen. A
-    // mutant the compiler rejects is a defect of the table: the case is not run.
     const built = mutant.mode === 'slow' ? build(root) : { built: true, output: '' }
     if (!built.built)
       return { mutant, status: 'does-not-build', exitCode: null, output: built.output }
@@ -174,7 +154,6 @@ function main(): number {
     restore(originals)
     process.off('SIGINT', onSignal)
     process.off('SIGTERM', onSignal)
-    // The last slow mutant left a mutated build, or no build, behind: build the restored source.
     if (builtSlow && !build(root).built) console.error('the restored source did not build')
   }
   if (!restored(originals)) {

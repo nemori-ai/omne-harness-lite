@@ -1,15 +1,9 @@
-// P4: the reference server in `sse` and `streamableHttp` modes, driven with raw fetch: which
-// answers the legacy signals are, and what the legacy HTTP+SSE exchange looks like on the wire.
-// Run from the package root: node tests/probes/p4-everything-sse.mjs
-// The reference server is this package's devDependency @modelcontextprotocol/server-everything
-// 2.1.0. Each mode listens on a free local port.
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 
 const BIN = fileURLToPath(new URL('../../node_modules/.bin/mcp-server-everything', import.meta.url))
 
-/** A local port that nothing listens on now. */
 function freePort() {
   return new Promise(resolve => {
     const server = createServer()
@@ -39,9 +33,7 @@ function start(mode, port) {
 const stop = child => {
   try {
     process.kill(-child.pid, 'SIGKILL')
-  } catch {
-    // The process group is gone already.
-  }
+  } catch {}
 }
 
 const envelope = version => ({
@@ -80,7 +72,6 @@ async function show(label, response) {
   )
 }
 
-// ---- sse mode ----
 {
   const port = await freePort()
   const { child, up } = start('sse', port)
@@ -107,7 +98,6 @@ async function show(label, response) {
       `sse GET /sse without Accept sse: ${r instanceof Response ? `${r.status} ${r.headers.get('content-type')} (stream stays open)` : r.name}`,
     )
   }
-  // The legacy exchange: GET /sse, endpoint event, POST initialize to the endpoint.
   const controller = new AbortController()
   const stream = await fetch(`${base}/sse`, {
     headers: { accept: 'text/event-stream' },
@@ -133,7 +123,6 @@ async function show(label, response) {
   await show('sse POST endpoint initialize', posted)
   await readUntil(text => text.includes('"id":"r2"'))
   console.log(`sse stream carried: ${JSON.stringify(buffer.slice(0, 220))}`)
-  // A modern discover POSTed to the endpoint of a legacy session.
   buffer = ''
   const posted2 = await fetch(endpoint, { method: 'POST', headers, body: discover })
   await show('sse POST endpoint discover', posted2)
@@ -142,7 +131,6 @@ async function show(label, response) {
     new Promise(r => setTimeout(r, 500)),
   ])
   console.log(`sse stream after discover: ${JSON.stringify(buffer.slice(0, 220))}`)
-  // An unknown session.
   await show(
     'sse POST endpoint unknown session',
     await fetch(`${base}/message?sessionId=nope`, { method: 'POST', headers, body: initialize }),
@@ -151,7 +139,6 @@ async function show(label, response) {
   stop(child)
 }
 
-// ---- streamableHttp mode ----
 {
   const port = await freePort()
   const { child, up } = start('streamableHttp', port)

@@ -1,13 +1,9 @@
-// Test helper: a table runtime whose bounds fire when the case says so, not on a clock. Each bound
-// is recorded with its kind, oldest first, so a case fires the bound of one call and not another.
 import type { BoundKind } from '../../src/internal/port.ts'
 import type { TableRuntime } from '../../src/internal/table.ts'
 
 export type ManualBounds = Readonly<{
   runtime: TableRuntime
-  /** The kinds of the bounds started so far, oldest first. */
   started(): readonly BoundKind[]
-  /** Fires the `nth` bound of `kind` started so far, oldest first. */
   fire(kind: BoundKind, nth?: number): void
 }>
 

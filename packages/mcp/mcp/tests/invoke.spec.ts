@@ -1,6 +1,3 @@
-// The call port `invoke` (SPEC MC-16): the send order, one failure of each step with the place
-// given back, every "not sent" reason of R2, the mapping of the connection table's answers, the
-// caller's abort after the send, and the outcomes through `classifyOutcome` and `toContentBlocks`.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import {
@@ -67,14 +64,12 @@ const nowhereKey: CatalogKey = {
   holding: files.holding,
 }
 
-/** The digest of `read` in a stored record. */
 function digestOf(record: ActionCatalogRecord): DefinitionDigest {
   const known = record.actions.find(action => action.name === READ)
   if (known === undefined) throw new Error('read is not in the record')
   return known.definitionDigest
 }
 
-/** A peer that lists `read` and completes it, with `files` adopted for alice as stdio unless said. */
 function arrange(
   script: PeerScript = {},
   options: Parameters<typeof peer>[1] &
@@ -82,7 +77,6 @@ function arrange(
       adopt?: 'stdio' | 'http' | 'none'
       runtime?: TableRuntime
       ports?: Partial<McpPorts<Principal, string>>
-      /** Ports shaped on the peer's own: a port that counts, stalls or answers otherwise. */
       shape?: (p: Peer) => Partial<McpPorts<Principal, string>>
     }> = {},
 ) {
@@ -95,14 +89,12 @@ function arrange(
   return { p, table, ...s }
 }
 
-/** The calls of the gate's two ports, which no step after a shutdown may add to. */
 function gateCalls(p: Peer) {
   return { adoption: p.adoption.calls(), eligibility: p.eligibility.calls() }
 }
 
 type Arranged = ReturnType<typeof arrange>
 
-/** Publishes the catalog of `ref` and answers the digest of `read`; the connection is then up. */
 async function published(c: Arranged, ref = files): Promise<DefinitionDigest> {
   expect(await c.discovery.refresh(alice, { ref })).toMatchObject({ ok: { kind: 'published' } })
   const current = await c.discovery.current(alice, ref)
@@ -130,26 +122,13 @@ function request(
 const NOT_SENT = (reason: unknown) => ({ kind: 'not-sent', reason })
 const CONNECTION_UNAVAILABLE = NOT_SENT({ kind: 'connection-unavailable' })
 
-/**
- * The connection state as the status port reports it. A lost stdio connection carries a residual
- * here: the memory process's `stop()` rejects once the scripted transport cancelled its stdout,
- * which the table reads as `unconfirmed` (MC-14). The cases read the kind and the reason.
- */
 async function state(c: Arranged) {
   const view = await c.status.inspect(alice, files)
   return 'ok' in view ? view.ok.connection : view.failure
 }
 
-/** One call to scan: the call port it runs on, and how to start it. */
 type Scanned = Readonly<{ watched: Watched; start: () => Promise<InvokeResult> }>
 
-/**
- * The scan of S8 over the microtasks of one call: `closeAll` lands k microtasks after the call
- * starts, for k = 0, 1, … until the call had answered by then or was on the wire. At every k the
- * transport's `call` is not entered after the shutdown began, and a call that answers after it
- * began, not sent, answers connection-unavailable, whatever step it was at. `prepare` builds a
- * fresh world each time on the transports it is given. Answers the first k the call was done at.
- */
 async function scanShutdown(
   prepare: (transports: (p: Peer) => McpPorts<Principal, string>['transports']) => Promise<Scanned>,
 ): Promise<number> {
@@ -165,7 +144,6 @@ async function scanShutdown(
         },
       })),
     )
-    // What `prepare` sent itself (a first call before a continuation) is not this call's.
     afterShut.length = 0
     const before = watched.concluded()
     const call = start()
@@ -560,7 +538,6 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
     const queued = peer({ listing: { '': TOOLS }, calls: { read: HI } })
     adoptStdio(queued, files)
     await storedRecord(queued, anonymousKey, ['read'])
-    // Adoption calls: the first invoke's gate (1) and its re-read (2, silent); the second's gate (3).
     const silent = silentAdoption(queued.adoption, only(2))
     const sectionBounds = manualBounds()
     const q = services(
@@ -695,7 +672,6 @@ describe('the send order: each step refuses with the place given back (SPEC MC-1
       const digest = await published(c)
       const call = c.invoker.invoke(alice, request(digest))
       for (let i = 0; i < k; i += 1) await Promise.resolve()
-      // The table's close, which `release` reaches once its gate passed: it begins in this run.
       released = true
       const releasing = c.table.close(alice.tenant, files.holding)
       const result = await call
@@ -1033,8 +1009,6 @@ describe('the outcome of a sent call (SPEC R5, O1–O6, D1–D5)', () => {
   })
 
   it('progress notifications reach the observer as untrusted values; an observer that throws changes nothing (S6)', async () => {
-    // The scripted transport catches an observer's error itself; the gate hands one notification
-    // to the observer directly, so the throw reaches this package's wrapper.
     const c = arrange(
       {
         calls: {
@@ -1151,7 +1125,6 @@ describe('the call keeps its one exit whatever the peer or the host does (SPEC M
         const called = await transport.call(request, signal, observe)
         calls += 1
         if (calls !== 1 || 'failure' in called) return called
-        // The send is recorded only once the case lets `call` return; the answer never comes.
         await gate.promise
         return { ok: { requestId: called.ok.requestId, answer: never() } }
       },

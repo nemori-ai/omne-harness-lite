@@ -1,10 +1,3 @@
-// A scripted MCP peer on real stdio, for the transport conformance suite. It reads one JSON-RPC
-// message per line on stdin, answers as the `PeerScript` (argv[2]) says, and reports what it
-// received on stderr as lines that start with `@omne `. It picks replies as the contract's
-// in-memory scripted peer does: in order per method, the last one repeating. After the lines of
-// each chunk it reads from stdin, it reports how many bytes of stdin it has read so far:
-// `{"kind":"consumed","bytes":<n>}`. argv[4] makes it a slow peer for the fixture's own cases:
-// every record goes out that many milliseconds late.
 import { writeSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 
@@ -14,7 +7,6 @@ const recordDelay = Number(process.argv[4] ?? '0')
 const consumed = new Map()
 let peerRequestCount = 0
 
-/** Every report goes out here, the byte counts too: with a delay they keep their order. */
 function record(entry) {
   const line = `@omne ${JSON.stringify(entry)}\n`
   if (recordDelay > 0) setTimeout(() => writeSync(2, line), recordDelay)
@@ -83,7 +75,6 @@ function sendPeerRequests(at) {
   }
 }
 
-/** Does what the reply says on the wire. `id` is undefined for a notification of the client. */
 function realize(chosen, id, token) {
   if (chosen === undefined) return
   switch (chosen.kind) {
@@ -107,13 +98,11 @@ function realize(chosen, id, token) {
       if (id !== undefined) write({ id, error: chosen.error })
       return
     case 'stream-breaks':
-      // The read end of the client goes away; this process stays alive on its open stdin.
       process.stdout.end()
       return
     case 'process-exits':
       process.exit(0)
     default:
-      // silent, unsent (not realizable here), http (not on stdio): nothing on the wire.
       return
   }
 }
@@ -168,8 +157,6 @@ process.stdin.on('data', chunk => {
   record({ kind: 'consumed', bytes: read })
 })
 lines.on('close', () => {
-  // The client closed stdin: a stdio server exits then. Keep the process alive only when the
-  // script asked for a broken stream, so that the exit window is observable.
   setTimeout(() => process.exit(0), 50)
 })
 record({ kind: 'ready' })

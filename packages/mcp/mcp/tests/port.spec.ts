@@ -1,6 +1,3 @@
-// The port adapter and the bounded wait (SPEC MC-5, MC-15): `ask` reads a throw when the port is
-// called the same as a rejection, as the port's breach answer; `within` stops waiting when its
-// bound fires and leaves the work, and what the work hands over late, to the task scope.
 import { describe, expect, it, vi } from 'vitest'
 import { ask, within } from '../src/internal/port.ts'
 import { createTaskScope } from '../src/internal/scope.ts'

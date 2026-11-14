@@ -1,5 +1,3 @@
-// The per-request `_meta` envelope and the MCP request headers of SPEC T3. One implementation:
-// the scripted transport and the real transports compose requests with these.
 import type { PlainJson, PlainRecord } from './plain.ts'
 import { isModernProtocolVersion } from './revisions.ts'
 
@@ -12,18 +10,12 @@ export const TASKS_EXTENSION = 'io.modelcontextprotocol/tasks'
 
 export type ClientInfo = Readonly<{ name: string; version: string }>
 
-/** The capabilities a modern revision declares (T3): the tasks extension and form elicitation. */
 const MODERN_CAPABILITIES: PlainJson = {
   extensions: { [TASKS_EXTENSION]: {} },
   elicitation: { form: {} },
 }
-/** A legacy revision declares no capability (T3). */
 const LEGACY_CAPABILITIES: PlainJson = {}
 
-/**
- * The `_meta` of one request or notification (T3): the protocol version, the client capabilities
- * of that revision, and the client info.
- */
 export function clientEnvelopeOf(version: string, clientInfo: ClientInfo): PlainRecord {
   return {
     [PROTOCOL_VERSION_KEY]: version,
@@ -34,7 +26,6 @@ export function clientEnvelopeOf(version: string, clientInfo: ClientInfo): Plain
   }
 }
 
-/** The request field that `Mcp-Name` mirrors, by method (T3; SEP-2243, SEP-2663). */
 const MCP_NAME_SOURCES: Readonly<{ [method: string]: string }> = {
   'tools/call': 'name',
   'tasks/get': 'taskId',
@@ -42,7 +33,6 @@ const MCP_NAME_SOURCES: Readonly<{ [method: string]: string }> = {
   'tasks/cancel': 'taskId',
 }
 
-/** The MCP request headers of one Streamable HTTP request or notification, by lower-case name. */
 export type McpRequestHeaders = Readonly<{
   'mcp-protocol-version': string
   'mcp-method': string
@@ -50,10 +40,6 @@ export type McpRequestHeaders = Readonly<{
   'mcp-session-id'?: string
 }>
 
-/**
- * True for a value that an HTTP field carries as it is (SEP-2243 value encoding): visible ASCII
- * without the sentinel prefix, with inner spaces allowed.
- */
 function isSafeFieldValue(value: string): boolean {
   if (value === '' || value.startsWith('=?')) return false
   for (let index = 0; index < value.length; index += 1) {
@@ -63,10 +49,6 @@ function isSafeFieldValue(value: string): boolean {
   return value.trim() === value
 }
 
-/**
- * The value of `Mcp-Name` for a name: as it is when it is a safe field value, otherwise the
- * base64 of its UTF-8 wrapped as `=?base64?…?=` (SEP-2243 "Value Encoding").
- */
 export function encodeMcpHeaderValue(value: string): string {
   if (isSafeFieldValue(value)) return value
   const bytes = new TextEncoder().encode(value)
@@ -75,11 +57,6 @@ export function encodeMcpHeaderValue(value: string): string {
   return `=?base64?${btoa(binary)}?=`
 }
 
-/**
- * The MCP headers of one request or notification on Streamable HTTP (T3): `MCP-Protocol-Version`
- * is the version of its `_meta`, `Mcp-Method` the method, `Mcp-Name` the mirrored field of the
- * methods that have one, and `Mcp-Session-Id` the legacy session, which `initialize` never carries.
- */
 export function mcpRequestHeadersOf(
   method: string,
   params: PlainRecord,

@@ -1,57 +1,34 @@
-// The observable projections of V1–V6 (SPEC「性质与证据」) on one run of the explorer. Each check
-// reads only what a caller or a port can see: the answers of the client operations, the ledger
-// of the port doubles, the pending port calls with their context, and the timers. None reads
-// the session's fields. Each check names the invariant of `verification/models/TransportSession.tla`
-// it projects.
 import type { Context, Ledger, PortCall, PortName } from './ports.ts'
 
 export type Property = 'V1' | 'V2' | 'V3' | 'V4' | 'V5' | 'V6'
 
-/** One violation of a property: which check, and what it saw. */
 export type Found = Readonly<{ property: Property; signature: string; detail: string }>
 
 export type OpKind = 'discover' | 'call' | 'list' | 'update' | 'cancel' | 'close'
 
-/**
- * What a client operation looks like to its caller. A `call` is `sent` once `call()` answered
- * `ok` and its `answer` is still pending; `answered` once every promise of the operation settled.
- */
 export type OpView = Readonly<{
   name: string
   kind: OpKind
   status: 'waiting' | 'sent' | 'answered' | 'rejected'
-  /** The failure or answer, in short: `not-sent/connection-unavailable`, `no-answer/abandoned`, `ok` … */
   result: string
-  /** Whether the call's own signal fired. */
   signalled: boolean
-  /** The request ids the line saw for this operation, in order. */
   requests: readonly string[]
 }>
 
-/** The phase of a request in flight, as inferred from the pending port calls (SPEC V6). */
 export type Phase = 'authorizing' | 'sent' | 'discovery' | 'none'
 
-/** Why the shared stream went away: what the session reads from the line's `ended` or `broken` event. */
 export type LineEndCause = 'stream-broken' | 'process-exited'
 
-/** What the properties read from a run. */
 export interface RunView {
   readonly ledger: Ledger
   readonly ops: readonly OpView[]
-  /** The port calls not answered yet, the hung ones included. */
   readonly pending: readonly PortCall[]
   readonly timers: number
-  /** `close()` was called. */
   readonly closeCalled: boolean
-  /** `close()` resolved. */
   readonly closeReturned: boolean
-  /** The `line.close` call was answered. */
   readonly lineCloseAnswered: boolean
-  /** The phase of each operation's current request when `close()` was called. */
   readonly phasesAtClose: ReadonlyMap<string, Phase> | undefined
-  /** The phase of each call's current request when its signal fired. */
   readonly phasesAtSignal: ReadonlyMap<string, Phase>
-  /** The phase of each operation's current request when the shared stream went away, and why. */
   readonly lineEnd:
     | Readonly<{ cause: LineEndCause; phases: ReadonlyMap<string, Phase> }>
     | undefined
@@ -70,17 +47,14 @@ function isRequestSend(call: PortCall): boolean {
   return call.port === 'line.send' && !call.subject.includes('/')
 }
 
-/** The phase of an operation's current request: which port call it waits on. */
 export function phaseOf(pending: readonly PortCall[], op: string): Phase {
   const own = pending.filter(call => call.context?.op === op)
   if (own.some(call => call.port === 'credential.authorize')) return 'authorizing'
   if (own.some(call => DISCOVERY_PORTS.has(call.port))) return 'discovery'
-  // A `line.send` of a notification (its subject is the method, not a request id) is no request.
   if (own.some(call => call.port === 'stream.next' || isRequestSend(call))) return 'sent'
   return 'none'
 }
 
-/** V4: a rejection nobody handled, or an operation that rejected: the session threw. */
 export function unhandledRejection(reason: unknown): Found {
   return {
     property: 'V4',
@@ -97,11 +71,6 @@ export function operationRejected(op: OpView, reason: unknown): Found {
   }
 }
 
-/**
- * V1: no port call is made on behalf of a request whose answer settled: a credential call, a
- * metadata fetch or a new `send` in its context. `stream.next` is allowed: the answer stream is
- * read to its end in the background (SPEC「资源释放」).
- */
 export function callAfterSettled(call: PortCall, settled: ReadonlySet<string>): Found[] {
   const request = call.context?.request
   if (request === undefined || !settled.has(request) || call.port === 'stream.next') return []
@@ -115,7 +84,6 @@ export function callAfterSettled(call: PortCall, settled: ReadonlySet<string>): 
   ]
 }
 
-/** V2: once `close()` resolved, the credential handle is not called. */
 export function credentialAfterClose(view: RunView): Found[] {
   return view.ledger.credentialCallsAfterClose.map(method => ({
     property: 'V2',
@@ -124,11 +92,6 @@ export function credentialAfterClose(view: RunView): Found[] {
   }))
 }
 
-/**
- * V3: `reportRejection` is called at most once per 401 or scoped 403 answer, never for any
- * other answer, and only when the material has a handle. The explorer counts the refusals it
- * delivered to authorized requests; the ledger counts the calls.
- */
 export function rejectionsBounded(view: RunView, refusals: number, hasHandle: boolean): Found[] {
   const calls = view.ledger.rejections
   if (!hasHandle && calls > 0)
@@ -150,14 +113,6 @@ export function rejectionsBounded(view: RunView, refusals: number, hasHandle: bo
   return []
 }
 
-/**
- * V4: every promise a caller can see settles once the caller's signal fired or `close()` was
- * called: the result of `discover`, `listActions`, `updateTask` and `cancelRequest`, `call()`
- * and its `answer`. At the next quiescent state they have all settled, whatever port call is
- * still pending or hung: the credential handle, the metadata fetch, the line and the peer may
- * hang; the caller does not wait for them (SPEC V4, contract T5). `close()` itself is held by
- * `closeOrder`: the one thing it still waits for is the line's `close`.
- */
 export function unsettledAfterStop(view: RunView): Found[] {
   const found: Found[] = []
   for (const op of view.ops) {
@@ -177,7 +132,6 @@ export function unsettledAfterStop(view: RunView): Found[] {
   return found
 }
 
-/** V4: `close()` resolves once the line's `close` answered, and not before. */
 export function closeOrder(view: RunView): Found[] {
   if (!view.closeCalled) return []
   if (view.closeReturned && !view.lineCloseAnswered)
@@ -199,11 +153,6 @@ export function closeOrder(view: RunView): Found[] {
   return []
 }
 
-/**
- * V4: `close()` reaches the line at once: at the quiescent state after it was called, the
- * line's `close` has been called, whatever else is pending. Nothing the session waits for
- * stands between `close()` and the line (SPEC「关闭」).
- */
 export function closeReachesLine(view: RunView): Found[] {
   if (!view.closeCalled || view.ledger.lineCloses > 0) return []
   return [
@@ -217,10 +166,6 @@ export function closeReachesLine(view: RunView): Found[] {
 
 const WRITE_METHODS: ReadonlySet<string> = new Set(['tools/call', 'tasks/update', 'tasks/cancel'])
 
-/**
- * V5: a write request goes out once; a read request goes out at most twice, the second time with
- * a new id and, on a material with a handle, its own authorization.
- */
 export function resendBounded(view: RunView): Found[] {
   const found: Found[] = []
   for (const op of view.ops) {
@@ -250,7 +195,6 @@ export function resendBounded(view: RunView): Found[] {
   return found
 }
 
-/** What a stop (the signal, or `close()`) answers a request in each phase (contract T5). */
 function stopAnswerOf(phase: Exclude<Phase, 'none'>): string {
   switch (phase) {
     case 'authorizing':
@@ -266,11 +210,6 @@ function stopAnswerOf(phase: Exclude<Phase, 'none'>): string {
   }
 }
 
-/**
- * What the line going away answers a request in each phase (contract T8 S01–S04, the SSE mode):
- * only the phases that depend on the line settle by the cause; a discovery goes on to its own
- * conclusion.
- */
 function lineGoneAnswerOf(phase: Exclude<Phase, 'none'>, cause: LineEndCause): string {
   switch (phase) {
     case 'authorizing':
@@ -293,14 +232,6 @@ type Stop = Readonly<{
   expected: (phase: Exclude<Phase, 'none'>) => string
 }>
 
-/**
- * V6: what the signal, `close()` or the line going away answers a request in flight, by the phase
- * it was in when that came: the signal and `close()` answer alike (`not-sent` while authorizing,
- * `abandoned` once handed to the line, `authorization-required` with what was fetched by then
- * while discovering; contract T5), the first of the two decides. The line going away answers
- * `not-sent` while authorizing and the cause once handed to the line; a discovery goes on to
- * `authorization-required` (contract T8).
- */
 export function stopAnswers(view: RunView): Found[] {
   const found: Found[] = []
   const stops: readonly Stop[] = [
@@ -330,7 +261,6 @@ export function stopAnswers(view: RunView): Found[] {
   return found
 }
 
-/** The context an answer is attributed to, in short. */
 export function contextLabel(context: Context | undefined): string {
   if (context === undefined) return 'peer'
   return context.request === undefined ? context.op : `${context.op}/${context.request}`

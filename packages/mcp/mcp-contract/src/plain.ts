@@ -1,7 +1,3 @@
-// JSON as plain data: what a transport composes a request from, and what a script carries to a
-// fixture in another process. The lossless tree of `@omne-harness/json-text` is for what the peer
-// wrote; plain data is for what this side writes.
-
 export type PlainJson =
   | string
   | number

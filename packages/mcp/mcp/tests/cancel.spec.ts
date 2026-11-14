@@ -1,9 +1,3 @@
-// The call port `cancel` (SPEC S2, MC-12, MC-16): it reads the in-flight table only, so another
-// principal or tenant on the same correlation key gets `unknown`; from the reservation on, a
-// cancel and the caller's abort fire the one stop signal of the call, so a stop before the send
-// keeps the call off the wire and ends the key, and a stop after the send, or between the send
-// and its record, tells the peer once, does not wait for it, and ends the call as unknown
-// (abandoned).
 import { describe, expect, it } from 'vitest'
 import {
   digestDefinition,
@@ -34,7 +28,6 @@ const anonymousKey = {
   holding: files.holding,
 }
 
-/** A peer that lists `read` and answers it as scripted, adopted for alice, with the catalog stored. */
 async function arranged(read: Replies, options: Parameters<typeof peer>[1] = {}) {
   const p = peer({ listing: { '': listing([{ name: 'read' }]) }, calls: { read } }, options)
   adoptStdio(p, files)
@@ -61,11 +54,6 @@ function portCalls(p: Peer) {
   return { adoption: p.adoption.calls(), eligibility: p.eligibility.calls() }
 }
 
-/**
- * A call gate that tells the case when the call reached the transport (`before` the send, or
- * `after` it), and holds the call there until the case releases it: the case orders a cancel
- * against the send by what has happened, not by a number of turns.
- */
 function holdingAt(where: 'before' | 'after') {
   const reached = deferred<void>()
   const held = deferred<void>()
@@ -112,7 +100,6 @@ describe('cancel reads the in-flight table only (SPEC S2)', () => {
 describe('a cancel before the send (SPEC S2, MC-16 steps 2–8)', () => {
   it('makes the call answer not sent (cancelled) with no call on the wire; the key has ended', async () => {
     const { p, digest } = await arranged(completed([text('hi')]))
-    // The invoke's gate is the first eligibility call; it waits until the case lets it go.
     const stalled = stallingEligibility(p.eligibility, 1)
     const { services: s } = services({ ...p, ports: { ...p.ports, eligibility: stalled.port } })
     const call = s.invoker.invoke(alice, request(digest))
@@ -128,10 +115,6 @@ describe('a cancel before the send (SPEC S2, MC-16 steps 2–8)', () => {
   })
 
   it('step 8: at whichever microtask the cancel lands, the transport is never called with a stop signal that fired', async () => {
-    // The cancel lands k microtasks after the invoke, for every k up to the one at which the call
-    // has concluded already (the cancel answers no-call-in-flight). The last wait of the send
-    // order and `transport.call` are a few microtasks apart; a stop that lands in between must
-    // keep the call off the transport, not be left to the transport's own T5 answer.
     const LIMIT = 400
     let concluded = false
     for (let k = 0; k < LIMIT && !concluded; k += 1) {
@@ -221,8 +204,6 @@ describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {
   it('that races the send, which the transport then refuses for an ended session, is cancelled too, but the connection is lost: the answer carries the mark that the transport is not usable any more (T1, S7)', async () => {
     const hold = holdingAt('before')
     const base = await arranged(completed([text('hi')]), { callGate: hold.callGate })
-    // The scripted transport answers a fired signal with an unmarked connection-unavailable (T5);
-    // this one reports an ended legacy session instead, marked as the decision layer marks it.
     const transports = reshapedTransports(base.p.ports.transports, transport => ({
       async call(request, signal, observe) {
         await transport.call(request, signal, observe)
@@ -259,12 +240,10 @@ describe('a cancel after the send (SPEC S2, MC-16 step 11)', () => {
 
 const CANCELLED = { kind: 'not-sent', reason: { kind: 'cancelled' } }
 
-/** `n` turns of the event loop: a bound on how long an answer may take once nothing is awaited. */
 async function turns(n: number): Promise<void> {
   for (let i = 0; i < n; i += 1) await settled()
 }
 
-/** The result of `call` once it settled, else `pending`: the test reads it after some turns. */
 function tracked(call: Promise<InvokeResult>) {
   let answer: InvokeResult | 'pending' = 'pending'
   const done = call.then(result => {
@@ -304,7 +283,6 @@ describe('one stop signal from the reservation on (SPEC S2, MC-16 step 2)', () =
     const { p } = await arranged(completed([text('hi')]))
     const stalled = stallingEligibility(p.eligibility, 1)
     const { services: s } = services({ ...p, ports: { ...p.ports, eligibility: stalled.port } })
-    // The expected definition is stale: step 5 would refuse with definition-changed.
     const stale = digestDefinition({ name: READ, definition: jsonOf({ name: 'read', v: 2 }) })
     const call = s.invoker.invoke(alice, request(stale))
     await settled()
@@ -317,10 +295,6 @@ describe('one stop signal from the reservation on (SPEC S2, MC-16 step 2)', () =
   })
 
   it('a cancel the call answers signalled, at whichever microtask it lands, makes the call answer cancelled, not the setting defect that refuses it in the same turn', async () => {
-    // No connect-timeout and no connectBound: step 4 refuses with config-missing in the same
-    // synchronous run as the gate's answer. The cancel lands k microtasks after the invoke; one
-    // k falls between the gate's answer and the resumption of the wait, where only the look at
-    // the stop signal after the wait tells the two apart.
     const LIMIT = 400
     let concluded = false
     for (let k = 0; k < LIMIT && !concluded; k += 1) {

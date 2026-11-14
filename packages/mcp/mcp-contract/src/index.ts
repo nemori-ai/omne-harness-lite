@@ -1,5 +1,3 @@
-// The public root of @omne-harness/mcp-contract: values, outcomes, failures, service interfaces,
-// pure functions and the category port of MCP endpoint bodies. It does not import `./testing`.
 export {
   isActionName,
   isAdoptionRevision,

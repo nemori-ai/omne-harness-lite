@@ -1,5 +1,3 @@
-// The Connection aggregate: every lawful transition under both generation policies, with the
-// generation value it leaves, every unlawful transition, and the late-result test `isCurrent`.
 import { describe, expect, it } from 'vitest'
 import type { ConnectionKey } from '@omne-harness/mcp-contract'
 import { Connection, type GenerationPolicy } from '../src/internal/connection.ts'
@@ -26,7 +24,6 @@ type Event = 'attempt' | 'ready' | 'degrade' | 'lose' | 'close'
 const STATES: readonly StateKind[] = ['none', 'preparing', 'ready', 'degraded', 'lost', 'closed']
 const EVENTS: readonly Event[] = ['attempt', 'ready', 'degrade', 'lose', 'close']
 
-/** The lawful transitions of the group state machine, as (from, event) -> to. */
 const LAWFUL: ReadonlyMap<string, StateKind> = new Map([
   ['none attempt', 'preparing'],
   ['lost attempt', 'preparing'],
@@ -67,7 +64,6 @@ function fire(connection: Connection, event: Event): void {
   }
 }
 
-/** A connection brought into `state` along a lawful path. */
 function inState(policy: GenerationPolicy, state: StateKind): Connection {
   const connection = new Connection(key, policy)
   const path: Record<StateKind, readonly Event[]> = {

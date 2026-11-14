@@ -52,7 +52,6 @@ function adopted(record: ActionCatalogRecord): CatalogState {
   return { kind: 'acquired', record }
 }
 
-/** Merges a listing of `tools` that was based on the current revision. */
 function merged(
   current: CatalogState,
   tools: readonly JsonValue[],

@@ -78,16 +78,13 @@ const bob: Access<Principal> = access({ id: 'bob' }, home)
 const mallory: Access<Principal> = access({ id: 'mallory' }, away)
 const principalKey = (principal: Principal) => principal.id
 
-/** Runs every case of a suite on a fresh fixture, as a consumer registers them. */
 function register<F>(suite: readonly ConformanceCase<F>[], fixture: () => F): void {
   for (const conformance of suite)
     it(`${conformance.clause} ${conformance.name}`, async () => {
-      // A case that is not applicable fails here: the memory doubles offer every handle.
       expect(await runConformanceCase(conformance, fixture())).toEqual({ kind: 'passed' })
     })
 }
 
-/** The names of the cases that fail on the fixture. */
 async function failing<F>(suite: readonly ConformanceCase<F>[], fixture: () => F) {
   const names: string[] = []
   for (const conformance of suite)

@@ -1,7 +1,3 @@
-// The five application services of `McpServices`: `inspection` (`EndpointInspection`), `discovery`
-// (`ActionDiscovery`), `invoker` (`ActionInvoker`, the two ports `ActionCalls` and `TaskControl`
-// together), `status` (`EndpointStatus`) and `connections` (`Connections`).
-// Interfaces and result values only; the implementation is not part of this member.
 import type { BodyContract } from '@omne-harness/assets'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Access } from '@omne-harness/legal-identity'
@@ -41,13 +37,11 @@ import type {
 import type { McpTransportFactory, PeerNotification } from './transport.ts'
 import type { EndpointDefinition, EndpointRef, PeerIdentity } from './values.ts'
 
-/** The category port, with the parse and the local-command judgment on a body. No access. */
 export interface EndpointInspection extends BodyContract {
   inspect(body: unknown): Outcome<EndpointDefinition, EndpointBodyRejection>
   launchesLocalCommand(body: unknown): Outcome<boolean, EndpointBodyRejection>
 }
 
-/** The catalog view. `basisCurrent` tells whether the basis still fits the current connection. */
 export type CatalogView =
   | Readonly<{ kind: 'not-acquired' }>
   | Readonly<{
@@ -59,7 +53,6 @@ export type CatalogView =
       actions: readonly KnownAction[]
     }>
 
-/** Why a refresh kept the earlier adoption. */
 export type KeptReason =
   | Readonly<{ kind: 'superseded' }>
   | Readonly<{ kind: 'cancelled' }>
@@ -70,17 +63,11 @@ export type RefreshResult =
   | Readonly<{ kind: 'kept'; reason: KeptReason }>
 
 export interface ActionDiscovery<P> {
-  /** The catalog as stored. It does not connect and does not discover. */
   current(access: Access<P>, ref: EndpointRef): Promise<Outcome<CatalogView, ReadFailure>>
-  /**
-   * Discovers and publishes. A store that cannot be read or written answers `unknown`. The
-   * signal belongs to this refresh alone; when it fires, the refresh answers `kept` (`cancelled`).
-   */
   refresh(
     access: Access<P>,
     request: Readonly<{ ref: EndpointRef; connectBound?: Millis; signal?: AbortSignal }>,
   ): Promise<Outcome<RefreshResult, OperationFailure>>
-  /** The negotiated facts of the current connection. It does not connect to answer. */
   peer(
     access: Access<P>,
     ref: EndpointRef,
@@ -107,7 +94,6 @@ export type ContinueRequest = Readonly<{
   ref: EndpointRef
   action: ActionName
   args: JsonValue
-  /** Each is optional: a retry that carries the request state alone is lawful (SPEC S2). */
   requestState?: RequestState
   inputResponses?: JsonValue
   issuedAt: Generation
@@ -122,7 +108,6 @@ export type CancelAnswer = 'signalled' | 'no-call-in-flight' | 'unknown'
 export interface ActionCalls<P> {
   invoke(access: Access<P>, request: InvokeRequest): Promise<InvokeResult>
   continueWithInput(access: Access<P>, request: ContinueRequest): Promise<InvokeResult>
-  /** Finds the call by tenant, principal and correlation key. It does not check eligibility. */
   cancel(access: Access<P>, correlationKey: CorrelationKey): Promise<CancelAnswer>
 }
 
@@ -133,11 +118,6 @@ export type TaskRef = Readonly<{
   connectBound?: Millis
 }>
 
-/**
- * The task operations. Each one is open only to the tenant and principal that started the task
- * in this run; anyone else, and any task not in this run's table, gets `unknown`, whether the task
- * exists or not.
- */
 export interface TaskControl<P> {
   queryTask(
     access: Access<P>,
@@ -147,28 +127,18 @@ export interface TaskControl<P> {
     access: Access<P>,
     task: TaskRef,
   ): Promise<Outcome<CallOutcome | 'not-finished' | 'expired' | 'cancelled', OperationFailure>>
-  /**
-   * Hands the answers to the input requests of an `input_required` task to the peer. Answers whose
-   * value tree fails `judgeJsonValue` reject with `TypeError` (SPEC R2).
-   */
   provideTaskInput(
     access: Access<P>,
     task: TaskRef,
     inputResponses: JsonValue,
   ): Promise<Outcome<'accepted', OperationFailure>>
-  /**
-   * Reuses an existing connection without checking adoption or eligibility; to build one it
-   * checks both, like the other three (SPEC S2). A terminal state is learned through `queryTask`.
-   */
   cancelTask(access: Access<P>, task: TaskRef): Promise<Outcome<'requested', OperationFailure>>
 }
 
 export type ActionInvoker<P> = ActionCalls<P> & TaskControl<P>
 
-/** Why a connection is degraded: the last non-call request that failed for a while. */
 export type DegradedReason = 'discover-failed' | 'list-failed'
 
-/** Why a connection is lost. */
 export type LostReason =
   | 'preparation-failed'
   | 'discover-failed'
@@ -179,7 +149,6 @@ export type LostReason =
   | 'negotiation-invalid'
   | 'session-ended'
 
-/** A process that a closed or failed preparation left, and the stop range that was confirmed. */
 export type Residual = Readonly<{ kind: 'process'; confirmed: StopScope }>
 
 export type ConnectionState =
@@ -187,10 +156,6 @@ export type ConnectionState =
   | Readonly<{ kind: 'degraded'; reason: DegradedReason }>
   | Readonly<{ kind: 'lost'; reason: LostReason; residual?: readonly Residual[] }>
 
-/**
- * The status of one endpoint. The credential is reported only as present, absent, invalid or not
- * required; no value is shown. Processes left behind appear on the `lost` connection state.
- */
 export type EndpointStatusView = Readonly<{
   ref: EndpointRef
   connection: ConnectionState
@@ -205,11 +170,9 @@ export interface EndpointStatus<P, S> {
   ): Promise<
     Outcome<EndpointStatusView, Extract<Refusal, { kind: 'not-available-to-you' | 'unknown' }>>
   >
-  /** Lists only the endpoints that the principal has use eligibility for. */
   list(access: Access<P>, scope: S): Promise<Outcome<readonly EndpointStatusView[], 'unknown'>>
 }
 
-/** What a release confirmed. A connection without a process has no process to stop. */
 export type ReleaseReport =
   | Readonly<{ kind: 'released'; process: StopScope | 'no-process' }>
   | Readonly<{ kind: 'no-connection' }>
@@ -224,7 +187,6 @@ export interface Connections<P> {
       Extract<Refusal, { kind: 'not-available-to-you' | 'blocked' | 'unknown' }>
     >
   >
-  /** For the host that holds this instance, at exit. It reports only what was confirmed. */
   closeAll(): Promise<readonly Readonly<{ ref: EndpointRef; process: StopScope | 'no-process' }>[]>
 }
 
@@ -235,27 +197,14 @@ export type McpPorts<P, S> = Readonly<{
   landing: ProcessLanding<P>
   store: CatalogStore
   transports: McpTransportFactory
-  /**
-   * The output validator that `classifyOutcome` is given (SPEC S3, O1). Required: without it no
-   * `conforms` or `violates` conclusion is honest. The JSON Schema engine is the host's choice.
-   */
   checkOutput: OutputValidator
-  /** The clock that stamps catalog freshness. Absent: the implementation takes the host clock. */
   clock?: McpClock
 }>
 
-/**
- * The configuration of one MCP instance. Every field is required and has no default. The three
- * bounds are positive safe integers.
- */
 export type McpConfig<P> = Readonly<{
-  /** A stable text for a principal. The in-flight and task tables key entries by it. */
   principalKey: (principal: P) => string
-  /** The most `tools/list` pages that one acquisition reads. */
   maxListingPages: number
-  /** The most actions that one acquisition accepts. */
   maxActions: number
-  /** The most UTF-8 bytes of peer instructions that are kept; the rest is cut. */
   instructionsByteLimit: number
 }>
 

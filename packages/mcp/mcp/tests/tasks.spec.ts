@@ -1,7 +1,3 @@
-// The task operations (SPEC S2, S8, MC-17): the initiator can use them; anyone else, and any task
-// not in the table, gets the same unknown; a connection is reused without a port asked; a new
-// one needs the gate's `granted` and the same peer account; the transport's answers are reported
-// as S2 says; after `closeAll` the initiator check comes first.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { DefinitionDigest, McpPorts, TaskRef } from '@omne-harness/mcp-contract'
@@ -27,7 +23,6 @@ import { adoptionBefore, armedEligibility, stallingLanding } from './doubles/sta
 import { never, reshapedTransports } from './doubles/transports.ts'
 import { MAIN, adoptHttp, adoptStdio, storedRecord } from './doubles/world.ts'
 
-/** What a case replaces in the peer's ports, and the table runtime it runs on. */
 type Shape = Readonly<{ ports?: Partial<McpPorts<Principal, string>>; runtime?: TableRuntime }>
 
 const files = endpointRefOf('files')
@@ -42,10 +37,6 @@ const UNKNOWN = { failure: { kind: 'unknown' } }
 const NO_CONNECTION = { failure: { kind: 'effect-unknown', cause: 'no-connection' } }
 const WORKING = taskStatus('t1', 'working')
 
-/**
- * A peer whose `read` answers with the task `t1`, which answers `tasks/get` as scripted; `files`
- * adopted for alice as stdio, the catalog stored, and the task started by alice.
- */
 async function started(
   t1: TaskScript = { get: WORKING },
   script: PeerScript = {},
@@ -66,7 +57,6 @@ async function started(
     { ...p, ports: { ...p.ports, ...shaped.ports } },
     shaped.runtime,
   )
-  // The catalog comes from the peer's listing, so the task's action carries its output schema.
   expect(await s.discovery.refresh(alice, { ref: files })).toMatchObject({
     ok: { kind: 'published' },
   })
@@ -78,7 +68,6 @@ async function started(
   return { p, digest, table, ...s }
 }
 
-/** Alice's call that the peer answers with the task `t1`, issued at `issuedAt`. */
 async function invokeTask(
   invoker: Awaited<ReturnType<typeof started>>['invoker'],
   digest: DefinitionDigest,
@@ -105,10 +94,6 @@ function portCalls(p: Peer) {
   return { adoption: p.adoption.calls(), eligibility: p.eligibility.calls() }
 }
 
-/**
- * Transports whose `getTask` records, for each call, whether the table was shut when it was
- * entered: `shape` goes to `started`, `watch` gets the table once the services exist.
- */
 function enteredAfterShut() {
   const entered: boolean[] = []
   let table: Pick<ConnectionTable<Principal>, 'isShut'> | undefined
@@ -453,7 +438,6 @@ describe('the answers of the task operations (SPEC S2, T6)', () => {
     await c.connections.closeAll()
     gate.release()
     expect(await query).toEqual(NO_CONNECTION)
-    // The check the gate was waiting on is counted when it is let go; nothing is asked after it.
     const asked = portCalls(c.p)
     expect(await c.invoker.queryTask(alice, task)).toEqual(NO_CONNECTION)
     expect(portCalls(c.p)).toEqual(asked)
@@ -563,7 +547,6 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
           endpoints: (access, scope) => p.adoption.endpoints(access, scope),
           endpoint(access, ref) {
             if (armed) readsSinceArmed += 1
-            // The gate's read answers; the read again of the critical section does not.
             return readsSinceArmed === 2 ? never() : p.adoption.endpoint(access, ref)
           },
         },
@@ -616,8 +599,6 @@ describe('a task request the build does not get to send (SPEC S2, R7, MC-17 step
   ] as const)(
     'the adoption passed the gate but, read again before the build, %s; nothing is built',
     async (_name, change, failure) => {
-      // The gate reads the adoption once; the critical section reads it again before the build
-      // (MC-5). The change lands between the two reads of the one query.
       let readAgain = Number.POSITIVE_INFINITY
       const c = await started(undefined, {}, undefined, p => ({
         ports: {
@@ -688,7 +669,6 @@ describe('the task reference names the task it was issued as (SPEC S2, MC-17 ste
 })
 
 describe('the task table keys by tenant, principal, holding and task id; the peer account is recorded, not keyed (SPEC S2, MC-17)', () => {
-  /** The adoption of `files` changed to a credential account, with the credential stored and the catalog published. */
   async function movedToCredentialAccount(c: Awaited<ReturnType<typeof started>>) {
     c.p.adoption.update(alice.tenant, files, {
       body: jsonOf({
@@ -715,8 +695,6 @@ describe('the task table keys by tenant, principal, holding and task id; the pee
   it('a task id the peer gave again on another peer account makes the key ambiguous: both references are unknown, no port asked, no request sent', async () => {
     const c = await started()
     await movedToCredentialAccount(c)
-    // The second connection has its own key, so its generation starts at 1 again: the two
-    // references of `t1` are told apart by nothing but the peer account, which the key lacks.
     await invokeTask(c.invoker, c.digest, correlationKeyOf('c2'))
     expect(c.p.opens()).toBe(2)
     const asked = portCalls(c.p)

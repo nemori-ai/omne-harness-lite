@@ -1,7 +1,3 @@
-// Interleavings across the publish boundary, the connection build and the close: a late result
-// never acts on a connection it did not produce, every phase is bounded, and a close and an
-// ensure of the same key both leave their connection with an owner. Steps are ordered with
-// deferred promises; the only timers are the connection bounds under test.
 import { describe, expect, it } from 'vitest'
 import { connectionKeyOf } from '@omne-harness/mcp-contract'
 import type { ListingPage, TransportFailure } from '@omne-harness/mcp-contract/provider'
@@ -44,14 +40,12 @@ async function stored(w: World) {
   return read.ok
 }
 
-/** A world whose eligibility port stalls its `which`-th check on a gate. */
 function stalledWorld(w: World, which: number) {
   const stalled = stallingEligibility(w.eligibility, which)
   return { gate: stalled.gate, c: core({ ...w, ports: { ...w.ports, eligibility: stalled.port } }) }
 }
 
 describe('publish boundary (B1): the checks sit next to the write', () => {
-  // A refresh asks eligibility twice: at the gate (call 1) and at the boundary (call 2).
   it('a connection replaced while the boundary waits on eligibility: kept (superseded)', async () => {
     const listing = deferred<ListingPage>()
     const second = deferred<ListingPage>()
@@ -69,8 +63,6 @@ describe('publish boundary (B1): the checks sit next to the write', () => {
     await settled()
     listing.resolve(page(['stale']))
     await settled()
-    // The boundary is now waiting on eligibility. Replace the connection meanwhile, without
-    // publishing: the late result is the only writer, so only the boundary can stop it.
     expect(await c.connections.release(alice, files)).toEqual({
       ok: { kind: 'released', process: 'tree-confirmed' },
     })
@@ -113,7 +105,6 @@ describe('publish boundary (B1): the checks sit next to the write', () => {
   })
 })
 
-/** A page answer of a transport that is not usable any more: the connection is lost (T1, S7). */
 const GONE: TransportFailure = {
   kind: 'not-sent',
   cause: 'connection-unavailable',
@@ -136,7 +127,6 @@ describe('late results (B2): a page from an earlier generation does not touch th
     const c = core(w)
     const late = c.discovery.refresh(alice, { ref: files })
     await settled()
-    // A second refresh on generation 1 finds the connection gone; a third rebuilds generation 2.
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'connection-unavailable' },
     })
@@ -237,7 +227,6 @@ describe('build bound (B5): credentials and the landing are bounded too', () => 
       failure: { kind: 'connection-unavailable' },
     })
     expect(await c.connections.release(alice, files)).toMatchObject({ ok: {} })
-    // The process that lands too late is stopped by the table.
     stalled.gate.resolve()
     await settled()
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
@@ -343,7 +332,6 @@ describe('lose shares the close (R3-1): one teardown per entry, in the close ord
     const c = core(w)
     const losing = c.discovery.refresh(alice, { ref: files })
     await settled()
-    // The transport is closing. Nothing else of the close order has happened yet.
     expect(w.transports.calls.filter(call => call.kind === 'close')).toHaveLength(1)
     expect(w.trace).toEqual([])
     let released = false
@@ -459,7 +447,6 @@ describe('a process that lands after the bound (R3-2, S9)', () => {
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'connection-unavailable' },
     })
-    // No process yet, but one may still land with the handle in its environment: the handle waits.
     expect(w.trace).toEqual([])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 0 }])
     gate.resolve()
@@ -540,8 +527,6 @@ describe('the adoption read again in the critical section is bounded (MC-5)', ()
   it('a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
-    // Calls 1 and 2 are the gates of the two refreshes; calls 3 and 4, the re-reads of the
-    // critical section, never answer.
     const silent = silentAdoption(w.ports.adoption, between(3, 4))
     const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } })
     const [first, second] = await Promise.all([
@@ -609,8 +594,6 @@ describe('two tokens of two revisions at the re-read (observation)', () => {
   it('leaves one entry, on the newer revision; the older build is closed, the newer one is not', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
     adoptStdio(w, files)
-    // Call 1 is the gate for the old token; call 2 is the re-read of its ensure, answered at once
-    // (revision 1) but delivered after the adoption moved on and a newer token asked.
     const stalled = stallingAdoption(w.ports.adoption, 2)
     const ports = { ...w.ports, adoption: stalled.port }
     const table = createConnectionTable(ports, w.config)
@@ -642,8 +625,6 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
   it('a call queued behind one that holds the critical section answers at its own bound, and asks no port after', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
-    // Calls 1 and 2 are the gates of the two refreshes; call 3, the re-read of the first in the
-    // critical section, never answers.
     const silent = silentAdoption(w.ports.adoption, between(3, 4))
     const bounds = manualBounds()
     const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } }, bounds.runtime)
@@ -680,8 +661,6 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
   it('at the table, a call queued past its section bound answers at the settings stage', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
-    // Call 1 is the gate; call 2, the re-read of the first ensure in the critical section, never
-    // answers.
     const silent = silentAdoption(w.ports.adoption, only(2))
     const bounds = manualBounds()
     const ports = { ...w.ports, adoption: silent.port }

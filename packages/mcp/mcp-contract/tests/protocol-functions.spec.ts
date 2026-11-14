@@ -1,6 +1,3 @@
-// The pure functions of T2, T3, T4 and T6 that every transport composes requests and reads
-// answers with: the envelope, the MCP headers, the withheld tools, the authorization discovery
-// and the readers. One implementation; these cases hold it to the clauses.
 import { describe, expect, it } from 'vitest'
 import {
   LEGACY_PROTOCOL_VERSIONS,

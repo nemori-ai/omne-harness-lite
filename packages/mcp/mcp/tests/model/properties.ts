@@ -1,11 +1,3 @@
-// The observable projections of P1–P14 (SPEC「性质与证据」) on one run of the explorer, and P15,
-// which projects contract S7 (a failure without the `unusable` mark leaves the connection as it
-// is). Each check reads only what a consumer or a port can see: the ledger of the port doubles
-// (what was acquired, released, stopped, closed, sent, told to cancel), the answers of the
-// operations, `stateOf` and `current`, the pending port calls and bounds, the rejections nobody
-// handled, and the counting view of the in-flight table (P11). None reads the table's entries.
-// Each state check names the invariant of `verification/models/ConnectionTable.tla` or
-// `Calls.tla` it projects; P15 has none (`verification/README.md`).
 import type { Answer, Ledger, PortName, ScriptedPortCall } from './ports.ts'
 import { PortFault, TASK_PORTS, TEARDOWN_PORTS, USABLE_FAILURE } from './ports.ts'
 
@@ -27,7 +19,6 @@ export type Property =
   | 'P15'
   | 'P16'
 
-/** One violation of a property: which check, and what it saw. */
 export type Found = Readonly<{ property: Property; signature: string; detail: string }>
 
 export type OpKind =
@@ -40,7 +31,6 @@ export type OpKind =
   | 'cancel'
   | 'task'
 
-/** The operations of the call port that reserve a place and may send (SPEC MC-16). */
 export const CALL_OPS: ReadonlySet<OpKind> = new Set<OpKind>(['invoke', 'continue'])
 
 export type OpView = Readonly<{
@@ -49,67 +39,45 @@ export type OpView = Readonly<{
   key: string | undefined
   status: 'waiting' | 'answered' | 'rejected'
   result: string
-  /** The caller's signal fired (`abort`). */
   aborted: boolean
-  /** A stop signal fired for the call: `cancel` answered `signalled` on it, or `abort`. */
   stopped: boolean
-  /** The stop fired while the call had made no `transport.call` yet (P9). */
   stoppedBeforeSend: boolean
-  /** The operation started after `closeAll` was called (P13). */
   afterShut: boolean
-  /** `transport.call` calls made under the operation, and how many of them answered `ok`. */
   sends: number
   sentOk: number
-  /** `cancelRequest` calls made under the operation. */
   cancelRequests: number
-  /** Task requests (a transport task method) made under the operation, and how many answered `not-sent`. */
   taskRequests: number
   taskUnsent: number
 }>
 
-/** One reservation of the in-flight table, as the counting view saw it (P11). */
 export type ReservationView = Readonly<{
   key: string
   op: string
   phase: 'reserved' | 'sent' | 'closed'
-  /** How often it was concluded (`conclude`). */
   endings: number
 }>
 
-/** What one key looks like to a consumer: `stateOf` with and without the residual, and `current`. */
 export type KeyObservation = Readonly<{ key: string; state: string; core: string; current: string }>
 
-/** What the properties read from a run. */
 export interface RunView {
   readonly ledger: Ledger
   readonly ops: readonly OpView[]
   readonly pending: readonly ScriptedPortCall[]
-  /** Bounds not fired yet. */
   readonly bounds: number
   readonly shutAsked: boolean
   readonly reservations: readonly ReservationView[]
-  /** The keys whose `invoke` answered a task, so their principal is the task's initiator. */
   readonly tasksOf: ReadonlySet<string>
-  /** How many bounds were started for the client operation `op`, and how many of them fired. */
   boundsOf(op: string): Readonly<{ started: number; fired: number }>
   observe(): readonly KeyObservation[]
-  /**
-   * True once the connection of the transport refuses requests (P16): the close of its key began
-   * (`release`, `closeAll`) after the transport's `transports.open` was called, or the explorer's
-   * own `lose` or `drop` step lost its generation. A loss the product reads from a marked answer
-   * is not counted, so a request it sends in the turns before that loss is not reported.
-   */
   refuses(transport: string): boolean
 }
 
 const NONE = '{"kind":"none"}'
 const LOST_UNCONFIRMED_WITH_RESIDUAL = '{"kind":"lost","reason":"close-unconfirmed","residual":['
 
-/** The result text of a call the caller abandoned (MC-16 step 12, T9). */
 export const ABANDONED_RESULT = 'sent unknown abandoned'
 const TASK_UNKNOWN_RESULT = 'fail unknown'
 
-/** The signature of a rejection nobody handled: a port's throw that escaped, or an own error. */
 export function unhandledSignature(reason: unknown): string {
   return reason instanceof PortFault ? 'P7-port-throw-escaped' : 'P7-internal-error'
 }
@@ -119,7 +87,6 @@ export function describeReason(reason: unknown): string {
   return reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason)
 }
 
-/** P7: a rejection nobody handled crashes the host under Node's default mode. */
 export function unhandledRejection(reason: unknown): Found {
   return {
     property: 'P7',
@@ -128,7 +95,6 @@ export function unhandledRejection(reason: unknown): Found {
   }
 }
 
-/** P7: an error of this package reached a caller (an illegal transition, for instance). */
 export function internalError(op: OpView, reason: unknown): Found[] {
   if (reason instanceof PortFault) return []
   return [
@@ -140,7 +106,6 @@ export function internalError(op: OpView, reason: unknown): Found[] {
   ]
 }
 
-/** P4: after `closeAll` began, no process is started and no transport is opened. */
 export function connectsAfterShutdown(view: RunView, call: ScriptedPortCall): Found[] {
   if (!view.shutAsked || (call.port !== 'landing.start' && call.port !== 'transports.open'))
     return []
@@ -153,7 +118,6 @@ export function connectsAfterShutdown(view: RunView, call: ScriptedPortCall): Fo
   ]
 }
 
-/** P4 (MC-5): an `ensure` that answers after `closeAll` began does not answer a connection. */
 export function connectedAfterShutdown(view: RunView, op: OpView): Found[] {
   if (!view.shutAsked) return []
   return [
@@ -165,7 +129,6 @@ export function connectedAfterShutdown(view: RunView, op: OpView): Found[] {
   ]
 }
 
-/** P5: a call made for one key's operation names that key only. */
 export function crossesKeys(
   view: RunView,
   call: ScriptedPortCall,
@@ -183,7 +146,6 @@ export function crossesKeys(
   return found
 }
 
-/** P5: an `ensure` of a key answers a transport of that key only. */
 export function foreignTransport(op: OpView, transportKey: string | undefined): Found[] {
   if (op.key === undefined || transportKey === undefined || transportKey === op.key) return []
   return [
@@ -195,7 +157,6 @@ export function foreignTransport(op: OpView, transportKey: string | undefined): 
   ]
 }
 
-/** P3: when `closeAll` answers, every process the landing handed over was asked to stop. */
 export function unstoppedAtShutdown(view: RunView, op: OpView): Found[] {
   if (op.kind !== 'closeAll') return []
   return view.ledger.processes
@@ -207,7 +168,6 @@ export function unstoppedAtShutdown(view: RunView, op: OpView): Found[] {
     }))
 }
 
-/** P6: a late answer changes no consumer-visible state but the residual it reports. */
 export function lateChanged(
   call: ScriptedPortCall,
   before: readonly KeyObservation[],
@@ -225,7 +185,6 @@ export function lateChanged(
     }))
 }
 
-/** P6: `lose` with a generation that is not current answers `not-current` and changes nothing. */
 export function staleLoseChanged(
   op: OpView,
   before: readonly KeyObservation[],
@@ -247,11 +206,6 @@ export function staleLoseChanged(
   return found
 }
 
-/**
- * P9 (`P9_NotSentNotSent`), at the answer of a call: a call that answers "not sent" has no
- * `transport.call` that answered `ok`; a call that answers "sent" made exactly one; a stop that
- * came before any `transport.call` leaves it so (count 0, or answered `not-sent`).
- */
 export function sentMismatch(op: OpView): Found[] {
   const found: Found[] = []
   if (op.result.startsWith('not-sent') && op.sentOk > 0)
@@ -275,7 +229,6 @@ export function sentMismatch(op: OpView): Found[] {
   return found
 }
 
-/** P10 (`P10_CancelOnce`), at the answer: a call that told the peer to cancel answers `abandoned`. */
 export function cancelledOtherwise(op: OpView): Found[] {
   if (op.cancelRequests === 0 || op.result === ABANDONED_RESULT) return []
   return [
@@ -287,7 +240,6 @@ export function cancelledOtherwise(op: OpView): Found[] {
   ]
 }
 
-/** P10: `cancelRequest` only for a request the transport sent, and at most once for each. */
 function cancelledTwice(view: RunView): Found[] {
   const found: Found[] = view.ledger.strayCancels.splice(0).map(id => ({
     property: 'P10' as const,
@@ -304,7 +256,6 @@ function cancelledTwice(view: RunView): Found[] {
   return found
 }
 
-/** P11 (`P11_ReservationEnded`), at the answer: the call's reservation ended before it answered. */
 export function answeredWithReservation(view: RunView, op: OpView): Found[] {
   return view.reservations
     .filter(item => item.op === op.name && item.phase !== 'closed')
@@ -315,7 +266,6 @@ export function answeredWithReservation(view: RunView, op: OpView): Found[] {
     }))
 }
 
-/** P11: at rest no reservation is open; the counting view also reports conclusions other than one. */
 function reservationsLeft(view: RunView): Found[] {
   const found: Found[] = view.reservations
     .filter(item => item.endings > 1)
@@ -337,7 +287,6 @@ function reservationsLeft(view: RunView): Found[] {
   ]
 }
 
-/** P12 (`P12_Isolation`): a `cancel` or a task operation asks no port unless it may send. */
 export function askedByIsolated(view: RunView, call: ScriptedPortCall, op: OpView): Found[] {
   if (op.kind === 'cancel')
     return [
@@ -364,7 +313,6 @@ export function askedByIsolated(view: RunView, call: ScriptedPortCall, op: OpVie
   return found
 }
 
-/** P12, at the answer of a task operation: anyone but the initiator gets `unknown`. */
 export function taskAnsweredForeign(view: RunView, op: OpView): Found[] {
   if (op.key === undefined || view.tasksOf.has(op.key) || op.result === TASK_UNKNOWN_RESULT)
     return []
@@ -377,7 +325,6 @@ export function taskAnsweredForeign(view: RunView, op: OpView): Found[] {
   ]
 }
 
-/** P12, when a `cancel` answers `signalled`: a call of the same tenant and principal was waiting. */
 export function stoppedForeignCall(op: OpView, target: OpView | undefined): Found[] {
   if (op.result !== 'signalled' || target !== undefined) return []
   return [
@@ -389,12 +336,6 @@ export function stoppedForeignCall(op: OpView, target: OpView | undefined): Foun
   ]
 }
 
-/**
- * P16 (MC-10, `ConnectionTable.tla` and `Calls.tla` `P16_NoRequestOnRefusing`): no request goes to
- * a transport once its connection refuses requests: its close began, or it was lost. The close
- * refuses requests before it waits for the build, and every request reads the connection in the
- * same synchronous run as the send.
- */
 export function sendsOnRefusing(view: RunView, call: ScriptedPortCall): Found[] {
   if (call.transport === undefined || !view.refuses(call.transport)) return []
   return [
@@ -406,15 +347,8 @@ export function sendsOnRefusing(view: RunView, call: ScriptedPortCall): Found[] 
   ]
 }
 
-/** A reported state in which a connection takes requests, or is being built to take them. */
 const TAKING_REQUESTS = /^\{"kind":"(preparing|ready|degraded)"/
 
-/**
- * P16, at the step that begins a close (`release`, `closeAll`): before the step yields, no
- * connection of the closed keys takes requests or is still being built (MC-10: the close refuses
- * requests first, then waits for the build). Every connection of the closed keys at once, not
- * one after the other.
- */
 export function closeNotAtOnce(
   op: OpView,
   observed: readonly KeyObservation[],
@@ -430,7 +364,6 @@ export function closeNotAtOnce(
     }))
 }
 
-/** P13 (`P13_NoSendAfterShut`): after `closeAll` was called, no `transport.call` is made. */
 export function sendsAfterShutdown(view: RunView, call: ScriptedPortCall): Found[] {
   if (!view.shutAsked || call.port !== 'transport.call') return []
   return [
@@ -442,7 +375,6 @@ export function sendsAfterShutdown(view: RunView, call: ScriptedPortCall): Found
   ]
 }
 
-/** P13, at the answer: a call that started after `closeAll` answers "not sent". */
 export function sentAfterShutdown(op: OpView): Found[] {
   if (!op.afterShut || !op.result.startsWith('sent')) return []
   return [
@@ -457,14 +389,6 @@ export function sentAfterShutdown(op: OpView): Found[] {
 const CALL_AFTER_SHUT = ['not-sent connection-unavailable', 'not-sent cancelled']
 const TASK_AFTER_SHUT = ['fail effect-unknown no-connection']
 
-/**
- * What an operation that did not send may answer once `closeAll` was called (S8, MC-16, MC-17),
- * or `undefined` when it sent. One that started before `closeAll` answers as one that started
- * after it: a call `connection-unavailable` (`cancelled` when its stop signal fired), a task
- * operation `effect-unknown` (`no-connection`). One that started after it may also answer what
- * comes before the shutdown in the order: a call `correlation-key-in-use` (step 2), a task
- * operation the `unknown` of the initiator check (step 1).
- */
 function answersAfterShutdown(op: OpView): readonly string[] | undefined {
   if (CALL_OPS.has(op.kind)) {
     if (!op.result.startsWith('not-sent')) return undefined
@@ -474,11 +398,6 @@ function answersAfterShutdown(op: OpView): readonly string[] | undefined {
   return op.afterShut ? [...TASK_AFTER_SHUT, 'fail unknown'] : TASK_AFTER_SHUT
 }
 
-/**
- * P13, at the answer (the answer side of `P13_NoSendAfterShut`; `Calls.tla` has no reasons): an
- * operation that answers after `closeAll` was called and did not send answers one way, whatever
- * step it was at when the shutdown landed.
- */
 export function answeredOtherwiseAfterShutdown(view: RunView, op: OpView): Found[] {
   if (!view.shutAsked) return []
   const allowed = answersAfterShutdown(op)
@@ -492,7 +411,6 @@ export function answeredOtherwiseAfterShutdown(view: RunView, op: OpView): Found
   ]
 }
 
-/** The transport methods a request on a ready connection waits for: the call port's and the task operations'. */
 export const REQUEST_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   'transport.call',
   'transport.answer',
@@ -502,21 +420,10 @@ export const REQUEST_PORTS: ReadonlySet<PortName> = new Set<PortName>([
 const READY = '{"kind":"ready"}'
 const LOST = '{"kind":"lost"'
 
-/** The ports a loss reaches first: the teardown, and the store for the catalog mark (S7). */
 function lossPort(port: PortName): boolean {
   return TEARDOWN_PORTS.has(port) || port === 'store.read' || port === 'store.write'
 }
 
-/**
- * P15 (contract S7, T1; member `lostOf` rule 3): a request on a ready connection whose transport
- * answers a failure without the `unusable` mark (`not-sent` (`connection-unavailable`) or
- * `no-answer`) leaves the connection as it is. After the step that hands the answer over, the
- * key's state is not `lost`, and the step made no call that a loss makes first: no teardown port
- * and no store call for the catalog mark of that key. `call` is the answered port call, `made`
- * the port calls the step made. The rule's other exception, `not-sent` (`authorization-required`),
- * loses the connection; the model's stdio transport never answers it, so the check needs no case
- * for it.
- */
 export function lostOnUsableFailure(
   call: ScriptedPortCall,
   answer: Answer,
@@ -545,11 +452,6 @@ export function lostOnUsableFailure(
   return found
 }
 
-/**
- * The witness of P15 and of its marked counterpart: how a failure of a request on a ready
- * connection ended, as `<port> <answer> <state kind after the step>` (`transport.call fail lost`).
- * Undefined for any other answer or port, or when the connection was not ready.
- */
 export function failureEnding(
   call: ScriptedPortCall,
   answer: Answer,
@@ -563,12 +465,10 @@ export function failureEnding(
   return `${call.port} ${answer} ${/^\{"kind":"([a-z-]+)"/.exec(state)?.[1] ?? '?'}`
 }
 
-/** Nothing can happen any more without a client call: no port call pending, no bound left. */
 function atRest(view: RunView): boolean {
   return view.pending.length === 0 && view.bounds === 0
 }
 
-/** P1 (`P1_AtMostOnce`): no handle is released twice. */
 function releasedTwice(view: RunView): Found[] {
   return view.ledger.handles
     .filter(handle => handle.releases > 1)
@@ -579,7 +479,6 @@ function releasedTwice(view: RunView): Found[] {
     }))
 }
 
-/** P1 with S9: a handle is released only after every process that carries it answered `stop()`. */
 function releasedBeforeStop(view: RunView): Found[] {
   return view.ledger.earlyReleases.splice(0).map(detail => ({
     property: 'P1',
@@ -588,13 +487,6 @@ function releasedBeforeStop(view: RunView): Found[] {
   }))
 }
 
-/**
- * P2 (`P2_NoneHoldsNothing`): a key the status view reports as `none`, with nothing of it in
- * flight (no operation, no port call), holds nothing: every handle released, every transport
- * closed, every process confirmed stopped. Otherwise an entry left the table while it held a
- * resource, or the resource belongs to nobody. The model also checks the entries that left the
- * table directly (`P2_ForgetHoldsNothing`).
- */
 function heldWithoutEntry(view: RunView): Found[] {
   const found: Found[] = []
   const { handles, processes, transports } = view.ledger
@@ -621,15 +513,10 @@ function heldWithoutEntry(view: RunView): Found[] {
   return found
 }
 
-/** A call a build makes: under the context of the `ensure` that started it. */
 function ofBuild(call: ScriptedPortCall): boolean {
   return call.context?.op.startsWith('e') === true
 }
 
-/**
- * What a waiting `ensure` is stuck behind: a step of a build's own teardown (P2: the teardown
- * before the attempt, or after a failure), else the build's mark of the catalog (N1).
- */
 function stuckSignature(pending: readonly ScriptedPortCall[]): string {
   const building = pending.filter(ofBuild)
   if (building.some(call => TEARDOWN_PORTS.has(call.port) && call.site.includes('closeOrder@')))
@@ -642,17 +529,10 @@ function describePending(pending: readonly ScriptedPortCall[]): string {
   return pending.map(call => `${call.port} ${call.subject}`).join(', ') || 'nothing'
 }
 
-/** The pending calls made under the operation. */
 function pendingOf(view: RunView, op: OpView): readonly ScriptedPortCall[] {
   return view.pending.filter(call => call.context?.op === op.name)
 }
 
-/**
- * P8 theorem T2 (`P8_BoundedEnsure`): an `ensure` whose own bounds all fired has answered,
- * whatever the ports still pending do (they may hang) and whatever bounds of other calls are
- * left. An `ensure` that waits with no bound of its own breaks it too: each one starts its section
- * bound before it first waits, so `fired === started` with none started is a violation.
- */
 function ensureUnbounded(view: RunView): Found[] {
   const waiting = view.ops.filter(op => {
     if (op.kind !== 'ensure' || op.status !== 'waiting') return false
@@ -669,10 +549,6 @@ function ensureUnbounded(view: RunView): Found[] {
   ]
 }
 
-/**
- * P8 theorem T1 (`P8_EveryCallerAnswers`) and P14 T1 (`P14_EveryCallAnswers`): at rest, every
- * caller has answered. The operations of the call port report under P14.
- */
 function callerUnanswered(view: RunView): Found[] {
   if (!atRest(view)) return []
   const waiting = view.ops.filter(op => op.status === 'waiting')
@@ -695,13 +571,6 @@ function callerUnanswered(view: RunView): Found[] {
   return found
 }
 
-/**
- * P14 T2 (`P14_BoundedAfterStop`, the global form of P8 T2 for the call port): once a stop
- * signal fired for a call (`cancel` or the caller's abort) and every bound fired, the call has
- * answered, whatever the ports still pending do. One port is a premise, not a wait of the call
- * port: the transport's `call` answers once the signal fired (contract T5, SPEC WF5), so a call
- * behind its own `transport.call` alone is not stuck.
- */
 function stoppedWaits(view: RunView): Found[] {
   if (view.bounds > 0) return []
   return view.ops
@@ -712,7 +581,6 @@ function stoppedWaits(view: RunView): Found[] {
     })
     .map(op => {
       const pending = pendingOf(view, op)
-      // One signature per set of ports waited for: each is a distinct finding.
       const behind = [...new Set(pending.map(call => call.port))].sort().join(',') || 'nothing'
       return {
         property: 'P14' as const,
@@ -722,7 +590,6 @@ function stoppedWaits(view: RunView): Found[] {
     })
 }
 
-/** P14 T3: a task operation whose own bounds all fired has answered (MC-17, like P8 T2). */
 function taskUnbounded(view: RunView): Found[] {
   return view.ops
     .filter(op => {
@@ -737,11 +604,6 @@ function taskUnbounded(view: RunView): Found[] {
     }))
 }
 
-/**
- * P1, P2, P3 at rest after the shutdown answered (`P1_ShutdownReleasesAll`,
- * `P3_EveryProcessAsked`): every handle released exactly once, every transport closed, every
- * process asked to stop, every key `none`.
- */
 function leftAfterShutdown(view: RunView): Found[] {
   const shutdown = view.ops.some(op => op.kind === 'closeAll' && op.status !== 'waiting')
   if (!shutdown || !atRest(view)) return []
@@ -769,7 +631,6 @@ function leftAfterShutdown(view: RunView): Found[] {
         detail: `${item.name} never closed after the shutdown`,
       })),
   ]
-  // An entry may stay after the shutdown only to keep a process whose stop was not confirmed (S7).
   for (const { key, state } of view.observe())
     if (state !== NONE && !state.startsWith(LOST_UNCONFIRMED_WITH_RESIDUAL))
       found.push({
@@ -780,7 +641,6 @@ function leftAfterShutdown(view: RunView): Found[] {
   return found
 }
 
-/** The invariants checked in every state the explorer reaches. */
 export function stateViolations(view: RunView): Found[] {
   return [
     ...releasedTwice(view),
@@ -796,11 +656,6 @@ export function stateViolations(view: RunView): Found[] {
   ]
 }
 
-/**
- * P8 anti-theorem A1 (`P8_BoundedClose`, a probe): a `release` or `closeAll` still waits after
- * every bound fired, behind a port that does not answer. Its witness is expected; it is a known
- * limitation, not a violation.
- */
 export function closeWaitsUnbounded(view: RunView): boolean {
   return (
     view.bounds === 0 &&

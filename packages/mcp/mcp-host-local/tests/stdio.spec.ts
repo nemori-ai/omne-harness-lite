@@ -1,6 +1,4 @@
 // @module-tag slow — every case spawns a peer process on real pipes.
-// MC3-10: the stdio transport on real processes. The A layer answers what a script says and what
-// no script can say (`special-stdio.mjs`); the B layer is the SDK's own servers.
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { LEGACY_PROTOCOL_VERSIONS } from '@omne-harness/mcp-contract'
@@ -25,11 +23,9 @@ import { settledWithin } from './fixtures/settle.ts'
 const VERSIONS = ['2026-07-28']
 const [OFFERED_LEGACY_VERSION] = LEGACY_PROTOCOL_VERSIONS
 const never = new AbortController().signal
-/** What a transport that is not usable any more answers, marked with the cause it recorded (T1). */
 const notSentAfter = (unusable: string) => ({
   failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable },
 })
-/** A request that left and got no answer because the line ended, marked with the same cause (T1). */
 const lineEnded = (cause: 'stream-broken' | 'process-exited') => ({
   failure: { kind: 'no-answer', cause, unusable: cause },
 })
@@ -51,8 +47,6 @@ async function open(material: TransportMaterial): Promise<McpTransport> {
   return ok(await factory.open(material, never), 'open')
 }
 
-// An SDK peer loads the SDK before it answers the probe; under load that is more than the 300 ms
-// the A-layer cases need to be short. Its probe waits long enough for a cold start.
 const sdkFactory = createLocalTransportFactory({
   clientInfo: { name: 'omne-harness-test', version: '0' },
   probeTimeoutMs: 5_000,
@@ -66,7 +60,6 @@ function materialOf(process: ProcessHandle): TransportMaterial {
   return { kind: 'stdio', process, generation: generationOf(1), instructionsByteLimit: 4096 }
 }
 
-/** A special peer process, by mode. */
 function special(mode: string) {
   const spawned = spawnHandle([SPECIAL, mode])
   return {
@@ -128,7 +121,6 @@ describe('the process and the pipe (T8 S01, S02, X02)', () => {
     const peer = special('exit-at-start')
     await peer.exited
     const transport = await open(peer.material)
-    // The end of the process and the write that finds no reader (X02) race: either is the cause.
     const discovered = await transport.discover()
     const cause =
       'failure' in discovered && 'unusable' in discovered.failure
@@ -234,7 +226,6 @@ describe('a peer that does not read stdin (T5)', () => {
     const peer = special('deaf')
     const transport = await open(peer.material)
     const controller = new AbortController()
-    // 1 MiB of arguments: far above the 64 KiB a pipe takes before the writer must wait.
     const blob = { kind: 'string', value: 'x'.repeat(1 << 20) } as const
     const call = transport.call(
       {
@@ -263,8 +254,6 @@ describe('a peer that does not read stdin (T5)', () => {
       const transport = await open(materialOf(spawned.handle))
       const stdin = spawned.child.stdin
       if (stdin === null) throw new Error('the child has no stdin')
-      // 4 KB calls: the pipe takes 64 KiB before a write must wait; the first one Node keeps in
-      // its own buffer is still accepted (below the 16 KiB high-water mark), so the call departs.
       let calls = 0
       for (; calls < 200 && stdin.writableLength === 0; calls += 1) {
         const sent = await settledWithin(transport.call(echo('x'.repeat(4000)), never))
@@ -372,9 +361,6 @@ describe('the scripted peer fixture: received() waits until the peer confirms it
     if (peer.material.kind !== 'stdio') throw new Error('a stdio peer has stdio material')
     const writer = peer.material.process.stdin.getWriter()
     const encoder = new TextEncoder()
-    // JSON values that are not messages: the peer reads them and records nothing. Each is far
-    // larger than the pipe holds, so the web stream hands over the second only after the pipe
-    // drains once, and the small line only after it drains again.
     const large = encoder.encode(`${JSON.stringify('x'.repeat(1 << 20))}\n`)
     const writes = [
       writer.write(large),
@@ -397,8 +383,6 @@ describe('the scripted peer fixture: received() waits until the peer confirms it
       recordDelayMs: 60_000,
       confirmWithinMs: 100,
     })
-    // The peer answers at once; only its reports are late, so the line it read is not confirmed.
-    // The delay is far above any stall of a loaded machine, so the bound is what ends the wait.
     const transport = await open(peer.material)
     ok(await transport.discover(), 'discover')
     await expect(peer.received()).rejects.toThrow(
