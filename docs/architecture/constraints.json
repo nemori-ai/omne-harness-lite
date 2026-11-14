@@ -319,7 +319,7 @@
       "layer": "contract",
       "domains": ["agent"],
       "status": "adopted",
-      "source": "packages/agent/agent-contract/SPEC.md"
+      "source": "packages/agent/SPEC.md"
     },
     {
       "id": "packages/agent/agent-cordis-contract",
@@ -327,7 +327,7 @@
       "layer": "unknown",
       "domains": ["agent"],
       "status": "candidate",
-      "source": "packages/agent/agent-cordis-contract/SPEC.md"
+      "source": "packages/agent/SPEC.md"
     },
     {
       "id": "packages/model/model-contract",
@@ -335,7 +335,7 @@
       "layer": "contract",
       "domains": ["model"],
       "status": "adopted",
-      "source": "packages/model/model-contract/SPEC.md"
+      "source": "packages/model/SPEC.md"
     },
     {
       "id": "packages/model/model-cordis-contract",
@@ -343,7 +343,7 @@
       "layer": "unknown",
       "domains": ["model"],
       "status": "candidate",
-      "source": "packages/model/model-cordis-contract/SPEC.md"
+      "source": "packages/model/SPEC.md"
     },
     {
       "id": "packages/tool/tool-contract",
@@ -351,7 +351,7 @@
       "layer": "contract",
       "domains": ["tool"],
       "status": "adopted",
-      "source": "packages/tool/tool-contract/SPEC.md"
+      "source": "packages/tool/SPEC.md"
     },
     {
       "id": "packages/tool/tool-cordis-contract",
@@ -359,7 +359,7 @@
       "layer": "unknown",
       "domains": ["tool"],
       "status": "candidate",
-      "source": "packages/tool/tool-cordis-contract/SPEC.md"
+      "source": "packages/tool/SPEC.md"
     },
     {
       "id": "packages/session/session-contract",
@@ -383,7 +383,7 @@
       "layer": "assembly",
       "domains": ["agent"],
       "status": "adopted",
-      "source": "packages/agent/agent-host-local/SPEC.md"
+      "source": "packages/agent/SPEC.md"
     },
     {
       "id": "packages/session/session-cordis",
@@ -439,7 +439,7 @@
       "layer": "contract",
       "domains": ["assets"],
       "status": "candidate",
-      "source": "packages/assets/assets-protocol/SPEC.md"
+      "source": "packages/assets/SPEC.md"
     },
     {
       "id": "packages/assets/assets-access",
@@ -447,7 +447,7 @@
       "layer": "unknown",
       "domains": ["assets"],
       "status": "candidate",
-      "source": "packages/assets/assets-access/SPEC.md"
+      "source": "packages/assets/SPEC.md"
     },
     {
       "id": "packages/assets/assets-ui",
@@ -455,7 +455,7 @@
       "layer": "unknown",
       "domains": ["assets"],
       "status": "candidate",
-      "source": "packages/assets/assets-ui/SPEC.md"
+      "source": "packages/assets/SPEC.md"
     },
     {
       "id": "packages/common/stream-arrival",
@@ -463,7 +463,7 @@
       "layer": "contract",
       "domains": [],
       "status": "adopted",
-      "source": "packages/common/stream-arrival/README.md"
+      "source": "packages/common/SPEC.md"
     },
     {
       "id": "packages/access/access-cordis-contract",
@@ -471,7 +471,7 @@
       "layer": "unknown",
       "domains": [],
       "status": "candidate",
-      "source": "packages/access/access-cordis-contract/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/access/client-assembly",
@@ -479,7 +479,7 @@
       "layer": "interaction",
       "domains": [],
       "status": "candidate",
-      "source": "packages/access/client-assembly/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/access/public-contract",
@@ -487,7 +487,7 @@
       "layer": "contract",
       "domains": [],
       "status": "adopted",
-      "source": "packages/access/public-contract/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/identity/identity-protocol",
@@ -495,7 +495,7 @@
       "layer": "contract",
       "domains": ["identity"],
       "status": "adopted",
-      "source": "packages/identity/identity-protocol/SPEC.md"
+      "source": "packages/identity/SPEC.md"
     },
     {
       "id": "packages/identity/authorization",
@@ -503,7 +503,7 @@
       "layer": "unknown",
       "domains": ["identity"],
       "status": "adopted",
-      "source": "packages/identity/authorization/SPEC.md"
+      "source": "packages/identity/SPEC.md"
     },
     {
       "id": "packages/identity/identity",
@@ -511,7 +511,7 @@
       "layer": "unknown",
       "domains": ["identity"],
       "status": "adopted",
-      "source": "packages/identity/identity/SPEC.md"
+      "source": "packages/identity/SPEC.md"
     },
     {
       "id": "packages/identity/identity-sql",
@@ -519,7 +519,7 @@
       "layer": "unknown",
       "domains": ["identity"],
       "status": "adopted",
-      "source": "packages/identity/identity-sql/SPEC.md"
+      "source": "packages/identity/SPEC.md"
     },
     {
       "id": "packages/session/session",
@@ -543,7 +543,7 @@
       "layer": "interaction",
       "domains": [],
       "status": "candidate",
-      "source": "packages/access/sdk/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/access/server-entry",
@@ -551,7 +551,7 @@
       "layer": "interaction",
       "domains": [],
       "status": "candidate",
-      "source": "packages/access/server-entry/SPEC.md"
+      "source": "packages/access/SPEC.md"
     },
     {
       "id": "packages/calendar/calendar-contract",
@@ -796,7 +796,7 @@
         "packages/access/sdk",
         "packages/access/server-entry"
       ],
-      "source": "docs/rfcs/RFC-0015-access-dynamic-registration.md#会话观察"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
     },
     {
       "id": "DIR-SESSION-UI-SERVER",
@@ -811,7 +811,7 @@
         "packages/session/session-cordis",
         "packages/session/session-storage-sql"
       ],
-      "source": "docs/rfcs/RFC-0015-access-dynamic-registration.md#四部分界面"
+      "source": "docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向"
     },
     {
       "id": "DIR-ACCESS-MODEL",
