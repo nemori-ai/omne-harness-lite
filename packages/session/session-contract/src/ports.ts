@@ -190,6 +190,7 @@ export type MutationName =
   | 'interrupt'
   | 'cancelRun'
   | 'stopCall'
+  | 'retryRun'
   | 'freeze'
   | 'receive'
 /** The mutation methods of the three faces, with the principal erased. */

@@ -44,7 +44,7 @@ import {
 } from './judgments.ts'
 import { judgeCompaction } from '@omne-harness/message'
 import { decideManagement, decideControl } from './decide-management.ts'
-import { closeControlFailure, decideCancelRun, decideStopCall } from './decide-control.ts'
+import { closeControlFailure, decideNamedControl } from './decide-control.ts'
 import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
@@ -947,9 +947,9 @@ function decideCommand(
         : control
     }
     case 'cancelRun':
-      return decideCancelRun(previous, command, reads)
     case 'stopCall':
-      return decideStopCall(previous, command, reads)
+    case 'retryRun':
+      return decideNamedControl(previous, command, reads)
     case 'freeze':
       if (previous.frozen !== null)
         return reads.frozenReceipt === undefined
