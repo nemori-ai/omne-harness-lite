@@ -12,6 +12,7 @@ describe('hygiene-document-allowlist', () => {
     'AGENTS.md',
     'CLAUDE.md',
     'docs/requirements.md',
+    'docs/clean-loop.md',
     'docs/architecture/layers.md',
     'docs/domains/session/overview.md',
     'packages/session/SPEC.md',
