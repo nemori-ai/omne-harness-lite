@@ -92,7 +92,7 @@ flowchart LR
   M --> P[供应商适配器]
 ```
 
-箭头表示契约使用方向。请求工具声明由 Model 自己拥有，common 不复制 Tool 的命令、配置、许可和运行对象。组装者将这些业务含义投影为名称、说明与参数 schema，响应再按原路由交工具准入。精确字段仍见 [公开接口设计](../../model-contract/docs/public-api.md)，共同消息值见 [message](../../../common/message/docs/public-api.md)。
+箭头表示契约使用方向。请求工具声明由 Model 自己拥有，common 不复制 Tool 的命令、配置、许可和运行对象。组装者将这些业务含义投影为名称、说明与参数 schema，响应再按原路由交工具准入。精确字段仍见 [公开接口设计](../../model-contract/docs/public-api.md)，共同消息值见 [message](../../../common/SPEC.md#消息)。
 
 ## 从选择到发出
 
@@ -222,7 +222,7 @@ ModelCountingBasis 绑定模板、投影、媒体处理、回放、模型及算�
 
 ToolResult.content 的模型可见多模态 ref 表示直接感知，attachments 只投影为文本地址供消费者按需取回。内容 ref 不要求重复登记附件。消息和请求组装不加载二进制，Model 实际请求阶段只加载明确选中的内容 ref，不扫描地址文本。
 
-产品边界已经明确。唯一共享值及其采用状态归 [content-block](../../../common/content-block/docs/public-api.md)，投影与保管归 [Tool 契约的附件引用与模型交付](../../../tool/tool-contract/SPEC.md#p14-附件引用与模型交付)，发送时读取归 [Model SPEC](../../model-contract/SPEC.md#工具定义转换与内容引用加载)。任意嵌套容器不在许可集合，不能从过程帧或共享类型库存推定支持。
+产品边界已经明确。唯一共享值及其采用状态归 [content-block](../../../common/SPEC.md#内容块)，投影与保管归 [Tool 契约的附件引用与模型交付](../../../tool/tool-contract/SPEC.md#p14-附件引用与模型交付)，发送时读取归 [Model SPEC](../../model-contract/SPEC.md#工具定义转换与内容引用加载)。任意嵌套容器不在许可集合，不能从过程帧或共享类型库存推定支持。
 
 共享 ref 的基础形状及校验归 content-block，不能由此推断 Model 流适配和结果交付已完成。实施必须同步消息投影、保管和 Model adapter，并验证附件仅文本且零媒体读取、无附件的内容 ref、混合结果、可见性、当前权限、长度/摘要核验、取消和实际预算。缺失或失权不能成为空白成功，失败不能重跑工具。
 

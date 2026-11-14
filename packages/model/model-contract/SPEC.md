@@ -40,7 +40,7 @@ ModelToolPayloadAdapter 将 ToolDeclaration 转换成供应商私有 payload，�
 
 多命令选择与参数包裹由上层组装者形成声明及路由。Model 只返回声明名称与完整 JSON 参数，不选择 Tool 命令或实现。调用建议采用 common/message 的 ToolCallPart，保留 callId；结果消息使用相同消息关联，上层另行关联 Tool 的调用身份。无法无歧义映射供应商名称时返回 unsupported；模型返回未知名称或业务无效参数时保留真实响应，由动作协调者拒绝执行，不猜工具或修复成一次调用。格式适配成功不授予动作权限。
 
-ToolMessage 由上层提交为 [共享消息值](../../common/message/docs/public-api.md)，非文本模型输入采用 [共享 ref 块](../../common/content-block/docs/public-api.md)。工具结果到消息的投影由工具侧及消费协调者完成；Model 不解析 ToolResult 或其附件区。Model 只读取消息中显式选中的模型可见 ref，不扫描附件地址文本生成 ref 或二进制。消息/请求组装保留块身份、顺序、可见性、原结果关联及完整性信息，不提前读取二进制，不自动发出程序 data 或卸载原文。已有 transcript 或派生表示可按原可见性和来源选择，未知媒体类型或未支持格式不能冒充文本。
+ToolMessage 由上层提交为 [共享消息值](../../common/SPEC.md#消息)，非文本模型输入采用 [共享 ref 块](../../common/SPEC.md#内容块)。工具结果到消息的投影由工具侧及消费协调者完成；Model 不解析 ToolResult 或其附件区。Model 只读取消息中显式选中的模型可见 ref，不扫描附件地址文本生成 ref 或二进制。消息/请求组装保留块身份、顺序、可见性、原结果关联及完整性信息，不提前读取二进制，不自动发出程序 data 或卸载原文。已有 transcript 或派生表示可按原可见性和来源选择，未知媒体类型或未支持格式不能冒充文本。
 
 ModelTransport.prepare 固定 adapter 和引用计划，完成可纯计算的工具 payload 转换及格式检查，不加载 Tool 内容 ref 的字节。独立入口在本次执行的 PreparedTransport.materialize 阶段、托管入口在 ModelSendBoundary.send 内的同一发送准备阶段，才通过注入的 ModelMediaReader 加载所选内容。读取携带固定请求、主体/tenant、原消息来源证据、引用和接收方；托管路径另带原 call/dispatch，独立路径明确标 independent，不虚构托管调用身份。具体独立 transport 通过构造依赖取得合法访问上下文。reader 核固定请求确实包含该来源及 ref、当前读取和外传资格，不仅检查摘要字符串。
 

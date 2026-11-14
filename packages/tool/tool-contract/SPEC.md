@@ -1411,7 +1411,7 @@ ToolBindings 提供者经 `register` 接收已装载的 ToolImplementation，按
 
 ### P14 附件引用与消费方交付
 
-供消费方直接感知的 ToolResult.content 只采用文本块及 [共享引用式内容块契约](../../common/content-block/docs/public-api.md)。作者在 content 放多模态 ref，表示消费方采用结果时直接感知该内容；ref 不要求在 attachments 重复登记。作者放入 attachments 的内容则只生成告知地址的文本块，由消费方决定是否发起新的合法读取。两处都放表示同时声明两种用途，不能因地址相同自动提升附件、删除内容块或去重掉地址提示。inline 多模态、thinking 和任意嵌套容器不因共享类型库存而自动获准，未知分支明确拒绝。
+供消费方直接感知的 ToolResult.content 只采用文本块及 [共享引用式内容块契约](../../common/SPEC.md#内容块)。作者在 content 放多模态 ref，表示消费方采用结果时直接感知该内容；ref 不要求在 attachments 重复登记。作者放入 attachments 的内容则只生成告知地址的文本块，由消费方决定是否发起新的合法读取。两处都放表示同时声明两种用途，不能因地址相同自动提升附件、删除内容块或去重掉地址提示。inline 多模态、thinking 和任意嵌套容器不因共享类型库存而自动获准，未知分支明确拒绝。
 
 projectToolResult 是不读字节的纯投影，检查完整结果的块形状和身份；settle 输出校验、内容来源及当前披露资格由外层既定边界承担，不由纯函数假装核权。按 content 顺序保留 toModel 的文本及 ref，再按 attachments 顺序追加一个文本地址块。地址文本采用固定前缀“附件地址（按需读取）：”及 JSON 编码的 storage/key 对象，不解析成 URL、不解引用、不从文字猜多模态块。attachmentBlockIds 是消费者在原 call/resultVersion 的消息位置固定的块身份，一项附件对应一个身份；数量不等、重复或与已有块身份冲突则拒绝。重试沿原映射，不生成重复消息。生成的地址块供人和消费方读取，包含的地址须是结果政策允许向该消费者披露的逻辑定位符，不含凭据；不允许披露的地址不能先写进结果消息再遮挡。附件列表不是私有秘密区。
 
