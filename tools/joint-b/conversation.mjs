@@ -27,7 +27,16 @@ import {
   waitFor,
 } from './support.mjs'
 
-holdTestSlot(import.meta.url)
+holdTestSlot(
+  import.meta.url,
+  [
+    '用法：node tools/joint-b/conversation.mjs [--definition <名>] [--model-source real|replay] [--evidence <目录>] [--keep]',
+    '联调 B 的对话判据（S2-1 到 S3-3）：发消息等回复、读历史、Model 账目、Journal 条目、修订号连续、三轮递增、回放块。',
+    '--definition 是建会话用的定义，缺省 coding。--model-source 标注真实模型或获准的回放；不给时会发消息的步骤记等件。',
+    'OMNE_JOINT_B_REPLY_MS 是单轮回复的等待上限（缺省 90000 毫秒）。先占一个运行名额，经构建产物起进程，产物不在时每步记等件。',
+    '证据缺省写到 tmp/m2-joint-b/conversation/。退出码：全部通过 0，有失败 1，只剩等件 3。',
+  ].join('\n'),
+)
 
 const args = parseArgs(process.argv.slice(2))
 const ROUND_TEXTS = ['joint-b round one', 'joint-b round two', 'joint-b round three']
@@ -37,7 +46,7 @@ const BUILD_AWAIT =
   ' 与 pnpm --filter @omne-harness/cli... run build'
 const REAL_ROWS_AWAIT =
   '树上模型侧替身行换进真件：session-conditions（SC1）、agent-host、agent-instances、session-ad14（SC4），' +
-  '以及 G-SELECT、G-TOOLS6 的修复（见 README「S2～S4 依赖哪些行是真件」）；替身清单见证据文件的 doubleRows'
+  '以及 G-SELECT、G-TOOLS6 的修复；替身清单见证据文件的 doubleRows'
 const MODEL_SOURCE_AWAIT =
   '真实模型或获准回放的授权：以 --model-source real|replay 重跑，并在运维层给出模型凭据或回放记录'
 const COUNT_EVENT_AWAIT =
