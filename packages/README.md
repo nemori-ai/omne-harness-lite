@@ -25,7 +25,7 @@
 | [skills](skills/SPEC.md) | Skill | `skill-contract`, `skill`, `skill-host-local`, `skill-cordis-contract` |
 | [mcp](mcp/SPEC.md) | MCP | `mcp-contract`, `mcp`, `mcp-host-local`, `mcp-cordis-contract` |
 | [storage](storage/SPEC.md) | 存储 | 待具名 |
-| [time](time/README.md) | 时间 | 待具名 |
+| time | 时间 | 待具名 |
 | [telemetry](telemetry/SPEC.md) | 遥测 | 待具名 |
 | [common](common/SPEC.md) | 共同纯表示 | `json-text`, `legal-identity`, `utc-instant`, `content-block`, `message`, `stream-arrival`, `call-account`, `operation-result` |
 | [util](util/SPEC.md) | 纯文本格式化 | `unix-format`, `xml-format` |
