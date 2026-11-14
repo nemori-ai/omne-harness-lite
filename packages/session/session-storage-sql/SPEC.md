@@ -135,7 +135,7 @@ K-n 编号是 Session 组各成员共用的一套序列：本页用 K-1 至 K-5 
       - `execution-record.events`：输入 `tenant`、`session`、`execution` 与 `after`（事件序号）。输出执行行的头与 `eseq > after` 的事件，按事件索引分页，一页 200 个。该会话里没有这个 execution 时答 `denied`。读的行数与会话长度和 `after` 之前的事件数无关。
       - `execution-record.operation`：输入 `tenant` 与 `operation`。输出该操作的摘要、会话、execution、`published` 与该批的全部事实，没有时为 null。另一租户的同名操作同样为 null。
       - `execution-record.blob`：输入 `tenant` 与 `digest`。输出块的 `media`、`size` 与 `payload`。该租户没有这个摘要时答 `denied`，另一租户持有同摘要也一样。
-    - 不迁移旧数据：0.0.x 不承诺旧字节兼容（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)）。迁移前写入的会话保留 `er_root` 与执行行，没有事实，读口答 `missing`。
+    - 不迁移旧数据：0.0.x 不承诺旧字节兼容（[当前演进政策](../../../docs/requirements.md#当前研发阶段sys-experiment)）。迁移前写入的会话保留 `er_root` 与执行行，没有事实，读口答 `missing`。
     - 清单摘要：迁移 006 与参加者模块摘要改变组合的 `manifestDigest`。读 handler 不进清单。当前值由 `combinationManifest` 加 `manifestDigest` 对构建后的 `dist` 材料计算，归 Reduce 的组合声明。应用的材料目录与 `combinationVersion` 本成员不改。
     - 验证：`tests/fact-family.spec.ts` 核对迁移的依赖与结果、批的行形状、后一次发布的语句字节不多于前一次、六种畸形写入不写任何行、两个写者竞争时后到者答「冲突」并在新头上追加、主键撞位回滚、丢了操作键时信封索引拒绝第二批、事件序号只写一次、五个写入点注入失败后批与块都不可见并且同一写入随后只成功一次、同租户同摘要只一行、`pub > after` 增量读、整批分页、缺口与旧会话答 `missing`、按 execution 读与开着的 execution、按事件序号读、操作读出原批，以及两个租户共用一个库时各读各的、没有该名字的租户得到「不存在」的答复。`tests/execution-record.spec.ts` 核对共同提交与守卫，`tests/history-index.spec.ts` 核对 K-5 读 `er_fact`。
 19. 读口上限的覆写（R2-D81、R2-D89）。读口上限是 `sessionStorageMaterials` 的必填参数（第 8 条）。harness-server 的发行构建在 `src/rows/storage/catalog.ts` 里用具名常量 `DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES`（20971520）传入。运维者暂时不能在 `serve.distribution.json` 里覆写这个值，要改只能改源码并重新构建；覆写的配置通道归 Reduce。触发条件：运维者需要不同的上限。
@@ -226,7 +226,7 @@ session-contract 的访问契约要求：一次提交带着的访问裁定证据
 - 认回：同一操作的再次提交认回原记录，不写第二行，原证据不变。
 - 读回：意图为 `query` 的提交，命中操作记录时在响应里带 `evidence`，没有证据行为 `null`。会话属于另一租户或不存在时答 `no-session`，不带任何记录。
 - 迁移：`session/003-operation-evidence` 建表，依赖 `session/002-execution-index`。证据另存一张表，不加 `sl_operation` 的列：sqlite-provider 的迁移授权对 `ALTER TABLE` 的放行不足以加列（SQLite 对 STRICT 表加列后做的校验用到 `pragma_quick_check`，迁移端口禁止），`tests/real-provider.spec.ts` 在真实提供者上经过这个迁移。已发布迁移的文件与摘要不变。
-- 不提供回填：0.0.x 没有在本迁移之前写入、需要证据的操作记录（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)）。
+- 不提供回填：0.0.x 没有在本迁移之前写入、需要证据的操作记录（[当前演进政策](../../../docs/requirements.md#当前研发阶段sys-experiment)）。
 - 验证：`tests/delegated.spec.ts` 对 SQL 提供者运行契约套件用例「a view commit stores the bound evidence with the operation record」，夹具的 `decisionOf` 读这张表；`tests/operation-evidence.spec.ts` 核对公开端口也存证据、认回不改原证据、提交在操作行之后失败时没有证据行、无证据的提交方没有证据行、畸形证据被拒、另一租户读不到；`tests/real-provider.spec.ts` 在真实提供者上读回。
 
 #### attempt 的授予
@@ -238,7 +238,7 @@ Session 经 `AgentDrivePort` 交给 Agent 的 `grant` 是写入该 attempt 的 S
 - 写入：`session` 参加者在写 `sl_entry` 行的同一事务里，为批中每条 `run.attempt-started` 写一行 `sl_attempt_grant`：`(tenant, session, attempt)` 对应该行的 `position` 与批回执 source 的 JSON。命令提交与同日志解释提交都这样写；SE15 条目没有 `attempt` 时参加者答「失败」，事务回滚。
 - 读回：历史索引（`history-index.ts`）在读五种条目行的同一范围里按 `position` 读这张表，把授予放进 `SessionAttemptRecord.grant`（session-contract 的可选成员）。`session.work`、`session.work-index`、`session.work-reads` 三个读 handler 声明这张表。没有行的 attempt（本迁移之前写入的旧行）没有 `grant`，任何 grant 都不指名它。
 - 解析：`grantNames(attempt, grant)` 在 `grant` 等于记下的授予或等于 SE15 行证据时为真。原受理的 attempt 解析（`attemptOf`）先按行记下的 `attempt`，再按 `grantNames`，最后才是「该 Run 只有一个 SE15」。此前的实现只拿 SE15 行证据与 grant 比较，在生产路径从不命中，靠单 SE15 兜底；同一 Run 第二个 attempt 出现后两份授予都解析不到。
-- 迁移：`session/005-attempt-grant` 建表，依赖 `session/004-state-items`。不提供回填（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)）。
+- 迁移：`session/005-attempt-grant` 建表，依赖 `session/004-state-items`。不提供回填（[当前演进政策](../../../docs/requirements.md#当前研发阶段sys-experiment)）。
 - 验证：`tests/attempt-grant.spec.ts` 核对迁移登记与三个 handler 的声明、`startRun` 写的行与回执 source 相同且位于 SE15 的位置、索引记录带 `grant` 且不等于 `started`、同一 Run 的第二个 SE15 各自解析到自己的 attempt；`tests/history-index.spec.ts` 核对两个 SE15 的 Run 上不带 `attempt` 的受理行由授予解析到第二个 attempt。
 
 #### 执行索引
@@ -252,7 +252,7 @@ Session 经 `AgentDrivePort` 交给 Agent 的 `grant` 是写入该 attempt 的 S
 - 读取：读 handler `session.execution` 的输入是 `tenant` 与 `execution`。有这一行时输出会话、Run 与位置；没有时输出 `null`。另一租户的 execution 与没有 Run 的 execution 都得到 `null`。输入缺 `tenant` 或 `execution` 时 handler 失败，不输出 `null`。
 - 迁移：`session/002-execution-index` 建这张表，依赖 `session/001-session-log`。读 handler 只依赖这个迁移。
 - 解释提交（`commitEntries`）的批次不带 SE13：session-contract 里产生 `run.started` 的只有 `startRun` 的决定，解释提交的后果行都不是它。`publishEntries` 仍经同一个写入步骤建索引，所以万一批次带了 SE13，同样不覆盖已有的行、整批失败；这条防御路径没有 SQL 层用例，因为经公开入口构造不出这样的批次。触发条件：解释能产生 SE13 时，先补用例。
-- 不提供重建：本成员不回填已有 SE13 的索引行。0.0.x 没有在本迁移之前写入的 SE13 需要保留（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)）。
+- 不提供重建：本成员不回填已有 SE13 的索引行。0.0.x 没有在本迁移之前写入的 SE13 需要保留（[当前演进政策](../../../docs/requirements.md#当前研发阶段sys-experiment)）。
 - 验证：`tests/execution-index.spec.ts` 在 `node:sqlite` 夹具上核对：写入的行与 SE13 位置一致；两个会话各有自己的行；在索引行写入时与操作记录写入时各注入一次失败，没有行也没有 SE13，同一命令随后只提交一次；Session 拒绝的 `startRun` 不写行；预置一行指向另一会话时 `startRun` 失败，原行不变；迁移 002 的 `requires` 恰是 001，001 没有依赖；另一租户在自己的域与本租户的域里都读到 `null`。真实 sqlite-provider 上的迁移与写入由 session-adapters 的 `tests/agent-journal-provider.spec.ts` 慢层用例经过，本成员没有对它单独的用例。
 
 #### 共同日志根
@@ -339,7 +339,7 @@ Session 经 `AgentDrivePort` 交给 Agent 的 `grant` 是写入该 attempt 的 S
 - 构造：`sessionCommandFacts`、`sessionCheckFacts`、`sessionCheckDigest`、`executionRecordFacts`、`executionRecordBlobFacts`、`preadmissionFacts`，以及块摘要 `blobDigest` 与两个上界 `EXECUTION_BATCH_MAX_FACTS`、`EXECUTION_FACT_MAX_BYTES`。`executionRecordFacts` 只编码标识与索引成员，事实的 `body` 与事件投影里的 `consequences`、`control`、`batch` 原样传递。`preadmissionFacts` 只编码租户，意图与结果原样传递。
 - 解码：`decodeSessionReply` 给出参加（结果、是否认回、摘要）、停止（Session 失败）、失败或不支持。调用方用 session-contract 的 `commandDigest` 比较摘要：相等是同一命令的认回，不等是同身份的另一命令。`decodeExecutionRecordReply`、`decodeExecutionBlobsReply`、`decodeExecutionRecordFacts`、`decodeExecutionRecordOpen`、`decodeExecutionRecordEvents`、`decodeExecutionRecordBlob`、`decodeExecutionRecordOperation`、`decodeSessionHistoryRoot`、`decodeSessionWork`、`decodeSessionInput`、`decodeSessionExecution`、`decodePreadmissionReply`、`decodePreadmissionRecord` 解码对应的回复与读输出。`decodeSessionExecution` 区分没有这一行（`null`）与输出损坏（`malformed`）。
 
-0.0.x 阶段这组导出按[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)演进：被取代的导出随真实消费者一起删除。R2-D292 删除了 `decodeExecutionRecordParts` 与 handler 名 `parts`、`executionFacts`，由事实族的读口取代。
+0.0.x 阶段这组导出按[当前演进政策](../../../docs/requirements.md#当前研发阶段sys-experiment)演进：被取代的导出随真实消费者一起删除。R2-D292 删除了 `decodeExecutionRecordParts` 与 handler 名 `parts`、`executionFacts`，由事实族的读口取代。
 
 ## 结果与不变量
 

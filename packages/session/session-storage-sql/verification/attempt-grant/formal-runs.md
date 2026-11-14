@@ -1,6 +1,6 @@
 # grant 到 attempt 解析模型的运行记录
 
-本页记录 [AttemptGrant.tla](AttemptGrant.tla) 的 TLC 运行：版本、参数、结论与判读。判读规则按 [docs/verification.md](../../../../../docs/verification.md#环境与实际执行)：正控要得到 TLC 的完成结论；负控要命中配置点名的那条性质。结论只在所列范围内成立，不表示实现符合模型；实现侧的对应用例是 session-storage-sql 与 session-adapters 的 `tests/attempt-grant.spec.ts`。
+本页记录 [AttemptGrant.tla](AttemptGrant.tla) 的 TLC 运行：版本、参数、结论与判读。判读规则按 [形式工具链](../../../../../CONTRIBUTING.md#形式工具链)：正控要得到 TLC 的完成结论；负控要命中配置点名的那条性质。结论只在所列范围内成立，不表示实现符合模型；实现侧的对应用例是 session-storage-sql 与 session-adapters 的 `tests/attempt-grant.spec.ts`。
 
 ## 工具与参数
 

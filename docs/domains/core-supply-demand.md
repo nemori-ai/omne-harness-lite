@@ -15,7 +15,7 @@
 | 生产者 → 公开实时观察者 | 生产者保管的快照与增量。稳定调用引用来自 Session 公开日志读面，当前流目标来自 Model `current`，见[公开观察的组合拥有者](../architecture/runtime/runtime-contract-handoff.md#观察脱离与重附着) | `server-entry` 组合定位、核权、刷新和重附着，Agent 实例不参加。缺项、拒绝、未知与断线保持原含义，不触发业务重发，见[接入的观察脱离与重附着](../../packages/access/SPEC.md#会话观察) |
 | Agent → 自身事件的观察者 | Agent 是自身事件的生产者。它的流只有 Agent 自身的事件，不汇聚 Model、Tool 的过程内容，见 [Agent 的流引用与自身事件](../../packages/agent/SPEC.md#事件与读取) | Agent 只发自身事件。系统观察按上一行及 [H1 观察连续](../architecture/runtime/streaming-and-consumption.md#h1-observation-continuity)组织，瞬时 `StreamRef` 不入会话日志 |
 
-Model、Tool 的内部不用认识 Agent 或 Session 的治理模型。它们以契约中的消费者、消费位置、访问身份和原调用引用交接。运行时结果流向外层，不产生反向源码依赖，见[领域语义依赖与模型边界](../architecture/layers-and-dependencies.md#领域语义依赖与模型边界)与[依赖方向](../package-organization.md#依赖方向与cordis集成)。
+Model、Tool 的内部不用认识 Agent 或 Session 的治理模型。它们以契约中的消费者、消费位置、访问身份和原调用引用交接。运行时结果流向外层，不产生反向源码依赖，见[领域语义依赖与模型边界](../architecture/layers-and-dependencies.md#领域语义依赖与模型边界)与[依赖方向](../architecture/layers-and-dependencies.md#依赖方向与cordis集成)。
 
 ## 支撑能力的十二对关系
 

@@ -20,6 +20,6 @@ scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest ru
 scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest run --mode slow --typecheck.enabled=false
 ```
 
-运行前清除外部 `BASELINE`，并按[开发环境要求](../../../docs/development.md#准备可用的检出)准备 Git 等工具。慢层夹具需要可执行真实仓库操作的 Git。慢层夹具独立创建仓库，不操作产品数据。
+运行前清除外部 `BASELINE`，并按[准备检出](../../../CONTRIBUTING.md#准备检出)准备 Git 等工具。慢层夹具需要可执行真实仓库操作的 Git。慢层夹具独立创建仓库，不操作产品数据。
 
 这些资源验证本工具的计划、缓存与准入判断，不证明产品成员的测试质量，也不重算旧读数。

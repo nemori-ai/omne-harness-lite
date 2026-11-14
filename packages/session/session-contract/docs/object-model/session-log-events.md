@@ -37,7 +37,7 @@ Session 自有业务事实经具名操作提交，邻域不拼写 SE 编号或�
 
 `kind` 用 `<族>.<事实>` 形式的稳定短名，SE 编号只在文档中导航。新字段只增加，不改变旧字段含义，`schema` 升版。新事实使用新种类名，旧种类名永不复用。归约器按批次记录的解释版本解释旧条目。未知种类先隔离，不跳过。
 
-偏离「不改变旧字段含义」（依据 [#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) revision 2，0.x [演进政策](../../../../../docs/engineering/publication.md#当前演进与消费者)）：解释器 `session-log` 的 revision 2 把 `creation.workspace` 改为 legal-identity 第六族文本，并新增 `creation.workspaceAttachment`。识别靠 `session.created` 行是否有 `workspaceAttachment` 键，不靠 `schema`。缺键的创建行解码为 malformed，整条日志在创建行即被隔离，按 [SPEC](../../SPEC.md#固定事实及当前状态) 报告不可恢复。
+偏离「不改变旧字段含义」（依据 [#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) revision 2，0.x [演进政策](../../../../../docs/requirements.md#当前研发阶段sys-experiment)）：解释器 `session-log` 的 revision 2 把 `creation.workspace` 改为 legal-identity 第六族文本，并新增 `creation.workspaceAttachment`。识别靠 `session.created` 行是否有 `workspaceAttachment` 键，不靠 `schema`。缺键的创建行解码为 malformed，整条日志在创建行即被隔离，按 [SPEC](../../SPEC.md#固定事实及当前状态) 报告不可恢复。
 
 初始化来源协议使用 `@omne-harness/session-contract` / `session-log` revision `3` 的精确 Adoption，见 [SPEC 的初始化解释版本与重建](../../SPEC.md#初始化解释版本与重建)。条目 schema、批次解释配置和快照 interpreter 一致，先核版本再核载荷。新版本才要求同批初始 SE08，不能用公开 initialization 字段的有无猜版本。revision 2 的合法历史可能没有初始 SE08，新解释器对不支持的旧采用报告版本不兼容，按 SL12、SL14 停止治理投影并隔离；不把它报告为新协议畸形，不补造旧事实。新版本缺必要依据或同批事实才是其畸形历史。上述 #837 的 workspaceAttachment 识别规则不授予初始化协议跨版本解释能力。
 

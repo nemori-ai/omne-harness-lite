@@ -40,7 +40,7 @@ The rules that narrow the plan:
 
 ## Admission: run records, resume and evidence
 
-The rules are in [the integration rules](../../docs/engineering/integration.md#检查责任), sections "增量准入" and "树相同时复用准入". The full description is in the Chinese guide, section "准入：运行记录、接续与证据核对".
+The rules are in [admission evidence](../../.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md), sections "增量准入" and "树相同时复用准入". The full description is in the Chinese guide, section "准入：运行记录、接续与证据核对".
 
 **Run record** (`src/testing/admission-run.ts`, schemaVersion 1, `kind: admission-run`). Each `check` run writes a JSON record to `tmp/check-run/<short head>/run.json`. An admission run also writes the same record next to its admission log (`tmp/admission/<time>-<short head>.json`). The record contains the head, the tree hash, `dirty`, `worktree`, `admission` and `fullRequested`. It also contains the cache states, the exit code of each step and the step that failed first. `worktree` is the real path of the working tree root.
 

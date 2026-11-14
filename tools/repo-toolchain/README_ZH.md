@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、契约 API 快照、结构度量、实际架构抽取、审讯页与 clean loop。仓库在 `pnpm-workspace.yaml` 的 catalog 里钉它的精确版本，根目录的检查与三个工具成员都运行 npm 上的那个版本，不运行本目录的源码。改了本目录，要先发新版本，再开改钉子的 PR，见[开发指南](../../docs/development.md#仓库工具链的版本)。
+`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、契约 API 快照、结构度量、实际架构抽取、审讯页与 clean loop。仓库在 `pnpm-workspace.yaml` 的 catalog 里钉它的精确版本，根目录的检查与三个工具成员都运行 npm 上的那个版本，不运行本目录的源码。改了本目录，要先发新版本，再开改钉子的 PR，见[仓库工具链的版本与升级](../../.meta_harness/agents/skills/omne-card/canonical/references/toolchain-upgrade.md)。
 
 三个不发布的工具成员经本包的子路径导入它，本包不引用它们：
 
@@ -67,7 +67,7 @@ pnpm --filter @omne-harness/repo-toolchain test
 
 仓库只有一张依赖图，由 dependency-cruiser 按根 `.dependency-cruiser.cjs` 生成，入口在 `src/deps/graph.ts`。`pnpm run lint:deps`（`src/deps/cli.ts`）、[回路状态](#回路状态)的硬线与新增跨成员依赖、[结构度量](#结构度量)和[实际架构](#全局实际架构视图)的报告都读它，本包不再自写导入解析或层位表。
 
-- 规则：无法解析的导入、文件级运行时循环、legacy 引用，以及按[产品包组织](../../docs/package-organization.md#依赖方向与cordis集成)与[系统分层](../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)写成成员路径的方向规则（SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具）。每条规则的 `comment` 指回出处。要按角色判断的规则（契约不依赖提供者等）还没有机读的角色，没有写。
+- 规则：无法解析的导入、文件级运行时循环、legacy 引用，以及按[依赖方向与Cordis集成](../../docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成)与[系统分层](../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)写成成员路径的方向规则（SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具）。每条规则的 `comment` 指回出处。要按角色判断的规则（契约不依赖提供者等）还没有机读的角色，没有写。
 - 方向行：`docs/architecture/constraints.json` schema 3 的 `directions`，格式与校验见[符合性契约](src/arch/CONFORMANCE.md#方向行)；`omne-deps` 怎样用它见下面[依赖方向](#依赖方向)一节。
 - 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员之间的环由这些边算出，有环即失败。只在组的层面成环、成员之间不成环的不算：一个组里的不同成员可以分别依赖另一个组。导入处的行号按说明符在文件里第一次出现的位置找。图里另保留成员里 dependency-cruiser 走到的模块清单（`modules`）与跨成员的文件级依赖事实（`dependencies`，含测试与 `src` 下的 testing 入口，不含 Node 内建模块），方向行的判定与架构符合性报告的方向行都只从这两项判断，不另解析导入。
 - 工作树的图不含被 Git 忽略且未跟踪的目录里的模块与它们的违规（本地产物，理由同[实际架构](#全局实际架构视图)的成员规则）；不在 Git 仓库里的目录没有忽略规则，照常出图。
@@ -130,7 +130,7 @@ pnpm --filter @omne-harness/repo-toolchain test
 ## 验收锁
 
 可执行验收放在成员的 `acceptance/` 目录，归负责的人、主会话与独立验收角色；实施的 agent 只运行、不修改
-（约定见[源码布局](../../docs/workspace.md#目录与内容归属)）。`src/acceptance/` 核对这一条有没有被破：
+。`src/acceptance/` 核对这一条有没有被破：
 
 ```sh
 pnpm run acceptance:lock --base <任务基线提交或分支>
@@ -346,7 +346,7 @@ omne-metrics --plan <计划文件> --coverage --coverage-parallel 3x5   # 覆盖
 | 函数文本摘要判变更                | mutator `functions.py`、`engine.py`                                          | 内层单元的行不算在外层头上                                                                                                                                     |
 | 超阈值的处置判据                  | swarm-forge six-pack 分支 `roles/cleaner.prompt`                             | 措辞改写，判据一致                                                                                                                                             |
 
-读数时的边界见[验证规范](../../docs/verification.md#检查入口)那一行的「不能声称」。自测：`tests/metrics-complexity.spec.ts`、`tests/metrics-report.spec.ts`、`tests/deps-graph.spec.ts`。
+自测：`tests/metrics-complexity.spec.ts`、`tests/metrics-report.spec.ts`、`tests/deps-graph.spec.ts`。
 
 ## 回路状态
 
@@ -392,7 +392,7 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `status/<提交短号>[-dirty]/status.md` | 与终端打印相同的文字，分五段：抬头（含用的哪条基线快照）、硬线、各项指标的带位、要解释的红项、超预算的成员（含比基线变差的成员）与对照表条数；`--out` 可改目录                         |
 | `status/…/status.json`                | 全量：每个传感器的原始结果（有数据／没数据及原因）、每个成员的四项预算、带位与各项与基线比的结果、要解释的红项全集（函数一类每条带与基线比的结果，没变差的另列在 `functionsNotWorse`） |
-| `proposals/<成员路径斜杠换成 ->.md`   | 超预算成员的清理草稿，同一成员覆盖旧稿；六个固定章节与[派发模板](../../docs/clean-loop-cleanup-task.md)同名同序（常量 `CLEANUP_SECTIONS`）                                  |
+| `proposals/<成员路径斜杠换成 ->.md`   | 超预算成员的清理草稿，同一成员覆盖旧稿；六个固定章节（常量 `CLEANUP_SECTIONS`）                                  |
 | `trend.jsonl`                         | 趋势快照，一行一条：提交、各指标的值与带位、各成员的预算值与带位                                                                                                                       |
 | `hook-readings.json`、`hook.log`      | [收工钩子](#收工钩子)每棵工作树、每条分支上一次量到的读数（类别、位置与函数的圈复杂度），与它自己出错的原因，一行一次                                                                  |
 
@@ -633,7 +633,7 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 
 **不能声称**：反馈过的读数被处理了——它只在新出现或变差时提醒，交代与否由交付说明与接受的人核对；没被反馈等于没有红项——
 没碰产品源码、全局约束或原节点声明，或者钩子关了、出错或超时、`stop_hook_active` 为真时都不反馈，重复代码与覆盖率不在其中，
-**改动落在会话当前目录之外的另一棵工作树里时也不反馈**（hook只量payload的 `cwd` 所在检出；每个写者须显式进入自己的检出，不能只给exec设置workdir就声称宿主cwd已迁移。shell脚本可用当前目录回退，但配置选择依脚本位置；真实host cwd未经验证仍是未覆盖。协作交接见[责任与协作交接](../../docs/engineering/workflow.md#责任与协作交接)）；宿主真的调用了它——
+**改动落在会话当前目录之外的另一棵工作树里时也不反馈**（hook只量payload的 `cwd` 所在检出；每个写者须显式进入自己的检出，不能只给exec设置workdir就声称宿主cwd已迁移。shell脚本可用当前目录回退，但配置选择依脚本位置；真实host cwd未经验证仍是未覆盖。）；宿主真的调用了它——
 生成配置不等于宿主已加载、已信任，要在真实会话里另行核实（Claude Code 一端 2026-10-02 见过一次真实调用；Codex 一端还没有）；
 警告一定到了用户眼前——`systemMessage` 怎样显示由宿主定，两端都只按文档核对过，没有在真实会话里看过它显示出来的样子。
 自测：`tests/loop-hook.spec.ts`（判断，外部动作用替身）、`tests/loop-stop-hook.spec.ts`（入口与线程，用临时仓库与子进程）、
@@ -681,7 +681,7 @@ pnpm run loop:health # --out 可改产物目录
 
 ## 契约 API 快照
 
-契约成员是[契约成员表](../../docs/engineering/delivery-lines.json)各组 `contracts` 列出的成员。卡对它们缺省只做可加改动，规则见[可加改动](../../docs/engineering/delivery.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
+契约成员是[契约成员表](../../docs/engineering/delivery-lines.json)各组 `contracts` 列出的成员。卡对它们缺省只做可加改动，规则见[可加改动怎样判](../../.meta_harness/agents/skills/omne-card/canonical/references/contract-change.md#可加改动怎样判)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
 
 ```sh
 omne-contract-api --write                 # 从 dist 重写快照（先构建）
@@ -712,7 +712,7 @@ omne-contract-api --baseline <区块文件>    # 逐成员从登记的提交比�
 
 - 改了契约成员公开面的卡，在同一个 PR 里构建并运行 `--write`，把快照的变化一起提交。`--check` 报不一致时，先判断改动是否有意。
 - 本工具改了快照格式（格式版本变了）时，全部快照要重新生成。
-- 谁写首份快照、格式变化时谁重新生成，规则见[里程碑内的规则](../../docs/engineering/delivery.md#破坏性契约改动)。
+- 谁写首份快照、格式变化时谁重新生成，规则见[破坏性改动](../../.meta_harness/agents/skills/omne-card/canonical/references/contract-change.md#破坏性改动)。
 
 `--diff` 的前提：
 

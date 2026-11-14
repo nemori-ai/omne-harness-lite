@@ -11,7 +11,7 @@ Development flow tools. This member is not published.
 
 ## Package scaffolding
 
-The private `omne-package-template` CLI creates drafts and inventories exact template adoption. See the [template guide](../dev-flow/templates/package/README.md) and [development entry](../../docs/development.md#创建和整改产品包). It reuses the architecture reader. Structural results do not accept business or lifecycle behavior.
+The private `omne-package-template` CLI creates drafts and inventories exact template adoption. See the [template guide](../dev-flow/templates/package/README.md). It reuses the architecture reader. Structural results do not accept business or lifecycle behavior.
 
 The package template is typescript-package@3.0.0 and creates the complete skeleton. Exact 2.0.0 and 1.0.0 rules remain available for older markers.
 `service-contract` creation and structure scan no longer require `packages/core`.

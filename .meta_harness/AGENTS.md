@@ -7,7 +7,7 @@
 本项目已采用[项目要求](../docs/requirements.md)、[系统架构](../docs/architecture/README.md)与[领域责任](../docs/domains/README.md)顶层正文。
 产品规则、统一语言、领域对象、持续研究及独有 skills 仍在本区。
 共同集成规则与采用映射归执行仓库架构区，成员精确承诺归实际拥有者；[保留技术源入口](design/architecture/README.md)定位尚未承接的专题、完整Session候选和PF详细技术。
-本项目架构以docs已接受正文为准；旧技术材料按[准入规则](../docs/engineering/documentation.md#位置与唯一源)筛选，冲突设计不取得规范效力。顶层接受不表示材料已迁移、实现或验证。
+本项目架构以docs已接受正文为准；旧技术材料按[知识放哪](../AGENTS.md#知识放哪)筛选，冲突设计不取得规范效力。顶层接受不表示材料已迁移、实现或验证。
 
 ## 怎样看待这个工作区
 
@@ -38,7 +38,6 @@ fiber、plugin、service、inject 的方式集成装配；它不是建模的视�
 组合须解释正常、失败及撤除后的责任交接。推理沿 `harness-design-handbook` skill 展开。
 
 新维护单元从[系统架构入口](../docs/architecture/README.md)定位责任，使用执行仓库模板。
-[两层成员文档](../docs/member-documentation.md)区分包群工程关系与成员使用、行为、内部设计和维护。
 公开类型、完整行为契约、必要理由和验证资源归实际成员，不另建中央模块规格或节点四件套。
 SPEC避免重复形状，不能删去必要条件、失败、生命周期或验证义务，也不限制完整成员文档。
 
@@ -73,7 +72,7 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
   optional 而消失；有限检查不写成无条件证明。
 - **修改 skills 的源，再由工具生成** `.agents/`、`.claude/`、`.codex/`、`.cursor/`；不手改生成物。
   生成、宿主加载、项目根接入和对外发布是不同动作，**编译不扩张授权**。
-- **这里的文档写作与修订加载 pqw `clear-writing`，规则归[文档写作规则](../docs/engineering/documentation.md#文档写作规则)。**这包括产品、设计、规格、研究和 agent 正文；涉及语义变更时仍走材料所属的接受入口。
+- **这里的文档写作与修订加载 pqw `clear-writing`。**这包括产品、设计、规格、研究和 agent 正文；涉及语义变更时仍走材料所属的接受入口。
 
 ## 按当前任务展开
 
@@ -87,12 +86,12 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
 | 已有契约、映射或证据发生变化 | 执行仓库的文档治理与维护入口：定位拥有者与受影响消费者，只展开变化涉及的范围 |
 | 知识该落哪里、怎样建 topic | [design/AGENTS.md](design/AGENTS.md) 的准入四步，再读目标目录 README；**不要求每项需求创建所有目录** |
 | 已有架构或规格待审稿 | 派只读子代理，带 `harness-design-handbook` 本次那一种判断的评审判据页；给出对象/版本、依据与范围，意见不代替接受 |
-| 派发或接手实现 | 研发流程走 pqw；每条流程事实的拥有者见[流程事实在哪](../docs/engineering/README.md#流程事实在哪) |
-| 几种做法都成立，要选方向 | [三层分工](../docs/engineering/skills.md#三层分工)；[研发品味](agents/roles/engineering-taste.md)拥有[维度分解与正交](agents/roles/engineering-taste.md#维度分解与正交)这一判断方法 |
+| 派发或接手实现 | 研发流程走 pqw；每条流程事实的拥有者见[研发流程](../AGENTS.md#研发流程) |
+| 几种做法都成立，要选方向 | [来源与采用](tooling/README.md#来源与采用)；[研发品味](agents/roles/engineering-taste.md)拥有[维度分解与正交](agents/roles/engineering-taste.md#维度分解与正交)这一判断方法 |
 | 维护 skill 源、编译或链接 | [agents 源约定](agents/README.md)与 [tooling](tooling/README.md)：**检查不等于安装** |
-| 隔离任务、协作或清理工作树 | 见[流程事实在哪](../docs/engineering/README.md#流程事实在哪) |
+| 隔离任务、协作或清理工作树 | 见[研发流程](../AGENTS.md#研发流程) |
 | 重写常驻指令或继承范围 | 加载 pqw `write-agents-md`：先确认权威拥有者，再调整这里的投影 |
-| 新建或修订本工作区文档 | 加载 pqw `clear-writing`，规则见[文档写作规则](../docs/engineering/documentation.md#文档写作规则)；写作规范不替代该材料所属的方法与接受流程 |
+| 新建或修订本工作区文档 | 加载 pqw `clear-writing`；写作规范不替代该材料所属的方法与接受流程 |
 
 普通局部改动沿已有契约与相关检查完成；**出现新的责任边界、保证或失效前提才展开设计**。
 按当前问题逐层读取，信息足够就停，不把渐进披露变成通读全部 references。

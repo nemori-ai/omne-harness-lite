@@ -151,7 +151,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 ## 验收的覆盖声明
 
 `src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`pnpm run check` 的常驻步骤之一），有违反即退出 1。
-规矩正文在[源码布局「可执行验收」](../../docs/workspace.md#目录与内容归属)：覆盖声明只表示程序声明覆盖相应场景，须能核对来源与编号。
+覆盖声明只表示程序声明覆盖相应场景，须能核对来源与编号。
 实际执行、结果和有效接受分别验证。它找出 `acceptanceLock` 配置的成员根下每个 `acceptance/**/*.acceptance.ts`（`node_modules`、`dist` 不进），逐份查：
 
 | 报出（规则 `acceptance-covers`）                                            | 说明                                                                                                                                          |
@@ -263,7 +263,7 @@ pnpm --filter @omne-harness/product-checks run retire -- --wave B
 
 ## 测试临时目录的物理路径
 
-`test-temp-physical-path` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，来源是 Issue #560 C5 与[验证说明「包级测试责任与边界」](../../docs/verification.md#包级测试责任与边界)。约定与原因归验证说明，本节只说明规则查什么。
+`test-temp-physical-path` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，来源是 Issue #560 C5 与[质量论证「包级测试责任与边界」](../../docs/architecture/assurance.md#包级测试责任与边界)。约定与原因归质量论证，本节只说明规则查什么。
 
 - 扫描范围：`packages/`、`apps/`、`tools/` 下的测试与夹具。文件类型是 `.ts`、`.mts`、`.cts`、`.js`、`.mjs`、`.cjs`。路径含 `/tests/` 的文件都扫。路径不含 `/tests/` 时，只扫文件名是 `*.spec.*` 或 `*.test.*` 的文件，例如 `*.test.mjs`。JS 文件按 JS 语法解析。
 - 报出：`mkdtempSync` 或 `mkdtemp` 的第一个实参来自系统临时目录，而建出的目录没有取物理路径。来自系统临时目录指实参里有 `tmpdir()` 或 `process.env.TMPDIR`，可经 `join`、`resolve` 等调用、模板字符串、`+`、`??`、`||`、本文件的局部常量。具名导入改名、`fs.`／`os.` 成员调用都认。

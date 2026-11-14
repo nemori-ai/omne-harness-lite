@@ -2,7 +2,7 @@
 
 本指南面向开发者与 coding agents，说明怎样把问题、设计或实现整理成可审阅的变更。
 项目处于设计与实验阶段；项目方向见 [README](README.md)，工作约定见
-[AGENTS.md](AGENTS.md)，环境和操作入口见[开发指南](docs/development.md)。
+[AGENTS.md](AGENTS.md)，环境和操作入口见[开始工作](#开始工作)。
 
 ## 目录
 
@@ -27,7 +27,7 @@
 | 变更类型 | 从哪里推进 |
 |---|---|
 | 已有规则内的文字、链接、工具修复或实现修正 | 定位内容所有者或精确契约，在任务范围内修改并做相称验证；不要求另造提案或决定 |
-| 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 沿[任务地图](docs/context-map.md)定位要求、架构、领域或产品拥有者；必要政策未明确时，只暂停依赖它的实施 |
+| 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 定位要求、架构、领域或产品拥有者；必要政策未明确时，只暂停依赖它的实施 |
 | 新观察挑战已有决定 | 定位现行承诺与范围，在任务 tmp 提供反例和比较；当前正文经明确接受后修订，观察不自动改变承诺 |
 | 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；同步公开类型、必要行为契约、模型及真实消费者，不保留被取代源 |
 | 衔接能力规格、提供者设计与实施交接 | 按根入口的[知识放哪](AGENTS.md#知识放哪)定位当前承诺，按[就绪范围](docs/architecture/assurance.md#区分四层就绪状态)明确就绪范围，并同步受影响消费者与未完成义务 |
@@ -110,7 +110,7 @@ skills 变更一并交付 canonical 源、宿主适配与生成产物，运行 `
 
 使用 AI 辅助不改变权责归属。指导和调用工具的人对最终内容、事实来源和验证声明负责，生成成功不等于验证。
 
-工作和临时分支名以负责人的 git username 开头，例如 `panqiwei/meta-harness`。共享的 `main`、`integration/<track>` 和 `stable` 使用[集成规则](docs/engineering/integration.md)规定的名称。不用 `harness/`、`codex/`、`claude/`、`kimi/`、`cursor/` 或 `deepseek/` 这类工具或 agent 前缀。
+工作和临时分支名以负责人的 git username 开头，例如 `panqiwei/meta-harness`。共享的 `main`、`integration/<track>` 和 `stable` 使用[进轨道](.meta_harness/agents/skills/omne-card/canonical/SKILL.md#进轨道)规定的名称。不用 `harness/`、`codex/`、`claude/`、`kimi/`、`cursor/` 或 `deepseek/` 这类工具或 agent 前缀。
 
 commit 的 author 与 committer 只有实际负责的人。commit、PR 标题和描述不写 `Co-Authored-By: Claude`、`Generated with <agent>` 等作者式工具署名；宿主自动附加的同类提示也不采用。agent 参与产出的提交在信息末尾带两条来源 trailer：
 
@@ -212,7 +212,6 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
   函数移动须按同一身份/迁移映射匹配，匹配不明标未知。
 
 指标下降或静态符合不代替行为保持；重构说明相关不变式、消费者迁移和成本是否转移。
-使用模板、准备正文和实际 PR 预览的操作见[开发指南](docs/development.md#准备提交与-pr)。
 
 ## 评审与接受
 
@@ -225,14 +224,14 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
 中的关键跨能力交接加载 `harness-design-handbook`，按[消费者视角的完整动作链](.meta_harness/agents/skills/harness-design-handbook/canonical/references/review/expression.md#消费者视角走查)核对，再沿[可观察结果反查](.meta_harness/agents/skills/harness-design-handbook/canonical/references/cordis.md#反向核对与停止)检查性质与证据范围。
 
 评审意见、设计接受、实现完成和验证通过分别记录。政策与正式规格的接受、部分
-当前采用范围归唯一承诺拥有者；正式RFC与Issue决定按[保存例外](docs/engineering/documentation.md#四类长期成果与普通任务)维护，其余接受或取代过程放工作树tmp。
+当前采用范围归唯一承诺拥有者；正式RFC与Issue决定按[知识放哪](AGENTS.md#知识放哪)维护，其余接受或取代过程放工作树tmp。
 合并、推送、发布或部署依任务授权执行，评审结论和本指南本身不授予这些动作的权限。
 
 ## 维护这份入口
 
-本页拥有贡献者交付信息与协作入口；环境操作归[开发指南](docs/development.md)，
+本页拥有贡献者交付信息与协作入口；环境操作归[开始工作](#开始工作)，
 设计知识的准入与归属归 [.meta_harness](.meta_harness/AGENTS.md)，命令实现归工具与脚本。
 调整其中一项时先修改其所有者，再同步必要入口；
 不要在多份贡献指南、PR 模板和 AGENTS.md 中复制一套会独立演化的规则。
 
-共享分支交付经 PR 进入，步骤归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)，准入的时机归[现行准入](docs/engineering/integration.md#现行准入)；结果接受与关闭归[交付与接受](docs/engineering/delivery.md#接受取消与重开)。技术运输不自动生成 Closes。
+共享分支交付经 PR 进入，步骤归 [`omne-card`](.meta_harness/agents/skills/omne-card/canonical/SKILL.md)，准入的时机归[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md)；结果接受与关闭归[决定记录](.meta_harness/agents/skills/omne-card/canonical/references/decisions.md)。技术运输不自动生成 Closes。

@@ -20,4 +20,4 @@
 
 <!-- 每个改动过的契约成员一行：- <docs/engineering/delivery-lines.json 中的成员路径>：none、additive 或 breaking。additive 写新增的导出或字段，breaking 写承接它的卡。没有改动契约成员时只写一行「无」。进入 stable 的 PR 删去本节。 -->
 
-<!-- 本地运行的检查及结果写在验证一节。发布由 gate-publish 流程在确认后完成，确认不等于交付接受。规则见 docs/engineering/integration.md 的「现行准入」。 -->
+<!-- 本地运行的检查及结果写在验证一节。发布由 gate-publish 流程在确认后完成，确认不等于交付接受。规则见 omne-card 技能的参考页「准入证据怎样取得」。 -->

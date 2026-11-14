@@ -49,7 +49,7 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 精确形状与服务键 `toolResidencyReader` 归 [tool-cordis-contract](../../../packages/tool/SPEC.md#装载登记与换代)。
 
-Tool 契约不导入 Session 契约（规则见[依赖方向与 Cordis 集成](../../package-organization.md#依赖方向与cordis集成)，机读约束 `DIR-TOOL-SESSION` 见 [constraints](../constraints.json)），Session 也不实现 Tool 的端口。所以 `toolResidencyReader` 由应用装配提供。应用成员的桥接插件以调用方类 `maintainer` 调用 Session 的公开操作 [`references`](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)，并出示装配入口签发的系统主体，作为系统作用域的读取资格。桥接插件把每个引用会话投影为一个持有者引用。`references` 的任何失败都交为 `unavailable`，不交空页。桥接插件的行归[应用装配的插件树](application-assembly.md#插件树)，它使用的运行时对象归[应用装配的运行时对象](application-assembly.md#运行时对象)。
+Tool 契约不导入 Session 契约（规则见[依赖方向与 Cordis 集成](../layers-and-dependencies.md#依赖方向与cordis集成)，机读约束 `DIR-TOOL-SESSION` 见 [constraints](../constraints.json)），Session 也不实现 Tool 的端口。所以 `toolResidencyReader` 由应用装配提供。应用成员的桥接插件以调用方类 `maintainer` 调用 Session 的公开操作 [`references`](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)，并出示装配入口签发的系统主体，作为系统作用域的读取资格。桥接插件把每个引用会话投影为一个持有者引用。`references` 的任何失败都交为 `unavailable`，不交空页。桥接插件的行归[应用装配的插件树](application-assembly.md#插件树)，它使用的运行时对象归[应用装配的运行时对象](application-assembly.md#运行时对象)。
 
 两种情形下协调者都不撤除贡献：
 

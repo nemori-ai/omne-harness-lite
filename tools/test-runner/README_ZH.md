@@ -142,7 +142,7 @@ vitest 升级后新增或改动布尔选项，表没跟上，这两条就失败�
 或者 `include` 指到成员目录外的归档目录，或者 `typecheck` 不是 `tsc -p <配置>` 形式而成员里有归档目录，就点名报错，不运行类型检查。
 `FULL=1` 或 `--full` 直接给全量计划。算不出计划——基线不存在、取不到改动、规则点名的成员不存在、turbo 出错、成员目录下有不合规则的 `turbo.json`——就报错退出，不改判全量。
 成员目录下的 `turbo.json`（`src/testing/member-turbo.ts`）：`apps/*` 之外的一律拒绝；`apps/*` 的由 `turbo run <根任务…> --dry=json` 取合成后的定义，
-按[开发指南](../../docs/development.md#迭代中的受影响测试)的七条暂行规则核对——`extends` 只能是 `["//"]`，只覆盖根已定义的任务，`dependsOn` 与 `env` 只增不减，
+按七条暂行规则核对——`extends` 只能是 `["//"]`，只覆盖根已定义的任务，`dependsOn` 与 `env` 只增不减，
 测试任务不缓存，`outputs`、`inputs` 不指到成员目录外，不设 `persistent`。`passThroughEnv` 只放不影响结果的变量，这一条机器判不了，留给评审。
 计划与不经计划的测试运行（`run --all`）都做这项核对。
 turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基线显式传入、`OMNE_ADMISSION=1` 时只写不读缓存、关闭遥测与升级提示）在 `src/testing/turbo.ts`。
@@ -215,7 +215,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 `pnpm run check` 在起任何步骤之前算一次预算，经环境变量 `OMNE_WORKER_BUDGET` 交给各重步骤；单独运行一步时该步自己算。
 预算按 `test-runs.config.json` 的 `parallel` 策略分：同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。
 构建与类型检查的 turbo 并发、vitest 的工作进程数直接取预算（tsc 的进程占一个核）。
-策略只含比例与上下限，不含任何一台机器的核数。初值 3、4、8、2 的依据（`docs/verification.md` 要求写明负载、平台与超限行为）：负载是全量 73 个成员，平台是一台 24 核 Windows 宿主，当时预算按核数乘空闲率算，是 19。扫描的结论：
+策略只含比例与上下限，不含任何一台机器的核数。初值 3、4、8、2 的依据（`docs/architecture/assurance.md` 要求写明负载、平台与超限行为）：负载是全量 73 个成员，平台是一台 24 核 Windows 宿主，当时预算按核数乘空闲率算，是 19。扫描的结论：
 快层的墙钟 ≈ 各成员 vitest 启动与收集之和 ÷ 同时成员数，到 6 至 8 个成员时碰到 CPU 平台期（91 秒降到 39 至 41 秒），再多只让起子进程的用例贴线；
 慢层的下限是起子进程最多的成员（repo-toolchain，28 个慢文件）：它的文件互相挤，每成员 8 个进程比 5 个只快十几秒而文件耗时总和翻倍，所以每成员进程数的除数取 4。
 这组比例是在预算 19 上扫出来的，按份数分池子之后没有重扫：24 核上现在推出 4 × 3，8 核上推出 2 × 2（预算 3，两个数都落在下限上）。之前 8 核上量到的固定配置 2 × 4 与 4 × 2 只差约 1 分钟。超限的表现是起子进程的用例贴近时限，账本的 `nearTimeout` 列出它们。
@@ -269,7 +269,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 
 ## 准入：运行记录、接续与证据核对
 
-规则归[集成规则](../../docs/engineering/integration.md#检查责任)的「增量准入」与「树相同时复用准入」两节；这里是执行它们的工具。三样东西：每次 `check` 写的运行记录、`check --resume-from <H1>` 与 `admission-evidence --for <F>`。准入开始时的环境自检与自愈、预检入口与成员测试的定向重跑归 [scripts/README.md](../../scripts/README.md#环境自检与自愈)，这里只写它们在记录里的形状。
+规则归[准入证据怎样取得](../../.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md)的「增量准入」与「树相同时复用准入」两节；这里是执行它们的工具。三样东西：每次 `check` 写的运行记录、`check --resume-from <H1>` 与 `admission-evidence --for <F>`。准入开始时的环境自检与自愈、预检入口与成员测试的定向重跑归 [scripts/README.md](../../scripts/README.md#环境自检与自愈)，这里只写它们在记录里的形状。
 
 **运行记录**（`src/testing/admission-run.ts`，schemaVersion 1，`kind: admission-run`）。JSON 记录的形状归本节，文本准入日志的格式归 [scripts/README.md](../../scripts/README.md) 的准入日志一段。每次 `check` 结束时写一份 JSON，在本头的目录里是 `tmp/check-run/<head 短号>/run.json`；准入运行另在准入日志旁边写一份同名的 `.json`（`tmp/admission/<时间>-<head 短号>.json`），与日志是同一份事实的两种写法：人读日志，工具读记录。栏目：
 
