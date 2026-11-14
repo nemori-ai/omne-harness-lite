@@ -56,7 +56,7 @@
 
 提供者的限频摘要行写到 stderr，带 `serve: ` 前缀。摘要不是记录，从不进 stdout。`stderr` 出口下，记录行与摘要行在 stderr 上交错；按前缀区分，带前缀的行不是 JSON。
 
-下图是记录从发射行到出口的路径。日志桥的状态图见 telemetry-node 的[日志桥状态](../../../../packages/telemetry/telemetry-node/docs/flows.md#日志桥三态)。
+下图是记录从发射行到出口的路径。日志桥的状态见遥测规格的[Cordis 装配与日志桥](../../../../packages/telemetry/SPEC.md#cordis-装配与日志桥)。
 
 ```mermaid
 flowchart LR

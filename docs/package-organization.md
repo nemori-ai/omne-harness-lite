@@ -187,7 +187,7 @@ scripts/                       仓库自动化
 
 标「未建」的叶子是 [RFC-0015](rfcs/RFC-0015-access-dynamic-registration.md) 接受的落点，成员还没有建。它们在交付时用包模板生成，建好之后去掉这个标记。`access` 组三个现有成员的职责按上面的写法改变，现有实现与它的差别见[系统分层的现行偏离](architecture/layers-and-dependencies.md#现行偏离)。`apps/m2-contract-skeleton` 按同一份提案退役，随接入插件那一程删除。
 
-telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，依据 [RFC-0013 revision 2](rfcs/RFC-0013-engineering-telemetry.md)，职责见[组入口](../packages/telemetry/README.md)。
+telemetry 的已采用成员为 `telemetry-contract`、`telemetry-cordis-contract`、`telemetry-node`，依据 [RFC-0013 revision 2](rfcs/RFC-0013-engineering-telemetry.md)，职责见[遥测规格](../packages/telemetry/SPEC.md#总体架构)。
 
 同一能力组内可以增加具名提供者或独立适配成员，前提是包边界有依据。单成员组仍提供稳定知识位置，不为目录对称增加转发层。time、telemetry和common须有实际共同语义及消费者，不能成为收纳未归属代码的目录。`util` 只放纯文本格式化。`unix-format` 和 `xml-format` 从封存的 [packages.0.0.1.legacy/util](https://github.com/nemori-ai/omne-harness-lite/tree/250d074a88223b7f7dced248ba08ca0160485f31/packages.0.0.1.legacy/util) 迁入，输出由迁来的测试锁定。它们不进入 `common`，因为还没有两个已确认的共同消费者。
 
